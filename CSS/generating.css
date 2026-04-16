@@ -1,0 +1,129 @@
+/* ═══════════════════════════════════════════════════════════
+   GENERATING.CSS — גיבורים קטנים
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── MAIN ────────────────────────────────────────────────── */
+.gen-main {
+  min-height: calc(100vh - var(--nav-h));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gen-content {
+  width: 100%;
+  max-width: 760px;
+  padding: 60px 32px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+/* ── HEADLINE ────────────────────────────────────────────── */
+.gen-headline {
+  font-family: var(--fd);
+  font-size: clamp(24px, 3.8vw, 42px);
+  font-weight: 800;
+  color: var(--dark);
+  line-height: 1.3;
+  margin-bottom: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.gen-sparkle {
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+.gen-bold {
+  font-weight: 900;
+}
+
+@keyframes sparkle {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50%       { transform: scale(1.2) rotate(10deg); }
+}
+
+/* ── PERCENTAGE ──────────────────────────────────────────── */
+.gen-pct {
+  font-family: var(--fd);
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--purple);
+  margin-bottom: 14px;
+  letter-spacing: 0.01em;
+  min-height: 36px;
+  animation: none;
+}
+
+/* ── PROGRESS BAR ────────────────────────────────────────── */
+.gen-bar-track {
+  width: 100%;
+  height: 6px;
+  background: #e5e1f5;
+  border-radius: 99px;
+  /* RTL: fill appears from right. We flip the fill via direction */
+  direction: rtl;
+  margin-bottom: 16px;
+}
+
+.gen-bar-fill {
+  height: 100%;
+  background: linear-gradient(to left, var(--purple-d), var(--purple));
+  border-radius: 99px;
+  transition: width 1.6s cubic-bezier(0.4, 0, 0.2, 1);
+  direction: ltr; /* fill element stays LTR width calculation */
+}
+
+/* ── STEP LABELS ─────────────────────────────────────────── */
+.gen-steps {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  direction: rtl;
+  margin-bottom: 28px;
+}
+
+.gen-step {
+  font-size: 13px;
+  color: var(--soft);
+  font-weight: 500;
+  transition: color 0.4s, font-weight 0.3s;
+  white-space: nowrap;
+}
+
+.gen-step.active {
+  color: var(--purple);
+  font-weight: 700;
+}
+
+.gen-step.done {
+  color: var(--mid);
+}
+
+/* ── STATUS TEXT ─────────────────────────────────────────── */
+.gen-status-text {
+  font-family: var(--fd);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--purple);
+  min-height: 28px;
+  animation: fadeUp 0.5s ease;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── RESPONSIVE ──────────────────────────────────────────── */
+@media (max-width: 500px) {
+  .gen-content   { padding: 40px 16px; }
+  .gen-step      { font-size: 10px; }
+  .gen-headline  { font-size: 22px; }
+}

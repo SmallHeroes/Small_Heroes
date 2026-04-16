@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>גיבורים קטנים – יצירת ספר</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="../CSS/main.css" />
+  <link rel="stylesheet" href="../CSS/wizard.css" />
+</head>
+
+<body class="wizard-body">
+
+  <nav class="navbar">
+    <div class="wrap">
+      <a class="logo" href="index.html">
+        <div class="logo-icon">
+          <div class="logo-icon-sq"></div>
+          <div class="logo-icon-dot"></div>
+        </div>
+        <div class="logo-text">
+          <span class="logo-brand">גיבורים קטנים</span>
+          <span class="logo-tagline">סיפורי חוסן לילדים</span>
+        </div>
+      </a>
+      <button class="nav-cta" onclick="location.href='index.html'">אני רוצה לנסות</button>
+    </div>
+  </nav>
+
+  <div id="progress-wrap">
+    <div class="progress-card">
+      <span class="progress-label" id="progress-label">שלב 1 מתוך 9</span>
+      <div class="progress-pills" id="progress-pills"></div>
+    </div>
+  </div>
+
+  <main class="wizard-main">
+
+    <div class="step active" id="step-1">
+      <div class="s1-inner">
+        <img class="s1-book-img" src="../Images/MagicBook.png" alt="ספר קסום"
+          onerror="this.style.fontSize='110px';this.style.lineHeight='1';this.outerHTML='<div style=\'font-size:110px;line-height:1;margin-bottom:36px;filter:drop-shadow(0 10px 28px rgba(136,108,255,0.20));animation:float 3.8s ease-in-out infinite\'>📖</div>'" />
+        <h1 class="step-title">בואו ניצור ספר מיוחד<br>לילד שלכם</h1>
+        <p class="step-sub">זה ייקח רק 2–3 דקות</p>
+        <button class="btn-start" onclick="goNext()">מתחילים</button>
+      </div>
+    </div>
+
+    <div class="step" id="step-2">
+      <h2 class="step-title">איזה סיפור נרצה ליצור היום?</h2>
+      <p class="step-sub">בחרו את הנושא שהכי קרוב למה שעובר עליו עכשיו</p>
+      <div style="height:30px;"></div>
+      <div class="chips-wrap" id="topic-chips"></div>
+    </div>
+
+    <div class="step" id="step-3">
+      <h2 class="step-title">מי הגיבור של הסיפור?</h2>
+      <p class="step-sub step-sub--tight">זה עוזר לנו ליצור סיפור שמרגיש בדיוק כמו הילד שלכם</p>
+
+      <div class="s3-card">
+        <div class="form-side">
+          <div class="form-group">
+            <label class="form-label">איך קוראים לו?</label>
+            <input class="form-input" id="child-name" type="text" placeholder="" maxlength="30" autocomplete="off" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">גיל</label>
+              <div class="select-wrap">
+                <select class="form-select" id="child-age">
+                  <option value=""></option>
+                  <option>2</option>
+                  <option>3</option>
+                  <option>4</option>
+                  <option>5</option>
+                  <option>6</option>
+                  <option>7</option>
+                  <option>8</option>
+                  <option>9</option>
+                  <option>10</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">מין</label>
+              <div class="select-wrap">
+                <select class="form-select" id="child-gender">
+                  <option value=""></option>
+                  <option value="boy">בן</option>
+                  <option value="girl">בת</option>
+                  <option value="other">אחר</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group form-group--traits">
+            <label class="form-label">איזה ילד הוא?</label>
+            <span class="form-label-note">אפשר לבחור יותר מתשובה אחת</span>
+            <div class="trait-chips-wrap" id="trait-chips"></div>
+          </div>
+        </div>
+
+        <div class="photo-side">
+          <div class="photo-upload-area" id="photo-area" onclick="document.getElementById('photo-input').click()">
+            <div class="photo-plus">+</div>
+            <div class="photo-txt">
+              <span>רוצים להוסיף תמונה?</span>
+              <small>(לא חובה)</small>
+            </div>
+          </div>
+          <input type="file" id="photo-input" accept="image/*" onchange="handlePhoto(event)" />
+        </div>
+      </div>
+    </div>
+
+    <div class="step" id="step-4">
+      <h2 class="step-title">מה קצת קשה לו לאחרונה?</h2>
+      <p class="step-sub">בחרו את מה שהכי קרוב למה שהוא חווה עכשיו</p>
+      <p class="step-sub2">(אפשר לבחור יותר מתשובה אחת)</p>
+      <div class="chips-wrap">
+        <div class="chip" onclick="toggleChip(this,'difficulties')">🐳 נבהל מרעשים או דברים פתאומיים</div>
+        <div class="chip" onclick="toggleChip(this,'difficulties')">😴 מתקשה להירגע</div>
+        <div class="chip" onclick="toggleChip(this,'difficulties')">🌙 מפחד להירדם / לישון לבד</div>
+        <div class="chip" onclick="toggleChip(this,'difficulties')">😊 נצמד אלינו יותר מהרגיל</div>
+        <div class="chip" onclick="toggleChip(this,'difficulties')">❓ שואל הרבה שאלות מדאגה</div>
+        <div class="chip" onclick="toggleChip(this,'difficulties')">🐹 נהיה שקט או סגור</div>
+        <div class="chip" onclick="toggleChip(this,'difficulties')">😟 מתעצבן יותר מהרגיל</div>
+        <div class="chip" onclick="toggleChip(this,'difficulties')">✏️ אחר</div>
+      </div>
+      <div class="textarea-section">
+        <label class="textarea-label">יש משהו נוסף שחשוב שנדע עליו?</label>
+        <textarea class="wiz-textarea" id="s4-extra" placeholder="כתוב כאן..."></textarea>
+      </div>
+    </div>
+
+    <div class="step" id="step-5">
+      <h2 class="step-title">מה היית רוצה שישתנה?</h2>
+      <p class="step-sub">בחרו את מה שהייתם רוצים לראות קורה</p>
+      <p class="step-sub2">(אפשר לבחור יותר מתשובה אחת)</p>
+      <div class="chips-wrap">
+        <div class="chip" onclick="toggleChip(this,'goals')">🐻 נרגע בקלות</div>
+        <div class="chip" onclick="toggleChip(this,'goals')">🛡️ מרגיש בטוח יותר</div>
+        <div class="chip" onclick="toggleChip(this,'goals')">🌙 נרדם בשקט</div>
+        <div class="chip" onclick="toggleChip(this,'goals')">🐻 משחק ונהנה</div>
+        <div class="chip" onclick="toggleChip(this,'goals')">💪 מתמודד טוב יותר</div>
+        <div class="chip" onclick="toggleChip(this,'goals')">✨ שואל מתוך סקרנות</div>
+        <div class="chip" onclick="toggleChip(this,'goals')">🌟 מרגיש רגוע גם לבד</div>
+        <div class="chip" onclick="toggleChip(this,'goals')">💛 פחות נצמד אלינו</div>
+        <div class="chip" onclick="toggleChip(this,'goals')">✏️ אחר</div>
+      </div>
+    </div>
+
+    <div class="step" id="step-6">
+      <h2 class="step-title">מה עוזר לו להרגיש טוב יותר?</h2>
+      <p class="step-sub">נשלב את הדברים האלה בתוך הסיפור כדי לעזור לו להתמודד</p>
+      <p class="step-sub2">(אפשר לבחור יותר מתשובה אחת)</p>
+      <div class="chips-wrap">
+        <div class="chip" onclick="toggleChip(this,'helpers')">🤗 חיבוק</div>
+        <div class="chip" onclick="toggleChip(this,'helpers')">😸 אמא</div>
+        <div class="chip" onclick="toggleChip(this,'helpers')">😸 אבא</div>
+        <div class="chip" onclick="toggleChip(this,'helpers')">🐻 בובה / חפץ אהוב</div>
+        <div class="chip" onclick="toggleChip(this,'helpers')">🌙 אור קטן בלילה</div>
+        <div class="chip" onclick="toggleChip(this,'helpers')">🎵 שיר או מוזיקה</div>
+        <div class="chip" onclick="toggleChip(this,'helpers')">👆 לדבר על זה</div>
+        <div class="chip" onclick="toggleChip(this,'helpers')">🎮 משחק או פעילות</div>
+        <div class="chip" onclick="toggleChip(this,'helpers')">🌿 זמן שקט לבד</div>
+        <div class="chip" onclick="toggleChip(this,'helpers')">✏️ אחר</div>
+      </div>
+      <div class="textarea-section">
+        <label class="textarea-label">יש משהו נוסף שעוזר לו?</label>
+        <textarea class="wiz-textarea" id="s6-extra" placeholder="כתוב כאן..."></textarea>
+      </div>
+    </div>
+
+    <div class="step" id="step-7">
+      <h2 class="step-title">יש משהו שנעדיף לא להכניס לסיפור?</h2>
+      <p class="step-sub">אנחנו נוודא שהסיפור יישאר נעים, בטוח ומותאם בדיוק עבורו</p>
+      <p class="step-sub2">(אפשר לבחור יותר מתשובה אחת)</p>
+      <div class="chips-wrap">
+        <div class="chip" onclick="toggleChip(this,'avoid')">⚫ חושך</div>
+        <div class="chip" onclick="toggleChip(this,'avoid')">💪 רעשים חזקים</div>
+        <div class="chip" onclick="toggleChip(this,'avoid')">😨 דמויות מפחידות</div>
+        <div class="chip" onclick="toggleChip(this,'avoid')">💥 אזכורים של מלחמה</div>
+        <div class="chip" onclick="toggleChip(this,'avoid')">😢 עצב או בכי</div>
+        <div class="chip" onclick="toggleChip(this,'avoid')">⚡ מצבים מלחיצים</div>
+        <div class="chip" onclick="toggleChip(this,'avoid')">💧 מילים קשות</div>
+        <div class="chip" onclick="toggleChip(this,'avoid')">👾 מפלצות / יצורים מפחידים</div>
+        <div class="chip" onclick="toggleChip(this,'avoid')">✏️ אחר</div>
+      </div>
+      <div class="textarea-section">
+        <label class="textarea-label">יש משהו נוסף שעדיף להימנע ממנו?</label>
+        <textarea class="wiz-textarea" id="s7-extra" placeholder="כתוב כאן..."></textarea>
+      </div>
+    </div>
+
+    <div class="step" id="step-8">
+      <h2 class="step-title">איך הספר ייראה ויישמע?</h2>
+      <p class="step-sub">בחרו את הסגנון והאפשרויות שמתאימות לכם</p>
+
+      <div class="s8-grid" id="s8-grid" style="margin-top:32px;">
+        <div class="s8-card">
+          <div class="s8-card-title">כמה עמודים תרצו?</div>
+          <div class="length-btns" id="length-btns"></div>
+          <div class="style-label">סגנון איור</div>
+          <div class="style-grid" id="style-btns"></div>
+        </div>
+
+        <div class="s8-card">
+          <div class="s8-card-title" id="s8-addons-title">רוצים לשדרג את הספר?</div>
+          <div class="s8-card-sub">*בתוספת תשלום</div>
+
+          <div class="addon-row" onclick="toggleAddon('audioEnabled')">
+            <div class="addon-checkbox" id="cb-audio"></div>
+            <div class="addon-info">
+              <span class="badge-popular">הכי פופולרי</span>
+              <div class="addon-name">קריינות (+₪19)</div>
+              <div class="addon-desc">מושלם להאזנה לפני השינה</div>
+            </div>
+          </div>
+
+          <div class="addon-row" onclick="toggleAddon('pdfEnabled')">
+            <div class="addon-checkbox" id="cb-pdf"></div>
+            <div class="addon-info">
+              <span class="badge-gift">מושלם כמתנה</span>
+              <div class="addon-name">PDF (+₪12)</div>
+              <div class="addon-desc">הורידו והדפיסו את הספר כספר פיזי</div>
+            </div>
+          </div>
+
+          <div class="addon-row" onclick="toggleAddon('bundleEnabled')">
+            <div class="addon-checkbox" id="cb-bundle"></div>
+            <div class="addon-info">
+              <span class="badge-save">חסכו ₪6</span>
+              <div class="addon-name">קומבו (+₪25)</div>
+              <div class="addon-desc">קריינות + PDF</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="s8-card s8-voice-col hidden" id="s8-voice-col">
+          <div class="s8-card-title">קריינות (+₪19)</div>
+          <div class="voice-btns" id="voice-btns"></div>
+          <div class="sleep-row" onclick="toggleSleep()">
+            <div class="sleep-info">
+              <div class="sleep-name">מותאם לשינה 🌙</div>
+              <div class="sleep-desc">טון רגוע יותר, יותר הפסקות בין המילים</div>
+            </div>
+            <div class="sleep-checkbox" id="sleep-toggle"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="s8-total" id="s8-total" style="margin-top:24px;">
+        <span class="s8-total-label">סה״כ לתשלום: </span>
+        <span class="s8-total-price" id="total-price">₪49</span>
+      </div>
+    </div>
+
+    <div class="step" id="step-9">
+      <div style="text-align:center;margin-bottom:10px;">
+        <span style="font-size:28px;">✨</span>
+      </div>
+      <h2 class="step-title" style="margin-bottom:6px;">הכל מוכן</h2>
+      <p class="step-title" style="font-size:clamp(18px,2.6vw,28px);margin-bottom:20px;">בואו ניצור את הסיפור שלכם</p>
+
+      <div class="s9-quote">
+        <p id="s9-quote-text">"היה היה פעם... בר הרגיש קצת פחד בלילה..."</p>
+      </div>
+
+      <div class="s9-grid">
+        <div class="s9-card">
+          <div class="s9-card-title">פרטי ההזמנה</div>
+          <div id="order-summary"></div>
+        </div>
+
+        <div class="s9-card">
+          <div class="s9-card-title">סה״כ לתשלום</div>
+          <div id="price-breakdown"></div>
+        </div>
+
+        <div class="s9-card">
+          <div class="s9-card-title">פרטים להזמנה</div>
+          <div class="contact-form">
+            <div class="form-group">
+              <label class="form-label">שם מלא</label>
+              <input class="form-input" id="contact-name" type="text" placeholder="" autocomplete="name" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">אימייל</label>
+              <input class="form-input" id="contact-email" type="email" placeholder="" autocomplete="email" />
+            </div>
+            <button class="contact-btn" id="btn-pay" onclick="goNext()">המשך לתשלום מאובטח</button>
+            <div class="payment-logos">VISA · MasterCard</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <div class="bottom-bar hidden" id="bottom-bar">
+    <button class="btn-continue" id="btn-continue" onclick="goNext()">ממשיכים</button>
+  </div>
+
+  <script src="../JS/wizard.js"></script>
+</body>
+
+</html>

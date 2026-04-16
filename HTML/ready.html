@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>גיבורים קטנים — הסיפור שלכם מוכן!</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../CSS/main.css" />
+  <link rel="stylesheet" href="../CSS/ready.css" />
+</head>
+<body>
+
+  <!-- ── NAVBAR ─────────────────────────────────────────────── -->
+  <header class="navbar">
+    <div class="wrap">
+      <a href="index.html" class="logo">
+        <div class="logo-icon">
+          <div class="logo-icon-sq"></div>
+          <div class="logo-icon-dot"></div>
+        </div>
+        <div class="logo-text">
+          <span class="logo-brand">גיבורים קטנים</span>
+          <span class="logo-tagline">סיפורי חוסן לילדים</span>
+        </div>
+      </a>
+      <a href="index.html" class="nav-cta">אני רוצה לנסות</a>
+    </div>
+  </header>
+
+  <!-- ── MAIN ───────────────────────────────────────────────── -->
+  <main class="ready-main">
+    <div class="ready-content">
+
+      <h1 class="ready-headline">
+        <span class="ready-sparkle">✨</span>
+        הסיפור שלכם מוכן!
+        <span>🎉</span>
+      </h1>
+
+      <div class="ready-actions">
+        <a href="#" class="btn-primary ready-download" onclick="handleDownload(event)">הורדה למייל</a>
+        <a href="#" class="btn-outline ready-preview" onclick="handlePreview(event)">צפה עכשיו</a>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    function handleDownload(e) {
+      e.preventDefault();
+      const orderId = new URLSearchParams(location.search).get('orderId') || 'demo';
+      alert('הורדת הספר תתחיל בקרוב!\nOrder ID: ' + orderId);
+    }
+    function handlePreview(e) {
+      e.preventDefault();
+      alert('תצוגה מקדימה תיפתח בקרוב');
+    }
+  </script>
+
+</body>
+</html>

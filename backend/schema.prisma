@@ -1,0 +1,245 @@
+// Prisma Schema — גיבורים קטנים
+// Run: npx prisma generate && npx prisma migrate dev
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────
+enum OrderStatus {
+  draft
+  pending_payment
+  paid
+  generating
+  ready
+  failed
+  partial // story+images ready but audio failed
+}
+
+enum GenerationStatus {
+  pending
+  running
+  done
+  failed
+}
+
+enum StoryLength {
+  short   // 10 pages
+  medium  // 15 pages
+  long    // 20 pages
+}
+
+enum IllustrationStyle {
+  soft
+  disney
+  classic
+  watercolor
+}
+
+// ─── Customer ─────────────────────────────────────────
+model Customer {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders Order[]
+}
+
+// ─── WizardSession ────────────────────────────────────
+// Stores raw wizard input before order creation
+model WizardSession {
+  id        String   @id @default(cuid())
+  sessionId String   @unique  // browser session ID
+  data      Json                // full wizard state blob
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order Order?
+}
+
+// ─── Order ────────────────────────────────────────────
+model Order {
+  id              String      @id @default(cuid())
+  status          OrderStatus @default(draft)
+
+  // Customer
+  customerId      String?
+  customer        Customer?   @relation(fields: [customerId], references: [id])
+  customerEmail   String
+  customerName    String
+
+  // Child / story config
+  childName       String
+  childAge        Int?
+  childGender     String?
+  childTraits     String[]
+  childImageUrl   String?
+
+  // Story parameters
+  topic           String
+  challengeItems  String[]
+  challengeFree   String?
+  outcomeItems    String[]
+  outcomeFree     String?
+  helperItems     String[]
+  helperFree      String?
+  avoidItems      String[]
+  avoidFree       String?
+
+  // Product configuration
+  storyLength        StoryLength       @default(medium)
+  illustrationStyle  IllustrationStyle @default(soft)
+  audioEnabled       Boolean           @default(false)
+  selectedVoice      String?
+  sleepMode          Boolean           @default(false)
+  pdfEnabled         Boolean           @default(false)
+  bundleEnabled      Boolean           @default(false)
+
+  // Pricing
+  basePrice          Int   // in agorot (ILS cents)
+  addonsPrice        Int
+  totalPrice         Int
+
+  // Stripe
+  stripeSessionId    String?  @unique
+  stripePaymentId    String?
+  stripePaid         Boolean  @default(false)
+  stripeMetadata     Json?
+
+  // Generation tracking
+  textStatus         GenerationStatus @default(pending)
+  imageStatus        GenerationStatus @default(pending)
+  audioStatus        GenerationStatus @default(pending)
+  packageStatus      GenerationStatus @default(pending)
+
+  // Error tracking
+  lastError          String?
+  errorAt            DateTime?
+
+  // Relations
+  wizardSessionId    String?      @unique
+  wizardSession      WizardSession? @relation(fields: [wizardSessionId], references: [id])
+  book               GeneratedBook?
+  payment            PaymentRecord?
+  generationJob      GenerationJob?
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+// ─── GeneratedBook ────────────────────────────────────
+model GeneratedBook {
+  id          String   @id @default(cuid())
+  orderId     String   @unique
+  order       Order    @relation(fields: [orderId], references: [id])
+
+  title       String
+  coverText   String?
+  pages       BookPage[]
+
+  audioAsset  AudioAsset?
+  pdfUrl      String?
+
+  readUrl     String?   // public read link
+  expiresAt   DateTime? // if links expire
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── BookPage ─────────────────────────────────────────
+model BookPage {
+  id          String        @id @default(cuid())
+  bookId      String
+  book        GeneratedBook @relation(fields: [bookId], references: [id])
+
+  pageNumber  Int
+  text        String        @db.Text
+  imageAsset  ImageAsset?
+
+  // narration text (may differ from display text — sleep mode pacing etc)
+  narrationText String?     @db.Text
+
+  createdAt   DateTime @default(now())
+}
+
+// ─── ImageAsset ───────────────────────────────────────
+model ImageAsset {
+  id          String    @id @default(cuid())
+  pageId      String    @unique
+  page        BookPage  @relation(fields: [pageId], references: [id])
+
+  provider    String    // "dall-e-3" | "replicate" | "stability"
+  prompt      String    @db.Text
+  url         String    // stored URL (after saving to our storage)
+  rawUrl      String?   // original provider URL
+  width       Int?
+  height      Int?
+  style       String?
+
+  createdAt   DateTime @default(now())
+}
+
+// ─── AudioAsset ───────────────────────────────────────
+model AudioAsset {
+  id          String        @id @default(cuid())
+  bookId      String        @unique
+  book        GeneratedBook @relation(fields: [bookId], references: [id])
+
+  provider    String        // "elevenlabs"
+  voiceId     String
+  voiceLabel  String?
+  sleepMode   Boolean       @default(false)
+  url         String        // stored audio URL
+  durationSec Float?
+
+  createdAt   DateTime @default(now())
+}
+
+// ─── PaymentRecord ────────────────────────────────────
+model PaymentRecord {
+  id              String   @id @default(cuid())
+  orderId         String   @unique
+  order           Order    @relation(fields: [orderId], references: [id])
+
+  provider        String   @default("stripe")
+  stripeSessionId String?
+  stripeEventId   String?
+  amount          Int      // in agorot
+  currency        String   @default("ils")
+  paid            Boolean  @default(false)
+  paidAt          DateTime?
+  raw             Json?    // full stripe event payload
+
+  createdAt       DateTime @default(now())
+}
+
+// ─── GenerationJob ────────────────────────────────────
+model GenerationJob {
+  id          String   @id @default(cuid())
+  orderId     String   @unique
+  order       Order    @relation(fields: [orderId], references: [id])
+
+  status      GenerationStatus @default(pending)
+  startedAt   DateTime?
+  completedAt DateTime?
+  failedAt    DateTime?
+  attempts    Int      @default(0)
+  lastError   String?
+
+  // Stage tracking
+  textDone    Boolean @default(false)
+  imagesDone  Boolean @default(false)
+  audioDone   Boolean @default(false)
+  packaged    Boolean @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
