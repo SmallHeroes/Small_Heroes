@@ -5,6 +5,7 @@
  */
 
 import { getVoiceById, SLEEP_MODE_OVERRIDES } from '../config/voices';
+import { WIZARD } from '@/content';
 
 // ─── Types ────────────────────────────────────────────
 export interface AudioInput {
@@ -153,7 +154,7 @@ export async function generateVoicePreview(voiceId: string): Promise<Buffer> {
   const voice = getVoiceById(voiceId);
   if (!voice) throw new Error(`Unknown voice: ${voiceId}`);
 
-  const previewText = 'שלום! אני אהיה הקריין של הסיפור המיוחד שלך.';
+  const previewText = WIZARD.voicePreviewText;
 
   return callElevenLabs(previewText, voice.elevenlabsVoiceId, {
     stability: voice.stability ?? 0.75,

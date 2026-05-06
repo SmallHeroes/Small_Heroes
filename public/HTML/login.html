@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>התחברות — גיבורים קטנים</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../CSS/main.css" />
+  <link rel="stylesheet" href="../CSS/login.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="wrap">
+      <a href="/" class="logo">
+        <div class="logo-icon"><div class="logo-icon-sq"></div><div class="logo-icon-dot"></div></div>
+        <div class="logo-text">
+          <span class="logo-brand">גיבורים קטנים</span>
+          <span class="logo-tagline">סיפורי חוסן לילדים</span>
+        </div>
+      </a>
+      <a href="/" class="nav-cta">חזרה לדף הבית</a>
+    </div>
+  </header>
+
+  <main class="login-main">
+    <section class="login-card">
+
+      <!-- ── Step 1: Email ──────────────────────── -->
+      <div id="stepEmail" class="login-step">
+        <h1>התחברות</h1>
+        <p class="login-subtitle">נשלח קוד חד-פעמי למייל שלכם.</p>
+
+        <form id="emailForm" class="login-form">
+          <label for="loginEmail">אימייל</label>
+          <input id="loginEmail" type="email" required placeholder="name@example.com" autocomplete="email" />
+          <button id="sendCodeBtn" class="btn-primary login-btn" type="submit">
+            <span id="sendBtnText">שלחו לי קוד</span>
+            <span id="sendBtnLoader" class="btn-loader" hidden></span>
+          </button>
+        </form>
+        <div id="emailError" class="login-error" aria-live="polite"></div>
+      </div>
+
+      <!-- ── Step 2: Code ──────────────────────── -->
+      <div id="stepCode" class="login-step" hidden>
+        <h1>הזינו את הקוד</h1>
+        <p class="login-subtitle">שלחנו קוד בן 6 ספרות ל-<strong id="sentToEmail"></strong></p>
+
+        <form id="codeForm" class="login-form">
+          <div class="otp-boxes" dir="ltr">
+            <input class="otp-input" type="text" inputmode="numeric" maxlength="1" autocomplete="one-time-code" />
+            <input class="otp-input" type="text" inputmode="numeric" maxlength="1" />
+            <input class="otp-input" type="text" inputmode="numeric" maxlength="1" />
+            <input class="otp-input" type="text" inputmode="numeric" maxlength="1" />
+            <input class="otp-input" type="text" inputmode="numeric" maxlength="1" />
+            <input class="otp-input" type="text" inputmode="numeric" maxlength="1" />
+          </div>
+
+          <label class="stay-row">
+            <input id="stayLoggedIn" type="checkbox" />
+            <span>להישאר מחובר ל-30 ימים</span>
+          </label>
+
+          <button id="verifyCodeBtn" class="btn-primary login-btn" type="submit">
+            <span id="verifyBtnText">כניסה לחשבון</span>
+            <span id="verifyBtnLoader" class="btn-loader" hidden></span>
+          </button>
+        </form>
+
+        <div id="codeError" class="login-error" aria-live="polite"></div>
+
+        <div class="login-links">
+          <button id="resendBtn" type="button" class="link-btn" disabled>שלחו שוב (<span id="resendTimer">60</span>)</button>
+          <span class="link-sep">|</span>
+          <button id="backToEmail" type="button" class="link-btn">חזרה</button>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <script src="../JS/routes.js"></script>
+  <script src="../JS/login.js"></script>
+</body>
+</html>

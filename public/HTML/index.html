@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>גיבורים קטנים — סיפורי חוסן לילדים</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="../CSS/main.css" />
+  <link rel="stylesheet" href="../CSS/landing.css" />
+</head>
+
+<body class="landing-body">
+
+  <header class="navbar">
+    <div class="wrap">
+      <a href="/" class="logo" aria-label="גיבורים קטנים">
+        <div class="logo-icon">
+          <div class="logo-icon-sq"></div>
+          <div class="logo-icon-dot"></div>
+        </div>
+        <div class="logo-text">
+          <span class="logo-brand" id="navBrand"></span>
+          <span class="logo-tagline" id="navTagline"></span>
+        </div>
+      </a>
+
+      <nav class="nav-links">
+        <a href="#how" id="navHow">איך זה עובד</a>
+        <a href="#pricing" id="navPricing">מחירים</a>
+        <a href="/my-books" id="navAccount">הספרים שלי</a>
+      </nav>
+
+      <a href="/wizard" class="nav-cta" id="navCta"></a>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ── Hero ──────────────────────────────────────────────────────────── -->
+    <section class="hero">
+      <div class="wrap hero-wrap">
+        <div class="hero-text">
+          <div class="hero-badge" id="heroBadge"></div>
+          <h1 class="hero-h1" id="heroH1"></h1>
+          <p class="hero-sub2" id="heroSub"></p>
+          <p class="hero-body" id="heroBody"></p>
+
+          <div class="hero-btns">
+            <a href="/wizard" class="btn-primary" id="heroCtaPrimary"></a>
+            <a href="#pricing" class="btn-light" id="heroCtaSecondary"></a>
+          </div>
+
+          <ul class="hero-bullets">
+            <li id="heroBullet0"></li>
+            <li id="heroBullet1"></li>
+            <li id="heroBullet2"></li>
+          </ul>
+
+          <div class="hero-social-proof" id="heroSocialProof"></div>
+        </div>
+
+        <div class="hero-img-wrap">
+          <div class="hero-glow"></div>
+          <img src="../Images/HeroIllustrated.png" alt="ילד גיבור" class="hero-img" onerror="this.src='../Images/HeroBar.png'" />
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Book Gallery — visual showcase with style toggle ─────────────── -->
+    <section class="gallery-section">
+      <div class="wrap">
+        <h2 class="gallery-h2" id="galleryH2"></h2>
+        <p class="gallery-sub" id="gallerySub"></p>
+
+        <!-- Style toggle -->
+        <div class="gallery-toggle" id="galleryToggle">
+          <button class="gallery-toggle-btn is-active" data-style="illustrated" id="toggleIllustrated">מאוייר</button>
+          <button class="gallery-toggle-btn" data-style="realistic" id="toggleRealistic">ריאליסטי</button>
+          <span class="gallery-toggle-pill" id="togglePill"></span>
+        </div>
+      </div>
+
+      <div class="gallery-layers">
+        <!-- Style 01 — illustrated (visible by default) -->
+        <div class="gallery-track gallery-layer is-visible" id="galleryTrackIllustrated">
+          <div class="gallery-card"><img src="../Images/gallery/gallery-1.jpg" alt="עמוד מתוך ספר — מאוייר" loading="lazy" /></div>
+          <div class="gallery-card"><img src="../Images/gallery/gallery-2.jpg" alt="עמוד מתוך ספר — מאוייר" loading="lazy" /></div>
+          <div class="gallery-card"><img src="../Images/gallery/gallery-3.jpg" alt="עמוד מתוך ספר — מאוייר" loading="lazy" /></div>
+          <div class="gallery-card"><img src="../Images/gallery/gallery-4.jpg" alt="עמוד מתוך ספר — מאוייר" loading="lazy" /></div>
+          <div class="gallery-card"><img src="../Images/gallery/gallery-5.jpg" alt="עמוד מתוך ספר — מאוייר" loading="lazy" /></div>
+          <div class="gallery-card"><img src="../Images/gallery/gallery-6.jpg" alt="עמוד מתוך ספר — מאוייר" loading="lazy" /></div>
+        </div>
+
+        <!-- Style 02 — realistic (hidden by default) -->
+        <div class="gallery-track gallery-layer" id="galleryTrackRealistic">
+          <div class="gallery-card"><img src="../Images/gallery/gallery-r-1.jpg" alt="עמוד מתוך ספר — ריאליסטי" loading="lazy" /></div>
+          <div class="gallery-card"><img src="../Images/gallery/gallery-r-2.jpg" alt="עמוד מתוך ספר — ריאליסטי" loading="lazy" /></div>
+          <div class="gallery-card"><img src="../Images/gallery/gallery-r-3.jpg" alt="עמוד מתוך ספר — ריאליסטי" loading="lazy" /></div>
+          <div class="gallery-card"><img src="../Images/gallery/gallery-r-4.jpg" alt="עמוד מתוך ספר — ריאליסטי" loading="lazy" /></div>
+          <div class="gallery-card"><img src="../Images/gallery/gallery-r-5.jpg" alt="עמוד מתוך ספר — ריאליסטי" loading="lazy" /></div>
+          <div class="gallery-card"><img src="../Images/gallery/gallery-r-6.jpg" alt="עמוד מתוך ספר — ריאליסטי" loading="lazy" /></div>
+        </div>
+      </div>
+
+      <div class="wrap gallery-cta-wrap">
+        <a href="/wizard" class="btn-primary" id="galleryCta"></a>
+      </div>
+    </section>
+
+    <!-- ── Sample ─────────────────────────────────────────────────────────── -->
+    <section class="section sample-section">
+      <div class="wrap sample-wrap">
+        <div class="sample-text">
+          <div class="sample-kicker" id="sampleKicker"></div>
+          <p class="sample-quote" id="sampleQuote"></p>
+          <h2 class="sample-h2" id="sampleH2"></h2>
+          <p class="sample-p" id="sampleP2"></p>
+          <a href="/wizard" class="btn-primary" id="sampleCta"></a>
+        </div>
+
+        <div class="sample-img-wrap">
+          <img src="../Images/gallery/gallery-6.jpg" alt="דוגמה מתוך הספר" onerror="this.style.display='none'" />
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Why ───────────────────────────────────────────────────────────── -->
+    <section class="section why-section">
+      <div class="wrap">
+        <h2 class="section-h2" id="whyH2"></h2>
+        <p class="section-sub" id="whySub"></p>
+
+        <div class="why-grid">
+          <article class="why-card">
+            <h3 id="whyCard0Title"></h3>
+            <p id="whyCard0Body"></p>
+          </article>
+
+          <article class="why-card">
+            <h3 id="whyCard1Title"></h3>
+            <p id="whyCard1Body"></p>
+          </article>
+
+          <article class="why-card">
+            <h3 id="whyCard2Title"></h3>
+            <p id="whyCard2Body"></p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── How it works ───────────────────────────────────────────────────── -->
+    <section class="how-it-works-section how-section" id="how">
+      <div class="wrap">
+        <h2 class="section-h2" id="howH2"></h2>
+
+        <div class="steps-row">
+          <article class="how-card">
+            <div class="how-step">
+              <div class="how-num" id="howStep0Title"></div>
+              <p id="howStep0Body"></p>
+            </div>
+          </article>
+
+          <article class="how-card">
+            <div class="how-step">
+              <div class="how-num" id="howStep1Title"></div>
+              <p id="howStep1Body"></p>
+            </div>
+          </article>
+
+          <article class="how-card">
+            <div class="how-step">
+              <div class="how-num" id="howStep2Title"></div>
+              <p id="howStep2Body"></p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Pricing ────────────────────────────────────────────────────────── -->
+    <section class="section pricing-section" id="pricing">
+      <div class="wrap">
+        <h2 class="section-h2" id="pricingH2"></h2>
+        <p class="section-sub pricing-sub" id="pricingSub"></p>
+
+        <div class="pricing-grid">
+          <article class="price-card">
+            <div class="price-kicker" id="pricingCard0Kicker"></div>
+            <div class="price-name" id="pricingCard0Name"></div>
+            <div class="price-pages" id="pricingCard0Pages"></div>
+            <div class="price-desc" id="pricingCard0Desc"></div>
+            <ul class="price-features">
+              <li id="pricingCard0Feature0"></li>
+              <li id="pricingCard0Feature1"></li>
+              <li id="pricingCard0Feature2"></li>
+            </ul>
+            <div class="price-num">₪<span id="pricingCard0Price"></span></div>
+            <a href="/wizard" class="btn-outline price-btn" id="pricingCard0Cta"></a>
+          </article>
+
+          <article class="price-card price-card--mid">
+            <div class="price-badge-floating" id="pricingCard1Badge"></div>
+            <div class="price-kicker" id="pricingCard1Kicker"></div>
+            <div class="price-name" id="pricingCard1Name"></div>
+            <div class="price-pages" id="pricingCard1Pages"></div>
+            <div class="price-desc" id="pricingCard1Desc"></div>
+            <ul class="price-features">
+              <li id="pricingCard1Feature0"></li>
+              <li id="pricingCard1Feature1"></li>
+              <li id="pricingCard1Feature2"></li>
+            </ul>
+            <div class="price-num">₪<span id="pricingCard1Price"></span></div>
+            <a href="/wizard" class="btn-primary price-btn" id="pricingCard1Cta"></a>
+          </article>
+
+          <article class="price-card">
+            <div class="price-kicker" id="pricingCard2Kicker"></div>
+            <div class="price-name" id="pricingCard2Name"></div>
+            <div class="price-pages" id="pricingCard2Pages"></div>
+            <div class="price-desc" id="pricingCard2Desc"></div>
+            <ul class="price-features">
+              <li id="pricingCard2Feature0"></li>
+              <li id="pricingCard2Feature1"></li>
+              <li id="pricingCard2Feature2"></li>
+            </ul>
+            <div class="price-num">₪<span id="pricingCard2Price"></span></div>
+            <a href="/wizard" class="btn-outline price-btn" id="pricingCard2Cta"></a>
+          </article>
+        </div>
+
+        <div class="pricing-note" id="pricingNote"></div>
+      </div>
+    </section>
+
+    <!-- ── FAQ ────────────────────────────────────────────────────────────── -->
+    <section class="section faq-section">
+      <div class="wrap faq-wrap">
+        <h2 class="section-h2" id="faqH2"></h2>
+        <p class="section-sub faq-sub" id="faqSub"></p>
+
+        <div class="faq-list" id="faqList">
+          <div class="faq-item">
+            <button class="faq-q" type="button">
+              <span id="faqItem0Q"></span>
+              <span class="faq-arrow">▾</span>
+            </button>
+            <div class="faq-a"><p id="faqItem0A"></p></div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-q" type="button">
+              <span id="faqItem1Q"></span>
+              <span class="faq-arrow">▾</span>
+            </button>
+            <div class="faq-a"><p id="faqItem1A"></p></div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-q" type="button">
+              <span id="faqItem2Q"></span>
+              <span class="faq-arrow">▾</span>
+            </button>
+            <div class="faq-a"><p id="faqItem2A"></p></div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-q" type="button">
+              <span id="faqItem3Q"></span>
+              <span class="faq-arrow">▾</span>
+            </button>
+            <div class="faq-a"><p id="faqItem3A"></p></div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-q" type="button">
+              <span id="faqItem4Q"></span>
+              <span class="faq-arrow">▾</span>
+            </button>
+            <div class="faq-a"><p id="faqItem4A"></p></div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-q" type="button">
+              <span id="faqItem5Q"></span>
+              <span class="faq-arrow">▾</span>
+            </button>
+            <div class="faq-a"><p id="faqItem5A"></p></div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Footer ─────────────────────────────────────────────────────────── -->
+    <footer class="footer">
+      <div class="wrap footer-inner">
+        <h2 class="footer-h2">
+          <span id="footerH2Line1"></span><br />
+          <span id="footerH2Line2"></span>
+        </h2>
+        <p class="footer-sub" id="footerSub"></p>
+
+        <a href="/wizard" class="btn-primary footer-cta" id="footerCta"></a>
+      </div>
+    </footer>
+
+  </main>
+
+  <script src="../JS/content.js"></script>
+  <script src="../JS/routes.js"></script>
+  <script src="../JS/analytics.js"></script>
+  <script src="../JS/bookHistory.js"></script>
+  <script src="../JS/landing.js"></script>
+
+</body>
+
+</html>

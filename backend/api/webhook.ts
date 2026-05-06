@@ -12,9 +12,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { PrismaClient } from '@prisma/client';
 import { triggerGeneration } from './generate';
+import { logServerEvent } from './events';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-06-20',
+  apiVersion: '2026-03-25.dahlia',
 });
 const prisma = new PrismaClient();
 
@@ -53,6 +54,11 @@ export async function POST(req: NextRequest) {
       await handlePaymentFailed(pi);
       break;
     }
+    case 'checkout.session.expired': {
+      const session = event.data.object as Stripe.Checkout.Session;
+      await handleSessionExpired(session);
+      break;
+    }
     default:
       console.log(`[Webhook] Unhandled event type: ${event.type}`);
   }
@@ -87,7 +93,7 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session, eventId:
       status: 'paid',
       stripePaid: true,
       stripePaymentId: session.payment_intent as string,
-      stripeMetadata: session as any,
+      stripeMetadata: JSON.parse(JSON.stringify(session)),
     },
   });
 
@@ -104,16 +110,58 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session, eventId:
       currency: session.currency ?? 'ils',
       paid: true,
       paidAt: new Date(),
-      raw: session as any,
+      raw: JSON.parse(JSON.stringify(session)),
     },
   });
 
   console.log(`[Webhook] Order ${orderId} marked as PAID — triggering generation`);
+  logServerEvent('payment_completed', {
+    orderId,
+    amount:   session.amount_total ?? 0,
+    currency: session.currency     ?? 'ils',
+  });
 
   // Trigger generation pipeline (async — don't await)
   triggerGeneration(orderId).catch(err =>
     console.error(`[Webhook] Generation trigger failed for ${orderId}:`, err)
   );
+}
+
+// ─── Session Expired ──────────────────────────────────
+// Fires when the Stripe Checkout page TTL elapses without the user completing
+// payment. orderId is read from session.metadata (set directly at creation —
+// no payment_intent_data workaround needed here).
+// Guard: skip if the order was already paid (protects against out-of-order
+// webhook replay where completed arrives after expired).
+async function handleSessionExpired(session: Stripe.Checkout.Session) {
+  const orderId = session.metadata?.orderId;
+  if (!orderId) {
+    console.error('[Webhook] checkout.session.expired: missing orderId in metadata');
+    return;
+  }
+
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order) {
+    console.error(`[Webhook] checkout.session.expired: order not found: ${orderId}`);
+    return;
+  }
+
+  // Never downgrade a successfully paid order
+  if (order.stripePaid) {
+    console.log(`[Webhook] checkout.session.expired: order ${orderId} already paid — skipping`);
+    return;
+  }
+
+  await prisma.order.update({
+    where: { id: orderId },
+    data: {
+      status: 'failed',
+      lastError: 'Checkout session expired — payment was not completed',
+      errorAt: new Date(),
+    },
+  });
+
+  console.log(`[Webhook] Checkout session expired for order ${orderId}`);
 }
 
 // ─── Payment Failed ───────────────────────────────────

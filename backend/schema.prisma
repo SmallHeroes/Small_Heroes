@@ -8,6 +8,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ─── Enums ────────────────────────────────────────────
@@ -28,17 +29,34 @@ enum GenerationStatus {
   failed
 }
 
+enum StoryDirectionArchetype {
+  connection
+  adventure
+  courage
+}
+
+enum StoryDirectionSetStatus {
+  pending
+  ready
+  selected
+  failed
+}
+
 enum StoryLength {
-  short   // 10 pages
-  medium  // 15 pages
-  long    // 20 pages
+  short   // 8 pages
+  medium  // 12 pages
+  long    // 15 pages
 }
 
 enum IllustrationStyle {
-  soft
-  disney
-  classic
-  watercolor
+  pencil_watercolor
+  realistic_illustrated
+  whimsical_comic_fantasy
+  // Legacy — kept to avoid DB migration failures on old rows
+  clean_cartoon_2d
+  soft_3d_animation
+  illustrative_classic
+  realistic_cartoon
 }
 
 // ─── Customer ─────────────────────────────────────────
@@ -72,15 +90,21 @@ model Order {
   // Customer
   customerId      String?
   customer        Customer?   @relation(fields: [customerId], references: [id])
+  userId          String?
+  user            UserAccount? @relation(fields: [userId], references: [id])
   customerEmail   String
   customerName    String
 
   // Child / story config
-  childName       String
-  childAge        Int?
-  childGender     String?
-  childTraits     String[]
-  childImageUrl   String?
+  childName         String
+  childAge          Int?
+  childGender       String?
+  childTraits       String[]
+  childSuperpower   String?   // single hero trait selected in wizard
+  bookName          String?   // optional custom book title from wizard
+  childImageUrl     String?
+  characterAnchors  Json?
+  familyContext     Json?     // { parent1, parent2, sibling, homeText } — optional, from wizard step 4
 
   // Story parameters
   topic           String
@@ -95,7 +119,8 @@ model Order {
 
   // Product configuration
   storyLength        StoryLength       @default(medium)
-  illustrationStyle  IllustrationStyle @default(soft)
+  coverImageUrl      String?
+  illustrationStyle  IllustrationStyle @default(pencil_watercolor)
   audioEnabled       Boolean           @default(false)
   selectedVoice      String?
   sleepMode          Boolean           @default(false)
@@ -113,6 +138,12 @@ model Order {
   stripePaid         Boolean  @default(false)
   stripeMetadata     Json?
 
+  // Generic payment tracking (PayMe-first)
+  paymentProvider    String?
+  paymentId          String?
+  paymeTransactionId String?  @unique
+  paymeMetadata      Json?
+
   // Generation tracking
   textStatus         GenerationStatus @default(pending)
   imageStatus        GenerationStatus @default(pending)
@@ -129,9 +160,124 @@ model Order {
   book               GeneratedBook?
   payment            PaymentRecord?
   generationJob      GenerationJob?
+  storyDirectionSet  StoryDirectionSet?
+  resemblanceAudits  ResemblanceAudit[]
 
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+}
+
+model UserAccount {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+
+  orders    Order[]
+  sessions  UserSession[]
+  otpCodes  OtpCode[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UserSession {
+  id        String   @id @default(cuid())
+  userId    String
+  user      UserAccount @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  token     String   @unique
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, expiresAt])
+}
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  userId    String
+  user      UserAccount @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model ResemblanceAudit {
+  id                    String   @id @default(cuid())
+  orderId               String
+  order                 Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  pageNumber            Int?
+  candidateIndex        Int?
+  selected              Boolean  @default(false)
+  seed                  Int?
+  model                 String?
+  styleId               String?
+  resemblanceScore      Float?
+  allCandidateScores    Float[]
+  threshold             Float?
+  minAcceptableScore    Float?
+  softFailBand          Float?
+  extremeMargin         Float?
+  selectionGap          Float?
+  resemblanceStatus     String?
+  resemblanceConfidence String?
+  inputStrength         String?
+  sanityDisagreement    Boolean?
+  lowDiversity          Boolean?
+  extremeMismatch       Boolean?
+  reason                String?
+  reasonCodes           String[]
+  faceDetectConfidence  Float?
+  faceAreaRatio         Float?
+  brightness            Float?
+  sharpness             Float?
+  source                String?
+  metadata              Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([orderId, createdAt])
+}
+
+model StoryDirectionSet {
+  id                  String                  @id @default(cuid())
+  orderId             String                  @unique
+  order               Order                   @relation(fields: [orderId], references: [id])
+  selectedStyle       IllustrationStyle
+  status              StoryDirectionSetStatus @default(pending)
+  selectedDirectionId String?                 @unique
+  selectedDirection   StoryDirection?         @relation("SelectedStoryDirection", fields: [selectedDirectionId], references: [id], onDelete: SetNull)
+  directions          StoryDirection[]        @relation("StoryDirectionSetDirections")
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model StoryDirection {
+  id                 String                 @id @default(cuid())
+  directionSetId     String
+  directionSet       StoryDirectionSet      @relation("StoryDirectionSetDirections", fields: [directionSetId], references: [id], onDelete: Cascade)
+  archetype          StoryDirectionArchetype
+  title              String
+  summary            String                 @db.Text
+  emotionalLabel     String
+  storyPremise       String                 @db.Text
+  openingScenePrompt String                 @db.Text
+  previewImagePrompt String                 @db.Text
+  previewImageUrl    String?
+  previewImageRawUrl String?
+
+  selectedBySet      StoryDirectionSet?     @relation("SelectedStoryDirection")
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([directionSetId, archetype])
 }
 
 // ─── GeneratedBook ────────────────────────────────────
@@ -142,6 +288,7 @@ model GeneratedBook {
 
   title       String
   coverText   String?
+  coverImageUrl String?
   pages       BookPage[]
 
   audioAsset  AudioAsset?
@@ -162,6 +309,10 @@ model BookPage {
 
   pageNumber  Int
   text        String        @db.Text
+  pageTemplate String?
+  textZone    String?
+  lighting    String?
+  textColorScheme String?
   imageAsset  ImageAsset?
 
   // narration text (may differ from display text — sleep mode pacing etc)
@@ -179,6 +330,8 @@ model ImageAsset {
   provider    String    // "dall-e-3" | "replicate" | "stability"
   prompt      String    @db.Text
   url         String    // stored URL (after saving to our storage)
+  /// Reader/PDF-ready asset: edge-softened, paper-integrated treatment of `url` (null = use `url`)
+  presentationUrl String?
   rawUrl      String?   // original provider URL
   width       Int?
   height      Int?
@@ -219,6 +372,22 @@ model PaymentRecord {
   raw             Json?    // full stripe event payload
 
   createdAt       DateTime @default(now())
+}
+
+model StripeWebhookEvent {
+  id          String   @id @default(cuid())
+  stripeEventId String @unique
+  eventType   String
+  orderId     String?
+  processedAt DateTime @default(now())
+}
+
+model PaymeWebhookEvent {
+  id                 String   @id @default(cuid())
+  paymeTransactionId String   @unique
+  eventType          String
+  orderId            String?
+  processedAt        DateTime @default(now())
 }
 
 // ─── GenerationJob ────────────────────────────────────

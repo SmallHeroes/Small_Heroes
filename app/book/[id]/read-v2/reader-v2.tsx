@@ -1,0 +1,490 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useRef, useState, type SyntheticEvent } from 'react';
+import styles from './reader-v2.module.css';
+
+type BookPageTemplate = 'full_bleed_overlay' | 'art_top_text_bottom' | 'character_vignette_text' | 'text_only';
+
+type TextZone = 'top_clear' | 'bottom_clear';
+type TextColorScheme = 'light' | 'dark';
+
+type BookPage = {
+  pageNumber: number;
+  title?: string | null;
+  text: string;
+  imageUrl: string | null;
+  presentationImageUrl?: string | null;
+  isCover?: boolean;
+  pageTemplate?: string | null;
+  textZone?: string | null;
+  lighting?: string | null;
+  textColorScheme?: string | null;
+};
+
+type ReaderPage = {
+  pageNumber: number;
+  title: string | null;
+  text: string;
+  imageUrl: string | null;
+  isCover: boolean;
+  pageTemplate: BookPageTemplate;
+  textZone: TextZone;
+  textColorScheme: TextColorScheme;
+};
+
+type OrderBookResponse = {
+  id: string;
+  status: string;
+  book: {
+    title?: string | null;
+    coverText?: string | null;
+    pages: BookPage[];
+    audioUrl?: string | null;
+  } | null;
+};
+
+type Props = {
+  bookId: string;
+  accessKey: string;
+};
+
+const TEXT_ZONES: TextZone[] = ['top_clear', 'bottom_clear'];
+
+/**
+ * Compact story text for display: collapse ALL line breaks into spaces.
+ * The story rhythm comes from punctuation (periods, dashes, exclamation marks),
+ * not from forced line breaks. In a real printed book, this would be a flowing paragraph.
+ */
+function compactStoryText(raw: string): string {
+  return raw
+    .replace(/\r\n/g, '\n')
+    .replace(/\n+/g, ' ')       // all line breaks → single space
+    .replace(/\s{2,}/g, ' ')    // collapse multiple spaces
+    .trim();
+}
+
+function resolvePageImageUrl(page: BookPage): string | null {
+  const direct = page.imageUrl ?? page.presentationImageUrl ?? null;
+  if (typeof direct === 'string' && direct.trim()) return direct.trim();
+  return null;
+}
+
+function splitCoverAndInterior(pages: BookPage[]): { cover: BookPage | null; interior: BookPage[] } {
+  const sorted = [...pages].sort((a, b) => a.pageNumber - b.pageNumber);
+  const cover = sorted.find((p) => p.pageNumber === 0) ?? sorted.find((p) => Boolean(p.isCover)) ?? null;
+  const interior = sorted.filter((p) => p !== cover).sort((a, b) => a.pageNumber - b.pageNumber);
+  return { cover, interior };
+}
+
+/** Preserved for API typing; reader treats all non-text-only interior pages as full-bleed overlay. */
+function normalizePageTemplate(raw: string | null | undefined, hasImage: boolean): BookPageTemplate {
+  if (!hasImage) return 'text_only';
+  if (raw === 'full_bleed_overlay' || raw === 'art_top_text_bottom' || raw === 'character_vignette_text') {
+    return raw;
+  }
+  return 'art_top_text_bottom';
+}
+
+function parseTextZone(raw: string | null | undefined): TextZone | undefined {
+  if (!raw || typeof raw !== 'string') return undefined;
+  const t = raw.trim() as TextZone;
+  return TEXT_ZONES.includes(t) ? t : undefined;
+}
+
+function deriveTextColorScheme(
+  textColorScheme: string | null | undefined,
+  lighting: string | null | undefined
+): TextColorScheme {
+  if (textColorScheme === 'light' || textColorScheme === 'dark') return textColorScheme;
+  const darkLightingModes = ['moonlit', 'dramatic_soft'];
+  if (lighting && darkLightingModes.includes(lighting)) return 'light';
+  return 'dark';
+}
+
+function normalizeReaderPages(pages: BookPage[]): ReaderPage[] {
+  const { cover, interior } = splitCoverAndInterior(pages);
+  const ordered = cover ? [cover, ...interior] : interior;
+  return ordered.map((page) => {
+    const imageUrl = resolvePageImageUrl(page);
+    const pageTemplate = normalizePageTemplate(page.pageTemplate ?? null, Boolean(imageUrl));
+    const isCoverPage = page.pageNumber === 0 || Boolean(page.isCover);
+    const textZone =
+      !isCoverPage && imageUrl
+        ? parseTextZone(page.textZone ?? undefined) ?? 'bottom_clear'
+        : 'bottom_clear';
+    const textColorScheme = deriveTextColorScheme(page.textColorScheme, page.lighting);
+    return {
+      pageNumber: page.pageNumber,
+      title: page.title ?? null,
+      text: compactStoryText(page.text ?? ''),
+      imageUrl,
+      isCover: isCoverPage,
+      pageTemplate,
+      textZone,
+      textColorScheme,
+    };
+  });
+}
+
+function overlayZoneClass(zone: TextZone): string {
+  const map: Record<TextZone, string> = {
+    top_clear: styles.overlayZoneTop,
+    bottom_clear: styles.overlayZoneBottom,
+  };
+  return map[zone] ?? styles.overlayZoneBottom;
+}
+
+export default function ReaderV2({ bookId, accessKey }: Props) {
+  const resolvedAccessKey = useMemo(() => {
+    if (accessKey) return accessKey;
+    if (typeof window === 'undefined') return '';
+    return new URLSearchParams(window.location.search).get('accessKey') || '';
+  }, [accessKey]);
+
+  const [status, setStatus] = useState<'loading' | 'error' | 'ready'>('loading');
+  const [errorMessage, setErrorMessage] = useState('לא הצלחנו לפתוח את הספר.');
+  const [bookTitle, setBookTitle] = useState('');
+  const [readerPages, setReaderPages] = useState<ReaderPage[]>([]);
+  const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const [showEndScreen, setShowEndScreen] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const touchStartXRef = useRef<number | null>(null);
+  const keyPart = resolvedAccessKey ? `&accessKey=${encodeURIComponent(resolvedAccessKey)}` : '';
+  const readyHref = `/ready?orderId=${encodeURIComponent(bookId)}${keyPart}`;
+  const generationSecret = process.env.NEXT_PUBLIC_GENERATION_SECRET;
+
+  const currentPage = readerPages[currentPageIndex] ?? null;
+  const isFirstPage = currentPageIndex === 0;
+  const isLastPage = currentPageIndex >= readerPages.length - 1 && readerPages.length > 0;
+
+  useEffect(() => {
+    if (!resolvedAccessKey) {
+      setErrorMessage('נדרש קישור גישה מלא כדי לפתוח את הספר. חזרו לעמוד ההזמנה ונסו שוב.');
+      setStatus('error');
+      return;
+    }
+
+    async function loadBook() {
+      setStatus('loading');
+      setShowEndScreen(false);
+      const url = `/api/orders/${encodeURIComponent(bookId)}?accessKey=${encodeURIComponent(resolvedAccessKey)}`;
+      try {
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) {
+          setErrorMessage(res.status === 404 ? 'לא מצאנו את הספר המבוקש.' : 'טעינת הספר נכשלה.');
+          setStatus('error');
+          return;
+        }
+
+        const data = (await res.json()) as OrderBookResponse;
+        const pages = data?.book?.pages ?? [];
+        if (!pages.length) {
+          setErrorMessage('הספר עדיין לא מוכן לקריאה.');
+          setStatus('error');
+          return;
+        }
+
+        const normalizedPages = normalizeReaderPages(pages);
+        if (!normalizedPages.length) {
+          setErrorMessage('לא נמצאו עמודים קריאים בספר.');
+          setStatus('error');
+          return;
+        }
+
+        setBookTitle(data.book?.title?.trim() || '');
+        setReaderPages(normalizedPages);
+        setCurrentPageIndex(0);
+        setAudioUrl(typeof data.book?.audioUrl === 'string' && data.book.audioUrl.trim() ? data.book.audioUrl : null);
+        setStatus('ready');
+      } catch {
+        setErrorMessage('נכשלה טעינת הספר. נסו שוב בעוד רגע.');
+        setStatus('error');
+      }
+    }
+
+    loadBook().catch(() => {
+      setErrorMessage('נכשלה טעינת הספר. נסו שוב בעוד רגע.');
+      setStatus('error');
+    });
+  }, [bookId, resolvedAccessKey]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audioUrl || !audio) {
+      setIsAudioPlaying(false);
+      return;
+    }
+    audio.src = audioUrl;
+    audio.load();
+  }, [audioUrl]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const onPlay = () => setIsAudioPlaying(true);
+    const onPause = () => setIsAudioPlaying(false);
+    const onEnded = () => setIsAudioPlaying(false);
+    audio.addEventListener('play', onPlay);
+    audio.addEventListener('pause', onPause);
+    audio.addEventListener('ended', onEnded);
+    return () => {
+      audio.removeEventListener('play', onPlay);
+      audio.removeEventListener('pause', onPause);
+      audio.removeEventListener('ended', onEnded);
+    };
+  }, []);
+
+  const next = useCallback(() => {
+    if (!readerPages.length) return;
+    if (isLastPage) {
+      setShowEndScreen(true);
+      return;
+    }
+    setShowEndScreen(false);
+    setCurrentPageIndex((prev) => Math.min(prev + 1, readerPages.length - 1));
+  }, [isLastPage, readerPages.length]);
+
+  const prev = useCallback(() => {
+    if (showEndScreen) {
+      setShowEndScreen(false);
+      return;
+    }
+    setCurrentPageIndex((prev) => Math.max(prev - 1, 0));
+  }, [showEndScreen]);
+
+  const toggleAudio = useCallback(async () => {
+    const audio = audioRef.current;
+    if (!audio || !audioUrl) return;
+    if (audio.paused) {
+      try {
+        await audio.play();
+      } catch {
+        setIsAudioPlaying(false);
+      }
+      return;
+    }
+    audio.pause();
+  }, [audioUrl]);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (status !== 'ready') return;
+      if (event.key === 'ArrowLeft') next();
+      if (event.key === 'ArrowRight') prev();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [next, prev, status]);
+
+  const onTouchStart = useCallback((event: React.TouchEvent) => {
+    touchStartXRef.current = event.changedTouches[0]?.clientX ?? null;
+  }, []);
+
+  const onTouchEnd = useCallback(
+    (event: React.TouchEvent) => {
+      const startX = touchStartXRef.current;
+      touchStartXRef.current = null;
+      if (startX == null) return;
+      const delta = startX - (event.changedTouches[0]?.clientX ?? startX);
+      if (Math.abs(delta) < 48) return;
+      if (delta > 0) next();
+      else prev();
+    },
+    [next, prev]
+  );
+
+  const retryGeneration = useCallback(async () => {
+    if (!generationSecret) {
+      setErrorMessage('לא ניתן לנסות שוב כרגע. חסר מפתח יצירה.');
+      return;
+    }
+    setIsRetrying(true);
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: bookId, secret: generationSecret, reason: 'user_retry' }),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error || `retry_failed_${res.status}`);
+      }
+      window.location.href = `/generating?orderId=${encodeURIComponent(bookId)}`;
+    } catch (error) {
+      console.error('[read-v2] retry generation failed', error);
+      setErrorMessage('לא הצלחנו להפעיל יצירה מחדש. אפשר לנסות שוב בעוד רגע.');
+    } finally {
+      setIsRetrying(false);
+    }
+  }, [bookId, generationSecret]);
+
+  useEffect(() => {
+    console.log('[read-v2] single-page reader state', {
+      readerPages: readerPages.length,
+      currentPageIndex,
+      pageNumber: currentPage?.pageNumber,
+      hasText: Boolean(currentPage?.text),
+      hasImage: Boolean(currentPage?.imageUrl),
+      isCover: Boolean(currentPage?.isCover),
+      pageTemplate: currentPage?.pageTemplate,
+      textZone: currentPage?.textZone,
+    });
+  }, [currentPage, currentPageIndex, readerPages.length]);
+
+  const interiorCanvasClass =
+    currentPage && !currentPage.isCover
+      ? currentPage.pageTemplate === 'text_only'
+        ? styles.tplTextOnly
+        : styles.tplFullBleedOverlay
+      : styles.tplCover;
+
+  return (
+    <main className={styles.root} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      <a href={readyHref} className={styles.closeBtn} aria-label="סגירה">
+        ×
+      </a>
+
+      {status === 'loading' && <section className={styles.centerState}>פותחים את הספר...</section>}
+
+      {status === 'error' && (
+        <section className={styles.centerState}>
+          <p className={styles.errorText}>{errorMessage}</p>
+          <button type="button" className={styles.controlBtn} onClick={retryGeneration} disabled={isRetrying}>
+            {isRetrying ? 'מנסים שוב...' : 'לנסות שוב'}
+          </button>
+          <a href={readyHref} className={styles.backHomeLink}>
+            חזרה לעמוד ההזמנה
+          </a>
+        </section>
+      )}
+
+      {status === 'ready' && !showEndScreen && currentPage && (
+        <>
+          {/*
+           * LAYOUT NOTE (2026-04, phase 3d.3):
+           * All interior pages currently render as full-bleed overlay (single layout).
+           * Future phase will add variation: hero pages (image fills 100%, no text on overlay,
+           * short caption only), image-dominant pages (large image, minimal text), and
+           * asymmetric spreads. For now we keep one consistent treatment.
+           */}
+          <section className={styles.pageStage}>
+            {currentPage.isCover ? (
+              <article className={`${styles.pageCanvas} ${styles.tplCover}`}>
+                <div className={styles.coverBleed}>
+                  {currentPage.imageUrl ? (
+                    <img
+                      src={currentPage.imageUrl}
+                      alt="כריכת הספר"
+                      className={styles.coverBleedImg}
+                      onLoad={() => console.log('[read-v2] image loaded', currentPage.imageUrl)}
+                      onError={(event: SyntheticEvent<HTMLImageElement, Event>) =>
+                        console.error('[read-v2] image failed', currentPage.imageUrl, event)
+                      }
+                    />
+                  ) : (
+                    <div className={styles.imagePlaceholder}>
+                      <span className={styles.imagePlaceholderIcon}>🎨</span>
+                      <span>כריכה ללא איור</span>
+                    </div>
+                  )}
+                </div>
+                <div className={styles.coverTitleOverlay}>
+                  <div className={styles.coverTitleGradient} aria-hidden />
+                  <h1 className={styles.coverDisplayTitle}>{bookTitle || currentPage.title || 'הספר שלכם'}</h1>
+                </div>
+              </article>
+            ) : (
+              <article className={`${styles.pageCanvas} ${interiorCanvasClass}`}>
+                {currentPage.pageTemplate === 'text_only' ? (
+                  <div className={styles.textOnlyPaper}>
+                    <p className={styles.paperPageText}>{currentPage.text || ' '}</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className={styles.bleedImageLayer}>
+                      {currentPage.imageUrl ? (
+                        <img
+                          src={currentPage.imageUrl}
+                          alt={`איור עמוד ${currentPage.pageNumber}`}
+                          className={styles.bleedCoverImg}
+                          onLoad={() => console.log('[read-v2] image loaded', currentPage.imageUrl)}
+                          onError={(event: SyntheticEvent<HTMLImageElement, Event>) =>
+                            console.error('[read-v2] image failed', currentPage.imageUrl, event)
+                          }
+                        />
+                      ) : (
+                        <div className={styles.imagePlaceholder}>
+                          <span className={styles.imagePlaceholderIcon}>🎨</span>
+                          <span>איור בעיבוד</span>
+                        </div>
+                      )}
+                    </div>
+                    <div
+                      className={`${styles.overlayTextShell} ${overlayZoneClass(currentPage.textZone)} ${
+                        currentPage.textColorScheme === 'light' ? styles.textSchemeLight : styles.textSchemeDark
+                      }`}
+                    >
+                      <p className={styles.overlayPageText}>{currentPage.text || ' '}</p>
+                    </div>
+                  </>
+                )}
+
+                <footer className={styles.pageFooter}>
+                  <span>
+                    עמוד {currentPageIndex + 1} מתוך {readerPages.length}
+                  </span>
+                  {bookTitle ? (
+                    <>
+                      <span className={styles.footerSep}> · </span>
+                      <span>{bookTitle}</span>
+                    </>
+                  ) : null}
+                </footer>
+              </article>
+            )}
+          </section>
+
+          <div className={styles.controls}>
+            <button type="button" className={styles.controlBtn} onClick={prev} disabled={isFirstPage && !showEndScreen}>
+              הקודם
+            </button>
+            {audioUrl ? (
+              <button type="button" className={styles.controlBtn} onClick={toggleAudio}>
+                {isAudioPlaying ? 'השהה' : 'נגן'}
+              </button>
+            ) : null}
+            <button type="button" className={styles.controlBtn} onClick={next}>
+              {isLastPage ? 'סיום' : 'הבא'}
+            </button>
+          </div>
+        </>
+      )}
+
+      {status === 'ready' && showEndScreen && (
+        <section className={styles.centerState}>
+          <div className={styles.endGlyph}>✦</div>
+          <h2 className={styles.endTitle}>סוף</h2>
+          <button
+            type="button"
+            className={styles.controlBtn}
+            onClick={() => {
+              setCurrentPageIndex(0);
+              setShowEndScreen(false);
+            }}
+          >
+            קראו שוב מההתחלה
+          </button>
+          <a href="/" className={styles.backHomeLink}>
+            חזרה לדף הבית
+          </a>
+        </section>
+      )}
+
+      <audio ref={audioRef} preload="metadata" hidden />
+    </main>
+  );
+}

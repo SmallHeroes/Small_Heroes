@@ -1,0 +1,34 @@
+[
+  {
+    "name": "01-long-text-image.png",
+    "orderId": "cmo9w7zqe00114wa8cs8xeazo",
+    "pageIndex": 2,
+    "expectImage": true,
+    "note": "long text page 3/8",
+    "path": "C:\\GNart\\Work\\Small_Heroes\\tmp\\reader-proof\\01-long-text-image.png"
+  },
+  {
+    "name": "02-image-standard.png",
+    "orderId": "cmo9w7zqe00114wa8cs8xeazo",
+    "pageIndex": 1,
+    "expectImage": true,
+    "note": "standard image page 2/8",
+    "path": "C:\\GNart\\Work\\Small_Heroes\\tmp\\reader-proof\\02-image-standard.png"
+  },
+  {
+    "name": "03-short-text-image.png",
+    "orderId": "cmo9w7zqe00114wa8cs8xeazo",
+    "pageIndex": 7,
+    "expectImage": true,
+    "note": "shorter text page 8/8",
+    "path": "C:\\GNart\\Work\\Small_Heroes\\tmp\\reader-proof\\03-short-text-image.png"
+  },
+  {
+    "name": "04-fallback-missing-image.png",
+    "orderId": "cmo5n7loq00014w1sgcif1aoj",
+    "pageIndex": 5,
+    "expectImage": false,
+    "note": "missing image fallback page 6/15",
+    "path": "C:\\GNart\\Work\\Small_Heroes\\tmp\\reader-proof\\04-fallback-missing-image.png"
+  }
+]

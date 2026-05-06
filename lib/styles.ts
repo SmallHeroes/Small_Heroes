@@ -1,0 +1,460 @@
+/**
+ * Illustration style system for image prompts + order persistence.
+ * DB enum values remain legacy snake_case for compatibility.
+ */
+/**
+ * STYLES STATE NOTE (Phase 1 cleanup, 2026-04-27):
+ * Two active styles for new books: SOFT_HAND_DRAWN_STORYBOOK, EXPRESSIVE_PAINTERLY_STORYBOOK.
+ * The DB enum (IllustrationStyle) still has three values including legacy
+ * `realistic_illustrated`, which is silently routed to SOFT_HAND_DRAWN_STORYBOOK.
+ * LEGACY_STYLE_INPUT_MAP retains 30+ aliases for in-flight orders / safety;
+ * a future phase will trim this once a one-time DB audit confirms which values
+ * actually appear. Do not trim entries in this phase.
+ */
+
+export const STYLE_IDS = {
+  SOFT_HAND_DRAWN_STORYBOOK: 'soft_hand_drawn_storybook',
+  EXPRESSIVE_PAINTERLY_STORYBOOK: 'expressive_painterly_storybook',
+} as const;
+
+export type StyleId = (typeof STYLE_IDS)[keyof typeof STYLE_IDS];
+
+/** Stored in `Order.illustrationStyle` — unchanged for existing orders. */
+export type DatabaseIllustrationStyle =
+  | 'pencil_watercolor'
+  | 'realistic_illustrated'
+  | 'whimsical_comic_fantasy';
+
+export interface StylePipelineProfile {
+  colorPalette: string;
+  lightingStyle: string;
+  textureStyle: string;
+  renderingBehavior: string;
+  styleToken: string;
+  /** Replicate model slug for LoRA-trained version. Null = use base model. */
+  loraModel: string | null;
+  /** Trigger word to prepend to prompts when using LoRA model. */
+  loraTriggerWord: string | null;
+  /** Style reinforcement text appended after trigger word for LoRA prompts. */
+  loraStylePrefix: string | null;
+}
+
+export interface StyleContract {
+  id: StyleId;
+  userLabel: string;
+  wizardBlurb: string;
+  renderingDescription: string;
+  lineRules: string[];
+  colorRules: string[];
+  shadingRules: string[];
+  lightingRules: string[];
+  backgroundRules: string[];
+  compositionRules: string[];
+  negativeConstraints: string[];
+  pipeline: StylePipelineProfile;
+  imageNudge: { title: string; lines: string[] } | null;
+  optionBlock: string;
+}
+
+const STYLE_SELECTION_SYSTEM = `STYLE_SELECTION_SYSTEM
+
+Choose ONE illustration style from the list below and hold it for the whole book.
+Each option is a full visual language; avoid mixing them.
+
+Consistency:
+Use the same selected style for every page, the cover, and direction art.
+Use one coherent rendering language end-to-end.
+Keep the child and cast recognizable within that look.`.trim();
+
+const GLOBAL_BOOK_ILLUSTRATION_RULES = `Global storybook look (applies in every style):
+- Return the child as a stable storybook character from page to page, without aiming for a literal portrait.
+- Favor "based on the reference" and resemblance language over exact photographic matching.
+- Stay in illustrated, print-friendly space: not photorealism, not 3D rendering, not glossy AI polish.
+- Keep layouts clear and readable for a printed children's book page.`.trim();
+
+const FINAL_STYLE_INSTRUCTION = `Closing note:
+
+Stay with the selected style across cover, previews, and story pages.
+Let emotional clarity read clearly in that style.`.trim();
+
+export const STYLE_REGISTRY: Record<StyleId, StyleContract> = {
+  [STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK]: {
+    id: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+    userLabel: 'מאוייר חם ועדין',
+    wizardBlurb: 'דמויות עגולות וחמודות בסגנון ספר ילדים מצויר — צבעי מים רכים, רקע קרם חם, הרגשה של חיבוק.',
+    renderingDescription:
+      "Soft Pixar-watercolor children's book illustration — cute expressive characters with rounded features, light cream watercolor background, gentle warm lighting, cheerful and inviting. Modern illustrated storybook style.",
+    pipeline: {
+      colorPalette: 'rich warm cinematic palette with deep ambers, warm golds, and natural skin tones',
+      lightingStyle: 'cinematic golden-hour lighting with rich depth of field and soft bokeh',
+      textureStyle: 'painterly brushstrokes, oil-painting texture, soft realistic skin',
+      renderingBehavior: 'realistic artistic portrait rendering with watercolor warmth',
+      styleToken: 'soft_hand_drawn_storybook',
+      loraModel: process.env.LORA_MODEL_STYLE_01 || null,
+      loraTriggerWord: 'REALISTART01',
+      loraStylePrefix: 'realistic artistic portrait, warm watercolor background dissolution, characters in sharp detail with surroundings fading to warm washes, cinematic lighting,',
+    },
+    imageNudge: {
+      title: 'SOFT_HAND_DRAWN_STORYBOOK_NUDGE',
+      lines: [
+        'Soft Pixar-watercolor style: cute expressive characters with rounded features, light cream watercolor background. Gentle warm lighting, cheerful and inviting. Top 20-30% open light space for text. No hard edges or picture frame borders.',
+      ],
+    },
+    lineRules: ['No visible outlines or linework — painterly realism only', 'Soft edges from brushwork, not drawn lines', 'Natural form definition through light and shadow'],
+    colorRules: ['Rich warm palette — deep ambers, warm golds, natural skin tones', 'High warmth with medium-to-high saturation', 'No flat or desaturated colors'],
+    shadingRules: ['Cinematic light-to-shadow transitions', 'Rich volumetric shading on faces and skin', 'Soft realistic shadows with warm bounce light'],
+    lightingRules: ['Cinematic golden-hour or warm interior lighting', 'Rich depth of field with soft bokeh background', 'Dramatic but warm — not cold or flat'],
+    backgroundRules: ['Background dissolves into soft warm watercolor washes — NOT a fully detailed scene', 'Only show partial environmental hints near the subject; edges and top fade to abstract warm tones', 'No hard edges or rectangular framing — organic painterly dissolution'],
+    compositionRules: ['Characters rendered in sharp realistic detail, background dissolves around them', 'Top 20-30% must be open warm space (faded watercolor wash) for text overlay', 'Medium or medium-close framing — show the character prominently, not the whole room'],
+    negativeConstraints: [
+      'No 3D render',
+      'No CGI',
+      'No Pixar/Disney-like rendering',
+      'No anime or manga style',
+      'No flat cartoon illustration',
+      'No plastic skin',
+      'No smooth airbrush gradients',
+      'No vector art',
+      'No stock illustration look',
+      'No pencil sketch or line drawing',
+      'No neon glow or artificial bloom',
+      'No extra random characters',
+      'No empty white background with floating characters',
+      'No desaturated or cold color palette',
+      'No hard rectangular picture frame borders',
+      'No fully detailed edge-to-edge backgrounds — background must dissolve',
+    ],
+    optionBlock: `STYLE OPTION 1:
+internal_id: soft_hand_drawn_storybook
+USER_LABEL_HE: פורטרט אמנותי
+STYLE LOCK — REALISTIC ARTISTIC PORTRAIT:
+A cinematic, painterly realistic portrait — characters look like real children rendered as fine-art oil paintings or high-end editorial portraits with warm watercolor treatment.
+
+The illustration must feel like a real photograph transformed into a painting, NOT a cartoon or sketch.
+
+RENDERING:
+Painterly realism — like a fine art oil painting or editorial photograph.
+Real human proportions, realistic facial features, natural skin texture.
+Visible artistic brushstrokes but realistic form.
+Characters are rendered in sharp detail — the rest of the scene dissolves.
+
+BACKGROUND DISSOLUTION:
+The background is NOT a fully detailed scene. Only partial environmental elements are visible near the subject.
+Edges and surroundings dissolve into soft warm watercolor washes — abstract warm amber and cream tones.
+Think: realistic characters emerging from a warm watercolor fog. Like the subject was painted in detail and the background was left as loose washes.
+The top 20-30% of the image should be mostly warm empty space (faded watercolor) for text placement.
+No hard rectangular edges. No picture frame borders. Organic painterly dissolution.
+
+LIGHTING:
+Cinematic golden-hour or warm interior lighting on the characters.
+Rich warm shadows with amber bounce light.
+Dramatic but never cold — always warm and inviting.
+
+COLOR:
+Rich warm palette — deep ambers, warm golds, natural skin tones.
+Medium-to-high saturation on the characters, fading to softer washes in the background.
+Colors should feel like oil paint, not digital fills.
+
+TEXTURE FEEL:
+Painterly oil-painting texture with visible brushwork.
+Soft realistic skin with natural warmth.
+No pencil lines, no sketch texture.
+
+PROPORTIONS AND ANATOMY:
+Realistic child proportions — not stylized, not chibi, not cartoon.
+Natural anatomically correct features. Arms, hands, sleeves must be clearly distinct — no merging of clothing with skin.
+Each character is a separate entity with correct anatomy.
+
+EMOTIONAL CONNECTION:
+Characters must interact with each other — eye contact, gestures, emotional expressions.
+If a scene has two characters, they should be looking at each other or reacting to each other.
+
+IMPORTANT:
+The illustration should feel cinematic, warm, and emotionally rich.
+Characters are the focus — the background serves them, not the other way around.
+
+STRICT RULE:
+If the image looks like a cartoon, sketch, flat illustration, or anime — it is a failed style result.
+If the background is fully detailed edge-to-edge with no dissolution — it is a failed composition.
+
+STRICT STYLE EXCLUSIONS:
+No text, letters, numbers, symbols, captions, speech bubbles. No 3D render. No CGI. No Pixar-style rendering. No anime or manga style. No flat cartoon illustration. No pencil sketch or line drawing. No vector art. No stock illustration look. No extra random characters. No hard rectangular picture frame borders.
+
+PAGE INTEGRATION RULE:
+Characters are painted in realistic detail, surrounded by dissolving warm watercolor washes. Top area is open warm space for text. No hard edges, no picture frames. The image feels like a fine-art painting that breathes on the page.`,
+  },
+  [STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK]: {
+    id: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+    userLabel: 'אקוורל ריאליסטי',
+    wizardBlurb: 'הילד נראה כמו ילד אמיתי בציור אקוורל עדין — לא קריקטורה, אלא פורטרט רך וחם עם נגיעות צבעי מים.',
+    renderingDescription:
+      "Warm realistic watercolor painting of a real child — NOT a cartoon, NOT dark or moody. Render as a light, airy watercolor with real human proportions, real skin, natural colors. Soft warm cream and peach background that gently fades and dissolves at the edges. Bright and pleasant — this is a children's book, it must feel safe, warm, and inviting. The child looks REAL but the mood is gentle and light. Think: beautiful realistic watercolor portrait, warm sunlight, cream paper showing through.",
+    pipeline: {
+      colorPalette: 'light warm watercolor palette — soft cream, warm peach, gentle greens, natural skin tones, airy and bright',
+      lightingStyle: 'bright warm natural light — soft and pleasant, NOT dark or dramatic',
+      textureStyle: 'watercolor on cream paper — visible paper grain, soft wet-on-wet edges, gentle color bleeds',
+      renderingBehavior: 'realistic watercolor with real human proportions — light, airy, pleasant',
+      styleToken: 'realistic_artistic_storybook',
+      loraModel: process.env.LORA_MODEL_STYLE_02 || null,
+      loraTriggerWord: 'REALISTART02',
+      loraStylePrefix: 'realistic watercolor painting, real child proportions, warm bright light, cream paper background, airy and pleasant, NOT cartoon, NOT dark,',
+    },
+    imageNudge: {
+      title: 'REALISTIC_WATERCOLOR_NUDGE',
+      lines: [
+        'This MUST look like a warm realistic watercolor — NOT a cartoon, NOT dark oil painting. Real child proportions but LIGHT and AIRY mood. Soft cream/peach background dissolving at edges. Bright pleasant children\'s book feeling. Watercolor paper texture visible. Top 20-30% should fade to soft warm cream for text.',
+      ],
+    },
+    lineRules: ['No outlines — form defined by watercolor edges and soft color transitions', 'No cartoon linework, no ink lines', 'Edges are soft watercolor bleeds — wet-on-wet technique'],
+    colorRules: ['Light warm palette — soft cream, warm peach, gentle natural greens and blues', 'Natural realistic skin tones — warm and healthy looking', 'Watercolor transparency — light passes through the pigment, cream paper shows through', 'BRIGHT and pleasant — NOT dark, NOT heavy, NOT golden-antique'],
+    shadingRules: ['Gentle realistic shadows — soft and warm, never harsh or dark', 'Watercolor layering for depth — multiple transparent washes', 'Light and airy overall — shadows are warm, not black or muddy'],
+    lightingRules: ['Bright warm natural light — like a sunny day or soft indoor light', 'Light and pleasant — the image should feel WARM not HOT, BRIGHT not DARK', 'Natural light that makes the child look healthy and happy'],
+    backgroundRules: ['Background dissolves into soft warm cream/peach watercolor washes', 'Cream paper visible at edges — backgrounds fade gently, not sharp cutoff', 'Environment rendered with less detail further from subject — watercolor dissolution', 'NEVER a fully dark or heavily detailed background — keep it light and airy'],
+    compositionRules: ['Child is the focal point — rendered in realistic detail', 'Background dissolves outward from subject into warm cream tones', 'Top 20-30% fades to soft cream for text overlay', 'Overall composition feels open, bright, and inviting — like a beautiful children\'s book'],
+    negativeConstraints: [
+      'No cartoon or anime style — proportions must be REAL',
+      'No Pixar, Disney, or animation studio style',
+      'No big cartoon eyes or exaggerated cute features',
+      'No dark, moody, or museum-painting look',
+      'No heavy golden/amber antique tones — keep it LIGHT',
+      'No dark backgrounds or heavy shadows',
+      'No oil painting heaviness — this is watercolor, light and airy',
+      'No flat digital colors',
+      'No 3D render or CGI',
+      'No hard outlines or linework',
+      'No extra random characters',
+      'No scary or dramatic atmosphere',
+    ],
+    optionBlock: `STYLE OPTION 2:
+internal_id: realistic_artistic_storybook
+USER_LABEL_HE: ריאליסטי אמנותי
+STYLE LOCK — REALISTIC WARM WATERCOLOR:
+A light, warm, realistic watercolor. This is NOT a cartoon. NOT dark or moody. NOT an old oil painting.
+The child must look like a REAL child painted in beautiful warm watercolor.
+
+CRITICAL DISTINCTION FROM STYLE 01:
+Style 01 is a cute cartoon illustration (Pixar-style) with big eyes and round features.
+THIS style (Style 02) has REAL child proportions — normal eyes, real face, real body.
+But it must still feel PLEASANT, WARM, and LIGHT — it's a children's book!
+If it looks dark, antique, or museum-like — it is WRONG.
+If it looks like a cartoon — it is also WRONG.
+
+CHARACTER RENDERING:
+REAL child proportions — normal-sized eyes, natural face shape, real body.
+NOT cute/chibi/cartoon proportions. NOT big anime eyes.
+Natural skin with warm healthy tones — the child looks like a real kid.
+Real hair texture — individual strands visible, natural movement.
+The child should look like a real child in a beautiful watercolor portrait.
+
+PAINTING MEDIUM:
+Warm watercolor on cream paper — soft wet-on-wet edges, visible paper grain.
+Transparent watercolor washes — light passes through, cream paper shows through.
+Background dissolves into soft warm cream and peach tones at the edges.
+Think: beautiful realistic watercolor portrait, NOT heavy oil painting.
+
+COLOR AND TONE:
+LIGHT and WARM — soft cream, peach, gentle greens and blues.
+Natural skin tones — warm, healthy, pleasant.
+Watercolor transparency — the palette is airy, not heavy.
+NEVER dark golden/amber like an old museum painting.
+The overall feeling must be: warm, safe, bright, inviting.
+
+LIGHTING:
+Bright natural light — soft and warm, like a pleasant sunny day.
+NOT dramatic chiaroscuro. NOT dark golden-hour heaviness.
+Light that makes the child look healthy and the scene feel comfortable.
+
+BACKGROUND:
+Dissolves into soft cream/peach watercolor washes.
+Cream paper texture visible at edges.
+Less detail further from the child — watercolor dissolution effect.
+NEVER a fully dark or heavy background.
+
+ANIMALS AND COMPANIONS:
+Animals look realistic but pleasant — real proportions, warm coloring.
+Painted in same warm watercolor style as the child.
+A fox looks like a real fox — but friendly and warm, not scary.
+
+STRICT RULE:
+If the child has big cartoon eyes — FAILED.
+If the image looks dark, antique, or museum-like — FAILED.
+If the image looks like a cartoon or cute illustration — FAILED.
+The result must be: a light, warm, realistic watercolor — pleasant and inviting.
+
+STRICT STYLE EXCLUSIONS:
+No text, letters, numbers, symbols. No cartoon rendering. No Pixar/Disney. No anime. No dark moody tones. No heavy oil painting look. No antique golden cast. No scary atmosphere. No 3D render.
+
+PAGE INTEGRATION RULE:
+Top 20-30% fades to warm golden tones for text placement. The painting is warm, golden, and emotionally rich — like a fine-art canvas you would hang on a wall.`,
+  },
+};
+
+const WIZARD_STYLE_ORDER: readonly StyleId[] = [
+  STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+];
+
+const LEGACY_STYLE_INPUT_MAP: Record<string, StyleId> = {
+  // Canonical active IDs
+  [STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK]: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  [STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK]: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+
+  // Existing DB enum values
+  pencil_watercolor: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  whimsical_comic_fantasy: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+  // Legacy compatibility only — not offered for new books.
+  realistic_illustrated: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+
+  // Legacy product IDs / aliases
+  SIMPLE_CALM: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  FUN_COLORFUL: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+  // Legacy compatibility only — not offered for new books.
+  EMOTIONAL_ARTISTIC: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+
+  PENCIL_WATERCOLOR: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  WHIMSICAL_COMIC_FANTASY: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+  // Legacy compatibility only — not offered for new books.
+  REALISTIC_ILLUSTRATED: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+
+  CLASSIC_CARTOON: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  illustrative_classic: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  classic: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  SIMPLE_CARTOON: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+  clean_cartoon_2d: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+  soft_3d_animation: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+  cartoon_simple: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+  simple: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  watercolor: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  comic: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+  emotional: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  realistic_cartoon: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  detailed: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  realistic: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  cartoon: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+};
+
+const STYLE_TO_DB_MAP: Record<StyleId, DatabaseIllustrationStyle> = {
+  [STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK]: 'pencil_watercolor',
+  [STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK]: 'whimsical_comic_fantasy',
+};
+
+const DB_TO_STYLE: Record<DatabaseIllustrationStyle, StyleId> = {
+  pencil_watercolor: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  whimsical_comic_fantasy: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+  // Legacy compatibility only — not offered for new books.
+  realistic_illustrated: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+};
+
+export function normalizeStyleId(input?: string | null): StyleId {
+  if (!input) return STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK;
+  const normalized = LEGACY_STYLE_INPUT_MAP[input];
+  if (!normalized) {
+    console.warn(
+      `[StyleNormalize] Unknown illustration style "${input}" -> "${STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK}"`
+    );
+    return STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK;
+  }
+  if (input === 'realistic_illustrated' || input === 'REALISTIC_ILLUSTRATED' || input === 'EMOTIONAL_ARTISTIC') {
+    console.warn(
+      `[StyleNormalize] Deprecated style "${input}" -> "${STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK}"`
+    );
+  }
+  return normalized;
+}
+
+export function getStyleContract(styleIdInput?: string | null): StyleContract {
+  return STYLE_REGISTRY[normalizeStyleId(styleIdInput)];
+}
+
+export function mapStyleToDatabaseValue(styleIdInput?: string | null): DatabaseIllustrationStyle {
+  return STYLE_TO_DB_MAP[normalizeStyleId(styleIdInput)];
+}
+
+export function normalizeIllustrationStyle(styleId: string): DatabaseIllustrationStyle {
+  return mapStyleToDatabaseValue(styleId);
+}
+
+export function styleIdFromDatabaseValue(db: string | null | undefined): StyleId {
+  if (!db) return STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK;
+  return (
+    LEGACY_STYLE_INPUT_MAP[db] ??
+    DB_TO_STYLE[db as DatabaseIllustrationStyle] ??
+    STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK
+  );
+}
+
+export function getPositiveStylePromptBlock(styleIdInput?: string | null): string {
+  const style = getStyleContract(styleIdInput);
+  return [
+    STYLE_SELECTION_SYSTEM,
+    '',
+    'SELECTED_STYLE (this book — apply only this one):',
+    `internal_id: ${style.id}`,
+    `USER_LABEL_HE: ${style.userLabel}`,
+    '',
+    style.optionBlock,
+    '',
+    GLOBAL_BOOK_ILLUSTRATION_RULES,
+    '',
+    'STRUCTURED_LOCK (summary):',
+    `RENDERING: ${style.renderingDescription}`,
+    `LINE_RULES: ${style.lineRules.join('; ')}`,
+    `COLOR_RULES: ${style.colorRules.join('; ')}`,
+    `SHADING_RULES: ${style.shadingRules.join('; ')}`,
+    `LIGHTING_RULES: ${style.lightingRules.join('; ')}`,
+    `BACKGROUND_RULES: ${style.backgroundRules.join('; ')}`,
+    `COMPOSITION_RULES: ${style.compositionRules.join('; ')}`,
+    '',
+    FINAL_STYLE_INSTRUCTION,
+  ].join('\n');
+}
+
+export function getNegativeStylePromptBlock(styleIdInput?: string | null): string {
+  const style = getStyleContract(styleIdInput);
+  return style.negativeConstraints.join('; ');
+}
+
+export interface StyleProfile {
+  id: DatabaseIllustrationStyle;
+  label: string;
+  colorPalette: string;
+  lightingStyle: string;
+  textureStyle: string;
+  renderingBehavior: string;
+  styleToken: string;
+}
+
+function buildStyleProfile(db: DatabaseIllustrationStyle): StyleProfile {
+  const c = STYLE_REGISTRY[DB_TO_STYLE[db]];
+  return {
+    id: db,
+    label: c.userLabel,
+    colorPalette: c.pipeline.colorPalette,
+    lightingStyle: c.pipeline.lightingStyle,
+    textureStyle: c.pipeline.textureStyle,
+    renderingBehavior: c.pipeline.renderingBehavior,
+    styleToken: c.pipeline.styleToken,
+  };
+}
+
+export const STYLE_PROFILES: Record<DatabaseIllustrationStyle, StyleProfile> = {
+  pencil_watercolor: buildStyleProfile('pencil_watercolor'),
+  whimsical_comic_fantasy: buildStyleProfile('whimsical_comic_fantasy'),
+  // Legacy compatibility only — not offered for new books.
+  realistic_illustrated: buildStyleProfile('realistic_illustrated'),
+};
+
+export const WIZARD_ILLUSTRATION_STYLES: ReadonlyArray<{
+  id: StyleId;
+  label: string;
+  description: string;
+}> = WIZARD_STYLE_ORDER.map((id) => {
+  const c = STYLE_REGISTRY[id];
+  return { id, label: c.userLabel, description: c.wizardBlurb };
+});
+
+export function getImageStyleNudgeBlock(styleIdInput?: string | null): string {
+  const c = getStyleContract(styleIdInput);
+  if (!c.imageNudge) return '';
+  return [c.imageNudge.title + ':', ...c.imageNudge.lines.map((l) => `- ${l}`)].join('\n');
+}

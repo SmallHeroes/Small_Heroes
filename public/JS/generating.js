@@ -1,0 +1,337 @@
+/**
+ * generating.js — Small Heroes generation screen
+ *
+ * Polls GET /api/generate/status?orderId=<id> every 2.5 seconds and
+ * drives the progress UI with real backend state.
+ *
+ * Standalone — does NOT import or depend on wizard.js.
+ * orderId is read from the URL query string: /generating?orderId=abc123
+ *
+ * File: JS/generating.js
+ */
+
+const ROUTES = globalThis.SH_ROUTES || {
+  home: '/',
+  ready: '/ready',
+};
+const accessKey = new URLSearchParams(window.location.search).get('accessKey');
+
+// ─── DOM refs ─────────────────────────────────────────────────────────────────
+const pctEl          = document.getElementById('genPct');
+const barFill        = document.getElementById('genBarFill');
+const statusEl       = document.getElementById('genStatusText');
+const floatersEl     = document.getElementById('genBarFloaters');
+const errorStateEl   = document.getElementById('genErrorState');
+const errorMsgEl     = document.getElementById('genErrorMsg');
+const genProgressEl  = document.getElementById('genProgressArea');
+const headlineTextEl = document.getElementById('genHeadlineText');
+const errorTitleEl   = document.getElementById('genErrorTitle');
+const errorBackEl    = document.getElementById('genErrorBack');
+const navBrandEl     = document.getElementById('navBrand');
+const navTaglineEl   = document.getElementById('navTagline');
+const navCtaEl       = document.getElementById('navCta');
+
+// ─── Content ──────────────────────────────────────────────────────────────────
+const GEN_DEFAULTS = {
+  pageTitle: 'גיבורים קטנים — יוצרים את הספר שלכם',
+  headline: 'אנחנו מתחילים ליצור עכשיו את הספר שלכם',
+  statusInitial: 'מתחילים לייצר את הספר',
+  stallMessage: 'אנחנו ממשיכים להכין את הספר...',
+  completionMessage: 'הספר כמעט מוכן...',
+  errorTitle: 'משהו השתבש בדרך',
+  errorBack: 'חזרה לדף הבית',
+  errorNotFound: 'לא מצאנו את ההזמנה שלכם.',
+  errorFailed: 'לא הצלחנו לסיים את הספר.',
+  errorMissingOrder: 'פרטי ההזמנה חסרים.',
+  statusLines: {
+    writing: ['מתחילים לעבד את הספר'],
+    images: ['בונים את עמודי הסיפור'],
+    audio: ['מלטשים את החוויה'],
+    final: ['הספר כמעט מוכן'],
+  },
+};
+const HE_CONTENT = globalThis.CONTENT?.he || {};
+const GEN = { ...GEN_DEFAULTS, ...(HE_CONTENT.generating || {}) };
+const CMN = HE_CONTENT.common || {};
+const STATUS_LINES = GEN_DEFAULTS.statusLines;
+
+// Internal-only mapping for API stages. Never rendered directly in UI.
+const STAGE_META = [
+  { key: 'writing', apiStages: ['text'] },
+  { key: 'images', apiStages: ['images'] },
+  { key: 'audio', apiStages: ['audio'] },
+  { key: 'final', apiStages: ['package', 'done'] },
+];
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let displayPct     = 0;       // percentage currently shown in the UI (can be fractional)
+let realPct        = 0;       // latest progress value from the API (hard floor)
+let activeStageKey = 'writing';
+let redirecting    = false;
+let pendingReadUrl = null;    // readUrl captured from API when status turns ready/partial
+let startedAtMs    = 0;
+
+let pollTimer      = null;
+let smoothTimer    = null;
+let statusTimer    = null;
+let floaterTimer   = null;
+let stallTimer     = null;
+
+// ─── Static UI wiring ─────────────────────────────────────────────────────────
+// Called once at boot — populates every visible string from CONTENT.
+function wireStaticUI() {
+  document.title = GEN.pageTitle;
+  if (navBrandEl)     navBrandEl.textContent     = CMN.brand;
+  if (navTaglineEl)   navTaglineEl.textContent   = CMN.tagline;
+  if (navCtaEl)       navCtaEl.textContent       = CMN.navCta;
+  if (headlineTextEl) headlineTextEl.textContent = GEN.headline;
+  if (statusEl)       statusEl.textContent       = GEN.statusInitial;
+  if (errorTitleEl)   errorTitleEl.textContent   = GEN.errorTitle;
+  if (errorBackEl)    errorBackEl.textContent    = GEN.errorBack;
+}
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+function randomFrom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function getMetaByApiStage(apiStage) {
+  return STAGE_META.find(m => m.apiStages.includes(apiStage)) || STAGE_META[0];
+}
+
+function animateTextSwap(el, text) {
+  if (!el || el.textContent === text) return;
+  el.classList.remove('is-visible');
+  el.classList.add('is-changing');
+  setTimeout(() => {
+    el.textContent = text;
+    el.classList.remove('is-changing');
+    el.classList.add('is-visible');
+  }, 180);
+}
+
+function refreshUI() {
+  const clampedDisplay = Math.max(0, Math.min(100, displayPct));
+  pctEl.textContent   = Math.round(clampedDisplay) + '%';
+  barFill.style.width = clampedDisplay + '%';
+}
+
+// Called when API reports a new currentStage value.
+function applyApiStage(apiStage) {
+  const meta = getMetaByApiStage(apiStage);
+  if (meta.key === activeStageKey) return;
+  activeStageKey = meta.key;
+  animateTextSwap(statusEl, randomFrom(STATUS_LINES[meta.key]));
+}
+
+// ─── Floaters ─────────────────────────────────────────────────────────────────
+function spawnFloater() {
+  const icons   = ['✨', '⭐', '💜', '📖', '🪄', '🌙'];
+  const floater = document.createElement('span');
+  floater.className   = 'bar-floater';
+  floater.textContent = randomFrom(icons);
+  const x = Math.max(4, Math.min(96, displayPct));
+  floater.style.right = `calc(${x}% - 10px)`;
+  floatersEl.appendChild(floater);
+  setTimeout(() => floater.remove(), 1600);
+}
+
+function startFloaters() {
+  clearInterval(floaterTimer);
+  floaterTimer = setInterval(() => {
+    if (displayPct > 3 && displayPct < 100 && Math.random() > 0.45) {
+      spawnFloater();
+    }
+  }, 900);
+}
+
+// ─── Cycling text ─────────────────────────────────────────────────────────────
+function cycleStatusText() {
+  clearInterval(statusTimer);
+  statusTimer = setInterval(() => {
+    animateTextSwap(statusEl, randomFrom(STATUS_LINES[activeStageKey]));
+  }, 1900);
+}
+
+// ─── Smooth progress animation ────────────────────────────────────────────────
+const MAX_WAITING_PCT = 94;
+
+function getElapsedCurvePct(elapsedMs) {
+  const elapsedSec = Math.max(0, elapsedMs / 1000);
+  if (elapsedSec < 20) {
+    // Start moving immediately and get to ~25 quickly.
+    return 5 + (elapsedSec / 20) * 20;
+  }
+  if (elapsedSec < 80) {
+    // Mid phase: slower, steady progress toward ~65.
+    return 25 + ((elapsedSec - 20) / 60) * 40;
+  }
+  // Long tail: very slow, never fully complete visually.
+  return Math.min(MAX_WAITING_PCT, 65 + (elapsedSec - 80) * 0.12);
+}
+
+function startSmoothProgress() {
+  clearInterval(smoothTimer);
+  smoothTimer = setInterval(() => {
+    if (redirecting) return;
+    const curvePct = getElapsedCurvePct(Date.now() - startedAtMs);
+    const waitingRealPct = Math.min(realPct, MAX_WAITING_PCT);
+    const softenedTarget = Math.min(MAX_WAITING_PCT, Math.max(waitingRealPct, curvePct));
+    const targetGap = softenedTarget - displayPct;
+    if (targetGap > 0.01) {
+      const easedStep = Math.min(0.65, Math.max(0.06, targetGap * 0.16));
+      displayPct = Math.min(softenedTarget, displayPct + easedStep);
+      refreshUI();
+      if (Math.random() > 0.7) spawnFloater();
+    }
+  }, 80);
+}
+
+// ─── Stop everything ──────────────────────────────────────────────────────────
+function stopAll() {
+  clearInterval(pollTimer);
+  clearInterval(smoothTimer);
+  clearInterval(statusTimer);
+  clearInterval(floaterTimer);
+  clearTimeout(stallTimer);
+}
+
+// ─── Stall detection ──────────────────────────────────────────────────────────
+// If progress does not advance for 12 seconds, show a soft reassuring message.
+// The timer is reset every time realPct increases.
+function armStallDetection() {
+  clearTimeout(stallTimer);
+  stallTimer = setTimeout(() => {
+    if (!redirecting) {
+      animateTextSwap(statusEl, GEN.stallMessage);
+    }
+  }, 12000);
+}
+
+// ─── Error state ──────────────────────────────────────────────────────────────
+function showError(message) {
+  stopAll();
+  if (genProgressEl) genProgressEl.hidden = true;   // hide the whole progress UI
+  if (errorMsgEl)    errorMsgEl.textContent = message;
+  if (errorStateEl)  errorStateEl.hidden    = false;
+}
+
+// ─── Completion + redirect ────────────────────────────────────────────────────
+function handleReady() {
+  if (redirecting) return;
+  redirecting = true;
+  stopAll();
+
+  // Keep the tail short and intentional on completion.
+  realPct = 100;
+  displayPct = Math.max(displayPct, 96);
+  refreshUI();
+
+  animateTextSwap(statusEl, GEN.completionMessage);
+
+  // Prefer the readUrl provided by the API; fall back to constructing it locally.
+  const keyPart = accessKey ? `&accessKey=${encodeURIComponent(accessKey)}` : '';
+  const destination = pendingReadUrl || `${ROUTES.ready}?orderId=${encodeURIComponent(orderId)}${keyPart}`;
+
+  let ticks = 0;
+  const finishTimer = setInterval(() => {
+    ticks++;
+    if (displayPct < 100) {
+      displayPct += 1;
+      refreshUI();
+    } else {
+      clearInterval(finishTimer);
+      setTimeout(() => {
+        window.location.href = destination;
+      }, 1200);
+    }
+    if (ticks > 15) {
+      // Safety — if something stalls, redirect anyway
+      clearInterval(finishTimer);
+      window.location.href = destination;
+    }
+  }, 110);
+}
+
+// ─── API polling ──────────────────────────────────────────────────────────────
+async function fetchStatus() {
+  try {
+    const res = await fetch('/api/generate/status?orderId=' + encodeURIComponent(orderId));
+
+    if (!res.ok) {
+      if (res.status === 404) {
+        showError(GEN.errorNotFound);
+      }
+      // Other 5xx errors: log quietly and let the next poll retry
+      console.warn('[generating] Status request failed:', res.status);
+      return;
+    }
+
+    const data = await res.json();
+
+    // Advance the real floor — never go backward.
+    // Reset the stall clock whenever real progress is made.
+    if (typeof data.progress === 'number' && data.progress > realPct) {
+      realPct = data.progress;
+      armStallDetection();
+    }
+
+    // Apply stage change if reported
+    if (data.currentStage) {
+      applyApiStage(data.currentStage);
+    }
+
+    // Capture readUrl whenever the API provides it — used by handleReady()
+    if (data.readUrl) {
+      pendingReadUrl = data.readUrl;
+    }
+
+    // Terminal: success
+    if (data.status === 'ready') {
+      handleReady();
+      return;
+    }
+
+    // Terminal: partial — audio failed but book is deliverable; redirect same as ready
+    if (data.status === 'partial') {
+      handleReady();
+      return;
+    }
+
+    // Terminal: failure — show safe Hebrew copy, never the raw backend error string
+    if (data.status === 'failed') {
+      track('generation_failed', { orderId, failedStage: data.failedStage || null });
+      showError(GEN.errorFailed);
+      return;
+    }
+
+  } catch (err) {
+    // Network error — keep polling silently
+    console.warn('[generating] Poll error (will retry):', err);
+  }
+}
+
+function startPolling() {
+  fetchStatus();                                 // immediate first call
+  pollTimer = setInterval(fetchStatus, 2500);    // then every 2.5 s
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+const orderId = new URLSearchParams(window.location.search).get('orderId');
+
+wireStaticUI();
+
+if (!orderId) {
+  // Page loaded without an orderId — show a soft, non-technical error
+  showError(GEN.errorMissingOrder);
+} else {
+  track('generation_viewed', { orderId });
+  startedAtMs = Date.now();
+  displayPct = 5;
+  refreshUI();
+  cycleStatusText();
+  startFloaters();
+  startSmoothProgress();
+  armStallDetection();  // start stall clock; resets whenever progress advances
+  startPolling();
+}

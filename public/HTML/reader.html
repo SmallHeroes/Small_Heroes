@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../CSS/main.css" />
+  <link rel="stylesheet" href="../CSS/reader.css" />
+</head>
+<body class="reader-body">
+
+  <!-- ── NAVBAR ─────────────────────────────────────────────── -->
+  <header class="navbar reader-navbar">
+    <div class="wrap">
+      <a href="/" class="logo">
+        <div class="logo-icon">
+          <div class="logo-icon-sq"></div>
+          <div class="logo-icon-dot"></div>
+        </div>
+        <div class="logo-text">
+          <span class="logo-brand" id="navBrand"></span>
+          <span class="logo-tagline" id="navTagline"></span>
+        </div>
+      </a>
+      <a id="readerNavBack" href="/ready" class="reader-nav-back"></a>
+    </div>
+  </header>
+
+  <!-- ── MAIN ───────────────────────────────────────────────── -->
+  <main class="reader-main">
+
+    <!-- Loading state -->
+    <div id="readerLoading" class="reader-loading">
+      <div class="reader-loading-dots" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </div>
+      <p class="reader-loading-text" id="readerLoadingText"></p>
+    </div>
+
+    <!-- Error state -->
+    <div id="readerError" class="reader-error" hidden>
+      <div class="reader-error-icon">😔</div>
+      <div class="reader-error-title" id="readerErrorTitle"></div>
+      <div class="reader-error-msg" id="readerErrorMsg"></div>
+      <a id="readerErrorBack" href="/ready" class="reader-error-back"></a>
+    </div>
+
+    <!-- Reader stage -->
+    <div id="readerStage" class="reader-stage" hidden>
+
+      <!-- Reading progress line — fixed below navbar -->
+      <div class="reader-reading-line" aria-hidden="true">
+        <div class="reader-reading-fill" id="readerReadingFill"></div>
+      </div>
+
+      <div class="reader-book" id="readerBook">
+
+        <!-- Book title -->
+        <div class="reader-book-title" id="readerBookTitle"></div>
+
+        <!-- Page shell: layout driven (see lib/bookPageLayout.ts) -->
+        <div class="reader-page" id="readerPage">
+          <div class="reader-page-header">
+            <span class="reader-page-num" id="readerPageNum"></span>
+          </div>
+          <div class="reader-page-canvas" id="readerPageCanvas" data-layout="text_top_image_bottom">
+            <div class="reader-page-media" id="readerPageImageWrap" hidden>
+              <img class="reader-page-img" id="readerPageImg" src="" alt="" />
+              <div class="reader-cover-overlay" id="readerCoverOverlay" hidden>
+                <h2 class="reader-cover-title" id="readerCoverTitle"></h2>
+              </div>
+              <div class="reader-page-media-fallback" id="readerPageImageFallback" hidden>
+                <div class="reader-page-media-fallback-icon" aria-hidden="true">🎨</div>
+                <div class="reader-page-media-fallback-text" id="readerPageImageFallbackText"></div>
+              </div>
+            </div>
+            <div class="reader-page-prose" id="readerPageProse">
+              <p class="reader-text" id="readerText"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Audio player — hidden when no audioUrl -->
+        <div class="reader-audio" id="readerAudioBar" hidden>
+          <button class="reader-audio-play" id="readerAudioPlay">▶</button>
+          <div class="reader-audio-track" id="readerAudioTrack" role="slider">
+            <div class="reader-audio-fill" id="readerAudioFill"></div>
+          </div>
+          <div class="reader-audio-time" dir="ltr">
+            <span id="readerAudioCurrent">0:00</span>
+            <span class="reader-audio-sep"> / </span>
+            <span id="readerAudioDuration">0:00</span>
+          </div>
+        </div>
+        <audio id="readerAudioEl"></audio>
+        <div class="reader-audio-unavailable" id="readerAudioUnavailable" hidden></div>
+
+        <!-- Navigation -->
+        <nav class="reader-nav" id="readerNav">
+          <button class="reader-btn reader-btn-prev" id="readerBtnPrev"></button>
+          <div class="reader-progress" id="readerProgress" aria-live="polite"></div>
+          <button class="reader-btn reader-btn-next" id="readerBtnNext"></button>
+        </nav>
+
+      </div>
+    </div>
+
+  </main>
+
+  <script src="../JS/content.js"></script>
+  <script src="../JS/routes.js"></script>
+  <script src="../JS/analytics.js"></script>
+  <script src="../JS/reader.js"></script>
+
+</body>
+</html>

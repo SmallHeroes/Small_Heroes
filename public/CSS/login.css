@@ -1,0 +1,226 @@
+.login-main {
+  min-height: calc(100vh - var(--nav-h));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  background: linear-gradient(180deg, #f8f5ff 0%, #ffffff 60%);
+}
+
+.login-card {
+  width: min(440px, 100%);
+  background: #fff;
+  border: 1px solid #ece7fb;
+  border-radius: 24px;
+  box-shadow: 0 16px 44px rgba(36, 26, 70, 0.08);
+  padding: 36px 32px;
+  text-align: center;
+}
+
+.login-card h1 {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.1;
+  margin-bottom: 6px;
+  color: var(--dark);
+}
+
+.login-subtitle {
+  color: #6f6a80;
+  font-size: 15px;
+  margin-bottom: 24px;
+}
+
+.login-subtitle strong {
+  color: var(--purple);
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
+/* ── Form ──────────────────────────────────── */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.login-form label {
+  font-weight: 600;
+  font-size: 14px;
+  text-align: right;
+}
+
+.login-form input[type='email'] {
+  height: 48px;
+  border-radius: 12px;
+  border: 1.5px solid #dcd3f9;
+  padding: 0 14px;
+  font-size: 16px;
+  text-align: right;
+  transition: border-color 0.2s;
+}
+
+.login-form input[type='email']:focus {
+  outline: none;
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px rgba(124, 93, 250, 0.12);
+}
+
+/* ── Login button ──────────────────────────── */
+.login-btn {
+  height: 48px;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 700;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-loader {
+  width: 22px;
+  height: 22px;
+  border: 2.5px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── OTP Boxes ─────────────────────────────── */
+.otp-boxes {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 8px 0 4px;
+}
+
+.otp-input {
+  width: 48px;
+  height: 56px;
+  border: 2px solid #dcd3f9;
+  border-radius: 12px;
+  text-align: center;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--dark);
+  caret-color: var(--purple);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.otp-input:focus {
+  outline: none;
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px rgba(124, 93, 250, 0.15);
+}
+
+.otp-input.filled {
+  border-color: var(--purple);
+  background: #faf8ff;
+}
+
+.otp-input.error {
+  border-color: #e53e3e;
+  animation: shake 0.3s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+/* ── Stay logged in ────────────────────────── */
+.stay-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #5e5a70;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.stay-row input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--purple);
+}
+
+/* ── Error message ─────────────────────────── */
+.login-error {
+  min-height: 20px;
+  color: #c53030;
+  font-weight: 600;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+/* ── Bottom links ──────────────────────────── */
+.login-links {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--purple);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+  transition: opacity 0.2s;
+}
+
+.link-btn:hover {
+  opacity: 0.7;
+}
+
+.link-btn:disabled {
+  color: #a0a0a0;
+  cursor: default;
+}
+
+.link-btn:disabled:hover {
+  opacity: 1;
+}
+
+.link-sep {
+  color: #d0d0d0;
+  font-size: 14px;
+}
+
+/* ── Step transition ───────────────────────── */
+.login-step {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Mobile ────────────────────────────────── */
+@media (max-width: 480px) {
+  .login-card {
+    padding: 28px 20px;
+    border-radius: 20px;
+  }
+  .otp-input {
+    width: 42px;
+    height: 50px;
+    font-size: 22px;
+  }
+  .otp-boxes {
+    gap: 7px;
+  }
+}

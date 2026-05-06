@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../CSS/main.css" />
+  <link rel="stylesheet" href="../CSS/ready.css" />
+</head>
+<body>
+
+  <!-- ── NAVBAR ─────────────────────────────────────────────── -->
+  <header class="navbar">
+    <div class="wrap">
+      <a href="/" class="logo">
+        <div class="logo-icon">
+          <div class="logo-icon-sq"></div>
+          <div class="logo-icon-dot"></div>
+        </div>
+        <div class="logo-text">
+          <span class="logo-brand" id="navBrand"></span>
+          <span class="logo-tagline" id="navTagline"></span>
+        </div>
+      </a>
+      <a href="/" class="nav-cta" id="navCta"></a>
+    </div>
+  </header>
+
+  <!-- ── MAIN ───────────────────────────────────────────────── -->
+  <main class="ready-main">
+  <div class="ready-wrap">
+
+    <!-- Loading state -->
+    <div id="readyLoading" class="ready-loading">
+      <div class="ready-loading-dots" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </div>
+      <p class="ready-loading-text" id="readyLoadingText"></p>
+    </div>
+
+    <!-- Error state -->
+    <div id="readyError" class="ready-error" hidden>
+      <div class="ready-error-icon">😔</div>
+      <div class="ready-error-title" id="readyErrorTitle"></div>
+      <div class="ready-error-msg" id="readyErrorMsg"></div>
+      <a href="/" class="ready-error-back" id="readyErrorBack"></a>
+    </div>
+
+    <!-- Book state — populated by ready.js -->
+    <div id="readyBook" class="ready-book" hidden>
+
+      <!-- ── Hero ──────────────────────────────────────────── -->
+      <section class="ready-hero">
+        <div class="ready-sparkle-wrap" aria-hidden="true">✨</div>
+        <h1 class="ready-headline" id="readyHeadline"></h1>
+        <h2 class="ready-title" id="readyTitle"></h2>
+        <p class="ready-cover-text" id="readyCoverText"></p>
+        <p class="ready-dedication" id="readyDedication"></p>
+      </section>
+
+      <!-- ── Actions ───────────────────────────────────────── -->
+      <div class="ready-actions">
+        <a id="readyBtnRead" href="#" class="btn-primary ready-btn-read"></a>
+        <a id="readyBtnAudio" href="#" class="btn-outline ready-btn-audio" hidden></a>
+        <a id="readyBtnPdf" href="#" class="btn-outline ready-btn-pdf" download hidden></a>
+      </div>
+
+      <!-- ── Save / Share link ─────────────────────────────── -->
+      <div class="ready-save-row">
+        <span class="ready-save-hint" id="readySaveHint"></span>
+        <button id="readyBtnCopy" class="ready-btn-copy" type="button">
+          <span id="readyCopyLabel"></span>
+        </button>
+      </div>
+
+      <!-- Hidden audio player, revealed when audio button is clicked -->
+      <audio id="readyAudioPlayer" controls hidden class="ready-audio-player"></audio>
+
+    </div><!-- /readyBook -->
+
+  </div>
+  </main>
+
+  <script src="../JS/content.js"></script>
+  <script src="../JS/routes.js"></script>
+  <script src="../JS/analytics.js"></script>
+  <script src="../JS/bookHistory.js"></script>
+  <script src="../JS/ready.js"></script>
+
+</body>
+</html>

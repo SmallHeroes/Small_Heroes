@@ -1,0 +1,2627 @@
+/* ═══════════════════════════════════════════════════════════
+   WIZARD.JS — גיבורים קטנים
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── CONTENT ALIAS ───────────────────────────────────────── */
+const WIZ_DEFAULTS = {
+  topics: [],
+  traits: [],
+  superpowers: [],
+  difficulties: [],
+  goals: [],
+  helpers: [],
+  avoid: [],
+  lengths: [],
+  styles: [],
+  voices: [],
+  progressLabel: 'שלב {current} מתוך {total}',
+  microcopy: { s3: '', s4: '', s5: '', s6: '', s7: '', s8: '', s9: '', s10: '', companion: '' },
+  nav: {
+    back: 'חזרה',
+    continueToFamily: 'המשך',
+    continueToStory: 'המשך',
+    continueToPackage: 'המשך',
+    continueToSummary: 'המשך',
+    continueDefault: 'המשך',
+  },
+  steps: {
+    s1: { title: '', sub: '', cta: '' },
+    s2: { title: '', sub: '' },
+    companion: { title: '', sub: '' },
+    s3: {
+      title: '', sub: '', nameLabel: '', ageLabel: '', genderLabel: '',
+      genderBoy: '', genderGirl: '', genderOther: '', traitsLabel: '', traitsNote: '',
+      photoPrompt: '', photoOptional: '',
+    },
+    s4power: { title: '', sub: '', extraLabel: '', extraPlaceholder: '' },
+    s4fam: {
+      title: '', sub: '', sub2: '', parent1Label: '', parent2Label: '', siblingLabel: '', homeLabel: '',
+      parent1NamePh: '', parent1DescPh: '', parent2NamePh: '', parent2DescPh: '',
+      siblingNamePh: '', siblingAgePh: '', siblingDescPh: '', homePh: '',
+    },
+    s4: { title: '', sub: '', sub2: '', extraLabel: '', extraPlaceholder: '' },
+    s5: { title: '', sub: '', sub2: '' },
+    s6: { title: '', sub: '', sub2: '', extraLabel: '', extraPlaceholder: '' },
+    s7: { title: '', sub: '', sub2: '', extraLabel: '', extraPlaceholder: '' },
+    s8: {
+      title: '', sub: '', lengthTitle: '', styleLabel: '', addonsSub: '', addonsExpanded: '', addonsCollapsed: '',
+      voiceTitle: '', voicePreview: '',
+      audio: { badge: '', name: '', desc: '' },
+      pdf: { badge: '', name: '', desc: '' },
+      bundle: { badge: '', name: '', desc: '' },
+      sleep: { name: '', desc: '' },
+    },
+    s9: {
+      title: '', sub: '', card1Title: '', card2Title: '', card3Title: '',
+      nameLabel: '', emailLabel: '', submitBtn: '', paymentLogos: '',
+    },
+    categoryFollowup: { title: '', sub: '' },
+  },
+  summary: {
+    totalLabel: '', ageFormat: '{age}', childNameLabel: '', topicLabel: '', lengthLabel: '',
+    styleLabel: '', audioLabel: '', pdfLabel: '', sleepLabel: '', bookDigital: '{length}',
+    bundleLabel: '', audioAddon: '', pdfAddon: '',     defaultHero: 'הגיבור/ה שלכם',
+  },
+};
+const HE_CONTENT = globalThis.CONTENT?.he || {};
+const WIZ_INPUT = HE_CONTENT.wizard || {};
+const WIZ = {
+  ...WIZ_DEFAULTS,
+  ...WIZ_INPUT,
+  nav: { ...WIZ_DEFAULTS.nav, ...(WIZ_INPUT.nav || {}) },
+  microcopy: { ...WIZ_DEFAULTS.microcopy, ...(WIZ_INPUT.microcopy || {}) },
+  summary: { ...WIZ_DEFAULTS.summary, ...(WIZ_INPUT.summary || {}) },
+  steps: {
+    ...WIZ_DEFAULTS.steps,
+    ...(WIZ_INPUT.steps || {}),
+    categoryFollowup: {
+      ...WIZ_DEFAULTS.steps.categoryFollowup,
+      ...((WIZ_INPUT.steps || {}).categoryFollowup || {}),
+    },
+    s8: {
+      ...WIZ_DEFAULTS.steps.s8,
+      ...(((WIZ_INPUT.steps || {}).s8 || {})),
+      audio: { ...WIZ_DEFAULTS.steps.s8.audio, ...(((((WIZ_INPUT.steps || {}).s8 || {}).audio) || {}) ) },
+      pdf: { ...WIZ_DEFAULTS.steps.s8.pdf, ...(((((WIZ_INPUT.steps || {}).s8 || {}).pdf) || {}) ) },
+      bundle: { ...WIZ_DEFAULTS.steps.s8.bundle, ...(((((WIZ_INPUT.steps || {}).s8 || {}).bundle) || {}) ) },
+      sleep: { ...WIZ_DEFAULTS.steps.s8.sleep, ...(((((WIZ_INPUT.steps || {}).s8 || {}).sleep) || {}) ) },
+    },
+  },
+};
+const COMMON = HE_CONTENT.common || { brand: '', tagline: '', navCta: '' };
+const clientApi = window.SmallHeroesClient || window.__smallHeroesClientApi || null;
+const PHOTO_ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const PHOTO_MAX_SIZE_BYTES = 15 * 1024 * 1024;
+const PHOTO_GUIDANCE_SEEN_KEY = 'photo_guidance_seen';
+const PHOTO_ANALYSIS_STORAGE_KEY = 'smallheroes.photoAnalysis';
+const PHOTO_QUALITY_STATUS = {
+  GOOD: 'good',
+  WARNING: 'warning',
+  BLOCKED: 'blocked',
+};
+const PHOTO_MSG_WARNING =
+  'אפשר להמשיך ככה, אבל תמונה ברורה יותר תיתן תוצאה מדויקת יותר 🙏';
+const PHOTO_MSG_BLOCKED =
+  'קשה לזהות את הפנים בתמונה. אפשר להמשיך, אבל תמונה ברורה יותר תעזור לנו לדייק את הדמות 🙏';
+const PHOTO_MSG_NO_PHOTO_HELPER =
+  'תמונה ברורה של הפנים תעזור לנו ליצור דמות מדויקת יותר 😊';
+
+const PHOTO_QUALITY_COPY = {
+  good: { title: 'תמונה טובה — נוכל לבנות ממנה דמות' },
+  warning: { title: PHOTO_MSG_WARNING },
+  blocked: { title: PHOTO_MSG_BLOCKED },
+};
+const PHOTO_ANALYSIS_THRESHOLDS = {
+  minGoodFaceRatio: 0.12,
+  minWarningFaceRatio: 0.06,
+  minBlockedFaceRatio: 0.04,
+  dominantFaceRatioMin: 1.45,
+  minCountedFaceRatio: 0.012,
+  minSecondaryComparableRatio: 0.02,
+  minSharpnessGood: 22,
+  minSharpnessWarning: 14,
+};
+const PHOTO_REASON_CODE_COPY = {
+  multiple_faces_no_dominant: 'כמה אנשים בפריים — אם אפשר, תמונה עם פנים אחתות בולטות',
+  face_too_small: 'הפנים יחסית קטנות בפריים',
+  face_too_small_critical: 'הפנים יחסית קטנות בפריים',
+  low_sharpness: 'התמונה קצת מטושטשת',
+  low_brightness: 'התמונה קצת חשוכה',
+  no_face_detected: 'קשה לנו לזהות פנים בבירור',
+};
+const MAX_EXTRA_CHARACTERS = 2;
+const ORDER_SUBMIT_TIMEOUT_MS = 45_000;
+const WIZARD_SESSION_ID_STORAGE_KEY = 'smallheroes.wizardSessionId';
+const ROUTES = window.SH_ROUTES || {
+  home: '/',
+  wizard: '/wizard',
+  directions: '/directions',
+  generating: '/generating',
+  ready: '/ready',
+  reader: '/reader',
+};
+const EXTRA_CHARACTER_RELATIONS = [
+  { id: '', label: '— בחרו —', disabled: true },
+  { id: 'mother', label: 'אמא' },
+  { id: 'father', label: 'אבא' },
+  { id: 'brother', label: 'אח' },
+  { id: 'sister', label: 'אחות' },
+  { id: 'other', label: 'אחר' },
+];
+let isSubmittingOrder = false;
+let transientWizardSessionId = null;
+let pendingPhotoPickerOpen = false;
+
+/* ── HELPER ──────────────────────────────────────────────── */
+function setText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
+
+function reportClientIssue(reason, details) {
+  if (clientApi && typeof clientApi.reportClientIssue === 'function') {
+    clientApi.reportClientIssue('wizard', reason, details);
+  }
+}
+
+function createClientSessionId() {
+  try {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+      return `wiz_${window.crypto.randomUUID()}`;
+    }
+  } catch (_) {}
+  return `wiz_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function getOrCreateWizardSessionId() {
+  try {
+    const existing = window.localStorage.getItem(WIZARD_SESSION_ID_STORAGE_KEY);
+    if (existing && existing.trim()) return existing.trim();
+    const nextId = createClientSessionId();
+    window.localStorage.setItem(WIZARD_SESSION_ID_STORAGE_KEY, nextId);
+    return nextId;
+  } catch (_) {
+    if (!transientWizardSessionId) transientWizardSessionId = createClientSessionId();
+    return transientWizardSessionId;
+  }
+}
+
+function clearWizardSessionId() {
+  transientWizardSessionId = null;
+  try {
+    window.localStorage.removeItem(WIZARD_SESSION_ID_STORAGE_KEY);
+  } catch (_) {}
+}
+
+function createEmptyExtraCharacter() {
+  return {
+    relation: '',
+    name: '',
+    description: '',
+    photo: null,
+    photoQuality: null,
+  };
+}
+
+function getTraitIcon(trait) {
+  const normalizedId = String(trait?.id || '').toLowerCase();
+  const normalizedLabel = String(trait?.label || '').toLowerCase();
+  const source = `${normalizedId} ${normalizedLabel}`;
+  if (source.includes('רגיש')) return '💗';
+  if (source.includes('שובב')) return '😄';
+  if (source.includes('מצחיק')) return '😂';
+  if (source.includes('חולם')) return '🌙';
+  if (source.includes('ביישן')) return '😊';
+  if (source.includes('סקרן')) return '🔍';
+  if (source.includes('אמיץ')) return '🦁';
+  if (source.includes('פעלתן')) return '⚡';
+  if (source.includes('יצירתי')) return '🎨';
+  return '✨';
+}
+
+function getStylePreviewDataUrl(styleId) {
+  const stylePreviewMap = {
+    soft_hand_drawn_storybook: '/art-styles/simple.jpg',
+    expressive_painterly_storybook: '/art-styles/classic.jpg',
+  };
+  return stylePreviewMap[styleId] || stylePreviewMap.soft_hand_drawn_storybook;
+}
+
+function normalizeClientStyleId(styleId) {
+  const raw = String(styleId || '').trim();
+  if (!raw) return 'soft_hand_drawn_storybook';
+  const map = {
+    soft_hand_drawn_storybook: 'soft_hand_drawn_storybook',
+    expressive_painterly_storybook: 'expressive_painterly_storybook',
+    SIMPLE_CALM: 'soft_hand_drawn_storybook',
+    FUN_COLORFUL: 'expressive_painterly_storybook',
+    EMOTIONAL_ARTISTIC: 'soft_hand_drawn_storybook', // Legacy compatibility only — not offered for new books.
+    SIMPLE_CARTOON: 'expressive_painterly_storybook',
+    CLASSIC_CARTOON: 'soft_hand_drawn_storybook',
+    DETAILED_CARTOON: 'soft_hand_drawn_storybook', // Legacy compatibility only — not offered for new books.
+    clean_cartoon_2d: 'expressive_painterly_storybook',
+    realistic_illustrated: 'soft_hand_drawn_storybook', // Legacy compatibility only — not offered for new books.
+    whimsical_comic_fantasy: 'expressive_painterly_storybook',
+    pencil_watercolor: 'soft_hand_drawn_storybook',
+  };
+  return map[raw] || 'soft_hand_drawn_storybook';
+}
+
+function getCharacterDescriptionPlaceholder(relation) {
+  return relation === 'other'
+    ? 'למשל: חבר טוב, סבתא, דוד...'
+    : 'למשל: מצחיקה, אוהבת לשיר, תמיד מרגיעה';
+}
+
+/* ── STATE ──────────────────────────────────────────────────── */
+const state = {
+  currentStep: 1,
+  totalSteps: 13,
+
+  topic: null,
+  topicLabel: '',
+  /** Narrative bucket for companion art + prompts (e.g. NOISE_FEAR). */
+  challengeCategory: null,
+  /** API payload from /api/categories/branch?category=… */
+  categoryBranching: null,
+  /** { question, answer, selectedQuickAnswers? }[] — persisted on order */
+  categoryAnswers: [],
+  /** snake_case id from COMPANIONS_BY_CATEGORY */
+  companionCharacterId: null,
+
+  childName: "",
+  childAge: "",
+  childGender: "",
+  childTraits: [],
+  childSuperpower: [],   // multi-select superpowers selected in step 4
+  childSuperpowerExtra: "",
+  photo: null,
+  photoQuality: {
+    status: PHOTO_QUALITY_STATUS.BLOCKED,
+    faceCount: 0,
+    reasonCodes: ['no_photo'],
+  },
+
+  /* step 4 — family context */
+  extraCharacters: [],
+
+  difficulties: [],
+  goals: [],
+  helpers: [],
+  avoid: [],
+  s4extra: "",
+  s6extra: "",
+  s7extra: "",
+
+  /* product config */
+  length: "medium", /* short | medium | long */
+  style: "soft_hand_drawn_storybook",
+  audioEnabled: false,
+  voice: "mom", /* mom | dad | fairy */
+  sleepMode: false,
+  pdfEnabled: false,
+  bundleEnabled: false,
+  bookName: "",
+
+  /* contact (step 10) */
+  contactName: "",
+  contactEmail: "",
+};
+
+/* ── PRICING ─────────────────────────────────────────────────── */
+const PRICES = {
+  base: { short: 49, medium: 59, long: 69 },
+  audio: 19,
+  pdf: 12,
+  bundle: 25,
+};
+
+function computeTotal() {
+  const base = PRICES.base[state.length] || 59;
+  let addons = 0;
+
+  if (state.bundleEnabled) {
+    addons = PRICES.bundle;
+  } else {
+    if (state.audioEnabled) addons += PRICES.audio;
+    if (state.pdfEnabled)   addons += PRICES.pdf;
+  }
+
+  return { base, addons, total: base + addons };
+}
+
+/* ── STATIC DATA ─────────────────────────────────────────────── */
+// All sourced from CONTENT — shape is identical, no logic changes.
+// NOTE: TRAITS was previously a plain string array; CONTENT.he.wizard.traits
+// is [{id, label}]. renderTraits updated to use t.label — stored value
+// (Hebrew label string in state.childTraits) is unchanged.
+const TOPICS              = WIZ.topics;
+const TRAITS              = WIZ.traits;
+const STORY_LENGTHS       = WIZ.lengths;
+const ILLUSTRATION_STYLES = WIZ.styles;
+const VOICES              = WIZ.voices;
+
+/** content.js `topics[].id` → COMPANIONS_BY_CATEGORY key */
+const TOPIC_TO_CHALLENGE_CATEGORY = {
+  sirens: 'NOISE_FEAR',
+  night: 'NIGHT_FEAR',
+  general_fears: 'GENERAL_FEARS',
+  anger: 'ANGER_FRUSTRATION',
+  sensitivity: 'SENSITIVITY_OVERWHELM',
+  transition: 'TRANSITION',
+  sibling: 'NEW_SIBLING',
+  confidence: 'SELF_CONFIDENCE',
+  social: 'SOCIAL',
+  focus: 'FOCUS_LEARNING',
+  other: 'OTHER',
+};
+
+const TOPIC_CHIP_ORDER = [
+  'night',
+  'sirens',
+  'general_fears',
+  'anger',
+  'sensitivity',
+  'social',
+  'confidence',
+  'sibling',
+  'transition',
+  'focus',
+  'other',
+];
+
+function normalizeFollowupQuestion(questionItem, index) {
+  if (typeof questionItem === 'string') {
+    return {
+      id: `q_${index + 1}`,
+      question: questionItem,
+      quickAnswers: [],
+      placeholder: 'פרטו עוד אם תרצו',
+      priority: 0,
+      intent: '',
+      showIf: null,
+    };
+  }
+  if (!questionItem || typeof questionItem !== 'object') return null;
+  const question = typeof questionItem.question === 'string' ? questionItem.question : '';
+  if (!question) return null;
+  const quickAnswers = Array.isArray(questionItem.quickAnswers)
+    ? questionItem.quickAnswers.filter((a) => typeof a === 'string' && a.trim())
+    : [];
+  return {
+    id: typeof questionItem.id === 'string' ? questionItem.id : `q_${index + 1}`,
+    question,
+    quickAnswers,
+    placeholder:
+      typeof questionItem.placeholder === 'string' && questionItem.placeholder.trim()
+        ? questionItem.placeholder
+        : 'פרטו עוד אם תרצו',
+    priority: Number.isFinite(Number(questionItem.priority)) ? Number(questionItem.priority) : 0,
+    intent: typeof questionItem.intent === 'string' ? questionItem.intent : '',
+    showIf: questionItem.showIf && typeof questionItem.showIf === 'object' ? questionItem.showIf : null,
+  };
+}
+
+let followupUpdateTimer = null;
+let followupRefreshSerial = 0;
+
+function getNormalizedFollowupQuestions() {
+  const questions = Array.isArray(state.categoryBranching?.followUpQuestions)
+    ? state.categoryBranching.followUpQuestions
+    : [];
+  return questions.slice(0, 3).map((q, i) => normalizeFollowupQuestion(q, i)).filter(Boolean);
+}
+
+function collectFollowupDraftFromDom() {
+  const wrap = document.getElementById('category-followup-wrap');
+  const questions = getNormalizedFollowupQuestions();
+  if (!wrap || questions.length === 0) return [];
+  return questions.map((item, i) => {
+    const textEl = wrap.querySelector(`[data-cat-q-text="${i}"]`);
+    const selectedQuickAnswers = Array.from(wrap.querySelectorAll(`[data-cat-q-chip="${i}"].selected`))
+      .map((node) => String(node.getAttribute('data-chip-value') || '').trim())
+      .filter(Boolean);
+    return {
+      questionId: item.id,
+      question: item.question,
+      answer: textEl && 'value' in textEl ? String(textEl.value || '').trim() : '',
+      ...(selectedQuickAnswers.length > 0 ? { selectedQuickAnswers } : {}),
+    };
+  });
+}
+
+function persistFollowupDraftFromDom() {
+  state.categoryAnswers = collectFollowupDraftFromDom();
+}
+
+function upsertCategoryAnswerDraft(nextDraft) {
+  const current = Array.isArray(state.categoryAnswers) ? [...state.categoryAnswers] : [];
+  const idx = current.findIndex((row) => row && row.questionId === nextDraft.questionId);
+  if (idx >= 0) {
+    current[idx] = {
+      ...current[idx],
+      ...nextDraft,
+    };
+  } else {
+    current.push(nextDraft);
+  }
+  state.categoryAnswers = current;
+}
+
+function getChallengeCategoryForTopicId(topicId) {
+  if (!topicId) return null;
+  return TOPIC_TO_CHALLENGE_CATEGORY[topicId] || 'OTHER';
+}
+
+async function fetchCategoryBranching(category, currentAnswers) {
+  const query = new URLSearchParams();
+  query.set('category', String(category || ''));
+  if (Array.isArray(currentAnswers) && currentAnswers.length > 0) {
+    const compactAnswers = currentAnswers.map((item) => ({
+      ...(item?.questionId ? { questionId: item.questionId } : {}),
+      ...(Array.isArray(item?.selectedQuickAnswers) ? { selectedQuickAnswers: item.selectedQuickAnswers } : {}),
+    }));
+    query.set('currentAnswers', JSON.stringify(compactAnswers));
+  }
+  const response = await fetch('/api/categories/branch?' + query.toString(), { cache: 'no-store' });
+  if (!response.ok) {
+    let errBody = '';
+    try {
+      errBody = await response.text();
+    } catch (e) { /* empty */ }
+    throw new Error(`status=${response.status} body=${errBody}`);
+  }
+  return response.json();
+}
+
+function renderCompanionCards() {
+  const grid = document.getElementById('companion-cards');
+  if (!grid) return;
+
+  const cat = state.challengeCategory;
+  const map = globalThis.COMPANIONS_BY_CATEGORY;
+  if (!cat || !map || !Array.isArray(map[cat])) {
+    grid.innerHTML = '';
+    if (cat) grid.dataset.challengeCategory = cat;
+    return;
+  }
+
+  grid.dataset.challengeCategory = cat;
+  const list = map[cat];
+
+  grid.replaceChildren();
+
+  list.forEach((c) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'companion-card' + (state.companionCharacterId === c.id ? ' selected' : '');
+
+    const inner = document.createElement('span');
+    inner.className = 'companion-card-inner';
+
+    const box = document.createElement('span');
+    box.className = 'companion-img-box';
+
+    const img = document.createElement('img');
+    img.className = 'companion-img';
+    img.alt = '';
+    img.loading = 'lazy';
+    img.src = c.image;
+
+    const ph = document.createElement('span');
+    ph.className = 'companion-img-placeholder';
+    ph.hidden = true;
+    const phText = document.createElement('span');
+    phText.className = 'companion-img-placeholder-text';
+    phText.textContent = c.name;
+    ph.appendChild(phText);
+
+    const markBad = () => {
+      img.classList.add('is-hidden');
+      ph.hidden = false;
+    };
+
+    img.addEventListener('error', markBad);
+    img.addEventListener('load', () => {
+      if (img.naturalWidth <= 1 && img.naturalHeight <= 1) markBad();
+    });
+
+    box.appendChild(img);
+    box.appendChild(ph);
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'companion-name';
+    nameEl.textContent = c.name;
+
+    const tagEl = document.createElement('span');
+    tagEl.className = 'companion-tagline';
+    tagEl.textContent = c.tagline;
+
+    inner.appendChild(box);
+    inner.appendChild(nameEl);
+    inner.appendChild(tagEl);
+    btn.appendChild(inner);
+
+    btn.addEventListener('click', () => {
+      state.companionCharacterId = c.id;
+      grid.querySelectorAll('.companion-card').forEach((n) => n.classList.remove('selected'));
+      btn.classList.add('selected');
+      const cont = document.getElementById('btn-continue');
+      if (cont && state.currentStep === 4) cont.disabled = false;
+    });
+
+    grid.appendChild(btn);
+  });
+}
+
+/* ── INIT ────────────────────────────────────────────────────── */
+function init() {
+  state.style = normalizeClientStyleId(state.style);
+  if (state.currentStep < 12) {
+    // Don't carry stale package selection into a new wizard flow.
+    state.length = null;
+  }
+  const guidanceOverlay = document.getElementById('photo-guidance-overlay');
+  if (guidanceOverlay) guidanceOverlay.hidden = true;
+  pendingPhotoPickerOpen = false;
+  if (state.extraCharacters.length === 0) {
+    state.extraCharacters.push(createEmptyExtraCharacter());
+  } else if (state.extraCharacters.length > MAX_EXTRA_CHARACTERS) {
+    state.extraCharacters = state.extraCharacters.slice(0, MAX_EXTRA_CHARACTERS);
+  }
+  state.extraCharacters = state.extraCharacters.map((character) => ({
+    relation: character.relation || '',
+    name: character.name || '',
+    description: character.description || '',
+    photo: character.photo || null,
+    photoQuality:
+      character.photoQuality &&
+      typeof character.photoQuality === 'object' &&
+      typeof character.photoQuality.status === 'string'
+        ? character.photoQuality
+        : null,
+  }));
+  initWizardContent();   // bind all static text from CONTENT
+  const bookNameInput = document.getElementById('bookNameInput');
+  if (bookNameInput) {
+    bookNameInput.addEventListener('input', (e) => {
+      state.bookName = e.target.value.trim();
+    });
+  }
+  buildPills();
+  renderTopics();
+  renderTraits();
+  renderSuperpowerChips();
+  renderExtraCharacters();
+  renderLengthBtns();
+  renderStyleBtns();
+  renderVoiceBtns();
+  bindPhotoUploadInteractions();
+  bindPhotoGuidanceDialog();
+  restorePhotoQualityFromStorage();
+  renderPhotoUploadArea();
+  renderPhotoQualityMessage();
+  updateUI();
+  refreshTotal();
+  syncWizardLayout();
+  syncStep8Layout(true);
+  track('wizard_started');
+}
+
+/* ── STATIC CONTENT BINDING ──────────────────────────────────── */
+function initWizardContent() {
+
+  // Nav
+  setText('wizNavBrand',   COMMON.brand);
+  setText('wizNavTagline', COMMON.tagline);
+  setText('wizNavCta',     COMMON.navCta);
+
+  // Step 1 — title has a newline rendered as <br> in HTML
+  const [s1Line1, s1Line2 = ''] = WIZ.steps.s1.title.split('\n');
+  setText('s1TitleLine1', s1Line1);
+  setText('s1TitleLine2', s1Line2);
+  setText('s1Sub', WIZ.steps.s1.sub);
+  setText('s1Btn', WIZ.steps.s1.cta);
+
+  // Step 2
+  setText('s2Title', WIZ.steps.s2.title);
+  setText('s2Sub',   WIZ.steps.s2.sub);
+
+  setText('catFollowTitle', (WIZ.steps.categoryFollowup || WIZ_DEFAULTS.steps.categoryFollowup).title);
+  setText('catFollowSub',   (WIZ.steps.categoryFollowup || WIZ_DEFAULTS.steps.categoryFollowup).sub);
+
+  // Step 4 — companion
+  setText('companionMicro', WIZ.microcopy.companion || '');
+  setText('companionTitle', WIZ.steps.companion?.title || '');
+  setText('companionSub',   WIZ.steps.companion?.sub || '');
+
+  // Micro-copy — warm acknowledgment lines shown at top of each step
+  setText('s3micro',  WIZ.microcopy.s3);
+  setText('s4micro',  WIZ.microcopy.s4);
+  setText('s5micro',  WIZ.microcopy.s5);
+  setText('s6micro',  WIZ.microcopy.s6);
+  setText('s7micro',  WIZ.microcopy.s7);
+  setText('s8micro',  WIZ.microcopy.s8);
+  setText('s9micro',  WIZ.microcopy.s9);
+  setText('s10micro', WIZ.microcopy.s10);
+
+  // Step 3
+  setText('s3Title',               WIZ.steps.s3.title);
+  setText('s3Sub',                 WIZ.steps.s3.sub);
+  setText('s3NameLabel',           WIZ.steps.s3.nameLabel);
+  setText('s3AgeLabel',            WIZ.steps.s3.ageLabel);
+  setText('s3GenderLabel',         WIZ.steps.s3.genderLabel);
+  setText('s3GenderOptBoy',        WIZ.steps.s3.genderBoy);
+  setText('s3GenderOptGirl',       WIZ.steps.s3.genderGirl);
+  setText('s3GenderOptOther',      WIZ.steps.s3.genderOther);
+  setText('s3TraitsLabel',         WIZ.steps.s3.traitsLabel);
+  setText('s3TraitsNote',          WIZ.steps.s3.traitsNote);
+  setText('s3PhotoPrompt',         WIZ.steps.s3.photoPrompt);
+  setText('s3PhotoOptional',       WIZ.steps.s3.photoOptional);
+
+  // Step 4 — superpower
+  setText('s4powermicro',      WIZ.microcopy.s4);
+  setText('s4powerTitle',      WIZ.steps.s4power.title);
+  setText('s4powerSub',        WIZ.steps.s4power.sub);
+  setText('s4powerExtraLabel', WIZ.steps.s4power.extraLabel);
+  const s4powerTa = document.getElementById('s4power-extra');
+  if (s4powerTa) s4powerTa.placeholder = WIZ.steps.s4power.extraPlaceholder;
+
+  // Step 5 — family context (new)
+  setText('s4famTitle',        'מי עוד בסיפור');
+  setText('s4famSub',          'אפשר להוסיף עד 2 דמויות נוספות (לא חובה)');
+  setText('s4famSub2',         'רק מה שיעזור לסיפור להרגיש מוכר ובטוח עבור הילד שלכם.');
+
+  // Step 5 — difficulties (was step 4)
+  setText('s4Title',      WIZ.steps.s4.title);
+  setText('s4Sub',        WIZ.steps.s4.sub);
+  setText('s4Sub2',       WIZ.steps.s4.sub2);
+  setText('s4ExtraLabel', WIZ.steps.s4.extraLabel);
+  const s4ta = document.getElementById('s4-extra');
+  if (s4ta) s4ta.placeholder = WIZ.steps.s4.extraPlaceholder;
+  // Chip labels — toggleChip still reads el.textContent; values stored unchanged
+  WIZ.difficulties.forEach((d, i) => setText('s4Chip' + i, d.label));
+
+  // Step 6 — goals (was step 5)
+  setText('s5Title', WIZ.steps.s5.title);
+  setText('s5Sub',   WIZ.steps.s5.sub);
+  setText('s5Sub2',  WIZ.steps.s5.sub2);
+  WIZ.goals.forEach((g, i) => setText('s5Chip' + i, g.label));
+
+  // Step 7 — helpers (was step 6)
+  setText('s6Title',      WIZ.steps.s6.title);
+  setText('s6Sub',        WIZ.steps.s6.sub);
+  setText('s6Sub2',       WIZ.steps.s6.sub2);
+  setText('s6ExtraLabel', WIZ.steps.s6.extraLabel);
+  const s6ta = document.getElementById('s6-extra');
+  if (s6ta) s6ta.placeholder = WIZ.steps.s6.extraPlaceholder;
+  WIZ.helpers.forEach((h, i) => setText('s6Chip' + i, h.label));
+
+  // Step 8 — avoid (was step 7)
+  setText('s7Title',      WIZ.steps.s7.title);
+  setText('s7Sub',        WIZ.steps.s7.sub);
+  setText('s7Sub2',       WIZ.steps.s7.sub2);
+  setText('s7ExtraLabel', WIZ.steps.s7.extraLabel);
+  const s7ta = document.getElementById('s7-extra');
+  if (s7ta) s7ta.placeholder = WIZ.steps.s7.extraPlaceholder;
+  WIZ.avoid.forEach((a, i) => setText('s7Chip' + i, a.label));
+
+  // Step 9 — package (was step 8)
+  setText('s8Title',       WIZ.steps.s8.title);
+  setText('s8Sub',         WIZ.steps.s8.sub);
+  setText('s8LengthTitle', WIZ.steps.s8.lengthTitle);
+  setText('s8StyleLabel',  WIZ.steps.s8.styleLabel);
+  setText('s8AddonSub',    WIZ.steps.s8.addonsSub);
+  setText('s8AudioBadge',  WIZ.steps.s8.audio.badge);
+  setText('s8AudioName',   WIZ.steps.s8.audio.name);
+  setText('s8AudioDesc',   WIZ.steps.s8.audio.desc);
+  setText('s8PdfBadge',    WIZ.steps.s8.pdf.badge);
+  setText('s8PdfName',     WIZ.steps.s8.pdf.name);
+  setText('s8PdfDesc',     WIZ.steps.s8.pdf.desc);
+  setText('s8BundleBadge', WIZ.steps.s8.bundle.badge);
+  setText('s8BundleName',  WIZ.steps.s8.bundle.name);
+  setText('s8BundleDesc',  WIZ.steps.s8.bundle.desc);
+  setText('s8VoiceTitle',  WIZ.steps.s8.voiceTitle);
+  setText('s8SleepName',   WIZ.steps.s8.sleep.name);
+  setText('s8SleepDesc',   WIZ.steps.s8.sleep.desc);
+  setText('s8TotalLabel',  WIZ.summary.totalLabel);
+  setText('bottomBarTotalLabel', 'סה"כ:');
+
+  // Step 10 — summary + payment (was step 9)
+  setText('s9Title',        WIZ.steps.s9.title);
+  setText('s9Sub',          WIZ.steps.s9.sub);
+  setText('s9Card1Title',   WIZ.steps.s9.card1Title);
+  setText('s9Card2Title',   WIZ.steps.s9.card2Title);
+  setText('s9Card3Title',   WIZ.steps.s9.card3Title);
+  setText('s9NameLabel',    WIZ.steps.s9.nameLabel);
+  setText('s9EmailLabel',   WIZ.steps.s9.emailLabel);
+  setText('btn-pay',        WIZ.steps.s9.submitBtn);
+  setText('s9PaymentLogos', WIZ.steps.s9.paymentLogos);
+
+  // Bottom bar — back button is always static; continue is set by updateUI
+  setText('btn-back', WIZ.nav.back);
+}
+
+/* ── HELPERS ─────────────────────────────────────────────────── */
+function isVoicePanelActive() {
+  return state.audioEnabled || state.bundleEnabled;
+}
+
+function getVoiceCol() {
+  return document.getElementById("s8-voice-col");
+}
+
+function getStep8Grid() {
+  return document.getElementById("s8-grid");
+}
+
+function getAddonsTitle() {
+  return document.getElementById("s8-addons-title");
+}
+
+/* ── WIZARD LAYOUT ───────────────────────────────────────────── */
+function syncWizardLayout() {
+  const main = document.querySelector(".wizard-main");
+  if (!main) return;
+
+  const open = isVoicePanelActive() && state.currentStep === 12;
+  main.classList.toggle("wizard-audio-open", open);
+}
+
+/* ── PROGRESS PILLS ──────────────────────────────────────────── */
+function buildPills() {
+  const c = document.getElementById("progress-pills");
+  if (!c) return;
+
+  c.innerHTML = "";
+
+  for (let i = 1; i <= state.totalSteps; i++) {
+    const p = document.createElement("div");
+    p.className = "pill";
+    p.id = "pill-" + i;
+    c.appendChild(p);
+  }
+}
+
+function updateProgress() {
+  const lbl = document.getElementById("progress-label");
+  if (lbl) lbl.textContent = WIZ.progressLabel
+    .replace('{current}', state.currentStep)
+    .replace('{total}',   state.totalSteps);
+
+  for (let i = 1; i <= state.totalSteps; i++) {
+    const p = document.getElementById("pill-" + i);
+    if (!p) continue;
+
+    p.className =
+      "pill" +
+      (i < state.currentStep
+        ? " done"
+        : i === state.currentStep
+        ? " active"
+        : "");
+  }
+}
+
+/* ── UI ──────────────────────────────────────────────────────── */
+function updateUI() {
+  updateProgress();
+  syncWizardLayout();
+
+  document.querySelectorAll(".step").forEach((s) => s.classList.remove("active"));
+
+  const el = document.getElementById("step-" + state.currentStep);
+  if (el) {
+    el.classList.add("active");
+    el.style.animation = "none";
+    void el.offsetHeight;
+    el.style.animation = "";
+  }
+
+  const bar        = document.getElementById("bottom-bar");
+  const btn        = document.getElementById("btn-continue");
+  const backBtn    = document.getElementById("btn-back");
+  const btnAnyway  = document.getElementById("btn-continue-anyway");
+  const photoReassure = document.getElementById("photo-step-reassure");
+
+  if (bar && btn && backBtn) {
+    if (state.currentStep <= 2 || state.currentStep === 13) {
+      bar.classList.add("hidden");
+      if (btnAnyway) btnAnyway.hidden = true;
+      if (photoReassure) photoReassure.hidden = true;
+    } else {
+      bar.classList.remove("hidden");
+
+      if (state.currentStep === 5) {
+        updatePhotoStepBottomBar();
+      } else {
+        btn.textContent =
+          state.currentStep === 6  ? WIZ.nav.continueToFamily  :
+          state.currentStep === 7  ? WIZ.nav.continueToStory   :
+          state.currentStep === 11 ? WIZ.nav.continueToPackage :
+          state.currentStep === 12 ? WIZ.nav.continueToSummary :
+          WIZ.nav.continueDefault;
+        btn.onclick = goNext;
+        if (btnAnyway) btnAnyway.hidden = true;
+        if (photoReassure) photoReassure.hidden = true;
+        if (state.currentStep === 4) {
+          btn.disabled = !state.companionCharacterId;
+        } else {
+          btn.disabled = false;
+        }
+      }
+
+      if (state.currentStep <= 1) {
+        backBtn.classList.add("hidden");
+      } else {
+        backBtn.classList.remove("hidden");
+      }
+    }
+  }
+
+  if (state.currentStep === 3) {
+    renderCategoryFollowupFields();
+  }
+
+  if (state.currentStep === 4) {
+    renderCompanionCards();
+  }
+
+  // Show/hide total in bottom bar — only after a package length is chosen
+  const bottomBarTotal = document.getElementById('bottom-bar-total');
+  if (bottomBarTotal) {
+    bottomBarTotal.hidden = !(state.currentStep >= 12 && Boolean(state.length));
+  }
+
+  if (state.currentStep === 12) {
+    syncStep8Layout(true);
+    refreshTotal();
+  }
+
+  if (state.currentStep === 13) {
+    buildSummary();
+  }
+}
+
+/* ── NAVIGATION ──────────────────────────────────────────────── */
+function goNext() {
+  if (state.currentStep === 3) {
+    persistFollowupDraftFromDom();
+  }
+
+  if (state.currentStep === 4) {
+    if (!state.companionCharacterId) {
+      const grid = document.getElementById('companion-cards');
+      if (grid) {
+        grid.style.animation = 'none';
+        void grid.offsetHeight;
+        grid.style.animation = 'shake 0.4s ease';
+      }
+      return;
+    }
+  }
+
+  if (state.currentStep === 5) {
+    state.childName   = document.getElementById("child-name")?.value.trim() || "";
+    state.childAge    = document.getElementById("child-age")?.value || "";
+    state.childGender = document.getElementById("child-gender")?.value || "";
+
+    if (!state.childName) {
+      shake(document.getElementById("child-name"));
+      return;
+    }
+    // Photo is optional: never block progression here.
+  }
+
+  if (state.currentStep === 6) {
+    state.childSuperpowerExtra = document.getElementById("s4power-extra")?.value.trim() || "";
+  }
+
+  if (state.currentStep === 7) {
+    state.extraCharacters = state.extraCharacters
+      .slice(0, MAX_EXTRA_CHARACTERS)
+      .map((character) => ({
+        relation: character.relation || 'other',
+        name: (character.name || '').trim(),
+        description: (character.description || '').trim(),
+        photo: character.photo || null,
+        photoQuality:
+          character.photoQuality &&
+          typeof character.photoQuality === 'object' &&
+          typeof character.photoQuality.status === 'string'
+            ? character.photoQuality
+            : null,
+      }));
+  }
+
+  if (state.currentStep === 8) {
+    state.s4extra = document.getElementById("s4-extra")?.value || "";
+  }
+
+  if (state.currentStep === 10) {
+    state.s6extra = document.getElementById("s6-extra")?.value || "";
+  }
+
+  if (state.currentStep === 11) {
+    state.s7extra = document.getElementById("s7-extra")?.value || "";
+  }
+
+  if (state.currentStep === 13) {
+    if (isSubmittingOrder) return;
+    state.contactName  = document.getElementById("contact-name")?.value.trim() || "";
+    state.contactEmail = document.getElementById("contact-email")?.value.trim() || "";
+
+    if (!state.contactName || !state.contactEmail) {
+      if (!state.contactName)  shake(document.getElementById("contact-name"));
+      if (!state.contactEmail) shake(document.getElementById("contact-email"));
+      return;
+    }
+    // Photo quality never blocks checkout.
+
+    handleSubmit();
+    return;
+  }
+
+  state.currentStep++;
+  updateUI();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function shake(el) {
+  if (!el) return;
+
+  el.style.borderColor = "#ff6b6b";
+  el.style.animation   = "shake 0.4s ease";
+  el.focus();
+
+  setTimeout(() => {
+    el.style.borderColor = "";
+    el.style.animation   = "";
+  }, 2200);
+}
+
+function goBack() {
+  if (state.currentStep <= 1) return;
+
+  state.currentStep--;
+  updateUI();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+/* ── TOPIC CHIPS (flat ordered flow) ─────────────────────────── */
+
+function addTopicChip(wrap, t, afterSelect) {
+  const d = document.createElement('div');
+  d.className = 'chip';
+  d.textContent = t.label;
+  d.setAttribute('data-id', t.id);
+  d.addEventListener('click', () => {
+    const root = document.getElementById('topic-chips');
+    if (root) root.querySelectorAll('.chip').forEach((c) => c.classList.remove('selected'));
+    d.classList.add('selected');
+    const previousTopic = state.topic;
+    const isReselect = previousTopic === t.id;
+    if (!isReselect && previousTopic) {
+      state.companionCharacterId = null;
+    }
+    state.topic = t.id;
+    state.topicLabel = t.label;
+    state.challengeCategory = getChallengeCategoryForTopicId(t.id);
+    const cat = String(state.challengeCategory || '');
+
+    if (isReselect && state.categoryBranching && !state.categoryBranching._fetchFailed) {
+      if (afterSelect) {
+        setTimeout(afterSelect, 220);
+      }
+      return;
+    }
+
+    if (!isReselect) {
+      state.categoryBranching = null;
+      state.categoryAnswers = [];
+    }
+
+    (async function loadBranch() {
+      try {
+        const data = await fetchCategoryBranching(cat);
+        state.categoryBranching = { ...data, _fetchFailed: false };
+      } catch (e) {
+        console.error('[wizard] category branch network failed', e);
+        state.categoryBranching = {
+          followUpQuestions: [],
+          hebrewLabel: state.topicLabel,
+          _fetchFailed: true,
+        };
+      }
+      if (afterSelect) {
+        setTimeout(afterSelect, 220);
+      }
+    })();
+  });
+  wrap.appendChild(d);
+}
+
+function goToCategoryFollowupStep() {
+  state.currentStep = 3;
+  updateUI();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function renderTopics() {
+  const wrap = document.getElementById('topic-chips');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  const topicById = new Map(TOPICS.map((topic) => [topic.id, topic]));
+  TOPIC_CHIP_ORDER.forEach((topicId) => {
+    const topic = topicById.get(topicId);
+    if (!topic) return;
+    addTopicChip(wrap, topic, goToCategoryFollowupStep);
+  });
+
+  if (state.topic) {
+    const selected = wrap.querySelector(`[data-id="${state.topic}"]`);
+    if (selected) selected.classList.add('selected');
+  }
+}
+
+function retryCategoryBranchFetch() {
+  const cat = String(state.challengeCategory || '');
+  if (!cat) return;
+  state.categoryBranching = null;
+  updateUI();
+  (async function () {
+    try {
+      const data = await fetchCategoryBranching(cat);
+      state.categoryBranching = { ...data, _fetchFailed: false };
+    } catch (e) {
+      console.error('[wizard] category branch retry failed', e);
+      state.categoryBranching = {
+        followUpQuestions: [],
+        hebrewLabel: state.topicLabel,
+        _fetchFailed: true,
+      };
+    }
+    updateUI();
+  })();
+}
+
+function scheduleDynamicFollowupRefresh() {
+  if (followupUpdateTimer) {
+    clearTimeout(followupUpdateTimer);
+  }
+  followupUpdateTimer = setTimeout(async () => {
+    followupUpdateTimer = null;
+    const cat = String(state.challengeCategory || '');
+    if (!cat || !state.categoryBranching || state.categoryBranching._fetchFailed) return;
+    const serial = ++followupRefreshSerial;
+    const currentAnswers = collectFollowupDraftFromDom();
+    state.categoryAnswers = currentAnswers;
+    try {
+      const data = await fetchCategoryBranching(cat, currentAnswers);
+      if (serial !== followupRefreshSerial) return;
+      state.categoryBranching = { ...data, _fetchFailed: false };
+      renderCategoryFollowupFields();
+    } catch (e) {
+      console.error('[wizard] dynamic follow-up refresh failed', e);
+    }
+  }, 140);
+}
+
+function renderCategoryFollowupFields() {
+  const wrap = document.getElementById('category-followup-wrap');
+  if (!wrap) return;
+  if (!state.categoryBranching) {
+    wrap.innerHTML = '<p class="category-followup-wait">טוענים…</p>';
+    return;
+  }
+  if (state.categoryBranching._fetchFailed) {
+    wrap.innerHTML = `
+      <p class="category-followup-error">השאלות עוד נטענות. אפשר לנסות שוב בעוד רגע.</p>
+      <button type="button" class="btn-retry-cat" id="cat-retry-btn">לטעינה מחדש</button>
+    `;
+    const btn = document.getElementById('cat-retry-btn');
+    if (btn) {
+      btn.addEventListener('click', () => retryCategoryBranchFetch());
+    }
+    return;
+  }
+  const rawQuestions = state.categoryBranching.followUpQuestions;
+  if (!Array.isArray(rawQuestions) || rawQuestions.length === 0) {
+    wrap.innerHTML = '<p class="category-followup-skip">אפשר להמשיך — אין שאלות נוספות לנושא הזה.</p>';
+    return;
+  }
+  const followupQuestions = rawQuestions
+    .slice(0, 3)
+    .map((questionItem, index) => normalizeFollowupQuestion(questionItem, index))
+    .filter(Boolean);
+  if (followupQuestions.length === 0) {
+    wrap.innerHTML = '<p class="category-followup-skip">אפשר להמשיך — אין שאלות נוספות לנושא הזה.</p>';
+    return;
+  }
+
+  wrap.innerHTML = '';
+  followupQuestions.forEach((item, i) => {
+    const block = document.createElement('div');
+    block.className = 'form-group category-followup-item';
+
+    const lab = document.createElement('span');
+    lab.className = 'form-label category-followup-label';
+    lab.textContent = item.question;
+    block.appendChild(lab);
+
+    const quickWrap = document.createElement('div');
+    quickWrap.className = 'category-followup-quick-wrap';
+    const prev = (state.categoryAnswers || []).find((a) => a.questionId === item.id) ||
+      (state.categoryAnswers || []).find((a) => a.question === item.question);
+    const preselected = new Set(Array.isArray(prev?.selectedQuickAnswers) ? prev.selectedQuickAnswers : []);
+
+    item.quickAnswers.forEach((quickAnswer) => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip category-followup-chip';
+      chip.textContent = quickAnswer;
+      chip.setAttribute('data-cat-q-chip', String(i));
+      chip.setAttribute('data-chip-value', quickAnswer);
+      if (preselected.has(quickAnswer)) chip.classList.add('selected');
+      chip.addEventListener('click', () => {
+        chip.classList.toggle('selected');
+        const selectedQuickAnswers = Array.from(quickWrap.querySelectorAll('.category-followup-chip.selected'))
+          .map((node) => String(node.getAttribute('data-chip-value') || '').trim())
+          .filter(Boolean);
+        upsertCategoryAnswerDraft({
+          questionId: item.id,
+          question: item.question,
+          answer: input.value.trim(),
+          ...(selectedQuickAnswers.length > 0 ? { selectedQuickAnswers } : {}),
+        });
+        if (quickAnswer === 'אחר' && chip.classList.contains('selected')) {
+          const targetInput = wrap.querySelector(`[data-cat-q-text="${i}"]`);
+          if (targetInput && typeof targetInput.focus === 'function') targetInput.focus();
+        }
+        if (i === 0) scheduleDynamicFollowupRefresh();
+      });
+      quickWrap.appendChild(chip);
+    });
+    if (item.quickAnswers.length > 0) block.appendChild(quickWrap);
+
+    const input = document.createElement('textarea');
+    input.className = 'wiz-textarea category-followup-textarea';
+    input.rows = 2;
+    input.placeholder = item.placeholder || 'פרטו עוד אם תרצו';
+    input.setAttribute('data-cat-q-text', String(i));
+    if (prev && prev.answer) input.value = prev.answer;
+    input.addEventListener('input', () => {
+      const selectedQuickAnswers = Array.from(quickWrap.querySelectorAll('.category-followup-chip.selected'))
+        .map((node) => String(node.getAttribute('data-chip-value') || '').trim())
+        .filter(Boolean);
+      upsertCategoryAnswerDraft({
+        questionId: item.id,
+        question: item.question,
+        answer: input.value.trim(),
+        ...(selectedQuickAnswers.length > 0 ? { selectedQuickAnswers } : {}),
+      });
+    });
+
+    const optionalNote = document.createElement('span');
+    optionalNote.className = 'form-label-note category-followup-note';
+    optionalNote.textContent = 'אופציונלי';
+
+    block.appendChild(optionalNote);
+    block.appendChild(input);
+    wrap.appendChild(block);
+  });
+
+  const displayedAnswers = followupQuestions.map((item, i) => {
+    const prev = (state.categoryAnswers || []).find((a) => a.questionId === item.id) ||
+      (state.categoryAnswers || []).find((a) => a.question === item.question);
+    const textEl = wrap.querySelector(`[data-cat-q-text="${i}"]`);
+    const selectedQuickAnswers = Array.from(wrap.querySelectorAll(`[data-cat-q-chip="${i}"].selected`))
+      .map((node) => String(node.getAttribute('data-chip-value') || '').trim())
+      .filter(Boolean);
+    return {
+      questionId: item.id,
+      question: item.question,
+      answer: textEl && 'value' in textEl ? String(textEl.value || '').trim() : (prev?.answer || ''),
+      ...(selectedQuickAnswers.length > 0 ? { selectedQuickAnswers } : {}),
+    };
+  });
+  const displayedIds = new Set(displayedAnswers.map((row) => row.questionId));
+  const hiddenPreserved = (state.categoryAnswers || []).filter((row) => row && row.questionId && !displayedIds.has(row.questionId));
+  state.categoryAnswers = [...displayedAnswers, ...hiddenPreserved];
+}
+
+/* ── TRAIT CHIPS ─────────────────────────────────────────────── */
+// TRAITS is now [{id, label}]. Stored value is still t.label (Hebrew string) —
+// behavior unchanged; state.childTraits still holds Hebrew label strings.
+function renderTraits() {
+  const wrap = document.getElementById("trait-chips");
+  if (!wrap) return;
+
+  wrap.innerHTML = "";
+
+  TRAITS.forEach((t) => {
+    const d = document.createElement("div");
+    d.className   = "trait-chip";
+    d.innerHTML = `
+      <span class="trait-chip-icon" aria-hidden="true">${getTraitIcon(t)}</span>
+      <span class="trait-chip-text">${t.label}</span>
+    `;
+
+    d.addEventListener("click", () => {
+      d.classList.toggle("selected");
+
+      const i = state.childTraits.indexOf(t.label);
+      if (i > -1) {
+        state.childTraits.splice(i, 1);
+      } else {
+        state.childTraits.push(t.label);
+      }
+    });
+
+    wrap.appendChild(d);
+  });
+}
+
+function renderExtraCharacters() {
+  const container = document.getElementById('character-cards');
+  if (!container) return;
+  container.innerHTML = '';
+
+  state.extraCharacters.slice(0, MAX_EXTRA_CHARACTERS).forEach((character, index) => {
+    const card = document.createElement('article');
+    card.className = 'char-card';
+    const hasPhoto = Boolean(character.photo);
+    const hasValidationState = hasPhoto || character.photoQuality?.status === PHOTO_QUALITY_STATUS.BLOCKED;
+    const relationOptions = EXTRA_CHARACTER_RELATIONS.map((option) =>
+      `<option value="${option.id}" ${option.disabled ? 'disabled' : ''} ${character.relation === option.id ? 'selected' : ''}>${option.label}</option>`
+    ).join('');
+    card.innerHTML = `
+      <div class="char-card-top">
+        <span class="char-card-title">דמות נוספת ${index + 1}</span>
+        <span class="char-card-tag">לא חובה</span>
+      </div>
+      <div class="char-photo-row">
+        <label class="char-photo-upload">
+          <input class="char-photo-input" type="file" accept="image/jpeg,image/png,image/webp" />
+          <div class="char-photo-preview ${hasPhoto ? 'has-image' : ''}">
+            ${hasPhoto
+              ? `<img src="${character.photo}" alt="תמונת דמות ${index + 1}" /><span class="char-photo-replace-overlay">החלף</span>`
+              : `<span class="char-photo-plus">+</span>`}
+          </div>
+        </label>
+        <div class="char-photo-row-fields">
+          <div class="char-input-group">
+            <label class="char-field-label">מה הקשר לילד/ה?</label>
+            <select class="form-select char-relation-select">${relationOptions}</select>
+          </div>
+          <div class="char-input-group">
+            <label class="char-field-label">איך קוראים לדמות?</label>
+            <input class="form-input char-input" type="text" maxlength="30" placeholder="שם הדמות" value="${character.name}" />
+          </div>
+        </div>
+      </div>
+      <div class="char-photo-quality">
+        ${(() => {
+          if (!hasValidationState) {
+            return '<p class="char-photo-helper">תמונה ברורה תעזור לנו ליצור דמות שמבוססת עליו. עדיף שהפנים יהיו קרובות וברורות.</p>';
+          }
+          const status = character.photoQuality?.status || PHOTO_QUALITY_STATUS.BLOCKED;
+          const copy = PHOTO_QUALITY_COPY[status] || PHOTO_QUALITY_COPY.blocked;
+          const reasons = Array.isArray(character.photoQuality?.reasonCodes) ? character.photoQuality.reasonCodes : [];
+          const bullets = [...new Set(reasons.map((code) => PHOTO_REASON_CODE_COPY[code]).filter(Boolean))].slice(0, 2);
+          return `
+            <div class="photo-quality-alert photo-quality-alert--${status}">
+              <div class="photo-quality-alert-title">${copy.title}</div>
+              ${bullets.length > 0 ? `<ul class="photo-quality-alert-reasons">${bullets.map((line) => `<li>${line}</li>`).join('')}</ul>` : ''}
+              ${copy.subcopy ? `<div class="photo-quality-alert-subcopy">${copy.subcopy}</div>` : ''}
+            </div>
+          `;
+        })()}
+      </div>
+      <div class="char-input-group">
+        <label class="char-field-label">משהו קטן שמאפיין אותה</label>
+        <textarea class="wiz-textarea char-textarea" maxlength="140" placeholder="${getCharacterDescriptionPlaceholder(character.relation)}">${character.description}</textarea>
+      </div>
+      <p class="char-error" hidden></p>
+    `;
+
+    const relationInput = card.querySelector('.char-relation-select');
+    const nameInput = card.querySelector('.char-input');
+    const descInput = card.querySelector('.char-textarea');
+    const photoInput = card.querySelector('.char-photo-input');
+    const preview = card.querySelector('.char-photo-preview');
+    const errorEl = card.querySelector('.char-error');
+
+    relationInput?.addEventListener('change', (event) => {
+      const relation = event.target.value || '';
+      state.extraCharacters[index].relation = relation;
+      if (descInput) {
+        descInput.placeholder = getCharacterDescriptionPlaceholder(relation);
+      }
+    });
+
+    nameInput?.addEventListener('input', (event) => {
+      state.extraCharacters[index].name = event.target.value.trimStart();
+    });
+    descInput?.addEventListener('input', (event) => {
+      state.extraCharacters[index].description = event.target.value.trimStart();
+    });
+    photoInput?.addEventListener('change', (event) => {
+      const file = event.target?.files?.[0];
+      if (!file) return;
+
+      if (!PHOTO_ALLOWED_TYPES.has(file.type)) {
+        reportClientIssue('extra_character_photo_invalid_type', { index, mime: file.type || 'unknown' });
+        if (errorEl) {
+          errorEl.textContent = 'כדאי לבחור תמונה בפורמט JPG, PNG או WEBP.';
+          errorEl.hidden = false;
+        }
+        event.target.value = '';
+        state.extraCharacters[index].photo = null;
+        state.extraCharacters[index].photoQuality = null;
+        return;
+      }
+      if (file.size > PHOTO_MAX_SIZE_BYTES) {
+        reportClientIssue('extra_character_photo_too_large', { index, sizeBytes: file.size });
+        if (errorEl) {
+          errorEl.textContent = 'התמונה גדולה מדי כרגע. נסו תמונה עד 15MB.';
+          errorEl.hidden = false;
+        }
+        event.target.value = '';
+        state.extraCharacters[index].photo = null;
+        state.extraCharacters[index].photoQuality = null;
+        return;
+      }
+      if (errorEl) errorEl.hidden = true;
+
+      const reader = new FileReader();
+      reader.onload = async (loadEvent) => {
+        const result = loadEvent?.target?.result;
+        if (typeof result !== 'string') return;
+        let quality = null;
+        try {
+          quality = await analyzePhotoQuality(result);
+        } catch (_) {
+          quality = {
+            status: PHOTO_QUALITY_STATUS.WARNING,
+            faceCount: 0,
+            reasonCodes: ['analysis_unavailable'],
+          };
+        }
+        state.extraCharacters[index].photoQuality = quality;
+        if (quality?.status === PHOTO_QUALITY_STATUS.BLOCKED) {
+          state.extraCharacters[index].photo = null;
+          if (errorEl) {
+            errorEl.textContent = 'התמונה הזו לא מתאימה כרגע כתמונת ייחוס. אפשר לבחור תמונה ברורה יותר.';
+            errorEl.hidden = false;
+          }
+          if (event.target) event.target.value = '';
+          renderExtraCharacters();
+          return;
+        }
+        state.extraCharacters[index].photo = result;
+        if (preview) {
+          preview.classList.add('has-image');
+          preview.innerHTML = `<img src="${result}" alt="תמונת דמות ${index + 1}" /><span class="char-photo-replace-overlay">החלף</span>`;
+        }
+        renderExtraCharacters();
+      };
+      reader.readAsDataURL(file);
+    });
+
+    container.appendChild(card);
+  });
+
+  const canAddMore = state.extraCharacters.length < MAX_EXTRA_CHARACTERS;
+  if (canAddMore) {
+    const addCard = document.createElement('button');
+    addCard.type = 'button';
+    addCard.className = 'char-card char-card-add';
+    addCard.disabled = false;
+    addCard.innerHTML = `<span class="char-add-plus">+</span><span class="char-add-label">הוסף דמות</span>`;
+    addCard.addEventListener('click', () => {
+      state.extraCharacters.push(createEmptyExtraCharacter());
+      renderExtraCharacters();
+    });
+    container.appendChild(addCard);
+  }
+}
+
+/* ── SUPERPOWER CHIPS (multi-select) ────────────────────────── */
+const SUPERPOWERS = WIZ.superpowers;
+
+function renderSuperpowerChips() {
+  const wrap = document.getElementById("superpower-chips");
+  if (!wrap) return;
+
+  SUPERPOWERS.forEach((sp) => {
+    const d = document.createElement("div");
+    d.className   = "trait-chip";
+    d.textContent = sp.label;
+
+    d.addEventListener("click", () => {
+      d.classList.toggle("selected");
+      const i = state.childSuperpower.indexOf(sp.label);
+      if (i > -1) {
+        state.childSuperpower.splice(i, 1);
+      } else {
+        state.childSuperpower.push(sp.label);
+      }
+    });
+
+    wrap.appendChild(d);
+  });
+}
+
+/* ── GENERIC MULTI-SELECT CHIPS ──────────────────────────────── */
+// NOT modified — still reads el.textContent.trim() and stores Hebrew label.
+// state.difficulties / goals / helpers / avoid store Hebrew strings as before.
+function toggleChip(el, key) {
+  el.classList.toggle("selected");
+
+  const val = el.textContent.trim();
+  const arr = state[key];
+  const i   = arr.indexOf(val);
+
+  if (i > -1) {
+    arr.splice(i, 1);
+  } else {
+    arr.push(val);
+  }
+}
+
+/* ── PHOTO UPLOAD ────────────────────────────────────────────── */
+function hasSeenPhotoGuidance() {
+  try {
+    return window.localStorage.getItem(PHOTO_GUIDANCE_SEEN_KEY) === 'true';
+  } catch (_) {
+    return false;
+  }
+}
+
+function markPhotoGuidanceSeen() {
+  try {
+    window.localStorage.setItem(PHOTO_GUIDANCE_SEEN_KEY, 'true');
+  } catch (_) {}
+}
+
+function onPhotoUploadAreaClick() {
+  const input = document.getElementById('photo-input');
+  if (input) input.click();
+}
+
+function bindPhotoGuidanceDialog() {
+  const confirmBtn = document.getElementById('photo-guidance-confirm');
+  const overlay = document.getElementById('photo-guidance-overlay');
+  if (!confirmBtn || !overlay) return;
+  confirmBtn.addEventListener('click', () => {
+    markPhotoGuidanceSeen();
+    overlay.hidden = true;
+    if (pendingPhotoPickerOpen) {
+      pendingPhotoPickerOpen = false;
+      const input = document.getElementById('photo-input');
+      if (input) input.click();
+    }
+  });
+}
+
+function bindPhotoUploadInteractions() {
+  const area = document.getElementById('photo-area');
+  const input = document.getElementById('photo-input');
+  if (!area || !input) return;
+
+  area.setAttribute('role', 'button');
+  area.setAttribute('tabindex', '0');
+  area.setAttribute('aria-label', 'העלאת תמונה');
+
+  area.addEventListener('click', (event) => {
+    if (event.target && event.target.closest && event.target.closest('#photo-replace-btn')) return;
+    input.click();
+  });
+
+  area.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      input.click();
+    }
+  });
+}
+
+function savePhotoQualityToStorage() {
+  try {
+    window.localStorage.setItem(
+      PHOTO_ANALYSIS_STORAGE_KEY,
+      JSON.stringify({
+        photo: state.photo,
+        photoQuality: state.photoQuality,
+      })
+    );
+  } catch (_) {}
+}
+
+function restorePhotoQualityFromStorage() {
+  try {
+    const raw = window.localStorage.getItem(PHOTO_ANALYSIS_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      if (typeof parsed.photo === 'string' && parsed.photo.startsWith('data:image/')) {
+        state.photo = parsed.photo;
+        renderPhotoUploadArea();
+      }
+      if (
+        parsed.photoQuality &&
+        typeof parsed.photoQuality === 'object' &&
+        typeof parsed.photoQuality.status === 'string'
+      ) {
+        state.photoQuality = parsed.photoQuality;
+      }
+      updatePhotoHeroTitle();
+      renderPhotoQualityMessage();
+    }
+  } catch (_) {}
+}
+
+function updatePhotoHeroTitle() {
+  const t = document.getElementById('photo-hero-title');
+  if (t) t.hidden = !state.photo;
+}
+
+function renderPhotoUploadArea() {
+  const area = document.getElementById('photo-area');
+  if (!area) return;
+  if (!state.photo) {
+    area.innerHTML = [
+      '<div class="photo-plus">+</div>',
+      '<div class="photo-txt">',
+      '<span id="s3PhotoPrompt"></span>',
+      '<small id="s3PhotoOptional"></small>',
+      '</div>',
+    ].join('');
+    setText('s3PhotoPrompt', WIZ.steps.s3.photoPrompt);
+    setText('s3PhotoOptional', WIZ.steps.s3.photoOptional);
+    return;
+  }
+  area.innerHTML = [
+    `<img class="preview" src="${state.photo}" alt="תמונה" />`,
+    '<button type="button" class="photo-replace-btn" id="photo-replace-btn">📷 להחליף תמונה</button>',
+  ].join('');
+  const replaceBtn = document.getElementById('photo-replace-btn');
+  if (replaceBtn) {
+    replaceBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const input = document.getElementById('photo-input');
+      if (input) input.click();
+    });
+  }
+}
+
+function updatePhotoStepBottomBar() {
+  if (state.currentStep !== 5) return;
+  const btn = document.getElementById('btn-continue');
+  const btnAnyway = document.getElementById('btn-continue-anyway');
+  const photoReassure = document.getElementById('photo-step-reassure');
+  if (!btn) return;
+
+  const st = state.photoQuality?.status;
+  const hasPhoto = Boolean(state.photo);
+  const isWarningOrBlocked =
+    st === PHOTO_QUALITY_STATUS.WARNING || st === PHOTO_QUALITY_STATUS.BLOCKED;
+
+  btn.textContent = !hasPhoto
+    ? 'להמשיך בלי תמונה'
+    : isWarningOrBlocked
+      ? 'להמשיך בכל זאת'
+      : 'ממשיכים';
+  btn.onclick = goNext;
+  btn.disabled = false;
+  if (btnAnyway) {
+    btnAnyway.hidden = true;
+  }
+  if (photoReassure) {
+    photoReassure.hidden = hasPhoto;
+  }
+}
+
+function clearPhotoQualityState() {
+  state.photo = null;
+  state.photoQuality = {
+    status: PHOTO_QUALITY_STATUS.BLOCKED,
+    faceCount: 0,
+    reasonCodes: ['no_photo'],
+  };
+  savePhotoQualityToStorage();
+  renderPhotoUploadArea();
+  updatePhotoHeroTitle();
+  renderPhotoQualityMessage();
+}
+
+function renderPhotoQualityMessage() {
+  const box = document.getElementById('photo-quality-message');
+  if (!box) return;
+  updatePhotoHeroTitle();
+
+  if (!state.photo) {
+    box.hidden = false;
+    box.innerHTML = `<p class="photo-helper-text">${PHOTO_MSG_NO_PHOTO_HELPER}</p>`;
+    updatePhotoStepBottomBar();
+    return;
+  }
+
+  const status = state.photoQuality?.status || PHOTO_QUALITY_STATUS.BLOCKED;
+
+  if (status === PHOTO_QUALITY_STATUS.GOOD) {
+    box.innerHTML = '';
+    box.hidden = true;
+    updatePhotoStepBottomBar();
+    return;
+  }
+
+  if (status === PHOTO_QUALITY_STATUS.WARNING) {
+    box.hidden = false;
+    box.innerHTML = `
+    <div class="photo-quality-alert photo-quality-alert--warning">
+      <div class="photo-quality-alert-title">${PHOTO_MSG_WARNING}</div>
+    </div>
+  `;
+    updatePhotoStepBottomBar();
+    return;
+  }
+
+  box.hidden = false;
+  box.innerHTML = `
+    <div class="photo-quality-alert photo-quality-alert--blocked">
+      <div class="photo-quality-alert-title">${PHOTO_MSG_BLOCKED}</div>
+    </div>
+  `;
+  updatePhotoStepBottomBar();
+}
+
+async function createImageFromDataUrl(dataUrl) {
+  const img = new Image();
+  img.decoding = 'async';
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+  return img;
+}
+
+function isFaceDetectorSupported() {
+  return typeof window.FaceDetector === 'function';
+}
+
+async function detectFaces(imageEl) {
+  if (!isFaceDetectorSupported()) throw new Error('face_detector_unsupported');
+  const detector = new window.FaceDetector({ maxDetectedFaces: 8, fastMode: true });
+  const faces = await detector.detect(imageEl);
+  if (!Array.isArray(faces)) throw new Error('face_detector_failed');
+  return faces;
+}
+
+async function analyzePhotoQualityViaServer(dataUrl) {
+  const response = await fetch('/api/photo/analyze', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dataUrl }),
+  });
+  if (!response.ok) throw new Error('server_photo_analyze_failed');
+  const data = await response.json();
+  if (!data || typeof data !== 'object' || typeof data.status !== 'string') {
+    throw new Error('server_photo_analyze_invalid');
+  }
+  return data;
+}
+
+function computeSharpnessAndBrightness(imageEl) {
+  const maxSide = 420;
+  const scale = Math.min(1, maxSide / Math.max(imageEl.naturalWidth, imageEl.naturalHeight));
+  const w = Math.max(32, Math.round(imageEl.naturalWidth * scale));
+  const h = Math.max(32, Math.round(imageEl.naturalHeight * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) {
+    return { sharpness: 0, brightness: 0 };
+  }
+  ctx.drawImage(imageEl, 0, 0, w, h);
+  const { data } = ctx.getImageData(0, 0, w, h);
+  let brightnessSum = 0;
+  let gradientSum = 0;
+  let pixelCount = 0;
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const idx = (y * w + x) * 4;
+      const idxL = (y * w + (x - 1)) * 4;
+      const idxR = (y * w + (x + 1)) * 4;
+      const idxU = ((y - 1) * w + x) * 4;
+      const idxD = ((y + 1) * w + x) * 4;
+      const lum = 0.2126 * data[idx] + 0.7152 * data[idx + 1] + 0.0722 * data[idx + 2];
+      const lumL = 0.2126 * data[idxL] + 0.7152 * data[idxL + 1] + 0.0722 * data[idxL + 2];
+      const lumR = 0.2126 * data[idxR] + 0.7152 * data[idxR + 1] + 0.0722 * data[idxR + 2];
+      const lumU = 0.2126 * data[idxU] + 0.7152 * data[idxU + 1] + 0.0722 * data[idxU + 2];
+      const lumD = 0.2126 * data[idxD] + 0.7152 * data[idxD + 1] + 0.0722 * data[idxD + 2];
+      brightnessSum += lum;
+      gradientSum += Math.abs(lumR - lumL) + Math.abs(lumD - lumU);
+      pixelCount++;
+    }
+  }
+  return {
+    brightness: pixelCount > 0 ? brightnessSum / pixelCount : 0,
+    sharpness: pixelCount > 0 ? gradientSum / pixelCount : 0,
+  };
+}
+
+function classifyPhotoQuality(metrics) {
+  const reasonCodes = [];
+  const faceCount = metrics.faceCount;
+  if (faceCount === 0) {
+    return {
+      status: PHOTO_QUALITY_STATUS.BLOCKED,
+      faceCount: 0,
+      dominantFaceRatio: 0,
+      sharpness: Number(metrics.sharpness?.toFixed?.(2) || metrics.sharpness || 0),
+      brightness: Number(metrics.brightness?.toFixed?.(2) || metrics.brightness || 0),
+      reasonCodes: ['no_face_detected'],
+    };
+  }
+  if (!metrics.hasDominantFace) reasonCodes.push('multiple_faces_no_dominant');
+  if (metrics.dominantFaceRatio < PHOTO_ANALYSIS_THRESHOLDS.minBlockedFaceRatio) {
+    reasonCodes.push('face_too_small_critical');
+  } else if (metrics.dominantFaceRatio < PHOTO_ANALYSIS_THRESHOLDS.minWarningFaceRatio) {
+    reasonCodes.push('face_too_small');
+  } else if (metrics.dominantFaceRatio < PHOTO_ANALYSIS_THRESHOLDS.minGoodFaceRatio) {
+    reasonCodes.push('face_too_small');
+  }
+  if (metrics.sharpness < PHOTO_ANALYSIS_THRESHOLDS.minSharpnessWarning) {
+    reasonCodes.push('low_sharpness');
+  }
+  if (!metrics.brightness || metrics.brightness < 35) reasonCodes.push('low_brightness');
+
+  const blocked =
+    !metrics.hasDominantFace ||
+    metrics.dominantFaceRatio < PHOTO_ANALYSIS_THRESHOLDS.minBlockedFaceRatio ||
+    metrics.sharpness < PHOTO_ANALYSIS_THRESHOLDS.minSharpnessWarning;
+  if (blocked) {
+    return {
+      status: PHOTO_QUALITY_STATUS.BLOCKED,
+      faceCount,
+      dominantFaceRatio: Number(metrics.dominantFaceRatio.toFixed(4)),
+      sharpness: Number(metrics.sharpness.toFixed(2)),
+      brightness: Number(metrics.brightness.toFixed(2)),
+      reasonCodes,
+    };
+  }
+  const warning =
+    faceCount > 1 ||
+    metrics.dominantFaceRatio < PHOTO_ANALYSIS_THRESHOLDS.minGoodFaceRatio ||
+    metrics.sharpness < PHOTO_ANALYSIS_THRESHOLDS.minSharpnessGood;
+  return {
+    status: warning ? PHOTO_QUALITY_STATUS.WARNING : PHOTO_QUALITY_STATUS.GOOD,
+    faceCount,
+    dominantFaceRatio: Number(metrics.dominantFaceRatio.toFixed(4)),
+    sharpness: Number(metrics.sharpness.toFixed(2)),
+    brightness: Number(metrics.brightness.toFixed(2)),
+    reasonCodes,
+  };
+}
+
+async function analyzePhotoQuality(dataUrl) {
+  const imageEl = await createImageFromDataUrl(dataUrl);
+  const { sharpness, brightness } = computeSharpnessAndBrightness(imageEl);
+  try {
+    const faces = await detectFaces(imageEl);
+    const imageArea = Math.max(1, imageEl.naturalWidth * imageEl.naturalHeight);
+    const faceRatios = faces
+      .map((face) => {
+        const box = face?.boundingBox || {};
+        const width = Number(box.width || 0);
+        const height = Number(box.height || 0);
+        const area = width > 0 && height > 0 ? width * height : 0;
+        return area / imageArea;
+      })
+      .filter((ratio) => ratio >= PHOTO_ANALYSIS_THRESHOLDS.minCountedFaceRatio)
+      .sort((a, b) => b - a);
+    const dominantFaceRatio = faceRatios[0] || 0;
+    const secondaryComparable = faceRatios.find(
+      (ratio, idx) => idx > 0 && ratio >= PHOTO_ANALYSIS_THRESHOLDS.minSecondaryComparableRatio
+    ) || 0;
+    const hasDominantFace =
+      faceRatios.length === 1 ||
+      secondaryComparable <= 0 ||
+      (dominantFaceRatio >= PHOTO_ANALYSIS_THRESHOLDS.minBlockedFaceRatio &&
+        dominantFaceRatio / secondaryComparable >= PHOTO_ANALYSIS_THRESHOLDS.dominantFaceRatioMin);
+    const result = classifyPhotoQuality({
+      faceCount: faceRatios.length,
+      dominantFaceRatio,
+      hasDominantFace,
+      sharpness,
+      brightness,
+    });
+    console.debug('PHOTO_ANALYSIS', {
+      source: 'client',
+      faceRatio: result.dominantFaceRatio,
+      faceCount: result.faceCount,
+      decision: result.status,
+      reasonCodes: result.reasonCodes,
+    });
+    return result;
+  } catch (_) {
+    const serverResult = await analyzePhotoQualityViaServer(dataUrl);
+    console.debug('PHOTO_ANALYSIS', {
+      source: 'server_fallback',
+      faceRatio: serverResult.dominantFaceRatio,
+      faceCount: serverResult.faceCount,
+      decision: serverResult.status,
+      reasonCodes: serverResult.reasonCodes,
+    });
+    return serverResult;
+  }
+}
+
+async function handlePhoto(e) {
+  const input = e.target;
+  const file = input?.files?.[0];
+  if (!file) return;
+  hidePhotoError();
+
+  if (!PHOTO_ALLOWED_TYPES.has(file.type)) {
+    clearPhotoQualityState();
+    showPhotoError('אפשר להעלות רק JPG, PNG או WEBP.');
+    if (input) input.value = '';
+    reportClientIssue('photo_validation_failed', { reason: 'invalid_type', mime: file.type || 'unknown' });
+    return;
+  }
+  if (file.size > PHOTO_MAX_SIZE_BYTES) {
+    clearPhotoQualityState();
+    showPhotoError('התמונה גדולה מדי כרגע. נסו תמונה עד 15MB.');
+    if (input) input.value = '';
+    reportClientIssue('photo_validation_failed', { reason: 'file_too_large', sizeBytes: file.size });
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = async (ev) => {
+    state.photo = ev.target.result;
+    renderPhotoUploadArea();
+    try {
+      state.photoQuality = await analyzePhotoQuality(String(ev.target.result || ''));
+    } catch (_) {
+      state.photoQuality = {
+        status: PHOTO_QUALITY_STATUS.WARNING,
+        faceCount: 0,
+        reasonCodes: ['analysis_unavailable'],
+      };
+    }
+    renderPhotoQualityMessage();
+    savePhotoQualityToStorage();
+  };
+  reader.onerror = () => {
+    clearPhotoQualityState();
+    showPhotoError('לא הצלחנו לקרוא את הקובץ הזה. נסו תמונה אחרת.');
+    reportClientIssue('photo_read_failed', { reason: 'file_reader_error' });
+  };
+
+  reader.readAsDataURL(file);
+}
+
+/* ── STEP 8: LENGTH BUTTONS ──────────────────────────────────── */
+function renderLengthBtns() {
+  const wrap = document.getElementById("length-btns");
+  if (!wrap) return;
+
+  wrap.innerHTML = "";
+  wrap.style.direction = "rtl";
+
+  const LENGTH_ORDER = { short: 1, medium: 2, long: 3 };
+  const orderedLengths = [...STORY_LENGTHS].sort((a, b) => {
+    const aOrder = LENGTH_ORDER[a.id] || 99;
+    const bOrder = LENGTH_ORDER[b.id] || 99;
+    return aOrder - bOrder;
+  });
+
+  orderedLengths.forEach((l) => {
+    const btn = document.createElement("button");
+    btn.type      = "button";
+    btn.className = "length-btn" + (l.id === state.length ? " selected" : "");
+    btn.innerHTML = `${l.label}<span class="pages">${l.pages}</span>`;
+
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".length-btn").forEach((b) => b.classList.remove("selected"));
+
+      btn.classList.add("selected");
+      state.length = l.id;
+      refreshTotal();
+      const bbt = document.getElementById('bottom-bar-total');
+      if (bbt) bbt.hidden = false;
+    });
+
+    wrap.appendChild(btn);
+  });
+}
+
+/* ── STEP 8: STYLE BUTTONS ───────────────────────────────────── */
+function renderStyleBtns() {
+  const wrap = document.getElementById("style-btns");
+  if (!wrap) return;
+
+  wrap.innerHTML = "";
+
+  ILLUSTRATION_STYLES.forEach((s) => {
+    const btn = document.createElement("button");
+    btn.type      = "button";
+    btn.className = "style-btn style-card" + (s.id === state.style ? " selected" : "");
+    btn.innerHTML = `
+      <span class="style-card-image-wrap">
+        <img class="style-card-image" src="${getStylePreviewDataUrl(s.id)}" alt="${s.label}" />
+      </span>
+      <span class="style-card-name">${s.label}</span>
+      <span class="style-card-desc">${s.description || ""}</span>
+    `;
+
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".style-btn").forEach((b) => b.classList.remove("selected"));
+
+      btn.classList.add("selected");
+      state.style = s.id;
+    });
+
+    wrap.appendChild(btn);
+  });
+}
+
+/* ── STEP 8: ADDONS ──────────────────────────────────────────── */
+function toggleAddon(key) {
+  switch (key) {
+    case "audioEnabled": {
+      const next = !state.audioEnabled;
+
+      state.audioEnabled = next;
+
+      if (!next) {
+        state.bundleEnabled = false;
+        state.voice         = null;
+        state.sleepMode     = false;
+      } else if (!state.voice) {
+        state.voice = "mom";
+      }
+
+      break;
+    }
+
+    case "pdfEnabled": {
+      const next = !state.pdfEnabled;
+
+      state.pdfEnabled = next;
+
+      if (!next) {
+        state.bundleEnabled = false;
+      }
+
+      break;
+    }
+
+    case "bundleEnabled": {
+      const next = !state.bundleEnabled;
+
+      state.bundleEnabled = next;
+
+      if (next) {
+        state.audioEnabled = true;
+        state.pdfEnabled   = true;
+        if (!state.voice) state.voice = "mom";
+      } else {
+        state.audioEnabled = false;
+        state.pdfEnabled   = false;
+        state.voice        = null;
+        state.sleepMode    = false;
+      }
+
+      break;
+    }
+
+    default:
+      return;
+  }
+
+  syncAddonUI();
+  refreshTotal();
+  syncStep8Layout();
+}
+
+/* ── STEP 8: CHECKBOX UI ─────────────────────────────────────── */
+function syncAddonUI() {
+  const checkboxMap = {
+    audio:  state.audioEnabled,
+    pdf:    state.pdfEnabled,
+    bundle: state.bundleEnabled,
+  };
+
+  Object.entries(checkboxMap).forEach(([name, active]) => {
+    const cb = document.getElementById("cb-" + name);
+    if (!cb) return;
+
+    cb.classList.toggle("checked", active);
+
+    const row = cb.closest(".addon-row");
+    if (row) row.classList.toggle("selected", active);
+  });
+}
+
+/* ── STEP 8: VOICE PANEL ANIMATION ───────────────────────────── */
+function syncStep8Layout(skipAnimation = false) {
+  const voiceCol    = getVoiceCol();
+  const grid        = getStep8Grid();
+  const addonsTitle = getAddonsTitle();
+  const shouldShow  = isVoicePanelActive() && state.currentStep === 12;
+
+  if (addonsTitle) {
+    addonsTitle.textContent = shouldShow
+      ? WIZ.steps.s8.addonsExpanded
+      : WIZ.steps.s8.addonsCollapsed;
+  }
+
+  if (grid) {
+    grid.classList.toggle("s8-three-col", shouldShow);
+    grid.classList.toggle("voice-open",   shouldShow);
+  }
+
+  syncWizardLayout();
+
+  if (!voiceCol) return;
+
+  if (skipAnimation) {
+    voiceCol.classList.toggle("hidden",  !shouldShow);
+    voiceCol.classList.toggle("is-open",  shouldShow);
+    voiceCol.style.pointerEvents = shouldShow ? "auto"               : "none";
+    voiceCol.style.opacity       = shouldShow ? "1"                  : "0";
+    voiceCol.style.transform     = shouldShow ? "translateY(0) scale(1)" : "translateY(12px) scale(0.98)";
+    voiceCol.style.maxHeight     = shouldShow ? "420px"              : "0px";
+    voiceCol.style.overflow      = "hidden";
+    return;
+  }
+
+  animateVoicePanel(voiceCol, shouldShow);
+}
+
+function animateVoicePanel(panel, show) {
+  if (!panel) return;
+
+  panel.style.overflow    = "hidden";
+  panel.style.willChange  = "opacity, transform, max-height";
+  panel.style.transition  = "opacity 320ms ease, transform 320ms ease, max-height 360ms ease";
+
+  if (show) {
+    panel.classList.remove("hidden");
+    panel.style.display      = "";
+    panel.style.pointerEvents = "none";
+    panel.style.opacity      = "0";
+    panel.style.transform    = "translateY(12px) scale(0.98)";
+    panel.style.maxHeight    = "0px";
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        panel.classList.add("is-open");
+        panel.style.opacity   = "1";
+        panel.style.transform = "translateY(0) scale(1)";
+        panel.style.maxHeight = panel.scrollHeight + 24 + "px";
+      });
+    });
+
+    clearTimeout(panel._hideTimer);
+    panel._showTimer = setTimeout(() => {
+      panel.style.maxHeight    = "420px";
+      panel.style.pointerEvents = "auto";
+    }, 380);
+
+    return;
+  }
+
+  panel.style.pointerEvents = "none";
+  panel.style.maxHeight     = panel.scrollHeight + "px";
+  panel.style.opacity       = "1";
+  panel.style.transform     = "translateY(0) scale(1)";
+
+  requestAnimationFrame(() => {
+    panel.classList.remove("is-open");
+    panel.style.opacity   = "0";
+    panel.style.transform = "translateY(10px) scale(0.985)";
+    panel.style.maxHeight = "0px";
+  });
+
+  clearTimeout(panel._showTimer);
+  panel._hideTimer = setTimeout(() => {
+    panel.classList.add("hidden");
+  }, 360);
+}
+
+/* ── STEP 8: VOICE BUTTONS ───────────────────────────────────── */
+function renderVoiceBtns() {
+  const wrap = document.getElementById("voice-btns");
+  if (!wrap) return;
+
+  wrap.innerHTML = "";
+
+  VOICES.forEach((v) => {
+    const btn = document.createElement("button");
+    btn.type      = "button";
+    btn.className = "voice-btn" + (v.id === state.voice ? " selected" : "");
+    btn.id        = "voice-" + v.id;
+
+    btn.innerHTML = `
+      <span class="voice-btn-emoji">${v.emoji}</span>
+      <span class="voice-btn-label">${v.label}</span>
+      <span class="voice-play-btn" title="${WIZ.steps.s8.voicePreview}" aria-hidden="true">▶</span>
+    `;
+
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".voice-btn").forEach((b) => b.classList.remove("selected"));
+
+      btn.classList.add("selected");
+      state.voice = v.id;
+    });
+
+    const playBtn = btn.querySelector(".voice-play-btn");
+    if (playBtn) {
+      playBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        playVoicePreview(v.id);
+      });
+    }
+
+    wrap.appendChild(btn);
+  });
+}
+
+function playVoicePreview(voiceId) {
+  console.log("[Voice preview]", voiceId);
+}
+
+/* ── STEP 8: SLEEP TOGGLE ────────────────────────────────────── */
+function toggleSleep() {
+  if (!isVoicePanelActive()) return;
+
+  state.sleepMode = !state.sleepMode;
+
+  const t = document.getElementById("sleep-toggle");
+  if (t) {
+    t.classList.toggle("on", state.sleepMode);
+  }
+
+  const row = t?.closest(".sleep-row");
+  if (row) {
+    row.classList.toggle("selected", state.sleepMode);
+  }
+}
+
+/* ── STEP 8: PRICE REFRESH ───────────────────────────────────── */
+function refreshTotal() {
+  const { total } = computeTotal();
+  const el = document.getElementById("total-price");
+  const barPrice = document.getElementById("bottom-bar-price");
+
+  if (el) {
+    el.textContent = `₪${total}`;
+  }
+  if (barPrice) {
+    barPrice.textContent = `₪${total}`;
+  }
+}
+
+/* ── STEP 9: BUILD SUMMARY ───────────────────────────────────── */
+function buildSummary() {
+  const { base, total } = computeTotal();
+
+  const lenObj   = STORY_LENGTHS.find((l) => l.id === state.length);
+  const styleObj = ILLUSTRATION_STYLES.find((s) => s.id === state.style);
+  const voiceObj = VOICES.find((v) => v.id === state.voice);
+
+  const lenLabel   = lenObj?.label   || "";
+  const styleLabel = styleObj?.label || "";
+  const voiceLabel = voiceObj?.label || "";
+  const topicLabel = state.topicLabel || state.topic || "";
+
+  // ── Order summary rows ───────────────────────────────────────
+  const sumEl = document.getElementById("order-summary");
+  const bookNameInput = document.getElementById('bookNameInput');
+  if (bookNameInput) bookNameInput.value = state.bookName || '';
+  if (sumEl) {
+    const ageStr = state.childAge
+      ? WIZ.summary.ageFormat.replace('{age}', state.childAge)
+      : '';
+
+    const topicDisplayVal = topicLabel
+      ? (state.categoryBranching && state.categoryBranching.hebrewLabel
+          ? state.categoryBranching.hebrewLabel
+          : topicLabel)
+      : '';
+
+    const rows = [
+      state.bookName
+        ? { icon: "📕", label: "שם הספר", val: state.bookName }
+        : null,
+      {
+        icon:  "👤",
+        label: WIZ.summary.childNameLabel,
+        val:   state.childName + ageStr,
+      },
+      topicLabel
+        ? { icon: "📖", label: WIZ.summary.topicLabel,  val: topicDisplayVal }
+        : null,
+      {
+        icon:  "📄",
+        label: WIZ.summary.lengthLabel,
+        val:   `${lenLabel} (${lenObj?.pages || ""})`,
+      },
+      { icon: "🎨", label: WIZ.summary.styleLabel, val: styleLabel },
+      state.audioEnabled || state.bundleEnabled
+        ? { icon: "🎧", label: WIZ.summary.audioLabel, val: voiceLabel || "✓" }
+        : null,
+      state.pdfEnabled || state.bundleEnabled
+        ? { icon: "📥", label: WIZ.summary.pdfLabel, val: "✓" }
+        : null,
+      state.sleepMode
+        ? { icon: "🌙", label: WIZ.summary.sleepLabel, val: "✓" }
+        : null,
+    ].filter(Boolean);
+
+    const answeredFollowups = (state.categoryAnswers || []).filter((a) => {
+      const hasText = Boolean(a && a.answer && a.answer.trim());
+      const hasQuick = Boolean(a && Array.isArray(a.selectedQuickAnswers) && a.selectedQuickAnswers.length > 0);
+      return hasText || hasQuick;
+    });
+    const extraDetails = `<div class="summary-followup-count">עניתם על ${answeredFollowups.length} שאלות השלמה</div>`;
+
+    sumEl.innerHTML = `${rows
+      .map(
+        (r) => `
+        <div class="summary-row">
+          <span class="summary-icon">${r.icon}</span>
+          <span class="summary-label">${r.label}</span>
+          <span class="summary-val">${r.val}</span>
+        </div>
+      `,
+      )
+      .join("")}${extraDetails}`;
+  }
+
+  // ── Price breakdown ─────────────────────────────────────────
+  const priceEl = document.getElementById("price-breakdown");
+  if (priceEl) {
+    let rows = `
+      <div class="price-row">
+        <span class="label">${WIZ.summary.bookDigital.replace('{length}', lenLabel)}</span>
+        <span class="val">₪${base}</span>
+      </div>
+    `;
+
+    if (state.bundleEnabled) {
+      rows += `
+        <div class="price-row">
+          <span class="label">${WIZ.summary.bundleLabel}</span>
+          <span class="val">₪${PRICES.bundle}</span>
+        </div>
+      `;
+    } else {
+      if (state.audioEnabled) {
+        rows += `
+          <div class="price-row">
+            <span class="label">${WIZ.summary.audioAddon}</span>
+            <span class="val">₪${PRICES.audio}</span>
+          </div>
+        `;
+      }
+
+      if (state.pdfEnabled) {
+        rows += `
+          <div class="price-row">
+            <span class="label">${WIZ.summary.pdfAddon}</span>
+            <span class="val">₪${PRICES.pdf}</span>
+          </div>
+        `;
+      }
+    }
+
+    priceEl.innerHTML = rows;
+  }
+}
+
+/* ── SUBMIT ──────────────────────────────────────────────────── */
+
+/**
+ * buildWizardPayload()
+ *
+ * Maps the flat wizard `state` object to the nested `wizardData` shape
+ * that POST /api/orders expects.
+ *
+ * Key transformations:
+ *   state.childName / childAge / childGender / childTraits
+ *     → child: { name, age, gender, traits, imageUrl }
+ *
+ *   state.topic (short client ID)
+ *     → topic (canonical backend ID via TOPIC_ID_MAP)
+ *       content.js uses 'confidence' and 'night';
+ *       config/wizard.ts uses 'selfconfidence' and 'nightfear'.
+ *
+ *   state.difficulties / s4extra  → challenge:       { selected, freeText }
+ *   state.goals                   → desiredOutcome:  { selected, freeText }
+ *   state.helpers / s6extra       → helpers:         { selected, freeText }
+ *   state.avoid   / s7extra       → avoid:           { selected, freeText }
+ *
+ *   state.length / style / audioEnabled / voice / sleepMode / pdfEnabled / bundleEnabled
+ *     → product: { length, illustrationStyle, audioEnabled, selectedVoice, sleepMode,
+ *                  pdfEnabled, bundleEnabled }
+ *
+ *   state.contactName / contactEmail
+ *     → contact: { name, email }
+ *
+ * Child and supporting-character reference photos are sent as optional data URLs.
+ * Server-side order creation stores them and converts to persistent URLs.
+ */
+function buildWizardPayload() {
+  // Normalise topic IDs — content.js uses abbreviated keys, backend uses full keys.
+  const TOPIC_ID_MAP = {
+    confidence: 'selfconfidence',
+    night: 'nightfear',
+    general_fears: 'generalfears',
+  };
+  const topic = TOPIC_ID_MAP[state.topic] || state.topic;
+  const combinedSuperpower = [...state.childSuperpower];
+  if (state.childSuperpowerExtra) combinedSuperpower.push(state.childSuperpowerExtra);
+
+  const additionalCharacters = state.extraCharacters
+    .slice(0, MAX_EXTRA_CHARACTERS)
+    .map((character) => ({
+      relation: (character.relation || 'other').trim(),
+      name: (character.name || '').trim(),
+      description: (character.description || '').trim(),
+      imageDataUrl:
+        typeof character.photo === 'string' &&
+        character.photoQuality?.status !== PHOTO_QUALITY_STATUS.BLOCKED
+          ? character.photo
+          : null,
+      photoQuality:
+        character.photoQuality &&
+        typeof character.photoQuality === 'object'
+          ? character.photoQuality
+          : null,
+    }))
+    .filter((character) => character.name.length > 0);
+
+  const familyContext = additionalCharacters.length > 0
+    ? {
+        additionalCharacters,
+        // Legacy mirror for existing flows that still inspect parent1/parent2.
+        ...(additionalCharacters[0]
+          ? {
+              parent1: {
+                name: additionalCharacters[0].name,
+                description: additionalCharacters[0].description || undefined,
+              },
+            }
+          : {}),
+        ...(additionalCharacters[1]
+          ? {
+              parent2: {
+                name: additionalCharacters[1].name,
+                description: additionalCharacters[1].description || undefined,
+              },
+            }
+          : {}),
+      }
+    : null;
+
+  return {
+    bookName: state.bookName || null,
+    child: {
+      name:       state.childName,
+      age:        state.childAge        || null,
+      gender:     state.childGender     || null,
+      traits:     state.childTraits,
+      superpower: combinedSuperpower.length ? combinedSuperpower.join(' | ') : null,
+      imageUrl:   state.photo || null,
+    },
+    photoQuality: state.photoQuality || null,
+    topic,
+    challengeCategory: state.challengeCategory || null,
+    companionCharacterId: state.companionCharacterId || null,
+    categoryAnswers: state.categoryAnswers || [],
+    familyContext,
+    challenge: {
+      selected: state.difficulties,
+      freeText: state.s4extra || null,
+    },
+    desiredOutcome: {
+      selected: state.goals,
+      freeText: null,
+    },
+    helpers: {
+      selected: state.helpers,
+      freeText: state.s6extra || null,
+    },
+    avoid: {
+      selected: state.avoid,
+      freeText: state.s7extra || null,
+    },
+    product: {
+      length:            state.length,
+      illustrationStyle: normalizeClientStyleId(state.style),
+      audioEnabled:      state.audioEnabled,
+      selectedVoice:     state.audioEnabled ? (state.voice || null) : null,
+      sleepMode:         state.sleepMode,
+      pdfEnabled:        state.pdfEnabled,
+      bundleEnabled:     state.bundleEnabled,
+    },
+    contact: {
+      name:  state.contactName,
+      email: state.contactEmail,
+    },
+  };
+}
+
+/** Puts the pay button into loading / ready state. */
+function setPayBtnState(loading) {
+  const btn = document.getElementById('btn-pay');
+  if (!btn) return;
+  btn.disabled = loading;
+  btn.setAttribute('aria-busy', loading ? 'true' : 'false');
+  btn.classList.toggle('is-submitting', loading);
+  if (!loading) {
+    btn.classList.remove('is-pressed');
+  }
+
+  if (loading) {
+    btn.textContent = '';
+    const dots = document.createElement('span');
+    dots.className = 'submit-dots';
+    dots.setAttribute('aria-hidden', 'true');
+    for (let i = 0; i < 3; i += 1) {
+      const dot = document.createElement('span');
+      dot.className = 'submit-dot';
+      dots.appendChild(dot);
+    }
+    btn.appendChild(dots);
+    return;
+  }
+
+  btn.textContent = WIZ.steps.s9.submitBtn;
+}
+
+/** Inserts (or updates) a small error line below the pay button. */
+function showSubmitError(message) {
+  let el = document.getElementById('submit-error');
+  if (!el) {
+    el = document.createElement('p');
+    el.id         = 'submit-error';
+    el.style.cssText =
+      'color:#e55;font-size:.875rem;margin-top:.75rem;text-align:center;line-height:1.4';
+    const btn = document.getElementById('btn-pay');
+    if (btn && btn.parentNode) btn.parentNode.insertBefore(el, btn.nextSibling);
+  }
+  el.textContent = message;
+  el.hidden      = false;
+}
+
+function hideSubmitError() {
+  const el = document.getElementById('submit-error');
+  if (el) el.hidden = true;
+}
+
+function showPhotoError(message) {
+  let el = document.getElementById('photo-error');
+  if (!el) {
+    el = document.createElement('p');
+    el.id = 'photo-error';
+    el.style.cssText = 'color:#e55;font-size:.85rem;margin-top:.6rem;text-align:center;line-height:1.4';
+    const area = document.getElementById('photo-area');
+    if (area && area.parentNode) area.parentNode.insertBefore(el, area.nextSibling);
+  }
+  el.textContent = message;
+  el.hidden = false;
+}
+
+function hidePhotoError() {
+  const el = document.getElementById('photo-error');
+  if (el) el.hidden = true;
+}
+
+async function handleSubmit() {
+  if (isSubmittingOrder) return;
+  isSubmittingOrder = true;
+  hideSubmitError();
+  const payBtn = document.getElementById('btn-pay');
+  if (payBtn) {
+    payBtn.classList.add('is-pressed');
+  }
+  setPayBtnState(true);
+  track('checkout_started', { topic: state.topic, length: state.length });
+
+  try {
+    const payload = {
+      wizardData: buildWizardPayload(),
+      sessionId: getOrCreateWizardSessionId(),
+    };
+    // ── Step 1: create the order ──────────────────────────────────
+    let orderResponse = null;
+    if (clientApi && typeof clientApi.requestJson === 'function') {
+      orderResponse = await clientApi.requestJson('/api/orders', {
+        fetch: {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        },
+        timeoutMs: ORDER_SUBMIT_TIMEOUT_MS,
+        fallbackMessage: 'יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏',
+        timeoutMessage: 'יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏',
+        networkMessage: 'יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏',
+        invalidJsonMessage: 'התקבלה תגובה לא תקינה מהשרת.',
+      });
+    } else {
+      const orderRes = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const fallbackData = await orderRes.json().catch(() => ({}));
+      orderResponse = orderRes.ok
+        ? { ok: true, data: fallbackData, message: null, reason: null, status: orderRes.status }
+        : {
+            ok: false,
+            data: fallbackData,
+            message: fallbackData.error || 'יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏',
+            reason: 'http_error',
+            status: orderRes.status,
+          };
+    }
+
+    if (!orderResponse.ok) {
+      const userMessage = 'יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏';
+      reportClientIssue('submit_failed', {
+        reason: orderResponse.reason || 'request_failed',
+        status: orderResponse.status || 0,
+      });
+      throw new Error(userMessage);
+    }
+
+    const { orderId } = orderResponse.data || {};
+    if (!orderId || typeof orderId !== 'string') {
+      reportClientIssue('submit_failed', { reason: 'missing_order_id_in_response' });
+      throw new Error('יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏');
+    }
+
+    clearWizardSessionId();
+    // Story directions load after order creation.
+    window.location.href = ROUTES.directions + '?orderId=' + encodeURIComponent(orderId);
+
+  } catch (err) {
+    console.error('[Wizard] Submit failed:', err);
+    setPayBtnState(false);
+    showSubmitError(
+      err.message && err.message.length > 0
+        ? err.message
+        : 'יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏',
+    );
+  } finally {
+    isSubmittingOrder = false;
+  }
+}
+
+/* ── SHAKE ANIMATION ─────────────────────────────────────────── */
+const shakeStyle = document.createElement("style");
+shakeStyle.textContent = `
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20%     { transform: translateX(-6px); }
+    40%     { transform: translateX(6px); }
+    60%     { transform: translateX(-4px); }
+    80%     { transform: translateX(4px); }
+  }
+`;
+document.head.appendChild(shakeStyle);
+
+/* ── BOOT ────────────────────────────────────────────────────── */
+document.addEventListener("DOMContentLoaded", init);

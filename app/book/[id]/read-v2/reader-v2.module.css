@@ -1,0 +1,360 @@
+/* Picture-book read-v2: paper substrate; interior illustrated pages = full-bleed + text overlay (see reader-v2.tsx). */
+
+.root {
+  --reader-font-stack: var(--font-rubik), var(--font-arimo), 'Rubik', 'Arimo', sans-serif;
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  background: #fdf9f4;
+  color: #2e2a22;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  touch-action: pan-y;
+}
+
+.closeBtn {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: rgba(253, 249, 244, 0.92);
+  color: #5c5348;
+  border: 1px solid rgba(180, 160, 130, 0.25);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  z-index: 20;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.centerState {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px;
+  text-align: center;
+  color: #5c5348;
+}
+
+.errorText {
+  margin: 0;
+}
+
+.backHomeLink {
+  color: #6b5a48;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(107, 90, 72, 0.35);
+}
+
+.pageStage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 12px 8px;
+}
+
+/* ── Shared page canvas (paper) ─────────────────────────── */
+.pageCanvas {
+  position: relative;
+  width: min(100%, 540px);
+  margin-inline: auto;
+  min-height: min(74dvh, 780px);
+  max-height: calc(100dvh - 148px);
+  background: #fdf9f4;
+  border-radius: 4px;
+  overflow: hidden;
+  box-sizing: border-box;
+  box-shadow: none;
+}
+
+.pageFooter {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  padding: 6px 12px 8px;
+  font-family: var(--reader-font-stack);
+  font-size: 10px;
+  line-height: 1.35;
+  color: #b8a990;
+  text-align: center;
+  direction: rtl;
+  pointer-events: none;
+  background: none;
+}
+
+.footerSep {
+  opacity: 0.85;
+}
+
+/* ── Cover: full bleed, title overlay ───────────────────── */
+.tplCover {
+  min-height: min(78dvh, 820px);
+  max-height: calc(100dvh - 130px);
+  padding: 0;
+}
+
+.coverBleed {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: #ebe4dc;
+}
+
+.coverBleedImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.coverTitleOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  padding: clamp(20px, 5dvh, 48px) clamp(16px, 4vw, 28px) 20px;
+  text-align: center;
+  direction: rtl;
+}
+
+.coverTitleGradient {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: clamp(120px, 28dvh, 220px);
+  background: linear-gradient(to bottom, rgba(20, 15, 10, 0.5), rgba(20, 15, 10, 0));
+  pointer-events: none;
+  z-index: 0;
+}
+
+.coverDisplayTitle {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-family: var(--reader-font-stack);
+  font-weight: 900;
+  font-size: clamp(36px, 6vw, 64px);
+  line-height: 1.12;
+  color: #fff9f0;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.55), 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+
+.coverSubtitle {
+  position: relative;
+  z-index: 1;
+  margin: 14px 0 0;
+  font-family: var(--reader-font-stack);
+  font-size: clamp(15px, 2.8vw, 20px);
+  font-weight: 600;
+  line-height: 1.45;
+  color: #fff9f0;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.5);
+  max-width: 28em;
+  margin-inline: auto;
+}
+
+/* ── Interior: full-bleed image + overlay text ───────────── */
+.tplFullBleedOverlay {
+  display: block;
+  padding-bottom: 28px;
+}
+
+.bleedImageLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: #e8e0d8;
+}
+
+.bleedCoverImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.overlayTextShell {
+  position: absolute;
+  z-index: 2;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  pointer-events: none;
+  padding: 40px 32px 0px 32px;
+}
+
+.overlayTextShell .overlayPageText {
+  pointer-events: auto;
+}
+
+/* Overlay body */
+.overlayPageText {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  direction: rtl;
+  text-align: right;
+  font-family: var(--reader-font-stack);
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 400;
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  /* color and text-shadow set by .textSchemeDark / .textSchemeLight */
+}
+
+/*
+ * Text zones are PHYSICAL screen edges (viewport left/right/top/bottom), not RTL logical inline start/end.
+ * Storyboard `textZone` matches this convention.
+ */
+.overlayZoneBottom {
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 36%;
+  justify-content: flex-end;
+}
+
+.overlayZoneTop {
+  top: 0;
+  left: 0;
+  right: 0;
+  max-height: 36%;
+  justify-content: flex-start;
+}
+
+/* ── Dark text on light backgrounds (default) ── */
+.textSchemeDark .overlayPageText {
+  color: #2a241a;
+  text-shadow: none;
+}
+
+/* ── Light text on dark backgrounds (night/moonlit) ── */
+.textSchemeLight .overlayPageText {
+  color: #f0ece4;
+  text-shadow: none;
+}
+
+
+/* ── text_only ──────────────────────────────────────────── */
+.tplTextOnly {
+  display: flex;
+  flex-direction: column;
+  min-height: min(60dvh, 560px);
+  padding-bottom: 28px;
+}
+
+.textOnlyPaper {
+  flex: 1;
+  min-height: 0;
+  padding: 28px 22px 40px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.paperPageText {
+  margin: 0;
+  direction: rtl;
+  text-align: right;
+  font-family: var(--reader-font-stack);
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #2e2a22;
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+
+.imagePlaceholder {
+  width: 100%;
+  height: 100%;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  color: rgba(46, 42, 34, 0.55);
+  font-size: 15px;
+}
+
+.imagePlaceholderIcon {
+  font-size: 32px;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 14px max(12px, env(safe-area-inset-bottom, 0px));
+}
+
+.controlBtn {
+  border: 1px solid rgba(180, 160, 130, 0.35);
+  border-radius: 999px;
+  padding: 10px 18px;
+  background: rgba(253, 249, 244, 0.95);
+  color: #3d3830;
+  font-size: 15px;
+  cursor: pointer;
+  font-family: var(--reader-font-stack);
+}
+
+.controlBtn:disabled {
+  opacity: 0.44;
+  cursor: not-allowed;
+}
+
+.endGlyph {
+  color: rgba(92, 83, 72, 0.5);
+  font-size: 1.3rem;
+}
+
+.endTitle {
+  margin: 0;
+  font-size: 1.35rem;
+  color: #5c5348;
+}
+
+@media (max-width: 900px) {
+  .pageStage {
+    padding: 52px 8px 6px;
+  }
+
+  .pageCanvas {
+    width: 100%;
+    max-height: calc(100dvh - 138px);
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .controls {
+    gap: 8px;
+    padding-inline: 10px;
+  }
+
+  .controlBtn {
+    padding: 9px 14px;
+    font-size: 14px;
+  }
+}

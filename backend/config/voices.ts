@@ -2,6 +2,17 @@
  * Voice Configuration — ElevenLabs Voice Registry
  * Add/swap voices here without touching business logic.
  * previewUrl: hosted preview audio file (optional).
+ *
+ * UI COPY SYNC:
+ * The `label` and `description` fields here are user-facing strings.
+ * They MUST stay in sync with WIZARD.voices in content/ui/he/wizard.ts
+ * (the typed content layer) and the voices array in JS/content.js
+ * (the static frontend).
+ *
+ * When adding or renaming a voice:
+ *   1. Update this file (service config + ElevenLabs IDs)
+ *   2. Update content/ui/he/wizard.ts → WIZARD.voices
+ *   3. Update JS/content.js → window.CONTENT.he.wizard.voices
  */
 
 export interface VoiceConfig {
@@ -26,7 +37,7 @@ export const VOICES: VoiceConfig[] = [
     description: 'קול חם, מחבק ורגוע',
     emoji: '👩',
     provider: 'elevenlabs',
-    elevenlabsVoiceId: 'YOUR_ELEVENLABS_VOICE_ID_MOM', // TODO: replace
+    elevenlabsVoiceId: 'HO9ohm2RhnVssYFKCBje', // TODO: replace
     previewUrl: null, // TODO: '/previews/voice-mom.mp3'
     stability: 0.75,
     similarityBoost: 0.85,

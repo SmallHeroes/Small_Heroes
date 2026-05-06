@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>הספרים שלי — גיבורים קטנים</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../CSS/main.css" />
+  <link rel="stylesheet" href="../CSS/my-books.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="wrap">
+      <a href="/" class="logo">
+        <div class="logo-icon"><div class="logo-icon-sq"></div><div class="logo-icon-dot"></div></div>
+        <div class="logo-text">
+          <span class="logo-brand">גיבורים קטנים</span>
+          <span class="logo-tagline">סיפורי חוסן לילדים</span>
+        </div>
+      </a>
+      <button id="logoutBtn" class="nav-cta" type="button">התנתקות</button>
+    </div>
+  </header>
+
+  <main class="books-main wrap">
+    <section class="books-head">
+      <h1>הספרים שלי</h1>
+      <p id="booksSubtitle">טוענים את הספרים שלכם...</p>
+    </section>
+    <section id="booksGrid" class="books-grid"></section>
+    <div id="booksEmpty" class="books-empty" hidden>
+      עדיין לא נוצרו ספרים בחשבון הזה.
+    </div>
+  </main>
+
+  <script src="../JS/routes.js"></script>
+  <script src="../JS/my-books.js"></script>
+</body>
+</html>

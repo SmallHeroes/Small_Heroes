@@ -1,8 +1,17 @@
 /**
- * Stripe Checkout API
- * POST /api/checkout — Create Stripe Checkout Session
+ * ⚠️  DEAD CODE — DO NOT USE
  *
- * File: app/api/checkout/route.ts
+ * This file is NOT imported by anything and is NOT deployed.
+ * It was an early prototype that predates the Next.js App Router structure.
+ *
+ * The active Stripe Checkout route is:
+ *   app/api/checkout/route.ts
+ *
+ * That file uses content strings from @/content (checkoutProductName,
+ * checkoutProductDescription, CHECKOUT_ADDONS) and is the only file
+ * that should be edited.
+ *
+ * TODO: Delete this file once the codebase is confirmed stable in production.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -10,7 +19,7 @@ import Stripe from 'stripe';
 import { PrismaClient } from '@prisma/client';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-06-20',
+  apiVersion: '2026-03-25.dahlia',
 });
 const prisma = new PrismaClient();
 
@@ -28,7 +37,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Build line items
-    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+    const lineItems: Stripe.Checkout.SessionCreateParams['line_items'] & Array<object> = [
       {
         price_data: {
           currency: 'ils',
@@ -86,8 +95,16 @@ export async function POST(req: NextRequest) {
         childName: order.childName,
         env: process.env.NODE_ENV || 'development',
       },
-      success_url: `${APP_URL}/order/${order.id}/generating?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${APP_URL}/order/${order.id}/cancel`,
+      // Copy orderId to the underlying PaymentIntent so that
+      // payment_intent.payment_failed can recover it via pi.metadata.orderId.
+      // Stripe does NOT propagate session.metadata to the PaymentIntent automatically.
+      payment_intent_data: {
+        metadata: {
+          orderId: order.id,
+        },
+      },
+      success_url: `${APP_URL}/generating?orderId=${order.id}`,
+      cancel_url: `${APP_URL}/`,
       payment_method_types: ['card'],
       locale: 'auto',
     });

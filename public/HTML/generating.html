@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../CSS/main.css" />
+  <link rel="stylesheet" href="../CSS/generating.css" />
+</head>
+<body>
+
+  <!-- ── NAVBAR ─────────────────────────────────────────────── -->
+  <header class="navbar">
+    <div class="wrap">
+      <a href="/" class="logo">
+        <div class="logo-icon">
+          <div class="logo-icon-sq"></div>
+          <div class="logo-icon-dot"></div>
+        </div>
+        <div class="logo-text">
+          <span class="logo-brand" id="navBrand"></span>
+          <span class="logo-tagline" id="navTagline"></span>
+        </div>
+      </a>
+      <a href="/" class="nav-cta" id="navCta"></a>
+    </div>
+  </header>
+
+  <!-- ── MAIN ───────────────────────────────────────────────── -->
+  <main class="gen-main">
+  <div class="gen-content">
+
+    <!-- Progress area — hidden when error state is shown -->
+    <div id="genProgressArea">
+
+    <h1 class="gen-headline">
+      <span class="gen-sparkle">✨</span>
+      <span id="genHeadlineText"></span>
+    </h1>
+
+    <div class="gen-pct-wrap">
+      <div class="gen-pct" id="genPct">0%</div>
+      <div class="gen-worker" aria-hidden="true">
+        <span class="worker-dot"></span>
+        <span class="worker-dot"></span>
+        <span class="worker-dot"></span>
+      </div>
+    </div>
+
+    <div class="gen-bar-shell">
+      <div class="gen-bar-track">
+        <div class="gen-bar-fill" id="genBarFill" style="width:0%"></div>
+      </div>
+
+      <div class="gen-bar-floaters" id="genBarFloaters" aria-hidden="true"></div>
+    </div>
+
+    <p class="gen-status-text" id="genStatusText"></p>
+
+    </div><!-- /genProgressArea -->
+
+    <!-- Error state — hidden by default, shown on status=failed or missing orderId -->
+    <div class="gen-error-state" id="genErrorState" hidden>
+      <div class="gen-error-icon">😔</div>
+      <div class="gen-error-title" id="genErrorTitle"></div>
+      <div class="gen-error-msg" id="genErrorMsg"></div>
+      <a href="/" class="gen-error-back" id="genErrorBack"></a>
+    </div>
+
+  </div>
+</main>
+
+<script src="../JS/content.js"></script>
+<script src="../JS/routes.js"></script>
+<script src="../JS/analytics.js"></script>
+<script src="../JS/generating.js"></script>
+
+</body>
+</html>

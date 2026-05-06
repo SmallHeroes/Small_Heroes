@@ -8,7 +8,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { computePricing } from '../../config/wizard';
+import { computePricing } from '../config/wizard';
+import { mapStyleToDatabaseValue } from '../../lib/styles';
 
 const prisma = new PrismaClient();
 
@@ -24,6 +25,9 @@ export async function POST(req: NextRequest) {
 
     const { child, topic, challenge, desiredOutcome, helpers, avoid, product, contact } = wizardData;
     const pricing = computePricing(product);
+    const persistedIllustrationStyle = mapStyleToDatabaseValue(
+      product?.illustrationStyle ?? 'soft_hand_drawn_storybook'
+    );
 
     // Upsert customer
     const customer = await prisma.customer.upsert({
@@ -70,7 +74,7 @@ export async function POST(req: NextRequest) {
 
         // Product
         storyLength: product.length,
-        illustrationStyle: product.illustrationStyle,
+        illustrationStyle: persistedIllustrationStyle,
         audioEnabled: product.audioEnabled,
         selectedVoice: product.selectedVoice || null,
         sleepMode: product.sleepMode || false,
@@ -137,7 +141,8 @@ export async function GET(
       // Book data if ready
       book: order.status === 'ready' ? {
         title: order.book?.title,
-        pages: order.book?.pages?.map(p => ({
+        coverText: order.book?.coverText ?? null,
+        pages: order.book?.pages?.map((p: { pageNumber: number; text: string }) => ({
           pageNumber: p.pageNumber,
           text: p.text,
         })),

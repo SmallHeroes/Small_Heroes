@@ -4,15 +4,21 @@
  * UI reads this; backend prompt builder also uses it.
  */
 
+import type { StyleId } from '../../lib/styles';
+import { WIZARD_ILLUSTRATION_STYLES } from '../../lib/styles';
+
 export const TOPICS = [
-  { id: 'sibling',        label: 'אח / אחות חדשים',      icon: '👶' },
-  { id: 'transition',     label: 'מעבר / גן חדש',         icon: '🏫' },
-  { id: 'nightfear',      label: 'פחדים בלילה',           icon: '🌙' },
-  { id: 'sirens',         label: 'אזעקות / רעשים',        icon: '🚨' },
-  { id: 'selfconfidence', label: 'ביטחון עצמי',           icon: '💪' },
-  { id: 'social',         label: 'קושי חברתי',            icon: '🤝' },
-  { id: 'focus',          label: 'קושי בריכוז / למידה',   icon: '📚' },
-  { id: 'other',          label: 'נושא אחר',               icon: '✨' },
+  { id: 'sibling',         label: 'אח או אחות חדשים',        icon: '👶' },
+  { id: 'transition',      label: 'מעברים גדולים',          icon: '🏫' },
+  { id: 'nightfear',       label: 'פחדים בלילה',            icon: '🌙' },
+  { id: 'sirens',          label: 'קולות ואזעקות',         icon: '🚨' },
+  { id: 'generalfears',   label: 'פחדים אחרים',            icon: '🌤️' },
+  { id: 'anger',           label: 'כעס ותסכול',             icon: '🌋' },
+  { id: 'sensitivity',     label: 'רגישות ועומס רגשי',      icon: '🫧' },
+  { id: 'selfconfidence',  label: 'ביטחון וערך עצמי',      icon: '💪' },
+  { id: 'social',          label: 'חברויות ומפגשים',        icon: '🤝' },
+  { id: 'focus',           label: 'קשב, סקרנות ולמידה',   icon: '📚' },
+  { id: 'other',           label: 'נושא אחר',               icon: '✨' },
 ] as const;
 
 export type TopicId = typeof TOPICS[number]['id'];
@@ -74,6 +80,27 @@ export const CHALLENGE_OPTIONS: Record<TopicId, string[]> = {
     'מתאמץ הרבה ומצליח פחות מהצפוי',
     'מרגיש "טיפש" בהשוואה לאחרים',
     'מתסכל ומוותר בקלות',
+  ],
+  generalfears: [
+    'פחד מדברים קונקרטיים (כלב, מים, רופא)',
+    'הפחד קיים כבר המון זמן',
+    'קשה לדבר על הפחד',
+    'מישהו במשפחה חולק איתו פחד דומה',
+    'רוצה לגעת בפחד אבל בלי להרגיש מובלים',
+  ],
+  anger: [
+    'התפרצויות בבית',
+    'מתעצבן כשהדברים לא לפי הרצון שלו',
+    'מתבייש בכעס',
+    'קשה לו לעבור בין פעילויות',
+    'צריך עזרה לחזור לרגוע',
+  ],
+  sensitivity: [
+    'מצטבר לו בחנויות / קניון',
+    'זקוק לשקט אחרי יום מלא',
+    'מרגיש רגשות של אחרים כמעט מדי',
+    'יש מקלט: חפץ / מקום / שגרה',
+    'מנסה לזהות "לפני שזה נהיה יותר מדי"',
   ],
   other: [
     'קשה לו לישון',
@@ -143,6 +170,24 @@ export const OUTCOME_OPTIONS: Record<TopicId, string[]> = {
     'להתמיד בדברים',
     'להרגיש חכם ומוכשר',
   ],
+  generalfears: [
+    'לקבל כלים מדויקים לפחד שלו',
+    'להרגיש שליטה קטנה ואמיתית',
+    'לצלוח רגע אחד שמפחיד',
+    'לדעת שהפחד לגיטימי',
+  ],
+  anger: [
+    'למצוא ערוץ בטוח לכעס',
+    'להרגיש מובנים בלי בושה',
+    'לחזור לרגוע אחרי סערה',
+    'לזהות מציתים ולהיעזר',
+  ],
+  sensitivity: [
+    'למצוא מקלט כשהעולם רועש',
+    'לכבד את הרגישות בלי "לתקן"',
+    'לחזור לעצמי אחרי עומס',
+    'לדעת שאפשר לבקש הפסקה',
+  ],
   other: [
     'להרגיש בטוח יותר',
     'לנרדם בקלות',
@@ -162,6 +207,9 @@ export const HELPER_OPTIONS: Record<TopicId, string[]> = {
   selfconfidence: ['עידוד מהורים 💛', 'חגיגת הצלחות קטנות ⭐', 'ספר מעורר השראה 📚', 'פעילות שאוהב 🎮', 'חיבוק 🤗', 'שיחה מחזקת 💬'],
   social:         ['משחק זוגי 🎮', 'פעילות קבוצתית 👫', 'חבר קרוב ❤️', 'שיחה עם הורה 💬', 'תרגול בבית 🏠', 'תמיכה של מבוגר 👩'],
   focus:          ['הפסקות קצרות ⏱️', 'סביבה שקטה 🌿', 'רשימת מטלות ✅', 'תנועה לפני לימוד 🏃', 'עזרה של הורה ❤️', 'תגמול אחרי סיום ⭐'],
+  generalfears:  ['הכנה מראש לרגעי קושי 🗓️', 'חפץ בטוח 🧸', 'סיפור/משחק דרך הדמיון 📖', 'נשימה ושקט ביחד 🌬️', 'חיבוק ⭐', 'הדרגה צעד-צעד 🐾'],
+  anger:         ['ריצה/תנועה בטוחה 🏃', 'כדור לחיץ/משחק קצב 🥁', 'מים / ציור להורדת לחץ 🎨', 'מקום "לצעוק בטוח" בבית', 'נשימות לפני 🌬️', 'שיחה קצרה אחרי ⏱️'],
+  sensitivity:   ['אוזניות/שקט בבית 🎧', 'מקלט: פינה/שמיכה 🧺', 'שגרה מוכרת ⭐', 'הפסקה לגיטימית ⏸️', 'מים/אמבית רגועה', 'יומן קטן 📒'],
   other:          ['חיבוק 🤗', 'בובה אהובה 🧸', 'אמא/אבא לידם ❤️', 'שיר/מוזיקה 🎵', 'שיחה על הרגשות 💬', 'זמן שקט לבד 🌿'],
 };
 
@@ -174,6 +222,9 @@ export const AVOID_OPTIONS: Record<TopicId, string[]> = {
   selfconfidence: ['כישלון ללא פתרון', 'ביקורת ישירה', 'השוואה לאחרים', 'תחרותיות', 'לחץ הישגי', 'אחר'],
   social:         ['דחייה ללא תיקון', 'תיאורי בריונות', 'בדידות ממושכת', 'ביקורת', 'אי הצלחה חברתית', 'אחר'],
   focus:          ['כישלון לימודי', 'השוואות לאחרים', 'ביקורת על קשב', 'לחץ ביצועים', 'משימות ארוכות מדי', 'אחר'],
+  generalfears:  ['השפלת פחד', 'אילוץ "תתמודד עכשיו"', 'הצגה מבהילה של האובייקט', 'הבטחות ריקות', 'השוואה לאחרים', 'אחר'],
+  anger:         ['"תירגע" כהשפלה', 'עונש בלי הסבר', 'השוואה לאחים', 'דמות "מרושעת" ללא שיקום', 'הצגת התפרצות כהפקרות', 'אחר'],
+  sensitivity:   ['"את/ה מוגזם/ת"', 'תאורה/רעש מוגזמים', 'המון גירויים', 'השוואה ל"ילדים אחרים"', 'ביקורת על רגישות', 'אחר'],
   other:          ['עצב ובכי ממושך', 'אזכורי מלחמה', 'דמויות מפחידות', 'רעשים חזקים', 'מילים קשות', 'יצורים מפחידים'],
 };
 
@@ -184,11 +235,30 @@ export const CHILD_TRAITS = [
   'יצירתי', 'אחר',
 ] as const;
 
+// ─── Superpowers ──────────────────────────────────────
+// One hero trait that will be woven into the story as a strength.
+export const SUPERPOWER_OPTIONS = [
+  'דמיון',
+  'אומץ',
+  'חמלה',
+  'רגישות',
+  'סקרנות',
+  'הומור',
+  'עקשנות',
+  'יצירתיות',
+  'מנהיגות',
+  'אהבה',
+] as const;
+
+export type Superpower = typeof SUPERPOWER_OPTIONS[number];
+
 // ─── Product Config ───────────────────────────────────
+// Story length mapping (prices remain unchanged).
+// short=10, medium=15, long=20
 export const STORY_LENGTHS = [
-  { id: 'short',  label: 'קצר',   pages: 10, priceILS: 39 },
-  { id: 'medium', label: 'בינוני', pages: 15, priceILS: 49 },
-  { id: 'long',   label: 'ארוך',   pages: 20, priceILS: 59 },
+  { id: 'short',  label: 'קצר',   pages: 10, priceILS: 49 },
+  { id: 'medium', label: 'בינוני', pages: 15, priceILS: 59 },
+  { id: 'long',   label: 'ארוך',   pages: 20, priceILS: 69 },
 ] as const;
 
 export const ADDON_PRICES = {
@@ -197,12 +267,9 @@ export const ADDON_PRICES = {
   bundle: 25, // ILS (audio + pdf discounted)
 } as const;
 
-export const ILLUSTRATION_STYLES = [
-  { id: 'soft',       label: 'איור ילדותי רך' },
-  { id: 'disney',     label: 'דיסני רך וקסום' },
-  { id: 'classic',    label: 'קלאסי (ספרים ישנים)' },
-  { id: 'watercolor', label: 'תלת מימד' },
-] as const;
+/** Same ids and labels as `WIZARD_ILLUSTRATION_STYLES` in `lib/styles.ts` (without blurbs). */
+export const ILLUSTRATION_STYLES: ReadonlyArray<{ id: StyleId; label: string }> =
+  WIZARD_ILLUSTRATION_STYLES.map(({ id, label }) => ({ id, label }));
 
 // ─── Pricing calculator ───────────────────────────────
 export function computePricing(config: {

@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>גיבורים קטנים – יצירת ספר</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="../CSS/main.css" />
+  <link rel="stylesheet" href="../CSS/wizard.css" />
+</head>
+
+<body class="wizard-body">
+
+  <nav class="navbar">
+    <div class="wrap">
+      <a class="logo" href="/">
+        <div class="logo-icon">
+          <div class="logo-icon-sq"></div>
+          <div class="logo-icon-dot"></div>
+        </div>
+        <div class="logo-text">
+          <span class="logo-brand" id="wizNavBrand"></span>
+          <span class="logo-tagline" id="wizNavTagline"></span>
+        </div>
+      </a>
+      <button class="nav-cta" id="wizNavCta" onclick="location.href='/'"></button>
+    </div>
+  </nav>
+
+  <div id="progress-wrap">
+    <div class="progress-card">
+      <span class="progress-label" id="progress-label"></span>
+      <div class="progress-pills" id="progress-pills"></div>
+    </div>
+  </div>
+
+  <main class="wizard-main">
+
+    <!-- ── Step 1 — Welcome ──────────────────────────────────── -->
+    <div class="step active" id="step-1">
+      <div class="s1-inner">
+        <img class="s1-book-img" src="../Images/MagicBook.png" alt="ספר קסום"
+          onerror="this.style.fontSize='110px';this.style.lineHeight='1';this.outerHTML='<div style=\'font-size:110px;line-height:1;margin-bottom:36px;filter:drop-shadow(0 10px 28px rgba(136,108,255,0.20));animation:float 3.8s ease-in-out infinite\'>📖</div>'" />
+        <h1 class="step-title"><span id="s1TitleLine1"></span><br><span id="s1TitleLine2"></span></h1>
+        <p class="step-sub" id="s1Sub"></p>
+        <button class="btn-start" id="s1Btn" onclick="goNext()"></button>
+      </div>
+    </div>
+
+    <!-- ── Step 2 — Topic ────────────────────────────────────── -->
+    <div class="step" id="step-2">
+      <h2 class="step-title" id="s2Title"></h2>
+      <p class="step-sub" id="s2Sub"></p>
+      <div style="height:30px;"></div>
+      <div class="chips-wrap" id="topic-chips"></div>
+    </div>
+
+    <!-- ── Step 3 — Category follow-up (taxonomy v2) ─────────── -->
+    <div class="step" id="step-3">
+      <h2 class="step-title" id="catFollowTitle"></h2>
+      <p class="step-sub" id="catFollowSub"></p>
+      <div class="category-followup-wrap" id="category-followup-wrap" aria-live="polite"></div>
+    </div>
+
+    <!-- ── Step 4 — Companion character ──────────────────────── -->
+    <div class="step" id="step-4">
+      <p class="step-microcopy" id="companionMicro"></p>
+      <h1 class="companion-h1" id="companionTitle"></h1>
+      <p class="step-sub" id="companionSub"></p>
+      <div class="companion-grid" id="companion-cards" role="group" aria-label="בחירת דמות מלווה"></div>
+    </div>
+
+    <!-- ── Step 4 — Child details ────────────────────────────── -->
+    <div class="step" id="step-5">
+      <p class="step-microcopy" id="s3micro"></p>
+      <h2 class="step-title" id="s3Title"></h2>
+      <p class="step-sub step-sub--tight" id="s3Sub"></p>
+
+      <div class="s3-card">
+        <div class="form-side">
+          <div class="form-group">
+            <label class="form-label" id="s3NameLabel"></label>
+            <input class="form-input" id="child-name" type="text" placeholder="" maxlength="30" autocomplete="off" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" id="s3AgeLabel"></label>
+              <div class="select-wrap">
+                <select class="form-select" id="child-age">
+                  <option value=""></option>
+                  <option>2</option>
+                  <option>3</option>
+                  <option>4</option>
+                  <option>5</option>
+                  <option>6</option>
+                  <option>7</option>
+                  <option>8</option>
+                  <option>9</option>
+                  <option>10</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" id="s3GenderLabel"></label>
+              <div class="select-wrap">
+                <select class="form-select" id="child-gender">
+                  <option value=""></option>
+                  <option value="boy"   id="s3GenderOptBoy"></option>
+                  <option value="girl"  id="s3GenderOptGirl"></option>
+                  <option value="other" id="s3GenderOptOther"></option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group form-group--traits">
+            <label class="form-label" id="s3TraitsLabel"></label>
+            <span class="form-label-note" id="s3TraitsNote"></span>
+            <div class="trait-chips-wrap" id="trait-chips"></div>
+          </div>
+        </div>
+
+        <div class="photo-side">
+          <p class="photo-hero-title" id="photo-hero-title" hidden>זו התמונה שתהפוך לגיבור הסיפור</p>
+          <div class="photo-upload-area" id="photo-area">
+            <div class="photo-plus">+</div>
+            <div class="photo-txt">
+              <span id="s3PhotoPrompt"></span>
+              <small id="s3PhotoOptional"></small>
+            </div>
+          </div>
+          <input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp" onchange="handlePhoto(event)" />
+          <div id="photo-quality-message"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Step 5 — Superpower ───────────────────────────────── -->
+    <div class="step" id="step-6">
+      <p class="step-microcopy" id="s4powermicro"></p>
+      <h2 class="step-title" id="s4powerTitle"></h2>
+      <p class="step-sub" id="s4powerSub"></p>
+      <div class="trait-chips-wrap" id="superpower-chips"></div>
+      <div class="textarea-section" style="margin-top:18px;">
+        <label class="textarea-label" id="s4powerExtraLabel"></label>
+        <textarea class="wiz-textarea" id="s4power-extra"></textarea>
+      </div>
+    </div>
+
+    <!-- ── Step 6 — Family Context (NEW) ─────────────────────── -->
+    <div class="step" id="step-7">
+      <p class="step-microcopy" id="s4micro"></p>
+      <h2 class="step-title" id="s4famTitle"></h2>
+      <p class="step-sub" id="s4famSub"></p>
+      <p class="step-sub2" id="s4famSub2"></p>
+      <div class="char-step-shell">
+        <div class="char-grid" id="character-cards"></div>
+      </div>
+    </div>
+
+    <!-- ── Step 7 — Difficulties ────────────────────────────── -->
+    <!-- IMPORTANT: toggleChip reads el.textContent — chip text is set by JS  -->
+    <!-- from CONTENT; stored values are identical Hebrew strings as before.   -->
+    <div class="step" id="step-8">
+      <p class="step-microcopy" id="s5micro"></p>
+      <h2 class="step-title" id="s4Title"></h2>
+      <p class="step-sub" id="s4Sub"></p>
+      <p class="step-sub2" id="s4Sub2"></p>
+      <div class="chips-wrap">
+        <div class="chip" id="s4Chip0" onclick="toggleChip(this,'difficulties')"></div>
+        <div class="chip" id="s4Chip1" onclick="toggleChip(this,'difficulties')"></div>
+        <div class="chip" id="s4Chip2" onclick="toggleChip(this,'difficulties')"></div>
+        <div class="chip" id="s4Chip3" onclick="toggleChip(this,'difficulties')"></div>
+        <div class="chip" id="s4Chip4" onclick="toggleChip(this,'difficulties')"></div>
+        <div class="chip" id="s4Chip5" onclick="toggleChip(this,'difficulties')"></div>
+        <div class="chip" id="s4Chip6" onclick="toggleChip(this,'difficulties')"></div>
+        <div class="chip" id="s4Chip7" onclick="toggleChip(this,'difficulties')"></div>
+      </div>
+      <div class="textarea-section">
+        <label class="textarea-label" id="s4ExtraLabel"></label>
+        <textarea class="wiz-textarea" id="s4-extra"></textarea>
+      </div>
+    </div>
+
+    <!-- ── Step 8 — Goals ───────────────────────────────────── -->
+    <div class="step" id="step-9">
+      <p class="step-microcopy" id="s6micro"></p>
+      <h2 class="step-title" id="s5Title"></h2>
+      <p class="step-sub" id="s5Sub"></p>
+      <p class="step-sub2" id="s5Sub2"></p>
+      <div class="chips-wrap">
+        <div class="chip" id="s5Chip0" onclick="toggleChip(this,'goals')"></div>
+        <div class="chip" id="s5Chip1" onclick="toggleChip(this,'goals')"></div>
+        <div class="chip" id="s5Chip2" onclick="toggleChip(this,'goals')"></div>
+        <div class="chip" id="s5Chip3" onclick="toggleChip(this,'goals')"></div>
+        <div class="chip" id="s5Chip4" onclick="toggleChip(this,'goals')"></div>
+        <div class="chip" id="s5Chip5" onclick="toggleChip(this,'goals')"></div>
+        <div class="chip" id="s5Chip6" onclick="toggleChip(this,'goals')"></div>
+        <div class="chip" id="s5Chip7" onclick="toggleChip(this,'goals')"></div>
+        <div class="chip" id="s5Chip8" onclick="toggleChip(this,'goals')"></div>
+      </div>
+    </div>
+
+    <!-- ── Step 9 — Helpers ─────────────────────────────────── -->
+    <div class="step" id="step-10">
+      <p class="step-microcopy" id="s7micro"></p>
+      <h2 class="step-title" id="s6Title"></h2>
+      <p class="step-sub" id="s6Sub"></p>
+      <p class="step-sub2" id="s6Sub2"></p>
+      <div class="chips-wrap">
+        <div class="chip" id="s6Chip0" onclick="toggleChip(this,'helpers')"></div>
+        <div class="chip" id="s6Chip1" onclick="toggleChip(this,'helpers')"></div>
+        <div class="chip" id="s6Chip2" onclick="toggleChip(this,'helpers')"></div>
+        <div class="chip" id="s6Chip3" onclick="toggleChip(this,'helpers')"></div>
+        <div class="chip" id="s6Chip4" onclick="toggleChip(this,'helpers')"></div>
+        <div class="chip" id="s6Chip5" onclick="toggleChip(this,'helpers')"></div>
+        <div class="chip" id="s6Chip6" onclick="toggleChip(this,'helpers')"></div>
+        <div class="chip" id="s6Chip7" onclick="toggleChip(this,'helpers')"></div>
+        <div class="chip" id="s6Chip8" onclick="toggleChip(this,'helpers')"></div>
+        <div class="chip" id="s6Chip9" onclick="toggleChip(this,'helpers')"></div>
+      </div>
+      <div class="textarea-section">
+        <label class="textarea-label" id="s6ExtraLabel"></label>
+        <textarea class="wiz-textarea" id="s6-extra"></textarea>
+      </div>
+    </div>
+
+    <!-- ── Step 10 — Avoid ───────────────────────────────────── -->
+    <div class="step" id="step-11">
+      <p class="step-microcopy" id="s8micro"></p>
+      <h2 class="step-title" id="s7Title"></h2>
+      <p class="step-sub" id="s7Sub"></p>
+      <p class="step-sub2" id="s7Sub2"></p>
+      <div class="chips-wrap">
+        <div class="chip" id="s7Chip0" onclick="toggleChip(this,'avoid')"></div>
+        <div class="chip" id="s7Chip1" onclick="toggleChip(this,'avoid')"></div>
+        <div class="chip" id="s7Chip2" onclick="toggleChip(this,'avoid')"></div>
+        <div class="chip" id="s7Chip3" onclick="toggleChip(this,'avoid')"></div>
+        <div class="chip" id="s7Chip4" onclick="toggleChip(this,'avoid')"></div>
+        <div class="chip" id="s7Chip5" onclick="toggleChip(this,'avoid')"></div>
+        <div class="chip" id="s7Chip6" onclick="toggleChip(this,'avoid')"></div>
+        <div class="chip" id="s7Chip7" onclick="toggleChip(this,'avoid')"></div>
+        <div class="chip" id="s7Chip8" onclick="toggleChip(this,'avoid')"></div>
+      </div>
+      <div class="textarea-section">
+        <label class="textarea-label" id="s7ExtraLabel"></label>
+        <textarea class="wiz-textarea" id="s7-extra"></textarea>
+      </div>
+    </div>
+
+    <!-- ── Step 11 — Package ────────────────────────────────── -->
+    <div class="step" id="step-12">
+      <p class="step-microcopy" id="s9micro"></p>
+      <h2 class="step-title" id="s8Title"></h2>
+      <p class="step-sub" id="s8Sub"></p>
+
+      <div class="s8-layout">
+        <div class="s8-grid" id="s8-grid">
+
+          <!-- Length + Style card -->
+          <div class="s8-card s8-card--styles">
+            <div class="s8-card-title" id="s8LengthTitle"></div>
+            <div class="length-btns" id="length-btns"></div>
+
+            <div class="style-label" id="s8StyleLabel"></div>
+            <div class="style-grid" id="style-btns"></div>
+          </div>
+
+          <!-- Addons card -->
+          <div class="s8-card s8-card--addons">
+            <div class="s8-card-title" id="s8-addons-title"></div>
+            <div class="s8-card-sub" id="s8AddonSub"></div>
+
+            <div class="addon-row" id="addon-audio-row" onclick="toggleAddon('audioEnabled')">
+              <div class="addon-info">
+                <span class="badge-popular" id="s8AudioBadge"></span>
+                <div class="addon-main">
+                  <div>
+                    <div class="addon-name" id="s8AudioName"></div>
+                    <div class="addon-desc" id="s8AudioDesc"></div>
+                  </div>
+                  <div class="addon-checkbox" id="cb-audio"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="addon-row" id="addon-pdf-row" onclick="toggleAddon('pdfEnabled')">
+              <div class="addon-info">
+                <span class="badge-gift" id="s8PdfBadge"></span>
+                <div class="addon-main">
+                  <div>
+                    <div class="addon-name" id="s8PdfName"></div>
+                    <div class="addon-desc" id="s8PdfDesc"></div>
+                  </div>
+                  <div class="addon-checkbox" id="cb-pdf"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="addon-row" id="addon-bundle-row" onclick="toggleAddon('bundleEnabled')">
+              <div class="addon-info">
+                <span class="badge-save" id="s8BundleBadge"></span>
+                <div class="addon-main">
+                  <div>
+                    <div class="addon-name" id="s8BundleName"></div>
+                    <div class="addon-desc" id="s8BundleDesc"></div>
+                  </div>
+                  <div class="addon-checkbox" id="cb-bundle"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Voice panel (shown when audio/bundle active) -->
+          <div class="s8-card s8-voice-col is-collapsed" id="s8-voice-col" aria-hidden="true">
+            <div class="s8-card-title" id="s8VoiceTitle"></div>
+            <div class="voice-btns" id="voice-btns"></div>
+
+            <div class="sleep-row" onclick="toggleSleep()">
+              <div class="sleep-info">
+                <div class="sleep-name" id="s8SleepName"></div>
+                <div class="sleep-desc" id="s8SleepDesc"></div>
+              </div>
+              <div class="sleep-checkbox" id="sleep-toggle"></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Total moved to bottom bar -->
+        <span id="total-price" hidden></span>
+      </div>
+    </div>
+
+    <!-- ── Step 12 — Summary + Payment ─────────────────────── -->
+    <div class="step" id="step-13">
+      <p class="step-microcopy" id="s10micro"></p>
+      <div style="text-align:center;margin-bottom:10px;">
+        <span style="font-size:28px;">✨</span>
+      </div>
+      <h2 class="step-title" id="s9Title" style="margin-bottom:6px;"></h2>
+      <p class="step-title" id="s9Sub" style="font-size:clamp(18px,2.6vw,28px);margin-bottom:20px;"></p>
+
+      <div class="s9-grid">
+        <div class="s9-card">
+          <div class="s9-card-title" id="s9Card1Title"></div>
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label class="form-label" id="s9BookNameLabel">שם לספר (אופציונלי)</label>
+            <input class="form-input" id="bookNameInput" type="text"
+                   placeholder="למשל: ההרפתקה של יואב"
+                   maxlength="60" autocomplete="off" dir="rtl" />
+            <div class="form-hint" id="s9BookNameHint" style="font-size:12px;color:#888;margin-top:4px;">
+              אם לא תבחרו שם, ניצור שם אוטומטית
+            </div>
+          </div>
+          <div id="order-summary"></div>
+        </div>
+
+        <div class="s9-card">
+          <div class="s9-card-title" id="s9Card2Title"></div>
+          <div id="price-breakdown"></div>
+        </div>
+
+        <div class="s9-card">
+          <div class="s9-card-title" id="s9Card3Title"></div>
+          <div class="contact-form">
+            <div class="form-group">
+              <label class="form-label" id="s9NameLabel"></label>
+              <input class="form-input" id="contact-name" type="text" placeholder="" autocomplete="name" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" id="s9EmailLabel"></label>
+              <input class="form-input" id="contact-email" type="email" placeholder="" autocomplete="email" />
+            </div>
+            <button class="contact-btn" id="btn-pay" onclick="goNext()"></button>
+            <div class="payment-logos" id="s9PaymentLogos"></div>
+          </div>
+        </div>
+      </div>
+      <button type="button" class="s9-back-btn" onclick="goBack()">
+        <span class="s9-back-arrow">&#8594;</span> חזרה לעריכה
+      </button>
+    </div>
+
+  </main>
+
+  <div class="bottom-bar" id="bottom-bar">
+    <div class="bottom-bar-actions" id="bottom-bar-actions">
+      <div class="bottom-bar-total" id="bottom-bar-total" hidden>
+        <span class="bottom-bar-total-label" id="bottomBarTotalLabel"></span>
+        <span class="bottom-bar-total-price" id="bottom-bar-price">₪49</span>
+      </div>
+      <button type="button" id="btn-continue" class="btn-continue"></button>
+      <button type="button" id="btn-continue-anyway" class="btn-continue btn-continue--anyway" hidden>להמשיך בכל זאת</button>
+      <button type="button" id="btn-back"     class="btn-back"     onclick="goBack()"></button>
+    </div>
+    <p class="photo-step-reassure" id="photo-step-reassure" hidden>גם בלי תמונה ננסה ליצור תוצאה טובה 💪</p>
+  </div>
+
+  <script src="../JS/content.js"></script>
+  <script src="../JS/routes.js"></script>
+  <script src="../JS/companions.js"></script>
+  <script src="../JS/analytics.js"></script>
+  <script src="../JS/client-api.js"></script>
+  <script src="../JS/wizard.js"></script>
+</body>
+
+</html>

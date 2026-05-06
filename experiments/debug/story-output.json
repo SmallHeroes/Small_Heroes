@@ -1,0 +1,506 @@
+{
+  "storyBrain": {
+    "emotionalCore": {
+      "challenge": "fear_of_loud_noises",
+      "behavioral_pattern": "freeze",
+      "emotional_shift": "faces the noise bravely",
+      "therapeutic_action": "chooses to stay and focus during loud sounds"
+    },
+    "hero": {
+      "name": "תמר",
+      "core_trait": "notices tiny sounds others ignore",
+      "hidden_strength": "can stay very still",
+      "growth_action": "reaches towards the source of noise when scared"
+    },
+    "entity": {
+      "name": "Whisperflap",
+      "type": "external_helper",
+      "core_ability": "captures and muffles loud noises with its wings",
+      "rule": "only works if תמר reaches out towards the noise",
+      "limitation": "does not appear if תמר hides or runs away",
+      "personality": "curious, a bit fussy about sound quality",
+      "humor_hook": "complains about 'noisy' noises and prefers soft whispers"
+    },
+    "tone": {
+      "emotional_tone": "warm, grounded, intimate",
+      "wonder_tone": "magical but not overwhelming",
+      "humor_style": "subtle, observational, character-based"
+    },
+    "narrativeCore": {
+      "opening": "תמר is playing quietly in her room, listening to the gentle ticking of a clock.",
+      "inciting_event": "A sudden loud siren blares outside, shaking the walls.",
+      "first_reaction": "תמר freezes, hands over her ears.",
+      "entity_reveal": "Whisperflap flutters in through the window, wings glistening.",
+      "rule_discovery": "תמר notices Whisperflap only flutters closer when she reaches out towards the siren.",
+      "first_attempt": "She stretches her hand towards the window, and Whisperflap flaps its wings, softening the noise.",
+      "midpoint_shift": "Whisperflap humorously flaps harder, muttering about 'unruly' noises.",
+      "climax_action": "תמר hesitates, then bravely holds her hand out again as the siren wails louder.",
+      "resolution": "The room becomes quieter as Whisperflap wraps the noise in its wings, allowing תמר to smile and relax."
+    },
+    "visuals": {
+      "heroVisual": "5, girl, dark brown, curly, shoulder-length, pastel pink pajamas, light olive, hazel",
+      "entityVisual": "small, butterfly-like, iridescent blue, silky, flutters gracefully",
+      "worldAnchor": "תמר's cozy bedroom — a soft rug, a small bookshelf, a window overlooking a garden",
+      "supportingCast": [
+        {
+          "name": "אמא",
+          "relationship": "mother",
+          "narrativeRole": "guidance",
+          "visual": "tall, wavy hair, warm smile, always wears a blue scarf",
+          "oneAction": "gently reassures תמר before the siren starts"
+        }
+      ]
+    }
+  },
+  "pageOutline": [
+    {
+      "page": 1,
+      "purpose": "introduces תמר's attention to sounds",
+      "beat": "תמר is playing quietly, focusing on the gentle ticking of a clock.",
+      "emotional_state": "calm, absorbed in subtle sounds",
+      "focus": "environment",
+      "characters_present": [
+        "תמר"
+      ],
+      "humor": null
+    },
+    {
+      "page": 2,
+      "purpose": "establishes תמר's relationship with אמא",
+      "beat": "אמא gently reassures תמר as they share a moment before the siren.",
+      "emotional_state": "cozy, leaning towards comfort",
+      "focus": "interaction",
+      "characters_present": [
+        "תמר",
+        "אמא"
+      ],
+      "humor": null
+    },
+    {
+      "page": 3,
+      "purpose": "introduces the inciting event",
+      "beat": "A sudden loud siren blares outside, shaking the walls.",
+      "emotional_state": "tense, startled into stillness",
+      "focus": "environment",
+      "characters_present": [
+        "תמר"
+      ],
+      "humor": null
+    },
+    {
+      "page": 4,
+      "purpose": "shows תמר's reaction to the noise",
+      "beat": "תמר freezes, hands over her ears, unable to move.",
+      "emotional_state": "tight, braced against overwhelming sounds",
+      "focus": "child",
+      "characters_present": [
+        "תמר"
+      ],
+      "humor": null
+    },
+    {
+      "page": 5,
+      "purpose": "builds tension with תמר's struggle",
+      "beat": "The siren continues blaring, and תמר remains frozen in place.",
+      "emotional_state": "rigid, locked in fear",
+      "focus": "symbolic",
+      "characters_present": [
+        "תמר"
+      ],
+      "humor": null
+    },
+    {
+      "page": 6,
+      "purpose": "introduces Whisperflap",
+      "beat": "Whisperflap flutters in through the window, wings glistening.",
+      "emotional_state": "curious, drawn out of stillness by movement",
+      "focus": "entity",
+      "characters_present": [
+        "תמר",
+        "Whisperflap"
+      ],
+      "humor": "Whisperflap complains about the 'noisy' siren."
+    },
+    {
+      "page": 7,
+      "purpose": "discovers the entity's rule",
+      "beat": "תמר notices Whisperflap flutters closer when she reaches towards the source of the noise.",
+      "emotional_state": "intrigued, cautiously stretching",
+      "focus": "interaction",
+      "characters_present": [
+        "תמר",
+        "Whisperflap"
+      ],
+      "humor": "Whisperflap insists the siren noise is 'not up to standard.'"
+    },
+    {
+      "page": 8,
+      "purpose": "shows תמר's first attempt with Whisperflap",
+      "beat": "She stretches her hand towards the window, and Whisperflap flaps its wings, softening the noise.",
+      "emotional_state": "tentative, fingers extending with hope",
+      "focus": "action",
+      "characters_present": [
+        "תמר",
+        "Whisperflap"
+      ],
+      "humor": null
+    },
+    {
+      "page": 9,
+      "purpose": "depicts the climax of תמר's bravery",
+      "beat": "תמר hesitates, then bravely holds her hand out again as the siren wails louder.",
+      "emotional_state": "steady, arm extended with determination",
+      "focus": "child",
+      "characters_present": [
+        "תמר",
+        "Whisperflap"
+      ],
+      "humor": "Whisperflap mutters about the 'unruly' volume as it works harder."
+    },
+    {
+      "page": 10,
+      "purpose": "resolves the noise conflict",
+      "beat": "The room becomes quieter as Whisperflap wraps the noise in its wings, allowing תמר to smile and relax.",
+      "emotional_state": "light, shoulders lowering in relief",
+      "focus": "resolution",
+      "characters_present": [
+        "תמר",
+        "Whisperflap"
+      ],
+      "humor": null
+    }
+  ],
+  "rawStory": "תמר ישבה בשקט בחדרה, אצבעותיה נעו בעדינות בין חלקי פאזל צבעוני שפיזרה על הרצפה. ברקע נשמע תקתוק השעון, כמו מנגינה מרגיעה שמילאה את חלל האוויר. אור השמש נכנס מהחלון, מאיר את השטיח הרך והחם שעוטף את כפות רגליה. תמר עצמה את עיניה לרגע והקשיבה לגשם העדין של הקשׁקוש בפאזל כשהוא נפגש עם הרצפה, וכל העולם נראה שלו ורוגע.\n\nאמא התקרבה על קצות האצבעות, מהרהרת בשקט כדי לא להפריע, נעמדה ליד תמר והרכינה קלות את ראשה ואמרה, \"יש הרבה דברים יפים לשים לב אליהם.\" תמר חייכה בעדינות כשאמא ליטפה את כתפה, ויחד הביטו החוצה מהחלון על השמש שהתחילה לשקוע מעל הגן הירוק שמחוץ לביתם. השיחה הקטנה הייתה עוגן של שלוות-המוח שכזו שהחדר נראה מלא בבועות קטנות של עניין.\n\nפתאום, נתקעו הדממה ותקתוק השעון כאשר קול אזעקה חזק בוקע מבחוץ, קירות החדר רעדו לרגע מרעש בלתי צפוי. תמר התקשתה להימלט מהפתאומיות בשעה שהצליל התפשט והתהדהד, נוגע בצדדי הקירות ומחריד את השעון שכמו השמיע צליל אחר, לא מותאם. עיניה התרחבו במהירות כשהיא הביטה באור הרועד מהחלון, בדיוק כששאר כלי החדר רטטו מהד הפתאומי.\n\nתמר קפאה במקומה, גופה כמו התקשח וידיה נעו במהירות אל עבר אוזניה, מבקשות להגן עליה מפני הקולות המבוהלים שיצרו מוסיקת רקע רועמת לכלבה לכד את נשימתה. היא ישבה ללא ניע, לא מסוגלת להזיז שריר, בעוד הצליל דחף נגדה שוב ושוב, חזק וברור, מאיים לשבור את מעטה השלווה ששרה עד כה על החדר.\n\nהאזהרה העזה המשיכה להרעיד את החלל, ותמר כמו התערערה בתוכה, נותרה קפואה במקומה. ידה התהדקה על אוזניה, אך כנגד כל רצון, נגעה שוב ושוב בקרקע בחיפוש אחר ביטחון. הצלילים המשיכו לבשר בשכבתם, כאילו דפקו על דלתה בקול גדול שדרש מענה. תמר נראתה כמו דמות ממרחב אחר בזמן, מרחפת בין ההחלטה לברוח לבין ההרגשה שעליה להישאר, בעוד החדר סביב המשיך לשדר שדרים בקצב הרועם שלו.\n\nלפתע, כחיזיון נע במערבולת, התקרב למקום ייצור פלאי - וִויסְפֶּרְפְּלַאפ - כנפיו הרחבות התפשטו במהירות, מנצנצות בגוונים כחלחל-זוהרים, משתקפים מהחלון שנראה עתה מוצף באור בהירכתיו. \"הא, רעש כזה לא יעלה בקנה אחד עם טובת אוזני,\" לחשש ועיניו הקטנות סקרו את החדר בפדנטיות מוגזמת. תמר עקבה אחרי תעופתו כאשר הוא ניסה להחליש את הרעש המובע כולמאת הגלויים.\n\nתמר העבירה את מבטה מהיצור הקטן אל חלון החדר, התחושה שהבינה מה נדרש ממנה התבהרה בליבה. כשידה נשלחה באטיות לעבר החלון, הֲפָרָהּ הוכנה לשיתוף פעולה איתי נוסף. וויספרפלאפ, הגיב במהירות, התעופף קרוב יותר. \"הו, איזה תדר לא מדויק!\" רטון מזעפו נתפר בזכות עבודת הכנפיים שלו, כאילו כיפף את המוזיקה למנעדו.\n\nבתחושת חוסר ופחד משולבים, תמר הגישה את ידיה לכיוון המקור הצלח, נוגעת כמעט בזכוכית החלון. וויספרפלאפ שחרר טריל מוגן של כנפיים פתוחות, וכל תנועה שלה נענתה בגלי רכות שהציפו את הצליל, כאילו גלשו במורד מטושטש של קולות. החדר החל לשוב לחיים שקטים, ונראה שוויספרפלאפ מלטף את האוויר בעדינות עם נימת כנפיו שהתרחבו בהתמדה.\n\nכשעוד פעם נשמע הצליל ההולך ומתרחק, תמר לכדה את עיניה בכנפיו של וויספרפלאפ שטלטלו בעומסי המוזיקה והקשיים הרועשים שהתמידו. היא כמעט סבבה לאחור, תפסה את האוויר בכבדות בעודה מוכנה להיאחז שוב באוזניה, אבל אז עיניה נחו על הכנפיים הקטנות שנלחמו בשמש המתעמעמת. היא לקחה נשימה, והושיטה את ידיה בתנועת סיפוק אל עבר הצליל הרועם, מעניקה לויוספרפלאפ הזמן לעבוד.\n\nבשביל רגע אחד המוזיקה לא נשמעה כלל, כאילו נשמתה הפריחה את מהלך העלילה, ואז בחזרה, התקפלה לחדר מעודן. וויספרפלאפ עטף בעדינות את הצלילים בכנפיו ועד שטף את החדר בנוגד אורו הנינוח. תמר הביטה בחדר השקט, עיניה מתרחבות לגלות. היא נשענה בנחת על השטח הרך, חיוכה הקטן נוכח לה, וחדר הותיק על הידע החדש שהתעורר בו בזמן.",
+  "pageProse": [
+    {
+      "pageNumber": 1,
+      "text": "תמר ישבה בשקט בחדרה, משחקת בפאזל צבעוני שפיזרה על הרצפה. היא הרימה חתיכה אחר חתיכה, מחפשת את המקום הנכון לכל אחת. תקתוק השעון נשמע ברקע, כמו מנגינה מרגיעה שמילאה את החדר. אור השמש נכנס מהחלון, מאיר את השטיח הרך והחם שמתחת לרגליה. ריח קל של פרחים מהגינה נכנס דרך החלון הפתוח, ותמר עצרה לרגע להריח אותו, ואז חזרה להתמקד בפאזל.",
+      "narrationText": "תמר יושבת בשקט ומשחקת בפאזל בחדרה. השעון מתקתק ברקע ואור השמש מאיר את השטיח. ריח פרחים נכנס מהחלון הפתוח ותמר מתרכזת בפאזל.",
+      "imageSubject": "environment"
+    },
+    {
+      "pageNumber": 2,
+      "text": "אמא התקרבה בשקט, כדי לא להפריע לתמר שעמדה ליד החלון. היא נעמדה קרוב, נשענת מעט על השולחן ליד, ואמרה בחיוך, \"יש הרבה דברים יפים לשים לב אליהם.\" תמר חייכה חזרה, מרגישה את החום של מגע יד אמה על כתפה. יחד הביטו החוצה מהחלון על השמש השוקעת, שהזהיבה את השמיים בגווני כתום ואדום. האור הרך של השמש השוקעת ליטף את פניהן והאיר את השיער של תמר בצבע זהב.",
+      "narrationText": "אמא התקרבה בשקט, כדי לא להפריע לתמר שעמדה ליד החלון. היא נעמדה קרוב, נשענת מעט על השולחן ליד, ואמרה בחיוך, \"יש הרבה דברים יפים לשים לב אליהם.\" תמר חייכה חזרה, מרגישה את החום של מגע יד אמה על כתפה. יחד הביטו החוצה מהחלון על השמש השוקעת, שהזהיבה את השמיים בגווני כתום ואדום. האור הרך של השמש השוקעת ליטף את פניהן והאיר את השיער של תמר בצבע זהב.",
+      "imageSubject": "interaction"
+    },
+    {
+      "pageNumber": 3,
+      "text": "פתאום, קול אזעקה חזק נשמע מבחוץ, וקירות החדר רעדו מהרעש. תמר הופתעה מהצליל שהדהד בחדר, נוגע בקירות ומרעיד את השעון שעל המדף. עיניה התרחבו כשהביטה באור הרועד מהחלון. היא הרגישה את הלב שלה פועם במהירות, כמו תוף קטן בחזה שלה. השעון על הקיר התנדנד קלות, מחוגיו רוטטים עם הקולות. תמר הביטה סביב, מנסה להבין מה קורה, כשהאור הרועד משתקף על הקירות.",
+      "narrationText": "תמר עומדת בחדרה, מופתעת מהצליל החזק שנשמע מבחוץ. האור מהחלון מרצד על הקירות, והשעון רועד על המדף.",
+      "imageSubject": "environment"
+    },
+    {
+      "pageNumber": 4,
+      "text": "תמר קפאה במקומה, גופה התקשח כמו פסל. ידיה נעו במהירות לאוזניה, מנסות להגן עליה מהקולות הרועמים. היא ישבה על השטיח הרך, ללא תזוזה, לא מסוגלת לזוז, בעוד הצליל דחף נגדה שוב ושוב, כמו גל מכה בחוף. עיניה נותרו מרוכזות בנקודה על הקיר, מבולבלות ומפוחדות, כאילו ניסו למצוא שם תשובה. היא הרגישה את הלב שלה דופק במהירות, כמעט יוצא מחזה.",
+      "narrationText": "תמר יושבת על השטיח ובוהה בקיר. היא מרגישה את פעימות הלב שלה חזקות ומהירות.",
+      "imageSubject": "child"
+    },
+    {
+      "pageNumber": 5,
+      "text": "האזהרה המשיכה להרעיד את החדר, ותמר נותרה קפואה במקום. ידה לחצה בחוזקה על אוזניה, מנסה לחסום את הרעש, אך הצלילים המשיכו להדהד בכל פינה. היא ראתה את הצללים רוקדים על הקירות, כשכל דפיקה נשמעה כמו תוף גדול שמכה. היא התכופפה מעט, ידה השנייה נגעה שוב ושוב ברצפה הקרה והחלקה, מחפשת אחר תחושת ביטחון. הלב שלה פעם במהירות, כמו תוף קטן בתוך החזה שלה.",
+      "narrationText": "האזהרה המשיכה להרעיד את החדר, ותמר נותרה קפואה במקום. ידה לחצה בחוזקה על אוזניה, מנסה לחסום את הרעש, אך הצלילים המשיכו להדהד בכל פינה. היא ראתה את הצללים רוקדים על הקירות, כשכל דפיקה נשמעה כמו תוף גדול שמכה. היא התכופפה מעט, ידה השנייה נגעה שוב ושוב ברצפה הקרה והחלקה, מחפשת אחר תחושת ביטחון. הלב שלה פעם במהירות, כמו תוף קטן בתוך החזה שלה.",
+      "imageSubject": "symbolic"
+    },
+    {
+      "pageNumber": 6,
+      "text": "לפתע, הופיע יצור פלאי - וויספרפלאפ. כנפיו הרחבות נצנצו בגוונים כחלחלים, משתקפים מהחלון המואר. הוא רפרף באוויר ברכות, כמו נוצה הנישאת ברוח. \"רעש כזה לא מתאים לאוזני,\" לחשש היצור, וצמצם את עיניו הקטנות. תמר הביטה בו בפליאה, עיניה נפערות לרווחה. היא חשה את האוויר הקריר שנכנס מהחלון, מלטף את פניה, כשהיצור ריחף קרוב יותר. קולות הרעשים התמזגו עם רשרוש כנפיו של וויספרפלאפ, ותחושה של קסם מילאה את החדר.",
+      "narrationText": "לפתע, הופיע יצור פלאי - וויספרפלאפ. כנפיו הרחבות נצנצו בגוונים כחלחלים, משתקפים מהחלון המואר. הוא רפרף באוויר ברכות, כמו נוצה הנישאת ברוח. \"רעש כזה לא מתאים לאוזני,\" לחשש היצור, וצמצם את עיניו הקטנות. תמר הביטה בו בפליאה, עיניה נפערות לרווחה. היא חשה את האוויר הקריר שנכנס מהחלון, מלטף את פניה, כשהיצור ריחף קרוב יותר. קולות הרעשים התמזגו עם רשרוש כנפיו של וויספרפלאפ, ותחושה של קסם מילאה את החדר.",
+      "imageSubject": "entity"
+    },
+    {
+      "pageNumber": 7,
+      "text": "תמר הביטה מהיצור לחלון, והבינה מה עליה לעשות. היא הרגישה את החמימות שמגיעה מהאור שבחוץ, והיד שלה רעדה מעט כשהושיטה אותה לעבר החלון. וויספרפלאפ התקרב במהירות, כנפיו משמיעות רשרוש עדין. \"איזה תדר לא מדויק!\" רטן היצור, מבטו נעול על תמר. היא חשה את המשב הקריר של האוויר כשהחלון נפתח מעט, והאור התפזר בחדר כמו ניצוצות זהב. קול הרשרוש של כנפי היצור התעצם, והיא נשמה עמוק.",
+      "narrationText": "תמר עשתה את הצעד הראשון שלה לקראת ההבנה האמיתית של מה שעליה לעשות, והחדר התמלא באור וברשרוש עדין.",
+      "imageSubject": "interaction"
+    },
+    {
+      "pageNumber": 8,
+      "text": "בתחושת פחד, תמר הושיטה ידיים רועדות לכיוון הצליל, כמעט נוגעת בזכוכית החלון הקרירה. היא חשה את הרטט קלוש של הזכוכית תחת אצבעותיה. וויספרפלאפ שחרר טריל עם כנפיים פתוחות, נוצותיו רפרפו קלות באוויר. כל תנועה שלה נענתה בגלי רכות שהציפו את הצליל, כמו רוח שמלטפת את העלים בעדינות.",
+      "narrationText": "תמר עמדה מול החלון, מתרכזת בכל נים בגופה. הצליל המסתורי נדמה כמו קריאה עדינה ממרחקים, ומשהו בטריל של וויספרפלאפ הרגיע אותה לאט לאט. היא נשמה עמוק, מרגישה את האוויר הקריר ממלא את ריאותיה, והמשיכה להחזיק את ידה קרוב לזכוכית. הרעד בידיה התחיל לשכוך, והיא מצאה את עצמה מתמקדת בכנפיים המרהיבות של וויספרפלאפ.",
+      "imageSubject": "action"
+    },
+    {
+      "pageNumber": 9,
+      "text": "כשהצליל התרחק, תמר הביטה בכנפיו של וויספרפלאפ. היא נשמה עמוק, מרגישה את האוויר הקריר ממלא את ריאותיה, כמעט חזרה לאחור, מוכנה להיאחז שוב באוזניה. היא התקרבה מעט, עיניה מתמקדות בכנפיים הקטנות שנלחמו בשמש, נצנוץ קל האיר את החדר. היא הושיטה ידה בעדינות, כמעט נוגעת בכנפיים, מרגישה את החום הזורם מהן. הרוח הקלה ליטפה את שערה, והיא חשה רוח נעימה על פניה.",
+      "narrationText": "",
+      "imageSubject": "child"
+    },
+    {
+      "pageNumber": 10,
+      "text": "לרגע המוזיקה נעלמה, ואז חזרה בעדינות לחדר. וויספרפלאפ עטף את הצלילים בכנפיו, והחדר התמלא באור נעים. תמר הביטה בחדר השקט, נשענה בנחת על השטיח הרך, וחיוכה הקטן הופיע. היא הרגישה את החום מהשמש שחדר דרך החלון, וליטפה בעדינות את הכנפיים של וויספרפלאפ. האור הרך נצנץ סביבם, ותמר התבוננה באבק הקטן שריחף באוויר, מתערבל בריקוד עם הצלילים.",
+      "narrationText": "וויספרפלאפ עטף את הצלילים בכנפיו, והחדר התמלא באור נעים. תמר נשענה בנחת על השטיח הרך, הרגישה את החום מהשמש שחדר דרך החלון, וליטפה בעדינות את הכנפיים של וויספרפלאפ. האור הרך נצנץ סביבם, ותמר התבוננה באבק הקטן שריחף באוויר.",
+      "imageSubject": "resolution"
+    }
+  ],
+  "visualBible": {
+    "style": {
+      "overallDirection": "gentle, inviting illustrations with soft edges and a hand-drawn feel",
+      "childrenBookReference": "illustrations reminiscent of 'Goodnight Moon' with a touch of whimsy",
+      "lineQuality": "soft and slightly textured lines, like colored pencil or pastel",
+      "renderingStyle": "softly shaded with light gradients, avoiding harsh contrasts",
+      "brushTexture": "smooth, slightly grainy to mimic traditional media",
+      "detailLevel": "simple yet expressive, focusing on key elements without clutter",
+      "colorPalette": "pastel hues with warm undertones, incorporating soft blues, pinks, and greens",
+      "lighting": "gentle and diffused, with warm sunlight filtering through windows",
+      "mood": "cozy and magical, with a sense of calm and wonder",
+      "pageFeel": "each page should feel like a warm, inviting space for the story to unfold",
+      "printSuitability": "optimized for both PDF and print, ensuring colors appear soft and inviting"
+    },
+    "layoutRules": {
+      "bookPageComposition": "balanced with ample space for illustrations and text",
+      "topTextArea": "leave the upper quarter of each page for Hebrew text",
+      "mainIllustrationZone": "focus on the middle and lower portions of the page",
+      "safeMargins": "maintain 0.5 inch margins to avoid print cutoff",
+      "clutterRules": "keep illustrations simple; avoid overcrowding the page",
+      "importantElementsPlacement": "centralize key characters and actions in the lower two-thirds",
+      "textImageRelationship": "text should flow around illustrations, complementing the art"
+    },
+    "hero": {
+      "name": "תמר",
+      "lockedVisualDescription": "5-year-old girl with dark brown, curly, shoulder-length hair",
+      "faceShape": "round with soft features",
+      "hair": "curly, shoulder-length, dark brown",
+      "eyes": "large, expressive hazel eyes",
+      "skinTone": "light olive",
+      "bodyScale": "childlike proportions, slightly oversized head",
+      "clothing": "pastel pink pajamas",
+      "signatureDetails": [
+        "curly hair",
+        "pastel pink pajamas"
+      ],
+      "expressionRange": [
+        "curious",
+        "thoughtful",
+        "content"
+      ],
+      "mustStayConsistent": [
+        "hair style",
+        "pajamas",
+        "skin tone"
+      ]
+    },
+    "entity": {
+      "name": "Whisperflap",
+      "lockedVisualDescription": "small, butterfly-like creature with iridescent blue wings",
+      "shapeLanguage": "delicate and symmetrical",
+      "surfaceTexture": "silky and shimmering",
+      "motionFeel": "graceful, with gentle fluttering",
+      "signatureVisualBehavior": "wings shimmer and change hues softly",
+      "facialBehavior": "curious with subtle expressions",
+      "humorVisualTrait": "expressive antennae that react to sounds",
+      "mustStayConsistent": [
+        "wing color",
+        "body size",
+        "antennae"
+      ]
+    },
+    "world": {
+      "environmentDescription": "תמר's cozy bedroom with a soft rug and a small bookshelf",
+      "recurringObjects": [
+        "soft rug",
+        "small bookshelf",
+        "window with garden view"
+      ],
+      "roomIdentity": "warm and inviting, filled with natural light",
+      "backgroundLanguage": "simple, with gentle textures and muted colors",
+      "windowLightBehavior": "soft sunlight filters through, creating gentle shadows",
+      "printFriendlyVisualRules": [
+        "consistent color palette",
+        "simple, bold shapes"
+      ]
+    },
+    "illustrationRules": [
+      "Use soft, inviting colors and textures",
+      "The art must feel like a printed children's book page, not a screen-first image",
+      "Leave visual breathing room at the top for text",
+      "Main action should usually live in the middle or lower two-thirds of the page",
+      "Do not place key faces or story actions in the top text zone",
+      "Avoid full-frame poster composition",
+      "Avoid over-detail that will fight with text readability",
+      "Keep character scale, outfit, hair, and proportions consistent across all pages"
+    ]
+  },
+  "pageCompositionPlan": [
+    {
+      "pageNumber": 1,
+      "compositionType": "wide-establishing",
+      "cameraDistance": "wide",
+      "cameraAngle": "eye-level",
+      "mainFocus": "תמר playing quietly",
+      "secondaryFocus": "clock ticking",
+      "heroPlacement": "centered in lower third",
+      "entityPlacement": "none",
+      "environmentRole": "active",
+      "topTextAreaPlan": "soft color field",
+      "mainIllustrationZone": "תמר with puzzle pieces",
+      "backgroundComplexity": "detailed",
+      "emotion": "calm",
+      "movement": "gentle focus on puzzle",
+      "consistencyNotes": "establish room setting",
+      "printLayoutNotes": "ample space for text above"
+    },
+    {
+      "pageNumber": 2,
+      "compositionType": "rule-of-thirds",
+      "cameraDistance": "medium",
+      "cameraAngle": "slightly-above",
+      "mainFocus": "אמא reassuring תמר",
+      "secondaryFocus": "window",
+      "heroPlacement": "left third",
+      "entityPlacement": "none",
+      "environmentRole": "background",
+      "topTextAreaPlan": "soft gradient",
+      "mainIllustrationZone": "interaction between תמר and אמא",
+      "backgroundComplexity": "moderate",
+      "emotion": "comfort",
+      "movement": "gentle interaction",
+      "consistencyNotes": "show connection with אמא",
+      "printLayoutNotes": "text flows around characters"
+    },
+    {
+      "pageNumber": 3,
+      "compositionType": "wide-establishing",
+      "cameraDistance": "wide",
+      "cameraAngle": "eye-level",
+      "mainFocus": "siren blaring outside",
+      "secondaryFocus": "shaking walls",
+      "heroPlacement": "small in environment",
+      "entityPlacement": "none",
+      "environmentRole": "active",
+      "topTextAreaPlan": "calm sky",
+      "mainIllustrationZone": "environment reacting to sound",
+      "backgroundComplexity": "detailed",
+      "emotion": "surprise",
+      "movement": "vibration",
+      "consistencyNotes": "contrast quiet and loud",
+      "printLayoutNotes": "text above environment"
+    },
+    {
+      "pageNumber": 4,
+      "compositionType": "close-detail",
+      "cameraDistance": "close",
+      "cameraAngle": "eye-level",
+      "mainFocus": "תמר frozen",
+      "secondaryFocus": "hands over ears",
+      "heroPlacement": "centered",
+      "entityPlacement": "none",
+      "environmentRole": "background",
+      "topTextAreaPlan": "soft ceiling",
+      "mainIllustrationZone": "תמר's reaction",
+      "backgroundComplexity": "minimal",
+      "emotion": "fear",
+      "movement": "none",
+      "consistencyNotes": "focus on personal reaction",
+      "printLayoutNotes": "text clear above תמר"
+    },
+    {
+      "pageNumber": 5,
+      "compositionType": "centered",
+      "cameraDistance": "medium",
+      "cameraAngle": "slightly-above",
+      "mainFocus": "תמר remaining frozen",
+      "secondaryFocus": "siren sound",
+      "heroPlacement": "centered",
+      "entityPlacement": "none",
+      "environmentRole": "background",
+      "topTextAreaPlan": "calm wall",
+      "mainIllustrationZone": "תמר's continued reaction",
+      "backgroundComplexity": "minimal",
+      "emotion": "tension",
+      "movement": "none",
+      "consistencyNotes": "emphasize stillness",
+      "printLayoutNotes": "text space maintained"
+    },
+    {
+      "pageNumber": 6,
+      "compositionType": "rule-of-thirds",
+      "cameraDistance": "medium",
+      "cameraAngle": "eye-level",
+      "mainFocus": "Whisperflap entering",
+      "secondaryFocus": "תמר noticing",
+      "heroPlacement": "right third",
+      "entityPlacement": "center third",
+      "environmentRole": "atmospheric",
+      "topTextAreaPlan": "gentle gradient",
+      "mainIllustrationZone": "Whisperflap and תמר",
+      "backgroundComplexity": "moderate",
+      "emotion": "curiosity",
+      "movement": "Whisperflap's flutter",
+      "consistencyNotes": "introduce Whisperflap",
+      "printLayoutNotes": "text above interaction"
+    },
+    {
+      "pageNumber": 7,
+      "compositionType": "over-shoulder",
+      "cameraDistance": "medium",
+      "cameraAngle": "over-shoulder",
+      "mainFocus": "תמר reaching out",
+      "secondaryFocus": "Whisperflap",
+      "heroPlacement": "foreground",
+      "entityPlacement": "background",
+      "environmentRole": "background",
+      "topTextAreaPlan": "soft color field",
+      "mainIllustrationZone": "interaction between תמר and Whisperflap",
+      "backgroundComplexity": "minimal",
+      "emotion": "hope",
+      "movement": "gentle reach",
+      "consistencyNotes": "show connection forming",
+      "printLayoutNotes": "text flows around action"
+    },
+    {
+      "pageNumber": 8,
+      "compositionType": "rule-of-thirds",
+      "cameraDistance": "medium",
+      "cameraAngle": "slightly-above",
+      "mainFocus": "תמר stretching hand",
+      "secondaryFocus": "Whisperflap flapping",
+      "heroPlacement": "left third",
+      "entityPlacement": "right third",
+      "environmentRole": "background",
+      "topTextAreaPlan": "soft ceiling",
+      "mainIllustrationZone": "action towards window",
+      "backgroundComplexity": "moderate",
+      "emotion": "determination",
+      "movement": "hand stretch and wing flap",
+      "consistencyNotes": "action building",
+      "printLayoutNotes": "text above action"
+    },
+    {
+      "pageNumber": 9,
+      "compositionType": "centered",
+      "cameraDistance": "close",
+      "cameraAngle": "eye-level",
+      "mainFocus": "תמר hesitating",
+      "secondaryFocus": "Whisperflap",
+      "heroPlacement": "centered",
+      "entityPlacement": "near תמר",
+      "environmentRole": "background",
+      "topTextAreaPlan": "soft gradient",
+      "mainIllustrationZone": "תמר's brave action",
+      "backgroundComplexity": "minimal",
+      "emotion": "bravery",
+      "movement": "hesitant hand",
+      "consistencyNotes": "emotional peak",
+      "printLayoutNotes": "clear text space"
+    },
+    {
+      "pageNumber": 10,
+      "compositionType": "close-detail",
+      "cameraDistance": "close",
+      "cameraAngle": "slightly-above",
+      "mainFocus": "תמר smiling",
+      "secondaryFocus": "Whisperflap",
+      "heroPlacement": "bottom third",
+      "entityPlacement": "around תמר",
+      "environmentRole": "atmospheric",
+      "topTextAreaPlan": "soft color field",
+      "mainIllustrationZone": "quiet resolution",
+      "backgroundComplexity": "minimal",
+      "emotion": "relief",
+      "movement": "calm",
+      "consistencyNotes": "resolution with peace",
+      "printLayoutNotes": "final text space above"
+    }
+  ]
+}
