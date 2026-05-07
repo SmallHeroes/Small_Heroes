@@ -374,6 +374,14 @@ function getMinWords(pageNum, targetLength) {
   }
 }
 
+function getMaxWords(pageNum, targetLength) {
+  if (targetLength === 10) {
+    return [7, 8].includes(pageNum) ? 40 : 35;
+  } else {
+    return [14, 15, 16, 17].includes(pageNum) ? 50 : 45;
+  }
+}
+
 function findThinPages(pages, targetLength) {
   const thin = [];
   for (const p of pages) {
@@ -386,10 +394,12 @@ function findThinPages(pages, targetLength) {
 }
 
 async function fixThinPage(page, minWords, targetLength) {
-  const targetWords = minWords + 10; // Ask for more to compensate overestimation
+  const maxWords = getMaxWords(page.pageNum, targetLength);
+  const targetWords = minWords + 8; // Slightly above min — NOT too much
   const prompt = `Rewrite ONLY this single page of a Hebrew children's story.
 It currently has ${page.wordCount} Hebrew words.
-It must have at least ${targetWords} Hebrew words.
+It must have BETWEEN ${targetWords} and ${maxWords} Hebrew words.
+Do NOT exceed ${maxWords} words — this is a hard maximum.
 
 Keep the EXACT same plot event and emotional beat.
 Keep {{childName}} and {{companionName}} exactly as-is.
@@ -402,6 +412,7 @@ Expand with:
 - one small environmental change
 
 Do not add new plot events. Do not change what happens.
+Keep it SHORT — this is a picture book, not a novel. 3-5 sentences maximum.
 
 Current page text:
 ${page.text}
@@ -424,6 +435,13 @@ Return ONLY the rewritten Hebrew text (no imageDirection, no page header, no exp
   // If GPT wrapped in backticks or added explanations, try to extract Hebrew
   if (!cleaned || countHebrewWords(cleaned) < page.wordCount) {
     return null; // Fix failed
+  }
+
+  // Check for over-expansion — reject if way past max
+  const newWc = countHebrewWords(cleaned);
+  if (newWc > maxWords + 5) {
+    console.log(`      ⚠ P${page.pageNum}: fix over-expanded to ${newWc}w (max ${maxWords}), rejecting`);
+    return null; // Over-expanded — reject this fix
   }
 
   return cleaned;
@@ -494,18 +512,21 @@ async function processStory(filePath, targetLength) {
       const page = result.pages.find(p => p.pageNum === thin.pageNum);
       if (!page) continue;
 
+      const maxW = getMaxWords(thin.pageNum, targetLength);
       const fixed = await fixThinPage(page, thin.min, targetLength);
       if (fixed) {
         const newWc = countHebrewWords(fixed);
-        if (newWc >= thin.min) {
+        if (newWc >= thin.min && newWc <= maxW + 5) {
           console.log(`      ✅ P${thin.pageNum}: ${thin.wordCount}w → ${newWc}w`);
           page.text = fixed;
           page.wordCount = newWc;
-        } else {
+        } else if (newWc < thin.min) {
           console.log(`      ⚠ P${thin.pageNum}: fix produced ${newWc}w (still below ${thin.min}), keeping original`);
+        } else {
+          console.log(`      ⚠ P${thin.pageNum}: fix over-expanded ${newWc}w (max ${maxW}), keeping original ${thin.wordCount}w`);
         }
       } else {
-        console.log(`      ⚠ P${thin.pageNum}: fix failed, keeping original`);
+        console.log(`      ⚠ P${thin.pageNum}: fix failed or over-expanded, keeping original`);
       }
 
       await new Promise(r => setTimeout(r, 1500));
@@ -595,27 +616,4 @@ async function main() {
     for (const len of lengths) {
       try {
         const result = await processStory(filePath, len);
-        if (result.skipped) stats.skipped++;
-        else stats.processed++;
-      } catch (err) {
-        console.error(`  ❌ ${f} → ${len}p: ${err.message}`);
-        stats.errors++;
-      }
-
-      if (!DRY_RUN) {
-        await new Promise(r => setTimeout(r, DELAY_MS));
-      }
-    }
-  }
-
-  console.log('\n═══ Summary ═══');
-  console.log(`Generated: ${stats.processed}`);
-  console.log(`Skipped:   ${stats.skipped}`);
-  console.log(`Errors:    ${stats.errors}`);
-  console.log(`\nTotal API calls: ${stats.processed} × ~$0.03 = ~$${(stats.processed * 0.03).toFixed(2)}`);
-}
-
-main().catch(err => {
-  console.error('Fatal:', err);
-  process.exit(1);
-});
+        if (result.ski

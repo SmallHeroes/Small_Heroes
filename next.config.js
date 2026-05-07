@@ -48,11 +48,4 @@ const nextConfig = {
         { source: '/generating', destination: '/HTML/generating.html' },
         { source: '/ready', destination: '/HTML/ready.html' },
         { source: '/reader', destination: '/HTML/reader.html' },
-        { source: '/login', destination: '/HTML/login.html' },
-        { source: '/my-books', destination: '/HTML/my-books.html' },
-      ],
-    };
-  },
-};
-
-module.exports = nextConfig;
+        { source
