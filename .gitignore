@@ -59,8 +59,8 @@ phase-checkout-fixes.md
 # Test outputs (regenerable)
 test-outputs/
 
-# Story bank raw outputs (regenerable from script)
-story-bank/raw/
+# Story bank review spreadsheets (regenerable)
+story-bank/*.xlsx
 
 # Temp/scratch files
 zi*
