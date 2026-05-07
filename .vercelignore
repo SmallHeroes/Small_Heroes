@@ -1,0 +1,10 @@
+﻿node_modules
+.next
+.git
+.tmp.driveupload
+story-bank
+training-images
+briefs
+*.zip
+*.pack
+*.sst

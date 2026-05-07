@@ -196,7 +196,7 @@ export async function generateReplicateImage(input: GenerateImageInput): Promise
     runInput.seed = Math.floor(input.seed);
   }
 
-  const rawProviderResponse = await replicate.run(model, { input: runInput });
+  const rawProviderResponse = await replicate.run(model as `${string}/${string}`, { input: runInput });
   let imageUrls: string[];
   try {
     imageUrls = await collectImageUrls(rawProviderResponse);

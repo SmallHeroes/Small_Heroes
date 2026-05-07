@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Small Heroes — גישה מוגבלת</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Heebo', Arial, sans-serif;
+      background: linear-gradient(135deg, #f8f6ff 0%, #f0e8ff 100%);
+      color: #2d2d2d;
+    }
+    .gate-card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 48px 40px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 8px 32px rgba(124, 77, 255, 0.1);
+      text-align: center;
+    }
+    .gate-card h1 {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+      color: #7c4dff;
+    }
+    .gate-card p {
+      font-size: 0.95rem;
+      color: #666;
+      margin-bottom: 24px;
+    }
+    .gate-input {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid #e0d6f5;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+    .gate-input:focus {
+      border-color: #7c4dff;
+    }
+    .gate-btn {
+      width: 100%;
+      padding: 14px;
+      margin-top: 16px;
+      background: #7c4dff;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      font-family: inherit;
+    }
+    .gate-btn:hover { background: #6a3de8; }
+    .gate-btn:disabled { background: #c4b5e3; cursor: not-allowed; }
+    .gate-error {
+      color: #e53935;
+      font-size: 0.9rem;
+      margin-top: 12px;
+      display: none;
+    }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="gate-card">
+    <h1>Small Heroes</h1>
+    <p>האתר בשלב QA — הכניסו סיסמה כדי להמשיך</p>
+    <form id="gateForm">
+      <input
+        type="password"
+        class="gate-input"
+        id="gatePassword"
+        placeholder="סיסמה"
+        autocomplete="off"
+        autofocus
+      />
+      <button type="submit" class="gate-btn" id="gateBtn">כניסה</button>
+      <div class="gate-error" id="gateError">סיסמה שגויה</div>
+    </form>
+  </div>
+
+  <script>
+    const form = document.getElementById('gateForm');
+    const input = document.getElementById('gatePassword');
+    const btn = document.getElementById('gateBtn');
+    const err = document.getElementById('gateError');
+
+    const params = new URLSearchParams(window.location.search);
+    const next = params.get('next') || '/wizard';
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      err.style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = '...';
+
+      try {
+        const res = await fetch('/api/gate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: input.value, next }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          window.location.href = data.redirect;
+        } else {
+          err.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = 'כניסה';
+          input.value = '';
+          input.focus();
+        }
+      } catch (_) {
+        err.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'כניסה';
+      }
+    });
+  </script>
+</body>
+</html>

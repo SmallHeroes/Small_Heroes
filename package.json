@@ -3,7 +3,6 @@
     "predev": "npm run check:root-static",
     "dev": "node scripts/dev-safe.js",
     "dev:raw": "next dev",
-    
     "check:root-static": "node scripts/check-root-static-deprecated.js",
     "build": "next build",
     "start": "next start",
@@ -15,17 +14,16 @@
   "devDependencies": {
     "@types/node": "^25.6.0",
     "@types/react": "19.2.14",
-    "docx": "^9.6.1",
     "prisma": "^6.19.3",
     "typescript": "^6.0.3"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
+    "@sparticuz/chromium": "^131.0.1",
     "@supabase/supabase-js": "^2.104.0",
     "next": "^16.2.4",
     "openai": "^6.35.0",
-    "puppeteer-core": "^24.0.0",
-    "@sparticuz/chromium": "^131.0.1",
+    "puppeteer-core": "^24.43.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "replicate": "^1.4.0",

@@ -37,6 +37,7 @@ const nextConfig = {
         { source: '/', destination: '/HTML/index.html' },
       ],
       afterFiles: [
+        { source: '/gate', destination: '/HTML/gate.html' },
         { source: '/wizard', destination: '/HTML/wizard.html' },
         { source: '/directions', destination: '/HTML/directions.html' },
         { source: '/generating', destination: '/HTML/generating.html' },

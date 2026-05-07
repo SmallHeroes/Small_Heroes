@@ -66,6 +66,9 @@ function normalizePaymentProvider(value: string | undefined): PaymentProvider {
 export function validateEnv(): AppEnv {
   if (cachedEnv) return cachedEnv;
 
+  // Skip strict validation during build (next build collects page data but doesn't serve)
+  const isBuild = process.env.NEXT_PHASE === 'phase-production-build';
+
   const errors: string[] = [];
 
   const DATABASE_URL = readRequired('DATABASE_URL', errors);
@@ -148,8 +151,11 @@ export function validateEnv(): AppEnv {
     errors.push('NEXT_PUBLIC_APP_URL must be a valid absolute URL');
   }
 
-  if (errors.length > 0) {
+  if (errors.length > 0 && !isBuild) {
     throw new Error(`Environment validation failed:\n- ${errors.join('\n- ')}`);
+  }
+  if (errors.length > 0 && isBuild) {
+    console.warn(`[build] Skipping env validation (${errors.length} issues)`);
   }
 
   cachedEnv = {
