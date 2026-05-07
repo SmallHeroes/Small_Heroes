@@ -209,4 +209,10 @@ async function handlePaymentFailed(pi: Stripe.PaymentIntent) {
     where: { id: orderId },
     data: {
       status: 'failed',
-      lastError: pi.last_payment_error?.message
+      lastError: pi.last_payment_error?.message || 'Payment failed',
+      errorAt: new Date(),
+    },
+  });
+
+  logger.info('Payment failure handled', { orderId });
+}
