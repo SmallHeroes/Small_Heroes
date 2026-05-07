@@ -92,7 +92,7 @@ const COMMON = HE_CONTENT.common || { brand: '', tagline: '', navCta: '' };
 const clientApi = window.SmallHeroesClient || window.__smallHeroesClientApi || null;
 const PHOTO_ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const PHOTO_MAX_SIZE_BYTES = 15 * 1024 * 1024;
-const PHOTO_GUIDANCE_SEEN_KEY = 'photo_guidance_seen';
+
 const PHOTO_ANALYSIS_STORAGE_KEY = 'smallheroes.photoAnalysis';
 const PHOTO_QUALITY_STATUS = {
   GOOD: 'good',
@@ -561,8 +561,6 @@ function init() {
     // Don't carry stale package selection into a new wizard flow.
     state.length = null;
   }
-  const guidanceOverlay = document.getElementById('photo-guidance-overlay');
-  if (guidanceOverlay) guidanceOverlay.hidden = true;
   pendingPhotoPickerOpen = false;
   if (state.extraCharacters.length === 0) {
     state.extraCharacters.push(createEmptyExtraCharacter());
@@ -597,7 +595,6 @@ function init() {
   renderStyleBtns();
   renderVoiceBtns();
   bindPhotoUploadInteractions();
-  bindPhotoGuidanceDialog();
   restorePhotoQualityFromStorage();
   renderPhotoUploadArea();
   renderPhotoQualityMessage();
@@ -1471,38 +1468,10 @@ function toggleChip(el, key) {
 }
 
 /* ── PHOTO UPLOAD ────────────────────────────────────────────── */
-function hasSeenPhotoGuidance() {
-  try {
-    return window.localStorage.getItem(PHOTO_GUIDANCE_SEEN_KEY) === 'true';
-  } catch (_) {
-    return false;
-  }
-}
-
-function markPhotoGuidanceSeen() {
-  try {
-    window.localStorage.setItem(PHOTO_GUIDANCE_SEEN_KEY, 'true');
-  } catch (_) {}
-}
 
 function onPhotoUploadAreaClick() {
   const input = document.getElementById('photo-input');
   if (input) input.click();
-}
-
-function bindPhotoGuidanceDialog() {
-  const confirmBtn = document.getElementById('photo-guidance-confirm');
-  const overlay = document.getElementById('photo-guidance-overlay');
-  if (!confirmBtn || !overlay) return;
-  confirmBtn.addEventListener('click', () => {
-    markPhotoGuidanceSeen();
-    overlay.hidden = true;
-    if (pendingPhotoPickerOpen) {
-      pendingPhotoPickerOpen = false;
-      const input = document.getElementById('photo-input');
-      if (input) input.click();
-    }
-  });
 }
 
 function bindPhotoUploadInteractions() {
@@ -1841,23 +1810,9 @@ async function analyzePhotoQuality(dataUrl) {
       sharpness,
       brightness,
     });
-    console.debug('PHOTO_ANALYSIS', {
-      source: 'client',
-      faceRatio: result.dominantFaceRatio,
-      faceCount: result.faceCount,
-      decision: result.status,
-      reasonCodes: result.reasonCodes,
-    });
     return result;
   } catch (_) {
     const serverResult = await analyzePhotoQualityViaServer(dataUrl);
-    console.debug('PHOTO_ANALYSIS', {
-      source: 'server_fallback',
-      faceRatio: serverResult.dominantFaceRatio,
-      faceCount: serverResult.faceCount,
-      decision: serverResult.status,
-      reasonCodes: serverResult.reasonCodes,
-    });
     return serverResult;
   }
 }
@@ -2178,7 +2133,7 @@ function renderVoiceBtns() {
 }
 
 function playVoicePreview(voiceId) {
-  console.log("[Voice preview]", voiceId);
+  // TODO: implement voice preview playback
 }
 
 /* ── STEP 8: SLEEP TOGGLE ────────────────────────────────────── */

@@ -221,7 +221,8 @@ async function loadBook(orderId) {
     // send the user back to the generating screen rather than showing an error.
     // This handles the edge case where someone navigates here early
     // (e.g. a saved link, a back-button, or a race with the redirect).
-    if (data.status !== 'ready' || !data.book) {
+    // Accept 'partial' too — audio may have failed but book is deliverable.
+    if ((data.status !== 'ready' && data.status !== 'partial') || !data.book) {
       const keyPart = accessKey ? `&accessKey=${encodeURIComponent(accessKey)}` : '';
       window.location.replace(`${ROUTES.generating}?orderId=${encodeURIComponent(orderId)}${keyPart}`);
       return;

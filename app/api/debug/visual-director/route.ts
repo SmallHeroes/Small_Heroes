@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma';
 import { composeVisualDirectorPrompt } from '@/lib/visualDirector';
 
 export async function GET(req: NextRequest) {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'debug endpoint disabled in production' }, { status: 403 });
+  }
   const orderId = req.nextUrl.searchParams.get('orderId');
   const pageNumberRaw = req.nextUrl.searchParams.get('pageNumber');
   const pageNumber = Math.max(1, Number(pageNumberRaw || '2') || 2);

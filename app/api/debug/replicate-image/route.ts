@@ -16,6 +16,9 @@ interface DebugImageRequest {
 }
 
 export async function POST(req: NextRequest) {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'debug endpoint disabled in production' }, { status: 403 });
+  }
   try {
     const body = (await req.json()) as DebugImageRequest;
 
