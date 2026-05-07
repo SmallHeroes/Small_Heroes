@@ -224,6 +224,8 @@ export async function POST(req: NextRequest) {
       referenceImages: childImageUrl ? [childImageUrl] : undefined,
       orderId: order.id,
       directionStoryPremise: storyFull.coverSceneHint,
+      childStructured: dna.childStructured,
+      companionStructured: dna.companionStructured,
       companion: {
         name: companionName,
         visualDescription: dna.companionDNA,
@@ -268,8 +270,14 @@ export async function POST(req: NextRequest) {
         concept: story.concept,
         extraNegativeRules: dna.negativeRules,
         propDNA: dna.propDNA,
+        childStructured: dna.childStructured,
+        companionStructured: dna.companionStructured,
         companion: {
+          id: 'story-bank',
           name: companionName,
+          tagline: '',
+          narrativeHook: '',
+          image: '',
           visualDescription: dna.companionDNA,
         },
       }

@@ -241,16 +241,7 @@
   color: var(--dark);
 }
 
-.hero-social-proof {
-  font-size: 14px;
-  color: var(--mid);
-  margin-top: 24px;
-  margin-bottom: 24px;
-  padding: 10px 18px;
-  background: rgba(124, 93, 250, 0.06);
-  border-radius: 8px;
-  display: inline-block;
-}
+
 
 .hero-img-wrap {
   flex: 0 0 500px;

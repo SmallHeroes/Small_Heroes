@@ -268,6 +268,21 @@ export interface ImageInput {
   extraNegativeRules?: string[];
   /** Locked visual descriptions for recurring objects — injected when object name appears in scene. */
   propDNA?: Record<string, string>;
+  /** Structured child identity lock — labeled fields for GPT Image consistency. */
+  childStructured?: {
+    face: string;
+    hair: string;
+    body: string;
+    clothing: string;
+    signature: string;
+  };
+  /** Structured companion identity lock — labeled fields for GPT Image consistency. */
+  companionStructured?: {
+    species: string;
+    size: string;
+    coloring: string;
+    feature: string;
+  };
 }
 
 export interface GeneratedImage {
@@ -363,6 +378,10 @@ export interface CoverImageInput {
   entityVisualLock?: EntityVisualLock;
   /** Wizard companion — should appear on cover when present. */
   companion?: { name: string; visualDescription: string };
+  /** Structured child identity for cover. */
+  childStructured?: { face: string; hair: string; body: string; clothing: string; signature: string };
+  /** Structured companion identity for cover. */
+  companionStructured?: { species: string; size: string; coloring: string; feature: string };
 }
 
 export interface CharacterRegistryEntry {
@@ -1722,12 +1741,24 @@ function buildGPTImagePrompt(input: ImageInput): string {
   const trimmedScene =
     sceneDesc.length > 450 ? sceneDesc.slice(0, 447).replace(/\s\S*$/, '...') : sceneDesc;
 
-  // ── CHARACTER DNA — only include characters that MUST be in this scene ──
+  // ── CHARACTER DNA — structured lock preferred, flat fallback ──
   const charParts: string[] = [];
-  if (input.childDescription) {
+  const cs = input.childStructured;
+  if (cs && cs.face && cs.hair && cs.clothing) {
+    // Structured identity lock — each field is a labeled constraint
+    charParts.push(
+      'CHARACTER IDENTITY LOCK (same on EVERY page):',
+      `- Face: ${cs.face}`,
+      `- Hair: ${cs.hair}`,
+      `- Body: ${cs.body}`,
+      `- Clothing (LOCKED — do NOT change): ${cs.clothing}`,
+      `- Signature detail: ${cs.signature}`,
+    );
+  } else if (input.childDescription) {
     charParts.push(`Main character: ${input.childDescription}`);
   }
-  // Use mustInclude/mustNotInclude as source of truth for companion presence
+
+  // ── COMPANION PRESENCE — use mustInclude/mustNotInclude as source of truth ──
   const companionInMustInclude = vd?.mustInclude?.some(item =>
     input.companion && (item.toLowerCase().includes(input.companion.name.toLowerCase()) ||
     item.toLowerCase().includes('companion'))
@@ -1737,16 +1768,35 @@ function buildGPTImagePrompt(input: ImageInput): string {
     item.toLowerCase().includes('companion'))
   );
 
+  const cps = input.companionStructured;
   if (input.companion && companionInMustInclude) {
-    const comp = input.companion;
-    charParts.push(`Companion (MUST appear): ${comp.name}, ${comp.visualDescription}`);
+    if (cps && cps.species && cps.coloring) {
+      charParts.push(
+        `COMPANION LOCK (MUST appear in this scene):`,
+        `- Species: ${cps.species}`,
+        `- Size: ${cps.size}`,
+        `- Coloring: ${cps.coloring}`,
+        `- Feature: ${cps.feature}`,
+      );
+    } else {
+      charParts.push(`Companion (MUST appear): ${input.companion.name}, ${input.companion.visualDescription}`);
+    }
   } else if (input.companion && companionInMustNotInclude) {
     charParts.push(`DO NOT include ${input.companion.name} or any animal companion in this scene.`);
   } else if (input.companion) {
-    // Fallback to text-based detection
     const companionInScene = companionReferencedInStoryText(input);
     if (companionInScene) {
-      charParts.push(`Companion: ${input.companion.name}, ${input.companion.visualDescription}`);
+      if (cps && cps.species && cps.coloring) {
+        charParts.push(
+          `COMPANION LOCK:`,
+          `- Species: ${cps.species}`,
+          `- Size: ${cps.size}`,
+          `- Coloring: ${cps.coloring}`,
+          `- Feature: ${cps.feature}`,
+        );
+      } else {
+        charParts.push(`Companion: ${input.companion.name}, ${input.companion.visualDescription}`);
+      }
     } else {
       charParts.push(`DO NOT include ${input.companion.name} or any animal companion in this scene.`);
     }
@@ -1839,12 +1889,13 @@ function buildGPTImagePrompt(input: ImageInput): string {
     '- Illustrate EXACTLY what is described above. Nothing more, nothing less.',
     mustIncludeBlock ? `- ${mustIncludeBlock}` : '',
     mustNotIncludeBlock ? `- ${mustNotIncludeBlock}` : '',
-    '- The child\'s expression should match the scene emotion. Use the Expression field if provided.',
+    '- The child\'s expression MUST match the scene emotion and the Expression field. Do NOT default to smiling if the scene is tense, sad, or scary.',
     '- Warm, cheerful, humorous children\'s book. NEVER dark, scary, or threatening.',
     '- Every page: safe, warm, inviting — a beloved bedtime story.',
-    '- DO NOT put any text, letters, numbers, or words on clothing, walls, signs, or any surface in the image.',
-    '- DO NOT change the character\'s outfit, hair style, hair color, or accessories from what is described.',
-    '- The character\'s clothing described in the prompt is FINAL — do not add, remove, or modify any garment.',
+    '- ZERO text, letters, numbers, symbols, or words anywhere in the image — not on clothing, not on walls, not on signs, not on any surface. This is absolute.',
+    '- CHARACTER CONSISTENCY: The child MUST look identical on every page. Same face shape, same hair, same clothing, same skin tone. Never vary these.',
+    '- The character\'s clothing described in the CHARACTER IDENTITY LOCK is FINAL — do not add, remove, modify, or accessorize any garment.',
+    '- COMPANION CONSISTENCY: The companion MUST look identical on every page. Same species, same coloring, same size relative to child.',
     ...(input.extraNegativeRules ?? []).map((rule) => `- ${rule}`),
   ].filter(Boolean).join('\n');
 
@@ -2258,11 +2309,18 @@ function buildCoverPrompt(input: CoverImageInput): string {
 }
 
 function buildGPTCoverPrompt(input: CoverImageInput): string {
-  const childDesc = (input.childDescription ?? '').trim() || 'a young child shown as the story hero';
+  // Use structured child description when available
+  const cs = input.childStructured;
+  const childDesc = cs && cs.face && cs.clothing
+    ? `${cs.face}. ${cs.hair}. ${cs.body}. Wearing: ${cs.clothing}. ${cs.signature}`
+    : (input.childDescription ?? '').trim() || 'a young child shown as the story hero';
 
-  // Prefer companion (wizard-chosen animal) over entityVisualLock (fear entity)
+  // Use structured companion when available, else flat description
+  const cps = input.companionStructured;
   let companionDesc = '';
-  if (input.companion?.visualDescription) {
+  if (cps && cps.species && cps.coloring) {
+    companionDesc = `${cps.species}, ${cps.size}. ${cps.coloring}. ${cps.feature}`;
+  } else if (input.companion?.visualDescription) {
     companionDesc = input.companion.visualDescription;
   } else if (input.entityVisualLock) {
     companionDesc = `a small friendly ${input.entityVisualLock.shape}, ${input.entityVisualLock.color}`;
@@ -2280,6 +2338,7 @@ function buildGPTCoverPrompt(input: CoverImageInput): string {
         'The child looks curious and engaged (match the story mood).',
         'Warm soft lighting.',
         'Large calm empty zone at top (about 25-35%) for a title overlay later.',
+        'ZERO text, letters, or words anywhere in the image.',
       ]
     : [
         `Children's book cover illustration: ${childDesc} stands in a cozy, brightly lit setting.`,
@@ -2287,6 +2346,7 @@ function buildGPTCoverPrompt(input: CoverImageInput): string {
         'Warm, inviting mood; safe bedtime-story feeling. The child looks happy and excited.',
         'Bright soft lighting.',
         'Large calm empty zone at top (about 25-35%) for a title overlay later.',
+        'ZERO text, letters, or words anywhere in the image.',
       ];
 
   const scene = sceneParts.filter(Boolean).join(' ');
@@ -2415,6 +2475,10 @@ export async function generateAllPageImages(
     directionStoryPremise?: string;
     extraNegativeRules?: string[];
     propDNA?: Record<string, string>;
+    /** Structured child identity lock — threaded to buildGPTImagePrompt for labeled constraints. */
+    childStructured?: { face: string; hair: string; body: string; clothing: string; signature: string };
+    /** Structured companion identity lock — threaded to buildGPTImagePrompt for labeled constraints. */
+    companionStructured?: { species: string; size: string; coloring: string; feature: string };
   }
 ): Promise<{
   results: Map<number, GeneratedImage>;
@@ -2776,6 +2840,8 @@ export async function generateAllPageImages(
               textZone: pageStoryboard.textZone,
               extraNegativeRules: config.extraNegativeRules,
               propDNA: config.propDNA,
+              childStructured: config.childStructured,
+              companionStructured: config.companionStructured,
               ...visualDirectorPageFields,
               seed,
             }),
@@ -2903,6 +2969,8 @@ export async function generateAllPageImages(
                 textZone: pageStoryboard.textZone,
                 extraNegativeRules: config.extraNegativeRules,
                 propDNA: config.propDNA,
+                childStructured: config.childStructured,
+                companionStructured: config.companionStructured,
                 ...visualDirectorPageFields,
                 seed,
               }),
@@ -2990,6 +3058,8 @@ export async function generateAllPageImages(
               textZone: pageStoryboard.textZone,
               extraNegativeRules: config.extraNegativeRules,
               propDNA: config.propDNA,
+              childStructured: config.childStructured,
+              companionStructured: config.companionStructured,
               ...visualDirectorPageFields,
             });
           },
