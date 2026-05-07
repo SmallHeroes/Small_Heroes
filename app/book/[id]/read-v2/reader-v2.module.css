@@ -213,8 +213,8 @@
   text-align: right;
   font-family: var(--reader-font-stack);
   font-size: 16px;
-  line-height: 1.5;
-  font-weight: 400;
+  line-height: 1.55;
+  font-weight: 600;
   white-space: normal;
   word-wrap: break-word;
   overflow-wrap: anywhere;
@@ -229,28 +229,47 @@
   bottom: 0;
   left: 0;
   right: 0;
-  max-height: 36%;
+  max-height: 38%;
   justify-content: flex-end;
+  padding-bottom: 32px;
+  background: linear-gradient(
+    to top,
+    rgba(253, 249, 244, 0.88) 0%,
+    rgba(253, 249, 244, 0.78) 50%,
+    rgba(253, 249, 244, 0.45) 78%,
+    rgba(253, 249, 244, 0) 100%
+  );
 }
 
 .overlayZoneTop {
   top: 0;
   left: 0;
   right: 0;
-  max-height: 36%;
+  max-height: 38%;
   justify-content: flex-start;
+  background: linear-gradient(
+    to bottom,
+    rgba(253, 249, 244, 0.88) 0%,
+    rgba(253, 249, 244, 0.78) 50%,
+    rgba(253, 249, 244, 0.45) 78%,
+    rgba(253, 249, 244, 0) 100%
+  );
 }
 
 /* ── Dark text on light backgrounds (default) ── */
 .textSchemeDark .overlayPageText {
   color: #2a241a;
-  text-shadow: none;
+  text-shadow:
+    0 0 6px rgba(253, 249, 244, 0.9),
+    0 0 12px rgba(253, 249, 244, 0.6);
 }
 
 /* ── Light text on dark backgrounds (night/moonlit) ── */
 .textSchemeLight .overlayPageText {
   color: #f0ece4;
-  text-shadow: none;
+  text-shadow:
+    0 0 6px rgba(30, 25, 18, 0.7),
+    0 0 12px rgba(30, 25, 18, 0.4);
 }
 
 
