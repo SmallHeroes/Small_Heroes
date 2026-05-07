@@ -239,7 +239,8 @@ export async function generateStoryBankCharacterDNA(params: {
 }): Promise<StoryBankCharacterDNA> {
   const provider = process.env.STORY_PROVIDER || 'openai';
   const model =
-    process.env.STORY_MODEL || (provider === 'anthropic' ? 'claude-opus-4-5' : 'gpt-5.3-chat-latest');
+    process.env.PIPELINE_SUPPORT_MODEL ||
+    (provider === 'anthropic' ? 'claude-opus-4-5' : 'gpt-5.3-chat-latest');
 
   const systemPrompt =
     "You are a children's book character designer. Create structured, locked visual DNA for consistent illustrations across every page of a book.";

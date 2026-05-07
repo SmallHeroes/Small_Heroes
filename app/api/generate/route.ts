@@ -13,6 +13,7 @@ import { TOPICS } from '../../../backend/config/wizard';
 import { sendBookReadyEmail } from '../../../backend/lib/email';
 import { logServerEvent } from '../events/route';
 import { assignTemplatesForBook, type BookPageTemplate } from '../../../lib/bookPageLayout';
+import { generateStoryBankCharacterDNA } from '../../../backend/providers/story-bank-loader';
 import {
   buildPresentationWebpFromBuffer,
   evaluateImageSignal,
@@ -93,6 +94,7 @@ function compositionRulesForTemplate(
 interface CharacterAnchorRecord {
   name: string;
   description: string;
+  relationship?: string;
   anchorImageUrl?: string;
   aliases?: string[];
 }
@@ -126,6 +128,7 @@ function parseStoredCharacterAnchors(raw: unknown): Record<string, CharacterAnch
         parsed[key] = {
           name: comp.name,
           description: comp.visualDescription,
+          relationship: 'companion',
           anchorImageUrl: value,
           aliases: [comp.name, comp.id],
         };
@@ -136,11 +139,13 @@ function parseStoredCharacterAnchors(raw: unknown): Record<string, CharacterAnch
     const candidate = value as Record<string, unknown>;
     const name = typeof candidate.name === 'string' ? candidate.name : key;
     const description = typeof candidate.description === 'string' ? candidate.description : `${name} recurring character`;
+    const relationship = typeof candidate.relationship === 'string' ? candidate.relationship : undefined;
     const anchorImageUrl = typeof candidate.anchorImageUrl === 'string' ? candidate.anchorImageUrl : undefined;
     const aliases = Array.isArray(candidate.aliases) ? candidate.aliases.filter((item): item is string => typeof item === 'string') : [];
     parsed[key] = {
       name,
       description,
+      relationship,
       anchorImageUrl,
       aliases,
     };
@@ -462,6 +467,7 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
       child: {
         name: order.childName,
         description: childDesc,
+        relationship: 'child',
         anchorImageUrl: storedAnchors.child?.anchorImageUrl ?? order.childImageUrl ?? undefined,
         aliases: [
           order.childName,
@@ -542,6 +548,7 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
         anchorRegistry[characterId] = {
           name: member.name,
           description: member.description ?? `${member.name} recurring family member`,
+          relationship: member.relationship,
           anchorImageUrl: member.anchorImageUrl,
           aliases: [member.name, member.relationship ?? characterId],
         };
@@ -554,6 +561,7 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
       anchorRegistry[characterId] = {
         name: existing?.name ?? character.name,
         description: existing?.description ?? character.visualDescription,
+        relationship: existing?.relationship ?? character.relationship,
         anchorImageUrl: existing?.anchorImageUrl,
         aliases: [
           ...(existing?.aliases ?? []),
@@ -569,6 +577,7 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
         anchorRegistry[ck] = {
           name: resolvedCompanion.name,
           description: resolvedCompanion.visualDescription,
+          relationship: 'companion',
           aliases: [resolvedCompanion.name, resolvedCompanion.id],
         };
       }
@@ -684,6 +693,21 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
         })()
       : 'adequate';
     const resemblanceThresholdConfig = resolveResemblanceThresholdConfig();
+    const allStoryText = story.pages.map((page) => page.text).join('\n');
+    const companionName = resolvedCompanion?.name || '';
+    const companionDescription = resolvedCompanion?.visualDescription || '';
+    const dna = await generateStoryBankCharacterDNA({
+      childName: order.childName || '',
+      childGender: order.childGender || 'girl',
+      childAge: order.childAge || 4,
+      companionName,
+      storyText: allStoryText,
+      illustrationStyle: order.illustrationStyle,
+    });
+    const lockedChildDescription = dna.childDNA || childDesc;
+    if (anchorRegistry.child) {
+      anchorRegistry.child.description = lockedChildDescription;
+    }
 
     if (book.coverImageUrl) {
       generationLogger.info('Cover already exists; reusing', { orderId });
@@ -694,7 +718,7 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
         storyTitle: story.title,
         coverText: story.coverText,
         illustrationStyle: order.illustrationStyle,
-        childDescription: childDesc,
+        childDescription: lockedChildDescription,
         characterSheet: story.characterSheet,
         referenceImages: order.childImageUrl ? [order.childImageUrl] : undefined,
         orderId,
@@ -704,7 +728,11 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
         heroVisualLock: story.heroVisualLock,
         styleLock: story.styleLock,
         entityVisualLock: story.entityVisualLock,
-        companion: resolvedCompanion ? { name: resolvedCompanion.name, visualDescription: resolvedCompanion.visualDescription } : undefined,
+        companion: resolvedCompanion
+          ? { name: resolvedCompanion.name, visualDescription: companionDescription || resolvedCompanion.visualDescription }
+          : undefined,
+        childStructured: dna.childStructured,
+        companionStructured: dna.companionStructured,
       });
       await prisma.generatedBook.update({
         where: { id: book.id },
@@ -718,13 +746,30 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
     }
 
     const imageOutcome = await generateAllPageImages(
-      pagesForGeneration,
+      pagesForGeneration.map((page) => {
+        const supportingCharacters = (page.expectedCharacterIds || [])
+          .filter((id) => id !== 'child' && !id.startsWith('companion:'))
+          .map((id) => ({ id, character: anchorRegistry[id] }))
+          .filter(
+            (entry): entry is { id: string; character: CharacterAnchorRecord } =>
+              Boolean(entry.character)
+          )
+          .map(({ id, character }) => ({
+            name: character.name,
+            description: character.description,
+            relationship: character.relationship || (id.startsWith('sibling_') ? 'sibling' : 'supporting'),
+          }));
+        return {
+          ...page,
+          supportingCharacters,
+        };
+      }),
       {
         illustrationStyle: order.illustrationStyle,
         childName: order.childName ?? null,
         childAge: order.childAge ?? null,
         childGender: order.childGender ?? null,
-        childDescription:  childDesc,
+        childDescription: lockedChildDescription,
         referenceImages: order.childImageUrl ? [order.childImageUrl] : undefined,
         characterRegistry: Object.fromEntries(
           Object.entries(anchorRegistry).map(([characterId, character]) => [
@@ -751,6 +796,10 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
         orderId,
         characterSheet:    story.characterSheet,  // ← locked character visuals
         concept:           story.concept,          // ← central entity for scene injection
+        childStructured: dna.childStructured,
+        companionStructured: dna.companionStructured,
+        propDNA: dna.propDNA,
+        extraNegativeRules: dna.negativeRules,
         onAnchorsResolved: async (resolvedAnchors) => {
           for (const [characterId, url] of Object.entries(resolvedAnchors)) {
             if (!anchorRegistry[characterId]) continue;

@@ -538,6 +538,52 @@ export const STYLE_TOKENS: Record<string, string> = {
 
 interface LLMResult { text: string; tokens: number }
 
+const STORY_STAGE_PREFIXES = ['Brain', 'Outline', 'Prose-3A', 'Prose-3B', 'Prose-3C', 'Prose-3D'] as const;
+
+function isStoryStage(stage: string): boolean {
+  return STORY_STAGE_PREFIXES.some((prefix) => stage.startsWith(prefix));
+}
+
+function getModelForStage(stage: string, provider: string): string {
+  const defaultStoryModel = provider === 'anthropic' ? 'claude-opus-4-5' : 'gpt-5.3-pro';
+  const defaultSupportModel = provider === 'anthropic' ? 'claude-opus-4-5' : 'gpt-5.3-chat-latest';
+  if (isStoryStage(stage)) {
+    return process.env.STORY_MODEL || defaultStoryModel;
+  }
+  return process.env.PIPELINE_SUPPORT_MODEL || process.env.STORY_MODEL || defaultSupportModel;
+}
+
+let modelValidated = false;
+
+async function validateStoryModel(): Promise<void> {
+  if (modelValidated) return;
+  const provider = process.env.STORY_PROVIDER || 'openai';
+  if (provider !== 'openai') {
+    modelValidated = true;
+    return;
+  }
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    modelValidated = true;
+    return;
+  }
+  const model = process.env.STORY_MODEL || 'gpt-5.3-pro';
+  console.log(`[Pipeline] Validating story model: ${model}`);
+  try {
+    const res = await fetch(`https://api.openai.com/v1/models/${encodeURIComponent(model)}`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    if (!res.ok) {
+      console.warn(`[Pipeline] WARNING: STORY_MODEL=${model} may not be available (${res.status}). Will attempt anyway — some models are not listed but still work.`);
+    } else {
+      console.log(`[Pipeline] Story model ${model} confirmed available.`);
+    }
+  } catch (err) {
+    console.warn(`[Pipeline] Could not validate model ${model}: ${String(err)}`);
+  }
+  modelValidated = true;
+}
+
 function isTransientError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   const msg = error.message;
@@ -556,12 +602,15 @@ async function callLLMOnce(
   jsonMode:     boolean = true,   // false → plain text (Stage 3A)
 ): Promise<LLMResult> {
   const provider = process.env.STORY_PROVIDER || 'openai';
+  const model = getModelForStage(stage, provider);
+  const storyStage = isStoryStage(stage);
+  const reasoningEffort = storyStage ? (process.env.STORY_REASONING_EFFORT || '') : '';
+  const verbosity = storyStage ? (process.env.STORY_VERBOSITY || '') : '';
 
   if (provider === 'anthropic') {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) throw new Error('ANTHROPIC_API_KEY not set');
-    const model = process.env.STORY_MODEL || 'claude-opus-4-5';
-    console.log(`[Pipeline][${stage}] model=${model}, provider=${provider}, jsonMode=${jsonMode}`);
+    console.log(`[Pipeline][${stage}] model=${model}, provider=${provider}, jsonMode=${jsonMode}, reasoning=none, verbosity=none`);
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
@@ -574,27 +623,97 @@ async function callLLMOnce(
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('OPENAI_API_KEY not set');
-  const model = process.env.STORY_MODEL || 'gpt-5.3-chat-latest';
-  console.log(`[Pipeline][${stage}] model=${model}, provider=${provider}, jsonMode=${jsonMode}`);
-  const body: Record<string, unknown> = {
-    model,
-    messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
+  console.log(
+    `[Pipeline][${stage}] model=${model}, provider=${provider}, jsonMode=${jsonMode}, reasoning=${reasoningEffort || 'none'}, verbosity=${verbosity || 'none'}`
+  );
+
+  const callOpenAIWithModel = async (
+    modelName: string,
+    selectedReasoningEffort: string,
+    selectedVerbosity: string
+  ): Promise<LLMResult> => {
+    const useResponsesAPI = modelName.includes('-pro') || !!selectedReasoningEffort;
+    if (useResponsesAPI) {
+      const body: Record<string, unknown> = {
+        model: modelName,
+        max_output_tokens: maxTokens,
+        input: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+      };
+      if (selectedReasoningEffort) {
+        body.reasoning = { effort: selectedReasoningEffort };
+      }
+      if (selectedVerbosity) {
+        body.text = { verbosity: selectedVerbosity };
+      }
+      if (jsonMode) {
+        body.text = { ...((body.text as Record<string, unknown>) || {}), format: { type: 'json_object' } };
+      }
+
+      const res = await fetch('https://api.openai.com/v1/responses', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        const modelMissing =
+          res.status === 404 ||
+          errText.includes('does not exist') ||
+          errText.includes('not found') ||
+          errText.includes('model_not_found');
+        if (modelMissing) {
+          const fallback = process.env.FALLBACK_STORY_MODEL?.trim() || '';
+          if (!fallback) {
+            throw new Error(
+              `[${stage}] STORY_MODEL=${modelName} is not available for this API key/project. ` +
+              `Do not fallback silently. Either request access to ${modelName} or set FALLBACK_STORY_MODEL. ` +
+              `Original error: ${res.status} ${errText.slice(0, 200)}`
+            );
+          }
+          console.warn(`[Pipeline][${stage}] ${modelName} unavailable, falling back to FALLBACK_STORY_MODEL=${fallback}`);
+          return callOpenAIWithModel(fallback, '', '');
+        }
+        throw new Error(`[${stage}] OpenAI Responses ${res.status}: ${errText}`);
+      }
+
+      const data = await res.json();
+      const outputText =
+        data.output_text ??
+        data.output?.find((item: { type?: string; content?: Array<{ type?: string; text?: string }> }) => item.type === 'message')
+          ?.content?.find((contentItem: { type?: string; text?: string }) => contentItem.type === 'output_text')
+          ?.text ??
+        '';
+      const tokens = data.usage?.total_tokens ?? 0;
+      return { text: outputText, tokens };
+    }
+
+    const body: Record<string, unknown> = {
+      model: modelName,
+      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
+    };
+    if (modelName.startsWith('gpt-5.')) {
+      body.max_completion_tokens = maxTokens;
+    } else {
+      body.max_tokens = maxTokens;
+      body.temperature = temperature;
+    }
+    if (jsonMode) body.response_format = { type: 'json_object' };
+
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`[${stage}] OpenAI ${res.status}: ${await res.text()}`);
+    const data = await res.json();
+    return { text: data.choices[0].message.content, tokens: data.usage?.total_tokens ?? 0 };
   };
-  if (model.startsWith('gpt-5.')) {
-    body.max_completion_tokens = maxTokens;
-  } else {
-    body.max_tokens = maxTokens;
-    body.temperature = temperature;
-  }
-  if (jsonMode) body.response_format = { type: 'json_object' };
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`[${stage}] OpenAI ${res.status}: ${await res.text()}`);
-  const data = await res.json();
-  return { text: data.choices[0].message.content, tokens: data.usage?.total_tokens ?? 0 };
+
+  return callOpenAIWithModel(model, reasoningEffort, verbosity);
 }
 
 async function callLLM(
@@ -3342,7 +3461,7 @@ function assembleStory(
     ...(visualBible?.entityVisualLock ? { entityVisualLock: visualBible.entityVisualLock } : {}),
     meta: {
       provider:    process.env.STORY_PROVIDER || 'openai',
-      model:       process.env.STORY_MODEL    || 'gpt-4o',
+      model:       getModelForStage('Brain', process.env.STORY_PROVIDER || 'openai'),
       totalTokens,
     },
   };
@@ -3486,6 +3605,7 @@ export async function runStoryPipeline(input: StoryInput): Promise<GeneratedStor
   let   totalTokens = 0;
 
   console.log(`[Pipeline] Starting: ${pageCount} pages, style=${normalizedStyle}, child=${input.childName}`);
+  await validateStoryModel();
 
   // Stage 1 — Emotional foundation + locked visuals
   console.log('[Pipeline] Stage 1: StoryBrain');

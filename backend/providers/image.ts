@@ -283,6 +283,11 @@ export interface ImageInput {
     coloring: string;
     feature: string;
   };
+  supportingCharacters?: Array<{
+    name: string;
+    description: string;
+    relationship?: string;
+  }>;
 }
 
 export interface GeneratedImage {
@@ -1801,6 +1806,16 @@ function buildGPTImagePrompt(input: ImageInput): string {
       charParts.push(`DO NOT include ${input.companion.name} or any animal companion in this scene.`);
     }
   }
+  if (input.supportingCharacters?.length) {
+    for (const sc of input.supportingCharacters) {
+      const relLabel = sc.relationship ? ` (${sc.relationship})` : '';
+      charParts.push(
+        `SUPPORTING CHARACTER - ${sc.name}${relLabel}:`,
+        `${sc.description}`,
+        'This character MUST appear in this scene alongside the main child.'
+      );
+    }
+  }
   const characterBlock = charParts.length > 0 ? charParts.join('\n') : '';
 
   // ── PROP DNA — inject locked descriptions for recurring objects in this scene ──
@@ -2445,6 +2460,11 @@ export async function generateAllPageImages(
     };
     compositionRules?: string;
     environmentContinuity?: string;
+    supportingCharacters?: Array<{
+      name: string;
+      description: string;
+      relationship?: string;
+    }>;
   }>,
   config: {
     illustrationStyle: string;
@@ -2785,6 +2805,7 @@ export async function generateAllPageImages(
       | 'visualDirection'
       | 'childFirstName'
       | 'expectedCharacterNames'
+      | 'supportingCharacters'
     > = {
       bookPageText: page.bookPageText ?? null,
       stage4Prompt: rawScene || cleanedImagePrompt,
@@ -2792,6 +2813,7 @@ export async function generateAllPageImages(
       visualDirection: page.visualDirection ?? null,
       childFirstName: config.childName ?? null,
       expectedCharacterNames: pageExpectedDisplayNames,
+      supportingCharacters: page.supportingCharacters ?? [],
     };
     console.log(
       `[Image] Page ${page.pageNumber}/${pagesToGenerate.length} — expectedCharacters=[${expectedCharacterIds.join(', ')}] unresolved=[${unresolvedCharacterIds.join(', ')}] suitable=[${suitableCharacterIds.join(', ')}] assigned=[${assignedCharacterIds.join(', ')}] availableAnchors=[${availableAnchorIds.join(', ')}] passedAnchors=[${anchorCharacters.map((entry) => entry.characterId).join(', ')}]`
