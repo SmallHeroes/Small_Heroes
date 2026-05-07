@@ -67,7 +67,7 @@ function initLandingContent() {
       pill.style.left  = btn.offsetLeft + 'px';
       pill.style.width = btn.offsetWidth + 'px';
     }
-    positionPill(btnIllustrated);
+    positionPill(btnRealistic);
 
     function switchTo(style) {
       const isIllustrated = style === 'illustrated';

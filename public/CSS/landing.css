@@ -125,18 +125,17 @@
 
 .nav-links a {
   font-size: 16px;
-  font-weight: 600;
-  color: var(--mid);
+  font-weight: 700;
+  color: var(--dark);
   text-decoration: none;
-  transition: color 0.2s;
+  transition: color 0.2s, opacity 0.2s;
   display: flex;
-
-
-
+  opacity: 0.75;
 }
 
 .nav-links a:hover {
   color: var(--purple);
+  opacity: 1;
 }
 
 .section {
@@ -317,7 +316,7 @@
   padding: 10px 28px;
   font-size: 15px;
   font-weight: 700;
-  font-family: var(--fd);
+  font-family: var(--fb);
   color: var(--mid);
   cursor: pointer;
   border-radius: 36px;
@@ -536,10 +535,15 @@
 }
 
 .sample-quote {
-  margin-top: 18px;
-  font-size: 17px;
-  line-height: 1.7;
-  color: var(--mid);
+  margin-top: 12px;
+  margin-bottom: 18px;
+  font-size: 16px;
+  font-style: italic;
+  line-height: 1.75;
+  color: var(--soft);
+  border-right: 3px solid var(--purple-lt);
+  padding-right: 14px;
+  max-width: 520px;
 }
 
 .sample-img-wrap {

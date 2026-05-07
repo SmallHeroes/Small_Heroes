@@ -79,15 +79,15 @@
 
         <!-- Style toggle -->
         <div class="gallery-toggle" id="galleryToggle">
-          <button class="gallery-toggle-btn is-active" data-style="illustrated" id="toggleIllustrated">מאוייר</button>
-          <button class="gallery-toggle-btn" data-style="realistic" id="toggleRealistic">ריאליסטי</button>
+          <button class="gallery-toggle-btn" data-style="illustrated" id="toggleIllustrated">מאוייר</button>
+          <button class="gallery-toggle-btn is-active" data-style="realistic" id="toggleRealistic">ריאליסטי</button>
           <span class="gallery-toggle-pill" id="togglePill"></span>
         </div>
       </div>
 
       <div class="gallery-layers">
         <!-- Style 01 — illustrated (visible by default) -->
-        <div class="gallery-track gallery-layer is-visible" id="galleryTrackIllustrated">
+        <div class="gallery-track gallery-layer" id="galleryTrackIllustrated">
           <div class="gallery-card"><img src="../Images/gallery/gallery-1.jpg" alt="עמוד מתוך ספר — מאוייר" loading="lazy" /></div>
           <div class="gallery-card"><img src="../Images/gallery/gallery-2.jpg" alt="עמוד מתוך ספר — מאוייר" loading="lazy" /></div>
           <div class="gallery-card"><img src="../Images/gallery/gallery-3.jpg" alt="עמוד מתוך ספר — מאוייר" loading="lazy" /></div>
@@ -97,7 +97,7 @@
         </div>
 
         <!-- Style 02 — realistic (hidden by default) -->
-        <div class="gallery-track gallery-layer" id="galleryTrackRealistic">
+        <div class="gallery-track gallery-layer is-visible" id="galleryTrackRealistic">
           <div class="gallery-card"><img src="../Images/gallery/gallery-r-1.jpg" alt="עמוד מתוך ספר — ריאליסטי" loading="lazy" /></div>
           <div class="gallery-card"><img src="../Images/gallery/gallery-r-2.jpg" alt="עמוד מתוך ספר — ריאליסטי" loading="lazy" /></div>
           <div class="gallery-card"><img src="../Images/gallery/gallery-r-3.jpg" alt="עמוד מתוך ספר — ריאליסטי" loading="lazy" /></div>
@@ -117,9 +117,9 @@
       <div class="wrap sample-wrap">
         <div class="sample-text">
           <div class="sample-kicker" id="sampleKicker"></div>
-          <p class="sample-quote" id="sampleQuote"></p>
           <h2 class="sample-h2" id="sampleH2"></h2>
           <p class="sample-p" id="sampleP2"></p>
+          <p class="sample-quote" id="sampleQuote"></p>
           <a href="/wizard" class="btn-primary" id="sampleCta"></a>
         </div>
 
