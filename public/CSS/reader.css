@@ -200,12 +200,7 @@
   text-align: center;
   padding: 7% 9% 0;
   pointer-events: none;
-  background: linear-gradient(
-    to bottom,
-    rgba(250, 246, 240, 0.64) 0%,
-    rgba(250, 246, 240, 0.3) 20%,
-    rgba(250, 246, 240, 0) 42%
-  );
+  /* no CSS gradient — the image itself fades to cream at the top */
 }
 
 .reader-cover-title {
@@ -263,7 +258,7 @@
 
 .reader-text {
   font-family: var(--fd);
-  font-size: clamp(14px, 1.8vw, 16px);
+  font-size: 18px;
   font-weight: 500;
   color: #2e2a22;
   line-height: 1.85;
