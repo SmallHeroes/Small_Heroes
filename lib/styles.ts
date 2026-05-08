@@ -105,7 +105,7 @@ export const STYLE_REGISTRY: Record<StyleId, StyleContract> = {
     shadingRules: ['Cinematic light-to-shadow transitions', 'Rich volumetric shading on faces and skin', 'Soft realistic shadows with warm bounce light'],
     lightingRules: ['Cinematic golden-hour or warm interior lighting', 'Rich depth of field with soft bokeh background', 'Dramatic but warm — not cold or flat'],
     backgroundRules: ['Background dissolves into soft warm watercolor washes — NOT a fully detailed scene', 'Only show partial environmental hints near the subject; edges and top fade to abstract warm tones', 'No hard edges or rectangular framing — organic painterly dissolution'],
-    compositionRules: ['Characters rendered in sharp realistic detail, background dissolves around them', 'Top 20-30% must be open warm space (faded watercolor wash) for text overlay', 'Medium or medium-close framing — show the character prominently, not the whole room'],
+    compositionRules: ['Characters rendered in sharp realistic detail, background dissolves around them', 'Top 20-30% must be open warm space (faded watercolor wash) for text overlay', 'Medium-close portrait framing — character fills 60-70% of the image, NOT a wide shot', 'Do NOT show the full room or full landscape — only immediately relevant scene details', 'Think: warm portrait with story context, not a landscape with a small person in it'],
     negativeConstraints: [
       'No 3D render',
       'No CGI',
@@ -210,7 +210,7 @@ Characters are painted in realistic detail, surrounded by dissolving warm waterc
     shadingRules: ['Gentle realistic shadows — soft and warm, never harsh or dark', 'Watercolor layering for depth — multiple transparent washes', 'Light and airy overall — shadows are warm, not black or muddy'],
     lightingRules: ['Bright warm natural light — like a sunny day or soft indoor light', 'Light and pleasant — the image should feel WARM not HOT, BRIGHT not DARK', 'Natural light that makes the child look healthy and happy'],
     backgroundRules: ['Background dissolves into soft warm cream/peach watercolor washes', 'Cream paper visible at edges — backgrounds fade gently, not sharp cutoff', 'Environment rendered with less detail further from subject — watercolor dissolution', 'NEVER a fully dark or heavily detailed background — keep it light and airy'],
-    compositionRules: ['Child is the focal point — rendered in realistic detail', 'Background dissolves outward from subject into warm cream tones', 'Top 20-30% fades to soft cream for text overlay', 'Overall composition feels open, bright, and inviting — like a beautiful children\'s book'],
+    compositionRules: ['Child is the focal point — rendered in realistic detail, fills 60-70% of frame', 'Medium-close portrait framing — NOT a wide establishing shot', 'Background dissolves outward from subject into warm cream tones — only essential scene details visible', 'Top 20-30% fades to soft cream for text overlay', 'Think: warm portrait with story context, character IS the page'],
     negativeConstraints: [
       'No cartoon or anime style — proportions must be REAL',
       'No Pixar, Disney, or animation studio style',
@@ -450,11 +450,4 @@ export const WIZARD_ILLUSTRATION_STYLES: ReadonlyArray<{
   description: string;
 }> = WIZARD_STYLE_ORDER.map((id) => {
   const c = STYLE_REGISTRY[id];
-  return { id, label: c.userLabel, description: c.wizardBlurb };
-});
-
-export function getImageStyleNudgeBlock(styleIdInput?: string | null): string {
-  const c = getStyleContract(styleIdInput);
-  if (!c.imageNudge) return '';
-  return [c.imageNudge.title + ':', ...c.imageNudge.lines.map((l) => `- ${l}`)].join('\n');
-}
+  return { id, label: c.userLabel, descr

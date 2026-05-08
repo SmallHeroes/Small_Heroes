@@ -212,7 +212,7 @@
   font-weight: 900;
   letter-spacing: 0.015em;
   color: #2a241a;
-  text-shadow: 0 1px 8px rgba(255, 252, 246, 0.55);
+  /* text-shadow removed — was causing visible white glow artifact */
 }
 
 .reader-page-img {
@@ -549,6 +549,4 @@
   }
 
   .reader-page-canvas[data-layout="image_full_overlay_text"] .reader-page-prose {
-    padding: 22px 16px 18px;
-  }
-}
+    padding: 22px 
