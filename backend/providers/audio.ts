@@ -6,6 +6,18 @@
 
 import { getVoiceById, SLEEP_MODE_OVERRIDES } from '../config/voices';
 import { WIZARD } from '@/content';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+
+let _supabase: SupabaseClient | null = null;
+function getSupabase(): SupabaseClient {
+  if (!_supabase) {
+    const url = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key) throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY for audio storage');
+    _supabase = createClient(url, key);
+  }
+  return _supabase;
+}
 
 // ─── Types ────────────────────────────────────────────
 export interface AudioInput {
@@ -89,23 +101,28 @@ async function callElevenLabs(
 
 // ─── Store Audio ──────────────────────────────────────
 async function storeAudio(buffer: Buffer, filename: string): Promise<string> {
-  // TODO: Upload to S3/Cloudflare R2/Supabase Storage
-  // Example S3 implementation:
-  //
-  // const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
-  // const s3 = new S3Client({ region: process.env.AWS_REGION });
-  // await s3.send(new PutObjectCommand({
-  //   Bucket: process.env.S3_BUCKET,
-  //   Key: `audio/${filename}`,
-  //   Body: buffer,
-  //   ContentType: 'audio/mpeg',
-  //   ACL: 'public-read',
-  // }));
-  // return `https://${process.env.S3_BUCKET}.s3.amazonaws.com/audio/${filename}`;
+  const supabase = getSupabase();
+  const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'book-images';
+  const key = `audio/${filename}`;
 
-  // STUB: return a placeholder URL
-  console.log(`[STUB] Would store audio: ${filename} (${buffer.length} bytes)`);
-  return `https://your-storage.example.com/audio/${filename}`;
+  console.log(`[Audio] Uploading ${filename} (${(buffer.length / 1024).toFixed(1)} KB) to Supabase...`);
+
+  const { error } = await supabase.storage
+    .from(bucket)
+    .upload(key, buffer, {
+      contentType: 'audio/mpeg',
+      upsert: true,
+      cacheControl: '31536000',
+    });
+
+  if (error) {
+    throw new Error(`Supabase audio upload failed: ${error.message}`);
+  }
+
+  const url = process.env.SUPABASE_URL!;
+  const publicUrl = `${url.replace(/\/$/, '')}/storage/v1/object/public/${bucket}/${key}`;
+  console.log(`[Audio] Stored: ${publicUrl}`);
+  return publicUrl;
 }
 
 // ─── Main Entry Point ─────────────────────────────────
@@ -147,17 +164,4 @@ export async function generateAudio(input: AudioInput): Promise<GeneratedAudio> 
 
 // ─── Voice Preview ────────────────────────────────────
 /**
- * Generate a short voice preview for the UI voice picker.
- * Called when user clicks play on a voice option.
- */
-export async function generateVoicePreview(voiceId: string): Promise<Buffer> {
-  const voice = getVoiceById(voiceId);
-  if (!voice) throw new Error(`Unknown voice: ${voiceId}`);
-
-  const previewText = WIZARD.voicePreviewText;
-
-  return callElevenLabs(previewText, voice.elevenlabsVoiceId, {
-    stability: voice.stability ?? 0.75,
-    similarity_boost: voice.similarityBoost ?? 0.80,
-  });
-}
+ * Generate a short voice preview 
