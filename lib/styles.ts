@@ -450,4 +450,11 @@ export const WIZARD_ILLUSTRATION_STYLES: ReadonlyArray<{
   description: string;
 }> = WIZARD_STYLE_ORDER.map((id) => {
   const c = STYLE_REGISTRY[id];
-  return { id, label: c.userLabel, descr
+  return { id, label: c.userLabel, description: c.wizardBlurb };
+});
+
+export function getImageStyleNudgeBlock(styleIdInput?: string | null): string {
+  const c = getStyleContract(styleIdInput);
+  if (!c.imageNudge) return '';
+  return [c.imageNudge.title + ':', ...c.imageNudge.lines.map((l) => `- ${l}`)].join('\n');
+}

@@ -30,14 +30,25 @@ export async function POST(req: NextRequest) {
     hasSignature: Boolean(signature),
   });
 
-  let parsedBody: unknown;
-  try {
-    parsedBody = JSON.parse(rawBody || '{}');
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
-    logger.warn('[PayMeWebhook] Invalid JSON body', { reason });
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  let parsedBody: Record<string, unknown>;
+  const contentType = req.headers.get('content-type') || '';
+
+  if (contentType.includes('application/x-www-form-urlencoded')) {
+    const params = new URLSearchParams(rawBody);
+    parsedBody = Object.fromEntries(params.entries());
+  } else {
+    try {
+      parsedBody = JSON.parse(rawBody || '{}') as Record<string, unknown>;
+      if (!parsedBody || typeof parsedBody !== 'object' || Array.isArray(parsedBody)) {
+        parsedBody = {};
+      }
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      logger.warn('[PayMeWebhook] Invalid body', { reason, contentType });
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
   }
+
   const parsed = parsePaymeWebhookPayload(parsedBody);
 
   if (!parsed.orderId || !parsed.transactionId || !parsed.paymentStatus) {
@@ -211,16 +222,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true, processed: true });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      logger.info('[PayMeWebhook] Duplicate transaction replay ignored', {
-        orderId: parsed.orderId,
-        transactionId: parsed.transactionId,
-      });
-      return NextResponse.json({ received: true, duplicate: true });
-    }
-    logger.error('[PayMeWebhook] Failed to process webhook', error, {
-      orderId: parsed.orderId,
-      transactionId: parsed.transactionId,
-    });
-    return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 });
-  }
-}
+      logger.info('[PayMeWebhook] Duplic

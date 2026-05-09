@@ -616,4 +616,27 @@ async function main() {
     for (const len of lengths) {
       try {
         const result = await processStory(filePath, len);
-        if (result.ski
+        if (result.skipped) stats.skipped++;
+        else stats.processed++;
+      } catch (err) {
+        console.error(`  ❌ ${f} → ${len}p: ${err.message}`);
+        stats.errors++;
+      }
+
+      if (!DRY_RUN) {
+        await new Promise(r => setTimeout(r, DELAY_MS));
+      }
+    }
+  }
+
+  console.log('\n═══ Summary ═══');
+  console.log(`Generated: ${stats.processed}`);
+  console.log(`Skipped:   ${stats.skipped}`);
+  console.log(`Errors:    ${stats.errors}`);
+  console.log(`\nTotal API calls: ${stats.processed} × ~$0.03 = ~$${(stats.processed * 0.03).toFixed(2)}`);
+}
+
+main().catch(err => {
+  console.error('Fatal:', err);
+  process.exit(1);
+});

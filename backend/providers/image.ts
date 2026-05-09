@@ -287,6 +287,10 @@ export interface ImageInput {
     name: string;
     description: string;
     relationship?: string;
+    physicalDescription?: string;
+    clothingDefault?: string;
+    signatureDetail?: string;
+    ageRange?: string;
   }>;
 }
 
@@ -1809,11 +1813,27 @@ function buildGPTImagePrompt(input: ImageInput): string {
   if (input.supportingCharacters?.length) {
     for (const sc of input.supportingCharacters) {
       const relLabel = sc.relationship ? ` (${sc.relationship})` : '';
-      charParts.push(
-        `SUPPORTING CHARACTER - ${sc.name}${relLabel}:`,
-        `${sc.description}`,
-        'This character MUST appear in this scene alongside the main child.'
-      );
+      const hasStructured =
+        sc.physicalDescription &&
+        sc.clothingDefault &&
+        sc.signatureDetail &&
+        sc.ageRange;
+      if (hasStructured) {
+        charParts.push(
+          `SUPPORTING CHARACTER - ${sc.name}${relLabel}:`,
+          `Physical: ${sc.physicalDescription}`,
+          `Clothing: ${sc.clothingDefault}`,
+          `Signature: ${sc.signatureDetail}`,
+          `Age: ${sc.ageRange}`,
+          'This character MUST appear in this scene alongside the main child. Render with the SAME level of detail and consistency as the protagonist.'
+        );
+      } else {
+        charParts.push(
+          `SUPPORTING CHARACTER - ${sc.name}${relLabel}:`,
+          `${sc.description}`,
+          'This character MUST appear in this scene alongside the main child.'
+        );
+      }
     }
   }
   const characterBlock = charParts.length > 0 ? charParts.join('\n') : '';
@@ -2464,6 +2484,10 @@ export async function generateAllPageImages(
       name: string;
       description: string;
       relationship?: string;
+      physicalDescription?: string;
+      clothingDefault?: string;
+      signatureDetail?: string;
+      ageRange?: string;
     }>;
   }>,
   config: {
@@ -3167,28 +3191,4 @@ export async function generateAllPageImages(
 
     if (Object.keys(newlyResolvedAnchors).length > 0) {
       console.log(
-        `[Image] Page ${page.pageNumber}/${pages.length} — newAnchors=[${Object.keys(newlyResolvedAnchors).join(', ')}]`
-      );
-      if (config.onAnchorsResolved) {
-        try {
-          await config.onAnchorsResolved(newlyResolvedAnchors);
-          console.log('[Image] Anchor updates persisted');
-        } catch (persistErr) {
-          console.warn(
-            `[Image] Anchor persistence failed (non-fatal): ${
-              persistErr instanceof Error ? persistErr.message : String(persistErr)
-            }`
-          );
-        }
-      }
-    } else if (availableAnchorIds.length === 0 && expectedCharacterIds.length > 0) {
-      console.warn(`[Image] Page ${page.pageNumber} — anchor missing for expected characters, generated without reference`);
-    }
-  }
-
-  console.log(
-    `[Image] Complete — ${results.size}/${pagesToGenerate.length} succeeded; failedPages=[${failedPages.join(', ')}]`
-  );
-
-  return { results, failedPages, textZones, lightingModes };
-}
+        `[Image] Page ${page.pageNumber}/${pages.length} — newAnchors=[${Object.keys(newlyResolvedAnchors).join(', '
