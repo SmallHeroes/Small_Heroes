@@ -3191,4 +3191,28 @@ export async function generateAllPageImages(
 
     if (Object.keys(newlyResolvedAnchors).length > 0) {
       console.log(
-        `[Image] Page ${page.pageNumber}/${pages.length} — newAnchors=[${Object.keys(newlyResolvedAnchors).join(', '
+        `[Image] Page ${page.pageNumber}/${pages.length} — newAnchors=[${Object.keys(newlyResolvedAnchors).join(', ')}]`
+      );
+      if (config.onAnchorsResolved) {
+        try {
+          await config.onAnchorsResolved(newlyResolvedAnchors);
+          console.log('[Image] Anchor updates persisted');
+        } catch (persistErr) {
+          console.warn(
+            `[Image] Anchor persistence failed (non-fatal): ${
+              persistErr instanceof Error ? persistErr.message : String(persistErr)
+            }`
+          );
+        }
+      }
+    } else if (availableAnchorIds.length === 0 && expectedCharacterIds.length > 0) {
+      console.warn(`[Image] Page ${page.pageNumber} — anchor missing for expected characters, generated without reference`);
+    }
+  }
+
+  console.log(
+    `[Image] Complete — ${results.size}/${pagesToGenerate.length} succeeded; failedPages=[${failedPages.join(', ')}]`
+  );
+
+  return { results, failedPages, textZones, lightingModes };
+}

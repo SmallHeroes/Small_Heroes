@@ -222,4 +222,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true, processed: true });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      logger.info('[PayMeWebhook] Duplic
+      logger.info('[PayMeWebhook] Duplicate transaction replay ignored', {
+        orderId: parsed.orderId,
+        transactionId: parsed.transactionId,
+      });
+      return NextResponse.json({ received: true, duplicate: true });
+    }
+    logger.error('[PayMeWebhook] Failed to process webhook', error, {
+      orderId: parsed.orderId,
+      transactionId: parsed.transactionId,
+    });
+    return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 });
+  }
+}
