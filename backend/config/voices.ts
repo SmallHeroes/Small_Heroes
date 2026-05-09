@@ -37,10 +37,9 @@ export const VOICES: VoiceConfig[] = [
     description: 'קול חם, מחבק ורגוע',
     emoji: '👩',
     provider: 'elevenlabs',
-    elevenlabsVoiceId: 'xTdM9y41wYMb4Gjt4uEG',
+    elevenlabsVoiceId: 'l7j5Eq3UkVo98UW91Cy5',
     previewUrl: null, // TODO: '/previews/voice-mom.mp3'
-    stability: 0.75,
-    similarityBoost: 0.85,
+    // voice_settings unset — uses voice's stored defaults (configured in ElevenLabs dashboard)
   },
   {
     id: 'dad',

@@ -46,27 +46,46 @@ export function buildNarrationScript(
     .map(page => {
       let text = page.narrationText;
       if (sleepMode) {
-        // Add pauses between sentences for sleep mode
-        text = text.replace(/\./g, '...... ').replace(/,/g, ', ');
+        // Sleep mode: long pauses between sentences
+        text = text.replace(/\./g, '......... ').replace(/,/g, ',...  ');
+      } else {
+        // Normal mode: gentle pauses for children's book pacing
+        text = text.replace(/\./g, '... ').replace(/,/g, ',  ');
       }
       return text;
     })
-    .join(sleepMode ? '\n\n...... \n\n' : '\n\n');
+    .join(sleepMode ? '\n\n......... \n\n' : '\n\n... \n\n');
 }
 
 // ─── ElevenLabs API ───────────────────────────────────
 async function callElevenLabs(
   text: string,
   elevenlabsVoiceId: string,
-  settings: {
-    stability: number;
-    similarity_boost: number;
+  settings?: {
+    stability?: number;
+    similarity_boost?: number;
     style?: number;
     use_speaker_boost?: boolean;
   }
 ): Promise<Buffer> {
   const apiKey = process.env.ELEVENLABS_API_KEY;
   if (!apiKey) throw new Error('ELEVENLABS_API_KEY not set');
+
+  const body: Record<string, unknown> = {
+    text,
+    model_id: 'eleven_v3',
+    language_code: 'he',
+  };
+
+  // Only send voice_settings if explicitly provided — otherwise use voice's stored defaults
+  if (settings?.stability != null || settings?.similarity_boost != null) {
+    body.voice_settings = {
+      stability: settings.stability ?? 0.75,
+      similarity_boost: settings.similarity_boost ?? 0.80,
+      style: settings.style ?? 0,
+      use_speaker_boost: settings.use_speaker_boost ?? true,
+    };
+  }
 
   const res = await fetch(
     `https://api.elevenlabs.io/v1/text-to-speech/${elevenlabsVoiceId}`,
@@ -77,17 +96,7 @@ async function callElevenLabs(
         'Content-Type': 'application/json',
         'Accept': 'audio/mpeg',
       },
-      body: JSON.stringify({
-        text,
-        model_id: 'eleven_v3',
-        language_code: 'he',
-        voice_settings: {
-          stability: settings.stability,
-          similarity_boost: settings.similarity_boost,
-          style: settings.style ?? 0,
-          use_speaker_boost: settings.use_speaker_boost ?? true,
-        },
-      }),
+      body: JSON.stringify(body),
     }
   );
 
