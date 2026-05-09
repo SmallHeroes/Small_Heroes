@@ -12,6 +12,8 @@ type BookPage = {
   pageNumber: number;
   title?: string | null;
   text: string;
+  narrationText?: string | null;
+  audioUrl?: string | null;
   imageUrl: string | null;
   presentationImageUrl?: string | null;
   isCover?: boolean;
@@ -25,6 +27,7 @@ type ReaderPage = {
   pageNumber: number;
   title: string | null;
   text: string;
+  audioUrl: string | null;
   imageUrl: string | null;
   isCover: boolean;
   pageTemplate: BookPageTemplate;
@@ -39,6 +42,7 @@ type OrderBookResponse = {
     title?: string | null;
     coverText?: string | null;
     pages: BookPage[];
+    /** Legacy: single MP3 for entire book (when no per-page audioUrl). */
     audioUrl?: string | null;
   } | null;
 };
@@ -113,10 +117,12 @@ function normalizeReaderPages(pages: BookPage[]): ReaderPage[] {
         ? parseTextZone(page.textZone ?? undefined) ?? 'bottom_clear'
         : 'bottom_clear';
     const textColorScheme = deriveTextColorScheme(page.textColorScheme, page.lighting);
+    const rawAudio = typeof page.audioUrl === 'string' ? page.audioUrl.trim() : '';
     return {
       pageNumber: page.pageNumber,
       title: page.title ?? null,
       text: compactStoryText(page.text ?? ''),
+      audioUrl: rawAudio.length > 0 ? rawAudio : null,
       imageUrl,
       isCover: isCoverPage,
       pageTemplate,
@@ -147,7 +153,8 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
   const [readerPages, setReaderPages] = useState<ReaderPage[]>([]);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [showEndScreen, setShowEndScreen] = useState(false);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  /** Whole-book MP3 when the order has no per-page clips. */
+  const [fallbackBookAudioUrl, setFallbackBookAudioUrl] = useState<string | null>(null);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
 
@@ -158,6 +165,10 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
   const generationSecret = process.env.NEXT_PUBLIC_GENERATION_SECRET;
 
   const currentPage = readerPages[currentPageIndex] ?? null;
+  const hasPerPageAudio = useMemo(() => readerPages.some((p) => Boolean(p.audioUrl)), [readerPages]);
+  const audioSrcForCurrentPage =
+    currentPage && !currentPage.isCover ? currentPage.audioUrl ?? fallbackBookAudioUrl : null;
+  const showAudioButton = Boolean(audioSrcForCurrentPage);
   const isFirstPage = currentPageIndex === 0;
   const isLastPage = currentPageIndex >= readerPages.length - 1 && readerPages.length > 0;
 
@@ -198,7 +209,11 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
         setBookTitle(data.book?.title?.trim() || '');
         setReaderPages(normalizedPages);
         setCurrentPageIndex(0);
-        setAudioUrl(typeof data.book?.audioUrl === 'string' && data.book.audioUrl.trim() ? data.book.audioUrl : null);
+        setFallbackBookAudioUrl(
+          typeof data.book?.audioUrl === 'string' && data.book.audioUrl.trim()
+            ? data.book.audioUrl.trim()
+            : null
+        );
         setStatus('ready');
       } catch {
         setErrorMessage('נכשלה טעינת הספר. נסו שוב בעוד רגע.');
@@ -211,16 +226,6 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
       setStatus('error');
     });
   }, [bookId, resolvedAccessKey]);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audioUrl || !audio) {
-      setIsAudioPlaying(false);
-      return;
-    }
-    audio.src = audioUrl;
-    audio.load();
-  }, [audioUrl]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -237,6 +242,41 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
       audio.removeEventListener('ended', onEnded);
     };
   }, []);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (currentPage?.isCover) {
+      audio.pause();
+      return;
+    }
+  }, [currentPage?.isCover]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (!currentPage?.audioUrl) {
+      if (hasPerPageAudio) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+      return;
+    }
+
+    audio.pause();
+    audio.currentTime = 0;
+    audio.src = currentPage.audioUrl;
+    audio.load();
+
+    const timer = window.setTimeout(() => {
+      audio.play().catch(() => {
+        console.log('[read-v2] auto-play blocked, user interaction required');
+      });
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [currentPageIndex, currentPage?.audioUrl, hasPerPageAudio]);
 
   const next = useCallback(() => {
     if (!readerPages.length) return;
@@ -258,7 +298,25 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
 
   const toggleAudio = useCallback(async () => {
     const audio = audioRef.current;
-    if (!audio || !audioUrl) return;
+    const src = audioSrcForCurrentPage;
+    if (!audio || !src) return;
+
+    try {
+      const resolved = new URL(src, typeof window !== 'undefined' ? window.location.origin : 'http://localhost')
+        .href;
+      if (audio.src !== resolved) {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.src = src;
+        audio.load();
+      }
+    } catch {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.src = src;
+      audio.load();
+    }
+
     if (audio.paused) {
       try {
         await audio.play();
@@ -268,7 +326,7 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
       return;
     }
     audio.pause();
-  }, [audioUrl]);
+  }, [audioSrcForCurrentPage]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -433,58 +491,4 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
                   </>
                 )}
 
-                <footer className={styles.pageFooter}>
-                  <span>
-                    עמוד {currentPageIndex + 1} מתוך {readerPages.length}
-                  </span>
-                  {bookTitle ? (
-                    <>
-                      <span className={styles.footerSep}> · </span>
-                      <span>{bookTitle}</span>
-                    </>
-                  ) : null}
-                </footer>
-              </article>
-            )}
-          </section>
-
-          <div className={styles.controls}>
-            <button type="button" className={styles.controlBtn} onClick={prev} disabled={isFirstPage && !showEndScreen}>
-              הקודם
-            </button>
-            {audioUrl ? (
-              <button type="button" className={styles.controlBtn} onClick={toggleAudio}>
-                {isAudioPlaying ? 'השהה' : 'נגן'}
-              </button>
-            ) : null}
-            <button type="button" className={styles.controlBtn} onClick={next}>
-              {isLastPage ? 'סיום' : 'הבא'}
-            </button>
-          </div>
-        </>
-      )}
-
-      {status === 'ready' && showEndScreen && (
-        <section className={styles.centerState}>
-          <div className={styles.endGlyph}>✦</div>
-          <h2 className={styles.endTitle}>סוף</h2>
-          <button
-            type="button"
-            className={styles.controlBtn}
-            onClick={() => {
-              setCurrentPageIndex(0);
-              setShowEndScreen(false);
-            }}
-          >
-            קראו שוב מההתחלה
-          </button>
-          <a href="/" className={styles.backHomeLink}>
-            חזרה לדף הבית
-          </a>
-        </section>
-      )}
-
-      <audio ref={audioRef} preload="metadata" hidden />
-    </main>
-  );
-}
+                <footer clas

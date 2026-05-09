@@ -73,6 +73,4 @@ export const SLEEP_MODE_OVERRIDES: Partial<VoiceConfig> = {
   style: 0,
 };
 
-export function getVoiceById(id: string): VoiceConfig | undefined {
-  return VOICES.find(v => v.id === id);
-}
+export function getVoiceById(id: string): VoiceConfig | unde

@@ -1,5 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  /** Keep native ffmpeg/ffprobe installers out of the webpack bundle */
+  serverExternalPackages: [
+    'fluent-ffmpeg',
+    '@ffmpeg-installer/ffmpeg',
+    '@ffprobe-installer/ffprobe',
+  ],
   typescript: {
     // TypeScript errors don't block Turbopack compilation;
     // skip the redundant tsc check so Vercel deploys succeed.
@@ -47,12 +53,4 @@ const nextConfig = {
         { source: '/directions', destination: '/HTML/directions.html' },
         { source: '/generating', destination: '/HTML/generating.html' },
         { source: '/ready', destination: '/HTML/ready.html' },
-        { source: '/reader', destination: '/HTML/reader.html' },
-        { source: '/login', destination: '/HTML/login.html' },
-        { source: '/my-books', destination: '/HTML/my-books.html' },
-      ],
-    };
-  },
-};
-
-module.exports = nextConfig;
+        { source: '/reader', destination: '/HTML/reader.html'

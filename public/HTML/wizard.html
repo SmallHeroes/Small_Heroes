@@ -138,6 +138,9 @@
           </div>
           <input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp" onchange="handlePhoto(event)" />
           <div id="photo-quality-message"></div>
+          <p class="photo-reupload-hint" id="photo-reupload-hint" hidden role="status">
+            לאחר רענון הדף יש להעלות את תמונת הילד/ה מחדש.
+          </p>
         </div>
       </div>
 
@@ -305,6 +308,19 @@
               </div>
             </div>
 
+            <div class="addon-row" id="addon-video-row" onclick="toggleAddon('videoEnabled')">
+              <div class="addon-info">
+                <span class="badge-new" id="s8VideoBadge"></span>
+                <div class="addon-main">
+                  <div>
+                    <div class="addon-name" id="s8VideoName"></div>
+                    <div class="addon-desc" id="s8VideoDesc"></div>
+                  </div>
+                  <div class="addon-checkbox" id="cb-video"></div>
+                </div>
+              </div>
+            </div>
+
             <div class="addon-row" id="addon-bundle-row" onclick="toggleAddon('bundleEnabled')">
               <div class="addon-info">
                 <span class="badge-save" id="s8BundleBadge"></span>
@@ -397,20 +413,4 @@
       <div class="bottom-bar-total" id="bottom-bar-total" hidden>
         <span class="bottom-bar-total-label" id="bottomBarTotalLabel"></span>
         <span class="bottom-bar-total-price" id="bottom-bar-price">₪49</span>
-      </div>
-      <button type="button" id="btn-continue" class="btn-continue"></button>
-      <button type="button" id="btn-continue-anyway" class="btn-continue btn-continue--anyway" hidden>להמשיך בכל זאת</button>
-      <button type="button" id="btn-back"     class="btn-back"     onclick="goBack()"></button>
-    </div>
-    <p class="photo-step-reassure" id="photo-step-reassure" hidden>גם בלי תמונה ננסה ליצור תוצאה טובה 💪</p>
-  </div>
-
-  <script src="../JS/content.js"></script>
-  <script src="../JS/routes.js"></script>
-  <script src="../JS/companions.js"></script>
-  <script src="../JS/analytics.js"></script>
-  <script src="../JS/client-api.js"></script>
-  <script src="../JS/wizard.js"></script>
-</body>
-
-</html>
+      </div

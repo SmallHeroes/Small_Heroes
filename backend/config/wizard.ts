@@ -264,7 +264,8 @@ export const STORY_LENGTHS = [
 export const ADDON_PRICES = {
   audio:  19, // ILS
   pdf:    12, // ILS
-  bundle: 25, // ILS (audio + pdf discounted)
+  video:  15, // ILS — book MP4 (FFmpeg slideshow + narration per page)
+  bundle: 39, // ILS (audio + pdf + video, “הכל”)
 } as const;
 
 /** Same ids and labels as `WIZARD_ILLUSTRATION_STYLES` in `lib/styles.ts` (without blurbs). */
@@ -277,15 +278,13 @@ export function computePricing(config: {
   audioEnabled: boolean;
   pdfEnabled: boolean;
   bundleEnabled: boolean;
+  videoEnabled?: boolean;
 }) {
   const len = STORY_LENGTHS.find(l => l.id === config.length) ?? STORY_LENGTHS[1];
   const base = len.priceILS;
   let addons = 0;
+  const videoEnabled = Boolean(config.videoEnabled);
   if (config.bundleEnabled) {
     addons += ADDON_PRICES.bundle;
   } else {
-    if (config.audioEnabled) addons += ADDON_PRICES.audio;
-    if (config.pdfEnabled)   addons += ADDON_PRICES.pdf;
-  }
-  return { basePrice: base, addonsPrice: addons, totalPrice: base + addons };
-}
+    if (config.audioEnabled) addons 

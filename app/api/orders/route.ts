@@ -310,6 +310,7 @@ export async function POST(req: NextRequest) {
         sleepMode: product.sleepMode || false,
         pdfEnabled: product.pdfEnabled,
         bundleEnabled: product.bundleEnabled || false,
+        videoEnabled: Boolean(product.videoEnabled),
 
         // Pricing (stored in agorot)
         basePrice: pricing.basePrice * 100,
@@ -336,6 +337,4 @@ export async function POST(req: NextRequest) {
       );
     }
     console.error('[POST /api/orders]', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
-}
+    return NextResponse.json({ error

@@ -18,6 +18,8 @@ export default function StoryBankDevPage() {
   const [companionName, setCompanionName] = useState('צפרדע');
   const [illustrationStyle, setIllustrationStyle] = useState('realistic_illustrated');
   const [maxPages, setMaxPages] = useState(5);
+  const [skipCover, setSkipCover] = useState(false);
+  const [generateAudio, setGenerateAudio] = useState(false);
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
   const [result, setResult] = useState<{
     bookUrl?: string;
@@ -33,7 +35,16 @@ export default function StoryBankDevPage() {
       const res = await fetch('/api/dev/story-bank', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ storyFile, childName, childGender, companionName, illustrationStyle, maxPages }),
+        body: JSON.stringify({
+          storyFile,
+          childName,
+          childGender,
+          companionName,
+          illustrationStyle,
+          maxPages,
+          skipCover,
+          generateAudio,
+        }),
       });
       const data = (await res.json()) as { error?: string; bookUrl?: string; pagesRendered?: number; pagesFailed?: number[] };
       if (!res.ok) throw new Error(data.error || 'Failed');
@@ -106,6 +117,7 @@ export default function StoryBankDevPage() {
             onChange={(e) => setMaxPages(Number(e.target.value))}
             style={{ display: 'block', width: '100%', padding: 8, marginTop: 4 }}
           >
+            <option value={1}>1 page (single page test)</option>
             <option value={5}>5 pages (quick test)</option>
             <option value={10}>10 pages</option>
             <option value={15}>15 pages (full)</option>
@@ -123,6 +135,24 @@ export default function StoryBankDevPage() {
             <option value="realistic_illustrated">Portrait Artistic (Style 01)</option>
             <option value="whimsical_comic_fantasy">Realistic Artistic Watercolor (Style 02)</option>
           </select>
+        </label>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input
+            type="checkbox"
+            checked={skipCover}
+            onChange={(e) => setSkipCover(e.target.checked)}
+          />
+          Skip cover (faster for single-page tests)
+        </label>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input
+            type="checkbox"
+            checked={generateAudio}
+            onChange={(e) => setGenerateAudio(e.target.checked)}
+          />
+          Generate audio (per-page ElevenLabs; requires env keys)
         </label>
 
         <button
@@ -157,34 +187,4 @@ export default function StoryBankDevPage() {
             <>
               <p style={{ color: '#16a34a', fontWeight: 'bold' }}>✓ Book ready!</p>
               <p>
-                Pages rendered: {rendered} / {rendered + failed}
-              </p>
-              {failed > 0 && (
-                <p style={{ color: '#dc2626' }}>Failed: pages {result.pagesFailed?.join(', ')}</p>
-              )}
-              {result.bookUrl && (
-                <a
-                  href={result.bookUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    display: 'inline-block',
-                    marginTop: 8,
-                    padding: '8px 16px',
-                    background: '#7c3aed',
-                    color: '#fff',
-                    borderRadius: 6,
-                    textDecoration: 'none',
-                  }}
-                >
-                  Open Book →
-                </a>
-              )}
-            </>
-          )}
-          {status === 'error' && <p style={{ color: '#dc2626' }}>{result.error}</p>}
-        </div>
-      )}
-    </div>
-  );
-}
+                Pages rendered: {rendered} / {rendered + fa

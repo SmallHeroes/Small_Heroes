@@ -22,7 +22,7 @@ export function checkoutProductDescription(length: string): string {
 
 /** Add-on line item names */
 export const CHECKOUT_ADDONS = {
-  bundle: 'קריינות + PDF (חבילה)',
+  bundle: 'קריינות + PDF + סרטון (הכל)',
   audio:  'קריינות בעברית',
   pdf:    'ספר PDF להדפסה',
-} as const;
+  v

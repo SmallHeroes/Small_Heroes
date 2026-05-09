@@ -14,6 +14,7 @@ import {
 } from '@/lib/illustrationPresentation';
 import { storePresentationBuffer } from '@/lib/image-storage';
 import { ROUTES } from '@/lib/routes';
+import { generatePageAudio } from '@/backend/providers/audio';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -92,6 +93,8 @@ export async function POST(req: NextRequest) {
     illustrationStyle?: string;
     childImageUrl?: string | null;
     maxPages?: number;
+    skipCover?: boolean;
+    generateAudio?: boolean;
   };
 
   const {
@@ -103,6 +106,8 @@ export async function POST(req: NextRequest) {
     illustrationStyle: illustrationStyleRaw = 'realistic_illustrated',
     childImageUrl = null,
     maxPages = 0,
+    skipCover = false,
+    generateAudio = false,
   } = body;
 
   if (!storyFile || typeof storyFile !== 'string') {
@@ -174,7 +179,9 @@ export async function POST(req: NextRequest) {
         totalPrice: 0,
         textStatus: 'done',
         imageStatus: 'running',
-        audioStatus: 'done',
+        audioEnabled: generateAudio,
+        selectedVoice: generateAudio ? 'mom' : null,
+        audioStatus: generateAudio ? 'pending' : 'done',
         packageStatus: 'pending',
         bookName: story.title,
       },
@@ -213,33 +220,37 @@ export async function POST(req: NextRequest) {
     });
     const childDesc = dna.childDNA;
 
-    const coverImage = await generateBookCover({
-      childName,
-      topicLabel: 'Story Bank',
-      storyTitle: story.title,
-      coverText: story.coverText,
-      illustrationStyle,
-      childDescription: childDesc,
-      characterSheet: story.characterSheet,
-      referenceImages: childImageUrl ? [childImageUrl] : undefined,
-      orderId: order.id,
-      directionStoryPremise: storyFull.coverSceneHint,
-      childStructured: dna.childStructured,
-      companionStructured: dna.companionStructured,
-      companion: {
-        name: companionName,
-        visualDescription: dna.companionDNA,
-      },
-    });
+    if (!skipCover) {
+      const coverImage = await generateBookCover({
+        childName,
+        topicLabel: 'Story Bank',
+        storyTitle: story.title,
+        coverText: story.coverText,
+        illustrationStyle,
+        childDescription: childDesc,
+        characterSheet: story.characterSheet,
+        referenceImages: childImageUrl ? [childImageUrl] : undefined,
+        orderId: order.id,
+        directionStoryPremise: storyFull.coverSceneHint,
+        childStructured: dna.childStructured,
+        companionStructured: dna.companionStructured,
+        companion: {
+          name: companionName,
+          visualDescription: dna.companionDNA,
+        },
+      });
 
-    await prisma.generatedBook.update({
-      where: { id: book.id },
-      data: { coverImageUrl: coverImage.url },
-    });
-    await prisma.order.update({
-      where: { id: order.id },
-      data: { coverImageUrl: coverImage.url },
-    });
+      await prisma.generatedBook.update({
+        where: { id: book.id },
+        data: { coverImageUrl: coverImage.url },
+      });
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { coverImageUrl: coverImage.url },
+      });
+    } else {
+      console.log('[StoryBank] Skipping cover generation (skipCover=true)');
+    }
 
     const imageOutcome = await generateAllPageImages(
       story.pages.map((p) => {
@@ -382,29 +393,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    await prisma.order.update({
-      where: { id: order.id },
-      data: {
-        status: 'ready',
-        imageStatus: 'done',
-        packageStatus: 'done',
-      },
-    });
-
-    const bookUrl = ROUTES.readerV2(order.id, accessKey);
-
-    return NextResponse.json({
-      success: true,
-      orderId: order.id,
-      bookId: book.id,
-      accessKey,
-      bookUrl,
-      pagesRendered: imageOutcome.results.size,
-      pagesFailed: imageOutcome.failedPages,
-    });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error('[StoryBank] Generation failed:', error);
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
+    if (generateAudio && story.pages.length > 0) {
+      await prisma.order.update({ where: { id: order.id }, data: { audioStatus: 'running' } });
+      for (const page of story.pages) {
+        const narration = page.narrationText?.trim();
+        if (!n

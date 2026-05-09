@@ -653,6 +653,15 @@
   margin-top: 8px;
 }
 
+.photo-reupload-hint {
+  margin-top: 10px;
+  margin-bottom: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #6b6778;
+  text-align: right;
+}
+
 .photo-helper-text {
   margin: 0;
   color: #4b4858;
@@ -940,7 +949,8 @@
 
 .badge-popular,
 .badge-gift,
-.badge-save {
+.badge-save,
+.badge-new {
   display: inline-block;
   border-radius: 999px;
   padding: 4px 12px;
@@ -962,6 +972,15 @@
 .badge-save {
   background: #3fd37d;
   color: #fff;
+}
+
+.badge-new {
+  background: #7c3aed;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
 }
 
 .s8-voice-col.hidden {
@@ -1663,9 +1682,15 @@
 
 .badge-popular,
 .badge-gift,
-.badge-save {
+.badge-save,
+.badge-new {
   margin-bottom: 9px;
   padding: 4px 11px;
+}
+
+.badge-new {
+  padding: 2px 8px;
+  border-radius: 4px;
 }
 
 .addon-checkbox,
@@ -2311,23 +2336,4 @@
   color: #5c4b8a;
   font-size: 0.92rem;
 }
-.summary-answers-pre {
-  white-space: pre-wrap;
-  font-family: inherit;
-  font-size: 0.88rem;
-  line-height: 1.4;
-  margin: 0.4rem 0 0;
-  color: #4a4a57;
-  background: rgba(255, 255, 255, 0.65);
-  border-radius: 10px;
-  padding: 10px 12px;
-  border: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-#step-6 .step-sub {
-  margin-bottom: 22px;
-}
-
-#step-6 #superpower-chips {
-  margin-top: 6px;
-}
+.summary-answers-

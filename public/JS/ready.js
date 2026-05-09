@@ -18,6 +18,9 @@ const RDY_DEFAULTS = {
   btnRead: 'לקרוא את הספר',
   btnAudio: 'להאזין לסיפור',
   btnPdf: 'הורד PDF',
+  btnVideo: 'סרטון MP4 של הספר',
+  videoPreparing: 'מכינים את הסרטון...',
+  errorVideo: 'לא הצלחנו ליצור את הסרטון. נסו שוב.',
   saveHint: 'שמרו את הקישור לספר כדי לחזור אליו בכל עת',
   copyLabel: 'העתקת הקישור',
   copiedLabel: 'הועתק!',
@@ -55,6 +58,7 @@ const dedicationEl     = document.getElementById('readyDedication');
 const btnReadEl        = document.getElementById('readyBtnRead');
 const btnAudioEl       = document.getElementById('readyBtnAudio');
 const btnPdfEl         = document.getElementById('readyBtnPdf');
+const btnVideoEl       = document.getElementById('readyBtnVideo');
 const audioPlayerEl    = document.getElementById('readyAudioPlayer');
 const btnCopyEl        = document.getElementById('readyBtnCopy');
 const copyLabelEl      = document.getElementById('readyCopyLabel');
@@ -79,6 +83,7 @@ function wireStaticUI() {
   if (btnReadEl)         btnReadEl.textContent         = RDY.btnRead;
   if (btnAudioEl)        btnAudioEl.textContent        = RDY.btnAudio;
   if (btnPdfEl)          btnPdfEl.textContent          = RDY.btnPdf;
+  if (btnVideoEl)        btnVideoEl.textContent       = RDY.btnVideo;
   if (saveHintEl)        saveHintEl.textContent        = RDY.saveHint;
   if (copyLabelEl)       copyLabelEl.textContent       = RDY.copyLabel;
   if (btnCopyEl)         btnCopyEl.setAttribute('aria-label', RDY.copyBtnAriaLabel);
@@ -189,6 +194,51 @@ function renderBook(data) {
     }
   }
 
+  // Video (MP4) — on-demand export; show whenever the book is viewable
+  if (btnVideoEl) {
+    btnVideoEl.hidden = false;
+    btnVideoEl.disabled = false;
+    btnVideoEl.textContent = RDY.btnVideo;
+    btnVideoEl.onclick = async (e) => {
+      e.preventDefault();
+      const key = accessKey || '';
+      if (!key) {
+        alert(RDY.errorVideo);
+        return;
+      }
+      try {
+        if (book.videoUrl) {
+          window.open(book.videoUrl, '_blank', 'noopener');
+          return;
+        }
+        btnVideoEl.disabled = true;
+        btnVideoEl.textContent = RDY.videoPreparing;
+        const res = await fetch(`/api/orders/${encodeURIComponent(orderId)}/video`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accessKey: key }),
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(payload.error || `HTTP ${res.status}`);
+        }
+        const videoUrl = payload.videoUrl;
+        if (typeof videoUrl === 'string' && videoUrl.trim()) {
+          book.videoUrl = videoUrl.trim();
+          window.open(book.videoUrl, '_blank', 'noopener');
+        } else {
+          throw new Error('missing_video_url');
+        }
+      } catch (err) {
+        console.error('[ready] video export failed', err);
+        alert(RDY.errorVideo);
+      } finally {
+        btnVideoEl.disabled = false;
+        btnVideoEl.textContent = RDY.btnVideo;
+      }
+    };
+  }
+
   // Save to local history so the parent can return from this browser later
   saveBookToHistory({ orderId, childName: data.childName || null, title: book.title || null, accessKey: accessKey || null });
 
@@ -199,51 +249,4 @@ function renderBook(data) {
   track('ready_viewed', { orderId });
 }
 
-// ─── Fetch ────────────────────────────────────────────────────────────────────
-async function loadBook(orderId) {
-  try {
-    const keyPart = accessKey ? `?accessKey=${encodeURIComponent(accessKey)}` : '';
-    const res = await fetch('/api/orders/' + encodeURIComponent(orderId) + keyPart);
-
-    if (res.status === 404) {
-      showError(RDY.errorNotFound);
-      return;
-    }
-
-    if (!res.ok) {
-      showError(RDY.errorLoadFailed);
-      return;
-    }
-
-    const data = await res.json();
-
-    // Guard: if the order exists but generation is still in progress,
-    // send the user back to the generating screen rather than showing an error.
-    // This handles the edge case where someone navigates here early
-    // (e.g. a saved link, a back-button, or a race with the redirect).
-    // Accept 'partial' too — audio may have failed but book is deliverable.
-    if ((data.status !== 'ready' && data.status !== 'partial') || !data.book) {
-      const keyPart = accessKey ? `&accessKey=${encodeURIComponent(accessKey)}` : '';
-      window.location.replace(`${ROUTES.generating}?orderId=${encodeURIComponent(orderId)}${keyPart}`);
-      return;
-    }
-
-    renderBook(data);
-
-  } catch (err) {
-    console.error('[ready] Failed to load book:', err);
-    showError(RDY.errorNetworkFail);
-  }
-}
-
-// ─── Boot ─────────────────────────────────────────────────────────────────────
-const orderId = new URLSearchParams(window.location.search).get('orderId');
-
-wireStaticUI();
-
-if (!orderId) {
-  showError(RDY.errorMissingOrder);
-} else {
-  showState('loading');
-  loadBook(orderId);
-}
+// ─── Fetch ─────────�

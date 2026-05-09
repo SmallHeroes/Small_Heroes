@@ -58,7 +58,7 @@ export function buildNarrationScript(
 }
 
 // ─── ElevenLabs API ───────────────────────────────────
-async function callElevenLabs(
+export async function callElevenLabs(
   text: string,
   elevenlabsVoiceId: string,
   settings?: {
@@ -110,7 +110,7 @@ async function callElevenLabs(
 }
 
 // ─── Store Audio ──────────────────────────────────────
-async function storeAudio(buffer: Buffer, filename: string): Promise<string> {
+export async function storeAudio(buffer: Buffer, filename: string): Promise<string> {
   const supabase = getSupabase();
   const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'book-images';
   const key = `audio/${filename}`;
@@ -172,20 +172,12 @@ export async function generateAudio(input: AudioInput): Promise<GeneratedAudio> 
   };
 }
 
-
-// ─── Voice Preview ────────────────────────────────────
 /**
- * Generate a short voice preview for the UI voice picker.
- * Called when user clicks play on a voice option.
+ * Single-page narration (per-page MP3). Uses voice defaults from ElevenLabs (no custom voice_settings).
  */
-export async function generateVoicePreview(voiceId: string): Promise<Buffer> {
-  const voice = getVoiceById(voiceId);
-  if (!voice) throw new Error(`Unknown voice: ${voiceId}`);
-
-  const previewText = WIZARD.voicePreviewText;
-
-  return callElevenLabs(previewText, voice.elevenlabsVoiceId, {
-    stability: voice.stability ?? 0.75,
-    similarity_boost: voice.similarityBoost ?? 0.80,
-  });
-}
+export async function generatePageAudio(input: {
+  narrationText: string;
+  voiceId: string;
+  sleepMode: boolean;
+  orderId: string;
+  pageNumber: number;

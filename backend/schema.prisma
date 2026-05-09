@@ -126,6 +126,7 @@ model Order {
   sleepMode          Boolean           @default(false)
   pdfEnabled         Boolean           @default(false)
   bundleEnabled      Boolean           @default(false)
+  videoEnabled       Boolean           @default(false)
 
   // Pricing
   basePrice          Int   // in agorot (ILS cents)
@@ -293,6 +294,7 @@ model GeneratedBook {
 
   audioAsset  AudioAsset?
   pdfUrl      String?
+  videoUrl    String?   // on-demand exported MP4 (full book slideshow + narration)
 
   readUrl     String?   // public read link
   expiresAt   DateTime? // if links expire
@@ -317,6 +319,9 @@ model BookPage {
 
   // narration text (may differ from display text — sleep mode pacing etc)
   narrationText String?     @db.Text
+
+  /// Per-page narration MP3 (ElevenLabs). Legacy books use AudioAsset on GeneratedBook only.
+  audioUrl    String?
 
   createdAt   DateTime @default(now())
 }
@@ -401,14 +406,4 @@ model GenerationJob {
   completedAt DateTime?
   failedAt    DateTime?
   attempts    Int      @default(0)
-  lastError   String?
-
-  // Stage tracking
-  textDone    Boolean @default(false)
-  imagesDone  Boolean @default(false)
-  audioDone   Boolean @default(false)
-  packaged    Boolean @default(false)
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
+  lastError   S

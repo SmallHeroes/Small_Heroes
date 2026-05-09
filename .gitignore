@@ -75,3 +75,7 @@ node_modules/
 .next/
 .tmp.driveupload/
 .env
+voice-samples/
+scripts/test-audio*
+scripts/test-voice*
+scripts/check-voices*

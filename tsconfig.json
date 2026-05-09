@@ -12,7 +12,7 @@
     "types": [
       "node"
     ],
-    "jsx": "react-jsx",
+    "jsx": "preserve",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,

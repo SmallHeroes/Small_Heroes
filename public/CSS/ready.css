@@ -189,7 +189,8 @@
 }
 
 .ready-btn-audio,
-.ready-btn-pdf {
+.ready-btn-pdf,
+.ready-btn-video {
   font-size: 16px;
   padding: 0 28px;
   min-height: 52px;
@@ -270,6 +271,4 @@
   }
 
   .ready-audio-player {
-    margin-top: 0;
-  }
-}
+    mar

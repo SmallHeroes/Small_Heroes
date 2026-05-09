@@ -75,7 +75,8 @@ export const WIZARD = {
       totalLabel:     'סה"כ לתשלום:',
       audio:  { badge: 'הכי פופולרי',  name: 'קריינות (+₪19)', desc: 'מושלם להאזנה לפני השינה' },
       pdf:    { badge: 'מושלם כמתנה', name: 'PDF (+₪12)',      desc: 'הדפיסו כספר פיזי' },
-      bundle: { badge: 'חסכו ₪6',     name: 'קומבו (+₪25)',   desc: 'קריינות + PDF' },
+      video:  { badge: 'חדש!',        name: 'סרטון MP4 (+₪15)', desc: 'הספר כסרטון מקריינות עם תמונות' },
+      bundle: { badge: 'חסכו ₪7',     name: 'הכל (+₪39)',     desc: 'קריינות + PDF + סרטון יחד' },
       voiceTitle:   'קריינות (+₪19)',
       voicePreview: 'האזן לדוגמה',
       sleep: {
@@ -207,12 +208,7 @@ export const WIZARD = {
     audioLabel:     'קריינות:',
     pdfLabel:       'PDF:',
     sleepLabel:     'מצב שינה:',
+    videoLabel:     'סרטון:',
     ageFormat:      '· גיל {age}',
     bookDigital:    'ספר דיגיטלי {length}',
-    bundleLabel:    'קריינות + PDF (חבילה)',
-    audioAddon:     'קריינות 🎧',
-    pdfAddon:       'PDF 📥',
-    totalLabel:     'סה"כ לתשלום:',
-    defaultHero:    'הגיבור/ה שלכם',
-  },
-} as const;
+    bundleLabel:    'קריינות + PDF + סרטו

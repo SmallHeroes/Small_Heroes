@@ -120,6 +120,7 @@ export async function POST(req: NextRequest) {
       audioEnabled: order.audioEnabled,
       pdfEnabled: order.pdfEnabled,
       bundleEnabled: order.bundleEnabled,
+      videoEnabled: order.videoEnabled,
     });
     const basePriceAgorot = Math.round(pricing.basePrice * 100);
     const addonsPriceAgorot = Math.round(pricing.addonsPrice * 100);
@@ -129,6 +130,7 @@ export async function POST(req: NextRequest) {
     if (order.bundleEnabled) addonLabels.push(CHECKOUT_ADDONS.bundle);
     if (!order.bundleEnabled && order.audioEnabled) addonLabels.push(CHECKOUT_ADDONS.audio);
     if (!order.bundleEnabled && order.pdfEnabled) addonLabels.push(CHECKOUT_ADDONS.pdf);
+    if (!order.bundleEnabled && order.videoEnabled) addonLabels.push(CHECKOUT_ADDONS.video);
     const descriptionParts = [
       checkoutProductName(order.childName),
       checkoutProductDescription(order.storyLength),
@@ -278,7 +280,4 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error) {
-    logger.error('PayMe checkout creation failed', error);
-    return NextResponse.json({ error: 'Failed to create checkout session' }, { status: 500 });
-  }
-}
+    logger.error('PayMe che

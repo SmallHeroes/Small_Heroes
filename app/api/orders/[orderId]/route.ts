@@ -39,6 +39,7 @@ function buildDevCompletedBookFixture(orderId: string) {
       title: 'ספר בדיקה מקומי',
       coverText: 'מסלול בדיקה בטוח ללא יצירה חדשה',
       coverImageUrl: coverUrl,
+      videoUrl: null,
       pages: [
         {
           pageNumber: 0,
@@ -122,12 +123,15 @@ export async function GET(
             coverText: true,
             coverImageUrl: true,
             pdfUrl: true,
+            videoUrl: true,
             readUrl: true,
             pages: {
               orderBy: { pageNumber: 'asc' },
               select: {
                 pageNumber: true,
                 text: true,
+                narrationText: true,
+                audioUrl: true,
                 pageTemplate: true,
                 textZone: true,
                 lighting: true,
@@ -173,7 +177,7 @@ export async function GET(
       packageStatus: order.packageStatus,
 
       // Book data if ready
-      book: order.status === 'ready' ? (() => {
+      book: ['ready', 'partial'].includes(order.status) ? (() => {
         const pageRows = order.book?.pages ?? [];
         const templateInputs = pageRows.map((p) => ({
           pageNumber: p.pageNumber,
@@ -187,6 +191,8 @@ export async function GET(
           return {
             pageNumber: p.pageNumber,
             text: p.text,
+            narrationText: p.narrationText ?? null,
+            audioUrl: p.audioUrl ?? null,
             imageUrl: p.imageAsset?.presentationUrl ?? p.imageAsset?.url ?? null,
             pageTemplate: resolvedTemplate,
             textPlacement: textPlacementForTemplate(resolvedTemplate),
@@ -200,6 +206,8 @@ export async function GET(
               {
                 pageNumber: 0,
                 text: '',
+                narrationText: null,
+                audioUrl: null,
                 imageUrl: order.book.coverImageUrl,
                 pageTemplate: 'full_bleed_overlay',
                 textPlacement: textPlacementForTemplate('full_bleed_overlay'),
@@ -216,6 +224,7 @@ export async function GET(
         pages: withCover,
         audioUrl: order.book?.audioAsset?.url,
         pdfUrl: order.book?.pdfUrl,
+        videoUrl: order.book?.videoUrl ?? null,
         readUrl: order.book?.readUrl,
         };
       })() : null,
@@ -234,16 +243,4 @@ function computeProgress(order: {
   audioEnabled: boolean;
   textStatus: string;
   imageStatus: string;
-  audioStatus: string;
-  packageStatus: string;
-}): number {
-  let done = 0;
-  const total = order.audioEnabled ? 4 : 3;
-
-  if (order.textStatus === 'done') done++;
-  if (order.imageStatus === 'done') done++;
-  if (!order.audioEnabled || order.audioStatus === 'done') done++;
-  if (order.packageStatus === 'done') done++;
-
-  return Math.round((done / total) * 100);
-}
+  audioStatus: stri

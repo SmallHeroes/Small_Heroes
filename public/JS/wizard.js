@@ -48,6 +48,7 @@ const WIZ_DEFAULTS = {
       voiceTitle: '', voicePreview: '',
       audio: { badge: '', name: '', desc: '' },
       pdf: { badge: '', name: '', desc: '' },
+      video: { badge: '', name: '', desc: '' },
       bundle: { badge: '', name: '', desc: '' },
       sleep: { name: '', desc: '' },
     },
@@ -60,7 +61,8 @@ const WIZ_DEFAULTS = {
   summary: {
     totalLabel: '', ageFormat: '{age}', childNameLabel: '', topicLabel: '', lengthLabel: '',
     styleLabel: '', audioLabel: '', pdfLabel: '', sleepLabel: '', bookDigital: '{length}',
-    bundleLabel: '', audioAddon: '', pdfAddon: '',     defaultHero: 'הגיבור/ה שלכם',
+    bundleLabel: '', audioAddon: '', pdfAddon: '', videoLabel: '', videoAddon: '',
+    defaultHero: 'הגיבור/ה שלכם',
   },
 };
 const HE_CONTENT = globalThis.CONTENT?.he || {};
@@ -83,6 +85,7 @@ const WIZ = {
       ...(((WIZ_INPUT.steps || {}).s8 || {})),
       audio: { ...WIZ_DEFAULTS.steps.s8.audio, ...(((((WIZ_INPUT.steps || {}).s8 || {}).audio) || {}) ) },
       pdf: { ...WIZ_DEFAULTS.steps.s8.pdf, ...(((((WIZ_INPUT.steps || {}).s8 || {}).pdf) || {}) ) },
+      video: { ...WIZ_DEFAULTS.steps.s8.video, ...(((((WIZ_INPUT.steps || {}).s8 || {}).video) || {}) ) },
       bundle: { ...WIZ_DEFAULTS.steps.s8.bundle, ...(((((WIZ_INPUT.steps || {}).s8 || {}).bundle) || {}) ) },
       sleep: { ...WIZ_DEFAULTS.steps.s8.sleep, ...(((((WIZ_INPUT.steps || {}).s8 || {}).sleep) || {}) ) },
     },
@@ -300,6 +303,7 @@ const state = {
   voice: "mom", /* mom | dad | fairy */
   sleepMode: false,
   pdfEnabled: false,
+  videoEnabled: false,
   bundleEnabled: false,
   bookName: "",
 
@@ -313,8 +317,178 @@ const PRICES = {
   base: { short: 49, medium: 59, long: 69 },
   audio: 19,
   pdf: 12,
-  bundle: 25,
+  video: 15,
+  bundle: 39,
 };
+
+const WIZARD_STORAGE_KEY = 'wizard_state';
+
+/** Hint after resume: preview was stripped from sessionStorage. */
+let sessionExpectChildPhotoReplay = false;
+let wizardSaveQueued = false;
+
+function queueWizardSave() {
+  if (wizardSaveQueued) return;
+  wizardSaveQueued = true;
+  requestAnimationFrame(() => {
+    wizardSaveQueued = false;
+    saveWizardState();
+  });
+}
+
+function saveWizardState() {
+  try {
+    const extra = (state.extraCharacters || []).map((ch) => ({
+      relation: ch.relation || '',
+      name: ch.name || '',
+      description: ch.description || '',
+      photo: null,
+      photoQuality:
+        ch.photoQuality && typeof ch.photoQuality === 'object'
+          ? { ...ch.photoQuality }
+          : null,
+    }));
+    const serializable = {
+      ...state,
+      photo: null,
+      extraCharacters: extra,
+    };
+    sessionStorage.setItem(
+      WIZARD_STORAGE_KEY,
+      JSON.stringify({
+        step: state.currentStep,
+        state: serializable,
+        meta: { expectChildPhotoReplay: Boolean(state.photo) },
+        timestamp: Date.now(),
+      }),
+    );
+  } catch (_) {
+    /* sessionStorage unavailable or quota */
+  }
+}
+
+function restoreWizardState() {
+  try {
+    const raw = sessionStorage.getItem(WIZARD_STORAGE_KEY);
+    if (!raw) return false;
+    const snapshot = JSON.parse(raw);
+    if (!snapshot || typeof snapshot.step !== 'number' || !snapshot.state || typeof snapshot.state !== 'object') {
+      return false;
+    }
+    if (Date.now() - snapshot.timestamp > 30 * 60 * 1000) {
+      sessionStorage.removeItem(WIZARD_STORAGE_KEY);
+      sessionExpectChildPhotoReplay = false;
+      return false;
+    }
+    sessionExpectChildPhotoReplay = snapshot.meta?.expectChildPhotoReplay === true;
+    Object.assign(state, snapshot.state);
+    state.currentStep = snapshot.step;
+    if (!Array.isArray(state.childTraits)) state.childTraits = [];
+    if (!Array.isArray(state.childSuperpower)) state.childSuperpower = [];
+    if (!Array.isArray(state.difficulties)) state.difficulties = [];
+    if (!Array.isArray(state.goals)) state.goals = [];
+    if (!Array.isArray(state.helpers)) state.helpers = [];
+    if (!Array.isArray(state.avoid)) state.avoid = [];
+    if (!Array.isArray(state.categoryAnswers)) state.categoryAnswers = [];
+    if (!Array.isArray(state.extraCharacters)) state.extraCharacters = [];
+    if (typeof state.videoEnabled !== 'boolean') state.videoEnabled = false;
+    state.audioEnabled = Boolean(state.audioEnabled);
+    state.pdfEnabled = Boolean(state.pdfEnabled);
+    state.bundleEnabled = Boolean(state.bundleEnabled);
+    state.style = normalizeClientStyleId(state.style);
+    state.photo = null;
+    return true;
+  } catch (_) {
+    sessionExpectChildPhotoReplay = false;
+    return false;
+  }
+}
+
+function hydrateDraftFieldsFromState() {
+  const cn = document.getElementById('child-name');
+  if (cn) cn.value = state.childName || '';
+  const ca = document.getElementById('child-age');
+  if (ca) ca.value = state.childAge || '';
+  const cg = document.getElementById('child-gender');
+  if (cg) cg.value = state.childGender || '';
+  const s4e = document.getElementById('s4-extra');
+  if (s4e) s4e.value = state.s4extra || '';
+  const s6e = document.getElementById('s6-extra');
+  if (s6e) s6e.value = state.s6extra || '';
+  const s7e = document.getElementById('s7-extra');
+  if (s7e) s7e.value = state.s7extra || '';
+  const spe = document.getElementById('s4power-extra');
+  if (spe) spe.value = state.childSuperpowerExtra || '';
+  const bookNameInput = document.getElementById('bookNameInput');
+  if (bookNameInput) bookNameInput.value = state.bookName || '';
+  const cName = document.getElementById('contact-name');
+  if (cName) cName.value = state.contactName || '';
+  const cEmail = document.getElementById('contact-email');
+  if (cEmail) cEmail.value = state.contactEmail || '';
+}
+
+function hydrateWizardMultiSelectChips() {
+  /** @param {'difficulties'|'goals'|'helpers'|'avoid'} key */
+  const syncStep = (stepSelector, key) => {
+    const arr = state[key] || [];
+    document.querySelectorAll(`${stepSelector} .chip`).forEach((el) => {
+      const val = el.textContent.trim();
+      if (!val) return;
+      el.classList.toggle('selected', arr.indexOf(val) > -1);
+    });
+  };
+  syncStep('#step-8', 'difficulties');
+  syncStep('#step-9', 'goals');
+  syncStep('#step-10', 'helpers');
+  syncStep('#step-11', 'avoid');
+}
+
+function bindDraftFieldPersistListeners() {
+  const bindInput = (id, apply) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const run = () => {
+      apply(el);
+      queueWizardSave();
+    };
+    el.addEventListener('input', run);
+    el.addEventListener('change', run);
+  };
+  bindInput('child-name', (el) => {
+    state.childName = String(el.value || '').trim();
+  });
+  bindInput('child-age', (el) => {
+    state.childAge = String(el.value || '').trim();
+  });
+  bindInput('child-gender', (el) => {
+    state.childGender = String(el.value || '').trim();
+  });
+  bindInput('s4-extra', (el) => {
+    state.s4extra = String(el.value || '');
+  });
+  bindInput('s6-extra', (el) => {
+    state.s6extra = String(el.value || '');
+  });
+  bindInput('s7-extra', (el) => {
+    state.s7extra = String(el.value || '');
+  });
+  bindInput('s4power-extra', (el) => {
+    state.childSuperpowerExtra = String(el.value || '').trim();
+  });
+  bindInput('contact-name', (el) => {
+    state.contactName = String(el.value || '').trim();
+  });
+  bindInput('contact-email', (el) => {
+    state.contactEmail = String(el.value || '').trim();
+  });
+  const bookNameInput = document.getElementById('bookNameInput');
+  if (bookNameInput) {
+    bookNameInput.addEventListener('input', () => {
+      state.bookName = bookNameInput.value.trim();
+      queueWizardSave();
+    });
+  }
+}
 
 function computeTotal() {
   const base = PRICES.base[state.length] || 59;
@@ -325,6 +499,7 @@ function computeTotal() {
   } else {
     if (state.audioEnabled) addons += PRICES.audio;
     if (state.pdfEnabled)   addons += PRICES.pdf;
+    if (state.videoEnabled)  addons += PRICES.video;
   }
 
   return { base, addons, total: base + addons };
@@ -446,6 +621,7 @@ function upsertCategoryAnswerDraft(nextDraft) {
     current.push(nextDraft);
   }
   state.categoryAnswers = current;
+  queueWizardSave();
 }
 
 function getChallengeCategoryForTopicId(topicId) {
@@ -548,6 +724,7 @@ function renderCompanionCards() {
       btn.classList.add('selected');
       const cont = document.getElementById('btn-continue');
       if (cont && state.currentStep === 4) cont.disabled = false;
+      queueWizardSave();
     });
 
     grid.appendChild(btn);
@@ -557,11 +734,9 @@ function renderCompanionCards() {
 /* ── INIT ────────────────────────────────────────────────────── */
 function init() {
   state.style = normalizeClientStyleId(state.style);
-  if (state.currentStep < 12) {
-    // Don't carry stale package selection into a new wizard flow.
-    state.length = null;
-  }
   pendingPhotoPickerOpen = false;
+  initWizardContent();   // bind all static text from CONTENT
+  const restored = restoreWizardState();
   if (state.extraCharacters.length === 0) {
     state.extraCharacters.push(createEmptyExtraCharacter());
   } else if (state.extraCharacters.length > MAX_EXTRA_CHARACTERS) {
@@ -579,13 +754,10 @@ function init() {
         ? character.photoQuality
         : null,
   }));
-  initWizardContent();   // bind all static text from CONTENT
-  const bookNameInput = document.getElementById('bookNameInput');
-  if (bookNameInput) {
-    bookNameInput.addEventListener('input', (e) => {
-      state.bookName = e.target.value.trim();
-    });
+  if (!restored && state.currentStep < 12) {
+    state.length = null;
   }
+  bindDraftFieldPersistListeners();
   buildPills();
   renderTopics();
   renderTraits();
@@ -715,6 +887,9 @@ function initWizardContent() {
   setText('s8PdfBadge',    WIZ.steps.s8.pdf.badge);
   setText('s8PdfName',     WIZ.steps.s8.pdf.name);
   setText('s8PdfDesc',     WIZ.steps.s8.pdf.desc);
+  setText('s8VideoBadge',  WIZ.steps.s8.video.badge);
+  setText('s8VideoName',   WIZ.steps.s8.video.name);
+  setText('s8VideoDesc',   WIZ.steps.s8.video.desc);
   setText('s8BundleBadge', WIZ.steps.s8.bundle.badge);
   setText('s8BundleName',  WIZ.steps.s8.bundle.name);
   setText('s8BundleDesc',  WIZ.steps.s8.bundle.desc);
@@ -802,6 +977,9 @@ function updateProgress() {
 
 /* ── UI ──────────────────────────────────────────────────────── */
 function updateUI() {
+  hydrateDraftFieldsFromState();
+  hydrateWizardMultiSelectChips();
+
   updateProgress();
   syncWizardLayout();
 
@@ -878,6 +1056,17 @@ function updateUI() {
   if (state.currentStep === 13) {
     buildSummary();
   }
+
+  const photoHint = document.getElementById('photo-reupload-hint');
+  if (photoHint) {
+    if (state.currentStep === 5) {
+      photoHint.hidden = !(sessionExpectChildPhotoReplay && !state.photo);
+    } else {
+      photoHint.hidden = true;
+    }
+  }
+
+  saveWizardState();
 }
 
 /* ── NAVIGATION ──────────────────────────────────────────────── */
@@ -1007,6 +1196,7 @@ function addTopicChip(wrap, t, afterSelect) {
     const cat = String(state.challengeCategory || '');
 
     if (isReselect && state.categoryBranching && !state.categoryBranching._fetchFailed) {
+      queueWizardSave();
       if (afterSelect) {
         setTimeout(afterSelect, 220);
       }
@@ -1017,6 +1207,7 @@ function addTopicChip(wrap, t, afterSelect) {
       state.categoryBranching = null;
       state.categoryAnswers = [];
     }
+    queueWizardSave();
 
     (async function loadBranch() {
       try {
@@ -1030,6 +1221,7 @@ function addTopicChip(wrap, t, afterSelect) {
           _fetchFailed: true,
         };
       }
+      queueWizardSave();
       if (afterSelect) {
         setTimeout(afterSelect, 220);
       }
@@ -1098,6 +1290,7 @@ function scheduleDynamicFollowupRefresh() {
       if (serial !== followupRefreshSerial) return;
       state.categoryBranching = { ...data, _fetchFailed: false };
       renderCategoryFollowupFields();
+      queueWizardSave();
     } catch (e) {
       console.error('[wizard] dynamic follow-up refresh failed', e);
     }
@@ -1239,6 +1432,9 @@ function renderTraits() {
   TRAITS.forEach((t) => {
     const d = document.createElement("div");
     d.className   = "trait-chip";
+    if (state.childTraits.indexOf(t.label) > -1) {
+      d.classList.add('selected');
+    }
     d.innerHTML = `
       <span class="trait-chip-icon" aria-hidden="true">${getTraitIcon(t)}</span>
       <span class="trait-chip-text">${t.label}</span>
@@ -1253,6 +1449,7 @@ function renderTraits() {
       } else {
         state.childTraits.push(t.label);
       }
+      queueWizardSave();
     });
 
     wrap.appendChild(d);
@@ -1335,13 +1532,16 @@ function renderExtraCharacters() {
       if (descInput) {
         descInput.placeholder = getCharacterDescriptionPlaceholder(relation);
       }
+      queueWizardSave();
     });
 
     nameInput?.addEventListener('input', (event) => {
       state.extraCharacters[index].name = event.target.value.trimStart();
+      queueWizardSave();
     });
     descInput?.addEventListener('input', (event) => {
       state.extraCharacters[index].description = event.target.value.trimStart();
+      queueWizardSave();
     });
     photoInput?.addEventListener('change', (event) => {
       const file = event.target?.files?.[0];
@@ -1402,6 +1602,7 @@ function renderExtraCharacters() {
           preview.innerHTML = `<img src="${result}" alt="תמונת דמות ${index + 1}" /><span class="char-photo-replace-overlay">החלף</span>`;
         }
         renderExtraCharacters();
+        queueWizardSave();
       };
       reader.readAsDataURL(file);
     });
@@ -1419,6 +1620,7 @@ function renderExtraCharacters() {
     addCard.addEventListener('click', () => {
       state.extraCharacters.push(createEmptyExtraCharacter());
       renderExtraCharacters();
+      queueWizardSave();
     });
     container.appendChild(addCard);
   }
@@ -1431,9 +1633,13 @@ function renderSuperpowerChips() {
   const wrap = document.getElementById("superpower-chips");
   if (!wrap) return;
 
+  wrap.innerHTML = '';
   SUPERPOWERS.forEach((sp) => {
     const d = document.createElement("div");
     d.className   = "trait-chip";
+    if (state.childSuperpower.indexOf(sp.label) > -1) {
+      d.classList.add('selected');
+    }
     d.textContent = sp.label;
 
     d.addEventListener("click", () => {
@@ -1444,6 +1650,7 @@ function renderSuperpowerChips() {
       } else {
         state.childSuperpower.push(sp.label);
       }
+      queueWizardSave();
     });
 
     wrap.appendChild(d);
@@ -1465,6 +1672,7 @@ function toggleChip(el, key) {
   } else {
     arr.push(val);
   }
+  queueWizardSave();
 }
 
 /* ── PHOTO UPLOAD ────────────────────────────────────────────── */
@@ -1854,6 +2062,8 @@ async function handlePhoto(e) {
     }
     renderPhotoQualityMessage();
     savePhotoQualityToStorage();
+    sessionExpectChildPhotoReplay = false;
+    queueWizardSave();
   };
   reader.onerror = () => {
     clearPhotoQualityState();
@@ -1893,6 +2103,7 @@ function renderLengthBtns() {
       refreshTotal();
       const bbt = document.getElementById('bottom-bar-total');
       if (bbt) bbt.hidden = false;
+      queueWizardSave();
     });
 
     wrap.appendChild(btn);
@@ -1923,6 +2134,7 @@ function renderStyleBtns() {
 
       btn.classList.add("selected");
       state.style = s.id;
+      queueWizardSave();
     });
 
     wrap.appendChild(btn);
@@ -1960,6 +2172,15 @@ function toggleAddon(key) {
       break;
     }
 
+    case "videoEnabled": {
+      const next = !state.videoEnabled;
+      state.videoEnabled = next;
+      if (!next && state.bundleEnabled) {
+        state.bundleEnabled = false;
+      }
+      break;
+    }
+
     case "bundleEnabled": {
       const next = !state.bundleEnabled;
 
@@ -1968,10 +2189,12 @@ function toggleAddon(key) {
       if (next) {
         state.audioEnabled = true;
         state.pdfEnabled   = true;
+        state.videoEnabled  = true;
         if (!state.voice) state.voice = "mom";
       } else {
         state.audioEnabled = false;
         state.pdfEnabled   = false;
+        state.videoEnabled  = false;
         state.voice        = null;
         state.sleepMode    = false;
       }
@@ -1986,6 +2209,7 @@ function toggleAddon(key) {
   syncAddonUI();
   refreshTotal();
   syncStep8Layout();
+  queueWizardSave();
 }
 
 /* ── STEP 8: CHECKBOX UI ─────────────────────────────────────── */
@@ -1993,6 +2217,7 @@ function syncAddonUI() {
   const checkboxMap = {
     audio:  state.audioEnabled,
     pdf:    state.pdfEnabled,
+    video:  state.videoEnabled,
     bundle: state.bundleEnabled,
   };
 
@@ -2118,6 +2343,7 @@ function renderVoiceBtns() {
 
       btn.classList.add("selected");
       state.voice = v.id;
+      queueWizardSave();
     });
 
     const playBtn = btn.querySelector(".voice-play-btn");
@@ -2151,6 +2377,7 @@ function toggleSleep() {
   if (row) {
     row.classList.toggle("selected", state.sleepMode);
   }
+  queueWizardSave();
 }
 
 /* ── STEP 8: PRICE REFRESH ───────────────────────────────────── */
@@ -2219,6 +2446,9 @@ function buildSummary() {
       state.pdfEnabled || state.bundleEnabled
         ? { icon: "📥", label: WIZ.summary.pdfLabel, val: "✓" }
         : null,
+      state.videoEnabled || state.bundleEnabled
+        ? { icon: "🎬", label: WIZ.summary.videoLabel || 'סרטון:', val: '✓' }
+        : null,
       state.sleepMode
         ? { icon: "🌙", label: WIZ.summary.sleepLabel, val: "✓" }
         : null,
@@ -2279,6 +2509,15 @@ function buildSummary() {
           </div>
         `;
       }
+
+      if (state.videoEnabled) {
+        rows += `
+          <div class="price-row">
+            <span class="label">${WIZ.summary.videoAddon || 'סרטון 🎬'}</span>
+            <span class="val">₪${PRICES.video}</span>
+          </div>
+        `;
+      }
     }
 
     priceEl.innerHTML = rows;
@@ -2307,9 +2546,10 @@ function buildSummary() {
  *   state.helpers / s6extra       → helpers:         { selected, freeText }
  *   state.avoid   / s7extra       → avoid:           { selected, freeText }
  *
- *   state.length / style / audioEnabled / voice / sleepMode / pdfEnabled / bundleEnabled
+ *   state.length / style / audioEnabled / voice / sleepMode / pdfEnabled / bundleEnabled /
+ *     videoEnabled
  *     → product: { length, illustrationStyle, audioEnabled, selectedVoice, sleepMode,
- *                  pdfEnabled, bundleEnabled }
+ *                  pdfEnabled, bundleEnabled, videoEnabled }
  *
  *   state.contactName / contactEmail
  *     → contact: { name, email }
@@ -2354,229 +2594,4 @@ function buildWizardPayload() {
         ...(additionalCharacters[0]
           ? {
               parent1: {
-                name: additionalCharacters[0].name,
-                description: additionalCharacters[0].description || undefined,
-              },
-            }
-          : {}),
-        ...(additionalCharacters[1]
-          ? {
-              parent2: {
-                name: additionalCharacters[1].name,
-                description: additionalCharacters[1].description || undefined,
-              },
-            }
-          : {}),
-      }
-    : null;
-
-  return {
-    bookName: state.bookName || null,
-    child: {
-      name:       state.childName,
-      age:        state.childAge        || null,
-      gender:     state.childGender     || null,
-      traits:     state.childTraits,
-      superpower: combinedSuperpower.length ? combinedSuperpower.join(' | ') : null,
-      imageUrl:   state.photo || null,
-    },
-    photoQuality: state.photoQuality || null,
-    topic,
-    challengeCategory: state.challengeCategory || null,
-    companionCharacterId: state.companionCharacterId || null,
-    categoryAnswers: state.categoryAnswers || [],
-    familyContext,
-    challenge: {
-      selected: state.difficulties,
-      freeText: state.s4extra || null,
-    },
-    desiredOutcome: {
-      selected: state.goals,
-      freeText: null,
-    },
-    helpers: {
-      selected: state.helpers,
-      freeText: state.s6extra || null,
-    },
-    avoid: {
-      selected: state.avoid,
-      freeText: state.s7extra || null,
-    },
-    product: {
-      length:            state.length,
-      illustrationStyle: normalizeClientStyleId(state.style),
-      audioEnabled:      state.audioEnabled,
-      selectedVoice:     state.audioEnabled ? (state.voice || null) : null,
-      sleepMode:         state.sleepMode,
-      pdfEnabled:        state.pdfEnabled,
-      bundleEnabled:     state.bundleEnabled,
-    },
-    contact: {
-      name:  state.contactName,
-      email: state.contactEmail,
-    },
-  };
-}
-
-/** Puts the pay button into loading / ready state. */
-function setPayBtnState(loading) {
-  const btn = document.getElementById('btn-pay');
-  if (!btn) return;
-  btn.disabled = loading;
-  btn.setAttribute('aria-busy', loading ? 'true' : 'false');
-  btn.classList.toggle('is-submitting', loading);
-  if (!loading) {
-    btn.classList.remove('is-pressed');
-  }
-
-  if (loading) {
-    btn.textContent = '';
-    const dots = document.createElement('span');
-    dots.className = 'submit-dots';
-    dots.setAttribute('aria-hidden', 'true');
-    for (let i = 0; i < 3; i += 1) {
-      const dot = document.createElement('span');
-      dot.className = 'submit-dot';
-      dots.appendChild(dot);
-    }
-    btn.appendChild(dots);
-    return;
-  }
-
-  btn.textContent = WIZ.steps.s9.submitBtn;
-}
-
-/** Inserts (or updates) a small error line below the pay button. */
-function showSubmitError(message) {
-  let el = document.getElementById('submit-error');
-  if (!el) {
-    el = document.createElement('p');
-    el.id         = 'submit-error';
-    el.style.cssText =
-      'color:#e55;font-size:.875rem;margin-top:.75rem;text-align:center;line-height:1.4';
-    const btn = document.getElementById('btn-pay');
-    if (btn && btn.parentNode) btn.parentNode.insertBefore(el, btn.nextSibling);
-  }
-  el.textContent = message;
-  el.hidden      = false;
-}
-
-function hideSubmitError() {
-  const el = document.getElementById('submit-error');
-  if (el) el.hidden = true;
-}
-
-function showPhotoError(message) {
-  let el = document.getElementById('photo-error');
-  if (!el) {
-    el = document.createElement('p');
-    el.id = 'photo-error';
-    el.style.cssText = 'color:#e55;font-size:.85rem;margin-top:.6rem;text-align:center;line-height:1.4';
-    const area = document.getElementById('photo-area');
-    if (area && area.parentNode) area.parentNode.insertBefore(el, area.nextSibling);
-  }
-  el.textContent = message;
-  el.hidden = false;
-}
-
-function hidePhotoError() {
-  const el = document.getElementById('photo-error');
-  if (el) el.hidden = true;
-}
-
-async function handleSubmit() {
-  if (isSubmittingOrder) return;
-  isSubmittingOrder = true;
-  hideSubmitError();
-  const payBtn = document.getElementById('btn-pay');
-  if (payBtn) {
-    payBtn.classList.add('is-pressed');
-  }
-  setPayBtnState(true);
-  track('checkout_started', { topic: state.topic, length: state.length });
-
-  try {
-    const payload = {
-      wizardData: buildWizardPayload(),
-      sessionId: getOrCreateWizardSessionId(),
-    };
-    // ── Step 1: create the order ──────────────────────────────────
-    let orderResponse = null;
-    if (clientApi && typeof clientApi.requestJson === 'function') {
-      orderResponse = await clientApi.requestJson('/api/orders', {
-        fetch: {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        },
-        timeoutMs: ORDER_SUBMIT_TIMEOUT_MS,
-        fallbackMessage: 'יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏',
-        timeoutMessage: 'יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏',
-        networkMessage: 'יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏',
-        invalidJsonMessage: 'התקבלה תגובה לא תקינה מהשרת.',
-      });
-    } else {
-      const orderRes = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const fallbackData = await orderRes.json().catch(() => ({}));
-      orderResponse = orderRes.ok
-        ? { ok: true, data: fallbackData, message: null, reason: null, status: orderRes.status }
-        : {
-            ok: false,
-            data: fallbackData,
-            message: fallbackData.error || 'יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏',
-            reason: 'http_error',
-            status: orderRes.status,
-          };
-    }
-
-    if (!orderResponse.ok) {
-      const userMessage = 'יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏';
-      reportClientIssue('submit_failed', {
-        reason: orderResponse.reason || 'request_failed',
-        status: orderResponse.status || 0,
-      });
-      throw new Error(userMessage);
-    }
-
-    const { orderId } = orderResponse.data || {};
-    if (!orderId || typeof orderId !== 'string') {
-      reportClientIssue('submit_failed', { reason: 'missing_order_id_in_response' });
-      throw new Error('יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏');
-    }
-
-    clearWizardSessionId();
-    // Story directions load after order creation.
-    window.location.href = ROUTES.directions + '?orderId=' + encodeURIComponent(orderId);
-
-  } catch (err) {
-    console.error('[Wizard] Submit failed:', err);
-    setPayBtnState(false);
-    showSubmitError(
-      err.message && err.message.length > 0
-        ? err.message
-        : 'יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏',
-    );
-  } finally {
-    isSubmittingOrder = false;
-  }
-}
-
-/* ── SHAKE ANIMATION ─────────────────────────────────────────── */
-const shakeStyle = document.createElement("style");
-shakeStyle.textContent = `
-  @keyframes shake {
-    0%,100% { transform: translateX(0); }
-    20%     { transform: translateX(-6px); }
-    40%     { transform: translateX(6px); }
-    60%     { transform: translateX(-4px); }
-    80%     { transform: translateX(4px); }
-  }
-`;
-document.head.appendChild(shakeStyle);
-
-/* ── BOOT ────────────────────────────────────────────────────── */
-document.addEventListener("DOMContentLoaded", init);
+                name
