@@ -1269,3 +1269,103 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
       style: order.illustrationStyle,
       generation_time: Math.max(1, Math.round((Date.now() - generationStartedAtMs) / 1000)),
     });
+
+    generationLogger.info('Generation completed', { orderId });
+
+    try {
+      const finishedBook = await prisma.generatedBook.findUnique({
+        where: { id: book.id },
+        include: { audioAsset: true },
+      });
+      await sendBookReadyEmail({
+        to:           order.customerEmail,
+        customerName: order.customerName ?? order.childName,
+        childName:    order.childName,
+        readUrl,
+        audioUrl:     finishedBook?.audioAsset?.url ?? undefined,
+        pdfUrl:       finishedBook?.pdfUrl            ?? undefined,
+      });
+      generationLogger.info('Ready email sent', { orderId, customerEmail: order.customerEmail });
+    } catch (emailErr) {
+      generationLogger.error('Ready email failed (non-fatal)', emailErr, { orderId });
+    }
+
+  } catch (error) {
+    generationLogger.error('Generation failed', error, { orderId });
+
+    await prisma.order.update({
+      where: { id: orderId },
+      data: { status: 'failed', lastError: String(error), errorAt: new Date() },
+    });
+
+    await prisma.generationJob.update({
+      where: { orderId },
+      data: { status: 'failed', failedAt: new Date(), lastError: String(error) },
+    }).catch(() => {});
+
+    throw error;
+  } finally {
+    if (acquiredLocalLock) activeOrderLocks.delete(orderId);
+  }
+}
+
+// ─── API Route Handler (manual trigger / webhook fallback) ───
+export async function POST(req: Request) {
+  try {
+    const { orderId, secret, reason } = await req.json();
+    const expectedSecret = process.env.GENERATION_SECRET;
+    if (!expectedSecret) {
+      generateApiLogger.error('GENERATION_SECRET missing; refusing trigger');
+      return Response.json({ error: 'Generation trigger is disabled (server misconfigured)' }, { status: 503 });
+    }
+    if (typeof secret !== 'string' || secret !== expectedSecret) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (!orderId) {
+      return Response.json({ error: 'orderId required' }, { status: 400 });
+    }
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, status: true },
+    });
+    if (!order) {
+      return Response.json({ error: 'Order not found' }, { status: 404 });
+    }
+    if (order.status === 'ready' || order.status === 'partial') {
+      return Response.json({ error: 'Generation already completed for this order' }, { status: 409 });
+    }
+    if (order.status === 'generating') {
+      return Response.json({ error: 'Generation is already in progress' }, { status: 409 });
+    }
+    if (!RETRYABLE_STATUS_VALUES.includes(order.status)) {
+      return Response.json({ error: 'Order is not eligible for generation' }, { status: 409 });
+    }
+    const activeJob = await prisma.generationJob.findUnique({
+      where: { orderId },
+      select: { status: true },
+    });
+    if (activeJob?.status === 'running') {
+      return Response.json({ error: 'Generation is already in progress' }, { status: 409 });
+    }
+
+    const triggerReason = typeof reason === 'string' && reason.trim().length > 0 ? reason.trim() : 'manual_api';
+    generateApiLogger.info('Manual trigger accepted', { orderId, reason: triggerReason });
+    triggerGeneration(orderId, triggerReason).catch((err) => {
+      generateApiLogger.error('Async trigger failed after acceptance', err, { orderId });
+    });
+
+    return Response.json({ started: true, orderId });
+
+  } catch (error) {
+
+    return Response.json(
+      {
+        error: 'Internal error',
+        details: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 }
+    );
+  }
+}

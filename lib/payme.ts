@@ -316,4 +316,29 @@ export async function verifyPaymePayment(params: {
 
     const raw = await res.json().catch(() => null);
     if (!res.ok || raw === null || typeof raw !== 'object') {
-      return { verified: false, status: 'unknown', raw: null }
+      return { verified: false, status: 'unknown', raw: null };
+    }
+
+    const root = (raw && typeof raw === 'object') ? (raw as Record<string, unknown>) : {};
+    const items = Array.isArray(root.items) ? root.items : [];
+    const sale = (items.length > 0 && typeof items[0] === 'object') ? (items[0] as Record<string, unknown>) : root;
+    const rawStatus = (
+      typeof sale.sale_status === 'string' ? sale.sale_status :
+      typeof sale.status === 'string' ? sale.status : ''
+    ).toLowerCase();
+
+    if (['completed', 'approved', 'success', 'paid'].includes(rawStatus)) {
+      return { verified: true, status: 'paid', raw };
+    }
+    if (['failed', 'declined', 'canceled', 'cancelled', 'error', 'rejected'].includes(rawStatus)) {
+      return { verified: true, status: 'failed', raw };
+    }
+    if (['pending', 'processing', 'in_progress', 'created', 'authorized'].includes(rawStatus)) {
+      return { verified: true, status: 'pending', raw };
+    }
+    return { verified: false, status: 'unknown', raw };
+  } catch (err) {
+    console.error('[PayMe] verifyPaymePayment error:', err);
+    return { verified: false, status: 'unknown', raw: null };
+  }
+}
