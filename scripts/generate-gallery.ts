@@ -31,25 +31,29 @@ const doStyle02 = !onlyStyle01;
 /**
  * Each scene is a standalone children's book moment — diverse kids,
  * diverse settings, emotionally warm.
+ *
+ * IMPORTANT: These prompts use TIGHT PORTRAIT FRAMING matching our
+ * production framingDirective. Character fills 60-70% of image.
+ * Backgrounds dissolve into soft watercolor washes.
  */
 const SCENES = [
   {
-    scene: 'A 5-year-old boy with short brown hair and olive skin sits on his bed at night, hugging a soft teddy bear close to his chest. A warm nightlight casts golden light across cozy blankets. He looks content and safe — NOT sad.',
+    scene: 'Close-up portrait of a 5-year-old boy with short brown hair and olive skin, hugging a soft teddy bear to his chest. His eyes are half-closed, content and safe. Warm golden nightlight glow on his face. Background dissolves into soft cream and amber watercolor washes. Character fills 65% of the frame.',
   },
   {
-    scene: 'A 4-year-old girl with curly dark hair and brown skin stands in a magical forest clearing. Golden butterflies float around her. Dappled sunlight through tall trees. She has a wide-eyed expression of wonder and delight.',
+    scene: 'Close-up portrait of a 4-year-old girl with curly dark hair and brown skin, face lit by golden light from below, looking up with wide-eyed wonder and a delighted smile. A single golden butterfly rests on her outstretched finger. Background dissolves into soft green and gold watercolor washes with hints of forest. Character fills 60% of the frame.',
   },
   {
-    scene: 'A 5-year-old boy with red hair and freckles peeks out from inside a colorful blanket fort made of pillows and sheets. Small fairy lights glow inside. He has a playful mischievous grin — full of imagination and adventure.',
+    scene: 'Close-up portrait of a 5-year-old boy with red hair and freckles, peeking out from a blanket fort. Small fairy lights create warm bokeh dots around him. His face shows a playful mischievous grin. Background dissolves into soft purple and blue watercolor washes. Character fills 65% of the frame.',
   },
   {
-    scene: 'Two children — a boy and a girl, both around 6 years old — walk hand in hand through a field of bright sunflowers taller than them. Blue sky with soft clouds. Seen from behind. A moment of friendship and courage.',
+    scene: 'Close-up portrait of a 6-year-old girl with black braids and dark skin, kneeling in a garden, gently cupping a small ladybug in her hands. She looks down at it with tender curiosity. Warm afternoon light on her face. Background dissolves into soft green and golden watercolor washes. Character fills 60% of the frame.',
   },
   {
-    scene: 'A 5-year-old girl with straight black hair and light skin sits by a rainy window. A ginger cat is curled on her lap. Warm indoor golden light, raindrops on glass. She looks peaceful and calm — cozy contemplative mood.',
+    scene: 'Close-up portrait of a 5-year-old girl with straight black hair and light skin, a ginger cat nuzzled against her cheek. Raindrops on a window behind create soft bokeh. She has a peaceful, calm expression. Background dissolves into soft blue-grey and warm amber watercolor washes. Character fills 65% of the frame.',
   },
   {
-    scene: 'A 6-year-old boy with dark curly hair wearing a homemade red cape stands on a hilltop at golden hour. Arms spread wide, wind in his hair. He looks brave and confident — dreamy sunset sky behind him.',
+    scene: 'Close-up portrait of a 6-year-old boy with dark curly hair wearing a homemade red cape, chin lifted, looking brave and confident. Golden hour light catches his hair and cape. Wind-swept. Background dissolves into warm sunset orange and pink watercolor washes. Character fills 60% of the frame.',
   },
 ];
 
@@ -82,11 +86,12 @@ async function generateScene(
   console.log(`  Scene: ${sceneText.slice(0, 80)}...`);
 
   const prompt = [
+    // Framing FIRST — models weight prompt start most heavily
+    'COMPOSITION & FRAMING: Medium-close portrait framing — the character fills 60-70% of the image area. Do NOT show the full room, full landscape, or wide establishing shot. Show the character and only the immediately relevant details. Background dissolves into soft abstract watercolor washes — NOT a fully rendered environment. Like a warm portrait with story context, not a landscape with a person in it.',
     sceneText,
-    'Wide shot, character in the scene with environment visible.',
-    'Top 25-30% must be a calmer, lighter area — soft cream or light wash — for text overlay.',
+    'Top 20-25% should be a calmer, lighter area — soft cream or warm light wash — suitable for text overlay.',
     `${styleDesc}. ${styleNudge}`,
-    'No text, no letters, no words, no UI elements.',
+    'No text, no letters, no words, no numbers, no UI elements. No sad expression, no crying, no tears.',
   ].join('\n\n');
 
   const result = await generateGPTImage({
@@ -96,35 +101,4 @@ async function generateScene(
     quality: 'medium', // medium to save cost — still good for gallery thumbnails
   });
 
-  const outPath = join(OUT_DIR, filename);
-  await writeFile(outPath, result.buffer);
-  console.log(`  ✓ ${filename} (${Math.round(result.buffer.length / 1024)} KB, ${result.durationMs}ms)`);
-}
-
-async function main() {
-  await mkdir(OUT_DIR, { recursive: true });
-
-  const totalImages = STYLES.length * SCENES.length;
-  console.log('═══ Gallery Generation — GPT Image ═══');
-  console.log(`Styles: ${STYLES.map(s => s.label).join(', ')}`);
-  console.log(`Scenes: ${SCENES.length} per style`);
-  console.log(`Total images: ${totalImages}\n`);
-
-  for (const style of STYLES) {
-    console.log(`\n────── ${style.label} ──────`);
-    for (const [i, scene] of SCENES.entries()) {
-      try {
-        await generateScene(scene.scene, i, style, SCENES.length);
-      } catch (err) {
-        const filename = `gallery-${style.filePrefix}${i + 1}.jpg`;
-        console.error(`  ✗ Failed ${filename}: ${(err as Error).message}`);
-      }
-    }
-  }
-
-  console.log('\n═══ Done! Gallery images saved to public/Images/gallery/ ═══');
-  if (doStyle01) console.log('  Style 01: gallery-1.jpg ... gallery-6.jpg');
-  if (doStyle02) console.log('  Style 02: gallery-r-1.jpg ... gallery-r-6.jpg');
-}
-
-main().catch(console.error);
+  const outPath = join(OU
