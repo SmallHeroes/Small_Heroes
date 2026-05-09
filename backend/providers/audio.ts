@@ -79,7 +79,8 @@ async function callElevenLabs(
       },
       body: JSON.stringify({
         text,
-        model_id: 'eleven_multilingual_v2', // Supports Hebrew
+        model_id: 'eleven_v3',
+        language_code: 'he',
         voice_settings: {
           stability: settings.stability,
           similarity_boost: settings.similarity_boost,
