@@ -20,7 +20,7 @@ solutionType: TRADE
 imageDirection: Small closed wooden gate at end of a quiet path, soft glowing light beyond
 
 --- Page 2 ---
-{{childName}} ניגשה ודחפה את השער בידיים, אצבעותיה מתאמצות. שמעה חריקה חלשה והריחה אבק ישן. דחפה חזק ועוד יותר חזק, גופה נמתח. {{companionName}} לחש אל תוותרי, וברוח קלה עלו עלים סביבם, אך השער לא זז כלל.
+{{childName}} נִיגְּשָׁה וְדָחֲפָה אֶת הַשַּׁעַר בְּיָדַיִם, אֶצְבְּעוֹתֶיהָ מִתְאַמְּצוֹת. שָׁמְעָה חֲרִיקָה חַלָּשָׁה וְהֵרִיחָה אָבָק יָשָׁן. דָּחֲפָה חָזָק וְעוֹד יוֹתֵר חָזָק, גּוּפָהּ נִמְתַּח. {{companionName}} לָחַשׁ אֵל תְּוַתְּרִי, וּבְרוּחַ קַלָּה עָלוּ עָלִים סְבִיבָם, אֲבָל הַשַּׁעַר לֹא זָז כְּלָל.
 
 imageDirection: Child pushing gate with effort, gate not moving at all
 
@@ -30,7 +30,7 @@ imageDirection: Child pushing gate with effort, gate not moving at all
 imageDirection: Companion slipping playfully, both trying to push together
 
 --- Page 4 ---
-{{childName}} סובבה ידית קטנה, אצבעותיה קרירות ורועדות מעט. הידית זזה בקלות, חריקה שקטה נשמעה, אבל השער נשאר סגור וכבד. ריח מתכתי קל עלה באוויר. {{companionName}} הביט סביב ולחש בדאגה. "משהו מוזר פה," היא אמרה בשקט.
+{{childName}} סוֹבְבָה יָדִית קְטַנָּה, אֶצְבְּעוֹתֶיהָ קְרִירוֹת וְרוֹעֲדוֹת מְעַט. הַיָּדִית זָזָה בְּקַלּוּת, חֲרִיקָה שְׁקֵטָה נִשְׁמְעָה, אֲבָל הַשַּׁעַר נִשְׁאַר סָגוּר וְכָבֵד. רֵיחַ מִתַּכְתִּי קַל עָלָה בָּאֲוִיר. {{companionName}} הִבִּיט סְבִיב וְלָחַשׁ בְּדְאָגָה. "מַשֶּׁהוּ מוּזָר פֹּה," הִיא אָמְרָה בְּשֶׁקֶט.
 
 imageDirection: Close-up of handle turning but gate staying shut
 
@@ -50,12 +50,12 @@ imageDirection: Both staring at slightly open gate, curious expressions
 imageDirection: Child placing a stone, no change; then touching bracelet thoughtfully
 
 --- Page 8 ---
-היא הורידה את הצמיד בידיים רועדות והניחה ליד השער הקר והחורק. משב רוח קל ליטף את פניה והיא שמעה חריקה עמוקה. לאט השער נפתח יותר. {{companionName}} דחף בעדינות ואמר בשקט. הפתח הלך וגדל והאור השתנה.
+הִיא הוֹרִידָה אֶת הַצָּמִיד בְּיָדַיִם רוֹעֲדוֹת וְהִנִּיחָה לְיַד הַשַּׁעַר הַקָּר וְהַחוֹרֵק. מַשַּׁב רוּחַ קַל לִיטֵּף אֶת פָּנֶיהָ וְהִיא שָׁמְעָה חֲרִיקָה עֲמוּקָה. לְאַט הַשַּׁעַר נִפְתַּח יוֹתֵר. {{companionName}} דָּחַף בְּעֲדִינוּת וְאָמַר בְּשֶׁקֶט. הַפֶּתַח הָלַךְ וְגָדַל וְהָאוֹר הִשְׁתַּנָּה.
 
 imageDirection: Bracelet on ground glowing slightly, gate opening wider as they push
 
 --- Page 9 ---
-האור החם נכנס פנימה ונשא ריח מתוק של אבק ושמש. {{childName}} צעדה דרך השער, לבה פועם והיא מרגישה את הרוח מלטפת את פניה. {{companionName}} לוחש בעדינות ומביט לאחור. מאחור, הצמיד נשאר על האדמה, שקט וקטן.
+הָאוֹר הֶחָם נִכְנַס פְּנִימָה וְנָשָׂא רֵיחַ מָתוֹק שֶׁל אָבָק וָשֶׁמֶשׁ. {{childName}} צָעֲדָה דֶּרֶךְ הַשַּׁעַר, לִבָּהּ פּוֹעֵם וְהִיא מַרְגִּישָׁה אֶת הָרוּחַ מְלַטֶּפֶת אֶת פָּנֶיהָ. {{companionName}} לוֹחֵשׁ בְּעֲדִינוּת וּמַבִּיט לְאָחוֹר. מֵאָחוֹר, הַצָּמִיד נִשְׁאַר עַל הָאֲדָמָה, שָׁקֵט וּקְטַן.
 
 imageDirection: Child stepping into warm light, bracelet left behind
 

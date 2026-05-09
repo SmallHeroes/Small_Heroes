@@ -16,52 +16,52 @@ solutionType: FORCE
 coverScene: A small tree standing in a flooded garden with water around its base, a cloth cord tied to its low branch, a girl watching the tree from a few steps away, her small frog companion beside her, gentle rain falling, the tree is the visual center — large, calm, emotional anchor
 
 --- Page 1 ---
-בבוקר {{childName}} פתחה את הדלת לגינה. גשם ירד חזק, ושלולית גדולה קפצה קדימה. בקצה עמדה העץ הקטן שלה, עם חבל קשור לענף.
+בַּבֹּקֶר {{childName}} פָּתְחָה אֶת הַדֶּלֶת לַגִּנָּה. גֶּשֶׁם יָרַד חָזָק, וּשְׁלוּלִית גְּדוֹלָה קָפְצָה קָדִימָה. בִּקְצֵה עָמְדָה הָעֵץ הַקָּטָן שֶׁלָּהּ, עִם חֶבֶל קָשׁוּר לַעֲנָף.
 
 imageDirection: Child opening door to a flooded garden, big puddle splashing forward, small tree with a knotted cloth cord on a branch in the distance
 
 --- Page 2 ---
-עוד טיפה ועוד טיפה, ואז הרבה. עציץ קטן צף ולחש, אני הולך. הנדנדה זזה לבד. החבל נרטב וכבד, אבל עדיין מחזיק.
+עוֹד טִפָּה וְעוֹד טִפָּה, וְאָז הַרְבֵּה. עֲצִיץ קָטָן צָף וְלָחַשׁ, אֲנִי הוֹלֵךְ. הַנַּדְנֵדָה זָזָה לְבַד. הַחֶבֶל נִרְטַב וְכָבֵד, אֲבָל עֲדַיִן מַחֲזִיק.
 
 imageDirection: Floating flowerpot drifting and “whispering,” empty swing moving, wet cord on tree branch getting heavy
 
 --- Page 3 ---
-"ייו! עוד מים!" {{companionName}} קפצה בשלולית וצחקה. "הכי כיף!" {{childName}} הביטה בעץ שלה. המים כבר הגיעו לגרביים שלה, והיא שתקה קצת.
+"יֵי! עוֹד מַיִם!" {{companionName}} קָפְצָה בַּשְּׁלוּלִית וְצָחֲקָה. "הֲכִי כֵּיף!" {{childName}} הִבִּיטָה בָּעֵץ שֶׁלָּהּ. הַמַּיִם כְּבָר הִגִּיעוּ לַגַּרְבַּיִם שֶׁלָּהּ, וְהִיא שָׁתְקָה קְצָת.
 
 imageDirection: Frog jumping happily in puddle, child looking toward tree with water at her socks
 
 --- Page 4 ---
-"כל הדברים זזים," אמרה {{childName}}. דלי וכדור נסחפו. אפילו אבן זזה קצת. {{companionName}} צחקה, "הכל שוחה!" החבל על הענף התנדנד וקרא לה.
+"כָּל הַדְּבָרִים זָזִים," אָמְרָה {{childName}}. דְּלִי וְכַדּוּר נִסְחֲפוּ. אֲפִילוּ אֶבֶן זָזָה קְצָת. {{companionName}} צָחֲקָה, "הַכֹּל שׂוֹחֶה!" הַחֶבֶל עַל הָעֲנָף הִתְנַדְנֵד וְקָרָא לָהּ.
 
 imageDirection: Bucket and ball floating, small stone shifting, cord on tree swaying as if calling
 
 --- Page 5 ---
-הן נכנסו למים העמוקים. קופסת צעצועים נפתחה, ודברים יצאו וצפו כמו בלונים עצובים ולוחשים. {{companionName}} ניסתה לתפוס, אבל קפצה שוב.
+הֵן נִכְנְסוּ לַמַּיִם הָעֲמֻקִּים. קֻפְסַת צַעֲצוּעִים נִפְתְּחָה, וּדְבָרִים יָצְאוּ וְצָפוּ כְּמוֹ בַּלּוֹנִים עֲצוּבִים וְלוֹחֲשִׁים. {{companionName}} נִסְּתָה לִתְפֹּס, אֲבָל קָפְצָה שׁוּב.
 
 imageDirection: Open toy box with toys floating like sad whispering balloons, frog distracted mid-jump
 
 --- Page 6 ---
-{{childName}} אספה מהר כדור, כף, וספל ישן. היא חיבקה חזק. פתאום שמה לב: מה שמחזיקים נשאר, ומה שלא מחזיקים נסחף רחוק.
+{{childName}} אָסְפָה מַהֵר כַּדּוּר, כַּף, וְסֵפֶל יָשָׁן. הִיא חִבְּקָה חָזָק. פִּתְאֹם שָׂמָה לֵב: מַה שֶּׁמַּחֲזִיקִים נִשְׁאָר, וּמַה שֶּׁלֹּא מַחֲזִיקִים נִסְחָף רָחוֹק.
 
 imageDirection: Child clutching several objects tightly, others drifting away in water behind her
 
 --- Page 7 ---
-"אני אציל הכל!" קראה {{childName}}. היא רצה במים, מחליקה וקמה, אוספת עוד ועוד. הידיים התמלאו עד למעלה. הגשם לא הפסיק לרדת בכלל. הדברים רעדו וברחו מסביב. והמים קרים מאוד.
+"אֲנִי אַצִּיל הַכֹּל!" קָרְאָה {{childName}}. הִיא רָצָה בַּמַּיִם, מַחֲלִיקָה וְקָמָה, אוֹסֶפֶת עוֹד וְעוֹד. הַיָּדַיִם תִּמָּלְאוּ עַד לְמַעְלָה. הַגֶּשֶׁם לֹא הִפְסִיק לָרֶדֶת בִּכְלָל. הַדְּבָרִים רָעֲדוּ וּבָרְחוּ מִסָּבִיב. וְהַמַּיִם קָרִים מְאֹד.
 
 imageDirection: Child running and slipping while overloaded with objects, rain pouring, items shaking loose around her
 
 --- Page 8 ---
-ואז הכל נפל. הכדור, הספל, וגם האבן הקטנה. {{childName}} ראתה את החבל על הענף. היא רצתה לתפוס, אבל הידיים היו מלאות מדי, והכל החליק למים. העץ נטה לצד.
+וְאָז הַכֹּל נָפַל. הַכַּדּוּר, הַסֵּפֶל, וְגַם הָאֶבֶן הַקְּטַנָּה. {{childName}} רָאֲתָה אֶת הַחֶבֶל עַל הָעֲנָף. הִיא רָצְתָה לִתְפֹּס, אֲבָל הַיָּדַיִם הָיוּ מְלֵאוֹת מִדַּי, וְהַכֹּל הֶחְלִיק לַמַּיִם. הָעֵץ נָטָה לְצַד.
 
 imageDirection: Objects slipping from child’s hands into water, tree tilting, cord just out of reach
 
 --- Page 9 ---
-היא עמדה רטובה וריקה. דברים חלפו ולחשו. בקצה הגינה העץ שלה כמעט נפל, שורשים בחוץ. {{childName}} הבינה: לא מצילים הכל, בוחרים דבר אחד.
+הִיא עָמְדָה רְטוּבָה וּרְקָה. דְּבָרִים חָלְפוּ וְלָחֲשׁוּ. בִּקְצֵה הַגִּנָּה הָעֵץ שֶׁלָּהּ כִּמְעַט נָפַל, שָׁרָשִׁים בַּחוּץ. {{childName}} הֵבִינָה: לֹא מַצִּילִים הַכֹּל, בּוֹחֲרִים דָּבָר אֶחָד.
 
 imageDirection: Child standing empty-handed as objects drift past, small tree with exposed roots nearly falling
 
 --- Page 10 ---
-היא שחררה הכל ורצה לעץ. תפסה את הגזע וחפרה בוץ קר עם הידיים, דחפה שורשים פנימה חזק. המים זרמו, אבל העץ נשאר. {{companionName}} לחשה, זה נשאר.
+הִיא שִׁחְרְרָה הַכֹּל וְרָצָה לָעֵץ. תָּפְסָה אֶת הַגֶּזַע וְחָפְרָה בֹּץ קַר עִם הַיָּדַיִם, דָּחֲפָה שָׁרָשִׁים פְּנִימָה חָזָק. הַמַּיִם זָרְמוּ, אֲבָל הָעֵץ נִשְׁאַר. {{companionName}} לָחֲשָׁה, זֶה נִשְׁאַר.
 
 imageDirection: Child gripping tree trunk and pushing roots into mud, water rushing סביב, frog beside her as tree stands firm
 

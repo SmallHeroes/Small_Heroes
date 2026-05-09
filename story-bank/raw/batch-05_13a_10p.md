@@ -16,52 +16,52 @@ solutionType: EXIT
 coverScene: A girl in pajamas standing in a cozy dim bedroom at night, reaching toward a wall that is partially dissolving into mist, a small old mouse sitting near her feet, warm bedroom lamp casting golden light, the room feels dreamlike and magical — the girl looks curious not scared
 
 --- Page 1 ---
-החדר של {{childName}} היה קטן אבל מלא דברים מוכרים. המיטה חרקה קצת, המגירה נתקעה, והשטיח חיכה לרגליים גם בחושך. הלילה הקיר נראה דק.
+הַחֶדֶר שֶׁל {{childName}} הָיָה קָטָן אֲבָל מָלֵא דְּבָרִים מֻכָּרִים. הַמִּטָּה חָרְקָה קְצָת, הַמְּגֵרָה נִתְקְעָה, וְהַשָּׁטִיחַ חִכָּה לָרַגְלַיִם גַּם בַּחֹשֶׁךְ. הַלַּיְלָה הַקִּיר נִרְאָה דַּק.
 
 imageDirection: INDOOR BEDROOM at night — cozy small room with bed, dresser, rug; child looking at slightly thinning wall, warm dim light
 
 --- Page 2 ---
-{{childName}} קמה מהמיטה והלכה לאט אל הקיר. היא נגעה בו, והאצבע כמעט עברה דרכו כמו ערפל. האור הבהב והחדר נשמע ריק יותר.
+{{childName}} קָמָה מֵהַמִּטָּה וְהָלְכָה לְאַט אֶל הַקִּיר. הִיא נָגְעָה בּוֹ, וְהָאֶצְבָּע כִּמְעַט עָבְרָה דַּרְכּוֹ כְּמוֹ עֲרָפֶל. הָאוֹר הִבְהֵב וְהַחֶדֶר נִשְׁמַע רֵיק יוֹתֵר.
 
 imageDirection: child touching semi-transparent wall, finger sinking slightly through it, lamp flickering softly
 
 --- Page 3 ---
-רשרוש קטן נשמע מתחת לשידה. יצא {{companionName}}, עכבר זקן עם שפם דק. הוא הביט סביב ואמר בשקט, כבר התחיל, דברים נעלמים מהחדר.
+רַשְׁרוּשׁ קָטָן נִשְׁמַע מִתַּחַת לַשִּׁידָה. יָצָא {{companionName}}, עַכְבָּר זָקֵן עִם שָׂפָם דַּק. הוּא הִבִּיט סָבִיב וְאָמַר בְּשֶׁקֶט, כְּבָר הִתְחִיל, דְּבָרִים נֶעֱלָמִים מֵהַחֶדֶר.
 
 imageDirection: small old mouse emerging from under dresser, child crouching לידו, both looking around
 
 --- Page 4 ---
-מה נעלם שאלה {{childName}}. העכבר הצביע לפינה ריקה. פעם היה כאן כיסא, הוא לחש. עכשיו יש רק מקום ריק שמרגיש כמו חור.
+מָה נֶעֱלָם שָׁאֲלָה {{childName}}. הָעַכְבָּר הִצְבִּיעַ לְפִנָּה רֵיקָה. פַּעַם הָיָה כָּאן כִּסֵּא, הוּא לָחַשׁ. עַכְשָׁו יֵשׁ רַק מָקוֹם רֵיק שֶׁמַּרְגִּישׁ כְּמוֹ חוֹר.
 
 imageDirection: empty spot on floor where chair should be, child and mouse staring at it
 
 --- Page 5 ---
-אל תיגעי בכלום אמר {{companionName}} מהר. אם לא נזיז דברים אולי הם יישארו. {{childName}} עמדה בשקט והקשיבה, השטיח הרגיש דק ונושם מתחת לרגליים.
+אַל תִּגְּעִי בְּכָלּוּם אָמַר {{companionName}} מַהֵר. אִם לֹא נָזִיז דְּבָרִים אוּלַי הֵם יִישָּׁאֲרוּ. {{childName}} עָמְדָה בְּשֶׁקֶט וְהִקְשִׁיבָה, הַשָּׁטִיחַ הִרְגִּישׁ דַּק וְנוֹשֵׁם מִתַּחַת לָרַגְלַיִם.
 
 imageDirection: mouse standing alert, child standing still on rug, room slightly fading
 
 --- Page 6 ---
-אבל היא נגעה בכרית הרכה, רק קצת. מיד פינת המיטה התפוררה לאבק שקט. {{childName}} קפאה, וכל דבר שנגעה בו נעלם מהר יותר.
+אֲבָל הִיא נָגְעָה בְּכָרִית הָרַכָּה, רַק קְצָת. מִיָּד פִּנַּת הַמִּטָּה הִתְפּוֹרְרָה לְאָבָק שָׁקֵט. {{childName}} קָפְאָה, וְכָל דָּבָר שֶׁנָּגְעָה בּוֹ נֶעֱלַם מַהֵר יוֹתֵר.
 
 imageDirection: bed corner dissolving into soft dust as child lifts pillow, surprised expression
 
 --- Page 7 ---
-אני אחזיר הכל אמרה {{childName}}. היא רצה מהר לשידה ודחפה את המגירה בשתי ידיים חזק מאוד. לרגע זה עבד, ואז המגירה נעלמה לגמרי והחדר התחיל להתכווץ לאט סביבה.
+אֲנִי אַחֲזִיר הַכֹּל אָמְרָה {{childName}}. הִיא רָצָה מַהֵר לַשִּׁידָה וְדָחֲפָה אֶת הַמְּגֵרָה בִּשְׁתֵּי יָדַיִם חָזָק מְאוֹד. לְרֶגַע זֶה עָבַד, וְאָז הַמְּגֵרָה נֶעֱלְמָה לְגַמְרֵי וְהַחֶדֶר הִתְחִיל לְהִתְכַּוֵּץ לְאַט סְבִיבָהּ.
 
 imageDirection: child pushing drawer forcefully as it disappears inward, walls subtly closing in
 
 --- Page 8 ---
-לא אמרה {{childName}} וניסתה לתפוס שוב את הידית שלא הייתה שם. הקירות התקרבו והרצפה זזה תחתיה. {{companionName}} לחש, כשמחזיקים חזק מדי הכל נעלם, צריך לבחור ללכת עכשיו מהר.
+לֹא אָמְרָה {{childName}} וְנִסְּתָה לִתְפֹּס שׁוּב אֶת הַיָּדִית שֶׁלֹּא הָיְתָה שָׁם. הַקִּירוֹת הִתְקָרְבוּ וְהָרִצְפָּה זָזָה תַּחְתֶּיהָ. {{companionName}} לָחַשׁ, כְּשֶׁמַּחֲזִיקִים חָזָק מִדַּי הַכֹּל נֶעֱלָם, צָרִיךְ לִבְחֹר לָלֶכֶת עַכְשָׁו מַהֵר.
 
 imageDirection: child reaching into empty space where handle was, room shrinking, mouse warning beside her
 
 --- Page 9 ---
-{{childName}} הסתכלה על הדלת המוארת ואז על החדר שכמעט נעלם. היא נשמה עמוק, תפסה את הידית בשתי ידיים ומשכה בכל הכוח עד שהדלת נפתחה.
+{{childName}} הִסְתַּכְּלָה עַל הַדֶּלֶת הַמּוּאָרֶת וְאָז עַל הַחֶדֶר שֶׁכִּמְעַט נֶעֱלַם. הִיא נָשְׁמָה עָמוֹק, תָּפְסָה אֶת הַיָּדִית בִּשְׁתֵּי יָדַיִם וּמָשְׁכָה בְּכָל הַכֹּחַ עַד שֶׁהַדֶּלֶת נִפְתְּחָה.
 
 imageDirection: child gripping door handle with both hands, pulling hard as bright light breaks through
 
 --- Page 10 ---
-היא יצאה החוצה עם {{companionName}}. האור היה חזק אבל הרצפה יציבה ושקטה. מאחור החדר נעלם. {{childName}} חייכה קטן, אולי נמצא מקום חדש לשמור בו זיכרונות.
+הִיא יָצְאָה הַחוּצָה עִם {{companionName}}. הָאוֹר הָיָה חָזָק אֲבָל הָרִצְפָּה יְצִיבָה וְשְׁקֵטָה. מֵאָחוֹר הַחֶדֶר נֶעֱלַם. {{childName}} חִיְּכָה קָטָן, אוּלַי נִמְצָא מָקוֹם חָדָשׁ לִשְׁמֹר בּוֹ זִכְרוֹנוֹת.
 
 imageDirection: child and mouse stepping into bright open space, calm ground, fading room behind them
 

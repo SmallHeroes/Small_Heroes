@@ -6,52 +6,52 @@ weirdMoment: האותיות מרחפות ומדגדגות את האוויר
 emotionalArc: בלבול → תסכול → סקרנות → ניסיון → כישלון → גילוי → פעולה → רכות חדשה
 
 --- Page 1 ---
-על המדף ליד המיטה של {{childName}} היה ספר קטן ירוק. בערב {{childName}} ו{{companionName}} פתחו אותו יחד, אבל היום הספר רעד קצת ולא שקט.
+עַל הַמַּדָּף לְיַד הַמִּטָּה שֶׁל {{childName}} הָיָה סֵפֶר קָטָן יָרוֹק. בָּעֶרֶב {{childName}} וְ{{companionName}} פָּתְחוּ אוֹתוֹ יַחַד, אֲבָל הַיּוֹם הַסֵּפֶר רָעַד קְצָת וְלֹא שָׁקַט.
 
 imageDirection: child and companion sitting on bed looking at a small green book that is slightly trembling on a shelf, warm cozy room
 
 --- Page 2 ---
-{{childName}} פתחה את הספר. פתאום— פף! אותיות קפצו החוצה, ריחפו באוויר ודגדגו את האף. הדפים נשארו כמעט ריקים ושקטים.
+{{childName}} פָּתְחָה אֶת הַסֵּפֶר. פִּתְאוֹם— פַף! אוֹתִיּוֹת קָפְצוּ הַחוּצָה, רִיחֲפוּ בָּאֲוִויר וְדִגְדְּגוּ אֶת הָאַף. הַדַּפִּים נִשְׁאֲרוּ כִּמְעַט רֵיקִים וּשְׁקֵטִים.
 
 imageDirection: letters bursting out of the book and floating around the child and companion, some near the child’s nose, playful glowing letters
 
 --- Page 3 ---
-"מה קורה?" שאלה {{childName}}. אות קטנה אמרה בשקט, "אנחנו לא רוצות לשבת." {{companionName}} הביט למעלה, והאותיות הסתובבו כמו כדורים קטנים וצוחקים.
+"מַה קּוֹרֶה?" שָׁאֲלָה {{childName}}. אוֹת קְטַנָּה אָמְרָה בִּשְׁקֵט, "אֲנַחְנוּ לֹא רוֹצוֹת לָשֶׁבֶת." {{companionName}} הִבִּיט לְמַעְלָה, וְהָאוֹתִיּוֹת הִסְתּוֹבְבוּ כְּמוֹ כַּדּוּרִים קְטַנִּים וְצוֹחֲקִים.
 
 imageDirection: a tiny letter speaking while other letters spin in the air, companion looking up curiously
 
 --- Page 4 ---
-"אבל בלי אותיות אין סיפור," אמרה {{childName}}. האות ענתה, "הדף שטוח ומשעמם לנו." {{companionName}} ניסה לתפוס אות— והיא ברחה וצחקה.
+"אֲבָל בְּלִי אוֹתִיּוֹת אֵין סִפּוּר," אָמְרָה {{childName}}. הָאוֹת עָנְתָה, "הַדַּף שָׁטוּחַ וּמְשַׁעֲמֵם לָנוּ." {{companionName}} נִסָּה לִתְפּוֹס אוֹת— וְהִיא בָּרְחָה וְצָחֲקָה.
 
 imageDirection: companion trying to catch a letter, letters dodging playfully, child watching worried
 
 --- Page 5 ---
-{{childName}} ניסתה לסדר אותיות על הדף. אחת, ועוד אחת. לרגע זה עבד— ואז פופ! כולן קפצו וחזרו לרחף באוויר.
+{{childName}} נִסְּתָה לְסַדֵּר אוֹתִיּוֹת עַל הַדַּף. אַחַת, וְעוֹד אַחַת. לְרֶגַע זֶה עָבַד— וְאָז פּוֹפּ! כֻּלָּן קָפְצוּ וְחָזְרוּ לְרַחֵף בָּאֲוִויר.
 
 imageDirection: child placing letters on page and them popping back into the air, surprised expressions
 
 --- Page 6 ---
-{{childName}} הסתכלה טוב. האותיות זזו כל הזמן, מתנדנדות לאט. {{companionName}} לחש, "אולי הן רוצות לזוז?" {{childName}} חשבה והביטה שוב בספר.
+{{childName}} הִסְתַּכְּלָה טוֹב. הָאוֹתִיּוֹת זָזוּ כָּל הַזְּמַן, מִתְנַדְנְדוֹת לְאַט. {{companionName}} לָחַשׁ, "אוּלַי הֵן רוֹצוֹת לָזוּז?" {{childName}} חָשְׁבָה וְהִבִּיטָה שׁוּב בַּסֵּפֶר.
 
 imageDirection: child observing floating letters carefully, companion whispering beside her, soft calm lighting
 
 --- Page 7 ---
-פתאום רוח נכנסה מהחלון והאותיות כמעט עפו החוצה. "לא!" קראה אות קטנה. {{childName}} קפצה, תפסה את הספר, והתחילה להזיז אותו מהר קדימה ואחורה.
+פִּתְאוֹם רוּחַ נִכְנְסָה מֵהַחַלּוֹן וְהָאוֹתִיּוֹת כִּמְעַט עָפוּ הַחוּצָה. "לֹא!" קָרְאָה אוֹת קְטַנָּה. {{childName}} קָפְצָה, תָּפְסָה אֶת הַסֵּפֶר, וְהִתְחִילָה לְהָזִיז אוֹתוֹ מַהֵר קָדִימָה וְאָחוֹרָה.
 
 imageDirection: wind blowing letters toward the window, child quickly grabbing the book and moving it, sense of motion and urgency
 
 --- Page 8 ---
-הספר זז, זז, זז. האותיות הסתחררו ונמשכו פנימה. אחת נחתה, ואז עוד אחת. {{childName}} המשיכה לזוז למרות הידיים העייפות. {{companionName}} קרא, "עוד רגע!"
+הַסֵּפֶר זָז, זָז, זָז. הָאוֹתִיּוֹת הִסְתַּחְרְרוּ וְנִמְשְׁכוּ פְּנִימָה. אַחַת נָחֲתָה, וְאָז עוֹד אַחַת. {{childName}} הִמְשִׁיכָה לָזוּז לַמְרוֹת הַיָּדַיִם הָעֲיֵפוֹת. {{companionName}} קָרָא, "עוֹד רֶגַע!"
 
 imageDirection: letters being pulled onto moving pages, child concentrating, companion encouraging, dynamic motion blur
 
 --- Page 9 ---
-{{childName}} האטה קצת, אבל לא עצרה. היא נענעה בעדינות. האותיות הסתדרו בשורות יפות. פתאום— יש מילים! ויש סיפור שוב.
+{{childName}} הֵאטָה קְצָת, אֲבָל לֹא עָצְרָה. הִיא נִעֲנְעָה בְּעַדִּינוּת. הָאוֹתִיּוֹת הִסְתַּדְּרוּ בִּשְׁרוּרוֹת יָפוֹת. פִּתְאוֹם— יֵשׁ מִלִּים! וְיֵשׁ סִפּוּר שׁוּב.
 
 imageDirection: letters settling neatly into lines on gently moving pages, warm magical glow
 
 --- Page 10 ---
-{{childName}} קראה תוך כדי תנועה קטנה. הספר זז איתה ברכות. "זה נעים," לחשה אות. {{companionName}} חייך. עכשיו יש סיפור— שלא יושב בשקט.
+{{childName}} קָרְאָה תּוֹךְ כְּדֵי תְּנוּעָה קְטַנָּה. הַסֵּפֶר זָז אִתָּהּ בְּרַכּוּת. "זֶה נָעִים," לָחֲשָׁה אוֹת. {{companionName}} חִיֵּךְ. עַכְשָׁו יֵשׁ סִפּוּר— שֶׁלֹּא יוֹשֵׁב בִּשֶּׁקֶט.
 
 imageDirection: child reading while gently swaying, companion beside her smiling, calm cozy room with harmonious motion
 

@@ -16,12 +16,12 @@ weirdMoment: העלים “נתקעים” בין הקוצים ונשמעים כ
 emotionalArc: דקירה וריחוק → ניסיון וכישלון → בחירה כואבת → חזרה עם רכות חדשה
 
 --- Page 1 ---
-בבוקר, {{childName}} הלכה בשביל עם אבן בכיס, צעדיה חרקו ברכות על העלים. היער היה שקט מדי, ורוח קרירה ליטפה את פניה. היא הרגישה שמשהו לא במקום, וליבה דפק מהר. {{companionName}} נעצרה, הביטה ולחשה "את שומעת?"
+בַּבֹּקֶר, {{childName}} הָלְכָה בַּשְּׁבִיל עִם אֶבֶן בַּכִּיס, צְעָדֶיהָ חָרְקוּ בְּרַכּוּת עַל הֶעָלִים. הַיַּעַר הָיָה שָׁקֵט מִדַּי, וְרוּחַ קְרִירָה לִטְּפָה אֶת פָּנֶיהָ. הִיא הִרְגִּישָׁה שֶׁמַּשֶּׁהוּ לֹא בַּמָּקוֹם, וְלִבָּהּ דָּפַק מַהֵר. {{companionName}} נַעֲצָרָה, הִבִּיטָה וְלָחֲשָׁה "אַתְּ שׁוֹמַעַת?"
 
 imageDirection: Child walking on a forest path, hand in pocket holding a small stone, noticing unusual quiet, soft morning light
 
 --- Page 2 ---
-כל החיות עמדו בצד, נשימותיהן חרישיות וריח אדמה באוויר. אף אחת לא התקרבה, והדממה לחצה. ובשביל— קיפוד הלך לאט, לבד, צעדיו מרשרשים, אל מקום קר ושקט כשעלה נושר.
+כָּל הַחַיּוֹת עָמְדוּ בַּצַּד, נְשִׁימוֹתֵיהֶן חֲרִישִׁיּוֹת וְרֵיחַ אֲדָמָה בָּאֲוִיר. אַף אַחַת לֹא הִתְקָרְבָה, וְהַדְּמָמָה לָחֲצָה. וּבַשְּׁבִיל— קִפּוֹד הָלַךְ לְאַט, לְבַד, צְעָדָיו מְרַשְׁרְשִׁים, אֶל מָקוֹם קַר וְשָׁקֵט כְּשֶׁעָלֶה נוֹשֵׁר.
 
 imageDirection: Animals gathered nervously to the side while a hedgehog walks alone away, cool shaded forest
 
@@ -34,10 +34,10 @@ imageDirection: Animals gathered nervously to the side while a hedgehog walks al
 imageDirection: Mouse jumping excitedly next to child, pointing toward deeper forest, playful energy
 
 --- Page 4 ---
-הן התקרבו לאט, הרוח לוחשת בין העשבים.  
-{{companionName}} פתחה ידיים בחיוך רחב— "חיבוק!" ולבה פועם מהר.  
-"איי!" היא קפצה אחורה, ידיה נסוגות ועקצוץ צורב באצבעותיה.  
-הקיפוד המשיך ללכת בשקט, הקוצים רועדים קצת והעלים סביבו מרשרשים.
+הֵן הִתְקָרְבוּ לְאַט, הָרוּחַ לוֹחֶשֶׁת בֵּין הָעֲשָׂבִים.  
+{{companionName}} פָּתְחָה יָדַיִם בְּחִיּוּךְ רָחָב— "חִיבּוּק!" וּלְבָהּ פּוֹעֵם מַהֵר.  
+"אַי!" הִיא קָפְצָה אָחוֹרָה, יָדֶיהָ נָסוֹגוֹת וַעֲקָצוּץ צוֹרֵב בְּאֶצְבְּעוֹתֶיהָ.  
+הַקִּפּוֹד מָשִׁיךְ לָלֶכֶת בְּשֶׁקֶט, הַקּוֹצִים רוֹעֲדִים קְצָת וְהֶעָלִים סְבִיבוֹ מְרַשְׁרְשִׁים.
 
 imageDirection: Mouse tries to hug hedgehog and recoils, hedgehog keeps walking, quills trembling
 
@@ -47,10 +47,10 @@ imageDirection: Mouse tries to hug hedgehog and recoils, hedgehog keeps walking,
 imageDirection: Child touching leaves near hedgehog quills, noticing subtle whisper-like movement
 
 --- Page 6 ---
-“אוּלַי הוּא רוֹצֶה חִיבּוּק— אֲבָל לֹא יָכוֹל,” אָמְרָה {{childName}} בשקט, מרגישה צמרמורת בידיה ושומעת רוח.  
-היא התקרבה צעד כפות רגליה עלים קרים.  
-{{companionName}} הנהן בעדינות ולחש לו עידוד.  
-הקיפוד כמעט הגיע למקום הקר והריק, דומם.
+“אוּלַי הוּא רוֹצֶה חִיבּוּק— אֲבָל לֹא יָכוֹל,” אָמְרָה {{childName}} בְּשֶׁקֶט, מַרְגִּישָׁה צְמַרְמוֹרֶת בְּיָדֶיהָ וְשׁוֹמַעַת רוּחַ.  
+הִיא הִתְקָרְבָה צַעַד כַּפּוֹת רַגְלֶיהָ עָלִים קָרִים.  
+{{companionName}} הִנְהֵן בְּעַדִּינוּת וְלָחַשׁ לוֹ עִידּוּד.  
+הַקִּפּוֹד כִּמְעַט הִגִּיעַ לַמָּקוֹם הַקַּר וְהָרֵיק, דּוֹמֵם.
 
 imageDirection: Hedgehog nearing barren cold area, child watching with concern
 
@@ -63,7 +63,7 @@ imageDirection: Hedgehog nearing barren cold area, child watching with concern
 imageDirection: Child and mouse inserting leaves into hedgehog quills together, focused teamwork
 
 --- Page 8 ---
-העלים נתקעו ולחשו בין הקוצים ברשרוש עדין. האוויר הריח ירוק וקריר, ו{{childName}} עצר ונשם עמוק. שכבה רכה נוצרה מתחת לרגליו, והוא הרגיש את הקרקע נרגעת. הקיפוד נפתח קצת, הביט ב{{childName}} ולחש בנחת, וגם {{companionName}} חייך בשקט.
+הֶעָלִים נִתְקְעוּ וְלָחֲשׁוּ בֵּין הַקּוֹצִים בְּרִשְׁרוּשׁ עָדִין. הָאֲוִיר הֵרִיחַ יָרוֹק וְקָרִיר, וְ{{childName}} עָצַר וְנָשַׁם עָמוֹק. שִׁכְבָה רַכָּה נוֹצְרָה מִתַּחַת לְרַגְלָיו, וְהוּא הִרְגִּישׁ אֶת הַקַּרְקַע נִרְגַּעַת. הַקִּפּוֹד נִפְתַּח קְצָת, הִבִּיט בְּ{{childName}} וְלָחַשׁ בְּנַחַת, וְגַם {{companionName}} חִיֵּךְ בְּשֶׁקֶט.
 
 imageDirection: Leaves filling between quills, hedgehog slowly uncurling, soft warm light beginning
 
@@ -71,7 +71,7 @@ imageDirection: Leaves filling between quills, hedgehog slowly uncurling, soft w
 {{childName}} הֵרִימָה אוֹתוֹ בְּזֶהִירוּת, יָדֶיהָ רוֹעֲדוֹת קְצָת.  
 הִיא הִרְגִּישָׁה אֶת הַמַּגָּע רַךְ יוֹתֵר, עַכְשָׁו פָּחוֹת דּוֹקֵר, וְנָשְׁמָה לְאַט.  
 רֵיחַ עֲצֵי הַיַּעַר עָלָה בָּרוּחַ הַקַּלָּה.  
-“חוֹזְרִים לַיָּעַר,” אָמְרָה, וְ{{companionName}} צָעֲדָה לְיַדָּהּ, מְחַיֶּכֶת וְלוֹחֶשֶׁת בְּעִדּוּד.
+“חוֹזְרִים לַיַּעַר,” אָמְרָה, וְ{{companionName}} צָעֲדָה לְיַדָּהּ, מְחַיֶּכֶת וְלוֹחֶשֶׁת בְּעִידּוּד.
 
 imageDirection: Child carrying leaf-padded hedgehog, mouse walking beside, returning to forest
 
