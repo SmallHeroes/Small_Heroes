@@ -36,6 +36,8 @@ export type PaymeCheckoutRequest = {
   customerEmail?: string | null;
   customerName?: string | null;
   successUrl: string;
+  /** Webhook URL PayMe POSTs to (sale_callback_url). */
+  callbackUrl: string;
   cancelUrl: string;
   metadata?: Record<string, string>;
 };
@@ -60,8 +62,7 @@ export function resolvePaymeConfig() {
     apiBaseUrl: (process.env.PAYME_API_BASE_URL || '').trim().replace(/\/$/, ''),
     /** Optional: host used to turn path-only checkout URLs into absolute PayMe links (when API returns `/pay/...`). */
     checkoutPageOrigin: (process.env.PAYME_CHECKOUT_PAGE_ORIGIN || '').trim().replace(/\/$/, ''),
-    checkoutPath: (process.env.PAYME_CHECKOUT_PATH || '/checkout').trim(),
-    verifyPath: (process.env.PAYME_VERIFY_PATH || '').trim(),
+    /** Stored in PAYME_API_KEY — PayMe seller_payme_id (e.g. MPL…). */
     apiKey: (process.env.PAYME_API_KEY || '').trim(),
     webhookSecret: (process.env.PAYME_WEBHOOK_SECRET || '').trim(),
     allowedWebhookIps: (process.env.PAYME_WEBHOOK_ALLOWED_IPS || '')
@@ -151,25 +152,45 @@ export function parsePaymeWebhookPayload(payload: unknown): ParsedPaymeWebhook {
     ? (root.metadata as Record<string, unknown>)
     : {};
 
-  // Canonical (preferred) fields.
+  // PayMe native callback fields (x-www-form-urlencoded): prioritize these.
+  const paymeNativeOrderId = pickString(root.transaction_id);
+  const paymeNativeTransactionId = pickString(root.payme_sale_id) ?? pickString(root.sale_payme_id);
+  const paymeNativeStatus = pickString(root.sale_status);
+
+  // Canonical (integration contract) fields.
   const canonicalOrderId = pickString(metadata.orderId);
   const canonicalTransactionId = pickString(root.transactionId);
   const canonicalStatus = pickString(root.status);
   const canonicalEventType = pickString(root.eventType);
 
-  // Compatibility-only fallback fields (legacy/interoperability).
-  const orderId = canonicalOrderId ?? pickFirstString(root.orderId, payment.orderId, transaction.orderId);
-  const transactionId = canonicalTransactionId
+  const orderId =
+    paymeNativeOrderId
+    ?? canonicalOrderId
+    ?? pickFirstString(root.orderId, payment.orderId, transaction.orderId);
+  const transactionId =
+    paymeNativeTransactionId
+    ?? canonicalTransactionId
     ?? pickFirstString(root.paymentId, payment.id, payment.transactionId, transaction.id);
-  const paymentStatus = (canonicalStatus ?? pickFirstString(root.paymentStatus, payment.status, transaction.status))
+  const paymentStatus = (
+    paymeNativeStatus
+    ?? canonicalStatus
+    ?? pickFirstString(root.paymentStatus, payment.status, transaction.status)
+  )
     ?.toLowerCase() || null;
+
   const eventType =
-    (canonicalEventType ?? pickFirstString(root.type, root.event, 'payment')) || 'payment';
+    (canonicalEventType
+      ?? pickString(root.event_type)
+      ?? pickFirstString(root.type, root.event, 'payme_sale')) || 'payme_sale';
+
+  const gotOrderFromPreferred = Boolean(paymeNativeOrderId || canonicalOrderId);
+  const gotTxnFromPreferred = Boolean(paymeNativeTransactionId || canonicalTransactionId);
+  const gotStatusFromPreferred = Boolean(paymeNativeStatus || canonicalStatus);
   const usedFallbackFields = Boolean(
-    (!canonicalOrderId && orderId) ||
-    (!canonicalTransactionId && transactionId) ||
-    (!canonicalStatus && paymentStatus) ||
-    (!canonicalEventType && eventType)
+    (!gotOrderFromPreferred && Boolean(orderId))
+    || (!gotTxnFromPreferred && Boolean(transactionId))
+    || (!gotStatusFromPreferred && Boolean(paymentStatus))
+    || (!canonicalEventType && Boolean(pickFirstString(root.type, root.event)))
   );
 
   return {
@@ -184,6 +205,7 @@ export function parsePaymeWebhookPayload(payload: unknown): ParsedPaymeWebhook {
 
 export function isPaymeStatusPaid(status: string | null): boolean {
   if (!status) return false;
+  // PayMe sale_status uses "approved" for successful card payments.
   return ['paid', 'success', 'succeeded', 'completed', 'approved'].includes(status.toLowerCase());
 }
 
@@ -192,28 +214,34 @@ export async function createPaymeCheckout(request: PaymeCheckoutRequest): Promis
   if (!cfg.apiBaseUrl || !cfg.apiKey) {
     throw new Error('PayMe checkout configuration is missing');
   }
-  const endpoint = `${cfg.apiBaseUrl}${cfg.checkoutPath.startsWith('/') ? cfg.checkoutPath : `/${cfg.checkoutPath}`}`;
-  const body = {
-    amount: Number((request.amountAgorot / 100).toFixed(2)),
-    amountAgorot: request.amountAgorot,
+  const endpoint = `${cfg.apiBaseUrl}/generate-sale`;
+  const body: Record<string, unknown> = {
+    seller_payme_id: cfg.apiKey,
+    sale_price: request.amountAgorot,
     currency: request.currency,
-    description: request.description,
-    orderId: request.orderId,
-    metadata: request.metadata || {},
-    customer: {
-      email: request.customerEmail || undefined,
-      name: request.customerName || undefined,
-    },
-    returnUrl: request.successUrl,
-    successUrl: request.successUrl,
-    cancelUrl: request.cancelUrl,
+    product_name: request.description.slice(0, 500),
+    transaction_id: request.orderId.slice(0, 50),
+    installments: '1',
+    sale_callback_url: request.callbackUrl,
+    sale_return_url: request.successUrl,
+    sale_type: 'sale',
+    sale_payment_method: 'credit-card',
+    language: 'he',
   };
+  if (request.customerEmail) {
+    body.buyer_email = request.customerEmail;
+    body.sale_email = request.customerEmail;
+  }
+  if (request.customerName) {
+    body.buyer_name = request.customerName;
+    body.sale_name = request.customerName;
+  }
 
   const res = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'PayMe-Merchant-Key': cfg.apiKey,
+      Accept: 'application/json',
     },
     body: JSON.stringify(body),
   });
@@ -237,16 +265,20 @@ export async function createPaymeCheckout(request: PaymeCheckoutRequest): Promis
     );
   }
   const root = (raw && typeof raw === 'object') ? (raw as Record<string, unknown>) : {};
-  const rawCheckoutUrl = pickFirstString(root.checkoutUrl, root.url, root.redirectUrl, root.paymentUrl);
+  const statusCode = root.status_code;
+  if (statusCode !== undefined && statusCode !== null && Number(statusCode) !== 0) {
+    throw new Error(`PayMe generate-sale failed: status_code=${statusCode} ${JSON.stringify(raw)}`);
+  }
+  const rawCheckoutUrl = pickString(root.sale_url);
   if (!rawCheckoutUrl) {
-    throw new Error('PayMe checkout response missing checkout URL');
+    throw new Error(`PayMe generate-sale failed: no sale_url in response ${JSON.stringify(raw)}`);
   }
   const checkoutUrl = absolutizePaymeCheckoutUrl(
     rawCheckoutUrl,
     cfg.apiBaseUrl,
     cfg.checkoutPageOrigin || null
   );
-  const checkoutId = pickFirstString(root.checkoutId, root.id, root.paymentId);
+  const checkoutId = pickString(root.payme_sale_id);
   return { checkoutUrl, checkoutId, raw };
 }
 
@@ -260,43 +292,28 @@ export async function verifyPaymePayment(params: {
   raw: unknown;
 }> {
   const cfg = resolvePaymeConfig();
-  if (!cfg.apiBaseUrl || !cfg.apiKey || !cfg.verifyPath) {
+  if (!cfg.apiBaseUrl || !cfg.apiKey) {
     return { verified: false, status: 'unknown', raw: null };
   }
   const identifier = params.transactionId || params.paymentId;
   if (!identifier) {
     return { verified: false, status: 'unknown', raw: null };
   }
-  const endpoint = `${cfg.apiBaseUrl}${cfg.verifyPath.startsWith('/') ? cfg.verifyPath : `/${cfg.verifyPath}`}`;
-  const url = new URL(endpoint);
-  url.searchParams.set('orderId', params.orderId);
-  if (params.paymentId) url.searchParams.set('paymentId', params.paymentId);
-  if (params.transactionId) url.searchParams.set('transactionId', params.transactionId);
 
-  const res = await fetch(url.toString(), {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'PayMe-Merchant-Key': cfg.apiKey,
-    },
-  });
-  const raw = await res.json().catch(() => null);
-  if (!res.ok) {
-    return { verified: false, status: 'unknown', raw };
-  }
-  const root = (raw && typeof raw === 'object') ? (raw as Record<string, unknown>) : {};
-  const payment = (root.payment && typeof root.payment === 'object') ? (root.payment as Record<string, unknown>) : {};
-  const transaction =
-    (root.transaction && typeof root.transaction === 'object') ? (root.transaction as Record<string, unknown>) : {};
-  const rawStatus = pickFirstString(root.status, root.paymentStatus, payment.status, transaction.status)?.toLowerCase() || '';
-  if (['paid', 'success', 'succeeded', 'completed', 'approved'].includes(rawStatus)) {
-    return { verified: true, status: 'paid', raw };
-  }
-  if (['failed', 'declined', 'canceled', 'cancelled', 'error'].includes(rawStatus)) {
-    return { verified: true, status: 'failed', raw };
-  }
-  if (['pending', 'processing', 'in_progress', 'created', 'authorized'].includes(rawStatus)) {
-    return { verified: true, status: 'pending', raw };
-  }
-  return { verified: false, status: 'unknown', raw };
-}
+  try {
+    const endpoint = `${cfg.apiBaseUrl}/get-sales`;
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        seller_payme_id: cfg.apiKey,
+        payme_sale_id: identifier,
+      }),
+    });
+
+    const raw = await res.json().catch(() => null);
+    if (!res.ok || raw === null || typeof raw !== 'object') {
+      return { verified: false, status: 'unknown', raw: null }

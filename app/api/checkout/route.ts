@@ -121,9 +121,9 @@ export async function POST(req: NextRequest) {
       pdfEnabled: order.pdfEnabled,
       bundleEnabled: order.bundleEnabled,
     });
-    const basePriceAgorot = pricing.basePrice * 100;
-    const addonsPriceAgorot = pricing.addonsPrice * 100;
-    const totalPriceAgorot = pricing.totalPrice * 100;
+    const basePriceAgorot = Math.round(pricing.basePrice * 100);
+    const addonsPriceAgorot = Math.round(pricing.addonsPrice * 100);
+    const totalPriceAgorot = Math.round(pricing.totalPrice * 100);
 
     const addonLabels: string[] = [];
     if (order.bundleEnabled) addonLabels.push(CHECKOUT_ADDONS.bundle);
@@ -192,6 +192,7 @@ export async function POST(req: NextRequest) {
         customerEmail: order.customerEmail,
         customerName: order.customerName,
         successUrl: `${appUrl}/api/payme/return?orderId=${encodeURIComponent(order.id)}`,
+        callbackUrl: `${appUrl}/api/webhooks/payme`,
         cancelUrl: `${appUrl}${ROUTES.wizard}`,
         metadata: {
           orderId: order.id,
@@ -265,7 +266,7 @@ export async function POST(req: NextRequest) {
       orderId,
       checkoutId: paymeCheckout.checkoutId ?? null,
       checkoutUrl,
-      paymeResponse: paymeCheckout.raw,
+      // Do not log paymeCheckout.raw — it echoes seller_payme_id (API key)
     });
 
     return NextResponse.json({
@@ -277,7 +278,4 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error) {
-    logger.error('PayMe checkout creation failed', error);
-    return NextResponse.json({ error: 'Failed to create checkout session' }, { status: 500 });
-  }
-}
+    logger.error('PayMe checkout 

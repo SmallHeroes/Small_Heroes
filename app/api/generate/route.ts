@@ -97,10 +97,100 @@ interface CharacterAnchorRecord {
   relationship?: string;
   anchorImageUrl?: string;
   aliases?: string[];
+  /** Structured supporting DNA for image prompts (additional / family characters). */
+  supportingVisualDNA?: {
+    physicalDescription: string;
+    clothingDefault: string;
+    signatureDetail: string;
+    ageRange: string;
+  };
+}
+
+/** Strip Hebrew nikud (vowel marks U+0591–U+05C7) so nikud-adorned text matches plain aliases. */
+function stripNikud(text: string): string {
+  return text.replace(/[֑-ׇ]/g, '');
 }
 
 function normalizeToken(value: string): string {
-  return value.trim().toLowerCase();
+  return stripNikud(value.trim().toLowerCase());
+}
+
+/** Match DNA rows from the LLM to anchor records. */
+function normalizeCharacterNameKey(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+const HEBREW_ALIAS_STOPWORDS = new Set([
+  'של',
+  'את',
+  'עם',
+  'על',
+  'זה',
+  'זאת',
+  'הוא',
+  'היא',
+  'מה',
+  'או',
+  'כי',
+  'אם',
+  'לא',
+  'כל',
+  'גם',
+  'כבר',
+  'יותר',
+  'אולי',
+  'אז',
+  'יש',
+  'עוד',
+  'רק',
+  'כמו',
+  'אבל',
+]);
+
+function roleRelationshipAliases(relationship: string | undefined): string[] {
+  if (!relationship) return [];
+  const r = relationship.toLowerCase();
+  const map: Record<string, string[]> = {
+    mother: ['אמא', 'אימא'],
+    father: ['אבא', 'אַבָּא'],
+    grandmother: ['סבתא'],
+    grandfather: ['סבא'],
+    sister: ['אחות'],
+    brother: ['אח'],
+    sibling: ['אחות', 'אח'],
+    parent: ['אמא', 'אימא', 'אבא', 'הורה', 'הורים'],
+  };
+  if (map[r]) return map[r]!;
+  if (r.includes('mother') || r === 'mom' || r === 'ima') return map.mother;
+  if (r.includes('father') || r === 'dad' || r === 'abba') return map.father;
+  if (r.includes('grandmother') || r === 'grandma') return map.grandmother;
+  if (r.includes('grandfather') || r === 'grandpa') return map.grandfather;
+  if (r.includes('sister')) return map.sister;
+  if (r.includes('brother')) return map.brother;
+  if (r.includes('sibling')) return map.sibling;
+  if (r.includes('parent')) return map.parent;
+  return [];
+}
+
+function buildFamilyMemberAliases(member: {
+  name: string;
+  relationship?: string;
+}): string[] {
+  const aliases = new Set<string>();
+  aliases.add(member.name);
+  const rel = member.relationship;
+  if (rel) aliases.add(rel);
+  roleRelationshipAliases(rel).forEach((a) => aliases.add(a));
+
+  const nameWords = member.name.split(/\s+/).filter(Boolean);
+  for (const w of nameWords) {
+    const t = w.trim();
+    if (t.length > 1 && !HEBREW_ALIAS_STOPWORDS.has(normalizeToken(t))) {
+      aliases.add(t);
+    }
+  }
+
+  return [...aliases];
 }
 
 function inferCharacterId(
@@ -154,7 +244,7 @@ function parseStoredCharacterAnchors(raw: unknown): Record<string, CharacterAnch
 }
 
 function buildHaystack(parts: Array<string | undefined>): string {
-  return parts.filter(Boolean).join(' ').toLowerCase();
+  return stripNikud(parts.filter(Boolean).join(' ').toLowerCase());
 }
 
 function detectExpectedCharactersForPage(
@@ -550,7 +640,7 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
           description: member.description ?? `${member.name} recurring family member`,
           relationship: member.relationship,
           anchorImageUrl: member.anchorImageUrl,
-          aliases: [member.name, member.relationship ?? characterId],
+          aliases: [...buildFamilyMemberAliases(member), characterId],
         };
       }
     });
@@ -603,23 +693,26 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
     });
 
     const companionKey = resolvedCompanion ? companionAnchorKey(resolvedCompanion.id) : null;
+    const maxNonChild = familyMembers.length > 0 ? 2 : 1;
     const boundedPagesWithCharacters = pagesWithDetectedCharacters.map((page) => {
       const filtered = page.expectedCharacterIds.filter((characterId) => characterId !== 'child');
-      let nonChild: string | undefined;
+      const chosen: string[] = [];
       if (companionKey && filtered.includes(companionKey)) {
-        nonChild = companionKey;
-      } else {
-        const prioritized = filtered.sort((a, b) => {
-          const aIsAdditional = additionalCharacterIds.has(a) ? 0 : 1;
-          const bIsAdditional = additionalCharacterIds.has(b) ? 0 : 1;
-          if (aIsAdditional !== bIsAdditional) return aIsAdditional - bIsAdditional;
-          return a.localeCompare(b);
-        });
-        nonChild = prioritized[0];
+        chosen.push(companionKey);
+      }
+      const rest = filtered.filter((id) => id !== companionKey);
+      const prioritized = [...rest].sort((a, b) => {
+        const aIsAdditional = additionalCharacterIds.has(a) ? 0 : 1;
+        const bIsAdditional = additionalCharacterIds.has(b) ? 0 : 1;
+        if (aIsAdditional !== bIsAdditional) return aIsAdditional - bIsAdditional;
+        return a.localeCompare(b);
+      });
+      while (chosen.length < maxNonChild && prioritized.length > 0) {
+        chosen.push(prioritized.shift()!);
       }
       return {
         ...page,
-        expectedCharacterIds: nonChild ? ['child', nonChild] : ['child'],
+        expectedCharacterIds: chosen.length > 0 ? ['child', ...chosen] : ['child'],
       };
     });
     if (additionalCharacterIds.size > 0) {
@@ -703,10 +796,37 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
       companionName,
       storyText: allStoryText,
       illustrationStyle: order.illustrationStyle,
+      additionalCharacters: familyMembers.map((m) => ({
+        name: m.name,
+        relationship: m.relationship ?? 'other',
+        description: m.description,
+      })),
     });
     const lockedChildDescription = dna.childDNA || childDesc;
     if (anchorRegistry.child) {
       anchorRegistry.child.description = lockedChildDescription;
+    }
+
+    const dnaByAdditionalName = new Map(
+      (dna.additionalCharactersDNA ?? []).map((row) => [normalizeCharacterNameKey(row.name), row])
+    );
+    for (const characterId of additionalCharacterIds) {
+      const rec = anchorRegistry[characterId];
+      if (!rec) continue;
+      const matched = dnaByAdditionalName.get(normalizeCharacterNameKey(rec.name));
+      if (
+        matched?.physicalDescription?.trim() &&
+        matched.clothingDefault?.trim() &&
+        matched.signatureDetail?.trim()
+      ) {
+        rec.supportingVisualDNA = {
+          physicalDescription: matched.physicalDescription.trim(),
+          clothingDefault: matched.clothingDefault.trim(),
+          signatureDetail: matched.signatureDetail.trim(),
+          ageRange: matched.ageRange?.trim() || 'adult',
+        };
+        rec.description = `${matched.physicalDescription.trim()}. ${matched.clothingDefault.trim()}. ${matched.signatureDetail.trim()}`;
+      }
     }
 
     if (book.coverImageUrl) {
@@ -754,11 +874,29 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
             (entry): entry is { id: string; character: CharacterAnchorRecord } =>
               Boolean(entry.character)
           )
-          .map(({ id, character }) => ({
-            name: character.name,
-            description: character.description,
-            relationship: character.relationship || (id.startsWith('sibling_') ? 'sibling' : 'supporting'),
-          }));
+          .map(({ id, character }) => {
+            const base = {
+              name: character.name,
+              description: character.description,
+              relationship: character.relationship || (id.startsWith('sibling_') ? 'sibling' : 'supporting'),
+            };
+            const d = character.supportingVisualDNA;
+            if (
+              d?.physicalDescription &&
+              d?.clothingDefault &&
+              d?.signatureDetail &&
+              d?.ageRange
+            ) {
+              return {
+                ...base,
+                physicalDescription: d.physicalDescription,
+                clothingDefault: d.clothingDefault,
+                signatureDetail: d.signatureDetail,
+                ageRange: d.ageRange,
+              };
+            }
+            return base;
+          });
         return {
           ...page,
           supportingCharacters,
@@ -1118,125 +1256,4 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
 
     const hasImageFailures = imageOutcome.failedPages.length > 0;
     await prisma.order.update({
-      where: { id: orderId },
-      data: {
-        status: hasImageFailures ? 'partial' : 'ready',
-        packageStatus: 'done',
-        ...(hasImageFailures
-          ? { lastError: `Image generation skipped pages: ${imageOutcome.failedPages.join(', ')}` }
-          : {}),
-      },
-    });
-
-    await prisma.generationJob.update({
-      where: { orderId },
-      data: { status: 'done', completedAt: new Date(), packaged: true },
-    });
-
-    logServerEvent('full_generation_completed', {
-      orderId,
-      selected_archetype: selectedDirection?.archetype ?? 'legacy',
-      child_age_band: ageBandFromAge(order.childAge),
-      style: order.illustrationStyle,
-      generation_time: Math.max(1, Math.round((Date.now() - generationStartedAtMs) / 1000)),
-    });
-
-    generationLogger.info('Generation completed', { orderId });
-
-    try {
-      const finishedBook = await prisma.generatedBook.findUnique({
-        where: { id: book.id },
-        include: { audioAsset: true },
-      });
-      await sendBookReadyEmail({
-        to:           order.customerEmail,
-        customerName: order.customerName ?? order.childName,
-        childName:    order.childName,
-        readUrl,
-        audioUrl:     finishedBook?.audioAsset?.url ?? undefined,
-        pdfUrl:       finishedBook?.pdfUrl            ?? undefined,
-      });
-      generationLogger.info('Ready email sent', { orderId, customerEmail: order.customerEmail });
-    } catch (emailErr) {
-      generationLogger.error('Ready email failed (non-fatal)', emailErr, { orderId });
-    }
-
-  } catch (error) {
-    generationLogger.error('Generation failed', error, { orderId });
-
-    await prisma.order.update({
-      where: { id: orderId },
-      data: { status: 'failed', lastError: String(error), errorAt: new Date() },
-    });
-
-    await prisma.generationJob.update({
-      where: { orderId },
-      data: { status: 'failed', failedAt: new Date(), lastError: String(error) },
-    }).catch(() => {});
-
-    throw error;
-  } finally {
-    if (acquiredLocalLock) activeOrderLocks.delete(orderId);
-  }
-}
-
-// ─── API Route Handler (manual trigger / webhook fallback) ───
-export async function POST(req: Request) {
-  try {
-    const { orderId, secret, reason } = await req.json();
-    const expectedSecret = process.env.GENERATION_SECRET;
-    if (!expectedSecret) {
-      generateApiLogger.error('GENERATION_SECRET missing; refusing trigger');
-      return Response.json({ error: 'Generation trigger is disabled (server misconfigured)' }, { status: 503 });
-    }
-    if (typeof secret !== 'string' || secret !== expectedSecret) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    if (!orderId) {
-      return Response.json({ error: 'orderId required' }, { status: 400 });
-    }
-
-    const order = await prisma.order.findUnique({
-      where: { id: orderId },
-      select: { id: true, status: true },
-    });
-    if (!order) {
-      return Response.json({ error: 'Order not found' }, { status: 404 });
-    }
-    if (order.status === 'ready' || order.status === 'partial') {
-      return Response.json({ error: 'Generation already completed for this order' }, { status: 409 });
-    }
-    if (order.status === 'generating') {
-      return Response.json({ error: 'Generation is already in progress' }, { status: 409 });
-    }
-    if (!RETRYABLE_STATUS_VALUES.includes(order.status)) {
-      return Response.json({ error: 'Order is not eligible for generation' }, { status: 409 });
-    }
-    const activeJob = await prisma.generationJob.findUnique({
-      where: { orderId },
-      select: { status: true },
-    });
-    if (activeJob?.status === 'running') {
-      return Response.json({ error: 'Generation is already in progress' }, { status: 409 });
-    }
-
-    const triggerReason = typeof reason === 'string' && reason.trim().length > 0 ? reason.trim() : 'manual_api';
-    generateApiLogger.info('Manual trigger accepted', { orderId, reason: triggerReason });
-    triggerGeneration(orderId, triggerReason).catch((err) => {
-      generateApiLogger.error('Async trigger failed after acceptance', err, { orderId });
-    });
-
-    return Response.json({ started: true, orderId });
-
-  } catch (error) {
-
-    return Response.json(
-      {
-        error: 'Internal error',
-        details: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 }
-    );
-  }
-}
+      
