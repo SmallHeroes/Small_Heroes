@@ -6,14 +6,16 @@
 
 import { Prisma, type OrderStatus } from '@prisma/client';
 import { randomUUID } from 'crypto';
-import { generateStory, StoryInput, FamilyContext } from '../../../backend/providers/story';
+import path from 'path';
+import { FamilyContext } from '../../../backend/providers/story';
 import { generateAllPageImages, generateBookCover } from '../../../backend/providers/image';
 import { generateAudio, buildNarrationScript } from '../../../backend/providers/audio';
 import { TOPICS } from '../../../backend/config/wizard';
 import { sendBookReadyEmail } from '../../../backend/lib/email';
 import { logServerEvent } from '../events/route';
 import { assignTemplatesForBook, type BookPageTemplate } from '../../../lib/bookPageLayout';
-import { generateStoryBankCharacterDNA } from '../../../backend/providers/story-bank-loader';
+import { generateStoryBankCharacterDNA, loadStoryFromBank } from '../../../backend/providers/story-bank-loader';
+import { selectStoryFromBank } from '../../../backend/providers/story-bank-index';
 import {
   buildPresentationWebpFromBuffer,
   evaluateImageSignal,
@@ -432,45 +434,34 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
     );
     console.info('[api/generate] resolved companion', orderId, resolvedCompanion?.id ?? 'none', resolvedCompanion?.name ?? '');
 
-    // ── Stage 1: Story Text ───────────────────────────
+    // ── Stage 1: Story Text (story bank) ─────────────────
     generationLogger.info('Stage started', { orderId, stage: 'text' });
     await prisma.order.update({ where: { id: orderId }, data: { textStatus: 'running' } });
 
-    const storyInput: StoryInput = {
-      childName:        order.childName,
-      childAge:         order.childAge,
-      childGender:      order.childGender,
-      childTraits:      order.childTraits,
-      childSuperpower:  (order as Record<string, unknown>).childSuperpower as string ?? undefined,
-      familyContext:    (order as Record<string, unknown>).familyContext as FamilyContext ?? undefined,
-      topic:            order.topic,
-      topicLabel,
-      challengeItems:   order.challengeItems,
-      challengeFree:    order.challengeFree ?? undefined,
-      outcomeItems:     order.outcomeItems,
-      outcomeFree:      order.outcomeFree ?? undefined,
-      helperItems:      order.helperItems,
-      helperFree:       order.helperFree ?? undefined,
-      avoidItems:       order.avoidItems,
-      avoidFree:        order.avoidFree ?? undefined,
-      storyLength:      order.storyLength as 'short' | 'medium' | 'long',
-      illustrationStyle: order.illustrationStyle,
-      childImageUrl: order.childImageUrl ?? undefined,
-      companionForStory: resolvedCompanion ?? undefined,
-      challengeCategory: wizardMeta.challengeCategory ?? null,
-      categoryAnswers: Array.isArray(wizardMeta.categoryAnswers) ? wizardMeta.categoryAnswers : [],
-      ...(selectedDirection
-        ? {
-            directionArchetype: selectedDirection.archetype,
-            directionTitle: selectedDirection.title,
-            directionEmotionalLabel: selectedDirection.emotionalLabel,
-            directionStoryPremise: selectedDirection.storyPremise,
-            directionOpeningScenePrompt: selectedDirection.openingScenePrompt,
-          }
-        : {}),
-    };
+    const challengeCategory = wizardMeta.challengeCategory ?? order.topic ?? 'GENERAL_FEARS';
+    const storyLength = (order.storyLength as 'short' | 'medium' | 'long') ?? 'medium';
 
-    const story = await generateStory(storyInput);
+    const selection = selectStoryFromBank(challengeCategory, storyLength);
+    if (!selection) {
+      throw new Error(`No story-bank story found for category=${challengeCategory}`);
+    }
+
+    generationLogger.info('Story bank selection', {
+      orderId,
+      filename: selection.filename,
+      base: selection.base,
+      title: selection.title,
+      bankCategory: selection.bankCategory,
+      challengeCategory,
+      storyLength,
+    });
+
+    const storyFilePath = path.join(process.cwd(), 'story-bank', 'raw', selection.filename);
+    const story = await loadStoryFromBank(
+      storyFilePath,
+      order.childName || '',
+      resolvedCompanion?.name ?? 'צפרדע'
+    );
     const compositionByPage = new Map(
       (story.pageCompositionPlan ?? []).map((composition) => [composition.pageNumber, composition])
     );
@@ -1256,4 +1247,25 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
 
     const hasImageFailures = imageOutcome.failedPages.length > 0;
     await prisma.order.update({
-      
+      where: { id: orderId },
+      data: {
+        status: hasImageFailures ? 'partial' : 'ready',
+        packageStatus: 'done',
+        ...(hasImageFailures
+          ? { lastError: `Image generation skipped pages: ${imageOutcome.failedPages.join(', ')}` }
+          : {}),
+      },
+    });
+
+    await prisma.generationJob.update({
+      where: { orderId },
+      data: { status: 'done', completedAt: new Date(), packaged: true },
+    });
+
+    logServerEvent('full_generation_completed', {
+      orderId,
+      selected_archetype: selectedDirection?.archetype ?? 'legacy',
+      child_age_band: ageBandFromAge(order.childAge),
+      style: order.illustrationStyle,
+      generation_time: Math.max(1, Math.round((Date.now() - generationStartedAtMs) / 1000)),
+    });

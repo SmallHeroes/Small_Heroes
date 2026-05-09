@@ -13,7 +13,9 @@ export async function loadStoryFromBank(
   const raw = await fs.readFile(filePath, 'utf-8');
 
   const titleMatch = raw.match(/===\s*STORY\s*\d+:\s*(.+?)\s*===/);
-  const title = titleMatch?.[1]?.trim() ?? 'סיפור מהבנק';
+  const title = (titleMatch?.[1]?.trim() ?? 'סיפור מהבנק')
+    .replace(/\{\{childName\}\}/g, childName)
+    .replace(/\{\{companionName\}\}/g, companionName);
 
   // Extract story metadata for cover generation
   const coverSceneMatch = raw.match(/coverScene:\s*(.+)/);
@@ -187,6 +189,16 @@ export type StructuredCompanionDNA = {
   feature: string;   // one distinctive visual feature (5-10 words)
 };
 
+/** Locked visual bible for recurring human family / supporting roles (beyond companion). */
+export type AdditionalCharacterDNA = {
+  name: string;
+  relationship: string;
+  physicalDescription: string;
+  clothingDefault: string;
+  signatureDetail: string;
+  ageRange: string;
+};
+
 export type StoryBankCharacterDNA = {
   /** Structured child identity — preferred over flat childDNA */
   childStructured: StructuredChildDNA;
@@ -199,6 +211,8 @@ export type StoryBankCharacterDNA = {
   negativeRules: string[];
   /** Locked visual descriptions for recurring objects (tree, swing, etc.) */
   propDNA: Record<string, string>;
+  /** Locked visual descriptions for wizard additional family/supporting humans */
+  additionalCharactersDNA: AdditionalCharacterDNA[];
 };
 
 function parseJsonResponse<T>(raw: string): T {
@@ -226,6 +240,198 @@ function parsePropDNA(
   return validCount >= 2 ? result : fallback;
 }
 
+function normalizeNameKey(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+function fallbackAdditionalRow(
+  row: { name: string; relationship: string; description?: string },
+  illustrationStyle: string
+): AdditionalCharacterDNA {
+  const rel = row.relationship || 'family';
+  const hint = row.description?.trim();
+  const physicalDefault =
+    rel === 'sibling'
+      ? 'Child family member near the protagonist age band, approachable proportions, soft age-appropriate features'
+      : 'Adult family figure, approachable proportions, gentle grounded presence';
+  return {
+    name: row.name,
+    relationship: rel,
+    physicalDescription: hint || physicalDefault,
+    clothingDefault:
+      `Modest everyday layered clothing locked for the entire book (${illustrationStyle}): ` +
+      `calm muted colors, soft fabrics, zero logos or readable text.`,
+    signatureDetail: hint
+      ? 'Keep visual details aligned with the wizard note in every appearance'
+      : 'One consistent hairstyle and proportion anchor',
+    ageRange: rel === 'sibling' ? 'within a few years of the protagonist' : 'adult caregiver age',
+  };
+}
+
+async function fetchAdditionalCharactersDNA(params: {
+  storyText: string;
+  illustrationStyle: string;
+  childName: string;
+  companionName: string;
+  additionalCharacters: Array<{ name: string; relationship: string; description?: string }>;
+}): Promise<AdditionalCharacterDNA[]> {
+  const { additionalCharacters } = params;
+  if (additionalCharacters.length === 0) return [];
+
+  const provider = process.env.STORY_PROVIDER || 'openai';
+  const model =
+    process.env.PIPELINE_SUPPORT_MODEL ||
+    (provider === 'anthropic' ? 'claude-opus-4-5' : 'gpt-5.3-chat-latest');
+
+  const listBlock = additionalCharacters
+    .map(
+      (c, i) =>
+        `${i + 1}. Name (exact): ${c.name}\n   Relationship: ${c.relationship}\n   Wizard note (may be empty): ${c.description?.trim() || '(none)'}`
+    )
+    .join('\n');
+
+  const systemPrompt =
+    "You lock recurring human supporting characters for children's books. Output ONLY valid JSON.";
+
+  const userPrompt = `
+Read the STORY for context about who each person is. Create LOCKED English visual DNA for EVERY character listed below.
+These fields are pasted into image prompts verbatim — illustrators must draw the SAME person each time.
+
+STORY TEXT:
+${params.storyText}
+
+PROTAGONIST (for scale reference only, do NOT redesign): ${params.childName}
+COMPANION (non-human sidekick reference only): ${params.companionName || 'none'}
+
+ADDITIONAL CHARACTERS — output one JSON object per line item, SAME "name" string as given:
+${listBlock}
+
+STYLE: ${params.illustrationStyle}
+
+RULES:
+- Physical: face shape + skin tone + eyes + hair (no personality adjectives beyond neutral appearance)
+- Clothing: ONE locked outfit for the whole book — every garment named, muted kid-book palette, ZERO text/logos
+- Signature: one small recurring visual cue (jewelry, freckles, haircut quirk — not action)
+- ageRange: short phrase ("early 30s", "grade-school sibling", ...)
+- MUST be English. Do NOT repeat character names inside physical/clothing sentences.
+- Honor wizard notes heavily when provided.
+
+Return JSON:
+{
+  "additionalCharactersDNA": [
+    {
+      "name": "exact same as input list",
+      "relationship": "same as input or refined",
+      "physicalDescription": "15-35 words",
+      "clothingDefault": "15-35 words — locked wardrobe",
+      "signatureDetail": "5-14 words",
+      "ageRange": "short phrase"
+    }
+  ]
+}
+`.trim();
+
+  const mergeWithFallback = (parsed: Partial<AdditionalCharacterDNA>[]): AdditionalCharacterDNA[] => {
+    return additionalCharacters.map((src) => {
+      const fb = fallbackAdditionalRow(src, params.illustrationStyle);
+      const match = parsed.find((p) => p.name && normalizeNameKey(p.name) === normalizeNameKey(src.name));
+      if (
+        match &&
+        typeof match.physicalDescription === 'string' &&
+        match.physicalDescription.trim().length > 8 &&
+        typeof match.clothingDefault === 'string' &&
+        match.clothingDefault.trim().length > 8 &&
+        typeof match.signatureDetail === 'string' &&
+        match.signatureDetail.trim().length > 3 &&
+        typeof match.ageRange === 'string' &&
+        match.ageRange.trim().length > 2
+      ) {
+        return {
+          name: src.name,
+          relationship: typeof match.relationship === 'string' && match.relationship.trim()
+            ? match.relationship.trim()
+            : src.relationship,
+          physicalDescription: match.physicalDescription.trim(),
+          clothingDefault: match.clothingDefault.trim(),
+          signatureDetail: match.signatureDetail.trim(),
+          ageRange: match.ageRange.trim(),
+        };
+      }
+      return fb;
+    });
+  };
+
+  try {
+    if (provider === 'anthropic') {
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (!apiKey) throw new Error('ANTHROPIC_API_KEY not set');
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: 2000,
+          temperature: 0.2,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }],
+        }),
+      });
+      if (!res.ok) throw new Error(`Anthropic ${res.status}: ${await res.text()}`);
+      const data = await res.json();
+      const text = data.content?.[0]?.text ?? '';
+      const parsedObj = parseJsonResponse<{ additionalCharactersDNA?: Partial<AdditionalCharacterDNA>[] }>(text);
+      const rows = Array.isArray(parsedObj.additionalCharactersDNA)
+        ? parsedObj.additionalCharactersDNA
+        : [];
+      const merged = mergeWithFallback(rows);
+      console.log(`[StoryBankDNA] Additional characters DNA rows=${merged.length}`);
+      return merged;
+    }
+
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error('OPENAI_API_KEY not set');
+    const body: Record<string, unknown> = {
+      model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      response_format: { type: 'json_object' },
+    };
+    if (model.startsWith('gpt-5.')) {
+      body.max_completion_tokens = 2000;
+    } else {
+      body.max_tokens = 2000;
+      body.temperature = 0.2;
+    }
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content ?? '';
+    const parsedObj = parseJsonResponse<{ additionalCharactersDNA?: Partial<AdditionalCharacterDNA>[] }>(text);
+    const rows = Array.isArray(parsedObj.additionalCharactersDNA)
+      ? parsedObj.additionalCharactersDNA
+      : [];
+    const merged = mergeWithFallback(rows);
+    console.log(`[StoryBankDNA] Additional characters DNA rows=${merged.length}`);
+    return merged;
+  } catch (error) {
+    console.warn('[StoryBankDNA] Additional characters DNA failed, using per-character fallbacks:', error);
+    return additionalCharacters.map((c) => fallbackAdditionalRow(c, params.illustrationStyle));
+  }
+}
+
 /**
  * Generate compact locked "visual bible" DNA for story-bank image generation.
  */
@@ -236,6 +442,7 @@ export async function generateStoryBankCharacterDNA(params: {
   companionName: string;
   storyText: string;
   illustrationStyle: string;
+  additionalCharacters?: Array<{ name: string; relationship: string; description?: string }>;
 }): Promise<StoryBankCharacterDNA> {
   const provider = process.env.STORY_PROVIDER || 'openai';
   const model =
@@ -329,174 +536,4 @@ Return JSON:
     face: `Round soft face, warm light olive skin, large dark brown almond-shaped eyes, small upturned nose`,
     hair: `Medium-length straight brown hair, tucked behind ears, thin red fabric headband`,
     body: `Average build for a ${params.childAge}-year-old ${genderWord}, about ${params.childAge >= 5 ? '3.5' : '3'} feet tall`,
-    clothing: `Yellow rain jacket with two front pockets, denim shorts to knees, dark blue rubber rain boots with no patterns`,
-    signature: `Small red hair clip on left side above ear`,
-  };
-
-  const fallbackCompanionStructured: StructuredCompanionDNA = {
-    species: 'Small bright green tree frog',
-    size: `Fits in the child's palm, about hand-sized`,
-    coloring: 'Bright lime-green body with darker green spots on back, pale cream belly',
-    feature: 'Perfectly round golden eyes with black horizontal pupils',
-  };
-
-  const fallback: StoryBankCharacterDNA = {
-    childStructured: fallbackChildStructured,
-    companionStructured: fallbackCompanionStructured,
-    childDNA: `A ${params.childAge}-year-old ${genderWord} with medium brown hair, light olive skin, rounded dark eyes, average child build, wearing a yellow rain jacket, denim shorts, dark blue rain boots, and a small red hair clip.`,
-    companionDNA:
-      'A small bright green tree frog, about hand-sized, smooth shiny skin with darker green spots, round golden eyes, and compact body proportions.',
-    worldDNA:
-      'Rainy garden under gray daylight, muddy wet ground with puddles and rising water, green hedges and overcast sky with visible rainfall.',
-    propDNA: {
-      tree: 'A small thin deciduous tree about 2 meters tall with a narrow brown trunk, sparse asymmetric branches, small green leaves, slightly tilting to the right, roots partially visible at the base.',
-      swing: 'A simple flat wooden plank swing hung by two thin brown cords from a thick horizontal branch of a separate large tree, the plank is weathered light brown with rounded edges.',
-      cloth_cord: 'A single knotted beige cloth cord about 50cm long, tied to the low branch of the small tree, the knot is thick and hand-tied, the fabric hangs straight down when dry, sways when wet.',
-      garden_door: 'A tall narrow wooden garden door made of vertical brown planks with a small black iron latch, set into a low green hedge, opens outward.',
-      toy_box: 'A small rectangular wooden chest with brass hinges, light brown with slightly darker lid, about knee-height to the child.',
-      flowerpot: 'A small round terracotta pot with a single orange flower, classic clay pot shape with a slight rim at the top.',
-    },
-    negativeRules: [
-      'NEVER put text, letters, words, numbers, or names on clothing, walls, signs, or ANY surface in the image',
-      "NEVER change the child's outfit, hair color, hair style, or accessories between pages — they are LOCKED",
-      'NEVER omit visible rain in outdoor rainy scenes',
-      'NEVER give the child extra arms, extra fingers, or any duplicated body parts — exactly 2 arms, 2 legs, 5 fingers per hand',
-      'NEVER use bright saturated cartoon colors — maintain a soft muted watercolor palette throughout',
-      "NEVER make the frog larger than the child's hand-span",
-      'NEVER change the appearance of recurring objects between pages — they must look identical every time they appear',
-    ],
-  };
-
-  try {
-    if (provider === 'anthropic') {
-      const apiKey = process.env.ANTHROPIC_API_KEY;
-      if (!apiKey) throw new Error('ANTHROPIC_API_KEY not set');
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model,
-          max_tokens: 1500,
-          temperature: 0.2,
-          system: systemPrompt,
-          messages: [{ role: 'user', content: userPrompt }],
-        }),
-      });
-      if (!res.ok) throw new Error(`Anthropic ${res.status}: ${await res.text()}`);
-      const data = await res.json();
-      const text = data.content?.[0]?.text ?? '';
-      const parsed = parseJsonResponse<Partial<StoryBankCharacterDNA>>(text);
-      return assembleDNA(parsed, fallback);
-    }
-
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) throw new Error('OPENAI_API_KEY not set');
-    const body: Record<string, unknown> = {
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      response_format: { type: 'json_object' },
-    };
-    if (model.startsWith('gpt-5.')) {
-      body.max_completion_tokens = 1500;
-    } else {
-      body.max_tokens = 1500;
-      body.temperature = 0.2;
-    }
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
-    const data = await res.json();
-    const text = data.choices?.[0]?.message?.content ?? '';
-    const parsed = parseJsonResponse<Partial<StoryBankCharacterDNA>>(text);
-    return assembleDNA(parsed, fallback);
-  } catch (error) {
-    console.warn('[StoryBankDNA] failed, using fallback DNA:', error);
-    return fallback;
-  }
-
-  // This point is unreachable but TS needs it for exhaustiveness
-  return fallback;
-
-  /** Merge LLM output with fallback, validating structured fields. */
-  function assembleDNA(
-    parsed: Partial<StoryBankCharacterDNA>,
-    fb: StoryBankCharacterDNA
-  ): StoryBankCharacterDNA {
-    // Validate structured child fields — each must be a non-empty string
-    const cs = parsed.childStructured;
-    const childStructured: StructuredChildDNA =
-      cs &&
-      typeof cs.face === 'string' && cs.face.trim().length > 5 &&
-      typeof cs.hair === 'string' && cs.hair.trim().length > 5 &&
-      typeof cs.body === 'string' && cs.body.trim().length > 5 &&
-      typeof cs.clothing === 'string' && cs.clothing.trim().length > 5 &&
-      typeof cs.signature === 'string' && cs.signature.trim().length > 3
-        ? {
-            face: cs.face.trim(),
-            hair: cs.hair.trim(),
-            body: cs.body.trim(),
-            clothing: cs.clothing.trim(),
-            signature: cs.signature.trim(),
-          }
-        : fb.childStructured;
-
-    // Validate structured companion fields
-    const cps = parsed.companionStructured;
-    const companionStructured: StructuredCompanionDNA =
-      cps &&
-      typeof cps.species === 'string' && cps.species.trim().length > 2 &&
-      typeof cps.size === 'string' && cps.size.trim().length > 3 &&
-      typeof cps.coloring === 'string' && cps.coloring.trim().length > 5 &&
-      typeof cps.feature === 'string' && cps.feature.trim().length > 3
-        ? {
-            species: cps.species.trim(),
-            size: cps.size.trim(),
-            coloring: cps.coloring.trim(),
-            feature: cps.feature.trim(),
-          }
-        : fb.companionStructured;
-
-    // Build flat DNA from structured if LLM didn't provide it
-    const childDNA =
-      parsed.childDNA?.trim() ||
-      `${childStructured.face}. ${childStructured.hair}. ${childStructured.body}. ${childStructured.clothing}. ${childStructured.signature}.`;
-    const companionDNA =
-      parsed.companionDNA?.trim() ||
-      `${companionStructured.species}, ${companionStructured.size}. ${companionStructured.coloring}. ${companionStructured.feature}.`;
-
-    const result: StoryBankCharacterDNA = {
-      childStructured,
-      companionStructured,
-      childDNA,
-      companionDNA,
-      worldDNA: parsed.worldDNA?.trim() || fb.worldDNA,
-      propDNA: parsePropDNA(parsed.propDNA, fb.propDNA),
-      negativeRules:
-        parsed.negativeRules?.filter(
-          (rule): rule is string => typeof rule === 'string' && !!rule.trim()
-        ) ?? fb.negativeRules,
-    };
-
-    console.log(
-      `[StoryBankDNA] Structured child: face=${childStructured.face.length}ch hair=${childStructured.hair.length}ch clothing=${childStructured.clothing.length}ch signature="${childStructured.signature}"`
-    );
-    console.log(
-      `[StoryBankDNA] Structured companion: species="${companionStructured.species}" coloring=${companionStructured.coloring.length}ch feature="${companionStructured.feature}"`
-    );
-
-    return result;
-  }
-}
+    clothing: `Yellow rain jacket with two front p

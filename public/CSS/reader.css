@@ -258,10 +258,10 @@
 
 .reader-text {
   font-family: var(--fd);
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 500;
   color: #2e2a22;
-  line-height: 1.85;
+  line-height: 1.4;
   text-align: center;
   white-space: pre-wrap;
   margin: 0;
@@ -321,7 +321,7 @@
   border-top: none;
 }
 
-/* image_full_overlay_text — full-bleed art, text band at bottom */
+/* image_full_overlay_text — full-bleed art, text at top (light text-safe zone in art) */
 .reader-page-canvas[data-layout="image_full_overlay_text"] {
   position: relative;
   min-height: min(82vh, 900px);
@@ -353,23 +353,18 @@
   order: unset;
   position: relative;
   z-index: 1;
-  margin-top: auto;
+  margin-top: 0;
+  margin-bottom: auto;
   width: 100%;
   max-width: none;
-  background: linear-gradient(
-    to top,
-    rgba(18, 14, 10, 0.9) 0%,
-    rgba(18, 14, 10, 0.62) 38%,
-    rgba(18, 14, 10, 0.2) 72%,
-    transparent 100%
-  );
+  background: none;
   border: none;
-  padding: 28px 22px 22px;
+  padding: 24px 22px 16px;
 }
 
 .reader-page-canvas[data-layout="image_full_overlay_text"] .reader-text {
-  color: #fff9f0;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  color: #2e2a22;
+  text-shadow: none;
   max-width: 34em;
 }
 
@@ -549,4 +544,8 @@
   }
 
   .reader-page-canvas[data-layout="image_full_overlay_text"] .reader-page-prose {
-    padding: 22px 
+    padding: 16px 14px 12px;
+    background: none;
+  }
+}
+                                                                                                            

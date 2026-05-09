@@ -5,6 +5,8 @@
  * to render HTML pages to PDF. Gives us perfect Hebrew/RTL text rendering,
  * proper typography, and layout that matches the web reader exactly.
  *
+ * On localhost (non-Vercel), uses the locally installed Chrome browser.
+ *
  * Page size: 8.5x8.5 inches (612x612pt) — square format for children's books.
  *
  * Packages required:
@@ -12,8 +14,34 @@
  *   npm uninstall puppeteer
  */
 
-import chromium from '@sparticuz/chromium';
 import puppeteerCore from 'puppeteer-core';
+import { existsSync } from 'fs';
+
+const IS_SERVERLESS = !!process.env.AWS_LAMBDA_FUNCTION_NAME || !!process.env.VERCEL;
+
+/**
+ * Find Chrome/Chromium executable path for local development.
+ * Returns null if not found (will fall back to @sparticuz/chromium).
+ */
+function findLocalChrome(): string | null {
+  const candidates = [
+    // Windows
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    `${process.env.LOCALAPPDATA}\\Google\\Chrome\\Application\\chrome.exe`,
+    // macOS
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    // Linux
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
+  ];
+  for (const p of candidates) {
+    if (p && existsSync(p)) return p;
+  }
+  return null;
+}
 
 interface BookPageForPdf {
   pageNumber: number;
@@ -152,21 +180,15 @@ function buildHtml(title: string, pages: BookPageForPdf[]): string {
     direction: rtl;
   }
 
-  /* ── Text overlay on story pages ──── */
+  /* ── Text overlay on story pages — top, no gradient ──── */
   .text-overlay {
     position: absolute;
-    bottom: 0;
+    top: 0;
     left: 0;
     right: 0;
-    padding: 20pt 28pt 24pt;
+    padding: 20pt 28pt 16pt;
     z-index: 1;
-    background: linear-gradient(
-      to bottom,
-      rgba(255,255,255,0) 0%,
-      rgba(255,255,255,0.75) 10%,
-      rgba(255,255,255,0.92) 30%,
-      rgba(255,255,255,0.97) 100%
-    );
+    background: none;
   }
 
   .body-text {
@@ -188,12 +210,34 @@ export async function generateBookPdf(params: GenerateBookPdfParams): Promise<Bu
   const pages = [...params.pages].sort((a, b) => a.pageNumber - b.pageNumber);
   const html = buildHtml(params.title, pages);
 
-  const browser = await puppeteerCore.launch({
-    args: chromium.args,
-    defaultViewport: chromium.defaultViewport,
-    executablePath: await chromium.executablePath(),
-    headless: chromium.headless,
-  });
+  let browser: Awaited<ReturnType<typeof puppeteerCore.launch>>;
+
+  if (IS_SERVERLESS) {
+    // Vercel / Lambda — use @sparticuz/chromium
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const chromiumMod: { default: any } = await import('@sparticuz/chromium');
+    const chromium = chromiumMod.default;
+    browser = await puppeteerCore.launch({
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless ?? true,
+    });
+  } else {
+    // Local development — use installed Chrome
+    const localChrome = findLocalChrome();
+    if (!localChrome) {
+      throw new Error(
+        'PDF generation: Chrome not found locally. Install Google Chrome or set CHROME_PATH env var.'
+      );
+    }
+    console.log(`[pdf-generator] Using local Chrome: ${localChrome}`);
+    browser = await puppeteerCore.launch({
+      executablePath: process.env.CHROME_PATH || localChrome,
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+  }
 
   try {
     const page = await browser.newPage();
