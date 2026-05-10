@@ -51,9 +51,11 @@ function initLandingContent() {
     setText('galleryH2',  L.gallery.h2);
     setText('gallerySub', L.gallery.sub);
     setText('galleryCta', L.gallery.cta);
+    if (L.gallery.toggleIllustrated) setText('toggleIllustrated', L.gallery.toggleIllustrated);
+    if (L.gallery.toggleRealistic) setText('toggleRealistic', L.gallery.toggleRealistic);
   }
 
-  // ── Gallery style toggle (crossfade between illustrated / realistic) ────────
+  // ── Gallery style toggle (illustrated / watercolor) ─────
   (function initGalleryToggle() {
     const btnIllustrated = document.getElementById('toggleIllustrated');
     const btnRealistic   = document.getElementById('toggleRealistic');
@@ -62,7 +64,8 @@ function initLandingContent() {
     const layerReal      = document.getElementById('galleryTrackRealistic');
     if (!btnIllustrated || !btnRealistic || !pill || !layerIllu || !layerReal) return;
 
-    // Position pill initially on the active button
+    const layers = [layerIllu, layerReal];
+
     function positionPill(btn) {
       pill.style.left  = btn.offsetLeft + 'px';
       pill.style.width = btn.offsetWidth + 'px';
@@ -70,27 +73,39 @@ function initLandingContent() {
     positionPill(btnRealistic);
 
     function switchTo(style) {
-      const isIllustrated = style === 'illustrated';
-      const activeBtn     = isIllustrated ? btnIllustrated : btnRealistic;
-      const inactiveBtn   = isIllustrated ? btnRealistic : btnIllustrated;
-      const showLayer     = isIllustrated ? layerIllu : layerReal;
-      const hideLayer     = isIllustrated ? layerReal : layerIllu;
+      const map = {
+        illustrated: btnIllustrated,
+        realistic: btnRealistic,
+      };
+      const layerMap = {
+        illustrated: layerIllu,
+        realistic: layerReal,
+      };
+      const activeBtn = map[style] || btnRealistic;
+      const showLayer = layerMap[style] || layerReal;
 
-      activeBtn.classList.add('is-active');
-      inactiveBtn.classList.remove('is-active');
+      [btnIllustrated, btnRealistic].forEach((b) => {
+        const on = b === activeBtn;
+        b.classList.toggle('is-active', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+
       positionPill(activeBtn);
 
-      showLayer.classList.add('is-visible');
-      hideLayer.classList.remove('is-visible');
+      layers.forEach((layer) => {
+        const visible = layer === showLayer;
+        layer.classList.toggle('is-visible', visible);
+        layer.setAttribute('aria-hidden', visible ? 'false' : 'true');
+      });
     }
 
     btnIllustrated.addEventListener('click', () => switchTo('illustrated'));
-    btnRealistic.addEventListener('click',   () => switchTo('realistic'));
+    btnRealistic.addEventListener('click', () => switchTo('realistic'));
 
-    // Recalculate pill position on resize
     window.addEventListener('resize', () => {
-      const activeBtn = btnIllustrated.classList.contains('is-active') ? btnIllustrated : btnRealistic;
-      positionPill(activeBtn);
+      const active =
+        [btnIllustrated, btnRealistic].find((b) => b.classList.contains('is-active')) || btnRealistic;
+      positionPill(active);
     });
   })();
 

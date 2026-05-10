@@ -1758,17 +1758,12 @@ function buildGPTImagePrompt(input: ImageInput): string {
   const charParts: string[] = [];
   const cs = input.childStructured;
   if (cs && cs.face && cs.hair && cs.clothing) {
-    // Structured identity lock — each field is a labeled constraint
+    // Compact identity lock — saves attention budget for style rendering
     charParts.push(
-      'CHARACTER IDENTITY LOCK (same on EVERY page):',
-      `- Face: ${cs.face}`,
-      `- Hair: ${cs.hair}`,
-      `- Body: ${cs.body}`,
-      `- Clothing (LOCKED — do NOT change): ${cs.clothing}`,
-      `- Signature detail: ${cs.signature}`,
+      `CHARACTER (locked): ${cs.face}, ${cs.hair}, ${cs.body}. Wearing: ${cs.clothing}${cs.signature ? ` (${cs.signature})` : ''}.`,
     );
   } else if (input.childDescription) {
-    charParts.push(`Main character: ${input.childDescription}`);
+    charParts.push(`CHARACTER (locked): ${input.childDescription}`);
   }
 
   // ── COMPANION PRESENCE — use mustInclude/mustNotInclude as source of truth ──
@@ -1785,33 +1780,25 @@ function buildGPTImagePrompt(input: ImageInput): string {
   if (input.companion && companionInMustInclude) {
     if (cps && cps.species && cps.coloring) {
       charParts.push(
-        `COMPANION LOCK (MUST appear in this scene):`,
-        `- Species: ${cps.species}`,
-        `- Size: ${cps.size}`,
-        `- Coloring: ${cps.coloring}`,
-        `- Feature: ${cps.feature}`,
+        `COMPANION (must appear): ${cps.species}, ${cps.size}, ${cps.coloring}, ${cps.feature}.`,
       );
     } else {
-      charParts.push(`Companion (MUST appear): ${input.companion.name}, ${input.companion.visualDescription}`);
+      charParts.push(`COMPANION (must appear): ${input.companion.name}, ${input.companion.visualDescription}`);
     }
   } else if (input.companion && companionInMustNotInclude) {
-    charParts.push(`DO NOT include ${input.companion.name} or any animal companion in this scene.`);
+    charParts.push(`NO companion in this scene.`);
   } else if (input.companion) {
     const companionInScene = companionReferencedInStoryText(input);
     if (companionInScene) {
       if (cps && cps.species && cps.coloring) {
         charParts.push(
-          `COMPANION LOCK:`,
-          `- Species: ${cps.species}`,
-          `- Size: ${cps.size}`,
-          `- Coloring: ${cps.coloring}`,
-          `- Feature: ${cps.feature}`,
+          `COMPANION: ${cps.species}, ${cps.size}, ${cps.coloring}, ${cps.feature}.`,
         );
       } else {
-        charParts.push(`Companion: ${input.companion.name}, ${input.companion.visualDescription}`);
+        charParts.push(`COMPANION: ${input.companion.name}, ${input.companion.visualDescription}`);
       }
     } else {
-      charParts.push(`DO NOT include ${input.companion.name} or any animal companion in this scene.`);
+      charParts.push(`NO companion in this scene.`);
     }
   }
   if (input.supportingCharacters?.length) {
@@ -1856,7 +1843,7 @@ function buildGPTImagePrompt(input: ImageInput): string {
     }
   }
   const propBlock = propParts.length > 0
-    ? `RECURRING OBJECTS (must look identical on every page):\n${propParts.map(p => `- ${p}`).join('\n')}`
+    ? `PROPS: ${propParts.join('; ')}.`
     : '';
 
   // ── STYLE — pull from style contract for differentiated rendering ──
@@ -1866,8 +1853,8 @@ function buildGPTImagePrompt(input: ImageInput): string {
   const styleNudge = styleContract?.imageNudge?.lines?.[0] ?? '';
   const styleRendering = styleContract?.renderingDescription ?? '';
   const styleBlock = isPreview
-    ? `${styleRendering || "Soft watercolor children's book illustration"}. No text or letters.`
-    : `${styleRendering || "Soft watercolor children's book illustration"}. ${styleNudge} No text, no letters, no UI.`;
+    ? `MEDIUM LOCK:\n${styleRendering || "Soft watercolor children's book illustration"}. No text or letters.`
+    : `MEDIUM LOCK:\n${styleRendering || "Soft watercolor children's book illustration"}. ${styleNudge} No text, no letters, no UI.`;
 
   // ── PREVIEW PATH (direction cards) ──
   if (isPreview) {
@@ -1924,17 +1911,14 @@ function buildGPTImagePrompt(input: ImageInput): string {
 
   // ── FIDELITY RULES (Scene Extractor enforcement) ──
   const sceneRules = [
-    'MANDATORY RULES:',
-    '- Illustrate EXACTLY what is described above. Nothing more, nothing less.',
+    'RULES:',
+    '- Illustrate EXACTLY what is described. Nothing more, nothing less.',
     mustIncludeBlock ? `- ${mustIncludeBlock}` : '',
     mustNotIncludeBlock ? `- ${mustNotIncludeBlock}` : '',
-    '- The child\'s expression MUST match the scene emotion and the Expression field. Do NOT default to smiling if the scene is tense, sad, or scary.',
-    '- Warm, cheerful, humorous children\'s book. NEVER dark, scary, or threatening.',
-    '- Every page: safe, warm, inviting — a beloved bedtime story.',
-    '- ZERO text, letters, numbers, symbols, or words anywhere in the image — not on clothing, not on walls, not on signs, not on any surface. This is absolute.',
-    '- CHARACTER CONSISTENCY: The child MUST look identical on every page. Same face shape, same hair, same clothing, same skin tone. Never vary these.',
-    '- The character\'s clothing described in the CHARACTER IDENTITY LOCK is FINAL — do not add, remove, modify, or accessorize any garment.',
-    '- COMPANION CONSISTENCY: The companion MUST look identical on every page. Same species, same coloring, same size relative to child.',
+    '- Expression MUST match scene emotion — do NOT default to smiling.',
+    '- Child-safe. No horror, no violence.',
+    '- ZERO text, letters, numbers, or symbols anywhere in the image.',
+    '- Character appearance is LOCKED — do not modify face, hair, clothing, or skin tone.',
     ...(input.extraNegativeRules ?? []).map((rule) => `- ${rule}`),
   ].filter(Boolean).join('\n');
 
@@ -1943,8 +1927,9 @@ function buildGPTImagePrompt(input: ImageInput): string {
     ? `Scene based on text: "${textTranslation.slice(0, 200)}"`
     : '';
 
-  // ── ASSEMBLE: Scene → TextRef → Character → Props → Rules → Composition → Style ──
-  const parts = [trimmedScene, textRef, characterBlock, propBlock, sceneRules, compositionBlock, styleBlock].filter(Boolean);
+  // ── ASSEMBLE: Style → Scene → TextRef → Character → Props → Rules → Composition ──
+  // Style/medium FIRST — early tokens disproportionately shape rendering mode.
+  const parts = [styleBlock, trimmedScene, textRef, characterBlock, propBlock, sceneRules, compositionBlock].filter(Boolean);
   const fullPrompt = parts.join('\n\n');
 
   // ── DIAGNOSTIC LOG ──

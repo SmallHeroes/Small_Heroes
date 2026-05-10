@@ -226,6 +226,7 @@ function getStylePreviewDataUrl(styleId) {
   const stylePreviewMap = {
     soft_hand_drawn_storybook: '/art-styles/simple.jpg',
     expressive_painterly_storybook: '/art-styles/classic.jpg',
+    detailed_whimsical_world: '/images/style-preview-03.webp',
   };
   return stylePreviewMap[styleId] || stylePreviewMap.soft_hand_drawn_storybook;
 }
@@ -236,6 +237,7 @@ function normalizeClientStyleId(styleId) {
   const map = {
     soft_hand_drawn_storybook: 'soft_hand_drawn_storybook',
     expressive_painterly_storybook: 'expressive_painterly_storybook',
+    detailed_whimsical_world: 'soft_hand_drawn_storybook', // retired — route to Style 01
     SIMPLE_CALM: 'soft_hand_drawn_storybook',
     FUN_COLORFUL: 'expressive_painterly_storybook',
     EMOTIONAL_ARTISTIC: 'soft_hand_drawn_storybook', // Legacy compatibility only — not offered for new books.
@@ -246,6 +248,7 @@ function normalizeClientStyleId(styleId) {
     realistic_illustrated: 'soft_hand_drawn_storybook', // Legacy compatibility only — not offered for new books.
     whimsical_comic_fantasy: 'expressive_painterly_storybook',
     pencil_watercolor: 'soft_hand_drawn_storybook',
+    DETAILED_WHIMSICAL_WORLD: 'soft_hand_drawn_storybook', // retired
   };
   return map[raw] || 'soft_hand_drawn_storybook';
 }

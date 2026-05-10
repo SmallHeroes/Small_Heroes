@@ -78,9 +78,9 @@
         <p class="gallery-sub" id="gallerySub"></p>
 
         <!-- Style toggle -->
-        <div class="gallery-toggle" id="galleryToggle">
-          <button class="gallery-toggle-btn" data-style="illustrated" id="toggleIllustrated">מאוייר</button>
-          <button class="gallery-toggle-btn is-active" data-style="realistic" id="toggleRealistic">ריאליסטי</button>
+        <div class="gallery-toggle" id="galleryToggle" role="tablist" aria-label="סגנון איור בגלריה">
+          <button type="button" class="gallery-toggle-btn" data-gallery-style="illustrated" id="toggleIllustrated" role="tab" aria-selected="false">מאוייר</button>
+          <button type="button" class="gallery-toggle-btn is-active" data-gallery-style="realistic" id="toggleRealistic" role="tab" aria-selected="true">אקוורל</button>
           <span class="gallery-toggle-pill" id="togglePill"></span>
         </div>
       </div>
@@ -105,6 +105,8 @@
           <div class="gallery-card"><img src="../Images/gallery/gallery-r-5.jpg" alt="עמוד מתוך ספר — ריאליסטי" loading="lazy" /></div>
           <div class="gallery-card"><img src="../Images/gallery/gallery-r-6.jpg" alt="עמוד מתוך ספר — ריאליסטי" loading="lazy" /></div>
         </div>
+
+        <!-- Style 03 removed — gpt-image-1 cannot produce ink-and-gouache via API -->
       </div>
 
       <div class="wrap gallery-cta-wrap">
