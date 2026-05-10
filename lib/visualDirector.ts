@@ -48,7 +48,7 @@ export function resolveStyleSentence(selectedStyle: string): string {
   if (styleId === STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK) {
     return "Realistic artistic portrait with dissolving watercolor background: characters in sharp painterly detail, surroundings fade into warm watercolor washes. Rich warm palette, cinematic lighting on subjects, top area open for text. Like a fine art painting emerging from abstract warm tones. No cartoon, no sketch, no flat illustration, no fully detailed edge-to-edge backgrounds.";
   }
-  return "Charming pencil illustration on warm cream paper with soft watercolor touches: cute expressive characters drawn prominently, soft pencil lines, gentle muted watercolor washes, cream paper visible at edges. Characters fill most of the image — not tiny. Each character has correct separate anatomy. No full-color, no busy backgrounds, no digital look.";
+  return "Warm realistic watercolor portrait on cream paper: characters look like REAL children painted in light airy watercolor with natural proportions and warm healthy skin tones. Soft wet-on-wet edges, cream paper visible at edges, background dissolves into soft cream/peach washes. Characters fill most of the image — not tiny. Each character has correct separate anatomy. Bright and pleasant — NOT dark, NOT cartoon, NOT oil painting heaviness. No busy backgrounds, no digital look.";
 }
 
 function buildSceneSentence(input: VisualDirectorInput): string {
@@ -119,11 +119,4 @@ export function composeVisualDirectorPrompt(input: VisualDirectorInput): VisualD
     'no plain background',
     'no portrait',
     'no headshot',
-    'no character sheet',
-    'no concept art sheet',
-    'no isolated character',
-  ].join(', ');
-
-  return { finalPrompt, negativePrompt };
-}
-
+    'no charac

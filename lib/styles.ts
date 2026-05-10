@@ -83,7 +83,7 @@ export const STYLE_REGISTRY: Record<StyleId, StyleContract> = {
     userLabel: 'מאוייר חם ועדין',
     wizardBlurb: 'דמויות עגולות וחמודות בסגנון ספר ילדים מצויר — צבעי מים רכים, רקע קרם חם, הרגשה של חיבוק.',
     renderingDescription:
-      "Soft Pixar-watercolor children's book illustration — cute expressive characters with rounded features, light cream watercolor background, gentle warm lighting, cheerful and inviting. Modern illustrated storybook style.",
+      "Cinematic painterly realistic portrait — characters look like real children rendered as fine-art oil paintings with warm watercolor background dissolution. Rich warm lighting, visible brushstrokes, natural skin texture. Background dissolves into soft warm watercolor washes. NOT a cartoon, NOT Pixar, NOT flat illustration.",
     pipeline: {
       colorPalette: 'rich warm cinematic palette with deep ambers, warm golds, and natural skin tones',
       lightingStyle: 'cinematic golden-hour lighting with rich depth of field and soft bokeh',
@@ -95,9 +95,9 @@ export const STYLE_REGISTRY: Record<StyleId, StyleContract> = {
       loraStylePrefix: 'realistic artistic portrait, warm watercolor background dissolution, characters in sharp detail with surroundings fading to warm washes, cinematic lighting,',
     },
     imageNudge: {
-      title: 'SOFT_HAND_DRAWN_STORYBOOK_NUDGE',
+      title: 'REALISTIC_ARTISTIC_PORTRAIT_NUDGE',
       lines: [
-        'Soft Pixar-watercolor style: cute expressive characters with rounded features, light cream watercolor background. Gentle warm lighting, cheerful and inviting. Top 20-30% open light space for text. No hard edges or picture frame borders.',
+        'Realistic artistic portrait: characters look like REAL children painted as fine-art oil portraits with warm watercolor background dissolution. Painterly brushstrokes, natural skin texture, cinematic warm lighting. Background dissolves into soft warm washes. Top 20-30% open warm space for text. NOT a cartoon, NOT Pixar, NOT flat illustration. No hard edges or picture frame borders.',
       ],
     },
     lineRules: ['No visible outlines or linework — painterly realism only', 'Soft edges from brushwork, not drawn lines', 'Natural form definition through light and shadow'],
@@ -233,9 +233,9 @@ A light, warm, realistic watercolor. This is NOT a cartoon. NOT dark or moody. N
 The child must look like a REAL child painted in beautiful warm watercolor.
 
 CRITICAL DISTINCTION FROM STYLE 01:
-Style 01 is a cute cartoon illustration (Pixar-style) with big eyes and round features.
-THIS style (Style 02) has REAL child proportions — normal eyes, real face, real body.
-But it must still feel PLEASANT, WARM, and LIGHT — it's a children's book!
+Style 01 is a cinematic painterly portrait with rich warm tones and oil-painting brushwork — dramatic and golden.
+THIS style (Style 02) is LIGHTER and AIRIER — a delicate watercolor, not heavy oil paint.
+Both styles show REAL children (not cartoon), but Style 02 is brighter, softer, more watercolor-transparent.
 If it looks dark, antique, or museum-like — it is WRONG.
 If it looks like a cartoon — it is also WRONG.
 
@@ -285,7 +285,7 @@ STRICT STYLE EXCLUSIONS:
 No text, letters, numbers, symbols. No cartoon rendering. No Pixar/Disney. No anime. No dark moody tones. No heavy oil painting look. No antique golden cast. No scary atmosphere. No 3D render.
 
 PAGE INTEGRATION RULE:
-Top 20-30% fades to warm golden tones for text placement. The painting is warm, golden, and emotionally rich — like a fine-art canvas you would hang on a wall.`,
+Top 20-30% fades to soft warm cream tones for text placement. The painting is warm, light, and emotionally inviting — like a beautiful watercolor portrait in a children's book.`,
   },
 };
 
@@ -449,12 +449,4 @@ export const WIZARD_ILLUSTRATION_STYLES: ReadonlyArray<{
   label: string;
   description: string;
 }> = WIZARD_STYLE_ORDER.map((id) => {
-  const c = STYLE_REGISTRY[id];
-  return { id, label: c.userLabel, description: c.wizardBlurb };
-});
-
-export function getImageStyleNudgeBlock(styleIdInput?: string | null): string {
-  const c = getStyleContract(styleIdInput);
-  if (!c.imageNudge) return '';
-  return [c.imageNudge.title + ':', ...c.imageNudge.lines.map((l) => `- ${l}`)].join('\n');
-}
+  const c = STYLE
