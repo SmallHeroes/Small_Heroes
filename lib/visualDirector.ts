@@ -48,6 +48,9 @@ export function resolveStyleSentence(selectedStyle: string): string {
   if (styleId === STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK) {
     return "Realistic artistic portrait with dissolving watercolor background: characters in sharp painterly detail, surroundings fade into warm watercolor washes. Rich warm palette, cinematic lighting on subjects, top area open for text. Like a fine art painting emerging from abstract warm tones. No cartoon, no sketch, no flat illustration, no fully detailed edge-to-edge backgrounds.";
   }
+  if (styleId === STYLE_IDS.DETAILED_WHIMSICAL_WORLD) {
+    return "Highly detailed whimsical storybook illustration with dense environmental storytelling: hand-drawn ink outlines with watercolor/gouache shading. Halfway between realistic and cartoon — believable proportions but stylized faces. Warm amber lighting with cool blue shadows. Every part of the image filled with charming micro-details: toys, books, decorations, plants, hidden creatures. Character is 30-50% of image, integrated into a rich fully-detailed world. Top area gradually fades to simpler warm tones for text. No hyperrealism, no flat vector, no AI-glossy plastic, no sparse backgrounds.";
+  }
   return "Warm realistic watercolor portrait on cream paper: characters look like REAL children painted in light airy watercolor with natural proportions and warm healthy skin tones. Soft wet-on-wet edges, cream paper visible at edges, background dissolves into soft cream/peach washes. Characters fill most of the image — not tiny. Each character has correct separate anatomy. Bright and pleasant — NOT dark, NOT cartoon, NOT oil painting heaviness. No busy backgrounds, no digital look.";
 }
 
@@ -99,24 +102,4 @@ function buildEnvironmentSentence(): string {
   return 'Always include full environment depth with foreground, midground, and background; keep setting details readable and supportive of narrative action.';
 }
 
-export function composeVisualDirectorPrompt(input: VisualDirectorInput): VisualDirectorOutput {
-  const style = resolveStyleSentence(input.selectedStyle);
-  const scene = buildSceneSentence(input);
-  const characters = buildCharacterSentence(input);
-  const tone = buildToneSentence(input);
-  const composition = buildCompositionSentence(input);
-  const environment = buildEnvironmentSentence();
-
-  const finalPrompt = [style, scene, characters, tone, composition, environment].join(' ');
-  const negativePrompt = [
-    'no text',
-    'no letters',
-    'no captions',
-    'no logos',
-    'no watermarks',
-    'no speech bubbles',
-    'no white background',
-    'no plain background',
-    'no portrait',
-    'no headshot',
-    'no charac
+export function composeVisualDirectorPrompt(input: VisualDirectorI
