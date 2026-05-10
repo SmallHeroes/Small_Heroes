@@ -14,15 +14,15 @@ const nextConfig = {
   },
   /**
    * Ensure backend asset files (fonts, etc.) are included in the serverless
-   * function bundle on Vercel. Without this, `existsSync` returns false and
+   * function bundle on Vercel. Without this, existsSync returns false and
    * print-ready PDF generation silently fails.
    */
   outputFileTracingIncludes: {
     '/api/generate': ['./backend/assets/fonts/**/*'],
   },
   /**
-   * Legacy `.html` entry points and direct `/public/HTML/*.html` URLs → canonical
-   * paths. Query string is preserved by Next (not listed in `destination`).
+   * Legacy .html entry points and direct /public/HTML/*.html URLs -> canonical
+   * paths. Query string is preserved by Next (not listed in destination).
    */
   async redirects() {
     return [
@@ -49,9 +49,9 @@ const nextConfig = {
       /**
        * beforeFiles: run before the App Router matches "/". Without this,
        * app/page.tsx handles "/" and returns null (blank white screen) while
-       * the "/" → legacy HTML rewrite never takes effect.
+       * the "/" -> legacy HTML rewrite never takes effect.
        *
-       * afterFiles: canonical app paths → public/HTML/ static shells.
+       * afterFiles: canonical app paths -> public/HTML/ static shells.
        */
       beforeFiles: [
         { source: '/', destination: '/HTML/index.html' },
@@ -60,4 +60,14 @@ const nextConfig = {
         { source: '/gate', destination: '/HTML/gate.html' },
         { source: '/wizard', destination: '/HTML/wizard.html' },
         { source: '/directions', destination: '/HTML/directions.html' },
-        { source: '/generating', destination: '/HTML/gener
+        { source: '/generating', destination: '/HTML/generating.html' },
+        { source: '/ready', destination: '/HTML/ready.html' },
+        { source: '/reader', destination: '/HTML/reader.html' },
+        { source: '/login', destination: '/HTML/login.html' },
+        { source: '/my-books', destination: '/HTML/my-books.html' },
+      ],
+    };
+  },
+};
+
+module.exports = nextConfig;
