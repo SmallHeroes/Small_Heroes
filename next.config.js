@@ -5,11 +5,20 @@ const nextConfig = {
     'fluent-ffmpeg',
     '@ffmpeg-installer/ffmpeg',
     '@ffprobe-installer/ffprobe',
+    '@sparticuz/chromium',
   ],
   typescript: {
     // TypeScript errors don't block Turbopack compilation;
     // skip the redundant tsc check so Vercel deploys succeed.
     ignoreBuildErrors: true,
+  },
+  /**
+   * Ensure backend asset files (fonts, etc.) are included in the serverless
+   * function bundle on Vercel. Without this, `existsSync` returns false and
+   * print-ready PDF generation silently fails.
+   */
+  outputFileTracingIncludes: {
+    '/api/generate': ['./backend/assets/fonts/**/*'],
   },
   /**
    * Legacy `.html` entry points and direct `/public/HTML/*.html` URLs → canonical
@@ -51,14 +60,4 @@ const nextConfig = {
         { source: '/gate', destination: '/HTML/gate.html' },
         { source: '/wizard', destination: '/HTML/wizard.html' },
         { source: '/directions', destination: '/HTML/directions.html' },
-        { source: '/generating', destination: '/HTML/generating.html' },
-        { source: '/ready', destination: '/HTML/ready.html' },
-        { source: '/reader', destination: '/HTML/reader.html' },
-        { source: '/login', destination: '/HTML/login.html' },
-        { source: '/my-books', destination: '/HTML/my-books.html' },
-      ],
-    };
-  },
-};
-
-module.exports = nextConfig;
+        { source: '/generating', destination: '/HTML/gener

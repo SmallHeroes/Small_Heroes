@@ -1,1 +1,9 @@
-{"buildCommand":"next build"}
+{
+  "buildCommand": "next build",
+  "functions": {
+    "app/api/generate/route.ts": {
+      "maxDuration": 300,
+      "memory": 1024
+    }
+  }
+}
