@@ -1,3 +1,4 @@
+gender: female
 === STORY 1: האור הקטן והצל הגדול ===
 storyStyle: quiet_intimate
 metaphor: צל שגדל על הקיר ומשנה צורה כל פעם שמסתכלים עליו — הוא לא יודע להיות קטן  

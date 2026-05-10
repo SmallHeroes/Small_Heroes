@@ -8,6 +8,7 @@ Time: 37.5s
 Variant: 20-page retelling of batch-03_9a.md
 ---
 
+gender: female
 === STORY 1: הלב של המעיין ===
 storyStyle: quiet_intimate
 metaphor: מעיין שנסתם כי שמע יותר מדי סיפורים עצובים

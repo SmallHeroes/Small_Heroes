@@ -7,6 +7,7 @@ Time: 35.5s
 
 ---
 
+gender: female
 === STORY 1: הסוד של הרוח הסחרחרה ===  
 storyStyle: chaotic_comedy  
 metaphor: רוח זועמת שנתקעה במסלול שלה  

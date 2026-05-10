@@ -6,6 +6,7 @@ Rewrite: 2026-05-06 — core change: tree becomes personal (rope), story becomes
 Variant: 10-page retelling of batch-05_15b.md
 ---
 
+gender: female
 === STORY 1: העץ שלא הסכים לזרום ===
 storyStyle: wild_physical  
 metaphor: גשם שלא מפסיק — כל דבר נשטף, וצריך להחליט על מה לא מוותרים  

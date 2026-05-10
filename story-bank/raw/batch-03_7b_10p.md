@@ -8,6 +8,7 @@ Time: 41.9s
 Variant: 10-page retelling of batch-03_7b.md
 ---
 
+gender: female
 === STORY 1: הבועות שלא נגמרות ===
 storyStyle: absurd_surreal
 metaphor: בועות צבעוניות מכל רעש שממלאות את הבית

@@ -7,6 +7,7 @@ Time: 41.9s
 
 ---
 
+gender: female
 === STORY 1: הבועות שלא נגמרות ===
 storyStyle: absurd_surreal
 metaphor: בועות צבעוניות מכל רעש שממלאות את הבית

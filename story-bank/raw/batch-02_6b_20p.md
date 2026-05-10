@@ -8,6 +8,7 @@ Time: 35.7s
 Variant: 20-page retelling of batch-02_6b.md
 ---
 
+gender: female
 === STORY 1: הקירות שמתקמטים ===
 storyStyle: absurd_surreal  
 metaphor: חדר שהקירות שלו נעים לפי כעס ותסכול  

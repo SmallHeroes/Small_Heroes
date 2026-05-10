@@ -8,6 +8,7 @@ Time: 31.9s
 Variant: 10-page retelling of batch-02_4b.md
 ---
 
+gender: female
 === STORY 1: הציור שלא הסכים להישאר ===
 storyStyle: quiet_intimate  
 metaphor: צבעים שנשפכו מהציורים  

@@ -1,3 +1,4 @@
+gender: female
 === STORY 1: הבלונים שלא הפסיקו למשוך ===
 storyStyle: wild_physical  
 metaphor: ראש שמלא בלונים — כל רעיון הוא בלון שמנסה לעוף, והילדה מנסה להחזיק את כולם  

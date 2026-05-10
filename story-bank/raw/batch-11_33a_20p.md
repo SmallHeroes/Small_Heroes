@@ -1,3 +1,4 @@
+gender: female
 === STORY 1: חוטים שלא מפסיקים ללחוש ===
 storyStyle: dreamy_poetic  
 metaphor: חוטים שעוטפים את הרגליים של הילדה ומונעים ממנה לזוז — כל "שב בשקט!" נהיה חוט  

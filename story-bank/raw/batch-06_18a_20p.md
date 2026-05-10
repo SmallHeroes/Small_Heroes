@@ -1,3 +1,4 @@
+gender: female
 === STORY 18a: הפרח שצמח מתוך החום ===
 storyStyle: dreamy_poetic
 metaphor: סערה חמה שעוברת מעל גן, והגוף הוא אדמה רטובה שממשיכה לבעור מבפנים

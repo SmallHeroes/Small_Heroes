@@ -1,3 +1,4 @@
+gender: female
 === STORY 1: הארון שלא מפסיק לדבר ===
 storyStyle: chaotic_comedy
 metaphor: ארון בגדים מלא דמויות דמיוניות שדורשות תשומת לב

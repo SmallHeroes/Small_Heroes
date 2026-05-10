@@ -7,6 +7,7 @@ Time: 37.5s
 
 ---
 
+gender: female
 === STORY 1: הלב של המעיין ===
 storyStyle: quiet_intimate
 metaphor: מעיין שנסתם כי שמע יותר מדי סיפורים עצובים

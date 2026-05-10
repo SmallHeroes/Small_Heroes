@@ -7,6 +7,7 @@ Time: 33.3s
 
 ---
 
+gender: female
 === STORY 1: הילדה שלא זזה כשהאש רקדה ===
 storyStyle: wild_physical
 metaphor: דרקון אש קטן שברח מתוך ציור

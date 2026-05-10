@@ -1,3 +1,4 @@
+gender: female
 === STORY 1: התעלה הקטנה של {{childName}} ===
 storyStyle: dreamy_poetic
 metaphor: קול פנימי כענן אפור שמטפטף מילים

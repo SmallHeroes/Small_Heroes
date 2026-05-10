@@ -8,6 +8,7 @@ Time: 43.6s
 Variant: 10-page retelling of batch-03_7a.md
 ---
 
+gender: female
 === STORY 1: השלג שלא רצה להיפשר ===
 storyStyle: dreamy_poetic
 metaphor: שלג שמסרב להיפשר בתוך החדר, מגן אך מקפיא

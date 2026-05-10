@@ -8,6 +8,7 @@ Time: 30.4s
 Variant: 10-page retelling of batch-04_10b.md
 ---
 
+gender: female
 === STORY 1: המסילה שלא זזה לבד ===
 storyStyle: chaotic_comedy
 metaphor: צעצועים שצריכים שניים כדי לפעול

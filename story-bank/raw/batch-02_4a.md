@@ -7,6 +7,7 @@ Time: 37.2s
 
 ---
 
+gender: female
 === STORY 1: ההר שלא מפסיק לגדול ===  
 storyStyle: high_energy  
 metaphor: הר געש קטן שצמח באמצע החדר  

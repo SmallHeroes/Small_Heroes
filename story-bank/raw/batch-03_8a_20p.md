@@ -8,6 +8,7 @@ Time: 37s
 Variant: 20-page retelling of batch-03_8a.md
 ---
 
+gender: female
 === STORY 1: ההר שעושה ששש ===
 storyStyle: chaotic_comedy  
 metaphor: ענק שהתכווץ כי הכל היה חזק מדי  

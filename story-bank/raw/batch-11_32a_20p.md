@@ -1,3 +1,4 @@
+gender: female
 === STORY 1: הכיסא שלא הסכים לשבת ===
 storyStyle: absurd_surreal  
 metaphor: כיסא שמסרב לשבת — כל פעם שהיא מתיישבת הוא נהיה משהו אחר  

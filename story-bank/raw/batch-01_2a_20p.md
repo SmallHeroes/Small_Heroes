@@ -8,6 +8,7 @@ Time: 35.1s
 Variant: 20-page retelling of batch-01_2a.md
 ---
 
+gender: female
 === STORY 1: היער שמתקתק ===  
 storyStyle: absurd_surreal  
 metaphor: כוכבים שנפלו ונתקעו בין ענפי העצים  

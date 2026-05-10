@@ -1,3 +1,4 @@
+gender: female
 === STORY 1: הנעל שעצרה רכבת ===
 storyStyle: chaotic_comedy
 metaphor: רכבת מחשבות שלא עוצרת — כל תחנה שהילדה רוצה לרדת בה, הרכבת מזנקת קדימה

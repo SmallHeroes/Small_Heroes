@@ -1,3 +1,4 @@
+gender: female
 === STORY 1: הקופסה שמתכווצת ===
 storyStyle: high_energy
 metaphor: קופסת צעצועים שמתכווצת ודוחקת החוצה את הישנים

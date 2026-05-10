@@ -1,3 +1,4 @@
+gender: female
 === STORY 1: המראה שלא הסכימה להיות כמוני ===  
 storyStyle: quiet_intimate  
 metaphor: מראה שמציגה גרסה טובה יותר של הילדה, וכל מבט מכווץ אותה  

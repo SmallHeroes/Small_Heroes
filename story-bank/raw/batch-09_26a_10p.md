@@ -1,3 +1,4 @@
+gender: female
 === STORY 1: הילדה והאיש משלג שמדבר יותר מדי ===
 storyStyle: absurd_surreal  
 metaphor: בובת שלג שמכריזה מה הילדה לא יודעת לעשות וגדלה מכל הכרזה  

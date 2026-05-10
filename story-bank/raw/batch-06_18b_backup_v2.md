@@ -1,3 +1,4 @@
+gender: female
 === STORY 18b: השריון שנבנה מהרעש ===
 storyStyle: wild_physical
 metaphor: שריון קסום שמגן על הילדה, אבל נבנה דווקא מהדברים שמפחידים אותה

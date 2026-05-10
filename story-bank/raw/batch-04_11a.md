@@ -7,6 +7,7 @@ Time: 31.7s
 
 ---
 
+gender: female
 === STORY 1: הגשר שלא הסכים להיפגש ===  
 storyStyle: high_energy  
 metaphor: גשר שנשבר בין שני צדדים של נחל  

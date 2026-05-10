@@ -5,6 +5,7 @@ Rewrite: 2026-05-06 — core change: TRADE mechanism, give something personal to
 
 ---
 
+gender: female
 === STORY 1: השער שלא נפתח בחינם ===
 storyStyle: emotional_clear
 metaphor: שער שלא נפתח בלי שמוותרים על משהו

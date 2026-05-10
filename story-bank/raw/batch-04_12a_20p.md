@@ -8,6 +8,7 @@ Time: 31.9s
 Variant: 20-page retelling of batch-04_12a.md
 ---
 
+gender: female
 === STORY 1: הגן שמקשיב לצלילים ===
 storyStyle: dreamy_poetic
 metaphor: צלילים שמרחפים באוויר והופכים לצורות צבעוניות

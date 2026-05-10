@@ -8,6 +8,7 @@ Time: 31.8s
 Variant: 10-page retelling of batch-01_2b.md
 ---
 
+gender: female
 === STORY 1: הירח שמתחבא מאחורי הענן ===
 storyStyle: high_energy  
 metaphor: ירח שהתכווץ כי לא מביטים בו  

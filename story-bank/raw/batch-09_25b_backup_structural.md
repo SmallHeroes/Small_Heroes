@@ -1,3 +1,4 @@
+gender: female
 === STORY 1: השלט שלא סתם שותק ===
 storyStyle: chaotic_comedy
 metaphor: שלט ענק שמרחף מעל הילדה וכותב עליה דברים — "רגילה", "ממוצעת", "כלום מיוחד"

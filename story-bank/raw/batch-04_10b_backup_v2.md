@@ -7,6 +7,7 @@ Time: 30.4s
 
 ---
 
+gender: female
 === STORY 1: המסילה שלא זזה לבד ===
 storyStyle: chaotic_comedy
 metaphor: צעצועים שצריכים שניים כדי לפעול

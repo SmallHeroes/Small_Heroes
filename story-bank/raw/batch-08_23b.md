@@ -1,3 +1,4 @@
+gender: female
 === STORY 1: הלוחשת שמתחת למיטה ===  
 storyStyle: high_energy  
 metaphor: חיה ענקית שאוכלת סודות  

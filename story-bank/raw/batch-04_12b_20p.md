@@ -8,6 +8,7 @@ Time: 33.2s
 Variant: 20-page retelling of batch-04_12b.md
 ---
 
+gender: female
 === STORY 1: העלים שבין הקוצים ===
 storyStyle: wild_physical  
 metaphor: קיפוד שלא יכול לחבק  

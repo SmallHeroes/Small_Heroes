@@ -1,3 +1,4 @@
+gender: female
 === STORY 1: הרוח של יום שלישי לא שואלת ===
 storyStyle: wild_physical
 metaphor: רוח עקשנית שמסדרת מחדש את העולם לפי הכללים שלה

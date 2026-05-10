@@ -7,6 +7,7 @@ Time: 34.4s
 
 ---
 
+gender: female
 === STORY 1: הגן של הלילה שנחנק מאור ===
 storyStyle: dreamy_poetic  
 metaphor: גן לילה סודי שפורח רק בחושך  

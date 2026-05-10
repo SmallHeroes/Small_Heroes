@@ -1,3 +1,4 @@
+gender: female
 === STORY 1: הציפור שצורחת צבעים ===
 storyStyle: absurd_surreal  
 metaphor: ציפור ענקית שצורחת ומוחקת צבעים  

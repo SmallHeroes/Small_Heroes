@@ -7,6 +7,7 @@ Time: 35.9s
 
 ---
 
+gender: female
 === STORY 1: הבריכה שלא יכלה לשתוק ===
 storyStyle: dreamy_poetic  
 metaphor: בריכת מים שרותחת כשמישהו כועס לידה  

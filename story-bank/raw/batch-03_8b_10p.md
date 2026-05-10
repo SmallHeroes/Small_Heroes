@@ -8,6 +8,7 @@ Time: 36s
 Variant: 10-page retelling of batch-03_8b.md
 ---
 
+gender: female
 === STORY 1: העץ שלא הסכים לוותר ===
 storyStyle: high_energy  
 metaphor: עצים שמאבדים עלים מרוב רעש  

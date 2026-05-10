@@ -7,6 +7,7 @@ Time: 30.6s
 
 ---
 
+gender: female
 === STORY 1: מקהלת המים המבולבלת ===
 storyStyle: absurd_surreal  
 metaphor: דגים שלא שומעים אחד את השני כי כל אחד שר בשפה אחרת  

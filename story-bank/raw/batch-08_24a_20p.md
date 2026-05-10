@@ -1,3 +1,4 @@
+gender: female
 === STORY 1: המדרגות שסופרות אור ===
 storyStyle: dreamy_poetic
 metaphor: מדרגות שמובילות למטה לחדר חושך עם דפוס נסתר של אור

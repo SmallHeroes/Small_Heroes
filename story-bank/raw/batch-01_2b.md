@@ -7,6 +7,7 @@ Time: 31.8s
 
 ---
 
+gender: female
 === STORY 1: הירח שמתחבא מאחורי הענן ===
 storyStyle: high_energy  
 metaphor: ירח שהתכווץ כי לא מביטים בו  

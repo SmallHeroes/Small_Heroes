@@ -8,6 +8,7 @@ Time: 34.4s
 Variant: 10-page retelling of batch-01_3a.md
 ---
 
+gender: female
 === STORY 1: הגן של הלילה שנחנק מאור ===
 storyStyle: dreamy_poetic  
 metaphor: גן לילה סודי שפורח רק בחושך  

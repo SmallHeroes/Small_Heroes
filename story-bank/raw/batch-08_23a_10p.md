@@ -1,3 +1,4 @@
+gender: female
 === STORY 1: האבן החמה והבריכה השחורה ===
 storyStyle: absurd_surreal
 metaphor: בריכה שחורה על רצפת החדר שמתקררת ומתרחבת כשמנסים לעבור

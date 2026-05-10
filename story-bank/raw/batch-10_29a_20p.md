@@ -1,3 +1,4 @@
+gender: female
 === STORY 1: הכתר שנמס לשתי טבעות ===
 storyStyle: absurd_surreal  
 metaphor: כתר הזהב שעל ראשה מתפורר כשהתינוק מגיע  

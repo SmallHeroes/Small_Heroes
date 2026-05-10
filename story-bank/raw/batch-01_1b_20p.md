@@ -8,6 +8,7 @@ Time: 27.6s
 Variant: 20-page retelling of batch-01_1b.md
 ---
 
+gender: female
 === STORY 1: השמיכה שאוכלת אור ===  
 storyStyle: chaotic_comedy  
 metaphor: שמיכה שבולעת אור כדי להתחמם  

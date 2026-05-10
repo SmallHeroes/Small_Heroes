@@ -6,6 +6,7 @@ Rewrite: 2026-05-06 — core change: exit becomes active choice, not passive dri
 Variant: 20-page retelling of batch-05_13a.md
 ---
 
+gender: female
 === STORY 1: החדר שכמעט נשכח ===
 storyStyle: quiet_intimate
 metaphor: חדר ישן שנמחק כשמחזיקים בו חזק מדי

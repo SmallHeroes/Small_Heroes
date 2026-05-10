@@ -7,6 +7,7 @@ Time: 43.6s
 
 ---
 
+gender: female
 === STORY 1: השלג שלא רצה להיפשר ===
 storyStyle: dreamy_poetic
 metaphor: שלג שמסרב להיפשר בתוך החדר, מגן אך מקפיא

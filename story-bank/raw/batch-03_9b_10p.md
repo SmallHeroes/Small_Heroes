@@ -8,6 +8,7 @@ Time: 36.6s
 Variant: 10-page retelling of batch-03_9b.md
 ---
 
+gender: female
 === STORY 1: ארמון החול שלא הסכים ===
 storyStyle: wild_physical  
 metaphor: חול שמתארגן לצורות לפי מה שמרגישים  

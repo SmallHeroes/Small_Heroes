@@ -1,3 +1,4 @@
+gender: female
 === STORY 1: שתי להבות בחדר אחד ===
 storyStyle: quiet_intimate
 metaphor: נר שהיה תמיד היחיד בחדר — עכשיו יש עוד נר קטן, וכל המבט הולך אליו

@@ -7,6 +7,7 @@ Time: 27.6s
 
 ---
 
+gender: female
 === STORY 1: השמיכה שאוכלת אור ===  
 storyStyle: chaotic_comedy  
 metaphor: שמיכה שבולעת אור כדי להתחמם  

@@ -1,3 +1,4 @@
+gender: female
 === STORY 17a: הגשר הלבן על ההר ===
 storyStyle: absurd_surreal
 metaphor: הזרוע היא שביל הרים שנשבר, והגבס הוא גשר זמני שצריך לחזק

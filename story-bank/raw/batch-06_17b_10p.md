@@ -1,3 +1,4 @@
+gender: female
 === STORY 17b: המפה שבאה בצביטה ===
 storyStyle: high_energy
 metaphor: חייל לבן קטן הולך לאיבוד בתוך הגוף, והמפה היחידה יכולה להגיע מבחוץ דרך צביטה

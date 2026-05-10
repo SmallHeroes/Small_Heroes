@@ -1,3 +1,4 @@
+gender: female
 === STORY 1: העץ שמעל והעץ שמתחת ===
 storyStyle: wild_physical  
 metaphor: שני עצים שגדלים מאותו גזע — הגדול רגיל לשמש, הקטן גדל ומסתיר  

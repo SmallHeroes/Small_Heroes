@@ -1,3 +1,4 @@
+gender: female
 === STORY 16b: החלק המר שעבד ===
 storyStyle: chaotic_comedy
 metaphor: מכונה קסומה שצריכה חלק חסר כדי לעבוד — והחלק הנכון מר, מוזר ולא נעים

@@ -8,6 +8,7 @@ Time: 35s
 Variant: 20-page retelling of batch-01_3b.md
 ---
 
+gender: female
 === STORY 1: הדלת שמנגנת בלילה ===
 storyStyle: wild_physical  
 metaphor: דלת שמופיעה בקיר חדר השינה רק בלילה  

@@ -8,6 +8,7 @@ Time: 35.9s
 Variant: 20-page retelling of batch-02_6a.md
 ---
 
+gender: female
 === STORY 1: הבריכה שלא יכלה לשתוק ===
 storyStyle: dreamy_poetic  
 metaphor: בריכת מים שרותחת כשמישהו כועס לידה  

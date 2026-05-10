@@ -1,3 +1,4 @@
+gender: female
 === STORY 1: הצנצנת שצעקה ===
 storyStyle: quiet_intimate  
 metaphor: צנצנת זכוכית שצועקת עד שהשקט נהיה כבד  

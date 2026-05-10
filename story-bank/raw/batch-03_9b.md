@@ -7,6 +7,7 @@ Time: 36.6s
 
 ---
 
+gender: female
 === STORY 1: ארמון החול שלא הסכים ===
 storyStyle: wild_physical  
 metaphor: חול שמתארגן לצורות לפי מה שמרגישים  

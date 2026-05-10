@@ -5,6 +5,7 @@ Rewrite: 2026-05-06 — core change: RULE_HACK mechanism, discover how the world
 
 ---
 
+gender: female
 === STORY 1: הזרעים שלא הסכימו לגדול ===
 storyStyle: thoughtful_warm
 metaphor: עולם שבו דברים גדלים רק כשמפסיקים לבדוק אותם

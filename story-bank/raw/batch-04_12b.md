@@ -7,6 +7,7 @@ Time: 33.2s
 
 ---
 
+gender: female
 === STORY 1: העלים שבין הקוצים ===
 storyStyle: wild_physical  
 metaphor: קיפוד שלא יכול לחבק  

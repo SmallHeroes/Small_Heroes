@@ -7,6 +7,7 @@ Time: 32.8s
 
 ---
 
+gender: female
 === STORY 1: הצללים שרצו הביתה ===
 storyStyle: quiet_intimate  
 metaphor: צללים שנפלו מהקיר ולא מוצאים את דרכם חזרה  

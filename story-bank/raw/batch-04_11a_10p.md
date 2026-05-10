@@ -8,6 +8,7 @@ Time: 31.7s
 Variant: 10-page retelling of batch-04_11a.md
 ---
 
+gender: female
 === STORY 1: הגשר שלא הסכים להיפגש ===  
 storyStyle: high_energy  
 metaphor: גשר שנשבר בין שני צדדים של נחל  

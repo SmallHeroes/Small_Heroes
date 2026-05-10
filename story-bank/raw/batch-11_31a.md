@@ -1,3 +1,4 @@
+gender: female
 === STORY 1: הספר שלא יושב בשקט ===
 storyStyle: quiet_intimate  
 metaphor: ספר שהאותיות שלו לא מסכימות לשבת  

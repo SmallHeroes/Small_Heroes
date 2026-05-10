@@ -8,6 +8,7 @@ Time: 35.5s
 Variant: 10-page retelling of batch-02_5a.md
 ---
 
+gender: female
 === STORY 1: הסוד של הרוח הסחרחרה ===  
 storyStyle: chaotic_comedy  
 metaphor: רוח זועמת שנתקעה במסלול שלה  

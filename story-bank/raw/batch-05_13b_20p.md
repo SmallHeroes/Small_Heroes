@@ -6,6 +6,7 @@ Rewrite: 2026-05-06 — core change: TRICK mechanism, outsmart the system not ov
 Variant: 20-page retelling of batch-05_13b.md
 ---
 
+gender: female
 === STORY 1: הקופסה שלא נתנה לעבור ===
 storyStyle: playful_clever
 metaphor: קופסה שגדלה כשמנסים לפתוח אותה בכוח

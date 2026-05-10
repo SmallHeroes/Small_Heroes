@@ -7,6 +7,7 @@ Time: 37s
 
 ---
 
+gender: female
 === STORY 1: ההר שעושה ששש ===
 storyStyle: chaotic_comedy  
 metaphor: ענק שהתכווץ כי הכל היה חזק מדי  

@@ -8,6 +8,7 @@ Time: 37.2s
 Variant: 20-page retelling of batch-02_4a.md
 ---
 
+gender: female
 === STORY 1: ההר שלא מפסיק לגדול ===  
 storyStyle: high_energy  
 metaphor: הר געש קטן שצמח באמצע החדר  

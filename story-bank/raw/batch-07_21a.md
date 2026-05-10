@@ -1,3 +1,4 @@
+gender: female
 === STORY 1: האור שבקצה המנהרה ===
 storyStyle: dreamy_poetic  
 metaphor: מנהרה תת־קרקעית שמתמלאת בהד כבד וסמיך  

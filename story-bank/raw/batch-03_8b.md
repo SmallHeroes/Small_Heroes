@@ -7,6 +7,7 @@ Time: 36s
 
 ---
 
+gender: female
 === STORY 1: העץ שלא הסכים לוותר ===
 storyStyle: high_energy  
 metaphor: עצים שמאבדים עלים מרוב רעש  

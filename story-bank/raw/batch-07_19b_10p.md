@@ -1,3 +1,4 @@
+gender: female
 === STORY 1: השעון שלא מפסיק לצלצל ===
 storyStyle: chaotic_comedy  
 metaphor: שעון מעורר ענקי שמשגע את החדר וכל רהיט מגיב אחרת  

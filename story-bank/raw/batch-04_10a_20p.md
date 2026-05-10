@@ -8,6 +8,7 @@ Time: 27.2s
 Variant: 20-page retelling of batch-04_10a.md
 ---
 
+gender: female
 === STORY 1: הענף הארוך מדי ===
 storyStyle: quiet_intimate
 metaphor: עץ שגדל לבד בגינה

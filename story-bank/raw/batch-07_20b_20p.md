@@ -1,3 +1,4 @@
+gender: female
 === STORY 1: התוף שלא הסכים לשתוק ===  
 storyStyle: high_energy  
 metaphor: תוף ענק שמרעיד את הבית כמו אזעקה שלא מפסיקה  

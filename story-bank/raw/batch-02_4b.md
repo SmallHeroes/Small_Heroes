@@ -7,6 +7,7 @@ Time: 31.9s
 
 ---
 
+gender: female
 === STORY 1: הציור שלא הסכים להישאר ===
 storyStyle: quiet_intimate  
 metaphor: צבעים שנשפכו מהציורים  

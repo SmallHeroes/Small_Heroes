@@ -7,6 +7,7 @@ Time: 35.7s
 
 ---
 
+gender: female
 === STORY 1: הקירות שמתקמטים ===
 storyStyle: absurd_surreal  
 metaphor: חדר שהקירות שלו נעים לפי כעס ותסכול  

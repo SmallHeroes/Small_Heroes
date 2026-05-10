@@ -1,3 +1,4 @@
+gender: female
 === STORY 16a: הטירה שראתה שמיים ===
 storyStyle: quiet_intimate
 metaphor: הגוף הוא טירה עם קיר שבור, והפועלים בפנים מתקנים אותו

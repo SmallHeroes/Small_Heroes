@@ -5,6 +5,7 @@ Rewrite: 2026-05-06 — core change: REDIRECT mechanism, give the problem somewh
 
 ---
 
+gender: female
 === STORY 1: הרוח שלא הפסיקה לרוץ ===
 storyStyle: kinetic_playful
 metaphor: רוח שמתנהגת כמו ילד שלא מצליח לעצור

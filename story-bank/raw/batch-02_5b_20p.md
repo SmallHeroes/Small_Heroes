@@ -8,6 +8,7 @@ Time: 33.3s
 Variant: 20-page retelling of batch-02_5b.md
 ---
 
+gender: female
 === STORY 1: הילדה שלא זזה כשהאש רקדה ===
 storyStyle: wild_physical
 metaphor: דרקון אש קטן שברח מתוך ציור

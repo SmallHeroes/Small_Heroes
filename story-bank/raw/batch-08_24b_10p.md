@@ -1,3 +1,4 @@
+gender: female
 === STORY 1: אבנים מהתקרה ===
 storyStyle: wild_physical  
 metaphor: חדר שמתמלא באבנים — כל מחשבה מפחידה מפילה אבן כבדה  

@@ -7,6 +7,7 @@ Time: 27.2s
 
 ---
 
+gender: female
 === STORY 1: הענף הארוך מדי ===
 storyStyle: quiet_intimate
 metaphor: עץ שגדל לבד בגינה

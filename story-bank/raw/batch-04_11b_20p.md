@@ -8,6 +8,7 @@ Time: 30.6s
 Variant: 20-page retelling of batch-04_11b.md
 ---
 
+gender: female
 === STORY 1: מקהלת המים המבולבלת ===
 storyStyle: absurd_surreal  
 metaphor: דגים שלא שומעים אחד את השני כי כל אחד שר בשפה אחרת  

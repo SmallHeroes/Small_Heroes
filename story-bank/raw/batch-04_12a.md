@@ -7,6 +7,7 @@ Time: 31.9s
 
 ---
 
+gender: female
 === STORY 1: הגן שמקשיב לצלילים ===
 storyStyle: dreamy_poetic
 metaphor: צלילים שמרחפים באוויר והופכים לצורות צבעוניות

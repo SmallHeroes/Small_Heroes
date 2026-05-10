@@ -8,6 +8,7 @@ Time: 32.8s
 Variant: 10-page retelling of batch-01_1a.md
 ---
 
+gender: female
 === STORY 1: הצללים שרצו הביתה ===
 storyStyle: quiet_intimate  
 metaphor: צללים שנפלו מהקיר ולא מוצאים את דרכם חזרה  

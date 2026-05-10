@@ -7,6 +7,7 @@ Time: 35.1s
 
 ---
 
+gender: female
 === STORY 1: היער שמתקתק ===  
 storyStyle: absurd_surreal  
 metaphor: כוכבים שנפלו ונתקעו בין ענפי העצים  
