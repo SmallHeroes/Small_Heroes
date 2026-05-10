@@ -382,16 +382,21 @@ const WIZARD_STYLE_ORDER: readonly StyleId[] = [
   // DETAILED_WHIMSICAL_WORLD removed — gpt-image-1 cannot produce ink-and-gouache via API
 ];
 
+/** Wizard-facing style list with id, label, blurb. Consumed by backend/config/wizard.ts. */
+export const WIZARD_ILLUSTRATION_STYLES = WIZARD_STYLE_ORDER.map((id) => {
+  const c = STYLE_REGISTRY[id];
+  return { id: c.id, label: c.userLabel, blurb: c.wizardBlurb };
+});
+
 const LEGACY_STYLE_INPUT_MAP: Record<string, StyleId> = {
   // Canonical active IDs
   [STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK]: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
   [STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK]: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
   [STYLE_IDS.DETAILED_WHIMSICAL_WORLD]: STYLE_IDS.DETAILED_WHIMSICAL_WORLD,
 
-  // Existing DB enum values
+  // Existing DB enum values (detailed_whimsical_world already covered above via STYLE_IDS)
   pencil_watercolor: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
   whimsical_comic_fantasy: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
-  detailed_whimsical_world: STYLE_IDS.DETAILED_WHIMSICAL_WORLD,
   // Legacy compatibility only — not offered for new books.
   realistic_illustrated: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
 
@@ -516,4 +521,42 @@ export interface StyleProfile {
   renderingBehavior: string;
   styleToken: string;
 }
-
+
+export const STYLE_PROFILES: Record<DatabaseIllustrationStyle, StyleProfile> = {
+  pencil_watercolor: {
+    id: 'pencil_watercolor',
+    label: 'Illustrated Storybook',
+    colorPalette: 'warm pastels with cream base',
+    lightingStyle: 'soft diffused',
+    textureStyle: 'hand-drawn ink outlines',
+    renderingBehavior: 'cute illustrated characters',
+    styleToken: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  },
+  whimsical_comic_fantasy: {
+    id: 'whimsical_comic_fantasy',
+    label: 'Expressive Painterly',
+    colorPalette: 'rich saturated gouache',
+    lightingStyle: 'dramatic warm',
+    textureStyle: 'thick painterly strokes',
+    renderingBehavior: 'expressive painterly storybook',
+    styleToken: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+  },
+  detailed_whimsical_world: {
+    id: 'detailed_whimsical_world',
+    label: 'Detailed Whimsical World',
+    colorPalette: 'warm amber with cool shadows',
+    lightingStyle: 'ambient storybook',
+    textureStyle: 'dense crosshatch ink',
+    renderingBehavior: 'dense illustrated world',
+    styleToken: STYLE_IDS.DETAILED_WHIMSICAL_WORLD,
+  },
+  realistic_illustrated: {
+    id: 'realistic_illustrated',
+    label: 'Realistic Artistic',
+    colorPalette: 'natural watercolor washes',
+    lightingStyle: 'cinematic natural',
+    textureStyle: 'fine watercolor on paper',
+    renderingBehavior: 'realistic artistic portraits',
+    styleToken: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  },
+};

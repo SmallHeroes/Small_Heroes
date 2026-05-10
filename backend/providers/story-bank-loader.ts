@@ -875,4 +875,9 @@ Return JSON:
       `[StoryBankDNA] Structured companion: species="${companionStructured.species}" coloring=${companionStructured.coloring.length}ch feature="${companionStructured.feature}"`
     );
     if (additionalDNA.length > 0) {
-      console.log(`[StoryBankDNA] Additional characters: ${additionalDNA
+      console.log(`[StoryBankDNA] Additional characters: ${additionalDNA.length} locked`);
+    }
+
+    return result;
+  }
+}

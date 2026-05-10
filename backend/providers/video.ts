@@ -114,8 +114,8 @@ async function renderPageFrame(imageBuffer: Buffer, text: string, omitText: bool
 
   if (!text?.trim().length || omitText) return base;
 
-  // ── Text layout — matches reader: text at TOP, right-aligned (RTL), no gradient ──
-  const MARGIN_X = 48;
+  // ── Text layout — matches reader: text at TOP, right-aligned (RTL); extra inset for stroke + RTL start edge ──
+  const MARGIN_X = 80;
   const MARGIN_TOP = 48;
   const TEXT_FONT_SIZE = 32;
   const LINE_HEIGHT = 46;

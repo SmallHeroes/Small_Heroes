@@ -2448,6 +2448,22 @@ export async function generateBookCover(input: CoverImageInput): Promise<Generat
   });
 }
 
+/** Structured log line for diagnosing provider failures (policy, 429, timeouts). */
+function formatImageGenFailureReason(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error ?? 'unknown_error');
+  const lower = raw.toLowerCase();
+  if (/content.?pol|safety|moderation|disallowed|blocked|policy|content.?filter/.test(lower)) {
+    return `CONTENT_POLICY_OR_SAFETY: ${raw}`;
+  }
+  if (/429|rate.?limit|too many requests|quota/.test(lower)) {
+    return `RATE_LIMIT: ${raw}`;
+  }
+  if (/timeout|timed out|abort|aborterror|deadline|econnreset|socket|network/.test(lower)) {
+    return `TIMEOUT_OR_NETWORK: ${raw}`;
+  }
+  return `OTHER: ${raw}`;
+}
+
 export async function generateAllPageImages(
   pages: Array<{
     pageNumber: number;
@@ -2706,13 +2722,6 @@ export async function generateAllPageImages(
   };
 
   for (const page of pagesToGenerate) {
-    if (existingPages.has(page.pageNumber) || generatedPages.has(page.pageNumber)) {
-      console.log(
-        `[ImageAttempt] orderId=${config.orderId ?? 'unknown'} page=${page.pageNumber} attempt=0 anchorUsed=false skippedExistingImage=true`
-      );
-      continue;
-    }
-
     const expectedCharacterIds = page.expectedCharacterIds && page.expectedCharacterIds.length > 0
       ? page.expectedCharacterIds
       : ['child'];
@@ -3117,8 +3126,9 @@ export async function generateAllPageImages(
     if (!image) {
       const attemptLabel =
         config.photoQuality?.status === 'warning' ? '2 warning candidates' : `${MAX_PAGE_ATTEMPTS} attempts`;
+      const reason = formatImageGenFailureReason(lastError);
       console.error(
-        `[Image] Page ${page.pageNumber} failed after ${attemptLabel}; skipping page and continuing. err=${
+        `[ImageGen] Page ${page.pageNumber} FAILED after ${attemptLabel} | ${reason} | raw=${
           lastError instanceof Error ? lastError.message : String(lastError)
         }`
       );
@@ -3205,6 +3215,7 @@ export async function generateAllPageImages(
     } else if (availableAnchorIds.length === 0 && expectedCharacterIds.length > 0) {
       console.warn(`[Image] Page ${page.pageNumber} — anchor missing for expected characters, generated without reference`);
     }
+
   }
 
   console.log(
@@ -3213,4 +3224,3 @@ export async function generateAllPageImages(
 
   return { results, failedPages, textZones, lightingModes };
 }
-    

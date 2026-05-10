@@ -114,7 +114,7 @@ function normalizeReaderPages(pages: BookPage[]): ReaderPage[] {
     const isCoverPage = page.pageNumber === 0 || Boolean(page.isCover);
     const textZone =
       !isCoverPage && imageUrl
-        ? parseTextZone(page.textZone ?? undefined) ?? 'bottom_clear'
+        ? parseTextZone(page.textZone ?? undefined) ?? 'top_clear'
         : 'bottom_clear';
     const textColorScheme = deriveTextColorScheme(page.textColorScheme, page.lighting);
     const rawAudio = typeof page.audioUrl === 'string' ? page.audioUrl.trim() : '';
