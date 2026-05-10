@@ -270,7 +270,8 @@ const CONTENT = {
           totalLabel:     'סה"כ לתשלום:',
           audio:  { badge: 'הכי פופולרי',  name: 'קריינות (+₪19)', desc: 'הקראה נעימה לפני השינה' },
           pdf:    { badge: 'מושלם כמתנה',  name: 'PDF (+₪12)',     desc: 'הורידו והדפיסו כספר פיזי' },
-          bundle: { badge: 'חסכו ₪6',      name: 'קומבו (+₪25)',   desc: 'קריינות + PDF יחד' },
+          video:  { badge: 'חדש!',       name: 'סרטון MP4 (+₪15)', desc: 'הספר כסרטון מקריינות עם תמונות' },
+          bundle: { badge: 'חסכו ₪7',      name: 'הכל (+₪39)',      desc: 'קריינות + PDF + סרטון יחד' },
           voiceTitle:   'קריינות (+₪19)',
           voicePreview: 'האזן לדוגמה',
           sleep: { name: 'מותאם לשינה 🌙', desc: 'טון רגוע יותר, הפסקות ארוכות יותר' },
@@ -418,11 +419,13 @@ const CONTENT = {
         audioLabel:     'קריינות:',
         pdfLabel:       'PDF:',
         sleepLabel:     'מצב שינה:',
+        videoLabel:     'סרטון:',
         ageFormat:      '· גיל {age}',
         bookDigital:    'ספר דיגיטלי {length}',
-        bundleLabel:    'קריינות + PDF (חבילה)',
+        bundleLabel:    'קריינות + PDF + סרטון (הכל)',
         audioAddon:     'קריינות 🎧',
         pdfAddon:       'PDF 📥',
+        videoAddon:     'סרטון 🎬',
         totalLabel:     'סה"כ לתשלום:',
         defaultHero:    'הגיבור/ה שלכם',
       },
@@ -590,4 +593,8 @@ window.CONTENT = CONTENT;
     if (val == null) return path;
     if (typeof val !== 'string') return val;   // return arrays/objects as-is
     if (!vars) return val;
-    return val.replace(/
+    return val.replace(/\{(\w+)\}/g, function (_, k) {
+      return vars[k] != null ? vars[k] : '';
+    });
+  };
+})();

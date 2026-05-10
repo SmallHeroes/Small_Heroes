@@ -21,9 +21,11 @@ export async function POST(
   try {
     const { orderId } = await context.params;
     let accessKey: string | undefined;
+    let forceRegenerate = false;
     try {
-      const body = (await req.json()) as { accessKey?: string };
+      const body = (await req.json()) as { accessKey?: string; force?: boolean };
       accessKey = typeof body?.accessKey === 'string' ? body.accessKey : undefined;
+      forceRegenerate = body?.force === true;
     } catch {
       accessKey = undefined;
     }
@@ -73,7 +75,7 @@ export async function POST(
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    if (order.book.videoUrl?.trim()) {
+    if (order.book.videoUrl?.trim() && !forceRegenerate) {
       return NextResponse.json({ videoUrl: order.book.videoUrl.trim(), cached: true });
     }
 

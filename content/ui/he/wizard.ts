@@ -211,4 +211,11 @@ export const WIZARD = {
     videoLabel:     'סרטון:',
     ageFormat:      '· גיל {age}',
     bookDigital:    'ספר דיגיטלי {length}',
-    bundleLabel:    'קריינות + PDF + סרטו
+    bundleLabel:    'קריינות + PDF + סרטון (הכל)',
+    audioAddon:     'קריינות 🎧',
+    pdfAddon:       'PDF 📥',
+    videoAddon:     'סרטון 🎬',
+    totalLabel:     'סה"כ לתשלום:',
+    defaultHero:    'הגיבור/ה שלכם',
+  },
+} as const;

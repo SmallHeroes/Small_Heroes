@@ -25,4 +25,5 @@ export const CHECKOUT_ADDONS = {
   bundle: 'קריינות + PDF + סרטון (הכל)',
   audio:  'קריינות בעברית',
   pdf:    'ספר PDF להדפסה',
-  v
+  video:  'סרטון MP4',
+} as const;

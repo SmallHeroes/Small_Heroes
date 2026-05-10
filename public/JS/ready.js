@@ -249,4 +249,51 @@ function renderBook(data) {
   track('ready_viewed', { orderId });
 }
 
-// ─── Fetch ─────────�
+// ─── Fetch ────────────────────────────────────────────────────────────────────
+async function loadBook(orderId) {
+  try {
+    const keyPart = accessKey ? `?accessKey=${encodeURIComponent(accessKey)}` : '';
+    const res = await fetch('/api/orders/' + encodeURIComponent(orderId) + keyPart);
+
+    if (res.status === 404) {
+      showError(RDY.errorNotFound);
+      return;
+    }
+
+    if (!res.ok) {
+      showError(RDY.errorLoadFailed);
+      return;
+    }
+
+    const data = await res.json();
+
+    // Guard: if the order exists but generation is still in progress,
+    // send the user back to the generating screen rather than showing an error.
+    // This handles the edge case where someone navigates here early
+    // (e.g. a saved link, a back-button, or a race with the redirect).
+    // Accept 'partial' too — audio may have failed but book is deliverable.
+    if ((data.status !== 'ready' && data.status !== 'partial') || !data.book) {
+      const keyPart = accessKey ? `&accessKey=${encodeURIComponent(accessKey)}` : '';
+      window.location.replace(`${ROUTES.generating}?orderId=${encodeURIComponent(orderId)}${keyPart}`);
+      return;
+    }
+
+    renderBook(data);
+
+  } catch (err) {
+    console.error('[ready] Failed to load book:', err);
+    showError(RDY.errorNetworkFail);
+  }
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+const orderId = new URLSearchParams(window.location.search).get('orderId');
+
+wireStaticUI();
+
+if (!orderId) {
+  showError(RDY.errorMissingOrder);
+} else {
+  showState('loading');
+  loadBook(orderId);
+}

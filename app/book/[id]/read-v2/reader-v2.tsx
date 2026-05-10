@@ -491,4 +491,58 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
                   </>
                 )}
 
-                <footer clas
+                <footer className={styles.pageFooter}>
+                  <span>
+                    עמוד {currentPageIndex + 1} מתוך {readerPages.length}
+                  </span>
+                  {bookTitle ? (
+                    <>
+                      <span className={styles.footerSep}> · </span>
+                      <span>{bookTitle}</span>
+                    </>
+                  ) : null}
+                </footer>
+              </article>
+            )}
+          </section>
+
+          <div className={styles.controls}>
+            <button type="button" className={styles.controlBtn} onClick={prev} disabled={isFirstPage && !showEndScreen}>
+              הקודם
+            </button>
+            {showAudioButton ? (
+              <button type="button" className={styles.controlBtn} onClick={toggleAudio}>
+                {isAudioPlaying ? 'השהה' : 'נגן'}
+              </button>
+            ) : null}
+            <button type="button" className={styles.controlBtn} onClick={next}>
+              {isLastPage ? 'סיום' : 'הבא'}
+            </button>
+          </div>
+        </>
+      )}
+
+      {status === 'ready' && showEndScreen && (
+        <section className={styles.centerState}>
+          <div className={styles.endGlyph}>✦</div>
+          <h2 className={styles.endTitle}>סוף</h2>
+          <button
+            type="button"
+            className={styles.controlBtn}
+            onClick={() => {
+              setCurrentPageIndex(0);
+              setShowEndScreen(false);
+            }}
+          >
+            קראו שוב מההתחלה
+          </button>
+          <a href="/" className={styles.backHomeLink}>
+            חזרה לדף הבית
+          </a>
+        </section>
+      )}
+
+      <audio ref={audioRef} preload="metadata" hidden />
+    </main>
+  );
+}

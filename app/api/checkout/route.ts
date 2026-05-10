@@ -280,4 +280,7 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error) {
-    logger.error('PayMe che
+    logger.error('PayMe checkout creation failed', error);
+    return NextResponse.json({ error: 'Failed to create checkout session' }, { status: 500 });
+  }
+}

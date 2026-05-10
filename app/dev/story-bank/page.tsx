@@ -118,6 +118,7 @@ export default function StoryBankDevPage() {
             style={{ display: 'block', width: '100%', padding: 8, marginTop: 4 }}
           >
             <option value={1}>1 page (single page test)</option>
+            <option value={2}>2 pages (video debug)</option>
             <option value={5}>5 pages (quick test)</option>
             <option value={10}>10 pages</option>
             <option value={15}>15 pages (full)</option>
@@ -187,4 +188,34 @@ export default function StoryBankDevPage() {
             <>
               <p style={{ color: '#16a34a', fontWeight: 'bold' }}>✓ Book ready!</p>
               <p>
-                Pages rendered: {rendered} / {rendered + fa
+                Pages rendered: {rendered} / {rendered + failed}
+              </p>
+              {failed > 0 && (
+                <p style={{ color: '#dc2626' }}>Failed: pages {result.pagesFailed?.join(', ')}</p>
+              )}
+              {result.bookUrl && (
+                <a
+                  href={result.bookUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    display: 'inline-block',
+                    marginTop: 8,
+                    padding: '8px 16px',
+                    background: '#7c3aed',
+                    color: '#fff',
+                    borderRadius: 6,
+                    textDecoration: 'none',
+                  }}
+                >
+                  Open Book →
+                </a>
+              )}
+            </>
+          )}
+          {status === 'error' && <p style={{ color: '#dc2626' }}>{result.error}</p>}
+        </div>
+      )}
+    </div>
+  );
+}

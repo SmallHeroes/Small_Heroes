@@ -287,4 +287,9 @@ export function computePricing(config: {
   if (config.bundleEnabled) {
     addons += ADDON_PRICES.bundle;
   } else {
-    if (config.audioEnabled) addons 
+    if (config.audioEnabled) addons += ADDON_PRICES.audio;
+    if (config.pdfEnabled)   addons += ADDON_PRICES.pdf;
+    if (videoEnabled)       addons += ADDON_PRICES.video;
+  }
+  return { basePrice: base, addonsPrice: addons, totalPrice: base + addons };
+}

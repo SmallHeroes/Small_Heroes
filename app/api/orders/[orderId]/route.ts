@@ -243,4 +243,16 @@ function computeProgress(order: {
   audioEnabled: boolean;
   textStatus: string;
   imageStatus: string;
-  audioStatus: stri
+  audioStatus: string;
+  packageStatus: string;
+}): number {
+  let done = 0;
+  const total = order.audioEnabled ? 4 : 3;
+
+  if (order.textStatus === 'done') done++;
+  if (order.imageStatus === 'done') done++;
+  if (!order.audioEnabled || order.audioStatus === 'done') done++;
+  if (order.packageStatus === 'done') done++;
+
+  return Math.round((done / total) * 100);
+}

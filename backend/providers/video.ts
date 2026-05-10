@@ -13,10 +13,14 @@ import { join } from 'path';
 import { writeFile, mkdir, readFile } from 'fs/promises';
 import { rm } from 'fs/promises';
 import { randomUUID } from 'crypto';
+import { execFile } from 'child_process';
+import { basename } from 'path';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-ffmpeg.setFfmpegPath(ffmpegInstaller.path.replace(/\\/g, '/'));
-ffmpeg.setFfprobePath(ffprobeInstaller.path.replace(/\\/g, '/'));
+const FFMPEG_BIN = ffmpegInstaller.path.replace(/\\/g, '/');
+const FFPROBE_BIN = ffprobeInstaller.path.replace(/\\/g, '/');
+ffmpeg.setFfmpegPath(FFMPEG_BIN);
+ffmpeg.setFfprobePath(FFPROBE_BIN);
 
 const VIDEO_WIDTH = 1080;
 const VIDEO_HEIGHT = 1440;
@@ -110,29 +114,26 @@ async function renderPageFrame(imageBuffer: Buffer, text: string, omitText: bool
 
   if (!text?.trim().length || omitText) return base;
 
-  const escapedLines = wrapOverlayText(text, 38).map(escapeXml);
-  const lineHeight = 44;
-  const textBlockHeight = escapedLines.length * lineHeight + 56;
-  const gradientHeight = textBlockHeight + 88;
-  const yStart = VIDEO_HEIGHT - gradientHeight;
+  // ── Text layout — matches reader: dark text directly on image, no gradient ──
+  const MARGIN_X = 48;
+  const MARGIN_BOTTOM = 48;
+  const TEXT_FONT_SIZE = 32;
+  const LINE_HEIGHT = 46;
+  const MAX_CHARS = 36;
+
+  const escapedLines = wrapOverlayText(text, MAX_CHARS).map(escapeXml);
+  const textBlockH = escapedLines.length * LINE_HEIGHT;
+  const textStartY = VIDEO_HEIGHT - MARGIN_BOTTOM - textBlockH + TEXT_FONT_SIZE;
 
   const svgLines = escapedLines
     .map((line, i) => {
-      const y = VIDEO_HEIGHT - textBlockHeight + 36 + i * lineHeight + lineHeight * 0.85;
-      return `<text xml:space="preserve" x="${VIDEO_WIDTH - 36}" y="${y}" text-anchor="end" font-family="Heebo, Arial Hebrew, Arial, sans-serif" font-size="34" font-weight="600" fill="#2e2a22" direction="rtl">${line}</text>`;
+      const y = textStartY + i * LINE_HEIGHT;
+      return `<text xml:space="preserve" x="${VIDEO_WIDTH - MARGIN_X}" y="${y}" text-anchor="end" font-family="Heebo, Arial Hebrew, Arial, sans-serif" font-size="${TEXT_FONT_SIZE}" font-weight="700" fill="#2e2a22" direction="rtl" stroke="#fdf9f4" stroke-width="4" paint-order="stroke">${line}</text>`;
     })
     .join('\n');
 
   const svgOverlay = `
 <svg width="${VIDEO_WIDTH}" height="${VIDEO_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="rgb(253,249,244)" stop-opacity="0"/>
-      <stop offset="38%" stop-color="rgb(253,249,244)" stop-opacity="0.72"/>
-      <stop offset="100%" stop-color="rgb(253,249,244)" stop-opacity="0.94"/>
-    </linearGradient>
-  </defs>
-  <rect x="0" y="${yStart}" width="${VIDEO_WIDTH}" height="${gradientHeight}" fill="url(#fade)"/>
   ${svgLines}
 </svg>`.trim();
 
@@ -174,92 +175,102 @@ function getAudioDurationSec(filePath: string): Promise<number> {
 
 function writeSilenceWav(workDir: string, name: string, durationSec: number): Promise<string> {
   const outPath = join(workDir, `${name}.wav`);
+  const outPosix = outPath.replace(/\\/g, '/');
+  const args = [
+    '-y',
+    '-f', 'lavfi', '-t', String(durationSec),
+    '-i', 'anullsrc=channel_layout=mono:sample_rate=44100',
+    '-ar', String(AUDIO_SR),
+    '-ac', '1',
+    '-c:a', 'pcm_s16le',
+    outPosix,
+  ];
   return new Promise((resolve, reject) => {
-    ffmpeg()
-      .input('anullsrc=channel_layout=mono:sample_rate=44100')
-      .inputOptions(['-f', 'lavfi', '-t', String(durationSec)])
-      .audioFrequency(AUDIO_SR)
-      .audioChannels(1)
-      .audioCodec('pcm_s16le')
-      .output(outPath)
-      .on('end', () => resolve(outPath))
-      .on('error', reject)
-      .run();
+    execFile(FFMPEG_BIN, args, { maxBuffer: 5 * 1024 * 1024 }, (err, _stdout, stderr) => {
+      if (err) return reject(new Error(`Silence gen failed: ${err.message}\n${stderr}`));
+      resolve(outPath);
+    });
   });
 }
 
 async function normalizePaddedMp3(mp3Path: string, padAfterSec: number, workDir: string, base: string): Promise<string> {
-  const outPath = join(workDir, `${base}.wav`);
-  return new Promise((resolve, reject) => {
-    ffmpeg(mp3Path)
-      .audioFilters(`apad=pad_dur=${padAfterSec}`)
-      .audioFrequency(AUDIO_SR)
-      .audioChannels(1)
-      .audioCodec('pcm_s16le')
-      .output(outPath)
-      .on('end', () => resolve(outPath))
-      .on('error', reject)
-      .run();
+  // Step 1: Convert MP3 → WAV (no filters)
+  const rawWavPath = join(workDir, `${base}-raw.wav`);
+  const rawWavPosix = rawWavPath.replace(/\\/g, '/');
+  const mp3Posix = mp3Path.replace(/\\/g, '/');
+  await new Promise<void>((resolve, reject) => {
+    execFile(FFMPEG_BIN, [
+      '-y', '-i', mp3Posix,
+      '-ar', String(AUDIO_SR), '-ac', '1', '-c:a', 'pcm_s16le',
+      rawWavPosix,
+    ], { maxBuffer: 5 * 1024 * 1024 }, (err, _stdout, stderr) => {
+      if (err) return reject(new Error(`MP3→WAV failed: ${err.message}\n${stderr}`));
+      resolve();
+    });
   });
+
+  // Step 2: Generate silence padding WAV
+  const silPath = await writeSilenceWav(workDir, `${base}-pad`, padAfterSec);
+
+  // Step 3: Concat speech + silence via concat demuxer (no filters)
+  // Use basename only — concat demuxer resolves relative to the list file's directory
+  const outPath = join(workDir, `${base}.wav`);
+  const outPosix = outPath.replace(/\\/g, '/');
+  const listPath = join(workDir, `${base}-concat.txt`);
+  const listContent = [
+    `file '${basename(rawWavPath)}'`,
+    `file '${basename(silPath)}'`,
+  ].join('\n');
+  await writeFile(listPath, listContent, 'utf-8');
+
+  const listPosix = listPath.replace(/\\/g, '/');
+  await new Promise<void>((resolve, reject) => {
+    execFile(FFMPEG_BIN, [
+      '-y', '-f', 'concat', '-safe', '0', '-i', listPosix,
+      '-c:a', 'pcm_s16le', '-ar', String(AUDIO_SR), '-ac', '1',
+      outPosix,
+    ], { maxBuffer: 5 * 1024 * 1024 }, (err, _stdout, stderr) => {
+      if (err) return reject(new Error(`Padded concat failed: ${err.message}\n${stderr}`));
+      resolve();
+    });
+  });
+
+  return outPath;
 }
 
 async function concatWavs(wavs: string[], workDir: string): Promise<string> {
   const outPath = join(workDir, 'full-audio.wav');
   const listPath = join(workDir, 'audio-concat.txt');
-  const lines = wavs.map((p) => {
-    const posix = p.replace(/\\/g, '/');
-    return `file '${posix.replace(/'/g, `'\\''`)}'`;
-  });
+  // Use basename only — all wavs are in workDir, concat resolves relative to list file
+  const lines = wavs.map((p) => `file '${basename(p)}'`);
   await writeFile(listPath, lines.join('\n'), 'utf-8');
 
+  const listPosix = listPath.replace(/\\/g, '/');
+  const outPosix = outPath.replace(/\\/g, '/');
+  const args = [
+    '-y',
+    '-f', 'concat', '-safe', '0', '-i', listPosix,
+    '-c:a', 'pcm_s16le',
+    '-ar', String(AUDIO_SR),
+    '-ac', '1',
+    outPosix,
+  ];
   return new Promise((resolve, reject) => {
-    ffmpeg()
-      .input(listPath)
-      .inputOptions(['-f', 'concat', '-safe', '0'])
-      .audioCodec('pcm_s16le')
-      .audioFrequency(AUDIO_SR)
-      .audioChannels(1)
-      .output(outPath)
-      .on('end', () => resolve(outPath))
-      .on('error', reject)
-      .run();
+    execFile(FFMPEG_BIN, args, { maxBuffer: 10 * 1024 * 1024 }, (err, _stdout, stderr) => {
+      if (err) return reject(new Error(`WAV concat failed: ${err.message}\n${stderr}`));
+      resolve(outPath);
+    });
   });
 }
 
-/** Convert a single PNG into a silent MP4 clip of the given duration. */
-function createSlideSegment(
-  imagePath: string,
-  durationSec: number,
-  outputPath: string
-): Promise<void> {
-  const FPS = 25;
-  // The `loop` VIDEO FILTER repeats frames (not the `-loop` input option which is GIF-only).
-  // loop=<loops>:<size>:<start> — loops = number of extra frame copies, size = 1 frame, start = 0
-  const totalFrames = Math.max(1, Math.ceil(FPS * durationSec));
-  return new Promise((resolve, reject) => {
-    ffmpeg(imagePath)
-      .videoFilter([
-        `loop=${totalFrames - 1}:1:0`,
-        `fps=${FPS}`,
-        `scale=${VIDEO_WIDTH}:${VIDEO_HEIGHT}`,
-        'setsar=1',
-        'format=yuv420p',
-      ])
-      .outputOptions([
-        '-c:v', 'libx264',
-        '-crf', '23',
-        '-preset', 'medium',
-        '-an',
-        '-t', String(durationSec),
-      ])
-      .output(outputPath)
-      .on('end', () => resolve())
-      .on('error', reject)
-      .run();
-  });
-}
-
-/** Concatenate per-slide MP4 segments + full audio WAV into final output. */
+/**
+ * Encode slides + audio into final MP4.
+ * Calls FFmpeg binary directly via child_process.execFile — NO fluent-ffmpeg
+ * for the encode step, because fluent-ffmpeg silently injects filter-graph
+ * options when combining inputs, which fails on the minimal @ffmpeg-installer build.
+ *
+ * Uses concat demuxer with `duration` directives on image files.
+ */
 async function encodeSlidesWithAudio(
   slidePngPaths: string[],
   durationsSec: number[],
@@ -271,53 +282,53 @@ async function encodeSlidesWithAudio(
   }
 
   const workDir = join(outputPath, '..');
-  const segmentPaths: string[] = [];
 
-  // Step 1: Create individual video segments
+  // Build concat demuxer list with duration per image
+  // Use basename only — concat demuxer resolves relative to the list file's directory
+  const concatListPath = join(workDir, 'slides-concat.txt');
+  const lines: string[] = [];
   for (let i = 0; i < slidePngPaths.length; i++) {
-    const segPath = join(workDir, `segment-${i}.mp4`);
-    await createSlideSegment(slidePngPaths[i], durationsSec[i], segPath);
-    segmentPaths.push(segPath);
+    lines.push(`file '${basename(slidePngPaths[i])}'`);
+    lines.push(`duration ${durationsSec[i]}`);
   }
+  // Concat demuxer quirk: last file must be listed again without duration
+  if (slidePngPaths.length > 0) {
+    lines.push(`file '${basename(slidePngPaths[slidePngPaths.length - 1])}'`);
+  }
+  await writeFile(concatListPath, lines.join('\n'), 'utf-8');
 
-  // Step 2: Concatenate all video segments using concat demuxer
-  const silentVideoPath = join(workDir, 'silent-video.mp4');
-  const concatListPath = join(workDir, 'video-concat.txt');
-  const concatLines = segmentPaths.map((p) => {
-    const posix = p.replace(/\\/g, '/');
-    return `file '${posix.replace(/'/g, `'\\''`)}'`;
-  });
-  await writeFile(concatListPath, concatLines.join('\n'), 'utf-8');
+  const concatPosix = concatListPath.replace(/\\/g, '/');
+  const audioPosix = audioWavPath.replace(/\\/g, '/');
+  const outPosix = outputPath.replace(/\\/g, '/');
+
+  // Direct FFmpeg call — full control, no hidden options
+  const args = [
+    '-y',
+    '-f', 'concat', '-safe', '0', '-i', concatPosix,
+    '-i', audioPosix,
+    '-c:v', 'libx264',
+    '-crf', '23',
+    '-preset', 'medium',
+    '-pix_fmt', 'yuv420p',
+    '-c:a', 'aac',
+    '-b:a', '128k',
+    '-ac', '1',
+    '-shortest',
+    '-avoid_negative_ts', 'make_zero',
+    '-movflags', '+faststart',
+    outPosix,
+  ];
+
+  console.log('[video] FFmpeg encode command:', FFMPEG_BIN, args.join(' '));
 
   await new Promise<void>((resolve, reject) => {
-    ffmpeg()
-      .input(concatListPath)
-      .inputOptions(['-f', 'concat', '-safe', '0'])
-      .outputOptions(['-c', 'copy'])
-      .output(silentVideoPath)
-      .on('end', () => resolve())
-      .on('error', reject)
-      .run();
-  });
-
-  // Step 3: Mux concatenated video + full audio
-  await new Promise<void>((resolve, reject) => {
-    ffmpeg()
-      .input(silentVideoPath)
-      .input(audioWavPath)
-      .outputOptions([
-        '-c:v', 'copy',
-        '-c:a', 'aac',
-        '-b:a', '128k',
-        '-ac', '1',
-        '-shortest',
-        '-avoid_negative_ts', 'make_zero',
-        '-movflags', '+faststart',
-      ])
-      .output(outputPath)
-      .on('end', () => resolve())
-      .on('error', reject)
-      .run();
+    execFile(FFMPEG_BIN, args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+      if (err) {
+        console.error('[video] FFmpeg stderr:', stderr);
+        return reject(new Error(`FFmpeg encode failed: ${err.message}\n${stderr}`));
+      }
+      resolve();
+    });
   });
 }
 

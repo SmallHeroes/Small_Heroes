@@ -397,4 +397,49 @@ export async function POST(req: NextRequest) {
       await prisma.order.update({ where: { id: order.id }, data: { audioStatus: 'running' } });
       for (const page of story.pages) {
         const narration = page.narrationText?.trim();
-        if (!n
+        if (!narration) continue;
+        try {
+          const result = await generatePageAudio({
+            narrationText: narration,
+            voiceId: 'mom',
+            sleepMode: false,
+            orderId: order.id,
+            pageNumber: page.pageNumber,
+          });
+          await prisma.bookPage.updateMany({
+            where: { bookId: book.id, pageNumber: page.pageNumber },
+            data: { audioUrl: result.url },
+          });
+        } catch (err) {
+          console.warn(`[StoryBank] Audio failed for page ${page.pageNumber}:`, err);
+        }
+      }
+      await prisma.order.update({ where: { id: order.id }, data: { audioStatus: 'done' } });
+    }
+
+    await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        status: 'ready',
+        imageStatus: 'done',
+        packageStatus: 'done',
+      },
+    });
+
+    const bookUrl = ROUTES.readerV2(order.id, accessKey);
+
+    return NextResponse.json({
+      success: true,
+      orderId: order.id,
+      bookId: book.id,
+      accessKey,
+      bookUrl,
+      pagesRendered: imageOutcome.results.size,
+      pagesFailed: imageOutcome.failedPages,
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[StoryBank] Generation failed:', error);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

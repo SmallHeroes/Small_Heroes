@@ -181,3 +181,40 @@ export async function generatePageAudio(input: {
   sleepMode: boolean;
   orderId: string;
   pageNumber: number;
+}): Promise<{ url: string }> {
+  const voice = getVoiceById(input.voiceId);
+  if (!voice) throw new Error(`Unknown voice: ${input.voiceId}`);
+
+  let text = input.narrationText.trim();
+  if (!text) throw new Error('Empty narration text');
+
+  if (input.sleepMode) {
+    text = text.replace(/\./g, '......... ').replace(/,/g, ',...  ');
+  } else {
+    text = text.replace(/\./g, '... ').replace(/,/g, ',  ');
+  }
+
+  const audioBuffer = await callElevenLabs(text, voice.elevenlabsVoiceId);
+
+  const filename = `${input.orderId}-page${input.pageNumber}${input.sleepMode ? '-sleep' : ''}.mp3`;
+  const url = await storeAudio(audioBuffer, filename);
+  return { url };
+}
+
+
+// ─── Voice Preview ────────────────────────────────────
+/**
+ * Generate a short voice preview for the UI voice picker.
+ * Called when user clicks play on a voice option.
+ */
+export async function generateVoicePreview(voiceId: string): Promise<Buffer> {
+  const voice = getVoiceById(voiceId);
+  if (!voice) throw new Error(`Unknown voice: ${voiceId}`);
+
+  const previewText = WIZARD.voicePreviewText;
+
+  return callElevenLabs(previewText, voice.elevenlabsVoiceId, {
+    stability: voice.stability ?? 0.75,
+    similarity_boost: voice.similarityBoost ?? 0.80,
+  });
+}

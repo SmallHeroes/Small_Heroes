@@ -9,7 +9,7 @@ import { randomUUID } from 'crypto';
 import path from 'path';
 import { FamilyContext } from '../../../backend/providers/story';
 import { generateAllPageImages, generateBookCover } from '../../../backend/providers/image';
-import { generateAudio, buildNarrationScript } from '../../../backend/providers/audio';
+import { generatePageAudio } from '../../../backend/providers/audio';
 import { TOPICS } from '../../../backend/config/wizard';
 import { sendBookReadyEmail } from '../../../backend/lib/email';
 import { logServerEvent } from '../events/route';
@@ -206,6 +206,14 @@ function inferCharacterId(
   if (/(^|\s)(mother|mom|ima|אמא)(\s|$)/i.test(lowered)) return 'mother';
   if (/(^|\s)(sister|brother|sibling|אחות|אח)(\s|$)/i.test(lowered)) return `sibling_${fallbackIndex + 1}`;
   return `${fallbackPrefix}_${fallbackIndex + 1}`;
+}
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
 }
 
 function parseStoredCharacterAnchors(raw: unknown): Record<string, CharacterAnchorRecord> {
@@ -1125,7 +1133,7 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
       failedImages: imageOutcome.failedPages.length,
     });
 
-    // ── Stage 3: Audio (optional) ─────────────────────
+    // ── Stage 3: Audio (optional, per-page ElevenLabs) ──
     if (order.audioEnabled && order.selectedVoice) {
       generationLogger.info('Stage started', {
         orderId,
@@ -1135,32 +1143,38 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
       await prisma.order.update({ where: { id: orderId }, data: { audioStatus: 'running' } });
 
       try {
-        const narrationScript = buildNarrationScript(
-          story.pages.map(p => ({ pageNumber: p.pageNumber, narrationText: p.narrationText })),
-          order.sleepMode
-        );
-
-        const audio = await generateAudio({
-          narrationScript,
-          voiceId: order.selectedVoice,
-          sleepMode: order.sleepMode,
-          orderId,
-        });
-
-        await prisma.audioAsset.create({
-          data: {
-            bookId: book.id,
-            provider: audio.provider,
-            voiceId: audio.voiceId,
-            sleepMode: order.sleepMode,
-            url: audio.url,
-          },
-        });
+        const pageChunks = chunkArray(story.pages, 3);
+        for (const chunk of pageChunks) {
+          await Promise.all(
+            chunk.map(async (page) => {
+              const narration = page.narrationText?.trim();
+              if (!narration) return;
+              try {
+                const result = await generatePageAudio({
+                  narrationText: narration,
+                  voiceId: order.selectedVoice!,
+                  sleepMode: order.sleepMode,
+                  orderId,
+                  pageNumber: page.pageNumber,
+                });
+                await prisma.bookPage.updateMany({
+                  where: { bookId: book.id, pageNumber: page.pageNumber },
+                  data: { audioUrl: result.url },
+                });
+              } catch (err) {
+                generationLogger.warn(`Audio failed for page ${page.pageNumber}`, {
+                  orderId,
+                  pageNumber: page.pageNumber,
+                  error: err instanceof Error ? err.message : String(err),
+                });
+              }
+            })
+          );
+        }
 
         await prisma.order.update({ where: { id: orderId }, data: { audioStatus: 'done' } });
         await prisma.generationJob.update({ where: { orderId }, data: { audioDone: true } });
         generationLogger.info('Stage completed', { orderId, stage: 'audio' });
-
       } catch (audioErr) {
         generationLogger.error('Audio stage failed (non-fatal)', audioErr, {
           orderId,
@@ -1176,6 +1190,55 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
       }
     } else {
       await prisma.order.update({ where: { id: orderId }, data: { audioStatus: 'done' } });
+    }
+
+    // ── Stage 3b: Video (optional, after audio so per-page audioUrl is available when narrated)
+    if (order.videoEnabled) {
+      try {
+        const bookPages = await prisma.bookPage.findMany({
+          where: { bookId: book.id },
+          orderBy: { pageNumber: 'asc' },
+          select: {
+            pageNumber: true,
+            text: true,
+            audioUrl: true,
+            imageAsset: { select: { url: true, presentationUrl: true } },
+          },
+        });
+
+        const { generateBookVideo, storeVideo } = await import('../../../backend/providers/video');
+        const cover = book.coverImageUrl?.trim() || '';
+        const videoPages = [
+          ...(cover ? [{ pageNumber: 0, text: '', imageUrl: cover, audioUrl: null }] : []),
+          ...bookPages.map((p) => ({
+            pageNumber: p.pageNumber,
+            text: p.text,
+            imageUrl:
+              typeof p.imageAsset?.presentationUrl === 'string'
+                ? p.imageAsset.presentationUrl.trim()
+                : (p.imageAsset?.url ?? '').trim(),
+            audioUrl: p.audioUrl?.trim() ?? null,
+          })),
+        ].filter((p) => p.imageUrl.length > 0);
+
+        if (videoPages.length === 0) {
+          generationLogger.warn('Video stage skipped: no usable page images', { orderId });
+        } else {
+          const videoBuffer = await generateBookVideo({
+            orderId,
+            title: book.title,
+            pages: videoPages,
+          });
+          const videoUrl = await storeVideo(videoBuffer, `${orderId}-book.mp4`);
+          await prisma.generatedBook.update({
+            where: { id: book.id },
+            data: { videoUrl },
+          });
+          generationLogger.info('Stage completed', { orderId, stage: 'video' });
+        }
+      } catch (videoErr) {
+        console.error('[Generate] Video stage failed (non-fatal):', videoErr);
+      }
     }
 
     // ── Stage 4: Package & Mark Ready ─────────────────
@@ -1277,12 +1340,18 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
         where: { id: book.id },
         include: { audioAsset: true },
       });
+      const firstPageAudio = await prisma.bookPage.findFirst({
+        where: { bookId: book.id, audioUrl: { not: null } },
+        orderBy: { pageNumber: 'asc' },
+        select: { audioUrl: true },
+      });
       await sendBookReadyEmail({
         to:           order.customerEmail,
         customerName: order.customerName ?? order.childName,
         childName:    order.childName,
         readUrl,
-        audioUrl:     finishedBook?.audioAsset?.url ?? undefined,
+        audioUrl:
+          firstPageAudio?.audioUrl?.trim() || finishedBook?.audioAsset?.url || undefined,
         pdfUrl:       finishedBook?.pdfUrl            ?? undefined,
       });
       generationLogger.info('Ready email sent', { orderId, customerEmail: order.customerEmail });

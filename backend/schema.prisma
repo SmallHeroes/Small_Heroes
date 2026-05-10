@@ -406,4 +406,14 @@ model GenerationJob {
   completedAt DateTime?
   failedAt    DateTime?
   attempts    Int      @default(0)
-  lastError   S
+  lastError   String?
+
+  // Stage tracking
+  textDone    Boolean @default(false)
+  imagesDone  Boolean @default(false)
+  audioDone   Boolean @default(false)
+  packaged    Boolean @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

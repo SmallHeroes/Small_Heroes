@@ -1465,7 +1465,7 @@ function renderExtraCharacters() {
     const card = document.createElement('article');
     card.className = 'char-card';
     const hasPhoto = Boolean(character.photo);
-    const hasValidationState = hasPhoto || character.photoQuality?.status === PHOTO_QUALITY_STATUS.BLOCKED;
+    const hasValidationState = hasPhoto || (character.photoQuality && typeof character.photoQuality.status === 'string');
     const relationOptions = EXTRA_CHARACTER_RELATIONS.map((option) =>
       `<option value="${option.id}" ${option.disabled ? 'disabled' : ''} ${character.relation === option.id ? 'selected' : ''}>${option.label}</option>`
     ).join('');
@@ -2594,4 +2594,235 @@ function buildWizardPayload() {
         ...(additionalCharacters[0]
           ? {
               parent1: {
-                name
+                name: additionalCharacters[0].name,
+                description: additionalCharacters[0].description || undefined,
+              },
+            }
+          : {}),
+        ...(additionalCharacters[1]
+          ? {
+              parent2: {
+                name: additionalCharacters[1].name,
+                description: additionalCharacters[1].description || undefined,
+              },
+            }
+          : {}),
+      }
+    : null;
+
+  return {
+    bookName: state.bookName || null,
+    child: {
+      name:       state.childName,
+      age:        state.childAge        || null,
+      gender:     state.childGender     || null,
+      traits:     state.childTraits,
+      superpower: combinedSuperpower.length ? combinedSuperpower.join(' | ') : null,
+      imageUrl:   state.photo || null,
+    },
+    photoQuality: state.photoQuality || null,
+    topic,
+    challengeCategory: state.challengeCategory || null,
+    companionCharacterId: state.companionCharacterId || null,
+    categoryAnswers: state.categoryAnswers || [],
+    familyContext,
+    challenge: {
+      selected: state.difficulties,
+      freeText: state.s4extra || null,
+    },
+    desiredOutcome: {
+      selected: state.goals,
+      freeText: null,
+    },
+    helpers: {
+      selected: state.helpers,
+      freeText: state.s6extra || null,
+    },
+    avoid: {
+      selected: state.avoid,
+      freeText: state.s7extra || null,
+    },
+    product: {
+      length:            state.length,
+      illustrationStyle: normalizeClientStyleId(state.style),
+      audioEnabled:      state.audioEnabled,
+      selectedVoice:     state.audioEnabled ? (state.voice || null) : null,
+      sleepMode:         state.sleepMode,
+      pdfEnabled:        state.pdfEnabled,
+      bundleEnabled:     state.bundleEnabled,
+      videoEnabled:      state.videoEnabled,
+    },
+    contact: {
+      name:  state.contactName,
+      email: state.contactEmail,
+    },
+  };
+}
+
+/** Puts the pay button into loading / ready state. */
+function setPayBtnState(loading) {
+  const btn = document.getElementById('btn-pay');
+  if (!btn) return;
+  btn.disabled = loading;
+  btn.setAttribute('aria-busy', loading ? 'true' : 'false');
+  btn.classList.toggle('is-submitting', loading);
+  if (!loading) {
+    btn.classList.remove('is-pressed');
+  }
+
+  if (loading) {
+    btn.textContent = '';
+    const dots = document.createElement('span');
+    dots.className = 'submit-dots';
+    dots.setAttribute('aria-hidden', 'true');
+    for (let i = 0; i < 3; i += 1) {
+      const dot = document.createElement('span');
+      dot.className = 'submit-dot';
+      dots.appendChild(dot);
+    }
+    btn.appendChild(dots);
+    return;
+  }
+
+  btn.textContent = WIZ.steps.s9.submitBtn;
+}
+
+/** Inserts (or updates) a small error line below the pay button. */
+function showSubmitError(message) {
+  let el = document.getElementById('submit-error');
+  if (!el) {
+    el = document.createElement('p');
+    el.id         = 'submit-error';
+    el.style.cssText =
+      'color:#e55;font-size:.875rem;margin-top:.75rem;text-align:center;line-height:1.4';
+    const btn = document.getElementById('btn-pay');
+    if (btn && btn.parentNode) btn.parentNode.insertBefore(el, btn.nextSibling);
+  }
+  el.textContent = message;
+  el.hidden      = false;
+}
+
+function hideSubmitError() {
+  const el = document.getElementById('submit-error');
+  if (el) el.hidden = true;
+}
+
+function showPhotoError(message) {
+  let el = document.getElementById('photo-error');
+  if (!el) {
+    el = document.createElement('p');
+    el.id = 'photo-error';
+    el.style.cssText = 'color:#e55;font-size:.85rem;margin-top:.6rem;text-align:center;line-height:1.4';
+    const area = document.getElementById('photo-area');
+    if (area && area.parentNode) area.parentNode.insertBefore(el, area.nextSibling);
+  }
+  el.textContent = message;
+  el.hidden = false;
+}
+
+function hidePhotoError() {
+  const el = document.getElementById('photo-error');
+  if (el) el.hidden = true;
+}
+
+async function handleSubmit() {
+  if (isSubmittingOrder) return;
+  isSubmittingOrder = true;
+  hideSubmitError();
+  const payBtn = document.getElementById('btn-pay');
+  if (payBtn) {
+    payBtn.classList.add('is-pressed');
+  }
+  setPayBtnState(true);
+  track('checkout_started', { topic: state.topic, length: state.length });
+
+  try {
+    const payload = {
+      wizardData: buildWizardPayload(),
+      sessionId: getOrCreateWizardSessionId(),
+    };
+    // ── Step 1: create the order ──────────────────────────────────
+    let orderResponse = null;
+    if (clientApi && typeof clientApi.requestJson === 'function') {
+      orderResponse = await clientApi.requestJson('/api/orders', {
+        fetch: {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        },
+        timeoutMs: ORDER_SUBMIT_TIMEOUT_MS,
+        fallbackMessage: 'יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏',
+        timeoutMessage: 'יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏',
+        networkMessage: 'יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏',
+        invalidJsonMessage: 'התקבלה תגובה לא תקינה מהשרת.',
+      });
+    } else {
+      const orderRes = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const fallbackData = await orderRes.json().catch(() => ({}));
+      orderResponse = orderRes.ok
+        ? { ok: true, data: fallbackData, message: null, reason: null, status: orderRes.status }
+        : {
+            ok: false,
+            data: fallbackData,
+            message: fallbackData.error || 'יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏',
+            reason: 'http_error',
+            status: orderRes.status,
+          };
+    }
+
+    if (!orderResponse.ok) {
+      const userMessage = 'יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏';
+      reportClientIssue('submit_failed', {
+        reason: orderResponse.reason || 'request_failed',
+        status: orderResponse.status || 0,
+      });
+      throw new Error(userMessage);
+    }
+
+    const { orderId } = orderResponse.data || {};
+    if (!orderId || typeof orderId !== 'string') {
+      reportClientIssue('submit_failed', { reason: 'missing_order_id_in_response' });
+      throw new Error('יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏');
+    }
+
+    clearWizardSessionId();
+    try {
+      sessionStorage.removeItem(WIZARD_STORAGE_KEY);
+    } catch (_) {
+      /* ignore */
+    }
+    // Story directions load after order creation.
+    window.location.href = ROUTES.directions + '?orderId=' + encodeURIComponent(orderId);
+
+  } catch (err) {
+    console.error('[Wizard] Submit failed:', err);
+    setPayBtnState(false);
+    showSubmitError(
+      err.message && err.message.length > 0
+        ? err.message
+        : 'יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏',
+    );
+  } finally {
+    isSubmittingOrder = false;
+  }
+}
+
+/* ── SHAKE ANIMATION ─────────────────────────────────────────── */
+const shakeStyle = document.createElement("style");
+shakeStyle.textContent = `
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20%     { transform: translateX(-6px); }
+    40%     { transform: translateX(6px); }
+    60%     { transform: translateX(-4px); }
+    80%     { transform: translateX(4px); }
+  }
+`;
+document.head.appendChild(shakeStyle);
+
+/* ── BOOT ────────────────────────────────────────────────────── */
+document.addEventListener("DOMContentLoaded", init);
