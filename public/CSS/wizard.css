@@ -1550,7 +1550,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, var(--voice-col));
   gap: 24px;
-  align-items: start;
+  align-items: stretch;
   margin-top: 28px !important;
   transition: gap .34s ease, grid-template-columns .44s cubic-bezier(.22, 1, .36, 1);
 }
@@ -2352,4 +2352,3 @@
 
 #step-6 #superpower-chips {
   margin-top: 6px;
-}
