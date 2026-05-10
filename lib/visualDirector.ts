@@ -118,4 +118,14 @@ export function composeVisualDirectorPrompt(input: VisualDirectorInput): VisualD
     'no logos',
     'no watermarks',
     'no speech bubbles',
-    'no 
+    'no white background',
+    'no plain background',
+    'no portrait',
+    'no headshot',
+    'no character sheet',
+    'no concept art sheet',
+    'no isolated character',
+  ].join(', ');
+
+  return { finalPrompt, negativePrompt };
+}
