@@ -256,16 +256,16 @@ export type Superpower = typeof SUPERPOWER_OPTIONS[number];
 // Story length mapping (prices remain unchanged).
 // short=10, medium=15, long=20
 export const STORY_LENGTHS = [
-  { id: 'short',  label: 'קצר',   pages: 10, priceILS: 49 },
-  { id: 'medium', label: 'בינוני', pages: 15, priceILS: 59 },
-  { id: 'long',   label: 'ארוך',   pages: 20, priceILS: 69 },
+  { id: 'short',  label: 'קצר',   pages: 10, priceILS: 50 },
+  { id: 'medium', label: 'בינוני', pages: 15, priceILS: 70 },
+  { id: 'long',   label: 'ארוך',   pages: 20, priceILS: 90 },
 ] as const;
 
 export const ADDON_PRICES = {
   audio:  19, // ILS
-  pdf:    12, // ILS
-  video:  15, // ILS — book MP4 (FFmpeg slideshow + narration per page)
-  bundle: 39, // ILS (audio + pdf + video, “הכל”)
+  pdf:    19, // ILS — print-ready PDF
+  video:  14, // ILS — book MP4 (FFmpeg slideshow + narration per page)
+  bundle: 40, // ILS (audio + pdf + video, “הכל” — saves ₪12)
 } as const;
 
 /** Same ids and labels as `WIZARD_ILLUSTRATION_STYLES` in `lib/styles.ts` (without blurbs). */
@@ -291,5 +291,4 @@ export function computePricing(config: {
     if (config.pdfEnabled)   addons += ADDON_PRICES.pdf;
     if (videoEnabled)       addons += ADDON_PRICES.video;
   }
-  return { basePrice: base, addonsPrice: addons, totalPrice: base + addons };
-}
+  return { basePrice: base, addonsPrice: add

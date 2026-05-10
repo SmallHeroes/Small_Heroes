@@ -17,7 +17,7 @@ const RDY_DEFAULTS = {
   errorBack: 'חזרה לדף הבית',
   btnRead: 'לקרוא את הספר',
   btnAudio: 'להאזין לסיפור',
-  btnPdf: 'הורד PDF',
+  btnPdf: 'קובץ מוכן להדפסה',
   btnVideo: 'סרטון MP4 של הספר',
   videoPreparing: 'מכינים את הסרטון...',
   errorVideo: 'לא הצלחנו ליצור את הסרטון. נסו שוב.',
@@ -211,6 +211,9 @@ function renderBook(data) {
           window.open(book.videoUrl, '_blank', 'noopener');
           return;
         }
+        // Open a blank tab immediately (within user-gesture) so the browser
+        // doesn't block the popup after the long async generation.
+        const videoTab = window.open('about:blank', '_blank');
         btnVideoEl.disabled = true;
         btnVideoEl.textContent = RDY.videoPreparing;
         const res = await fetch(`/api/orders/${encodeURIComponent(orderId)}/video`, {
@@ -220,13 +223,19 @@ function renderBook(data) {
         });
         const payload = await res.json().catch(() => ({}));
         if (!res.ok) {
+          if (videoTab) videoTab.close();
           throw new Error(payload.error || `HTTP ${res.status}`);
         }
         const videoUrl = payload.videoUrl;
         if (typeof videoUrl === 'string' && videoUrl.trim()) {
           book.videoUrl = videoUrl.trim();
-          window.open(book.videoUrl, '_blank', 'noopener');
+          if (videoTab && !videoTab.closed) {
+            videoTab.location.href = book.videoUrl;
+          } else {
+            window.open(book.videoUrl, '_blank', 'noopener');
+          }
         } else {
+          if (videoTab) videoTab.close();
           throw new Error('missing_video_url');
         }
       } catch (err) {
@@ -282,18 +291,4 @@ async function loadBook(orderId) {
 
   } catch (err) {
     console.error('[ready] Failed to load book:', err);
-    showError(RDY.errorNetworkFail);
-  }
-}
-
-// ─── Boot ─────────────────────────────────────────────────────────────────────
-const orderId = new URLSearchParams(window.location.search).get('orderId');
-
-wireStaticUI();
-
-if (!orderId) {
-  showError(RDY.errorMissingOrder);
-} else {
-  showState('loading');
-  loadBook(orderId);
-}
+    showError(RDY.errorNetworkFail);

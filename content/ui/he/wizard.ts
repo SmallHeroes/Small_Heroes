@@ -74,9 +74,9 @@ export const WIZARD = {
       addonsSub:      '*בתוספת תשלום',
       totalLabel:     'סה"כ לתשלום:',
       audio:  { badge: 'הכי פופולרי',  name: 'קריינות (+₪19)', desc: 'מושלם להאזנה לפני השינה' },
-      pdf:    { badge: 'מושלם כמתנה', name: 'PDF (+₪14)',      desc: 'הדפיסו כספר פיזי' },
-      video:  { badge: 'חדש!',        name: 'סרטון MP4 (+₪14)', desc: 'הספר כסרטון מקריינות עם תמונות' },
-      bundle: { badge: 'חסכו ₪7',     name: 'הכל (+₪40)',     desc: 'קריינות + PDF + סרטון יחד' },
+      pdf:    { badge: 'מושלם כמתנה', name: 'קובץ מוכן להדפסה (+₪19)', desc: 'קובץ באיכות גבוהה מוכן לבית דפוס' },
+      video:  { badge: 'חדש!',        name: 'סרטון MP4 (+₪14)',       desc: 'הספר כסרטון מקריינות עם תמונות' },
+      bundle: { badge: 'חסכו ₪12',    name: 'הכל (+₪40)',             desc: 'קריינות + הדפסה + סרטון יחד' },
       voiceTitle:   'קריינות (+₪19)',
       voicePreview: 'האזן לדוגמה',
       sleep: {
@@ -215,7 +215,4 @@ export const WIZARD = {
     audioAddon:     'קריינות 🎧',
     pdfAddon:       'PDF 📥',
     videoAddon:     'סרטון 🎬',
-    totalLabel:     'סה"כ לתשלום:',
-    defaultHero:    'הגיבור/ה שלכם',
-  },
-} as const;
+    totalLabel:     'סה"כ לתשלום:

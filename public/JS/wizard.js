@@ -314,11 +314,11 @@ const state = {
 
 /* ── PRICING ─────────────────────────────────────────────────── */
 const PRICES = {
-  base: { short: 49, medium: 59, long: 69 },
+  base: { short: 50, medium: 70, long: 90 },
   audio: 19,
-  pdf: 12,
-  video: 15,
-  bundle: 39,
+  pdf: 19,
+  video: 14,
+  bundle: 40,
 };
 
 const WIZARD_STORAGE_KEY = 'wizard_state';
