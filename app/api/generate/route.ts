@@ -1434,4 +1434,8 @@ export async function POST(req: Request) {
       {
         error: 'Internal error',
         details: error instanceof Error ? error.message : String(error),
-      
+      },
+      { status: 500 }
+    );
+  }
+}

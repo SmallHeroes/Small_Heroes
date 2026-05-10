@@ -593,4 +593,8 @@ window.CONTENT = CONTENT;
     if (val == null) return path;
     if (typeof val !== 'string') return val;   // return arrays/objects as-is
     if (!vars) return val;
-    re
+    return val.replace(/\{(\w+)\}/g, function (_, k) {
+      return vars[k] != null ? vars[k] : '';
+    });
+  };
+})();

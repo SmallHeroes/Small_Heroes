@@ -216,4 +216,19 @@ export async function generatePageAudio(input: {
 }
 
 
-// ─── Voice Preview ───────────────�
+// ─── Voice Preview ────────────────────────────────────
+/**
+ * Generate a short voice preview for the UI voice picker.
+ * Called when user clicks play on a voice option.
+ */
+export async function generateVoicePreview(voiceId: string): Promise<Buffer> {
+  const voice = getVoiceById(voiceId);
+  if (!voice) throw new Error(`Unknown voice: ${voiceId}`);
+
+  const previewText = WIZARD.voicePreviewText;
+
+  return callElevenLabs(previewText, voice.elevenlabsVoiceId, {
+    stability: voice.stability ?? 0.75,
+    similarity_boost: voice.similarityBoost ?? 0.80,
+  });
+}

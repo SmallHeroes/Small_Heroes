@@ -702,5 +702,180 @@ Return JSON:
   },
   "companionStructured": {
     "species": "3-8 words: exact animal/creature type",
-    "size": "5-10 words: size relative to child",
-    "coloring": "10-15 words: exact colors and ma
+    "coloring": "10-15 words: exact colors and markings",
+    "feature": "5-10 words: one distinctive visual feature"
+  },
+  "childDNA": "40-60 words: flat paragraph combining all child fields above (backward compat)",
+  "companionDNA": "20-30 words: flat paragraph combining all companion fields above",
+  "worldDNA": "20-30 words: weather, time, palette, ground condition",
+  "propDNA": {
+    "object_name": "15-25 word locked visual description",
+    "another_object": "15-25 word locked visual description"
+  },
+  "negativeRules": [
+    "NEVER put text, letters, numbers, or words on clothing, walls, signs, or any surface",
+    "NEVER change the child's outfit, hair, or accessories between pages",
+    "Rule 3",
+    "Rule 4"
+  ]
+}
+`.trim();
+
+  const genderWord = params.childGender === 'girl' ? 'girl' : 'boy';
+
+
+  const fallbackChildStructured: StructuredChildDNA = {
+    face: `Round soft face, warm light olive skin, large dark brown almond-shaped eyes, small upturned nose`,
+    hair: `Medium-length straight brown hair, tucked behind ears, thin red fabric headband`,
+    body: `Average build for a ${params.childAge}-year-old ${genderWord}, about ${params.childAge >= 5 ? '3.5' : '3'} feet tall`,
+    clothing: `Yellow rain jacket with two front pockets, blue denim shorts, white canvas sneakers`,
+    signature: `Always carries a worn stuffed bunny in left hand`,
+  };
+  const fallbackCompanionStructured: StructuredCompanionDNA = {
+    species: 'cat',
+    size: `Small, fits comfortably in the child's arms`,
+    coloring: `${'Orange tabby with white chest patch'}`,
+    feature: `Big round curious eyes that always look directly at the child`,
+  };
+  const fallback: StoryBankCharacterDNA = {
+    childStructured: fallbackChildStructured,
+    companionStructured: fallbackCompanionStructured,
+    childDNA: `${fallbackChildStructured.face}. ${fallbackChildStructured.hair}. ${fallbackChildStructured.body}. ${fallbackChildStructured.clothing}. ${fallbackChildStructured.signature}.`,
+    companionDNA: `${fallbackCompanionStructured.species}, ${fallbackCompanionStructured.size}. ${fallbackCompanionStructured.coloring}. ${fallbackCompanionStructured.feature}.`,
+    worldDNA: 'Warm golden-hour lighting, soft depth-of-field blur on backgrounds, safe domestic environments.',
+    propDNA: {},
+    negativeRules: [
+      "NEVER put text, letters, numbers, or words on clothing, walls, signs, or any surface",
+      "NEVER change the child's outfit, hair, or accessories between pages",
+    ],
+    additionalCharactersDNA: [],
+  };
+
+  try {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error('OPENAI_API_KEY missing');
+    const model = process.env.STORY_GENERATION_MODEL || 'gpt-4o';
+    const body: Record<string, unknown> = {
+      model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      response_format: { type: 'json_object' },
+    };
+    if (model.startsWith('gpt-5.')) {
+      body.max_completion_tokens = 1500;
+    } else {
+      body.max_tokens = 1500;
+      body.temperature = 0.2;
+    }
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content ?? '';
+    const parsed = parseJsonResponse<Partial<StoryBankCharacterDNA>>(text);
+
+    // Fetch additional characters DNA if wizard provided them
+    let additionalDNA: AdditionalCharacterDNA[] = [];
+    if (params.additionalCharacters && params.additionalCharacters.length > 0) {
+      additionalDNA = await fetchAdditionalCharactersDNA({
+        storyText: params.storyText,
+        illustrationStyle: params.illustrationStyle,
+        childName: params.childName,
+        companionName: params.companionName,
+        additionalCharacters: params.additionalCharacters,
+      });
+    }
+
+    return assembleDNA(parsed, fallback, additionalDNA);
+  } catch (error) {
+    console.warn('[StoryBankDNA] failed, using fallback DNA:', error);
+    return fallback;
+  }
+
+  // This point is unreachable but TS needs it for exhaustiveness
+  return fallback;
+
+  /** Merge LLM output with fallback, validating structured fields. */
+  function assembleDNA(
+    parsed: Partial<StoryBankCharacterDNA>,
+    fb: StoryBankCharacterDNA,
+    additionalDNA: AdditionalCharacterDNA[] = []
+  ): StoryBankCharacterDNA {
+    // Validate structured child fields — each must be a non-empty string
+    const cs = parsed.childStructured;
+    const childStructured: StructuredChildDNA =
+      cs &&
+      typeof cs.face === 'string' && cs.face.trim().length > 5 &&
+      typeof cs.hair === 'string' && cs.hair.trim().length > 5 &&
+      typeof cs.body === 'string' && cs.body.trim().length > 5 &&
+      typeof cs.clothing === 'string' && cs.clothing.trim().length > 5 &&
+      typeof cs.signature === 'string' && cs.signature.trim().length > 3
+        ? {
+            face: cs.face.trim(),
+            hair: cs.hair.trim(),
+            body: cs.body.trim(),
+            clothing: cs.clothing.trim(),
+            signature: cs.signature.trim(),
+          }
+        : fb.childStructured;
+
+    // Validate structured companion fields
+    const cps = parsed.companionStructured;
+    const companionStructured: StructuredCompanionDNA =
+      cps &&
+      typeof cps.species === 'string' && cps.species.trim().length > 2 &&
+      typeof cps.size === 'string' && cps.size.trim().length > 3 &&
+      typeof cps.coloring === 'string' && cps.coloring.trim().length > 5 &&
+      typeof cps.feature === 'string' && cps.feature.trim().length > 3
+        ? {
+            species: cps.species.trim(),
+            size: cps.size.trim(),
+            coloring: cps.coloring.trim(),
+            feature: cps.feature.trim(),
+          }
+        : fb.companionStructured;
+
+    // Build flat DNA from structured if LLM didn't provide it
+    const childDNA =
+      parsed.childDNA?.trim() ||
+      `${childStructured.face}. ${childStructured.hair}. ${childStructured.body}. ${childStructured.clothing}. ${childStructured.signature}.`;
+    const companionDNA =
+      parsed.companionDNA?.trim() ||
+      `${companionStructured.species}, ${companionStructured.size}. ${companionStructured.coloring}. ${companionStructured.feature}.`;
+
+    const result: StoryBankCharacterDNA = {
+      childStructured,
+      companionStructured,
+      childDNA,
+      companionDNA,
+      worldDNA: parsed.worldDNA?.trim() || fb.worldDNA,
+      propDNA: parsePropDNA(parsed.propDNA, fb.propDNA),
+      negativeRules:
+        parsed.negativeRules?.filter(
+          (rule): rule is string => typeof rule === 'string' && !!rule.trim()
+        ) ?? fb.negativeRules,
+      additionalCharactersDNA: additionalDNA,
+    };
+
+    console.log(
+      `[StoryBankDNA] Structured child: face=${childStructured.face.length}ch hair=${childStructured.hair.length}ch clothing=${childStructured.clothing.length}ch signature="${childStructured.signature}"`
+    );
+    console.log(
+      `[StoryBankDNA] Structured companion: species="${companionStructured.species}" coloring=${companionStructured.coloring.length}ch feature="${companionStructured.feature}"`
+    );
+    if (additionalDNA.length > 0) {
+      console.log(`[StoryBankDNA] Additional characters: ${additionalDNA.length} locked`);
+    }
+
+    return result;
+  }
+}
+

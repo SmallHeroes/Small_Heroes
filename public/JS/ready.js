@@ -291,4 +291,18 @@ async function loadBook(orderId) {
 
   } catch (err) {
     console.error('[ready] Failed to load book:', err);
-    showError(RDY.errorNetworkFail);
+    showError(RDY.errorNetworkFail);
+  }
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+const orderId = new URLSearchParams(window.location.search).get('orderId');
+
+wireStaticUI();
+
+if (!orderId) {
+  showError(RDY.errorMissingOrder);
+} else {
+  showState('loading');
+  loadBook(orderId);
+}

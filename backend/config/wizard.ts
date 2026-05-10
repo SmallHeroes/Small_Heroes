@@ -291,4 +291,5 @@ export function computePricing(config: {
     if (config.pdfEnabled)   addons += ADDON_PRICES.pdf;
     if (videoEnabled)       addons += ADDON_PRICES.video;
   }
-  return { basePrice: base, addonsPrice: add
+  return { basePrice: base, addonsPrice: addons, totalPrice: base + addons };
+}
