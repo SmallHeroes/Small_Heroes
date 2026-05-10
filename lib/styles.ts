@@ -4,8 +4,8 @@
  */
 /**
  * STYLES STATE NOTE (Phase 1 cleanup, 2026-04-27):
- * Two active styles for new books: SOFT_HAND_DRAWN_STORYBOOK, EXPRESSIVE_PAINTERLY_STORYBOOK.
- * The DB enum (IllustrationStyle) still has three values including legacy
+ * Three active styles for new books: SOFT_HAND_DRAWN_STORYBOOK, EXPRESSIVE_PAINTERLY_STORYBOOK,
+ * DETAILED_WHIMSICAL_WORLD. The DB enum (IllustrationStyle) also includes legacy rows;
  * `realistic_illustrated`, which is silently routed to SOFT_HAND_DRAWN_STORYBOOK.
  * LEGACY_STYLE_INPUT_MAP retains 30+ aliases for in-flight orders / safety;
  * a future phase will trim this once a one-time DB audit confirms which values
@@ -292,14 +292,19 @@ Top 20-30% fades to soft warm cream tones for text placement. The painting is wa
   [STYLE_IDS.DETAILED_WHIMSICAL_WORLD]: {
     id: STYLE_IDS.DETAILED_WHIMSICAL_WORLD,
     userLabel: 'עולם קסום מפורט',
-    wizardBlurb: 'עולם שלם של פרטים קטנים — כל דף הוא הרפתקה ויזואלית עם מאות פרטים חבויים, כמו ספר איור אירופי קלאסי.',
+    wizardBlurb:
+      'עולם שלם של פרטים קטנים — כל דף הוא הרפתקה ויזואלית עם מאות פרטים חבויים, כמו ספר איור אירופי קלאסי.',
     renderingDescription:
       "Highly detailed whimsical storybook illustration — dense environmental storytelling with hand-drawn ink outlines and watercolor/gouache shading. Halfway between realistic and cartoon: believable proportions but stylized faces. Warm cinematic lighting with cool blue shadows. Every part of the image filled with charming tiny details, layered objects, toys, decorations, textures. Cozy, emotional, nostalgic atmosphere. Like a premium European children's book spread. NOT hyperrealism, NOT flat cartoon, NOT AI-glossy.",
     pipeline: {
-      colorPalette: 'rich warm ambers and golds with cool blue-violet shadows — high color harmony, slightly muted vintage palette',
-      lightingStyle: 'warm cinematic indoor/golden-hour lighting with cool shadow contrast — cozy and atmospheric',
-      textureStyle: 'hand-drawn ink outlines with watercolor/gouache fill — visible brushwork, paper texture, organic imperfect lines',
-      renderingBehavior: 'dense illustrated storybook with environmental storytelling — every corner filled with narrative detail',
+      colorPalette:
+        'rich warm ambers and golds with cool blue-violet shadows — high color harmony, slightly muted vintage palette',
+      lightingStyle:
+        'warm cinematic indoor/golden-hour lighting with cool shadow contrast — cozy and atmospheric',
+      textureStyle:
+        'hand-drawn ink outlines with watercolor/gouache fill — visible brushwork, paper texture, organic imperfect lines',
+      renderingBehavior:
+        'dense illustrated storybook with environmental storytelling — every corner filled with narrative detail',
       styleToken: 'detailed_whimsical_world',
       loraModel: process.env.LORA_MODEL_STYLE_03 || null,
       loraTriggerWord: null,
@@ -311,12 +316,43 @@ Top 20-30% fades to soft warm cream tones for text placement. The painting is wa
         'Dense whimsical storybook illustration: hand-drawn ink outlines with watercolor/gouache shading. Fill EVERY part of the image with charming micro-details — toys, books, decorations, plants, lights, textures, hidden creatures. Warm amber lighting, cool blue shadows. Halfway between realistic and cartoon. Cozy nostalgic atmosphere. Top 20-30% should gradually fade to softer/simpler detail for text overlay. NOT hyperreal, NOT flat vector, NOT AI-glossy plastic.',
       ],
     },
-    lineRules: ['Visible hand-drawn ink outlines — slightly imperfect, organic, sketchy quality', 'Crisp linework defining forms and details — NOT clean vector lines', 'Varied line weight: thicker for main characters, thinner for environmental details'],
-    colorRules: ['Rich warm palette — deep ambers, warm golds, earthy tones with cool blue-violet shadows', 'Slightly muted vintage quality — NOT oversaturated or neon', 'High color harmony with intentional warm/cool contrast', 'Watercolor/gouache color application — visible brushwork and color layering'],
-    shadingRules: ['Soft painterly watercolor/gouache shading combined with crisp linework', 'Warm ambient occlusion in cozy spaces', 'Cool blue-purple shadows contrasting warm amber lights', 'Layered depth through atmospheric color temperature shifts'],
-    lightingRules: ['Warm cinematic interior/golden-hour lighting as primary', 'Cool blue fill light in shadows for mood contrast', 'Practical light sources in scene (lamps, lanterns, fairy lights, candles, moonlight)', 'Expressive lighting that serves the emotional narrative'],
-    backgroundRules: ['FULLY DETAILED edge-to-edge environmental storytelling — NOT dissolving backgrounds', 'Dense with narrative micro-details: toys, books, stickers, plants, creature hideouts, decorative objects', 'Layered depth with foreground clutter, midground action, background context', 'TOP 20-30% should gradually become SIMPLER and LIGHTER — fewer details, softer colors, fading toward warm cream/amber so text can be overlaid', 'Think "Where\'s Waldo" density in the lower 70% but gentler fade at top'],
-    compositionRules: ['Character is part of a rich environment — NOT an isolated portrait', 'Wide or medium framing showing the full scene — character occupies 30-50% of image', 'Environmental storytelling: the room/world tells a story through its objects and details', 'Readable from far away (clear character silhouette) but rewarding when zooming in (hidden details)', 'Slightly exaggerated perspective for charm — cozy fish-eye or gentle wide-angle feel'],
+    lineRules: [
+      'Visible hand-drawn ink outlines — slightly imperfect, organic, sketchy quality',
+      'Crisp linework defining forms and details — NOT clean vector lines',
+      'Varied line weight: thicker for main characters, thinner for environmental details',
+    ],
+    colorRules: [
+      'Rich warm palette — deep ambers, warm golds, earthy tones with cool blue-violet shadows',
+      'Slightly muted vintage quality — NOT oversaturated or neon',
+      'High color harmony with intentional warm/cool contrast',
+      'Watercolor/gouache color application — visible brushwork and color layering',
+    ],
+    shadingRules: [
+      'Soft painterly watercolor/gouache shading combined with crisp linework',
+      'Warm ambient occlusion in cozy spaces',
+      'Cool blue-purple shadows contrasting warm amber lights',
+      'Layered depth through atmospheric color temperature shifts',
+    ],
+    lightingRules: [
+      'Warm cinematic interior/golden-hour lighting as primary',
+      'Cool blue fill light in shadows for mood contrast',
+      'Practical light sources in scene (lamps, lanterns, fairy lights, candles, moonlight)',
+      'Expressive lighting that serves the emotional narrative',
+    ],
+    backgroundRules: [
+      'FULLY DETAILED edge-to-edge environmental storytelling — NOT dissolving backgrounds',
+      'Dense with narrative micro-details: toys, books, stickers, plants, creature hideouts, decorative objects',
+      'Layered depth with foreground clutter, midground action, background context',
+      'TOP 20-30% should gradually become SIMPLER and LIGHTER — fewer details, softer colors, fading toward warm cream/amber so text can be overlaid',
+      `Think "Where's Waldo" density in the lower 70% but gentler fade at top`,
+    ],
+    compositionRules: [
+      'Character is part of a rich environment — NOT an isolated portrait',
+      'Wide or medium framing showing the full scene — character occupies 30-50% of image',
+      'Environmental storytelling: the room/world tells a story through its objects and details',
+      'Readable from far away (clear character silhouette) but rewarding when zooming in (hidden details)',
+      'Slightly exaggerated perspective for charm — cozy fish-eye or gentle wide-angle feel',
+    ],
     negativeConstraints: [
       'No hyperrealism or photographic rendering',
       'No flat vector or clean digital illustration',
@@ -349,4 +385,196 @@ The child is 30-50% of the image, not 60-70% like in portrait styles.
 
 ILLUSTRATION MEDIUM:
 Hand-drawn ink outlines — slightly imperfect, organic, sketchy quality.
-Wa
+Watercolor and gouache fills between the lines — layered, slightly imperfect brushwork with visible paper texture.
+NOT flat digital fills. NOT clean vector.
+
+COLOR AND LIGHT:
+Rich warm ambers and golds in light; cool blue-violet in shadow — vintage picture-book harmony.
+Practical lights (lamps, candles, fairy lights) may motivate warm pools; shadows stay cool and readable.
+
+ENVIRONMENT DENSITY:
+Foreground, midground, and background all carry story props, textures, and micro-gags.
+The lower ~70% can be busiest; the top 20-30% must simplify and lighten for Hebrew text safety.
+
+STRICT RULE:
+If the scene feels like a soft portrait with a dissolving background — FAILED for this style.
+If the image is sparse, minimal, or mostly empty — FAILED.
+
+STRICT STYLE EXCLUSIONS:
+No text, letters, numbers, symbols, captions. No photographic hyperrealism. No glossy AI plastic skin. No flat vector. No Pixar/Disney 3D. No anime/manga.
+
+PAGE INTEGRATION RULE:
+Top 20-30% gradually fades to softer color and simpler detail toward warm cream/amber so overlay text stays readable.`,
+  },
+};
+
+const WIZARD_STYLE_ORDER: readonly StyleId[] = [
+  STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+  STYLE_IDS.DETAILED_WHIMSICAL_WORLD,
+];
+
+const LEGACY_STYLE_INPUT_MAP: Record<string, StyleId> = {
+  // Canonical active IDs
+  [STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK]: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  [STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK]: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+  [STYLE_IDS.DETAILED_WHIMSICAL_WORLD]: STYLE_IDS.DETAILED_WHIMSICAL_WORLD,
+
+  // Existing DB enum values
+  pencil_watercolor: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  whimsical_comic_fantasy: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+  detailed_whimsical_world: STYLE_IDS.DETAILED_WHIMSICAL_WORLD,
+  // Legacy compatibility only — not offered for new books.
+  realistic_illustrated: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+
+  // Legacy product IDs / aliases
+  SIMPLE_CALM: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  FUN_COLORFUL: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+  // Legacy compatibility only — not offered for new books.
+  EMOTIONAL_ARTISTIC: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+
+  PENCIL_WATERCOLOR: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  WHIMSICAL_COMIC_FANTASY: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+  DETAILED_WHIMSICAL_WORLD: STYLE_IDS.DETAILED_WHIMSICAL_WORLD,
+  // Legacy compatibility only — not offered for new books.
+  REALISTIC_ILLUSTRATED: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+
+  CLASSIC_CARTOON: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  illustrative_classic: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  classic: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  SIMPLE_CARTOON: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+  clean_cartoon_2d: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+  soft_3d_animation: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+  cartoon_simple: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+  simple: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  watercolor: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  comic: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+  emotional: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  realistic_cartoon: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  detailed: STYLE_IDS.DETAILED_WHIMSICAL_WORLD,
+  realistic: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  cartoon: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+};
+
+const STYLE_TO_DB_MAP: Record<StyleId, DatabaseIllustrationStyle> = {
+  [STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK]: 'pencil_watercolor',
+  [STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK]: 'whimsical_comic_fantasy',
+  [STYLE_IDS.DETAILED_WHIMSICAL_WORLD]: 'detailed_whimsical_world',
+};
+
+const DB_TO_STYLE: Record<DatabaseIllustrationStyle, StyleId> = {
+  pencil_watercolor: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  whimsical_comic_fantasy: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
+  detailed_whimsical_world: STYLE_IDS.DETAILED_WHIMSICAL_WORLD,
+  // Legacy compatibility only — not offered for new books.
+  realistic_illustrated: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+};
+
+export function normalizeStyleId(input?: string | null): StyleId {
+  if (!input) return STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK;
+  const normalized = LEGACY_STYLE_INPUT_MAP[input];
+  if (!normalized) {
+    console.warn(
+      `[StyleNormalize] Unknown illustration style "${input}" -> "${STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK}"`
+    );
+    return STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK;
+  }
+  if (input === 'realistic_illustrated' || input === 'REALISTIC_ILLUSTRATED' || input === 'EMOTIONAL_ARTISTIC') {
+    console.warn(
+      `[StyleNormalize] Deprecated style "${input}" -> "${STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK}"`
+    );
+  }
+  return normalized;
+}
+
+export function getStyleContract(styleIdInput?: string | null): StyleContract {
+  return STYLE_REGISTRY[normalizeStyleId(styleIdInput)];
+}
+
+export function mapStyleToDatabaseValue(styleIdInput?: string | null): DatabaseIllustrationStyle {
+  return STYLE_TO_DB_MAP[normalizeStyleId(styleIdInput)];
+}
+
+export function normalizeIllustrationStyle(styleId: string): DatabaseIllustrationStyle {
+  return mapStyleToDatabaseValue(styleId);
+}
+
+export function styleIdFromDatabaseValue(db: string | null | undefined): StyleId {
+  if (!db) return STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK;
+  return (
+    LEGACY_STYLE_INPUT_MAP[db] ??
+    DB_TO_STYLE[db as DatabaseIllustrationStyle] ??
+    STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK
+  );
+}
+
+export function getPositiveStylePromptBlock(styleIdInput?: string | null): string {
+  const style = getStyleContract(styleIdInput);
+  return [
+    STYLE_SELECTION_SYSTEM,
+    '',
+    'SELECTED_STYLE (this book — apply only this one):',
+    `internal_id: ${style.id}`,
+    `USER_LABEL_HE: ${style.userLabel}`,
+    '',
+    style.optionBlock,
+    '',
+    GLOBAL_BOOK_ILLUSTRATION_RULES,
+    '',
+    'STRUCTURED_LOCK (summary):',
+    `RENDERING: ${style.renderingDescription}`,
+    `LINE_RULES: ${style.lineRules.join('; ')}`,
+    `COLOR_RULES: ${style.colorRules.join('; ')}`,
+    `SHADING_RULES: ${style.shadingRules.join('; ')}`,
+    `LIGHTING_RULES: ${style.lightingRules.join('; ')}`,
+    `BACKGROUND_RULES: ${style.backgroundRules.join('; ')}`,
+    `COMPOSITION_RULES: ${style.compositionRules.join('; ')}`,
+    '',
+    FINAL_STYLE_INSTRUCTION,
+  ].join('\n');
+}
+
+export function getNegativeStylePromptBlock(styleIdInput?: string | null): string {
+  const style = getStyleContract(styleIdInput);
+  return style.negativeConstraints.join('; ');
+}
+
+export interface StyleProfile {
+  id: DatabaseIllustrationStyle;
+  label: string;
+  colorPalette: string;
+  lightingStyle: string;
+  textureStyle: string;
+  renderingBehavior: string;
+  styleToken: string;
+}
+
+function buildStyleProfile(db: DatabaseIllustrationStyle): StyleProfile {
+  const c = STYLE_REGISTRY[DB_TO_STYLE[db]];
+  return {
+    id: db,
+    label: c.userLabel,
+    colorPalette: c.pipeline.colorPalette,
+    lightingStyle: c.pipeline.lightingStyle,
+    textureStyle: c.pipeline.textureStyle,
+    renderingBehavior: c.pipeline.renderingBehavior,
+    styleToken: c.pipeline.styleToken,
+  };
+}
+
+export const STYLE_PROFILES: Record<DatabaseIllustrationStyle, StyleProfile> = {
+  pencil_watercolor: buildStyleProfile('pencil_watercolor'),
+  whimsical_comic_fantasy: buildStyleProfile('whimsical_comic_fantasy'),
+  detailed_whimsical_world: buildStyleProfile('detailed_whimsical_world'),
+  // Legacy compatibility only — not offered for new books.
+  realistic_illustrated: buildStyleProfile('realistic_illustrated'),
+};
+
+export const WIZARD_ILLUSTRATION_STYLES: ReadonlyArray<{
+  id: StyleId;
+  label: string;
+  description: string;
+}> = WIZARD_STYLE_ORDER.map((id) => {
+  const c = STYLE_REGISTRY[id];
+  return { id: c.id, label: c.userLabel, description: c.wizardBlurb };
+});

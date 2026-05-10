@@ -43,7 +43,7 @@ function findLocalChrome(): string | null {
   return null;
 }
 
-interface BookPageForPdf {
+export interface BookPageForPdf {
   pageNumber: number;
   text: string;
   imageUrl: string | null;

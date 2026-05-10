@@ -223,7 +223,7 @@ export async function generateReplicateImage(input: GenerateImageInput): Promise
 export interface GenerateGPTImageInput {
   finalPrompt: string;
   negativePrompt?: string;
-  size?: '1024x1024' | '1024x1536';
+  size?: '1024x1024' | '1024x1536' | '1536x1536';
   quality?: 'low' | 'medium' | 'high';
 }
 

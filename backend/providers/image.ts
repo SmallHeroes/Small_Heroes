@@ -283,6 +283,8 @@ export interface ImageInput {
     coloring: string;
     feature: string;
   };
+  /** High-res GPT Image sizing (square) + optional upscale path when PDF add-on purchased. */
+  printPdfOptimized?: boolean;
   supportingCharacters?: Array<{
     name: string;
     description: string;
@@ -391,6 +393,8 @@ export interface CoverImageInput {
   childStructured?: { face: string; hair: string; body: string; clothing: string; signature: string };
   /** Structured companion identity for cover. */
   companionStructured?: { species: string; size: string; coloring: string; feature: string };
+  /** Larger square GPT renders for קובץ מוכן להדפסה. */
+  printPdfOptimized?: boolean;
 }
 
 export interface CharacterRegistryEntry {
@@ -1966,7 +1970,8 @@ function resolveGPTBookQuality(): 'low' | 'medium' | 'high' {
 
 async function generateWithGPTImage(input: ImageInput): Promise<GeneratedImage> {
   const isPreview = !!input.isDirectionPreview;
-  const size = isPreview ? '1024x1024' : '1024x1536';
+  const hiResPdf = !!input.printPdfOptimized;
+  const size = isPreview ? '1024x1024' : hiResPdf ? '1536x1536' : '1024x1536';
 
   const quality = isPreview ? 'medium' : resolveGPTBookQuality();
 
@@ -1983,7 +1988,7 @@ async function generateWithGPTImage(input: ImageInput): Promise<GeneratedImage> 
       const result = await generateGPTImage({
         finalPrompt: prompt,
         negativePrompt: 'text, letters, words, numbers, watermark, signature, frame, border',
-        size: size as '1024x1024' | '1024x1536',
+        size: size as '1024x1024' | '1024x1536' | '1536x1536',
         quality,
       });
 
@@ -2004,8 +2009,8 @@ async function generateWithGPTImage(input: ImageInput): Promise<GeneratedImage> 
       return {
         url: durableUrl,
         rawUrl: durableUrl,
-        width: 1024,
-        height: isPreview ? 1024 : 1536,
+        width: isPreview ? 1024 : hiResPdf ? 1536 : 1024,
+        height: isPreview ? 1024 : hiResPdf ? 1536 : 1536,
         provider: 'gpt-image-1',
         prompt,
       };
@@ -2403,10 +2408,11 @@ export async function generateBookCover(input: CoverImageInput): Promise<Generat
     const prompt = sanitizePromptForSafety(rawCoverPrompt);
     console.log(`[gpt_cover_prompt] orderId=${input.orderId ?? 'unknown'} promptLen=${prompt.length}`);
 
+    const hiResPdf = !!input.printPdfOptimized;
     const result = await generateGPTImage({
       finalPrompt: prompt,
       negativePrompt: 'text, letters, words, numbers, watermark, signature, frame, border, sad, scared, dark, crying',
-      size: '1024x1536',
+      size: hiResPdf ? '1536x1536' : '1024x1536',
       quality: 'high',
     });
 
@@ -2421,8 +2427,8 @@ export async function generateBookCover(input: CoverImageInput): Promise<Generat
     return {
       url: durableUrl,
       rawUrl: durableUrl,
-      width: 1024,
-      height: 1536,
+      width: hiResPdf ? 1536 : 1024,
+      height: hiResPdf ? 1536 : 1536,
       provider: 'gpt-image-1',
       prompt,
     };
@@ -2453,6 +2459,7 @@ export async function generateBookCover(input: CoverImageInput): Promise<Generat
     },
     compositionRules:
       'Cover composition only: keep title-safe area in top 25-40% calm and uncluttered; focal subject in lower-mid area with strong silhouette; avoid centered symmetry and avoid cropped head/hands.',
+    printPdfOptimized: input.printPdfOptimized,
   });
 }
 
@@ -2523,6 +2530,8 @@ export async function generateAllPageImages(
     childStructured?: { face: string; hair: string; body: string; clothing: string; signature: string };
     /** Structured companion identity lock — threaded to buildGPTImagePrompt for labeled constraints. */
     companionStructured?: { species: string; size: string; coloring: string; feature: string };
+    /** Larger GPT Image + upscale path for קובץ מוכן להדפסה. */
+    pdfEnabled?: boolean;
   }
 ): Promise<{
   results: Map<number, GeneratedImage>;
@@ -2888,6 +2897,7 @@ export async function generateAllPageImages(
               propDNA: config.propDNA,
               childStructured: config.childStructured,
               companionStructured: config.companionStructured,
+              printPdfOptimized: !!config.pdfEnabled,
               ...visualDirectorPageFields,
               seed,
             }),
@@ -3017,6 +3027,7 @@ export async function generateAllPageImages(
                 propDNA: config.propDNA,
                 childStructured: config.childStructured,
                 companionStructured: config.companionStructured,
+                printPdfOptimized: !!config.pdfEnabled,
                 ...visualDirectorPageFields,
                 seed,
               }),
@@ -3106,6 +3117,7 @@ export async function generateAllPageImages(
               propDNA: config.propDNA,
               childStructured: config.childStructured,
               companionStructured: config.companionStructured,
+              printPdfOptimized: !!config.pdfEnabled,
               ...visualDirectorPageFields,
             });
           },
@@ -3216,3 +3228,4 @@ export async function generateAllPageImages(
 
   return { results, failedPages, textZones, lightingModes };
 }
+    

@@ -184,6 +184,36 @@ export async function storeImageFromBuffer(input: StoreBufferInput): Promise<str
 }
 
 /** Upload a processed WebP page illustration (reader / future PDF). */
+/**
+ * Upload any binary under `orders/{orderId}/...` — used for print upscale assets, manifests, etc.
+ */
+export async function uploadOrderSubpathAsset(input: {
+  orderId: string;
+  /** Path under the order folder, e.g. `print-upscale/page-007.png`. Sanitized internally. */
+  subpath: string;
+  buffer: Buffer;
+  contentType: string;
+}): Promise<string> {
+  if (!input.orderId) throw new Error('uploadOrderSubpathAsset: orderId is required.');
+  const { url, bucket } = getSupabaseEnv();
+  const supabase = getSupabaseClient();
+  const safeSub = sanitizeAssetPathSegment(input.subpath);
+  const folder = input.orderId ? `orders/${input.orderId}` : 'orders/unknown';
+  const key = `${folder}/${safeSub}`;
+
+  const uploadResult = await supabase.storage.from(bucket).upload(key, input.buffer, {
+    contentType: input.contentType,
+    upsert: true,
+    cacheControl: '31536000',
+  });
+
+  if (uploadResult.error) {
+    throw new Error(`Supabase upload failed (${key}): ${uploadResult.error.message}`);
+  }
+
+  return buildPublicUrl(url, bucket, key);
+}
+
 export async function storePresentationBuffer(input: StorePresentationInput): Promise<string> {
   const { url, bucket } = getSupabaseEnv();
   const supabase = getSupabaseClient();
@@ -204,3 +234,22 @@ export async function storePresentationBuffer(input: StorePresentationInput): Pr
   return buildPublicUrl(url, bucket, key);
 }
 
+export async function storePresentationBuffer(input: StorePresentationInput): Promise<string> {
+  const { url, bucket } = getSupabaseEnv();
+  const supabase = getSupabaseClient();
+
+  const folder = input.orderId ? `orders/${input.orderId}` : 'orders/unknown';
+  const key = `${folder}/pages/page-${String(input.pageNumber).padStart(3, '0')}-present-${Date.now()}.webp`;
+
+  const uploadResult = await supabase.storage.from(bucket).upload(key, input.buffer, {
+    contentType: 'image/webp',
+    upsert: true,
+    cacheControl: '31536000',
+  });
+
+  if (uploadResult.error) {
+    throw new Error(`Supabase presentation upload failed: ${uploadResult.error.message}`);
+  }
+
+  return buildPublicUrl(url, bucket, key);
+}

@@ -102,4 +102,30 @@ function buildEnvironmentSentence(): string {
   return 'Always include full environment depth with foreground, midground, and background; keep setting details readable and supportive of narrative action.';
 }
 
-export function composeVisualDirectorPrompt(input: VisualDirectorI
+export function composeVisualDirectorPrompt(input: VisualDirectorInput): VisualDirectorOutput {
+  const style = resolveStyleSentence(input.selectedStyle);
+  const scene = buildSceneSentence(input);
+  const characters = buildCharacterSentence(input);
+  const tone = buildToneSentence(input);
+  const composition = buildCompositionSentence(input);
+  const environment = buildEnvironmentSentence();
+
+  const finalPrompt = [style, scene, characters, tone, composition, environment].join(' ');
+  const negativePrompt = [
+    'no text',
+    'no letters',
+    'no captions',
+    'no logos',
+    'no watermarks',
+    'no speech bubbles',
+    'no white background',
+    'no plain background',
+    'no portrait',
+    'no headshot',
+    'no character sheet',
+    'no concept art sheet',
+    'no isolated character',
+  ].join(', ');
+
+  return { finalPrompt, negativePrompt };
+}

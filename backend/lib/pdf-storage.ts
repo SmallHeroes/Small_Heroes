@@ -29,6 +29,48 @@ function buildPublicUrl(url: string, bucket: string, key: string): string {
   return `${url.replace(/\/$/, '')}/storage/v1/object/public/${bucket}/${key}`;
 }
 
+export async function uploadPrintReadyArtifacts(
+  orderId: string,
+  pdfBuffer: Buffer,
+  metadata: Record<string, unknown>
+): Promise<{ pdfUrl: string; metadataUrl: string }> {
+  if (!orderId) throw new Error('orderId is required for print-ready artifacts.');
+  if (!pdfBuffer || pdfBuffer.length === 0) throw new Error('pdfBuffer is empty.');
+
+  const { url, bucket } = getSupabaseEnv();
+  const supabase = getSupabaseClient();
+  const baseKey = `orders/${orderId}/pdf`;
+
+  const metaBody = `${JSON.stringify(metadata, null, 2)}\n`;
+  const metaBuffer = Buffer.from(metaBody, 'utf8');
+
+  const pdfUpload = await supabase.storage.from(bucket).upload(`${baseKey}/print-ready.pdf`, pdfBuffer, {
+    contentType: 'application/pdf',
+    upsert: true,
+    cacheControl: '31536000',
+  });
+  if (pdfUpload.error) {
+    throw new Error(`Supabase print-ready PDF upload failed: ${pdfUpload.error.message}`);
+  }
+
+  const metaUpload = await supabase.storage
+    .from(bucket)
+    .upload(`${baseKey}/print-ready-metadata.json`, metaBuffer, {
+      contentType: 'application/json',
+      upsert: true,
+      cacheControl: '3600',
+    });
+  if (metaUpload.error) {
+    throw new Error(`Supabase print metadata upload failed: ${metaUpload.error.message}`);
+  }
+
+  return {
+    pdfUrl: buildPublicUrl(url, bucket, `${baseKey}/print-ready.pdf`),
+    metadataUrl: buildPublicUrl(url, bucket, `${baseKey}/print-ready-metadata.json`),
+  };
+}
+
+/** Screen / legacy PDF naming (timestamped filename). */
 export async function uploadPdfToStorage(orderId: string, pdfBuffer: Buffer): Promise<string> {
   if (!orderId) throw new Error('orderId is required for PDF upload.');
   if (!pdfBuffer || pdfBuffer.length === 0) throw new Error('pdfBuffer is empty.');
@@ -49,3 +91,4 @@ export async function uploadPdfToStorage(orderId: string, pdfBuffer: Buffer): Pr
 
   return buildPublicUrl(url, bucket, key);
 }
+    
