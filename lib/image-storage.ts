@@ -234,22 +234,3 @@ export async function storePresentationBuffer(input: StorePresentationInput): Pr
   return buildPublicUrl(url, bucket, key);
 }
 
-export async function storePresentationBuffer(input: StorePresentationInput): Promise<string> {
-  const { url, bucket } = getSupabaseEnv();
-  const supabase = getSupabaseClient();
-
-  const folder = input.orderId ? `orders/${input.orderId}` : 'orders/unknown';
-  const key = `${folder}/pages/page-${String(input.pageNumber).padStart(3, '0')}-present-${Date.now()}.webp`;
-
-  const uploadResult = await supabase.storage.from(bucket).upload(key, input.buffer, {
-    contentType: 'image/webp',
-    upsert: true,
-    cacheControl: '31536000',
-  });
-
-  if (uploadResult.error) {
-    throw new Error(`Supabase presentation upload failed: ${uploadResult.error.message}`);
-  }
-
-  return buildPublicUrl(url, bucket, key);
-}

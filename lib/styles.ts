@@ -295,7 +295,7 @@ Top 20-30% fades to soft warm cream tones for text placement. The painting is wa
     wizardBlurb:
       'עולם שלם של פרטים קטנים — כל דף הוא הרפתקה ויזואלית עם מאות פרטים חבויים, כמו ספר איור אירופי קלאסי.',
     renderingDescription:
-      "Highly detailed whimsical storybook illustration — dense environmental storytelling with hand-drawn ink outlines and watercolor/gouache shading. Halfway between realistic and cartoon: believable proportions but stylized faces. Warm cinematic lighting with cool blue shadows. Every part of the image filled with charming tiny details, layered objects, toys, decorations, textures. Cozy, emotional, nostalgic atmosphere. Like a premium European children's book spread. NOT hyperrealism, NOT flat cartoon, NOT AI-glossy.",
+      "Highly detailed whimsical storybook illustration in a rich 'Where\\'s Waldo meets modern animated indie comic' style. Hand-drawn ink outlines with slightly imperfect sketchy lines, expressive characters, warm cinematic lighting, and dense environmental storytelling. Every part of the image filled with charming tiny details, layered objects, toys, decorations, textures, books, stickers, plants, lights, and hidden visual moments. Style balance: halfway between realistic and cartoon — believable proportions but stylized faces and environments. Soft painterly watercolor/gouache shading combined with crisp line-art detail. Cozy, emotional, nostalgic atmosphere. Rich color harmony with warm amber lights and cool blue shadows. Slightly exaggerated perspective for charm. The scene should feel alive and deeply immersive, like a premium illustrated children's book spread. Tons of micro-details visible on second glance. Composition readable from far away but rewarding when zooming in. Rendering references: detailed European children's books, cozy animated indie comics, gentle Studio Ghibli warmth, hand-painted watercolor textures. Important: organic imperfect lines, textured brushwork, layered depth, cozy clutter, expressive lighting, emotionally warm mood, cinematic framing, highly detailed background storytelling. NOT AI-glossy plastic, NOT hyperrealism, NOT flat cartoon, NOT clean vector, NOT flat modern minimalism.",
     pipeline: {
       colorPalette:
         'rich warm ambers and golds with cool blue-violet shadows — high color harmony, slightly muted vintage palette',
@@ -313,7 +313,7 @@ Top 20-30% fades to soft warm cream tones for text placement. The painting is wa
     imageNudge: {
       title: 'DETAILED_WHIMSICAL_WORLD_NUDGE',
       lines: [
-        'Dense whimsical storybook illustration: hand-drawn ink outlines with watercolor/gouache shading. Fill EVERY part of the image with charming micro-details — toys, books, decorations, plants, lights, textures, hidden creatures. Warm amber lighting, cool blue shadows. Halfway between realistic and cartoon. Cozy nostalgic atmosphere. Top 20-30% should gradually fade to softer/simpler detail for text overlay. NOT hyperreal, NOT flat vector, NOT AI-glossy plastic.',
+        'Dense whimsical storybook illustration: hand-drawn ink outlines with slightly imperfect sketchy lines, soft painterly watercolor/gouache shading with crisp line-art detail. Warm cinematic lighting with amber lights and cool blue shadows. Fill every part with charming micro-details — toys, books, stickers, plants, lights, hidden creatures, textures, cozy clutter. Organic imperfect lines, textured brushwork, layered depth, expressive lighting. Scene feels alive and immersive like a premium European children\'s book spread. Top 20-30% gradually fades to softer detail for text overlay. NOT AI-glossy, NOT hyperreal, NOT flat vector, NOT clean minimalism.',
       ],
     },
     lineRules: [
@@ -548,33 +548,4 @@ export interface StyleProfile {
   renderingBehavior: string;
   styleToken: string;
 }
-
-function buildStyleProfile(db: DatabaseIllustrationStyle): StyleProfile {
-  const c = STYLE_REGISTRY[DB_TO_STYLE[db]];
-  return {
-    id: db,
-    label: c.userLabel,
-    colorPalette: c.pipeline.colorPalette,
-    lightingStyle: c.pipeline.lightingStyle,
-    textureStyle: c.pipeline.textureStyle,
-    renderingBehavior: c.pipeline.renderingBehavior,
-    styleToken: c.pipeline.styleToken,
-  };
-}
-
-export const STYLE_PROFILES: Record<DatabaseIllustrationStyle, StyleProfile> = {
-  pencil_watercolor: buildStyleProfile('pencil_watercolor'),
-  whimsical_comic_fantasy: buildStyleProfile('whimsical_comic_fantasy'),
-  detailed_whimsical_world: buildStyleProfile('detailed_whimsical_world'),
-  // Legacy compatibility only — not offered for new books.
-  realistic_illustrated: buildStyleProfile('realistic_illustrated'),
-};
-
-export const WIZARD_ILLUSTRATION_STYLES: ReadonlyArray<{
-  id: StyleId;
-  label: string;
-  description: string;
-}> = WIZARD_STYLE_ORDER.map((id) => {
-  const c = STYLE_REGISTRY[id];
-  return { id: c.id, label: c.userLabel, description: c.wizardBlurb };
-});
+
