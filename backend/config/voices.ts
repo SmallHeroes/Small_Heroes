@@ -37,9 +37,11 @@ export const VOICES: VoiceConfig[] = [
     description: 'קול חם, מחבק ורגוע',
     emoji: '👩',
     provider: 'elevenlabs',
-    elevenlabsVoiceId: 'l7j5Eq3UkVo98UW91Cy5',
+    elevenlabsVoiceId: 'qy4hsaedAYOc1KQdajEJ',
     previewUrl: null, // TODO: '/previews/voice-mom.mp3'
-    // voice_settings unset — uses voice's stored defaults (configured in ElevenLabs dashboard)
+    stability: 0.55,         // lower = more natural variation (was using default 0.75)
+    similarityBoost: 0.78,
+    style: 0.20,             // slight expressiveness for warmth
   },
   {
     id: 'dad',
@@ -73,6 +75,4 @@ export const SLEEP_MODE_OVERRIDES: Partial<VoiceConfig> = {
   style: 0,
 };
 
-export function getVoiceById(id: string): VoiceConfig | undefined {
-  return VOICES.find(v => v.id === id);
-}
+export function getVoiceById
