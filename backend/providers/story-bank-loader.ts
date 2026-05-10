@@ -4,11 +4,13 @@ import type { GeneratedStory, ShotVisualDirection, StoryPage } from './pipeline'
 /**
  * Parse a story-bank markdown file into a GeneratedStory object.
  * Skips all LLM stages — uses imageDirection fields as rawScenePrompt.
+ * If childGender doesn't match the story's written gender, runs LLM gender swap.
  */
 export async function loadStoryFromBank(
   filePath: string,
   childName: string,
-  companionName: string
+  companionName: string,
+  childGender?: string
 ): Promise<GeneratedStory> {
   const raw = await fs.readFile(filePath, 'utf-8');
 
@@ -55,6 +57,30 @@ export async function loadStoryFromBank(
   }
 
   pages.sort((a, b) => a.pageNumber - b.pageNumber);
+
+  // ── Gender adaptation ──────────────────────────────────────────────
+  // If the child's gender doesn't match the story's written gender,
+  // run an LLM call to swap all gendered Hebrew forms.
+  if (childGender) {
+    const allText = pages.map(p => p.text).join('\n');
+    const storyGender = detectStoryGender(allText);
+    const targetGender = childGender === 'girl' ? 'female' : 'male';
+
+    if (storyGender && storyGender !== targetGender) {
+      console.log(`[StoryBank] Gender mismatch: story=${storyGender}, target=${targetGender}. Running LLM swap...`);
+      const swappedPages = await swapGender(pages, storyGender, targetGender, childName);
+      // Replace text + narrationText with swapped versions
+      for (let i = 0; i < pages.length; i++) {
+        if (swappedPages[i]) {
+          pages[i].text = swappedPages[i];
+          pages[i].narrationText = swappedPages[i];
+        }
+      }
+      console.log(`[StoryBank] Gender swap complete (${pages.length} pages).`);
+    } else {
+      console.log(`[StoryBank] Gender match or undetectable (story=${storyGender}, target=${targetGender}). No swap needed.`);
+    }
+  }
 
   // Use explicit English coverScene from story file when available
   const coverSceneHint = coverSceneRaw || undefined;
@@ -170,6 +196,172 @@ function extractLocationZone(dir: string): string {
   if (/\b(open space|bright space|threshold|doorway.*light)\b/.test(d)) return 'threshold';
   // Default — generic scene
   return 'scene';
+}
+
+// ─── Gender Detection & Swap ─────────────────────────────────────────────────
+
+/**
+ * Detect the written gender of a Hebrew story by counting gendered verb/pronoun markers.
+ * Returns 'female', 'male', or null if unclear.
+ */
+function detectStoryGender(text: string): 'female' | 'male' | null {
+  // Common feminine markers in Hebrew text (verbs, pronouns)
+  const femininePatterns = [
+    /\bהיא\b/g,        // she
+    /\bאותה\b/g,       // her (object)
+    /\bשלה\b/g,        // hers
+    /\bלה\b/g,         // to her
+    /ָה\s/g,           // qamatz-he suffix (past tense feminine: הלכָה, ישבָה)
+    /תָה\b/g,          // past feminine suffix variant
+    /הִרְגִּישָׁה/g,   // she felt
+    /הִסְתַּכְּלָה/g,  // she looked
+    /אָמְרָה/g,        // she said
+    /רָצְתָה/g,        // she wanted/ran
+    /יָדְעָה/g,        // she knew
+  ];
+
+  // Common masculine markers
+  const masculinePatterns = [
+    /\bהוא\b/g,        // he
+    /\bאותו\b/g,       // him (object)
+    /\bשלו\b/g,        // his
+    /\bלו\b/g,         // to him
+    /הִרְגִּישׁ\b/g,   // he felt
+    /הִסְתַּכֵּל\b/g,  // he looked
+    /אָמַר\b/g,        // he said
+    /רָצָה\b/g,        // he wanted
+    /יָדַע\b/g,        // he knew
+  ];
+
+  let femScore = 0;
+  let mascScore = 0;
+
+  for (const pat of femininePatterns) {
+    const matches = text.match(pat);
+    femScore += matches?.length ?? 0;
+  }
+  for (const pat of masculinePatterns) {
+    const matches = text.match(pat);
+    mascScore += matches?.length ?? 0;
+  }
+
+  // Need a clear signal — at least 3 total markers and 2:1 ratio
+  const total = femScore + mascScore;
+  if (total < 3) return null;
+
+  if (femScore > mascScore * 1.5) return 'female';
+  if (mascScore > femScore * 1.5) return 'male';
+  return null;
+}
+
+/**
+ * Use LLM to swap gendered Hebrew forms in story pages.
+ * Returns array of swapped text strings (one per page).
+ */
+async function swapGender(
+  pages: StoryPage[],
+  fromGender: 'female' | 'male',
+  toGender: 'female' | 'male',
+  childName: string
+): Promise<string[]> {
+  const provider = process.env.STORY_PROVIDER || 'openai';
+  const model = process.env.PIPELINE_SUPPORT_MODEL ||
+    (provider === 'anthropic' ? 'claude-sonnet-4-20250514' : 'gpt-4o-mini');
+
+  const fromLabel = fromGender === 'female' ? 'נקבה' : 'זכר';
+  const toLabel = toGender === 'female' ? 'נקבה' : 'זכר';
+
+  // Prepare pages text as numbered blocks
+  const pagesBlock = pages
+    .map(p => `=== עמוד ${p.pageNumber} ===\n${p.text}`)
+    .join('\n\n');
+
+  const systemPrompt = `אתה מתרגם מגדרי מקצועי לעברית ספרותית לילדים. תפקידך להמיר את כל הצורות הלשוניות מ${fromLabel} ל${toLabel}, תוך שמירה מוחלטת על סגנון הכתיבה, הקצב, הדמיון והאווירה.`;
+
+  const userPrompt = `המר את הטקסט הבא מ${fromLabel} ל${toLabel}.
+
+שם הילד/ה: ${childName}
+
+כללים:
+1. המר כל פועל, שם תואר, כינוי גוף וסיומת ל${toLabel}
+2. אל תשנה שום תוכן, עלילה, דימוי או מטאפורה
+3. שמור על הניקוד (אם יש)
+4. שמור על שורות ריקות ומבנה פסקאות בדיוק כמו במקור
+5. אל תוסיף ואל תמחק מילים — רק המר מגדר
+6. שמות דמויות (כולל {{companionName}}) נשארים כמו שהם
+7. החזר JSON בפורמט: {"pages": ["טקסט עמוד 1", "טקסט עמוד 2", ...]}
+
+הטקסט:
+${pagesBlock}`;
+
+  try {
+    let responseText = '';
+
+    if (provider === 'anthropic') {
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (!apiKey) throw new Error('ANTHROPIC_API_KEY not set');
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: 4000,
+          temperature: 0.1,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }],
+        }),
+      });
+      if (!res.ok) throw new Error(`Anthropic ${res.status}: ${await res.text()}`);
+      const data = await res.json();
+      responseText = data.content?.[0]?.text ?? '';
+    } else {
+      const apiKey = process.env.OPENAI_API_KEY;
+      if (!apiKey) throw new Error('OPENAI_API_KEY not set');
+      const body: Record<string, unknown> = {
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.1,
+      };
+      if (model.startsWith('gpt-5.')) {
+        body.max_completion_tokens = 4000;
+      } else {
+        body.max_tokens = 4000;
+      }
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
+      const data = await res.json();
+      responseText = data.choices?.[0]?.message?.content ?? '';
+    }
+
+    // Parse JSON response
+    const cleaned = responseText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    const parsed = JSON.parse(cleaned) as { pages?: string[] };
+
+    if (!Array.isArray(parsed.pages) || parsed.pages.length !== pages.length) {
+      console.warn(`[StoryBank] Gender swap returned ${parsed.pages?.length ?? 0} pages, expected ${pages.length}. Skipping swap.`);
+      return pages.map(p => p.text);
+    }
+
+    return parsed.pages;
+  } catch (error) {
+    console.error('[StoryBank] Gender swap LLM call failed, keeping original text:', error);
+    return pages.map(p => p.text);
+  }
 }
 
 /** Structured character identity lock — each field injected as a labeled constraint. */
@@ -511,180 +703,4 @@ Return JSON:
   "companionStructured": {
     "species": "3-8 words: exact animal/creature type",
     "size": "5-10 words: size relative to child",
-    "coloring": "10-15 words: exact colors and markings",
-    "feature": "5-10 words: one distinctive visual feature"
-  },
-  "childDNA": "40-60 words: flat paragraph combining all child fields above (backward compat)",
-  "companionDNA": "20-30 words: flat paragraph combining all companion fields above",
-  "worldDNA": "20-30 words: weather, time, palette, ground condition",
-  "propDNA": {
-    "object_name": "15-25 word locked visual description",
-    "another_object": "15-25 word locked visual description"
-  },
-  "negativeRules": [
-    "NEVER put text, letters, numbers, or words on clothing, walls, signs, or any surface",
-    "NEVER change the child's outfit, hair, or accessories between pages",
-    "Rule 3",
-    "Rule 4"
-  ]
-}
-`.trim();
-
-  const genderWord = params.childGender === 'girl' ? 'girl' : 'boy';
-
-
-  const fallbackChildStructured: StructuredChildDNA = {
-    face: `Round soft face, warm light olive skin, large dark brown almond-shaped eyes, small upturned nose`,
-    hair: `Medium-length straight brown hair, tucked behind ears, thin red fabric headband`,
-    body: `Average build for a ${params.childAge}-year-old ${genderWord}, about ${params.childAge >= 5 ? '3.5' : '3'} feet tall`,
-    clothing: `Yellow rain jacket with two front pockets, blue denim shorts, white canvas sneakers`,
-    signature: `Always carries a worn stuffed bunny in left hand`,
-  };
-  const fallbackCompanionStructured: StructuredCompanionDNA = {
-    species: 'cat',
-    size: `Small, fits comfortably in the child's arms`,
-    coloring: `${'Orange tabby with white chest patch'}`,
-    feature: `Big round curious eyes that always look directly at the child`,
-  };
-  const fallback: StoryBankCharacterDNA = {
-    childStructured: fallbackChildStructured,
-    companionStructured: fallbackCompanionStructured,
-    childDNA: `${fallbackChildStructured.face}. ${fallbackChildStructured.hair}. ${fallbackChildStructured.body}. ${fallbackChildStructured.clothing}. ${fallbackChildStructured.signature}.`,
-    companionDNA: `${fallbackCompanionStructured.species}, ${fallbackCompanionStructured.size}. ${fallbackCompanionStructured.coloring}. ${fallbackCompanionStructured.feature}.`,
-    worldDNA: 'Warm golden-hour lighting, soft depth-of-field blur on backgrounds, safe domestic environments.',
-    propDNA: {},
-    negativeRules: [
-      "NEVER put text, letters, numbers, or words on clothing, walls, signs, or any surface",
-      "NEVER change the child's outfit, hair, or accessories between pages",
-    ],
-    additionalCharactersDNA: [],
-  };
-
-  try {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) throw new Error('OPENAI_API_KEY missing');
-    const model = process.env.STORY_GENERATION_MODEL || 'gpt-4o';
-    const body: Record<string, unknown> = {
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      response_format: { type: 'json_object' },
-    };
-    if (model.startsWith('gpt-5.')) {
-      body.max_completion_tokens = 1500;
-    } else {
-      body.max_tokens = 1500;
-      body.temperature = 0.2;
-    }
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
-    const data = await res.json();
-    const text = data.choices?.[0]?.message?.content ?? '';
-    const parsed = parseJsonResponse<Partial<StoryBankCharacterDNA>>(text);
-
-    // Fetch additional characters DNA if wizard provided them
-    let additionalDNA: AdditionalCharacterDNA[] = [];
-    if (params.additionalCharacters && params.additionalCharacters.length > 0) {
-      additionalDNA = await fetchAdditionalCharactersDNA({
-        storyText: params.storyText,
-        illustrationStyle: params.illustrationStyle,
-        childName: params.childName,
-        companionName: params.companionName,
-        additionalCharacters: params.additionalCharacters,
-      });
-    }
-
-    return assembleDNA(parsed, fallback, additionalDNA);
-  } catch (error) {
-    console.warn('[StoryBankDNA] failed, using fallback DNA:', error);
-    return fallback;
-  }
-
-  // This point is unreachable but TS needs it for exhaustiveness
-  return fallback;
-
-  /** Merge LLM output with fallback, validating structured fields. */
-  function assembleDNA(
-    parsed: Partial<StoryBankCharacterDNA>,
-    fb: StoryBankCharacterDNA,
-    additionalDNA: AdditionalCharacterDNA[] = []
-  ): StoryBankCharacterDNA {
-    // Validate structured child fields — each must be a non-empty string
-    const cs = parsed.childStructured;
-    const childStructured: StructuredChildDNA =
-      cs &&
-      typeof cs.face === 'string' && cs.face.trim().length > 5 &&
-      typeof cs.hair === 'string' && cs.hair.trim().length > 5 &&
-      typeof cs.body === 'string' && cs.body.trim().length > 5 &&
-      typeof cs.clothing === 'string' && cs.clothing.trim().length > 5 &&
-      typeof cs.signature === 'string' && cs.signature.trim().length > 3
-        ? {
-            face: cs.face.trim(),
-            hair: cs.hair.trim(),
-            body: cs.body.trim(),
-            clothing: cs.clothing.trim(),
-            signature: cs.signature.trim(),
-          }
-        : fb.childStructured;
-
-    // Validate structured companion fields
-    const cps = parsed.companionStructured;
-    const companionStructured: StructuredCompanionDNA =
-      cps &&
-      typeof cps.species === 'string' && cps.species.trim().length > 2 &&
-      typeof cps.size === 'string' && cps.size.trim().length > 3 &&
-      typeof cps.coloring === 'string' && cps.coloring.trim().length > 5 &&
-      typeof cps.feature === 'string' && cps.feature.trim().length > 3
-        ? {
-            species: cps.species.trim(),
-            size: cps.size.trim(),
-            coloring: cps.coloring.trim(),
-            feature: cps.feature.trim(),
-          }
-        : fb.companionStructured;
-
-    // Build flat DNA from structured if LLM didn't provide it
-    const childDNA =
-      parsed.childDNA?.trim() ||
-      `${childStructured.face}. ${childStructured.hair}. ${childStructured.body}. ${childStructured.clothing}. ${childStructured.signature}.`;
-    const companionDNA =
-      parsed.companionDNA?.trim() ||
-      `${companionStructured.species}, ${companionStructured.size}. ${companionStructured.coloring}. ${companionStructured.feature}.`;
-
-    const result: StoryBankCharacterDNA = {
-      childStructured,
-      companionStructured,
-      childDNA,
-      companionDNA,
-      worldDNA: parsed.worldDNA?.trim() || fb.worldDNA,
-      propDNA: parsePropDNA(parsed.propDNA, fb.propDNA),
-      negativeRules:
-        parsed.negativeRules?.filter(
-          (rule): rule is string => typeof rule === 'string' && !!rule.trim()
-        ) ?? fb.negativeRules,
-      additionalCharactersDNA: additionalDNA,
-    };
-
-    console.log(
-      `[StoryBankDNA] Structured child: face=${childStructured.face.length}ch hair=${childStructured.hair.length}ch clothing=${childStructured.clothing.length}ch signature="${childStructured.signature}"`
-    );
-    console.log(
-      `[StoryBankDNA] Structured companion: species="${companionStructured.species}" coloring=${companionStructured.coloring.length}ch feature="${companionStructured.feature}"`
-    );
-    if (additionalDNA.length > 0) {
-      console.log(`[StoryBankDNA] Additional characters: ${additionalDNA.length} locked`);
-    }
-
-    return result;
-  }
-}
-
+    "coloring": "10-15 words: exact colors and ma

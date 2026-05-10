@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
   const orderId = randomUUID();
 
   try {
-    const storyFull = await loadStoryFromBank(filePath, childName, companionName);
+    const storyFull = await loadStoryFromBank(filePath, childName, companionName, childGender);
     console.log(`[StoryBank] Loaded "${storyFull.title}" — ${storyFull.pages.length} pages`);
 
     if (storyFull.pages.length === 0) {
@@ -440,6 +440,4 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     console.error('[StoryBank] Generation failed:', error);
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
+    return NextResponse.json({ error: message }, { status: 5

@@ -468,7 +468,8 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
     const story = await loadStoryFromBank(
       storyFilePath,
       order.childName || '',
-      resolvedCompanion?.name ?? 'צפרדע'
+      resolvedCompanion?.name ?? 'צפרדע',
+      order.childGender || undefined
     );
     const compositionByPage = new Map(
       (story.pageCompositionPlan ?? []).map((composition) => [composition.pageNumber, composition])
@@ -1433,8 +1434,4 @@ export async function POST(req: Request) {
       {
         error: 'Internal error',
         details: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 }
-    );
-  }
-}
+      
