@@ -34,7 +34,10 @@ export async function loadStoryFromBank(
     const imageDirectionMatch = block.match(/imageDirection:\s*(.+)/);
     const imageDirection = imageDirectionMatch?.[1]?.trim() ?? '';
 
-    const textPart = block.replace(/imageDirection:.*/, '').trim();
+    const textPart = block
+      .replace(/imageDirection:.*/g, '')
+      .replace(/WORD_COUNT:.*/g, '')
+      .trim();
     const text = textPart
       .replace(/\{\{childName\}\}/g, childName)
       .replace(/\{\{companionName\}\}/g, companionName);
@@ -872,10 +875,4 @@ Return JSON:
       `[StoryBankDNA] Structured companion: species="${companionStructured.species}" coloring=${companionStructured.coloring.length}ch feature="${companionStructured.feature}"`
     );
     if (additionalDNA.length > 0) {
-      console.log(`[StoryBankDNA] Additional characters: ${additionalDNA.length} locked`);
-    }
-
-    return result;
-  }
-}
-
+      console.log(`[StoryBankDNA] Additional characters: ${additionalDNA
