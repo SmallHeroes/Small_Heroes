@@ -114,16 +114,15 @@ async function renderPageFrame(imageBuffer: Buffer, text: string, omitText: bool
 
   if (!text?.trim().length || omitText) return base;
 
-  // ── Text layout — matches reader: dark text directly on image, no gradient ──
+  // ── Text layout — matches reader: text at TOP, right-aligned (RTL), no gradient ──
   const MARGIN_X = 48;
-  const MARGIN_BOTTOM = 48;
+  const MARGIN_TOP = 48;
   const TEXT_FONT_SIZE = 32;
   const LINE_HEIGHT = 46;
   const MAX_CHARS = 36;
 
   const escapedLines = wrapOverlayText(text, MAX_CHARS).map(escapeXml);
-  const textBlockH = escapedLines.length * LINE_HEIGHT;
-  const textStartY = VIDEO_HEIGHT - MARGIN_BOTTOM - textBlockH + TEXT_FONT_SIZE;
+  const textStartY = MARGIN_TOP + TEXT_FONT_SIZE;
 
   const svgLines = escapedLines
     .map((line, i) => {
