@@ -328,6 +328,27 @@
   color: #fff;
 }
 
+@media (max-width: 640px) {
+  .gallery-toggle {
+    max-width: 100%;
+    overflow-x: auto;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .gallery-toggle::-webkit-scrollbar {
+    display: none;
+  }
+
+  .gallery-toggle-btn {
+    flex: 0 0 auto;
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+}
+
 .gallery-toggle-pill {
   position: absolute;
   z-index: 1;
@@ -445,6 +466,7 @@
 }
 
 .how-card {
+  width:33%;
   background: var(--white);
   border-radius: 20px;
   padding: 24px;

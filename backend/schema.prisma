@@ -52,6 +52,7 @@ enum IllustrationStyle {
   pencil_watercolor
   realistic_illustrated
   whimsical_comic_fantasy
+  detailed_whimsical_world
   // Legacy — kept to avoid DB migration failures on old rows
   clean_cartoon_2d
   soft_3d_animation

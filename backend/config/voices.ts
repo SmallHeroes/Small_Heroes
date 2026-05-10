@@ -37,7 +37,7 @@ export const VOICES: VoiceConfig[] = [
     description: 'קול חם, מחבק ורגוע',
     emoji: '👩',
     provider: 'elevenlabs',
-    elevenlabsVoiceId: 'qy4hsaedAYOc1KQdajEJ',
+    elevenlabsVoiceId: 'ksryVoNAGZT8GxWCTiVm',
     previewUrl: null, // TODO: '/previews/voice-mom.mp3'
     stability: 0.55,         // lower = more natural variation (was using default 0.75)
     similarityBoost: 0.78,
@@ -49,7 +49,7 @@ export const VOICES: VoiceConfig[] = [
     description: 'קול חזק, חם ומחבק',
     emoji: '👨',
     provider: 'elevenlabs',
-    elevenlabsVoiceId: 'YOUR_ELEVENLABS_VOICE_ID_DAD', // TODO: replace
+    elevenlabsVoiceId: 'mlFUEx0HqiXLTEZ5f0HS',
     previewUrl: null,
     stability: 0.70,
     similarityBoost: 0.80,
@@ -60,7 +60,7 @@ export const VOICES: VoiceConfig[] = [
     description: 'קול קסום, נעים ומיוחד',
     emoji: '🧚',
     provider: 'elevenlabs',
-    elevenlabsVoiceId: 'YOUR_ELEVENLABS_VOICE_ID_FAIRY', // TODO: replace
+    elevenlabsVoiceId: '9BDgg2Q7WSrW0x8naPLw',
     previewUrl: null,
     stability: 0.60,
     similarityBoost: 0.75,
