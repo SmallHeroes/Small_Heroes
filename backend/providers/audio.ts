@@ -5,8 +5,14 @@
  */
 
 import { getVoiceById, SLEEP_MODE_OVERRIDES } from '../config/voices';
-import { WIZARD } from '@/content';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+
+// ─── Retry + Timeout Config ─────────────────────────
+const MAX_RETRIES = 2;
+const RETRY_DELAY_MS = 2000;
+const FETCH_TIMEOUT_MS = 60_000; // 60s — long audio can take time
+
+const VOICE_PREVIEW_TEXT = 'היי, אני אספר לך סיפור לפני השינה. בוא נתחיל?';
 
 
 let _supabase: SupabaseClient | null = null;
@@ -88,26 +94,55 @@ export async function callElevenLabs(
     };
   }
 
-  const res = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${elevenlabsVoiceId}`,
-    {
-      method: 'POST',
-      headers: {
-        'xi-api-key': apiKey,
-        'Content-Type': 'application/json',
-        'Accept': 'audio/mpeg',
-      },
-      body: JSON.stringify(body),
-    }
-  );
+  let lastError: Error | null = null;
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`ElevenLabs TTS error: ${res.status} ${err}`);
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+      const res = await fetch(
+        `https://api.elevenlabs.io/v1/text-to-speech/${elevenlabsVoiceId}`,
+        {
+          method: 'POST',
+          headers: {
+            'xi-api-key': apiKey,
+            'Content-Type': 'application/json',
+            'Accept': 'audio/mpeg',
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        }
+      );
+
+      clearTimeout(timeout);
+
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`ElevenLabs TTS error: ${res.status} ${err}`);
+      }
+
+      const arrayBuffer = await res.arrayBuffer();
+      return Buffer.from(arrayBuffer);
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      const isRetryable = lastError.name === 'AbortError'
+        || lastError.message.includes('429')
+        || lastError.message.includes('500')
+        || lastError.message.includes('502')
+        || lastError.message.includes('503');
+
+      if (attempt < MAX_RETRIES && isRetryable) {
+        const delay = RETRY_DELAY_MS * (attempt + 1);
+        console.warn(`[Audio] Attempt ${attempt + 1} failed (${lastError.message}), retrying in ${delay}ms...`);
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+      break;
+    }
   }
 
-  const arrayBuffer = await res.arrayBuffer();
-  return Buffer.from(arrayBuffer);
+  throw lastError ?? new Error('ElevenLabs TTS failed after retries');
 }
 
 // ─── Store Audio ──────────────────────────────────────
@@ -212,7 +247,7 @@ export async function generateVoicePreview(voiceId: string): Promise<Buffer> {
   const voice = getVoiceById(voiceId);
   if (!voice) throw new Error(`Unknown voice: ${voiceId}`);
 
-  const previewText = WIZARD.voicePreviewText;
+  const previewText = VOICE_PREVIEW_TEXT;
 
   return callElevenLabs(previewText, voice.elevenlabsVoiceId, {
     stability: voice.stability ?? 0.75,
