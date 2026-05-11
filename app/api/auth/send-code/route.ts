@@ -37,9 +37,13 @@ export async function POST(req: NextRequest) {
 
   // Dev shortcut: use fixed code when no email provider is configured
   const hasEmailProvider = Boolean(process.env.RESEND_API_KEY);
+  if (!hasEmailProvider && process.env.NODE_ENV === 'production') {
+    console.error('[auth] RESEND_API_KEY missing in production — OTP disabled');
+    return NextResponse.json({ error: 'Email service unavailable' }, { status: 503 });
+  }
   const code = hasEmailProvider
     ? String(Math.floor(100000 + Math.random() * 900000))
-    : '123456';
+    : '123456'; // Dev-only fallback — blocked in production above
   const codeHash = createHash('sha256').update(code).digest('hex');
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 

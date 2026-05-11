@@ -7,6 +7,8 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import sharp from 'sharp';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
 
 export interface BookPageForPdf {
   pageNumber: number;
@@ -49,10 +51,23 @@ async function fetchImageAsJpeg(url: string): Promise<Buffer> {
 }
 
 /**
- * Fetch Heebo from Google Fonts CSS endpoint, then download the font binary.
- * If this fails, we gracefully fallback to Helvetica.
+ * Load Heebo font — local TTF first (reliable), Google Fonts as fallback.
+ * Local files are bundled via next.config.js outputFileTracingIncludes.
  */
-async function fetchHeeboFont(): Promise<ArrayBuffer> {
+async function loadHeeboFont(): Promise<Buffer> {
+  // Primary: local font file (always available, no network dependency)
+  const localPaths = [
+    join(process.cwd(), 'backend', 'assets', 'fonts', 'Heebo-Bold.ttf'),
+    join(process.cwd(), 'backend/assets/fonts/Heebo-Bold.ttf'),
+  ];
+  for (const p of localPaths) {
+    try {
+      return await readFile(p);
+    } catch { /* try next */ }
+  }
+
+  // Fallback: fetch from Google Fonts (network-dependent)
+  console.warn('[pdf-generator] Local Heebo font not found, fetching from Google Fonts');
   const cssUrl = 'https://fonts.googleapis.com/css2?family=Heebo:wght@700&display=swap';
   const cssRes = await fetch(cssUrl, {
     headers: { 'User-Agent': 'Mozilla/5.0 (compatible; small-heroes-pdf-generator)' },
@@ -65,12 +80,11 @@ async function fetchHeeboFont(): Promise<ArrayBuffer> {
   if (!fontUrlMatch?.[1]) {
     throw new Error('Unable to extract Heebo font URL from Google Fonts CSS');
   }
-
   const fontRes = await fetch(fontUrlMatch[1]);
   if (!fontRes.ok) {
     throw new Error(`Failed to fetch Heebo font bytes (HTTP ${fontRes.status})`);
   }
-  return fontRes.arrayBuffer();
+  return Buffer.from(await fontRes.arrayBuffer());
 }
 
 function sanitizeText(value: string): string {
@@ -107,11 +121,12 @@ export async function generateBookPdf(params: GenerateBookPdfParams): Promise<Bu
 
   let heeboFont: EmbeddedFont;
   try {
-    const fontBytes = await fetchHeeboFont();
+    const fontBytes = await loadHeeboFont();
     heeboFont = await pdfDoc.embedFont(fontBytes);
   } catch (fontErr) {
-    console.warn('[pdf-generator] Failed to load Heebo font, falling back to Helvetica', fontErr);
-    heeboFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    // Helvetica CANNOT render Hebrew — only use as absolute last resort for error visibility
+    console.error('[pdf-generator] CRITICAL: Failed to load Heebo font from all sources', fontErr);
+    throw new Error('PDF generation failed: Hebrew font unavailable');
   }
 
   const maxTextWidth = PAGE_W - TEXT_MARGIN_X * 2;

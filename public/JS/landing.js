@@ -31,11 +31,6 @@ function initLandingContent() {
   setText('navTagline', CONTENT.he.common.tagline);
   setText('navCta',     CONTENT.he.common.navCta);
 
-  // ── Book history strip ────────────────────────────────────────────────────────
-  setText('bookHistoryLabel', L.historyLabel);
-  const clearBtnEl = document.getElementById('bookHistoryClear');
-  if (clearBtnEl) clearBtnEl.setAttribute('aria-label', L.historyClearAriaLabel);
-
   // ── Hero ──────────────────────────────────────────────────────────────────────
   setText('heroBadge',        L.hero.badge);
   setText('heroH1',           L.hero.h1);
@@ -43,7 +38,6 @@ function initLandingContent() {
   setText('heroBody',         L.hero.body);
   setText('heroCtaPrimary',   L.hero.ctaPrimary);
   setText('heroCtaSecondary', L.hero.ctaSecondary);
-  setText('heroSocialProof',  L.hero.socialProof);
   L.hero.bullets.forEach((b, i) => setText('heroBullet' + i, b));
 
   // ── Gallery ───────────────────────────────────────────────────────────────────
@@ -120,7 +114,6 @@ function initLandingContent() {
   // ── Sample ────────────────────────────────────────────────────────────────────
   setText('sampleKicker', L.sample.kicker);
   setText('sampleH2',     L.sample.h2);
-  setText('sampleP1',     L.sample.p1);
   setText('sampleP2',     L.sample.p2);
   setText('sampleCta',    L.sample.cta);
   setText('sampleQuote',  L.sample.quote);
@@ -192,73 +185,6 @@ async function syncAuthNavState() {
   } catch (_) {}
   navCtaEl.setAttribute('href', ROUTES.wizard || '/wizard');
 }
-
-// ─── Book history strip ───────────────────────────────────────────────────────
-(function () {
-  try {
-    const history = getBookHistory();
-    if (!history.length) return;
-
-    const section  = document.getElementById('bookHistorySection');
-    const listEl   = document.getElementById('bookHistoryList');
-    const clearBtn = document.getElementById('bookHistoryClear');
-    if (!section || !listEl || !clearBtn) return;
-
-    function renderChips() {
-      listEl.innerHTML = '';
-      const entries = getBookHistory();
-
-      entries.forEach(({ orderId, childName, title, accessKey }) => {
-        const label = title || (childName
-          ? L.bookByChild.replace('{name}', childName)
-          : L.bookUnnamed);
-        const keyParam = accessKey ? `&accessKey=${encodeURIComponent(accessKey)}` : '';
-        const href  = `${ROUTES.ready}?orderId=${encodeURIComponent(orderId)}${keyParam}`;
-
-        const chip = document.createElement('div');
-        chip.className = 'book-history-chip';
-
-        const link = document.createElement('a');
-        link.href        = href;
-        link.className   = 'book-history-chip-link';
-        link.textContent = label;
-        link.addEventListener('click', function () {
-          track('book_reopened', { orderId });
-        });
-
-        const remove = document.createElement('button');
-        remove.type      = 'button';
-        remove.className = 'book-history-chip-remove';
-        remove.setAttribute('aria-label', L.bookRemoveAriaLabel.replace('{label}', label));
-        remove.textContent = '×';
-
-        remove.addEventListener('click', (e) => {
-          e.preventDefault();
-          removeBookFromHistory(orderId);
-          const remaining = getBookHistory();
-          if (remaining.length === 0) {
-            section.hidden = true;
-          } else {
-            renderChips();
-          }
-        });
-
-        chip.appendChild(link);
-        chip.appendChild(remove);
-        listEl.appendChild(chip);
-      });
-    }
-
-    renderChips();
-    section.hidden = false;
-
-    clearBtn.addEventListener('click', () => {
-      clearBookHistory();
-      section.hidden = true;
-    });
-
-  } catch (_) {}
-})();
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 initLandingContent();

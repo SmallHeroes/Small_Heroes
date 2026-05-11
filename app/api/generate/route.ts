@@ -1430,11 +1430,9 @@ export async function POST(req: Request) {
 
   } catch (error) {
 
+    console.error('[generate] Unhandled error:', error);
     return Response.json(
-      {
-        error: 'Internal error',
-        details: error instanceof Error ? error.message : String(error),
-      },
+      { error: 'Internal error' },
       { status: 500 }
     );
   }
