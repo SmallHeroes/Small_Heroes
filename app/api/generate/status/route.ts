@@ -4,10 +4,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../../../lib/prisma';
 import { STORY_LENGTHS } from '../../../../backend/config/wizard';
-
-const prisma = new PrismaClient();
 
 type StageStatus = 'pending' | 'running' | 'done' | 'failed';
 type StageName  = 'text' | 'images' | 'audio' | 'package' | 'done';

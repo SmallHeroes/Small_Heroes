@@ -5,7 +5,6 @@ const nextConfig = {
     'fluent-ffmpeg',
     '@ffmpeg-installer/ffmpeg',
     '@ffprobe-installer/ffprobe',
-    '@sparticuz/chromium',
   ],
   typescript: {
     // TypeScript errors don't block Turbopack compilation;

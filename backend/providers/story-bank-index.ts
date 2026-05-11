@@ -12,7 +12,11 @@
  *   4. Return the filename for loadStoryFromBank()
  */
 
+import { existsSync } from 'fs';
+import { join } from 'path';
 import type { ChallengeCategory } from '../../lib/companions';
+
+const STORY_BANK_DIR = join(process.cwd(), 'story-bank', 'raw');
 
 // ── Category mapping: wizard → story-bank ───────────────────────
 
@@ -197,7 +201,13 @@ export function selectStoryFromBank(
   // Random selection
   const entry = pool[Math.floor(Math.random() * pool.length)];
   const suffix = getLengthSuffix(storyLength);
-  const filename = `${entry.base}${suffix}.md`;
+  let filename = `${entry.base}${suffix}.md`;
+
+  // Safety fallback: if requested variant file doesn't exist, fall back to base (15p)
+  if (suffix && !existsSync(join(STORY_BANK_DIR, filename))) {
+    console.warn(`[story-bank] Missing variant ${filename}, falling back to base 15p`);
+    filename = `${entry.base}.md`;
+  }
 
   return {
     filename,

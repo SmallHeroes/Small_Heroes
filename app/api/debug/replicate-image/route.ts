@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../../../lib/prisma';
 import { generateImage } from '../../../../backend/providers/image';
 import { resolveImageModelMode, resolveReplicateImageModel } from '../../../../lib/replicate';
-
-const prisma = new PrismaClient();
 
 interface DebugImageRequest {
   orderId: string;
