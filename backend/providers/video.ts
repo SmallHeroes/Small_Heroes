@@ -114,12 +114,13 @@ async function renderPageFrame(imageBuffer: Buffer, text: string, omitText: bool
 
   if (!text?.trim().length || omitText) return base;
 
-  // ── Text layout — matches reader: text at TOP, CENTER-aligned (like book reader) ──
+  // ── Text layout — centered block at top, RTL right-aligned text (like book reader) ──
+  const MARGIN_X = 120;  // symmetric margins → block is centered on page
   const MARGIN_TOP = 48;
   const TEXT_FONT_SIZE = 32;
   const LINE_HEIGHT = 46;
   const MAX_CHARS = 36;
-  const CENTER_X = VIDEO_WIDTH / 2;
+  const TEXT_RIGHT_EDGE = VIDEO_WIDTH - MARGIN_X;  // right edge of centered block
 
   const escapedLines = wrapOverlayText(text, MAX_CHARS).map(escapeXml);
   const textStartY = MARGIN_TOP + TEXT_FONT_SIZE;
@@ -127,7 +128,7 @@ async function renderPageFrame(imageBuffer: Buffer, text: string, omitText: bool
   const svgLines = escapedLines
     .map((line, i) => {
       const y = textStartY + i * LINE_HEIGHT;
-      return `<text xml:space="preserve" x="${CENTER_X}" y="${y}" text-anchor="middle" font-family="Heebo, Arial Hebrew, Arial, sans-serif" font-size="${TEXT_FONT_SIZE}" font-weight="700" fill="#2e2a22" direction="rtl" stroke="#fdf9f4" stroke-width="4" paint-order="stroke">${line}</text>`;
+      return `<text xml:space="preserve" x="${TEXT_RIGHT_EDGE}" y="${y}" text-anchor="end" font-family="Heebo, Arial Hebrew, Arial, sans-serif" font-size="${TEXT_FONT_SIZE}" font-weight="700" fill="#2e2a22" direction="rtl" stroke="#fdf9f4" stroke-width="4" paint-order="stroke">${line}</text>`;
     })
     .join('\n');
 
@@ -385,9 +386,4 @@ export async function generateBookVideo(input: VideoInput): Promise<Buffer> {
     const outMp4 = join(workDir, 'book.mp4');
     await encodeSlidesWithAudio(slidePaths, durations, fullAudioPath, outMp4);
 
-    return readFile(outMp4);
-  } finally {
-    rm(workDir, { recursive: true, force: true }).catch(() => {});
-  }
-}
-                         
+    return r
