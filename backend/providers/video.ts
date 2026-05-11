@@ -114,12 +114,12 @@ async function renderPageFrame(imageBuffer: Buffer, text: string, omitText: bool
 
   if (!text?.trim().length || omitText) return base;
 
-  // ── Text layout — matches reader: text at TOP, right-aligned (RTL); extra inset for stroke + RTL start edge ──
-  const MARGIN_X = 80;
+  // ── Text layout — matches reader: text at TOP, CENTER-aligned (like book reader) ──
   const MARGIN_TOP = 48;
   const TEXT_FONT_SIZE = 32;
   const LINE_HEIGHT = 46;
   const MAX_CHARS = 36;
+  const CENTER_X = VIDEO_WIDTH / 2;
 
   const escapedLines = wrapOverlayText(text, MAX_CHARS).map(escapeXml);
   const textStartY = MARGIN_TOP + TEXT_FONT_SIZE;
@@ -127,7 +127,7 @@ async function renderPageFrame(imageBuffer: Buffer, text: string, omitText: bool
   const svgLines = escapedLines
     .map((line, i) => {
       const y = textStartY + i * LINE_HEIGHT;
-      return `<text xml:space="preserve" x="${VIDEO_WIDTH - MARGIN_X}" y="${y}" text-anchor="end" font-family="Heebo, Arial Hebrew, Arial, sans-serif" font-size="${TEXT_FONT_SIZE}" font-weight="700" fill="#2e2a22" direction="rtl" stroke="#fdf9f4" stroke-width="4" paint-order="stroke">${line}</text>`;
+      return `<text xml:space="preserve" x="${CENTER_X}" y="${y}" text-anchor="middle" font-family="Heebo, Arial Hebrew, Arial, sans-serif" font-size="${TEXT_FONT_SIZE}" font-weight="700" fill="#2e2a22" direction="rtl" stroke="#fdf9f4" stroke-width="4" paint-order="stroke">${line}</text>`;
     })
     .join('\n');
 
@@ -390,3 +390,4 @@ export async function generateBookVideo(input: VideoInput): Promise<Buffer> {
     rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
 }
+                         

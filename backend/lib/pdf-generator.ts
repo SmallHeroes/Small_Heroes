@@ -195,7 +195,7 @@ function buildHtml(title: string, pages: BookPageForPdf[]): string {
     font-size: 13pt;
     line-height: 1.6;
     color: #2a241a;
-    text-align: right;
+    text-align: center;
     direction: rtl;
   }
 </style>
@@ -261,4 +261,3 @@ export async function generateBookPdf(params: GenerateBookPdfParams): Promise<Bu
   } finally {
     await browser.close();
   }
-}
