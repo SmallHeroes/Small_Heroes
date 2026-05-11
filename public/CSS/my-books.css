@@ -62,3 +62,44 @@
   padding: 18px;
   color: #5d5578;
 }
+
+@media (max-width: 640px) {
+  .books-main {
+    padding-top: 20px;
+    padding-bottom: 36px;
+  }
+
+  .books-head h1 {
+    font-size: 28px;
+  }
+
+  .books-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+  }
+
+  .book-card {
+    border-radius: 14px;
+  }
+
+  .book-card-body {
+    padding: 10px 10px 12px;
+  }
+
+  .book-card-title {
+    font-size: 17px;
+  }
+
+  .book-card-meta {
+    font-size: 13px;
+  }
+
+  .book-card-actions {
+    flex-wrap: wrap;
+  }
+
+  .books-empty {
+    padding: 14px;
+    font-size: 15px;
+  }
+}

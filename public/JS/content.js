@@ -316,6 +316,7 @@ const CONTENT = {
         { id: 'sibling',       label: 'אח או אחות חדשים'      },
         { id: 'transition',    label: 'מעברים גדולים'         },
         { id: 'focus',         label: 'קשב, סקרנות ולמידה'   },
+        { id: 'medical',       label: 'טיפולים רפואיים'       },
         { id: 'other',         label: 'נושא אחר'              },
       ],
 

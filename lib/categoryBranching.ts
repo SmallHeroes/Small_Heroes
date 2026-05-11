@@ -1068,6 +1068,80 @@ export const CATEGORY_BRANCHING: Record<ChallengeCategory, CategoryBranching> = 
     },
   },
 
+  MEDICAL_PROCEDURE: {
+    category: 'MEDICAL_PROCEDURE',
+    hebrewLabel: 'טיפולים רפואיים',
+    emotionalDomain: 'MEDICAL_ANXIETY',
+    psychologicalMeaning:
+      "Medical experiences (shots, surgery, casts, hospital stays, chronic treatment) activate primal threat — loss of control, pain, strange adults, unfamiliar environments. The child's body is 'done to' rather than 'done by.' The story must restore agency and predictability without minimizing real discomfort. Bravery framing ('be strong') backfires; what works is understanding, preparation, and the truth that hard things end.",
+    treatmentStrategy: {
+      coreNeed:
+        'predictability and agency — knowing what will happen, having a role in the process, and trusting that pain is temporary',
+      approach:
+        'normalize fear as smart (your body is protecting you), give the child a job during the procedure, show that the hard part has a shape and an end, honor the after — rest, comfort, pride',
+      avoid: [
+        'trivializing pain ("it\'s nothing")',
+        'bravery-as-silence ("big kids don\'t cry")',
+        'graphic medical detail that scares more than helps',
+        'magical instant healing that denies the real process',
+      ],
+      resolutionType: 'the child gets through it with support, feels proud of surviving something hard, and discovers they are tougher than they thought — not because they didn\'t feel, but because they felt and stayed',
+      narrativeConstraint:
+        'Keep medical elements metaphorical or gently abstracted (a castle with white walls, a bridge that pinches). Never show needles, blood, or graphic procedures. The companion guides through the experience, not around it. Real-world anchor: clinic, hospital room, bed, bandage, parent\'s hand.',
+    },
+    typicalParentIntent: [
+      'מתכוננים לניתוח או אשפוז',
+      'פוחד מזריקות או בדיקות דם',
+      'צריך לקחת תרופה שלא אוהב',
+      'חוזר מטיפול ומעבד את החוויה',
+      'גבס / שבר / פציעה שדורשת סבלנות',
+      'טיפולי שיניים',
+    ],
+    followUpQuestions: [
+      'באיזה סוג טיפול מדובר — זריקה, ניתוח, גבס, תרופה, משהו אחר?',
+      'הטיפול עוד לפניכם, או שהילד/ה כבר עבר/ה את זה ומעבד/ת?',
+      'מה הכי מפחיד — הכאב, הזרים, חוסר השליטה, או משהו אחר?',
+      'האם יש חוויה קודמת (טובה או רעה) שהילד/ה זוכר/ת?',
+      'מה עוזר — יד של הורה, להבין מראש, בובה, משהו אחר?',
+    ],
+    storyDirections: [
+      {
+        id: 'medical_guide_through',
+        flavor: 'connection',
+        title: 'המלווה שעובר את זה *איתך* — לא *במקומך*',
+        realWorldAnchor: "חדר, מיטה, יד, 'אני פה', נשימה, סוף — *חזרה*",
+        summary:
+          'ליווי: המלווה *נוכח* בכל שלב. לא מבטל כאב, לא מרדים — *רואה* ו*נשאר*. הפתרון: הילד עובר את זה, וגם המלווה עובר — ביחד.',
+        promptHint:
+          'The companion stays with the child through every stage of a medical experience. No magic to erase the discomfort — the companion breathes with them, narrates what\'s happening ("now the cold part, now the pinch, now it\'s done"), and the emotional center is: I was not alone.',
+      },
+      {
+        id: 'medical_castle_map',
+        flavor: 'adventure',
+        title: 'הטירה הלבנה — *מפה* של מה שיקרה',
+        realWorldAnchor: "מסדרון, חדר, דלת, 'תחנה', שלב, סוף — *בחוץ*",
+        summary:
+          'רפתקה: מקום לא מוכר הופך ל*מפה* עם תחנות. כל תחנה — שלב בטיפול. הילד *יודע* מה הלאה. הפתרון: סוף המסלול = *חוצה*, ואתה *יודע* את הדרך.',
+        promptHint:
+          'The hospital/clinic becomes a castle or journey with clear stations. The child and companion travel station to station — each one is a stage of the procedure, gently abstracted. Power comes from knowing the map. Ending: emerging on the other side, lighter.',
+      },
+      {
+        id: 'medical_armor_built',
+        flavor: 'courage',
+        title: 'השריון שנבנה *מהרעש* — כי עברת',
+        realWorldAnchor: "גוף, עור, *סימן*, 'עברתי את זה', חוזק — *מבפנים*",
+        summary:
+          'מבנה-גבורה: הילד *מגלה* שאחרי הדבר הקשה — משהו *נבנה*. לא "לא כואב"; אלא "כאב, ועברתי, ועכשיו אני *יודע* שאני יכול". הפתרון: גאווה שקטה.',
+        promptHint:
+          'After the procedure, the child realizes something was built inside them — not magic armor, but the quiet knowledge that they survived something hard. The companion names it: "you stayed." Pride without bravado. The scar/bandage/cast becomes a badge, not a wound.',
+      },
+    ],
+    storyTone: {
+      narrativeRegister: 'gentle-steady, like a parent explaining step by step — warm but honest, never dismissive',
+      illustrationMood: 'clean whites and soft blues with warm gold accents; medical spaces rendered as calm, not sterile; always a warm hand or soft fabric nearby',
+    },
+  },
+
   OTHER: {
     category: 'OTHER',
     hebrewLabel: 'נושא אחר',

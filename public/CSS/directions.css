@@ -301,3 +301,43 @@
     margin: 0 auto;
   }
 }
+
+@media (max-width: 640px) {
+  .directions-main {
+    padding: 24px 16px 48px;
+  }
+
+  .directions-hero {
+    margin-bottom: 16px;
+  }
+
+  .directions-hero p {
+    font-size: 16px;
+  }
+
+  .direction-card-body {
+    padding: 12px 12px 14px;
+  }
+
+  .direction-card-title {
+    font-size: 19px;
+  }
+
+  .direction-card-summary {
+    font-size: 14px;
+  }
+
+  .direction-card-tag {
+    font-size: 11px;
+    padding: 5px 9px;
+  }
+
+  .directions-error {
+    padding: 20px 16px;
+    border-radius: 16px;
+  }
+
+  .directions-error h2 {
+    font-size: 20px;
+  }
+}

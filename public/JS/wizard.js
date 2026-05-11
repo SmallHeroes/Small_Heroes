@@ -536,6 +536,7 @@ const TOPIC_TO_CHALLENGE_CATEGORY = {
   confidence: 'SELF_CONFIDENCE',
   social: 'SOCIAL',
   focus: 'FOCUS_LEARNING',
+  medical: 'MEDICAL_PROCEDURE',
   other: 'OTHER',
 };
 
@@ -550,6 +551,7 @@ const TOPIC_CHIP_ORDER = [
   'sibling',
   'transition',
   'focus',
+  'medical',
   'other',
 ];
 

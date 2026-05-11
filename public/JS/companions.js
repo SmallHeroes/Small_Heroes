@@ -55,6 +55,11 @@ window.COMPANIONS_BY_CATEGORY = {
     { id: 'so_seer_mirror',name: 'המראָה שָׁמַיִּית', tagline: 'מראה חמה שמראה את מי שאתה הופך להיות',        image: '/companions/OTHER/seer_mirror.jpg',narrativeHook: 'פוגש את עצמך העתידי, לא את הפחד' },
     { id: 'so_golden_key', name: 'המפתח הזהב',    tagline: 'מפתח מטייל שיודע שלכל מנעול יש צורה',            image: '/companions/OTHER/golden_key.jpg', narrativeHook: 'לכל ילד יש את המפתח הנכון בפנים' },
   ],
+  MEDICAL_PROCEDURE: [
+    { id: 'med_magic_map',  name: 'המפה הקסומה',   tagline: 'מפה חיה שמציירת את עצמה בזמן שאתה הולך',         image: '/companions/OTHER/magic_map.jpg',  narrativeHook: 'השביל שלך נוצר רק כשאתה הולך בו' },
+    { id: 'med_seer_mirror',name: 'המראָה שָׁמַיִּית', tagline: 'מראה חמה שמראה את מי שאתה הופך להיות',        image: '/companions/OTHER/seer_mirror.jpg',narrativeHook: 'פוגש את עצמך העתידי, לא את הפחד' },
+    { id: 'med_golden_key', name: 'המפתח הזהב',    tagline: 'מפתח מטייל שיודע שלכל מנעול יש צורה',            image: '/companions/OTHER/golden_key.jpg', narrativeHook: 'לכל ילד יש את המפתח הנכון בפנים' },
+  ],
   OTHER: [
     { id: 'magic_map',  name: 'המפה הקסומה',  tagline: 'מפה חיה שמציירת את עצמה בזמן שאתה הולך',         image: '/companions/OTHER/magic_map.jpg',  narrativeHook: 'השביל שלך נוצר רק כשאתה הולך בו' },
     { id: 'seer_mirror',name: 'המראָה שָׁמַיִּית', tagline: 'מראה חמה שמראה את מי שאתה הופך להיות',        image: '/companions/OTHER/seer_mirror.jpg',narrativeHook: 'פוגש את עצמך העתידי, לא את הפחד' },

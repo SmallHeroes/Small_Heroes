@@ -44,6 +44,7 @@ const CATEGORY_MAP: Record<ChallengeCategory, BankCategory> = {
   SELF_CONFIDENCE:       'CONFIDENCE',
   NEW_SIBLING:           'SIBLING',
   FOCUS_LEARNING:        'FOCUS',
+  MEDICAL_PROCEDURE:     'MEDICAL',
   OTHER:                 'GENERAL_FEARS',  // fallback
 };
 

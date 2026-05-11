@@ -18,6 +18,7 @@ export type ChallengeCategory =
   | 'GENERAL_FEARS'
   | 'ANGER_FRUSTRATION'
   | 'SENSITIVITY_OVERWHELM'
+  | 'MEDICAL_PROCEDURE'
   | 'OTHER';
 
 export type Companion = {
@@ -314,6 +315,35 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
     },
     {
       id: 'so_golden_key',
+      name: 'המפתח הזהב',
+      tagline: 'מפתח מטייל שיודע שלכל מנעול יש צורה',
+      image: '/companions/OTHER/golden_key.jpg',
+      narrativeHook: 'לכל ילד יש את המפתח הנכון בפנים',
+      visualDescription:
+        'A small floating golden key with tiny wings, a friendly “eye” in the handle, a soft halo; not sharp; looks like a helpful object-character.',
+    },
+  ],
+  MEDICAL_PROCEDURE: [
+    {
+      id: 'med_magic_map',
+      name: 'המפה הקסומה',
+      tagline: 'מפה חיה שמציירת את עצמה בזמן שאתה הולך',
+      image: '/companions/OTHER/magic_map.jpg',
+      narrativeHook: 'השביל שלך נוצר רק כשאתה הולך בו',
+      visualDescription:
+        'A living paper map with a friendly little paper face, ink lines that wiggle, corners that curl like feet; looks animated and kind, not torn or messy.',
+    },
+    {
+      id: 'med_seer_mirror',
+      name: 'המראָה שָׁמַיִּית',
+      tagline: 'מראה חמה שמראה את מי שאתה הופך להיות',
+      image: '/companions/OTHER/seer_mirror.jpg',
+      narrativeHook: 'פוגש את עצמך העתידי, לא את הפחד',
+      visualDescription:
+        'A warm hand-held mirror with a sun motif frame; soft gold glow; a gentle face reflected as a kind silhouette, not a horror mirror; very comforting.',
+    },
+    {
+      id: 'med_golden_key',
       name: 'המפתח הזהב',
       tagline: 'מפתח מטייל שיודע שלכל מנעול יש צורה',
       image: '/companions/OTHER/golden_key.jpg',
