@@ -391,3 +391,8 @@ export async function generateBookVideo(input: VideoInput): Promise<Buffer> {
     rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
 }
+eadFile(outMp4);
+  } finally {
+    rm(workDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
