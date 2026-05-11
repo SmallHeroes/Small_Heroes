@@ -1,6 +1,7 @@
 # Next.js
 .next/
 out/
+.vercel
 
 # Dependencies
 node_modules/
@@ -9,73 +10,43 @@ node_modules/
 *.tsbuildinfo
 
 # Local / secrets (never commit)
+.env
 .env.local
 .env.*.local
 
 # Debug / scratch
 debug-*
-debug-story-batch/
 
 # OS / tooling noise
 .tmp.driveupload/
+.tmp.drivedownload/
 
 # Scratch, QA, proof runs
 tmp/
 test-results/
+test-outputs/
 proof-output/
 .tmp_story_*.html
 .tmp_story_headers.txt
-Reviews/
 public/qa-capture/
 
-# Phase 2 style experiment outputs (re-runnable, not source)
-experiments/style-test/
-
-# Phase 2 style experiment outputs
-experiments/style-test/
+# Experiments (re-runnable, not source)
+experiments/
 
 # LoRA training data — large binaries, regenerable
-lora-training-data/Style_02/
-lora-training-data/style_01_extra/
-lora-training-data/style_cream_20/
-lora-training-data/style_cream_v2/
-lora-training-data/test-outputs/
-lora-training-data/*.zip
-lora-training-data/zi*
-
-# ChatGPT exports
-chatgpt_export.zip
-chatgpt_project.zip
-
-# Temp build scripts
-build-spec.js
-
-# Old phase briefs (root level)
-LANDING_PHASE_A_BRIEF.md
-LORA_INTEGRATION_BRIEF.md
-phase-5g-story-quality-adventure.md
-phase-checkout-fixes.md
-
-# Test outputs (regenerable)
-test-outputs/
-
-# Story bank review spreadsheets (regenerable)
-story-bank/*.xlsx
-
-# Temp/scratch files
-zi*
-Small_Heroes_Full_Spec.docx
+lora-training-data/
 
 # Reference images (large, stored externally)
 Refs/
 
-.vercel
+# Story bank review spreadsheets (regenerable)
+story-bank/*.xlsx
 
-node_modules/
-.next/
-.tmp.driveupload/
-.env
+# Voice / audio test files
 voice-samples/
 scripts/test-audio*
 scripts/test-voice*
 scripts/check-voices*
+
+# Temp files
+zi*
