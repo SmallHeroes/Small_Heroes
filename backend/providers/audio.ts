@@ -8,15 +8,6 @@ import { getVoiceById, SLEEP_MODE_OVERRIDES } from '../config/voices';
 import { WIZARD } from '@/content';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-/**
- * Strip Hebrew niqqud (vowel marks) from text before sending to TTS.
- * Niqqud causes ElevenLabs to over-pronounce every syllable robotically.
- * Without niqqud, eleven_v3 + language_code:'he' reads naturally.
- * Unicode range: ֑-ׇ covers all Hebrew cantillation + niqqud marks.
- */
-function stripNiqqud(text: string): string {
-  return text.replace(/[֑-ׇ]/g, '');
-}
 
 let _supabase: SupabaseClient | null = null;
 function getSupabase(): SupabaseClient {
@@ -81,12 +72,8 @@ export async function callElevenLabs(
   const apiKey = process.env.ELEVENLABS_API_KEY;
   if (!apiKey) throw new Error('ELEVENLABS_API_KEY not set');
 
-  // Strip niqqud — ElevenLabs reads Hebrew naturally without vowel marks,
-  // but with niqqud it over-pronounces every syllable robotically.
-  const cleanText = stripNiqqud(text);
-
   const body: Record<string, unknown> = {
-    text: cleanText,
+    text,
     model_id: 'eleven_v3',
     language_code: 'he',
   };

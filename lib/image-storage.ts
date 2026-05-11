@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 let supabaseClient: SupabaseClient | null = null;
@@ -231,6 +232,37 @@ export async function storePresentationBuffer(input: StorePresentationInput): Pr
     throw new Error(`Supabase presentation upload failed: ${uploadResult.error.message}`);
   }
 
+  return buildPublicUrl(url, bucket, key);
+}
+
+const MAX_WIZARD_CHARACTER_UPLOAD_BYTES = 15 * 1024 * 1024;
+const WIZARD_CHARACTER_UPLOAD_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+/** Immediate wizard upload for extra-character previews (URLs fit in sessionStorage). */
+export async function storeWizardCharacterPhotoUpload(params: {
+  buffer: Buffer;
+  contentType: string;
+}): Promise<string> {
+  const mime = params.contentType.split(';')[0].trim().toLowerCase();
+  const normalized = mime === 'image/jpg' ? 'image/jpeg' : mime;
+  if (!WIZARD_CHARACTER_UPLOAD_TYPES.has(normalized)) {
+    throw new Error('Unsupported image type.');
+  }
+  if (params.buffer.length > MAX_WIZARD_CHARACTER_UPLOAD_BYTES) {
+    throw new Error('Image exceeds size limit.');
+  }
+  const { url, bucket } = getSupabaseEnv();
+  const supabase = getSupabaseClient();
+  const ext = extensionFromContentType(normalized);
+  const key = `wizard/char-photos/${Date.now()}-${randomUUID().slice(0, 10)}.${ext}`;
+  const uploadResult = await supabase.storage.from(bucket).upload(key, params.buffer, {
+    contentType: normalized,
+    upsert: true,
+    cacheControl: '31536000',
+  });
+  if (uploadResult.error) {
+    throw new Error(`Supabase upload failed: ${uploadResult.error.message}`);
+  }
   return buildPublicUrl(url, bucket, key);
 }
 

@@ -23,6 +23,13 @@ export async function loadStoryFromBank(
   const coverSceneMatch = raw.match(/coverScene:\s*(.+)/);
   const coverSceneRaw = coverSceneMatch?.[1]?.trim() ?? '';
 
+  // Extract explicit gender metadata (if present in story file header)
+  const genderMatch = raw.match(/^gender:\s*(female|male|girl|boy)\b/mi);
+  const explicitGender = genderMatch?.[1]?.trim().toLowerCase() ?? null;
+  const normalizedExplicitGender =
+    explicitGender === 'girl' || explicitGender === 'female' ? 'female' :
+    explicitGender === 'boy' || explicitGender === 'male' ? 'male' : null;
+
   const pageParts = raw.split(/---\s*Page\s*(\d+)\s*---/).slice(1);
   const pages: StoryPage[] = [];
 
@@ -66,8 +73,10 @@ export async function loadStoryFromBank(
   // run an LLM call to swap all gendered Hebrew forms.
   if (childGender) {
     const allText = pages.map(p => p.text).join('\n');
-    const storyGender = detectStoryGender(allText);
+    // Prefer explicit metadata; fall back to regex detection
+    const storyGender = normalizedExplicitGender ?? detectStoryGender(allText);
     const targetGender = childGender === 'girl' ? 'female' : 'male';
+    console.log(`[StoryBank] Gender: explicit=${normalizedExplicitGender}, detected=${normalizedExplicitGender ? 'skipped' : detectStoryGender(allText)}, target=${targetGender}`);
 
     if (storyGender && storyGender !== targetGender) {
       console.log(`[StoryBank] Gender mismatch: story=${storyGender}, target=${targetGender}. Running LLM swap...`);
@@ -207,48 +216,47 @@ function extractLocationZone(dir: string): string {
  * Detect the written gender of a Hebrew story by counting gendered verb/pronoun markers.
  * Returns 'female', 'male', or null if unclear.
  */
-function detectStoryGender(text: string): 'female' | 'male' | null {
-  // Common feminine markers in Hebrew text (verbs, pronouns)
-  const femininePatterns = [
-    /\bהיא\b/g,        // she
-    /\bאותה\b/g,       // her (object)
-    /\bשלה\b/g,        // hers
-    /\bלה\b/g,         // to her
-    /ָה\s/g,           // qamatz-he suffix (past tense feminine: הלכָה, ישבָה)
-    /תָה\b/g,          // past feminine suffix variant
-    /הִרְגִּישָׁה/g,   // she felt
-    /הִסְתַּכְּלָה/g,  // she looked
-    /אָמְרָה/g,        // she said
-    /רָצְתָה/g,        // she wanted/ran
-    /יָדְעָה/g,        // she knew
-  ];
+/**
+ * Hebrew word boundary helper.
+ * JS \b doesn't work with Hebrew chars — they aren't \w.
+ * Use lookbehind/lookahead for non-Hebrew-letter boundaries instead.
+ */
+function heWord(word: string): RegExp {
+  // Match word surrounded by non-Hebrew-letter chars (or start/end of string)
+  return new RegExp(`(?<=[^א-ת]|^)${word}(?=[^א-ת]|$)`, 'g');
+}
 
-  // Common masculine markers
-  const masculinePatterns = [
-    /\bהוא\b/g,        // he
-    /\bאותו\b/g,       // him (object)
-    /\bשלו\b/g,        // his
-    /\bלו\b/g,         // to him
-    /הִרְגִּישׁ\b/g,   // he felt
-    /הִסְתַּכֵּל\b/g,  // he looked
-    /אָמַר\b/g,        // he said
-    /רָצָה\b/g,        // he wanted
-    /יָדַע\b/g,        // he knew
+function detectStoryGender(text: string): 'female' | 'male' | null {
+  // Strip niqqud + cantillation — they break regex and aren't needed for gender detection
+  const clean = text.replace(/\p{M}/gu, '');
+
+  // Feminine markers (pronouns + common past-tense verbs)
+  const feminineWords = [
+    'היא', 'אותה', 'שלה',
+    'הרגישה', 'הסתכלה', 'אמרה', 'רצתה', 'ידעה',
+    'ראתה', 'הלכה', 'ישבה', 'עמדה', 'נתנה', 'לקחה', 'שמעה',
+    'רצה', 'עשתה', 'חשבה', 'הביטה', 'נשמה', 'לחשה',
+  ];
+  // Masculine markers
+  const masculineWords = [
+    'הוא', 'אותו', 'שלו',
+    'הרגיש', 'הסתכל', 'אמר', 'רצה', 'ידע',
+    'ראה', 'הלך', 'ישב', 'עמד', 'נתן', 'לקח', 'שמע',
+    'עשה', 'חשב', 'הביט', 'נשם', 'לחש',
   ];
 
   let femScore = 0;
   let mascScore = 0;
 
-  for (const pat of femininePatterns) {
-    const matches = text.match(pat);
-    femScore += matches?.length ?? 0;
+  for (const w of feminineWords) {
+    femScore += (clean.match(heWord(w)) || []).length;
   }
-  for (const pat of masculinePatterns) {
-    const matches = text.match(pat);
-    mascScore += matches?.length ?? 0;
+  for (const w of masculineWords) {
+    mascScore += (clean.match(heWord(w)) || []).length;
   }
 
-  // Need a clear signal — at least 3 total markers and 2:1 ratio
+  console.log(`[StoryBank] Gender detection: fem=${femScore}, masc=${mascScore}`);
+
   const total = femScore + mascScore;
   if (total < 3) return null;
 

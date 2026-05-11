@@ -345,7 +345,12 @@ function saveWizardState() {
       relation: ch.relation || '',
       name: ch.name || '',
       description: ch.description || '',
-      photo: null,
+      photo:
+        ch.photo &&
+        typeof ch.photo === 'string' &&
+        !ch.photo.startsWith('data:')
+          ? ch.photo
+          : null,
       photoQuality:
         ch.photoQuality && typeof ch.photoQuality === 'object'
           ? { ...ch.photoQuality }
@@ -1606,6 +1611,30 @@ function renderExtraCharacters() {
         }
         renderExtraCharacters();
         queueWizardSave();
+
+        const base64Snapshot = result;
+        (async () => {
+          try {
+            const blob = await fetch(base64Snapshot).then((r) => r.blob());
+            const ext =
+              blob.type === 'image/png'
+                ? 'png'
+                : blob.type === 'image/webp'
+                  ? 'webp'
+                  : 'jpg';
+            const formData = new FormData();
+            formData.append('file', blob, `char-${index}-${Date.now()}.${ext}`);
+            const res = await fetch('/api/upload-photo', { method: 'POST', body: formData });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.url) return;
+            if (state.extraCharacters[index]?.photo !== base64Snapshot) return;
+            state.extraCharacters[index].photo = data.url;
+            queueWizardSave();
+            renderExtraCharacters();
+          } catch (_) {
+            /* upload failed — preview uses base64 until refresh */
+          }
+        })();
       };
       reader.readAsDataURL(file);
     });
@@ -2557,8 +2586,9 @@ function buildSummary() {
  *   state.contactName / contactEmail
  *     → contact: { name, email }
  *
- * Child and supporting-character reference photos are sent as optional data URLs.
- * Server-side order creation stores them and converts to persistent URLs.
+ * Child reference photo: optional data URL or URL (server persists data URLs).
+ * Extra characters: data URL until background upload completes, then public URL (`imageUrl`);
+ * orders API accepts either `imageDataUrl` or `imageUrl`.
  */
 function buildWizardPayload() {
   // Normalise topic IDs — content.js uses abbreviated keys, backend uses full keys.
@@ -2573,21 +2603,28 @@ function buildWizardPayload() {
 
   const additionalCharacters = state.extraCharacters
     .slice(0, MAX_EXTRA_CHARACTERS)
-    .map((character) => ({
-      relation: (character.relation || 'other').trim(),
-      name: (character.name || '').trim(),
-      description: (character.description || '').trim(),
-      imageDataUrl:
+    .map((character) => {
+      const photoOk =
         typeof character.photo === 'string' &&
-        character.photoQuality?.status !== PHOTO_QUALITY_STATUS.BLOCKED
-          ? character.photo
-          : null,
-      photoQuality:
-        character.photoQuality &&
-        typeof character.photoQuality === 'object'
-          ? character.photoQuality
-          : null,
-    }))
+        character.photoQuality?.status !== PHOTO_QUALITY_STATUS.BLOCKED;
+      const isHttpUrl =
+        typeof character.photo === 'string' &&
+        (character.photo.startsWith('https://') || character.photo.startsWith('http://'));
+      const isDataUrl =
+        typeof character.photo === 'string' && character.photo.startsWith('data:image/');
+      return {
+        relation: (character.relation || 'other').trim(),
+        name: (character.name || '').trim(),
+        description: (character.description || '').trim(),
+        imageDataUrl: photoOk && isDataUrl ? character.photo : null,
+        imageUrl: photoOk && isHttpUrl ? character.photo : null,
+        photoQuality:
+          character.photoQuality &&
+          typeof character.photoQuality === 'object'
+            ? character.photoQuality
+            : null,
+      };
+    })
     .filter((character) => character.name.length > 0);
 
   const familyContext = additionalCharacters.length > 0
