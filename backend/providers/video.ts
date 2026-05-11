@@ -386,4 +386,8 @@ export async function generateBookVideo(input: VideoInput): Promise<Buffer> {
     const outMp4 = join(workDir, 'book.mp4');
     await encodeSlidesWithAudio(slidePaths, durations, fullAudioPath, outMp4);
 
-    return r
+    return readFile(outMp4);
+  } finally {
+    rm(workDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
