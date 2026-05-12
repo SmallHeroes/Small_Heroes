@@ -15,7 +15,7 @@ import { sendBookReadyEmail } from '../../../backend/lib/email';
 import { logServerEvent } from '../events/route';
 import { assignTemplatesForBook, type BookPageTemplate } from '../../../lib/bookPageLayout';
 import { generateStoryBankCharacterDNA, loadStoryFromBank } from '../../../backend/providers/story-bank-loader';
-import { selectStoryFromBank } from '../../../backend/providers/story-bank-index';
+import { selectCompanionStory, selectStoryFromBank } from '../../../backend/providers/story-bank-index';
 import {
   buildPresentationWebpFromBuffer,
   evaluateImageSignal,
@@ -42,6 +42,18 @@ function normalizePageTemplate(value: string | null | undefined): BookPageTempla
     return value;
   }
   return null;
+}
+
+/** Align wizard package / DB `storyDirection` with v3 filenames when `order.storyDirection` is unset (legacy). */
+function effectiveStoryDirectionForV3(
+  storyDirection: string | null | undefined,
+  storyLength: 'short' | 'medium' | 'long',
+): 'bedtime' | 'adventure' | 'fantasy' {
+  const d = (storyDirection || '').trim().toLowerCase();
+  if (d === 'bedtime' || d === 'adventure' || d === 'fantasy') return d;
+  if (storyLength === 'short') return 'bedtime';
+  if (storyLength === 'long') return 'fantasy';
+  return 'adventure';
 }
 
 function compositionRulesForTemplate(
@@ -443,8 +455,15 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
 
     const challengeCategory = wizardMeta.challengeCategory ?? order.topic ?? 'GENERAL_FEARS';
     const storyLength = (order.storyLength as 'short' | 'medium' | 'long') ?? 'medium';
+    const directionForV3 = effectiveStoryDirectionForV3(order.storyDirection, storyLength);
 
-    const selection = selectStoryFromBank(challengeCategory, storyLength);
+    let selection = selectCompanionStory(resolvedCompanion?.id, directionForV3);
+    let storyBankVersion: 'v3' | 'v1' = 'v3';
+    if (!selection) {
+      selection = selectStoryFromBank(challengeCategory, storyLength);
+      storyBankVersion = 'v1';
+    }
+
     if (!selection) {
       throw new Error(`No story-bank story found for category=${challengeCategory}`);
     }
@@ -452,14 +471,18 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
     generationLogger.info('Story bank selection', {
       orderId,
       filename: selection.filename,
+      storyBankVersion,
       base: selection.base,
       title: selection.title,
       bankCategory: selection.bankCategory,
       challengeCategory,
       storyLength,
+      companionId: resolvedCompanion?.id ?? null,
+      directionForV3,
     });
 
-    const storyFilePath = path.join(process.cwd(), 'story-bank', 'raw', selection.filename);
+    const storyDir = storyBankVersion === 'v3' ? 'v3' : 'raw';
+    const storyFilePath = path.join(process.cwd(), 'story-bank', storyDir, selection.filename);
     const story = await loadStoryFromBank(
       storyFilePath,
       order.childName || '',

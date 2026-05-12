@@ -17,6 +17,24 @@ import { join } from 'path';
 import type { ChallengeCategory } from '../../lib/companions';
 
 const STORY_BANK_DIR = join(process.cwd(), 'story-bank', 'raw');
+const V3_STORY_DIR = join(process.cwd(), 'story-bank', 'v3');
+
+/** Companions with handcrafted v3 markdown stories (one file per direction). */
+const V3_COMPANIONS = new Set([
+  'octopus_seara',
+  'bat_lily',
+  'chameleon_koko',
+  'dolphin_shahkan',
+  'fawn_tzvi',
+]);
+
+const V3_COMPANION_BANK_CATEGORY: Record<string, BankCategory> = {
+  octopus_seara: 'ANGER_FRUSTRATION',
+  bat_lily: 'NIGHT_FEAR',
+  chameleon_koko: 'SENSITIVITY_OVERWHELM',
+  dolphin_shahkan: 'SOCIAL',
+  fawn_tzvi: 'TRANSITION',
+};
 
 // ── Category mapping: wizard → story-bank ───────────────────────
 
@@ -233,4 +251,36 @@ export function hasBankStories(challengeCategory: string): boolean {
   if (!bankCategory) return false;
   const pool = STORY_POOL[bankCategory];
   return !!pool && pool.length > 0;
+}
+
+/**
+ * Try to select a companion-specific v3 story (`story-bank/v3/{companionId}_{direction}.md`).
+ * Returns null if companion has no v3 story for this direction or the file is missing.
+ */
+export function selectCompanionStory(
+  companionId: string | null | undefined,
+  direction: string | null | undefined,
+): StoryBankSelection | null {
+  if (!companionId || !direction) return null;
+  if (!V3_COMPANIONS.has(companionId)) return null;
+
+  const dir = direction.trim().toLowerCase();
+  if (dir !== 'bedtime' && dir !== 'adventure' && dir !== 'fantasy') return null;
+
+  const filename = `${companionId}_${dir}.md`;
+  const fullPath = join(V3_STORY_DIR, filename);
+
+  if (!existsSync(fullPath)) {
+    console.warn(`[story-bank] v3 file missing: ${filename}`);
+    return null;
+  }
+
+  const bankCategory = V3_COMPANION_BANK_CATEGORY[companionId] ?? 'GENERAL_FEARS';
+
+  return {
+    filename,
+    base: `${companionId}_${dir}`,
+    title: 'v3 companion story',
+    bankCategory,
+  };
 }

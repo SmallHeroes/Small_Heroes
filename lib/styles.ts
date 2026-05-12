@@ -287,7 +287,7 @@ ZERO text, letters, numbers, or symbols anywhere.`,
       renderingBehavior:
         'dense illustrated narrative scene — every surface filled with story props and micro-details',
       styleToken: 'detailed_whimsical_world',
-      loraModel: process.env.LORA_MODEL_STYLE_03 || null,
+      loraModel: null,
       loraTriggerWord: null,
       loraStylePrefix: null,
     },
