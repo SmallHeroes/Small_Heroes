@@ -13,6 +13,11 @@ direction: bedtime
 category: ANGER_FRUSTRATION
 gender: male
 pages: 15
+
+companionLetter:
+  insertAfterPage: 14
+  imageDirection: "close_shot: octopus seara cupping a small tentacle as if whispering, blue calm coloring, hat straight, soft warm bedroom light, intimate composition"
+
 ---
 
 storyStyle: רך עם התפרצויות קטנות ומצחיקות  
@@ -59,7 +64,7 @@ imageDirection: medium_shot: child pulling blanket opposite direction, octopus t
 --- Page 5 ---
 סַעֲרָה מַגְבִּיר. "אֲנִי! מְסַדֵּר! הַכֹּל!"  
 זְרוֹעָה עַל הַכָּרִית, זְרוֹעָה בַּשֵּׂעָר, זְרוֹעָה בַּשְּׂמִיכָה.  
-{{childName}} דּוֹחֵף אוֹתוֹ קָטָן. "דַּי!"  
+{{childName}} דּוֹחֵף אוֹתוֹ קָטָן. "דַּי! {{patch:difficulty_word|difficulties|שם את הקושי הספציפי של הילד בעברית עם ניקוד מלא 2-5 מילים בטון רך|הַזְּרוֹעוֹת שֶׁלְּךָ מַפְרִיעוֹת לִי}}"  
 הַכּוֹבַע כְּאִלּוּ לוֹחֵשׁ "אויויוי".
 
 imageDirection: close_shot: child pushing octopus slightly, tentacles tangled in hair and pillow, hat oddly angled, humorous tension
