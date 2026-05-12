@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { logServerEvent } from '../../events/route';
+import { logServerEvent } from '../../../../lib/server-events';
 import { enforceRateLimit, enforceSameOrigin } from '../../../../lib/request-security';
 import { prisma } from '@/lib/prisma';
 import { createLogger } from '@/lib/logger';

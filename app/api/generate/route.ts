@@ -12,7 +12,7 @@ import { generateAllPageImages, generateBookCover } from '../../../backend/provi
 import { generatePageAudio } from '../../../backend/providers/audio';
 import { TOPICS } from '../../../backend/config/wizard';
 import { sendBookReadyEmail } from '../../../backend/lib/email';
-import { logServerEvent } from '../events/route';
+import { logServerEvent } from '../../../lib/server-events';
 import { assignTemplatesForBook, type BookPageTemplate } from '../../../lib/bookPageLayout';
 import { generateStoryBankCharacterDNA, loadStoryFromBank } from '../../../backend/providers/story-bank-loader';
 import { selectCompanionStory, selectStoryFromBank } from '../../../backend/providers/story-bank-index';

@@ -3,6 +3,8 @@
  * POST /api/events
  */
 
+import { logServerEvent } from '../../../lib/server-events';
+
 const KNOWN_EVENTS = new Set([
   'wizard_started',
   'checkout_started',
@@ -56,22 +58,9 @@ export async function POST(req: Request) {
       return Response.json({ ok: true });
     }
 
-    logEvent(event, sanitizeProperties(properties));
+    logServerEvent(event, sanitizeProperties(properties));
     return Response.json({ ok: true });
   } catch (_) {
     return Response.json({ ok: false }, { status: 400 });
   }
-}
-
-function logEvent(event: string, properties: Record<string, unknown>) {
-  console.log('[Analytics]', JSON.stringify({
-    event,
-    properties,
-    ts: new Date().toISOString(),
-  }));
-}
-
-// Shared server-side helper — imported directly by webhook handler
-export function logServerEvent(event: string, properties: Record<string, unknown> = {}) {
-  logEvent(event, properties);
 }

@@ -18,7 +18,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Prisma, StoryDirectionArchetype, StoryDirectionSetStatus } from '@prisma/client';
 import { TOPICS } from '../../../backend/config/wizard';
 import { generateStoryDirectionsIncrementally } from '../../../backend/providers/story-directions';
-import { logServerEvent } from '../events/route';
+import { logServerEvent } from '../../../lib/server-events';
 import { enforceRateLimit, enforceSameOrigin } from '../../../lib/request-security';
 import { prisma } from '../../../lib/prisma';
 import { createLogger } from '../../../lib/logger';
