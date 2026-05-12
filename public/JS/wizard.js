@@ -59,7 +59,7 @@ const WIZ_DEFAULTS = {
     },
     s9: {
       title: '', sub: '', card1Title: '', card2Title: '', card3Title: '',
-      nameLabel: '', emailLabel: '', submitBtn: '', paymentLogos: '',
+      nameLabel: '', emailLabel: '', submitBtn: '', paymentLogos: '', paymentLogosNoPhoto: '',
     },
     sBook: {
       title: '', sub: '', bookNameLabel: '', bookNameHint: '',
@@ -2294,12 +2294,66 @@ function buildSummary() {
         : null,
     ].filter(Boolean);
 
+    // ── Emotional context capture (helpers/difficulties/etc) ─────
+    const toSummaryLabels = (selected, lookup) => {
+      if (!Array.isArray(selected) || selected.length === 0) return null;
+      const labels = selected
+        .map((value) => {
+          if (typeof value !== 'string') return null;
+          const byId = Array.isArray(lookup) ? lookup.find((x) => x && x.id === value) : null;
+          const byLabel = byId || (Array.isArray(lookup) ? lookup.find((x) => x && x.label === value) : null);
+          const rawLabel = byLabel?.label || value;
+          return String(rawLabel)
+            .replace(/^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1F9FF}\s]+/gu, '')
+            .trim();
+        })
+        .filter(Boolean);
+      return labels.length > 0 ? labels.join(', ') : null;
+    };
+
+    const superpowerVal = toSummaryLabels(state.childSuperpower, WIZ.superpowers || []);
+    const difficultiesVal = toSummaryLabels(state.difficulties, WIZ.difficulties || []);
+    const goalsVal = toSummaryLabels(state.goals, WIZ.goals || []);
+    const helpersVal = toSummaryLabels(state.helpers, WIZ.helpers || []);
+    const avoidVal = toSummaryLabels(state.avoid, WIZ.avoid || []);
+
+    const emotionalRows = [
+      superpowerVal
+        ? { icon: '💪', label: 'כוחות:', val: superpowerVal }
+        : null,
+      difficultiesVal
+        ? { icon: '🌊', label: 'מה קצת קשה:', val: difficultiesVal }
+        : null,
+      goalsVal
+        ? { icon: '🌟', label: 'לאן נוביל:', val: goalsVal }
+        : null,
+      helpersVal
+        ? { icon: '🤍', label: 'מה עוזר:', val: helpersVal }
+        : null,
+      avoidVal
+        ? { icon: '🚫', label: 'להשאיר בחוץ:', val: avoidVal }
+        : null,
+    ].filter(Boolean);
+
     const answeredFollowups = (state.categoryAnswers || []).filter((a) => {
       const hasText = Boolean(a && a.answer && a.answer.trim());
       const hasQuick = Boolean(a && Array.isArray(a.selectedQuickAnswers) && a.selectedQuickAnswers.length > 0);
       return hasText || hasQuick;
     });
-    const extraDetails = `<div class="summary-followup-count">עניתם על ${answeredFollowups.length} שאלות השלמה</div>`;
+
+    const emotionalHtml = emotionalRows.map((r) => `
+      <div class="summary-row summary-row--soft">
+        <span class="summary-icon">${r.icon}</span>
+        <span class="summary-label">${r.label}</span>
+        <span class="summary-val">${r.val}</span>
+      </div>
+    `).join('');
+
+    const followupHint = answeredFollowups.length > 0
+      ? `<div class="summary-followup-count">+ ${answeredFollowups.length} שאלות השלמה</div>`
+      : '';
+
+    const extraDetails = emotionalHtml + followupHint;
 
     sumEl.innerHTML = `${rows
       .map(
@@ -2360,7 +2414,22 @@ function buildSummary() {
       }
     }
 
+    rows += `
+      <div class="price-row price-row--total">
+        <span class="label">${WIZ.summary.totalLabel || 'סה"כ לתשלום:'}</span>
+        <span class="val">₪${total}</span>
+      </div>
+    `;
+
     priceEl.innerHTML = rows;
+  }
+
+  // ── Dynamic footer line based on whether photo was uploaded ─────
+  const paymentLogosEl = document.getElementById('s9PaymentLogos');
+  if (paymentLogosEl) {
+    paymentLogosEl.textContent = state.photo
+      ? WIZ.steps.s9.paymentLogos
+      : (WIZ.steps.s9.paymentLogosNoPhoto || WIZ.steps.s9.paymentLogos);
   }
 }
 
