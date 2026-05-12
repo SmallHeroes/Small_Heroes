@@ -27,6 +27,7 @@ import { prisma } from '../../../lib/prisma';
 import { createLogger } from '../../../lib/logger';
 import { getCompanionById, getCompanionByIdAndCategory, getCompanionReferencePublicUrl } from '../../../lib/companions';
 import { buildPersistedCharacterAnchorsJson, companionAnchorKey, getWizardMeta } from '../../../lib/orderMeta';
+import { buildLetterContextFromOrder, buildPatchContextFromOrder } from '../../../backend/providers/personalization';
 import { ROUTES } from '../../../lib/routes';
 import { evaluatePhotoGate, resolveResemblanceThresholdConfig } from '../../../lib/resemblance-core';
 
@@ -483,11 +484,21 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
 
     const storyDir = storyBankVersion === 'v3' ? 'v3' : 'raw';
     const storyFilePath = path.join(process.cwd(), 'story-bank', storyDir, selection.filename);
+    const patchContext = buildPatchContextFromOrder(order, wizardMeta);
+    const letterContext =
+      resolvedCompanion?.id && resolvedCompanion?.name
+        ? buildLetterContextFromOrder(order, wizardMeta, {
+            id: resolvedCompanion.id,
+            name: resolvedCompanion.name,
+          })
+        : null;
+
     const story = await loadStoryFromBank(
       storyFilePath,
       order.childName || '',
       resolvedCompanion?.name ?? 'צפרדע',
-      order.childGender || undefined
+      order.childGender || undefined,
+      { patchContext, letterContext }
     );
     const compositionByPage = new Map(
       (story.pageCompositionPlan ?? []).map((composition) => [composition.pageNumber, composition])

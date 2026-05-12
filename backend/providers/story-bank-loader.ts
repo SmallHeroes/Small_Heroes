@@ -1,5 +1,34 @@
 import fs from 'fs/promises';
 import type { GeneratedStory, ShotVisualDirection, StoryPage } from './pipeline';
+import {
+  applyPersonalizationPatches,
+  type LetterContext,
+  type PatchContext,
+  generateCompanionLetter,
+} from './personalization';
+
+export type LoadStoryFromBankOptions = {
+  patchContext?: PatchContext | null;
+  /** When set with companionLetter frontmatter, generates and splices the letter page. */
+  letterContext?: LetterContext | null;
+};
+
+/**
+ * Parse `companionLetter` from story markdown (YAML anywhere in header region).
+ */
+export function parseCompanionLetterMeta(
+  raw: string
+): { insertAfterPage: number; imageDirection: string } | null {
+  if (!/companionLetter\s*:/.test(raw)) return null;
+  const insert = raw.match(/insertAfterPage\s*:\s*(\d+)/);
+  const img =
+    raw.match(/imageDirection\s*:\s*"((?:\\.|[^"\\])*)"/) ??
+    raw.match(/imageDirection\s*:\s*'((?:\\.|[^'\\])*)'/);
+  if (!insert?.[1] || !img?.[1]) return null;
+  const insertAfterPage = parseInt(insert[1], 10);
+  if (!Number.isFinite(insertAfterPage) || insertAfterPage < 0) return null;
+  return { insertAfterPage, imageDirection: img[1].trim() };
+}
 
 /**
  * Parse a story-bank markdown file into a GeneratedStory object.
@@ -10,9 +39,11 @@ export async function loadStoryFromBank(
   filePath: string,
   childName: string,
   companionName: string,
-  childGender?: string
+  childGender?: string,
+  options?: LoadStoryFromBankOptions | null
 ): Promise<GeneratedStory> {
   const raw = await fs.readFile(filePath, 'utf-8');
+  const letterMeta = parseCompanionLetterMeta(raw);
 
   const titleMatch = raw.match(/===\s*STORY\s*\d+:\s*(.+?)\s*===/);
   const title = (titleMatch?.[1]?.trim() ?? 'סיפור מהבנק')
@@ -94,6 +125,48 @@ export async function loadStoryFromBank(
     }
   }
 
+  const opts = options ?? undefined;
+
+  if (opts?.patchContext) {
+    for (let i = 0; i < pages.length; i++) {
+      const patchedText = await applyPersonalizationPatches(pages[i].text, opts.patchContext);
+      pages[i].text = patchedText;
+      pages[i].narrationText = patchedText;
+    }
+    console.log(`[StoryBank] Personalization patches applied (${pages.length} pages).`);
+  }
+
+  if (letterMeta && opts?.letterContext) {
+    const letter = await generateCompanionLetter(opts.letterContext);
+    const insertIdx = pages.findIndex((p) => p.pageNumber === letterMeta.insertAfterPage);
+    const pos = insertIdx >= 0 ? insertIdx + 1 : pages.length;
+    const resolvedLetterImg = letterMeta.imageDirection
+      .replace(/\{\{childName\}\}/g, childName)
+      .replace(/\{\{companionName\}\}/g, companionName);
+    const letterVisual = parseImageDirection(resolvedLetterImg);
+    const letterPage: StoryPage = {
+      pageNumber: 0,
+      text: letter.text,
+      narrationText: letter.text,
+      imageSubject: 'child',
+      imagePrompt: resolvedLetterImg,
+      rawScenePrompt: resolvedLetterImg,
+      visualDirection: letterVisual,
+      isLetter: true,
+    };
+    pages.splice(pos, 0, letterPage);
+    pages.forEach((p, idx) => {
+      p.pageNumber = idx + 1;
+    });
+    console.log(
+      `[StoryBank] Companion letter inserted after logical page ${letterMeta.insertAfterPage} (total pages=${pages.length}).`
+    );
+  } else if (letterMeta && !opts?.letterContext) {
+    console.warn(
+      '[StoryBank] companionLetter frontmatter found but letterContext missing — letter page skipped.'
+    );
+  }
+
   // Use explicit English coverScene from story file when available
   const coverSceneHint = coverSceneRaw || undefined;
 
@@ -141,7 +214,7 @@ export async function loadStoryFromBank(
  * Parse an imageDirection string into a ShotVisualDirection.
  * Format: "Description, camera type, focal point: X, lighting"
  */
-function parseImageDirection(dir: string): ShotVisualDirection | undefined {
+export function parseImageDirection(dir: string): ShotVisualDirection | undefined {
   if (!dir) return undefined;
 
   const focalMatch = dir.match(/focal point:\s*([^,]+)/i);
@@ -300,7 +373,8 @@ async function swapGender(
 4. שמור על שורות ריקות ומבנה פסקאות בדיוק כמו במקור
 5. אל תוסיף ואל תמחק מילים — רק המר מגדר
 6. שמות דמויות (כולל {{companionName}}) נשארים כמו שהם
-7. החזר JSON בפורמט: {"pages": ["טקסט עמוד 1", "טקסט עמוד 2", ...]}
+7. שמור על תבניות {{patch:...|...|...}} בדיוק כמו שהן — אל תתרגם ואל תשנה את התוכן בתוך הסוגריים
+8. החזר JSON בפורמט: {"pages": ["טקסט עמוד 1", "טקסט עמוד 2", ...]}
 
 הטקסט:
 ${pagesBlock}`;

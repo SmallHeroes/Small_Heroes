@@ -490,6 +490,8 @@ export interface StoryPage {
   /** Clean scene from shot plan before stage-4 wrapping; optional for older stored stories. */
   rawScenePrompt?: string;
   visualDirection?: ShotVisualDirection;
+  /** Runtime-inserted companion letter page (story-bank opt-in). */
+  isLetter?: boolean;
 }
 
 export interface QualityResult {
@@ -544,6 +546,17 @@ function isStoryStage(stage: string): boolean {
 function getModelForStage(stage: string, provider: string): string {
   const defaultStoryModel = provider === 'anthropic' ? 'claude-opus-4-5' : 'gpt-5.3-pro';
   const defaultSupportModel = provider === 'anthropic' ? 'claude-opus-4-5' : 'gpt-5.3-chat-latest';
+  if (stage === 'PersonalizationPatch') {
+    return process.env.PATCH_MODEL || (provider === 'anthropic' ? 'claude-3-5-haiku-20241022' : 'gpt-4o-mini');
+  }
+  if (stage === 'CompanionLetter') {
+    return (
+      process.env.LETTER_MODEL ||
+      process.env.PIPELINE_SUPPORT_MODEL ||
+      process.env.STORY_MODEL ||
+      defaultSupportModel
+    );
+  }
   if (isStoryStage(stage)) {
     return process.env.STORY_MODEL || defaultStoryModel;
   }
@@ -713,7 +726,7 @@ async function callLLMOnce(
   return callOpenAIWithModel(model, reasoningEffort, verbosity);
 }
 
-async function callLLM(
+export async function callLLM(
   systemPrompt: string,
   userPrompt: string,
   maxTokens: number,
