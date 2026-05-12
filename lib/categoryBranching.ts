@@ -333,6 +333,47 @@ const CATEGORY_FOLLOWUP_POOLS: Partial<Record<ChallengeCategory, FollowUpQuestio
       priority: 80,
     },
   ],
+  MEDICAL_PROCEDURE: [
+    {
+      id: 'medical_treatment',
+      question: 'באיזה סוג טיפול מדובר?',
+      quickAnswers: [
+        '💉 זריקה או חיסון',
+        '🦴 שבר, גבס או תפרים',
+        '🦷 טיפול שיניים',
+        '🏥 ניתוח או אשפוז',
+        '💊 תרופה ארוכה / מחלה ממושכת',
+        '✏️ אחר',
+      ],
+      priority: 100,
+    },
+    {
+      id: 'medical_timing',
+      question: 'הטיפול עוד לפניכם, או שהילד/ה כבר עבר/ה את זה ומעבד/ת?',
+      quickAnswers: [
+        '📅 לפני הטיפול',
+        '⏱️ ממש בקרוב (יום-יומיים)',
+        '🌀 באמצע תהליך ממושך',
+        '🌿 חזרנו הביתה היום',
+        '📖 עבר מזמן, עדיין מהדהד',
+        '✏️ אחר',
+      ],
+      priority: 90,
+    },
+    {
+      id: 'medical_fear',
+      question: 'מה הכי מפחיד — הכאב, הזרים, חוסר השליטה, או משהו אחר?',
+      quickAnswers: [
+        '😖 הכאב עצמו',
+        '🧑‍⚕️ הרופאים והאנשים הזרים',
+        '🎯 חוסר שליטה — שעושים לו/ה',
+        '🌫️ לא לדעת מה יקרה',
+        '🏠 הריחוק מהבית והמוכר',
+        '✏️ אחר',
+      ],
+      priority: 80,
+    },
+  ],
   OTHER: [
     {
       id: 'other_context',
