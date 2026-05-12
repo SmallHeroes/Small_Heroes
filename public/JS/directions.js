@@ -19,9 +19,9 @@ const DIR_DEFAULTS = {
   cardChoose: 'לבחירה',
   cardSelected: 'נבחר',
   labels: {
-    connection: 'רגוע ומרגיע',
-    adventure: 'הרפתקה עדינה',
-    courage: 'קסום ודמיוני',
+    bedtime: 'שקט וחם',
+    adventure: 'פעולה וגילוי',
+    fantasy: 'דמיון ללא גבולות',
   },
 };
 const HE_CONTENT = globalThis.CONTENT?.he || {};
@@ -31,7 +31,23 @@ const clientApi = window.SmallHeroesClient || window.__smallHeroesClientApi || n
 const WIZARD_SESSION_ID_STORAGE_KEY = 'smallheroes.wizardSessionId';
 const DIRECTIONS_KICKOFF_STORAGE_PREFIX = 'sh_dirs_kickoff_';
 
-const ARCHETYPE_ORDER = ['connection', 'adventure', 'courage'];
+const DIRECTION_IMAGES = {
+  bedtime: '/directions/bedtime.jpg',
+  adventure: '/directions/adventure.jpg',
+  fantasy: '/directions/fantasy.jpg',
+};
+
+const ARCHETYPE_ORDER = ['bedtime', 'adventure', 'fantasy'];
+
+const DIR_PACKAGE_LINE = {
+  bedtime: '10 עמודים · ₪59',
+  adventure: '15 עמודים · ₪79',
+  fantasy: '20 עמודים · ₪99',
+};
+
+function effectiveDirectionImageUrl(direction) {
+  return direction.previewImageUrl || DIRECTION_IMAGES[direction.archetype] || '';
+}
 const POLL_BASE_INTERVAL_MS = 700;
 const POLL_MAX_INTERVAL_MS = 8000;
 const MAX_CONSECUTIVE_POLL_FAILURES = 5;
@@ -198,7 +214,7 @@ function humanLabel(direction) {
 
 function countReadyDirections(set) {
   const dirs = set?.directions || [];
-  return dirs.filter((d) => Boolean(d.previewImageUrl)).length;
+  return dirs.filter((d) => Boolean(effectiveDirectionImageUrl(d))).length;
 }
 
 function stageCapByReadyCount(readyCount) {
@@ -477,7 +493,7 @@ function buildCard(direction, interactive, idx) {
 
   const image = document.createElement('img');
   image.className = 'direction-card-image';
-  image.src = direction.previewImageUrl || '';
+  image.src = effectiveDirectionImageUrl(direction);
   image.alt = direction.title;
   image.loading = 'lazy';
 
@@ -491,6 +507,10 @@ function buildCard(direction, interactive, idx) {
   const title = document.createElement('h3');
   title.className = 'direction-card-title';
   title.textContent = direction.title;
+
+  const pkg = document.createElement('p');
+  pkg.className = 'direction-card-package';
+  pkg.textContent = DIR_PACKAGE_LINE[direction.archetype] || '';
 
   const summary = document.createElement('p');
   summary.className = 'direction-card-summary';
@@ -539,6 +559,7 @@ function buildCard(direction, interactive, idx) {
 
   body.appendChild(tag);
   body.appendChild(title);
+  if (pkg.textContent) body.appendChild(pkg);
   body.appendChild(summary);
   body.appendChild(button);
   card.appendChild(image);
@@ -568,7 +589,7 @@ function isDirectionsComplete(set) {
   if (!set || set.status === 'failed') return false;
   const dirs = set.directions || [];
   if (dirs.length !== 3) return false;
-  return dirs.every((d) => Boolean(d.previewImageUrl));
+  return dirs.every((d) => Boolean(effectiveDirectionImageUrl(d)));
 }
 
 function clearPoll() {
@@ -598,7 +619,7 @@ function resetPollBackoff() {
 function buildSnapshotKey(set) {
   if (!set) return 'none';
   const flags = (set.directions || [])
-    .map((d) => `${d.id}:${Boolean(d.previewImageUrl)}`)
+    .map((d) => `${d.id}:${Boolean(effectiveDirectionImageUrl(d))}`)
     .join(',');
   return `${set.status || 'unknown'}|${set.updatedAt || ''}|${flags}`;
 }

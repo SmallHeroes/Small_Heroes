@@ -117,11 +117,6 @@ function normalizeToken(value: string): string {
   return stripNikud(value.trim().toLowerCase());
 }
 
-/** Match DNA rows from the LLM to anchor records. */
-function normalizeCharacterNameKey(name: string): string {
-  return name.trim().toLowerCase();
-}
-
 const HEBREW_ALIAS_STOPWORDS = new Set([
   'של',
   'את',
@@ -568,7 +563,6 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
     };
 
     const familyContext = (order as Record<string, unknown>).familyContext as FamilyContext | undefined;
-    const additionalCharacterIds = new Set<string>();
     const familyMembers: Array<{
       name: string;
       description?: string;
@@ -576,64 +570,32 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
       fallbackPrefix: string;
       anchorImageUrl?: string;
     }> = [];
-    const normalizedAdditional = Array.isArray((familyContext as Record<string, unknown>)?.additionalCharacters)
-      ? (((familyContext as Record<string, unknown>).additionalCharacters as Array<Record<string, unknown>>).slice(0, 2))
-      : [];
-
-    if (normalizedAdditional.length > 0) {
-      normalizedAdditional.forEach((entry) => {
-        const name = typeof entry.name === 'string' ? entry.name.trim() : '';
-        if (!name) return;
-        const photoQuality =
-          entry.photoQuality && typeof entry.photoQuality === 'object' && !Array.isArray(entry.photoQuality)
-            ? (entry.photoQuality as Record<string, unknown>)
-            : null;
-        const photoQualityStatus =
-          photoQuality && typeof photoQuality.status === 'string'
-            ? photoQuality.status
-            : null;
-        const relation = typeof entry.relation === 'string' ? entry.relation : 'other';
-        const fallbackPrefix = relation === 'sibling' ? 'sibling' : 'supporting';
-        familyMembers.push({
-          name,
-          description: typeof entry.description === 'string' ? entry.description : undefined,
-          relationship: relation,
-          fallbackPrefix,
-          anchorImageUrl:
-            photoQualityStatus === 'blocked'
-              ? undefined
-              : (typeof entry.imageUrl === 'string' ? entry.imageUrl : undefined),
-        });
+    if (familyContext?.parent1?.name) {
+      familyMembers.push({
+        name: familyContext.parent1.name,
+        description: familyContext.parent1.description,
+        relationship: 'parent',
+        fallbackPrefix: 'parent',
       });
-    } else {
-      if (familyContext?.parent1?.name) {
-        familyMembers.push({
-          name: familyContext.parent1.name,
-          description: familyContext.parent1.description,
-          relationship: 'parent',
-          fallbackPrefix: 'parent',
-        });
-      }
-      if (familyContext?.parent2?.name) {
-        familyMembers.push({
-          name: familyContext.parent2.name,
-          description: familyContext.parent2.description,
-          relationship: 'parent',
-          fallbackPrefix: 'parent',
-        });
-      }
-      if (familyContext?.sibling?.name) {
-        familyMembers.push({
-          name: familyContext.sibling.name,
-          description: familyContext.sibling.description,
-          relationship: 'sibling',
-          fallbackPrefix: 'sibling',
-        });
-      }
+    }
+    if (familyContext?.parent2?.name) {
+      familyMembers.push({
+        name: familyContext.parent2.name,
+        description: familyContext.parent2.description,
+        relationship: 'parent',
+        fallbackPrefix: 'parent',
+      });
+    }
+    if (familyContext?.sibling?.name) {
+      familyMembers.push({
+        name: familyContext.sibling.name,
+        description: familyContext.sibling.description,
+        relationship: 'sibling',
+        fallbackPrefix: 'sibling',
+      });
     }
     familyMembers.forEach((member, index) => {
       const characterId = inferCharacterId(member.name, member.relationship, member.fallbackPrefix, index);
-      additionalCharacterIds.add(characterId);
       if (!anchorRegistry[characterId]) {
         anchorRegistry[characterId] = {
           name: member.name,
@@ -701,12 +663,7 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
         chosen.push(companionKey);
       }
       const rest = filtered.filter((id) => id !== companionKey);
-      const prioritized = [...rest].sort((a, b) => {
-        const aIsAdditional = additionalCharacterIds.has(a) ? 0 : 1;
-        const bIsAdditional = additionalCharacterIds.has(b) ? 0 : 1;
-        if (aIsAdditional !== bIsAdditional) return aIsAdditional - bIsAdditional;
-        return a.localeCompare(b);
-      });
+      const prioritized = [...rest].sort((a, b) => a.localeCompare(b));
       while (chosen.length < maxNonChild && prioritized.length > 0) {
         chosen.push(prioritized.shift()!);
       }
@@ -715,22 +672,6 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
         expectedCharacterIds: chosen.length > 0 ? ['child', ...chosen] : ['child'],
       };
     });
-    if (additionalCharacterIds.size > 0) {
-      const hasAdditionalAppearance = boundedPagesWithCharacters.some((page) =>
-        page.expectedCharacterIds.some((characterId) => additionalCharacterIds.has(characterId))
-      );
-      if (!hasAdditionalAppearance) {
-        const firstAdditionalId = [...additionalCharacterIds][0];
-        const targetPageIndex = boundedPagesWithCharacters.findIndex((page) =>
-          page.expectedCharacterIds.includes('child')
-        );
-        const fallbackIndex = targetPageIndex >= 0 ? targetPageIndex : 0;
-        const fallbackPage = boundedPagesWithCharacters[fallbackIndex];
-        if (fallbackPage) {
-          fallbackPage.expectedCharacterIds = ['child', firstAdditionalId];
-        }
-      }
-    }
     const appearances = boundedPagesWithCharacters.reduce<Record<string, number>>((acc, page) => {
       for (const characterId of page.expectedCharacterIds) {
         acc[characterId] = (acc[characterId] ?? 0) + 1;
@@ -796,37 +737,10 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
       companionName,
       storyText: allStoryText,
       illustrationStyle: order.illustrationStyle,
-      additionalCharacters: familyMembers.map((m) => ({
-        name: m.name,
-        relationship: m.relationship ?? 'other',
-        description: m.description,
-      })),
     });
     const lockedChildDescription = dna.childDNA || childDesc;
     if (anchorRegistry.child) {
       anchorRegistry.child.description = lockedChildDescription;
-    }
-
-    const dnaByAdditionalName = new Map(
-      (dna.additionalCharactersDNA ?? []).map((row) => [normalizeCharacterNameKey(row.name), row])
-    );
-    for (const characterId of additionalCharacterIds) {
-      const rec = anchorRegistry[characterId];
-      if (!rec) continue;
-      const matched = dnaByAdditionalName.get(normalizeCharacterNameKey(rec.name));
-      if (
-        matched?.physicalDescription?.trim() &&
-        matched.clothingDefault?.trim() &&
-        matched.signatureDetail?.trim()
-      ) {
-        rec.supportingVisualDNA = {
-          physicalDescription: matched.physicalDescription.trim(),
-          clothingDefault: matched.clothingDefault.trim(),
-          signatureDetail: matched.signatureDetail.trim(),
-          ageRange: matched.ageRange?.trim() || 'adult',
-        };
-        rec.description = `${matched.physicalDescription.trim()}. ${matched.clothingDefault.trim()}. ${matched.signatureDetail.trim()}`;
-      }
     }
 
     if (book.coverImageUrl) {
@@ -1135,7 +1049,8 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
     });
 
     // ── Stage 3: Audio (optional, per-page ElevenLabs) ──
-    if (order.audioEnabled && order.selectedVoice) {
+    // Standalone audio addon OR video/bundle (narration is embedded in the slideshow).
+    if ((order.audioEnabled || order.videoEnabled || order.bundleEnabled) && order.selectedVoice) {
       generationLogger.info('Stage started', {
         orderId,
         stage: 'audio',

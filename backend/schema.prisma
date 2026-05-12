@@ -30,9 +30,9 @@ enum GenerationStatus {
 }
 
 enum StoryDirectionArchetype {
-  connection
+  bedtime
   adventure
-  courage
+  fantasy
 }
 
 enum StoryDirectionSetStatus {
@@ -43,9 +43,9 @@ enum StoryDirectionSetStatus {
 }
 
 enum StoryLength {
-  short   // 8 pages
-  medium  // 12 pages
-  long    // 15 pages
+  short   // 10 pages (bedtime tier)
+  medium  // 15 pages (adventure tier)
+  long    // 20 pages (fantasy tier)
 }
 
 enum IllustrationStyle {
@@ -103,6 +103,7 @@ model Order {
   childTraits       String[]
   childSuperpower   String?   // single hero trait selected in wizard
   bookName          String?   // optional custom book title from wizard
+  dedication        String?   @db.VarChar(300)
   childImageUrl     String?
   characterAnchors  Json?
   familyContext     Json?     // { parent1, parent2, sibling, homeText } — optional, from wizard step 4
@@ -120,6 +121,8 @@ model Order {
 
   // Product configuration
   storyLength        StoryLength       @default(medium)
+  /** Wizard package tier: bedtime | adventure | fantasy (matches pricing + page count). */
+  storyDirection     String?
   coverImageUrl      String?
   illustrationStyle  IllustrationStyle @default(pencil_watercolor)
   audioEnabled       Boolean           @default(false)

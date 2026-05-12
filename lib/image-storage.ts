@@ -238,7 +238,7 @@ export async function storePresentationBuffer(input: StorePresentationInput): Pr
 const MAX_WIZARD_CHARACTER_UPLOAD_BYTES = 15 * 1024 * 1024;
 const WIZARD_CHARACTER_UPLOAD_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
-/** Immediate wizard upload for extra-character previews (URLs fit in sessionStorage). */
+/** Immediate wizard upload for reference photos (URLs fit in sessionStorage). */
 export async function storeWizardCharacterPhotoUpload(params: {
   buffer: Buffer;
   contentType: string;

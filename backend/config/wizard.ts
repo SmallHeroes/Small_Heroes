@@ -253,19 +253,27 @@ export const SUPERPOWER_OPTIONS = [
 export type Superpower = typeof SUPERPOWER_OPTIONS[number];
 
 // ─── Product Config ───────────────────────────────────
-// Story length mapping (prices remain unchanged).
-// short=10, medium=15, long=20
+// Direction = page count. No separate length picker.
+// bedtime=10p, adventure=15p, fantasy=20p
+export const DIRECTION_PAGE_MAP: Record<string, { pages: number; priceILS: number }> = {
+  bedtime:   { pages: 10, priceILS: 59 },
+  adventure: { pages: 15, priceILS: 79 },
+  fantasy:   { pages: 20, priceILS: 99 },
+};
+
+// Legacy STORY_LENGTHS kept for backward compat with existing orders in DB.
+// New orders derive length from direction via DIRECTION_PAGE_MAP.
 export const STORY_LENGTHS = [
-  { id: 'short',  label: 'קצר',   pages: 10, priceILS: 50 },
-  { id: 'medium', label: 'בינוני', pages: 15, priceILS: 70 },
-  { id: 'long',   label: 'ארוך',   pages: 20, priceILS: 90 },
+  { id: 'short',  label: 'סיפור לפני שינה', pages: 10, priceILS: 59 },
+  { id: 'medium', label: 'הרפתקה',          pages: 15, priceILS: 79 },
+  { id: 'long',   label: 'מסע פלאי',        pages: 20, priceILS: 99 },
 ] as const;
 
 export const ADDON_PRICES = {
-  audio:  19, // ILS
+  audio:  19, // ILS — narration
   pdf:    19, // ILS — print-ready PDF
-  video:  14, // ILS — book MP4 (FFmpeg slideshow + narration per page)
-  bundle: 40, // ILS (audio + pdf + video, “הכל” — saves ₪12)
+  video:  29, // ILS — video + narration
+  bundle: 39, // ILS (video + pdf — saves ₪9)
 } as const;
 
 /** Same ids and labels as `WIZARD_ILLUSTRATION_STYLES` in `lib/styles.ts` (without blurbs). */
@@ -273,23 +281,29 @@ export const ILLUSTRATION_STYLES: ReadonlyArray<{ id: StyleId; label: string }> 
   WIZARD_ILLUSTRATION_STYLES.map(({ id, label }) => ({ id, label }));
 
 // ─── Pricing calculator ───────────────────────────────
+// Supports both new direction-based and legacy length-based orders.
 export function computePricing(config: {
-  length: string;
+  length: string;          // legacy: 'short'|'medium'|'long'
+  direction?: string;      // new: 'bedtime'|'adventure'|'fantasy'
   audioEnabled: boolean;
   pdfEnabled: boolean;
   bundleEnabled: boolean;
   videoEnabled?: boolean;
 }) {
-  const len = STORY_LENGTHS.find(l => l.id === config.length) ?? STORY_LENGTHS[1];
-  const base = len.priceILS;
+  // New path: derive price from direction
+  const dirMap = config.direction ? DIRECTION_PAGE_MAP[config.direction] : null;
+  const base = dirMap
+    ? dirMap.priceILS
+    : (STORY_LENGTHS.find(l => l.id === config.length) ?? STORY_LENGTHS[1]).priceILS;
+
   let addons = 0;
   const videoEnabled = Boolean(config.videoEnabled);
   if (config.bundleEnabled) {
-    addons += ADDON_PRICES.bundle;
+    addons += ADDON_PRICES.bundle; // video+pdf combo = ₪39
   } else {
-    if (config.audioEnabled) addons += ADDON_PRICES.audio;
-    if (config.pdfEnabled)   addons += ADDON_PRICES.pdf;
-    if (videoEnabled)       addons += ADDON_PRICES.video;
+    if (config.audioEnabled) addons += ADDON_PRICES.audio;   // ₪19
+    if (config.pdfEnabled)   addons += ADDON_PRICES.pdf;     // ₪19
+    if (videoEnabled)        addons += ADDON_PRICES.video;   // ₪29 (includes narration)
   }
   return { basePrice: base, addonsPrice: addons, totalPrice: base + addons };
 }

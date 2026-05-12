@@ -18,23 +18,31 @@ import {
   type PhotoQualityMeta,
 } from '../../../lib/orderMeta';
 
-type ExtraCharacterInput = {
-  relation?: unknown;
-  name?: unknown;
-  description?: unknown;
-  imageDataUrl?: unknown;
-  imageUrl?: unknown;
-  photoQuality?: unknown;
+const DIRECTION_TO_STORY_LENGTH: Record<string, 'short' | 'medium' | 'long'> = {
+  bedtime: 'short',
+  adventure: 'medium',
+  fantasy: 'long',
 };
+
+function resolveStoryPackage(product: {
+  length?: string;
+  direction?: string;
+}): { storyLength: 'short' | 'medium' | 'long'; storyDirection: string } {
+  const raw = typeof product?.direction === 'string' ? product.direction.trim().toLowerCase() : '';
+  if (raw === 'bedtime' || raw === 'adventure' || raw === 'fantasy') {
+    return { storyLength: DIRECTION_TO_STORY_LENGTH[raw], storyDirection: raw };
+  }
+  const legacy = product?.length;
+  if (legacy === 'short' || legacy === 'medium' || legacy === 'long') {
+    const storyDirection =
+      legacy === 'short' ? 'bedtime' : legacy === 'long' ? 'fantasy' : 'adventure';
+    return { storyLength: legacy, storyDirection };
+  }
+  return { storyLength: 'medium', storyDirection: 'adventure' };
+}
 
 function toStringOrNull(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
-}
-
-function normalizeRelation(value: string | null): string {
-  if (!value) return 'other';
-  if (['mother', 'father', 'brother', 'sister', 'other'].includes(value)) return value;
-  return 'other';
 }
 
 function normalizeCategoryAnswers(raw: unknown): CategoryAnswer[] {
@@ -81,34 +89,6 @@ function normalizePhotoQuality(raw: unknown): PhotoQualityMeta | null {
   };
 }
 
-async function persistCharacterImage(
-  orderScopedId: string,
-  index: number,
-  payload: ExtraCharacterInput,
-): Promise<string | null> {
-  const directUrl = toStringOrNull(payload.imageUrl);
-  if (directUrl && (directUrl.startsWith('https://') || directUrl.startsWith('http://'))) {
-    return directUrl;
-  }
-  const fromPayload = toStringOrNull(payload.imageDataUrl);
-  const dataUrl =
-    fromPayload && fromPayload.startsWith('data:image/')
-      ? fromPayload
-      : directUrl && directUrl.startsWith('data:image/')
-        ? directUrl
-        : null;
-  if (!dataUrl) return null;
-  try {
-    return await storeImageFromDataUrl({
-      dataUrl,
-      orderId: orderScopedId,
-      assetPath: `references/additional-character-${index + 1}`,
-    });
-  } catch {
-    return null;
-  }
-}
-
 export async function POST(req: NextRequest) {
   try {
     const sameOriginError = enforceSameOrigin(req);
@@ -131,6 +111,10 @@ export async function POST(req: NextRequest) {
     const { child, topic, challenge, desiredOutcome, helpers, avoid, product, contact, familyContext } = wizardData;
     const w = wizardData as Record<string, unknown>;
     const bookName = typeof w.bookName === 'string' ? w.bookName.trim().slice(0, 60) : null;
+    const dedication =
+      typeof w.dedication === 'string' && w.dedication.trim().length > 0
+        ? w.dedication.trim().slice(0, 300)
+        : null;
     const storedCompanionId = toStringOrNull(w.companionCharacterId);
     const storedChallengeCategory = toStringOrNull(w.challengeCategory);
     const categoryAnswers = normalizeCategoryAnswers(w.categoryAnswers);
@@ -148,7 +132,15 @@ export async function POST(req: NextRequest) {
           },
         ) as object)
       : undefined;
-    const pricing = computePricing(product);
+    const { storyLength, storyDirection } = resolveStoryPackage(product ?? {});
+    const pricing = computePricing({
+      length: storyLength,
+      direction: storyDirection,
+      audioEnabled: Boolean(product?.audioEnabled),
+      pdfEnabled: Boolean(product?.pdfEnabled),
+      bundleEnabled: Boolean(product?.bundleEnabled),
+      videoEnabled: Boolean(product?.videoEnabled),
+    });
     const persistedIllustrationStyle = mapStyleToDatabaseValue(
       product?.illustrationStyle ?? 'soft_hand_drawn_storybook'
     );
@@ -177,58 +169,11 @@ export async function POST(req: NextRequest) {
         ? null
         : rawChildImage;
 
-    const rawAdditionalCharacters = Array.isArray(familyContext?.additionalCharacters)
-      ? familyContext.additionalCharacters
-      : [];
-    const trimmedAdditionalCharacters = rawAdditionalCharacters.slice(0, 2) as ExtraCharacterInput[];
-    const persistedAdditionalCharacters = (
-      await Promise.all(
-        trimmedAdditionalCharacters.map(async (entry, index) => {
-          const name = toStringOrNull(entry?.name);
-          if (!name) return null;
-          const relation = normalizeRelation(toStringOrNull(entry?.relation));
-          const description = toStringOrNull(entry?.description);
-          const entryPhotoQuality = normalizePhotoQuality(entry?.photoQuality);
-          const imageUrl = entryPhotoQuality?.status === 'blocked'
-            ? null
-            : await persistCharacterImage(uploadScopeId, index, entry);
-          return {
-            relation,
-            name,
-            description: description || undefined,
-            imageUrl: imageUrl || undefined,
-            ...(entryPhotoQuality ? { photoQuality: entryPhotoQuality } : {}),
-          };
-        })
-      )
-    ).filter(Boolean);
-
     const legacyParent1Name = toStringOrNull(familyContext?.parent1?.name);
     const legacyParent2Name = toStringOrNull(familyContext?.parent2?.name);
     const legacySiblingName = toStringOrNull(familyContext?.sibling?.name);
-    const normalizedFamilyContext = persistedAdditionalCharacters.length > 0
-      ? {
-          additionalCharacters: persistedAdditionalCharacters,
-          ...(persistedAdditionalCharacters[0]
-            ? {
-                parent1: {
-                  name: persistedAdditionalCharacters[0].name,
-                  description: persistedAdditionalCharacters[0].description,
-                },
-              }
-            : {}),
-          ...(persistedAdditionalCharacters[1]
-            ? {
-                parent2: {
-                  name: persistedAdditionalCharacters[1].name,
-                  description: persistedAdditionalCharacters[1].description,
-                },
-              }
-            : {}),
-        }
-      : (legacyParent1Name || legacyParent2Name || legacySiblingName)
-        ? familyContext
-        : null;
+    const normalizedFamilyContext =
+      legacyParent1Name || legacyParent2Name || legacySiblingName ? familyContext : null;
     const normalizedWizardData = {
       ...wizardData,
       ...(photoQuality ? { photoQuality } : {}),
@@ -287,6 +232,7 @@ export async function POST(req: NextRequest) {
         childTraits:      child.traits || [],
         childSuperpower:  child.superpower || null,
         bookName:         bookName || null,
+        dedication:       dedication || null,
         childImageUrl:    childImageUrl || null,
         familyContext:    normalizedFamilyContext,
         characterAnchors: characterAnchorsPayload ?? Prisma.JsonNull,
@@ -303,7 +249,8 @@ export async function POST(req: NextRequest) {
         avoidFree: avoid.freeText || null,
 
         // Product
-        storyLength: product.length,
+        storyLength,
+        storyDirection,
         illustrationStyle: persistedIllustrationStyle,
         audioEnabled: product.audioEnabled,
         selectedVoice: product.selectedVoice || null,

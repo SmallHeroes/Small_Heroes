@@ -224,7 +224,7 @@ export interface ImageInput {
   companion?: Companion | null;
   photoQuality?: PhotoQualityForPrompt;
   /** When set, adds a short story-direction nudge to illustration prompts. All optional. */
-  directionArchetype?: 'connection' | 'adventure' | 'courage';
+  directionArchetype?: 'bedtime' | 'adventure' | 'fantasy';
   directionEmotionalLabel?: string;
   directionStoryPremise?: string;
   /** True only for the 3 story-direction preview cards. */
@@ -340,7 +340,7 @@ function shortenForImageDirection(text: string, maxLen: number): string {
 }
 
 type ImageDirectionContext = {
-  directionArchetype?: 'connection' | 'adventure' | 'courage';
+  directionArchetype?: 'bedtime' | 'adventure' | 'fantasy';
   directionEmotionalLabel?: string;
   directionStoryPremise?: string;
 };
@@ -380,7 +380,7 @@ export interface CoverImageInput {
   referenceImages?: string[];
   modelOverride?: string;
   orderId?: string;
-  directionArchetype?: 'connection' | 'adventure' | 'courage';
+  directionArchetype?: 'bedtime' | 'adventure' | 'fantasy';
   directionEmotionalLabel?: string;
   directionStoryPremise?: string;
   /** Same locks as interior pages when present (from visual bible / story assembly). */
@@ -2522,7 +2522,7 @@ export async function generateAllPageImages(
     photoQuality?: PhotoQualityForPrompt;
     /** When set, illustration prompts include the secondary companion block + anchoring. */
     companion?: Companion | null;
-    directionArchetype?: 'connection' | 'adventure' | 'courage';
+    directionArchetype?: 'bedtime' | 'adventure' | 'fantasy';
     directionEmotionalLabel?: string;
     directionStoryPremise?: string;
     extraNegativeRules?: string[];

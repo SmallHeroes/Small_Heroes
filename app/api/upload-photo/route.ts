@@ -1,5 +1,5 @@
 /**
- * POST /api/upload-photo — wizard extra-character reference (multipart file → public URL).
+ * POST /api/upload-photo — wizard reference photo upload (multipart file → public URL).
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { storeWizardCharacterPhotoUpload } from '../../../lib/image-storage';

@@ -20,12 +20,6 @@ import { getCategoryBranching } from '../../lib/categoryBranching';
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface FamilyContext {
-  additionalCharacters?: Array<{
-    relation?: string;
-    name: string;
-    description?: string;
-    imageUrl?: string;
-  }>;
   parent1?: { name: string; description?: string };
   parent2?: { name: string; description?: string };
   sibling?: { name: string; age?: string; description?: string };
@@ -60,7 +54,7 @@ export interface StoryInput {
   challengeCategory?: string | null;
   /** Parent answers to category follow-up questions (from wizard). */
   categoryAnswers?: Array<{ questionId?: string; question: string; answer: string; selectedQuickAnswers?: string[] }>;
-  directionArchetype?: 'connection' | 'adventure' | 'courage';
+  directionArchetype?: 'bedtime' | 'adventure' | 'fantasy';
   directionTitle?: string;
   directionEmotionalLabel?: string;
   directionStoryPremise?: string;
@@ -298,11 +292,14 @@ function buildVisualScenePhaseBlock(params: {
   const premise = (params.directionStoryPremise ?? '').trim();
   const archetype = (params.directionArchetype ?? '').trim().toLowerCase();
   const calmFlavor =
-    tone.includes('calm') || tone.includes('bed') || tone.includes('sleep') || archetype === 'connection';
+    tone.includes('calm') || tone.includes('bed') || tone.includes('sleep') || archetype === 'bedtime';
   const adventureFlavor =
     tone.includes('adventure') || tone.includes('discover') || tone.includes('path') || archetype === 'adventure';
-  const courageFlavor =
-    tone.includes('courage') || tone.includes('challenge') || tone.includes('brave') || archetype === 'courage';
+  const fantasyFlavor =
+    tone.includes('challenge') ||
+    tone.includes('brave') ||
+    tone.includes('fantasy') ||
+    archetype === 'fantasy';
 
   const phaseIntent: Record<VisualScenePhase, string[]> = {
     familiar_reality: [
@@ -338,7 +335,7 @@ function buildVisualScenePhaseBlock(params: {
   if (adventureFlavor) {
     flavorHints.push('Flavor: favor paths, maps, open-space exploration, and discovery framing.');
   }
-  if (courageFlavor) {
+  if (fantasyFlavor) {
     flavorHints.push('Flavor: favor movement diagonals and challenge-facing momentum while staying child-safe.');
   }
   if (premise) {
@@ -787,21 +784,9 @@ function buildBrainUserPrompt(input: StoryInput): string {
 
   const collectFamilyLines = (fc: FamilyContext): string[] => {
     const lines: string[] = [];
-    if (Array.isArray(fc.additionalCharacters) && fc.additionalCharacters.length > 0) {
-      fc.additionalCharacters
-        .slice(0, 2)
-        .forEach((character, index) => {
-          const name = character?.name?.trim();
-          if (!name) return;
-          const relation = relationLabelForPrompt(character.relation?.trim()) || `supporting_${index + 1}`;
-          const desc = character.description?.trim();
-          lines.push(`${relation}: ${name}${desc ? ` (${desc})` : ''}`);
-        });
-    } else {
-      if (fc.parent1?.name) lines.push(`parent1: ${fc.parent1.name}${fc.parent1.description ? ` (${fc.parent1.description})` : ''}`);
-      if (fc.parent2?.name) lines.push(`parent2: ${fc.parent2.name}${fc.parent2.description ? ` (${fc.parent2.description})` : ''}`);
-      if (fc.sibling?.name) lines.push(`sibling: ${fc.sibling.name}${fc.sibling.age ? `, age ${fc.sibling.age}` : ''}${fc.sibling.description ? ` (${fc.sibling.description})` : ''}`);
-    }
+    if (fc.parent1?.name) lines.push(`parent1: ${fc.parent1.name}${fc.parent1.description ? ` (${fc.parent1.description})` : ''}`);
+    if (fc.parent2?.name) lines.push(`parent2: ${fc.parent2.name}${fc.parent2.description ? ` (${fc.parent2.description})` : ''}`);
+    if (fc.sibling?.name) lines.push(`sibling: ${fc.sibling.name}${fc.sibling.age ? `, age ${fc.sibling.age}` : ''}${fc.sibling.description ? ` (${fc.sibling.description})` : ''}`);
     if (fc.homeText) lines.push(`home: ${fc.homeText}`);
     return lines;
   };
@@ -1517,7 +1502,7 @@ const EXAMPLE_STORY_ADVENTURE = `היה לילה שקט בחדר של יואב.
 function buildProse3ASystem(
   childAge: number | null | undefined,
   pageCount: number,
-  archetype?: 'connection' | 'adventure' | 'courage',
+  archetype?: 'bedtime' | 'adventure' | 'fantasy',
 ): string {
   const age = childAge ?? 5;
   const exampleStory = archetype === 'adventure' ? EXAMPLE_STORY_ADVENTURE : EXAMPLE_STORY;
@@ -1641,7 +1626,7 @@ function buildRawStoryPrompt(
 הרפתקאה = תנועה, גילוי, אתגרים פיזיים, מפגשים עם יצורים. לא "להישאר במקום ולהרגיש". לצאת, לרוץ, לטפס, לגלות.
 הומור = היצור עושה דברים מצחיקים פיזית — נופל, מתבלבל, מנסה פתרונות מגוחכים. לא סתם מילים מצחיקות — פעולות מצחיקות.
 עולם = חי, מלא יצורים קטנים, צמחים מדברים, אבנים שמתלחשות, דברים שמפתיעים.`
-    : input.directionArchetype === 'courage'
+    : input.directionArchetype === 'fantasy'
       ? `סביבה: מרחב אינטימי וקטן — החדר, המסדרון, פינת החלון. הילד/ה נשאר/ת במקום מוכר ועושה מעשה אמיץ קטן.`
       : `סביבה: מרחב ביתי חם — חדר, מסדרון, מרפסת. יצור שמגיע ומלווה. הקרבה היא הפתרון.`;
   const escalationBlock = `
@@ -2766,7 +2751,7 @@ function buildPromptContractPrefix(
   worldAnchor: string,
   previousSceneHint: string,
   directionContext?: {
-    directionArchetype?: 'connection' | 'adventure' | 'courage';
+    directionArchetype?: 'bedtime' | 'adventure' | 'fantasy';
     directionEmotionalLabel?: string;
     directionStoryPremise?: string;
   },
@@ -3011,7 +2996,7 @@ function applyStage4PromptContract(
   categoryIllustrationMood?: string | null,
   categoryNarrativeConstraint?: string | null,
   directionContext?: {
-    directionArchetype?: 'connection' | 'adventure' | 'courage';
+    directionArchetype?: 'bedtime' | 'adventure' | 'fantasy';
     directionEmotionalLabel?: string;
     directionStoryPremise?: string;
   },
@@ -3315,7 +3300,7 @@ async function generateShotPlan(
   categoryIllustrationMood: string | null | undefined,
   categoryNarrativeConstraint: string | null | undefined,
   directionContext?: {
-    directionArchetype?: 'connection' | 'adventure' | 'courage';
+    directionArchetype?: 'bedtime' | 'adventure' | 'fantasy';
     directionEmotionalLabel?: string;
     directionStoryPremise?: string;
   },
@@ -3529,12 +3514,6 @@ function characterAppearsWithAction(name: string, allText: string, childName?: s
 function collectSupportingCharacterNames(input: StoryInput): string[] {
   const fc = input.familyContext;
   if (!fc) return [];
-  if (Array.isArray(fc.additionalCharacters) && fc.additionalCharacters.length > 0) {
-    return fc.additionalCharacters
-      .slice(0, 2)
-      .map((character) => character?.name?.trim())
-      .filter((name): name is string => Boolean(name));
-  }
   return [fc.parent1?.name, fc.parent2?.name, fc.sibling?.name]
     .map((value) => value?.trim())
     .filter((name): name is string => Boolean(name));

@@ -124,7 +124,7 @@ export async function GET(req: NextRequest) {
     const as = order.audioStatus   as StageStatus;
     const ps = order.packageStatus as StageStatus;
     const audio = order.audioEnabled;
-    const expectedPageCount = STORY_LENGTHS.find((length) => length.id === order.storyLength)?.pages ?? 12;
+    const expectedPageCount = STORY_LENGTHS.find((length) => length.id === order.storyLength)?.pages ?? 15;
     const expectedImageUnits = expectedPageCount + 1; // +1 for cover generation
     const completedPageImages = order.book?.pages?.filter((page) => Boolean(page.imageAsset?.id)).length ?? 0;
     const hasCover = Boolean(order.book?.coverImageUrl || order.coverImageUrl);

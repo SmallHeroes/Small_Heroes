@@ -117,6 +117,7 @@ export async function POST(req: NextRequest) {
     }
     const pricing = computePricing({
       length: order.storyLength,
+      direction: order.storyDirection ?? undefined,
       audioEnabled: order.audioEnabled,
       pdfEnabled: order.pdfEnabled,
       bundleEnabled: order.bundleEnabled,
@@ -133,7 +134,7 @@ export async function POST(req: NextRequest) {
     if (!order.bundleEnabled && order.videoEnabled) addonLabels.push(CHECKOUT_ADDONS.video);
     const descriptionParts = [
       checkoutProductName(order.childName),
-      checkoutProductDescription(order.storyLength),
+      checkoutProductDescription(order.storyLength, order.storyDirection),
       addonLabels.length > 0 ? `תוספות: ${addonLabels.join(', ')}` : null,
     ].filter(Boolean);
 

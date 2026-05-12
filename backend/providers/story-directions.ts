@@ -1,13 +1,16 @@
-import { generateImage } from './image';
-import type { CharacterSheet, PageIntent } from './story';
 import type { Companion } from '../../lib/companions';
-import { getCompanionReferencePublicUrl } from '../../lib/companions';
-import { companionAnchorKey } from '../../lib/orderMeta';
 import type { StyleId } from '../../lib/styles';
 import { getStyleContract, normalizeStyleId } from '../../lib/styles';
 import { getCategoryBranching } from '../../lib/categoryBranching';
 
-export type StoryDirectionArchetype = 'connection' | 'adventure' | 'courage';
+export type StoryDirectionArchetype = 'bedtime' | 'adventure' | 'fantasy';
+
+/** Public URLs for direction cards (static art; see `public/directions/`). */
+export const STATIC_DIRECTION_CARD_IMAGE: Record<StoryDirectionArchetype, string> = {
+  bedtime: '/directions/bedtime.jpg',
+  adventure: '/directions/adventure.jpg',
+  fantasy: '/directions/fantasy.jpg',
+};
 
 export interface SharedStoryFoundation {
   childName: string;
@@ -112,60 +115,12 @@ function parseFamilyContext(raw: unknown): ParsedFamilyContext {
     });
   };
 
-  const additionalCharacters = Array.isArray(source.additionalCharacters)
-    ? source.additionalCharacters.slice(0, 2)
-    : [];
-  if (additionalCharacters.length > 0) {
-    additionalCharacters.forEach((entry) => {
-      if (!entry || typeof entry !== 'object') return;
-      const candidate = entry as Record<string, unknown>;
-      const name = typeof candidate.name === 'string' ? candidate.name.trim() : '';
-      if (!name) return;
-      const relation = typeof candidate.relation === 'string' && candidate.relation.trim().length > 0
-        ? relationLabelForPrompt(candidate.relation.trim())
-        : 'דמות תומכת';
-      const description = typeof candidate.description === 'string' ? candidate.description : undefined;
-      const imageUrl = typeof candidate.imageUrl === 'string' ? candidate.imageUrl : undefined;
-      members.push({ name, relation, description, imageUrl });
-    });
-  } else {
-    appendMember(source.parent1, 'הורה');
-    appendMember(source.parent2, 'הורה');
-    appendMember(source.sibling, 'אח/אחות');
-  }
+  appendMember(source.parent1, 'הורה');
+  appendMember(source.parent2, 'הורה');
+  appendMember(source.sibling, 'אח/אחות');
 
   const homeText = typeof source.homeText === 'string' ? source.homeText.trim() : undefined;
   return { members, homeText: homeText || undefined };
-}
-
-function buildChildVisualDescription(input: RuntimeDirectionInput): string {
-  const age = input.childAge ?? 5;
-  const gender =
-    input.childGender === 'girl'
-      ? 'girl'
-      : input.childGender === 'boy'
-      ? 'boy'
-      : 'child';
-  const traits = input.childTraits.slice(0, 3).join(', ');
-  return `A ${gender} named ${input.childName}, around ${age} years old, warm child-friendly expression, consistent hairstyle and outfit, traits: ${traits || 'gentle and curious'}`;
-}
-
-function buildCharacterSheet(input: RuntimeDirectionInput, family: ParsedFamilyContext): CharacterSheet {
-  const supporting = family.members.map((member) => ({
-    name: member.name,
-    relationship: member.relation,
-    visualDescription: member.description || `${member.name} is a recurring family character with warm and reassuring presence.`,
-    narrativeRole: 'anchor',
-  }));
-
-  return {
-    mainCharacter: {
-      name: input.childName,
-      visualDescription: buildChildVisualDescription(input),
-    },
-    supportingCharacters: supporting,
-    worldDescription: family.homeText || 'A safe and familiar family environment with child-friendly details.',
-  };
 }
 
 export function buildSharedStoryFoundation(input: RuntimeDirectionInput): SharedStoryFoundation {
@@ -217,13 +172,13 @@ function environmentSnippetForPreview(seed: number, archetype: StoryDirectionArc
     'deep forest-to-clearing transition: roots, ferns, tall trunks, distant ridgeline; strong diagonal path leading the eye; environmental clutter for depth',
     'open nature with wooden footbridge, river glint, birds or leaves in the air, broad cloudscape—child physically inside the landscape, not pasted on a void',
   ];
-  const emotionalIndoorDuo = [
-    'warm family living or kitchen-dining zone at soft evening: table edge, shared mug or bowl, chair backs, a doorway slice—enough set dressing for a two-person moment',
-    'soft-lit hallway or stair landing: handrails, family photos, a coat hook or plant; threshold light catching dust—space staged for an emotional two-shot',
-    'cozy room corner with two seats or floor cushions, shared book or toy on the rug, lamp wrapping both figures—intimate but clearly different from a lone bedtime portrait',
+  const fantasyWorld = [
+    'floating islands with soft impossible staircases, candy-colored alien plants, upside-down doorways opening into warm lamplight—dream physics, saturated hues, child-sized scale',
+    'upside-down room as storybook set: furniture on ceiling, rain falling upward, oversized toys as terrain—absurd spatial rules, vibrant palette, safe whimsy',
+    'underwater kingdom vibe above ground: glowing coral towers, bioluminescent jelly platforms, impossible gentle slopes—fluid motion, wide readable environment',
   ];
   if (archetype === 'adventure') return pickVariant(outdoorAdventure, seed);
-  if (archetype === 'courage') return pickVariant(emotionalIndoorDuo, seed);
+  if (archetype === 'fantasy') return pickVariant(fantasyWorld, seed);
   return pickVariant(calmIndoor, seed);
 }
 
@@ -239,12 +194,12 @@ function parentFacingCardSummary(
 ): string {
   const companionBit = companion ? ` יחד עם ${companion.name}` : '';
   switch (archetype) {
-    case 'connection':
-      return `סיפור חם ורגוע שבו ${hero} מרגיש/ה קרבה, חום ובטחון${companionBit}. מתאים לרגעים שצריכים חיבוק ושקט.`;
+    case 'bedtime':
+      return `סיפור חם ורגוע לפני השינה שבו ${hero} מרגיש/ה בטחון וקרבה${companionBit}. מתאים לרגעים שקטים ושלווים.`;
     case 'adventure':
       return `${hero} יוצא/ת להרפתקה מלאת הפתעות וגילויים${companionBit}. סיפור עם דמיון, תנועה וסקרנות.`;
-    case 'courage':
-      return `${hero} מגלה שגם צעד קטן יכול להיות אמיץ${companionBit}. סיפור על כוח פנימי ואמונה בעצמך.`;
+    case 'fantasy':
+      return `${hero} נכנס/ת לעולם בדיוני מלא הפתעות ודמיון${companionBit}. סיפור עם קסם, אבסורד וחופש.`;
   }
 }
 
@@ -279,30 +234,30 @@ function buildPersonalizedCopy(input: RuntimeDirectionInput, foundation: SharedS
 
   const baseDrafts: StoryDirectionDraft[] = [
     {
-      archetype: 'connection',
-      title: `קרוב ללב של ${hero}`,
-      summary: parentFacingCardSummary('connection', hero, input.companion),
-      emotionalLabel: 'חיבור וביטחון',
+      archetype: 'bedtime',
+      title: `🌙 סיפור לפני השינה`,
+      summary: parentFacingCardSummary('bedtime', hero, input.companion),
+      emotionalLabel: 'שקט וחם',
       storyPremise: `Calm, safety-first arc for ${hero} tied to topic "${topic}"; emphasize co-regulation, warmth, and a recognizable home anchor. ${premiseContext}`,
       openingScenePrompt: `Home evening scene for ${hero}: soft lamp, tactile comfort, a parent or trusted figure nearby, topic "${topic}" implied through props not text.`,
       previewImagePrompt: '',
     },
     {
       archetype: 'adventure',
-      title: `${hero} והשביל המאיר`,
+      title: `🗺️ הרפתקה`,
       summary: parentFacingCardSummary('adventure', hero, input.companion),
-      emotionalLabel: 'הרפתקה וגילוי',
+      emotionalLabel: 'פעולה וגילוי',
       storyPremise: `Curious, low-threat exploration for ${hero} tied to "${topic}"; movement, wonder, and playful discovery beats. ${premiseContext}`,
       openingScenePrompt: `A clear transition beat: ${hero} steps toward a whimsical outdoor or hybrid space, bright and inviting, tied to "${topic}".`,
       previewImagePrompt: '',
     },
     {
-      archetype: 'courage',
-      title: `צעד קטן, אומץ גדול`,
-      summary: parentFacingCardSummary('courage', hero, input.companion),
-      emotionalLabel: 'אתגר ואומץ',
-      storyPremise: `Mild challenge and growth for ${hero} about "${topic}"; bravery through a small decisive action and visible payoff. ${premiseContext}`,
-      openingScenePrompt: `Familiar room; ${hero} faces a softened symbolic challenge element; body language shifts from hesitation to forward intent.`,
+      archetype: 'fantasy',
+      title: `✨ סיפור בדיוני`,
+      summary: parentFacingCardSummary('fantasy', hero, input.companion),
+      emotionalLabel: 'דמיון ללא גבולות',
+      storyPremise: `Imaginative, absurd-friendly arc for ${hero} about "${topic}"; whimsical worlds, playful impossibilities, safe surreal beats. ${premiseContext}`,
+      openingScenePrompt: `Soft threshold into a fantastical space: ${hero} discovers a rule-bending world tied to "${topic}" — vivid, dreamlike, never frightening.`,
       previewImagePrompt: '',
     },
   ];
@@ -339,11 +294,11 @@ function buildPersonalizedCopy(input: RuntimeDirectionInput, foundation: SharedS
       }
 
       const structureLine =
-        draft.archetype === 'connection'
+        draft.archetype === 'bedtime'
           ? 'Companion-led story: the bond with the companion drives what happens in most scenes (not only the opening).'
           : draft.archetype === 'adventure'
             ? 'Outward adventure: the child moves through at least two distinct outside / widened settings; the world offers the problem and the path.'
-            : 'Inner / small-act story: the turning point is one concrete act in a familiar small space or in the body (breath, hands, switch) — not an epic quest.';
+            : 'Fantasy-world story: surreal but safe environments with playful impossibilities; the turning point can be a small brave choice inside the absurd, not grim danger.';
 
       // Card title and summary stay simple and parent-friendly (from baseDrafts).
       // All therapeutic / category detail goes into storyPremise for the LLM pipeline.
@@ -362,13 +317,6 @@ FORBIDDEN_PLOT_DRIVERS: ${branching.treatmentStrategy.avoid.join(' | ')}${parent
     });
   }
   return baseDrafts;
-}
-
-/** Page numbers map to composition rotation in image.ts — pick readable wide/medium beats. */
-function previewPageNumberForArchetype(archetype: StoryDirectionArchetype): number {
-  if (archetype === 'adventure') return 2; // wide-shot-environment
-  if (archetype === 'courage') return 7; // action-movement / readable motion
-  return 1; // medium-shot-interaction — warmth + faces
 }
 
 function buildCoverMomentImagePrompt(params: {
@@ -398,9 +346,9 @@ function buildCoverMomentImagePrompt(params: {
     : 'If only one child appears, pair them with a second caring on-screen figure (parent, caregiver, or sibling) OR a second visible presence in the same beat—this card requires two beings or clear relational staging.';
 
   const archetypeSceneTemplate =
-    archetype === 'connection'
+    archetype === 'bedtime'
       ? [
-          'DIRECTION_PREVIEW_CONNECTION: intimate INDOOR story moment (real scene, not a posed look-at-camera shot).',
+          'DIRECTION_PREVIEW_BEDTIME: intimate INDOOR story moment (real scene, not a posed look-at-camera shot).',
           'CAMERA: medium shot, eye level or soft slight low angle; subject in lower two-thirds; walls, furniture, and props visible—cozy, warm, calm atmosphere with tactile contact and belonging.',
           `ENVIRONMENT (state this first, dominant, detailed before describing ${hero}): ${setting}`,
           `ACTION: use reaching, pouring, page-turning, offering a blanket, or leaning into lamplight—hands and body doing something in the room.`,
@@ -417,22 +365,22 @@ function buildCoverMomentImagePrompt(params: {
             `Emotional tone: ${emotionalTone} Action beat: ${actionBeat}`,
           ].join(' ')
         : [
-            'DIRECTION_PREVIEW_COURAGE: quiet BRAVERY as emotional two-character (or child + companion) beat—tender, not combat or chaos.',
-            'CAMERA: medium two-shot or medium-wide: two figures share the frame with readable faces or profiles, off-center staging, environment still visible; no single-child portrait.',
-            `ENVIRONMENT (state this first, warm lived-in before figures): ${setting}`,
-            "ACTION: kneeling to eye level, both hands on a small shared object, one figure reaches to touch the other's shoulder, breathing together at a threshold—tension and courage in closeness, grounded and hopeful.",
-            `INTERACTION: two-way emotional exchange: eye contact, parallel relief, or mutual reassurance; ${companionDuoLine}`,
-            `Emotional tone: ${emotionalTone} Action beat: ${actionBeat} Keywords: brave, courage, challenge, gentle tension, grounded resolution.`,
+            'DIRECTION_PREVIEW_FANTASY: fantastical wide scene — impossible physics, saturated dreamlike palette, child clearly exploring something absurd and delightful.',
+            'CAMERA: WIDE: establish floating platforms, inverted architecture, or oversized flora; hero reads as adventuring through the impossible space, not floating in a void.',
+            `ENVIRONMENT (state this first — dominant, surreal but child-safe): ${setting}`,
+            `ACTION: ${hero} touches or steps across an impossible surface, chases a glowing wisp, or opens a door that should not exist—readable gesture, wonder-forward.`,
+            `INTERACTION: ${companionDuoLine}`,
+            `Emotional tone: ${emotionalTone} Action beat: ${actionBeat} Keywords: wonder, whimsy, absurd, safe surreal, vibrant color.`,
           ].join(' ');
 
   // PRIMARY_SCENE goes first — Flux pays most attention to the first ~50 words.
   // This is the single strongest signal for visual differentiation between the 3 cards.
   const primaryScene =
-    archetype === 'connection'
+    archetype === 'bedtime'
       ? `PRIMARY SCENE: Warm cozy indoor room, soft evening lamp light, close intimate framing. Child ${hero} in a safe home space — reading, hugging, or nestled with a loved one. Mood: calm, warm, safe.`
       : archetype === 'adventure'
         ? `PRIMARY SCENE: Wide outdoor landscape, golden hour sunlight, open trail or path stretching to horizon. Child ${hero} small in vast colorful nature — walking, exploring, discovering. Mood: wonder, movement, bright.`
-        : `PRIMARY SCENE: Two figures face-to-face in a gentle threshold moment. Child ${hero} taking a brave small step — eye contact, held hands, quiet determination. Mood: courage, tenderness, hope.`;
+        : `PRIMARY SCENE: Fantastical wide scene with impossible physics, vibrant saturated colors, dreamlike setting — Child ${hero} exploring the absurd with curiosity. Mood: wonder, play, safe surrealism.`;
 
   const prompt = [
     primaryScene,
@@ -442,16 +390,16 @@ function buildCoverMomentImagePrompt(params: {
     'COVER_MOMENT — full-scene book illustration (Hebrew personalized children book, visual only):',
     archetypeSceneTemplate,
     `Child ${hero} must be clearly visible as the main story subject: readable face, natural storytelling gesture, not a tiny speck; avoid centered head-and-shoulders on empty backdrop.`,
-    companion && archetype !== 'courage'
+    companion && archetype !== 'fantasy'
       ? `The companion ${companion.name} (ally) appears in the same frame with ${hero}, behavior aligned with: ${companion.narrativeHook}.`
       : '',
     `Story anchor topic (suggest real props only, no text): ${topic}.`,
     'composition: clear foreground / midground / background; readable silhouettes; no generic stock void.',
-    archetype === 'connection'
+    archetype === 'bedtime'
       ? 'World signature: calm belonging, warm soft indoor light, close tactile comfort — still a real scene, not a static portrait.'
       : archetype === 'adventure'
         ? 'World signature: open trail, horizon, wonder, forward discovery — the environment is the picture.'
-        : 'World signature: two presences, emotional courage, softened challenge, warm resolution cue — relationship is the story.',
+        : 'World signature: playful impossibility, saturated palette, dream physics — the environment is fantastical yet child-safe.',
     'Cross-card rules: same child and companion (if any) design and STYLE_LOCK; vary only place, light, action, and composition.',
     'Resemblance: keep the same child proportions, hair, skin tone, and face structure across all three direction previews.',
     companion
@@ -459,8 +407,8 @@ function buildCoverMomentImagePrompt(params: {
       : '',
     archetype === 'adventure'
       ? 'Energy: wonder, path, curiosity — child-safe, playful scale.'
-      : archetype === 'courage'
-        ? 'Energy: gentle bravery in connection — no explosive action; emotional stakes, safe outcome implied.'
+      : archetype === 'fantasy'
+        ? 'Energy: wonder-forward absurdism — no horror; vivid, funny-impossible, joyful exploration.'
         : 'Energy: closeness, safety, contact — shared warmth, lived-in room.',
     'Hard constraints: no text, no letters, no captions, no typographic elements in the art.',
   ]
@@ -487,9 +435,9 @@ export function buildDirectionDrafts(foundation: SharedStoryFoundation, input: R
     if (draft.archetype === 'adventure') {
       emotionalTone = 'bright wonder, playful exploration, low threat';
       actionBeat = `${hero} strides or leans forward toward a new discovery with open posture`;
-    } else if (draft.archetype === 'courage') {
-      emotionalTone = 'quiet bravery, hopeful tension, safe resolution cue';
-      actionBeat = `${hero} takes one brave forward step toward a softened challenge while staying grounded`;
+    } else if (draft.archetype === 'fantasy') {
+      emotionalTone = 'wonder, whimsical courage, joyful absurdity';
+      actionBeat = `${hero} explores a rule-breaking world with open posture and curiosity`;
     }
     const dirMeta = branching?.storyDirections.find((d) => d.flavor === draft.archetype);
     if (branching?.treatmentStrategy) {
@@ -521,282 +469,28 @@ export function buildDirectionDrafts(foundation: SharedStoryFoundation, input: R
   });
 }
 
-const VISUAL_QA_REINFORCE =
-  'VISUAL_QA_REINFORCE: Child hero must occupy roughly one-quarter to one-third of frame height with readable facial features; show a clear body gesture in motion (not a neutral standing pose); avoid scenery-only frames; keep emotional tone aligned with this archetype.';
-
-const WEAK_COMPOSITION_PHRASES = [
-  'scenery-only',
-  'empty horizon',
-  'tiny silhouette',
-  'distant figure only',
-  'postcard panorama',
-];
-
-const ACTION_VERB_RE =
-  /\b(stride|strides|lean|leans|reach|reaches|step|steps|run|running|explore|discover|hold|hug|hugs|face|gaze|turn|forward|motion|gesture|walk|walking|jump|jumping|movement|posture|shares|sharing|touch|touches|embrace|active)\b/i;
-
-function wait(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function extractRetryAfterSeconds(error: unknown): number | null {
-  const message = error instanceof Error ? error.message : String(error ?? '');
-  const explicit = message.match(/"retry_after"\s*:\s*(\d+)/i);
-  if (explicit) return Number(explicit[1]);
-  const alt = message.match(/retry_after[^0-9]*(\d+)/i);
-  if (alt) return Number(alt[1]);
-  return null;
-}
-
-function isRateLimitError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error ?? '');
-  return message.includes('status 429') || message.toLowerCase().includes('too many requests');
-}
-
-function countToneHits(archetype: StoryDirectionArchetype, p: string): number {
-  const connection = ['calm', 'close', 'warm', 'cozy', 'safety', 'soft', 'gentle', 'lamp', 'contact', 'tactile', 'comfort', 'belonging'];
-  const adventure = ['forward', 'path', 'discover', 'wonder', 'explor', 'movement', 'motion', 'curious', 'trail', 'open', 'discovery'];
-  const courage = ['brave', 'bravery', 'challenge', 'tension', 'obstacle', 'decisive', 'hesitation', 'grounded', 'courage'];
-  const words = archetype === 'adventure' ? adventure : archetype === 'courage' ? courage : connection;
-  return words.filter((w) => p.includes(w)).length;
-}
-
-/** Lightweight prompt QA before accepting a preview (no ML). Used to decide single regeneration. */
-export function validatePreviewPromptQuality(
-  archetype: StoryDirectionArchetype,
-  prompt: string,
-  heroName: string
-): boolean {
-  const p = prompt.toLowerCase();
-  const hero = heroName.trim().toLowerCase();
-  if (hero.length >= 2 && !p.includes(hero) && !p.includes('hero')) {
-    return false;
-  }
-  if (WEAK_COMPOSITION_PHRASES.some((phrase) => p.includes(phrase))) {
-    return false;
-  }
-  if (!ACTION_VERB_RE.test(p)) {
-    return false;
-  }
-  if (countToneHits(archetype, p) < 1) {
-    return false;
-  }
-  return true;
-}
-
-async function generateSingleStoryDirectionWithQa(params: {
-  input: RuntimeDirectionInput;
-  draft: StoryDirectionDraft;
-  characterSheet: CharacterSheet;
-  environmentContinuity: string;
-  referenceImages: string[] | undefined;
-  childAnchorImageUrl?: string;
-}): Promise<StoryDirectionWithPreview> {
-  const { input, draft, characterSheet, environmentContinuity, referenceImages, childAnchorImageUrl } = params;
-  const { pageIntent, compositionRules } = getPreviewIntent(draft.archetype);
-  const pageNumber = previewPageNumberForArchetype(draft.archetype);
-  // PROMPT_ONLY: Suffix below guides preview generation quality; it is not code-level identity validation.
-  const strictIdentitySuffix = [
-    'STRONG_CHILD_RESEMBLANCE_GUIDANCE:',
-    '- keep a similar child character based on the anchor/reference (not a different storybook character)',
-    '- keep face geometry consistent: jaw/cheeks/chin, eye shape+spacing, nose, mouth proportions',
-    '- keep skin tone, hair color/length/style, and age appearance consistent',
-    '- only clothing/pose/expression/environment/lighting may vary',
-    '- visual guidance: if face-only crop would not read as a similar child character, prefer regeneration',
-  ].join('\n');
-
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  const companionRefUrl = input.companion ? getCompanionReferencePublicUrl(input.companion, baseUrl) : null;
-  const companionAnchorChars =
-    input.companion && companionRefUrl
-      ? [
-          {
-            characterId: companionAnchorKey(input.companion.id),
-            name: input.companion.name,
-            anchorImageUrl: companionRefUrl,
-          },
-        ]
-      : [];
-
-  async function runOnce(extraSuffix: string, runPhase: 'primary' | 'qa_reinforce') {
-    const suffixParts = [strictIdentitySuffix, extraSuffix].filter(Boolean);
-    const suffix = suffixParts.length > 0 ? `\n\n${suffixParts.join('\n\n')}` : '';
-    const pagePrompt = `${draft.previewImagePrompt}${suffix} Environment anchors: ${environmentContinuity}.`;
-    console.info('[DirPreviewDebug][PreGenerate]', {
-      orderId: input.orderId,
-      archetype: draft.archetype,
-      pageNumber,
-      hasStyleLock: pagePrompt.includes('STYLE_LOCK'),
-      hasSceneTemplate: pagePrompt.includes('DIRECTION_PREVIEW_'),
-      previewHead500: pagePrompt.slice(0, 500),
-    });
-    const mergedRefs = [
-      ...new Set([
-        ...(referenceImages ?? []),
-        ...(childAnchorImageUrl ? [childAnchorImageUrl] : []),
-        ...(companionRefUrl ? [companionRefUrl] : []),
-      ]),
-    ];
-    const finalReferenceImages = mergedRefs.length > 0 ? mergedRefs : undefined;
-    const childAnchors = childAnchorImageUrl
-      ? [
-          {
-            characterId: 'child' as const,
-            name: input.childName,
-            anchorImageUrl: childAnchorImageUrl,
-          },
-        ]
-      : [];
-    const anchorCharacters =
-      childAnchors.length + companionAnchorChars.length > 0
-        ? [...childAnchors, ...companionAnchorChars]
-        : undefined;
-    let image: Awaited<ReturnType<typeof generateImage>> | null = null;
-    const maxAttempts = 3;
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        console.info(
-          `[DirectionsGeneration] image_start orderId=${input.orderId} ` +
-            `archetype=${draft.archetype} attempt=${attempt} phase=${runPhase}`
-        );
-        image = await generateImage({
-          pagePrompt,
-          illustrationStyle: input.illustrationStyle,
-          isDirectionPreview: true,
-          characterSheet,
-          childDescription: buildChildVisualDescription(input),
-          pageIntent,
-          compositionRules,
-          environmentContinuity,
-          referenceImages: finalReferenceImages,
-          anchorCharacters,
-          companion: input.companion,
-          orderId: input.orderId,
-          pageNumber,
-          totalPages: 3,
-        });
-        console.info(
-          `[DirectionsGeneration] image_done orderId=${input.orderId} ` +
-            `archetype=${draft.archetype} attempt=${attempt} phase=${runPhase}`
-        );
-        break;
-      } catch (error) {
-        const errMsg = error instanceof Error ? error.message : String(error ?? '');
-        const willRetry = isRateLimitError(error) && attempt < maxAttempts;
-        if (!willRetry) {
-          console.info(
-            `[DirectionsGeneration] image_failed orderId=${input.orderId} ` +
-              `archetype=${draft.archetype} attempt=${attempt} phase=${runPhase} err=${errMsg.slice(0, 200)}`
-          );
-        }
-        if (!isRateLimitError(error) || attempt >= maxAttempts) {
-          throw error;
-        }
-        const retryAfterSec = extractRetryAfterSeconds(error) ?? 8;
-        await wait(Math.max(1, retryAfterSec) * 1000);
-      }
-    }
-    if (!image) {
-      throw new Error('Direction preview image generation returned no image');
-    }
-    return { image, pagePrompt, suffix };
-  }
-
-  let { image, pagePrompt } = await runOnce('', 'primary');
-  let usedReinforce = false;
-
-  if (!validatePreviewPromptQuality(draft.archetype, pagePrompt, input.childName)) {
-    const second = await runOnce(VISUAL_QA_REINFORCE, 'qa_reinforce');
-    image = second.image;
-    pagePrompt = second.pagePrompt;
-    usedReinforce = true;
-  }
-
-  const previewImagePrompt =
-    draft.previewImagePrompt + (usedReinforce ? `\n\n${VISUAL_QA_REINFORCE}` : '');
-
-  return {
-    ...draft,
-    previewImagePrompt,
-    previewImageUrl: image.url,
-    previewImageRawUrl: image.rawUrl,
-  };
-}
-
-function getPreviewIntent(archetype: StoryDirectionArchetype): { pageIntent: PageIntent; compositionRules: string } {
-  if (archetype === 'adventure') {
-    return {
-      pageIntent: {
-        type: 'world_scene',
-        focus: 'environment',
-        camera: 'wide',
-        background: 'full',
-        emotion: 'excitement',
-      },
-      compositionRules:
-        'Wide outdoor composition: foreground texture (plants, path, rail), midground child in motion, background sky or hills; scale child within the world, strong journey depth, not a centered portrait on empty ground.',
-    };
-  }
-
-  if (archetype === 'courage') {
-    return {
-      pageIntent: {
-        type: 'interaction_page',
-        focus: 'hero',
-        camera: 'medium',
-        background: 'full',
-        emotion: 'tension',
-      },
-      compositionRules:
-        'Emotional two-shot: two characters (or child + companion) in the same frame, off-center, readable interaction; warm interior or threshold light; quiet bravery, not chaotic action.',
-    };
-  }
-
-  return {
-    pageIntent: {
-      type: 'interaction_page',
-      focus: 'hero',
-      camera: 'medium',
-      background: 'partial',
-      emotion: 'calm',
-    },
-    compositionRules:
-      'Intimate indoor medium shot: real room with walls and props, child engaged in a concrete action and object/relationship, off-center or lower-two-thirds, warm soft light, not a static head-and-shoulders on blank color.',
-  };
-}
-
 /**
- * Generates each direction + preview sequentially, invoking `onEach` after each so rows can be persisted
- * while later previews are still rendering.
+ * Generates each direction with static preview artwork; invokes `onEach` after each for DB persistence.
+ * Text fields (title, summary, storyPremise, previewImagePrompt) are still produced for the pipeline.
  */
 export async function generateStoryDirectionsIncrementally(
   input: RuntimeDirectionInput,
   onEach: (direction: StoryDirectionWithPreview) => Promise<void>
 ): Promise<{ foundation: SharedStoryFoundation }> {
-  const family = parseFamilyContext(input.familyContext);
   const foundation = buildSharedStoryFoundation(input);
   const drafts = buildDirectionDrafts(foundation, input);
-  const characterSheet = buildCharacterSheet(input, family);
-  const environmentContinuity = foundation.visualWorldAnchors.join(' | ');
-  const baseReferenceImages = input.childImageUrl ? [input.childImageUrl] : undefined;
-  let rollingChildAnchorImageUrl = input.childImageUrl ?? undefined;
 
   for (const draft of drafts) {
     console.info('[DirPreviewDebug][GenerateDirection]', {
       orderId: input.orderId,
       archetype: draft.archetype,
     });
-    const direction = await generateSingleStoryDirectionWithQa({
-      input,
-      draft,
-      characterSheet,
-      environmentContinuity,
-      referenceImages: baseReferenceImages,
-      childAnchorImageUrl: rollingChildAnchorImageUrl,
-    });
-    if (!rollingChildAnchorImageUrl && direction.previewImageUrl) {
-      rollingChildAnchorImageUrl = direction.previewImageUrl;
-    }
+    const url = STATIC_DIRECTION_CARD_IMAGE[draft.archetype];
+    const direction: StoryDirectionWithPreview = {
+      ...draft,
+      previewImageUrl: url,
+      previewImageRawUrl: url,
+    };
     await onEach(direction);
   }
 

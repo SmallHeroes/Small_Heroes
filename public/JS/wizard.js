@@ -12,10 +12,15 @@ const WIZ_DEFAULTS = {
   helpers: [],
   avoid: [],
   lengths: [],
+  directionPackages: [
+    { id: 'bedtime', label: 'סיפור לפני שינה', pagesLine: '10 עמודים', price: 59 },
+    { id: 'adventure', label: 'הרפתקה', pagesLine: '15 עמודים', price: 79 },
+    { id: 'fantasy', label: 'מסע פלאי', pagesLine: '20 עמודים', price: 99 },
+  ],
   styles: [],
   voices: [],
   progressLabel: 'שלב {current} מתוך {total}',
-  microcopy: { s3: '', s4: '', s5: '', s6: '', s7: '', s8: '', s9: '', s10: '', companion: '' },
+  microcopy: { s3: '', s4: '', s5: '', s6: '', s7: '', s8: '', s9: '', s10: '', s11: '', companion: '' },
   nav: {
     back: 'חזרה',
     continueToFamily: 'המשך',
@@ -44,7 +49,7 @@ const WIZ_DEFAULTS = {
     s6: { title: '', sub: '', sub2: '', extraLabel: '', extraPlaceholder: '' },
     s7: { title: '', sub: '', sub2: '', extraLabel: '', extraPlaceholder: '' },
     s8: {
-      title: '', sub: '', lengthTitle: '', styleLabel: '', addonsSub: '', addonsExpanded: '', addonsCollapsed: '',
+      title: '', sub: '', directionTitle: '', lengthTitle: '', styleLabel: '', addonsSub: '', addonsExpanded: '', addonsCollapsed: '',
       voiceTitle: '', voicePreview: '',
       audio: { badge: '', name: '', desc: '' },
       pdf: { badge: '', name: '', desc: '' },
@@ -55,6 +60,10 @@ const WIZ_DEFAULTS = {
     s9: {
       title: '', sub: '', card1Title: '', card2Title: '', card3Title: '',
       nameLabel: '', emailLabel: '', submitBtn: '', paymentLogos: '',
+    },
+    sBook: {
+      title: '', sub: '', bookNameLabel: '', bookNameHint: '',
+      dedicationHeading: '', dedicationOptional: '', dedicationHint: '', dedicationPlaceholder: '',
     },
     categoryFollowup: { title: '', sub: '' },
   },
@@ -73,6 +82,10 @@ const WIZ = {
   nav: { ...WIZ_DEFAULTS.nav, ...(WIZ_INPUT.nav || {}) },
   microcopy: { ...WIZ_DEFAULTS.microcopy, ...(WIZ_INPUT.microcopy || {}) },
   summary: { ...WIZ_DEFAULTS.summary, ...(WIZ_INPUT.summary || {}) },
+  directionPackages:
+    Array.isArray(WIZ_INPUT.directionPackages) && WIZ_INPUT.directionPackages.length > 0
+      ? WIZ_INPUT.directionPackages
+      : WIZ_DEFAULTS.directionPackages,
   steps: {
     ...WIZ_DEFAULTS.steps,
     ...(WIZ_INPUT.steps || {}),
@@ -89,9 +102,16 @@ const WIZ = {
       bundle: { ...WIZ_DEFAULTS.steps.s8.bundle, ...(((((WIZ_INPUT.steps || {}).s8 || {}).bundle) || {}) ) },
       sleep: { ...WIZ_DEFAULTS.steps.s8.sleep, ...(((((WIZ_INPUT.steps || {}).s8 || {}).sleep) || {}) ) },
     },
+    sBook: {
+      ...WIZ_DEFAULTS.steps.sBook,
+      ...(((WIZ_INPUT.steps || {}).sBook || {})),
+    },
   },
 };
 const COMMON = HE_CONTENT.common || { brand: '', tagline: '', navCta: '' };
+const DIRECTION_PACKAGES = WIZ.directionPackages;
+const LENGTH_TO_DIRECTION = { short: 'bedtime', medium: 'adventure', long: 'fantasy' };
+const STORY_LENGTH_FROM_DIRECTION = { bedtime: 'short', adventure: 'medium', fantasy: 'long' };
 const clientApi = window.SmallHeroesClient || window.__smallHeroesClientApi || null;
 const PHOTO_ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const PHOTO_MAX_SIZE_BYTES = 15 * 1024 * 1024;
@@ -132,7 +152,6 @@ const PHOTO_REASON_CODE_COPY = {
   low_brightness: 'התמונה קצת חשוכה',
   no_face_detected: 'קשה לנו לזהות פנים בבירור',
 };
-const MAX_EXTRA_CHARACTERS = 2;
 const ORDER_SUBMIT_TIMEOUT_MS = 45_000;
 const WIZARD_SESSION_ID_STORAGE_KEY = 'smallheroes.wizardSessionId';
 const ROUTES = window.SH_ROUTES || {
@@ -143,14 +162,6 @@ const ROUTES = window.SH_ROUTES || {
   ready: '/ready',
   reader: '/reader',
 };
-const EXTRA_CHARACTER_RELATIONS = [
-  { id: '', label: '— בחרו —', disabled: true },
-  { id: 'mother', label: 'אמא' },
-  { id: 'father', label: 'אבא' },
-  { id: 'brother', label: 'אח' },
-  { id: 'sister', label: 'אחות' },
-  { id: 'other', label: 'אחר' },
-];
 let isSubmittingOrder = false;
 let transientWizardSessionId = null;
 let pendingPhotoPickerOpen = false;
@@ -194,16 +205,6 @@ function clearWizardSessionId() {
   try {
     window.localStorage.removeItem(WIZARD_SESSION_ID_STORAGE_KEY);
   } catch (_) {}
-}
-
-function createEmptyExtraCharacter() {
-  return {
-    relation: '',
-    name: '',
-    description: '',
-    photo: null,
-    photoQuality: null,
-  };
 }
 
 function getTraitIcon(trait) {
@@ -253,12 +254,6 @@ function normalizeClientStyleId(styleId) {
   return map[raw] || 'soft_hand_drawn_storybook';
 }
 
-function getCharacterDescriptionPlaceholder(relation) {
-  return relation === 'other'
-    ? 'למשל: חבר טוב, סבתא, דוד...'
-    : 'למשל: מצחיקה, אוהבת לשיר, תמיד מרגיעה';
-}
-
 /* ── STATE ──────────────────────────────────────────────────── */
 const state = {
   currentStep: 1,
@@ -288,9 +283,6 @@ const state = {
     reasonCodes: ['no_photo'],
   },
 
-  /* step 4 — family context */
-  extraCharacters: [],
-
   difficulties: [],
   goals: [],
   helpers: [],
@@ -299,8 +291,8 @@ const state = {
   s6extra: "",
   s7extra: "",
 
-  /* product config */
-  length: "medium", /* short | medium | long */
+  /* product config — direction sets page count + base price */
+  storyDirection: 'adventure', /* bedtime | adventure | fantasy */
   style: "soft_hand_drawn_storybook",
   audioEnabled: false,
   voice: "mom", /* mom | dad | fairy */
@@ -309,19 +301,20 @@ const state = {
   videoEnabled: false,
   bundleEnabled: false,
   bookName: "",
+  dedication: '',
 
-  /* contact (step 10) */
+  /* contact (summary) */
   contactName: "",
   contactEmail: "",
 };
 
 /* ── PRICING ─────────────────────────────────────────────────── */
 const PRICES = {
-  base: { short: 50, medium: 70, long: 90 },
+  base: { bedtime: 59, adventure: 79, fantasy: 99 },
   audio: 19,
   pdf: 19,
-  video: 14,
-  bundle: 40,
+  video: 29,
+  bundle: 39,
 };
 
 const WIZARD_STORAGE_KEY = 'wizard_state';
@@ -341,25 +334,9 @@ function queueWizardSave() {
 
 function saveWizardState() {
   try {
-    const extra = (state.extraCharacters || []).map((ch) => ({
-      relation: ch.relation || '',
-      name: ch.name || '',
-      description: ch.description || '',
-      photo:
-        ch.photo &&
-        typeof ch.photo === 'string' &&
-        !ch.photo.startsWith('data:')
-          ? ch.photo
-          : null,
-      photoQuality:
-        ch.photoQuality && typeof ch.photoQuality === 'object'
-          ? { ...ch.photoQuality }
-          : null,
-    }));
     const serializable = {
       ...state,
       photo: null,
-      extraCharacters: extra,
     };
     sessionStorage.setItem(
       WIZARD_STORAGE_KEY,
@@ -391,6 +368,15 @@ function restoreWizardState() {
     sessionExpectChildPhotoReplay = snapshot.meta?.expectChildPhotoReplay === true;
     Object.assign(state, snapshot.state);
     state.currentStep = snapshot.step;
+    if (typeof state.storyDirection !== 'string' || !state.storyDirection) {
+      const legacy = state.length;
+      if (legacy === 'short' || legacy === 'medium' || legacy === 'long') {
+        state.storyDirection = LENGTH_TO_DIRECTION[legacy] || 'adventure';
+      } else {
+        state.storyDirection = 'adventure';
+      }
+    }
+    if ('length' in state) delete state.length;
     if (!Array.isArray(state.childTraits)) state.childTraits = [];
     if (!Array.isArray(state.childSuperpower)) state.childSuperpower = [];
     if (!Array.isArray(state.difficulties)) state.difficulties = [];
@@ -398,7 +384,7 @@ function restoreWizardState() {
     if (!Array.isArray(state.helpers)) state.helpers = [];
     if (!Array.isArray(state.avoid)) state.avoid = [];
     if (!Array.isArray(state.categoryAnswers)) state.categoryAnswers = [];
-    if (!Array.isArray(state.extraCharacters)) state.extraCharacters = [];
+    if (typeof state.dedication !== 'string') state.dedication = '';
     if (typeof state.videoEnabled !== 'boolean') state.videoEnabled = false;
     state.audioEnabled = Boolean(state.audioEnabled);
     state.pdfEnabled = Boolean(state.pdfEnabled);
@@ -429,6 +415,12 @@ function hydrateDraftFieldsFromState() {
   if (spe) spe.value = state.childSuperpowerExtra || '';
   const bookNameInput = document.getElementById('bookNameInput');
   if (bookNameInput) bookNameInput.value = state.bookName || '';
+  const dedicationInput = document.getElementById('dedicationInput');
+  if (dedicationInput) {
+    dedicationInput.value = state.dedication || '';
+    const dedicationCount = document.getElementById('dedicationCount');
+    if (dedicationCount) dedicationCount.textContent = String((dedicationInput.value || '').length);
+  }
   const cName = document.getElementById('contact-name');
   if (cName) cName.value = state.contactName || '';
   const cEmail = document.getElementById('contact-email');
@@ -445,10 +437,10 @@ function hydrateWizardMultiSelectChips() {
       el.classList.toggle('selected', arr.indexOf(val) > -1);
     });
   };
-  syncStep('#step-8', 'difficulties');
-  syncStep('#step-9', 'goals');
-  syncStep('#step-10', 'helpers');
-  syncStep('#step-11', 'avoid');
+  syncStep('#step-7', 'difficulties');
+  syncStep('#step-8', 'goals');
+  syncStep('#step-9', 'helpers');
+  syncStep('#step-10', 'avoid');
 }
 
 function bindDraftFieldPersistListeners() {
@@ -496,10 +488,23 @@ function bindDraftFieldPersistListeners() {
       queueWizardSave();
     });
   }
+  const dedicationInput = document.getElementById('dedicationInput');
+  const dedicationCount = document.getElementById('dedicationCount');
+  if (dedicationInput) {
+    const syncDedicationCount = () => {
+      if (dedicationCount) dedicationCount.textContent = String((dedicationInput.value || '').length);
+    };
+    syncDedicationCount();
+    dedicationInput.addEventListener('input', () => {
+      state.dedication = dedicationInput.value.slice(0, 300);
+      syncDedicationCount();
+      queueWizardSave();
+    });
+  }
 }
 
 function computeTotal() {
-  const base = PRICES.base[state.length] || 59;
+  const base = PRICES.base[state.storyDirection] || PRICES.base.adventure;
   let addons = 0;
 
   if (state.bundleEnabled) {
@@ -520,7 +525,6 @@ function computeTotal() {
 // (Hebrew label string in state.childTraits) is unchanged.
 const TOPICS              = WIZ.topics;
 const TRAITS              = WIZ.traits;
-const STORY_LENGTHS       = WIZ.lengths;
 const ILLUSTRATION_STYLES = WIZ.styles;
 const VOICES              = WIZ.voices;
 
@@ -747,33 +751,12 @@ function init() {
   pendingPhotoPickerOpen = false;
   initWizardContent();   // bind all static text from CONTENT
   const restored = restoreWizardState();
-  if (state.extraCharacters.length === 0) {
-    state.extraCharacters.push(createEmptyExtraCharacter());
-  } else if (state.extraCharacters.length > MAX_EXTRA_CHARACTERS) {
-    state.extraCharacters = state.extraCharacters.slice(0, MAX_EXTRA_CHARACTERS);
-  }
-  state.extraCharacters = state.extraCharacters.map((character) => ({
-    relation: character.relation || '',
-    name: character.name || '',
-    description: character.description || '',
-    photo: character.photo || null,
-    photoQuality:
-      character.photoQuality &&
-      typeof character.photoQuality === 'object' &&
-      typeof character.photoQuality.status === 'string'
-        ? character.photoQuality
-        : null,
-  }));
-  if (!restored && state.currentStep < 12) {
-    state.length = null;
-  }
   bindDraftFieldPersistListeners();
   buildPills();
   renderTopics();
   renderTraits();
   renderSuperpowerChips();
-  renderExtraCharacters();
-  renderLengthBtns();
+  renderDirectionBtns();
   renderStyleBtns();
   renderVoiceBtns();
   bindPhotoUploadInteractions();
@@ -823,6 +806,7 @@ function initWizardContent() {
   setText('s8micro',  WIZ.microcopy.s8);
   setText('s9micro',  WIZ.microcopy.s9);
   setText('s10micro', WIZ.microcopy.s10);
+  setText('s11micro', WIZ.microcopy.s11 || '');
 
   // Step 3
   setText('s3Title',               WIZ.steps.s3.title);
@@ -846,12 +830,7 @@ function initWizardContent() {
   const s4powerTa = document.getElementById('s4power-extra');
   if (s4powerTa) s4powerTa.placeholder = WIZ.steps.s4power.extraPlaceholder;
 
-  // Step 5 — family context (new)
-  setText('s4famTitle',        'מי עוד בסיפור');
-  setText('s4famSub',          'אפשר להוסיף עד 2 דמויות נוספות (לא חובה)');
-  setText('s4famSub2',         'רק מה שיעזור לסיפור להרגיש מוכר ובטוח עבור הילד שלכם.');
-
-  // Step 5 — difficulties (was step 4)
+  // Step 6 — difficulties
   setText('s4Title',      WIZ.steps.s4.title);
   setText('s4Sub',        WIZ.steps.s4.sub);
   setText('s4Sub2',       WIZ.steps.s4.sub2);
@@ -888,7 +867,7 @@ function initWizardContent() {
   // Step 9 — package (was step 8)
   setText('s8Title',       WIZ.steps.s8.title);
   setText('s8Sub',         WIZ.steps.s8.sub);
-  setText('s8LengthTitle', WIZ.steps.s8.lengthTitle);
+  setText('s8LengthTitle', WIZ.steps.s8.directionTitle || WIZ.steps.s8.lengthTitle);
   setText('s8StyleLabel',  WIZ.steps.s8.styleLabel);
   setText('s8AddonSub',    WIZ.steps.s8.addonsSub);
   setText('s8AudioBadge',  WIZ.steps.s8.audio.badge);
@@ -909,7 +888,19 @@ function initWizardContent() {
   setText('s8TotalLabel',  WIZ.summary.totalLabel);
   setText('bottomBarTotalLabel', 'סה"כ:');
 
-  // Step 10 — summary + payment (was step 9)
+  // Step 12 — book + dedication
+  const sBook = WIZ.steps.sBook || WIZ_DEFAULTS.steps.sBook;
+  setText('sBookTitle', sBook.title);
+  setText('sBookSub', sBook.sub);
+  setText('sBookNameLabel', sBook.bookNameLabel);
+  setText('sBookNameHint', sBook.bookNameHint);
+  setText('dedicationHeading', sBook.dedicationHeading);
+  setText('dedicationOptionalBadge', sBook.dedicationOptional);
+  setText('dedicationHint', sBook.dedicationHint);
+  const ded = document.getElementById('dedicationInput');
+  if (ded && sBook.dedicationPlaceholder) ded.placeholder = sBook.dedicationPlaceholder;
+
+  // Step 13 — summary + payment
   setText('s9Title',        WIZ.steps.s9.title);
   setText('s9Sub',          WIZ.steps.s9.sub);
   setText('s9Card1Title',   WIZ.steps.s9.card1Title);
@@ -926,7 +917,7 @@ function initWizardContent() {
 
 /* ── HELPERS ─────────────────────────────────────────────────── */
 function isVoicePanelActive() {
-  return state.audioEnabled || state.bundleEnabled;
+  return state.audioEnabled || state.videoEnabled || state.bundleEnabled;
 }
 
 function getVoiceCol() {
@@ -946,7 +937,7 @@ function syncWizardLayout() {
   const main = document.querySelector(".wizard-main");
   if (!main) return;
 
-  const open = isVoicePanelActive() && state.currentStep === 12;
+  const open = isVoicePanelActive() && state.currentStep === 11;
   main.classList.toggle("wizard-audio-open", open);
 }
 
@@ -1021,9 +1012,8 @@ function updateUI() {
         updatePhotoStepBottomBar();
       } else {
         btn.textContent =
-          state.currentStep === 6  ? WIZ.nav.continueToFamily  :
-          state.currentStep === 7  ? WIZ.nav.continueToStory   :
-          state.currentStep === 11 ? WIZ.nav.continueToPackage :
+          state.currentStep === 6  ? WIZ.nav.continueToStory   :
+          state.currentStep === 10 ? WIZ.nav.continueToPackage :
           state.currentStep === 12 ? WIZ.nav.continueToSummary :
           WIZ.nav.continueDefault;
         btn.onclick = goNext;
@@ -1052,13 +1042,13 @@ function updateUI() {
     renderCompanionCards();
   }
 
-  // Show/hide total in bottom bar — only after a package length is chosen
+  // Show/hide total in bottom bar — package step has fixed direction default
   const bottomBarTotal = document.getElementById('bottom-bar-total');
   if (bottomBarTotal) {
-    bottomBarTotal.hidden = !(state.currentStep >= 12 && Boolean(state.length));
+    bottomBarTotal.hidden = !(state.currentStep >= 11 && Boolean(state.storyDirection));
   }
 
-  if (state.currentStep === 12) {
+  if (state.currentStep === 11) {
     syncStep8Layout(true);
     refreshTotal();
   }
@@ -1114,32 +1104,20 @@ function goNext() {
   }
 
   if (state.currentStep === 7) {
-    state.extraCharacters = state.extraCharacters
-      .slice(0, MAX_EXTRA_CHARACTERS)
-      .map((character) => ({
-        relation: character.relation || 'other',
-        name: (character.name || '').trim(),
-        description: (character.description || '').trim(),
-        photo: character.photo || null,
-        photoQuality:
-          character.photoQuality &&
-          typeof character.photoQuality === 'object' &&
-          typeof character.photoQuality.status === 'string'
-            ? character.photoQuality
-            : null,
-      }));
-  }
-
-  if (state.currentStep === 8) {
     state.s4extra = document.getElementById("s4-extra")?.value || "";
   }
 
-  if (state.currentStep === 10) {
+  if (state.currentStep === 9) {
     state.s6extra = document.getElementById("s6-extra")?.value || "";
   }
 
-  if (state.currentStep === 11) {
+  if (state.currentStep === 10) {
     state.s7extra = document.getElementById("s7-extra")?.value || "";
+  }
+
+  if (state.currentStep === 12) {
+    state.bookName = document.getElementById("bookNameInput")?.value.trim() || "";
+    state.dedication = (document.getElementById("dedicationInput")?.value || "").slice(0, 300);
   }
 
   if (state.currentStep === 13) {
@@ -1464,200 +1442,6 @@ function renderTraits() {
 
     wrap.appendChild(d);
   });
-}
-
-function renderExtraCharacters() {
-  const container = document.getElementById('character-cards');
-  if (!container) return;
-  container.innerHTML = '';
-
-  state.extraCharacters.slice(0, MAX_EXTRA_CHARACTERS).forEach((character, index) => {
-    const card = document.createElement('article');
-    card.className = 'char-card';
-    const hasPhoto = Boolean(character.photo);
-    const hasValidationState = hasPhoto || (character.photoQuality && typeof character.photoQuality.status === 'string');
-    const relationOptions = EXTRA_CHARACTER_RELATIONS.map((option) =>
-      `<option value="${option.id}" ${option.disabled ? 'disabled' : ''} ${character.relation === option.id ? 'selected' : ''}>${option.label}</option>`
-    ).join('');
-    card.innerHTML = `
-      <div class="char-card-top">
-        <span class="char-card-title">דמות נוספת ${index + 1}</span>
-        <span class="char-card-tag">לא חובה</span>
-      </div>
-      <div class="char-photo-row">
-        <label class="char-photo-upload">
-          <input class="char-photo-input" type="file" accept="image/jpeg,image/png,image/webp" />
-          <div class="char-photo-preview ${hasPhoto ? 'has-image' : ''}">
-            ${hasPhoto
-              ? `<img src="${character.photo}" alt="תמונת דמות ${index + 1}" /><span class="char-photo-replace-overlay">החלף</span>`
-              : `<span class="char-photo-plus">+</span>`}
-          </div>
-        </label>
-        <div class="char-photo-row-fields">
-          <div class="char-input-group">
-            <label class="char-field-label">מה הקשר לילד/ה?</label>
-            <select class="form-select char-relation-select">${relationOptions}</select>
-          </div>
-          <div class="char-input-group">
-            <label class="char-field-label">איך קוראים לדמות?</label>
-            <input class="form-input char-input" type="text" maxlength="30" placeholder="שם הדמות" value="${character.name}" />
-          </div>
-        </div>
-      </div>
-      <div class="char-photo-quality">
-        ${(() => {
-          if (!hasValidationState) {
-            return '<p class="char-photo-helper">תמונה ברורה תעזור לנו ליצור דמות שמבוססת עליו. עדיף שהפנים יהיו קרובות וברורות.</p>';
-          }
-          const status = character.photoQuality?.status || PHOTO_QUALITY_STATUS.BLOCKED;
-          const copy = PHOTO_QUALITY_COPY[status] || PHOTO_QUALITY_COPY.blocked;
-          const reasons = Array.isArray(character.photoQuality?.reasonCodes) ? character.photoQuality.reasonCodes : [];
-          const bullets = [...new Set(reasons.map((code) => PHOTO_REASON_CODE_COPY[code]).filter(Boolean))].slice(0, 2);
-          return `
-            <div class="photo-quality-alert photo-quality-alert--${status}">
-              <div class="photo-quality-alert-title">${copy.title}</div>
-              ${bullets.length > 0 ? `<ul class="photo-quality-alert-reasons">${bullets.map((line) => `<li>${line}</li>`).join('')}</ul>` : ''}
-              ${copy.subcopy ? `<div class="photo-quality-alert-subcopy">${copy.subcopy}</div>` : ''}
-            </div>
-          `;
-        })()}
-      </div>
-      <div class="char-input-group">
-        <label class="char-field-label">משהו קטן שמאפיין אותה</label>
-        <textarea class="wiz-textarea char-textarea" maxlength="140" placeholder="${getCharacterDescriptionPlaceholder(character.relation)}">${character.description}</textarea>
-      </div>
-      <p class="char-error" hidden></p>
-    `;
-
-    const relationInput = card.querySelector('.char-relation-select');
-    const nameInput = card.querySelector('.char-input');
-    const descInput = card.querySelector('.char-textarea');
-    const photoInput = card.querySelector('.char-photo-input');
-    const preview = card.querySelector('.char-photo-preview');
-    const errorEl = card.querySelector('.char-error');
-
-    relationInput?.addEventListener('change', (event) => {
-      const relation = event.target.value || '';
-      state.extraCharacters[index].relation = relation;
-      if (descInput) {
-        descInput.placeholder = getCharacterDescriptionPlaceholder(relation);
-      }
-      queueWizardSave();
-    });
-
-    nameInput?.addEventListener('input', (event) => {
-      state.extraCharacters[index].name = event.target.value.trimStart();
-      queueWizardSave();
-    });
-    descInput?.addEventListener('input', (event) => {
-      state.extraCharacters[index].description = event.target.value.trimStart();
-      queueWizardSave();
-    });
-    photoInput?.addEventListener('change', (event) => {
-      const file = event.target?.files?.[0];
-      if (!file) return;
-
-      if (!PHOTO_ALLOWED_TYPES.has(file.type)) {
-        reportClientIssue('extra_character_photo_invalid_type', { index, mime: file.type || 'unknown' });
-        if (errorEl) {
-          errorEl.textContent = 'כדאי לבחור תמונה בפורמט JPG, PNG או WEBP.';
-          errorEl.hidden = false;
-        }
-        event.target.value = '';
-        state.extraCharacters[index].photo = null;
-        state.extraCharacters[index].photoQuality = null;
-        return;
-      }
-      if (file.size > PHOTO_MAX_SIZE_BYTES) {
-        reportClientIssue('extra_character_photo_too_large', { index, sizeBytes: file.size });
-        if (errorEl) {
-          errorEl.textContent = 'התמונה גדולה מדי כרגע. נסו תמונה עד 15MB.';
-          errorEl.hidden = false;
-        }
-        event.target.value = '';
-        state.extraCharacters[index].photo = null;
-        state.extraCharacters[index].photoQuality = null;
-        return;
-      }
-      if (errorEl) errorEl.hidden = true;
-
-      const reader = new FileReader();
-      reader.onload = async (loadEvent) => {
-        const result = loadEvent?.target?.result;
-        if (typeof result !== 'string') return;
-        let quality = null;
-        try {
-          quality = await analyzePhotoQuality(result);
-        } catch (_) {
-          quality = {
-            status: PHOTO_QUALITY_STATUS.WARNING,
-            faceCount: 0,
-            reasonCodes: ['analysis_unavailable'],
-          };
-        }
-        state.extraCharacters[index].photoQuality = quality;
-        if (quality?.status === PHOTO_QUALITY_STATUS.BLOCKED) {
-          state.extraCharacters[index].photo = null;
-          if (errorEl) {
-            errorEl.textContent = 'התמונה הזו לא מתאימה כרגע כתמונת ייחוס. אפשר לבחור תמונה ברורה יותר.';
-            errorEl.hidden = false;
-          }
-          if (event.target) event.target.value = '';
-          renderExtraCharacters();
-          return;
-        }
-        state.extraCharacters[index].photo = result;
-        if (preview) {
-          preview.classList.add('has-image');
-          preview.innerHTML = `<img src="${result}" alt="תמונת דמות ${index + 1}" /><span class="char-photo-replace-overlay">החלף</span>`;
-        }
-        renderExtraCharacters();
-        queueWizardSave();
-
-        const base64Snapshot = result;
-        (async () => {
-          try {
-            const blob = await fetch(base64Snapshot).then((r) => r.blob());
-            const ext =
-              blob.type === 'image/png'
-                ? 'png'
-                : blob.type === 'image/webp'
-                  ? 'webp'
-                  : 'jpg';
-            const formData = new FormData();
-            formData.append('file', blob, `char-${index}-${Date.now()}.${ext}`);
-            const res = await fetch('/api/upload-photo', { method: 'POST', body: formData });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok || !data.url) return;
-            if (state.extraCharacters[index]?.photo !== base64Snapshot) return;
-            state.extraCharacters[index].photo = data.url;
-            queueWizardSave();
-            renderExtraCharacters();
-          } catch (_) {
-            /* upload failed — preview uses base64 until refresh */
-          }
-        })();
-      };
-      reader.readAsDataURL(file);
-    });
-
-    container.appendChild(card);
-  });
-
-  const canAddMore = state.extraCharacters.length < MAX_EXTRA_CHARACTERS;
-  if (canAddMore) {
-    const addCard = document.createElement('button');
-    addCard.type = 'button';
-    addCard.className = 'char-card char-card-add';
-    addCard.disabled = false;
-    addCard.innerHTML = `<span class="char-add-plus">+</span><span class="char-add-label">הוסף דמות</span>`;
-    addCard.addEventListener('click', () => {
-      state.extraCharacters.push(createEmptyExtraCharacter());
-      renderExtraCharacters();
-      queueWizardSave();
-    });
-    container.appendChild(addCard);
-  }
 }
 
 /* ── SUPERPOWER CHIPS (multi-select) ────────────────────────── */
@@ -2108,32 +1892,32 @@ async function handlePhoto(e) {
   reader.readAsDataURL(file);
 }
 
-/* ── STEP 8: LENGTH BUTTONS ──────────────────────────────────── */
-function renderLengthBtns() {
+/* ── STEP 11: DIRECTION / PACKAGE TIER (page count + base price) ─ */
+function renderDirectionBtns() {
   const wrap = document.getElementById("length-btns");
   if (!wrap) return;
 
   wrap.innerHTML = "";
   wrap.style.direction = "rtl";
 
-  const LENGTH_ORDER = { short: 1, medium: 2, long: 3 };
-  const orderedLengths = [...STORY_LENGTHS].sort((a, b) => {
-    const aOrder = LENGTH_ORDER[a.id] || 99;
-    const bOrder = LENGTH_ORDER[b.id] || 99;
-    return aOrder - bOrder;
+  const ORDER = { bedtime: 1, adventure: 2, fantasy: 3 };
+  const pkgs = [...DIRECTION_PACKAGES].sort((a, b) => {
+    const ao = ORDER[a.id] || 99;
+    const bo = ORDER[b.id] || 99;
+    return ao - bo;
   });
 
-  orderedLengths.forEach((l) => {
+  pkgs.forEach((d) => {
     const btn = document.createElement("button");
     btn.type      = "button";
-    btn.className = "length-btn" + (l.id === state.length ? " selected" : "");
-    btn.innerHTML = `${l.label}<span class="pages">${l.pages}</span>`;
+    btn.className = "length-btn" + (d.id === state.storyDirection ? " selected" : "");
+    btn.innerHTML = `${d.label}<span class="pages">${d.pagesLine} · ₪${d.price}</span>`;
 
     btn.addEventListener("click", () => {
       document.querySelectorAll(".length-btn").forEach((b) => b.classList.remove("selected"));
 
       btn.classList.add("selected");
-      state.length = l.id;
+      state.storyDirection = d.id;
       refreshTotal();
       const bbt = document.getElementById('bottom-bar-total');
       if (bbt) bbt.hidden = false;
@@ -2187,8 +1971,15 @@ function toggleAddon(key) {
         state.bundleEnabled = false;
         state.voice         = null;
         state.sleepMode     = false;
-      } else if (!state.voice) {
-        state.voice = "mom";
+      } else {
+        if (state.bundleEnabled) {
+          state.bundleEnabled = false;
+          state.videoEnabled = false;
+          state.pdfEnabled = false;
+        }
+        if (!state.voice) {
+          state.voice = "mom";
+        }
       }
 
       break;
@@ -2209,8 +2000,17 @@ function toggleAddon(key) {
     case "videoEnabled": {
       const next = !state.videoEnabled;
       state.videoEnabled = next;
-      if (!next && state.bundleEnabled) {
-        state.bundleEnabled = false;
+      if (next) {
+        if (!state.voice) state.voice = "mom";
+      } else {
+        if (state.bundleEnabled) {
+          state.bundleEnabled = false;
+          state.pdfEnabled = false;
+        }
+        if (!state.audioEnabled) {
+          state.voice = null;
+          state.sleepMode = false;
+        }
       }
       break;
     }
@@ -2221,16 +2021,15 @@ function toggleAddon(key) {
       state.bundleEnabled = next;
 
       if (next) {
-        state.audioEnabled = true;
-        state.pdfEnabled   = true;
-        state.videoEnabled  = true;
+        state.videoEnabled = true;
+        state.pdfEnabled = true;
+        state.audioEnabled = false;
         if (!state.voice) state.voice = "mom";
       } else {
-        state.audioEnabled = false;
-        state.pdfEnabled   = false;
-        state.videoEnabled  = false;
-        state.voice        = null;
-        state.sleepMode    = false;
+        state.videoEnabled = false;
+        state.pdfEnabled = false;
+        state.voice = null;
+        state.sleepMode = false;
       }
 
       break;
@@ -2271,7 +2070,7 @@ function syncStep8Layout(skipAnimation = false) {
   const voiceCol    = getVoiceCol();
   const grid        = getStep8Grid();
   const addonsTitle = getAddonsTitle();
-  const shouldShow  = isVoicePanelActive() && state.currentStep === 12;
+  const shouldShow  = isVoicePanelActive() && state.currentStep === 11;
 
   if (addonsTitle) {
     addonsTitle.textContent = shouldShow
@@ -2432,11 +2231,14 @@ function refreshTotal() {
 function buildSummary() {
   const { base, total } = computeTotal();
 
-  const lenObj   = STORY_LENGTHS.find((l) => l.id === state.length);
+  const dirPkg =
+    DIRECTION_PACKAGES.find((d) => d.id === state.storyDirection) || DIRECTION_PACKAGES[1];
+  const dirLabel = dirPkg?.label || "";
+  const dirPages = dirPkg?.pagesLine || "";
   const styleObj = ILLUSTRATION_STYLES.find((s) => s.id === state.style);
   const voiceObj = VOICES.find((v) => v.id === state.voice);
 
-  const lenLabel   = lenObj?.label   || "";
+  const lenLabel   = dirLabel;
   const styleLabel = styleObj?.label || "";
   const voiceLabel = voiceObj?.label || "";
   const topicLabel = state.topicLabel || state.topic || "";
@@ -2471,19 +2273,23 @@ function buildSummary() {
       {
         icon:  "📄",
         label: WIZ.summary.lengthLabel,
-        val:   `${lenLabel} (${lenObj?.pages || ""})`,
+        val:   `${lenLabel} (${dirPages})`,
       },
       { icon: "🎨", label: WIZ.summary.styleLabel, val: styleLabel },
-      state.audioEnabled || state.bundleEnabled
+      state.audioEnabled && !state.videoEnabled && !state.bundleEnabled
         ? { icon: "🎧", label: WIZ.summary.audioLabel, val: voiceLabel || "✓" }
         : null,
-      state.pdfEnabled || state.bundleEnabled
+      state.pdfEnabled && !state.bundleEnabled
         ? { icon: "📥", label: WIZ.summary.pdfLabel, val: "✓" }
         : null,
-      state.videoEnabled || state.bundleEnabled
-        ? { icon: "🎬", label: WIZ.summary.videoLabel || 'סרטון:', val: '✓' }
+      state.videoEnabled && !state.bundleEnabled
+        ? { icon: "🎬", label: WIZ.summary.videoLabel || 'סרטון:', val: voiceLabel ? `${voiceLabel}` : '✓' }
         : null,
-      state.sleepMode
+      state.bundleEnabled
+        ? { icon: "🎁", label: WIZ.summary.bundleLabel, val: voiceLabel ? `${voiceLabel}` : '✓' }
+        : null,
+      state.sleepMode &&
+        (state.audioEnabled || state.videoEnabled || state.bundleEnabled)
         ? { icon: "🌙", label: WIZ.summary.sleepLabel, val: "✓" }
         : null,
     ].filter(Boolean);
@@ -2580,17 +2386,15 @@ function buildSummary() {
  *   state.helpers / s6extra       → helpers:         { selected, freeText }
  *   state.avoid   / s7extra       → avoid:           { selected, freeText }
  *
- *   state.length / style / audioEnabled / voice / sleepMode / pdfEnabled / bundleEnabled /
- *     videoEnabled
- *     → product: { length, illustrationStyle, audioEnabled, selectedVoice, sleepMode,
+ *   state.storyDirection / style / audioEnabled / voice / sleepMode / pdfEnabled /
+ *     bundleEnabled / videoEnabled
+ *     → product: { direction, length, illustrationStyle, audioEnabled, selectedVoice, sleepMode,
  *                  pdfEnabled, bundleEnabled, videoEnabled }
  *
  *   state.contactName / contactEmail
  *     → contact: { name, email }
  *
  * Child reference photo: optional data URL or URL (server persists data URLs).
- * Extra characters: data URL until background upload completes, then public URL (`imageUrl`);
- * orders API accepts either `imageDataUrl` or `imageUrl`.
  */
 function buildWizardPayload() {
   // Normalise topic IDs — content.js uses abbreviated keys, backend uses full keys.
@@ -2603,57 +2407,12 @@ function buildWizardPayload() {
   const combinedSuperpower = [...state.childSuperpower];
   if (state.childSuperpowerExtra) combinedSuperpower.push(state.childSuperpowerExtra);
 
-  const additionalCharacters = state.extraCharacters
-    .slice(0, MAX_EXTRA_CHARACTERS)
-    .map((character) => {
-      const photoOk =
-        typeof character.photo === 'string' &&
-        character.photoQuality?.status !== PHOTO_QUALITY_STATUS.BLOCKED;
-      const isHttpUrl =
-        typeof character.photo === 'string' &&
-        (character.photo.startsWith('https://') || character.photo.startsWith('http://'));
-      const isDataUrl =
-        typeof character.photo === 'string' && character.photo.startsWith('data:image/');
-      return {
-        relation: (character.relation || 'other').trim(),
-        name: (character.name || '').trim(),
-        description: (character.description || '').trim(),
-        imageDataUrl: photoOk && isDataUrl ? character.photo : null,
-        imageUrl: photoOk && isHttpUrl ? character.photo : null,
-        photoQuality:
-          character.photoQuality &&
-          typeof character.photoQuality === 'object'
-            ? character.photoQuality
-            : null,
-      };
-    })
-    .filter((character) => character.name.length > 0);
-
-  const familyContext = additionalCharacters.length > 0
-    ? {
-        additionalCharacters,
-        // Legacy mirror for existing flows that still inspect parent1/parent2.
-        ...(additionalCharacters[0]
-          ? {
-              parent1: {
-                name: additionalCharacters[0].name,
-                description: additionalCharacters[0].description || undefined,
-              },
-            }
-          : {}),
-        ...(additionalCharacters[1]
-          ? {
-              parent2: {
-                name: additionalCharacters[1].name,
-                description: additionalCharacters[1].description || undefined,
-              },
-            }
-          : {}),
-      }
-    : null;
+  const dedicationRaw = typeof state.dedication === 'string' ? state.dedication.trim() : '';
+  const dedication = dedicationRaw.length > 0 ? dedicationRaw.slice(0, 300) : null;
 
   return {
     bookName: state.bookName || null,
+    dedication,
     child: {
       name:       state.childName,
       age:        state.childAge        || null,
@@ -2667,7 +2426,7 @@ function buildWizardPayload() {
     challengeCategory: state.challengeCategory || null,
     companionCharacterId: state.companionCharacterId || null,
     categoryAnswers: state.categoryAnswers || [],
-    familyContext,
+    familyContext: null,
     challenge: {
       selected: state.difficulties,
       freeText: state.s4extra || null,
@@ -2685,10 +2444,14 @@ function buildWizardPayload() {
       freeText: state.s7extra || null,
     },
     product: {
-      length:            state.length,
+      direction:         state.storyDirection,
+      length:            STORY_LENGTH_FROM_DIRECTION[state.storyDirection] || 'medium',
       illustrationStyle: normalizeClientStyleId(state.style),
       audioEnabled:      state.audioEnabled,
-      selectedVoice:     state.audioEnabled ? (state.voice || null) : null,
+      selectedVoice:
+        state.audioEnabled || state.videoEnabled || state.bundleEnabled
+          ? (state.voice || null)
+          : null,
       sleepMode:         state.sleepMode,
       pdfEnabled:        state.pdfEnabled,
       bundleEnabled:     state.bundleEnabled,
@@ -2776,7 +2539,7 @@ async function handleSubmit() {
     payBtn.classList.add('is-pressed');
   }
   setPayBtnState(true);
-  track('checkout_started', { topic: state.topic, length: state.length });
+  track('checkout_started', { topic: state.topic, storyDirection: state.storyDirection });
 
   try {
     const payload = {

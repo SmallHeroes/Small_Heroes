@@ -270,6 +270,13 @@
   line-height: 1.2;
 }
 
+.direction-card-package {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #5c5348;
+}
+
 .direction-card-summary {
   color: var(--mid);
   line-height: 1.6;

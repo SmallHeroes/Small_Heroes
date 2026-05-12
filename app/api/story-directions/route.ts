@@ -4,12 +4,11 @@
  * ━━━ STORY DIRECTIONS — DEV / PRODUCT QA (manual checklist) ━━━
  * Before release or after prompt/style changes, spot-check one real order:
  *  - Exactly three cards render when ready; footer/CTA only in final state.
- *  - Same child resemblance cues (face, hair, age feel) across all three preview images.
- *  - Same illustration style across all three (matches order illustrationStyle).
+ *  - Preview images are static art per archetype (`/directions/*.jpg`), not generated portraits.
  *  - At a glance (~2s): three options feel emotionally distinct.
- *  - Connection: calm, warm, close / safe — not chaotic or high-stakes.
+ *  - Bedtime: calm, warm, close / safe — not chaotic or high-stakes.
  *  - Adventure: active, exploratory, forward motion — still child-safe, not scary.
- *  - Courage: mild tension or challenge moment — resolved or hopeful cue, still child-safe.
+ *  - Fantasy: whimsical, imaginative — child-safe surreal, not frightening.
  *  - CTA stays disabled until the user selects a card (partial state: no CTA / no selection).
  *  - Partial state copy + skeletons make it obvious this is not the final choice screen.
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -49,7 +48,7 @@ const ORDER_SELECT_FOR_DIRECTIONS_POST = {
 } as const;
 type OrderForDirectionsPost = Prisma.OrderGetPayload<{ select: typeof ORDER_SELECT_FOR_DIRECTIONS_POST }>;
 
-const ARCHETYPE_ORDER: StoryDirectionArchetype[] = ['connection', 'adventure', 'courage'];
+const ARCHETYPE_ORDER: StoryDirectionArchetype[] = ['bedtime', 'adventure', 'fantasy'];
 const SUMMARY_MAX_CHARS = 116;
 
 function childAgeBandLabel(age: number | null): string {
@@ -152,7 +151,7 @@ export async function GET(req: NextRequest) {
       where: { orderId },
       include: {
         directions: true,
-        order: { select: { childAge: true, illustrationStyle: true } },
+        order: { select: { childAge: true, illustrationStyle: true, storyDirection: true, storyLength: true } },
       },
     });
 
@@ -167,6 +166,8 @@ export async function GET(req: NextRequest) {
       meta: {
         child_age_band: childAgeBandLabel(orderRow.childAge),
         style: orderRow.illustrationStyle,
+        purchased_story_direction: orderRow.storyDirection,
+        purchased_story_length: orderRow.storyLength,
       },
     });
   } catch (error) {

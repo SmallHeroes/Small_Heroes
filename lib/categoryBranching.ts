@@ -23,9 +23,10 @@ export type EmotionalDomain =
   | 'BELONGING_RELATIONSHIPS'
   | 'LIFE_CHANGES'
   | 'ATTENTION_LEARNING'
+  | 'MEDICAL_ANXIETY'
   | 'UNCATEGORIZED';
 
-export type StoryDirectionFlavor = 'connection' | 'adventure' | 'courage';
+export type StoryDirectionFlavor = 'bedtime' | 'adventure' | 'fantasy';
 export type FollowUpQuestionItem = {
   id: string;
   question: string;
@@ -392,7 +393,7 @@ export const CATEGORY_BRANCHING: Record<ChallengeCategory, CategoryBranching> = 
     storyDirections: [
       {
         id: 'night_breath_of_home',
-        flavor: 'connection',
+        flavor: 'bedtime',
         title: 'מישהו נשאר איתי עד שזה שקט',
         realWorldAnchor: 'מיטה, שמיכה, אור עמום מהמסדרון, דלת שקויה פתוחה, כוס מים, קול "עוד דקה" מבחוץ',
         summary:
@@ -414,7 +415,7 @@ export const CATEGORY_BRANCHING: Record<ChallengeCategory, CategoryBranching> = 
       },
       {
         id: 'night_one_small_light',
-        flavor: 'courage',
+        flavor: 'fantasy',
         title: 'האור הקטן שמדליקים לבד',
         realWorldAnchor: 'מנורת שולחן, מפסק, שקע, ספרון ליד המיטה, בקבוק מים, רגע אחד לפני "מדליקים"',
         summary:
@@ -465,7 +466,7 @@ export const CATEGORY_BRANCHING: Record<ChallengeCategory, CategoryBranching> = 
     storyDirections: [
       {
         id: 'noise_warm_earthquake',
-        flavor: 'connection',
+        flavor: 'bedtime',
         title: 'רעש גדול — אבל של חיבוק',
         realWorldAnchor: 'מדרגות, בניין, מרפסת, הורה שמאחד יד, כרית על האוזן — בום שמגיע *עם* מישהו',
         summary:
@@ -485,7 +486,7 @@ export const CATEGORY_BRANCHING: Record<ChallengeCategory, CategoryBranching> = 
       },
       {
         id: 'noise_their_beat',
-        flavor: 'courage',
+        flavor: 'fantasy',
         title: 'התוף ביד שלי, לא בפנים',
         realWorldAnchor: 'רצפה, דופק על השולחן, תוף, מחיאות, שיר אחד בקול *שלי*',
         summary:
@@ -536,7 +537,7 @@ export const CATEGORY_BRANCHING: Record<ChallengeCategory, CategoryBranching> = 
     storyDirections: [
       {
         id: 'fear_mentor_sameness',
-        flavor: 'connection',
+        flavor: 'bedtime',
         title: 'אני בדיוק הייתי שם, אבל הולך/ת',
         realWorldAnchor: 'ספה, אוזן, מים, הליכה, יד — מישהו ליד, לא "שיעור" על הפחד',
         summary:
@@ -556,7 +557,7 @@ export const CATEGORY_BRANCHING: Record<ChallengeCategory, CategoryBranching> = 
       },
       {
         id: 'fear_steps_tokens',
-        flavor: 'courage',
+        flavor: 'fantasy',
         title: 'אבן אחת בכל "עוד קצת"',
         realWorldAnchor: 'כיס, אבן, מטבע, שורה במחברת, חפץ *ממש* שמייצג צעד',
         summary:
@@ -607,7 +608,7 @@ export const CATEGORY_BRANCHING: Record<ChallengeCategory, CategoryBranching> = 
     storyDirections: [
       {
         id: 'anger_warm_vent',
-        flavor: 'connection',
+        flavor: 'bedtime',
         title: 'חבר שמבין את החום בפנים',
         realWorldAnchor: 'רצפה, שולחן משחק, קובייה או בובה, אח, הורה שמניח גבול, חדר — לא חושך, לא הירדמות',
         summary:
@@ -627,7 +628,7 @@ export const CATEGORY_BRANCHING: Record<ChallengeCategory, CategoryBranching> = 
       },
       {
         id: 'anger_one_breath',
-        flavor: 'courage',
+        flavor: 'fantasy',
         title: 'נשימה אחת בין "מלא" ליד',
         realWorldAnchor: 'שולחן, מפת משחק, קצה הכסא, היד על הרצפה, "עצור" אחד לפני היד נוגעת',
         summary:
@@ -678,7 +679,7 @@ export const CATEGORY_BRANCHING: Record<ChallengeCategory, CategoryBranching> = 
     storyDirections: [
       {
         id: 'sens_two_antennas',
-        flavor: 'connection',
+        flavor: 'bedtime',
         title: 'שניים כמוך — מדברים, לא "שתיקה"',
         realWorldAnchor: 'גן, קניות, ביקור, בגד, תג, רעש, אור עבה — *מי* איתך כשהכול "יותר מדי"',
         summary:
@@ -698,7 +699,7 @@ export const CATEGORY_BRANCHING: Record<ChallengeCategory, CategoryBranching> = 
       },
       {
         id: 'sens_rega_ritual',
-        flavor: 'courage',
+        flavor: 'fantasy',
         title: "מילה אחת: \"רֶגַע\" — בלי בושה",
         realWorldAnchor: 'שולחן, כיסא, פינה, יד לפני פה, "עצור" לפני אמא, דלת שסוגרים לשנייה',
         summary:
@@ -749,7 +750,7 @@ export const CATEGORY_BRANCHING: Record<ChallengeCategory, CategoryBranching> = 
     storyDirections: [
       {
         id: 'social_two_moons',
-        flavor: 'connection',
+        flavor: 'bedtime',
         title: "שני מי שעומדים בצד — מוצאים אחד את השני",
         realWorldAnchor: 'נדנדה, שולחן קפה, פינה בגן, שער, ספסל, עיניים, מילה אחת ביניהם',
         summary:
@@ -769,7 +770,7 @@ export const CATEGORY_BRANCHING: Record<ChallengeCategory, CategoryBranching> = 
       },
       {
         id: 'social_the_ask',
-        flavor: 'courage',
+        flavor: 'fantasy',
         title: "שלום, או \"אפשר איתכם?\"",
         realWorldAnchor: "דלת כיתה, שולחן, משחק, קול, 'מצמצו', יד בכיס",
         summary:
@@ -820,7 +821,7 @@ export const CATEGORY_BRANCHING: Record<ChallengeCategory, CategoryBranching> = 
     storyDirections: [
       {
         id: 'confidence_both_doubt',
-        flavor: 'connection',
+        flavor: 'bedtime',
         title: "גם לו/לה יש 'קול שקט' בתוך",
         realWorldAnchor: 'אוזן, ספה, הליכה, יד, מבט, לא בימה ולא "שיעור"',
         summary:
@@ -840,7 +841,7 @@ export const CATEGORY_BRANCHING: Record<ChallengeCategory, CategoryBranching> = 
       },
       {
         id: 'confidence_first_stumble',
-        flavor: 'courage',
+        flavor: 'fantasy',
         title: 'ליפול פעם אחת — ולעמוד',
         realWorldAnchor: 'רצפה, יד, נשימה, "עוד אחת", אותו אובייקט — *ניסיון אחד* בחדר/במגרש',
         summary:
@@ -891,7 +892,7 @@ export const CATEGORY_BRANCHING: Record<ChallengeCategory, CategoryBranching> = 
     storyDirections: [
       {
         id: 'sibling_crown_first',
-        flavor: 'connection',
+        flavor: 'bedtime',
         title: "קודם/ת כאן — הטקס של ה\"ראשון/ת\"",
         realWorldAnchor: 'מיטה, לילה, שגרה, חדר, יד, דקה *רק* של הגדול, מבט מההורה',
         summary:
@@ -911,7 +912,7 @@ export const CATEGORY_BRANCHING: Record<ChallengeCategory, CategoryBranching> = 
       },
       {
         id: 'sibling_one_share',
-        flavor: 'courage',
+        flavor: 'fantasy',
         title: "מחלקים *דבר* אחד — ובודקים בבטן",
         realWorldAnchor: 'שולחן, צעצוע, שיר, דקה, "עדיין מספיק לי" — *מעשה אחד*',
         summary:
@@ -962,7 +963,7 @@ export const CATEGORY_BRANCHING: Record<ChallengeCategory, CategoryBranching> = 
     storyDirections: [
       {
         id: 'transit_ferry_friend',
-        flavor: 'connection',
+        flavor: 'bedtime',
         title: "ליד מי שמכיר/ה *כמה* זה איטי",
         realWorldAnchor: "יד, ידיים, 'עוד שבוע', בית, גן, תיק, *קצב* — לא 'טוסק'",
         summary:
@@ -982,7 +983,7 @@ export const CATEGORY_BRANCHING: Record<ChallengeCategory, CategoryBranching> = 
       },
       {
         id: 'transit_pocket_stone',
-        flavor: 'courage',
+        flavor: 'fantasy',
         title: "החפץ שעובר איתי — *לא* בגלל שקל",
         realWorldAnchor: "אבן, כרטיס, שיר, ריח, תמונה, בד — *אותו* חפץ בכיס *גם* אחרי",
         summary:
@@ -1033,7 +1034,7 @@ export const CATEGORY_BRANCHING: Record<ChallengeCategory, CategoryBranching> = 
     storyDirections: [
       {
         id: 'focus_twin_inventor',
-        flavor: 'connection',
+        flavor: 'bedtime',
         title: "שני ראשים 'מלאים' — *לא* 'תרכזו כבר'",
         realWorldAnchor: "שולחן, שיעור, דף, 'רעיון אחד', ביחד, לא *שקט* כעונש",
         summary:
@@ -1053,7 +1054,7 @@ export const CATEGORY_BRANCHING: Record<ChallengeCategory, CategoryBranching> = 
       },
       {
         id: 'focus_one_finish',
-        flavor: 'courage',
+        flavor: 'fantasy',
         title: "סוגרים *משהו אחד* — עד שיש \"סיימתי\"",
         realWorldAnchor: "דף, בנייה, חפץ, 'עד כאן', שולחן, יד, קו שמאחוריו *סגור*",
         summary:
@@ -1107,7 +1108,7 @@ export const CATEGORY_BRANCHING: Record<ChallengeCategory, CategoryBranching> = 
     storyDirections: [
       {
         id: 'medical_guide_through',
-        flavor: 'connection',
+        flavor: 'bedtime',
         title: 'המלווה שעובר את זה *איתך* — לא *במקומך*',
         realWorldAnchor: "חדר, מיטה, יד, 'אני פה', נשימה, סוף — *חזרה*",
         summary:
@@ -1127,7 +1128,7 @@ export const CATEGORY_BRANCHING: Record<ChallengeCategory, CategoryBranching> = 
       },
       {
         id: 'medical_armor_built',
-        flavor: 'courage',
+        flavor: 'fantasy',
         title: 'השריון שנבנה *מהרעש* — כי עברת',
         realWorldAnchor: "גוף, עור, *סימן*, 'עברתי את זה', חוזק — *מבפנים*",
         summary:
@@ -1175,7 +1176,7 @@ export const CATEGORY_BRANCHING: Record<ChallengeCategory, CategoryBranching> = 
     storyDirections: [
       {
         id: 'other_mirroring_ally',
-        flavor: 'connection',
+        flavor: 'bedtime',
         title: "המלווה — לפי *המילים* שלכם, לא \"תבנית\"",
         realWorldAnchor: "מה שאמרת בטופס: חפץ, מקום, בן-אדם, זמן — *זה* נכנס בזהות, לא 'דוגמה אחת לכולם'",
         summary:
@@ -1195,7 +1196,7 @@ export const CATEGORY_BRANCHING: Record<ChallengeCategory, CategoryBranching> = 
       },
       {
         id: 'other_quiet_next_step',
-        flavor: 'courage',
+        flavor: 'fantasy',
         title: "מעשה *אחד* — לא נאום",
         realWorldAnchor: "שולחן, דלת, הורה, חבר, *מעשה* של גוף, לא *תובנה*",
         summary:
@@ -1293,6 +1294,7 @@ export const DOMAIN_ORDER: EmotionalDomain[] = [
   'BELONGING_RELATIONSHIPS',
   'LIFE_CHANGES',
   'ATTENTION_LEARNING',
+  'MEDICAL_ANXIETY',
   'UNCATEGORIZED',
 ];
 
@@ -1302,5 +1304,6 @@ export const DOMAIN_LABELS_HE: Record<EmotionalDomain, string> = {
   BELONGING_RELATIONSHIPS: 'שייכות וקשרים',
   LIFE_CHANGES: 'שינויי חיים',
   ATTENTION_LEARNING: 'קשב ולמידה',
+  MEDICAL_ANXIETY: 'טיפולים רפואיים',
   UNCATEGORIZED: 'אחר',
 };
