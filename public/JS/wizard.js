@@ -48,6 +48,19 @@ const WIZ_DEFAULTS = {
     s5: { title: '', sub: '', sub2: '' },
     s6: { title: '', sub: '', sub2: '', extraLabel: '', extraPlaceholder: '' },
     s7: { title: '', sub: '', sub2: '', extraLabel: '', extraPlaceholder: '' },
+    s8a: {
+      title: '', sub: '', directionTitle: '', lengthTitle: '', styleLabel: '',
+    },
+    s8b: {
+      title: '', sub: '', addonsSub: '', addonsExpanded: '', addonsCollapsed: '',
+      voiceTitle: '', voicePreview: '',
+      audio: { badge: '', name: '', desc: '' },
+      pdf: { badge: '', name: '', desc: '' },
+      video: { badge: '', name: '', desc: '' },
+      bundle: { badge: '', name: '', desc: '' },
+      sleep: { name: '', desc: '' },
+    },
+    /** Alias of addon copy (mirrors `s8b`). Kept so older merge paths remain valid. */
     s8: {
       title: '', sub: '', directionTitle: '', lengthTitle: '', styleLabel: '', addonsSub: '', addonsExpanded: '', addonsCollapsed: '',
       voiceTitle: '', voicePreview: '',
@@ -76,6 +89,24 @@ const WIZ_DEFAULTS = {
 };
 const HE_CONTENT = globalThis.CONTENT?.he || {};
 const WIZ_INPUT = HE_CONTENT.wizard || {};
+
+function mergeWizardStep8b(defaultsBlk, inputBlk) {
+  const b = defaultsBlk || {};
+  const i = inputBlk || {};
+  return {
+    ...b,
+    ...i,
+    audio: { ...b.audio, ...(i.audio || {}) },
+    pdf: { ...b.pdf, ...(i.pdf || {}) },
+    video: { ...b.video, ...(i.video || {}) },
+    bundle: { ...b.bundle, ...(i.bundle || {}) },
+    sleep: { ...b.sleep, ...(i.sleep || {}) },
+  };
+}
+
+const WIZ_STEPS_IN = WIZ_INPUT.steps || {};
+const WIZ_S8B_MERGED = mergeWizardStep8b(WIZ_DEFAULTS.steps.s8b, WIZ_STEPS_IN.s8b);
+
 const WIZ = {
   ...WIZ_DEFAULTS,
   ...WIZ_INPUT,
@@ -93,15 +124,12 @@ const WIZ = {
       ...WIZ_DEFAULTS.steps.categoryFollowup,
       ...((WIZ_INPUT.steps || {}).categoryFollowup || {}),
     },
-    s8: {
-      ...WIZ_DEFAULTS.steps.s8,
-      ...(((WIZ_INPUT.steps || {}).s8 || {})),
-      audio: { ...WIZ_DEFAULTS.steps.s8.audio, ...(((((WIZ_INPUT.steps || {}).s8 || {}).audio) || {}) ) },
-      pdf: { ...WIZ_DEFAULTS.steps.s8.pdf, ...(((((WIZ_INPUT.steps || {}).s8 || {}).pdf) || {}) ) },
-      video: { ...WIZ_DEFAULTS.steps.s8.video, ...(((((WIZ_INPUT.steps || {}).s8 || {}).video) || {}) ) },
-      bundle: { ...WIZ_DEFAULTS.steps.s8.bundle, ...(((((WIZ_INPUT.steps || {}).s8 || {}).bundle) || {}) ) },
-      sleep: { ...WIZ_DEFAULTS.steps.s8.sleep, ...(((((WIZ_INPUT.steps || {}).s8 || {}).sleep) || {}) ) },
+    s8a: {
+      ...WIZ_DEFAULTS.steps.s8a,
+      ...(WIZ_STEPS_IN.s8a || {}),
     },
+    s8b: WIZ_S8B_MERGED,
+    s8: WIZ_S8B_MERGED,
     sBook: {
       ...WIZ_DEFAULTS.steps.sBook,
       ...(((WIZ_INPUT.steps || {}).sBook || {})),
@@ -259,6 +287,9 @@ const state = {
   currentStep: 1,
   totalSteps: 13,
 
+  /** Step 11 only: false = ספר structure (כיוון+סגנון), true = שדרוגים */
+  packageSubStep: false,
+
   topic: null,
   topicLabel: '',
   /** Narrative bucket for companion art + prompts (e.g. NOISE_FEAR). */
@@ -385,10 +416,11 @@ function restoreWizardState() {
     if (!Array.isArray(state.avoid)) state.avoid = [];
     if (!Array.isArray(state.categoryAnswers)) state.categoryAnswers = [];
     if (typeof state.dedication !== 'string') state.dedication = '';
-    if (typeof state.videoEnabled !== 'boolean') state.videoEnabled = false;
+    if (typeof state.videoEnabled !== 'boolean')     state.videoEnabled = false;
     state.audioEnabled = Boolean(state.audioEnabled);
     state.pdfEnabled = Boolean(state.pdfEnabled);
     state.bundleEnabled = Boolean(state.bundleEnabled);
+    if (typeof state.packageSubStep !== 'boolean') state.packageSubStep = false;
     state.style = normalizeClientStyleId(state.style);
     state.photo = null;
     return true;
@@ -864,27 +896,25 @@ function initWizardContent() {
   if (s7ta) s7ta.placeholder = WIZ.steps.s7.extraPlaceholder;
   WIZ.avoid.forEach((a, i) => setText('s7Chip' + i, a.label));
 
-  // Step 9 — package (was step 8)
-  setText('s8Title',       WIZ.steps.s8.title);
-  setText('s8Sub',         WIZ.steps.s8.sub);
-  setText('s8LengthTitle', WIZ.steps.s8.directionTitle || WIZ.steps.s8.lengthTitle);
-  setText('s8StyleLabel',  WIZ.steps.s8.styleLabel);
-  setText('s8AddonSub',    WIZ.steps.s8.addonsSub);
-  setText('s8AudioBadge',  WIZ.steps.s8.audio.badge);
-  setText('s8AudioName',   WIZ.steps.s8.audio.name);
-  setText('s8AudioDesc',   WIZ.steps.s8.audio.desc);
-  setText('s8PdfBadge',    WIZ.steps.s8.pdf.badge);
-  setText('s8PdfName',     WIZ.steps.s8.pdf.name);
-  setText('s8PdfDesc',     WIZ.steps.s8.pdf.desc);
-  setText('s8VideoBadge',  WIZ.steps.s8.video.badge);
-  setText('s8VideoName',   WIZ.steps.s8.video.name);
-  setText('s8VideoDesc',   WIZ.steps.s8.video.desc);
-  setText('s8BundleBadge', WIZ.steps.s8.bundle.badge);
-  setText('s8BundleName',  WIZ.steps.s8.bundle.name);
-  setText('s8BundleDesc',  WIZ.steps.s8.bundle.desc);
-  setText('s8VoiceTitle',  WIZ.steps.s8.voiceTitle);
-  setText('s8SleepName',   WIZ.steps.s8.sleep.name);
-  setText('s8SleepDesc',   WIZ.steps.s8.sleep.desc);
+  // Step 11 — package (titles for 11a/11b are set in syncStep11SubView)
+  setText('s8LengthTitle', WIZ.steps.s8a.directionTitle || WIZ.steps.s8a.lengthTitle);
+  setText('s8StyleLabel',  WIZ.steps.s8a.styleLabel);
+  setText('s8AddonSub',    WIZ.steps.s8b.addonsSub);
+  setText('s8AudioBadge',  WIZ.steps.s8b.audio.badge);
+  setText('s8AudioName',   WIZ.steps.s8b.audio.name);
+  setText('s8AudioDesc',   WIZ.steps.s8b.audio.desc);
+  setText('s8PdfBadge',    WIZ.steps.s8b.pdf.badge);
+  setText('s8PdfName',     WIZ.steps.s8b.pdf.name);
+  setText('s8PdfDesc',     WIZ.steps.s8b.pdf.desc);
+  setText('s8VideoBadge',  WIZ.steps.s8b.video.badge);
+  setText('s8VideoName',   WIZ.steps.s8b.video.name);
+  setText('s8VideoDesc',   WIZ.steps.s8b.video.desc);
+  setText('s8BundleBadge', WIZ.steps.s8b.bundle.badge);
+  setText('s8BundleName',  WIZ.steps.s8b.bundle.name);
+  setText('s8BundleDesc',  WIZ.steps.s8b.bundle.desc);
+  setText('s8VoiceTitle',  WIZ.steps.s8b.voiceTitle);
+  setText('s8SleepName',   WIZ.steps.s8b.sleep.name);
+  setText('s8SleepDesc',   WIZ.steps.s8b.sleep.desc);
   setText('s8TotalLabel',  WIZ.summary.totalLabel);
   setText('bottomBarTotalLabel', 'סה"כ:');
 
@@ -932,12 +962,24 @@ function getAddonsTitle() {
   return document.getElementById("s8-addons-title");
 }
 
+function syncStep11SubView() {
+  if (state.currentStep !== 11) return;
+  const section = document.getElementById('step-11');
+  const styleCard = section?.querySelector('.s8-card--styles');
+  const addonsCard = section?.querySelector('.s8-card--addons');
+  const block = state.packageSubStep ? WIZ.steps.s8b : WIZ.steps.s8a;
+  setText('s8Title', block.title || '');
+  setText('s8Sub', block.sub || '');
+  if (styleCard) styleCard.hidden = Boolean(state.packageSubStep);
+  if (addonsCard) addonsCard.hidden = !state.packageSubStep;
+}
+
 /* ── WIZARD LAYOUT ───────────────────────────────────────────── */
 function syncWizardLayout() {
   const main = document.querySelector(".wizard-main");
   if (!main) return;
 
-  const open = isVoicePanelActive() && state.currentStep === 11;
+  const open = isVoicePanelActive() && state.currentStep === 11 && state.packageSubStep;
   main.classList.toggle("wizard-audio-open", open);
 }
 
@@ -1049,6 +1091,7 @@ function updateUI() {
   }
 
   if (state.currentStep === 11) {
+    syncStep11SubView();
     syncStep8Layout(true);
     refreshTotal();
   }
@@ -1071,6 +1114,8 @@ function updateUI() {
 
 /* ── NAVIGATION ──────────────────────────────────────────────── */
 function goNext() {
+  const stepBeforeAdvance = state.currentStep;
+
   if (state.currentStep === 3) {
     persistFollowupDraftFromDom();
   }
@@ -1136,7 +1181,21 @@ function goNext() {
     return;
   }
 
+  if (stepBeforeAdvance === 11 && !state.packageSubStep) {
+    state.packageSubStep = true;
+    updateUI();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+  if (stepBeforeAdvance === 11 && state.packageSubStep) {
+    state.packageSubStep = false;
+  }
+
   state.currentStep++;
+  if (state.currentStep === 11 && stepBeforeAdvance === 10) {
+    state.packageSubStep = false;
+  }
+
   updateUI();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -1157,7 +1216,24 @@ function shake(el) {
 function goBack() {
   if (state.currentStep <= 1) return;
 
+  if (state.currentStep === 12) {
+    state.currentStep = 11;
+    state.packageSubStep = true;
+    updateUI();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+
+  if (state.currentStep === 11 && state.packageSubStep) {
+    state.packageSubStep = false;
+    updateUI();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+
   state.currentStep--;
+  if (state.currentStep === 10) state.packageSubStep = false;
+
   updateUI();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -2070,12 +2146,13 @@ function syncStep8Layout(skipAnimation = false) {
   const voiceCol    = getVoiceCol();
   const grid        = getStep8Grid();
   const addonsTitle = getAddonsTitle();
-  const shouldShow  = isVoicePanelActive() && state.currentStep === 11;
+  const step11Addons = state.currentStep === 11 && state.packageSubStep;
+  const shouldShow = isVoicePanelActive() && step11Addons;
 
   if (addonsTitle) {
     addonsTitle.textContent = shouldShow
-      ? WIZ.steps.s8.addonsExpanded
-      : WIZ.steps.s8.addonsCollapsed;
+      ? WIZ.steps.s8b.addonsExpanded
+      : WIZ.steps.s8b.addonsCollapsed;
   }
 
   if (grid) {
@@ -2168,7 +2245,7 @@ function renderVoiceBtns() {
     btn.innerHTML = `
       <span class="voice-btn-emoji">${v.emoji}</span>
       <span class="voice-btn-label">${v.label}</span>
-      <span class="voice-play-btn" title="${WIZ.steps.s8.voicePreview}" aria-hidden="true">▶</span>
+      <span class="voice-play-btn" title="${WIZ.steps.s8b.voicePreview}" aria-hidden="true">▶</span>
     `;
 
     btn.addEventListener("click", () => {
