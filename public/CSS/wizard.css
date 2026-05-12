@@ -809,6 +809,19 @@
   grid-template-columns: 1fr 1fr 1fr;
 }
 
+/* Sub-step layout — only one card visible, center it */
+.s8-grid.s8-single-col {
+  grid-template-columns: minmax(0, 720px);
+  justify-content: center;
+  max-width: 100%;
+}
+
+@media (max-width: 640px) {
+  .s8-grid.s8-single-col {
+    grid-template-columns: 1fr;
+  }
+}
+
 .s8-card {
   background: rgba(255, 255, 255, .78);
   border-radius: 22px;
@@ -1593,6 +1606,19 @@
 .s8-grid.s8-three-col {
   --voice-col: 1fr;
   gap: 18px;
+}
+
+/* Step 11 sub-steps: one visible card — center stack (overrides 3-col voice grid) */
+#step-11 .s8-grid.s8-single-col {
+  grid-template-columns: minmax(0, 720px);
+  justify-content: center;
+  max-width: 100%;
+  margin-inline: auto;
+}
+
+#step-11 .s8-grid.s8-single-col.voice-open,
+#step-11 .s8-grid.s8-single-col.s8-three-col {
+  grid-template-columns: minmax(0, 720px);
 }
 
 .s8-card {

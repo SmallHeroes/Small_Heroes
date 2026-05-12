@@ -962,6 +962,18 @@ function getAddonsTitle() {
   return document.getElementById("s8-addons-title");
 }
 
+/** Step 11 sub-steps: one visible card — center grid, do not use 2/3-col package layout. */
+function applyStep11SubLayout() {
+  const grid = document.querySelector("#step-11 .s8-grid");
+  if (!grid) return;
+  if (state.currentStep === 11) {
+    grid.classList.add("s8-single-col");
+    grid.classList.remove("s8-three-col");
+  } else {
+    grid.classList.remove("s8-single-col");
+  }
+}
+
 function syncStep11SubView() {
   if (state.currentStep !== 11) return;
   const section = document.getElementById('step-11');
@@ -2161,6 +2173,7 @@ function syncStep8Layout(skipAnimation = false) {
   }
 
   syncWizardLayout();
+  applyStep11SubLayout();
 
   if (!voiceCol) return;
 
