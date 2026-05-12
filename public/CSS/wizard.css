@@ -480,6 +480,11 @@
   background: #fff;
 }
 
+.select-wrap {
+  position: relative;
+  display: block;
+}
+
 .select-wrap::after {
   content: '▼';
   position: absolute;
@@ -2135,6 +2140,30 @@
   font-size: 14px;
   color: #5c4b8a;
   font-weight: 600;
+}
+
+.price-row--total {
+  border-top: 1px solid #e1dcea;
+  margin-top: 8px;
+  padding-top: 12px;
+  font-weight: 700;
+  font-size: 17px;
+}
+
+.price-row--total .val {
+  color: var(--accent, #7c5ce0);
+  font-weight: 900;
+}
+
+.summary-row--soft {
+  opacity: 0.85;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.summary-row--soft .summary-val {
+  font-weight: 400;
+  color: #4a4358;
 }
 .summary-category-answers summary {
   cursor: pointer;
