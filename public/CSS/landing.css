@@ -741,7 +741,16 @@
 }
 
 .pricing-section {
-  background: var(--white);
+  background: var(--purple);
+  padding: 80px 0 72px;
+}
+
+.pricing-section .section-h2 {
+  color: #fff;
+}
+
+.pricing-section .section-sub {
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .pricing-sub {
@@ -767,7 +776,7 @@
   flex-direction: column;
   align-items: stretch;
   text-align: right;
-  box-shadow: 0 12px 34px rgba(17, 22, 34, 0.035);
+  box-shadow: 0 12px 34px rgba(17, 22, 34, 0.10);
   min-height: 100%;
 }
 
@@ -815,9 +824,9 @@
 }
 
 .price-name {
-  font-family: var(--fb);
+  font-family: var(--fd);
   font-size: 34px;
-  font-weight: 700;
+  font-weight: 900;
   color: var(--dark);
   line-height: 1.2;
   margin-bottom: 6px;
@@ -891,11 +900,11 @@
   margin-top: 22px;
   font-size: 16px;
   line-height: 1.7;
-  color: #6d7288;
+  color: rgba(255, 255, 255, 0.75);
 }
 
 .pricing-section+.faq-section {
-  padding-top: 40px;
+  padding-top: 64px;
 }
 
 .faq-wrap {
