@@ -885,9 +885,11 @@
 }
 
 .price-num span {
+  font-family: 'Heebo', sans-serif; /* override --fd — Abraham digits render incorrectly */
   font-size: 62px;
   font-weight: 900;
   line-height: 0.95;
+  font-feature-settings: "tnum"; /* tabular numerals for clean alignment */
 }
 
 .price-btn {
@@ -1381,7 +1383,9 @@
   }
 
   .price-num span {
+    font-family: 'Heebo', sans-serif;
     font-size: 52px;
+    font-feature-settings: "tnum";
   }
 
   .price-features li {
