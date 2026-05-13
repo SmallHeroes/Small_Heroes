@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { assignTemplatesForBook, textPlacementForTemplate, type BookPageTemplate } from '../../../../lib/bookPageLayout';
+import { deriveLayout, countHebrewWords } from '../../../../backend/providers/image-prompt-enricher';
 import { prisma } from '@/lib/prisma';
 import { createLogger } from '@/lib/logger';
 
@@ -186,8 +187,10 @@ export async function GET(
           imageUrl: p.imageAsset?.presentationUrl ?? p.imageAsset?.url ?? null,
         }));
         const fallbackTemplates = assignTemplatesForBook(templateInputs);
+        const interiorCount = pageRows.length;
         const contentPages = pageRows.map((p, i) => {
           const resolvedTemplate = normalizePageTemplate(p.pageTemplate) ?? fallbackTemplates[i];
+          const wordCount = countHebrewWords(p.text);
           return {
             pageNumber: p.pageNumber,
             text: p.text,
@@ -199,6 +202,13 @@ export async function GET(
             textZone: p.textZone ?? null,
             lighting: p.lighting ?? null,
             textColorScheme: p.textColorScheme ?? null,
+            pageLayout: deriveLayout({
+              pageNumber: p.pageNumber,
+              totalPages: interiorCount,
+              text: p.text,
+            }),
+            isLetter: false,
+            isQuietPage: wordCount < 20,
           };
         });
         const withCover = order.book?.coverImageUrl
@@ -213,6 +223,9 @@ export async function GET(
                 textPlacement: textPlacementForTemplate('full_bleed_overlay'),
                 isCover: true,
                 title: order.book?.title ?? '',
+                pageLayout: 'cover',
+                isLetter: false,
+                isQuietPage: false,
               },
               ...contentPages,
             ]
