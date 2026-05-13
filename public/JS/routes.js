@@ -1,7 +1,6 @@
 window.SH_ROUTES = Object.freeze({
   home: '/',
   wizard: '/wizard',
-  directions: '/directions',
   login: '/login',
   myBooks: '/my-books',
   generating: '/generating',

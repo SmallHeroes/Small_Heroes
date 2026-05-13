@@ -185,7 +185,6 @@ const WIZARD_SESSION_ID_STORAGE_KEY = 'smallheroes.wizardSessionId';
 const ROUTES = window.SH_ROUTES || {
   home: '/',
   wizard: '/wizard',
-  directions: '/directions',
   generating: '/generating',
   ready: '/ready',
   reader: '/reader',
@@ -2689,6 +2688,62 @@ function hidePhotoError() {
   if (el) el.hidden = true;
 }
 
+function resolveCheckoutPaymentUrl(url, orderId) {
+  try {
+    const parsed = new URL(String(url).trim(), window.location.origin);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      throw new Error('bad_protocol');
+    }
+    if (parsed.origin === window.location.origin) {
+      const p = parsed.pathname || '';
+      if (
+        p === '/' ||
+        p.startsWith('/wizard') ||
+        p.startsWith('/directions') ||
+        p.startsWith('/generating') ||
+        p.startsWith('/ready') ||
+        p.startsWith('/reader') ||
+        p.startsWith('/HTML/')
+      ) {
+        reportClientIssue('checkout_bad_redirect', { url: String(url).trim(), orderId });
+        throw new Error('checkout_invalid_payment_url');
+      }
+    }
+    return parsed.href;
+  } catch (error) {
+    if (error instanceof TypeError || (error instanceof Error && error.message === 'bad_protocol')) {
+      reportClientIssue('checkout_bad_redirect', { url: String(url).trim(), orderId });
+      throw new Error('checkout_invalid_payment_url');
+    }
+    throw error;
+  }
+}
+
+async function startCheckout(orderId, sessionId) {
+  const checkoutBody = { orderId, ...(sessionId ? { sessionId } : {}) };
+  if (clientApi && typeof clientApi.requestJson === 'function') {
+    return clientApi.requestJson('/api/checkout', {
+      fetch: {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(checkoutBody),
+      },
+      timeoutMs: 15000,
+      fallbackMessage: 'לא הצלחנו לפתוח את התשלום כרגע.',
+    });
+  }
+
+  const checkoutRes = await fetch('/api/checkout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(checkoutBody),
+  });
+  const data = await checkoutRes.json().catch(() => ({}));
+  return checkoutRes.ok
+    ? { ok: true, data }
+    : { ok: false, reason: 'http_error', message: data.error || 'checkout_failed' };
+}
+
 async function handleSubmit() {
   if (isSubmittingOrder) return;
   isSubmittingOrder = true;
@@ -2753,14 +2808,29 @@ async function handleSubmit() {
       throw new Error('יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏');
     }
 
+    const checkoutResponse = await startCheckout(orderId, payload.sessionId);
+    if (!checkoutResponse.ok) {
+      reportClientIssue('checkout_failed', {
+        reason: checkoutResponse.reason || 'request_failed',
+        orderId,
+      });
+      throw new Error(checkoutResponse.message || 'לא הצלחנו לפתוח את התשלום כרגע.');
+    }
+
+    const { url } = checkoutResponse.data || {};
+    if (!url) {
+      reportClientIssue('checkout_failed', { reason: 'missing_checkout_url', orderId });
+      throw new Error('לא הצלחנו לפתוח את התשלום כרגע.');
+    }
+
+    const payHref = resolveCheckoutPaymentUrl(url, orderId);
     clearWizardSessionId();
     try {
       sessionStorage.removeItem(WIZARD_STORAGE_KEY);
     } catch (_) {
       /* ignore */
     }
-    // Story directions load after order creation.
-    window.location.href = ROUTES.directions + '?orderId=' + encodeURIComponent(orderId);
+    window.location.href = payHref;
 
   } catch (err) {
     console.error('[Wizard] Submit failed:', err);

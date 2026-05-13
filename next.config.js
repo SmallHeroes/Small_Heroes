@@ -27,7 +27,6 @@ const nextConfig = {
     return [
       { source: '/index.html', destination: '/', permanent: true },
       { source: '/wizard.html', destination: '/wizard', permanent: true },
-      { source: '/directions.html', destination: '/directions', permanent: true },
       { source: '/generating.html', destination: '/generating', permanent: true },
       { source: '/ready.html', destination: '/ready', permanent: true },
       { source: '/reader.html', destination: '/reader', permanent: true },
@@ -35,7 +34,6 @@ const nextConfig = {
       { source: '/my-books.html', destination: '/my-books', permanent: true },
       { source: '/HTML/index.html', destination: '/', permanent: true },
       { source: '/HTML/wizard.html', destination: '/wizard', permanent: true },
-      { source: '/HTML/directions.html', destination: '/directions', permanent: true },
       { source: '/HTML/generating.html', destination: '/generating', permanent: true },
       { source: '/HTML/ready.html', destination: '/ready', permanent: true },
       { source: '/HTML/reader.html', destination: '/reader', permanent: true },
@@ -58,7 +56,6 @@ const nextConfig = {
       afterFiles: [
         { source: '/gate', destination: '/HTML/gate.html' },
         { source: '/wizard', destination: '/HTML/wizard.html' },
-        { source: '/directions', destination: '/HTML/directions.html' },
         { source: '/generating', destination: '/HTML/generating.html' },
         { source: '/ready', destination: '/HTML/ready.html' },
         { source: '/reader', destination: '/HTML/reader.html' },
