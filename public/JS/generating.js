@@ -19,7 +19,11 @@ const accessKey = new URLSearchParams(window.location.search).get('accessKey');
 // ─── DOM refs ─────────────────────────────────────────────────────────────────
 const pctEl          = document.getElementById('genPct');
 const barFill        = document.getElementById('genBarFill');
+const barFillLabel   = document.getElementById('genBarFillLabel');
 const statusEl       = document.getElementById('genStatusText');
+const etaEl          = document.getElementById('genEta');
+const reassureEl     = document.getElementById('genReassure');
+const closeNoteEl    = document.getElementById('genCloseNote');
 const floatersEl     = document.getElementById('genBarFloaters');
 const errorStateEl   = document.getElementById('genErrorState');
 const errorMsgEl     = document.getElementById('genErrorMsg');
@@ -35,7 +39,16 @@ const navCtaEl       = document.getElementById('navCta');
 const GEN_DEFAULTS = {
   pageTitle: 'גיבורים קטנים — יוצרים את הספר שלכם',
   headline: 'אנחנו מתחילים ליצור עכשיו את הספר שלכם',
-  statusInitial: 'מתחילים לייצר את הספר',
+  statusInitial: 'אוספים את הפרטים שלכם...',
+  statusCollecting: 'אוספים את הפרטים שלכם...',
+  statusWriting: 'כותבים את הסיפור...',
+  statusIllustrating: 'מציירים את האיורים...',
+  statusAssembling: 'מרכיבים את הספר...',
+  statusAlmostReady: 'כמעט מוכן...',
+  etaTemplate: 'בעוד כ-{minutes} דקות',
+  etaSoon: 'עוד רגע קטן',
+  reassure: 'זה לוקח כמה דקות — אפשר להישאר כאן ולראות את ההתקדמות.',
+  closeNote: 'אפשר לסגור את החלון, נשלח לכם אימייל כשהספר מוכן.',
   stallMessage: 'אנחנו ממשיכים להכין את הספר...',
   completionMessage: 'הספר כמעט מוכן...',
   errorTitle: 'משהו השתבש בדרך',
@@ -54,6 +67,22 @@ const HE_CONTENT = globalThis.CONTENT?.he || {};
 const GEN = { ...GEN_DEFAULTS, ...(HE_CONTENT.generating || {}) };
 const CMN = HE_CONTENT.common || {};
 const STATUS_LINES = GEN_DEFAULTS.statusLines;
+
+function statusTextForPct(pct) {
+  const value = Math.max(0, Math.min(100, pct));
+  if (value < 20) return GEN.statusCollecting || GEN.statusInitial;
+  if (value < 40) return GEN.statusWriting;
+  if (value < 60) return GEN.statusIllustrating;
+  if (value < 80) return GEN.statusAssembling;
+  return GEN.statusAlmostReady;
+}
+
+function etaTextForPct(pct) {
+  const remaining = Math.max(0, 100 - Math.max(0, Math.min(100, pct)));
+  if (remaining <= 8) return GEN.etaSoon;
+  const minutes = Math.max(1, Math.min(4, Math.ceil(remaining / 24)));
+  return (GEN.etaTemplate || 'בעוד כ-{minutes} דקות').replace('{minutes}', String(minutes));
+}
 
 // Internal-only mapping for API stages. Never rendered directly in UI.
 const STAGE_META = [
@@ -86,6 +115,9 @@ function wireStaticUI() {
   if (navCtaEl)       navCtaEl.textContent       = CMN.navCta;
   if (headlineTextEl) headlineTextEl.textContent = GEN.headline;
   if (statusEl)       statusEl.textContent       = GEN.statusInitial;
+  if (etaEl)          etaEl.textContent          = etaTextForPct(0);
+  if (reassureEl)     reassureEl.textContent     = GEN.reassure;
+  if (closeNoteEl)    closeNoteEl.textContent    = GEN.closeNote;
   if (errorTitleEl)   errorTitleEl.textContent   = GEN.errorTitle;
   if (errorBackEl)    errorBackEl.textContent    = GEN.errorBack;
 }
@@ -112,8 +144,12 @@ function animateTextSwap(el, text) {
 
 function refreshUI() {
   const clampedDisplay = Math.max(0, Math.min(100, displayPct));
-  pctEl.textContent   = Math.round(clampedDisplay) + '%';
+  const rounded = Math.round(clampedDisplay);
+  pctEl.textContent   = rounded + '%';
   barFill.style.width = clampedDisplay + '%';
+  if (barFillLabel) barFillLabel.textContent = rounded + '%';
+  animateTextSwap(statusEl, statusTextForPct(clampedDisplay));
+  if (etaEl) animateTextSwap(etaEl, etaTextForPct(clampedDisplay));
 }
 
 // Called when API reports a new currentStage value.
@@ -148,9 +184,6 @@ function startFloaters() {
 // ─── Cycling text ─────────────────────────────────────────────────────────────
 function cycleStatusText() {
   clearInterval(statusTimer);
-  statusTimer = setInterval(() => {
-    animateTextSwap(statusEl, randomFrom(STATUS_LINES[activeStageKey]));
-  }, 1900);
 }
 
 // ─── Smooth progress animation ────────────────────────────────────────────────

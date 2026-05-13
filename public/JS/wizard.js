@@ -1009,13 +1009,13 @@ function getAddonsTitle() {
   return document.getElementById("s8-addons-title");
 }
 
-/** Step 13 add-ons: center grid in a single column. */
+/** Step 13 add-ons: centered stack, or side-by-side when voice panel is open. */
 function applyAddonsStepLayout() {
   const grid = document.querySelector('#step-13 .s8-grid');
   if (!grid) return;
   if (state.currentStep === 13) {
-    grid.classList.add('s8-single-col');
-    grid.classList.remove('s8-three-col');
+    const split = isVoicePanelActive();
+    grid.classList.toggle('s8-single-col', !split);
   } else {
     grid.classList.remove('s8-single-col');
   }
@@ -1133,10 +1133,10 @@ function updateUI() {
     renderCompanionCards();
   }
 
-  // Show/hide total in bottom bar — package step has fixed direction default
+  // Running total appears from style step onward (direction locked).
   const bottomBarTotal = document.getElementById('bottom-bar-total');
   if (bottomBarTotal) {
-    bottomBarTotal.hidden = !(state.currentStep >= 11 && Boolean(state.storyDirection));
+    bottomBarTotal.hidden = !(state.currentStep >= 12 && Boolean(state.storyDirection));
   }
 
   if (state.currentStep === 11) {
@@ -2041,7 +2041,7 @@ function renderDirectionCards() {
       .join('');
 
     const pillHtml = d.parentPill
-      ? `<span class="direction-card-pill">${d.parentPill}</span>`
+      ? `<span class="direction-card-pill direction-card-pill--floating">${d.parentPill}</span>`
       : '';
 
     const ctaLabel = d.id === state.storyDirection
@@ -2055,7 +2055,7 @@ function renderDirectionCards() {
       <span class="direction-card-pages">${d.pagesLine || d.subtitle || ''}</span>
       <p class="direction-card-desc">${d.description || ''}</p>
       <ul class="direction-card-features">${featuresHtml}</ul>
-      <span class="direction-card-price">₪${d.price}</span>
+      <span class="direction-card-price">₪<span class="direction-card-price-digits">${d.price}</span></span>
       <span class="direction-card-cta">${ctaLabel}</span>
     `;
 
@@ -2229,14 +2229,31 @@ function syncStep8Layout(skipAnimation = false) {
   }
 
   if (grid) {
-    grid.classList.toggle("s8-three-col", shouldShow);
-    grid.classList.toggle("voice-open",   shouldShow);
+    grid.classList.toggle("voice-open", shouldShow);
+    if (state.currentStep === 13) {
+      grid.classList.remove("s8-three-col");
+    } else {
+      grid.classList.toggle("s8-three-col", shouldShow);
+    }
   }
 
   syncWizardLayout();
   applyAddonsStepLayout();
 
   if (!voiceCol) return;
+
+  if (state.currentStep === 13) {
+    voiceCol.style.maxHeight = '';
+    voiceCol.style.overflow = '';
+    voiceCol.style.willChange = 'opacity, transform';
+    voiceCol.style.transition = 'opacity 280ms ease, transform 280ms ease';
+    voiceCol.classList.toggle('hidden', !shouldShow);
+    voiceCol.classList.toggle('is-open', shouldShow);
+    voiceCol.style.pointerEvents = shouldShow ? 'auto' : 'none';
+    voiceCol.style.opacity = shouldShow ? '1' : '0';
+    voiceCol.style.transform = shouldShow ? 'translateX(0)' : 'translateX(-10px)';
+    return;
+  }
 
   if (skipAnimation) {
     voiceCol.classList.toggle("hidden",  !shouldShow);
@@ -2254,6 +2271,19 @@ function syncStep8Layout(skipAnimation = false) {
 
 function animateVoicePanel(panel, show) {
   if (!panel) return;
+
+  if (state.currentStep === 13) {
+    panel.style.maxHeight = '';
+    panel.style.overflow = '';
+    panel.style.willChange = 'opacity, transform';
+    panel.style.transition = 'opacity 280ms ease, transform 280ms ease';
+    panel.classList.toggle('hidden', !show);
+    panel.classList.toggle('is-open', show);
+    panel.style.pointerEvents = show ? 'auto' : 'none';
+    panel.style.opacity = show ? '1' : '0';
+    panel.style.transform = show ? 'translateX(0)' : 'translateX(-10px)';
+    return;
+  }
 
   panel.style.overflow    = "hidden";
   panel.style.willChange  = "opacity, transform, max-height";

@@ -24,65 +24,72 @@
 
 .gen-headline {
   font-family: var(--fd);
-  font-size: clamp(30px, 4.2vw, 56px);
-  font-weight: 900;
+  font-size: clamp(24px, 3.2vw, 38px);
+  font-weight: 800;
   color: var(--dark);
   line-height: 1.35;
-  margin: 0 0 24px;
+  margin: 0 0 18px;
+}
+
+.gen-hero {
+  width: 100%;
   display: flex;
-  align-items: center;
   justify-content: center;
-  flex-wrap: wrap;
-  gap: 8px;
+  margin: 0 0 22px;
 }
 
-.gen-sparkle {
-  display: inline-block;
-  animation: sparkle 2s ease-in-out infinite;
+.gen-hero-orbit {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  display: grid;
+  place-items: center;
 }
 
-.gen-bold {
-  font-weight: 900;
+.gen-hero-core {
+  font-size: 42px;
+  line-height: 1;
+  animation: genHeroPulse 2.4s ease-in-out infinite;
+  filter: drop-shadow(0 8px 18px rgba(132, 103, 255, 0.22));
 }
 
-.gen-pct-wrap {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 10px;
+.gen-hero-sparkle {
+  position: absolute;
+  font-size: 22px;
+  opacity: 0.85;
+  animation: genHeroFloat 3.2s ease-in-out infinite;
+}
+
+.gen-hero-sparkle--a {
+  top: 8px;
+  right: 10px;
+}
+
+.gen-hero-sparkle--b {
+  bottom: 12px;
+  left: 8px;
+  animation-delay: 0.8s;
+}
+
+.gen-hero-sparkle--c {
+  top: 42px;
+  left: 0;
+  animation-delay: 1.4s;
+}
+
+.gen-progress-panel {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
 }
 
 .gen-pct {
-  font-family: var(--fd);
-  font-size: 34px;
+  font-family: 'Heebo', sans-serif;
+  font-size: 42px;
   font-weight: 900;
   color: var(--purple);
   letter-spacing: 0.01em;
-  min-width: 82px;
-}
-
-.gen-worker {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 44px;
-}
-
-.worker-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: linear-gradient(180deg, #8f76ff, #6f5cf1);
-  animation: workerBounce 1.2s infinite ease-in-out;
-  opacity: 0.55;
-}
-
-.worker-dot:nth-child(2) {
-  animation-delay: 0.15s;
-}
-
-.worker-dot:nth-child(3) {
-  animation-delay: 0.3s;
+  margin: 0 0 12px;
 }
 
 .gen-bar-shell {
@@ -93,7 +100,7 @@
 
 .gen-bar-track {
   width: 100%;
-  height: 10px;
+  height: 12px;
   background: #e9e4f8;
   border-radius: 999px;
   direction: rtl;
@@ -105,10 +112,24 @@
   height: 100%;
   width: 0%;
   border-radius: 999px;
-  background: linear-gradient(to left, #6f5cf1, #8f76ff);
+  background: linear-gradient(to left, #6f5cf1, #b39cff);
   box-shadow: 0 0 18px rgba(132, 103, 255, 0.22);
   transition: width 90ms linear;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.gen-bar-fill-label {
+  font-family: 'Heebo', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  white-space: nowrap;
+  padding: 0 8px;
 }
 
 .gen-bar-fill::after {
@@ -144,47 +165,66 @@
 
 .gen-status-text {
   font-family: var(--fd);
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   color: #6f5cf1;
   min-height: 34px;
-  margin: 0;
+  margin: 0 0 8px;
   line-height: 1.5;
 }
 
+.gen-eta {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #5f5a70;
+}
+
+.gen-reassure {
+  margin: 0 0 18px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #7a7488;
+}
+
+.gen-close-note {
+  margin: 0;
+  max-width: 34rem;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #8c889f;
+}
+
 .gen-status-text,
-.gen-headline {
+.gen-headline,
+.gen-eta {
   opacity: 1;
   transform: translateY(0);
   transition: opacity 0.18s ease, transform 0.18s ease;
 }
 
 .gen-status-text.is-changing,
-.gen-headline.is-changing {
+.gen-headline.is-changing,
+.gen-eta.is-changing {
   opacity: 0;
   transform: translateY(6px);
 }
 
 .gen-status-text.is-visible,
-.gen-headline.is-visible {
+.gen-headline.is-visible,
+.gen-eta.is-visible {
   opacity: 1;
   transform: translateY(0);
 }
 
-@keyframes sparkle {
-  0%, 100% { transform: scale(1) rotate(0deg); }
-  50% { transform: scale(1.16) rotate(10deg); }
+@keyframes genHeroPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
 }
 
-@keyframes workerBounce {
-  0%, 80%, 100% {
-    transform: translateY(0);
-    opacity: 0.45;
-  }
-  40% {
-    transform: translateY(-7px);
-    opacity: 1;
-  }
+@keyframes genHeroFloat {
+  0%, 100% { transform: translateY(0); opacity: 0.65; }
+  50% { transform: translateY(-8px); opacity: 1; }
 }
 
 @keyframes barShine {
@@ -208,7 +248,6 @@
 }
 
 /* ─── Error state ────────────────────────────────────────────────────────── */
-/* Shown when status=failed or orderId is missing. Warm, not alarming.       */
 
 .gen-error-state {
   width: 100%;
@@ -266,16 +305,16 @@
   }
 
   .gen-headline {
-    font-size: 34px;
-    margin-bottom: 18px;
+    font-size: 28px;
+    margin-bottom: 14px;
   }
 
   .gen-pct {
-    font-size: 28px;
+    font-size: 34px;
   }
 
   .gen-status-text {
-    font-size: 17px;
+    font-size: 18px;
     min-height: 52px;
   }
 }
