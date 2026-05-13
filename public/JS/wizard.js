@@ -284,10 +284,7 @@ function normalizeClientStyleId(styleId) {
 /* ── STATE ──────────────────────────────────────────────────── */
 const state = {
   currentStep: 1,
-  totalSteps: 13,
-
-  /** Step 11 only: false = ספר structure (כיוון+סגנון), true = שדרוגים */
-  packageSubStep: false,
+  totalSteps: 15,
 
   topic: null,
   topicLabel: '',
@@ -323,7 +320,8 @@ const state = {
 
   /* product config — direction sets page count + base price */
   storyDirection: 'adventure', /* bedtime | adventure | fantasy */
-  style: "soft_hand_drawn_storybook",
+  style: null,
+  styleSelected: false,
   audioEnabled: false,
   voice: "mom", /* mom | dad | fairy */
   sleepMode: false,
@@ -348,6 +346,8 @@ const PRICES = {
 };
 
 const WIZARD_STORAGE_KEY = 'wizard_state';
+const PREFERRED_DIRECTION_STORAGE_KEY = 'preferredDirection';
+const VALID_STORY_DIRECTIONS = ['bedtime', 'adventure', 'fantasy'];
 
 /** Hint after resume: preview was stripped from sessionStorage. */
 let sessionExpectChildPhotoReplay = false;
@@ -360,6 +360,34 @@ function queueWizardSave() {
     wizardSaveQueued = false;
     saveWizardState();
   });
+}
+
+function applyInitialDirectionFromContext() {
+  const params = new URLSearchParams(window.location.search);
+  const directionParam = params.get('direction');
+  if (VALID_STORY_DIRECTIONS.includes(directionParam)) {
+    state.storyDirection = directionParam;
+    return;
+  }
+  try {
+    const stored = localStorage.getItem(PREFERRED_DIRECTION_STORAGE_KEY);
+    if (VALID_STORY_DIRECTIONS.includes(stored)) {
+      state.storyDirection = stored;
+      return;
+    }
+  } catch (_) {
+    /* localStorage unavailable */
+  }
+  state.storyDirection = 'adventure';
+}
+
+function persistPreferredDirection(direction) {
+  if (!VALID_STORY_DIRECTIONS.includes(direction)) return;
+  try {
+    localStorage.setItem(PREFERRED_DIRECTION_STORAGE_KEY, direction);
+  } catch (_) {
+    /* localStorage unavailable */
+  }
 }
 
 function saveWizardState() {
@@ -419,8 +447,14 @@ function restoreWizardState() {
     state.audioEnabled = Boolean(state.audioEnabled);
     state.pdfEnabled = Boolean(state.pdfEnabled);
     state.bundleEnabled = Boolean(state.bundleEnabled);
-    if (typeof state.packageSubStep !== 'boolean') state.packageSubStep = false;
-    state.style = normalizeClientStyleId(state.style);
+    if (typeof state.styleSelected !== 'boolean') {
+      state.styleSelected = Boolean(state.style);
+    }
+    if (state.style) {
+      state.style = normalizeClientStyleId(state.style);
+    } else {
+      state.style = null;
+    }
     state.photo = null;
     return true;
   } catch (_) {
@@ -778,17 +812,22 @@ function renderCompanionCards() {
 
 /* ── INIT ────────────────────────────────────────────────────── */
 function init() {
-  state.style = normalizeClientStyleId(state.style);
+  state.style = state.style ? normalizeClientStyleId(state.style) : null;
   pendingPhotoPickerOpen = false;
-  initWizardContent();   // bind all static text from CONTENT
+  initWizardContent();
   const restored = restoreWizardState();
+  if (!restored) {
+    applyInitialDirectionFromContext();
+    state.style = null;
+    state.styleSelected = false;
+  }
   bindDraftFieldPersistListeners();
   buildPills();
   renderTopics();
   renderTraits();
   renderSuperpowerChips();
-  renderDirectionBtns();
-  renderStyleBtns();
+  renderDirectionCards();
+  renderStyleStepGrid();
   renderVoiceBtns();
   bindPhotoUploadInteractions();
   restorePhotoQualityFromStorage();
@@ -836,6 +875,8 @@ function initWizardContent() {
   setText('s7micro',  WIZ.microcopy.s7);
   setText('s8micro',  WIZ.microcopy.s8);
   setText('s9micro',  WIZ.microcopy.s9);
+  setText('sStyleMicro', WIZ.microcopy.sStyle || '');
+  setText('sAddonsMicro', WIZ.microcopy.s8);
   setText('s10micro', WIZ.microcopy.s10);
   setText('s11micro', WIZ.microcopy.s11 || '');
 
@@ -895,9 +936,17 @@ function initWizardContent() {
   if (s7ta) s7ta.placeholder = WIZ.steps.s7.extraPlaceholder;
   WIZ.avoid.forEach((a, i) => setText('s7Chip' + i, a.label));
 
-  // Step 11 — package (titles for 11a/11b are set in syncStep11SubView)
-  setText('s8LengthTitle', WIZ.steps.s8a.directionTitle || WIZ.steps.s8a.lengthTitle);
-  setText('s8StyleLabel',  WIZ.steps.s8a.styleLabel);
+  // Step 11 — direction
+  setText('sDirectionTitle', WIZ.steps.sDirection.title);
+  setText('sDirectionSub',   WIZ.steps.sDirection.sub);
+
+  // Step 12 — style
+  setText('sStyleTitle', WIZ.steps.sStyle.title);
+  setText('sStyleSub',   WIZ.steps.sStyle.sub);
+
+  // Step 13 — add-ons
+  setText('s8Title', WIZ.steps.s8b.title);
+  setText('s8Sub',   WIZ.steps.s8b.sub);
   setText('s8AddonSub',    WIZ.steps.s8b.addonsSub);
   setText('s8AudioBadge',  WIZ.steps.s8b.audio.badge);
   setText('s8AudioName',   WIZ.steps.s8b.audio.name);
@@ -929,12 +978,11 @@ function initWizardContent() {
   const ded = document.getElementById('dedicationInput');
   if (ded && sBook.dedicationPlaceholder) ded.placeholder = sBook.dedicationPlaceholder;
 
-  // Step 13 — summary + payment
+  // Step 15 — summary + payment
   setText('s9Title',        WIZ.steps.s9.title);
   setText('s9Sub',          WIZ.steps.s9.sub);
-  setText('s9Card1Title',   WIZ.steps.s9.card1Title);
-  setText('s9Card2Title',   WIZ.steps.s9.card2Title);
-  setText('s9Card3Title',   WIZ.steps.s9.card3Title);
+  setText('s9CardBookTitle',    WIZ.steps.s9.cardBookTitle || WIZ.steps.s9.card2Title);
+  setText('s9CardDetailsTitle', WIZ.steps.s9.cardDetailsTitle || WIZ.steps.s9.card1Title);
   setText('s9NameLabel',    WIZ.steps.s9.nameLabel);
   setText('s9EmailLabel',   WIZ.steps.s9.emailLabel);
   setText('btn-pay',        WIZ.steps.s9.submitBtn);
@@ -961,28 +1009,16 @@ function getAddonsTitle() {
   return document.getElementById("s8-addons-title");
 }
 
-/** Step 11 sub-steps: one visible card — center grid, do not use 2/3-col package layout. */
-function applyStep11SubLayout() {
-  const grid = document.querySelector("#step-11 .s8-grid");
+/** Step 13 add-ons: center grid in a single column. */
+function applyAddonsStepLayout() {
+  const grid = document.querySelector('#step-13 .s8-grid');
   if (!grid) return;
-  if (state.currentStep === 11) {
-    grid.classList.add("s8-single-col");
-    grid.classList.remove("s8-three-col");
+  if (state.currentStep === 13) {
+    grid.classList.add('s8-single-col');
+    grid.classList.remove('s8-three-col');
   } else {
-    grid.classList.remove("s8-single-col");
+    grid.classList.remove('s8-single-col');
   }
-}
-
-function syncStep11SubView() {
-  if (state.currentStep !== 11) return;
-  const section = document.getElementById('step-11');
-  const styleCard = section?.querySelector('.s8-card--styles');
-  const addonsCard = section?.querySelector('.s8-card--addons');
-  const block = state.packageSubStep ? WIZ.steps.s8b : WIZ.steps.s8a;
-  setText('s8Title', block.title || '');
-  setText('s8Sub', block.sub || '');
-  if (styleCard) styleCard.hidden = Boolean(state.packageSubStep);
-  if (addonsCard) addonsCard.hidden = !state.packageSubStep;
 }
 
 /* ── WIZARD LAYOUT ───────────────────────────────────────────── */
@@ -990,7 +1026,7 @@ function syncWizardLayout() {
   const main = document.querySelector(".wizard-main");
   if (!main) return;
 
-  const open = isVoicePanelActive() && state.currentStep === 11 && state.packageSubStep;
+  const open = isVoicePanelActive() && state.currentStep === 13;
   main.classList.toggle("wizard-audio-open", open);
 }
 
@@ -1054,7 +1090,7 @@ function updateUI() {
   const photoReassure = document.getElementById("photo-step-reassure");
 
   if (bar && btn && backBtn) {
-    if (state.currentStep <= 2 || state.currentStep === 13) {
+    if (state.currentStep <= 2 || state.currentStep === 15) {
       bar.classList.add("hidden");
       if (btnAnyway) btnAnyway.hidden = true;
       if (photoReassure) photoReassure.hidden = true;
@@ -1066,14 +1102,16 @@ function updateUI() {
       } else {
         btn.textContent =
           state.currentStep === 6  ? WIZ.nav.continueToStory   :
-          state.currentStep === 10 ? WIZ.nav.continueToPackage :
-          state.currentStep === 12 ? WIZ.nav.continueToSummary :
+          state.currentStep === 10 ? WIZ.nav.continueToDirection :
+          state.currentStep === 14 ? WIZ.nav.continueToSummary :
           WIZ.nav.continueDefault;
         btn.onclick = goNext;
         if (btnAnyway) btnAnyway.hidden = true;
         if (photoReassure) photoReassure.hidden = true;
         if (state.currentStep === 4) {
           btn.disabled = !state.companionCharacterId;
+        } else if (state.currentStep === 12) {
+          btn.disabled = !state.styleSelected;
         } else {
           btn.disabled = false;
         }
@@ -1102,12 +1140,20 @@ function updateUI() {
   }
 
   if (state.currentStep === 11) {
-    syncStep11SubView();
+    renderDirectionCards();
+    refreshTotal();
+  }
+
+  if (state.currentStep === 12) {
+    renderStyleStepGrid();
+  }
+
+  if (state.currentStep === 13) {
     syncStep8Layout(true);
     refreshTotal();
   }
 
-  if (state.currentStep === 13) {
+  if (state.currentStep === 15) {
     buildSummary();
   }
 
@@ -1171,12 +1217,12 @@ function goNext() {
     state.s7extra = document.getElementById("s7-extra")?.value || "";
   }
 
-  if (state.currentStep === 12) {
+  if (state.currentStep === 14) {
     state.bookName = document.getElementById("bookNameInput")?.value.trim() || "";
     state.dedication = (document.getElementById("dedicationInput")?.value || "").slice(0, 300);
   }
 
-  if (state.currentStep === 13) {
+  if (state.currentStep === 15) {
     if (isSubmittingOrder) return;
     state.contactName  = document.getElementById("contact-name")?.value.trim() || "";
     state.contactEmail = document.getElementById("contact-email")?.value.trim() || "";
@@ -1192,19 +1238,25 @@ function goNext() {
     return;
   }
 
-  if (stepBeforeAdvance === 11 && !state.packageSubStep) {
-    state.packageSubStep = true;
-    updateUI();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    return;
+  if (stepBeforeAdvance === 11) {
+    persistPreferredDirection(state.storyDirection);
   }
-  if (stepBeforeAdvance === 11 && state.packageSubStep) {
-    state.packageSubStep = false;
+
+  if (stepBeforeAdvance === 12 && !state.styleSelected) {
+    const grid = document.getElementById('style-step-grid');
+    if (grid) {
+      grid.style.animation = 'none';
+      void grid.offsetHeight;
+      grid.style.animation = 'shake 0.4s ease';
+    }
+    return;
   }
 
   state.currentStep++;
-  if (state.currentStep === 11 && stepBeforeAdvance === 10) {
-    state.packageSubStep = false;
+  if (state.currentStep === 12 && stepBeforeAdvance === 11) {
+    state.style = null;
+    state.styleSelected = false;
+    renderStyleStepGrid();
   }
 
   updateUI();
@@ -1227,23 +1279,7 @@ function shake(el) {
 function goBack() {
   if (state.currentStep <= 1) return;
 
-  if (state.currentStep === 12) {
-    state.currentStep = 11;
-    state.packageSubStep = true;
-    updateUI();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    return;
-  }
-
-  if (state.currentStep === 11 && state.packageSubStep) {
-    state.packageSubStep = false;
-    updateUI();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    return;
-  }
-
   state.currentStep--;
-  if (state.currentStep === 10) state.packageSubStep = false;
 
   updateUI();
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1979,15 +2015,15 @@ async function handlePhoto(e) {
   reader.readAsDataURL(file);
 }
 
-/* ── STEP 11: DIRECTION / PACKAGE TIER (page count + base price) ─ */
-function renderDirectionBtns() {
-  const wrap = document.getElementById("length-btns");
+/* ── STEP 11: DIRECTION CARDS ─────────────────────────────────── */
+function renderDirectionCards() {
+  const wrap = document.getElementById('direction-cards');
   if (!wrap) return;
 
-  wrap.innerHTML = "";
-  wrap.style.direction = "rtl";
+  wrap.innerHTML = '';
+  wrap.style.direction = 'rtl';
 
-  const ORDER = { bedtime: 1, adventure: 2, fantasy: 3 };
+  const ORDER = { fantasy: 1, adventure: 2, bedtime: 3 };
   const pkgs = [...DIRECTION_PACKAGES].sort((a, b) => {
     const ao = ORDER[a.id] || 99;
     const bo = ORDER[b.id] || 99;
@@ -1995,50 +2031,76 @@ function renderDirectionBtns() {
   });
 
   pkgs.forEach((d) => {
-    const btn = document.createElement("button");
-    btn.type      = "button";
-    btn.className = "length-btn" + (d.id === state.storyDirection ? " selected" : "");
-    btn.innerHTML = `${d.label}<span class="pages">${d.pagesLine} · ₪${d.price}</span>`;
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'direction-card' + (d.id === state.storyDirection ? ' selected' : '');
+    card.setAttribute('data-direction', d.id);
 
-    btn.addEventListener("click", () => {
-      document.querySelectorAll(".length-btn").forEach((b) => b.classList.remove("selected"));
+    const featuresHtml = (d.features || [])
+      .map((feature) => `<li><span class="direction-card-feature-icon" aria-hidden="true">✨</span>${feature}</li>`)
+      .join('');
 
-      btn.classList.add("selected");
+    const pillHtml = d.parentPill
+      ? `<span class="direction-card-pill">${d.parentPill}</span>`
+      : '';
+
+    const ctaLabel = d.id === state.storyDirection
+      ? (d.ctaSelected || d.ctaChoose || 'זו הבחירה שלי')
+      : (d.ctaChoose || 'לבחירה');
+
+    card.innerHTML = `
+      ${pillHtml}
+      <span class="direction-card-kicker">${d.topLabel || d.label}</span>
+      <span class="direction-card-title">${d.title || d.label}</span>
+      <span class="direction-card-pages">${d.pagesLine || d.subtitle || ''}</span>
+      <p class="direction-card-desc">${d.description || ''}</p>
+      <ul class="direction-card-features">${featuresHtml}</ul>
+      <span class="direction-card-price">₪${d.price}</span>
+      <span class="direction-card-cta">${ctaLabel}</span>
+    `;
+
+    card.addEventListener('click', () => {
       state.storyDirection = d.id;
+      persistPreferredDirection(d.id);
+      renderDirectionCards();
       refreshTotal();
       const bbt = document.getElementById('bottom-bar-total');
       if (bbt) bbt.hidden = false;
+      const cont = document.getElementById('btn-continue');
+      if (cont && state.currentStep === 11) cont.disabled = false;
       queueWizardSave();
     });
 
-    wrap.appendChild(btn);
+    wrap.appendChild(card);
   });
 }
 
-/* ── STEP 8: STYLE BUTTONS ───────────────────────────────────── */
-function renderStyleBtns() {
-  const wrap = document.getElementById("style-btns");
+/* ── STEP 12: STYLE CARDS ────────────────────────────────────── */
+function renderStyleStepGrid() {
+  const wrap = document.getElementById('style-step-grid');
   if (!wrap) return;
 
-  wrap.innerHTML = "";
+  wrap.innerHTML = '';
 
   ILLUSTRATION_STYLES.forEach((s) => {
-    const btn = document.createElement("button");
-    btn.type      = "button";
-    btn.className = "style-btn style-card" + (s.id === state.style ? " selected" : "");
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'style-btn style-card style-step-card' + (s.id === state.style ? ' selected' : '');
     btn.innerHTML = `
       <span class="style-card-image-wrap">
         <img class="style-card-image" src="${getStylePreviewDataUrl(s.id)}" alt="${s.label}" />
       </span>
       <span class="style-card-name">${s.label}</span>
-      <span class="style-card-desc">${s.description || ""}</span>
+      <span class="style-card-desc">${s.description || ''}</span>
     `;
 
-    btn.addEventListener("click", () => {
-      document.querySelectorAll(".style-btn").forEach((b) => b.classList.remove("selected"));
-
-      btn.classList.add("selected");
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#style-step-grid .style-btn').forEach((b) => b.classList.remove('selected'));
+      btn.classList.add('selected');
       state.style = s.id;
+      state.styleSelected = true;
+      const cont = document.getElementById('btn-continue');
+      if (cont && state.currentStep === 12) cont.disabled = false;
       queueWizardSave();
     });
 
@@ -2157,8 +2219,8 @@ function syncStep8Layout(skipAnimation = false) {
   const voiceCol    = getVoiceCol();
   const grid        = getStep8Grid();
   const addonsTitle = getAddonsTitle();
-  const step11Addons = state.currentStep === 11 && state.packageSubStep;
-  const shouldShow = isVoicePanelActive() && step11Addons;
+  const step13Addons = state.currentStep === 13;
+  const shouldShow = isVoicePanelActive() && step13Addons;
 
   if (addonsTitle) {
     addonsTitle.textContent = shouldShow
@@ -2172,7 +2234,7 @@ function syncStep8Layout(skipAnimation = false) {
   }
 
   syncWizardLayout();
-  applyStep11SubLayout();
+  applyAddonsStepLayout();
 
   if (!voiceCol) return;
 
@@ -2332,7 +2394,32 @@ function buildSummary() {
   const voiceLabel = voiceObj?.label || "";
   const topicLabel = state.topicLabel || state.topic || "";
 
-  // ── Order summary rows ───────────────────────────────────────
+  const bookTitle = state.bookName || WIZ.summary.defaultHero || 'הגיבור/ה שלכם';
+
+  const bookPanelEl = document.getElementById('summary-book-panel');
+  if (bookPanelEl) {
+  const stylePreview = state.style ? getStylePreviewDataUrl(state.style) : '';
+    bookPanelEl.innerHTML = `
+      <div class="summary-book-preview">
+        ${stylePreview ? `<div class="summary-book-thumb"><img src="${stylePreview}" alt="" /></div>` : ''}
+        <div class="summary-book-meta">
+          <div class="summary-book-name">${bookTitle}</div>
+          <div class="summary-row">
+            <span class="summary-icon">📄</span>
+            <span class="summary-label">${WIZ.summary.lengthLabel}</span>
+            <span class="summary-val">${dirPkg?.title || lenLabel} · ${dirPages}</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-icon">🎨</span>
+            <span class="summary-label">${WIZ.summary.styleLabel}</span>
+            <span class="summary-val">${styleLabel}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ── Child + story details ───────────────────────────────────
   const sumEl = document.getElementById("order-summary");
   const bookNameInput = document.getElementById('bookNameInput');
   if (bookNameInput) bookNameInput.value = state.bookName || '';
@@ -2348,9 +2435,6 @@ function buildSummary() {
       : '';
 
     const rows = [
-      state.bookName
-        ? { icon: "📕", label: "שם הספר", val: state.bookName }
-        : null,
       {
         icon:  "👤",
         label: WIZ.summary.childNameLabel,
@@ -2359,12 +2443,6 @@ function buildSummary() {
       topicLabel
         ? { icon: "📖", label: WIZ.summary.topicLabel,  val: topicDisplayVal }
         : null,
-      {
-        icon:  "📄",
-        label: WIZ.summary.lengthLabel,
-        val:   `${lenLabel} (${dirPages})`,
-      },
-      { icon: "🎨", label: WIZ.summary.styleLabel, val: styleLabel },
       state.audioEnabled && !state.videoEnabled && !state.bundleEnabled
         ? { icon: "🎧", label: WIZ.summary.audioLabel, val: voiceLabel || "✓" }
         : null,
@@ -2699,7 +2777,6 @@ function resolveCheckoutPaymentUrl(url, orderId) {
       if (
         p === '/' ||
         p.startsWith('/wizard') ||
-        p.startsWith('/directions') ||
         p.startsWith('/generating') ||
         p.startsWith('/ready') ||
         p.startsWith('/reader') ||

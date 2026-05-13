@@ -248,25 +248,30 @@
       </div>
     </div>
 
-    <!-- ── Step 11 — Package ────────────────────────────────── -->
+    <!-- ── Step 11 — Direction ──────────────────────────────── -->
     <div class="step" id="step-11">
       <p class="step-microcopy" id="s9micro"></p>
+      <h2 class="step-title" id="sDirectionTitle"></h2>
+      <p class="step-sub" id="sDirectionSub"></p>
+      <div class="direction-step-grid" id="direction-cards" role="group" aria-label="בחירת כיוון סיפור"></div>
+    </div>
+
+    <!-- ── Step 12 — Style ──────────────────────────────────── -->
+    <div class="step" id="step-12">
+      <p class="step-microcopy" id="sStyleMicro"></p>
+      <h2 class="step-title" id="sStyleTitle"></h2>
+      <p class="step-sub" id="sStyleSub"></p>
+      <div class="style-step-grid" id="style-step-grid" role="group" aria-label="בחירת סגנון איור"></div>
+    </div>
+
+    <!-- ── Step 13 — Add-ons ───────────────────────────────── -->
+    <div class="step" id="step-13">
+      <p class="step-microcopy" id="sAddonsMicro"></p>
       <h2 class="step-title" id="s8Title"></h2>
       <p class="step-sub" id="s8Sub"></p>
 
       <div class="s8-layout">
         <div class="s8-grid" id="s8-grid">
-
-          <!-- Direction tier (page count + price) + Style -->
-          <div class="s8-card s8-card--styles">
-            <div class="s8-card-title" id="s8LengthTitle"></div>
-            <div class="length-btns" id="length-btns"></div>
-
-            <div class="style-label" id="s8StyleLabel"></div>
-            <div class="style-grid" id="style-btns"></div>
-          </div>
-
-          <!-- Addons card -->
           <div class="s8-card s8-card--addons">
             <div class="s8-card-title" id="s8-addons-title"></div>
             <div class="s8-card-sub" id="s8AddonSub"></div>
@@ -324,7 +329,6 @@
             </div>
           </div>
 
-          <!-- Voice panel (shown when audio/bundle active) -->
           <div class="s8-card s8-voice-col is-collapsed" id="s8-voice-col" aria-hidden="true">
             <div class="s8-card-title" id="s8VoiceTitle"></div>
             <div class="voice-btns" id="voice-btns"></div>
@@ -337,16 +341,14 @@
               <div class="sleep-checkbox" id="sleep-toggle"></div>
             </div>
           </div>
-
         </div>
 
-        <!-- Total moved to bottom bar -->
         <span id="total-price" hidden></span>
       </div>
     </div>
 
-    <!-- ── Step 12 — Book name + dedication ─────────────────── -->
-    <div class="step" id="step-12">
+    <!-- ── Step 14 — Book name + dedication ─────────────────── -->
+    <div class="step" id="step-14">
       <p class="step-microcopy" id="s11micro"></p>
       <h2 class="step-title" id="sBookTitle"></h2>
       <p class="step-sub" id="sBookSub"></p>
@@ -366,8 +368,8 @@
       <div class="char-count"><span id="dedicationCount">0</span>/300</div>
     </div>
 
-    <!-- ── Step 13 — Summary + Payment ─────────────────────── -->
-    <div class="step" id="step-13">
+    <!-- ── Step 15 — Summary + Payment ─────────────────────── -->
+    <div class="step" id="step-15">
       <p class="step-microcopy" id="s10micro"></p>
       <div style="text-align:center;margin-bottom:10px;">
         <span style="font-size:28px;">✨</span>
@@ -375,19 +377,16 @@
       <h2 class="step-title" id="s9Title" style="margin-bottom:6px;"></h2>
       <p class="step-title" id="s9Sub" style="font-size:clamp(18px,2.6vw,28px);margin-bottom:20px;"></p>
 
-      <div class="s9-grid">
-        <div class="s9-card">
-          <div class="s9-card-title" id="s9Card1Title"></div>
-          <div id="order-summary"></div>
-        </div>
-
-        <div class="s9-card">
-          <div class="s9-card-title" id="s9Card2Title"></div>
+      <div class="s9-grid s9-grid--balanced">
+        <div class="s9-card s9-card--book">
+          <div class="s9-card-title" id="s9CardBookTitle"></div>
+          <div id="summary-book-panel"></div>
           <div id="price-breakdown"></div>
         </div>
 
-        <div class="s9-card">
-          <div class="s9-card-title" id="s9Card3Title"></div>
+        <div class="s9-card s9-card--details">
+          <div class="s9-card-title" id="s9CardDetailsTitle"></div>
+          <div id="order-summary"></div>
           <div class="contact-form">
             <div class="form-group">
               <label class="form-label" id="s9NameLabel"></label>

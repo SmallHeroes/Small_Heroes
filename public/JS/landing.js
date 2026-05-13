@@ -138,6 +138,14 @@ function initLandingContent() {
     setText('pricingCard' + i + 'Price',   c.price);
     setText('pricingCard' + i + 'Cta',     c.cta);
     c.features.forEach((f, j) => setText('pricingCard' + i + 'Feature' + j, f));
+    const ctaEl = document.getElementById('pricingCard' + i + 'Cta');
+    if (ctaEl) {
+      const directionByCard = ['bedtime', 'adventure', 'fantasy'];
+      const direction = directionByCard[i];
+      if (direction) {
+        ctaEl.setAttribute('href', `${ROUTES.wizard}?direction=${direction}`);
+      }
+    }
   });
 
   // ── FAQ ───────────────────────────────────────────────────────────────────────
