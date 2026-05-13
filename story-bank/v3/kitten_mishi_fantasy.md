@@ -1,13 +1,13 @@
 # Story: kitten_mishi_fantasy — Story Bank v3
-Generated: 2026-05-12T21:18:21.962Z
+Generated: 2026-05-13T03:18:48.125Z
 Model: gpt-5.3-chat-latest
-Tokens: 9835→3807
+Tokens: 9835→3510
 Finish: completed
-Time: 51.4s
+Time: 51.9s
 
 ---
 ---
-title: "הַפַּעֲמוֹן שֶׁל מִישִׁי וְהָרַעַשׁ שֶׁלֹּא נַעֲשָׂה רַךְ"
+title: "הַשָּׁמַיִם הוֹלְכִים לַצַּד"
 companionId: kitten_mishi
 direction: fantasy
 category: SENSITIVITY_OVERWHELM
@@ -18,113 +18,147 @@ companionLetter:
   imageDirection: "close_shot: kitten mishi in contemplative pose, faint trace of the surreal world-rule still visible in the background, cool soft light, intimate framing, companion looking at child with quiet recognition"
 ---
 
-storyStyle: דמיון רך עם הומור פרכומי
-metaphor: רעשים שהופכים לכריות רכות דרך פרכום
-stakes: כל הרעשים יישארו קשים ויכאבו באוזניים של {{childName}} ולא ייעלמו
-weirdMoment: רעש כבד שנופל לרצפה כמו אבן ולא נהיה רך למרות פרכום
-emotionalArc: פרכום אוטומטי → ניסיונות לרכך → גילוי שזה לא עובד → קריסה ושקט → מפגש עם הקושי כפי שהוא
-quietPage: 15
-heartLine: מִישִׁי מוֹשֵׁךְ אֶת הַפַּעֲמוֹן קָרוֹב וְלֹא מְנַגֵּעַ בּוֹ
-copingVisible: 2,3,5,6,7,8,10,11
-collapsePoint: 13 כשהרעש נשאר קשה והפרכום מפסיק בבת אחת
-forbiddenPatterns: [1,4,5]
-emotionalMistake: 6 {{childName}} מתעצבן על מִישִׁי ואומר לו להפסיק לפרכם
-roughPages: 7 קטע מוזר עם כרית מדברת, 12 תגובה גדולה מדי של הפעמון
-uncomfortableTruth: 11 מִישִׁי מנסה לרכך ולא מצליח, וזה נשאר קשה
-endingType: distance
+storyStyle: דמיון פרוע עם שקטים קטנים באמצע  
+metaphor: פרכום שמנסה לרכך עולם שהולך לצד  
+stakes: אם לא יצליח לעצור רגע — השמיים ימשיכו לגלוש והעיר תישאר מוטה לנצח  
+weirdMoment: חלונות מחליקים על קירות כי השמיים הולכים הצידה  
+emotionalArc: סקרנות → בלגן → בלבול → עצירה → שקט משונה  
+quietPage: 15  
+heartLine: מִישִׁי מוֹרִיד אֶת הַפַּעֲמוֹן וּמַנִּיחַ אוֹתוֹ שָׁלוֹשׁ פְּעָמִים  
+copingVisible: 2,3,5,6,7,8  
+collapsePoint: 12 — הַפִּרְכּוּם לֹא מַרְכֵּךְ אֶת הַשָּׁמַיִם וְהַפַּעֲמוֹן מַצְלְצֵל בְּרֶצֶף  
+forbiddenPatterns: [1,3,5]  
+emotionalMistake: 6 — {{childName}} מִתְעַצְבֵּן עַל מִישִׁי וְאוֹמֵר לוֹ לְהַפְסִיק  
+roughPages: 7 (בְּדִיחָה לֹא מֻבָּנָה עַל כִּרִּית שֶׁמְּדַבֶּרֶת), 13 (שִׁנּוּי טוֹן חַד)  
+uncomfortableTruth: 10 — מִישִׁי מְנַסֶּה לַעֲזוֹר וְרַק מַחְלִיק יוֹתֵר  
+endingType: distance  
 
 --- Page 1 ---
-בַּחַלּוֹן הַמּוּאָר, הָרַעַשׁ הָיָה נוֹפֵל לְרִצְפָּה. טוּם. טוּם. כְּמוֹ אֲבָנִים כְּבֵדוֹת. {{childName}} הִסְתַּכֵּל. "לָמָּה הָרַעַשׁ נוֹפֵל?" הַרִצְפָּה עָשְׂתָה דַּק-דַּק מֵהַמַּכּוֹת.
+בַּבֹּקֶר, הַשָּׁמַיִם לֹא עָלוּ לְמַעְלָה. הֵם הָלְכוּ לַצַּד.  
+הֶעָנָנִים נִמְשְׁכוּ כְּמוֹ צָעִיף לְאֹרֶךְ הַחַלּוֹן.  
+{{childName}} הוֹשִׁיט יָד — וְהַאוֹר בָּרַח מִמֶּנָּה.
 
-imageDirection: wide_shot: child standing in a room where visible sound blobs fall like stones to the floor, glowing slightly; window light, Mishi curled on sill watching
+imageDirection: wide_shot: sideways sky sliding across window, boy reaching hand, room tilted light, clouds stretched horizontally
 
 --- Page 2 ---
-מִישִׁי הַחֲתַלְתּוּל הָיָה מְקֻפָּל עַל הַמַּדָּף. עֵינַיִם חֲצִי סְגוּרוֹת. "מ-מ-מ-יָאוּ..." וּמִיָּד הִתְחִיל לְפַרְכֵּם. הָרַעַשׁ שֶׁנָּפַל נַעֲשָׂה כָּרִית רַכָּה. הַפַּעֲמוֹן צִלְצֵל קְצָת.
+עַל אֶדֶן הַחַלּוֹן שָׁכַב מִישִׁי, מְקֻפָּל כְּמוֹ עֲנָן קָטָן.  
+הַשְּׂפָמִים שֶׁלּוֹ זָקְפוּ בְּקוֹץ.  
+"מ-מ-מ-יָאוּ... מָה?" הַפַּעֲמוֹן צִלְצֵל קְצָת.
 
-imageDirection: medium_shot: Mishi purring, soft vibration turning a falling sound-stone into a fluffy cushion; bell slightly ringing, child watching
+imageDirection: close_shot: Mishi curled on windowsill, whiskers raised, small bell collar, half-closed eyes, boy nearby
 
 --- Page 3 ---
-עוֹד רַעַשׁ נָפַל. טוּם! מִישִׁי פִּרְכֵּם חָזָק יוֹתֵר. הַכָּרִית קָפְצָה. "מָה?" הוּא אָמַר בְּקוֹל נִמְתָּח. {{childName}} נִגַּע בָּהּ. רַךְ. נָעִים. אֲבָל הָרַעַשׁ הַבָּא—נָפַל גָּדוֹל יוֹתֵר.
+הַסְּפָרִים עַל הַמַּדָּף הִתְחִילוּ לִגְלוֹשׁ לַצַּד.  
+אֶחָד נִתְקַע בַּקִּיר וְאָמַר "טִיק".  
+מִישִׁי פִּרְכֵּם רַךְ. הַפַּרְוָה שֶׁלּוֹ בָּלְעָה אֶת הָרַעַשׁ.
 
-imageDirection: close_shot: child's hand touching a soft cushion made of sound, another larger sound-stone mid-fall; Mishi vibrating
+imageDirection: medium_shot: books sliding sideways on shelf, one stuck mid-air, Mishi vibrating gently, boy watching
 
 --- Page 4 ---
-הַשְּׂפָמִים שֶׁל מִישִׁי הִתְרָעֲדוּ לִפְנֵי הַנְּפִילָה. הַפַּעֲמוֹן—טִינְג! "מ-מ-מ-יָאוּ..." הוּא נִסָּה לְהַקְדִּים. הָרַעַשׁ הִכָּה בָּרִצְפָּה וְנִשְׁאַר קָשֶׁה. לֹא כָּרִית.
-
-imageDirection: low_angle: a large sound-stone hits floor, cracks, remains hard; Mishi whiskers trembling, bell ringing
+"אִם הַכֹּל זוֹז — נְרַכֵּךְ!" אָמַר מִישִׁי בְּפִּרְכּוּם קַל, הַגּוּף שֶׁלּוֹ רוֹטֵט וּמִתְכַּוֵּץ.  
+הוּא הִתְגַּלְגֵּל לְכִרִּית הָרַכָּה, הַבַּד מְלַטֵּף אֶת הַפָּנִים, וְעָשָׂה "ממממ" עָמוֹק וְחוֹם.  
+הַכִּרִּית זָזָה תַּחְתָּיו... וְהִמְשִׁיכָה לִבְרֹחַ לַצַּד בְּרַחַשׁ חָרִיק קַל.
+imageDirection: medium_shot: Mishi rolling onto pillow, purring, pillow sliding sideways, boy reaching
 
 --- Page 5 ---
-"מִישִׁי, תַּעֲשֶׂה עוֹד!" קָרָא {{childName}}. מִישִׁי פִּרְכֵּם מַהֵר. הַגּוּף רָעַד כְּמוֹ מִכּוֹנָה קְטַנָּה. הַפַּעֲמוֹן צִלְצֵל יוֹתֵר. הָרַעַשׁ זָז קְצָת—וְשׁוּב הִתְקַשֶּׁה.
-
-imageDirection: medium_shot: Mishi vibrating intensely, bell ringing faster, sound-stone wobbling but still hard; child leaning forward
+{{childName}} נִסָּה לִתְפֹּס אֶת הַכִּרִּית בִּשְׁתֵּי יָדַיִם, הָאֶצְבָּעוֹת נִצְמָדוֹת וּמִתְהַדְּקוֹת.  
+הִיא הִתְחַמְּקָה כְּמוֹ דָּג יָבֵשׁ, חַלָּקָה וּמַחְלִיקָה מִתַּחַת לַכַּף.  
+מִישִׁי פִּרְכֵּם יוֹתֵר, הַזָּנָב רוֹטֵט, וְהַפַּעֲמוֹן מְצַלְצֵל: טִינְג-טִינְג.
+imageDirection: low_angle: boy lunging for sliding pillow, Mishi vibrating stronger, bell ringing, tilted floor
 
 --- Page 6 ---
-"דַּי!" אָמַר {{childName}} בְּקוֹל קָטָן וְחָרוּק, וְכַּפָּיו נִקְפְּצוּ. "תַּפְסִיק לְפַרְכֵּם כָּל הַזְּמַן!" מִישִׁי הִתְקַפֵּל קָטָן עַל הָרִצְפָּה הַקְּרִירָה. הַפַּעֲמוֹן עוֹד צִלְצֵל לְבַד, צִלְצוּל דַּק וְמַתַּכְתִּי, וְהַשְּׂפָמִים הִתְרָעֲדוּ גַּם בְּשֶׁקֶט.
-imageDirection: close_shot: child frowning, Mishi shrinking inward, bell still ringing lightly, whiskers trembling
+"דַּי!" צָעַק {{childName}}, הַקּוֹל קוֹפֵץ בַּחֶדֶר. "תַּפְסִיק לִרְעֹד!"  
+מִישִׁי עָצַר לְרֶגַע קָטָן — הַגּוּף נִרְגָּע — וְאָז פִּרְכֵּם עוֹד יוֹתֵר חָזָק, כְּמוֹ גַּל.  
+הַשְּׂפָמִים רָעֲדוּ בִּדְקִירוֹת קְטַנּוֹת, הַפַּעֲמוֹן לֹא שָׁתַק וְהֵדַד בַּאֲוִיר.
+imageDirection: close_shot: boy frustrated, pointing, Mishi trembling harder, whiskers shaking, bell vibrating visibly
 
 --- Page 7 ---
-כָּרִית אַחַת פָּתְחָה פֶּה וְאָמְרָה "פּוּף". אַחַת אַחֶרֶת עָשְׂתָה "פּוֹף-פּוֹף" בְּקוֹל מוּזָר. מִישִׁי נִסָּה לְהַקְשִׁיב—וּפִרְכֵּם בְּטָעוּת. הַפַּעֲמוֹן צִלְצֵל בְּקוֹל מְצַחֵק. מָה?
+הַכִּרִּית אָמְרָה "בּוֹאוּ אֵלַי" וְהִתְרַחֲקָה.  
+מִישִׁי נִתְקַע בִּשְׂמִיכָה וְהִתְחִיל לִפְרְכֵּם בִּפְנִים.  
+הַפַּעֲמוֹן צִלְצֵל מִתּוֹךְ הַבַּד כְּמוֹ סוֹד מְשֻׁנֶּה.
 
-imageDirection: bird_eye: scattered soft sound-cushions with tiny mouths making silly noises, Mishi confused and purring anyway, child surprised
+imageDirection: bird_eye: blanket lump with hidden vibrating Mishi, bell ringing under fabric, pillow far sliding, boy confused
 
 --- Page 8 ---
-הָרַעַשׁ הַגָּדוֹל הִתְקָרֵב. טוּם טוּם. הָרִצְפָּה רָעֲדָה קְצָת. מִישִׁי פִּרְכֵּם בְּכָל הַגּוּף. הַפַּעֲמוֹן צִלְצֵל בְּלִי הַפְסָקָה. הָרַעַשׁ—נִשְׁאַר קָשֶׁה.
+"מָה? מָה?" מִישִׁי הוֹצִיא רֹאשׁ.  
+הוּא נִסָּה פִּרְכּוּם דַּק, גָּס, גָּבוֹהַּ, נָמוּךְ.  
+הַשָּׁמַיִם הִמְשִׁיכוּ לָלֶכֶת לַצַּד, בְּלִי לְהִתְרַכֵּךְ.
 
-imageDirection: wide_shot: huge looming sound-stone approaching, room vibrating slightly, Mishi shaking intensely, bell ringing continuously
+imageDirection: medium_shot: Mishi trying different purr poses, whiskers twitching, sky outside sliding steadily, boy watching
 
 --- Page 9 ---
-{{childName}} הִסְתַּכֵּל עַל מִישִׁי. הַשְּׂפָמִים זְקוּפִים. הוּא קָרַב אֶל הַכָּרִית וְלֹא נָגַע. הַכָּרִית חִכְּתָה. מִישִׁי הִזִּיז אֶת הַכַּף—וְהֵשִׁיב אוֹתָהּ לַגּוּף.
-
-imageDirection: medium_shot: Mishi reaching paw toward cushion then pulling back, whiskers stiff, child watching closely
+בַּחוּץ, עֵץ נִמְשַׁךְ עִם הָרוּחַ הַצִּדִּית, הֶעָלִים מְרַשְׁרְשִׁים וּמִתְחַכְּכִים זֶה בָּזֶה.  
+מִישִׁי הוֹשִׁיט כַּף רַגְלַיִם לַחַלּוֹן הַקָּר, נָגַע בַּזְּכוּכִית — וְהֵחֱזִיר אוֹתָהּ לְאַט.  
+הַשְּׂפָמִים זָקְפוּ מְאֹד, מְחַפְּשִׂים אֶת הָרוּחַ בַּאֲוִיר.
+imageDirection: close_shot: Mishi paw reaching window then pulling back, whiskers fully upright, sideways tree outside, boy noticing
 
 --- Page 10 ---
-"מִישִׁי..." אָמַר {{childName}} לְאַט. מִישִׁי פִּרְכֵּם חָזָק יוֹתֵר, כְּאִלּוּ יָכוֹל לְהַמְתִּיק הַכֹּל. הַגּוּף רָעַד. הַפַּעֲמוֹן—טִינְג טִינְג טִינְג—וְהָרַעַשׁ לֹא הִשְׁתַּנָּה.
-
-imageDirection: close_shot: Mishi vibrating harder, bell ringing rapidly, large sound-stone unchanged, child speaking softly
+{{childName}} הִתְקַרֵּב בְּצַעֲדִים זְהִירִים, הַלֵּב דוֹפֵק קַל. "תַּעֲזוֹר לִי לְהַחֲזִיר אוֹתָם!"  
+מִישִׁי פִּרְכֵּם חָזָק יוֹתֵר, הַגּוּף מִתְקַמֵּר וְהַזָּנָב מִתְנַדְנֵד.  
+הַחַלּוֹן הִחְלִיק עַל הַקִּיר לַצַּד עוֹד שְׁנֵי סַנְטִימֶטְרִים בְּקֶרֶק שֶׁל חִכּוּךְ.
+imageDirection: medium_shot: window frame sliding sideways on wall, boy leaning, Mishi purring intensely, bell ringing
 
 --- Page 11 ---
-הָרַעַשׁ נָגַע בְּרַגְלַיִם שֶׁל {{childName}}. קָשֶׁה. מִישִׁי פִּרְכֵּם עוֹד, עוֹד—וְלֹא קָרָה כְּלוּם. הַפַּעֲמוֹן צִלְצֵל וְצִלְצֵל. זֶה נִשְׁאַר כָּכָה.
-
-imageDirection: low_angle: child’s feet near a hard sound-stone, Mishi vibrating frantically, bell ringing loudly
+הַפַּעֲמוֹן לֹא הִפְסִיק, טִינְג טִינְג טִינְג, צְלִיל דַּק שֶׁמְּמַלֵּא אֶת הַחֶדֶר.  
+מִישִׁי נִסָּה לִישֹׁן בָּרַעַשׁ, עוֹצֵם עֵינַיִם וּמִתְכַּנֵּס,  
+וְהַשְּׂפָמִים הִמְשִׁיכוּ לִרְעוֹד גַּם בְּשֵׁנָה, רַעַד קָטָן שֶׁלֹּא נֶעֱצָר.
+imageDirection: close_shot: Mishi eyes half-closed trying to sleep, whiskers still trembling, bell vibrating, boy beside him
 
 --- Page 12 ---
-הַפַּעֲמוֹן קָפַץ כְּאִלּוּ יֵשׁ לוֹ רַגְלַיִם. טִינְג! טִינְג! הוּא פִּתְאוֹם הָיָה רָם מְאֹד. מִישִׁי נִסָּה לַעֲצֹר—וְהַפַּעֲמוֹן צִלְצֵל יוֹתֵר חָזָק. זֶה הָיָה מְשֻׁנֶּה מְאֹד.
-
-imageDirection: medium_shot: bell bouncing exaggeratedly on Mishi’s collar, ringing loudly, slightly absurd, child startled
+הַפִּרְכּוּם הִתְחַזֵּק עַד שֶׁכָּאֲבָה לוֹ הַגָּרוֹן, נְשִׁימָה קְצָרָה וְחַמָּה יוֹצֵאת.  
+פִּתְאֹם — שָׁתַק, הַגּוּף נוֹפֵל לְשֶׁקֶט כְּמוֹ שְׂמִיכָה.  
+הַפַּעֲמוֹן נִדְמַם, וְהַשָּׁמַיִם עוֹד הוֹלְכִים לַצַּד בְּלִי קוֹל.
+imageDirection: wide_shot: sudden still Mishi, bell still, sky still sliding sideways outside, boy frozen mid-reach
 
 --- Page 13 ---
-פִּתְאוֹם—שֶׁקֶט כָּבֵד וְרוֹעֵם בָּאָזְנַיִם. מִישִׁי הִפְסִיק לְפַרְכֵּם וְנִשְׁאַר קָפוּא. הַשְּׂפָמִים זְקוּפִים לְגַמְרֵי וְרוֹעֲדִים קְצָת. הַפַּעֲמוֹן דּוֹמֵם. הוּא עָמַד קָטָן, לְיַד רַעַשׁ גָּדוֹל וְקָשֶׁה, שֶׁנִּשְׁמַע בַּחָזֶה.
-imageDirection: wide_shot: still scene, Mishi frozen upright, bell silent, large sound-stone looming, child nearby
+הַחֶדֶר הִרְגִּישׁ קָרוֹב מִדַּי לַקִּיר, כְּאִלּוּ הַאֲוִיר נִדְחָק.  
+{{childName}} לֹא אָמַר שׁוּם דָּבָר, הַפֶּה סָגוּר וְהַיָּדַיִם דּוֹמְמוֹת.  
+מִישִׁי הִבִּיט בַּפַּעֲמוֹן כְּאִלּוּ הוּא אֶבֶן זָרָה, מַבָּט אָרוֹךְ וּמְהֻסָּס.
+imageDirection: medium_shot: room slightly skewed, boy quiet, Mishi staring at bell on collar, close proximity to wall
 
 --- Page 14 ---
-{{childName}} הִתְקָרֵב לַרַעַשׁ בִּצְעָדִים קְטַנִּים וְזְהִירִים, הַרִּצְפָּה חֲלָקָה תַּחַת כַּפֵּי רַגְלָיו. הוּא הֵנִיחַ יָד עַל הַמַּשֶּׁהוּ הַקָּשֶׁה, הָאֶצְבָּעוֹת מְגַשְׁשׁוֹת. קָר וְמַחֲלִיק, כְּמוֹ קֶרַח דַּק, וּמְצַמְרֵר בַּכַּף. הוּא לֹא זָז, רַק הַנְּשִׁימָה קְצָרָה. "מִישִׁי," אָמַר בְּקוֹל קָטָן, וְהַקּוֹל הִתְפַּזֵּר בַּשֶּׁקֶט.
-imageDirection: close_shot: child’s hand resting on hard sound-stone, Mishi watching silently, minimal motion
+{{childName}} הוֹשִׁיט יָד אֶל הַצַּוָּאר שֶׁל מִישִׁי, בְּתְנוּעָה אִטִּית וְזְהִירָה.  
+הָאֶצְבָּעוֹת נָגְעוּ בַּפַּעֲמוֹן הַקָּטָן, מְגַלְגְּלוֹת אוֹתוֹ קְצָת בֵּין הָעֹר לַמֶּתֶכֶת.  
+הַמֶּתֶכֶת קָרָה וְחַלָּקָה, מַעֲבִירָה צְמַרְמוֹרֶת קְטַנָּה בַּיָּד.  
+הוּא מַרְגִּישׁ אֶת הַקּוֹל הַשָּׁקוּט שֶׁכְּבָר אֵינֶנּוּ, רַק זִכָּרוֹן דַּק בַּאֲצְבָּעוֹת.
+imageDirection: close_shot: boy's fingers touching small bell on Mishi's collar, Mishi still, whiskers tense
 
 --- Page 15 ---
-מִישִׁי הוֹרִיד אֶת הַפַּעֲמוֹן מֵהַצַּוָּאר בְּתְנוּעָה אִטִּית, וְהַמַּתֶּכֶת הַקְּטַנָּה נִגְעָה בְּרַצְפָּה קְרִירָה. הוּא הִנִּיחַ עַל הָרִצְפָּה שָׁלוֹשׁ פְּעָמִים—טִק, טִק, טִק—קוֹלוֹת רַכִּים וּמְדוּיָּקִים. הוּא שָׁתַק, הָאָזְנַיִם נְמוּכוֹת, הַגּוּף קָטָן וּמְכֻוָּץ, וְהַשְּׂפָמִים רוֹעֲדִים בְּשֶׁקֶט.
-imageDirection: close_shot: Mishi placing bell carefully on floor three times, stillness, whiskers settling
+הַפַּעֲמוֹן מֻנָּח עַל הָרִצְפָּה, מֵטִיל בָּרָק קָטָן שֶׁל אוֹר.  
+מִישִׁי מַנִּיחַ אוֹתוֹ שָׁלוֹשׁ פְּעָמִים, בִּתְנוּעוֹת קְטַנּוֹת וּמְדוּיָּקוֹת,  
+כַּף הָרֶגֶל נוֹגַעַת, מַרְפָּה, וְשׁוּב נוֹגַעַת, כְּאִלּוּ בּוֹדֵק אֶת הַשֶּׁקֶט.  
+הַחֶדֶר נִשְׁמָע אַחֶרֶת בְּלִי הַטִּינְג, רַק נְשִׁימָה רַכָּה וְצַעֲדִים קַלִּים.
+imageDirection: bird_eye: bell placed on floor, Mishi paw placing it carefully three times, boy kneeling nearby
 
 --- Page 16 ---
-{{childName}} דָּחַף אֶת הַרַעַשׁ בִּשְׁתֵּי יָדַיִם, הַכַּפַּיִם נִלְחֲצוּ עַל הַקֶּרַח הַקָּשֶׁה וְהַקָּר מְטַפֵּס בַּזְּרוֹעוֹת. הוּא הִשְׁעִין כָּתֵף, מְכַוֵּץ שִׁינַיִם, נוֹשֵׁף חָם. לֹא זָז מִיָּד. עוֹד דְּחִיפָה, הַגּוּף רוֹעֵד מִמַּאֲמָץ, הָרֶגֶל מַחְלִיקָה קְצָת עַל הָרִצְפָּה. מִישִׁי שָׁתַק, מִתְבּוֹנֵן קָטָן וְדָחוּס.
-imageDirection: low_angle: child pushing hard against sound-stone, muscles straining, Mishi silent watching
+{{childName}} מַנִּיחַ אֶת הַיָּד שֶׁלּוֹ עַל הַקִּיר הַנָּע, הָאֶצְבָּעוֹת פְּתוּחוֹת וְמְחַפְּשׂוֹת אֲחִיזָה.  
+הַקִּיר מַחְלִיק תַּחַת הַכַּף, קָר וּמְחֻסְפָּס קְצָת, זוֹז בִּתְנוּעָה אִטִּית.  
+הוּא לֹא מַזִּיז אוֹתָהּ, רַק מַרְגִּישׁ אֵיךְ הַתְּנוּעָה עוֹבֶרֶת דֶּרֶךְ הַיָּד אֶל הַזְּרוֹעַ.  
+הַנְּשִׁימָה שֶׁלּוֹ נִרְגָּעַת קְצָת, וְהַגּוּף נִשְׁאַר שָׁם, שָׁקֵט וְמַקְשִׁיב.
+imageDirection: low_angle: boy pressing hand to slowly sliding wall, Mishi beside without bell, still, whiskers relaxed slightly
 
 --- Page 17 ---
-הָרַעַשׁ זָז קְצָת. לֹא נַעֲשָׂה רַךְ. הוּא גָּלַשׁ לְפִנָּה וְנִשְׁעַן עַל הַקִּיר. מִישִׁי הִתְקָרֵב בְּלִי פִּרְכּוּם. הַפַּעֲמוֹן נִשְׁאַר מֵאָחוֹר.
-
-imageDirection: medium_shot: sound-stone moved to corner, Mishi walking slowly without purring, bell left behind on floor
+מִישִׁי שׁוֹתֵק, לֹא פִּרְכּוּם, הַגּוּף רָפוּי וְחַם.  
+הַשְּׂפָמִים שׁוֹכְבִים רַךְ עַל הַלְּחָיִם, לְלֹא רַעַד.  
+הַשָּׁמַיִם עוֹד הוֹלְכִים — אֲבָל לְאַט יוֹתֵר, כְּמוֹ נְשִׁימָה אֲרוּכָּה.
+imageDirection: medium_shot: calm Mishi sitting, whiskers down, boy still touching wall, sky sliding slower outside
 
 --- Page 18 ---
-עוֹד רַעַשׁ נָפַל. טוּם. מִישִׁי הִבִּיט—וְלֹא פִּרְכֵּם מִיָּד. הַשְּׂפָמִים רָגְעוּ קְצָת. {{childName}} נָגַע בָּרַעַשׁ. קָשֶׁה. הֵם עָמְדוּ לְיַדּוֹ.
-
-imageDirection: wide_shot: both standing beside a new sound-stone, Mishi calm, whiskers softer, bell still in background
+הַסְּפָרִים מַפְסִיקִים לִגְלוֹשׁ אֶת הַדֶּרֶךְ הַמְּהִירָה, הַדַּפִּים מִתְיַשְּׁבִים בְּשֶׁקֶט.  
+אֶחָד נִשְׁעָן בַּזָּוִית מְשֻׁנָּה וְנִשְׁאַר כָּךְ, קָצֶהוּ נוֹגֵעַ בַּקִּיר.  
+מִישִׁי מַבִּיט, לֹא נוֹגֵעַ, הָעֵינַיִם עוֹקְבוֹת אַחַר הַדְּמָמָה הַחֲדָשָׁה.
+imageDirection: wide_shot: bookshelf with books stuck at odd sideways angles, boy and Mishi watching, tilted room
 
 --- Page 19 ---
-בַּחַלּוֹן, כָּרִית רַכָּה נִשְׁאַרָה מִקֹּדֶם. הִיא לֹא זָזָה. הָרַעַשִׁים עוֹד נוֹפְלִים—טוּם. טוּם. מִישִׁי הִסְתַּכֵּל הַצִּדָּה. {{childName}} עַל הָרִצְפָּה.
+הַחַלּוֹן עוֹצֵר קְצָת — לֹא בְּסוֹף.  
+הָעֵץ בַּחוּץ עוֹמֵד עַל הַצַּד כְּמוֹ צִיּוּר מְשֻׁגָּע.  
+מִישִׁי יוֹשֵׁב מֵרָחוֹק צַעַד אֶחָד.
 
-imageDirection: bird_eye: room with both soft cushions and hard sound-stones, child on floor, Mishi turned slightly away, bell visible behind
+imageDirection: wide_shot: window half-slid, tree sideways outside, boy near wall, Mishi sitting a step apart, bell on floor
 
 --- Page 20 ---
-הַפַּעֲמוֹן עַל הָרִצְפָּה, קָרוֹב לְכַף הָרֶגֶל. הָרַעַשׁ עוֹד נוֹפֵל בַּחָזֶה, כְּמוֹ דְּפִיקוֹת כְּבֵדוֹת וְעֲמוּמוֹת, וְהַחֶדֶר מַרְגִּישׁ צָפוּף וְשָׁקוּט.
-imageDirection: wide_shot: final scene, bell in foreground on floor, Mishi sitting apart facing window, child nearby, sound-stone mid-fall
+הַשָּׁמַיִם עוֹד הוֹלְכִים לַצַּד. הַפַּעֲמוֹן נִשְׁאָר קָטָן וְשָׁקֵט.
 
-WORD_COUNT: [ Thirty? ]
+imageDirection: close_shot: small bell on floor in foreground, sideways sky through window, Mishi turned slightly away, boy nearby
+
+WORD_COUNT: [33,36,34,36,33,34,35,35,33,34,33,31,31,28,14,29,30,34,34,13] = 661

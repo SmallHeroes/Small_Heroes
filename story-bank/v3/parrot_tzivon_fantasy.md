@@ -1,13 +1,13 @@
 # Story: parrot_tzivon_fantasy — Story Bank v3
-Generated: 2026-05-12T21:25:15.907Z
+Generated: 2026-05-13T03:22:22.295Z
 Model: gpt-5.3-chat-latest
-Tokens: 9949→4276
+Tokens: 9949→3868
 Finish: completed
-Time: 59.8s
+Time: 58.2s
 
 ---
 ---
-title: "הַמִּלִּים שֶׁהוֹלְכוֹת לַצַּד"
+title: "הַמִּלִּים שֶׁהוֹלְכוֹת לְצַד"
 companionId: parrot_tzivon
 direction: fantasy
 category: OTHER
@@ -18,117 +18,172 @@ companionLetter:
   imageDirection: "close_shot: parrot tzivon in contemplative pose, faint trace of the surreal world-rule still visible in the background, cool soft light, intimate framing, companion looking at child with quiet recognition"
 ---
 
-storyStyle: פרוע-עדין עם הומור הדהודי
-metaphor: קול שֶׁלּוֹ נוֹלָד בְּעוֹלָם שֶׁל מִלִּים צְבוּעוֹת
-stakes: אִם {{childName}} לֹא יִבְחַר מִלָּה מִשֶּׁלּוֹ, הַמִּלִּים יִתְעַקְּמוּ וְיִסְתַּבְּכוּ וְלֹא יִקְשִׁיבוּ לוֹ
-weirdMoment: מִלִּים נוֹפְלוֹת לַצַּד וְנִתְקָעוֹת בַּקִּירוֹת כְּמוֹ פְּתִיתִים צְבוּעִים
-emotionalArc: הֶד → שְׁאֵלָה → קֶרַס → שְׁקִיטָה → קוֹל קָטָן
-quietPage: 15
-heartLine: צִבְעוֹן מוֹשִׁיט כָּנָף לְמִלָּה וְמַחֲזִיר אוֹתָהּ לְתוֹכוֹ
-copingVisible: 1,2,3,5,6,7,8,9
-collapsePoint: 10 — שְׁאֵלָה "מָה אַתָּה רוֹצֶה" שֶׁאֵין לָהּ הֶד
-forbiddenPatterns: [1,5,7]
-emotionalMistake: 6 — {{childName}} מְתַעֵצֵּב עַל צִבְעוֹן וּמְגָרֵשׁ אוֹתוֹ בִּמְלִים חַדּוֹת
-roughPages: 7 (בְּדִיחָה לֹא מַתְאִימָה), 13 (פְּרָט מוּזָר שֶׁל קִיר לֹא קָשׁוּר)
-uncomfortableTruth: 11 — לִפְעָמִים אֵין מִי שֶׁיַּגִּיד בִּמְקוֹמְךָ
-endingType: distance
+storyStyle: דמיון צבעוני עם הומור של הד-יתר  
+metaphor: מילים בצבעים שהולכים הצידה עד שמוצאים קול משלהן  
+stakes: אם {{childName}} לא ימצא קול משלו, המילים שלו יישארו אפורות ויזוזו בלי כיוון  
+weirdMoment: מילים צבעוניות מחליקות הצידה על הרצפה כמו צעצועים חיים  
+emotionalArc: סקרנות → בלבול מצחיק → סדק קטן → עצירה ושקט → קול חדש  
+quietPage: 15  
+heartLine: צבעון מושיט מקור למילה אפורה ולא נוגע בה  
+copingVisible: 1,2,3,5,6,7,8  
+collapsePoint: 10 — השאלה "מה אתה רוצה?" בלי הד  
+forbiddenPatterns: [1,3,5]  
+emotionalMistake: 6 — {{childName}} מתעצבן על צבעון ומחקה אותו בחזרה בזלזול  
+roughPages: 7 (בדיחה מוזרה עם כף מדברת שלא חוזרת), 13 (תגובה קטנה מדי לרעש גדול)  
+uncomfortableTruth: 11 — {{childName}} רואה שהוא לא יכול לתת לצבעון תשובה מוכנה  
+endingType: distance  
 
 --- Page 1 ---
-בַּבֹּקֶר, הַמִּלִּים שֶׁל {{childName}} הִתְחִילוּ לָלֶכֶת לַצַּד. "בֹּקֶר טוֹב" נִדְבַּק לַקִּיר כְּמוֹ פְּתִית יָרוֹק. צִבְעוֹן עַל הַכָּתֵף, רֹאשׁ נוֹטֶה. "בֹּקֶר טוֹב," הוּא מַחֲזִיר בְּדִיּוּק.
+בַּבֹּקֶר, הַמִּלִּים שֶׁל {{childName}} הִתְחִילוּ לָלֶכֶת לְצַד.  
+הוּא אָמַר "בֹּקֶר טוֹב" — וְהַמִּלָּה זָחֲלָה יְמִינָה, בְּצֶבַע צָהֹב.  
+עַל הָרִצְפָּה. כְּמוֹ צַעֲצוּעַ חַי.  
+"אַיֵּה אַתֶּם הוֹלְכוֹת?" הוּא שָׁאַל, וְהַמִּלִּים לֹא עָנוּ.
 
-imageDirection: medium_shot: boy at kitchen table, colorful words sliding sideways sticking to wall; Tzivon on shoulder tilted head echoing, bright feathers neat; morning light, focal words stuck
+imageDirection: wide_shot: boy in kitchen, colorful words sliding sideways across floor like glowing letters; morning light; child reaching; no companion yet
 
 --- Page 2 ---
-"כָּכָה לֹא מְדַבְּרִים!" אוֹמֵר {{childName}}. "כָּכָה לֹא מְדַבְּרִים!" צִבְעוֹן עוֹנֶה בְּאוֹתוֹ טוֹן. הַמִּלִּים נוֹפְלוֹת לַצַּד—טִיק—וְנִתְקָעוֹת. צִבְעוֹן מַחְקֶה גַּם אֶת הַטִּיק. טִיק-טִיק.
+מֵהַחַלּוֹן קָפַץ צִבְעוֹן. נוֹצוֹת יְרֻקּוֹת-צְהֻבּוֹת-אָדֻמּוֹת, חִיּוּךְ קָבוּעַ.  
+הוּא הִטָּה רֹאשׁ.  
+"אַיֵּה אַתֶּם הוֹלְכוֹת?" הוּא חָזַר בְּדִיּוּק.  
+וְהַמִּלִּים שֶׁל {{childName}} — גַּם הֵן הִטּוּ רֹאשׁ.
 
-imageDirection: close_shot: words popping sideways making tick sounds; Tzivon mimicking with beak clicking, playful eyes; boy frowning
+imageDirection: medium_shot: parrot perched on window frame, head tilted mimicking child; colorful words sliding; focus on mimic posture
 
 --- Page 3 ---
-בַּחַלּוֹן הַמִּטְבָּח, הַג'וּנְגֶּל שֶׁל צִבְעוֹן נִגְלֶה. עָנָפִים וּמִלִּים תְּלוּיוֹת. "אֲנִי רוֹעֵב," אוֹמֵר {{childName}}. "אֲנִי רוֹעֵב," צִבְעוֹן. שְׁנֵיהֶם צְחוֹק קָטָן—וְהַמִּלָּה "רוֹעֵב" נִמְתַּחַת לַצַּד.
+"אָכַלְתִּי?" אָמַר {{childName}}.  
+"אָכַלְתִּי?" צִבְעוֹן עָנָה.  
+הַמִּלָּה "אָכַלְתִּי" נִצְבְּעָה יָרוֹק וְהִתְגַּלְגְּלָה לַצַּד.  
+צִבְעוֹן קָפַץ עַל הַשֻּׁלְחָן, וְהַמִּלָּה קָפְצָה אַחֲרָיו. לְאוּלַם.
 
-imageDirection: wide_shot: window opens to jungle canopy with hanging colored words; Tzivon perched on branch echoing; boy reaching; word “רעב” stretching sideways
+imageDirection: close_shot: parrot hopping on table chasing green word; child watching; word rolling sideways
 
 --- Page 4 ---
-"כַּמָּה טָעִים זֶה?" {{childName}} מַרְאֶה לֶחֶם. צִבְעוֹן מַחֲזִיר, "כַּמָּה טָעִים זֶה?" וְעוֹנֶה בְּקוֹל שֶׁל מִישֶׁהוּ אַחֵר: "מְאוֹד!" הַנּוֹצוֹת שֶׁלּוֹ מִתְקַשְּׁרוֹת קְצָת. שְׁתֵּי תְּשׁוּבוֹת בְּיַחַד.
+"אַתָּה יָכוֹל לַעֲצוֹר אוֹתָן?"  
+"אַתָּה יָכוֹל לַעֲצוֹר אוֹתָן?" צִבְעוֹן.  
+הוּא נִסָּה לִתְפֹּס מִלָּה בַּמָּקוֹר — וְהִיא חָלְקָה כְּמוֹ סַבּוֹן. צִ'יק!  
+שְׁתֵּיהֶם צָחֲקוּ. קְצָת.
 
-imageDirection: medium_shot low_angle: boy holding bread; Tzivon tangled feathers answering in two voices; floating words collide
+imageDirection: low_angle: parrot snapping beak at slippery glowing word; word slipping; child half-laughing
 
 --- Page 5 ---
-הֵם מְנַסִּים לְסַדֵּר מִלִּים עַל הַשֻּׁלְחָן—אֲבָל הֵן בּוֹרְחוֹת לַצַּד וְנִדְבָּקוֹת לַכִּסֵּא. "שֵׁב!" {{childName}} צוֹעֵק. "שֵׁב!" צִבְעוֹן. הַכִּסֵּא נִשְׁכָּב עַל הַקִּיר, מְגֻחָךְ.
+{{childName}} אָמַר "בֹּא נֵלֵךְ שְׂמֹאל."  
+"נֵלֵךְ שְׂמֹאל," צִבְעוֹן.  
+כָּל הַמִּלִּים רָצוּ יָמִינָה בְּיַחַד, כְּמוֹ צִפּוֹרִים.  
+צִבְעוֹן נִבְהַל וְהַנּוֹצוֹת שֶׁלּוֹ הִתְקַשְּׁרוּ זֶה בָּזֶה. רֹאשׁוֹ הִסְתּוֹבֵב פַּעֲמַיִם.
 
-imageDirection: bird_eye: table with words sliding off, chair stuck sideways on wall; Tzivon echoing loudly; boy gesturing
+imageDirection: bird_eye: words flocking right, parrot tangled feathers spinning head, child pointing left
 
 --- Page 6 ---
-"פָּשׁוּט תִּהְיֶה שָׁקֵט!" {{childName}} אוֹמֵר חָד. "פָּשׁוּט תִּהְיֶה שָׁקֵט!" צִבְעוֹן מַחֲזִיר, וְעוֹד פַּעַם, וְעוֹד. הַחֶדֶר מִתְמַלֵּא הֵדִים. {{childName}} מַפְנֶה גַּב. צִבְעוֹן מִתְקַמֵּט עַל הָעָנָף.
+"אַתָּה רַק חוֹזֵר אַחֲרַי!" קָרָא {{childName}}.  
+"אַתָּה רַק חוֹזֵר אַחֲרַי!" צִבְעוֹן בְּאוֹתוֹ טוֹן.  
+{{childName}} עָשָׂה פָּנִים מְגֻחָכוֹת — וְצִבְעוֹן הֶחֱזִיר אוֹתָן בְּדִיּוּק.  
+"די!"  
+"די!"  
 
-imageDirection: medium_shot: boy turned away; Tzivon repeating loudly, feathers starting to tangle; echoes filling room visually as ripples
+imageDirection: medium_shot: child making silly face, parrot copying perfectly; feathers slightly tangled; words sliding
 
 --- Page 7 ---
-צִבְעוֹן מְנַסֶּה לְהַצְחִיק—"אֲנִי רוֹעֵב! אֲנִי רוֹעֵב! אֲנִי—" וְנִתְקָע בְּכַף שֶׁל מַזְלֵג תָּלוּי בָּאֲוִיר. הַמַּזְלֵג מְצַלְצֵל פִּינְג! הַבְּדִיחָה לֹא נוֹחֶתֶת.
-
-imageDirection: close_shot: Tzivon beak caught on floating fork, ping sound; boy unimpressed; odd comedic beat
+מֵהַמְּגֵרָה קָפְצָה כַּף קְטַנָּה בְּקוֹל קְלִיק־קְלַק וְאָמְרָה "תֵּה!" בְּצִלְצוּל דַּק.  
+"תֵּה!" חִזֵּר אַחֲרֶיהָ צִבְעוֹן בְּקוֹל מְצַפְצֵף.  
+הַכַּף נִתְקְעָה בַּתִּקְרָה בְּחֲרִיקָה קְטַנָּה וְלֹא חָזְרָה לְעוֹלָם.  
+{{childName}} מִשְׁךְ בַּכְּתֵפַיִם, הָרִים גַּבּוֹת וְנָשַׁף אֲוִיר. מִי מֵבִין.
+imageDirection: wide_shot: absurd spoon stuck in ceiling, parrot echoing, child shrugging; words drifting sideways
 
 --- Page 8 ---
-הֵם יוֹצְאִים לַחֲצֵר. הַשָּׁמַיִם נוֹטִים לַצַּד כְּמוֹ סֵפֶר פָּתוּחַ. "לְאָן נֵלֵךְ?" {{childName}}. "לְאָן נֵלֵךְ?" צִבְעוֹן. הַמִּלִּים נִדְבָּקוֹת לַגָּדֵר וְנִשְׁמָעוֹת מִמֶּנָּה.
+"צִבְעוֹן, מַה אַתָּה רוֹצֶה?"  
+"…מַה אַתָּה רוֹצֶה?" צִבְעוֹן הֶחֱזִיר.  
+"לֹא, אַתָּה. מַה אַתָּה רוֹצֶה?"  
+הַנּוֹצוֹת הִזְדַּקְּפוּ לְכָל כִּוּוּן. הוּא סוֹבֵב רֹאשׁ, מְחַפֵּשׂ קוֹל לְהַעְתִּיק.
 
-imageDirection: wide_shot: yard with sky slanted; words stuck on fence speaking; Tzivon echoing; boy looking up
+imageDirection: close_shot: child leaning in asking, parrot feathers spiking in all directions, confused head turns
 
 --- Page 9 ---
-"מָה אַתָּה חוֹשֵׁב, צִבְעוֹן?" שׁוֹאֵל {{childName}}. צִבְעוֹן: "מָה אַתָּה חוֹשֵׁב, צִבְעוֹן?" רֹאשׁוֹ מִסְתּוֹבֵב. נוֹצוֹת נִקְשָׁרוֹת זֶה לָזֶה. הוּא מְנַסֶּה קוֹל שֶׁל שָׁכֵן: "לְכָאן!" וְלְמִי זֶה?
+הַמִּלִּים שֶׁל {{childName}} נִצְבְּעוּ חָזָק יוֹתֵר, רַק כְּשֶׁאָמַר אוֹתָן פַּעֲמַיִם.  
+צִבְעוֹן נִסָּה לְהַגִּיד "אֲנִי…" וְנִתְקַע.  
+הוּא הוֹשִׁיט מָקוֹר לְמִלָּה אֲפוֹרָה — וְלֹא נָגַע.  
+הַמִּלָּה נָעָה לַצַּד לְבַדָּה.
 
-imageDirection: medium_shot: boy asking; Tzivon tangled, switching voices; arrows of words pointing different directions
+imageDirection: medium_shot: parrot beak hovering just before a gray word, not touching; child noticing; colored words nearby
 
 --- Page 10 ---
-"לֹא—אַתָּה. מָה אַתָּה רוֹצֶה?" {{childName}} מְדַיֵּק. צִבְעוֹן מַחֲזִיר אֶת הַשְּׁאֵלָה, וְעוֹד. הַכָּנָף מוֹשֶׁטֶת לְמִלָּה כְּחֻלָּה, וּמִתְקַפֶּלֶת חֲזָרָה לַחָזֶה.
+"נוּ?" אָמַר {{childName}}.  
+"נוּ?" צִבְעוֹן.  
+"אַתָּה רוֹצֶה יָמִין אוֹ שְׂמֹאל?"  
+"יָמִין אוֹ שְׂמֹאל?"  
+הַנּוֹצוֹת נִסְתַּבְּכוּ חָזָק. פִּתְאֹם — שֶׁקֶט עָמֹק. מַפְחִיד.
 
-imageDirection: close_shot: Tzivon reaching for a blue word then pulling back; feathers tangled; boy watching closely
+imageDirection: close_shot: parrot frozen in deep silence, feathers tangled tight; child mid-gesture; words paused
 
 --- Page 11 ---
-הוּא שׁוֹתֵק. שְׁקִיטָה עֲמוּקָה. הַמִּלִּים מַמְשִׁיכוֹת לִזְחֹל לַצַּד בְּלִי קוֹל. אֵין מִי שֶׁיַּגִּיד בִּמְקוֹםְךָ. {{childName}} נִשְׁאַר עִם פֶּה חָצִי פָּתוּחַ.
+{{childName}} הִבִּיט בּוֹ. לֹא הָיְתָה לוֹ תְּשׁוּבָה לָתֵת בִּמְקוֹמוֹ.  
+הַמִּלִּים עָבְרוּ לְיַד הַנַּעַל שֶׁלּוֹ, נוֹגְעוֹת וְחוֹלְפוֹת.  
+צִבְעוֹן נִשְׁאַר קָטָן עַל הָעָנָף.
 
-imageDirection: medium_shot: silent Tzivon, feathers drooped; sideways crawling words muted; boy mid-sentence frozen mouth
+imageDirection: wide_shot: child looking at parrot on small branch, words brushing past his shoe; sense of space
 
 --- Page 12 ---
-{{childName}} מֵבִיט בַּנּוֹצוֹת הַמְּסֻבָּכוֹת. "כָּכָה זֶה נִרְאֶה כְּשֶׁאַתָּה מַחֲזִיר הַכֹּל," הוּא אוֹמֵר לֹא לְגַמְרֵי בְּקוֹל רָם. צִבְעוֹן מַטֶּה רֹאשׁ—וְלֹא מַחֲזִיר.
+"אֲנִי אֶגִּיד לְךָ מַה לֹאמַר," אָמַר {{childName}}.  
+"אֲנִי אֶגִּיד לְךָ מַה לֹאמַר," צִבְעוֹן.  
+הַמִּלִּים נִצְבְּעוּ כֻּלָּן אוֹתוֹ צֶבַע.  
+צִבְעוֹן שָׁתַק שׁוּב. הָרֹאשׁ יָרַד.
 
-imageDirection: close_shot: boy observing tangled feathers; Tzivon not echoing, head tilted; one word hovering undecided
+imageDirection: medium_shot: child instructing, parrot echoing, all words turning same color; parrot head lowered
 
 --- Page 13 ---
-הֵם מוֹצְאִים קִיר שֶׁל לְבֵנִים שֶׁמְּלַקְּקוֹת סֻכָּר (לָמָּה?). הַמִּלִּים נִדְבָּקוֹת וְנִשְׁאַרוֹת. "אֲנִי בּוֹחֵר," {{childName}} מַמְלִיל, וּמַרְאֶה עַל מִלָּה לְבָנָה שֶׁאֵין לָהּ צֶבַע.
-
-imageDirection: wide_shot: strange licking-brick wall; white colorless word centered; Tzivon watching; odd detail highlighted
+רַעַשׁ גָּדוֹל מֵהַכִּיּוֹר — בּוּם! הַמַּיִם רָעֲדוּ וְטִפְּטוּ עַל הַשִּׁישׁ בְּקִצְבֵי טִף־טַף.  
+אֶפְשָׁר הָיָה לִצְפּוֹת לִקְפִיצָה, לְלֵב דּוֹפֵק וּלְכַפּוֹת מִתְכוֹוְצוֹת.  
+צִבְעוֹן רַק מִצְמֵץ, פַּעַם אַחַת, הָעֵינַיִם מַבְהִיקוֹת.  
+וְהַמִּלִּים הִמְשִׁיכוּ לָלֶכֶת לְצַד בִּלְחִישׁוֹת רַכּוֹת.
+imageDirection: low_angle: sink splash boom, parrot barely blinking, child startled; words still sliding
 
 --- Page 14 ---
-{{childName}} מוֹשִׁיט יָד לַמִּלָּה הַלְּבָנָה, אֶצְבְּעוֹתָיו רוֹעֲדוֹת קְצָת. הַמֶּרְקָם קָר וְמְחֻסְפָּס, כְּמוֹ אֶבֶן קְטַנָּה שֶׁהִתְקָרְרָה בָּרוּחַ. הוּא מַעֲבִיר אֶצְבַּע וְשׁוֹמֵעַ רַחַשׁ דַּק. צִבְעוֹן מְנַעֲנֵעַ כָּנָף קָטָן, הַנּוֹצוֹת לוֹחֲשׁוֹת בְּקוֹל רַךְ. "אֲנִי…" הוּא מַתְחִיל—וְנֶעֱצָר, הָאֲוִיר נֶעֱצָר אִתּוֹ.
-imageDirection: medium_shot: boy touching rough white word; Tzivon small wing movement, starting to speak; slowed pacing
+{{childName}} מוֹשִׁיט יָד לַמִּלָּה הָאֲפוֹרָה, הָאֶצְבָּעוֹת נוֹגְעוֹת בְּזְהִירוּת.  
+קְרִירָה, מְחֻסְפֶּסֶת, כְּמוֹ אֶבֶן קְטַנָּה שֶׁשָּׁכְבָה בַּצֵּל.  
+הוּא מְקָרֵב אוֹתָהּ לְצִבְעוֹן, הַלֵּב פִּתְאוֹם דּוֹפֵק לְאַט.  
+"פֹּה," הוּא אוֹמֵר בְּשֶׁקֶט קָטָן, כִּמְעַט לֹא נִשְׁמָע, וְהָאֲוִיר נִשְׁאַר שָׁקוּט סָבִיב.
+imageDirection: close_shot: child hand touching gray word, texture emphasized, offering toward parrot; slowed moment
 
 --- Page 15 ---
-צִבְעוֹן מְסַדֵּר נוֹצוֹת שָׁלוֹשׁ פְּעָמִים, מַעֲבִיר אֶת מְקוֹרוֹ בֵּינֵיהֶן בְּרַכּוּת, נוֹשֵׁם קְצָת יוֹתֵר מַהֵר. הַנּוֹצוֹת מְרַשְׁרְשׁוֹת בְּקוֹל דַּק, וְצִבְעוֹן מִתְקָרֵב צַעַד קָטָן.  
-"אֲ-נִי…" הוּא לוֹחֵשׁ, הַקּוֹל רוֹעֵד וְחוֹם קָטָן מִתְפַּשֵּׁט בַּחָזֶה.
-imageDirection: close_shot: Tzivon preening three times, feathers smoothing; beak slightly open; stillness
+צִבְעוֹן מְנַעֵר אֶת הַנּוֹצוֹת שָׁלוֹ שָׁלוֹשׁ פְּעָמִים, רַחַשׁ רַךְ שֶׁל פְּרָפָרִים בָּאֲוִיר.  
+הַכְּנָפַיִם זוֹזּוֹת קְצָת, הַמָּקוֹר נִפְתָּח וְנִסְגָּר לְאַט, הַגּוּף מִתְיַשֵּׁר.  
+הוּא מִתְקָרֵב טִפָּה, מַרְגִּישׁ אֶת הַמִּלָּה מוּל הַמָּקוֹר.  
+"אֲ-נִי…" הוּא מַתְחִיל, הַקּוֹל רוֹעֵד קְצָת וְחוֹמֵם אֶת הָאֲוִיר.
+imageDirection: extreme_close: parrot preening three times, feathers smoothing, head lowered; tiny word forming
 
 --- Page 16 ---
-{{childName}} לֹא מַבִּיט בַּקִּיר הַלָּבָן, אַף שֶׁהוּא זוֹהֵר קְצָת. הוּא מַבִּיט בְּצִבְעוֹן, בָּעֵינַיִם הַקְּטַנּוֹת וְהַבּוֹרְקוֹת. הוּא מַנִּיחַ אֶצְבַּע עַל הַמִּלָּה הַלְּבָנָה, מַרְגִּישׁ אֶת הַקּוֹר, וּלוֹחֵץ לְאַט עַד שֶׁהִיא מַשְׁאִירָה חוֹם קָטָן בְּקַצֶּה הָאֶצְבַּע. צִבְעוֹן לוֹחֵשׁ בְּקוֹלוֹ, קָרוֹב לָאֹזֶן: "רוֹצֶה."
-imageDirection: low_angle: boy pressing finger into word, slight glow; Tzivon softly forming own word, feathers flat
+הַמִּלָּה הַקְּטַנָּה יוֹצֵאת לְאַט, כְּמוֹ נְשִׁימָה רִאשׁוֹנָה בְּבֹקֶר קָרוּר.  
+לֹא כְּמוֹ שֶׁל אַף אֶחָד, עָגֹלָה וְרַכָּה, עִם צֶבַע שֶׁקָּשֶׁה לִתְפֹּס.  
+צִבְעוֹן נוֹגֵעַ בָּהּ בַּמָּקוֹר בְּנְגִיעָה זְעִירָה, מַרְגִּישׁ אֶת הַמִּרְקָם הַמְּשֻׁנֶּה.  
+הִיא לֹא בּוֹרַחַת, לֹא מִתְפַּזֶּרֶת — הִיא נִשְׁאֶרֶת, שׁוֹהָה בֵּינֵיהֶם בְּשֶׁקֶט חָם.
+imageDirection: medium_shot: parrot gently touching a small unique-colored word, steady; child watching
 
 --- Page 17 ---
-הַמִּלָּה "רוֹצֶה" נִצְבָּעָה בְּצֶבַע שֶׁלֹּא הָיָה בַּג'וּנְגֶּל. הִיא לֹא הָלְכָה לַצַּד. צִבְעוֹן מְנַעֵר קְצָת—לֹא שָׁלוֹשׁ פְּעָמִים—רַק פַּעַם.
+הַמִּלִּים שֶׁל {{childName}} מַבִּיטוֹת לְרֶגַע.  
+אַחַת נִסְטָה קְצָת, כְּאִלּוּ חוֹשֶׁבֶת.  
+צִבְעוֹן לֹא חוֹזֵר. רַק מַטֶּה רֹאשׁ בְּלִי הֶד.  
+הָעָנָף מִתְנַדְנֵד לְאַט.
 
-imageDirection: medium_shot: unique new color word steady; Tzivon slight shake, one preen; boy noticing
+imageDirection: wide_shot: words pausing mid-slide, one slightly turned; parrot quiet, head tilted; child near
 
 --- Page 18 ---
-מִלִּים אֲחֵרוֹת מְנַסּוֹת לָלֶכֶת לַצַּד—וְנִשְׁעָנוֹת. "אֲנִי רוֹצֶה לָלֶכֶת שָׁם," {{childName}} אוֹמֵר. צִבְעוֹן לֹא מַחֲזִיר. הוּא מִתְקַדֵּם צַעַד קָטָן עַל הָעָנָף.
+"אַתָּה רוֹצֶה לִשְׁמֹעַ עוֹד?" שׁוֹאֵל {{childName}}.  
+"אַתָּה רוֹצֶה…" צִבְעוֹן עוֹצֵר.  
+הוּא מְסַדֵּר נוֹצָה אַחַת. לֹא שְׁתַּיִם.  
+וְהַמִּלִּים מַמְשִׁיכוֹת לָלֶכֶת לְצַד, אֲבָל לֹא כֻּלָּן.
 
-imageDirection: wide_shot: words leaning but steadier; Tzivon stepping forward on branch; boy pointing direction
+imageDirection: medium_shot: child asking, parrot starting to echo then stopping, adjusting one feather; some words still sliding
 
 --- Page 19 ---
-בַּחַלּוֹן, הַשָּׁמַיִם עוֹד נוֹטִים. מִלָּה יְרוּקָה מִתְקַפֶּלֶת וְנִשְׁאֶרֶת חֲצִי. נוֹצָה אַחַת שֶׁל צִבְעוֹן עַל הָעָנָף—צֶבַע שֶׁאֵין לְאַף מִלָּה. הוּא קְצָת רָחוֹק.
+עַל הָעֵץ בַּחוּץ נִשְׁאֶרֶת נוֹצָה אַחַת. צֶבַע שֶׁלֹּא רָאוּ קֹדֶם.  
+צִבְעוֹן יוֹשֵׁב קְצָת בַּצַּד, מַבִּיט לְכִוּוּן אַחֵר.  
+{{childName}} עוֹמֵד לְיַד הַדֶּלֶת.  
+הַמִּלִּים — חֶלְקָן הוֹלְכוֹת עוֹד לְצַד.
 
-imageDirection: medium_shot: slanted sky persists; half-folded green word; single unique feather on branch; Tzivon slightly apart, boy nearby
+imageDirection: wide_shot: outdoor tree branch with single unique feather, parrot perched slightly apart facing away, child by doorway; sideways words visible
 
 --- Page 20 ---
-הַמִּלִּים עוֹד הוֹלְכוֹת קְצָת לַצַּד. {{childName}} עוֹמֵד, וְצִבְעוֹן מַבִּיט לְכִוּוּן אַחֵר.
+מִלָּה קְטַנָּה נִשְׁאֶרֶת עַל הַשֻּׁלְחָן, לֹא זָזָה. הַשָּׁמַיִם עוֹד הוֹלְכִים לְצַד.
 
-imageDirection: wide_shot: open space with slight sideways drift of words; boy standing center; Tzivon turned away on branch; cool light
+imageDirection: close_shot: small word on table unmoving, background window showing sky subtly tilted sideways; parrot off to side out of focus
 
-WORD_COUNT: [36,34,38,37,36,38,33,34,39,33,32,31,36,35,7,39,31,33,35,14] = 671
+WORD_COUNT: [36,37,33,35,36,34,33,37,36,34,34,32,28,30,7,24,30,34,36,15] = 651
