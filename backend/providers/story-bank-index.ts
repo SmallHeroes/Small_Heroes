@@ -19,21 +19,85 @@ import type { ChallengeCategory } from '../../lib/companions';
 const STORY_BANK_DIR = join(process.cwd(), 'story-bank', 'raw');
 const V3_STORY_DIR = join(process.cwd(), 'story-bank', 'v3');
 
-/** Companions with handcrafted v3 markdown stories (one file per direction). */
+/** Companions with handcrafted v3 markdown stories (one file per direction).
+ *  All 36 companions have 3 directions each (bedtime/adventure/fantasy) = 108 stories.
+ *  Categories align with `lib/companions.ts` wizard categories. */
 const V3_COMPANIONS = new Set([
-  'octopus_seara',
-  'bat_lily',
-  'chameleon_koko',
-  'dolphin_shahkan',
-  'fawn_tzvi',
+  // ANGER_FRUSTRATION
+  'octopus_seara', 'bear_cub_gahal', 'salamander_lahav',
+  // NIGHT_FEAR
+  'bat_lily', 'fox_uri', 'owl_chacham',
+  // TRANSITION
+  'chameleon_koko', 'squirrel_navad', 'turtle_beiti',
+  // SENSITIVITY_OVERWHELM
+  'fawn_tzvi', 'snail_sheli', 'kitten_mishi',
+  // SOCIAL
+  'panda_anat', 'bear_mati', 'hedgehog_rachi',
+  // FOCUS_LEARNING
+  'hawk_had', 'dolphin_shahkan', 'captain_navat',
+  // NEW_SIBLING
+  'pelican_kis', 'dragon_dini', 'bee_ima',
+  // SELF_CONFIDENCE
+  'lion_shaket', 'butterfly_zohar', 'ant_harutza',
+  // NOISE_FEAR
+  'footstep_giant', 'song_whale', 'mole_sheket',
+  // GENERAL_FEARS
+  'firefly_namit', 'bunny_ometz', 'mongoose_zariz',
+  // MEDICAL_PROCEDURE
+  'starfish_kokhavi', 'seahorse_yam', 'gecko_rifa',
+  // OTHER
+  'puppy_neeman', 'parrot_tzivon', 'wolf_pup_siyar',
 ]);
 
 const V3_COMPANION_BANK_CATEGORY: Record<string, BankCategory> = {
+  // ANGER_FRUSTRATION
   octopus_seara: 'ANGER_FRUSTRATION',
+  bear_cub_gahal: 'ANGER_FRUSTRATION',
+  salamander_lahav: 'ANGER_FRUSTRATION',
+  // NIGHT_FEAR
   bat_lily: 'NIGHT_FEAR',
-  chameleon_koko: 'SENSITIVITY_OVERWHELM',
-  dolphin_shahkan: 'SOCIAL',
-  fawn_tzvi: 'TRANSITION',
+  fox_uri: 'NIGHT_FEAR',
+  owl_chacham: 'NIGHT_FEAR',
+  // TRANSITION
+  chameleon_koko: 'TRANSITION',
+  squirrel_navad: 'TRANSITION',
+  turtle_beiti: 'TRANSITION',
+  // SENSITIVITY_OVERWHELM
+  fawn_tzvi: 'SENSITIVITY_OVERWHELM',
+  snail_sheli: 'SENSITIVITY_OVERWHELM',
+  kitten_mishi: 'SENSITIVITY_OVERWHELM',
+  // SOCIAL
+  panda_anat: 'SOCIAL',
+  bear_mati: 'SOCIAL',
+  hedgehog_rachi: 'SOCIAL',
+  // FOCUS_LEARNING → FOCUS
+  hawk_had: 'FOCUS',
+  dolphin_shahkan: 'FOCUS',
+  captain_navat: 'FOCUS',
+  // NEW_SIBLING → SIBLING
+  pelican_kis: 'SIBLING',
+  dragon_dini: 'SIBLING',
+  bee_ima: 'SIBLING',
+  // SELF_CONFIDENCE → CONFIDENCE
+  lion_shaket: 'CONFIDENCE',
+  butterfly_zohar: 'CONFIDENCE',
+  ant_harutza: 'CONFIDENCE',
+  // NOISE_FEAR → SIRENS
+  footstep_giant: 'SIRENS',
+  song_whale: 'SIRENS',
+  mole_sheket: 'SIRENS',
+  // GENERAL_FEARS
+  firefly_namit: 'GENERAL_FEARS',
+  bunny_ometz: 'GENERAL_FEARS',
+  mongoose_zariz: 'GENERAL_FEARS',
+  // MEDICAL_PROCEDURE → MEDICAL
+  starfish_kokhavi: 'MEDICAL',
+  seahorse_yam: 'MEDICAL',
+  gecko_rifa: 'MEDICAL',
+  // OTHER → GENERAL_FEARS (fallback bank category)
+  puppy_neeman: 'GENERAL_FEARS',
+  parrot_tzivon: 'GENERAL_FEARS',
+  wolf_pup_siyar: 'GENERAL_FEARS',
 };
 
 // ── Category mapping: wizard → story-bank ───────────────────────
