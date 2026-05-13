@@ -30,6 +30,11 @@ import { buildPersistedCharacterAnchorsJson, companionAnchorKey, getWizardMeta }
 import { buildLetterContextFromOrder, buildPatchContextFromOrder } from '../../../backend/providers/personalization';
 import { ROUTES } from '../../../lib/routes';
 import { evaluatePhotoGate, resolveResemblanceThresholdConfig } from '../../../lib/resemblance-core';
+import {
+  buildEnrichedScenePrompt,
+  deriveLayout,
+  type PageLayout,
+} from '../../../backend/providers/image-prompt-enricher';
 
 const activeOrderLocks = new Set<string>();
 const GENERATION_ELIGIBLE_STATUS = 'paid';
@@ -717,13 +722,31 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
         .filter(([characterId, count]) => characterId === 'child' || count > 1)
         .map(([characterId]) => characterId)
     );
+    const totalStoryPages = story.pages.length;
     const pagesForGeneration = boundedPagesWithCharacters.map((page) => {
       const comp = compositionByPage.get(page.pageNumber);
+      const pageLayout: PageLayout = deriveLayout({
+        pageNumber: page.pageNumber,
+        totalPages: totalStoryPages,
+        text: page.text,
+        isLetter: Boolean(page.isLetter),
+      });
+      const enrichedPrompts = buildEnrichedScenePrompt({
+        rawScenePrompt: page.rawScenePrompt,
+        imagePrompt: page.imagePrompt,
+        layout: pageLayout,
+        text: page.text,
+        textZone: null,
+        isLetter: page.isLetter,
+        pageNumber: page.pageNumber,
+        totalPages: totalStoryPages,
+      });
       return {
         pageTemplate: templateByPageNumber.get(page.pageNumber) ?? 'art_top_text_bottom',
         pageNumber: page.pageNumber,
-        imagePrompt: page.imagePrompt,
-        rawScenePrompt: page.rawScenePrompt,
+        imagePrompt: enrichedPrompts.imagePrompt,
+        rawScenePrompt: enrichedPrompts.rawScenePrompt,
+        pageLayout,
         visualDirection: page.visualDirection,
         bookPageText: page.text,
         imageSubject: page.imageSubject,

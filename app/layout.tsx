@@ -1,4 +1,4 @@
-import { Arimo, Heebo, Rubik } from 'next/font/google';
+import { Arimo, Frank_Ruhl_Libre, Heebo, Rubik } from 'next/font/google';
 import { COMMON } from '@/content';
 
 const heebo = Heebo({
@@ -22,6 +22,13 @@ const rubik = Rubik({
   display: 'swap',
 });
 
+const frankRuhl = Frank_Ruhl_Libre({
+  subsets: ['hebrew'],
+  weight: ['400', '500'],
+  variable: '--font-frank',
+  display: 'swap',
+});
+
 export const metadata = {
   title:       COMMON.siteTitle,
   description: COMMON.siteDescription,
@@ -29,7 +36,7 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="he" dir="rtl" className={`${heebo.variable} ${rubik.variable} ${arimo.variable}`}>
+    <html lang="he" dir="rtl" className={`${heebo.variable} ${rubik.variable} ${arimo.variable} ${frankRuhl.variable}`}>
       <body>{children}</body>
     </html>
   );

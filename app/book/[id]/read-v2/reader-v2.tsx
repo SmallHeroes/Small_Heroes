@@ -1,12 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type SyntheticEvent } from 'react';
+import { deriveLayout, type PageLayout } from '@/backend/providers/image-prompt-enricher';
 import styles from './reader-v2.module.css';
 
 type BookPageTemplate = 'full_bleed_overlay' | 'art_top_text_bottom' | 'character_vignette_text' | 'text_only';
 
 type TextZone = 'top_clear' | 'bottom_clear';
-type TextColorScheme = 'light' | 'dark';
 
 type BookPage = {
   pageNumber: number;
@@ -18,6 +18,9 @@ type BookPage = {
   presentationImageUrl?: string | null;
   isCover?: boolean;
   pageTemplate?: string | null;
+  pageLayout?: PageLayout | null;
+  isLetter?: boolean;
+  isQuietPage?: boolean;
   textZone?: string | null;
   lighting?: string | null;
   textColorScheme?: string | null;
@@ -31,8 +34,8 @@ type ReaderPage = {
   imageUrl: string | null;
   isCover: boolean;
   pageTemplate: BookPageTemplate;
+  pageLayout: PageLayout;
   textZone: TextZone;
-  textColorScheme: TextColorScheme;
 };
 
 type OrderBookResponse = {
@@ -80,7 +83,7 @@ function splitCoverAndInterior(pages: BookPage[]): { cover: BookPage | null; int
   return { cover, interior };
 }
 
-/** Preserved for API typing; reader treats all non-text-only interior pages as full-bleed overlay. */
+/** Preserved for API typing; reader layout is chosen from pageLayout with text-only fallback. */
 function normalizePageTemplate(raw: string | null | undefined, hasImage: boolean): BookPageTemplate {
   if (!hasImage) return 'text_only';
   if (raw === 'full_bleed_overlay' || raw === 'art_top_text_bottom' || raw === 'character_vignette_text') {
@@ -95,19 +98,10 @@ function parseTextZone(raw: string | null | undefined): TextZone | undefined {
   return TEXT_ZONES.includes(t) ? t : undefined;
 }
 
-function deriveTextColorScheme(
-  textColorScheme: string | null | undefined,
-  lighting: string | null | undefined
-): TextColorScheme {
-  if (textColorScheme === 'light' || textColorScheme === 'dark') return textColorScheme;
-  const darkLightingModes = ['moonlit', 'dramatic_soft'];
-  if (lighting && darkLightingModes.includes(lighting)) return 'light';
-  return 'dark';
-}
-
 function normalizeReaderPages(pages: BookPage[]): ReaderPage[] {
   const { cover, interior } = splitCoverAndInterior(pages);
   const ordered = cover ? [cover, ...interior] : interior;
+  const totalPages = interior.length;
   return ordered.map((page) => {
     const imageUrl = resolvePageImageUrl(page);
     const pageTemplate = normalizePageTemplate(page.pageTemplate ?? null, Boolean(imageUrl));
@@ -116,7 +110,16 @@ function normalizeReaderPages(pages: BookPage[]): ReaderPage[] {
       !isCoverPage && imageUrl
         ? parseTextZone(page.textZone ?? undefined) ?? 'top_clear'
         : 'bottom_clear';
-    const textColorScheme = deriveTextColorScheme(page.textColorScheme, page.lighting);
+    const pageLayout =
+      page.pageLayout ??
+      deriveLayout({
+        pageNumber: page.pageNumber,
+        totalPages,
+        text: page.text || '',
+        isCover: isCoverPage,
+        isLetter: Boolean(page.isLetter),
+        isQuietPage: Boolean(page.isQuietPage),
+      });
     const rawAudio = typeof page.audioUrl === 'string' ? page.audioUrl.trim() : '';
     return {
       pageNumber: page.pageNumber,
@@ -126,8 +129,8 @@ function normalizeReaderPages(pages: BookPage[]): ReaderPage[] {
       imageUrl,
       isCover: isCoverPage,
       pageTemplate,
+      pageLayout,
       textZone,
-      textColorScheme,
     };
   });
 }
@@ -389,16 +392,127 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
       hasImage: Boolean(currentPage?.imageUrl),
       isCover: Boolean(currentPage?.isCover),
       pageTemplate: currentPage?.pageTemplate,
+      pageLayout: currentPage?.pageLayout,
       textZone: currentPage?.textZone,
     });
   }, [currentPage, currentPageIndex, readerPages.length]);
 
-  const interiorCanvasClass =
-    currentPage && !currentPage.isCover
-      ? currentPage.pageTemplate === 'text_only'
-        ? styles.tplTextOnly
-        : styles.tplFullBleedOverlay
-      : styles.tplCover;
+  const pageFooter = currentPage ? (
+    <footer className={styles.pageFooter}>
+      <span>
+        עמוד {currentPageIndex + 1} מתוך {readerPages.length}
+      </span>
+      {bookTitle ? (
+        <>
+          <span className={styles.footerSep}> · </span>
+          <span>{bookTitle}</span>
+        </>
+      ) : null}
+    </footer>
+  ) : null;
+
+  const renderInteriorPage = (page: ReaderPage) => {
+    if (page.pageTemplate === 'text_only') {
+      return (
+        <article className={`${styles.pageCanvas} ${styles.tplTextOnly}`}>
+          <div className={styles.textOnlyPaper}>
+            <p className={styles.paperPageText}>{page.text || ' '}</p>
+          </div>
+          {pageFooter}
+        </article>
+      );
+    }
+
+    if (page.pageLayout === 'vignette_breath') {
+      return (
+        <article className={`${styles.pageCanvas} ${styles.tplVignetteBreath}`}>
+          <div className={styles.vignetteImageWrap}>
+            {page.imageUrl ? (
+              <img src={page.imageUrl} alt={`איור עמוד ${page.pageNumber}`} className={styles.vignetteImg} />
+            ) : (
+              <div className={styles.imagePlaceholder}>
+                <span className={styles.imagePlaceholderIcon}>🎨</span>
+                <span>איור בעיבוד</span>
+              </div>
+            )}
+          </div>
+          <div className={styles.vignetteTextBlock}>
+            <p className={styles.vignetteText}>{page.text || ' '}</p>
+          </div>
+          {pageFooter}
+        </article>
+      );
+    }
+
+    if (page.pageLayout === 'asymmetric_split') {
+      return (
+        <article className={`${styles.pageCanvas} ${styles.tplAsymmetricSplit}`}>
+          <div className={styles.splitImageHalf}>
+            {page.imageUrl ? (
+              <img src={page.imageUrl} alt={`איור עמוד ${page.pageNumber}`} className={styles.splitImg} />
+            ) : (
+              <div className={styles.imagePlaceholder}>
+                <span className={styles.imagePlaceholderIcon}>🎨</span>
+                <span>איור בעיבוד</span>
+              </div>
+            )}
+          </div>
+          <div className={styles.splitTextHalf}>
+            <p className={styles.splitText}>{page.text || ' '}</p>
+          </div>
+          {pageFooter}
+        </article>
+      );
+    }
+
+    if (page.pageLayout === 'letter') {
+      return (
+        <article className={`${styles.pageCanvas} ${styles.tplLetter}`}>
+          <div className={styles.letterPortraitWrap}>
+            {page.imageUrl ? (
+              <img src={page.imageUrl} alt={`איור עמוד ${page.pageNumber}`} className={styles.letterPortrait} />
+            ) : (
+              <div className={styles.imagePlaceholder}>
+                <span className={styles.imagePlaceholderIcon}>🎨</span>
+                <span>איור בעיבוד</span>
+              </div>
+            )}
+          </div>
+          <div className={styles.letterPaper}>
+            <p className={styles.letterText}>{page.text || ' '}</p>
+          </div>
+          {pageFooter}
+        </article>
+      );
+    }
+
+    return (
+      <article className={`${styles.pageCanvas} ${styles.tplFullBleedSoft}`}>
+        <div className={styles.bleedImageLayer}>
+          {page.imageUrl ? (
+            <img
+              src={page.imageUrl}
+              alt={`איור עמוד ${page.pageNumber}`}
+              className={styles.bleedCoverImg}
+              onLoad={() => console.log('[read-v2] image loaded', page.imageUrl)}
+              onError={(event: SyntheticEvent<HTMLImageElement, Event>) =>
+                console.error('[read-v2] image failed', page.imageUrl, event)
+              }
+            />
+          ) : (
+            <div className={styles.imagePlaceholder}>
+              <span className={styles.imagePlaceholderIcon}>🎨</span>
+              <span>איור בעיבוד</span>
+            </div>
+          )}
+        </div>
+        <div className={`${styles.overlayTextShell} ${overlayZoneClass(page.textZone)}`}>
+          <p className={styles.overlayPageText}>{page.text || ' '}</p>
+        </div>
+        {pageFooter}
+      </article>
+    );
+  };
 
   return (
     <main className={styles.root} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
@@ -422,13 +536,6 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
 
       {status === 'ready' && !showEndScreen && currentPage && (
         <>
-          {/*
-           * LAYOUT NOTE (2026-04, phase 3d.3):
-           * All interior pages currently render as full-bleed overlay (single layout).
-           * Future phase will add variation: hero pages (image fills 100%, no text on overlay,
-           * short caption only), image-dominant pages (large image, minimal text), and
-           * asymmetric spreads. For now we keep one consistent treatment.
-           */}
           <section className={styles.pageStage}>
             {currentPage.isCover ? (
               <article className={`${styles.pageCanvas} ${styles.tplCover}`}>
@@ -456,53 +563,7 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
                 </div>
               </article>
             ) : (
-              <article className={`${styles.pageCanvas} ${interiorCanvasClass}`}>
-                {currentPage.pageTemplate === 'text_only' ? (
-                  <div className={styles.textOnlyPaper}>
-                    <p className={styles.paperPageText}>{currentPage.text || ' '}</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className={styles.bleedImageLayer}>
-                      {currentPage.imageUrl ? (
-                        <img
-                          src={currentPage.imageUrl}
-                          alt={`איור עמוד ${currentPage.pageNumber}`}
-                          className={styles.bleedCoverImg}
-                          onLoad={() => console.log('[read-v2] image loaded', currentPage.imageUrl)}
-                          onError={(event: SyntheticEvent<HTMLImageElement, Event>) =>
-                            console.error('[read-v2] image failed', currentPage.imageUrl, event)
-                          }
-                        />
-                      ) : (
-                        <div className={styles.imagePlaceholder}>
-                          <span className={styles.imagePlaceholderIcon}>🎨</span>
-                          <span>איור בעיבוד</span>
-                        </div>
-                      )}
-                    </div>
-                    <div
-                      className={`${styles.overlayTextShell} ${overlayZoneClass(currentPage.textZone)} ${
-                        currentPage.textColorScheme === 'light' ? styles.textSchemeLight : styles.textSchemeDark
-                      }`}
-                    >
-                      <p className={styles.overlayPageText}>{currentPage.text || ' '}</p>
-                    </div>
-                  </>
-                )}
-
-                <footer className={styles.pageFooter}>
-                  <span>
-                    עמוד {currentPageIndex + 1} מתוך {readerPages.length}
-                  </span>
-                  {bookTitle ? (
-                    <>
-                      <span className={styles.footerSep}> · </span>
-                      <span>{bookTitle}</span>
-                    </>
-                  ) : null}
-                </footer>
-              </article>
+              renderInteriorPage(currentPage)
             )}
           </section>
 

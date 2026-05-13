@@ -68,10 +68,10 @@
 /* ── Shared page canvas (paper) ─────────────────────────── */
 .pageCanvas {
   position: relative;
-  width: min(100%, 540px);
+  width: min(100%, 720px);
   margin-inline: auto;
-  min-height: min(74dvh, 780px);
-  max-height: calc(100dvh - 148px);
+  min-height: min(80dvh, 900px);
+  max-height: calc(100dvh - 130px);
   background: #fdf9f4;
   border-radius: 4px;
   overflow: hidden;
@@ -170,6 +170,7 @@
 }
 
 /* ── Interior: full-bleed image + overlay text ───────────── */
+.tplFullBleedSoft,
 .tplFullBleedOverlay {
   display: block;
   padding-bottom: 28px;
@@ -213,12 +214,16 @@
   text-align: right;
   font-family: var(--reader-font-stack);
   font-size: 20px;
-  line-height: 1.5;
-  font-weight: 600;
+  line-height: 1.55;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   white-space: normal;
   word-wrap: break-word;
   overflow-wrap: anywhere;
-  /* color and text-shadow set by .textSchemeDark / .textSchemeLight */
+  color: #fff9f0;
+  text-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.7),
+    0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
 /*
@@ -229,15 +234,15 @@
   bottom: 0;
   left: 0;
   right: 0;
-  max-height: 42%;
+  max-height: 38%;
   justify-content: flex-end;
-  padding-bottom: 32px;
+  padding-bottom: 28px;
   background: linear-gradient(
     to top,
-    rgba(253, 249, 244, 0.88) 0%,
-    rgba(253, 249, 244, 0.75) 40%,
-    rgba(253, 249, 244, 0.4) 75%,
-    rgba(253, 249, 244, 0) 100%
+    rgba(20, 15, 10, 0.55) 0%,
+    rgba(20, 15, 10, 0.35) 50%,
+    rgba(20, 15, 10, 0.08) 85%,
+    rgba(20, 15, 10, 0) 100%
   );
 }
 
@@ -245,29 +250,16 @@
   top: 0;
   left: 0;
   right: 0;
-  max-height: 42%;
+  max-height: 38%;
   justify-content: flex-start;
   background: linear-gradient(
     to bottom,
-    rgba(253, 249, 244, 0.4) 0%,
-    rgba(253, 249, 244, 0.25) 40%,
-    rgba(253, 249, 244, 0.1) 75%,
-    rgba(253, 249, 244, 0) 100%
+    rgba(20, 15, 10, 0.55) 0%,
+    rgba(20, 15, 10, 0.35) 50%,
+    rgba(20, 15, 10, 0.08) 85%,
+    rgba(20, 15, 10, 0) 100%
   );
 }
-
-/* ── Dark text on light backgrounds (default) ── */
-.textSchemeDark .overlayPageText {
-  color: #2a241a;
-  text-shadow: none;
-}
-
-/* ── Light text on dark backgrounds (night/moonlit) ── */
-.textSchemeLight .overlayPageText {
-  color: #f0ece4;
-  text-shadow: none;
-}
-
 
 /* ── text_only ──────────────────────────────────────────── */
 .tplTextOnly {
@@ -324,6 +316,137 @@
   font-size: 32px;
 }
 
+.tplVignetteBreath {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  background: #fdf9f4;
+}
+
+.vignetteImageWrap {
+  width: 78%;
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(80, 60, 40, 0.12);
+  margin-top: 16px;
+}
+
+.vignetteImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.vignetteTextBlock {
+  margin-top: 32px;
+  padding: 0 12px;
+  max-width: 32em;
+}
+
+.vignetteText {
+  margin: 0;
+  direction: rtl;
+  text-align: center;
+  font-family: var(--reader-font-stack);
+  font-size: 22px;
+  line-height: 1.7;
+  font-weight: 400;
+  color: #2a241a;
+  letter-spacing: 0.02em;
+}
+
+.tplAsymmetricSplit {
+  display: flex;
+  flex-direction: column;
+  background: #fdf9f4;
+}
+
+.splitImageHalf {
+  flex: 0 0 58%;
+  position: relative;
+  overflow: hidden;
+  background: #e8e0d8;
+}
+
+.splitImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  mask-image: linear-gradient(to bottom, black 88%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 88%, transparent 100%);
+}
+
+.splitTextHalf {
+  flex: 1;
+  padding: 24px 28px 32px;
+  display: flex;
+  align-items: center;
+}
+
+.splitText {
+  margin: 0;
+  direction: rtl;
+  text-align: right;
+  font-family: var(--reader-font-stack);
+  font-size: 20px;
+  line-height: 1.6;
+  font-weight: 500;
+  color: #2a241a;
+  letter-spacing: 0.01em;
+}
+
+.tplLetter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 20px;
+  background: linear-gradient(180deg, #faf3e3 0%, #f4ebd5 100%);
+}
+
+.letterPortraitWrap {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(120, 90, 50, 0.2);
+  margin-top: 12px;
+  border: 3px solid #fdf9f4;
+}
+
+.letterPortrait {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.letterPaper {
+  margin-top: 24px;
+  padding: 28px 32px;
+  background: #fefcf6;
+  border-radius: 6px;
+  box-shadow:
+    0 1px 0 rgba(120, 90, 50, 0.08),
+    0 8px 24px rgba(120, 90, 50, 0.1);
+  max-width: 32em;
+  transform: rotate(-0.4deg);
+}
+
+.letterText {
+  margin: 0;
+  direction: rtl;
+  text-align: right;
+  font-family: var(--font-frank), var(--reader-font-stack);
+  font-size: 19px;
+  line-height: 1.75;
+  font-weight: 400;
+  color: #3d2817;
+  letter-spacing: 0.015em;
+  font-style: italic;
+}
+
 .controls {
   display: flex;
   align-items: center;
@@ -366,7 +489,7 @@
 
   .pageCanvas {
     width: 100%;
-    max-height: calc(100dvh - 138px);
+    max-height: calc(100dvh - 130px);
     border-radius: 0;
     box-shadow: none;
   }
