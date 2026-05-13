@@ -107,4 +107,4 @@ imageDirection: wide_shot: child and Shahkan lying side by side under blanket, s
 
 imageDirection: close_shot: child and dolphin touching, eyes closed, blanket tucked, soft warm light fading
 
-WORD_COUNT: [33,36,31,36,30,8, Forty, Forty,30,14] = 294
+WORD_COUNT: [33, 36, 31, 36, 30, 8, 40, 40, 30, 14] = 298

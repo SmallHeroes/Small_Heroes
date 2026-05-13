@@ -108,4 +108,4 @@ imageDirection: wide_shot: child climbing onto bear’s broad back, bear sitting
 
 imageDirection: close_shot: both under blanket, child tucked against bear’s fur, scarf lying loose beside them, soft lamp glow
 
-WORD_COUNT: [28,31,29,30,30,28,12, Thirty-eight,  Thirty-one, 14] = 271
+WORD_COUNT: [28, 31, 29, 30, 30, 28, 12, 38, 31, 14] = 271

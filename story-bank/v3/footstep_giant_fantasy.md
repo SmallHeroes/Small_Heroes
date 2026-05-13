@@ -180,4 +180,4 @@ imageDirection: wide_shot valley with scattered stones, giant stepping aside, ch
 
 imageDirection: wide_shot cool evening, sideways drifting sound-waves in sky, giant walking away toward river, child holding warm stone
 
-WORD_COUNT: [36,34,32,33,31,34,33,32,34,35,36,34,26, Forty, 12, 32, 28, 30, 32, 14] = 632
+WORD_COUNT: [36, 34, 32, 33, 31, 34, 33, 32, 34, 35, 36, 34, 26, 40, 12, 32, 28, 30, 32, 14] = 618

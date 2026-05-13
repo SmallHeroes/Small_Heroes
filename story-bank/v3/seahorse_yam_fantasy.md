@@ -128,4 +128,4 @@ imageDirection: wide_shot: sky still slightly sideways, child observing, Yam nea
 
 imageDirection: medium_shot from behind: child holding shell, Yam slightly apart facing different direction, sky still tilted, cool tones
 
-WORD_COUNT: [36, 39, 34, 33, 32, 31, 30, 33, 36, 32, 29, 33, 31,  thirty, 8, 27, 33, 31, 32, 14] = 624
+WORD_COUNT: [36, 39, 34, 33, 32, 31, 30, 33, 36, 32, 29, 33, 31, 30, 8, 27, 33, 31, 32, 14] = 604

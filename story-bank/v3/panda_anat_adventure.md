@@ -107,4 +107,4 @@ imageDirection: wide_shot: spring water, bird taking off, bamboo placed on rock,
 
 imageDirection: medium_shot: bamboo on rock foreground, gentle breeze, boy by water, Anat sitting slightly apart, evening light
 
-WORD_COUNT: [31, 34, 36, 32, 30, 34, 37, 33, 30,  thirty, 8, 33, 30, 30, 17] = 415
+WORD_COUNT: [31, 34, 36, 32, 30, 34, 37, 33, 30, 30, 8, 33, 30, 30, 17] = 445

@@ -100,4 +100,4 @@ imageDirection: medium_shot: stream open, child shouting joyfully; giant slightl
 
 imageDirection: wide_shot sunset: small pebble in mud foreground; giant a step aside facing away; child near water, not touching
 
-WORD_COUNT: [36,34,33,35,30,36,32,28,33,41,16, Forty, 30, 33, 15] = 462
+WORD_COUNT: [36, 34, 33, 35, 30, 36, 32, 28, 33, 41, 16, 40, 30, 33, 15] = 472

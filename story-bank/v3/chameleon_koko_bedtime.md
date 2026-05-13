@@ -80,4 +80,4 @@ imageDirection: wide_shot: both lying on bed, chameleon touching old color patch
 
 imageDirection: close_shot: child and chameleon under blanket, scarf touching child’s hand, cozy warm light, calm expressions
 
-WORD_COUNT: [32, 31, 31,  Thirty,  Thirty, 17,  Thirty,  Thirty,  Thirty, 13] = 274
+WORD_COUNT: [32, 31, 31, 30, 30, 17, 30, 30, 30, 13] = 274

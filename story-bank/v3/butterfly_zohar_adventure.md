@@ -93,4 +93,4 @@ imageDirection: medium_shot: edge of hedge with light returning, butterfly touch
 זֹהַר קְצָת מְרֻחֶקֶת. קַו זָהָב נִשְׁאַר עַל הָעֵץ. {{childName}} עוֹמֵד לְיַד הַדֶּשֶׁא.
 imageDirection: wide_shot: evening light, butterfly perched apart on shaded branch, thin golden pollen line on tree, boy nearby on grass, not touching
 
-WORD_COUNT: [39,34,37,38,35,36,34,36,34,42,13, Forty, 36,34,14] = 502
+WORD_COUNT: [39, 34, 37, 38, 35, 36, 34, 36, 34, 42, 13, 40, 36, 34, 14] = 502
