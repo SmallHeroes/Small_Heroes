@@ -1,144 +1,128 @@
 # Story: octopus_seara_fantasy — Story Bank v3
-Generated: 2026-05-12T06:05:37.998Z
+Generated: 2026-05-12T20:33:27.320Z
 Model: gpt-5.3-chat-latest
-Tokens: 8659→2742
+Tokens: 9634→3831
 Finish: completed
-Time: 43.8s
+Time: 83.1s
 
 ---
 ---
-title: "הַיָּם שֶׁנִּדְבַּק לַיָּדַיִם"
+title: "הַשָּׁמַיִם הוֹלְכִים לְצַד"
 companionId: octopus_seara
 direction: fantasy
 category: ANGER_FRUSTRATION
 gender: male
-pages: 15
+pages: 20
+companionLetter:
+  insertAfterPage: 19
+  imageDirection: "close_shot: octopus seara in contemplative pose, faint trace of the surreal world-rule still visible in the background, cool soft light, intimate framing, companion looking at child with quiet recognition"
 ---
 
-storyStyle: פרוע, מצחיק, עם דקירה קטנה בלב  
-metaphor: כעס כמו דבק שלא מרפה מהידיים  
-stakes: אם לא יצליח לשחרר, כל דבר שייגע בו יידבק והעולם ייתקע  
-weirdMoment: דלתות, כוסות ואפילו עננים נדבקים לידיים של {{childName}}  
-emotionalArc: סקרנות → התפרצות → שליטה חזקה יותר → קריסה → שחרור חלקי  
-quietPage: 11 — תחושת קור של סלע חלק בכף היד  
-heartLine: זרוע אחת של סערה נשלחת אל {{childName}} ואז מתקפלת לאט בחזרה  
-copingVisible: 3,4,5,6  
-collapsePoint: 10 — הזרועות מפסיקות לציית ותופסות דברים בעצמן  
-forbiddenPatterns: [3,5,7]  
-emotionalMistake: page 5 — {{childName}} דוחף את סערה ואומר לו "עזוב אותי!"  
-roughPages: page 6 — בדיחה ארוכה מדי על כוס נדבקת; page 9 — מעבר חד לשקט בלי הסבר  
-uncomfortableTruth: page 8 — סערה מנסה לעזור ומלכלך הכל בדיו, וזה רק מחמיר  
-endingType: distance  
+storyStyle: פרוע וחם עם הומור גוף
+metaphor: לאחוז חזק מדי בעננים
+stakes: הַשָּׁמַיִם יִמְשְׁכוּ הַכֹּל לְצַד וְהַבַּיִת יִתְקַפֵּל
+weirdMoment: עֲנָנִים נִתְפָּסִים בְּזְרוֹעוֹת וְנִמְתָּחִים כְּמוֹ גֻּמִּי
+emotionalArc: כַּעַס → אֲחִיזָה → הַחְמָרָה → קְרִיסָה → שִׁחְרוּר
+quietPage: 15
+heartLine: זְרוֹעַ אַחַת שֶׁל סַעֲרָה נִמְתֶּחֶת לֶעָנָן וְחוֹזֶרֶת לְגוּף בְּשֶׁקֶט
+copingVisible: 2,3,5,6,7,8
+collapsePoint: 13 — הַזְּרוֹעוֹת מַחֲזִיקוֹת הֶפֶךְ מִמַּה שֶׁהוּא מְצַוֶּה
+forbiddenPatterns: [2,5,8]
+emotionalMistake: 6 — {{childName}} דּוֹחֶה אֶת סַעֲרָה וְצוֹעֵק עָלָיו
+roughPages: 4 (בְּדִיחָה מֻזְרָה עַל מִרְקָם קִיר), 11 (קְפִיצָה טוֹנָלִית)
+uncomfortableTruth: 10 — הַנִּסָּיוֹן שֶׁל סַעֲרָה לַעֲזוֹר מְקַלְקֵל יוֹתֵר
+endingType: distance
 
 --- Page 1 ---
-בַּבֹּקֶר הַזֶּה, הַיָּדַיִם שֶׁל {{childName}} לֹא הִסְכִּימוּ לְהִפָּרֵד מִשּׁוּם דָּבָר.  
-כּוֹס נִדְבְּקָה. דֶּלֶת נִדְבְּקָה.  
-אֲפִלּוּ הַכַּפִּית אָמְרָה "צְ'יק!" וְנִשְׁאֲרָה.  
-"נוּ, תִּשְׁתַּחְרְרִי!" הוּא נִעֵר אֶת הַיָּד.
+הַשָּׁמַיִם זָזוּ הַבֹּקֶר לְצַד. לֹא לְמַעְלָה — לְצַד! הָאֹרֶן הִתְעַקֵּם, הַחֲלוֹן נֶעֱנַד בְּזָוִית מוּזָרָה, וְהַצֵּל שֶׁל {{childName}} נִמְשַׁךְ כְּמוֹ גֻּמִּי עַל הַקִּיר.
 
-imageDirection: close_shot: boy’s hand stuck to spoon and cup, stretched awkwardly; kitchen background; morning light; objects slightly bent toward hand, focal on sticky grip  
+imageDirection: wide_shot: tilted world with sky sliding sideways, child standing near window, shadow stretched along wall, morning light slanted
 
 --- Page 2 ---
-מִתּוֹךְ הַכּוֹס קָפַץ סַעֲרָה.  
-כּוֹבַע מַלָּחִים עָקוֹם, שְׁמוֹנֶה זְרוֹעוֹת נִצְמָדוֹת לַדְּפָנוֹת.  
-"אֲנִי מְטַפֵּל! עֲזֹב!"  
-זְרוֹעַ אַחַת תָּפְסָה אֶת הַכּוֹס, שְׁתַּיִם אֶת הַיָּד, וְשָׁלוֹשׁ בִּכְלָל אֶת הַשֻּׁלְחָן.
+מִתַּחַת לַמִּטָּה קָפַץ סַעֲרָה. כֹּבַע מַלָּחִים קָטָן, עֵינַיִם גְּדוֹלוֹת. "אֲנִי מְטַפֵּל! עַכְשָׁיו!" זְרוֹעוֹתָיו נִפְתָּחוּ לְכָל הַכִּוּוּנִים וְנִדְבְּקוּ לַשְּׁטִיחַ וְלַקִּיר.
 
-imageDirection: medium_shot: octopus climbing out of cup, multiple tentacles grabbing different objects, hat crooked, orange-red color; boy leaning back surprised  
+imageDirection: medium_shot: octopus popping from under bed, tentacles sticking to rug and wall, hat straight, child turning surprised
 
 --- Page 3 ---
-"אַל תִּדְאַג!" צָעַק סַעֲרָה.  
-הוּא נִצְמַד חָזָק יוֹתֵר. עוֹד יוֹתֵר.  
-הַכּוֹס נִמְשְׁכָה, הַשֻּׁלְחָן חָרַק.  
-"יֵשׁ שְׁלִיטָה!"  
-וְהַיָּד? עוֹד יוֹתֵר נִדְבֶּקֶת.
-
-imageDirection: low_angle: table slightly lifting, octopus gripping tightly, tentacles tense, boy’s arm stretched; focus on strain  
+"נוּ! לֶאֱחוֹז בֶּעָנָנִים!" צָעַק סַעֲרָה בְּקוֹל רָם שֶׁמִּתְגַּלְגֵּל בֶּחָלָל. שְׁמוֹנֶה זְרוֹעוֹת נִמְתָּחוּ מֵהַחֲלוֹן, רַכּוֹת וּמְלֵאוֹת יְנִיקוֹת קְטַנּוֹת, וְנֶאֱחֲזוּ בְּעָנָן רַךְ וּלָח. הָעָנָן נִמְשַׁךְ בְּאִטִּיּוּת — וְהַשָּׁמַיִם נִמְשְׁכוּ יוֹתֵר, כְּאִלּוּ הֵם נוֹשְׁמִים.
+imageDirection: low_angle: tentacles stretching out window grabbing a cloud, sky pulling further sideways, child leaning back
 
 --- Page 4 ---
-הֵם יָצְאוּ הַחוּצָה.  
-הָאֲבָנִים בַּרְחוֹב נִדְבְּקוּ לַנַּעֲלַיִם.  
-סַעֲרָה שָׁלַח זְרוֹעוֹת לְכָל כִּוּוּן.  
-"נוּ! שַׁחְרֵרִי! שַׁחְרֵרִי!"  
-אֲבָל זְרוֹעַ אַחַת נִדְבְּקָה לַכּוֹבַע שֶׁלּוֹ.
+הַקִּיר הָיָה חָלָק כְּמוֹ סַבּוֹן. זְרוֹעַ אַחַת לִקְקָה אוֹתוֹ. "אֵיכְס!" אָמַר {{childName}}. סַעֲרָה יִשֵּׁר כֹּבַע. "שׁוֹלֵט! שׁוֹלֵט!" וְהַזְּרוֹעוֹת הִתְסַבְּכוּ זוֹ בְּזוֹ.
 
-imageDirection: wide_shot: street with stones stuck to shoes, octopus tangled grabbing hat, boy mid-step awkward  
+imageDirection: close_shot: one tentacle touching slick wall, child grimacing, octopus hat straight but tentacles tangled
 
 --- Page 5 ---
-"עֲזֹב אוֹתִי!" צָעַק {{childName}} בְּקוֹל רוֹעֵד, וְדָחַף אֶת סַעֲרָה בִּשְׁתֵּי יָדַיִם.  
-הַכּוֹבַע הִסְתּוֹבֵב עַל רֹאשׁוֹ בְּרַעַשׁ קָטָן.  
-זְרוֹעוֹת רַכּוֹת הִתְפַּזְּרוּ לְכָל כִּוּוּן, מִתְפַּתְּלוֹת וּמְחַפְּשׂוֹת מַשֶּׁהוּ לֶאֱחֹז.  
-סַעֲרָה נִצְמַד לַמַּדְרֵכָה הַקָּרָה וְלֹא זָז, רַק רָעַד קְצָת.
-imageDirection: medium_shot: boy pushing octopus; octopus flattened slightly on sidewalk, hat spinning, tentacles splayed
+הֵם מָשְׁכוּ יַחַד. "חָזָק יוֹתֵר!" סַעֲרָה צִוָּה. שְׁתַּיִם אֲחָזוֹת, אַחַת בַּוִּילוֹן, אַחַת בַּוִּילּוֹן הַהֶפֶךְ. הַחֶבֶל נִמְתַּח, צִ’יק־צִ’יק.
+
+imageDirection: medium_shot: child and octopus pulling makeshift rope tied to cloud, tentacles doing different tasks, strain visible
 
 --- Page 6 ---
-סַעֲרָה נִסָּה לְהִכָּנֵס לְחוֹר קָטָן בְּקִיר.  
-"פָּשׁוּט! נִכְנָס—יוֹצֵא!"  
-הוּא נִתְקַע.  
-זְרוֹעַ אַחַת נִשְׁאֲרָה בַּחוּץ וְנוֹפְפָה כְּמוֹ דֶּגֶל.  
-מִישֶׁהוּ עָבַר וְאָמַר, "נֶחְמָד."
+"עֲזֹב אוֹתִי!" צָעַק {{childName}}. "אֲנִי יָכוֹל לְבַד!" הוּא דָּחַף זְרוֹעַ שֶׁנִדְבְּקָה לַחֻלְצָה שֶׁלּוֹ. סַעֲרָה נִתְקַע בְּסֶדֶק קָטָן. "שַׁחְרְרִי! שַׁחְרְרִי!"
 
-imageDirection: close_shot: octopus stuck halfway in wall hole, one tentacle waving outside; passerby blurred  
+imageDirection: medium_shot: child pushing away a clinging tentacle, octopus stuck in tiny crack, hat tilting
 
 --- Page 7 ---
-{{childName}} עָצַר פִּתְאוֹם, הַנְּשִׁימָה שֶׁלּוֹ כְּבֵדָה וּמְהִירָה.  
-הוּא רָאָה אֶת סַעֲרָה מוֹשֵׁךְ חָזָק, וְעוֹד חָזָק, הַגּוּף מִתְמַתֵּחַ.  
-כָּל זְרוֹעַ תּוֹפֶסֶת מַשֶּׁהוּ אַחֵר—אֶבֶן, כִּסֵּא, קָצֶה שֻׁלְחָן.  
-הַכּוֹבַע עוֹד עָקוֹם, מִתְנַדְנֵד קְצָת עִם כָּל מְשִׁיכָה.
-imageDirection: over_shoulder: boy watching octopus struggling, tangled limbs gripping random objects
+הַסֶּדֶק לָחַץ. זְרוֹעוֹת קְטַנּוֹת נִכְנְסוּ עוֹד וְעוֹד. "עוֹד רֶגַע!" קוֹלוֹ קָצָר. עֲנָנִים נִמְתָּחוּ כְּמוֹ מַסְטִיק. הַשָּׁמַיִם נִטּוּ עוֹד.
+
+imageDirection: close_shot: octopus wedged tighter, multiple tentacles squeezing in, clouds stretching like gum outside window
 
 --- Page 8 ---
-סַעֲרָה פִּתְאוֹם הוֹצִיא דְּיוֹ בְּקוֹל רַךְ שֶׁל "פְּלוֹפּ".  
-עָנָן שָׁחוֹר הִתְפַּשֵּׁט לְאַט, כָּבֵד וּמַעֲנִיק רֵיחַ מְשֻׁנֶּה, וְכִסָּה הַכֹּל.  
-כְּשֶׁנִּגְלָה—עוֹד יוֹתֵר דְּבִיק, מַבְרִיק וְנִמְתָּח בֵּין הַדְּבָרִים.  
-זְרוֹעַ אַחַת נִשְׁלְחָה לְ{{childName}} בִּזְהִירוּת, וְחָזְרָה לְאַט, כְּאִלּוּ מְהַסֶּסֶת.
-imageDirection: wide_shot: black ink cloud spreading, then clearing to reveal more stuck objects; one tentacle reaching then retracting
+פּוּף! דְּיוֹ שָׁחוֹר וּסָמִיךְ הִתְפַּרֵּץ בַּזְּמַן הַלֹּא נָכוֹן, וְרֵיחַ מָלוּחַ קָלָה עָלָה בָּאֲוִיר. הַחֶדֶר הִשְׁחִיר לְרֶגַע כְּמוֹ לַיְלָה קָטָן. "לֹא עַכְשָׁיו!" צָעַק סַעֲרָה. זְרוֹעַ אַחַת נִדְבְּקָה לַכֹּבַע וְלֹא רָצְתָה לְהִשָּׁחֵר.
+imageDirection: wide_shot: black ink cloud blooming in room, child waving hand, octopus with one tentacle stuck to his own hat
 
 --- Page 9 ---
-"סַעֲרָה..." אָמַר {{childName}} בְּקוֹל שָׁקֵט, כְּמַעַט לֹא נִשְׁמָע.  
-הַכְּבִישׁ שָׁקֵט פִּתְאוֹם, אֵין קוֹלוֹת שֶׁל צְעָדִים אוֹ רוּחַ.  
-אֲפִלּוּ הַכּוֹס עָצְרָה בָּאֲוִיר, לְרֶגַע קָטָן שֶׁל שֶׁקֶט מֻחְלָט.  
-מַשֶּׁהוּ לֹא זוֹז, כְּאִלּוּ הָעוֹלָם מַחֲזִיק אֶת הַנְּשִׁימָה.
-imageDirection: bird_eye: still street, objects frozen mid-air, boy and octopus small in frame
+כְּשֶׁהַדְּיוֹ נִפְרַד, הַכֹּל נָטָה יוֹתֵר. הַמִּטָּה הִתְגַּלְגְּלָה לַקִּיר. סַעֲרָה אָחַז חָזָק יוֹתֵר בְּעָנָן. זְרוֹעַ אַחַת הִתְאָרְכָה אֵלָיו — וְחָזְרָה לְגוּף.
+
+imageDirection: medium_shot: bed sliding sideways, octopus gripping cloud harder, one tentacle reaching then retracting, child watching
 
 --- Page 10 ---
-{{childName}} הִתְקַרֵב לַקִּיר בִּצְעָדִים אִטִּיִּים, מַרְגִּישׁ אֶת הַלֵּב פּוֹעֵם חָזָק.  
-הוּא שָׂם אֶת הַיָּד עַל הָאֶבֶן הַקָּרָה, מַרְגִּישׁ אֶת הַחֲלָקוּת וְהַלַּחֲלוּחִית שֶׁלָּהּ.  
-סַעֲרָה נִצְמַד חָזָק יוֹתֵר, הַזְּרוֹעוֹת נִמְתָּחוֹת וְנִלְפָּפוֹת בְּסָבִיב.  
-"אַל תִּזּוּז!" קָרָא, הַקּוֹל מְעַט רוֹעֵד.  
-אֲבָל זְרוֹעוֹת זָזוּ לְבַד, מִתְפַּתְּלוֹת כְּאִלּוּ יֵשׁ לָהֶן רָצוֹן מִשֶּׁלָּן.
-imageDirection: close_shot: boy’s hand pressed to wall, octopus gripping tightly but tentacles misfiring
+"עֲזֹר לִי!" קָרָא {{childName}} וְנִסָּה לִדְחוֹף אֶת הַחֲלוֹן. סַעֲרָה הִדְבִּיק הַכֹּל — קִיר, כִּסֵּא, תַּרְמִיל. הַדְּבִיקוּת תָּפְסָה גַּם אֶת הַדֶּלֶת. אֵין מוֹצָא.
+
+imageDirection: bird_eye: room clutter stuck by suction, door sealed, child pushing window, octopus over-gripping everything
 
 --- Page 11 ---
-הָאֶבֶן קָרָה וַחֲלָקָה, כְּמַעַט רְטוּבָה לְמַגָּע, וְהַיָּד שֶׁל {{childName}} הִתְהַדְּקָה עָלֶיהָ.  
-הוּא הִרְגִּישׁ צְמִירָה קְטַנָּה בָּאֶצְבָּעוֹת וּנְשִׁימָה קְצָרָה.  
-זְרוֹעוֹת סַעֲרָה נִרְפּוּ לְרֶגַע, מִתְנַדְנְדוֹת בְּשֶׁקֶט, כְּאִלּוּ נִרְגָּעוּ מְעַט.
-imageDirection: extreme_close: hand on smooth stone, octopus tentacles softly uncurling, cool tones
+הַשָּׁעוֹן עַל הַקִּיר הִתְחִיל לָלֶכֶת לְצַד, טִיק־טַק מֻזָּר. סַעֲרָה נִצְבַּע לְרֶגַע סָגוֹל, אַחַת מְגַרֶּדֶת רֹאשׁ. שֵׁשׁ אַחֲרוֹת לֹא מַקְשִׁיבוֹת לוֹ.
+
+imageDirection: close_shot: clock tilted ticking sideways, octopus briefly purple, one tentacle scratching head, others acting independently
 
 --- Page 12 ---
-{{childName}} דָּחַף אֶת הַיָּד חָזָק אֶל הַקִּיר, הַשְּׁרִירִים שֶׁלּוֹ מִתְמַתְּחִים.  
-הַדֶּבֶק נִמְתַּח, כְּמוֹ חוּט דַּק וּמַבְרִיק, נִמְשָׁךְ לְאַט בְּקוֹל דָּק.  
-עוֹד דְּחִיפָה, הַנְּשִׁימָה נֶעֱצֶרֶת לְרֶגַע.  
-פְּתַאֹם—פָּק! קוֹל קָטָן וּמַפְתִּיעַ.  
-הַיָּד הִשְׁתַּחְרְרָה בְּבַת אַחַת, וְהוּא מָשַׁךְ אוֹתָהּ אֵלָיו בִּמְהִירוּת.
-imageDirection: medium_shot: tension line snapping, hand freeing from wall, octopus loosening grip
+"נוּ! יָמִין!" צִוָּה בְּקֹצֶר רוּחַ. הַזְּרוֹעוֹת הָלְכוּ שְׂמֹאל, מִתְפַּתְּלוֹת וּמִתְבַּלְבְּלוֹת. "לְשַׁחְרֵר!" הֵן אָחֲזוּ יוֹתֵר, לֹחֲצוֹת וּמַהֲדִיקוֹת. הַכֹּבַע נִתְעַקֵּם בְּחֶרֶק קָטָן. {{childName}} הִבִּיט בְּעֵינַיִם פְּתוּחוֹת וְלֹא צָחַק.
+imageDirection: medium_shot: octopus commands, tentacles doing opposite, hat crooked, child serious
 
 --- Page 13 ---
-הַכּוֹס נָפְלָה לַרְצָפָה בְּרַעַשׁ קָטָן שֶׁל "טִיק".  
-הַשֻּׁלְחָן נִרְגַּע וְלֹא זָז עוֹד, הַכֹּל שָׁקֵט יָתֵר.  
-סַעֲרָה סִדֵּר אֶת הַכּוֹבַע בִּזְרוֹעַ עֲדִינָה, לֹא בְּדִיּוּק יָשָׁר.  
-זְרוֹעוֹת הִתְפַּתְּלוּ לְאַט, כְּאִלּוּ מִתְעַיְּפוֹת וְנִרְגָּעוֹת.
-imageDirection: medium_shot: objects settling, octopus adjusting hat slightly crooked, calmer posture
+הֶאֱחִיזָה נִשְׁבְּרָה בִּפְתְאֹם בְּקוֹל קָטָן שֶׁל פְּקִיעָה. שְׁתַּיִם נִפְרְדוּ בְּרַעַד, שְׁתַּיִם נִדְבְּקוּ לַתִּקְרָה הַקָּרָה. הַחֶבֶל רָפָה וְהִתְנַדְנֵד. הַשָּׁמַיִים הִתְקַרְבוּ עוֹד אֶל הַחֲלוֹן, כְּחֹל עָמוֹק וְשָׁקֵט.
+imageDirection: wide_shot: tentacles losing coordinated grip, some stuck to ceiling, rope slackening, sky pressing closer
 
 --- Page 14 ---
-{{childName}} הֵרִים אֶת הַכַּפִּית בִּזְהִירוּת, מַרְגִּישׁ אֶת הַמֶּתֶכֶת הַקָּרָה בַּיָּד.  
-הִיא לֹא נִדְבְּקָה, וְנָעָה בְּקַלּוּת בֵּין הָאֶצְבָּעוֹת.  
-הוּא הִבִּיט בְּסַעֲרָה, הָעֵינַיִם פְּקוּחוֹת וְשׁוֹאֲלוֹת.  
-סַעֲרָה לֹא נִצְמַד—רַק עָמַד קָרוֹב, שָׁקֵט וְרָגִיל.
-imageDirection: close_shot: boy holding spoon freely, octopus nearby not touching, small gap visible
+{{childName}} נִגַּשׁ לַמִּסְגֶּרֶת בִּצְעָדִים אִטִּיִּים, הַלֵּב פוֹעֵם בְּתוֹךְ הֶחָזֶה. הָעֵץ קָר וְחָלָק מִתַּחַת לָאֶצְבָּעוֹת, מְעַט לָח מֵהַלַּחוּת שֶׁבַּאֲוִיר. הוּא שָׂם יָד אֶחָת וְלֹא מָשַׁךְ, רַק הִרְגִּישׁ. סַעֲרָה שָׁתַק לְגַמְרֵי. זְרוֹעוֹת קְטַנּוֹת רָעֲדוּ לְיַד הַזְּכוּכִית, מְסֻלְסָלוֹת בְּחֲשָׁשׁ.
+imageDirection: close_shot: child's hand resting on cold window frame, octopus quiet beside glass, minimal movement
 
 --- Page 15 ---
-כַּפִּית שֶׁקֶטָה בַּיָּד, קְלִילָה וְקָרָה, וְכּוֹבַע קְצָת עָקוֹם עַל הָרֹאשׁ.
-imageDirection: close_shot: boy’s hand relaxed holding spoon, octopus beside him with slightly crooked hat, soft neutral light
+יָד עַל הָעֵץ הַקָּר, הָאֶצְבָּעוֹת נִצְמָדוֹת וּמַרְגִּישׁוֹת אֶת הַחֲסָפָס הָעָדִין. זְרוֹעוֹת מִתְכַּרְבְּלוֹת לְסְפִירָלָה שְׁקֵטָה, נוֹשְׁמוֹת לְאַט, כְּאִלּוּ מַקְשִׁיבוֹת לַדְּמָמָה שֶׁבַּחֶדֶר.
+imageDirection: close_shot: child's hand and octopus curling all tentacles inward into tight spiral, hat slightly crooked, stillness
 
-WORD_COUNT: [33,36,35,37,31,34,32,35,28, thirtyeight, 10, 34, 30, 31, 14] = 458
+--- Page 16 ---
+הוּא הִצְמִיד כַּף יָד לַזְּכוּכִית הַקָּרָה וְדָחַף לְאַט, מַרְגִּישׁ אֵיךְ הַקֹּר חוֹדֵר לַאֶצְבָּעוֹת וְעוֹלֶה בַּזְּרוֹעַ. הַזְּכוּכִית הָיְתָה חֲלָקָה וּמְעַט לָחָה. סַעֲרָה הֵרִים זְרוֹעַ אַחַת, בִּלִּי פְּקוּדָה, בְּתְנוּעָה אִטִּית וּזְהִירָה, וְהִצְמִיד גַּם. לֹא אָחַז חָזָק — רַק נָגַע, בְּקוֹצֶהּ הָרַךְ.
+imageDirection: medium_shot: child pressing palm to glass, octopus gently placing one tentacle beside it, minimal grip
+
+--- Page 17 ---
+הַזְּכוּכִית חָרְקָה קָטָן, קוֹל דַּק כְּמוֹ לְחִישָׁה. הַעָנָן הִתְרַכֵּךְ וְנָסוֹג צְעַד, מִתְפַּזֵּר לְקוֹצוֹת רַכִּים. זְרוֹעוֹת שֶׁל סַעֲרָה נִשְׁאַרוּ קְרוּבוֹת לַגּוּף, מְסֻלְסָלוֹת וּשְׁקֵטוֹת, לֹא קוֹפְצוֹת.
+imageDirection: low_angle: slight shift of cloud back, octopus tentacles neatly curled, child steady at window
+
+--- Page 18 ---
+הַשָּׁמַיִם עוֹד הוֹלְכִים לְצַד, אֲבָל לֹא מַהֵר. הַכִּסֵּא נָע לְאַט. סַעֲרָה מְיַשֵּׁר כֹּבַע בִּזְרוֹעַ אַחַת, וְאַחֶרֶת כִּמְעַט תּוֹפֶסֶת — וְעוֹצֶרֶת.
+
+imageDirection: medium_shot: slow sideways drift remains, octopus fixing hat, another tentacle almost grabbing then stopping, child watching
+
+--- Page 19 ---
+הֵם עוֹמְדִים לְיַד הַחֲלוֹן. בֵּינֵיהֶם חוּט דַּק שֶׁל דְּיוֹ עַל הַקִּיר. הָעָנָן מִתְרַחֵק קְצָת, לֹא בְּרִיחָה — רַק מֶרְחָק.
+
+imageDirection: wide_shot: child near window, octopus slightly apart facing different direction, thin ink streak on wall, cloud a bit farther
+
+--- Page 20 ---
+הַשָּׁמַיִם עוֹד לְצַד. סַעֲרָה מִסְתַּכֵּל הַחוּצָה, כֹּבַע קְצָת עָקוֹם.
+
+imageDirection: wide_shot: cool light, sideways sky still visible, octopus facing outward apart from child, hat slightly crooked, quiet room
+
+WORD_COUNT: [36, 34, 36, 33, 34, 36, 32, 32, 35, 37, 34, 31, 30, 34, 12, 39, 31, 33, 32, 14] = 666

@@ -1,99 +1,119 @@
 # Story: fawn_tzvi_bedtime — Story Bank v3
-Generated: 2026-05-12T06:14:12.260Z
+Generated: 2026-05-12T19:30:09.293Z
 Model: gpt-5.3-chat-latest
-Tokens: 8869→3216
+Tokens: 9754→2068
 Finish: completed
-Time: 53.4s
+Time: 52.6s
 
 ---
 ---
-title: "לַיְלָה קָטָן וְאֹזֶן גְּדוֹלָה"
+title: "הַלַּיְלָה שֶׁל הַקּוֹלוֹת הַקְּטַנִּים"
 companionId: fawn_tzvi
 direction: bedtime
 category: SENSITIVITY_OVERWHELM
 gender: male
-pages: 15
+pages: 10
+companionLetter:
+  insertAfterPage: 9
+  imageDirection: "close_shot: fawn tzvi in calm intimate pose beside child in bed, soft warm bedside lamp glow, peaceful nighttime composition, focus on companion's quiet face and gentle expression, blanket softly visible"
 ---
 
-storyStyle: רַךְ וּמְחֻיָּךְ עִם קְטָעִים קְצָת מְשֻׁנִּים  
-metaphor: וֹלְיוּם שֶׁעוֹלֶה וְיוֹרֵד בָּאֹזֶן  
-stakes: אִם לֹא יִמְצָא דֶּרֶךְ לְהַנְמִיךְ, הַלַּיְלָה יִתְאָרֵךְ וְלֹא יָבוֹא שֵׁנָה  
-weirdMoment: צְבִי שׁוֹמֵעַ אֶת הַכּוֹס נוֹהֶמֶת לַמַּיִם  
-emotionalArc: סְרִיקָה מוּצְלַחַת → רִיבּוּי קוֹלוֹת → שְׁבִירַת חִיזּוּי → קִפָּאוֹן → רַכּוּת מְשֻׁתֶּפֶת  
-quietPage: 5  
-heartLine: צְבִי מַרִים פְּרָסָה וּמַחֲזִיר אוֹתָהּ לַקַּרְקַע בְּלִי לִגַּעַת  
-copingVisible: 2,3,4,6  
-collapsePoint: 8 — צְלִיל חָדָשׁ שֶׁאֵין לוֹ שֵׁם (הַמְּטַעֵן עוֹשֶׂה טִיק לֹא מֻכָּר)  
-forbiddenPatterns: [3,5,7]  
-emotionalMistake: page 6 — הַיֶּלֶד אוֹמֵר לְצְבִי "תַּפְסִיק" וְמַסִּיט אוֹתוֹ  
-roughPages: 4 (הֶעָרָה מְשֻׁנָּה עַל סֶלֶק בְּלִי קֶשֶׁר), 9 (צְבִי מְנַסֶּה לִקְפֹּץ בַּחֶדֶר וְנִתְקָע בְּכִסֵּא)  
-uncomfortableTruth: page 9 — נִסָּיוֹן שֶׁל צְבִי לַעֲזוֹר מַכְבִּיד וְאֵין מִי שֶׁמְתַקֵּן  
+storyStyle: רך ושובב עם רגעים קטנים של שקט
+metaphor: ווליום של קולות כמו כפתור שאפשר לסובב
+stakes: {{childName}} לא מצליח להירדם והחדר נהיה רועש יותר ויותר
+weirdMoment: צבי בטוח שהכרית נאנחת ומקשיב לה ברצינות גמורה
+emotionalArc: סקרנות→רעש מציף→ניסיון לא עובד→קיפאון→מגע שקט→רגיעה משותפת
+quietPage: 6
+heartLine: צבי מושיט פרסה קטנה אל השמיכה ואז לא נוגע בה ומחזיר לאט
+copingVisible: 1,2,3,4
+collapsePoint: 5 כשהוא שומע צליל חדש של מזגן שלא מיפה קודם
+forbiddenPatterns: [1,4,5]
+emotionalMistake: 3 {{childName}} אומר לצבי להפסיק להקשיב כי זה מעצבן
+roughPages: 4 צליל הכרית הנאנחת מוזר מדי, 7 תגובה קטנה מדי למאמץ גדול
+uncomfortableTruth: 5 {{childName}} רואה שגם צבי לא מצליח לעזור ברגע הזה
 endingType: resolution
 
 --- Page 1 ---
-טִיק. טִיק. טִיק. בַּחֶדֶר הַחַם שֶׁל {{childName}}, הַמְּנוֹרָה זוֹרַחַת צָהֹב רַךְ. הַכַּר נָעוֹל לְצַוָּאר. אֲבָל הַקּוֹל הַקָּטָן — טִיק — קוֹפֵץ בֵּין הַקִּירוֹת וְלֹא נִרְדָּם.
+בַּחֶדֶר הַחַם, הַמְּנוֹרָה מְאִירָה צָהֹב רַךְ.  
+{{childName}} שׁוֹכֵב עַל הַמִּטָּה.  
+טִיק־טִיק מֵהַשָּׁעוֹן.  
+שׁוּוּוּשׁ קָטָן מֵהַמַּזְגָּן.  
+וּפִתְאוֹם — הָאָזְנַיִם שֶׁל צְבִי נִפְתָּחוֹת רָחָב.
 
-imageDirection: close_shot: boy in pajamas under blanket, warm lamp on nightstand, phone charger cable visible making tiny tick, cozy room, focus on child’s ear
+imageDirection: medium_shot, cozy bedroom night, child lying in bed, small fawn צבי standing near pillow ears wide open, warm lamp glow, clock visible
 
 --- Page 2 ---
-מִבֵּין הַוִּילוֹן נִכְנַס צְבִי, עֹפֶר קָטָן. אֹזְנַיִם גְּדוֹלוֹת מִסְתּוֹבְבוֹת. פֶּרַח מֵאֲחוֹרֵי הָאֹזֶן. "שָׁמַעְתָּ? הַקִּיר מִתְיַשֵּׁר… לֹא, זֶה הַכֶּבֶל." הוּא מַרְחִיחַ אֶת הַלַּיְלָה.
+צְבִי מֵרִים רֶגֶל קְדָמִית.  
+אֹזֶן אַחַת קָדִימָה, אַחַת לַצַּד.  
+“שָׁמַעְתָּ? הַשָּׁעוֹן מְטַפֵּס עַל הַקִּיר.”  
+הוּא מְרִיחַ בָּאֲוִיר.  
+“מִישֶׁהוּ הָיָה כָּאן לִפְנֵי שָׁעָה… רֵיחַ שֶׁל חָלָב.”
 
-imageDirection: medium_shot: fawn entering through curtain, ears rotating, flower behind ear, child sitting up, warm lamp, cable on wall
+imageDirection: close_shot, צבי alert pose one hoof lifted, ears in different directions, child propped on elbows listening, clock on wall
 
 --- Page 3 ---
-"צְבִי, זֶה לֹא מַפְסִיק," אוֹמֵר {{childName}}. צְבִי מַטֶּה רֹאשׁ, אֹזֶן אַחַת קָדִימָה וְאַחַת לַצַּד. "הַרֻּחַ שִׁנְּתָה כִּוּוּן. הַטִּיק יָבוֹא עוֹד פַּעַם… עַכְשָׁו." טִיק.
+{{childName}} מִתְכַּסֶּה עַד הָאַף.  
+“דַּי, צְבִי. אַל תַּקְשִׁיב כָּל הַזְּמַן.”  
+צְבִי מְסוֹבֵב אָזְנַיִם עוֹד יוֹתֵר.  
+טִיק־טִיק־טִיק.  
+{{childName}} מִתְהַפֵּךְ. “זֶה מַעֲצְבֵּן!”
 
-imageDirection: medium_shot from low angle: child and fawn near bed, fawn alert pose, ear directions clear, focus on cable
+imageDirection: medium_shot, child turning under blanket slightly annoyed, צבי beside bed ears spinning, flower slightly drooping
 
 --- Page 4 ---
-הֵם זוֹחֲלִים לְאַט לְיַד הַקִּיר. צְבִי מַנִּיחַ פְּרָסָה עַל הָרִצְפָּה, מַקְשִׁיב לְרַעַד קָטָן. "עוֹד שְׁנִיָּה." {{childName}} מְגַחֵךְ. "כְּמוֹ סֶלֶק בַּמִּקְלַחַת." לָמָּה סֶלֶק? אֵין מִי שֶׁעוֹנֶה.
+צְבִי מִתְיַשֵּׁר כְּמוֹ גָּדוֹל.  
+“הַכֹּל בְּסֵדֶר,” הוּא אוֹמֵר שָׁקֵט.  
+פְּתְאֹם הוּא מַבִּיט בַּכָּרִית.  
+“שָׁמַעְתָּ? הִיא נֶאֱנַחַת.”  
+הַכָּרִית לֹא עוֹנָה.  
+צְבִי מְקַרֵּב אֹזֶן… וּמִתְקַע בַּשְּׂמִיכָה.
 
-imageDirection: bird_eye: both crouching by wall, fawn hoof touching floor, child grinning oddly, lamp casting soft light, cable along baseboard
+imageDirection: wide_shot, child sitting up confused, צבי tangled slightly in blanket leaning toward pillow, flower tilting, humorous
 
 --- Page 5 ---
-הַשְּׁטִיחַ רַךְ וְחָמִים מִתַּחַת לַכַּפַּיִם, סִיבִים דַּקִּים מְדַגְדְּגִים אֶת הָאוֹר. {{childName}} מַשְׁעִין לֶחִי קְצָת, וְהַפֶּרַח שֶׁל צְבִי נוֹגֵעַ בְּלֶחִי בְּרַכּוּת, קַל וּמְדֻגְדָּג, כְּמוֹ לִטּוּף שֶׁל רוּחַ.
-imageDirection: close_shot: child cheek near fawn ear with flower brushing skin, soft carpet texture, warm dim light
+הַחֶדֶר נַעֲשֶׂה שָׁקֵט יוֹתֵר.  
+רַק שׁוּוּוּשׁ דַּק מֵהַמַּזְגָּן.  
+צְבִי קוֹפֵא בִּמְקוֹמוֹ.  
+הָאָזְנַיִם שְׁטוּחוֹת.  
+הוּא מוֹשִׁיט פְּרָסָה לַשְּׂמִיכָה… וּמַחֲזִיר לְאַט.
+
+imageDirection: close_shot, צבי frozen posture ears flat, hoof half-reaching toward blanket, child watching quietly, dim warm light
 
 --- Page 6 ---
-טִיק! {{childName}} מִתְכַּוֵּץ וְהַכְּתֵפַיִם עוֹלוֹת לְמַעְלָה. צְבִי מַסוֹבֵב אֹזְנַיִם מְהֵרָה, הֵן מְרַפְרְפוֹת בָּאֲוִיר. "עַכְשָׁו אַחֲרֵי הַמְּנוֹרָה." "תַּפְסִיק!" אוֹמֵר {{childName}} וּמַסִּיט אוֹתוֹ קְצָת בַּיָּד, נְשִׁימָה קְצָרָה. הַפֶּרַח מִתְכַּוֵּץ קְטַנָּה וְרוֹעֵד בְּשֶׁקֶט.
-imageDirection: medium_shot: child pushing fawn slightly aside, fawn ears mid-rotation, flower drooping, lamp glowing, cable visible
+{{childName}} מֵנִיחַ יָד עַל הַמִּזְרָן, בְּאֶצְבָּעוֹת קְטַנּוֹת וּרְכוֹת.  
+הוּא לוֹחֵץ קְצָת וּמַרְגִּישׁ אֵיךְ הַבַּד שׁוֹקֵעַ תַּחַת כַּף יָדוֹ.  
+הַמִּזְרָן חַם, נָעִים וּמְחַבֵּק, כְּאִלּוּ שֶׁשָּׁמַר חֹם שֶׁל גּוּף.
+imageDirection: close_shot, child’s hand pressing mattress, צבי still frozen beside, soft warm lighting, minimal scene
 
 --- Page 7 ---
-הַקּוֹלוֹת מִתְרַבִּים וּמִתְעָרְבִים: מַקְרֵר מְזַמְזֵם רָחוֹק בְּרֶטֶט נָמוּךְ, כַּף נוֹגַעַת בַּכּוֹס בְּצִלְצוּל קַל—וְצְבִי קוֹפֵא לְרֶגַע, גּוּפוֹ נִמְתָּח. עֵינַיִם פְּתוּחוֹת, אֹזְנַיִם שְׁטוּחוֹת לְאָחוֹר. הַפֶּרַח נִבְלֶה, צִבְעוֹ דּוֹהֶה קְצָת.
-imageDirection: close_shot: fawn frozen, ears flat, wide eyes, wilted flower, child watching, background hint of kitchen
+{{childName}} דּוֹחֵף אֶת הַכַּרִית לְיַד צְבִי בִּתְנוּעָה אִטִּית, וְשׁוֹמֵעַ רַעַשׁ רַךְ שֶׁל בַּד מִתְחַכֵּךְ.  
+הַבַּד רַךְ נוֹגֵעַ בַּאַף שֶׁלּוֹ, קְצָת מְדַגְדֵּג וְקְצָת חָמִים.  
+“כָּאן,” הוּא לוֹחֵשׁ בְּקוֹל שָׁקֵט.  
+הוּא מַגִּיעַ קָרוֹב יוֹתֵר, בֶּטֶן עַל הַמִּזְרָן, מַרְגִּישׁ אֶת הָרֹךְ תַּחְתָּיו.  
+צְבִי לֹא זוֹז, רַק נִשְׁאָר שָׁקֵט.  
+הַפֶּרַח מִתְכַּוֵּץ קְצָת, כְּאִלּוּ מִתְבַּיֵּשׁ בַּשֶּׁקֶט.
+imageDirection: medium_shot, child pushing pillow toward frozen צבי, child leaning forward, צבי stiff, flower slightly wilted, focus on contact
 
 --- Page 8 ---
-טִיק אַחֵר. שׁוֹנֶה. לֹא כְּמוֹ קוֹדֵם. צְבִי מַרִים רֶגֶל—וְלֹא זוֹז. "הַצְּלִיל הַבָּא… לֹא מַכִּיר." הוּא נִשְׁאַר. הַמַּפָּה שֶׁלּוֹ נֶעֶלְמָה.
-
-imageDirection: close_shot: raised hoof frozen mid-air, ears flat, cable in background, child leaning closer
+{{childName}} מַנִּיחַ אֶת הַלֶּחִי עַל הַשְּׂמִיכָה לְיַד צְבִי, וּמַרְגִּישׁ אֶת הַמַּגָּע הָרַךְ וְהַקָּרוֹב.  
+הוּא נוֹשֵׁם לְאַט, הָאֲוִיר קְצָת חַם וְשָׁקֵט סְבִיבָם.  
+שָׁנִיָּה שֶׁל שֶׁקֶט נִמְשֶׁכֶת, רַק קוֹל נְשִׁימָה קַלָּה נִשְׁמָע.  
+צְבִי מַטְפִּיף פַּעֲמַיִם עַל הָרִצְפָּה, טַפ־טַפ רַךְ וְקָטָן.  
+הָאָזְנַיִם מִתְרוֹמְמוֹת לְאַט, בִּתְנוּעָה זְהִירָה וּמְסֻקְרֶנֶת.
+imageDirection: close_shot, child cheek on blanket next to צבי, צבי tapping hoof on floor, ears slowly lifting, intimate quiet moment
 
 --- Page 9 ---
-{{childName}} מְנַסֶּה לְהַצְחִיק, מַזִּיז פָּנִים וּמְנַפְנֵף בַּיָּד. צְבִי מְקַפֵּץ קְפִיצָה קְטַנָּה—וְנִתְקָע בְּכִסֵּא, הָרֶגֶל נִלְכֶּדֶת לְרֶגַע. הַכִּסֵּא עוֹשֶׂה קְרִיק מְגֻחָךְ וְחָרִיק קַל. צְבִי מַבִּיט לַדֶּלֶת שֶׁכְּבָר שְׁקֵטָה, נוֹשֵׁם לְאַט, וּמַחֲזִיר מַבָּט.
-imageDirection: medium_shot: fawn tangled lightly with chair leg, comic pose, child half-smile, chair slightly tilted, room still
+צְבִי נוֹשֵׁם קָטָן בָּאַף וּמַרְחִיב רֶגֶל.  
+“עַכְשָׁיו… שָׁקֵט.”  
+הוּא נִשְׁעָן עַל הַכַּרִית.  
+{{childName}} מִתְכַּסֶּה שׁוּב.  
+טִיק־טִיק נִשְׁמָע רָחוֹק יוֹתֵר.
+
+imageDirection: medium_shot, both lying side by side on bed, צבי relaxed leaning on pillow, child under blanket, clock in background
 
 --- Page 10 ---
-{{childName}} מַנִּיחַ יָד עַל הַקֶּבֶל, הָאֶצְבָּעוֹת נִפְרָשׂוֹת לְאַט. הַגּוּמָה קְרִירָה וְחֲלָקָה, קְצָת לַחָה, וּמַעֲבִירָה צִנּוּן קַל בַּכַּף. הוּא לֹא זוֹז, נְשִׁימָה שְׁקֵטָה יוֹצֵאת וְנִכְנֶסֶת. הַיָּד נִשְׁאָרֶת, לוֹחֶצֶת בְּרַכּוּת. צְבִי מִצַּד, קָפוּא, מַבִּיט בַּיָּד בְּעֵינַיִם רְחָבוֹת, הָאֹזְנַיִם חֲצִי מוּרָמוֹת.
-imageDirection: close_shot: child’s hand touching cable, focus on fingers and cable texture, fawn in background frozen
+הֵם צְמוּדִים תַּחַת שְׂמִיכָה חַמָּה, פַּרְסָה טַפ־טַפ, וְלַיְלָה רַךְ מַקִּיף.
 
---- Page 11 ---
-הַיָּד גּוֹלֶשֶׁת לְאַט עַל הַקֶּבֶל עַד הַשְּׁקָע, הָאֶצְבָּעוֹת מְגַשְּׁשׁוֹת אֶת הַפְּלַסְטִיק. קְלִיק קָטָן נִשְׁמָע, חַד וּבָרוּר. שֶׁקֶט בֵּין קְלִיק לְטִיק, רֶגַע אָרוֹךְ כְּמוֹ הַחְזָקַת נְשִׁימָה. צְבִי מַרְחִיב עֵינַיִם, אֹזֶן אַחַת מִתְרוֹמֶמֶת לְמַעְלָה, הַשְּׁנִיָּה נִשְׁאָרֶת דְּרוּכָה.
-imageDirection: medium_shot: child by socket, hand near plug, tiny click moment, fawn ears slightly lifting, lamp soft
+imageDirection: close_shot, child and צבי under blanket touching, warm light, calm faces, flower perked up slightly
 
---- Page 12 ---
-{{childName}} מַשְׁחִיל אֶת הַתַּקַּע חָזָק יוֹתֵר, שׁוֹמֵעַ אֶת הַחִכּוּךְ הַקָּטָן. הַקֶּבֶל מִתְיַשֵּׁב בִּמְקוֹמוֹ, נִרְגָּע וְלֹא זוֹז. הוּא מַחֲזִיק שְׁנִיָּה, הַיָּד קְצָת רוֹעֶדֶת—וּמַרְפֶּה לְאַט. אֵין טִיק. הַחֶדֶר שׁוֹאֵף שֶׁקֶט רַךְ. צְבִי טוֹפֵף פַּעֲמַיִם בַּפְּרָסָה עַל הַשְּׁטִיחַ, מַקְשִׁיב לַשֶּׁקֶט הַמְּמַלֵּא.
-imageDirection: close_shot: child pressing plug firmly, then releasing, fawn tapping hoof twice, ears forward, flower slightly opening
-
---- Page 13 ---
-הַחֶדֶר חוֹזֵר רַךְ וְחָמִים, הַצְּלָלִים נִרְגָּעִים עַל הַקִּירוֹת. צְבִי נוֹגֵעַ בַּשְּׁטִיחַ בְּפְרָסָה, בּוֹדֵק רַעַד—אֵין, הַסִּיבִים שְׁקֵטִים. "הַכִּוּוּן שָׁקֵט," הוּא אוֹמֵר בְּקוֹל נָמוּךְ וְרַךְ. הַפֶּרַח מִתְרַחֵב קְצָת, צִבְעוֹ מִתְחַזֵּק.
-imageDirection: medium_shot: both on carpet, fawn relaxed stance, flower blooming slightly, child smiling, warm light
-
---- Page 14 ---
-{{childName}} מַזְמִין אֶת צְבִי לַמִּטָּה בְּתְנוּעַת יָד שְׁקֵטָה. צְבִי קוֹפֵץ קְפִיצָה עֲדִינָה, הַשְּׁמִיכָה מִתְקַמֶּטֶת קְצָת, רֶגֶל כִּמְעַט מִתְבַּלְבֶּלֶת—וְהֵם צוֹחֲקִים קְטָן, נְשִׁימָה קַלָּה בֵּינֵיהֶם. הַזָּנָב הַקָּטָן נָע בְּקֶצֶב רַךְ.
-imageDirection: medium_shot: fawn hopping onto bed, slight leg tangle, child giggling, blanket open, cozy
-
---- Page 15 ---
-הַשְּׁמִיכָה חַמָּה. הַפֶּרַח רַךְ עַל הַלֶּחִי. אֵין טִיק.
-
-imageDirection: close_shot: child lying with fawn tucked beside, flower touching cheek, soft blanket, lamp dimmed
-
-WORD_COUNT: [38, 41, 40, 39, 14, 40, 37, 36, 41, 39, 38, 41, 36, 38, 13] = 531
+WORD_COUNT: [31,30,26,33,27,11,39,36,28,14] = 275

@@ -13,6 +13,9 @@ direction: adventure
 category: SENSITIVITY_OVERWHELM
 gender: male
 pages: 15
+companionLetter:
+  insertAfterPage: 14
+  imageDirection: "close_shot: fawn tzvi at rest after the journey, soft late-afternoon light, gentle expression, slight visible trace of the day on the body (loose feather, ruffled fur, leaf), intimate framing, contemplative mood"
 ---
 
 storyStyle: הרפתקה רגישה עם הומור גוף קטן

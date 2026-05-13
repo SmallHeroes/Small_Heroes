@@ -13,6 +13,9 @@ direction: adventure
 category: TRANSITION
 gender: male
 pages: 15
+companionLetter:
+  insertAfterPage: 14
+  imageDirection: "close_shot: chameleon koko at rest after the journey, soft late-afternoon light, gentle expression, slight visible trace of the day on the body (loose feather, ruffled fur, leaf), intimate framing, contemplative mood"
 ---
 
 storyStyle: הרפתקה קופצנית עם הומור זהותי

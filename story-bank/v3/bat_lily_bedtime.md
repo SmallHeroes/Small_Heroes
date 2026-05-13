@@ -1,137 +1,84 @@
 # Story: bat_lily_bedtime — Story Bank v3
-Generated: 2026-05-12T05:59:35.073Z
+Generated: 2026-05-12T19:26:48.238Z
 Model: gpt-5.3-chat-latest
-Tokens: 8767→3438
+Tokens: 9652→2205
 Finish: completed
-Time: 54.8s
+Time: 47.0s
 
 ---
 ---
-title: "לַיְלָה שֶׁל לְחִישׁוֹת עִם לִילִי"
+title: "לַיְלָה קָטָן בַּחֶדֶר שֶׁל {{childName}}"
 companionId: bat_lily
 direction: bedtime
 category: NIGHT_FEAR
 gender: male
-pages: 15
+pages: 10
+companionLetter:
+  insertAfterPage: 9
+  imageDirection: "close_shot: bat lily in calm intimate pose beside child in bed, soft warm bedside lamp glow, peaceful nighttime composition, focus on companion's quiet face and gentle expression, blanket softly visible"
 ---
 
-storyStyle: שקט מתוק עם הומור הפוך-על-הפוך  
-metaphor: החושך כמו שמיכה מלאה קולות קטנים  
-stakes: אם {{childName}} לא ימצא דרך להיות עם החושך, הוא יישאר ער ועייף כל הלילה במיטה  
-weirdMoment: הפנס של לילי נדלק מתוך הכנפיים כשהיא מתחבאת ונראה כמו כדור אור קטן שמצפצף  
-emotionalArc: דריכות → הצלחה קטנה → עומס קולות → קריסה מעייפות → רכות ושקט  
-quietPage: 15 — תחושת חום קטן מהפנס והקשבה אחת בלבד  
-heartLine: לילי נתלית גבוה-גבוה ומושיטה כנף רגע… ואז מקפלת אותה חזרה לאט  
-copingVisible: 2,3,4,5,6  
-collapsePoint: 9 — האוזניים מסתובבות מהר מדי והיא מפספסת צליל אחד  
-forbiddenPatterns: [1,4,5]  
-emotionalMistake: page 5 — {{childName}} מתעצבן ואומר ללילי להיות בשקט ולא מקשיב לה  
-roughPages: 6 — בדיחה נמשכת קצת יותר מדי עם שמאל-ימין; 11 — תגובה קטנה מדי לרגע גדול  
-uncomfortableTruth: page 8 — לילי מנסה לעזור ומאירה בטעות את הפנים של {{childName}}, והוא נסוג והיא לא מצליחה לתקן  
-endingType: resolution  
+storyStyle: חמים, לוחש וקצת הפוך
+metaphor: הלילה כמו חדר מלא צלילים קטנים שמבקשים מקום
+stakes: הרעשים ימשיכו להתרוצץ בחדר ולא יתנו ל{{childName}} להירדם
+weirdMoment: לילי נתלית מהמדף וטוענת שהרצפה למעלה והשמיכה למטה
+emotionalArc: דריכות → עומס צלילים → בלבול ועייפות → עצירה ושקט → רוך משותף
+quietPage: 8
+heartLine: לילי מושיטה אוזן לקיר… ואז מקפלת אותה לאט, כאילו אין לה כוח לשמוע יותר
+copingVisible: 1,2,3,4
+collapsePoint: 6 — הצלילים מתערבבים והיא כבר לא מצליחה להבדיל ביניהם
+forbiddenPatterns: [1,4,5]
+emotionalMistake: 3 — {{childName}} מתעלם מלילי ואומר לה להפסיק
+roughPages: 4 (בדיחה לא במקום על שמאל-ימין), 6 (תגובה גדולה מדי של לילי)
+uncomfortableTruth: 5 — לילי שומעת המון אבל זה לא עוזר ל{{childName}} להירגע
+endingType: resolution
 
 --- Page 1 ---
-הַמַּנּוֹרָה כְּבוּיָה. הַחֶדֶר שָׁקֵט.  
-{{childName}} שׁוֹכֵב בַּמִּטָּה וְהַשְּׂמִיכָה מַגִּיעָה עַד הָאַף.  
-טִיק… טִיק… הַכֶּבֶל עַל הַקִּיר עוֹשֶׂה קוֹל קָטָן.  
-"וּמִי עוֹד שָׁם?" הוּא מִתְלַחֵשׁ לַכֶּרֶית.
+בַּלַּיְלָה, בַּחֶדֶר שֶׁל {{childName}}, הַשָּׁעוֹן עוֹשֶׂה טִיק-טָק. הַדֶּלֶת לוֹחֶשֶׁת קְרִיק קָטָן. הַשְּׂמִיכָה חֲמִימָה עַל הַבֶּטֶן, אֲבָל הָעֵינַיִם פְּתוּחוֹת. מִתַּחַת לַמִּטָּה—מַשֶּׁהוּ זָז?
 
-imageDirection: close_shot: boy in bed under blanket up to nose, dark cozy room, charging cable on wall, tiny detail focus, soft night lighting
+imageDirection: close_shot: boy in bed wide-eyed, blanket up to chest, dark cozy room, small shadows under bed, warm dim lamp, focus on his eyes and bed edge
 
 --- Page 2 ---
-מִלְמַעְלָה, בַּתִּקְרָה, מַשֶּׁהוּ נָע בְּלִי רַעַשׁ.  
-כְּנָפַיִם רַכּוֹת כְּמוֹ שְׂמִיכָה.  
-לִילִי יוֹרֶדֶת הָפוּךְ, פֶּנֶס קָטָן מִתְנוֹדֵד עַל הַצַּוָּאר.  
-"שָׁמַעְתָּ? אֲנִי שׁוֹמַעַת טִיק וְעוֹד טִיק… וְעוֹד קְצָת טִיק."
+מֵהַמַּדָּף יוֹרֶדֶת לִילִי הָעֲטַלֵּף, תְּלוּיָה הָפוּךְ. הַפֶּנְדַנְט שֶׁלָּהּ זוֹהֵר חָלָשׁ. הָאֹזְנַיִם מִסְתּוֹבְבוֹת. “שָׁמַעְתָּ? אֲנִי שׁוֹמַעַת… קָטָן-קָטָן,” הִיא מְמַלְמֶלֶת וּמְרַפְרֶפֶת.
 
-imageDirection: low_angle: bat hanging upside down from ceiling, lantern pendant glowing faintly, child looking up, dark blue tones
+imageDirection: medium_shot low_angle: Lily hanging upside down from shelf, soft glowing pendant, ears tilted, child sitting up in bed looking at her
 
 --- Page 3 ---
-{{childName}} מֵרִים רֹאשׁ.  
-"לִילִי?"  
-לִילִי מְסוֹבֶבֶת אֹזְנַיִם גְּדוֹלוֹת, כָּל אֹזֶן לְכִוּוּן אַחֵר.  
-"קֹדֶם שׁוֹמְעִים… אַחַר כָּךְ רוֹאִים… וְהַלַּיְלָה מָלֵא דְּבָרִים קְטַנִּים."
+לִילִי עוֹפָה בְּשֶׁקֶט מֻחְלָט מֵעַל הַמִּטָּה. הִיא עוֹצֶרֶת לְיַד הַקִּיר. “שָׁמַעְתָּ?” הִיא מוֹסִיפָה. {{childName}} מְכַסֶּה אֹזְנַיִם. “דַּי! אַל תַּגִּידִי עוֹד.” הַפֶּנְדַנְט קוֹפֵץ וְנוֹדֵד.
 
-imageDirection: medium_shot: child sitting in bed, bat hovering upside down near him, ears rotating, soft shadows
+imageDirection: medium_shot: Lily hovering silently near wall, child covering ears annoyed, pendant flickering brighter, room dim
 
 --- Page 4 ---
-הִיא עוֹפָה בְּשֶׁקֶט מֻחְלָט עַל יַד הַקִּיר.  
-"פֹּה נְשִׁימָה שֶׁל הַבַּיִת… וְשָׁם, עַכְבָּר קָטָן מִתְגַּנֵּב."  
-הַפֶּנֶס מְהַבְהֵב לְרֶגַע וְנִכְבֶּה.  
-{{childName}} מְכוֹוֵץ אֶת הַשְּׂמִיכָה. "אֲנִי לֹא רוֹצֶה לִשְׁמֹעַ הַכֹּל."
+לִילִי נִתְלֵית מֵהַוִּילוֹן. “הַכֹּל הָפוּךְ—הַמִּטָּה לְמַעְלָה!” הִיא צוֹחֶקֶת בְּצִפְצוּף וּמִתְרַסֶּקֶת קַל לַכִּרִית. הָאוֹר מִבְהִיק—הִיא עוֹצֶמֶת עֵינַיִם וּנִתְקֶלֶת בַּסֵּפֶר. שָׁמַעְתָּ? שָׁמַעְתָּ?
 
-imageDirection: wide_shot: bat gliding along wall silently, lantern flicker, child clutching blanket tighter, room dim
+imageDirection: wide_shot: Lily tangled lightly in curtain, bumping into pillow and book, eyes squeezed shut from light, child watching half-amused
 
 --- Page 5 ---
-לִילִי מִתְקָרֶבֶת, הָפוּךְ, עַד הַכַּר.  
-"שָׁמַעְתָּ אֵיךְ הַוִּילוֹן לוֹחֵשׁ—"  
-"די!" {{childName}} אוֹמֵר חָזָק יוֹתֵר מִמַּה שֶׁרָצָה.  
-לִילִי נֶעֱצֶרֶת בָּאֲוִיר, הַפֶּנֶס מִתְנַדְלֵק בְּטָעוּת וּמַאֲיר לָהּ אֶת הָעֵינַיִם.
+הָרַעֲשִׁים מִתְרַבִּים—טִיק, קְרִיק, שְׁשְׁשׁ. לִילִי מְסוֹבֶבֶת אֹזְנַיִם לְכָל צַד. הִיא מַגִּיעָה אֶל הַקִּיר, מוֹשִׁיטָה אֹזֶן… וּמְקַפֶּלֶת אוֹתָהּ לְאַט. הַיָּד שֶׁלָּהּ מִתְחַבֶּקֶת אֶת הַפֶּנְדַנְט.
 
-imageDirection: close_shot: child frowning, bat mid-air startled, lantern suddenly bright lighting her face, contrast light/dark
+imageDirection: close_shot: Lily near wall, one ear extended then folding back slowly, small glowing pendant held close, child in background watching quietly
 
 --- Page 6 ---
-לִילִי מִתְעַטֶּפֶת בַּכְּנָפַיִם כְּמוֹ כַּדוּר. הָאוֹר דּוֹלֵק בִּפְנִים.  
-הִיא מַצְבִּיעָה לְמַעְלָה: "שְׂמֹאל… אוֹ יָמִין… אוּלַי הַתַּקְרָה הִיא הָרִצְפָּה?"  
-הִיא מִסְתּוֹבֶבֶת וְנִתְקֶלֶת בַּמַּדָּף בְּקוֹל טוּק קָטָן.  
-{{childName}} מְגַחֵךְ—וְגַם מִתְכוֹוֵץ.
+“שָׁמַעְתָּ שָׁמַעְתָּ שָׁמַעְתָּ!” לִילִי קוֹפֶצֶת לְמַדָּף הַגָּבוֹהַּ בְּיוֹתֵר וְנִתְלֵית חָזָק. הָאֹזְנַיִם שֶׁלָּהּ שְׁטוּחוֹת, הַפֶּנְדַנְט מְהַבְהֵב מַהֵר. {{childName}} מַבִּיט לְמַעְלָה. “לִילִי… בּוֹאִי לְמַטָּה.”
 
-imageDirection: medium_shot: bat wrapped like glowing cocoon bumping shelf, tiny “tuk” motion, child half-smiling unsure
+imageDirection: low_angle: child looking up at Lily clinging high shelf, wings wrapped tight, blinking pendant, tense posture
 
 --- Page 7 ---
-הַטִּיק מִתְרַבֶּה. טִיק-טִיק-טִיק.  
-לִילִי מַטֶּה אֹזֶן, עוֹד אֹזֶן, עוֹד אַחַת.  
-הִיא נָחָה הָפוּךְ עַל הַמְּנוֹרָה הַכְּבוּיָה.  
-לְרֶגַע קָטָן הִיא מוֹשִׁיטָה כָּנָף אֶל {{childName}}… וּמְקַפֶּלֶת חֲזָרָה לְאַט.
-
-imageDirection: low_angle: bat hanging from lamp, ears extended, one wing reaching then retracting, child watching quietly
+{{childName}} עוֹמֵד עַל הַמִּטָּה הָרַכָּה, הַסְּדִינִים מִתְקַמְּטִים תַּחַת כַּפּוֹת רַגְלָיו, וּמַגִּיעַ יָד לְמַעְלָה בְּנְשִׁימָה קְטַנָּה. הָאֶצְבָּעוֹת נוֹגְעוֹת בַּכָּנָף הַקְּטַנָּה, רַכָּה כְּמוֹ שְׂמִיכָה חַמָּה וְקַלָּה. הוּא מְלַטֵּף בְּעֲדִינוּת, מַרְגִּישׁ דִּגְדּוּג קָל. “לִילִי,” הוּא לוֹחֵשׁ בְּקוֹל שָׁקֵט. הוּא מַנִּיחַ אֶת הַיָּד שֶׁלָּהּ עַל הַלֵּב שֶׁלוֹ, וְהַלֵּב פּוֹעֵם חַם וְקָרוֹב.
+imageDirection: close_shot: child standing on bed reaching Lily, touching her velvety wing, guiding her hand to his chest, soft dim light
 
 --- Page 8 ---
-הַפֶּנֶס קוֹפֵץ וְנִדְלָק בְּפִתְאֹם. אוֹר חָזָק!  
-לִילִי עוֹצֶמֶת עֵינַיִם וְמְפַסְפֶּסֶת אֶת הַמִּקּוּם.  
-הִיא מְאִירָה יָשָׁר אֶל הַפָּנִים שֶׁל {{childName}}.  
-הוּא מַסְתִּיר עֵינַיִם וְזוֹז לְאָחוֹר. הַמִּטָּה חוֹרֶקֶת.
-
-imageDirection: close_shot: bright lantern shining into boy’s eyes, bat squinting, child turning away, bed creak implied
+הַחֶדֶר שָׁקֵט, רַק לְחִישַׁת הָרוּחַ בַּחַלּוֹן וּנְשִׁימוֹת רַכּוֹת נִשְׁמָעוֹת בַּחֹשֶׁךְ. אוֹר חָלוּשׁ צָהֳבָב נוֹגֵעַ בַּקִּירוֹת. הַפֶּנְדַנְט מַחֲמִם קָטָן בֵּינֵיהֶם, מְפִיץ חֹם נָעִים וְזֹהַר עָדִין שֶׁמְּלַטֵּף אֶת הַיָּדַיִם, וּשְׁנֵיהֶם נִשְׁאָרִים קְרוֹבִים בְּשֶׁקֶט.
+imageDirection: medium_shot: child and Lily close together on bed edge, minimal light, pendant softly glowing between them, stillness
 
 --- Page 9 ---
-עַכְשָׁו הַכֹּל יֶשׁ. טִיק, רִשְׁרוּשׁ, צִפְצוּף קָטָן.  
-לִילִי מַסּוֹבֶבֶת אֹזְנַיִם מְהִירוֹת מְהִירוֹת—וְאָז מִתְבַּלְבֶּלֶת.  
-הִיא קוֹפֶצֶת לַמַּדָּף הַגָּבוֹהַ בַּחֶדֶר וְנִתְלֵית שָׁם.  
-"שָׁמַעְתִּי מַשֶּׁהוּ שָׁמַעְתִּי מַשֶּׁהוּ שָׁמַעְתִּי מַשֶּׁהוּ!"
+לִילִי יוֹרֶדֶת לְאַט. הִיא עוֹטֶפֶת כָּנָף אַחַת סְבִיב הַיָּד שֶׁל {{childName}} וּמַחֲזִיקָה. הָאֹזְנַיִם נָחוֹת. “שָׁמַעְתָּ?” הִיא אוֹמֶרֶת בְּקוֹל קָטָן—“יֵשׁ לַיְלָה שִׁיר רַךְ.”
 
-imageDirection: wide_shot: bat high on shelf wrapped tight, lantern blinking, multiple tiny sound cues in room, child small below
+imageDirection: medium_shot: Lily wrapped wing around child’s hand, both sitting on bed, relaxed ears, gentle glow, calm room
 
 --- Page 10 ---
-{{childName}} יוֹרֵד מֵהַמִּטָּה בִּזְהִירוּת, כַּף רֶגֶל אַחַת וְאַחַר כָּךְ הַשְּׁנִיָּה. הָרִצְפָּה קְרִירָה וּמְדַגְדֶּגֶת לְרַגְלַיִם. הוּא מוֹשִׁיט יָד רוֹעֶדֶת לַקִּיר, מַרְגִּישׁ אֶת הַטֶּקְסְטוּרָה הַחֲלַקָּה. הָאֶצְבָּעוֹת נוֹגְעוֹת בַּכֶּבֶל—טִיק רַךְ נִשְׁמָע. הוּא מַעֲבִיר אֶצְבָּע לְאֹרֶךְ הַחֹט, לְאַט לְאַט, וְהַטִּיק נֶהֱיֶה קָטָן וּמְרוּחָק. הוּא מֵרִים רֹאשׁ לְמַעְלָה, נוֹשֵׁם בְּשֶׁקֶט.
-imageDirection: medium_shot: child barefoot touching cable along wall, focused hand, bat above on shelf, dim light
+{{childName}} וְלִילִי תַּחַת שְׂמִיכָה חֲמִימָה, יָד בְּיָד, הַפֶּנְדַנְט זוֹהֵר רַךְ.
 
---- Page 11 ---
-הוּא מְטַפֵּס עַל הַכִּסֵּא, יָד אַחַת אוֹחֶזֶת בַּמִּשְׁעָן וְרֶגֶל מְחַפֶּשֶׂת יְצִיבוּת. הָעֵץ חוֹרֵק קְצָת, קוֹל דַּק בַּחֶדֶר הַשָּׁקֵט. הַיָּד מִתְקָרֶבֶת לְלִילִי, אֶצְבָּעוֹת פְּרוּשׂוֹת בְּעֲדִינוּת. לִילִי מִתְכוֹוֶצֶת, כְּנָפַיִם נֶאֱסָפוֹת לַגּוּף, וְהַפֶּנֶס מְהַבְהֵב בְּאוֹר צָהֹב חַלָּשׁ. "שָׁמַעְתָּ?" קוֹל דַּק יוֹצֵא וְנֶעְצָר, כְּמוֹ לַחַשׁ בָּרוּחַ.
-imageDirection: low_angle: child standing on chair reaching up, bat curled tight, blinking lantern, tense vertical composition
+imageDirection: wide_shot: cozy bed, child and Lily tucked under blanket together, warm soft light from pendant, peaceful sleeping posture
 
---- Page 12 ---
-הַיָּד שֶׁל {{childName}} נוֹגַעַת בַּכְּנָף הָרַכָּה, מַרְגִּישָׁה חֹם עָדִין וּפְלֻמָתִי. הוּא מַעֲטִיף סְבִיבָהּ אֶת הַשְּׂמִיכָה שֶׁהֵבִיא, לְאַט לְאַט, מְסַדֵּר אוֹתָהּ בִּתְנוּעוֹת קְטַנּוֹת וּמְדוּיָּקוֹת. הַפֶּנֶס נִרְגָּע וְאוֹרוֹ מִתְיַצֵּב. הָאֹזְנַיִם עוֹצְרוֹת לְהִסְתּוֹבֵב, וְהַגּוּף מִתְרַפֶּה. הוּא מַנְמִיךְ אֶת הַכִּסֵּא בְּשֶׁקֶט, נוֹשֵׁם עָמוֹק.
-imageDirection: close_shot: child wrapping blanket gently around bat, soft contact, lantern dimming, ears settling
-
---- Page 13 ---
-לִילִי נִשְׁעֶנֶת עַל הַשְּׂמִיכָה שֶׁל {{childName}}.  
-כָּנָף אַחַת עוֹטֶפֶת אֶת הַיָּד שֶׁלּוֹ, חַמָּה קְטַנָּה.  
-הִיא נוֹגַעַת בַּכֶּבֶל—טִיק—וְהַטִּיק כְּבָר רָחוֹק.  
-הַוִּילוֹן זוֹז לְאַט.
-
-imageDirection: medium_shot: both on bed edge, bat’s wing wrapped around child’s hand, curtain gently moving, calm dim light
-
---- Page 14 ---
-הֵם שׁוֹכְבִים. הַחֶדֶר נָמוּךְ וְרַךְ.  
-לִילִי תְּלוּיָה קָטָן מֵהַמִּנְעָר, הַפֶּנֶס חָם לְאַט.  
-{{childName}} מַזִּיז אֶצְבָּע עַל הַכֶּבֶל—טִיק אֶחָד בִּלְבַד.  
-שְׁנֵיהֶם שׁוֹמְעִים רַק אוֹתוֹ.
-
-imageDirection: wide_shot: calm bedroom, child lying in bed, bat hanging nearby, single cable touch moment, soft composition
-
---- Page 15 ---
-חֹם קָטָן עַל הַיָּד, רַךְ וּמְנַחֵם כְּמוֹ נְשִׁימָה שְׁקֵטָה. הוּא מַרְגִּישׁ אֶת הַפְּעִימָה הַקְּטַנָּה שֶׁל לִילִי, חוֹמֶקֶת לְתוֹךְ כַּף יָדוֹ. טִיק אֶחָד נִשְׁמָע בְּרֹךְ, וְאַחֲרָיו הַכֹּל שָׁקֵט, עָטוּף בְּחֹם וְחֹשֶׁךְ רַגּוּעַ.
-imageDirection: close_shot: child’s hand with bat wing wrapped, tiny lantern glow, minimal scene, deep quiet
-
-WORD_COUNT: [32,36,34,40,37,41,38,36,39, FortyFive, FortyTwo, FortyThree,36,34,14] = 547
+WORD_COUNT: [31, 30, 31, 33, 30, 30, 30, 11, 31, 14] = 271

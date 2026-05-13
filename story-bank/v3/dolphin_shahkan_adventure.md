@@ -13,6 +13,9 @@ direction: adventure
 category: FOCUS_LEARNING
 gender: male
 pages: 15
+companionLetter:
+  insertAfterPage: 14
+  imageDirection: "close_shot: dolphin shahkan at rest after the journey, soft late-afternoon light, gentle expression, slight visible trace of the day on the body (loose feather, ruffled fur, leaf), intimate framing, contemplative mood"
 ---
 
 storyStyle: קצבי, שובב, עם תנועה שלא נרגעת

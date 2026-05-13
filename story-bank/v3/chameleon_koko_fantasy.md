@@ -1,147 +1,169 @@
 # Story: chameleon_koko_fantasy — Story Bank v3
-Generated: 2026-05-12T06:09:20.978Z
+Generated: 2026-05-12T20:38:05.899Z
 Model: gpt-5.3-chat-latest
-Tokens: 8789→3127
+Tokens: 9764→4117
 Finish: completed
-Time: 52.3s
+Time: 101.6s
 
 ---
 ---
-title: "הַצֶּבַע שֶׁנִּשְׁאַר עַל הַצָּעִיף"
+title: "הַשָּׁמַיִם הוֹלְכִים לַצַּד"
 companionId: chameleon_koko
 direction: fantasy
 category: TRANSITION
 gender: male
-pages: 15
+pages: 20
+companionLetter:
+  insertAfterPage: 19
+  imageDirection: "close_shot: chameleon koko in contemplative pose, faint trace of the surreal world-rule still visible in the background, cool soft light, intimate framing, companion looking at child with quiet recognition"
 ---
 
-storyStyle: דמיון פרוע עם הומור עדין ורגעים שקטים
-metaphor: כתמי צבע שנשארים גם כשמשתנים
-stakes: אם {{childName}} לא יפעל, קוקו ייעלם בתוך הצבעים ולא יישאר לו צבע משלו
-weirdMoment: שוק שבו הצבעים עצמם נוזלים ואפשר לדרוך עליהם
-emotionalArc: סקרנות → בלבול → היתקלות → קריסה שקטה → פעולה קטנה ומשמעותית
-quietPage: 8 — תחושת בד הצעיף על היד
-heartLine: קוקו מושיט לשון, עוצר באמצע, ומגלגל אותה חזרה לאט
-copingVisible: 2,3,4,5,6
-collapsePoint: 7 — כשנשאל מה הצבע שלו והוא נהיה שקוף ורק הצעיף נשאר
-forbiddenPatterns: [3,5,7]
-emotionalMistake: page 5 — {{childName}} צוחק על קוקו כשהוא משתגע בצבעים
-roughPages: page 6 — בדיחה נמתחת יותר מדי עם לשון תופסת דברים; page 11 — תגובה שקטה מדי באמצע רגע גדול
-uncomfortableTruth: page 9 — קוקו מנסה להשתלב שוב ונראה כמו משהו אחר לגמרי, ו{{childName}} לא מזהה אותו לרגע
+storyStyle: דִּמְיוֹן פְּרָאִי עִם רֶגַעִים קְטַנִּים שֶׁנִּשְׁאֲרִים
+metaphor: כְּתָמִים שֶׁנִּשְׁאֲרִים עַל הָעוֹר כְּמוֹ בֵּית
+stakes: אִם {{childName}} לֹא יַעֲשֶׂה—קוֹקוֹ יֵהָפֵךְ שָׁקוּף לְגַמְרֵי וְיִישָׁאֵר רַק הַצָּעִיף
+weirdMoment: מִשְׁקָל שֶׁל קוֹלוֹת שֶׁמַּסִּיט אֶת הַגְּרוּבִיטָה לַצַּד
+emotionalArc: הַפְתָּעָה→נִסְיוֹן לְהִטְמָע→סִדְק→קִרְבָה שֶׁקֶטָה→פְּעֻלָּה שֶׁמַּשְׁאִירָה סִימָן
+quietPage: 12
+heartLine: קוֹקוֹ נוֹגֵעַ בַּכֶּתֶם הַיָּשָׁן וּמַשְׁאִיר אֶת הַיָּד שָׁם
+copingVisible: 2,3,5,6,7,8
+collapsePoint: 10 — שְׁאֵלָה פְּשׁוּטָה “מָה הַצֶּבַע שֶׁלְּךָ?” וְקוֹקוֹ נַעֲצָר וְנִהְיֶה כִּמְעַט שָׁקוּף
+forbiddenPatterns: [2,5,7]
+emotionalMistake: 6 — {{childName}} צוֹחֵק עַל קוֹקוֹ שֶׁנִּרְאֶה כְּמוֹ כָּרִית
+roughPages: 7,13
+uncomfortableTruth: 11 — הַנִּסָּיוֹן לְהִתְאַיֵּם שֶׁל קוֹקוֹ מַחְמִיר אֶת הַמַּצָּב וְאֵין מִי שֶׁעוֹצֵר
 endingType: distance
 
 --- Page 1 ---
-הָרִצְפָּה בַּחֲדַר שֶׁל {{childName}} הִתְחִילָה לְהִנָּזֵל.  
-לֹא מַיִם. צֶבַע.  
-כָּחוֹל זָחַל אֶל הַשָּׁטִיחַ, יָרֹק נִדְבַּק לַקִּיר, וּכְתֹם נִדְחַף לַנַּעֲלַיִם.  
-{{childName}} הֵרִים רֶגֶל. הַסּוֹלְיָה הִתְמַלְּאָה בְּצֶבַע רַךְ כְּמוֹ בָּצֵק.
+טִיק־טַק. הַשָּׁעוֹן נוֹפֵל לַצַּד. גַּם הַסֵּפֶר. גַּם הַכִּסֵּא.  
+{{childName}} עוֹמֵד וְהָרִצְפָּה דּוֹחֶפֶת אוֹתוֹ לְקִיר.  
+הַשָּׁמַיִם—הוֹלְכִים לַצַּד, כְּמוֹ רַכֶּבֶת שֶׁשָּׁכְחָה לַעֲצוֹר.
 
-imageDirection: wide_shot: colorful bedroom floor melting into liquid paint, child lifting one foot, paint stretching like dough, bright surreal lighting, no companion yet
+imageDirection: wide_shot: room tilted sideways, objects sliding toward wall, child bracing with hands, window showing sky slanted, cool daylight
 
 --- Page 2 ---
-מִתַּחַת לַמִּטָּה קָפַץ מִישֶׁהוּ קָטָן.  
-"זֶה! זֶה שׁוּק הַצְּבָעִים! וְאָז! וְאָז!"  
-זוֹ זִיקִית עִם צָעִיף פַּסִּים.  
-קוֹקוֹ הִבִּיט בִּשְׁתֵּי עֵינַיִם לִשְׁנֵי כִּוּוּנִים, וְכְבָר הָיָה חֲצִי כָּחוֹל מֵהָרִצְפָּה.
+מֵהָעֵנָף שֶׁבַּחַלּוֹן קוֹפֵץ קוֹקוֹ.  
+“וְאָז! וְאָז! רָאִיתָ? הַכֹּל הוֹלֵךְ לַצַּד! מְעַנְיֵן, אֲנִי בּוֹדֵק—”  
+הוּא מִתְכַּסֶּה בְּצֶבַע הַקִּיר, רַק הַצָּעִיף הַמְּפֻסָּפ נִשְׁאָר.
 
-imageDirection: medium_shot: Koko popping out from under bed, half blue, striped scarf bright, eyes looking opposite directions, child crouching surprised, paint around them
+imageDirection: medium_shot: chameleon on branch entering window, blending to wall color, striped scarf visible, child reaching out
 
 --- Page 3 ---
-"וְאָז נִטְעַם צֶבַע? וְאָז נִהְיֶה צֶבַע?" קוֹקוֹ קִפֵּץ לַקִּיר.  
-הוּא נִהְיָה יָרֹק כְּמוֹ הַקִּיר—אֲבָל נִשְׁאַר לוֹ כֶּתֶם כָּחוֹל עַל הַזָּנָב.  
-{{childName}} נִכְנַס אַחֲרָיו.  
-הַקִּיר הָיָה רַךְ, כְּמוֹ גֶּ'ל קָרוֹר.
+עֵינַיִם שֶׁל קוֹקוֹ מִסְתּוֹבְבוֹת—אַחַת לַחַלּוֹן, אַחַת לַשָּׁעוֹן.  
+הוּא מוֹשִׁיט לָשׁוֹן—שְׁלוֹף! תּוֹפֵס עִפָּרוֹן שֶׁבָּרַח.  
+“וְאָז! נַעֲלֶה לְמַעְלָה—אַה, לְצַד—וְנִרְאֶה הַכֹּל!”
 
-imageDirection: low_angle: child stepping into soft wall, Koko clinging vertically, green body with blue tail spot, scarf unchanged, wall texture like gel
+imageDirection: close_shot: long tongue grabbing floating pencil mid-air, eyes looking different directions, child watching surprised
 
 --- Page 4 ---
-בַּשּׁוּק הַצְּבָעִים הַכֹּל נָזַל.  
-אֲנָשִׁים דָּרְכוּ עַל צֶבַע וְהִשְׁאִירוּ עֲקֵבוֹת מְזֻגָּגוֹת.  
-קוֹקוֹ שִׁנָּה גּוֹנִים כְּמוֹ מְנוֹרָה מְהַבְהֶבֶת.  
-"וְאָז נִהְיֶה כְּמוֹ כֻּלָּם!" הוּא קָרָא, וְהַצָּעִיף נִשְׁאַר פַּסִּים.
+הֵם מְטַפְּסִים עַל הַקִּיר כְּמוֹ שֶׁהוּא רִצְפָּה.  
+הַשֶּׁמֶשׁ מַחְלִיקָה עַל הָעוֹר, חַם בִּקְצָה וְקָר בַּצֵּל.  
+קוֹקוֹ מְנַצְנֵץ בְּצִבְעֵי חֲלוֹן וְשׁוֹמֵר כֶּתֶם צָהֹב מֵהַסָּפָה.
 
-imageDirection: bird_eye: market of flowing paint, footprints glowing, Koko flashing multiple colors, child standing amid streams, scarf constant stripes
+imageDirection: bird_eye: both climbing wall like floor, sun patch vs shade, chameleon patchwork with one yellow spot, child sideways
 
 --- Page 5 ---
-קוֹקוֹ נִסָּה לְהִתְאַמֵּץ.  
-הַלָּשׁוֹן שֶׁלּוֹ זִנְּקָה—צִ'יק!—וְתָפְסָה כַּף שֶׁל מִישֶׁהוּ.  
-וְאָז כּוֹס, וְאָז אֹזֶן מִפְּלַסְטִיק.  
-{{childName}} צָחַק. "תִּרְאֶה אוֹתְךָ!"  
-קוֹקוֹ הִתְבַּלְבֵּל, עֵין אַחַת לַתִּקְרָה.
+“בּוֹא נִהְיֶה כְּמוֹ הַמָּקוֹם,” קוֹקוֹ מְרַצֵּד.  
+הוּא נִהְיֶה צֶבַע שֶׁל מַדָּף, אֲזַי שֶׁל וִילוֹן, אֲזַי שֶׁל שָׁמַיִם.  
+{{childName}} מְנַסֶּה לַחֲקוֹת—נִצְמָד לַקִּיר וְצוֹחֵק.
 
-imageDirection: close_shot: Koko’s tongue stretched grabbing random objects, child laughing, one eye up one sideways, chaotic colors
+imageDirection: medium_shot: chameleon rapidly shifting colors, child pressing himself to wall trying to blend, scarf constant stripes
 
 --- Page 6 ---
-"עֲזֹב, עֲזֹב!" קָרָא {{childName}} וְהִסְתּוֹבֵב.  
-קוֹקוֹ נִשְׁאַר עִם הַלָּשׁוֹן מְלֵאָה דְּבָרִים.  
-הוּא נִסָּה לְהִתְאִים לְרִצְפָּה—נִהְיָה כְּמוֹ כָּרִית.  
-מִישֶׁהוּ יָשַׁב עָלָיו.  
-קוֹקוֹ לֹא זָז.
+קוֹקוֹ נִשְׁעָן עַל כָּרִית—וְנִהְיֶה כָּרִית עִם זָנָב.  
+{{childName}} צוֹחֵק בְּקוֹל גָּדוֹל. “אַתָּה כָּרִית!”  
+קוֹקוֹ מִתְקַפֵּל, הַצָּעִיף מִתְהַדֵּק עַל הַצַּוָּאר.
 
-imageDirection: medium_shot: Koko flattened like cushion, someone sitting on him, child turned away, scarf squished but visible
+imageDirection: close_shot: chameleon blended into cushion pattern, only striped scarf obvious, child laughing, chameleon curling tail tight
 
 --- Page 7 ---
-{{childName}} עָצַר.  
-הוּא הִסְתַּכֵּל אֲחוֹרָה.  
-קוֹקוֹ כְּבָר לֹא כָּרִית. הוּא כְּמוֹ הָרִצְפָּה כֻּלָּהּ, וְרַק הַצָּעִיף מִתְפַּתֵּל לְבַד.  
-"קוֹקוֹ?"  
-הַשֵּׁם נִשְׁאַר בָּאֲוִיר בְּלִי מִי שֶׁיַּעֲנֶה.
-
-imageDirection: wide_shot: child small in vast paint market, Koko blending into floor except floating striped scarf, space between them
+“וְאָז! וְאָז! אֲנִי מַרְאֶה טְרִיק!” קוֹקוֹ לוֹחֵשׁ בְּקוֹל מִתְחַתֵּחַ וְהָעֵינַיִם מְנַצְנְצוֹת.  
+הַלָּשׁוֹן יֹצֵאת—שְׁלוֹף!—בְּרַעַשׁ קָטָן וּמְהִיר, וְתוֹפֶסֶת… אֶת הָאַף שֶׁל {{childName}} הַקָּטָן וְהַחַם.  
+שְׁתֵּיהֶם נֶעֱצָרִים, הַגּוּף קָפוּא לְרֶגַע, צְחוֹק נִקְטָע בְּחֲצִי וּמִתְגַּלְגֵּל לְדִמְמָה מְשֻׁנָּה.
+imageDirection: close_shot: tongue stuck to child's nose, both cross-eyed, awkward pause, scarf bright
 
 --- Page 8 ---
-{{childName}} נָגַע בַּצָּעִיף בְּאֶצְבָּעוֹת זְהִירוֹת, מַעֲבִיר אוֹתָן לְאַט לְאַט עַל הַבַּד.  
-הַבַּד מְחֻסְפָּס קְצָת, חָם, וּמַדְגִּישׁ אֶת הָעוֹר.  
-רוּחַ קַלָּה מַנִּיעָה אוֹתוֹ, וְקוֹקוֹ מִתְקָרֵב, מְרַחֵף בְּסַקְרָנוּת.
-imageDirection: close_shot: child’s hand holding striped scarf, Koko almost transparent except scarf, minimal background
+הֵם מַגִּיעִים לַחַלּוֹן הַגָּדוֹל שֶׁנִּהְיָה רִצְפָּה.  
+קוֹקוֹ מִתְלֶה בַּזָּנָב כְּמוֹ יָד חֲמִישִׁית וּמַבִּיט הַחוּצָה.  
+“וְאָז—שׁוּק צִבְעִים!” הוּא מַבְהִיק בְּכָל גּוֹן.
+
+imageDirection: wide_shot: window as floor, outside market sideways, chameleon hanging by tail, vibrant colors, child peeking
 
 --- Page 9 ---
-קוֹקוֹ קָפַץ שׁוּב—פִּתְאֹם הוּא כְּמוֹ תַּפּוּחַ כָּתוֹם.  
-מִישֶׁהוּ נָגַס בּוֹ קְצָת.  
-{{childName}} הִסְתַּכֵּל וְלֹא זִהָה לְרֶגַע.  
-קוֹקוֹ הוֹשִׁיט לָשׁוֹן, עָצַר בָּאֲמְצַע, וְקִפֵּל אוֹתָהּ לְאַט.
+בַּחוּץ הַצְּבָעִים “נִשְׁמָעִים” כְּבֵדִים—טוּם, טוּם—וְדוֹחֲפִים לַצַּד.  
+קוֹקוֹ מְחַלִּיף גוֹנִים בְּקֶצֶב הַקּוֹלוֹת.  
+{{childName}} שׁוֹאֵל: “וְאַתָּה? מָה הַצֶּבַע שֶׁלְּךָ?”
 
-imageDirection: medium_shot: Koko as orange apple with bite mark, child confused, tongue halfway out then retracting slowly
+imageDirection: medium_shot: market with color-sounds visualized as heavy blocks pushing sideways, chameleon flickering colors, child looking at him
 
 --- Page 10 ---
-{{childName}} דָּחַף יָד לְתוֹךְ הַצֶּבַע הַנּוֹזֵל, מַרְגִּישׁ אֵיךְ הוּא שׁוֹקֵעַ לְאַט וּמַשְׁמִיעַ קוֹל רַךְ שֶׁל טִפּוּף.  
-קָר וּדְבִיק נִמְתַּח בֵּין הָאֶצְבָּעוֹת, נִמְשָׁךְ כְּמוֹ גּוּמִי וּמְצַמְרֵר אֶת הָעוֹר.  
-הוּא מְעַקֵּם קְצָת אֶת הַפָּנִים וְשׁוֹלֵף קוֹקוֹ—הַצָּעִיף נִמְשַׁךְ אַחֲרָיו, פַּס פַּס, מַשְׁאִיר סִימָנִים בַּאֲוִיר.  
-"פֹּה."  
-הַמִּלָּה יָשְׁבָה קְטַנָּה, כְּאִלּוּ לֹא רוֹצָה לְהַפְרִיעַ.
-imageDirection: close_shot: hand pulling Koko from paint, viscous strands stretching, scarf leading, focus on fingers and texture
+קוֹקוֹ נַעֲצָר. הַכְּתָמִים רָצִים כְּמוֹ דִּיסְקוֹ.  
+הוּא מִתְנַסֶּה לְהִטְמַע עוֹד—וְנַעֲשֶׂה כִּמְעַט שָׁקוּף.  
+רַק הַצָּעִיף הַמְּפֻסָּפ נִשְׁאָר בָּרוּר.
+
+imageDirection: close_shot: chameleon nearly transparent, scarf crisp stripes floating, eyes misaligned, child concerned
 
 --- Page 11 ---
-{{childName}} מַנִּיחַ אֶת קוֹקוֹ עַל כַּף הַיָּד, מַרְגִּישׁ אֶת הַמִּשְׁקָל הַקָּל וְהַתְּנוּעוֹת הַזְּעִירוֹת.  
-הָעוֹר נִדְבָּק קְצָת, לַח וְחָמִים בְּמַגָּע.  
-קוֹקוֹ מִתְהַפֵּךְ לְאַט, עֵינַיִם מִסְתּוֹבְבוֹת לְכָל כִּוּוּן, מַבִּיטוֹת גַּם קָדִימָה וְגַם אָחוֹרָה.  
-הַזָּנָב מִתְלַפֵּף חָזָק סָבִיב הָאֶצְבָּע, מִתְהַדֵּק כְּמוֹ חוּט חַי.
-imageDirection: medium_shot: child holding Koko, tail gripping finger tightly, eyes spinning, sticky contact visible
+הַקּוֹלוֹת מַכִּים טוּם־טוּם. הַקִּיר מִתְקָרֵב.  
+קוֹקוֹ מוֹשִׁיט לָשׁוֹן לְכָל כִּוּוּן—תוֹפֵס שָׁקִית, כַּף, חוּט—וְעוֹזֵב.  
+הוּא נוֹגֵעַ בְּכֶתֶם צָהֹב שֶׁנִּשְׁאַר.
+
+imageDirection: low_angle: sideways pressure of environment, chameleon grabbing random items with tongue then releasing, hand touching old yellow patch
 
 --- Page 12 ---
-{{childName}} מֵרִים אֶת הַצָּעִיף בִּשְׁתֵּי יָדַיִם וְקוֹשֵׁר אוֹתוֹ סָבִיב שְׁנֵיהֶם, מַהְדֵּק בְּתְנוּעָה זְהִירָה.  
-הַבַּד שׁוֹרֵט טִפָּה אֶת הָעוֹר, מַשְׁאִיר תְּחוּשָׁה קַלָּה שֶׁל דִּגְדוּג.  
-הוּא מְשַׁחֵל אֶת קוֹקוֹ לְתוֹךְ הַלּוּלָאָה וּמוֹשֵׁךְ, וְקוֹקוֹ נֶאֱחָז בּוֹ.  
-הַצֶּבַע נִמְשָׁךְ אַחֲרֵיהֶם כְּמוֹ חוּט, מִתְמַתֵּחַ וּמַבְהִיק בְּאוֹר.
-imageDirection: low_angle: child wrapping scarf around both, pulling Koko through loop, paint trailing like thread behind them
+הַצָּעִיף מִתְחַכֵּךְ בְּעוֹר, רַךְ אֲבָל מְדַגְדֵּג, וּמַשְׁאִיר חֹם קָל סָבִיב הַצַּוָּאר.  
+{{childName}} מַעֲבִיר יָד עָלָיו, מַרְגִּישׁ אֶת הַמַּרְקָם הַמְסֻלְסָל וְשׁוֹמֵעַ רַחַשׁ קָטָן שֶׁל בֶּד.  
+הַכֶּתֶם הַצָּהֹב נִשְׁאַר, בּוֹהֵק וּמְעַט חַם לַמַּגָּע, כְּמוֹ נְקֻדָּה שֶׁל שֶׁמֶשׁ שֶׁלֹּא זוֹזָה.
+imageDirection: close_shot: scarf fabric against scales, single yellow patch steady, minimal background
 
 --- Page 13 ---
-הַשּׁוּק מִתְרַחֵק לְאַט, הַקּוֹלוֹת נֶחֱלָשִׁים וְהָרֵיחוֹת מִתְפַּזְּרִים בָּאֲוִיר.  
-קוֹקוֹ נִשְׁאַר עִם כַּמָּה כְּתָמִים—כָּחוֹל, יָרֹק, כָּתוֹם—נְקוּדוֹת קְטַנּוֹת עַל הָעוֹר.  
-הוּא מַבִּיט קָדִימָה וְאָחוֹרָה בְּיַחַד, עֵינָיו זוֹזוֹת בְּשֶׁקֶט.  
-הַצָּעִיף נוֹגֵעַ בַּצַּוָּאר שֶׁל {{childName}}, רַךְ וְחָמִים.
-imageDirection: wide_shot: leaving the market, colors receding, Koko patchy colors, scarf connecting both, forward/backward gaze
+{{childName}} מוֹצִיא מִכִּיסוֹ מַדְבֵּקָה יְשָׁנָה מֵהַבַּיִת הַקּוֹדֵם—כּוֹכָב קָטָן.  
+הוּא מַדְבִּיק עַל הַצָּעִיף. “תִּשְׁאֵר.”  
+קוֹקוֹ מְגַלְגֵּל עֵינַיִם לִשְׁנֵי צְדָדִים, וּמַשֶּׁהוּ נִרְגָּע וְלֹא נִרְגָּע.
+
+imageDirection: medium_shot: child placing star sticker on scarf, chameleon half-visible, mixed reaction, odd quiet
 
 --- Page 14 ---
-"וְאָז… וְאָז…" קוֹקוֹ מַתְחִיל בְּקוֹל חָלָשׁ, וְנֶעֱצָר כְּאִלּוּ מְחַפֵּשׂ מִלָּה.  
-הוּא נוֹגֵעַ בְּכֶתֶם הַכָּחוֹל שֶׁנִּשְׁאַר לוֹ, מְמַשְׁשׁ בְּקַצֵּה הַזָּנָב.  
-לְרֶגַע הוּא צֶבַע אֶחָד, שָׁקֵט וְעָמוֹק.  
-{{childName}} מַחֲזִיק אֶת הַצָּעִיף חָזָק, נוֹשֵׁם לְאַט.
-imageDirection: medium_shot: Koko touching blue patch, body stabilizing one color briefly, child gripping scarf, quiet moment
+{{childName}} צוֹעֵד לַקִּיר הַנָּע, הָרַגְלַיִם חוֹרְקוֹת קַל עַל הָרִצְפָּה הַקְּרוּרָה.  
+הוּא דּוֹחֵף אֶת הַכּוֹכָב בְּאֶצְבָּעוֹת, מַרְגִּישׁ דָּבִיק וְחַם, הַחֹמֶר נִמְתַּח בֵּין הָאֶצְבָּעוֹת וּמַפִּיק רַחַשׁ רַךְ, עַד שֶׁהוּא נִצְמָד לְסֶדֶק צַר שֶׁבַּקִּיר.  
+הַקִּיר מְרַעֵד קַלּוֹת כְּמוֹ נְשִׁימָה אֲטִית.  
+קוֹקוֹ קוֹפֵץ, זְנָבוֹ מִתְעַקֵּל, “וְאָז—” הוּא לוֹחֵשׁ בְּהִתְרַגְּשׁוּת.
+imageDirection: low_angle: child pressing sticky star into crack on wall, chameleon mid-jump, scarf trailing
 
 --- Page 15 ---
-עַל הַמִּטָּה, פַּסֵּי הַצָּעִיף וּכְתָם כָּחוֹל קָטָן נִשְׁאֲרוּ בְּיַחַד.
+הַקּוֹלוֹת מַכִּים שׁוּב, טַפְטוּף וְנְקִישָׁה מִתְעַרְבְּבִים, וְהַסֶּדֶק נִפְתָּח קְצָת בְּחֲרִיקָה דַּקָּה.  
+{{childName}} מַצְמִיד אֶת הַלֶּחִי לַקִּיר—קָר וְחָלָק—הָעוֹר מִתְכַּוֵּץ מֵהַקֹּר, וְהוּא דוֹחֵף בְּכָל הַגּוּף, הַכְּתֵפַיִם מִתְאַמְּצוֹת.  
+קוֹקוֹ שׁוֹתֵק, עֵינַיִם פְּנִימָה, הַצְּבָעִים שֶׁלּוֹ מִתְעַמְעֲמִים בְּשֶׁקֶט מְתֻח.
+imageDirection: close_shot: child cheek against smooth cold wall pushing, small crack with star, chameleon still, eyes focused inward
 
-imageDirection: close_shot: bed surface with striped scarf and small blue paint patch side by side, soft light, no characters visible
+--- Page 16 ---
+קוֹקוֹ מוֹשִׁיט לָשׁוֹן אֲרֻכָּה וּמַנִּיחַ עַל הַכּוֹכָב, הַלָּשׁוֹן לְחָה וּמְבַרְקֶת, נִצְמֶדֶת בְּקוֹל זְעִיר.  
+שֶׁנִּיָּה קְטַנָּה שֶׁל דּוּמִיּוּת, הָאֲוִיר כְּאִלּוּ נֶעֱצָר וְהַלֵּב דּוֹפֵק לְאַט.  
+הַקּוֹלוֹת נִדְחָפִים, נִדְחָסִים לְתוֹךְ הַסֶּדֶק, וְהַקִּיר זוֹז צִדָּה אַחַת בְּרַעַד כָּבֵד, כְּמוֹ דֶּלֶת כְּבֵדָה שֶׁנִּפְתַּחַת.
+imageDirection: medium_shot: tongue resting on star, slight shift in wall direction, minimal motion, scarf steady
 
-WORD_COUNT: [ Forty, Forty, Forty, Forty, Forty, Forty, Thirty, Ten, Forty, Fifty, Forty, Forty, Thirty, Thirty, Fifteen ] = 520
+--- Page 17 ---
+הַדְּבָרִים מַפְסִיקִים לִרְדֹּף לַצַּד—רַק מְעַט, וְהַאֲוִיר נִהְיֶה שָׁקֵט יוֹתֵר.  
+קוֹקוֹ מַחֲזִיר צֶבַע אֶחָד, רַךְ וְנוֹחַ לָעַיִן, וְהַגּוּף שֶׁלּוֹ נִרְגָּע לְאַט.  
+הַכּוֹכָב נִשְׁאַר דָּבוּק בַּסֶּדֶק, וְהַצָּעִיף לֹא מִשְׁתַּנֶּה, רַק נָח עַל הַצַּוָּאר.
+imageDirection: wide_shot: room less tilted but still slanted, child standing, chameleon soft single color with scarf and star visible
+
+--- Page 18 ---
+“וְאָז! נֵלֵךְ לְגַן?” קוֹקוֹ מְצִיץ לְעֵנָף גָּבוֹהַּ.  
+הוּא שׁוֹמֵר אֶת הַכֶּתֶם הַצָּהֹב וְאֶת הַכּוֹכָב.  
+{{childName}} נוֹגֵעַ בַּצָּעִיף וּמַרְגִּישׁ בַּבַּד הַמְּחֻסְפָּס.
+
+imageDirection: medium_shot: chameleon perched higher, looking outward, child touching scarf texture, gentle light
+
+--- Page 19 ---
+בַּחוּץ הַשָּׁמַיִם עֲדַיִן הוֹלְכִים קְצָת לַצַּד.  
+קוֹקוֹ יוֹשֵׁב עַל עֵנָף, פָּנָיו לְכִוּוּן אַחֵר.  
+{{childName}} עוֹמֵד לְיַד הַקִּיר, הַכּוֹכָב קָטָן מְנַצְנֵץ.
+
+imageDirection: wide_shot: outside with slight sideways sky, chameleon on branch facing away, child near wall, small star glint
+
+--- Page 20 ---
+הַשָּׁמַיִם נוֹטִים קְצָת, צֶבַע תְּכֵלֶת מִתְרַכֵּךְ וְרוּחַ קַלָּה מְלַטֶּפֶת אֶת הַפָּנִים.  
+הַצָּעִיף וְהַכּוֹכָב נִשְׁאֲרִים בָּרוּר, שְׁקֵטִים וְיַצִּיבִים, כְּמוֹ נְקוּדוֹת קְטַנּוֹת שֶׁל אוֹר בְּתוֹךְ הַמַּרְחָב.
+imageDirection: long_shot: cool dusk, slight sideways horizon, chameleon apart on branch with striped scarf and star, child nearby not touching
+
+WORD_COUNT: [32,36,34,34,33,30,29,33,34,30,34,12,33,38,36,31,32,33,31,14] = 642

@@ -1,155 +1,187 @@
 # Story: dolphin_shahkan_fantasy — Story Bank v3
-Generated: 2026-05-12T06:13:01.635Z
+Generated: 2026-05-12T20:39:43.291Z
 Model: gpt-5.3-chat-latest
-Tokens: 8811→3695
+Tokens: 9786→3732
 Finish: completed
-Time: 59.8s
+Time: 64.2s
 
 ---
 ---
-title: "הַצְּלִילִים שֶׁנּוֹפְלִים לַמַּיִם"
+title: "הַצְּלִילִים שֶׁנּוֹפְלִים לַצַּד"
 companionId: dolphin_shahkan
 direction: fantasy
 category: FOCUS_LEARNING
 gender: male
-pages: 15
+pages: 20
+companionLetter:
+  insertAfterPage: 19
+  imageDirection: "close_shot: dolphin shahkan in contemplative pose, faint trace of the surreal world-rule still visible in the background, cool soft light, intimate framing, companion looking at child with quiet recognition"
 ---
 
-storyStyle: פרוע, קצבי, עם רגעים שקטים מפתיעים  
-metaphor: צלילים כבדים כמו אבנים במים  
-stakes: אם הצלילים ממשיכים ליפול, אי אפשר לשמוע מחשבה אחת עד הסוף  
-weirdMoment: דולפין קופץ כדי "לתפוס" צליל שנופל כמו כדור  
-emotionalArc: סקרנות → עומס מצחיק → בלגן → שקט כפוי → פעולה חדשה → מרווח  
-quietPage: 7 — מגע מים קרים בבטן אחרי עצירה  
-heartLine: שחקן שולח סונאר קטן... ומחזיר את הסנפיר אליו בלי לשחות  
-copingVisible: 2,3,4,5,6  
-collapsePoint: 6 — הוא שוחה במעגלים עד שמתעייף ולא מצליח לזוז  
-forbiddenPatterns: [1,4,7]  
-emotionalMistake: page 5 — {{childName}} מתעצבן ואומר לשחקן "תפסיק לזוז כבר" ומתעלם ממנו  
-roughPages: page 3 — בדיחה מוזרה על צליל של כפית; page 9 — מעבר חד בלי הסבר  
-uncomfortableTruth: page 9 — שחקן מנסה לעזור אבל רק מוסיף עוד צלילים כבדים, ואף אחד לא מתקן את זה  
-endingType: distance  
+storyStyle: פרוע, קצבי, קצת עקום
+metaphor: צלילים כבדים שנופלים כמו כדורים
+stakes: אם לא ימצא קצב משלו, הצלילים יערמו ויחסמו את הדרך הביתה
+weirdMoment: צליל של "טיק" נופל כמו אבן קטנה ומקפיץ דגים
+emotionalArc: סקרנות→בלגן מהיר→התנגשות ושקט כפוי→פעולה אחרת→מרחק רגוע
+quietPage: 12
+heartLine: שַׂחְקָן מוֹשִׁיט סְנַפִּיר לַצְּלִיל שֶׁנָּפַל, וּמַחֲזִיר אוֹתוֹ לַגּוּף לְאַט
+copingVisible: 2,3,5,6,7,8
+collapsePoint: 7 — נתקע בין צלילים כבדים שלא נותנים לשחות
+forbiddenPatterns: [3,5,7]
+emotionalMistake: 6 — {{childName}} מתעלם משַׂחְקָן כשהוא מסתבך
+roughPages: 8 (בדיחה לא במקום עם "עוגה" מסלע), 13 (משפט קופץ ולא קשור)
+uncomfortableTruth: 10 — העזרה של שַׂחְקָן מפזרת עוד צלילים ומקשה יותר
+endingType: distance
 
 --- Page 1 ---
-בַּיָּם הַזֶּה, כָּל צְלִיל נוֹפֵל. לֹא נֶעֱלָם—נוֹפֵל.  
-"טִיק!" עָשָׂה הַמַּחְשָׁבָה שֶׁל {{childName}}, וְהוּא צָנַח לַמַּיִם כְּמוֹ אֶבֶן קְטַנָּה.  
-"אַי!" אָמַר {{childName}}, כִּי הַצְּלִיל נָגַע לוֹ בְּבֶרֶךְ.  
-וְעוֹד צְלִיל—"פְּלוֹפ!"—וְעוֹד אֶחָד—"בּוּם!"—כְּבָדִים, מִתְנַדְנְדִים.  
-הַמַּיִם מִתְמַלְּאִים בְּמִלִּים שֶׁאִי אֶפְשָׁר לֶאֱסֹף.
+בַּיָּם הַזֶּה, כָּל צְלִיל נוֹפֵל לַצַּד.  
+"טִיק!"—וּכְדוּר קָטָן קוֹפֵץ מֵעַל הַמַּיִם.  
+{{childName}} מַבִּיט. הַשְּׁפָתַיִם מְלֻחְלָחוֹת מִמֶּלַח.  
+עוֹד "טִיק!"—עוֹד קְפִיצָה. מִי זוֹרֵק צְלִילִים?
 
-imageDirection: wide_shot: fantastical ocean where glowing sound-bubbles fall like stones; child waist-deep, flinching as a "tick" bubble hits knee; scattered heavy sound-orbs sinking; surreal lighting
+imageDirection: wide_shot: fantastical sea with sideways-falling sound orbs, boy on a small floating board looking, two "tik" spheres bouncing; cool blue light
 
 --- Page 2 ---
-"שְׁחַקָן!" קָרָא {{childName}}.  
-שְׁחַקָן קָפַץ—סְלַטָּה!—וְעוֹד אַחַת—וְנָחַת "שְׁלָאפ!" קָצָף עַל הָרֹאשׁ.  
-"כָּל הַצְּלִילִים נוֹפְלִים—חָכֵה—טִיק-טִיק—שָׁמַעְתִּי עוּגָה!"  
-"זֶה סֶלַע," אָמַר {{childName}}.  
-כֶּתֶר הַהַתָּזָה שֶׁל שְׁחַקָן נִדְלַק. רַעְיוֹן!
+מִתּוֹךְ הַגַּל עוֹלֶה דּוֹלְפִין אֲפוֹר-כָּחֹל.  
+"שַׂחְקָן!" הוּא צוֹחֵק וְקוֹפֵץ—שְׁלַאפ!  
+"כְּתֶר הַהַתָּזָה שֶׁלִּי—תִּרְאֶה—הָא!" וְהוּא מַתִּיז.  
+"טִיק-טִיק!" הַצְּלִילִים נוֹפְלִים לְיַד {{childName}}.
 
-imageDirection: medium_shot low_angle: Shahkan mid-somersault above water, splash crown spraying; child pointing at a rock; bright playful energy
+imageDirection: medium_shot low_angle: dolphin mid-jump splashing crown, boy shielding face, sound orbs falling beside
 
 --- Page 3 ---
-שְׁחַקָן שָׁלַח "טִיק-טִיק" וְצָלַל.  
-"אָחַת—כְּפִית! שְׁתַּיִם—כְּפִית! שָׁלוֹשׁ—כְּפִית!" הוּא קָרָא, וְהֵרִים שָׁלוֹשׁ אֲבָנִים עִגּוּלוֹת.  
-"זוֹ לֹא כְּפִית," אָמַר {{childName}}.  
-שְׁחַקָן הִסְתַּכֵּל עַל הָאֲבָנִים. "אָז אֵיפֹה הַמָּרָק?"  
-וְהוּא שׁוּב קָפַץ—שְׁלָאפ!—וְהַצְּלִילִים הִתְזָּרוּ.
+"קוֹדֶם שׁוֹלְחִים צְלִיל!" שַׂחְקָן מְקַרְקֵשׁ בַּחָזֶה.  
+טִיק-טִיק—הֶדִּים חוֹזְרִים וְנִהְפָּכִים לְכַדּוּרִים כְּבֵדִים.  
+הוּא שׂוֹחֶה מָהִיר, הַמַּיִם לָחִיצִים עַל הַגּוּף.  
+"נֶאֱסֹף—אוֹ, רַק רֶגַע—שָׁם גַּם מְעַנְיֵן!"
 
-imageDirection: bird_eye: child above looking at Shahkan underwater holding three round stones like spoons; bubbles; comic confusion
+imageDirection: bird_eye: dolphin zigzagging, sonar ripples turning into falling spheres, boy following
 
 --- Page 4 ---
-"נִתְפֹּס אוֹתָם לִפְנֵי שֶׁיִּפְּלוּ!" צָעַק {{childName}}.  
-שְׁחַקָן טָס בַּמַּיִם, מָהִיר כְּשֶׂמֵחַ.  
-הוּא קָפַץ לִלְכֹּד "טִיק!" בַּאֲוִיר—וְשָׁכַח לִנְחֹת—שְׁלָאפ!  
-הַצְּלִיל חָמַק, וְנָפַל עַל הַכָּתֵף שֶׁל {{childName}}.  
-"אוֹף!"
+{{childName}} מְנַסֶּה לִתְפּוֹס כַּדּוּר "טִיק".  
+הוּא נוֹחֵת—דַּחַף קָטָן בַּבֶּטֶן.  
+שַׂחְקָן קוֹפֵץ גָּבוֹהַּ—שְׁלַאפ!—וְשׁוֹכֵחַ לִנְחֹת יָפֶה.  
+הַכַּדּוּרִים מִתְרַבִּים סָבִיב. הַדֶּרֶךְ נִסְתֶּרֶת.
 
-imageDirection: medium_shot: child reaching up, Shahkan missing a falling sound mid-air and belly-flopping; splash hits child’s shoulder
+imageDirection: wide_shot: many sound spheres cluttering path, dolphin belly-flop splash, boy reaching for one sphere
 
 --- Page 5 ---
-עוֹד צְלִילִים נוֹפְלִים, כְּבֵדִים יוֹתֵר.  
-שְׁחַקָן שׁוֹחֶה לְכָאן—וְשָׁם—וְשׁוּב לְכָאן.  
-"טִיק-טִיק—הֵד!—אֶחָד—רַעְיוֹן—שְׁנַיִם—עוֹד רַעְיוֹן!"  
-{{childName}} הִתְעַצְבֵּן. "תַּפְסִיק לָזוּז כְּבָר!"  
-הוּא הִפְנָה גַּב, וְנִשְׁאַר לְבַד עִם הַנְּפִילָה.
+"נַעֲשֶׂה מֵהֶם מִגְדָּל!" צֹועֵק {{childName}}.  
+הוּא דּוֹחֵף כַּדּוּר לְכַדּוּר—בּוּם קָטָן.  
+שַׂחְקָן מְסַחְרֵר, מוֹסִיף עוֹד טִיקִים.  
+הַמִּגְדָּל גָּדֵל—וְנִטְעֶה לַצַּד.
 
-imageDirection: close_shot: child turned away, arms crossed; behind him Shahkan darting erratically, sonar ripples chaotic
+imageDirection: medium_shot: boy stacking spheres, slight tilt, dolphin spinning adding more, unstable tower
 
 --- Page 6 ---
-הַמַּיִם נִרְאִים עֲמֻסִּים. לֹא נִשְׁאָר מָקוֹם לִשְׁחוֹת.  
-שְׁחַקָן מִסְתּוֹבֵב בְּעִגּוּלִים קְטַנִּים. עוֹד סִבּוּב. עוֹד אֶחָד.  
-"טִיק-טִיק-טִיק—" הַהֵד חוֹזֵר מִכָּל כִּוּוּן.  
-כֶּתֶר הַהַתָּזָה מִתְפַּרֵּץ, טִפְטוּף עַל הָעֵינַיִם.  
-הַסִּבּוּבִים נֶעֱצָרִים לְאַט.
+שַׂחְקָן מִסְתַּבֵּךְ בֵּין הַכַּדּוּרִים.  
+הוּא שׂוֹחֶה סִיבוּבִים מַהִירִים—טִיק-טִיק-טִיק מְרַעֲשִׁים.  
+"{{childName}}! חכה—חכה—הָא—"  
+{{childName}} מַמְשִׁיךְ לִדְחֹף. "רַק עוֹד אַחַת!"
 
-imageDirection: wide_shot: cluttered water full of heavy sound-orbs; Shahkan circling tighter, crown splashing wildly; child small in frame
+imageDirection: close_shot: dolphin tangled among spheres, frantic circular motion, boy focused pushing another sphere
 
 --- Page 7 ---
-שְׁחַקָן צָף שָׁקֵט, הַגּוּף שֶׁלּוֹ מִתְנַדְנֵד בַּעֲדִינוּת.  
-הַמַּיִם קָרִים עַל הַבֶּטֶן, צְמִירָה קְטַנָּה עוֹלָה בָּעוֹר.  
-בּוּעוֹת קְטַנּוֹת מִתְפַּצְפְּצוֹת סָבִיב, קוֹל רַךְ שֶׁל טִפְטוּף וְנְשִׁימָה.  
-אוֹר כָּחֹל-יָרֹק מְנַצְנֵץ עַל הַגַּלִּים הַשְּׁקֵטִים.
-imageDirection: close_shot: still Shahkan floating, crown dim; gentle ripples; child nearby watching
+הַכַּדּוּרִים נוֹפְלִים עָלָיו מִכָּל צַד, בְּרַעַשׁ רַךְ שֶׁל פְּלוֹפּ פְּלוֹפּ.  
+הַמַּיִם נַעֲצָרִים סָבִיב גּוּפוֹ, קָרִים וּלְחִים עַל הָעוֹר.  
+כֶּתֶר הַהַתָּזָה שָׁקֵט וּמְנַצְנֵץ בְּאוֹר כָּחוֹל חָלָשׁ.  
+שַׂחְקָן תָּקוּעַ, סְנַפִּירָיו מְכוּוָצִים וְגוּפוֹ כָּבֵד.
+imageDirection: medium_shot: dolphin wedged, crown still, spheres pressing around, boy startled nearby
 
 --- Page 8 ---
-{{childName}} מִתְקָרֵב לְאַט.  
-שְׁחַקָן שׁוֹלֵחַ "טִיק" קָטָן… וּמַחְזִיר אֶת הַסְּנַפִּיר אֵלָיו.  
-אֵין קְפִיצָה. אֵין שְׁלָאפ.  
-רַק עֵינַיִם בְּהִירוֹת שֶׁמְּחַפְּשׂוֹת מָקוֹם לָשִׂים אוֹתָן.
+"טִיק… עוּגָה?" שַׂחְקָן מַפְנֶה רֹאשׁ לְסֶלַע.  
+הוּא מְנַסֶּה לִנְגֹּס—טַק!  
+הַסֶּלַע מַחֲזִיר קוֹל מְצַחֵק מְשֻׁנֶּה.  
+{{childName}} פּוֹרֵץ בְּצְחוֹק, וְאָז שׁוֹתֵק.
 
-imageDirection: medium_shot: child kneeling in water, Shahkan half-submerged, tiny sonar ripple fading; crown low
+imageDirection: close_shot: dolphin bumping snout into rock labeled by echo, odd comic beat, boy half-laugh stopping
 
 --- Page 9 ---
-{{childName}} אוֹמֵר, "בּוֹא—נִקְפּוֹץ הֲכִי גָּבוֹהַ!"  
-שְׁחַקָן מְנַסֶּה. סְלַטָּה. עוֹד אַחַת.  
-"פְּלוֹפ!"—עוֹד צְלִיל כָּבֵד נוֹפֵל.  
-הַמַּיִם נִדְחָסִים יוֹתֵר.  
-שְׁחַקָן מַבִּיט בַּצְּלִיל… וְשׁוֹתֵק.
-
-imageDirection: low_angle: Shahkan mid-jump under a falling heavy sound orb; child below looking up; crowded space
+הַמִּגְדָּל קוֹרֵס לַצַּד בְּקֶרֶק קַל וְהַדָּף מַיִם קָטָן.  
+הַדֶּרֶךְ נֶעֱלֶמֶת לְגַמְרֵי, כְּאִלּוּ נִבְלְעָה בַּכְּחוֹל.  
+שַׂחְקָן מוֹשִׁיט סְנַפִּיר לְכַדּוּר קָטָן—מַגִּיעַ, נוֹגֵעַ, וּמַחֲזִיר לְגּוּפוֹ בִּתְנוּעָה אִטִּית.  
+הוּא לֹא קוֹפֵץ, רַק נִשְׁאָר וּמַבִּיט.
+imageDirection: wide_shot: collapsed sideways pile blocking path, dolphin slowly retracting flipper, boy watching
 
 --- Page 10 ---
-{{childName}} מוֹשִׁיט יָד רְטוּבָה וְנוֹגֵעַ בְּאֶבֶן-צְלִיל קְטַנָּה, הָאֶצְבָּעוֹת רוֹעֲדוֹת מִקּוֹר.  
-קְרִירָה וּמְחֻסְפֶּסֶת הִיא מִתַּחַת לַכַּף, גַּרְגְּרֵי חוֹל נִלְחָצִים לָעוֹר.  
-הוּא דּוֹחֵף אוֹתָהּ לְצַד בְּמַאֲמָץ קָטָן, הַשְּׁרִירִים מִתְקַשִּׁים, וּמַפְנֶה רֶוַח צָר בֵּין הַגּוּפִים הַכְּבֵדִים.  
-הַכַּף שֶׁלּוֹ מַרְגִּישָׁה אֶת הַלַּחַץ וְאֶת הַזְּרִימָה הַדַּקָּה שֶׁמִּתְחִילָה לִזְחוֹל.  
-"פֹּה," הוּא אוֹמֵר קָצָר, הַקּוֹל נִבְלָע בַּמַּיִם.
-imageDirection: close_shot: child’s hand pressing a small sound-stone aside, narrow gap opening; texture focus
+"טִיק-טִיק!" שַׂחְקָן מַגְבִּיר.  
+עוֹד וְעוֹד כַּדּוּרִים נוֹפְלִים וְדוֹחֲקִים אֶת {{childName}} לְאָחוֹר.  
+הַמַּיִם קָרִים בַּרְכָּיִם.  
+הָעֶזְרָה הוֹפֶכֶת לְעֹד עוֹמֶס.
+
+imageDirection: medium_shot: more spheres raining, boy pushed back, dolphin intensifying sonar, crowding
 
 --- Page 11 ---
-הוּא מַכְנִיס אֶצְבָּעוֹת בַּרֶוַח הַצַּר, מַרְחִיב טִפְטוּף אַחַר טִפְטוּף, הַצִּפּוֹרְנַיִם מַחְלִיקוֹת עַל הָאֶבֶן.  
-הַמַּיִם זוֹרְמִים שָׁם בְּלַחַץ קַל, קְוֵי קֶצֶף דַּקִּים מְדַגְדְּגִים אֶת הָעוֹר.  
-שְׁחַקָן מַבִּיט, גּוּף שָׁקוּט כְּמוֹ חֵץ שֶׁעָצַר בָּאֲוִיר, סְנַפִּירָיו כִּמְעַט לֹא זוֹזִים.  
-כֶּתֶר הַהַתָּזָה מְנַצְנֵץ חַלָּשׁ בָּאוֹר, טִפְטוּפִים קְטַנִּים מְצַלְצְלִים סָבִיב.
-imageDirection: medium_shot: child widening a channel; thin streams flowing; Shahkan still, watching intently
+{{childName}} מֵנִיחַ יָד עַל כַּדּוּר שֶׁנָּח, הַמַּגָּע קָר וְחָלָק.  
+לֹא דּוֹחֵף. רַק נוֹגֵעַ, אֶצְבָּעוֹתָיו נִפְתָּחוֹת לְאַט.  
+שַׂחְקָן שׂוֹחֶה לְיַדּוֹ, לְאַט, מַשְׁאִיר שְׁבִיל בּוּעּוֹת קְטַנּוֹת.  
+הַכַּדּוּר מַפְסִיק לְהִתְגַּלְגֵּל וְנוֹחַ בִּשְׁקֵט.
+imageDirection: close_shot: boy hand resting on sphere, dolphin beside moving slowly, calmer scene
 
 --- Page 12 ---
-{{childName}} דּוֹחֵף אֶבֶן אַחֶרֶת בִּשְׁתֵּי יָדַיִם, הַכְּתֵפַיִם מִתְאַמְּצִים וְהַמַּיִם מִתְזִים עַל הַפָּנִים.  
-הַמֶּרְוָח נִפְתָּח עוֹד, הַזְּרִימָה מִתְחַזֶּקֶת וְנִשְׁמַע קוֹל רַךְ שֶׁל זְרִימָה.  
-הוּא מַנִּיחַ יָד עַל הַמַּיִם—רֶגַע קָטָן שֶׁל קוֹר וְרֶטֶט—וְאָז דּוֹחֵף שׁוּב בְּנְשִׁימָה עֲמוּקָה.  
-הַצְּלִילִים מַתְחִילִים לִזְרוֹם בַּתְּעָלָה שֶׁנִּפְתְּחָה, מִתְעַגְּלִים וּמְרַצְּדִים.  
-שְׁחַקָן שׁוֹחֶה בָּהּ לְאַט, הַגּוּף חוֹלֵק אֶת הַמַּיִם בְּשֶׁקֶט.
-imageDirection: low_angle: child pushing another sound-stone, channel widening; brief still hand on water; Shahkan gliding slowly into path
+מַיִם קָרִים נוֹגְעִים בְּכַף הַיָּד, עִקְצוּץ קַל עוֹלֶה בָּעוֹר.  
+טִיק אֶחָד נָח, וְהַצְּלִיל שֶׁלּוֹ דּוֹעֵךְ בַּאֲוִיר הַלָּח.  
+הָאֶצְבָּעוֹת מִתְרַכְּכוֹת וְהַנְּשִׁימָה נַעֲשֵׂית אִטִּית יוֹתֵר.
+imageDirection: extreme close_shot: boy’s hand on still sphere, tiny ripple, minimal elements
 
 --- Page 13 ---
-הַמַּיִם נוֹשְׁמִים—לֹא, הֵם פָּשׁוּט זוֹרְמִים.  
-הַצְּלִילִים עוֹבְרִים בַּתְּעָלָה וְלֹא נוֹפְלִים עַל הָרֹאשׁ.  
-שְׁחַקָן מְנַסֶּה "טִיק-טִיק" אֶחָד.  
-הַהֵד חוֹזֵר יָשָׁר. הוּא שׁוֹחֶה, לֹא רָץ.
+"שַׂחְקָן—בּוֹא."  
+הוּא מַכֶּה בַּמַּיִם קֶצֶב: טִיק… הַפְסָקָה… טִיק.  
+כֶּתֶר הַהַתָּזָה מִתְרֹמֵם קְצָת.  
+וּבָא מִשְׁפָּט מְשֻׁנֶּה: "אֲנִי לֹא שֶׁל דָּגִים."
 
-imageDirection: wide_shot: clearer water with a channel guiding sound-orbs away; Shahkan swimming smoothly; child beside
+imageDirection: medium_shot: boy tapping rhythm on water, dolphin watching, crown slightly rising, odd line moment
 
 --- Page 14 ---
-"אַחַת… שְׁתַּיִם… שָׁלוֹשׁ," לוֹחֵשׁ {{childName}} לַגַּלִּים.  
-שְׁחַקָן מְחַכֶּה בֵּין סְפִירָה לִסְפִירָה, וְאָז שׁוֹחֶה.  
-לֹא הַכֹּל מַסְתַּדֵּר. עוֹד נוֹפֵל צְלִיל מִדֵּי פַּעַם.  
-אֲבָל יֵשׁ מָקוֹם לְמַחְשָׁבָה אַחַת.
-
-imageDirection: medium_shot: child counting waves with fingers; Shahkan pausing between counts; a stray sound-orb still falling nearby
+{{childName}} מַנִּיחַ שְׁתֵּי כַּפַּיִם עַל הַמַּיִם, הָעוֹר מַרְגִּישׁ קֹר וְרַעַד קָטָן.  
+טִיק… הַפְסָקָה אֲרוּכָּה יוֹתֵר, כְּמוֹ נְשִׁימָה שֶׁנֶּעֱצֶרֶת.  
+הָעוֹר מַרְגִּישׁ גְּלִישָׁה קַלָּה, כְּאִלּוּ הַמַּיִם מְלַטְּפִים בִּשְׁקֵט.  
+טִפּוֹת קְטַנּוֹת נוֹזְלוֹת בֵּין הָאֶצְבָּעוֹת, וְקוֹל רַךְ מִתְפַּזֵּר סָבִיב.  
+שַׂחְקָן מַבִּיט, עֵינַיִם קְבוּעוֹת וּפָקוּחוֹת, גּוּפוֹ שָׁקֵט בַּמַּיִם.
+imageDirection: close_shot: hands on water making slow rhythm, dolphin focused like an arrow, minimal dialogue
 
 --- Page 15 ---
-גַּל קָטָן, יָד עַל הַמַּיִם, וְשְׁחַקָן שׁוֹחֶה רָחוֹק קְצָת.
+הַכַּדּוּר הַקָּרוֹב נִדְחָף מִמֵּילָא לַצַּד הַנָּכוֹן, בְּלִי מַאֲמָץ וּבִתְנוּעָה רַכָּה.  
+הַמַּיִם לוֹחֲשִׁים סְבִיבוֹ בְּקוֹל חַלָּשׁ שֶׁל שְׁשְׁשְׁ.  
+שַׂחְקָן שׂוֹחֶה קָו יָשָׁר, לְלֹא סִיבּוּב, גּוּפוֹ מִתְמַתֵּחַ בִּנְעִימוּת.  
+כֶּתֶר זוֹהֵר בְּקוֹל שֶׁקֶט, נִצּוֹצוֹת קְטַנּוֹת מְרַצְּדוֹת סָבִיב.  
+הַדֶּרֶךְ מִתְגַלָּה חוֹט־חוֹט, קַו דַּק שֶׁל אוֹר וְתְנוּעָה.
+imageDirection: medium_shot: one sphere sliding aside, dolphin streamlined, glowing crown, path threads opening
 
-imageDirection: wide_shot: calm surface, child’s hand touching water; Shahkan slightly farther away, small silhouette; a single sound-orb drifting
+--- Page 16 ---
+יָד אַחַת עוֹצֶרֶת עוֹד כַּדּוּר, הָאֶצְבָּעוֹת נִלְחָצוֹת קַלּוֹת עַל הַמֶּרְקָם הֶחָלָק.  
+שֶׁקֶט קָטָן בֵּין טִיק לְטִיק, כְּמוֹ רֶגַע שֶׁנִּפְתָּח בָּאֲוִיר.  
+הַמַּיִם נִרְגָּעִים וּמִתְיַשְּׁרִים סָבִיב הַיָּד.  
+שַׂחְקָן מַעֲבִיר מַבָּט וְשׂוֹחֶה בְּתוֹךְ הַרֶּוַח, בְּתְנוּעָה חֲלָקָה וּשְׁקֵטָה.  
+הַמַּעֲבָר נִפְתָּח, וְהַזֶּרֶם מַרְגִּישׁ קַל יוֹתֵר.
+imageDirection: wide_shot: narrow clear corridor between spheres, boy’s hand holding one, dolphin gliding through gap
 
-WORD_COUNT: [39, 40, 41, 39, 40, 38, 8, 34, 35, 43, 41, 41, 36, 38, 13] = 526
+--- Page 17 ---
+הֵם מִתְקַדְּמִים בְּקֶצֶב הַמְיֻחָד שֶׁלָּהֶם.  
+טִיק… הַפְסָקָה… טִיק.  
+שַׂחְקָן קוֹפֵץ—רַק פַּעַם—וְנוֹחֵת רַךְ יוֹתֵר.  
+הַמַּיִם חוֹבְקִים אֶת הַגּוּף בְּקוֹל חָלָק.
+
+imageDirection: medium_shot: synchronized rhythm, single controlled jump, softer landing, flowing water
+
+--- Page 18 ---
+הַגַּל הַגָּדוֹל מִתְפַּרֵק לְכַדּוּרִים בּוֹדְדִים.  
+{{childName}} מַשְׁאִיר אֶחָד בַּכַּף.  
+שַׂחְקָן מְסוֹבֵב סְנַפִּיר—לֹא נוֹגֵעַ.  
+הוּא שׂוֹחֶה לְיַד, קְצָת רָחוֹק.
+
+imageDirection: wide_shot: scattered spheres, boy holding one, dolphin slightly apart, turned a bit away
+
+--- Page 19 ---
+טִיק אֶחָד קָטָן נִשְׁאַר עַל הַמַּיִם.  
+הַדֶּרֶךְ פְּתוּחָה, אֲבָל לֹא שְׁטוּחָה.  
+שַׂחְקָן מִסְתַּכֵּל לַצַּד, כֶּתֶר שָׁקֵט.  
+{{childName}} מַחֲזִיק אֶת הַקֶּצֶב בְּיָד.
+
+imageDirection: medium_shot: one small sphere lingering, uneven path, dolphin looking sideways, boy holding rhythm
+
+--- Page 20 ---
+טִיק אֶחָד עוֹד קוֹפֵץ לַצַּד, בְּקוֹל קָטָן וּמַבְהִיק. {{childName}} עוֹמֵד לְיַדּוֹ, נוֹשֵׁם בְּשֶׁקֶט וּמַבִּיט בַּמַּיִם הַנָּעִים.
+imageDirection: wide_shot: cool dusk sea, a single sound sphere bouncing sideways, boy standing, dolphin a bit farther facing another direction
+
+WORD_COUNT: [33,36,36,34,33,35,25,33,31,32,29,10,31,36,34,32,33,33,32,14] = 632
