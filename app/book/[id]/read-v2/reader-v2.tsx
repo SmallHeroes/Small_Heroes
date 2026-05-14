@@ -590,6 +590,7 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
                 </div>
                 <div className={styles.coverTitleOverlay}>
                   <div className={styles.coverTitleGradient} aria-hidden />
+                  <div className={styles.coverBrandTag}>סיפורי גיבורים קטנים</div>
                   <h1 className={styles.coverDisplayTitle}>{bookTitle || currentPage.title || 'הספר שלכם'}</h1>
                 </div>
               </article>
@@ -633,8 +634,8 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
           </a>
         </section>
       )}
-
-      <audio ref={audioRef} preload="metadata" hidden />
     </main>
   );
 }
+
+   
