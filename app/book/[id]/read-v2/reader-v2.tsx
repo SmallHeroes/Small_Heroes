@@ -486,14 +486,24 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
       );
     }
 
+    // Default → SPREAD layout: desktop=2 pages, mobile=single page with overlay
     return (
-      <article className={`${styles.pageCanvas} ${styles.tplFullBleedSoft}`}>
-        <div className={styles.bleedImageLayer}>
+      <article
+        className={`${styles.pageCanvas} ${styles.tplSpread}`}
+        data-text-zone={page.textZone}
+      >
+        {/* Text page — visible only on desktop (≥1024px) */}
+        <div className={styles.spreadTextPage}>
+          <p className={styles.spreadBodyText}>{page.text || ' '}</p>
+          <span className={styles.spreadPageNumber}>· {page.pageNumber} ·</span>
+        </div>
+        {/* Image page — visible on both, but desktop crops out textZone band via CSS */}
+        <div className={styles.spreadImagePage}>
           {page.imageUrl ? (
             <img
               src={page.imageUrl}
               alt={`איור עמוד ${page.pageNumber}`}
-              className={styles.bleedCoverImg}
+              className={styles.spreadImg}
               onLoad={() => console.log('[read-v2] image loaded', page.imageUrl)}
               onError={(event: SyntheticEvent<HTMLImageElement, Event>) =>
                 console.error('[read-v2] image failed', page.imageUrl, event)
@@ -505,9 +515,10 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
               <span>איור בעיבוד</span>
             </div>
           )}
-        </div>
-        <div className={`${styles.overlayTextShell} ${overlayZoneClass(page.textZone)}`}>
-          <p className={styles.overlayPageText}>{page.text || ' '}</p>
+          {/* Mobile-only overlay (hidden on desktop via CSS) */}
+          <div className={styles.mobileOverlay}>
+            <p className={styles.mobileBodyText}>{page.text || ' '}</p>
+          </div>
         </div>
         {pageFooter}
       </article>
@@ -586,24 +597,4 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
       {status === 'ready' && showEndScreen && (
         <section className={styles.centerState}>
           <div className={styles.endGlyph}>✦</div>
-          <h2 className={styles.endTitle}>סוף</h2>
-          <button
-            type="button"
-            className={styles.controlBtn}
-            onClick={() => {
-              setCurrentPageIndex(0);
-              setShowEndScreen(false);
-            }}
-          >
-            קראו שוב מההתחלה
-          </button>
-          <a href="/" className={styles.backHomeLink}>
-            חזרה לדף הבית
-          </a>
-        </section>
-      )}
-
-      <audio ref={audioRef} preload="metadata" hidden />
-    </main>
-  );
-}
+          <h2 classN

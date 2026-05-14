@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>Layout Preview — Small Heroes</title>
+<style>
+  :root {
+    --page-bg: #f7f3eb;
+    --text-color: #2a2418;
+    --page-number-color: #8a7a5a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Heebo', 'Rubik', 'Arimo', sans-serif;
+    background: #e8e1d3;
+    color: var(--text-color);
+    padding: 24px;
+    min-height: 100vh;
+  }
+  h2 { margin-bottom: 12px; font-size: 18px; font-weight: 600; }
+  .controls {
+    background: white;
+    padding: 16px 20px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .controls label { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .controls input, .controls textarea, .controls select {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font: inherit;
+  }
+  .controls textarea { min-height: 80px; font-size: 14px; }
+  .controls button {
+    padding: 10px 20px;
+    background: #2a2418;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    align-self: flex-start;
+  }
+
+  .views {
+    display: flex;
+    gap: 32px;
+    align-items: flex-start;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  /* ───── DESKTOP SPREAD — RESPONSIVE, EACH PAGE LOCKED 1:1 ───── */
+  .desktop-view { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+  /* Each page is locked to 1:1 (square). Width scales with viewport:
+     - Capped so 2 pages + gap fit horizontally (48vw each)
+     - Capped so a page fits vertically (78vh)
+     - Capped at 560px on huge screens
+  */
+  .spread {
+    display: flex;
+    /* RTL natural: first DOM child appears on RIGHT — TEXT on right, IMAGE on left */
+    flex-direction: row;
+    gap: 8px;
+    background: #d8cdb7;
+    border-radius: 4px;
+    padding: 10px;
+    width: fit-content;
+    margin: 0 auto;
+  }
+  .spread-page {
+    width: min(46vw, 78vh, 560px);
+    aspect-ratio: 1 / 1;
+    background: var(--page-bg);
+    border-radius: 2px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .text-page {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: stretch;
+    padding: 8% 10%;
+  }
+  /* Shared body text styling — used by both desktop text-page and mobile-overlay */
+  .body-text {
+    font-family: 'Heebo', 'Rubik', 'Arimo', sans-serif;
+    font-size: clamp(15px, 1.5vw, 20px);
+    line-height: 1.7;
+    font-weight: 500;
+    color: var(--text-color);
+    text-align: right;
+    max-width: 100%;
+  }
+  .page-number {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    color: var(--page-number-color);
+    opacity: 0.7;
+    letter-spacing: 0.05em;
+  }
+  .image-page { padding: 0; }
+  .image-page img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  /* textZone=bottom_clear → crop bottom (show top 67%) */
+  [data-text-zone="bottom_clear"] .image-page img { object-position: center top; }
+  /* textZone=top_clear → crop top (show bottom 67%) */
+  [data-text-zone="top_clear"] .image-page img { object-position: center bottom; }
+
+  /* ───── MOBILE VIEW ───── */
+  .mobile-view {
+    background: white;
+    padding: 16px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .mobile-frame {
+    width: 340px;
+    height: 680px;
+    margin: 0 auto;
+    border: 8px solid #1a1a1a;
+    border-radius: 24px;
+    overflow: hidden;
+    position: relative;
+    background: var(--page-bg);
+  }
+  .mobile-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center center;
+  }
+  .mobile-overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    padding: 32px 22px 48px;
+    min-height: 33%;
+    display: flex;
+    align-items: center;
+  }
+  /* mobile-overlay inherits body text styling via .body-text class on inner element */
+  [data-text-zone="bottom_clear"] .mobile-overlay {
+    bottom: 0;
+    background: linear-gradient(to top,
+      var(--page-bg) 0%,
+      rgba(247, 243, 235, 0.95) 40%,
+      rgba(247, 243, 235, 0.70) 70%,
+      rgba(247, 243, 235, 0) 100%);
+  }
+  [data-text-zone="top_clear"] .mobile-overlay {
+    top: 0;
+    background: linear-gradient(to bottom,
+      var(--page-bg) 0%,
+      rgba(247, 243, 235, 0.95) 40%,
+      rgba(247, 243, 235, 0.70) 70%,
+      rgba(247, 243, 235, 0) 100%);
+  }
+  .mobile-page-number {
+    position: absolute;
+    bottom: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: var(--page-number-color);
+    opacity: 0.7;
+    z-index: 2;
+  }
+  .label { font-size: 12px; color: #666; text-align: center; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<div class="controls">
+  <label>
+    <strong style="min-width:90px">URL תמונה:</strong>
+    <input id="imgUrl" placeholder="הדבק כאן URL של תמונה (https://... או נתיב מקומי portrait-full.png)" value="../test-output/portrait-full.png">
+  </label>
+  <label>
+    <strong style="min-width:90px">טקסט הדף:</strong>
+    <textarea id="bodyText">קוֹקוֹ מטפס על המוט של הוילון. הוא משנה צבעים מהר מהר — ירוק, חום, לבן.
+"חדר חדש! איפה? מה?" קוֹקוֹ מסתכל לכל הכיוונים.
+הקרטונים על הרצפה. אני לא מכיר כלום.</textarea>
+  </label>
+  <label>
+    <strong style="min-width:90px">מספר עמוד:</strong>
+    <input id="pageNum" type="number" value="1" style="max-width: 100px">
+  </label>
+  <label>
+    <strong style="min-width:90px">textZone:</strong>
+    <select id="textZone">
+      <option value="bottom_clear" selected>bottom_clear (טקסט למטה)</option>
+      <option value="top_clear">top_clear (טקסט למעלה)</option>
+    </select>
+  </label>
+  <button onclick="updatePreview()">🔄 רענן תצוגה</button>
+</div>
+
+<div class="views">
+  <div class="desktop-view">
+    <h2>🖥️ דסקטופ / PDF — Spread של 2 עמודים</h2>
+    <div class="spread" data-text-zone="bottom_clear" id="spread">
+      <div class="spread-page text-page">
+        <p class="body-text" id="desktopBody"></p>
+        <span class="page-number" id="desktopPage">· 1 ·</span>
+      </div>
+      <div class="spread-page image-page">
+        <img id="desktopImg" src="" alt="">
+      </div>
+    </div>
+    <div class="label">החיתוך נעשה דרך CSS object-position</div>
+  </div>
+
+  <div class="mobile-view">
+    <h2>📱 מובייל / וידאו</h2>
+    <div class="mobile-frame" data-text-zone="bottom_clear" id="mobileFrame">
+      <img id="mobileImg" src="" alt="">
+      <div class="mobile-overlay"><p class="body-text" id="mobileOverlay"></p></div>
+      <span class="mobile-page-number" id="mobilePage">· 1 ·</span>
+    </div>
+    <div class="label">Gradient overlay לקריאות הטקסט</div>
+  </div>
+</div>
+
+<script>
+function updatePreview() {
+  const url = document.getElementById('imgUrl').value;
+  const text = document.getElementById('bodyText').value;
+  const pageNum = document.getElementById('pageNum').value;
+  const zone = document.getElementById('textZone').value;
+
+  document.getElementById('desktopImg').src = url;
+  document.getElementById('mobileImg').src = url;
+  document.getElementById('desktopBody').textContent = text;
+  document.getElementById('mobileOverlay').textContent = text;
+  document.getElementById('desktopPage').textContent = `· ${pageNum} ·`;
+  document.getElementById('mobilePage').textContent = `· ${pageNum} ·`;
+  document.getElementById('spread').setAttribute('data-text-zone', zone);
+  document.getElementById('mobileFrame').setAttribute('data-text-zone', zone);
+}
+
+window.addEventListener('load', updatePreview);
+</script>
+
+</body>
+</html>

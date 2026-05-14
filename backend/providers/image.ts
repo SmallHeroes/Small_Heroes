@@ -123,6 +123,15 @@ export type MainCharacterVisibility =
 
 export type ProtagonistDominance = 'primary' | 'shared' | 'background';
 
+/**
+ * How the image is presented on the reader page:
+ * - vignette: image "floats" on cream/white reader background. Characters visible, no full-bleed background.
+ *   Used for intimate moments, close-ups, single-subject focus, quiet pages.
+ * - full_bleed: image fills the entire page edge-to-edge.
+ *   Used for atmospheric scenes, wide environments, fantasy world rules, action sequences.
+ */
+export type PageLayoutStyle = 'vignette' | 'full_bleed';
+
 export interface PageVisualStoryboard {
   pageNumber: number;
   shotType: ShotType;
@@ -136,6 +145,8 @@ export interface PageVisualStoryboard {
   intent: string;
   mainCharacterVisibility: MainCharacterVisibility;
   protagonistDominance: ProtagonistDominance;
+  /** Per-page rendering choice — vignette (on cream) vs full_bleed (edge-to-edge). */
+  pageLayoutStyle: PageLayoutStyle;
 }
 
 const SHOT_TYPES: ShotType[] = ['close_up', 'medium', 'wide', 'over_shoulder', 'tracking'];
@@ -157,10 +168,21 @@ const MAIN_CHARACTER_VISIBILITY: MainCharacterVisibility[] = [
   'back_allowed_only_if_needed',
 ];
 const PROTAGONIST_DOMINANCE: ProtagonistDominance[] = ['primary', 'shared', 'background'];
+const PAGE_LAYOUT_STYLES: PageLayoutStyle[] = ['vignette', 'full_bleed'];
 
 /** Force all text zones to top_clear — text is always rendered at the top of the page. */
-function normalizeToVerticalZone(_raw: unknown, _pageIndex: number): TextZone {
-  return 'top_clear';
+/**
+ * Normalize the storyboard's textZone choice to one of two vertical zones.
+ * Storyboard LLM picks per-page based on where the focal subject lives.
+ * If storyboard returned something else (left/right/center), we map to vertical fallback.
+ * If unspecified, alternate by page index for visual variety (prevents "all top" sameness).
+ */
+function normalizeToVerticalZone(raw: unknown, pageIndex: number): TextZone {
+  if (raw === 'top_clear' || raw === 'bottom_clear') return raw;
+  // Map legacy/invalid zones to vertical fallback based on hint
+  if (raw === 'bottom_clear' || raw === 'right_clear') return 'bottom_clear';
+  // Unspecified — alternate for variety so the bank doesn't look monotone
+  return pageIndex % 2 === 0 ? 'top_clear' : 'bottom_clear';
 }
 
 function isImageGenerationDisabled(): boolean {
@@ -264,6 +286,8 @@ export interface ImageInput {
   childGender?: string | null;
   /** Storyboard quiet zone for text overlay — appended as final prompt directive (Replicate path). */
   textZone?: TextZone;
+  /** Per-page layout style chosen by storyboard. Drives image size + composition directives. */
+  pageLayoutStyle?: 'vignette' | 'full_bleed';
   /** Additional hard negatives to append into GPT prompt mandatory rules. */
   extraNegativeRules?: string[];
   /** Locked visual descriptions for recurring objects — injected when object name appears in scene. */
@@ -807,6 +831,14 @@ function normalizeStoryboardRows(
         PROTAGONIST_DOMINANCE.includes(row.protagonistDominance as ProtagonistDominance)
           ? (row.protagonistDominance as ProtagonistDominance)
           : 'primary',
+      pageLayoutStyle:
+        typeof row.pageLayoutStyle === 'string' &&
+        PAGE_LAYOUT_STYLES.includes(row.pageLayoutStyle as PageLayoutStyle)
+          ? (row.pageLayoutStyle as PageLayoutStyle)
+          // Heuristic fallback: close-up/intimate shots → vignette, wide/environmental → full_bleed
+          : shot === 'close_up' || composition === 'single_focus'
+            ? 'vignette'
+            : 'full_bleed',
     });
   }
 
@@ -843,9 +875,16 @@ async function generateStoryboard(book: {
     '- do not repeat compositionMode consecutively',
     '- each page must include action, environment, and emotion',
     '- each page must include mainCharacterVisibility and protagonistDominance',
+    '- each page must include textZone AND pageLayoutStyle (vary across pages — DO NOT pick the same value for every page)',
     '- default mainCharacterVisibility should be front or three_quarter',
     '- use back_allowed_only_if_needed only when absolutely necessary',
     '- default protagonistDominance should be primary',
+    // BREATHING-ROOM RULES (added per user feedback — characters were dominating frames):
+    '- SHOT DISTRIBUTION: prefer `medium` and `wide` shots as default. Use `close_up` ONLY for emotional beats (heart line, uncomfortable truth, intimate ending).',
+    '- Most pages should be MEDIUM or WIDE (~70% of pages). Only ~20-30% may be CLOSE_UP.',
+    '- Reasoning: children connect through SEEING THE WORLD, not just the character. Tight close-ups feel claustrophobic at scale.',
+    '- Action pages (motion, discovery, environment, transformation) → ALWAYS medium or wide.',
+    '- Quiet/intimate pages → may be close_up.',
   ].join('\n');
 
   const user = [
@@ -858,12 +897,26 @@ async function generateStoryboard(book: {
     'Allowed enum values:',
     `shotType: ${SHOT_TYPES.join(', ')}`,
     `compositionMode: ${COMPOSITION_MODES.join(', ')}`,
-    'textZone: top_clear (ALWAYS top_clear — text is always rendered at the top of every page)',
     `cameraAngle: ${CAMERA_ANGLES.join(', ')}`,
     `lighting: ${LIGHTING_MODES.join(', ')}`,
     `emotionalTone: ${EMOTIONAL_TONES.join(', ')}`,
     `mainCharacterVisibility: ${MAIN_CHARACTER_VISIBILITY.join(', ')}`,
     `protagonistDominance: ${PROTAGONIST_DOMINANCE.join(', ')}`,
+    '',
+    'textZone — choose per page (top_clear OR bottom_clear only — NEVER left/right/center):',
+    '  - top_clear: pick when the main characters/action live in the LOWER part of the frame.',
+    '    Examples: child looking up at something, ground-level scenes, sitting on floor.',
+    '  - bottom_clear: pick when the main characters/action live in the UPPER part of the frame.',
+    '    Examples: flying creatures, sky scenes, characters looking down, characters peeking from above.',
+    '  Rule: distribute roughly 50/50 across the book. NEVER pick top_clear for every page.',
+    '',
+    'pageLayoutStyle — choose per page (vignette OR full_bleed). Both produce fully-illustrated edge-to-edge scenes in vivid colors:',
+    '  - vignette: INTIMATE close-medium framing — character occupies 45-60% of frame, but environment is still fully rendered around them.',
+    '    Pick for: emotional beats, quiet pages, intimate moments where the character carries the page.',
+    '  - full_bleed: WIDE cinematic framing — character occupies 30-45% of frame, environment is prominent.',
+    '    Pick for: world-establishing shots, atmospheric scenes, group/action shots, fantasy world rules.',
+    '  Rule: aim for roughly 40% vignette + 60% full_bleed across the book. Quiet pages should be vignette.',
+    '  IMPORTANT: vignette is NOT "character floating on cream" — it is just a tighter scene with fewer environmental elements but still fully colored and detailed.',
   ].join('\n');
 
   try {
@@ -1853,8 +1906,8 @@ function buildGPTImagePrompt(input: ImageInput): string {
   const styleNudge = styleContract?.imageNudge?.lines?.[0] ?? '';
   const styleRendering = styleContract?.renderingDescription ?? '';
   const styleBlock = isPreview
-    ? `MEDIUM LOCK:\n${styleRendering || "Soft watercolor children's book illustration"}. No text or letters.`
-    : `MEDIUM LOCK:\n${styleRendering || "Soft watercolor children's book illustration"}. ${styleNudge} No text, no letters, no UI.`;
+    ? `MEDIUM LOCK:\n${styleRendering || "Modern children's picture book illustration with vivid saturated full colors and rich edge-to-edge detail"}. No text or letters.`
+    : `MEDIUM LOCK:\n${styleRendering || "Modern children's picture book illustration with vivid saturated full colors and rich edge-to-edge detail"}. ${styleNudge} No text, no letters, no UI.`;
 
   // ── PREVIEW PATH (direction cards) ──
   if (isPreview) {
@@ -1894,11 +1947,11 @@ function buildGPTImagePrompt(input: ImageInput): string {
   // Text zone — always enforce top fade for story-bank pages
   if (input.textZone) {
     const tzMap: Record<string, string> = {
-      top_clear: 'CRITICAL COMPOSITION: The top 30% of the image MUST gradually fade to a light, calm, low-detail area (soft cream or light wash). No faces, hands, or important objects in the top third. This zone is reserved for text overlay and must be clearly readable.',
-      bottom_clear: 'Bottom 30% must be a calm low-detail area for text.',
-      left_clear: 'Left 30% open for text.',
-      right_clear: 'Right 30% open for text.',
-      center_clear: 'Center area open for text.',
+      top_clear: 'CRITICAL COMPOSITION: The top 25% of the image must be a softer, low-detail area (open sky, calm ceiling, atmospheric haze) — STILL in real saturated colors, NOT cream or sepia. No faces, hands, or important objects in this zone. Dark Hebrew text will overlay here on mobile and must remain legible.',
+      bottom_clear: 'CRITICAL COMPOSITION: The bottom 25% of the image must be a softer, low-detail area (floor, bedding, ground, soft foreground) — STILL in real saturated colors, NOT cream or sepia. No faces, hands, or important objects in this zone. Dark Hebrew text will overlay here on mobile and must remain legible.',
+      left_clear: 'Left 25% open for text — still in real color, low detail.',
+      right_clear: 'Right 25% open for text — still in real color, low detail.',
+      center_clear: 'Center area open for text — still in real color, low detail.',
     };
     const tzHint = tzMap[input.textZone];
     if (tzHint) compParts.push(tzHint);
@@ -1927,9 +1980,53 @@ function buildGPTImagePrompt(input: ImageInput): string {
     ? `Scene based on text: "${textTranslation.slice(0, 200)}"`
     : '';
 
-  // ── ASSEMBLE: Style → Scene → TextRef → Character → Props → Rules → Composition ──
+  // ── UNIVERSAL LAYOUT DIRECTIVE — single image, dual-use ──
+  // Every interior image is portrait 1024x1536.
+  // - On mobile / video: image fills screen; Hebrew text overlays the textZone soft band (top OR bottom 25%).
+  // - On desktop / PDF: CSS crops out the textZone soft band; the remaining 75% becomes the image page of a 2-page spread.
+  //
+  // pageLayoutStyle stays as a NARRATIVE/COMPOSITION signal (intimate close-medium vs wide cinematic),
+  // but does NOT change size or text-zone presence anymore.
+  const isVignetteFraming = input.pageLayoutStyle === 'vignette';
+  const framingHint = isVignetteFraming
+    ? 'Medium framing — character occupies 30-40% of frame. Quiet emotional beat with the environment around them clearly visible.'
+    : 'Wide cinematic environmental framing — character occupies just 20-30% of frame. The ENVIRONMENT dominates (room, garden, sky, props all clearly visible). PULL BACK significantly — show the world the character lives in, NOT a close-up portrait. Override any earlier "character fills 55-65%" instruction — for this layout, character is smaller.';
+
+  const textZoneSide = input.textZone === 'top_clear'
+    ? 'TOP 33% of the frame'
+    : input.textZone === 'bottom_clear'
+      ? 'BOTTOM 33% of the frame'
+      : 'BOTTOM 33% of the frame (default)';
+
+  const layoutDirective = [
+    'LAYOUT MODE — UNIVERSAL PORTRAIT (single image, dual-platform):',
+    '- Aspect portrait (2:3, 1024x1536). This image is used UNCHANGED on both mobile and desktop.',
+    '- Render a full atmospheric scene with detail. Show the world of this beat — room, terrain, sky, props — with the character as the emotional focal point.',
+    `- ${framingHint}`,
+    '- Character is naturally embedded in the scene, not isolated on a blank background.',
+    '',
+    `🚨 CRITICAL — TEXT ZONE FADE at the ${textZoneSide}:`,
+    `- The ${textZoneSide} (about ONE THIRD of the total image height) MUST visually FADE / SOFTEN strongly.`,
+    `- This is a STRONG GRADUAL FADE — pixels in this band lose detail, contrast, and saturation rapidly, ending as a calm soft low-detail area at the edge.`,
+    `- Think of a watercolor wash that grows lighter and increasingly transparent toward the edge of the page.`,
+    `- The fade keeps the scene's atmosphere (sky-soft, ground-soft, atmospheric haze) — NOT cream-colored, just visually very quiet.`,
+    `- COMPOSE the scene so the character ENDS (cropped at upper body / hip, or sitting on a visible surface) BEFORE this fading band begins.`,
+    `- DO NOT place faces, hands, key props, or sharp details into this fading band — it must be visually quiet enough for dark Hebrew text to overlay legibly on mobile.`,
+    '',
+    '🚨 CRITICAL — STANDALONE 67% RULE:',
+    `- The OTHER 67% of the image (the non-fading portion) must work as a COMPLETE standalone illustration.`,
+    `- On desktop / PDF, CSS will crop OUT the fading band — only this 67% remains visible.`,
+    `- That 67% must contain the character (face clear and expressive), the main action, and enough environment to feel like a finished picture.`,
+    '',
+    `Note for mobile: a CSS gradient overlay (transparent → page-background-color) will be applied ON TOP of this band to ensure text legibility — so the band can fade gently, the CSS handles the rest.`,
+    '',
+    'Apart from the textZone fade: NO fade-to-cream elsewhere, NO vignette mask, NO soft borders on the other sides.',
+  ].join('\n');
+
+  // ── ASSEMBLE: Style → Scene → TextRef → Character → Props → Rules → Composition → LayoutMode ──
   // Style/medium FIRST — early tokens disproportionately shape rendering mode.
-  const parts = [styleBlock, trimmedScene, textRef, characterBlock, propBlock, sceneRules, compositionBlock].filter(Boolean);
+  // LayoutMode LAST — strongest signal for composition framing.
+  const parts = [styleBlock, trimmedScene, textRef, characterBlock, propBlock, sceneRules, compositionBlock, layoutDirective].filter(Boolean);
   const fullPrompt = parts.join('\n\n');
 
   // ── DIAGNOSTIC LOG ──
@@ -1956,7 +2053,10 @@ function resolveGPTBookQuality(): 'low' | 'medium' | 'high' {
 async function generateWithGPTImage(input: ImageInput): Promise<GeneratedImage> {
   const isPreview = !!input.isDirectionPreview;
   const hiResPdf = !!input.printPdfOptimized;
-  const size = isPreview ? '1024x1024' : hiResPdf ? '1536x1536' : '1024x1536';
+  // UNIVERSAL PORTRAIT — single image serves both desktop+PDF (crop out soft zone via CSS)
+  // and mobile/video (show full image, text overlays soft zone).
+  // The textZone soft band lives at the top or bottom 25%; the remaining 75% is the standalone scene.
+  const size = hiResPdf ? '1536x1536' : isPreview ? '1024x1024' : '1024x1536';
 
   const quality = isPreview ? 'medium' : resolveGPTBookQuality();
 
@@ -1964,7 +2064,9 @@ async function generateWithGPTImage(input: ImageInput): Promise<GeneratedImage> 
   const prompt = sanitizePromptForSafety(rawPrompt);
 
   console.log(
-    `[gpt_image_prompt] orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} isPreview=${isPreview} size=${size} quality=${quality} promptLen=${prompt.length}`
+    `[gpt_image_prompt] orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} ` +
+    `isPreview=${isPreview} size=${size} quality=${quality} ` +
+    `layout=${input.pageLayoutStyle ?? 'auto'} promptLen=${prompt.length}`
   );
 
   let lastError: Error | null = null;
@@ -1991,11 +2093,13 @@ async function generateWithGPTImage(input: ImageInput): Promise<GeneratedImage> 
           `hasReferencePhoto=${result.hasReferencePhoto} url=${durableUrl.slice(0, 80)}...`
       );
 
+      // Parse actual dimensions from size string (e.g. "1024x1536")
+      const [widthStr, heightStr] = size.split('x');
       return {
         url: durableUrl,
         rawUrl: durableUrl,
-        width: isPreview ? 1024 : hiResPdf ? 1536 : 1024,
-        height: isPreview ? 1024 : hiResPdf ? 1536 : 1536,
+        width: parseInt(widthStr, 10),
+        height: parseInt(heightStr, 10),
         provider: 'gpt-image-1',
         prompt,
       };
@@ -2381,7 +2485,7 @@ function buildGPTCoverPrompt(input: CoverImageInput): string {
   const coverStyleDesc = coverStyleContract?.renderingDescription ?? '';
   const style = coverStyleDesc
     ? `${coverStyleDesc}. Book cover composition. Cheerful and bright. No text, no letters, no title, no words.`
-    : "Soft watercolor children's book cover. Light cream background. Cheerful and bright. No text, no letters, no title, no words.";
+    : "Modern children's picture book cover in vivid saturated full colors with rich detailed scenery edge-to-edge. Cheerful and bright. No text, no letters, no title, no words.";
   return `${scene}\n\n${style}`;
 }
 
@@ -2738,6 +2842,7 @@ export async function generateAllPageImages(
       shotType: pageStoryboard.shotType,
       compositionMode: pageStoryboard.compositionMode,
       textZone: pageStoryboard.textZone,
+      pageLayoutStyle: pageStoryboard.pageLayoutStyle,
       mainCharacterVisibility: pageStoryboard.mainCharacterVisibility,
       protagonistDominance: pageStoryboard.protagonistDominance,
     });
@@ -2887,6 +2992,7 @@ export async function generateAllPageImages(
               childAge: config.childAge ?? null,
               childGender: config.childGender ?? null,
               textZone: pageStoryboard.textZone,
+              pageLayoutStyle: pageStoryboard.pageLayoutStyle,
               extraNegativeRules: config.extraNegativeRules,
               propDNA: config.propDNA,
               childStructured: config.childStructured,
@@ -3017,6 +3123,7 @@ export async function generateAllPageImages(
                 childAge: config.childAge ?? null,
                 childGender: config.childGender ?? null,
                 textZone: pageStoryboard.textZone,
+              pageLayoutStyle: pageStoryboard.pageLayoutStyle,
                 extraNegativeRules: config.extraNegativeRules,
                 propDNA: config.propDNA,
                 childStructured: config.childStructured,
@@ -3079,148 +3186,4 @@ export async function generateAllPageImages(
                 referenceImages && referenceImages.length > 0
               )} skippedExistingImage=false`
             );
-            return generateImage({
-              pagePrompt: `${storyboardPrompt}${retrySuffix}`,
-              illustrationStyle: normalizedStyle,
-              pageTemplate: effectivePageTemplate,
-              childDescription: config.childDescription,
-              referenceImages,
-              anchorCharacters: attemptAnchors,
-              orderId: config.orderId,
-              characterSheet: config.characterSheet,
-              concept: config.concept,
-              heroVisualLock: config.heroVisualLock,
-              styleLock: config.styleLock,
-              entityVisualLock: config.entityVisualLock,
-              pageIntent: effectivePageIntent,
-              composition: page.composition,
-              compositionRules: page.compositionRules,
-              environmentContinuity: page.environmentContinuity,
-              pageNumber: page.pageNumber,
-              totalPages: pagesToGenerate.length,
-              assetType: 'page',
-              companion: config.companion ?? null,
-              photoQuality: config.photoQuality,
-              directionArchetype: config.directionArchetype,
-              directionEmotionalLabel: config.directionEmotionalLabel,
-              directionStoryPremise: config.directionStoryPremise,
-              childAge: config.childAge ?? null,
-              childGender: config.childGender ?? null,
-              textZone: pageStoryboard.textZone,
-              extraNegativeRules: config.extraNegativeRules,
-              propDNA: config.propDNA,
-              childStructured: config.childStructured,
-              companionStructured: config.companionStructured,
-              printPdfOptimized: !!config.pdfEnabled,
-              ...visualDirectorPageFields,
-            });
-          },
-          page.pageNumber,
-          'page-render'
-        );
-      } catch (error) {
-        lastError = error;
-      }
-    }
-
-    if (!image) {
-      const attemptLabel =
-        config.photoQuality?.status === 'warning' ? '2 warning candidates' : `${MAX_PAGE_ATTEMPTS} attempts`;
-      const reason = formatImageGenFailureReason(lastError);
-      console.error(
-        `[ImageGen] Page ${page.pageNumber} FAILED after ${attemptLabel} | ${reason} | raw=${
-          lastError instanceof Error ? lastError.message : String(lastError)
-        }`
-      );
-      failedPages.push(page.pageNumber);
-      continue;
-    }
-
-    if (
-      resemblesMonitorEnabled &&
-      expectedCharacterIds.includes('child') &&
-      characterAnchors.child &&
-      !shouldRunAnchorElection
-    ) {
-      const monitorThreshold = resolveEffectiveThreshold(normalizedStyle.toLowerCase(), thresholdConfig);
-      try {
-        const monitor = await scoreResemblanceAgainstReference({
-          referenceImageUrl: characterAnchors.child,
-          candidateImageUrl: image.url,
-          effectiveThreshold: monitorThreshold,
-          minAcceptableScore: thresholdConfig.minAcceptableScore,
-        });
-        await emitResemblanceAudit({
-          orderId: config.orderId,
-          pageNumber: page.pageNumber,
-          selected: true,
-          model: image.provider,
-          styleId: normalizedStyle,
-          resemblanceScore: monitor.resemblanceScore,
-          threshold: monitorThreshold,
-          minAcceptableScore: thresholdConfig.minAcceptableScore,
-          softFailBand: thresholdConfig.softFailBand,
-          extremeMargin: thresholdConfig.extremeMargin,
-          faceDetectConfidence: monitor.faceDetectConfidence,
-          faceAreaRatio: monitor.faceAreaRatio,
-          sanityDisagreement:
-            monitor.sanityFlags.embeddingMismatch ||
-            monitor.sanityFlags.colorMismatch ||
-            monitor.sanityFlags.geometryWeird,
-          source: 'page_monitor',
-        });
-      } catch (monitorError) {
-        console.warn(
-          `[ResemblanceCore] page monitor failed non-fatally: ${
-            monitorError instanceof Error ? monitorError.message : String(monitorError)
-          }`
-        );
-      }
-    }
-
-    results.set(page.pageNumber, image);
-    generatedPages.add(page.pageNumber);
-    const newlyResolvedAnchors: Record<string, string> = {};
-    for (const characterId of assignedCharacterIds) {
-      if (characterAnchors[characterId]) continue;
-      characterAnchors[characterId] = image.url;
-      newlyResolvedAnchors[characterId] = image.url;
-    }
-    console.log(
-      `[Image] Page ${page.pageNumber}/${pagesToGenerate.length} — expectedCharacters=[${expectedCharacterIds.join(
-        ', '
-      )}] unresolved=[${unresolvedCharacterIds.join(', ')}] suitable=[${suitableCharacterIds.join(
-        ', '
-      )}] assigned=[${assignedCharacterIds.join(
-        ', '
-      )}] passedAnchors=[${anchorCharacters.map((entry) => entry.characterId).join(', ')}] outputUrl=${image.url}`
-    );
-
-    if (Object.keys(newlyResolvedAnchors).length > 0) {
-      console.log(
-        `[Image] Page ${page.pageNumber}/${pages.length} — newAnchors=[${Object.keys(newlyResolvedAnchors).join(', ')}]`
-      );
-      if (config.onAnchorsResolved) {
-        try {
-          await config.onAnchorsResolved(newlyResolvedAnchors);
-          console.log('[Image] Anchor updates persisted');
-        } catch (persistErr) {
-          console.warn(
-            `[Image] Anchor persistence failed (non-fatal): ${
-              persistErr instanceof Error ? persistErr.message : String(persistErr)
-            }`
-          );
-        }
-      }
-    } else if (availableAnchorIds.length === 0 && expectedCharacterIds.length > 0) {
-      console.warn(`[Image] Page ${page.pageNumber} — anchor missing for expected characters, generated without reference`);
-    }
-
-  }
-
-  console.log(
-    `[Image] Complete — ${results.size}/${pagesToGenerate.length} succeeded; failedPages=[${failedPages.join(', ')}]`
-  );
-
-  return { results, failedPages, textZones, lightingModes };
-}
+            return generate
