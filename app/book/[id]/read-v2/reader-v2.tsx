@@ -634,8 +634,8 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
           </a>
         </section>
       )}
+
+      <audio ref={audioRef} preload="metadata" hidden />
     </main>
   );
 }
-
-   
