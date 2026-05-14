@@ -411,6 +411,22 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
     </footer>
   ) : null;
 
+  // Splits Hebrew text into reading-rhythm lines:
+  //  1. Honors existing newlines from the story bank if any
+  //  2. Falls back to sentence-level splits (. ! ? followed by space)
+  //  3. Trims and filters empty fragments
+  const splitTextByRhythm = (text: string): string[] => {
+    if (!text) return [' '];
+    // First try: split by existing newlines if present
+    const byNewline = text.split(/\n+/).map((s) => s.trim()).filter(Boolean);
+    if (byNewline.length > 1) return byNewline;
+    // Fallback: split by sentence endings while keeping the punctuation
+    return text
+      .split(/(?<=[.!?…])\s+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  };
+
   const renderInteriorPage = (page: ReaderPage) => {
     if (page.pageTemplate === 'text_only') {
       return (
@@ -494,7 +510,11 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
       >
         {/* Text page — visible only on desktop (≥1024px) */}
         <div className={styles.spreadTextPage}>
-          <p className={styles.spreadBodyText}>{page.text || ' '}</p>
+          <div className={styles.spreadBodyText}>
+            {splitTextByRhythm(page.text || ' ').map((line, i) => (
+              <p key={i} className={styles.spreadTextLine}>{line}</p>
+            ))}
+          </div>
           <span className={styles.spreadPageNumber}>· {page.pageNumber} ·</span>
         </div>
         {/* Image page — visible on both, but desktop crops out textZone band via CSS */}
@@ -597,4 +617,24 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
       {status === 'ready' && showEndScreen && (
         <section className={styles.centerState}>
           <div className={styles.endGlyph}>✦</div>
-          <h2 classN
+          <h2 className={styles.endTitle}>סוף</h2>
+          <button
+            type="button"
+            className={styles.controlBtn}
+            onClick={() => {
+              setCurrentPageIndex(0);
+              setShowEndScreen(false);
+            }}
+          >
+            קראו שוב מההתחלה
+          </button>
+          <a href="/" className={styles.backHomeLink}>
+            חזרה לדף הבית
+          </a>
+        </section>
+      )}
+
+      <audio ref={audioRef} preload="metadata" hidden />
+    </main>
+  );
+}

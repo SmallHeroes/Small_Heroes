@@ -455,6 +455,20 @@
   padding: 0 14px max(12px, env(safe-area-inset-bottom, 0px));
 }
 
+/* Mobile: controls fixed at bottom so they stay visible above the full-bleed image */
+@media (max-width: 1023px) {
+  .controls {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 15;
+    padding: 12px 14px max(12px, env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(to top, rgba(253, 249, 244, 0.95) 30%, rgba(253, 249, 244, 0) 100%);
+    backdrop-filter: blur(4px);
+  }
+}
+
 .controlBtn {
   border: 1px solid rgba(180, 160, 130, 0.35);
   border-radius: 999px;
@@ -502,5 +516,235 @@
   .controlBtn {
     padding: 9px 14px;
     font-size: 14px;
+  }
+}
+
+/* ───────────────────────────────────────────────────────────
+   SPREAD TEMPLATE (Phase 4a) — Desktop: 2-page spread, Mobile: single page with overlay
+   Used as the default for all interior story pages.
+   ─────────────────────────────────────────────────────────── */
+
+.tplSpread {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: var(--page-bg, #f7f3eb);
+  overflow: hidden;
+}
+
+/* ── MOBILE FULL-SCREEN: tplSpread overrides pageCanvas/pageStage constraints ── */
+@media (max-width: 1023px) {
+  /* Strip pageStage padding when it contains a spread (full-bleed mobile) */
+  .pageStage:has(.tplSpread) {
+    padding: 0;
+  }
+
+  /* Make pageCanvas.tplSpread fill the visible viewport */
+  .pageCanvas.tplSpread {
+    width: 100% !important;
+    max-width: none !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+  }
+
+  /* Mobile image — natural aspect ratio with top padding to clear the close button */
+  .spreadImg {
+    height: auto;
+    padding-top: 56px;
+  }
+}
+
+/* ── MOBILE (default — applies always; overridden by desktop @media below) ── */
+.spreadTextPage {
+  display: none; /* hidden on mobile */
+}
+
+.spreadImagePage {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.spreadImg {
+  width: 100%;
+  object-fit: cover;
+  object-position: center center;
+  display: block;
+}
+
+.mobileOverlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  padding: 24px;
+  min-height: 30%;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+/* Bottom overlay: extra bottom padding to clear the fixed controls bar */
+.tplSpread[data-text-zone="bottom_clear"] .mobileOverlay,
+.tplSpread:not([data-text-zone]) .mobileOverlay,
+.tplSpread[data-text-zone=""] .mobileOverlay {
+  padding-bottom: 90px;
+}
+
+.tplSpread[data-text-zone="bottom_clear"] .mobileOverlay {
+  bottom: 0;
+  background: linear-gradient(
+    to top,
+    var(--page-bg, #f7f3eb) 0%,
+    rgba(253, 249, 244, 0.95) 40%,
+    rgba(253, 249, 244, 0.7) 70%,
+    rgba(253, 249, 244, 0) 100%
+  );
+}
+
+.tplSpread[data-text-zone="top_clear"] .mobileOverlay {
+  top: 0;
+  background: linear-gradient(
+    to bottom,
+    var(--page-bg, #f7f3eb) 0%,
+    rgba(253, 249, 244, 0.95) 40%,
+    rgba(253, 249, 244, 0.7) 70%,
+    rgba(253, 249, 244, 0) 100%
+  );
+}
+
+/* Default: bottom_clear if no explicit zone */
+.tplSpread:not([data-text-zone]) .mobileOverlay,
+.tplSpread[data-text-zone=""] .mobileOverlay {
+  bottom: 0;
+  background: linear-gradient(
+    to top,
+    var(--page-bg, #f7f3eb) 0%,
+    rgba(253, 249, 244, 0.95) 40%,
+    rgba(253, 249, 244, 0.7) 70%,
+    rgba(253, 249, 244, 0) 100%
+  );
+}
+
+.mobileBodyText {
+  font-family: var(--reader-font-stack);
+  font-size: clamp(15px, 4.5vw, 22px);
+  line-height: 1.5;
+  font-weight: 500;
+  color: #393123;
+  text-align: right;
+  margin: 0;
+  max-width: 100%;
+}
+
+/* ── DESKTOP (≥1024px) — 2-page spread ── */
+@media (min-width: 1024px) {
+  /* Override pageCanvas constraints when it's a spread */
+  .pageCanvas.tplSpread {
+    width: fit-content !important;
+    max-width: none;
+    min-height: auto;
+    max-height: none;
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .tplSpread {
+    --page-size: min(46vw, 78vh, 560px);
+    display: flex;
+    flex-direction: row; /* RTL natural: text on right, image on left */
+    align-items: flex-start; /* prevent stretch override of aspect ratio */
+    gap: 8px;
+    padding: 10px;
+    background: #d8cdb7;
+    margin: 0 auto;
+    height: auto;
+  }
+
+  .spreadTextPage {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: stretch;
+    padding: 7% 9%;
+    /* Real watercolor paper texture from /public/Images/EmptyPage.png */
+    background-color: #f5ebd6;
+    background-image: url('/Images/EmptyPage.png');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    border-radius: 2px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    width: var(--page-size);
+    height: var(--page-size); /* explicit square */
+    flex-shrink: 0;
+    box-sizing: border-box;
+    position: relative;
+  }
+
+  .spreadBodyText {
+    font-family: var(--reader-font-stack);
+    text-align: right;
+    margin: 0;
+    /* Container — individual lines handled by .spreadTextLine */
+  }
+
+  .spreadTextLine {
+    font-family: var(--reader-font-stack);
+    font-size: clamp(20px, 1.65vw, 28px);
+    line-height: 1.55;
+    font-weight: 500;
+    /* Warm dark brown — feels like ink on warm paper, not harsh black */
+    color: #3d2817;
+    text-align: right;
+    margin: 0 0 0.5em 0;
+  }
+  .spreadTextLine:last-child { margin-bottom: 0; }
+
+  .spreadPageNumber {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    color: #8a7a5a;
+    opacity: 0.7;
+    letter-spacing: 0.05em;
+  }
+
+  .spreadImagePage {
+    width: var(--page-size);
+    height: var(--page-size); /* explicit square — same as text page */
+    background: var(--page-bg, #fdf9f4);
+    border-radius: 2px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    position: relative;
+  }
+
+  /* Desktop image fills the square 1:1 container */
+  .spreadImg {
+    height: 100%;
+  }
+
+  /* Desktop crop — show the non-fading 2/3 portion */
+  .tplSpread[data-text-zone="bottom_clear"] .spreadImg,
+  .tplSpread:not([data-text-zone]) .spreadImg,
+  .tplSpread[data-text-zone=""] .spreadImg {
+    object-position: center top; /* show top, crop bottom-third soft zone */
+  }
+
+  .tplSpread[data-text-zone="top_clear"] .spreadImg {
+    object-position: center bottom; /* show bottom, crop top-third soft zone */
+  }
+
+  /* Hide mobile overlay on desktop */
+  .mobileOverlay {
+    display: none;
   }
 }
