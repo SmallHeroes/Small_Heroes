@@ -3186,4 +3186,149 @@ export async function generateAllPageImages(
                 referenceImages && referenceImages.length > 0
               )} skippedExistingImage=false`
             );
-            return generate
+            return generateImage({
+              pagePrompt: `${storyboardPrompt}${retrySuffix}`,
+              illustrationStyle: normalizedStyle,
+              pageTemplate: effectivePageTemplate,
+              childDescription: config.childDescription,
+              referenceImages,
+              anchorCharacters: attemptAnchors,
+              orderId: config.orderId,
+              characterSheet: config.characterSheet,
+              concept: config.concept,
+              heroVisualLock: config.heroVisualLock,
+              styleLock: config.styleLock,
+              entityVisualLock: config.entityVisualLock,
+              pageIntent: effectivePageIntent,
+              composition: page.composition,
+              compositionRules: page.compositionRules,
+              environmentContinuity: page.environmentContinuity,
+              pageNumber: page.pageNumber,
+              totalPages: pagesToGenerate.length,
+              assetType: 'page',
+              companion: config.companion ?? null,
+              photoQuality: config.photoQuality,
+              directionArchetype: config.directionArchetype,
+              directionEmotionalLabel: config.directionEmotionalLabel,
+              directionStoryPremise: config.directionStoryPremise,
+              childAge: config.childAge ?? null,
+              childGender: config.childGender ?? null,
+              textZone: pageStoryboard.textZone,
+              pageLayoutStyle: pageStoryboard.pageLayoutStyle,
+              extraNegativeRules: config.extraNegativeRules,
+              propDNA: config.propDNA,
+              childStructured: config.childStructured,
+              companionStructured: config.companionStructured,
+              printPdfOptimized: !!config.pdfEnabled,
+              ...visualDirectorPageFields,
+            });
+          },
+          page.pageNumber,
+          'page-render'
+        );
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (!image) {
+      const attemptLabel =
+        config.photoQuality?.status === 'warning' ? '2 warning candidates' : `${MAX_PAGE_ATTEMPTS} attempts`;
+      const reason = formatImageGenFailureReason(lastError);
+      console.error(
+        `[ImageGen] Page ${page.pageNumber} FAILED after ${attemptLabel} | ${reason} | raw=${
+          lastError instanceof Error ? lastError.message : String(lastError)
+        }`
+      );
+      failedPages.push(page.pageNumber);
+      continue;
+    }
+
+    if (
+      resemblesMonitorEnabled &&
+      expectedCharacterIds.includes('child') &&
+      characterAnchors.child &&
+      !shouldRunAnchorElection
+    ) {
+      const monitorThreshold = resolveEffectiveThreshold(normalizedStyle.toLowerCase(), thresholdConfig);
+      try {
+        const monitor = await scoreResemblanceAgainstReference({
+          referenceImageUrl: characterAnchors.child,
+          candidateImageUrl: image.url,
+          effectiveThreshold: monitorThreshold,
+          minAcceptableScore: thresholdConfig.minAcceptableScore,
+        });
+        await emitResemblanceAudit({
+          orderId: config.orderId,
+          pageNumber: page.pageNumber,
+          selected: true,
+          model: image.provider,
+          styleId: normalizedStyle,
+          resemblanceScore: monitor.resemblanceScore,
+          threshold: monitorThreshold,
+          minAcceptableScore: thresholdConfig.minAcceptableScore,
+          softFailBand: thresholdConfig.softFailBand,
+          extremeMargin: thresholdConfig.extremeMargin,
+          faceDetectConfidence: monitor.faceDetectConfidence,
+          faceAreaRatio: monitor.faceAreaRatio,
+          sanityDisagreement:
+            monitor.sanityFlags.embeddingMismatch ||
+            monitor.sanityFlags.colorMismatch ||
+            monitor.sanityFlags.geometryWeird,
+          source: 'page_monitor',
+        });
+      } catch (monitorError) {
+        console.warn(
+          `[ResemblanceCore] page monitor failed non-fatally: ${
+            monitorError instanceof Error ? monitorError.message : String(monitorError)
+          }`
+        );
+      }
+    }
+
+    results.set(page.pageNumber, image);
+    generatedPages.add(page.pageNumber);
+    const newlyResolvedAnchors: Record<string, string> = {};
+    for (const characterId of assignedCharacterIds) {
+      if (characterAnchors[characterId]) continue;
+      characterAnchors[characterId] = image.url;
+      newlyResolvedAnchors[characterId] = image.url;
+    }
+    console.log(
+      `[Image] Page ${page.pageNumber}/${pagesToGenerate.length} — expectedCharacters=[${expectedCharacterIds.join(
+        ', '
+      )}] unresolved=[${unresolvedCharacterIds.join(', ')}] suitable=[${suitableCharacterIds.join(
+        ', '
+      )}] assigned=[${assignedCharacterIds.join(
+        ', '
+      )}] passedAnchors=[${anchorCharacters.map((entry) => entry.characterId).join(', ')}] outputUrl=${image.url}`
+    );
+
+    if (Object.keys(newlyResolvedAnchors).length > 0) {
+      console.log(
+        `[Image] Page ${page.pageNumber}/${pages.length} — newAnchors=[${Object.keys(newlyResolvedAnchors).join(', ')}]`
+      );
+      if (config.onAnchorsResolved) {
+        try {
+          await config.onAnchorsResolved(newlyResolvedAnchors);
+          console.log('[Image] Anchor updates persisted');
+        } catch (persistErr) {
+          console.warn(
+            `[Image] Anchor persistence failed (non-fatal): ${
+              persistErr instanceof Error ? persistErr.message : String(persistErr)
+            }`
+          );
+        }
+      }
+    } else if (availableAnchorIds.length === 0 && expectedCharacterIds.length > 0) {
+      console.warn(`[Image] Page ${page.pageNumber} — anchor missing for expected characters, generated without reference`);
+    }
+
+  }
+
+  console.log(
+    `[Image] Complete — ${results.size}/${pagesToGenerate.length} succeeded; failedPages=[${failedPages.join(', ')}]`
+  );
+
+  return { results, failedPages, textZones, lightingModes };
+}
