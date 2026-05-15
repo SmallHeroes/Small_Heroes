@@ -642,7 +642,12 @@ async function callLLMOnce(
     selectedReasoningEffort: string,
     selectedVerbosity: string
   ): Promise<LLMResult> => {
-    const useResponsesAPI = modelName.includes('-pro') || !!selectedReasoningEffort;
+    // GPT-5.x family models (5.3-chat-latest, 5.3-pro, etc.) are served via the Responses API
+    // endpoint (/v1/responses) and NOT via /v1/chat/completions. Route them accordingly.
+    const useResponsesAPI =
+      modelName.startsWith('gpt-5.') ||
+      modelName.includes('-pro') ||
+      !!selectedReasoningEffort;
     if (useResponsesAPI) {
       const body: Record<string, unknown> = {
         model: modelName,

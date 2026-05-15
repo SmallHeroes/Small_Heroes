@@ -177,12 +177,16 @@ const PAGE_LAYOUT_STYLES: PageLayoutStyle[] = ['vignette', 'full_bleed'];
  * If storyboard returned something else (left/right/center), we map to vertical fallback.
  * If unspecified, alternate by page index for visual variety (prevents "all top" sameness).
  */
-function normalizeToVerticalZone(raw: unknown, pageIndex: number): TextZone {
-  if (raw === 'top_clear' || raw === 'bottom_clear') return raw;
-  // Map legacy/invalid zones to vertical fallback based on hint
-  if (raw === 'bottom_clear' || raw === 'right_clear') return 'bottom_clear';
-  // Unspecified — alternate for variety so the bank doesn't look monotone
-  return pageIndex % 2 === 0 ? 'top_clear' : 'bottom_clear';
+function normalizeToVerticalZone(_raw: unknown, _pageIndex: number): TextZone {
+  // POLICY (2026-05-15): Mobile + video text always appears at the BOTTOM.
+  // Forcing all body pages to bottom_clear keeps the soft zone in the bottom
+  // 25-33% of the image, where the dark Hebrew overlay sits on mobile and
+  // where the natural reading eye-flow ends. Top_clear was creating awkward
+  // top overlays that competed with the cover/title area.
+  // Suppress the unused-param lints — args kept for backwards-compatible signature.
+  void _raw;
+  void _pageIndex;
+  return 'bottom_clear';
 }
 
 function isImageGenerationDisabled(): boolean {

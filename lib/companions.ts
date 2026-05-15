@@ -35,7 +35,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
   NOISE_FEAR: [
     {
       id: 'footstep_giant',
-      name: 'הענק תום',
+      name: 'הענק בּוּמִי',
       tagline: 'ענק עדין שצעדיו מרעידים את האדמה — וליבו שקט',
       image: '/companions/NOISE_FEAR/footstep_giant.jpg',
       narrativeHook: 'מלמד את הגיבור שבתוך כל קול גדול יש חדר פנימי שקט',
@@ -44,7 +44,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
     },
     {
       id: 'song_whale',
-      name: 'הלוויתן ים',
+      name: 'הלוויתן לוּלִי',
       tagline: 'לוויתן כחול ששירתו מרגיעה אוקיינוסים שלמים',
       image: '/companions/NOISE_FEAR/song_whale.jpg',
       narrativeHook: 'מראה שיש קולות שהם חיבוק ולא סכנה',
@@ -53,7 +53,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
     },
     {
       id: 'mole_sheket',
-      name: 'החפרפרת שֶׁקֶט',
+      name: 'החפרפרת חוֹפִי',
       tagline: 'חפרפרת שחיה מתחת לאדמה בשקט מוחלט ומלמדת למצוא את השקט הפנימי',
       image: '/companions/NOISE_FEAR/mole_sheket.jpg',
       narrativeHook: 'בתוך כל רעש יש שכבה של שקט — רק צריך לחפור אליה',
@@ -82,7 +82,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
     },
     {
       id: 'owl_chacham',
-      name: 'הינשוף חכם',
+      name: 'הינשוף בּוּבּוּ',
       tagline: 'ינשוף זקן ששומר על העולם בזמן שהוא ישן',
       image: '/companions/NIGHT_FEAR/owl_chacham.jpg',
       narrativeHook: 'נוכחות שקטה ואיתנה בשעות החלשות של הלילה',
@@ -102,7 +102,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
     },
     {
       id: 'squirrel_navad',
-      name: 'הסנאי נוָּד',
+      name: 'הסנאי נוּטִי',
       tagline: 'סנאי שקבר אוצרות של אומץ בכל עץ חדש',
       image: '/companions/TRANSITION/squirrel_navad.jpg',
       narrativeHook: 'כל מקום זר מכיל מתנה מוחבאת',
@@ -111,7 +111,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
     },
     {
       id: 'turtle_beiti',
-      name: 'הצב בֵּיתִי',
+      name: 'הצב טוֹלִי',
       tagline: 'הצב שהשריון שלו הוא הבית שלו',
       image: '/companions/TRANSITION/turtle_beiti.jpg',
       narrativeHook: 'בית זה מה שאתה נוסע, לא מה שנשאר מאחור',
@@ -122,7 +122,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
   NEW_SIBLING: [
     {
       id: 'pelican_kis',
-      name: 'השקנאי כִּיס',
+      name: 'השקנאי פֵּלִי',
       tagline: 'שקנאי עם כיס שתמיד יש בו מקום לעוד אחד — אהבה לא נגמרת',
       image: '/companions/NEW_SIBLING/pelican_kis.jpg',
       narrativeHook: 'הלב גדל כשמכניסים עוד מישהו פנימה',
@@ -140,7 +140,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
     },
     {
       id: 'bee_ima',
-      name: 'הדבורה אִמָּא',
+      name: 'הדבורה דְּבוֹרִי',
       tagline: 'מלכת דבורים בכוורת שגדלה — ויצרה יותר דבש',
       image: '/companions/NEW_SIBLING/bee_ima.jpg',
       narrativeHook: 'משפחה שמתרחבת מייצרת יותר מתיקות',
@@ -151,7 +151,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
   SELF_CONFIDENCE: [
     {
       id: 'lion_shaket',
-      name: 'האריה שֶׁקֶט',
+      name: 'האריה לֵיוֹ',
       tagline: 'גור ביישן שמגלה שהשאגה תמיד הייתה בפנים',
       image: '/companions/SELF_CONFIDENCE/lion_shaket.jpg',
       narrativeHook: 'הקול שלך קיים — רק מחכה שתקרא לו',
@@ -169,7 +169,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
     },
     {
       id: 'ant_harutza',
-      name: 'הנמלה חֲרוּצָה',
+      name: 'הנמלה טִיטִי',
       tagline: 'נמלה זעירה שמזיזה דברים פי מאה מגודלה — גודל לא קובע כוח',
       image: '/companions/SELF_CONFIDENCE/ant_harutza.jpg',
       narrativeHook: 'קטן לא אומר חלש',
@@ -209,7 +209,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
   FOCUS_LEARNING: [
     {
       id: 'hawk_had',
-      name: 'הבז חַד',
+      name: 'הבז רוּפִי',
       tagline: 'בז שרואה עכבר מגובה קילומטר — מלמד לנעול מבט על דבר אחד',
       image: '/companions/FOCUS_LEARNING/hawk_had.jpg',
       narrativeHook: 'ריכוז זה לבחור מה לראות, לא לראות הכל',
@@ -218,7 +218,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
     },
     {
       id: 'dolphin_shahkan',
-      name: 'הדולפין שַׁחְקָן',
+      name: 'הדולפין דּוּדִי',
       tagline: 'דולפין שמגלה שהמוח עובד הכי טוב כשמשחקים',
       image: '/companions/FOCUS_LEARNING/dolphin_shahkan.jpg',
       narrativeHook: 'למידה היא משחק — מי שמשחק, זוכר',
@@ -227,7 +227,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
     },
     {
       id: 'captain_navat',
-      name: 'הקפטן נַוָּט',
+      name: 'הקפטן רוֹלִי',
       tagline: 'לוטרת-ים עם כובע קפטן שמנווט ספינת מחשבות',
       image: '/companions/FOCUS_LEARNING/captain_navat.jpg',
       narrativeHook: 'ריכוז זה הגה, לא כלוב',
@@ -247,7 +247,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
     },
     {
       id: 'bunny_ometz',
-      name: 'הארנבון אוֹמֵץ',
+      name: 'הארנבון בּוּנִי',
       tagline: 'ארנבון שנולד פחדן וגילה שאומץ הוא שריר שאפשר לאמן',
       image: '/companions/GENERAL_FEARS/bunny_ometz.jpg',
       narrativeHook: 'להיות פחדן לא אומר שאתה לא אמיץ',
@@ -256,7 +256,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
     },
     {
       id: 'mongoose_zariz',
-      name: 'הנמייה זָרִיז',
+      name: 'הנמייה זוּמִי',
       tagline: 'נמייה מהירה וחסרת פחד שפוגשת כל צל פנים אל פנים',
       image: '/companions/GENERAL_FEARS/mongoose_zariz.jpg',
       narrativeHook: 'הפחד מתכווץ כשמסתכלים עליו ישר',
@@ -267,7 +267,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
   ANGER_FRUSTRATION: [
     {
       id: 'octopus_seara',
-      name: 'התמנון סְעָרָה',
+      name: 'התמנון זוּזִי',
       tagline: 'תמנון עם 8 זרועות שמתנפנפות כשהוא כועס — ולומד לכוון כל אחת',
       image: '/companions/ANGER_FRUSTRATION/octopus_seara.jpg',
       narrativeHook: 'כעס הוא אנרגיה — תבחר לאן היא הולכת',
@@ -276,7 +276,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
     },
     {
       id: 'bear_cub_gahal',
-      name: 'הדוב גַּחַל',
+      name: 'הדוב דּוֹבִּי',
       tagline: 'גור דובים עם רגשות ענקיים שלומד שנשימה עמוקה היא הכוח הכי גדול',
       image: '/companions/ANGER_FRUSTRATION/bear_cub_gahal.jpg',
       narrativeHook: 'גדול מבפנים לא חייב להיות הרסני',
@@ -285,7 +285,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
     },
     {
       id: 'salamander_lahav',
-      name: 'הסלמנדרה לַהַב',
+      name: 'הסלמנדרה רוּמִי',
       tagline: 'סלמנדרת אש שחיה בתוך להבות ואף פעם לא נשרפת',
       image: '/companions/ANGER_FRUSTRATION/salamander_lahav.jpg',
       narrativeHook: 'אפשר לגעת באש בלי שהיא תשרוף אותך',
@@ -325,7 +325,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
   MEDICAL_PROCEDURE: [
     {
       id: 'starfish_kokhavi',
-      name: 'כוכב הים כּוֹכָבִי',
+      name: 'כוכב הים דּוּרִי',
       tagline: 'כוכב ים שמתחדש ומחליף — מראה שהגוף יודע לרפא את עצמו',
       image: '/companions/MEDICAL_PROCEDURE/starfish_kokhavi.jpg',
       narrativeHook: 'הגוף שלך חכם — הוא כבר עובד על זה',
@@ -334,7 +334,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
     },
     {
       id: 'seahorse_yam',
-      name: 'הסוסון יָם',
+      name: 'הסוסון גְּלִי',
       tagline: 'סוסון ים עם שריון טבעי שנראה יפה ולא מפחיד',
       image: '/companions/MEDICAL_PROCEDURE/seahorse_yam.jpg',
       narrativeHook: 'הגנה לא חייבת להיות קשה — היא יכולה להיות יפה',
@@ -343,7 +343,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
     },
     {
       id: 'gecko_rifa',
-      name: 'השממית רִפְאָה',
+      name: 'השממית גֵּקִי',
       tagline: 'שממית שמחליפה עור ומצמיחה זנב חדש — מומחית להתחדשות',
       image: '/companions/MEDICAL_PROCEDURE/gecko_rifa.jpg',
       narrativeHook: 'מה שנשבר יכול לגדול מחדש, אפילו יותר חזק',
@@ -354,7 +354,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
   OTHER: [
     {
       id: 'puppy_neeman',
-      name: 'הכלבלב נֶאֱמָן',
+      name: 'הכלבלב רוֹקִי',
       tagline: 'כלבלב שהולך איתך לכל מקום ואף פעם לא מוותר עליך',
       image: '/companions/OTHER/puppy_neeman.jpg',
       narrativeHook: 'לא משנה מה קורה — אני כאן',
@@ -363,7 +363,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
     },
     {
       id: 'parrot_tzivon',
-      name: 'התוכי צִבְעוֹן',
+      name: 'התוכי תּוּתִי',
       tagline: 'תוכי צבעוני שמדבר בשפה שלך ומוצא את הצד המצחיק',
       image: '/companions/OTHER/parrot_tzivon.jpg',
       narrativeHook: 'אפילו ביום אפור אפשר למצוא צבע',
@@ -372,7 +372,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
     },
     {
       id: 'wolf_pup_siyar',
-      name: 'גור הזאב סִיָּר',
+      name: 'גור הזאב לוּלוּ',
       tagline: 'גור זאב צעיר עם אינסטינקט להקה — אף אחד לא הולך לבד',
       image: '/companions/OTHER/wolf_pup_siyar.jpg',
       narrativeHook: 'כוח אמיתי הוא כשמישהו הולך לידך',
