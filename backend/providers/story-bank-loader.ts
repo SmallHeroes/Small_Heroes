@@ -45,8 +45,12 @@ export async function loadStoryFromBank(
   const raw = await fs.readFile(filePath, 'utf-8');
   const letterMeta = parseCompanionLetterMeta(raw);
 
-  const titleMatch = raw.match(/===\s*STORY\s*\d+:\s*(.+?)\s*===/);
-  const title = (titleMatch?.[1]?.trim() ?? 'סיפור מהבנק')
+  // Try YAML frontmatter first (v5-fixed-v2 format), fall back to legacy "=== STORY N: title ===".
+  // No longer falls back to "סיפור מהבנק" — that placeholder leaked into the production UI.
+  const yamlTitleMatch = raw.match(/^title:\s*['"]?(.+?)['"]?\s*$/m);
+  const legacyTitleMatch = raw.match(/===\s*STORY\s*\d+:\s*(.+?)\s*===/);
+  const rawTitle = yamlTitleMatch?.[1]?.trim() || legacyTitleMatch?.[1]?.trim() || '';
+  const title = (rawTitle || `הסיפור של ${childName}`)
     .replace(/\{\{childName\}\}/g, childName)
     .replace(/\{\{companionName\}\}/g, companionName);
 

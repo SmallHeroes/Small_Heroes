@@ -34,9 +34,11 @@ interface GenerateBookPdfParams {
   pages: BookPageForPdf[];
 }
 
-// 2:3 portrait — matches desktop reader's per-page dimensions
-const PAGE_W = 480;
+// Single-page sub-dimensions (2:3 portrait, matches the desktop reader's per-page size)
+const HALF_W = 480;
 const PAGE_H = 720;
+// Full body spread: 2 portrait pages side by side = 4:3 landscape
+const SPREAD_W = HALF_W * 2;
 
 const TEXT_MARGIN_X = 48;
 const TEXT_MARGIN_TOP = 72;
@@ -55,7 +57,7 @@ async function fetchImageAsJpeg(url: string): Promise<Buffer> {
   if (!res.ok) throw new Error(`Failed to fetch image: ${url} (HTTP ${res.status})`);
   const imageBuffer = Buffer.from(await res.arrayBuffer());
   return sharp(imageBuffer)
-    .resize(PAGE_W * 2, PAGE_H * 2, { fit: 'cover' })
+    .resize(HALF_W * 2, PAGE_H * 2, { fit: 'cover' })
     .jpeg({ quality: 88 })
     .toBuffer();
 }
@@ -70,7 +72,7 @@ async function loadPaperTexture(): Promise<Buffer | null> {
     try {
       const raw = await readFile(p);
       return await sharp(raw)
-        .resize(PAGE_W * 2, PAGE_H * 2, { fit: 'cover' })
+        .resize(HALF_W * 2, PAGE_H * 2, { fit: 'cover' })
         .jpeg({ quality: 82 })
         .toBuffer();
     } catch { /* try next */ }
@@ -129,9 +131,9 @@ function wrapText(text: string, maxWidth: number, font: PDFFont, fontSize: numbe
 /** Draw the cream-paper background for designed text pages. */
 function drawCreamPage(page: PDFPage, paperImg: Awaited<ReturnType<PDFDocument['embedJpg']>> | null): void {
   if (paperImg) {
-    page.drawImage(paperImg, { x: 0, y: 0, width: PAGE_W, height: PAGE_H });
+    page.drawImage(paperImg, { x: 0, y: 0, width: HALF_W, height: PAGE_H });
   } else {
-    page.drawRectangle({ x: 0, y: 0, width: PAGE_W, height: PAGE_H, color: CREAM_BG });
+    page.drawRectangle({ x: 0, y: 0, width: HALF_W, height: PAGE_H, color: CREAM_BG });
   }
 }
 
@@ -145,7 +147,7 @@ function drawDesignedTextPage(
 ): void {
   drawCreamPage(page, paperImg);
 
-  const maxTextWidth = PAGE_W - TEXT_MARGIN_X * 2;
+  const maxTextWidth = HALF_W - TEXT_MARGIN_X * 2;
   const lines = wrapText(text, maxTextWidth, font, TEXT_FONT_SIZE);
   if (!lines.length) return;
 
@@ -157,7 +159,7 @@ function drawDesignedTextPage(
     const line = lines[i];
     const lineWidth = font.widthOfTextAtSize(line, TEXT_FONT_SIZE);
     // Right-align for RTL — anchor each line to the right margin
-    const x = PAGE_W - TEXT_MARGIN_X - lineWidth;
+    const x = HALF_W - TEXT_MARGIN_X - lineWidth;
     const y = startY - i * TEXT_LINE_HEIGHT;
     page.drawText(line, { x, y, size: TEXT_FONT_SIZE, font, color: TEXT_COLOR });
   }
@@ -166,7 +168,53 @@ function drawDesignedTextPage(
     const labelSize = 10;
     const labelWidth = font.widthOfTextAtSize(pageNumberLabel, labelSize);
     page.drawText(pageNumberLabel, {
-      x: (PAGE_W - labelWidth) / 2,
+      x: (HALF_W - labelWidth) / 2,
+      y: 32,
+      size: labelSize,
+      font,
+      color: KICKER_COLOR,
+    });
+  }
+}
+
+/** Same as drawDesignedTextPage but anchored at an x-offset — used for the
+ *  RIGHT half of a landscape spread. */
+function drawDesignedTextPageAt(
+  page: PDFPage,
+  xOffset: number,
+  text: string,
+  paperImg: Awaited<ReturnType<PDFDocument['embedJpg']>> | null,
+  font: PDFFont,
+  pageNumberLabel?: string,
+): void {
+  // Cream/paper background only on this half
+  if (paperImg) {
+    page.drawImage(paperImg, { x: xOffset, y: 0, width: HALF_W, height: PAGE_H });
+  } else {
+    page.drawRectangle({ x: xOffset, y: 0, width: HALF_W, height: PAGE_H, color: CREAM_BG });
+  }
+
+  const maxTextWidth = HALF_W - TEXT_MARGIN_X * 2;
+  const lines = wrapText(text, maxTextWidth, font, TEXT_FONT_SIZE);
+  if (!lines.length) return;
+
+  const totalTextHeight = lines.length * TEXT_LINE_HEIGHT;
+  const startY = (PAGE_H + totalTextHeight) / 2 - TEXT_FONT_SIZE;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const lineWidth = font.widthOfTextAtSize(line, TEXT_FONT_SIZE);
+    // Right-align within this half (xOffset is the LEFT edge of the half)
+    const x = xOffset + HALF_W - TEXT_MARGIN_X - lineWidth;
+    const y = startY - i * TEXT_LINE_HEIGHT;
+    page.drawText(line, { x, y, size: TEXT_FONT_SIZE, font, color: TEXT_COLOR });
+  }
+
+  if (pageNumberLabel) {
+    const labelSize = 10;
+    const labelWidth = font.widthOfTextAtSize(pageNumberLabel, labelSize);
+    page.drawText(pageNumberLabel, {
+      x: xOffset + (HALF_W - labelWidth) / 2,
       y: 32,
       size: labelSize,
       font,
@@ -181,9 +229,9 @@ function drawImagePage(
   image: Awaited<ReturnType<PDFDocument['embedJpg']>> | null,
 ): void {
   if (image) {
-    page.drawImage(image, { x: 0, y: 0, width: PAGE_W, height: PAGE_H });
+    page.drawImage(image, { x: 0, y: 0, width: HALF_W, height: PAGE_H });
   } else {
-    page.drawRectangle({ x: 0, y: 0, width: PAGE_W, height: PAGE_H, color: FALLBACK_BG });
+    page.drawRectangle({ x: 0, y: 0, width: HALF_W, height: PAGE_H, color: FALLBACK_BG });
   }
 }
 
@@ -199,7 +247,7 @@ function drawCoverPage(
   if (!title) return;
   const titleSize = 30;
   const lineHeight = 42;
-  const maxWidth = PAGE_W - 56;
+  const maxWidth = HALF_W - 56;
   const titleLines = wrapText(title, maxWidth, font, titleSize);
   if (!titleLines.length) return;
 
@@ -208,7 +256,7 @@ function drawCoverPage(
   for (let i = 0; i < titleLines.length; i++) {
     const line = titleLines[i];
     const lineWidth = font.widthOfTextAtSize(line, titleSize);
-    const x = (PAGE_W - lineWidth) / 2;
+    const x = (HALF_W - lineWidth) / 2;
     const y = startY - i * lineHeight;
     // Subtle warm background plate for readability
     page.drawRectangle({
@@ -236,21 +284,21 @@ function drawDedicationPage(
   const kickerSize = 12;
   const kickerWidth = font.widthOfTextAtSize(kicker, kickerSize);
   page.drawText(kicker, {
-    x: (PAGE_W - kickerWidth) / 2,
+    x: (HALF_W - kickerWidth) / 2,
     y: PAGE_H / 2 + 80,
     size: kickerSize,
     font,
     color: KICKER_COLOR,
   });
 
-  const maxWidth = PAGE_W - 80;
+  const maxWidth = HALF_W - 80;
   const lines = wrapText(text, maxWidth, font, 18);
   const totalH = lines.length * 30;
   const startY = (PAGE_H + totalH) / 2 - 18;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const lineWidth = font.widthOfTextAtSize(line, 18);
-    const x = (PAGE_W - lineWidth) / 2;
+    const x = (HALF_W - lineWidth) / 2;
     const y = startY - i * 30;
     page.drawText(line, { x, y, size: 18, font, color: TEXT_COLOR });
   }
@@ -260,7 +308,7 @@ function drawDedicationPage(
   const dotsSize = 14;
   const dotsWidth = font.widthOfTextAtSize(dots, dotsSize);
   page.drawText(dots, {
-    x: (PAGE_W - dotsWidth) / 2,
+    x: (HALF_W - dotsWidth) / 2,
     y: PAGE_H / 2 - totalH / 2 - 36,
     size: dotsSize,
     font,
@@ -297,7 +345,7 @@ export async function generateBookPdf(params: GenerateBookPdfParams): Promise<Bu
   for (const bookPage of pages) {
     // ── Cover ────────────────────────────────────────────────
     if (bookPage.isCover) {
-      const cover = pdfDoc.addPage([PAGE_W, PAGE_H]);
+      const cover = pdfDoc.addPage([HALF_W, PAGE_H]);
       let img = null;
       if (bookPage.imageUrl) {
         try {
@@ -312,21 +360,20 @@ export async function generateBookPdf(params: GenerateBookPdfParams): Promise<Bu
 
     // ── Dedication ───────────────────────────────────────────
     if (bookPage.isDedication) {
-      const ded = pdfDoc.addPage([PAGE_W, PAGE_H]);
+      const ded = pdfDoc.addPage([HALF_W, PAGE_H]);
       drawDedicationPage(ded, sanitizeText(bookPage.text), paperImg, heeboFont);
       continue;
     }
 
-    // ── Body page → TWO 2:3 portrait pages: text + image ────
+    // ── Body page → ONE landscape spread (image LEFT, text RIGHT for RTL Hebrew) ──
+    // This guarantees a true side-by-side view in EVERY PDF reader, regardless of
+    // whether the viewer is in single-page or facing-pages mode.
     bodyIndex += 1;
     const pageLabel = `· ${bodyIndex} ·`;
 
-    // (a) text page first (right side of spread in RTL)
-    const textPage = pdfDoc.addPage([PAGE_W, PAGE_H]);
-    drawDesignedTextPage(textPage, sanitizeText(bookPage.text), paperImg, heeboFont, pageLabel);
+    const spread = pdfDoc.addPage([SPREAD_W, PAGE_H]);
 
-    // (b) image page second (left side of spread in RTL)
-    const imgPage = pdfDoc.addPage([PAGE_W, PAGE_H]);
+    // (a) Image fills the LEFT half (x: 0 .. HALF_W)
     let img = null;
     if (bookPage.imageUrl) {
       try {
@@ -335,7 +382,14 @@ export async function generateBookPdf(params: GenerateBookPdfParams): Promise<Bu
         console.warn(`[pdf-generator] Image fetch failed for page ${bookPage.pageNumber}`, err);
       }
     }
-    drawImagePage(imgPage, img);
+    if (img) {
+      spread.drawImage(img, { x: 0, y: 0, width: HALF_W, height: PAGE_H });
+    } else {
+      spread.drawRectangle({ x: 0, y: 0, width: HALF_W, height: PAGE_H, color: FALLBACK_BG });
+    }
+
+    // (b) Designed text page on the RIGHT half (x: HALF_W .. SPREAD_W)
+    drawDesignedTextPageAt(spread, HALF_W, sanitizeText(bookPage.text), paperImg, heeboFont, pageLabel);
   }
 
   // Suppress unused-var lint when bodyPageCount isn't used directly
@@ -343,7 +397,7 @@ export async function generateBookPdf(params: GenerateBookPdfParams): Promise<Bu
 
   // Set "facing pages" hint so PDF readers default to spread view when supported
   // (most viewers respect /PageLayout TwoPageRight or TwoPageLeft)
-  pdfDoc.catalog.set(pdfDoc.context.obj('PageLayout'), pdfDoc.context.obj('TwoPageRight'));
+  pdfDoc.catalog.set(pdfDoc.context.obj('PageLayout'), pdfDoc.context.obj('SinglePage'));
 
   const pdfBytes = await pdfDoc.save();
   return Buffer.from(pdfBytes);
