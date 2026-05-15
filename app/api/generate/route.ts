@@ -1258,6 +1258,14 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
             },
           },
         });
+        // Pull dedication from the order so it shows in the printable PDF too.
+        const orderDedication = await prisma.order.findUnique({
+          where: { id: orderId },
+          select: { dedication: true },
+        });
+        const dedicationText = typeof orderDedication?.dedication === 'string'
+          ? orderDedication.dedication.trim()
+          : '';
         const pagesForPdf = [
           ...(book.coverImageUrl
             ? [{
@@ -1273,6 +1281,15 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
             imageUrl: page.imageAsset?.presentationUrl ?? page.imageAsset?.url ?? null,
             isCover: false,
           })),
+          ...(dedicationText.length > 0
+            ? [{
+                pageNumber: 9999,
+                text: dedicationText,
+                imageUrl: null,
+                isCover: false,
+                isDedication: true,
+              }]
+            : []),
         ];
         const pdfBuffer = await generateBookPdf({
           title: book.title || order.childName || 'הספר שלי',

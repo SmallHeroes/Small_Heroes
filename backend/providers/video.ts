@@ -114,26 +114,44 @@ async function renderPageFrame(imageBuffer: Buffer, text: string, omitText: bool
 
   if (!text?.trim().length || omitText) return base;
 
-  // ── Text layout — centered block at top, RTL right-aligned text (like book reader) ──
-  const MARGIN_X = 120;  // symmetric margins → block is centered on page
-  const MARGIN_TOP = 48;
-  const TEXT_FONT_SIZE = 32;
-  const LINE_HEIGHT = 46;
-  const MAX_CHARS = 36;
-  const TEXT_RIGHT_EDGE = VIDEO_WIDTH - MARGIN_X;  // right edge of centered block
+  // ── Text layout — BOTTOM overlay like the mobile reader (dark gradient + white text) ──
+  // Previous version placed text at the TOP, which got clipped by 16:9 video players
+  // showing a 3:4 portrait frame. Bottom is safer and matches the mobile reader UX.
+  const MARGIN_X = 80;
+  const TEXT_FONT_SIZE = 38;
+  const LINE_HEIGHT = 56;
+  const MAX_CHARS = 32;
+  const TEXT_RIGHT_EDGE = VIDEO_WIDTH - MARGIN_X;
 
   const escapedLines = wrapOverlayText(text, MAX_CHARS).map(escapeXml);
-  const textStartY = MARGIN_TOP + TEXT_FONT_SIZE;
+
+  // Compute bottom-aligned positions — last line sits MARGIN_BOTTOM from frame bottom.
+  const MARGIN_BOTTOM = 80;
+  const lastLineY = VIDEO_HEIGHT - MARGIN_BOTTOM;
+  const firstLineY = lastLineY - (escapedLines.length - 1) * LINE_HEIGHT;
+
+  // Gradient panel: starts ~40% above the top line, fades from transparent to dark.
+  // Width covers the full frame so the text reads cleanly on any image background.
+  const panelTop = Math.max(0, firstLineY - TEXT_FONT_SIZE - 60);
+  const panelHeight = VIDEO_HEIGHT - panelTop;
 
   const svgLines = escapedLines
     .map((line, i) => {
-      const y = textStartY + i * LINE_HEIGHT;
-      return `<text xml:space="preserve" x="${TEXT_RIGHT_EDGE}" y="${y}" text-anchor="end" font-family="Heebo, Arial Hebrew, Arial, sans-serif" font-size="${TEXT_FONT_SIZE}" font-weight="700" fill="#2e2a22" direction="rtl" stroke="#fdf9f4" stroke-width="4" paint-order="stroke">${line}</text>`;
+      const y = firstLineY + i * LINE_HEIGHT;
+      return `<text xml:space="preserve" x="${TEXT_RIGHT_EDGE}" y="${y}" text-anchor="end" font-family="Heebo, Arial Hebrew, Arial, sans-serif" font-size="${TEXT_FONT_SIZE}" font-weight="600" fill="#ffffff" direction="rtl">${line}</text>`;
     })
     .join('\n');
 
   const svgOverlay = `
 <svg width="${VIDEO_WIDTH}" height="${VIDEO_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bottomFade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="40%" stop-color="#000000" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.85"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="${panelTop}" width="${VIDEO_WIDTH}" height="${panelHeight}" fill="url(#bottomFade)"/>
   ${svgLines}
 </svg>`.trim();
 
