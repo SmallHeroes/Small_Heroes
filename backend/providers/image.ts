@@ -880,14 +880,15 @@ async function generateStoryboard(book: {
     '- each page must include action, environment, and emotion',
     '- each page must include mainCharacterVisibility and protagonistDominance',
     '- each page must include textZone AND pageLayoutStyle (vary across pages — DO NOT pick the same value for every page)',
-    '- default mainCharacterVisibility should be front or three_quarter',
+    '- VARY mainCharacterVisibility across pages — NEVER pick three_quarter for every page. Mix: front, three_quarter, side, three_quarter_back, far_back (only when natural). Aim for ~3 different values across the book.',
     '- use back_allowed_only_if_needed only when absolutely necessary',
-    '- default protagonistDominance should be primary',
+    '- VARY protagonistDominance across pages — NEVER pick primary for every page. Mix: primary (child dominant), shared (child + companion equal), secondary (companion or environment dominant, child small in frame), background (child small inside a wide scene). At least 30% of pages should be shared or secondary so the reader SEES THE WORLD, not just the protagonist.',
     // BREATHING-ROOM RULES (added per user feedback — characters were dominating frames):
     '- SHOT DISTRIBUTION: prefer `medium` and `wide` shots as default. Use `close_up` ONLY for emotional beats (heart line, uncomfortable truth, intimate ending).',
     '- Most pages should be MEDIUM or WIDE (~70% of pages). Only ~20-30% may be CLOSE_UP.',
     '- Reasoning: children connect through SEEING THE WORLD, not just the character. Tight close-ups feel claustrophobic at scale.',
     '- Action pages (motion, discovery, environment, transformation) → ALWAYS medium or wide.',
+    '- COMPOSITION VARIETY (CRITICAL): Across the whole book, ensure at least 3 of these composition types appear — wide establishing scene (child small inside big environment), duo_interaction (child + companion side by side), companion_dominant (companion in foreground, child smaller), action_motion (child or companion moving through scene), intimate_close (face or hands close-up at emotional beats). NEVER 15 identical centered standing duo poses.',
     '- Quiet/intimate pages → may be close_up.',
   ].join('\n');
 
@@ -2897,9 +2898,13 @@ export async function generateAllPageImages(
     });
     const sceneAction = (pageStoryboard.action ?? '').trim();
     const sceneEnvironment = (pageStoryboard.environment ?? '').trim();
-    const isPortrait = /\bportrait|headshot|character sheet|isolated character|reference pose\b/i.test(
-      `${page.imagePrompt} ${page.bookPageText ?? ''}`
-    );
+    // Only look at the story-derived prompt (page.imagePrompt + bookPageText), NOT the style
+    // block. The style block can mention 'portrait' inside NOT-directives like 'NOT a portrait'
+    // which previously caused isPortrait to false-positive. Also require a positive directive.
+    const promptForCheck = `${page.imagePrompt} ${page.bookPageText ?? ''}`;
+    const hasPortraitWord = /\b(portrait|headshot|character sheet|isolated character|reference pose)\b/i.test(promptForCheck);
+    const hasNegation = /\b(not|never|no|avoid)[^.]{0,40}\b(portrait|headshot|character sheet)\b/i.test(promptForCheck);
+    const isPortrait = hasPortraitWord && !hasNegation;
     console.log('[story_scene_check]', {
       hasAction: sceneAction.length > 0,
       hasEnvironment: sceneEnvironment.length > 0,

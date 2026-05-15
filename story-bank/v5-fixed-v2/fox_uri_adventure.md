@@ -52,7 +52,7 @@ imageDirection: blurred dark shape between trunks, Uri speaking fast
 --- Page 4 ---
 הדבר מתקרב.
 הצל משתנה.
-"עָנָף מִסּוּג שָׁלוֹשׁ. אוֹ אוּלַי עוֹף. פָּשׁוּט, אַתָּה רוֹאֶה..."
+"עָנָף עִם עָלִים. אוֹ אוּלַי צִפּוֹר. תִּסְתַּכֵּל טוֹב..."
 האוזניים של אוּרִי זזות קצת.
 
 imageDirection: shadows overlapping, Uri slightly tense, ears shifting
@@ -73,7 +73,7 @@ imageDirection: child half-smiling, imitating gestures, Uri caught mid-speech
 imageDirection: quick flash of warm light, Uri startled, tail beginning to glow
 
 --- Page 7 ---
-"סליחה, האוויר היה קצת חנוק..." אוּרִי ממהר לכבות את הפנס.
+"סְלִיחָה, זֶה נִדְלַק בְּטָעוּת..." אוּרִי ממהר לכבות את הפנס.
 הצל מקיף אותנו.
 הוא מנסה לכבות את האור אבל זה לא נכבה לגמרי.
 
