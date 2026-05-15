@@ -1,4 +1,4 @@
-import OpenAI from 'openai';
+import OpenAI, { toFile } from 'openai';
 import Replicate from 'replicate';
 import {
   getReplicateClient,
@@ -225,6 +225,10 @@ export interface GenerateGPTImageInput {
   negativePrompt?: string;
   size?: '1024x1024' | '1024x1536' | '1536x1536';
   quality?: 'low' | 'medium' | 'high';
+  /** Optional reference images (URLs) — when provided, generation switches
+   *  from images.generate (text-only) to images.edit, which uses these
+   *  images as IDENTITY anchors for the rendered character. */
+  referenceImages?: string[];
 }
 
 export interface GenerateGPTImageResult {
@@ -241,9 +245,42 @@ function resolveEnvGPTQuality(): 'low' | 'medium' | 'high' {
   return 'high';
 }
 
+/** Identity-preservation prefix prepended when a reference photo is provided.
+ *  Tells gpt-image-1 to use the photo ONLY for face features, not for composition,
+ *  background, lighting, or clothing. Without this the model tends to mimic the
+ *  whole photo (the original reason images.edit was disabled in this codebase). */
+const REFERENCE_PHOTO_PREFIX = (
+  '[REFERENCE PHOTO USAGE - CRITICAL]\n' +
+  'The attached photo shows the REAL child who is the protagonist of this storybook page. ' +
+  'Use the photo ONLY to anchor the child face: face shape, skin tone, hair color and length, ' +
+  'eye shape and color, and any distinctive facial features (freckles, dimples, etc.). ' +
+  'The rendered child MUST clearly look like the real child in the photo.\n' +
+  'DO NOT copy from the photo: the background, lighting, pose, outfit, clothing colors, ' +
+  'camera angle, or composition. The scene, outfit, and setting are described in [SCENE] below.\n' +
+  'Re-render the child as a cartoon/watercolor illustration in the storybook style - same face, new world.\n\n' +
+  '[SCENE]\n'
+);
+
+/** Fetch a URL and return it as an OpenAI-uploadable File. */
+async function urlToOpenAIFile(url: string, indexHint: number): Promise<Awaited<ReturnType<typeof toFile>>> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Reference image fetch failed: ${url} (HTTP ${res.status})`);
+  const arrayBuf = await res.arrayBuffer();
+  return toFile(Buffer.from(arrayBuf), `reference-${indexHint}.png`, { type: 'image/png' });
+}
+
 /**
- * GPT Image (`gpt-image-1`) — returns raw PNG bytes (base64-decoded).
- * Always uses `images.generate` — `images.edit` anchors composition to reference photos and hurts scene diversity.
+ * GPT Image (`gpt-image-1`).
+ *
+ * Two modes:
+ *  - referenceImages empty -> images.generate (text-only, child looks generic)
+ *  - referenceImages present -> images.edit with uploaded child photo as identity anchor.
+ *    Produces a rendered child who actually looks like the user's real child.
+ *
+ * The images.edit path was previously disabled with the comment 'anchors composition
+ * and hurts scene diversity' - but that was a prompt-engineering issue, not an API
+ * limitation. The REFERENCE_PHOTO_PREFIX above tells the model to use ONLY face
+ * features and re-imagine everything else. ChatGPT uses this same pattern.
  */
 export async function generateGPTImage(input: GenerateGPTImageInput): Promise<GenerateGPTImageResult> {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -253,36 +290,65 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
   const size = input.size || '1024x1536';
   const quality = input.quality ?? resolveEnvGPTQuality();
 
+  const refs = (input.referenceImages || []).filter((u) => typeof u === 'string' && u.trim().length > 0);
+  const hasReference = refs.length > 0;
+
   let fullPrompt = input.finalPrompt;
+  if (hasReference) {
+    fullPrompt = REFERENCE_PHOTO_PREFIX + fullPrompt;
+  }
   if (input.negativePrompt) {
     fullPrompt += `\nNo text or letters in the image.`;
   }
 
   const startMs = Date.now();
+  console.info(
+    `[GPTImage] model=gpt-image-1 quality=${quality} size=${size} promptLen=${fullPrompt.length} ` +
+    `refs=${refs.length} mode=${hasReference ? 'images.edit' : 'images.generate'}`
+  );
 
-  console.info(`[GPTImage] model=gpt-image-1 quality=${quality} size=${size} promptLen=${fullPrompt.length}`);
+  let b64: string | undefined;
+  try {
+    if (hasReference) {
+      const files = await Promise.all(refs.slice(0, 4).map((u, i) => urlToOpenAIFile(u, i)));
+      const imageArg = files.length === 1 ? files[0] : (files as unknown as typeof files[0]);
+      const response = await openai.images.edit({
+        model: 'gpt-image-1',
+        image: imageArg,
+        prompt: fullPrompt,
+        size: size as never,
+        quality: quality as never,
+        n: 1,
+      });
+      b64 = response.data?.[0]?.b64_json ?? undefined;
+    } else {
+      const response = await openai.images.generate({
+        model: 'gpt-image-1',
+        prompt: fullPrompt,
+        size: size as never,
+        quality: quality as never,
+        n: 1,
+      });
+      b64 = response.data?.[0]?.b64_json ?? undefined;
+    }
+  } catch (err) {
+    console.error(`[GPTImage] API call failed (mode=${hasReference ? 'images.edit' : 'images.generate'}):`, err);
+    throw err;
+  }
 
-  const response = await openai.images.generate({
-    model: 'gpt-image-1',
-    prompt: fullPrompt,
-    size: size as never,
-    quality: quality as never,
-    n: 1,
-  });
-
-  const b64 = response.data?.[0]?.b64_json ?? undefined;
   if (!b64) throw new Error('GPT Image API returned no image data');
 
   const buffer = Buffer.from(b64, 'base64');
   const durationMs = Date.now() - startMs;
-
-  console.info(`[GPTImage] Done in ${durationMs}ms, buffer=${Math.round(buffer.length / 1024)}KB`);
+  console.info(
+    `[GPTImage] Done in ${durationMs}ms, buffer=${Math.round(buffer.length / 1024)}KB, hasReferencePhoto=${hasReference}`
+  );
 
   return {
     buffer,
     model: 'gpt-image-1',
     finalPrompt: fullPrompt,
-    hasReferencePhoto: false,
+    hasReferencePhoto: hasReference,
     durationMs,
   };
 }

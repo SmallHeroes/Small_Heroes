@@ -2081,6 +2081,10 @@ async function generateWithGPTImage(input: ImageInput): Promise<GeneratedImage> 
         negativePrompt: 'text, letters, words, numbers, watermark, signature, frame, border',
         size: size as '1024x1024' | '1024x1536' | '1536x1536',
         quality,
+        // Pass the uploaded child photo as identity reference. When present, generateGPTImage
+        // switches to images.edit and produces a rendered child who actually looks like the
+        // user's real child. When absent, falls back to text-only images.generate.
+        referenceImages: input.referenceImages,
       });
 
       const durableUrl = await storeImageFromBuffer({
