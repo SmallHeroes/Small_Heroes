@@ -1133,10 +1133,11 @@ function updateUI() {
     renderCompanionCards();
   }
 
-  // Running total appears from style step onward (direction locked).
+  // Running total appears from the direction step onward (step 11), once a
+  // direction is selected — user requested seeing the price as soon as they pick.
   const bottomBarTotal = document.getElementById('bottom-bar-total');
   if (bottomBarTotal) {
-    bottomBarTotal.hidden = !(state.currentStep >= 12 && Boolean(state.storyDirection));
+    bottomBarTotal.hidden = !(state.currentStep >= 11 && Boolean(state.storyDirection));
   }
 
   if (state.currentStep === 11) {
@@ -2969,5 +2970,4 @@ shakeStyle.textContent = `
 `;
 document.head.appendChild(shakeStyle);
 
-/* ── BOOT ────────────────────────────────────────────────────── */
-document.addEventListener("DOMContentLoaded", init);
+/* ── BOOT ──────────────────────────────────────────�
