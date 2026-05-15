@@ -187,35 +187,56 @@ function cycleStatusText() {
 }
 
 // ─── Smooth progress animation ────────────────────────────────────────────────
-const MAX_WAITING_PCT = 94;
+// The backend's /api/generate/status already returns a properly weighted progress
+// value (text 24%, images 44% with per-page sub-ratio, audio 18%, package 14%).
+// We trust that value and only use a small "warmup pump" during the first 6
+// seconds so the bar moves immediately, plus a slow "anti-freeze creeper" that
+// nudges +0.05% every 2s when the backend pct hasn't changed — keeps the bar
+// alive during long sub-stages (image gen) without ever overshooting reality.
 
-function getElapsedCurvePct(elapsedMs) {
-  const elapsedSec = Math.max(0, elapsedMs / 1000);
-  if (elapsedSec < 20) {
-    // Start moving immediately and get to ~25 quickly.
-    return 5 + (elapsedSec / 20) * 20;
-  }
-  if (elapsedSec < 80) {
-    // Mid phase: slower, steady progress toward ~65.
-    return 25 + ((elapsedSec - 20) / 60) * 40;
-  }
-  // Long tail: very slow, never fully complete visually.
-  return Math.min(MAX_WAITING_PCT, 65 + (elapsedSec - 80) * 0.12);
+const MAX_WAITING_PCT = 94;     // never reach 100 until status === 'ready'
+const MAX_CREEP_ABOVE_REAL = 3; // anti-freeze can pull up to +3% above realPct
+const WARMUP_TARGET_PCT = 8;    // initial pump shows life before first poll
+const WARMUP_DURATION_MS = 6000;
+
+let creepAccumulator = 0;       // % accumulated by the anti-freeze creeper
+let lastRealPct = 0;            // detect when realPct changes to reset creeper
+
+function getWarmupPct(elapsedMs) {
+  if (elapsedMs >= WARMUP_DURATION_MS) return WARMUP_TARGET_PCT;
+  return (elapsedMs / WARMUP_DURATION_MS) * WARMUP_TARGET_PCT;
 }
 
 function startSmoothProgress() {
   clearInterval(smoothTimer);
   smoothTimer = setInterval(() => {
     if (redirecting) return;
-    const curvePct = getElapsedCurvePct(Date.now() - startedAtMs);
-    const waitingRealPct = Math.min(realPct, MAX_WAITING_PCT);
-    const softenedTarget = Math.min(MAX_WAITING_PCT, Math.max(waitingRealPct, curvePct));
-    const targetGap = softenedTarget - displayPct;
-    if (targetGap > 0.01) {
-      const easedStep = Math.min(0.65, Math.max(0.06, targetGap * 0.16));
-      displayPct = Math.min(softenedTarget, displayPct + easedStep);
+
+    // Reset creeper whenever the backend reports new real progress.
+    if (realPct > lastRealPct) {
+      creepAccumulator = 0;
+      lastRealPct = realPct;
+    } else {
+      // Creep slowly — 0.05% per tick (80ms × 25 ticks/s = +1.25%/sec at most,
+      // but step is capped well below that). At 80ms tick this is ~0.625%/sec
+      // raw, but the eased step (line below) clamps actual movement.
+      creepAccumulator = Math.min(MAX_CREEP_ABOVE_REAL, creepAccumulator + 0.02);
+    }
+
+    const warmupPct = getWarmupPct(Date.now() - startedAtMs);
+    // Target = max(realPct from API + creeper, warmup floor), hard-capped at 94.
+    const target = Math.min(
+      MAX_WAITING_PCT,
+      Math.max(realPct + creepAccumulator, warmupPct)
+    );
+
+    const gap = target - displayPct;
+    if (gap > 0.01) {
+      // Ease toward target. Faster when far, slower when close.
+      const step = Math.min(0.45, Math.max(0.04, gap * 0.12));
+      displayPct = Math.min(target, displayPct + step);
       refreshUI();
-      if (Math.random() > 0.7) spawnFloater();
+      if (Math.random() > 0.75) spawnFloater();
     }
   }, 80);
 }
@@ -333,38 +354,4 @@ async function fetchStatus() {
 
     // Terminal: failure — show safe Hebrew copy, never the raw backend error string
     if (data.status === 'failed') {
-      track('generation_failed', { orderId, failedStage: data.failedStage || null });
-      showError(GEN.errorFailed);
-      return;
-    }
-
-  } catch (err) {
-    // Network error — keep polling silently
-    console.warn('[generating] Poll error (will retry):', err);
-  }
-}
-
-function startPolling() {
-  fetchStatus();                                 // immediate first call
-  pollTimer = setInterval(fetchStatus, 2500);    // then every 2.5 s
-}
-
-// ─── Boot ─────────────────────────────────────────────────────────────────────
-const orderId = new URLSearchParams(window.location.search).get('orderId');
-
-wireStaticUI();
-
-if (!orderId) {
-  // Page loaded without an orderId — show a soft, non-technical error
-  showError(GEN.errorMissingOrder);
-} else {
-  track('generation_viewed', { orderId });
-  startedAtMs = Date.now();
-  displayPct = 5;
-  refreshUI();
-  cycleStatusText();
-  startFloaters();
-  startSmoothProgress();
-  armStallDetection();  // start stall clock; resets whenever progress advances
-  startPolling();
-}
+      track('generation_failed', { orderId, failedStage: data.fa
