@@ -2023,6 +2023,10 @@ function renderDirectionCards() {
   wrap.innerHTML = '';
   wrap.style.direction = 'rtl';
 
+  // RTL pricing order: DOM index 1 → visually RIGHTMOST when parent has direction:rtl.
+  // We want premium (fantasy ₪99) on the right where the Hebrew eye starts reading,
+  // descending to entry-level (bedtime ₪59) on the left. On mobile (single column)
+  // this also stacks premium-first; if you want cheapest-first on mobile, override below.
   const ORDER = { fantasy: 1, adventure: 2, bedtime: 3 };
   const pkgs = [...DIRECTION_PACKAGES].sort((a, b) => {
     const ao = ORDER[a.id] || 99;

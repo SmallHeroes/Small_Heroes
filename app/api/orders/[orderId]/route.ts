@@ -118,6 +118,7 @@ export async function GET(
         paymeTransactionId: true,
         stripeSessionId: true,
         coverImageUrl: true,
+        dedication: true,
         book: {
           select: {
             title: true,
@@ -211,6 +212,30 @@ export async function GET(
             isQuietPage: wordCount < 20,
           };
         });
+        // Append a dedication page at the end of the book if the customer wrote one.
+        const dedicationText = typeof order.dedication === 'string' ? order.dedication.trim() : '';
+        const pagesWithDedication = dedicationText.length > 0
+          ? [
+              ...contentPages,
+              {
+                pageNumber: (contentPages[contentPages.length - 1]?.pageNumber ?? interiorCount) + 1,
+                text: dedicationText,
+                narrationText: null,
+                audioUrl: null,
+                imageUrl: null,
+                // Reader's isDedication branch overrides this template — value is for typing only.
+                pageTemplate: 'character_vignette_text' as BookPageTemplate,
+                textPlacement: textPlacementForTemplate('character_vignette_text'),
+                textZone: null,
+                lighting: null,
+                textColorScheme: null,
+                pageLayout: 'vignette_breath' as const,
+                isLetter: false,
+                isQuietPage: true,
+                isDedication: true,
+              },
+            ]
+          : contentPages;
         const withCover = order.book?.coverImageUrl
           ? [
               {
@@ -227,9 +252,9 @@ export async function GET(
                 isLetter: false,
                 isQuietPage: false,
               },
-              ...contentPages,
+              ...pagesWithDedication,
             ]
-          : contentPages;
+          : pagesWithDedication;
         return {
         title: order.book?.title,
         coverText: order.book?.coverText ?? null,

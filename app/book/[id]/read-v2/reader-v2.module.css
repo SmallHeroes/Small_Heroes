@@ -107,6 +107,42 @@
   padding: 0;
 }
 
+/* Desktop: cover renders as a SINGLE 2:3 portrait page (a closed book front cover).
+   The book only "opens" into a 2-page spread once the user advances past the cover. */
+@media (min-width: 1024px) {
+  .pageCanvas.tplCover {
+    --page-width: min(38vw, 52vh, 480px);
+    --page-height: calc(var(--page-width) * 1.5); /* 2:3 portrait */
+    width: var(--page-width) !important;
+    max-width: none !important;
+    min-height: auto !important;
+    max-height: none !important;
+    height: var(--page-height) !important;
+    margin: 0 auto;
+    border-radius: 3px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.32);
+    padding: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+    display: block;
+  }
+
+  /* Cover image fills the entire single page */
+  .pageCanvas.tplCover .coverBleed {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  /* Title overlay anchors directly to the single cover page */
+  .pageCanvas.tplCover .coverTitleOverlay {
+    z-index: 3;
+  }
+}
+
 .coverBleed {
   position: absolute;
   inset: 0;
@@ -127,9 +163,13 @@
   left: 0;
   right: 0;
   z-index: 2;
-  padding: clamp(20px, 5dvh, 48px) clamp(16px, 4vw, 28px) 20px;
+  padding: clamp(28px, 6dvh, 56px) clamp(20px, 4vw, 36px) 24px;
   text-align: center;
   direction: rtl;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(6px, 1.2dvh, 12px);
 }
 
 .coverTitleGradient {
@@ -137,22 +177,39 @@
   top: 0;
   left: 0;
   right: 0;
-  height: clamp(120px, 28dvh, 220px);
-  background: linear-gradient(to bottom, rgba(20, 15, 10, 0.5), rgba(20, 15, 10, 0));
+  height: clamp(140px, 32dvh, 260px);
+  background: linear-gradient(to bottom, rgba(20, 15, 10, 0.55) 0%, rgba(20, 15, 10, 0.25) 60%, rgba(20, 15, 10, 0));
   pointer-events: none;
   z-index: 0;
+}
+
+.coverBrandTag {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-frank), var(--reader-font-stack);
+  font-size: clamp(11px, 1.4vw, 15px);
+  font-weight: 500;
+  color: rgba(255, 249, 240, 0.85);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  padding: 6px 14px;
+  border-top: 1px solid rgba(255, 249, 240, 0.45);
+  border-bottom: 1px solid rgba(255, 249, 240, 0.45);
+  margin-bottom: 4px;
 }
 
 .coverDisplayTitle {
   position: relative;
   z-index: 1;
   margin: 0;
-  font-family: var(--reader-font-stack);
-  font-weight: 900;
-  font-size: clamp(36px, 6vw, 64px);
-  line-height: 1.12;
+  font-family: var(--font-frank), var(--reader-font-stack);
+  font-weight: 800;
+  font-size: clamp(34px, 5.5vw, 56px);
+  line-height: 1.15;
   color: #fff9f0;
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.55), 0 1px 3px rgba(0, 0, 0, 0.45);
+  letter-spacing: 0.01em;
 }
 
 .coverSubtitle {
@@ -593,31 +650,12 @@
   padding-bottom: 90px;
 }
 
-.tplSpread[data-text-zone="bottom_clear"] .mobileOverlay {
-  bottom: 0;
-  background: linear-gradient(
-    to top,
-    var(--page-bg, #f7f3eb) 0%,
-    rgba(253, 249, 244, 0.95) 40%,
-    rgba(253, 249, 244, 0.7) 70%,
-    rgba(253, 249, 244, 0) 100%
-  );
-}
-
-.tplSpread[data-text-zone="top_clear"] .mobileOverlay {
-  top: 0;
-  background: linear-gradient(
-    to bottom,
-    var(--page-bg, #f7f3eb) 0%,
-    rgba(253, 249, 244, 0.95) 40%,
-    rgba(253, 249, 244, 0.7) 70%,
-    rgba(253, 249, 244, 0) 100%
-  );
-}
-
-/* Default: bottom_clear if no explicit zone */
-.tplSpread:not([data-text-zone]) .mobileOverlay,
-.tplSpread[data-text-zone=""] .mobileOverlay {
+/* Mobile/video text ALWAYS at bottom — regardless of textZone in data.
+   Reason: top_clear would force the parent to look up while reading;
+   bottom anchor matches natural eye flow + leaves the upper scene
+   uninterrupted. Pipeline now forces all body pages to textZone=bottom_clear,
+   but we keep this CSS defensive in case legacy data still carries top_clear. */
+.tplSpread .mobileOverlay {
   bottom: 0;
   background: linear-gradient(
     to top,
@@ -653,10 +691,12 @@
   }
 
   .tplSpread {
-    --page-size: min(46vw, 78vh, 560px);
+    /* 2:3 portrait — height = width * 1.5. Cap by viewport so spread fits vertically. */
+    --page-width: min(38vw, 52vh, 480px);
+    --page-height: calc(var(--page-width) * 1.5);
     display: flex;
     flex-direction: row; /* RTL natural: text on right, image on left */
-    align-items: flex-start; /* prevent stretch override of aspect ratio */
+    align-items: flex-start;
     gap: 8px;
     padding: 10px;
     background: #d8cdb7;
@@ -678,8 +718,8 @@
     background-repeat: no-repeat;
     border-radius: 2px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    width: var(--page-size);
-    height: var(--page-size); /* explicit square */
+    width: var(--page-width);
+    height: var(--page-height); /* 2:3 portrait */
     flex-shrink: 0;
     box-sizing: border-box;
     position: relative;
@@ -694,9 +734,9 @@
 
   .spreadTextLine {
     font-family: var(--reader-font-stack);
-    font-size: clamp(20px, 1.65vw, 28px);
+    font-size: clamp(20px, 1.5vw, 24px);
     line-height: 1.55;
-    font-weight: 500;
+    font-weight: 400;
     /* Warm dark brown — feels like ink on warm paper, not harsh black */
     color: #3d2817;
     text-align: right;
@@ -716,8 +756,8 @@
   }
 
   .spreadImagePage {
-    width: var(--page-size);
-    height: var(--page-size); /* explicit square — same as text page */
+    width: var(--page-width);
+    height: var(--page-height); /* 2:3 portrait — same as text page */
     background: var(--page-bg, #fdf9f4);
     border-radius: 2px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);

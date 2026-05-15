@@ -33,6 +33,12 @@ const COMPOSITION_TEMPLATES: Record<PageLayout, (input: EnrichInput) => string> 
       `- ${textArea} must be visually QUIET: soft pastel sky, blurred ground, gentle texture (sand/blanket/water surface). Avoid critical details, faces, or busy patterns there.`,
       `- Lighting transitions smoothly from subject area to text reservation area.`,
       `- ${density}`,
+      // BREATHING-ROOM RULES (added per user feedback — characters were filling 75%+ of frames):
+      `- CHARACTER SIZE: The main character should occupy roughly 35-50% of the frame (their designated area), NOT dominate the entire image.`,
+      `- ENVIRONMENT VISIBLE: Show the WORLD around the character — garden, room corner, ground, sky, props, depth. The character lives in a place; show the place.`,
+      `- BREATHING SPACE: Leave ~15-25% of the frame as soft visual "air" (sky, blurred ground, atmospheric haze) — even in their designated area.`,
+      `- AVOID TIGHT CROPS: Unless the storyboard specifies close_up shot type, do NOT crop to head-and-shoulders or fill the frame with the character.`,
+      `- Reference style: classic Hebrew children's books (Devorah Omer, Shoham Smit) — characters live within illustrated worlds, not as portrait close-ups.`,
     ].join('\n');
   },
 
@@ -44,6 +50,9 @@ const COMPOSITION_TEMPLATES: Record<PageLayout, (input: EnrichInput) => string> 
     `- Painterly soft edges. Muted but warm palette.`,
     `- This is a "breath moment" — image should feel still, intimate, contemplative.`,
     `- ${wordCount < 15 ? 'Rich painterly detail OK — text is brief.' : 'Keep composition simple — text will accompany.'}`,
+    // BREATHING-ROOM (vignette):
+    `- CHARACTER SIZE: Character occupies roughly 40-55% of the inner image (not the full circle). Leave breathing room around them within the vignette.`,
+    `- Show ONE small environmental cue (a leaf, a corner of blanket, a stone) — don't isolate the character on pure cream.`,
   ].join('\n'),
 
   asymmetric_split: () => [
@@ -80,6 +89,11 @@ export function enrichImageDirection(input: EnrichInput): string {
 /**
  * Decision heuristic — derives the right layout for a page based on its content.
  * Used by reader and pipeline alike.
+ *
+ * Priority order:
+ *   1. Special pages (cover / letter) — always specific layouts
+ *   2. Storyboard's explicit choice (vignette / full_bleed) — preferred
+ *   3. Heuristic fallback based on word count / quiet flag
  */
 export function deriveLayout(args: {
   pageNumber: number;
@@ -88,16 +102,20 @@ export function deriveLayout(args: {
   isCover?: boolean;
   isLetter?: boolean;
   isQuietPage?: boolean;
+  /** Storyboard's per-page choice — takes priority over heuristic when provided. */
+  storyboardLayoutStyle?: 'vignette' | 'full_bleed' | null;
 }): PageLayout {
   if (args.isCover) return 'cover';
   if (args.isLetter) return 'letter';
 
-  const wordCount = args.text.trim().split(/\s+/).filter(Boolean).length;
-  const isClosing = args.pageNumber === args.totalPages;
+  // Storyboard intelligently chose for this page — trust it.
+  if (args.storyboardLayoutStyle === 'vignette') return 'vignette_breath';
+  if (args.storyboardLayoutStyle === 'full_bleed') return 'full_bleed_soft';
 
-  if (args.isQuietPage || (isClosing && wordCount < 20)) return 'vignette_breath';
-  if (wordCount < 20) return 'vignette_breath';
-
+  // Heuristic fallback (no storyboard data).
+  // We default to full_bleed_soft for ALL body pages so the reader keeps a
+  // consistent spread layout. Only explicit isQuietPage flags get vignette.
+  if (args.isQuietPage) return 'vignette_breath';
   return 'full_bleed_soft';
 }
 

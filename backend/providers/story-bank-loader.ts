@@ -406,35 +406,60 @@ ${pagesBlock}`;
     } else {
       const apiKey = process.env.OPENAI_API_KEY;
       if (!apiKey) throw new Error('OPENAI_API_KEY not set');
-      const body: Record<string, unknown> = {
-        model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0.1,
-      };
-      if (model.startsWith('gpt-5.')) {
-        body.max_completion_tokens = 4000;
+      // gpt-5.x models are served via /v1/responses, not /v1/chat/completions.
+      // Auto-route to avoid silent 400s that previously made gender swap a no-op.
+      const useResponsesAPI = model.startsWith('gpt-5.') || model.includes('-pro');
+
+      if (useResponsesAPI) {
+        const body: Record<string, unknown> = {
+          model,
+          max_output_tokens: 4000,
+          input: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          text: { format: { type: 'json_object' } },
+        };
+        const res = await fetch('https://api.openai.com/v1/responses', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error(`OpenAI Responses ${res.status}: ${await res.text()}`);
+        const data = await res.json();
+        responseText =
+          data.output_text ??
+          data.output?.find((item: { type?: string; content?: Array<{ type?: string; text?: string }> }) => item.type === 'message')
+            ?.content?.find((c: { type?: string; text?: string }) => c.type === 'output_text')?.text ??
+          '';
       } else {
-        body.max_tokens = 4000;
+        const body: Record<string, unknown> = {
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.1,
+          max_tokens: 4000,
+        };
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
+        const data = await res.json();
+        responseText = data.choices?.[0]?.message?.content ?? '';
       }
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
-      const data = await res.json();
-      responseText = data.choices?.[0]?.message?.content ?? '';
     }
 
     // Parse JSON response
     const cleaned = responseText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    if (!cleaned) {
+      console.warn('[StoryBank] Gender swap returned empty response. Skipping swap.');
+      return pages.map(p => p.text);
+    }
     const parsed = JSON.parse(cleaned) as { pages?: string[] };
 
     if (!Array.isArray(parsed.pages) || parsed.pages.length !== pages.length) {
@@ -442,9 +467,10 @@ ${pagesBlock}`;
       return pages.map(p => p.text);
     }
 
+    console.log(`[StoryBank] Gender swap SUCCESS — ${parsed.pages.length} pages swapped from ${fromGender} to ${toGender}.`);
     return parsed.pages;
   } catch (error) {
-    console.error('[StoryBank] Gender swap LLM call failed, keeping original text:', error);
+    console.error(`[StoryBank] Gender swap LLM call FAILED, keeping original ${fromGender} text. Model=${model}. Error:`, error);
     return pages.map(p => p.text);
   }
 }

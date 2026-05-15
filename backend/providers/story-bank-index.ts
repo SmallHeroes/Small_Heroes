@@ -17,7 +17,11 @@ import { join } from 'path';
 import type { ChallengeCategory } from '../../lib/companions';
 
 const STORY_BANK_DIR = join(process.cwd(), 'story-bank', 'raw');
-const V3_STORY_DIR = join(process.cwd(), 'story-bank', 'v3');
+// Companion-direction stories. Defaults to v5-fixed-v2 (97% PASS QA, 108 stories).
+// Override with STORY_BANK_V3_DIR env var to roll back (e.g. 'v3').
+const V3_STORY_DIR_NAME = (process.env.STORY_BANK_V3_DIR || 'v5-fixed-v2').trim();
+const V3_STORY_DIR = join(process.cwd(), 'story-bank', V3_STORY_DIR_NAME);
+export const STORY_BANK_V3_DIR_NAME = V3_STORY_DIR_NAME;
 
 /** Companions with handcrafted v3 markdown stories (one file per direction).
  *  All 36 companions have 3 directions each (bedtime/adventure/fantasy) = 108 stories.

@@ -21,6 +21,7 @@ type BookPage = {
   pageLayout?: PageLayout | null;
   isLetter?: boolean;
   isQuietPage?: boolean;
+  isDedication?: boolean;
   textZone?: string | null;
   lighting?: string | null;
   textColorScheme?: string | null;
@@ -33,6 +34,7 @@ type ReaderPage = {
   audioUrl: string | null;
   imageUrl: string | null;
   isCover: boolean;
+  isDedication: boolean;
   pageTemplate: BookPageTemplate;
   pageLayout: PageLayout;
   textZone: TextZone;
@@ -128,6 +130,7 @@ function normalizeReaderPages(pages: BookPage[]): ReaderPage[] {
       audioUrl: rawAudio.length > 0 ? rawAudio : null,
       imageUrl,
       isCover: isCoverPage,
+      isDedication: Boolean(page.isDedication),
       pageTemplate,
       pageLayout,
       textZone,
@@ -428,6 +431,19 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
   };
 
   const renderInteriorPage = (page: ReaderPage) => {
+    if (page.isDedication) {
+      return (
+        <article className={`${styles.pageCanvas} ${styles.tplDedication}`}>
+          <div className={styles.dedicationPaper}>
+            <span className={styles.dedicationKicker}>הקדשה</span>
+            <p className={styles.dedicationText}>{page.text || ' '}</p>
+            <span className={styles.dedicationOrnament}>· · ·</span>
+          </div>
+          {pageFooter}
+        </article>
+      );
+    }
+
     if (page.pageTemplate === 'text_only') {
       return (
         <article className={`${styles.pageCanvas} ${styles.tplTextOnly}`}>
@@ -439,26 +455,9 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
       );
     }
 
-    if (page.pageLayout === 'vignette_breath') {
-      return (
-        <article className={`${styles.pageCanvas} ${styles.tplVignetteBreath}`}>
-          <div className={styles.vignetteImageWrap}>
-            {page.imageUrl ? (
-              <img src={page.imageUrl} alt={`איור עמוד ${page.pageNumber}`} className={styles.vignetteImg} />
-            ) : (
-              <div className={styles.imagePlaceholder}>
-                <span className={styles.imagePlaceholderIcon}>🎨</span>
-                <span>איור בעיבוד</span>
-              </div>
-            )}
-          </div>
-          <div className={styles.vignetteTextBlock}>
-            <p className={styles.vignetteText}>{page.text || ' '}</p>
-          </div>
-          {pageFooter}
-        </article>
-      );
-    }
+    // NOTE: vignette_breath legacy layout now falls through to the spread template
+    // for visual consistency. The data field is preserved but the reader treats it
+    // identically to full_bleed_soft.
 
     if (page.pageLayout === 'asymmetric_split') {
       return (

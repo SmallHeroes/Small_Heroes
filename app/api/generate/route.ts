@@ -15,7 +15,7 @@ import { sendBookReadyEmail } from '../../../backend/lib/email';
 import { logServerEvent } from '../../../lib/server-events';
 import { assignTemplatesForBook, type BookPageTemplate } from '../../../lib/bookPageLayout';
 import { generateStoryBankCharacterDNA, loadStoryFromBank } from '../../../backend/providers/story-bank-loader';
-import { selectCompanionStory, selectStoryFromBank } from '../../../backend/providers/story-bank-index';
+import { selectCompanionStory, selectStoryFromBank, STORY_BANK_V3_DIR_NAME } from '../../../backend/providers/story-bank-index';
 import {
   buildPresentationWebpFromBuffer,
   evaluateImageSignal,
@@ -487,8 +487,9 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
       directionForV3,
     });
 
-    const storyDir = storyBankVersion === 'v3' ? 'v3' : 'raw';
+    const storyDir = storyBankVersion === 'v3' ? STORY_BANK_V3_DIR_NAME : 'raw';
     const storyFilePath = path.join(process.cwd(), 'story-bank', storyDir, selection.filename);
+    generationLogger.info('Story file path resolved', { orderId, storyDir, storyFilePath, storyBankVersion });
     const patchContext = buildPatchContextFromOrder(order, wizardMeta);
     const letterContext =
       resolvedCompanion?.id && resolvedCompanion?.name
