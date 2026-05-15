@@ -125,6 +125,27 @@ export async function loadStoryFromBank(
     }
   }
 
+  // ── Child name personalization ─────────────────────────────────────
+  // v5-fixed-v2 stories use generic "הילד"/"הילדה" instead of {{childName}}.
+  // Run an LLM pass that naturally weaves the child's actual name in 2-4
+  // key moments so the book feels personal without overusing the name.
+  if (childName && childName.trim().length > 0) {
+    const targetGenderForName: 'female' | 'male' =
+      childGender && /female|girl|f|בת|ילדה|נקבה|she|her/i.test(String(childGender)) ? 'female' : 'male';
+    try {
+      const personalizedPages = await personalizeChildName(pages, childName, targetGenderForName);
+      for (let i = 0; i < pages.length; i++) {
+        if (personalizedPages[i]) {
+          pages[i].text = personalizedPages[i];
+          pages[i].narrationText = personalizedPages[i];
+        }
+      }
+      console.log(`[StoryBank] Name personalization complete — '${childName}' woven into ${pages.length} pages.`);
+    } catch (err) {
+      console.error('[StoryBank] Name personalization failed — keeping generic text:', err);
+    }
+  }
+
   const opts = options ?? undefined;
 
   if (opts?.patchContext) {
@@ -242,6 +263,20 @@ export function parseImageDirection(dir: string): ShotVisualDirection | undefine
   const mustInclude: string[] = [];
   if (focal) mustInclude.push(focal);
 
+  // Extract creature/companion mentions from plain prose ("starfish with open notebook")
+  // so the companion gets injected as a required visual element. Without this, the
+  // image gen would only render the child and drop the companion entirely.
+  const creatureRegex = /\b(starfish|seahorse|octopus|dolphin|whale|fish|jellyfish|crab|turtle|otter|seal|shark|coral|anemone|bat|owl|fox|deer|fawn|squirrel|rabbit|bunny|chameleon|panda|bear|cub|hedgehog|hawk|eagle|pelican|dragon|bee|lion|butterfly|ant|firefly|mongoose|wolf|gecko|salamander|kitten|cat|snail|puppy|dog|parrot|bird|mole|giant)\b/gi;
+  const creatures = dir.match(creatureRegex);
+  if (creatures) {
+    for (const c of creatures) {
+      const lc = c.toLowerCase();
+      if (!mustInclude.some((m) => m.toLowerCase().includes(lc))) {
+        mustInclude.push(lc);
+      }
+    }
+  }
+
   // Extract location from imageDirection text instead of hardcoding
   const locationZone = extractLocationZone(dir);
 
@@ -275,8 +310,17 @@ function extractLocationZone(dir: string): string {
   if (/\b(garden|yard|fence|hedge|gate|flower.?pot|swing|tree.*branch)\b/.test(d)) return 'garden';
   if (/\b(forest|woods|clearing|trail|path.*tree)\b/.test(d)) return 'forest';
   if (/\b(park|playground|bench|slide)\b/.test(d)) return 'park';
-  if (/\b(beach|sand|ocean|sea|wave|shore)\b/.test(d)) return 'beach';
+  if (/\b(beach|sand|shore|dune|coast)\b/.test(d)) return 'beach';
+  if (/\b(underwater|coral|reef|kelp|sea ?floor|seabed|sea bottom|ocean floor|undersea|deep sea|mermaid|aquatic|submerged)\b/.test(d)) return 'underwater';
+  if (/\b(ocean|sea|wave|water|tide|lagoon|pool of water|river|lake|stream|pond|brook|creek)\b/.test(d)) return 'water';
+  if (/\b(mountain|cliff|peak|valley|hill|ridge)\b/.test(d)) return 'mountain';
+  if (/\b(desert|dune|cactus|sand dune|wasteland)\b/.test(d)) return 'desert';
+  if (/\b(meadow|field|prairie|grassland|pasture)\b/.test(d)) return 'meadow';
+  if (/\b(cave|cavern|underground|tunnel|grotto)\b/.test(d)) return 'cave';
+  if (/\b(sky|cloud|stars|moon|night sky|starlit|celestial|cosmic|galaxy|space)\b/.test(d)) return 'sky';
+  if (/\b(snow|ice|frost|glacier|icicle|snowflake)\b/.test(d)) return 'snow';
   if (/\b(street|road|sidewalk|crosswalk|car)\b/.test(d)) return 'street';
+  if (/\b(village|town|farm|barn|stable|cottage)\b/.test(d)) return 'village';
   // Abstract/transitional
   if (/\b(open space|bright space|threshold|doorway.*light)\b/.test(d)) return 'threshold';
   // Default — generic scene
@@ -475,6 +519,203 @@ ${pagesBlock}`;
   }
 }
 
+/**
+ * Naturally weave the child's real name into the story.
+ *
+ * The story-bank templates use generic "הילד"/"הילדה" because they're written
+ * before we know who's reading. This pass takes the whole story + the child's
+ * actual name and rewrites the text so the name appears 2-4 times in natural
+ * spots (opening, emotional turning points, ending) — replacing some, NOT all,
+ * generic "הילד"/"הילדה" mentions. Over-using the name feels robotic.
+ *
+ * Single LLM call for the full story so the model can pick GOOD spots.
+ */
+async function personalizeChildName(
+  pages: StoryPage[],
+  childName: string,
+  childGender: 'female' | 'male'
+): Promise<string[]> {
+  const provider = process.env.STORY_PROVIDER || 'openai';
+  const model = process.env.PIPELINE_SUPPORT_MODEL ||
+    (provider === 'anthropic' ? 'claude-sonnet-4-20250514' : 'gpt-4o-mini');
+
+  const childWord = childGender === 'female' ? 'הילדה' : 'הילד';
+  const pagesBlock = pages.map(p => `=== עמוד ${p.pageNumber} ===\n${p.text}`).join('\n\n');
+
+  const systemPrompt = `אתה עורך לשוני מקצועי לעברית ספרותית לילדים. תפקידך לשלב באופן טבעי את שם הילד/ה בתוך הסיפור — לא להכניס את השם בכל אזכור של "${childWord}", אלא רק במקומות נכונים: פתיחה, רגעים רגשיים, סיום. סך הכל 2-4 פעמים בכל הסיפור.`;
+
+  const userPrompt = `שם הילד/ה: ${childName}
+
+כללים מחייבים:
+1. החלף 2-4 הופעות של "${childWord}" בשם "${childName}" — בחר את המקומות החזקים ביותר (פתיחה, רגעי שיא, סיום).
+2. אל תחליף את כולם — שיעור החלפה כ-20-30%.
+3. אל תחליף "הוא"/"היא" או כינויי גוף — רק את "${childWord}".
+4. אל תוסיף ואל תמחק שום מילה אחרת. שמור על מבנה פסקאות, ניקוד, וסימני פיסוק בדיוק.
+5. אל תיגע בתבניות {{patch:...}} או בשמות דמויות אחרות.
+6. החזר JSON בפורמט: {"pages": ["טקסט עמוד 1", "טקסט עמוד 2", ...]} — אורך המערך זהה למקור (${pages.length} עמודים).
+
+הטקסט:
+${pagesBlock}`;
+
+  try {
+    let responseText = '';
+
+    if (provider === 'anthropic') {
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (!apiKey) throw new Error('ANTHROPIC_API_KEY not set');
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model, max_tokens: 4000, temperature: 0.3,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }],
+        }),
+      });
+      if (!res.ok) throw new Error(`Anthropic ${res.status}: ${await res.text()}`);
+      const data = await res.json();
+      responseText = data.content?.[0]?.text ?? '';
+    } else {
+      const apiKey = process.env.OPENAI_API_KEY;
+      if (!apiKey) throw new Error('OPENAI_API_KEY not set');
+      const useResponsesAPI = model.startsWith('gpt-5.') || model.includes('-pro');
+
+      if (useResponsesAPI) {
+        const body: Record<string, unknown> = {
+          model, max_output_tokens: 4000,
+          input: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          text: { format: { type: 'json_object' } },
+        };
+        const res = await fetch('https://api.openai.com/v1/responses', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error(`OpenAI Responses ${res.status}: ${await res.text()}`);
+        const data = await res.json();
+        responseText = data.output_text ??
+          data.output?.find((item: { type?: string; content?: Array<{ type?: string; text?: string }> }) => item.type === 'message')
+            ?.content?.find((c: { type?: string; text?: string }) => c.type === 'output_text')?.text ??
+          '';
+      } else {
+        const body: Record<string, unknown> = {
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.3,
+          max_tokens: 4000,
+        };
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
+        const data = await res.json();
+        responseText = data.choices?.[0]?.message?.content ?? '';
+      }
+    }
+
+    const cleaned = responseText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    if (!cleaned) {
+      console.warn('[StoryBank] Name personalization returned empty — keeping generic text.');
+      return pages.map(p => p.text);
+    }
+    const parsed = JSON.parse(cleaned) as { pages?: string[] };
+    if (!Array.isArray(parsed.pages) || parsed.pages.length !== pages.length) {
+      console.warn(`[StoryBank] Name personalization returned ${parsed.pages?.length ?? 0} pages, expected ${pages.length}. Skipping.`);
+      return pages.map(p => p.text);
+    }
+    return parsed.pages;
+  } catch (error) {
+    console.error('[StoryBank] Name personalization LLM call failed — keeping generic text:', error);
+    return pages.map(p => p.text);
+  }
+}
+
+
+
+
+/**
+ * Use Claude Vision to extract a child's facial features from an uploaded photo.
+ * Returns a tight 30-50 word physical description used to anchor the generated
+ * character to the real child. Returns null if the photo is unavailable or the
+ * call fails — caller MUST handle null gracefully (falls back to story-derived DNA).
+ *
+ * The output is INJECTED into the image-generation prompt as a HARD constraint
+ * so every page renders a child who actually resembles the user's real child.
+ */
+export async function describeChildFromPhoto(photoUrl: string): Promise<string | null> {
+  if (!photoUrl || photoUrl.trim().length === 0) return null;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    console.warn('[StoryBank/PhotoVision] ANTHROPIC_API_KEY missing — photo description skipped.');
+    return null;
+  }
+
+  const systemPrompt = "You are a children's book illustrator describing a real child's appearance so that another illustrator can draw a cartoon version that clearly resembles them. Be specific about facial features that are recognizable. Never describe emotions, expressions, or clothing — only stable physical features.";
+
+  const userPrompt = `Look at this photo of a child and describe their PHYSICAL APPEARANCE for a children's-book illustrator who needs to draw a cartoon version that clearly looks like THIS specific child.
+
+Describe in 40-60 words, covering ONLY:
+- Face shape (round, oval, heart-shaped)
+- Skin tone (warm pale, light olive, medium tan, deep brown, etc — be specific)
+- Hair: exact color, length, texture (straight/wavy/curly), and how it falls
+- Eyes: shape (round/almond/upturned) and color
+- Distinctive features: freckles, dimples, gap teeth, glasses, eyebrow shape, prominent cheeks, etc.
+
+DO NOT describe:
+- Clothing, accessories, jewelry
+- Emotion, expression, mood
+- Background, lighting, photo quality
+- Age or gender (the illustrator already has those)
+
+Return ONLY the description as plain text — no preamble, no JSON, no quotes. Just the description.`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 400,
+        temperature: 0.2,
+        system: systemPrompt,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'url', url: photoUrl } },
+              { type: 'text', text: userPrompt },
+            ],
+          },
+        ],
+      }),
+    });
+    if (!res.ok) {
+      console.warn(`[StoryBank/PhotoVision] Claude Vision ${res.status}: ${(await res.text()).slice(0, 200)}`);
+      return null;
+    }
+    const data = await res.json();
+    const description: string = data.content?.[0]?.text?.trim() ?? '';
+    if (description.length < 20) {
+      console.warn(`[StoryBank/PhotoVision] Description too short (${description.length} chars), discarding.`);
+      return null;
+    }
+    console.log(`[StoryBank/PhotoVision] Got description (${description.length} chars): "${description.slice(0, 120)}..."`);
+    return description;
+  } catch (err) {
+    console.error('[StoryBank/PhotoVision] Failed to call Claude Vision:', err);
+    return null;
+  }
+}
+
 /** Structured character identity lock — each field injected as a labeled constraint. */
 export type StructuredChildDNA = {
   face: string;      // face shape, skin tone, eye color/shape (15-25 words)
@@ -541,6 +782,10 @@ export async function generateStoryBankCharacterDNA(params: {
   companionName: string;
   storyText: string;
   illustrationStyle: string;
+  /** Optional Claude-Vision-derived description of the real child's face,
+   *  produced by describeChildFromPhoto(). When present, the LLM is told
+   *  the generated child MUST closely match these physical features. */
+  childPhotoDescription?: string | null;
 }): Promise<StoryBankCharacterDNA> {
   const systemPrompt =
     "You are a children's book character designer. Create structured, locked visual DNA for consistent illustrations across every page of a book.";
@@ -564,6 +809,8 @@ COMPANION:
 
 STYLE:
 - Illustration style: ${params.illustrationStyle}
+
+${params.childPhotoDescription ? `\n⚠️  REAL CHILD PHOTO REFERENCE (HIGHEST PRIORITY — OVERRIDES STORY DEFAULTS):\nThe person reading this book has uploaded a photo of the REAL child. Here is the description of their face:\n\n"${params.childPhotoDescription}"\n\nThe character you describe MUST clearly resemble this real child. Their face, skin tone, hair color/length/texture, eye shape/color, and any distinctive features above MUST be reflected in your "face", "hair", and "signature" fields below. Do NOT invent different features. This is the most important constraint.\n` : ''}
 
 RULES FOR CHILD:
 - Describe PHYSICAL appearance only — no personality, no emotions, no actions
@@ -643,7 +890,7 @@ Return JSON:
     companionStructured: fallbackCompanionStructured,
     childDNA: `${fallbackChildStructured.face}. ${fallbackChildStructured.hair}. ${fallbackChildStructured.body}. ${fallbackChildStructured.clothing}. ${fallbackChildStructured.signature}.`,
     companionDNA: `${fallbackCompanionStructured.species}, ${fallbackCompanionStructured.size}. ${fallbackCompanionStructured.coloring}. ${fallbackCompanionStructured.feature}.`,
-    worldDNA: 'Warm golden-hour lighting, soft depth-of-field blur on backgrounds, safe domestic environments.',
+    worldDNA: 'Warm soft natural lighting, gentle depth-of-field, environment described per page imageDirection (do NOT default to bedroom/indoor — honor whatever setting each page specifies, including underwater/forest/sky/etc).',
     propDNA: {},
     negativeRules: [
       "NEVER put text, letters, numbers, or words on clothing, walls, signs, or any surface",

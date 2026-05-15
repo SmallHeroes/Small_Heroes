@@ -14,7 +14,7 @@ import { TOPICS } from '../../../backend/config/wizard';
 import { sendBookReadyEmail } from '../../../backend/lib/email';
 import { logServerEvent } from '../../../lib/server-events';
 import { assignTemplatesForBook, type BookPageTemplate } from '../../../lib/bookPageLayout';
-import { generateStoryBankCharacterDNA, loadStoryFromBank } from '../../../backend/providers/story-bank-loader';
+import { describeChildFromPhoto, generateStoryBankCharacterDNA, loadStoryFromBank } from '../../../backend/providers/story-bank-loader';
 import { selectCompanionStory, selectStoryFromBank, STORY_BANK_V3_DIR_NAME } from '../../../backend/providers/story-bank-index';
 import {
   buildPresentationWebpFromBuffer,
@@ -788,6 +788,22 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
     const allStoryText = story.pages.map((page) => page.text).join('\n');
     const companionName = resolvedCompanion?.name || '';
     const companionDescription = resolvedCompanion?.visualDescription || '';
+    // Photo → face description (Claude Vision). Anchors the generated child
+    // to the real child's actual features. Returns null if no photo / failure;
+    // DNA generation falls back to story-derived description in that case.
+    let childPhotoDescription: string | null = null;
+    if (order.childImageUrl) {
+      try {
+        childPhotoDescription = await describeChildFromPhoto(order.childImageUrl);
+        generationLogger.info('Photo description extracted', {
+          orderId,
+          hasDescription: Boolean(childPhotoDescription),
+          length: childPhotoDescription?.length ?? 0,
+        });
+      } catch (err) {
+        generationLogger.warn('Photo description extraction failed — using story-only DNA', { orderId, err: String(err) });
+      }
+    }
     const dna = await generateStoryBankCharacterDNA({
       childName: order.childName || '',
       childGender: order.childGender || 'girl',
@@ -795,6 +811,7 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
       companionName,
       storyText: allStoryText,
       illustrationStyle: order.illustrationStyle,
+      childPhotoDescription,
     });
     const lockedChildDescription = dna.childDNA || childDesc;
     if (anchorRegistry.child) {

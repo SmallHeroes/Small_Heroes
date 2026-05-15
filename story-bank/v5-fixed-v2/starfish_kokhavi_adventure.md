@@ -1,186 +1,189 @@
-# Story: starfish_kokhavi_adventure — Story Bank v5 (Hybrid: GPT-5 skeleton + Claude prose)
-Generated: 2026-05-14T07:32:54.545Z
-Skeleton model: gpt-5.3-chat-latest
-Prose model: claude-sonnet-4-5-20250929
-Total time: 81.2s
-Prompt-version: v5
+# Story: starfish_kokhavi_adventure — Hand-written replacement (v5-fixed-v2)
+Author: Claude / Guy
+Replaces: previous LLM-generated version that contained clinical phrases
+Date: 2026-05-15
 
 ---
 ---
-title: "דּוּרִי וְהָעֻבְדּוֹת שֶׁלֹּא מַרְגִּיעוֹת"
+title: "{{childName}} ודּוּרִי מצאו את הזרוע החדשה"
 companionId: starfish_kokhavi
 direction: adventure
 category: MEDICAL_PROCEDURE
-gender: male
+gender: female
 pages: 15
-endingType: residue
-worldRule: עולם של עובדות שמשנות צבע לפי איך שמרגישים. החוק לא מתבטל.
+endingType: resolution
+worldRule: בעולם של דּוּרִי, מה שנשבר יכול לחזור — בזמן שלו, לא במהירות. אסור לדחוף.
+companionLetter:
+  insertAfterPage: 13
+  imageDirection: "close shot of Dori the coral-pink starfish floating beside a small open shell, soft underwater light, gentle bubbles, peaceful expression"
 ---
 
-storyStyle: gentle underwater adventure with emotional realism
-metaphor: facts as color-shifting lights that don't erase pain
-stakes: if the child cannot act, the small sea creature remains hurt and the child stays alone with fear before the procedure
-emotionalArc: certainty → fear → overload → collapse → shared feeling
-quietPage: 11
-heartLine: עמוד 9 — Kokhavi slowly sets his notebook down and reaches a gentle arm toward the trembling creature as his glow dims.
-emotionalMistake: עמוד 5 — The child pushes Kokhavi's notebook away and turns their back on him.
-uncomfortableTruth: עמוד 12 — The creature still hurts even after they understand exactly what is happening and why.
+storyStyle: gentle underwater adventure about body wisdom and presence
+metaphor: the starfish's regrowing arm as proof that the body knows what to do
+stakes: the child stays trapped in tomorrow-fear, alone with worry, instead of meeting it with a friend
+emotionalArc: nervous-tightness → curious-pause → quiet-watching → small-laugh → trust
+quietPage: 10
+heartLine: עמוד 9 — דּוּרִי לא מסבירה כלום. היא רק נשארת על יד {{childName}}, וזה הכל.
+
+coverScene: A bright cheerful coral-pink starfish (Dori) and a small girl together at the edge of a shallow tide-pool with seashells around them, soft warm sunset light, calm ocean horizon in background, watercolor children's book style
 
 --- Page 1 ---
-דּוּרִי שׁוכב על קרקעית האלמוגים. חמש הזרועות שׁלו פרוּשׂות על החול, והמחברת פתוחה לידו.
+מָחָר יש ל{{childName}} בְּדִיקָה אצל הרופא.
 
-"זרוע של כוכב ים צומחת מחדש," הוא אומר בשׁקט. "זה לוקח ארבעה עד שׁשׁה שׁבועות."
+היא יושבת על שפת המים, מחזיקה תחבושת קטנה ביד. הלב שלה דופק חזק.
 
-אור רך מתנועע במים סביבו. הצבעים מתחלפים לאט — כחול, ירוק, צהוב בהיר.
+"אני לא רוצה ללכת," היא לוחשת לתחבושת. "אני לא רוצה."
 
-imageDirection: starfish with open notebook, one arm raised like pointing, glowing colors in water
+imageDirection: small girl sitting at the edge of a tide pool clutching a small bandage, dim warm sunset light, quiet pose, eyes a little worried, gentle waves in foreground, NO TEXT ON IMAGE
 
 --- Page 2 ---
-ילד יורד אליו דרך המים. 
+משהו זוֹהֵר בתוך המים.
 
-בידיים שׁלו תחבוֹשֶׁת קטנה. הוא מחזיק אותה חזק.
+זה כוכב ים. ורוֹד-אֲלָמוֹג, חמש זרועות, עם תחבושת קטנה כָּרוּכָה על אחת מהן.
 
-"יש לי בדיקה מחר," הילד אומר. הגוף שׁלו קצת נוקשׁה.
+הכוכב ים מַחֲיֵיךְ.
 
-דּוּרִי מסתכל עליו. "בוא תשׁב," הוא אומר.
+"שלום," הוא אומר בקול שָׁקֵט וְעַדִין. "אני {{companionName}}. בּוֹאִי תֵּרְדִי לְכָאן."
 
-imageDirection: child facing Kokhavi, clutching bandage, slightly tense posture
+imageDirection: a glowing coral-pink five-pointed starfish (Dori) hovering just below the water surface, one arm wrapped in a small soft bandage, friendly dot eyes looking up at the girl, soft underwater ripples of golden light
 
 --- Page 3 ---
-דּוּרִי פותח עמוד במחברת. 
+{{childName}} מַכְנִיסָה רֶגֶל אחת למים. אחר כך את השנייה.
 
-"הגוף יודע לתקן את עצמו," הוא אומר. "תאי דם לבנים מגיעים למקום ועוזרים. זה נקרא ריפוי."
+המים חַמִּים. הם עוֹטְפִים אותה.
 
-הוא מצייר דיאגרמה קטנה. האור מסביב זוהר קצת יותר.
+{{companionName}} מַחֲכָה לה למטה, בין האֲלָמוֹגים. היא לא ממהרת.
 
-"זה לוקח זמן מדויק," דּוּרִי אומר. "אפשׁר למדוד."
+"לֹא צריך לרוץ," אומרת {{companionName}}. "המים יודעים את הקצב שלהם."
 
-imageDirection: notebook open, diagrams glowing softly, Kokhavi composed
+imageDirection: the girl gently descending into clear shallow water, Dori the coral-pink starfish waiting calmly on a small coral platform below, soft warm-blue underwater light, calm pose
 
 --- Page 4 ---
-הילד מקשׁיב. 
+הן יוֹשְׁבוֹת זו על יד זו על אבן רכה מצוּפָּה אֲצוֹת.
 
-אבל הידיים שׁלו עדיין חזקות על התחבושׁת. הכתפיים שׁלו לא יורדות.
+"מה זה?" שואלת {{childName}}, ומצביעה על התחבושת של {{companionName}}.
 
-האור במים נהיה כהה יותר. הצבעים משׁתנים — אפור, חום, סגול כהה.
+"זאת הזרוע שנשברה לפני זמן מה," {{companionName}} עונה. "היא חוזרת. לאט."
 
-דּוּרִי מדבר עוד. הילד לא זז.
-
-imageDirection: child stiff, dimmer hues, Kokhavi still explaining
+imageDirection: the girl sitting beside Dori on a moss-covered underwater rock, both looking at Dori's bandaged arm, soft scattered light through water, intimate two-shot
 
 --- Page 5 ---
-"בעצם," דּוּרִי אומר, "מחקרים מראים ש—"
+"חוזרת?" {{childName}} פותחת את העיניים רחב.
 
-הילד דוחף את המחברת הצידה. 
+{{companionName}} מסירה את התחבושת בעדינות.
 
-הוא מסתובב ומסתכל למקום אחר.
+מתחתיה — זרוע קטנה, ורודה ועדינה. קצרה מהאחרות. אבל יש לה את כל הצורה.
 
-דּוּרִי נעצר. המחברת מרחפת קצת במים.
+"זה מה שהגוף שלי יודע לעשות," אומרת {{companionName}}. "בלי שאני מבקשת."
 
-imageDirection: notebook drifting slightly, child turned away, Kokhavi surprised
+imageDirection: Dori carefully unwrapping the bandage from her arm, revealing a small new pink arm growing in — shorter than the others but fully shaped, soft gentle wonder, glowing underwater colors
 
 --- Page 6 ---
-דּוּרִי פותח עמוד חדשׁ מהר.
+{{childName}} מַשִּׁיטָה אצבע ליד הזרוע החדשה. לא נוגעת.
 
-"תשׁעים וחמשׁה אחוז מהילדים," הוא אומר ומתחיל לכתוב מהר. "בדיוק ארבע דקות. הסיכוי הוא—"
+"זה כּוֹאֵב?" היא שואלת.
 
-האותיות מתמלאות בעמוד. הזוהר שׁלו דועך.
+"כשׁזה קרה — כן," אומרת {{companionName}}. "עכשיו כבר לא. עכשיו זה רק לוקח זמן."
 
-הוא כותב עוד מספרים. עוד אחוזים. עוד זמנים.
+הילדה מנסה לחייך. החיוך לא יוצא לגמרי.
 
-imageDirection: scribbling intensely, pages filling, colors flickering
+imageDirection: the girl gently floating her finger near (not touching) Dori's new arm, careful curious posture, Dori watching her with soft eyes, dappled aquatic light
 
 --- Page 7 ---
-משׁהו זז בין האלמוגים.
+"אתה יודע על הבדיקה שלי?" {{childName}} שואלת.
 
-הילד ודּוּרִי מסתכלים.
+{{companionName}} מַנְהֵנֶת.
 
-יצור ים קטן תקוע על קוֹץ חד של אלמוג. הוא רועד. הזוהר שׁלו מהבהב חלש.
+"אני יודעת שזה מפחיד," היא אומרת. "אני זוכרת איך פחדתי כשׁהזרוע שלי נשברה."
 
-דּוּרִי מתקרב. "זה קרה כי הקוֹץ—"
+"מה עזר לך?"
 
-imageDirection: tiny creature snagged, faint glow pulsing unevenly
+{{companionName}} חוֹשֶׁבֶת. "מישהו שָׁכַב לידי במים."
+
+imageDirection: close two-shot of Dori and the girl talking quietly, Dori's bandage now off, the new small arm visible, calm underwater dimness, eye contact
 
 --- Page 8 ---
-"צריך להסיר את הקוֹץ בזהירוּת," דּוּרִי אומר. "אחרי זה הגוף מתחיל לרפא. זה תהליך ביולוגי."
+המים מסביב משתנים. הצבעים נעשים כָּהִים יותר. ירוק כֵּהֶה. כָּחוֹל עָמוֹק.
 
-המחברת פתוחה. הוא מראה דיאגרמה.
+"אבל אני לא רוצה לפחד," {{childName}} אומרת. "אני רוצה לא לפחד בכלל."
 
-היצור הקטן רועד עוד. הוא לא מפסיק.
+{{companionName}} שותקת רגע ארוך.
 
-דּוּרִי אומר עוד עוּבדה. ועוד אחת.
+"גם לי אסור לבחור," היא אומרת.
 
-imageDirection: Kokhavi gesturing, notebook open, creature distressed
+imageDirection: water around them turns deeper blue and green, the girl looking down with a small sad face, Dori beside her, quiet shared moment in dimmer light
 
 --- Page 9 ---
-דּוּרִי עוצר.
+{{companionName}} לא מַסְבִּירָה.
 
-הוא מניח את המחברת על החול לידו. הזוהר שׁלו כמעט נעלם.
+היא לא אומרת מה {{childName}} צריכה לחשוב.
 
-זרוע אחת שׁלו נמתחת לאט לעבר היצור הקטן. בעדינוּת.
+היא רק נשארת. על יד {{childName}}. בִּלְתִי זָזָה.
 
-imageDirection: notebook resting aside, dim glow, gentle extended arm
+חמש זרועות. אחת קטנה וחדשה. כולן שָׁם.
+
+imageDirection: Dori the starfish simply staying beside the girl, no movement, no explanation, both very still in the dim water, all five arms (one small/new) visible, deeply quiet composition
 
 --- Page 10 ---
-הילד זז קדימה.
+שתיקה.
 
-הידיים שׁלו נעות לאט לעבר הקוֹץ. בזהירוּת.
+המים זזים לאט.
 
-דּוּרִי נשׁאר ליד היצור. קרוב אבל לא נוגע.
+אֲצָה אחת נוגעת בְּכָּתֵף של {{childName}}. היא לא מתרחקת.
 
-הילד מתחיל לשׁחרר את היצור מהקוֹץ.
-
-imageDirection: child focused, hands steady, Kokhavi nearby
+imageDirection: extremely quiet still scene — the girl and Dori in stillness, a single strand of seaweed brushing the girl's shoulder, very soft muted underwater light, breathing-space composition
 
 --- Page 11 ---
-הילד שׂם את התחבוֹשֶׁת על היצור.
+"{{companionName}}," {{childName}} אומרת לבסוף, "תוכלי לבוא איתי?"
 
-המים שׁקטים.
+"אני לא יכולה לצאת מהמים."
 
-imageDirection: small precise action, quiet still water, no motion lines
+"אבל..."
+
+"אבל אני אהיה פה כשׁתחזרי," אומרת {{companionName}}. "ויש לי משהו בשבילך."
+
+imageDirection: the girl turning gently toward Dori with a small hopeful look, Dori facing her with kind eyes, the new small arm slightly raised as if offering something
 
 --- Page 12 ---
-הקוֹץ בחוץ. התחבוֹשֶׁת במקום.
+{{companionName}} מַרְיֵמָה את הזרוע הקטנה.
 
-אבל היצור הקטן עוד רועד. עוד כואב לו.
+עליה יש קליפה — קליפה זעירה, ורוֹדה, חלקה.
 
-הילד ודּוּרִי מסתכלים עליו.
+"תקחי אותה איתך מחר," היא אומרת. "ככה תדעי שאני יודעת."
 
-הכאב לא נעלם.
+{{childName}} לוקחת את הקליפה. היא חמה.
 
-imageDirection: creature softly glowing but shaking, child and Kokhavi watching
+imageDirection: Dori's small new arm offering a tiny pink smooth seashell to the girl's open palm, glow of warm pink light between them, intimate close-shot, soft underwater bubbles
 
 --- Page 13 ---
-דּוּרִי סוגר את המחברת.
+"הגוף שלך חָכָם," אומרת {{companionName}} בשקט. "הוא כבר עוֹבֵד על זה."
 
-פעם אחת. פעמיים. שׁלוֹשׁ.
+{{childName}} סוגרת את האצבעות סביב הקליפה.
 
-הוא מניח אותה ליד הזרוע שׁלו על החול.
+הלב שלה עדיין דופק. אבל אחרת.
 
-הזוהר שׁלו יציב. עמום. שׁקט.
-
-imageDirection: deliberate closing motion, dim steady glow, notebook resting
+imageDirection: closeup of the girl's small hand closing around the tiny shell, Dori beside her watching softly, calm warmer light, gentle hopeful mood, the new small arm still visible
 
 --- Page 14 ---
-"כואב," דּוּרִי אומר בשׁקט.
+{{childName}} עוֹלָה לאט מהמים.
 
-הילד מהנהן.
+{{companionName}} צוֹפָה בה מלמטה, חמש זרועות פּרוּשׂוֹת על האלמוגים.
 
-הם עומדים ליד היצור. לא נוגעים. קרוֹבים.
+הצבעים של המים נעשים שוב חמים. כָּחוֹל-זָהוֹב.
 
-המים שׁקטים מסביב.
+"להתראות מחר אחר הצהריים," {{childName}} קוראת.
 
-imageDirection: space between them, shared quiet, subdued colors
+"להתראות," עונה {{companionName}}.
+
+imageDirection: the girl gently swimming upward toward the surface, Dori spread on the coral floor below with all five arms (one shorter, new), warm golden-blue underwater light, peaceful goodbye
 
 --- Page 15 ---
-היצור הקטן משׁתחרר ונע קדימה במים.
+{{childName}} יוֹשֶׁבֶת על שפת המים שוב.
 
-קשׂקשׂ זעיר נשׁאר על החול, זוהר חלש.
+התחבושת הקטנה עדיין ביד שמאל. הקליפה הוורודה ביד ימין.
 
-דּוּרִי זז הצידה. המחברת נשׁארת פתוחה על סלע, רחוק.
+מָחָר עוֹד מַפְחִיד.
 
-הילד עומד לבד.
+אבל היא לא לבד.
 
-imageDirection: creature floating away, tiny scale on seabed, notebook open, distance between child and Kokhavi
-
-WORD_COUNT: [47, 28, 36, 26, 23, 29, 29, 30, 24, 24, 9, 21, 24, 20, 23] = 393
+imageDirection: the girl back on the tide-pool edge, soft sunset light, holding a bandage in her left hand and a tiny pink shell in her right, calm small smile, the ocean glowing gently behind her — final peaceful scene with hope, not erasure of fear
