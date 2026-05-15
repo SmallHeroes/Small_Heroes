@@ -114,19 +114,19 @@ async function renderPageFrame(imageBuffer: Buffer, text: string, omitText: bool
 
   if (!text?.trim().length || omitText) return base;
 
-  // ── Text layout — BOTTOM overlay like the mobile reader (dark gradient + white text) ──
-  // Previous version placed text at the TOP, which got clipped by 16:9 video players
-  // showing a 3:4 portrait frame. Bottom is safer and matches the mobile reader UX.
-  const MARGIN_X = 80;
-  const TEXT_FONT_SIZE = 38;
-  const LINE_HEIGHT = 56;
-  const MAX_CHARS = 32;
-  const TEXT_RIGHT_EDGE = VIDEO_WIDTH - MARGIN_X;
+  // ── Text layout — BOTTOM CENTERED overlay (dark gradient + white text) ──
+  // Centering horizontally guarantees lines fit even on widescreen players that
+  // crop the sides of a portrait video. Right-anchored RTL with bold weight at 38px
+  // overflowed the frame in production tests.
+  const TEXT_CENTER_X = Math.round(VIDEO_WIDTH / 2);
+  const TEXT_FONT_SIZE = 36;
+  const LINE_HEIGHT = 54;
+  const MAX_CHARS = 22;
 
   const escapedLines = wrapOverlayText(text, MAX_CHARS).map(escapeXml);
 
   // Compute bottom-aligned positions — last line sits MARGIN_BOTTOM from frame bottom.
-  const MARGIN_BOTTOM = 80;
+  const MARGIN_BOTTOM = 90;
   const lastLineY = VIDEO_HEIGHT - MARGIN_BOTTOM;
   const firstLineY = lastLineY - (escapedLines.length - 1) * LINE_HEIGHT;
 
@@ -138,7 +138,7 @@ async function renderPageFrame(imageBuffer: Buffer, text: string, omitText: bool
   const svgLines = escapedLines
     .map((line, i) => {
       const y = firstLineY + i * LINE_HEIGHT;
-      return `<text xml:space="preserve" x="${TEXT_RIGHT_EDGE}" y="${y}" text-anchor="end" font-family="Heebo, Arial Hebrew, Arial, sans-serif" font-size="${TEXT_FONT_SIZE}" font-weight="600" fill="#ffffff" direction="rtl">${line}</text>`;
+      return `<text xml:space="preserve" x="${TEXT_CENTER_X}" y="${y}" text-anchor="middle" font-family="Heebo, Arial Hebrew, Arial, sans-serif" font-size="${TEXT_FONT_SIZE}" font-weight="500" fill="#ffffff" direction="rtl">${line}</text>`;
     })
     .join('\n');
 

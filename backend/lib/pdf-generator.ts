@@ -365,15 +365,14 @@ export async function generateBookPdf(params: GenerateBookPdfParams): Promise<Bu
       continue;
     }
 
-    // ── Body page → ONE landscape spread (image LEFT, text RIGHT for RTL Hebrew) ──
-    // This guarantees a true side-by-side view in EVERY PDF reader, regardless of
-    // whether the viewer is in single-page or facing-pages mode.
+    // ── Body page → TWO portrait PDF pages (image, then text), both 2:3 ──
+    // Per user request (2026-05-15 evening): a 15-body-page book should yield
+    // 30 PDF pages so the count reflects what readers see when scrolling. Each
+    // page gets its own '· N ·' label including the image page.
     bodyIndex += 1;
-    const pageLabel = `· ${bodyIndex} ·`;
 
-    const spread = pdfDoc.addPage([SPREAD_W, PAGE_H]);
-
-    // (a) Image fills the LEFT half (x: 0 .. HALF_W)
+    // (a) Image page — full bleed
+    const imagePage = pdfDoc.addPage([HALF_W, PAGE_H]);
     let img = null;
     if (bookPage.imageUrl) {
       try {
@@ -382,14 +381,31 @@ export async function generateBookPdf(params: GenerateBookPdfParams): Promise<Bu
         console.warn(`[pdf-generator] Image fetch failed for page ${bookPage.pageNumber}`, err);
       }
     }
-    if (img) {
-      spread.drawImage(img, { x: 0, y: 0, width: HALF_W, height: PAGE_H });
-    } else {
-      spread.drawRectangle({ x: 0, y: 0, width: HALF_W, height: PAGE_H, color: FALLBACK_BG });
-    }
+    drawImagePage(imagePage, img);
+    // Image-page label: subtle bottom-center, white-on-shadow so it reads over the art
+    const imgPageLabel = `· ${bodyIndex * 2 - 1} ·`;
+    const imgLabelSize = 10;
+    const imgLabelWidth = heeboFont.widthOfTextAtSize(imgPageLabel, imgLabelSize);
+    imagePage.drawRectangle({
+      x: (HALF_W - imgLabelWidth) / 2 - 8,
+      y: 18,
+      width: imgLabelWidth + 16,
+      height: imgLabelSize + 10,
+      color: rgb(1, 1, 1),
+      opacity: 0.7,
+    });
+    imagePage.drawText(imgPageLabel, {
+      x: (HALF_W - imgLabelWidth) / 2,
+      y: 24,
+      size: imgLabelSize,
+      font: heeboFont,
+      color: KICKER_COLOR,
+    });
 
-    // (b) Designed text page on the RIGHT half (x: HALF_W .. SPREAD_W)
-    drawDesignedTextPageAt(spread, HALF_W, sanitizeText(bookPage.text), paperImg, heeboFont, pageLabel);
+    // (b) Designed text page — cream paper, RTL right-aligned, label at bottom
+    const textPage = pdfDoc.addPage([HALF_W, PAGE_H]);
+    const textPageLabel = `· ${bodyIndex * 2} ·`;
+    drawDesignedTextPage(textPage, sanitizeText(bookPage.text), paperImg, heeboFont, textPageLabel);
   }
 
   // Suppress unused-var lint when bodyPageCount isn't used directly
