@@ -180,31 +180,31 @@ ZERO text, letters, numbers, or symbols anywhere.`,
   [STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK]: {
     id: STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK,
     userLabel: 'אקוורל ריאליסטי',
-    wizardBlurb: 'הילד נראה כמו ילד אמיתי בציור אקוורל עדין — לא קריקטורה, אלא פורטרט רך וחם עם נגיעות צבעי מים.',
+    wizardBlurb: 'הילד נראה כמו ילד אמיתי בתוך סצנת ספר ילדים — לא קריקטורה, אלא איור עדין וחם בצבעי מים שמספר סיפור.',
     renderingDescription:
-      "Fine realistic watercolor portrait of a real child on premium cream paper — accomplished watercolor technique with delicate brushwork, refined pigment layering, and luminous skin tones. Real human proportions, natural features, healthy radiant skin. Soft warm background dissolving at edges. Bright, airy, and elegant. Visible paper grain, refined wet-on-wet edges, transparent pigment washes with fine detail. NOT cartoon, NOT dark or moody.",
+      "Fine realistic watercolor children's storybook illustration on premium cream paper. Real human proportions, natural features, healthy luminous skin — but always inside a real SCENE: the child interacting with their companion, the environment, and the action of the page. Compositions vary per page (wide shots, medium shots, action shots) like a hand-painted picture book — never the same portrait pose twice. Accomplished watercolor technique with delicate brushwork, transparent pigment layering, luminous skin tones, and visible paper grain. NOT a cartoon, NOT a portrait, NOT dark — a real child painted into the scene that the story describes.",
     pipeline: {
-      colorPalette: 'refined watercolor palette — soft cream, warm peach, natural greens, luminous skin tones, airy and bright with subtle warmth',
-      lightingStyle: 'bright natural light with subtle warmth — soft, pleasant, refined, NOT harsh or dramatic',
+      colorPalette: 'refined storybook watercolor palette — soft cream, warm peach, natural greens, scene-appropriate accents, luminous skin tones, bright with subtle warmth',
+      lightingStyle: 'scene-appropriate natural light with subtle warmth — light source comes FROM the scene (sun, lantern, moon, water) not a studio flash; NOT harsh, NOT dramatic',
       textureStyle: 'fine watercolor on premium cream paper — refined brushwork, delicate wet-on-wet edges, luminous pigment layering',
-      renderingBehavior: 'fine realistic watercolor portrait — real child proportions, accomplished technique, elegant and refined',
+      renderingBehavior: 'fine realistic watercolor storybook scene — real child proportions inside a real environment, varied compositions, accomplished technique, narrative-driven',
       styleToken: 'realistic_artistic_storybook',
       loraModel: process.env.LORA_MODEL_STYLE_02 || null,
       loraTriggerWord: 'REALISTART02',
-      loraStylePrefix: 'fine realistic watercolor portrait, real child proportions, accomplished watercolor technique, luminous skin, refined brushwork, bright natural light, cream paper, elegant and airy,',
+      loraStylePrefix: 'fine realistic watercolor childrens storybook scene, real child proportions, accomplished watercolor technique, luminous skin, refined brushwork, scene-appropriate natural light, cream paper, narrative composition,',
     },
     imageNudge: {
-      title: 'REALISTIC_WATERCOLOR_NUDGE',
+      title: 'REALISTIC_WATERCOLOR_STORYBOOK_NUDGE',
       lines: [
-        'Fine realistic watercolor portrait on premium cream paper — accomplished technique, delicate brushwork, luminous skin tones. Real child proportions, refined detail. Soft warm background dissolving at edges. Paper texture visible, fine pigment layering. Top 20-30% fades to cream for text. NOT cartoon, NOT dark. Bright, airy, elegant.',
+        'Fine realistic watercolor childrens storybook ILLUSTRATION on premium cream paper — NOT a portrait. Show the child inside the SCENE the page describes: with the companion, in the location, doing the action. Real child proportions, accomplished technique. Compositions vary per page (wide, medium, action) — never the same standing-portrait pose twice. Soft warm scene-appropriate light dissolving at edges. Paper texture visible, fine pigment layering. Top 20-30% fades to cream for text. NOT cartoon, NOT dark, NOT a posed portrait.',
       ],
     },
     lineRules: ['No outlines — form defined by refined watercolor edges and soft color transitions', 'No cartoon linework — edges are delicate watercolor bleeds', 'Fine detail in features — individual eyelashes, hair strands, freckles, skin texture'],
-    colorRules: ['Refined warm palette — soft cream, warm peach, natural greens, luminous skin tones', 'Natural realistic skin — healthy, luminous, with subtle color variation (pink cheeks, warm nose)', 'Watercolor transparency — light passes through pigment, cream paper glows through', 'Bright and warm — subtle golden warmth is fine, but avoid monochrome amber flood'],
+    colorRules: ['Refined warm palette — soft cream, warm peach, natural greens, luminous skin tones', 'Natural realistic skin — healthy, luminous, with subtle color variation (pink cheeks, warm nose)', 'Watercolor transparency — light passes through pigment, cream paper glows through', 'Bright and warm — subtle golden warmth is fine, but avoid monochrome amber flood', 'Scene colors come from the LOCATION (underwater blues, forest greens, sunset warm tones) — NOT a default neutral cream backdrop'],
     shadingRules: ['Delicate realistic shadows — soft, refined, never harsh', 'Fine watercolor layering for depth — multiple transparent washes building form', 'Light and airy overall — shadows add dimension with subtlety'],
-    lightingRules: ['Bright natural light with subtle warmth — like soft sunlight through a window', 'Light and pleasant — bright, refined, with gentle warm tones', 'Natural light that makes the child look healthy and radiant'],
-    backgroundRules: ['Background dissolves into soft warm cream/peach watercolor washes', 'Gentle environmental hints with refined detail near subject — dissolving outward', 'Cream paper visible at edges — backgrounds fade gently, not sharp cutoff', 'NEVER a fully dark or heavily detailed background — keep it light, airy, elegant'],
-    compositionRules: ['Child is the focal point — rendered with fine realistic detail, fills 55-65% of frame', 'Medium-close portrait framing — NOT a wide establishing shot', 'Background dissolves outward from subject into warm cream tones', 'Top 20-30% fades to soft cream for text overlay', 'Portrait with story context — character is central but not filling 80%+'],
+    lightingRules: ['Light source matches the SCENE: lantern glow, underwater shimmer, forest dappled light, sunset warmth, moonlight — never a flat studio light', 'Light and pleasant — bright, refined, with gentle warm tones', 'Natural light that makes the child look healthy and radiant'],
+    backgroundRules: ['Background SHOWS the scene location described in the page imageDirection — forest, underwater, bedroom, sky, etc. Never a generic neutral cream void.', 'Environmental detail rendered with refined watercolor — dissolves outward toward edges, not abruptly cropped', 'Cream paper visible at edges — backgrounds fade gently into the page tone', 'The location is recognizable in every page — the reader should know where the child is'],
+    compositionRules: ['Show the child INSIDE the scene — with the companion, environment, action, props described in the imageDirection', 'Vary the composition per page — sometimes wide establishing shot, sometimes medium two-shot with companion, sometimes a closer moment of emotion or interaction. NEVER 15 identical centered standing portraits.', 'Child occupies 30-55% of frame — leave room for the companion, the environment, the action', 'Top 20-30% fades to soft cream for text overlay', 'Multi-character scenes are normal — the companion should appear when the imageDirection asks for it'],
     negativeConstraints: [
       'No cartoon or anime style — proportions must be REAL',
       'No Pixar, Disney, or animation studio style',
@@ -218,41 +218,44 @@ ZERO text, letters, numbers, or symbols anywhere.`,
       'No hard outlines or linework',
       'No extra random characters',
       'No scary or dramatic atmosphere',
+      'NEVER a centered standing-portrait composition repeated across pages — every page must show a different moment of the story',
+      'NEVER a neutral cream void background — the scene location must be visible',
+      'NEVER omit the companion when the page imageDirection asks for it',
     ],
-    optionBlock: `MEDIUM LOCK — FINE REALISTIC WATERCOLOR PORTRAIT ON CREAM PAPER:
-Accomplished watercolor portrait of a real child on premium textured cream paper. Refined technique — delicate brushwork, luminous pigment layering, fine detail. Like the work of a master watercolor portrait artist.
+    optionBlock: `MEDIUM LOCK — FINE REALISTIC WATERCOLOR CHILDREN'S STORYBOOK SCENE ON CREAM PAPER:
+Fine watercolor STORYBOOK ILLUSTRATION (not a portrait) — show the child INSIDE the scene that the page imageDirection describes, with the companion, the environment, and the action. Accomplished watercolor on premium textured cream paper. Refined technique — delicate brushwork, luminous pigment layering, fine detail. Real child proportions, natural anatomy, healthy radiant skin. Like the work of a master picture-book watercolor illustrator.
 
 RENDERING:
-Real child proportions — natural features, real anatomy, healthy skin.
+Real child proportions — natural features, real anatomy, healthy skin (not cartoon, not exaggerated cute).
 Fine transparent watercolor technique — light passes through pigment, paper glows through.
 Delicate wet-on-wet edges, refined color bleeds, visible paper texture.
-HIGH detail level — individual eyelashes, hair strands, freckles, fabric texture, skin luminosity.
-NOT a cartoon. NOT heavy oil painting. NOT dark or moody. NOT flat or simple.
+HIGH detail level — individual eyelashes, hair strands, freckles, fabric texture, skin luminosity, AND scene props.
+NOT a cartoon. NOT heavy oil painting. NOT dark or moody. NOT a portrait shot. NOT flat or simple.
 
-DISTINCTION FROM STYLE 01:
-Style 01 is cute cartoon illustration with round stylized characters.
-THIS style shows REAL children — natural proportions, realistic features, real skin.
-The child should look like an actual child painted by a skilled watercolorist.
-If it looks like a cartoon or has exaggerated cute features — WRONG.
+COMPOSITION (CRITICAL — varies per page):
+The child occupies 30-55% of frame — leave room for the companion, environment, action, and props.
+Compose the frame around the SCENE described in the imageDirection: wide for establishing shots, medium for character interactions, closer for emotional moments. Never the same centered standing pose twice.
+Show the COMPANION when the imageDirection asks for it — they share the scene with the child.
+Show the LOCATION clearly — underwater, forest, bedroom, sky, wherever the story takes the child.
+Show the ACTION — what is happening on this page, not just a posed character.
 
 CHARACTER:
 Real child proportions, natural anatomy, healthy luminous skin.
-Character fills 55-65% of frame — NOT a tight crop filling 80%+.
 Fine detail in face: natural eyes with light reflections, real skin texture, subtle color variation.
 Painted in transparent watercolor — skin has luminosity from cream paper underneath.
 
 COLOR AND LIGHT:
-Refined warm palette — soft cream, warm peach, natural greens and blues.
+Scene-driven palette — colors come from the location (water blues, forest greens, lantern warmth, sunset peach).
+Light source comes from WITHIN the scene (lantern, sun, moon, water shimmer) — not a flat studio light.
 Natural skin tones — healthy, luminous, with subtle pink in cheeks and warm nose.
-Bright natural light with subtle warmth — like soft sunlight.
-Subtle golden warmth is fine — but avoid monochrome amber flood.
+Subtle golden warmth is fine — but avoid a monochrome amber flood that washes out the scene colors.
 Colors are refined and elegant, not garish or harsh.
 
-BACKGROUND:
-Dissolves into soft warm cream/peach watercolor washes at edges.
-Gentle environmental hints near subject with refined detail — dissolving outward.
-Cream paper texture visible. Top 20-30% fades to soft cream for text.
-NEVER a dark or heavy background — keep it light, airy, elegant.
+BACKGROUND (CRITICAL — show the scene):
+The background MUST show the LOCATION described in the page imageDirection. If the page says 'underwater coral reef' — paint coral, water, kelp. If it says 'dark forest' — paint trees, shadows, light shafts.
+Environmental detail fades organically outward toward the edges — refined watercolor dissolves, not hard cutoffs.
+Cream paper texture visible at edges. Top 20-30% fades to soft cream for text overlay.
+NEVER a neutral cream void background. NEVER a dark heavy background — keep it light, airy, elegant, AND clearly located.
 
 TEXTURE:
 Premium watercolor paper grain visible throughout.
@@ -261,12 +264,12 @@ Delicate brushwork — refined, accomplished, master-level technique.
 No hard outlines — form defined by subtle color transitions and light.
 
 DETAIL:
-Fine detail everywhere — hair strands catching light, fabric weave visible, skin pores suggested.
+Fine detail everywhere — hair strands catching light, fabric weave visible, skin pores suggested, scene props rendered with care.
 Refined pigment granulation in shadow areas.
 Accomplished watercolor technique — not student work, not simple washes.
 
 STRICT EXCLUSIONS:
-No text, letters, numbers, symbols. No cartoon. No Pixar/Disney. No anime. No dark moody tones. No heavy oil painting. No 3D render. No flat or simple washes.
+No text, letters, numbers, symbols. No cartoon. No Pixar/Disney. No anime. No dark moody tones. No heavy oil painting. No 3D render. No flat or simple washes. NO CENTERED STANDING PORTRAIT. NO NEUTRAL VOID BACKGROUND. NO MISSING COMPANION.
 
 ZERO text, letters, numbers, or symbols anywhere.`,
   },
