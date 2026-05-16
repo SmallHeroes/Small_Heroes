@@ -49,6 +49,7 @@ import {
 } from '../../lib/resemblance-core';
 import { createLogger } from '../../lib/logger';
 
+import { generateSceneBlocking, isDirectorLayerEnabled, renderSceneBlockingForPrompt, type SceneBlocking } from './director';
 type PhotoQualityForPrompt = {
   status: 'good' | 'warning' | 'blocked';
   faceCount: number;
@@ -267,6 +268,8 @@ export interface ImageInput {
   rawScenePrompt?: string | null;
   /** Shot-plan structured cues (Phase 5e); reserved for mechanical prompt expansion. */
   visualDirection?: ShotVisualDirection | null;
+  /** Cinematic blocking from Director Layer (replaces mechanical Action/Pose/Expression). */
+  blocking?: SceneBlocking | null;
   composition?: {
     cameraDistance: 'close' | 'medium' | 'wide';
     cameraAngle: string;
@@ -1833,8 +1836,12 @@ function buildGPTImagePrompt(input: ImageInput): string {
   // ── SCENE EXTRACTOR PATH (deterministic assembly from visualDirection) ──
   const vd = input.visualDirection;
 
-  // Build scene deterministically from Scene Extractor output
-  const mechanicalScene = vd
+  // Build scene deterministically: prefer Director Layer BLOCKING when available,
+  // otherwise fall back to the legacy mechanical Scene Extractor lines.
+  const directorBlocking = input.blocking;
+  const mechanicalScene = directorBlocking
+    ? renderSceneBlockingForPrompt(directorBlocking, vd ?? null)
+    : vd
     ? [
         `Location: ${vd.locationZone}.`,
         `Action: ${vd.mainAction}.`,
@@ -2845,6 +2852,50 @@ export async function generateAllPageImages(
   const storyboardByPage = new Map<number, PageVisualStoryboard>(
     storyboardPlan.map((row) => [row.pageNumber, row])
   );
+
+  // ── DIRECTOR LAYER ─ run cinematic blocking generation per page in parallel.
+  // Each page gets a BLOCKING JSON (positions, eyeline, interaction, emotion) that
+  // replaces the mechanical "Location/Action/Pose/Expression" lines downstream.
+  // Disable with USE_DIRECTOR_LAYER=false (falls back to legacy mechanical scene block).
+  const blockingByPage = new Map<number, SceneBlocking>();
+  if (isDirectorLayerEnabled()) {
+    const directorStart = Date.now();
+    const directorResults = await Promise.all(
+      pagesToGenerate.map(async (page) => {
+        const sb = storyboardByPage.get(page.pageNumber);
+        const blocking = await generateSceneBlocking({
+          pageNumber: page.pageNumber,
+          pageText: page.bookPageText ?? '',
+          imageDirection: page.imagePrompt ?? '',
+          visualDirection: page.visualDirection ?? null,
+          storyboard: sb ?? null,
+          companion: config.companion
+            ? {
+                name: config.companion.name,
+                species: config.companionStructured?.species,
+                feature: config.companionStructured?.feature,
+              }
+            : null,
+          child: {
+            name: config.childName ?? null,
+            age: config.childAge ?? null,
+            gender: config.childGender ?? null,
+          },
+        });
+        return { pageNumber: page.pageNumber, blocking };
+      })
+    );
+    for (const { pageNumber, blocking } of directorResults) {
+      if (blocking) blockingByPage.set(pageNumber, blocking);
+    }
+    const elapsed = Date.now() - directorStart;
+    console.log(
+      `[Director] completed — ${blockingByPage.size}/${pagesToGenerate.length} pages got blocking (${elapsed}ms)`,
+    );
+  } else {
+    console.log('[Director] disabled via USE_DIRECTOR_LAYER=false — using legacy mechanical scene block');
+  }
+
   const anchorCandidatesCount = (() => {
     const parsed = Number.parseInt(process.env.RESEMBLANCE_ANCHOR_CANDIDATES ?? '3', 10);
     if (!Number.isFinite(parsed) || parsed < 1) return 3;
@@ -3026,6 +3077,7 @@ export async function generateAllPageImages(
       | 'stage4Prompt'
       | 'rawScenePrompt'
       | 'visualDirection'
+      | 'blocking'
       | 'childFirstName'
       | 'expectedCharacterNames'
       | 'supportingCharacters'
@@ -3034,6 +3086,7 @@ export async function generateAllPageImages(
       stage4Prompt: rawScene || cleanedImagePrompt,
       rawScenePrompt: page.rawScenePrompt || null,
       visualDirection: page.visualDirection ?? null,
+      blocking: blockingByPage.get(page.pageNumber) ?? null,
       childFirstName: config.childName ?? null,
       expectedCharacterNames: pageExpectedDisplayNames,
       supportingCharacters: page.supportingCharacters ?? [],
