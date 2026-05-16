@@ -1416,6 +1416,24 @@ function composeStoryboardDrivenPagePrompt(
       ?.map((id) => characterRegistry?.[id]?.name || id)
       .slice(0, 3)
       .join(', ') || 'child protagonist';
+
+  // Build COMPANION/SUPPORTING-CHARACTER visual locks from the registry. Without
+  // this, the prompt only mentions characters by NAME and the image model
+  // hallucinates appearances (e.g. a 'gentle giant' rendered as a short bald man
+  // because the canonical visualDescription was never injected).
+  const supportingLocks: string[] = [];
+  for (const id of page.expectedCharacterIds ?? []) {
+    if (id === 'child') continue;  // protagonist handled by MAIN CHARACTER LOCK
+    const entry = characterRegistry?.[id];
+    if (!entry?.description) continue;
+    const label = entry.name || id;
+    const desc = entry.description.replace(/\s+/g, ' ').trim().slice(0, 320);
+    if (desc.length < 5) continue;
+    supportingLocks.push(`${label}: ${desc}`);
+  }
+  const companionLockBlock = supportingLocks.length > 0
+    ? `COMPANION / SUPPORTING CHARACTER LOCK:\n${supportingLocks.join('\n')}\nThese characters MUST appear EXACTLY as described — same species, body shape, color, distinctive features, age — identical to the cover and every other page they appear in.`
+    : '';
   const baseIntent = (storyboard.intent || page.bookPageText || cleanedImagePrompt).replace(/\s+/g, ' ').trim().slice(0, 320);
   const baseAction = (storyboard.action || '').replace(/\s+/g, ' ').trim().slice(0, 320);
   const baseEnvironment = (storyboard.environment || '').replace(/\s+/g, ' ').trim().slice(0, 320);
@@ -1441,6 +1459,7 @@ function composeStoryboardDrivenPagePrompt(
   return [
     `STYLE LOCK:\n${styleContract.optionBlock}`,
     `MAIN CHARACTER LOCK:\n${protagonistVisualLock ?? 'Keep the same child identity across all pages: same age impression, hair, skin tone, face shape, and clothing colors.'}`,
+    companionLockBlock,
     storySceneRule,
     [
       'STORYBOARD INTENT:',
