@@ -2863,13 +2863,33 @@ export async function generateAllPageImages(
     const directorResults = await Promise.all(
       pagesToGenerate.map(async (page) => {
         const sb = storyboardByPage.get(page.pageNumber);
+        // Per-page companion presence check — only pass companion data to the Director when
+        // this page actually features the companion. Without this, the Director happily
+        // composes the companion into every page (including pages where the text does not
+        // introduce them yet), producing visual contradictions with the story.
+        const companionPresentOnPage = (() => {
+          if (!config.companion) return false;
+          const companionNameLc = config.companion.name.toLowerCase();
+          const speciesLc = (config.companionStructured?.species ?? '').toLowerCase();
+          const textLc = (page.bookPageText ?? '').toLowerCase();
+          // 1) Page text names the companion explicitly
+          if (companionNameLc && textLc.includes(companionNameLc)) return true;
+          // 2) visualDirection.mustInclude lists the companion name or species
+          const mustInclude = (page.visualDirection?.mustInclude ?? []).map((it) => it.toLowerCase());
+          if (mustInclude.some((it) => companionNameLc && it.includes(companionNameLc))) return true;
+          if (speciesLc && mustInclude.some((it) => speciesLc.split(/\s+/).some((tok) => tok && it.includes(tok)))) return true;
+          // 3) visualDirection.mustNotInclude explicitly excludes the companion → definitely absent
+          const mustNotInclude = (page.visualDirection?.mustNotInclude ?? []).map((it) => it.toLowerCase());
+          if (mustNotInclude.some((it) => companionNameLc && it.includes(companionNameLc))) return false;
+          return false;
+        })();
         const blocking = await generateSceneBlocking({
           pageNumber: page.pageNumber,
           pageText: page.bookPageText ?? '',
           imageDirection: page.imagePrompt ?? '',
           visualDirection: page.visualDirection ?? null,
           storyboard: sb ?? null,
-          companion: config.companion
+          companion: companionPresentOnPage && config.companion
             ? {
                 name: config.companion.name,
                 species: config.companionStructured?.species,
@@ -2882,12 +2902,17 @@ export async function generateAllPageImages(
             gender: config.childGender ?? null,
           },
         });
-        return { pageNumber: page.pageNumber, blocking };
+        return { pageNumber: page.pageNumber, blocking, companionPresentOnPage };
       })
     );
-    for (const { pageNumber, blocking } of directorResults) {
+    let companionPresentCount = 0;
+    for (const { pageNumber, blocking, companionPresentOnPage } of directorResults) {
       if (blocking) blockingByPage.set(pageNumber, blocking);
+      if (companionPresentOnPage) companionPresentCount++;
     }
+    console.log(
+      `[Director] companion-on-page: ${companionPresentCount}/${pagesToGenerate.length} pages include the companion`,
+    );
     const elapsed = Date.now() - directorStart;
     console.log(
       `[Director] completed — ${blockingByPage.size}/${pagesToGenerate.length} pages got blocking (${elapsed}ms)`,

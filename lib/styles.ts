@@ -85,7 +85,7 @@ export const STYLE_REGISTRY: Record<StyleId, StyleContract> = {
     userLabel: 'מאוייר חם ועדין',
     wizardBlurb: 'דמויות עגולות וחמודות בסגנון ספר ילדים מצויר — צבעי מים רכים, רקע קרם חם, הרגשה של חיבוק.',
     renderingDescription:
-      "Premium children's book illustration — adorable round characters with large sparkling eyes, rosy cheeks, and button noses. Rich detailed watercolor on textured cream paper with warm soft tones. Lush illustrated backgrounds full of charming details — bookshelves, fairy lights, potted plants, toys, drawings on walls. Every surface has texture and story. Like a bestselling picture book by a master illustrator. NOT photorealistic, NOT 3D, NOT flat or minimal.",
+      "Premium children's book illustration — adorable round characters with large sparkling eyes, rosy cheeks, and button noses. Rich detailed watercolor on textured cream paper with warm soft tones. Lush illustrated backgrounds rendered with watercolor detail that matches the scene described on each page (forests with trees and undergrowth, undersea with coral and kelp, bedrooms with toys, mountains, gardens — whatever the page calls for). Every surface has texture and story. Like a bestselling picture book by a master illustrator. NOT photorealistic, NOT 3D, NOT flat or minimal.",
     pipeline: {
       colorPalette: 'warm storybook palette — soft cream, peach, golden undertones, earthy greens and blues, rich but gentle',
       lightingStyle: 'soft warm glow — gentle and inviting like a cozy storybook page, subtle warmth not harsh golden',
@@ -99,14 +99,14 @@ export const STYLE_REGISTRY: Record<StyleId, StyleContract> = {
     imageNudge: {
       title: 'CUTE_STORYBOOK_ILLUSTRATION_NUDGE',
       lines: [
-        'Premium children\'s book illustration: adorable round characters with large sparkling eyes, rosy cheeks, button noses. Rich detailed watercolor on cream paper with warm soft tones. Lush backgrounds full of charming details — bookshelves, fairy lights, plants, toys, drawings. Every surface textured and detailed. Like a bestselling picture book. NOT photorealistic, NOT 3D, NOT flat or minimal.',
+        'Premium children\'s book illustration: adorable round characters with large sparkling eyes, rosy cheeks, button noses. Rich detailed watercolor on cream paper with warm soft tones. Lush backgrounds rendered with detail that matches the page scene (forest, underwater, room, garden — whatever the page describes). Every surface textured and detailed. Like a bestselling picture book. NOT photorealistic, NOT 3D, NOT flat or minimal.',
       ],
     },
     lineRules: ['Soft hand-drawn edges with fine detail — organic, not sharp vector lines', 'Delicate linework visible under rich watercolor washes', 'Charming hand-made quality with fine illustrator detail'],
     colorRules: ['Rich warm storybook palette — cream, peach, soft golden undertones, earthy greens, dusty blues', 'Colors feel like layered watercolor pigment on cream paper — luminous and warm', 'Rich but not garish — warm and inviting tones, subtle golden warmth is good, but avoid monochrome amber flood'],
     shadingRules: ['Soft warm shadows with gentle depth', 'Rich watercolor layering — multiple pigment washes for texture', 'Pleasant overall — shadows add dimension without being dark or heavy'],
     lightingRules: ['Soft warm glow — gentle, inviting, cozy like a storybook page', 'Subtle warmth in the light is good — but not harsh golden-hour flood', 'Light enough to see all fine details clearly'],
-    backgroundRules: ['Rich illustrated background with charming details near the character — bookshelves, fairy lights, plants, toys, drawings', 'Edges and top dissolve into soft warm cream watercolor washes', 'Background has DETAIL and texture near character, dissolving outward — not empty or minimal'],
+    backgroundRules: ['Rich illustrated background — detail appropriate to the page scene (forest foliage, undersea coral, indoor furniture, sky, etc.), never a generic bedroom default', 'Edges and top dissolve into soft warm cream watercolor washes', 'Background has DETAIL and texture near character, dissolving outward — not empty or minimal'],
     compositionRules: ['Character is naturally embedded in the scene — fills 30-50% of the image, not a centered portrait', 'Show richly detailed environmental context around the character — the world matters as much as the face', 'Do NOT crop so tight that character fills 60%+ — leave room for environment, companion, action'],
     negativeConstraints: [
       'No 3D render or CGI',
@@ -139,7 +139,7 @@ NOT realistic proportions. NOT photographic. Storybook-cute.
 
 DETAIL LEVEL:
 HIGH detail throughout — this is a richly illustrated storybook, not a simple sketch.
-Background near character filled with charming objects: bookshelves with colorful spines, fairy lights, potted plants, toys, drawings pinned to walls, patterned rugs, decorative objects.
+Background near character filled with charming detail appropriate to the page scene — what those objects/textures are depends entirely on where the page takes place.
 Every surface has texture and visual interest — wood grain, fabric patterns, paper textures.
 Fine illustrator detail: tiny highlights in eyes, individual eyelashes, texture in hair curls, stitching on clothes.
 
