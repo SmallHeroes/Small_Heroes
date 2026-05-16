@@ -144,7 +144,16 @@ export async function loadStoryFromBank(
           pages[i].narrationText = personalizedPages[i];
         }
       }
-      console.log(`[StoryBank] Name personalization complete — '${childName}' woven into ${pages.length} pages.`);
+      // Count how many times the child's name actually appears in the rewritten pages —
+    // surfaces it in logs so we know whether the LLM was conservative or generous.
+    const totalNameCount = personalizedPages.reduce(
+      (acc, p) => acc + ((p ?? '').match(new RegExp(childName, 'g')) || []).length,
+      0
+    );
+    console.log(`[StoryBank] Name personalization complete — '${childName}' appears ${totalNameCount} times across ${pages.length} pages.`);
+    if (totalNameCount < 4) {
+      console.warn(`[StoryBank] WARNING: name appears only ${totalNameCount}x — model was too conservative.`);
+    }
     } catch (err) {
       console.error('[StoryBank] Name personalization failed — keeping generic text:', err);
     }
@@ -546,17 +555,31 @@ async function personalizeChildName(
   const childWord = childGender === 'female' ? 'הילדה' : 'הילד';
   const pagesBlock = pages.map(p => `=== עמוד ${p.pageNumber} ===\n${p.text}`).join('\n\n');
 
-  const systemPrompt = `אתה עורך לשוני מקצועי לעברית ספרותית לילדים. תפקידך לשלב באופן טבעי את שם הילד/ה בתוך הסיפור — לא להכניס את השם בכל אזכור של "${childWord}", אלא רק במקומות נכונים: פתיחה, רגעים רגשיים, סיום. סך הכל 2-4 פעמים בכל הסיפור.`;
+  const systemPrompt = `אתה עורך לשוני מקצועי לעברית ספרותית לילדים. תפקידך לשלב את שם הילד/ה בתוך הסיפור באופן שירגיש כמו ספר שנכתב במיוחד עבור הילד/ה הזה/הזו. השם חייב להופיע כמה פעמים — לא בכל שורה, אבל מספיק כדי שהקוראים ירגישו שהסיפור הוא עליה/עליו ספציפית.`;
 
   const userPrompt = `שם הילד/ה: ${childName}
+מספר עמודים בסיפור: ${pages.length}
 
 כללים מחייבים:
-1. החלף 2-4 הופעות של "${childWord}" בשם "${childName}" — בחר את המקומות החזקים ביותר (פתיחה, רגעי שיא, סיום).
-2. אל תחליף את כולם — שיעור החלפה כ-20-30%.
-3. אל תחליף "הוא"/"היא" או כינויי גוף — רק את "${childWord}".
+
+1. החלף לפחות 5-7 הופעות של "${childWord}" / "ילד/ה" בשם "${childName}".
+   - לסיפור של 10-15 עמודים: 5-6 החלפות.
+   - לסיפור של 20 עמודים: 6-8 החלפות.
+   - **השם חייב להופיע ב-עמוד הראשון** (פתיחה).
+   - **השם חייב להופיע ב-עמוד האחרון** (סיום).
+   - שלוש-ארבע הופעות נוספות במקומות החזקים: רגע רגשי, רגע של קונפליקט, רגע של פתרון.
+
+2. אל תחליף את כל ההופעות — אם יש 12 פעמים "${childWord}" בסיפור, תחליף 5-7 בלבד. השאר נשארות "${childWord}".
+
+3. אל תחליף "הוא"/"היא"/"אני"/"אותה"/"אותו" או כינויי גוף — רק את המילים "${childWord}" / "ילד/ה" (במקרים שמחליפים מפורשות שם דמות).
+
 4. אל תוסיף ואל תמחק שום מילה אחרת. שמור על מבנה פסקאות, ניקוד, וסימני פיסוק בדיוק.
-5. אל תיגע בתבניות {{patch:...}} או בשמות דמויות אחרות.
-6. החזר JSON בפורמט: {"pages": ["טקסט עמוד 1", "טקסט עמוד 2", ...]} — אורך המערך זהה למקור (${pages.length} עמודים).
+
+5. אל תיגע בתבניות {{patch:...}} או בשמות דמויות אחרות (companion וכו').
+
+6. השם "${childName}" צריך להיכנס כ-SUBJECT (נושא) של משפט פעולה, לא כ-OBJECT (מושא). לדוגמה: "${childName} הולכת..." טוב יותר מ-"הענק רואה את ${childName}".
+
+7. החזר JSON בפורמט: {"pages": ["טקסט עמוד 1", "טקסט עמוד 2", ...]} — אורך המערך זהה למקור (${pages.length} עמודים).
 
 הטקסט:
 ${pagesBlock}`;
@@ -612,7 +635,7 @@ ${pagesBlock}`;
             { role: 'user', content: userPrompt },
           ],
           response_format: { type: 'json_object' },
-          temperature: 0.3,
+          temperature: 0.45,
           max_tokens: 4000,
         };
         const res = await fetch('https://api.openai.com/v1/chat/completions', {
