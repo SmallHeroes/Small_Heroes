@@ -1,9 +1,11 @@
 import { randomUUID } from 'crypto';
+import fs from 'fs/promises';
 import path from 'path';
 import { NextRequest, NextResponse } from 'next/server';
 import { IllustrationStyle } from '@prisma/client';
 import { generateStoryBankCharacterDNA, loadStoryFromBank } from '@/backend/providers/story-bank-loader';
 import { generateAllPageImages, generateBookCover } from '@/backend/providers/image';
+import { getCompanionById } from '@/lib/companions';
 import { prisma } from '@/lib/prisma';
 import { assignTemplatesForBook, type BookPageTemplate } from '@/lib/bookPageLayout';
 import {
@@ -129,7 +131,31 @@ export async function POST(req: NextRequest) {
   const orderId = randomUUID();
 
   try {
-    const storyFull = await loadStoryFromBank(filePath, childName, companionName, childGender);
+    // Resolve canonical companion name from the story file's YAML frontmatter.
+    // Previously route.ts trusted the request body's companionName, which often
+    // mismatched the story (e.g. request="צפרדע" but story=fox_uri_adventure).
+    // The image pipeline then wrote "NO companion in this scene" AND mustInclude=[fox]
+    // — two contradictory instructions that killed the companion in every page.
+    let effectiveCompanionName = companionName;
+    try {
+      const rawStory = await fs.readFile(filePath, 'utf-8');
+      const idMatch = rawStory.match(/companionId\s*:\s*([a-z0-9_-]+)/i);
+      if (idMatch?.[1]) {
+        const c = getCompanionById(idMatch[1]);
+        if (c?.name) {
+          if (c.name !== companionName) {
+            console.log(`[StoryBank] companion resolved from YAML — id="${idMatch[1]}" name="${c.name}" (override request="${companionName}")`);
+          }
+          effectiveCompanionName = c.name;
+        } else {
+          console.warn(`[StoryBank] companionId "${idMatch[1]}" not in companions registry — keeping request value "${companionName}"`);
+        }
+      }
+    } catch (companionErr) {
+      console.warn('[StoryBank] companion YAML extraction failed:', (companionErr as Error).message);
+    }
+
+    const storyFull = await loadStoryFromBank(filePath, childName, effectiveCompanionName, childGender);
     console.log(`[StoryBank] Loaded "${storyFull.title}" — ${storyFull.pages.length} pages`);
 
     if (storyFull.pages.length === 0) {
@@ -218,7 +244,7 @@ export async function POST(req: NextRequest) {
       childName,
       childGender,
       childAge,
-      companionName,
+      companionName: effectiveCompanionName,
       storyText: allText,
       illustrationStyle,
     });
@@ -239,7 +265,7 @@ export async function POST(req: NextRequest) {
         childStructured: dna.childStructured,
         companionStructured: dna.companionStructured,
         companion: {
-          name: companionName,
+          name: effectiveCompanionName,
           visualDescription: dna.companionDNA,
         },
       });
@@ -289,7 +315,7 @@ export async function POST(req: NextRequest) {
         companionStructured: dna.companionStructured,
         companion: {
           id: 'story-bank',
-          name: companionName,
+          name: effectiveCompanionName,
           tagline: '',
           narrativeHook: '',
           image: '',
