@@ -99,7 +99,7 @@ export const STYLE_REGISTRY: Record<StyleId, StyleContract> = {
     imageNudge: {
       title: 'CUTE_STORYBOOK_ILLUSTRATION_NUDGE',
       lines: [
-        'Premium children\'s book illustration: adorable round characters with large sparkling eyes, rosy cheeks, button noses. Rich detailed watercolor on cream paper with warm soft tones. Lush backgrounds full of charming details — bookshelves, fairy lights, plants, toys, drawings. Every surface textured and detailed. Top 20-30% open space for text. Like a bestselling picture book. NOT photorealistic, NOT 3D, NOT flat or minimal.',
+        'Premium children\'s book illustration: adorable round characters with large sparkling eyes, rosy cheeks, button noses. Rich detailed watercolor on cream paper with warm soft tones. Lush backgrounds full of charming details — bookshelves, fairy lights, plants, toys, drawings. Every surface textured and detailed. Like a bestselling picture book. NOT photorealistic, NOT 3D, NOT flat or minimal.',
       ],
     },
     lineRules: ['Soft hand-drawn edges with fine detail — organic, not sharp vector lines', 'Delicate linework visible under rich watercolor washes', 'Charming hand-made quality with fine illustrator detail'],
@@ -107,7 +107,7 @@ export const STYLE_REGISTRY: Record<StyleId, StyleContract> = {
     shadingRules: ['Soft warm shadows with gentle depth', 'Rich watercolor layering — multiple pigment washes for texture', 'Pleasant overall — shadows add dimension without being dark or heavy'],
     lightingRules: ['Soft warm glow — gentle, inviting, cozy like a storybook page', 'Subtle warmth in the light is good — but not harsh golden-hour flood', 'Light enough to see all fine details clearly'],
     backgroundRules: ['Rich illustrated background with charming details near the character — bookshelves, fairy lights, plants, toys, drawings', 'Edges and top dissolve into soft warm cream watercolor washes', 'Background has DETAIL and texture near character, dissolving outward — not empty or minimal'],
-    compositionRules: ['Adorable character is the focus — fills 55-65% of the image', 'Top 20-30% must be open space (soft cream wash) for text overlay', 'Medium-close portrait framing — NOT a wide establishing shot', 'Show richly detailed environmental context around the character', 'Do NOT crop so tight that character fills 80%+ — leave room for background charm'],
+    compositionRules: ['Character is naturally embedded in the scene — fills 30-50% of the image, not a centered portrait', 'Show richly detailed environmental context around the character — the world matters as much as the face', 'Do NOT crop so tight that character fills 60%+ — leave room for environment, companion, action'],
     negativeConstraints: [
       'No 3D render or CGI',
       'No photorealistic rendering — this is an illustration, not a photo',
@@ -152,8 +152,7 @@ Avoid monochrome amber FLOOD — keep variety in the palette, but warmth is welc
 
 BACKGROUND:
 Near character: RICHLY DETAILED with illustrated objects and textures.
-Edges and top: gradually dissolve into soft warm cream watercolor washes.
-Top 20-30% lighter and simpler for text placement.
+Edges: gradually dissolve into soft warm cream watercolor washes.
 The dissolve is gradual — not a hard cutoff. Rich detail fades organically into cream.
 
 LIGHTING:
@@ -162,8 +161,8 @@ Subtle warmth in the light is part of the charm — NOT harsh, NOT dramatic.
 Light enough to see all fine details clearly.
 
 COMPOSITION:
-Character fills 55-65% of the image — adorable and prominent.
-Rich environmental detail visible around the character.
+Character occupies 30-50% of the image — naturally embedded in the scene, NOT a centered portrait.
+Rich environmental detail visible around the character — the world is as important as the face.
 Background dissolves outward from the detailed center area.
 
 TEXTURE:
@@ -196,7 +195,7 @@ ZERO text, letters, numbers, or symbols anywhere.`,
     imageNudge: {
       title: 'REALISTIC_WATERCOLOR_STORYBOOK_NUDGE',
       lines: [
-        'Fine realistic watercolor childrens storybook ILLUSTRATION on premium cream paper — NOT a portrait. Show the child inside the SCENE the page describes: with the companion, in the location, doing the action. Real child proportions, accomplished technique. Compositions vary per page (wide, medium, action) — never the same standing-portrait pose twice. Soft warm scene-appropriate light dissolving at edges. Paper texture visible, fine pigment layering. Top 20-30% fades to cream for text. NOT cartoon, NOT dark, NOT a posed portrait.',
+        'Fine realistic watercolor childrens storybook ILLUSTRATION on premium cream paper — NOT a portrait. Show the child inside the SCENE the page describes: with the companion, in the location, doing the action. Real child proportions, accomplished technique. Compositions vary per page (wide, medium, action) — never the same standing-portrait pose twice. Soft warm scene-appropriate light dissolving at edges. Paper texture visible, fine pigment layering. NOT cartoon, NOT dark, NOT a posed portrait.',
       ],
     },
     lineRules: ['No outlines — form defined by refined watercolor edges and soft color transitions', 'No cartoon linework — edges are delicate watercolor bleeds', 'Fine detail in features — individual eyelashes, hair strands, freckles, skin texture'],
@@ -204,7 +203,7 @@ ZERO text, letters, numbers, or symbols anywhere.`,
     shadingRules: ['Delicate realistic shadows — soft, refined, never harsh', 'Fine watercolor layering for depth — multiple transparent washes building form', 'Light and airy overall — shadows add dimension with subtlety'],
     lightingRules: ['Light source matches the SCENE: lantern glow, underwater shimmer, forest dappled light, sunset warmth, moonlight — never a flat studio light', 'Light and pleasant — bright, refined, with gentle warm tones', 'Natural light that makes the child look healthy and radiant'],
     backgroundRules: ['Background SHOWS the scene location described in the page imageDirection — forest, underwater, bedroom, sky, etc. Never a generic neutral cream void.', 'Environmental detail rendered with refined watercolor — dissolves outward toward edges, not abruptly cropped', 'Cream paper visible at edges — backgrounds fade gently into the page tone', 'The location is recognizable in every page — the reader should know where the child is'],
-    compositionRules: ['Show the child INSIDE the scene — with the companion, environment, action, props described in the imageDirection', 'Vary the composition per page — sometimes wide establishing shot, sometimes medium two-shot with companion, sometimes a closer moment of emotion or interaction. NEVER 15 identical centered standing portraits.', 'Child occupies 30-55% of frame — leave room for the companion, the environment, the action', 'Top 20-30% fades to soft cream for text overlay', 'Multi-character scenes are normal — the companion should appear when the imageDirection asks for it'],
+    compositionRules: ['Show the child INSIDE the scene — with the companion, environment, action, props described in the imageDirection', 'Vary the composition per page — sometimes wide establishing shot, sometimes medium two-shot with companion, sometimes a closer moment of emotion or interaction. NEVER 15 identical centered standing portraits.', 'Child occupies 30-50% of frame — leave room for the companion, the environment, the action', 'Multi-character scenes are normal — the companion should appear when the imageDirection asks for it'],
     negativeConstraints: [
       'No cartoon or anime style — proportions must be REAL',
       'No Pixar, Disney, or animation studio style',
@@ -254,7 +253,7 @@ Colors are refined and elegant, not garish or harsh.
 BACKGROUND (CRITICAL — show the scene):
 The background MUST show the LOCATION described in the page imageDirection. If the page says 'underwater coral reef' — paint coral, water, kelp. If it says 'dark forest' — paint trees, shadows, light shafts.
 Environmental detail fades organically outward toward the edges — refined watercolor dissolves, not hard cutoffs.
-Cream paper texture visible at edges. Top 20-30% fades to soft cream for text overlay.
+Cream paper texture visible at edges.
 NEVER a neutral cream void background. NEVER a dark heavy background — keep it light, airy, elegant, AND clearly located.
 
 TEXTURE:
