@@ -1840,9 +1840,13 @@ function buildGPTImagePrompt(input: ImageInput): string {
         `Action: ${vd.mainAction}.`,
         vd.characterPose ? `Pose: ${vd.characterPose}.` : '',
         vd.visibleObjects?.length ? `Visible objects: ${vd.visibleObjects.slice(0, 5).join(', ')}.` : '',
+        // Only emit Expression when we have an explicit, sanitized emotion.
+        // Previously the fallback "aligned with scene emotion and action" was injected on every page
+        // — combined with cool/dim scenes, this dragged the model toward defaulting all faces to sad.
+        // No fallback line → model picks expression from the scene action naturally.
         typeof vd.emotionVisual === 'string' && vd.emotionVisual.trim().length > 0
           ? `Expression: ${sanitizeEmotion(vd.emotionVisual, input.bookPageText ?? undefined)}.`
-          : 'Expression: aligned with scene emotion and action.',
+          : '',
         vd.lightingSource ? `Lighting: ${vd.lightingSource}.` : '',
         vd.environmentDetail ? `Detail: ${vd.environmentDetail}.` : '',
       ].filter(Boolean).join(' ')
@@ -1885,13 +1889,19 @@ function buildGPTImagePrompt(input: ImageInput): string {
   // ── CHARACTER DNA — structured lock preferred, flat fallback ──
   const charParts: string[] = [];
   const cs = input.childStructured;
+  // IMPORTANT: this block is recognition-only. A long detailed face description placed near
+  // the end of the prompt causes the model to compose around the face (centered close-up portrait).
+  // We prefix every variant with a usage hint so the features stay consistent across pages
+  // WITHOUT becoming the framing target.
+  const charRecognitionHint =
+    'CHARACTER IDENTITY (for cross-page recognition only — do NOT use this as a reason to center, close-up, or pose toward camera):';
   if (cs && cs.face && cs.hair && cs.clothing) {
     // Compact identity lock — saves attention budget for style rendering
     charParts.push(
-      `CHARACTER (locked): ${cs.face}, ${cs.hair}, ${cs.body}. Wearing: ${cs.clothing}${cs.signature ? ` (${cs.signature})` : ''}.`,
+      `${charRecognitionHint} ${cs.face} ${cs.hair} ${cs.body}. Wearing: ${cs.clothing}${cs.signature ? ` (${cs.signature})` : ''}.`,
     );
   } else if (input.childDescription) {
-    charParts.push(`CHARACTER (locked): ${input.childDescription}`);
+    charParts.push(`${charRecognitionHint} ${input.childDescription}`);
   }
 
   // ── COMPANION PRESENCE — use mustInclude/mustNotInclude as source of truth ──
@@ -2078,29 +2088,18 @@ function buildGPTImagePrompt(input: ImageInput): string {
     // The header used to say 'UNIVERSAL PORTRAIT' which the model interpreted as a
     // composition style (centered character portrait), not as the page aspect ratio.
     // Renamed to 'PAGE ASPECT' to remove that ambiguity.
-    'PAGE ASPECT — 2:3 portrait orientation (single image, dual-platform):',
-    '- The PAGE is 2:3 tall, 1024x1536 pixels. This refers to canvas shape ONLY, NOT to a portrait composition style.',
-    '- This is a STORYBOOK SCENE, not a character portrait. Render the full environment of this story beat — room, terrain, sky, props — with the character as the emotional focal point INSIDE that environment.',
+    'CANVAS — 2:3 tall format, 1024x1536 pixels. This is the page SHAPE only, not a composition style.',
+    '- Render a full STORYBOOK SCENE: the environment of this story beat is clearly visible — room, terrain, sky, props.',
     `- ${framingHint}`,
-    '- Character is naturally embedded in the scene, not isolated on a blank background, not centered and posing toward camera.',
-    '- DO NOT render a posed character with a blank/abstract background. The environment from the scene description above must be clearly visible.',
+    '- Character is naturally embedded in the scene, in motion or interacting with the environment. NOT centered, NOT posing toward camera, NOT isolated on a blank background.',
     '',
-    `🚨 CRITICAL — TEXT ZONE FADE at the ${textZoneSide}:`,
-    `- The ${textZoneSide} (about ONE THIRD of the total image height) MUST visually FADE / SOFTEN strongly.`,
-    `- This is a STRONG GRADUAL FADE — pixels in this band lose detail, contrast, and saturation rapidly, ending as a calm soft low-detail area at the edge.`,
-    `- Think of a watercolor wash that grows lighter and increasingly transparent toward the edge of the page.`,
-    `- The fade keeps the scene's atmosphere (sky-soft, ground-soft, atmospheric haze) — NOT cream-colored, just visually very quiet.`,
-    `- COMPOSE the scene so the character ENDS (cropped at upper body / hip, or sitting on a visible surface) BEFORE this fading band begins.`,
-    `- DO NOT place faces, hands, key props, or sharp details into this fading band — it must be visually quiet enough for dark Hebrew text to overlay legibly on mobile.`,
+    `TEXT-ZONE READABILITY (at the ${textZoneSide}, ~one third of frame height):`,
+    `- This band should be visually quieter than the rest — softer edges, fewer sharp details, lower contrast — so dark Hebrew text can sit on it legibly on mobile.`,
+    `- Quietness comes from LOW-DETAIL ENVIRONMENT in this zone: ground, floor, water, foliage, bedding, atmospheric haze, sky, soft snow, etc. Real saturated colors — NOT cream, NOT a vignette.`,
+    `- Do NOT crop the character at the waist, chest, or hip to make room. Do NOT shrink them to a centered portrait above the band. The character can extend INTO this band — only avoid placing faces, hands, and key props inside it.`,
+    `- A CSS gradient handles legibility on mobile, and the band is cropped out on desktop — so this is a gentle softening, not a hard fade.`,
     '',
-    '🚨 CRITICAL — STANDALONE 67% RULE:',
-    `- The OTHER 67% of the image (the non-fading portion) must work as a COMPLETE standalone illustration.`,
-    `- On desktop / PDF, CSS will crop OUT the fading band — only this 67% remains visible.`,
-    `- That 67% must contain the character (face clear and expressive), the main action, and enough environment to feel like a finished picture.`,
-    '',
-    `Note for mobile: a CSS gradient overlay (transparent → page-background-color) will be applied ON TOP of this band to ensure text legibility — so the band can fade gently, the CSS handles the rest.`,
-    '',
-    'Apart from the textZone fade: NO fade-to-cream elsewhere, NO vignette mask, NO soft borders on the other sides.',
+    'No vignette mask, no soft borders on the other three sides, no fade-to-cream anywhere.',
   ].join('\n');
 
   // ── ASSEMBLE: Style → Scene → TextRef → Character → Props → Rules → Composition → LayoutMode ──
