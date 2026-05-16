@@ -1251,7 +1251,11 @@ function buildCompactProtagonistLock(input: {
     .filter(Boolean)
     .join(', ');
   const compact = `${childLabel}, a ${age} ${gender}${visualParts ? ` ${visualParts}` : ''}`.replace(/\s+/g, ' ').trim();
-  const withExpression = `${compact}. Expressive face - show clear emotions matching the scene.`;
+  // EMOTION BIAS: 'match the scene' caused every page to inherit the story's
+  // emotional arc — sad stories produced sad faces on every page. Reframed to
+  // emphasize warmth, curiosity, and gentle expressiveness UNLESS the page text
+  // literally describes fear/sadness (sanitizeEmotion handles those cases).
+  const withExpression = `${compact}. Warm, expressive face — natural curiosity, gentle wonder, soft smile or thoughtful calm. The default mood is hopeful and inviting. Only show fear/sadness when the page text explicitly describes it. NEVER a flat sad gaze on every page.`;
   console.log(
     `[protagonist_lock_compact] orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber ?? 0} lock="${withExpression}"`
   );
@@ -2152,7 +2156,7 @@ async function generateWithGPTImage(input: ImageInput): Promise<GeneratedImage> 
     try {
       const result = await generateGPTImage({
         finalPrompt: prompt,
-        negativePrompt: 'text, letters, words, numbers, watermark, signature, frame, border',
+        negativePrompt: 'text, letters, words, numbers, watermark, signature, frame, border, sad face, gloomy, scary, dark moody atmosphere, crying, tearful, flat sad expression',
         size: size as '1024x1024' | '1024x1536' | '1536x1536',
         quality,
         // Pass the uploaded child photo as identity reference. When present, generateGPTImage
@@ -2546,17 +2550,19 @@ function buildGPTCoverPrompt(input: CoverImageInput): string {
         `Children's book cover illustration: ${childDesc}.`,
         `Scene: ${coverSceneDesc}.`,
         companionDesc ? `Companion: ${companionDesc}.` : '',
-        'The child looks curious and engaged (match the story mood).',
-        'Warm soft lighting.',
-        'Large calm empty zone at top (about 25-35%) for a title overlay later.',
+        // EMOTION: default to warm-and-curious; story mood inherits via storyboardprompt for body pages.
+        'The child has a soft warm expression — curious, gentle, calmly engaged. NOT sad, NOT scared. This is a book cover; first impression must invite the reader in.',
+        'Warm bright soft lighting — daylight, not dim or moody.',
+        // SIZE: enforce smaller character + reserved title zone explicitly.
+        'COMPOSITION RULES (CRITICAL): The child + companion together occupy NO MORE than 50-55% of the canvas. They are positioned in the LOWER 60-65% of the frame. The top 35% of the canvas MUST be calm, clear, and visually quiet — sky / soft gradient / cream / dissolved environment — leaving wide-open space for a Hebrew title to be overlaid. NEVER place the character\'s head, hand, or any prop inside the top 30% of the canvas.',
         'ZERO text, letters, or words anywhere in the image.',
       ]
     : [
-        `Children's book cover illustration: ${childDesc} stands in a cozy, brightly lit setting.`,
+        `Children's book cover illustration: ${childDesc} in a cozy, brightly lit setting, soft smile, curious gentle expression.`,
         companionDesc ? `${companionDesc} is nearby, part of the scene.` : '',
-        'Warm, inviting mood; safe bedtime-story feeling. The child looks happy and excited.',
-        'Bright soft lighting.',
-        'Large calm empty zone at top (about 25-35%) for a title overlay later.',
+        'Warm inviting mood; cheerful and hopeful. The child looks happy, calm, and curious — NOT sad, NOT scared.',
+        'Bright soft daylight lighting.',
+        'COMPOSITION RULES (CRITICAL): The child + companion together occupy NO MORE than 50-55% of the canvas. Positioned in the LOWER 60-65% of the frame. The top 35% MUST be calm, clear, and visually quiet for a Hebrew title overlay. NEVER place the character\'s head, hand, or any prop inside the top 30% of the canvas.',
         'ZERO text, letters, or words anywhere in the image.',
       ];
 
