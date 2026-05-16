@@ -36,7 +36,7 @@ imageDirection: small child among dark rocks with faint colored embers glowing b
 
 --- Page 2 ---
 על אבן גדולה יוֹשב משהו.
-סלמנדרה.
+סלמנדרה. שׁמוֹ רוֹמִי.
 הדפוסים על הגוף שלו כמעט אפוֹרים.
 הוא לא זז.
 
@@ -51,7 +51,7 @@ imageDirection: salamander with dim, almost grey patterns, calm posture
 imageDirection: child leaning in, bright curious energy, small sparks jump
 
 --- Page 4 ---
-הסלמנדרה פותח את הפה וּבוֹלע אותם.
+רוֹמִי פותח את הפה וּבוֹלע אותם.
 הלסת שלו נסגרת.
 הדפוסים כבר בקושי נראים.
 
@@ -61,13 +61,13 @@ imageDirection: close-up of jaw tightening, patterns fading
 אני מצחקק.
 זה כיף!
 אני מקרצף אבן על אבן — עוד ניצוֹצוֹת!
-הם קופצים ליד הפנים שלו.
+הם קופצים ליד הפנים של רוֹמִי.
 
 imageDirection: child clapping or scraping stones, sparks near Lahav's face
 
 --- Page 6 ---
 "בסדר," הוא אומר לאט.
-הוא בוֹלע שוב.
+רוֹמִי בוֹלע שוב.
 אבל משהו קורה — הגוף שלו מתחיל לרעוד.
 האוויר מסביבו מתחמם.
 
@@ -90,7 +90,7 @@ imageDirection: child crouched, concerned, Lahav dim and frozen
 imageDirection: tiny spark at mouth being pulled inward, strained posture
 
 --- Page 9 ---
-הוא לא יכול לזוז יותר.
+רוֹמִי לא יכול לזוז יותר.
 החוֹם נשאר בפנים.
 אני מבין משהו — זה לא רק בגללי.
 הוא תמיד עושה ככה.

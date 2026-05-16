@@ -31,7 +31,7 @@ uncomfortableTruth: עמוד 13 — הילד מבין שאחרים עוברים 
 ילד עומד ומסתכל על שׂיח קטן.
 השׂיח נמוך מהברך שלו.
 מאחורי השׂיח מסתתר משהו ענק.
-דוב גדול, חום, עם צעיף ארוך.
+דוב גדול, חום, עם צעיף ארוך. שׁמוֹ מָתַי.
 הילד רואה את כל הדוב — אבל הדוב חושב שלא רואים אותו.
 הוא חושב שאף אחד לא רואה אותו.
 
@@ -62,7 +62,7 @@ imageDirection: Large bear body awkwardly compressed behind a tiny rock, scarf c
 
 --- Page 4 ---
 הילד מתקרב צעד.
-הדוב מרים עיניים.
+מָתַי מרים עיניים.
 עיניים גדולות, חומות.
 הילד מחייך.
 הדוב מושך את הראש מהר למטה.
@@ -74,7 +74,7 @@ imageDirection: Eye contact moment, bear retreating deeper behind insufficient c
 --- Page 5 ---
 הילד מניף יד.
 "שָׁלוֹם!" הוא קורא.
-הדוב קופא.
+מָתַי קופא.
 אחרי רגע ארוך הדוב זז.
 הוא זוחל לאחור, מהר מהר.
 עכשיו הוא מאחורי ענף דק.
@@ -88,7 +88,7 @@ imageDirection: A single twig blocking the entire bear convincingly
 הוא מתכופף ומושיט יד.
 האצבעות שלו נוגעות בענף.
 הוא מרים אותו הצידה.
-הדוב מופיע פתאום — גדול, חשׂוף, מבוהל.
+מָתַי מופיע פתאום — גדול, חשׂוף, מבוהל.
 העיניים שלו פתוחות לרווחה.
 הילד עומד שם עם הענף ביד.
 
@@ -132,7 +132,7 @@ imageDirection: Subtle fabric shift peeking from behind tiny object
 לאט לאט הצעיף יורד.
 רגע אחד קטן — הסנטר של הדוב נראה.
 אחרי שנייה הצעיף עולה חזרה מהר.
-הדוב דוחף את הפנים לכף הגדולה שלו.
+מָתַי דוחף את הפנים לכף הגדולה שלו.
 הילד לא זז ממקומו.
 
 imageDirection: A glimpse of chin before it disappears back into the scarf
@@ -148,7 +148,7 @@ imageDirection: A glimpse of chin before it disappears back into the scarf
 imageDirection: Child seated calmly, gaze steady, no intrusion
 
 --- Page 12 ---
-הדוב לא זז זמן ארוך.
+מָתַי לא זז זמן ארוך.
 אחר כך הוא מזיז את עצמו.
 יושב, לא עומד.
 עדיין חצי מוסתר ליד הפטרייה הקטנה.
@@ -191,7 +191,7 @@ imageDirection: Close-up of scarf slightly lowered
 imageDirection: Parallel posture, both low and quiet
 
 --- Page 17 ---
-הדוב אומר:
+מָתַי אומר:
 "הָ-מ-מ-מ..."
 הוא זז הצידה, רחוק יותר.
 עכשיו הוא ליד גזע קטן.
@@ -208,7 +208,7 @@ imageDirection: Bear slightly distant, partly behind a small stump
 imageDirection: Object resting in empty space, child stepping back
 
 --- Page 19 ---
-הדוב זוחל עוד רחוק יותר.
+מָתַי זוחל עוד רחוק יותר.
 הוא מאחורי אבן אחרת עכשיו — קטנה, עגולה.
 האבן מסתירה אותו לגמרי.
 הילד רואה רק את האבן.

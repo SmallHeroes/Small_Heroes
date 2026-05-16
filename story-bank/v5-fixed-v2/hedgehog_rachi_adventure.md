@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "הַקּוֹצִים שֶׁל רַחִי"
+title: "הַקּוֹצִים שֶׁל רַכִּי"
 companionId: hedgehog_rachi
 direction: adventure
 category: SOCIAL
@@ -37,7 +37,8 @@ imageDirection: wide shot of a strange field with spike-shaped objects embedded 
 --- Page 2 ---
 אני רואה כדור קטן ליד השביל.
 קוצים זקופים.
-זה קיפוד.
+זאת קיפודה.
+שׁמהּ רַכִּי.
 היא לא זזה.
 
 imageDirection: close view of Rachi as a tight ball, spikes raised, blending into the terrain
@@ -72,7 +73,7 @@ imageDirection: stick touching spikes, Rachi becoming even more compact
 רוּחַ חזקה פתאום.
 קוצים נוספים נופלים מסביב.
 המעבר נהיה צר.
-אני וגם הקיפוד תקועים.
+אני וגם רַכִּי תקוּעים.
 
 imageDirection: spikes falling around them, narrowing the path
 
@@ -84,7 +85,7 @@ imageDirection: spikes falling around them, narrowing the path
 imageDirection: child seated low, open posture, space between them and Rachi
 
 --- Page 8 ---
-הקיפוד פותחת את הכדוּר קצת.
+רַכִּי פותחת את הכדוּר קצת.
 אני רואה בטן רכה.
 פתאום היא נסגרת שׁוּב.
 מהר.
@@ -108,7 +109,7 @@ imageDirection: child still, Rachi closed, spikes continuing to fall around them
 imageDirection: child stacking spikes into a protective arc over Rachi
 
 --- Page 11 ---
-הקיפוד מורידה את הצווארון שׁלה.
+רַכִּי מורידה את הצווארון שׁלה.
 פעם אחת.
 שׁתיים.
 שׁלושׁ.
@@ -124,7 +125,7 @@ imageDirection: close-up sequence of the collar loosening slightly with each mov
 imageDirection: stone bridging gaps between spikes, child's hands clearly keeping distance
 
 --- Page 13 ---
-הקיפוד נפתחת.
+רַכִּי נפתחת.
 עולה על האבן.
 הקוצים שׁטוּחים.
 הבטן הרכה נראית כשׁהיא הולכת.
@@ -132,7 +133,7 @@ imageDirection: stone bridging gaps between spikes, child's hands clearly keepin
 imageDirection: Rachi walking cautiously, spikes lowered, belly patch visible
 
 --- Page 14 ---
-בקצה השׂדה הקיפוד עוצרת.
+בקצה השׂדה רַכִּי עוצרת.
 מניחה את הצווארון על סלע.
 מסתכלת לצד.
 אני עומד רחוק.
@@ -140,7 +141,7 @@ imageDirection: Rachi walking cautiously, spikes lowered, belly patch visible
 imageDirection: collar resting on a rock, Rachi slightly turned away, child nearby but not touching
 
 --- Page 15 ---
-הקיפוד יוצאת אל המרחב הפתוח.
+רַכִּי יוצאת אל המרחב הפתוח.
 הצווארון נשׁאר על הסלע.
 אני עדיין כאן.
 יש רווח בינינו.

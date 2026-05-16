@@ -32,7 +32,7 @@ uncomfortableTruth: עמוד 12 — The strange shadow does not match any catego
 imageDirection: soft glowing shadows stretching between trees, child small in frame
 
 --- Page 2 ---
-שׁוּעָל קטן הופיע מאחורי עץ. על הצוואר שלו היה פנס קטן, כבוי. הוא הרים את הראש. "תֵּדַע, זֶה פָּשׁוּט סוּגֵי צְלָלִים. אני מכיר אותם כולם. צֵל מִן הָעֵץ, צֵל מִן הָאֶבֶן, צֵל מִן הַגָּדֵר." הוא דיבר מהר וקולו נשמע בטוח.
+שׁוּעָל קטן הופיע מאחורי עץ. שׁמוֹ אוּרִי. על הצוואר שלו היה פנס קטן, כבוי. הוא הרים את הראש. "תֵּדַע, זֶה פָּשׁוּט סוּגֵי צְלָלִים. אני מכיר אותם כולם. צֵל מִן הָעֵץ, צֵל מִן הָאֶבֶן, צֵל מִן הַגָּדֵר." הוא דיבר מהר וקולו נשמע בטוח.
 
 imageDirection: fox standing tall, gesturing at neat shadow shapes
 
@@ -42,7 +42,7 @@ imageDirection: fox standing tall, gesturing at neat shadow shapes
 imageDirection: shadows labeled visually by shape, Uri proud and composed
 
 --- Page 4 ---
-אחרי זמן מה ראיתי צל אחר. הוא היה רחוק, בין שׁוֹרָשִׁים עבים. הצל הזה רעד, או אולי התפזר, או משהו. לא היה לו צורה ברורה. השׁוּעָל עצר לרגע, הסתכל, ואז המשיך ללכת.
+אחרי זמן מה ראיתי צל אחר. הוא היה רחוק, בין שׁוֹרָשִׁים עבים. הצל הזה רעד, או אולי התפזר, או משהו. לא היה לו צורה ברורה. אוּרִי עצר לרגע, הסתכל, ואז המשיך ללכת.
 
 imageDirection: strange uneven shadow pooling between roots
 
@@ -52,7 +52,7 @@ imageDirection: strange uneven shadow pooling between roots
 imageDirection: Uri gesturing quickly, ears slightly off-balance
 
 --- Page 6 ---
-אמרתי: "זה לא עובד ככה. הצל הזה לא שׁוֹנֶה קצת. הוא בכלל לא כמו השאר." התחלתי ללכת לפנים, לכיוון הצל. השׁוּעָל נשאר מאחור, לא זז. לרגע קטן הוא לא אמר כלום.
+אמרתי: "זה לא עובד ככה. הצל הזה לא שׁוֹנֶה קצת. הוא בכלל לא כמו השאר." התחלתי ללכת לפנים, לכיוון הצל. אוּרִי נשאר מאחור, לא זז. לרגע קטן הוא לא אמר כלום.
 
 imageDirection: child stepping forward, Uri slightly behind, surprised
 
@@ -62,7 +62,7 @@ imageDirection: child stepping forward, Uri slightly behind, surprised
 imageDirection: shadow branching like ink in water
 
 --- Page 8 ---
-הפנס על הצוואר של השׁוּעָל נדלק לרגע קצר. הוא ניסה להגיד: "זה צל מסוג אחד־עשר, מִתְפַּצֵּל כְּשֶׁ..." הפנס כבה. גופו היה מתוח, הזנב לא זז.
+הפנס על הצוואר של אוּרִי נדלק לרגע קצר. הוא ניסה להגיד: "זה צל מסוג אחד־עשר, מִתְפַּצֵּל כְּשֶׁ..." הפנס כבה. גופו היה מתוח, הזנב לא זז.
 
 imageDirection: quick flash of light from Uri's neck, his body tense
 
@@ -77,7 +77,7 @@ imageDirection: shadow rippling toward Uri, ignoring structure
 imageDirection: Uri small, curled, faint glow leaking from underneath
 
 --- Page 11 ---
-הפנס נדלק שוב, והפעם נשאר דולק. השׁוּעָל המשיך לדבר. "בְּעֶצֶם זֶה סוּג חָדָשׁ, אֲבָל גַּם הוּא בֶּטַח שַׁיָּךְ לְמַשֶּׁהוּ שֶׁ..." הקול היה מהיר מאוד. האור האיר עליי ועל הצל.
+הפנס נדלק שוב, והפעם נשאר דולק. אוּרִי המשיך לדבר. "בְּעֶצֶם זֶה סוּג חָדָשׁ, אֲבָל גַּם הוּא בֶּטַח שַׁיָּךְ לְמַשֶּׁהוּ שֶׁ..." הקול היה מהיר מאוד. האור האיר עליי ועל הצל.
 
 imageDirection: steady glow now lighting both child and shadow
 
@@ -117,12 +117,12 @@ imageDirection: Uri upright but quiet, light steady
 imageDirection: distance forming, both figures small
 
 --- Page 19 ---
-השׁוּעָל היה עדיין ליד החפץ כשהתחלתי ללכת לשפת היער. החזקתי את החפץ בכיס, הוא זרח קצת דרך הבד. השׁוּעָל לא בא אחרי.
+השׁוּעָל היה עדיין ליד החפץ כשהתחלתי ללכת לשפת היער. החזקתי את החפץ בכיס, הוא זרח קצת דרך הבד. אוּרִי לא בא אחרי.
 
 imageDirection: child holding object faintly glowing, Uri behind
 
 --- Page 20 ---
-עמדתי מחוץ ליער. החפץ היה בידי. צל קטן ויציב נפל לידי על הקרקע. השׁוּעָל לא היה שם.
+עמדתי מחוץ ליער. החפץ היה בידי. צל קטן ויציב נפל לידי על הקרקע. אוּרִי לא היה שם.
 
 imageDirection: cool open space, single shadow next to child, no Uri
 
