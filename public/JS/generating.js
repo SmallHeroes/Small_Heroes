@@ -354,4 +354,38 @@ async function fetchStatus() {
 
     // Terminal: failure — show safe Hebrew copy, never the raw backend error string
     if (data.status === 'failed') {
-      track('generation_failed', { orderId, failedStage: data.fa
+      track('generation_failed', { orderId, failedStage: data.failedStage || null });
+      showError(GEN.errorFailed);
+      return;
+    }
+
+  } catch (err) {
+    // Network error — keep polling silently
+    console.warn('[generating] Poll error (will retry):', err);
+  }
+}
+
+function startPolling() {
+  fetchStatus();                                 // immediate first call
+  pollTimer = setInterval(fetchStatus, 2500);    // then every 2.5 s
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+const orderId = new URLSearchParams(window.location.search).get('orderId');
+
+wireStaticUI();
+
+if (!orderId) {
+  // Page loaded without an orderId — show a soft, non-technical error
+  showError(GEN.errorMissingOrder);
+} else {
+  track('generation_viewed', { orderId });
+  startedAtMs = Date.now();
+  displayPct = 5;
+  refreshUI();
+  cycleStatusText();
+  startFloaters();
+  startSmoothProgress();
+  armStallDetection();  // start stall clock; resets whenever progress advances
+  startPolling();
+}

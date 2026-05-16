@@ -823,18 +823,23 @@ function normalizeStoryboardRows(
         typeof row.intent === 'string' && row.intent.trim().length > 0
           ? row.intent.trim()
           : ((page.bookPageText ?? page.imagePrompt).trim().slice(0, 220) || 'story progression moment'),
+      // Rotate fallback values across pages so we never produce 15 identical
+      // 'three_quarter + primary' compositions when the storyboard LLM fails.
+      // Cycle length 4 for visibility (avoid 'back' overuse — only every 6th page).
       mainCharacterVisibility:
         typeof row.mainCharacterVisibility === 'string' &&
         MAIN_CHARACTER_VISIBILITY.includes(row.mainCharacterVisibility as MainCharacterVisibility)
           ? (row.mainCharacterVisibility as MainCharacterVisibility)
-          : i % 5 === 4
-            ? 'profile'
-            : 'three_quarter',
+          : (i % 6 === 5
+              ? 'back_allowed_only_if_needed'
+              : (['three_quarter', 'front', 'profile', 'three_quarter', 'front'] as MainCharacterVisibility[])[i % 5]),
+      // Dominance rotation: ~half primary, ~30% shared, ~20% background — so the
+      // reader sees the world and the companion, not just the protagonist.
       protagonistDominance:
         typeof row.protagonistDominance === 'string' &&
         PROTAGONIST_DOMINANCE.includes(row.protagonistDominance as ProtagonistDominance)
           ? (row.protagonistDominance as ProtagonistDominance)
-          : 'primary',
+          : (['primary', 'shared', 'primary', 'background', 'shared', 'primary', 'background'] as ProtagonistDominance[])[i % 7],
       pageLayoutStyle:
         typeof row.pageLayoutStyle === 'string' &&
         PAGE_LAYOUT_STYLES.includes(row.pageLayoutStyle as PageLayoutStyle)
@@ -924,32 +929,75 @@ async function generateStoryboard(book: {
     '  IMPORTANT: vignette is NOT "character floating on cream" — it is just a tighter scene with fewer environmental elements but still fully colored and detailed.',
   ].join('\n');
 
-  try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: process.env.STORYBOARD_MODEL || 'gpt-4o-mini',
-        temperature: 0.4,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: user },
-        ],
-      }),
-    });
-    if (!res.ok) return fallback;
-    const payload = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
-    const content = payload.choices?.[0]?.message?.content ?? '';
-    if (!content) return fallback;
-    const parsed = extractJsonPayload(content) as { pages?: unknown };
-    return normalizeStoryboardRows(book.pages, parsed.pages);
-  } catch {
-    return fallback;
+  const model = process.env.STORYBOARD_MODEL || 'gpt-4o-mini';
+  const useResponsesAPI = model.startsWith('gpt-5.') || model.includes('-pro');
+  const MAX_ATTEMPTS = 3;
+  const RETRY_DELAYS_MS = [1500, 3500];
+
+  let lastError: string | null = null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      console.log(`[storyboard] attempt=${attempt}/${MAX_ATTEMPTS} model=${model} mode=${useResponsesAPI ? 'responses' : 'chat'}`);
+      let content = '';
+      if (useResponsesAPI) {
+        const res = await fetch('https://api.openai.com/v1/responses', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model,
+            max_output_tokens: 6000,
+            input: [
+              { role: 'system', content: system },
+              { role: 'user', content: user },
+            ],
+            text: { format: { type: 'json_object' } },
+          }),
+        });
+        if (!res.ok) throw new Error(`Responses ${res.status}: ${(await res.text()).slice(0, 200)}`);
+        const data = await res.json();
+        content = data.output_text ??
+          data.output?.find((it: { type?: string; content?: Array<{ type?: string; text?: string }> }) => it.type === 'message')
+            ?.content?.find((c: { type?: string; text?: string }) => c.type === 'output_text')?.text ?? '';
+      } else {
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model,
+            temperature: 0.4,
+            response_format: { type: 'json_object' },
+            messages: [
+              { role: 'system', content: system },
+              { role: 'user', content: user },
+            ],
+          }),
+        });
+        if (!res.ok) throw new Error(`Chat ${res.status}: ${(await res.text()).slice(0, 200)}`);
+        const payload = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
+        content = payload.choices?.[0]?.message?.content ?? '';
+      }
+
+      if (!content) throw new Error('empty response from storyboard model');
+      const parsed = extractJsonPayload(content) as { pages?: unknown };
+      if (!parsed?.pages || !Array.isArray(parsed.pages)) {
+        throw new Error('storyboard response had no "pages" array');
+      }
+      console.log(`[storyboard] SUCCESS attempt=${attempt} pages=${parsed.pages.length}`);
+      return normalizeStoryboardRows(book.pages, parsed.pages);
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+      console.warn(`[storyboard] attempt=${attempt} FAILED: ${lastError}`);
+      if (attempt < MAX_ATTEMPTS) {
+        await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt - 1] ?? 3000));
+      }
+    }
   }
+  console.error(
+    `[storyboard] *** ALL ${MAX_ATTEMPTS} ATTEMPTS FAILED *** falling back to deterministic ROTATING defaults. ` +
+    `LastError=${lastError}. Every page will get an algorithmically-varied composition, ` +
+    `but the LLM's emotional/scene insight is LOST. THIS IS WHY ALL PAGES MAY LOOK SIMILAR.`
+  );
+  return fallback;
 }
 
 function normalizedOverlayTextLength(raw: string | null | undefined): number {

@@ -788,3 +788,72 @@
     display: none;
   }
 }
+
+/* ── Dedication page (final page of the book) ─────────────── */
+.tplDedication {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: min(60dvh, 560px);
+  padding: 0;
+  background-color: #f5ebd6;
+  background-image: url('/Images/EmptyPage.png');
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+
+.dedicationPaper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  width: min(86%, 520px);
+  padding: 56px 36px;
+  text-align: center;
+}
+
+.dedicationKicker {
+  font-family: var(--reader-font-stack);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  color: rgba(61, 40, 23, 0.55);
+  text-transform: none;
+}
+
+.dedicationText {
+  margin: 0;
+  direction: rtl;
+  font-family: var(--reader-font-stack);
+  font-size: clamp(20px, 1.8vw, 26px);
+  line-height: 1.75;
+  font-weight: 400;
+  color: #3d2817;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+
+.dedicationOrnament {
+  font-size: 18px;
+  color: rgba(61, 40, 23, 0.4);
+  letter-spacing: 0.6em;
+}
+
+@media (min-width: 1024px) {
+  .pageCanvas.tplDedication {
+    --page-width: min(38vw, 52vh, 480px);
+    --page-height: calc(var(--page-width) * 1.5);
+    width: var(--page-width) !important;
+    max-width: none !important;
+    min-height: auto !important;
+    height: var(--page-height) !important;
+    margin: 0 auto;
+    border-radius: 3px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.32);
+    padding: 0;
+  }
+}
