@@ -121,7 +121,7 @@ async function renderPageFrame(imageBuffer: Buffer, text: string, omitText: bool
   const TEXT_CENTER_X = Math.round(VIDEO_WIDTH / 2);
   const TEXT_FONT_SIZE = 36;
   const LINE_HEIGHT = 54;
-  const MAX_CHARS = 22;
+  const MAX_CHARS = 30;
 
   const escapedLines = wrapOverlayText(text, MAX_CHARS).map(escapeXml);
 

@@ -19,7 +19,11 @@ import { generatePageAudio } from '@/backend/providers/audio';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const STORY_BANK_RAW = path.join(process.cwd(), 'story-bank', 'raw');
+const STORY_BANK_RAW = path.join(
+  process.cwd(),
+  'story-bank',
+  (process.env.STORY_BANK_V3_DIR || 'v5-fixed-v2').trim()
+);
 
 function normalizeIllustrationStyle(value: string | undefined): IllustrationStyle {
   if (value === 'pencil_watercolor') return IllustrationStyle.pencil_watercolor;

@@ -42,8 +42,9 @@ const SPREAD_W = HALF_W * 2;
 
 const TEXT_MARGIN_X = 48;
 const TEXT_MARGIN_TOP = 72;
-const TEXT_FONT_SIZE = 17;
-const TEXT_LINE_HEIGHT = 28;
+const TEXT_FONT_SIZE = 20;
+const TEXT_LINE_HEIGHT = 32;
+const PARAGRAPH_SPACING = 14;
 const TEXT_COLOR = rgb(0.24, 0.16, 0.09);          // warm dark brown — matches reader
 const KICKER_COLOR = rgb(0.45, 0.32, 0.18);        // muted brown for "הקדשה" / page number
 const CREAM_BG = rgb(0.961, 0.922, 0.839);         // #f5ebd6 fallback when paper texture missing
@@ -56,9 +57,12 @@ async function fetchImageAsJpeg(url: string): Promise<Buffer> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to fetch image: ${url} (HTTP ${res.status})`);
   const imageBuffer = Buffer.from(await res.arrayBuffer());
+  // Convert to CMYK colorspace for print-ready output. RGB PDFs cause
+  // color shifts on press; children's book printers require CMYK.
   return sharp(imageBuffer)
     .resize(HALF_W * 2, PAGE_H * 2, { fit: 'cover' })
-    .jpeg({ quality: 88 })
+    .toColorspace('cmyk')
+    .jpeg({ quality: 90, chromaSubsampling: '4:4:4' })
     .toBuffer();
 }
 
@@ -83,14 +87,14 @@ async function loadPaperTexture(): Promise<Buffer | null> {
 /** Load Heebo font — local TTF first (reliable), Google Fonts as fallback. */
 async function loadHeeboFont(): Promise<Buffer> {
   const localPaths = [
-    join(process.cwd(), 'backend', 'assets', 'fonts', 'Heebo-Bold.ttf'),
-    join(process.cwd(), 'backend/assets/fonts/Heebo-Bold.ttf'),
+    join(process.cwd(), 'backend', 'assets', 'fonts', 'Heebo-Regular.ttf'),
+    join(process.cwd(), 'backend/assets/fonts/Heebo-Regular.ttf'),
   ];
   for (const p of localPaths) {
     try { return await readFile(p); } catch { /* try next */ }
   }
   console.warn('[pdf-generator] Local Heebo font not found, fetching from Google Fonts');
-  const cssUrl = 'https://fonts.googleapis.com/css2?family=Heebo:wght@700&display=swap';
+  const cssUrl = 'https://fonts.googleapis.com/css2?family=Heebo:wght@400&display=swap';
   const cssRes = await fetch(cssUrl, {
     headers: { 'User-Agent': 'Mozilla/5.0 (compatible; small-heroes-pdf-generator)' },
   });
@@ -155,13 +159,15 @@ function drawDesignedTextPage(
   const totalTextHeight = lines.length * TEXT_LINE_HEIGHT;
   const startY = (PAGE_H + totalTextHeight) / 2 - TEXT_FONT_SIZE;
 
+  let cursorY = startY;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const lineWidth = font.widthOfTextAtSize(line, TEXT_FONT_SIZE);
-    // Right-align for RTL — anchor each line to the right margin
     const x = HALF_W - TEXT_MARGIN_X - lineWidth;
-    const y = startY - i * TEXT_LINE_HEIGHT;
-    page.drawText(line, { x, y, size: TEXT_FONT_SIZE, font, color: TEXT_COLOR });
+    page.drawText(line, { x, y: cursorY, size: TEXT_FONT_SIZE, font, color: TEXT_COLOR });
+    // Sentence boundary? add paragraph spacing before next line.
+    const endsParagraph = /[.!?…]$/.test(line.trim());
+    cursorY -= TEXT_LINE_HEIGHT + (endsParagraph && i < lines.length - 1 ? PARAGRAPH_SPACING : 0);
   }
 
   if (pageNumberLabel) {
@@ -201,13 +207,14 @@ function drawDesignedTextPageAt(
   const totalTextHeight = lines.length * TEXT_LINE_HEIGHT;
   const startY = (PAGE_H + totalTextHeight) / 2 - TEXT_FONT_SIZE;
 
+  let cursorY = startY;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const lineWidth = font.widthOfTextAtSize(line, TEXT_FONT_SIZE);
-    // Right-align within this half (xOffset is the LEFT edge of the half)
     const x = xOffset + HALF_W - TEXT_MARGIN_X - lineWidth;
-    const y = startY - i * TEXT_LINE_HEIGHT;
-    page.drawText(line, { x, y, size: TEXT_FONT_SIZE, font, color: TEXT_COLOR });
+    page.drawText(line, { x, y: cursorY, size: TEXT_FONT_SIZE, font, color: TEXT_COLOR });
+    const endsParagraph = /[.!?…]$/.test(line.trim());
+    cursorY -= TEXT_LINE_HEIGHT + (endsParagraph && i < lines.length - 1 ? PARAGRAPH_SPACING : 0);
   }
 
   if (pageNumberLabel) {
@@ -223,26 +230,40 @@ function drawDesignedTextPageAt(
   }
 }
 
-/** Draw the image PDF page — full-bleed illustration only. */
+/** Draw the image PDF page on cream paper — image sits inside the page like a
+ *  framed illustration, uniform with the text-page design. User feedback:
+ *  'שיהיה אחיד בניראות כמו בדף עם טקסט'. */
 function drawImagePage(
   page: PDFPage,
   image: Awaited<ReturnType<PDFDocument['embedJpg']>> | null,
+  paperImg: Awaited<ReturnType<PDFDocument['embedJpg']>> | null,
 ): void {
-  if (image) {
-    page.drawImage(image, { x: 0, y: 0, width: HALF_W, height: PAGE_H });
+  // Same cream paper background as the text page
+  if (paperImg) {
+    page.drawImage(paperImg, { x: 0, y: 0, width: HALF_W, height: PAGE_H });
   } else {
-    page.drawRectangle({ x: 0, y: 0, width: HALF_W, height: PAGE_H, color: FALLBACK_BG });
+    page.drawRectangle({ x: 0, y: 0, width: HALF_W, height: PAGE_H, color: CREAM_BG });
   }
+
+  if (!image) return;
+
+  // Place image with a small margin so it sits IN the page rather than covering
+  // the cream paper edge-to-edge.
+  const IMG_MARGIN = 28;
+  const drawW = HALF_W - IMG_MARGIN * 2;
+  const drawH = PAGE_H - IMG_MARGIN * 2;
+  page.drawImage(image, { x: IMG_MARGIN, y: IMG_MARGIN, width: drawW, height: drawH });
 }
 
 /** Draw the cover — image full-bleed with title overlay near top. */
 function drawCoverPage(
   page: PDFPage,
   image: Awaited<ReturnType<PDFDocument['embedJpg']>> | null,
+  paperImg: Awaited<ReturnType<PDFDocument['embedJpg']>> | null,
   title: string,
   font: PDFFont,
 ): void {
-  drawImagePage(page, image);
+  drawImagePage(page, image, paperImg);
 
   if (!title) return;
   const titleSize = 30;
@@ -354,7 +375,7 @@ export async function generateBookPdf(params: GenerateBookPdfParams): Promise<Bu
           console.warn(`[pdf-generator] Cover image fetch failed`, err);
         }
       }
-      drawCoverPage(cover, img, params.title, heeboFont);
+      drawCoverPage(cover, img, paperImg, params.title, heeboFont);
       continue;
     }
 
@@ -381,7 +402,7 @@ export async function generateBookPdf(params: GenerateBookPdfParams): Promise<Bu
         console.warn(`[pdf-generator] Image fetch failed for page ${bookPage.pageNumber}`, err);
       }
     }
-    drawImagePage(imagePage, img);
+    drawImagePage(imagePage, img, paperImg);
     // Image-page label: subtle bottom-center, white-on-shadow so it reads over the art
     const imgPageLabel = `· ${bodyIndex * 2 - 1} ·`;
     const imgLabelSize = 10;

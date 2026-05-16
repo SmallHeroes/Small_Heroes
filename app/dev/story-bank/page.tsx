@@ -3,12 +3,19 @@
 import { useState } from 'react';
 
 const AVAILABLE_STORIES = [
-  { file: 'batch-05_15b.md', label: '15b — העץ שלא הסכים לזרום (FORCE)' },
-  { file: 'batch-05_13a.md', label: '13a — החדר שכמעט נשכח (EXIT)' },
-  { file: 'batch-05_13b.md', label: '13b — הקופסה שלא נתנה לעבור (TRICK)' },
-  { file: 'batch-05_14a.md', label: '14a — הרוח שלא הפסיקה לרוץ (REDIRECT)' },
-  { file: 'batch-05_14b.md', label: '14b — השער שלא נפתח בחינם (TRADE)' },
-  { file: 'batch-05_15a.md', label: '15a — הזרעים שלא הסכימו לגדול (RULE_HACK)' },
+  { file: 'fox_uri_adventure.md',          label: 'fox_uri — adventure (NIGHT_FEAR)' },
+  { file: 'fox_uri_bedtime.md',            label: 'fox_uri — bedtime (NIGHT_FEAR)' },
+  { file: 'fox_uri_fantasy.md',            label: 'fox_uri — fantasy (NIGHT_FEAR)' },
+  { file: 'bat_lily_adventure.md',         label: 'bat_lily — adventure (NIGHT_FEAR)' },
+  { file: 'starfish_kokhavi_adventure.md', label: 'starfish_kokhavi — adventure (MEDICAL)' },
+  { file: 'starfish_kokhavi_fantasy.md',   label: 'starfish_kokhavi — fantasy (MEDICAL)' },
+  { file: 'starfish_kokhavi_bedtime.md',   label: 'starfish_kokhavi — bedtime (MEDICAL)' },
+  { file: 'octopus_seara_adventure.md',    label: 'octopus_seara — adventure (ANGER)' },
+  { file: 'bear_cub_gahal_adventure.md',   label: 'bear_cub_gahal — adventure (ANGER)' },
+  { file: 'footstep_giant_adventure.md',   label: 'footstep_giant — adventure (NOISE)' },
+  { file: 'footstep_giant_bedtime.md',     label: 'footstep_giant — bedtime (NOISE)' },
+  { file: 'chameleon_koko_adventure.md',   label: 'chameleon_koko — adventure (TRANSITION)' },
+  { file: 'fawn_tzvi_adventure.md',        label: 'fawn_tzvi — adventure (SENSITIVITY)' },
 ];
 
 export default function StoryBankDevPage() {
