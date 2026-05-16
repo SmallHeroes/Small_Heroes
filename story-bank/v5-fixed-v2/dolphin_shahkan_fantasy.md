@@ -52,7 +52,7 @@ imageDirection: a single brighter wave carrying a shimmering map-like shape
 imageDirection: Dudi jumping between multiple waves, splashes overlapping
 
 --- Page 6 ---
-"דּוּדִי, תפסיק!" אני צועק. "פשוט תעצור לקפוץ ותעשה משהו מועיל!" אני מסתובב הצידה. דּוּדִי קופץ באמצע אוויר, קופא. הסנפירים שלו תלויים. הוא לא אומר כלום.
+"דּוּדִי, רגע!" אני אומר. "אני כבר לא רואה את המפה." אני מסתובב הצידה. דּוּדִי קופץ באמצע אוויר, קופא. הסנפירים שלו תלויים. הוא לא אומר כלום.
 
 imageDirection: child frustrated, Dudi mid-jump frozen in surprise
 

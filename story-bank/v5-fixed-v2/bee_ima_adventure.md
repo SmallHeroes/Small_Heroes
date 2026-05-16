@@ -81,7 +81,7 @@ imageDirection: Objects now large and bulky, tugging her downward
 --- Page 5 ---
 אני רץ אליה ותופס ארגז עץ שׁמרחף קרוב.
 
-זורק אותו הצידה.
+משחרר אותו מהאוויר.
 
 הארגז נופל על אבן ונשבר לחתיכות.
 

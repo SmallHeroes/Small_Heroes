@@ -72,7 +72,7 @@ imageDirection: Messy piles of objects, Navad circling and grabbing more, child 
 --- Page 5 ---
 אני מושך את התיק.
 נוצה נופלת החוצה.
-אני זורק אותה הצידה.
+אני מזיז אותה הצידה.
 עוד ענף — החוצה.
 "פָּה!" אני אומר. "עַכְשָׁו יוֹתֵר קַל!"
 נוטי עומד בלי לזוז.

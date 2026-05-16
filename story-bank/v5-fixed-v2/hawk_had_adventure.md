@@ -58,7 +58,7 @@ imageDirection: Child looking up confused while visual lines show multiple direc
 imageDirection: Swirling arrows and visual clutter as Had gestures everywhere at once
 
 --- Page 5 ---
-"תפסיק!"
+"אני לא יכול יותר!"
 אני שם ידיים על האוזניים.
 מסתכל למטה.
 לא רוצה לראות יותר.

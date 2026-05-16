@@ -49,7 +49,7 @@ imageDirection: small rabbit upright, gesturing fast, child wide-eyed
 imageDirection: overlapping translucent scenes of exaggerated fears around them
 
 --- Page 4 ---
-"תפסיק!" אני אומר לבוּנִי.
+"אני לא יכול לשמוע יותר," אני אומר לבוּנִי.
 אני מכסה את האוזניים ומסתובב לקיר.
 בוּנִי עוצר באמצע משׁפט. הפה שלו פתוח.
 

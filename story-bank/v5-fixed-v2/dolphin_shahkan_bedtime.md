@@ -53,9 +53,9 @@ imageDirection: colorful reef, sonar ripples everywhere, child slightly overwhel
 imageDirection: zigzag swimming trails, blurred motion, shell barely visible in background
 
 --- Page 4 ---
-"דּוּדִי, תפסיק! עצוֹר!"
-אני צועקת בכעס.
-"אתה צריך להתרכז!"
+"דּוּדִי, אני לא יכולה לעקוב!"
+אני אומרת בקול חזק.
+"זה יותר מדי."
 דּוּדִי נעצר במקום. כתר המים שׁלו נופל.
 הגוף שׁלו רועד במים.
 

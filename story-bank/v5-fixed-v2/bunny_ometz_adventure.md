@@ -59,7 +59,7 @@ imageDirection: his speech swirls into big shadowy scenarios dwarfing the simple
 imageDirection: long corridor with tiny real objects and huge imagined overlays
 
 --- Page 5 ---
-"תפסיק!" אני אומר.
+"אני לא יכול יותר," אני אומר.
 הקול שלי יוצא חזק מדי.
 אני עובר לידו ולא מסתכל אחורה.
 האוזניים של בּוּנִי מתחילות לרדת לאחור.

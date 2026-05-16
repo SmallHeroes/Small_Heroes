@@ -58,8 +58,8 @@ imageDirection: blurred dark shape between trunks, Uri speaking fast
 imageDirection: shadows overlapping, Uri slightly tense, ears shifting
 
 --- Page 5 ---
-אני מרים את הכתפיים.
-"אַתָּה מְדַבֵּר מְדַבֵּר מְדַבֵּר," אני אומר ומחקה את הידיים שלו.
+אני מסתכל הצידה.
+"אני לא מקשיב יותר," אני אומר בשקט.
 אוּרִי נעצר באמצע מילה.
 
 imageDirection: child half-smiling, imitating gestures, Uri caught mid-speech

@@ -23,7 +23,7 @@ stakes: a small winged creature will remain trapped in a shrinking marsh if no o
 emotionalArc: curiosity → delay and tension → doubt and vulnerability → physical action → quiet, imperfect resolution
 quietPage: 11
 heartLine: עמוד 8 — רוֹלִי מצייר שוב ושוב קו קטן על המפה עד שהנייר קורע מעט מתחת לכף הרגל שלו
-emotionalMistake: עמוד 5 — הילד תופס מפה מהערימה של רוֹלִי וזורק אותה הצידה
+emotionalMistake: עמוד 5 — הילד תופס מפה מהערימה של רוֹלִי ומזיז אותה הצידה בכעס
 uncomfortableTruth: עמוד 9 — רוֹלִי מגלה שהמפה לא יכולה לנבא מה באמת נמצא מולו, והוא לא יכול לתקן את זה מהר מספיק
 
 --- Page 1 ---
@@ -66,7 +66,7 @@ imageDirection: Navat frozen mid-step, staring at compass, foot hovering
 --- Page 5 ---
 אני כבר לא רוצה לחכות.
 אני תופס מפה מהערימה שלו.
-זורק אותה הצידה.
+מזיז אותה הצידה.
 המפה עפה באוויר.
 רוֹלִי מסתכל עלי. עיניים גדולות.
 

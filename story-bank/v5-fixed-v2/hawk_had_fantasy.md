@@ -68,7 +68,7 @@ imageDirection: child looking confused while Had gestures outward to many things
 imageDirection: visual overload of arrows and motion lines around Had
 
 --- Page 6 ---
-"תפסיק!" אני צועק.
+"רגע!" אני אומר. "אני כבר לא יכול לשמוע הכל."
 אני שם ידיים על האוזניים ומסתובב.
 הנץ נעצר באמצע תנועה. הפעמון עדיין רועד קצת.
 אני לא מסתכל עליו.

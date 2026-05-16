@@ -67,9 +67,9 @@ imageDirection: Bright question between them, Chacham turning head slowly
 imageDirection: Speech spirals expanding, brighter question slightly drifting
 
 --- Page 5 ---
-הילדה מגלגלת עיניים.
+הילדה מסתכלת הצידה.
 
-היא מסתובבת הצידה.
+היא שותקת.
 
 בּוּבּוּ ממשיך לדבר בלי לשים לב.
 

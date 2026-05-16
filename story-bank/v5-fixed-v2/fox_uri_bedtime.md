@@ -51,8 +51,8 @@ imageDirection: Long, shifting shadow from unseen branches crosses the ground, s
 imageDirection: Uri speaking fast, ears twitching unevenly, lantern blinking faintly at his neck.
 
 --- Page 4 ---
-אני מסתכל על אוּרִי ומגלגל עיניים.
-אני עובר לידו. צועד אל הצל לבד.
+אני מסתכל הצידה.
+אני כבר לא מקשיב. צועד אל הצל לבד.
 אוּרִי נשׁאר מאחור, באמצע מילה.
 הגוף שׁלו קטן יותר.
 

@@ -58,8 +58,8 @@ imageDirection: window edges becoming plush, bell starting to lightly ring
 imageDirection: small delicate creature floating away through slightly blurred, cushioned air
 
 --- Page 5 ---
-הילדה דוחפת את מִשִׁי הצידה.
-"תפסיק!" היא אומרת. "אתה מקלקל!"
+הילדה מזיזה את מִשִׁי קצת הצידה.
+"מִשִׁי, חכה!" היא אומרת. "זה לא עובד ככה."
 מִשִׁי נופל על הקרקע.
 השפמים שלו נזקפים.
 
