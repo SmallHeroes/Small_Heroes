@@ -270,7 +270,30 @@ export function parseImageDirection(dir: string): ShotVisualDirection | undefine
   // (camera type, focal point, lighting). Previously only took first comma chunk,
   // which destroyed critical scene details like specific objects, water levels, etc.
   const metadataPattern = /,?\s*(?:wide shot|medium shot|close shot|low angle|bird-eye view|bird.?s eye)\b.*$/i;
-  const mainAction = dir.replace(metadataPattern, '').trim() || dir.split(',')[0]?.trim() || dir;
+  let mainAction = dir.replace(metadataPattern, '').trim() || dir.split(',')[0]?.trim() || dir;
+  let paletteOnlyOriginal: string | null = null;
+
+  // ── PALETTE-ONLY GUARD ──────────────────────────────────────────────────
+  // Some story-bank pages have imageDirection that describes mood/palette only
+  // (e.g. "dim blue tones, tall trees, long overlapping shadows") with no
+  // character or pose verb. When passed unchanged as `mainAction`, the image
+  // model receives no narrative subject and defaults to a centered standing
+  // portrait of the protagonist. Detect this and prepend a generic character
+  // action so the model has a real subject to render. The original palette
+  // stays attached as atmospheric context so we don't lose the mood.
+  const CHARACTER_WORDS_RE =
+    /\b(child|girl|boy|kid|she|he|her|him|hero|hands?|face|eyes?|feet|arms?|legs?|body|figure)\b/i;
+  const POSE_VERBS_RE =
+    /\b(stand|sit|kneel|crouch|lie|lay|walk|run|jump|climb|hide|reach|hold|look|peer|watch|gaze|listen|whisper|call|point|hug|smile|laugh|cry|sleep|lift|lean|bend|turn|gesture|wave|recoil|flatten|tilt|alert|relaxed|frozen|surprised|reading|playing|eating|drinking|drawing|writing|riding|swimming|flying|with\s+one|with\s+both)\w*\b/i;
+  const hasCharacter = CHARACTER_WORDS_RE.test(mainAction);
+  const hasPose = POSE_VERBS_RE.test(mainAction);
+  if (!hasCharacter && !hasPose) {
+    paletteOnlyOriginal = mainAction;
+    mainAction = `child positioned naturally inside the scene, observing the environment around them; atmospheric context — ${paletteOnlyOriginal}`;
+    console.warn(
+      `[parseImageDirection] palette_only_action — synthesized character subject. source="${paletteOnlyOriginal}"`,
+    );
+  }
 
   // Extract ALL named objects from the full description for mustInclude
   const mustInclude: string[] = [];
@@ -300,7 +323,10 @@ export function parseImageDirection(dir: string): ShotVisualDirection | undefine
     characterPose: '',
     emotionVisual: emotion,
     lightingSource: lighting,
-    environmentDetail: weather,
+    // Preserve the original palette/atmosphere description as environmentDetail
+    // when we synthesized the action (so the mood survives even though
+    // mainAction now leads with the character subject).
+    environmentDetail: paletteOnlyOriginal ? paletteOnlyOriginal : weather,
     textTranslation: '',
     mustInclude,
     mustNotInclude: [],
