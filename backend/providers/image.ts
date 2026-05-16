@@ -2061,8 +2061,8 @@ function buildGPTImagePrompt(input: ImageInput): string {
   // but does NOT change size or text-zone presence anymore.
   const isVignetteFraming = input.pageLayoutStyle === 'vignette';
   const framingHint = isVignetteFraming
-    ? 'Medium framing — character occupies 30-40% of frame. Quiet emotional beat with the environment around them clearly visible.'
-    : 'Wide cinematic environmental framing — character occupies just 20-30% of frame. The ENVIRONMENT dominates (room, garden, sky, props all clearly visible). PULL BACK significantly — show the world the character lives in, NOT a close-up portrait. Override any earlier "character fills 55-65%" instruction — for this layout, character is smaller.';
+    ? 'Medium scene framing — character occupies 30-40% of frame, leaving room for the environment, companion, and any props/action described in the scene. NOT a posed portrait — character is mid-action, mid-emotion, INSIDE a real place. The environment must be clearly visible around them.'
+    : 'Wide cinematic environmental framing — character occupies just 20-30% of frame. The ENVIRONMENT dominates (room, garden, sky, props all clearly visible). PULL BACK significantly — show the world the character lives in. This is a STORYBOOK SCENE, NOT a character portrait. Override any earlier "character fills X%" instruction — for this layout, character is smaller than that.';
 
   const textZoneSide = input.textZone === 'top_clear'
     ? 'TOP 33% of the frame'
@@ -2071,11 +2071,16 @@ function buildGPTImagePrompt(input: ImageInput): string {
       : 'BOTTOM 33% of the frame (default)';
 
   const layoutDirective = [
-    'LAYOUT MODE — UNIVERSAL PORTRAIT (single image, dual-platform):',
-    '- Aspect portrait (2:3, 1024x1536). This image is used UNCHANGED on both mobile and desktop.',
-    '- Render a full atmospheric scene with detail. Show the world of this beat — room, terrain, sky, props — with the character as the emotional focal point.',
+    // CRITICAL: this block is at the END of the prompt — model weights it most heavily.
+    // The header used to say 'UNIVERSAL PORTRAIT' which the model interpreted as a
+    // composition style (centered character portrait), not as the page aspect ratio.
+    // Renamed to 'PAGE ASPECT' to remove that ambiguity.
+    'PAGE ASPECT — 2:3 portrait orientation (single image, dual-platform):',
+    '- The PAGE is 2:3 tall, 1024x1536 pixels. This refers to canvas shape ONLY, NOT to a portrait composition style.',
+    '- This is a STORYBOOK SCENE, not a character portrait. Render the full environment of this story beat — room, terrain, sky, props — with the character as the emotional focal point INSIDE that environment.',
     `- ${framingHint}`,
-    '- Character is naturally embedded in the scene, not isolated on a blank background.',
+    '- Character is naturally embedded in the scene, not isolated on a blank background, not centered and posing toward camera.',
+    '- DO NOT render a posed character with a blank/abstract background. The environment from the scene description above must be clearly visible.',
     '',
     `🚨 CRITICAL — TEXT ZONE FADE at the ${textZoneSide}:`,
     `- The ${textZoneSide} (about ONE THIRD of the total image height) MUST visually FADE / SOFTEN strongly.`,
@@ -2125,7 +2130,7 @@ function resolveGPTBookQuality(): 'low' | 'medium' | 'high' {
 async function generateWithGPTImage(input: ImageInput): Promise<GeneratedImage> {
   const isPreview = !!input.isDirectionPreview;
   const hiResPdf = !!input.printPdfOptimized;
-  // UNIVERSAL PORTRAIT — single image serves both desktop+PDF (crop out soft zone via CSS)
+  // PORTRAIT ORIENTATION canvas (NOT composition style) — single image serves both desktop+PDF (crop out soft zone via CSS)
   // and mobile/video (show full image, text overlays soft zone).
   // The textZone soft band lives at the top or bottom 25%; the remaining 75% is the standalone scene.
   const size = hiResPdf ? '1536x1536' : isPreview ? '1024x1024' : '1024x1536';
