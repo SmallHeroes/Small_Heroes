@@ -1436,8 +1436,12 @@ function composeStoryboardDrivenPagePrompt(
     if (desc.length < 5) continue;
     supportingLocks.push(`${label}: ${desc}`);
   }
+  // CRITICAL: this lock describes WHO the companion is (identity/appearance)
+  // but MUST NOT push toward the same composition every page. Earlier wording
+  // 'identical to the cover and every other page' confused the model into
+  // rendering identical poses. Now scoped to identity only.
   const companionLockBlock = supportingLocks.length > 0
-    ? `COMPANION / SUPPORTING CHARACTER LOCK:\n${supportingLocks.join('\n')}\nThese characters MUST appear EXACTLY as described — same species, body shape, color, distinctive features, age — identical to the cover and every other page they appear in.`
+    ? `COMPANION IDENTITY (use as character reference, NOT as scene reference):\n${supportingLocks.join('\n')}\nKeep these character traits consistent across pages — same species, colors, body shape, and distinctive features. BUT the pose, action, position, expression, and camera angle MUST CHANGE per page based on what is happening in that page's story beat. Identity = same. Composition = varied.`
     : '';
   const baseIntent = (storyboard.intent || page.bookPageText || cleanedImagePrompt).replace(/\s+/g, ' ').trim().slice(0, 320);
   const baseAction = (storyboard.action || '').replace(/\s+/g, ' ').trim().slice(0, 320);
@@ -1463,7 +1467,7 @@ function composeStoryboardDrivenPagePrompt(
   ].join('\n');
   return [
     `STYLE LOCK:\n${styleContract.optionBlock}`,
-    `MAIN CHARACTER LOCK:\n${protagonistVisualLock ?? 'Keep the same child identity across all pages: same age impression, hair, skin tone, face shape, and clothing colors.'}`,
+    `MAIN CHARACTER IDENTITY (use for character recognition, NOT for pose):\n${protagonistVisualLock ?? 'Keep the same child recognizable across pages — same hair, skin tone, eye color, distinctive features. BUT pose, action, position, expression, and camera angle CHANGE per page based on the story beat. Identity is fixed; composition is not.'}`,
     companionLockBlock,
     storySceneRule,
     [
@@ -1482,13 +1486,11 @@ function composeStoryboardDrivenPagePrompt(
       'Do not show the protagonist only from behind unless explicitly required by the story beat.',
     ].join('\n'),
     [
-      'COMPOSITION NATURALISM:',
-      'Avoid perfectly centered compositions.',
-      'Allow slight asymmetry and natural framing like printed children book illustrations.',
-      'Avoid floating characters in empty space.',
-      'Scenes must feel like lived moments inside a world, not isolated renders.',
-      'NO REPEATED VISUAL PATTERNS: avoid repeating the same camera angle, pose, composition, or framing across pages.',
-      'Each page should feel like a different cinematic shot in the same story world.',
+      'PAGE-SPECIFIC COMPOSITION:',
+      'This page must feel like a different cinematic shot than every other page in the book.',
+      'No two pages have the same pose, camera angle, or framing.',
+      'Off-center placement is preferred over perfect symmetry.',
+      'Characters are embedded in the scene — not floating in empty space.',
     ].join('\n'),
     [
       'ENVIRONMENT:',
@@ -1497,12 +1499,8 @@ function composeStoryboardDrivenPagePrompt(
       'Avoid empty, blank, or plain white backgrounds.',
     ].join('\n'),
     [
-      'CHARACTER + ACTION:',
-      `Depict these characters clearly: ${characterNames}.`,
-      `Action must be explicit and visible: ${baseAction || 'show a clear physical action tied to the story beat.'}`,
-      'Keep character consistency across pages: same hairstyle, same clothing colors, same age appearance.',
-      'CAST CONTROL: do not introduce random extra children unless explicitly required by the story.',
-      'If another child appears, label as supporting and keep the protagonist visually dominant and identifiable.',
+      'CAST CONTROL:',
+      `Show only these characters: ${characterNames}. Do not introduce extra children or animals unless explicitly required by the story.`,
     ].join('\n'),
     [
       'EMOTION + LIGHTING:',
@@ -2120,6 +2118,8 @@ function buildGPTImagePrompt(input: ImageInput): string {
     ` sceneLen=${trimmedScene.length} finalLen=${fullPrompt.length}`
   );
   console.log(`[gpt_scene] page=${input.pageNumber} "${trimmedScene.slice(0, 200)}"`);
+  // DEBUG: full prompt preview so user can see what gpt-image-1 actually receives.
+  console.log(`[gpt_prompt_full] page=${input.pageNumber} ===PROMPT START===\n${fullPrompt}\n===PROMPT END===`);
   if (propParts.length > 0) {
     console.log(`[gpt_props] page=${input.pageNumber} injected=${propParts.length} props: ${propParts.map(p => p.split(':')[0]).join(', ')}`);
   }
