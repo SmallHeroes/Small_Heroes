@@ -832,14 +832,14 @@ function normalizeStoryboardRows(
           ? (row.mainCharacterVisibility as MainCharacterVisibility)
           : (i % 6 === 5
               ? 'back_allowed_only_if_needed'
-              : (['three_quarter', 'front', 'profile', 'three_quarter', 'front'] as MainCharacterVisibility[])[i % 5]),
-      // Dominance rotation: ~half primary, ~30% shared, ~20% background — so the
-      // reader sees the world and the companion, not just the protagonist.
+              : (['front', 'profile', 'three_quarter', 'front', 'profile'] as MainCharacterVisibility[])[i % 5]),
+      // Dominance rotation: page 1 = 'shared' so single-page-test renders the
+      // child + companion duo, not a lone-child portrait.
       protagonistDominance:
         typeof row.protagonistDominance === 'string' &&
         PROTAGONIST_DOMINANCE.includes(row.protagonistDominance as ProtagonistDominance)
           ? (row.protagonistDominance as ProtagonistDominance)
-          : (['primary', 'shared', 'primary', 'background', 'shared', 'primary', 'background'] as ProtagonistDominance[])[i % 7],
+          : (['shared', 'primary', 'background', 'shared', 'primary', 'shared', 'background'] as ProtagonistDominance[])[i % 7],
       pageLayoutStyle:
         typeof row.pageLayoutStyle === 'string' &&
         PAGE_LAYOUT_STYLES.includes(row.pageLayoutStyle as PageLayoutStyle)
@@ -1148,28 +1148,29 @@ function storyboardEmotionInstruction(tone: EmotionalTone): string {
 }
 
 function storyboardVisibilityInstruction(visibility: MainCharacterVisibility): string {
+  // Push toward ACTION + SCENE, not a static identifiable-portrait pose.
   switch (visibility) {
     case 'front':
-      return 'Main character visibility: front view. Keep face fully readable and unobstructed.';
+      return 'Camera view: front 3/4 angle showing the child engaged with the scene — walking, reaching, looking at the companion or environment. NOT a centered standing portrait facing the camera. Show the child IN ACTION, not posing.';
     case 'profile':
-      return 'Main character visibility: profile view with clear facial silhouette and expression.';
+      return 'Camera view: side profile showing the child moving across or interacting with the environment. The body is in motion or engaged — NOT a static profile portrait.';
     case 'back_allowed_only_if_needed':
-      return 'Back view is allowed only if the story strictly requires it. Do not make back view the only readable depiction.';
+      return 'Camera view: child is shown from behind looking into the scene/environment. Allowed only when the story moment is about discovery or facing forward into the world.';
     case 'three_quarter':
     default:
-      return 'Main character visibility: three-quarter view. Face must be clearly visible and identifiable.';
+      return 'Camera view: 3/4 angle of the child mid-action inside the scene. The child is doing something specific from the page (walking, reaching, kneeling, looking up/down). NEVER a static standing pose facing the camera. The pose must show story momentum, not a character-reference shot.';
   }
 }
 
 function storyboardDominanceInstruction(dominance: ProtagonistDominance): string {
   switch (dominance) {
     case 'shared':
-      return 'Protagonist dominance: shared framing is allowed, but the protagonist must remain clearly identifiable.';
+      return 'Frame composition: SHARED — the child and the companion share the frame roughly equally. Both must be clearly visible AT THE SAME SIZE. The child occupies 30-40% of frame width, the companion another 25-35%. They interact, look at each other, or face the same thing.';
     case 'background':
-      return 'Protagonist dominance: background is allowed only if required by story; keep protagonist still identifiable.';
+      return 'Frame composition: ENVIRONMENT-LED — pull the camera back. The child is SMALL inside the frame (15-25% of frame height), nested inside a wide-open environment that fills the rest of the canvas. Show the world the story takes place in. NOT a portrait.';
     case 'primary':
     default:
-      return 'Protagonist dominance: primary. The protagonist is the visual anchor of the image.';
+      return 'Frame composition: PROTAGONIST-LED — the child is the visual anchor, but NOT a centered portrait. Show them mid-action inside the scene; the child occupies 35-50% of the frame, with environment + props clearly visible around them. They are doing something specific from the page text.';
   }
 }
 
