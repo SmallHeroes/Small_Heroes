@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "רַחִי וּמִשְׁקַל הַקּוֹצִים"
+title: "רַכִּי וּמִשְׁקַל הַקּוֹצִים"
 companionId: hedgehog_rachi
 direction: fantasy
 category: SOCIAL
@@ -100,7 +100,7 @@ imageDirection: spikes sink deeper, dust rising from impact
 
 --- Page 10 ---
 הכדור לא נפתח לגמרי, אבל הקוצים יורדים מעט.
-רַחִי מורידה את הקוצים בצווארון שלה — לאט — שלוש פעמים.
+רַכִּי מורידה את הקוצים בצווארון שלה — לאט — שלוש פעמים.
 רואים חתיכה קטנה של בטן רכה.
 ואז היא קופאת, לא זזה.
 
@@ -109,7 +109,7 @@ imageDirection: tiny soft patch visible, spikes still tense around it
 --- Page 11 ---
 אני לא מושיט יד.
 אני רק יושב.
-רַחִי רועדת, אבל לא חוזרת להיות כדור.
+רַכִּי רועדת, אבל לא חוזרת להיות כדור.
 המרחק בינינו נשאר.
 
 imageDirection: space between them, fragile stillness
@@ -125,7 +125,7 @@ imageDirection: half-unfurled hedgehog, uneven posture
 --- Page 13 ---
 אני נוגע בקצה של קוֹץ אחד, בעדינות.
 שום דבר רע לא קורה.
-אבל רַחִי מתכווצת, הגוף שלה מתוח.
+אבל רַכִּי מתכווצת, הגוף שלה מתוח.
 היא לא מבינה איך זה אפשרי.
 
 imageDirection: light fingertip touch, tension in Rachi's body
@@ -134,12 +134,12 @@ imageDirection: light fingertip touch, tension in Rachi's body
 אני דוחף הצידה את הקוצים שנפלו באדמה.
 גורר אותם אחד אחרי השני.
 זה מאמץ. הם כבדים.
-אני מפנה מקום רך סביב רַחִי.
+אני מפנה מקום רך סביב רַכִּי.
 
 imageDirection: child dragging heavy spikes away, effort visible
 
 --- Page 15 ---
-רַחִי מורידה את הקוצים בצווארון פעם אחת.
+רַכִּי מורידה את הקוצים בצווארון פעם אחת.
 לאט.
 
 imageDirection: small, deliberate motion, quiet frame
@@ -154,14 +154,14 @@ imageDirection: body elongated, spikes still present but less dominant
 
 --- Page 17 ---
 אני מושיט יד שוב, אבל עוצר לפני.
-יש רווח קטן בין האצבעות שלי לבין רַחִי.
+יש רווח קטן בין האצבעות שלי לבין רַכִּי.
 אני לא סוגר אותו.
 היא מסתכלת על היד.
 
 imageDirection: hovering hand, visible distance
 
 --- Page 18 ---
-רַחִי זָזָה צעד אחד אחורה.
+רַכִּי זָזָה צעד אחד אחורה.
 הקוצים שלה עולים שוב, אבל לא כמו קודם.
 הם לא חדים לגמרי.
 היא מניחה סימן קל באדמה.
@@ -170,14 +170,14 @@ imageDirection: subtle retreat, light indentation under spikes
 
 --- Page 19 ---
 אני עומד לבד, מחזיק קוֹץ אחד כבד בידיים.
-רַחִי רחוקה ממני עכשיו.
+רַכִּי רחוקה ממני עכשיו.
 היא מסתכלת לכיוון שלי מרחוק.
 אני לא רץ אחריה.
 
 imageDirection: child standing, spike in hands, Rachi farther away
 
 --- Page 20 ---
-רַחִי יושבת הרחק, לא כדור מלא אבל גם לא פתוחה.
+רַכִּי יושבת הרחק, לא כדור מלא אבל גם לא פתוחה.
 הקוצים הכבדים תקועים באדמה בינינו.
 השדה רחב ושקט.
 יש מקום לשניים.

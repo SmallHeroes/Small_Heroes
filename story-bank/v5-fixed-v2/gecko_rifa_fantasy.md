@@ -29,11 +29,11 @@ uncomfortableTruth: עמוד 12 — Rifa tries to shed again but remains in plac
 --- Page 1 ---
 משהו רץ על השביל.
 
-רֵיפָה שׁממית קטנה, רצה מהר מהר מהר. הזנב שלה נופל מאחור.
+גֵּקִי שׁממית קטנה, רצה מהר מהר מהר. הזנב שלה נופל מאחור.
 
 הזנב נשאר על האדמה. הוא מתפתל לצדדים.
 
-רֵיפָה לא מסתכלת אחורה.
+גֵּקִי לא מסתכלת אחורה.
 
 imageDirection: small gecko mid-sprint, detached tail wriggling on glowing ground
 
@@ -49,7 +49,7 @@ imageDirection: small gecko mid-sprint, detached tail wriggling on glowing groun
 imageDirection: animals with mismatched wings, ears, or colors hinting at the world rule
 
 --- Page 3 ---
-רֵיפָה קוראת מרחוק: "אני בסדר! אני בסדר!"
+גֵּקִי קוראת מרחוק: "אני בסדר! אני בסדר!"
 
 היא זזה אחורה. הגוף שלה נמוך, קרוב לאדמה.
 
@@ -66,7 +66,7 @@ imageDirection: Rifa low to ground, body tense, eyes wide, no tail
 
 "למה הוא נפל?" אני שואל.
 
-רֵיפָה לא עונה.
+גֵּקִי לא עונה.
 
 imageDirection: child holding soft, fading tail with curiosity
 
@@ -75,7 +75,7 @@ imageDirection: child holding soft, fading tail with curiosity
 
 ציפורים באוויר משנות נוצות באמצע המעוף. נוצה אדומה הופכת כחולה.
 
-רֵיפָה מתכווצת.
+גֵּקִי מתכווצת.
 
 השמיים רועדים קצת.
 
@@ -86,14 +86,14 @@ imageDirection: birds with changing feathers, sky flickering subtly
 
 "קחי אותו בחזרה!" אני אומר.
 
-רֵיפָה נסוגה. הגוף שלה מתקפל פנימה.
+גֵּקִי נסוגה. הגוף שלה מתקפל פנימה.
 
 היא לא רוצה אותו.
 
 imageDirection: child reaching forward, Rifa recoiling slightly
 
 --- Page 7 ---
-רֵיפָה מתחילה לזוז שוב. היא מסתובבת ומתחילה לרוץ.
+גֵּקִי מתחילה לזוז שוב. היא מסתובבת ומתחילה לרוץ.
 
 משהו רועד בקצה הגוף שלה. כאילו זנב נוסף רוצה ליפול.
 
@@ -108,7 +108,7 @@ imageDirection: Rifa half-turned, back arched, invisible tension at tail-stump
 
 אני כורע. לא נוגע. רק שם את עצמי בדרך.
 
-רֵיפָה עוצרת.
+גֵּקִי עוצרת.
 
 imageDirection: child crouched, blocking path gently, open posture
 
@@ -124,7 +124,7 @@ imageDirection: child crouched, blocking path gently, open posture
 imageDirection: deer with shifting antlers made of wood and leaves
 
 --- Page 10 ---
-רֵיפָה מסתובבת. היא חוזרת אל הזנב.
+גֵּקִי מסתובבת. היא חוזרת אל הזנב.
 
 הגוף שלה מתעקל סביבו. כמעט נוגעת.
 
@@ -139,12 +139,12 @@ imageDirection: Rifa hovering near tail, body curved protectively but not touchi
 
 לא אומר כלום. לא דוחף.
 
-רֵיפָה מביטה.
+גֵּקִי מביטה.
 
 imageDirection: child seated calmly, tail resting between them
 
 --- Page 12 ---
-רֵיפָה מנסה להשיל שוב.
+גֵּקִי מנסה להשיל שוב.
 
 הגוף שלה רועד. היא רוצה שמשהו ייפול.
 
@@ -161,7 +161,7 @@ imageDirection: Rifa strained and still, faint glow at tail-stump that fades
 
 הכול בתנועה.
 
-רֵיפָה כמעט רצה. אבל נשארת.
+גֵּקִי כמעט רצה. אבל נשארת.
 
 imageDirection: ground vibrating, animals mid-change, tense atmosphere
 
@@ -177,7 +177,7 @@ imageDirection: ground vibrating, animals mid-change, tense atmosphere
 imageDirection: child's hand steady, Rifa paused inches away
 
 --- Page 15 ---
-רֵיפָה נוגעת בקצה הגוף שלה. במקום שהיה הזנב.
+גֵּקִי נוגעת בקצה הגוף שלה. במקום שהיה הזנב.
 
 פעם. פעמיים. שלוש.
 
@@ -190,12 +190,12 @@ imageDirection: close-up of small repeated touch gesture
 
 אוֹר חוזר.
 
-רֵיפָה נושמת.
+גֵּקִי נושמת.
 
 imageDirection: wind settling, creatures stabilizing, soft light returning
 
 --- Page 17 ---
-רֵיפָה עומדת בלי זנב.
+גֵּקִי עומדת בלי זנב.
 
 הזנב מונח רחוק. הוא לא זז יותר.
 
@@ -217,7 +217,7 @@ imageDirection: distance between Rifa and tail emphasized
 imageDirection: tiny pale tail sprouting subtly
 
 --- Page 19 ---
-רֵיפָה חוזרת ליער.
+גֵּקִי חוזרת ליער.
 
 היא לא באה קרוב. שומרת מרחק.
 

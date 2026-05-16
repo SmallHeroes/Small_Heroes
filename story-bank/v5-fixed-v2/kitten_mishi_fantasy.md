@@ -22,12 +22,12 @@ metaphor: purring that turns hard things into soft objects but erases their trut
 stakes: the child's problem gets buried under soft objects and cannot be understood or addressed
 emotionalArc: automatic soothing → mismatch and frustration → escalation and crack → silent contact → distant acceptance
 quietPage: 15
-heartLine: עמוד 10 — מִישִׁי לוֹחֵץ אֶת הַשְּׁפָמִים שֶׁלּוֹ אֶל הָרִצְפָּה בְּעוֹד הוּא מְגַרְגֵּר יוֹתֵר חָזָק.
+heartLine: עמוד 10 — מִשִׁי לוֹחֵץ אֶת הַשְּׁפָמִים שֶׁלּוֹ אֶל הָרִצְפָּה בְּעוֹד הוּא מְגַרְגֵּר יוֹתֵר חָזָק.
 emotionalMistake: עמוד 6 — הַיֶּלֶד דּוֹחֵף אֶת הַחֵפֶץ הָרַךְ הַצִּדָּה בְּכַעַס.
 uncomfortableTruth: עמוד 12 — הַיֶּלֶד אוֹמֵר שֶׁהַבַּעֲיָה עוֹד כָּאן, וְשׁוּם דָּבָר לֹא מִשְׁתַּנֶּה.
 
 --- Page 1 ---
-מִישִׁי הַחָתוּל יָשֵׁן עַל אֶדֶן הַחַלּוֹן.
+מִשִׁי הַחָתוּל יָשֵׁן עַל אֶדֶן הַחַלּוֹן.
 הַשֶּׁמֶשׁ חַמָּה, וְהוּא מְגַרְגֵּר בְּשַׁלְוָה.
 סָבִיב לוֹ צוֹמְחִים חֲפָצִים רַכִּים קְטַנִּים — כָּרִית אַחַת, כַּדּוּרִית אַחַת.
 הַגְּרַגּוּר הוֹפֵךְ דְּבָרִים לְרַכִּים.
@@ -43,7 +43,7 @@ imageDirection: sunlight, curled kitten, faint soft shapes like cushions forming
 imageDirection: child clutching a dark, solid shape, contrast with warm light
 
 --- Page 3 ---
-מִישִׁי פּוֹקֵחַ עַיִן אַחַת.
+מִשִׁי פּוֹקֵחַ עַיִן אַחַת.
 הוּא רוֹאֶה אֶת הַבַּעֲיָה בְּיָדַיִם שֶׁל הַיֶּלֶד.
 הַשְּׁפָמִים שֶׁלּוֹ זוֹקְפִים מְעַט.
 הוּא מַתְחִיל לְגַרְגֵּר בְּכִוּוּנָהּ.
@@ -70,12 +70,12 @@ imageDirection: child picking up the soft object but it still looks heavy someho
 הַיֶּלֶד דּוֹחֵף אֶת הַכָּרִית הַצִּדָּה.
 הִיא מַחְלִיקָה עַל הָרִצְפָּה.
 הַגּוּף שֶׁלּוֹ מְתוּחַ.
-מִישִׁי נִרְתָּע.
+מִשִׁי נִרְתָּע.
 
 imageDirection: soft object sliding away, child's body tense
 
 --- Page 7 ---
-מִישִׁי מְגַרְגֵּר שׁוּב.
+מִשִׁי מְגַרְגֵּר שׁוּב.
 רַךְ יוֹתֵר בַּהַתְחָלָה, אָז גָּבוֹהַ יוֹתֵר.
 חֲפָצִים רַכִּים נוֹסָפִים צוֹמְחִים — כָּרִיּוֹת, כַּדּוּרִים, שְׁטִיחַ קָטָן.
 הַחֶדֶר מִתְמַלֵּא.
@@ -91,7 +91,7 @@ imageDirection: various textures of soft shapes accumulating
 imageDirection: child waist-deep in plush forms, looking stuck
 
 --- Page 9 ---
-הַפַּעֲמוֹן שֶׁל מִישִׁי מַתְחִיל לְצַלְצֵל.
+הַפַּעֲמוֹן שֶׁל מִשִׁי מַתְחִיל לְצַלְצֵל.
 הַגְּרַגּוּר חָזָק יוֹתֵר, מָהִיר יוֹתֵר.
 הַשְּׁפָמִים רוֹעֲדִים.
 הַפַּעֲמוֹן מְצַלְצֵל בְּלִי הֶרֶף.
@@ -99,7 +99,7 @@ imageDirection: child waist-deep in plush forms, looking stuck
 imageDirection: vibration lines intensify, bell visibly shaking
 
 --- Page 10 ---
-מִישִׁי לוֹחֵץ אֶת הַשְּׁפָמִים שֶׁלּוֹ אֶל הָרִצְפָּה.
+מִשִׁי לוֹחֵץ אֶת הַשְּׁפָמִים שֶׁלּוֹ אֶל הָרִצְפָּה.
 הַגּוּף הַקָּטָן כֻּלּוֹ רוֹעֵד.
 הוּא מְגַרְגֵּר עוֹד יוֹתֵר חָזָק, כְּדֵי לְכַסּוֹת אֶת הָרֶעַד.
 הַפַּעֲמוֹן מְצַלְצֵל חָזָק מְאֹד.
@@ -123,7 +123,7 @@ imageDirection: soft objects everywhere, the original problem still distinct
 imageDirection: child holding unchanged core object amid softness
 
 --- Page 13 ---
-מִישִׁי מְגַרְגֵּר עַד שֶׁהַקּוֹל שֶׁלּוֹ נִשְׁבָּר.
+מִשִׁי מְגַרְגֵּר עַד שֶׁהַקּוֹל שֶׁלּוֹ נִשְׁבָּר.
 הַגָּרוֹן כּוֹאֵב.
 הַפַּעֲמוֹן מְצַלְצֵל מְאֹד חָזָק.
 הַגְּרַגּוּר נֶחְתָּךְ, נֶעֱצָר וּמַתְחִיל שׁוּב.
@@ -132,14 +132,14 @@ imageDirection: vibration jagged, bell ringing wildly
 
 --- Page 14 ---
 הַיֶּלֶד צוֹעֵד דֶּרֶךְ הַחֲפָצִים הָרַכִּים.
-הוּא מַגִּיעַ אֶל מִישִׁי, מַרְכִּין.
+הוּא מַגִּיעַ אֶל מִשִׁי, מַרְכִּין.
 בְּזְהִירוּת, הוּא מוֹרִיד אֶת הַפַּעֲמוֹן מֵהַצַּוָּארוֹן.
-מִישִׁי לֹא זָז.
+מִשִׁי לֹא זָז.
 
 imageDirection: child reaching carefully, movement through dense softness
 
 --- Page 15 ---
-מִישִׁי לוֹקֵחַ אֶת הַפַּעֲמוֹן.
+מִשִׁי לוֹקֵחַ אֶת הַפַּעֲמוֹן.
 הוּא מַנִּיחַ אוֹתוֹ עַל הָרִצְפָּה.
 שְׁלוֹשׁ פְּעָמִים בּוֹדֵק שֶׁהוּא שָׁם.
 אָז שׁוֹתֵק.
@@ -147,7 +147,7 @@ imageDirection: child reaching carefully, movement through dense softness
 imageDirection: small bell touching the floor, everything else still
 
 --- Page 16 ---
-בְּלִי גְּרַגּוּר, מִישִׁי יוֹשֵׁב מוּל הַבַּעֲיָה.
+בְּלִי גְּרַגּוּר, מִשִׁי יוֹשֵׁב מוּל הַבַּעֲיָה.
 הַחֲפָצִים הָרַכִּים זוֹזִים קְצָת לְאָחוֹר.
 הַיֶּלֶד וּמִישִׁי מִסְתַּכְּלִים עַל הַצּוּרָה הַכֵּהָה.
 שְׁנֵיהֶם רוֹאִים אוֹתָהּ.
@@ -163,7 +163,7 @@ imageDirection: soft objects recede visually, two figures facing a single hard s
 imageDirection: solid object, no glow or transformation
 
 --- Page 18 ---
-מִישִׁי יוֹשֵׁב לְיָד הַיֶּלֶד.
+מִשִׁי יוֹשֵׁב לְיָד הַיֶּלֶד.
 הַשְּׁפָמִים נוֹגְעִים בַּלֶּחִי.
 הַפַּעֲמוֹן דּוֹמֵם עַל הָרִצְפָּה.
 אֵין גְּרַגּוּר.
@@ -172,7 +172,7 @@ imageDirection: stillness, no vibration lines
 
 --- Page 19 ---
 הַיֶּלֶד מַחְזִיק אֶת הַבַּעֲיָה לְבַד.
-מִישִׁי יוֹשֵׁב קְצָת רָחוֹק.
+מִשִׁי יוֹשֵׁב קְצָת רָחוֹק.
 הַחֲפָצִים הָרַכִּים נִדְחָקִים אֶל הַקִּירוֹת.
 יֵשׁ מֶרְחָב בֵּינֵיהֶם.
 

@@ -27,7 +27,7 @@ emotionalMistake: עמוד 5 — The child pushes Mishi away and tells him to st
 uncomfortableTruth: עמוד 9 — The small creature does not come closer even as everything turns soft, and the distance remains
 
 --- Page 1 ---
-מִישִׁי יושב על אדן החלון.
+מִשִׁי יושב על אדן החלון.
 השפמים שלו רגועים. העיניים חצי עצומות.
 הוא מגרגר בשקט, והכרית ליד הקיר הופכת רכה יותר.
 הפעמון על הצוואר מצלצל בעדינות.
@@ -43,7 +43,7 @@ imageDirection: a calm kitten curled with half-closed eyes, faint ripples turnin
 imageDirection: child at window with loose string, sky visible, sense of urgency
 
 --- Page 3 ---
-מִישִׁי מתחיל לגרגר מיד.
+מִשִׁי מתחיל לגרגר מיד.
 מסגרת החלון הופכת רכה תחת הכפות שלו.
 הפעמון מצלצל חזק יותר.
 "מ-מ-מיאוּ..." הוא אומר.
@@ -58,15 +58,15 @@ imageDirection: window edges becoming plush, bell starting to lightly ring
 imageDirection: small delicate creature floating away through slightly blurred, cushioned air
 
 --- Page 5 ---
-הילדה דוחפת את מִישִׁי הצידה.
+הילדה דוחפת את מִשִׁי הצידה.
 "תפסיק!" היא אומרת. "אתה מקלקל!"
-מִישִׁי נופל על הקרקע.
+מִשִׁי נופל על הקרקע.
 השפמים שלו נזקפים.
 
 imageDirection: child's hand moving Mishi away, softened ground squishing underfoot
 
 --- Page 6 ---
-מִישִׁי מגרגר אחרת, בקול שונה.
+מִשִׁי מגרגר אחרת, בקול שונה.
 הענפים בחוץ הופכים כריות.
 הם מתכופפים ולא מצליחים להחזיק.
 הפעמון מצלצל חד יותר.
@@ -81,7 +81,7 @@ imageDirection: branches drooping like cushions, bell ringing more sharply
 imageDirection: tiny creature slipping off a plush branch, drifting again
 
 --- Page 8 ---
-מִישִׁי לוחץ את השפמים אל אבן.
+מִשִׁי לוחץ את השפמים אל אבן.
 הוא מגרגר חזק יותר, אבל השפמים רועדים.
 הפעמון רוטט בצוואר.
 
@@ -102,13 +102,13 @@ imageDirection: wide space, small creature distant, soft landscape below failing
 imageDirection: child gripping unstable, plush-like branches, determined upward movement
 
 --- Page 11 ---
-מִישִׁי מניח את הפעמון על הקרקע.
+מִשִׁי מניח את הפעמון על הקרקע.
 הפעמון שוכב ליד אבן.
 
 imageDirection: small bell resting still on dirt, no motion
 
 --- Page 12 ---
-מִישִׁי לא מגרגר.
+מִשִׁי לא מגרגר.
 הענפים חוזרים להיות קשים.
 הילדה מחזיקה טוב יותר.
 
@@ -121,7 +121,7 @@ imageDirection: contrast between firm branches above and silent, still Mishi bel
 imageDirection: small creature flying away into distance, light and untouchable
 
 --- Page 14 ---
-הילדה יורדת ויושבת ליד מִישִׁי.
+הילדה יורדת ויושבת ליד מִשִׁי.
 שניהם שותקים.
 הם מסתכלים למעלה.
 
@@ -129,7 +129,7 @@ imageDirection: child and kitten side by side, space between them, shared gaze u
 
 --- Page 15 ---
 הפעמון נשאר על האבן.
-מִישִׁי עומד צעד אחד הלאה.
+מִשִׁי עומד צעד אחד הלאה.
 הילדה ליד.
 החצר שקטה.
 

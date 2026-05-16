@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "זוהר בין העלים"
+title: "זֹהַר בין העלים"
 companionId: butterfly_zohar
 direction: adventure
 category: SELF_CONFIDENCE
@@ -22,17 +22,17 @@ metaphor: light that leaks through closed wings
 stakes: the child remains lost in the dim forest as night deepens
 emotionalArc: hidden calm → searching strain → shared vulnerability → stuck stillness → partial opening
 quietPage: 11
-heartLine: עמוד 8 — זוֹהַר משׂפשׂפת את הכנפיים על עלה כדי למחוק את האוֹר, מקפלת אותן חזק יותר.
+heartLine: עמוד 8 — זֹהַר משׂפשׂפת את הכנפיים על עלה כדי למחוק את האוֹר, מקפלת אותן חזק יותר.
 emotionalMistake: עמוד 5 — הילד מסתובב ואומר שׁזוֹהַר לא עוזרת.
 uncomfortableTruth: עמוד 10 — היער כבר כמעט חשׁוך ואין שׁום אוֹר אחר.
 
 --- Page 1 ---
 
-זוֹהַר יושׁבת מתחת לעלה גדול. הצל רך כאן.
+זֹהַר יושׁבת מתחת לעלה גדול. הצל רך כאן.
 
-חולדה עוברת. "איזה עלה יפה," אומרת זוֹהַר.
+חולדה עוברת. "איזה עלה יפה," אומרת זֹהַר.
 
-חיפושׁית עוברת. "איזה צבע נהדר," אומרת זוֹהַר.
+חיפושׁית עוברת. "איזה צבע נהדר," אומרת זֹהַר.
 
 הכנפיים שׁלה מקופלות חזק, צמודות לגוף.
 
@@ -50,7 +50,7 @@ imageDirection: small child framed by dark foliage, faint light beams scattered
 
 --- Page 3 ---
 
-זוֹהַר זזה קצת קדימה. "סליחה," היא אומרת. "יש פה גחליליות."
+זֹהַר זזה קצת קדימה. "סליחה," היא אומרת. "יש פה גחליליות."
 
 היא מראה לצד. "יש פה גם טיפות טל שׁמאירות."
 
@@ -74,13 +74,13 @@ imageDirection: child reaching toward fading fireflies, confusion growing
 
 הוא מסתובב. "את לא מראה לי כלום."
 
-זוֹהַר מקפלת את הכנפיים עוד יותר פנימה.
+זֹהַר מקפלת את הכנפיים עוד יותר פנימה.
 
 imageDirection: child turned back, Zohar slightly recoiled with folded wings
 
 --- Page 6 ---
 
-זוֹהַר קופצת בין העלים. היא מראה על צמחים קטנים, על אבנים.
+זֹהַר קופצת בין העלים. היא מראה על צמחים קטנים, על אבנים.
 
 הילד הולך אחריה. הוא לא בטוח.
 
@@ -92,7 +92,7 @@ imageDirection: butterfly moving in small hesitant motions, child following unce
 
 היער כבר חשׁוך יותר. הילד עומד.
 
-הוא רואה אוֹר קטן ליד זוֹהַר.
+הוא רואה אוֹר קטן ליד זֹהַר.
 
 האוֹר יוצא מבין הכנפיים המקופלות.
 
@@ -100,7 +100,7 @@ imageDirection: dim scene with subtle warm light seeping from folded wings
 
 --- Page 8 ---
 
-זוֹהַר משפשפת קצת את הכנפיים על עלה. היא מקפלת אותן חזק, חזק.
+זֹהַר משפשפת קצת את הכנפיים על עלה. היא מקפלת אותן חזק, חזק.
 
 האוֹר כמעט נעלם.
 
@@ -112,7 +112,7 @@ imageDirection: close-up of wings against leaf surface, faint dust smudging away
 
 האוֹר עדיין שׁם. חלש, אבל שׁם.
 
-זוֹהַר יושׁבת בצד.
+זֹהַר יושׁבת בצד.
 
 imageDirection: child observing gently, tiny specks of light visible in the dark
 
@@ -128,7 +128,7 @@ imageDirection: almost complete darkness, silhouettes barely visible
 
 --- Page 11 ---
 
-זוֹהַר יושׁבת ליד הילד.
+זֹהַר יושׁבת ליד הילד.
 
 הכנפיים מקופלות.
 
@@ -136,11 +136,11 @@ imageDirection: two small figures side by side, no movement, dim outline
 
 --- Page 12 ---
 
-הילד מעביר יד על היד, לאט. כמו זוֹהַר עם המחושים.
+הילד מעביר יד על היד, לאט. כמו זֹהַר עם המחושים.
 
 הוא מסתכל על הכנפיים. מחכה.
 
-זוֹהַר פותחת אותן קצת. רק קצת.
+זֹהַר פותחת אותן קצת. רק קצת.
 
 imageDirection: child's hand mimicking slow motion, Zohar beginning to open wings slightly with trembling light
 
@@ -156,7 +156,7 @@ imageDirection: gentle warm light illuminating ground and guiding direction
 
 הילד הולך על השׁביל.
 
-זוֹהַר נשׁארת מאחור. הכנפיים עדיין רק חצי פתוחות.
+זֹהַר נשׁארת מאחור. הכנפיים עדיין רק חצי פתוחות.
 
 imageDirection: child moving into lighter space, butterfly staying in shadow edge
 
@@ -164,7 +164,7 @@ imageDirection: child moving into lighter space, butterfly staying in shadow edg
 
 הילד יוצא מהיער. השׁמשׁ זורחת.
 
-על עלה, ליד זוֹהַר, נשׁאר אבק זוהר קטן.
+על עלה, ליד זֹהַר, נשׁאר אבק זֹהַר קטן.
 
 היא יושׁבת שׁם, בין העלים.
 

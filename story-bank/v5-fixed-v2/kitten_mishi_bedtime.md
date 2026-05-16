@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "מִישִׁי וְהַפַּעֲמוֹן הַשָּׁקֵט"
+title: "מִשִׁי וְהַפַּעֲמוֹן הַשָּׁקֵט"
 companionId: kitten_mishi
 direction: bedtime
 category: SENSITIVITY_OVERWHELM
@@ -22,12 +22,12 @@ metaphor: purring turns hard things into soft objects that hide the real feeling
 stakes: the child's problem stays unheard and grows heavier, and Mishi loses his voice from endless purring
 emotionalArc: soft-help → not-working → harder-trying → collapse into silence → shared stillness
 quietPage: 7
-heartLine: עמוד 5 — מִישִׁי לוֹחֵץ בְּכַפּוֹת הַיָּדַיִם עַל הַשְּׂפָמִים שֶׁלּוֹ וּמְנַסֶּה לְפַרְכֵּם חָזָק יוֹתֵר.
-emotionalMistake: עמוד 3 — הַיֶּלֶד דּוֹחֵף אֶת מִישִׁי הַצִּדָּה.
+heartLine: עמוד 5 — מִשִׁי לוֹחֵץ בְּכַפּוֹת הַיָּדַיִם עַל הַשְּׂפָמִים שֶׁלּוֹ וּמְנַסֶּה לְפַרְכֵּם חָזָק יוֹתֵר.
+emotionalMistake: עמוד 3 — הַיֶּלֶד דּוֹחֵף אֶת מִשִׁי הַצִּדָּה.
 uncomfortableTruth: עמוד 6 — הַפַּרְכּוּם הַכִּי חָזָק לֹא עוֹזֵר. הַדָּבָר הַכָּבֵד נִשְׁאָר כָּבֵד.
 
 --- Page 1 ---
-מִישִׁי יוֹשֵׁב לְיַד הַחַלּוֹן. הוּא מְגַרְגֵּר בְּשֶׁקֶט.
+מִשִׁי יוֹשֵׁב לְיַד הַחַלּוֹן. הוּא מְגַרְגֵּר בְּשֶׁקֶט.
 הַגַּרְגּוּר הוֹפֵךְ אֶת הָאוֹר לִכְרִיּוֹת רַכּוֹת.
 הַכְּרִיּוֹת מִתְנַדְנְדוֹת בָּאֲוִיר.
 
@@ -35,27 +35,27 @@ imageDirection: cozy evening light, kitten curled with faint glowing ripples tur
 
 --- Page 2 ---
 הַיֶּלֶד נִכְנָס. הוּא אוֹחֵז מַשֶּׁהוּ קָשֶׁה בַּיָּדַיִם.
-הוּא יוֹשֵׁב לְיַד מִישִׁי עַל הָרִצְפָּה.
+הוּא יוֹשֵׁב לְיַד מִשִׁי עַל הָרִצְפָּה.
 הַכָּתֵפַיִם שֶׁלּוֹ שְׁמוּטוֹת קְצָת.
 
 imageDirection: child clutching a toy or drawing, shoulders tense, Mishi looking calm
 
 --- Page 3 ---
-מִישִׁי מַתְחִיל לְגַרְגֵּר. הַפַּעֲמוֹן מִתְנַדְנֵד.
+מִשִׁי מַתְחִיל לְגַרְגֵּר. הַפַּעֲמוֹן מִתְנַדְנֵד.
 הַיֶּלֶד דּוֹחֵף אוֹתוֹ בְּעֲדִינוּת לַצַּד.
 "תַּפְסִיק."
 
 imageDirection: child's hand gently but firmly moving Mishi, bell starting to shake
 
 --- Page 4 ---
-מִישִׁי מְנַסֶּה לְגַרְגֵּר אַחֵר. מְהִיר יוֹתֵר. אִטִּי יוֹתֵר.
+מִשִׁי מְנַסֶּה לְגַרְגֵּר אַחֵר. מְהִיר יוֹתֵר. אִטִּי יוֹתֵר.
 הַחֶדֶר מִתְמַלֵּא בִּכְרִיּוֹת חֲדָשׁוֹת וְחֲדָשׁוֹת.
 הַפַּעֲמוֹן מְצַלְצֵל חָזָק יוֹתֵר. הַשְּׂפָמִים מִתְרֹמְמִים.
 
 imageDirection: pillowy shapes piling up, bell ringing faster, whiskers lifting
 
 --- Page 5 ---
-מִישִׁי לוֹחֵץ בְּכַפּוֹתָיו עַל הַשְּׂפָמִים.
+מִשִׁי לוֹחֵץ בְּכַפּוֹתָיו עַל הַשְּׂפָמִים.
 הוּא מְנַסֶּה לְגַרְגֵּר עוֹד יוֹתֵר חָזָק.
 הַגּוּף שֶׁלּוֹ רוֹעֵד.
 
@@ -69,26 +69,26 @@ imageDirection: Mishi pressing his whiskers down with paws, body trembling, obje
 imageDirection: soft objects everywhere but the child still holding the same heavy item, looking tired
 
 --- Page 7 ---
-מִישִׁי מוֹרִיד אֶת הַפַּעֲמוֹן מֵהַצַּוָּארוֹן.
+מִשִׁי מוֹרִיד אֶת הַפַּעֲמוֹן מֵהַצַּוָּארוֹן.
 שָׂם אוֹתוֹ עַל הָרִצְפָּה.
 
 imageDirection: close-up of bell touching the ground, everything else still
 
 --- Page 8 ---
 שֶׁקֶט.
-הַיֶּלֶד מִתְקָרֵב. נִשְׁעָן עַל מִישִׁי.
+הַיֶּלֶד מִתְקָרֵב. נִשְׁעָן עַל מִשִׁי.
 
 imageDirection: soft dim light, child and kitten touching, no vibrating objects
 
 --- Page 9 ---
-מִישִׁי לֹא זָז.
+מִשִׁי לֹא זָז.
 הַיֶּלֶד אוֹחֵז בַּדָּבָר הַכָּבֵד. הַשְּׂפָמִים רוֹגְעִים.
 הַפַּעֲמוֹן שׁוֹקֵט.
 
 imageDirection: whiskers relaxed, bell quiet, child calmer but serious
 
 --- Page 10 ---
-מִישִׁי וְהַיֶּלֶד מִתְכַּרְבְּלִים בַּמִּטָּה.
+מִשִׁי וְהַיֶּלֶד מִתְכַּרְבְּלִים בַּמִּטָּה.
 הַגּוּפוֹת נוֹגְעוֹת. הַלַּיְלָה חַם.
 
 imageDirection: child and Mishi nestled under blanket, bodies touching, warm peaceful night
