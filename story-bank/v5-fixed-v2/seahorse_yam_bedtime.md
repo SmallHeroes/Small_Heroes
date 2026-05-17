@@ -23,7 +23,7 @@ stakes: the child stays tight and scared even after the hard moment ends, unable
 emotionalArc: calm → rising fear → clinging → stuck after danger → soft release
 quietPage: 7
 heartLine: עמוד 5 — גְּלִי מהדק את הזנב סביב האבן החדה. הגוף שלו קופא, הפסים נעלמים.
-emotionalMistake: עמוד 3 — הילד דוחף את גְּלִי. "עזוב אותי!"
+emotionalMistake: עמוד 3 — הילד מתרחק מגְּלִי בבהלה: "אני לא רוצה!"
 uncomfortableTruth: עמוד 6 — הזרם כבר נגמר. אבל גְּלִי עדיין לא זז.
 
 --- Page 1 ---
@@ -44,7 +44,7 @@ imageDirection: child hovering uncertainly, darker blue water beyond suggesting 
 --- Page 3 ---
 המים מתחילים למשוך.
 גְּלִי מלפף את הזנב סביב אבן. הוא מושיט את קצה הזנב אל הילד.
-"עזוב אותי!" הילד דוחף.
+"אני לא רוצה!" הילד מתרחק.
 
 imageDirection: current lines starting, Yam reaching to anchor both of them, child turning away
 

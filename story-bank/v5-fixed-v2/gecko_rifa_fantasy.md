@@ -23,7 +23,7 @@ stakes: If the child does not act, Rifa will keep shedding until she has almost 
 emotionalArc: curiosity → discomfort → rupture → staying → quiet distance
 quietPage: 15
 heartLine: עמוד 10 — Rifa gently curls her body around the shed tail without touching it, then pulls away
-emotionalMistake: עמוד 6 — The child grabs the shed tail and holds it out, telling Rifa to take it back
+emotionalMistake: עמוד 6 — The child offers the shed tail to Rifa, but she does not want it back
 uncomfortableTruth: עמוד 12 — Rifa tries to shed again but remains in place, realizing leaving parts does not remove what she feels
 
 --- Page 1 ---
@@ -84,7 +84,7 @@ imageDirection: birds with changing feathers, sky flickering subtly
 --- Page 6 ---
 אני מושיט לה את הזנב.
 
-"קחי אותו בחזרה!" אני אומר.
+"זה שלך," אני אומר.
 
 גֵּקִי נסוגה. הגוף שלה מתקפל פנימה.
 

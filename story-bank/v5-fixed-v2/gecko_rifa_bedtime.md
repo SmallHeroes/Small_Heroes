@@ -23,7 +23,7 @@ stakes: if she keeps shedding and running, she loses more of herself and still h
 emotionalArc: flight → pressure → failed escape → vulnerable pause → staying-with
 quietPage: 7
 heartLine: עמוד 6 — Rifa silently taps the tail-stump three times and looks back at the dropped tail without moving toward it.
-emotionalMistake: עמוד 3 — The child dismisses her fear and tells her to just be still and not make a fuss.
+emotionalMistake: עמוד 3 — The child tries to reassure with empathy and shared fear, but cannot make the fear go away for her.
 uncomfortableTruth: עמוד 4 — Even after shedding again, the procedure cannot be escaped and she still has to be there.
 
 --- Page 1 ---
@@ -47,11 +47,11 @@ imageDirection: small gecko mid-run, detached tail twitching behind, bright ster
 imageDirection: child holding tiny tail carefully, nurse in background with tray, Rifa half-hidden
 
 --- Page 3 ---
-"תישארי פה," אומר הילד. "אל תזוזי."
+"גֵּקִי, אני יודע שזה מפחיד," אומר הילד.
 
 גֵּקִי מצמידה את הגוף לרצפה. הגוף שלה רוצה לברוח.
 
-"זה לא כואב הרבה. רק תישארי."
+"אני אהיה איתך. גם אני קצת מפחד."
 
 הזנב של גֵּקִי רועד.
 

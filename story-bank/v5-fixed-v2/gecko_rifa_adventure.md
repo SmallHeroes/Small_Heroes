@@ -23,7 +23,7 @@ stakes: Rifa will keep losing pieces of herself and end up small and alone if sh
 emotionalArc: escape → pressure → crack → stay → tender residue
 quietPage: 11
 heartLine: עמוד 8 — Rifa gently curls her body around her freshly shed tail without picking it up.
-emotionalMistake: עמוד 5 — The child grabs Rifa to stop her from running as her tail starts to release.
+emotionalMistake: עמוד 5 — The child reaches quickly toward Rifa, almost touching, as her tail starts to release.
 uncomfortableTruth: עמוד 9 — Rifa tries to shed again but realizes even without her tail she still has to face what scares her.
 
 --- Page 1 ---
@@ -60,7 +60,7 @@ imageDirection: open door with soft medical silhouettes inside, Rifa tense
 
 --- Page 5 ---
 גֵּקִי מתכווצת.
-הילד תופס אותה במהירות כדי שלא תברח.
+הילד מושיט יד מהר. הוא לא נוגע, רק קרוב.
 הגוף של גֵּקִי נהיה קשיח.
 המקום של הזנב מתחיל להשתחרר שוב.
 
