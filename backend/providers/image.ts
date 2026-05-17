@@ -543,6 +543,12 @@ async function translateSceneForImage(input: {
     companionAllowed
       ? '- If you describe the companion creature, keep its anatomy/colors LOCKED as in the cues — same design as other pages.'
       : '- Do NOT depict or invent a companion creature unless the Hebrew text mentions them.',
+    companionAllowed
+      ? '- DISAMBIGUATION: when the companion is a non-human creature, qualify body-part nouns with the species (e.g. "starfish arm", "bat wing", "fox paw", "owl talon"). NEVER use bare "her arm / his hand / her leg" for the companion — the image model will spawn a second child to satisfy the ambiguous human-sounding limb. Repeat the species term often instead of relying on pronouns.'
+      : '',
+    companionAllowed
+      ? '- The companion has NO human anatomy. Do NOT describe the companion as having "fingers", "palms", "hands", "shoulders", or any other distinctly human body part — use the species\'s real anatomy only.'
+      : '',
     '- Do NOT include style instructions or "no text" suffixes',
     '- Output ONLY the scene description text, nothing else',
     '- 80-120 words',
