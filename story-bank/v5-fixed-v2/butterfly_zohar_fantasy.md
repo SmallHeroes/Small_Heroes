@@ -52,7 +52,7 @@ imageDirection: child turning in circles, paths fading into darkness
 imageDirection: tiny lights flickering, Zohar hovering low and dim
 
 --- Page 6 ---
-הילד מסתובב אליה. "זֶה לֹא עוֹזֵר," הוא אומר. הקול שלו קצת חזק. "תַּפְסִיקִי לְהַרְאוֹת לִי דְּבָרִים אֲחֵרִים, רַק תַּעֲזְרִי לִי." זֹהַר מתכווצת מעט. הכנפיים נלחצות עוד יותר. הילד מפנה את הראש למסלול אחר.
+הילד מסתובב אליה. "אֲנִי עֲדַיִן לֹא רוֹאֶה," הוא אומר. הקול שלו קצת חזק. "אֲנִי לֹא יוֹדֵעַ לְאָן לָלֶכֶת." זֹהַר מתכווצת מעט. הכנפיים נלחצות עוד יותר. הילד מפנה את הראש למסלול אחר.
 
 imageDirection: child turning away, Zohar shrinking back slightly
 

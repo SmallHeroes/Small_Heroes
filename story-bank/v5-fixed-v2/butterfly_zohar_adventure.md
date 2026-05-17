@@ -70,9 +70,9 @@ imageDirection: child reaching toward fading fireflies, confusion growing
 
 --- Page 5 ---
 
-"זה לא עוזר," אומר הילד.
+"אני עדיין לא רואה," אומר הילד.
 
-הוא מסתובב. "את לא מראה לי כלום."
+הוא מסתובב. "אני מתבלבל."
 
 זֹהַר מקפלת את הכנפיים עוד יותר פנימה.
 

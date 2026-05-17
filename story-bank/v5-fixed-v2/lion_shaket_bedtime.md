@@ -55,7 +55,7 @@ imageDirection: child leaning in, curious, Shaket mid-pose with lifted chin
 
 לֵיוֹ עדיין בתנוחה. הפה פתוח, אין קול.
 
-הילד מסתובב. "זה לא עוזר."
+הילד מסתובב. "אני לא רואה איך זה עוזר."
 
 imageDirection: toy half-sunk, child frowning, Shaket frozen mid-pose
 

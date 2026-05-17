@@ -44,7 +44,7 @@ imageDirection: soft greens and shadows; Zohar small with folded wings, child en
 imageDirection: tiny sparkles around but none bright enough; Zohar slightly turned away
 
 --- Page 3 ---
-"זה לא עוזר!" אומר הילד.
+"אני עדיין לא רואה," אומר הילד.
 הוא מסתובב והולך.
 זֹהַר מקפלת את הכנפיים יותר חזק. הראש שלה יורד.
 

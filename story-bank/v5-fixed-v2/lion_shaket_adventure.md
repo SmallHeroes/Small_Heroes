@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "הקול הקטן של לֵיוֹ"
+title: "הַמִּלָּה שֶׁשּׁוֹקַעַת"
 companionId: lion_shaket
 direction: adventure
 category: COURAGE_BRAVERY
