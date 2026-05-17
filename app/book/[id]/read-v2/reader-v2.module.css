@@ -869,4 +869,26 @@
   color: #3d2817;
   white-space: pre-wrap;
   word-wrap: break-word;
-  
+  overflow-wrap: anywhere;
+}
+
+.dedicationOrnament {
+  font-size: 18px;
+  color: rgba(61, 40, 23, 0.4);
+  letter-spacing: 0.6em;
+}
+
+@media (min-width: 1024px) {
+  .pageCanvas.tplDedication {
+    --page-width: min(38vw, 52vh, 480px);
+    --page-height: calc(var(--page-width) * 1.5);
+    width: var(--page-width) !important;
+    max-width: none !important;
+    min-height: auto !important;
+    height: var(--page-height) !important;
+    margin: 0 auto;
+    border-radius: 3px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.32);
+    padding: 0;
+  }
+}
