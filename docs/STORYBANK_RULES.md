@@ -112,6 +112,105 @@ emotionally present. Examples of how to teach without lecturing:
 
 ---
 
+## EDITORIAL PRINCIPLES — added 2026-05-17
+
+These principles emerged from a systemic editorial pass across 27 stories
+(NIGHT_FEAR, NOISE_FEAR, TRANSITION) and codify what was previously implicit.
+
+### A. Behavior modeling: what the child does on the page becomes a model
+
+Picture books transmit behavior. A 4-7-year-old who reads the protagonist
+roll their eyes at the helper, or shout "תפסיק!" at them, learns that this
+is what frustrated children do. The emotional beat we need (overwhelm,
+anger, confusion) can ALWAYS be expressed as INTERNAL EXPERIENCE rather
+than DISRESPECTFUL ACTION toward the companion.
+
+**Forbidden behaviors when the child is frustrated/overwhelmed:**
+
+- ❌ `מגלגל/ת עיניים` (eye-rolling) → ✅ `מסתכל/ת הצידה. שותק/ת`
+- ❌ `מחקה את הידיים/הקול/התנועות` (mocking-mimicry) → ✅ `אני לא מקשיב יותר`
+- ❌ `"תפסיק!"` shouted at the helper → ✅ `"אני לא יכול יותר"` (self-statement)
+- ❌ `"תזוּזי!"` / `"לך!"` (commanding helper to move/leave) → ✅ `בבקשה, זוזי...`
+                                                              or `מסתובב/ת הצידה`
+- ❌ `מרים את הכתפיים` (dismissive shrug) → ✅ `מסתכל/ת הצידה`
+- ❌ `מנופף/ת הצידה / דוחף/ת הצידה` (waving/pushing helper aside)
+  → ✅ `מצמיד/ה ידיים לחזה`
+- ❌ `שׂם/ה יד על הפה של [companion]` (physical silencing)
+  → ✅ `מסתובב/ת הצידה ומתכווץ/ת`
+- ❌ `זורק/ת אות[הו] הצידה` (throwing helper's possession)
+  → ✅ `מַזִּיז/ה אות[הו] הצידה`
+- ❌ `לוקח/ת [item] מהיד של [companion]` (grabbing helper's object)
+  → ✅ `נוגע/ת ב[item]` or `שׁוֹלֵחַ/ת יד אל [item]`
+
+**Allowed:** the child covering their OWN ears (self-protection), turning
+away in silence, getting impatient and moving ahead alone, expressing
+confusion ("אני לא מבין/ה", "אני מתבלבל/ת").
+
+**The principle:** the EMOTIONAL beat stays the same; only the SURFACE
+ACTION changes. Frustrated child still frustrated — they just don't model
+contempt toward the helper.
+
+### B. Title rules
+
+Every story has a `title` in YAML frontmatter. Rules:
+
+1. **Each of a companion's 3 books needs a UNIQUE title.** A child collecting
+   the series should be able to tell at a glance which is which.
+   - ❌ `bedtime` and `adventure` both titled `"הצבע שנשאר"` → forbidden
+2. **Titles should be EVOCATIVE, not ABSTRACT.**
+   - ❌ `"סוּגֵי הַצְּלָלִים"` (Types of Shadows) — sounds like a textbook
+   - ✅ `"הַצֵּל שֶׁלֹּא הִתְאִים"` (The Shadow That Did Not Fit) — story-like
+3. **Hebrew titles preferred over English-translated structures.**
+   Use natural Hebrew syntax, not "X of Y" calques unless they sound natural.
+4. **Avoid the same first word repeated across the 3 books.**
+
+### C. Canonical companion names
+
+The companion's first name MUST appear in the body of the story at least
+3 times. The canonical name comes from `lib/companions.ts` —
+`getCompanionById(companionId).name`, taking the last word as the first name
+(e.g., `'הקיפוד רַכִּי'` → `רַכִּי`).
+
+Common audit failures:
+- Story uses `הקיפוד` (the hedgehog) throughout but never `רַכִּי` → companion
+  feels generic, fails the Director Layer's companion-presence check.
+- Spelling variants: `רחי` vs `רכי`, `מישי` vs `משי`, `זוהר` vs `זהר` — pick
+  the canonical form and stay with it.
+- One book of the series uses a DIFFERENT name (e.g. bedtime says `טִיטִי` but
+  adventure says `חֲרוּצָה`) → CRITICAL: breaks identity continuity.
+
+### D. emotionalMistake design
+
+Every v5 story has an `emotionalMistake` beat — the page where the child
+inadvertently makes things worse. Good design vs bad:
+
+**Good (story-functional internal struggle):**
+- Child overwhelmed and walks ahead alone before the helper is ready.
+- Child tries to help by adding more (and the situation worsens).
+- Child chooses the wrong helper (a beetle when an ant was needed).
+- Child gets distracted, breaks attention from the moment.
+
+**Bad (models disrespect):**
+- Child rolls eyes at the helper.
+- Child shouts at the helper to stop.
+- Child physically silences/restrains the helper.
+- Child mocks the helper's gestures.
+- Child throws the helper's possessions.
+
+The `emotionalMistake` should make the reader feel "I've done that, it's
+hard" — not "this is how to treat someone who frustrates you".
+
+### E. UTF-8 hygiene
+
+Files must contain ZERO U+FFFD replacement characters (`�`). If a story is
+edited with a tool that breaks Hebrew encoding, the corruption shows as `�`
+inside words (e.g., `יוש��` instead of `יושב`). Re-encode and verify with:
+```
+grep -l '�' story-bank/v5-fixed-v2/*.md   # must return nothing
+```
+
+---
+
 ## Frontmatter requirements
 
 Every story file must have at the top:
@@ -143,9 +242,10 @@ companionLetter:                # optional but recommended
 
 ## Workflow when adding/replacing a story
 
-1. Read this file again.
+1. Read this file again (especially the EDITORIAL PRINCIPLES section).
 2. Write the story respecting **every** rule above.
-3. Verify with `grep -E '(אחוז|מחקרים|תאי דם|תהליך ביולוגי|בדיוק [0-9]+ דקות|זה נקרא [^"]+\")' new_file.md` — must return zero matches.
+3. Run `node scripts/audit-stories-content.mjs` (deterministic pattern audit
+   — checks names, titles, behavior modeling, UTF-8 hygiene).
 4. Verify `{{childName}}` appears at least twice.
 5. Save to `story-bank/v5-fixed-v2/<companionId>_<direction>.md`.
 6. Test by generating a book through the wizard with that companion.
@@ -161,3 +261,10 @@ companionLetter:                # optional but recommended
   Lesson: even when the *meta-narrative* intends clinical language as the
   failed-coping the story teaches against, the reader experiences it as the
   voice of the book. Don't write it.
+
+- **2026-05-17** — Editorial pass across 27 stories (NIGHT_FEAR, NOISE_FEAR,
+  TRANSITION) found systemic modeling of disrespect: child rolling eyes,
+  shouting "תפסיק!", covering helper's mouth, throwing helper's possessions,
+  commanding helper to stop being themselves. Also 16 files with broken
+  canonical-name consistency (the bedtime+adventure used different names
+  for the same companion). Codified as EDITORIAL PRINCIPLES section above.
