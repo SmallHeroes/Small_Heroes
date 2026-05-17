@@ -282,9 +282,16 @@ export async function POST(req: NextRequest) {
       console.log('[StoryBank] Skipping cover generation (skipCover=true)');
     }
 
+    // Map per-page composition (pageIntent, cameraDistance, etc.) from the story
+    // file. This enables the narrative-beat-aware Storyboard to pick correct shots
+    // (wide for action_page, close_up for emotional_closeup, etc.).
+    const compositionByPage = new Map(
+      (story.pageCompositionPlan ?? []).map((c) => [c.pageNumber, c])
+    );
     const imageOutcome = await generateAllPageImages(
       story.pages.map((p) => {
         const template = templateByPageNumber.get(p.pageNumber) ?? 'art_top_text_bottom';
+        const comp = compositionByPage.get(p.pageNumber);
         return {
           pageNumber: p.pageNumber,
           imagePrompt: p.imagePrompt,
@@ -293,10 +300,20 @@ export async function POST(req: NextRequest) {
           bookPageText: p.text,
           pageTemplate: template,
           imageSubject: p.imageSubject,
-          pageIntent: undefined,
-          composition: undefined,
-          compositionRules: compositionRulesForTemplate(template),
-          environmentContinuity: dna.worldDNA,
+          pageIntent: comp?.pageIntent,
+          composition: comp
+            ? {
+                cameraDistance: comp.cameraDistance,
+                cameraAngle: comp.cameraAngle,
+                compositionType: comp.compositionType,
+                heroPlacement: comp.heroPlacement,
+                entityPlacement: comp.entityPlacement,
+                topTextAreaPlan: comp.topTextAreaPlan,
+                mainIllustrationZone: comp.mainIllustrationZone,
+              }
+            : undefined,
+          compositionRules: compositionRulesForTemplate(template, comp),
+          environmentContinuity: comp?.consistencyNotes ?? dna.worldDNA,
         };
       }),
       {
