@@ -1992,14 +1992,17 @@ function buildGPTImagePrompt(input: ImageInput): string {
     : '';
 
   // ── STYLE — pull from style contract for differentiated rendering ──
+  // Single source of truth: renderingDescription. styleNudge is intentionally NOT
+  // appended here — it duplicates the same idea and caused the "two Premium blocks"
+  // bug where the model interpreted "characters" plural as a directive to render
+  // multiple children. Keep ONE concise paragraph.
   const styleContract = input.illustrationStyle
     ? getStyleContract(input.illustrationStyle)
     : null;
-  const styleNudge = styleContract?.imageNudge?.lines?.[0] ?? '';
   const styleRendering = styleContract?.renderingDescription ?? '';
   const styleBlock = isPreview
     ? `MEDIUM LOCK:\n${styleRendering || "Modern children's picture book illustration with vivid saturated full colors and rich edge-to-edge detail"}. No text or letters.`
-    : `MEDIUM LOCK:\n${styleRendering || "Modern children's picture book illustration with vivid saturated full colors and rich edge-to-edge detail"}. ${styleNudge} No text, no letters, no UI.`;
+    : `MEDIUM LOCK:\n${styleRendering || "Modern children's picture book illustration with vivid saturated full colors and rich edge-to-edge detail"}. No text, no letters, no UI.`;
 
   // ── PREVIEW PATH (direction cards) ──
   if (isPreview) {
@@ -2036,28 +2039,40 @@ function buildGPTImagePrompt(input: ImageInput): string {
     compParts.push(`Page ${input.pageNumber} of ${input.totalPages} — visually distinct from other pages.`);
   }
 
-  // Text zone — always enforce top fade for story-bank pages
+  // Text zone — keep the anti-cream-flood guardrail here.
+  // The actual percentage (33%) is owned by layoutDirective below — do NOT duplicate
+  // a conflicting number here. Earlier this block said "25%" while layoutDirective
+  // said "33%" — the model averaged them and produced inconsistent text bands.
   if (input.textZone) {
     const tzMap: Record<string, string> = {
-      top_clear: 'CRITICAL COMPOSITION: The top 25% of the image must be a softer, low-detail area (open sky, calm ceiling, atmospheric haze) — STILL in real saturated colors, NOT cream or sepia. No faces, hands, or important objects in this zone. Dark Hebrew text will overlay here on mobile and must remain legible.',
-      bottom_clear: 'CRITICAL COMPOSITION: The bottom 25% of the image must be a softer, low-detail area (floor, bedding, ground, soft foreground) — STILL in real saturated colors, NOT cream or sepia. No faces, hands, or important objects in this zone. Dark Hebrew text will overlay here on mobile and must remain legible.',
-      left_clear: 'Left 25% open for text — still in real color, low detail.',
-      right_clear: 'Right 25% open for text — still in real color, low detail.',
-      center_clear: 'Center area open for text — still in real color, low detail.',
+      top_clear: 'In the upper text-overlay band: keep environment soft and low-detail (open sky, calm ceiling, atmospheric haze) — STILL in real saturated colors, NOT cream or sepia. No faces, hands, or important objects in this band.',
+      bottom_clear: 'In the lower text-overlay band: keep environment soft and low-detail (floor, bedding, ground, soft foreground) — STILL in real saturated colors, NOT cream or sepia. No faces, hands, or important objects in this band.',
+      left_clear: 'In the left text-overlay band: real saturated colors, low detail, no faces or hands.',
+      right_clear: 'In the right text-overlay band: real saturated colors, low detail, no faces or hands.',
+      center_clear: 'In the center text-overlay band: real saturated colors, low detail, no faces or hands.',
     };
     const tzHint = tzMap[input.textZone];
     if (tzHint) compParts.push(tzHint);
   } else {
-    // Default: always request top fade even without explicit textZone
-    compParts.push('The top 25-30% of the image should fade to a lighter, calmer area for text overlay. Keep important details in the lower 70%.');
+    // Default: top band hint without a hard percentage (layoutDirective owns the %)
+    compParts.push('Keep the upper text-overlay band soft and lighter — real saturated colors, no key details there.');
   }
 
   const compositionBlock = compParts.join(' ');
 
   // ── FIDELITY RULES (Scene Extractor enforcement) ──
+  // The "ONE child only" rule is critical: when CHARACTER IDENTITY + SCENE BLOCKING
+  // both reference the protagonist by name, gpt-image-1 sometimes spawns the child
+  // twice. The species rule kills "her arm" anthropomorphism on non-human companions.
+  const companionSpeciesForRule =
+    (input.companionStructured?.species || input.companion?.name || '').trim();
   const sceneRules = [
     'RULES:',
     '- Illustrate EXACTLY what is described. Nothing more, nothing less.',
+    '- Exactly ONE child in the frame. Do NOT duplicate the protagonist anywhere in the image, including the foreground, background, or edges.',
+    companionSpeciesForRule
+      ? `- The companion is a ${companionSpeciesForRule} — draw it as that real species. NEVER add human arms, hands, fingers, or a human face to the companion. Any body parts mentioned (e.g. "arm", "leg") refer to the species' own anatomy, not to a human.`
+      : '',
     mustIncludeBlock ? `- ${mustIncludeBlock}` : '',
     mustNotIncludeBlock ? `- ${mustNotIncludeBlock}` : '',
     '- Expression MUST match scene emotion — do NOT default to smiling.',
