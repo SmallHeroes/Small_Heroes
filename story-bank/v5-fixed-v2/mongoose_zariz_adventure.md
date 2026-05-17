@@ -23,7 +23,7 @@ stakes: If the child doesn't help, Zariz will freeze under the weight and fail t
 emotionalArc: over-alert control → overwhelm grows → crack of vulnerability → choosing one direction → quiet, imperfect release
 quietPage: 11
 heartLine: עמוד 8 — Zariz tightens his cap straps with shaking hands, wincing, forcing himself to keep scanning.
-emotionalMistake: עמוד 5 — The child grabs Zariz's head and tries to physically point it in one direction, dismissing his need to scan.
+emotionalMistake: עמוד 5 — The child body-blocks Zariz's view and insists he look at one place — invasive without being physically forceful.
 uncomfortableTruth: עמוד 9 — Even as Zariz tries to focus, small movements continue elsewhere, and something always goes unseen.
 
 --- Page 1 ---
@@ -85,13 +85,13 @@ imageDirection: Child pointing one way, Zariz's head turned elsewhere, multiple 
 imageDirection: Tiny glowing bird half-hidden while Zariz watches shadows and leaves in other directions.
 
 --- Page 5 ---
-הילד שׂם ידיים על הראשׁ של זוּמִי.
+הילד עומד מולו וחוסם את שדה הראייה.
 
-הוא מסובב את הראשׁ לכיוון הציפור.
+הוא מצביע אל הציפור עם הגוף כולו.
 
-"כאן! תראה כאן!"
+"כאן! תראה איתי כאן!"
 
-זוּמִי מנסה לזוז. הידיים מחזיקות.
+זוּמִי מנסה לראות סביבו. הילד נשאר מולו.
 
 המראות על הכובע מתנועעות לכל הכיוונים.
 

@@ -23,7 +23,7 @@ stakes: If the child follows the growing imagined scenarios, they may avoid acti
 emotionalArc: curiosity → overwhelm → escalation → noticing → quiet distance
 quietPage: 15
 heartLine: עמוד 10 — Ometz quietly tightens his courage medal strap and sits smaller, still narrating to himself
-emotionalMistake: עמוד 6 — The child tells Ometz to stop talking and covers his mouth dismissively
+emotionalMistake: עמוד 6 — The child covers their own ears and turns away, no longer able to follow Ometz's spiraling scenarios
 uncomfortableTruth: עמוד 13 — The child realizes Ometz cannot stop his stories even when they make things worse
 
 --- Page 1 ---
@@ -82,9 +82,9 @@ imageDirection: Small harmless spark floating, child surprised
 imageDirection: Mini versions of imagined events appearing faintly around them
 
 --- Page 6 ---
-"בּוּנִי, די!"
+"בּוּנִי, אני לא יכול לעקוב!"
 
-אני שׂם יד על הפּה שׁלו. הוּא מפסיק באמצע מילה.
+אני מסתובב הצידה ושׂם ידיים על האוזניים שלי. הוא מפסיק באמצע מילה.
 
 האוזניים שׁלו שׁטוּחוֹת לאחוֹר.
 

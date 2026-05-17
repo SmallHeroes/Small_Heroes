@@ -72,11 +72,11 @@ imageDirection: multiple faint shadows forming behind her
 imageDirection: motion blur of glowing paths connecting objects
 
 --- Page 6 ---
-"עצור!" אני אומר.
+"רגע!" אני אומר.
 
-אני מניף את היד באוויר. האוֹר מציק לי. החדר מרגיש כאילו הוא זז.
+אני מסתיר את העיניים. האוֹר מציק לי. החדר מרגיש כאילו הוא זז.
 
-אני מסתובב הצידה. לא רוצה שהיא תמשיך.
+אני מסתובב הצידה. אני לא יכול יותר.
 
 imageDirection: child averting eyes while light flickers nearby
 

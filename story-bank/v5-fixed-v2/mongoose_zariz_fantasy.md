@@ -23,7 +23,7 @@ stakes: Zariz becomes so heavy from looking in all directions that he freezes an
 emotionalArc: constant scanning → growing strain → overload → choosing one direction → partial separation with lingering rule
 quietPage: 15
 heartLine: עמוד 11 — זוּמִי מתחיל להוריד את הכובע. הידיים שלו רועדות.
-emotionalMistake: עמוד 6 — הילד אוחז בראש של זוּמִי ומנסה להחזיק אותו למקום אחד.
+emotionalMistake: עמוד 6 — הילד עומד מול זוּמִי וחוסם את שדה הראייה שלו, מנסה לכפות מיקוד אחד.
 uncomfortableTruth: עמוד 12 — גם כשהוא עוצר, זוּמִי יודע שמשהו יכול לקרות בכיוונים שהוא לא רואה.
 
 --- Page 1 ---
@@ -68,9 +68,9 @@ imageDirection: his body slightly sinking as his head spins in different directi
 imageDirection: three moving elements in different directions with Zariz twisted between them
 
 --- Page 6 ---
-הילד ניגש. הוא שם ידיים על הראש של זוּמִי ומחזיק אותו חזק.
-"ככה! תסתכל רק פה!"
-זוּמִי מנסה לזוז, אבל הידיים מחזיקות.
+הילד ניגש. הוא עומד מול זוּמִי וחוסם את שדה הראייה לכל הצדדים.
+"ככה! תסתכל איתי רק פה!"
+זוּמִי מנסה לראות הצדה, אבל הילד עומד באמצע.
 העיניים שלו נמשכות לכיוונים אחרים.
 
 imageDirection: child's hands on Zariz's head while his body strains in other directions

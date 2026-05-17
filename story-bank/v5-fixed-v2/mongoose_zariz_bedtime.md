@@ -23,7 +23,7 @@ stakes: Zariz becomes too heavy to move or protect anyone if he keeps scanning e
 emotionalArc: restless scanning → pressure and failure → overwhelm and vulnerability → guided choosing → warm shared rest
 quietPage: 7
 heartLine: עמוד 5 — Zariz quietly lowers his head as his cap slips and nearly falls, showing exhaustion
-emotionalMistake: עמוד 3 — The child impatiently turns Zariz's head toward one direction, ignoring his need to scan
+emotionalMistake: עמוד 3 — The child steadily points at one thing, asking Zariz to share the same focus — well-intentioned but pressuring
 uncomfortableTruth: עמוד 6 — Even when trying to focus, Zariz cannot stop noticing other movements, and the heaviness does not go away
 
 --- Page 1 ---
@@ -46,8 +46,8 @@ imageDirection: small mongoose with mirrored cap, body low and tense, arrows or 
 imageDirection: child pointing gently to one glowing detail while Zariz's head blurs in motion
 
 --- Page 3 ---
-הילד שׂם את הידיים על הלחיים של זוּמִי.
-"רק פה. תסתכל רק פה."
+הילד מצביע על אותו מקום באצבע יציבה.
+"רק פה. תסתכל איתי על זה."
 זוּמִי לא זז, אבל העיניים שלו רוצות לראות מה קורה מאחוֹרה.
 הגוף שלו כבד.
 משהו זז בשׂדה, והוא לא יכול להסתכל.
