@@ -109,6 +109,11 @@ const BEHAVIOR_PATTERNS = [
   { id: 'grab_from_helper', severity: 'medium',
     re: /לוקח[ת]?\s+(את\s+)?ה[א-ת]+\s+מהיד\s+של|מושך[ת]?\s+(את\s+)?ה[א-ת]+\s+מ(ה?ידיים|החזה|הכתף)\s+של/,
     msg: 'grabbing item from helper' },
+  { id: 'blame_helper', severity: 'medium',
+    // Match direct criticism addressed to helper, not generic "זה לא עוזר" which a
+    // companion can legitimately say about their own situation.
+    re: /"את\s+לא\s+(מראה|עוזרת|מבינה)|"אתה\s+לא\s+(מראה|עוזר|מבין)|"זה\s+לא\s+עוזר[!.,]\s*"\s+(אומר|אומרת)\s+ה?(ילד|ילדה)/,
+    msg: 'child criticizing helper directly (use self-statement: "אני עדיין לא רואה" / "אני מתבלבל")' },
 ];
 
 const CLINICAL_PATTERNS = [
