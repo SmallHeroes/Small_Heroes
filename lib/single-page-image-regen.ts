@@ -378,7 +378,24 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
   }
 
   if (!existsSync(storyFilePath)) {
-    throw new Error(`Story file not found and no v3 fallback exists: ${storyFilePath}`);
+    const v3Dir = path.join(process.cwd(), 'story-bank', STORY_BANK_V3_DIR_NAME);
+    const v3DirExists = existsSync(v3Dir);
+    let v3FileCount = -1;
+    let firstFew: string[] = [];
+    if (v3DirExists) {
+      try {
+        const all = readdirSync(v3Dir).filter((f) => f.endsWith('.md'));
+        v3FileCount = all.length;
+        firstFew = all.slice(0, 3);
+      } catch {}
+    }
+    throw new Error(
+      `Story file not found and no v3 fallback exists. ` +
+      `missing=${storyFilePath} | cwd=${process.cwd()} | ` +
+      `v3DirName=${STORY_BANK_V3_DIR_NAME} | v3DirPath=${v3Dir} | ` +
+      `v3DirExists=${v3DirExists} | v3FileCount=${v3FileCount} | ` +
+      `firstFew=[${firstFew.join(', ')}] | companionId=${resolvedCompanion?.id ?? 'null'}`
+    );
   }
   const patchContext = buildPatchContextFromOrder(order, wizardMeta);
   const letterContext =
