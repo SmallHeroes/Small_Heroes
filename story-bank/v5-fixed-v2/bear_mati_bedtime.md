@@ -44,7 +44,7 @@ imageDirection: bear awkwardly hiding behind rock too small, eyes lowered, child
 
 --- Page 3 ---
 הילד ניגשׁ.
-הוא מושׁך את הצעיף למטה — בבת אחת.
+הוא מנסה להוריד את הצעיף — מהר מדי.
 מָתַי נרתע. הגוף שׁלו נע אחורה.
 
 imageDirection: small hand tugging scarf, Matai startled, body recoiling

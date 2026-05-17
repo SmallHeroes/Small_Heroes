@@ -60,7 +60,7 @@ imageDirection: Matai awkwardly moving his large body behind tiny objects as chi
 
 --- Page 5 ---
 "מָתַי!" אני קורא חזק. "בוא החוצה!"
-אני מושך את הכף שלו קדימה.
+אני נוגע בכף שלו, מנסה למשוך.
 מָתַי נבהל וזז אחורה.
 הצעיף עולה עוד יותר, מכסה את כל הפה.
 
