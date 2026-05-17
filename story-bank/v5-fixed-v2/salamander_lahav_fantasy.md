@@ -81,7 +81,7 @@ imageDirection: sparks burst, colors shifting rapidly
 imageDirection: child frustrated, Lahav stiff and dimming
 
 --- Page 7 ---
-רוּמִי בולעת משהו. הלשון הקצרה שלה מהבזיקה לרגע ונעלמת.
+רוּמִי בולעת משהו. הלשון הקצרה שלה יוצאת לרגע ונעלמת.
 
 הקווים נכנסים פנימה. הגוף קפוא, הזנב נצמד לסלע.
 

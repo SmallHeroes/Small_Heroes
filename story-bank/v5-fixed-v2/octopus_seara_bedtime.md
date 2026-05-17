@@ -11,7 +11,7 @@ title: "זוּזִי והזרועות שלא מקשיבות"
 companionId: octopus_seara
 direction: bedtime
 category: ANGER_FRUSTRATION
-gender: male
+gender: female
 pages: 10
 endingType: resolution
 

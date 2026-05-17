@@ -11,7 +11,7 @@ title: "זוּזִי וְהַדָּבָר שֶׁבּוֹרֵחַ"
 companionId: octopus_seara
 direction: adventure
 category: ANGER_FRUSTRATION
-gender: male
+gender: female
 pages: 15
 endingType: residue
 

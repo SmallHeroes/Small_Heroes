@@ -125,12 +125,12 @@ imageDirection: tiny soft sound shown as a low, gentle ripple, creature respondi
 --- Page 13 ---
 "בּוֹא," לֵיוֹ אומר שוב. בשקט.
 היצור יורד קצת, עוד קצת.
-אתה מושיט יד, והוא מגיע אלייך.
+אתה מושיט יד, והוא מגיע אליך.
 
 imageDirection: child and creature closer, soft low sound holding it near
 
 --- Page 14 ---
-היצור מרים את הכנפיים ועף הרחק, אל האופק.
+היצור מרים את הכנפיים ועף רחוק, אל האופק.
 נוצה קטנה שלו נופלת לאט.
 
 imageDirection: creature flying free, feather drifting down slowly
