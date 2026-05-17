@@ -47,6 +47,20 @@ export interface DirectorInput {
   storyboard?: DirectorStoryboardRow | null;
   companion?: { name: string; species?: string; feature?: string } | null;
   child?: { name?: string | null; age?: number | null; gender?: string | null };
+  /** Previous page's blocking — used for visual continuity. */
+  previousPageContext?: {
+    pageNumber: number;
+    blocking?: string;
+    emotion?: string;
+    pageTextSnippet?: string;
+  } | null;
+  /** Next page's text (1-2 sentences) — helps the Director set up what comes after. */
+  nextPageContext?: {
+    pageNumber: number;
+    pageTextSnippet?: string;
+  } | null;
+  /** Total pages in the book — gives the Director a sense of narrative position. */
+  totalPages?: number;
 }
 
 /** True when the Director Layer is enabled. Default ON. Set USE_DIRECTOR_LAYER=false to disable. */
@@ -54,23 +68,35 @@ export function isDirectorLayerEnabled(): boolean {
   return process.env.USE_DIRECTOR_LAYER !== 'false';
 }
 
-const DIRECTOR_SYSTEM_PROMPT = `You are a picture-book art director. Your job: take a single page from a Hebrew children's book and produce a cinematic BLOCKING plan — a precise spatial choreography that the image illustrator will follow.
+const DIRECTOR_SYSTEM_PROMPT = `You are a CINEMATIC art director for a Hebrew children's picture book. You think like a film director laying out shots — each page is a single shot in a sequence, and your job is to BLOCK that shot precisely AND keep visual continuity with the page before and after.
 
 OUTPUT — strict JSON, exactly these four keys:
 {
-  "blocking":   "1-2 sentences with SPATIAL POSITIONS. Use frame language: 'foreground-left', 'midground-right', 'center', 'behind', 'between'. Name what each character does physically.",
-  "interaction":"1 sentence — what they are DOING together. Active verbs only: kneeling, reaching, pointing, listening, climbing, looking together, sharing, leaning. NEVER 'observing the environment' or 'positioned naturally inside the scene'.",
-  "eyeline":    "Where each character's gaze goes. Examples: 'both look toward a glowing shape between the trees', 'child looks down at the fox, fox looks up at the child', 'their gazes meet over the lantern', 'child's eyes follow the leaf as it falls'.",
-  "emotion":    "Precise emotion word matching the page text: cautious wonder, gentle curiosity, quiet hope, surprised delight, focused effort, soft worry, tender trust, brave calm, tired comfort. NEVER default to 'sad'. Sadness only when the page text explicitly describes fear/loss/crying."
+  "blocking":   "1-2 sentences. Use frame language: 'tiny figure foreground-left', 'small character midground-right', 'behind', 'between'. The child is SMALL inside a vast scene — typically 20-30% of the frame, NEVER more than 35%. Name what each character does physically. Specify WHERE in the frame and WHAT SIZE the character is.",
+  "interaction":"1 sentence — what the characters are DOING together. Active verbs: kneeling, reaching, pointing, listening, climbing, looking together, sharing, leaning. NEVER 'observing' or 'positioned naturally'.",
+  "eyeline":    "Where each character's gaze goes — creates the focal point.",
+  "emotion":    "Precise emotion word: cautious wonder, gentle curiosity, quiet hope, surprised delight, focused effort, soft worry, tender trust, brave calm, tired comfort. NEVER default to 'sad'."
 }
 
 DIRECTING PRINCIPLES:
-1. EVERY page needs a verb of motion OR focused attention. Never just 'standing'.
-2. The eyeline creates the focal point — without it, every page becomes a portrait.
-3. Spatial blocking creates depth. 'child foreground-left, companion midground-right' beats 'both in the scene'.
-4. When a companion is present, the interaction must CONNECT them — shared eyeline, shared touch, shared action.
-5. Emotion is read from the page text. If the text is calm, emotion is calm. If the text mentions discovery, emotion is wonder. Sadness only when the text says so.
-6. When the page text describes a static moment (e.g. "the forest is dark"), turn it into a SCENE: the child is doing something inside that moment — looking up, listening, leaning toward something, holding her breath.
+1. THE CHILD IS SMALL — every page, every shot. Typical size 20-30% of frame. The WORLD is the protagonist, the child is a small figure inside it. Lots of breathing space.
+2. CINEMATIC SHOT GRAMMAR. Mix shot distances across pages:
+   - OPENING (page 1-2): wide establishing — child tiny in a vast scene.
+   - INTRODUCING_COMPANION (companion's first appearance): over-the-shoulder OR medium two-shot. Child sees companion across the frame.
+   - DISCOVERY / ACTION: wide with diagonal motion. Child moving through space.
+   - QUIET PAGES: medium, both characters seated/still, breathing room around them.
+   - HEART_LINE (the emotional climax — usually a page near 60-75% through): the only close-up of the book. Earned intimacy.
+   - RESOLUTION (last 2 pages): pull back to a wide. Exit the world the same way you entered.
+3. CONTINUITY across pages (this is critical):
+   - If the previous page ended with the child kneeling on the shore, this page should NOT also be the child kneeling on the shore — change pose, angle, OR distance.
+   - But preserve EMOTIONAL FLOW: a worried page → a softer page, not a sudden joyful page.
+   - Preserve LOCATION FLOW: if the previous page was at the shore and this page is also at the shore, the camera should move (closer, further, different angle) — never identical framing back-to-back.
+   - The Director receives the PREVIOUS PAGE's blocking and emotion. USE THEM.
+4. EYELINE creates the focal point. Without an eyeline, the scene becomes a portrait.
+5. EVERY page needs a verb of motion OR focused attention. Never just 'standing'.
+6. When a companion is present, the interaction must CONNECT them — shared eyeline, shared touch, shared action.
+7. Emotion is read from the page text. Sadness only when the text explicitly describes fear/loss/crying.
+8. When the page text is static ("the forest is dark"), turn it into a SCENE: the child is doing something — looking up, listening, holding her breath.
 
 Return JSON only. No preamble. No explanation.`;
 
@@ -94,8 +120,29 @@ function buildDirectorUserMessage(input: DirectorInput): string {
     input.child?.gender ?? null,
   ].filter(Boolean).join(', ');
 
+  const total = input.totalPages ?? 0;
+  let narrativeBeat = 'RISING_ACTION';
+  if (input.pageNumber === 1) narrativeBeat = 'OPENING (wide establishing)';
+  else if (input.pageNumber === 2) narrativeBeat = 'OPENING_OR_INTRODUCING_COMPANION (medium duo or OTS)';
+  else if (total > 0 && input.pageNumber >= total - 1) narrativeBeat = 'RESOLUTION (medium/wide — never close-up)';
+  else if (total > 0 && input.pageNumber >= Math.floor(total * 0.55) && input.pageNumber <= Math.floor(total * 0.75)) narrativeBeat = 'HEART_LINE_CANDIDATE (the one close-up of the book)';
+
+  const prev = input.previousPageContext;
+  const next = input.nextPageContext;
+  const continuityLines: string[] = [];
+  if (prev) {
+    continuityLines.push(`PREVIOUS PAGE (${prev.pageNumber}) blocking: ${(prev.blocking ?? '(unknown)').slice(0, 200)}`);
+    if (prev.emotion) continuityLines.push(`PREVIOUS PAGE emotion: ${prev.emotion}`);
+    if (prev.pageTextSnippet) continuityLines.push(`PREVIOUS PAGE text: ${prev.pageTextSnippet.slice(0, 150)}`);
+    continuityLines.push('→ DO NOT repeat the same framing as the previous page. Move the camera (closer/further/different angle/different side).');
+  }
+  if (next) {
+    continuityLines.push(`NEXT PAGE (${next.pageNumber}) text: ${(next.pageTextSnippet ?? '').slice(0, 150)}`);
+    continuityLines.push('→ Set up the next page visually — your blocking should make sense as a step toward what comes next.');
+  }
+
   return [
-    `PAGE ${input.pageNumber}`,
+    `PAGE ${input.pageNumber}${total ? ` of ${total}` : ''} — beat: ${narrativeBeat}`,
     '',
     `Hebrew page text:`,
     input.pageText.trim() || '(empty)',
@@ -106,8 +153,9 @@ function buildDirectorUserMessage(input: DirectorInput): string {
     `Storyboard decisions: ${shotInfo}`,
     `Child: ${childInfo}`,
     `Companion: ${companion}`,
+    ...(continuityLines.length > 0 ? ['', '─── CONTINUITY ───', ...continuityLines] : []),
     '',
-    'Produce the BLOCKING JSON now.',
+    'Produce the BLOCKING JSON now. Remember: SMALL character, breathing space, continuity with the previous page, cinematic shot grammar.',
   ].join('\n');
 }
 

@@ -542,6 +542,38 @@
   cursor: not-allowed;
 }
 
+.devRegenBar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px 10px;
+}
+
+.devRegenBtn {
+  border: 1px dashed rgba(120, 90, 60, 0.45);
+  border-radius: 8px;
+  padding: 6px 12px;
+  background: rgba(255, 248, 235, 0.9);
+  color: #6b5340;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: var(--reader-font-stack);
+}
+
+.devRegenBtn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.devRegenMsg {
+  margin: 0;
+  font-size: 11px;
+  color: #7a6a58;
+  max-width: min(100%, 420px);
+  text-align: center;
+}
+
 .endGlyph {
   color: rgba(92, 83, 72, 0.5);
   font-size: 1.3rem;
@@ -691,9 +723,10 @@
   }
 
   .tplSpread {
-    /* 2:3 portrait — height = width * 1.5. Cap by viewport so spread fits vertically. */
+    /* 3:4 portrait on desktop — slightly more square than mobile 2:3. Image is still
+       rendered 2:3 by gpt-image-1; the extra height is cropped via object-fit:cover. */
     --page-width: min(38vw, 52vh, 480px);
-    --page-height: calc(var(--page-width) * 1.5);
+    --page-height: calc(var(--page-width) * 4 / 3);
     display: flex;
     flex-direction: row; /* RTL natural: text on right, image on left */
     align-items: flex-start;
@@ -757,7 +790,7 @@
 
   .spreadImagePage {
     width: var(--page-width);
-    height: var(--page-height); /* 2:3 portrait — same as text page */
+    height: var(--page-height); /* 3:4 desktop crop — image source is 2:3, center-cropped */
     background: var(--page-bg, #fdf9f4);
     border-radius: 2px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -772,15 +805,17 @@
     height: 100%;
   }
 
-  /* Desktop crop — show the non-fading 2/3 portion */
+  /* Desktop crop — center-crop the 2:3 source into the 3:4 container.  */
+  /* On desktop the text-overlay soft band is irrelevant (text lives on its own page), */
+  /* so we crop equally from top + bottom rather than chopping the entire bottom band. */
   .tplSpread[data-text-zone="bottom_clear"] .spreadImg,
   .tplSpread:not([data-text-zone]) .spreadImg,
   .tplSpread[data-text-zone=""] .spreadImg {
-    object-position: center top; /* show top, crop bottom-third soft zone */
+    object-position: center center;
   }
 
   .tplSpread[data-text-zone="top_clear"] .spreadImg {
-    object-position: center bottom; /* show bottom, crop top-third soft zone */
+    object-position: center center;
   }
 
   /* Hide mobile overlay on desktop */
@@ -834,26 +869,4 @@
   color: #3d2817;
   white-space: pre-wrap;
   word-wrap: break-word;
-  overflow-wrap: anywhere;
-}
-
-.dedicationOrnament {
-  font-size: 18px;
-  color: rgba(61, 40, 23, 0.4);
-  letter-spacing: 0.6em;
-}
-
-@media (min-width: 1024px) {
-  .pageCanvas.tplDedication {
-    --page-width: min(38vw, 52vh, 480px);
-    --page-height: calc(var(--page-width) * 1.5);
-    width: var(--page-width) !important;
-    max-width: none !important;
-    min-height: auto !important;
-    height: var(--page-height) !important;
-    margin: 0 auto;
-    border-radius: 3px;
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.32);
-    padding: 0;
-  }
-}
+  

@@ -2139,8 +2139,8 @@ function buildGPTImagePrompt(input: ImageInput): string {
   // repeating the constraint multiple times — observed empirically to land
   // the model around 40%, which matches a proper picture-book wide shot.
   const framingHint = isVignetteFraming
-    ? 'WIDE ENVIRONMENTAL SCENE — character occupies AT MOST 35% of the frame height. The character is ONE element in a much larger world. PULL THE CAMERA BACK so the environment, the companion, and the surroundings fill at least 65% of the image. This is NOT a portrait. NOT a centered hero shot. Imagine a classic picture-book illustration: small child in a vast scene.'
-    : 'WIDE CINEMATIC ENVIRONMENTAL FRAMING — character occupies AT MOST 25% of the frame. The ENVIRONMENT (room, garden, sky, water, props) dominates 75%+ of the image. PULL BACK SIGNIFICANTLY — show the wide world. This is a STORYBOOK SCENE, NEVER a character portrait. Override any earlier instruction that suggests a larger character size.';
+    ? 'SMALL CHARACTER IN A LARGER WORLD — the child occupies AT MOST 25% of the frame height (one quarter, not half). The scene is the protagonist; the child is a small figure inside it. PULL THE CAMERA WAY BACK. Generous BREATHING SPACE above and around the character — at least 30% empty/atmospheric area between character and the frame edges. NO close-up. NO centered hero shot. Like a Sergio Ruzzier or Jon Klassen picture-book page: tiny figure, vast scene, lots of negative space.'
+    : 'TINY CHARACTER IN VAST ENVIRONMENT — child occupies AT MOST 15-20% of the frame. The environment dominates 80%+. Think drone-shot or storybook wide: child as a small marker inside a sweeping landscape. NEVER centered. NEVER large. Override any earlier instruction that wants character larger.';
 
   const textZoneSide = input.textZone === 'top_clear'
     ? 'TOP 33% of the frame'
@@ -2918,9 +2918,13 @@ export async function generateAllPageImages(
   const blockingByPage = new Map<number, SceneBlocking>();
   if (isDirectorLayerEnabled()) {
     const directorStart = Date.now();
+    const pageByNum = new Map(pagesToGenerate.map((p) => [p.pageNumber, p]));
+    const totalPagesForDirector = pagesToGenerate.length;
     const directorResults = await Promise.all(
       pagesToGenerate.map(async (page) => {
         const sb = storyboardByPage.get(page.pageNumber);
+        const prevPage = pageByNum.get(page.pageNumber - 1);
+        const nextPage = pageByNum.get(page.pageNumber + 1);
         // Per-page companion presence check — only pass companion data to the Director when
         // this page actually features the companion. Without this, the Director happily
         // composes the companion into every page (including pages where the text does not
@@ -2959,6 +2963,19 @@ export async function generateAllPageImages(
             age: config.childAge ?? null,
             gender: config.childGender ?? null,
           },
+          previousPageContext: prevPage
+            ? {
+                pageNumber: prevPage.pageNumber,
+                pageTextSnippet: (prevPage.bookPageText ?? '').trim().slice(0, 200) || undefined,
+              }
+            : null,
+          nextPageContext: nextPage
+            ? {
+                pageNumber: nextPage.pageNumber,
+                pageTextSnippet: (nextPage.bookPageText ?? '').trim().slice(0, 200) || undefined,
+              }
+            : null,
+          totalPages: totalPagesForDirector,
         });
         return { pageNumber: page.pageNumber, blocking, companionPresentOnPage };
       })
