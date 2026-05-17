@@ -17,7 +17,8 @@ const nextConfig = {
    * print-ready PDF generation silently fails.
    */
   outputFileTracingIncludes: {
-    '/api/generate': ['./backend/assets/fonts/**/*'],
+    '/api/generate': ['./backend/assets/fonts/**/*', './story-bank/**/*'],
+    '/api/debug/regen-page': ['./story-bank/**/*'],
   },
   /**
    * Legacy .html entry points and direct /public/HTML/*.html URLs -> canonical
