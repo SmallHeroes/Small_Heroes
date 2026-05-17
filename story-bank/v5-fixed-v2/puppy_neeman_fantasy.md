@@ -23,7 +23,7 @@ stakes: if the child keeps running from it, the fog spreads and makes everything
 emotionalArc: calm together → disturbance and avoidance → shared stuckness → small choice to stay → partial distance with trace remaining
 quietPage: 15
 heartLine: עמוד 10 — Neeman gently presses his face against the child's knee and closes his eyes, choosing to stay despite having nothing else to offer
-emotionalMistake: עמוד 6 — The child pushes Neeman away and tells him to go, trying to handle everything alone
+emotionalMistake: עמוד 6 — The child asks Neeman to wait, trying to handle the heavy feeling alone
 uncomfortableTruth: עמוד 12 — The child realizes the hard thing is still there and Neeman cannot make it disappear
 
 --- Page 1 ---
@@ -76,9 +76,9 @@ imageDirection: child moving fast, fog trailing slightly, puppy following close
 --- Page 6 ---
 {{שם-הילד}} עוצר. פונה לרוֹקִי.
 
-"לך," הוא אומר בשקט. "אני רוצה להיות לבד."
+"חכה רגע," הוא אומר בשקט. "אני צריך להיות לבד."
 
-הוא דוחף את רוֹקִי לאט אחורה. רוֹקִי עוצר. לא זז.
+הוא מסמן לרוֹקִי לעצור. רוֹקִי עוצר. לא זז.
 
 imageDirection: child's hand gently but firmly pushing puppy back, puppy pausing
 

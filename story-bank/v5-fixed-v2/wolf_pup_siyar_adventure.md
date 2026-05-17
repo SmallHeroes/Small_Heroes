@@ -23,7 +23,7 @@ stakes: Siyar may lose all sense of where he is and freeze, unable to move or ch
 emotionalArc: tracking safety → growing tension → rupture and reveal → self-scent discovery → soft separation
 quietPage: 11
 heartLine: עמוד 8 — Siyar presses his nose deep into the scent-pouch and curls around it, refusing to look up.
-emotionalMistake: עמוד 5 — The child gently pushes Siyar back with a foot and walks ahead without him.
+emotionalMistake: עמוד 5 — The child signals Siyar to stay and walks ahead without him.
 uncomfortableTruth: עמוד 9 — The scent-pouch smells faint without the child, and it cannot tell Siyar where he is.
 
 --- Page 1 ---
@@ -57,7 +57,7 @@ imageDirection: Siyar almost touching the child's legs, alert ears
 imageDirection: child leaning down toward water, Siyar creeping after with low body
 
 --- Page 5 ---
-הילד דוחף את לוּלוּ אחורה ברגל.
+הילד מצביע לרצפה — סימן ללוּלוּ להישאר.
 הוא הולך על האבנים לבד.
 לוּלוּ עומד במקום.
 

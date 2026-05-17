@@ -23,7 +23,7 @@ stakes: if the child keeps trying to trap or ignore it, the glow flickers out an
 emotionalArc: calm together → unease grows → push away → shared helplessness → small choosing to stay
 quietPage: 11
 heartLine: עמוד 8 — Neeman quietly presses his face against the child's leg and closes his eyes, staying without moving
-emotionalMistake: עמוד 5 — The child pushes Neeman away while trying to chase and grab the glowing creature
+emotionalMistake: עמוד 5 — The child signals Neeman to wait while trying to chase the glowing creature alone
 uncomfortableTruth: עמוד 9 — The child realizes the creature cannot be caught or calmed, and Neeman cannot fix it either
 
 --- Page 1 ---
@@ -75,7 +75,7 @@ imageDirection: child moving quickly, reaching hands, glowing creature just out 
 --- Page 5 ---
 רוֹקִי רץ אחריי.
 
-אני דוחפת אותו קצת הצידה.
+אני מסמנת לו לחכות.
 
 אני רוצה להגיע לאוֹר לבד.
 

@@ -68,7 +68,7 @@ imageDirection: Dini lunging forward, chick just beyond reach, sash crooked.
 imageDirection: Leaves and dust streaming sideways like a current.
 
 --- Page 6 ---
-הילד מושיט יד ודוֹחֵף את האפרוֹחַ קצת קדימה, לעבר האוֹר. כאילו רוצה לעזור לו לעוף.
+הילד מושיט יד מאחורי האפרוֹחַ, מנסה לכוון אותו לעבר האוֹר. כאילו רוצה לעזור לו לעוף.
 
 דינִי קופץ מאחור, מנסה להגיע, אבל הילד לא מסתכל עליו.
 

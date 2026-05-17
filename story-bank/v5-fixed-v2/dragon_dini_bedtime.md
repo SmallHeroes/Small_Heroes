@@ -53,7 +53,7 @@ imageDirection: small fluffy chick alone in grass, Dini turning toward it, child
 
 הוא קופץ קדימה. הכנפיים מרפרפות מהר.
 
-אתה דוחף את האפרוֹחַ הצידה כדי לעשׂוֹת מקום.
+אתה מזיז את האפרוֹחַ קצת הצידה, כדי לפנות מקום לדינִי.
 
 דִּינִי נופל.
 

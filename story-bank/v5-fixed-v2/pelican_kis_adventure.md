@@ -81,8 +81,8 @@ imageDirection: Inside view of crowded pouch with overlapping textures and the c
 היצוּר לא מפסיק לזוּז.
 הילד מרוגז.
 
-הילד דוחף את היצוּר עוֹד קצת פנימה.
-"תירגע."
+הילד מנסה לסדר את היצוּר עמוק יותר בכיס.
+"אולי שׁם יותר נוח."
 
 היצוּר נעלם מתחת לאבן.
 

@@ -23,7 +23,7 @@ stakes: if Tzivon cannot say something of his own, all his colors fade and he be
 emotionalArc: playful echo → confusion and pressure → vulnerability revealed → quiet attempt → soft self-expression
 quietPage: 7
 heartLine: עמוד 5 — Tzivon drops a bright word-feather and nudges it toward the child without making a sound
-emotionalMistake: עמוד 3 — The child dismissively tells Tzivon to stop copying and say something real
+emotionalMistake: עמוד 3 — The child asks Tzivon to say a word of his own — well-intentioned but pressuring
 uncomfortableTruth: עמוד 6 — Tzivon tries to answer but only echoes fragments and then falls completely silent, unable to produce anything of his own
 
 --- Page 1 ---
@@ -45,7 +45,7 @@ imageDirection: soft glowing room, colorful floating word-shapes leaving the chi
 imageDirection: child leaning close, parrot tilting head, identical colored words bouncing back
 
 --- Page 3 ---
-"תפסיק לחזור על מה שׁאני אומר!" אני דוחף את המילים הכחולות הרחק. "תגיד משׁהו אמיתי!"
+"אני לא רוצה ששתחזור אחריי," אני אומר ומזיז את המילים הכחולות הצידה. "אני רוצה לשמוע מילה שלך."
 
 תּוּתִי זוקף את הנוצות. הוא מסתכל עליי בלי לזוז.
 

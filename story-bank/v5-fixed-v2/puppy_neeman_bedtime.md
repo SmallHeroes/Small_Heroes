@@ -23,7 +23,7 @@ stakes: the child stays alone with the heavy feeling and keeps trying to run fro
 emotionalArc: calm together → discomfort appears → pushing away → shared helplessness → small choosing to stay
 quietPage: 7
 heartLine: עמוד 5 — רוֹקִי מצמיד את הפנים לרגל של הילד, עוצם עיניים, לא זז.
-emotionalMistake: עמוד 3 — הילד דוחף את רוֹקִי ומסתובב הצידה.
+emotionalMistake: עמוד 3 — הילד מבקש מרווח מרוֹקִי ומסתובב הצידה.
 uncomfortableTruth: עמוד 6 — המשהו הכבד לא עובר, גם כשרוֹקִי ממש פה.
 
 --- Page 1 ---
@@ -45,7 +45,7 @@ imageDirection: subtle shadowy cloud-like shape near the child, puppy lifting hi
 --- Page 3 ---
 אני לא רוצה את המשהו הזה.
 רוֹקִי מתקרב.
-אני דוחפת אותו ביד.
+אני מרימה יד — סימן שאני צריכה מרחב.
 הוא עומד. לא בא יותר קרוב.
 
 imageDirection: child turning away, small hand pushing puppy back, puppy pausing and standing still

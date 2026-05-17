@@ -49,9 +49,9 @@ imageDirection: A tidy pelican with a slightly open glowing pouch as small items
 imageDirection: Child offering a dim, weighty object while Kis leans forward, pouch opening wider.
 
 --- Page 3 ---
-הילד רואה עוד דברים בכּיס. הוא דוחף אותם למטה.
+הילד רואה עוד דברים בכּיס. הוא לוחץ אותם למטה.
 
-עוד, עוד. דוֹחֵף חזָק.
+עוד, עוד. ממלא בכוח.
 
 פֵּלִי עומד בשׁקט. הכּיס מתמלא.
 

@@ -71,7 +71,7 @@ imageDirection: Wings flapping, sash falling, Dini mid-hop
 imageDirection: Dust puff, red-tinted scales, wings tangled
 
 --- Page 5 ---
-אתה דוחף את האפרוֹח הצידה. רק קצת.
+אתה מזיז את האפרוֹח קצת הצידה.
 
 "דינִי, תעשה משהו גדול!" אתה אומר.
 
