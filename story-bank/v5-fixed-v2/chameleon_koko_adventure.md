@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "הצבע שנשאר"
+title: "הַכְּתָמִים שֶׁל קוֹקוֹ"
 companionId: chameleon_koko
 direction: adventure
 category: TRANSITION
@@ -60,9 +60,9 @@ imageDirection: Koko mid-leap, child hesitating but following
 imageDirection: sequence of Koko changing colors to match flowers, rocks, leaves
 
 --- Page 5 ---
-"קוקו, תעצור רגע!" אני אומר.
+"קוקו, חכה רגע..." אני אומר.
 הוא משנה צבע שוב, מהר מהר.
-"למה אתה מתחלף כל הזמן? בחר צבע אחד!" אני אומר בקול רם.
+"למה אתה מתחלף כל הזמן? אני מתבלבל," אני אומר בקול חזק.
 קוקו עוצר באמצע קפיצה.
 העיניים שלו רחבות.
 

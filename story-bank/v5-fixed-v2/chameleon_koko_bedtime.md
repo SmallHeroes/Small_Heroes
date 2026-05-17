@@ -48,7 +48,7 @@ imageDirection: Koko mid-jump, bright shifting colors, scarf constant and stripe
 imageDirection: Sequence-style image of Koko as different colors in different spots, child watching
 
 --- Page 4 ---
-"קוֹקוֹ, תפסיק כבר! תהיה צבע אחד!"
+"קוֹקוֹ, אני לא יודע מי אתה!"
 קוֹקוֹ עוצר באמצע. חצי ירוק, חצי סגול. הזנב מתפתל.
 העיניים שלו לא מסתכלות לאותו מקום.
 

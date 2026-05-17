@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "הצבע שנשאר"
+title: "הַיַּעַר שֶׁל אֶלֶף צְבָעִים"
 companionId: chameleon_koko
 direction: fantasy
 category: TRANSITION
@@ -74,11 +74,11 @@ imageDirection: Multiple afterimage-like versions of Koko in different colors ar
 imageDirection: Crowded colorful creatures; Koko glowing bright, child slightly overwhelmed.
 
 --- Page 6 ---
-"קוֹקוֹ, די!"
+"קוֹקוֹ, אני מתבלבל!"
 
-אני אומר את זה בקול רם.
+אני אומר את זה בקול חזק.
 
-"בחר צבע אחד. תפסיק להשתנות."
+"יש יותר מדי צבעים. אני לא יכול לעקוב."
 
 קוֹקוֹ נעצר באמצע שינוי. הוא נראה תקוע.
 
