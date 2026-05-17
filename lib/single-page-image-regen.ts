@@ -323,21 +323,38 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
 
   // ── Legacy-order fallback ──
   // Older orders point at v1 'raw/' filenames which no longer exist on disk
-  // (raw/ was deleted in favor of v5-fixed-v2). If the file is missing, try
-  // every direction of the companion's v3 story bank as a substitute. The
-  // story will not match the original 1:1 but it will let us regen images.
-  const { existsSync } = await import('fs');
+  // (raw/ was deleted in favor of v5-fixed-v2). If the file is missing, try:
+  //  1) The order's resolved companion across all 3 directions
+  //  2) ANY companion in v5-fixed-v2 across all 3 directions
+  // The story will not match the original 1:1 but it will let us regen images.
+  const { existsSync, readdirSync } = await import('fs');
   if (!existsSync(storyFilePath)) {
-    regenLogger.warn('Story file missing; attempting v3 companion fallback', {
+    regenLogger.warn('Story file missing; attempting v3 fallback', {
       orderId,
       pageNumber,
       missingPath: storyFilePath,
       companionId: resolvedCompanion?.id ?? null,
     });
-    if (resolvedCompanion?.id) {
+    const tryCompanions: string[] = [];
+    if (resolvedCompanion?.id) tryCompanions.push(resolvedCompanion.id);
+    const v3Dir = path.join(process.cwd(), 'story-bank', STORY_BANK_V3_DIR_NAME);
+    if (existsSync(v3Dir)) {
+      try {
+        const files = readdirSync(v3Dir).filter((f) => f.endsWith('.md'));
+        const seen = new Set<string>(tryCompanions);
+        for (const file of files) {
+          const base = file.replace(/_(?:adventure|bedtime|fantasy)\.md$/, '');
+          if (!seen.has(base)) {
+            seen.add(base);
+            tryCompanions.push(base);
+          }
+        }
+      } catch {}
+    }
+    outer: for (const compId of tryCompanions) {
       const directions = [directionForV3, 'adventure', 'bedtime', 'fantasy'] as const;
       for (const dir of directions) {
-        const candidate = selectCompanionStory(resolvedCompanion.id, dir);
+        const candidate = selectCompanionStory(compId, dir);
         if (candidate) {
           const candidatePath = path.join(process.cwd(), 'story-bank', STORY_BANK_V3_DIR_NAME, candidate.filename);
           if (existsSync(candidatePath)) {
@@ -345,14 +362,15 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
             storyBankVersion = 'v3';
             storyDir = STORY_BANK_V3_DIR_NAME;
             storyFilePath = candidatePath;
-            regenLogger.info('Story file recovered via v3 companion fallback', {
+            regenLogger.info('Story file recovered via v3 fallback', {
               orderId,
               pageNumber,
               recoveredPath: storyFilePath,
               originalDirection: directionForV3,
+              recoveredCompanion: compId,
               recoveredDirection: dir,
             });
-            break;
+            break outer;
           }
         }
       }
