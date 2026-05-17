@@ -57,7 +57,7 @@ imageDirection: child curious, mushrooms opening like tiny umbrellas
 imageDirection: stones tilting upright as if stretching, Boomi frozen mid-step
 
 --- Page 7 ---
-הילד נרתע. הוא מכסה את האוזניים. מראה לו בתנועה חדה: לך.
+הילד נרתע. הוא מכסה את האוזניים. מתכווץ במקום.
 
 imageDirection: child recoiling, Boomi shrinking inward
 

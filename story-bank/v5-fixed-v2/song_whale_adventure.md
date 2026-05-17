@@ -74,7 +74,7 @@ imageDirection: child with a tiny gray sound turning into pink swirls as Luli si
 imageDirection: dark spiky sound looming while bright musical colors try to wrap around it
 
 --- Page 5 ---
-אני מושׁך את החליל מהחזה של לוּלִי.
+אני שׁוֹלֵחַ יד אל החליל.
 
 בועות מתפזרות.
 לוּלִי עוצר.
@@ -126,7 +126,7 @@ imageDirection: child small and distressed inside glowing musical bubbles, Luli 
 imageDirection: music fading while a harsh, dark sound floats untouched between them
 
 --- Page 10 ---
-אני דוחף את החליל למטה.
+אני מַזִּיז את החליל הצידה.
 
 עושׂה את הקול שׁוב.
 חזק.

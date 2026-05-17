@@ -45,7 +45,7 @@ imageDirection: A very large figure on tiptoes, shoulders hunched, child watchin
 imageDirection: Birds fluttering up with each careful but heavy step
 
 --- Page 4 ---
-הילד מכסה את האוזניים. מניף את היד: לך.
+הילד מכסה את האוזניים. מסתובב הצידה.
 בּוּמִי עומד במקום.
 
 imageDirection: Child turning away, hands on ears, בּוּמִי frozen mid-step

@@ -107,7 +107,7 @@ imageDirection: The louder song creates thick glowing layers covering darker str
 imageDirection: A jagged, flickering color pulses unevenly in darkened underwater space, resisting the music.
 
 --- Page 9 ---
-אני מסמן ללוּלִי — די, תפסיק לעשות את זה יפה!
+אני אומר ללוּלִי בקול חזק — אני צריך שזה יישמע כמו שזה. לא יפה.
 
 הצבעים קופאים באמצע התנועה, תלויים במקום.
 

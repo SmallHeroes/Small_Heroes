@@ -67,7 +67,7 @@ imageDirection: tiny stones hopping and tapping with each careful giant step
 --- Page 5 ---
 הילדה מביטה עליו.
 היא מקמטת את הפנים.
-מניפה יד לאחור, כאילו דוחפת אותו הצידה.
+מצמידה ידיים לחזה.
 מסתובבת ומפנה אליו את הגב.
 פרחים נרעדים מסביב לרגליה.
 

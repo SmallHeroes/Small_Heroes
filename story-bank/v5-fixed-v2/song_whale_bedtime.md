@@ -51,8 +51,8 @@ imageDirection: large calm whale with a flute on his chest, pastel sound turning
 imageDirection: child's sound now spiky orange, Shir's song wrapping it into smooth pink spirals
 
 --- Page 4 ---
-הילד שׂם יד על הפה של לוּלִי.
-דחף.
+הילד מסתובב הצידה ומתכווץ.
+הוא לא רוצה את השִׁיר עכשׁיו.
 השִׁיר נשבר באמצע, נפל למטה בחתיכות.
 
 imageDirection: child's small hands against Shir's face, the colorful song snapping mid-air into uneven fragments
