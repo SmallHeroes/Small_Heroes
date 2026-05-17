@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "הצליל הבא"
+title: "הַיַּעַר שֶׁשּׁוֹמֵעַ"
 companionId: fawn_tzvi
 direction: fantasy
 category: SENSITIVITY_OVERWHELM
@@ -95,7 +95,7 @@ imageDirection: ears angled differently, body tense, lines of motion everywhere
 
 צבי עומד. הוא מקשיב למשהו.
 
-"די, אנחנו צריכים ללכת!" אני אומר חזק.
+"אני לא יודע לחכות יותר," אני אומר חזק.
 
 הוא מסתכל עלי. לא זז.
 

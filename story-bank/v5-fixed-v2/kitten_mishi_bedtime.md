@@ -42,8 +42,8 @@ imageDirection: child clutching a toy or drawing, shoulders tense, Mishi looking
 
 --- Page 3 ---
 מִשִׁי מַתְחִיל לְגַרְגֵּר. הַפַּעֲמוֹן מִתְנַדְנֵד.
-הַיֶּלֶד דּוֹחֵף אוֹתוֹ בְּעֲדִינוּת לַצַּד.
-"תַּפְסִיק."
+הַיֶּלֶד מַזִּיז אוֹתוֹ בְּעֲדִינוּת לַצַּד.
+"אֲנִי לֹא רוֹצֶה עַכְשָׁו."
 
 imageDirection: child's hand gently but firmly moving Mishi, bell starting to shake
 
