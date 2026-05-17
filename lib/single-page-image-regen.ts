@@ -318,8 +318,50 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
     throw new Error(`No story-bank story found for category=${challengeCategory}`);
   }
 
-  const storyDir = storyBankVersion === 'v3' ? STORY_BANK_V3_DIR_NAME : 'raw';
-  const storyFilePath = path.join(process.cwd(), 'story-bank', storyDir, selection.filename);
+  let storyDir = storyBankVersion === 'v3' ? STORY_BANK_V3_DIR_NAME : 'raw';
+  let storyFilePath = path.join(process.cwd(), 'story-bank', storyDir, selection.filename);
+
+  // ── Legacy-order fallback ──
+  // Older orders point at v1 'raw/' filenames which no longer exist on disk
+  // (raw/ was deleted in favor of v5-fixed-v2). If the file is missing, try
+  // every direction of the companion's v3 story bank as a substitute. The
+  // story will not match the original 1:1 but it will let us regen images.
+  const { existsSync } = await import('fs');
+  if (!existsSync(storyFilePath)) {
+    regenLogger.warn('Story file missing; attempting v3 companion fallback', {
+      orderId,
+      pageNumber,
+      missingPath: storyFilePath,
+      companionId: resolvedCompanion?.id ?? null,
+    });
+    if (resolvedCompanion?.id) {
+      const directions = [directionForV3, 'adventure', 'bedtime', 'fantasy'] as const;
+      for (const dir of directions) {
+        const candidate = selectCompanionStory(resolvedCompanion.id, dir);
+        if (candidate) {
+          const candidatePath = path.join(process.cwd(), 'story-bank', STORY_BANK_V3_DIR_NAME, candidate.filename);
+          if (existsSync(candidatePath)) {
+            selection = candidate;
+            storyBankVersion = 'v3';
+            storyDir = STORY_BANK_V3_DIR_NAME;
+            storyFilePath = candidatePath;
+            regenLogger.info('Story file recovered via v3 companion fallback', {
+              orderId,
+              pageNumber,
+              recoveredPath: storyFilePath,
+              originalDirection: directionForV3,
+              recoveredDirection: dir,
+            });
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  if (!existsSync(storyFilePath)) {
+    throw new Error(`Story file not found and no v3 fallback exists: ${storyFilePath}`);
+  }
   const patchContext = buildPatchContextFromOrder(order, wizardMeta);
   const letterContext =
     resolvedCompanion?.id && resolvedCompanion?.name
