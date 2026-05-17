@@ -2,7 +2,11 @@
 .next
 .git
 .tmp.driveupload
-story-bank
+# story-bank — needed by /api/generate and /api/debug/regen-page at runtime
+# (was excluded; that broke regen-page after raw/ migration)
+story-bank/v6
+story-bank/raw
+story-bank/*.xlsx
 training-images
 briefs
 *.zip
