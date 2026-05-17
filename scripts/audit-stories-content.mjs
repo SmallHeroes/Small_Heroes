@@ -98,7 +98,8 @@ const BEHAVIOR_PATTERNS = [
     re: /מנופף[ת]?\s+הצידה|מנופף[ת]?\s+הצדה|דוחפ[הת]?\s+אות[הו]\s+הצידה/,
     msg: 'waving/pushing helper aside' },
   { id: 'hand_on_mouth', severity: 'critical',
-    re: /שׂם[הת]?\s+יד\s+על\s+ה?פה\s+של/,
+    // Catch both 'שׂם יד על הפה של' and 'שׂמה את היד על הפה של' variants
+    re: /שׂמ[הת]?\s+(את\s+)?(ה)?ידיים?\s+על\s+ה?פה\s+של/,
     msg: 'hand on helper\'s mouth (physical silencing)' },
   { id: 'cover_helper_ears', severity: 'critical',
     re: /(שׂם[הת]?|מכסה|מכסים)\s+ה?ידיים?\s+על\s+ה?אוזניים?\s+של\s+(לולי|לִילִי|אורי|רכי|רוקי|דודי|רופי)/,

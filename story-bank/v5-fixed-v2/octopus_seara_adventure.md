@@ -73,9 +73,9 @@ imageDirection: Zuzi holding glowing creature tightly, hat straight, child watch
 imageDirection: water streams pulling, tentacles stretching in multiple directions
 
 --- Page 5 ---
-"זוּזִי, אתה מפריע!"
+"זוּזִי, אני לא מצליחה להחזיק!"
 
-אני דוחפת את הזרועות הסבוכות.
+אני מתרחקת מהזרועות הסבוכות.
 
 הוא קופץ לאחור.
 

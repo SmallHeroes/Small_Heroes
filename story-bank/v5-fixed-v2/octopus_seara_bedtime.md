@@ -51,9 +51,9 @@ imageDirection: octopus with straight hat, tentacles neatly organizing shells an
 imageDirection: one tentacle knocking something slightly, others starting to wave unevenly
 
 --- Page 3 ---
-"תעצרו כבר!" את אומרת.
+"אני לא יודעת איפה לעמוד!" את אומרת.
 
-את דוחפת את הזרועות הצידה.
+את מתרחקת מהזרועות המתעופפות.
 
 זוּזִי מושך אותן חזרה מהר. "סליחה סליחה!"
 

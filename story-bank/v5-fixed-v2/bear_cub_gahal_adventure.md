@@ -23,7 +23,7 @@ stakes: the broken object stays broken and the loud storms keep pushing others a
 emotionalArc: roar-pride → shared escalation → collapse → quiet vibration → smaller-but-present problem
 quietPage: 11
 heartLine: עמוד 8 — Gahal quietly fixes his slipping bandana with shaking paws while lying exhausted
-emotionalMistake: עמוד 5 — The child covers Gahal's mouth to stop the roar
+emotionalMistake: עמוד 5 — The child stops mid-roar, hands flying to her own mouth, freezing the moment
 uncomfortableTruth: עמוד 9 — The broken object remains unchanged despite all the roaring
 
 --- Page 1 ---
@@ -60,8 +60,8 @@ imageDirection: Gahal leaning forward roaring wide mouth, gesturing for child to
 imageDirection: child mimicking stance, sound waves growing, Gahal excited beside them
 
 --- Page 5 ---
-הילדה פתאום שׂמה את היד על הפה של דּוֹבִּי.
-די!
+הילדה פתאום מכסה את הפה שלה.
+"די," היא נושמת.
 הציפורניים של דּוֹבִּי עדיין אדומות.
 הוא עומד ומסתכל עליה.
 

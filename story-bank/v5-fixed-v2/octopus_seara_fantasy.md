@@ -71,9 +71,9 @@ imageDirection: Light intensifies, tentacles squeezing tighter, slight tension
 imageDirection: Water spiraling, tentacles reaching in all directions
 
 --- Page 6 ---
-"תעזוב!" אני צוֹעק פתאום.
-אני דוֹחף את הזרועות הצידה.
-"אתה מקלקל!"
+"רגע, חכה!" אני צוֹעק פתאום.
+אני מתרחק מהזרועות.
+"זה לא עוזר ככה."
 זוּזִי נסוֹג. הכובע שׁלו מתהפך קצת.
 הכדור נשאר לבד.
 

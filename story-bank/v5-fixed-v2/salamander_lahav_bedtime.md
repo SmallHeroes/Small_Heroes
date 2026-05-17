@@ -45,10 +45,10 @@ imageDirection: small salamander curled on a rock, faint dim lines on his body, 
 imageDirection: child bouncing nearby, Lahav calm but dimming slightly, a tiny swallowed glow in his throat
 
 --- Page 3 ---
-"רוּמִי, אתה משׂעמם!"
-אני מניף יד מולו.
+"רוּמִי, אני רוצה לשׂחק!"
+אני קופץ סביבו.
 אני דוחף את האבן.
-"למה אתה כל כך איטי?"
+"למה אתה לא בא?"
 
 imageDirection: child leaning in with a frown, finger poking, Lahav's patterns fading more
 
