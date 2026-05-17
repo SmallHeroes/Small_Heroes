@@ -11,7 +11,7 @@ title: "דּוּדִי וְהַגַּלִּים הַמְּהִירִים"
 companionId: dolphin_shahkan
 direction: bedtime
 category: FOCUS_LEARNING
-gender: male
+gender: female
 pages: 10
 endingType: resolution
 

@@ -11,7 +11,7 @@ title: "רוֹקִי פֹּה"
 companionId: puppy_neeman
 direction: bedtime
 category: OTHER
-gender: male
+gender: female
 pages: 10
 endingType: resolution
 

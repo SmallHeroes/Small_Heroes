@@ -11,7 +11,7 @@ title: "גֵּקִי וְהַזָּנָב שֶׁנִּשְׁאַר"
 companionId: gecko_rifa
 direction: fantasy
 category: MEDICAL_PROCEDURE
-gender: female
+gender: male
 pages: 20
 endingType: distance
 worldRule: עולם של חלקי-גוף שמתחלפים לפי רגש. החוק לא מתבטל.

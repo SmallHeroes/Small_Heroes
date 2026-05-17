@@ -71,7 +71,7 @@ imageDirection: maps piling up, compass spinning, Navat overwhelmed
 לוקח עוד מפה. עוד מפה.
 עכשׁיו רק העיניים שׁלו נראות.
 
-imageDirection: only Navat's eyes pেking out from layered maps, child nearby unsure
+imageDirection: only Navat's eyes peeking out from layered maps, child nearby unsure
 
 --- Page 6 ---
 הילד צועד צעד אחד קדימה.
@@ -104,7 +104,7 @@ imageDirection: Navat and child stepping together, maps left behind
 יש פה נחל קטן.
 הוא זוהר באור רך.
 "זה לא היה על המפה," אומר הילד.
-רוֹלִי סוגר את הקומפס לאט.
+רוֹלִי סוגר את המצפן לאט.
 מסתכל על המים.
 
 imageDirection: soft glowing water, Navat calm, child close

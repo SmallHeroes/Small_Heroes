@@ -11,7 +11,7 @@ title: "הצבע של לא"
 companionId: panda_anat
 direction: fantasy
 category: SOCIAL_FRIENDSHIP
-gender: male
+gender: female
 pages: 20
 endingType: distance
 worldRule: עולם של "כן" ו"לא" שיש להם צבע. ה"לא" צבע חם, לא קר. החוק לא מתבטל.

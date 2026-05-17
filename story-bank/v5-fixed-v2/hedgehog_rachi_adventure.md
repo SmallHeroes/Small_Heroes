@@ -11,7 +11,7 @@ title: "הַקּוֹצִים שֶׁל רַכִּי"
 companionId: hedgehog_rachi
 direction: adventure
 category: SOCIAL
-gender: female
+gender: male
 pages: 15
 endingType: residue
 worldRule: עולם של קוצים שיש להם משקל. החוק לא מתבטל.

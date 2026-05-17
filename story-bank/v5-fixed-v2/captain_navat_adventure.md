@@ -59,7 +59,7 @@ imageDirection: child standing ready with a small bag while Navat scribbles rapi
 הוא עוצר.
 המצפן רועד קצת. המחוג זז.
 רוֹלִי קוֹפא באמצע הצעד. הרגל תלוּיה באוויר.
-הוא בוהה בקומפס.
+הוא בוהה במצפן.
 
 imageDirection: Navat frozen mid-step, staring at compass, foot hovering
 
@@ -76,7 +76,7 @@ imageDirection: map flying through the air, Navat startled
 רוֹלִי פותח עוד מפה. ועוד אחת. ועוד.
 הן מכסות את הקרקע.
 הכובע שלו מחליק.
-הקומפס מסתובב במהירוּת.
+המצפן מסתובב במהירוּת.
 "רק צריך לוודא," הוא ממלמל. "רק לוודא."
 
 imageDirection: maps piling up, hat slipping, compass spinning wildly

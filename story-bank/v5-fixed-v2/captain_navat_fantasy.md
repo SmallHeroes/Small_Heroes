@@ -11,7 +11,7 @@ title: "רוֹלִי וְהַמַּפָּה שֶׁלֹּא מַתְחִילָה"
 companionId: captain_navat
 direction: fantasy
 category: FOCUS_LEARNING
-gender: male
+gender: female
 pages: 20
 endingType: distance
 worldRule: עולם של מפות שמתממשות לפי קיפול. החוק לא מתבטל.

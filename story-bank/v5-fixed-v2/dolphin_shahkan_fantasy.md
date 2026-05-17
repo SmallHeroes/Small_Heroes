@@ -117,7 +117,7 @@ imageDirection: map in child's hands, soft splash, light shining
 imageDirection: Dudi smaller in frame, playful but less central
 
 --- Page 19 ---
-אני חוזר לחוף. עושה טפיקה אחת במים, ועוקב אחרי הגל הקטן שנוצר. עוצר. עוד טפיקה. עוד גל. אני יכול לעקוב אחרי אחד בלי דּוּדִי.
+אני חוזר לחוף. עושה טפיחה אחת במים, ועוקב אחרי הגל הקטן שנוצר. עוצר. עוד טפיחה. עוד גל. אני יכול לעקוב אחרי אחד בלי דּוּדִי.
 
 imageDirection: child focused, gentle repeating motion, one wave
 

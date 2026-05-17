@@ -51,7 +51,7 @@ imageDirection: Birds fluttering up with each careful but heavy step
 imageDirection: Child turning away, hands on ears, בּוּמִי frozen mid-step
 
 --- Page 5 ---
-בּוּמִי שוכב על האדמה. מנסה להיות שטוח. מנסה להעלם.
+בּוּמִי שוכב על האדמה. מנסה להיות שטוח. מנסה להיעלם.
 העיניים שלו עצומות.
 
 imageDirection: His full body pressed to earth, eyes closed, grass bent under him

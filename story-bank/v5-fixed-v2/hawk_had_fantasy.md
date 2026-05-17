@@ -43,7 +43,7 @@ imageDirection: child staring at ground while stones seem to shift positions
 
 --- Page 3 ---
 משהו צולל מלמעלה ונוחת על ענף נמוך.
-נֵץ. שׁמוֹ רוֹפִי.
+נֵץ. שׁמוֹ רוּפִי.
 עם פעמון קטן תלוי על הצוואר.
 הראש שלו זז מהר — ימינה, שמאלה, מעלה. הפעמון מצלצל בלי הפסקה.
 
@@ -51,7 +51,7 @@ imageDirection: hawk perched, head snapping in different directions, bell ringin
 
 --- Page 4 ---
 "אתה יכול לעזור לי למצוא את השביל הביתה?"
-רוֹפִי מסתכל ימינה. "עָלֶה — מְרַחֵף — שָׁם עוֹד אֶחָד —"
+רוּפִי מסתכל ימינה. "עָלֶה — מְרַחֵף — שָׁם עוֹד אֶחָד —"
 הוא מסתכל שמאלה. "צֵל — גָּדוֹל — זָז לְאָט —"
 "אבל השביל?" אני אומר.
 "עוֹד מַשֶּׁהוּ —" הוא אומר ומסתובב שוב.
@@ -59,7 +59,7 @@ imageDirection: hawk perched, head snapping in different directions, bell ringin
 imageDirection: child looking confused while Had gestures outward to many things
 
 --- Page 5 ---
-רוֹפִי קופץ לענף אחר, קרוב אליי.
+רוּפִי קופץ לענף אחר, קרוב אליי.
 "שלושה ציפורים — שם — ארבעה צללים — למטה —"
 הראש שלו לא עוצר. העיניים סורקות את הכל.
 הפעמון מצלצל מהר מהר מהר.

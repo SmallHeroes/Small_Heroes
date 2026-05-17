@@ -11,7 +11,7 @@ title: "כשהאור לא נסגר"
 companionId: puppy_neeman
 direction: adventure
 category: OTHER
-gender: male
+gender: female
 pages: 15
 endingType: residue
 
