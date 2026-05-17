@@ -301,9 +301,14 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
     fullPrompt += `\nNo text or letters in the image.`;
   }
 
+  // Allow overriding the OpenAI image model via env var. Defaults to gpt-image-1.
+  // Set GPT_IMAGE_MODEL=gpt-image-2 to switch to the newer agentic model (April 2026)
+  // which plans composition before rendering — should obey our framing instructions.
+  const imageModel = (process.env.GPT_IMAGE_MODEL || 'gpt-image-1').trim();
+
   const startMs = Date.now();
   console.info(
-    `[GPTImage] model=gpt-image-1 quality=${quality} size=${size} promptLen=${fullPrompt.length} ` +
+    `[GPTImage] model=${imageModel} quality=${quality} size=${size} promptLen=${fullPrompt.length} ` +
     `refs=${refs.length} mode=${hasReference ? 'images.edit' : 'images.generate'}`
   );
 
@@ -313,7 +318,7 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
       const files = await Promise.all(refs.slice(0, 4).map((u, i) => urlToOpenAIFile(u, i)));
       const imageArg = files.length === 1 ? files[0] : (files as unknown as typeof files[0]);
       const response = await openai.images.edit({
-        model: 'gpt-image-1',
+        model: imageModel,
         image: imageArg,
         prompt: fullPrompt,
         size: size as never,
@@ -323,7 +328,7 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
       b64 = response.data?.[0]?.b64_json ?? undefined;
     } else {
       const response = await openai.images.generate({
-        model: 'gpt-image-1',
+        model: imageModel,
         prompt: fullPrompt,
         size: size as never,
         quality: quality as never,
@@ -346,7 +351,7 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
 
   return {
     buffer,
-    model: 'gpt-image-1',
+    model: imageModel,
     finalPrompt: fullPrompt,
     hasReferencePhoto: hasReference,
     durationMs,

@@ -2238,7 +2238,7 @@ async function generateWithGPTImage(input: ImageInput): Promise<GeneratedImage> 
       });
 
       console.log(
-        `[gpt_image_done] orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} model=gpt-image-1 ` +
+        `[gpt_image_done] orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} model=${result.model} ` +
           `quality=${quality} size=${size} promptLen=${prompt.length} duration=${result.durationMs}ms ` +
           `hasReferencePhoto=${result.hasReferencePhoto} url=${durableUrl.slice(0, 80)}...`
       );
