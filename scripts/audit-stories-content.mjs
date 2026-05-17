@@ -113,7 +113,7 @@ const BEHAVIOR_PATTERNS = [
 
 const CLINICAL_PATTERNS = [
   { id: 'percent', severity: 'critical',
-    re: /\d+\s*%|אחוז|תשעים\s+ו?חמש|כמעט\s+כולם|רוב\s+הילדים/,
+    re: /\d+\s*%|אחוזים|תשעים\s+ו?חמש[ה]?|כמעט\s+כולם|רוב\s+ה(ילדים|אנשים|בני\s+אדם)/,
     msg: 'percentage / population claim (forbidden in children\'s story)' },
   { id: 'research_lang', severity: 'critical',
     re: /מחקרים?\s+(מראים|מראה|מוכיחים)|מומחים\s+(אומרים|טוענים)|המדע\s+אומר/,

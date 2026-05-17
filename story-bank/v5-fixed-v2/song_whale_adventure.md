@@ -23,7 +23,7 @@ stakes: the child's distress sound grows into a sharp, dark creature that fills 
 emotionalArc: curiosity → overwhelm → resistance → rupture → quiet connection
 quietPage: 11
 heartLine: עמוד 8 — לוּלִי שׁר מעל הילד עם עיניים עצומות, עוטף אותו בבועות יפות בלי לראות את הפנים
-emotionalMistake: עמוד 5 — הילד מושך את החליל מהחזה של לוּלִי
+emotionalMistake: עמוד 5 — הילד שׁוֹלֵחַ יד אל החליל ומבקש שׁתיקה
 uncomfortableTruth: עמוד 9 — יש קולות שלא צריך להפוך ליפים, ולוּלִי לא יודע לשמוע אותם
 
 --- Page 1 ---

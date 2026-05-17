@@ -23,7 +23,7 @@ stakes: the child's real need stays unheard and the distress grows louder and sc
 emotionalArc: curiosity → overwhelm → clash → rupture → quiet connection
 quietPage: 7
 heartLine: עמוד 6 — לוּלִי מוריד את החליל מהצוואר והוא תלוי כבד
-emotionalMistake: עמוד 4 — הילד שׂם יד על פה של לוּלִי ודחף
+emotionalMistake: עמוד 4 — הילד מסתובב הצידה ומתכווץ, לא רוצה את השִׁיר עכשׁיו
 uncomfortableTruth: עמוד 6 — לוּלִי לא יכול להבין כשהקול לא הופך לשִׁיר
 
 --- Page 1 ---
