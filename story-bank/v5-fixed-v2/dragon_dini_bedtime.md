@@ -75,7 +75,7 @@ imageDirection: dusty ground, Dini mid-fall, wings frantic, sash falling separat
 
 הוא מוריד את הראשׁ. מרים את הסרט.
 
-שׂם אוֹתוֹ על האפרוֹחַ הקטן.
+שׂם אותוֹ על האפרוֹחַ הקטן.
 
 imageDirection: close view, sash gently covering chick, Dini's face tired and close to the ground
 

@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "אוּרִי וְהָאוֹר שֶׁלֹּא נִכְבֶּה"
+title: "אוּרִי וְהָאור שלֹּא נִכְבֶּה"
 companionId: fox_uri
 direction: bedtime
 category: NIGHT_FEAR
@@ -28,8 +28,8 @@ uncomfortableTruth: עמוד 6 — The lantern stays on and Uri cannot switch it
 
 --- Page 1 ---
 אוּרִי הולך לפני על השׁביל.
-"תֵּדַע, זֶה רַק צֵל שֶׁל עֵץ," הוא אומר ומצביע.
-"וְזֶה צֵל שֶׁל גָּדֵר. פָּשׁוּט, אַתָּה רוֹאֶה?"
+"תֵּדַע, זֶה רַק צֵל של עֵץ," הוא אומר ומצביע.
+"וְזֶה צֵל של גָּדֵר. פָּשׁוּט, אתה רוֹאֶה?"
 הפנס על הצוואר שׁלו כבוי. החזה שׁלו נפוח.
 
 imageDirection: A small fox with puffed chest walks ahead, pointing at neat tree shadows while a child follows.
@@ -38,12 +38,12 @@ imageDirection: A small fox with puffed chest walks ahead, pointing at neat tree
 צֵל ארוך נמתח על הקרקע.
 הוא זז קצת, כאילו נושׁם.
 אוּרִי עוצר. האוזניים שלו זקופות.
-"רֶגַע, זֶה לֹא בָּרוּר."
+"רגע, זֶה לא בָּרוּר."
 
 imageDirection: Long, shifting shadow from unseen branches crosses the ground, slightly distorted.
 
 --- Page 3 ---
-אוּרִי מדבר מהר. "זֶה צֵל מִסּוּג... אַרְבַּע? לֹא, שָׁלוֹשׁ."
+אוּרִי מדבר מהר. "זֶה צֵל מִסּוּג... ארבע? לא, שלוש."
 האוזניים שלו מסתובבות לא בקצב.
 הפנס מהבהב. דולק, כבוי, דולק, כבוי.
 "כנראה שזה בסדר," הוא אומר. הקול קצת דחוף.
@@ -62,12 +62,12 @@ imageDirection: Child leaning forward toward the dark shape, Uri smaller behind,
 ציפור קופצת מהענף. כנפיים מרשרשות.
 הצל משׁתנה פתאום — גדול ומפוזר.
 הפנס של אוּרִי נדלק בבת אחת.
-אוֹר חזק על הקרקע.
+אור חזק על הקרקע.
 
 imageDirection: Bird mid-flight casting a wide, shifting shadow; Uri lit brightly against the dark.
 
 --- Page 6 ---
-אוּרִי מדבר עוד ועוד. "זֶה פָּשׁוּט צֵל שֶׁל..."
+אוּרִי מדבר עוד ועוד. "זֶה פָּשׁוּט צֵל של..."
 הקול שׁלו נשׁבר.
 הוא מתכופף נמוך. מקפל את הזנב מעל הפנים.
 הפנס ממשׁיך לזרוֹחַ.
@@ -76,7 +76,7 @@ imageDirection: Uri small and folded, tail glowing and wrapped over his face, la
 
 --- Page 7 ---
 הפנס דולק.
-האוֹר על העלים מעל.
+האור על העלים מעל.
 
 imageDirection: Still scene: steady warm light on leaves and branches gently shifting above.
 

@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "אִם וְאוּלַי גַּם"
+title: "אִם וְאוּלַי גם"
 companionId: bunny_ometz
 direction: adventure
 category: GENERAL_FEARS
@@ -53,7 +53,7 @@ imageDirection: his speech swirls into big shadowy scenarios dwarfing the simple
 --- Page 4 ---
 אנחנו יוצאים למסדרון.
 בּוּנִי הולך ומדבר.
-"אִם נִפְנֶה פה, אוּלַי יהיה חושך. ואוּלַי לא נראה את הדרך בחזרה. ואוּלַי גם יֵשׁ משהו שם."
+"אִם נִפְנֶה פה, אוּלַי יהיה חושך. ואוּלַי לא נראה את הדרך בחזרה. ואוּלַי גם יש משהו שם."
 המסדרון ארוך, אבל בּוּנִי רואה משהו אחר.
 
 imageDirection: long corridor with tiny real objects and huge imagined overlays

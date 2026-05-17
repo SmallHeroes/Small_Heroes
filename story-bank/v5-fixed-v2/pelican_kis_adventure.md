@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "יֵשׁ עוֹד מָקוֹם"
+title: "יש עוֹד מקום"
 companionId: pelican_kis
 direction: adventure
 category: NEW_SIBLING
@@ -30,14 +30,14 @@ uncomfortableTruth: עמוד 9 — The child realizes that inside the pouch, eve
 פֵּלִי השׁקנאי עומד על החוֹף.
 הכיס שׁלו פתוּחַ.
 
-"יֵשׁ עוֹד מָקוֹם!" הוא אומר לסרטן קטן.
+"יש עוֹד מקום!" הוא אומר לסרטן קטן.
 הסרטן נכנס.
 
-"יֵשׁ עוֹד מָקוֹם!" הוא אומר לצדף.
+"יש עוֹד מקום!" הוא אומר לצדף.
 הצדף נכנס.
 
 הכיס מתמלא. פֵּלִי מחייך.
-"כֻּלָּם פֹּה."
+"כלם פה."
 
 imageDirection: A tidy pelican with a slightly bulging pouch, inviting crabs, shells, and small critters inside.
 
@@ -54,13 +54,13 @@ imageDirection: Child crouched with a small glowing winged creature hovering nea
 --- Page 3 ---
 פֵּלִי פותח את הכיס לרווחה.
 
-"יֵשׁ עוֹד מָקוֹם! בְּסֵדֶר?"
+"יש עוֹד מקום! בסדר?"
 
 הילד מניח את היצוּר בפנים.
 היצוּר מתכווץ ליד הצדף.
 
 פֵּלִי מוֹסיף אבן חמה, נוצה רכה, ועוֹד סרטן.
-"כֻּלָּם פֹּה. תוֹדָה."
+"כלם פה. תוֹדָה."
 
 imageDirection: Kis opening his pouch wide, already filled with mixed items peeking out.
 
@@ -73,7 +73,7 @@ imageDirection: Kis opening his pouch wide, already filled with mixed items peek
 פֵּלִי לא רואה.
 הוא מוֹסיף עוֹד משׁהו — ענף יבשׁ.
 
-"יֵשׁ עוֹד מָקוֹם, יֵשׁ עוֹד מָקוֹם."
+"יש עוֹד מקום, יש עוֹד מקום."
 
 imageDirection: Inside view of crowded pouch with overlapping textures and the creature squeezed.
 
@@ -92,7 +92,7 @@ imageDirection: Child's hand gently but firmly nudging the small creature into t
 פֵּלִי ממשׁיך ללכת לאורך החוֹף.
 הכיס מתנפח.
 
-"מָה אַתָּה צָרִיךְ?" הוא שׁואל צל קטן ליד הסלעים.
+"מה אתה צָרִיךְ?" הוא שׁואל צל קטן ליד הסלעים.
 הצל נכנס.
 
 דברים מתחילים להחליק אל פתח הכיס.
@@ -119,7 +119,7 @@ imageDirection: Kis wobbling slightly, bow tie slipping, pouch visibly overfull.
 בפנים, משׁהו קטן דוחף.
 
 פֵּלִי נושׁם לאט.
-"אֶחָד אַחֲרֵי הַשֵּׁנִי. אֶחָד אַחֲרֵי הַשֵּׁנִי."
+"אחד אַחֲרֵי הַשֵּׁנִי. אחד אַחֲרֵי הַשֵּׁנִי."
 
 imageDirection: Close-up of Kis gently forcing the pouch shut, a faint glow pushing against the fabric.
 
@@ -158,7 +158,7 @@ imageDirection: Still moment: pouch open and emptying slightly, no movement.
 היצוּר מפסיק לרעוֹד.
 הכנפיים שׁלו מתחילות להיפתח.
 
-אוֹר קטן זוֹרח מהן.
+אור קטן זוֹרח מהן.
 
 imageDirection: Soft glow around the child's hands, the creature unfolding gently.
 
@@ -172,9 +172,9 @@ imageDirection: The small creature flying upward, free against a wide sky.
 
 --- Page 14 ---
 פֵּלִי עומד על החוֹף.
-בכיס יֵשׁ רק שׁני דברים — הסרטן והנוצה.
+בכיס יש רק שׁני דברים — הסרטן והנוצה.
 
-יֵשׁ מקוֹם ביניהם.
+יש מקוֹם ביניהם.
 
 פֵּלִי מביט למעלה.
 "תוֹדָה," הוא אומר לשׁמיים.

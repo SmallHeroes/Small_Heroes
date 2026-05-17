@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "רוּפִי וְהַדָּבָר הָאֶחָד"
+title: "רוּפִי וְהַדָּבָר הָאחד"
 companionId: hawk_had
 direction: adventure
 category: FOCUS_LEARNING
@@ -36,14 +36,14 @@ imageDirection: Tall trees with overlapping leaves, shadows moving in every dire
 --- Page 2 ---
 רוּפִי יוֹרד על ענף מעליי.
 הראשׁ שלו קופץ לצד. אחר כך לצד אחר.
-"שָׁם — עלה. שָׁם — צל. שָׁם — אבן גדולה. שָׁם — שָׁלוֹשָׁה ענפים."
+"שם — עלה. שם — צל. שם — אבן גדולה. שם — שָׁלוֹשָׁה ענפים."
 הפעמון שלו מצלצל בלי הפסקה.
 
 imageDirection: Hawk perched high, head snapping in different directions, small bell blurred with motion
 
 --- Page 3 ---
 "רוּפִי, איפה השביל הביתה?"
-"שָׁם — אוֹר. שָׁם — שורש. שָׁם — חור בעץ. שָׁם — עוד עלה."
+"שם — אור. שם — שורש. שם — חור בעץ. שם — עוד עלה."
 אני מסתכל לכל הכיוונים.
 לא רואה כלום.
 
@@ -67,7 +67,7 @@ imageDirection: Child crouched, hands over ears, Had mid-motion above
 
 --- Page 6 ---
 רוּפִי מצלצל חזק יותר.
-"שָׁם וְשָׁם וְשָׁם וְשָׁם —"
+"שם וְשם וְשם וְשם —"
 הראש שלו זז מהר וקשה לראות אותו. הענף רועד.
 הכנפיים נפתחות חצי.
 
@@ -91,7 +91,7 @@ imageDirection: Close-up of Had's eye fixed on a leaf, tear forming, bell still 
 
 --- Page 9 ---
 רוּפִי לא יכול לעצור.
-"שָׁם — משהו. שָׁם — עוד. שָׁם —"
+"שם — משהו. שם — עוד. שם —"
 הגוף שלו רועד.
 אבל הראש ממשיך להסתכל לכל הכיוונים.
 
@@ -120,7 +120,7 @@ imageDirection: Soft focus around edges, sharp detail on leaf and single eye
 
 --- Page 13 ---
 רוּפִי מביט מעבר לעלה.
-"שָׁם — שביל דק."
+"שם — שביל דק."
 אני רואה שביל דק בין העצים.
 השביל הביתה.
 
@@ -128,7 +128,7 @@ imageDirection: Subtle trail becoming visible beyond the leaf
 
 --- Page 14 ---
 משהו קטן רץ על השביל ונעלם.
-האוֹר עובר בין העצים.
+האור עובר בין העצים.
 רוּפִי לא זָז.
 
 imageDirection: Tiny creature darting away, light filtering through trees

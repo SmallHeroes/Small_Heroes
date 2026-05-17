@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "רוֹקִי וְהַדָּבָר שֶׁלֹּא נִפְתָּר"
+title: "רוֹקִי וְהַדָּבָר שלֹּא נִפְתָּר"
 companionId: puppy_neeman
 direction: fantasy
 category: OTHER
@@ -60,7 +60,7 @@ imageDirection: thin mist touching the child's feet, subtle unease
 
 רוֹקִי מרים את הראש. מסתכל על {{childName}}. הזנב שלו עוצר באמצע נפנוף.
 
-"פֹּה," הוא אומר בשקט. רק מילה אחת.
+"פה," הוא אומר בשקט. רק מילה אחת.
 
 imageDirection: child staring into fog, expression uncertain, puppy watching quietly
 
@@ -96,7 +96,7 @@ imageDirection: fog growing denser, path fading into gray
 
 {{childName}} לא אומר כלום.
 
-רוֹקִי גם לא. רק "פֹּה," לוחש בלי שהילד שומע.
+רוֹקִי גם לא. רק "פה," לוחש בלי שהילד שומע.
 
 imageDirection: puppy a step behind, calm posture, steady presence
 
@@ -191,7 +191,7 @@ imageDirection: child holding small ambiguous item, puppy nearby
 
 {{childName}} מסתכל עליו. רוֹקִי מסתכל על {{childName}}. הזנב שלו זז פעם אחת, רגוע.
 
-"פֹּה," אומר רוֹקִי מהמקום שלו. יש רווח ביניהם. זה בסדר.
+"פה," אומר רוֹקִי מהמקום שלו. יש רווח ביניהם. זה בסדר.
 
 imageDirection: distance between child and puppy, soft space between them
 

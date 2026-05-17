@@ -48,7 +48,7 @@ imageDirection: Mole half-emerged, glasses tilted, paws pressed to soil
 הקול עובר שוב.
 חוֹפִי מתחילה לחפור מהר.
 עפר נופל פנימה.
-"לְאַדָמָה, לְאַדָמָה," היא לוחשת.
+"לְאַדָמה, לְאַדָמה," היא לוחשת.
 היא נעלמת למטה. הזנב האחרון נכנס.
 
 imageDirection: Loose dirt falling as Mole disappears downward, child hesitating at edge
@@ -63,7 +63,7 @@ imageDirection: Loose dirt falling as Mole disappears downward, child hesitating
 imageDirection: Dim earthy tunnel with shifting dust, child crouched behind Mole
 
 --- Page 5 ---
-המנהרה מתפצלת.
+המנהרה מתחלקת.
 חוֹפִי רוצה ללכת עמוק יותר.
 אני מושך את היד אחורה.
 "לא," אני אומר. "למעלה."
@@ -138,7 +138,7 @@ imageDirection: Dust settling, subtle vibration passing through both child and M
 חוֹפִי מסתובבת למעלה.
 אני הולך אחריה.
 המנהרה עולה לאט.
-אוֹר רך מלמעלה.
+אור רך מלמעלה.
 
 imageDirection: Gentle upward slope, softer light above, both moving carefully
 

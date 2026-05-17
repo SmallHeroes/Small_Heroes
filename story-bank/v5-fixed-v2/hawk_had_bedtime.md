@@ -36,7 +36,7 @@ imageDirection: soft evening light, leaves fluttering, insects, branches swaying
 --- Page 2 ---
 רוּפִי נוחת על ענף מעליו.
 הראש שלו זז ימינה. שמאלה. ימינה שׁוּב.
-"שָׁם — עָלֶה — שָׁם — צֵל — שָׁם עוֹד —"
+"שם — עָלֶה — שם — צֵל — שם עוֹד —"
 הפעמון שׁלו מצלצל בלי הפסקה.
 
 imageDirection: hawk perched, head snapping side to side, tiny bell on leg mid-ring, motion lines everywhere
@@ -58,8 +58,8 @@ imageDirection: child crouched, hands over ears, Had still scanning above, bell 
 
 --- Page 5 ---
 רוּפִי מסתכל מהר יותר סביבו.
-"עוֹד — וְעוֹד — וְשָׁם —"
-הילד לא מוצא את השביל. האוֹר נעשׂה חלשׁ יותר.
+"עוֹד — וְעוֹד — וְשם —"
+הילד לא מוצא את השביל. האור נעשׂה חלשׁ יותר.
 הכל עדיין זָז.
 
 imageDirection: darker tones, long shadows, Had frantic, overlapping motion blurs, no clear path visible
@@ -87,7 +87,7 @@ imageDirection: hawk and child side by side, bell finally quiet, everything else
 
 --- Page 9 ---
 השׁביל מופיע מאחורי העלה.
-אוֹר חם חוזר.
+אור חם חוזר.
 הכל במקום.
 
 imageDirection: path emerging softly in background, warm light returning, leaf still in foreground

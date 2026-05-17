@@ -28,7 +28,7 @@ uncomfortableTruth: עמוד 9 — The child realizes Lahav is hurting not becau
 
 --- Page 1 ---
 אני הולך בין אבנים שחורות.
-מתחת לסדקים יש אוֹר קטן — אדום, כתום, ירוק.
+מתחת לסדקים יש אור קטן — אדום, כתום, ירוק.
 כל אבן זוֹהרת אחרת.
 זה משתנה כל הזמן.
 
@@ -36,7 +36,7 @@ imageDirection: small child among dark rocks with faint colored embers glowing b
 
 --- Page 2 ---
 על אבן גדולה יוֹשב משהו.
-סלמנדרה. שׁמוֹ רוּמִי.
+סלמנדרה. שׁמוֹ רוּמי.
 הדפוסים על הגוף שלו כמעט אפוֹרים.
 הוא לא זז.
 
@@ -51,7 +51,7 @@ imageDirection: salamander with dim, almost grey patterns, calm posture
 imageDirection: child leaning in, bright curious energy, small sparks jump
 
 --- Page 4 ---
-רוּמִי פותח את הפה וּבוֹלע אותם.
+רוּמי פותח את הפה וּבוֹלע אותם.
 הלסת שלו נסגרת.
 הדפוסים כבר בקושי נראים.
 
@@ -61,13 +61,13 @@ imageDirection: close-up of jaw tightening, patterns fading
 אני מצחקק.
 זה כיף!
 אני מקרצף אבן על אבן — עוד ניצוֹצוֹת!
-הם קופצים ליד הפנים של רוּמִי.
+הם קופצים ליד הפנים של רוּמי.
 
 imageDirection: child clapping or scraping stones, sparks near Lahav's face
 
 --- Page 6 ---
 "בסדר," הוא אומר לאט.
-רוּמִי בוֹלע שוב.
+רוּמי בוֹלע שוב.
 אבל משהו קורה — הגוף שלו מתחיל לרעוד.
 האוויר מסביבו מתחמם.
 
@@ -90,7 +90,7 @@ imageDirection: child crouched, concerned, Lahav dim and frozen
 imageDirection: tiny spark at mouth being pulled inward, strained posture
 
 --- Page 9 ---
-רוּמִי לא יכול לזוז יותר.
+רוּמי לא יכול לזוז יותר.
 החוֹם נשאר בפנים.
 אני מבין משהו — זה לא רק בגללי.
 הוא תמיד עושה ככה.

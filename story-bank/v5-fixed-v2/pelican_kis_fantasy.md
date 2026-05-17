@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "הַכִּיס שֶׁל פֵּלִי"
+title: "הַכיס של פֵּלִי"
 companionId: pelican_kis
 direction: fantasy
 category: NEW_SIBLING
@@ -32,7 +32,7 @@ uncomfortableTruth: עמוד 12 — Even when everything is inside, the child re
 imageDirection: Pelican with a glowing pouch, shells and feathers lining up to enter.
 
 --- Page 2 ---
-"יֵשׁ עוד מָקוֹם," אומר פֵּלִי. הוא מסדר את החפצים בעדינוּת. הקונכייה ליד הנוצה. האבן ליד הקונכייה. הכיס נהיה מלא, אבל עדיין פתוחַ.
+"יש עוד מקום," אומר פֵּלִי. הוא מסדר את החפצים בעדינוּת. הקונכייה ליד הנוצה. האבן ליד הקונכייה. הכיס נהיה מלא, אבל עדיין פתוחַ.
 
 imageDirection: Objects neatly stacking inside the pouch like a cozy collection.
 
@@ -42,7 +42,7 @@ imageDirection: Objects neatly stacking inside the pouch like a cozy collection.
 imageDirection: Child clutching a dim glowing object shaped ambiguously.
 
 --- Page 4 ---
-פֵּלִי רוכן קדימה. "יֵשׁ עוד מָקוֹם, בסדר?" הכיס נפתח רחב. החפץ מתקרב לאט, אבל הילד עדיין מחזיק אותו.
+פֵּלִי רוכן קדימה. "יש עוד מקום, בסדר?" הכיס נפתח רחב. החפץ מתקרב לאט, אבל הילד עדיין מחזיק אותו.
 
 imageDirection: Kis leaning forward warmly, pouch stretched open wide.
 
@@ -57,7 +57,7 @@ imageDirection: Crowded pouch interior, objects pressing together.
 imageDirection: Child blocking a tiny object while gripping their own tightly.
 
 --- Page 7 ---
-פֵּלִי מותח את הכיס יותר. "יֵשׁ עוד מָקוֹם," הוא אומר. העניבה שלו מחליקה הצידה. שני החפצים נכנסים. הכיס נמתח עד הקצה.
+פֵּלִי מותח את הכיס יותר. "יש עוד מקום," הוא אומר. העניבה שלו מחליקה הצידה. שני החפצים נכנסים. הכיס נמתח עד הקצה.
 
 imageDirection: Pouch visibly straining, bow tie crooked.
 
@@ -102,7 +102,7 @@ imageDirection: Child's hand inside pouch retrieving the glowing object.
 imageDirection: Object resting alone, small space cleared around it.
 
 --- Page 16 ---
-פֵּלִי נושף. הכיס נרגע קצת. בפנים עוד חפצים, אבל פחות. האוֹר בפנים חלש, רגוע.
+פֵּלִי נושף. הכיס נרגע קצת. בפנים עוד חפצים, אבל פחות. האור בפנים חלש, רגוע.
 
 imageDirection: Pouch relaxing, fewer objects inside, gentle light fading.
 

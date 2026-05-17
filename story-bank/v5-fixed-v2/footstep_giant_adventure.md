@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "בּוּמִי וְהַצְּעָד הָרַךְ"
+title: "בּוּמי וְהַצְּעָד הָרַךְ"
 companionId: footstep_giant
 direction: adventure
 category: NOISE_FEAR
@@ -85,7 +85,7 @@ imageDirection: glass jar vibrating on ground, his cheeks puffed with held breat
 --- Page 7 ---
 כּוֹבַע קופץ מהאדמה.
 הוא טס באוויר ונופל.
-בּוּמִי פולט את האוויר בצחוֹק אחד גדוֹל.
+בּוּמי פולט את האוויר בצחוֹק אחד גדוֹל.
 הצחוֹק רוֹעֵם.
 הדשׁא מִתְכּוֹפֵף.
 
@@ -93,7 +93,7 @@ imageDirection: hat bouncing up, his mouth open in a single booming laugh, shock
 
 --- Page 8 ---
 הילדה קופצת מהמקוֹם.
-בּוּמִי נופל על האדמה.
+בּוּמי נופל על האדמה.
 שׁוֹכב שׁטוּחַ. הידיים לצד הגוף.
 הרגליים צמוּדוֹת.
 עפר עולה ונח מסביב.
@@ -119,13 +119,13 @@ imageDirection: small pebbles vibrating near his fingers, his eyes worried
 imageDirection: child's foot hitting ground, wide ripples through grass and objects
 
 --- Page 11 ---
-הילדה שׂמָה יד על האדמה.
+הילדה שׂמה יד על האדמה.
 היא לא זזה.
 
 imageDirection: small hand resting on soil, stillness spreading outward
 
 --- Page 12 ---
-בּוּמִי מניח את כף היד הגדוֹלה על האדמה.
+בּוּמי מניח את כף היד הגדוֹלה על האדמה.
 מקיש עם האצבעוֹת. אחת. שתיים. שלוש.
 החפצים נרגעים לקצב רך.
 האבנים לא קופצוֹת. הן מתנדנדות.
@@ -141,7 +141,7 @@ imageDirection: his large hand beside the child's, three faint ripples, calm ret
 imageDirection: dust puff from his seated form, child steady beside him
 
 --- Page 14 ---
-בּוּמִי קם.
+בּוּמי קם.
 צועד הצידה לאט.
 מוציא אבן עגוּלה מהכּיס.
 מניח אותה על הקרקע.

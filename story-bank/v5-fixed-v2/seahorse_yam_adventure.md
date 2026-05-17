@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "כְּשֶׁהַזָּנָב לֹא מְשַׁחְרֵר"
+title: "כְּשֶׁהַזָּנָב לא מְשַׁחְרֵר"
 companionId: seahorse_yam
 direction: adventure
 category: MEDICAL_PROCEDURE
@@ -164,7 +164,7 @@ imageDirection: child floating independently, Yam nearby but separate
 חוט קטן מהזנב של גְּלִי נשאר תקוע על האבן.
 הם צפים יחד במים השקטים.
 לא קרובים מדי, לא רחוקים.
-האוֹר רך.
+האור רך.
 
 imageDirection: tiny strand left behind on rock, Yam and child apart but close in soft light
 

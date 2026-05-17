@@ -51,7 +51,7 @@ imageDirection: colorful words hovering in the air, parrot tilting head copying 
 imageDirection: trail of layered colored words, parrot repeating with identical colors
 
 --- Page 3 ---
-השׁביל מתפצל לשניים.
+השׁביל מתחלק לשניים.
 
 "לאן אנחנו הולכים?" אני שואל.
 

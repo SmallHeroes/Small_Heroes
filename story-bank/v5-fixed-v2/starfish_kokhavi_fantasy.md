@@ -68,7 +68,7 @@ imageDirection: the bedroom dissolving around the girl and Dori, walls becoming 
 --- Page 5 ---
 הן עוֹמְדוֹת על קרקעית. אבל זה לא חוֹל. זה זְכוּכִית.
 
-חתיכות קטנות, צבעוניות, חלקות. אדומות. ירוקות. כחולות. כָּל הצבעים.
+חתיכות קטנות, צבעוניות, חלקות. אדומות. ירוקות. כחולות. כל הצבעים.
 
 כל חתיכה מאירה מבפנים.
 
@@ -86,7 +86,7 @@ imageDirection: an underwater garden floor made entirely of small smooth colored
 imageDirection: the girl looking down at the glowing glass-piece floor with wonder, Dori beside her gesturing across the vast magical landscape, soft ethereal underwater light
 
 --- Page 7 ---
-{{childName}} מַרְימָה חתיכת זכוכית כחולה.
+{{childName}} מַרְימה חתיכת זכוכית כחולה.
 
 היא חמה.
 
@@ -101,7 +101,7 @@ imageDirection: the girl holding up a small warm blue glowing glass piece in her
 
 מתחת לרגלי {{childName}} כל זכוכית עוֹשָׂה צליל קטן — לא נשבר. שָׁר.
 
-"אֵיךְ הם נעשו ככה?" {{childName}} שואלת. "החתיכות?"
+"איך הם נעשו ככה?" {{childName}} שואלת. "החתיכות?"
 
 imageDirection: the girl walking gently across the glass-piece floor, each step making the pieces glow brighter and ripple with color, Dori floating beside her, dreamlike, NO TEXT
 
@@ -150,9 +150,9 @@ imageDirection: very quiet contemplative scene — the girl seated still on the 
 
 חתיכת זכוכית אחת — קטנה, ורוּדה — מתגלגלת לידה.
 
-{{childName}} מַרְימָה אותה.
+{{childName}} מַרְימה אותה.
 
-הקליפה — לא, הזכוכית — מַאֲדִימָה לאט בידה.
+הקליפה — לא, הזכוכית — מַאֲדִימה לאט בידה.
 
 imageDirection: a tiny pink glowing glass piece rolling toward the girl, she picks it up, the piece slowly turning deeper pink in her hand, magical soft light, breathing-space composition
 
@@ -208,13 +208,13 @@ imageDirection: Dori's small new arm offering the pink glowing glass piece to th
 imageDirection: the girl taking a slow deep breath, the glass garden gently dissolving around her into soft pink and blue mist, Dori smiling as she fades
 
 --- Page 19 ---
-{{childName}} פוקחת עיניים בְּמִיטָתָה.
+{{childName}} פוקחת עיניים בְּמיטָתָה.
 
 החדר שקט. הירח עדיין בחלון.
 
 היא מַחֲלִיקָה את היד אל הכיס.
 
-הזכוכית הוורודה שָׁם. חמה.
+הזכוכית הוורודה שם. חמה.
 
 imageDirection: the girl waking in her bed, moonlight through the window same as before, her hand sliding into her pajama pocket and feeling a small pink warm glow inside, soft peaceful return
 
@@ -223,7 +223,7 @@ imageDirection: the girl waking in her bed, moonlight through the window same as
 
 אבל בכיס יש אור.
 
-ויש מי שׁיוֹדֵעַ אותה — שָׁם, בַּמַּיִם, מַחֲכָה.
+ויש מי שׁיוֹדֵעַ אותה — שם, בַּמַּיִם, מַחֲכָה.
 
 {{childName}} סוגרת עיניים. הפעם — נִרְדֶּמֶת.
 

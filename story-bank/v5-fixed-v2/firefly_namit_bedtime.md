@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "נְמִית וְהַצֵּל שֶׁלֹּא נֶעֱלָם"
+title: "נְמית וְהַצֵּל שלֹּא נֶעֱלָם"
 companionId: firefly_namit
 direction: bedtime
 category: GENERAL_FEARS
@@ -29,16 +29,16 @@ uncomfortableTruth: עמוד 6 — Even when lit, one shadow stretches larger an
 --- Page 1 ---
 החדר כמעט חשוך. צללים על הקיר ליד המעיל. משהו זז ליד הוילון.
 
-נְמִית נכנסת דרך החלון. האוֹר שלה כבר דולק.
+נְמית נכנסת דרך החלון. האור שלה כבר דולק.
 
 היא עפה מהר. היא מסתכלת על כל פינה.
 
 imageDirection: Soft dark room with coat shadow, curtain ripple, child in bed; small bright firefly entering mid-air
 
 --- Page 2 ---
-"אַל תִּפְחַד!" נמית קופצת אל המעיל.
+"אל תִּפְחַד!" נמית קופצת אל המעיל.
 
-האוֹר שלה מאיר עליו. הצל קטן רגע אחד.
+האור שלה מאיר עליו. הצל קטן רגע אחד.
 
 היא כבר עפה הלאה. הכיסא. הקיר. עוד פינה.
 
@@ -49,25 +49,25 @@ imageDirection: Light beam hopping from coat to chair to wall, shadows shrinking
 --- Page 3 ---
 נמית עפה מהר יותר. צל חדש ליד הארון. עוד אחד ליד הדלת.
 
-האוֹר שלה חזק ומהיר, אבל הצללים לא נגמרים.
+האור שלה חזק ומהיר, אבל הצללים לא נגמרים.
 
 היא מנסה להגיע לכולם בבת אחת.
 
 imageDirection: Multiple overlapping shadows forming; Namit darting with brighter, sharper light
 
 --- Page 4 ---
-"שָׁם!" הילד מצביע על עוד פינה. "גַם שָׁם!"
+"שם!" הילד מצביע על עוד פינה. "גַם שם!"
 
 נמית עפה למקום. הכנפיים שלה רועדות.
 
 הצעיף מתנדנד בלי לעצור.
 
-"מָהֵר, עוד אחד!" הילד מצביע שוב.
+"מהֵר, עוד אחד!" הילד מצביע שוב.
 
 imageDirection: Child leaning forward pointing; Namit mid-flight stretched thin, scarf trailing wildly
 
 --- Page 5 ---
-נמית ממריאה אל הקיר. יש שָׁם צל גבוה.
+נמית ממריאה אל הקיר. יש שם צל גבוה.
 
 היא מאירה עליו חזק. אבל הצל לא קטן.
 
@@ -76,9 +76,9 @@ imageDirection: Child leaning forward pointing; Namit mid-flight stretched thin,
 imageDirection: Elongated shadow growing taller under direct light; Namit hovering close, overbright
 
 --- Page 6 ---
-נמית מנסה שוב. האוֹר שלה מהבהב.
+נמית מנסה שוב. האור שלה מהבהב.
 
-היא מנסה עוד פעם. האוֹר חלש.
+היא מנסה עוד פעם. האור חלש.
 
 היא מחליקה מתחת לעלה ליד החלון.
 
@@ -87,9 +87,9 @@ imageDirection: Elongated shadow growing taller under direct light; Namit hoveri
 imageDirection: Dim flickering glow partially hidden under a leaf; long shadow still visible behind
 
 --- Page 7 ---
-הילד ניגש לאדן החלון. שׂם יד על העלה.
+הילד ניגש למדף החלון. שׂם יד על העלה.
 
-האוֹר מתחתיו קטן ועמום.
+האור מתחתיו קטן ועמום.
 
 imageDirection: Small hand cupping leaf with faint light inside, rest of room dark and quiet
 
@@ -105,7 +105,7 @@ imageDirection: Child sitting near windowsill, shadow present but still; Namit f
 --- Page 9 ---
 נמית יוצאת לאט מתחת לעלה.
 
-האוֹר שלה קטן ורגוּעַ. פועם בקצב איטי.
+האור שלה קטן ורגוּעַ. פועם בקצב איטי.
 
 הכנפיים שלה מקופלות. היא לא עפה לשום מקום.
 
@@ -114,7 +114,7 @@ imageDirection: Soft warm pulsing light, wings relaxed, fewer sharp shadows in t
 --- Page 10 ---
 הילד שׁוֹכֵב במיטה. נמית קרובה.
 
-הידיים שלו סביב האוֹר שלה, כמו סביב נר קטן.
+הידיים שלו סביב האור שלה, כמו סביב נר קטן.
 
 החדר רגוּעַ. הצללים נשארו, אבל שניהם כבר ישנים.
 

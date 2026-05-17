@@ -95,7 +95,7 @@ imageDirection: frozen blue yes lights, Anat still, eyes wide
 --- Page 10 ---
 עָנָת מתחילה להתכרבל. הכפות הולכות פנימה, והזנב מתקפל.
 היא הופכת לכדור הדוק על האדמה, הראש מוסתר בפנים.
-משהו חום-כתום מהבהב בתוך הכדור, קלוש מאוד.
+משהו חום-כתום מהבהב בתוך הכדור, חלש מאוד.
 
 imageDirection: panda curled tightly, warm orange glow faintly inside the ball
 

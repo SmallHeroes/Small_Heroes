@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "הַצֵּל שֶׁלֹּא הִתְאִים"
+title: "הַצֵּל שלֹּא הִתְאִים"
 companionId: fox_uri
 direction: fantasy
 category: NIGHT_FEAR
@@ -37,7 +37,7 @@ imageDirection: soft glowing shadows stretching between trees, child small in fr
 imageDirection: fox standing tall, gesturing at neat shadow shapes
 
 --- Page 3 ---
-השׁוּעָל התקדם במהירות בין העצים. "הַצֵּל הַזֶּה? סוּג שָׁלוֹשׁ. וְהַצֵּל הַזֶּה? סוּג שֵׁשׁ." אוזניו היו זקופות, הזנב נח לאורך גופו. הפנס על הצוואר לא נדלק. הוא לא הסתכל לאחור, רק הלך מצל לצל.
+השׁוּעָל התקדם במהירות בין העצים. "הַצֵּל הַזֶּה? סוּג שלוש. וְהַצֵּל הַזֶּה? סוּג שֵׁשׁ." אוזניו היו זקופות, הזנב נח לאורך גופו. הפנס על הצוואר לא נדלק. הוא לא הסתכל לאחור, רק הלך מצל לצל.
 
 imageDirection: shadows labeled visually by shape, Uri proud and composed
 
@@ -47,7 +47,7 @@ imageDirection: shadows labeled visually by shape, Uri proud and composed
 imageDirection: strange uneven shadow pooling between roots
 
 --- Page 5 ---
-השׁוּעָל ניגש לצל המוזר. "כְּנִרְאֶה זֶה סוּג תֵּשַׁע, אוֹ אוּלַי עֶשֶׂר. קצת שונה, אבל די רגיל." הוא דיבר מהר יותר מקודם. אזניו התנועעו קצת בלי סדר. הפנס נשאר כבוי.
+השׁוּעָל ניגש לצל המוזר. "כְּנִרְאֶה זֶה סוּג תֵּשַׁע, או אוּלַי עֶשֶׂר. קצת שונה, אבל די רגיל." הוא דיבר מהר יותר מקודם. אזניו התנועעו קצת בלי סדר. הפנס נשאר כבוי.
 
 imageDirection: Uri gesturing quickly, ears slightly off-balance
 
@@ -77,7 +77,7 @@ imageDirection: shadow rippling toward Uri, ignoring structure
 imageDirection: Uri small, curled, faint glow leaking from underneath
 
 --- Page 11 ---
-הפנס נדלק שוב, והפעם נשאר דולק. אוּרִי המשיך לדבר. "בְּעֶצֶם זֶה סוּג חָדָשׁ, אֲבָל גַּם הוּא בֶּטַח שַׁיָּךְ לְמַשֶּׁהוּ שֶׁ..." הקול היה מהיר מאוד. האור האיר עליי ועל הצל.
+הפנס נדלק שוב, והפעם נשאר דולק. אוּרִי המשיך לדבר. "בעצם זֶה סוּג חָדָשׁ, אבל גם הוא בֶּטַח שַׁיָּךְ לְמַשֶּׁהוּ שֶׁ..." הקול היה מהיר מאוד. האור האיר עליי ועל הצל.
 
 imageDirection: steady glow now lighting both child and shadow
 
@@ -87,7 +87,7 @@ imageDirection: steady glow now lighting both child and shadow
 imageDirection: shadow unmoved, heavy and undefined
 
 --- Page 13 ---
-הפנס נעשה בהיר עוד יותר. ראיתי את העיניים של השׁוּעָל, פתוחות לגמרי. הוא המשיך להסביר. "אֶפְשָׁר שֶׁזֶּה צֵל מסוג שנים־עשר, או שלושה־עשר, אוֹ..." הצל היה מאחוריו עכשיו.
+הפנס נעשה בהיר עוד יותר. ראיתי את העיניים של השׁוּעָל, פתוחות לגמרי. הוא המשיך להסביר. "אֶפְשָׁר שֶׁזֶּה צֵל מסוג שנים־עשר, או שלושה־עשר, או..." הצל היה מאחוריו עכשיו.
 
 imageDirection: Uri lit starkly, shadow looming behind
 

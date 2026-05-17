@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "לוּלִי וְהַקּוֹל שֶׁלֹּא רוֹצֶה לָשִׁיר"
+title: "לוּלִי וְהַקּוֹל שלֹּא רוֹצֶה לָשִׁיר"
 companionId: song_whale
 direction: adventure
 category: NOISE_FEAR

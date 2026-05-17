@@ -134,7 +134,7 @@ imageDirection: all tentacles neatly spiraled, hat straight again, soft glow
 --- Page 10 ---
 זוּזִי שׁוכב לידך מתחת לשמיכה.
 
-הזרועות מסולסלות קרוב אליו.
+הזרועות כרוכות קרוב אליו.
 
 את נוגעת באחת מהן. היא לא זָזה.
 

@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "דּוּרִי וְהַסֵּפֶר שֶׁל הָעֻבְדוֹת"
+title: "דּוּרִי וְהַסֵּפֶר של הָעֻבְדוֹת"
 companionId: starfish_kokhavi
 direction: bedtime
 category: MEDICAL_PROCEDURE
@@ -29,7 +29,7 @@ uncomfortableTruth: עמוד 6 — Kokhavi knows exactly what will happen and ho
 --- Page 1 ---
 דּוּרִי שׁוכב על הרצפה. המחברת פתוחה לפניו.
 "זרוע של כוֹכַב ים צומחת חזרה," הוא אומר. "זה לוקח קצת זמן."
-זרוע אחת מורמת למעלה. האוֹר סביבו רגוע וכתוֹם.
+זרוע אחת מורמת למעלה. האור סביבו רגוע וכתוֹם.
 
 imageDirection: starfish character on floor with open notebook, one arm raised, glowing environment with gentle color gradients
 
@@ -51,14 +51,14 @@ imageDirection: notebook sliding on the floor, child turned away hugging knees, 
 --- Page 4 ---
 דּוּרִי לא זז.
 אחרי רגע הוא אומר: "כשהיום עובר, הגוף יודע איך לחזור."
-האוֹר סביבו מהבהב. כתוֹם וצהוב וכתוֹם שוב.
+האור סביבו מהבהב. כתוֹם וצהוב וכתוֹם שוב.
 אני עדיין פוחד.
 
 imageDirection: Kokhavi pointing at notebook filled with numbers, colors around them becoming patchy and unstable
 
 --- Page 5 ---
 דּוּרִי מושך את המחברת אליו. הוא לוחץ אותה על הזרוע שנחלשת.
-האוֹר שלו נעשה חלש יותר.
+האור שלו נעשה חלש יותר.
 המחברת לא עוזרת.
 
 imageDirection: close-up of Kokhavi's glow fading slightly, notebook held gently against one arm, child watching
@@ -66,7 +66,7 @@ imageDirection: close-up of Kokhavi's glow fading slightly, notebook held gently
 --- Page 6 ---
 "כּוֹאֵב," אומר דּוּרִי.
 רק את זה.
-אני יושב. הוא שׁוכב. האוֹר עמום.
+אני יושב. הוא שׁוכב. האור עמום.
 אף אחד לא זז.
 
 imageDirection: both characters small in frame, soft dim colors, space between them but connected by gaze
@@ -80,7 +80,7 @@ imageDirection: simple close-up of child's hand resting on one of Kokhavi's arms
 --- Page 8 ---
 אני לוקח תחבושת רכה. כורך אותה על הזרוע של דּוּרִי.
 לאט. בעדינות.
-האוֹר מתחיל לחזור. כתוֹם רך.
+האור מתחיל לחזור. כתוֹם רך.
 
 imageDirection: child carefully wrapping soft bandage, Kokhavi still and receptive, colors stabilizing into warmer tones
 
@@ -93,7 +93,7 @@ imageDirection: notebook being closed deliberately, resting near the arm, both c
 
 --- Page 10 ---
 אנחנו שוכבים ביחד על המיטה. מתחת לשמיכה.
-האוֹר שלו חם.
+האור שלו חם.
 אני יודע מה יהיה מחר. אני עדיין פוחד.
 דּוּרִי כאן.
 

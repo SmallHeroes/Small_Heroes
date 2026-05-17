@@ -61,7 +61,7 @@ imageDirection: Shaket stretching taller, mouth open, creature unaffected above
 
 --- Page 5 ---
 אתה עומד לידו ופותח את הפה חזק חזק.
-"שָׁאָגָה!" אתה קורא למעלה לשׁמַיִם.
+"שָׁאָגָה!" אתה קורא למעלה לשׁמים.
 הקול שלך עף גבוה.
 לֵיוֹ עומד לידך, קטן.
 אתה לא מסתכל עליו.

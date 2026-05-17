@@ -104,7 +104,7 @@ imageDirection: close-up of Leo's face, open mouth, unsure eyes
 imageDirection: paw resting over small glowing sound, quiet stillness
 
 --- Page 12 ---
-הרגע עובר. האוֹר משׁתנה קצת.
+הרגע עובר. האור משׁתנה קצת.
 הדבר הקטן עדיין בצד השׁני.
 אנחנו לא מגיעים אליו.
 

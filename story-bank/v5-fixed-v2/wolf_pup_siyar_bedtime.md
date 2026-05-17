@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "רֵיחַ שֶׁלִּי"
+title: "רֵיחַ שלִּי"
 companionId: wolf_pup_siyar
 direction: bedtime
 category: OTHER

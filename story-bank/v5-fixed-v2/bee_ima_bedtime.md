@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "דְּבוֹרִי וְעוֹד דָּבָר אֶחָד"
+title: "דְּבוֹרִי וְעוֹד דָּבָר אחד"
 companionId: bee_ima
 direction: bedtime
 category: RESPONSIBILITY_CARE
@@ -37,9 +37,9 @@ imageDirection: Bee with fast wings juggling many newly appearing objects; notes
 
 --- Page 2 ---
 הילד עומד ליד הדלת.
-"אִמָּא, יֵשׁ לִי מַשֶּׁהוּ..."
+"אִמָּא, יש לִי מַשֶּׁהוּ..."
 דְּבוֹרִי עוֹבֶרֶת מַהֵר לְיָדוֹ.
-"רֶגַע אֶחָד, מוֹתֶק..."
+"רגע אחד, מוֹתֶק..."
 היא כותבת על הלוח הקטן.
 עוד חפץ מופיע באוויר.
 
@@ -47,7 +47,7 @@ imageDirection: Child standing with a small object; Ima hovering past, writing o
 
 --- Page 3 ---
 הילד לוקח את הלוח.
-"אֲנִי אֶעֱזוֹר!"
+"אני אֶעֱזוֹר!"
 הוא כותב עוד ועוד שורות.
 החפצים מופיעים באוויר — כבדים, גדולים.
 הערימה גבוהה מהילד.

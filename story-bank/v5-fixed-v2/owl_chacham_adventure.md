@@ -156,7 +156,7 @@ imageDirection: Child holding light, Chacham small below, quiet space
 
 היא צפה לאט אל השמיים.
 
-מאחוריה נשאר חוט דק של אוֹר.
+מאחוריה נשאר חוט דק של אור.
 
 imageDirection: Question drifting away, leaving a faint trail of light
 

@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "עָנָת וְהַבַּמְבּוּק שֶׁלִּי"
+title: "עָנָת וְהַבַּמְבּוּק שלִּי"
 companionId: panda_anat
 direction: bedtime
 category: SOCIAL_FRIENDSHIP

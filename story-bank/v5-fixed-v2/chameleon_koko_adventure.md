@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "הַכְּתָמִים שֶׁל קוֹקוֹ"
+title: "הַכְּתָמים של קוֹקוֹ"
 companionId: chameleon_koko
 direction: adventure
 category: TRANSITION

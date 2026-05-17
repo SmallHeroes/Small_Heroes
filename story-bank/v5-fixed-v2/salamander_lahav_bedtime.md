@@ -27,17 +27,17 @@ emotionalMistake: עמוד 3 — The child waves a hand in front of Lahav and sa
 uncomfortableTruth: עמוד 6 — Lahav cannot speak or move because the heat inside him hurts too much.
 
 --- Page 1 ---
-רוּמִי נח על אבן חמה.
+רוּמי נח על אבן חמה.
 הקווים על הגוף שלו כמעט לא זוהרים.
 אני מתקרב אליו.
-"רוּמִי, בוא נשׂחק!"
+"רוּמי, בוא נשׂחק!"
 הוא לא זז.
 
 imageDirection: small salamander curled on a rock, faint dim lines on his body, soft evening light
 
 --- Page 2 ---
 אני קופץ. אני רץ במעגלים.
-רוּמִי עדיין נח על האבן.
+רוּמי עדיין נח על האבן.
 ניצוץ קטן עולה מהגוף שלו.
 הוא בולע אותו בחזרה.
 הקווים שלו נעשים חלשים עוד קצת.
@@ -45,7 +45,7 @@ imageDirection: small salamander curled on a rock, faint dim lines on his body, 
 imageDirection: child bouncing nearby, Lahav calm but dimming slightly, a tiny swallowed glow in his throat
 
 --- Page 3 ---
-"רוּמִי, אני רוצה לשׂחק!"
+"רוּמי, אני רוצה לשׂחק!"
 אני קופץ סביבו.
 אני דוחף את האבן.
 "למה אתה לא בא?"
@@ -53,7 +53,7 @@ imageDirection: child bouncing nearby, Lahav calm but dimming slightly, a tiny s
 imageDirection: child leaning in with a frown, finger poking, Lahav's patterns fading more
 
 --- Page 4 ---
-רוּמִי אומר: "בסדר."
+רוּמי אומר: "בסדר."
 עוד ניצוץ עולה. הוא בולע.
 עוד אחד. הוא בולע גם אותו.
 הגוף שלו נעשה קשה.
@@ -61,7 +61,7 @@ imageDirection: child leaning in with a frown, finger poking, Lahav's patterns f
 imageDirection: Lahav rigid, jaw tight, faint embers traveling down inside him, colors dimming
 
 --- Page 5 ---
-אני מסתכל על רוּמִי.
+אני מסתכל על רוּמי.
 הקווים שלו הפכו אפורים.
 הראש שלו למטה.
 הוא לא נושם כמעט.
@@ -69,7 +69,7 @@ imageDirection: Lahav rigid, jaw tight, faint embers traveling down inside him, 
 imageDirection: child's face softening, Lahav frozen with grey patterns and lowered head
 
 --- Page 6 ---
-אני אומר: "רוּמִי?"
+אני אומר: "רוּמי?"
 הוא לא עונה.
 אני נוגע בזנב שלו בעדינוּת.
 הוא לא זז בכלל.
@@ -85,14 +85,14 @@ imageDirection: single small glowing spark in the air between them, quiet and so
 --- Page 8 ---
 אני מקפל את הידיים כמו קערה.
 הניצוץ נח שׁם.
-עוד ניצוץ יוצא מרוּמִי.
+עוד ניצוץ יוצא מרוּמי.
 ועוד אחד.
 אני נשאר קרוב אליו.
 
 imageDirection: child's hands protecting small sparks, Lahav beginning to glow faintly again
 
 --- Page 9 ---
-הקווים על רוּמִי מתחילים לזהוֹר שוב.
+הקווים על רוּמי מתחילים לזהוֹר שוב.
 שלושה ניצוצות קטנים עולים למעלה.
 הוא נושף לאט.
 הגוף שלו נרגע.
@@ -100,7 +100,7 @@ imageDirection: child's hands protecting small sparks, Lahav beginning to glow f
 imageDirection: gentle glowing lines on Lahav, three tiny sparks floating upward, bodies close
 
 --- Page 10 ---
-אני נשען על רוּמִי.
+אני נשען על רוּמי.
 הוא חם ורך.
 הניצוצות שׁלו זוהרים בשׁקט.
 אנחנו נחים ביחד.

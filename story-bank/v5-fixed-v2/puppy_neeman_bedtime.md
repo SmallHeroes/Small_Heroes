@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "רוֹקִי פֹּה"
+title: "רוֹקִי פה"
 companionId: puppy_neeman
 direction: bedtime
 category: OTHER
@@ -99,7 +99,7 @@ imageDirection: dim light in child's room near bed, child leaning into puppy, br
 --- Page 10 ---
 אני שׁוכבת על המיטה.
 רוֹקִי מצמיד את הפנים ליד שלי.
-"פֹּה," הוא אומר בשקט.
+"פה," הוא אומר בשקט.
 חם. ביחד. שקט.
 
 imageDirection: intimate bedtime scene, child lying down with puppy tucked close against them, peaceful, warm

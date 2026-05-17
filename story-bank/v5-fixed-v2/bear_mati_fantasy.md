@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "מָתַי מֵאֲחוֹרֵי הָאֶבֶן הַקְּטַנָּה"
+title: "מתי מֵאֲחוֹרֵי הָאֶבֶן הַקְּטַנָּה"
 companionId: bear_mati
 direction: fantasy
 category: SOCIAL
@@ -22,16 +22,16 @@ metaphor: hiding in plain sight through physical scale
 stakes: Matai will remain unseen and alone behind small things, never risking being known
 emotionalArc: curiosity → awkward reaching → rupture → fragile seeing → distant acceptance
 quietPage: 15
-heartLine: עמוד 10 — מָתַי מוריד את הצעיף קצת. אחרי רגע הוא מעלה אותו חזק ודוחף את הפנים לכף.
-emotionalMistake: עמוד 6 — הילד מרים את הענף ומגלה את מָתַי בלי רשות.
-uncomfortableTruth: עמוד 13 — הילד מבין שאחרים עוברים ליד מָתַי ופשוט לא רואים אותו.
+heartLine: עמוד 10 — מתי מוריד את הצעיף קצת. אחרי רגע הוא מעלה אותו חזק ודוחף את הפנים לכף.
+emotionalMistake: עמוד 6 — הילד מרים את הענף ומגלה את מתי בלי רשות.
+uncomfortableTruth: עמוד 13 — הילד מבין שאחרים עוברים ליד מתי ופשוט לא רואים אותו.
 
 --- Page 1 ---
 בקצה היער יש פינה שקטה.
 ילד עומד ומסתכל על שׂיח קטן.
 השׂיח נמוך מהברך שלו.
 מאחורי השׂיח מסתתר משהו ענק.
-דוב גדול, חום, עם צעיף ארוך. שׁמוֹ מָתַי.
+דוב גדול, חום, עם צעיף ארוך. שׁמוֹ מתי.
 הילד רואה את כל הדוב — אבל הדוב חושב שלא רואים אותו.
 הוא חושב שאף אחד לא רואה אותו.
 
@@ -62,7 +62,7 @@ imageDirection: Large bear body awkwardly compressed behind a tiny rock, scarf c
 
 --- Page 4 ---
 הילד מתקרב צעד.
-מָתַי מרים עיניים.
+מתי מרים עיניים.
 עיניים גדולות, חומות.
 הילד מחייך.
 הדוב מושך את הראש מהר למטה.
@@ -73,8 +73,8 @@ imageDirection: Eye contact moment, bear retreating deeper behind insufficient c
 
 --- Page 5 ---
 הילד מניף יד.
-"שָׁלוֹם!" הוא קורא.
-מָתַי קופא.
+"שלום!" הוא קורא.
+מתי קופא.
 אחרי רגע ארוך הדוב זז.
 הוא זוחל לאחור, מהר מהר.
 עכשיו הוא מאחורי ענף דק.
@@ -88,7 +88,7 @@ imageDirection: A single twig blocking the entire bear convincingly
 הוא מתכופף ומושיט יד.
 האצבעות שלו נוגעות בענף.
 הוא מרים אותו הצידה.
-מָתַי מופיע פתאום — גדול, חשׂוף, מבוהל.
+מתי מופיע פתאום — גדול, חשׂוף, מבוהל.
 העיניים שלו פתוחות לרווחה.
 הילד עומד שם עם הענף ביד.
 
@@ -132,7 +132,7 @@ imageDirection: Subtle fabric shift peeking from behind tiny object
 לאט לאט הצעיף יורד.
 רגע אחד קטן — הסנטר של הדוב נראה.
 אחרי שנייה הצעיף עולה חזרה מהר.
-מָתַי דוחף את הפנים לכף הגדולה שלו.
+מתי דוחף את הפנים לכף הגדולה שלו.
 הילד לא זז ממקומו.
 
 imageDirection: A glimpse of chin before it disappears back into the scarf
@@ -148,7 +148,7 @@ imageDirection: A glimpse of chin before it disappears back into the scarf
 imageDirection: Child seated calmly, gaze steady, no intrusion
 
 --- Page 12 ---
-מָתַי לא זז זמן ארוך.
+מתי לא זז זמן ארוך.
 אחר כך הוא מזיז את עצמו.
 יושב, לא עומד.
 עדיין חצי מוסתר ליד הפטרייה הקטנה.
@@ -191,7 +191,7 @@ imageDirection: Close-up of scarf slightly lowered
 imageDirection: Parallel posture, both low and quiet
 
 --- Page 17 ---
-מָתַי אומר:
+מתי אומר:
 "הָ-מ-מ-מ..."
 הוא זז הצידה, רחוק יותר.
 עכשיו הוא ליד גזע קטן.
@@ -208,7 +208,7 @@ imageDirection: Bear slightly distant, partly behind a small stump
 imageDirection: Object resting in empty space, child stepping back
 
 --- Page 19 ---
-מָתַי זוחל עוד רחוק יותר.
+מתי זוחל עוד רחוק יותר.
 הוא מאחורי אבן אחרת עכשיו — קטנה, עגולה.
 האבן מסתירה אותו לגמרי.
 הילד רואה רק את האבן.

@@ -27,7 +27,7 @@ emotionalMistake: עמוד 6 — The child pushes Zuzzi away and tells him to st
 uncomfortableTruth: עמוד 12 — Zuzzi realizes that no matter how hard he grips, the orb keeps slipping anyway
 
 --- Page 1 ---
-כַּדּוּר של אוֹר צָף מעל האלמוגים.
+כַּדּוּר של אור צָף מעל האלמוגים.
 הוא רועד קצת, ומים זורמים מהר לכל הכיוונים.
 דגים שׂוֹחים הצידה.
 משהו לא בסדר.
@@ -54,7 +54,7 @@ imageDirection: Child hovering nearby, Zuzzi focused, tentacles organized
 
 --- Page 4 ---
 הכדור פועם חזק יותר.
-אוֹר מנצנץ מבפנים.
+אור מנצנץ מבפנים.
 זוּזִי מהדק את האחיזה.
 הזרועות לוֹחצות יותר.
 "לא תזוּז!" הוא לוֹחשׁ לכדור.
@@ -141,7 +141,7 @@ imageDirection: Full chaos: tangled limbs, ink cloud, hat falling off
 
 --- Page 14 ---
 אני צוֹלל פנימה.
-אוֹחז בזרוֹעַ אחת ומושך אותה הצידה.
+אוחז בזרוֹעַ אחת ומושך אותה הצידה.
 אחר כך עוד אחת.
 לאט לאט מפריד אותן.
 זוּזִי לא זז. נותן לי לעשות.
@@ -158,7 +158,7 @@ imageDirection: Single tentacle slowly releasing the orb, stillness
 הכדור מפסיק לקפוץ.
 הוא צָף לאט, רגוּעַ.
 המים נרגעים.
-האוֹר חוֹזר.
+האור חוֹזר.
 
 imageDirection: Orb glowing steadily, gentle currents returning
 
@@ -171,7 +171,7 @@ imageDirection: Orb glowing steadily, gentle currents returning
 imageDirection: Zuzzi slightly apart, tentacles loosely curled, hat crooked
 
 --- Page 18 ---
-יש שׁבר קטן של אוֹר ביד שׁלי.
+יש שׁבר קטן של אור ביד שׁלי.
 הוא נשבר מהכדור כשׁהכול התפוֹצץ.
 אני מחזיק אותו בזהירוּת.
 הוא זוֹהר חלש.
@@ -188,7 +188,7 @@ imageDirection: Peaceful reef with subtle uneven currents
 --- Page 20 ---
 זוּזִי שׂוֹחה הרחק.
 הצבע שׁלו כחול-כהה עכשיו.
-אני נשאר עם השׁבר של האוֹר.
+אני נשאר עם השׁבר של האור.
 המרחק בינינו גדל.
 
 imageDirection: Distance between child and Zuzzi, cool tones, soft glow in child's hands

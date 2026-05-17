@@ -37,7 +37,7 @@ imageDirection: soft pastel reef, Yam upright with striped colors calm, tiny she
 --- Page 2 ---
 ילד מגיע.
 "גְּלִי, יש זרם. אני לא רוצה שיהיה קר."
-גְּלִי מסתכל על המים מעבר. "אֶחָד, שְׁתַּיִם, שָׁלוֹשׁ, וְנוֹשְׁמִים. בְּסֵדֶר?"
+גְּלִי מסתכל על המים מעבר. "אחד, שתים, שלוש, וְנוֹשְׁמים. בסדר?"
 
 imageDirection: child hovering uncertainly, darker blue water beyond suggesting approaching current
 
@@ -92,7 +92,7 @@ imageDirection: tail gradually opening, warm pink-gold tones returning, bodies d
 --- Page 10 ---
 גְּלִי והילד צפים ביחד.
 הזנב מסולסל בעדינות סביב היד של הילד.
-נושמים. מַיִם שְׁקֵטִים.
+נושמים. מים שְׁקֵטִים.
 שקט.
 
 imageDirection: intimate cuddle, Yam's tail loosely curled around child, peaceful glowing reef, sleepy mood

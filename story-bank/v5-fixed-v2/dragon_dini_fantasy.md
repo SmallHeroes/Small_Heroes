@@ -63,12 +63,12 @@ imageDirection: Dini lunging forward, chick just beyond reach, sash crooked.
 --- Page 5 ---
 רוּחַ חזקה מושכת ימינה. עלים עפים באוויר, כולם לכיוון אחד.
 
-האפרוֹחַ גולש מהר יותר. הוא לא מתנגד. פשוט נסחף.
+האפרוֹחַ גולש מהר יותר. הוא לא מתנגד. פשוט נישא.
 
 imageDirection: Leaves and dust streaming sideways like a current.
 
 --- Page 6 ---
-הילד מושיט יד מאחורי האפרוֹחַ, מנסה לכוון אותו לעבר האוֹר. כאילו רוצה לעזור לו לעוף.
+הילד מושיט יד מאחורי האפרוֹחַ, מנסה לכוון אותו לעבר האור. כאילו רוצה לעזור לו לעוף.
 
 דינִי קופץ מאחור, מנסה להגיע, אבל הילד לא מסתכל עליו.
 
@@ -162,7 +162,7 @@ imageDirection: Chick upright, wing lifting slightly behind it.
 --- Page 18 ---
 האפרוֹחַ עולה באוויר. הרוּחַ סוחבת אותו ימינה, מעלה אותו.
 
-הוא נסחף הלאה. נוצה קטנה נשארת מאחור באוויר.
+הוא נישא הלאה. נוצה קטנה נשארת מאחור באוויר.
 
 imageDirection: Chick carried off, a small feather trailing behind.
 

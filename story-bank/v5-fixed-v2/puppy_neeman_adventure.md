@@ -38,7 +38,7 @@ uncomfortableTruth: עמוד 9 — The child realizes the creature cannot be cau
 imageDirection: soft light, child seated, dog relaxed with slow tail, tiny glow in distance
 
 --- Page 2 ---
-האוֹר קטן. הוא קופץ.
+האור קטן. הוא קופץ.
 
 הוא מתקרב אלינו, אבל לא ישר.
 
@@ -51,7 +51,7 @@ imageDirection: soft light, child seated, dog relaxed with slow tail, tiny glow 
 imageDirection: small floating light with uneven motion, child reaching slightly, Neeman observing
 
 --- Page 3 ---
-ואז האוֹר קופץ אחורה.
+ואז האור קופץ אחורה.
 
 הוא מתרחק מהר.
 
@@ -64,7 +64,7 @@ imageDirection: light flickering weakly ahead, Neeman stepping closer to child's
 --- Page 4 ---
 אני קמה.
 
-אני רצה אחרי האוֹר.
+אני רצה אחרי האור.
 
 הידיים שלי פתוחות, אני רוצה לתפוס אותו.
 
@@ -77,14 +77,14 @@ imageDirection: child moving quickly, reaching hands, glowing creature just out 
 
 אני מסמנת לו לחכות.
 
-אני רוצה להגיע לאוֹר לבד.
+אני רוצה להגיע לאור לבד.
 
 אני רצה יותר מהר.
 
 imageDirection: child pushing dog aside slightly, Neeman pausing then preparing to follow
 
 --- Page 6 ---
-האוֹר כמעט לא נראה.
+האור כמעט לא נראה.
 
 אני מסתכלת קדימה. לא עליו.
 
@@ -99,7 +99,7 @@ imageDirection: child facing forward stiffly, faint glow behind, Neeman followin
 --- Page 7 ---
 אני עוצרת.
 
-האוֹר פה. ממש קרוב אליי.
+האור פה. ממש קרוב אליי.
 
 הוא מרחף ליד הכתף שלי.
 
@@ -119,7 +119,7 @@ imageDirection: light hovering near child's shoulder, child frozen, Neeman besid
 imageDirection: dog pressing face to child's leg, eyes closed, soft stillness, glow nearby
 
 --- Page 9 ---
-האוֹר מנצנץ. לא יציב. לא רגוע.
+האור מנצנץ. לא יציב. לא רגוע.
 
 הוא לא יהיה שקט.
 
@@ -148,7 +148,7 @@ imageDirection: open palms, hesitant posture, creature hovering between distance
 imageDirection: close-up of hand settling on knee, Neeman's fur touching nearby
 
 --- Page 12 ---
-האוֹר עולה למעלה.
+האור עולה למעלה.
 
 אני קמה. אני הולכת אחריו לאט.
 
@@ -159,7 +159,7 @@ imageDirection: close-up of hand settling on knee, Neeman's fur touching nearby
 imageDirection: child standing, following slowly, creature rising, Neeman walking alongside
 
 --- Page 13 ---
-האוֹר עולה גבוה גבוה.
+האור עולה גבוה גבוה.
 
 הוא נעלם בשמיים.
 

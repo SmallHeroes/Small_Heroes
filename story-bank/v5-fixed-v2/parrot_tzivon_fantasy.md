@@ -54,7 +54,7 @@ imageDirection: layers of colorful words hovering, parrot surrounded by echoes
 imageDirection: contrast between bright original words and faded repeated ones
 
 --- Page 4 ---
-אני מניח שני דברים על אדן החלון. תפוח אדום וכדור כחול.
+אני מניח שני דברים על מדף החלון. תפוח אדום וכדור כחול.
 
 אני אומר "תַּפּוּחַ" — המילה אדומה. אני אומר "כַּדּוּר" — המילה כחולה.
 
@@ -74,7 +74,7 @@ imageDirection: question words looping in the air, parrot mimicking tone
 --- Page 6 ---
 אני מסתובב. זה מעצבן.
 
-"אני רוצה לשמוע משהו שֶׁלְּךָ," אני אומר וקצת מרים קול.
+"אני רוצה לשמוע משהו שלְּךָ," אני אומר וקצת מרים קול.
 
 הנוצות של תותי מתחילות להסתבך קצת בקצוות.
 
@@ -119,7 +119,7 @@ imageDirection: small, private gesture, muted tones around him
 --- Page 11 ---
 אני מתקרב. יושב לידו על האדן.
 
-אני אומר שוב מילה אחת שלי. "אוֹר." היא זוהרת בצהוב יציב.
+אני אומר שוב מילה אחת שלי. "אור." היא זוהרת בצהוב יציב.
 
 תותי לא חוזר. רק מסתכל בה.
 
@@ -200,7 +200,7 @@ imageDirection: child holding object, subdued colors around
 
 אבל מילה אחת, קטנה, בצבע חדש, מרחפת בפינה.
 
-תותי עומד על אדן החלון, רחוק יותר, ומסתכל החוצה.
+תותי עומד על מדף החלון, רחוק יותר, ומסתכל החוצה.
 
 imageDirection: cool distant composition, parrot silhouetted, single unique color glowing softly
 

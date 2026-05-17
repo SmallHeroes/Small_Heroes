@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "לוּלִי וְהַקּוֹל שֶׁלֹּא נִהְיָה שִׁיר"
+title: "לוּלִי וְהַקּוֹל שלֹּא נִהְיָה שִׁיר"
 companionId: song_whale
 direction: bedtime
 category: NOISE_FEAR

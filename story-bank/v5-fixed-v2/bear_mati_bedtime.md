@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "מָתַי וְהַצַּעִיף"
+title: "מתי וְהַצַּעִיף"
 companionId: bear_mati
 direction: bedtime
 category: SOCIAL
@@ -29,13 +29,13 @@ uncomfortableTruth: עמוד 6 — The child says "I see you" plainly, and nothi
 --- Page 1 ---
 השׁמשׁ יורדת. יש פה קרחת יער.
 ילד נכנס ורואה דוב ענק מאחורי שׂיח קטן.
-הצעיף של מָתַי עולה עד לסנטר.
+הצעיף של מתי עולה עד לסנטר.
 הוא כפוף, כאילו השׂיח מסתיר אותו.
 
 imageDirection: soft evening light, oversized bear hunched behind tiny bush, scarf covering chin
 
 --- Page 2 ---
-מָתַי זז לאט.
+מתי זז לאט.
 הוא מתיישב מאחורי סלע נמוך.
 הראשׁ למטה.
 הילד עומד ומסתכל.
@@ -45,21 +45,21 @@ imageDirection: bear awkwardly hiding behind rock too small, eyes lowered, child
 --- Page 3 ---
 הילד ניגשׁ.
 הוא מנסה להוריד את הצעיף — מהר מדי.
-מָתַי נרתע. הגוף שׁלו נע אחורה.
+מתי נרתע. הגוף שׁלו נע אחורה.
 
 imageDirection: small hand tugging scarf, Matai startled, body recoiling
 
 --- Page 4 ---
-מָתַי מושׁך את הצעיף למעלה שׁוב.
+מתי מושׁך את הצעיף למעלה שׁוב.
 הוא עושׂה צעד אחורה וכופף את הראשׁ.
 הוא מתחיל לומר משׁהו — אבל עוצר.
 
 imageDirection: bear retreating, scarf high, head lowered, child standing unsure
 
 --- Page 5 ---
-מָתַי הולך לעץ דק.
+מתי הולך לעץ דק.
 הוא דוחף את הגוף שׁלו מאחורי העץ.
-העץ רזה. כל הגוף של מָתַי בחוץ.
+העץ רזה. כל הגוף של מתי בחוץ.
 הוא מנסה להיעלם.
 
 imageDirection: thin tree trunk with enormous bear attempting to vanish behind it, leaves barely covering him
@@ -67,27 +67,27 @@ imageDirection: thin tree trunk with enormous bear attempting to vanish behind i
 --- Page 6 ---
 הילד יושׁב על הקרקע מולו.
 "אני רואה אותך," הוא אומר.
-מָתַי קופא. כל הגוף נראה.
+מתי קופא. כל הגוף נראה.
 אין לאן לזוז.
 
 imageDirection: child sitting calmly, looking straight, bear frozen mid-crouch, scarf slightly loosened
 
 --- Page 7 ---
-הצעיף של מָתַי יורד טיפה.
+הצעיף של מתי יורד טיפה.
 הכל שׁקט.
 
 imageDirection: close-up of scarf edge lowering slightly, stillness everywhere
 
 --- Page 8 ---
 הילד ניגשׁ לאט.
-הוא נשׁען על הצד של מָתַי.
+הוא נשׁען על הצד של מתי.
 יד אחת נוגעת בכף היד שׁלו.
 הצעיף נשׁאר למעלה. הילד לא מושׁך אותו.
 
 imageDirection: child nestled against large bear, quiet contact, bear still but not retreating
 
 --- Page 9 ---
-מָתַי מוריד את הצעיף לאט.
+מתי מוריד את הצעיף לאט.
 פעם אחת.
 פעם שׁתיים.
 פעם שׁלושׁ.

@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "זוּמִי וְהַכּוֹבַע שֶׁל הַכִּוּוּנִים"
+title: "זוּמי וְהַכּוֹבַע של הַכִּוּוּנִים"
 companionId: mongoose_zariz
 direction: adventure
 category: VIGILANCE_SAFETY
@@ -27,60 +27,60 @@ emotionalMistake: עמוד 5 — The child body-blocks Zariz's view and insists 
 uncomfortableTruth: עמוד 9 — Even as Zariz tries to focus, small movements continue elsewhere, and something always goes unseen.
 
 --- Page 1 ---
-זוּמִי עומד על אבן גבוהה.
+זוּמי עומד על אבן גבוהה.
 
 הראשׁ שלו זז ימינה. אחר כך שׂמאלה. אחר כך אחורה.
 
-הכובע עם המראות קוֹלֵט אוֹר מכל הכיוונים.
+הכובע עם המראות קוֹלֵט אור מכל הכיוונים.
 
-"שָׁם מה? בסדר. ושָׁם? בסדר. ושָׁם?"
+"שם מה? בסדר. ושם? בסדר. ושם?"
 
-הרוּחַ נושבת, אבל זוּמִי לא מסתכל על הרוּחַ.
+הרוּחַ נושבת, אבל זוּמי לא מסתכל על הרוּחַ.
 
 imageDirection: A small mongoose with a mirrored cap, body low and tense, arrows or motion lines in many directions.
 
 --- Page 2 ---
 ילד מגיע בשביל.
 
-הוא רואה את זוּמִי על האבן.
+הוא רואה את זוּמי על האבן.
 
-זוּמִי לא מסתכל עליו. הראשׁ זז מהר מהר.
+זוּמי לא מסתכל עליו. הראשׁ זז מהר מהר.
 
-"שָׁלוֹם," אומר הילד.
+"שלום," אומר הילד.
 
-זוּמִי מסתכל שׂמאלה. אחר כך ימינה. לא על הילד.
+זוּמי מסתכל שׂמאלה. אחר כך ימינה. לא על הילד.
 
-"סליחה רגע," אומר זוּמִי, והראשׁ שלו מסתובב שוב.
+"סליחה רגע," אומר זוּמי, והראשׁ שלו מסתובב שוב.
 
 imageDirection: Child standing still while Zariz blurs with motion, mirrors catching tiny reflections.
 
 --- Page 3 ---
-"יֵשׁ לי משהו לְהַראוֹת לך," אומר הילד.
+"יש לי משהו לְהַראות לך," אומר הילד.
 
 הוא מצביע על הדשא הגבוה.
 
-זוּמִי מסתכל לצד השני. מעלה. מטה.
+זוּמי מסתכל לצד השני. מעלה. מטה.
 
-"שָׁם מה? רגע רגע רגע."
+"שם מה? רגע רגע רגע."
 
 המראות על הכובע מַנצנצות בכל מיני כיוונים.
 
-הילד מחכה, אבל זוּמִי לא מסתכל לאן שהוא הצביע.
+הילד מחכה, אבל זוּמי לא מסתכל לאן שהוא הצביע.
 
 imageDirection: Child pointing one way, Zariz's head turned elsewhere, multiple reflections in cap.
 
 --- Page 4 ---
 משהו קטן מנצנץ בדשא הגבוה.
 
-ציפור קטנה עם אוֹר מרפרפת קצת.
+ציפור קטנה עם אור מרפרפת קצת.
 
-זוּמִי מסתכל על צל. אחר כך על עלה. אחר כך על ענף.
+זוּמי מסתכל על צל. אחר כך על עלה. אחר כך על ענף.
 
-"שָׁם — לא. שָׁם — בסדר."
+"שם — לא. שם — בסדר."
 
-הציפור עושָׂה פרפור שוב, אבל זוּמִי כבר מסתכל במקום אחר.
+הציפור עושָׂה פרפור שוב, אבל זוּמי כבר מסתכל במקום אחר.
 
-הילד רואה את הציפור. זוּמִי לא.
+הילד רואה את הציפור. זוּמי לא.
 
 imageDirection: Tiny glowing bird half-hidden while Zariz watches shadows and leaves in other directions.
 
@@ -91,24 +91,24 @@ imageDirection: Tiny glowing bird half-hidden while Zariz watches shadows and le
 
 "כאן! תראה איתי כאן!"
 
-זוּמִי מנסה לראות סביבו. הילד נשאר מולו.
+זוּמי מנסה לראות סביבו. הילד נשאר מולו.
 
 המראות על הכובע מתנועעות לכל הכיוונים.
 
-זוּמִי קופץ אחורה.
+זוּמי קופץ אחורה.
 
 imageDirection: Child's hands on Zariz's head, Zariz startled, mirrors reflecting chaotic angles.
 
 --- Page 6 ---
 הרוּחַ מַזיזה עלים. הצללים זזים. ענפים מתכופפים.
 
-זוּמִי מסתכל שׁמאלה — על העלים.
+זוּמי מסתכל שׁמאלה — על העלים.
 
 ימינה — על הצללים.
 
 מעלה — על הענפים.
 
-"שָׁם! ושָׁם! ושָׁם גם!"
+"שם! ושם! ושם גם!"
 
 הגוף שלו נהיה יותר נמוך. הרגליים כפופות יותר.
 
@@ -117,13 +117,13 @@ imageDirection: Child's hands on Zariz's head, Zariz startled, mirrors reflectin
 imageDirection: Multiple motion cues in all directions, Zariz's body visibly weighed down.
 
 --- Page 7 ---
-זוּמִי מנסה לזוז קדימה.
+זוּמי מנסה לזוז קדימה.
 
 הרגל שלו רועדת.
 
 הוא מועד קצת.
 
-"רגע, אני רק צריך — שָׁם מה?"
+"רגע, אני רק צריך — שם מה?"
 
 הראשׁ זז שוב, אבל הגוף כבד.
 
@@ -132,7 +132,7 @@ imageDirection: Multiple motion cues in all directions, Zariz's body visibly wei
 imageDirection: Zariz mid-step, legs trembling under invisible weight lines.
 
 --- Page 8 ---
-זוּמִי מושך את הרצועות של הכובע.
+זוּמי מושך את הרצועות של הכובע.
 
 הידיים שלו רועדות, אבל הוא מושך חזק חזק.
 
@@ -142,57 +142,57 @@ imageDirection: Zariz mid-step, legs trembling under invisible weight lines.
 
 "אני — אני צריך לראות. אני חייב."
 
-הרצועות הדוקות עכשיו, אבל זוּמִי לא עוצר.
+הרצועות הדוקות עכשיו, אבל זוּמי לא עוצר.
 
 imageDirection: Close-up of his small hands pulling straps tight, face tense, mirrors glinting.
 
 --- Page 9 ---
-הציפור עם האוֹר מרפרפת שוב.
+הציפור עם האור מרפרפת שוב.
 
-זוּמִי מסתכל לכיוון שלה.
+זוּמי מסתכל לכיוון שלה.
 
 אבל עלה זז.
 
-זוּמִי מסתכל על העלה.
+זוּמי מסתכל על העלה.
 
 אבל צל זז.
 
-זוּמִי מסתכל על הצל.
+זוּמי מסתכל על הצל.
 
-הציפור עושָׂה פרפור, אבל זוּמִי כבר לא שָׁם.
+הציפור עושָׂה פרפור, אבל זוּמי כבר לא שם.
 
 imageDirection: Bird glowing softly while multiple distractions pull Zariz's gaze in different directions.
 
 --- Page 10 ---
-הילד ניגש אל זוּמִי.
+הילד ניגש אל זוּמי.
 
 הוא עומד לפני כל הצללים והעלים.
 
-הוא שׂם ידיים על הכתפיים של זוּמִי ומסובב אותו לכיוון הציפור.
+הוא שׂם ידיים על הכתפיים של זוּמי ומסובב אותו לכיוון הציפור.
 
-הילד לא אומר כלום. הוא רק עומד בין זוּמִי לבין כל השאר.
+הילד לא אומר כלום. הוא רק עומד בין זוּמי לבין כל השאר.
 
-זוּמִי רואה רק כיוון אחד עכשיו.
+זוּמי רואה רק כיוון אחד עכשיו.
 
 imageDirection: Child physically positioning Zariz, standing between him and the rest of the world.
 
 --- Page 11 ---
-הילד מוריד את הכובע מהראשׁ של זוּמִי.
+הילד מוריד את הכובע מהראשׁ של זוּמי.
 
 הכובע נח על האדמה.
 
 imageDirection: The cap resting on the earth, mirrors now still.
 
 --- Page 12 ---
-זוּמִי מסתכל קדימה.
+זוּמי מסתכל קדימה.
 
 רק קדימה.
 
-הציפור עם האוֹר עושָׂה פרפור לאט לאט.
+הציפור עם האור עושָׂה פרפור לאט לאט.
 
 היא עולה למעלה.
 
-זוּמִי רואה אותה. רק אותה.
+זוּמי רואה אותה. רק אותה.
 
 הגוף שלו מתיישר. הרגליים לא רועדות יותר.
 
@@ -205,7 +205,7 @@ imageDirection: Zariz upright, eyes fixed forward, bird rising softly in front o
 
 הרוּחַ מַזיזה עלים. צללים זזים.
 
-זוּמִי רואה את הציפור.
+זוּמי רואה את הציפור.
 
 רק אותה.
 
@@ -214,24 +214,24 @@ imageDirection: Zariz upright, eyes fixed forward, bird rising softly in front o
 imageDirection: Bird small in the sky, subtle background motion still present.
 
 --- Page 14 ---
-זוּמִי והילד עומדים ליד הגבעה.
+זוּמי והילד עומדים ליד הגבעה.
 
 שניהם מסתכלים לאותו כיוון.
 
 לא נוגעים. רק עומדים.
 
-הרוּחַ נושבת, אבל זוּמִי לא מסתכל על הרוּחַ.
+הרוּחַ נושבת, אבל זוּמי לא מסתכל על הרוּחַ.
 
 הוא מסתכל קדימה.
 
 imageDirection: Two figures aligned, calm but alert, horizon ahead.
 
 --- Page 15 ---
-הכובע של זוּמִי נשאר על האבן.
+הכובע של זוּמי נשאר על האבן.
 
-המראות לוכדות אוֹר.
+המראות לוכדות אור.
 
-זוּמִי והילד הולכים הלאה.
+זוּמי והילד הולכים הלאה.
 
 הכובע קטן קטן מאחוריהם.
 

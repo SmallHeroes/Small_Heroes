@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "שֶׁלִּי חֲצִי בִּפְנִים חֲצִי בַּחוּץ"
+title: "שלִּי חֲצִי בִּפְנִים חֲצִי בַּחוּץ"
 companionId: snail_sheli
 direction: adventure
 category: SENSITIVITY_OVERWHELM
@@ -27,11 +27,11 @@ emotionalMistake: עמוד 5 — The child taps lightly but repeatedly on the sh
 uncomfortableTruth: עמוד 9 — The butterfly lifts and leaves while Sheli is still inside, and nothing brings it back.
 
 --- Page 1 ---
-שֶׁלִּי כבר בפנים. כל הגוף שלו בתוך הקונכייה.
+שלִּי כבר בפנים. כל הגוף שלו בתוך הקונכייה.
 
-בחוּץ יֵשׁ אוֹר חזק. זבובים עפים. פרחים גדולים זוהרים מסביב.
+בחוּץ יש אור חזק. זבובים עפים. פרחים גדולים זוהרים מסביב.
 
-שֶׁלִּי לא יוצא.
+שלִּי לא יוצא.
 
 imageDirection: Close view of a small decorated shell among big glowing flowers and busy insects.
 
@@ -72,7 +72,7 @@ imageDirection: Butterfly wings flash bright colors, shadows jump across the she
 imageDirection: Small fingers tapping the shell; inside, no movement.
 
 --- Page 6 ---
-שֶׁלִּי נעלם לגמרי פנימה. עמוק עמוק.
+שלִּי נעלם לגמרי פנימה. עמוק עמוק.
 
 מסביב הגן ממשיך. זבובים, רוּחַ, פרחים.
 
@@ -90,9 +90,9 @@ imageDirection: Still shell with faint decorative interior hinted through openin
 imageDirection: Leaf gently leaning against the shell, child sitting back with space.
 
 --- Page 8 ---
-פרפר נוחת ממשׁ ליד הקונכייה. הכנפיים שלו זוהרות באוֹר.
+פרפר נוחת ממשׁ ליד הקונכייה. הכנפיים שלו זוהרות באור.
 
-בתוך הקונכייה, בחוֹשֶׁך, שֶׁלִּי לוחץ את שתי האנטנות שלו זו לזו.
+בתוך הקונכייה, בחוֹשֶׁך, שלִּי לוחץ את שתי האנטנות שלו זו לזו.
 
 הוא לא יוצא.
 
@@ -101,7 +101,7 @@ imageDirection: Butterfly glowing in sunlight outside; inside shell dim and quie
 --- Page 9 ---
 הפרפר מרים כנפיים. הוא עף והולך.
 
-שֶׁלִּי עדיין בפנים.
+שלִּי עדיין בפנים.
 
 האוויר ריק במקום שהפרפר היה.
 
@@ -110,7 +110,7 @@ imageDirection: Empty air where butterfly was; shell unchanged, child watching.
 --- Page 10 ---
 הילד מתחיל לבנות משהו. הוא שׂם עלים מסביב לקונכייה. כמו מנהרה קטנה.
 
-האוֹר פחות חזק עכשיו. הרעשׁ פחות חזק.
+האור פחות חזק עכשיו. הרעשׁ פחות חזק.
 
 הילד יושב ומחכה.
 
@@ -124,7 +124,7 @@ imageDirection: Hands arranging leaves into a gentle arch, dimming brightness ar
 imageDirection: Quiet, dim scene focused on the delicate antennae touching under the leaf tunnel.
 
 --- Page 12 ---
-שֶׁלִּי חצי בחוץ עכשיו. הראש והאנטנות בחוץ. הגוף בפנים.
+שלִּי חצי בחוץ עכשיו. הראש והאנטנות בחוץ. הגוף בפנים.
 
 האנטנות פונות אל הילד.
 
@@ -135,25 +135,25 @@ imageDirection: Clear half-emergence: head and antennae out, shell still coverin
 --- Page 13 ---
 הילד מזיז את מנהרת העלים קדימה. לאט לאט.
 
-שֶׁלִּי זז עם המנהרה. הוא עדיין חצי בפנים.
+שלִּי זז עם המנהרה. הוא עדיין חצי בפנים.
 
-יֵשׁ עכשיו שׁובל קטן מאחורי הקונכייה.
+יש עכשיו שׁובל קטן מאחורי הקונכייה.
 
 imageDirection: Tunnel sliding slowly forward, faint trail beginning behind the shell on the path.
 
 --- Page 14 ---
-שֶׁלִּי מגיע לקצה של אבן. הוא חצי בחוץ, מסתכל על השׁטח הפתוח.
+שלִּי מגיע לקצה של אבן. הוא חצי בחוץ, מסתכל על השׁטח הפתוח.
 
 הילד יושב קצת רחוק.
 
-ביניהם יֵשׁ מרחק.
+ביניהם יש מרחק.
 
 imageDirection: Wide view: child sitting back, Sheli poised at stone edge, space between them, open garden beyond.
 
 --- Page 15 ---
-על האבן יֵשׁ שׁובל מבריק. הוא מוביל עד לקונכייה של שֶׁלִּי.
+על האבן יש שׁובל מבריק. הוא מוביל עד לקונכייה של שלִּי.
 
-שֶׁלִּי עדיין חצי בפנים חצי בחוץ.
+שלִּי עדיין חצי בפנים חצי בחוץ.
 
 הגן גדול מסביב.
 

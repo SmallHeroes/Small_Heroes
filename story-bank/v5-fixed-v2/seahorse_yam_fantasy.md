@@ -37,7 +37,7 @@ imageDirection: soft pastel reef, Yam curling tail around a small rock, pink-min
 imageDirection: child floating stiffly, darker water behind hinting at incoming current
 
 --- Page 3 ---
-גְּלִי מרים ראש. הוא רואה את הילד. הוא זז לעברו, לאט, הגוף זקוף ורגוע. הפסים על הגוף לא משתנים. "שָׁלוֹם," הוא אומר בשקט. "בְּסֵדֶר?"
+גְּלִי מרים ראש. הוא רואה את הילד. הוא זז לעברו, לאט, הגוף זקוף ורגוע. הפסים על הגוף לא משתנים. "שלום," הוא אומר בשקט. "בסדר?"
 
 imageDirection: Yam upright, tail gently curled, soft eye contact
 
@@ -52,7 +52,7 @@ imageDirection: water lines bending, plants starting to lean, bluish tension in 
 imageDirection: child clutching themselves, faint ripples pressing inward
 
 --- Page 6 ---
-גְּלִי מושיט את הזנב לעבר הילד. "אני יכול להחזיק," הוא אומר. "ביחד, בְּסֵדֶר?" הילד מסתובב הצידה ונע הרחק. "לא צריך."
+גְּלִי מושיט את הזנב לעבר הילד. "אני יכול להחזיק," הוא אומר. "ביחד, בסדר?" הילד מסתובב הצידה ונע הרחק. "לא צריך."
 
 imageDirection: child drifting away, Yam reaching slightly with tail
 
@@ -67,7 +67,7 @@ imageDirection: strong diagonal water streaks, child tumbling slightly
 imageDirection: tight spiral tail, both figures pressed together, colors flickering
 
 --- Page 9 ---
-הם נצמדים זה לזה. העיניים עצומות. הזרם עובר מסביב, חזק וקר. גְּלִי לוחש: "אֶחָד, שְׁתַּיִם, שָׁלוֹשׁ, וְלִנְשֹׁם."
+הם נצמדים זה לזה. העיניים עצומות. הזרם עובר מסביב, חזק וקר. גְּלִי לוחש: "אחד, שתים, שלוש, וְלִנְשֹׁם."
 
 imageDirection: blurred current lines rushing past, still center around them
 
@@ -107,7 +107,7 @@ imageDirection: close-up of shell touching Yam, everything else blurred
 imageDirection: tail uncurling in a soft spiral, colors warming to gold-pink
 
 --- Page 17 ---
-גְּלִי זז לאחור קצת. הילד זז קצת קדימה. יש רווח ביניהם עכשיו. המים רכים. האוֹר עובר דרכם.
+גְּלִי זז לאחור קצת. הילד זז קצת קדימה. יש רווח ביניהם עכשיו. המים רכים. האור עובר דרכם.
 
 imageDirection: space between them, light filtering through water
 

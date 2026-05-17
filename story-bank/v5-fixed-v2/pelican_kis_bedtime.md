@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "פֵּלִי וְהַכִּיס שֶׁל הַלַּיְלָה"
+title: "פֵּלִי וְהַכיס של הַלַּיְלָה"
 companionId: pelican_kis
 direction: bedtime
 category: NEW_SIBLING
@@ -29,18 +29,18 @@ uncomfortableTruth: עמוד 6 — Everything inside the pouch presses together 
 --- Page 1 ---
 פֵּלִי עומד ליד המים. הכּיס שׁלו פתוּחַ קצת.
 
-"יֵשׁ עוֹד מָקוֹם," הוא אומר. "בְּסֵדֶר?"
+"יש עוֹד מקום," הוא אומר. "בסדר?"
 
 אֶבֶן קטנה נכנסת. נוצה רכָּה נכנסת. צל מתגלגל פנימה.
 
-פֵּלִי מחייך. "כֻּלָּם פֹּה."
+פֵּלִי מחייך. "כלם פה."
 
 imageDirection: A tidy pelican with a slightly open glowing pouch as small items and animals gather around.
 
 --- Page 2 ---
 ילד מגיע. הוא מחזיק משהו כָּבֵד.
 
-פֵּלִי מתקרב. "מָה אַתָּה צָרִיךְ?"
+פֵּלִי מתקרב. "מה אתה צָרִיךְ?"
 
 הילד נושׁם חזָק. הוא שׂם את הדבר הכָּבֵד בתוך הכּיס.
 
@@ -71,7 +71,7 @@ imageDirection: Child pushing soft shapes downward inside the stretched pouch as
 imageDirection: Pouch sagging and bulging, Kis's bow tie crooked, objects teetering near the rim.
 
 --- Page 5 ---
-משהו קטן מנסה לצאת. אוֹר דק יוצא ממנו.
+משהו קטן מנסה לצאת. אור דק יוצא ממנו.
 
 פֵּלִי מתכופף. הוא דוחף את הדבר בעדינות בחזרה פנימה.
 
@@ -104,7 +104,7 @@ imageDirection: One small object mid-fall beneath the sagging pouch.
 
 פֵּלִי מושׁיט את הראשׁ, אבל הילד לא נותן.
 
-הילד עומד בְּמָקוֹם. הדבר נשׁאר בחוץ.
+הילד עומד בְּמקום. הדבר נשׁאר בחוץ.
 
 פֵּלִי מסתכל על הילד.
 
@@ -117,7 +117,7 @@ imageDirection: Child standing firm, holding the object gently while Kis reaches
 
 הילד מחזיק את הדבר. הם מסתכלים עליו ביחד.
 
-"אֶחָד אַחֲרֵי הַשֵּׁנִי," לוחֵשׁ פֵּלִי.
+"אחד אַחֲרֵי הַשֵּׁנִי," לוחֵשׁ פֵּלִי.
 
 imageDirection: Pouch relaxed and slightly glowing, Kis lowering his head near the child who cradles the object.
 
@@ -126,7 +126,7 @@ imageDirection: Pouch relaxed and slightly glowing, Kis lowering his head near t
 
 שׁניהם יושׁבים.
 
-אוֹר חם יוצא מהכּיס. הדבר נשׁאר בידיים.
+אור חם יוצא מהכּיס. הדבר נשׁאר בידיים.
 
 פֵּלִי אומר: "תוֹדָה."
 

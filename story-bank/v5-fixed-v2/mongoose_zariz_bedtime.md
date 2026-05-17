@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "זוּמִי וְהַכִּיוּוּן הָאֶחָד"
+title: "זוּמי וְהַכיוּוּן הָאחד"
 companionId: mongoose_zariz
 direction: bedtime
 category: VIGILANCE_SAFETY
@@ -27,19 +27,19 @@ emotionalMistake: עמוד 3 — The child steadily points at one thing, asking 
 uncomfortableTruth: עמוד 6 — Even when trying to focus, Zariz cannot stop noticing other movements, and the heaviness does not go away
 
 --- Page 1 ---
-זוּמִי עומד על אבן.
+זוּמי עומד על אבן.
 הראשׁ שלו זז. ימין, שׂמאל, אחורה, קדימה.
-הכובע עם המראוֹת מנצנץ.
+הכובע עם המראות מנצנץ.
 הגוף שלו נמוך. הרגליים כפוּפוֹת.
-האור יורד לאט, אבל זוּמִי לא רואה.
+האור יורד לאט, אבל זוּמי לא רואה.
 
 imageDirection: small mongoose with mirrored cap, body low and tense, arrows or soft visual cues showing many directions pulling him
 
 --- Page 2 ---
 ילד ניגשׁ אליו.
-"זוּמִי, בוא תראה."
+"זוּמי, בוא תראה."
 הילד מצביע על משהו קטן נוצץ בדשא.
-זוּמִי מסתכל רגע, אבל הראשׁ שלו מסתובב.
+זוּמי מסתכל רגע, אבל הראשׁ שלו מסתובב.
 "מה שם? ושם? ושם?"
 הגוף שלו כבד יוֹתר.
 
@@ -48,7 +48,7 @@ imageDirection: child pointing gently to one glowing detail while Zariz's head b
 --- Page 3 ---
 הילד מצביע על אותו מקום באצבע יציבה.
 "רק פה. תסתכל איתי על זה."
-זוּמִי לא זז, אבל העיניים שלו רוצות לראות מה קורה מאחוֹרה.
+זוּמי לא זז, אבל העיניים שלו רוצות לראות מה קורה מאחוֹרה.
 הגוף שלו כבד.
 משהו זז בשׂדה, והוא לא יכול להסתכל.
 
@@ -56,15 +56,15 @@ imageDirection: child hands on Zariz's cheeks turning him, while shadowy motions
 
 --- Page 4 ---
 דשא זז. ציפוֹר עפה. צל עובר.
-זוּמִי מסתובב.
-המראוֹת על הכובע מראות הכל פעמיים.
+זוּמי מסתובב.
+המראות על הכובע מראות הכל פעמיים.
 שלוֹשׁ פעמים.
 הוא זז מהר מהר מהר, אבל הגוף שלו כבד.
 
 imageDirection: chaotic swirl of reflections in cap mirrors, Zariz mid-spin, slightly lifted dust
 
 --- Page 5 ---
-זוּמִי עוצר.
+זוּמי עוצר.
 הכובע מתעקם.
 הוא מנסה להרים את הראשׁ, אבל הוא לא יכול.
 הכובע מחליק.
@@ -73,7 +73,7 @@ imageDirection: chaotic swirl of reflections in cap mirrors, Zariz mid-spin, sli
 imageDirection: close view of tired eyes, cap tilting, body sagging under invisible weight
 
 --- Page 6 ---
-זוּמִי מסתכל על הדבר הקטן הנוצץ.
+זוּמי מסתכל על הדבר הקטן הנוצץ.
 רק עליו.
 אבל עכשיו משהו רועד מהצד השני.
 העיניים שלו זזות.
@@ -82,7 +82,7 @@ imageDirection: close view of tired eyes, cap tilting, body sagging under invisi
 imageDirection: one soft glowing object ahead, but faint motion cues still surround him pulling his gaze
 
 --- Page 7 ---
-הילד מוריד את הכובע מהראשׁ של זוּמִי.
+הילד מוריד את הכובע מהראשׁ של זוּמי.
 הכובע על הדשא.
 
 imageDirection: small hands setting the cap down, mirrors now still, scene quiet and dim
@@ -91,13 +91,13 @@ imageDirection: small hands setting the cap down, mirrors now still, scene quiet
 הילד יוֹשב לידו.
 "אני כאן. אני רואה."
 הילד מצביע על הדבר שבוֹרק.
-זוּמִי מסתכל.
+זוּמי מסתכל.
 הילד קרוב.
 
 imageDirection: child leaning against Zariz, both facing a single softly glowing detail
 
 --- Page 9 ---
-זוּמִי מסתכל רק על הדבר הקטן.
+זוּמי מסתכל רק על הדבר הקטן.
 רק עליו.
 הגוף שלו קל יוֹתר.
 הרגליים שלו לא כפוּפוֹת.
@@ -106,9 +106,9 @@ imageDirection: child leaning against Zariz, both facing a single softly glowing
 imageDirection: visual weight lifting from his body, posture softening, tail gently trembling
 
 --- Page 10 ---
-זוּמִי והילד יוֹשבים ביחד.
+זוּמי והילד יוֹשבים ביחד.
 הכובע לידם על הדשא.
-זוּמִי מסתכל כיוּוּן אחד.
+זוּמי מסתכל כיוּוּן אחד.
 העיניים שלו כבדות.
 הוא נח.
 

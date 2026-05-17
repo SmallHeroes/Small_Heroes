@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "זֹהַר וְהָאוֹר הַקָּטָן"
+title: "זֹהַר וְהָאור הַקָּטָן"
 companionId: butterfly_zohar
 direction: bedtime
 category: SELF_CONFIDENCE
@@ -38,7 +38,7 @@ imageDirection: soft greens and shadows; Zohar small with folded wings, child en
 "סְלִיחָה," אומרת זֹהַר. "אתה רואה? יש פה טיפות מים."
 הילד מסתכל על הטיפות. הן מנצנצות קצת.
 "זה לא מספיק," אומר הילד.
-זֹהַר מצביעה על אוֹר רחוק. "שׁם... יש..."
+זֹהַר מצביעה על אור רחוק. "שׁם... יש..."
 הילד לא שׁומע אותה.
 
 imageDirection: tiny sparkles around but none bright enough; Zohar slightly turned away
@@ -54,7 +54,7 @@ imageDirection: child's gesture pushing away, Zohar shrinking back with wings ti
 זֹהַר זזה לאט קדימה.
 "בואי, אולי... פה..."
 הילד הולך אחריה, אבל השביל נעשה כהה.
-הכנפיים של זֹהַר נשארות סגורות. האוֹר שלה לא נראה.
+הכנפיים של זֹהַר נשארות סגורות. האור שלה לא נראה.
 
 imageDirection: narrow leafy passage, Zohar ahead but dim, child hesitating
 
@@ -68,7 +68,7 @@ imageDirection: close-up of wings pressed to bark, soft glowing dust marks visib
 
 --- Page 6 ---
 זֹהַר והילד עומדים באפלה.
-אין מספיק אוֹר.
+אין מספיק אור.
 אין דרך קדימה.
 
 imageDirection: wide quiet darkness, both figures small and uncertain
@@ -80,7 +80,7 @@ imageDirection: wide quiet darkness, both figures small and uncertain
 imageDirection: intimate close-up, gentle repetitive motion, stillness
 
 --- Page 8 ---
-הילד רואה משהו — אוֹר חלש דרך הכנפיים של זֹהַר.
+הילד רואה משהו — אור חלש דרך הכנפיים של זֹהַר.
 הוא מסתכל עליה.
 "את זוהרת," הוא אומר בשׁקט.
 הוא עוזר לה לפתוח קצת את הכנפיים.
@@ -88,9 +88,9 @@ imageDirection: intimate close-up, gentle repetitive motion, stillness
 imageDirection: soft light leaking through partially opened wings, child's hand guiding carefully
 
 --- Page 9 ---
-אוֹר קטן מופיע על השביל.
+אור קטן מופיע על השביל.
 הילד וזֹהַר הולכים ביחד. צעד אחרי צעד.
-האוֹר מוביל אותם החוצה.
+האור מוביל אותם החוצה.
 
 imageDirection: dim path lit by warm, gentle light, both close together
 

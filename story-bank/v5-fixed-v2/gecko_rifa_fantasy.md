@@ -188,7 +188,7 @@ imageDirection: close-up of small repeated touch gesture
 
 הרוח נרגעת. החיות מפסיקות לזוז.
 
-אוֹר חוזר.
+אור חוזר.
 
 גֵּקִי נושמת.
 

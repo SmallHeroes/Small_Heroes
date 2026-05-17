@@ -33,7 +33,7 @@ uncomfortableTruth: עמוד 11 — The child realizes they cannot predict or co
 יש לו פרח צהוב מאחורי האוזן.
 הוא לא זז. מקשׁיב.
 רק אחרי רגע הוא מסתכל עלי.
-"שָׁלוֹם," אני אומר בשׁקט.
+"שלום," אני אומר בשׁקט.
 הוא מהנהן.
 
 imageDirection: soft grasses, Tzvi with one ear forward and one sideways, child watching curiously
@@ -63,7 +63,7 @@ imageDirection: Tzvi's ears flatten slightly, child surprised, subtle tension in
 
 --- Page 4 ---
 אנחנו מגיעים לקרחת יער שׁקטה.
-אוֹר דק יוֹרד בין העלים.
+אור דק יוֹרד בין העלים.
 צבִי מקשׁיב. "עלה נופל," הוא לוֹחשׁ.
 עלה נופל.
 "עכשׁיו חיפוּשׁית תזוּז."
@@ -77,7 +77,7 @@ imageDirection: dappled light, falling leaf, Tzvi relaxed, flower bright
 "אבל פעם משהו מפתיע!" אני אומר.
 אני מוֹחֵא כף.
 הקוֹל חזק.
-צבִי קוֹפץ אחוֹרה. האוזניים שׁטוּחוֹת. הפרח דועך.
+צבִי קוֹפץ אחוֹרה. האוזניים שׁטוּחוֹת. הפרח נחלש.
 הוא בוֹהה בי.
 אני לא אומר כלום.
 הוא מסתובב וממשׁיך ללכת.
@@ -102,7 +102,7 @@ imageDirection: layered sounds visualized, overlapping birds, leaves, insects, T
 "מה זה?" הוא לוֹחשׁ.
 גם אני לא יודע.
 הצליל שׁוּב — כמו נשׁימה איטית שׁל משהו גדול.
-האוֹר קצת משׁתנה.
+האור קצת משׁתנה.
 
 imageDirection: subtle glowing ripple in air, Tzvi frozen mid-step, child leaning in
 
@@ -158,7 +158,7 @@ imageDirection: soft visual rhythm lines, Tzvi's ears slowly lifting, flower beg
 משהו עוֹלה מבין העצים — יצוּר עדין וזוֹהר.
 כנפיים כמעט שׁקוּפוֹת. גוף ארוך ודק.
 הוא מרחף למעלה, אט אט.
-אוֹר קטן נוֹפל ממנו כמו אבק.
+אור קטן נוֹפל ממנו כמו אבק.
 צבִי מסתכל למעלה. הפה פתוּח מעט.
 
 imageDirection: ethereal creature lifting, light particles falling, Tzvi watching in awe

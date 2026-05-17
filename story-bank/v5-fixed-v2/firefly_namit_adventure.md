@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "נְמִית וְהָאוֹר שֶׁלֹּא מַסְפִּיק"
+title: "נְמית וְהָאור שלֹּא מַסְפִּיק"
 companionId: firefly_namit
 direction: adventure
 category: GENERAL_FEARS
@@ -37,18 +37,18 @@ uncomfortableTruth: עמוד 9 — Even when fully lit, one looming shape only g
 imageDirection: soft twilight, long shadows stretching from ordinary objects
 
 --- Page 2 ---
-נְמִית מגיעה במהירות.
-אוֹר חם וצהוב עף ישר לצל ליד הכלים.
-"אַל פַּחַד!" היא אומרת ומאירה.
+נְמית מגיעה במהירות.
+אור חם וצהוב עף ישר לצל ליד הכלים.
+"אל פַּחַד!" היא אומרת ומאירה.
 זה רק גרזן ישן על הארץ.
 
 imageDirection: a quick streak of warm yellow light cutting through blue darkness
 
 --- Page 3 ---
 נמית עפה מצורה לצורה.
-אוֹר על המעיל — זה מעיל.
-אוֹר על הערמה — עלים בלבד.
-אוֹר על הקופסה — קופסת צעצועים ריקה.
+אור על המעיל — זה מעיל.
+אור על הערמה — עלים בלבד.
+אור על הקופסה — קופסת צעצועים ריקה.
 "רואה? רואה? הכל בסדר!" היא אומרת מהר.
 
 imageDirection: spotlit patches revealing coat, leaves, and small objects casting big shadows
@@ -58,7 +58,7 @@ imageDirection: spotlit patches revealing coat, leaves, and small objects castin
 כל פעם שהיא מאירה משהו אחד, משהו אחר מופיע.
 הצללים נמתחים ארוכים על הקרקע.
 נמית עפה מכאן לשם, מכאן לשם.
-האוֹר שלה קופץ בין המקומות.
+האור שלה קופץ בין המקומות.
 
 imageDirection: overlapping shadows multiplying as light moves
 
@@ -68,13 +68,13 @@ imageDirection: overlapping shadows multiplying as light moves
 "מהר, נמית, מהר!"
 היא עפה מהר יותר.
 הכנפיים שלה מתנודדות חזק.
-אוֹר רץ בין הצללים.
+אור רץ בין הצללים.
 
 imageDirection: child gesturing widely while Namit darts between targets
 
 --- Page 6 ---
 נמית מנסה להאיר חזק יותר.
-האוֹר שלה מהבהב.
+האור שלה מהבהב.
 הוא לא יציב.
 הכנפיים שלה רועדות באוויר.
 הצעיף שלה מתנפנף לכל הכיוונים.
@@ -84,7 +84,7 @@ imageDirection: her light stuttering midair, scarf fluttering wildly
 --- Page 7 ---
 בפינת החצר יש צורה גדולה.
 נמית עפה אליה ומאירה עליה ישר.
-האוֹר חזק.
+האור חזק.
 אבל הצורה לא נעשית קטנה.
 הצל שלה נשאר גדול וכהה.
 
@@ -92,10 +92,10 @@ imageDirection: an ambiguous object casting a stubborn, exaggerated shadow
 
 --- Page 8 ---
 נמית מתקרבת לעלה גדול ונכנסת מתחתיו.
-האוֹר שלה מרפרף חלש מתחת לעלה.
+האור שלה מרפרף חלש מתחת לעלה.
 היא מנסה להחזיק את הזוהר כלפי חוץ.
 העלה זוהר קצת מלמטה.
-הגוף שלה קטן, כפוף סביב האוֹר.
+הגוף שלה קטן, כפוף סביב האור.
 
 imageDirection: leaf glowing faintly from beneath, her small form curled around her light
 
@@ -103,7 +103,7 @@ imageDirection: leaf glowing faintly from beneath, her small form curled around 
 אני מסתכל על הצורה הגדולה בפינה.
 נמית עדיין מאירה עליה.
 אבל הצל שלה נמתח.
-האוֹר לא עוזר.
+האור לא עוזר.
 הצורה נשארת גדולה.
 
 imageDirection: shadow stretching even as it is illuminated, child hesitating
@@ -113,12 +113,12 @@ imageDirection: shadow stretching even as it is illuminated, child hesitating
 לא מבקש מנמית להאיר יותר.
 פשוט הולך.
 נמית נשארת מאחור.
-האוֹר שלה מהבהב קטן.
+האור שלה מהבהב קטן.
 
 imageDirection: child moving into dimness while Namit flickers behind
 
 --- Page 11 ---
-האוֹר של נמית כבה.
+האור של נמית כבה.
 החצר חשוכה.
 
 imageDirection: complete dimness with only faint outlines visible
@@ -133,7 +133,7 @@ imageDirection: soft silhouettes, hand meeting the object without light
 
 --- Page 13 ---
 נמית יוצאת מתחת לעלה.
-אוֹר קטן חוזר, עמום ורך.
+אור קטן חוזר, עמום ורך.
 הוא לא רץ לכל מקום.
 הוא קרוב אלי, נח.
 
@@ -143,7 +143,7 @@ imageDirection: a dim, warm pulse of light close to the ground
 העץ עדיין כאן.
 הצללים עדיין כאן.
 אבל נמית לא עפה לכל הכיוונים.
-האוֹר שלה קטן וקרוב.
+האור שלה קטן וקרוב.
 החצר שקטה.
 
 imageDirection: gentle low light, shadows still present but less sharp

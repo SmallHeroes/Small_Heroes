@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "עוֹד דָּבָר אֶחָד"
+title: "עוֹד דָּבָר אחד"
 companionId: bee_ima
 direction: adventure
 category: RESPONSIBILITY_CARE

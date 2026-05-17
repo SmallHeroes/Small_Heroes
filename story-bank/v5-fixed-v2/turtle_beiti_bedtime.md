@@ -49,7 +49,7 @@ imageDirection: Child gently but firmly rotating Beiti, who retracts slightly in
 
 --- Page 4 ---
 טולי נוגעת בשׁמיכה.
-האוֹר פה אחר.
+האור פה אחר.
 הריח אחר.
 היא נכנסת עוד קצת לקונכייה.
 

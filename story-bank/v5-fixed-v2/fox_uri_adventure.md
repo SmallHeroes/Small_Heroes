@@ -35,7 +35,7 @@ imageDirection: dim blue tones, tall trees, long overlapping shadows
 
 --- Page 2 ---
 שׁוּעל קטן ניגש אליי.
-"אַתָּה רוֹאֶה? זֶה צֵל שֶׁל עֵץ. וְזֶה צֵל שֶׁל אֶבֶן."
+"אתה רוֹאֶה? זֶה צֵל של עֵץ. וְזֶה צֵל של אֶבֶן."
 הוא מצביע על הצללים אחד אחד.
 הפנס שלו כבוי.
 
@@ -52,7 +52,7 @@ imageDirection: blurred dark shape between trunks, Uri speaking fast
 --- Page 4 ---
 הדבר מתקרב.
 הצל משתנה.
-"עָנָף עִם עָלִים. אוֹ אוּלַי צִפּוֹר. תִּסְתַּכֵּל טוֹב..."
+"עָנָף עִם עָלִים. או אוּלַי צִפּוֹר. תִּסְתַּכֵּל טוֹב..."
 האוזניים של אוּרִי זזות קצת.
 
 imageDirection: shadows overlapping, Uri slightly tense, ears shifting

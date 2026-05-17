@@ -22,7 +22,7 @@ metaphor: one's natural sound as uncontrollable presence
 stakes: if the child rejects him, he will leave the meadow and never return, and the child will stay afraid of their own noise
 emotionalArc: curiosity → tension → rupture → fragile connection → distant acceptance
 quietPage: 15
-heartLine: עמוד 10 — בּוּמִי מרים רגל באוויר, ואז מוריד את עצמו לאדמה, לגמרי.
+heartLine: עמוד 10 — בּוּמי מרים רגל באוויר, ואז מוריד את עצמו לאדמה, לגמרי.
 emotionalMistake: עמוד 7 — הילד סוגר אוזניים ומראה לו ללכת.
 uncomfortableTruth: עמוד 12 — הילד מבין ששׂחוק יכול להבהיל, גם אם זה שׂחוק שׂמח.
 
@@ -42,7 +42,7 @@ imageDirection: far silhouette, stones lifting slightly with each heavy step
 imageDirection: large figure hunched, tiptoeing, grass and pebbles stirring underfoot
 
 --- Page 4 ---
-הדמות נעצרת רחוק. קול עמוק ואיטי: "סְ-לִי-חָה. הִבְהַלְתִּי אוֹתְךָ?"
+הדמות נעצרת רחוק. קול עמוק ואיטי: "סְ-לִי-חָה. הבהלתי אותְךָ?"
 
 imageDirection: distance emphasized, child small, Boomi bent forward, careful posture
 
@@ -52,7 +52,7 @@ imageDirection: distance emphasized, child small, Boomi bent forward, careful po
 imageDirection: child curious, mushrooms opening like tiny umbrellas
 
 --- Page 6 ---
-בּוּמִי מנסה לזוז קרוב יותר. צעד אחד — וכל האבנים סביב מתעוררות בבת אחת. הוא קופא.
+בּוּמי מנסה לזוז קרוב יותר. צעד אחד — וכל האבנים סביב מתעוררות בבת אחת. הוא קופא.
 
 imageDirection: stones tilting upright as if stretching, Boomi frozen mid-step
 
@@ -62,32 +62,32 @@ imageDirection: stones tilting upright as if stretching, Boomi frozen mid-step
 imageDirection: child recoiling, Boomi shrinking inward
 
 --- Page 8 ---
-בּוּמִי מתכווץ. הוא מחזיק נשׁימה. מנסה להיות קטן. אצבעותיו פרוּשׂות. הדשא מתחתיו רועד קצת.
+בּוּמי מתכווץ. הוא מחזיק נשׁימה. מנסה להיות קטן. אצבעותיו פרוּשׂות. הדשא מתחתיו רועד קצת.
 
 imageDirection: large body curled, fingers spread, grass slightly trembling
 
 --- Page 9 ---
-ציפור קטנה נוחתת על הכתף שׁלו. היא מחליקה. בּוּמִי מתנדנד קצת, פתאום.
+ציפור קטנה נוחתת על הכתף שׁלו. היא מחליקה. בּוּמי מתנדנד קצת, פתאום.
 
 imageDirection: tiny bird on his shoulder, unexpected imbalance
 
 --- Page 10 ---
-בּוּמִי כמעט צוחק. אבל הוא עוצר. מרים את הרגל, איטי איטי. ואז מוריד את כל הגוף עד לאדמה. שׁקט מוחלט.
+בּוּמי כמעט צוחק. אבל הוא עוצר. מרים את הרגל, איטי איטי. ואז מוריד את כל הגוף עד לאדמה. שׁקט מוחלט.
 
 imageDirection: careful descent, everything around settling as he stills
 
 --- Page 11 ---
-הילד רואה: כשׁבּוּמִי לא זז, שׁום דבר לא מתעורר. הפרחים נשארים סגורים.
+הילד רואה: כשׁבּוּמי לא זז, שׁום דבר לא מתעורר. הפרחים נשארים סגורים.
 
 imageDirection: stillness, objects around calm and closed
 
 --- Page 12 ---
-פתאום בּוּמִי משׁחרר שׂחוק קטן. הקול מתפוצץ כמו רעם. הכל סביב קופץ בבת אחת — פרחים, אבנים, דשׁא.
+פתאום בּוּמי משׁחרר שׂחוק קטן. הקול מתפוצץ כמו רעם. הכל סביב קופץ בבת אחת — פרחים, אבנים, דשׁא.
 
 imageDirection: shockwave, flowers, stones, and grass all reacting at once
 
 --- Page 13 ---
-בּוּמִי מסתכל מטה. פניו עצובים. גם שׂמחה שׁלו גורמת לעולם לקפוץ.
+בּוּמי מסתכל מטה. פניו עצובים. גם שׂמחה שׁלו גורמת לעולם לקפוץ.
 
 imageDirection: Boomi looking down, child watching uncertainly
 
@@ -102,7 +102,7 @@ imageDirection: child creating ripples of waking objects on purpose
 imageDirection: close-up of small hand touching earth
 
 --- Page 16 ---
-בּוּמִי מניח יד ענקית ליד היד הקטנה. הוא דוֹפק שׁלוש פעמים, רך רך. האדמה כמעט לא רועדת.
+בּוּמי מניח יד ענקית ליד היד הקטנה. הוא דוֹפק שׁלוש פעמים, רך רך. האדמה כמעט לא רועדת.
 
 imageDirection: large hand next to small hand, gentle taps, minimal disturbance
 
@@ -112,7 +112,7 @@ imageDirection: large hand next to small hand, gentle taps, minimal disturbance
 imageDirection: calm coexistence, subtle movements in background
 
 --- Page 18 ---
-בּוּמִי קם לאט. הוא צועד אחורה. רחוק קצת. זהיר. השׁטח ביניהם גדל.
+בּוּמי קם לאט. הוא צועד אחורה. רחוק קצת. זהיר. השׁטח ביניהם גדל.
 
 imageDirection: space growing between them, controlled steps
 
@@ -122,7 +122,7 @@ imageDirection: space growing between them, controlled steps
 imageDirection: child experimenting with steps, calm expression
 
 --- Page 20 ---
-רחוק, בּוּמִי עומד. הילד מחזיק אבן קטנה שׁהתעוררה. הוא מביט רחוק. בּוּמִי מביט חזרה.
+רחוק, בּוּמי עומד. הילד מחזיק אבן קטנה שׁהתעוררה. הוא מביט רחוק. בּוּמי מביט חזרה.
 
 imageDirection: cool, open scene, distance between them, child holding a small awakened stone
 

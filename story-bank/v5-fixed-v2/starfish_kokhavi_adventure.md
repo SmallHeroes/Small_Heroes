@@ -54,7 +54,7 @@ imageDirection: a glowing coral-pink five-pointed starfish (Dori) hovering just 
 
 {{companionName}} מַחֲכָה לה למטה, בין האֲלָמוֹגים. היא לא ממהרת.
 
-"לֹא צריך לרוץ," אומרת {{companionName}}. "המים יודעים את הקצב שלהם."
+"לא צריך לרוץ," אומרת {{companionName}}. "המים יודעים את הקצב שלהם."
 
 imageDirection: the girl gently descending into clear shallow water, Dori the coral-pink starfish waiting calmly on a small coral platform below, soft warm-blue underwater light, calm pose
 
@@ -79,7 +79,7 @@ imageDirection: the girl sitting beside Dori on a moss-covered underwater rock, 
 imageDirection: Dori carefully unwrapping the bandage from her arm, revealing a small new pink arm growing in — shorter than the others but fully shaped, soft gentle wonder, glowing underwater colors
 
 --- Page 6 ---
-{{childName}} מַשִּׁיטָה אצבע ליד הזרוע החדשה. לא נוגעת.
+{{childName}} מַעֲבִירָה אצבע ליד הזרוע החדשה. לא נוגעת.
 
 "זה כּוֹאֵב?" היא שואלת.
 
@@ -118,9 +118,9 @@ imageDirection: water around them turns deeper blue and green, the girl looking 
 
 היא לא אומרת מה {{childName}} צריכה לחשוב.
 
-היא רק נשארת. על יד {{childName}}. לֹא זָזָה.
+היא רק נשארת. על יד {{childName}}. לא זָזָה.
 
-חמש זרועות. אחת קטנה וחדשה. כולן שָׁם.
+חמש זרועות. אחת קטנה וחדשה. כולן שם.
 
 imageDirection: Dori the starfish simply staying beside the girl, no movement, no explanation, both very still in the dim water, all five arms (one small/new) visible, deeply quiet composition
 
@@ -145,7 +145,7 @@ imageDirection: extremely quiet still scene — the girl and Dori in stillness, 
 imageDirection: the girl turning gently toward Dori with a small hopeful look, Dori facing her with kind eyes, the new small arm slightly raised as if offering something
 
 --- Page 12 ---
-{{companionName}} מַרְיֵמָה את הזרוע הקטנה.
+{{companionName}} מַרְיֵמה את הזרוע הקטנה.
 
 עליה יש קליפה — קליפה זעירה, ורוֹדה, חלקה.
 

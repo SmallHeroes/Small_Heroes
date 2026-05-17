@@ -77,7 +77,7 @@ imageDirection: Child back turned, Gahal mid-roar looking surprised
 --- Page 7 ---
 דּוֹבִּי שואג עוד יותר חזק.
 הקול שלו מתחיל להישבר.
-הגלים באוויר מתפצלים לחתיכות קטנות.
+הגלים באוויר מתחלקים לחתיכות קטנות.
 הציפורניים זוהרות כל כך חזק שזה כואב.
 
 imageDirection: Sound waves splintering, claws glowing intensely

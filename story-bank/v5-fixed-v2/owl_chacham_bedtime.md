@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "כְּשֶׁאֵין תְּשׁוּבָה"
+title: "כְּשֶׁאין תְּשׁוּבָה"
 companionId: owl_chacham
 direction: bedtime
 category: KNOWLEDGE_LEARNING
@@ -77,7 +77,7 @@ imageDirection: Owl's feathers puffing and settling, beak opening and closing, s
 --- Page 7 ---
 הילד לוקח את כנף בּוּבּוּ.
 מוביל אותה לשאלה הקטנה.
-"פֹּה," אומר הילד.
+"פה," אומר הילד.
 שניהם מסתכלים על אותו אור קטן.
 
 imageDirection: Child physically guiding the owl closer, both focused on the same soft light.

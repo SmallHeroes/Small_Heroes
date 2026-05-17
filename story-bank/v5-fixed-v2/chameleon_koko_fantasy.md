@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "הַיַּעַר שֶׁל אֶלֶף צְבָעִים"
+title: "הַיַּעַר של אֶלֶף צְבָעִים"
 companionId: chameleon_koko
 direction: fantasy
 category: TRANSITION
@@ -22,9 +22,9 @@ metaphor: colors as memories that layer rather than replace
 stakes: If the child erases the old place, they lose their sense of self and feel unable to belong anywhere
 emotionalArc: curiosity → strain → confusion → rupture → partial integration
 quietPage: 12
-heartLine: עמוד 10 — קוֹקוֹ לוֹחֵץ בְּעָדִינוּת עַל כֶּתֶם צֶבַע קָטָן בַּצָּעִיף וְנֶעֱצָר.
-emotionalMistake: עמוד 6 — הַיֶּלֶד אוֹמֵר לְקוֹקוֹ לְהִפָּסֵק לְהִשְׁתַּנּוֹת וּלְהִשְׁאֵר בְּצֶבַע אֶחָד.
-uncomfortableTruth: עמוד 11 — הַיֶּלֶד רוֹאֶה שֶׁקּוֹקוֹ מִשְׁתַּלֵּב בְּכֹל מָקוֹם אֲבָל לֹא שַׁיָּךְ לְשׁוּם מָקוֹם.
+heartLine: עמוד 10 — קוֹקוֹ לוֹחֵץ בְּעָדִינוּת על כֶּתֶם צֶבַע קָטָן בַּצָּעִיף וְנֶעֱצָר.
+emotionalMistake: עמוד 6 — הילד אומֵר לְקוֹקוֹ לְהִפָּסֵק לְהִשְׁתַּנּוֹת וּלְהִשְׁאֵר בְּצֶבַע אחד.
+uncomfortableTruth: עמוד 11 — הילד רוֹאֶה שֶׁקּוֹקוֹ מִשְׁתַּלֵּב בְּכֹל מקום אבל לא שַׁיָּךְ לְשׁוּם מקום.
 
 --- Page 1 ---
 אני עומד ליד יער שמשנה צבעים.

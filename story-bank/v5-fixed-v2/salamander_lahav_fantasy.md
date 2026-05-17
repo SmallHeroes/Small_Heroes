@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "רוּמִי וְהַנִּיצוֹץ הַקָּטָן"
+title: "רוּמי וְהַנִּיצוֹץ הַקָּטָן"
 companionId: salamander_lahav
 direction: fantasy
 category: ANGER_FRUSTRATION
@@ -54,9 +54,9 @@ imageDirection: Lahav grayish, faint lines, surrounded by brighter emotional fla
 imageDirection: child pokes flame, it turns sharp red briefly
 
 --- Page 4 ---
-"אני רוּמִי," אומרת הסלמנדרה.
+"אני רוּמי," אומרת הסלמנדרה.
 
-קולה איטי. "הַכֹּל. בְּסֵדֶר."
+קולה איטי. "הַכֹּל. בסדר."
 
 הקווים על הגוף שׁלה דוֹעכים עוד קצת.
 
@@ -81,7 +81,7 @@ imageDirection: sparks burst, colors shifting rapidly
 imageDirection: child frustrated, Lahav stiff and dimming
 
 --- Page 7 ---
-רוּמִי בולעת משהו. הלשון הקצרה שלה יוצאת לרגע ונעלמת.
+רוּמי בולעת משהו. הלשון הקצרה שלה יוצאת לרגע ונעלמת.
 
 הקווים נכנסים פנימה. הגוף קפוא, הזנב נצמד לסלע.
 
@@ -101,14 +101,14 @@ imageDirection: once-bright flames now muted gray-blue
 --- Page 9 ---
 "סליחה," אני אומר.
 
-"בְּסֵדֶר," היא אומרת מהר.
+"בסדר," היא אומרת מהר.
 
 היא לא זזה.
 
 imageDirection: child reaching out, Lahav unmoving, dim
 
 --- Page 10 ---
-רוּמִי מצמידה את הגוף שלה לסלע. כפות לחות מהדקות אחיזה. הזנב נכרך מסביב.
+רוּמי מצמידה את הגוף שלה לסלע. כפות לחות מהדקות אחיזה. הזנב נכרך מסביב.
 
 היא מחביאה את הצד שכבר לא זוהר.
 
@@ -117,7 +117,7 @@ imageDirection: child reaching out, Lahav unmoving, dim
 imageDirection: his side against stone, glow barely visible
 
 --- Page 11 ---
-משׁהו רועד באוויר מעל רוּמִי.
+משׁהו רועד באוויר מעל רוּמי.
 
 לא עשׁן. לא להבה.
 
@@ -130,14 +130,14 @@ imageDirection: heat distortion rising from his body, no visible flame
 
 הוא עף למעלה בלי קול.
 
-רוּמִי לא רוצה להוציא אותו.
+רוּמי לא רוצה להוציא אותו.
 
 imageDirection: small soft spark floating upward
 
 --- Page 13 ---
 אני מבין משׁהו.
 
-רוּמִי לא כואבת בגלל העולם.
+רוּמי לא כואבת בגלל העולם.
 
 היא כואבת כי היא לא נותנת אפילו ניצוץ אחד לצאת.
 
@@ -153,7 +153,7 @@ imageDirection: child watching closely, concern, muted environment
 imageDirection: controlled tiny flame, warm color
 
 --- Page 15 ---
-רוּמִי נושׁפת.
+רוּמי נושׁפת.
 
 ניצוץ אחד יוצא.
 
@@ -162,14 +162,14 @@ imageDirection: single spark drifting softly upward
 --- Page 16 ---
 אני עושׂה את זה שׁוב.
 
-רוּמִי נושׁפת. עוד שׁני ניצוצות עפים.
+רוּמי נושׁפת. עוד שׁני ניצוצות עפים.
 
 הקווים על הגוף שׁלה חוזרים קצת.
 
 imageDirection: three small sparks floating, Lahav slightly brighter
 
 --- Page 17 ---
-רוּמִי זוֹהרת יותר עכשׁיו.
+רוּמי זוֹהרת יותר עכשׁיו.
 
 אבל היא מתרחקת ממני.
 
@@ -189,7 +189,7 @@ imageDirection: balanced hues, calmer gradients
 --- Page 19 ---
 בכף היד שׁלי נשׁאר גחלת קטנה.
 
-רוּמִי רחוקה עכשׁיו.
+רוּמי רחוקה עכשׁיו.
 
 אני רואה אותה מרחוק.
 
@@ -198,7 +198,7 @@ imageDirection: child alone holding ember, Lahav small in distance
 --- Page 20 ---
 הגחלת משׁנה צבעים בכף היד.
 
-רוּמִי זוֹהרת, קטנה ורחוקה.
+רוּמי זוֹהרת, קטנה ורחוקה.
 
 העמק שׁקט.
 

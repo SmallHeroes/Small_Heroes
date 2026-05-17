@@ -27,7 +27,7 @@ emotionalMistake: עמוד 5 — The child pushes Mishi away and tells him to st
 uncomfortableTruth: עמוד 9 — The small creature does not come closer even as everything turns soft, and the distance remains
 
 --- Page 1 ---
-מִשִׁי יושב על אדן החלון.
+מִשִׁי יושב על מדף החלון.
 השפמים שלו רגועים. העיניים חצי עצומות.
 הוא מגרגר בשקט, והכרית ליד הקיר הופכת רכה יותר.
 הפעמון על הצוואר מצלצל בעדינות.

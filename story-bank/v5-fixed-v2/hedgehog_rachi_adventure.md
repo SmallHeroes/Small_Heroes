@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "הַקּוֹצִים שֶׁל רַכִּי"
+title: "הַקּוֹצִים של רַכי"
 companionId: hedgehog_rachi
 direction: adventure
 category: SOCIAL
@@ -38,7 +38,7 @@ imageDirection: wide shot of a strange field with spike-shaped objects embedded 
 אני רואה כדור קטן ליד השביל.
 קוצים זקופים.
 זאת קיפודה.
-שׁמהּ רַכִּי.
+שׁמהּ רַכי.
 היא לא זזה.
 
 imageDirection: close view of Rachi as a tight ball, spikes raised, blending into the terrain
@@ -62,7 +62,7 @@ imageDirection: child slipping slightly as spikes tilt underfoot
 
 --- Page 5 ---
 אני מוצא ענף ארוך.
-דוחף אותו אל הכדוּר של רַכִּי.
+דוחף אותו אל הכדוּר של רַכי.
 "בבקשה, זוזי..."
 הקוצים שׁלה מתהדקים.
 הכדוּר נעשׂה קטן עוד יותר.
@@ -73,7 +73,7 @@ imageDirection: stick touching spikes, Rachi becoming even more compact
 רוּחַ חזקה פתאום.
 קוצים נוספים נופלים מסביב.
 המעבר נהיה צר.
-אני וגם רַכִּי תקוּעים.
+אני וגם רַכי תקוּעים.
 
 imageDirection: spikes falling around them, narrowing the path
 
@@ -85,7 +85,7 @@ imageDirection: spikes falling around them, narrowing the path
 imageDirection: child seated low, open posture, space between them and Rachi
 
 --- Page 8 ---
-רַכִּי פותחת את הכדוּר קצת.
+רַכי פותחת את הכדוּר קצת.
 אני רואה בטן רכה.
 פתאום היא נסגרת שׁוּב.
 מהר.
@@ -109,7 +109,7 @@ imageDirection: child still, Rachi closed, spikes continuing to fall around them
 imageDirection: child stacking spikes into a protective arc over Rachi
 
 --- Page 11 ---
-רַכִּי מורידה את הצווארון שׁלה.
+רַכי מורידה את הצווארון שׁלה.
 פעם אחת.
 שׁתיים.
 שׁלושׁ.
@@ -125,7 +125,7 @@ imageDirection: close-up sequence of the collar loosening slightly with each mov
 imageDirection: stone bridging gaps between spikes, child's hands clearly keeping distance
 
 --- Page 13 ---
-רַכִּי נפתחת.
+רַכי נפתחת.
 עולה על האבן.
 הקוצים שׁטוּחים.
 הבטן הרכה נראית כשׁהיא הולכת.
@@ -133,7 +133,7 @@ imageDirection: stone bridging gaps between spikes, child's hands clearly keepin
 imageDirection: Rachi walking cautiously, spikes lowered, belly patch visible
 
 --- Page 14 ---
-בקצה השׂדה רַכִּי עוצרת.
+בקצה השׂדה רַכי עוצרת.
 מניחה את הצווארון על סלע.
 מסתכלת לצד.
 אני עומד רחוק.
@@ -141,7 +141,7 @@ imageDirection: Rachi walking cautiously, spikes lowered, belly patch visible
 imageDirection: collar resting on a rock, Rachi slightly turned away, child nearby but not touching
 
 --- Page 15 ---
-רַכִּי יוצאת אל המרחב הפתוח.
+רַכי יוצאת אל המרחב הפתוח.
 הצווארון נשׁאר על הסלע.
 אני עדיין כאן.
 יש רווח בינינו.

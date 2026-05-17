@@ -28,9 +28,9 @@ uncomfortableTruth: עמוד 9 — Navad realizes that no matter how much he car
 
 --- Page 1 ---
 נוּטִי מוציא מהתיק אגוז.
-"זֶה לְמָקוֹם קַר," הוא אומר.
+"זֶה לְמקום קַר," הוא אומר.
 הלחיים שלו נפוחות.
-הוא מוציא נוצה. "וְזֶה לְמָקוֹם רַךְ."
+הוא מוציא נוצה. "וְזֶה לְמקום רַךְ."
 עוד ענף. עוד חוט. עוד אבן יפה.
 "וְעוֹד דָּבָר חָשׁוּב..." הוא מתחיל שוב.
 התיק מלא עד הסוף.
@@ -41,17 +41,17 @@ imageDirection: A squirrel with puffed cheeks and a huge bag spilling with objec
 נוטי עוצר.
 בקצה החצר יש משהו חדש.
 פתח קטן בין העלים.
-אוֹר עובר דרכו.
-"מָקוֹם!" נוטי אומר.
+אור עובר דרכו.
+"מקום!" נוטי אומר.
 הלחיים שלו נפוחות יותר.
-"מָקוֹם חָדָשׁ!"
+"מקום חָדָשׁ!"
 
 imageDirection: A small doorway framed by plants, glowing slightly, just big enough for a small figure
 
 --- Page 3 ---
 נוטי רץ אחורה.
-"אוּלַי שָׁם לֹא יִהְיֶה כְּלוּם!" הוא אומר מהר.
-"אוּלַי שָׁם לֹא יִהְיֶה חוּט. אוּלַי לֹא יִהְיֶה עֵץ!"
+"אוּלַי שם לא יִהְיֶה כְּלוּם!" הוא אומר מהר.
+"אוּלַי שם לא יִהְיֶה חוּט. אוּלַי לא יִהְיֶה עֵץ!"
 הוא אוסף עוד ענפים.
 הכפיים שלו נכנסות ויוצאות מהתיק.
 הסרט על הזנב מתחיל ליפול.
@@ -61,10 +61,10 @@ imageDirection: Navad hurriedly stuffing items into bag and cheeks, tail ribbon 
 --- Page 4 ---
 ליד הפתח יש ערימה.
 נוטי מסתובב סביב הערימה.
-"וְלֹא לִשְׁכּוֹחַ אֶת זֶה," הוא אומר.
+"וְלא לִשְׁכּוֹחַ את זֶה," הוא אומר.
 הוא שם אגוז על אגוז.
 נוצה על נוצה.
-"וְעוֹד אֶחָד... וְעוֹד..."
+"וְעוֹד אחד... וְעוֹד..."
 הערימה גדלה.
 
 imageDirection: Messy piles of objects, Navad circling and grabbing more, child watching
@@ -74,7 +74,7 @@ imageDirection: Messy piles of objects, Navad circling and grabbing more, child 
 נוצה נופלת החוצה.
 אני מזיז אותה הצידה.
 עוד ענף — החוצה.
-"פָּה!" אני אומר. "עַכְשָׁו יוֹתֵר קַל!"
+"פָּה!" אני אומר. "עכשו יוֹתֵר קַל!"
 נוטי עומד בלי לזוז.
 
 imageDirection: Child tossing feathers and sticks aside while Navad looks startled

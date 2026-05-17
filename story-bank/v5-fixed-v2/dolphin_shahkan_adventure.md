@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "דּוּדִי וְהַגַּל שֶׁלֹּא מַקְשִׁיב"
+title: "דּוּדִי וְהַגַּל שלֹּא מַקְשִׁיב"
 companionId: dolphin_shahkan
 direction: adventure
 category: FOCUS_LEARNING

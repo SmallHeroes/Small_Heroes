@@ -27,7 +27,7 @@ emotionalMistake: עמוד 5 — הילד דוחף את הזרועות בכעס
 uncomfortableTruth: עמוד 10 — היצור כמעט לא זוהר יותר בגלל האחיזה
 
 --- Page 1 ---
-יש משהו קטן באוֹר.
+יש משהו קטן באור.
 
 זה זז לאט ליד השוֹנית.
 
@@ -51,11 +51,11 @@ imageDirection: soft glowing creature drifting toward shadowy deep water, child 
 imageDirection: octopus with flailing tentacles grabbing rocks, plants, and water currents
 
 --- Page 3 ---
-זוּזִי אוֹחז את היצוֹר הקטן.
+זוּזִי אוחז את היצוֹר הקטן.
 
 הכוֹבע שלו ישר.
 
-"אני יודע מה לעשוֹת," הוא אוֹמר.
+"אני יודע מה לעשוֹת," הוא אומר.
 
 אני לא בטוּחה.
 
@@ -130,7 +130,7 @@ imageDirection: tentacles twisting against each other, Zuzi's hat falling off
 --- Page 10 ---
 ככל שזוּזִי מהדק, היצור נאבק.
 
-האוֹר שלו כמעט נעלם.
+האור שלו כמעט נעלם.
 
 זוּזִי לא יכול לעצור.
 
@@ -183,7 +183,7 @@ imageDirection: small luminous fragment resting on sand, both looking at it
 
 הזרם מזמזם.
 
-האוֹר של היצור רחוֹק רחוק.
+האור של היצור רחוֹק רחוק.
 
 אנחנו לא נוֹגעים בכלוּם.
 

@@ -48,7 +48,7 @@ imageDirection: small bat silhouette with big ears, cozy dim light, child lookin
 imageDirection: lamp flaring on, Lily startled mid-air, shadows disappear sharply
 
 --- Page 4 ---
-עם האוֹר, הקולות לא נעלמים.
+עם האור, הקולות לא נעלמים.
 לילי רועדת. האוזניים שׁלה מסתובבות מהר מהר.
 היא לא יודעת לאן להקשׁיב.
 

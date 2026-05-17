@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "הָרֵיחַ שֶׁלִּי נִשְׁאָר"
+title: "הָרֵיחַ שלִּי נִשְׁאָר"
 companionId: wolf_pup_siyar
 direction: adventure
 category: OTHER

@@ -22,9 +22,9 @@ metaphor: light that leaks through closed wings
 stakes: the child remains lost in the dim forest as night deepens
 emotionalArc: hidden calm → searching strain → shared vulnerability → stuck stillness → partial opening
 quietPage: 11
-heartLine: עמוד 8 — זֹהַר משׂפשׂפת את הכנפיים על עלה כדי למחוק את האוֹר, מקפלת אותן חזק יותר.
+heartLine: עמוד 8 — זֹהַר משׂפשׂפת את הכנפיים על עלה כדי למחוק את האור, מקפלת אותן חזק יותר.
 emotionalMistake: עמוד 5 — הילד מסתובב ואומר שׁזוֹהַר לא עוזרת.
-uncomfortableTruth: עמוד 10 — היער כבר כמעט חשׁוך ואין שׁום אוֹר אחר.
+uncomfortableTruth: עמוד 10 — היער כבר כמעט חשׁוך ואין שׁום אור אחר.
 
 --- Page 1 ---
 
@@ -54,7 +54,7 @@ imageDirection: small child framed by dark foliage, faint light beams scattered
 
 היא מראה לצד. "יש פה גם טיפות טל שׁמאירות."
 
-הילד מסתכל. האוֹר קטן.
+הילד מסתכל. האור קטן.
 
 imageDirection: Zohar angled away, indicating tiny glowing spots around
 
@@ -62,7 +62,7 @@ imageDirection: Zohar angled away, indicating tiny glowing spots around
 
 הילד הולך לכיוון הגחליליות.
 
-האוֹר מהבהב ונעלם.
+האור מהבהב ונעלם.
 
 הוא מגיע לטיפות הטל. גם הן כבר לא בוהקות.
 
@@ -92,9 +92,9 @@ imageDirection: butterfly moving in small hesitant motions, child following unce
 
 היער כבר חשׁוך יותר. הילד עומד.
 
-הוא רואה אוֹר קטן ליד זֹהַר.
+הוא רואה אור קטן ליד זֹהַר.
 
-האוֹר יוצא מבין הכנפיים המקופלות.
+האור יוצא מבין הכנפיים המקופלות.
 
 imageDirection: dim scene with subtle warm light seeping from folded wings
 
@@ -102,7 +102,7 @@ imageDirection: dim scene with subtle warm light seeping from folded wings
 
 זֹהַר משפשפת קצת את הכנפיים על עלה. היא מקפלת אותן חזק, חזק.
 
-האוֹר כמעט נעלם.
+האור כמעט נעלם.
 
 imageDirection: close-up of wings against leaf surface, faint dust smudging away
 
@@ -110,7 +110,7 @@ imageDirection: close-up of wings against leaf surface, faint dust smudging away
 
 הילד לא זז. הוא מסתכל.
 
-האוֹר עדיין שׁם. חלש, אבל שׁם.
+האור עדיין שׁם. חלש, אבל שׁם.
 
 זֹהַר יושׁבת בצד.
 
@@ -146,7 +146,7 @@ imageDirection: child's hand mimicking slow motion, Zohar beginning to open wing
 
 --- Page 13 ---
 
-אוֹר רך יוצא מהכנפיים.
+אור רך יוצא מהכנפיים.
 
 הוא מאיר שׁביל צר בין העצים.
 

@@ -29,7 +29,7 @@ uncomfortableTruth: עמוד 13 — They realize not everything can come, and so
 --- Page 1 ---
 נוּטִי הסנאי יושב על הזנב שלו ליד תיק גדול.
 הלחיים שלו נפוחות.
-"יֵשׁ לִי הַכֹּל," הוא אומר. "אֱגוֹזִים לְכָל מִקְרֶה. נוֹצָה אַחַת יָפָה. חוּט חָזָק."
+"יש לִי הַכֹּל," הוא אומר. "אֱגוֹזִים לְכָל מִקְרֶה. נוֹצָה אחת יָפָה. חוּט חָזָק."
 הוא מוציא כל דבר ומניח אותו על האדמה.
 
 imageDirection: A squirrel with puffed cheeks sits on his tail beside an overstuffed bag, laying out tiny objects.
@@ -45,7 +45,7 @@ imageDirection: Loose feathers and strings slightly tilt or stretch toward the b
 --- Page 3 ---
 בין שני עצים עומד משקוף מעץ.
 דלת בלי קיר.
-"מָה זֶה?" אני שׁוֹאֵל.
+"מה זֶה?" אני שׁוֹאֵל.
 נוּטִי מסתכל על המשקוף ואז על התיק שלו.
 
 imageDirection: A small wooden doorframe stands oddly between two trunks.
@@ -53,7 +53,7 @@ imageDirection: A small wooden doorframe stands oddly between two trunks.
 --- Page 4 ---
 "צָרִיךְ לָקַחַת עוֹד," נוּטִי אומר מהר.
 הוא רץ ואוסף ענפים, אבנים, עלים.
-"לְכָל מִקְרֶה. וְעוֹד דָּבָר חָשׁוּב. וְלֹא לִשְׁכּוֹחַ אֶת..."
+"לְכָל מִקְרֶה. וְעוֹד דָּבָר חָשׁוּב. וְלא לִשְׁכּוֹחַ את..."
 הסרט על הזנב שלו מתחיל ליפול.
 
 imageDirection: He rushes, stuffing items while his tail ribbon slips slightly.
@@ -70,7 +70,7 @@ imageDirection: Small items on the ground subtly move toward the bag.
 נוּטִי מנסה ללכת לעבר המשקוף.
 התיק כבד מדי.
 התיק נשאר על האדמה, ונוּטִי לא מצליח לזוז.
-"לֹא יָכוֹל," הוא אומר בשקט.
+"לא יָכוֹל," הוא אומר בשקט.
 
 imageDirection: He leans forward while the bag stays planted like a weight.
 
@@ -164,7 +164,7 @@ imageDirection: A calm space with a few simple items placed neatly.
 נוּטִי פותח את התיק.
 מוציא אגוז אחד.
 מסתכל עליו, ואז על אגוז שכבר מונח על האדמה.
-"כָּאן יֵשׁ," הוא אומר בשקט.
+"כָּאן יש," הוא אומר בשקט.
 
 imageDirection: He takes out one item and looks between it and a similar object nearby.
 

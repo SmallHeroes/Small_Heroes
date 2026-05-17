@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "רַכִּי וְהַבֶּטֶן הָרַכָּה"
+title: "רַכי וְהַבֶּטֶן הָרַכָּה"
 companionId: hedgehog_rachi
 direction: bedtime
 category: SOCIAL
@@ -29,15 +29,15 @@ uncomfortableTruth: עמוד 6 — Rachi stays curled even when the child is gen
 --- Page 1 ---
 יש קיפוד מתחת לשׂיח.
 כדוּר קטן של קוצים חדים.
-הילד רואה את רַכִּי. עומד ליד השׂיח, לא מתקרב.
-"שָׁלוֹם," הוא אומר בשקט.
+הילד רואה את רַכי. עומד ליד השׂיח, לא מתקרב.
+"שלום," הוא אומר בשקט.
 הכדוּר לא זז.
 
 imageDirection: Small hedgehog ball under leafy bush, long shadows, child standing a few steps away
 
 --- Page 2 ---
 הילד יושב על האדמה.
-רַכִּי עדיין כדוּר. הקוצים שלה זקופים.
+רַכי עדיין כדוּר. הקוצים שלה זקופים.
 הילד זז קצת — הקוצים מזדקפים יותר.
 הוא לא זז עוד.
 "אני כאן," הוא לוחשׁ.
@@ -46,23 +46,23 @@ imageDirection: Child sitting cross-legged, Rachi still a spiky ball with sharp 
 
 --- Page 3 ---
 הילד מושׁיט יד.
-רַכִּי מתכווצת עוד יותר — כדוּר קטן וחד.
+רַכי מתכווצת עוד יותר — כדוּר קטן וחד.
 הילד נוגע בקוצים.
 "אָווּ!" הוא אומר ומושך את היד.
-רַכִּי לא נפתחת.
+רַכי לא נפתחת.
 
 imageDirection: Hand approaching, spikes bristling, Rachi recoiling tighter
 
 --- Page 4 ---
 הילד זוחל אחורה.
-רַכִּי נשׁארת כמו שהיא — כדוּר.
+רַכי נשׁארת כמו שהיא — כדוּר.
 יש מרווח ביניהם עכשׁיו.
 הילד יושב רחוק. מחכה.
 
 imageDirection: Child scooting back, Rachi unchanged, space between them emphasized
 
 --- Page 5 ---
-רַכִּי מרימה את הראשׁ מעט.
+רַכי מרימה את הראשׁ מעט.
 הקוצים יורדים קצת. הבטן הרכה מציצה.
 אז הקוצים חוזרים — מהר.
 כדוּר שׁוב.
@@ -72,35 +72,35 @@ imageDirection: A small opening in the spikes, hint of soft belly, then closing
 --- Page 6 ---
 הילד שׁוכב על הצד. לא זז.
 מחכה בשׁקט.
-רַכִּי עדיין כדוּר.
+רַכי עדיין כדוּר.
 הזמן עובר. הערב מתקרר.
 
 imageDirection: Child lying on side at a respectful distance, Rachi still a ball, quiet stillness
 
 --- Page 7 ---
-הילד מניח עלה ליד רַכִּי.
+הילד מניח עלה ליד רַכי.
 העלה נשׁאר שם.
 
 imageDirection: Close-up of leaf set near the spiky ball, no movement otherwise
 
 --- Page 8 ---
-רַכִּי פותחת לאט.
+רַכי פותחת לאט.
 הקוצים שׁוכבים. הבטן הרכה נראית.
 הילד לא זז. נושם בשׁקט.
-רַכִּי מתוחה — אבל פתוּחה.
+רַכי מתוחה — אבל פתוּחה.
 
 imageDirection: Rachi stretched out, soft underside visible, child lying calmly nearby without reaching
 
 --- Page 9 ---
 רעשׁ קטן.
-רַכִּי מתחילה להתכווץ — אז עוצרת.
+רַכי מתחילה להתכווץ — אז עוצרת.
 הילד לא זז. לא קרה כלוּם רע.
-רַכִּי נשׁארת פתוּחה.
+רַכי נשׁארת פתוּחה.
 
 imageDirection: Half-curled Rachi, spikes uneven, child relaxed and non-threatening
 
 --- Page 10 ---
-רַכִּי מושׁיטה את הראשׁ.
+רַכי מושׁיטה את הראשׁ.
 מורידה את הראשׁ פעם. שׁתיים. שׁלושׁ.
 היא זזה קרוב. נשׁענת על היד של הילד.
 הבטן הרכה נוגעת בזרוע.

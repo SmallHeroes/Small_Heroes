@@ -101,7 +101,7 @@ imageDirection: child holding shell, mole startled and small
 
 לא בחוץ. פה.
 
-הוא בוקע מהאדמה כמו אוֹר שמחפש דרך.
+הוא בוקע מהאדמה כמו אור שמחפש דרך.
 
 המנהרה נעשית צרה יותר. הצבע לוחץ פנימה.
 
@@ -130,7 +130,7 @@ imageDirection: motion blur of digging, color streaks chasing them
 imageDirection: rounded room with rhythmic glowing color waves
 
 --- Page 10 ---
-חוֹפִי מורידה את המשקפיים. מקפלת אותם בזהירות, שׂמָה לצד.
+חוֹפִי מורידה את המשקפיים. מקפלת אותם בזהירות, שׂמה לצד.
 
 היא סוגרת את העיניים, מכסה את האוזניים בשתי הכפיים.
 

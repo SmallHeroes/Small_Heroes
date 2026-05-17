@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "הַחֵדֶר הַקָּטָן שֶׁל שֶׁלִּי"
+title: "הַחֵדֶר הַקָּטָן של שלִּי"
 companionId: snail_sheli
 direction: bedtime
 category: SENSITIVITY_OVERWHELM
@@ -27,7 +27,7 @@ emotionalMistake: עמוד 3 — The child taps the shell and tries to peek insi
 uncomfortableTruth: עמוד 6 — Even when everything becomes softer, Sheli still does not come out, and the child realizes he might stay inside.
 
 --- Page 1 ---
-שֶׁלִּי בפנים. הקונכייה שלו סגורה.
+שלִּי בפנים. הקונכייה שלו סגורה.
 בחוּץ יש פרחים גדולים, ודבורה עפה מעל.
 הכול רועשׁ.
 
@@ -42,13 +42,13 @@ imageDirection: Soft light, child at ground level, shell in center, two delicate
 
 --- Page 3 ---
 טיפה של מים נופלת על הקונכייה.
-אוֹר חזק.
-שֶׁלִּי נעלם בחזרה פנימה, והילד דופק על הקונכייה.
+אור חזק.
+שלִּי נעלם בחזרה פנימה, והילד דופק על הקונכייה.
 
 imageDirection: Water droplets mid-air, shell tightly closed, child's hand mid-tap, tension in the moment.
 
 --- Page 4 ---
-הילד קורא: "שֶׁלִּי?"
+הילד קורא: "שלִּי?"
 הוא מתקרב עוד קצת.
 הקונכייה לא זזה.
 
@@ -56,15 +56,15 @@ imageDirection: Child leaning in, mouth open mid-call, shell unmoving, space fee
 
 --- Page 5 ---
 דרך חור קטן, הילד רואה פנימה.
-שֶׁלִּי מושך אליו קישׁוט קטן שזוהר, ומסובב אותו הצידה.
-האוֹר שבפנים נעשה קטן יותר.
+שלִּי מושך אליו קישׁוט קטן שזוהר, ומסובב אותו הצידה.
+האור שבפנים נעשה קטן יותר.
 
 imageDirection: Cutaway-like view into shell interior with soft glowing decorations, one being turned away into shadow.
 
 --- Page 6 ---
 הילד לא זז.
 הוא מניח עלה מעל הקונכייה, כדי לעשׂוֹת צל.
-שֶׁלִּי לא יוצא.
+שלִּי לא יוצא.
 
 imageDirection: Child gently placing a leaf like a shade over the shell, calm colors, shell unchanged.
 
@@ -77,20 +77,20 @@ imageDirection: Quiet intimate close-up, child's cheek touching the shell, every
 --- Page 8 ---
 הילד בונה סוכה קטנה מעלים.
 היד שלו נשארת קרוב.
-שֶׁלִּי יוצא חצי — האנטנות שלו נוגעות זו בזו, שלושׁ פעמים.
+שלִּי יוצא חצי — האנטנות שלו נוגעות זו בזו, שלושׁ פעמים.
 
 imageDirection: Tiny green canopy, soft filtered light, Sheli half-emerged, antennae gently meeting.
 
 --- Page 9 ---
 שניהם קרובים מתחת לעלים.
 לא זזים.
-שֶׁלִּי לא בפנים לגמרי, לא בחוּץ לגמרי.
+שלִּי לא בפנים לגמרי, לא בחוּץ לגמרי.
 
 imageDirection: Child lying beside shell, hand near but not grabbing, calm shared space under leaves.
 
 --- Page 10 ---
 ערב יורד.
-הילד ושֶׁלִּי נחים ביחד.
+הילד ושלִּי נחים ביחד.
 האנטנות נוגעות, נוגעות, נוגעות — לאט.
 
 imageDirection: Warm evening tones, child and snail nestled together, peaceful, small movements of antennae like a lullaby.

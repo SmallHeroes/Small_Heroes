@@ -112,7 +112,7 @@ imageDirection: child's hands forming a safe space, Rifa tense but present, nurs
 imageDirection: Rifa leaning into the child's palm, eyes softening, room calmer
 
 --- Page 10 ---
-גֵּקִי מסולסלת ליד הילד. היא נוגעת במקום של הזנב שלוש פעמים.
+גֵּקִי כרוכה ליד הילד. היא נוגעת במקום של הזנב שלוש פעמים.
 
 הילד נושם לאט.
 

@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "הַצֶּבַע שֶׁל הַשְּׁאֵלָה"
+title: "הַצֶּבַע של הַשְּׁאֵלָה"
 companionId: owl_chacham
 direction: fantasy
 category: KNOWLEDGE_LEARNING
@@ -27,7 +27,7 @@ emotionalMistake: עמוד 6 — The child interrupts Chacham and dismisses his 
 uncomfortableTruth: עמוד 13 — The child realizes Chacham may not always have answers, and nothing immediately fixes that feeling.
 
 --- Page 1 ---
-בּוּבּוּ דיבר והסביר. הוא דיבר על שאלות מהעבר שזהרו באוֹר כחול.
+בּוּבּוּ דיבר והסביר. הוא דיבר על שאלות מהעבר שזהרו באור כחול.
 שאלות צהובות ירוקות ואדומות ריחפו סביבו כמו פנסים קטנים.
 "בעצם," אמר בּוּבּוּ, "כל שאלה מקבלת את הצבע שלה לפי גיל השאלה. למעשה, שאלות ישנות נעשות כחולות."
 הוא הניע כנף אחת לכל שאלה באוויר.
@@ -44,7 +44,7 @@ imageDirection: A child gazes at a pale glowing question shape in their hands.
 
 --- Page 3 ---
 "למה השאלה הזאת הכי בהירה מכולן?" שאל הילד.
-הוא החזיק את השאלה קרוב אליו. האוֹר שלה התפזר על הפנים שלו.
+הוא החזיק את השאלה קרוב אליו. האור שלה התפזר על הפנים שלו.
 בּוּבּוּ הסתכל על השאלה הבהירה דרך המשקפיים שלו.
 הראש שלו התכופף לצד.
 
@@ -73,7 +73,7 @@ imageDirection: The child looks up, puzzled, as the bright question flickers.
 imageDirection: The child steps aside while Chacham continues talking, slightly thrown off.
 
 --- Page 7 ---
-"כלומר," אמר בּוּבּוּ מהר יותר, "יש קשר בין האוֹר לבין המידע — או שמא, למעשה, האוֹר הוא המידע עצמו. יָדוּעַ כִּי שאלות בהירות מגיעות מ... מתוך אי-ודאות, או אולי מתוך ודאות גדולה — זה תלוי איך מסתכלים על זה, בעצם."
+"כלומר," אמר בּוּבּוּ מהר יותר, "יש קשר בין האור לבין המידע — או שמא, למעשה, האור הוא המידע עצמו. יָדוּעַ כי שאלות בהירות מגיעות מ... מתוך לא יודעים מה, או אולי מתוך ודאות גדולה — זה תלוי איך מסתכלים על זה, בעצם."
 הציורים באוויר התנגשו זה בזה.
 המשקפיים שלו התעקמו לצד.
 
@@ -81,7 +81,7 @@ imageDirection: Multiple overlapping diagrams clash in the air; his glasses tilt
 
 --- Page 8 ---
 השאלה הבהירה ביד הילד זהרה עוד יותר חזק.
-האוֹר שלה היה כמעט לבן לגמרי עכשיו.
+האור שלה היה כמעט לבן לגמרי עכשיו.
 הילד הסתכל על השאלה, ואז על בּוּבּוּ.
 "אני לא מבין," אמר הילד.
 
@@ -89,13 +89,13 @@ imageDirection: The pale question glows almost white, washing out nearby colors.
 
 --- Page 9 ---
 הילד אמר שוב, לאט: "למה השאלה שלי הכי בהירה?"
-האוֹר מהשאלה התפזר על הקרקע. הוא עבר בין העלים כמו ערפל.
+האור מהשאלה התפזר על הקרקע. הוא עבר בין העלים כמו ערפל.
 בּוּבּוּ פתח את המקוֹר. סגר. פתח שוב.
 
 imageDirection: Light from the question spills like mist across leaves.
 
 --- Page 10 ---
-"זה כמו כוכבים," אמר בּוּבּוּ פתאום. "שאלות בהירות הן כמו כוכבים שזוֹרחים ביום. למעשה, אם יש צללים, אז יש גם אוֹר, וזה אומר ש—"
+"זה כמו כוכבים," אמר בּוּבּוּ פתאום. "שאלות בהירות הן כמו כוכבים שזוֹרחים ביום. למעשה, אם יש צללים, אז יש גם אור, וזה אומר ש—"
 כוכבים קטנים הופיעו באוויר באמצע היום.
 הם לא התאימו לשאלה הבהירה.
 הילד עמד ולא זז.
@@ -128,7 +128,7 @@ imageDirection: The bright question hovers between them, unresolved.
 
 --- Page 14 ---
 הילד הניח את השאלה הבהירה על האדמה ביניהם.
-האוֹר שלה האיר את הפנים של שניהם.
+האור שלה האיר את הפנים של שניהם.
 בּוּבּוּ הסתכל על השאלה. אז על הילד.
 
 imageDirection: The glowing shape rests, illuminating both faces.
@@ -142,7 +142,7 @@ imageDirection: Close-up of wing and feather, small deliberate motion.
 --- Page 16 ---
 "אני לא יודע," אמר בּוּבּוּ.
 השאלה הבהירה על הקרקע פסקה לרעוד.
-האוֹר שלה נשאר חזק, אבל שקט.
+האור שלה נשאר חזק, אבל שקט.
 לא דעך.
 
 imageDirection: The pale glow becomes calm and even.
@@ -150,7 +150,7 @@ imageDirection: The pale glow becomes calm and even.
 --- Page 17 ---
 השאלות הצבעוניות שריחפו באוויר זזו הצידה.
 הן עשו מקום לשאלה הבהירה.
-הפער שנשאר זהר באוֹר חלש.
+הפער שנשאר זהר באור חלש.
 בּוּבּוּ עמד במקום.
 
 imageDirection: Other colored shapes drift aside, leaving a luminous gap.
@@ -165,7 +165,7 @@ imageDirection: A subtle distance opens between owl and child.
 --- Page 19 ---
 הילד הרים את השאלה הבהירה בחזרה.
 הוא הלך לאורך שביל שהיה קצת יותר כהה.
-האוֹר של השאלה האיר את הדרך.
+האור של השאלה האיר את הדרך.
 הצבעים סביב היו רכים יותר.
 
 imageDirection: The glow lights the way as colors around are softer.

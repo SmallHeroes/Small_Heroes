@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "הַחֹשֶׁךְ שֶׁבּוֹלֵעַ אוֹר"
+title: "הַחֹשֶׁךְ שֶׁבּוֹלֵעַ אור"
 companionId: firefly_namit
 direction: fantasy
 category: GENERAL_FEARS
@@ -36,18 +36,18 @@ uncomfortableTruth: עמוד 12 — Even when fully lit, one shape on the wall o
 imageDirection: soft shadows from everyday objects growing long on walls
 
 --- Page 2 ---
-פתאום — נְמִית נכנסת דרך החלון.
+פתאום — נְמית נכנסת דרך החלון.
 
-היא גחלילית קטנה עם אוֹר חזק מאוד. הצעיף שלה מתנפנף מאחור כשהיא טסה מהר.
+היא גחלילית קטנה עם אור חזק מאוד. הצעיף שלה מתנפנף מאחור כשהיא טסה מהר.
 
-"אַל פַּחַד!" היא אומרת. "אני אדאג שהכל יהיה מואר!"
+"אל פַּחַד!" היא אומרת. "אני אדאג שהכל יהיה מואר!"
 
 imageDirection: tiny firefly streak of light entering, scarf trailing
 
 --- Page 3 ---
 נמית טסה אל הכיסא בפינה.
 
-האוֹר שלה נופל על המעיל. עכשיו אני רואה את הכפתורים ואת השרוולים. זה רק מעיל.
+האור שלה נופל על המעיל. עכשיו אני רואה את הכפתורים ואת השרוולים. זה רק מעיל.
 
 היא כבר זורחת על משהו אחר.
 
@@ -56,7 +56,7 @@ imageDirection: coat shadow transforms into clear coat under sharp glow
 --- Page 4 ---
 נמית ממשיכה הלאה, אבל כשאני מסתובב אני רואה צורות חדשות בפינה השנייה.
 
-הכנפיים שלה מרפרפות מהר. היא אומרת, "רֶגַע, רֶגַע, אני אגיע גם לשם!"
+הכנפיים שלה מרפרפות מהר. היא אומרת, "רגע, רגע, אני אגיע גם לשם!"
 
 יש עוד פינות בחדר שעדיין חשוכות.
 
@@ -67,14 +67,14 @@ imageDirection: multiple faint shadows forming behind her
 
 היא מאירה כל דבר רק רגע. צורות מופיעות ונעלמות. אני כמעט לא מספיק לראות.
 
-"אַל פַּחַד, אני פה!" היא אומרת.
+"אל פַּחַד, אני פה!" היא אומרת.
 
 imageDirection: motion blur of glowing paths connecting objects
 
 --- Page 6 ---
 "רגע!" אני אומר.
 
-אני מסתיר את העיניים. האוֹר מציק לי. החדר מרגיש כאילו הוא זז.
+אני מסתיר את העיניים. האור מציק לי. החדר מרגיש כאילו הוא זז.
 
 אני מסתובב הצידה. אני לא יכול יותר.
 
@@ -83,18 +83,18 @@ imageDirection: child averting eyes while light flickers nearby
 --- Page 7 ---
 נמית לא עוצרת.
 
-היא טסה עוד יותר מהר. האוֹר שלה נעשה חזק מאוד — מהבהב על התקרה, על הקירות, על כל מה שזז.
+היא טסה עוד יותר מהר. האור שלה נעשה חזק מאוד — מהבהב על התקרה, על הקירות, על כל מה שזז.
 
 עוד צורות מופיעות מכל צד.
 
 imageDirection: overlapping shadows, frantic glowing firefly
 
 --- Page 8 ---
-אני רואה את האוֹר שלה מהבהב.
+אני רואה את האור שלה מהבהב.
 
 הכנפיים שלה זזות לאט ולא מסודר. הצעיף קופץ למעלה ולמטה.
 
-היא מנסה להדליק הכל בבת אחת, אבל האוֹר לא יציב.
+היא מנסה להדליק הכל בבת אחת, אבל האור לא יציב.
 
 imageDirection: unstable blinking glow, scarf fluttering wildly
 
@@ -112,14 +112,14 @@ imageDirection: ambiguous shape becoming more detailed and layered
 
 אני מחפש אותה. אני רואה אותה מתחת לעלה של העציץ על השידה.
 
-היא מקפלת את הכנפיים סביב האוֹר שלה. מסתירה אותו. לא רוצה שאראה שהוא כבר כמעט נגמר.
+היא מקפלת את הכנפיים סביב האור שלה. מסתירה אותו. לא רוצה שאראה שהוא כבר כמעט נגמר.
 
 imageDirection: small leaf sheltering faint light, wings wrapped inward
 
 --- Page 11 ---
 נמית יוצאת מאחורי העלה.
 
-היא מנסה לזרוח שוב, אבל האוֹר מהבהב ועוצר. מהבהב ועוצר.
+היא מנסה לזרוח שוב, אבל האור מהבהב ועוצר. מהבהב ועוצר.
 
 היא לא אומרת כלום. רק מנסה.
 
@@ -130,14 +130,14 @@ imageDirection: hesitant flicker, uneven pulses of light
 
 נמית מאירה אותה שוב, והצורה רק נעשית יותר ברורה. יותר גדולה. יותר קרובה.
 
-האוֹר לא עוזר. הצורה נשארת בדיוק איפה שהיא.
+האור לא עוזר. הצורה נשארת בדיוק איפה שהיא.
 
 imageDirection: sharp-edged shadow with fine details, looming but ordinary
 
 --- Page 13 ---
 אני עומד ומסתכל על נמית.
 
-האוֹר שלה רועד. היא טסה לאט, כמעט נופלת. הצורה על הקיר לא זזה.
+האור שלה רועד. היא טסה לאט, כמעט נופלת. הצורה על הקיר לא זזה.
 
 נמית לא יכולה לתקן את זה.
 
@@ -146,14 +146,14 @@ imageDirection: child still, observing flicker and unmoving shadow
 --- Page 14 ---
 אני מושיט את היד.
 
-אני שם אותה בין נמית לבין הקיר. האוֹר נעצר על כף היד שלי.
+אני שם אותה בין נמית לבין הקיר. האור נעצר על כף היד שלי.
 
 הצורה מטשטשת קצת. נעשית רכה יותר.
 
 imageDirection: hand interrupting beam, shadow softening slightly
 
 --- Page 15 ---
-האוֹר של נמית כבה.
+האור של נמית כבה.
 
 imageDirection: tiny silhouette of Namit with no glow
 
@@ -168,7 +168,7 @@ imageDirection: soft indistinct forms, calm stillness
 
 --- Page 17 ---
 
-אוֹר קטן חוזר.
+אור קטן חוזר.
 
 נמית זוהרת שוב — אבל לאט, חלש, כמו פנס קטן בלילה. הכנפיים שלה נחות. הצעיף לא זז.
 

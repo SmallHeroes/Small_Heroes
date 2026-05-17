@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "נוּטִי וְהַתִּיק שֶׁל הַכֹּל"
+title: "נוּטִי וְהַתִּיק של הַכֹּל"
 companionId: squirrel_navad
 direction: bedtime
 category: TRANSITION
@@ -28,7 +28,7 @@ uncomfortableTruth: עמוד 6 — Even if he keeps everything, it still doesn't
 
 --- Page 1 ---
 נוּטִי פותח את התיק.
-"יֵשׁ פֹּה אֱגוֹזִים וְנוֹצָה וְעוֹד חוּט יָפֶה," הוא אומר.
+"יש פה אֱגוֹזִים וְנוֹצָה וְעוֹד חוּט יָפֶה," הוא אומר.
 הלחיים שלו נפוחות.
 "וְעוֹד דָּבָר חָשׁוּב... אוּלַי נִצְטָרֵךְ..."
 הוא שׂם עוד ענף קטן בפנים.
@@ -38,7 +38,7 @@ imageDirection: A squirrel with puffed cheeks and a bulging bag, spreading out t
 --- Page 2 ---
 הם מגיעים לפתח קטן.
 נוּטִי מסתכל פנימה.
-"וְאִם זֶה לֹא כָּאן?" הוא לוחשׁ.
+"וְאִם זֶה לא כָּאן?" הוא לוחשׁ.
 הוא מרים אבן אחת מהאדמה.
 שׂם אותה בתיק.
 
@@ -63,7 +63,7 @@ imageDirection: His bag wedged in the frame, his tail bent, one paw reaching bac
 --- Page 5 ---
 נוּטִי יושב על האדמה.
 הוא מוציא אבן אחת עם סֶרֶט קטן.
-מַחֲזִיק אוֹתָהּ בַּיָּד הַרְבֵּה זְמַן.
+מַחֲזִיק אותָהּ בַּיָּד הַרְבֵּה זְמַן.
 אז שׂם אותה בחזרה לתוך התיק.
 
 imageDirection: Quiet moment, Navad seated with one small stone in his paws, soft lighting.
@@ -78,7 +78,7 @@ imageDirection: Navad frozen at the entrance, pile around him, the inside space 
 
 --- Page 7 ---
 התיק נופל מהכתף שלו.
-הוּא נָח עַל הָאֲדָמָה.
+הוא נָח על הָאֲדָמה.
 
 imageDirection: Close-up of the heavy bag dropping beside him, dust slightly rising.
 
@@ -93,7 +93,7 @@ imageDirection: Child choosing a single object, leaving it, while reaching for N
 אנחנו עוברים את הפתח ביחד.
 התיק קטן יותר עכשׁיו.
 הלחיים של נוּטִי פחות נפוחות.
-הוא מסתכל סביב — יֵשׁ פֹּה דברים.
+הוא מסתכל סביב — יש פה דברים.
 
 imageDirection: Soft interior with simple objects waiting, Navad's bag smaller, his cheeks less full.
 

@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "הָאוֹר פֹּה אַחֵר"
+title: "הָאור פה אַחֵר"
 companionId: turtle_beiti
 direction: adventure
 category: HOMESICKNESS
@@ -45,7 +45,7 @@ imageDirection: Beiti tucked near a stone and shadow patch, shawl placed careful
 --- Page 3 ---
 "טולי," אני קורא לה.
 היא מורידה את הראש לשׁל. מריחה אותו לאט.
-"האוֹר פה אחר," היא אומרת.
+"האור פה אחר," היא אומרת.
 היא לא זזה.
 
 imageDirection: Close-up of Beiti touching shawl, soft light different in tone from memory vignette behind

@@ -28,7 +28,7 @@ uncomfortableTruth: עמוד 12 — The child realizes Had may never stop scanni
 
 --- Page 1 ---
 היער זז כל הזמן.
-עלים זזים. צללים מחליקים לכיוון אחר. השביל מתפצל פתאום, ואני לא יודע איפה הייתי.
+עלים זזים. צללים מחליקים לכיוון אחר. השביל מתחלק פתאום, ואני לא יודע איפה הייתי.
 אני מנסה לזכור איפה הבית, אבל כל פעם שאני מסתכל למטה — האבנים לא באותו מקום.
 
 imageDirection: trees bending slightly, shadows moving in different directions, path splitting subtly
@@ -51,7 +51,7 @@ imageDirection: hawk perched, head snapping in different directions, bell ringin
 
 --- Page 4 ---
 "אתה יכול לעזור לי למצוא את השביל הביתה?"
-רוּפִי מסתכל ימינה. "עָלֶה — מְרַחֵף — שָׁם עוֹד אֶחָד —"
+רוּפִי מסתכל ימינה. "עָלֶה — מְרַחֵף — שם עוֹד אחד —"
 הוא מסתכל שמאלה. "צֵל — גָּדוֹל — זָז לְאָט —"
 "אבל השביל?" אני אומר.
 "עוֹד מַשֶּׁהוּ —" הוא אומר ומסתובב שוב.
