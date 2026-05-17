@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "נְמִית וְהָאוֹר שֶׁלֹּא מַסְפִּיק"
+title: "הַחֹשֶׁךְ שֶׁבּוֹלֵעַ אוֹר"
 companionId: firefly_namit
 direction: fantasy
 category: GENERAL_FEARS

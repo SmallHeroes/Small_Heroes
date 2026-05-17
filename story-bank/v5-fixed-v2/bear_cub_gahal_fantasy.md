@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "הַשְּׁאָגָה וְהַהוּם"
+title: "הַהוּם שֶׁמַּקְשִׁיב"
 companionId: bear_cub_gahal
 direction: fantasy
 category: ANGER_FRUSTRATION

@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "יֵשׁ עוֹד מָקוֹם"
+title: "פֵּלִי וְהַכִּיס שֶׁל הַלַּיְלָה"
 companionId: pelican_kis
 direction: bedtime
 category: NEW_SIBLING

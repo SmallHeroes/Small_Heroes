@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "רַק נְמָלָה"
+title: "הָעוֹלָם שֶׁמַּחְלִיף גָּדְלִים"
 companionId: ant_harutza
 direction: fantasy
 category: SELF_CONFIDENCE

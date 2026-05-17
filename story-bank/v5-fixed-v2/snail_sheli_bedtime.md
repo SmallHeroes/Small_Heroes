@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "שֶׁלִּי חֲצִי בִּפְנִים חֲצִי בַּחוּץ"
+title: "הַחֵדֶר הַקָּטָן שֶׁל שֶׁלִּי"
 companionId: snail_sheli
 direction: bedtime
 category: SENSITIVITY_OVERWHELM
