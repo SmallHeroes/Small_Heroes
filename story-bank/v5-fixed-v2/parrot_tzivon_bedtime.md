@@ -31,7 +31,7 @@ uncomfortableTruth: עמוד 6 — Tzivon tries to answer but only echoes fragme
 
 תּוּתִי מסתכל עליי. "טוב לילה, תּוּתִי!" הוא אומר באותו קול בדיוק.
 
-המילים שׁלי יוצאות בצבע כחול. המילים שׁלו גם כחול. הן מרחפות באוויר בינינו.
+המילים שׁלי יוצאות בצבע כחול. המילים שׁלו גם כחולות. הן מרחפות באוויר בינינו.
 
 imageDirection: soft glowing room, colorful floating word-shapes leaving the child's mouth and mirrored by the parrot
 
@@ -45,7 +45,7 @@ imageDirection: soft glowing room, colorful floating word-shapes leaving the chi
 imageDirection: child leaning close, parrot tilting head, identical colored words bouncing back
 
 --- Page 3 ---
-"אני לא רוצה ששתחזור אחריי," אני אומר ומזיז את המילים הכחולות הצידה. "אני רוצה לשמוע מילה שלך."
+"אני לא רוצה שתחזור אחריי," אני אומר ומזיז את המילים הכחולות הצידה. "אני רוצה לשמוע מילה שלך."
 
 תּוּתִי זוקף את הנוצות. הוא מסתכל עליי בלי לזוז.
 
@@ -68,7 +68,7 @@ imageDirection: one glowing feather-word on the floor, child watching, Tzivon sm
 --- Page 6 ---
 "תּוּתִי?" אני שׁואל בשׁקט.
 
-הוא פותח את המקור. רק חצאי מילים יוצאים. הן נשׁברות באמצע. צבע דהוי נופל על הרצפה.
+הוא פותח את המקור. רק חצאי מילים יוצאים. הן נשׁברות באמצע. צבע חיוור נופל על הרצפה.
 
 אחר כך — שׁום דבר. הוא לא זז.
 

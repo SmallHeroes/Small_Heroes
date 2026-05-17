@@ -11,7 +11,7 @@ title: "גֵּקִי וְהַזָּנָב שֶׁנִּשְׁאַר"
 companionId: gecko_rifa
 direction: fantasy
 category: MEDICAL_PROCEDURE
-gender: male
+gender: female
 pages: 20
 endingType: distance
 worldRule: עולם של חלקי-גוף שמתחלפים לפי רגש. החוק לא מתבטל.
@@ -29,7 +29,7 @@ uncomfortableTruth: עמוד 12 — Rifa tries to shed again but remains in plac
 --- Page 1 ---
 משהו רץ על השביל.
 
-גֵּקִי שׁממית קטנה, רצה מהר מהר מהר. הזנב שלה נופל מאחור.
+גֵּקִי שׁממית קטנה, רָצָה מהר מהר מהר. הזנב שלה נופל מאחור.
 
 הזנב נשאר על האדמה. הוא מתפתל לצדדים.
 

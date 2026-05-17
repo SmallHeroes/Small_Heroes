@@ -31,7 +31,7 @@ uncomfortableTruth: עמוד 9 — Dini lies still, unable to fly again, and not
 
 "השׁוֹמֵר דינִי מגן על כולם!" הוא אומר לאבן.
 
-הוא מסדר את הסרט. הסשׁ גדול קצת. נופל קצת הצידה.
+הוא מסדר את הסרט. הסרט גדול קצת. נופל קצת הצידה.
 
 דינִי מושך אותו בחזרה.
 
@@ -88,7 +88,7 @@ imageDirection: Child's hand gently but clearly pushing chick aside, Dini puffin
 
 הוא נופל חזק יותר.
 
-הסשׁ מתגלגל. אדמה נדבקת לקשקשים.
+הסרט מתגלגל. אדמה נדבקת לקשקשים.
 
 imageDirection: Mid-air strain, then impact, sash slipping again
 

@@ -83,7 +83,7 @@ imageDirection: confused child, parrot echoing with precise tone, feathers sligh
 
 המילים יוצאות אדומות וגדולות.
 
-תותי נרתע קצת.
+תותי זז אחורה קצת.
 
 "אז נלך ימינה!" הוא חוזר מהר.
 

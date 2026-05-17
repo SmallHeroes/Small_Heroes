@@ -30,7 +30,7 @@ coverScene: A coral-pink starfish (Dori) and a small girl together inside a magi
 --- Page 1 ---
 {{childName}} לא יכולה להירדם.
 
-מָחָר יש לה בְּדִיקָה. הגוף שלה כֻּלּוֹ נָדוּךְ.
+מָחָר יש לה בְּדִיקָה. הגוף שלה כֻּלּוֹ כָּבֵד.
 
 היא לוחשת לתִקְרָה: "אני רוצה שיהיה אחרי."
 
@@ -57,7 +57,7 @@ imageDirection: a soft pink star-shaped glow gliding through a window into a chi
 imageDirection: Dori the coral-pink starfish gently extending one glowing arm toward the girl in bed, the girl reaching her hand out, warm pink magical light filling the dim room
 
 --- Page 4 ---
-החדר מַתְפּוֹגֵג מסביבן.
+החדר נֶעֱלָם מסביבן.
 
 הקיר נעלם. הריצפה נעלמת.
 
@@ -79,7 +79,7 @@ imageDirection: an underwater garden floor made entirely of small smooth colored
 
 "זה ים הזכוכית," אומרת {{companionName}}. "פה מגיע כל דבר שבעולם נשבר פעם."
 
-{{childName}} מַרְכִּינָה ראש. "כל דבר שׁבּוּר?"
+{{childName}} מוֹרִידָה ראש. "כל דבר שׁבּוּר?"
 
 "כל אחד," {{companionName}} אומרת. "כל סִיר. כל כיסא. כל לב."
 

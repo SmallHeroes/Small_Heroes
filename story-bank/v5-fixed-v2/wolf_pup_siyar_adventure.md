@@ -50,7 +50,7 @@ imageDirection: Siyar almost touching the child's legs, alert ears
 
 --- Page 4 ---
 הילד עומד ליד מים.
-הוא מצביע שלולו יכול להישאר שם.
+הוא מסמן ללוּלוּ שׁיכול להישאר שם.
 אבל לוּלוּ זז איתו.
 הגוּף שׁלו נמוּך.
 
@@ -122,7 +122,7 @@ imageDirection: Siyar steady posture, child at a gentle distance
 imageDirection: child moving away, Siyar watching but not following
 
 --- Page 14 ---
-לולו עומד וזז מהאבן.
+לוּלוּ עומד וזז מהאבן.
 השׂקית נשׁארת שׁם.
 
 imageDirection: pouch left alone on rock, Siyar slightly off to the side

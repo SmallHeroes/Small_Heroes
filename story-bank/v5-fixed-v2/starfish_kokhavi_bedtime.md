@@ -28,7 +28,7 @@ uncomfortableTruth: עמוד 6 — Kokhavi knows exactly what will happen and ho
 
 --- Page 1 ---
 דּוּרִי שׁוכב על הרצפה. המחברת פתוחה לפניו.
-"זרוע של כוֹכַב ים צומחת חזרה," הוא אומר. "לוֹקַח 4 עד 6 שבועות."
+"זרוע של כוֹכַב ים צומחת חזרה," הוא אומר. "זה לוקח קצת זמן."
 זרוע אחת מורמת למעלה. האוֹר סביבו רגוע וכתוֹם.
 
 imageDirection: starfish character on floor with open notebook, one arm raised, glowing environment with gentle color gradients
@@ -57,7 +57,7 @@ imageDirection: notebook sliding on the floor, child turned away hugging knees, 
 imageDirection: Kokhavi pointing at notebook filled with numbers, colors around them becoming patchy and unstable
 
 --- Page 5 ---
-דּוּרִי מושך את המחברת אליו. הוא לוחץ אותה על הזרוע שדועכת.
+דּוּרִי מושך את המחברת אליו. הוא לוחץ אותה על הזרוע שנחלשת.
 האוֹר שלו נעשה חלש יותר.
 המחברת לא עוזרת.
 

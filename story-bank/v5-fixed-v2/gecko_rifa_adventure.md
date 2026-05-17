@@ -11,7 +11,7 @@ title: "הזנב שנשאר על האבן"
 companionId: gecko_rifa
 direction: adventure
 category: MEDICAL_PROCEDURE
-gender: male
+gender: female
 pages: 15
 endingType: residue
 worldRule: עולם של חלקי-גוף שמתחלפים לפי רגש. החוק לא מתבטל.
@@ -27,8 +27,8 @@ emotionalMistake: עמוד 5 — The child reaches quickly toward Rifa, almost t
 uncomfortableTruth: עמוד 9 — Rifa tries to shed again but realizes even without her tail she still has to face what scares her.
 
 --- Page 1 ---
-גֵּקִי רצה מהר על השביל.
-הזנב שלו נשאר מאחור על אבן חמה.
+גֵּקִי רָצָה מהר על השביל.
+הזנב שלה נשאר מאחור על אבן חמה.
 הזנב זז קצת, אבל גֵּקִי לא חוזרת.
 היא מסתכלת לרגע אחורה, ואז ממשיכה לרוץ.
 

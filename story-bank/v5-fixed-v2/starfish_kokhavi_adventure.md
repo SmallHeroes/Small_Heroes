@@ -118,7 +118,7 @@ imageDirection: water around them turns deeper blue and green, the girl looking 
 
 היא לא אומרת מה {{childName}} צריכה לחשוב.
 
-היא רק נשארת. על יד {{childName}}. בִּלְתִי זָזָה.
+היא רק נשארת. על יד {{childName}}. לֹא זָזָה.
 
 חמש זרועות. אחת קטנה וחדשה. כולן שָׁם.
 

@@ -11,7 +11,7 @@ title: "גֵּקִי נִשְׁאָרֶת"
 companionId: gecko_rifa
 direction: bedtime
 category: MEDICAL_PROCEDURE
-gender: male
+gender: female
 pages: 10
 endingType: resolution
 worldRule: עולם של חלקי-גוף שמתחלפים לפי רגש. החוק לא מתבטל.
@@ -27,7 +27,7 @@ emotionalMistake: עמוד 3 — The child tries to reassure with empathy and sh
 uncomfortableTruth: עמוד 4 — Even after shedding again, the procedure cannot be escaped and she still has to be there.
 
 --- Page 1 ---
-גֵּקִי רצה על הרצפה. הזנב שלה נשאר מאחור.
+גֵּקִי רָצָה על הרצפה. הזנב שלה נשאר מאחור.
 
 הוא זז קצת. היא לא מסתכלת.
 

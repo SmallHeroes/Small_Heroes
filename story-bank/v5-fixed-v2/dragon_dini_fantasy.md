@@ -27,7 +27,7 @@ emotionalMistake: עמוד 6 — The child nudges the chick away from Dini to 'h
 uncomfortableTruth: עמוד 12 — Dini lies still, unable to lift himself, while the chick inches toward the sideways sky.
 
 --- Page 1 ---
-דינִי עומד על אבן גבוהה. הסַשׁ שלו גדול עליו קצת, אבל הוא לא בא לו לתקן אותו עכשיו.
+דינִי עומד על אבן גבוהה. הסרט שלו גדול עליו קצת, אבל הוא לא בא לו לתקן אותו עכשיו.
 
 "השׁוֹמֵר דינִי מכריז!" הוא קורא לאבן חלקה שמשתקף בה הפרצוף הקטן שלו.
 
@@ -40,7 +40,7 @@ imageDirection: Small dragon posed on a stone, sash slightly too big, pebbles fl
 
 הוא קופץ — ונוחת בחזרה מיד על הרצפה.
 
-הסַשׁ מחליק ממנו ונופל על האבן.
+הסרט מחליק ממנו ונופל על האבן.
 
 imageDirection: Mid-hop fall, sash mid-air, wings blurred.
 
@@ -56,7 +56,7 @@ imageDirection: Child reaching out while chick floats toward horizon line.
 
 "השׁוֹמֵר דינִי יציל!" הוא צועק, וקופץ קדימה בכל הכוח.
 
-הוא נוחת רחוק מהאפרוֹחַ. הסַשׁ נשאר מאחור.
+הוא נוחת רחוק מהאפרוֹחַ. הסרט נשאר מאחור.
 
 imageDirection: Dini lunging forward, chick just beyond reach, sash crooked.
 
@@ -77,7 +77,7 @@ imageDirection: Child's hand pushing gently, Dini mid-flapping behind them.
 --- Page 7 ---
 דינִי מנסה שוב. הוא מניף את הכנפיים חזק, קופץ — ונופל יותר חזק הפעם.
 
-אבק עולה סביבו. הסַשׁ שוב על הרצפה, רחוק.
+אבק עולה סביבו. הסרט שוב על הרצפה, רחוק.
 
 imageDirection: Hard tumble, dust on scales, sash crumpled on ground.
 
@@ -176,7 +176,7 @@ imageDirection: Chick carried off, a small feather trailing behind.
 imageDirection: Dragon small in frame, feather trembling on branch, horizon still tilted.
 
 --- Page 20 ---
-הילד עומד לבד באמצע. הסַשׁ של דינִי בידיים שלו.
+הילד עומד לבד באמצע. הסרט של דינִי בידיים שלו.
 
 אבנים עדיין עפות לצד.
 

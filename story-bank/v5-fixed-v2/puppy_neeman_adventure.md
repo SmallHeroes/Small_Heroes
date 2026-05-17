@@ -170,7 +170,7 @@ imageDirection: child standing, following slowly, creature rising, Neeman walkin
 imageDirection: light ascending, small glowing feather falling, wide sky
 
 --- Page 14 ---
-אני ורוֹקִי עומדים.
+אני ורוֹקִי עומדות.
 
 מסתכלים על השמיים הריקים.
 
