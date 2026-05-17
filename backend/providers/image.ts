@@ -878,7 +878,7 @@ function extractJsonPayload(raw: string): unknown {
 
 async function generateStoryboard(book: {
   fullStory: string;
-  pages: Array<{ pageNumber: number; bookPageText?: string; imagePrompt: string }>;
+  pages: Array<{ pageNumber: number; bookPageText?: string; imagePrompt: string; pageIntent?: PageIntent }>;
   childProfile: string;
   selectedStyle: string;
 }): Promise<PageVisualStoryboard[]> {
@@ -887,24 +887,40 @@ async function generateStoryboard(book: {
   if (!apiKey) return fallback;
 
   const system = [
-    'You are a storyboard planner for children story illustrations.',
+    'You are a CINEMATIC art director for a Hebrew children\'s picture book. You build the storyboard like a film director: each page is a SHOT, and the shots TOGETHER tell the story.',
     'Return only valid JSON: { "pages": PageVisualStoryboard[] }.',
     'Create one storyboard row per page number provided.',
-    'Hard rules:',
-    '- do not repeat shotType consecutively',
+    '',
+    '── NARRATIVE-BEAT-TO-SHOT MAPPING (CRITICAL) ──',
+    'You receive each page with a "beat" tag. Each beat has a strongly-preferred shotType. Follow this mapping unless the page text overrides it:',
+    '  OPENING (first 1-2 pages):           shotType=wide. The reader needs to SEE the world before the character. Wide establishing shot, child small inside the environment.',
+    '  INTRODUCING_COMPANION (first companion appearance): shotType=medium, compositionMode=duo_interaction OR over_the_shoulder. The reader should see BOTH the child reacting AND the companion clearly. Often a "child looks at companion who has just appeared" OTS works beautifully.',
+    '  RISING_ACTION / DISCOVERY:           shotType=wide OR medium with action_motion. The child or companion is MOVING through the world.',
+    '  HEART_LINE / EMOTIONAL_BEAT:         shotType=close_up, compositionMode=intimate_close. Reserved for the 1-2 most emotional pages — never more.',
+    '  QUIET_PAGE:                          shotType=medium, low-activity scene. The child paused, listening, breathing.',
+    '  RESOLUTION (last 2 pages):           shotType=medium or wide. NEVER end on close-up. The reader exits the world with a panoramic view.',
+    '',
+    '── PAGE-INTENT (when provided) OVERRIDES BEAT ──',
+    'If the page comes with a pageIntent.type, use this exact mapping:',
+    '  action_page / world_scene / magical_event → wide (always).',
+    '  transition_page / interaction_page → medium.',
+    '  emotional_closeup / closeup → close_up.',
+    '  symbolic_page / object_symbolic / object_focus / minimal_vignette → medium with shifted focus (companion or object dominant, child secondary).',
+    '  character_scene → medium (default).',
+    'If pageIntent.camera is provided, treat it as a hard hint — match shotType to it.',
+    '',
+    '── HARD RULES (still apply) ──',
+    '- do not repeat shotType consecutively (alternate close→medium→wide rhythm)',
     '- do not repeat compositionMode consecutively',
     '- each page must include action, environment, and emotion',
     '- each page must include mainCharacterVisibility and protagonistDominance',
     '- each page must include textZone AND pageLayoutStyle (vary across pages — DO NOT pick the same value for every page)',
     '- VARY mainCharacterVisibility across pages — NEVER pick three_quarter for every page. Mix: front, three_quarter, side, three_quarter_back, far_back (only when natural). Aim for ~3 different values across the book.',
     '- use back_allowed_only_if_needed only when absolutely necessary',
-    '- VARY protagonistDominance across pages — NEVER pick primary for every page. Mix: primary (child dominant), shared (child + companion equal), secondary (companion or environment dominant, child small in frame), background (child small inside a wide scene). At least 30% of pages should be shared or secondary so the reader SEES THE WORLD, not just the protagonist.',
-    // BREATHING-ROOM RULES (added per user feedback — characters were dominating frames):
-    '- SHOT DISTRIBUTION: prefer `medium` and `wide` shots as default. Use `close_up` ONLY for emotional beats (heart line, uncomfortable truth, intimate ending).',
-    '- Most pages should be MEDIUM or WIDE (~70% of pages). Only ~20-30% may be CLOSE_UP.',
-    '- Reasoning: children connect through SEEING THE WORLD, not just the character. Tight close-ups feel claustrophobic at scale.',
-    '- Action pages (motion, discovery, environment, transformation) → ALWAYS medium or wide.',
-    '- COMPOSITION VARIETY (CRITICAL): Across the whole book, ensure at least 3 of these composition types appear — wide establishing scene (child small inside big environment), duo_interaction (child + companion side by side), companion_dominant (companion in foreground, child smaller), action_motion (child or companion moving through scene), intimate_close (face or hands close-up at emotional beats). NEVER 15 identical centered standing duo poses.',
+    '- VARY protagonistDominance across pages — NEVER pick primary for every page. Mix: primary (child dominant), shared (child + companion equal), secondary (companion or environment dominant, child small in frame), background (child small inside a wide scene). At least 40% of pages should be shared, secondary, or background so the reader SEES THE WORLD, not just the protagonist.',
+    '- SHOT DISTRIBUTION: at most 25% of pages may be close_up. AT LEAST 70% must be medium or wide.',
+    '- ACTION pages (motion, discovery, environment, transformation) → ALWAYS wide.',
+    '- COMPOSITION VARIETY (CRITICAL): across the whole book, ensure at least 4 of these composition types appear — wide_establishing (child small inside big environment), duo_interaction (child + companion side by side), companion_dominant (companion in foreground, child smaller), action_motion (child or companion moving), intimate_close (face/hands close-up at emotional beats only), over_the_shoulder (POV from one character toward another). NEVER 15 identical centered standing duo poses.',
     '- Quiet/intimate pages → may be close_up.',
   ].join('\n');
 
@@ -912,8 +928,22 @@ async function generateStoryboard(book: {
     `Selected style: ${book.selectedStyle}`,
     `Child profile: ${book.childProfile}`,
     `Full story:\n${book.fullStory.slice(0, 7000)}`,
-    'Pages:',
-    ...book.pages.map((p) => `- page ${p.pageNumber}: ${(p.bookPageText ?? p.imagePrompt).slice(0, 500)}`),
+    'Pages (each tagged with narrative BEAT and pageIntent — use these to drive shotType):',
+    ...book.pages.map((p) => {
+      const total = book.pages.length;
+      // Narrative beat based on position
+      let beat: string;
+      if (p.pageNumber === 1) beat = 'OPENING';
+      else if (p.pageNumber === 2) beat = 'OPENING_OR_INTRODUCING_COMPANION';
+      else if (p.pageNumber >= total - 1) beat = 'RESOLUTION';
+      else if (p.pageNumber === total - 2) beat = 'RESOLUTION_OR_HEART_LINE';
+      else if (p.pageNumber >= Math.floor(total * 0.55) && p.pageNumber <= Math.floor(total * 0.75)) beat = 'HEART_LINE_CANDIDATE';
+      else beat = 'RISING_ACTION';
+      const intent = p.pageIntent
+        ? ` | intent.type=${p.pageIntent.type} intent.camera=${p.pageIntent.camera} intent.focus=${p.pageIntent.focus}`
+        : '';
+      return `- page ${p.pageNumber} [beat=${beat}${intent}]: ${(p.bookPageText ?? p.imagePrompt).slice(0, 500)}`;
+    }),
     '',
     'Allowed enum values:',
     `shotType: ${SHOT_TYPES.join(', ')}`,
@@ -1552,6 +1582,7 @@ export async function previewStoryboardPrompts(input: {
       pageNumber: p.pageNumber,
       imagePrompt: p.imagePrompt,
       bookPageText: p.bookPageText,
+      pageIntent: p.pageIntent,
     })),
     childProfile: [input.childName ?? '', input.childDescription ?? ''].filter(Boolean).join(' | '),
     selectedStyle: normalizedStyle,
