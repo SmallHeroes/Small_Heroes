@@ -3515,11 +3515,19 @@ export async function generateAllPageImages(
 
     results.set(page.pageNumber, image);
     generatedPages.add(page.pageNumber);
+    // ── Page-output-as-anchor (May 15 regression fix) ──
+    // Storing the generated page URL as the child anchor causes every subsequent
+    // page to be rendered as images.edit with this page as visual reference. The
+    // model copies pose/framing/composition from it, killing storyboard variety.
+    // Default: DISABLED. External photo (config.referenceImages) still anchors face.
+    // Opt-in: set ENABLE_PAGE_OUTPUT_ANCHOR=1 to restore the May 15 behavior.
     const newlyResolvedAnchors: Record<string, string> = {};
-    for (const characterId of assignedCharacterIds) {
-      if (characterAnchors[characterId]) continue;
-      characterAnchors[characterId] = image.url;
-      newlyResolvedAnchors[characterId] = image.url;
+    if (process.env.ENABLE_PAGE_OUTPUT_ANCHOR === '1') {
+      for (const characterId of assignedCharacterIds) {
+        if (characterAnchors[characterId]) continue;
+        characterAnchors[characterId] = image.url;
+        newlyResolvedAnchors[characterId] = image.url;
+      }
     }
     console.log(
       `[Image] Page ${page.pageNumber}/${pagesToGenerate.length} — expectedCharacters=[${expectedCharacterIds.join(
