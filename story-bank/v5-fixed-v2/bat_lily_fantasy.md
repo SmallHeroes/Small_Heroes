@@ -83,11 +83,11 @@ imageDirection: branch gently tapping glass at window, bat pointing with one win
 imageDirection: overlapping sound lines filling the space from multiple directions
 
 --- Page 7 ---
-"די!" אני מרים יד.
+"די," אני נושם.
 
-אני שם את הידיים על האוזניים שלה. "תפסיקי ללחוש. תפסיקי להקשׁיב."
+אני קופץ אל מתחת לשמיכה. "אני לא יכול לשמוע יותר. הכל גדול מדי."
 
-לילי נעצרת. הכנפיים צמודות לגוף.
+לילי נעצרת באוויר. הכנפיים צמודות לגוף.
 
 imageDirection: child leaning forward, hands covering bat's ears, tension in the gesture
 

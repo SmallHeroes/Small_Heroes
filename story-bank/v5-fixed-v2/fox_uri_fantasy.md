@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "אוּרִי וְסוּגֵי הַצְּלָלִים"
+title: "הַצֵּל שֶׁלֹּא הִתְאִים"
 companionId: fox_uri
 direction: fantasy
 category: NIGHT_FEAR

@@ -60,8 +60,8 @@ imageDirection: Leaves moving softly, Lily pointing with wing, child peeking.
 --- Page 5 ---
 יש עוד קולות. המון קולות. לא נגמר.
 אני רוצה שׁזה יעצר.
-אני שׂם את הידיים על האוזניים של לילי.
-"תפסיקי לשׁמוע."
+אני שׂם את הידיים על האוזניים שלי.
+"אני לא יכול לשמוע יותר."
 
 imageDirection: Child's hands gently but firmly over Lily's large ears, Lily startled mid-hover.
 

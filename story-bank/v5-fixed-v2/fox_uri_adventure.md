@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "אוּרִי וְהָאוֹר שֶׁלֹּא נִכְבֶּה"
+title: "הַדָּבָר שֶׁבֵּין הָעֵצִים"
 companionId: fox_uri
 direction: adventure
 category: NIGHT_FEAR
