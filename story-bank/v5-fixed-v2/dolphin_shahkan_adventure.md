@@ -73,11 +73,11 @@ imageDirection: small creature barely visible inside swirling green strands
 imageDirection: multiple splash arcs, sonar ripples scattering everywhere
 
 --- Page 5 ---
-"דּוּדִי, עצור!"
+"דּוּדִי, רגע!"
 
-אני מניף את היד. חזק.
+אני מניף את היד.
 
-"תהיה שקט!"
+"אני לא יכול לעקוב!"
 
 דּוּדִי מסתכל עלי באמצע קפיצה. הוא נופל למים בלי לתכנן.
 

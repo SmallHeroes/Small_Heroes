@@ -23,7 +23,7 @@ stakes: they never reach the warm glowing island before night falls
 emotionalArc: curiosity → delay → frustration → vulnerability → small brave action
 quietPage: 7
 heartLine: עמוד 5 — Navat quietly covers himself with overlapping maps until only his eyes are visible
-emotionalMistake: עמוד 3 — The child crumples one of Navat's carefully drawn maps and tosses it aside
+emotionalMistake: עמוד 3 — The child folds one of Navat's maps and sets it aside, dismissing his careful work
 uncomfortableTruth: עמוד 6 — The land does not match the map, and Navat cannot trust his plan anymore
 
 --- Page 1 ---
@@ -48,9 +48,9 @@ imageDirection: more maps unfolding, Navat pointing in different directions, chi
 
 --- Page 3 ---
 הילד לוקח מפה אחת.
-הוא מקמט אותה בידיים.
-זורק הצידה.
-רוֹלִי מסתכל על המפה המקומטת.
+הוא מקפל אותה.
+שׂם אותה הצידה.
+רוֹלִי מסתכל על המפה המקופלת.
 לא אומר כלום.
 
 imageDirection: child tossing crumpled map, Navat startled, maps shifting
