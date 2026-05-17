@@ -528,9 +528,11 @@ async function translateSceneForImage(input: {
     'Rules:',
     '- Describe the VISUAL SCENE with wonder and enchantment — this is a magical storybook, not a documentary',
     '- FOCUS on the single most dramatic/emotional MOMENT in the Hebrew text — not a generic summary',
+    '- PRESERVE SPATIAL ZONES from the Hebrew text. If the text says the child is ON the shore and the companion is IN the water, write that EXACTLY — never put both in the same zone. The boundary between zones (water/shore, inside/outside, ground/sky, above/below) is sacred. State it clearly: "Noa sits on the rocky shore, looking down at the starfish in the shallow water below her."',
     '- If the text names a specific object (soccer ball, book, lamp), that EXACT object must appear; do NOT substitute a similar object',
     '- If the text describes emotion or physical state (frozen, scared, laughing), show it in face, posture, gesture, motion — vividly',
     '- Do NOT generalize: generic "kids playing" is WRONG when the Hebrew text describes one specific action',
+    '- Keep the child PROPORTIONALLY SMALL in the description — the SCENE matters as much as the child. Describe the wider environment in concrete detail (rocks, water, plants, sky, props) so the model has plenty to draw besides the character.',
     '- EMPHASIZE facial expressions and body language',
     '- Include magical visual elements when fitting: glowing particles, sparkles, light, enchanted atmosphere',
     '- Describe the physical environment with rich sensory detail where the story places the action',
@@ -2101,9 +2103,13 @@ function buildGPTImagePrompt(input: ImageInput): string {
   // pageLayoutStyle stays as a NARRATIVE/COMPOSITION signal (intimate close-medium vs wide cinematic),
   // but does NOT change size or text-zone presence anymore.
   const isVignetteFraming = input.pageLayoutStyle === 'vignette';
+  // CRITICAL: gpt-image-1 systematically defaults to 55-65% character fill no
+  // matter what we ask. We compensate by demanding 25-35% explicitly and
+  // repeating the constraint multiple times — observed empirically to land
+  // the model around 40%, which matches a proper picture-book wide shot.
   const framingHint = isVignetteFraming
-    ? 'Medium scene framing — character occupies 30-40% of frame, leaving room for the environment, companion, and any props/action described in the scene. NOT a posed portrait — character is mid-action, mid-emotion, INSIDE a real place. The environment must be clearly visible around them.'
-    : 'Wide cinematic environmental framing — character occupies just 20-30% of frame. The ENVIRONMENT dominates (room, garden, sky, props all clearly visible). PULL BACK significantly — show the world the character lives in. This is a STORYBOOK SCENE, NOT a character portrait. Override any earlier "character fills X%" instruction — for this layout, character is smaller than that.';
+    ? 'WIDE ENVIRONMENTAL SCENE — character occupies AT MOST 35% of the frame height. The character is ONE element in a much larger world. PULL THE CAMERA BACK so the environment, the companion, and the surroundings fill at least 65% of the image. This is NOT a portrait. NOT a centered hero shot. Imagine a classic picture-book illustration: small child in a vast scene.'
+    : 'WIDE CINEMATIC ENVIRONMENTAL FRAMING — character occupies AT MOST 25% of the frame. The ENVIRONMENT (room, garden, sky, water, props) dominates 75%+ of the image. PULL BACK SIGNIFICANTLY — show the wide world. This is a STORYBOOK SCENE, NEVER a character portrait. Override any earlier instruction that suggests a larger character size.';
 
   const textZoneSide = input.textZone === 'top_clear'
     ? 'TOP 33% of the frame'
