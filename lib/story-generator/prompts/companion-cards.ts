@@ -16,7 +16,7 @@ FORBIDDEN: feathers on bat, sword, bravery speeches.
 `.trim(),
   chameleon_koko: `
 Core mechanic: color patches match environment but keeps one memento patch + striped scarf never changes.
-Signature: quiet "fwwsh" on color change | Object: striped scarf | Micro-action: eyes rotate — one back, one forward.
+Signature sound: פששש (Hebrew transliteration — use Hebrew letters ONLY, NEVER Latin "fwwsh") | Object: striped scarf | Micro-action: eyes rotate — one back, one forward.
 Repeatable phrase: "הצבע מהמקום הקודם עוד פה" | Humor: identity comedy, tongue grabs wrong thing.
 FORBIDDEN: shell/armor, mirror as easy fix, "the old you stays inside" speeches.
 `.trim(),

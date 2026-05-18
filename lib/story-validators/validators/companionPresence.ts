@@ -1,6 +1,6 @@
 import { getCompanionBible } from '../data/companion-rules';
 import type { StoryValidator } from '../types';
-import { finding, normalizeCompanionId } from '../utils';
+import { finding, normalizeCompanionId, stripNikud } from '../utils';
 
 /** BLOCKING/WARNING: companion introduction and consecutive absence. */
 export const companionPresenceValidator: StoryValidator = {
@@ -16,12 +16,18 @@ export const companionPresenceValidator: StoryValidator = {
     const introBy = bible.introByPage?.[input.context.direction] ?? 3;
     const maxAbsent = bible.maxConsecutiveAbsent ?? 2;
 
+    // v1.1: Strip nikud before matching — LLM writes "לילי" / "בולי" without full nikud,
+    // bible has "לִילִי" / "בּוֹלִי". Without this, validator never finds companion.
+    const nameStripped = stripNikud(name);
+    const canonicalStripped = stripNikud(bible.canonicalName);
+
     let consecutiveAbsent = 0;
     let firstSeen = Infinity;
     let pagesWithCompanion = 0;
 
     for (const page of parsed.pages.sort((a, b) => a.pageNumber - b.pageNumber)) {
-      const present = page.text.includes(name) || page.text.includes(bible.canonicalName);
+      const pageStripped = stripNikud(page.text);
+      const present = pageStripped.includes(nameStripped) || pageStripped.includes(canonicalStripped);
       if (present) {
         pagesWithCompanion++;
         consecutiveAbsent = 0;

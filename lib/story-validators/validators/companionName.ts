@@ -4,12 +4,20 @@ import { finding, levenshtein, normalizeCompanionId, normalizeForMatch, stripNik
 
 const TOKEN_RE = /[\u0590-\u05FF]{2,}/g;
 
-/** Hebrew function words — never treat as misspelled companion names. */
+/** Hebrew function + common words — never treat as misspelled companion names. */
 const COMMON_HEBREW_WORDS = new Set(
   [
+    // Function words
     'לידו', 'לידה', 'עמו', 'עמה', 'איתו', 'איתה', 'שלו', 'שלה', 'שלהם', 'בלי', 'עליו', 'עליה',
     'אז', 'גם', 'עוד', 'כבר', 'רק', 'כל', 'זה', 'זאת', 'מה', 'מי', 'איך', 'כי', 'אם', 'לא',
     'כן', 'פה', 'שם', 'עם', 'על', 'אל', 'את', 'של', 'הוא', 'היא', 'הם', 'הן', 'אני', 'אתה',
+    // Common words that share letters with companion names (false-positive prevention)
+    'לילה', 'הלילה', 'בלילה', 'מילה', 'הילה', 'ליבה', 'צליל', 'לפני', 'אלי',
+    'בקול', 'בחול', 'בועה', 'בוקר', 'בוקע', 'בשולי', 'ברכי', 'עולה', 'בשתי',
+    'אולי', 'אילו', 'אילה', 'שולי', 'שולים',
+    'גולי', 'תולי', 'דולי', 'חולי',  // pre-emptive whitelist of Lev=1 false-positives for "בולי"
+    'קריר', 'הקיר', 'במים', 'קמים', 'כיף', 'איך',
+    'כתף', 'יורדת', 'נפתחות', 'הידיים',
   ].map(normalizeForMatch)
 );
 
@@ -47,7 +55,9 @@ export const companionNameValidator: StoryValidator = {
         if (ref.includes(norm) || norm.includes(ref)) continue;
         if (Math.abs(norm.length - ref.length) > 2) continue;
         const dist = levenshtein(norm, ref);
-        if (dist > 0 && dist <= 2) {
+        // v1.1: Tightened from ≤2 to ≤1 (was catching legitimate Hebrew words like בלילה/מילה/בקול).
+        // Single-letter typos only. Multi-letter divergence is almost always a real word.
+        if (dist > 0 && dist <= 1) {
           findings.push(
             finding(
               'companionName',
@@ -59,14 +69,19 @@ export const companionNameValidator: StoryValidator = {
         }
       }
 
-      // Common hallucinations
+      // Common hallucinations (specific known wrong names — NOT general Hebrew words)
+      // Removed 'לילה' from bat_lily list: it's the Hebrew word for "night", legitimate in any
+      // bedtime/night story. Companion "לִילִי" must be matched exactly via the canonical-name check.
       const hallucinations: Record<string, string[]> = {
         bolly_armadillo: ['בובו', 'בובה', 'בולה', 'בולא'],
-        bat_lily: ['לילה', 'לילית'],
+        bat_lily: ['לילית'],
         chameleon_koko: ['קוקו', 'כימי'],
       };
       const list = hallucinations[bible.companionId] ?? [];
-      if (list.some((h) => norm.includes(normalizeForMatch(h)))) {
+      // v1.1: Exact match instead of includes — was firing on "בובות" (dolls) because
+      // it includes "בובו" (a known hallucination of Bolly). Plural/inflected forms
+      // are legitimate Hebrew, not character-name corruption.
+      if (list.some((h) => norm === normalizeForMatch(h))) {
         findings.push(
           finding('companionName', 'BLOCKING', `שם הזיהוי "${token}" אסור — השתמשו ב-${bible.nameClean}`, {
             excerpt: token,

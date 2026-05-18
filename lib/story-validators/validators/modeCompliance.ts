@@ -32,10 +32,17 @@ export const modeComplianceValidator: StoryValidator = {
       }
     }
 
+    // v0.2.1: Normalize before comparing — buildPreserveList stores nikud-stripped
+    // anchors ("בולי") but stories often use nikud ("בּוֹלִי"). Without normalizeForMatch,
+    // includes() fails on nikud-bearing prose even when the anchor is present.
     for (const preserved of input.previousVersion.preserveList) {
-      const full = parsed.pages.map((p) => p.text).join('\n');
-      if (!full.includes(preserved.trim())) {
-        findings.push(finding('modeCompliance', 'BLOCKING', `preserveList חסר: "${preserved.slice(0, 30)}"`));
+      const needle = preserved.trim();
+      if (!needle) continue;
+      const fullRaw = parsed.pages.map((p) => p.text).join('\n');
+      const fullNormalized = normalizeForMatch(fullRaw);
+      const needleNormalized = normalizeForMatch(needle);
+      if (!fullRaw.includes(needle) && !fullNormalized.includes(needleNormalized)) {
+        findings.push(finding('modeCompliance', 'BLOCKING', `preserveList חסר: "${needle.slice(0, 30)}"`));
       }
     }
 

@@ -20,6 +20,10 @@ export const hookAppearancesValidator: StoryValidator = {
     const findings = [];
     let totalHits = 0;
 
+    // v1.1: Softened — on each declared page, at least ONE element must appear (not all).
+    // Overuse (>3 of same element on one page) still BLOCKING — fatigue prevention stays.
+
+    // Overuse check (per element per page)
     for (const page of parsed.pages) {
       for (const el of elements) {
         const count = countOccurrences(page.text, el.value!);
@@ -33,37 +37,31 @@ export const hookAppearancesValidator: StoryValidator = {
             )
           );
         }
-        if (hook.appearsOnPages.includes(page.pageNumber) && count === 0) {
-          findings.push(
-            finding(
-              'hookAppearances',
-              'BLOCKING',
-              `hook ${el.key} "${el.value}" חסר בעמוד מוצהר ${page.pageNumber}`,
-              { page: page.pageNumber }
-            )
-          );
-        }
         totalHits += count;
       }
     }
 
+    // Per-declared-page check: at least ONE element of the hook must appear
     for (const pageNum of hook.appearsOnPages) {
       const page = parsed.pages.find((p) => p.pageNumber === pageNum);
       if (!page) {
         findings.push(finding('hookAppearances', 'BLOCKING', `עמוד hook מוצהר ${pageNum} לא קיים`));
         continue;
       }
-      for (const el of elements) {
-        if (countOccurrences(page.text, el.value!) === 0) {
-          findings.push(
-            finding(
-              'hookAppearances',
-              'BLOCKING',
-              `hook ${el.key} חסר בעמוד ${pageNum}`,
-              { page: pageNum }
-            )
-          );
-        }
+      const elementHitsHere = elements
+        .map((el) => ({ key: el.key, hits: countOccurrences(page.text, el.value!) }))
+        .filter((h) => h.hits > 0);
+
+      if (elementHitsHere.length === 0) {
+        const elementNames = elements.map((e) => `${e.key}="${e.value}"`).join(' / ');
+        findings.push(
+          finding(
+            'hookAppearances',
+            'BLOCKING',
+            `עמוד מוצהר ${pageNum} ללא אף אלמנט hook (${elementNames})`,
+            { page: pageNum, suggestion: 'הוסיפו לפחות אלמנט hook אחד (sound / phrase / microAction / object).' }
+          )
+        );
       }
     }
 

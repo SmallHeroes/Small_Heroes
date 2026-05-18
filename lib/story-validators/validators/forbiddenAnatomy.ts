@@ -2,7 +2,16 @@ import { getCompanionBible } from '../data/companion-rules';
 import type { StoryValidator } from '../types';
 import { excerptAround, finding, normalizeCompanionId, normalizeForMatch } from '../utils';
 
-/** BLOCKING: companion-specific forbidden anatomy in Hebrew prose. */
+/**
+ * v1.1: Simile guard — "זרועות פתוחות כמו כנפיים" (arms open LIKE wings) is metaphor,
+ * not anatomical contamination. Lower to WARNING when "כמו" precedes the term.
+ */
+function isSimileContext(text: string, termStartIdx: number): boolean {
+  const lookback = text.slice(Math.max(0, termStartIdx - 15), termStartIdx);
+  return /\b(כמו|כאילו)\s*$/.test(lookback);
+}
+
+/** BLOCKING (or WARNING if simile): companion-specific forbidden anatomy. */
 export const forbiddenAnatomyValidator: StoryValidator = {
   id: 'forbiddenAnatomy',
   run({ parsed, input }) {
@@ -17,11 +26,12 @@ export const forbiddenAnatomyValidator: StoryValidator = {
         if (needle.length < 2) continue;
         const idx = hay.indexOf(needle);
         if (idx !== -1) {
+          const isSimile = isSimileContext(hay, idx);
           findings.push(
             finding(
               'forbiddenAnatomy',
-              'BLOCKING',
-              `אנטומיה אסורה "${term}" לדמות ${bible.nameClean} בעמוד ${page.pageNumber}`,
+              isSimile ? 'WARNING' : 'BLOCKING',
+              `אנטומיה אסורה "${term}" לדמות ${bible.nameClean} בעמוד ${page.pageNumber}${isSimile ? ' (simile — נבדק)' : ''}`,
               { page: page.pageNumber, excerpt: excerptAround(page.text, idx) }
             )
           );

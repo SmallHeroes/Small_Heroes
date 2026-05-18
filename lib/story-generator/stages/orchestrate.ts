@@ -10,9 +10,10 @@ import {
   type GeneratorDependencies,
 } from '../types';
 import { GENERATOR_VERSION, PROMPT_VERSION, VALIDATOR_VERSION } from '../versions';
+import { autoFixCompanionMutations, tryAutoNameFixFromReport } from './auto-fixes';
 import { runDraft } from './draft';
 import { runPlan } from './plan';
-import { buildChangeOnly, buildPreserveList, runRepair } from './repair';
+import { runRepair } from './repair';
 import { validatePlan } from './validatePlan';
 import { buildValidationContext } from './validation-context';
 
@@ -63,6 +64,17 @@ export async function generateStory(
   costUsd += draftCost;
   llmCalls++;
   modelVersion = draftMv;
+
+  // v0.2.2: Deterministic post-draft mutation fix.
+  // Known name typos (שולי → בּוֹלִי, etc.) are fixed in code BEFORE first validation.
+  // Cheaper + safer than an LLM repair round.
+  const preFix = autoFixCompanionMutations(storyMarkdown, input.companionId);
+  if (preFix.replacementCount > 0) {
+    storyMarkdown = preFix.storyMarkdown;
+    console.log(
+      `[orchestrate] preemptive auto-fix replaced ${preFix.replacementCount} mutation(s): ${preFix.replacedTokens.join(', ')}`
+    );
+  }
   log.recordDraft(storyMarkdown);
 
   const context = buildValidationContext(plan, input);
@@ -77,9 +89,33 @@ export async function generateStory(
   });
   log.recordValidation(1, report);
 
+  // v0.2.2: If first validation fails ONLY on companionName, try reactive auto-fix
+  // (uses excerpts from the report — safer than blanket mutation list).
+  // Re-validate. If now PASS, skip LLM repair entirely.
+  if (report.verdict === 'FAIL') {
+    const reactiveFix = tryAutoNameFixFromReport(storyMarkdown, report, input.companionId);
+    if (reactiveFix.fixed) {
+      storyMarkdown = reactiveFix.storyMarkdown;
+      console.log(
+        `[orchestrate] reactive auto-fix replaced suspicious tokens: ${reactiveFix.replacedTokens.join(', ')}`
+      );
+      log.recordDraft(storyMarkdown);
+      report = validateStory({ storyMarkdown, mode: 'production', context });
+      log.recordValidation(1, report);
+    }
+  }
+
   while (report.verdict === 'FAIL' && repairAttempts < 2) {
     repairAttempts++;
-    const repaired = await runRepair(previousForRepair, report, plan, repairAttempts, llm);
+    // v0.2.1: pass companionId so preserveList can include canonical name as anchor
+    const repaired = await runRepair(
+      previousForRepair,
+      report,
+      plan,
+      repairAttempts,
+      llm,
+      input.companionId
+    );
     costUsd += repaired.llmCostUsd;
     llmCalls++;
     modelVersion = repaired.modelVersion;
@@ -88,14 +124,17 @@ export async function generateStory(
     previousForRepair = storyMarkdown;
     storyMarkdown = repaired.storyMarkdown;
 
+    // v0.2.1: use the SAME preserveList + changeOnly that runRepair computed.
+    // Previously this recomputed using the new `report` (which didn't exist yet),
+    // creating inconsistency between what repair was told and what validator checked.
     report = validateStory({
       storyMarkdown,
       mode: 'repair',
       context,
       previousVersion: {
         storyMarkdown: previousForRepair,
-        preserveList: buildPreserveList(plan),
-        changeOnly: buildChangeOnly(report),
+        preserveList: repaired.preserveList,
+        changeOnly: repaired.changeOnly,
       },
     });
     log.recordValidation(repairAttempts + 1, report);
