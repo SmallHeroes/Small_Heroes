@@ -55,17 +55,20 @@ export function buildImagePrompt(input: BuildPromptInput): BuiltPrompt {
   const resolvedStyleBlock =
     styleContractBlockInput ||
     getStyleContract(input.styleIdInput).optionBlock.replace(/\s+/g, ' ').trim();
+  // CINEMATIC FRAMING for Flux — small character inside a vast, fully-rendered scene.
+  // Inverse of the OLD "character fills 60-70%, hero of the page" approach which produced
+  // tight portraits across all pages and broke compositional variety.
   const framingDirective = `COMPOSITION & FRAMING (CRITICAL):
-Medium-close portrait framing — the character fills 60-70% of the image area.
-Do NOT show the full room, full landscape, or wide establishing shot.
-Show the character and only the immediately relevant details of the scene.
-Background dissolves into soft abstract watercolor washes — NOT a fully rendered environment.
-Think: children's book illustration where the character IS the page, not a tiny figure in a big scene.
-Like a warm portrait with story context, not a landscape with a person in it.`;
+WIDE STORYBOOK SCENE — the character occupies 20-30% of the frame height. The character is a SMALL FIGURE inside a fully-rendered environment. The environment dominates 70%+ of the image.
+PULL THE CAMERA BACK significantly. Show the wide world: room/garden/sky/water/landscape — fully detailed and atmospheric, NOT abstract washes.
+Generous BREATHING SPACE around the character — at least 25-30% empty/atmospheric area between character and frame edges.
+NOT a portrait. NOT a centered hero shot. NOT a tight close-up.
+Think classic picture-book illustration: Sergio Ruzzier, Jon Klassen, Beatrix Potter — small child in a large detailed world, with room to breathe.
+Override any earlier instruction that wants character larger.`;
 
-  const textSafeZone = styleId === STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK
-    ? 'TEXT ZONE: The top 25% of the image MUST be empty cream/off-white paper — no scene detail, no dark colors, no objects in this zone. This is a mandatory blank text area.'
-    : 'TEXT ZONE: The top 25% of the image MUST fade to a soft, light, nearly-white warm tone (cream, off-white, or the lightest tone of the scene palette). No dark sky, no trees, no detailed scenery in this zone — it must be a clean light area suitable for dark text overlay.';
+  // Mobile-overlay band: bottom 33% of the image is mildly quieter for Hebrew text overlay
+  // on phones. On desktop the band is cropped out (separate text page). KEEP COLOR — never cream/sepia.
+  const textSafeZone = 'TEXT-OVERLAY BAND (bottom 33% of frame, ~one third of frame height): keep environment softer and lower-detail in this band — ground, floor, water, foliage, atmospheric haze — STILL in real saturated colors, NOT cream or sepia. No faces, hands, or important objects in this band. The character can extend INTO this band — only key details stay above.';
 
   const negativeParts = [
     getNegativeStylePromptBlock(styleId),
@@ -89,7 +92,7 @@ Like a warm portrait with story context, not a landscape with a person in it.`;
     entityLock,
     textSafeZone,
     textZone,
-    `Style: ${styleSentence} Children's picture book page, portrait 2:3. Character is the hero of the image — large, expressive, filling the frame. Background is abstract warm washes, not a detailed scene. Maintain exact same artistic style, color palette, and rendering technique across all pages.`,
+    `Style: ${styleSentence} Children's picture book page, portrait 2:3. Character is one element inside a fully-rendered environment — small and expressive, NOT filling the frame. Background is a detailed scene (room, garden, water, sky — whatever the page describes), rendered with the same warm watercolor style. Maintain exact same artistic style, color palette, and rendering technique across all pages.`,
     styleLockLine,
   ]
     .map((part) => part.trim())
