@@ -177,6 +177,101 @@ beforeAll(() => {
     'broken-forbidden-objects.md',
     buildStoryMarkdown({ companionId: 'bolly_armadillo', direction: 'bedtime', pages: 10 }, brokenObjects)
   );
+
+  // ─── REAL-WORLD FIXTURES (per ChatGPT QA feedback) ───────────────────────
+
+  // Fixture 1: Bolly real-style story with multiple BLOCKING issues
+  // Expected: FAIL with (טעות:) + foreignChars caught;
+  // NO false fail on legitimate English imageDirection.
+  const bollyRealBroken = defaultBollyPages(15);
+  bollyRealBroken[3] = {
+    ...bollyRealBroken[3],
+    text: 'נועה ישב במסדרון. (טעות: צריך להסיר משפט זה) בּוֹלִי התקפל לאט.',
+  };
+  bollyRealBroken[7] = {
+    ...bollyRealBroken[7],
+    text: 'נועה נשם עמוק. בּוֹלִי m גלגל אליה ביד פיסה אחת.',
+  };
+  writeSample(
+    'bolly-real-broken.md',
+    buildStoryMarkdown(
+      {
+        title: 'בולי במסדרון',
+        companionId: 'bolly_armadillo',
+        direction: 'adventure',
+        childGender: 'girl',
+        pages: 15,
+      },
+      bollyRealBroken
+    )
+  );
+
+  // Fixture 2: Bolly clean — real-style story with nikud + Hebrew prose + English imageDirection
+  // Expected: PASS (no BLOCKING).
+  writeSample(
+    'bolly-real-clean.md',
+    buildStoryMarkdown(
+      {
+        title: 'בולי השריון החם',
+        companionId: 'bolly_armadillo',
+        direction: 'bedtime',
+        childGender: 'girl',
+        pages: 10,
+      },
+      defaultBollyPages(10)
+    )
+  );
+
+  // Fixture 3: Kim contamination — Kim's story but with Bolly anatomy/objects + Bolly hook
+  // Expected: FAIL on forbiddenAnatomy (שריון, נוצות) — proves per-companion enforcement
+  const kimContam = kimPages(20);
+  kimContam[2] = { ...kimContam[2], text: 'נועה ראתה את קִים עם שריון קשה ונוצות צבעוניות.' };
+  kimContam[8] = { ...kimContam[8], text: 'קִים התגלגלה ככדור — טוּמְפּ — ונסגרה.' };
+  writeSample(
+    'kim-contamination.md',
+    buildStoryMarkdown(
+      {
+        title: 'קים בעולם זר',
+        companionId: 'chameleon_koko',
+        direction: 'fantasy',
+        childGender: 'girl',
+        pages: 20,
+      },
+      kimContam
+    )
+  );
+
+  // Fixture 4: Complex GOOD — verifies validators don't false-positive on legitimate complexity
+  // - Hebrew nikud helpers (טוּמְפּ, בּוֹלִי)
+  // - Hook appears with and without nikud (טוּמְפּ on some pages, טומפ on others)
+  // - Sensory phrasing (allowed: "כתף יורדת", "הידיים נפתחות")
+  // - Mild physical humor implied via "נוגעת בבטן הוורודה"
+  // - English imageDirection + English frontmatter (legitimate)
+  // - Companion appears by page 2 (adventure: by page 3 OK)
+  const complexPages = defaultBollyPages(15, 'נועה');
+  // Page 5: hook variant without nikud (validator must accept both forms)
+  complexPages[4] = {
+    ...complexPages[4],
+    text: 'נועה יושבת. בּוֹלִי מתקפל לאט. טומפ. בפנים היה חם. הידיים נפתחות.',
+  };
+  // Page 11: sensory metaphor allowed via body language
+  complexPages[10] = {
+    ...complexPages[10],
+    text: 'נועה יושבת. בּוֹלִי מתקפל לאט. הכתף יורדת והאוויר נכנס לאט. הידיים נפתחות.',
+  };
+  writeSample(
+    'good-complex.md',
+    buildStoryMarkdown(
+      {
+        title: 'בולי וההליכה השקטה',
+        companionId: 'bolly_armadillo',
+        direction: 'adventure',
+        childGender: 'girl',
+        pages: 15,
+      },
+      complexPages
+    )
+  );
 });
 
 function loadSample(name: string): string {
@@ -269,6 +364,41 @@ const GOOD_CASES: Array<{ file: string; input: ValidationInput }> = [
       },
     }),
   },
+  // ─── REAL-WORLD GOOD FIXTURES (ChatGPT QA) ────────────────────────────
+  {
+    file: 'bolly-real-clean.md',
+    input: baseInput({
+      context: {
+        companionId: 'bolly_armadillo',
+        direction: 'bedtime',
+        pageCount: 10,
+        childName: 'נועה',
+        childGender: 'girl',
+        childAge: 5,
+        declared: {
+          moment: { page: 6, physicalAction: 'נגע' },
+          hook: { sound: 'טוּמְפּ', phrase: 'בפנים היה חם', appearsOnPages: [2, 4, 8] },
+        },
+      },
+    }),
+  },
+  {
+    file: 'good-complex.md',
+    input: baseInput({
+      context: {
+        companionId: 'bolly_armadillo',
+        direction: 'adventure',
+        pageCount: 15,
+        childName: 'נועה',
+        childGender: 'girl',
+        childAge: 6,
+        declared: {
+          moment: { page: 9, physicalAction: 'נגע' },
+          hook: { sound: 'טומפ', phrase: 'בפנים היה חם', appearsOnPages: [2, 4, 5, 8] },
+        },
+      },
+    }),
+  },
 ];
 
 const BROKEN_CASES: Array<{ file: string; input: ValidationInput; expectValidator?: string }> = [
@@ -282,6 +412,46 @@ const BROKEN_CASES: Array<{ file: string; input: ValidationInput; expectValidato
   { file: 'broken-error-notes.md', input: GOOD_CASES[0].input, expectValidator: 'errorNotes' },
   { file: 'broken-unicode.md', input: GOOD_CASES[0].input, expectValidator: 'unicodeEscapes' },
   { file: 'broken-forbidden-objects.md', input: GOOD_CASES[3].input, expectValidator: 'forbiddenObjects' },
+  // ─── REAL-WORLD BROKEN FIXTURES (ChatGPT QA) ──────────────────────────
+  // bolly-real-broken: 15-page Bolly adventure with (טעות:) + foreignChars
+  // Validates that legitimate English imageDirection is NOT false-flagged.
+  {
+    file: 'bolly-real-broken.md',
+    input: baseInput({
+      context: {
+        companionId: 'bolly_armadillo',
+        direction: 'adventure',
+        pageCount: 15,
+        childName: 'נועה',
+        childGender: 'girl',
+        childAge: 6,
+        declared: {
+          moment: { page: 9, physicalAction: 'נגע' },
+          hook: { sound: 'טוּמְפּ', phrase: 'בפנים היה חם', appearsOnPages: [2, 4, 8] },
+        },
+      },
+    }),
+    expectValidator: 'errorNotes', // primary catch — foreignChars also expected
+  },
+  // kim-contamination: Kim's story with Bolly's anatomy/objects → forbiddenAnatomy
+  {
+    file: 'kim-contamination.md',
+    input: baseInput({
+      context: {
+        companionId: 'chameleon_koko',
+        direction: 'fantasy',
+        pageCount: 20,
+        childName: 'נועה',
+        childGender: 'girl',
+        childAge: 7,
+        declared: {
+          moment: { page: 13, physicalAction: 'נגע' },
+          hook: { phrase: 'הצבע מהמקום הקודם', appearsOnPages: [3, 8, 14] },
+        },
+      },
+    }),
+    expectValidator: 'forbiddenAnatomy',
+  },
 ];
 
 describe('validateStory', () => {
