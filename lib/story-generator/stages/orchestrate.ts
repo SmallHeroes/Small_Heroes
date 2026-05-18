@@ -11,7 +11,12 @@ import {
   type GeneratorDependencies,
 } from '../types';
 import { GENERATOR_VERSION, PROMPT_VERSION, VALIDATOR_VERSION } from '../versions';
-import { autoFixCompanionMutations, tryAutoNameFixFromReport } from './auto-fixes';
+import {
+  autoFixCompanionMutations,
+  enforceCanonicalFrontmatter,
+  fixEnglishLeaks,
+  tryAutoNameFixFromReport,
+} from './auto-fixes';
 import { runDraft } from './draft';
 import { runPlan } from './plan';
 import { runRepair } from './repair';
@@ -68,6 +73,16 @@ export async function generateStory(
   llmCalls++;
   modelVersion = draftMv;
 
+  // v0.2.5: Canonical frontmatter enforcement.
+  // Draft LLM kept inventing direction/companionId values. Replace deterministically.
+  const fmFix = enforceCanonicalFrontmatter(storyMarkdown, input);
+  if (fmFix.changedFields.length > 0) {
+    storyMarkdown = fmFix.storyMarkdown;
+    console.log(
+      `[orchestrate] frontmatter normalized — fields fixed: ${fmFix.changedFields.join(', ')}`
+    );
+  }
+
   // v0.2.2: Deterministic post-draft mutation fix.
   // Known name typos (שולי → בּוֹלִי, etc.) are fixed in code BEFORE first validation.
   // Cheaper + safer than an LLM repair round.
@@ -78,6 +93,17 @@ export async function generateStory(
       `[orchestrate] preemptive auto-fix replaced ${preFix.replacementCount} mutation(s): ${preFix.replacedTokens.join(', ')}`
     );
   }
+
+  // v0.2.5.1: English leak fixes (lashes → ריסים, etc.). Cheap, deterministic,
+  // catches the common Draft slip of dropping English nouns into Hebrew prose.
+  const engFix = fixEnglishLeaks(storyMarkdown);
+  if (engFix.replacementCount > 0) {
+    storyMarkdown = engFix.storyMarkdown;
+    console.log(
+      `[orchestrate] English leak fix: ${engFix.replacementCount} replacement(s) — ${engFix.replacedTokens.join(', ')}`
+    );
+  }
+
   log.recordDraft(storyMarkdown);
 
   const context = buildValidationContext(plan, input);
@@ -126,6 +152,16 @@ export async function generateStory(
 
     previousForRepair = storyMarkdown;
     storyMarkdown = repaired.storyMarkdown;
+
+    // v0.2.5.1: re-normalize frontmatter after each repair too (defensive).
+    // Repair LLM occasionally re-serializes frontmatter incorrectly.
+    const postRepairFmFix = enforceCanonicalFrontmatter(storyMarkdown, input);
+    if (postRepairFmFix.changedFields.length > 0) {
+      storyMarkdown = postRepairFmFix.storyMarkdown;
+      console.log(
+        `[orchestrate] post-repair frontmatter normalized: ${postRepairFmFix.changedFields.join(', ')}`
+      );
+    }
 
     // v0.2.1: use the SAME preserveList + changeOnly that runRepair computed.
     // Previously this recomputed using the new `report` (which didn't exist yet),

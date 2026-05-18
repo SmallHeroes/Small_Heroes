@@ -8,6 +8,7 @@ import { forbiddenAnatomyValidator } from './validators/forbiddenAnatomy';
 import { forbiddenObjectsValidator } from './validators/forbiddenObjects';
 import { forbiddenToneValidator } from './validators/forbiddenTone';
 import { foreignCharsValidator } from './validators/foreignChars';
+import { frontmatterConsistencyValidator } from './validators/frontmatterConsistency';
 import { genderConsistencyValidator } from './validators/genderConsistency';
 import { hookAppearancesValidator } from './validators/hookAppearances';
 import { imageDirectionValidator } from './validators/imageDirectionValidator';
@@ -39,6 +40,7 @@ const ALL_VALIDATORS: StoryValidator[] = [
   errorNotesValidator,
   pageCountValidator,
   pageSequenceValidator,
+  frontmatterConsistencyValidator,
   imageDirectionValidator,
   genderConsistencyValidator,
   companionNameValidator,

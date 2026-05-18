@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from 'fs';
 import path from 'path';
 import type { Finding } from '@/lib/story-validators';
 import type { ValidationReport } from '@/lib/story-validators';
+import type { EditorialReportRuntime } from './editorial/schemas';
 import type { GenerateInput, ManualReview, Plan, PlanQualityWarning, QASummary } from './types';
 import { GENERATOR_VERSION, PROMPT_VERSION, VALIDATOR_VERSION } from './versions';
 
@@ -14,6 +15,27 @@ export interface QALogHandle {
   recordValidation(attempt: number, report: ValidationReport): void;
   recordRepair(attempt: number, markdown: string): void;
   recordFinalStory(markdown: string): void;
+  recordEditorialQA(
+    report: EditorialReportRuntime,
+    meta: {
+      zodParseFailed: boolean;
+      reviewRequired: boolean;
+      prescanCount: number;
+      model: string;
+      costUsd: number;
+    }
+  ): void;
+  recordEditorialRepair(
+    attempt: number,
+    markdown: string,
+    meta: {
+      phase1Fixed: number;
+      phase2Used: boolean;
+      diffRatioExceeded: boolean;
+      costUsd: number;
+    }
+  ): void;
+  recordEditorialSummary(markdown: string): void;
   markPassed(summary: Omit<QASummary, 'finalVerdict' | 'blockingFindings' | 'warningFindings'>): string;
   markFailure(reason: string, report?: ValidationReport): string;
 }
@@ -69,6 +91,16 @@ export function startQALog(input: GenerateInput): QALogHandle {
     },
     recordFinalStory(markdown) {
       writeFileSync(path.join(dir, 'final-story.md'), markdown, 'utf8');
+    },
+    recordEditorialQA(report, meta) {
+      writeJson(path.join(dir, 'editorial-qa.json'), { report, ...meta });
+    },
+    recordEditorialRepair(attempt, markdown, meta) {
+      writeFileSync(path.join(dir, `editorial-repair-${attempt}.md`), markdown, 'utf8');
+      writeJson(path.join(dir, `editorial-repair-${attempt}.json`), meta);
+    },
+    recordEditorialSummary(markdown) {
+      writeFileSync(path.join(dir, 'editorial-summary.md'), markdown, 'utf8');
     },
     markPassed(partial) {
       const blocking = (lastReport?.findings ?? []).filter((f: Finding) => f.severity === 'BLOCKING');

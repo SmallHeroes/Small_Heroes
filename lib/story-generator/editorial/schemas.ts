@@ -14,15 +14,23 @@ export const EditorialReasonSchema = z.enum([
   'wrong_ending',
 ]);
 
-export const EditorialIssueSchema = z.object({
-  page: z.number().int().min(1),
-  field: z.enum(['body', 'imageDirection', 'frontmatter']),
-  severity: z.enum(['BLOCKING', 'MAJOR', 'MINOR']),
-  reason: EditorialReasonSchema,
-  quote: z.string().min(1),
-  suggestion: z.string().min(1),
-  explanation: z.string().min(1),
-});
+export const EditorialIssueSchema = z
+  .object({
+    // v0.2.4: page 0 allowed when field === 'frontmatter' (frontmatter has no page number).
+    // Editor correctly flags direction_drift / metadata_inconsistency with page:0+field:frontmatter;
+    // the prior schema rejected these as Zod-invalid and we lost the signal.
+    page: z.number().int().min(0),
+    field: z.enum(['body', 'imageDirection', 'frontmatter']),
+    severity: z.enum(['BLOCKING', 'MAJOR', 'MINOR']),
+    reason: EditorialReasonSchema,
+    quote: z.string().min(1),
+    suggestion: z.string().min(1),
+    explanation: z.string().min(1),
+  })
+  .refine((data) => data.page >= 1 || data.field === 'frontmatter', {
+    message: 'page must be >= 1 unless field is "frontmatter"',
+    path: ['page'],
+  });
 
 export const EditorialReportSchema = z.object({
   scores: z.object({

@@ -10,19 +10,149 @@
  * Validate and LLM Repair) — see orchestrate.ts.
  */
 import { getCompanionBible } from '@/lib/companion-bible';
-import type { ValidationReport } from '@/lib/story-validators';
+import { parseStoryMarkdown, type ValidationReport } from '@/lib/story-validators';
+import { resolvePageCount } from '../data/direction-dna';
+import { pagesFromParsed, rebuildStoryMarkdown } from '../markdown';
+import type { GenerateInput } from '../types';
+
+/**
+ * v0.2.5 — Force canonical frontmatter values.
+ *
+ * Draft was hallucinating frontmatter values across 8/9 stories in batch v0.2.4:
+ *   direction: "bedtime"           ← for every direction (default fallback)
+ *   companionId: "001" / "boli" / "bat001" / "לילי" ← any non-canonical form
+ *
+ * The frontmatter values are 100% deterministic from the order context. There is
+ * NO reason to let the LLM author them. Replace them in code post-draft.
+ *
+ * Body text + imageDirection stay LLM-authored — those are creative.
+ */
+export function enforceCanonicalFrontmatter(
+  storyMarkdown: string,
+  input: GenerateInput
+): { storyMarkdown: string; changedFields: string[] } {
+  const parsed = parseStoryMarkdown(storyMarkdown);
+  const fm = { ...parsed.frontmatter };
+  const changed: string[] = [];
+
+  // Canonical values from input — these are always right
+  const pageCount = resolvePageCount(input.direction, input.pageCount);
+  const bible = getCompanionBible(input.companionId);
+
+  if (fm.companionId !== input.companionId) {
+    fm.companionId = input.companionId;
+    changed.push('companionId');
+  }
+  if (fm.direction !== input.direction) {
+    fm.direction = input.direction;
+    changed.push('direction');
+  }
+  if (fm.childGender !== input.childGender) {
+    fm.childGender = input.childGender;
+    changed.push('childGender');
+  }
+  if (Number(fm.pages) !== pageCount) {
+    fm.pages = pageCount;
+    changed.push('pages');
+  }
+  // Title: keep LLM's if it exists, fallback to "{childName} + {companionNameClean}"
+  if (!fm.title || typeof fm.title !== 'string' || !fm.title.trim()) {
+    const companionName = bible?.nameClean ?? input.companionId;
+    fm.title = `${input.childName} ו${companionName}`;
+    changed.push('title');
+  }
+
+  if (changed.length === 0) {
+    return { storyMarkdown, changedFields: [] };
+  }
+
+  return {
+    storyMarkdown: rebuildStoryMarkdown(fm, pagesFromParsed(parsed)),
+    changedFields: changed,
+  };
+}
+
+/**
+ * v0.2.5.1 — English leak fixes. Draft LLM occasionally drops English nouns into
+ * Hebrew prose ("lashes" instead of "ריסים"). These are deterministic translations
+ * for common words we've seen leak in production.
+ *
+ * Conservative: only replace when surrounded by Hebrew context (whitespace or Hebrew letters).
+ */
+const ENGLISH_LEAK_FIXES: Record<string, string> = {
+  lashes: 'ריסים',
+  eyes: 'עיניים',
+  cheek: 'לחי',
+  blanket: 'שמיכה',
+  pillow: 'כרית',
+  bedroom: 'חדר השינה',
+  hand: 'יד',
+  shoulder: 'כתף',
+  whisper: 'לחישה',
+  // Add more as we see new leaks in batches
+};
+
+export function fixEnglishLeaks(
+  storyMarkdown: string
+): { storyMarkdown: string; replacementCount: number; replacedTokens: string[] } {
+  let fixed = storyMarkdown;
+  let replacementCount = 0;
+  const replacedTokens: string[] = [];
+
+  for (const [eng, heb] of Object.entries(ENGLISH_LEAK_FIXES)) {
+    // Only replace when surrounded by whitespace/punctuation/Hebrew chars (not inside other English words).
+    // We do NOT want to touch English in imageDirection — parser handles that separately.
+    // But auto-fix runs on the FULL markdown, which includes imageDirection. So we only
+    // match when the word is surrounded by Hebrew context (Hebrew chars or Hebrew punctuation).
+    const escapedEng = eng.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Hebrew letter ranges: ֐-׿. A Hebrew char + ASCII English + Hebrew char pattern.
+    const pattern = new RegExp(
+      `(^|[\\s.,;:!?"'״׳—\\-()\\[\\]\\u0590-\\u05FF])${escapedEng}([\\s.,;:!?"'״׳—\\-()\\[\\]\\u0590-\\u05FF]|$)`,
+      'g'
+    );
+    let didReplace = false;
+    fixed = fixed.replace(pattern, (full, before, after) => {
+      // Only replace if at least one boundary is Hebrew — confirms we're in Hebrew prose.
+      const hebrewRange = /[֐-׿]/;
+      if (!hebrewRange.test(before) && !hebrewRange.test(after)) {
+        return full; // probably inside English imageDirection — skip
+      }
+      replacementCount++;
+      didReplace = true;
+      return `${before}${heb}${after}`;
+    });
+    if (didReplace) replacedTokens.push(`${eng}→${heb}`);
+  }
+
+  return { storyMarkdown: fixed, replacementCount, replacedTokens };
+}
 
 /** Per-companion known name mutations (deterministic find/replace). */
+/**
+ * v0.2.3 — TIGHT preemptive list. ONLY mutations that have NO legitimate Hebrew
+ * meaning. Real Hebrew words removed from this list — they get caught reactively
+ * by tryAutoNameFixFromReport AFTER companionName validator flags them in context.
+ *
+ * REMOVED from preemptive (real Hebrew words that auto-fix was corrupting):
+ *   - 'בוקע' (light/sound emerging) — corrupted "אור בוקע" → "אור בּוֹלִי"
+ *   - 'בועה' (bubble)
+ *   - 'בוקר' (morning) — direction-drift signal, not a name mutation
+ *   - 'בחול' (in sand) — legitimate in adventure/fantasy
+ *   - 'בקול' (in voice) — legitimate
+ *   - 'בועה' (bubble)
+ *   - 'בולה' / 'בובה' — also legitimate (doll, marble)
+ *
+ * What REMAINS: tokens that are clearly broken names with no Hebrew meaning.
+ */
 const KNOWN_NAME_MUTATIONS: Record<string, string[]> = {
   bolly_armadillo: [
-    'שולי', 'בולו', 'בולא', 'בולה', 'בובו', 'בובה',
-    'בקול', 'בחול', 'בועה', 'בוקר', 'בוקע', 'בשולי', 'בשתי',
+    'בולו', 'בולא', 'בובו',
   ],
   bat_lily: [
-    'ליליל', 'לִיללִי', 'לילית', 'ליליה', 'ליליי',
+    'ליליל', 'לִיללִי', 'ליליי',
   ],
   chameleon_koko: [
-    'קימה', 'קימו', 'קומי', 'קימי', 'קמים',
+    'קימו', 'קומי', 'קימי',
   ],
 };
 
