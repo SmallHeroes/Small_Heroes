@@ -23,6 +23,7 @@ debug-*
 
 # Scratch, QA, proof runs
 tmp/
+story-qa-logs/
 test-results/
 test-outputs/
 proof-output/
