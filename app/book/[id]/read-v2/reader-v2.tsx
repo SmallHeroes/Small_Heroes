@@ -163,6 +163,8 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
   const [fallbackBookAudioUrl, setFallbackBookAudioUrl] = useState<string | null>(null);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [isRegeneratingPage, setIsRegeneratingPage] = useState(false);
+  const [regenMessage, setRegenMessage] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const touchStartXRef = useRef<number | null>(null);
@@ -385,6 +387,58 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
       setIsRetrying(false);
     }
   }, [bookId, generationSecret]);
+
+  const regenCurrentPage = useCallback(async () => {
+    if (!generationSecret) {
+      setRegenMessage('חסר מפתח יצירה (NEXT_PUBLIC_GENERATION_SECRET).');
+      return;
+    }
+    const page = readerPages[currentPageIndex];
+    if (!page || page.isCover || page.pageNumber < 1) {
+      setRegenMessage('לא ניתן לרנדר מחדש את הכריכה מכאן.');
+      return;
+    }
+
+    setIsRegeneratingPage(true);
+    setRegenMessage(null);
+    try {
+      const res = await fetch('/api/debug/regen-page', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: bookId,
+          pageNumber: page.pageNumber,
+          secret: generationSecret,
+        }),
+      });
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        newImageUrl?: string;
+        promptLength?: number;
+      };
+      if (!res.ok) {
+        throw new Error(body.error || `regen_failed_${res.status}`);
+      }
+      const cacheBust = body.newImageUrl
+        ? `${body.newImageUrl}${body.newImageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`
+        : null;
+      setReaderPages((prev) =>
+        prev.map((p) =>
+          p.pageNumber === page.pageNumber && cacheBust ? { ...p, imageUrl: cacheBust } : p
+        )
+      );
+      setRegenMessage(
+        body.promptLength
+          ? `עמוד ${page.pageNumber} עודכן (פרומפט: ${body.promptLength} תווים).`
+          : `עמוד ${page.pageNumber} עודכן.`
+      );
+    } catch (error) {
+      console.error('[read-v2] regen page failed', error);
+      setRegenMessage('רינדור העמוד נכשל. בדקו לוגים בשרת.');
+    } finally {
+      setIsRegeneratingPage(false);
+    }
+  }, [bookId, currentPageIndex, generationSecret, readerPages]);
 
   useEffect(() => {
     console.log('[read-v2] single-page reader state', {
@@ -611,6 +665,19 @@ export default function ReaderV2({ bookId, accessKey }: Props) {
               {isLastPage ? 'סיום' : 'הבא'}
             </button>
           </div>
+          {generationSecret && currentPage && !currentPage.isCover ? (
+            <div className={styles.devRegenBar}>
+              <button
+                type="button"
+                className={styles.devRegenBtn}
+                onClick={regenCurrentPage}
+                disabled={isRegeneratingPage}
+              >
+                {isRegeneratingPage ? 'מרנדר עמוד…' : 'צור עמוד מחדש'}
+              </button>
+              {regenMessage ? <p className={styles.devRegenMsg}>{regenMessage}</p> : null}
+            </div>
+          ) : null}
         </>
       )}
 

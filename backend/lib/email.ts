@@ -75,7 +75,17 @@ async function sendOtpWithResend(data: OtpEmailData): Promise<void> {
     }),
   });
 
-  if (!res.ok) throw new Error(`Resend OTP email error: ${res.status}`);
+  if (!res.ok) {
+    const bodyText = await res.text().catch(() => '');
+    console.error('[auth][resend] OTP send failed', {
+      status: res.status,
+      from: EMAIL.from,
+      to: data.to,
+      body: bodyText.slice(0, 500),
+    });
+    const reason = bodyText ? ` ${bodyText.slice(0, 200)}` : '';
+    throw new Error(`Resend OTP email error: ${res.status}${reason}`);
+  }
 }
 
 // ─── Email HTML Template ──────────────────────────────

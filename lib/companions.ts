@@ -93,8 +93,8 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
   TRANSITION: [
     {
       id: 'chameleon_koko',
-      name: 'הקמליון קוקו',
-      tagline: 'שובב שנושא צבע מכל מקום שהיה בו',
+      name: 'הזיקית קִים',
+      tagline: 'שובבה שנושאת צבע מכל מקום שהייתה בו',
       image: '/companions/TRANSITION/chameleon_koko.jpg',
       narrativeHook: 'מראה שבכל מקום חדש חלק מהבית נוסע איתך',
       visualDescription:
@@ -227,8 +227,8 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
     },
     {
       id: 'captain_navat',
-      name: 'הקפטן רוֹלִי',
-      tagline: 'לוטרת-ים עם כובע קפטן שמנווט ספינת מחשבות',
+      name: 'הקפטנית רוֹלִי',
+      tagline: 'לוטרת-ים עם כובע קפטן שמנווטת ספינת מחשבות',
       image: '/companions/FOCUS_LEARNING/captain_navat.jpg',
       narrativeHook: 'ריכוז זה הגה, לא כלוב',
       visualDescription:

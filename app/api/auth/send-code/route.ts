@@ -62,6 +62,21 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  await sendOtpCodeEmail({ to: user.email, code });
+  try {
+    await sendOtpCodeEmail({ to: user.email, code });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[auth] sendOtpCodeEmail failed', { email: user.email, error: message });
+    // Surface a non-leaky reason in non-production so we can diagnose from the UI.
+    const isProd = process.env.NODE_ENV === 'production';
+    const exposeDetail = !isProd || process.env.AUTH_EXPOSE_ERRORS === '1';
+    return NextResponse.json(
+      {
+        error: 'Email send failed',
+        ...(exposeDetail ? { detail: message } : {}),
+      },
+      { status: 502 },
+    );
+  }
   return NextResponse.json({ ok: true });
 }

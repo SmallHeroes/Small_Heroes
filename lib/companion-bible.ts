@@ -37,7 +37,9 @@ const BIBLE: Record<string, CompanionBibleEntry> = {
     nameClean: 'לִילִי',
     gender: 'female',
     forbiddenAnatomy: ['feathers', 'נוצות', 'hooves', 'פרסות', 'hands', 'ידיים', 'fur coat', 'shell'],
-    forbiddenObjects: ['sword', 'חרב', 'stars as main motif', 'כוכבים'],
+    // v1.1: Removed 'כוכבים'/'stars as main motif' — Lily IS a night companion; stars are her world.
+    // Stars remain forbidden for bolly_armadillo (not his world).
+    forbiddenObjects: ['sword', 'חרב'],
     forbiddenTone: ['bravery speech', 'הוא אמיץ', 'medical explanation'],
     minimumPresence: { bedtime: 0.7, adventure: 0.6, fantasy: 0.6 },
     maxConsecutiveAbsent: 2,
