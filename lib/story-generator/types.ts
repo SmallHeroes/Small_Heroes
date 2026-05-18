@@ -1,5 +1,12 @@
 import type { ValidationReport } from '@/lib/story-validators';
 import type { StoryDirection, StoryPageCount } from '@/lib/story-validators';
+import type { EditorialReportRuntime } from './editorial/schemas';
+
+export type FinalStoryStatus =
+  | 'READY'
+  | 'FAILED_TECHNICAL'
+  | 'REVIEW_REQUIRED'
+  | 'REJECTED_EDITORIAL';
 
 export type MvpCompanionId = 'bolly_armadillo' | 'chameleon_koko' | 'bat_lily';
 export type ChildGender = 'boy' | 'girl';
@@ -90,6 +97,11 @@ export interface GenerateOutput {
   qaLogPath: string;
   llmCalls: number;
   durationMs: number;
+  finalStatus: FinalStoryStatus;
+  editorialReport?: EditorialReportRuntime;
+  editorialQaCostUsd?: number;
+  editorialRepairCostUsd?: number;
+  editorialRepairAttempts?: number;
 }
 
 export interface QASummary {

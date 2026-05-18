@@ -5,6 +5,7 @@ import { startQALog } from '../qa-logger';
 import {
   FALLBACK_ENABLED,
   GeneratorError,
+  type FinalStoryStatus,
   type GenerateInput,
   type GenerateOutput,
   type GeneratorDependencies,
@@ -14,8 +15,10 @@ import { autoFixCompanionMutations, tryAutoNameFixFromReport } from './auto-fixe
 import { runDraft } from './draft';
 import { runPlan } from './plan';
 import { runRepair } from './repair';
+import { runEditorialPipeline } from './run-editorial-pipeline';
 import { validatePlan } from './validatePlan';
 import { buildValidationContext } from './validation-context';
+import { isEditorialQaEnabled } from '../editorial/config';
 
 /** Stage F: Plan → Draft → Validate → Repair (max 2) → ship or throw. */
 export async function generateStory(
@@ -140,9 +143,35 @@ export async function generateStory(
     log.recordValidation(repairAttempts + 1, report);
   }
 
-  log.recordFinalStory(storyMarkdown);
-
   if (report.verdict === 'PASS') {
+    let finalStatus: FinalStoryStatus = 'READY';
+    let editorialReport: GenerateOutput['editorialReport'];
+    let editorialQaCostUsd = 0;
+    let editorialRepairCostUsd = 0;
+    let editorialRepairAttempts = 0;
+
+    if (isEditorialQaEnabled()) {
+      const editorial = await runEditorialPipeline({
+        storyMarkdown,
+        plan,
+        input,
+        validationReport: report,
+        log,
+        llm,
+        storyId: `${input.companionId}_${input.direction}`,
+      });
+      storyMarkdown = editorial.storyMarkdown;
+      editorialReport = editorial.editorialReport;
+      finalStatus = editorial.finalStatus;
+      editorialQaCostUsd = editorial.editorialQaCostUsd;
+      editorialRepairCostUsd = editorial.editorialRepairCostUsd;
+      editorialRepairAttempts = editorial.editorialRepairAttempts;
+      costUsd += editorialQaCostUsd + editorialRepairCostUsd;
+      if (editorialRepairAttempts > 0) llmCalls++;
+      if (editorial.editorialQaModel !== 'disabled') llmCalls++;
+    }
+
+    log.recordFinalStory(storyMarkdown);
     const qaLogPath = log.markPassed({
       repairAttempts,
       fallbackUsed: false,
@@ -167,6 +196,11 @@ export async function generateStory(
       qaLogPath,
       llmCalls,
       durationMs: Date.now() - started,
+      finalStatus,
+      editorialReport,
+      editorialQaCostUsd,
+      editorialRepairCostUsd,
+      editorialRepairAttempts,
     };
   }
 
