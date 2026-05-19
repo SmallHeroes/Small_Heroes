@@ -8,6 +8,19 @@ export type FinalStoryStatus =
   | 'REVIEW_REQUIRED'
   | 'REJECTED_EDITORIAL';
 
+/** v0.2.7 — Surface WHY a story landed in REVIEW_REQUIRED or REJECTED_EDITORIAL. */
+export type ReviewReason =
+  | 'none'
+  | 'diff_ratio_exceeded'           // editorial repair changed >35% of a page
+  | 'repair_scope_violation'        // repair touched pages not in changeOnly
+  | 'unmatched_quote'               // LLM cited text that doesn't exist in story
+  | 'post_repair_not_ready'         // after max repair attempts, still NEEDS_REPAIR
+  | 'zod_parse_failed'              // editorial QA returned invalid JSON
+  | 'editor_rejected'               // editorial verdict = REJECT (avg too low or too many blockers)
+  | 'preserve_list_violated'        // repair lost canonical anchors
+  | 'verdict_mismatch_unresolved'   // LLM verdict and code-derived differ in critical way
+  | 'exception';                    // unexpected error in pipeline
+
 export type MvpCompanionId = 'bolly_armadillo' | 'chameleon_koko' | 'bat_lily';
 export type ChildGender = 'boy' | 'girl';
 
@@ -98,6 +111,7 @@ export interface GenerateOutput {
   llmCalls: number;
   durationMs: number;
   finalStatus: FinalStoryStatus;
+  reviewReason: ReviewReason;
   editorialReport?: EditorialReportRuntime;
   editorialQaCostUsd?: number;
   editorialRepairCostUsd?: number;

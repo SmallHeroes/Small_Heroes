@@ -181,6 +181,7 @@ export async function generateStory(
 
   if (report.verdict === 'PASS') {
     let finalStatus: FinalStoryStatus = 'READY';
+    let reviewReason: GenerateOutput['reviewReason'] = 'none';
     let editorialReport: GenerateOutput['editorialReport'];
     let editorialQaCostUsd = 0;
     let editorialRepairCostUsd = 0;
@@ -199,6 +200,7 @@ export async function generateStory(
       storyMarkdown = editorial.storyMarkdown;
       editorialReport = editorial.editorialReport;
       finalStatus = editorial.finalStatus;
+      reviewReason = editorial.reviewReason;
       editorialQaCostUsd = editorial.editorialQaCostUsd;
       editorialRepairCostUsd = editorial.editorialRepairCostUsd;
       editorialRepairAttempts = editorial.editorialRepairAttempts;
@@ -233,6 +235,7 @@ export async function generateStory(
       llmCalls,
       durationMs: Date.now() - started,
       finalStatus,
+      reviewReason,
       editorialReport,
       editorialQaCostUsd,
       editorialRepairCostUsd,

@@ -5,7 +5,7 @@ import { isEditorialQaEnabled, MAX_EDITORIAL_REPAIR_ATTEMPTS } from '../editoria
 import type { EditorialReportRuntime } from '../editorial/schemas';
 import type { StoryGeneratorLLM } from '../llm';
 import type { QALogHandle } from '../qa-logger';
-import type { FinalStoryStatus, GenerateInput, Plan } from '../types';
+import type { FinalStoryStatus, GenerateInput, Plan, ReviewReason } from '../types';
 import { runEditorialQA, runEditorialRevalidate } from './editorial-qa';
 import { runEditorialRepair } from './editorial-repair';
 import { buildValidationContext } from './validation-context';
@@ -14,6 +14,7 @@ export interface EditorialPipelineResult {
   storyMarkdown: string;
   editorialReport: EditorialReportRuntime;
   finalStatus: FinalStoryStatus;
+  reviewReason: ReviewReason;
   editorialQaCostUsd: number;
   editorialRepairCostUsd: number;
   editorialQaModel: string;
@@ -57,6 +58,7 @@ export async function runEditorialPipeline(args: {
   let editorialQaModel = 'disabled';
   let editorialRepairModel = '';
   let reviewRequired = false;
+  let reviewReason: ReviewReason = 'none';
 
   if (!isEditorialQaEnabled()) {
     const revalidate = runEditorialRevalidate(storyMarkdown, args.input.companionId, {
@@ -94,6 +96,7 @@ export async function runEditorialPipeline(args: {
       storyMarkdown,
       editorialReport: report,
       finalStatus,
+      reviewReason: finalStatus === 'READY' ? 'none' : 'unmatched_quote',
       editorialQaCostUsd: 0,
       editorialRepairCostUsd: 0,
       editorialQaModel: 'disabled',
@@ -109,7 +112,12 @@ export async function runEditorialPipeline(args: {
   reviewRequired = qa.reviewRequired;
   let report = qa.report;
 
+  // v0.2.7: track reason for any non-READY status
+  if (qa.zodParseFailed) reviewReason = 'zod_parse_failed';
+  else if (qa.reviewRequired) reviewReason = 'unmatched_quote';
+
   if (report.verdict === 'REJECT') {
+    reviewReason = 'editor_rejected';
     const finalStatus = 'REJECTED_EDITORIAL';
     args.log.recordEditorialQA(report, {
       zodParseFailed: qa.zodParseFailed,
@@ -133,6 +141,7 @@ export async function runEditorialPipeline(args: {
       storyMarkdown,
       editorialReport: report,
       finalStatus,
+      reviewReason,
       editorialQaCostUsd,
       editorialRepairCostUsd,
       editorialQaModel,
@@ -163,8 +172,17 @@ export async function runEditorialPipeline(args: {
       costUsd: repair.llmCostUsd,
     });
 
+    // v0.2.8: After a repair attempt, RESET reviewRequired/reason so we evaluate based
+    // on the post-repair state, NOT the pre-repair issues. Otherwise we get stuck:
+    // initial QA had unmatched_quote → Phase 1 cleaned everything → revalidate clean → but
+    // the old reviewRequired flag was sticky → story marked REVIEW_REQUIRED with 0 issues.
+    // Only persistent reasons (diff_ratio, repair_scope, post_repair) should re-fire below.
+    reviewRequired = false;
+    reviewReason = 'none';
+
     if (repair.diffRatioExceeded) {
       reviewRequired = true;
+      reviewReason = 'diff_ratio_exceeded';
     }
 
     const context = buildValidationContext(args.plan, args.input);
@@ -177,16 +195,44 @@ export async function runEditorialPipeline(args: {
 
     if (tech.verdict !== 'PASS') {
       reviewRequired = true;
+      // Check if this is a repair scope violation (modeCompliance/repairRegression only)
+      const repairScopeOnly = tech.findings.every(
+        (f) =>
+          f.severity !== 'BLOCKING' ||
+          f.validator === 'modeCompliance' ||
+          f.validator === 'repairRegression'
+      );
+      if (repairScopeOnly && reviewReason === 'none') {
+        reviewReason = 'repair_scope_violation';
+      } else if (reviewReason === 'none') {
+        reviewReason = 'post_repair_not_ready';
+      }
     }
 
     const revalidate = runEditorialRevalidate(storyMarkdown, args.input.companionId, report.scores);
     report = revalidate.report;
-    reviewRequired = reviewRequired || revalidate.reviewRequired;
+    if (revalidate.reviewRequired) {
+      reviewRequired = true;
+      if (reviewReason === 'none') reviewReason = 'unmatched_quote';
+    }
 
     if (needsEditorialRepair(report) && repair.phase1Fixed === 0 && !repair.phase2Used) {
       reviewRequired = true;
+      if (reviewReason === 'none') reviewReason = 'post_repair_not_ready';
     }
   }
+
+  // v0.2.8 — FINAL CONSISTENCY CHECK
+  // Prevents the impossible state "reviewReason=unmatched_quote AND unmatched=0".
+  // Initial qa.reviewRequired may have set reviewReason early; if final state is clean,
+  // clear the flag. This is the post-state authority.
+  const finalUnmatchedCount = report.issues.filter((i) => i._unmatchedQuote).length;
+  if (reviewReason === 'unmatched_quote' && finalUnmatchedCount === 0) {
+    reviewRequired = false;
+    reviewReason = 'none';
+  }
+  // Invariant: a non-'none' reviewReason MUST have an observable cause in the final report.
+  // If we set unmatched_quote but no unmatched issues remain, that's a stale flag.
 
   const finalStatus = resolveFinalStatus(report, reviewRequired);
 
@@ -213,6 +259,7 @@ export async function runEditorialPipeline(args: {
     storyMarkdown,
     editorialReport: report,
     finalStatus,
+    reviewReason: finalStatus === 'READY' ? 'none' : reviewReason,
     editorialQaCostUsd,
     editorialRepairCostUsd,
     editorialQaModel,

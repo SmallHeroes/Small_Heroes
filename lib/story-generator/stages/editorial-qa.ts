@@ -118,7 +118,7 @@ export function runEditorialRevalidate(
   companionId: GenerateInput['companionId'],
   scores: EditorialReportRuntime['scores']
 ): { report: EditorialReportRuntime; reviewRequired: boolean } {
-  const prescanIssues = runEditorialPrescan(storyMarkdown, companionId).map((i) => ({
+  const prescanIssues = runEditorialPrescan(storyMarkdown, companionId, undefined).map((i) => ({
     ...i,
     _source: 'scanner' as const,
   }));
@@ -139,7 +139,7 @@ export async function runEditorialQA(
   input: GenerateInput,
   llm?: StoryGeneratorLLM
 ): Promise<EditorialQAResult> {
-  const prescanIssues = runEditorialPrescan(storyMarkdown, input.companionId).map((i) => ({
+  const prescanIssues = runEditorialPrescan(storyMarkdown, input.companionId, input.direction).map((i) => ({
     ...i,
     _source: 'scanner' as const,
   }));

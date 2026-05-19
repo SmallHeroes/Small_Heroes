@@ -63,8 +63,9 @@ async function main() {
         : null;
 
       const icon = row.finalStatus === 'READY' ? '✓' : '⚠';
+      const reviewReason = (out as { reviewReason?: string }).reviewReason ?? 'none';
       console.log(
-        `${icon} ${key} | tech=${row.verdict} | editorial=${row.editorialVerdict} | finalStatus=${row.finalStatus}`
+        `${icon} ${key} | tech=${row.verdict} | editorial=${row.editorialVerdict} | finalStatus=${row.finalStatus}${row.finalStatus !== 'READY' ? ` (reason=${reviewReason})` : ''}`
       );
       console.log(
         `   avg=${editorialAvg ?? 'n/a'} min=${minDim ?? 'n/a'} issues=${blocking}/${major}/${minor} (B/M/m) unmatched=${unmatched} parse=${row.zodParseFailed ? 'FAILED' : 'ok'}`

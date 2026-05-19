@@ -3,11 +3,40 @@ import type { StoryValidator } from '../types';
 import { excerptAround, finding, normalizeCompanionId, normalizeForMatch } from '../utils';
 
 /**
- * Is the forbidden term used in a simile context ("כמו X")?
+ * Is the forbidden term used in a simile context ("כמו X", "לא כמו X")?
  */
 function isSimileContext(text: string, termStartIdx: number): boolean {
-  const lookback = text.slice(Math.max(0, termStartIdx - 15), termStartIdx);
-  return /\b(כמו|כאילו)\s*$/.test(lookback);
+  const lookback = text.slice(Math.max(0, termStartIdx - 20), termStartIdx);
+  // Extended for v0.2.7: also "לא כמו", "כדומה", "דומה ל"
+  return /\b(כמו|כאילו|לא\s+כמו|כדומה|דומה\s+ל)\s*$/.test(lookback);
+}
+
+/**
+ * v0.2.7 — Sky/dream imagery context: words like "כוכבים" naturally appear in
+ * sky/light/dream descriptions. Even outside "כמו" structure, "השמיים מלאים כוכבים"
+ * or "נקודות אור כמו כוכבים" are legitimate Hebrew children's imagery, not character
+ * contamination.
+ *
+ * Only check for sky-imagery allowlist for SPECIFIC objects that have legitimate
+ * literary uses (כוכב/כוכבים primarily).
+ */
+const SKY_IMAGERY_TERMS = new Set(['כוכב', 'כוכבים', 'star', 'stars']);
+const SKY_CONTEXT_PATTERNS = [
+  /שמיים/,
+  /שמי\s/,
+  /אור\s+ק[טס]/,
+  /נקודות\s+אור/,
+  /נקודות.{0,10}אור/,
+  /נקודות.{0,10}כמו/,
+  /גרגירי\s+סוכר/,  // from "לא כמו כוכבים אלא כגרגירי סוכר"
+];
+
+function isSkyImageryContext(text: string, termStartIdx: number, term: string): boolean {
+  const termNoNikud = term.replace(/[֑-ׇ]/g, '');
+  if (!SKY_IMAGERY_TERMS.has(termNoNikud)) return false;
+  // Look 50 chars around the term for sky/dream imagery signals
+  const window = text.slice(Math.max(0, termStartIdx - 50), termStartIdx + term.length + 50);
+  return SKY_CONTEXT_PATTERNS.some((p) => p.test(window));
 }
 
 /**
@@ -54,8 +83,10 @@ export const forbiddenObjectsValidator: StoryValidator = {
           const isSimile = isSimileContext(hay, idx);
           // v0.2.5.1: Check verb usage — "מחברת אותם" is "connects them", not "a notebook"
           const isVerb = looksLikeVerbUsage(hay, idx, term);
-          if (isVerb) {
-            // Verb usage — not actual object contamination; skip entirely
+          // v0.2.7: Check sky/dream imagery — "השמיים מלאים כוכבים" is legitimate
+          const isSky = isSkyImageryContext(hay, idx, term);
+          if (isVerb || isSky) {
+            // Verb usage OR legitimate sky imagery — not contamination; skip entirely
             continue;
           }
           findings.push(

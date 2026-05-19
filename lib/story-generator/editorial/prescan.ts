@@ -1,7 +1,13 @@
 import { parseStoryMarkdown } from '@/lib/story-validators';
 import { getCompanionBible } from '@/lib/companion-bible';
-import type { MvpCompanionId } from '../types';
-import { KNOWN_BAD_PHRASES, detectCompanionRepeats, stripHebrewNiqqud } from './known-bad-hebrew';
+import type { GenerateInput, MvpCompanionId } from '../types';
+import { detectDirectionDrift } from './direction-drift';
+import {
+  KNOWN_BAD_PHRASES,
+  detectCompanionRepeats,
+  detectForeignMotifs,
+  stripHebrewNiqqud,
+} from './known-bad-hebrew';
 import type { EditorialIssueRuntime } from './schemas';
 
 function frontmatterText(fm: Record<string, unknown>): string {
@@ -29,12 +35,18 @@ function countSubstring(haystack: string, needle: string): number {
  */
 export function runEditorialPrescan(
   storyMarkdown: string,
-  companionId: MvpCompanionId
+  companionId: MvpCompanionId,
+  direction?: GenerateInput['direction']
 ): EditorialIssueRuntime[] {
   const parsed = parseStoryMarkdown(storyMarkdown);
   const bible = getCompanionBible(companionId);
   const issues: EditorialIssueRuntime[] = [];
   const fmText = frontmatterText(parsed.frontmatter);
+
+  // v0.2.6: direction drift detection (adventure stuck in bedroom, bedtime ending at morning)
+  if (direction) {
+    issues.push(...detectDirectionDrift(parsed, direction));
+  }
 
   for (const bad of KNOWN_BAD_PHRASES) {
     const targets: Array<{ page: number; field: EditorialIssueRuntime['field']; text: string }> = [
@@ -98,6 +110,22 @@ export function runEditorialPrescan(
           quote: page.text.slice(0, 80),
           suggestion: `הפרידו בין שם הדמות לצליל/פעולה`,
           explanation: 'שם דמות צמוד לצליל ללא רווח',
+          _source: 'scanner',
+        });
+      }
+
+      // v0.2.6 — Cross-companion motif contamination per page
+      // E.g., "בטן ורודה" (Bolly's signature) appearing in a Lily story.
+      const foreignMotifs = detectForeignMotifs(page.text, companionId);
+      for (const foreign of foreignMotifs) {
+        issues.push({
+          page: page.pageNumber,
+          field: 'body',
+          severity: 'BLOCKING',
+          reason: 'companion_drift',
+          quote: foreign.motif,
+          suggestion: `הסירו את "${foreign.motif}" — זה motif של ${foreign.ownerCompanionId}, לא של ${bible.nameClean}`,
+          explanation: `Motif זר: "${foreign.motif}" שייך ל-${foreign.ownerCompanionId} ולא אמור להופיע בסיפור של ${bible.nameClean}`,
           _source: 'scanner',
         });
       }
