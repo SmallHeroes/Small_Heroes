@@ -127,6 +127,49 @@ export function fixEnglishLeaks(
   return { storyMarkdown: fixed, replacementCount, replacedTokens };
 }
 
+/**
+ * v0.3.5 — Strip leaked planning bracket labels from prose.
+ *
+ * v0.3.3 batch produced fantasy page 9 starting with "[medical-object-appears]"
+ * because the arc-example used that prefix format. v0.3.5 fixed the arc example
+ * to remove the brackets, but we also need a runtime safety net: if the model
+ * still emits a bracket label of a known beat ID, remove it.
+ *
+ * Only matches a closed allowlist of known beat IDs — NOT generic [..] which
+ * could be legitimate punctuation in some Hebrew text.
+ */
+const KNOWN_BEAT_LABELS = [
+  'medical-object-appears',
+  'child-body-resists',
+  'companion-closes',
+  'child-mirrors',
+  'procedure-happens',
+  'sticker-closes',
+  'companion-opens',
+  'residue',
+];
+
+export function stripBeatLabels(
+  storyMarkdown: string
+): { storyMarkdown: string; strippedCount: number } {
+  let fixed = storyMarkdown;
+  let strippedCount = 0;
+  for (const label of KNOWN_BEAT_LABELS) {
+    // Match the label as a bracketed token, with optional surrounding whitespace.
+    // Replace with a single space and let downstream collapse whitespace.
+    const re = new RegExp(`\\s*\\[${label}\\]\\s*`, 'g');
+    const before = fixed;
+    fixed = fixed.replace(re, ' ');
+    if (fixed !== before) {
+      const matches = before.match(re);
+      strippedCount += matches ? matches.length : 0;
+    }
+  }
+  // Collapse double spaces created by stripping at line starts.
+  fixed = fixed.replace(/^[ \t]+/gm, '').replace(/[ \t]+\n/g, '\n');
+  return { storyMarkdown: fixed, strippedCount };
+}
+
 /** Per-companion known name mutations (deterministic find/replace). */
 /**
  * v0.2.3 — TIGHT preemptive list. ONLY mutations that have NO legitimate Hebrew

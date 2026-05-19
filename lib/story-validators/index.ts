@@ -2,6 +2,7 @@ import { parseStoryMarkdown } from './parser';
 import type { Finding, ValidationInput, ValidationReport, ValidatorContext } from './types';
 import { companionNameValidator } from './validators/companionName';
 import { companionPresenceValidator } from './validators/companionPresence';
+import { companionSpeechViolationValidator } from './validators/companionSpeechViolation';
 import { directTherapyLanguageValidator } from './validators/directTherapyLanguage';
 import { errorNotesValidator } from './validators/errorNotes';
 import { forbiddenAnatomyValidator } from './validators/forbiddenAnatomy';
@@ -12,13 +13,19 @@ import { frontmatterConsistencyValidator } from './validators/frontmatterConsist
 import { genderConsistencyValidator } from './validators/genderConsistency';
 import { hookAppearancesValidator } from './validators/hookAppearances';
 import { imageDirectionValidator } from './validators/imageDirectionValidator';
+import { instructionLeakageValidator } from './validators/instructionLeakage';
 import { killPhrasesValidator } from './validators/killPhrases';
 import { modeComplianceValidator } from './validators/modeCompliance';
 import { momentPageWindowValidator } from './validators/momentPageWindow';
 import { namePersonalizationValidator } from './validators/namePersonalization';
+import { narrativeVoiceConsistencyValidator } from './validators/narrativeVoiceConsistency';
 import { pageCountValidator } from './validators/pageCount';
+import { pageDepthMinimumValidator } from './validators/pageDepthMinimum';
+import { pageLengthSpikeValidator } from './validators/pageLengthSpike';
 import { pageSequenceValidator } from './validators/pageSequence';
+import { procedureMomentSpreadValidator } from './validators/procedureMomentSpread';
 import { repairRegressionValidator } from './validators/repairRegression';
+import { temporalContradictionValidator } from './validators/temporalContradiction';
 import { unicodeEscapesValidator } from './validators/unicodeEscapes';
 import { visualVarietyValidator } from './validators/visualVariety';
 import type { StoryValidator } from './types';
@@ -54,6 +61,17 @@ const ALL_VALIDATORS: StoryValidator[] = [
   companionPresenceValidator,
   visualVarietyValidator,
   directTherapyLanguageValidator,
+  // v0.3.2 — children's-book literary quality gates
+  narrativeVoiceConsistencyValidator,
+  temporalContradictionValidator,
+  pageLengthSpikeValidator,
+  // v0.3.4 — page density floor per age tier
+  pageDepthMinimumValidator,
+  // v0.3.5 — procedure beats must spread across pages (phase-aware: skips bedtime)
+  procedureMomentSpreadValidator,
+  // v0.3.6 — meta-instruction leakage + companion-speech violation
+  instructionLeakageValidator,
+  companionSpeechViolationValidator,
   repairRegressionValidator,
   modeComplianceValidator,
 ];

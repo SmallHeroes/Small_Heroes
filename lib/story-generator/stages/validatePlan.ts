@@ -129,6 +129,32 @@ export function validatePlan(plan: Plan, input: GenerateInput): PlanValidationRe
     return { ok: false, reason: 'hook must appear on ≥2 pages', warnings };
   }
 
+  // v0.4.3 — Plan-level companion-by-page gate.
+  // Fantasy is strictest: companion MUST be the explicit subject of an action
+  // on page 1 (per category-anchors rule). Adventure: companion must appear
+  // in an action by page 2. Bedtime: by page 3. If the Plan doesn't put the
+  // companion's action in time, the Author will follow the Plan and produce
+  // empty companion pages → blueprint hard-gate failure → wasted batch.
+  //
+  // Better to fail Plan validation and regenerate the Plan than to ship a
+  // structurally broken story.
+  const companionLatest =
+    input.direction === 'fantasy' ? 1 : input.direction === 'adventure' ? 2 : 3;
+  const companionRegex = /בולי|לילי|קים|קוקו|טומפ|טוּמְפּ|ששש|פששש/;
+  const earlyCompanionBeats = plan.beatMap.filter(
+    (b) => b.pageNumber <= companionLatest
+  );
+  const planHasCompanionEarly = earlyCompanionBeats.some((b) =>
+    companionRegex.test(b.companionAction)
+  );
+  if (!planHasCompanionEarly && plan.beatMap.length >= companionLatest) {
+    return {
+      ok: false,
+      reason: `Companion must be the explicit subject of a beatMap.companionAction by page ${companionLatest} for direction=${input.direction}. Plan currently has no companion name/signature in pages 1..${companionLatest}.`,
+      warnings,
+    };
+  }
+
   const pageNumbers = new Set(plan.beatMap.map((b) => b.pageNumber));
   for (let i = 1; i <= pageCount; i++) {
     if (!pageNumbers.has(i)) {

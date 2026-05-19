@@ -3,9 +3,9 @@ import { MVP_MATRIX as MATRIX } from '../lib/story-generator/data/mvp-matrix';
 
 interface ResultRow {
   key: string;
-  verdict: string;          // technical validator verdict
-  finalStatus: string;      // orchestration-level (editorial-aware)
-  editorialVerdict: string; // editor's verdict
+  verdict: string;
+  finalStatus: string;
+  editorialVerdict: string;
   editorialScoresAvg: number | null;
   editorialIssues: number;
   zodParseFailed: boolean;
@@ -19,7 +19,24 @@ interface ResultRow {
 async function main() {
   const results: ResultRow[] = [];
 
-  for (const input of MATRIX) {
+  // v0.3.2: optional filter — set BATCH_COMPANION=bolly_armadillo and/or
+  // BATCH_DIRECTION=bedtime to run a subset of the 9-story matrix.
+  const companionFilter = process.env.BATCH_COMPANION?.trim();
+  const directionFilter = process.env.BATCH_DIRECTION?.trim();
+  const filtered = MATRIX.filter((input) => {
+    if (companionFilter && input.companionId !== companionFilter) return false;
+    if (directionFilter && input.direction !== directionFilter) return false;
+    return true;
+  });
+  if (filtered.length === 0) {
+    console.error(`No stories match filter (companion=${companionFilter ?? '*'}, direction=${directionFilter ?? '*'})`);
+    process.exit(1);
+  }
+  if (filtered.length < MATRIX.length) {
+    console.log(`Filtered to ${filtered.length} stories (companion=${companionFilter ?? '*'}, direction=${directionFilter ?? '*'})`);
+  }
+
+  for (const input of filtered) {
     const key = `${input.companionId}_${input.direction}`;
     console.log(`\n=== Generating ${key} ===`);
     try {
@@ -33,7 +50,6 @@ async function main() {
           )
         : null;
       const zodFailed =
-        // best-effort detection — orchestrate sets finalStatus=REVIEW_REQUIRED on Zod fail
         out.finalStatus === 'REVIEW_REQUIRED' && (editorialAvg === 3 || editorialAvg === null);
 
       const row: ResultRow = {
@@ -52,7 +68,6 @@ async function main() {
       };
       results.push(row);
 
-      // v0.2.4: severity breakdown + min dimension + unmatched count for clarity
       const issuesArr = out.editorialReport?.issues ?? [];
       const blocking = issuesArr.filter((i) => i.severity === 'BLOCKING').length;
       const major = issuesArr.filter((i) => i.severity === 'MAJOR').length;
@@ -93,8 +108,6 @@ async function main() {
     }
   }
 
-  // v0.2.3: report by finalStatus, not just technical verdict.
-  // A story that's technically PASS but editorially REVIEW_REQUIRED is NOT shipped.
   const ready = results.filter((r) => r.finalStatus === 'READY').length;
   const review = results.filter((r) => r.finalStatus === 'REVIEW_REQUIRED').length;
   const editorialRejected = results.filter((r) => r.finalStatus === 'REJECTED_EDITORIAL').length;
@@ -112,7 +125,6 @@ async function main() {
   const avgCost = results.reduce((s, r) => s + r.cost, 0) / results.length;
   console.log(`Average cost: $${avgCost.toFixed(3)}`);
 
-  // Exit non-zero if anything didn't ship cleanly
   if (ready < results.length) process.exit(1);
 }
 

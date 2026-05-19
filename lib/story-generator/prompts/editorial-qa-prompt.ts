@@ -70,6 +70,15 @@ Rules:
 - "verdict" should match the scores: avg ≥ 4.5 AND min ≥ 4 with 0 BLOCKING/MAJOR → READY;
   any BLOCKING or MAJOR → NEEDS_REPAIR; multiple critical → REJECT.
 
+LENGTH CAPS (v0.3.5 — prevents JSON parse failures):
+- "quote": MAX 180 characters. If you need to flag a longer passage, quote just
+  the first problematic clause that is unambiguous.
+- "suggestion": MAX 220 characters. Be terse. One concrete replacement, no rationale.
+- "explanation": MAX 160 characters. One sentence why.
+- NO multiline strings. NO unescaped newlines inside string values.
+- If you cannot fit the quote within 180 chars — pick a shorter representative slice.
+  A truncated quote will fail downstream validation and the issue will be lost.
+
 Score each dimension RUTHLESSLY:
   5 = literary-quality Hebrew, no flaw on this dimension
   4 = solid, with only nitpicks

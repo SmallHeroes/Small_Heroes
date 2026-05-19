@@ -2,7 +2,9 @@ import type { GenerateInput } from '../types';
 import { formatDirectionDNAForPrompt } from '../data/direction-dna';
 import { KID_FIRST_PRINCIPLES } from './shared-rules';
 import { formatCompanionCard } from './companion-cards';
+import { formatAnchorsForPrompt, getCategoryAnchors } from './category-anchors';
 import { resolvePageCount } from '../data/direction-dna';
+import { getAgeTier } from './draft-prompt';
 
 export function buildPlanSystemPrompt(): string {
   return `
@@ -58,12 +60,11 @@ ${KID_FIRST_PRINCIPLES}
 
 export function buildPlanUserPrompt(input: GenerateInput, feedback?: string): string {
   const pageCount = resolvePageCount(input.direction, input.pageCount);
-  const ageTier =
-    input.childAge <= 5
-      ? '3-5: shorter sentences, concrete sensory words, 25-40 Hebrew words per page target.'
-      : input.childAge <= 7
-        ? '5-7: mix short and medium sentences, 35-50 words per page target.'
-        : '7-9: slightly richer vocabulary, 45-60 words per page target.';
+  // v0.3.6 — single source of truth for age density (was: stale local ranges
+  // that contradicted Draft. Plan said 35-50 for age 5, Draft said 18-32 →
+  // model averaged at ~15 to satisfy neither cleanly).
+  const tier = getAgeTier(input.childAge);
+  const ageTierLine = `${tier.label}: ${tier.sentencesPerPage} short sentences per page, ${tier.wordsPerPage} Hebrew words per page.`;
 
   return [
     feedback ? `Previous plan rejected: ${feedback}\nFix and return valid JSON.\n` : '',
@@ -81,12 +82,26 @@ export function buildPlanUserPrompt(input: GenerateInput, feedback?: string): st
     'Direction DNA:',
     formatDirectionDNAForPrompt(input.direction),
     '',
+    '═══════════════ CATEGORY ANCHORS — MUST DRIVE PLOT ═══════════════',
+    formatAnchorsForPrompt(getCategoryAnchors(input.companionId, input.direction)),
+    '',
+    '⚠ The anchorObjects above MUST appear in beatMap.childAction or beatMap.companionAction',
+    '  on at least 3 separate pages. They are not decoration. They are the plot.',
+    '  If your beatMap doesn\'t mention them — the plan is wrong.',
+    '═══════════════════════════════════════════════════════════════',
+    '',
     'Prescription:',
     `emotionalSituation: ${input.prescription.emotionalSituation}`,
     `physicalMechanicSuggestion: ${input.prescription.physicalMechanicSuggestion}`,
     `tabooDirectWords: ${input.prescription.tabooDirectWords.join(', ') || '(none)'}`,
     `narrativeConstraint: ${input.prescription.narrativeConstraint}`,
     '',
-    `Age tier: ${ageTier}`,
+    '═══════════════ AGE DENSITY TARGET (v0.3.6) ═══════════════',
+    `Age tier: ${ageTierLine}`,
+    `⚠ EVERY beatMap entry MUST set wordCountTarget within ${tier.wordsPerPage}.`,
+    `⚠ Do NOT set wordCountTarget below ${tier.wordsPerPage.split('-')[0]} for any page.`,
+    `⚠ Quiet pages stay at the LOW end (${tier.wordsPerPage.split('-')[0]}), active pages at the HIGH end.`,
+    `⚠ The Draft writer treats wordCountTarget as a real instruction — under-target pages will be flagged BLOCKING.`,
+    '═══════════════════════════════════════════════════════════',
   ].join('\n');
 }

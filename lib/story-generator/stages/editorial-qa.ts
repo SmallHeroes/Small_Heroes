@@ -10,7 +10,8 @@ import {
   type EditorialReportRuntime,
 } from '../editorial/schemas';
 import { validateIssueQuotes } from '../editorial/validate-quotes';
-import { getEditorialQaModel, isEditorialQaEnabled } from '../editorial/config';
+import { getEditorialMode, getEditorialQaModel, isEditorialQaEnabled } from '../editorial/config';
+import { runYLiteQA } from './y-lite-qa';
 
 /**
  * v0.2.4 — Normalize known LLM-invented reason aliases to schema-valid values.
@@ -163,69 +164,104 @@ export async function runEditorialQA(
     };
   }
 
+  // Y-lite dispatch: two parallel reviewers (Book Editor + Resilience).
+  // The single-editor mode rubber-stamped 5/5 on stories with niqqud-mix,
+  // anatomy bleed, and meta-instructions. Splitting concerns is the fix.
+  if (getEditorialMode() === 'y-lite') {
+    const yLite = await runYLiteQA(storyMarkdown, plan, input, llm);
+    // Adapter — drop the y-lite-specific telemetry fields to match
+    // EditorialQAResult exactly. They're logged inside runYLiteQA.
+    return {
+      report: yLite.report,
+      prescanIssues: yLite.prescanIssues,
+      llmCostUsd: yLite.llmCostUsd,
+      model: yLite.model,
+      modelVersion: yLite.modelVersion,
+      zodParseFailed: yLite.zodParseFailed,
+      reviewRequired: yLite.reviewRequired,
+      llmSkipped: yLite.llmSkipped,
+    };
+  }
+
   const model = getEditorialQaModel();
   const client = llm ?? new OpenAIResponsesLLM(model);
 
-  const result = await client.call({
-    stage: 'editorial-qa',
-    systemPrompt: buildEditorialQASystemPrompt(),
-    userPrompt: buildEditorialQAUserPrompt({
-      storyMarkdown,
-      plan,
-      input,
-      prescanIssueCount: prescanIssues.length,
-    }),
-    maxOutputTokens: 3000,
-    jsonMode: true,
-  });
-
-  let zodParseFailed = false;
-  let llmReport: EditorialReportRuntime | null = null;
-
-  try {
-    const raw = parseJsonFromLLM<unknown>(result.text, 'editorial-qa');
-    // v0.2.4: Normalize LLM-invented reason aliases before Zod parse.
-    // LLM occasionally returns 'forbiddenAnatomy' (camelCase, not in enum) when meaning
-    // 'companion_drift'. Translate before Zod to avoid losing valid signal.
-    const normalized = normalizeEditorialJSON(raw);
-    const parsed = EditorialReportSchema.safeParse(normalized);
-    if (!parsed.success) {
-      zodParseFailed = true;
-    } else {
-      llmReport = {
-        ...parsed.data,
-        issues: parsed.data.issues.map((i) => ({ ...i, _source: 'llm' as const })),
-      };
-    }
-  } catch {
-    zodParseFailed = true;
+  async function callEditor(retryNote?: string) {
+    return client.call({
+      stage: 'editorial-qa',
+      systemPrompt: buildEditorialQASystemPrompt(),
+      userPrompt:
+        buildEditorialQAUserPrompt({
+          storyMarkdown,
+          plan,
+          input,
+          prescanIssueCount: prescanIssues.length,
+        }) + (retryNote ? `\n\nRETRY NOTE: ${retryNote}` : ''),
+      maxOutputTokens: 3000,
+      jsonMode: true,
+    });
   }
 
+  function tryParse(text: string): EditorialReportRuntime | null {
+    try {
+      const raw = parseJsonFromLLM<unknown>(text, 'editorial-qa');
+      const normalized = normalizeEditorialJSON(raw);
+      const parsed = EditorialReportSchema.safeParse(normalized);
+      if (parsed.success) {
+        return {
+          ...parsed.data,
+          issues: parsed.data.issues.map((i) => ({ ...i, _source: 'llm' as const })),
+        };
+      }
+    } catch {
+      // fall through to null
+    }
+    return null;
+  }
+
+  let result = await callEditor();
+  let llmReport = tryParse(result.text);
+  let zodParseFailed = !llmReport;
+  let totalCost = result.costUsd;
+
   if (!llmReport) {
-    // v0.2.4 RUTHLESS — Zod parse failure means we CANNOT validate this story.
-    // We MUST NOT ship it. Force editorial verdict = REJECT (downstream maps to REJECTED_EDITORIAL).
-    // This is the production-readiness gate: if the validator infrastructure is broken,
-    // the story does not reach the customer.
-    console.error(
-      `[editorial-qa] Zod parse FAILED on LLM response. RUTHLESS POLICY: REJECT.\nRaw text (first 800 chars):\n${result.text.slice(0, 800)}\n---`
+    // v0.3.5 — retry ONCE with stricter formatting note before giving up.
+    console.warn('[editorial-qa] Zod parse failed on first attempt — retrying with strict JSON note');
+    const retry = await callEditor(
+      'The previous response was not valid JSON or violated the schema. Return STRICT JSON ONLY. Keep quote <= 180 chars, suggestion <= 220 chars, explanation <= 160 chars. No multiline strings. No unescaped newlines inside string values.'
     );
-    const { issues } = validateIssueQuotes(storyMarkdown, prescanIssues);
-    return {
-      // v0.2.4: parse-failure scores stay at 3 — but verdict is forced to REJECT, not just NEEDS_REPAIR.
-      // Editorial QA being broken IS a publication-blocking condition.
-      report: {
-        scores: PARSE_FAILURE_SCORES,
-        issues,
-        verdict: 'REJECT',
-      },
-      prescanIssues,
-      llmCostUsd: result.costUsd,
-      model,
-      modelVersion: result.modelVersion,
-      zodParseFailed: true,
-      reviewRequired: true,
-      llmSkipped: false,
-    };
+    totalCost += retry.costUsd;
+    llmReport = tryParse(retry.text);
+    if (llmReport) {
+      zodParseFailed = false;
+      console.log('[editorial-qa] Retry succeeded.');
+      result = retry;
+    } else {
+      // v0.3.5 — Parse still failed after retry. Per CTO decision:
+      //   - The STORY is not the problem; QA infrastructure is.
+      //   - Don't reject the story; mark REVIEW_REQUIRED with reason=editorial_parse_failed.
+      //   - Use the prescan + neutral scores so the orchestrator routes to review, not auto-publish.
+      console.error(
+        `[editorial-qa] Zod parse FAILED on retry. Routing to REVIEW_REQUIRED.\nRaw retry text (first 800):\n${retry.text.slice(0, 800)}\n---`
+      );
+      const { issues } = validateIssueQuotes(storyMarkdown, prescanIssues);
+      return {
+        report: {
+          scores: PARSE_FAILURE_SCORES,
+          issues,
+          // NEEDS_REPAIR (not REJECT) so the orchestrator can still try a repair pass.
+          // The downstream reviewReason will record this as 'editorial_parse_failed'.
+          verdict: 'NEEDS_REPAIR',
+        },
+        prescanIssues,
+        llmCostUsd: totalCost,
+        model,
+        modelVersion: result.modelVersion,
+        zodParseFailed: true,
+        reviewRequired: true,
+        llmSkipped: false,
+      };
+    }
   }
 
   const merged = mergeEditorialIssues(prescanIssues, llmReport.issues);
@@ -253,7 +289,7 @@ export async function runEditorialQA(
   return {
     report,
     prescanIssues,
-    llmCostUsd: result.costUsd,
+    llmCostUsd: totalCost,
     model,
     modelVersion: result.modelVersion,
     zodParseFailed,

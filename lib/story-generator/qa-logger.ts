@@ -105,16 +105,22 @@ export function startQALog(input: GenerateInput): QALogHandle {
     markPassed(partial) {
       const blocking = (lastReport?.findings ?? []).filter((f: Finding) => f.severity === 'BLOCKING');
       const warnings = (lastReport?.findings ?? []).filter((f: Finding) => f.severity === 'WARNING');
+      // v0.3.6 — INVARIANT: a story with ANY BLOCKING finding cannot be PASS.
+      // Earlier code wrote finalVerdict='PASS' alongside a populated blockingFindings
+      // array — an impossible state. If blocking exists, this is a FAIL even if
+      // the orchestrator (incorrectly) reached this code path.
+      const finalVerdict: 'PASS' | 'FAIL' = blocking.length > 0 ? 'FAIL' : 'PASS';
       const summary: QASummary = {
-        finalVerdict: 'PASS',
+        finalVerdict,
         blockingFindings: blocking,
         warningFindings: warnings,
         ...partial,
       };
       writeJson(path.join(dir, 'summary.json'), summary);
+      const noteHeader = finalVerdict === 'PASS' ? '# QA Run PASS' : '# QA Run FAIL (had blocking findings)';
       writeFileSync(
         path.join(dir, 'notes.md'),
-        `# QA Run PASS\n\n- Model: ${partial.modelName}\n- Cost: $${partial.costUsd.toFixed(4)}\n- Repairs: ${partial.repairAttempts}\n`,
+        `${noteHeader}\n\n- Model: ${partial.modelName}\n- Cost: $${partial.costUsd.toFixed(4)}\n- Repairs: ${partial.repairAttempts}\n- Blocking findings: ${blocking.length}\n`,
         'utf8'
       );
       return dir;

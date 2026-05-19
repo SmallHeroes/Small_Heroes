@@ -33,9 +33,33 @@ const MORNING_WAKE_TOKENS = [
   'אור ראשון', 'שמש עולה', 'עלה הבוקר',
 ];
 
+/**
+ * v0.4.6 — Regex-based morning detection with Hebrew article tolerance.
+ *
+ * v0.4.5 batch had bedtime page 10 = "האור הראשון מחליק דרך התריסים".
+ * Substring check for "אור ראשון" missed it because the definite article ה
+ * inserted between the two words ("אור הראשון") broke the contiguous match.
+ *
+ * These regex patterns tolerate ה' inserted before either word.
+ */
+const MORNING_WAKE_RE: RegExp[] = [
+  /\bה?בוקר\b/,                          // בוקר / הבוקר
+  /\bבבוקר\b/,                            // בבוקר
+  /\bמתעורר(ת|ים)?\b/,                    // מתעוררת / מתעורר / מתעוררים
+  /\bהתעורר(ה|ו|תי)?\b/,                  // התעוררה / התעורר / התעוררו
+  /\bה?אור\s+ה?ראשון\b/,                  // אור ראשון / האור הראשון / אור הראשון / האור ראשון
+  /\bה?שמש\s+(עולה|זרחה)\b/,              // שמש עולה / השמש עולה / השמש זרחה
+  /\bעלה\s+ה?בוקר\b/,                     // עלה הבוקר / עלה בוקר
+];
+
 function pageHasAnyToken(text: string, tokens: string[]): boolean {
   const t = stripHebrewNiqqud(text);
   return tokens.some((token) => t.includes(stripHebrewNiqqud(token)));
+}
+
+function pageHasMorningSignal(text: string): boolean {
+  const t = stripHebrewNiqqud(text);
+  return MORNING_WAKE_RE.some((re) => re.test(t));
 }
 
 /** % of pages that contain bed-state language. */
@@ -49,7 +73,8 @@ function bedStateRatio(parsed: ParsedStory): number {
 function endsAtMorning(parsed: ParsedStory): boolean {
   const last = parsed.pages[parsed.pages.length - 1];
   if (!last) return false;
-  return pageHasAnyToken(last.text, MORNING_WAKE_TOKENS);
+  // v0.4.6 — use the regex variant that tolerates Hebrew definite article.
+  return pageHasMorningSignal(last.text);
 }
 
 export function detectDirectionDrift(
@@ -62,6 +87,10 @@ export function detectDirectionDrift(
   if (direction === 'adventure' || direction === 'fantasy') {
     const ratio = bedStateRatio(parsed);
     if (ratio > 0.4) {
+      // v0.4.3 — suggestions are CONCRETE Hebrew sample sentences, not Hebrew
+      // imperatives. Hebrew imperatives in the `suggestion` field get copied
+      // verbatim into prose by the editorial repair LLM. Sample sentences are
+      // safer: even if copied, they read as story content.
       issues.push({
         page: 1,
         field: 'body',
@@ -70,11 +99,11 @@ export function detectDirectionDrift(
         quote: `${Math.round(ratio * 100)}% of pages in bed-state`,
         suggestion:
           direction === 'adventure'
-            ? 'הוסיפו מסע/גילוי חיצוני; אל תישארו במיטה/בשמיכה ברוב הסיפור'
-            : 'הוסיפו עולם פנטזיה ברור; אל תישארו בחדר השינה',
-        explanation: `סיפור ${direction} עם ${Math.round(
+            ? 'נועה יוצאת מהבית. הדלת נסגרת מאחוריה. בּוֹלִי בתיק.'
+            : 'הקיר נמס לסלע. נועה ראתה הר. בּוֹלִי התגלגל לפניה.',
+        explanation: `Story direction is ${direction} but ${Math.round(
           ratio * 100
-        )}% עמודים שמכילים מילים כמו מיטה/שמיכה/כרית — זה פרופיל של bedtime, לא ${direction}`,
+        )}% of pages contain bed-state words (מיטה/שמיכה/כרית). That is a bedtime profile.`,
         _source: 'scanner',
       });
     }
@@ -83,14 +112,24 @@ export function detectDirectionDrift(
   // For bedtime: should NOT end at morning/wake state
   if (direction === 'bedtime' && endsAtMorning(parsed)) {
     const last = parsed.pages[parsed.pages.length - 1];
+    // v0.4.3 — The suggestion is a CONCRETE Hebrew replacement page, NOT a
+    // Hebrew imperative. Earlier the suggestion read "סיים בשינה רכה, לא
+    // בבוקר/התעוררות" — the editorial repair LLM literally copied that meta
+    // instruction into the final page (caught by instructionLeakage validator,
+    // but only after it had wasted a repair attempt and degraded the story).
+    //
+    // Now the suggestion IS the kind of ending we want. The repair model can
+    // use it verbatim or as a pattern.
     issues.push({
       page: last.pageNumber,
       field: 'body',
       severity: 'MAJOR',
       reason: 'wrong_ending',
       quote: last.text.slice(0, 100),
-      suggestion: 'סיים בשינה רכה, לא בבוקר/התעוררות',
-      explanation: 'סיפור bedtime נגמר בבוקר/יקיצה — הילד התעורר במקום להירדם',
+      suggestion:
+        'בּוֹלִי ישן ליד הכרית. בפנים היה חם. נועה עוצמת עיניים. החדר שקט.',
+      explanation:
+        'Bedtime story ended in morning/waking imagery — must end with the child falling asleep and the companion settled.',
       _source: 'scanner',
     });
   }

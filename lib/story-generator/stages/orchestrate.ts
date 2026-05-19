@@ -15,6 +15,7 @@ import {
   autoFixCompanionMutations,
   enforceCanonicalFrontmatter,
   fixEnglishLeaks,
+  stripBeatLabels,
   tryAutoNameFixFromReport,
 } from './auto-fixes';
 import { runDraft } from './draft';
@@ -24,6 +25,28 @@ import { runEditorialPipeline } from './run-editorial-pipeline';
 import { validatePlan } from './validatePlan';
 import { buildValidationContext } from './validation-context';
 import { isEditorialQaEnabled } from '../editorial/config';
+import { generateStoryFromRecipe } from './orchestrate-recipe';
+import { isRecipeModeEnabled } from '../recipes';
+
+/**
+ * v0.4.5 — Plan fallback injection.
+ * When the plan-level companion-gate fails twice, inject a deterministic
+ * companion action so the Author has explicit guidance on where to place
+ * the companion. Avoids losing a story to plan-retry failure when the
+ * issue is just "model didn't put Bolly in slot N".
+ */
+function inferCompanionInjection(companionId: string): string {
+  switch (companionId) {
+    case 'bolly_armadillo':
+      return 'בּוֹלִי התגלגל אל קצה השמיכה. טוּמְפּ קטן נשמע.';
+    case 'bat_lily':
+      return 'לִילִי תלויה על קצה המדף. ששש קטן.';
+    case 'chameleon_koko':
+      return 'קִים על הקיר ליד נועה. הצעיף הפסים שלה ברור.';
+    default:
+      return 'המלווה נכנס לסיפור.';
+  }
+}
 
 /** Stage F: Plan → Draft → Validate → Repair (max 2) → ship or throw. */
 export async function generateStory(
@@ -32,6 +55,15 @@ export async function generateStory(
 ): Promise<GenerateOutput> {
   input = normalizeGenerateInput(input);
   const llm = deps.llm ?? getDefaultLLM();
+
+  // v0.5 — Recipe-mode early branch. STORY_RECIPE_MODE=on activates a
+  // separate pipeline that skips Plan LLM and Editorial Repair. Returns
+  // null when no Recipe matches the input → fall through to legacy.
+  if (isRecipeModeEnabled()) {
+    const recipeOutput = await generateStoryFromRecipe(input, llm);
+    if (recipeOutput) return recipeOutput;
+  }
+
   const started = Date.now();
   const log = startQALog(input);
   log.recordInput(input);
@@ -62,16 +94,39 @@ export async function generateStory(
     log.recordPlan(plan, planValidation.warnings);
     log.recordPlanValidation(planValidation.ok, planValidation.reason);
     if (!planValidation.ok) {
-      log.markFailure('Plan invalid after retry', undefined);
-      throw new GeneratorError('PLAN_INVALID', planValidation.reason ?? 'unknown');
+      // v0.4.5 — Plan fallback injection.
+      // If the plan failed twice on the companion-by-page gate, inject a
+      // deterministic companion line into the first eligible page instead
+      // of throwing. The Author still owns the prose; we just guarantee
+      // the planning beatMap has the companion as subject in time.
+      const reasonStr = planValidation.reason ?? '';
+      const isCompanionGate = /Companion must be the explicit subject/i.test(reasonStr);
+      if (isCompanionGate && plan.beatMap.length > 0) {
+        const targetPage = input.direction === 'fantasy' ? 1 : input.direction === 'adventure' ? 2 : 3;
+        const beat = plan.beatMap.find((b) => b.pageNumber === targetPage) ?? plan.beatMap[0];
+        const injection = inferCompanionInjection(input.companionId);
+        beat.companionAction = injection;
+        planValidation = validatePlan(plan, input);
+        log.recordPlan(plan, planValidation.warnings);
+        log.recordPlanValidation(planValidation.ok, planValidation.reason);
+        console.log(
+          `[orchestrate] Plan fallback: injected "${injection}" on page ${targetPage} (${input.direction})`
+        );
+      }
+      if (!planValidation.ok) {
+        log.markFailure('Plan invalid after retry', undefined);
+        throw new GeneratorError('PLAN_INVALID', planValidation.reason ?? 'unknown');
+      }
     }
   }
 
   // Stage C
-  let { storyMarkdown, llmCostUsd: draftCost, modelVersion: draftMv } = await runDraft(plan, input, llm);
-  costUsd += draftCost;
+  const draftResult = await runDraft(plan, input, llm);
+  let storyMarkdown = draftResult.storyMarkdown;
+  const autoInjections = draftResult.autoInjections;
+  costUsd += draftResult.llmCostUsd;
   llmCalls++;
-  modelVersion = draftMv;
+  modelVersion = draftResult.modelVersion;
 
   // v0.2.5: Canonical frontmatter enforcement.
   // Draft LLM kept inventing direction/companionId values. Replace deterministically.
@@ -101,6 +156,16 @@ export async function generateStory(
     storyMarkdown = engFix.storyMarkdown;
     console.log(
       `[orchestrate] English leak fix: ${engFix.replacementCount} replacement(s) — ${engFix.replacedTokens.join(', ')}`
+    );
+  }
+
+  // v0.3.5: Strip leaked [beat-id] planning labels from prose. Safety net for
+  // the model copying procedureMoment bracket prefixes into the story text.
+  const beatFix = stripBeatLabels(storyMarkdown);
+  if (beatFix.strippedCount > 0) {
+    storyMarkdown = beatFix.storyMarkdown;
+    console.log(
+      `[orchestrate] Stripped ${beatFix.strippedCount} leaked beat label(s) from prose`
     );
   }
 
@@ -207,6 +272,11 @@ export async function generateStory(
       costUsd += editorialQaCostUsd + editorialRepairCostUsd;
       if (editorialRepairAttempts > 0) llmCalls++;
       if (editorial.editorialQaModel !== 'disabled') llmCalls++;
+      // v0.4.2 — adopt the post-repair tech report as the final validation
+      // truth. The pre-editorial `report` is stale once repair has run.
+      if (editorial.postRepairTechReport) {
+        report = editorial.postRepairTechReport;
+      }
     }
 
     log.recordFinalStory(storyMarkdown);
@@ -223,6 +293,13 @@ export async function generateStory(
       generatorVersion: GENERATOR_VERSION,
       planQualityWarnings: planValidation.warnings,
       timestamp: new Date().toISOString(),
+      // v0.4.6+ — surface deterministic injections so we can audit them.
+      autoInjections: autoInjections?.map((a) => ({
+        page: a.page,
+        line: a.line,
+        context: a.context,
+        reason: a.reason,
+      })),
     });
     return {
       storyMarkdown,

@@ -118,6 +118,13 @@ export interface GenerateOutput {
   editorialRepairAttempts?: number;
 }
 
+export interface AutoInjectionTelemetry {
+  page: number;
+  line: string;
+  context: string;
+  reason: string;
+}
+
 export interface QASummary {
   finalVerdict: 'PASS' | 'FAIL';
   blockingFindings: ValidationReport['findings'];
@@ -134,6 +141,8 @@ export interface QASummary {
   generatorVersion: string;
   planQualityWarnings: PlanQualityWarning[];
   timestamp: string;
+  /** v0.4.6+ — present only when code injected companion lines into Author output. */
+  autoInjections?: AutoInjectionTelemetry[];
 }
 
 export interface ManualReview {
