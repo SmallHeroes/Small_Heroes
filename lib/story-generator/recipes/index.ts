@@ -29,6 +29,7 @@ import type {
   StoryDirection,
 } from './recipe-types';
 import { bollyAdventureAge5Recipe } from './bolly_adventure_age_5';
+import { bollyBedtimeAge5Recipe } from './bolly_bedtime_age_5';
 import type {
   BeatMapEntry,
   GenerateInput,
@@ -43,7 +44,10 @@ import type { RecipeContract } from '@/lib/story-validators';
 // REGISTRY — manually curated. No LLM-generated recipes. Add new recipes
 // here only after the corresponding .ts file has been reviewed.
 // ─────────────────────────────────────────────────────────────────────────
-const REGISTRY: ProductionRecipe[] = [bollyAdventureAge5Recipe];
+const REGISTRY: ProductionRecipe[] = [
+  bollyAdventureAge5Recipe,
+  bollyBedtimeAge5Recipe,
+];
 
 export interface RecipeLookupKey {
   companionId: string;
@@ -230,17 +234,24 @@ function buildPacingMap(cards: PageCard[]): VisualPacingMap {
       case 'home_inspection':
       case 'settling_in':
       case 'sleep_or_calm':
+      // bedtime quiet roles
+      case 'fear_object_revisited':
+      case 'object_revisited_safely':
+      case 'quiet_spark_settling':
+      case 'sleep_with_residue':
         quiet.push(card.page);
         break;
       case 'child_body_resists':
       case 'procedure_happens':
       case 'companion_closes':
       case 'residue_appears':
+      // bedtime active role
+      case 'anticipation_body_resists':
         active.push(card.page);
         break;
       default:
-        // journey_step, arrival_at_setting, companion_introduction, etc.
-        // stay unclassified (neither explicitly quiet nor active).
+        // journey_step, arrival_at_setting, companion_introduction,
+        // companion_contact, etc. stay unclassified.
         break;
     }
     if (card.dramaticRole === 'child_mirrors') {

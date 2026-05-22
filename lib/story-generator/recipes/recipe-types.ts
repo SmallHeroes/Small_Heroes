@@ -32,22 +32,32 @@ export type StoryDirection = 'bedtime' | 'adventure' | 'fantasy';
  * Bound to a closed vocabulary — Author cannot invent new roles.
  */
 export type DramaticRole =
-  | 'opening_state'           // child in starting emotional state
-  | 'companion_introduction'  // companion first becomes visible/present
-  | 'journey_step'            // movement toward the feared situation
-  | 'arrival_at_setting'      // entry into the procedure/sleep/fear setting
-  | 'environment_sensing'     // child takes in surroundings
-  | 'fear_object_appears'     // the thing-that-causes-fear becomes visible
-  | 'child_body_resists'      // physical resistance: pulling back, shoulders, eyes
-  | 'companion_closes'        // companion performs its core defensive mechanic
-  | 'child_mirrors'           // child copies the companion's mechanic with own body
-  | 'procedure_happens'       // the feared event occurs, short and concrete
-  | 'residue_appears'         // physical evidence of survival (sticker, mark)
-  | 'companion_opens'         // companion reverses its closure
-  | 'cooldown_journey'        // leaving the setting
-  | 'home_inspection'         // looking at the residue at home
-  | 'settling_in'             // body relaxation in safe place
-  | 'sleep_or_calm';          // final state — body soft, no moral
+  | 'opening_state'             // child in starting emotional state
+  | 'companion_introduction'    // companion first becomes visible/present
+  | 'journey_step'              // movement toward the feared situation
+  | 'arrival_at_setting'        // entry into the procedure/sleep/fear setting
+  | 'environment_sensing'       // child takes in surroundings
+  | 'fear_object_appears'       // the thing-that-causes-fear becomes visible
+  | 'child_body_resists'        // physical resistance: pulling back, shoulders, eyes
+  | 'companion_closes'          // companion performs its core defensive mechanic
+  | 'child_mirrors'             // child copies the companion's mechanic with own body
+  | 'procedure_happens'         // the feared event occurs, short and concrete
+  | 'residue_appears'           // physical evidence of survival (sticker, mark)
+  | 'companion_opens'           // companion reverses its closure
+  | 'cooldown_journey'          // leaving the setting
+  | 'home_inspection'           // looking at the residue at home
+  | 'settling_in'               // body relaxation in safe place
+  | 'sleep_or_calm'             // final state — body soft, no moral
+  // ── Bedtime / anticipation roles (added for bolly_bedtime_age_5) ──
+  | 'fear_object_revisited'     // child's eyes return to a KNOWN worry object
+  | 'anticipation_body_resists' // body tightens from the THOUGHT of tomorrow,
+                                //   not from a procedure happening now
+  | 'companion_contact'         // child makes a small physical contact with the
+                                //   companion — not a big hug, not on the shoulder
+  | 'object_revisited_safely'   // the worry object is still there, but the child
+                                //   can now look at it without the body recoiling
+  | 'quiet_spark_settling'      // a soft, small spark of warmth as the body softens
+  | 'sleep_with_residue';       // sleep — the worry object still present but smaller
 
 /**
  * Concrete page-level contract. Author writes prose to satisfy this card.
