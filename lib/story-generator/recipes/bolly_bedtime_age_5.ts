@@ -238,7 +238,13 @@ export const bollyBedtimeAge5Recipe: ProductionRecipe = {
       childBodyState: 'חיוך קטן ושקט; הגוף מתרכך, נשימה איטית',
       companionAction: 'בּוֹלִי מזיז את הכרית טיפ-טיפה; נשמע טוּמְפּ קטן.',
       requiredObjectSlot: 'comfortObject',
-      mustInclude: ['בּוֹלִי', 'טוּמְפּ', 'חייך'],
+      // v0.5.0-b: dropped 'חייך' from mustInclude. It is a GENDER-INFLECTED
+      // verb (masculine) — forcing the literal token produced "נועה חייך"
+      // (a girl) instead of "חייכה". mustInclude must only ever hold
+      // gender-neutral anchors (names, sounds, objects, body parts).
+      // The smile still lives in requiredEvent + childBodyState, where the
+      // Author inflects it correctly for the child's gender.
+      mustInclude: ['בּוֹלִי', 'טוּמְפּ'],
       mustNotInclude: [
         'קסם',           // keep it physical — no magic
         'מצחיק מאוד',    // a QUIET spark, not loud comedy
@@ -361,7 +367,7 @@ export const bollyBedtimeAge5Recipe: ProductionRecipe = {
   },
 
   meta: {
-    version: '0.5.0-a',
+    version: '0.5.0-b',
     derivedFrom: 'authored fresh — bedtime anticipation pattern (no Gold to reverse-engineer)',
     authoredAt: '2026-05-22',
     authoredBy: 'CTO + ChatGPT consult',
@@ -373,6 +379,7 @@ export const bollyBedtimeAge5Recipe: ProductionRecipe = {
       'p9 is the bedtime spark beat — a QUIET spark (pillow nudge + small toomp + quiet smile), never loud comedy. Caps bumped to 4 sentences / 34 words.',
       'pages 4-7 tagged critical=true — the anticipation resilience core.',
       'forbiddenPatterns includes anticipation-frame breakers (no procedure, no doctor, no sticker) and time-frame breakers (story ends at sleep, not morning).',
+      'v0.5.0-b: removed "חייך" from p9 mustInclude — it is a gender-inflected verb and forcing the literal token produced "נועה חייך" (wrong gender for a girl). RULE: mustInclude holds only gender-neutral anchors.',
     ],
   },
 };

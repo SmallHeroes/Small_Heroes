@@ -117,15 +117,16 @@ export function synthPlanFromRecipe(
     pageCardToBeat(card, variations)
   );
 
-  // The Moment Contract anchors on the resilience-arc center.
-  // For Bolly Adventure that's p9 (Bolly closes) → p10 (child mirrors).
-  // We expose p9's mechanic as the canonical moment.
+  // The Moment Contract anchors on the resilience HEART — the child_mirrors
+  // beat (the child coping with their own body), not the companion mechanic.
+  // physicalAction therefore comes from the child's body state on that page.
   const momentPage = pickMomentPage(recipe);
   const momentCard = recipe.pageCards.find((c) => c.page === momentPage);
   const moment: MomentContract = {
     page: momentPage,
     type: 'transformation',
-    physicalAction: momentCard?.companionAction ?? '',
+    physicalAction:
+      momentCard?.childBodyState ?? momentCard?.companionAction ?? '',
     companionSignature: 'closes into a ball, then opens slowly',
     childBodyResponse: momentCard?.childBodyState,
     residue: variations.stickerType,
@@ -211,7 +212,16 @@ function composeChildAction(card: PageCard, resolvedObject: string | undefined):
 }
 
 function pickMomentPage(recipe: ProductionRecipe): number {
-  // Prefer the page tagged as companion_closes (Bolly's signature mechanic).
+  // The emotional heart of a resilience story is the CHILD coping — the
+  // `child_mirrors` beat — NOT the companion's mechanic. The companion
+  // closing is the SETUP; the child mirroring it is the payoff.
+  //
+  // This also makes momentContract.page consistent with buildPacingMap's
+  // heartPage (which already uses child_mirrors). They were diverging:
+  // heartPage = child_mirrors, momentContract.page = companion_closes.
+  const mirrors = recipe.pageCards.find((c) => c.dramaticRole === 'child_mirrors');
+  if (mirrors) return mirrors.page;
+  // Fallback: companion_closes (the setup beat).
   const closes = recipe.pageCards.find((c) => c.dramaticRole === 'companion_closes');
   if (closes) return closes.page;
   // Fallback: first critical page.
