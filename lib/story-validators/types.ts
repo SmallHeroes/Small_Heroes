@@ -13,6 +13,28 @@ export interface ParsedStory {
   }>;
 }
 
+/**
+ * Minimal view of a Production Recipe the validators need.
+ *
+ * Defined HERE (not imported from story-generator) to keep the validators
+ * package free of a back-dependency on the generator. The generator's
+ * ProductionRecipe is structurally compatible — it maps into this shape.
+ */
+export interface RecipeContractPage {
+  page: number;
+  /** Tokens that must appear in this page's prose. */
+  mustInclude: string[];
+  /** Tokens forbidden on this specific page. */
+  mustNotInclude: string[];
+}
+
+export interface RecipeContract {
+  id: string;
+  /** Patterns forbidden anywhere in the book. */
+  forbiddenPatterns: string[];
+  pages: RecipeContractPage[];
+}
+
 export interface ValidationInput {
   storyMarkdown: string;
   context: {
@@ -37,6 +59,12 @@ export interface ValidationInput {
         appearsOnPages: number[];
       };
     };
+    /**
+     * v0.5a #177 — present only for recipe-mode stories. When set, the
+     * recipeContract validator enforces the Recipe's forbiddenPatterns +
+     * per-page mustInclude / mustNotInclude. Absent for legacy stories.
+     */
+    recipe?: RecipeContract;
   };
   mode: ValidationMode;
   previousVersion?: {

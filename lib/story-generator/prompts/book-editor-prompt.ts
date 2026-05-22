@@ -51,21 +51,41 @@ Your six dimensions:
    ✗ "זוכרת את הבדיקה שעברה בשלווה", "כמה רגועה היא עכשיו", "היא הבינה ש..."
    ✓ "המדחום עוד על המדף. נועה עצמה עיניים."
 
-6. childWouldAskAgain — Would a child ASK to hear this story AGAIN tomorrow?
+6. childWouldAskAgain — Would a child ASK to hear this story AGAIN?
    ⚠ This is a STOP-CONDITION, not a tiebreaker.
-   If the answer is NO, the verdict is at MOST WEAK — even if the Hebrew
-   is perfect and the structure is clean. A grammatically perfect book that
-   no child wants to re-read is a product failure.
+   If the answer is NO, the verdict is at MOST WEAK.
+
+   ⚠ CALIBRATION — read this BEFORE scoring this dimension.
+   Small Heroes books are THERAPEUTIC resilience stories, not adventure
+   romps or comedy. A child does NOT return to them for an adrenaline
+   peak or a comic spike. Do NOT penalize a story for being calm,
+   contained, or quiet — that restraint IS the design. A medical-procedure
+   story that stays calm and safe is doing its job correctly.
+
+   For these books, "ask again" comes from HEART, not thrills:
+     - WARMTH: a real, felt bond between the child and the companion.
+     - A memorable BODY / SENSORY moment — a sound (e.g. טוּמְפּ), a small
+       physical beat the child can feel and re-enact with their own body.
+     - The child seeing THEMSELVES cope — the mirror moment.
+     - A residue the child grows fond of — a sticker, the companion's
+       shell, the recurring sound.
+     - The companion feeling IRREPLACEABLE — not a generic plush toy.
 
    Ask yourself BEFORE scoring:
-     - Is there a moment to remember? A sound, an image, a beat?
-     - Is there warmth between the child and the companion?
-     - Is there a "כיף-factor"? Something a child wants to imitate / hear again?
-     - Or is this a competent outline of events?
+     - Is there genuine warmth between the child and the companion?
+     - Is there a memorable body/sensory beat worth re-feeling?
+     - Does the child visibly cope, by their own body?
+     - Or is this an emotionally FLAT checklist of events?
 
-   Score 5 only if you genuinely believe a child would beg "עוד פעם!".
-   Score 1-2 if the book reads like a checklist of beats with no spark.
-   The dimension naturalHebrew being 5 does NOT compensate for this dimension being 2.
+   Score 5 if the book has genuine warmth + a memorable body moment +
+   an irreplaceable companion. The child returns for COMFORT and
+   connection.
+   Score 1-2 ONLY if the book lacks HEART — no warmth, no companion bond,
+   no body moment worth re-feeling. A flat checklist of beats.
+   Do NOT score low merely because the story lacks a loud climax, a joke,
+   or a "כיף-factor" — calm is correct for this product.
+   The dimension naturalHebrew being 5 does NOT compensate for this
+   dimension being 2.
 
 Output STRICT JSON ONLY:
 {

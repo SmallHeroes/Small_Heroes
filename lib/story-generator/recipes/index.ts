@@ -37,6 +37,7 @@ import type {
   Plan,
   VisualPacingMap,
 } from '../types';
+import type { RecipeContract } from '@/lib/story-validators';
 
 // ─────────────────────────────────────────────────────────────────────────
 // REGISTRY — manually curated. No LLM-generated recipes. Add new recipes
@@ -251,6 +252,24 @@ function buildPacingMap(cards: PageCard[]): VisualPacingMap {
     quietPages: quiet,
     activePages: active,
     heartPage: heart || Math.ceil(cards.length / 2),
+  };
+}
+
+/**
+ * #177 — map a ProductionRecipe to the minimal RecipeContract the
+ * story-validators package consumes. Threaded into the validation context
+ * so the recipeContract validator can enforce forbiddenPatterns +
+ * per-page mustInclude / mustNotInclude.
+ */
+export function recipeToContract(recipe: ProductionRecipe): RecipeContract {
+  return {
+    id: recipe.id,
+    forbiddenPatterns: recipe.forbiddenPatterns,
+    pages: recipe.pageCards.map((c) => ({
+      page: c.page,
+      mustInclude: c.mustInclude,
+      mustNotInclude: c.mustNotInclude,
+    })),
   };
 }
 

@@ -94,7 +94,7 @@ export const bollyAdventureAge5Recipe: ProductionRecipe = {
       dramaticRole: 'opening_state',
       requiredEvent: 'הבוקר נכנס לחדר; הילד/ה לא רוצה לקום.',
       childBodyState: 'מסתובב/ת לצד השני, מתחבא/ת מעט במיטה',
-      companionAction: 'בּוֹלִי שוכב קרוב לכרית, פתוח חלקית, מביט/ה בילד/ה בשקט.',
+      companionAction: 'בּוֹלִי שוכב קרוב לכרית, לוח קטן אחד פתוח, מביט/ה בילד/ה בשקט.',
       // v0.5.0-c: foundation-beat lock. Smoke runs hit HARD GATE on p1
       // because the Author occasionally skipped Bolly entirely.
       //
@@ -364,9 +364,19 @@ export const bollyAdventureAge5Recipe: ProductionRecipe = {
     {
       page: 14,
       dramaticRole: 'home_inspection',
-      requiredEvent: 'בבית — הילד/ה בודק/ת את המדבקה.',
-      childBodyState: 'יד מורמת, אצבע נוגעת בקצה המדבקה בעדינות',
-      companionAction: 'בּוֹלִי מתכווץ ליד הכרית ונושם בשקט.',
+      // v0.5.0-e (#spark-beat): the ONE memorability beat of the book.
+      // Y-lite Book Editor consistently scored childWouldAskAgain at 4 —
+      // the arc is emotionally true but flat, no spark of delight. This
+      // page now carries a single small, warm, PHYSICAL moment: Bolly
+      // half-rolls and the sticker almost sticks to his shell; the child
+      // smiles. NOT a joke, NOT dialogue, NOT magic — one bright note in
+      // the cooldown. The resilience core (p8-12) is untouched.
+      requiredEvent:
+        'בבית — הילד/ה בודק/ת את המדבקה; בּוֹלִי עושה תנועה קטנה ומשחקית והילד/ה מחייך/ת.',
+      childBodyState:
+        'יד מורמת, אצבע נוגעת בקצה המדבקה; חיוך קטן ושקט אחרי תנועת בּוֹלִי',
+      companionAction:
+        'בּוֹלִי מתגלגל חצי סיבוב לידה, והמדבקה כמעט נדבקת לשריון שלו.',
       requiredObjectSlot: 'homeRoomDetail',
       mustInclude: ['בּוֹלִי', 'מדבקה'],
       mustNotInclude: [
@@ -380,11 +390,14 @@ export const bollyAdventureAge5Recipe: ProductionRecipe = {
         'אומץ',              // labeling, not showing
         'הצליחה',            // moral-summary energy
         'גאה בעצמה',
+        // v0.5.0-e: keep the spark physical — the sticker stays a sticker.
+        'קסם',
       ],
-      targetWords: 22,
-      maxWords: 30,
-      maxSentences: 3,
-      imageIntent: "bedtime close-up of hand with sticker, Bolly curled near pillow",
+      targetWords: 26,
+      maxWords: 34,
+      maxSentences: 4,
+      imageIntent:
+        "close-up of hand with colorful sticker, Bolly mid half-roll right beside it, the sticker almost touching his shell, child's small quiet smile",
     },
     {
       page: 15,
@@ -429,6 +442,9 @@ export const bollyAdventureAge5Recipe: ProductionRecipe = {
     'האוויר התמלא',
     'ריח של חמימות',
     'נהיה דק ושקט',
+    // v0.5.0-f — mechanical phrasing that leaked from the recipe's own
+    // companionAction text and was flagged broken_hebrew by Y-lite:
+    'פתוח חלקית',
 
     // Bolly-specific AI-poetic (Gold Candidate polish notes)
     'הלוח הוורוד שלו הבהב',
@@ -505,9 +521,9 @@ export const bollyAdventureAge5Recipe: ProductionRecipe = {
   },
 
   meta: {
-    version: '0.5.0-b',
+    version: '0.5.0-f',
     derivedFrom: 'gold-candidates/bolly_adventure_v0.4.7.md',
-    authoredAt: '2026-05-19',
+    authoredAt: '2026-05-22',
     authoredBy: 'CTO + ChatGPT consult',
     notes: [
       'First Production Recipe authored under v0.5 design.',
@@ -520,6 +536,11 @@ export const bollyAdventureAge5Recipe: ProductionRecipe = {
       'v0.5.0-b: moral-summary guards (הבינה ש / יודעת ש / למדה ש / מעכשיו) extended from p15-only to p13+p14+p15.',
       'v0.5.0-b: p11 mustNotInclude extended with escalation guards (צרחה / ברחה / התחבאה) — child has mirrored on p10, must stay on chair.',
       'v0.5.0-b: pages 8-11 tagged critical=true — load-bearing for resilience arc, reroll priority + Y-lite anchoring.',
+      // v0.5.0-c → 0.5.0-e:
+      'v0.5.0-c: p1 requiredExactLine added — foundation-beat companion lock.',
+      'v0.5.0-d: p1 requiredExactLine naturalized + 7 adult-poetic patterns added to forbiddenPatterns.',
+      'v0.5.0-e: SPARK BEAT on p14 — single small physical delight (Bolly half-rolls, sticker almost sticks to his shell, child smiles). Targets the systematic childWouldAskAgain weakness (Y-lite Book Editor scored it 4 — arc true but flat). Resilience core p8-12 untouched. p14 caps bumped to 4 sentences / 34 words for the extra beat.',
+      'v0.5.0-f: p1 companionAction "פתוח חלקית" → "לוח קטן אחד פתוח" — the old phrasing was mechanical and leaked into prose as broken_hebrew (Y-lite MAJOR). Added "פתוח חלקית" to forbiddenPatterns as a backstop.',
     ],
   },
 };

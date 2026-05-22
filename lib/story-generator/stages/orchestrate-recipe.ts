@@ -45,6 +45,7 @@ import {
   ageToTier,
   loadRecipe,
   pickVariations,
+  recipeToContract,
   synthPlanFromRecipe,
 } from '../recipes';
 import type { ProductionRecipe } from '../recipes/recipe-types';
@@ -132,7 +133,10 @@ async function runRecipeStory(
   log.recordDraft(storyMarkdown);
 
   // ─── Stage D: Tech validation ───
+  // #177 — attach the Recipe contract so the recipeContract validator can
+  // enforce forbiddenPatterns + per-page mustInclude / mustNotInclude.
   const context = buildValidationContext(plan, input);
+  context.recipe = recipeToContract(recipe);
   const report = validateStory({
     storyMarkdown,
     mode: 'production',
@@ -145,6 +149,15 @@ async function runRecipeStory(
     console.warn(
       `[recipe-mode] tech FAIL — no LLM repair in recipe mode. Marking FAILED_TECHNICAL.`
     );
+    // #177 — surface every BLOCKING finding in the console so failures are
+    // diagnosable without digging into summary.json. One line per finding.
+    const blocking = report.findings.filter((f) => f.severity === 'BLOCKING');
+    console.warn(`[recipe-mode] tech FAIL — ${blocking.length} BLOCKING finding(s):`);
+    for (const f of blocking) {
+      const loc = f.page != null ? ` p${f.page}` : '';
+      const exc = f.excerpt ? ` | excerpt: ${f.excerpt}` : '';
+      console.warn(`  ✗ [${f.validator}]${loc} ${f.message}${exc}`);
+    }
     log.recordFinalStory(storyMarkdown);
     const qaLogPath = log.markFailure('Tech validation failed (recipe mode)', report);
     return {
@@ -184,6 +197,17 @@ async function runRecipeStory(
     bookEditorAvg = ylite.bookEditorAvg ?? 0;
     resilienceAvg = ylite.resilienceAvg ?? 0;
 
+    // #177 observability — persist the full Y-lite report to the QA log
+    // (editorial-qa.json). The recipe pipeline previously never called
+    // this, so Y-lite issues were invisible after the run.
+    log.recordEditorialQA(ylite.report, {
+      zodParseFailed: ylite.zodParseFailed,
+      reviewRequired: ylite.reviewRequired,
+      prescanCount: ylite.prescanIssues.length,
+      model: ylite.model,
+      costUsd: ylite.llmCostUsd,
+    });
+
     if (ylite.reviewRequired) {
       yliteReviewRequired = true;
       yliteReviewReason = 'post_repair_not_ready';
@@ -192,6 +216,25 @@ async function runRecipeStory(
       yliteReviewRequired = true;
       yliteReviewReason = 'editor_rejected';
     }
+
+    // #177 observability — when the verdict is not READY, dump every
+    // editorial issue to the console so weak runs are diagnosable inline.
+    if (ylite.report.verdict !== 'READY') {
+      const issues = ylite.report.issues ?? [];
+      console.warn(
+        `[y-lite-qa] verdict=${ylite.report.verdict} ` +
+          `book=${bookEditorAvg} resilience=${resilienceAvg} — ${issues.length} issue(s):`
+      );
+      for (const it of issues) {
+        const unmatched = it._unmatchedQuote ? ' [UNMATCHED QUOTE]' : '';
+        console.warn(
+          `  • [${it.severity}] p${it.page} (${it.field}) ${it.reason}${unmatched}\n` +
+            `      quote:      "${it.quote}"\n` +
+            `      why:        ${it.explanation}\n` +
+            `      suggestion: ${it.suggestion}`
+        );
+      }
+    }
   } catch (err) {
     console.error(`[recipe-mode] Y-lite QA threw — marking REVIEW_REQUIRED`, err);
     yliteReviewRequired = true;
@@ -199,9 +242,15 @@ async function runRecipeStory(
   }
 
   // ─── Stage F: qualityTarget gate ───
+  // Compare ROUNDED-to-1-decimal scores. A raw 4.666 is 4.7 in practice;
+  // failing it against a 4.7 floor is a false negative. roundToOneDecimal
+  // makes the gate match how the scores are reported and read.
   const { minBookScore, minResilienceScore } = recipe.qualityTarget;
-  const bookScoreLow = bookEditorAvg > 0 && bookEditorAvg < minBookScore;
-  const resScoreLow = resilienceAvg > 0 && resilienceAvg < minResilienceScore;
+  const roundToOneDecimal = (n: number) => Math.round(n * 10) / 10;
+  const bookScoreLow =
+    bookEditorAvg > 0 && roundToOneDecimal(bookEditorAvg) < minBookScore;
+  const resScoreLow =
+    resilienceAvg > 0 && roundToOneDecimal(resilienceAvg) < minResilienceScore;
 
   let finalStatus: FinalStoryStatus = 'READY';
   let reviewReason: ReviewReason = 'none';

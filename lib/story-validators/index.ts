@@ -24,6 +24,7 @@ import { pageDepthMinimumValidator } from './validators/pageDepthMinimum';
 import { pageLengthSpikeValidator } from './validators/pageLengthSpike';
 import { pageSequenceValidator } from './validators/pageSequence';
 import { procedureMomentSpreadValidator } from './validators/procedureMomentSpread';
+import { recipeContractValidator } from './validators/recipeContract';
 import { repairRegressionValidator } from './validators/repairRegression';
 import { temporalContradictionValidator } from './validators/temporalContradiction';
 import { unicodeEscapesValidator } from './validators/unicodeEscapes';
@@ -39,6 +40,8 @@ export type {
   ValidationMode,
   StoryDirection,
   StoryPageCount,
+  RecipeContract,
+  RecipeContractPage,
 } from './types';
 
 const ALL_VALIDATORS: StoryValidator[] = [
@@ -74,6 +77,9 @@ const ALL_VALIDATORS: StoryValidator[] = [
   companionSpeechViolationValidator,
   repairRegressionValidator,
   modeComplianceValidator,
+  // v0.5a #177 — Recipe contract: forbiddenPatterns + per-page
+  // mustInclude / mustNotInclude. No-op for non-recipe stories.
+  recipeContractValidator,
 ];
 
 function summarize(findings: Finding[]): ValidationReport['summary'] {
