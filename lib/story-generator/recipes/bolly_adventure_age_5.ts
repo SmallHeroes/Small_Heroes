@@ -94,7 +94,7 @@ export const bollyAdventureAge5Recipe: ProductionRecipe = {
       dramaticRole: 'opening_state',
       requiredEvent: 'הבוקר נכנס לחדר; הילד/ה לא רוצה לקום.',
       childBodyState: 'מסתובב/ת לצד השני, מתחבא/ת מעט במיטה',
-      companionAction: 'בּוֹלִי שוכב קרוב לכרית, לוח קטן אחד פתוח, מביט/ה בילד/ה בשקט.',
+      companionAction: 'בּוֹלִי שוכב קרוב לכרית, פס שריון קטן אחד פתוח, מביט/ה בילד/ה בשקט.',
       // v0.5.0-c: foundation-beat lock. Smoke runs hit HARD GATE on p1
       // because the Author occasionally skipped Bolly entirely.
       //
@@ -138,7 +138,7 @@ export const bollyAdventureAge5Recipe: ProductionRecipe = {
       dramaticRole: 'journey_step',
       requiredEvent: 'הילד/ה והמלווה בדרך למרפאה; עצירה קצרה.',
       childBodyState: 'עומד/ת, מסתכל/ת למטה',
-      companionAction: 'בּוֹלִי נסגר לכדור שקט, הלוחות נוגעים זה בזה.',
+      companionAction: 'בּוֹלִי נסגר לכדור שקט, פסי השריון נוגעים זה בזה.',
       mustInclude: ['בּוֹלִי'],
       mustNotInclude: [
         'הציל',
@@ -154,7 +154,7 @@ export const bollyAdventureAge5Recipe: ProductionRecipe = {
       dramaticRole: 'journey_step',
       requiredEvent: 'תנועה הלאה; בּוֹלִי נפתח שוב; הולכים יחד.',
       childBodyState: 'צעד ריצה קטן, התרמיל מתנדנד',
-      companionAction: 'בּוֹלִי נפתח לאט, לוח אחר לוח, ומתגלגל לצידה בנקישה קטנה.',
+      companionAction: 'בּוֹלִי נפתח לאט, פס אחרי פס, ומתגלגל לצידה בנקישה קטנה.',
       mustInclude: ['בּוֹלִי'],
       mustNotInclude: [
         'הבהב',
@@ -172,7 +172,7 @@ export const bollyAdventureAge5Recipe: ProductionRecipe = {
       dramaticRole: 'arrival_at_setting',
       requiredEvent: 'הגעה למרפאה; רופאה עם מעיל לבן; טיפוס על כיסא הבדיקה.',
       childBodyState: 'מטפס/ת ברגליים קטנות, יושב/ת על הקצה',
-      companionAction: 'בּוֹלִי נח בכיס התרמיל ולא משמיע קול.',
+      companionAction: 'בּוֹלִי התכרבל בכיס התרמיל, חמים ושקט.',
       requiredObjectSlot: 'clinicSetting',
       mustInclude: ['בּוֹלִי', 'רופאה'],
       mustNotInclude: [
@@ -195,7 +195,7 @@ export const bollyAdventureAge5Recipe: ProductionRecipe = {
         'הילד/ה קולט/ת פרט חושי קונקרטי במרפאה שמתחיל להכין את הגוף לכיווץ הקרוב.',
       childBodyState:
         'גוף עוד שקט, אבל הכתפיים מעט מורמות; נשימה רדודה יותר; מבט נצמד לפרט אחד',
-      companionAction: 'בּוֹלִי מניע לוח קלות בתוך הכיס.',
+      companionAction: 'בּוֹלִי מניע פס שריון קלות בתוך הכיס.',
       requiredObjectSlot: 'sensoryDetail',
       mustInclude: ['בּוֹלִי'],
       mustNotInclude: [
@@ -314,10 +314,10 @@ export const bollyAdventureAge5Recipe: ProductionRecipe = {
     {
       page: 12,
       dramaticRole: 'residue_appears',
-      requiredEvent: 'הרופאה מדביקה מדבקה; בּוֹלִי פותח לוחית אחת.',
+      requiredEvent: 'הרופאה מדביקה מדבקה; בּוֹלִי פותח פס שריון אחד.',
       childBodyState: 'מסתכל/ת על המדבקה ביד, ראש מעט מורם',
       companionAction:
-        'בּוֹלִי פותח לוחית אחת ומציץ. נשמע טוּמְפּ רך.',
+        'בּוֹלִי פותח פס שריון אחד ומציץ. נשמע טוּמְפּ רך.',
       requiredObjectSlot: 'stickerType',
       mustInclude: ['בּוֹלִי', 'מדבקה'],
       mustNotInclude: [
@@ -338,7 +338,7 @@ export const bollyAdventureAge5Recipe: ProductionRecipe = {
       dramaticRole: 'cooldown_journey',
       requiredEvent: 'יוצאים מהמרפאה; הולכים הביתה; המדבקה על היד.',
       childBodyState: 'הולך/ת לאט, מסתכל/ת על המדבקה',
-      companionAction: 'בּוֹלִי נח בכיס התרמיל ולא זז.',
+      companionAction: 'בּוֹלִי התכרבל בכיס התרמיל, רגוע ושקט.',
       // explicit fix for Gold Candidate p13 polish note (armadillo on shoulder
       // is physically wrong — Bolly stays in the bag).
       requiredObjectSlot: 'weatherOutside',
@@ -521,7 +521,7 @@ export const bollyAdventureAge5Recipe: ProductionRecipe = {
   },
 
   meta: {
-    version: '0.5.0-f',
+    version: '0.5.0-g',
     derivedFrom: 'gold-candidates/bolly_adventure_v0.4.7.md',
     authoredAt: '2026-05-22',
     authoredBy: 'CTO + ChatGPT consult',
@@ -541,6 +541,7 @@ export const bollyAdventureAge5Recipe: ProductionRecipe = {
       'v0.5.0-d: p1 requiredExactLine naturalized + 7 adult-poetic patterns added to forbiddenPatterns.',
       'v0.5.0-e: SPARK BEAT on p14 — single small physical delight (Bolly half-rolls, sticker almost sticks to his shell, child smiles). Targets the systematic childWouldAskAgain weakness (Y-lite Book Editor scored it 4 — arc true but flat). Resilience core p8-12 untouched. p14 caps bumped to 4 sentences / 34 words for the extra beat.',
       'v0.5.0-f: p1 companionAction "פתוח חלקית" → "לוח קטן אחד פתוח" — the old phrasing was mechanical and leaked into prose as broken_hebrew (Y-lite MAJOR). Added "פתוח חלקית" to forbiddenPatterns as a backstop.',
+      'v0.5.0-g (Phase A — Storybook Standard vocab cleanup): Bolly\'s shell word "לוח/לוחית" — a child hears "board/tablet", a technical word — replaced with "פס שריון" / "פסי השריון" in every companionAction. Companion-as-object phrasing "בּוֹלִי נח בכיס" (treats him as cargo) replaced with the living "בּוֹלִי התכרבל בכיס". The recipe was feeding the Author unclear and lifeless words; fixed at the source. See STORYBOOK_STANDARD.md.',
     ],
   },
 };

@@ -74,7 +74,7 @@ export const bollyBedtimeAge5Recipe: ProductionRecipe = {
       requiredEvent:
         'ערב; הילד/ה בחדר לפני השינה; המדחום הקטן נמצא על המדף; מחר יש בדיקה.',
       childBodyState: 'בחדר לפני השינה, מבט נינוח אך ער',
-      companionAction: 'בּוֹלִי שוכב קרוב לכרית, לוח קטן אחד פתוח.',
+      companionAction: 'בּוֹלִי שוכב קרוב לכרית, פס שריון קטן אחד פתוח.',
       // Foundation-beat lock — guarantees companion presence on page 1.
       requiredExactLine: 'בּוֹלִי שכב ליד הכרית. טוּמְפּ קטן נשמע.',
       requiredObjectSlot: 'bedroomLight',
@@ -189,9 +189,9 @@ export const bollyBedtimeAge5Recipe: ProductionRecipe = {
       page: 7,
       dramaticRole: 'companion_contact',
       requiredEvent:
-        'מגע קטן בבּוֹלִי — לא חיבוק גדול, לא על הכתף. לוח קטן נפתח, ובפנים חם.',
+        'מגע קטן בבּוֹלִי — לא חיבוק גדול, לא על הכתף. פס שריון קטן נפתח, ובפנים חם.',
       childBodyState: 'יד מושטת, אצבע נוגעת בבּוֹלִי בעדינות',
-      companionAction: 'בּוֹלִי קרוב; לוח קטן נפתח; בפנים חם.',
+      companionAction: 'בּוֹלִי קרוב; פס שריון קטן נפתח; בפנים חם.',
       mustInclude: ['בּוֹלִי'],
       mustNotInclude: [
         'חיבוק',         // not a big hug — a small contact
@@ -367,7 +367,7 @@ export const bollyBedtimeAge5Recipe: ProductionRecipe = {
   },
 
   meta: {
-    version: '0.5.0-b',
+    version: '0.5.0-c',
     derivedFrom: 'authored fresh — bedtime anticipation pattern (no Gold to reverse-engineer)',
     authoredAt: '2026-05-22',
     authoredBy: 'CTO + ChatGPT consult',
@@ -380,6 +380,7 @@ export const bollyBedtimeAge5Recipe: ProductionRecipe = {
       'pages 4-7 tagged critical=true — the anticipation resilience core.',
       'forbiddenPatterns includes anticipation-frame breakers (no procedure, no doctor, no sticker) and time-frame breakers (story ends at sleep, not morning).',
       'v0.5.0-b: removed "חייך" from p9 mustInclude — it is a gender-inflected verb and forcing the literal token produced "נועה חייך" (wrong gender for a girl). RULE: mustInclude holds only gender-neutral anchors.',
+      'v0.5.0-c (Phase A — Storybook Standard vocab cleanup): Bolly\'s shell word "לוח" — a child hears "board", a technical word — replaced with "פס שריון" in every companionAction. See STORYBOOK_STANDARD.md.',
     ],
   },
 };

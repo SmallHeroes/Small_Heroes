@@ -275,7 +275,7 @@ const CONTEXTUAL_INJECT_LINES: Record<string, Record<InjectContext, string>> = {
   bolly_armadillo: {
     'entrance': 'בּוֹלִי התגלגל אל קצה השמיכה. טוּמְפּ.',
     'fear-object': 'בּוֹלִי נסגר לכדור קטן ליד הרגל שלה. טוּמְפּ.',
-    'after-mirror': 'בּוֹלִי פתח לוחית אחת והציץ.',
+    'after-mirror': 'בּוֹלִי פתח פס שריון אחד והציץ.',
     'support-quiet': 'בּוֹלִי נשאר סגור לידה, קטן וחם.',
   },
   bat_lily: {

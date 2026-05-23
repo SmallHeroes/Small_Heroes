@@ -86,9 +86,24 @@ export interface PageCard {
    * "comforts", "supports", "is there for her". Hebrew.
    * Examples:
    *   - "בּוֹלִי נסגר לכדור בתוך כיס התרמיל. טוּמְפּ."
-   *   - "בּוֹלִי פותח לוחית אחת ומציץ."
+   *   - "בּוֹלִי פותח פס שריון אחד ומציץ."
    */
   companionAction: string;
+
+  /**
+   * v0.5 Phase B — the EMOTIONAL HEART of the page: what must be FELT, or
+   * what must CHANGE, between the child and the companion here. This is
+   * what the page is ABOUT. requiredEvent / childBodyState / companionAction
+   * say what HAPPENS; relationshipBeat says what it MEANS.
+   *
+   * A directive for the Author (like the other card fields), NOT prose for
+   * the book. Hebrew, concrete about the emotional exchange, never a moral.
+   * Optional: pages without it still get the narrative-voice rules, but a
+   * page WITH it must land the child<->companion exchange.
+   *
+   * See STORYBOOK_STANDARD.md.
+   */
+  relationshipBeat?: string;
 
   /**
    * The fear-object or focal object on this page, if any.
@@ -163,6 +178,12 @@ export interface RecipeVariationSlots {
   // Fantasy-specific — the concrete, comforting, body-anchored image the
   // child pictures the companion's closed ball as. NEVER magic.
   imaginativeImage?: string[];
+
+  // Fantasy-specific — the inanimate, concrete object the thermometer's
+  // silver tip is likened to on the p10 imaginative-reframe beat. Closed
+  // set, inanimate only, so the calming simile can never become a living
+  // creature that steals focus from the real thermometer.
+  calmSimile?: string[];
 }
 
 /**

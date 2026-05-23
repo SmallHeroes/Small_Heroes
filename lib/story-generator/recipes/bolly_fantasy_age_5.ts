@@ -86,6 +86,12 @@ export const bollyFantasyAge5Recipe: ProductionRecipe = {
       'גבעה קטנה של שמיכה',
       'קפל שמיכה חמים',
     ],
+    // v0.5.0-f: the calming simile for the thermometer's silver tip on the
+    // p10 imaginative-reframe beat. CLOSED set, inanimate objects only — a
+    // drop, a stone, a button. Replaces Author improvisation, which once
+    // produced the nonstandard word "דגיק". The thermometer stays a
+    // thermometer; the simile only makes it look calmer, never alive.
+    calmSimile: ['טיפת מים', 'אבן חלקה', 'כפתור קטן'],
   },
 
   // ─────────────────────────────────────────────────────────────────────
@@ -98,7 +104,7 @@ export const bollyFantasyAge5Recipe: ProductionRecipe = {
       dramaticRole: 'opening_state',
       requiredEvent: 'הבוקר נכנס לחדר; הילד/ה לא רוצה לקום; היום יש בדיקה.',
       childBodyState: 'מסתובב/ת לצד השני, מתחבא/ת מעט במיטה',
-      companionAction: 'בּוֹלִי שוכב קרוב לכרית, לוח קטן אחד פתוח, מביט/ה בשקט.',
+      companionAction: 'בּוֹלִי שוכב קרוב לכרית, פס שריון קטן אחד פתוח, מביט/ה בשקט.',
       requiredExactLine: 'בּוֹלִי שכב ליד הכרית. טוּמְפּ קטן נשמע.',
       mustInclude: ['בּוֹלִי'],
       mustNotInclude: ['קסם', 'הציל', 'אל תפחד'],
@@ -113,6 +119,8 @@ export const bollyFantasyAge5Recipe: ProductionRecipe = {
       requiredEvent: 'הילד/ה מתארגן/ת; בּוֹלִי מתגלגל אל התרמיל.',
       childBodyState: 'מתכופף/ת לחפש דבר, ידיים עסוקות',
       companionAction: 'בּוֹלִי מתגלגל החוצה ונעצר ליד התרמיל. נשמע טוּמְפּ קטן.',
+      relationshipBeat:
+        'הילד/ה מתעורר/ת לבוקר של בדיקה, והגוף עוד כבד. בּוֹלִי עונה — מתגלגל החוצה ומשמיע טוּמְפּ קטן. הילד/ה מבחין/ה בו, ומשהו בפנים נעשה קליל יותר.',
       requiredObjectSlot: 'waitingObject',
       mustInclude: ['בּוֹלִי', 'טוּמְפּ'],
       mustNotInclude: ['קסם', 'הבהב'],
@@ -141,15 +149,25 @@ export const bollyFantasyAge5Recipe: ProductionRecipe = {
     {
       page: 4,
       dramaticRole: 'journey_step',
+      // v0.5.0-f: was a redundant second "walk + look at real things" beat —
+      // p3 already does the perceptual reframe. The old card crammed walk +
+      // look + a compound companionAction ("נפתח לאט, לוח אחר לוח, ומתגלגל")
+      // into one page; the Book Editor flagged p4 for density in EVERY smoke
+      // run. Reduced to a LIGHT connective breather: one movement, one
+      // companion action, maxSentences capped at 2. This also cleans Bolly's
+      // arc — he no longer "opens plate by plate" on the walk TO the clinic
+      // (opening is the post-procedure gesture, p16).
       requiredEvent:
-        'ממשיכים ללכת; הילד/ה ממשיך/ה להביט בדברים אמיתיים בדרך בעין רכה — הדרך נשארת דרך אמיתית.',
-      childBodyState: 'צעד קל, מבט שקט שעובר על מה שיש בדרך',
-      companionAction: 'בּוֹלִי נפתח לאט, לוח אחר לוח, ומתגלגל לצידה.',
+        'ממשיכים ללכת עוד קצת; הדרך נשארת דרך רגילה ושקטה.',
+      childBodyState: 'צעד קל ורגוע, הגוף עוד נינוח',
+      companionAction: 'בּוֹלִי מתגלגל לידה בטוּמְפּ רך.',
+      relationshipBeat:
+        'הילד/ה ממשיך/ה ללכת בדרך. בּוֹלִי מתאים את הקצב שלו לקצב של הילד/ה ונשאר ממש לצידו/ה. הילד/ה מרגיש/ה שלא הולכים לבד.',
       mustInclude: ['בּוֹלִי'],
       mustNotInclude: ['קסם', 'נמוג', 'בתוך הראש', 'ציור מתחלף'],
-      targetWords: 22,
-      maxWords: 30,
-      maxSentences: 3,
+      targetWords: 18,
+      maxWords: 26,
+      maxSentences: 2,
       imageIntent: 'moving shot on sidewalk, child and Bolly walking together',
     },
     {
@@ -158,7 +176,7 @@ export const bollyFantasyAge5Recipe: ProductionRecipe = {
       requiredEvent:
         'מגיעים למרפאה; הרופאה במעיל לבן; הילד/ה מדמיין/ת את החדר כמקום שקט ובטוח — אבל זו עדיין המרפאה.',
       childBodyState: 'נכנס/ת, מטפס/ת על כיסא הבדיקה ברגליים קטנות',
-      companionAction: 'בּוֹלִי נח בכיס התרמיל ולא משמיע קול.',
+      companionAction: 'בּוֹלִי התכרבל בכיס התרמיל, חמים ושקט.',
       requiredObjectSlot: 'clinicSetting',
       mustInclude: ['בּוֹלִי', 'רופאה'],
       mustNotInclude: ['הסבירה', 'עולם קסום', 'קסם'],
@@ -175,7 +193,7 @@ export const bollyFantasyAge5Recipe: ProductionRecipe = {
       requiredEvent:
         'הילד/ה קולט/ת פרט חושי קונקרטי במרפאה; הגוף מתחיל בשקט להתכונן.',
       childBodyState: 'גוף עוד שקט, כתפיים מעט מורמות, נשימה רדודה יותר',
-      companionAction: 'בּוֹלִי מניע לוח קלות בתוך הכיס.',
+      companionAction: 'בּוֹלִי מניע פס שריון קלות בתוך הכיס.',
       requiredObjectSlot: 'sensoryDetail',
       mustInclude: ['בּוֹלִי'],
       mustNotInclude: ['לב התמלא', 'שקט שרר', 'קסם'],
@@ -189,7 +207,7 @@ export const bollyFantasyAge5Recipe: ProductionRecipe = {
       dramaticRole: 'environment_sensing',
       requiredEvent: 'הילד/ה מחכה בחדר; בּוֹלִי קרוב בכיס.',
       childBodyState: 'יושב/ת על קצה הכיסא, ידיים בחיק',
-      companionAction: 'בּוֹלִי שקט בכיס, לוח קטן זז קלות.',
+      companionAction: 'בּוֹלִי שקט בכיס, פס שריון קטן זז קלות.',
       mustInclude: ['בּוֹלִי'],
       mustNotInclude: ['קסם'],
       targetWords: 22,
@@ -244,11 +262,18 @@ export const bollyFantasyAge5Recipe: ProductionRecipe = {
       // thermometer and notices it can look like a small, calm, concrete
       // thing — a perception, not an internal picture. The thermometer
       // stays a thermometer: it does not change, vanish, or get "wrapped".
+      // v0.5.0-f: the calming simile is now the CLOSED calmSimile slot.
+      // The Author previously improvised it every run and once produced the
+      // nonstandard word "דגיק". The slot holds only inanimate, concrete
+      // objects (water drop / smooth stone / small button) so the simile
+      // can never become a living, breathing creature.
       requiredEvent:
-        'הילד/ה מביט/ה במדחום ורואה שהוא יכול להיראות כמו דבר קטן ורגוע — אבל הוא נשאר מדחום.',
+        'הילד/ה מביט/ה במדחום ורואה שהקצה הכסוף שלו דומה לדבר קטן ורגוע — אבל הוא נשאר מדחום אמיתי.',
       childBodyState: 'מבט על המדחום; הילד/ה רואה אותו בעין רכה יותר, הגוף עוד ער',
       companionAction: 'בּוֹלִי נע קלות בכיס ליד הילד/ה.',
-      requiredObjectSlot: 'medicalObject',
+      relationshipBeat:
+        'הילד/ה מביט/ה במדחום והגוף עוד דרוך. בּוֹלִי עונה בתנועה קטנה בכיס, ממש ליד הגוף של הילד/ה. המבט של הילד/ה מתרכך קצת.',
+      requiredObjectSlot: 'calmSimile',
       mustInclude: ['מדחום', 'בּוֹלִי'],
       mustNotInclude: [
         'קסם',
@@ -298,6 +323,8 @@ export const bollyFantasyAge5Recipe: ProductionRecipe = {
       childBodyState: 'מרגיש/ה את ההתגלגלות בכיס; מבט רך על הכדור',
       companionAction:
         'בּוֹלִי מתגלגל ונסגר לכדור חם ושקט. נשמע טוּמְפּ.',
+      relationshipBeat:
+        'הילד/ה נבהל/ת והגוף מתכווץ. בּוֹלִי עונה בלי מילים — נסגר לכדור חם, טוּמְפּ. הילד/ה מניח/ה עליו יד ומרגיש/ה את הגוף שלו עונה לגוף שלה.',
       requiredObjectSlot: 'imaginativeImage',
       mustInclude: ['בּוֹלִי', 'טוּמְפּ', 'כדור'],
       mustNotInclude: ['קסם', 'הציל', 'הגן עליה', 'בתוך הראש', 'תמונה בראש'],
@@ -311,10 +338,13 @@ export const bollyFantasyAge5Recipe: ProductionRecipe = {
       page: 13,
       dramaticRole: 'child_mirrors',
       requiredEvent:
-        'הילד/ה מבצע/ת את המנגנון בגוף — אגרוף ואז פתיחה אצבע אחר אצבע — עם התמונה הדמיונית בראש.',
+        'הילד/ה מבצע/ת את המנגנון בגוף — אגרוף ואז פתיחה אצבע אחר אצבע — בדיוק כמו שבּוֹלִי נסגר ואז נפתח.',
       childBodyState:
         'יד נסגרת לאגרוף קטן ומחזיקה רגע, ואז נפתחת לאט, אצבע אחר אצבע',
-      companionAction: 'בּוֹלִי לא מופיע במפורש (הילד/ה הוא/היא המראָה).',
+      companionAction:
+        'בּוֹלִי הוא כדור קטן וחם בכיס; הוא אינו מבצע פעולה חדשה — הילד/ה מחקה את ההיסגרות והפתיחה שלו.',
+      relationshipBeat:
+        'לב הסיפור. הילד/ה מרגיש/ה את בּוֹלִי הסגור בכיס, וגם הילד/ה עושה כמוהו — אוסף/ת את היד לאגרוף ואז פותח/ת לאט. שניהם עושים את זה יחד; כשהיד נפתחת, משהו בגוף משתחרר.',
       mustInclude: ['יד', 'אצבע'],
       mustNotInclude: ['בּוֹלִי אמר', 'נזכרה ש', 'קסם'],
       targetWords: 24,
@@ -341,9 +371,9 @@ export const bollyFantasyAge5Recipe: ProductionRecipe = {
     {
       page: 15,
       dramaticRole: 'residue_appears',
-      requiredEvent: 'הרופאה מדביקה מדבקה; בּוֹלִי פותח לוחית אחת ומציץ.',
+      requiredEvent: 'הרופאה מדביקה מדבקה; בּוֹלִי פותח פס שריון אחד ומציץ.',
       childBodyState: 'מסתכל/ת על המדבקה ביד, ראש מעט מורם',
-      companionAction: 'בּוֹלִי פותח לוחית אחת ומציץ. נשמע טוּמְפּ רך.',
+      companionAction: 'בּוֹלִי פותח פס שריון אחד ומציץ. נשמע טוּמְפּ רך.',
       requiredObjectSlot: 'stickerType',
       mustInclude: ['בּוֹלִי', 'מדבקה'],
       mustNotInclude: ['לוח ורוד זרח', 'זרח ממנו', 'קסם'],
@@ -358,7 +388,7 @@ export const bollyFantasyAge5Recipe: ProductionRecipe = {
       requiredEvent:
         'בּוֹלִי נפתח לגמרי; הילד/ה רגוע/ה יותר, התמונה הדמיונית מתרככת.',
       childBodyState: 'כתפיים יורדות לאט, נשימה איטית יותר',
-      companionAction: 'בּוֹלִי נפתח לאט, לוח אחר לוח.',
+      companionAction: 'בּוֹלִי נפתח לאט, פס אחרי פס.',
       mustInclude: ['בּוֹלִי'],
       mustNotInclude: ['קסם', 'גאה בעצמה'],
       targetWords: 22,
@@ -373,7 +403,7 @@ export const bollyFantasyAge5Recipe: ProductionRecipe = {
       dramaticRole: 'cooldown_journey',
       requiredEvent: 'יוצאים מהמרפאה; הולכים הביתה; המדבקה על היד.',
       childBodyState: 'הולך/ת לאט, מסתכל/ת על המדבקה',
-      companionAction: 'בּוֹלִי נח בכיס התרמיל ולא זז.',
+      companionAction: 'בּוֹלִי התכרבל בכיס התרמיל, רגוע ושקט.',
       requiredObjectSlot: 'weatherOutside',
       mustInclude: ['בּוֹלִי'],
       mustNotInclude: [
@@ -417,6 +447,8 @@ export const bollyFantasyAge5Recipe: ProductionRecipe = {
         'יד מורמת, אצבע נוגעת בקצה המדבקה; חיוך קטן ושקט אחרי תנועת בּוֹלִי',
       companionAction:
         'בּוֹלִי מתגלגל חצי סיבוב לידה, והמדבקה כמעט נדבקת לשריון שלו.',
+      relationshipBeat:
+        'הילד/ה בודק/ת את המדבקה. בּוֹלִי עונה בתנועה משחקית — מתגלגל חצי סיבוב — והמדבקה כמעט נדבקת לשריון שלו. הילד/ה מחייך/ת חיוך קטן, והקשר ביניהם עכשיו קל.',
       requiredObjectSlot: 'homeRoomDetail',
       mustInclude: ['בּוֹלִי', 'מדבקה'],
       mustNotInclude: [
@@ -565,7 +597,7 @@ export const bollyFantasyAge5Recipe: ProductionRecipe = {
   },
 
   meta: {
-    version: '0.5.0-e',
+    version: '0.5.1-pilot-b',
     derivedFrom: 'authored fresh — fantasy "guided imagery resilience" pattern',
     authoredAt: '2026-05-22',
     authoredBy: 'CTO + ChatGPT consult',
@@ -581,6 +613,10 @@ export const bollyFantasyAge5Recipe: ProductionRecipe = {
       'v0.5.0-c: anti-abstraction guards. First smoke had the Author write "הרגע קופא קצר ונמוג בנשימה קצרה" on p11 — adult/poetic, non-physical. recipeContract correctly BLOCKED "נמוג". Kept "נמוג" (no legitimate child-Hebrew use — unlike the "הכר " typo-guard) and added "תפוגג" / "הרגע קופא" / "הרגע קפא". Fantasy must stay body-mechanics, never atmosphere.',
       'v0.5.0-d: ROOT FIX for the abstraction drift. Smoke on דניאל scored book=4.17 — the Author built INTERNAL metaphors ("קן רך וקטן בתוך הראש", "ציור מתחלף", "עטוף בפינה שקטה"). Root cause was the recipe ITSELF: requiredEvent fields said "לדמיין תמונה" / "מקום נעים בראש". Reframed the whole fantasy as PERCEPTION, not internal imagining — the child LOOKS AT a real object and SEES it can look cozy. Rewrote p3/p4/p8/p10/p12 to "מביט/ה ב<real thing> ורואה ש...". imaginativeImage values changed from abstract ("קן רך וקטן") to physical scene objects ("כרית קטנה ורכה", "גבעה קטנה של שמיכה"). Added anti-internal-metaphor guards (בתוך הראש / תמונה בראש / ציור מתחלף ...).',
       'v0.5.0-e: removed two book-class variation hazards. waitingObject held "מדף נמוך עם ספרים" and homeRoomDetail held "הספר הפתוח על הרצפה" — both feed book objects to the Author. On דניאל the Author turned "shelf with books" into "מחברת" on p2, a Bolly-forbidden object; the forbiddenObjects validator BLOCKED it correctly. Root cause was the recipe feeding a taboo input, not the validator. No new guards added — "מחברת" is already caught by forbiddenObjects, and bare "ספר" would false-positive on מספר / לספר. The unrelated foreignChars "resting" leak on p10 (English code-switch) is NOT fixable by recipe edits — it needs #172 page-level reroll.',
+      'v0.5.0-f: two recurring defects fixed after the 3/3-READY smoke. (1) p4 was a redundant second journey_step — p3 already does walk + perceptual-reframe — and carried a compound companionAction; the Book Editor flagged p4 for density in EVERY run. p4 is now a light connective breather: one movement, one companion action, maxSentences 2. This also cleans Bolly\'s arc — he no longer "opens plate by plate" on the walk TO the clinic (opening is the post-procedure gesture, p16). (2) p10\'s calming simile was Author-improvised every run and once produced the nonstandard word "דגיק"; it is now the closed calmSimile slot (טיפת מים / אבן חלקה / כפתור קטן) — inanimate objects only, so the simile can never become a living creature.',
+      'v0.5.0-g (Phase A — Storybook Standard vocab cleanup): Bolly\'s shell word "לוח/לוחית" — a child hears "board/tablet", a technical word — replaced with "פס שריון" / "פס אחרי פס" in every companionAction. Companion-as-object phrasing "בּוֹלִי נח בכיס" (treats him as cargo) replaced with the living "בּוֹלִי התכרבל בכיס". See STORYBOOK_STANDARD.md.',
+      'v0.5.1-pilot (Phase B — relationship-driven authoring, PILOT): added the relationshipBeat field (the emotional heart of a page) to 6 critical pages — p2, p4, p10, p12, p13, p19. p13 fixed on two counts: requiredEvent no longer says "התמונה הדמיונית בראש" (an internal-metaphor leftover from before the v0.5.0-d perception reframe), and companionAction no longer tells the Author to hide Bolly — that instruction made the emotional-heart page read as a cold hand-exercise. Bolly is now present as the model the child mirrors. recipe-draft-prompt.ts rewritten to the Storybook Standard (write a moment, not a report). PILOT: only 6 pages carry relationshipBeat; full 20 follows a successful manual read. See STORYBOOK_STANDARD.md.',
+      'v0.5.1-pilot-b (Phase B.2 — cause-response calibration): the B.1 run killed the poetic drift but over-flattened — p2/p13 lost the relational warmth the pilot had, and prose stayed parallel ("child does X, Bolly does Y"). Fix: the 6 relationshipBeat fields are rewritten as explicit feel->answer->shift loops (child feels -> Bolly answers in body -> something in the child shifts). Author prompt gained a PAGE LOOP section + an explicit rule that simple relational language is REQUIRED and not poetic, plus a rule against possessive name overuse. Still PILOT — 6 pages.',
     ],
   },
 };
