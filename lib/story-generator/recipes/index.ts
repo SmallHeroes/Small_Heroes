@@ -30,6 +30,7 @@ import type {
 } from './recipe-types';
 import { bollyAdventureAge5Recipe } from './bolly_adventure_age_5';
 import { bollyBedtimeAge5Recipe } from './bolly_bedtime_age_5';
+import { bollyFantasyAge5Recipe } from './bolly_fantasy_age_5';
 import type {
   BeatMapEntry,
   GenerateInput,
@@ -47,6 +48,7 @@ import type { RecipeContract } from '@/lib/story-validators';
 const REGISTRY: ProductionRecipe[] = [
   bollyAdventureAge5Recipe,
   bollyBedtimeAge5Recipe,
+  bollyFantasyAge5Recipe,
 ];
 
 export interface RecipeLookupKey {
@@ -249,6 +251,8 @@ function buildPacingMap(cards: PageCard[]): VisualPacingMap {
       case 'object_revisited_safely':
       case 'quiet_spark_settling':
       case 'sleep_with_residue':
+      // fantasy quiet role
+      case 'imaginative_reframe':
         quiet.push(card.page);
         break;
       case 'child_body_resists':

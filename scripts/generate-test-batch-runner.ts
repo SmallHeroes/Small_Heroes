@@ -1,5 +1,14 @@
+import { config as loadEnv } from 'dotenv';
 import { generateStory as runPipeline } from '../lib/story-generator';
 import { MVP_MATRIX as MATRIX } from '../lib/story-generator/data/mvp-matrix';
+
+// Load environment from .env.local (wins) then .env — so OPENAI_API_KEY and
+// other secrets are available without re-setting them per shell session.
+// dotenv never overrides an already-set var, so .env.local is loaded first.
+// The LLM key is read at call-time (not import-time), so loading here — after
+// the hoisted imports, before main() runs — is in time.
+loadEnv({ path: '.env.local' });
+loadEnv({ path: '.env' });
 
 interface ResultRow {
   key: string;

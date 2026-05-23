@@ -57,7 +57,12 @@ export type DramaticRole =
   | 'object_revisited_safely'   // the worry object is still there, but the child
                                 //   can now look at it without the body recoiling
   | 'quiet_spark_settling'      // a soft, small spark of warmth as the body softens
-  | 'sleep_with_residue';       // sleep — the worry object still present but smaller
+  | 'sleep_with_residue'        // sleep — the worry object still present but smaller
+  // ── Fantasy / guided-imagery role (added for bolly_fantasy_age_5) ──
+  | 'imaginative_reframe';      // child uses IMAGINATION as a coping tool on a
+                                //   real thing — a short concrete mental picture,
+                                //   anchored to body + companion, never a magic
+                                //   world and never replacing the real object
 
 /**
  * Concrete page-level contract. Author writes prose to satisfy this card.
@@ -154,6 +159,10 @@ export interface RecipeVariationSlots {
   worryObject?: string[];
   bedroomLight?: string[];
   comfortObject?: string[];
+
+  // Fantasy-specific — the concrete, comforting, body-anchored image the
+  // child pictures the companion's closed ball as. NEVER magic.
+  imaginativeImage?: string[];
 }
 
 /**
