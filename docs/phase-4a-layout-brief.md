@@ -304,3 +304,106 @@ Pilot on `chameleon_koko_bedtime` (top-scored story, 10 interior pages):
 - Video generation (Phase 5)
 - Direction-preview cards (already done)
 - Cover special-case styling (basic only here; refinement later)
+
+---
+
+## Cursor Implementation Notes — CTO review (2026-05-24)
+
+These notes **supersede** any conflicting CSS/TSX in the brief above. Apply
+them before implementing Tasks 3-7.
+
+### 1. The desktop crop is NOT accurate as written — use an explicit crop window
+
+`.imagePage img { object-fit: cover; object-position: center top }` does **not**
+crop exactly 25%. `object-fit: cover` crops to the *container's* aspect ratio —
+and `.spreadPage` is `flex: 1` inside a `height: 100vh` spread, so its aspect
+is viewport-dependent. The cropped band ends up "roughly the bottom-ish part",
+not a deterministic 75%. (Line 106 of the brief already admits this with a TODO.)
+
+**Fix — an explicit fixed-aspect crop window.** The image is 1024×1536 (2:3).
+Keeping 75% of the height -> 1024×1152 -> aspect **8:9**. Put the full image
+inside an 8:9 window at 133.333% height, positioned top or bottom:
+
+```css
+.imageCropWindow {
+  aspect-ratio: 8 / 9;     /* 1024 / 1152 — the kept 75% */
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+.imageCropWindow img {
+  width: 100%;
+  height: 133.333%;        /* 100 / 75 — the full image is 4/3 of the window */
+  object-fit: cover;
+  position: absolute;
+  left: 0;
+}
+[data-text-zone='bottom_clear'] .imageCropWindow img { top: 0; }     /* crop bottom band */
+[data-text-zone='top_clear']    .imageCropWindow img { bottom: 0; }  /* crop top band */
+```
+
+**Math (verified):** window 8:9; img box = 100% width × 133.333% height -> 2:3,
+exactly the image's native ratio, so no distortion; the window reveals exactly
+75% of the image. `top:0` shows the top 75% (bottom textZone cropped);
+`bottom:0` shows the bottom 75%.
+
+**One tension to resolve:** the brief's `.spread { height: 100vh }` fights a
+fixed-aspect window. Either let the spread height be content-driven
+(`max-height: 100vh`, the 8:9 window sets the size) or letterbox the 8:9 window
+inside the flex page. Do NOT keep `object-fit: cover` on a viewport-stretched
+container — that is the bug.
+
+### 2. Mobile is an immersive crop, not "full image" — fix the wording
+
+The mobile CSS (`object-fit: cover; object-position: center center`) with the
+comment `/* show full image */` is misleading. On a 375×812 phone, `cover`
+crops the sides of a 2:3 image. **Decision: keep `cover`** — immersive
+full-bleed is right for mobile/video — but correct the comment and the
+Acceptance Criteria to read: mobile shows an **immersive cover crop**, not a
+guaranteed uncropped portrait. (A truly uncropped image would be
+`object-fit: contain` with a solid/blurred letterbox — less immersive; not
+chosen.)
+
+### 3. RTL — `text-align: right` is not enough
+
+Every Hebrew text element needs `dir="rtl"` and `lang="he"`, not only
+`text-align: right`. `dir` governs punctuation placement, mixed
+Hebrew/Latin/number runs, and quote/parenthesis direction. Add to `.bodyText`
+(desktop text page), `.overlayText` (mobile overlay) and `.coverTitle`. In TSX:
+`<p dir="rtl" lang="he" className={styles.bodyText}>`.
+
+### 4. Special pages are not all "image-only"
+
+Task 6 collapses Cover / Letter / Closing / Dedication into one full-image,
+no-text branch. That is wrong — and the code is inconsistent with its own
+heading (the `if` omits `dedication`). Treat them separately:
+
+- **Cover** — full image + title overlay. (As written.)
+- **Letter** — has real text (the letter to the child). NOT image-only. Render
+  as a designed text page, or text over a soft background.
+- **Dedication** — has text. NOT image-only. Designed text page.
+- **Closing** — decide per design; if it carries a closing line, it has text.
+
+Only Cover is safely image-dominant. Letter and Dedication must keep their text.
+
+### 5. PDF export — confirm it uses the same crop path
+
+Acceptance says "PDF export = same as desktop spread" but not how.
+- If the PDF renderer is **Puppeteer / Playwright** (renders the live page),
+  the crop-window CSS carries over for free — confirm it does.
+- If the PDF is built by **canvas / image composition**, it will NOT inherit
+  the CSS crop — it needs its own 75% crop using the same 1024×1152 /
+  top-or-bottom logic.
+
+Add a PDF-specific acceptance check: a screenshot diff (or manual side-by-side)
+of one spread vs. its PDF page, confirming the crop band matches.
+
+### Acceptance Criteria — additions
+
+- [ ] Desktop image page uses the explicit 8:9 crop window; verified in
+      DevTools that exactly the textZone 25% is cropped — not "roughly".
+- [ ] Every Hebrew text element has `dir="rtl"` + `lang="he"`.
+- [ ] Letter and Dedication pages render their text — not image-only.
+- [ ] PDF crop verified against the desktop spread (screenshot diff or manual).
+- [ ] `page.textZone` is populated by the storyboard; the `?? 'bottom_clear'`
+      fallback logs a warning so silent defaults are visible.
