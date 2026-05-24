@@ -114,25 +114,70 @@ export async function runStructuredDraft(
     enforceRequiredExactLines(parsed, recipeContext.recipe);
   }
 
-  // If parse failed OR blueprint validation failed, retry ONCE with diagnostics.
+  // If parse failed OR blueprint validation failed, retry with diagnostics.
   let blueprintFindings = parsed
     ? validateDraftAgainstBlueprint(parsed.pages, blueprint, input.companionId)
     : [];
 
-  if (!parsed || blueprintFindings.length > 0) {
+  // v0.5.5e — SPLICE-SAFE RETRY. Up to MAX_RETRY_ROUNDS rounds. Each round
+  // re-attempts ONLY the pages that currently fail; every other page is kept
+  // byte-identical from the last good draft. The Author still returns a full
+  // story, but the code splices in only the change-list pages — so a retry
+  // can NEVER turn a page that passed into a new blocker. (Earlier,
+  // full-story retries silently drifted unrelated pages.)
+  const MAX_RETRY_ROUNDS = 2;
+  for (
+    let round = 1;
+    (!parsed || blueprintFindings.length > 0) && round <= MAX_RETRY_ROUNDS;
+    round++
+  ) {
+    const baseDraft = parsed;
+    // Splice only when there is a base draft AND the page count is right.
+    // A page-mismatch means the whole story is wrong — take the retry whole.
+    const spliceable =
+      baseDraft != null &&
+      !blueprintFindings.some((f) => f.rule === 'page-mismatch');
+    const changeList = new Set(blueprintFindings.map((f) => f.page));
+
     const retryReason = buildRetryMessage({
-      parsed,
+      parsed: baseDraft,
       blueprintFindings,
       expectedPageCount: blueprint.length,
     });
-
-    console.warn(`[structured-draft] First attempt issues:\n${retryReason}`);
+    console.warn(
+      `[structured-draft] Retry round ${round}/${MAX_RETRY_ROUNDS} — issues:\n${retryReason}`
+    );
     const retry = await callOnce(retryReason);
     totalCost += retry.costUsd;
     modelVersion = retry.modelVersion;
-    parsed = tryParse(retry.text);
+    const retryParsed = tryParse(retry.text);
 
-    // Re-enforce requiredExactLine on the retry output as well.
+    if (retryParsed && spliceable && baseDraft) {
+      // Keep every page from the base draft EXCEPT the change-list pages,
+      // which come from the retry. Cross-page drift becomes impossible.
+      const merged: StructuredDraftOutput = {
+        frontmatter: baseDraft.frontmatter,
+        pages: baseDraft.pages.map((basePage) =>
+          changeList.has(basePage.page)
+            ? (retryParsed.pages.find((p) => p.page === basePage.page) ??
+               basePage)
+            : basePage
+        ),
+      };
+      const splicedPages = Array.from(changeList)
+        .filter((pg) => retryParsed.pages.some((p) => p.page === pg))
+        .sort((a, b) => a - b);
+      console.log(
+        `[structured-draft] round ${round} spliced — replaced only page(s) ` +
+          `[${splicedPages.join(', ')}]; all other pages kept byte-identical.`
+      );
+      parsed = merged;
+    } else {
+      // No base draft, or wrong page count — accept the retry whole.
+      parsed = retryParsed;
+    }
+
+    // Re-enforce requiredExactLine on the (possibly spliced) draft.
     if (parsed && recipeContext) {
       enforceRequiredExactLines(parsed, recipeContext.recipe);
     }
@@ -141,8 +186,9 @@ export async function runStructuredDraft(
       ? validateDraftAgainstBlueprint(parsed.pages, blueprint, input.companionId)
       : [];
     if (parsed && blueprintFindings.length === 0) {
-      console.log('[structured-draft] Retry succeeded.');
+      console.log(`[structured-draft] Retry succeeded (round ${round}).`);
       result = retry;
+      break;
     }
   }
 
@@ -445,10 +491,13 @@ function buildRetryMessage(args: {
   }
 
   return (
-    `The previous response violated the page blueprint:\n` +
+    `The previous response violated the page blueprint on these pages:\n` +
     args.blueprintFindings
       .map((f) => `  - Page ${f.page}: ${f.rule} — ${f.detail}`)
       .join('\n') +
-    `\nFix these specific pages. Keep all other pages identical. Stay within every cap.`
+    `\nReturn the COMPLETE story again — ALL ${args.expectedPageCount} page ` +
+    `objects in the "pages" array, in order. Reproduce every page NOT listed ` +
+    `above EXACTLY as in your previous response (do not drop or shorten them). ` +
+    `Change ONLY the listed pages: fix the stated problem and stay within every cap.`
   );
 }

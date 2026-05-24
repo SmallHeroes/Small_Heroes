@@ -296,11 +296,16 @@ export function validateDraftAgainstBlueprint(
     }
 
     const wordCount = countHebrewWords(page.textSentences.join(' '));
-    if (wordCount > bp.maxWords) {
+    // v0.5.3 — maxWords is a SOFT target. A small overshoot (a line of
+    // dialogue, an extra connective word) must not fail a story; a child
+    // cannot perceive 32 vs 35 words. Hard-fail only past +15%. The real
+    // bloat guard is pageLengthSpike (relative to the median), untouched.
+    const wordHardCap = Math.ceil(bp.maxWords * 1.15);
+    if (wordCount > wordHardCap) {
       findings.push({
         page: bp.page,
         rule: 'too-many-words',
-        detail: `Page ${bp.page} has ${wordCount} Hebrew words; max ${bp.maxWords}.`,
+        detail: `Page ${bp.page} has ${wordCount} Hebrew words; soft max ${bp.maxWords}, hard cap ${wordHardCap}.`,
       });
     }
 

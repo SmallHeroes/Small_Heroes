@@ -91,19 +91,56 @@ export interface PageCard {
   companionAction: string;
 
   /**
-   * v0.5 Phase B — the EMOTIONAL HEART of the page: what must be FELT, or
-   * what must CHANGE, between the child and the companion here. This is
-   * what the page is ABOUT. requiredEvent / childBodyState / companionAction
-   * say what HAPPENS; relationshipBeat says what it MEANS.
+   * v0.5 Phase B.3 — the page modeled as an INTERACTION, not two parallel
+   * actors. The persistent "sequence of actions" feel had a structural
+   * cause: childBodyState + companionAction are two parallel-actor fields,
+   * so the Author wrote two tracks. The fix is to model a page as ONE
+   * exchange: the child feels/does something -> the companion registers
+   * THAT and answers in body -> the child registers the answer ->
+   * something small in the child shifts.
    *
-   * A directive for the Author (like the other card fields), NOT prose for
-   * the book. Hebrew, concrete about the emotional exchange, never a moral.
-   * Optional: pages without it still get the narrative-voice rules, but a
-   * page WITH it must land the child<->companion exchange.
+   * When a page has a relationshipLoop, it IS the page — the Author renders
+   * the four beats as one connected exchange, and childBodyState /
+   * companionAction demote to constraint-data (not rendered as their own
+   * separate sentences). A directive, NOT prose. Hebrew, concrete,
+   * body-only, the companion never speaks, never a moral.
    *
+   * Optional: a few deliberately-solo pages carry no loop — a pure
+   * fear-object beat, and the child-resists beat where the companion is
+   * intentionally silent (his answer is held for the next page).
    * See STORYBOOK_STANDARD.md.
+   *
+   * v0.5.4 Phase B.4 — `loopType` controls how the exchange RESOLVES
+   * (beat 4). Earlier EVERY loop ended in a calming `shift`, so all 18
+   * loop pages were identical mini-arcs (feel → answer → calm) and the
+   * book read as a regulation machine, not a story. loopType breaks that
+   * formula so relief ACCUMULATES across the arc instead of resetting on
+   * every page:
+   *   - 'relief'    — beat 4 softens the body a little (the original
+   *                   default; the worry eases)
+   *   - 'no-relief' — the companion answered, but the child stays tense;
+   *                   the page ends UNRESOLVED, companion still close
+   *   - 'hold'      — nothing resolves; child + companion near each other
+   *                   in the quiet — presence itself is the page
+   *   - 'spark'     — a small light moment: a tiny smile, a playful copy
+   * Default when omitted: 'relief'.
    */
-  relationshipBeat?: string;
+  relationshipLoop?: {
+    /** How the exchange RESOLVES — controls beat 4. Default 'relief'. */
+    loopType?: 'relief' | 'no-relief' | 'hold' | 'spark';
+    /** What the child feels or does, in the body. */
+    childFeels: string;
+    /** How the companion registers THAT and answers — body only, no speech. */
+    companionAnswers: string;
+    /** How the child registers the companion's answer. */
+    childNotices: string;
+    /**
+     * Beat 4 — how the page ENDS. Reinterpreted by loopType: a small body
+     * softening (relief), an unresolved-but-accompanied beat (no-relief),
+     * a still togetherness (hold), or a small light moment (spark).
+     */
+    shift: string;
+  };
 
   /**
    * The fear-object or focal object on this page, if any.
@@ -140,6 +177,15 @@ export interface PageCard {
    * Default: false.
    */
   critical?: boolean;
+
+  /**
+   * v0.5.5 Phase B.5 — name-economy anchor. When true, the prompt tells
+   * the Author to carry this page with the child's actual NAME as a
+   * subject (not only a pronoun or a body part). Set on a small,
+   * arc-spread set of pages so the child's name lands ~8-12 times across
+   * the book. Default: false.
+   */
+  nameAnchor?: boolean;
 
   /**
    * Foundation-beat lock. When set, the Author MUST include this exact
@@ -234,7 +280,7 @@ export interface ProductionRecipe {
 
   /**
    * The emotional arc as a single line.
-   * e.g. "reluctance → resistance → mirroring → small acceptance → soft residue"
+   * e.g. "reluctance to resistance to mirroring to small acceptance to soft residue"
    */
   emotionalArc: string;
 
@@ -258,7 +304,7 @@ export interface ProductionRecipe {
 
   /**
    * Post-hoc qualitative gates. Resilience Reviewer + Book Editor
-   * check these. Failure → REVIEW_REQUIRED or reroll, never silent pass.
+   * check these. Failure means REVIEW_REQUIRED or reroll, never silent pass.
    */
   acceptanceCriteria: string[];
 

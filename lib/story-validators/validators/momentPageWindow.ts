@@ -7,31 +7,23 @@ const MOMENT_WINDOWS: Record<StoryDirection, [number, number]> = {
   fantasy: [12, 15],
 };
 
+// v0.5.3 — markers of physical body action. Includes PRESENT-tense forms:
+// the recipes narrate in present tense, and the old past-only list
+// false-flagged moment pages ("סוגרת"/"פותחת" never matched "סגר"/"פתח").
+// אגרוף / אצבע are strong hand-action markers.
 const PHYSICAL_VERBS = [
-  'נגע',
-  'לחץ',
-  'חיבק',
-  'פתח',
-  'סגר',
-  'הרים',
-  'הוריד',
-  'התקפל',
-  'נשם',
-  'נושם',
-  'נושמת',
-  'נוגע',
-  'נוגעת',
-  'לחש',
-  'החזיק',
-  'שם',
-  'לקח',
-  'הסתובב',
-  'הלך',
-  'רץ',
-  'קפץ',
-  'שכב',
-  'ישב',
-  'עמד',
+  // past
+  'נגע', 'לחץ', 'חיבק', 'פתח', 'סגר', 'הרים', 'הוריד', 'התקפל', 'נשם',
+  'החזיק', 'שם', 'לקח', 'הסתובב', 'הלך', 'רץ', 'קפץ', 'שכב', 'ישב', 'עמד',
+  'אספה', 'נסגרה', 'נפתחה',
+  // present (the recipes narrate in present tense)
+  'נושם', 'נושמת', 'נוגע', 'נוגעת', 'לוחש', 'לוחשת', 'פותח', 'פותחת',
+  'סוגר', 'סוגרת', 'נסגר', 'נסגרת', 'נפתח', 'נפתחת', 'מרים', 'מרימה',
+  'מורידה', 'מחזיק', 'מחזיקה', 'אוסף', 'אוספת', 'מניח', 'מניחה', 'שמה',
+  'נשען', 'נשענת', 'זזה', 'נעה', 'מתכרבל', 'מתגלגל', 'מציץ', 'מציצה',
+  'מתכופף', 'מתכופפת',
+  // hand-action markers
+  'אגרוף', 'אצבע', 'אצבעות',
 ];
 
 /** BLOCKING: moment page in direction window with physical action on page. */

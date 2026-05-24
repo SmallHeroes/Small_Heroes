@@ -55,8 +55,10 @@ const META_PATTERNS: Array<{ re: RegExp; label: string }> = [
   { re: /\bPage\s+\d+\s*:/i, label: 'Page N:' },
 ];
 
-/** Hebrew narration verbs that LEGITIMATELY take a colon (dialogue verbs). */
-const DIALOGUE_VERB_COLON = /\b(אמרה?|אמרו|לחשה?|לחשו|שאלה?|שאלו|ענתה?|ענו|קראה?|קראו|חשבה?|הסבירה?|המשיכה?|הוסיפה?)\s*:/;
+/** Hebrew dialogue verbs — past AND present, both genders. A colon-quote
+ *  preceded (within a short look-back) by one of these is a legitimate
+ *  dialogue tag, not meta-text leakage. */
+const DIALOGUE_VERB = /(לוחש|לחש|שואל|שאל|אומר|אמר|עונה|ענתה|ענה|קורא|קרא|הסביר|המשיך)/;
 
 export const instructionLeakageValidator: StoryValidator = {
   id: 'instructionLeakage',
@@ -95,10 +97,12 @@ export const instructionLeakageValidator: StoryValidator = {
         const colonQuoteRe = /([א-ת]{2,12})\s*:\s*['"״׳]/g;
         let cm: RegExpExecArray | null;
         while ((cm = colonQuoteRe.exec(naked)) !== null) {
-          const verb = cm[1];
-          const fullMatch = naked.slice(Math.max(0, cm.index), cm.index + 20);
-          if (DIALOGUE_VERB_COLON.test(fullMatch)) continue; // dialogue OK
-          matched = { pattern: `${verb}: '…'`, idx: cm.index };
+          const word = cm[1];
+          // The speech verb may BE the word before the colon ("נועה לוחשת:")
+          // or sit a few words earlier ("נועה לוחשת אל בּוֹלִי:"). Look back.
+          const lookback = naked.slice(Math.max(0, cm.index - 35), cm.index + word.length);
+          if (DIALOGUE_VERB.test(lookback)) continue; // dialogue tag — OK
+          matched = { pattern: `${word}: '…'`, idx: cm.index };
           break;
         }
       }

@@ -1,20 +1,23 @@
 /**
  * #169 — Recipe-mode Author prompt.
  *
- * In recipe mode the Author no longer works from a thin Plan + blueprint —
- * it receives the full PageCard contract for every page. This locks the
- * dramatic beat order, the required event, the child's body state, the
- * companion's body action, and the per-page mustInclude / mustNotInclude
- * lists.
+ * In recipe mode the Author works from the full PageCard contract for
+ * every page — dramatic beat order, required event, per-page mustInclude /
+ * mustNotInclude, caps.
  *
- * v0.5 Phase B — the Author prompt is rewritten to the Storybook Standard
- * (lib/story-generator/STORYBOOK_STANDARD.md). The Page Card still locks
- * STRUCTURE, but the Author is now explicitly a writer, not a transcriber:
- * it writes a MOMENT (feeling + relationship), not a chain of actions.
- * Cards may carry a `relationshipBeat` — the emotional heart of the page.
+ * v0.5.2 — Phase B.3: a page is modeled as an INTERACTION, not two
+ * parallel actors. Most Page Cards carry a `relationshipLoop` — a 4-beat
+ * exchange (childFeels → companionAnswers → childNotices → shift). When a
+ * card has a loop, the loop IS the page; the Author renders the four beats
+ * as one connected moment. childBodyState / companionAction demote to
+ * constraint-data on loop pages. A few deliberately-solo pages carry no
+ * loop and are rendered the old way.
  *
- * Output schema is UNCHANGED (StructuredDraftOutput). Downstream parsing,
- * blueprint validation, and auto-inject all work as before.
+ * v0.5.4 — Phase B.4: each loop carries a `loopType` (relief / no-relief /
+ * hold / spark) that tells the Author how beat 4 RESOLVES. Not every page
+ * ends calm — relief is withheld and then accumulates across the arc.
+ *
+ * Output schema is UNCHANGED (StructuredDraftOutput).
  */
 
 import { getCompanionBible } from '@/lib/companion-bible';
@@ -31,13 +34,35 @@ import { buildBlueprintFromRecipe } from '../recipes/blueprint-from-recipe';
 
 type ResolvedVariations = Partial<Record<keyof RecipeVariationSlots, string>>;
 
+type LoopType = 'relief' | 'no-relief' | 'hold' | 'spark';
+
+/**
+ * Per-loopType guidance for beat 4 ("how the page ends"). v0.5.4 Phase B.4.
+ * The recipe already authors the beat-4 text in the right spirit; this note
+ * tells the Author what KIND of ending it is, so a no-relief / hold page is
+ * not "fixed" into a calm resolution.
+ */
+const LOOP_TYPE_NOTE: Record<LoopType, string> = {
+  relief:
+    'relief — beat 4 softens the body a little; the worry eases.',
+  'no-relief':
+    'no-relief — the companion answered, but the child is STILL tense. Do NOT calm the body. End unresolved, with the companion staying close.',
+  hold:
+    'hold — nothing resolves; just the child and the companion near each other in the quiet. Do NOT add a calming line. Presence is the page.',
+  spark:
+    'spark — a small light moment: a tiny smile, a playful copy, a quiet warmth. Not tension-relief.',
+};
+
 /**
  * Recipe-mode system prompt.
  *
- * v0.5 Phase B: the Page Card still fixes STRUCTURE (beat order, required
- * events, caps, anchors) — but the Author is told, first and loudest, to
- * write a MOMENT with a real child<->companion relationship. The narrative-
- * voice section comes BEFORE the mechanics so it frames everything.
+ * v0.5.2 Phase B.3: the dominant frame is "a page is one exchange between
+ * the child and the companion." The Page Card hands the Author that
+ * exchange as four explicit beats; the Author renders it as one connected
+ * moment, never as two parallel actors.
+ *
+ * v0.5.4 Phase B.4: a page does NOT have to end calm. The loopType tells
+ * the Author whether the page resolves, holds, sparks, or stays tense.
  */
 export function buildRecipeStructuredDraftSystemPrompt(): string {
   return `
@@ -87,96 +112,139 @@ The companion is a FRIEND — never an object, never a tool. He is never
 sound. The child responds to him; he responds back. That exchange IS the
 story.
 
-Vary your sentences. Do not open page after page with the child's name or
-the companion's name. Open with a sound, an object, a place or a feeling.
-
-EMOTIONAL IS NOT POETIC. Writing a "moment" does NOT mean writing literary
-or atmospheric prose. A children's book is SIMPLE, plain and warm. A
-feeling reaches the reader through a BODY, a real OBJECT, or physical
-CLOSENESS — never through a poetic summary, never through an abstract idea.
-
-  • Do NOT write "summary" sentences that step back and name the mood.
-    Show the moment — never label it.
-  • Do NOT make an abstract noun the subject of a sentence. שתיקה, רגע,
-    פחד, מחשבה, נועם do NOT perform actions. The subject is the child,
-    her body, the companion, or a real object.
-  • Similes compare to a simple real thing a child knows (a button, a
-    blanket, a pillow) — never to an abstract or poetic image.
-  • The child's name appears EXACTLY as given — never change a letter.
-
-SHORT EXAMPLES (Hebrew) — keep these in mind, do not copy them:
+A "moment" is NOT purple prose. Keep the Hebrew simple, plain and warm.
 
   ✗ REPORT:   "דניאל התיישבה. בּוֹלִי התגלגל. דניאל הסתכלה."
   ✓ MOMENT:   "טוּמְפּ קטן נשמע מהכיס. דניאל עצרה — ואז הציצה פנימה."
 
-  ✗ PARALLEL: "דניאל ראתה את המדחום. בּוֹלִי התגלגל בכיס."
-  ✓ RELATION: "דניאל ראתה את המדחום, והיד שלה נכנסה לכיס. משם יצא טוּמְפּ קטן."
-
   ✗ OBJECT:   "בּוֹלִי נח בכיס התרמיל."
   ✓ ALIVE:    "בּוֹלִי התכרבל בכיס התרמיל, חמים ושקט."
+
+EMOTIONAL IS NOT POETIC. A feeling reaches the reader through a BODY, a
+real OBJECT, or physical CLOSENESS — never through a poetic summary, never
+through an abstract idea.
+  • Do NOT write "summary" sentences that step back and name the mood.
+  • Do NOT make an abstract noun the subject — שתיקה, רגע, פחד, מחשבה,
+    נועם do NOT perform actions. The subject is the child, her body, the
+    companion, or a real object.
+  • The child's name appears EXACTLY as given — never change a letter.
 
   ✗ POETIC:   "שתיקת שניהם מילאה את הרגע."
   ✓ SIMPLE:   "נועה שמה יד ליד בּוֹלִי. שניהם נשארו רגע בשקט."
 
-  ✗ ABSTRACT: "האור נראה כמו כתם רגוע."
-  ✓ CONCRETE: "האור על הקיר היה רך, לא חזק בעיניים."
+  ✗ ADULT:    "עיני נועה נעולות בו."   (locked eyes — adult phrasing)
+  ✓ CHILD:    "נועה לא הורידה ממנו את העיניים."
 
-  ✗ ELEVATED: "נועם נשימתה השתנה."
-  ✓ PLAIN:    "נועה נשמה קצת אחרת."
+  ✗ STIFF:    "ריח של סבון נמצא באוויר."   (a smell does not "exist in the air")
+  ✓ NATURAL:  "ריח של סבון עלה מהכיור."
+
+But do NOT flatten every gentle image. Soft, concrete pictures a child can
+see ARE good — "חיוך קטן עלה", "בּוֹלִי התכרבל, חמים ושקט". The enemy is
+ADULT or ABSTRACT phrasing, not warmth. Keep the warmth; cut the adult.
 
 ═══════════════════════════════════════════════════════
-THE PAGE LOOP — feeling, answer, shift
+THE PAGE IS AN EXCHANGE — not two actors
 ═══════════════════════════════════════════════════════
 
-Most pages move through a small loop:
-  the child FEELS something  →  the companion ANSWERS in body  →
-  something in the child SHIFTS.
+A page is ONE small interaction between the child and the companion —
+never two separate things happening side by side.
 
-Where a Page Card has a ★ HEART line, it scripts this loop for you —
-render ALL THREE parts, in order. The companion is never background: he
-ANSWERS the child, and the child changes a little because he did.
+Most Page Cards hand you that interaction already broken into FOUR BEATS
+(the ★ EXCHANGE):
+  1. the child FEELS or does something, in the body
+  2. the companion REGISTERS that and ANSWERS it — in body, never speech
+  3. the child REGISTERS the companion's answer
+  4. how the page ENDS
 
-RELATIONAL LANGUAGE IS REQUIRED — and it is NOT "poetic". Plain words that
-connect the two — "יחד", "גם", "כאילו ענה לה", "שניהם", "לידה" — are
-exactly what this book needs. "Poetic" (forbidden) means abstract nouns
-and summary sentences; it does NOT mean warmth. Warmth in plain words is
-the goal.
+Render the four beats as ONE connected moment — each beat caused by the
+one before. The companion answers the SPECIFIC thing the child did; the
+child changes a little BECAUSE he answered. Never write "child does X,
+companion does Y" side by side — that is the exact failure this structure
+exists to prevent.
 
-  ✗ PARALLEL: "היד שלה נסגרה לאגרוף. בּוֹלִי נשאר כדור בכיס."
-  ✓ TOGETHER: "נועה הרגישה את בּוֹלִי בכיס. גם היא אספה את היד לאגרוף — ואז, לאט, שניהם נפתחו."
+  ✗ PARALLEL: "נועה ישבה על קצה הכיסא. בּוֹלִי היה שקט בכיס."
+  ✓ EXCHANGE: "נועה כיווצה את הרגליים. בּוֹלִי הרגיש את התנועה והזיז פס שריון
+              לכיוונה — טוּמְפּ. נועה הרגישה אותו שם."
+
+The four beats compress into the page's 2–4 sentence cap — childNotices
+and beat 4 often merge into one sentence. That is fine. Keep all four
+beats present; do not pad to four sentences.
+
+A few pages have NO ★ EXCHANGE — these are deliberately SOLO beats (the
+feared object appears; the child's body resists while the companion stays
+silent). On those pages, render requiredEvent + childBodyState +
+companionAction directly.
+
+DIRECT COMMUNICATION. On a few pages a loop beat has the child SPEAKING to
+the companion — a short, childlike line in quotes ("אתה בא איתי?", "ככה?",
+"גם אתה?"). Render it as quoted dialogue. The companion NEVER replies in
+words — he answers only in body (a טוּמְפּ, a shell strip moving, a roll,
+curling, a peek). Keep the child's lines short and natural. Never invent
+dialogue the card did not give you.
+
+ATTRIBUTE EVERY QUOTED LINE TO THE CHILD — by the child's name or by a
+pronoun, never to an abstract noun. A whisper does not speak; the child does.
+  ✗ הלחישה באה: …    ✗ השאלה יצאה: …    ✗ הקול אמר: …
+  ✓ נועה לחשה: …     ✓ היא לחשה: …      ✓ נועה שאלה: …
+
+═══════════════════════════════════════════════════════
+NOT EVERY PAGE ENDS CALM — the four kinds of exchange
+═══════════════════════════════════════════════════════
+
+A real children's book has a SHAPE: worry builds, presence holds it, and
+relief arrives — and relief EARNED across several pages lands far deeper
+than relief handed out on every page. If every page ends "and then the
+child felt better," the book stops being a story and becomes a regulation
+machine.
+
+So each ★ EXCHANGE is tagged with a loopType. It tells you how BEAT 4 —
+how the page ENDS — must read:
+
+  • relief    — beat 4 softens the body a little. The worry eases.
+  • no-relief — the companion answered, but the child is STILL tense.
+                Do NOT calm the body. End with the worry unresolved and
+                the companion staying close.
+                e.g. "הכתפיים עדיין מורמות — אבל בּוֹלִי נשאר צמוד."
+  • hold      — nothing resolves. Just the child and the companion near
+                each other in the quiet. Do NOT add a calming line —
+                presence itself is the page.
+                e.g. "הם נשארים ככה רגע, צעד ליד צעד."
+  • spark     — a small light moment: a tiny smile, a playful copy, a
+                quiet "me too." Warmth and connection, not tension-relief.
+
+⚠ On a no-relief or hold page, resist the urge to "fix" the child. The
+companion is ALWAYS present and close — but the child does not have to
+feel better yet. That restraint IS the craft. The relief is coming on a
+later page; let it build. A page tagged no-relief that ends with the body
+calm has FAILED the card.
 
 ═══════════════════════════════════════════════════════
 HOW TO READ A PAGE CARD
 ═══════════════════════════════════════════════════════
 
-A Page Card has three kinds of fields. Use them IN THIS ORDER:
-
-THE HEART — what the page is ABOUT:
-  • ★ HEART (relationshipBeat) — what must be FELT, or what must CHANGE,
-                       between the child and the companion on this page.
-                       When a card has this line, it is the most important
-                       thing on the page — write so this is what the
-                       reader feels. If a card has NO ★ HEART line, find
-                       the small human moment inside the events yourself.
-                       Every page still needs one.
-
-THE EVENTS — what HAPPENS (this is HOW the heart happens):
-  • requiredEvent    — the literal event. It must occur.
-  • childBodyState   — how the child's body moves/reacts. Show it.
-  • companionAction  — what the companion does. BODY ONLY, never speech.
+THE PAGE — what you write:
+  • ★ EXCHANGE [loopType] — four beats (child feels → companion answers →
+            child notices → how it ends). When present, THIS IS THE PAGE.
+            Render the four beats as one connected exchange. The loopType
+            in brackets tells you how beat 4 must resolve (see above). On
+            these pages there is no separate childBodyState /
+            companionAction to render — the exchange already contains the
+            body and the companion.
+  • If there is no ★ EXCHANGE: render requiredEvent + childBodyState +
+            companionAction directly — a deliberately solo beat.
 
 THE CONSTRAINTS — guardrails the finished page must satisfy:
-  • dramaticRole     — what the page does structurally (closed vocabulary)
-  • requiredObject   — object that must physically appear (when present)
-  • mustInclude      — tokens that MUST appear verbatim in textSentences
-  • mustNotInclude   — tokens that must NOT appear anywhere on the page
-  • critical         — if true, this carries the resilience moment; it
-                       must be PHYSICALLY exact (no abstract softening)
-  • caps             — maxWords / maxSentences / targetWords — ABSOLUTE
+  • requiredEvent  — the literal event; it must occur
+  • dramaticRole   — what the page does structurally (closed vocabulary)
+  • requiredObject — object that must physically appear (when present)
+  • mustInclude    — tokens that MUST appear verbatim in textSentences
+  • mustNotInclude — tokens that must NOT appear anywhere on the page
+  • critical       — the resilience moment; physically exact
+  • caps           — maxWords / maxSentences — ABSOLUTE
 
-Write toward the HEART. Let the EVENTS make it happen. Then check the
-CONSTRAINTS. A page that satisfies every constraint but holds no moment
-has failed — rewrite it.
+Write the EXCHANGE. Make the requiredEvent happen inside it. Then check
+the CONSTRAINTS. A page that satisfies every constraint but reads as two
+parallel actions has failed — rewrite it as one exchange.
 
 You are NOT free to:
   - move events between pages, or merge / split dramatic roles
@@ -184,11 +252,11 @@ You are NOT free to:
     forbidden on every page — the companion is a body, not a voice)
   - skip a mustInclude token, or emit a mustNotInclude token
   - exceed any cap
+  - turn a no-relief or hold page into a calm resolution
 
 You ARE free to — and SHOULD:
   - choose the exact Hebrew sentences and their rhythm
   - decide how the moment feels
-  - add small concrete sensory detail that serves the heart
   - vary phrasing and sentence openings across the whole book
 
 ═══════════════════════════════════════════════════════
@@ -208,16 +276,20 @@ GLOBAL RULES (apply on top of every Page Card)
    "שקט לבן", "טומפ בזיכרון", "האוויר התמלא", "ריח של חמימות",
    "נהיה דק ושקט".
 
-4. CHILD NAME RHYTHM. The child's name is a strong opening note — use it
-   sparingly.
-   - Pages 1–2: you MAY open with the child's name.
-   - Pages 3+: do NOT open consecutive pages with the child's name.
-     Open with a pronoun (היא / הוא), an object ("המדחום…", "היד…"),
-     a sound ("טוּמְפּ…") or a place ("במרפאה…").
-   - Refer to the child as היא / הוא, or by a body part with a pronoun
-     ("היד שלה", "הכתפיים שלה") — NOT "היד של <name>". The "של <name>"
-     possessive is the main way the name over-appears.
-   - Total appearances of the child's name across the book: aim 6–10.
+4. CHILD NAME RHYTHM. The child's name keeps the story about a PERSON,
+   not a list of body parts. Use it deliberately.
+   - TARGET: the child's name appears 8-12 times across the whole book.
+     Fewer and the child vanishes behind "the body / the hand / the
+     eyes"; more and the text starts to read like a report.
+   - On a page marked "NAME ANCHOR", carry that page with the child's
+     actual name as a subject — those pages are where the name belongs.
+   - On every other page, prefer a pronoun (היא / הוא), a body part, an
+     object ("המדחום…") or a sound ("טוּמְפּ…").
+   - Do NOT open 3 or more pages in a row with a body part
+     (הגוף / היד / העיניים / הנשימה) — vary the opening.
+   - Refer to a body part as "היד שלה", never "היד של <name>".
+   - The loop beats write "הילד/ה" only as a PLACEHOLDER: render it as
+     the child's name on NAME ANCHOR pages, as a pronoun elsewhere.
 
 5. Third person. Never 1st-person verbs in prose (✗ שמעתי / ראיתי).
    Quoted dialogue in "…" may be 1st-person.
@@ -239,19 +311,16 @@ GLOBAL RULES (apply on top of every Page Card)
 
 ═══════════════════════════════════════════════════════
 WHY THIS MATTERS: a story that passes every structural check but reads
-like an action report is not a children's book. The Page Card guarantees
-the resilience arc is right. YOU guarantee the child wants to hear it
-again. Both have to be true. Stay inside the card — and write a moment.
+like two characters acting in parallel — or like the same calm-down beat
+twenty times — is not a children's book. The Page Card guarantees the
+resilience arc. YOU guarantee that each page is a real exchange, with its
+own kind of ending, that a child wants to return to. Stay inside the card
+— write each page as one interaction, and respect its loopType.
 `.trim();
 }
 
 /**
  * Build the per-story user prompt with all Page Cards laid out.
- *
- * Returns:
- *   - prompt   — the formatted string to send as user message
- *   - blueprint — PageBlueprint[] derived from PageCards, for downstream
- *                 validators / blueprint check inside structured-draft core.
  */
 export function buildRecipeStructuredDraftUserPrompt(args: {
   recipe: ProductionRecipe;
@@ -320,11 +389,11 @@ export function buildRecipeStructuredDraftUserPrompt(args: {
     '',
     '═══════════════ FINAL INSTRUCTION ═══════════════',
     'Return JSON only. Match every Page Card exactly. Stay within every cap.',
-    'Where a card has a ★ HEART line, that is what the page is ABOUT — write',
-    'the moment so the reader feels it. The events are how it happens.',
+    'Where a card has a ★ EXCHANGE, that is the page — render the four beats',
+    'as ONE connected interaction, never as two parallel actions, and end it',
+    'the way its [loopType] says (relief / no-relief / hold / spark).',
     'If a Page Card has mustInclude: ["בּוֹלִי", "טוּמְפּ"], BOTH tokens must',
-    'appear on that page — do NOT collapse them into one phrase like',
-    '"בּוֹלִי אמר טומפ". The companion is a body, not a voice.',
+    'appear on that page — the companion is a body, not a voice.',
   ];
 
   const prompt = [
@@ -371,23 +440,36 @@ function formatPageCard(
     `── PAGE ${card.page} ${card.critical ? '★ CRITICAL' : ''}`.trimEnd(),
   ];
 
-  // v0.5 Phase B — the relationshipBeat is the HEART of the page. Render it
-  // FIRST so the Author reads what the page is ABOUT before the mechanics.
-  if (card.relationshipBeat) {
-    lines.push(`   ★ HEART:          ${card.relationshipBeat}`);
+  // v0.5.2 Phase B.3 — when the card has a relationshipLoop, the loop IS
+  // the page. v0.5.4 Phase B.4 — the loopType controls how beat 4 resolves.
+  if (card.relationshipLoop) {
+    const L = card.relationshipLoop;
+    const loopType: LoopType = L.loopType ?? 'relief';
+    lines.push(
+      `   ★ EXCHANGE [loopType: ${loopType}] — write these four beats as ONE connected moment:`,
+      `       1. child feels:        ${L.childFeels}`,
+      `       2. companion answers:  ${L.companionAnswers}`,
+      `       3. child notices:      ${L.childNotices}`,
+      `       4. how the page ends:  ${L.shift}`,
+      `          -> ${LOOP_TYPE_NOTE[loopType]}`,
+      `   requiredEvent:    ${card.requiredEvent}  (must occur inside the exchange)`,
+      `   dramaticRole:     ${card.dramaticRole}`
+    );
+  } else {
+    lines.push(
+      '   (no ★ EXCHANGE — a deliberately solo beat; render the lines below directly)',
+      `   dramaticRole:     ${card.dramaticRole}`,
+      `   requiredEvent:    ${card.requiredEvent}`,
+      `   childBodyState:   ${card.childBodyState}`,
+      `   companionAction:  ${card.companionAction}`
+    );
   }
 
-  lines.push(
-    `   dramaticRole:     ${card.dramaticRole}`,
-    `   requiredEvent:    ${card.requiredEvent}`,
-    `   childBodyState:   ${card.childBodyState}`,
-    `   companionAction:  ${card.companionAction}`
-  );
-
-  // Note: requiredExactLine is NOT rendered in the prompt by design.
-  // Prompt-level enforcement of it caused prompt overload and made the
-  // Author miss other anchors. The field is instead enforced by code
-  // post-Draft (see enforceRequiredExactLines in structured-draft.ts).
+  if (card.nameAnchor) {
+    lines.push(
+      "   NAME ANCHOR: carry this page with the child's actual name as a subject, not only a pronoun or a body part."
+    );
+  }
 
   if (requiredObject) {
     lines.push(`   requiredObject:   ${requiredObject} (slot: ${card.requiredObjectSlot})`);

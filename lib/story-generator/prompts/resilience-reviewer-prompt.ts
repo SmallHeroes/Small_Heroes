@@ -111,6 +111,26 @@ Your six dimensions:
    went through something and stayed. Look for: hand at rest, breath calm,
    companion close but not clinging, medical object back in place.
 
+⚠ CALIBRATION — CO-REGULATION SPANS PAGES (read before scoring).
+This book is deliberately paced so that relief ACCUMULATES. Several pages
+end with the child STILL TENSE while the companion stays close, or simply
+quiet together with nothing resolved. This is correct co-regulation — NOT
+a failed regulation beat. A child does not calm down instantly; a friend
+who stays near while you are still scared IS the therapeutic message, and
+relief that is earned across several pages lands deeper than relief handed
+out on every page.
+  - Judge regulation across the whole ARC, not page-by-page. What MUST
+    hold: (a) the companion is PRESENT and close on every page, and
+    (b) by the end the child's body is calmer than at the start.
+  - Do NOT lower a score because a mid-story page ends unresolved or
+    quiet. An unresolved page on the way to an earned, late relief is the
+    intended design.
+  - The body-resistance you look for in dimension 2 lives precisely on
+    these unresolved pages — they are an asset, not a defect.
+  - You SHOULD still fail: a companion who is ABSENT, a child left alone
+    in fear with no presence beside them, a procedure with no
+    body-resistance, or a child who never ends calmer than they started.
+
 ALSO WATCH FOR (BLOCKING-level concerns):
 - Companion speeches: "בולי אמר", "בולי חייך ואמר", "בולי הסביר".
   Companions DO NOT speak comfort. They model bodies.

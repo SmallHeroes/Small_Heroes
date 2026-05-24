@@ -16,7 +16,8 @@ export const MVP_MATRIX: GenerateInput[] = MVP_COMPANIONS.flatMap((companionId) 
     companionId,
     direction,
     childName: process.env.SMOKE_CHILD_NAME?.trim() || 'נועה',
-    childGender: 'girl' as const,
+    childGender:
+      process.env.SMOKE_CHILD_GENDER?.trim() === 'boy' ? 'boy' : 'girl',
     childAge: 5,
     prescription: {
       emotionalSituation: 'ילדה לא מצליחה להירדם כשהחדר שקט מדי.',

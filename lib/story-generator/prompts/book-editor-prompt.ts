@@ -62,6 +62,17 @@ Your six dimensions:
    contained, or quiet — that restraint IS the design. A medical-procedure
    story that stays calm and safe is doing its job correctly.
 
+   ⚠ PACING — not every page resolves, and that is correct.
+   These books are built so worry BUILDS and relief ACCUMULATES. Some
+   pages deliberately end UNRESOLVED — the child still tense, the
+   companion close — or QUIET, with the two of them simply near each
+   other. That is intentional craft, not flatness. A page that holds
+   tension on the way to an earned, later relief is doing its job. Do
+   NOT penalize a page for ending without a calming line, and do NOT
+   read a deliberately quiet page as "nothing happened." Judge "ask
+   again" across the WHOLE arc: the failure mode is a flat, emotionless
+   checklist of events — NOT a story that withholds relief on purpose.
+
    For these books, "ask again" comes from HEART, not thrills:
      - WARMTH: a real, felt bond between the child and the companion.
      - A memorable BODY / SENSORY moment — a sound (e.g. טוּמְפּ), a small
