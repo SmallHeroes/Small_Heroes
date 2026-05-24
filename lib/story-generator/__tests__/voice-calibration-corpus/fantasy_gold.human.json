@@ -1,0 +1,39 @@
+{
+  "storyId": "fantasy_gold",
+  "ageTier": "5-6",
+  "expectedFindings": [
+    {
+      "scope": "page",
+      "page": 7,
+      "family": "body_as_character",
+      "quoteContains": "הגוף מרגיש את הצליל ויודע",
+      "note": "True positive. 'הגוף יודע' is body-as-agent and should be caught under the tuned Standard."
+    }
+  ],
+  "expectedNonFindings": [
+    {
+      "family": "body_as_character",
+      "quoteContains": "הגוף עדיין מכווץ",
+      "note": "Acceptable somatic body-state under Family B OK — not body-as-agent"
+    },
+    {
+      "family": "body_as_character",
+      "quoteContains": "המבט נח על האור",
+      "note": "Legitimate somatic attention — not body-as-agent"
+    },
+    {
+      "family": "body_as_character",
+      "quoteContains": "המדחום כבר לא נוגע",
+      "note": "Body as locus of sensation after procedure — on-brand"
+    },
+    {
+      "family": "motif_overuse",
+      "quoteContains": "ובפנים חם",
+      "note": "Intentional Bolly warmth motif"
+    },
+    {
+      "family": "parallel_action_chains",
+      "note": "Sealed B.3 relationshipLoop — intentional architecture"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "storyId": "probe_gender_mismatch",
+  "ageTier": "5-6",
+  "expectedFindings": [
+    {
+      "family": "semantic_misuse",
+      "quoteContains": "דניאל לוחשת",
+      "page": 3,
+      "scope": "page",
+      "optional": true
+    }
+  ],
+  "expectedNonFindings": []
+}

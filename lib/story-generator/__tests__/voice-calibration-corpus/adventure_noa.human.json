@@ -1,0 +1,28 @@
+{
+  "storyId": "adventure_noa",
+  "ageTier": "5-6",
+  "expectedFindings": [
+    {
+      "family": "read_aloud_stumble",
+      "quoteContains": "מתאים את הקצב",
+      "page": 4,
+      "scope": "page"
+    }
+  ],
+  "expectedNonFindings": [
+    {
+      "family": "body_as_character",
+      "quoteContains": "הגוף עדיין מכווץ",
+      "note": "Acceptable somatic body-state under Family B OK — not body-as-agent"
+    },
+    {
+      "family": "motif_overuse",
+      "quoteContains": "בפנים היה חם",
+      "note": "Bolly warmth motif on companion-close beats"
+    },
+    {
+      "family": "parallel_action_chains",
+      "note": "Sealed B.3 relationshipLoop — intentional architecture"
+    }
+  ]
+}

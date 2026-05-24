@@ -1,0 +1,23 @@
+{
+  "storyId": "adventure_michal_run1",
+  "ageTier": "5-6",
+  "expectedFindings": [
+    {
+      "family": "semantic_misuse",
+      "quoteContains": "דוקדק",
+      "page": 6,
+      "scope": "page"
+    }
+  ],
+  "expectedNonFindings": [
+    {
+      "family": "motif_overuse",
+      "quoteContains": "בפנים חם",
+      "note": "Bolly motif"
+    },
+    {
+      "family": "parallel_action_chains",
+      "note": "Sealed B.3 relationshipLoop — intentional architecture"
+    }
+  ]
+}

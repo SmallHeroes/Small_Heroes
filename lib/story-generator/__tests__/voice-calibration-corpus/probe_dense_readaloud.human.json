@@ -1,0 +1,13 @@
+{
+  "storyId": "probe_dense_readaloud",
+  "ageTier": "5-6",
+  "expectedFindings": [
+    {
+      "family": "read_aloud_stumble",
+      "quoteContains": "מאיה התעוררה בבוקר כשהאור חדר",
+      "page": 1,
+      "scope": "page"
+    }
+  ],
+  "expectedNonFindings": []
+}

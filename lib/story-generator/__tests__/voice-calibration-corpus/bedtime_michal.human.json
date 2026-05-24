@@ -1,0 +1,28 @@
+{
+  "storyId": "bedtime_michal",
+  "ageTier": "5-6",
+  "expectedFindings": [
+    {
+      "family": "read_aloud_stumble",
+      "quoteContains": "עושה את הכתפיים לעלות",
+      "page": 4,
+      "scope": "page"
+    }
+  ],
+  "expectedNonFindings": [
+    {
+      "family": "body_as_character",
+      "quoteContains": "הגוף שלה לא מתכווץ",
+      "note": "Legitimate somatic release on anticipation beat"
+    },
+    {
+      "family": "motif_overuse",
+      "quoteContains": "בפנים חם",
+      "note": "Bolly motif on companion ball beat"
+    },
+    {
+      "family": "parallel_action_chains",
+      "note": "Sealed B.3 relationshipLoop — intentional architecture"
+    }
+  ]
+}

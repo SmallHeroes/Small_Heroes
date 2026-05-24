@@ -1,0 +1,21 @@
+{
+  "storyId": "adventure_daniel",
+  "ageTier": "5-6",
+  "expectedFindings": [
+    {
+      "family": "name_overuse",
+      "scope": "story"
+    }
+  ],
+  "expectedNonFindings": [
+    {
+      "family": "motif_overuse",
+      "quoteContains": "ובפנים חם",
+      "note": "Bolly motif"
+    },
+    {
+      "family": "parallel_action_chains",
+      "note": "Sealed B.3 relationshipLoop — intentional architecture"
+    }
+  ]
+}

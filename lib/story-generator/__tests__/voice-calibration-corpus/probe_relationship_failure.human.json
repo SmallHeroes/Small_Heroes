@@ -1,0 +1,20 @@
+{
+  "storyId": "probe_relationship_failure",
+  "ageTier": "5-6",
+  "expectedFindings": [
+    {
+      "family": "parallel_action_chains",
+      "scope": "story"
+    }
+  ],
+  "expectedNonFindings": [
+    {
+      "family": "mechanism_over_relationship",
+      "note": "Synonym family — a genuine mechanism-not-friendship story may be tagged mechanism_over_relationship instead of parallel_action_chains; either is a correct catch."
+    },
+    {
+      "family": "name_overuse",
+      "note": "Probe repeats the child name incidentally; relationship failure is the target defect, not name economy."
+    }
+  ]
+}

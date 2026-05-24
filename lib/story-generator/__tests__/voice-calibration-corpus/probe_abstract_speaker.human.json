@@ -1,0 +1,19 @@
+{
+  "storyId": "probe_abstract_speaker",
+  "ageTier": "5-6",
+  "expectedFindings": [
+    {
+      "family": "body_as_character",
+      "quoteContains": "הלחישה הקטנה התיישבה",
+      "page": 3,
+      "scope": "page"
+    }
+  ],
+  "expectedNonFindings": [
+    {
+      "family": "semantic_misuse",
+      "quoteContains": "הלחישה הקטנה התיישבה",
+      "note": "Synonym family — abstraction-as-speaker may be tagged semantic_misuse instead of body_as_character; either is a correct catch."
+    }
+  ]
+}
