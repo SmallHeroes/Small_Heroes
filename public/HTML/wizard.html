@@ -60,15 +60,8 @@
       <div class="chips-wrap" id="topic-chips"></div>
     </div>
 
-    <!-- ── Step 3 — Category follow-up (taxonomy v2) ─────────── -->
+    <!-- ── Step 3 — Companion character ──────────────────────── -->
     <div class="step" id="step-3">
-      <h2 class="step-title" id="catFollowTitle"></h2>
-      <p class="step-sub" id="catFollowSub"></p>
-      <div class="category-followup-wrap" id="category-followup-wrap" aria-live="polite"></div>
-    </div>
-
-    <!-- ── Step 4 — Companion character ──────────────────────── -->
-    <div class="step" id="step-4">
       <p class="step-microcopy" id="companionMicro"></p>
       <h1 class="companion-h1" id="companionTitle"></h1>
       <p class="step-sub" id="companionSub"></p>
@@ -76,8 +69,8 @@
     </div>
 
     <!-- ── Step 4 — Child details ────────────────────────────── -->
-    <div class="step" id="step-5">
-      <p class="step-microcopy" id="s3micro"></p>
+    <div class="step step--child" id="step-4">
+      <p class="step-microcopy" id="childMicro"></p>
       <h2 class="step-title" id="s3Title"></h2>
       <p class="step-sub step-sub--tight" id="s3Sub"></p>
 
@@ -120,11 +113,6 @@
             </div>
           </div>
 
-          <div class="form-group form-group--traits">
-            <label class="form-label" id="s3TraitsLabel"></label>
-            <span class="form-label-note" id="s3TraitsNote"></span>
-            <div class="trait-chips-wrap" id="trait-chips"></div>
-          </div>
         </div>
 
         <div class="photo-side">
@@ -146,127 +134,40 @@
 
     </div>
 
-    <!-- ── Step 5 — Superpower ───────────────────────────────── -->
+    <!-- ── Step 5 — Hero notes (optional) ────────────────────── -->
+    <div class="step step--hero-notes" id="step-5">
+      <p class="step-microcopy" id="heroNotesMicro"></p>
+      <h2 class="step-title" id="heroNotesTitle"></h2>
+      <p class="step-sub" id="heroNotesSub"></p>
+      <div class="hero-notes-block">
+        <p class="hero-notes-q" id="heroNotesStrengthQ"></p>
+        <div class="trait-chips-wrap" id="hero-superpower-chips"></div>
+      </div>
+      <div class="hero-notes-block">
+        <p class="hero-notes-q" id="heroNotesFeelingQ"></p>
+        <div class="chips-wrap" id="hero-goals-chips"></div>
+      </div>
+    </div>
+
+    <!-- ── Step 6 — Direction ──────────────────────────────── -->
     <div class="step" id="step-6">
-      <p class="step-microcopy" id="s4powermicro"></p>
-      <h2 class="step-title" id="s4powerTitle"></h2>
-      <p class="step-sub" id="s4powerSub"></p>
-      <div class="trait-chips-wrap" id="superpower-chips"></div>
-      <div class="textarea-section" style="margin-top:18px;">
-        <label class="textarea-label" id="s4powerExtraLabel"></label>
-        <textarea class="wiz-textarea" id="s4power-extra"></textarea>
-      </div>
-    </div>
-
-    <!-- ── Step 6 — Difficulties (was step 7) ───────────────── -->
-    <!-- IMPORTANT: toggleChip reads el.textContent — chip text is set by JS  -->
-    <!-- from CONTENT; stored values are identical Hebrew strings as before.   -->
-    <div class="step" id="step-7">
-      <p class="step-microcopy" id="s5micro"></p>
-      <h2 class="step-title" id="s4Title"></h2>
-      <p class="step-sub" id="s4Sub"></p>
-      <p class="step-sub2" id="s4Sub2"></p>
-      <div class="chips-wrap">
-        <div class="chip" id="s4Chip0" onclick="toggleChip(this,'difficulties')"></div>
-        <div class="chip" id="s4Chip1" onclick="toggleChip(this,'difficulties')"></div>
-        <div class="chip" id="s4Chip2" onclick="toggleChip(this,'difficulties')"></div>
-        <div class="chip" id="s4Chip3" onclick="toggleChip(this,'difficulties')"></div>
-        <div class="chip" id="s4Chip4" onclick="toggleChip(this,'difficulties')"></div>
-        <div class="chip" id="s4Chip5" onclick="toggleChip(this,'difficulties')"></div>
-        <div class="chip" id="s4Chip6" onclick="toggleChip(this,'difficulties')"></div>
-        <div class="chip" id="s4Chip7" onclick="toggleChip(this,'difficulties')"></div>
-      </div>
-      <div class="textarea-section">
-        <label class="textarea-label" id="s4ExtraLabel"></label>
-        <textarea class="wiz-textarea" id="s4-extra"></textarea>
-      </div>
-    </div>
-
-    <!-- ── Step 8 — Goals ───────────────────────────────────── -->
-    <div class="step" id="step-8">
-      <p class="step-microcopy" id="s6micro"></p>
-      <h2 class="step-title" id="s5Title"></h2>
-      <p class="step-sub" id="s5Sub"></p>
-      <p class="step-sub2" id="s5Sub2"></p>
-      <div class="chips-wrap">
-        <div class="chip" id="s5Chip0" onclick="toggleChip(this,'goals')"></div>
-        <div class="chip" id="s5Chip1" onclick="toggleChip(this,'goals')"></div>
-        <div class="chip" id="s5Chip2" onclick="toggleChip(this,'goals')"></div>
-        <div class="chip" id="s5Chip3" onclick="toggleChip(this,'goals')"></div>
-        <div class="chip" id="s5Chip4" onclick="toggleChip(this,'goals')"></div>
-        <div class="chip" id="s5Chip5" onclick="toggleChip(this,'goals')"></div>
-        <div class="chip" id="s5Chip6" onclick="toggleChip(this,'goals')"></div>
-        <div class="chip" id="s5Chip7" onclick="toggleChip(this,'goals')"></div>
-        <div class="chip" id="s5Chip8" onclick="toggleChip(this,'goals')"></div>
-      </div>
-    </div>
-
-    <!-- ── Step 9 — Helpers ─────────────────────────────────── -->
-    <div class="step" id="step-9">
-      <p class="step-microcopy" id="s7micro"></p>
-      <h2 class="step-title" id="s6Title"></h2>
-      <p class="step-sub" id="s6Sub"></p>
-      <p class="step-sub2" id="s6Sub2"></p>
-      <div class="chips-wrap">
-        <div class="chip" id="s6Chip0" onclick="toggleChip(this,'helpers')"></div>
-        <div class="chip" id="s6Chip1" onclick="toggleChip(this,'helpers')"></div>
-        <div class="chip" id="s6Chip2" onclick="toggleChip(this,'helpers')"></div>
-        <div class="chip" id="s6Chip3" onclick="toggleChip(this,'helpers')"></div>
-        <div class="chip" id="s6Chip4" onclick="toggleChip(this,'helpers')"></div>
-        <div class="chip" id="s6Chip5" onclick="toggleChip(this,'helpers')"></div>
-        <div class="chip" id="s6Chip6" onclick="toggleChip(this,'helpers')"></div>
-        <div class="chip" id="s6Chip7" onclick="toggleChip(this,'helpers')"></div>
-        <div class="chip" id="s6Chip8" onclick="toggleChip(this,'helpers')"></div>
-        <div class="chip" id="s6Chip9" onclick="toggleChip(this,'helpers')"></div>
-      </div>
-      <div class="textarea-section">
-        <label class="textarea-label" id="s6ExtraLabel"></label>
-        <textarea class="wiz-textarea" id="s6-extra"></textarea>
-      </div>
-    </div>
-
-    <!-- ── Step 10 — Avoid ───────────────────────────────────── -->
-    <div class="step" id="step-10">
-      <p class="step-microcopy" id="s8micro"></p>
-      <h2 class="step-title" id="s7Title"></h2>
-      <p class="step-sub" id="s7Sub"></p>
-      <p class="step-sub2" id="s7Sub2"></p>
-      <div class="chips-wrap">
-        <div class="chip" id="s7Chip0" onclick="toggleChip(this,'avoid')"></div>
-        <div class="chip" id="s7Chip1" onclick="toggleChip(this,'avoid')"></div>
-        <div class="chip" id="s7Chip2" onclick="toggleChip(this,'avoid')"></div>
-        <div class="chip" id="s7Chip3" onclick="toggleChip(this,'avoid')"></div>
-        <div class="chip" id="s7Chip4" onclick="toggleChip(this,'avoid')"></div>
-        <div class="chip" id="s7Chip5" onclick="toggleChip(this,'avoid')"></div>
-        <div class="chip" id="s7Chip6" onclick="toggleChip(this,'avoid')"></div>
-        <div class="chip" id="s7Chip7" onclick="toggleChip(this,'avoid')"></div>
-        <div class="chip" id="s7Chip8" onclick="toggleChip(this,'avoid')"></div>
-      </div>
-      <div class="textarea-section">
-        <label class="textarea-label" id="s7ExtraLabel"></label>
-        <textarea class="wiz-textarea" id="s7-extra"></textarea>
-      </div>
-    </div>
-
-    <!-- ── Step 11 — Direction ──────────────────────────────── -->
-    <div class="step" id="step-11">
-      <p class="step-microcopy" id="s9micro"></p>
+      <p class="step-microcopy" id="directionMicro"></p>
       <h2 class="step-title" id="sDirectionTitle"></h2>
       <p class="step-sub" id="sDirectionSub"></p>
       <div class="direction-step-grid" id="direction-cards" role="group" aria-label="בחירת כיוון סיפור"></div>
     </div>
 
-    <!-- ── Step 12 — Style ──────────────────────────────────── -->
-    <div class="step" id="step-12">
-      <p class="step-microcopy" id="sStyleMicro"></p>
+    <!-- ── Step 7 — Style ──────────────────────────────────── -->
+    <div class="step" id="step-7">
+      <p class="step-microcopy" id="styleMicro"></p>
       <h2 class="step-title" id="sStyleTitle"></h2>
       <p class="step-sub" id="sStyleSub"></p>
       <div class="style-step-grid" id="style-step-grid" role="group" aria-label="בחירת סגנון איור"></div>
     </div>
 
-    <!-- ── Step 13 — Add-ons ───────────────────────────────── -->
-    <div class="step" id="step-13">
-      <p class="step-microcopy" id="sAddonsMicro"></p>
+    <!-- ── Step 8 — Add-ons ───────────────────────────────── -->
+    <div class="step" id="step-8">
+      <p class="step-microcopy" id="addonsMicro"></p>
       <h2 class="step-title" id="s8Title"></h2>
       <p class="step-sub" id="s8Sub"></p>
 
@@ -347,9 +248,9 @@
       </div>
     </div>
 
-    <!-- ── Step 14 — Book name + dedication ─────────────────── -->
-    <div class="step" id="step-14">
-      <p class="step-microcopy" id="s11micro"></p>
+    <!-- ── Step 9 — Book name + dedication ─────────────────── -->
+    <div class="step" id="step-9">
+      <p class="step-microcopy" id="bookMicro"></p>
       <h2 class="step-title" id="sBookTitle"></h2>
       <p class="step-sub" id="sBookSub"></p>
 
@@ -368,9 +269,9 @@
       <div class="char-count"><span id="dedicationCount">0</span>/300</div>
     </div>
 
-    <!-- ── Step 15 — Summary + Payment ─────────────────────── -->
-    <div class="step" id="step-15">
-      <p class="step-microcopy" id="s10micro"></p>
+    <!-- ── Step 10 — Summary + Payment ─────────────────────── -->
+    <div class="step" id="step-10">
+      <p class="step-microcopy" id="summaryMicro"></p>
       <div style="text-align:center;margin-bottom:10px;">
         <span style="font-size:28px;">✨</span>
       </div>
@@ -422,11 +323,12 @@
   </div>
 
   <script src="/JS/content.js?v=phase16-split"></script>
+  <script src="/JS/canonical-topics.js"></script>
   <script src="/JS/routes.js"></script>
   <script src="/JS/companions.js"></script>
   <script src="/JS/analytics.js"></script>
   <script src="/JS/client-api.js"></script>
-  <script src="/JS/wizard.js?v=phase17-rtl-flip-price"></script>
+  <script src="/JS/wizard.js?v=wizard-trim-10"></script>
 </body>
 
 </html>

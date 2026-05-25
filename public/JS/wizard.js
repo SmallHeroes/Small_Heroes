@@ -20,7 +20,9 @@ const WIZ_DEFAULTS = {
   styles: [],
   voices: [],
   progressLabel: 'שלב {current} מתוך {total}',
-  microcopy: { s3: '', s4: '', s5: '', s6: '', s7: '', s8: '', s9: '', s10: '', s11: '', companion: '' },
+  microcopy: {
+    companion: '', child: '', heroNotes: '', direction: '', style: '', addons: '', book: '', summary: '',
+  },
   nav: {
     back: 'חזרה',
     continueToFamily: 'המשך',
@@ -35,10 +37,12 @@ const WIZ_DEFAULTS = {
     companion: { title: '', sub: '' },
     s3: {
       title: '', sub: '', nameLabel: '', ageLabel: '', genderLabel: '',
-      genderBoy: '', genderGirl: '', genderOther: '', traitsLabel: '', traitsNote: '',
+      genderBoy: '', genderGirl: '', genderOther: '',
       photoPrompt: '', photoOptional: '',
     },
-    s4power: { title: '', sub: '', extraLabel: '', extraPlaceholder: '' },
+    heroNotes: {
+      titleFallback: '', titleTemplate: '', sub: '', strengthQ: '', feelingQ: '',
+    },
     s4fam: {
       title: '', sub: '', sub2: '', parent1Label: '', parent2Label: '', siblingLabel: '', homeLabel: '',
       parent1NamePh: '', parent1DescPh: '', parent2NamePh: '', parent2DescPh: '',
@@ -254,7 +258,8 @@ function getStylePreviewDataUrl(styleId) {
   const stylePreviewMap = {
     soft_hand_drawn_storybook: '/art-styles/simple.jpg',
     expressive_painterly_storybook: '/art-styles/classic.jpg',
-    detailed_whimsical_world: '/images/style-preview-03.webp',
+    detailed_whimsical_world: '/art-styles/style-02-preview.png',
+    expressive_painterly_storybook: '/art-styles/style-02-preview.png',
   };
   return stylePreviewMap[styleId] || stylePreviewMap.soft_hand_drawn_storybook;
 }
@@ -285,7 +290,7 @@ function normalizeClientStyleId(styleId) {
 /* ── STATE ──────────────────────────────────────────────────── */
 const state = {
   currentStep: 1,
-  totalSteps: 15,
+  totalSteps: 10,
 
   topic: null,
   topicLabel: '',
@@ -411,6 +416,22 @@ function saveWizardState() {
   }
 }
 
+/** Map saved step numbers from the old 15-step wizard to the new 10-step flow. */
+function migrateLegacyWizardStep(step) {
+  const n = Number(step) || 1;
+  if (n <= 2) return n;
+  if (n === 3 || n === 4) return 3;
+  if (n === 5) return 4;
+  if (n === 6) return 5;
+  if (n >= 7 && n <= 10) return 6;
+  if (n === 11) return 6;
+  if (n === 12) return 7;
+  if (n === 13) return 8;
+  if (n === 14) return 9;
+  if (n >= 15) return 10;
+  return Math.min(Math.max(n, 1), 10);
+}
+
 function restoreWizardState() {
   try {
     const raw = sessionStorage.getItem(WIZARD_STORAGE_KEY);
@@ -426,7 +447,7 @@ function restoreWizardState() {
     }
     sessionExpectChildPhotoReplay = snapshot.meta?.expectChildPhotoReplay === true;
     Object.assign(state, snapshot.state);
-    state.currentStep = snapshot.step;
+    state.currentStep = migrateLegacyWizardStep(snapshot.step);
     if (typeof state.storyDirection !== 'string' || !state.storyDirection) {
       const legacy = state.length;
       if (legacy === 'short' || legacy === 'medium' || legacy === 'long') {
@@ -457,6 +478,22 @@ function restoreWizardState() {
       state.style = null;
     }
     state.photo = null;
+    if (state.topic) {
+      state.topic = normalizeWizardTopicId(state.topic);
+      const topicMeta = TOPICS.find((t) => t.id === state.topic);
+      if (topicMeta) state.topicLabel = topicMeta.label;
+    }
+    applyChallengeCategoryForTopic(state.topic, false);
+    const catalog = getTopicCatalog();
+    if (state.companionCharacterId && catalog) {
+      const resolved = catalog.resolveCategoryFromCompanionId(state.companionCharacterId);
+      const expected = catalog.getCategoryForTopic(state.topic);
+      if (resolved && resolved !== expected) {
+        console.warn(
+          `[wizard] companion "${state.companionCharacterId}" category ${resolved} differs from topic ${expected} — keeping topic category`,
+        );
+      }
+    }
     return true;
   } catch (_) {
     sessionExpectChildPhotoReplay = false;
@@ -503,10 +540,15 @@ function hydrateWizardMultiSelectChips() {
       el.classList.toggle('selected', arr.indexOf(val) > -1);
     });
   };
-  syncStep('#step-7', 'difficulties');
-  syncStep('#step-8', 'goals');
-  syncStep('#step-9', 'helpers');
-  syncStep('#step-10', 'avoid');
+  syncStep('#step-5', 'goals');
+  const spWrap = document.getElementById('hero-superpower-chips');
+  if (spWrap) {
+    const arr = state.childSuperpower || [];
+    spWrap.querySelectorAll('.trait-chip').forEach((el) => {
+      const val = el.textContent.trim();
+      el.classList.toggle('selected', arr.indexOf(val) > -1);
+    });
+  }
 }
 
 function bindDraftFieldPersistListeners() {
@@ -594,36 +636,43 @@ const TRAITS              = WIZ.traits;
 const ILLUSTRATION_STYLES = WIZ.styles;
 const VOICES              = WIZ.voices;
 
-/** content.js `topics[].id` → COMPANIONS_BY_CATEGORY key */
-const TOPIC_TO_CHALLENGE_CATEGORY = {
-  sirens: 'NOISE_FEAR',
-  night: 'NIGHT_FEAR',
-  general_fears: 'GENERAL_FEARS',
-  anger: 'ANGER_FRUSTRATION',
-  sensitivity: 'SENSITIVITY_OVERWHELM',
-  transition: 'TRANSITION',
-  sibling: 'NEW_SIBLING',
-  confidence: 'SELF_CONFIDENCE',
-  social: 'SOCIAL',
-  focus: 'FOCUS_LEARNING',
-  medical: 'MEDICAL_PROCEDURE',
-  other: 'OTHER',
-};
+const TopicCatalog = globalThis.CanonicalTopics || null;
 
-const TOPIC_CHIP_ORDER = [
-  'night',
-  'sibling',
-  'anger',
-  'confidence',
-  'transition',
-  'social',
-  'sensitivity',
-  'general_fears',
-  'sirens',
-  'focus',
-  'medical',
-  'other',
-];
+function getTopicCatalog() {
+  if (!TopicCatalog) {
+    console.error('[wizard] CanonicalTopics not loaded — check canonical-topics.js script order');
+  }
+  return TopicCatalog;
+}
+
+function normalizeWizardTopicId(topicId) {
+  const catalog = getTopicCatalog();
+  return catalog ? catalog.normalizeTopicId(topicId) : String(topicId || '').trim();
+}
+
+function getCategoriesForWizardTopic(topicId) {
+  const catalog = getTopicCatalog();
+  if (!catalog) return ['OTHER'];
+  return catalog.getCategoriesForTopic(topicId);
+}
+
+function applyChallengeCategoryForTopic(topicId) {
+  const id = normalizeWizardTopicId(topicId);
+  if (!id) {
+    state.challengeCategory = null;
+    return null;
+  }
+  const catalog = getTopicCatalog();
+  state.challengeCategory = catalog
+    ? catalog.getCategoryForTopic(id)
+    : getCategoriesForWizardTopic(id)[0] || 'OTHER';
+  return state.challengeCategory;
+}
+
+/** Category key for /api/categories/branch. */
+function getBranchCategoryForTopic(topicId) {
+  return applyChallengeCategoryForTopic(topicId) || 'OTHER';
+}
 
 function normalizeFollowupQuestion(questionItem, index) {
   if (typeof questionItem === 'string') {
@@ -705,8 +754,7 @@ function upsertCategoryAnswerDraft(nextDraft) {
 }
 
 function getChallengeCategoryForTopicId(topicId) {
-  if (!topicId) return null;
-  return TOPIC_TO_CHALLENGE_CATEGORY[topicId] || 'OTHER';
+  return applyChallengeCategoryForTopic(topicId);
 }
 
 async function fetchCategoryBranching(category, currentAnswers) {
@@ -734,16 +782,21 @@ function renderCompanionCards() {
   const grid = document.getElementById('companion-cards');
   if (!grid) return;
 
+  const topicId = normalizeWizardTopicId(state.topic);
   const cat = state.challengeCategory;
   const map = globalThis.COMPANIONS_BY_CATEGORY;
-  if (!cat || !map || !Array.isArray(map[cat])) {
+  if (!topicId || !cat || !map || !Array.isArray(map[cat])) {
     grid.innerHTML = '';
-    if (cat) grid.dataset.challengeCategory = cat;
+    grid.removeAttribute('data-challenge-category');
     return;
   }
 
   grid.dataset.challengeCategory = cat;
   const list = map[cat];
+  if (list.length === 0) {
+    grid.innerHTML = '';
+    return;
+  }
 
   grid.replaceChildren();
 
@@ -800,10 +853,20 @@ function renderCompanionCards() {
 
     btn.addEventListener('click', () => {
       state.companionCharacterId = c.id;
+      const catalog = getTopicCatalog();
+      if (catalog) {
+        const resolved = catalog.resolveCategoryFromCompanionId(c.id);
+        const expected = catalog.getCategoryForTopic(topicId);
+        if (resolved && resolved !== expected) {
+          console.warn(
+            `[wizard] companion "${c.id}" maps to ${resolved}, topic expects ${expected} — keeping topic category`,
+          );
+        }
+      }
       grid.querySelectorAll('.companion-card').forEach((n) => n.classList.remove('selected'));
       btn.classList.add('selected');
       const cont = document.getElementById('btn-continue');
-      if (cont && state.currentStep === 4) cont.disabled = false;
+      if (cont && state.currentStep === 3) cont.disabled = false;
       queueWizardSave();
     });
 
@@ -825,8 +888,8 @@ function init() {
   bindDraftFieldPersistListeners();
   buildPills();
   renderTopics();
-  renderTraits();
   renderSuperpowerChips();
+  renderGoalsChips();
   renderDirectionCards();
   renderStyleStepGrid();
   renderVoiceBtns();
@@ -860,84 +923,38 @@ function initWizardContent() {
   setText('s2Title', WIZ.steps.s2.title);
   setText('s2Sub',   WIZ.steps.s2.sub);
 
-  setText('catFollowTitle', (WIZ.steps.categoryFollowup || WIZ_DEFAULTS.steps.categoryFollowup).title);
-  setText('catFollowSub',   (WIZ.steps.categoryFollowup || WIZ_DEFAULTS.steps.categoryFollowup).sub);
-
-  // Step 4 — companion
+  // Step 3 — companion
   setText('companionMicro', WIZ.microcopy.companion || '');
   setText('companionTitle', WIZ.steps.companion?.title || '');
   setText('companionSub',   WIZ.steps.companion?.sub || '');
 
-  // Micro-copy — warm acknowledgment lines shown at top of each step
-  setText('s3micro',  WIZ.microcopy.s3);
-  setText('s4micro',  WIZ.microcopy.s4);
-  setText('s5micro',  WIZ.microcopy.s5);
-  setText('s6micro',  WIZ.microcopy.s6);
-  setText('s7micro',  WIZ.microcopy.s7);
-  setText('s8micro',  WIZ.microcopy.s8);
-  setText('s9micro',  WIZ.microcopy.s9);
-  setText('sStyleMicro', WIZ.microcopy.sStyle || '');
-  setText('sAddonsMicro', WIZ.microcopy.s8);
-  setText('s10micro', WIZ.microcopy.s10);
-  setText('s11micro', WIZ.microcopy.s11 || '');
+  setText('childMicro',     WIZ.microcopy.child || '');
+  setText('heroNotesMicro', WIZ.microcopy.heroNotes || '');
+  setText('directionMicro', WIZ.microcopy.direction || '');
+  setText('styleMicro',     WIZ.microcopy.style || '');
+  setText('addonsMicro',    WIZ.microcopy.addons || '');
+  setText('bookMicro',      WIZ.microcopy.book || '');
+  setText('summaryMicro',   WIZ.microcopy.summary || '');
 
-  // Step 3
-  setText('s3Title',               WIZ.steps.s3.title);
-  setText('s3Sub',                 WIZ.steps.s3.sub);
-  setText('s3NameLabel',           WIZ.steps.s3.nameLabel);
-  setText('s3AgeLabel',            WIZ.steps.s3.ageLabel);
-  setText('s3GenderLabel',         WIZ.steps.s3.genderLabel);
-  setText('s3GenderOptBoy',        WIZ.steps.s3.genderBoy);
-  setText('s3GenderOptGirl',       WIZ.steps.s3.genderGirl);
-  setText('s3GenderOptOther',      WIZ.steps.s3.genderOther);
-  setText('s3TraitsLabel',         WIZ.steps.s3.traitsLabel);
-  setText('s3TraitsNote',          WIZ.steps.s3.traitsNote);
-  setText('s3PhotoPrompt',         WIZ.steps.s3.photoPrompt);
-  setText('s3PhotoOptional',       WIZ.steps.s3.photoOptional);
+  // Step 4 — child details
+  setText('s3Title',          WIZ.steps.s3.title);
+  setText('s3Sub',            WIZ.steps.s3.sub);
+  setText('s3NameLabel',      WIZ.steps.s3.nameLabel);
+  setText('s3AgeLabel',       WIZ.steps.s3.ageLabel);
+  setText('s3GenderLabel',    WIZ.steps.s3.genderLabel);
+  setText('s3GenderOptBoy',   WIZ.steps.s3.genderBoy);
+  setText('s3GenderOptGirl',  WIZ.steps.s3.genderGirl);
+  setText('s3GenderOptOther', WIZ.steps.s3.genderOther);
+  setText('s3PhotoPrompt',    WIZ.steps.s3.photoPrompt);
+  setText('s3PhotoOptional',  WIZ.steps.s3.photoOptional);
 
-  // Step 4 — superpower
-  setText('s4powermicro',      WIZ.microcopy.s4);
-  setText('s4powerTitle',      WIZ.steps.s4power.title);
-  setText('s4powerSub',        WIZ.steps.s4power.sub);
-  setText('s4powerExtraLabel', WIZ.steps.s4power.extraLabel);
-  const s4powerTa = document.getElementById('s4power-extra');
-  if (s4powerTa) s4powerTa.placeholder = WIZ.steps.s4power.extraPlaceholder;
+  // Step 5 — hero notes (optional)
+  const hn = WIZ.steps.heroNotes || {};
+  setText('heroNotesSub',        hn.sub || '');
+  setText('heroNotesStrengthQ', hn.strengthQ || '');
+  setText('heroNotesFeelingQ',  hn.feelingQ || '');
 
-  // Step 6 — difficulties
-  setText('s4Title',      WIZ.steps.s4.title);
-  setText('s4Sub',        WIZ.steps.s4.sub);
-  setText('s4Sub2',       WIZ.steps.s4.sub2);
-  setText('s4ExtraLabel', WIZ.steps.s4.extraLabel);
-  const s4ta = document.getElementById('s4-extra');
-  if (s4ta) s4ta.placeholder = WIZ.steps.s4.extraPlaceholder;
-  // Chip labels — toggleChip still reads el.textContent; values stored unchanged
-  WIZ.difficulties.forEach((d, i) => setText('s4Chip' + i, d.label));
-
-  // Step 6 — goals (was step 5)
-  setText('s5Title', WIZ.steps.s5.title);
-  setText('s5Sub',   WIZ.steps.s5.sub);
-  setText('s5Sub2',  WIZ.steps.s5.sub2);
-  WIZ.goals.forEach((g, i) => setText('s5Chip' + i, g.label));
-
-  // Step 7 — helpers (was step 6)
-  setText('s6Title',      WIZ.steps.s6.title);
-  setText('s6Sub',        WIZ.steps.s6.sub);
-  setText('s6Sub2',       WIZ.steps.s6.sub2);
-  setText('s6ExtraLabel', WIZ.steps.s6.extraLabel);
-  const s6ta = document.getElementById('s6-extra');
-  if (s6ta) s6ta.placeholder = WIZ.steps.s6.extraPlaceholder;
-  WIZ.helpers.forEach((h, i) => setText('s6Chip' + i, h.label));
-
-  // Step 8 — avoid (was step 7)
-  setText('s7Title',      WIZ.steps.s7.title);
-  setText('s7Sub',        WIZ.steps.s7.sub);
-  setText('s7Sub2',       WIZ.steps.s7.sub2);
-  setText('s7ExtraLabel', WIZ.steps.s7.extraLabel);
-  const s7ta = document.getElementById('s7-extra');
-  if (s7ta) s7ta.placeholder = WIZ.steps.s7.extraPlaceholder;
-  WIZ.avoid.forEach((a, i) => setText('s7Chip' + i, a.label));
-
-  // Step 11 — direction
+  // Step 6 — direction
   setText('sDirectionTitle', WIZ.steps.sDirection.title);
   setText('sDirectionSub',   WIZ.steps.sDirection.sub);
 
@@ -1012,9 +1029,9 @@ function getAddonsTitle() {
 
 /** Step 13 add-ons: centered stack, or side-by-side when voice panel is open. */
 function applyAddonsStepLayout() {
-  const grid = document.querySelector('#step-13 .s8-grid');
+  const grid = document.querySelector('#step-8 .s8-grid');
   if (!grid) return;
-  if (state.currentStep === 13) {
+  if (state.currentStep === 8) {
     const split = isVoicePanelActive();
     grid.classList.toggle('s8-single-col', !split);
   } else {
@@ -1027,7 +1044,7 @@ function syncWizardLayout() {
   const main = document.querySelector(".wizard-main");
   if (!main) return;
 
-  const open = isVoicePanelActive() && state.currentStep === 13;
+  const open = isVoicePanelActive() && state.currentStep === 8;
   main.classList.toggle("wizard-audio-open", open);
 }
 
@@ -1091,27 +1108,26 @@ function updateUI() {
   const photoReassure = document.getElementById("photo-step-reassure");
 
   if (bar && btn && backBtn) {
-    if (state.currentStep <= 2 || state.currentStep === 15) {
+    if (state.currentStep <= 2 || state.currentStep === 10) {
       bar.classList.add("hidden");
       if (btnAnyway) btnAnyway.hidden = true;
       if (photoReassure) photoReassure.hidden = true;
     } else {
       bar.classList.remove("hidden");
 
-      if (state.currentStep === 5) {
+      if (state.currentStep === 4) {
         updatePhotoStepBottomBar();
       } else {
         btn.textContent =
-          state.currentStep === 6  ? WIZ.nav.continueToStory   :
-          state.currentStep === 10 ? WIZ.nav.continueToDirection :
-          state.currentStep === 14 ? WIZ.nav.continueToSummary :
+          state.currentStep === 5  ? WIZ.nav.continueToStory   :
+          state.currentStep === 9  ? WIZ.nav.continueToSummary :
           WIZ.nav.continueDefault;
         btn.onclick = goNext;
         if (btnAnyway) btnAnyway.hidden = true;
         if (photoReassure) photoReassure.hidden = true;
-        if (state.currentStep === 4) {
+        if (state.currentStep === 3) {
           btn.disabled = !state.companionCharacterId;
-        } else if (state.currentStep === 12) {
+        } else if (state.currentStep === 7) {
           btn.disabled = !state.styleSelected;
         } else {
           btn.disabled = false;
@@ -1127,41 +1143,41 @@ function updateUI() {
   }
 
   if (state.currentStep === 3) {
-    renderCategoryFollowupFields();
-  }
-
-  if (state.currentStep === 4) {
     renderCompanionCards();
   }
 
-  // Running total appears from the direction step onward (step 11), once a
-  // direction is selected — user requested seeing the price as soon as they pick.
-  const bottomBarTotal = document.getElementById('bottom-bar-total');
-  if (bottomBarTotal) {
-    bottomBarTotal.hidden = !(state.currentStep >= 11 && Boolean(state.storyDirection));
+  if (state.currentStep === 5) {
+    updateHeroNotesTitle();
+    renderSuperpowerChips();
+    renderGoalsChips();
   }
 
-  if (state.currentStep === 11) {
+  const bottomBarTotal = document.getElementById('bottom-bar-total');
+  if (bottomBarTotal) {
+    bottomBarTotal.hidden = !(state.currentStep >= 6 && Boolean(state.storyDirection));
+  }
+
+  if (state.currentStep === 6) {
     renderDirectionCards();
     refreshTotal();
   }
 
-  if (state.currentStep === 12) {
+  if (state.currentStep === 7) {
     renderStyleStepGrid();
   }
 
-  if (state.currentStep === 13) {
+  if (state.currentStep === 8) {
     syncStep8Layout(true);
     refreshTotal();
   }
 
-  if (state.currentStep === 15) {
+  if (state.currentStep === 10) {
     buildSummary();
   }
 
   const photoHint = document.getElementById('photo-reupload-hint');
   if (photoHint) {
-    if (state.currentStep === 5) {
+    if (state.currentStep === 4) {
       photoHint.hidden = !(sessionExpectChildPhotoReplay && !state.photo);
     } else {
       photoHint.hidden = true;
@@ -1176,10 +1192,6 @@ function goNext() {
   const stepBeforeAdvance = state.currentStep;
 
   if (state.currentStep === 3) {
-    persistFollowupDraftFromDom();
-  }
-
-  if (state.currentStep === 4) {
     if (!state.companionCharacterId) {
       const grid = document.getElementById('companion-cards');
       if (grid) {
@@ -1191,7 +1203,7 @@ function goNext() {
     }
   }
 
-  if (state.currentStep === 5) {
+  if (state.currentStep === 4) {
     state.childName   = document.getElementById("child-name")?.value.trim() || "";
     state.childAge    = document.getElementById("child-age")?.value || "";
     state.childGender = document.getElementById("child-gender")?.value || "";
@@ -1200,31 +1212,14 @@ function goNext() {
       shake(document.getElementById("child-name"));
       return;
     }
-    // Photo is optional: never block progression here.
-  }
-
-  if (state.currentStep === 6) {
-    state.childSuperpowerExtra = document.getElementById("s4power-extra")?.value.trim() || "";
-  }
-
-  if (state.currentStep === 7) {
-    state.s4extra = document.getElementById("s4-extra")?.value || "";
   }
 
   if (state.currentStep === 9) {
-    state.s6extra = document.getElementById("s6-extra")?.value || "";
-  }
-
-  if (state.currentStep === 10) {
-    state.s7extra = document.getElementById("s7-extra")?.value || "";
-  }
-
-  if (state.currentStep === 14) {
     state.bookName = document.getElementById("bookNameInput")?.value.trim() || "";
     state.dedication = (document.getElementById("dedicationInput")?.value || "").slice(0, 300);
   }
 
-  if (state.currentStep === 15) {
+  if (state.currentStep === 10) {
     if (isSubmittingOrder) return;
     state.contactName  = document.getElementById("contact-name")?.value.trim() || "";
     state.contactEmail = document.getElementById("contact-email")?.value.trim() || "";
@@ -1240,11 +1235,11 @@ function goNext() {
     return;
   }
 
-  if (stepBeforeAdvance === 11) {
+  if (stepBeforeAdvance === 6) {
     persistPreferredDirection(state.storyDirection);
   }
 
-  if (stepBeforeAdvance === 12 && !state.styleSelected) {
+  if (stepBeforeAdvance === 7 && !state.styleSelected) {
     const grid = document.getElementById('style-step-grid');
     if (grid) {
       grid.style.animation = 'none';
@@ -1255,7 +1250,7 @@ function goNext() {
   }
 
   state.currentStep++;
-  if (state.currentStep === 12 && stepBeforeAdvance === 11) {
+  if (state.currentStep === 7 && stepBeforeAdvance === 6) {
     state.style = null;
     state.styleSelected = false;
     renderStyleStepGrid();
@@ -1289,11 +1284,33 @@ function goBack() {
 
 /* ── TOPIC CHIPS (flat ordered flow) ─────────────────────────── */
 
+function loadCategoryBranchForTopic(topicId, afterSelect) {
+  const branchCat = getBranchCategoryForTopic(topicId);
+  (async function loadBranch() {
+    try {
+      const data = await fetchCategoryBranching(branchCat);
+      state.categoryBranching = { ...data, _fetchFailed: false };
+    } catch (e) {
+      console.error('[wizard] category branch network failed', e);
+      state.categoryBranching = {
+        followUpQuestions: [],
+        hebrewLabel: state.topicLabel,
+        _fetchFailed: true,
+      };
+    }
+    queueWizardSave();
+    if (afterSelect) {
+      setTimeout(afterSelect, 220);
+    }
+  })();
+}
+
 function addTopicChip(wrap, t, afterSelect) {
   const d = document.createElement('div');
   d.className = 'chip';
   d.textContent = t.label;
   d.setAttribute('data-id', t.id);
+  if (t.wizardDescription) d.setAttribute('title', t.wizardDescription);
   d.addEventListener('click', () => {
     const root = document.getElementById('topic-chips');
     if (root) root.querySelectorAll('.chip').forEach((c) => c.classList.remove('selected'));
@@ -1305,8 +1322,7 @@ function addTopicChip(wrap, t, afterSelect) {
     }
     state.topic = t.id;
     state.topicLabel = t.label;
-    state.challengeCategory = getChallengeCategoryForTopicId(t.id);
-    const cat = String(state.challengeCategory || '');
+    applyChallengeCategoryForTopic(t.id);
 
     if (isReselect && state.categoryBranching && !state.categoryBranching._fetchFailed) {
       queueWizardSave();
@@ -1321,47 +1337,38 @@ function addTopicChip(wrap, t, afterSelect) {
       state.categoryAnswers = [];
     }
     queueWizardSave();
-
-    (async function loadBranch() {
-      try {
-        const data = await fetchCategoryBranching(cat);
-        state.categoryBranching = { ...data, _fetchFailed: false };
-      } catch (e) {
-        console.error('[wizard] category branch network failed', e);
-        state.categoryBranching = {
-          followUpQuestions: [],
-          hebrewLabel: state.topicLabel,
-          _fetchFailed: true,
-        };
-      }
-      queueWizardSave();
-      if (afterSelect) {
-        setTimeout(afterSelect, 220);
-      }
-    })();
+    loadCategoryBranchForTopic(t.id, afterSelect);
   });
   wrap.appendChild(d);
 }
 
-function goToCategoryFollowupStep() {
+function goToCompanionStep() {
   state.currentStep = 3;
   updateUI();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateHeroNotesTitle() {
+  const el = document.getElementById('heroNotesTitle');
+  if (!el) return;
+  const hn = WIZ.steps.heroNotes || WIZ_DEFAULTS.steps.heroNotes || {};
+  const name = (state.childName || '').trim();
+  el.textContent = name
+    ? String(hn.titleTemplate || 'כמה מילים על {name}').replace('{name}', name)
+    : hn.titleFallback || 'כמה מילים על הגיבור/ה שלכם';
 }
 
 function renderTopics() {
   const wrap = document.getElementById('topic-chips');
   if (!wrap) return;
   wrap.innerHTML = '';
-  const topicById = new Map(TOPICS.map((topic) => [topic.id, topic]));
-  TOPIC_CHIP_ORDER.forEach((topicId) => {
-    const topic = topicById.get(topicId);
-    if (!topic) return;
-    addTopicChip(wrap, topic, goToCategoryFollowupStep);
+  TOPICS.forEach((topic) => {
+    addTopicChip(wrap, topic, goToCompanionStep);
   });
 
   if (state.topic) {
-    const selected = wrap.querySelector(`[data-id="${state.topic}"]`);
+    const normalized = normalizeWizardTopicId(state.topic);
+    const selected = wrap.querySelector(`[data-id="${normalized}"]`);
     if (selected) selected.classList.add('selected');
   }
 }
@@ -1572,8 +1579,22 @@ function renderTraits() {
 /* ── SUPERPOWER CHIPS (multi-select) ────────────────────────── */
 const SUPERPOWERS = WIZ.superpowers;
 
+function renderGoalsChips() {
+  const wrap = document.getElementById('hero-goals-chips');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  (WIZ.goals || []).forEach((g) => {
+    const d = document.createElement('div');
+    d.className = 'chip';
+    if ((state.goals || []).indexOf(g.label) > -1) d.classList.add('selected');
+    d.textContent = g.label;
+    d.addEventListener('click', () => toggleChip(d, 'goals'));
+    wrap.appendChild(d);
+  });
+}
+
 function renderSuperpowerChips() {
-  const wrap = document.getElementById("superpower-chips");
+  const wrap = document.getElementById('hero-superpower-chips');
   if (!wrap) return;
 
   wrap.innerHTML = '';
@@ -1718,7 +1739,7 @@ function renderPhotoUploadArea() {
 }
 
 function updatePhotoStepBottomBar() {
-  if (state.currentStep !== 5) return;
+  if (state.currentStep !== 4) return;
   const btn = document.getElementById('btn-continue');
   const btnAnyway = document.getElementById('btn-continue-anyway');
   const photoReassure = document.getElementById('photo-step-reassure');
@@ -2073,7 +2094,7 @@ function renderDirectionCards() {
       const bbt = document.getElementById('bottom-bar-total');
       if (bbt) bbt.hidden = false;
       const cont = document.getElementById('btn-continue');
-      if (cont && state.currentStep === 11) cont.disabled = false;
+      if (cont && state.currentStep === 6) cont.disabled = false;
       queueWizardSave();
     });
 
@@ -2106,7 +2127,7 @@ function renderStyleStepGrid() {
       state.style = s.id;
       state.styleSelected = true;
       const cont = document.getElementById('btn-continue');
-      if (cont && state.currentStep === 12) cont.disabled = false;
+      if (cont && state.currentStep === 7) cont.disabled = false;
       queueWizardSave();
     });
 
@@ -2225,7 +2246,7 @@ function syncStep8Layout(skipAnimation = false) {
   const voiceCol    = getVoiceCol();
   const grid        = getStep8Grid();
   const addonsTitle = getAddonsTitle();
-  const step13Addons = state.currentStep === 13;
+  const step13Addons = state.currentStep === 8;
   const shouldShow = isVoicePanelActive() && step13Addons;
 
   if (addonsTitle) {
@@ -2236,7 +2257,7 @@ function syncStep8Layout(skipAnimation = false) {
 
   if (grid) {
     grid.classList.toggle("voice-open", shouldShow);
-    if (state.currentStep === 13) {
+    if (state.currentStep === 8) {
       grid.classList.remove("s8-three-col");
     } else {
       grid.classList.toggle("s8-three-col", shouldShow);
@@ -2248,7 +2269,7 @@ function syncStep8Layout(skipAnimation = false) {
 
   if (!voiceCol) return;
 
-  if (state.currentStep === 13) {
+  if (state.currentStep === 8) {
     voiceCol.style.maxHeight = '';
     voiceCol.style.overflow = '';
     voiceCol.style.willChange = 'opacity, transform';
@@ -2278,7 +2299,7 @@ function syncStep8Layout(skipAnimation = false) {
 function animateVoicePanel(panel, show) {
   if (!panel) return;
 
-  if (state.currentStep === 13) {
+  if (state.currentStep === 8) {
     panel.style.maxHeight = '';
     panel.style.overflow = '';
     panel.style.willChange = 'opacity, transform';
@@ -2515,48 +2536,17 @@ function buildSummary() {
     };
 
     const superpowerVal = toSummaryLabels(state.childSuperpower, WIZ.superpowers || []);
-    const difficultiesVal = toSummaryLabels(state.difficulties, WIZ.difficulties || []);
     const goalsVal = toSummaryLabels(state.goals, WIZ.goals || []);
-    const helpersVal = toSummaryLabels(state.helpers, WIZ.helpers || []);
-    const avoidVal = toSummaryLabels(state.avoid, WIZ.avoid || []);
+    const heroNoteParts = [superpowerVal, goalsVal].filter(Boolean);
+    const heroNotesVal = heroNoteParts.length ? heroNoteParts.join(' · ') : null;
 
-    const emotionalRows = [
-      superpowerVal
-        ? { icon: '💪', label: 'כוחות:', val: superpowerVal }
-        : null,
-      difficultiesVal
-        ? { icon: '🌊', label: 'מה קצת קשה:', val: difficultiesVal }
-        : null,
-      goalsVal
-        ? { icon: '🌟', label: 'לאן נוביל:', val: goalsVal }
-        : null,
-      helpersVal
-        ? { icon: '🤍', label: 'מה עוזר:', val: helpersVal }
-        : null,
-      avoidVal
-        ? { icon: '🚫', label: 'להשאיר בחוץ:', val: avoidVal }
-        : null,
-    ].filter(Boolean);
-
-    const answeredFollowups = (state.categoryAnswers || []).filter((a) => {
-      const hasText = Boolean(a && a.answer && a.answer.trim());
-      const hasQuick = Boolean(a && Array.isArray(a.selectedQuickAnswers) && a.selectedQuickAnswers.length > 0);
-      return hasText || hasQuick;
-    });
-
-    const emotionalHtml = emotionalRows.map((r) => `
-      <div class="summary-row summary-row--soft">
-        <span class="summary-icon">${r.icon}</span>
-        <span class="summary-label">${r.label}</span>
-        <span class="summary-val">${r.val}</span>
-      </div>
-    `).join('');
-
-    const followupHint = answeredFollowups.length > 0
-      ? `<div class="summary-followup-count">+ ${answeredFollowups.length} שאלות השלמה</div>`
+    const extraDetails = heroNotesVal
+      ? `<div class="summary-row summary-row--soft">
+        <span class="summary-icon">💜</span>
+        <span class="summary-label">על הגיבור/ה:</span>
+        <span class="summary-val">${heroNotesVal}</span>
+      </div>`
       : '';
-
-    const extraDetails = emotionalHtml + followupHint;
 
     sumEl.innerHTML = `${rows
       .map(
@@ -2669,13 +2659,7 @@ function buildSummary() {
  * Child reference photo: optional data URL or URL (server persists data URLs).
  */
 function buildWizardPayload() {
-  // Normalise topic IDs — content.js uses abbreviated keys, backend uses full keys.
-  const TOPIC_ID_MAP = {
-    confidence: 'selfconfidence',
-    night: 'nightfear',
-    general_fears: 'generalfears',
-  };
-  const topic = TOPIC_ID_MAP[state.topic] || state.topic;
+  const topic = normalizeWizardTopicId(state.topic) || state.topic;
   const combinedSuperpower = [...state.childSuperpower];
   if (state.childSuperpowerExtra) combinedSuperpower.push(state.childSuperpowerExtra);
 

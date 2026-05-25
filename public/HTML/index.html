@@ -69,16 +69,6 @@
           <div class="hero-badge" id="heroBadge"></div>
           <h1 class="hero-h1" id="heroH1"></h1>
           <p class="hero-sub2" id="heroSub"></p>
-          <p class="hero-body" id="heroBody"></p>
-
-          <p class="hero-trust-line" id="heroSocialProof"></p>
-
-          <div class="hero-btns">
-            <a href="/wizard" class="btn-primary" id="heroCtaPrimary"></a>
-            <a href="#sample" class="btn-light" id="heroCtaSecondary"></a>
-          </div>
-
-          <p class="hero-cta-note" id="heroCtaNote"></p>
 
           <ul class="hero-bullets">
             <li id="heroBullet0"></li>
@@ -86,7 +76,12 @@
             <li id="heroBullet2"></li>
           </ul>
 
-          <p class="hero-trust-badge" id="heroTrustBadge"></p>
+          <div class="hero-btns">
+            <a href="/wizard" class="btn-primary" id="heroCtaPrimary"></a>
+            <a href="#sample" class="btn-light" id="heroCtaSecondary"></a>
+          </div>
+
+          <p class="hero-cta-note" id="heroCtaNote"></p>
         </div>
 
         <div class="hero-img-wrap">
@@ -221,20 +216,24 @@
       </div>
     </section>
 
-    <!-- ── Trust & Privacy ───────────────────────────────────────────────── -->
-    <section class="section trust-section" id="trust">
-      <div class="wrap">
-        <h2 class="section-h2" id="trustH2"></h2>
-        <p class="section-sub" id="trustSub"></p>
-        <div class="why-grid trust-grid">
-          <article class="why-card trust-card">
-            <h3 id="trustPhotoTitle"></h3>
-            <p id="trustPhotoBody"></p>
-          </article>
-          <article class="why-card trust-card">
-            <h3 id="trustQcTitle"></h3>
-            <p id="trustQcBody"></p>
-          </article>
+    <!-- ── Trust & Privacy — reassurance strip (not card grid) ───────────── -->
+    <section class="trust-band" id="trust">
+      <div class="wrap trust-band__inner">
+        <header class="trust-band__header">
+          <h2 class="trust-band__h2" id="trustH2"></h2>
+          <p class="trust-band__sub" id="trustSub"></p>
+        </header>
+        <div class="trust-points">
+          <div class="trust-point">
+            <span class="trust-point__icon" aria-hidden="true">📷</span>
+            <h3 class="trust-point__title" id="trustPhotoTitle"></h3>
+            <p class="trust-point__text" id="trustPhotoBody"></p>
+          </div>
+          <div class="trust-point">
+            <span class="trust-point__icon" aria-hidden="true">✨</span>
+            <h3 class="trust-point__title" id="trustQcTitle"></h3>
+            <p class="trust-point__text" id="trustQcBody"></p>
+          </div>
         </div>
       </div>
     </section>
@@ -409,6 +408,7 @@
   </main>
 
   <script src="../JS/content.js"></script>
+  <script src="../JS/canonical-topics.js"></script>
   <script src="../JS/routes.js"></script>
   <script src="../JS/analytics.js"></script>
   <script src="../JS/bookHistory.js"></script>

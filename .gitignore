@@ -24,6 +24,7 @@ debug-*
 # Scratch, QA, proof runs
 tmp/
 story-qa-logs/
+phase2-logs/
 test-results/
 test-outputs/
 proof-output/
