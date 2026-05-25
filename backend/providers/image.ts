@@ -1627,6 +1627,7 @@ export async function previewStoryboardPrompts(input: {
     imagePrompt: string;
     bookPageText?: string;
     expectedCharacterIds?: string[];
+    pageIntent?: PageIntent;
   }>;
   childName?: string | null;
   childDescription?: string;
