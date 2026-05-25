@@ -1,0 +1,123 @@
+{
+  "styleId": "style_02_gptimage2_final",
+  "phase": "style02-gptimage2-final-audition",
+  "status": "complete",
+  "generatedAt": "2026-05-25T18:37:59.617Z",
+  "model": "gpt-image-2",
+  "fallbackUsed": false,
+  "apiModeNote": "images.edit when style references passed",
+  "style02SharedBrief": "Style 02: a richly rendered semi-realistic cinematic fantasy children's-book illustration. Highly detailed and immersive, with dimensional painted forms, refined linework, realistic materials, strong motivated lighting, layered foreground-midground-background depth, and dense environmental storytelling. The image should feel hand-crafted and magical, but not soft watercolor, not pale pencil, not flat cartoon, not generic nursery art. Strong cinematic light and shadow; warm local glow balanced by cool shadows; rich colors and visible texture. The child is illustrated and expressive, cute but believable, never CGI, never plastic, never Pixar, never doll-like.",
+  "referenceSubsets": {
+    "bedroom-night": {
+      "filenames": [
+        "ChatGPT Image May 18, 2026, 11_41_28 AM.png",
+        "ChatGPT Image May 18, 2026, 11_41_49 AM.png",
+        "ChatGPT Image May 18, 2026, 12_49_00 PM.png",
+        "ChatGPT Image May 18, 2026, 01_45_01 PM.png"
+      ],
+      "reason": "Four dense bedroom-night refs; child-prominent — no turtle/fairy/Pixar-leaning refs."
+    },
+    "classroom-day": {
+      "filenames": [
+        "ChatGPT Image May 18, 2026, 12_36_35 PM.png",
+        "ChatGPT Image May 18, 2026, 01_46_14 PM.png",
+        "ChatGPT Image May 18, 2026, 11_41_43 AM.png",
+        "ChatGPT Image May 18, 2026, 02_01_50 PM.png"
+      ],
+      "reason": "Daytime interior + dimensional village + garden detail + material-rich study (no dragon). Excluded turtle hyper-render and night refs."
+    },
+    "clinic-day": {
+      "filenames": [
+        "ChatGPT Image May 18, 2026, 12_36_35 PM.png",
+        "ChatGPT Image May 18, 2026, 02_01_50 PM.png",
+        "ChatGPT Image May 18, 2026, 01_46_14 PM.png",
+        "ChatGPT Image May 18, 2026, 11_41_43 AM.png"
+      ],
+      "reason": "Bright clinic/day interior + jars/wood study materials + architecture. No turtle/fairy/night bedroom."
+    },
+    "forest-magical": {
+      "filenames": [
+        "ChatGPT Image May 18, 2026, 11_41_36 AM.png",
+        "ChatGPT Image May 18, 2026, 02_39_29 PM.png",
+        "ChatGPT Image May 18, 2026, 02_05_22 PM.png",
+        "ChatGPT Image May 18, 2026, 02_04_04 PM.png"
+      ],
+      "reason": "Environment-heavy: fairy village + mushroom forest + lantern forest + atmospheric night-tree depth (style only; child stays human)."
+    }
+  },
+  "compareStyle02d": "image-experiment-1/style-audition-style02d-reference-2026-05-25-c2136b05",
+  "scenes": [
+    {
+      "slug": "bedroom-night",
+      "outputPath": "scene-01-bedroom-night.png",
+      "promptPath": "scene-01-bedroom-night-prompt.txt",
+      "model": "gpt-image-2",
+      "apiMode": "images.edit",
+      "refsRequested": 4,
+      "refsPassed": 4,
+      "fallbackUsed": false,
+      "referencesUsed": [
+        "ChatGPT Image May 18, 2026, 11_41_28 AM.png",
+        "ChatGPT Image May 18, 2026, 11_41_49 AM.png",
+        "ChatGPT Image May 18, 2026, 12_49_00 PM.png",
+        "ChatGPT Image May 18, 2026, 01_45_01 PM.png"
+      ],
+      "subsetReason": "Four dense bedroom-night refs; child-prominent — no turtle/fairy/Pixar-leaning refs.",
+      "durationMs": 155346
+    },
+    {
+      "slug": "classroom-day",
+      "outputPath": "scene-02-classroom-day.png",
+      "promptPath": "scene-02-classroom-day-prompt.txt",
+      "model": "gpt-image-2",
+      "apiMode": "images.edit",
+      "refsRequested": 4,
+      "refsPassed": 4,
+      "fallbackUsed": false,
+      "referencesUsed": [
+        "ChatGPT Image May 18, 2026, 12_36_35 PM.png",
+        "ChatGPT Image May 18, 2026, 01_46_14 PM.png",
+        "ChatGPT Image May 18, 2026, 11_41_43 AM.png",
+        "ChatGPT Image May 18, 2026, 02_01_50 PM.png"
+      ],
+      "subsetReason": "Daytime interior + dimensional village + garden detail + material-rich study (no dragon). Excluded turtle hyper-render and night refs.",
+      "durationMs": 145294
+    },
+    {
+      "slug": "clinic-day",
+      "outputPath": "scene-03-clinic-day.png",
+      "promptPath": "scene-03-clinic-day-prompt.txt",
+      "model": "gpt-image-2",
+      "apiMode": "images.edit",
+      "refsRequested": 4,
+      "refsPassed": 4,
+      "fallbackUsed": false,
+      "referencesUsed": [
+        "ChatGPT Image May 18, 2026, 12_36_35 PM.png",
+        "ChatGPT Image May 18, 2026, 02_01_50 PM.png",
+        "ChatGPT Image May 18, 2026, 01_46_14 PM.png",
+        "ChatGPT Image May 18, 2026, 11_41_43 AM.png"
+      ],
+      "subsetReason": "Bright clinic/day interior + jars/wood study materials + architecture. No turtle/fairy/night bedroom.",
+      "durationMs": 142220
+    },
+    {
+      "slug": "forest-magical",
+      "outputPath": "scene-04-forest-magical.png",
+      "promptPath": "scene-04-forest-magical-prompt.txt",
+      "model": "gpt-image-2",
+      "apiMode": "images.edit",
+      "refsRequested": 4,
+      "refsPassed": 4,
+      "fallbackUsed": false,
+      "referencesUsed": [
+        "ChatGPT Image May 18, 2026, 11_41_36 AM.png",
+        "ChatGPT Image May 18, 2026, 02_39_29 PM.png",
+        "ChatGPT Image May 18, 2026, 02_05_22 PM.png",
+        "ChatGPT Image May 18, 2026, 02_04_04 PM.png"
+      ],
+      "subsetReason": "Environment-heavy: fairy village + mushroom forest + lantern forest + atmospheric night-tree depth (style only; child stays human).",
+      "durationMs": 129774
+    }
+  ]
+}

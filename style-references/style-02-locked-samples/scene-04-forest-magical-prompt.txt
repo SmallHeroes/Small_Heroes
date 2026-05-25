@@ -1,0 +1,19 @@
+Child walking a magical forest path — dense, immersive, cinematic: giant trees, moss, mushrooms, glowing particles, small lanterns in trees, layered foliage, stones, roots, flowers, deep visible depth. Lighting: strong sunbeams through canopy and/or soft lantern-firefly glow with rich shadows — cinematic contrast, magical but not muddy. Semi-realistic fantasy storybook foliage and bark detail — not soft watercolor, not empty green tunnel, not CGI child. Full fairy-village micro-architecture not required; judge on density, depth, light, materials.
+
+Style 02: a richly rendered semi-realistic cinematic fantasy children's-book illustration. Highly detailed and immersive, with dimensional painted forms, refined linework, realistic materials, strong motivated lighting, layered foreground-midground-background depth, and dense environmental storytelling. The image should feel hand-crafted and magical, but not soft watercolor, not pale pencil, not flat cartoon, not generic nursery art. Strong cinematic light and shadow; warm local glow balanced by cool shadows; rich colors and visible texture. The child is illustrated and expressive, cute but believable, never CGI, never plastic, never Pixar, never doll-like.
+
+RENDERING: dimensional painted rendering, material definition, visible volume, controlled detailed linework, strong light direction, crisp focal hierarchy, layered atmospheric depth, rich shadows, detailed props everywhere. NOT pale watercolor wash, NOT soft pencil haze, NOT muddy softness, NOT low-contrast pastel, NOT simplified nursery look, NOT weak flat lighting, NOT empty backgrounds. "Not photorealistic" does NOT mean soft watercolor — illustrated but deep, material-rich, cinematic.
+
+Use attached references for VISUAL STYLE ONLY: rendering quality, dimensionality, cinematic lighting, dense detail, atmospheric depth, material richness, linework language, magical fantasy mood. Do NOT copy exact scene, composition, creatures, text, signs, or labels. Create the new original scene below.
+
+[NO TEXT] No readable Hebrew, English, letters, numbers, signs, labels, book titles, or alphabet charts. Pictorial/abstract marks only. No garbled text.
+
+NOT Style 01. NOT soft watercolor. NOT pale pencil. NOT dusty muted wash. NOT generic nursery illustration. NOT flat vector. NOT sparse empty room. NOT global orange/amber/yellow filter over the whole image.
+
+Child (~5): semi-realistic illustrated storybook character — expressive eyes, natural proportions with slight charm, believable hand-painted skin texture, fabric folds, emotional nuance. NOT Pixar, NOT plastic CGI, NOT doll eyes, NOT hyperreal portrait, NOT flat cartoon, NOT Style-01 nursery simplicity.
+
+--- refs ---
+ChatGPT Image May 18, 2026, 11_41_36 AM.png
+ChatGPT Image May 18, 2026, 02_39_29 PM.png
+ChatGPT Image May 18, 2026, 02_05_22 PM.png
+ChatGPT Image May 18, 2026, 02_04_04 PM.png

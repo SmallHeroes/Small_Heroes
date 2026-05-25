@@ -438,4 +438,47 @@ async function runPromptsOnlyGate(pages: ParsedPage[]): Promise<void> {
 
 async function main() {
   const raw = await readFile(STORY_PATH, 'utf8');
-  let { title, pages } = parseExperiment
+  let { title, pages } = parseExperimentStory(raw);
+  const maxPages = parseMaxPagesArg(process.argv);
+  if (maxPages !== null) {
+    pages = pages.slice(0, maxPages);
+  }
+  console.log('=== Flux Style-01 Clean-Prompt Experiment ===');
+  console.log(`Story: "${title}" — ${pages.length} pages`);
+  console.log(`Compare A/B to: image-experiment-1/bedtime-2026-05-24-exp1-0413959e/\n`);
+
+  if (PROMPTS_ONLY) {
+    await runPromptsOnlyGate(pages);
+    return;
+  }
+
+  if (process.env.DISABLE_IMAGE_GENERATION === 'true') {
+    console.error(
+      'DISABLE_IMAGE_GENERATION=true — set it to false (or unset) for real Replicate renders.'
+    );
+    process.exit(1);
+  }
+  if (!process.env.REPLICATE_API_TOKEN?.trim()) {
+    console.error('REPLICATE_API_TOKEN is required for full experiment run.');
+    process.exit(1);
+  }
+
+  const arm = parseArmArg(process.argv);
+  let armAOut: string | null = null;
+  let armBOut: string | null = null;
+  if (arm === 'A' || arm === 'both') {
+    armAOut = await runArm('A', pages, title);
+  }
+  if (arm === 'B' || arm === 'both') {
+    armBOut = await runArm('B', pages, title);
+  }
+
+  console.log('\n=== Experiment complete ===');
+  if (armAOut) console.log(`Arm A (child input_images): ${armAOut}`);
+  if (armBOut) console.log(`Arm B (no child photo):       ${armBOut}`);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

@@ -23,55 +23,17 @@ import { generateGPTImage } from '../lib/generate-image';
 /** Locked for Phase 1 — do not use gpt-image-2 until CTO approves style (Phase 2). */
 process.env.GPT_IMAGE_MODEL = 'gpt-image-1';
 
-export const STYLE_BRIEF_VERSION = 'v2';
+import {
+  CHILD_ARCHETYPE,
+  SHARED_STYLE_BRIEF,
+  STYLE_AUDITION_SCENES,
+  STYLE_BRIEF_VERSION,
+} from './style-audition-shared';
 
-export const SHARED_STYLE_BRIEF =
-  "A polished, premium children's picture-book illustration — rich, cinematic, warm and magical, but controlled and readable. Clean delicate storybook linework defines the main forms; painterly gouache and watercolor texture with clear readable shapes — NOT a loose, hazy, muddy watercolor wash. A complete, fully-realized world fills the frame: a detailed environment with foreground, midground and background — furniture, plants, props, light sources, small objects to discover — every element charming and readable, never smeared or noisy. Warm and cozy with a touch of magic; motivated, gently dramatic lighting — warm glow from lamps, lanterns or windows against cooler shadows; grounded, believable space and depth, still clearly illustrated. The child is a cute, appealing, carefully designed character — expressive eyes, soft rounded face, charming proportions, defined features, real personality and warmth. The quality of a beloved modern premium printed picture book. NOT photorealistic. NOT flat vector cartoon. NOT overly digital or plastic. NOT a hazy or muddy watercolor wash. NOT generic soft watercolor. NOT a character on blank paper. Bright, clean, true color — clear whites, honest midtones, no yellow/sepia/muddy wash, never dim.";
-
-const CHILD_ARCHETYPE =
-  'Young child protagonist (around 5 years old, soft rounded features, expressive eyes).';
-
-export const STYLE_AUDITION_SCENES: Array<{ id: string; slug: string; sceneLine: string }> = [
-  {
-    id: '01',
-    slug: 'bedroom-night',
-    sceneLine:
-      "A child's cozy bedroom at night — a bed, a window showing the moon and stars, shelves with toys and books, a small lamp glowing softly. The child is on the bed.",
-  },
-  {
-    id: '02',
-    slug: 'classroom',
-    sceneLine:
-      "A warm, lived-in classroom — wooden desks, a chalkboard, posters and children's art on the walls, plants on the windowsill. The child stands among the desks.",
-  },
-  {
-    id: '03',
-    slug: 'clinic',
-    sceneLine:
-      "A friendly children's clinic room — an examination bed, a shelf of jars and supplies, a curtained window, gentle posters on the wall. The child sits in the room.",
-  },
-  {
-    id: '04',
-    slug: 'forest',
-    sceneLine:
-      'A lush forest in dappled afternoon light — tall trees, ferns, mushrooms, soft light falling through the leaves, a winding path. The child walks the path.',
-  },
-  {
-    id: '05',
-    slug: 'night-outdoors',
-    sceneLine:
-      'A magical night outdoors — a deep starry sky, a crescent moon, fireflies, a glowing lantern, hills in the distance. The child stands outside, looking up in wonder.',
-  },
-  {
-    id: '06',
-    slug: 'cottage-garden',
-    sceneLine:
-      'A cottage and its garden in warm afternoon light — flowers, a winding stone path, a low fence, a leafy tree, a watering can. The child is in the garden.',
-  },
-];
+export { CHILD_ARCHETYPE, SHARED_STYLE_BRIEF, STYLE_AUDITION_SCENES, STYLE_BRIEF_VERSION };
 
 const NEGATIVE_PROMPT =
-  'text, letters, words, numbers, watermark, signature, logo, caption, UI, frame border, photorealistic photo, 3D render, flat vector cartoon, sticker cutout, blank white background, empty cream paper, sepia filter, heavy yellow cast, muddy wash, hazy blur, loose watercolor bleed, smeared details, dim muddy lighting, plastic skin';
+  'text, letters, words, numbers, watermark, signature, logo, caption, UI, frame border, photorealistic photo, 3D render, flat vector cartoon, sticker cutout, blank white background, empty cream paper, global amber wash, orange cast, sepia filter, yellow tint, muddy wash, hazy blur, loose watercolor bleed, smeared details, simplified sparse room, generic nursery illustration, toy-like doll face, plastic skin, visual chaos';
 
 function buildScenePrompt(sceneLine: string): string {
   return [SHARED_STYLE_BRIEF, CHILD_ARCHETYPE, sceneLine].join('\n\n');
@@ -217,16 +179,15 @@ async function main() {
     childArchetype: CHILD_ARCHETYPE,
     negativePrompt: NEGATIVE_PROMPT,
     ctoCriteria: [
-      'clean precise linework without digital/plastic',
-      'controlled gouache/watercolor clarity, not hazy/muddy/loose',
-      'rich readable environment',
-      'cute well-designed appealing child character',
-      'clear focal point',
-      'premium printed storybook polish',
-      'grounded believable lighting and space',
-      'bright true color, no yellow/sepia/muddy wash',
-      'clearly illustrated, not photoreal',
-      'not flat cartoon',
+      'rich dense lived-in environment — not simplified',
+      'clear focal hierarchy — not visual chaos',
+      'layered depth and atmosphere',
+      'clean confident linework',
+      'cute appealing character with real expression — not toy-like/generic',
+      'premium cinematic quality matching reference images',
+      'warmth only from local light sources — no global amber/orange/sepia wash',
+      'clean true whites, cooler shadows',
+      'not muddy, not flat, not generic, not photoreal',
       'no text artifacts',
     ],
     scenes: results,
@@ -249,7 +210,10 @@ async function main() {
   console.log(`Manifest: ${path.join(outDir, 'manifest.json')}`);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+const isDirectRun = process.argv[1]?.replace(/\\/g, '/').includes('run-style-audition-phase1.ts');
+if (isDirectRun) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

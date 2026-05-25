@@ -92,4 +92,23 @@ export function resolveReplicateImageModel(modelOverride?: string): ReplicateMod
  */
 export function resolveReplicateImageModelForStyle(styleId?: string): ReplicateModelSlug {
   if (process.env.ENABLE_LORA !== 'true' || !styleId) {
-    return r
+    return resolveReplicateImageModel();
+  }
+
+  const style = STYLE_REGISTRY[styleId as StyleId];
+  const loraModel = style ? resolveLoraModelSlugForStyle(style.id) : null;
+  if (loraModel) {
+    console.log('[image_model_lora]', loraModel, `trigger=${style?.pipeline.loraTriggerWord ?? 'none'}`);
+    return loraModel as ReplicateModelSlug;
+  }
+
+  return resolveReplicateImageModel();
+}
+
+export function isSdxlModelSlug(model: string): boolean {
+  return /sdxl-lightning/i.test(model);
+}
+
+export function isFluxProOverrideActive(): boolean {
+  return process.env.IMAGE_MODEL_OVERRIDE?.trim() === 'flux_pro';
+}

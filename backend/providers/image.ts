@@ -3795,4 +3795,15 @@ export async function generateAllPageImages(
           );
         }
       }
-    } else if
+    } else if (availableAnchorIds.length === 0 && expectedCharacterIds.length > 0) {
+      console.warn(`[Image] Page ${page.pageNumber} — anchor missing for expected characters, generated without reference`);
+    }
+
+  }
+
+  console.log(
+    `[Image] Complete — ${results.size}/${pagesToGenerate.length} succeeded; failedPages=[${failedPages.join(', ')}]`
+  );
+
+  return { results, failedPages, textZones, lightingModes };
+}

@@ -1,0 +1,19 @@
+A child sitting in a cozy bedroom at night, looking toward the moonlit window with quiet wonder. Rich and full: bed, quilt, bookshelves, toys, small drawings, plants, lamp, nightstand, open book on the floor, tiny objects everywhere — lived-in, magical, emotionally warm. Lighting: deep blue moonlight from window, warm lamp or lantern glow inside, strong cinematic contrast, detailed shadows, every corner readable. Dense, inky, dimensional, magical — not soft watercolor, not empty nursery room. Owls/creatures only as tiny toys if any.
+
+Style 02: a richly rendered semi-realistic cinematic fantasy children's-book illustration. Highly detailed and immersive, with dimensional painted forms, refined linework, realistic materials, strong motivated lighting, layered foreground-midground-background depth, and dense environmental storytelling. The image should feel hand-crafted and magical, but not soft watercolor, not pale pencil, not flat cartoon, not generic nursery art. Strong cinematic light and shadow; warm local glow balanced by cool shadows; rich colors and visible texture. The child is illustrated and expressive, cute but believable, never CGI, never plastic, never Pixar, never doll-like.
+
+RENDERING: dimensional painted rendering, material definition, visible volume, controlled detailed linework, strong light direction, crisp focal hierarchy, layered atmospheric depth, rich shadows, detailed props everywhere. NOT pale watercolor wash, NOT soft pencil haze, NOT muddy softness, NOT low-contrast pastel, NOT simplified nursery look, NOT weak flat lighting, NOT empty backgrounds. "Not photorealistic" does NOT mean soft watercolor — illustrated but deep, material-rich, cinematic.
+
+Use attached references for VISUAL STYLE ONLY: rendering quality, dimensionality, cinematic lighting, dense detail, atmospheric depth, material richness, linework language, magical fantasy mood. Do NOT copy exact scene, composition, creatures, text, signs, or labels. Create the new original scene below.
+
+[NO TEXT] No readable Hebrew, English, letters, numbers, signs, labels, book titles, or alphabet charts. Pictorial/abstract marks only. No garbled text.
+
+NOT Style 01. NOT soft watercolor. NOT pale pencil. NOT dusty muted wash. NOT generic nursery illustration. NOT flat vector. NOT sparse empty room. NOT global orange/amber/yellow filter over the whole image.
+
+Child (~5): semi-realistic illustrated storybook character — expressive eyes, natural proportions with slight charm, believable hand-painted skin texture, fabric folds, emotional nuance. NOT Pixar, NOT plastic CGI, NOT doll eyes, NOT hyperreal portrait, NOT flat cartoon, NOT Style-01 nursery simplicity.
+
+--- refs ---
+ChatGPT Image May 18, 2026, 11_41_28 AM.png
+ChatGPT Image May 18, 2026, 11_41_49 AM.png
+ChatGPT Image May 18, 2026, 12_49_00 PM.png
+ChatGPT Image May 18, 2026, 01_45_01 PM.png

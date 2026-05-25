@@ -229,6 +229,11 @@ export async function generateReplicateImage(input: GenerateImageInput): Promise
   };
 }
 
+export type GPTImageReferenceMode = 'identity' | 'companion_dual' | 'style';
+
+/** OpenAI images.edit accepts a limited number of input images per request. */
+export const GPT_IMAGE_EDIT_MAX_REFERENCES = 4;
+
 export interface GenerateGPTImageInput {
   finalPrompt: string;
   negativePrompt?: string;
@@ -238,6 +243,10 @@ export interface GenerateGPTImageInput {
    *  from images.generate (text-only) to images.edit, which uses these
    *  images as IDENTITY anchors for the rendered character. */
   referenceImages?: string[];
+  /** How reference images are interpreted when using images.edit. Default: identity. */
+  referenceMode?: GPTImageReferenceMode;
+  /** Fail if referenceImages were requested but images.edit cannot run. */
+  requireReferenceEdit?: boolean;
 }
 
 export interface GenerateGPTImageResult {
@@ -245,6 +254,9 @@ export interface GenerateGPTImageResult {
   model: string;
   finalPrompt: string;
   hasReferencePhoto: boolean;
+  apiMode: 'images.generate' | 'images.edit';
+  referenceCountRequested: number;
+  referenceCountPassed: number;
   durationMs: number;
 }
 
@@ -280,6 +292,23 @@ const DUAL_REFERENCE_PREFIX = (
   'Re-render both characters as soft children\'s picture-book illustrations in the scene below. Same child face + same Bolly design + same locked outfit every page.\n\n' +
   '[SCENE]\n'
 );
+
+export const STYLE_REFERENCE_PREFIX = (
+  '[STYLE REFERENCES — VISUAL STYLE ONLY]\n' +
+  'The attached reference images define VISUAL STYLE ONLY: linework, color, rendering, texture, lighting, environmental richness, character charm, and premium storybook feel.\n' +
+  'DO NOT copy reference content. DO NOT copy reference characters. DO NOT copy reference animals. DO NOT copy reference creatures. DO NOT copy reference composition. DO NOT copy reference pose. DO NOT copy reference environment layout. DO NOT copy reference props unless explicitly requested in the target scene below.\n' +
+  'References may contain owls, birds, puppies, armadillos, dragons, bats, lanterns, cottages, doorways, or other specific objects — none of those should appear unless the target scene explicitly asks for them.\n\n' +
+  '[TARGET SCENE]\n'
+);
+
+function resolveReferencePrefix(
+  mode: GPTImageReferenceMode,
+  referenceCount: number
+): string {
+  if (mode === 'style') return STYLE_REFERENCE_PREFIX;
+  if (mode === 'companion_dual' || referenceCount >= 2) return DUAL_REFERENCE_PREFIX;
+  return REFERENCE_PHOTO_PREFIX;
+}
 
 function resolveReferenceSource(source: string): string {
   const trimmed = source.trim();
@@ -338,15 +367,24 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
   const quality = input.quality ?? resolveEnvGPTQuality();
 
   const refs = (input.referenceImages || []).filter((u) => typeof u === 'string' && u.trim().length > 0);
-  const hasReference = refs.length > 0;
+  const referenceCountRequested = refs.length;
+  const referenceMode: GPTImageReferenceMode = input.referenceMode ?? 'identity';
+  const refsForApi = refs.slice(0, GPT_IMAGE_EDIT_MAX_REFERENCES);
+  const hasReference = refsForApi.length > 0;
+
+  if (input.requireReferenceEdit && referenceCountRequested > 0 && !hasReference) {
+    throw new Error('Reference images were required but none could be loaded for images.edit.');
+  }
 
   let fullPrompt = input.finalPrompt;
   if (hasReference) {
-    fullPrompt =
-      (refs.length >= 2 ? DUAL_REFERENCE_PREFIX : REFERENCE_PHOTO_PREFIX) + fullPrompt;
+    fullPrompt = resolveReferencePrefix(referenceMode, refsForApi.length) + fullPrompt;
   }
   if (input.negativePrompt) {
-    fullPrompt += `\nNo text or letters in the image.`;
+    fullPrompt += `\n\n[AVOID]\n${input.negativePrompt}`;
+    if (!/\btext\b/i.test(input.negativePrompt)) {
+      fullPrompt += '\nNo text or letters in the image.';
+    }
   }
 
   // Allow overriding the OpenAI image model via env var. Defaults to gpt-image-1.
@@ -354,16 +392,23 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
   // which plans composition before rendering — should obey our framing instructions.
   const imageModel = (process.env.GPT_IMAGE_MODEL || 'gpt-image-1').trim();
 
+  const apiMode: 'images.generate' | 'images.edit' = hasReference ? 'images.edit' : 'images.generate';
+
+  if (input.requireReferenceEdit && referenceCountRequested > 0 && apiMode !== 'images.edit') {
+    throw new Error('Reference edit was required but API mode resolved to images.generate.');
+  }
+
   const startMs = Date.now();
   console.info(
     `[GPTImage] model=${imageModel} quality=${quality} size=${size} promptLen=${fullPrompt.length} ` +
-    `refs=${refs.length} mode=${hasReference ? 'images.edit' : 'images.generate'}`
+    `refMode=${referenceMode} refsRequested=${referenceCountRequested} refsPassed=${refsForApi.length} ` +
+    `mode=${apiMode}`
   );
 
   let b64: string | undefined;
   try {
     if (hasReference) {
-      const files = await Promise.all(refs.slice(0, 4).map((u, i) => referenceToOpenAIFile(u, i)));
+      const files = await Promise.all(refsForApi.map((u, i) => referenceToOpenAIFile(u, i)));
       const imageArg = files.length === 1 ? files[0] : files;
       const response = await openai.images.edit({
         model: imageModel,
@@ -394,7 +439,8 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
   const buffer = Buffer.from(b64, 'base64');
   const durationMs = Date.now() - startMs;
   console.info(
-    `[GPTImage] Done in ${durationMs}ms, buffer=${Math.round(buffer.length / 1024)}KB, hasReferencePhoto=${hasReference}`
+    `[GPTImage] Done in ${durationMs}ms, buffer=${Math.round(buffer.length / 1024)}KB, ` +
+    `apiMode=${apiMode} refsPassed=${refsForApi.length}`
   );
 
   return {
@@ -402,6 +448,9 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
     model: imageModel,
     finalPrompt: fullPrompt,
     hasReferencePhoto: hasReference,
+    apiMode,
+    referenceCountRequested,
+    referenceCountPassed: refsForApi.length,
     durationMs,
   };
 }

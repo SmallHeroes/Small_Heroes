@@ -206,4 +206,86 @@ export function buildFluxCleanCompositionLine(storyboard: {
         : storyboard.shotType === 'medium'
           ? 'medium shot'
           : storyboard.shotType === 'over_shoulder'
-            ? 'over-the
+            ? 'over-the-shoulder shot'
+            : 'tracking shot';
+  const angle =
+    storyboard.cameraAngle === 'low_angle'
+      ? 'low angle'
+      : storyboard.cameraAngle === 'high_angle'
+        ? 'high angle'
+        : storyboard.cameraAngle === 'three_quarter'
+          ? 'three-quarter view'
+          : 'eye-level';
+  const dominance =
+    storyboard.protagonistDominance === 'background'
+      ? 'child small in the environment'
+      : storyboard.protagonistDominance === 'shared'
+        ? 'child and companion share the frame'
+        : 'child mid-action in the scene';
+  const mode =
+    storyboard.compositionMode === 'duo_interaction'
+      ? 'duo interaction visible'
+      : storyboard.compositionMode === 'environmental'
+        ? 'environment-led framing'
+        : '';
+  return [shot, angle, dominance, mode].filter(Boolean).join(', ') + '.';
+}
+
+export function shouldIncludeCompanionInFluxCleanPrompt(input: {
+  companion?: Companion | null;
+  bookPageText?: string | null;
+  pagePrompt?: string;
+  visualDirection?: { mustInclude?: string[]; mustNotInclude?: string[] } | null;
+  expectedCharacterIds?: string[];
+  pageStoryboard?: { compositionMode?: string; action?: string } | null;
+}): boolean {
+  if (!input.companion?.name?.trim()) return false;
+
+  const companionKeyPrefix = 'companion:';
+  if (
+    input.expectedCharacterIds?.some((id) =>
+      id.toLowerCase().startsWith(companionKeyPrefix)
+    )
+  ) {
+    return true;
+  }
+
+  const mustNot = (input.visualDirection?.mustNotInclude ?? []).map((s) => s.toLowerCase());
+  const companionNameLc = input.companion.name.toLowerCase();
+  if (mustNot.some((item) => companionNameLc && item.includes(companionNameLc))) {
+    return false;
+  }
+
+  const mustInclude = (input.visualDirection?.mustInclude ?? []).map((s) => s.toLowerCase());
+  if (mustInclude.some((item) => companionNameLc && item.includes(companionNameLc))) {
+    return true;
+  }
+  const speciesLc = (input.companion.visualDescription ?? '').toLowerCase();
+  if (
+    mustInclude.some(
+      (item) =>
+        item.includes('companion') ||
+        item.includes('armadillo') ||
+        item.includes('bolly') ||
+        (speciesLc && speciesLc.split(/\s+/).some((tok) => tok.length > 3 && item.includes(tok)))
+    )
+  ) {
+    return true;
+  }
+
+  const haystack = `${input.pagePrompt ?? ''} ${input.bookPageText ?? ''}`.toLowerCase();
+  if (companionNameLc && haystack.includes(companionNameLc)) return true;
+  if (haystack.includes('bolly') || haystack.includes('בולי') || haystack.includes('בּוֹלִי')) {
+    return true;
+  }
+
+  const sb = input.pageStoryboard;
+  if (sb?.compositionMode === 'duo_interaction') return true;
+  if ((sb?.action ?? '').toLowerCase().includes('companion')) return true;
+  if ((sb?.action ?? '').toLowerCase().includes('bolly')) return true;
+
+  return false;
+}
+
+/** Alias matching experiment brief naming. */
+export const buildFluxCleanPrompt = buildFluxCleanPositivePrompt;
