@@ -97,7 +97,7 @@ Negative (still useful as scene-prompt guardrails): `photorealistic camera photo
 
 1. **Style 02 LoRA — ✅ RESOLVED, not needed.** Style 02 runs on gpt-image-2 style-reference; it does not use Flux or a LoRA, so no trigger word is required. The old `REALISTART02` slot is dead for Style 02.
 
-2. **Phase 2 — wire Style 02 (gpt-image-2) into the book pipeline.** Style 02 is style-locked but not yet wired into `generateAllPageImages`. Phase 2: route Style 02 to gpt-image-2 `images.edit` with the scene-typed reference subsets above, then run a 5-page book test (composition variety + child/companion consistency). **Verify gpt-image-2 cost-per-image + latency first** — a book is 10–20 images.
+2. **Phase 2 — wire Style 02 (gpt-image-2) into the book pipeline.** Gated behind `PHASE2_STYLE02_BOOK_PIPELINE=true` (see `lib/style02-gptimage.ts`, `docs/PHASE2_STYLE02_COST_GATE.md`, `scripts/run-phase2-style02-reference-probe.ts`). **Not live customer generation.** CTO picks reference config A/B/C after Step 4 probe before 5-page book test.
 
 3. **Registry cleanup, 3 → 2.** Retire/realign the third style in `lib/styles.ts` so code matches the two-style product reality and the labels stop colliding. Separate contained task; flagged so it doesn't drift again.
 

@@ -229,10 +229,16 @@ export async function generateReplicateImage(input: GenerateImageInput): Promise
   };
 }
 
-export type GPTImageReferenceMode = 'identity' | 'companion_dual' | 'style';
+export type GPTImageReferenceMode = 'identity' | 'companion_dual' | 'style' | 'style02_book';
 
-/** OpenAI images.edit accepts a limited number of input images per request. */
+/** Default cap (gpt-image-1). Override via GPT_IMAGE_EDIT_MAX_REFERENCES for gpt-image-2 probes. */
 export const GPT_IMAGE_EDIT_MAX_REFERENCES = 4;
+
+export function resolveGPTImageEditMaxReferences(): number {
+  const parsed = Number.parseInt(process.env.GPT_IMAGE_EDIT_MAX_REFERENCES ?? String(GPT_IMAGE_EDIT_MAX_REFERENCES), 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return GPT_IMAGE_EDIT_MAX_REFERENCES;
+  return Math.min(parsed, 16);
+}
 
 export interface GenerateGPTImageInput {
   finalPrompt: string;
@@ -247,6 +253,8 @@ export interface GenerateGPTImageInput {
   referenceMode?: GPTImageReferenceMode;
   /** Fail if referenceImages were requested but images.edit cannot run. */
   requireReferenceEdit?: boolean;
+  /** Override GPT_IMAGE_MODEL for this call (e.g. gpt-image-2). */
+  modelOverride?: string;
 }
 
 export interface GenerateGPTImageResult {
@@ -258,6 +266,11 @@ export interface GenerateGPTImageResult {
   referenceCountRequested: number;
   referenceCountPassed: number;
   durationMs: number;
+  /** OpenAI usage when returned by the API. */
+  usage?: Record<string, unknown>;
+  /** First image object fields when present (revised_prompt, etc.). */
+  responseMeta?: Record<string, unknown>;
+  fallbackUsed: boolean;
 }
 
 function resolveEnvGPTQuality(): 'low' | 'medium' | 'high' {
@@ -301,10 +314,19 @@ export const STYLE_REFERENCE_PREFIX = (
   '[TARGET SCENE]\n'
 );
 
+export const STYLE02_BOOK_REFERENCE_PREFIX = (
+  '[STYLE 02 BOOK — REFERENCE IMAGES]\n' +
+  'Earlier attached images (if any) are Guy\'s Style 02 VISUAL STYLE references only — rendering, lighting, materials, density. Do NOT copy their creatures, text, signs, or compositions.\n' +
+  'If a child photo is attached: IDENTITY ONLY — re-render as Style 02 illustrated child (semi-realistic storybook), not photoreal.\n' +
+  'If a companion reference is attached: match canonical companion design only — not pose or background from the ref.\n\n' +
+  '[TARGET SCENE]\n'
+);
+
 function resolveReferencePrefix(
   mode: GPTImageReferenceMode,
   referenceCount: number
 ): string {
+  if (mode === 'style02_book') return STYLE02_BOOK_REFERENCE_PREFIX;
   if (mode === 'style') return STYLE_REFERENCE_PREFIX;
   if (mode === 'companion_dual' || referenceCount >= 2) return DUAL_REFERENCE_PREFIX;
   return REFERENCE_PHOTO_PREFIX;
@@ -369,7 +391,8 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
   const refs = (input.referenceImages || []).filter((u) => typeof u === 'string' && u.trim().length > 0);
   const referenceCountRequested = refs.length;
   const referenceMode: GPTImageReferenceMode = input.referenceMode ?? 'identity';
-  const refsForApi = refs.slice(0, GPT_IMAGE_EDIT_MAX_REFERENCES);
+  const maxRefs = resolveGPTImageEditMaxReferences();
+  const refsForApi = refs.slice(0, maxRefs);
   const hasReference = refsForApi.length > 0;
 
   if (input.requireReferenceEdit && referenceCountRequested > 0 && !hasReference) {
@@ -390,7 +413,8 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
   // Allow overriding the OpenAI image model via env var. Defaults to gpt-image-1.
   // Set GPT_IMAGE_MODEL=gpt-image-2 to switch to the newer agentic model (April 2026)
   // which plans composition before rendering — should obey our framing instructions.
-  const imageModel = (process.env.GPT_IMAGE_MODEL || 'gpt-image-1').trim();
+  const imageModel = (input.modelOverride ?? process.env.GPT_IMAGE_MODEL ?? 'gpt-image-1').trim();
+  const requestedModel = imageModel;
 
   const apiMode: 'images.generate' | 'images.edit' = hasReference ? 'images.edit' : 'images.generate';
 
@@ -406,6 +430,8 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
   );
 
   let b64: string | undefined;
+  let usage: Record<string, unknown> | undefined;
+  let responseMeta: Record<string, unknown> | undefined;
   try {
     if (hasReference) {
       const files = await Promise.all(refsForApi.map((u, i) => referenceToOpenAIFile(u, i)));
@@ -419,6 +445,16 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
         n: 1,
       });
       b64 = response.data?.[0]?.b64_json ?? undefined;
+      usage = (response as { usage?: Record<string, unknown> }).usage;
+      const first = response.data?.[0] as Record<string, unknown> | undefined;
+      if (first) {
+        responseMeta = {
+          revised_prompt: first.revised_prompt,
+          ...Object.fromEntries(
+            Object.entries(first).filter(([k]) => k !== 'b64_json' && k !== 'url')
+          ),
+        };
+      }
     } else {
       const response = await openai.images.generate({
         model: imageModel,
@@ -428,6 +464,16 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
         n: 1,
       });
       b64 = response.data?.[0]?.b64_json ?? undefined;
+      usage = (response as { usage?: Record<string, unknown> }).usage;
+      const first = response.data?.[0] as Record<string, unknown> | undefined;
+      if (first) {
+        responseMeta = {
+          revised_prompt: first.revised_prompt,
+          ...Object.fromEntries(
+            Object.entries(first).filter(([k]) => k !== 'b64_json' && k !== 'url')
+          ),
+        };
+      }
     }
   } catch (err) {
     console.error(`[GPTImage] API call failed (mode=${hasReference ? 'images.edit' : 'images.generate'}):`, err);
@@ -443,6 +489,8 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
     `apiMode=${apiMode} refsPassed=${refsForApi.length}`
   );
 
+  const fallbackUsed = requestedModel !== imageModel;
+
   return {
     buffer,
     model: imageModel,
@@ -452,5 +500,8 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
     referenceCountRequested,
     referenceCountPassed: refsForApi.length,
     durationMs,
+    usage,
+    responseMeta,
+    fallbackUsed,
   };
 }

@@ -1,5 +1,6 @@
 import type { LLMCallOptions, LLMCallResult, StoryGeneratorLLM } from '../llm';
-import { buildMockPlan, buildMockStory, type GenerateInput } from './fixtures';
+import type { GenerateInput } from '../types';
+import { buildMockPlan, buildMockStory } from './fixtures';
 import type { Plan } from '../types';
 
 export class MockStoryGeneratorLLM implements StoryGeneratorLLM {

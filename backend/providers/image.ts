@@ -50,6 +50,21 @@ import {
 import { composeVisualDirectorPrompt, type VisualDirectorInput } from '../../lib/visualDirector';
 import type { Companion } from '../../lib/companions';
 import { generateGPTImage, generateReplicateImage } from '../../lib/generate-image';
+import {
+  assembleStyle02BookReferences,
+  buildStyle02BookPagePrompt,
+  buildStyle02ChildVisualLock,
+  buildStyle02CompanionTextLock,
+  buildStyle02WardrobeLock,
+  classifyStyle02SceneClass,
+  resolveCompanionReferencePath,
+  resolveStyle02RefBudgetConfig,
+  resolveStyle02StyleReferencePaths,
+  resolveStyle02SubsetKey,
+  shouldUseStyle02Phase2Path,
+  STYLE_02_AVOIDANCE_NEGATIVE,
+  STYLE_02_GPT_MODEL,
+} from '../../lib/style02-gptimage';
 import { storeImageFromBuffer, storeImageFromProviderUrl } from '../../lib/image-storage';
 import type { BookPageTemplate } from '../../lib/bookPageLayout';
 import {
@@ -345,6 +360,10 @@ export interface ImageInput {
   };
   /** High-res GPT Image sizing (square) + optional upscale path when PDF add-on purchased. */
   printPdfOptimized?: boolean;
+  /** Phase 2 Style 02 — verbatim per-book locks (identical bytes every page). */
+  style02ChildVisualLock?: string;
+  style02WardrobeLock?: string;
+  style02CompanionTextLock?: string;
   supportingCharacters?: Array<{
     name: string;
     description: string;
@@ -2469,6 +2488,145 @@ async function generateWithGPTImage(input: ImageInput): Promise<GeneratedImage> 
   throw lastError || new Error('GPT Image generation failed after retries');
 }
 
+/** Phase 2 — Style 02 book pages via gpt-image-2 + scene-typed style refs + character budget. */
+async function generateWithGPTImageStyle02(input: ImageInput): Promise<GeneratedImage> {
+  const hiResPdf = !!input.printPdfOptimized;
+  const size = hiResPdf ? '1536x1536' : '1024x1536';
+  const quality = resolveGPTBookQuality();
+
+  const childVisualLock =
+    input.style02ChildVisualLock ??
+    buildStyle02ChildVisualLock({
+      childName: input.childFirstName,
+      childDescription: input.childDescription,
+      childStructured: input.childStructured,
+      childAge: input.childAge,
+      childGender: input.childGender,
+    });
+  const wardrobeLock =
+    input.style02WardrobeLock ?? buildStyle02WardrobeLock({ childStructured: input.childStructured });
+  const companionTextLock =
+    input.style02CompanionTextLock ??
+    (input.companion
+      ? buildStyle02CompanionTextLock({
+          companionName: input.companion.name,
+          companionStructured: input.companionStructured,
+          companionVisualDescription: input.companion.visualDescription,
+        })
+      : '');
+
+  const sceneClass = classifyStyle02SceneClass({
+    imagePrompt: input.pagePrompt,
+    bookPageText: input.bookPageText ?? undefined,
+    environment: input.pageStoryboard?.environment,
+    lighting: input.pageStoryboard?.lighting,
+  });
+  const subsetKey = resolveStyle02SubsetKey(sceneClass);
+  const refConfig = resolveStyle02RefBudgetConfig();
+  const styleRefCount = refConfig === 'A' ? 2 : 3;
+  const styleRefPaths = resolveStyle02StyleReferencePaths(subsetKey, styleRefCount);
+  const childPhotoPath = input.referenceImages?.[0];
+  const companionRefPath = resolveCompanionReferencePath(input.companion?.image ?? null);
+  const { paths: referenceImages, breakdown } = assembleStyle02BookReferences({
+    styleRefPaths,
+    childPhotoPath: refConfig === 'C' ? undefined : childPhotoPath,
+    companionRefPath: refConfig === 'B' ? undefined : companionRefPath,
+    config: refConfig,
+  });
+
+  const vd = input.visualDirection;
+  const mechanicalScene = input.blocking
+    ? renderSceneBlockingForPrompt(input.blocking, vd ?? null)
+    : vd
+      ? [
+          `Location: ${vd.locationZone}.`,
+          `Action: ${vd.mainAction}.`,
+          vd.characterPose ? `Pose: ${vd.characterPose}.` : '',
+          vd.lightingSource ? `Lighting: ${vd.lightingSource}.` : '',
+          vd.environmentDetail ? `Detail: ${vd.environmentDetail}.` : '',
+        ]
+          .filter(Boolean)
+          .join(' ')
+      : '';
+  const rawScene = (input.rawScenePrompt ?? '').trim();
+  const fallbackScene = extractSceneCore(input.pagePrompt || '').trim();
+  const sceneDescription = (mechanicalScene || rawScene || fallbackScene).trim();
+
+  const finalPrompt = buildStyle02BookPagePrompt({
+    sceneDescription,
+    childVisualLock,
+    wardrobeLock,
+    companionTextLock,
+  });
+  const prompt = sanitizePromptForSafety(finalPrompt);
+
+  console.log(
+    `[style02_phase2] orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} ` +
+      `subset=${subsetKey} refConfig=${refConfig} sceneClass=${sceneClass} ` +
+      `refs=${referenceImages.length} breakdown=${JSON.stringify({
+        style: breakdown.style.length,
+        child: breakdown.child.length,
+        companion: breakdown.companion.length,
+      })}`
+  );
+
+  const result = await generateGPTImage({
+    finalPrompt: prompt,
+    negativePrompt: STYLE_02_AVOIDANCE_NEGATIVE,
+    referenceImages,
+    referenceMode: 'style02_book',
+    requireReferenceEdit: true,
+    size: size as '1024x1024' | '1024x1536' | '1536x1536',
+    quality,
+    modelOverride: STYLE_02_GPT_MODEL,
+  });
+
+  if (result.model !== STYLE_02_GPT_MODEL) {
+    throw new Error(
+      `[style02_phase2] BLOCKER: expected model ${STYLE_02_GPT_MODEL}, got ${result.model}. No silent fallback.`
+    );
+  }
+  if (result.fallbackUsed) {
+    throw new Error('[style02_phase2] BLOCKER: fallbackUsed=true');
+  }
+
+  const manifestSnippet = {
+    pageNumber: input.pageNumber,
+    model: result.model,
+    apiMode: result.apiMode,
+    quality,
+    size,
+    refsRequested: result.referenceCountRequested,
+    refsPassed: result.referenceCountPassed,
+    fallbackUsed: result.fallbackUsed,
+    referenceBreakdown: breakdown,
+    styleSubset: subsetKey,
+    refConfig,
+    durationMs: result.durationMs,
+    usage: result.usage,
+    responseMeta: result.responseMeta,
+  };
+  console.log(`[style02_phase2_manifest] ${JSON.stringify(manifestSnippet)}`);
+
+  const durableUrl = await storeImageFromBuffer({
+    buffer: result.buffer,
+    orderId: input.orderId,
+    pageNumber: input.pageNumber,
+    assetType: input.assetType === 'cover' ? 'cover' : 'page',
+    contentType: 'image/png',
+  });
+
+  const [widthStr, heightStr] = size.split('x');
+  return {
+    url: durableUrl,
+    rawUrl: durableUrl,
+    width: parseInt(widthStr, 10),
+    height: parseInt(heightStr, 10),
+    provider: result.model,
+    prompt,
+  };
+}
+
 // ─── Provider: DALL-E 3 ───────────────────────────────
 async function generateWithDallE(input: ImageInput): Promise<GeneratedImage> {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -2716,6 +2874,9 @@ async function generateWithReplicate(input: ImageInput): Promise<GeneratedImage>
 
 // ─── Main Entry Point ─────────────────────────────────
 export async function generateImage(input: ImageInput): Promise<GeneratedImage> {
+  if (shouldUseStyle02Phase2Path(input.illustrationStyle)) {
+    return generateWithGPTImageStyle02(input);
+  }
   if (isImageGenerationDisabled()) {
     console.warn(
       `[ImageGuard] Mock image returned orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} route=provider reason=DISABLE_IMAGE_GENERATION`
@@ -3024,9 +3185,36 @@ export async function generateAllPageImages(
   const lightingModes = new Map<number, Lighting>();
   const failedPages: number[] = [];
   const normalizedStyle = normalizeStyleId(config.illustrationStyle);
+  const style02Phase2Active = shouldUseStyle02Phase2Path(normalizedStyle);
+  const style02ChildVisualLock = style02Phase2Active
+    ? buildStyle02ChildVisualLock({
+        childName: config.childName,
+        childDescription: config.childDescription,
+        childStructured: config.childStructured,
+        childAge: config.childAge,
+        childGender: config.childGender,
+      })
+    : undefined;
+  const style02WardrobeLock = style02Phase2Active
+    ? buildStyle02WardrobeLock({ childStructured: config.childStructured, childDescription: config.childDescription })
+    : undefined;
+  const style02CompanionTextLock =
+    style02Phase2Active && config.companion
+      ? buildStyle02CompanionTextLock({
+          companionName: config.companion.name,
+          companionStructured: config.companionStructured,
+          companionVisualDescription: config.companion.visualDescription,
+        })
+      : undefined;
+  if (style02Phase2Active) {
+    console.log(
+      `[Phase2] Style 02 gpt-image-2 book path | model=${STYLE_02_GPT_MODEL} | refConfig=${resolveStyle02RefBudgetConfig()} | NOT live customer path`
+    );
+  }
   console.log(
     `[Image] Generating ${pagesToGenerate.length} images | ` +
     `style=${normalizedStyle} | ` +
+    `style02Phase2=${style02Phase2Active} | ` +
     `characterSheet=${!!config.characterSheet} | ` +
     `concept entity="${config.concept?.centralEntity?.name ?? 'none'}"`
   );
@@ -3422,7 +3610,11 @@ export async function generateAllPageImages(
     let image: GeneratedImage | null = null;
     let lastError: unknown = null;
     const baseReferenceImage = config.referenceImages?.[0];
-    const shouldRunAnchorElection = assignedCharacterIds.includes('child') && !characterAnchors.child && Boolean(baseReferenceImage);
+    const shouldRunAnchorElection =
+      !style02Phase2Active &&
+      assignedCharacterIds.includes('child') &&
+      !characterAnchors.child &&
+      Boolean(baseReferenceImage);
 
     if (shouldRunAnchorElection && baseReferenceImage) {
       const candidateImages: Array<{ image: GeneratedImage; seed: number }> = [];
@@ -3466,6 +3658,9 @@ export async function generateAllPageImages(
               childStructured: config.childStructured,
               companionStructured: config.companionStructured,
               printPdfOptimized: !!config.pdfEnabled,
+              style02ChildVisualLock,
+              style02WardrobeLock,
+              style02CompanionTextLock,
               ...visualDirectorPageFields,
               seed,
             }),
@@ -3597,6 +3792,9 @@ export async function generateAllPageImages(
                 childStructured: config.childStructured,
                 companionStructured: config.companionStructured,
                 printPdfOptimized: !!config.pdfEnabled,
+                style02ChildVisualLock,
+                style02WardrobeLock,
+                style02CompanionTextLock,
                 ...visualDirectorPageFields,
                 seed,
               }),
@@ -3688,6 +3886,9 @@ export async function generateAllPageImages(
               childStructured: config.childStructured,
               companionStructured: config.companionStructured,
               printPdfOptimized: !!config.pdfEnabled,
+              style02ChildVisualLock,
+              style02WardrobeLock,
+              style02CompanionTextLock,
               ...visualDirectorPageFields,
             });
           },

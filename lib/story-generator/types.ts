@@ -19,6 +19,7 @@ export type ReviewReason =
   | 'editor_rejected'               // editorial verdict = REJECT (avg too low or too many blockers)
   | 'preserve_list_violated'        // repair lost canonical anchors
   | 'verdict_mismatch_unresolved'   // LLM verdict and code-derived differ in critical way
+  | 'editorial_qa_weak'           // recipe-mode book/resilience scores below target
   | 'exception';                    // unexpected error in pipeline
 
 export type MvpCompanionId = 'bolly_armadillo' | 'chameleon_koko' | 'bat_lily';
