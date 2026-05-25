@@ -38,47 +38,81 @@ function initLandingContent() {
   setText('heroBody',         L.hero.body);
   setText('heroCtaPrimary',   L.hero.ctaPrimary);
   setText('heroCtaSecondary', L.hero.ctaSecondary);
+  setText('heroSocialProof', L.hero.socialProof);
+  setText('heroTrustBadge',  L.hero.trustBadge);
+  setText('heroCtaNote',     L.hero.ctaNote);
   L.hero.bullets.forEach((b, i) => setText('heroBullet' + i, b));
+
+  // ── Helps (מתי זה מתאים?) ───────────────────────────────────────────────────
+  if (L.helps) {
+    setText('helpsH2',  L.helps.h2);
+    setText('helpsSub', L.helps.sub);
+    const helpsGrid = document.getElementById('helpsGrid');
+    if (helpsGrid && L.helps.cards) {
+      helpsGrid.innerHTML = '';
+      L.helps.cards.forEach((card) => {
+        const article = document.createElement('article');
+        article.className = 'why-card helps-card';
+        const h3 = document.createElement('h3');
+        h3.textContent = card.title;
+        const p = document.createElement('p');
+        p.textContent = card.body;
+        article.appendChild(h3);
+        article.appendChild(p);
+        helpsGrid.appendChild(article);
+      });
+    }
+  }
+
+  // ── Trust & Privacy ─────────────────────────────────────────────────────────
+  if (L.trust) {
+    setText('trustH2',  L.trust.h2);
+    setText('trustSub', L.trust.sub);
+    setText('trustPhotoTitle',       L.trust.photoTitle);
+    setText('trustPhotoBody',        L.trust.photoBody);
+    setText('trustQcTitle',          L.trust.qcTitle);
+    setText('trustQcBody',           L.trust.qcBody);
+  }
 
   // ── Gallery ───────────────────────────────────────────────────────────────────
   if (L.gallery) {
     setText('galleryH2',  L.gallery.h2);
     setText('gallerySub', L.gallery.sub);
     setText('galleryCta', L.gallery.cta);
-    if (L.gallery.toggleIllustrated) setText('toggleIllustrated', L.gallery.toggleIllustrated);
-    if (L.gallery.toggleRealistic) setText('toggleRealistic', L.gallery.toggleRealistic);
+    if (L.gallery.toggleStyle01) setText('toggleStyle01', L.gallery.toggleStyle01);
+    if (L.gallery.toggleStyle02) setText('toggleStyle02', L.gallery.toggleStyle02);
   }
 
-  // ── Gallery style toggle (illustrated / watercolor) ─────
+  // ── Gallery style toggle (style01 / style02) ─────
   (function initGalleryToggle() {
-    const btnIllustrated = document.getElementById('toggleIllustrated');
-    const btnRealistic   = document.getElementById('toggleRealistic');
-    const pill           = document.getElementById('togglePill');
-    const layerIllu      = document.getElementById('galleryTrackIllustrated');
-    const layerReal      = document.getElementById('galleryTrackRealistic');
-    if (!btnIllustrated || !btnRealistic || !pill || !layerIllu || !layerReal) return;
+    const btnStyle01 = document.getElementById('toggleStyle01');
+    const btnStyle02 = document.getElementById('toggleStyle02');
+    const pill       = document.getElementById('togglePill');
+    const layer01    = document.getElementById('galleryTrackStyle01');
+    const layer02    = document.getElementById('galleryTrackStyle02');
+    if (!btnStyle01 || !btnStyle02 || !pill || !layer01 || !layer02) return;
 
-    const layers = [layerIllu, layerReal];
+    const layers = [layer01, layer02];
 
     function positionPill(btn) {
       pill.style.left  = btn.offsetLeft + 'px';
       pill.style.width = btn.offsetWidth + 'px';
     }
-    positionPill(btnRealistic);
+    positionPill(btnStyle02);
 
     function switchTo(style) {
       const map = {
-        illustrated: btnIllustrated,
-        realistic: btnRealistic,
+        style01: btnStyle01,
+        style02: btnStyle02,
       };
       const layerMap = {
-        illustrated: layerIllu,
-        realistic: layerReal,
+        style01: layer01,
+        style02: layer02,
       };
-      const activeBtn = map[style] || btnRealistic;
-      const showLayer = layerMap[style] || layerReal;
+      const activeBtn = map[style] || btnStyle02;
+      const showLayer = layerMap[style] || layer02;
 
-      [btnIllustrated, btnRealistic].forEach((b) => {
+      [btnStyle01, btnStyle02].forEach((b) => {
         const on = b === activeBtn;
         b.classList.toggle('is-active', on);
         b.setAttribute('aria-selected', on ? 'true' : 'false');
@@ -93,12 +127,12 @@ function initLandingContent() {
       });
     }
 
-    btnIllustrated.addEventListener('click', () => switchTo('illustrated'));
-    btnRealistic.addEventListener('click', () => switchTo('realistic'));
+    btnStyle01.addEventListener('click', () => switchTo('style01'));
+    btnStyle02.addEventListener('click', () => switchTo('style02'));
 
     window.addEventListener('resize', () => {
       const active =
-        [btnIllustrated, btnRealistic].find((b) => b.classList.contains('is-active')) || btnRealistic;
+        [btnStyle01, btnStyle02].find((b) => b.classList.contains('is-active')) || btnStyle02;
       positionPill(active);
     });
   })();
@@ -114,6 +148,8 @@ function initLandingContent() {
   // ── Sample ────────────────────────────────────────────────────────────────────
   setText('sampleKicker', L.sample.kicker);
   setText('sampleH2',     L.sample.h2);
+  const sampleP1 = document.getElementById('sampleP1');
+  if (sampleP1 && L.sample.p1) setText('sampleP1', L.sample.p1);
   setText('sampleP2',     L.sample.p2);
   setText('sampleCta',    L.sample.cta);
   setText('sampleQuote',  L.sample.quote);

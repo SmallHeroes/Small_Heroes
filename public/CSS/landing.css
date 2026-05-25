@@ -990,9 +990,46 @@
   color: #555b70;
 }
 
+.hero-trust-line {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--purple);
+  margin-bottom: 12px;
+}
+
+.hero-cta-note {
+  font-size: 14px;
+  color: #5a6070;
+  margin: 10px 0 18px;
+  line-height: 1.5;
+}
+
+.hero-trust-badge {
+  font-size: 14px;
+  color: #6b7280;
+  margin-top: 16px;
+  line-height: 1.6;
+}
+
+.helps-section {
+  background: linear-gradient(180deg, #fff 0%, var(--cream) 100%);
+}
+
+.helps-grid .helps-card h3 {
+  font-size: 18px;
+}
+
+.trust-section {
+  background: var(--cream);
+}
+
 .footer {
   background: var(--dark);
   padding: 80px 0;
+}
+
+.footer--warm {
+  background: linear-gradient(165deg, #3d2a5c 0%, #5b3d8a 45%, #7c5cfc 100%);
 }
 
 .footer-inner {

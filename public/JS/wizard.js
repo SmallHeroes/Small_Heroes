@@ -264,19 +264,20 @@ function normalizeClientStyleId(styleId) {
   if (!raw) return 'soft_hand_drawn_storybook';
   const map = {
     soft_hand_drawn_storybook: 'soft_hand_drawn_storybook',
-    expressive_painterly_storybook: 'expressive_painterly_storybook',
-    detailed_whimsical_world: 'soft_hand_drawn_storybook', // retired — route to Style 01
+    expressive_painterly_storybook: 'detailed_whimsical_world',
+    detailed_whimsical_world: 'detailed_whimsical_world',
     SIMPLE_CALM: 'soft_hand_drawn_storybook',
-    FUN_COLORFUL: 'expressive_painterly_storybook',
-    EMOTIONAL_ARTISTIC: 'soft_hand_drawn_storybook', // Legacy compatibility only — not offered for new books.
-    SIMPLE_CARTOON: 'expressive_painterly_storybook',
+    FUN_COLORFUL: 'detailed_whimsical_world',
+    EMOTIONAL_ARTISTIC: 'soft_hand_drawn_storybook',
+    SIMPLE_CARTOON: 'detailed_whimsical_world',
     CLASSIC_CARTOON: 'soft_hand_drawn_storybook',
-    DETAILED_CARTOON: 'soft_hand_drawn_storybook', // Legacy compatibility only — not offered for new books.
-    clean_cartoon_2d: 'expressive_painterly_storybook',
-    realistic_illustrated: 'soft_hand_drawn_storybook', // Legacy compatibility only — not offered for new books.
-    whimsical_comic_fantasy: 'expressive_painterly_storybook',
+    DETAILED_CARTOON: 'detailed_whimsical_world',
+    clean_cartoon_2d: 'detailed_whimsical_world',
+    realistic_illustrated: 'soft_hand_drawn_storybook',
+    whimsical_comic_fantasy: 'detailed_whimsical_world',
     pencil_watercolor: 'soft_hand_drawn_storybook',
-    DETAILED_WHIMSICAL_WORLD: 'soft_hand_drawn_storybook', // retired
+    DETAILED_WHIMSICAL_WORLD: 'detailed_whimsical_world',
+    detailed: 'detailed_whimsical_world',
   };
   return map[raw] || 'soft_hand_drawn_storybook';
 }

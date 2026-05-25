@@ -33,7 +33,7 @@ function normalizeIllustrationStyle(value: string | undefined): IllustrationStyl
   if (value === 'realistic_illustrated') return IllustrationStyle.realistic_illustrated;
   if (value === 'detailed_whimsical_world') return IllustrationStyle.detailed_whimsical_world;
   if (value === 'soft_hand_drawn_storybook') return IllustrationStyle.pencil_watercolor; // maps to Style 01
-  if (value === 'expressive_painterly_storybook') return IllustrationStyle.whimsical_comic_fantasy; // maps to Style 02
+  if (value === 'expressive_painterly_storybook') return IllustrationStyle.detailed_whimsical_world;
   // Default: Style 01 (realistic_illustrated routes to soft_hand_drawn_storybook)
   return IllustrationStyle.realistic_illustrated;
 }
