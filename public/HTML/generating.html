@@ -1,174 +1,98 @@
 <!DOCTYPE html>
-
 <html lang="he" dir="rtl">
-
 <head>
-
   <meta charset="UTF-8" />
-
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <title>יוצרים את הספר שלכם… — גיבורים קטנים</title>
-
-  <meta name="description" content="הספר האישי שלכם נוצר כעת. גיבורים קטנים — ספרי ילדים מותאמים אישית לחיזוק רגשי." />
-
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='4' y='4' width='24' height='24' rx='6' fill='%237c5cfc'/><circle cx='20' cy='12' r='4' fill='%23ffd166'/></svg>" />
-
-  <meta name="robots" content="noindex" />
-
+  <title></title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
-
   <link rel="stylesheet" href="../CSS/main.css" />
-
   <link rel="stylesheet" href="../CSS/generating.css" />
-
 </head>
-
 <body>
 
-<script src="/JS/gate.js"></script>
-
-
-
+  <!-- ── NAVBAR ─────────────────────────────────────────────── -->
   <header class="navbar">
-
     <div class="wrap">
-
       <a href="/" class="logo">
-
         <div class="logo-icon">
-
           <div class="logo-icon-sq"></div>
-
           <div class="logo-icon-dot"></div>
-
         </div>
-
         <div class="logo-text">
-
           <span class="logo-brand" id="navBrand"></span>
-
           <span class="logo-tagline" id="navTagline"></span>
-
         </div>
-
       </a>
-
-      <a href="/" class="nav-cta" id="navCta"></a>
-
+      <a href="/wizard" class="nav-cta" id="navCta"></a>
     </div>
-
   </header>
 
-
-
+  <!-- ── MAIN ───────────────────────────────────────────────── -->
   <main class="gen-main">
+  <div class="gen-content">
 
-    <div class="gen-content">
+    <!-- Progress area — hidden when error state is shown -->
+    <div id="genProgressArea">
 
+    <h1 class="gen-headline">
+      <span class="gen-sparkle">✨</span>
+      <span id="genHeadlineText"></span>
+      <span class="gen-bold" id="genHeadlineBold"></span>
+    </h1>
 
+    <div class="gen-stage-badge" id="genStageBadge"></div>
 
-      <div id="genProgressArea">
-
-
-
-        <h1 class="gen-headline" id="genHeadlineText"></h1>
-
-
-
-        <div class="gen-hero" aria-hidden="true">
-
-          <div class="gen-hero-orbit">
-
-            <span class="gen-hero-sparkle gen-hero-sparkle--a">✨</span>
-
-            <span class="gen-hero-sparkle gen-hero-sparkle--b">✨</span>
-
-            <span class="gen-hero-sparkle gen-hero-sparkle--c">✨</span>
-
-            <span class="gen-hero-core">✨</span>
-
-          </div>
-
-        </div>
-
-
-
-        <div class="gen-progress-panel">
-
-          <div class="gen-pct" id="genPct">0%</div>
-
-
-
-          <div class="gen-bar-shell">
-
-            <div class="gen-bar-track">
-
-              <div class="gen-bar-fill" id="genBarFill" style="width:0%">
-
-                <span class="gen-bar-fill-label" id="genBarFillLabel">0%</span>
-
-              </div>
-
-            </div>
-
-            <div class="gen-bar-floaters" id="genBarFloaters" aria-hidden="true"></div>
-
-          </div>
-
-
-
-          <p class="gen-status-text" id="genStatusText"></p>
-
-          <p class="gen-eta" id="genEta"></p>
-
-          <p class="gen-reassure" id="genReassure"></p>
-
-        </div>
-
-
-
-        <p class="gen-close-note" id="genCloseNote"></p>
-
-
-
+    <div class="gen-pct-wrap">
+      <div class="gen-pct" id="genPct">0%</div>
+      <div class="gen-worker" aria-hidden="true">
+        <span class="worker-dot"></span>
+        <span class="worker-dot"></span>
+        <span class="worker-dot"></span>
       </div>
-
-
-
-      <div class="gen-error-state" id="genErrorState" hidden>
-
-        <div class="gen-error-icon">😔</div>
-
-        <div class="gen-error-title" id="genErrorTitle"></div>
-
-        <div class="gen-error-msg" id="genErrorMsg"></div>
-
-        <a href="/" class="gen-error-back" id="genErrorBack"></a>
-
-      </div>
-
-
-
     </div>
 
-  </main>
+    <div class="gen-bar-shell">
+      <div class="gen-bar-track">
+        <div class="gen-bar-fill" id="genBarFill" style="width:0%"></div>
+      </div>
 
+      <div class="gen-bar-floaters" id="genBarFloaters" aria-hidden="true"></div>
+    </div>
 
+    <div class="gen-steps">
+      <div class="gen-step active" id="step-0"></div>
+      <div class="gen-step" id="step-1"></div>
+      <div class="gen-step" id="step-2"></div>
+      <div class="gen-step" id="step-3"></div>
+    </div>
+
+    <p class="gen-status-text" id="genStatusText"></p>
+
+    <div class="gen-story-peek" id="genStoryPeek">
+      <div class="gen-story-peek-label" id="genStoryPeekLabel"></div>
+      <div class="gen-story-peek-text" id="genStoryPeekText"></div>
+    </div>
+
+    </div><!-- /genProgressArea -->
+
+    <!-- Error state — hidden by default, shown on status=failed or missing orderId -->
+    <div class="gen-error-state" id="genErrorState" hidden>
+      <div class="gen-error-icon">😔</div>
+      <div class="gen-error-title" id="genErrorTitle"></div>
+      <div class="gen-error-msg" id="genErrorMsg"></div>
+      <a href="/" class="gen-error-back" id="genErrorBack"></a>
+    </div>
+
+  </div>
+</main>
 
 <script src="../JS/content.js"></script>
-
 <script src="../JS/routes.js"></script>
-
 <script src="../JS/analytics.js"></script>
-
-<script src="../JS/generating.js?v=progress-trust-backend"></script>
-
-
+<script src="../JS/client-api.js"></script>
+<script src="../JS/generating.js"></script>
 
 </body>
 </html>

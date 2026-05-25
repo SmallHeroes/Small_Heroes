@@ -4,28 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>גיבורים קטנים — ספרי ילדים מותאמים אישית לחיזוק רגשי</title>
-  <meta name="description" content="צרו ספר ילדים מותאם אישית עם AI — סיפור, איורים, שם הילד/ה, ודמות מלווה. מתמודדים עם פחדים, כעסים, שינויים ועוד. מאות הורים כבר יצרו." />
-  <link rel="canonical" href="https://small-heroes-projects.vercel.app/" />
-
-  <!-- Open Graph -->
-  <meta property="og:type" content="website" />
-  <meta property="og:title" content="גיבורים קטנים — ספר ילדים מותאם אישית" />
-  <meta property="og:description" content="סיפור אישי עם איורים מקוריים, שם הילד/ה, ודמות מלווה — ספר שנבנה במיוחד בשבילכם." />
-  <meta property="og:image" content="https://small-heroes-projects.vercel.app/Images/HeroIllustrated.png" />
-  <meta property="og:url" content="https://small-heroes-projects.vercel.app/" />
-  <meta property="og:locale" content="he_IL" />
-  <meta property="og:site_name" content="גיבורים קטנים" />
-
-  <!-- Twitter Card -->
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="גיבורים קטנים — ספר ילדים מותאם אישית" />
-  <meta name="twitter:description" content="סיפור אישי עם איורים מקוריים, שם הילד/ה, ודמות מלווה — ספר שנבנה במיוחד בשבילכם." />
-  <meta name="twitter:image" content="https://small-heroes-projects.vercel.app/Images/HeroIllustrated.png" />
-
-  <!-- Favicon -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='4' y='4' width='24' height='24' rx='6' fill='%237c5cfc'/><circle cx='20' cy='12' r='4' fill='%23ffd166'/></svg>" />
-
+  <title>גיבורים קטנים — סיפורי חוסן לילדים</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap"
@@ -35,7 +14,6 @@
 </head>
 
 <body class="landing-body">
-  <script src="/JS/gate.js"></script>
 
   <header class="navbar">
     <div class="wrap">
@@ -49,16 +27,16 @@
           <span class="logo-tagline" id="navTagline"></span>
         </div>
       </a>
-
-      <nav class="nav-links">
-        <a href="#how" id="navHow">איך זה עובד</a>
-        <a href="#pricing" id="navPricing">מחירים</a>
-        <a href="/my-books" id="navAccount">הספרים שלי</a>
-      </nav>
-
       <a href="/wizard" class="nav-cta" id="navCta"></a>
     </div>
   </header>
+
+  <!-- ── Recent books strip — populated by landing.js from localStorage ───── -->
+  <div id="bookHistorySection" class="book-history-section" hidden>
+    <span class="book-history-label" id="bookHistoryLabel"></span>
+    <div class="book-history-list" id="bookHistoryList"></div>
+    <button id="bookHistoryClear" class="book-history-clear" type="button">✕</button>
+  </div>
 
   <main>
 
@@ -81,57 +59,12 @@
             <li id="heroBullet1"></li>
             <li id="heroBullet2"></li>
           </ul>
-
-         
         </div>
 
         <div class="hero-img-wrap">
           <div class="hero-glow"></div>
-          <img src="../Images/HeroIllustrated.png" alt="ילד גיבור" class="hero-img" onerror="this.style.display='none'" />
+          <img src="../Images/HeroBar.png" alt="ילד גיבור" class="hero-img" onerror="this.style.display='none'" />
         </div>
-      </div>
-    </section>
-
-    <!-- ── Book Gallery — visual showcase with style toggle ─────────────── -->
-    <section class="gallery-section">
-      <div class="wrap">
-        <h2 class="gallery-h2" id="galleryH2"></h2>
-        <p class="gallery-sub" id="gallerySub"></p>
-
-        <!-- Style toggle -->
-        <div class="gallery-toggle" id="galleryToggle" role="tablist" aria-label="סגנון איור בגלריה">
-          <button type="button" class="gallery-toggle-btn is-active" data-gallery-style="realistic" id="toggleRealistic" role="tab" aria-selected="true">אקוורל</button>
-          <button type="button" class="gallery-toggle-btn" data-gallery-style="illustrated" id="toggleIllustrated" role="tab" aria-selected="false">מאוייר</button>
-          <span class="gallery-toggle-pill" id="togglePill"></span>
-        </div>
-      </div>
-
-      <div class="gallery-layers">
-        <!-- Style 01 — illustrated (visible by default) -->
-        <div class="gallery-track gallery-layer" id="galleryTrackIllustrated">
-          <div class="gallery-card"><img src="../Images/gallery/gallery-1.jpg" alt="עמוד מתוך ספר — מאוייר" loading="lazy" /></div>
-          <div class="gallery-card"><img src="../Images/gallery/gallery-2.jpg" alt="עמוד מתוך ספר — מאוייר" loading="lazy" /></div>
-          <div class="gallery-card"><img src="../Images/gallery/gallery-3.jpg" alt="עמוד מתוך ספר — מאוייר" loading="lazy" /></div>
-          <div class="gallery-card"><img src="../Images/gallery/gallery-4.jpg" alt="עמוד מתוך ספר — מאוייר" loading="lazy" /></div>
-          <div class="gallery-card"><img src="../Images/gallery/gallery-5.jpg" alt="עמוד מתוך ספר — מאוייר" loading="lazy" /></div>
-          <div class="gallery-card"><img src="../Images/gallery/gallery-6.jpg" alt="עמוד מתוך ספר — מאוייר" loading="lazy" /></div>
-        </div>
-
-        <!-- Style 02 — realistic (hidden by default) -->
-        <div class="gallery-track gallery-layer is-visible" id="galleryTrackRealistic">
-          <div class="gallery-card"><img src="../Images/gallery/gallery-r-1.jpg" alt="עמוד מתוך ספר — ריאליסטי" loading="lazy" /></div>
-          <div class="gallery-card"><img src="../Images/gallery/gallery-r-2.jpg" alt="עמוד מתוך ספר — ריאליסטי" loading="lazy" /></div>
-          <div class="gallery-card"><img src="../Images/gallery/gallery-r-3.jpg" alt="עמוד מתוך ספר — ריאליסטי" loading="lazy" /></div>
-          <div class="gallery-card"><img src="../Images/gallery/gallery-r-4.jpg" alt="עמוד מתוך ספר — ריאליסטי" loading="lazy" /></div>
-          <div class="gallery-card"><img src="../Images/gallery/gallery-r-5.jpg" alt="עמוד מתוך ספר — ריאליסטי" loading="lazy" /></div>
-          <div class="gallery-card"><img src="../Images/gallery/gallery-r-6.jpg" alt="עמוד מתוך ספר — ריאליסטי" loading="lazy" /></div>
-        </div>
-
-        <!-- Style 03 removed — gpt-image-1 cannot produce ink-and-gouache via API -->
-      </div>
-
-      <div class="wrap gallery-cta-wrap">
-        <a href="/wizard" class="btn-primary" id="galleryCta"></a>
       </div>
     </section>
 
@@ -140,14 +73,14 @@
       <div class="wrap sample-wrap">
         <div class="sample-text">
           <div class="sample-kicker" id="sampleKicker"></div>
+          <p class="sample-quote" id="sampleQuote"></p>
           <h2 class="sample-h2" id="sampleH2"></h2>
           <p class="sample-p" id="sampleP2"></p>
-          <p class="sample-quote" id="sampleQuote"></p>
           <a href="/wizard" class="btn-primary" id="sampleCta"></a>
         </div>
 
         <div class="sample-img-wrap">
-          <img src="../Images/gallery/gallery-6.jpg" alt="דוגמה מתוך הספר" onerror="this.style.display='none'" />
+          <img src="../Images/ExamplePage.png" alt="דוגמה מתוך הספר" onerror="this.style.display='none'" />
         </div>
       </div>
     </section>
@@ -203,6 +136,39 @@
               <p id="howStep2Body"></p>
             </div>
           </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Fit ────────────────────────────────────────────────────────────── -->
+    <section class="fit-section" dir="rtl">
+      <div class="fit-wrap">
+        <div class="fit-head">
+          <h2 class="fit-title" id="fitH2"></h2>
+          <p class="fit-subtitle" id="fitSub"></p>
+        </div>
+
+        <div class="fit-grid">
+          <article class="fit-card">
+            <div class="fit-card-icon" id="fitCard0Icon"></div>
+            <h3 class="fit-card-title" id="fitCard0Title"></h3>
+            <ul class="fit-list">
+              <li id="fitCard0Item0"></li>
+              <li id="fitCard0Item1"></li>
+              <li id="fitCard0Item2"></li>
+            </ul>
+          </article>
+
+          <article class="fit-card">
+            <div class="fit-card-icon" id="fitCard1Icon"></div>
+            <h3 class="fit-card-title" id="fitCard1Title"></h3>
+            <ul class="fit-list">
+              <li id="fitCard1Item0"></li>
+              <li id="fitCard1Item1"></li>
+              <li id="fitCard1Item2"></li>
+            </ul>
+          </article>
+
         </div>
       </div>
     </section>
@@ -317,6 +283,45 @@
             <div class="faq-a"><p id="faqItem5A"></p></div>
           </div>
 
+          <div class="faq-item">
+            <button class="faq-q" type="button">
+              <span id="faqItem6Q"></span>
+              <span class="faq-arrow">▾</span>
+            </button>
+            <div class="faq-a"><p id="faqItem6A"></p></div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-q" type="button">
+              <span id="faqItem7Q"></span>
+              <span class="faq-arrow">▾</span>
+            </button>
+            <div class="faq-a"><p id="faqItem7A"></p></div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-q" type="button">
+              <span id="faqItem8Q"></span>
+              <span class="faq-arrow">▾</span>
+            </button>
+            <div class="faq-a"><p id="faqItem8A"></p></div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-q" type="button">
+              <span id="faqItem9Q"></span>
+              <span class="faq-arrow">▾</span>
+            </button>
+            <div class="faq-a"><p id="faqItem9A"></p></div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-q" type="button">
+              <span id="faqItem10Q"></span>
+              <span class="faq-arrow">▾</span>
+            </button>
+            <div class="faq-a"><p id="faqItem10A"></p></div>
+          </div>
         </div>
       </div>
     </section>
@@ -330,7 +335,31 @@
         </h2>
         <p class="footer-sub" id="footerSub"></p>
 
-        <a href="/wizard" class="btn-primary footer-cta" id="footerCta"></a>
+        <form class="footer-form" id="footerForm">
+          <div class="footer-field">
+            <label id="footerNameLabel"></label>
+            <input type="text" id="footerNameInput" required />
+          </div>
+
+          <div class="footer-field">
+            <label id="footerEmailLabel"></label>
+            <input type="email" placeholder="name@example.com" required />
+          </div>
+
+          <div class="footer-field footer-field--full">
+            <label id="footerInterestLabel"></label>
+            <div class="select-wrap">
+              <select id="footerInterestSelect" required>
+                <option id="footerInterestOpt0" value=""></option>
+                <option id="footerInterestOpt1"></option>
+                <option id="footerInterestOpt2"></option>
+                <option id="footerInterestOpt3"></option>
+              </select>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary footer-submit" id="footerSubmitBtn"></button>
+        </form>
       </div>
     </footer>
 

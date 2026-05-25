@@ -3,10 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>קוראים את הספר — גיבורים קטנים</title>
-  <meta name="description" content="קראו את ספר הילדים המותאם אישית שלכם. גיבורים קטנים — ספרי חוסן רגשי לילדים." />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='4' y='4' width='24' height='24' rx='6' fill='%237c5cfc'/><circle cx='20' cy='12' r='4' fill='%23ffd166'/></svg>" />
-  <meta name="robots" content="noindex" />
+  <title></title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -14,7 +11,6 @@
   <link rel="stylesheet" href="../CSS/reader.css" />
 </head>
 <body class="reader-body">
-<script src="/JS/gate.js"></script>
 
   <!-- ── NAVBAR ─────────────────────────────────────────────── -->
   <header class="navbar reader-navbar">
@@ -70,7 +66,7 @@
           <div class="reader-page-header">
             <span class="reader-page-num" id="readerPageNum"></span>
           </div>
-          <div class="reader-page-canvas" id="readerPageCanvas" data-layout="text_top_image_bottom">
+          <div class="reader-page-canvas" id="readerPageCanvas" data-template="art_top_text_bottom">
             <div class="reader-page-media" id="readerPageImageWrap" hidden>
               <img class="reader-page-img" id="readerPageImg" src="" alt="" />
               <div class="reader-cover-overlay" id="readerCoverOverlay" hidden>
@@ -117,6 +113,7 @@
   <script src="../JS/content.js"></script>
   <script src="../JS/routes.js"></script>
   <script src="../JS/analytics.js"></script>
+  <script src="../JS/client-api.js"></script>
   <script src="../JS/reader.js"></script>
 
 </body>

@@ -2,16 +2,16 @@
  * Post-processes raw page illustrations into reader/PDF-ready assets:
  * smart crop and directional paper fade integration (not CSS-only).
  *
- * Placement modes map from `lib/bookPageLayout.ts` reader layouts (see `placementModeFromReaderLayout`):
- * - character_vignette — text_top_image_bottom: character-aware crop + stronger top fade
- * - scene_soft_frame — image_top_text_bottom: balanced crop + medium asymmetric fades
- * - full_bleed_safe — image_full_overlay_text: gentle fades with subtle side feather
+ * Template-aware presentation modes (see `lib/bookPageLayout.ts`):
+ * - character_vignette_text: focused mass, airy edge fade
+ * - art_top_text_bottom: top-focused art with strong downward fade-to-paper
+ * - full_bleed_overlay: immersive with minimal edge fade + text-safe integration
  */
 
 import sharp from 'sharp';
-import type { BookPageLayout, BookPageTemplate } from './bookPageLayout';
+import type { BookPageTemplate } from './bookPageLayout';
 
-export type PlacementMode = 'character_vignette' | 'scene_soft_frame' | 'full_bleed_safe';
+export type PlacementMode = BookPageTemplate;
 
 const OUT_W = 1200;
 const OUT_H = 1800;
@@ -60,7 +60,7 @@ export async function evaluateImageSignal(
   const stats = await image.stats();
   const channels = stats.channels ?? [];
   const stdevMean = avg(channels.map((ch) => ch.stdev));
-  const entropyMean = stats.entropy;
+  const entropyMean = avg(channels.map((ch) => (ch as { entropy?: number }).entropy ?? 0));
   const dominant = {
     r: stats.dominant?.r ?? Math.round(avg(channels.map((ch) => ch.mean))),
     g: stats.dominant?.g ?? Math.round(avg(channels.map((ch) => ch.mean))),
@@ -107,32 +107,6 @@ export async function evaluateImageSignal(
   };
 }
 
-/** Tie post-processing to the same layout enum the reader uses (no new layout types). */
-export function placementModeFromReaderLayout(layout: BookPageLayout): PlacementMode {
-  switch (layout) {
-    case 'image_full_overlay_text':
-      return 'full_bleed_safe';
-    case 'text_top_image_bottom':
-      return 'character_vignette';
-    case 'image_top_text_bottom':
-      return 'scene_soft_frame';
-    default:
-      return 'scene_soft_frame';
-  }
-}
-
-/** Pipeline page templates (image composition) → presentation crop; aligned with `assignTemplatesForBook` / reader layout mapping. */
-export function placementModeFromPageTemplate(template: BookPageTemplate): PlacementMode {
-  switch (template) {
-    case 'full_bleed_overlay':
-      return 'full_bleed_safe';
-    case 'art_top_text_bottom':
-      return 'character_vignette';
-    case 'character_vignette_text':
-      return 'scene_soft_frame';
-  }
-}
-
 /** Stable 0–1 jitter from page number (deterministic per page, varies across book). */
 function pageJitter(pageNumber: number, salt: number): number {
   const x = Math.sin(pageNumber * 12.9898 + salt * 78.233 + 0.724) * 43758.5453;
@@ -143,13 +117,13 @@ type CoverPosition = sharp.ResizeOptions['position'];
 
 function pickCoverPosition(mode: PlacementMode, pageNumber: number): CoverPosition {
   const j = pageJitter(pageNumber, 1);
-  if (mode === 'character_vignette') {
+  if (mode === 'character_vignette_text') {
     // Keep enough top breathing room so character weight lands lower in frame.
     if (j < 0.72) return 'attention';
     if (j < 0.88) return 'entropy';
     return 'north';
   }
-  if (mode === 'full_bleed_safe') {
+  if (mode === 'full_bleed_overlay') {
     if (j < 0.55) return 'centre';
     if (j < 0.82) return 'attention';
     return 'entropy';
@@ -194,10 +168,10 @@ async function fitCoverWithBreathingAndBias(
 
   // Vertical: keep more top breathing room for character pages (subject reads lower in frame).
   let vertT: number;
-  if (mode === 'character_vignette') {
+  if (mode === 'character_vignette_text') {
     vertT = 0.08 + j1 * 0.16;
-  } else if (mode === 'scene_soft_frame') {
-    vertT = 0.36 + (j1 - 0.5) * 0.18;
+  } else if (mode === 'art_top_text_bottom') {
+    vertT = 0.22 + (j1 - 0.5) * 0.14;
   } else {
     vertT = 0.42 + (j1 - 0.5) * 0.16;
   }
@@ -222,33 +196,33 @@ function fadeProfile(mode: PlacementMode): {
   sideFadeDepth: number;
   sideStrength: number;
 } {
-  if (mode === 'character_vignette') {
+  if (mode === 'character_vignette_text') {
     return {
-      centerY: 0.68,
-      centerSpread: 0.22,
-      topFadeDepth: 0.52,
-      bottomFadeDepth: 0.28,
-      sideFadeDepth: 0.1,
-      sideStrength: 0.18,
+      centerY: 0.66,
+      centerSpread: 0.24,
+      topFadeDepth: 0.5,
+      bottomFadeDepth: 0.32,
+      sideFadeDepth: 0.12,
+      sideStrength: 0.22,
     };
   }
-  if (mode === 'full_bleed_safe') {
+  if (mode === 'full_bleed_overlay') {
     return {
-      centerY: 0.58,
-      centerSpread: 0.28,
-      topFadeDepth: 0.42,
-      bottomFadeDepth: 0.24,
-      sideFadeDepth: 0.08,
-      sideStrength: 0.14,
+      centerY: 0.55,
+      centerSpread: 0.34,
+      topFadeDepth: 0.14,
+      bottomFadeDepth: 0.12,
+      sideFadeDepth: 0.05,
+      sideStrength: 0.08,
     };
   }
   return {
-    centerY: 0.62,
-    centerSpread: 0.26,
-    topFadeDepth: 0.46,
-    bottomFadeDepth: 0.25,
-    sideFadeDepth: 0.09,
-    sideStrength: 0.16,
+    centerY: 0.34,
+    centerSpread: 0.22,
+    topFadeDepth: 0.16,
+    bottomFadeDepth: 0.52,
+    sideFadeDepth: 0.1,
+    sideStrength: 0.14,
   };
 }
 
@@ -265,7 +239,11 @@ async function directionalAlphaMaskBuffer(mode: PlacementMode, pageNumber: numbe
     const yNorm = OUT_H <= 1 ? 0 : y / (OUT_H - 1);
     const topAlpha = smoothstep(0, topFadeDepth, yNorm);
     const bottomAlpha = smoothstep(0, bottomFadeDepth, 1 - yNorm);
-    const verticalAlpha = Math.min(topAlpha, bottomAlpha);
+    let verticalAlpha = Math.min(topAlpha, bottomAlpha);
+    if (mode === 'art_top_text_bottom') {
+      // Stronger fade down into paper for text area.
+      verticalAlpha = Math.min(verticalAlpha, smoothstep(0, 0.56, 1 - yNorm));
+    }
     const centerBoost =
       0.9 +
       0.16 *
@@ -277,7 +255,18 @@ async function directionalAlphaMaskBuffer(mode: PlacementMode, pageNumber: numbe
       const rightAlpha = smoothstep(0, profile.sideFadeDepth, 1 - xNorm);
       const sideAlpha = Math.min(leftAlpha, rightAlpha);
       const sideFactor = 1 - (1 - sideAlpha) * profile.sideStrength;
-      const alpha = Math.max(0, Math.min(1, verticalAlpha * centerBoost * sideFactor));
+      let alpha = Math.max(0, Math.min(1, verticalAlpha * centerBoost * sideFactor));
+      if (mode === 'character_vignette_text') {
+        const dx = xNorm - 0.5;
+        const dy = yNorm - profile.centerY;
+        const radial = Math.exp(-(dx * dx * 4.4 + dy * dy * 7.2));
+        // Keep soft edge dissolve but preserve stronger subject presence.
+        alpha = Math.max(0, Math.min(1, alpha * (0.78 + radial * 0.3)));
+      }
+      if (mode === 'full_bleed_overlay') {
+        // Keep immersive look; only gentle integration near edges.
+        alpha = Math.max(0.9, alpha);
+      }
       const alphaByte = Math.round(alpha * 255);
 
       rgba[idx++] = 255;
@@ -314,8 +303,10 @@ export async function buildPresentationWebpFromBuffer(
   const directionalMaskPng = await directionalAlphaMaskBuffer(mode, pageNumber);
   buf = await sharp(buf).composite([{ input: directionalMaskPng, blend: 'dest-in' }]).png().toBuffer();
 
+  // STAGE_4_REMBG: vignette-template images should run through
+  // background-removal (isnet-anime or similar) to allow true cutout
+  // over palette bg. Not in this PR.
   return sharp(buf)
-    .flatten({ background: PAPER })
-    .webp({ quality: 88, effort: 4, smartSubsample: true })
+    .png({ compressionLevel: 9 })
     .toBuffer();
 }

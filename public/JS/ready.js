@@ -3,43 +3,45 @@
  *
  * Fetches GET /api/orders/:orderId and renders the completed book.
  * Standalone — does NOT import or depend on wizard.js.
- * orderId is read from the URL query string: /ready?orderId=abc123
+ * orderId is read from the URL query string: ready.html?orderId=abc123
  *
  * File: JS/ready.js
  */
 
 // ─── Content ──────────────────────────────────────────────────────────────────
 const RDY_DEFAULTS = {
-  pageTitle: 'גיבורים קטנים — הספר שלכם מוכן!',
+  pageTitle: 'גיבורים קטנים — הסיפור שלכם מוכן!',
   loadingText: 'טוענים את הספר שלכם...',
-  headline: 'הספר שלכם מוכן',
+  headline: 'זה הסיפור שיצרנו עבורו',
   errorTitle: 'משהו השתבש בדרך',
   errorBack: 'חזרה לדף הבית',
-  btnRead: 'לקרוא את הספר',
+  btnRead: 'לקריאה עכשיו',
   btnAudio: 'להאזין לסיפור',
-  btnPdf: 'קובץ מוכן להדפסה',
-  btnVideo: 'סרטון MP4 של הספר',
-  videoPreparing: 'מכינים את הסרטון...',
-  errorVideo: 'לא הצלחנו ליצור את הסרטון. נסו שוב.',
-  saveHint: 'שמרו את הקישור לספר כדי לחזור אליו בכל עת',
+  btnPdf: 'הורד PDF',
+  saveHint: 'אפשר לחזור לסיפור הזה בכל זמן',
   copyLabel: 'העתקת הקישור',
   copiedLabel: 'הועתק!',
   copyBtnAriaLabel: 'העתק קישור לספר',
-  dedicationPrefix: 'הסיפור הזה נכתב במיוחד בשביל {name}',
+  previewLabel: 'הצצה לתוך הספר',
+  previewPageNum: 'עמוד ראשון',
+  dedicationPrefix: 'הסיפור האישי של {name}',
   errorNotFound: 'לא מצאנו את ההזמנה שלכם.',
-  errorLoadFailed: 'משהו השתבש בטעינת הספר.',
-  errorNetworkFail: 'לא הצלחנו לטעון את הספר.',
+  errorLoadFailed: 'הספר עדיין לא נטען. רענון קצר בדרך כלל פותר את זה.',
+  errorNetworkFail: 'יש כרגע הפרעה בחיבור. נסו שוב בעוד רגע.',
   errorMissingOrder: 'פרטי ההזמנה חסרים.',
 };
 const HE_CONTENT = globalThis.CONTENT?.he || {};
 const RDY = { ...RDY_DEFAULTS, ...(HE_CONTENT.ready || {}) };
 const CMN = HE_CONTENT.common || {};
-const ROUTES = globalThis.SH_ROUTES || {
-  home: '/',
-  reader: '/reader',
+const clientApi = window.SmallHeroesClient || window.__smallHeroesClientApi || null;
+const ROUTES = window.SH_ROUTES || {
   generating: '/generating',
+  readerV2: function (bookId, key) {
+    const params = new URLSearchParams({ v: '1' });
+    if (key) params.set('accessKey', key);
+    return '/book/' + encodeURIComponent(bookId) + '/read-v2?' + params.toString();
+  },
 };
-const accessKey = new URLSearchParams(window.location.search).get('accessKey');
 
 // ─── DOM refs ─────────────────────────────────────────────────────────────────
 const loadingEl        = document.getElementById('readyLoading');
@@ -58,12 +60,14 @@ const dedicationEl     = document.getElementById('readyDedication');
 const btnReadEl        = document.getElementById('readyBtnRead');
 const btnAudioEl       = document.getElementById('readyBtnAudio');
 const btnPdfEl         = document.getElementById('readyBtnPdf');
-const btnVideoEl       = document.getElementById('readyBtnVideo');
 const audioPlayerEl    = document.getElementById('readyAudioPlayer');
 const btnCopyEl        = document.getElementById('readyBtnCopy');
 const copyLabelEl      = document.getElementById('readyCopyLabel');
 
 const saveHintEl       = document.getElementById('readySaveHint');
+const previewLabelEl   = document.getElementById('readyPreviewLabel');
+const previewPageNumEl = document.getElementById('readyPreviewPageNum');
+const previewTextEl    = document.getElementById('readyPreviewText');
 
 const navBrandEl       = document.getElementById('navBrand');
 const navTaglineEl     = document.getElementById('navTagline');
@@ -83,9 +87,10 @@ function wireStaticUI() {
   if (btnReadEl)         btnReadEl.textContent         = RDY.btnRead;
   if (btnAudioEl)        btnAudioEl.textContent        = RDY.btnAudio;
   if (btnPdfEl)          btnPdfEl.textContent          = RDY.btnPdf;
-  if (btnVideoEl)        btnVideoEl.textContent       = RDY.btnVideo;
   if (saveHintEl)        saveHintEl.textContent        = RDY.saveHint;
   if (copyLabelEl)       copyLabelEl.textContent       = RDY.copyLabel;
+  if (previewLabelEl)    previewLabelEl.textContent    = RDY.previewLabel;
+  if (previewPageNumEl)  previewPageNumEl.textContent  = RDY.previewPageNum;
   if (btnCopyEl)         btnCopyEl.setAttribute('aria-label', RDY.copyBtnAriaLabel);
 }
 
@@ -105,6 +110,12 @@ function showState(state) {
 function showError(message) {
   if (errorMsgEl) errorMsgEl.textContent = message;
   showState('error');
+}
+
+function reportClientIssue(reason, details) {
+  if (clientApi && typeof clientApi.reportClientIssue === 'function') {
+    clientApi.reportClientIssue('ready', reason, details);
+  }
 }
 
 // ─── Copy link ────────────────────────────────────────────────────────────────
@@ -154,12 +165,7 @@ function renderBook(data) {
 
   // "לקרוא את הספר" — opens the reader
   if (btnReadEl) {
-    if (ROUTES && typeof ROUTES.readerV2 === 'function') {
-      btnReadEl.href = ROUTES.readerV2(orderId, accessKey || undefined);
-    } else {
-      const keyPart = accessKey ? `&accessKey=${encodeURIComponent(accessKey)}` : '';
-      btnReadEl.href = `${ROUTES.reader}?orderId=${encodeURIComponent(orderId)}${keyPart}`;
-    }
+    btnReadEl.href = ROUTES.readerV2(orderId, accessKey || null);
   }
 
   // Audio button — show only if URL exists
@@ -194,62 +200,19 @@ function renderBook(data) {
     }
   }
 
-  // Video (MP4) — on-demand export; show whenever the book is viewable
-  if (btnVideoEl) {
-    btnVideoEl.hidden = false;
-    btnVideoEl.disabled = false;
-    btnVideoEl.textContent = RDY.btnVideo;
-    btnVideoEl.onclick = async (e) => {
-      e.preventDefault();
-      const key = accessKey || '';
-      if (!key) {
-        alert(RDY.errorVideo);
-        return;
-      }
-      try {
-        if (book.videoUrl) {
-          window.open(book.videoUrl, '_blank', 'noopener');
-          return;
-        }
-        // Open a blank tab immediately (within user-gesture) so the browser
-        // doesn't block the popup after the long async generation.
-        const videoTab = window.open('about:blank', '_blank');
-        btnVideoEl.disabled = true;
-        btnVideoEl.textContent = RDY.videoPreparing;
-        const res = await fetch(`/api/orders/${encodeURIComponent(orderId)}/video`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accessKey: key }),
-        });
-        const payload = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          if (videoTab) videoTab.close();
-          throw new Error(payload.error || `HTTP ${res.status}`);
-        }
-        const videoUrl = payload.videoUrl;
-        if (typeof videoUrl === 'string' && videoUrl.trim()) {
-          book.videoUrl = videoUrl.trim();
-          if (videoTab && !videoTab.closed) {
-            videoTab.location.href = book.videoUrl;
-          } else {
-            window.open(book.videoUrl, '_blank', 'noopener');
-          }
-        } else {
-          if (videoTab) videoTab.close();
-          throw new Error('missing_video_url');
-        }
-      } catch (err) {
-        console.error('[ready] video export failed', err);
-        alert(RDY.errorVideo);
-      } finally {
-        btnVideoEl.disabled = false;
-        btnVideoEl.textContent = RDY.btnVideo;
-      }
-    };
+  // First page preview
+  const firstPage = Array.isArray(book.pages) && book.pages.length > 0
+    ? (book.pages.find((page) => !page?.isCover && typeof page?.text === 'string' && page.text.trim().length > 0) || null)
+    : null;
+
+  if (previewTextEl) {
+    previewTextEl.textContent = firstPage?.text
+      ? firstPage.text
+      : '';
   }
 
   // Save to local history so the parent can return from this browser later
-  saveBookToHistory({ orderId, childName: data.childName || null, title: book.title || null, accessKey: accessKey || null });
+  saveBookToHistory({ orderId, childName: data.childName || null, title: book.title || null });
 
   // Wire copy-link button
   setupCopyLink();
@@ -261,29 +224,50 @@ function renderBook(data) {
 // ─── Fetch ────────────────────────────────────────────────────────────────────
 async function loadBook(orderId) {
   try {
-    const keyPart = accessKey ? `?accessKey=${encodeURIComponent(accessKey)}` : '';
-    const res = await fetch('/api/orders/' + encodeURIComponent(orderId) + keyPart);
+    const accessPart = accessKey ? `?accessKey=${encodeURIComponent(accessKey)}` : '';
+    let response = null;
+    if (clientApi && typeof clientApi.requestJson === 'function') {
+      response = await clientApi.requestJson('/api/orders/' + encodeURIComponent(orderId) + accessPart, {
+        timeoutMs: 12000,
+        fallbackMessage: RDY.errorLoadFailed,
+        timeoutMessage: RDY.errorNetworkFail,
+        networkMessage: RDY.errorNetworkFail,
+        invalidJsonMessage: RDY.errorLoadFailed,
+      });
+    } else {
+      const res = await fetch('/api/orders/' + encodeURIComponent(orderId) + accessPart);
+      const data = await res.json().catch(() => null);
+      response = res.ok
+        ? { ok: true, status: res.status, data }
+        : { ok: false, status: res.status, data, reason: 'http_error', message: RDY.errorLoadFailed };
+    }
 
-    if (res.status === 404) {
+    if (!response.ok && response.status === 404) {
       showError(RDY.errorNotFound);
       return;
     }
-
-    if (!res.ok) {
-      showError(RDY.errorLoadFailed);
+    if (!response.ok) {
+      reportClientIssue('load_failed', {
+        reason: response.reason || 'request_failed',
+        status: response.status || 0,
+        orderId,
+      });
+      if (response.reason === 'network_error' || response.reason === 'timeout') {
+        showError(RDY.errorNetworkFail);
+      } else {
+        showError(RDY.errorLoadFailed);
+      }
       return;
     }
-
-    const data = await res.json();
+    const data = response.data || {};
 
     // Guard: if the order exists but generation is still in progress,
     // send the user back to the generating screen rather than showing an error.
     // This handles the edge case where someone navigates here early
     // (e.g. a saved link, a back-button, or a race with the redirect).
-    // Accept 'partial' too — audio may have failed but book is deliverable.
-    if ((data.status !== 'ready' && data.status !== 'partial') || !data.book) {
+    if (data.status !== 'ready' || !data.book) {
       const keyPart = accessKey ? `&accessKey=${encodeURIComponent(accessKey)}` : '';
-      window.location.replace(`${ROUTES.generating}?orderId=${encodeURIComponent(orderId)}${keyPart}`);
+      window.location.replace(ROUTES.generating + '?orderId=' + encodeURIComponent(orderId) + keyPart);
       return;
     }
 
@@ -291,12 +275,15 @@ async function loadBook(orderId) {
 
   } catch (err) {
     console.error('[ready] Failed to load book:', err);
+    reportClientIssue('load_failed', { reason: 'exception', orderId });
     showError(RDY.errorNetworkFail);
   }
 }
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
-const orderId = new URLSearchParams(window.location.search).get('orderId');
+const urlParams = new URLSearchParams(window.location.search);
+const orderId = urlParams.get('orderId');
+const accessKey = urlParams.get('accessKey');
 
 wireStaticUI();
 

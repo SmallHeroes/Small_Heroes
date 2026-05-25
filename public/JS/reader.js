@@ -34,12 +34,11 @@ const RDR_DEFAULTS = {
 const HE_CONTENT = globalThis.CONTENT?.he || {};
 const RDR = { ...RDR_DEFAULTS, ...(HE_CONTENT.reader || {}) };
 const CMN = HE_CONTENT.common || {};
-const ROUTES = globalThis.SH_ROUTES || {
-  home: '/',
+const clientApi = window.SmallHeroesClient || window.__smallHeroesClientApi || null;
+const ROUTES = window.SH_ROUTES || {
   ready: '/ready',
   generating: '/generating',
 };
-const accessKey = new URLSearchParams(window.location.search).get('accessKey');
 
 // ─── DOM refs ─────────────────────────────────────────────────────────────────
 const loadingEl       = document.getElementById('readerLoading');
@@ -124,19 +123,22 @@ function showError(message) {
   showState('error');
 }
 
+function reportClientIssue(reason, details) {
+  if (clientApi && typeof clientApi.reportClientIssue === 'function') {
+    clientApi.reportClientIssue('reader', reason, details);
+  }
+}
+
 /**
- * If API omits `layout` (stale cache), conservative fallback (aligned with lib/bookPageLayout.ts overlay caps).
+ * Conservative fallback when API omits `pageTemplate`.
  */
-function inferLayoutFallback(page, totalPages) {
-  if (!page.imageUrl) return 'text_top_image_bottom';
+function inferTemplateFallback(page, totalPages) {
   const len = (page.text || '').replace(/\s+/g, ' ').trim().length;
-  if (len >= 300) return 'text_top_image_bottom';
-  if (len <= 52) return 'image_full_overlay_text';
   const first = page.pageNumber <= 1;
   const last = totalPages > 0 && page.pageNumber >= totalPages;
-  if ((first || last) && len <= 88) return 'image_full_overlay_text';
-  if (len <= 130) return 'image_top_text_bottom';
-  return page.pageNumber % 2 === 0 ? 'image_top_text_bottom' : 'text_top_image_bottom';
+  if ((first || last) && len <= 190) return 'full_bleed_overlay';
+  if (len <= 130) return 'character_vignette_text';
+  return 'art_top_text_bottom';
 }
 
 function hasImageUrl(page) {
@@ -188,16 +190,12 @@ function updateUI() {
   const isCover = Boolean(page?.isCover);
 
   const hasImage = hasImageUrl(page);
-  let layout;
-  if (isCover) {
-    layout = 'image_full_overlay_text';
-  } else {
-    // Force text-top for all non-cover pages: text always at top, dark, on clean background.
-    layout = 'text_top_image_bottom';
-  }
+  let template = page.pageTemplate || inferTemplateFallback(page, total);
+  if (isCover) template = 'full_bleed_overlay';
+  if (!isCover && !hasImage) template = 'art_top_text_bottom';
 
   if (pageCanvasEl) {
-    pageCanvasEl.setAttribute('data-layout', layout);
+    pageCanvasEl.setAttribute('data-template', template);
     pageCanvasEl.setAttribute('data-cover', isCover ? 'true' : 'false');
   }
   if (readerBookEl) readerBookEl.classList.remove('reader-book--text-only');
@@ -273,8 +271,8 @@ function goToPage(index) {
   const isLast = currentIndex === total - 1;
 
   if (isLast && index >= total) {
-    const keyPart = accessKey ? `&accessKey=${encodeURIComponent(accessKey)}` : '';
-    window.location.href = `${ROUTES.ready}?orderId=${encodeURIComponent(orderId)}${keyPart}`;
+    const keyQuery = accessKey ? `&accessKey=${encodeURIComponent(accessKey)}` : '';
+    window.location.href = ROUTES.ready + '?orderId=' + encodeURIComponent(orderId) + keyQuery;
     return;
   }
 
@@ -431,17 +429,44 @@ nextBtn.addEventListener('click', goNext);
 // ─── Fetch and boot ───────────────────────────────────────────────────────────
 async function loadReader(orderId) {
   try {
-    const orderApiKeyPart = accessKey ? `?accessKey=${encodeURIComponent(accessKey)}` : '';
-    const res = await fetch('/api/orders/' + encodeURIComponent(orderId) + orderApiKeyPart);
+    const accessPart = accessKey ? `?accessKey=${encodeURIComponent(accessKey)}` : '';
+    let response = null;
+    if (clientApi && typeof clientApi.requestJson === 'function') {
+      response = await clientApi.requestJson('/api/orders/' + encodeURIComponent(orderId) + accessPart, {
+        timeoutMs: 12000,
+        fallbackMessage: RDR.errorLoadFailed,
+        timeoutMessage: RDR.errorNetworkFail,
+        networkMessage: RDR.errorNetworkFail,
+        invalidJsonMessage: RDR.errorLoadFailed,
+      });
+    } else {
+      const res = await fetch('/api/orders/' + encodeURIComponent(orderId) + accessPart);
+      const data = await res.json().catch(() => null);
+      response = res.ok
+        ? { ok: true, status: res.status, data }
+        : { ok: false, status: res.status, data, reason: 'http_error', message: RDR.errorLoadFailed };
+    }
 
-    if (res.status === 404) { showError(RDR.errorNotFound);   return; }
-    if (!res.ok)            { showError(RDR.errorLoadFailed); return; }
+    if (!response.ok && response.status === 404) { showError(RDR.errorNotFound);   return; }
+    if (!response.ok) {
+      reportClientIssue('load_failed', {
+        reason: response.reason || 'request_failed',
+        status: response.status || 0,
+        orderId,
+      });
+      if (response.reason === 'network_error' || response.reason === 'timeout') {
+        showError(RDR.errorNetworkFail);
+      } else {
+        showError(RDR.errorLoadFailed);
+      }
+      return;
+    }
 
-    const data = await res.json();
+    const data = response.data || {};
 
     if (data.status !== 'ready' || !data.book) {
-      const keyPart = accessKey ? `&accessKey=${encodeURIComponent(accessKey)}` : '';
-      window.location.replace(`${ROUTES.generating}?orderId=${encodeURIComponent(orderId)}${keyPart}`);
+      const keyQuery = accessKey ? `&accessKey=${encodeURIComponent(accessKey)}` : '';
+      window.location.replace(ROUTES.generating + '?orderId=' + encodeURIComponent(orderId) + keyQuery);
       return;
     }
 
@@ -466,8 +491,8 @@ async function loadReader(orderId) {
 
     setupAudio(book.audioUrl);
 
-    const keyPart = accessKey ? `&accessKey=${encodeURIComponent(accessKey)}` : '';
-    const backHref = `${ROUTES.ready}?orderId=${encodeURIComponent(orderId)}${keyPart}`;
+    const keyQuery = accessKey ? `&accessKey=${encodeURIComponent(accessKey)}` : '';
+    const backHref = ROUTES.ready + '?orderId=' + encodeURIComponent(orderId) + keyQuery;
     if (navBackEl)   navBackEl.href   = backHref;
     if (errorBackEl) errorBackEl.href = backHref;
 
@@ -478,12 +503,15 @@ async function loadReader(orderId) {
 
   } catch (err) {
     console.error('[reader] Failed to load:', err);
+    reportClientIssue('load_failed', { reason: 'exception', orderId });
     showError(RDR.errorNetworkFail);
   }
 }
 
 // ─── Entry point ──────────────────────────────────────────────────────────────
-const orderId = new URLSearchParams(window.location.search).get('orderId');
+const urlParams = new URLSearchParams(window.location.search);
+const orderId = urlParams.get('orderId');
+const accessKey = urlParams.get('accessKey');
 
 wireStaticUI();
 

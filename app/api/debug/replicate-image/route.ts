@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '../../../../lib/prisma';
 import { generateImage } from '../../../../backend/providers/image';
-import { resolveImageModelMode, resolveReplicateImageModel } from '../../../../lib/replicate';
+import { prisma } from '@/lib/prisma';
 
 interface DebugImageRequest {
   orderId: string;
@@ -14,10 +13,17 @@ interface DebugImageRequest {
 }
 
 export async function POST(req: NextRequest) {
-  if (process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'debug endpoint disabled in production' }, { status: 403 });
-  }
   try {
+    if (process.env.ENABLE_DEBUG_GENERATION !== 'true') {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+    if (process.env.DISABLE_IMAGE_GENERATION === 'true') {
+      return NextResponse.json(
+        { error: 'Debug generation disabled by DISABLE_IMAGE_GENERATION=true' },
+        { status: 503 }
+      );
+    }
+
     const body = (await req.json()) as DebugImageRequest;
 
     if (process.env.GENERATION_SECRET && body.secret !== process.env.GENERATION_SECRET) {
@@ -58,7 +64,7 @@ export async function POST(req: NextRequest) {
     const referenceImages = body.referenceImages ?? (order.childImageUrl ? [order.childImageUrl] : undefined);
 
     console.log(
-      `[DebugImage] order=${order.id} page=${requestedPageNumber} mode=${resolveImageModelMode()} model=${body.modelOverride ?? resolveReplicateImageModel()} promptLen=${pagePrompt.length}`
+      `[DebugImage] trigger accepted orderId=${order.id} route=/api/debug/replicate-image reason=debug_image_test page=${requestedPageNumber} model=${body.modelOverride ?? process.env.REPLICATE_IMAGE_MODEL ?? 'flux-2-pro'} promptLen=${pagePrompt.length}`
     );
 
     const generated = await generateImage({

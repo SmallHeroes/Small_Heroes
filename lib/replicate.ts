@@ -1,36 +1,19 @@
 import Replicate from 'replicate';
-import { STYLE_IDS, STYLE_REGISTRY } from './styles';
-import type { StyleId } from './styles';
-
-/** Read LoRA slug at call time — STYLE_REGISTRY captures env only at module load. */
-export function resolveLoraModelSlugForStyle(styleId: StyleId): string | null {
-  if (styleId === STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK) {
-    return process.env.LORA_MODEL_STYLE_01?.trim() || STYLE_REGISTRY[styleId].pipeline.loraModel;
-  }
-  if (styleId === STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK) {
-    return process.env.LORA_MODEL_STYLE_02?.trim() || STYLE_REGISTRY[styleId].pipeline.loraModel;
-  }
-  return STYLE_REGISTRY[styleId]?.pipeline.loraModel ?? null;
-}
 
 export type ReplicateModelSlug = `${string}/${string}` | `${string}/${string}:${string}`;
 
-/** Base `owner/model` slug — strips `:version` suffix from version-pinned Replicate models. */
-export function replicateModelBaseSlug(model: string): string {
-  const trimmed = model.trim();
-  const colon = trimmed.indexOf(':');
-  return colon === -1 ? trimmed : trimmed.slice(0, colon);
-}
-
 export const REPLICATE_IMAGE_MODELS = {
-  'flux-dev': 'black-forest-labs/flux-dev',
   'flux-2-pro': 'black-forest-labs/flux-2-pro',
-  flux_pro: 'black-forest-labs/flux-2-pro',
+  'flux-dev': 'black-forest-labs/flux-dev',
+  'flux-schnell': 'black-forest-labs/flux-schnell',
 } as const;
 
 type ReplicateImageModelKey = keyof typeof REPLICATE_IMAGE_MODELS;
 
 let replicateClient: Replicate | null = null;
+
+const DEFAULT_TEST_MODEL: ReplicateModelSlug = REPLICATE_IMAGE_MODELS['flux-schnell'];
+const DEFAULT_PRODUCTION_MODEL: ReplicateModelSlug = REPLICATE_IMAGE_MODELS['flux-2-pro'];
 
 function readReplicateToken(): string {
   const token = process.env.REPLICATE_API_TOKEN;
@@ -49,66 +32,26 @@ export function getReplicateClient(): Replicate {
   return replicateClient;
 }
 
-export type ImageModelMode = 'development' | 'production';
-
-/** Used by the image provider guard; must match the model that `generateReplicateImage` resolves when no override is passed. */
-export function resolveImageModelMode(): ImageModelMode {
-  return process.env.NODE_ENV === 'production' ? 'production' : 'development';
+export function resolveImageModelMode(): 'test' | 'production' {
+  return (process.env.IMAGE_MODEL_MODE ?? 'production').toLowerCase() === 'test' ? 'test' : 'production';
 }
 
-export function resolveReplicateDevelopmentModel(): ReplicateModelSlug {
-  const requested = process.env.REPLICATE_IMAGE_MODEL_DEVELOPMENT ?? 'flux-dev';
-  const resolved = REPLICATE_IMAGE_MODELS[requested as ReplicateImageModelKey] ?? requested;
-  return resolved as ReplicateModelSlug;
-}
-
-export function resolveReplicateProductionModel(): ReplicateModelSlug {
-  const requested = process.env.REPLICATE_IMAGE_MODEL_PRODUCTION ?? 'flux-2-pro';
-  const resolved = REPLICATE_IMAGE_MODELS[requested as ReplicateImageModelKey] ?? requested;
+export function resolveReplicateTestModel(): ReplicateModelSlug {
+  const configured = process.env.REPLICATE_IMAGE_MODEL_TEST ?? DEFAULT_TEST_MODEL;
+  const resolved = REPLICATE_IMAGE_MODELS[configured as ReplicateImageModelKey] ?? configured;
   return resolved as ReplicateModelSlug;
 }
 
 export function resolveReplicateImageModel(modelOverride?: string): ReplicateModelSlug {
-  const envOverride = process.env.IMAGE_MODEL_OVERRIDE?.trim();
-  if (envOverride) {
-    const resolvedOverride = REPLICATE_IMAGE_MODELS[envOverride as ReplicateImageModelKey] ?? envOverride;
-    return resolvedOverride as ReplicateModelSlug;
-  }
-  if (modelOverride) {
-    // removed invalid or deprecated model override path
-    console.warn('[image_model]', `Ignoring deprecated modelOverride argument: ${modelOverride}`);
-  }
-  if (resolveImageModelMode() === 'development') {
-    return resolveReplicateDevelopmentModel();
-  }
-  return resolveReplicateProductionModel();
-}
-
-/**
- * Resolve Replicate model for a given style. Uses LoRA model when:
- * 1. ENABLE_LORA env is 'true'
- * 2. The style has a loraModel configured
- * Otherwise falls back to resolveReplicateImageModel().
- */
-export function resolveReplicateImageModelForStyle(styleId?: string): ReplicateModelSlug {
-  if (process.env.ENABLE_LORA !== 'true' || !styleId) {
-    return resolveReplicateImageModel();
+  const modelMode = resolveImageModelMode();
+  if (modelMode === 'test') {
+    // In test mode we always force the cheap model, ignoring overrides and fallbacks.
+    return resolveReplicateTestModel();
   }
 
-  const style = STYLE_REGISTRY[styleId as StyleId];
-  const loraModel = style ? resolveLoraModelSlugForStyle(style.id) : null;
-  if (loraModel) {
-    console.log('[image_model_lora]', loraModel, `trigger=${style?.pipeline.loraTriggerWord ?? 'none'}`);
-    return loraModel as ReplicateModelSlug;
-  }
-
-  return resolveReplicateImageModel();
-}
-
-export function isSdxlModelSlug(model: string): boolean {
-  return /sdxl-lightning/i.test(model);
-}
-
-export function isFluxProOverrideActive(): boolean {
-  return process.env.IMAGE_MODEL_OVERRIDE?.trim() === 'flux_pro';
+  const modeDefaultModel =
+    process.env.REPLICATE_IMAGE_MODEL_PRODUCTION ?? process.env.REPLICATE_IMAGE_MODEL ?? DEFAULT_PRODUCTION_MODEL;
+  const requested = modelOverride ?? modeDefaultModel;
+  const resolved = REPLICATE_IMAGE_MODELS[requested as ReplicateImageModelKey] ?? requested;
+  return resolved as ReplicateModelSlug;
 }

@@ -3,10 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>הספר מוכן! — גיבורים קטנים</title>
-  <meta name="description" content="הספר המותאם אישית שלכם מוכן לקריאה. גיבורים קטנים — ספרי ילדים לחיזוק רגשי." />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='4' y='4' width='24' height='24' rx='6' fill='%237c5cfc'/><circle cx='20' cy='12' r='4' fill='%23ffd166'/></svg>" />
-  <meta name="robots" content="noindex" />
+  <title></title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -14,7 +11,6 @@
   <link rel="stylesheet" href="../CSS/ready.css" />
 </head>
 <body>
-<script src="/JS/gate.js"></script>
 
   <!-- ── NAVBAR ─────────────────────────────────────────────── -->
   <header class="navbar">
@@ -29,7 +25,7 @@
           <span class="logo-tagline" id="navTagline"></span>
         </div>
       </a>
-      <a href="/" class="nav-cta" id="navCta"></a>
+      <a href="/wizard" class="nav-cta" id="navCta"></a>
     </div>
   </header>
 
@@ -67,10 +63,9 @@
 
       <!-- ── Actions ───────────────────────────────────────── -->
       <div class="ready-actions">
-        <a id="readyBtnRead" href="#" class="btn-primary ready-btn-read"></a>
+        <a id="readyBtnRead" href="#readyPreview" class="btn-primary ready-btn-read"></a>
         <a id="readyBtnAudio" href="#" class="btn-outline ready-btn-audio" hidden></a>
         <a id="readyBtnPdf" href="#" class="btn-outline ready-btn-pdf" download hidden></a>
-        <button type="button" id="readyBtnVideo" class="btn-outline ready-btn-video" hidden></button>
       </div>
 
       <!-- ── Save / Share link ─────────────────────────────── -->
@@ -84,6 +79,15 @@
       <!-- Hidden audio player, revealed when audio button is clicked -->
       <audio id="readyAudioPlayer" controls hidden class="ready-audio-player"></audio>
 
+      <!-- ── First page preview ─────────────────────────────── -->
+      <section class="ready-preview" id="readyPreview">
+        <div class="ready-preview-label" id="readyPreviewLabel"></div>
+        <div class="ready-preview-card">
+          <div class="ready-preview-page-num" id="readyPreviewPageNum"></div>
+          <p class="ready-preview-text" id="readyPreviewText"></p>
+        </div>
+      </section>
+
     </div><!-- /readyBook -->
 
   </div>
@@ -93,6 +97,7 @@
   <script src="../JS/routes.js"></script>
   <script src="../JS/analytics.js"></script>
   <script src="../JS/bookHistory.js"></script>
+  <script src="../JS/client-api.js"></script>
   <script src="../JS/ready.js"></script>
 
 </body>

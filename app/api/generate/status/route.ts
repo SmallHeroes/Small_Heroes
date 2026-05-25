@@ -4,8 +4,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '../../../../lib/prisma';
 import { STORY_LENGTHS } from '../../../../backend/config/wizard';
+import { prisma } from '@/lib/prisma';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger({ subsystem: 'generation-status', route: '/api/generate/status' });
 
 type StageStatus = 'pending' | 'running' | 'done' | 'failed';
 type StageName  = 'text' | 'images' | 'audio' | 'package' | 'done';
@@ -124,7 +127,7 @@ export async function GET(req: NextRequest) {
     const as = order.audioStatus   as StageStatus;
     const ps = order.packageStatus as StageStatus;
     const audio = order.audioEnabled;
-    const expectedPageCount = STORY_LENGTHS.find((length) => length.id === order.storyLength)?.pages ?? 15;
+    const expectedPageCount = STORY_LENGTHS.find((length) => length.id === order.storyLength)?.pages ?? 12;
     const expectedImageUnits = expectedPageCount + 1; // +1 for cover generation
     const completedPageImages = order.book?.pages?.filter((page) => Boolean(page.imageAsset?.id)).length ?? 0;
     const hasCover = Boolean(order.book?.coverImageUrl || order.coverImageUrl);
@@ -151,7 +154,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(body);
 
   } catch (error) {
-    console.error('[GET /api/generate/status]', error);
+    logger.error('Generation status fetch failed', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

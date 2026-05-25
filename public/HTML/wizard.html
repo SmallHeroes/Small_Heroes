@@ -5,18 +5,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>גיבורים קטנים – יצירת ספר</title>
-  <meta name="description" content="צרו ספר ילדים מותאם אישית — בחרו נושא, דמות מלווה, סגנון איור, ותנו ל-AI ליצור סיפור מיוחד." />
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='4' y='4' width='24' height='24' rx='6' fill='%237c5cfc'/><circle cx='20' cy='12' r='4' fill='%23ffd166'/></svg>" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap"
     rel="stylesheet" />
-  <link rel="stylesheet" href="/CSS/main.css" />
-  <link rel="stylesheet" href="/CSS/wizard.css" />
+  <link rel="stylesheet" href="../CSS/main.css" />
+  <link rel="stylesheet" href="../CSS/wizard.css" />
 </head>
 
 <body class="wizard-body">
-<script src="/JS/gate.js"></script>
 
   <nav class="navbar">
     <div class="wrap">
@@ -46,6 +43,8 @@
     <!-- ── Step 1 — Welcome ──────────────────────────────────── -->
     <div class="step active" id="step-1">
       <div class="s1-inner">
+        <img class="s1-book-img" src="../Images/MagicBook.png" alt="ספר קסום"
+          onerror="this.style.fontSize='110px';this.style.lineHeight='1';this.outerHTML='<div style=\'font-size:110px;line-height:1;margin-bottom:36px;filter:drop-shadow(0 10px 28px rgba(136,108,255,0.20));animation:float 3.8s ease-in-out infinite\'>📖</div>'" />
         <h1 class="step-title"><span id="s1TitleLine1"></span><br><span id="s1TitleLine2"></span></h1>
         <p class="step-sub" id="s1Sub"></p>
         <button class="btn-start" id="s1Btn" onclick="goNext()"></button>
@@ -128,19 +127,15 @@
         </div>
 
         <div class="photo-side">
-          <p class="photo-hero-title" id="photo-hero-title" hidden>זו התמונה שתהפוך לגיבור הסיפור</p>
-          <div class="photo-upload-area" id="photo-area">
+          <div class="photo-upload-area" id="photo-area" onclick="onPhotoUploadAreaClick()">
             <div class="photo-plus">+</div>
             <div class="photo-txt">
               <span id="s3PhotoPrompt"></span>
               <small id="s3PhotoOptional"></small>
             </div>
           </div>
+          <div id="photo-quality-message" aria-live="polite"></div>
           <input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp" onchange="handlePhoto(event)" />
-          <div id="photo-quality-message"></div>
-          <p class="photo-reupload-hint" id="photo-reupload-hint" hidden role="status">
-            לאחר רענון הדף יש להעלות את תמונת הילד/ה מחדש.
-          </p>
         </div>
       </div>
 
@@ -158,10 +153,21 @@
       </div>
     </div>
 
-    <!-- ── Step 6 — Difficulties (was step 7) ───────────────── -->
+    <!-- ── Step 6 — Family Context (NEW) ─────────────────────── -->
+    <div class="step" id="step-7">
+      <p class="step-microcopy" id="s4micro"></p>
+      <h2 class="step-title" id="s4famTitle"></h2>
+      <p class="step-sub" id="s4famSub"></p>
+      <p class="step-sub2" id="s4famSub2"></p>
+      <div class="char-step-shell">
+        <div class="char-grid" id="character-cards"></div>
+      </div>
+    </div>
+
+    <!-- ── Step 7 — Difficulties ────────────────────────────── -->
     <!-- IMPORTANT: toggleChip reads el.textContent — chip text is set by JS  -->
     <!-- from CONTENT; stored values are identical Hebrew strings as before.   -->
-    <div class="step" id="step-7">
+    <div class="step" id="step-8">
       <p class="step-microcopy" id="s5micro"></p>
       <h2 class="step-title" id="s4Title"></h2>
       <p class="step-sub" id="s4Sub"></p>
@@ -183,7 +189,7 @@
     </div>
 
     <!-- ── Step 8 — Goals ───────────────────────────────────── -->
-    <div class="step" id="step-8">
+    <div class="step" id="step-9">
       <p class="step-microcopy" id="s6micro"></p>
       <h2 class="step-title" id="s5Title"></h2>
       <p class="step-sub" id="s5Sub"></p>
@@ -202,7 +208,7 @@
     </div>
 
     <!-- ── Step 9 — Helpers ─────────────────────────────────── -->
-    <div class="step" id="step-9">
+    <div class="step" id="step-10">
       <p class="step-microcopy" id="s7micro"></p>
       <h2 class="step-title" id="s6Title"></h2>
       <p class="step-sub" id="s6Sub"></p>
@@ -226,7 +232,7 @@
     </div>
 
     <!-- ── Step 10 — Avoid ───────────────────────────────────── -->
-    <div class="step" id="step-10">
+    <div class="step" id="step-11">
       <p class="step-microcopy" id="s8micro"></p>
       <h2 class="step-title" id="s7Title"></h2>
       <p class="step-sub" id="s7Sub"></p>
@@ -248,30 +254,25 @@
       </div>
     </div>
 
-    <!-- ── Step 11 — Direction ──────────────────────────────── -->
-    <div class="step" id="step-11">
-      <p class="step-microcopy" id="s9micro"></p>
-      <h2 class="step-title" id="sDirectionTitle"></h2>
-      <p class="step-sub" id="sDirectionSub"></p>
-      <div class="direction-step-grid" id="direction-cards" role="group" aria-label="בחירת כיוון סיפור"></div>
-    </div>
-
-    <!-- ── Step 12 — Style ──────────────────────────────────── -->
+    <!-- ── Step 11 — Package ────────────────────────────────── -->
     <div class="step" id="step-12">
-      <p class="step-microcopy" id="sStyleMicro"></p>
-      <h2 class="step-title" id="sStyleTitle"></h2>
-      <p class="step-sub" id="sStyleSub"></p>
-      <div class="style-step-grid" id="style-step-grid" role="group" aria-label="בחירת סגנון איור"></div>
-    </div>
-
-    <!-- ── Step 13 — Add-ons ───────────────────────────────── -->
-    <div class="step" id="step-13">
-      <p class="step-microcopy" id="sAddonsMicro"></p>
+      <p class="step-microcopy" id="s9micro"></p>
       <h2 class="step-title" id="s8Title"></h2>
       <p class="step-sub" id="s8Sub"></p>
 
       <div class="s8-layout">
         <div class="s8-grid" id="s8-grid">
+
+          <!-- Length + Style card -->
+          <div class="s8-card s8-card--styles">
+            <div class="s8-card-title" id="s8LengthTitle"></div>
+            <div class="length-btns" id="length-btns"></div>
+
+            <div class="style-label" id="s8StyleLabel"></div>
+            <div class="style-grid" id="style-btns"></div>
+          </div>
+
+          <!-- Addons card -->
           <div class="s8-card s8-card--addons">
             <div class="s8-card-title" id="s8-addons-title"></div>
             <div class="s8-card-sub" id="s8AddonSub"></div>
@@ -302,19 +303,6 @@
               </div>
             </div>
 
-            <div class="addon-row" id="addon-video-row" onclick="toggleAddon('videoEnabled')">
-              <div class="addon-info">
-                <span class="badge-new" id="s8VideoBadge"></span>
-                <div class="addon-main">
-                  <div>
-                    <div class="addon-name" id="s8VideoName"></div>
-                    <div class="addon-desc" id="s8VideoDesc"></div>
-                  </div>
-                  <div class="addon-checkbox" id="cb-video"></div>
-                </div>
-              </div>
-            </div>
-
             <div class="addon-row" id="addon-bundle-row" onclick="toggleAddon('bundleEnabled')">
               <div class="addon-info">
                 <span class="badge-save" id="s8BundleBadge"></span>
@@ -329,6 +317,7 @@
             </div>
           </div>
 
+          <!-- Voice panel (shown when audio/bundle active) -->
           <div class="s8-card s8-voice-col is-collapsed" id="s8-voice-col" aria-hidden="true">
             <div class="s8-card-title" id="s8VoiceTitle"></div>
             <div class="voice-btns" id="voice-btns"></div>
@@ -341,35 +330,18 @@
               <div class="sleep-checkbox" id="sleep-toggle"></div>
             </div>
           </div>
+
         </div>
 
-        <span id="total-price" hidden></span>
+        <div class="s8-total" id="s8-total">
+          <span class="s8-total-label" id="s8TotalLabel"></span>
+          <span class="s8-total-price" id="total-price">₪49</span>
+        </div>
       </div>
     </div>
 
-    <!-- ── Step 14 — Book name + dedication ─────────────────── -->
-    <div class="step" id="step-14">
-      <p class="step-microcopy" id="s11micro"></p>
-      <h2 class="step-title" id="sBookTitle"></h2>
-      <p class="step-sub" id="sBookSub"></p>
-
-      <div class="form-group" style="margin-bottom: 18px;">
-        <label class="form-label" id="sBookNameLabel"></label>
-        <input class="form-input" id="bookNameInput" type="text" maxlength="60" autocomplete="off" dir="rtl" />
-        <div class="form-hint" id="sBookNameHint"></div>
-      </div>
-
-      <h3 class="step-title" style="font-size:clamp(22px,3vw,32px);margin-bottom:8px;">
-        <span id="dedicationHeading"></span>
-        <span class="optional-badge" id="dedicationOptionalBadge"></span>
-      </h3>
-      <p class="step-hint" id="dedicationHint"></p>
-      <textarea class="wiz-textarea" id="dedicationInput" maxlength="300" rows="5"></textarea>
-      <div class="char-count"><span id="dedicationCount">0</span>/300</div>
-    </div>
-
-    <!-- ── Step 15 — Summary + Payment ─────────────────────── -->
-    <div class="step" id="step-15">
+    <!-- ── Step 12 — Summary + Payment ─────────────────────── -->
+    <div class="step" id="step-13">
       <p class="step-microcopy" id="s10micro"></p>
       <div style="text-align:center;margin-bottom:10px;">
         <span style="font-size:28px;">✨</span>
@@ -377,16 +349,23 @@
       <h2 class="step-title" id="s9Title" style="margin-bottom:6px;"></h2>
       <p class="step-title" id="s9Sub" style="font-size:clamp(18px,2.6vw,28px);margin-bottom:20px;"></p>
 
-      <div class="s9-grid s9-grid--balanced">
-        <div class="s9-card s9-card--details">
-          <div class="s9-card-title" id="s9CardDetailsTitle"></div>
+      <div class="s9-quote">
+        <p id="s9-quote-text"></p>
+      </div>
+
+      <div class="s9-grid">
+        <div class="s9-card">
+          <div class="s9-card-title" id="s9Card1Title"></div>
           <div id="order-summary"></div>
         </div>
 
-        <div class="s9-card s9-card--book">
-          <div class="s9-card-title" id="s9CardBookTitle"></div>
-          <div id="summary-book-panel"></div>
+        <div class="s9-card">
+          <div class="s9-card-title" id="s9Card2Title"></div>
           <div id="price-breakdown"></div>
+        </div>
+
+        <div class="s9-card">
+          <div class="s9-card-title" id="s9Card3Title"></div>
           <div class="contact-form">
             <div class="form-group">
               <label class="form-label" id="s9NameLabel"></label>
@@ -401,32 +380,39 @@
           </div>
         </div>
       </div>
-      <button type="button" class="s9-back-btn" onclick="goBack()">
-        <span class="s9-back-arrow">&#8594;</span> חזרה לעריכה
-      </button>
     </div>
 
   </main>
 
-  <div class="bottom-bar" id="bottom-bar">
-    <div class="bottom-bar-actions" id="bottom-bar-actions">
-      <div class="bottom-bar-total" id="bottom-bar-total" hidden>
-        <span class="bottom-bar-total-label" id="bottomBarTotalLabel"></span>
-        <span class="bottom-bar-total-price" id="bottom-bar-price">₪59</span>
-      </div>
-      <button type="button" id="btn-continue" class="btn-continue"></button>
-      <button type="button" id="btn-continue-anyway" class="btn-continue btn-continue--anyway" hidden>להמשיך בכל זאת</button>
-      <button type="button" id="btn-back"     class="btn-back"     onclick="goBack()"></button>
+  <div class="wizard-dialog-overlay" id="photo-guidance-overlay" hidden>
+    <div class="wizard-dialog" role="dialog" aria-modal="true" aria-labelledby="photo-guidance-title">
+      <h3 class="wizard-dialog-title" id="photo-guidance-title">כדי שהדמות תיראה כמו הילד</h3>
+      <p class="wizard-dialog-body">
+        כדאי לבחור תמונה שבה:<br />
+        • הילד מופיע לבד<br />
+        • הפנים ברורות וקרובות<br />
+        • התאורה טובה והפנים לא מוסתרות
+      </p>
+      <p class="wizard-dialog-body">
+        תמונה טובה תעזור לנו ליצור דמות שמרגישה ממש כמו הילד.
+      </p>
+      <button type="button" class="btn-continue wizard-dialog-btn" id="photo-guidance-confirm">בחירת תמונה</button>
     </div>
-    <p class="photo-step-reassure" id="photo-step-reassure" hidden>גם בלי תמונה ננסה ליצור תוצאה טובה 💪</p>
   </div>
 
-  <script src="/JS/content.js?v=phase16-split"></script>
-  <script src="/JS/routes.js"></script>
-  <script src="/JS/companions.js"></script>
-  <script src="/JS/analytics.js"></script>
-  <script src="/JS/client-api.js"></script>
-  <script src="/JS/wizard.js?v=phase17-rtl-flip-price"></script>
+  <div class="bottom-bar" id="bottom-bar">
+    <div class="bottom-bar-actions">
+      <button type="button" id="btn-continue" class="btn-continue" onclick="goNext()"></button>
+      <button type="button" id="btn-back"     class="btn-back"     onclick="goBack()"></button>
+    </div>
+  </div>
+
+  <script src="../JS/content.js"></script>
+  <script src="../JS/routes.js"></script>
+  <script src="../JS/companions.js"></script>
+  <script src="../JS/analytics.js"></script>
+  <script src="../JS/client-api.js"></script>
+  <script src="../JS/wizard.js"></script>
 </body>
 
 </html>

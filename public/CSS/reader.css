@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════
    READER.CSS — גיבורים קטנים
-   Page structure follows lib/bookPageLayout.ts (data-layout on .reader-page-canvas).
+  Page structure follows lib/bookPageLayout.ts (data-template on .reader-page-canvas).
    ═══════════════════════════════════════════════════════════ */
 
 .reader-body {
@@ -142,7 +142,7 @@
   text-align: center;
 }
 
-/* ── Page shell (layout system: data-layout on .reader-page-canvas) ─ */
+/* ── Page shell (template system: data-template on .reader-page-canvas) ─ */
 .reader-page {
   width: 100%;
   display: flex;
@@ -169,7 +169,9 @@
   width: 100%;
   display: grid;
   grid-template-rows: auto auto;
-  background: #fdf8f0;
+  background:
+    radial-gradient(130% 180% at 50% -35%, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0) 68%),
+    linear-gradient(180deg, #fffdf9 0%, #fdf7ee 100%);
   border: none;
   border-radius: 0;
   overflow: hidden;
@@ -181,8 +183,8 @@
   width: 100%;
   overflow: hidden;
   position: relative;
-  background: #fdf8f0;
-  aspect-ratio: 3 / 4;
+  background: #fdf9f4;
+  aspect-ratio: 2 / 3;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -200,7 +202,12 @@
   text-align: center;
   padding: 7% 9% 0;
   pointer-events: none;
-  /* no CSS gradient — the image itself fades to cream at the top */
+  background: linear-gradient(
+    to bottom,
+    rgba(250, 246, 240, 0.64) 0%,
+    rgba(250, 246, 240, 0.3) 20%,
+    rgba(250, 246, 240, 0) 42%
+  );
 }
 
 .reader-cover-title {
@@ -212,7 +219,7 @@
   font-weight: 900;
   letter-spacing: 0.015em;
   color: #2a241a;
-  /* text-shadow removed — was causing visible white glow artifact */
+  text-shadow: 0 1px 8px rgba(255, 252, 246, 0.55);
 }
 
 .reader-page-img {
@@ -258,10 +265,10 @@
 
 .reader-text {
   font-family: var(--fd);
-  font-size: 19px;
+  font-size: clamp(15px, 2vw, 17px);
   font-weight: 500;
   color: #2e2a22;
-  line-height: 1.4;
+  line-height: 1.9;
   text-align: center;
   white-space: pre-wrap;
   margin: 0;
@@ -297,32 +304,19 @@
   color: #9e8a6d;
 }
 
-/* text_top_image_bottom — reading first, illustration below */
-.reader-page-canvas[data-layout="text_top_image_bottom"] .reader-page-prose {
-  order: 1;
-  border-bottom: none;
-  padding-top: 120px;
-}
-.reader-page-canvas[data-layout="text_top_image_bottom"] .reader-page-media {
-  order: 2;
-  flex: 1 1 auto;
-  min-height: 360px;
-  aspect-ratio: 2 / 3;
-}
-
-/* image_top_text_bottom — picture first */
-.reader-page-canvas[data-layout="image_top_text_bottom"] .reader-page-media {
+/* art_top_text_bottom — classic storybook flow */
+.reader-page-canvas[data-template="art_top_text_bottom"] .reader-page-media {
   order: 1;
   flex: 1 1 auto;
   min-height: 360px;
 }
-.reader-page-canvas[data-layout="image_top_text_bottom"] .reader-page-prose {
+.reader-page-canvas[data-template="art_top_text_bottom"] .reader-page-prose {
   order: 2;
   border-top: none;
 }
 
-/* image_full_overlay_text — full-bleed art, text at top (light text-safe zone in art) */
-.reader-page-canvas[data-layout="image_full_overlay_text"] {
+/* full_bleed_overlay — full-bleed art with overlay text */
+.reader-page-canvas[data-template="full_bleed_overlay"] {
   position: relative;
   min-height: min(82vh, 900px);
   padding: 0;
@@ -330,7 +324,7 @@
   flex-direction: column;
 }
 
-.reader-page-canvas[data-layout="image_full_overlay_text"] .reader-page-media {
+.reader-page-canvas[data-template="full_bleed_overlay"] .reader-page-media {
   position: absolute;
   inset: 0;
   order: unset;
@@ -349,45 +343,46 @@
   display: none;
 }
 
-.reader-page-canvas[data-layout="image_full_overlay_text"] .reader-page-prose {
+.reader-page-canvas[data-template="full_bleed_overlay"] .reader-page-prose {
   order: unset;
   position: relative;
   z-index: 1;
-  margin-top: 0;
-  margin-bottom: auto;
+  margin-top: auto;
   width: 100%;
   max-width: none;
-  background: none;
+  background: linear-gradient(
+    to top,
+    rgba(18, 14, 10, 0.9) 0%,
+    rgba(18, 14, 10, 0.62) 38%,
+    rgba(18, 14, 10, 0.2) 72%,
+    transparent 100%
+  );
   border: none;
-  padding: 24px 22px 16px;
+  padding: 28px 22px 22px;
 }
 
-.reader-page-canvas[data-layout="image_full_overlay_text"] .reader-text {
-  color: #2e2a22;
-  text-shadow: none;
+.reader-page-canvas[data-template="full_bleed_overlay"] .reader-text {
+  color: #fff9f0;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
   max-width: 34em;
 }
 
-/* text_only — no image; typographic focus */
-.reader-book.reader-book--text-only .reader-page-canvas[data-layout="text_only"] {
-  min-height: 44vh;
-  justify-content: center;
+/* character_vignette_text — intimate page with generous paper breathing room */
+.reader-page-canvas[data-template="character_vignette_text"] {
+  background:
+    radial-gradient(120% 140% at 50% 4%, rgba(255, 255, 255, 0.86) 0%, rgba(255, 255, 255, 0) 62%),
+    linear-gradient(180deg, #fffefb 0%, #fdf8ef 100%);
 }
-
-.reader-page-canvas[data-layout="text_only"] .reader-page-media {
-  display: none;
+.reader-page-canvas[data-template="character_vignette_text"] .reader-page-media {
+  order: 1;
+  min-height: 340px;
+  max-height: min(66vh, 700px);
+  background: transparent;
 }
-
-.reader-page-canvas[data-layout="text_only"] .reader-page-prose {
-  padding: 32px 26px 36px;
-  background: #fffdf9;
-}
-
-.reader-page-canvas[data-layout="text_only"] .reader-text {
-  font-size: clamp(17px, 2.5vw, 21px);
-  font-weight: 600;
-  line-height: 1.82;
-  max-width: 28em;
+.reader-page-canvas[data-template="character_vignette_text"] .reader-page-prose {
+  order: 2;
+  padding-top: 14px;
+  background: transparent;
 }
 
 .reader-text.is-turning {
@@ -539,12 +534,7 @@
     padding: 16px 18px 20px;
   }
 
-  .reader-page-canvas[data-layout="text_top_image_bottom"] .reader-page-prose {
-    padding-top: 80px;
-  }
-
-  .reader-page-canvas[data-layout="image_full_overlay_text"] .reader-page-prose {
-    padding: 16px 14px 12px;
-    background: none;
+  .reader-page-canvas[data-template="full_bleed_overlay"] .reader-page-prose {
+    padding: 22px 16px 18px;
   }
 }

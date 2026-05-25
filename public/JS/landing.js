@@ -11,8 +11,7 @@
 
 // ─── Content alias ────────────────────────────────────────────────────────────
 const L = CONTENT.he.landing;
-const ROUTES = globalThis.SH_ROUTES || {
-  home: '/',
+const ROUTES = window.SH_ROUTES || {
   wizard: '/wizard',
   ready: '/ready',
 };
@@ -31,6 +30,11 @@ function initLandingContent() {
   setText('navTagline', CONTENT.he.common.tagline);
   setText('navCta',     CONTENT.he.common.navCta);
 
+  // ── Book history strip ────────────────────────────────────────────────────────
+  setText('bookHistoryLabel', L.historyLabel);
+  const clearBtnEl = document.getElementById('bookHistoryClear');
+  if (clearBtnEl) clearBtnEl.setAttribute('aria-label', L.historyClearAriaLabel);
+
   // ── Hero ──────────────────────────────────────────────────────────────────────
   setText('heroBadge',        L.hero.badge);
   setText('heroH1',           L.hero.h1);
@@ -39,69 +43,6 @@ function initLandingContent() {
   setText('heroCtaPrimary',   L.hero.ctaPrimary);
   setText('heroCtaSecondary', L.hero.ctaSecondary);
   L.hero.bullets.forEach((b, i) => setText('heroBullet' + i, b));
-
-  // ── Gallery ───────────────────────────────────────────────────────────────────
-  if (L.gallery) {
-    setText('galleryH2',  L.gallery.h2);
-    setText('gallerySub', L.gallery.sub);
-    setText('galleryCta', L.gallery.cta);
-    if (L.gallery.toggleIllustrated) setText('toggleIllustrated', L.gallery.toggleIllustrated);
-    if (L.gallery.toggleRealistic) setText('toggleRealistic', L.gallery.toggleRealistic);
-  }
-
-  // ── Gallery style toggle (illustrated / watercolor) ─────
-  (function initGalleryToggle() {
-    const btnIllustrated = document.getElementById('toggleIllustrated');
-    const btnRealistic   = document.getElementById('toggleRealistic');
-    const pill           = document.getElementById('togglePill');
-    const layerIllu      = document.getElementById('galleryTrackIllustrated');
-    const layerReal      = document.getElementById('galleryTrackRealistic');
-    if (!btnIllustrated || !btnRealistic || !pill || !layerIllu || !layerReal) return;
-
-    const layers = [layerIllu, layerReal];
-
-    function positionPill(btn) {
-      pill.style.left  = btn.offsetLeft + 'px';
-      pill.style.width = btn.offsetWidth + 'px';
-    }
-    positionPill(btnRealistic);
-
-    function switchTo(style) {
-      const map = {
-        illustrated: btnIllustrated,
-        realistic: btnRealistic,
-      };
-      const layerMap = {
-        illustrated: layerIllu,
-        realistic: layerReal,
-      };
-      const activeBtn = map[style] || btnRealistic;
-      const showLayer = layerMap[style] || layerReal;
-
-      [btnIllustrated, btnRealistic].forEach((b) => {
-        const on = b === activeBtn;
-        b.classList.toggle('is-active', on);
-        b.setAttribute('aria-selected', on ? 'true' : 'false');
-      });
-
-      positionPill(activeBtn);
-
-      layers.forEach((layer) => {
-        const visible = layer === showLayer;
-        layer.classList.toggle('is-visible', visible);
-        layer.setAttribute('aria-hidden', visible ? 'false' : 'true');
-      });
-    }
-
-    btnIllustrated.addEventListener('click', () => switchTo('illustrated'));
-    btnRealistic.addEventListener('click', () => switchTo('realistic'));
-
-    window.addEventListener('resize', () => {
-      const active =
-        [btnIllustrated, btnRealistic].find((b) => b.classList.contains('is-active')) || btnRealistic;
-      positionPill(active);
-    });
-  })();
 
   // ── Why ───────────────────────────────────────────────────────────────────────
   setText('whyH2',  L.why.h2);
@@ -114,6 +55,7 @@ function initLandingContent() {
   // ── Sample ────────────────────────────────────────────────────────────────────
   setText('sampleKicker', L.sample.kicker);
   setText('sampleH2',     L.sample.h2);
+  setText('sampleP1',     L.sample.p1);
   setText('sampleP2',     L.sample.p2);
   setText('sampleCta',    L.sample.cta);
   setText('sampleQuote',  L.sample.quote);
@@ -123,6 +65,15 @@ function initLandingContent() {
   L.how.steps.forEach((s, i) => {
     setText('howStep' + i + 'Title', s.title);
     setText('howStep' + i + 'Body',  s.body);
+  });
+
+  // ── Fit ───────────────────────────────────────────────────────────────────────
+  setText('fitH2',  L.fit.h2);
+  setText('fitSub', L.fit.sub);
+  L.fit.cards.forEach((c, i) => {
+    setText('fitCard' + i + 'Icon',  c.icon);
+    setText('fitCard' + i + 'Title', c.title);
+    c.items.forEach((item, j) => setText('fitCard' + i + 'Item' + j, item));
   });
 
   // ── Pricing ───────────────────────────────────────────────────────────────────
@@ -138,14 +89,6 @@ function initLandingContent() {
     setText('pricingCard' + i + 'Price',   c.price);
     setText('pricingCard' + i + 'Cta',     c.cta);
     c.features.forEach((f, j) => setText('pricingCard' + i + 'Feature' + j, f));
-    const ctaEl = document.getElementById('pricingCard' + i + 'Cta');
-    if (ctaEl) {
-      const directionByCard = ['bedtime', 'adventure', 'fantasy'];
-      const direction = directionByCard[i];
-      if (direction) {
-        ctaEl.setAttribute('href', `${ROUTES.wizard}?direction=${direction}`);
-      }
-    }
   });
 
   // ── FAQ ───────────────────────────────────────────────────────────────────────
@@ -175,25 +118,91 @@ function initLandingContent() {
   setText('footerH2Line1',       h2Line1);
   setText('footerH2Line2',       h2Line2);
   setText('footerSub',           L.footer.sub);
-  setText('footerCta',           L.footer.cta);
+  setText('footerNameLabel',     L.footer.nameLabel);
+  setText('footerEmailLabel',    L.footer.emailLabel);
+  setText('footerInterestLabel', L.footer.interestLabel);
+  setText('footerSubmitBtn',     L.footer.cta);
+
+  const nameInputEl = document.getElementById('footerNameInput');
+  if (nameInputEl) nameInputEl.placeholder = L.footer.namePlaceholder;
+
+  L.footer.interestOptions.forEach((opt, i) => setText('footerInterestOpt' + i, opt));
+
+  // Footer form — replaces removed inline onsubmit
+  const footerFormEl = document.getElementById('footerForm');
+  if (footerFormEl) {
+    footerFormEl.addEventListener('submit', (e) => {
+      e.preventDefault();
+      window.location.href = ROUTES.wizard;
+    });
+  }
 }
 
-async function syncAuthNavState() {
-  const navCtaEl = document.getElementById('navCta');
-  if (!navCtaEl) return;
+// ─── Book history strip ───────────────────────────────────────────────────────
+(function () {
   try {
-    const res = await fetch('/api/auth/me', { credentials: 'include' });
-    if (!res.ok) return;
-    const data = await res.json();
-    if (data?.user) {
-      navCtaEl.textContent = 'החשבון שלי';
-      navCtaEl.setAttribute('href', ROUTES.myBooks || '/my-books');
-      return;
+    const history = getBookHistory();
+    if (!history.length) return;
+
+    const section  = document.getElementById('bookHistorySection');
+    const listEl   = document.getElementById('bookHistoryList');
+    const clearBtn = document.getElementById('bookHistoryClear');
+    if (!section || !listEl || !clearBtn) return;
+
+    function renderChips() {
+      listEl.innerHTML = '';
+      const entries = getBookHistory();
+
+      entries.forEach(({ orderId, childName, title }) => {
+        const label = title || (childName
+          ? L.bookByChild.replace('{name}', childName)
+          : L.bookUnnamed);
+        const href  = ROUTES.ready + '?orderId=' + encodeURIComponent(orderId);
+
+        const chip = document.createElement('div');
+        chip.className = 'book-history-chip';
+
+        const link = document.createElement('a');
+        link.href        = href;
+        link.className   = 'book-history-chip-link';
+        link.textContent = label;
+        link.addEventListener('click', function () {
+          track('book_reopened', { orderId });
+        });
+
+        const remove = document.createElement('button');
+        remove.type      = 'button';
+        remove.className = 'book-history-chip-remove';
+        remove.setAttribute('aria-label', L.bookRemoveAriaLabel.replace('{label}', label));
+        remove.textContent = '×';
+
+        remove.addEventListener('click', (e) => {
+          e.preventDefault();
+          removeBookFromHistory(orderId);
+          const remaining = getBookHistory();
+          if (remaining.length === 0) {
+            section.hidden = true;
+          } else {
+            renderChips();
+          }
+        });
+
+        chip.appendChild(link);
+        chip.appendChild(remove);
+        listEl.appendChild(chip);
+      });
     }
+
+    renderChips();
+    section.hidden = false;
+
+    clearBtn.addEventListener('click', () => {
+      clearBookHistory();
+      section.hidden = true;
+    });
+
   } catch (_) {}
-  navCtaEl.setAttribute('href', ROUTES.wizard || '/wizard');
-}
+})();
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 initLandingContent();
-syncAuthNavState();
