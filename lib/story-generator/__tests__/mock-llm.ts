@@ -52,6 +52,17 @@ export class MockStoryGeneratorLLM implements StoryGeneratorLLM {
     if (options.stage.startsWith('editorial-repair')) {
       return { text: JSON.stringify({ pages: [] }), ...base };
     }
+    if (options.stage === 'voice-reviewer') {
+      return {
+        text: JSON.stringify({
+          storyId: 'mock',
+          language: 'he',
+          ageTier: '5-6',
+          findings: [],
+        }),
+        ...base,
+      };
+    }
     return { text: '{}', ...base };
   }
 }

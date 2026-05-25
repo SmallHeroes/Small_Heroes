@@ -31,6 +31,21 @@ export type Companion = {
   visualDescription: string;
 };
 
+/** Canonical Bolly — Small Heroes signature armadillo companion (image-consistency anchor). */
+export const BOLLY_ARMADILLO: Companion = {
+  id: 'bolly_armadillo',
+  name: 'בּוֹלִי',
+  tagline: 'חברון שריון שמתקפל לכדור חם כשהעולם גדול מדי',
+  narrativeHook: 'מלמד שהגוף יכול להתכווץ ולהיפתח שוב, לוח אחר לוח',
+  image: '/companions/bolly_armadillo/reference.jpg',
+  visualDescription:
+    'A small friendly armadillo with warm tan-brown segmented shell plates, one plate slightly open revealing soft pink belly, round dark gentle eyes, short snout, compact rounded body. Can curl into a tight ball. Soft children\'s picture-book proportions — cute, never realistic or scary.',
+};
+
+const MVP_COMPANIONS: Record<string, Companion> = {
+  bolly_armadillo: BOLLY_ARMADILLO,
+};
+
 export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
   NOISE_FEAR: [
     {
@@ -323,6 +338,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
     },
   ],
   MEDICAL_PROCEDURE: [
+    BOLLY_ARMADILLO,
     {
       id: 'starfish_kokhavi',
       name: 'כוכב הים דּוּרִי',
@@ -386,6 +402,8 @@ const ALL_COMPANIONS: Companion[] = Object.values(COMPANIONS_BY_CATEGORY).flat()
 
 export function getCompanionById(id: string | null | undefined): Companion | null {
   if (!id || typeof id !== 'string') return null;
+  const normalized = id.trim().toLowerCase().replace(/-/g, '_');
+  if (MVP_COMPANIONS[normalized]) return MVP_COMPANIONS[normalized];
   return ALL_COMPANIONS.find((c) => c.id === id) ?? null;
 }
 

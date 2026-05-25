@@ -29,13 +29,36 @@ import type {
   ShotVisualDirection,
 } from './story';
 import { buildImagePrompt } from '../../lib/promptBuilder';
-import { getStyleContract, normalizeStyleId } from '@/lib/styles';
+import {
+  buildFluxCleanChildLine,
+  buildFluxCleanCompanionLine,
+  buildFluxCleanCompositionLine,
+  buildFluxCleanPromptWithinBudget,
+  countPromptWords,
+  FLUX_CLEAN_ANTI_CROP_NEGATIVES,
+  isFluxCleanPromptEnabled,
+  normalizeFluxChildDisplayName,
+  sanitizeFluxCleanEnglishText,
+  shouldIncludeCompanionInFluxCleanPrompt,
+} from '../../lib/flux-clean-prompt';
+import {
+  getNegativeStylePromptBlock,
+  getStyleContract,
+  normalizeStyleId,
+  type StyleId,
+} from '@/lib/styles';
 import { composeVisualDirectorPrompt, type VisualDirectorInput } from '../../lib/visualDirector';
 import type { Companion } from '../../lib/companions';
 import { generateGPTImage, generateReplicateImage } from '../../lib/generate-image';
 import { storeImageFromBuffer, storeImageFromProviderUrl } from '../../lib/image-storage';
 import type { BookPageTemplate } from '../../lib/bookPageLayout';
-import { isFluxProOverrideActive, resolveImageModelMode, resolveReplicateImageModel } from '../../lib/replicate';
+import {
+  isFluxProOverrideActive,
+  replicateModelBaseSlug,
+  resolveImageModelMode,
+  resolveLoraModelSlugForStyle,
+  resolveReplicateImageModel,
+} from '../../lib/replicate';
 import {
   evaluateImageFaceSignal,
   resolveEffectiveThreshold,
@@ -48,6 +71,12 @@ import {
   type ResemblanceCandidate,
 } from '../../lib/resemblance-core';
 import { createLogger } from '../../lib/logger';
+import {
+  applyWardrobeToChildStructured,
+  buildBookWardrobePromptSection,
+  logBookWardrobeLockOnce,
+  resolveBookWardrobeLock,
+} from '../../lib/book-wardrobe-lock';
 
 import { generateSceneBlocking, isDirectorLayerEnabled, renderSceneBlockingForPrompt, type SceneBlocking } from './director';
 type PhotoQualityForPrompt = {
@@ -325,6 +354,10 @@ export interface ImageInput {
     signatureDetail?: string;
     ageRange?: string;
   }>;
+  /** Per-page storyboard row — required when FLUX_CLEAN_PROMPT=on (Replicate). */
+  pageStoryboard?: PageVisualStoryboard;
+  /** Pipeline character ids for this page (e.g. child, companion:bolly_armadillo). */
+  expectedCharacterIds?: string[];
 }
 
 export interface GeneratedImage {
@@ -494,6 +527,8 @@ async function translateSceneForImage(input: {
   compositionDirective?: string | null;
   /** When false, forbid depicting the story companion despite prior scene direction cues. */
   includeCompanionCharacters?: boolean;
+  /** legacy = full scene translate; clean = scene-led Flux experiment (~50–80 words, no composition in translate). */
+  promptMode?: 'legacy' | 'clean';
 }): Promise<string> {
   const fallback = extractSceneCore(input.pagePrompt);
   const hebrewText = (input.bookPageText ?? '').trim();
@@ -519,7 +554,8 @@ async function translateSceneForImage(input: {
         : input.textZone ?? 'bottom';
 
   const companionAllowed = input.includeCompanionCharacters !== false;
-  const directive = (input.compositionDirective ?? '').trim();
+  const cleanMode = input.promptMode === 'clean';
+  const directive = cleanMode ? '' : (input.compositionDirective ?? '').trim();
 
   const model = process.env.SCENE_TRANSLATE_MODEL || 'gpt-4o-mini';
   const systemPrompt = [
@@ -532,14 +568,18 @@ async function translateSceneForImage(input: {
     '- If the text names a specific object (soccer ball, book, lamp), that EXACT object must appear; do NOT substitute a similar object',
     '- If the text describes emotion or physical state (frozen, scared, laughing), show it in face, posture, gesture, motion — vividly',
     '- Do NOT generalize: generic "kids playing" is WRONG when the Hebrew text describes one specific action',
-    '- Keep the child PROPORTIONALLY SMALL in the description — the SCENE matters as much as the child. Describe the wider environment in concrete detail (rocks, water, plants, sky, props) so the model has plenty to draw besides the character.',
+    cleanMode
+      ? '- Lead with what happens in the scene — action, place, emotion, and concrete props from the Hebrew text.'
+      : '- Keep the child PROPORTIONALLY SMALL in the description — the SCENE matters as much as the child. Describe the wider environment in concrete detail (rocks, water, plants, sky, props) so the model has plenty to draw besides the character.',
     '- EMPHASIZE facial expressions and body language',
     '- Include magical visual elements when fitting: glowing particles, sparkles, light, enchanted atmosphere',
     '- Describe the physical environment with rich sensory detail where the story places the action',
     '- Name characters by name (e.g. "Maya"), not generics',
     '- Be concrete and cinematic',
-    '- PRESERVE the exact camera angle and composition type from the existing illustration direction — if it says wide shot do NOT shrink to medium; if it says low angle do NOT change to eye level',
-    '- PRESERVE the visual hook/opening beat from the existing illustration direction',
+    cleanMode
+      ? '- Do NOT include camera shots, framing, or composition instructions — those are supplied separately.'
+      : '- PRESERVE the exact camera angle and composition type from the existing illustration direction — if it says wide shot do NOT shrink to medium; if it says low angle do NOT change to eye level',
+    cleanMode ? '' : '- PRESERVE the visual hook/opening beat from the existing illustration direction',
     '- NEVER change the principal child appearance: hair color, hair style, clothing, skin tone, and age impression must remain EXACTLY as in the CHARACTER LOCK cues below',
     '- NEVER omit the main child protagonist from this story page illustration — the child MUST appear clearly as the hero',
     companionAllowed
@@ -553,8 +593,10 @@ async function translateSceneForImage(input: {
       : '',
     '- Do NOT include style instructions or "no text" suffixes',
     '- Output ONLY the scene description text, nothing else',
-    '- 80-120 words',
-  ].join('\n');
+    cleanMode ? '- 32-40 words' : '- 80-120 words',
+  ]
+    .filter(Boolean)
+    .join('\n');
   const userPrompt = [
     `Page ${input.pageNumber} of ${input.totalPages}.`,
     '',
@@ -580,9 +622,13 @@ async function translateSceneForImage(input: {
     '',
     `Text overlay will be placed at the ${textZoneLabel} of the image.`,
     '',
-    'Rewrite the illustration direction as a vivid English scene (80-120 words).',
-    'Keep the camera angle, composition type, and visual hook intact.',
-    'Add emotional and action detail from the Hebrew text without contradicting the composition line above.',
+    cleanMode
+      ? 'Rewrite as a vivid English scene moment (32-40 words). Scene and emotion only — no camera or framing. Use the name Michal for the child and Bolly for the armadillo companion. English only — no Hebrew characters. Never use the phrase close-up.'
+      : 'Rewrite the illustration direction as a vivid English scene (80-120 words).',
+    cleanMode ? '' : 'Keep the camera angle, composition type, and visual hook intact.',
+    cleanMode
+      ? 'Add emotional and action detail from the Hebrew text.'
+      : 'Add emotional and action detail from the Hebrew text without contradicting the composition line above.',
   ]
     .filter(Boolean)
     .join('\n');
@@ -598,7 +644,7 @@ async function translateSceneForImage(input: {
       body: JSON.stringify({
         model,
         temperature: 0.3,
-        max_tokens: 300,
+        max_tokens: cleanMode ? 120 : 300,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -874,6 +920,16 @@ function extractJsonPayload(raw: string): unknown {
     if (!match) throw new Error('Invalid storyboard JSON');
     return JSON.parse(match[1]);
   }
+}
+
+/** Storyboard LLM plan — exported for experiment / QA scripts. */
+export async function generatePageVisualStoryboard(book: {
+  fullStory: string;
+  pages: Array<{ pageNumber: number; bookPageText?: string; imagePrompt: string; pageIntent?: PageIntent }>;
+  childProfile: string;
+  selectedStyle: string;
+}): Promise<PageVisualStoryboard[]> {
+  return generateStoryboard(book);
 }
 
 async function generateStoryboard(book: {
@@ -1245,8 +1301,10 @@ function buildCompactProtagonistLock(input: {
   pageNumber?: number;
   childAge?: number | null;
   childGender?: string | null;
+  directionArchetype?: 'bedtime' | 'adventure' | 'fantasy' | null;
 }): string {
   const source = input.heroVisualLock;
+  const wardrobeLock = resolveBookWardrobeLock(input.directionArchetype);
   const ageFromWizard = input.childAge ? `${input.childAge}-year-old` : null;
   const ageFromLock = extractVisualPhrase(source?.ageImpression ?? '', 'young child');
   const age = ageFromWizard ?? (isVagueVisualPhrase(ageFromLock) ? 'young' : ageFromLock);
@@ -1271,10 +1329,18 @@ function buildCompactProtagonistLock(input: {
     source?.eyes ?? '',
     'natural expressive eyes, consistent shape and color'
   );
-  const hair = isVagueVisualPhrase(hairRaw) ? '' : hairRaw;
+  const hair = wardrobeLock
+    ? wardrobeLock.hairstyle
+    : isVagueVisualPhrase(hairRaw)
+      ? ''
+      : hairRaw;
   const skinTone = isVagueVisualPhrase(skinToneRaw) ? '' : skinToneRaw;
   const face = isVagueVisualPhrase(faceRaw) ? '' : faceRaw;
-  const clothing = isVagueVisualPhrase(clothingRaw) ? '' : clothingRaw;
+  const clothing = wardrobeLock
+    ? wardrobeLock.outfit
+    : isVagueVisualPhrase(clothingRaw)
+      ? ''
+      : clothingRaw;
   const eyes = isVagueVisualPhrase(eyesRaw) ? '' : eyesRaw;
   if ((input.pageNumber ?? 0) > 0) {
     console.log(
@@ -1739,6 +1805,114 @@ async function buildPromptParts(input: ImageInput): Promise<{
   };
 }
 
+/** Scene-led Flux prompt (~70–110 words) when FLUX_CLEAN_PROMPT=on. Legacy path unchanged when off. */
+async function buildFluxCleanPromptParts(
+  input: ImageInput & { pageStoryboard: PageVisualStoryboard }
+): Promise<{
+  finalPrompt: string;
+  negativePrompt: string;
+  styleId: string;
+}> {
+  const styleId = normalizeStyleId(input.illustrationStyle);
+  const includeCompanion = shouldIncludeCompanionInFluxCleanPrompt({
+    companion: input.companion,
+    bookPageText: input.bookPageText,
+    pagePrompt: input.pagePrompt,
+    visualDirection: input.visualDirection,
+    expectedCharacterIds: input.expectedCharacterIds,
+    pageStoryboard: input.pageStoryboard,
+  });
+
+  const childDisplayName = normalizeFluxChildDisplayName(input.childFirstName);
+  const entityNameForTranslate =
+    includeCompanion ? 'Bolly' : input.concept?.centralEntity?.name ?? null;
+  const entityVisualForTranslate =
+    includeCompanion && input.companion?.visualDescription
+      ? input.companion.visualDescription
+      : input.entityVisualLock
+        ? `${input.entityVisualLock.shape}, ${input.entityVisualLock.color}`
+        : input.concept?.centralEntity?.visualDescription ?? null;
+
+  const scene = input.bookPageText
+    ? await translateSceneForImage({
+        bookPageText: input.bookPageText,
+        pagePrompt: input.pagePrompt,
+        pageNumber: input.pageNumber,
+        totalPages: input.totalPages,
+        childName: childDisplayName,
+        entityName: entityNameForTranslate,
+        entityVisual: entityVisualForTranslate,
+        heroVisualLock: input.heroVisualLock ?? null,
+        textZone: null,
+        orderId: input.orderId,
+        compositionDirective: null,
+        includeCompanionCharacters: includeCompanion,
+        promptMode: 'clean',
+      })
+    : sanitizeFluxCleanEnglishText(extractSceneCore(input.pagePrompt));
+
+  const childLine = buildFluxCleanChildLine({
+    childName: childDisplayName,
+    childAge: input.childAge,
+    childGender: input.childGender,
+    directionArchetype: input.directionArchetype ?? null,
+    heroVisualLock: input.heroVisualLock ?? null,
+  });
+  const companionLine = includeCompanion
+    ? buildFluxCleanCompanionLine(input.companion, input.companionStructured ?? null)
+    : undefined;
+  const compositionLine = buildFluxCleanCompositionLine(input.pageStoryboard);
+  const promptParts = {
+    childLine,
+    companionLine,
+    compositionLine: sanitizeFluxCleanEnglishText(compositionLine),
+  };
+  const { finalPrompt, wordCount } = buildFluxCleanPromptWithinBudget(
+    sanitizeFluxCleanEnglishText(scene),
+    promptParts
+  );
+  console.log(
+    `[flux_clean_prompt] orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} words=${wordCount} chars=${finalPrompt.length} includeCompanion=${includeCompanion} shot=${input.pageStoryboard.shotType} angle=${input.pageStoryboard.cameraAngle}`
+  );
+  if (input.pageNumber === 1) {
+    console.log('[flux_clean_prompt_page1]', { wordCount, fullPrompt: finalPrompt });
+  }
+  if (wordCount < 70 || wordCount > 130) {
+    console.warn(
+      `[flux_clean_prompt_warning] orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} words=${wordCount} (target 70-130)`
+    );
+  }
+
+  const negativeParts = [
+    getNegativeStylePromptBlock(styleId),
+    NO_TEXT_LOCK,
+    FLUX_CLEAN_ANTI_CROP_NEGATIVES,
+    ...(input.extraNegativeRules ?? []),
+  ]
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  return {
+    finalPrompt,
+    negativePrompt: negativeParts.join('; '),
+    styleId,
+  };
+}
+
+/** Build clean Flux prompt without calling Replicate (for experiments / QA). */
+export async function previewFluxCleanPrompt(
+  input: ImageInput
+): Promise<{ finalPrompt: string; negativePrompt: string; styleId: string; wordCount: number }> {
+  if (!isFluxCleanPromptEnabled()) {
+    throw new Error('previewFluxCleanPrompt requires FLUX_CLEAN_PROMPT=on');
+  }
+  if (!input.pageStoryboard) {
+    throw new Error('previewFluxCleanPrompt requires pageStoryboard on ImageInput');
+  }
+  const parts = await buildFluxCleanPromptParts({ ...input, pageStoryboard: input.pageStoryboard });
+  return { ...parts, wordCount: countPromptWords(parts.finalPrompt) };
+}
+
 function withConsistencyReinforcement(
   finalPrompt: string,
   anchoredCharacters: Array<{ name: string; anchorImageUrl: string }>
@@ -1934,20 +2108,29 @@ function buildGPTImagePrompt(input: ImageInput): string {
 
   // ── CHARACTER DNA — structured lock preferred, flat fallback ──
   const charParts: string[] = [];
+  const wardrobeLock = resolveBookWardrobeLock(input.directionArchetype);
+  if (wardrobeLock) {
+    logBookWardrobeLockOnce(wardrobeLock, input.orderId ?? `page-${input.pageNumber}`);
+  }
   const cs = input.childStructured;
+  const effectiveCs = wardrobeLock && cs ? applyWardrobeToChildStructured(cs, wardrobeLock) : cs;
   // IMPORTANT: this block is recognition-only. A long detailed face description placed near
   // the end of the prompt causes the model to compose around the face (centered close-up portrait).
   // We prefix every variant with a usage hint so the features stay consistent across pages
   // WITHOUT becoming the framing target.
   const charRecognitionHint =
     'CHARACTER IDENTITY (for cross-page recognition only — do NOT use this as a reason to center, close-up, or pose toward camera):';
-  if (cs && cs.face && cs.hair && cs.clothing) {
+  if (effectiveCs && effectiveCs.face && effectiveCs.hair && effectiveCs.clothing) {
     // Compact identity lock — saves attention budget for style rendering
     charParts.push(
-      `${charRecognitionHint} ${cs.face} ${cs.hair} ${cs.body}. Wearing: ${cs.clothing}${cs.signature ? ` (${cs.signature})` : ''}.`,
+      `${charRecognitionHint} ${effectiveCs.face} ${effectiveCs.hair} ${effectiveCs.body}. Wearing: ${effectiveCs.clothing}${effectiveCs.signature ? ` (${effectiveCs.signature})` : ''}.`,
     );
   } else if (input.childDescription) {
     charParts.push(`${charRecognitionHint} ${input.childDescription}`);
+  }
+
+  if (wardrobeLock) {
+    charParts.push(buildBookWardrobePromptSection(wardrobeLock));
   }
 
   // ── COMPANION PRESENCE — use mustInclude/mustNotInclude as source of truth ──
@@ -2381,8 +2564,25 @@ async function generateWithDallE(input: ImageInput): Promise<GeneratedImage> {
 // ─── Provider: Replicate ───────────────────────────────
 async function generateWithReplicate(input: ImageInput): Promise<GeneratedImage> {
   const useVd = isVisualDirectorEnabledForInput(input);
-  const parts = useVd ? null : await buildPromptParts(input);
-  const cv = parts?.compositionVariation ?? getCompositionVariation(input.pageNumber);
+  const useCleanFlux = !useVd && isFluxCleanPromptEnabled();
+  let parts: Awaited<ReturnType<typeof buildPromptParts>> | Awaited<ReturnType<typeof buildFluxCleanPromptParts>> | null =
+    null;
+  if (useVd) {
+    parts = null;
+  } else if (useCleanFlux) {
+    if (!input.pageStoryboard) {
+      throw new Error(
+        `[flux_clean_prompt] pageStoryboard is required on ImageInput when FLUX_CLEAN_PROMPT=on (page ${input.pageNumber})`
+      );
+    }
+    parts = await buildFluxCleanPromptParts({ ...input, pageStoryboard: input.pageStoryboard });
+  } else {
+    parts = await buildPromptParts(input);
+  }
+  const cv =
+    'compositionVariation' in (parts ?? {})
+      ? (parts as Awaited<ReturnType<typeof buildPromptParts>>).compositionVariation
+      : getCompositionVariation(input.pageNumber);
   const modelMode = resolveImageModelMode();
   const expectedModel = resolveReplicateImageModel(input.modelOverride);
   console.log(
@@ -2435,7 +2635,7 @@ async function generateWithReplicate(input: ImageInput): Promise<GeneratedImage>
   const styleId = parts?.styleId ?? normalizeStyleId(input.illustrationStyle);
   const replicateAspectRatio = input.isDirectionPreview ? '1:1' : '2:3';
   console.log(
-    `[image_pipeline_path] orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber}/${input.totalPages} path=${useVd ? 'visual_director' : 'legacy'} postProcess=${isPresentationPostProcessEnabled() ? 'on' : 'off'} styleId=${styleId} model=${expectedModel} aspectRatio=${replicateAspectRatio}`
+    `[image_pipeline_path] orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber}/${input.totalPages} path=${useVd ? 'visual_director' : useCleanFlux ? 'flux_clean' : 'legacy'} postProcess=${isPresentationPostProcessEnabled() ? 'on' : 'off'} styleId=${styleId} model=${expectedModel} aspectRatio=${replicateAspectRatio}`
   );
   // Resolve LoRA params from style
   const loraStyle = getStyleContract(input.illustrationStyle);
@@ -2457,11 +2657,17 @@ async function generateWithReplicate(input: ImageInput): Promise<GeneratedImage>
     styleId: styleId,
     loraTriggerWord: loraStyle?.pipeline.loraTriggerWord ?? undefined,
     loraStylePrefix: loraStyle?.pipeline.loraStylePrefix ?? undefined,
+    skipLoraPromptPrefix: useCleanFlux,
   });
 
   if (modelMode === 'development') {
-    const isLoraModel = process.env.ENABLE_LORA === 'true' && loraStyle?.pipeline.loraModel;
-    if (!isLoraModel && result.model !== expectedModel) {
+    const isLoraModel =
+      process.env.ENABLE_LORA === 'true' &&
+      Boolean(resolveLoraModelSlugForStyle(styleId as StyleId));
+    if (
+      !isLoraModel &&
+      replicateModelBaseSlug(result.model) !== replicateModelBaseSlug(expectedModel)
+    ) {
       throw new Error(
         `[ImageGuard] Development mode expected model ${expectedModel} but got ${result.model}`
       );
@@ -2481,12 +2687,21 @@ async function generateWithReplicate(input: ImageInput): Promise<GeneratedImage>
     `[Image] Page ${input.pageNumber}/${input.totalPages} — style=${styleId} | model=${result.model} | promptLen=${result.finalPrompt.length} | outputCount=${result.outputCount} | preview="${promptPreview}" | url=${result.imageUrl}`
   );
 
-  const durableUrl = await storeImageFromProviderUrl({
-    providerUrl: result.imageUrl,
-    orderId: input.orderId,
-    pageNumber: input.pageNumber,
-    assetType: input.assetType ?? 'page',
-  });
+  let durableUrl = result.imageUrl;
+  try {
+    durableUrl = await storeImageFromProviderUrl({
+      providerUrl: result.imageUrl,
+      orderId: input.orderId,
+      pageNumber: input.pageNumber,
+      assetType: input.assetType ?? 'page',
+    });
+  } catch (error) {
+    console.warn(
+      `[image_storage] Supabase persist failed (non-fatal) orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber}: ${
+        error instanceof Error ? error.message : String(error)
+      } — using provider URL`
+    );
+  }
 
   return {
     url:      durableUrl,
@@ -2655,6 +2870,7 @@ export async function generateBookCover(input: CoverImageInput): Promise<Generat
       negativePrompt: 'text, letters, words, numbers, watermark, signature, frame, border, sad, scared, dark, crying',
       size: hiResPdf ? '1536x1536' : '1024x1536',
       quality: 'high',
+      referenceImages: input.referenceImages,
     });
 
     const durableUrl = await storeImageFromBuffer({
@@ -2829,6 +3045,7 @@ export async function generateAllPageImages(
     pageNumber: 0,
     childAge: config.childAge,
     childGender: config.childGender,
+    directionArchetype: config.directionArchetype ?? null,
   });
   const characterAnchors: Record<string, string> = { ...(config.initialCharacterAnchors ?? {}) };
   const existingPages = new Set(config.existingPageNumbers ?? []);
@@ -2916,7 +3133,7 @@ export async function generateAllPageImages(
   // replaces the mechanical "Location/Action/Pose/Expression" lines downstream.
   // Disable with USE_DIRECTOR_LAYER=false (falls back to legacy mechanical scene block).
   const blockingByPage = new Map<number, SceneBlocking>();
-  if (isDirectorLayerEnabled()) {
+  if (isDirectorLayerEnabled() && !isFluxCleanPromptEnabled()) {
     const directorStart = Date.now();
     const pageByNum = new Map(pagesToGenerate.map((p) => [p.pageNumber, p]));
     const totalPagesForDirector = pagesToGenerate.length;
@@ -2992,6 +3209,8 @@ export async function generateAllPageImages(
     console.log(
       `[Director] completed — ${blockingByPage.size}/${pagesToGenerate.length} pages got blocking (${elapsed}ms)`,
     );
+  } else if (isFluxCleanPromptEnabled()) {
+    console.log('[Director] skipped — FLUX_CLEAN_PROMPT=on (Director output unused on Flux clean path)');
   } else {
     console.log('[Director] disabled via USE_DIRECTOR_LAYER=false — using legacy mechanical scene block');
   }
@@ -3181,6 +3400,8 @@ export async function generateAllPageImages(
       | 'childFirstName'
       | 'expectedCharacterNames'
       | 'supportingCharacters'
+      | 'pageStoryboard'
+      | 'expectedCharacterIds'
     > = {
       bookPageText: page.bookPageText ?? null,
       stage4Prompt: rawScene || cleanedImagePrompt,
@@ -3190,6 +3411,8 @@ export async function generateAllPageImages(
       childFirstName: config.childName ?? null,
       expectedCharacterNames: pageExpectedDisplayNames,
       supportingCharacters: page.supportingCharacters ?? [],
+      pageStoryboard,
+      expectedCharacterIds,
     };
     console.log(
       `[Image] Page ${page.pageNumber}/${pagesToGenerate.length} — expectedCharacters=[${expectedCharacterIds.join(', ')}] unresolved=[${unresolvedCharacterIds.join(', ')}] suitable=[${suitableCharacterIds.join(', ')}] assigned=[${assignedCharacterIds.join(', ')}] availableAnchors=[${availableAnchorIds.join(', ')}] passedAnchors=[${anchorCharacters.map((entry) => entry.characterId).join(', ')}]`
@@ -3572,15 +3795,4 @@ export async function generateAllPageImages(
           );
         }
       }
-    } else if (availableAnchorIds.length === 0 && expectedCharacterIds.length > 0) {
-      console.warn(`[Image] Page ${page.pageNumber} — anchor missing for expected characters, generated without reference`);
-    }
-
-  }
-
-  console.log(
-    `[Image] Complete — ${results.size}/${pagesToGenerate.length} succeeded; failedPages=[${failedPages.join(', ')}]`
-  );
-
-  return { results, failedPages, textZones, lightingModes };
-}
+    } else if

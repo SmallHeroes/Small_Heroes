@@ -20,6 +20,19 @@ export interface CharacterConsistencyLock {
   referenceImages?: ReferenceImageInput[];
 }
 
+export type {
+  BookDirection,
+  BookWardrobeLock,
+} from './book-wardrobe-lock';
+
+export {
+  applyWardrobeToChildStructured,
+  bookWardrobeVerificationToken,
+  buildBookWardrobePromptSection,
+  logBookWardrobeLockOnce,
+  resolveBookWardrobeLock,
+} from './book-wardrobe-lock';
+
 export function buildCharacterConsistencyBlock(lock: CharacterConsistencyLock): string {
   // PROMPT_ONLY: This guides the model output. It is not enforced by code validation.
   const lines: string[] = [

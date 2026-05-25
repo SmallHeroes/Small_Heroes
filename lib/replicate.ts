@@ -1,8 +1,26 @@
 import Replicate from 'replicate';
-import { STYLE_REGISTRY } from './styles';
+import { STYLE_IDS, STYLE_REGISTRY } from './styles';
 import type { StyleId } from './styles';
 
+/** Read LoRA slug at call time — STYLE_REGISTRY captures env only at module load. */
+export function resolveLoraModelSlugForStyle(styleId: StyleId): string | null {
+  if (styleId === STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK) {
+    return process.env.LORA_MODEL_STYLE_01?.trim() || STYLE_REGISTRY[styleId].pipeline.loraModel;
+  }
+  if (styleId === STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK) {
+    return process.env.LORA_MODEL_STYLE_02?.trim() || STYLE_REGISTRY[styleId].pipeline.loraModel;
+  }
+  return STYLE_REGISTRY[styleId]?.pipeline.loraModel ?? null;
+}
+
 export type ReplicateModelSlug = `${string}/${string}` | `${string}/${string}:${string}`;
+
+/** Base `owner/model` slug — strips `:version` suffix from version-pinned Replicate models. */
+export function replicateModelBaseSlug(model: string): string {
+  const trimmed = model.trim();
+  const colon = trimmed.indexOf(':');
+  return colon === -1 ? trimmed : trimmed.slice(0, colon);
+}
 
 export const REPLICATE_IMAGE_MODELS = {
   'flux-dev': 'black-forest-labs/flux-dev',
@@ -74,22 +92,4 @@ export function resolveReplicateImageModel(modelOverride?: string): ReplicateMod
  */
 export function resolveReplicateImageModelForStyle(styleId?: string): ReplicateModelSlug {
   if (process.env.ENABLE_LORA !== 'true' || !styleId) {
-    return resolveReplicateImageModel();
-  }
-
-  const style = STYLE_REGISTRY[styleId as StyleId];
-  if (style?.pipeline.loraModel) {
-    console.log('[image_model_lora]', style.pipeline.loraModel, `trigger=${style.pipeline.loraTriggerWord}`);
-    return style.pipeline.loraModel as ReplicateModelSlug;
-  }
-
-  return resolveReplicateImageModel();
-}
-
-export function isSdxlModelSlug(model: string): boolean {
-  return /sdxl-lightning/i.test(model);
-}
-
-export function isFluxProOverrideActive(): boolean {
-  return process.env.IMAGE_MODEL_OVERRIDE?.trim() === 'flux_pro';
-}
+    return r

@@ -1,5 +1,8 @@
 import OpenAI, { toFile } from 'openai';
 import Replicate from 'replicate';
+import { readFileSync } from 'fs';
+import { existsSync } from 'fs';
+import { join } from 'path';
 import {
   getReplicateClient,
   isSdxlModelSlug,
@@ -16,6 +19,8 @@ export interface GenerateImageInput {
   styleId?: string;
   loraTriggerWord?: string;
   loraStylePrefix?: string;
+  /** When true, prompt already includes REALISTART01 + short style tag — skip duplicate LoRA prepend. */
+  skipLoraPromptPrefix?: boolean;
   /**
    * Flux / non-SDXL Replicate models: `aspect_ratio` sent to the API (default portrait 2:3).
    * SDXL: maps to pixel dimensions (portrait 832×1216 vs square 1024×1024).
@@ -151,7 +156,11 @@ export async function generateReplicateImage(input: GenerateImageInput): Promise
   let finalPrompt = normalizePromptPart(input.finalPrompt);
 
   // Prepend LoRA trigger word (+ optional style prefix) when using a LoRA model
-  if (input.loraTriggerWord && process.env.ENABLE_LORA === 'true') {
+  if (
+    input.loraTriggerWord &&
+    process.env.ENABLE_LORA === 'true' &&
+    !input.skipLoraPromptPrefix
+  ) {
     const stylePrefix = input.loraStylePrefix ? ` ${input.loraStylePrefix}` : '';
     finalPrompt = `${input.loraTriggerWord} style,${stylePrefix} ${finalPrompt}`;
   }
@@ -257,14 +266,52 @@ const REFERENCE_PHOTO_PREFIX = (
   'The rendered child MUST clearly look like the real child in the photo.\n' +
   'DO NOT copy from the photo: the background, lighting, pose, outfit, clothing colors, ' +
   'camera angle, or composition. The scene, outfit, and setting are described in [SCENE] below.\n' +
+  'OUTFIT AND HAIRSTYLE come from the BOOK WARDROBE LOCK in the prompt — never from the photo.\n' +
   'Re-render the child as a cartoon/watercolor illustration in the storybook style - same face, new world.\n\n' +
   '[SCENE]\n'
 );
 
-/** Fetch a URL and return it as an OpenAI-uploadable File. */
-async function urlToOpenAIFile(url: string, indexHint: number): Promise<Awaited<ReturnType<typeof toFile>>> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Reference image fetch failed: ${url} (HTTP ${res.status})`);
+const DUAL_REFERENCE_PREFIX = (
+  '[REFERENCE IMAGES - CRITICAL]\n' +
+  'Image 1: The REAL child protagonist. Use ONLY for face identity — face shape, skin tone, hair color/texture cues, eyes, distinctive features. ' +
+  'DO NOT copy pose, outfit, lighting, or background from the photo.\n' +
+  'Image 2: BOLLY the armadillo companion — the canonical Bolly design. Match his shell plate pattern, proportions, tan-brown coloring, and pink belly exactly on every page.\n' +
+  'OUTFIT AND HAIRSTYLE: defined in BOOK WARDROBE LOCK below — they override any clothing visible in Image 1.\n' +
+  'Re-render both characters as soft children\'s picture-book illustrations in the scene below. Same child face + same Bolly design + same locked outfit every page.\n\n' +
+  '[SCENE]\n'
+);
+
+function resolveReferenceSource(source: string): string {
+  const trimmed = source.trim();
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+  if (existsSync(trimmed)) {
+    return trimmed;
+  }
+  const publicAbs = join(process.cwd(), 'public', trimmed.replace(/^\//, ''));
+  if (existsSync(publicAbs)) {
+    return publicAbs;
+  }
+  return trimmed;
+}
+
+/** Load a reference image from URL or local absolute /public path. */
+async function referenceToOpenAIFile(
+  source: string,
+  indexHint: number
+): Promise<Awaited<ReturnType<typeof toFile>>> {
+  const resolved = resolveReferenceSource(source);
+  if (existsSync(resolved)) {
+    const buffer = readFileSync(resolved);
+    const ext = resolved.toLowerCase().endsWith('.png') ? 'png' : 'jpg';
+    return toFile(buffer, `reference-${indexHint}.${ext}`, {
+      type: ext === 'png' ? 'image/png' : 'image/jpeg',
+    });
+  }
+
+  const res = await fetch(resolved);
+  if (!res.ok) throw new Error(`Reference image fetch failed: ${resolved} (HTTP ${res.status})`);
   const arrayBuf = await res.arrayBuffer();
   return toFile(Buffer.from(arrayBuf), `reference-${indexHint}.png`, { type: 'image/png' });
 }
@@ -295,7 +342,8 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
 
   let fullPrompt = input.finalPrompt;
   if (hasReference) {
-    fullPrompt = REFERENCE_PHOTO_PREFIX + fullPrompt;
+    fullPrompt =
+      (refs.length >= 2 ? DUAL_REFERENCE_PREFIX : REFERENCE_PHOTO_PREFIX) + fullPrompt;
   }
   if (input.negativePrompt) {
     fullPrompt += `\nNo text or letters in the image.`;
@@ -315,8 +363,8 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
   let b64: string | undefined;
   try {
     if (hasReference) {
-      const files = await Promise.all(refs.slice(0, 4).map((u, i) => urlToOpenAIFile(u, i)));
-      const imageArg = files.length === 1 ? files[0] : (files as unknown as typeof files[0]);
+      const files = await Promise.all(refs.slice(0, 4).map((u, i) => referenceToOpenAIFile(u, i)));
+      const imageArg = files.length === 1 ? files[0] : files;
       const response = await openai.images.edit({
         model: imageModel,
         image: imageArg,

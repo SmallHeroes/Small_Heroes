@@ -26,6 +26,7 @@ import { storePresentationBuffer } from '../../../lib/image-storage';
 import { prisma } from '../../../lib/prisma';
 import { createLogger } from '../../../lib/logger';
 import { getCompanionById, getCompanionByIdAndCategory, getCompanionReferencePublicUrl } from '../../../lib/companions';
+import { mergeGptImageReferenceSources } from '../../../lib/image-reference-utils';
 import { buildPersistedCharacterAnchorsJson, companionAnchorKey, getWizardMeta } from '../../../lib/orderMeta';
 import { buildLetterContextFromOrder, buildPatchContextFromOrder } from '../../../backend/providers/personalization';
 import { ROUTES } from '../../../lib/routes';
@@ -818,6 +819,13 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
       anchorRegistry.child.description = lockedChildDescription;
     }
 
+    const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const gptReferenceImages = mergeGptImageReferenceSources(
+      order.childImageUrl,
+      resolvedCompanion,
+      appBaseUrl
+    );
+
     if (book.coverImageUrl) {
       generationLogger.info('Cover already exists; reusing', { orderId });
     } else {
@@ -829,7 +837,7 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
         illustrationStyle: order.illustrationStyle,
         childDescription: lockedChildDescription,
         characterSheet: story.characterSheet,
-        referenceImages: order.childImageUrl ? [order.childImageUrl] : undefined,
+        referenceImages: gptReferenceImages,
         orderId,
         directionArchetype: selectedDirection?.archetype,
         directionEmotionalLabel: selectedDirection?.emotionalLabel,
@@ -897,7 +905,7 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
         childAge: order.childAge ?? null,
         childGender: order.childGender ?? null,
         childDescription: lockedChildDescription,
-        referenceImages: order.childImageUrl ? [order.childImageUrl] : undefined,
+        referenceImages: gptReferenceImages,
         characterRegistry: Object.fromEntries(
           Object.entries(anchorRegistry).map(([characterId, character]) => [
             characterId,

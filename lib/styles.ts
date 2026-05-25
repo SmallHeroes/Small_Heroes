@@ -93,7 +93,7 @@ export const STYLE_REGISTRY: Record<StyleId, StyleContract> = {
       renderingBehavior: 'premium children\'s book illustration — adorable round characters, richly detailed backgrounds, master illustrator quality',
       styleToken: 'soft_hand_drawn_storybook',
       loraModel: process.env.LORA_MODEL_STYLE_01 || null,
-      loraTriggerWord: 'REALISTART01',
+      loraTriggerWord: 'SOFTSTYLE01',
       loraStylePrefix: 'premium children\'s book illustration, adorable round characters, large sparkling eyes, rosy cheeks, richly detailed watercolor, warm cream tones, lush illustrated backgrounds, master illustrator quality,',
     },
     imageNudge: {
@@ -189,7 +189,7 @@ ZERO text, letters, numbers, or symbols anywhere.`,
       renderingBehavior: 'fine realistic watercolor storybook scene — real child proportions inside a real environment, varied compositions, accomplished technique, narrative-driven',
       styleToken: 'realistic_artistic_storybook',
       loraModel: process.env.LORA_MODEL_STYLE_02 || null,
-      loraTriggerWord: 'REALISTART02',
+      loraTriggerWord: 'PENCILSTYLE02',
       loraStylePrefix: 'fine realistic watercolor childrens storybook scene, real child proportions, accomplished watercolor technique, luminous skin, refined brushwork, scene-appropriate natural light, cream paper, narrative composition,',
     },
     imageNudge: {

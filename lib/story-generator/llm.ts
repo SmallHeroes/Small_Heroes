@@ -70,6 +70,9 @@ export class OpenAIResponsesLLM implements StoryGeneratorLLM {
     if (options.jsonMode) {
       body.text = { format: { type: 'json_object' } };
     }
+    if (options.temperature != null) {
+      body.temperature = options.temperature;
+    }
 
     const res = await fetch(OPENAI_RESPONSES_URL, {
       method: 'POST',

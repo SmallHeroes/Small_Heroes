@@ -40,9 +40,11 @@ import {
 } from './auto-fixes';
 import { runStructuredDraft } from './structured-draft';
 import { runYLiteQA } from './y-lite-qa';
+import { runVoiceReviewer } from './voice-reviewer';
+import { executeVoiceRerolls, planVoiceRerolls } from './voice-reroll';
+import { ageToTier } from '../recipes';
 import { buildValidationContext } from './validation-context';
 import {
-  ageToTier,
   loadRecipe,
   pickVariations,
   recipeToContract,
@@ -239,6 +241,54 @@ async function runRecipeStory(
     console.error(`[recipe-mode] Y-lite QA threw — marking REVIEW_REQUIRED`, err);
     yliteReviewRequired = true;
     yliteReviewReason = 'exception';
+  }
+
+  // ─── Stage E2: Voice Reviewer (Phase C v1 — diagnostic-only) ───
+  const tier = ageToTier(input.childAge) ?? '5-6';
+  const voiceStoryId = `${recipe.id}_${input.childName}`;
+  let voiceReviewCostUsd = 0;
+
+  try {
+    const voice = await runVoiceReviewer(
+      storyMarkdown,
+      { storyId: voiceStoryId, ageTier: tier },
+      llm
+    );
+    voiceReviewCostUsd = voice.llmCostUsd;
+    costUsd += voice.llmCostUsd;
+    if (voice.status === 'ok') llmCalls++;
+
+    if (voice.status === 'ok' && voice.report) {
+      log.recordVoiceReview({
+        status: 'ok',
+        report: voice.report,
+        costUsd: voice.llmCostUsd,
+        model: voice.model,
+      });
+
+      const rerollPlan = planVoiceRerolls(voice.report.findings);
+      await executeVoiceRerolls({
+        storyMarkdown,
+        findings: voice.report.findings,
+        recipe,
+        plan: rerollPlan,
+      });
+    } else {
+      log.recordVoiceReview({
+        status: 'skipped',
+        error: voice.error,
+        costUsd: voice.llmCostUsd,
+        model: voice.model,
+      });
+    }
+  } catch (err) {
+    console.warn('[recipe-mode] voice reviewer skipped', err);
+    log.recordVoiceReview({
+      status: 'skipped',
+      error: err instanceof Error ? err.message : String(err),
+      costUsd: 0,
+      model: '',
+    });
   }
 
   // ─── Stage F: qualityTarget gate ───

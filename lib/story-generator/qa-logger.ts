@@ -3,6 +3,7 @@ import path from 'path';
 import type { Finding } from '@/lib/story-validators';
 import type { ValidationReport } from '@/lib/story-validators';
 import type { EditorialReportRuntime } from './editorial/schemas';
+import type { VoiceReviewReportType } from './editorial/voice-schemas';
 import type { GenerateInput, ManualReview, Plan, PlanQualityWarning, QASummary } from './types';
 import { GENERATOR_VERSION, PROMPT_VERSION, VALIDATOR_VERSION } from './versions';
 
@@ -36,6 +37,11 @@ export interface QALogHandle {
     }
   ): void;
   recordEditorialSummary(markdown: string): void;
+  recordVoiceReview(
+    payload:
+      | { status: 'ok'; report: VoiceReviewReportType; costUsd: number; model: string }
+      | { status: 'skipped'; error?: string; costUsd: number; model: string }
+  ): void;
   markPassed(summary: Omit<QASummary, 'finalVerdict' | 'blockingFindings' | 'warningFindings'>): string;
   markFailure(reason: string, report?: ValidationReport): string;
 }
@@ -101,6 +107,9 @@ export function startQALog(input: GenerateInput): QALogHandle {
     },
     recordEditorialSummary(markdown) {
       writeFileSync(path.join(dir, 'editorial-summary.md'), markdown, 'utf8');
+    },
+    recordVoiceReview(payload) {
+      writeJson(path.join(dir, 'voice-review.json'), payload);
     },
     markPassed(partial) {
       const blocking = (lastReport?.findings ?? []).filter((f: Finding) => f.severity === 'BLOCKING');
