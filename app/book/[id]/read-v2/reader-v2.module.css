@@ -1159,15 +1159,6 @@
   width: auto;
   max-width: min(92vw, calc(min(82vh, calc(100vh - 12vh)) * var(--open-book-aspect, 1.633)));
   flex-shrink: 0;
-  /* Leather-color backplate covering the full book-frame rectangle. OpenBook.png
-     is currently truncated (bottom 60% of pixels are alpha=0) so the leather
-     binding around/below the cream pages is missing. Color sampled from the
-     intact top of the asset (avg RGB(87,56,27)) so the missing leather areas
-     blend with the visible top binding. Per-page cream backplates
-     (.leftPageClip + .openPageRight) keep the page interiors cream. Remove
-     this rule once OpenBook.png is re-exported cleanly. */
-  background-color: #57381b;
-  border-radius: 6px;
 }
 
 .openBookImage {
@@ -1230,10 +1221,9 @@
   box-sizing: border-box;
   overflow: hidden;
   border-radius: 3px 1px 1px 3px;
-  /* clip-path removed 2026-05-27 — MaskOnBook handles cream-page shape decoration.
-     Illustration is bounded by this rectangle + overflow:hidden. */
-  /* Cream backplate — guarantees no transparency show-through if illustration fails
-     to load or has alpha holes near the spine. Color matches OpenBook.png cream. */
+  /* Cream backplate — guarantees no transparency show-through if the illustration
+     has alpha holes or fails to load. Also covers OpenBook.png's truncated lower
+     half until the asset is re-exported. */
   background-color: #f4ead2;
 }
 

@@ -67,52 +67,16 @@ export const OPEN_BOOK_PAGE_BOXES = {
   },
 } as const satisfies Record<'leftPage' | 'rightPage', NormalizedRect>;
 
-/** Measured left-page cream corners in OpenBook.png normalized coordinates (0-1). */
-export const OPEN_BOOK_LEFT_PAGE_CORNERS = {
-  TL: { x: 0.07247494217424827, y: 0.037783375314861464, w: 0, h: 0 },
-  TR: { x: 0.4371626831148805, y: 0.037783375314861464, w: 0, h: 0 },
-  BR: { x: 0.49498843484965305, y: 0.9319899244332494, w: 0, h: 0 },
-  BL: { x: 0.040863531225905934, y: 0.9354534005037783, w: 0, h: 0 },
-} as const;
-
 export type LeftPageShape = {
-  /**
-   * clip-path polygon string in LEFT-PAGE-element coordinates (not full-image coordinates).
-   * Derived from OPEN_BOOK_LEFT_PAGE_CORNERS + OPEN_BOOK_PAGE_BOXES.leftPage.
-   */
-  clipPath: string;
+  /** object-position value for the illustration img inside the left page clip. */
   illustrationObjectPosition: string;
 };
 
-function toLeftPageLocalPercent(
-  corner: { x: number; y: number },
-  leftPageBox: NormalizedRect
-): { xPct: number; yPct: number } {
-  const xLocal = (corner.x - leftPageBox.x) / leftPageBox.w;
-  const yLocal = (corner.y - leftPageBox.y) / leftPageBox.h;
-  const xPct = Math.max(0, Math.min(100, xLocal * 100));
-  const yPct = Math.max(0, Math.min(100, yLocal * 100));
-  return { xPct, yPct };
-}
-
-/** Flat clip polygon for the left illustration page. Illustration fills the cream rectangle;
-    no fake 3D perspective/rotation (asset is flat - MaskOnBook handles decorative framing). */
-export const leftPageShape: LeftPageShape = (() => {
-  const lp = OPEN_BOOK_PAGE_BOXES.leftPage;
-  const TL = toLeftPageLocalPercent(OPEN_BOOK_LEFT_PAGE_CORNERS.TL, lp);
-  const TR = toLeftPageLocalPercent(OPEN_BOOK_LEFT_PAGE_CORNERS.TR, lp);
-  const BR = toLeftPageLocalPercent(OPEN_BOOK_LEFT_PAGE_CORNERS.BR, lp);
-  const BL = toLeftPageLocalPercent(OPEN_BOOK_LEFT_PAGE_CORNERS.BL, lp);
-
-  const clipPath = `polygon(${TL.xPct.toFixed(2)}% ${TL.yPct.toFixed(2)}%, ${TR.xPct.toFixed(2)}% ${TR.yPct.toFixed(
-    2
-  )}%, ${BR.xPct.toFixed(2)}% ${BR.yPct.toFixed(2)}%, ${BL.xPct.toFixed(2)}% ${BL.yPct.toFixed(2)}%)`;
-
-  return {
-    clipPath,
-    illustrationObjectPosition: 'center center',
-  };
-})();
+/** Flat left-page illustration positioning. No clip-path (rect + overflow:hidden
+    bound the illustration; MaskOnBook handles decorative shape). No fake 3D. */
+export const leftPageShape: LeftPageShape = {
+  illustrationObjectPosition: 'center center',
+};
 
 /** Inner text area inside rightPage - extra inset to clear MaskOnBook decorative borders. */
 export const OPEN_BOOK_TEXT_SAFE_INSET: EdgeInsets = {
@@ -173,7 +137,6 @@ export function openBookLayoutCssVars(): Record<string, string> {
     ...rectToPercentVars('open-right-page', OPEN_BOOK_PAGE_BOXES.rightPage),
     ...rectToPercentVars('open-text-safe', textSafe),
     ...rectToPercentVars('open-spread', spread),
-    '--open-left-clip-path': leftPageShape.clipPath,
     '--open-left-illustration-object-position': leftPageShape.illustrationObjectPosition,
   };
 }
