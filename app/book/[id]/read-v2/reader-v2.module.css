@@ -1159,12 +1159,14 @@
   width: auto;
   max-width: min(92vw, calc(min(82vh, calc(100vh - 12vh)) * var(--open-book-aspect, 1.633)));
   flex-shrink: 0;
-  /* Cream backplate covering the full book-frame rectangle. OpenBook.png is
-     currently a TRUNCATED asset (bottom 60% of pixels are alpha=0); wherever
-     the PNG has no data — spine strip, lower leather binding, page edges —
-     this cream shows through instead of the dark stage. Remove this rule
-     once OpenBook.png is re-exported cleanly from Photoshop. */
-  background-color: #f4ead2;
+  /* Leather-color backplate covering the full book-frame rectangle. OpenBook.png
+     is currently truncated (bottom 60% of pixels are alpha=0) so the leather
+     binding around/below the cream pages is missing. Color sampled from the
+     intact top of the asset (avg RGB(87,56,27)) so the missing leather areas
+     blend with the visible top binding. Per-page cream backplates
+     (.leftPageClip + .openPageRight) keep the page interiors cream. Remove
+     this rule once OpenBook.png is re-exported cleanly. */
+  background-color: #57381b;
   border-radius: 6px;
 }
 
