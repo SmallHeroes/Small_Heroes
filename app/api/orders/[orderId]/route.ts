@@ -108,6 +108,7 @@ export async function GET(
         status: true,
         childName: true,
         storyLength: true,
+        storyDirection: true,
         audioEnabled: true,
         pdfEnabled: true,
         textStatus: true,
@@ -169,6 +170,7 @@ export async function GET(
       status: order.status,
       childName: order.childName,
       storyLength: order.storyLength,
+      storyDirection: order.storyDirection,
       audioEnabled: order.audioEnabled,
       pdfEnabled: order.pdfEnabled,
 

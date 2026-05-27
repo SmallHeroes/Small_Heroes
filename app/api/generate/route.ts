@@ -1000,6 +1000,7 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
         directionArchetype: selectedDirection?.archetype,
         directionEmotionalLabel: selectedDirection?.emotionalLabel,
         directionStoryPremise: selectedDirection?.storyPremise,
+        challengeCategory,
       }
     );
     const imageMap = imageOutcome.results;
