@@ -21,7 +21,7 @@
 | 1 | `fox_uri_adventure.md` (אוּרִי וּמַפַּת הַצְּלָלִים) | **SHIPPED** | `f96fbb9d` 2026-05-27 | Manual rewrite + ChatGPT QA. Gate passes for boy/girl + substring fix verified. |
 | 2 | `chameleon_koko_fantasy.md` | DRAFT — awaiting ChatGPT editor pass on Gemini draft | — | Tasks #14–16 in queue. |
 | 3 | TBD — pick by commercial priority | empty | — | |
-| 4 | TBD — pick by commercial priority | empty | — | |
+| 4 | `octopus_seara_adventure.md` (יובל וסיארה במרפאת השיניים של הים) | QUEUED — raw draft received 2026-05-27, adapt-pass deferred | — | Golden-tier quality. Keep `octopus_seara` companion (story proves she fits medical/anxiety regulation, even though her current bank category is ANGER_FRUSTRATION). Direction = adventure (journey/visit/return arc, not bedtime). Main blocker: 16 → 15 pages — preferred compression is **merge p6+p7**, NOT p14+p15 (ending needs breathing room). Adapt-pass must include: `{{childName}}`, gender chips (~50), YAML frontmatter, imageDirection per page, WORD_COUNT footer, gate pass for boy + girl. |
 | 5 | TBD — pick by commercial priority | empty | — | |
 
 ---
@@ -34,7 +34,7 @@ Choose by **launch-shelf traffic potential**, not by personal taste. Order of se
 2. **Companions already in the launch shelf** (bolly_armadillo, bat_lily, chameleon_koko, octopus_seara, dolphin_shahkan, fawn_tzvi — see `deep_companion_schema.md`).
 3. **Avoid one-direction monoculture**: aim for at least one bedtime, one adventure, one fantasy across all 5 slots.
 
-Current direction spread after slot 1: 1 adventure (Uri-fox), 1 fantasy slated (chameleon_koko), 0 bedtime. Slot 3 should be **bedtime** unless commercial data overrides.
+Current direction spread: 2 adventure (Uri-fox shipped, Yuval-Seara queued slot 4), 1 fantasy slated (chameleon_koko slot 2), 0 bedtime. Slot 3 should still be **bedtime** unless commercial data overrides.
 
 ---
 
@@ -42,14 +42,4 @@ Current direction spread after slot 1: 1 adventure (Uri-fox), 1 fantasy slated (
 
 A slot moves to **SHIPPED** only when ALL of:
 - `.md` file replaces existing in `story-bank/v5-fixed-v2/`
-- All 8 light-validation checks pass (15 pages, imageDirection per page, WORD_COUNT footer, no Mustache leakage, no denylist hits, well-formed gender chips, `{{childName}}` on ≥5 pages, no English drift)
-- `runStoryPersonalizationGate` passes for both `boy` + `girl` test names
-- One focused commit `feat(story-bank): upgrade <slug>`
-
-Anything in the table that doesn't meet all four is **DRAFT**, not SHIPPED.
-
----
-
-## When this hits 5/5
-
-Only then do we revisit the recipe pipeline. The path forward at that point is documented in memory `literary_first_story_direction.md` — few-shot the Draft prompt with the 5 golden examples and re-run `MVP_MATRIX`. Don't pre-plan that work here.
+- All 8 light-validation checks pass (15 pages,
