@@ -3,6 +3,7 @@
 import { useState } from 'react';
 
 const AVAILABLE_STORIES = [
+  { file: 'bolly_armadillo_bedtime.md',  label: 'bolly_armadillo — bedtime (MEDICAL) ★ QA' },
   { file: 'fox_uri_adventure.md',          label: 'fox_uri — adventure (NIGHT_FEAR)' },
   { file: 'fox_uri_bedtime.md',            label: 'fox_uri — bedtime (NIGHT_FEAR)' },
   { file: 'fox_uri_fantasy.md',            label: 'fox_uri — fantasy (NIGHT_FEAR)' },
@@ -19,13 +20,13 @@ const AVAILABLE_STORIES = [
 ];
 
 export default function StoryBankDevPage() {
-  const [storyFile, setStoryFile] = useState(AVAILABLE_STORIES[0].file);
-  const [childName, setChildName] = useState('נועה');
-  const [childGender, setChildGender] = useState('girl');
-  const [companionName, setCompanionName] = useState('צפרדע');
-  const [illustrationStyle, setIllustrationStyle] = useState('realistic_illustrated');
-  const [maxPages, setMaxPages] = useState(5);
-  const [skipCover, setSkipCover] = useState(false);
+  const [storyFile, setStoryFile] = useState('bolly_armadillo_bedtime.md');
+  const [childName, setChildName] = useState('Baboo');
+  const [childGender, setChildGender] = useState('boy');
+  const [companionName, setCompanionName] = useState('בולי');
+  const [illustrationStyle, setIllustrationStyle] = useState('detailed_whimsical_world');
+  const [maxPages, setMaxPages] = useState(1);
+  const [skipCover, setSkipCover] = useState(true);
   const [generateAudio, setGenerateAudio] = useState(false);
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
   const [result, setResult] = useState<{
@@ -69,7 +70,11 @@ export default function StoryBankDevPage() {
   return (
     <div style={{ padding: 40, maxWidth: 600, margin: '0 auto', fontFamily: 'sans-serif' }}>
       <h1>Story Bank — Dev Renderer</h1>
-      <p style={{ color: '#666' }}>Render a pre-written story with illustrations. Dev only.</p>
+      <p style={{ color: '#666' }}>
+        Render a pre-written story with illustrations. Dev only. For Bolly + Style 02 blockers set{' '}
+        <code>PHASE2_STYLE02_BOOK_PIPELINE=true</code>, <code>IMAGE_PROVIDER=gpt-image</code>,{' '}
+        <code>PHASE2_STEP5_PROFILE=guarded-v1</code> in <code>.env.local</code>.
+      </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 24 }}>
         <label>
@@ -140,8 +145,9 @@ export default function StoryBankDevPage() {
             onChange={(e) => setIllustrationStyle(e.target.value)}
             style={{ display: 'block', width: '100%', padding: 8, marginTop: 4 }}
           >
-            <option value="realistic_illustrated">Portrait Artistic (Style 01)</option>
-            <option value="whimsical_comic_fantasy">Realistic Artistic Watercolor (Style 02)</option>
+            <option value="detailed_whimsical_world">Style 02 — detailed_whimsical_world (gpt-image-2)</option>
+            <option value="realistic_illustrated">Style 01 — Portrait Artistic</option>
+            <option value="whimsical_comic_fantasy">Legacy alias → Style 02</option>
           </select>
         </label>
 

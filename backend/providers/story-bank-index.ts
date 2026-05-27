@@ -51,9 +51,11 @@ const V3_COMPANIONS = new Set([
   'starfish_kokhavi', 'seahorse_yam', 'gecko_rifa',
   // OTHER
   'puppy_neeman', 'parrot_tzivon', 'wolf_pup_siyar',
+  // BEDTIME_ANTICIPATION (Bolly — flagship v0.5 recipe)
+  'bolly_armadillo',
 ]);
 
-const V3_COMPANION_BANK_CATEGORY: Record<string, BankCategory> = {
+export const V3_COMPANION_BANK_CATEGORY: Record<string, BankCategory> = {
   // ANGER_FRUSTRATION
   octopus_seara: 'ANGER_FRUSTRATION',
   bear_cub_gahal: 'ANGER_FRUSTRATION',
@@ -102,6 +104,7 @@ const V3_COMPANION_BANK_CATEGORY: Record<string, BankCategory> = {
   puppy_neeman: 'GENERAL_FEARS',
   parrot_tzivon: 'GENERAL_FEARS',
   wolf_pup_siyar: 'GENERAL_FEARS',
+  bolly_armadillo: 'MEDICAL',
 };
 
 // ── Category mapping: wizard → story-bank ───────────────────────

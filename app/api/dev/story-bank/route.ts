@@ -5,8 +5,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { IllustrationStyle } from '@prisma/client';
 import { generateStoryBankCharacterDNA, loadStoryFromBank } from '@/backend/providers/story-bank-loader';
 import { generateAllPageImages, generateBookCover } from '@/backend/providers/image';
-import { getCompanionById } from '@/lib/companions';
+import { getCompanionById, type Companion } from '@/lib/companions';
+import { mergeGptImageReferenceSources } from '@/lib/image-reference-utils';
 import { prisma } from '@/lib/prisma';
+import { V3_COMPANION_BANK_CATEGORY } from '@/backend/providers/story-bank-index';
 import { assignTemplatesForBook, type BookPageTemplate } from '@/lib/bookPageLayout';
 import {
   buildPresentationWebpFromBuffer,
@@ -26,6 +28,22 @@ const STORY_BANK_RAW = path.join(
   'story-bank',
   (process.env.STORY_BANK_V3_DIR || 'v5-fixed-v2').trim()
 );
+
+function inferStoryDirectionFromFile(
+  storyFile: string
+): 'bedtime' | 'adventure' | 'fantasy' | null {
+  const base = storyFile.toLowerCase();
+  if (base.includes('_bedtime')) return 'bedtime';
+  if (base.includes('_fantasy')) return 'fantasy';
+  if (base.includes('_adventure')) return 'adventure';
+  return null;
+}
+
+function storyLengthForDirection(direction: 'bedtime' | 'adventure' | 'fantasy' | null): 'short' | 'medium' | 'long' {
+  if (direction === 'bedtime') return 'short';
+  if (direction === 'fantasy') return 'long';
+  return 'medium';
+}
 
 function normalizeIllustrationStyle(value: string | undefined): IllustrationStyle {
   if (value === 'pencil_watercolor') return IllustrationStyle.pencil_watercolor;
@@ -140,12 +158,14 @@ export async function POST(req: NextRequest) {
     // The image pipeline then wrote "NO companion in this scene" AND mustInclude=[fox]
     // — two contradictory instructions that killed the companion in every page.
     let effectiveCompanionName = companionName;
+    let resolvedCompanion: Companion | null = null;
     try {
       const rawStory = await fs.readFile(filePath, 'utf-8');
       const idMatch = rawStory.match(/companionId\s*:\s*([a-z0-9_-]+)/i);
       if (idMatch?.[1]) {
         const c = getCompanionById(idMatch[1]);
         if (c?.name) {
+          resolvedCompanion = c;
           if (c.name !== companionName) {
             console.log(`[StoryBank] companion resolved from YAML — id="${idMatch[1]}" name="${c.name}" (override request="${companionName}")`);
           }
@@ -157,6 +177,12 @@ export async function POST(req: NextRequest) {
     } catch (companionErr) {
       console.warn('[StoryBank] companion YAML extraction failed:', (companionErr as Error).message);
     }
+
+    const storyDirection = inferStoryDirectionFromFile(storyFile);
+    const storyLength = storyLengthForDirection(storyDirection);
+    const companionId = resolvedCompanion?.id ?? null;
+    const challengeCategory =
+      (companionId && V3_COMPANION_BANK_CATEGORY[companionId]) || 'GENERAL_FEARS';
 
     const storyFull = await loadStoryFromBank(filePath, childName, effectiveCompanionName, childGender);
     console.log(`[StoryBank] Loaded "${storyFull.title}" — ${storyFull.pages.length} pages`);
@@ -202,9 +228,16 @@ export async function POST(req: NextRequest) {
         outcomeItems: [],
         helperItems: [],
         avoidItems: [],
-        storyLength: 'medium',
+        storyLength,
+        storyDirection: storyDirection ?? undefined,
         illustrationStyle,
         childImageUrl: childImageUrl || null,
+        characterAnchors: {
+          wizard: {
+            companionCharacterId: companionId,
+            challengeCategory,
+          },
+        },
         paymentId: accessKey,
         paymentProvider: 'story_bank_dev',
         basePrice: 0,
@@ -252,6 +285,9 @@ export async function POST(req: NextRequest) {
       illustrationStyle,
     });
     const childDesc = dna.childDNA;
+    const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'http://localhost:3000';
+    const referenceImages =
+      mergeGptImageReferenceSources(childImageUrl, resolvedCompanion, appBaseUrl) ?? [];
 
     if (!skipCover) {
       const coverImage = await generateBookCover({
@@ -262,7 +298,7 @@ export async function POST(req: NextRequest) {
         illustrationStyle,
         childDescription: childDesc,
         characterSheet: story.characterSheet,
-        referenceImages: childImageUrl ? [childImageUrl] : undefined,
+        referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
         orderId: order.id,
         directionStoryPremise: storyFull.coverSceneHint,
         childStructured: dna.childStructured,
@@ -291,6 +327,7 @@ export async function POST(req: NextRequest) {
     const compositionByPage = new Map(
       (story.pageCompositionPlan ?? []).map((c) => [c.pageNumber, c])
     );
+
     const imageOutcome = await generateAllPageImages(
       story.pages.map((p) => {
         const template = templateByPageNumber.get(p.pageNumber) ?? 'art_top_text_bottom';
@@ -325,7 +362,7 @@ export async function POST(req: NextRequest) {
         childAge,
         childGender,
         childDescription: childDesc,
-        referenceImages: childImageUrl ? [childImageUrl] : undefined,
+        referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
         orderId: order.id,
         characterSheet: story.characterSheet,
         concept: story.concept,
@@ -333,14 +370,25 @@ export async function POST(req: NextRequest) {
         propDNA: dna.propDNA,
         childStructured: dna.childStructured,
         companionStructured: dna.companionStructured,
-        companion: {
-          id: 'story-bank',
-          name: effectiveCompanionName,
-          tagline: '',
-          narrativeHook: '',
-          image: '',
-          visualDescription: dna.companionDNA,
-        },
+        challengeCategory,
+        directionArchetype: storyDirection ?? undefined,
+        companion: resolvedCompanion
+          ? {
+              id: resolvedCompanion.id,
+              name: resolvedCompanion.name,
+              tagline: resolvedCompanion.tagline ?? '',
+              narrativeHook: resolvedCompanion.narrativeHook ?? '',
+              image: resolvedCompanion.image,
+              visualDescription: dna.companionDNA || resolvedCompanion.visualDescription,
+            }
+          : {
+              id: 'story-bank',
+              name: effectiveCompanionName,
+              tagline: '',
+              narrativeHook: '',
+              image: '',
+              visualDescription: dna.companionDNA,
+            },
       }
     );
 
@@ -486,6 +534,11 @@ export async function POST(req: NextRequest) {
       bookUrl,
       pagesRendered: imageOutcome.results.size,
       pagesFailed: imageOutcome.failedPages,
+      storyDirection,
+      challengeCategory,
+      style02Active: process.env.PHASE2_STYLE02_BOOK_PIPELINE === 'true',
+      hint:
+        'Style 02 blockers (classifier, bedtime-medical, temporal collapse, guarded-v1) require PHASE2_STYLE02_BOOK_PIPELINE=true, IMAGE_PROVIDER=gpt-image, PHASE2_STYLE02_REF_CONFIG=A, PHASE2_STEP5_PROFILE=guarded-v1 in .env.local',
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);

@@ -170,6 +170,28 @@ export interface PageCard {
    */
   imageIntent: string;
 
+  /** guarded-v2 — scene wardrobe state (assembler infers when omitted). */
+  sceneState?: 'daytime' | 'transitional' | 'in-bed' | 'sleeping';
+
+  /** guarded-v2 — per-page camera/framing contract. */
+  framingType?:
+    | 'wide-establishing'
+    | 'medium-environment'
+    | 'medium-action'
+    | 'close-emotional'
+    | 'object-close-up'
+    | 'hand-detail'
+    | 'over-the-shoulder'
+    | 'top-down'
+    | 'low-angle'
+    | 'intimate-low-light';
+
+  /** Required when framingType === 'object-close-up'. */
+  focalObject?: string;
+
+  /** Required when framingType === 'hand-detail'. */
+  gestureFocus?: string;
+
   /**
    * Load-bearing pages for the resilience arc.
    * Critical pages get strictest reroll priority and Y-lite anchors there.

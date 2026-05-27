@@ -6,6 +6,12 @@ import {
   type PatchContext,
   generateCompanionLetter,
 } from './personalization';
+import {
+  assertStoryPersonalizationGate,
+  normalizeWizardChildGender,
+  resolveStoryBankPlaceholders,
+  type WizardPersonalizationContext,
+} from '../../lib/story-bank-personalization';
 
 export type LoadStoryFromBankOptions = {
   patchContext?: PatchContext | null;
@@ -102,6 +108,23 @@ export async function loadStoryFromBank(
   }
 
   pages.sort((a, b) => a.pageNumber - b.pageNumber);
+
+  const wizardGender = normalizeWizardChildGender(childGender);
+  const personalizationCtx: WizardPersonalizationContext = {
+    childName: childName.trim(),
+    childGender: wizardGender,
+    companionName: companionName.trim(),
+  };
+
+  for (let i = 0; i < pages.length; i++) {
+    pages[i].text = resolveStoryBankPlaceholders(pages[i].text, personalizationCtx);
+    pages[i].narrationText = pages[i].text;
+    pages[i].imagePrompt = resolveStoryBankPlaceholders(pages[i].imagePrompt, personalizationCtx);
+    pages[i].rawScenePrompt = resolveStoryBankPlaceholders(
+      pages[i].rawScenePrompt ?? pages[i].imagePrompt,
+      personalizationCtx
+    );
+  }
 
   // ── Gender adaptation ──────────────────────────────────────────────
   // If the child's gender doesn't match the story's written gender,
@@ -200,6 +223,16 @@ export async function loadStoryFromBank(
       '[StoryBank] companionLetter frontmatter found but letterContext missing — letter page skipped.'
     );
   }
+
+  assertStoryPersonalizationGate({
+    wizard: personalizationCtx,
+    pages: pages.map((p) => ({
+      pageNumber: p.pageNumber,
+      text: p.text,
+      imagePrompt: p.imagePrompt,
+    })),
+  });
+  console.log('[StoryBank] Personalization gate passed.');
 
   // Use explicit English coverScene from story file when available
   const coverSceneHint = coverSceneRaw || undefined;

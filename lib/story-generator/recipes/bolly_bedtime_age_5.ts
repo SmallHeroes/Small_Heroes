@@ -103,6 +103,8 @@ export const bollyBedtimeAge5Recipe: ProductionRecipe = {
       maxSentences: 4,
       imageIntent:
         'evening bedroom, soft night light, small thermometer resting on a shelf by the bed, child near the bed, Bolly by the pillow',
+      sceneState: 'transitional',
+      framingType: 'medium-environment',
     },
     {
       page: 2,
@@ -124,6 +126,8 @@ export const bollyBedtimeAge5Recipe: ProductionRecipe = {
       maxWords: 32,
       maxSentences: 4,
       imageIntent: 'close-up bed and pillow, Bolly mid small roll, blanket detail',
+      sceneState: 'transitional',
+      framingType: 'close-emotional',
     },
     {
       page: 3,
@@ -146,6 +150,8 @@ export const bollyBedtimeAge5Recipe: ProductionRecipe = {
       maxWords: 32,
       maxSentences: 4,
       imageIntent: 'child in bed, eyes drifting toward the small thermometer on the shelf, then away',
+      sceneState: 'transitional',
+      framingType: 'medium-environment',
     },
 
     // ─── ACT 2: THE ANTICIPATION CORE (pages 4-7) ───
@@ -167,6 +173,8 @@ export const bollyBedtimeAge5Recipe: ProductionRecipe = {
       maxWords: 30,
       maxSentences: 3,
       imageIntent: "close-up child's shoulders rising slightly, hand half-closing, in bed",
+      sceneState: 'in-bed',
+      framingType: 'close-emotional',
       critical: true,
     },
     {
@@ -190,6 +198,9 @@ export const bollyBedtimeAge5Recipe: ProductionRecipe = {
       maxWords: 34,
       maxSentences: 4,
       imageIntent: 'close-up Bolly curled into a small ball on the blanket beside the child',
+      sceneState: 'in-bed',
+      framingType: 'object-close-up',
+      focalObject: 'Bolly curled into a small warm ball on the blanket',
       critical: true,
     },
     {
@@ -215,6 +226,9 @@ export const bollyBedtimeAge5Recipe: ProductionRecipe = {
       maxWords: 34,
       maxSentences: 4,
       imageIntent: 'close-up small hand closing to a fist then opening slowly, on the blanket',
+      sceneState: 'in-bed',
+      framingType: 'hand-detail',
+      gestureFocus: 'small hand resting open on the blanket, fingers softly uncurled',
       critical: true,
     },
     {
@@ -237,6 +251,10 @@ export const bollyBedtimeAge5Recipe: ProductionRecipe = {
       maxWords: 32,
       maxSentences: 4,
       imageIntent: "close-up child's finger gently touching Bolly, one small plate open, warm glow inside",
+      sceneState: 'in-bed',
+      framingType: 'object-close-up',
+      focalObject:
+        'one shell plate on Bolly opening with warm glow inside, child finger gently touching',
       critical: true,
     },
 
@@ -262,6 +280,8 @@ export const bollyBedtimeAge5Recipe: ProductionRecipe = {
       maxWords: 32,
       maxSentences: 4,
       imageIntent: 'child looking calmly at the thermometer still resting on the shelf, body relaxed',
+      sceneState: 'in-bed',
+      framingType: 'medium-environment',
     },
     {
       page: 9,
@@ -289,6 +309,8 @@ export const bollyBedtimeAge5Recipe: ProductionRecipe = {
       maxWords: 34,
       maxSentences: 4,
       imageIntent: "close-up Bolly nudging the pillow a touch, child's small quiet smile, body soft in bed",
+      sceneState: 'in-bed',
+      framingType: 'close-emotional',
     },
     {
       page: 10,
@@ -321,6 +343,8 @@ export const bollyBedtimeAge5Recipe: ProductionRecipe = {
       maxWords: 34,
       maxSentences: 4,
       imageIntent: 'close-up bedside warm light, child asleep, thermometer still small on the shelf, Bolly snug by the hand',
+      sceneState: 'sleeping',
+      framingType: 'intimate-low-light',
     },
   ],
 
