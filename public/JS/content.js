@@ -402,7 +402,7 @@ const CONTENT = {
           topLabel: 'סיפור לפני שינה',
           label: 'סיפור לפני שינה',
           title: 'שקט וחם',
-          pagesLine: '10 עמודים',
+          pagesLine: '10 רגעים מאוירים',
           subtitle: '10 עמודים',
           description: 'סיפור רגוע עם מסר רגשי ברור — מושלם לפני השינה',
           features: [
