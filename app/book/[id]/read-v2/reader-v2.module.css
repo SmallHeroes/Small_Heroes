@@ -1159,6 +1159,13 @@
   width: auto;
   max-width: min(92vw, calc(min(82vh, calc(100vh - 12vh)) * var(--open-book-aspect, 1.633)));
   flex-shrink: 0;
+  /* Cream backplate covering the full book-frame rectangle. OpenBook.png is
+     currently a TRUNCATED asset (bottom 60% of pixels are alpha=0); wherever
+     the PNG has no data — spine strip, lower leather binding, page edges —
+     this cream shows through instead of the dark stage. Remove this rule
+     once OpenBook.png is re-exported cleanly from Photoshop. */
+  background-color: #f4ead2;
+  border-radius: 6px;
 }
 
 .openBookImage {
