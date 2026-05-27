@@ -633,7 +633,13 @@
 
 @media (max-width: 900px) {
   .pageStage {
-    padding: 52px 8px 6px;
+    padding: 52px 0px 6px;
+  }
+
+  /* Mobile illustration: 90% of viewport height so the 10% strip below
+     hosts the dark-gradient text overlay cleanly. */
+  .illustrationImg {
+    height: 90%;
   }
 
   .pageCanvas {
@@ -1479,15 +1485,15 @@
 
 .mobileTextOverlay {
   position: absolute;
-  bottom: 0;
+  bottom: 24px;
   left: 0;
   right: 0;
   padding: 24px 20px 100px;
   background: linear-gradient(
     to top,
-    var(--book-paper-bg, #f7f3eb) 0%,
-    rgba(253, 249, 244, 0.92) 45%,
-    transparent 100%
+    #000000 0%,
+    rgba(0, 0, 0, 0.92) 45%,
+    rgba(0, 0, 0, 0) 100%
   );
   direction: rtl;
   pointer-events: none;
@@ -1499,8 +1505,9 @@
   font-size: var(--book-body-mobile, 22px);
   line-height: var(--book-line-height, 1.6);
   font-weight: var(--book-prose-weight, 400);
-  color: var(--book-text, #393123);
+  color: #ffffff;
   text-align: right;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
 }
 
 /* Sticker slots — zero footprint when empty */
