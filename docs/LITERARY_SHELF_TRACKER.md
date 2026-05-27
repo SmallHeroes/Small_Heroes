@@ -42,4 +42,14 @@ Current direction spread: 2 adventure (Uri-fox shipped, Yuval-Seara queued slot 
 
 A slot moves to **SHIPPED** only when ALL of:
 - `.md` file replaces existing in `story-bank/v5-fixed-v2/`
-- All 8 light-validation checks pass (15 pages,
+- All 8 light-validation checks pass (15 pages, imageDirection per page, WORD_COUNT footer, no Mustache leakage, no denylist hits, well-formed gender chips, `{{childName}}` on ≥5 pages, no English drift)
+- `runStoryPersonalizationGate` passes for both `boy` + `girl` test names
+- One focused commit `feat(story-bank): upgrade <slug>`
+
+Anything in the table that doesn't meet all four is **DRAFT**, not SHIPPED.
+
+---
+
+## When this hits 5/5
+
+Only then do we revisit the recipe pipeline. The path forward at that point is documented in memory `literary_first_story_direction.md` — few-shot the Draft prompt with the 5 golden examples and re-run `MVP_MATRIX`. Don't pre-plan that work here.
