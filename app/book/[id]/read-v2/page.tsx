@@ -24,6 +24,20 @@ export default async function BookReadV2Page({ params, searchParams }: PageProps
     redirect(`${ROUTES.ready}?orderId=${encodeURIComponent(id)}${keyPart}`);
   }
 
-  return <ReaderV2 bookId={id} accessKey={accessKey} />;
+  const devLayoutFlags =
+    process.env.NODE_ENV !== 'production'
+      ? {
+          forceWideSpreadScene: parseOptionalInt(asSingle(query.forceWideSpreadScene)),
+          forceWideSpreadPortrait: parseOptionalInt(asSingle(query.forceWideSpreadPortrait)),
+        }
+      : {};
+
+  return <ReaderV2 bookId={id} accessKey={accessKey} devLayoutFlags={devLayoutFlags} />;
+}
+
+function parseOptionalInt(value: string | undefined): number | undefined {
+  if (!value?.trim()) return undefined;
+  const n = Number.parseInt(value.trim(), 10);
+  return Number.isFinite(n) && n >= 0 ? n : undefined;
 }
 
