@@ -118,6 +118,16 @@ export function resolveStyle02RefBudgetConfig(): Style02RefBudgetConfig {
   return 'A';
 }
 
+const NIGHT_BEDROOM_RE =
+  /\b(bedroom|bed\b|bedside|blanket|pillow|quilt|mattress|shelf|asleep|sleeping|sleep\b|bedtime|nightlight|night light|lamplight|lantern|indoor lantern|dusk window|thermometer|moonlight|moon\b|stars at night|bolly|armadillo|plate open|warm glow|child in bed|beside the child)\b|(?:מיטה|שמיכה|כרית|חדר|לילה|נרדם|ישן|ישנה|מדחום|מדף|מסדרון|עמום|בּוֹלִי|בולי)/iu;
+
+const DAYTIME_INTERIOR_RE =
+  /\b(classroom|kindergarten|school\b|gan\b|clinic|office|kitchen|living room|indoor)\b|(?:כיתה|גן|בית ספר|מרפאה)/iu;
+
+/** Outdoor magical — only when no bedroom/daytime interior cues matched first. */
+const FOREST_OUTDOOR_RE =
+  /\b(forest|woods|trees|mushroom|meadow|glade|wildflowers|hills|trail through|path through|garden path|village square|outdoor sunbeam)\b|(?:יער|שביל|אחו|גבעות|פרחי בר)/iu;
+
 /** Classify page scene text → scene class for reference subset selection. */
 export function classifyStyle02SceneClass(input: {
   imagePrompt?: string;
@@ -130,18 +140,15 @@ export function classifyStyle02SceneClass(input: {
     input.bookPageText ?? '',
     input.environment ?? '',
     input.lighting ?? '',
-  ]
-    .join(' ')
-    .toLowerCase();
+  ].join(' ');
 
-  if (/\b(bedroom|night|moonlight|moon|lantern|sleep|bedtime|stars at night)\b/.test(hay)) {
+  if (NIGHT_BEDROOM_RE.test(hay)) {
     return 'night-bedroom';
   }
-  if (
-    /\b(forest|woods|trees|mushroom|trail|path through|meadow|garden|village|outdoor|sunbeam through leaves)\b/.test(
-      hay
-    )
-  ) {
+  if (DAYTIME_INTERIOR_RE.test(hay)) {
+    return 'daytime-interior';
+  }
+  if (FOREST_OUTDOOR_RE.test(hay)) {
     return 'forest-outdoor-environment';
   }
   return 'daytime-interior';
@@ -228,18 +235,143 @@ export const STYLE_02_BOOK_REFERENCE_PREFIX = (
   '[TARGET SCENE]\n'
 );
 
+export type Style02BookPromptProfile = 'default' | 'guarded-v1' | 'guarded-v2';
+
+/** Step 5 Config B guarded-v1 — verbatim locks (do not paraphrase). */
+export const GUARDED_V1_WARDROBE_LOCK = `WARDROBE — IDENTICAL ON EVERY PAGE:
+brown peaked cap, navy long-sleeve shirt, olive trousers, brown shoes,
+small brown crossbody satchel.
+No outfit changes. No added accessories. No seasonal swaps.
+Cap stays on indoors and outdoors.
+
+CAP RULES:
+the cap must NOT hide the face, eyes, or hair silhouette.
+Curls and hair shape must remain visible and consistent on every page.
+Position the cap so the brim does not cast a shadow across the eyes.`;
+
+export const GUARDED_V1_CHILD_LOCK = `CHILD — same illustrated boy on every page.
+Use the reference photo as INSPIRATION ONLY for:
+age (~5–6), face shape, hair color and curl pattern, skin tone,
+eye impression, general expression.
+This is illustration, not portraiture — do NOT chase photoreal likeness,
+do NOT invent a different generic child between pages.
+Same boy. Same face structure. Same hair. Same expression vocabulary.`;
+
+export const GUARDED_V1_COMPANION_LOCK = `BOLLY — same named recurring companion on every page.
+Bolly is NOT a generic armadillo. He is the same specific character throughout.
+
+Visible in every illustration of this book.
+Bolly fits in a child's lap. He is small enough to sit on a pillow without dominating it.
+Knee-height to the child. Tan-brown segmented shell with visible plates.
+Soft pink belly. Large gentle dark eyes. Short rounded snout. Rounded body.
+In close-up shots, Bolly's body must still appear distinctly smaller than the child's torso.
+Same proportions, same colors, same shell design, same warm personality on every page.
+
+Do NOT change shell pattern. Do NOT change species or proportions.
+Never realistic wildlife photography. Never threatening or scary.
+Never larger than a small dog. Never as large as a medium dog. Never child-sized.
+Always a stylized storybook companion.`;
+
+export const GUARDED_V1_CLOSE_UP_RULE = `CLOSE-UP RULE: preserve visible painterly brushwork and storybook linework on the child's face.
+Avoid photographic skin pores, photographic eye highlights, or live-action portrait realism.
+Even at this distance, this is illustrated children's-book art — not a photo portrait.`;
+
+export const STYLE_02_BEDTIME_MEDICAL_TONE = `BEDTIME-MEDICAL TONE — every page:
+warm intimate child's bedroom (or quiet indoor space), safe and emotionally grounded.
+this is a soft bedtime story about anxiety before a medical procedure.
+magical details are allowed only as small comforting accents (a soft glow, a gentle shimmer),
+NEVER as a full fantasy world. NO fairy lanterns covering the walls.
+NO glowing creatures filling the room. NO magical forest seeping through the window.
+The world must feel grounded and real, with subtle warmth — not enchanted.`;
+
+export function isStyle02CloseUpScene(sceneDescription: string): boolean {
+  const hay = sceneDescription.toLowerCase();
+  return (
+    /\bclose[- ]?up\b/.test(hay) ||
+    /\bclose emotional\b/.test(hay) ||
+    /\bintimate\b/.test(hay) ||
+    /\bface fills\b/.test(hay)
+  );
+}
+
+export function shouldInjectBedtimeMedicalTone(input: {
+  directionArchetype?: string | null;
+  challengeCategory?: string | null;
+  sceneClass?: Style02SceneClass;
+}): boolean {
+  if (input.directionArchetype !== 'bedtime') return false;
+  const cat = (input.challengeCategory ?? '').toUpperCase();
+  if (cat.includes('MEDICAL')) return true;
+  return input.sceneClass === 'night-bedroom';
+}
+
+export const GUARDED_V1_COMPOSITION_VARIETY = `DO NOT render five centered medium shots.
+Required variety across the 5 pages:
+- 1 wide establishing
+- 1 medium with environment context
+- 1 close emotional (face fills 50–70%)
+- 1 action/movement composition
+- 1 intimate/low-light scene
+Vary camera angle and child/Bolly positioning. No identical staging twice.`;
+
+export function resolveStyle02Step5Profile(): Style02BookPromptProfile | null {
+  const raw = process.env.PHASE2_STEP5_PROFILE?.trim().toLowerCase();
+  if (raw === 'guarded-v1') return 'guarded-v1';
+  if (raw === 'guarded-v2') return 'guarded-v2';
+  if (!raw) return null;
+  return null;
+}
+
+/** Live book pipeline — same env knob as Step 5 (`PHASE2_STEP5_PROFILE`). */
+export function resolveStyle02BookPromptProfile(): Style02BookPromptProfile {
+  return resolveStyle02Step5Profile() ?? 'default';
+}
+
 export function buildStyle02BookPagePrompt(input: {
   sceneDescription: string;
-  childVisualLock: string;
-  wardrobeLock: string;
+  childVisualLock?: string;
+  wardrobeLock?: string;
   companionTextLock?: string;
+  profile?: Style02BookPromptProfile;
+  /** Per-page composition reminder (guarded-v1). */
+  pageCompositionNote?: string;
+  bedtimeMedicalTone?: boolean;
+  closeUpRule?: boolean;
+  /** guarded-v2 uses assembleGuardedV2PagePrompt — pass pre-built prompt when set. */
+  guardedV2PromptOverride?: string;
 }): string {
+  if (input.guardedV2PromptOverride) {
+    return input.guardedV2PromptOverride;
+  }
+  if (input.profile === 'guarded-v1') {
+    return [
+      input.sceneDescription.trim(),
+      input.bedtimeMedicalTone ? STYLE_02_BEDTIME_MEDICAL_TONE : '',
+      STYLE_02_SHARED,
+      STYLE_02_RENDERING_CORRECTION,
+      GUARDED_V1_WARDROBE_LOCK,
+      GUARDED_V1_CHILD_LOCK,
+      GUARDED_V1_COMPANION_LOCK,
+      input.closeUpRule ? GUARDED_V1_CLOSE_UP_RULE : '',
+      GUARDED_V1_COMPOSITION_VARIETY,
+      input.pageCompositionNote?.trim() ?? '',
+      STYLE_02_CHILD_PHOTO_IDENTITY_RULE,
+      STYLE_02_REFERENCE_INSTRUCTION,
+      STYLE_02_NO_TEXT,
+      STYLE_02_ANTI_SOFTNESS,
+      STYLE_02_CHARACTER_GUARD,
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+  }
+
   return [
     input.sceneDescription.trim(),
+    input.bedtimeMedicalTone ? STYLE_02_BEDTIME_MEDICAL_TONE : '',
     STYLE_02_SHARED,
     STYLE_02_RENDERING_CORRECTION,
-    input.childVisualLock,
-    input.wardrobeLock,
+    input.childVisualLock ?? '',
+    input.wardrobeLock ?? '',
     input.companionTextLock ?? '',
     STYLE_02_CHILD_PHOTO_IDENTITY_RULE,
     STYLE_02_REFERENCE_INSTRUCTION,

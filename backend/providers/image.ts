@@ -58,13 +58,23 @@ import {
   buildStyle02WardrobeLock,
   classifyStyle02SceneClass,
   resolveCompanionReferencePath,
+  isStyle02CloseUpScene,
+  resolveStyle02BookPromptProfile,
   resolveStyle02RefBudgetConfig,
   resolveStyle02StyleReferencePaths,
   resolveStyle02SubsetKey,
+  shouldInjectBedtimeMedicalTone,
   shouldUseStyle02Phase2Path,
+  type Style02SceneClass,
   STYLE_02_AVOIDANCE_NEGATIVE,
   STYLE_02_GPT_MODEL,
+  STYLE_02_BEDTIME_MEDICAL_TONE,
 } from '../../lib/style02-gptimage';
+import {
+  assembleGuardedV2PagePrompt,
+  resolveGuardedV2SpecForPage,
+  type GuardedV2PageDebug,
+} from '../../lib/style02-guarded-v2';
 import { storeImageFromBuffer, storeImageFromProviderUrl } from '../../lib/image-storage';
 import type { BookPageTemplate } from '../../lib/bookPageLayout';
 import {
@@ -94,6 +104,7 @@ import {
 } from '../../lib/book-wardrobe-lock';
 
 import { generateSceneBlocking, isDirectorLayerEnabled, renderSceneBlockingForPrompt, type SceneBlocking } from './director';
+import { sanitizeSceneTextForSingleMoment } from '../../lib/image-scene-text';
 type PhotoQualityForPrompt = {
   status: 'good' | 'warning' | 'blocked';
   faceCount: number;
@@ -298,6 +309,8 @@ export interface ImageInput {
   directionArchetype?: 'bedtime' | 'adventure' | 'fantasy';
   directionEmotionalLabel?: string;
   directionStoryPremise?: string;
+  /** Wizard challenge category — drives bedtime-medical tone when MEDICAL + bedtime. */
+  challengeCategory?: string | null;
   /** True only for the 3 story-direction preview cards. */
   isDirectionPreview?: boolean;
   /**
@@ -377,6 +390,23 @@ export interface ImageInput {
   pageStoryboard?: PageVisualStoryboard;
   /** Pipeline character ids for this page (e.g. child, companion:bolly_armadillo). */
   expectedCharacterIds?: string[];
+  /** guarded-v2 recipe id when using production recipe page cards. */
+  guardedV2RecipeId?: string | null;
+}
+
+export interface Style02PageMeta {
+  pageIndex: number;
+  sceneText: string;
+  sceneClass: Style02SceneClass;
+  referenceBreakdown: Record<string, string[]>;
+  fallbackUsed: boolean;
+  model: string;
+  refConfig: string;
+  styleSubset: string;
+  usage?: { input_tokens?: number; output_tokens?: number } | null;
+  /** guarded-v2 manifest debug (when PHASE2_STEP5_PROFILE=guarded-v2). */
+  guardedV2?: GuardedV2PageDebug;
+  promptProfile?: string;
 }
 
 export interface GeneratedImage {
@@ -386,6 +416,8 @@ export interface GeneratedImage {
   height: number;
   provider: string;
   prompt: string;
+  /** Populated on Style 02 phase-2 book pages (integration manifests). */
+  style02Meta?: Style02PageMeta;
 }
 
 type WarningRetryCandidate = {
@@ -2493,27 +2525,34 @@ async function generateWithGPTImageStyle02(input: ImageInput): Promise<Generated
   const hiResPdf = !!input.printPdfOptimized;
   const size = hiResPdf ? '1536x1536' : '1024x1536';
   const quality = resolveGPTBookQuality();
+  const profile = resolveStyle02BookPromptProfile();
 
   const childVisualLock =
-    input.style02ChildVisualLock ??
-    buildStyle02ChildVisualLock({
-      childName: input.childFirstName,
-      childDescription: input.childDescription,
-      childStructured: input.childStructured,
-      childAge: input.childAge,
-      childGender: input.childGender,
-    });
+    profile === 'default'
+      ? (input.style02ChildVisualLock ??
+        buildStyle02ChildVisualLock({
+          childName: input.childFirstName,
+          childDescription: input.childDescription,
+          childStructured: input.childStructured,
+          childAge: input.childAge,
+          childGender: input.childGender,
+        }))
+      : undefined;
   const wardrobeLock =
-    input.style02WardrobeLock ?? buildStyle02WardrobeLock({ childStructured: input.childStructured });
+    profile === 'default'
+      ? (input.style02WardrobeLock ?? buildStyle02WardrobeLock({ childStructured: input.childStructured }))
+      : undefined;
   const companionTextLock =
-    input.style02CompanionTextLock ??
-    (input.companion
-      ? buildStyle02CompanionTextLock({
-          companionName: input.companion.name,
-          companionStructured: input.companionStructured,
-          companionVisualDescription: input.companion.visualDescription,
-        })
-      : '');
+    profile === 'default'
+      ? (input.style02CompanionTextLock ??
+        (input.companion
+          ? buildStyle02CompanionTextLock({
+              companionName: input.companion.name,
+              companionStructured: input.companionStructured,
+              companionVisualDescription: input.companion.visualDescription,
+            })
+          : ''))
+      : undefined;
 
   const sceneClass = classifyStyle02SceneClass({
     imagePrompt: input.pagePrompt,
@@ -2550,13 +2589,48 @@ async function generateWithGPTImageStyle02(input: ImageInput): Promise<Generated
       : '';
   const rawScene = (input.rawScenePrompt ?? '').trim();
   const fallbackScene = extractSceneCore(input.pagePrompt || '').trim();
-  const sceneDescription = (mechanicalScene || rawScene || fallbackScene).trim();
+  const sceneDescription = sanitizeSceneTextForSingleMoment(
+    (mechanicalScene || rawScene || fallbackScene).trim()
+  );
+
+  const bedtimeMedicalTone = shouldInjectBedtimeMedicalTone({
+    directionArchetype: input.directionArchetype,
+    challengeCategory: input.challengeCategory,
+    sceneClass,
+  });
+
+  let guardedV2Debug: GuardedV2PageDebug | undefined;
+  let guardedV2PromptOverride: string | undefined;
+
+  if (profile === 'guarded-v2') {
+    const spec = resolveGuardedV2SpecForPage(input.pageNumber, {
+      bookPageText: input.bookPageText,
+      sceneClass,
+      imageIntent: input.rawScenePrompt ?? input.pagePrompt,
+      companionId: input.companion?.id ?? null,
+      recipeId: input.guardedV2RecipeId ?? null,
+    });
+    const assembled = assembleGuardedV2PagePrompt({
+      sceneDescription,
+      spec,
+      bedtimeMedicalTone,
+      bedtimeMedicalToneBlock: STYLE_02_BEDTIME_MEDICAL_TONE,
+      strictFramingWarnings: process.env.GUARDED_V2_STRICT_FRAMING === 'true',
+    });
+    guardedV2PromptOverride = assembled.prompt;
+    guardedV2Debug = assembled.debug;
+    for (const w of assembled.warnings) {
+      console.warn(`[guarded-v2] ${w}`);
+    }
+  }
 
   const finalPrompt = buildStyle02BookPagePrompt({
     sceneDescription,
-    childVisualLock,
-    wardrobeLock,
-    companionTextLock,
+    profile,
+    bedtimeMedicalTone,
+    closeUpRule: profile === 'guarded-v1' && isStyle02CloseUpScene(sceneDescription),
+    guardedV2PromptOverride,
+    ...(profile === 'default' ? { childVisualLock, wardrobeLock, companionTextLock } : {}),
   });
   const prompt = sanitizePromptForSafety(finalPrompt);
 
@@ -2602,6 +2676,8 @@ async function generateWithGPTImageStyle02(input: ImageInput): Promise<Generated
     referenceBreakdown: breakdown,
     styleSubset: subsetKey,
     refConfig,
+    promptProfile: profile,
+    guardedV2: guardedV2Debug,
     durationMs: result.durationMs,
     usage: result.usage,
     responseMeta: result.responseMeta,
@@ -2624,6 +2700,19 @@ async function generateWithGPTImageStyle02(input: ImageInput): Promise<Generated
     height: parseInt(heightStr, 10),
     provider: result.model,
     prompt,
+    style02Meta: {
+      pageIndex: input.pageNumber ?? 0,
+      sceneText: sceneDescription,
+      sceneClass,
+      referenceBreakdown: breakdown,
+      fallbackUsed: result.fallbackUsed,
+      model: result.model,
+      refConfig,
+      styleSubset: subsetKey,
+      usage: result.usage ?? null,
+      promptProfile: profile,
+      guardedV2: guardedV2Debug,
+    },
   };
 }
 
@@ -3159,6 +3248,7 @@ export async function generateAllPageImages(
     directionArchetype?: 'bedtime' | 'adventure' | 'fantasy';
     directionEmotionalLabel?: string;
     directionStoryPremise?: string;
+    challengeCategory?: string | null;
     extraNegativeRules?: string[];
     propDNA?: Record<string, string>;
     /** Structured child identity lock — threaded to buildGPTImagePrompt for labeled constraints. */
@@ -3167,12 +3257,17 @@ export async function generateAllPageImages(
     companionStructured?: { species: string; size: string; coloring: string; feature: string };
     /** Larger GPT Image + upscale path for קובץ מוכן להדפסה. */
     pdfEnabled?: boolean;
+    /** Soft per-page cap (ms); rejects with timeout error when exceeded. */
+    pageGenerationTimeoutMs?: number;
+    /** guarded-v2 — production recipe id for explicit page cards (e.g. bolly_bedtime_age_5). */
+    guardedV2RecipeId?: string | null;
   }
 ): Promise<{
   results: Map<number, GeneratedImage>;
   failedPages: number[];
   textZones: Map<number, TextZone>;
   lightingModes: Map<number, Lighting>;
+  storyboardPlan: PageVisualStoryboard[];
 }> {
   const fluxOverrideActive = isFluxProOverrideActive();
   const pagesToGenerate = fluxOverrideActive ? pages.slice(0, 2) : pages;
@@ -3186,20 +3281,23 @@ export async function generateAllPageImages(
   const failedPages: number[] = [];
   const normalizedStyle = normalizeStyleId(config.illustrationStyle);
   const style02Phase2Active = shouldUseStyle02Phase2Path(normalizedStyle);
-  const style02ChildVisualLock = style02Phase2Active
-    ? buildStyle02ChildVisualLock({
-        childName: config.childName,
-        childDescription: config.childDescription,
-        childStructured: config.childStructured,
-        childAge: config.childAge,
-        childGender: config.childGender,
-      })
-    : undefined;
-  const style02WardrobeLock = style02Phase2Active
-    ? buildStyle02WardrobeLock({ childStructured: config.childStructured, childDescription: config.childDescription })
-    : undefined;
+  const style02BookProfile = style02Phase2Active ? resolveStyle02BookPromptProfile() : 'default';
+  const style02ChildVisualLock =
+    style02Phase2Active && style02BookProfile === 'default'
+      ? buildStyle02ChildVisualLock({
+          childName: config.childName,
+          childDescription: config.childDescription,
+          childStructured: config.childStructured,
+          childAge: config.childAge,
+          childGender: config.childGender,
+        })
+      : undefined;
+  const style02WardrobeLock =
+    style02Phase2Active && style02BookProfile === 'default'
+      ? buildStyle02WardrobeLock({ childStructured: config.childStructured, childDescription: config.childDescription })
+      : undefined;
   const style02CompanionTextLock =
-    style02Phase2Active && config.companion
+    style02Phase2Active && style02BookProfile === 'default' && config.companion
       ? buildStyle02CompanionTextLock({
           companionName: config.companion.name,
           companionStructured: config.companionStructured,
@@ -3432,10 +3530,29 @@ export async function generateAllPageImages(
     pageNumber: number,
     attemptContext: string
   ): Promise<GeneratedImage> => {
+    const pageTimeoutMs = config.pageGenerationTimeoutMs;
+    const withOptionalTimeout = async (promise: Promise<GeneratedImage>): Promise<GeneratedImage> => {
+      if (!pageTimeoutMs || pageTimeoutMs <= 0) return promise;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        return await Promise.race([
+          promise,
+          new Promise<GeneratedImage>((_, reject) => {
+            timer = setTimeout(
+              () => reject(new Error(`Page ${pageNumber} soft timeout after ${pageTimeoutMs}ms`)),
+              pageTimeoutMs
+            );
+          }),
+        ]);
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+    };
+
     let lastError: unknown = null;
     for (let attempt = 1; attempt <= MAX_PAGE_ATTEMPTS; attempt++) {
       try {
-        const generated = await makeAttempt(attempt);
+        const generated = await withOptionalTimeout(makeAttempt(attempt));
         await sleep(THROTTLE_DELAY_MS);
         return generated;
       } catch (error) {
@@ -3591,8 +3708,12 @@ export async function generateAllPageImages(
       | 'supportingCharacters'
       | 'pageStoryboard'
       | 'expectedCharacterIds'
+      | 'guardedV2RecipeId'
     > = {
       bookPageText: page.bookPageText ?? null,
+      guardedV2RecipeId:
+        config.guardedV2RecipeId ??
+        (config.companion?.id === 'bolly_armadillo' ? 'bolly_bedtime_age_5' : null),
       stage4Prompt: rawScene || cleanedImagePrompt,
       rawScenePrompt: page.rawScenePrompt || null,
       visualDirection: page.visualDirection ?? null,
@@ -3649,6 +3770,7 @@ export async function generateAllPageImages(
               directionArchetype: config.directionArchetype,
               directionEmotionalLabel: config.directionEmotionalLabel,
               directionStoryPremise: config.directionStoryPremise,
+              challengeCategory: config.challengeCategory,
               childAge: config.childAge ?? null,
               childGender: config.childGender ?? null,
               textZone: pageStoryboard.textZone,
@@ -3783,6 +3905,7 @@ export async function generateAllPageImages(
                 directionArchetype: config.directionArchetype,
                 directionEmotionalLabel: config.directionEmotionalLabel,
                 directionStoryPremise: config.directionStoryPremise,
+              challengeCategory: config.challengeCategory,
                 childAge: config.childAge ?? null,
                 childGender: config.childGender ?? null,
                 textZone: pageStoryboard.textZone,
@@ -3877,6 +4000,7 @@ export async function generateAllPageImages(
               directionArchetype: config.directionArchetype,
               directionEmotionalLabel: config.directionEmotionalLabel,
               directionStoryPremise: config.directionStoryPremise,
+              challengeCategory: config.challengeCategory,
               childAge: config.childAge ?? null,
               childGender: config.childGender ?? null,
               textZone: pageStoryboard.textZone,
@@ -4007,5 +4131,5 @@ export async function generateAllPageImages(
     `[Image] Complete — ${results.size}/${pagesToGenerate.length} succeeded; failedPages=[${failedPages.join(', ')}]`
   );
 
-  return { results, failedPages, textZones, lightingModes };
+  return { results, failedPages, textZones, lightingModes, storyboardPlan };
 }
