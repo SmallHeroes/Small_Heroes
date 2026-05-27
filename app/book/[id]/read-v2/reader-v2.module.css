@@ -1527,3 +1527,73 @@
 .stickerSlot[data-slot='corner-top-right'] { top: 0; right: 0; }
 .stickerSlot[data-slot='corner-bottom-left'] { bottom: 0; left: 0; }
 .stickerSlot[data-slot='corner-bottom-right'] { bottom: 0; right: 0; }
+
+
+/* ── Mobile swipe-hint edge arrows ─────────────────────────
+   The .mobileEdgeNav div sits over the whole reader root with
+   pointer-events:none; only the two .mobileEdgeBtn arrows accept
+   touches so the swipe gesture on the illustration is not blocked.
+   Hebrew RTL: left arrow = next, right arrow = prev (already correct
+   in JSX). Hidden on desktop (≥1024px). */
+.mobileEdgeNav {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
+  z-index: 14;
+}
+
+.mobileEdgeBtn {
+  pointer-events: auto;
+  appearance: none;
+  border: none;
+  background: rgba(20, 14, 8, 0.22);
+  color: rgba(255, 248, 235, 0.85);
+  font-size: 40px;
+  line-height: 1;
+  width: 44px;
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, opacity 0.18s ease;
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.mobileEdgeBtn:first-child {
+  border-radius: 0 12px 12px 0;
+}
+
+.mobileEdgeBtn:last-child {
+  border-radius: 12px 0 0 12px;
+}
+
+.mobileEdgeBtn:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.mobileEdgeBtn:not(:disabled):hover,
+.mobileEdgeBtn:not(:disabled):active {
+  background: rgba(20, 14, 8, 0.42);
+  color: rgba(255, 248, 235, 1);
+}
+
+/* Hide bottom controls bar on mobile — swipe + edge arrows replace it. */
+@media (max-width: 1023px) {
+  .controls {
+    display: none !important;
+  }
+}
+
+/* Hide the swipe-hint arrows on desktop (the open-book composite has its
+   own .spreadNavBtn pair). */
+@media (min-width: 1024px) {
+  .mobileEdgeNav {
+    display: none;
+  }
+}
