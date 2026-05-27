@@ -636,9 +636,10 @@
     padding: 52px 0px 6px;
   }
 
-  /* Mobile illustration: 90% of viewport height so the 10% strip below
-     hosts the dark-gradient text overlay cleanly. */
-  .illustrationImg {
+  /* Mobile-only — restrict illustration to 90% so the dark gradient overlay
+     has a 10% strip below the picture. Scoped under .mobileOnly to make sure
+     the desktop composite (.openBookFrame) is never touched. */
+  .mobileOnly .illustrationImg {
     height: 90%;
   }
 
@@ -1485,10 +1486,10 @@
 
 .mobileTextOverlay {
   position: absolute;
-  bottom: 24px;
+  bottom: 0;
   left: 0;
   right: 0;
-  padding: 24px 20px 100px;
+  padding: 24px 20px 64px;
   background: linear-gradient(
     to top,
     #000000 0%,
