@@ -82,6 +82,29 @@ const MALE_CHILD_MARKERS_GIRL_FAIL: readonly RegExp[] = [
   /\bישן\b/u,
 ];
 
+
+/** Escape regex metacharacters in literal strings. */
+function escapeRegexLiteral(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Test whether `name` appears in `text` as a standalone token — i.e. not
+ * surrounded by other Hebrew letters, ASCII letters, or digits. Prevents the
+ * substring false positive where the denied "דני" would otherwise flag a
+ * legitimate customer name like "דניאל" or "תומר" → "תום".
+ */
+function containsAsStandaloneToken(text: string, name: string): boolean {
+  const escaped = escapeRegexLiteral(name);
+  // Word chars = Hebrew block + ASCII alphanumerics. Anything else (whitespace,
+  // punctuation, line breaks, start/end of string) counts as a boundary.
+  const re = new RegExp(
+    `(?<![\\u0590-\\u05FFa-zA-Z0-9])${escaped}(?![\\u0590-\\u05FFa-zA-Z0-9])`,
+    'u'
+  );
+  return re.test(text);
+}
+
 export class StoryPersonalizationGateError extends Error {
   readonly failures: string[];
 
@@ -158,7 +181,7 @@ export function runStoryPersonalizationGate(input: PersonalizationGateInput): st
 
   for (const denied of BANK_PROTAGONIST_DENYLIST) {
     if (denied === name || denied === companion) continue;
-    if (fullText.includes(denied)) {
+    if (containsAsStandaloneToken(fullText, denied)) {
       failures.push(`leftover bank protagonist name "${denied}" in rendered story`);
     }
   }

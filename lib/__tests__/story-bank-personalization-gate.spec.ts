@@ -53,4 +53,33 @@ describe('story-bank personalization gate', () => {
     expect(resolveGenderAlternationChips('{הלך|הלכה}', 'boy')).toBe('הלך');
     expect(resolveGenderAlternationChips('{הלך|הלכה}', 'girl')).toBe('הלכה');
   });
+
+  it('denylist matches only standalone tokens, not substrings (regression: דניאל must not hit דני)', () => {
+    // Substring false-positives that the old gate would have wrongly blocked:
+    const safeNames = ['דניאל', 'תומר', 'מיכאלה', 'יעלי'];
+    for (const name of safeNames) {
+      const failures = runStoryPersonalizationGate({
+        wizard: { childName: name, childGender: 'boy', companionName: 'בולי' },
+        pages: [{ pageNumber: 1, text: `${name} הלך לטייל.`, imagePrompt: '' }],
+      });
+      const leftover = failures.filter((f) => f.includes('leftover bank protagonist'));
+      expect(leftover, `unexpected denylist match for ${name}`).toEqual([]);
+    }
+
+    // True leftover names must still trigger:
+    const actualLeftovers: Array<[string, string]> = [
+      ['דני וחברו טיילו ביער.', 'דני'],
+      ['מיכל אמרה שלום.', 'מיכל'],
+      ['Mia ran fast.', 'Mia'],
+    ];
+    for (const [text, expected] of actualLeftovers) {
+      const failures = runStoryPersonalizationGate({
+        wizard: { childName: 'בר', childGender: 'boy', companionName: 'בולי' },
+        pages: [{ pageNumber: 1, text, imagePrompt: '' }],
+      });
+      const leftover = failures.filter((f) => f.includes(expected));
+      expect(leftover.length, `expected denylist hit for "${expected}"`).toBeGreaterThan(0);
+    }
+  });
+
 });
