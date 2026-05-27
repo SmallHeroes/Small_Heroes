@@ -1,0 +1,55 @@
+# Literary Shelf Tracker
+
+**Purpose.** Single visible counter for the C-first strategy: ship 5 hand-tuned literary-tier rewrites into `story-bank/v5-fixed-v2/` before touching the recipe pipeline.
+
+**Don't expand this file.** It is not a workflow tracker, a kanban, a methodology doc, or a brief template. It's a 5-row checklist. If it starts to look like anything else, delete the new section.
+
+---
+
+## Strategy in one breath
+
+1. Recipe pipeline produces *competent compliant* prose, not literary. Empirically demonstrated (chameleon_koko A/B, 2026-05-26).
+2. C-first: hand/AI-edit 5 golden examples, drop them into the production bank.
+3. Only after 5 golden examples ship do we revisit the recipe pipeline — and then only as a **few-shot generator** trained on those examples. No refactor until then.
+
+---
+
+## The 5 slots
+
+| # | Story | Status | Commit | Notes |
+|---|---|---|---|---|
+| 1 | `fox_uri_adventure.md` (אוּרִי וּמַפַּת הַצְּלָלִים) | **SHIPPED** | `f96fbb9d` 2026-05-27 | Manual rewrite + ChatGPT QA. Gate passes for boy/girl + substring fix verified. |
+| 2 | `chameleon_koko_fantasy.md` | DRAFT — awaiting ChatGPT editor pass on Gemini draft | — | Tasks #14–16 in queue. |
+| 3 | TBD — pick by commercial priority | empty | — | |
+| 4 | TBD — pick by commercial priority | empty | — | |
+| 5 | TBD — pick by commercial priority | empty | — | |
+
+---
+
+## Picking slots 3–5
+
+Choose by **launch-shelf traffic potential**, not by personal taste. Order of selection criteria:
+
+1. **Direction × category combo** likely to hit highest order volume on launch.
+2. **Companions already in the launch shelf** (bolly_armadillo, bat_lily, chameleon_koko, octopus_seara, dolphin_shahkan, fawn_tzvi — see `deep_companion_schema.md`).
+3. **Avoid one-direction monoculture**: aim for at least one bedtime, one adventure, one fantasy across all 5 slots.
+
+Current direction spread after slot 1: 1 adventure (Uri-fox), 1 fantasy slated (chameleon_koko), 0 bedtime. Slot 3 should be **bedtime** unless commercial data overrides.
+
+---
+
+## Definition of "SHIPPED"
+
+A slot moves to **SHIPPED** only when ALL of:
+- `.md` file replaces existing in `story-bank/v5-fixed-v2/`
+- All 8 light-validation checks pass (15 pages, imageDirection per page, WORD_COUNT footer, no Mustache leakage, no denylist hits, well-formed gender chips, `{{childName}}` on ≥5 pages, no English drift)
+- `runStoryPersonalizationGate` passes for both `boy` + `girl` test names
+- One focused commit `feat(story-bank): upgrade <slug>`
+
+Anything in the table that doesn't meet all four is **DRAFT**, not SHIPPED.
+
+---
+
+## When this hits 5/5
+
+Only then do we revisit the recipe pipeline. The path forward at that point is documented in memory `literary_first_story_direction.md` — few-shot the Draft prompt with the 5 golden examples and re-run `MVP_MATRIX`. Don't pre-plan that work here.
