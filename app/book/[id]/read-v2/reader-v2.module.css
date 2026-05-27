@@ -1291,10 +1291,6 @@
   top: var(--open-right-page-y);
   width: var(--open-right-page-w);
   height: var(--open-right-page-h);
-  /* Cream backplate — covers any transparent zones in OpenBook.png so the dark
-     stage behind the book never shows through the right page. Matches the
-     #f4ead2 cream backplate already set on .leftPageClip. */
-  background-color: #f4ead2;
 }
 
 .openPageSpread {
@@ -1312,10 +1308,10 @@
      whole-image normalized coords, but this element sits inside .openPageRight
      so positioning must be page-relative. */
   position: absolute;
-  top: 10%;
-  right: 7%;
+  top: 16%;
+  right: 9%;
   bottom: 8%;
-  left: 6%;
+  left: 9%;
   direction: rtl;
   color: var(--book-text, #2e2618);
   display: flex;
@@ -1326,8 +1322,8 @@
 }
 
 .openTextSafe .storyText {
-  width: 82%;
-  max-width: 400px;
+  width: 78%;
+  max-width: 320px;
   min-width: 0;
   margin-inline: auto;
   font-family: var(--font-book-prose);
