@@ -1292,6 +1292,10 @@
   top: var(--open-right-page-y);
   width: var(--open-right-page-w);
   height: var(--open-right-page-h);
+  /* Cream backplate — covers any transparent zones in OpenBook.png so the dark
+     stage behind the book never shows through the right page. Matches the
+     #f4ead2 cream backplate already set on .leftPageClip. */
+  background-color: #f4ead2;
 }
 
 .openPageSpread {
