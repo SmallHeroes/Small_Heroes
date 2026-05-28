@@ -341,7 +341,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
     BOLLY_ARMADILLO,
     {
       id: 'starfish_kokhavi',
-      name: 'כוכב הים דּוּרִי',
+      name: 'כוכבי',
       tagline: 'כוכב ים שמתחדש ומחליף — מראה שהגוף יודע לרפא את עצמו',
       image: '/companions/MEDICAL_PROCEDURE/starfish_kokhavi.jpg',
       narrativeHook: 'הגוף שלך חכם — הוא כבר עובד על זה',
