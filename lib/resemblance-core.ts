@@ -1,6 +1,7 @@
 import 'server-only';
 
 import sharp from 'sharp';
+import { readFile } from 'fs/promises';
 
 export type ResemblanceStatus = 'pass' | 'soft_fail';
 export type ResemblanceConfidence = 'high' | 'medium' | 'low';
@@ -158,6 +159,14 @@ export function resolveEffectiveThreshold(
 }
 
 async function fetchImageBuffer(url: string): Promise<Buffer> {
+  // resolveReferenceImageSource may return an absolute local filesystem path
+  // (when the public asset exists on disk). Node's fetch rejects bare paths
+  // with "unknown scheme" — read them directly.
+  const isHttpUrl = /^https?:\/\//i.test(url);
+  const isDataUrl = /^data:/i.test(url);
+  if (!isHttpUrl && !isDataUrl) {
+    return readFile(url);
+  }
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed fetching image for resemblance: ${res.status}`);
   const arr = await res.arrayBuffer();
