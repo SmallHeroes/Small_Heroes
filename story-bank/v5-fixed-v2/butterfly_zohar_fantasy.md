@@ -1,129 +1,396 @@
-# Story: butterfly_zohar_fantasy — Story Bank v5 (Hybrid: GPT-5 skeleton + Claude prose)
-Generated: 2026-05-14T08:30:04.185Z
-Skeleton model: gpt-5.3-chat-latest
-Prose model: claude-sonnet-4-5-20250929
-Total time: 113.4s
-Prompt-version: v5
+# Story: butterfly_zohar_fantasy — Story Bank v5 (Literary Rewrite)
+Generated: 2026-05-29T00:00:00.000Z
+Source: AI writer (19p) + ChatGPT p20 completion → adapt-pass
+Companion canonical name: זוהר (per lib/companions.ts butterfly_zohar.name = "הפרפר זֹהַר")
+Prompt-version: v5-literary
+Notes: fantasy / FIRST_DAY / 20 pages / residue = small copper-dust shimmer near the thumb + memory of "being in the middle"
 
 ---
----
-title: "אור מִתַּחַת לַכְּנָפַיִם"
+title: "{{childName}} וזוהר במקום שבאמצע"
 companionId: butterfly_zohar
 direction: fantasy
-category: SELF_CONFIDENCE
+category: FIRST_DAY_SCHOOL
 gender: male
 pages: 20
-endingType: distance
-
+endingType: residue
+worldRule: "באמצע — בין מה שהיית למה שעוד לא נהיית — לא צריך לדעת את כל הדרך. רק את העלה הבא."
 ---
 
-storyStyle: quiet luminous fantasy
-metaphor: light leaking through closed wings
-stakes: the child remains lost in a dim forest clearing as night deepens
-emotionalArc: hidden light → searching and deflecting → being seen anyway → inability to give → partial opening
-quietPage: 15
-heartLine: עמוד 10 — Zohar secretly shakes a faint trail of glowing dust from her tightly closed wings while turned away so the child will not see her try
-emotionalMistake: עמוד 6 — The child brushes off Zohar's suggestions and tells her to stop pointing at other things and just help
-uncomfortableTruth: עמוד 13 — Zohar cannot open her wings at all even when the child clearly needs her light
+storyStyle: literary fantasy with metamorphosis frame, gentle butterfly voice, magical meadow nursery
+metaphor: caterpillar → cocoon → butterfly = a process with an in-between stage. Being "in the middle" of becoming someone new (e.g. a new-school child) is its own legitimate state — not failure, not behind, just middle.
+stakes: the child stays frozen at the school gate, treating "the middle" as a problem to escape rather than a place to stand
+quietPagePosition: 9
+heartLine: page 8 — "לפעמים גם גולמים מפחדים. הם פשוט מפחדים בשקט."
+heartLine2: page 12 — "עלה אחד. נשימה אחת. שלום אחד. שאלה אחת."
+emotionalMistake: page 1-2 — the knot in the stomach the child cannot name; says "I'm fine" but the body says otherwise
+uncomfortableTruth: page 8 — even the cocoon is afraid; just quietly. Permission to be afraid in the middle.
+agencyTransfer: page 11 — child helps Poli (the half-caterpillar half-butterfly) by placing a leaf as a bridge; the child becomes the regulator before knowing they're capable
+miniArc: page 16-17 — at school the child applies the lesson: notices a small thing (untied shoelace) to start a connection; asks to be "second catcher" instead of first — graduated entry, not transformation
+residue: copper dust on thumb, fading but not gone; Zohar resting on a bluebell
 
 --- Page 1 ---
-זֹהַר יושבת מתחת לעלה גדול. הצל רך ונעים. פרפרים אחרים עוברים לידה, והיא אומרת: "אתם כל כָּךְ יָפִים הַיּוֹם." הכנפיים שלה סגורות חזק. ציפור קטנה נוחתת על ענף, וזוהר מסתכלת עליה: "איך את שָׁרָה כל כָּךְ טוֹב?" הציפור מצייצת ועפה. זֹהַר נשארת בצל, ממש ליד קרן אור אחת שיורדת דרך העלים.
+בבוקר, השמש רק התחילה לטפס מעל הגבעות.
+היא צבעה את השמים בכתום, ורוד, וקצת זהב שנשפך לה מהידיים.
+בתוך בית קטן וחמים, {{childName}} {ישב|ישבה} ליד השולחן.
+מחר היה היום הראשון בבית ספר חדש.
+כיתה חדשה.
+חצר חדשה.
+ילדים חדשים.
+משחקים חדשים.
+כולם אמרו שזה מרגש.
+וזה באמת היה מרגש.
+אבל בתוך הבטן של {{childName}} היה גם משהו אחר.
+קשר.
 
-imageDirection: soft green shadows, Zohar small and tucked near leaf vein, other creatures glowing faintly nearby
+imageDirection: Cozy kitchen at sunrise, warm orange-pink light through the window. The child sits at the table, thoughtful and nervous, with a school bag nearby.
 
 --- Page 2 ---
-ילד נכנס לקרחת היער. הוא מסתכל סביב, מעלה את הראש. העצים גבוהים והאור ביניהם כבר חלש. הוא מסתובב פעם אחת, עוד פעם. הדרכים נראות אותו דבר. השמיים מתכהים מעט מעל הענפים. הילד עומד במקום, ידיים לאורך הגוף.
+בערב, בארוחת הערב, {{childName}} {דחף|דחפה} אפונה מצד אחד של הצלחת לצד השני.
+ואז בחזרה.
+"את/ה בסדר?" שאל אבא.
+{{childName}} {הנהן|הנהנה}.
+"כן."
+אבל הבטן לא אמרה כן.
+הבטן אמרה:
+קשר־קשר־קשר.
+לא קשר של שרוך.
+ולא קשר של חבל.
+קשר של מחשבות.
+מה אם לא {אמצא|אמצא} את הכיתה?
+מה אם כולם כבר חברים?
+מה אם {אשכח|אשכח} איפה השירותים?
+מה אם {אגיד|אגיד} שלום בקול מוזר?
+האפון האחרון נשאר לבד בצלחת.
+גם הוא נראה קצת מודאג.
 
-imageDirection: tall trees blocking light, child small in frame, cool tones
+imageDirection: Dinner table scene. The child pushes peas around the plate, pretending to be fine. Parents nearby, gentle concern. The mood is warm but tense.
 
 --- Page 3 ---
-זֹהַר עפה אליו, נחיתות קצרות בין ענף לענף. "שלום," היא אומרת בשקט. האנטנות שלה רועדות לכיוון פרח לבן. "אתה רוֹאֶה את הַפֶּרַח הַזֶּה? הוא מַאִיר יוֹתֵר מִכלם." הילד מסתכל. הפרח קצת זֹהַר. זֹהַר מסובבת אנטנה שנייה לחיפושית מבריקה. "וְגַם היא, הַצֶּבַע שלָּהּ כל כָּךְ בָּהִיר." הכנפיים שלה מקופלות צמוד. הילד מסתכל על החיפושית, אבל לא על זֹהַר.
+למחרת בבוקר, לפני ארוחת הבוקר, {{childName}} {יצא|יצאה} לטיול קטן.
+לא רחוק.
+רק עד השביל ליד האחו.
+העשב היה רטוב מטל.
+פרחי פעמונית כחולים הנהנו לאט.
+פרחי חמאה צהובים נצצו כמו שמשות קטנות שעדיין לא התעוררו לגמרי.
+{{childName}} {הלך|הלכה} בשביל המתפתל.
+הקשר בבטן הלך {איתו|איתה}.
+לפעמים הוא היה קטן.
+לפעמים גדול.
+ולפעמים הוא קפץ בדיוק כש{{childName}} {ניסה|ניסתה} לחשוב על משהו אחר.
 
-imageDirection: Zohar half-hidden, gesturing toward beams of light and glowing insects
+imageDirection: Early morning meadow path with dew, bluebells, yellow buttercups, and soft mist. The child walks alone, looking down at the path, carrying a quiet worry.
 
 --- Page 4 ---
-"אני לא יוֹדֵעַ לאן לָלֶכֶת," אומר הילד. "אני צָרִיךְ לִרְאות את הַדֶּרֶךְ." הוא מסתכל לכיוון אחד, אחר כך לכיוון שני. הדרכים כבר כהות. הילד מושיט יד קדימה ואין שם שום דבר שמאיר. "איך אני אֵדַע?" הוא שואל. זֹהַר זזה מעט לצד.
+ליד הנעל של {{childName}} היה ניצוץ קטן.
+לא אבן.
+לא פרח.
+משהו חי.
+{{childName}} {התכופף|התכופפה}.
+על עלה ירוק עמדה פרפרית קטנה.
+הכנפיים שלה היו כמו חלונות צבעוניים של בית קסום:
+זהב בהיר ליד הגוף.
+סגול עמוק בקצוות.
+ואבק נחושת קטן שנצץ בכל פעם שהיא זזה.
+"שלום," אמרה הפרפרית.
+{{childName}} {מצמץ|מצמצה}.
+"את מדברת?"
+"לא תמיד," אמרה. "רק כשיש קשרים בבטן."
 
-imageDirection: child turning in circles, paths fading into darkness
+imageDirection: Close-up of a tiny magical butterfly on a green leaf near the child's shoe. Wings like stained glass: pale gold, deep violet edges, copper dust shimmer.
 
 --- Page 5 ---
-זֹהַר מתעופפת בקפיצות-קפיצות נמוכות לכיוון גחליליות קטנות. הן מנצנצות ליד שיח. "בּוֹאוּ, פה," אומרת זֹהַר. הכנפיים שלה סגורות אפילו כשהיא רוטטת באוויר. הילד הולך אחריה, מסתכל על הגחליליות. הן מזיזות אור קטן, פה ושם. זֹהַר נשארת מאחור, קרוב לאדמה. היא לא באה קרוב לאור שלהן.
+"אני זוהר," אמרה הפרפרית.
+היא פרשה כנפיים.
+ואז סגרה אותן שוב.
+לא כמו מישהי שרוצה לברוח.
+כמו מישהי שבודקת אם היא מוכנה.
+{{childName}} {התיישב|התיישבה} על אבן קטנה.
+"מחר אני {מתחיל|מתחילה} בית ספר חדש," אמר/ה.
+זוהר לא אמרה "איזה כיף!"
+היא גם לא אמרה "אין ממה לפחד."
+היא רק נחתה על קצה האבן.
+"אה," אמרה.
+"זה מקום שבאמצע."
+"באמצע מה?"
+זוהר הזיזה כנף אחת.
+"באמצע מה {שהיית|שהיית}, ומה שעוד לא {נהיית|נהיית}."
 
-imageDirection: tiny lights flickering, Zohar hovering low and dim
+imageDirection: The child sits on a small stone in the meadow while Zohar the butterfly lands nearby. Gentle, intimate conversation; soft morning light.
 
 --- Page 6 ---
-הילד מסתובב אליה. "אני עֲדַיִן לא רוֹאֶה," הוא אומר. הקול שלו קצת חזק. "אני לא יוֹדֵעַ לאן לָלֶכֶת." זֹהַר מתכווצת מעט. הכנפיים נלחצות עוד יותר. הילד מפנה את הראש למסלול אחר.
+{{childName}} {הסתכל|הסתכלה} עליה.
+"את מכירה את זה?"
+זוהר צחקה צחוק קטן מאוד.
+צחוק של פרפרית, כמעט בלי קול.
+"אני?" היא אמרה. "אני הייתי פעם זחל."
+"באמת?"
+"זחל רציני מאוד," אמרה זוהר. "עם הרבה רגליים ותחביב אחד: לאכול עלים."
+היא עשתה פרצוף חשוב.
+"הייתי טובה בזה."
+{{childName}} {חייך|חייכה} קצת.
+"ואז?"
+"ואז," אמרה זוהר, "הכל התחיל להשתנות."
 
-imageDirection: child turning away, Zohar shrinking back slightly
+imageDirection: Zohar gestures dramatically while telling about being a caterpillar. Around them, the meadow feels storylike, with a visual echo of a small caterpillar on a leaf.
 
 --- Page 7 ---
-"סְלִיחָה," אומרת זֹהַר מהר. "יש פה טִפּוֹת טַל על הָעָלִים, הן מַחֲזִירוֹת אור." היא עפה אל צמח נמוך. הטל נוצץ קצת, כמו זכוכית. הילד מתקרב, רואה את עצמו בטל. זֹהַר נשארת מאחורי העלה, לא ממש מול העיניים שלו. הכנפיים שלה צמודות כאילו הן חלק אחד.
+זוהר הובילה את {{childName}} אל שיח קטן בקצה האחו.
+על אחד העלים זחל זחל ירוק.
+הוא לעס בקצב רציני.
+נמ־נמ־נמ.
+"ככה הייתי," אמרה זוהר.
+הזחל עצר לרגע, כאילו שמע שמדברים עליו, ואז המשיך לאכול.
+"ידעתי לזחול," אמרה זוהר.
+"ידעתי למצוא עלים."
+"ידעתי להחזיק חזק בגבעול כשבאה רוח."
+היא שתקה רגע.
+"אבל לא ידעתי לעוף."
 
-imageDirection: sparkling droplets, Zohar angled away, wings pressed shut
+imageDirection: Zohar and the child watch a small green caterpillar munching on a leaf. The caterpillar looks determined and funny. Meadow close-up.
 
 --- Page 8 ---
-הילד מנסה ללכת לפי ההשתקפויות. הוא עובר בין שני עצים. הצל שם עמוק יותר. הטל כבר לא נראה. הוא מסתכל אחורה, אבל גם שם האור נעלם. העצים מסביב כהים. הילד עומד במקום חדש, יותר חשוך.
+אחר כך זוהר לקחה את {{childName}} אל ענף דק.
+עליו היה גולם קטן.
+הוא היה תלוי בשקט.
+לא זחל.
+לא פרפר.
+משהו אחר.
+משהו באמצע.
+{{childName}} {התקרב|התקרבה} בזהירות.
+"הוא ישן?"
+"אולי," אמרה זוהר. "ואולי הוא עובד מבפנים."
+"הוא יודע מה הוא יהיה?"
+זוהר חשבה.
+"לא בטוח."
+"אז הוא לא מפחד?"
+זוהר קיפלה כנפיים.
+"לפעמים גם גולמים מפחדים. הם פשוט מפחדים בשקט."
 
-imageDirection: light fades further, reflections disappear, path unclear
+imageDirection: A delicate cocoon hanging from a thin branch. The child watches with wonder. Zohar nearby, wings folded, thoughtful. Quiet magical atmosphere.
 
 --- Page 9 ---
-זֹהַר עפה אליו שוב. היא מרחפת נמוך, כנפיים כמעט לא זזות. "אוּלַי מִכָּאן?" היא מנסה להראות. היא זזה קדימה, אבל ממש קרוב לאדמה. הילד הולך אחריה, אבל קשה לראות אותה. כמעט לא רואים אותה. הכנפיים נראות כאילו הן דבוקות.
+הקשר בבטן של {{childName}} זז.
+לא נעלם.
+זז.
+"זה קצת כמוני," אמר/ה {{childName}}.
+"אני כבר לא בדיוק בבית הישן של היום־יום."
+"אבל אני עוד לא {יודע|יודעת} איך להיות בבית הספר החדש."
+זוהר נחתה על כף היד {שלו|שלה}.
+היא היתה קלה כל כך, שכמעט היתה מחשבה.
+"באמצע," היא אמרה.
+המילה לא פתחה את הקשר.
+אבל היא נתנה לו שם.
+ולפעמים, כשלקשר יש שם, הוא מפסיק למשוך כל כך חזק.
 
-imageDirection: her movement hesitant, wings visibly stuck together
+imageDirection: The child holds out a hand and Zohar lands lightly on it. Soft focus on the child's face, thoughtful and calmer. The cocoon in background.
 
 --- Page 10 ---
-זֹהַר מסתובבת הצידה. הילד לא מסתכל עליה. היא מנענעת את הכנפיים פעם אחת, זהיר. אבק דק נושר, זֹהַר בקושי. הוא נופל על האדמה מאחוריה כמו קו דק של אור חלש. זֹהַר עפה קדימה מהר. הילד לא שם לב.
+זוהר פרשה כנפיים ועפה אל חלק עמוק יותר באחו.
+{{childName}} {הלך|הלכה} אחריה.
+שם, בין שיחים נמוכים, היו עוד יצורים קטנים.
+זחל עם נקודות סגולות.
+גולם עם פס זהב.
+פרפר צעיר שפתח כנף אחת ואז סגר אותה מיד.
+ועוד יצור מצחיק, שהיה זחל בקצה אחד ופרפר בקצה השני.
+הוא הסתובב במעגל כי לא החליט לאן ללכת.
+{{childName}} {צחק|צחקה}.
+זוהר אמרה, "זה פולי. הוא באמצע במיוחד."
 
-imageDirection: barely visible shimmer falling behind her, child not noticing source
+imageDirection: Magical meadow nursery of transformation: caterpillars, cocoons, young butterflies, and one funny half-caterpillar half-butterfly creature turning in circles.
 
 --- Page 11 ---
-הילד מביט למטה. יש משהו בהיר על האדמה. קו דק, כמו אבק זהב. הוא עוקב אחריו. האבק מוביל אותו קדימה. הילד לא מבין מאיפה זה בא. הוא פשוט הולך אחריו, צעד אחרי צעד. זֹהַר עפה לידו, צמודה לצד.
+פולי ניסה לעלות על עלה.
+החלק הזחלי שלו רצה לזחול.
+החלק הפרפרי שלו רצה לקפוץ.
+יצא לו משהו באמצע:
+זחילה־קפיצה.
+הוא נחת על הגב.
+{{childName}} {רץ|רצה} אליו בעדינות.
+"אתה בסדר?"
+פולי נופף בכנף אחת, כאילו אמר: בערך.
+{{childName}} {הרים|הרימה} עלה קטן {והניח|והניחה} אותו כמו גשר בין שתי אבנים.
+"אולי לא צריך לקפוץ ישר," אמר/ה.
+"אולי אפשר קודם לעבור עד העלה."
+פולי ניסה.
+הפעם הוא הצליח.
 
-imageDirection: soft glowing dust trail winding ahead
+imageDirection: The child helps a funny half-caterpillar half-butterfly creature named Poli by placing a leaf as a tiny bridge between stones. Zohar watches proudly.
 
 --- Page 12 ---
-האור על האדמה מתחיל להיעלם. הילד מסתכל למטה — כבר אין שם כמעט כלום. הוא מרים את הראש, מחפש את זֹהַר. היא שם, קרובה, אבל כהה. הוא מסתכל עליה, ממש עליה. הפעם הוא לא מסתכל על משהו אחר.
+זוהר הביטה ב{{childName}}.
+"ראית?"
+"מה?"
+"את/ה {יודע|יודעת} משהו על אמצע."
+{{childName}} {הסתכל|הסתכלה} על פולי, שעכשיו חגג על העלה כאילו כבש הר.
+"אני רק שמתי עלה."
+"בדיוק," אמרה זוהר.
+"לפעמים באמצע לא צריך לדעת את כל הדרך."
+"צריך רק עלה אחד?"
+זוהר חייכה.
+"עלה אחד. נשימה אחת. שלום אחד. שאלה אחת."
+הקשר בבטן של {{childName}} התרכך קצת.
+לא הרבה.
+אבל מספיק כדי לנשום מסביבו.
 
-imageDirection: dark canopy, Zohar still folded, child searching her face
+imageDirection: The child and Zohar watch Poli celebrate on the leaf bridge. The child begins to understand. Warm meadow light, gentle pride.
 
 --- Page 13 ---
-זֹהַר עוצרת. היא מנסה לפתוח את הכנפיים. הן לא זזות. היא מנסה שוב, חזק יותר. הכנפיים נדבקות אחת לשנייה. הן סגורות. אין אור. זֹהַר נשארת ככה, עם כנפיים שלא נפתחות. הילד מחכה.
+כשהשמש עלתה גבוה יותר, {{childName}} {ידע|ידעה} שצריך לחזור הביתה.
+ארוחת הבוקר חיכתה.
+התיק חיכה.
+היום החדש חיכה.
+זוהר ליוותה {אותו|אותה} עד השביל.
+לפני שנפרדו, היא נגעה בכנף שלה בכף היד של {{childName}}.
+נשאר שם גרגיר קטן של אבק נחושת.
+"זה קסם?" {שאל|שאלה} {{childName}}.
+"לא ממש," אמרה זוהר.
+"אז מה זה?"
+"זיכרון קטן," היא אמרה. "אם {תרגיש|תרגישי} באמצע, {תסתכל|תסתכלי} עליו."
+ואז עפה.
 
-imageDirection: close-up of wings pressed shut, slight trembling
+imageDirection: Zohar touches the child's palm with her wing, leaving a tiny copper shimmer. Morning path back home. The child looks at the small shimmer with wonder.
 
 --- Page 14 ---
-הילד מתקרב. הוא כורע על הברכיים. היד שלו מתפרשת לאט, אצבע אחת מורמת. הוא לא אומר כלום. רק מחכה. זֹהַר מרחפת קרוב, רגליים קטנות מורמות. נוחתת על קצה האצבע שלו. ראשונה רגל אחת. עוד אחת. ועד שש. היא נשארת שם, על האצבע, לא על הדרך, לא על פרח. עליו.
+בבית, התיק כבר עמד ליד הדלת.
+הנעליים חיכו.
+הבקבוק היה מלא.
+אמא שאלה, "{מוכן|מוכנה}?"
+{{childName}} {הסתכל|הסתכלה} על כף היד.
+אבק הנחושת עדיין נצץ שם.
+הקשר בבטן עדיין היה שם.
+אבל עכשיו הוא לא היה סתם קשר.
+הוא היה קשר של אמצע.
+קשר של משהו שמשתנה.
+{{childName}} {לקח|לקחה} את התיק.
+"לא לגמרי," אמר/ה.
+אמא התכופפה.
+"זה בסדר," היא אמרה.
+{{childName}} {הנהן|הנהנה}.
+בפעם הראשונה באותו בוקר, זה באמת נשמע בסדר.
 
-imageDirection: child kneeling, hand hovering gently near Zohar
+imageDirection: Home entryway: school bag, shoes, water bottle ready. The child looks at the tiny copper shimmer on the palm while parent gently asks if ready. Tender transition moment.
 
 --- Page 15 ---
-זֹהַר יורדת על האדמה. היא יושבת. הילד יושב לידה.
+בדרך לבית הספר, הכל נראה קצת גדול.
+השער.
+החצר.
+השלט עם השם.
+הילדים שכבר ידעו לאן ללכת.
+{{childName}} {עצר|עצרה} ליד השער.
+הקשר משך.
+אבל לא משך אחורה.
+רק הזכיר שהוא שם.
+{{childName}} {הסתכל|הסתכלה} על כף היד.
+אבק הנחושת נצץ.
+עלה אחד, {חשב|חשבה}.
+נשימה אחת.
+שלום אחד.
+המורה עמדה ליד הדלת וחייכה.
+{{childName}} {נשם|נשמה}.
+"שלום," אמר/ה.
+לא בקול גדול.
+אבל בקול {שלו|שלה}.
 
-imageDirection: both small figures in dim quiet space, no motion
+imageDirection: First day at new school. The child stands at the gate, looking at the teacher by the door, holding a backpack, copper shimmer on palm. Nervous but taking one step.
 
 --- Page 16 ---
-הילד מסתכל על הכנפיים. יש שם קו דק של אור, ממש בין הקצוות. אור חלש שדולף החוצה. הוא מצביע על זה בעדינות. "יש פה," הוא אומר. האור נוגע ביד שלו, דק כמו חוט.
+הכיתה היתה חדשה.
+הריח היה חדש.
+אפילו הכיסאות נראו כאילו הם מכירים ילדים אחרים.
+{{childName}} {ישב|ישבה} ליד שולחן עם מדבקה של כוכב.
+על השולחן היתה קופסה של צבעים.
+{לידו|לידה} {ישב|ישבה} ילד/ה עם שרוך פתוח.
+{{childName}} {רצה|רצתה} להגיד משהו.
+המילים חיכו.
+הקשר בבטן התהדק קצת.
+ואז {{childName}} {נזכר|נזכרה} בפולי.
+לא כל הדרך.
+רק עלה אחד.
+{הוא|היא} {הצביע|הצביעה} על השרוך.
+"השרוך שלך פתוח," אמר/ה.
+הילד/ה {הסתכל|הסתכלה} למטה.
+"אוי. תודה."
 
-imageDirection: tiny light leaking between wing edges onto child's hand
+imageDirection: Classroom scene. The child sits at a new desk with a star sticker and notices another child's untied shoelace. Small brave social moment.
 
 --- Page 17 ---
-זֹהַר רועדת. היא פותחת את הכנפיים קצת, רק קצת. האור יוצא החוצה. לא הרבה — פשוט מספיק. הצבעים מאירים. זֹהַר נראית מבועתת, אבל הכנפיים נשארות פתוחות. האור נופל על האדמה סביבה.
+בהפסקה, החצר היתה רועשת.
+כדורים.
+צעדים.
+צחוק.
+ילדים רצים כאילו החצר עומדת לברוח להם.
+{{childName}} {עמד|עמדה} ליד עץ קטן.
+לא לבד לגמרי.
+אבל לא ממש בתוך המשחק.
+הילד/ה עם השרוך הפתוח {ניגש|ניגשה}.
+"רוצה לשחק תופסת?"
+הקשר בבטן קפץ.
+תופסת זה הרבה ריצה.
+והרבה לדעת לאן ללכת.
+{{childName}} כמעט {אמר|אמרה} לא.
+ואז {חשב|חשבה}:
+רק עלה אחד.
+"אפשר להיות {תופס|תופסת} {שני|שניה}?" {שאל|שאלה}.
+"כן," {אמר|אמרה} הילד/ה.
+וזה הספיק.
 
-imageDirection: partial opening like a flower, soft luminous color emerging
+imageDirection: School playground at recess, lively and busy. The child stands near a small tree, then speaks to another child and joins tag slowly, as second catcher.
 
 --- Page 18 ---
-האור מגלה שביל. הוא צר, אבל נראה. הקצוות שלו כהים, אבל האמצע בהיר מספיק. הילד רואה לאן ללכת. השביל מוביל החוצה.
+בסוף היום, {{childName}} {יצא|יצאה} מהכיתה.
+התיק היה קצת כבד.
+הראש היה מלא.
+אבל לא מלא רק בדאגות.
+היו בו גם דברים חדשים:
+המדבקה של הכוכב.
+הילד/ה עם השרוך.
+המורה שאמרה "{ברוך|ברוכה} {הבא|הבאה}".
+והרגע שבו {{childName}} כמעט לא {דיבר|דיברה}, ואז כן.
+אמא חיכתה ליד השער.
+"איך היה?" היא שאלה.
+{{childName}} {חשב|חשבה}.
+לא הכל היה קל.
+לא הכל היה קשה.
+"הייתי באמצע," אמר/ה.
+אמא חייכה כאילו הבינה.
 
-imageDirection: path faintly illuminated, edges still shadowy
+imageDirection: End of school day. The child leaves class with backpack, thoughtful and tired but okay. Parent waits near the gate. Warm late afternoon light.
 
 --- Page 19 ---
-הילד קם. על היד שלו יש עוד קצת מהאבק. הוא נושא אור קטן איתו. הוא מתחיל ללכת. זֹהַר לא הולכת. היא נשארת במקום, כנפיים חצי סגורות שוב. המרחק גדל.
+באותו ערב, {{childName}} {חזר|חזרה} אל האחו.
+לא רחוק.
+רק עד השביל.
+זוהר חיכתה על פרח פעמונית כחול.
+"נו?" היא שאלה.
+"אמרתי שלום," אמר/ה {{childName}}.
+זוהר פרשה כנפיים.
+"ועוד?"
+"אמרתי למישהו שהשרוך שלו פתוח."
+זוהר נראתה מרוצה מאוד.
+"חשוב."
+"וגם שיחקתי תופסת."
+"מיד?"
+"לא. הייתי {תופס|תופסת} {שני|שניה}."
+זוהר הנהנה.
+"אמצע טוב."
+על השיח, פולי הצליח סוף סוף לקפוץ בלי להתהפך.
+כמעט.
 
-imageDirection: distance growing between them, Zohar dimmer again
+imageDirection: Evening meadow reunion. The child tells Zohar about the first school day. Poli in the background tries a butterfly-hop and almost succeeds. Warm, playful closure.
 
 --- Page 20 ---
-הילד יוצא לקרחה פתוחה. השמיים יותר בהירים שם. הוא הולך קדימה עם האור הקטן על היד. זֹהַר נשארת בין העצים, בצל. רק נצנוץ אחד של אבק עוד מרחף באוויר מאחור.
+בלילה, לפני השינה, {{childName}} {הסתכל|הסתכלה} על כף היד.
+אבק הנחושת כבר כמעט נעלם.
+אבל לא לגמרי.
+קצת ממנו נשאר בקו קטן ליד האגודל.
+הקשר בבטן היה שם.
+קטן יותר.
+לא קשר שמושך חזק, אלא קשר שאפשר להחזיק איתו לילה אחד.
+{{childName}} {סגר|סגרה} את כף היד בעדינות, כאילו {שומר|שומרת} על הנחושת שלא תברח לגמרי.
+מחר יהיה עוד יום.
+אולי עוד אמצע קטן.
+רחוק באחו, זוהר קיפלה כנף אחת על פרח פעמונית ונחה בלי למהר.
 
-imageDirection: cool open space ahead for child, Zohar small in shadow behind, faint shimmer left in air
+imageDirection: Night bedroom close-up: the child lying in bed, gently closing one hand around a faint copper shimmer near the thumb. Far away in the meadow, Zohar the butterfly rests quietly on a bluebell flower with one wing folded.
 
-WORD_COUNT: [38, 31, 39, 34, 35, 28, 39, 27, 35, 33, 32, 29, 26, 28, 12, 27, 32, 23, 30, 31] = 609
+WORD_COUNT: [59, 72, 60, 59, 70, 55, 54, 61, 68, 64, 65, 63, 61, 68, 61, 67, 65, 65, 60, 73] = [1270]
