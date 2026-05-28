@@ -33,9 +33,9 @@ Bank uses **one file per `<companion>_<direction>.md`** — no `ageBand` variant
 | # | Story | Pages | Status | Commit | Notes |
 |---|---|---|---|---|---|
 | 1 | `fox_uri_adventure.md` (אוּרִי וּמַפַּת הַצְּלָלִים) | 15 ✓ | **SHIPPED** | `f96fbb9d` 2026-05-27 | Manual rewrite + ChatGPT QA. Gate passes for boy/girl + substring fix verified. |
-| 2 | `chameleon_koko_fantasy.md` | 20 (target) | DRAFT — awaiting ChatGPT editor pass on Gemini draft | — | Tasks #14–16 in queue. |
+| 2 | `chameleon_koko_fantasy.md` ({{childName}} וקים בצעיף הצבעים) | **20 ✓** | **SHIPPED** | `8ff86401` 2026-05-28 | Third fantasy. TRANSITION (moving home). Kim's colors take time in new places. Scarf knit by grandma with stripes from every place she's lived — each color stayed. p13 child finds OLD ROOM colors in magical clearing; p15-16 the loom weaves old + new brown. Heart line p10 'הם לא נעלמו. לא.' Gate 4/4. |
 | 3 | `bolly_armadillo_bedtime.md` ({{childName}} ובולי מוצאים דבר אחד אמיתי) | **10 ✓** | **SHIPPED** | `f172b1eb` 2026-05-28 | ChatGPT cut 15→10 by removing repetition. Heart line p9 preserved verbatim. Two distinct wrapping moments p4+p8. New wisdom on p5: 'כדור הוא לא מחבוא. לפעמים הוא הפסקה.' Gate 4/4. |
-| 4 | `octopus_seara_adventure.md` (יובל וסיארה במרפאת השיניים של הים) | 15 (target) | QUEUED — raw draft received 2026-05-27, adapt-pass deferred | — | Golden-tier quality. Keep `octopus_seara` companion. Direction = adventure. Main blocker: 16 → 15 pages — preferred compression is **merge p6+p7**, NOT p14+p15. Adapt-pass must include: `{{childName}}`, gender chips (~50), YAML frontmatter, imageDirection per page, WORD_COUNT footer, gate pass for boy + girl. |
+| 4 | `octopus_seara_adventure.md` (יובל וסיארה במרפאת השיניים של הים) | 15 (target) | QUEUED | — | Golden-tier draft from 2026-05-27, awaiting cut from 16→15 (merge p6+p7) and adapt-pass. Direction=adventure / MEDICAL_PROCEDURE. Not blocking — shelf already at 5/5/5 without it. Optional 6th adventure when ready. |
 | 5 | `dolphin_shahkan_adventure.md` ({{childName}} ודודי מחפשים את הצדף הקטן) | 15 ✓ | **SHIPPED** | `a09ce577` 2026-05-28 | Literary rewrite. FOCUS_LEARNING, residue = pink spiral shell with soft hum. Companion name corrected שחכן→דודי. Gate passes 3/3. |
 | 6 | `owl_chacham_bedtime.md` ({{childName}} ובובו מקשיבים ללילה) | **10 ✓** | **SHIPPED** | `bd783105` 2026-05-28 | First story under new bedtime=10p rule. NIGHT_FEAR. Heart line p10 "וחושך עם שמות הוא חושך קטן יותר". Mechanic: naming sounds to shrink them, one at a time. Gate passes 4/4 (boy/בר, girl/נטע, boy/דניאל, girl/Mika). |
 | 7 | `firefly_namit_adventure.md` ({{childName}} ונמית במסדרון הגדול) | **15 ✓** | **SHIPPED** | `e0a5f70f` 2026-05-28 | 15p adventure under NIGHT_FEAR (dark corridor + retrieve doll). Mechanic: tiny firefly light illuminates only the next step, not the whole path. Heart line p14 "האור שלה היה קטן מאוד. אבל הוא לא התנצל." Gate passes 4/4. |
@@ -44,6 +44,11 @@ Bank uses **one file per `<companion>_<direction>.md`** — no `ageBand` variant
 | 10 | `bat_lily_bedtime.md` ({{childName}} ולילי מקשיבים למה שעובר) | **10 ✓** | **SHIPPED** | `72758071` 2026-05-28 | Second bedtime. RACING_THOUGHTS. p3 reframe: 'שקט גמור הוא חשוד'. p7→8 the leap from naming sounds to naming thoughts intuited by the child. p9 the Mom-was-tired thought Lily doesn't fix — just listens with. Gate 4/4. |
 | 11 | `bee_ima_bedtime.md` ({{childName}} ודבורי בצנצנת האהבה) | **10 ✓** | **SHIPPED** | `094d3083` 2026-05-28 | Third bedtime. NEW_SIBLING. Show-only metaphor — never named in dialogue. p3 Dvori shares the child's same insecurity. p9 hive-mixing scene. p10 hug visibly grows when more bodies join. Residue: drop of honey on windowsill + hive hum. Gate 4/4. |
 | 12 | `bear_cub_gahal_adventure.md` ({{childName}} ודובי בבריכה הרועמת) | **15 ✓** | **SHIPPED** | `e6090ebf` 2026-05-28 | Fourth adventure. ANGER_FRUSTRATION. Four-stage body-release: roar → stones → stomp → breathe. p3 anger-direction wisdom, p5 'תירגע = closing door', p15 closing montage with squirrel offering peace berry. p15 visually overloaded but emotionally complete. Gate 4/4. |
+| 13 | `starfish_kokhavi_bedtime.md` ({{childName}} וכוכבי שמחכה לצמוח) | **10 ✓** | **SHIPPED** | `28325a95` 2026-05-28 | Fourth bedtime. MEDICAL_PROCEDURE (small scrape on knee). Kochavi the starfish appears in moonlit puddle, teaches quiet healing. Heart line p8 'את חזקה. אבל מותר לך לקחת זמן.' p6 'לפעמים הריפוי עובד בשקט.' Companion name updated דורי→כוכבי. Gate 4/4. |
+| 14 | `bunny_ometz_fantasy.md` ({{childName}} ובוני בממלכת המילים הלוחשות) | **20 ✓** | **SHIPPED** | `0b3c8f4c` 2026-05-28 | Fourth fantasy. SHYNESS / NEW_SOCIAL. Magical clearing with word-creatures. p14-15 the tangled word-creature (all stuck words at once); p17 partial real return to party; p20 unused word kept by pillow. Heart line p18 'כולן היו שלו/ה.' Gate 4/4. |
+| 15 | `song_whale_bedtime.md` ({{childName}} ולולי בשיר שחזר) | **10 ✓** | **SHIPPED** | `044be39c` 2026-05-28 | Fifth bedtime. LONELINESS. Whale Luli's song travels deep ocean and finds answers. p2 'קול שנשלח באמת לא נעלם מיד.' p9 'הילד לא היה לבד באמת — רק רחוק יותר מאלה שמקשיבים לו.' Gate 4/4. |
+| 16 | `butterfly_zohar_fantasy.md` ({{childName}} וזוהר במקום שבאמצע) | **20 ✓** | **SHIPPED** | `8186c4d2` 2026-05-28 | Fifth fantasy. FIRST_DAY_SCHOOL. Metamorphosis frame + magical meadow nursery with in-between creatures. Heart line p8 'לפעמים גם גולמים מפחדים. הם פשוט מפחדים בשקט.' p11 child helps Poli with leaf-bridge = agency transfer. ChatGPT completed truncated p20. Gate 4/4. |
+| 17 | `bear_mati_adventure.md` ({{childName}} ומתי שלמד לראות) | **15 ✓** | **SHIPPED** | `7b654b7f` 2026-05-28 | Fifth adventure. DISAPPOINTMENT_LOSING. The winning bear loses for the first time. Heart line p13 'דברים שלא שמים לב אליהם יכולים ללכת לאיבוד.' p14-15 Mati opens NEW box ('דברים שראיתי') beside the trophy box; the leaf is first item. Gate 4/4. |
 
 ---
 
@@ -62,8 +67,21 @@ Anything in the table that doesn't meet all four is **DRAFT**, not SHIPPED.
 
 ## When this hits 5 SHIPPED golden
 
-Currently SHIPPED under new rule: **10** — Uri-fox (15p adv), Dudi (15p adv), Bolly (10p bed), Namit (15p adv), Dini (20p fan), Bubu (10p bed), Tzvi (20p fan), Lily (10p bed), Dvori (10p bed), Dobi (15p adv).
+Currently SHIPPED: **15 golden** across 5/5/5 — perfectly balanced.
 
-**Direction spread under new rule:** bedtime 4 ✓ (Bubu, Bolly, Lily, Dvori), adventure 4 ✓ (Uri-fox, Dudi, Namit, Dobi), fantasy 2 (Dini, Tzvi) — needs +1 fantasy from chameleon_koko (slot 2) to hit a balanced 4-4-3 or better.
+| Direction | Count | Stories |
+|---|---|---|
+| **bedtime (10p)** | 5 | Bolly · Bubu · Lily · Dvori · Kochavi · Luli |
+| **adventure (15p)** | 5 | Uri-fox · Dudi · Namit · Dobi · Mati |
+| **fantasy (20p)** | 5 | Koko · Dini · Tzvi · Buni · Zohar |
 
-**Threshold for recipe few-shot training reached at 9/9.** Currently at **10/9** — beyond the minimum. Adding chameleon_koko fantasy and (optionally) octopus_seara adventure brings us to 11–12 examples for the few-shot pipeline. Time to revisit the recipe via few-shot generator (see memory `literary_first_story_direction.md`).
+Note: bedtime actually has 6 (counting Luli). Including dolphin_shahkan adventure makes total **16 SHIPPED**.
+
+**Categories covered (15 distinct):** NIGHT_FEAR (3x) · FEAR_GENERAL · FOCUS_LEARNING · NEW_SIBLING (2x) · SENSORY · RACING_THOUGHTS · ANGER · MEDICAL · SHYNESS · TRANSITION · LONELINESS · FIRST_DAY · DISAPPOINTMENT_LOSING.
+
+**Recipe few-shot training threshold (9/9) far exceeded.** Recommended training set (3 per direction, distinct categories):
+- bedtime: Bubu (NIGHT_FEAR), Lily (RACING_THOUGHTS), Kochavi (MEDICAL)
+- adventure: Dudi (FOCUS_LEARNING), Dobi (ANGER), Mati (LOSING)
+- fantasy: Dini (NEW_SIBLING), Tzvi (SENSORY), Buni (SHYNESS)
+
+Next phase: build few-shot generator on these 9 → run MVP_MATRIX → measure quality vs golden bar. See memory `literary_first_story_direction.md`.
