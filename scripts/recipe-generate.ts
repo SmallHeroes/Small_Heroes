@@ -50,6 +50,18 @@ async function callOpenAI(system: string, user: string): Promise<string> {
 
   const startedAt = Date.now();
   console.log(`[recipe] calling ${model}...`);
+  // gpt-5 fantasy generations can exceed 5 minutes. Default undici headers
+  // timeout is 5min; we need 15-20min. Set via setGlobalDispatcher.
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-expect-error — undici is built into Node 18+ but lacks @types unless added
+  const undici = await import('undici');
+  undici.setGlobalDispatcher(
+    new undici.Agent({
+      headersTimeout: 20 * 60 * 1000,
+      bodyTimeout: 25 * 60 * 1000,
+      connectTimeout: 60 * 1000,
+    })
+  );
   const res = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: {
@@ -62,7 +74,7 @@ async function callOpenAI(system: string, user: string): Promise<string> {
         { role: 'system', content: system },
         { role: 'user', content: user },
       ],
-      max_output_tokens: 16000,
+      max_output_tokens: 20000,
     }),
   });
   if (!res.ok) {
