@@ -42,6 +42,8 @@ Bank uses **one file per `<companion>_<direction>.md`** — no `ageBand` variant
 | 8 | `dragon_dini_fantasy.md` ({{childName}} ודיני במערת האבנים החמות) | **20 ✓** | **SHIPPED** | `4d39f2e7` 2026-05-28 | First 20p fantasy under page-count rule. NEW_SIBLING via parallel structure (dragon's stone mirrors child's family). Heart line p19 "החיבוק לא נהיה קטן יותר. הוא למד לעשות מקום." Same commit fixed /ה Hebrew \b regex bug. Gate passes 4/4. |
 | 9 | `fawn_tzvi_fantasy.md` ({{childName}} וצבי ביער הקולות) | **20 ✓** | **SHIPPED** | `95930eab` 2026-05-28 | Second 20p fantasy. SENSORY_OVERLOAD via noise-as-creatures world. Heart line p8: 'לא עשיתי להם. עשיתי לי.' Strongest single line in the shelf. p16 agency-transfer: child regulates a frightened sound-creature smaller than themselves. Gate 4/4. |
 | 10 | `bat_lily_bedtime.md` ({{childName}} ולילי מקשיבים למה שעובר) | **10 ✓** | **SHIPPED** | `72758071` 2026-05-28 | Second bedtime. RACING_THOUGHTS. p3 reframe: 'שקט גמור הוא חשוד'. p7→8 the leap from naming sounds to naming thoughts intuited by the child. p9 the Mom-was-tired thought Lily doesn't fix — just listens with. Gate 4/4. |
+| 11 | `bee_ima_bedtime.md` ({{childName}} ודבורי בצנצנת האהבה) | **10 ✓** | **SHIPPED** | `094d3083` 2026-05-28 | Third bedtime. NEW_SIBLING. Show-only metaphor — never named in dialogue. p3 Dvori shares the child's same insecurity. p9 hive-mixing scene. p10 hug visibly grows when more bodies join. Residue: drop of honey on windowsill + hive hum. Gate 4/4. |
+| 12 | `bear_cub_gahal_adventure.md` ({{childName}} ודובי בבריכה הרועמת) | **15 ✓** | **SHIPPED** | `e6090ebf` 2026-05-28 | Fourth adventure. ANGER_FRUSTRATION. Four-stage body-release: roar → stones → stomp → breathe. p3 anger-direction wisdom, p5 'תירגע = closing door', p15 closing montage with squirrel offering peace berry. p15 visually overloaded but emotionally complete. Gate 4/4. |
 
 ---
 
@@ -60,8 +62,8 @@ Anything in the table that doesn't meet all four is **DRAFT**, not SHIPPED.
 
 ## When this hits 5 SHIPPED golden
 
-Currently SHIPPED under new rule: **8** — Uri-fox (15p adv), Dudi (15p adv), Bolly (10p bed), Namit (15p adv), Dini (20p fan), Bubu (10p bed), Tzvi (20p fan), Lily (10p bed).
+Currently SHIPPED under new rule: **10** — Uri-fox (15p adv), Dudi (15p adv), Bolly (10p bed), Namit (15p adv), Dini (20p fan), Bubu (10p bed), Tzvi (20p fan), Lily (10p bed), Dvori (10p bed), Dobi (15p adv).
 
-**Direction spread under new rule:** bedtime 3 ✓ (Bubu, Bolly, Lily), adventure 3 ✓ (Uri-fox, Dudi, Namit), fantasy 2 (Dini, Tzvi) — needs +1 fantasy from chameleon_koko (slot 2) to hit 3+3+3.
+**Direction spread under new rule:** bedtime 4 ✓ (Bubu, Bolly, Lily, Dvori), adventure 4 ✓ (Uri-fox, Dudi, Namit, Dobi), fantasy 2 (Dini, Tzvi) — needs +1 fantasy from chameleon_koko (slot 2) to hit a balanced 4-4-3 or better.
 
-**Threshold for recipe few-shot training:** 9/9 = 3 per direction. Currently 8/9. Awaiting chameleon_koko fantasy. Once shipped → revisit recipe pipeline via few-shot generator (see memory `literary_first_story_direction.md`).
+**Threshold for recipe few-shot training reached at 9/9.** Currently at **10/9** — beyond the minimum. Adding chameleon_koko fantasy and (optionally) octopus_seara adventure brings us to 11–12 examples for the few-shot pipeline. Time to revisit the recipe via few-shot generator (see memory `literary_first_story_direction.md`).
