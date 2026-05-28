@@ -674,7 +674,7 @@ async function translateSceneForImage(input: {
     `Text overlay will be placed at the ${textZoneLabel} of the image.`,
     '',
     cleanMode
-      ? 'Rewrite as a vivid English scene moment (32-40 words). Scene and emotion only — no camera or framing. Use the name Michal for the child and Bolly for the armadillo companion. English only — no Hebrew characters. Never use the phrase close-up.'
+      ? 'Rewrite as a vivid English scene moment (32-40 words). Scene and emotion only — no camera or framing. Refer to the child by the EXACT name given in the Characters block above (do NOT invent or substitute names — never use "Michal" or any other placeholder name; if the name contains non-Latin script, use "the child" / "the boy" / "the girl" instead). Refer to the companion creature by its species only (e.g. "the fox", "the bee", "the armadillo") — do NOT invent a name for the companion; never use "Bolly" or any other placeholder. English only — no Hebrew characters. Never use the phrase close-up.'
       : 'Rewrite the illustration direction as a vivid English scene (80-120 words).',
     cleanMode ? '' : 'Keep the camera angle, composition type, and visual hook intact.',
     cleanMode

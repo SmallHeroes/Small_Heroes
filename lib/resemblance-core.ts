@@ -167,10 +167,26 @@ async function fetchImageBuffer(url: string): Promise<Buffer> {
   if (!isHttpUrl && !isDataUrl) {
     return readFile(url);
   }
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed fetching image for resemblance: ${res.status}`);
-  const arr = await res.arrayBuffer();
-  return Buffer.from(arr);
+  // Replicate's CDN occasionally returns ECONNRESET mid-stream; retry transient
+  // network failures with exponential backoff (300ms, 900ms, 2700ms).
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
+      if (!res.ok) throw new Error(`Failed fetching image for resemblance: ${res.status}`);
+      const arr = await res.arrayBuffer();
+      return Buffer.from(arr);
+    } catch (err) {
+      lastError = err;
+      if (attempt === 3) break;
+      const backoffMs = 300 * Math.pow(3, attempt - 1);
+      console.warn(
+        `[fetchImageBuffer] attempt ${attempt}/3 failed (${(err as Error)?.message ?? 'unknown'}); retrying in ${backoffMs}ms`
+      );
+      await new Promise((r) => setTimeout(r, backoffMs));
+    }
+  }
+  throw lastError;
 }
 
 function rgbToY(r: number, g: number, b: number): number {

@@ -78,23 +78,22 @@ export function buildFluxCleanPromptWithinBudget(
   return { sceneText: scene, finalPrompt, wordCount };
 }
 
-/** English display name for the child in Flux prompts (never Hebrew / Micha / Michael). */
+/** English display name for the child in Flux prompts. Hebrew names fall back to
+ * "the child" rather than a hard-coded English name — using a placeholder leaks the
+ * old bank-protagonist names ("Michal") into rendered logs and downstream prompts.
+ * Flux uses descriptions (hair, clothing, skin) for identity — the name is only a label. */
 export function normalizeFluxChildDisplayName(childName?: string | null): string {
   const raw = (childName ?? '').trim();
-  if (!raw || HEBREW_SCRIPT.test(raw)) return 'Michal';
-  if (/^micha$/i.test(raw)) return 'Michal';
-  if (/^michael$/i.test(raw)) return 'Michal';
-  if (/^michal$/i.test(raw)) return 'Michal';
+  if (!raw || HEBREW_SCRIPT.test(raw)) return 'the child';
   return raw;
 }
 
-/** Strip Hebrew, normalize names, fix known LLM typos; never emit literal close-up. */
+/** Strip Hebrew artifacts and known LLM typos. Does NOT replace Hebrew names with
+ * "Michal"/"Bolly" anymore — those replacements leaked the bank protagonist names into
+ * every render. Hebrew characters are simply stripped; the child's display name is
+ * handled by normalizeFluxChildDisplayName + the translator prompt. */
 export function sanitizeFluxCleanEnglishText(text: string): string {
   let t = text.replace(/\s+/g, ' ').trim();
-  t = t.replace(/\bMicha\b/g, 'Michal');
-  t = t.replace(/\bMichael\b/gi, 'Michal');
-  t = t.replace(/\bמיכל\b/g, 'Michal');
-  t = t.replace(/בּוֹלִי|בולי/g, 'Bolly');
   t = t.replace(/soft\s+pi\s+ink/gi, 'soft pink');
   t = t.replace(/\bpi\s+ink\b/gi, 'pink');
   t = t.replace(/\bclose-up\b/gi, 'medium-close');
