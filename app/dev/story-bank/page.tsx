@@ -140,8 +140,8 @@ export default function StoryBankDevPage() {
             onChange={(e) => setIllustrationStyle(e.target.value)}
             style={{ display: 'block', width: '100%', padding: 8, marginTop: 4 }}
           >
-            <option value="soft_hand_drawn_storybook">Style 01 — Portrait Artistic (soft watercolor, Flux + LoRA)</option>
-            <option value="detailed_whimsical_world">Style 02 — Detailed Whimsical World (gpt-image-2)</option>
+            <option value="soft_hand_drawn_storybook">Style 01 — רך וחמים (gpt-image-1, soft picture-book)</option>
+            <option value="detailed_whimsical_world">Style 02 — עולם קסום (gpt-image-1, cinematic whimsical)</option>
           </select>
         </label>
 
