@@ -43,4 +43,21 @@ Bank uses **one file per `<companion>_<direction>.md`** — no `ageBand` variant
 
 ---
 
-## Definition 
+## Definition of "SHIPPED"
+
+A slot moves to **SHIPPED** only when ALL of:
+- `.md` file replaces existing in `story-bank/v5-fixed-v2/`
+- **Page count matches direction rule** (bedtime=10, adventure=15, fantasy=20)
+- All light-validation checks pass (imageDirection per page, WORD_COUNT footer, no Mustache leakage, no denylist hits, well-formed gender chips, `{{childName}}` on ≥5 pages, no English drift)
+- `runStoryPersonalizationGate` passes for both `boy` + `girl` test names
+- One focused commit `feat(story-bank): upgrade <slug>`
+
+Anything in the table that doesn't meet all four is **DRAFT**, not SHIPPED.
+
+---
+
+## When this hits 5 SHIPPED golden
+
+Currently SHIPPED under new rule: **5** — Uri-fox (15p), Dudi (15p), Bubu (10p), Namit (15p), Dini (20p). Threshold reached. Bolly (slot 3) still needs page-count cut. Pending: chameleon_koko fantasy (slot 2), Seara adventure (slot 4), bee_ima draft (parked, needs rewrite).
+
+**Direction spread under new rule:** bedtime 1 (Bubu), adventure 3 (Uri-fox, Dudi, Namit), fantasy 1 (Dini). Healthy spread; can now revisit recipe pipeline via few-shot generator (see memory `literary_first_story_direction.md`).
