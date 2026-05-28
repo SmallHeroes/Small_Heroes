@@ -2,25 +2,20 @@
 
 import { useState } from 'react';
 
+// ✅ Golden shelf only — stories that passed adapt-pass + gate under the
+// page-count rule (bedtime=10, adventure=15, fantasy=20). Keep in sync with
+// docs/LITERARY_SHELF_TRACKER.md. To QA a non-golden draft, add a temporary
+// entry but mark it [DRAFT] so it's obvious in the dropdown.
 const AVAILABLE_STORIES = [
-  { file: 'bolly_armadillo_bedtime.md',  label: 'bolly_armadillo — bedtime (MEDICAL) ★ QA' },
-  { file: 'fox_uri_adventure.md',          label: 'fox_uri — adventure (NIGHT_FEAR)' },
-  { file: 'fox_uri_bedtime.md',            label: 'fox_uri — bedtime (NIGHT_FEAR)' },
-  { file: 'fox_uri_fantasy.md',            label: 'fox_uri — fantasy (NIGHT_FEAR)' },
-  { file: 'bat_lily_adventure.md',         label: 'bat_lily — adventure (NIGHT_FEAR)' },
-  { file: 'starfish_kokhavi_adventure.md', label: 'starfish_kokhavi — adventure (MEDICAL)' },
-  { file: 'starfish_kokhavi_fantasy.md',   label: 'starfish_kokhavi — fantasy (MEDICAL)' },
-  { file: 'starfish_kokhavi_bedtime.md',   label: 'starfish_kokhavi — bedtime (MEDICAL)' },
-  { file: 'octopus_seara_adventure.md',    label: 'octopus_seara — adventure (ANGER)' },
-  { file: 'bear_cub_gahal_adventure.md',   label: 'bear_cub_gahal — adventure (ANGER)' },
-  { file: 'footstep_giant_adventure.md',   label: 'footstep_giant — adventure (NOISE)' },
-  { file: 'footstep_giant_bedtime.md',     label: 'footstep_giant — bedtime (NOISE)' },
-  { file: 'chameleon_koko_adventure.md',   label: 'chameleon_koko — adventure (TRANSITION)' },
-  { file: 'fawn_tzvi_adventure.md',        label: 'fawn_tzvi — adventure (SENSITIVITY)' },
+  { file: 'fox_uri_adventure.md',          label: '✅ fox_uri — adventure 15p (NIGHT_FEAR) — slot 1' },
+  { file: 'dolphin_shahkan_adventure.md',  label: '✅ dolphin_shahkan — adventure 15p (FOCUS_LEARNING) — slot 5' },
+  { file: 'owl_chacham_bedtime.md',        label: '✅ owl_chacham — bedtime 10p (NIGHT_FEAR) — slot 6' },
+  { file: 'firefly_namit_adventure.md',    label: '✅ firefly_namit — adventure 15p (NIGHT_FEAR) — slot 7' },
+  { file: 'dragon_dini_fantasy.md',        label: '✅ dragon_dini — fantasy 20p (NEW_SIBLING) — slot 8' },
 ];
 
 export default function StoryBankDevPage() {
-  const [storyFile, setStoryFile] = useState('bolly_armadillo_bedtime.md');
+  const [storyFile, setStoryFile] = useState('fox_uri_adventure.md');
   const [childName, setChildName] = useState('Baboo');
   const [childGender, setChildGender] = useState('boy');
   const [companionName, setCompanionName] = useState('בולי');
