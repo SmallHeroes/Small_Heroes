@@ -16,10 +16,10 @@ const AVAILABLE_STORIES = [
 
 export default function StoryBankDevPage() {
   const [storyFile, setStoryFile] = useState('fox_uri_adventure.md');
-  const [childName, setChildName] = useState('Baboo');
+  const [childName, setChildName] = useState('בר');
   const [childGender, setChildGender] = useState('boy');
-  const [companionName, setCompanionName] = useState('בולי');
-  const [illustrationStyle, setIllustrationStyle] = useState('detailed_whimsical_world');
+  const [companionName, setCompanionName] = useState('');
+  const [illustrationStyle, setIllustrationStyle] = useState('soft_hand_drawn_storybook');
   const [maxPages, setMaxPages] = useState(1);
   const [skipCover, setSkipCover] = useState(true);
   const [generateAudio, setGenerateAudio] = useState(false);
@@ -140,9 +140,8 @@ export default function StoryBankDevPage() {
             onChange={(e) => setIllustrationStyle(e.target.value)}
             style={{ display: 'block', width: '100%', padding: 8, marginTop: 4 }}
           >
-            <option value="detailed_whimsical_world">Style 02 — detailed_whimsical_world (gpt-image-2)</option>
-            <option value="realistic_illustrated">Style 01 — Portrait Artistic</option>
-            <option value="whimsical_comic_fantasy">Legacy alias → Style 02</option>
+            <option value="soft_hand_drawn_storybook">Style 01 — Portrait Artistic (soft watercolor, Flux + LoRA)</option>
+            <option value="detailed_whimsical_world">Style 02 — Detailed Whimsical World (gpt-image-2)</option>
           </select>
         </label>
 
