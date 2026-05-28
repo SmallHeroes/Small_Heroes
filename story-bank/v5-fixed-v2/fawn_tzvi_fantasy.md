@@ -1,225 +1,372 @@
-# Story: fawn_tzvi_fantasy — Story Bank v5 (Hybrid: GPT-5 skeleton + Claude prose)
-Generated: 2026-05-13T21:47:53.655Z
-Skeleton model: gpt-5.3-chat-latest
-Prose model: claude-sonnet-4-5-20250929
-Total time: 76.5s
-Prompt-version: v5
+# Story: fawn_tzvi_fantasy — Story Bank v5 (Literary Rewrite)
+Generated: 2026-05-28T20:00:00.000Z
+Source: manual literary rewrite (AI writer → adapt-pass)
+Companion canonical name: צְבִי (per lib/companions.ts fawn_tzvi.name)
+Prompt-version: v5-literary
+Notes: fantasy / SENSORY_OVERLOAD / 20 pages / residue = green-blue color spot on the chest
 
 ---
----
-title: "הַיַּעַר שֶׁשּׁוֹמֵעַ"
+title: "{{childName}} וצבי ביער הקולות"
 companionId: fawn_tzvi
 direction: fantasy
-category: SENSITIVITY_OVERWHELM
+category: SENSORY_OVERLOAD
 gender: male
 pages: 20
-endingType: distance
-
+endingType: residue
+worldRule: "נשימה לא מכבה קולות — היא פותחת מקום לחיות בתוכם."
 ---
 
-storyStyle: gentle sensory fantasy
-metaphor: a world as a shifting sound-map that can never be fully predicted
-stakes: if the child doesn't act, they will stay frozen and miss a fleeting beautiful event
-emotionalArc: confidence in prediction → overload and control → system crash → tentative trust in unknown → distant, cooler acceptance
-quietPage: 12
-heartLine: עמוד 10 — Tzvi taps twice, waits, and when no predictable echo comes, his flower visibly wilts.
-emotionalMistake: עמוד 7 — The child snaps at Tzvi to stop listening and just move, dismissing his need to predict.
-uncomfortableTruth: עמוד 13 — The child realizes they cannot fix Tzvi's freeze or restore his predictions for him.
+storyStyle: literary fantasy with internal-grounding mechanic, gentle fawn voice, mirror-creature world
+metaphor: every sound is a creature in this forest — breathing with them shrinks them to their real size; fighting them makes them grow
+stakes: the child returns home still flooded by every noise, treating the world's input as attack rather than texture
+quietPagePosition: 9
+heartLine: page 8 — "לא עשיתי להם. עשיתי לי." (Tzvi's central wisdom)
+emotionalMistake: page 5 — child wraps arms around self in overwhelm, then page 11 freezes against the boom-creature, making it grow
+uncomfortableTruth: page 12 — Tzvi doesn't make the noise smaller by attacking it; he stays steady and the noise stops growing — but it remains
+agencyTransfer: page 16 — the child finds a frightened sound-creature smaller than themselves and becomes the regulator
 
 --- Page 1 ---
-אני הולך בשדה שמשמיע צלילים.
+לפעמים העולם של {{childName}} היה גדול מדי.
+לא גדול כמו הר.
+ולא גדול כמו ים.
+גדול באוזניים.
+פעמון בית הספר צעק כמו ציפור כועסת. הכיסאות בכיתה חרקו. ילדים צחקו. מישהו גרר תיק על הרצפה. מישהו אמר "רגע!" בדיוק כשמישהו אחר אמר "תראי!"
+וכל הקולות נכנסו יחד.
+לא אחד־אחד.
+כולם.
 
-כל צעד עושה צליל אחר. העשב עושה "טַשׁ". האבנים עושות "טוֹק". הפרחים עושים "טִינְג" קטן כשאני עובר.
-
-הצלילים נראים באוויר כמו גלים רכים.
-
-imageDirection: soft glowing plants emitting subtle sound ripples
+imageDirection: A school hallway during a noisy break. Many children moving, a backpack scraping the floor, chairs creaking inside an open classroom door. A child stands in the middle, hands slightly raised to cover ears, eyes wide.
 
 --- Page 2 ---
-ליד עץ עומד עופר קטן. אוזניו מסתובבות לכל הצדדים. פרח קטן צומח מאחורי האוזן שלו.
+בבית זה לא תמיד היה שקט יותר.
+הקומקום שרק. הדלת נסגרה חזק. אח קטן צחק צחוק גדול מדי. הטלוויזיה דיברה מהסלון, גם כשאף אחד לא הקשיב לה באמת.
+{{childName}} אהב/ה את הבית.
+אבל לפעמים, כשהכל קרה בבת אחת, הבטן שלו/ה נהייתה סיבובית.
+העיניים עקצו.
+והראש הרגיש כמו חוטים שנקשרו בקשר.
+"די," {לחש|לחשה} {{childName}}.
+אבל העולם לא תמיד שומע "די".
 
-הוא מסתכל עלי.
-
-"אני צבִי," הוא אומר בשקט.
-
-imageDirection: small fawn alert, flower blooming behind ear
+imageDirection: A bright family home in the afternoon. A whistling kettle on the stove. A toddler laughing too loudly. A TV playing in the background. The child stands in the kitchen doorway with a slightly clenched face.
 
 --- Page 3 ---
-צבי עוצר. אוזן אחת קדימה, אוזן אחת הצידה.
+אחר הצהריים אחד, כשהבית היה רועש במיוחד, {{childName}} {יצא|יצאה} אל הגינה.
+לא בבריחה.
+רק בצעד שקט.
+עוד צעד.
+ועוד אחד.
+בקצה הגינה היה שביל קטן בין עצים.
+ביום הוא נראה כמו שביל רגיל.
+אבל הפעם, בין העלים, היה רווח חשוך־ירוק, כאילו היער פתח דלת קטנה.
+הרוח עברה שם ולחשה:
+בוא/י רגע.
+{{childName}} {הסתכל|הסתכלה} לאחור.
+ואז {נכנס|נכנסה}.
 
-"עכשיו תשמע שריקה," הוא אומר.
-
-שריקה דקה עוברת באוויר.
-
-"עכשיו טפיפה."
-
-טפיפה קטנה נשמעת מהעשב.
-
-הכל בדיוק כמו שהוא אמר.
-
-imageDirection: sound waves visualized as gentle lines ahead of them
+imageDirection: A small back garden at late afternoon. At the far edge, a narrow path opens between trees into a slightly luminous green-shadow. A child stands at the entrance, looking back over their shoulder before stepping in.
 
 --- Page 4 ---
-צבי עומד במרכז השביל. אוזניו קדימה, זנבו קטן מניד.
+בתוך היער האוויר היה אחר.
+הוא לא היה שקט.
+הוא היה מלא קולות.
+אבל הקולות לא היו סתם קולות.
+זיפ־זיפ־זיפ!
+משהו קטן ונוצץ חלף ליד האוזן של {{childName}}. הוא נראה כמו קו כסף עם כנפיים.
+קלאק־קלאק־קלאק!
+יצור קטן, דומה לסרטן עשוי מקלות, רץ על השביל.
+טאפ־טאפ־טאפ!
+טיפות צליל קפצו על אבן.
+{{childName}} {עצר|עצרה}.
+ביער הזה, לכל קול היה גוף.
 
-הפרח שלו זוהר.
-
-הוא מקשיב, והצלילים באים בדיוק כמו שהוא ידע.
-
-imageDirection: balanced composition, Tzvi centered, ears forward, flower bright
+imageDirection: A whimsical forest where each sound has a body. A silvery winged streak zips past. A small stick-crab scuttles on the path. Tiny sound-droplets bounce on a stone. The child stares with wonder and slight overload.
 
 --- Page 5 ---
-השדה הופך צפוף יותר. צלילים מגיעים מכל מקום.
+בהתחלה זה היה יפה.
+זיפ אחד היה יפה.
+קלאק אחד היה מצחיק.
+טאפ אחד היה כמעט ריקוד.
+אבל אז הגיעו עוד.
+זיפ־זיפ. קלאק־קלאק. טררר. פוּף. בום קטן. שריק־שריק. צחוק של עלים.
+כל היצורי הקול רצו מסביב.
+הם לא התכוונו להפחיד.
+אבל הם היו רבים מדי.
+{{childName}} {חיבק|חיבקה} את {עצמו|עצמה}.
+הקשר בראש התחיל להתהדק שוב.
 
-צבי מסתובב. אוזן ימינה, אוזן שמאלה. גופו דרוך.
-
-"שם טפטוף. שם רחש. שם נשיפה."
-
-הוא עוקב אחרי הכל.
-
-imageDirection: layers of sound ripples crossing
+imageDirection: The forest now busier — many tiny sound-creatures swarming around the child in a chaotic dance. The child has wrapped arms around themselves, eyes squeezed slightly shut. The earlier wonder has tipped into overwhelm.
 
 --- Page 6 ---
-אנחנו מגיעים לנחל קטן. הצלילים מתערבבים.
+מאחורי עץ לבנה כסוף הציצו שתי עיניים גדולות.
+לא עיניים מפחידות.
+עיניים שקטות.
+מתוך הצל יצא עופר קטן.
+הפרווה שלו היתה חומה ורכה, ועל הגב שלו היו כתמים בהירים כמו עלים שנפלו עליו ונשארו.
+אבל כשיצור זיפ־זיפ חלף לידו, כתם אחד על הפרווה שלו הפך ירוק רך.
+כמו עלה חדש.
+העופר התקרב בזהירות.
+"אני צבי," הוא אמר בקול נמוך.
+הקול שלו לא דחף.
+הוא פשוט היה שם.
 
-צבי זז מהר. אוזניו מסתובבות בלי הפסקה.
-
-"רגע. רגע." הוא עוצר כל שתי שניות.
-
-הגוף שלו קשה. הפרח שלו כבר לא בהיר כמו קודם.
-
-imageDirection: ears angled differently, body tense, lines of motion everywhere
+imageDirection: Behind a silver-barked birch tree, two quiet eyes appear. A small cream-and-tan fawn steps out, soft spots on his back. As one zip-creature passes, a single spot on his fur shifts to a fresh leaf-green color. He has a calm, watching presence.
 
 --- Page 7 ---
-"בוא, זה בסדר," אני אומר.
+צבי הטה את הראש.
+האוזניים הגדולות שלו זזו.
+אחת ימינה. אחת שמאלה. שתיהן קדימה.
+יצור קלאק־קלאק רץ בין הרגליים שלו.
+יצור זיפ־זיפ זמזם מעל קרן קטנה שכמעט לא היתה לו.
+צבי לא ברח.
+הוא גם לא אמר: "זה שום דבר."
+כי זה כן היה משהו.
+הרבה משהו.
+הוא רק הוריד את הראש, הניח פרסה אחת על האדמה, ולקח נשימה.
+לא נשימה ענקית.
+נשימה של עופר שיודע לחכות.
 
-צבי עומד. הוא מקשיב למשהו.
-
-"אני לא יודע לחכות יותר," אני אומר חזק.
-
-הוא מסתכל עלי. לא זז.
-
-אני הולך קדימה בלי לחכות לו.
-
-imageDirection: child pulling ahead while Tzvi hesitates
+imageDirection: Tzvi the fawn standing calmly on the forest path, surrounded by sound-creatures but unbothered. His ears swivel independently. He lowers his head and places one front hoof firmly on the earth, taking a slow visible breath.
 
 --- Page 8 ---
-צבי בא אחרי. אבל הוא נעצר כל רגע.
+{{childName}} {הסתכל|הסתכלה} עליו.
+החזה של צבי עלה לאט.
+אחד.
+ואז ירד לאט.
+שתיים.
+כשהאוויר יצא ממנו, הכתם הירוק על גבו התרחב מעט.
+יצור הזיפ־זיפ, שהיה קרוב מאוד, הפסיק לרוץ במעגל.
+הוא נשאר באוויר.
+קטן יותר.
+לא נעלם.
+רק הפסיק לדקור את האוזן.
+יצור הקלאק־קלאק עדיין קלאק.
+אבל פחות מהר.
+{{childName}} {מצמץ|מצמצה}.
+"איך עשית את זה?"
+צבי משך באף.
+"לא עשיתי להם. עשיתי לי."
 
-אוזניו מסתובבות מהר מהר. הגוף שלו רועד קצת.
-
-"לא... לא יודע מאיפה..." הוא לוחש.
-
-הפרח שלו כבה.
-
-imageDirection: visual clutter, ears spinning, flower dimming slightly
+imageDirection: Close on Tzvi's chest visibly rising and falling. As he exhales, the green spot on his back grows just slightly. The zip-creature near him pauses mid-air, smaller. The child watches with quiet amazement.
 
 --- Page 9 ---
-צליל חדש נשמע. משהו רך, כמו פעמון רחוק.
+צבי נשכב על האדמה הרכה.
+לא כי היה עייף.
+כי לפעמים האדמה עוזרת לגוף לזכור איפה הוא.
+הוא סימן ל{{childName}} לשבת לידו.
+{{childName}} {ישב|ישבה}.
+מתחת לכפות הידיים היו עלים יבשים. מתחת לעלים היתה אדמה. ומתחת לאדמה, כך היה נדמה, היער החזיק את הכל.
+"נשימה לא מכבה קולות," אמר צבי.
+"אז בשביל מה היא?" {שאל|שאלה} {{childName}}.
+צבי עצם עיניים.
+"כדי שיהיה לך מקום בתוכם."
 
-צבי עוצר לגמרי.
-
-אוזניו שטוחות לצדדים. עיניים רחבות.
-
-"מה זה?" הוא שואל בקול דק.
-
-imageDirection: a faint glowing source off-frame
+imageDirection: Tzvi lying down on the soft forest floor. The child sits beside him, hands on dry leaves. Forest sounds and creatures continue around them but at a distance. A grounded, quiet moment.
 
 --- Page 10 ---
-צבי טופף פעמיים על האדמה בפרסה.
+{{childName}} {ניסה|ניסתה}.
+נשימה פנימה.
+הבטן עלתה קצת.
+נשימה החוצה.
+הבטן ירדה.
+בהתחלה זה הרגיש מוזר.
+כאילו לנשום בכוונה זה קצת כמו ללכת ולחשוב על הרגליים.
+אבל אחרי עוד נשימה אחת, משהו קטן השתנה.
+יצור טררר על ענף עדיין רעד.
+יצור טאפ־טאפ עדיין קפץ על אבן.
+אבל הם כבר לא היו בתוך הראש של {{childName}}.
+הם היו ביער.
+וזה היה מקום טוב יותר בשבילם.
 
-הוא מחכה.
-
-אף צליל לא חוזר.
-
-הפרח שלו קמל. נופל קצת הצידה.
-
-imageDirection: fawn frozen, flower wilting, silence heavy
+imageDirection: The child sits cross-legged on the forest floor beside Tzvi, hand on belly, eyes half-closed in concentration. Sound-creatures still bounce and shimmer nearby but their motion is now external — they no longer crowd the child's space.
 
 --- Page 11 ---
-צבי לא זז.
+פתאום נשמע:
+בום!
+יצור גדול התגלגל אל השביל.
+הוא היה עשוי מקולות של ענפים שנשברים, אבנים שמתנגשות, וסיר שנופל במטבח.
+בום־גרר־קראש!
+היצור נפל על הגב, קם, ואז נפל שוב.
+הוא לא נראה רע.
+אבל הוא היה נורא רועש.
+{{childName}} {קפא|קפאה}.
+הנשימה נתקעה.
+היצור הגדול כאילו התנפח.
+בום!
+עוד יותר גדול.
+צבי פקח עיניים.
+הכתמים על פרוותו הפכו סגולים־בהירים, כמו דאגה רכה.
 
-רגליו נוקשות. גופו כמו אבן. אוזניים שטוחות לגמרי.
-
-עיניים פקוחות רחבות. אבל הוא לא רואה אותי.
-
-imageDirection: rigid posture, ears flat, wide eyes
+imageDirection: A large, heavy crash-creature rolls onto the forest path — made of breaking-branch sounds, clattering stones, falling-pot crashes. It falls and rights itself clumsily. The child has frozen. Tzvi's spots have shifted to a soft purple — concern, not alarm.
 
 --- Page 12 ---
-הצליל הרך חוזר. פעמון אחד, ארוך.
+צבי לא קפץ.
+הוא גם לא גער ביצור הבום.
+הוא רק הסתכל עליו.
+ואז נשם.
+פנימה.
+החזה שלו עלה.
+החוצה.
+החזה שלו ירד.
+יצור הבום המשיך להיות גדול.
+אבל הוא הפסיק לגדול.
+{{childName}} {נזכר|נזכרה}.
+{הוא|היא} {הניח|הניחה} יד על הבטן.
+נשימה פנימה.
+נשימה החוצה.
+הבום עדיין היה שם.
+אבל עכשיו הוא היה רק בום.
+לא כל היער.
+לא כל הגוף.
+רק יצור גדול ומגושם, שלא יודע ללכת בשקט.
 
-זוהר קטן עולה מתוך העשב.
-
-imageDirection: minimal scene with one gentle glowing ripple
+imageDirection: Tzvi watches the boom-creature without moving, breathing steadily. The child places a hand on their own belly, mirroring his breath. The boom-creature stops growing, becoming visibly contained — large still, but bounded.
 
 --- Page 13 ---
-אני עומד ליד צבי. לא יודע מה לעשות.
+יצור הבום התיישב על השביל.
+הוא נראה קצת מבולבל.
+"הוא תמיד כזה?" {לחש|לחשה} {{childName}}.
+צבי התקרב אליו בזהירות.
+"רק כשהוא חושב שאף אחד לא שומע אותו," אמר.
+יצור הבום עשה בום קטן.
+כמעט עצוב.
+{{childName}} {לקח|לקחה} נשימה.
+"שלום, בום," {אמר|אמרה} {{childName}}.
+היצור הרים ראש.
+"אתה גדול," {אמר|אמרה} {{childName}}, "אבל אתה לא חייב להיות כל המקום."
+יצור הבום מצמץ.
+ואז התכווץ קצת.
+רק קצת.
+אבל מספיק כדי לעבור לידו.
 
-אני לא יכול לגרום לו לזוז. אני לא יכול להחזיר לו את הפרח.
-
-הוא קפוא.
-
-imageDirection: child small next to frozen fawn, uncertain posture
+imageDirection: The boom-creature sits like a confused boulder on the path. Tzvi approaches gently. The child takes a breath and addresses the boom-creature directly with kindness. The boom-creature shrinks slightly, almost shyly.
 
 --- Page 14 ---
-אני לא מושך את צבי.
+צבי חייך.
+או לפחות, כך זה נראה. קשה לדעת עם עופרים.
+הכתמים על גבו הפכו כחולים רכים.
+"עכשיו את/ה {שומע|שומעת} אחרת," אמר.
+{{childName}} {הקשיב|הקשיבה}.
+היער עדיין היה מלא.
+זיפ־זיפ בין העלים. קלאק־קלאק ליד השורש. טאפ־טאפ על האבן. בום קטן מאחור.
+אבל בין הקולות היה גם רווח.
+רווח לנשימה.
+רווח לאדמה.
+רווח ל{{childName}}.
+והרווח הזה היה חשוב.
 
-אני הולך לאט לכיוון הזוהר.
-
-צעד. עוד צעד. רק אני.
-
-imageDirection: careful movement, soft light ahead
+imageDirection: Tzvi's spots are now soft blue. The forest is still full of sound-creatures, but space has opened between them. The child stands centered on the path, listening with calmer eyes.
 
 --- Page 15 ---
-אני טופף על האדמה. אחת. שתיים. שלוש.
+הם המשיכו ללכת.
+השביל הוביל אל קרחת יער קטנה.
+במרכזה היתה שלולית שקטה.
+על פני המים ריחפו יצורי צליל קטנים.
+כל אחד עשה קול אחר.
+אחד זמזם. אחד שרק. אחד עשה פופ בכל פעם שנגע בעלה.
+{{childName}} {חייך|חייכה}.
+"זה עדיין הרבה."
+"כן," אמר צבי.
+"אבל לא הכל צריך להיכנס אלי," {אמר|אמרה} {{childName}}.
+צבי הוריד את הראש אל המים.
+"בדיוק."
+המים רעדו בנשימה אחת ארוכה.
 
-קצב שווה. שקט.
-
-הצליל חוזר אחרי כל טפיפה.
-
-imageDirection: repeating visual beats spreading outward
+imageDirection: A small forest clearing with a still pond at its center. Tiny sound-creatures hover and bounce above the water surface — each making a different gentle sound. Tzvi lowers his head to the water. The child smiles softly.
 
 --- Page 16 ---
-יצור קטן יושב על אבן. הוא זוהר בצבע כחול רך.
+ליד השלולית היה פרח לבן.
+עליו ישב יצור זיפ קטן, שקוף כמעט לגמרי.
+הוא רעד.
+זיפ־זיפ־זיפ.
+"גם הוא מוצף?" {שאל|שאלה} {{childName}}.
+צבי הביט בו.
+"לפעמים גם קולות נבהלים מקולות אחרים."
+{{childName}} {התיישב|התיישבה} מול היצור הקטן.
+לא קרוב מדי.
+"רוצה לנשום איתנו?" {שאל|שאלה}.
+היצור לא ענה.
+אבל הזיפ שלו האט.
+{{childName}} {נשם|נשמה}.
+צבי נשם.
+והזיפ הקטן נהיה:
+זיפ.
+רק זיפ אחד.
 
-הוא מצלצל בעדינות כל פעם שאני טופף.
-
-זה יפה.
-
-imageDirection: small luminous creature emitting soft tones
+imageDirection: A small frightened semi-transparent zip-creature sits trembling on a white flower beside the pond. The child crouches near, not too close, breathing gently. Tzvi breathes alongside. The little zip-creature's tremor slows.
 
 --- Page 17 ---
-אוזן אחת של צבי זזה.
+השמש התחילה לרדת.
+היער נעשה כתום וסגול.
+הקולות לא נעלמו.
+הם רק התיישבו קצת יותר יפה בתוך העולם.
+{{childName}} {ידע|ידעה} שצריך לחזור הביתה.
+צבי ליווה {אותו|אותה} עד שביל הכניסה.
+לפני שנפרדו, הוא נגע באפו בכף היד של {{childName}}.
+היתה שם נקודת צבע קטנה.
+ירוק־כחול.
+כמו כתם מפרוותו.
+"זה יישאר?" {שאל|שאלה} {{childName}}.
+"לא על היד," אמר צבי. "אבל אולי במקום אחר."
+{{childName}} {נגע|נגעה} בחזה.
 
-הוא עדיין קפוא, אבל האוזן זזה לכיוון הצליל.
-
-הפרח שלו חוזר קצת. צבע חיוור.
-
-imageDirection: slight softening in posture, faint color returning to flower
+imageDirection: Forest at sunset, all orange-purple light. Tzvi stands at the edge of the path, gently touching his nose to the child's open palm. A small green-blue spot of color remains on the child's hand. The child's other hand moves toward their chest.
 
 --- Page 18 ---
-צבי עושה צעד קטן.
+בדרך הביתה, העולם חזר להיות העולם.
+מכונית עברה בכביש.
+הממממ.
+כלב נבח.
+הב־הב!
+מהבית נשמע צחוק גדול של אח קטן.
+קול רם.
+קול מוכר.
+הבטן של {{childName}} התחילה לעשות סיבוב קטן.
+אבל הפעם {{childName}} {עצר|עצרה} ליד השער.
+יד על הבטן.
+נשימה פנימה.
+נשימה החוצה.
+המכונית היתה מכונית.
+הכלב היה כלב.
+הצחוק היה צחוק.
+והגוף של {{childName}} היה כאן.
 
-הוא מקשיב לצליל שלי ולצליל של היצור ביחד.
-
-גופו רגוע יותר. אבל עדיין דרוך.
-
-imageDirection: subtle movement, mixed sound ripples stabilizing
+imageDirection: The child walking home along a normal suburban street. A passing car, a barking dog, a sibling's laugh through an open window. The child pauses at the front gate, hand on their own belly, breathing.
 
 --- Page 19 ---
-היצור נותן לי אבן קטנה. היא מזמזמת בעדינות.
+{כשנכנס|כשנכנסה} הביתה, הקומקום שרק במטבח.
+אח קטן צחק.
+מישהו הזיז כיסא.
+פעם, כל זה היה נכנס יחד כמו סערה.
+עכשיו {{childName}} {נזכר|נזכרה} ביער הקולות.
+בצבי.
+ביצור הבום.
+בזיפ הקטן שנרגע.
+הקולות עדיין היו שם.
+אבל {{childName}} {מצא|מצאה} ביניהם רווח קטן.
+רווח לנשימה אחת.
+ואז לעוד אחת.
+אמא הסתכלה {עליו|עליה}.
+"את/ה בסדר?"
+{{childName}} {חשב|חשבה} רגע.
+"אני בתוך הרבה קולות," {אמר|אמרה}, "אבל אני פה."
 
-אני מחזיק אותה. הזמזום לא משתנה.
-
-imageDirection: child holding a softly glowing token
+imageDirection: The child has come back inside the house. The kitchen sounds — kettle, sibling laughing, chair scraping — still present. The child stands with mother in the kitchen, calm-eyed, hand still resting gently on their belly.
 
 --- Page 20 ---
-אני הולך קדימה בשביל. האבן מזמזמת בכיס שלי.
+באותו לילה, כש{{childName}} {שכב|שכבה} במיטה, העולם לא היה שקט לגמרי.
+המקרר זמזם.
+צעד עבר במסדרון.
+רוח נגעה בחלון.
+אבל {{childName}} {הניח|הניחה} יד על הבטן.
+נשימה פנימה.
+נשימה החוצה.
+בעיניים עצומות, {הוא|היא} {ראה|ראתה} יער.
+זיפ־זיפ. קלאק־קלאק. בום קטן. וצבי חום, עם כתמים כחולים־ירוקים, עומד ביניהם בשקט.
+היער לא השתתק.
+וגם הבית לא.
+אבל בתוך {{childName}} היה מקום קטן שלא זז.
+ושם, בין כל הקולות, היה אפשר לנוח.
 
-צבי הולך מאחורי. לא קרוב.
+imageDirection: The child curled peacefully in bed at night. Through the closed window the world is still active — moonlight, distant sounds. The child's hand rests on their belly. A faint after-image of the forest is suggested through the bedroom shadows — a hint of Tzvi standing quietly among soft glowing sound-creatures.
 
-הוא מקשיב לאבן. פרח קטן צומח לו שוב, אבל בצבע אחר.
-
-imageDirection: wide shot, space between them, cooler tones, faint sound line connecting
-
-WORD_COUNT: [37, 29, 34, 24, 28, 31, 28, 26, 26, 20, 22, 11, 22, 18, 21, 25, 19, 23, 20, 29] = 493
+WORD_COUNT: [49, 59, 56, 59, 54, 67, 67, 63, 63, 63, 61, 67, 68, 56, 64, 60, 63, 58, 62, 66] = [1225]
