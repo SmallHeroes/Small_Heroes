@@ -29,7 +29,8 @@ export const BANK_PROTAGONIST_DENYLIST: readonly string[] = [
   'Omer',
   'שירה',
   'Shira',
-  'אלה',
+  // 'אלה' removed — common Hebrew word for "these" causes false positives.
+  // 'Ella' retained since English transliteration won't collide with Hebrew prose.
   'Ella',
   'תום',
   'Tom',
