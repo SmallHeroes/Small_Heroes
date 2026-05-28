@@ -1,213 +1,402 @@
-# Story: bunny_ometz_fantasy — Story Bank v5 (Hybrid: GPT-5 skeleton + Claude prose)
-Generated: 2026-05-13T22:06:19.784Z
-Skeleton model: gpt-5.3-chat-latest
-Prose model: claude-sonnet-4-5-20250929
-Total time: 85.3s
-Prompt-version: v5
+# Story: bunny_ometz_fantasy — Story Bank v5 (Literary Rewrite)
+Generated: 2026-05-28T22:45:00.000Z
+Source: AI writer → adapt-pass
+Companion canonical name: בּוּנִי (per lib/companions.ts bunny_ometz.name)
+Prompt-version: v5-literary
+Notes: fantasy / SHYNESS / 20 pages / residue = a small unused "אפשר לשחק" word-creature kept by the pillow
 
 ---
----
-title: "הסיפור הגדול והדבר הקטן"
+title: "{{childName}} ובוני בממלכת המילים הלוחשות"
 companionId: bunny_ometz
 direction: fantasy
-category: GENERAL_FEARS
+category: SHYNESS_SOCIAL
 gender: male
 pages: 20
-endingType: distance
-worldRule: עולם של תרחישים שמתממשים בקטן. החוק לא מתבטל.
+endingType: residue
+worldRule: "המילים לא חייבות לצאת חזק — רק באמת. ולא כולן בבת אחת."
 ---
 
-storyStyle: fantastical emotional journey
-metaphor: imagined catastrophes as oversized stories that shrink in reality
-stakes: If the child follows the growing imagined scenarios, they may avoid acting and miss solving the real, small problem
-emotionalArc: curiosity → overwhelm → escalation → noticing → quiet distance
-quietPage: 15
-heartLine: עמוד 10 — Ometz quietly tightens his courage medal strap and sits smaller, still narrating to himself
-emotionalMistake: עמוד 6 — The child covers their own ears and turns away, no longer able to follow Ometz's spiraling scenarios
-uncomfortableTruth: עמוד 13 — The child realizes Ometz cannot stop his stories even when they make things worse
+storyStyle: literary fantasy, rich word-creature world, social-anxiety with companion who shares the struggle
+metaphor: unsaid words live as tiny shy creatures in a magical clearing — picking one at a time, choosing which to bring back into the body, is the act of speaking under pressure
+stakes: the child stays frozen at the edge of a birthday party, holding a gift they cannot give, with words stuck above the heart
+quietPagePosition: 13
+heartLine: page 18 — "אחת יצאה קצת מהר. אחת יצאה כמעט בלחישה. אבל כולן היו שלו/ה."
+emotionalMistake: page 3 — child practiced "מזל טוב" at home in the mirror; in the meadow with other children, words won't come
+uncomfortableTruth: page 11 — too many words at once feel like noise; the social-anxiety overload is real
+agencyTransfer: page 13 — child stays quietly beside Buni while Buni faces her own word ("אני אוהבת את האוזן שלי") — companion-as-equally-vulnerable
+roleReversal: page 19 — Buni gets her own moment with a young rabbit; both of them are now practicing words
 
 --- Page 1 ---
-בּוּנִי יוֹשֵׁב ליד הדלת. הוא מדבר מהר.
+בקצה אחו ירוק, מתחת לשורש של עץ רחב, גרה ארנבת קטנה בשם בוני.
+הפרווה שלה היתה בצבע שמנת טרייה.
+אוזן אחת שלה היתה ישרה.
+והשנייה היתה מקופלת קצת בקצה, כי כשהיתה גורה היא ישנה עליה יותר מדי.
+בוני אהבה את האוזן הזאת.
+בדרך כלל.
+חוץ מהרגעים שבהם יצורים אחרים היו מסתכלים עליה ואומרים:
+"איזו אוזן מצחיקה."
+ואז כל המילים של בוני היו מתחבאות מאחורי השיניים הקדמיות שלה.
 
-"אִם הדלת תיסגר, לא נוכל לצאת. ואָז נצטרך לקרוֹא, והקוֹל לא יעבוֹר, ואָז—"
-
-הוא נוֹשֵׁם. מדבר שׁוּב.
-
-"ואָז אולי גם החלוֹן ייסגר, וגם—"
-
-imageDirection: Rabbit sitting upright near a door, gesturing intensely while the room looks normal
+imageDirection: A cozy rabbit burrow under a wide tree at the edge of a green meadow. Buni, a small cream-colored rabbit with one slightly bent ear and big front teeth, peeks out shyly.
 
 --- Page 2 ---
-אני נכנס לחדר.
+כשהיתה לבד, בוני היתה אמיצה מאוד.
+היא קפצה מעל קוצים גבוהים.
+סיפרה לפרחי חמאה על מסעות גדולים.
+ואפילו הכריזה פעם על מלחמה נגד עלה יבש שנדבק לה לזנב.
+"אני לא פוחדת ממך!" היא אמרה לעלה.
+העלה לא ענה.
+עלים יבשים טובים מאוד בלא לענות.
+אבל כשארנב אחר התקרב ואמר "שלום" —
+החזה שלה נהיה צפוף.
+וה"שלום" שהתאמנה עליו כל הבוקר נתקע.
+לא בגרון ממש.
+קצת מעל הלב.
+וקצת מאחורי השיניים.
 
-"בּוּנִי, יש לי משׁהוּ קטן."
-
-אני מראה לו את הקיר. יש בּוֹ סדק זעיר. הוא זוֹהר קצת.
-
-בּוּנִי מסתובב מהר. האוזניים שׁלו עוֹלוֹת.
-
-imageDirection: Small glowing crack visible, child pointing, Ometz turning alert
+imageDirection: Buni alone in the meadow, leaping bravely over thistles and whispering grand stories to buttercups, then freezing shyly when another rabbit approaches.
 
 --- Page 3 ---
-"סדק!" בּוּנִי קופץ קרוֹב. "אִם הסדק יגדל, הקיר ייסדק, ואז החדר ייפול, ואָז—"
+באותו אחר הצהריים, בקצה האחו, {עמד|עמדה} {{childName}}.
+היתה שם מסיבת יום הולדת.
+בלונים.
+עוגה.
+ילדים שרצו אחרי פרפרים.
+ובן/בת דוד עם כתר נייר קצת עקום, {שחיכה|שחיכתה} {שיגידו לו|שיגידו לה} מזל טוב.
+{{childName}} {החזיק|החזיקה} מתנה קטנה בשתי ידיים.
+בבית, מול המראה, המילים יצאו בסדר גמור:
+"מזל טוב."
+קל.
+שתי מילים.
+אבל עכשיו, ליד כל הילדים, הן לא יצאו.
+הפה של {{childName}} הרגיש סגור מבפנים.
 
-הוא מסתכל עליי.
-
-"אָז כל הבּית ייפוֹל! ואולי גם הבּתים ליד!"
-
-אני מנסה להגיד משׁהוּ, אבל הוא כבר ממשׁיך.
-
-imageDirection: Ometz speaking fast, imagined shadows looming larger than the crack
+imageDirection: A child standing at the edge of a lively birthday party in a meadow, holding a small gift. Other children laugh and chase butterflies. The birthday cousin wears a slightly crooked paper crown.
 
 --- Page 4 ---
-ניצוֹץ קטן יוֹצא מהסדק.
+מאחורי עלי תלתן, בוני ראתה {אותו|אותה}.
+היא ראתה את הידיים שמחזיקות חזק מדי.
+את הרגליים שלא יודעות אם להתקדם או לברוח.
+את הפה שרוצה להגיד משהו ונשאר שקט.
+בוני הכירה את זה.
+ה"שלום" שלה עדיין ישב איפשהו מעל הלב.
+בוני לא אמרה "פשוט תגיד/י".
+היא לא אמרה "זה קל".
+כי זה לא היה קל.
+במקום זה, היא יצאה מהתלתן.
+לאט.
+רך.
+כמו מילה שלא רוצה להבהיל אף אחד.
 
-הוא לא עוֹשֶׂה כּלוּם. פּשׁוּט מרחף באוויר. ואָז נופל על הרצפּה.
-
-בּוּנִי עוֹצר. מסתכל על הניצוֹץ.
-
-"זה... זה מה שׁאמרתי."
-
-imageDirection: Small harmless spark floating, child surprised
+imageDirection: Buni watches the child from behind clover leaves, recognizing the same stuck feeling. She gently steps out, soft and quiet.
 
 --- Page 5 ---
-"ואָז," בּוּנִי ממשׁיך מהר, "ייצאוּ עוֹד ניצוֹצוֹת. הרבּה יוֹתר. והן יכבּוֹ את האור. ואָז החדר יהיה חשׁוּך, ונצטרך—"
+{{childName}} {ראה|ראתה} את בוני.
+"שלום," {הוא|היא} {ניסה|ניסתה} ללחוש.
+אבל יצא רק:
+"ש..."
+בוני הזיזה את האוזן המקופלת שלה.
+לא צחוק.
+לא רחמים.
+סימן קטן שאומר: גם אצלי זה קורה.
+אחר כך היא הסתובבה וקפצה אל עומק האחו.
+צעד אחד.
+ואז עוד אחד.
+ואז הביטה לאחור.
+{{childName}} {הסתכל|הסתכלה} על המסיבה.
+ואז על בוני.
+הרגליים {שלו|שלה} בחרו את בוני.
 
-עוֹד דבר קטן יוֹצא מהסדק. זה כּמוֹ עָנָן קטן. הוא מרחף ליד התקרה.
-
-בּוּנִי רוֹאה אותוֹ.
-
-"רואה? זה כבר קוֹרה!"
-
-imageDirection: Mini versions of imagined events appearing faintly around them
+imageDirection: Buni gives the child an inviting twitch of her bent ear and hops into the meadow. The child looks back at the party, then follows Buni through the grass.
 
 --- Page 6 ---
-"בּוּנִי, אני לא יכול לעקוב!"
+בוני הובילה {אותו|אותה} בין פרחי פעמונית כחולים.
+הפרחים היו גבוהים כמעט כמו {{childName}}.
+כשהרוח עברה בהם, הם עשו צליל קטן:
+טין־טין.
+מעבר לפרחים היה שביל צר.
+השביל לא נראה שם לפני רגע.
+הוא היה עשוי מאבק זהוב, קוצים רכים, וקולות קטנים שלא ממש נאמרו.
+בוני עצרה בפתח השביל.
+האוזן המקופלת שלה רעדה.
+"שם," היא לחשה.
+"מה יש שם?" {שאל|שאלה} {{childName}}.
+בוני בלעה רוק.
+"המקום שאליו מילים הולכות כשהן לא יוצאות."
 
-אני מסתובב הצידה ושׂם ידיים על האוזניים שלי. הוא מפסיק באמצע מילה.
-
-האוזניים שׁלו שׁטוּחוֹת לאחוֹר.
-
-imageDirection: Child leaning in, hand over Ometz's mouth, Ometz startled
+imageDirection: Buni and the child walk between tall bluebells into a hidden golden path made of dust, soft thorns, and faint unsaid sounds. Magical fantasy meadow entrance.
 
 --- Page 7 ---
-משׁהוּ קטן מתגלגל מהסדק. זה כּדוּר קטן, רך.
+השביל הוביל לקרחת עגולה.
+לא גדולה.
+מקום בדיוק בגודל של סוד.
+ובקרחת הזאת קפצו יצורים זעירים.
+חלקם היו כמו אותיות.
+חלקם כמו נוצות.
+חלקם כמו נקודות אור שהחליטו שיש להן רגליים.
+הם קפצו בשקט.
+כמעט מילים.
+יצור קטן בצורת מ' התגלגל בין שתי אבנים.
+יצור ורוד עם זנב של סימן שאלה התחבא מתחת לעלה.
+יצור זהוב קטן קפץ ליד הנעל של {{childName}}.
+הוא רעד.
 
-הוא נעצר ליד הרגל שׁלי. לא קוֹרה כּלוּם.
-
-imageDirection: Tiny object rolling out of the crack, subtle and non-threatening
+imageDirection: A hidden round clearing glowing softly. Tiny glowing word-creatures shaped like letters, feathers, punctuation, and sparks hop in the grass.
 
 --- Page 8 ---
-בּוּנִי מושׁך את עצמוֹ. מתחיל לדבר שׁוּב, מהר יוֹתר.
+"אלה..." בוני התחילה.
+המילה שלה נתקעה.
+היא עצמה עיניים רגע.
+נשמה.
+ואמרה שוב:
+"אלה מילים לוחשות."
+{{childName}} {כרע|כרעה} ליד היצור הזהוב.
+"הן חיות?"
+"קצת," אמרה בוני.
+"הן נושכות?"
+בוני הסתכלה על יצור קטן בצורת סימן קריאה שניסה לטפס על גבעול ונפל.
+"רובן לא."
+"ורק חלק?"
+"חלק מדגדגות."
+היצור הזהוב קפץ צעד קטן אל {{childName}}.
+ואז ברח צעד קטן אחורה.
 
-"ואָז הכּדוּר יתפּוֹצץ! וזה יעשֶׂה חוֹר ברצפּה! ואָז נפּוֹל דרך החוֹר! ואָז תחתנו יהיה—"
-
-הקוֹל שׁלו מהיר כּל כּך. הוא כּמעט לא נוֹשֵׁם.
-
-imageDirection: Ometz with flattened ears, speaking rapidly, imagined chaos towering above
+imageDirection: Buni carefully explains the whisper-words. A tiny exclamation-mark creature tries to climb a stem and falls. The child kneels near a shy golden word-creature.
 
 --- Page 9 ---
-אני מסתכל על הכּדוּר הקטן ליד הרגל שׁלי. הוא פּשׁוּט שׁם.
+"היא {שלי|שלי}?" {שאל|שאלה} {{childName}}.
+בוני התקרבה ליצור הזהוב והריחה אותו בעדינות.
+"מזל..." היא לחשה.
+היצור הזהוב קפץ.
+"טוב," {לחש|לחשה} {{childName}} בלי להתכוון.
+היצור נעצר.
+הוא הסתכל על {{childName}}.
+או לפחות כך זה נראה.
+קשה לדעת לאן מילים מסתכלות.
+"היא חיכתה {לך|לך}," אמרה בוני.
+{{childName}} {הושיט|הושיטה} יד.
+היצור לא ברח.
+הוא קפץ לכף היד {שלו|שלה}.
+הוא היה חמים.
+כמו מילה שאומרים באמת.
 
-ואָז אני מסתכל על בּוּנִי. הוא רוֹאה משׁהוּ אחר. משׁהוּ גדוֹל מאוד.
-
-הדברים שׁהוא אומר — הם גדוֹלים.
-
-הדברים שׁקוֹרים — הם קטנים.
-
-imageDirection: Split contrast between tiny real effects and oversized imagined shadows
+imageDirection: The child holds a tiny golden 'mazal tov' word-creature in the palm. Buni sits nearby, watching gently. The creature glows warm and shy.
 
 --- Page 10 ---
-בּוּנִי עוֹצר לרגע. הוא יוֹשֵׁב על הרצפּה.
+בוני הרימה יצור קטן אחר.
+ירוק.
+דק.
+עם אוזניים כמעט כמו שלה.
+"זה שלי," היא אמרה.
+היצור הסתתר בין הכפות שלה.
+"מה הוא אומר?" {שאל|שאלה} {{childName}}.
+בוני בלעה רוק.
+האף שלה זז.
+השיניים שלה רעדו קצת.
+"ש... ש..."
+היצור הירוק כמעט קפץ חזרה לדשא.
+בוני סגרה עליו בעדינות.
+ואז לחשה:
+"שלום."
+המילה יצאה קטנה.
+אבל היא יצאה.
+היצור הירוק נמס לאור רך ונכנס לבוני דרך החזה.
+בוני נראתה מופתעת מעצמה.
 
-מושׁך את רצוּעת המדליוֹן. מהדק אותהּ.
-
-הוא מתכווץ קצת עכשיו. האוזניים שׁטוּחוֹת.
-
-הוא לוֹחש משׁהוּ לעצמוֹ. מהר מהר מהר.
-
-imageDirection: Ometz small, ears back, holding medal, whispering intensely
+imageDirection: Buni holds a tiny green 'hello' word-creature. Her teeth wobble, but she whispers the word. The creature dissolves into soft light entering her chest.
 
 --- Page 11 ---
-עוֹד דבר קטן יוֹצא מהסדק. הוא נוֹפל ממש ליד בּוּנִי.
+פתאום הקרחת כולה זזה.
+לא ברגליים.
+במילים.
+עוד יצורים לוחשים התקרבו.
+כחולה קטנה עם זנב עגול.
+"קוראים לי."
+ורודה שמנמנה.
+"תודה."
+לבנה דקה מאוד.
+"אפשר לשחק?"
+כתומה קטנה שקפצה גבוה מדי.
+"גם אני!"
+בוני נבהלה קצת.
+"לא את כולן," היא לחשה מהר.
+{{childName}} {הסתכל|הסתכלה} על היצורים.
+הם היו חמודים.
+אבל רבים מדי.
+יותר מדי מילים בבת אחת יכולות להרגיש כמו רעש.
 
-בּוּנִי לא רוֹאה. הוא מסתכל במקוֹם אחר.
-
-imageDirection: Small harmless occurrence near Ometz while he stares into imagined space
+imageDirection: Many colorful whisper-word creatures gather around the child: blue, pink, white, orange, each representing small phrases. Magical but slightly overwhelming.
 
 --- Page 12 ---
-אני מתכּוֹפף. מראה לוֹ.
+בוני הניחה כפה קטנה על הדשא.
+"רק אחת," היא אמרה.
+{{childName}} {נשם|נשמה}.
+{הוא|היא} לא {לקח|לקחה} את כל המילים.
+לא את "תודה".
+לא את "אפשר לשחק".
+לא את "גם אני".
+רק את המילה הכחולה.
+היא היתה קטנה.
+עגולה.
+לא דחפה.
+"קוראים לי," {לחש|לחשה} {{childName}}.
+המילה הכחולה התמתחה.
+"קוראים לי {{childName}}."
+היצור הכחול חייך אם למילים יש חיוכים, ונכנס פנימה.
 
-"בּוּנִי, תסתכל."
-
-הוא לא מסתכל. העיניים שלו מביטות רחוק.
-
-imageDirection: Child pointing softly to tiny event, Ometz still focused elsewhere
+imageDirection: The child gently chooses only the blue 'my name is' word-creature from the group. The rest wait in the glowing grass. Buni watches with quiet pride.
 
 --- Page 13 ---
-אני רוֹאה עכשׁיו.
+בוני קפצה פעם אחת במקום.
+"את/ה {עושה|עושה} את זה," היא לחשה.
+ואז עצרה.
+כי גם לה היתה עוד מילה.
+מאחורי גבעול דק התחבאה מילה קטנה בצבע קרם.
+בוני התקרבה אליה.
+"אני..." היא אמרה.
+המילה רעדה.
+בוני רעדה גם.
+{{childName}} לא {אמר|אמרה} "קדימה".
+{הוא|היא} רק {נשאר|נשארה} שם.
+כמו שבוני נשארה קודם.
+בוני לקחה נשימה קטנה.
+"אני אוהבת את האוזן שלי," היא לחשה.
+האוזן המקופלת שלה קפצה כאילו שמעה מחמאה בפעם הראשונה.
 
-בּוּנִי לא יכוֹל לראות את הדברים הקטנים.
-
-הוא בּתוֹך הסיפּוּר שׁהוא מספּר.
-
-imageDirection: Ometz surrounded by imagined visuals, real world dimmer but present
+imageDirection: Buni finds a small cream-colored word-creature and whispers 'I like my ear.' The child stays quietly beside her. Buni's bent ear twitches happily.
 
 --- Page 14 ---
-אני קם. הוֹלך לקיר.
+באותו רגע, נשמע רשרוש חזק בקצה הקרחת.
+מתוך העשב יצא יצור־מילה גדול יותר.
+לא ענק.
+אבל גדול בשביל מילה.
+הוא היה עשוי מאותיות שהתבלבלו זו בזו.
+מ' עלתה על ז'.
+ט' הסתבכה בל'.
+הוא ניסה להגיד משהו.
+"מז... תו... בל... קור..."
+והתכווץ מרוב בלבול.
+{{childName}} {החזיק|החזיקה} את המתנה חזק יותר.
+"זה {שלי|שלי}?" {שאל|שאלה}.
+בוני הסתכלה {עליו|עליה}.
+"אולי כל המילים שרצו לצאת יחד."
+היצור הגדול רעד.
 
-בּוּנִי ממשׁיך לדבר. "ואָז הסדק יבלע את הקיר, ואָז את החדר, ואָז—"
-
-אני מושׁיט יד.
-
-imageDirection: Child extending hand, Ometz behind mid-speech, imagined chaos trailing
+imageDirection: A larger tangled word-creature made of mixed-up letters emerges from the grass, confused and trembling. The child and Buni watch with concern.
 
 --- Page 15 ---
-אני נוֹגע בּסדק.
+{{childName}} {התקרב|התקרבה} אליו בזהירות.
+לא קרוב מדי.
+"אתה יותר מדי מילים," {הוא|היא} {לחש|לחשה}.
+היצור הגדול עשה קול קטן.
+כמעט בכי.
+בוני עמדה ליד {{childName}}.
+הפעם היא לא התחבאה.
+{{childName}} {הושיט|הושיטה} יד אחת.
+"אולי אחת־אחת?"
+היצור הגדול רעד.
+ואז אות זהובה קטנה נפרדה ממנו וקפצה לכף היד של {{childName}}.
+"מזל."
+עוד אות אחריה.
+"טוב."
+ואז כחולה קטנה.
+"קוראים לי."
+היצור הגדול נעשה קטן יותר.
+לא נעלם.
+אבל כבר לא היה סבך.
 
-imageDirection: Finger gently touching the glowing crack, everything still
+imageDirection: The child helps the tangled word-creature separate into small gentle word-creatures one by one. Buni stands bravely beside the child. Magical disentangling of letters.
 
 --- Page 16 ---
-הסדק נעצר. הזוֹהר נעלם.
+השמש התחילה לרדת.
+היער נעשה כתום וסגול.
+הקולות לא נעלמו.
+הם רק התיישבו קצת יותר יפה בתוך העולם.
+{{childName}} {ידע|ידעה} שצריך לחזור הביתה.
+בוני ליוותה {אותו|אותה} עד שביל הכניסה.
+"המילים לא חייבות לצאת חזק," היא אמרה.
+"רק באמת?" {שאל|שאלה} {{childName}}.
+בוני הנהנה.
+"רק באמת."
 
-נשמע צליל קטן. והסדק נסגר.
-
-בּוּנִי עוֹמד באמצע משׁפּט. הפּה שׁלו פּתוּח.
-
-imageDirection: Glow fading, room calm, Ometz frozen mid-thought
+imageDirection: Sunset meadow path back toward the birthday party. The child walks with Buni, carrying the quiet words inside. Party lights and laughter glow in the distance.
 
 --- Page 17 ---
-בּוּנִי מסתכל סביב. החדר שׁקט.
+{{childName}} {חזר|חזרה} אל המסיבה.
+המתנה עדיין היתה בידיים {שלו|שלה}.
+בן/בת הדוד {עמד|עמדה} ליד השולחן, עם כתר נייר קצת עקום.
+{{childName}} {הרגיש|הרגישה} את המילה הזהובה מתעוררת.
+היא לא דחפה.
+לא צעקה.
+רק נגעה בעדינות בשפתיים.
+{{childName}} {לקח|לקחה} נשימה.
+"מזל טוב," אמר/ה.
+לא בקול גדול.
+לא מול כולם.
+רק {אליו|אליה}.
+אמיתי.
+בן/בת הדוד {חייך|חייכה}.
+"תודה," {הוא|היא} {אמר|אמרה}.
+והמילה הקטנה בתוך {{childName}} התחממה.
 
-האוזניים שׁלו עוֹלוֹת קצת.
-
-"זה... זה היה קטן."
-
-imageDirection: Ometz looking around, confusion, imagined shapes fading
+imageDirection: The child returns to the birthday party and quietly says 'mazal tov' to the birthday cousin wearing a slightly crooked paper crown. A small warm glow near the child's chest.
 
 --- Page 18 ---
-ניצוֹץ חדש מופיע בּפינה אחרת. זעיר.
+אחר כך {{childName}} לא {אמר|אמרה} הכל.
+לא מיד.
+לא לכל הילדים.
+אבל {הוא|היא} {אמר|אמרה} עוד דבר קטן.
+"קוראים לי {{childName}}."
+ואחר כך, כשמישהו העביר צלחת עוגה:
+"תודה."
+המילים לא יצאו מושלמות.
+אחת יצאה קצת מהר.
+אחת יצאה כמעט בלחישה.
+אבל כולן היו {שלו|שלה}.
+ובקצה האחו, מאחורי התלתן, בוני ראתה.
+האוזן המקופלת שלה עמדה גבוה ככל שיכלה.
 
-בּוּנִי רוֹאה אותוֹ.
-
-imageDirection: Small subtle flicker, distant from child
+imageDirection: The child quietly says a few small phrases at the party — 'my name is,' 'thank you' — while Buni watches proudly from behind clover.
 
 --- Page 19 ---
-"אִם הניצוֹץ יגדל—" בּוּנִי מתחיל.
+בוני נשמה עמוק.
+לידה עבר ארנב צעיר עם זנב לבן וקפיצות מהירות.
+"שלום," הוא אמר.
+בוני כמעט התחבאה.
+כמעט.
+היא הרגישה את המילה הירוקה שלה מתעוררת.
+לא דוחפת.
+רק מחכה.
+בוני הזיזה את האוזן המקופלת.
+"שלום," היא לחשה.
+הארנב חייך.
+"אוזן יפה," הוא אמר.
+בוני קפאה לרגע.
+ואז, בשקט קטן מאוד, אמרה:
+"תודה."
+המילה הורודה, כנראה, מצאה גם אותה.
 
-אבל הוא רחוֹק יוֹתר ממני עכשׁיו.
-
-אני מסתכל על הניצוֹץ. לא על בּוּנִי.
-
-imageDirection: Ometz in background talking, child in foreground observing quietly
+imageDirection: Buni, near clover at the edge of the party, says 'hello' to a passing young rabbit and then quietly says 'thank you' when he compliments her bent ear.
 
 --- Page 20 ---
-אני עוֹמד ליד הניצוֹץ. מחכּה.
+בלילה, כש{{childName}} {חזר|חזרה} הביתה, היתה בכיס {שלו|שלה} מילה לוחשת אחת שלא {השתמש|השתמשה} בה עדיין.
+"אפשר לשחק?"
+היא היתה קטנה ולבנה.
+היא לא דחפה.
+היא רק חיכתה ליום אחר.
+{{childName}} {הניח|הניחה} אותה ליד הכרית.
+אולי מחר.
+אולי לא.
+בוני, רחוק באחו, חזרה למחילה שלה.
+לפני שנרדמה, היא אמרה לעצמה:
+"שלום."
+ואז:
+"תודה."
+ואז, רק כדי לבדוק:
+"אני אוהבת את האוזן שלי."
+האוזן המקופלת רעדה.
+אבל הפעם, היא לא הסתתרה.
 
-בּוּנִי מדבר מאחוֹריי. הקוֹל שׁלו רחוֹק.
+imageDirection: Night closing scene: the child at home places a tiny white unused word-creature near the pillow. Far away, Buni in her cozy burrow softly practices her words and rests with her bent ear visible.
 
-הניצוֹץ זוֹהר קצת. זה הכּל.
-
-imageDirection: Child near small glow, Ometz small in background, cool open space
-
-WORD_COUNT: [32, 28, 38, 26, 37, 25, 22, 32, 31, 28, 20, 21, 18, 24, 8, 22, 18, 16, 24, 20] = 490
+WORD_COUNT: [67, 70, 63, 68, 57, 70, 64, 59, 61, 70, 61, 58, 70, 65, 70, 44, 60, 56, 59, 68] = [1260]
