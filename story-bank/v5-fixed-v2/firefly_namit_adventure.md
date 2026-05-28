@@ -1,159 +1,250 @@
-# Story: firefly_namit_adventure — Story Bank v5 (Hybrid: GPT-5 skeleton + Claude prose)
-Generated: 2026-05-13T21:53:39.720Z
-Skeleton model: gpt-5.3-chat-latest
-Prose model: claude-sonnet-4-5-20250929
-Total time: 61.6s
-Prompt-version: v5
+# Story: firefly_namit_adventure — Story Bank v5 (Literary Rewrite)
+Generated: 2026-05-28T17:00:00.000Z
+Source: manual literary rewrite (Guy draft → adapt-pass)
+Companion canonical name: נָמִית (per lib/companions.ts firefly_namit.name)
+Prompt-version: v5-literary
+Notes: adventure / NIGHT_FEAR / 15 pages / residue = small light = one step at a time
 
 ---
----
-title: "נְמית וְהָאור שלֹּא מַסְפִּיק"
+title: "{{childName}} ונמית במסדרון הגדול"
 companionId: firefly_namit
 direction: adventure
-category: GENERAL_FEARS
+category: NIGHT_FEAR
 gender: male
 pages: 15
 endingType: residue
-
+worldRule: "אור קטן לא מאיר את כל הדרך. הוא מאיר את הצעד הבא — וזה מספיק."
 ---
 
-storyStyle: gentle night adventure with accumulating tension
-metaphor: light as control versus darkness as something that can be shared
-stakes: Namit will burn out her light and leave both her and the child alone in darkness with no energy left
-emotionalArc: active fixing → overwhelm → crack of vulnerability → collapse into dark → steady small return
-quietPage: 11
-heartLine: עמוד 8 — Namit hides under a leaf to conceal her flickering light while still trying to glow outward
-emotionalMistake: עמוד 5 — The child impatiently pushes Namit to light everything faster and ignores her strain
-uncomfortableTruth: עמוד 9 — Even when fully lit, one looming shape only grows larger and does not become less threatening
+storyStyle: nighttime suburban adventure, low whisper voice, tight corridor pacing
+metaphor: a tiny firefly's circle of light = the next step you can see — you don't need to see the whole path
+stakes: the child stays frozen at the doorway and never reaches the doll; fear of "all of it" beats fear of "the next thing"
+quietPagePosition: 10
+heartLine: page 14 — "האור שלה היה קטן מאוד. אבל הוא לא התנצל."
+emotionalMistake: page 3 — staring down the whole length of the corridor at once, heart pounding
+uncomfortableTruth: page 8 — even Namit pauses; her light dims when the corridor creaks. Brave companions also flinch.
 
 --- Page 1 ---
-ערב יורד על החצר.
-הצללים נעשים ארוכים.
-אני עומד ליד השער ורואה צורות זזות.
-משהו שם ליד הגדר.
-משהו ליד הקיר.
-לא בטוח מה.
+ביום, הבית של {{childName}} היה בית רגיל לגמרי.
+הספה היתה ספה. השטיח היה שטיח. המסדרון היה רק מסדרון.
+אור שמש נכנס מהחלונות ועשה כתמים זהובים על הרצפה. הצעצועים נראו שמחים. אפילו הנעליים ליד הדלת נראו כאילו הן מחכות לטיול.
+אבל בלילה, אחרי שהאורות כבו, הבית ידע לעשות משהו מוזר.
+הוא נהיה גדול יותר.
+בעיקר המסדרון.
 
-imageDirection: soft twilight, long shadows stretching from ordinary objects
+imageDirection: A cozy suburban living room in late-evening twilight. A soft glow from a hallway. Family photos on a wall. The hallway stretches deeper into the home, just slightly longer than expected. Toys, shoes, a folded blanket — everyday objects sitting quiet.
 
 --- Page 2 ---
-נְמית מגיעה במהירות.
-אור חם וצהוב עף ישר לצל ליד הכלים.
-"אל פַּחַד!" היא אומרת ומאירה.
-זה רק גרזן ישן על הארץ.
+באותו ערב, הבובה האהובה של {{childName}} נשארה בחדר של אמא ואבא.
+זה קרה לגמרי בטעות, באמצע מלחמת דגדוגים גדולה.
+ועכשיו הבובה היתה רחוקה.
+לא רחוקה כמו הירח.
+רק בקצה המסדרון.
+אבל בלילה, קצה המסדרון הרגיש כמעט אותו דבר.
+{{childName}} עמד/ה בפתח החדר והחזיק/ה את הידית.
+החדר של אמא ואבא היה שם.
+הבובה היתה שם.
+והמסדרון היה ביניהם.
 
-imageDirection: a quick streak of warm yellow light cutting through blue darkness
+imageDirection: A child stands in the doorway of their bedroom in pajamas, small hand gripping the doorframe. Down the dark hallway, light spills faintly from a far bedroom. A beloved stuffed doll sits visible on a distant bed.
 
 --- Page 3 ---
-נמית עפה מצורה לצורה.
-אור על המעיל — זה מעיל.
-אור על הערמה — עלים בלבד.
-אור על הקופסה — קופסת צעצועים ריקה.
-"רואה? רואה? הכל בסדר!" היא אומרת מהר.
+{{childName}} הציץ/ה החוצה.
+המסדרון נמתח קדימה, חשוך וארוך.
+ביום היו בו תמונות משפחה, סל כביסה, וקיר עם סימן קטן של עיפרון.
+בלילה, התמונות נראו כמו פרצופים שקטים. סל הכביסה נראה כמו חיה מכווצת. והקיר עם סימן העיפרון פשוט נעלם בחושך.
+הלב של {{childName}} התחיל לדפוק.
+בום. בום. בום.
+"זה רק מסדרון," {לחש|לחשה}.
+אבל המסדרון לא נראה כמו "רק".
 
-imageDirection: spotlit patches revealing coat, leaves, and small objects casting big shadows
+imageDirection: A child's POV down a long dark hallway at night. Family portrait shapes hint at faces on the wall. A laundry basket is a crouched silhouette. The far end of the corridor disappears into deep shadow.
 
 --- Page 4 ---
-אבל עכשיו יש עוד צללים.
-כל פעם שהיא מאירה משהו אחד, משהו אחר מופיע.
-הצללים נמתחים ארוכים על הקרקע.
-נמית עפה מכאן לשם, מכאן לשם.
-האור שלה קופץ בין המקומות.
+מתוך החושך, ליד המשקוף, נדלקה נקודת אור קטנה.
+לא מנורה.
+לא פנס.
+נקודה רכה, זהובה, שזזה לאט באוויר.
+היא ירדה עד הרצפה ונעמדה שם, בדיוק לפני כף הרגל של {{childName}}.
+זו היתה נמית.
+גחלילית קטנה, עם כנפיים שקופות ואור קטן בקצה הגוף.
+האור שלה לא היה גדול.
+הוא לא הגיע עד סוף המסדרון.
+הוא האיר רק עיגול קטן על הרצפה.
+אבל העיגול הקטן לא היה מפחיד.
 
-imageDirection: overlapping shadows multiplying as light moves
+imageDirection: Close on the dark hallway floor near a child's bare foot. A tiny firefly hovers there — soft yellow-green glowing abdomen, translucent wings catching moonlight, small antennae. A small bright circle on the floor around her, like a coin of warm light.
 
 --- Page 5 ---
-"שם!" אני מצביע על הפינה.
-"ושם!" אני מצביע על השיח.
-"מהר, נמית, מהר!"
-היא עפה מהר יותר.
-הכנפיים שלה מתנודדות חזק.
-אור רץ בין הצללים.
+"שלום," {לחש|לחשה} {{childName}}.
+נמית הבהבה פעם אחת.
+אצל גחליליות, הבהוב אחד יכול להיות שלום, או רגע, או אני קצת מתרגשת.
+נמית הביטה במסדרון.
+המסדרון היה עצום בשבילה.
+גדול יותר מכל שיח בגינה. ארוך יותר מכל ענף שהיא הכירה. כהה יותר מהחלק שמתחת לעלה.
+האור שלה רעד.
+רק קצת.
+{{childName}} {ראה|ראתה} את זה.
+"גם את פוחדת?" {שאל|שאלה}.
+נמית הבהבה פעמיים.
+אולי.
 
-imageDirection: child gesturing widely while Namit darts between targets
+imageDirection: The firefly Namit hovers in the dim hallway, looking up at the vast dark corridor that dwarfs her. Her glow flickers, just a tiny waver. The child crouches close, eye-level with her, watching gently.
 
 --- Page 6 ---
-נמית מנסה להאיר חזק יותר.
-האור שלה מהבהב.
-הוא לא יציב.
-הכנפיים שלה רועדות באוויר.
-הצעיף שלה מתנפנף לכל הכיוונים.
+נמית התקדמה צעד קטן באוויר.
+האור שלה זז איתה.
+עכשיו היה על הרצפה עיגול חדש.
+לא רחוק.
+רק קצת קדימה.
+{{childName}} {הסתכל|הסתכלה} על כל המסדרון.
+הוא עדיין היה חשוך מאוד.
+ואז {הסתכל|הסתכלה} על העיגול הקטן של נמית.
+שם היה אפשר לראות.
+רק רצפה. רק קצה שטיח. רק מקום לכף רגל אחת.
+נמית הבהבה.
+לא עד סוף המסדרון, אמר האור שלה.
+רק עד כאן.
 
-imageDirection: her light stuttering midair, scarf fluttering wildly
+imageDirection: The firefly hovers a foot ahead, casting a small new circle of golden light on the hallway floor. The corridor beyond is still dark. The illuminated circle reveals just one small patch of carpet and floorboard — enough for one footstep.
 
 --- Page 7 ---
-בפינת החצר יש צורה גדולה.
-נמית עפה אליה ומאירה עליה ישר.
-האור חזק.
-אבל הצורה לא נעשית קטנה.
-הצל שלה נשאר גדול וכהה.
+{{childName}} {לקח|לקחה} נשימה.
+רגל אחת יצאה מהחדר.
+היא נחתה בתוך העיגול הקטן של האור.
+הרצפה היתה קרירה.
+לא שיניים. לא פה ענק. לא ים שחור.
+רק רצפה.
+נמית עפה עוד קצת קדימה.
+עיגול אור חדש הופיע.
+{{childName}} {הסתכל|הסתכלה} עליו.
+"רק לשם," {לחש|לחשה}.
+ו{עשה|עשתה} עוד צעד.
 
-imageDirection: an ambiguous object casting a stubborn, exaggerated shadow
+imageDirection: A small bare foot lands gently inside the firefly's golden circle on cool wooden floor. The child has stepped just past the bedroom doorway. Namit hovers one step further ahead with her next pool of light ready.
 
 --- Page 8 ---
-נמית מתקרבת לעלה גדול ונכנסת מתחתיו.
-האור שלה מרפרף חלש מתחת לעלה.
-היא מנסה להחזיק את הזוהר כלפי חוץ.
-העלה זוהר קצת מלמטה.
-הגוף שלה קטן, כפוף סביב האור.
+המסדרון חרק.
+קררריק.
+{{childName}} {קפא|קפאה}.
+נמית קפאה גם.
+האור שלה נעשה קטן יותר, כאילו הוא מחזיק את הנשימה.
+לרגע אחד, כל המסדרון חזר להיות גדול.
+ואז נמית הבהבה.
+קטן. רך. עוד פעם.
+העיגול על הרצפה חזר.
+{{childName}} {ראה|ראתה} בתוכו את הסימן הקטן של העיפרון על הקיר.
+"אני {מכיר|מכירה} את זה," {אמר|אמרה} בשקט.
+זה היה הסימן ש{{childName}} {צייר|ציירה} פעם בטעות.
+הקיר לא היה זר.
 
-imageDirection: leaf glowing faintly from beneath, her small form curled around her light
+imageDirection: The child and firefly both frozen mid-corridor. Namit's glow has dimmed to a tiny pinprick — like she's holding her breath. Then she pulses gently again, the light circle widens slightly, and reveals a small pencil mark on the wall.
 
 --- Page 9 ---
-אני מסתכל על הצורה הגדולה בפינה.
-נמית עדיין מאירה עליה.
-אבל הצל שלה נמתח.
-האור לא עוזר.
-הצורה נשארת גדולה.
+נמית המשיכה.
+עיגול אור.
+צעד.
+עוד עיגול.
+עוד צעד.
+התמונות שעל הקיר עדיין היו כהות, אבל בכל פעם שהאור עבר עליהן, הן חזרו להיות משפחה.
+סל הכביסה חזר להיות סל.
+הצל על הרצפה חזר להיות הצל של הצמח.
+המסדרון לא התקצר.
+אבל הוא התחלק לחתיכות קטנות יותר.
+חתיכה עם שטיח.
+חתיכה עם קיר.
+חתיכה עם תמונה.
+חתיכה שאפשר לעבור.
 
-imageDirection: shadow stretching even as it is illuminated, child hesitating
+imageDirection: A montage feel — the firefly's light moving down the hallway, illuminating one small section at a time. A family photo briefly lit, then a laundry basket revealed to be just a basket, then a plant's shadow on the floor. Child steps gently behind.
 
 --- Page 10 ---
-אני עושה צעד קדימה לכיוון הצורה.
-לא מבקש מנמית להאיר יותר.
-פשוט הולך.
-נמית נשארת מאחור.
-האור שלה מהבהב קטן.
+באמצע הדרך, נמית עצרה.
+האור שלה הבהב חלש.
+"את עייפה?" {שאל|שאלה} {{childName}}.
+נמית נחתה על המסגרת של תמונה קטנה.
+האור שלה האיר רק חצי חיוך של מישהו בתמונה.
+{{childName}} {התקרב|התקרבה} בזהירות.
+"האור שלך קטן," {אמר|אמרה}.
+נמית הורידה את הכנפיים.
+{{childName}} {הוסיף|הוסיפה} מהר:
+"אבל הוא בדיוק בגודל של צעד."
+נמית הבהבה.
+הפעם האור שלה היה קצת יציב יותר.
 
-imageDirection: child moving into dimness while Namit flickers behind
+imageDirection: The firefly Namit rests on the corner of a small family photo frame on the wall. Her glow is weak. Her light illuminates only half of a smiling face in the photo. The child crouches close, gentle and quiet.
 
 --- Page 11 ---
-האור של נמית כבה.
-החצר חשוכה.
+הם הגיעו לדלת של אמא ואבא.
+הידית היתה גבוהה.
+החדר מאחוריה היה חשוך, אבל לא כמו המסדרון.
+הוא הריח כמו שמיכה של אמא וכמו ספר של אבא.
+{{childName}} {פתח|פתחה} את הדלת לאט.
+על המיטה הגדולה, בין שתי כריות, ישבה הבובה.
+בדיוק שם.
+מחכה.
+"מצאתי אותך," {לחש|לחשה} {{childName}}.
+נמית עפה סיבוב קטן באוויר, כאילו מצאה אוצר בעצמה.
 
-imageDirection: complete dimness with only faint outlines visible
+imageDirection: A child reaches up to the high doorknob of the parents' bedroom and slowly pushes the door open. Inside, a large empty bed with two pillows, and the beloved doll sitting between them, waiting. The firefly does a tiny celebratory loop above.
 
 --- Page 12 ---
-אני מושיט יד בחושך.
-נוגע בצורה.
-עץ ישן עם ענפים.
-אני עומד לידו בלי לזוז.
+{{childName}} {חיבק|חיבקה} את הבובה חזק.
+הדרך חזרה עדיין היתה שם.
+המסדרון לא נעלם.
+הוא לא התכווץ באמת.
+אבל עכשיו {{childName}} כבר {ידע|ידעה} משהו.
+לא צריך לראות את כל הדרך.
+צריך לראות את המקום הבא.
+נמית עפה אל הרצפה.
+עוד עיגול קטן של אור נפתח.
+{{childName}} {חייך|חייכה}.
+"אני {יודע|יודעת}," {אמר|אמרה}. "רק עד שם."
 
-imageDirection: soft silhouettes, hand meeting the object without light
+imageDirection: The child hugs the recovered doll tightly to their chest, standing in the parents' bedroom doorway looking back into the still-dark corridor. The firefly drops down to the floor and opens a fresh small pool of light just one step ahead.
 
 --- Page 13 ---
-נמית יוצאת מתחת לעלה.
-אור קטן חוזר, עמום ורך.
-הוא לא רץ לכל מקום.
-הוא קרוב אלי, נח.
+בדרך חזרה, {{childName}} {הוביל|הובילה} קצת.
+"שם," {אמר|אמרה}, ו{הצביע|הצביעה} אל סימן העיפרון.
+נמית עפה לשם.
+"ועכשיו לשטיח."
+נמית עפה אל השטיח.
+"ועכשיו עד הדלת שלי."
+נמית כמעט עפה מהר מדי, ואז עצרה, כאילו נזכרה שגם גחליליות צריכות לאט.
+{{childName}} {צחק|צחקה} בשקט.
+הצחוק היה קטן.
+אבל הוא הדהד במסדרון כמו אור.
 
-imageDirection: a dim, warm pulse of light close to the ground
+imageDirection: The child now walking back down the corridor with the doll, pointing ahead — first toward the pencil mark on the wall, then a carpet section. The firefly follows each direction, hovering at the indicated spot to light it. Small smile on the child.
 
 --- Page 14 ---
-העץ עדיין כאן.
-הצללים עדיין כאן.
-אבל נמית לא עפה לכל הכיוונים.
-האור שלה קטן וקרוב.
-החצר שקטה.
+בפתח החדר, {{childName}} {הסתובב|הסתובבה} ו{הביט|הביטה} לאחור.
+המסדרון היה עדיין חשוך.
+התמונות היו שוב צללים. סל הכביסה היה שוב גוש כהה. הקצה הרחוק היה רחוק.
+אבל הוא כבר לא נראה כמו פה גדול.
+הוא נראה כמו מסדרון.
+מסדרון גדול.
+מסדרון חשוך.
+מסדרון שאפשר לעבור בו בצעדים קטנים.
+נמית נחתה על הכתף של {{childName}}.
+האור שלה היה קטן מאוד.
+אבל הוא לא התנצל.
 
-imageDirection: gentle low light, shadows still present but less sharp
+imageDirection: The child stands at their own bedroom doorway, doll in arms, turned to look back down the still-dark corridor. The firefly Namit rests on the child's shoulder, her tiny glow steady and quiet — small but unapologetic.
 
 --- Page 15 ---
-נמית עפה לאט הצידה.
-עלה אחד נשאר מואר בעדינות.
-אני עומד בחצר החשוכה.
-הכל בסדר.
+{{childName}} {חזר|חזרה} למיטה עם הבובה.
+נמית עמדה על קצה המדף והבהבה אור רך.
+"תודה," {לחש|לחשה} {{childName}}. "האור שלך לא קטן מדי."
+נמית הבהבה פעם אחת.
+אולי זה אמר: גם הצעד שלך לא.
+{{childName}} {משך|משכה} את השמיכה עד הסנטר.
+המסדרון עדיין היה שם מחוץ לדלת.
+אבל עכשיו היתה בתוכו דרך.
+לא כל הדרך.
+רק הצעד הבא.
+וזה הספיק ללילה אחד.
 
-imageDirection: child and small distant firefly glow, a single softly lit leaf remaining
+imageDirection: The child snuggled in bed with the recovered doll tucked under one arm. Namit rests on the edge of a nearby shelf, her small steady glow casting a warm coin of light. Moonlight from the window. The bedroom doorway visible, beyond it the corridor — still dark, but quiet now.
 
-WORD_COUNT: [29, 23, 29, 27, 22, 21, 23, 26, 21, 21, 8, 18, 20, 21, 16] = 325
+WORD_COUNT: [73, 64, 70, 67, 78, 70, 51, 69, 71, 60, 56, 60, 67, 76, 65] = [997]
