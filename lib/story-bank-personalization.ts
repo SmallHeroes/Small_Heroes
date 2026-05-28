@@ -34,8 +34,7 @@ export const BANK_PROTAGONIST_DENYLIST: readonly string[] = [
   'Ella',
   'תום',
   'Tom',
-  'קים',
-  'Kim',
+  // 'קים' / 'Kim' removed — chameleon_koko canonical companion name is 'קים'.
 ];
 
 const UNRESOLVED_CHILD_NAME_RE = /\{\{childName\}\}/;
