@@ -35,11 +35,8 @@ export interface StylePipelineProfile {
   renderingBehavior: string;
   styleToken: string;
   /** Replicate model slug for LoRA-trained version. Null = use base model. */
-  loraModel: string | null;
   /** Trigger word to prepend to prompts when using LoRA model. */
-  loraTriggerWord: string | null;
   /** Style reinforcement text appended after trigger word for LoRA prompts. */
-  loraStylePrefix: string | null;
 }
 
 export interface StyleContract {
@@ -94,9 +91,6 @@ export const STYLE_REGISTRY: Record<StyleId, StyleContract> = {
       textureStyle: 'rich watercolor on textured cream paper — visible brushwork, paper grain, layered pigment washes, fine detail',
       renderingBehavior: 'premium children\'s book illustration — adorable round characters, richly detailed backgrounds, master illustrator quality',
       styleToken: 'soft_hand_drawn_storybook',
-      loraModel: process.env.LORA_MODEL_STYLE_01 || null,
-      loraTriggerWord: 'SOFTSTYLE01',
-      loraStylePrefix: 'premium children\'s book illustration, adorable round characters, large sparkling eyes, rosy cheeks, richly detailed watercolor, warm cream tones, lush illustrated backgrounds, master illustrator quality,',
     },
     imageNudge: {
       title: 'CUTE_STORYBOOK_ILLUSTRATION_NUDGE',
@@ -190,9 +184,6 @@ ZERO text, letters, numbers, or symbols anywhere.`,
       textureStyle: 'fine watercolor on premium cream paper — refined brushwork, delicate wet-on-wet edges, luminous pigment layering',
       renderingBehavior: 'fine realistic watercolor storybook scene — real child proportions inside a real environment, varied compositions, accomplished technique, narrative-driven',
       styleToken: 'realistic_artistic_storybook',
-      loraModel: process.env.LORA_MODEL_STYLE_02 || null,
-      loraTriggerWord: 'PENCILSTYLE02',
-      loraStylePrefix: 'fine realistic watercolor childrens storybook scene, real child proportions, accomplished watercolor technique, luminous skin, refined brushwork, scene-appropriate natural light, cream paper, narrative composition,',
     },
     imageNudge: {
       title: 'REALISTIC_WATERCOLOR_STORYBOOK_NUDGE',
@@ -291,9 +282,6 @@ ZERO text, letters, numbers, or symbols anywhere.`,
       renderingBehavior:
         'dense illustrated narrative scene — every surface filled with story props and micro-details',
       styleToken: 'detailed_whimsical_world',
-      loraModel: null,
-      loraTriggerWord: null,
-      loraStylePrefix: null,
     },
     imageNudge: {
       title: 'DETAILED_WHIMSICAL_WORLD_NUDGE',

@@ -17,10 +17,8 @@ export interface GenerateImageInput {
   modelOverride?: string;
   seed?: number;
   styleId?: string;
-  loraTriggerWord?: string;
-  loraStylePrefix?: string;
+
   /** When true, prompt already includes REALISTART01 + short style tag — skip duplicate LoRA prepend. */
-  skipLoraPromptPrefix?: boolean;
   /**
    * Flux / non-SDXL Replicate models: `aspect_ratio` sent to the API (default portrait 2:3).
    * SDXL: maps to pixel dimensions (portrait 832×1216 vs square 1024×1024).
@@ -135,13 +133,10 @@ async function resolveVersionPinnedModel(
     const version = modelInfo.latest_version?.id;
     if (version) {
       const pinned = `${owner}/${modelName}:${version}`;
-      console.log('[lora_version_resolve]', `${slug} → ${pinned.substring(0, 80)}...`);
       return pinned;
     }
-    console.warn('[lora_version_resolve]', `No version found for ${slug}, using as-is`);
     return slug;
   } catch (err) {
-    console.warn('[lora_version_resolve]', `Failed to resolve version for ${slug}:`, err instanceof Error ? err.message : err);
     return slug;
   }
 }
@@ -156,21 +151,12 @@ export async function generateReplicateImage(input: GenerateImageInput): Promise
   let finalPrompt = normalizePromptPart(input.finalPrompt);
 
   // Prepend LoRA trigger word (+ optional style prefix) when using a LoRA model
-  if (
-    input.loraTriggerWord &&
-    process.env.ENABLE_LORA === 'true' &&
-    !input.skipLoraPromptPrefix
-  ) {
-    const stylePrefix = input.loraStylePrefix ? ` ${input.loraStylePrefix}` : '';
-    finalPrompt = `${input.loraTriggerWord} style,${stylePrefix} ${finalPrompt}`;
-  }
+  // LoRA prompt prefix removed — no active LoRA in the project
 
   const replicate = getReplicateClient();
 
   // For private LoRA models, auto-resolve version hash to avoid 404 on predictions endpoint
-  if (input.loraTriggerWord && process.env.ENABLE_LORA === 'true') {
-    model = await resolveVersionPinnedModel(replicate, model);
-  }
+  // LoRA version-resolution removed
 
   const aspectRatio = input.aspectRatio ?? '2:3';
   const runInput: Record<string, unknown> = isSdxlModelSlug(model)

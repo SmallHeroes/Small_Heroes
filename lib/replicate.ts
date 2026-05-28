@@ -1,17 +1,5 @@
 import Replicate from 'replicate';
-import { STYLE_IDS, STYLE_REGISTRY } from './styles';
-import type { StyleId } from './styles';
-
-/** Read LoRA slug at call time — STYLE_REGISTRY captures env only at module load. */
-export function resolveLoraModelSlugForStyle(styleId: StyleId): string | null {
-  if (styleId === STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK) {
-    return process.env.LORA_MODEL_STYLE_01?.trim() || STYLE_REGISTRY[styleId].pipeline.loraModel;
-  }
-  if (styleId === STYLE_IDS.EXPRESSIVE_PAINTERLY_STORYBOOK) {
-    return process.env.LORA_MODEL_STYLE_02?.trim() || STYLE_REGISTRY[styleId].pipeline.loraModel;
-  }
-  return STYLE_REGISTRY[styleId]?.pipeline.loraModel ?? null;
-}
+// LoRA wiring removed — production uses gpt-image-1 for both styles
 
 export type ReplicateModelSlug = `${string}/${string}` | `${string}/${string}:${string}`;
 
@@ -85,23 +73,10 @@ export function resolveReplicateImageModel(modelOverride?: string): ReplicateMod
 }
 
 /**
- * Resolve Replicate model for a given style. Uses LoRA model when:
- * 1. ENABLE_LORA env is 'true'
- * 2. The style has a loraModel configured
- * Otherwise falls back to resolveReplicateImageModel().
+ * Resolve Replicate model for a given style. (LoRA path removed —
+ * production uses gpt-image-1; Replicate is only the dev fallback engine.)
  */
-export function resolveReplicateImageModelForStyle(styleId?: string): ReplicateModelSlug {
-  if (process.env.ENABLE_LORA !== 'true' || !styleId) {
-    return resolveReplicateImageModel();
-  }
-
-  const style = STYLE_REGISTRY[styleId as StyleId];
-  const loraModel = style ? resolveLoraModelSlugForStyle(style.id) : null;
-  if (loraModel) {
-    console.log('[image_model_lora]', loraModel, `trigger=${style?.pipeline.loraTriggerWord ?? 'none'}`);
-    return loraModel as ReplicateModelSlug;
-  }
-
+export function resolveReplicateImageModelForStyle(_styleId?: string): ReplicateModelSlug {
   return resolveReplicateImageModel();
 }
 

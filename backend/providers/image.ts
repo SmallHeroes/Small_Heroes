@@ -81,7 +81,6 @@ import {
   isFluxProOverrideActive,
   replicateModelBaseSlug,
   resolveImageModelMode,
-  resolveLoraModelSlugForStyle,
   resolveReplicateImageModel,
 } from '../../lib/replicate';
 import {
@@ -2903,19 +2902,10 @@ async function generateWithReplicate(input: ImageInput): Promise<GeneratedImage>
     seed: input.seed,
     aspectRatio: replicateAspectRatio,
     styleId: styleId,
-    loraTriggerWord: loraStyle?.pipeline.loraTriggerWord ?? undefined,
-    loraStylePrefix: loraStyle?.pipeline.loraStylePrefix ?? undefined,
-    skipLoraPromptPrefix: useCleanFlux,
   });
 
   if (modelMode === 'development') {
-    const isLoraModel =
-      process.env.ENABLE_LORA === 'true' &&
-      Boolean(resolveLoraModelSlugForStyle(styleId as StyleId));
-    if (
-      !isLoraModel &&
-      replicateModelBaseSlug(result.model) !== replicateModelBaseSlug(expectedModel)
-    ) {
+    if (replicateModelBaseSlug(result.model) !== replicateModelBaseSlug(expectedModel)) {
       throw new Error(
         `[ImageGuard] Development mode expected model ${expectedModel} but got ${result.model}`
       );
@@ -2924,7 +2914,6 @@ async function generateWithReplicate(input: ImageInput): Promise<GeneratedImage>
       mode: modelMode,
       expectedModel,
       model: result.model,
-      isLora: Boolean(isLoraModel),
       orderId: input.orderId ?? 'unknown',
       pageNumber: input.pageNumber,
     });
