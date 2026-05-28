@@ -40,7 +40,10 @@ export const BANK_PROTAGONIST_DENYLIST: readonly string[] = [
 const UNRESOLVED_CHILD_NAME_RE = /\{\{childName\}\}/;
 const UNRESOLVED_COMPANION_NAME_RE = /\{\{companionName\}\}/;
 const UNRESOLVED_GENDER_CHIP_RE = /\{[^{}]+\|[^{}]+\}/;
-const UNRESOLVED_SLASH_GENDER_RE = /[\u0590-\u05FF]+\/ה\b/;
+// NOTE: cannot use \b after Hebrew letters — V8 regex \b doesn't recognize
+// Hebrew word boundaries in Unicode mode. Lookahead matches end-of-string or
+// any non-Hebrew character (whitespace, punctuation, ASCII).
+const UNRESOLVED_SLASH_GENDER_RE = /[\u0590-\u05FF]+\/ה(?=$|[^\u0590-\u05FF])/u;
 const UNRESOLVED_PATCH_RE = /\{\{patch:/i;
 const UNRESOLVED_AGE_BLOCK_RE = /\{\{#age\}\}/;
 
@@ -140,13 +143,14 @@ export function resolveSlashedGenderForms(
   text: string,
   gender: 'boy' | 'girl' | 'other'
 ): string {
+  // NOTE: lookahead instead of \b — V8 regex \b doesn't work after Hebrew.
   if (gender === 'girl') {
-    return text.replace(/([\u0590-\u05FF]+)\/ה\b/gu, (_, base: string) => {
+    return text.replace(/([\u0590-\u05FF]+)\/ה(?=$|[^\u0590-\u05FF])/gu, (_, base: string) => {
       if (base === 'ילד') return 'ילדה';
       return `${base}ה`;
     });
   }
-  return text.replace(/([\u0590-\u05FF]+)\/ה\b/gu, '$1');
+  return text.replace(/([\u0590-\u05FF]+)\/ה(?=$|[^\u0590-\u05FF])/gu, '$1');
 }
 
 export function resolveStoryBankPlaceholders(
