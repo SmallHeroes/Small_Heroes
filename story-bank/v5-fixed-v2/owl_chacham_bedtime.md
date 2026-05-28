@@ -1,107 +1,185 @@
-# Story: owl_chacham_bedtime — Story Bank v5 (Hybrid: GPT-5 skeleton + Claude prose)
-Generated: 2026-05-14T08:29:42.136Z
-Skeleton model: gpt-5.3-chat-latest
-Prose model: claude-sonnet-4-5-20250929
-Total time: 63.0s
-Prompt-version: v5
+# Story: owl_chacham_bedtime — Story Bank v5 (Literary Rewrite)
+Generated: 2026-05-28T16:00:00.000Z
+Source: manual literary rewrite (Guy draft → adapt-pass)
+Companion canonical name: בּוּבּוּ (per lib/companions.ts owl_chacham.name)
+Prompt-version: v5-literary
+Notes: bedtime / NIGHT_FEAR / 10 pages / residue = "חושך עם שמות הוא חושך קטן יותר"
 
 ---
----
-title: "כְּשֶׁאין תְּשׁוּבָה"
+title: "{{childName}} ובובו מקשיבים ללילה"
 companionId: owl_chacham
 direction: bedtime
-category: KNOWLEDGE_LEARNING
+category: NIGHT_FEAR
 gender: male
 pages: 10
-endingType: resolution
-worldRule: עולם של שאלות שיש להן צבע. השאלות הלא-נודעות הן הצבע הכי בהיר.
+endingType: residue
+worldRule: "כשנותנים שם לקול, הוא נשאר בגודל שלו."
 ---
 
-storyStyle: gentle bedtime curiosity tale
-metaphor: questions as colors that brighten when unanswered
-stakes: the child may stop asking questions and the world's colors fade to dull gray
-emotionalArc: curious → overwhelmed → strained → vulnerable → peaceful
-quietPage: 8
-heartLine: עמוד 5 — Chacham quietly adjusts his slipping glasses again and again, pretending to read while clearly not seeing.
-emotionalMistake: עמוד 3 — The child turns away and covers their ears, dismissing Chacham's long explanation.
-uncomfortableTruth: עמוד 6 — Chacham's explanations begin to contradict each other, and he cannot fix it.
+storyStyle: quiet bedtime, slow listening rhythm, low whisper voice
+metaphor: naming sounds shrinks them — fear of the unknown becomes fear of one named thing at a time
+stakes: the child stays awake, treating every noise as one enormous monster instead of small separate things
+quietPagePosition: 7
+heartLine: page 10 — "וחושך עם שמות הוא חושך קטן יותר."
+emotionalMistake: page 2 — eyes close hard, ears grow louder, every sound becomes "one big monster"
+uncomfortableTruth: page 6 — "לא לדעת זה לא אותו דבר כמו מפלצת."
 
 --- Page 1 ---
-בּוּבּוּ יושב על הספר הגדול. הציפורניים שלו אוחזות בכריכה.
-"במאה ה-13," הוא ממלמל, "ידוע כי הכוכבים..."
-הילד מחזיק שאלה בידיים, קטנה ובהירה.
-בּוּבּוּ ממשיך לדבר, לא רואה אותה.
+{{childName}} {שכב|שכבה} במיטה, {עטוף|עטופה} בשמיכת העננים עד הסנטר.
+הכרית היתה רכה. הדובי היה קרוב. הירח עמד בחוץ כמו עוגייה לבנה בשמים.
+אבל {{childName}} לא {נרדם|נרדמה}.
+בחושך, החדר {שלו|שלה} התחיל להשתנות.
+הווילון נראה כמו איש גבוה. הכיסא בפינה נראה כאילו הוא מקשיב. והארון עמד בשקט כזה, שלא עזר בכלל.
+ואז נשמע קול.
+קליק.
+{{childName}} {פתח|פתחה} עיניים גדולות.
 
-imageDirection: An owl with glasses perched on books, talons gripping the cover, talking while a child holds a softly glowing question-shape.
+imageDirection: A child's bedroom at night, lit only by soft moonlight through a window. The child lies in bed, eyes wide, blanket pulled up to chin. A long curtain hangs still by the window, a quiet chair sits in the corner, and a tall wardrobe stands closed. The room feels hushed and watchful.
 
 --- Page 2 ---
-"למה?" שואל הילד.
-בּוּבּוּ מסובב את הראש עד הסוף, ימינה. שמאלה. הגוף שלו לא זז — רק הראש.
-"שאלה מצוינת! זה תלוי בכמה גורמים, ולמעשה..."
-הכנפיים נפרשות לכל הצדדים.
+קליק־קלאק.
+הקול חזר.
+{{childName}} {משך|משכה} את השמיכה עד האף.
+"זה משהו עם רגליים," {הוא|היא} {לחש|לחשה}. "אולי משהו קטן שמנסה להישמע גדול."
+{הוא|היא} {עצם|עצמה} עיניים חזק.
+אבל כשהעיניים נסגרות, לפעמים האוזניים גדלות.
+קליק־קלאק.
+על המדף הקטן ליד המיטה ישב בובו, ינשוף קטן עם נוצות בצבע ירח ועיניים זהובות.
+בובו לא מיהר לדבר.
+הוא הקשיב.
 
-imageDirection: The child looking up; Chacham's head rotating fully while body stays still, wings spread wide.
+imageDirection: Close on a small wooden shelf near the bed where Bubu the owl perches — soft pale feathers like moonlight, large round golden eyes, small spectacles, sleepy-grandfatherly posture. He is utterly still, listening. The child's blanket-covered nose peeks from under the covers behind him.
 
 --- Page 3 ---
-בּוּבּוּ מדבר מהר. הוּ-הוּ קצר יוצא לו בין המילים בלי שירגיש.
-הילד שם שתי ידיים על האוזניים.
-הוא מסתובב הצידה.
-בּוּבּוּ מאחורי המשקפיים, לא קולט.
+בובו סובב את הראש לאט.
+אל הקיר. אל הרצפה. אל {{childName}}.
+"בובו," {לחש|לחשה} {{childName}}, "זה מפלצת?"
+בובו לא אמר מיד לא.
+וזה דווקא עזר.
+כי לפעמים כשאומרים מהר מדי "אין ממה לפחד", הפחד לא מאמין.
+בובו הקשיב עוד רגע.
+קליק.
+"תנור," הוא אמר בקול נמוך.
+"תנור?"
+"תנור שמתחמם," אמר בובו. "תנורים לפעמים מדברים בקליקים."
+{{childName}} {הקשיב|הקשיבה} שוב.
+זה באמת נשמע קצת פחות כמו רגליים.
 
-imageDirection: The owl speaking rapidly; the child turned aside, hands over ears.
+imageDirection: Bubu the owl slowly rotates his head, ears alert, eyes thoughtful. A small radiator sits low against the wall, faintly glowing warm. The room is still dim. The child watches Bubu from the pillow, trying to listen the way he does.
 
 --- Page 4 ---
-הילד אומר עוד פעם: "למה?"
-השאלה הקטנה נשארת בין שניהם.
-אבל בּוּבּוּ עונה על שאלה אחרת. יותר גדולה.
-ציפורניים מתהדקות עוד יותר על הספר.
+"שלום, תנור," {לחש|לחשה} {{childName}}.
+{הוא|היא} {אמר|אמרה} את זה בזהירות, כי לא כל יום אומרים שלום לתנור באמצע הלילה.
+בובו מצמץ פעם אחת.
+אצל בובו, מצמוץ אחד היה כמעט חיוך.
+ואז החלון אמר:
+שוווויש.
+הווילון התרומם קצת.
+{{childName}} {התכווץ|התכווצה}.
+"זה כבר לא תנור," {הוא|היא} {אמר|אמרה}. "זה משהו שמנסה להיכנס."
+בובו הסתכל אל החלון והקשיב.
+שוווויש. הווווש.
+"רוח," הוא אמר. "רוח שמחליקה על הזכוכית."
 
-imageDirection: The same small glowing question between them, unchanged, while Chacham keeps explaining and his talons grip tighter.
+imageDirection: The curtain by the window lifts gently in a soft draft. Bubu turns his head toward the window, ears alert. The child clutches the blanket edge a little tighter, eyes wide on the moving curtain.
 
 --- Page 5 ---
-המשקפיים נופלים לו על המקור.
-הוא מחזיר אותם. שוב נופלים.
-שלוש פעמים. ארבע.
-הוא לא מסתכל על השאלה. היא זוהרת יותר.
+{{childName}} {הסתכל|הסתכלה} על הווילון.
+הוא עדיין זז.
+אבל עכשיו הוא לא היה "משהו שמנסה להיכנס".
+הוא היה וילון שהרוח הזיזה.
+זה עדיין לא היה הדבר הכי נעים בעולם.
+אבל זה כבר היה קטן יותר.
+"לילה טוב, רוח," {אמר|אמרה} {{childName}}.
+הרוח לא ענתה.
+או שאולי היא ענתה בשוווויש נוסף, בשפה של רוחות.
+בובו הרים כנף קטנה.
+"שם טוב," הוא אמר. "שם עוזר לקול להישאר בגודל שלו."
 
-imageDirection: Close-up of Chacham adjusting slipping glasses on his beak, eyes uncertain, the question glowing brighter.
+imageDirection: The same curtain, still swaying gently, but the room feels less menacing now — softer shadows, the moonlight catching the fabric. Bubu lifts a single small wing, like a tiny salute. The child's face has softened slightly on the pillow.
 
 --- Page 6 ---
-בּוּבּוּ ממלמל: "בעצם זה ככה... או אולי..."
-הנוצות שלו מתנפחות פתאום, אחר כך נשמטות.
-"רגע, אמרתי ככה או..."
-המקור נסגר ונפתח. הוּ. הוּ. הקול חלש.
+פתאום נשמע קול חדש.
+קררריק.
+הוא הגיע מהכיוון של הדלת.
+{{childName}} {התיישב|התיישבה} בבת אחת.
+"זה בטוח משהו אחר."
+בובו הסתכל אל הדלת.
+העיניים הזהובות שלו היו פקוחות מאוד.
+הוא הקשיב.
+קררריק.
+הפעם בובו לא אמר שם מיד.
+"אתה לא יודע?" {שאל|שאלה} {{childName}}.
+"עוד לא," אמר בובו.
+{{childName}} {בלע|בלעה} רוק.
+בובו לחש, "לא לדעת זה לא אותו דבר כמו מפלצת."
 
-imageDirection: Owl's feathers puffing and settling, beak opening and closing, soft hoots escaping; child watching quietly.
+imageDirection: The child sits up suddenly in bed, looking at the bedroom door. Bubu turns toward the door too, large golden eyes wide and alert but calm. The room feels quietly tense, just curious — not afraid.
 
 --- Page 7 ---
-הילד לוקח את כנף בּוּבּוּ.
-מוביל אותה לשאלה הקטנה.
-"פה," אומר הילד.
-שניהם מסתכלים על אותו אור קטן.
+{{childName}} {החזיק|החזיקה} את קצה השמיכה.
+{הוא|היא} {הקשיב|הקשיבה}.
+לא לכל החדר.
+רק לדלת.
+{הוא|היא} {שמע|שמעה} את הנשימה {שלו|שלה}. את השמיכה זזה קצת. את בובו עושה הוּוּ קטן, כמעט בלי קול.
+ואז שוב:
+קררריק.
+{{childName}} לא {צעק|צעקה}.
+זה הפתיע {אותו|אותה}.
+"זה נשמע כמו..." {הוא|היא} {אמר|אמרה} לאט, "כמו בית ישן שמותח רגליים."
+בובו הטה את הראש.
+"לבית יש רגליים?"
+{{childName}} {חשב|חשבה}.
+"אולי בלילה."
 
-imageDirection: Child physically guiding the owl closer, both focused on the same soft light.
+imageDirection: A quiet still moment. The child sits up holding the blanket edge, ear turned toward the door, focused and listening — not panicked. Bubu tilts his head to one side curiously. The room is soft and slow.
 
 --- Page 8 ---
-בּוּבּוּ מרים כנף, נוגע בנוצה קטנה שמתחת.
-אחת. שתיים. שלוש.
-הוּ — נשימה ארוכה, אחת.
+עכשיו היו בחדר כמה קולות עם שמות.
+קליק — תנור. שוווויש — רוח. קררריק — בית שמותח רגליים.
+החדר עדיין היה חשוך.
+הווילון עדיין זז. הכיסא עדיין הקשיב. הארון עדיין עמד בשקט שלו.
+אבל {{childName}} כבר לא {היה|היתה} לבד מול "הכל".
+{הוא|היא} {יכל|יכלה} לבחור קול אחד.
+להקשיב לו.
+ולתת לו שם.
 
-imageDirection: Tight intimate frame of wing and hidden feather, three small touches, one long soft hoot.
+imageDirection: A wider view of the bedroom — still dim, still nighttime, but the shadows feel gentler now. The child sits up in bed with Bubu on the shelf beside, a small quiet pair. The room is the same room, but smaller-feeling, more known.
 
 --- Page 9 ---
-בּוּבּוּ אומר: "אני לא יודע."
-המקור נשאר פתוח רגע, ואז נסגר.
-הילד יושב צמוד.
-השאלה ביניהם, חמה ובהירה.
+טוק.
+{{childName}} {פתח|פתחה} עין אחת.
+טוק.
+הקול בא מהחלון.
+בובו התחיל לסובב את הראש, אבל {{childName}} {הרים|הרימה} יד קטנה.
+"רגע," {הוא|היא} {לחש|לחשה}. "אני אנסה."
+{הוא|היא} {הקשיב|הקשיבה}.
+טוק.
+"ענף," {אמר|אמרה}. "ענף קטן שנוגע בזכוכית."
+בובו מצמץ פעמיים.
+שני מצמוצים של בובו היו מחיאת כפיים גדולה מאוד, רק בשקט.
+"לילה טוב, ענף מנומס," {לחש|לחשה} {{childName}}.
 
-imageDirection: Both sitting close, the pale question now the brightest color, calm and warm.
+imageDirection: Through the bedroom window, a small leafy tree branch taps gently against the glass in the moonlight. The child raises a small hand to pause Bubu, eyes calm and listening. Bubu blinks twice, the closest he ever comes to applause.
 
 --- Page 10 ---
-בּוּבּוּ פותח כנף אחת ומכסה את הילד כמו שמיכה.
-השאלה נחה ביניהם.
-שני "הוּ" קטנים, אחד לכל אחד, ושקט.
+{{childName}} {נשכב|נשכבה} עמוק יותר בכרית.
+קליק.
+"לילה טוב, תנור."
+שוווויש.
+"לילה טוב, רוח."
+קררריק.
+"לילה טוב, בית שמותח רגליים."
+טוק.
+"לילה טוב, ענף מנומס."
+לא כל הקולות קיבלו שם.
+אבל מספיק קולות קיבלו.
+וזה הספיק ללילה אחד.
+בובו התכרבל על המדף שלו. {{childName}} {עצם|עצמה} עיניים.
+החדר עדיין היה חשוך.
+אבל עכשיו הוא היה חשוך עם שמות.
+וחושך עם שמות הוא חושך קטן יותר.
 
-imageDirection: Owl spreading one wing over the child like a soft tent, both nestled together, soft glowing question between them fading into the night.
+imageDirection: The child settles deep into the pillow, eyes finally softly closed, peaceful. Bubu curls into a small sleepy ball of feathers on his shelf, eyes half-closed too. Moonlight pools gently across the bed. The room is quiet and at rest.
 
-WORD_COUNT: [24, 22, 18, 24, 20, 22, 20, 8, 20, 16] = 194
+WORD_COUNT: [62, 50, 67, 73, 67, 65, 89, 60, 78, 70] = [681]

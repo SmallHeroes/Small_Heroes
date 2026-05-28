@@ -1,8 +1,22 @@
 # Literary Shelf Tracker
 
-**Purpose.** Single visible counter for the C-first strategy: ship 5 hand-tuned literary-tier rewrites into `story-bank/v5-fixed-v2/` before touching the recipe pipeline.
+**Purpose.** Single visible counter for the C-first strategy: ship hand-tuned literary-tier rewrites into `story-bank/v5-fixed-v2/` before touching the recipe pipeline.
 
-**Don't expand this file.** It is not a workflow tracker, a kanban, a methodology doc, or a brief template. It's a 5-row checklist. If it starts to look like anything else, delete the new section.
+**Don't expand this file.** It is not a workflow tracker, a kanban, a methodology doc, or a brief template. It's a checklist. If it starts to look like anything else, delete the new section.
+
+---
+
+## Locked rules (do not violate)
+
+**Page count is determined by direction. Single source of truth, no exceptions:**
+
+| Direction | Pages | Age | Price |
+|---|---|---|---|
+| **bedtime** (לפני שינה) | **10** | 4–6 | ₪59 |
+| **adventure** (הרפתקה) | **15** | 6–8 | ₪79 |
+| **fantasy** (פנטזיה) | **20** | 6–8 | ₪99 |
+
+Bank uses **one file per `<companion>_<direction>.md`** — no `ageBand` variants. Each direction targets one age range. A literary rewrite that doesn't match its direction's page count is DRAFT, not SHIPPED.
 
 ---
 
@@ -14,27 +28,16 @@
 
 ---
 
-## The 5 slots
+## The slots
 
-| # | Story | Status | Commit | Notes |
-|---|---|---|---|---|
-| 1 | `fox_uri_adventure.md` (אוּרִי וּמַפַּת הַצְּלָלִים) | **SHIPPED** | `f96fbb9d` 2026-05-27 | Manual rewrite + ChatGPT QA. Gate passes for boy/girl + substring fix verified. |
-| 2 | `chameleon_koko_fantasy.md` | DRAFT — awaiting ChatGPT editor pass on Gemini draft | — | Tasks #14–16 in queue. |
-| 3 | `bolly_armadillo_bedtime.md` (בולי שנפתח לאט) | **SHIPPED** | `ace52726` 2026-05-28 | Literary rewrite (AI writer → ChatGPT adapt). 15 pages, gate passes for boy/girl + substring test name. Heart line: page 14 — "הפחד לא הלך לגמרי. אבל הוא כבר לא ישב על כל המיטה. הוא ישב בקצה." |
-| 4 | `octopus_seara_adventure.md` (יובל וסיארה במרפאת השיניים של הים) | QUEUED — raw draft received 2026-05-27, adapt-pass deferred | — | Golden-tier quality. Keep `octopus_seara` companion (story proves she fits medical/anxiety regulation, even though her current bank category is ANGER_FRUSTRATION). Direction = adventure (journey/visit/return arc, not bedtime). Main blocker: 16 → 15 pages — preferred compression is **merge p6+p7**, NOT p14+p15 (ending needs breathing room). Adapt-pass must include: `{{childName}}`, gender chips (~50), YAML frontmatter, imageDirection per page, WORD_COUNT footer, gate pass for boy + girl. |
-| 5 | `dolphin_shahkan_adventure.md` ({{childName}} ודודי מחפשים את הצדף הקטן) | **SHIPPED** | `a09ce577` 2026-05-28 | Literary rewrite. 15 pages, FOCUS_LEARNING, residue = pink spiral shell with soft hum. Companion name corrected from שחכן→דודי (per lib/companions.ts). Gate passes 3/3. |
-
----
-
-## Picking slots 3–5
-
-Choose by **launch-shelf traffic potential**, not by personal taste. Order of selection criteria:
-
-1. **Direction × category combo** likely to hit highest order volume on launch.
-2. **Companions already in the launch shelf** (bolly_armadillo, bat_lily, chameleon_koko, octopus_seara, dolphin_shahkan, fawn_tzvi — see `deep_companion_schema.md`).
-3. **Avoid one-direction monoculture**: aim for at least one bedtime, one adventure, one fantasy across all 5 slots.
-
-Current direction spread: 1 bedtime shipped (Bolly slot 3), 2 adventure shipped (Uri-fox slot 1, Dudi slot 5), 1 adventure queued (Yuval-Seara slot 4), 1 fantasy in queue (chameleon_koko slot 2). 5/5 slots assigned.
+| # | Story | Pages | Status | Commit | Notes |
+|---|---|---|---|---|---|
+| 1 | `fox_uri_adventure.md` (אוּרִי וּמַפַּת הַצְּלָלִים) | 15 ✓ | **SHIPPED** | `f96fbb9d` 2026-05-27 | Manual rewrite + ChatGPT QA. Gate passes for boy/girl + substring fix verified. |
+| 2 | `chameleon_koko_fantasy.md` | 20 (target) | DRAFT — awaiting ChatGPT editor pass on Gemini draft | — | Tasks #14–16 in queue. |
+| 3 | `bolly_armadillo_bedtime.md` (בולי שנפתח לאט) | **15 ✗** | **NEEDS CUT** | `ace52726` 2026-05-28 | Originally 15 pages; rule lock 2026-05-28 says bedtime=10. Needs literary cut to 10 (remove repetition, not compress) before counting as golden under new rule. |
+| 4 | `octopus_seara_adventure.md` (יובל וסיארה במרפאת השיניים של הים) | 15 (target) | QUEUED — raw draft received 2026-05-27, adapt-pass deferred | — | Golden-tier quality. Keep `octopus_seara` companion. Direction = adventure. Main blocker: 16 → 15 pages — preferred compression is **merge p6+p7**, NOT p14+p15. Adapt-pass must include: `{{childName}}`, gender chips (~50), YAML frontmatter, imageDirection per page, WORD_COUNT footer, gate pass for boy + girl. |
+| 5 | `dolphin_shahkan_adventure.md` ({{childName}} ודודי מחפשים את הצדף הקטן) | 15 ✓ | **SHIPPED** | `a09ce577` 2026-05-28 | Literary rewrite. FOCUS_LEARNING, residue = pink spiral shell with soft hum. Companion name corrected שחכן→דודי. Gate passes 3/3. |
+| 6 | `owl_chacham_bedtime.md` ({{childName}} ובובו מקשיבים ללילה) | **10 ✓** | **SHIPPED** | (pending) 2026-05-28 | First story under new bedtime=10p rule. NIGHT_FEAR. Heart line p10 "וחושך עם שמות הוא חושך קטן יותר". Mechanic: naming sounds to shrink them, one at a time. Gate passes 4/4 (boy/בר, girl/נטע, boy/דניאל, girl/Mika). |
 
 ---
 
@@ -42,7 +45,8 @@ Current direction spread: 1 bedtime shipped (Bolly slot 3), 2 adventure shipped 
 
 A slot moves to **SHIPPED** only when ALL of:
 - `.md` file replaces existing in `story-bank/v5-fixed-v2/`
-- All 8 light-validation checks pass (15 pages, imageDirection per page, WORD_COUNT footer, no Mustache leakage, no denylist hits, well-formed gender chips, `{{childName}}` on ≥5 pages, no English drift)
+- **Page count matches direction rule** (bedtime=10, adventure=15, fantasy=20)
+- All light-validation checks pass (imageDirection per page, WORD_COUNT footer, no Mustache leakage, no denylist hits, well-formed gender chips, `{{childName}}` on ≥5 pages, no English drift)
 - `runStoryPersonalizationGate` passes for both `boy` + `girl` test names
 - One focused commit `feat(story-bank): upgrade <slug>`
 
@@ -50,6 +54,6 @@ Anything in the table that doesn't meet all four is **DRAFT**, not SHIPPED.
 
 ---
 
-## When this hits 5/5
+## When this hits 5 SHIPPED golden
 
-Only then do we revisit the recipe pipeline. The path forward at that point is documented in memory `literary_first_story_direction.md` — few-shot the Draft prompt with the 5 golden examples and re-run `MVP_MATRIX`. Don't pre-plan that work here.
+Currently SHIPPED under new rule: 3 (Uri-fox, Dudi, Bubu). Bolly needs page-count cut to count. When 5 SHIPPED under new rule, revisit recipe pipeline via few-shot generator
