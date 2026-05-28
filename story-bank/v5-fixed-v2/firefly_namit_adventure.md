@@ -1,7 +1,7 @@
 # Story: firefly_namit_adventure — Story Bank v5 (Literary Rewrite)
 Generated: 2026-05-28T17:00:00.000Z
 Source: manual literary rewrite (Guy draft → adapt-pass)
-Companion canonical name: נָמִית (per lib/companions.ts firefly_namit.name)
+Companion canonical name: נמית (per lib/companions.ts firefly_namit.name)
 Prompt-version: v5-literary
 Notes: adventure / NIGHT_FEAR / 15 pages / residue = small light = one step at a time
 

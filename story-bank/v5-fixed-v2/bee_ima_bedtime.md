@@ -1,7 +1,7 @@
 # Story: bee_ima_bedtime — Story Bank v5 (Literary Rewrite)
 Generated: 2026-05-28T21:30:00.000Z
 Source: ChatGPT rewrite (over-explained metaphor surgically removed) → adapt-pass
-Companion canonical name: דְּבוֹרִי (per lib/companions.ts bee_ima.name)
+Companion canonical name: דבורי (per lib/companions.ts bee_ima.name)
 Prompt-version: v5-literary
 Notes: bedtime / NEW_SIBLING / 10 pages / residue = drop of honey on the windowsill + soft hum of the hive
 

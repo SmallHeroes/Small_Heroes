@@ -1,7 +1,7 @@
 # Story: bolly_armadillo_bedtime — Story Bank v5 (Literary Rewrite, 10p)
 Generated: 2026-05-28T20:50:00.000Z
 Source: ChatGPT cut 15p→10p (preserve heart line + 2 distinct wrapping moments) → adapt-pass
-Companion canonical name: בּוֹלִי (per lib/companions.ts bolly_armadillo.name)
+Companion canonical name: בולי (per lib/companions.ts bolly_armadillo.name)
 Prompt-version: v5-literary
 Notes: bedtime / FEAR_GENERAL / 10 pages — cut by removing repetition, not compression
 

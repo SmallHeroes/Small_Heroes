@@ -1,7 +1,7 @@
 # Story: fawn_tzvi_fantasy — Story Bank v5 (Literary Rewrite)
 Generated: 2026-05-28T20:00:00.000Z
 Source: manual literary rewrite (AI writer → adapt-pass)
-Companion canonical name: צְבִי (per lib/companions.ts fawn_tzvi.name)
+Companion canonical name: צבי (per lib/companions.ts fawn_tzvi.name)
 Prompt-version: v5-literary
 Notes: fantasy / SENSORY_OVERLOAD / 20 pages / residue = green-blue color spot on the chest
 
@@ -87,7 +87,7 @@ imageDirection: A whimsical forest where each sound has a body. A silvery winged
 קלאק אחד היה מצחיק.
 טאפ אחד היה כמעט ריקוד.
 אבל אז הגיעו עוד.
-זיפ־זיפ. קלאק־קלאק. טררר. פוּף. בום קטן. שריק־שריק. צחוק של עלים.
+זיפ־זיפ. קלאק־קלאק. טררר. פוף. בום קטן. שריק־שריק. צחוק של עלים.
 כל היצורי הקול רצו מסביב.
 הם לא התכוונו להפחיד.
 אבל הם היו רבים מדי.

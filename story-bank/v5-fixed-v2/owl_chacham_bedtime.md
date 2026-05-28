@@ -1,7 +1,7 @@
 # Story: owl_chacham_bedtime — Story Bank v5 (Literary Rewrite)
 Generated: 2026-05-28T16:00:00.000Z
 Source: manual literary rewrite (Guy draft → adapt-pass)
-Companion canonical name: בּוּבּוּ (per lib/companions.ts owl_chacham.name)
+Companion canonical name: בובו (per lib/companions.ts owl_chacham.name)
 Prompt-version: v5-literary
 Notes: bedtime / NIGHT_FEAR / 10 pages / residue = "חושך עם שמות הוא חושך קטן יותר"
 
@@ -121,7 +121,7 @@ imageDirection: The child sits up suddenly in bed, looking at the bedroom door. 
 {הוא|היא} {הקשיב|הקשיבה}.
 לא לכל החדר.
 רק לדלת.
-{הוא|היא} {שמע|שמעה} את הנשימה {שלו|שלה}. את השמיכה זזה קצת. את בובו עושה הוּוּ קטן, כמעט בלי קול.
+{הוא|היא} {שמע|שמעה} את הנשימה {שלו|שלה}. את השמיכה זזה קצת. את בובו עושה הוו קטן, כמעט בלי קול.
 ואז שוב:
 קררריק.
 {{childName}} לא {צעק|צעקה}.

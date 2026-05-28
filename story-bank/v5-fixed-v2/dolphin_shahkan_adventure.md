@@ -1,7 +1,7 @@
 # Story: dolphin_shahkan_adventure — Story Bank v5 (Literary Rewrite)
 Generated: 2026-05-28T09:30:00.000Z
 Source: manual literary rewrite (AI writer -> ChatGPT adapt-pass)
-Companion canonical name: דּוּדִי (per lib/companions.ts dolphin_shahkan.name)
+Companion canonical name: דודי (per lib/companions.ts dolphin_shahkan.name)
 Prompt-version: v5-literary
 Notes: adventure / FOCUS_LEARNING / 15 pages / residue = pink spiral shell with soft hum
 
@@ -79,7 +79,7 @@ imageDirection: Dudi the dolphin tilts his head examining the open book in the c
 דודי רצה לעזור.
 הוא תמיד רצה לעזור.
 אבל בדיוק אז עפה שחפה מעליהם וצעקה:
-קְרָאאא!
+קראאא!
 וגל קטן התנפץ על אבן.
 ושלושה צדפים התגלגלו יחד ועשו:
 טיק־טיק־טוק.
@@ -108,15 +108,15 @@ imageDirection: Underwater view. Dudi dives among colorful sea creatures — sna
 היום דודי חיפש צדף מיוחד.
 צדף ורוד בקצה, מפותל כמו גל קטן.
 כשמים נכנסו אליו, הוא עשה קול רך:
-הוּם.
+הום.
 לא חזק.
 לא צעקני.
 קול קטן של צדף שיודע סוד.
 דודי עצם עיניים בתוך המים.
 הוא ניסה להקשיב רק לקול הזה.
-הוּם.
+הום.
 ואז דג עבר לידו ואמר:
-פְליק!
+פליק!
 דודי כמעט רדף אחריו.
 כמעט.
 
@@ -127,9 +127,9 @@ imageDirection: Dudi underwater, eyes closed gently, listening intensely for one
 הוא ניער את הזנב.
 "לא כל קול צריך שאבוא אליו," הוא חשב.
 הוא הקשיב שוב.
-הגלים אמרו שוווש. הסלעים אמרו גלגלגל. הדגיגים אמרו פְליק־פְליק־פְליק.
+הגלים אמרו שוווש. הסלעים אמרו גלגלגל. הדגיגים אמרו פליק־פליק־פליק.
 ושם, מתחת לכל זה, היה קול אחד קטן:
-הוּם.
+הום.
 דודי שחה אחרי הקול.
 לא מהר. לא בקפיצות.
 בשקט של דולפין שמנסה לא להפריע לאוזניים של עצמו.
@@ -157,7 +157,7 @@ imageDirection: The child on the beach surrounded by overlapping distractions: a
 ורוד בקצה. מפותל כמו גל. מנצנץ בטיפה של שמש.
 דודי הניח את הצדף ליד הספר של {{childName}} ונשף עליו בעדינות.
 הצדף אמר:
-הוּם.
+הום.
 {{childName}} פקח/ה עיניים.
 "מצאת אותו?"
 דודי צייץ בגאווה.
@@ -203,7 +203,7 @@ imageDirection: Close-up of small finger tracing the S letter slowly along its c
 קליק־קלאק.
 {{childName}} כמעט הסתכל/ה.
 כמעט.
-דודי השמיע הוּם קטן, כמו הצדף.
+דודי השמיע הום קטן, כמו הצדף.
 {{childName}} נשם/ה.
 "עכשיו אני עם ה־S," {הוא|היא} אמר/ה.
 {הוא|היא} עקב/ה אחרי הקו פעם נוספת.
@@ -239,7 +239,7 @@ imageDirection: The child draws a wobbly S in the sand with a finger. Dudi has d
 כשהכל קורא {לו|לה} בבת אחת, אפשר לבחור דבר אחד.
 קו אחד. צליל אחד. צדף אחד.
 דודי דחף {אליו|אליה} את הצדף הוורוד.
-הוא אמר הוּם קטן.
+הוא אמר הום קטן.
 {{childName}} החזיק/ה אותו בכף היד.
 "מחר," {הוא|היא} אמר/ה, "נקשיב לאות הבאה."
 דודי קפץ סיבוב קטן באוויר.

@@ -1,7 +1,7 @@
 # Story: bear_cub_gahal_adventure — Story Bank v5 (Literary Rewrite)
 Generated: 2026-05-28T22:00:00.000Z
 Source: AI writer 20p → ChatGPT cut to 15p → adapt-pass
-Companion canonical name: דּוֹבִּי (per lib/companions.ts bear_cub_gahal.name)
+Companion canonical name: דובי (per lib/companions.ts bear_cub_gahal.name)
 Prompt-version: v5-literary
 Notes: adventure / ANGER / 15 pages — page 15 contains the closing montage (originally pp 15-20). Single imageDirection captures the evening montage as a whole.
 
