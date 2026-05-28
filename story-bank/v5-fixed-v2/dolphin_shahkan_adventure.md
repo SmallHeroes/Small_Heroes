@@ -1,180 +1,251 @@
-# Story: dolphin_shahkan_adventure — Story Bank v5 (Hybrid: GPT-5 skeleton + Claude prose)
-Generated: 2026-05-14T07:32:41.930Z
-Skeleton model: gpt-5.3-chat-latest
-Prose model: claude-sonnet-4-5-20250929
-Total time: 68.6s
-Prompt-version: v5
+# Story: dolphin_shahkan_adventure — Story Bank v5 (Literary Rewrite)
+Generated: 2026-05-28T09:30:00.000Z
+Source: manual literary rewrite (AI writer -> ChatGPT adapt-pass)
+Companion canonical name: דּוּדִי (per lib/companions.ts dolphin_shahkan.name)
+Prompt-version: v5-literary
+Notes: adventure / FOCUS_LEARNING / 15 pages / residue = pink spiral shell with soft hum
 
 ---
----
-title: "דּוּדִי וְהַגַּל שלֹּא מַקְשִׁיב"
+title: "{{childName}} ודודי מחפשים את הצדף הקטן"
 companionId: dolphin_shahkan
 direction: adventure
 category: FOCUS_LEARNING
 gender: male
 pages: 15
 endingType: residue
-
+worldRule: "כשמקשיבים רק לדבר אחד קטן, כל הים מסביב לא נעלם - הוא רק נותן רגע."
 ---
 
-storyStyle: playful kinetic ocean adventure
-metaphor: scattered waves becoming a rhythm
-stakes: the trapped sea creature will drift away and be lost if they cannot reach it in time
-emotionalArc: dazzling motion → overdrive and slip → forced stop and feeling → discovering rhythm → quiet, partial peace
-quietPage: 10
-heartLine: עמוד 8 — Dudi stops mid-swim, lets his sonar go silent, and sinks slightly with dim crown
-emotionalMistake: עמוד 5 — The child snaps at Dudi and waves him away for being too noisy and fast
-uncomfortableTruth: עמוד 9 — Even when Dudi stops, the creature is still stuck and nothing improves yet
+storyStyle: sunlit seaside resilience, light humor, playful companion
+metaphor: focus is a single sound under a sea of sounds - choosing what to listen to
+stakes: the child gives up on the letter; the world keeps shouting all at once
+quietPagePosition: 8
+heartLine: page 11 — "דבר אחד," she whispered.
+emotionalMistake: page 9 — the child tries to take everything in at once and collapses
+uncomfortableTruth: page 8 — "לא כל קול צריך שאבוא אליו."
 
 --- Page 1 ---
-אני עומד על החוף וצופה בגלים. הים לא רגוּע. הוא קופץ ומתגלגל. 
+{{childName}} ישב/ה על החול מול הים.
+{לידו|לידה} עמד ארמון חול גדול שאבא בנה. היו לו שלושה מגדלים, שער עקום, ודגל מאצה ירוקה שהתנופף כאילו הוא חשוב מאוד.
+אבל היום {{childName}} לא {היה|היתה} אמור/ה לבנות ארמונות.
+היום {הוא|היא} {היה|היתה} אמור/ה להסתכל בספר האותיות החדש {שלו|שלה}.
+הספר היה פתוח על אות אחת גדולה ומתפתלת.
+S.
+{{childName}} הסתכל/ה עליה.
+האות הסתכלה בחזרה.
+זה לא עזר.
 
-ואז — שלאפ! מישהו מתפרץ מהמים.
-
-"הי! הי! חכה — הא! אני דּוּדִי!"
-
-דולפין גדול מזנק באוויר. הכתר שלו מתיז טיפות על הפנים שלי.
-
-imageDirection: bright splashing dolphin mid-air, child shielding eyes from spray
+imageDirection: Beach in soft morning light. A child sits on warm sand by a small sandcastle with three towers and a green seaweed flag. An open letter-book in their lap shows a large curling letter S.
 
 --- Page 2 ---
-דּוּדִי שוחה במעגלים סביבי. מהר מהר מהר.
+"S," לחש/ה {{childName}}.
+{הוא|היא} העביר/ה אצבע על הקו המתעקל.
+"ססססס…"
+ואז עבר סרטן קטן ליד הרגל {שלו|שלה}.
+קליק־קלאק. קליק־קלאק.
+הסרטן הלך הצידה, כמו מישהו שמאחר לפגישה אבל לא יודע איפה הפגישה.
+{{childName}} צחק/ה.
+כשחזרה לספר, האות S כבר נראתה {לו|לה} שוב כמו נחש שהתבלבל באמצע הדרך.
 
-"בוא נראה מה יש שם — לא לא חכה — מה זה? שמעת? טיק-טיק — הסונאר שלי! יש לי רעיון!"
-
-הוא עוצר. מתחיל לשחות בכיוון אחר.
-
-"לא חכה — רעיון אחר!"
-
-imageDirection: circular water trails around child, dolphin moving in blur
+imageDirection: Close-up of small fingers tracing the curve of the S letter in an open book. A tiny crab walks sideways nearby on the sand, casting a small shadow.
 
 --- Page 3 ---
-דּוּדִי פתאום קופא.
+שפריץ!
+אף רטוב הציץ מתוך המים.
+אחריו הופיעו שתי עיניים נוצצות, סנפיר קטן, וחיוך גדול מדי בשביל בוקר רגיל.
+זה היה דודי הדולפין.
+דודי אהב לשחק. הוא אהב לקפוץ. הוא אהב לעשות סיבוב באוויר ואז להיראות מופתע מזה שהוא חזר לים.
+"שלום, דודי!" קרא/ה {{childName}}.
+דודי צייץ צליל שמח:
+אי־אי־אי!
+ואז השפריץ מים על החול, רק קצת, כי הוא השתדל להיות מנומס.
 
-"מה זה?"
-
-אני מביט רחוק. משהו זז בקצה המים. קטן וכהה.
-
-דּוּדִי שולח את הסונאר שלו. "טיק-טיק-טיק!"
-
-"מישהו תקוע שם! בתוך הגלים הירוקים!"
-
-imageDirection: small creature barely visible inside swirling green strands
+imageDirection: A young grey-blue dolphin (Dudi) leaps from the waves with a wide, surprised smile. Sun catches water droplets on his back. The child looks up with bright recognition.
 
 --- Page 4 ---
-דּוּדִי יורה קדימה. הוא שוחה ימינה — עוצר — שוחה שמאלה.
+דודי הביט בספר של {{childName}}.
+הוא הטה את הראש לצד אחד.
+ואז לצד השני.
+ואז לצד שלישי, שלא ממש היה קיים.
+"זו אות," אמר/ה {{childName}}. "אני {צריך|צריכה} ללמוד אותה."
+דודי צייץ.
+"כן," אמר/ה {{childName}}, כאילו הבין/ה דולפינית. "גם אני {חושב|חושבת} שהיא נראית כמו גל שעשה יותר מדי פניות."
+האות S נשארה על הדף.
+גדולה. מתפתלת. קצת מעצבנת.
 
-"טיק! טיק! טיק-טיק-טיק!"
-
-הסונאר מתפזר לכל הצדדים. דּוּדִי קופץ מהמים ונוחת ליד הגלים הירוקים. לא מדוייק.
-
-עוד קפיצה. עוד שלאפ! הוא מחמיץ שוב.
-
-imageDirection: multiple splash arcs, sonar ripples scattering everywhere
+imageDirection: Dudi the dolphin tilts his head examining the open book in the child's lap, eyes squinting at the curling S. The child watches him with quiet amusement.
 
 --- Page 5 ---
-"דּוּדִי, רגע!"
+דודי רצה לעזור.
+הוא תמיד רצה לעזור.
+אבל בדיוק אז עפה שחפה מעליהם וצעקה:
+קְרָאאא!
+וגל קטן התנפץ על אבן.
+ושלושה צדפים התגלגלו יחד ועשו:
+טיק־טיק־טוק.
+דודי הסתובב מיד אל השחפה. ואז אל הגל. ואז אל הצדפים.
+ואז שכח לגמרי שהוא בא לעזור.
+{{childName}} חייך/ה.
+"גם לך קשה להתרכז?"
+דודי השמיע צליל קטן.
+לא שמח. לא עצוב.
+צליל של דולפין שאומר: לפעמים.
 
-אני מניף את היד.
-
-"אני לא יכול לעקוב!"
-
-דּוּדִי מסתכל עלי באמצע קפיצה. הוא נופל למים בלי לתכנן.
-
-imageDirection: child tense and frustrated, dolphin mid-jump looking startled
+imageDirection: Dudi looks distractedly first at a flying gull, then at a wave, then at three tumbling shells. The child notices and smiles knowingly.
 
 --- Page 6 ---
-דּוּדִי לא עוצר. הוא נהיה מהיר יותר.
+דודי צלל מתחת למים.
+מתחת לגלים היה עולם שלם של קולות.
+גלופ־גלופ של חילזון ים. טום־טום של צב שעבר לאט. שריק־שריק של דגיגים שחלפו כמו חצים כסופים.
+הים היה מרק גדול של רעשים.
+דודי אהב את המרק הזה.
+אבל לפעמים הוא היה יותר מדי.
+במיוחד כשצריך למצוא דבר אחד קטן בתוך כל הכחול הגדול.
 
-"טיק-טיק-טיק-טיק!" הסונאר צועק. הוא מסתובב במעגלים קטנים.
-
-הגלים הירוקים נכרכים סביב הסנפיר שלו. הוא מושך. נתקע קצת. משתחרר.
-
-עוד שלאפ! עוד טיק!
-
-imageDirection: chaotic motion, seaweed wrapping around fins as splashes intensify
+imageDirection: Underwater view. Dudi dives among colorful sea creatures — snails, a slow turtle, fast silver fish — sound waves visible as gentle ripples in the water.
 
 --- Page 7 ---
-דּוּדִי שוחה לאט יותר. הסנפירים שלו לא זורמים כמו קודם.
+היום דודי חיפש צדף מיוחד.
+צדף ורוד בקצה, מפותל כמו גל קטן.
+כשמים נכנסו אליו, הוא עשה קול רך:
+הוּם.
+לא חזק.
+לא צעקני.
+קול קטן של צדף שיודע סוד.
+דודי עצם עיניים בתוך המים.
+הוא ניסה להקשיב רק לקול הזה.
+הוּם.
+ואז דג עבר לידו ואמר:
+פְליק!
+דודי כמעט רדף אחריו.
+כמעט.
 
-הכתר שלו עוד מזנק — אבל הוא נופל.
-
-הוא מנסה לקפוץ שוב. הקפיצה קטנה.
-
-המים סביבו נרגעים קצת.
-
-imageDirection: water calming slightly around a tired dolphin, fewer ripples
+imageDirection: Dudi underwater, eyes closed gently, listening intensely for one tiny pink-tipped spiral shell making a soft 'hum' sound on the seabed.
 
 --- Page 8 ---
-דּוּדִי נעצר.
+דודי עצר.
+הוא ניער את הזנב.
+"לא כל קול צריך שאבוא אליו," הוא חשב.
+הוא הקשיב שוב.
+הגלים אמרו שוווש. הסלעים אמרו גלגלגל. הדגיגים אמרו פְליק־פְליק־פְליק.
+ושם, מתחת לכל זה, היה קול אחד קטן:
+הוּם.
+דודי שחה אחרי הקול.
+לא מהר. לא בקפיצות.
+בשקט של דולפין שמנסה לא להפריע לאוזניים של עצמו.
 
-הסונאר שלו שותק. הוא שוקע מעט במים. הכתר שלו כמעט לא נוצץ.
-
-imageDirection: dolphin suspended, no splash, muted colors, small bubbles drifting
+imageDirection: Dudi swims slowly and silently underwater, focused, gliding past distracting fish toward the small pink shell glowing softly.
 
 --- Page 9 ---
-אני מחכה.
+על החוף, {{childName}} נאנח/ה.
+"S," {הוא|היא} אמר/ה.
+ואז {ראה|ראתה} צדף כחול.
+ואז שמע/ה ילד רחוק צוחק.
+ואז הריח/ה מלון שאמא חתכה בקופסה.
+ואז הרגיש/ה חול שנכנס {לו|לה} בין האצבעות.
+האות S חיכתה.
+אבל כל העולם מסביב קרא {לו|לה}:
+תסתכלי עלי! לא, עלי! לא, עלי!
+{{childName}} סגר/ה את הספר לרגע.
+"זה יותר מדי," {הוא|היא} אמר/ה בשקט.
 
-דּוּדִי לא זז.
-
-הגלים הירוקים עדיין רחוקים. היצור הקטן עדיין תקוע.
-
-imageDirection: still ocean, tiny trapped shape unchanged, child uncertain
+imageDirection: The child on the beach surrounded by overlapping distractions: a blue shell, distant children laughing, melon being cut, sand running through fingers. The S waits patiently in the book.
 
 --- Page 10 ---
-דּוּדִי מזיז סנפיר אחד. לאט.
+שפריץ גדול עלה מן הים.
+דודי קפץ החוצה ובקצה האף שלו היה צדף קטן.
+ורוד בקצה. מפותל כמו גל. מנצנץ בטיפה של שמש.
+דודי הניח את הצדף ליד הספר של {{childName}} ונשף עליו בעדינות.
+הצדף אמר:
+הוּם.
+{{childName}} פקח/ה עיניים.
+"מצאת אותו?"
+דודי צייץ בגאווה.
+הוא נראה כאילו הוא רוצה לעשות שלושה סיבובים באוויר, אבל מתאפק כדי שהצדף לא ייעלב.
 
-גל קטן מתפשט.
-
-imageDirection: close-up of small ripple spreading in silence
+imageDirection: Dudi leaps out of the water with a small pink spiral shell balanced on his nose. Sun glints on the shell. The child's eyes widen.
 
 --- Page 11 ---
-אני מניח את היד על המים. מקיש פעם אחת. עוד פעם.
+"איך מצאת אותו?" שאל/ה {{childName}}.
+דודי הביט בים.
+הוא הצביע באף שלו אל הגלים. אחר כך אל הצדף. אחר כך סגר עיניים.
+{{childName}} {ניסה|ניסתה} להבין.
+"הקשבת?"
+דודי צייץ.
+"רק לו?"
+דודי צייץ שוב, הפעם בשמחה גדולה יותר.
+{{childName}} הסתכל/ה על הספר.
+על האות S.
+על הסרטן.
+על השחף.
+על החול.
+ואז {הוא|היא} הסתכל/ה שוב רק על האות.
+"דבר אחד," {הוא|היא} לחש/ה.
 
-דּוּדִי מסתכל. הוא מזיז את הסנפיר עם הקצב.
-
-אני מקיש שוב. דּוּדִי שוחה עם הקצב.
-
-imageDirection: child hand creating even ripples, dolphin aligning with them
+imageDirection: The child looks down at the open book showing only the letter S, while the crab, gull, sand and beach are visible but soft-focus in the background.
 
 --- Page 12 ---
-דּוּדִי שולח סונאר קצר. "טיק."
+{{childName}} פתח/ה את הספר.
+האות S היתה שם.
+עדיין מתפתלת. עדיין קצת מוזרה. אבל עכשיו {הוא היה|היא היתה} רק דבר אחד.
+{{childName}} הניח/ה אצבע על הקצה העליון שלה.
+"אני אקשיב רק לקו שלך," {הוא|היא} אמר/ה לאות.
+זה היה דבר מוזר להגיד לאות.
+אבל האות לא התלוננה.
+{{childName}} העביר/ה את האצבע לאט.
+ססססס.
+הקו ירד. התעקל. עלה קצת. והתעקל שוב.
 
-הוא שוחה ישר קדימה.
-
-"טיק."
-
-הוא חותך את המים בלי לקפוץ. גוף חלק כמו חץ.
-
-הסונאר נוגע בגלים הירוקים.
-
-imageDirection: sleek arrow-like dolphin, controlled waves cutting through green strands
+imageDirection: Close-up of small finger tracing the S letter slowly along its curve. The book is open on the sand. Light catches the page.
 
 --- Page 13 ---
-הגלים הירוקים מתרופפים.
+הסרטן עבר שוב.
+קליק־קלאק.
+{{childName}} כמעט הסתכל/ה.
+כמעט.
+דודי השמיע הוּם קטן, כמו הצדף.
+{{childName}} נשם/ה.
+"עכשיו אני עם ה־S," {הוא|היא} אמר/ה.
+{הוא|היא} עקב/ה אחרי הקו פעם נוספת.
+הפעם האות כבר לא נראתה כמו נחש שהתבלבל.
+היא נראתה כמו גל.
+גל קטן של אות.
+"ס," אמר/ה {{childName}}. "סירה. סוכר. סבתא. דודי."
+דודי קפץ.
+זו כנראה היתה המילה האהובה עליו.
 
-היצור הקטן חומק החוצה. הוא שוחה הרחק.
-
-הגלים הירוקים צפים ריקים.
-
-imageDirection: freed creature swimming off, strands drifting apart
+imageDirection: Dudi rests beside the book, making a soft humming sound like the shell. The child concentrates, finger on the page, eyes only on the S.
 
 --- Page 14 ---
-אני ודּוּדִי צפים זה ליד זה.
+{{childName}} צייר/ה S אחת בחול.
+היא יצאה עקומה.
+מאוד עקומה.
+דודי הביט בה ברצינות גדולה.
+ואז צייר באף שלו קו במים.
+גם הוא יצא עקום.
+{{childName}} צחק/ה.
+"שלך יותר עקומה."
+דודי צייץ כאילו זו מחמאה.
+אז {{childName}} צייר/ה עוד S.
+היא עדיין לא {היה|היתה} מושלמת.
+אבל {הוא היה|היא היתה} קצת יותר {שלו|שלה}.
 
-גל ירוק קטן עובר בינינו. הכתר של דּוּדִי זוהר קצת.
-
-לא הרבה. רק קצת.
-
-imageDirection: quiet water, faint glow on Dudi's crown, shared stillness
+imageDirection: The child draws a wobbly S in the sand with a finger. Dudi has drawn a matching wobbly curve in the wet sand with his nose. Both grin.
 
 --- Page 15 ---
-אני מניח יד על המים. גל קטן מתפשט.
+כשהשמש התחיל/ה לרדת, {{childName}} סגר/ה את ספר האותיות.
+{הוא|היא} עדיין רצתה לרוץ למים. {הוא|היא} עדיין רצתה לבנות עוד מגדל לארמון. והאות S עדיין {היה|היתה} אות עם יותר מדי פניות.
+אבל עכשיו {{childName}} ידע/ה משהו קטן:
+כשהכל קורא {לו|לה} בבת אחת, אפשר לבחור דבר אחד.
+קו אחד. צליל אחד. צדף אחד.
+דודי דחף {אליו|אליה} את הצדף הוורוד.
+הוא אמר הוּם קטן.
+{{childName}} החזיק/ה אותו בכף היד.
+"מחר," {הוא|היא} אמר/ה, "נקשיב לאות הבאה."
+דודי קפץ סיבוב קטן באוויר.
+כנראה שהוא קיווה שזו תהיה האות דל"ת.
+כי דל"ת, לדעתו, נראתה קצת כמו סנפיר.
 
-דּוּדִי צופה. לא קופץ. לא ממהר.
+imageDirection: Sunset on the beach. The child holds the pink shell in her palm. The book is closed. Dudi leaps a small spinning loop above the waves in the distance.
 
-הוא מחכה.
-
-imageDirection: warm light, calm sea, a single lingering ripple spreading outward
-
-WORD_COUNT: [48, 43, 38, 38, 28, 36, 32, 24, 20, 9, 31, 29, 23, 25, 17] = 441
+WORD_COUNT: [62, 46, 62, 57, 62, 54, 53, 52, 55, 60, 61, 58, 60, 51, 92] = [885]
