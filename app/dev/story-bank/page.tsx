@@ -1,22 +1,16 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { getCompanionById } from '@/lib/companions';
 import {
   GOLDEN_SHELF_CATALOG,
   GOLDEN_SHELF_DIRECTION_LABELS,
   GOLDEN_SHELF_PAGE_OPTIONS,
+  goldenShelfCompanionLabel,
   goldenShelfStoryFile,
   type GoldenShelfDirection,
 } from '@/lib/power-cards/golden-shelf-catalog';
 
 const DEFAULT_STORY = goldenShelfStoryFile('bear_cub_gahal_adventure');
-
-function companionLabel(companionId: string, slug: string): string {
-  const companion = getCompanionById(companionId);
-  const name = companion?.name ?? companionId;
-  return `${name} — ${slug}`;
-}
 
 export default function StoryBankDevPage() {
   const [storyFile, setStoryFile] = useState(DEFAULT_STORY);
@@ -104,7 +98,7 @@ export default function StoryBankDevPage() {
                   const file = goldenShelfStoryFile(entry.slug);
                   return (
                     <option key={file} value={file}>
-                      {companionLabel(entry.companionId, entry.slug)}
+                      {goldenShelfCompanionLabel(entry)}
                     </option>
                   );
                 })}
