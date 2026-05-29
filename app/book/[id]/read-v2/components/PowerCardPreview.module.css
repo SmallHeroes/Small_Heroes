@@ -1,0 +1,208 @@
+.card {
+  --pc-bg: #1a1f3a;
+  --pc-bg-gradient: linear-gradient(135deg, #1a1f3a 0%, #2d3561 50%, #1a1f3a 100%);
+  --pc-text-primary: #f5f3ff;
+  --pc-text-secondary: #cbd5e1;
+  --pc-accent: #fbbf24;
+  --pc-border-glow: rgba(251, 191, 36, 0.3);
+
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 148 / 210;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--pc-bg-gradient);
+  color: var(--pc-text-primary);
+  font-family: var(--font-heebo), Heebo, sans-serif;
+  direction: rtl;
+  text-align: center;
+  box-shadow:
+    0 0 0 1px var(--pc-border-glow),
+    0 18px 40px rgba(0, 0, 0, 0.28);
+  display: flex;
+  flex-direction: column;
+}
+
+.motifBackdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0.08;
+}
+
+.motifGlyph {
+  position: absolute;
+  font-size: 10px;
+  line-height: 1.3;
+  color: var(--pc-text-secondary);
+  max-width: 42%;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+.motifGlyph:nth-child(1) {
+  top: 8%;
+  right: 6%;
+}
+
+.motifGlyph:nth-child(2) {
+  top: 22%;
+  left: 5%;
+}
+
+.motifGlyph:nth-child(3) {
+  bottom: 18%;
+  right: 8%;
+}
+
+.motifGlyph:nth-child(4) {
+  bottom: 10%;
+  left: 10%;
+}
+
+.inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 5% 7% 4%;
+}
+
+.header {
+  flex: 0 0 12%;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35em;
+  font-size: clamp(9px, 2.4vw, 11px);
+  font-weight: 500;
+  color: var(--pc-text-secondary);
+  letter-spacing: 0.04em;
+}
+
+.brandMark {
+  color: var(--pc-accent);
+  font-weight: 600;
+}
+
+.titleSection {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 2% 0 4%;
+}
+
+.avatarWrap {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  padding: 3px;
+  background: linear-gradient(145deg, var(--pc-accent), transparent 70%);
+  box-shadow: 0 0 24px var(--pc-border-glow);
+}
+
+.avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  background: var(--pc-bg);
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: clamp(15px, 4.2vw, 18px);
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--pc-text-primary);
+}
+
+.cardSubtitle {
+  margin: 0;
+  font-size: clamp(11px, 3vw, 13px);
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--pc-text-secondary);
+}
+
+.steps {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(0.45rem, 2.2vw, 0.75rem);
+  padding: 2% 0;
+  margin: 0;
+  list-style: none;
+  text-align: right;
+}
+
+.stepRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  font-size: clamp(11px, 3.1vw, 13px);
+  line-height: 1.45;
+  color: var(--pc-text-primary);
+}
+
+.stepNumber {
+  flex: 0 0 auto;
+  width: 1.35rem;
+  font-weight: 600;
+  color: var(--pc-accent);
+  text-align: center;
+}
+
+.stepText {
+  flex: 1 1 auto;
+}
+
+.reminderSection {
+  flex: 0 0 auto;
+  padding: 3% 0 2%;
+  font-size: clamp(10px, 2.8vw, 12px);
+  line-height: 1.5;
+  color: var(--pc-text-secondary);
+}
+
+.reminderQuote {
+  margin: 0;
+  font-style: italic;
+}
+
+.companionAttribution {
+  margin: 0.35rem 0 0;
+  font-style: normal;
+  font-weight: 500;
+  color: var(--pc-accent);
+}
+
+.footer {
+  flex: 0 0 auto;
+  min-height: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem 0.5rem;
+  padding-top: 2%;
+  border-top: 1px solid var(--pc-border-glow);
+}
+
+.motifChip {
+  font-size: clamp(7px, 1.8vw, 9px);
+  line-height: 1.2;
+  padding: 0.15rem 0.35rem;
+  border-radius: 999px;
+  color: var(--pc-text-secondary);
+  background: color-mix(in srgb, var(--pc-accent) 12%, transparent);
+  opacity: 0.85;
+}
