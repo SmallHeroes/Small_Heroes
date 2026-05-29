@@ -59,8 +59,8 @@ export default function PowerCardPreview({ input, className }: Props) {
               src={input.companionAvatarUrl}
               alt=""
               className={styles.avatar}
-              width={88}
-              height={88}
+              width={70}
+              height={70}
             />
           </div>
           <h2 className={styles.cardTitle}>{copy.title}</h2>

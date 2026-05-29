@@ -32,7 +32,7 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  padding: 4% 6.5% 3.5%;
+  padding: 10px 6.5% 12px;
 }
 
 .header {
@@ -54,17 +54,18 @@
 }
 
 .titleSection {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.4rem;
-  padding: 1.5% 0 2.5%;
+  gap: 0.5em;
+  max-height: 25%;
+  padding: 12px 0 6px;
 }
 
 .avatarWrap {
-  width: clamp(72px, 22vw, 88px);
-  height: clamp(72px, 22vw, 88px);
+  width: clamp(58px, 15vw, 70px);
+  height: clamp(58px, 15vw, 70px);
   border-radius: 50%;
   padding: 3px;
   background: linear-gradient(145deg, var(--pc-accent), transparent 70%);
@@ -82,17 +83,17 @@
 
 .cardTitle {
   margin: 0;
-  font-size: clamp(14px, 4vw, 17px);
+  font-size: clamp(13px, 3.6vw, 16px);
   font-weight: 600;
-  line-height: 1.22;
+  line-height: 1.2;
   color: var(--pc-text-primary);
 }
 
 .cardSubtitle {
   margin: 0;
-  font-size: clamp(10px, 2.8vw, 12px);
+  font-size: clamp(10px, 2.6vw, 11px);
   font-weight: 400;
-  line-height: 1.3;
+  line-height: 1.28;
   color: var(--pc-text-secondary);
 }
 
@@ -132,9 +133,9 @@
 
 .reminderSection {
   flex: 0 0 auto;
-  padding: 2% 0 0;
+  padding: 8px 0 0;
   font-size: clamp(9px, 2.5vw, 11px);
-  line-height: 1.45;
+  line-height: 1.4;
   color: var(--pc-text-secondary);
 }
 
