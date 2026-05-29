@@ -74,9 +74,8 @@ function contentRuleIssues(spec: PowerCardSpec): PowerCardValidationIssue[] {
     if (EM_DASH_RE.test(step)) {
       issues.push({
         path,
-        severity: 'warning',
-        message:
-          'Step contains an em dash — prefer a comma or two short sentences for child-facing copy.',
+        severity: 'error',
+        message: 'Step must not contain em dashes — use a comma or short sentence instead.',
       });
     }
   });
