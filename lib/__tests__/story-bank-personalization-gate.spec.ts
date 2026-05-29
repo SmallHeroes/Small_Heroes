@@ -54,6 +54,16 @@ describe('story-bank personalization gate', () => {
     expect(resolveGenderAlternationChips('{הלך|הלכה}', 'girl')).toBe('הלכה');
   });
 
+  it('resolves /ת and /ה slash forms in power-card copy', () => {
+    expect(
+      resolveStoryBankPlaceholders('אני נותן/ת ונושם/ת', {
+        childName: 'נועה',
+        childGender: 'girl',
+        companionName: 'לילי',
+      })
+    ).toBe('אני נותנת ונושמת');
+  });
+
   it('denylist matches only standalone tokens, not substrings (regression: דניאל must not hit דני)', () => {
     // Substring false-positives that the old gate would have wrongly blocked:
     const safeNames = ['דניאל', 'תומר', 'מיכאלה', 'יעלי'];
