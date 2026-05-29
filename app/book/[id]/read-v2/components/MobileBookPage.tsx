@@ -1,7 +1,7 @@
 'use client';
 
 import type { MobilePage } from '@/lib/book-layout';
-import { getDirectionTemplate, templateCssVars, tokensToCssVars } from '@/lib/book-layout';
+import { getDirectionTemplate, templateCssVars, tokensToCssVars, splitIntoSentences } from '@/lib/book-layout';
 import styles from '../reader-v2.module.css';
 import { SceneIllustration } from './SceneIllustration';
 import { StickerSlots } from './StickerSlots';
@@ -29,7 +29,11 @@ export function MobileBookPage({ page, isCurrent }: Props) {
       />
       {page.showText ? (
         <div className={styles.mobileTextOverlay}>
-          <p className={styles.mobileProse}>{page.text}</p>
+          {splitIntoSentences(page.text).map((sentence, i) => (
+            <p key={i} className={styles.sentence}>
+              {sentence}
+            </p>
+          ))}
           <StickerSlots variant="mobile" />
         </div>
       ) : null}

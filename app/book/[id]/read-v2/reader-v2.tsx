@@ -5,6 +5,7 @@ import {
   adaptLegacyBookToStoryScenes,
   applyDevLayoutOverrides,
   buildRenderedBookMeta,
+  splitIntoSentences,
   storySceneToDesktopSpread,
   type DevLayoutQueryFlags,
   storySceneToMobilePage,
@@ -500,7 +501,11 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
       return (
         <article className={`${styles.pageCanvas} ${styles.tplTextOnly}`}>
           <div className={styles.textOnlyPaper}>
-            <p className={styles.paperPageText}>{scene.text || ' '}</p>
+            {splitIntoSentences(scene.text).map((sentence, i) => (
+              <p key={i} className={`${styles.paperPageText} ${styles.sentence}`}>
+                {sentence}
+              </p>
+            ))}
           </div>
           {sceneFooter}
         </article>
