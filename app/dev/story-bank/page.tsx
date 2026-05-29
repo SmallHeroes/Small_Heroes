@@ -1,35 +1,48 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { getCompanionById } from '@/lib/companions';
+import {
+  GOLDEN_SHELF_CATALOG,
+  GOLDEN_SHELF_DIRECTION_LABELS,
+  GOLDEN_SHELF_PAGE_OPTIONS,
+  goldenShelfStoryFile,
+  type GoldenShelfDirection,
+} from '@/lib/power-cards/golden-shelf-catalog';
 
-// ✅ Golden shelf only — stories that passed adapt-pass + gate under the
-// page-count rule (bedtime=10, adventure=15, fantasy=20). Keep in sync with
-// docs/LITERARY_SHELF_TRACKER.md. To QA a non-golden draft, add a temporary
-// entry but mark it [DRAFT] so it's obvious in the dropdown.
-const AVAILABLE_STORIES = [
-  { file: 'fox_uri_adventure.md',          label: '✅ fox_uri — adventure 15p (NIGHT_FEAR) — slot 1' },
-  { file: 'dolphin_shahkan_adventure.md',  label: '✅ dolphin_shahkan — adventure 15p (FOCUS_LEARNING) — slot 5' },
-  { file: 'owl_chacham_bedtime.md',        label: '✅ owl_chacham — bedtime 10p (NIGHT_FEAR) — slot 6' },
-  { file: 'firefly_namit_adventure.md',    label: '✅ firefly_namit — adventure 15p (NIGHT_FEAR) — slot 7' },
-  { file: 'dragon_dini_fantasy.md',        label: '✅ dragon_dini — fantasy 20p (NEW_SIBLING) — slot 8' },
-];
+const DEFAULT_STORY = goldenShelfStoryFile('bear_cub_gahal_adventure');
+
+function companionLabel(companionId: string, slug: string): string {
+  const companion = getCompanionById(companionId);
+  const name = companion?.name ?? companionId;
+  return `${name} — ${slug}`;
+}
 
 export default function StoryBankDevPage() {
-  const [storyFile, setStoryFile] = useState('fox_uri_adventure.md');
+  const [storyFile, setStoryFile] = useState(DEFAULT_STORY);
   const [childName, setChildName] = useState('בר');
   const [childGender, setChildGender] = useState('boy');
-  const [companionName, setCompanionName] = useState('');
   const [illustrationStyle, setIllustrationStyle] = useState('soft_hand_drawn_storybook');
-  const [maxPages, setMaxPages] = useState(1);
-  const [skipCover, setSkipCover] = useState(true);
+  const [maxPages, setMaxPages] = useState<number>(3);
+  const [skipCover, setSkipCover] = useState(false);
   const [generateAudio, setGenerateAudio] = useState(false);
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
   const [result, setResult] = useState<{
     bookUrl?: string;
     pagesRendered?: number;
     pagesFailed?: number[];
+    orderStatus?: string;
+    storyDirection?: string;
     error?: string;
   } | null>(null);
+
+  const companionCount = useMemo(
+    () =>
+      GOLDEN_SHELF_CATALOG.bedtime.length +
+      GOLDEN_SHELF_CATALOG.adventure.length +
+      GOLDEN_SHELF_CATALOG.fantasy.length,
+    []
+  );
 
   async function handleGenerate() {
     setStatus('loading');
@@ -42,14 +55,20 @@ export default function StoryBankDevPage() {
           storyFile,
           childName,
           childGender,
-          companionName,
           illustrationStyle,
           maxPages,
           skipCover,
           generateAudio,
         }),
       });
-      const data = (await res.json()) as { error?: string; bookUrl?: string; pagesRendered?: number; pagesFailed?: number[] };
+      const data = (await res.json()) as {
+        error?: string;
+        bookUrl?: string;
+        pagesRendered?: number;
+        pagesFailed?: number[];
+        orderStatus?: string;
+        storyDirection?: string;
+      };
       if (!res.ok) throw new Error(data.error || 'Failed');
       setResult(data);
       setStatus('done');
@@ -63,32 +82,39 @@ export default function StoryBankDevPage() {
   const rendered = result?.pagesRendered ?? 0;
 
   return (
-    <div style={{ padding: 40, maxWidth: 600, margin: '0 auto', fontFamily: 'sans-serif' }}>
-      <h1>Story Bank — Dev Renderer</h1>
-      <p style={{ color: '#666' }}>
-        Render a pre-written story with illustrations. Dev only. For Bolly + Style 02 blockers set{' '}
-        <code>PHASE2_STYLE02_BOOK_PIPELINE=true</code>, <code>IMAGE_PROVIDER=gpt-image</code>,{' '}
-        <code>PHASE2_STEP5_PROFILE=guarded-v1</code> in <code>.env.local</code>.
+    <div style={{ padding: 40, maxWidth: 640, margin: '0 auto', fontFamily: 'sans-serif' }}>
+      <h1>Story Bank — Short E2E Test</h1>
+      <p style={{ color: '#666', lineHeight: 1.5 }}>
+        Generate a real book through the story-bank pipeline (images, optional audio, DB order).
+        Use a short page count for fast iteration before PR-5 merge. After generation, open the reader,
+        flip through all pages, verify Power Card EndScreen + PDF download, then tap המשך for סיימת.
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 24 }}>
         <label>
-          Story:
+          Companion / story ({companionCount} golden shelf):
           <select
             value={storyFile}
             onChange={(e) => setStoryFile(e.target.value)}
             style={{ display: 'block', width: '100%', padding: 8, marginTop: 4 }}
           >
-            {AVAILABLE_STORIES.map((s) => (
-              <option key={s.file} value={s.file}>
-                {s.label}
-              </option>
+            {(Object.keys(GOLDEN_SHELF_CATALOG) as GoldenShelfDirection[]).map((direction) => (
+              <optgroup key={direction} label={GOLDEN_SHELF_DIRECTION_LABELS[direction]}>
+                {GOLDEN_SHELF_CATALOG[direction].map((entry) => {
+                  const file = goldenShelfStoryFile(entry.slug);
+                  return (
+                    <option key={file} value={file}>
+                      {companionLabel(entry.companionId, entry.slug)}
+                    </option>
+                  );
+                })}
+              </optgroup>
             ))}
           </select>
         </label>
 
         <label>
-          Child Name:
+          Child name:
           <input
             value={childName}
             onChange={(e) => setChildName(e.target.value)}
@@ -109,39 +135,29 @@ export default function StoryBankDevPage() {
         </label>
 
         <label>
-          Companion Name:
-          <input
-            value={companionName}
-            onChange={(e) => setCompanionName(e.target.value)}
-            style={{ display: 'block', width: '100%', padding: 8, marginTop: 4 }}
-          />
-        </label>
-
-        <label>
           Pages to render:
           <select
             value={maxPages}
             onChange={(e) => setMaxPages(Number(e.target.value))}
             style={{ display: 'block', width: '100%', padding: 8, marginTop: 4 }}
           >
-            <option value={1}>1 page (single page test)</option>
-            <option value={2}>2 pages (video debug)</option>
-            <option value={5}>5 pages (quick test)</option>
-            <option value={10}>10 pages</option>
-            <option value={15}>15 pages (full)</option>
-            <option value={0}>All pages</option>
+            {GOLDEN_SHELF_PAGE_OPTIONS.map((n) => (
+              <option key={n} value={n}>
+                {n} {n === 3 ? '(default — E2E smoke)' : 'pages'}
+              </option>
+            ))}
           </select>
         </label>
 
         <label>
-          Style:
+          Illustration style:
           <select
             value={illustrationStyle}
             onChange={(e) => setIllustrationStyle(e.target.value)}
             style={{ display: 'block', width: '100%', padding: 8, marginTop: 4 }}
           >
-            <option value="soft_hand_drawn_storybook">Style 01 — רך וחמים (gpt-image-1, soft picture-book)</option>
-            <option value="detailed_whimsical_world">Style 02 — עולם קסום (gpt-image-1, cinematic whimsical)</option>
+            <option value="soft_hand_drawn_storybook">Style 01 — גוונים רכים / soft hand-drawn</option>
+            <option value="detailed_whimsical_world">Style 02 — עולם קסום / detailed whimsical</option>
           </select>
         </label>
 
@@ -151,7 +167,7 @@ export default function StoryBankDevPage() {
             checked={skipCover}
             onChange={(e) => setSkipCover(e.target.checked)}
           />
-          Skip cover (faster for single-page tests)
+          Skip cover (faster; reader still works)
         </label>
 
         <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -160,7 +176,7 @@ export default function StoryBankDevPage() {
             checked={generateAudio}
             onChange={(e) => setGenerateAudio(e.target.checked)}
           />
-          Generate audio (per-page ElevenLabs; requires env keys)
+          Generate audio (ElevenLabs; requires env keys)
         </label>
 
         <button
@@ -178,7 +194,7 @@ export default function StoryBankDevPage() {
             opacity: status === 'loading' ? 0.5 : 1,
           }}
         >
-          {status === 'loading' ? 'Generating... (2-5 min)' : 'Generate Book'}
+          {status === 'loading' ? 'Generating… (1–3 min for 3 pages)' : 'Generate Book'}
         </button>
       </div>
 
@@ -193,9 +209,11 @@ export default function StoryBankDevPage() {
         >
           {status === 'done' && (
             <>
-              <p style={{ color: '#16a34a', fontWeight: 'bold' }}>✓ Book ready!</p>
+              <p style={{ color: '#16a34a', fontWeight: 'bold' }}>Book ready</p>
               <p>
                 Pages rendered: {rendered} / {rendered + failed}
+                {result.orderStatus ? ` · order status: ${result.orderStatus}` : ''}
+                {result.storyDirection ? ` · direction: ${result.storyDirection}` : ''}
               </p>
               {failed > 0 && (
                 <p style={{ color: '#dc2626' }}>Failed: pages {result.pagesFailed?.join(', ')}</p>
@@ -215,9 +233,12 @@ export default function StoryBankDevPage() {
                     textDecoration: 'none',
                   }}
                 >
-                  Open Book →
+                  Open Reader →
                 </a>
               )}
+              <p style={{ marginTop: 12, color: '#444', fontSize: 14 }}>
+                E2E checklist: read all pages → Power Card EndScreen → הורד PDF → המשך → סיימת
+              </p>
             </>
           )}
           {status === 'error' && <p style={{ color: '#dc2626' }}>{result.error}</p>}

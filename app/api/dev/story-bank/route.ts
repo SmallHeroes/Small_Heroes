@@ -2,12 +2,14 @@ import { randomUUID } from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
 import { NextRequest, NextResponse } from 'next/server';
-import { IllustrationStyle } from '@prisma/client';
+import { IllustrationStyle, Prisma } from '@prisma/client';
 import { generateStoryBankCharacterDNA, loadStoryFromBank } from '@/backend/providers/story-bank-loader';
 import { generateAllPageImages, generateBookCover } from '@/backend/providers/image';
 import { getCompanionById, type Companion } from '@/lib/companions';
 import { mergeGptImageReferenceSources } from '@/lib/image-reference-utils';
 import { prisma } from '@/lib/prisma';
+import { buildPersistedCharacterAnchorsJson } from '@/lib/orderMeta';
+import { GOLDEN_SHELF_PAGE_OPTIONS, type GoldenShelfPageOption } from '@/lib/power-cards/golden-shelf-catalog';
 import { V3_COMPANION_BANK_CATEGORY } from '@/backend/providers/story-bank-index';
 import { assignTemplatesForBook, type BookPageTemplate } from '@/lib/bookPageLayout';
 import {
@@ -28,6 +30,14 @@ const STORY_BANK_RAW = path.join(
   'story-bank',
   (process.env.STORY_BANK_V3_DIR || 'v5-fixed-v2').trim()
 );
+
+const ALLOWED_PAGE_COUNTS = new Set<number>(GOLDEN_SHELF_PAGE_OPTIONS);
+
+function normalizeMaxPages(value: unknown): GoldenShelfPageOption {
+  const n = typeof value === 'number' ? value : parseInt(String(value ?? ''), 10);
+  if (ALLOWED_PAGE_COUNTS.has(n)) return n as GoldenShelfPageOption;
+  return 3;
+}
 
 function inferStoryDirectionFromFile(
   storyFile: string
@@ -130,12 +140,14 @@ export async function POST(req: NextRequest) {
     childGender = 'girl',
     childAge = 5,
     companionName = 'צפרדע',
-    illustrationStyle: illustrationStyleRaw = 'realistic_illustrated',
+    illustrationStyle: illustrationStyleRaw = 'soft_hand_drawn_storybook',
     childImageUrl = null,
-    maxPages = 0,
+    maxPages: maxPagesRaw = 3,
     skipCover = false,
     generateAudio = false,
   } = body;
+
+  const maxPages = normalizeMaxPages(maxPagesRaw);
 
   if (!storyFile || typeof storyFile !== 'string') {
     return NextResponse.json({ error: 'storyFile is required' }, { status: 400 });
@@ -184,20 +196,20 @@ export async function POST(req: NextRequest) {
     const challengeCategory =
       (companionId && V3_COMPANION_BANK_CATEGORY[companionId]) || 'GENERAL_FEARS';
 
-    const storyFull = await loadStoryFromBank(filePath, childName, effectiveCompanionName, childGender);
-    console.log(`[StoryBank] Loaded "${storyFull.title}" — ${storyFull.pages.length} pages`);
+    const storyFull = await loadStoryFromBank(
+      filePath,
+      childName,
+      effectiveCompanionName,
+      childGender,
+      { maxPages }
+    );
+    console.log(`[StoryBank] Loaded "${storyFull.title}" — ${storyFull.pages.length} pages (maxPages=${maxPages})`);
 
     if (storyFull.pages.length === 0) {
       return NextResponse.json({ error: 'No pages found in story file' }, { status: 400 });
     }
 
-    // Limit pages for faster/cheaper dev testing
-    const pageLimit = maxPages > 0 ? maxPages : storyFull.pages.length;
-    const story = {
-      ...storyFull,
-      pages: storyFull.pages.slice(0, pageLimit),
-    };
-    console.log(`[StoryBank] Rendering ${story.pages.length}/${storyFull.pages.length} pages (maxPages=${maxPages})`);
+    const story = storyFull;
 
     const assignedTemplates = assignTemplatesForBook(
       story.pages.map((page) => ({
@@ -232,12 +244,10 @@ export async function POST(req: NextRequest) {
         storyDirection: storyDirection ?? undefined,
         illustrationStyle,
         childImageUrl: childImageUrl || null,
-        characterAnchors: {
-          wizard: {
-            companionCharacterId: companionId,
-            challengeCategory,
-          },
-        },
+        characterAnchors: buildPersistedCharacterAnchorsJson({}, {
+          companionCharacterId: companionId ?? undefined,
+          challengeCategory,
+        }) as Prisma.InputJsonValue,
         paymentId: accessKey,
         paymentProvider: 'story_bank_dev',
         basePrice: 0,
@@ -274,8 +284,8 @@ export async function POST(req: NextRequest) {
       })),
     });
 
-    // Use FULL story text for DNA (even if rendering fewer pages) so character is consistent
-    const allText = storyFull.pages.map((p) => p.text).join('\n');
+    // Use loaded story text for DNA (respects maxPages truncation at source markers).
+    const allText = story.pages.map((p) => p.text).join('\n');
     const dna = await generateStoryBankCharacterDNA({
       childName,
       childGender,
@@ -300,7 +310,7 @@ export async function POST(req: NextRequest) {
         characterSheet: story.characterSheet,
         referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
         orderId: order.id,
-        directionStoryPremise: storyFull.coverSceneHint,
+        directionStoryPremise: story.coverSceneHint,
         childStructured: dna.childStructured,
         companionStructured: dna.companionStructured,
         companion: {
@@ -515,12 +525,16 @@ export async function POST(req: NextRequest) {
       await prisma.order.update({ where: { id: order.id }, data: { audioStatus: 'done' } });
     }
 
+    const failedCount = imageOutcome.failedPages.length;
+    const orderStatus = failedCount > 0 ? 'partial' : 'ready';
+    const allImagesFailed = failedCount >= story.pages.length && story.pages.length > 0;
+
     await prisma.order.update({
       where: { id: order.id },
       data: {
-        status: 'ready',
-        imageStatus: 'done',
-        packageStatus: 'done',
+        status: orderStatus,
+        imageStatus: allImagesFailed ? 'failed' : 'done',
+        packageStatus: orderStatus === 'ready' ? 'done' : 'pending',
       },
     });
 
@@ -534,6 +548,8 @@ export async function POST(req: NextRequest) {
       bookUrl,
       pagesRendered: imageOutcome.results.size,
       pagesFailed: imageOutcome.failedPages,
+      maxPages,
+      orderStatus,
       storyDirection,
       challengeCategory,
       style02Active: process.env.PHASE2_STYLE02_BOOK_PIPELINE === 'true',

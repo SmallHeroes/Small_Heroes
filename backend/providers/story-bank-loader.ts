@@ -6,6 +6,7 @@ import {
   type PatchContext,
   generateCompanionLetter,
 } from './personalization';
+import { truncateStoryMarkdownToPages } from '../../lib/story-bank-truncate';
 import {
   assertStoryPersonalizationGate,
   normalizeWizardChildGender,
@@ -17,7 +18,11 @@ export type LoadStoryFromBankOptions = {
   patchContext?: PatchContext | null;
   /** When set with companionLetter frontmatter, generates and splices the letter page. */
   letterContext?: LetterContext | null;
+  /** When set, keep only the first N story pages (truncates at `--- Page N ---` markers). */
+  maxPages?: number;
 };
+
+export { truncateStoryMarkdownToPages } from '../../lib/story-bank-truncate';
 
 /**
  * Parse `companionLetter` from story markdown (YAML anywhere in header region).
@@ -48,7 +53,10 @@ export async function loadStoryFromBank(
   childGender?: string,
   options?: LoadStoryFromBankOptions | null
 ): Promise<GeneratedStory> {
-  const raw = await fs.readFile(filePath, 'utf-8');
+  let raw = await fs.readFile(filePath, 'utf-8');
+  if (options?.maxPages && options.maxPages > 0) {
+    raw = truncateStoryMarkdownToPages(raw, options.maxPages);
+  }
   const letterMeta = parseCompanionLetterMeta(raw);
 
   // Try YAML frontmatter first (v5-fixed-v2 format), fall back to legacy "=== STORY N: title ===".
