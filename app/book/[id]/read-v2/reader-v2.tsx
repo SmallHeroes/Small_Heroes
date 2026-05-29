@@ -13,7 +13,9 @@ import {
 } from '@/lib/book-layout';
 import { DesktopBookSpread } from './components/DesktopBookSpread';
 import { MobileBookPage } from './components/MobileBookPage';
+import { PowerCardEndScreen } from './components/PowerCardEndScreen';
 import styles from './reader-v2.module.css';
+import type { PowerCardRenderInput } from '@/lib/power-cards/types';
 
 type BookPage = {
   pageNumber: number;
@@ -40,8 +42,10 @@ type BookPage = {
 type OrderBookResponse = {
   id: string;
   status: string;
+  childName?: string;
   storyDirection?: string | null;
   storyLength?: string | null;
+  powerCard?: PowerCardRenderInput | null;
   book: {
     title?: string | null;
     coverText?: string | null;
@@ -80,6 +84,9 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
   const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
   const [transitionKey, setTransitionKey] = useState(0);
   const [showEndScreen, setShowEndScreen] = useState(false);
+  const [showPowerCardScreen, setShowPowerCardScreen] = useState(false);
+  const [powerCardInput, setPowerCardInput] = useState<PowerCardRenderInput | null>(null);
+  const [childName, setChildName] = useState('');
   /** Whole-book MP3 when the order has no per-page clips. */
   const [fallbackBookAudioUrl, setFallbackBookAudioUrl] = useState<string | null>(null);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
@@ -132,6 +139,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
     async function loadBook() {
       setStatus('loading');
       setShowEndScreen(false);
+      setShowPowerCardScreen(false);
       const url = `/api/orders/${encodeURIComponent(bookId)}?accessKey=${encodeURIComponent(resolvedAccessKey)}`;
       try {
         const res = await fetch(url, { cache: 'no-store' });
@@ -168,6 +176,8 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
         }
 
         setBookTitle(data.book?.title?.trim() || '');
+        setChildName(data.childName?.trim() || '');
+        setPowerCardInput(data.powerCard ?? null);
         setStoryScenes(scenes);
         setRenderMeta(buildRenderedBookMeta(scenes));
         setCurrentSceneIndex(0);
@@ -248,23 +258,40 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
 
   const next = useCallback(() => {
     if (!storyScenes.length) return;
-    if (isLastPage) {
+    if (showPowerCardScreen) {
+      setShowPowerCardScreen(false);
       setShowEndScreen(true);
       return;
     }
+    if (isLastPage) {
+      if (powerCardInput) {
+        setShowPowerCardScreen(true);
+      } else {
+        setShowEndScreen(true);
+      }
+      return;
+    }
     setShowEndScreen(false);
+    setShowPowerCardScreen(false);
     bumpTransition();
     setCurrentSceneIndex((prev) => Math.min(prev + 1, storyScenes.length - 1));
-  }, [bumpTransition, isLastPage, storyScenes.length]);
+  }, [bumpTransition, isLastPage, powerCardInput, showPowerCardScreen, storyScenes.length]);
 
   const prev = useCallback(() => {
     if (showEndScreen) {
       setShowEndScreen(false);
+      if (powerCardInput) {
+        setShowPowerCardScreen(true);
+      }
+      return;
+    }
+    if (showPowerCardScreen) {
+      setShowPowerCardScreen(false);
       return;
     }
     bumpTransition();
     setCurrentSceneIndex((prev) => Math.max(prev - 1, 0));
-  }, [bumpTransition, showEndScreen]);
+  }, [bumpTransition, powerCardInput, showEndScreen, showPowerCardScreen]);
 
   const toggleAudio = useCallback(async () => {
     const audio = audioRef.current;
@@ -524,7 +551,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
         </section>
       )}
 
-      {status === 'ready' && !showEndScreen && currentScene && (
+      {status === 'ready' && !showEndScreen && !showPowerCardScreen && currentScene && (
         <>
           <section className={`${styles.pageStage} ${styles.bookStageInner}`}>
             <div className={styles.bookTableStage}>
@@ -589,7 +616,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
                 </>
               ) : null}
             </p>
-            <button type="button" className={styles.controlBtn} onClick={prev} disabled={isFirstPage && !showEndScreen}>
+            <button type="button" className={styles.controlBtn} onClick={prev} disabled={isFirstPage && !showEndScreen && !showPowerCardScreen}>
               הקודם
             </button>
             {showAudioButton ? (
@@ -622,7 +649,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
             </div>
           ) : null}
 
-          <div className={styles.mobileEdgeNav} aria-hidden={showEndScreen}>
+          <div className={styles.mobileEdgeNav} aria-hidden={showEndScreen || showPowerCardScreen}>
             <button
               type="button"
               className={styles.mobileEdgeBtn}
@@ -642,6 +669,19 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
             </button>
           </div>
         </>
+      )}
+
+      {status === 'ready' && showPowerCardScreen && powerCardInput && (
+        <PowerCardEndScreen
+          orderId={bookId}
+          accessKey={resolvedAccessKey}
+          childName={childName || powerCardInput.childName}
+          powerCard={powerCardInput}
+          onContinue={() => {
+            setShowPowerCardScreen(false);
+            setShowEndScreen(true);
+          }}
+        />
       )}
 
       {status === 'ready' && showEndScreen && (

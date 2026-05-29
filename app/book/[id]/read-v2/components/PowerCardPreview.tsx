@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
-import { resolveStoryBankPlaceholders } from '@/lib/story-bank-personalization';
 import { paletteCssVars } from '@/lib/power-cards/palettes';
+import { personalizePowerCardCopy } from '@/lib/power-cards/personalize';
 import type { PowerCardRenderInput } from '@/lib/power-cards/types';
 import styles from './PowerCardPreview.module.css';
 
@@ -9,29 +9,8 @@ type Props = {
   className?: string;
 };
 
-function renderGenderForPersonalization(
-  gender: PowerCardRenderInput['childGender']
-): 'boy' | 'girl' {
-  return gender === 'female' ? 'girl' : 'boy';
-}
-
-function personalizeInput(input: PowerCardRenderInput) {
-  const ctx = {
-    childName: input.childName,
-    childGender: renderGenderForPersonalization(input.childGender),
-    companionName: input.companionName,
-  };
-
-  return {
-    title: resolveStoryBankPlaceholders(input.spec.title, ctx),
-    subtitle: resolveStoryBankPlaceholders(input.spec.subtitle, ctx),
-    steps: input.spec.steps.map((step) => resolveStoryBankPlaceholders(step, ctx)),
-    companionReminder: resolveStoryBankPlaceholders(input.spec.companionReminder, ctx),
-  };
-}
-
 export default function PowerCardPreview({ input, className }: Props) {
-  const copy = personalizeInput(input);
+  const copy = personalizePowerCardCopy(input);
   const paletteStyle = paletteCssVars(input.palette) as CSSProperties;
 
   return (
