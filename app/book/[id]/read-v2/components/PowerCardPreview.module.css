@@ -25,56 +25,19 @@
   flex-direction: column;
 }
 
-.motifBackdrop {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-  opacity: 0.08;
-}
-
-.motifGlyph {
-  position: absolute;
-  font-size: 10px;
-  line-height: 1.3;
-  color: var(--pc-text-secondary);
-  max-width: 42%;
-  text-align: center;
-  letter-spacing: 0.02em;
-}
-
-.motifGlyph:nth-child(1) {
-  top: 8%;
-  right: 6%;
-}
-
-.motifGlyph:nth-child(2) {
-  top: 22%;
-  left: 5%;
-}
-
-.motifGlyph:nth-child(3) {
-  bottom: 18%;
-  right: 8%;
-}
-
-.motifGlyph:nth-child(4) {
-  bottom: 10%;
-  left: 10%;
-}
-
 .inner {
   position: relative;
   z-index: 1;
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 5% 7% 4%;
+  min-height: 0;
+  padding: 4% 6.5% 3.5%;
 }
 
 .header {
-  flex: 0 0 12%;
-  min-height: 28px;
+  flex: 0 0 auto;
+  min-height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -95,17 +58,17 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.55rem;
-  padding: 2% 0 4%;
+  gap: 0.4rem;
+  padding: 1.5% 0 2.5%;
 }
 
 .avatarWrap {
-  width: 96px;
-  height: 96px;
+  width: clamp(72px, 22vw, 88px);
+  height: clamp(72px, 22vw, 88px);
   border-radius: 50%;
   padding: 3px;
   background: linear-gradient(145deg, var(--pc-accent), transparent 70%);
-  box-shadow: 0 0 24px var(--pc-border-glow);
+  box-shadow: 0 0 20px var(--pc-border-glow);
 }
 
 .avatar {
@@ -119,17 +82,17 @@
 
 .cardTitle {
   margin: 0;
-  font-size: clamp(15px, 4.2vw, 18px);
+  font-size: clamp(14px, 4vw, 17px);
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.22;
   color: var(--pc-text-primary);
 }
 
 .cardSubtitle {
   margin: 0;
-  font-size: clamp(11px, 3vw, 13px);
+  font-size: clamp(10px, 2.8vw, 12px);
   font-weight: 400;
-  line-height: 1.35;
+  line-height: 1.3;
   color: var(--pc-text-secondary);
 }
 
@@ -138,9 +101,10 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: clamp(0.45rem, 2.2vw, 0.75rem);
-  padding: 2% 0;
+  gap: clamp(0.35rem, 1.8vw, 0.6rem);
+  padding: 1% 0;
   margin: 0;
+  min-height: 0;
   list-style: none;
   text-align: right;
 }
@@ -148,15 +112,15 @@
 .stepRow {
   display: flex;
   align-items: flex-start;
-  gap: 0.55rem;
-  font-size: clamp(11px, 3.1vw, 13px);
-  line-height: 1.45;
+  gap: 0.45rem;
+  font-size: clamp(10px, 2.9vw, 12px);
+  line-height: 1.4;
   color: var(--pc-text-primary);
 }
 
 .stepNumber {
   flex: 0 0 auto;
-  width: 1.35rem;
+  width: 1.25rem;
   font-weight: 600;
   color: var(--pc-accent);
   text-align: center;
@@ -168,9 +132,9 @@
 
 .reminderSection {
   flex: 0 0 auto;
-  padding: 3% 0 2%;
-  font-size: clamp(10px, 2.8vw, 12px);
-  line-height: 1.5;
+  padding: 2% 0 0;
+  font-size: clamp(9px, 2.5vw, 11px);
+  line-height: 1.45;
   color: var(--pc-text-secondary);
 }
 
@@ -180,29 +144,25 @@
 }
 
 .companionAttribution {
-  margin: 0.35rem 0 0;
+  margin: 0.25rem 0 0;
+  font-size: clamp(9px, 2.4vw, 10px);
   font-style: normal;
   font-weight: 500;
   color: var(--pc-accent);
 }
 
-.footer {
-  flex: 0 0 auto;
-  min-height: 18px;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.35rem 0.5rem;
-  padding-top: 2%;
-  border-top: 1px solid var(--pc-border-glow);
-}
-
-.motifChip {
-  font-size: clamp(7px, 1.8vw, 9px);
-  line-height: 1.2;
-  padding: 0.15rem 0.35rem;
-  border-radius: 999px;
-  color: var(--pc-text-secondary);
-  background: color-mix(in srgb, var(--pc-accent) 12%, transparent);
-  opacity: 0.85;
+.bottomDivider {
+  width: 36%;
+  max-width: 96px;
+  height: 1px;
+  margin: 0.45rem auto 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--pc-border-glow) 20%,
+    var(--pc-accent) 50%,
+    var(--pc-border-glow) 80%,
+    transparent
+  );
+  opacity: 0.65;
 }

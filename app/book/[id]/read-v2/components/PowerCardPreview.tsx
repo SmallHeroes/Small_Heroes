@@ -42,14 +42,6 @@ export default function PowerCardPreview({ input, className }: Props) {
       lang="he"
       aria-label={`כרטיס כוח: ${copy.title}`}
     >
-      <div className={styles.motifBackdrop} aria-hidden="true">
-        {input.spec.visualMotifs.map((motif) => (
-          <span key={motif} className={styles.motifGlyph}>
-            {motif}
-          </span>
-        ))}
-      </div>
-
       <div className={styles.inner}>
         <header className={styles.header}>
           <span className={styles.brandMark}>גיבורים קטנים</span>
@@ -67,8 +59,8 @@ export default function PowerCardPreview({ input, className }: Props) {
               src={input.companionAvatarUrl}
               alt=""
               className={styles.avatar}
-              width={96}
-              height={96}
+              width={88}
+              height={88}
             />
           </div>
           <h2 className={styles.cardTitle}>{copy.title}</h2>
@@ -89,15 +81,8 @@ export default function PowerCardPreview({ input, className }: Props) {
         <section className={styles.reminderSection}>
           <p className={styles.reminderQuote}>&ldquo;{copy.companionReminder}&rdquo;</p>
           <p className={styles.companionAttribution}>— {input.companionName}</p>
+          <div className={styles.bottomDivider} aria-hidden="true" />
         </section>
-
-        <footer className={styles.footer} aria-label="רמזי עיצוב">
-          {input.spec.visualMotifs.map((motif) => (
-            <span key={`chip-${motif}`} className={styles.motifChip}>
-              {motif}
-            </span>
-          ))}
-        </footer>
       </div>
     </article>
   );
