@@ -10,6 +10,7 @@ export type PageEntityPresenceContract = {
   childPresence: ChildPresence;
   companionPresence: CompanionPresence;
   recurringObjects: string[];
+  recurringEntities: string[];
   forbiddenEntities: string[];
 };
 
@@ -28,6 +29,8 @@ export type DerivePageEntityPresenceInput = {
   } | null;
   /** Locked recurring object keys → detection keywords (lowercase). */
   recurringObjectCatalog?: Record<string, string[]>;
+  /** Locked recurring entity keys (characters/creatures) → detection keywords. */
+  recurringEntityCatalog?: Record<string, string[]>;
 };
 
 const HUMAN_CHILD_EN =
@@ -116,18 +119,18 @@ function deriveCompanionPresence(input: DerivePageEntityPresenceInput): Companio
   // English imageDirection often uses "Dini" while companion.name is Hebrew
   const companionId = (input.companionId ?? '').toLowerCase();
   if (companionId === 'dragon_dini' && /\bdini\b/i.test(imageDir)) return 'present';
+  if (companionId === 'bear_cub_gahal' && /\bdobi\b/i.test(imageDir)) return 'present';
 
   if (!hebrew && !imageDir) return 'present'; // cover / fallback
 
   return 'absent';
 }
 
-function detectRecurringObjects(
-  input: DerivePageEntityPresenceInput
+function detectRecurringKeys(
+  hay: string,
+  catalog?: Record<string, string[]>
 ): string[] {
-  const catalog = input.recurringObjectCatalog;
   if (!catalog) return [];
-  const hay = haystack(input).toLowerCase();
   const found: string[] = [];
   for (const [key, keywords] of Object.entries(catalog)) {
     if (keywords.some((kw) => hay.includes(kw.toLowerCase()))) {
@@ -137,12 +140,21 @@ function detectRecurringObjects(
   return found;
 }
 
+function detectRecurringObjects(input: DerivePageEntityPresenceInput): string[] {
+  return detectRecurringKeys(haystack(input).toLowerCase(), input.recurringObjectCatalog);
+}
+
+function detectRecurringEntities(input: DerivePageEntityPresenceInput): string[] {
+  return detectRecurringKeys(haystack(input).toLowerCase(), input.recurringEntityCatalog);
+}
+
 export function derivePageEntityPresence(
   input: DerivePageEntityPresenceInput
 ): PageEntityPresenceContract {
   const childPresence = deriveChildPresence(input);
   const companionPresence = deriveCompanionPresence(input);
   const recurringObjects = detectRecurringObjects(input);
+  const recurringEntities = detectRecurringEntities(input);
 
   const forbiddenEntities: string[] = [];
   if (childPresence === 'absent') {
@@ -156,6 +168,7 @@ export function derivePageEntityPresence(
     childPresence,
     companionPresence,
     recurringObjects,
+    recurringEntities,
     forbiddenEntities,
   };
 }

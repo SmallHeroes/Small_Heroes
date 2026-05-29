@@ -1,15 +1,14 @@
 /**
- * Style 01 + gpt-image-1 — dragon_dini 5-page controlled audition (Path B').
+ * Style 01 + gpt-image-2 — bear_cub_gahal (Dobi) 5-page audition.
  *
  * Usage:
  *   PHASE2_STYLE01_BOOK_PIPELINE=true
  *   PHASE2_STYLE01_REF_CONFIG=A
  *   IMAGE_PROVIDER=gpt-image
- *   npx tsx --require ./scripts/shims/register-server-only.cjs scripts/run-style01-dini-audition.ts
+ *   STYLE_01_GPT_MODEL=gpt-image-2
+ *   npx tsx --require ./scripts/shims/register-server-only.cjs scripts/run-style01-dobi-audition.ts
  *
- * Optional: CHILD_PHOTO_PATH=... (only used on pages where childPresence !== absent)
- * Optional: STORY_BANK_SKIP_PERSONALIZATION_GATE=true (pages 1–5 are companion-only; child name appears from page 6)
- * Composition: per-page targets + subjectScale in lib/style01-gptimage.ts DRAGON_DINI_COMPOSITION_BY_PAGE
+ * Optional: ONLY_PAGES=1,2,3,4,5
  */
 import { config as loadEnv } from 'dotenv';
 loadEnv({ path: '.env.local' });
@@ -30,16 +29,15 @@ import { derivePageEntityPresence } from '../lib/image-entity-presence';
 import { mergeGptImageReferenceSources } from '../lib/image-reference-utils';
 import { estimateGptImage2CostUsd } from '../lib/pricing';
 import {
-  DRAGON_DINI_COMPOSITION_BY_PAGE,
-  DRAGON_DINI_RECURRING_OBJECT_CATALOG,
-  DRAGON_DINI_RECURRING_ENTITY_CATALOG,
+  BEAR_CUB_DOBI_COMPOSITION_BY_PAGE,
+  BEAR_CUB_DOBI_RECURRING_OBJECT_CATALOG,
   isStyle01Phase2BookPipelineEnabled,
   resolveStyle01RefBudgetConfig,
   resolveStyle01GptModel,
-  resolveStyle01StoryLocks,
 } from '../lib/style01-gptimage';
 
-const STORY_FILE = 'dragon_dini_fantasy.md';
+const STORY_FILE = 'bear_cub_gahal_adventure.md';
+const COMPANION_ID = 'bear_cub_gahal';
 const ILLUSTRATION_STYLE = 'soft_hand_drawn_storybook';
 const CHILD_NAME = process.env.CHILD_NAME?.trim() || 'נועם';
 const CHILD_AGE = Number.parseInt(process.env.CHILD_AGE?.trim() ?? '5', 10) || 5;
@@ -79,15 +77,15 @@ async function main(): Promise<void> {
   assertEnv();
 
   const onlyPages = parseOnlyPages();
-  const companion = getCompanionById('dragon_dini');
-  if (!companion) throw new Error('dragon_dini companion not found');
+  const companion = getCompanionById(COMPANION_ID);
+  if (!companion) throw new Error(`${COMPANION_ID} companion not found`);
 
   const storyPath = path.join(process.cwd(), 'story-bank', 'v5-fixed-v2', STORY_FILE);
   const ts = new Date().toISOString().replace(/[:.]/g, '-');
-  const outDir = path.join(process.cwd(), 'phase2-logs', `style01-dini-audition-${ts}`);
+  const outDir = path.join(process.cwd(), 'phase2-logs', `style01-dobi-audition-${ts}`);
   await mkdir(outDir, { recursive: true });
 
-  console.log('=== Style 01 Dini audition ===');
+  console.log('=== Style 01 Dobi audition ===');
   console.log(`Model: ${resolveStyle01GptModel()} | Ref config: ${resolveStyle01RefBudgetConfig()}`);
   console.log(`Pages: ${onlyPages.join(', ')}`);
   console.log(`Output: ${outDir}\n`);
@@ -118,7 +116,7 @@ async function main(): Promise<void> {
       ? mergeGptImageReferenceSources(childPhoto, companion, appBaseUrl) ?? []
       : mergeGptImageReferenceSources(null, companion, appBaseUrl) ?? [];
 
-  const orderId = `style01-dini-${randomUUID().slice(0, 8)}`;
+  const orderId = `style01-dobi-${randomUUID().slice(0, 8)}`;
   const companionKey = `companion:${companion.id}`;
 
   const pipelinePages = pagesToRender.map((page) => ({
@@ -139,8 +137,8 @@ async function main(): Promise<void> {
     referenceImages,
     orderId,
     companion,
-    directionArchetype: 'fantasy',
-    challengeCategory: 'NEW_SIBLING',
+    directionArchetype: 'adventure',
+    challengeCategory: 'ANGER_FRUSTRATION',
     childStructured: dna.childStructured,
     companionStructured: dna.companionStructured,
     propDNA: dna.propDNA,
@@ -160,10 +158,9 @@ async function main(): Promise<void> {
       childFirstName: CHILD_NAME,
       companionName: companion.name,
       companionId: companion.id,
-      recurringObjectCatalog: DRAGON_DINI_RECURRING_OBJECT_CATALOG,
-      recurringEntityCatalog: DRAGON_DINI_RECURRING_ENTITY_CATALOG,
+      recurringObjectCatalog: BEAR_CUB_DOBI_RECURRING_OBJECT_CATALOG,
     });
-    const composition = DRAGON_DINI_COMPOSITION_BY_PAGE[page.pageNumber];
+    const composition = BEAR_CUB_DOBI_COMPOSITION_BY_PAGE[page.pageNumber];
     const localPath = path.join(outDir, `page-${String(page.pageNumber).padStart(2, '0')}.png`);
     const promptPath = path.join(outDir, `page-${String(page.pageNumber).padStart(2, '0')}-prompt.txt`);
 
@@ -198,12 +195,6 @@ async function main(): Promise<void> {
       durationMs: meta?.style01Meta?.durationMs ?? null,
       estimatedCostUsd: cost.estimatedCostUsd,
       costRateSource: cost.costRateSource,
-      acceptanceNotes: {
-        noChild: entityPresence.childPresence === 'absent',
-        diniPresent: entityPresence.companionPresence === 'present',
-        recurringObjects: entityPresence.recurringObjects,
-        recurringEntities: entityPresence.recurringEntities,
-      },
     });
   }
 
@@ -212,7 +203,7 @@ async function main(): Promise<void> {
   );
 
   const manifest = {
-    audition: 'style01-dragon-dini-5p',
+    audition: 'style01-bear-cub-dobi-5p',
     model: resolveStyle01GptModel(),
     illustrationStyle: ILLUSTRATION_STYLE,
     storyFile: STORY_FILE,
@@ -224,13 +215,11 @@ async function main(): Promise<void> {
     costRateSource: sampleCost.costRateSource,
     pages: manifestPages,
     acceptanceChecklist: [
-      'Pages 1–3: no human child in image',
-      'Dini copper/orange (not green) across pages',
-      'Glowing stone same object when visible',
-      'Blue-speckled egg same object on page 3+',
-      'Baby dragon copper-orange (recurringEntityLock) on pages 4–5',
-      'Page 5 cave interior only — no outdoor drift',
-      'Compositions: p1 wide establishing, p2 intimate close, p3 discovery',
+      'Pages 1–3: no human child (companion-only)',
+      'Pages 4–5: child present when imageDirection includes child',
+      'Dobi warm-brown bear cub consistent',
+      'Berry bush + mossy rock recurring objects when visible',
+      'Composition variety across 5 pages',
       'Soft watercolor Style 01 — not cinematic Style 02',
     ],
   };
@@ -239,22 +228,19 @@ async function main(): Promise<void> {
   await writeFile(
     path.join(outDir, 'QA.md'),
     [
-      '# Style 01 — dragon_dini 5-page audition QA',
+      '# Style 01 — bear_cub_gahal (Dobi) 5-page audition QA',
       '',
       '## Acceptance',
       '',
       '- [ ] Pages 1–3: **no human child**',
-      '- [ ] Dini **copper/orange**, not green',
-      '- [ ] **Glowing stone** consistent',
-      '- [ ] **Blue-speckled egg** consistent (page 3+)',
-      '- [ ] Composition variety (wide / intimate / discovery)',
+      '- [ ] Pages 4–5: **child present**',
+      '- [ ] Dobi **warm-brown bear cub**',
+      '- [ ] Berry bush / mossy rock consistent',
       '- [ ] Soft watercolor — **not** Style 02 cinematic',
-      '',
-      '## Per page',
       '',
       ...manifestPages.map(
         (p) =>
-          `### Page ${p.pageNumber}\n- childPresence: ${(p.entityPresence as { childPresence: string }).childPresence}\n- composition: ${JSON.stringify(p.compositionTarget)}\n- [ ] pass\n`
+          `### Page ${p.pageNumber}\n- childPresence: ${(p.entityPresence as { childPresence: string }).childPresence}\n- [ ] pass\n`
       ),
     ].join('\n'),
     'utf-8'
@@ -263,7 +249,9 @@ async function main(): Promise<void> {
   console.log('\n=== Done ===');
   console.log(`Manifest: ${path.join(outDir, 'manifest.json')}`);
   console.log(`Failed pages: ${failedPages.length ? failedPages.join(', ') : 'none'}`);
-  console.log(`Est. cost: ${manifest.totalEstimatedCostUsd != null ? `$${manifest.totalEstimatedCostUsd.toFixed(2)}` : 'unset — configure GPT_IMAGE_2_COST_PER_1K_*'}`);
+  console.log(
+    `Est. cost: ${manifest.totalEstimatedCostUsd != null ? `$${manifest.totalEstimatedCostUsd.toFixed(2)}` : 'unset — no usage tokens'}`
+  );
 }
 
 main().catch((err) => {

@@ -13,7 +13,6 @@ import {
   resolveStoryBankPlaceholders,
   type WizardPersonalizationContext,
 } from '../../lib/story-bank-personalization';
-import { truncateStoryMarkdownToPages } from '../../lib/story-bank-truncate';
 
 export type LoadStoryFromBankOptions = {
   patchContext?: PatchContext | null;
@@ -233,15 +232,21 @@ export async function loadStoryFromBank(
     );
   }
 
-  assertStoryPersonalizationGate({
-    wizard: personalizationCtx,
-    pages: pages.map((p) => ({
-      pageNumber: p.pageNumber,
-      text: p.text,
-      imagePrompt: p.imagePrompt,
-    })),
-  });
-  console.log('[StoryBank] Personalization gate passed.');
+  if (process.env.STORY_BANK_SKIP_PERSONALIZATION_GATE?.trim() !== 'true') {
+    assertStoryPersonalizationGate({
+      wizard: personalizationCtx,
+      pages: pages.map((p) => ({
+        pageNumber: p.pageNumber,
+        text: p.text,
+        imagePrompt: p.imagePrompt,
+      })),
+    });
+    console.log('[StoryBank] Personalization gate passed.');
+  } else {
+    console.warn(
+      '[StoryBank] STORY_BANK_SKIP_PERSONALIZATION_GATE=true — skipping personalization gate (dev/audition only).'
+    );
+  }
 
   // Use explicit English coverScene from story file when available
   const coverSceneHint = coverSceneRaw || undefined;

@@ -89,16 +89,16 @@ import {
   buildStyle01CompositionBlock,
   buildStyle01EntityPresenceBlock,
   buildStyle01RecurringObjectLocks,
+  buildStyle01RecurringEntityLocks,
   buildStyle01WardrobeLock,
   classifyStyle01SceneClass,
-  DRAGON_DINI_COMPANION_LOCK,
-  DRAGON_DINI_RECURRING_OBJECT_CATALOG,
   resolveStyle01CompanionReferencePath,
   resolveStyle01RefBudgetConfig,
+  resolveStyle01GptModel,
+  resolveStyle01StoryLocks,
   resolveStyle01StyleReferencePaths,
   shouldUseStyle01Phase2Path,
   STYLE_01_AVOIDANCE_NEGATIVE,
-  STYLE_01_GPT_MODEL,
   type Style01SceneClass,
 } from '../../lib/style01-gptimage';
 import { storeImageFromBuffer, storeImageFromProviderUrl } from '../../lib/image-storage';
@@ -442,6 +442,8 @@ export interface Style01PageMeta {
   referenceBreakdown: Record<string, string[]>;
   model: string;
   refConfig: string;
+  usage?: Record<string, unknown> | null;
+  durationMs?: number;
 }
 
 export interface GeneratedImage {
@@ -1531,8 +1533,7 @@ function deriveImageInputEntityPresence(input: ImageInput): PageEntityPresenceCo
   const imageDirection =
     (input.rawScenePrompt ?? '').trim() ||
     extractSceneCore(input.pagePrompt || '').trim();
-  const recurringCatalog =
-    input.companion?.id === 'dragon_dini' ? DRAGON_DINI_RECURRING_OBJECT_CATALOG : undefined;
+  const storyLocks = resolveStyle01StoryLocks(input.companion?.id);
   return derivePageEntityPresence({
     bookPageText: input.bookPageText,
     imageDirection,
@@ -1542,7 +1543,8 @@ function deriveImageInputEntityPresence(input: ImageInput): PageEntityPresenceCo
     companionName: input.companion?.name,
     companionId: input.companion?.id,
     visualDirection: input.visualDirection,
-    recurringObjectCatalog: recurringCatalog,
+    recurringObjectCatalog: storyLocks.recurringObjectCatalog,
+    recurringEntityCatalog: storyLocks.recurringEntityCatalog,
   });
 }
 
@@ -2831,7 +2833,7 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
   const size = hiResPdf ? '1536x1536' : '1024x1536';
   const quality = resolveGPTBookQuality();
   const entityPresence = deriveImageInputEntityPresence(input);
-  const useDiniLocks = input.companion?.id === 'dragon_dini';
+  const storyLocks = resolveStyle01StoryLocks(input.companion?.id);
 
   const childVisualLock = childPresenceAllowsVisualLock(entityPresence.childPresence)
     ? buildStyle01ChildVisualLock({
@@ -2851,13 +2853,24 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
           companionName: input.companion?.name,
           companionStructured: input.companionStructured,
           companionVisualDescription: input.companion?.visualDescription,
-          storyCompanionLock: useDiniLocks ? DRAGON_DINI_COMPANION_LOCK : undefined,
+          storyCompanionLock: storyLocks.companionLock,
         })
       : undefined;
   const recurringObjectLocks =
     entityPresence.recurringObjects.length > 0
-      ? buildStyle01RecurringObjectLocks(entityPresence.recurringObjects)
+      ? buildStyle01RecurringObjectLocks(
+          entityPresence.recurringObjects,
+          storyLocks.recurringObjectLocks
+        )
       : undefined;
+  const recurringEntityLocks =
+    entityPresence.recurringEntities.length > 0
+      ? buildStyle01RecurringEntityLocks(
+          entityPresence.recurringEntities,
+          storyLocks.recurringEntityLocks
+        )
+      : undefined;
+  const environmentLock = storyLocks.pageEnvironmentLock?.(input.pageNumber ?? 0);
 
   const sceneClass = classifyStyle01SceneClass({
     imagePrompt: input.pagePrompt,
@@ -2900,6 +2913,7 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
   const compositionBlock = buildStyle01CompositionBlock({
     pageNumber: input.pageNumber,
     imageDirection: rawScene || input.rawScenePrompt,
+    compositionByPage: storyLocks.compositionByPage,
   });
   const entityPresenceBlock = buildStyle01EntityPresenceBlock({
     childPresence: entityPresence.childPresence,
@@ -2913,6 +2927,8 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
     wardrobeLock,
     companionTextLock,
     recurringObjectLocks,
+    recurringEntityLocks,
+    environmentLock,
     compositionBlock,
     entityPresenceBlock,
   });
@@ -2929,6 +2945,8 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
   );
   console.log(`[style01_phase2_prompt] page=${input.pageNumber} ===PROMPT START===\n${prompt}\n===PROMPT END===`);
 
+  const style01Model = resolveStyle01GptModel();
+
   const result = await generateGPTImage({
     finalPrompt: prompt,
     negativePrompt: STYLE_01_AVOIDANCE_NEGATIVE,
@@ -2937,12 +2955,12 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
     requireReferenceEdit: referenceImages.length > 0,
     size: size as '1024x1024' | '1024x1536' | '1536x1536',
     quality,
-    modelOverride: STYLE_01_GPT_MODEL,
+    modelOverride: style01Model,
   });
 
-  if (result.model !== STYLE_01_GPT_MODEL) {
+  if (result.model !== style01Model) {
     throw new Error(
-      `[style01_phase2] BLOCKER: expected model ${STYLE_01_GPT_MODEL}, got ${result.model}. No silent fallback.`
+      `[style01_phase2] BLOCKER: expected model ${style01Model}, got ${result.model}. No silent fallback.`
     );
   }
 
@@ -2982,6 +3000,8 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
       referenceBreakdown: breakdown,
       model: result.model,
       refConfig,
+      usage: result.usage ?? null,
+      durationMs: result.durationMs,
     },
   };
 }

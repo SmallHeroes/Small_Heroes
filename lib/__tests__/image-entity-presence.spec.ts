@@ -58,6 +58,21 @@ describe('derivePageEntityPresence — dragon_dini fantasy', () => {
     expect(contract.recurringObjects).toContain('blue_speckled_egg');
   });
 
+  it('page 4 detects baby_dragon recurring entity', () => {
+    const contract = derivePageEntityPresence({
+      bookPageText: DINI_PAGES[3]!.bookPageText,
+      imageDirection: DINI_PAGES[3]!.imageDirection,
+      companionId: 'dragon_dini',
+      companionName: 'דיני',
+      recurringObjectCatalog: DRAGON_DINI_RECURRING_OBJECT_CATALOG,
+      recurringEntityCatalog: {
+        baby_dragon: ['baby dragon', 'hatchling', 'wobbly legs'],
+      },
+    });
+    expect(contract.recurringEntities).toContain('baby_dragon');
+    expect(contract.childPresence).toBe('absent');
+  });
+
   it('detects human child when imageDirection names the child', () => {
     const contract = derivePageEntityPresence({
       bookPageText: 'הילדה מסתכלת על החדר.',
