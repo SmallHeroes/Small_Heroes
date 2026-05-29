@@ -13,6 +13,7 @@ import {
   resolveStoryBankPlaceholders,
   type WizardPersonalizationContext,
 } from '../../lib/story-bank-personalization';
+import { truncateStoryMarkdownToPages } from '../../lib/story-bank-truncate';
 
 export type LoadStoryFromBankOptions = {
   patchContext?: PatchContext | null;
