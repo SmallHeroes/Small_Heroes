@@ -14,6 +14,21 @@ gender: male
 pages: 20
 endingType: residue
 worldRule: "צבעים של מקום לא נעלמים כשעוברים — הם נשארים בצעיף ובחוט ובזיכרון, ומחכים."
+powerCard:
+  title: "כרטיס הצבעים של {{childName}}"
+  subtitle: "כשמקום חדש מרגיש ריק"
+  coreTool: "carry one color into the new place"
+  steps:
+    - "אני זוכר/ת צבע אחד מהמקום הישן"
+    - "אני בוחר/ת צבע אחד מהמקום החדש"
+    - "אני שם/ה משהו שלי בחדר"
+    - "אני זוכר/ת: הצבעים שלי באים איתי"
+  companionReminder: "לוקח לצבעים רגע לצאת."
+  visualMotifs:
+    - "tiny color scarf"
+    - "yellow-blue-green-brown threads"
+    - "chameleon resting on a hand"
+    - "child drawing on a new wall"
 ---
 
 storyStyle: literary fantasy, gentle chameleon voice, color-as-memory weaving mechanic

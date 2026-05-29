@@ -14,6 +14,21 @@ gender: male
 pages: 20
 endingType: residue
 worldRule: "חום לא כמו עוגייה — כשנותנים אותו, יש יותר. החדר מתחמם."
+powerCard:
+  title: "כרטיס המקום של {{childName}}"
+  subtitle: "כשמשהו אחר נכנס למשפחה"
+  coreTool: "warmth shared multiplies"
+  steps:
+    - "אני מרגיש/ה מה שאני מרגיש/ה"
+    - "אני זוכר/ת שהחיבוק לא נהיה קטן"
+    - "אני בודק/ת אם יש מקום לעוד אחד"
+    - "ואז אני עושה מקום"
+  companionReminder: "החיבוק לא נהיה קטן יותר. הוא למד לעשות מקום."
+  visualMotifs:
+    - "warm windowsill spark"
+    - "dragon stone of three"
+    - "family hug widening"
+    - "soft ember glow"
 ---
 
 storyStyle: literary fantasy with parallel-world structure, gentle dragon humor, slow emotional resolution

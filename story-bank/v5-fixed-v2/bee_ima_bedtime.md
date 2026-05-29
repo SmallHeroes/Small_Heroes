@@ -14,6 +14,21 @@ gender: male
 pages: 10
 endingType: residue
 worldRule: "צוף שלא נשמר לעצמך מצטרף לתוך משהו גדול יותר — והופך לדבש."
+powerCard:
+  title: "כרטיס הצוף של {{childName}}"
+  subtitle: "כשמשהו שלי מרגיש קטן מדי לחלק"
+  coreTool: "shared nectar becomes honey"
+  steps:
+    - "אני שם/ה לב למה שיש לי"
+    - "אני נושם/ת לאט"
+    - "אני נותן/ת לזה להצטרף"
+    - "אני זוכר/ת: כשמצטרפים — נהיה דבש"
+  companionReminder: "צוף שלא נשמר לעצמך הופך לדבש."
+  visualMotifs:
+    - "honey drop on windowsill"
+    - "soft hive hum"
+    - "bee landing on hand"
+    - "family hug widening"
 ---
 
 storyStyle: bedtime, gentle bee-rhythm, soft afternoon warmth

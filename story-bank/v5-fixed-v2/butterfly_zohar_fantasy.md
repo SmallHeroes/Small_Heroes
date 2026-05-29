@@ -14,6 +14,21 @@ gender: male
 pages: 20
 endingType: residue
 worldRule: "באמצע — בין מה שהיית למה שעוד לא נהיית — לא צריך לדעת את כל הדרך. רק את העלה הבא."
+powerCard:
+  title: "כרטיס האמצע של {{childName}}"
+  subtitle: "כשאני במקום חדש"
+  coreTool: "one small step while in the middle"
+  steps:
+    - "אני מסתכל/ת רק על הצעד הבא"
+    - "אני לוקח/ת נשימה אחת"
+    - "אני אומר/ת שלום קטן"
+    - "אני זוכר/ת: מותר להיות באמצע"
+  companionReminder: "עלה אחד. נשימה אחת. שלום אחד."
+  visualMotifs:
+    - "butterfly with copper dust"
+    - "single leaf bridge"
+    - "magical meadow nursery"
+    - "cocoon in soft light"
 ---
 
 storyStyle: literary fantasy with metamorphosis frame, gentle butterfly voice, magical meadow nursery

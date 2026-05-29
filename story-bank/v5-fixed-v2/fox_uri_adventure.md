@@ -14,6 +14,21 @@ gender: male
 pages: 15
 endingType: residue
 worldRule: "כשמפסיקים להאשים את הפנס, הצללים שבחצר מראים את הדרך לאוצר הקטן."
+powerCard:
+  title: "כרטיס הצללים של {{childName}}"
+  subtitle: "כשהחושך בחצר נראה כמו משהו זז"
+  coreTool: "soften the gaze, see paths not enemies"
+  steps:
+    - "אני מרכך/ת את המבט"
+    - "אני נושם/ת ולא צועק/ת"
+    - "אני מסתכל/ת על מה שהפנס מראה"
+    - "אני זוכר/ת: צללים הם שבילים, לא אויבים"
+  companionReminder: "כשמפסיקים להאשים את הפנס, הצללים מראים את הדרך."
+  visualMotifs:
+    - "small flashlight beam"
+    - "garden shadow path"
+    - "line of ants in the light"
+    - "fox tail-tip showing direction"
 ---
 
 storyStyle: הרפתקני ומהיר

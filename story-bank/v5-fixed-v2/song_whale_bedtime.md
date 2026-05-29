@@ -14,6 +14,21 @@ gender: male
 pages: 10
 endingType: residue
 worldRule: "קול שנשלח באמת לא נעלם מיד — הוא מחפש דרך."
+powerCard:
+  title: "כרטיס הקול של {{childName}}"
+  subtitle: "כשאני מרגיש/ה שלא שמעו אותי"
+  coreTool: "send one small voice"
+  steps:
+    - "אני מוצא/ת קול קטן"
+    - "אני נותן/ת לו לצאת לאט"
+    - "אני מחכה רגע"
+    - "אני זוכר/ת: קול אמיתי מחפש דרך"
+  companionReminder: "קול שנשלח באמת לא נעלם מיד."
+  visualMotifs:
+    - "whale song line glowing through water"
+    - "watery moonlit window"
+    - "deep ocean blue gradient"
+    - "distant echo wave"
 ---
 
 storyStyle: contemplative bedtime, slow whale-song rhythm, deep water imagery

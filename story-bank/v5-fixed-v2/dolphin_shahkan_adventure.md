@@ -14,6 +14,21 @@ gender: male
 pages: 15
 endingType: residue
 worldRule: "כשמקשיבים רק לדבר אחד קטן, כל הים מסביב לא נעלם - הוא רק נותן רגע."
+powerCard:
+  title: "כרטיס הדבר האחד של {{childName}}"
+  subtitle: "כשהכל מסביב יותר מדי"
+  coreTool: "one thing at a time — pick a single sound"
+  steps:
+    - "אני עוצר/ת לרגע"
+    - "אני בוחר/ת דבר אחד להקשיב לו"
+    - "אני נושם/ת איתו"
+    - "אני זוכר/ת: כל השאר לא נעלם — הוא רק נותן רגע"
+  companionReminder: "דבר אחד."
+  visualMotifs:
+    - "pink spiral shell"
+    - "sunlit shallow water"
+    - "playful dolphin fin"
+    - "single bubble rising"
 ---
 
 storyStyle: sunlit seaside resilience, light humor, playful companion

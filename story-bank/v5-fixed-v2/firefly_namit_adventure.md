@@ -14,6 +14,21 @@ gender: male
 pages: 15
 endingType: residue
 worldRule: "אור קטן לא מאיר את כל הדרך. הוא מאיר את הצעד הבא — וזה מספיק."
+powerCard:
+  title: "כרטיס הצעד הבא של {{childName}}"
+  subtitle: "כשהדרך לפניי נראית ארוכה ושחורה"
+  coreTool: "the next step is enough"
+  steps:
+    - "אני לא מסתכל/ת על כל הדרך בבת אחת"
+    - "אני נושם/ת ומחפש/ת רק את הצעד הבא"
+    - "אני עושה אותו"
+    - "אני זוכר/ת: אור קטן מספיק אם הוא מאיר עכשיו"
+  companionReminder: "האור שלה היה קטן מאוד. אבל הוא לא התנצל."
+  visualMotifs:
+    - "tiny firefly halo"
+    - "long dark corridor"
+    - "single illuminated floor tile"
+    - "child's hand reaching forward"
 ---
 
 storyStyle: nighttime suburban adventure, low whisper voice, tight corridor pacing

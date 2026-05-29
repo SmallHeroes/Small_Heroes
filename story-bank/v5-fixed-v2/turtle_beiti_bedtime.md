@@ -14,6 +14,21 @@ gender: male
 pages: 10
 endingType: residue
 worldRule: "כשנושאים את הבית על הגב, דברים חשובים לא נשארים מאחור."
+powerCard:
+  title: "כרטיס הקצב של {{childName}}"
+  subtitle: "כשהיום עוד רץ בתוכי"
+  coreTool: "carry yourself at your own pace"
+  steps:
+    - "אני שם/ה יד על הלב"
+    - "אני לא ממהר/ת להירדם"
+    - "אני נושם/ת לאט — לפי הקצב שלי"
+    - "אני זוכר/ת: דברים חשובים לא נשארים מאחור"
+  companionReminder: "כף היד שלי מצאה קצב שלא מבקש למהר."
+  visualMotifs:
+    - "turtle shell home"
+    - "small leaf resting on shell"
+    - "book-bridge to bed"
+    - "tiny knock-knock pulse in palm"
 ---
 
 storyStyle: quiet bedtime, tactile shell, step-count rhythm

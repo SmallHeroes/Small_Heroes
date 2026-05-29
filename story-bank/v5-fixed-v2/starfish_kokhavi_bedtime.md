@@ -14,6 +14,21 @@ gender: male
 pages: 10
 endingType: residue
 worldRule: "הריפוי עובד בשקט — הגוף יודע, המחשבה רק צריכה לא להפריע."
+powerCard:
+  title: "כרטיס הריפוי של {{childName}}"
+  subtitle: "כשמשהו בגוף לוקח זמן"
+  coreTool: "trust the body's quiet healing"
+  steps:
+    - "אני נותן/ת לפלסטר קצת זמן"
+    - "אני נח/ה ולא ממהר/ת לבדוק"
+    - "אני אומר/ת לגוף משהו נחמד"
+    - "אני זוכר/ת: חזק/ה זה גם לקחת זמן"
+  companionReminder: "לפעמים הריפוי עובד בשקט."
+  visualMotifs:
+    - "pink-gold starfish in waterdrop"
+    - "fish-pattern bandage"
+    - "moonlit windowsill"
+    - "quiet bowl with one ripple"
 ---
 
 storyStyle: quiet bedtime, contemplative pace, kind starfish voice

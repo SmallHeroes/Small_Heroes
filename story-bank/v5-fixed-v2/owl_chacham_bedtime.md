@@ -14,6 +14,21 @@ gender: male
 pages: 10
 endingType: residue
 worldRule: "כשנותנים שם לקול, הוא נשאר בגודל שלו."
+powerCard:
+  title: "כרטיס הלילה של {{childName}}"
+  subtitle: "כשקול בחדר נשמע מפחיד"
+  coreTool: "name-a-sound to shrink it"
+  steps:
+    - "אני מקשיב/ה לקול אחד"
+    - "אני נותן/ת לו שם"
+    - "אני נושם/ת לאט"
+    - "אני זוכר/ת: קול עם שם נעשה קטן יותר"
+  companionReminder: "לא לדעת זה לא אותו דבר כמו מפלצת."
+  visualMotifs:
+    - "owl on moonlit shelf"
+    - "named sound labels"
+    - "soft curtain breeze"
+    - "two-blink applause"
 ---
 
 storyStyle: quiet bedtime, slow listening rhythm, low whisper voice

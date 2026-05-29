@@ -14,6 +14,21 @@ gender: male
 pages: 20
 endingType: residue
 worldRule: "המילים לא חייבות לצאת חזק — רק באמת. ולא כולן בבת אחת."
+powerCard:
+  title: "כרטיס המילים של {{childName}}"
+  subtitle: "כשהמילים נתקעות"
+  coreTool: "one small honest word"
+  steps:
+    - "אני בוחר/ת מילה אחת קטנה"
+    - "אני לא צריך/ה להגיד הכל"
+    - "אני אומר/ת אותה כמו שיוצא"
+    - "מילה אמיתית יכולה להיות גם לחישה"
+  companionReminder: "המילים לא חייבות לצאת חזק. רק באמת."
+  visualMotifs:
+    - "tiny whisper-word creature"
+    - "bunny ear bent close"
+    - "meadow nursery party"
+    - "one shy word kept by pillow"
 ---
 
 storyStyle: literary fantasy, rich word-creature world, social-anxiety with companion who shares the struggle

@@ -14,6 +14,21 @@ gender: male
 pages: 15
 endingType: residue
 worldRule: "כעס צריך גוף לעבור דרכו, לא מילה לדכא אותו — וקול שיוצא אל מקום בטוח לא פוגע באף אחד."
+powerCard:
+  title: "כרטיס הכוח של {{childName}}"
+  subtitle: "כשאני מרגיש/ה שהחום עולה"
+  coreTool: "safe anger release"
+  steps:
+    - "אני עוצר/ת רגע"
+    - "אני מוצא/ת מקום בטוח"
+    - "אני נותן/ת לחום לצאת בלי לפגוע"
+    - "ואז אני חוזר/ת לדבר"
+  companionReminder: "יש דברים שלא צריך לשבור. יש דברים שצריך להעביר דרכם את החום."
+  visualMotifs:
+    - "roaring pond ripple"
+    - "smooth stone"
+    - "fallen log"
+    - "bear cub paw print"
 ---
 
 storyStyle: literary adventure, gentle bear voice, body-based anger release

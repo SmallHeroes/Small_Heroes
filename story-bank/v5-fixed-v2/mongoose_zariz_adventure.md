@@ -14,6 +14,21 @@ gender: male
 pages: 15
 endingType: residue
 worldRule: "מהירות יודעת לרוץ; חכמה היא איפה לשים רגע אחד של עצירה."
+powerCard:
+  title: "כרטיס העצירה של {{childName}}"
+  subtitle: "כשהגוף שלי רוצה לזוז מהר מדי"
+  coreTool: "one small pause before action"
+  steps:
+    - "אני מרגיש/ה שהגוף רוצה לרוץ"
+    - "אני לוקח/ת נשימה אחת"
+    - "אני עושה לולאה קטנה עם האצבעות"
+    - "אני זוכר/ת: עצירה קטנה עוזרת לעיניים לראות"
+  companionReminder: "מהירות יודעת לרוץ. חכמה יודעת לעצור רגע."
+  visualMotifs:
+    - "green vine loop with seed bell"
+    - "soft seed-pod chime"
+    - "alert mongoose tail"
+    - "blue dragonfly on a rock"
 ---
 
 storyStyle: kinetic-then-still forest adventure, playful mongoose, body-first pauses

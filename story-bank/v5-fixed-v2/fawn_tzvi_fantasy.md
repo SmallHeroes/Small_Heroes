@@ -14,6 +14,21 @@ gender: male
 pages: 20
 endingType: residue
 worldRule: "נשימה לא מכבה קולות — היא פותחת מקום לחיות בתוכם."
+powerCard:
+  title: "כרטיס הנשימה של {{childName}}"
+  subtitle: "כשהכל מסביב גדול מדי"
+  coreTool: "breath makes room inside the noise"
+  steps:
+    - "אני שם/ה יד על הלב"
+    - "אני נושם/ת לאט — בשבילי"
+    - "אני נותן/ת לקולות להיות בגודל האמיתי שלהם"
+    - "אני זוכר/ת: עשיתי לי, לא להם"
+  companionReminder: "לא עשיתי להם. עשיתי לי."
+  visualMotifs:
+    - "green-blue chest mark"
+    - "forest of mirror-creatures"
+    - "fawn breathing softly"
+    - "small sound-creature shrinking"
 ---
 
 storyStyle: literary fantasy with internal-grounding mechanic, gentle fawn voice, mirror-creature world

@@ -14,6 +14,21 @@ gender: male
 pages: 10
 endingType: residue
 worldRule: "כשהחדר נהיה גדול מדי, אפשר למצוא דבר אחד אמיתי קטן."
+powerCard:
+  title: "כרטיס הדבר האמיתי של {{childName}}"
+  subtitle: "כשהחדר נהיה גדול מדי"
+  coreTool: "find one small real thing"
+  steps:
+    - "אני נושם/ת לאט"
+    - "אני מחפש/ת דבר אחד קטן אמיתי"
+    - "אני נוגע/ת בו בעדינות"
+    - "אני זוכר/ת: הפחד יכול להיות, רק לא על כל המיטה"
+  companionReminder: "כדור הוא לא מחבוא. לפעמים הוא הפסקה."
+  visualMotifs:
+    - "armadillo curling close to child"
+    - "moonlit bedroom corner"
+    - "one small touchable object"
+    - "blanket edge softly held"
 ---
 
 storyStyle: bedtime, slow night cadence, gentle armadillo companion, dual-wrapping rhythm

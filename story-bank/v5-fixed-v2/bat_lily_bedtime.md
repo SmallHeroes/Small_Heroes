@@ -14,6 +14,21 @@ gender: male
 pages: 10
 endingType: residue
 worldRule: "שקט גמור הוא חשוד — אפשר לנוח גם בתוך קולות, אם נותנים להם רגע אחד בכל פעם."
+powerCard:
+  title: "כרטיס המחשבות של {{childName}}"
+  subtitle: "כשהראש לא רוצה להירדם"
+  coreTool: "let thoughts pass like sounds"
+  steps:
+    - "אני לא מנסה לעצור את המחשבות"
+    - "אני נותן/ת לאחת לעבור"
+    - "אני נושם/ת איתה — פנימה, החוצה"
+    - "שקט קטן בתוך הקולות מספיק"
+  companionReminder: "שקט גמור הוא חשוד."
+  visualMotifs:
+    - "bat hanging cozy upside down"
+    - "night window with passing shadows"
+    - "in-out breath rhythm marks"
+    - "small thought-cloud floating by"
 ---
 
 storyStyle: contemplative bedtime, slow whisper voice, sound-naming as anchor

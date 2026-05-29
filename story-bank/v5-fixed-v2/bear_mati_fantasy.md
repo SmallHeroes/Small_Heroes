@@ -14,6 +14,21 @@ gender: male
 pages: 20
 endingType: residue
 worldRule: "ניצחון לא נמחק. אבל לידו אפשר לפתוח קופסה חדשה — לדברים שרואים רק כשלא רצים."
+powerCard:
+  title: "כרטיס הקופסה החדשה של {{childName}}"
+  subtitle: "כשמשהו חשוב לא נכנס למקום הרגיל"
+  coreTool: "open a new place for a different kind of value"
+  steps:
+    - "אני שם/ה לב שיש דבר שלא נכנס לקופסה הרגילה"
+    - "אני פותח/ת לו מקום משלו"
+    - "אני נותן/ת לו שם"
+    - "אני שומר/ת אותו לידם — לא במקומם"
+  companionReminder: "יש דברים שצריך לפתוח להם קופסה משלהם — לא קטנים, רק אחרים."
+  visualMotifs:
+    - "two boxes side by side, the new one fresh wood"
+    - "small object held carefully in palm"
+    - "oak leaf as background motif only"
+    - "winner's gentle bow toward another"
 ---
 
 storyStyle: literary fantasy, slow forest walk, full breathing room for the closing montage

@@ -14,6 +14,21 @@ gender: male
 pages: 15
 endingType: residue
 worldRule: "ניצחון לא נמחק. אבל לידו אפשר לפתוח קופסה חדשה — לדברים שרואים רק כשלא רצים."
+powerCard:
+  title: "כרטיס הדברים שראיתי של {{childName}}"
+  subtitle: "כשלא ניצחתי"
+  coreTool: "notice what still exists after a loss"
+  steps:
+    - "אני נותן/ת להרגשה להיות שם"
+    - "אני מסתכל/ת על דבר קטן אחד"
+    - "אני מחפש/ת מה עוד היה בדרך"
+    - "אני שומר/ת משהו שראיתי"
+  companionReminder: "דברים שלא שמים לב אליהם יכולים ללכת לאיבוד."
+  visualMotifs:
+    - "dry race-leaf with veins"
+    - "bear winning-ribbons box"
+    - "small forest stone"
+    - "soft trail through trees"
 ---
 
 storyStyle: gentle adventure, slow forest walk, two characters who both just lost
