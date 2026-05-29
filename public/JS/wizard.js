@@ -13,15 +13,20 @@ const WIZ_DEFAULTS = {
   avoid: [],
   lengths: [],
   directionPackages: [
-    { id: 'bedtime', label: 'סיפור לפני שינה', pagesLine: '10 עמודים', price: 59 },
-    { id: 'adventure', label: 'הרפתקה', pagesLine: '15 עמודים', price: 79 },
-    { id: 'fantasy', label: 'מסע פלאי', pagesLine: '20 עמודים', price: 99 },
+    { id: 'bedtime', label: 'סיפור לפני שינה', pagesLine: '10 עמודים', price: 79, priceILS: 79 },
+    { id: 'adventure', label: 'הרפתקה', pagesLine: '15 עמודים', price: 99, priceILS: 99 },
+    { id: 'fantasy', label: 'מסע פלאי', pagesLine: '20 עמודים', price: 139, priceILS: 139 },
+  ],
+  productPackages: [
+    { id: 'bedtime', productName: 'ספר לילה טוב', pages: 10, priceILS: 79, includes: [], bestFor: [] },
+    { id: 'adventure', productName: 'הרפתקה אישית', pages: 15, priceILS: 99, includes: [], bestFor: [] },
+    { id: 'fantasy', productName: 'ספר פנטזיה', pages: 20, priceILS: 139, includes: [], bestFor: [] },
   ],
   styles: [],
   voices: [],
   progressLabel: 'שלב {current} מתוך {total}',
   microcopy: {
-    companion: '', child: '', heroNotes: '', direction: '', style: '', addons: '', book: '', summary: '',
+    companion: '', child: '', heroNotes: '', style: '', voice: '', book: '', product: '', summary: '',
   },
   nav: {
     back: 'חזרה',
@@ -52,27 +57,14 @@ const WIZ_DEFAULTS = {
     s5: { title: '', sub: '', sub2: '' },
     s6: { title: '', sub: '', sub2: '', extraLabel: '', extraPlaceholder: '' },
     s7: { title: '', sub: '', sub2: '', extraLabel: '', extraPlaceholder: '' },
-    s8a: {
-      title: '', sub: '', directionTitle: '', lengthTitle: '', styleLabel: '',
-    },
-    s8b: {
-      title: '', sub: '', addonsSub: '', addonsExpanded: '', addonsCollapsed: '',
-      voiceTitle: '', voicePreview: '',
-      audio: { badge: '', name: '', desc: '' },
-      pdf: { badge: '', name: '', desc: '' },
-      video: { badge: '', name: '', desc: '' },
-      bundle: { badge: '', name: '', desc: '' },
+    sStyle: { title: '', sub: '' },
+    voice: {
+      title: '', subTemplate: '', subFallback: '', voicePreview: '',
       sleep: { name: '', desc: '' },
     },
-    /** Alias of addon copy (mirrors `s8b`). Kept so older merge paths remain valid. */
-    s8: {
-      title: '', sub: '', directionTitle: '', lengthTitle: '', styleLabel: '', addonsSub: '', addonsExpanded: '', addonsCollapsed: '',
-      voiceTitle: '', voicePreview: '',
-      audio: { badge: '', name: '', desc: '' },
-      pdf: { badge: '', name: '', desc: '' },
-      video: { badge: '', name: '', desc: '' },
-      bundle: { badge: '', name: '', desc: '' },
-      sleep: { name: '', desc: '' },
+    product: {
+      title: '', sub: '', ctaChoose: 'לבחירה', ctaSelected: 'זו הבחירה שלי',
+      bestForLabel: 'מתאים במיוחד ל:', includesLabel: 'כלול במחיר:',
     },
     s9: {
       title: '', sub: '', card1Title: '', card2Title: '', card3Title: '',
@@ -109,7 +101,6 @@ function mergeWizardStep8b(defaultsBlk, inputBlk) {
 }
 
 const WIZ_STEPS_IN = WIZ_INPUT.steps || {};
-const WIZ_S8B_MERGED = mergeWizardStep8b(WIZ_DEFAULTS.steps.s8b, WIZ_STEPS_IN.s8b);
 
 const WIZ = {
   ...WIZ_DEFAULTS,
@@ -117,10 +108,10 @@ const WIZ = {
   nav: { ...WIZ_DEFAULTS.nav, ...(WIZ_INPUT.nav || {}) },
   microcopy: { ...WIZ_DEFAULTS.microcopy, ...(WIZ_INPUT.microcopy || {}) },
   summary: { ...WIZ_DEFAULTS.summary, ...(WIZ_INPUT.summary || {}) },
-  directionPackages:
-    Array.isArray(WIZ_INPUT.directionPackages) && WIZ_INPUT.directionPackages.length > 0
-      ? WIZ_INPUT.directionPackages
-      : WIZ_DEFAULTS.directionPackages,
+  productPackages:
+    Array.isArray(WIZ_INPUT.productPackages) && WIZ_INPUT.productPackages.length > 0
+      ? WIZ_INPUT.productPackages
+      : WIZ_DEFAULTS.productPackages,
   steps: {
     ...WIZ_DEFAULTS.steps,
     ...(WIZ_INPUT.steps || {}),
@@ -128,12 +119,18 @@ const WIZ = {
       ...WIZ_DEFAULTS.steps.categoryFollowup,
       ...((WIZ_INPUT.steps || {}).categoryFollowup || {}),
     },
-    s8a: {
-      ...WIZ_DEFAULTS.steps.s8a,
-      ...(WIZ_STEPS_IN.s8a || {}),
+    voice: {
+      ...WIZ_DEFAULTS.steps.voice,
+      ...((WIZ_INPUT.steps || {}).voice || {}),
+      sleep: {
+        ...WIZ_DEFAULTS.steps.voice.sleep,
+        ...(((WIZ_INPUT.steps || {}).voice || {}).sleep || {}),
+      },
     },
-    s8b: WIZ_S8B_MERGED,
-    s8: WIZ_S8B_MERGED,
+    product: {
+      ...WIZ_DEFAULTS.steps.product,
+      ...((WIZ_INPUT.steps || {}).product || {}),
+    },
     sBook: {
       ...WIZ_DEFAULTS.steps.sBook,
       ...(((WIZ_INPUT.steps || {}).sBook || {})),
@@ -141,7 +138,16 @@ const WIZ = {
   },
 };
 const COMMON = HE_CONTENT.common || { brand: '', tagline: '', navCta: '' };
-const DIRECTION_PACKAGES = WIZ.directionPackages;
+const PRODUCT_PACKAGES = WIZ.productPackages;
+const PRODUCT_PRICES = { bedtime: 79, adventure: 99, fantasy: 139 };
+const PRODUCT_ICON_EMOJI = {
+  book: '📖',
+  audio: '🎧',
+  pdf: '📥',
+  card: '🃏',
+  video: '🎬',
+  gift: '🎁',
+};
 const LENGTH_TO_DIRECTION = { short: 'bedtime', medium: 'adventure', long: 'fantasy' };
 const STORY_LENGTH_FROM_DIRECTION = { bedtime: 'short', adventure: 'medium', fantasy: 'long' };
 const clientApi = window.SmallHeroesClient || window.__smallHeroesClientApi || null;
@@ -290,7 +296,7 @@ function normalizeClientStyleId(styleId) {
 /* ── STATE ──────────────────────────────────────────────────── */
 const state = {
   currentStep: 1,
-  totalSteps: 10,
+  totalSteps: 9,
 
   topic: null,
   topicLabel: '',
@@ -324,14 +330,16 @@ const state = {
   s6extra: "",
   s7extra: "",
 
-  /* product config — direction sets page count + base price */
-  storyDirection: 'adventure', /* bedtime | adventure | fantasy */
+  /* product config — set at step 8 (product cards) */
+  storyDirection: null, /* bedtime | adventure | fantasy */
+  productId: null,
+  priceILS: null,
   style: null,
   styleSelected: false,
-  audioEnabled: false,
+  audioEnabled: true,
   voice: "mom", /* mom | dad | fairy */
   sleepMode: false,
-  pdfEnabled: false,
+  pdfEnabled: true,
   videoEnabled: false,
   bundleEnabled: false,
   bookName: "",
@@ -344,11 +352,7 @@ const state = {
 
 /* ── PRICING ─────────────────────────────────────────────────── */
 const PRICES = {
-  base: { bedtime: 59, adventure: 79, fantasy: 99 },
-  audio: 19,
-  pdf: 19,
-  video: 29,
-  bundle: 39,
+  base: PRODUCT_PRICES,
 };
 
 const WIZARD_STORAGE_KEY = 'wizard_state';
@@ -373,18 +377,21 @@ function applyInitialDirectionFromContext() {
   const directionParam = params.get('direction');
   if (VALID_STORY_DIRECTIONS.includes(directionParam)) {
     state.storyDirection = directionParam;
+    state.productId = directionParam;
     return;
   }
   try {
     const stored = localStorage.getItem(PREFERRED_DIRECTION_STORAGE_KEY);
     if (VALID_STORY_DIRECTIONS.includes(stored)) {
       state.storyDirection = stored;
+      state.productId = stored;
       return;
     }
   } catch (_) {
     /* localStorage unavailable */
   }
-  state.storyDirection = 'adventure';
+  state.storyDirection = null;
+  state.productId = null;
 }
 
 function persistPreferredDirection(direction) {
@@ -416,8 +423,8 @@ function saveWizardState() {
   }
 }
 
-/** Map saved step numbers from the old 15-step wizard to the new 10-step flow. */
-function migrateLegacyWizardStep(step) {
+/** Map saved step numbers from the old 15-step wizard to the 10-step flow. */
+function migrate15to10(step) {
   const n = Number(step) || 1;
   if (n <= 2) return n;
   if (n === 3 || n === 4) return 3;
@@ -430,6 +437,49 @@ function migrateLegacyWizardStep(step) {
   if (n === 14) return 9;
   if (n >= 15) return 10;
   return Math.min(Math.max(n, 1), 10);
+}
+
+/** Map legacy wizard step numbers to the current 9-step flow. */
+function migrateLegacyWizardStep(step) {
+  let n = Number(step) || 1;
+  if (n > 10) {
+    n = migrate15to10(n);
+  }
+  const tenToNine = { 1: 1, 2: 1, 3: 2, 4: 3, 5: 4, 6: 8, 7: 5, 8: 6, 9: 7, 10: 9 };
+  return tenToNine[n] || 1;
+}
+
+function normalizeProductStateFromLegacy() {
+  if (state.productId && VALID_STORY_DIRECTIONS.includes(state.productId)) {
+    applyProductSelection(state.productId, { revealTotal: false });
+    return;
+  }
+  if (state.storyDirection && VALID_STORY_DIRECTIONS.includes(state.storyDirection)) {
+    applyProductSelection(state.storyDirection, { revealTotal: false });
+    return;
+  }
+  state.storyDirection = null;
+  state.productId = null;
+  state.priceILS = null;
+}
+
+function applyProductSelection(packageId, options = {}) {
+  const pkg = PRODUCT_PACKAGES.find((p) => p.id === packageId);
+  if (!pkg) return;
+  state.storyDirection = packageId;
+  state.productId = packageId;
+  state.priceILS = pkg.priceILS;
+  state.audioEnabled = true;
+  state.pdfEnabled = true;
+  state.videoEnabled = packageId === 'fantasy';
+  state.bundleEnabled = false;
+  if (!state.voice) state.voice = 'mom';
+  persistPreferredDirection(packageId);
+  refreshTotal();
+  if (options.revealTotal !== false) {
+    const bbt = document.getElementById('bottom-bar-total');
+    if (bbt) bbt.hidden = false;
+  }
 }
 
 function restoreWizardState() {
@@ -453,7 +503,7 @@ function restoreWizardState() {
       if (legacy === 'short' || legacy === 'medium' || legacy === 'long') {
         state.storyDirection = LENGTH_TO_DIRECTION[legacy] || 'adventure';
       } else {
-        state.storyDirection = 'adventure';
+        state.storyDirection = null;
       }
     }
     if ('length' in state) delete state.length;
@@ -465,10 +515,8 @@ function restoreWizardState() {
     if (!Array.isArray(state.avoid)) state.avoid = [];
     if (!Array.isArray(state.categoryAnswers)) state.categoryAnswers = [];
     if (typeof state.dedication !== 'string') state.dedication = '';
-    if (typeof state.videoEnabled !== 'boolean')     state.videoEnabled = false;
-    state.audioEnabled = Boolean(state.audioEnabled);
-    state.pdfEnabled = Boolean(state.pdfEnabled);
-    state.bundleEnabled = Boolean(state.bundleEnabled);
+    if (typeof state.videoEnabled !== 'boolean') state.videoEnabled = false;
+    normalizeProductStateFromLegacy();
     if (typeof state.styleSelected !== 'boolean') {
       state.styleSelected = Boolean(state.style);
     }
@@ -540,7 +588,7 @@ function hydrateWizardMultiSelectChips() {
       el.classList.toggle('selected', arr.indexOf(val) > -1);
     });
   };
-  syncStep('#step-5', 'goals');
+  syncStep('#step-4', 'goals');
   const spWrap = document.getElementById('hero-superpower-chips');
   if (spWrap) {
     const arr = state.childSuperpower || [];
@@ -612,18 +660,13 @@ function bindDraftFieldPersistListeners() {
 }
 
 function computeTotal() {
-  const base = PRICES.base[state.storyDirection] || PRICES.base.adventure;
-  let addons = 0;
-
-  if (state.bundleEnabled) {
-    addons = PRICES.bundle;
-  } else {
-    if (state.audioEnabled) addons += PRICES.audio;
-    if (state.pdfEnabled)   addons += PRICES.pdf;
-    if (state.videoEnabled)  addons += PRICES.video;
+  if (state.priceILS != null) {
+    return { base: state.priceILS, addons: 0, total: state.priceILS };
   }
-
-  return { base, addons, total: base + addons };
+  const base = state.storyDirection
+    ? PRICES.base[state.storyDirection] || PRICES.base.adventure
+    : 0;
+  return { base, addons: 0, total: base };
 }
 
 /* ── STATIC DATA ─────────────────────────────────────────────── */
@@ -866,7 +909,7 @@ function renderCompanionCards() {
       grid.querySelectorAll('.companion-card').forEach((n) => n.classList.remove('selected'));
       btn.classList.add('selected');
       const cont = document.getElementById('btn-continue');
-      if (cont && state.currentStep === 3) cont.disabled = false;
+      if (cont && state.currentStep === 2) cont.disabled = false;
       queueWizardSave();
     });
 
@@ -890,7 +933,7 @@ function init() {
   renderTopics();
   renderSuperpowerChips();
   renderGoalsChips();
-  renderDirectionCards();
+  renderProductCards();
   renderStyleStepGrid();
   renderVoiceBtns();
   bindPhotoUploadInteractions();
@@ -899,8 +942,6 @@ function init() {
   renderPhotoQualityMessage();
   updateUI();
   refreshTotal();
-  syncWizardLayout();
-  syncStep8Layout(true);
   track('wizard_started');
 }
 
@@ -912,31 +953,24 @@ function initWizardContent() {
   setText('wizNavTagline', COMMON.tagline);
   setText('wizNavCta',     COMMON.navCta);
 
-  // Step 1 — title has a newline rendered as <br> in HTML
-  const [s1Line1, s1Line2 = ''] = WIZ.steps.s1.title.split('\n');
-  setText('s1TitleLine1', s1Line1);
-  setText('s1TitleLine2', s1Line2);
-  setText('s1Sub', WIZ.steps.s1.sub);
-  setText('s1Btn', WIZ.steps.s1.cta);
-
-  // Step 2
+  // Step 1 — topic
   setText('s2Title', WIZ.steps.s2.title);
   setText('s2Sub',   WIZ.steps.s2.sub);
 
-  // Step 3 — companion
+  // Step 2 — companion
   setText('companionMicro', WIZ.microcopy.companion || '');
   setText('companionTitle', WIZ.steps.companion?.title || '');
   setText('companionSub',   WIZ.steps.companion?.sub || '');
 
   setText('childMicro',     WIZ.microcopy.child || '');
   setText('heroNotesMicro', WIZ.microcopy.heroNotes || '');
-  setText('directionMicro', WIZ.microcopy.direction || '');
   setText('styleMicro',     WIZ.microcopy.style || '');
-  setText('addonsMicro',    WIZ.microcopy.addons || '');
+  setText('voiceMicro',     WIZ.microcopy.voice || '');
   setText('bookMicro',      WIZ.microcopy.book || '');
+  setText('productMicro',   WIZ.microcopy.product || '');
   setText('summaryMicro',   WIZ.microcopy.summary || '');
 
-  // Step 4 — child details
+  // Step 3 — child details
   setText('s3Title',          WIZ.steps.s3.title);
   setText('s3Sub',            WIZ.steps.s3.sub);
   setText('s3NameLabel',      WIZ.steps.s3.nameLabel);
@@ -948,43 +982,28 @@ function initWizardContent() {
   setText('s3PhotoPrompt',    WIZ.steps.s3.photoPrompt);
   setText('s3PhotoOptional',  WIZ.steps.s3.photoOptional);
 
-  // Step 5 — hero notes (optional)
+  // Step 4 — hero notes (optional)
   const hn = WIZ.steps.heroNotes || {};
   setText('heroNotesSub',        hn.sub || '');
   setText('heroNotesStrengthQ', hn.strengthQ || '');
   setText('heroNotesFeelingQ',  hn.feelingQ || '');
 
-  // Step 6 — direction
-  setText('sDirectionTitle', WIZ.steps.sDirection.title);
-  setText('sDirectionSub',   WIZ.steps.sDirection.sub);
-
-  // Step 12 — style
+  // Step 5 — style
   setText('sStyleTitle', WIZ.steps.sStyle.title);
   setText('sStyleSub',   WIZ.steps.sStyle.sub);
 
-  // Step 13 — add-ons
-  setText('s8Title', WIZ.steps.s8b.title);
-  setText('s8Sub',   WIZ.steps.s8b.sub);
-  setText('s8AddonSub',    WIZ.steps.s8b.addonsSub);
-  setText('s8AudioBadge',  WIZ.steps.s8b.audio.badge);
-  setText('s8AudioName',   WIZ.steps.s8b.audio.name);
-  setText('s8AudioDesc',   WIZ.steps.s8b.audio.desc);
-  setText('s8PdfBadge',    WIZ.steps.s8b.pdf.badge);
-  setText('s8PdfName',     WIZ.steps.s8b.pdf.name);
-  setText('s8PdfDesc',     WIZ.steps.s8b.pdf.desc);
-  setText('s8VideoBadge',  WIZ.steps.s8b.video.badge);
-  setText('s8VideoName',   WIZ.steps.s8b.video.name);
-  setText('s8VideoDesc',   WIZ.steps.s8b.video.desc);
-  setText('s8BundleBadge', WIZ.steps.s8b.bundle.badge);
-  setText('s8BundleName',  WIZ.steps.s8b.bundle.name);
-  setText('s8BundleDesc',  WIZ.steps.s8b.bundle.desc);
-  setText('s8VoiceTitle',  WIZ.steps.s8b.voiceTitle);
-  setText('s8SleepName',   WIZ.steps.s8b.sleep.name);
-  setText('s8SleepDesc',   WIZ.steps.s8b.sleep.desc);
-  setText('s8TotalLabel',  WIZ.summary.totalLabel);
+  // Step 6 — voice
+  const voiceCopy = WIZ.steps.voice || {};
+  setText('voiceTitle', WIZ.steps.voice?.title || '');
+  setText('voiceSleepName', voiceCopy.sleep?.name || '');
+  setText('voiceSleepDesc', voiceCopy.sleep?.desc || '');
+
+  // Step 8 — product
+  setText('productTitle', WIZ.steps.product?.title || '');
+  setText('productSub',   WIZ.steps.product?.sub || '');
   setText('bottomBarTotalLabel', 'סה"כ:');
 
-  // Step 12 — book + dedication
+  // Step 7 — book + dedication
   const sBook = WIZ.steps.sBook || WIZ_DEFAULTS.steps.sBook;
   setText('sBookTitle', sBook.title);
   setText('sBookSub', sBook.sub);
@@ -1010,42 +1029,21 @@ function initWizardContent() {
   setText('btn-back', WIZ.nav.back);
 }
 
-/* ── HELPERS ─────────────────────────────────────────────────── */
+/* ── HELPERS (legacy add-ons — step removed) ─────────────────── */
 function isVoicePanelActive() {
-  return state.audioEnabled || state.videoEnabled || state.bundleEnabled;
+  return true;
 }
 
-function getVoiceCol() {
-  return document.getElementById("s8-voice-col");
-}
-
-function getStep8Grid() {
-  return document.getElementById("s8-grid");
-}
-
-function getAddonsTitle() {
-  return document.getElementById("s8-addons-title");
-}
-
-/** Step 13 add-ons: centered stack, or side-by-side when voice panel is open. */
-function applyAddonsStepLayout() {
-  const grid = document.querySelector('#step-8 .s8-grid');
-  if (!grid) return;
-  if (state.currentStep === 8) {
-    const split = isVoicePanelActive();
-    grid.classList.toggle('s8-single-col', !split);
-  } else {
-    grid.classList.remove('s8-single-col');
-  }
-}
-
-/* ── WIZARD LAYOUT ───────────────────────────────────────────── */
 function syncWizardLayout() {
-  const main = document.querySelector(".wizard-main");
-  if (!main) return;
+  /* add-ons layout retired */
+}
 
-  const open = isVoicePanelActive() && state.currentStep === 8;
-  main.classList.toggle("wizard-audio-open", open);
+function applyAddonsStepLayout() {
+  /* add-ons layout retired */
+}
+
+function syncStep8Layout() {
+  /* add-ons layout retired */
 }
 
 /* ── PROGRESS PILLS ──────────────────────────────────────────── */
@@ -1108,27 +1106,29 @@ function updateUI() {
   const photoReassure = document.getElementById("photo-step-reassure");
 
   if (bar && btn && backBtn) {
-    if (state.currentStep <= 2 || state.currentStep === 10) {
+    if (state.currentStep <= 1 || state.currentStep === 9) {
       bar.classList.add("hidden");
       if (btnAnyway) btnAnyway.hidden = true;
       if (photoReassure) photoReassure.hidden = true;
     } else {
       bar.classList.remove("hidden");
 
-      if (state.currentStep === 4) {
+      if (state.currentStep === 3) {
         updatePhotoStepBottomBar();
       } else {
         btn.textContent =
-          state.currentStep === 5  ? WIZ.nav.continueToStory   :
-          state.currentStep === 9  ? WIZ.nav.continueToSummary :
+          state.currentStep === 4  ? WIZ.nav.continueToStory   :
+          state.currentStep === 7  ? WIZ.nav.continueToSummary :
           WIZ.nav.continueDefault;
         btn.onclick = goNext;
         if (btnAnyway) btnAnyway.hidden = true;
         if (photoReassure) photoReassure.hidden = true;
-        if (state.currentStep === 3) {
+        if (state.currentStep === 2) {
           btn.disabled = !state.companionCharacterId;
-        } else if (state.currentStep === 7) {
+        } else if (state.currentStep === 5) {
           btn.disabled = !state.styleSelected;
+        } else if (state.currentStep === 8) {
+          btn.disabled = !state.productId;
         } else {
           btn.disabled = false;
         }
@@ -1142,11 +1142,11 @@ function updateUI() {
     }
   }
 
-  if (state.currentStep === 3) {
+  if (state.currentStep === 2) {
     renderCompanionCards();
   }
 
-  if (state.currentStep === 5) {
+  if (state.currentStep === 4) {
     updateHeroNotesTitle();
     renderSuperpowerChips();
     renderGoalsChips();
@@ -1154,30 +1154,31 @@ function updateUI() {
 
   const bottomBarTotal = document.getElementById('bottom-bar-total');
   if (bottomBarTotal) {
-    bottomBarTotal.hidden = !(state.currentStep >= 6 && Boolean(state.storyDirection));
+    bottomBarTotal.hidden = !(state.currentStep >= 8 && Boolean(state.productId));
   }
 
   if (state.currentStep === 6) {
-    renderDirectionCards();
-    refreshTotal();
+    updateVoiceStepSubtitle();
+    renderVoiceBtns();
+    syncSleepToggleUI();
   }
 
-  if (state.currentStep === 7) {
+  if (state.currentStep === 5) {
     renderStyleStepGrid();
   }
 
   if (state.currentStep === 8) {
-    syncStep8Layout(true);
+    renderProductCards();
     refreshTotal();
   }
 
-  if (state.currentStep === 10) {
+  if (state.currentStep === 9) {
     buildSummary();
   }
 
   const photoHint = document.getElementById('photo-reupload-hint');
   if (photoHint) {
-    if (state.currentStep === 4) {
+    if (state.currentStep === 3) {
       photoHint.hidden = !(sessionExpectChildPhotoReplay && !state.photo);
     } else {
       photoHint.hidden = true;
@@ -1191,7 +1192,7 @@ function updateUI() {
 function goNext() {
   const stepBeforeAdvance = state.currentStep;
 
-  if (state.currentStep === 3) {
+  if (state.currentStep === 2) {
     if (!state.companionCharacterId) {
       const grid = document.getElementById('companion-cards');
       if (grid) {
@@ -1203,7 +1204,7 @@ function goNext() {
     }
   }
 
-  if (state.currentStep === 4) {
+  if (state.currentStep === 3) {
     state.childName   = document.getElementById("child-name")?.value.trim() || "";
     state.childAge    = document.getElementById("child-age")?.value || "";
     state.childGender = document.getElementById("child-gender")?.value || "";
@@ -1214,12 +1215,22 @@ function goNext() {
     }
   }
 
-  if (state.currentStep === 9) {
+  if (state.currentStep === 7) {
     state.bookName = document.getElementById("bookNameInput")?.value.trim() || "";
     state.dedication = (document.getElementById("dedicationInput")?.value || "").slice(0, 300);
   }
 
-  if (state.currentStep === 10) {
+  if (state.currentStep === 8 && !state.productId) {
+    const grid = document.getElementById('product-cards');
+    if (grid) {
+      grid.style.animation = 'none';
+      void grid.offsetHeight;
+      grid.style.animation = 'shake 0.4s ease';
+    }
+    return;
+  }
+
+  if (state.currentStep === 9) {
     if (isSubmittingOrder) return;
     state.contactName  = document.getElementById("contact-name")?.value.trim() || "";
     state.contactEmail = document.getElementById("contact-email")?.value.trim() || "";
@@ -1235,11 +1246,11 @@ function goNext() {
     return;
   }
 
-  if (stepBeforeAdvance === 6) {
+  if (stepBeforeAdvance === 8) {
     persistPreferredDirection(state.storyDirection);
   }
 
-  if (stepBeforeAdvance === 7 && !state.styleSelected) {
+  if (stepBeforeAdvance === 5 && !state.styleSelected) {
     const grid = document.getElementById('style-step-grid');
     if (grid) {
       grid.style.animation = 'none';
@@ -1250,12 +1261,6 @@ function goNext() {
   }
 
   state.currentStep++;
-  if (state.currentStep === 7 && stepBeforeAdvance === 6) {
-    state.style = null;
-    state.styleSelected = false;
-    renderStyleStepGrid();
-  }
-
   updateUI();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -1343,9 +1348,22 @@ function addTopicChip(wrap, t, afterSelect) {
 }
 
 function goToCompanionStep() {
-  state.currentStep = 3;
+  state.currentStep = 2;
   updateUI();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateVoiceStepSubtitle() {
+  const el = document.getElementById('voiceSub');
+  if (!el) return;
+  const voiceCopy = WIZ.steps.voice || {};
+  const name = (state.childName || '').trim();
+  if (name) {
+    el.textContent = String(voiceCopy.subTemplate || voiceCopy.subFallback || '')
+      .replace('{name}', name);
+  } else {
+    el.textContent = voiceCopy.subFallback || '';
+  }
 }
 
 function updateHeroNotesTitle() {
@@ -1739,7 +1757,7 @@ function renderPhotoUploadArea() {
 }
 
 function updatePhotoStepBottomBar() {
-  if (state.currentStep !== 4) return;
+  if (state.currentStep !== 3) return;
   const btn = document.getElementById('btn-continue');
   const btnAnyway = document.getElementById('btn-continue-anyway');
   const photoReassure = document.getElementById('photo-step-reassure');
@@ -2038,63 +2056,61 @@ async function handlePhoto(e) {
   reader.readAsDataURL(file);
 }
 
-/* ── STEP 11: DIRECTION CARDS ─────────────────────────────────── */
-function renderDirectionCards() {
-  const wrap = document.getElementById('direction-cards');
+/* ── STEP 8: PRODUCT CARDS ───────────────────────────────────── */
+function renderProductCards() {
+  const wrap = document.getElementById('product-cards');
   if (!wrap) return;
 
   wrap.innerHTML = '';
   wrap.style.direction = 'rtl';
 
-  // RTL pricing order: DOM index 1 → visually RIGHTMOST when parent has direction:rtl.
-  // We want entry-level (bedtime ₪59) on the right where the Hebrew eye starts reading,
-  // ascending to premium (fantasy ₪99) on the left — natural cheap→expensive flow
-  // following the reading direction. Mobile (single column) stacks cheapest-first.
+  const copy = WIZ.steps.product || {};
   const ORDER = { bedtime: 1, adventure: 2, fantasy: 3 };
-  const pkgs = [...DIRECTION_PACKAGES].sort((a, b) => {
+  const pkgs = [...PRODUCT_PACKAGES].sort((a, b) => {
     const ao = ORDER[a.id] || 99;
     const bo = ORDER[b.id] || 99;
     return ao - bo;
   });
 
-  pkgs.forEach((d) => {
+  pkgs.forEach((pkg) => {
     const card = document.createElement('button');
     card.type = 'button';
-    card.className = 'direction-card' + (d.id === state.storyDirection ? ' selected' : '');
-    card.setAttribute('data-direction', d.id);
+    const selected = pkg.id === state.productId || pkg.id === state.storyDirection;
+    card.className = 'product-card' + (selected ? ' selected' : '');
+    card.setAttribute('data-product', pkg.id);
 
-    const featuresHtml = (d.features || [])
-      .map((feature) => `<li><span class="direction-card-feature-icon" aria-hidden="true">✨</span>${feature}</li>`)
+    const bestForHtml = (pkg.bestFor || [])
+      .map((item) => `<li>${item}</li>`)
       .join('');
 
-    const pillHtml = d.parentPill
-      ? `<span class="direction-card-pill direction-card-pill--floating">${d.parentPill}</span>`
-      : '';
+    const includesHtml = (pkg.includes || [])
+      .map((item) => {
+        const emoji = PRODUCT_ICON_EMOJI[item.icon] || '✓';
+        return `<li><span class="product-card-include-icon" aria-hidden="true">${emoji}</span>${item.label}</li>`;
+      })
+      .join('');
 
-    const ctaLabel = d.id === state.storyDirection
-      ? (d.ctaSelected || d.ctaChoose || 'זו הבחירה שלי')
-      : (d.ctaChoose || 'לבחירה');
+    const ctaLabel = selected
+      ? (copy.ctaSelected || 'זו הבחירה שלי')
+      : (copy.ctaChoose || 'לבחירה');
 
     card.innerHTML = `
-      ${pillHtml}
-      <span class="direction-card-kicker">${d.topLabel || d.label}</span>
-      <span class="direction-card-title">${d.title || d.label}</span>
-      <span class="direction-card-pages">${d.pagesLine || d.subtitle || ''}</span>
-      <p class="direction-card-desc">${d.description || ''}</p>
-      <ul class="direction-card-features">${featuresHtml}</ul>
-      <span class="direction-card-price">₪<span class="direction-card-price-digits">${d.price}</span></span>
-      <span class="direction-card-cta">${ctaLabel}</span>
+      <span class="product-card-name">${pkg.productName || pkg.id}</span>
+      <span class="product-card-tagline">${pkg.tagline || ''}</span>
+      <span class="product-card-pages">${pkg.pages} עמודים</span>
+      <p class="product-card-bestfor-label">${copy.bestForLabel || 'מתאים במיוחד ל:'}</p>
+      <ul class="product-card-bestfor">${bestForHtml}</ul>
+      <p class="product-card-includes-label">${copy.includesLabel || 'כלול במחיר:'}</p>
+      <ul class="product-card-includes">${includesHtml}</ul>
+      <span class="product-card-price">₪<span class="product-card-price-digits">${pkg.priceILS}</span></span>
+      <span class="product-card-cta">${ctaLabel}</span>
     `;
 
     card.addEventListener('click', () => {
-      state.storyDirection = d.id;
-      persistPreferredDirection(d.id);
-      renderDirectionCards();
-      refreshTotal();
-      const bbt = document.getElementById('bottom-bar-total');
-      if (bbt) bbt.hidden = false;
+      applyProductSelection(pkg.id);
+      renderProductCards();
       const cont = document.getElementById('btn-continue');
-      if (cont && state.currentStep === 6) cont.disabled = false;
+      if (cont && state.currentStep === 8) cont.disabled = false;
       queueWizardSave();
     });
 
@@ -2127,7 +2143,7 @@ function renderStyleStepGrid() {
       state.style = s.id;
       state.styleSelected = true;
       const cont = document.getElementById('btn-continue');
-      if (cont && state.currentStep === 7) cont.disabled = false;
+      if (cont && state.currentStep === 5) cont.disabled = false;
       queueWizardSave();
     });
 
@@ -2135,232 +2151,7 @@ function renderStyleStepGrid() {
   });
 }
 
-/* ── STEP 8: ADDONS ──────────────────────────────────────────── */
-function toggleAddon(key) {
-  switch (key) {
-    case "audioEnabled": {
-      const next = !state.audioEnabled;
-
-      state.audioEnabled = next;
-
-      if (!next) {
-        state.bundleEnabled = false;
-        state.voice         = null;
-        state.sleepMode     = false;
-      } else {
-        if (state.bundleEnabled) {
-          state.bundleEnabled = false;
-          state.videoEnabled = false;
-          state.pdfEnabled = false;
-        }
-        if (!state.voice) {
-          state.voice = "mom";
-        }
-      }
-
-      break;
-    }
-
-    case "pdfEnabled": {
-      const next = !state.pdfEnabled;
-
-      state.pdfEnabled = next;
-
-      if (!next) {
-        state.bundleEnabled = false;
-      }
-
-      break;
-    }
-
-    case "videoEnabled": {
-      const next = !state.videoEnabled;
-      state.videoEnabled = next;
-      if (next) {
-        if (!state.voice) state.voice = "mom";
-      } else {
-        if (state.bundleEnabled) {
-          state.bundleEnabled = false;
-          state.pdfEnabled = false;
-        }
-        if (!state.audioEnabled) {
-          state.voice = null;
-          state.sleepMode = false;
-        }
-      }
-      break;
-    }
-
-    case "bundleEnabled": {
-      const next = !state.bundleEnabled;
-
-      state.bundleEnabled = next;
-
-      if (next) {
-        state.videoEnabled = true;
-        state.pdfEnabled = true;
-        state.audioEnabled = false;
-        if (!state.voice) state.voice = "mom";
-      } else {
-        state.videoEnabled = false;
-        state.pdfEnabled = false;
-        state.voice = null;
-        state.sleepMode = false;
-      }
-
-      break;
-    }
-
-    default:
-      return;
-  }
-
-  syncAddonUI();
-  refreshTotal();
-  syncStep8Layout();
-  queueWizardSave();
-}
-
-/* ── STEP 8: CHECKBOX UI ─────────────────────────────────────── */
-function syncAddonUI() {
-  const checkboxMap = {
-    audio:  state.audioEnabled,
-    pdf:    state.pdfEnabled,
-    video:  state.videoEnabled,
-    bundle: state.bundleEnabled,
-  };
-
-  Object.entries(checkboxMap).forEach(([name, active]) => {
-    const cb = document.getElementById("cb-" + name);
-    if (!cb) return;
-
-    cb.classList.toggle("checked", active);
-
-    const row = cb.closest(".addon-row");
-    if (row) row.classList.toggle("selected", active);
-  });
-}
-
-/* ── STEP 8: VOICE PANEL ANIMATION ───────────────────────────── */
-function syncStep8Layout(skipAnimation = false) {
-  const voiceCol    = getVoiceCol();
-  const grid        = getStep8Grid();
-  const addonsTitle = getAddonsTitle();
-  const step13Addons = state.currentStep === 8;
-  const shouldShow = isVoicePanelActive() && step13Addons;
-
-  if (addonsTitle) {
-    addonsTitle.textContent = shouldShow
-      ? WIZ.steps.s8b.addonsExpanded
-      : WIZ.steps.s8b.addonsCollapsed;
-  }
-
-  if (grid) {
-    grid.classList.toggle("voice-open", shouldShow);
-    if (state.currentStep === 8) {
-      grid.classList.remove("s8-three-col");
-    } else {
-      grid.classList.toggle("s8-three-col", shouldShow);
-    }
-  }
-
-  syncWizardLayout();
-  applyAddonsStepLayout();
-
-  if (!voiceCol) return;
-
-  if (state.currentStep === 8) {
-    voiceCol.style.maxHeight = '';
-    voiceCol.style.overflow = '';
-    voiceCol.style.willChange = 'opacity, transform';
-    voiceCol.style.transition = 'opacity 280ms ease, transform 280ms ease';
-    voiceCol.classList.toggle('hidden', !shouldShow);
-    voiceCol.classList.toggle('is-open', shouldShow);
-    voiceCol.style.pointerEvents = shouldShow ? 'auto' : 'none';
-    voiceCol.style.opacity = shouldShow ? '1' : '0';
-    voiceCol.style.transform = shouldShow ? 'translateX(0)' : 'translateX(-10px)';
-    return;
-  }
-
-  if (skipAnimation) {
-    voiceCol.classList.toggle("hidden",  !shouldShow);
-    voiceCol.classList.toggle("is-open",  shouldShow);
-    voiceCol.style.pointerEvents = shouldShow ? "auto"               : "none";
-    voiceCol.style.opacity       = shouldShow ? "1"                  : "0";
-    voiceCol.style.transform     = shouldShow ? "translateY(0) scale(1)" : "translateY(12px) scale(0.98)";
-    voiceCol.style.maxHeight     = shouldShow ? "420px"              : "0px";
-    voiceCol.style.overflow      = "hidden";
-    return;
-  }
-
-  animateVoicePanel(voiceCol, shouldShow);
-}
-
-function animateVoicePanel(panel, show) {
-  if (!panel) return;
-
-  if (state.currentStep === 8) {
-    panel.style.maxHeight = '';
-    panel.style.overflow = '';
-    panel.style.willChange = 'opacity, transform';
-    panel.style.transition = 'opacity 280ms ease, transform 280ms ease';
-    panel.classList.toggle('hidden', !show);
-    panel.classList.toggle('is-open', show);
-    panel.style.pointerEvents = show ? 'auto' : 'none';
-    panel.style.opacity = show ? '1' : '0';
-    panel.style.transform = show ? 'translateX(0)' : 'translateX(-10px)';
-    return;
-  }
-
-  panel.style.overflow    = "hidden";
-  panel.style.willChange  = "opacity, transform, max-height";
-  panel.style.transition  = "opacity 320ms ease, transform 320ms ease, max-height 360ms ease";
-
-  if (show) {
-    panel.classList.remove("hidden");
-    panel.style.display      = "";
-    panel.style.pointerEvents = "none";
-    panel.style.opacity      = "0";
-    panel.style.transform    = "translateY(12px) scale(0.98)";
-    panel.style.maxHeight    = "0px";
-
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        panel.classList.add("is-open");
-        panel.style.opacity   = "1";
-        panel.style.transform = "translateY(0) scale(1)";
-        panel.style.maxHeight = panel.scrollHeight + 24 + "px";
-      });
-    });
-
-    clearTimeout(panel._hideTimer);
-    panel._showTimer = setTimeout(() => {
-      panel.style.maxHeight    = "420px";
-      panel.style.pointerEvents = "auto";
-    }, 380);
-
-    return;
-  }
-
-  panel.style.pointerEvents = "none";
-  panel.style.maxHeight     = panel.scrollHeight + "px";
-  panel.style.opacity       = "1";
-  panel.style.transform     = "translateY(0) scale(1)";
-
-  requestAnimationFrame(() => {
-    panel.classList.remove("is-open");
-    panel.style.opacity   = "0";
-    panel.style.transform = "translateY(10px) scale(0.985)";
-    panel.style.maxHeight = "0px";
-  });
-
-  clearTimeout(panel._showTimer);
-  panel._hideTimer = setTimeout(() => {
-    panel.classList.add("hidden");
-  }, 360);
-}
-
-/* ── STEP 8: VOICE BUTTONS ───────────────────────────────────── */
+/* ── STEP 6: VOICE BUTTONS ───────────────────────────────────── */
 function renderVoiceBtns() {
   const wrap = document.getElementById("voice-btns");
   if (!wrap) return;
@@ -2376,7 +2167,7 @@ function renderVoiceBtns() {
     btn.innerHTML = `
       <span class="voice-btn-emoji">${v.emoji}</span>
       <span class="voice-btn-label">${v.label}</span>
-      <span class="voice-play-btn" title="${WIZ.steps.s8b.voicePreview}" aria-hidden="true">▶</span>
+      <span class="voice-play-btn" title="${WIZ.steps.voice?.voicePreview || 'האזינו לדוגמה'}" aria-hidden="true">▶</span>
     `;
 
     btn.addEventListener("click", () => {
@@ -2404,20 +2195,16 @@ function playVoicePreview(voiceId) {
 }
 
 /* ── STEP 8: SLEEP TOGGLE ────────────────────────────────────── */
+function syncSleepToggleUI() {
+  const t = document.getElementById('sleep-toggle');
+  if (t) t.classList.toggle('on', state.sleepMode);
+  const row = t?.closest('.sleep-row');
+  if (row) row.classList.toggle('selected', state.sleepMode);
+}
+
 function toggleSleep() {
-  if (!isVoicePanelActive()) return;
-
   state.sleepMode = !state.sleepMode;
-
-  const t = document.getElementById("sleep-toggle");
-  if (t) {
-    t.classList.toggle("on", state.sleepMode);
-  }
-
-  const row = t?.closest(".sleep-row");
-  if (row) {
-    row.classList.toggle("selected", state.sleepMode);
-  }
+  syncSleepToggleUI();
   queueWizardSave();
 }
 
@@ -2439,14 +2226,15 @@ function refreshTotal() {
 function buildSummary() {
   const { base, total } = computeTotal();
 
-  const dirPkg =
-    DIRECTION_PACKAGES.find((d) => d.id === state.storyDirection) || DIRECTION_PACKAGES[1];
-  const dirLabel = dirPkg?.label || "";
-  const dirPages = dirPkg?.pagesLine || "";
+  const productPkg =
+    PRODUCT_PACKAGES.find((d) => d.id === state.productId || d.id === state.storyDirection) ||
+    PRODUCT_PACKAGES[1];
+  const productName = productPkg?.productName || '';
+  const dirPages = productPkg?.pages ? `${productPkg.pages} עמודים` : '';
   const styleObj = ILLUSTRATION_STYLES.find((s) => s.id === state.style);
   const voiceObj = VOICES.find((v) => v.id === state.voice);
 
-  const lenLabel   = dirLabel;
+  const lenLabel   = productName;
   const styleLabel = styleObj?.label || "";
   const voiceLabel = voiceObj?.label || "";
   const topicLabel = state.topicLabel || state.topic || "";
@@ -2464,7 +2252,7 @@ function buildSummary() {
           <div class="summary-row">
             <span class="summary-icon">📄</span>
             <span class="summary-label">${WIZ.summary.lengthLabel}</span>
-            <span class="summary-val">${dirPkg?.title || lenLabel} · ${dirPages}</span>
+            <span class="summary-val">${productName} · ${dirPages}</span>
           </div>
           <div class="summary-row">
             <span class="summary-icon">🎨</span>
@@ -2500,20 +2288,12 @@ function buildSummary() {
       topicLabel
         ? { icon: "📖", label: WIZ.summary.topicLabel,  val: topicDisplayVal }
         : null,
-      state.audioEnabled && !state.videoEnabled && !state.bundleEnabled
-        ? { icon: "🎧", label: WIZ.summary.audioLabel, val: voiceLabel || "✓" }
+      { icon: "🎧", label: WIZ.summary.audioLabel, val: voiceLabel || "✓" },
+      { icon: "📥", label: WIZ.summary.pdfLabel, val: "✓" },
+      state.videoEnabled
+        ? { icon: "🎬", label: WIZ.summary.videoLabel || 'סרטון:', val: '✓' }
         : null,
-      state.pdfEnabled && !state.bundleEnabled
-        ? { icon: "📥", label: WIZ.summary.pdfLabel, val: "✓" }
-        : null,
-      state.videoEnabled && !state.bundleEnabled
-        ? { icon: "🎬", label: WIZ.summary.videoLabel || 'סרטון:', val: voiceLabel ? `${voiceLabel}` : '✓' }
-        : null,
-      state.bundleEnabled
-        ? { icon: "🎁", label: WIZ.summary.bundleLabel, val: voiceLabel ? `${voiceLabel}` : '✓' }
-        : null,
-      state.sleepMode &&
-        (state.audioEnabled || state.videoEnabled || state.bundleEnabled)
+      state.sleepMode
         ? { icon: "🌙", label: WIZ.summary.sleepLabel, val: "✓" }
         : null,
     ].filter(Boolean);
@@ -2564,50 +2344,11 @@ function buildSummary() {
   // ── Price breakdown ─────────────────────────────────────────
   const priceEl = document.getElementById("price-breakdown");
   if (priceEl) {
-    let rows = `
+    const rows = `
       <div class="price-row">
-        <span class="label">${WIZ.summary.bookDigital.replace('{length}', lenLabel)}</span>
+        <span class="label">${productName || WIZ.summary.bookDigital.replace('{length}', lenLabel)}</span>
         <span class="val">₪${base}</span>
       </div>
-    `;
-
-    if (state.bundleEnabled) {
-      rows += `
-        <div class="price-row">
-          <span class="label">${WIZ.summary.bundleLabel}</span>
-          <span class="val">₪${PRICES.bundle}</span>
-        </div>
-      `;
-    } else {
-      if (state.audioEnabled) {
-        rows += `
-          <div class="price-row">
-            <span class="label">${WIZ.summary.audioAddon}</span>
-            <span class="val">₪${PRICES.audio}</span>
-          </div>
-        `;
-      }
-
-      if (state.pdfEnabled) {
-        rows += `
-          <div class="price-row">
-            <span class="label">${WIZ.summary.pdfAddon}</span>
-            <span class="val">₪${PRICES.pdf}</span>
-          </div>
-        `;
-      }
-
-      if (state.videoEnabled) {
-        rows += `
-          <div class="price-row">
-            <span class="label">${WIZ.summary.videoAddon || 'סרטון 🎬'}</span>
-            <span class="val">₪${PRICES.video}</span>
-          </div>
-        `;
-      }
-    }
-
-    rows += `
       <div class="price-row price-row--total">
         <span class="label">${WIZ.summary.totalLabel || 'סה"כ לתשלום:'}</span>
         <span class="val">₪${total}</span>
@@ -2703,14 +2444,11 @@ function buildWizardPayload() {
       direction:         state.storyDirection,
       length:            STORY_LENGTH_FROM_DIRECTION[state.storyDirection] || 'medium',
       illustrationStyle: normalizeClientStyleId(state.style),
-      audioEnabled:      state.audioEnabled,
-      selectedVoice:
-        state.audioEnabled || state.videoEnabled || state.bundleEnabled
-          ? (state.voice || null)
-          : null,
+      audioEnabled:      true,
+      selectedVoice:     state.voice || 'mom',
       sleepMode:         state.sleepMode,
-      pdfEnabled:        state.pdfEnabled,
-      bundleEnabled:     state.bundleEnabled,
+      pdfEnabled:        true,
+      bundleEnabled:     false,
       videoEnabled:      state.videoEnabled,
     },
     contact: {
