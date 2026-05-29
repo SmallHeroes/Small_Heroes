@@ -30,3 +30,5 @@ export {
   validatePowerCardRaw,
   validateStoryFileIntegrity,
 } from './parse';
+export { personalizePowerCardCopy } from './personalize';
+export type { PersonalizedPowerCardCopy } from './personalize';

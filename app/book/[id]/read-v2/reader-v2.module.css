@@ -635,6 +635,82 @@
   color: #5c5348;
 }
 
+.powerCardEndScreen {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 56px 16px 24px;
+  overflow-y: auto;
+  text-align: center;
+  color: #5c5348;
+}
+
+.powerCardEndTitle {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: clamp(1.2rem, 4vw, 1.5rem);
+  font-weight: 600;
+  color: #4a4036;
+}
+
+.powerCardEndSubtext {
+  margin: 0;
+  max-width: 28rem;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: #6b5f52;
+}
+
+.powerCardEndPreviewWrap {
+  width: min(50vw, 320px);
+  max-width: 100%;
+  margin: 8px 0 4px;
+}
+
+.powerCardEndPreview {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+.powerCardEndActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.powerCardDownloadBtn,
+.powerCardViewBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-family: var(--font-ui);
+  font-size: 0.92rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid rgba(92, 83, 72, 0.22);
+}
+
+.powerCardDownloadBtn {
+  background: #5c5348;
+  color: #fdf9f4;
+  border-color: transparent;
+}
+
+.powerCardViewBtn {
+  background: rgba(253, 249, 244, 0.92);
+  color: #5c5348;
+}
+
 @media (max-width: 900px) {
   .pageStage {
     padding: 0 0 6px;

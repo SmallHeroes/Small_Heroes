@@ -8,6 +8,7 @@ import { assignTemplatesForBook, textPlacementForTemplate, type BookPageTemplate
 import { deriveLayout, countHebrewWords } from '../../../../backend/providers/image-prompt-enricher';
 import { prisma } from '@/lib/prisma';
 import { createLogger } from '@/lib/logger';
+import { resolvePowerCardRenderInputForOrder } from '@/lib/power-cards/resolve-from-order';
 
 const logger = createLogger({ subsystem: 'orders', route: '/api/orders/[orderId]' });
 const DEV_FIXTURE_ORDER_ID = 'dev-completed-book';
@@ -107,6 +108,8 @@ export async function GET(
         id: true,
         status: true,
         childName: true,
+        childGender: true,
+        characterAnchors: true,
         storyLength: true,
         storyDirection: true,
         audioEnabled: true,
@@ -165,6 +168,18 @@ export async function GET(
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
+    const powerCard =
+      ['ready', 'partial'].includes(order.status)
+        ? await resolvePowerCardRenderInputForOrder({
+            id: order.id,
+            childName: order.childName,
+            childGender: order.childGender,
+            storyDirection: order.storyDirection,
+            characterAnchors: order.characterAnchors,
+            book: order.book ? { title: order.book.title } : null,
+          })
+        : null;
+
     return NextResponse.json({
       id: order.id,
       status: order.status,
@@ -179,6 +194,8 @@ export async function GET(
       imageStatus: order.imageStatus,
       audioStatus: order.audioStatus,
       packageStatus: order.packageStatus,
+
+      powerCard,
 
       // Book data if ready
       book: ['ready', 'partial'].includes(order.status) ? (() => {

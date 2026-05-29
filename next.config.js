@@ -5,6 +5,8 @@ const nextConfig = {
     'fluent-ffmpeg',
     '@ffmpeg-installer/ffmpeg',
     '@ffprobe-installer/ffprobe',
+    '@sparticuz/chromium',
+    'puppeteer-core',
   ],
   typescript: {
     // TypeScript errors don't block Turbopack compilation;
@@ -19,6 +21,7 @@ const nextConfig = {
   outputFileTracingIncludes: {
     '/api/generate': ['./backend/assets/fonts/**/*', './story-bank/**/*'],
     '/api/debug/regen-page': ['./story-bank/**/*'],
+    '/api/orders/[orderId]/power-card': ['./story-bank/**/*', './node_modules/@sparticuz/chromium/**/*'],
   },
   /**
    * Legacy .html entry points and direct /public/HTML/*.html URLs -> canonical
