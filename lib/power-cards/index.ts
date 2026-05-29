@@ -15,6 +15,12 @@ export type {
   PowerCardValidationIssue,
   StoryFrontmatterPowerCardSource,
 } from './types';
+export type { PowerCardPaletteTokens } from './palettes';
+export {
+  POWER_CARD_PALETTES,
+  paletteCssVars,
+  paletteForDirection,
+} from './palettes';
 export {
   extractYamlFrontmatterBlock,
   parseAndValidateStoryPowerCard,

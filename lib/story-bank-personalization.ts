@@ -43,7 +43,8 @@ const UNRESOLVED_GENDER_CHIP_RE = /\{[^{}]+\|[^{}]+\}/;
 // NOTE: cannot use \b after Hebrew letters — V8 regex \b doesn't recognize
 // Hebrew word boundaries in Unicode mode. Lookahead matches end-of-string or
 // any non-Hebrew character (whitespace, punctuation, ASCII).
-const UNRESOLVED_SLASH_GENDER_RE = /[\u0590-\u05FF]+\/ה(?=$|[^\u0590-\u05FF])/u;
+const UNRESOLVED_SLASH_GENDER_RE =
+  /[\u0590-\u05FF]+\/[\u0590-\u05FF]+(?=$|[^\u0590-\u05FF])/u;
 const UNRESOLVED_PATCH_RE = /\{\{patch:/i;
 const UNRESOLVED_AGE_BLOCK_RE = /\{\{#age\}\}/;
 
@@ -138,19 +139,73 @@ export function resolveGenderAlternationChips(
   );
 }
 
-/** Resolve Hebrew slashed gender forms like ילד/ה, מרגיש/ה. */
+/** Hebrew letter boundary — V8 \\b does not work after Hebrew script. */
+const HEBREW_SLASH_BOUNDARY = `(?=$|[^\\u0590-\\u05FF])`;
+const HEBREW_SLASH_FORM_RE = new RegExp(
+  `([\\u0590-\\u05FF]+)\\/([\\u0590-\\u05FF]+)${HEBREW_SLASH_BOUNDARY}`,
+  'gu'
+);
+
+const FINAL_TO_NONFINAL_HEBREW: Readonly<Record<string, string>> = {
+  'ם': 'מ',
+  'ן': 'נ',
+  'ץ': 'צ',
+  'ף': 'פ',
+  'ך': 'כ',
+};
+
+/**
+ * Feminine overrides for base/suffix slashed forms where simple concatenation
+ * is orthographically wrong. Key format: `${base}/${suffix}`.
+ */
+const FEMININE_SLASH_OVERRIDES: Readonly<Record<string, string>> = {
+  'ילד/ה': 'ילדה',
+  'שם/ה': 'שמה',
+  'צריך/ה': 'צריכה',
+};
+
+/** Masculine overrides — e.g. pronoun את/ה inverts the usual append rule. */
+const MALE_SLASH_OVERRIDES: Readonly<Record<string, string>> = {
+  'את/ה': 'אתה',
+};
+
+function feminizeSlashedForm(base: string, suffix: string): string {
+  const key = `${base}/${suffix}`;
+  if (FEMININE_SLASH_OVERRIDES[key]) return FEMININE_SLASH_OVERRIDES[key];
+
+  // Pronoun inversion: female keeps the shorter base (את), not base+suffix.
+  if (key === 'את/ה') return 'את';
+
+  // Multi-letter suffix after slash is usually a full feminine word (בן/בת → בת).
+  if (suffix.length > 1) return suffix;
+
+  // /ת — normalize final-form letters (ם→מ, ן→נ, …) then append ת.
+  if (suffix === 'ת') {
+    if (base.length === 0) return 'ת';
+    const last = base.slice(-1);
+    const normalized = FINAL_TO_NONFINAL_HEBREW[last] ?? last;
+    return `${base.slice(0, -1)}${normalized}ת`;
+  }
+
+  return `${base}${suffix}`;
+}
+
+function masculinizeSlashedForm(base: string, suffix: string): string {
+  const key = `${base}/${suffix}`;
+  if (MALE_SLASH_OVERRIDES[key]) return MALE_SLASH_OVERRIDES[key];
+  return base;
+}
+
+/** Resolve Hebrew slashed gender forms like ילד/ה, נותן/ת, מרגיש/ה. */
 export function resolveSlashedGenderForms(
   text: string,
   gender: 'boy' | 'girl' | 'other'
 ): string {
-  // NOTE: lookahead instead of \b — V8 regex \b doesn't work after Hebrew.
-  if (gender === 'girl') {
-    return text.replace(/([\u0590-\u05FF]+)\/ה(?=$|[^\u0590-\u05FF])/gu, (_, base: string) => {
-      if (base === 'ילד') return 'ילדה';
-      return `${base}ה`;
-    });
-  }
-  return text.replace(/([\u0590-\u05FF]+)\/ה(?=$|[^\u0590-\u05FF])/gu, '$1');
+  return text.replace(HEBREW_SLASH_FORM_RE, (_, base: string, suffix: string) =>
+    gender === 'girl'
+      ? feminizeSlashedForm(base, suffix)
+      : masculinizeSlashedForm(base, suffix)
+  );
 }
 
 export function resolveStoryBankPlaceholders(
@@ -204,7 +259,7 @@ export function runStoryPersonalizationGate(input: PersonalizationGateInput): st
     failures.push('unresolved {male|female} gender chip');
   }
   if (UNRESOLVED_SLASH_GENDER_RE.test(fullText)) {
-    failures.push('unresolved Hebrew /ה gender slash form');
+    failures.push('unresolved Hebrew gender slash form');
   }
   if (UNRESOLVED_PATCH_RE.test(fullText)) {
     failures.push('unresolved {{patch:…}} placeholder');
