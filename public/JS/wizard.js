@@ -204,6 +204,16 @@ let transientWizardSessionId = null;
 let pendingPhotoPickerOpen = false;
 
 /* ── HELPER ──────────────────────────────────────────────── */
+function renderTemplate(text, vars = {}) {
+  return String(text || '').replace(/\{(\w+)\}/g, (_, key) =>
+    vars[key] != null ? String(vars[key]) : ''
+  );
+}
+
+function resolveWizardChildName() {
+  return (state.childName || '').trim() || 'הילד/ה';
+}
+
 function setText(id, text) {
   const el = document.getElementById(id);
   if (el) el.textContent = text;
@@ -984,9 +994,9 @@ function initWizardContent() {
 
   // Step 4 — hero notes (optional)
   const hn = WIZ.steps.heroNotes || {};
-  setText('heroNotesSub',        hn.sub || '');
-  setText('heroNotesStrengthQ', hn.strengthQ || '');
-  setText('heroNotesFeelingQ',  hn.feelingQ || '');
+  setText('heroNotesSub', hn.sub || '');
+  setText('heroNotesStrengthQ', renderTemplate(hn.strengthQ || '', { name: resolveWizardChildName() }));
+  setText('heroNotesFeelingQ', renderTemplate(hn.feelingQ || '', { name: resolveWizardChildName() }));
 
   // Step 5 — style
   setText('sStyleTitle', WIZ.steps.sStyle.title);
@@ -1016,7 +1026,7 @@ function initWizardContent() {
   if (ded && sBook.dedicationPlaceholder) ded.placeholder = sBook.dedicationPlaceholder;
 
   // Step 15 — summary + payment
-  setText('s9Title',        WIZ.steps.s9.title);
+  setText('s9Title', renderTemplate(WIZ.steps.s9.title, { name: resolveWizardChildName() }));
   setText('s9Sub',          WIZ.steps.s9.sub);
   setText('s9CardBookTitle',    WIZ.steps.s9.cardBookTitle || WIZ.steps.s9.card2Title);
   setText('s9CardDetailsTitle', WIZ.steps.s9.cardDetailsTitle || WIZ.steps.s9.card1Title);
@@ -1173,6 +1183,7 @@ function updateUI() {
   }
 
   if (state.currentStep === 9) {
+    setText('s9Title', renderTemplate(WIZ.steps.s9.title, { name: resolveWizardChildName() }));
     buildSummary();
   }
 
@@ -1367,13 +1378,17 @@ function updateVoiceStepSubtitle() {
 }
 
 function updateHeroNotesTitle() {
-  const el = document.getElementById('heroNotesTitle');
-  if (!el) return;
   const hn = WIZ.steps.heroNotes || WIZ_DEFAULTS.steps.heroNotes || {};
-  const name = (state.childName || '').trim();
-  el.textContent = name
-    ? String(hn.titleTemplate || 'כמה מילים על {name}').replace('{name}', name)
-    : hn.titleFallback || 'כמה מילים על הגיבור/ה שלכם';
+  const childName = resolveWizardChildName();
+  const rawName = (state.childName || '').trim();
+  const titleEl = document.getElementById('heroNotesTitle');
+  if (titleEl) {
+    titleEl.textContent = rawName
+      ? renderTemplate(hn.titleTemplate || 'כמה מילים על {name}', { name: childName })
+      : hn.titleFallback || 'כמה מילים על הגיבור/ה שלכם';
+  }
+  setText('heroNotesStrengthQ', renderTemplate(hn.strengthQ || '', { name: childName }));
+  setText('heroNotesFeelingQ', renderTemplate(hn.feelingQ || '', { name: childName }));
 }
 
 function renderTopics() {
