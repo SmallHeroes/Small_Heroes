@@ -116,15 +116,23 @@ export function compactStoryText(raw: string): string {
     .trim();
 }
 
+/** Split prose into sentence paragraphs for reader typography. */
+export function splitIntoSentences(text: string): string[] {
+  const trimmed = text.trim();
+  if (!trimmed) return [' '];
+  const sentences = trimmed
+    .split(/(?<=[.!?…])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return sentences.length > 0 ? sentences : [trimmed];
+}
+
 /** Split Hebrew prose into read-aloud rhythm lines. */
 export function splitTextByRhythm(text: string): string[] {
   if (!text) return [' '];
   const byNewline = text.split(/\n+/).map((s) => s.trim()).filter(Boolean);
   if (byNewline.length > 1) return byNewline;
-  return text
-    .split(/(?<=[.!?…])\s+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  return splitIntoSentences(text);
 }
 
 export function adaptLegacyBookToStoryScenes(input: AdaptBookInput): StoryScene[] {

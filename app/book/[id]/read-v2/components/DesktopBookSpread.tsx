@@ -6,6 +6,7 @@ import {
   MASK_ON_BOOK_ASSET,
   OPEN_BOOK_ASSET,
   openBookLayoutCssVars,
+  splitIntoSentences,
   splitTextByRhythm,
   templateCssVars,
   tokensToCssVars,
@@ -114,7 +115,11 @@ export function DesktopBookSpread({ spread, isCurrent }: Props) {
       <div className={styles.openPageRight}>
         <div className={styles.openTextSafe}>
           <div className={`${styles.proseBody} ${styles.storyText}`}>
-            <p className={styles.proseFlow}>{spread.text.trim() || ' '}</p>
+            {splitIntoSentences(spread.text).map((sentence, i) => (
+              <p key={i} className={styles.sentence}>
+                {sentence}
+              </p>
+            ))}
           </div>
         </div>
         <StickerSlots variant="desktop" />
