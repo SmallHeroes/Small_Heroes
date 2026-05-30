@@ -139,18 +139,28 @@ Scattered pale blue eggshell pieces with darker speckles around the glowing ston
 function formatDiniEntityLock(lockId: string, state: ObjectState): string {
   if (lockId !== 'baby_dragon' || state === 'absent') return '';
 
+  const babyContrastLock = `
+SIZE CONTRAST (mandatory): The baby dragon is visibly MUCH smaller than Dini — body size ratio approximately 1:3. The baby's head is also proportionally larger relative to its tiny body (newborn proportions). If Dini and the baby appear in the same frame, the baby should sit comfortably in a circle the size of Dini's chest plates.
+
+ANATOMY CONTRAST (mandatory):
+- Baby has ZERO horns. Only two tiny soft rounded head bumps.
+- Baby has ZERO back spikes (too young — they have not grown yet).
+- Baby wings are folded and tiny, NOT spread or extended like Dini's.
+- Baby snout is even shorter and more button-like than Dini's.
+- Baby does not breathe fire. No flame, no warm glow at the snout.`;
+
   if (state === 'emerging') {
     return `RECURRING ENTITY LOCK — BABY DRAGON (EMERGING):
 One tiny copper-orange dragon hatchling just emerging from the cracking blue-speckled egg. Same species/color family as Dini — NOT green/teal. Wobbly legs, small sunset wings. ONLY ONE baby dragon.
 Match the baby dragon reference sheets: oversized round head, two tiny soft head bumps (NOT developed horns), small side ear-flaps, folded tiny coral wings, chubby newborn body, soft pale cream underside.
-CRITICAL — not a miniature adult Dini: this baby has softer features, NO developed horns, NO back spikes, NO fire yet, newborn proportions. Distinct from Dini's adult form even though they share copper-orange palette.`;
+CRITICAL — not a miniature adult Dini: this baby has softer features, NO developed horns, NO back spikes, NO fire yet, newborn proportions. Distinct from Dini's adult form even though they share copper-orange palette.${babyContrastLock}`;
   }
 
   if (state === 'present') {
     return `RECURRING ENTITY LOCK — BABY DRAGON (PRESENT):
 The same tiny copper-orange dragon hatchling — polished copper-to-sunset scales, warm amber highlights, NOT green/teal. Nestled on the warm zone of the glowing stone. ONLY ONE baby dragon.
 Match the baby dragon reference sheets: oversized round head, two tiny soft head bumps (NOT developed horns), small side ear-flaps, folded tiny coral wings, chubby newborn body, soft pale cream underside.
-CRITICAL — not a miniature adult Dini: this baby has softer features, NO developed horns, NO back spikes, NO fire yet, newborn proportions. Distinct from Dini's adult form even though they share copper-orange palette.`;
+CRITICAL — not a miniature adult Dini: this baby has softer features, NO developed horns, NO back spikes, NO fire yet, newborn proportions. Distinct from Dini's adult form even though they share copper-orange palette.${babyContrastLock}`;
   }
 
   return DRAGON_DINI_RECURRING_ENTITY_LOCKS.baby_dragon ?? '';

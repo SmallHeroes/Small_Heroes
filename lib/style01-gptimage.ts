@@ -90,13 +90,13 @@ export const STYLE_01_REF_SUBSETS: Record<
 };
 
 const FANTASY_CAVE_RE =
-  /\b(cave|cave mouth|glowing stones?|warm stone|mountain cave|clouds above|amber glow|מערה|אבנ(?:ים|ה))\b/iu;
+  /\b(cave|cave mouth|cave entrance|cave interior|inside cave|stalactites|stalagmites|mountain cave|mountain peak|cliff|glowing stones?|warm stone|amber glow|cavern|grotto|hollow|rocky walls|מערה|אבנ(?:ים|ה)|הר|מצוק|נטיפים|זיבים)\b/iu;
 const FOREST_CLEARING_RE =
   /\b(forest clearing|sunny forest|berry bush|mossy green rock|clearing)\b/iu;
 const FOREST_PATH_RE =
   /\b(forest path|deeper forest path|walking into the forest|woods path|path into the forest)\b/iu;
 const FOREST_DAY_RE =
-  /\b(forest edge|forest\b|woods|trees|outdoor|meadow|יער|squirrel|berry)\b/iu;
+  /\b(forest edge|forest\b|woods\b|trees(?: around| nearby| above)|meadow|woodland|יער|חורש|squirrel|berry bush)\b/iu;
 const COZY_INTERIOR_RE =
   /\b(bedroom|bedside|crib|windowsill|indoor room|חדר|מיטה|עריסה)\b/iu;
 const OUTDOOR_MAGICAL_RE =
@@ -159,7 +159,18 @@ FORBIDDEN: forest, trees, outdoor plants, grass, meadow, open field, jungle foli
 
 export const DRAGON_DINI_COMPANION_LOCK = `COMPANION LOCK — DINI (copper dragon):
 Same Dini from the Dini reference sheets. Young copper-orange dragon with rounded childlike body proportions, short rounded snout, exactly two small curved horns on top of the head, small side ear-frills behind the cheeks (same shape every page — do NOT swap between ear, horn, fin and spike), three or four small back spikes behind the head (consistent count and spacing), large dark eyes with one small white highlight in each eye, warm cream belly plates from chin to belly, peach/coral sunset wing membranes, soft copper-orange scales, gentle expressive face. Same head landmarks, same horn shape, same ear-frills, same eye style, same body age and proportions every page. Warm hugging fire only — soft orange glow, never destructive flames.
-CRITICAL — Dini is NOT a generic dragon, NOT a long lean lizard body, NOT green, NOT blue, NOT a realistic reptile, NOT an adult/ancient dragon, NOT a different rounded mascot. Keep the same rounded friendly Dini identity from the reference sheets across every page he appears.`;
+CRITICAL — Dini is NOT a generic dragon, NOT a long lean lizard body, NOT green, NOT blue, NOT a realistic reptile, NOT an adult/ancient dragon, NOT a different rounded mascot. Keep the same rounded friendly Dini identity from the reference sheets across every page he appears.
+
+ANATOMY EXACT COUNT (must not drift between pages):
+- Horns: EXACTLY 2 (two), both small and curved upward, on top of the head ONLY.
+  No third horn. No horn anywhere except top of head.
+- Side ear-frills: EXACTLY 2 (one each side), small leaf-shaped flaps behind the cheeks.
+  Must NEVER be drawn as horns. Must NEVER move to the top of the head.
+- Back spikes: 3 or 4 small soft bumps ONLY behind the head and on the neck.
+  Must NEVER extend down the full spine to the tail. Must NEVER become a saw-spine ridge.
+- Wings: 2, peach/coral membrane. Same size relative to body across all pages.
+- Body proportion: rounded childlike — head ~30% of body height, body chubby not lean.
+  Must NEVER become a long lean adult dragon body.`;
 
 export type Style01SubjectScale = 'small' | 'medium' | 'large';
 
@@ -377,8 +388,9 @@ export function classifyStyle01SceneClass(input: {
 }): Style01SceneClass {
   const hay = [input.imagePrompt ?? '', input.rawScenePrompt ?? '', input.bookPageText ?? ''].join(' ');
 
-  const isForest = FOREST_DAY_RE.test(hay) || FOREST_CLEARING_RE.test(hay) || FOREST_PATH_RE.test(hay);
-  if (FANTASY_CAVE_RE.test(hay) && !isForest) return 'fantasy-cave';
+  // Cave is the most specific scene — when cave keywords appear, cave wins
+  // even if forest words also appear (e.g. plants near cave entrance).
+  if (FANTASY_CAVE_RE.test(hay)) return 'fantasy-cave';
 
   if (FOREST_PATH_RE.test(hay)) return 'forest-path';
   if (FOREST_CLEARING_RE.test(hay)) return 'forest-clearing';
