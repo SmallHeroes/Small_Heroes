@@ -676,10 +676,19 @@
   display: none;
 }
 
-#photo-quality-message,
-.photo-quality-callout {
+/* Step 3: flex column stretch + width:100% ignored max-width on the callout;
+   .s3-card shrinks to content via margin:auto — match both with explicit width cap */
+#step-3 .s3-card,
+#step-3 #photo-quality-message,
+#step-3 .photo-quality-callout {
   width: 100%;
   max-width: 816px;
+  align-self: center;
+  box-sizing: border-box;
+}
+
+#step-3 #photo-quality-message,
+#step-3 .photo-quality-callout {
   margin: 16px auto 0;
 }
 
