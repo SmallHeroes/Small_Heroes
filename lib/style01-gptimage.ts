@@ -300,14 +300,28 @@ export const BEAR_CUB_DOBI_RECURRING_OBJECT_CATALOG: Record<string, string[]> = 
 
 export const BEAR_CUB_DOBI_RECURRING_OBJECT_LOCKS: Record<string, string> = {
   berry_bush: `RECURRING OBJECT LOCK — BERRY BUSH:
-The same small raspberry/berry bush every time. Low leafy shrub with thin branches near a mossy rock. Do not turn it into a tree, flower pot, or random hedge.`,
+THE SAME specific berry bush every page where it appears.
+Visual signature: three main thin stems rising from a single base, rounded cluster of small green leaves on top, small bright red berries hanging in clusters (only when bush is full — gone on pages 2-3). Positioned to the right side of the mossy green rock at consistent ground level. Same proportions every page.
+NOT a tree. NOT a flower pot. NOT random hedge.`,
   mossy_rock: `RECURRING OBJECT LOCK — MOSSY GREEN ROCK:
-The same rounded moss-covered green rock beside the berry bush. Soft moss, forest-floor scale. Do not turn it into a boulder cliff or indoor prop.`,
+THE SAME mossy rock every page. Visual signature: round oval boulder roughly knee-height to Dobi, smooth top covered in soft green moss, base settled into the forest floor. Always to the LEFT of the berry bush, both visible together when in frame.
+Same proportions, same moss coverage, every page.`,
 };
 
 export const BEAR_CUB_DOBI_COMPANION_LOCK = `COMPANION LOCK — DOBI (warm living bear cub):
 Same living bear cub from the Dobi reference sheets. Small chubby warm honey-brown fur, round cub body, small rounded ears on top, large amber-brown eyes with white highlight, thick expressive eyebrows, shiny black wet nose, short rounded snout, warm cream chest patch, soft slightly messy head fur, oversized soft paws. Same fur tone and proportions every page.
-CRITICAL — Dobi is a soft hand-drawn living bear cub character, NOT a teddy bear toy, NOT plush, NOT a stuffed animal, NOT a mascot costume, NOT overly human-like, NOT a polar bear, NOT a panda, NOT a realistic photo bear, NOT a brown grizzly. Storybook cub presence — alive, gentle, expressive.`;
+CRITICAL — Dobi is a soft hand-drawn living bear cub character, NOT a teddy bear toy, NOT plush, NOT a stuffed animal, NOT a mascot costume, NOT overly human-like, NOT a polar bear, NOT a panda, NOT a realistic photo bear, NOT a brown grizzly. Storybook cub presence — alive, gentle, expressive.
+
+CUB PROPORTIONS LOCK (must not drift between pages, even on anger / action pages):
+- Dobi is a SMALL bear CUB. Body height roughly half of an adult bear. Never depict as a full-grown bear, never bulky, never muscular, never tall.
+- Head is LARGE relative to body (newborn-toddler proportions), short stubby legs, soft round belly, soft rounded ears on top.
+- When standing beside the child, Dobi reaches AT MOST the child's waist — never the child's chest, never taller than the child.
+- Even on anger / frustration pages, keep the rounded baby-cub silhouette. Eyebrows can furrow but the FACE remains soft and childlike — never angular, never adult-bear menacing.
+
+CHILD-SAFE EMOTION RULE:
+- When Dobi shows frustration, anger, or tension, the expression must still read as a vulnerable cub feeling big emotions — NEVER threatening, NEVER aggressive, NEVER intimidating.
+- Allowed: furrowed soft eyebrows, downturned mouth, hunched shoulders, paw clenched, tail tucked.
+- Forbidden: bared teeth showing, claws extended, snarling mouth, predatory stance, threatening glare. This is a storybook cub feeling — not a real bear about to attack.`;
 
 export type Style01StoryLockBundle = {
   recurringObjectCatalog?: Record<string, string[]>;
