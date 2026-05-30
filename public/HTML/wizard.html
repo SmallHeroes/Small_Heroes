@@ -116,27 +116,30 @@
             </div>
           </div>
           <input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp" onchange="handlePhoto(event)" />
-          <div id="photo-quality-message"></div>
           <p class="photo-reupload-hint" id="photo-reupload-hint" hidden role="status">
             לאחר רענון הדף יש להעלות את תמונת הילד/ה מחדש.
           </p>
         </div>
       </div>
 
+      <div id="photo-quality-message" class="photo-quality-callout" role="status" aria-live="polite"></div>
     </div>
 
     <!-- ── Step 4 — Hero notes (optional) ────────────────────── -->
     <div class="step step--hero-notes" id="step-4">
       <p class="step-microcopy" id="heroNotesMicro"></p>
-      <h2 class="step-title" id="heroNotesTitle"></h2>
-      <p class="step-sub" id="heroNotesSub"></p>
-      <div class="hero-notes-block">
-        <p class="hero-notes-q" id="heroNotesStrengthQ"></p>
-        <div class="trait-chips-wrap" id="hero-superpower-chips"></div>
-      </div>
-      <div class="hero-notes-block">
-        <p class="hero-notes-q" id="heroNotesFeelingQ"></p>
-        <div class="chips-wrap" id="hero-goals-chips"></div>
+      <div class="hero-notes-card">
+        <h2 class="step-title hero-notes-card-title" id="heroNotesTitle"></h2>
+        <p class="step-sub hero-notes-card-sub" id="heroNotesSub"></p>
+        <div class="hero-notes-block">
+          <p class="hero-notes-q" id="heroNotesStrengthQ"></p>
+          <div class="trait-chips-wrap" id="hero-superpower-chips"></div>
+        </div>
+        <div class="hero-notes-block hero-notes-block--inner">
+          <p class="hero-notes-q" id="heroNotesFeelingQ"></p>
+          <div class="chips-wrap" id="hero-goals-chips"></div>
+        </div>
+        <button type="button" class="hero-notes-skip" onclick="goNext()">אפשר להמשיך גם בלי זה</button>
       </div>
     </div>
 
@@ -205,15 +208,15 @@
       <p class="step-title" id="s9Sub" style="font-size:clamp(18px,2.6vw,28px);margin-bottom:20px;"></p>
 
       <div class="s9-grid s9-grid--balanced">
-        <div class="s9-card s9-card--details">
-          <div class="s9-card-title" id="s9CardDetailsTitle"></div>
-          <div id="order-summary"></div>
-        </div>
-
-        <div class="s9-card s9-card--book">
+        <div class="s9-card s9-card--summary">
           <div class="s9-card-title" id="s9CardBookTitle"></div>
           <div id="summary-book-panel"></div>
+          <div class="s9-card-title s9-card-title--secondary" id="s9CardDetailsTitle"></div>
+          <div id="order-summary"></div>
           <div id="price-breakdown"></div>
+        </div>
+
+        <div class="s9-card s9-card--checkout">
           <div class="contact-form">
             <div class="form-group">
               <label class="form-label" id="s9NameLabel"></label>
