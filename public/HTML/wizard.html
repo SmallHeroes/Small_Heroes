@@ -43,33 +43,24 @@
 
   <main class="wizard-main">
 
-    <!-- ── Step 1 — Welcome ──────────────────────────────────── -->
+    <!-- ── Step 1 — Topic ────────────────────────────────────── -->
     <div class="step active" id="step-1">
-      <div class="s1-inner">
-        <h1 class="step-title"><span id="s1TitleLine1"></span><br><span id="s1TitleLine2"></span></h1>
-        <p class="step-sub" id="s1Sub"></p>
-        <button class="btn-start" id="s1Btn" onclick="goNext()"></button>
-      </div>
-    </div>
-
-    <!-- ── Step 2 — Topic ────────────────────────────────────── -->
-    <div class="step" id="step-2">
       <h2 class="step-title" id="s2Title"></h2>
       <p class="step-sub" id="s2Sub"></p>
       <div style="height:30px;"></div>
       <div class="chips-wrap" id="topic-chips"></div>
     </div>
 
-    <!-- ── Step 3 — Companion character ──────────────────────── -->
-    <div class="step" id="step-3">
+    <!-- ── Step 2 — Companion character ──────────────────────── -->
+    <div class="step" id="step-2">
       <p class="step-microcopy" id="companionMicro"></p>
       <h1 class="companion-h1" id="companionTitle"></h1>
       <p class="step-sub" id="companionSub"></p>
       <div class="companion-grid" id="companion-cards" role="group" aria-label="בחירת דמות מלווה"></div>
     </div>
 
-    <!-- ── Step 4 — Child details ────────────────────────────── -->
-    <div class="step step--child" id="step-4">
+    <!-- ── Step 3 — Child details ────────────────────────────── -->
+    <div class="step step--child" id="step-3">
       <p class="step-microcopy" id="childMicro"></p>
       <h2 class="step-title" id="s3Title"></h2>
       <p class="step-sub step-sub--tight" id="s3Sub"></p>
@@ -134,8 +125,8 @@
 
     </div>
 
-    <!-- ── Step 5 — Hero notes (optional) ────────────────────── -->
-    <div class="step step--hero-notes" id="step-5">
+    <!-- ── Step 4 — Hero notes (optional) ────────────────────── -->
+    <div class="step step--hero-notes" id="step-4">
       <p class="step-microcopy" id="heroNotesMicro"></p>
       <h2 class="step-title" id="heroNotesTitle"></h2>
       <p class="step-sub" id="heroNotesSub"></p>
@@ -149,107 +140,33 @@
       </div>
     </div>
 
-    <!-- ── Step 6 — Direction ──────────────────────────────── -->
-    <div class="step" id="step-6">
-      <p class="step-microcopy" id="directionMicro"></p>
-      <h2 class="step-title" id="sDirectionTitle"></h2>
-      <p class="step-sub" id="sDirectionSub"></p>
-      <div class="direction-step-grid" id="direction-cards" role="group" aria-label="בחירת כיוון סיפור"></div>
-    </div>
-
-    <!-- ── Step 7 — Style ──────────────────────────────────── -->
-    <div class="step" id="step-7">
+    <!-- ── Step 5 — Style ──────────────────────────────────── -->
+    <div class="step" id="step-5">
       <p class="step-microcopy" id="styleMicro"></p>
       <h2 class="step-title" id="sStyleTitle"></h2>
       <p class="step-sub" id="sStyleSub"></p>
       <div class="style-step-grid" id="style-step-grid" role="group" aria-label="בחירת סגנון איור"></div>
     </div>
 
-    <!-- ── Step 8 — Add-ons ───────────────────────────────── -->
-    <div class="step" id="step-8">
-      <p class="step-microcopy" id="addonsMicro"></p>
-      <h2 class="step-title" id="s8Title"></h2>
-      <p class="step-sub" id="s8Sub"></p>
-
-      <div class="s8-layout">
-        <div class="s8-grid" id="s8-grid">
-          <div class="s8-card s8-card--addons">
-            <div class="s8-card-title" id="s8-addons-title"></div>
-            <div class="s8-card-sub" id="s8AddonSub"></div>
-
-            <div class="addon-row" id="addon-audio-row" onclick="toggleAddon('audioEnabled')">
-              <div class="addon-info">
-                <span class="badge-popular" id="s8AudioBadge"></span>
-                <div class="addon-main">
-                  <div>
-                    <div class="addon-name" id="s8AudioName"></div>
-                    <div class="addon-desc" id="s8AudioDesc"></div>
-                  </div>
-                  <div class="addon-checkbox" id="cb-audio"></div>
-                </div>
-              </div>
-            </div>
-
-            <div class="addon-row" id="addon-pdf-row" onclick="toggleAddon('pdfEnabled')">
-              <div class="addon-info">
-                <span class="badge-gift" id="s8PdfBadge"></span>
-                <div class="addon-main">
-                  <div>
-                    <div class="addon-name" id="s8PdfName"></div>
-                    <div class="addon-desc" id="s8PdfDesc"></div>
-                  </div>
-                  <div class="addon-checkbox" id="cb-pdf"></div>
-                </div>
-              </div>
-            </div>
-
-            <div class="addon-row" id="addon-video-row" onclick="toggleAddon('videoEnabled')">
-              <div class="addon-info">
-                <span class="badge-new" id="s8VideoBadge"></span>
-                <div class="addon-main">
-                  <div>
-                    <div class="addon-name" id="s8VideoName"></div>
-                    <div class="addon-desc" id="s8VideoDesc"></div>
-                  </div>
-                  <div class="addon-checkbox" id="cb-video"></div>
-                </div>
-              </div>
-            </div>
-
-            <div class="addon-row" id="addon-bundle-row" onclick="toggleAddon('bundleEnabled')">
-              <div class="addon-info">
-                <span class="badge-save" id="s8BundleBadge"></span>
-                <div class="addon-main">
-                  <div>
-                    <div class="addon-name" id="s8BundleName"></div>
-                    <div class="addon-desc" id="s8BundleDesc"></div>
-                  </div>
-                  <div class="addon-checkbox" id="cb-bundle"></div>
-                </div>
-              </div>
-            </div>
+    <!-- ── Step 6 — Voice + sleep mode ─────────────────────── -->
+    <div class="step step--voice" id="step-6">
+      <p class="step-microcopy" id="voiceMicro"></p>
+      <h2 class="step-title" id="voiceTitle"></h2>
+      <p class="step-sub" id="voiceSub"></p>
+      <div class="voice-step-card">
+        <div class="voice-btns" id="voice-btns"></div>
+        <div class="sleep-row" onclick="toggleSleep()">
+          <div class="sleep-info">
+            <div class="sleep-name" id="voiceSleepName"></div>
+            <div class="sleep-desc" id="voiceSleepDesc"></div>
           </div>
-
-          <div class="s8-card s8-voice-col is-collapsed" id="s8-voice-col" aria-hidden="true">
-            <div class="s8-card-title" id="s8VoiceTitle"></div>
-            <div class="voice-btns" id="voice-btns"></div>
-
-            <div class="sleep-row" onclick="toggleSleep()">
-              <div class="sleep-info">
-                <div class="sleep-name" id="s8SleepName"></div>
-                <div class="sleep-desc" id="s8SleepDesc"></div>
-              </div>
-              <div class="sleep-checkbox" id="sleep-toggle"></div>
-            </div>
-          </div>
+          <div class="sleep-checkbox" id="sleep-toggle"></div>
         </div>
-
-        <span id="total-price" hidden></span>
       </div>
     </div>
 
-    <!-- ── Step 9 — Book name + dedication ─────────────────── -->
-    <div class="step" id="step-9">
+    <!-- ── Step 7 — Book name + dedication ─────────────────── -->
+    <div class="step" id="step-7">
       <p class="step-microcopy" id="bookMicro"></p>
       <h2 class="step-title" id="sBookTitle"></h2>
       <p class="step-sub" id="sBookSub"></p>
@@ -269,8 +186,17 @@
       <div class="char-count"><span id="dedicationCount">0</span>/300</div>
     </div>
 
-    <!-- ── Step 10 — Summary + Payment ─────────────────────── -->
-    <div class="step" id="step-10">
+    <!-- ── Step 8 — Product cards ───────────────────────────── -->
+    <div class="step" id="step-8">
+      <p class="step-microcopy" id="productMicro"></p>
+      <h2 class="step-title" id="productTitle"></h2>
+      <p class="step-sub" id="productSub"></p>
+      <div class="product-step-grid" id="product-cards" role="group" aria-label="בחירת מוצר"></div>
+      <span id="total-price" hidden></span>
+    </div>
+
+    <!-- ── Step 9 — Summary + Payment ─────────────────────── -->
+    <div class="step" id="step-9">
       <p class="step-microcopy" id="summaryMicro"></p>
       <div style="text-align:center;margin-bottom:10px;">
         <span style="font-size:28px;">✨</span>
@@ -322,13 +248,13 @@
     <p class="photo-step-reassure" id="photo-step-reassure" hidden>גם בלי תמונה ננסה ליצור תוצאה טובה 💪</p>
   </div>
 
-  <script src="/JS/content.js?v=phase16-split"></script>
+  <script src="/JS/content.js?v=wizard-9step-v1"></script>
   <script src="/JS/canonical-topics.js"></script>
   <script src="/JS/routes.js"></script>
   <script src="/JS/companions.js"></script>
   <script src="/JS/analytics.js"></script>
   <script src="/JS/client-api.js"></script>
-  <script src="/JS/wizard.js?v=wizard-trim-10"></script>
+  <script src="/JS/wizard.js?v=wizard-9step-v1"></script>
 </body>
 
 </html>
