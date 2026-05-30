@@ -101,7 +101,7 @@ imageDirection: Dini hovers at the cave entrance, looking in with cautious curio
 אבל בלב שלו משהו אמר:
 רגע. זאת האבן שלי.
 
-imageDirection: A baby dragon — much smaller, soft-scaled, big eyes, wobbly legs, tiny harmless flame puff at his nose — has hatched and is crawling onto Dini's big warm stone. Dini stands beside, mouth slightly open in surprise.
+imageDirection: The blue-speckled egg is cracking open on the glowing stone. One tiny copper-orange baby dragon is just emerging from inside the cracked shell. Dini watches in surprise beside the stone. No second baby. No intact full egg.
 
 --- Page 5 ---
 דיני ניסה להיות דרקון גדול וטוב.
