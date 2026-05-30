@@ -1032,6 +1032,7 @@ function initWizardContent() {
   setText('s9CardDetailsTitle', WIZ.steps.s9.cardDetailsTitle || WIZ.steps.s9.card1Title);
   setText('s9NameLabel',    WIZ.steps.s9.nameLabel);
   setText('s9EmailLabel',   WIZ.steps.s9.emailLabel);
+  setText('s9CheckoutTotalLabel', WIZ.summary.totalLabel || 'סה"כ לתשלום:');
   setText('btn-pay',        WIZ.steps.s9.submitBtn);
   setText('s9PaymentLogos', WIZ.steps.s9.paymentLogos);
 
@@ -2228,12 +2229,16 @@ function refreshTotal() {
   const { total } = computeTotal();
   const el = document.getElementById("total-price");
   const barPrice = document.getElementById("bottom-bar-price");
+  const checkoutTotalVal = document.getElementById("s9-checkout-total-val");
 
   if (el) {
     el.textContent = `₪${total}`;
   }
   if (barPrice) {
     barPrice.textContent = `₪${total}`;
+  }
+  if (checkoutTotalVal) {
+    checkoutTotalVal.textContent = `₪${total}`;
   }
 }
 
@@ -2358,19 +2363,17 @@ function buildSummary() {
 
   // ── Price breakdown ─────────────────────────────────────────
   const priceEl = document.getElementById("price-breakdown");
+  const checkoutTotalVal = document.getElementById("s9-checkout-total-val");
+  if (checkoutTotalVal) {
+    checkoutTotalVal.textContent = `₪${total}`;
+  }
   if (priceEl) {
-    const rows = `
+    priceEl.innerHTML = `
       <div class="price-row">
         <span class="label">${productName || WIZ.summary.bookDigital.replace('{length}', lenLabel)}</span>
         <span class="val">₪${base}</span>
       </div>
-      <div class="price-row price-row--total">
-        <span class="label">${WIZ.summary.totalLabel || 'סה"כ לתשלום:'}</span>
-        <span class="val">₪${total}</span>
-      </div>
     `;
-
-    priceEl.innerHTML = rows;
   }
 
   // ── Dynamic footer line based on whether photo was uploaded ─────

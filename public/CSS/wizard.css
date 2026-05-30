@@ -2394,6 +2394,8 @@
 }
 
 .s9-card--checkout {
+  --color-primary: var(--purple, #8467ff);
+  --color-divider: #ebe7f2;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -2403,6 +2405,32 @@
   margin-top: 0;
   padding-top: 0;
   border-top: none;
+}
+
+.s9-checkout-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-top: 4px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-divider);
+}
+
+.s9-checkout-total-label {
+  font-family: var(--fd, 'Heebo', sans-serif);
+  font-size: 17px;
+  font-weight: 700;
+  color: #1d1b25;
+}
+
+.s9-checkout-total-val {
+  font-family: var(--fd, 'Heebo', sans-serif);
+  font-size: clamp(26px, 3vw, 32px);
+  font-weight: 900;
+  color: var(--color-primary);
+  line-height: 1.1;
+  white-space: nowrap;
 }
 
 .s9-card--details {
