@@ -97,7 +97,13 @@ async function main(): Promise<void> {
     CHILD_NAME,
     companion.name,
     CHILD_GENDER,
-    { maxPages: MAX_PAGES }
+    {
+      maxPages: MAX_PAGES,
+      // dragon_dini_fantasy pages 1-5 are companion-only (child appears from page 6).
+      // The personalization gate would fail because childName is not in the rendered text.
+      // For this prompt-set audition we bypass it; production paths never set this flag.
+      skipPersonalizationGate: true,
+    }
   );
 
   const pagesToRender = story.pages.filter((p) => onlyPages.includes(p.pageNumber));

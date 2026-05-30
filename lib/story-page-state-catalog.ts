@@ -141,12 +141,16 @@ function formatDiniEntityLock(lockId: string, state: ObjectState): string {
 
   if (state === 'emerging') {
     return `RECURRING ENTITY LOCK — BABY DRAGON (EMERGING):
-One tiny copper-orange dragon hatchling just emerging from the cracking blue-speckled egg. Same species/color family as Dini — NOT green/teal. Wobbly legs, small sunset wings. ONLY ONE baby dragon.`;
+One tiny copper-orange dragon hatchling just emerging from the cracking blue-speckled egg. Same species/color family as Dini — NOT green/teal. Wobbly legs, small sunset wings. ONLY ONE baby dragon.
+Match the baby dragon reference sheets: oversized round head, two tiny soft head bumps (NOT developed horns), small side ear-flaps, folded tiny coral wings, chubby newborn body, soft pale cream underside.
+CRITICAL — not a miniature adult Dini: this baby has softer features, NO developed horns, NO back spikes, NO fire yet, newborn proportions. Distinct from Dini's adult form even though they share copper-orange palette.`;
   }
 
   if (state === 'present') {
     return `RECURRING ENTITY LOCK — BABY DRAGON (PRESENT):
-The same tiny copper-orange dragon hatchling — polished copper-to-sunset scales, warm amber highlights, NOT green/teal. Nestled on the warm zone of the glowing stone. ONLY ONE baby dragon.`;
+The same tiny copper-orange dragon hatchling — polished copper-to-sunset scales, warm amber highlights, NOT green/teal. Nestled on the warm zone of the glowing stone. ONLY ONE baby dragon.
+Match the baby dragon reference sheets: oversized round head, two tiny soft head bumps (NOT developed horns), small side ear-flaps, folded tiny coral wings, chubby newborn body, soft pale cream underside.
+CRITICAL — not a miniature adult Dini: this baby has softer features, NO developed horns, NO back spikes, NO fire yet, newborn proportions. Distinct from Dini's adult form even though they share copper-orange palette.`;
   }
 
   return DRAGON_DINI_RECURRING_ENTITY_LOCKS.baby_dragon ?? '';

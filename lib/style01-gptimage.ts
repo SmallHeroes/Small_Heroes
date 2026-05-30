@@ -148,7 +148,9 @@ export const DRAGON_DINI_RECURRING_ENTITY_CATALOG: Record<string, string[]> = {
 
 export const DRAGON_DINI_RECURRING_ENTITY_LOCKS: Record<string, string> = {
   baby_dragon: `RECURRING ENTITY LOCK — BABY DRAGON:
-The same tiny copper-orange dragon hatchling whenever shown. Same species and color family as Dini — polished copper-to-sunset scales with warm amber highlights, NOT green, NOT teal, NOT blue, NOT lizard-like. Small sunset peach-coral wings, big gentle eyes, wobbly legs, soup-bowl size. Do NOT recolor per page.`,
+The same tiny copper-orange dragon hatchling whenever shown. Same species and color family as Dini — polished copper-to-sunset scales with warm amber highlights, NOT green, NOT teal, NOT blue, NOT lizard-like. Small sunset peach-coral wings, big gentle eyes, wobbly legs, soup-bowl size. Do NOT recolor per page.
+Match the baby dragon reference sheets: oversized round head, two tiny soft head bumps (NOT developed horns), small side ear-flaps, folded tiny coral wings, chubby newborn body, soft pale cream underside.
+CRITICAL — not a miniature adult Dini: this baby has softer features, NO developed horns, NO back spikes, NO fire yet, newborn proportions. Distinct from Dini's adult form even though they share copper-orange palette.`,
 };
 
 export const DRAGON_DINI_PAGE_5_ENVIRONMENT_LOCK = `ENVIRONMENT LOCK — CAVE INTERIOR (mandatory):
@@ -156,7 +158,8 @@ Mountain cave interior with rocky walls and warm amber glow from glowing stones.
 FORBIDDEN: forest, trees, outdoor plants, grass, meadow, open field, jungle foliage, blue-sky landscape outside a cave. This scene is NOT outdoors.`;
 
 export const DRAGON_DINI_COMPANION_LOCK = `COMPANION LOCK — DINI (copper dragon):
-Young dragon named Dini. Polished copper-orange scales (NOT green). Wings the color of sunset peach and coral. Warm hugging fire — soft orange glow, never destructive flames. Expressive gentle eyes. Same species, same copper palette, same proportions on every page he appears. Do NOT turn Dini green, blue, or into a generic lizard.`;
+Same Dini from the Dini reference sheets. Young copper-orange dragon with rounded childlike body proportions, short rounded snout, exactly two small curved horns on top of the head, small side ear-frills behind the cheeks (same shape every page — do NOT swap between ear, horn, fin and spike), three or four small back spikes behind the head (consistent count and spacing), large dark eyes with one small white highlight in each eye, warm cream belly plates from chin to belly, peach/coral sunset wing membranes, soft copper-orange scales, gentle expressive face. Same head landmarks, same horn shape, same ear-frills, same eye style, same body age and proportions every page. Warm hugging fire only — soft orange glow, never destructive flames.
+CRITICAL — Dini is NOT a generic dragon, NOT a long lean lizard body, NOT green, NOT blue, NOT a realistic reptile, NOT an adult/ancient dragon, NOT a different rounded mascot. Keep the same rounded friendly Dini identity from the reference sheets across every page he appears.`;
 
 export type Style01SubjectScale = 'small' | 'medium' | 'large';
 
@@ -291,8 +294,9 @@ The same small raspberry/berry bush every time. Low leafy shrub with thin branch
 The same rounded moss-covered green rock beside the berry bush. Soft moss, forest-floor scale. Do not turn it into a boulder cliff or indoor prop.`,
 };
 
-export const BEAR_CUB_DOBI_COMPANION_LOCK = `COMPANION LOCK — DOBI (warm bear cub):
-Small chubby warm-brown bear cub named Dobi. Honey-dark amber eyes, big soft expressive eyebrows, oversized paws, faint warm chest glow. Same fur tone and proportions every page. Do NOT turn Dobi into a polar bear, panda, or realistic photo bear.`;
+export const BEAR_CUB_DOBI_COMPANION_LOCK = `COMPANION LOCK — DOBI (warm living bear cub):
+Same living bear cub from the Dobi reference sheets. Small chubby warm honey-brown fur, round cub body, small rounded ears on top, large amber-brown eyes with white highlight, thick expressive eyebrows, shiny black wet nose, short rounded snout, warm cream chest patch, soft slightly messy head fur, oversized soft paws. Same fur tone and proportions every page.
+CRITICAL — Dobi is a soft hand-drawn living bear cub character, NOT a teddy bear toy, NOT plush, NOT a stuffed animal, NOT a mascot costume, NOT overly human-like, NOT a polar bear, NOT a panda, NOT a realistic photo bear, NOT a brown grizzly. Storybook cub presence — alive, gentle, expressive.`;
 
 export type Style01StoryLockBundle = {
   recurringObjectCatalog?: Record<string, string[]>;
