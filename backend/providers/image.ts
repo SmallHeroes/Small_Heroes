@@ -3420,6 +3420,93 @@ function formatImageGenFailureReason(error: unknown): string {
   return `OTHER: ${raw}`;
 }
 
+const DEFAULT_CHILD_ANCHOR_VARIANTS = 3;
+const MAX_CHILD_ANCHOR_VARIANTS = 6;
+
+/** Canonical env: CHILD_ANCHOR_VARIANTS (legacy alias: RESEMBLANCE_ANCHOR_CANDIDATES). */
+function parseChildAnchorVariantsCount(): number {
+  const raw =
+    process.env.CHILD_ANCHOR_VARIANTS?.trim() ??
+    process.env.RESEMBLANCE_ANCHOR_CANDIDATES?.trim() ??
+    String(DEFAULT_CHILD_ANCHOR_VARIANTS);
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return DEFAULT_CHILD_ANCHOR_VARIANTS;
+  return Math.min(parsed, MAX_CHILD_ANCHOR_VARIANTS);
+}
+
+function isStyle01AuditionModeEnabled(): boolean {
+  return process.env.STYLE_01_AUDITION_MODE === 'true';
+}
+
+type ChildAnchorVariantPlan = {
+  variantCount: number;
+  useAnchorElection: boolean;
+  reason: string;
+};
+
+function resolveChildAnchorVariantPlan(args: {
+  imagePrompt: string;
+  rawScenePrompt?: string;
+  bookPageText?: string;
+  visualDirection?: ShotVisualDirection;
+  assignedIncludesChild: boolean;
+  hasChildAnchor: boolean;
+  childReferencePhotoUrl?: string;
+  companionId?: string | null;
+  childFirstName?: string | null;
+  companionName?: string | null;
+}): ChildAnchorVariantPlan {
+  const skipSingle = (reason: string): ChildAnchorVariantPlan => ({
+    variantCount: 1,
+    useAnchorElection: false,
+    reason,
+  });
+
+  if (!args.assignedIncludesChild) {
+    return skipSingle('child_not_assigned_for_anchor');
+  }
+  if (args.hasChildAnchor) {
+    return skipSingle('child_anchor_already_resolved');
+  }
+  if (!args.childReferencePhotoUrl) {
+    return skipSingle('no_child_reference_photo');
+  }
+  if (isStyle01AuditionModeEnabled()) {
+    return skipSingle('style01_audition_mode');
+  }
+
+  const imageDirection =
+    (args.rawScenePrompt ?? '').trim() || extractSceneCore(args.imagePrompt).trim();
+  const storyLocks = resolveStyle01StoryLocks(args.companionId ?? null);
+  const entityPresence = derivePageEntityPresence({
+    bookPageText: args.bookPageText,
+    imageDirection,
+    rawScenePrompt: args.rawScenePrompt,
+    pagePrompt: args.imagePrompt,
+    childFirstName: args.childFirstName,
+    companionName: args.companionName ?? undefined,
+    companionId: args.companionId ?? undefined,
+    visualDirection: args.visualDirection,
+    recurringObjectCatalog: storyLocks.recurringObjectCatalog,
+    recurringEntityCatalog: storyLocks.recurringEntityCatalog,
+  });
+
+  if (entityPresence.childPresence !== 'present') {
+    return skipSingle(`childPresence=${entityPresence.childPresence}`);
+  }
+
+  const variantCount = parseChildAnchorVariantsCount();
+  if (variantCount <= 1) {
+    return skipSingle('child_anchor_variants=1');
+  }
+
+  return {
+    variantCount,
+    useAnchorElection: true,
+    reason: 'child_anchor_election',
+  };
+}
+
 export async function generateAllPageImages(
   pages: Array<{
     pageNumber: number;
@@ -3735,11 +3822,6 @@ export async function generateAllPageImages(
     console.log('[Director] disabled via USE_DIRECTOR_LAYER=false — using legacy mechanical scene block');
   }
 
-  const anchorCandidatesCount = (() => {
-    const parsed = Number.parseInt(process.env.RESEMBLANCE_ANCHOR_CANDIDATES ?? '3', 10);
-    if (!Number.isFinite(parsed) || parsed < 1) return 3;
-    return Math.min(parsed, 6);
-  })();
   const resemblesMonitorEnabled = process.env.RESEMBLANCE_PAGE_MONITOR_ENABLED !== 'false';
   const THROTTLE_DELAY_MS = 1500;
   const MAX_PAGE_ATTEMPTS = 3;
@@ -3964,17 +4046,34 @@ export async function generateAllPageImages(
     let image: GeneratedImage | null = null;
     let lastError: unknown = null;
     const baseReferenceImage = config.referenceImages?.[0];
+    const anchorVariantPlan = resolveChildAnchorVariantPlan({
+      imagePrompt: page.imagePrompt,
+      rawScenePrompt: page.rawScenePrompt,
+      bookPageText: page.bookPageText,
+      visualDirection: page.visualDirection,
+      assignedIncludesChild: assignedCharacterIds.includes('child'),
+      hasChildAnchor: Boolean(characterAnchors.child),
+      childReferencePhotoUrl: baseReferenceImage,
+      companionId: config.companion?.id ?? null,
+      childFirstName: config.childName ?? null,
+      companionName: config.companion?.name ?? null,
+    });
+    console.log(
+      `[image] page=${page.pageNumber} variantCount=${anchorVariantPlan.variantCount} reason="${anchorVariantPlan.reason}"`
+    );
     const shouldRunAnchorElection =
       !style02Phase2Active &&
-      assignedCharacterIds.includes('child') &&
-      !characterAnchors.child &&
+      anchorVariantPlan.useAnchorElection &&
       Boolean(baseReferenceImage);
+    const anchorCandidatesForPage = shouldRunAnchorElection
+      ? anchorVariantPlan.variantCount
+      : 1;
 
     if (shouldRunAnchorElection && baseReferenceImage) {
       const candidateImages: Array<{ image: GeneratedImage; seed: number }> = [];
       const candidateRows: ResemblanceCandidate[] = [];
       const effectiveThreshold = resolveEffectiveThreshold(normalizedStyle.toLowerCase(), thresholdConfig);
-      for (let candidateIndex = 0; candidateIndex < anchorCandidatesCount; candidateIndex++) {
+      for (let candidateIndex = 0; candidateIndex < anchorCandidatesForPage; candidateIndex++) {
         const seed = Math.floor(Date.now() + page.pageNumber * 100 + candidateIndex);
         const generated = await runImageWithThrottleAndRetry(
           () =>
