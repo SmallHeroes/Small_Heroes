@@ -20,6 +20,12 @@ export type LoadStoryFromBankOptions = {
   letterContext?: LetterContext | null;
   /** When set, keep only the first N story pages (truncates at `--- Page N ---` markers). */
   maxPages?: number;
+  /**
+   * When true, skip the StoryPersonalizationGate. Use ONLY for prompt-only dev tools
+   * that load truncated stories (e.g. companion-only opening pages where the child
+   * name has not yet appeared). Production paths must never set this.
+   */
+  skipPersonalizationGate?: boolean;
 };
 
 export { truncateStoryMarkdownToPages } from '../../lib/story-bank-truncate';
@@ -232,15 +238,19 @@ export async function loadStoryFromBank(
     );
   }
 
-  assertStoryPersonalizationGate({
-    wizard: personalizationCtx,
-    pages: pages.map((p) => ({
-      pageNumber: p.pageNumber,
-      text: p.text,
-      imagePrompt: p.imagePrompt,
-    })),
-  });
-  console.log('[StoryBank] Personalization gate passed.');
+  if (opts?.skipPersonalizationGate) {
+    console.log('[StoryBank] Personalization gate SKIPPED (skipPersonalizationGate=true).');
+  } else {
+    assertStoryPersonalizationGate({
+      wizard: personalizationCtx,
+      pages: pages.map((p) => ({
+        pageNumber: p.pageNumber,
+        text: p.text,
+        imagePrompt: p.imagePrompt,
+      })),
+    });
+    console.log('[StoryBank] Personalization gate passed.');
+  }
 
   // Use explicit English coverScene from story file when available
   const coverSceneHint = coverSceneRaw || undefined;
