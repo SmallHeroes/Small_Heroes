@@ -83,16 +83,8 @@ import {
 } from '../../lib/image-entity-presence';
 import {
   assembleStyle01BookReferences,
-  buildStyle01BookPagePrompt,
-  buildStyle01ChildVisualLock,
-  buildStyle01CompanionTextLock,
-  buildStyle01CompositionBlock,
-  buildStyle01EntityPresenceBlock,
-  buildStyle01RecurringObjectLocks,
-  buildStyle01RecurringEntityLocks,
-  buildStyle01WardrobeLock,
   classifyStyle01SceneClass,
-  resolveStyle01CompanionReferencePath,
+  resolveStyle01CompanionReferencePaths,
   resolveStyle01RefBudgetConfig,
   resolveStyle01GptModel,
   resolveStyle01StoryLocks,
@@ -101,6 +93,8 @@ import {
   STYLE_01_AVOIDANCE_NEGATIVE,
   type Style01SceneClass,
 } from '../../lib/style01-gptimage';
+import { assembleStyle01Phase2Prompt } from '../../lib/style01-prompt-assembly';
+import type { PageStoryState } from '../../lib/story-page-state';
 import { storeImageFromBuffer, storeImageFromProviderUrl } from '../../lib/image-storage';
 import type { BookPageTemplate } from '../../lib/bookPageLayout';
 import {
@@ -417,6 +411,8 @@ export interface ImageInput {
   expectedCharacterIds?: string[];
   /** guarded-v2 recipe id when using production recipe page cards. */
   guardedV2RecipeId?: string | null;
+  /** Per-page story state — recurring object/entity locks scoped to page narrative. */
+  pageStoryState?: PageStoryState | null;
 }
 
 export interface Style02PageMeta {
@@ -2832,63 +2828,6 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
   const hiResPdf = !!input.printPdfOptimized;
   const size = hiResPdf ? '1536x1536' : '1024x1536';
   const quality = resolveGPTBookQuality();
-  const entityPresence = deriveImageInputEntityPresence(input);
-  const storyLocks = resolveStyle01StoryLocks(input.companion?.id);
-
-  const childVisualLock = childPresenceAllowsVisualLock(entityPresence.childPresence)
-    ? buildStyle01ChildVisualLock({
-        childName: input.childFirstName,
-        childDescription: input.childDescription,
-        childStructured: input.childStructured,
-        childAge: input.childAge,
-        childGender: input.childGender,
-      })
-    : undefined;
-  const wardrobeLock = childPresenceAllowsVisualLock(entityPresence.childPresence)
-    ? buildStyle01WardrobeLock({ childStructured: input.childStructured })
-    : undefined;
-  const companionTextLock =
-    entityPresence.companionPresence === 'present'
-      ? buildStyle01CompanionTextLock({
-          companionName: input.companion?.name,
-          companionStructured: input.companionStructured,
-          companionVisualDescription: input.companion?.visualDescription,
-          storyCompanionLock: storyLocks.companionLock,
-        })
-      : undefined;
-  const recurringObjectLocks =
-    entityPresence.recurringObjects.length > 0
-      ? buildStyle01RecurringObjectLocks(
-          entityPresence.recurringObjects,
-          storyLocks.recurringObjectLocks
-        )
-      : undefined;
-  const recurringEntityLocks =
-    entityPresence.recurringEntities.length > 0
-      ? buildStyle01RecurringEntityLocks(
-          entityPresence.recurringEntities,
-          storyLocks.recurringEntityLocks
-        )
-      : undefined;
-  const environmentLock = storyLocks.pageEnvironmentLock?.(input.pageNumber ?? 0);
-
-  const sceneClass = classifyStyle01SceneClass({
-    imagePrompt: input.pagePrompt,
-    bookPageText: input.bookPageText ?? undefined,
-    rawScenePrompt: input.rawScenePrompt ?? undefined,
-  });
-  const refConfig = resolveStyle01RefBudgetConfig();
-  const styleRefCount = refConfig === 'A' ? 2 : 3;
-  const styleRefPaths = resolveStyle01StyleReferencePaths(sceneClass, styleRefCount);
-  const childPhotoPath = input.referenceImages?.[0];
-  const companionRefPath = resolveStyle01CompanionReferencePath(input.companion?.image ?? null);
-  const { paths: referenceImages, breakdown } = assembleStyle01BookReferences({
-    styleRefPaths,
-    childPhotoPath: refConfig === 'C' ? undefined : childPhotoPath,
-    companionRefPath: refConfig === 'B' ? undefined : companionRefPath,
-    config: refConfig,
-    includeChildPhoto: childPresenceAllowsReferencePhoto(entityPresence.childPresence),
-  });
 
   const vd = input.visualDirection;
   const mechanicalScene = input.blocking
@@ -2904,34 +2843,45 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
           .filter(Boolean)
           .join(' ')
       : '';
-  const rawScene = (input.rawScenePrompt ?? '').trim();
-  const fallbackScene = extractSceneCore(input.pagePrompt || '').trim();
-  const sceneDescription = sanitizeSceneTextForSingleMoment(
-    (mechanicalScene || rawScene || fallbackScene).trim()
-  );
 
-  const compositionBlock = buildStyle01CompositionBlock({
-    pageNumber: input.pageNumber,
-    imageDirection: rawScene || input.rawScenePrompt,
-    compositionByPage: storyLocks.compositionByPage,
-  });
-  const entityPresenceBlock = buildStyle01EntityPresenceBlock({
-    childPresence: entityPresence.childPresence,
-    companionPresence: entityPresence.companionPresence,
-    forbiddenEntities: entityPresence.forbiddenEntities,
+  const assembled = assembleStyle01Phase2Prompt({
+    pageNumber: input.pageNumber ?? 0,
+    pagePrompt: input.pagePrompt,
+    rawScenePrompt: input.rawScenePrompt,
+    mechanicalScene: mechanicalScene || undefined,
+    bookPageText: input.bookPageText,
+    childFirstName: input.childFirstName,
+    childAge: input.childAge,
+    childGender: input.childGender,
+    childDescription: input.childDescription,
+    childStructured: input.childStructured,
+    companion: input.companion,
+    companionStructured: input.companionStructured,
+    pageStoryState: input.pageStoryState,
   });
 
-  const finalPrompt = buildStyle01BookPagePrompt({
-    sceneDescription,
-    childVisualLock,
-    wardrobeLock,
-    companionTextLock,
-    recurringObjectLocks,
-    recurringEntityLocks,
-    environmentLock,
-    compositionBlock,
-    entityPresenceBlock,
+  const { prompt: finalPrompt, sceneDescription, sceneClass, entityPresence, pageStoryState } =
+    assembled;
+
+  const refConfig = resolveStyle01RefBudgetConfig();
+  const companionRefPaths = resolveStyle01CompanionReferencePaths({
+    companionId: input.companion?.id,
+    companionImage: input.companion?.image,
+    presentEntities: pageStoryState?.presentEntities,
   });
+  const useMultiCompanionSheets = companionRefPaths.length >= 3;
+  const styleRefCount = useMultiCompanionSheets ? 1 : refConfig === 'A' ? 2 : 3;
+  const styleRefPaths = resolveStyle01StyleReferencePaths(sceneClass, styleRefCount);
+  const childPhotoPath = input.referenceImages?.[0];
+  const { paths: referenceImages, breakdown } = assembleStyle01BookReferences({
+    styleRefPaths,
+    childPhotoPath: refConfig === 'C' ? undefined : childPhotoPath,
+    companionRefPaths: refConfig === 'B' ? undefined : companionRefPaths,
+    config: refConfig,
+    includeChildPhoto: childPresenceAllowsReferencePhoto(entityPresence.childPresence),
+    useMultiCompanionSheets,
+  });
+
   const prompt = sanitizePromptForSafety(finalPrompt);
 
   console.log(

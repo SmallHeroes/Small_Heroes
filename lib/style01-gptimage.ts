@@ -2,7 +2,7 @@
  * Style 01 (gpt-image-1) — guarded book pipeline with lock architecture mirroring Style 02.
  * Gated by PHASE2_STYLE01_BOOK_PIPELINE=true.
  */
-import { existsSync } from 'fs';
+import { existsSync, readdirSync } from 'fs';
 import path from 'path';
 import { STYLE_IDS } from './styles';
 import type { Style02RefBudgetConfig } from './style02-gptimage';
@@ -22,10 +22,14 @@ export const STYLE_01_REF_DIR = path.join(process.cwd(), 'style-references', '01
 
 export type Style01SceneClass =
   | 'fantasy-cave'
+  | 'forest-day'
+  | 'forest-clearing'
+  | 'forest-path'
+  | 'outdoor-nature'
   | 'cozy-interior'
   | 'outdoor-magical';
 
-export type Style01SceneSubsetKey = Style01SceneClass;
+export type Style01SceneSubsetKey = 'fantasy-cave' | 'cozy-interior' | 'outdoor-magical';
 
 export const STYLE_01_SHARED =
   "Style 01: soft hand-drawn children's storybook illustration on warm cream paper. Gentle transparent watercolor washes, delicate linework, luminous muted palette, cozy picture-book warmth. NOT cinematic Style 02. NOT dense ink-and-gouache. NOT photorealistic. NOT Pixar CGI.";
@@ -87,10 +91,16 @@ export const STYLE_01_REF_SUBSETS: Record<
 
 const FANTASY_CAVE_RE =
   /\b(cave|cave mouth|glowing stones?|warm stone|mountain cave|clouds above|amber glow|מערה|אבנ(?:ים|ה))\b/iu;
+const FOREST_CLEARING_RE =
+  /\b(forest clearing|sunny forest|berry bush|mossy green rock|clearing)\b/iu;
+const FOREST_PATH_RE =
+  /\b(forest path|deeper forest path|walking into the forest|woods path|path into the forest)\b/iu;
+const FOREST_DAY_RE =
+  /\b(forest edge|forest\b|woods|trees|outdoor|meadow|יער|squirrel|berry)\b/iu;
 const COZY_INTERIOR_RE =
-  /\b(bedroom|bed\b|bedside|crib|windowsill|room|indoor|חדר|מיטה|עריסה)\b/iu;
+  /\b(bedroom|bedside|crib|windowsill|indoor room|חדר|מיטה|עריסה)\b/iu;
 const OUTDOOR_MAGICAL_RE =
-  /\b(forest|sky|clouds|mountain peak|outdoor|meadow|above the clouds|שמיים|עננים)\b/iu;
+  /\b(sky|clouds|mountain peak|above the clouds|שמיים|עננים)\b/iu;
 
 /** Dini audition — recurring object detection keywords. */
 export const DRAGON_DINI_RECURRING_OBJECT_CATALOG: Record<string, string[]> = {
@@ -109,7 +119,7 @@ export const DRAGON_DINI_RECURRING_OBJECT_CATALOG: Record<string, string[]> = {
     'blue speckled',
     'speckled egg',
     'round blue',
-    'egg',
+    'blue-speckled egg',
     'ביצה',
     'מנוקד',
   ],
@@ -350,24 +360,80 @@ export function resolveStyle01RefBudgetConfig(): Style02RefBudgetConfig {
   return 'A';
 }
 
+export function resolveStyle01SceneRefSubset(sceneClass: Style01SceneClass): Style01SceneSubsetKey {
+  if (sceneClass === 'fantasy-cave') return 'fantasy-cave';
+  if (sceneClass === 'cozy-interior') return 'cozy-interior';
+  return 'outdoor-magical';
+}
+
 export function classifyStyle01SceneClass(input: {
   imagePrompt?: string;
   bookPageText?: string;
   rawScenePrompt?: string;
 }): Style01SceneClass {
   const hay = [input.imagePrompt ?? '', input.rawScenePrompt ?? '', input.bookPageText ?? ''].join(' ');
-  if (FANTASY_CAVE_RE.test(hay)) return 'fantasy-cave';
+
+  const isForest = FOREST_DAY_RE.test(hay) || FOREST_CLEARING_RE.test(hay) || FOREST_PATH_RE.test(hay);
+  if (FANTASY_CAVE_RE.test(hay) && !isForest) return 'fantasy-cave';
+
+  if (FOREST_PATH_RE.test(hay)) return 'forest-path';
+  if (FOREST_CLEARING_RE.test(hay)) return 'forest-clearing';
+  if (FOREST_DAY_RE.test(hay)) return 'forest-day';
+
   if (COZY_INTERIOR_RE.test(hay)) return 'cozy-interior';
-  if (OUTDOOR_MAGICAL_RE.test(hay)) return 'outdoor-magical';
+  if (OUTDOOR_MAGICAL_RE.test(hay)) return 'outdoor-nature';
   return 'fantasy-cave';
 }
 
 export function resolveStyle01StyleReferencePaths(
-  subsetKey: Style01SceneSubsetKey,
+  sceneClass: Style01SceneClass,
   maxCount: number
 ): string[] {
+  const subsetKey = resolveStyle01SceneRefSubset(sceneClass);
   const subset = STYLE_01_REF_SUBSETS[subsetKey];
   return subset.filenames.slice(0, maxCount).map((f) => path.join(STYLE_01_REF_DIR, f));
+}
+
+export function listStyle01SheetImages(dir: string, maxCount: number): string[] {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((f) => /\.(png|jpe?g|webp)$/i.test(f))
+    .sort()
+    .slice(0, maxCount)
+    .map((f) => path.join(dir, f))
+    .filter((p) => existsSync(p));
+}
+
+export function resolveStyle01CompanionReferencePaths(input: {
+  companionId?: string | null;
+  companionImage?: string | null;
+  presentEntities?: string[];
+}): string[] {
+  const companionId = input.companionId?.trim();
+  const paths: string[] = [];
+
+  if (companionId === 'dragon_dini' && input.presentEntities?.includes('baby_dragon')) {
+    const babyDir = path.join(
+      process.cwd(),
+      'public',
+      'companions',
+      'dragon_dini',
+      'style01-sheets',
+      'baby-dragon'
+    );
+    paths.push(...listStyle01SheetImages(babyDir, 1));
+  }
+
+  if (companionId) {
+    const sheetsDir = path.join(process.cwd(), 'public', 'companions', companionId, 'style01-sheets');
+    const sheetPaths = listStyle01SheetImages(sheetsDir, 3);
+    if (sheetPaths.length >= 3) {
+      return sheetPaths.slice(0, 3);
+    }
+  }
+
+  const single = resolveStyle01CompanionReferencePath(input.companionImage);
+  return single ? [single] : [];
 }
 
 export function resolveStyle01CompanionReferencePath(
@@ -584,32 +650,54 @@ export function buildStyle01BookPagePrompt(input: {
 export function assembleStyle01BookReferences(input: {
   styleRefPaths: string[];
   childPhotoPath?: string;
+  /** @deprecated use companionRefPaths */
   companionRefPath?: string;
+  companionRefPaths?: string[];
   config: Style02RefBudgetConfig;
   includeChildPhoto: boolean;
+  useMultiCompanionSheets?: boolean;
 }): { paths: string[]; breakdown: Record<string, string[]> } {
   const styleAll = input.styleRefPaths;
   const breakdown: Record<string, string[]> = { style: [], child: [], companion: [] };
+  const companionPaths =
+    input.companionRefPaths ??
+    (input.companionRefPath ? [input.companionRefPath] : []);
+  const multiSheets = input.useMultiCompanionSheets && companionPaths.length >= 3;
 
   switch (input.config) {
     case 'A': {
-      breakdown.style = styleAll.slice(0, 2);
-      if (input.includeChildPhoto && input.childPhotoPath) {
-        breakdown.child = [input.childPhotoPath];
+      if (multiSheets) {
+        breakdown.style = styleAll.slice(0, 1);
+        breakdown.companion = companionPaths.slice(0, input.includeChildPhoto && input.childPhotoPath ? 2 : 3);
+        if (input.includeChildPhoto && input.childPhotoPath) {
+          breakdown.child = [input.childPhotoPath];
+        }
+      } else {
+        breakdown.style = styleAll.slice(0, 2);
+        if (input.includeChildPhoto && input.childPhotoPath) {
+          breakdown.child = [input.childPhotoPath];
+        }
+        if (companionPaths[0]) breakdown.companion = [companionPaths[0]];
       }
-      if (input.companionRefPath) breakdown.companion = [input.companionRefPath];
       break;
     }
     case 'B': {
-      breakdown.style = styleAll.slice(0, 3);
+      breakdown.style = styleAll.slice(0, multiSheets ? 1 : 3);
       if (input.includeChildPhoto && input.childPhotoPath) {
         breakdown.child = [input.childPhotoPath];
+      }
+      if (multiSheets) {
+        breakdown.companion = companionPaths.slice(0, 3);
       }
       break;
     }
     case 'C': {
-      breakdown.style = styleAll.slice(0, 3);
-      if (input.companionRefPath) breakdown.companion = [input.companionRefPath];
+      breakdown.style = styleAll.slice(0, multiSheets ? 1 : 3);
+      if (multiSheets) {
+        breakdown.companion = companionPaths.slice(0, 3);
+      } else if (companionPaths[0]) {
+        breakdown.companion = [companionPaths[0]];
+      }
       break;
     }
   }
