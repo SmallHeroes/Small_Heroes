@@ -13,6 +13,8 @@
 import { config as loadEnv } from 'dotenv';
 loadEnv({ path: '.env.local' });
 loadEnv();
+process.env.STYLE_01_AUDITION_MODE = 'true';
+process.env.CHILD_ANCHOR_VARIANTS = '1';
 import './shims/register-server-only.cjs';
 
 import { existsSync } from 'fs';
@@ -55,6 +57,8 @@ function parseOnlyPages(): number[] {
 }
 
 function assertEnv(): void {
+  process.env.STYLE_01_AUDITION_MODE = 'true';
+  process.env.CHILD_ANCHOR_VARIANTS = '1';
   process.env.IMAGE_PROVIDER = 'gpt-image';
   process.env.PHASE2_STYLE01_BOOK_PIPELINE = 'true';
   if (!isStyle01Phase2BookPipelineEnabled()) {
