@@ -159,6 +159,7 @@ FORBIDDEN: forest, trees, outdoor plants, grass, meadow, open field, jungle foli
 
 export const DRAGON_DINI_COMPANION_LOCK = `COMPANION LOCK — DINI (copper dragon):
 Same Dini from the Dini reference sheets. Young copper-orange dragon with rounded childlike body proportions, short rounded snout, exactly two small curved horns on top of the head, small side ear-frills behind the cheeks (same shape every page — do NOT swap between ear, horn, fin and spike), three or four small back spikes behind the head (consistent count and spacing), large dark eyes with one small white highlight in each eye, warm cream belly plates from chin to belly, peach/coral sunset wing membranes, soft copper-orange scales, gentle expressive face. Same head landmarks, same horn shape, same ear-frills, same eye style, same body age and proportions every page. Warm hugging fire only — soft orange glow, never destructive flames.
+Dini is a YOUNG PROTECTIVE dragon, older than the hatchling, with calm guardian energy — NOT baby-like, NOT toy-like, NOT a mascot, NOT a chibi/kawaii cartoon dragon. He is a young, friendly, slightly older sibling/companion type — NEVER a fully adult war-dragon, NEVER a stoic mature dragon.
 CRITICAL — Dini is NOT a generic dragon, NOT a long lean lizard body, NOT green, NOT blue, NOT a realistic reptile, NOT an adult/ancient dragon, NOT a different rounded mascot. Keep the same rounded friendly Dini identity from the reference sheets across every page he appears.
 
 ANATOMY EXACT COUNT (must not drift between pages):
@@ -273,20 +274,20 @@ export const DRAGON_DINI_COMPOSITION_BY_PAGE: Record<number, Style01CompositionS
     subjectScale: 'small',
     camera: 'wide interior home — cozy living room visible, child in foreground, family with newborn in background',
     subjectDominance:
-      'Cozy home interior — red-roofed house exterior visible through window, child watches mom and dad cradling a small newborn baby; child in lower-third, family scene fills frame. CRITICAL: the newborn is a TINY HUMAN BABY held by an adult — not a toddler, not another standing child. The child protagonist (Noam) is the only independent standing child in the scene.',
+      'Cozy home interior — red-roofed house exterior visible through window, child stands separately watching mom and dad cradling a tiny SWADDLED NEWBORN baby; child in lower-third on his own area of the rug, parents on sofa across the room. ONLY mom + dad + newborn — NO grandma, NO siblings, NO extra figures. CRITICAL: the newborn is a TINY HUMAN BABY wrapped in a swaddle blanket, held by an adult — NOT a toddler, NOT another standing child. The child protagonist (Noam) is the only independent standing child in the scene. Clear emotional distance: a coffee table, a pool of light, or the edge of the rug visually separates the child from the family group.',
     staging:
-      'Interior home with sunlight through blue window, mom and dad holding newborn baby (held in arms — looks newborn-sized, not toddler-sized) on sofa/chair, child standing on rug watching quietly. NO dragon, NO cave, NO mountain.',
-    pagePurpose: 'Switch to child world — new sibling has arrived',
+      'Interior home with sunlight through blue window, ONLY mom and dad sitting together holding a swaddled newborn baby in arms (looks newborn-sized in a swaddle, NOT toddler-sized) on sofa, child standing on rug a clear visual distance away watching quietly. Child has his own pool of space — visible separation. NO grandma, NO siblings, NO dragon, NO cave, NO mountain.',
+    pagePurpose: 'Switch to child world — new sibling has arrived; emotional distance between child and family is the read',
   },
   7: {
     shotType: 'medium emotional',
     subjectScale: 'small',
     camera: 'medium-wide home interior — family living room, soft warm afternoon light',
     subjectDominance:
-      'Mom + grandma + others attending to baby with many gentle hands; child sits a little apart on the floor, holding a small toy, watching quietly. The baby is a TINY HUMAN NEWBORN being held — not a toddler, not another standing/walking child. The child protagonist remains the only independent child.',
+      'Three figures attending to the SWADDLED newborn baby: mom holding the swaddled baby + grandma close beside her offering gentle hands. NO additional family characters — NO sister, NO other child, NO extra adult. The child protagonist sits a clear distance away on the floor on his own, holding a small toy block, watching quietly. The baby is a TINY HUMAN NEWBORN wrapped in a swaddle blanket — NOT a toddler, NOT another standing child. The child protagonist remains the only independent child.',
     staging:
-      'Living room: family clustered around baby getting gentle attention; child sits alone on rug holding a wooden block, watching from a small distance. Warm afternoon light. NO dragon, NO cave.',
-    pagePurpose: "Show the child's quiet emotional distance from the family's focus",
+      'Living room: mom + grandma clustered around a swaddled newborn baby getting gentle attention; child sits alone on rug holding a wooden block, watching from a clear visual distance (across the rug, with floor space between them). Warm afternoon light. NO sister figure, NO additional adults beyond mom and grandma, NO dragon, NO cave.',
+    pagePurpose: "Show the child's quiet emotional distance from the family's focus on baby — the distance itself is the read",
   },
   8: {
     shotType: 'medium magical',
@@ -313,10 +314,10 @@ export const DRAGON_DINI_COMPOSITION_BY_PAGE: Record<number, Style01CompositionS
     subjectScale: 'medium',
     camera: 'medium-wide at cave entrance — child peeks in, Dini and baby visible inside',
     subjectDominance:
-      "Child cautiously peeks into cave entrance; inside, Dini the adult copper dragon lies tiredly beside the large glowing stone where the baby dragon shivers slightly. Read priority: child and Dini's first emotional reaction are the MAIN read. Baby dragon is small and secondary but clearly visible. The glowing stone is environment — NOT the main subject. Exactly ONE adult Dini and exactly ONE baby dragon. No second adult dragon. Baby has no adult horns/wings/spikes.",
+      'Child cautiously peeks into cave entrance; inside, Dini — clearly older than the baby dragon but still young, friendly and protective (NOT a fully adult war-dragon) — lies tiredly beside the large glowing stone where the baby dragon shivers slightly. EMOTIONAL CENTER: child and Dini eye contact / first moment of meeting is the focal read. Baby dragon is visible but SECONDARY — lying on stone, smaller in visual hierarchy. The glowing stone is ENVIRONMENT — do NOT center it as the main subject; it should not dominate the frame. Exactly ONE Dini (young guardian-type, not adult) and exactly ONE baby dragon. No second dragon. Baby has no adult horns/wings/spikes.',
     staging:
-      'Mountain cave entrance with child standing in the threshold looking in; inside the cave Dini lies near the large glowing stone, the baby dragon nestled on the stone shivering, cave stones glowing dimly. Atmosphere: cool, dim, in need of warmth. Do NOT let glowing stone or baby dragon dominate the frame — focal point is the moment of meeting.',
-    pagePurpose: 'First meeting — child arrives at the parallel world',
+      'Mountain cave entrance with child standing in the threshold looking in; inside the cave Dini — the older young copper dragon — lies near the large glowing stone with head and eyes oriented toward the child (potential for eye contact), the baby dragon nestled on the stone shivering (smaller, secondary detail), cave stones glowing dimly. Atmosphere: cool, dim, in need of warmth. The stone is light source / environment — never the main subject. Avoid centering the stone in the frame.',
+    pagePurpose: 'First meeting — child arrives at the parallel world; emotional read is child↔Dini connection',
   },
 };
 
