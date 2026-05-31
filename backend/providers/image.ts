@@ -75,6 +75,28 @@ import {
   resolveGuardedV2SpecForPage,
   type GuardedV2PageDebug,
 } from '../../lib/style02-guarded-v2';
+import {
+  childPresenceAllowsReferencePhoto,
+  childPresenceAllowsVisualLock,
+  derivePageEntityPresence,
+  type PageEntityPresenceContract,
+} from '../../lib/image-entity-presence';
+import {
+  assembleStyle01BookReferences,
+  classifyStyle01SceneClass,
+  resolveStyle01CompanionReferencePaths,
+  resolveStyle01RefBudgetConfig,
+  isStyle01AuditionModeEnabled,
+  resolveStyle01AuditionImageQuality,
+  resolveStyle01GptModel,
+  resolveStyle01StoryLocks,
+  resolveStyle01StyleReferencePaths,
+  shouldUseStyle01Phase2Path,
+  STYLE_01_AVOIDANCE_NEGATIVE,
+  type Style01SceneClass,
+} from '../../lib/style01-gptimage';
+import { assembleStyle01Phase2Prompt } from '../../lib/style01-prompt-assembly';
+import type { PageStoryState } from '../../lib/story-page-state';
 import { storeImageFromBuffer, storeImageFromProviderUrl } from '../../lib/image-storage';
 import type { BookPageTemplate } from '../../lib/bookPageLayout';
 import {
@@ -391,6 +413,8 @@ export interface ImageInput {
   expectedCharacterIds?: string[];
   /** guarded-v2 recipe id when using production recipe page cards. */
   guardedV2RecipeId?: string | null;
+  /** Per-page story state — recurring object/entity locks scoped to page narrative. */
+  pageStoryState?: PageStoryState | null;
 }
 
 export interface Style02PageMeta {
@@ -408,6 +432,18 @@ export interface Style02PageMeta {
   promptProfile?: string;
 }
 
+export interface Style01PageMeta {
+  pageIndex: number;
+  sceneText: string;
+  sceneClass: Style01SceneClass;
+  entityPresence: PageEntityPresenceContract;
+  referenceBreakdown: Record<string, string[]>;
+  model: string;
+  refConfig: string;
+  usage?: Record<string, unknown> | null;
+  durationMs?: number;
+}
+
 export interface GeneratedImage {
   url: string;       // final stored URL
   rawUrl?: string;   // provider URL (may expire)
@@ -417,6 +453,8 @@ export interface GeneratedImage {
   prompt: string;
   /** Populated on Style 02 phase-2 book pages (integration manifests). */
   style02Meta?: Style02PageMeta;
+  /** Populated on Style 01 phase-2 book pages (integration manifests). */
+  style01Meta?: Style01PageMeta;
 }
 
 type WarningRetryCandidate = {
@@ -577,6 +615,8 @@ async function translateSceneForImage(input: {
   compositionDirective?: string | null;
   /** When false, forbid depicting the story companion despite prior scene direction cues. */
   includeCompanionCharacters?: boolean;
+  /** Per-page child visibility — gates mandatory-child translator rules. */
+  childPresence?: 'present' | 'absent' | 'background' | 'partial';
   /** legacy = full scene translate; clean = scene-led Flux experiment (~50–80 words, no composition in translate). */
   promptMode?: 'legacy' | 'clean';
 }): Promise<string> {
@@ -604,6 +644,9 @@ async function translateSceneForImage(input: {
         : input.textZone ?? 'bottom';
 
   const companionAllowed = input.includeCompanionCharacters !== false;
+  const childPresence = input.childPresence ?? 'present';
+  const childRequiredInScene =
+    childPresence === 'present' || childPresence === 'background' || childPresence === 'partial';
   const cleanMode = input.promptMode === 'clean';
   const directive = cleanMode ? '' : (input.compositionDirective ?? '').trim();
 
@@ -618,9 +661,11 @@ async function translateSceneForImage(input: {
     '- If the text names a specific object (soccer ball, book, lamp), that EXACT object must appear; do NOT substitute a similar object',
     '- If the text describes emotion or physical state (frozen, scared, laughing), show it in face, posture, gesture, motion — vividly',
     '- Do NOT generalize: generic "kids playing" is WRONG when the Hebrew text describes one specific action',
-    cleanMode
-      ? '- Lead with what happens in the scene — action, place, emotion, and concrete props from the Hebrew text.'
-      : '- Keep the child PROPORTIONALLY SMALL in the description — the SCENE matters as much as the child. Describe the wider environment in concrete detail (rocks, water, plants, sky, props) so the model has plenty to draw besides the character.',
+    childRequiredInScene
+      ? cleanMode
+        ? '- Lead with what happens in the scene — action, place, emotion, and concrete props from the Hebrew text.'
+        : '- Keep the child PROPORTIONALLY SMALL in the description — the SCENE matters as much as the child. Describe the wider environment in concrete detail (rocks, water, plants, sky, props) so the model has plenty to draw besides the character.'
+      : '- This page has NO human child in the story beat — describe ONLY the characters and environment named in the Hebrew text and illustration direction. Do NOT add a boy, girl, kid, or human protagonist.',
     '- EMPHASIZE facial expressions and body language',
     '- Include magical visual elements when fitting: glowing particles, sparkles, light, enchanted atmosphere',
     '- Describe the physical environment with rich sensory detail where the story places the action',
@@ -630,8 +675,12 @@ async function translateSceneForImage(input: {
       ? '- Do NOT include camera shots, framing, or composition instructions — those are supplied separately.'
       : '- PRESERVE the exact camera angle and composition type from the existing illustration direction — if it says wide shot do NOT shrink to medium; if it says low angle do NOT change to eye level',
     cleanMode ? '' : '- PRESERVE the visual hook/opening beat from the existing illustration direction',
-    '- NEVER change the principal child appearance: hair color, hair style, clothing, skin tone, and age impression must remain EXACTLY as in the CHARACTER LOCK cues below',
-    '- NEVER omit the main child protagonist from this story page illustration — the child MUST appear clearly as the hero',
+    childRequiredInScene
+      ? '- NEVER change the principal child appearance: hair color, hair style, clothing, skin tone, and age impression must remain EXACTLY as in the CHARACTER LOCK cues below'
+      : '',
+    childRequiredInScene
+      ? '- The main child protagonist MUST appear clearly as the hero when the Hebrew text includes them'
+      : '- Do NOT depict any human child, boy, girl, kid, or human protagonist unless explicitly named in the Hebrew text for this page',
     companionAllowed
       ? '- If you describe the companion creature, keep its anatomy/colors LOCKED as in the cues — same design as other pages.'
       : '- Do NOT depict or invent a companion creature unless the Hebrew text mentions them.',
@@ -653,7 +702,10 @@ async function translateSceneForImage(input: {
     ...(directive ? ['COMPOSITION (DO NOT CHANGE):', directive, ''] : []),
     companionAllowed
       ? ''
-      : 'COMPANION PRESENCE RULE: The Hebrew story text below does NOT name the companion character by name — do NOT depict the companion creature, mascot, duplicate animals, or extra sidekicks. Only the protagonist(s) explicitly implied by Hebrew text.',
+      : 'COMPANION PRESENCE RULE: The Hebrew story text below does NOT name the companion character by name — do NOT depict the companion creature, mascot, duplicate animals, or extra sidekicks. Only the characters explicitly implied by Hebrew text.',
+    childRequiredInScene
+      ? ''
+      : 'CHILD ABSENCE RULE: The illustration direction below describes a scene WITHOUT the human child — follow it exactly. Do NOT invent a child viewer or human protagonist.',
     '',
     `Hebrew story text for this page: "${hebrewText}"`,
     '',
@@ -1475,6 +1527,35 @@ function companionReferencedInStoryText(input: Pick<ImageInput, 'companion' | 'b
   return t.includes(n);
 }
 
+function deriveImageInputEntityPresence(input: ImageInput): PageEntityPresenceContract {
+  const imageDirection =
+    (input.rawScenePrompt ?? '').trim() ||
+    extractSceneCore(input.pagePrompt || '').trim();
+  const storyLocks = resolveStyle01StoryLocks(input.companion?.id);
+  return derivePageEntityPresence({
+    bookPageText: input.bookPageText,
+    imageDirection,
+    rawScenePrompt: input.rawScenePrompt,
+    pagePrompt: input.pagePrompt,
+    childFirstName: input.childFirstName,
+    companionName: input.companion?.name,
+    companionId: input.companion?.id,
+    visualDirection: input.visualDirection,
+    recurringObjectCatalog: storyLocks.recurringObjectCatalog,
+    recurringEntityCatalog: storyLocks.recurringEntityCatalog,
+  });
+}
+
+function filterReferenceImagesForEntityPresence(
+  referenceImages: string[] | undefined,
+  presence: PageEntityPresenceContract
+): string[] | undefined {
+  if (!referenceImages?.length) return referenceImages;
+  if (childPresenceAllowsReferencePhoto(presence.childPresence)) return referenceImages;
+  // Child photo is conventionally first ref when mergeGptImageReferenceSources is used
+  return referenceImages.length > 1 ? referenceImages.slice(1) : [];
+}
+
 type ImageHardLockFields = Pick<
   ImageInput,
   | 'heroVisualLock'
@@ -1492,12 +1573,20 @@ type ImageHardLockFields = Pick<
 };
 
 /** Hard Flux identity block: hero MUST match bible; optional companion lock only when Hebrew names them. */
-function buildImageHardLockBlock(input: ImageHardLockFields): string {
+function buildImageHardLockBlock(
+  input: ImageHardLockFields,
+  entityPresence?: PageEntityPresenceContract
+): string {
   const lock = input.heroVisualLock;
   const childName = (input.childFirstName ?? input.characterSheet?.mainCharacter.name ?? 'The child').trim() || 'The child';
+  const childAllowed =
+    !entityPresence || childPresenceAllowsVisualLock(entityPresence.childPresence);
 
   let heroLines: string;
-  if (!lock) {
+  if (!childAllowed) {
+    heroLines =
+      'NO human child protagonist in this scene. Do NOT render any boy, girl, kid, or human child. Illustrate only the characters named in the page text and image direction.';
+  } else if (!lock) {
     const compact = buildCompactProtagonistLock({
       childName: input.childFirstName,
       heroVisualLock: input.heroVisualLock,
@@ -1523,7 +1612,8 @@ function buildImageHardLockBlock(input: ImageHardLockFields): string {
   }
 
   const parts = [heroLines];
-  const companionNamedInText = companionReferencedInStoryText(input);
+  const companionNamedInText =
+    entityPresence?.companionPresence === 'present' || companionReferencedInStoryText(input);
   if (companionNamedInText && input.entityVisualLock) {
     const ev = input.entityVisualLock;
     parts.push(
@@ -1776,7 +1866,8 @@ async function buildPromptParts(input: ImageInput): Promise<{
   compositionVariation: CompositionVariation;
 }> {
   const compositionVariation = getCompositionVariation(input.pageNumber);
-  const companionInText = companionReferencedInStoryText(input);
+  const entityPresence = deriveImageInputEntityPresence(input);
+  const companionInText = entityPresence.companionPresence === 'present';
   const hasWizardCompanion = Boolean(input.companion?.name?.trim());
   const includeCompanionInScene = !hasWizardCompanion || companionInText;
   const compositionDirective =
@@ -1811,10 +1902,11 @@ async function buildPromptParts(input: ImageInput): Promise<{
         orderId: input.orderId,
         compositionDirective,
         includeCompanionCharacters: includeCompanionInScene,
+        childPresence: entityPresence.childPresence,
       })
     : extractSceneCore(input.pagePrompt);
   const sceneWithComposition = `${compositionDirective}\n\n${scene}`.trim();
-  const characterLockLead = buildImageHardLockBlock(input);
+  const characterLockLead = buildImageHardLockBlock(input, entityPresence);
   const protagonistLock = characterLockLead
     ? ''
     : buildCompactProtagonistLock({
@@ -1898,17 +1990,21 @@ async function buildFluxCleanPromptParts(
         orderId: input.orderId,
         compositionDirective: null,
         includeCompanionCharacters: includeCompanion,
+        childPresence: deriveImageInputEntityPresence(input).childPresence,
         promptMode: 'clean',
       })
     : sanitizeFluxCleanEnglishText(extractSceneCore(input.pagePrompt));
 
-  const childLine = buildFluxCleanChildLine({
-    childName: childDisplayName,
-    childAge: input.childAge,
-    childGender: input.childGender,
-    directionArchetype: input.directionArchetype ?? null,
-    heroVisualLock: input.heroVisualLock ?? null,
-  });
+  const entityPresence = deriveImageInputEntityPresence(input);
+  const childLine = childPresenceAllowsVisualLock(entityPresence.childPresence)
+    ? buildFluxCleanChildLine({
+        childName: childDisplayName,
+        childAge: input.childAge,
+        childGender: input.childGender,
+        directionArchetype: input.directionArchetype ?? null,
+        heroVisualLock: input.heroVisualLock ?? null,
+      })
+    : 'no human child in this scene';
   const companionLine = includeCompanion
     ? buildFluxCleanCompanionLine(input.companion, input.companionStructured ?? null)
     : undefined;
@@ -2096,6 +2192,7 @@ function sanitizePromptForSafety(prompt: string): string {
 
 function buildGPTImagePrompt(input: ImageInput): string {
   const isPreview = !!input.isDirectionPreview;
+  const entityPresence = deriveImageInputEntityPresence(input);
 
   // ── SCENE EXTRACTOR PATH (deterministic assembly from visualDirection) ──
   const vd = input.visualDirection;
@@ -2171,17 +2268,21 @@ function buildGPTImagePrompt(input: ImageInput): string {
   // WITHOUT becoming the framing target.
   const charRecognitionHint =
     'CHARACTER IDENTITY (for cross-page recognition only — do NOT use this as a reason to center, close-up, or pose toward camera):';
-  if (effectiveCs && effectiveCs.face && effectiveCs.hair && effectiveCs.clothing) {
-    // Compact identity lock — saves attention budget for style rendering
+  if (childPresenceAllowsVisualLock(entityPresence.childPresence)) {
+    if (effectiveCs && effectiveCs.face && effectiveCs.hair && effectiveCs.clothing) {
+      charParts.push(
+        `${charRecognitionHint} ${effectiveCs.face} ${effectiveCs.hair} ${effectiveCs.body}. Wearing: ${effectiveCs.clothing}${effectiveCs.signature ? ` (${effectiveCs.signature})` : ''}.`,
+      );
+    } else if (input.childDescription) {
+      charParts.push(`${charRecognitionHint} ${input.childDescription}`);
+    }
+    if (wardrobeLock) {
+      charParts.push(buildBookWardrobePromptSection(wardrobeLock));
+    }
+  } else {
     charParts.push(
-      `${charRecognitionHint} ${effectiveCs.face} ${effectiveCs.hair} ${effectiveCs.body}. Wearing: ${effectiveCs.clothing}${effectiveCs.signature ? ` (${effectiveCs.signature})` : ''}.`,
+      'NO human child in this scene. Do NOT depict boy, girl, kid, toddler, or human protagonist.'
     );
-  } else if (input.childDescription) {
-    charParts.push(`${charRecognitionHint} ${input.childDescription}`);
-  }
-
-  if (wardrobeLock) {
-    charParts.push(buildBookWardrobePromptSection(wardrobeLock));
   }
 
   // ── COMPANION PRESENCE — use mustInclude/mustNotInclude as source of truth ──
@@ -2193,9 +2294,10 @@ function buildGPTImagePrompt(input: ImageInput): string {
     input.companion && (item.toLowerCase().includes(input.companion.name.toLowerCase()) ||
     item.toLowerCase().includes('companion'))
   );
+  const companionShouldAppear = entityPresence.companionPresence === 'present';
 
   const cps = input.companionStructured;
-  if (input.companion && companionInMustInclude) {
+  if (input.companion && companionShouldAppear && companionInMustInclude) {
     if (cps && cps.species && cps.coloring) {
       charParts.push(
         `COMPANION (must appear): ${cps.species}, ${cps.size}, ${cps.coloring}, ${cps.feature}.`,
@@ -2203,10 +2305,10 @@ function buildGPTImagePrompt(input: ImageInput): string {
     } else {
       charParts.push(`COMPANION (must appear): ${input.companion.name}, ${input.companion.visualDescription}`);
     }
-  } else if (input.companion && companionInMustNotInclude) {
+  } else if (input.companion && (!companionShouldAppear || companionInMustNotInclude)) {
     charParts.push(`NO companion in this scene.`);
-  } else if (input.companion) {
-    const companionInScene = companionReferencedInStoryText(input);
+  } else if (input.companion && companionShouldAppear) {
+    const companionInScene = companionReferencedInStoryText(input) || companionShouldAppear;
     if (companionInScene) {
       if (cps && cps.species && cps.coloring) {
         charParts.push(
@@ -2219,7 +2321,7 @@ function buildGPTImagePrompt(input: ImageInput): string {
       charParts.push(`NO companion in this scene.`);
     }
   }
-  if (input.supportingCharacters?.length) {
+  if (input.supportingCharacters?.length && childPresenceAllowsVisualLock(entityPresence.childPresence)) {
     for (const sc of input.supportingCharacters) {
       const relLabel = sc.relationship ? ` (${sc.relationship})` : '';
       const hasStructured =
@@ -2342,12 +2444,17 @@ function buildGPTImagePrompt(input: ImageInput): string {
   const sceneRules = [
     'RULES:',
     '- Illustrate EXACTLY what is described. Nothing more, nothing less.',
-    '- Exactly ONE child in the frame. Do NOT duplicate the protagonist anywhere in the image, including the foreground, background, or edges.',
+    entityPresence.childPresence === 'absent'
+      ? '- NO human child, boy, girl, kid, or human protagonist in this frame.'
+      : '- Exactly ONE child in the frame when a child is present. Do NOT duplicate the protagonist anywhere in the image, including the foreground, background, or edges.',
     companionSpeciesForRule
       ? `- The companion is a ${companionSpeciesForRule} — draw it as that real species. NEVER add human arms, hands, fingers, or a human face to the companion. Any body parts mentioned (e.g. "arm", "leg") refer to the species' own anatomy, not to a human.`
       : '',
     mustIncludeBlock ? `- ${mustIncludeBlock}` : '',
     mustNotIncludeBlock ? `- ${mustNotIncludeBlock}` : '',
+    entityPresence.forbiddenEntities.length
+      ? `- FORBIDDEN entities: ${entityPresence.forbiddenEntities.join(', ')}.`
+      : '',
     '- Expression MUST match scene emotion — do NOT default to smiling.',
     '- Child-safe. No horror, no violence.',
     '- ZERO text, letters, numbers, or symbols anywhere in the image.',
@@ -2424,6 +2531,13 @@ function buildGPTImagePrompt(input: ImageInput): string {
   return fullPrompt;
 }
 
+function resolveStyle01Phase2ImageQuality(): 'low' | 'medium' | 'high' {
+  if (isStyle01AuditionModeEnabled()) {
+    return resolveStyle01AuditionImageQuality();
+  }
+  return resolveGPTBookQuality();
+}
+
 function resolveGPTBookQuality(): 'low' | 'medium' | 'high' {
   const q = process.env.GPT_IMAGE_QUALITY?.trim().toLowerCase();
   if (q === 'low' || q === 'medium' || q === 'high') return q;
@@ -2440,13 +2554,19 @@ async function generateWithGPTImage(input: ImageInput): Promise<GeneratedImage> 
 
   const quality = isPreview ? 'medium' : resolveGPTBookQuality();
 
+  const entityPresence = deriveImageInputEntityPresence(input);
   const rawPrompt = buildGPTImagePrompt(input);
   const prompt = sanitizePromptForSafety(rawPrompt);
+  const referenceImages = filterReferenceImagesForEntityPresence(
+    input.referenceImages,
+    entityPresence
+  );
 
   console.log(
     `[gpt_image_prompt] orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} ` +
     `isPreview=${isPreview} size=${size} quality=${quality} ` +
-    `layout=${input.pageLayoutStyle ?? 'auto'} promptLen=${prompt.length}`
+    `layout=${input.pageLayoutStyle ?? 'auto'} promptLen=${prompt.length} ` +
+    `childPresence=${entityPresence.childPresence} refs=${referenceImages?.length ?? 0}`
   );
 
   let lastError: Error | null = null;
@@ -2457,10 +2577,7 @@ async function generateWithGPTImage(input: ImageInput): Promise<GeneratedImage> 
         negativePrompt: 'text, letters, words, numbers, watermark, signature, frame, border, sad face, gloomy, scary, dark moody atmosphere, crying, tearful, flat sad expression',
         size: size as '1024x1024' | '1024x1536' | '1536x1536',
         quality,
-        // Pass the uploaded child photo as identity reference. When present, generateGPTImage
-        // switches to images.edit and produces a rendered child who actually looks like the
-        // user's real child. When absent, falls back to text-only images.generate.
-        referenceImages: input.referenceImages,
+        referenceImages,
       });
 
       const durableUrl = await storeImageFromBuffer({
@@ -2715,6 +2832,139 @@ async function generateWithGPTImageStyle02(input: ImageInput): Promise<Generated
   };
 }
 
+/** Phase 2 — Style 01 book pages via gpt-image-1 + scene-typed style refs + entity presence locks. */
+async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<GeneratedImage> {
+  const hiResPdf = !!input.printPdfOptimized;
+  const size = hiResPdf ? '1536x1536' : '1024x1536';
+  const quality = resolveStyle01Phase2ImageQuality();
+
+  const vd = input.visualDirection;
+  const mechanicalScene = input.blocking
+    ? renderSceneBlockingForPrompt(input.blocking, vd ?? null)
+    : vd
+      ? [
+          `Location: ${vd.locationZone}.`,
+          `Action: ${vd.mainAction}.`,
+          vd.characterPose ? `Pose: ${vd.characterPose}.` : '',
+          vd.lightingSource ? `Lighting: ${vd.lightingSource}.` : '',
+          vd.environmentDetail ? `Detail: ${vd.environmentDetail}.` : '',
+        ]
+          .filter(Boolean)
+          .join(' ')
+      : '';
+
+  const assembled = assembleStyle01Phase2Prompt({
+    pageNumber: input.pageNumber ?? 0,
+    pagePrompt: input.pagePrompt,
+    rawScenePrompt: input.rawScenePrompt,
+    mechanicalScene: mechanicalScene || undefined,
+    bookPageText: input.bookPageText,
+    childFirstName: input.childFirstName,
+    childAge: input.childAge,
+    childGender: input.childGender,
+    childDescription: input.childDescription,
+    childStructured: input.childStructured,
+    companion: input.companion,
+    companionStructured: input.companionStructured,
+    pageStoryState: input.pageStoryState,
+  });
+
+  const { prompt: finalPrompt, sceneDescription, sceneClass, entityPresence, pageStoryState } =
+    assembled;
+
+  const refConfig = resolveStyle01RefBudgetConfig();
+  const companionRefPaths = resolveStyle01CompanionReferencePaths({
+    companionId: input.companion?.id,
+    companionImage: input.companion?.image,
+    presentEntities: pageStoryState?.presentEntities,
+  });
+  const useMultiCompanionSheets = companionRefPaths.length >= 3;
+  const styleRefCount = useMultiCompanionSheets ? 1 : refConfig === 'A' ? 2 : 3;
+  const styleRefPaths = resolveStyle01StyleReferencePaths(sceneClass, styleRefCount);
+  const childPhotoPath = input.referenceImages?.[0];
+  const { paths: referenceImages, breakdown } = assembleStyle01BookReferences({
+    styleRefPaths,
+    childPhotoPath: refConfig === 'C' ? undefined : childPhotoPath,
+    companionRefPaths: refConfig === 'B' ? undefined : companionRefPaths,
+    config: refConfig,
+    includeChildPhoto: childPresenceAllowsReferencePhoto(entityPresence.childPresence),
+    useMultiCompanionSheets,
+  });
+
+  const prompt = sanitizePromptForSafety(finalPrompt);
+
+  console.log(
+    `[style01_phase2] orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} ` +
+      `sceneClass=${sceneClass} refConfig=${refConfig} childPresence=${entityPresence.childPresence} ` +
+      `refs=${referenceImages.length} breakdown=${JSON.stringify({
+        style: breakdown.style.length,
+        child: breakdown.child.length,
+        companion: breakdown.companion.length,
+      })}`
+  );
+  console.log(`[style01_phase2_prompt] page=${input.pageNumber} ===PROMPT START===\n${prompt}\n===PROMPT END===`);
+
+  const style01Model = resolveStyle01GptModel();
+
+  const result = await generateGPTImage({
+    finalPrompt: prompt,
+    negativePrompt: STYLE_01_AVOIDANCE_NEGATIVE,
+    referenceImages,
+    referenceMode: 'style02_book',
+    requireReferenceEdit: referenceImages.length > 0,
+    size: size as '1024x1024' | '1024x1536' | '1536x1536',
+    quality,
+    modelOverride: style01Model,
+  });
+
+  if (result.model !== style01Model) {
+    throw new Error(
+      `[style01_phase2] BLOCKER: expected model ${style01Model}, got ${result.model}. No silent fallback.`
+    );
+  }
+
+  const manifestSnippet = {
+    pageNumber: input.pageNumber,
+    model: result.model,
+    entityPresence,
+    sceneClass,
+    refConfig,
+    referenceBreakdown: breakdown,
+    promptLen: prompt.length,
+    durationMs: result.durationMs,
+  };
+  console.log(`[style01_phase2_manifest] ${JSON.stringify(manifestSnippet)}`);
+
+  const durableUrl = await storeImageFromBuffer({
+    buffer: result.buffer,
+    orderId: input.orderId,
+    pageNumber: input.pageNumber,
+    assetType: input.assetType === 'cover' ? 'cover' : 'page',
+    contentType: 'image/png',
+  });
+
+  const [widthStr, heightStr] = size.split('x');
+  return {
+    url: durableUrl,
+    rawUrl: durableUrl,
+    width: parseInt(widthStr, 10),
+    height: parseInt(heightStr, 10),
+    provider: result.model,
+    prompt,
+    style01Meta: {
+      pageIndex: input.pageNumber ?? 0,
+      sceneText: sceneDescription,
+      sceneClass,
+      entityPresence,
+      referenceBreakdown: breakdown,
+      model: result.model,
+      refConfig,
+      usage: result.usage ?? null,
+      durationMs: result.durationMs,
+    },
+  };
+}
+
 // ─── Provider: DALL-E 3 ───────────────────────────────
 async function generateWithDallE(input: ImageInput): Promise<GeneratedImage> {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -2955,6 +3205,9 @@ export async function generateImage(input: ImageInput): Promise<GeneratedImage> 
   if (shouldUseStyle02Phase2Path(input.illustrationStyle)) {
     return generateWithGPTImageStyle02(input);
   }
+  if (shouldUseStyle01Phase2Path(input.illustrationStyle)) {
+    return generateWithGPTImageStyle01Phase2(input);
+  }
   if (isImageGenerationDisabled()) {
     console.warn(
       `[ImageGuard] Mock image returned orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} route=provider reason=DISABLE_IMAGE_GENERATION`
@@ -3174,6 +3427,89 @@ function formatImageGenFailureReason(error: unknown): string {
     return `TIMEOUT_OR_NETWORK: ${raw}`;
   }
   return `OTHER: ${raw}`;
+}
+
+const DEFAULT_CHILD_ANCHOR_VARIANTS = 3;
+const MAX_CHILD_ANCHOR_VARIANTS = 6;
+
+/** Canonical env: CHILD_ANCHOR_VARIANTS (legacy alias: RESEMBLANCE_ANCHOR_CANDIDATES). */
+function parseChildAnchorVariantsCount(): number {
+  const raw =
+    process.env.CHILD_ANCHOR_VARIANTS?.trim() ??
+    process.env.RESEMBLANCE_ANCHOR_CANDIDATES?.trim() ??
+    String(DEFAULT_CHILD_ANCHOR_VARIANTS);
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return DEFAULT_CHILD_ANCHOR_VARIANTS;
+  return Math.min(parsed, MAX_CHILD_ANCHOR_VARIANTS);
+}
+
+type ChildAnchorVariantPlan = {
+  variantCount: number;
+  useAnchorElection: boolean;
+  reason: string;
+};
+
+function resolveChildAnchorVariantPlan(args: {
+  imagePrompt: string;
+  rawScenePrompt?: string;
+  bookPageText?: string;
+  visualDirection?: ShotVisualDirection;
+  assignedIncludesChild: boolean;
+  hasChildAnchor: boolean;
+  childReferencePhotoUrl?: string;
+  companionId?: string | null;
+  childFirstName?: string | null;
+  companionName?: string | null;
+}): ChildAnchorVariantPlan {
+  const skipSingle = (reason: string): ChildAnchorVariantPlan => ({
+    variantCount: 1,
+    useAnchorElection: false,
+    reason,
+  });
+
+  if (!args.assignedIncludesChild) {
+    return skipSingle('child_not_assigned_for_anchor');
+  }
+  if (args.hasChildAnchor) {
+    return skipSingle('child_anchor_already_resolved');
+  }
+  if (!args.childReferencePhotoUrl) {
+    return skipSingle('no_child_reference_photo');
+  }
+  if (isStyle01AuditionModeEnabled()) {
+    return skipSingle('style01_audition_mode');
+  }
+
+  const imageDirection =
+    (args.rawScenePrompt ?? '').trim() || extractSceneCore(args.imagePrompt).trim();
+  const storyLocks = resolveStyle01StoryLocks(args.companionId ?? null);
+  const entityPresence = derivePageEntityPresence({
+    bookPageText: args.bookPageText,
+    imageDirection,
+    rawScenePrompt: args.rawScenePrompt,
+    pagePrompt: args.imagePrompt,
+    childFirstName: args.childFirstName,
+    companionName: args.companionName ?? undefined,
+    companionId: args.companionId ?? undefined,
+    visualDirection: args.visualDirection,
+    recurringObjectCatalog: storyLocks.recurringObjectCatalog,
+    recurringEntityCatalog: storyLocks.recurringEntityCatalog,
+  });
+
+  if (entityPresence.childPresence !== 'present') {
+    return skipSingle(`childPresence=${entityPresence.childPresence}`);
+  }
+
+  const variantCount = parseChildAnchorVariantsCount();
+  if (variantCount <= 1) {
+    return skipSingle('child_anchor_variants=1');
+  }
+
+  return {
+    variantCount,
+    useAnchorElection: true,
+    reason: 'child_anchor_election',
+  };
 }
 
 export async function generateAllPageImages(
@@ -3491,11 +3827,6 @@ export async function generateAllPageImages(
     console.log('[Director] disabled via USE_DIRECTOR_LAYER=false — using legacy mechanical scene block');
   }
 
-  const anchorCandidatesCount = (() => {
-    const parsed = Number.parseInt(process.env.RESEMBLANCE_ANCHOR_CANDIDATES ?? '3', 10);
-    if (!Number.isFinite(parsed) || parsed < 1) return 3;
-    return Math.min(parsed, 6);
-  })();
   const resemblesMonitorEnabled = process.env.RESEMBLANCE_PAGE_MONITOR_ENABLED !== 'false';
   const THROTTLE_DELAY_MS = 1500;
   const MAX_PAGE_ATTEMPTS = 3;
@@ -3720,17 +4051,34 @@ export async function generateAllPageImages(
     let image: GeneratedImage | null = null;
     let lastError: unknown = null;
     const baseReferenceImage = config.referenceImages?.[0];
+    const anchorVariantPlan = resolveChildAnchorVariantPlan({
+      imagePrompt: page.imagePrompt,
+      rawScenePrompt: page.rawScenePrompt,
+      bookPageText: page.bookPageText,
+      visualDirection: page.visualDirection,
+      assignedIncludesChild: assignedCharacterIds.includes('child'),
+      hasChildAnchor: Boolean(characterAnchors.child),
+      childReferencePhotoUrl: baseReferenceImage,
+      companionId: config.companion?.id ?? null,
+      childFirstName: config.childName ?? null,
+      companionName: config.companion?.name ?? null,
+    });
+    console.log(
+      `[image] page=${page.pageNumber} variantCount=${anchorVariantPlan.variantCount} reason="${anchorVariantPlan.reason}"`
+    );
     const shouldRunAnchorElection =
       !style02Phase2Active &&
-      assignedCharacterIds.includes('child') &&
-      !characterAnchors.child &&
+      anchorVariantPlan.useAnchorElection &&
       Boolean(baseReferenceImage);
+    const anchorCandidatesForPage = shouldRunAnchorElection
+      ? anchorVariantPlan.variantCount
+      : 1;
 
     if (shouldRunAnchorElection && baseReferenceImage) {
       const candidateImages: Array<{ image: GeneratedImage; seed: number }> = [];
       const candidateRows: ResemblanceCandidate[] = [];
       const effectiveThreshold = resolveEffectiveThreshold(normalizedStyle.toLowerCase(), thresholdConfig);
-      for (let candidateIndex = 0; candidateIndex < anchorCandidatesCount; candidateIndex++) {
+      for (let candidateIndex = 0; candidateIndex < anchorCandidatesForPage; candidateIndex++) {
         const seed = Math.floor(Date.now() + page.pageNumber * 100 + candidateIndex);
         const generated = await runImageWithThrottleAndRetry(
           () =>
