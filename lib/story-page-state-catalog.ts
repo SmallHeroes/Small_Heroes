@@ -95,6 +95,56 @@ export const DRAGON_DINI_PAGE_STORY_STATES: Record<number, PageStoryState> = {
       baby_dragon: 'present',
     },
   },
+  11: {
+    presentEntities: ['glowing_stone', 'baby_dragon'],
+    forbiddenEntities: ['intact_blue_speckled_egg', 'intact_full_egg'],
+    objectStates: { glowing_stone: 'intact', baby_dragon: 'present' },
+  },
+  12: {
+    presentEntities: ['glowing_stone', 'baby_dragon'],
+    forbiddenEntities: ['intact_blue_speckled_egg'],
+    objectStates: { glowing_stone: 'intact', baby_dragon: 'present' },
+  },
+  13: {
+    presentEntities: ['glowing_stone', 'baby_dragon'],
+    forbiddenEntities: ['intact_blue_speckled_egg'],
+    objectStates: { glowing_stone: 'intact', baby_dragon: 'present' },
+  },
+  14: {
+    presentEntities: ['glowing_stone', 'baby_dragon'],
+    forbiddenEntities: ['intact_blue_speckled_egg'],
+    objectStates: { glowing_stone: 'intact', baby_dragon: 'present' },
+  },
+  15: {
+    presentEntities: ['glowing_stone', 'baby_dragon'],
+    forbiddenEntities: ['intact_blue_speckled_egg'],
+    objectStates: { glowing_stone: 'intact', baby_dragon: 'present' },
+  },
+  16: {
+    presentEntities: ['glowing_stone', 'baby_dragon'],
+    forbiddenEntities: ['intact_blue_speckled_egg'],
+    objectStates: { glowing_stone: 'intact', baby_dragon: 'present' },
+  },
+  17: {
+    presentEntities: [],
+    forbiddenEntities: ['dini', 'baby_dragon', 'glowing_stone', 'blue_speckled_egg', 'mountain_cave'],
+    objectStates: {},
+  },
+  18: {
+    presentEntities: [],
+    forbiddenEntities: ['dini', 'baby_dragon', 'glowing_stone', 'blue_speckled_egg', 'mountain_cave'],
+    objectStates: {},
+  },
+  19: {
+    presentEntities: [],
+    forbiddenEntities: ['dini', 'baby_dragon', 'glowing_stone', 'blue_speckled_egg', 'mountain_cave'],
+    objectStates: {},
+  },
+  20: {
+    presentEntities: [],
+    forbiddenEntities: ['dini', 'baby_dragon', 'glowing_stone', 'blue_speckled_egg', 'mountain_cave'],
+    objectStates: {},
+  },
 };
 
 export const BEAR_CUB_DOBI_PAGE_STORY_STATES: Record<number, PageStoryState> = {

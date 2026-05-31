@@ -314,10 +314,110 @@ export const DRAGON_DINI_COMPOSITION_BY_PAGE: Record<number, Style01CompositionS
     subjectScale: 'medium',
     camera: 'medium-wide at cave entrance — child peeks in, Dini and baby visible inside',
     subjectDominance:
-      'Child cautiously peeks into cave entrance; inside, Dini — clearly older than the baby dragon but still young, friendly and protective (NOT a fully adult war-dragon) — lies tiredly beside the large glowing stone where the baby dragon shivers slightly. EMOTIONAL CENTER: child and Dini eye contact / first moment of meeting is the focal read. Baby dragon is visible but SECONDARY — lying on stone, smaller in visual hierarchy. The glowing stone is ENVIRONMENT — do NOT center it as the main subject; it should not dominate the frame. Exactly ONE Dini (young guardian-type, not adult) and exactly ONE baby dragon. No second dragon. Baby has no adult horns/wings/spikes.',
+      "Child cautiously peeks into cave entrance; inside, Dini — clearly older than the baby dragon but still young, friendly and protective (NOT a fully adult war-dragon) — lies tiredly beside the large glowing stone where the baby dragon shivers slightly. EMOTIONAL CENTER: Dini turns his head fully toward the child; their eyes meet directly. The glowing stone is OFF-CENTER and SECONDARY — not the main subject of the frame. Baby dragon is visible but lying small on the stone, also secondary. Exactly ONE Dini (young guardian-type, not adult) and exactly ONE baby dragon. No second dragon.",
     staging:
-      'Mountain cave entrance with child standing in the threshold looking in; inside the cave Dini — the older young copper dragon — lies near the large glowing stone with head and eyes oriented toward the child (potential for eye contact), the baby dragon nestled on the stone shivering (smaller, secondary detail), cave stones glowing dimly. Atmosphere: cool, dim, in need of warmth. The stone is light source / environment — never the main subject. Avoid centering the stone in the frame.',
+      "Mountain cave entrance with child standing in the threshold looking in; inside the cave Dini — the older young copper dragon — has his head fully turned toward the child, gaze locking onto the child's face (clear eye contact). The baby dragon nestled on the stone shivering (smaller, secondary, off to one side). The glowing stone is positioned off-center in the frame, NOT central. Atmosphere: cool, dim, in need of warmth. The eye-contact moment is the focal action.",
     pagePurpose: 'First meeting — child arrives at the parallel world; emotional read is child↔Dini connection',
+  },
+  11: {
+    shotType: 'medium tentative reveal',
+    subjectScale: 'medium',
+    camera: 'medium-wide cave interior — child enters from threshold, Dini and baby visible inside',
+    subjectDominance:
+      "Child takes one careful step into the cave (foot just over the threshold). Dini raises his head with cautious hope, eyes locking on the child. Baby dragon shivers on the glowing stone. Cave glow is dim but the child's face is determined. EMOTIONAL CENTER: tentative meeting, eye contact between child and Dini.",
+    staging:
+      'Cave interior, child entering carefully through entrance, Dini raising head from beside the stone, baby on stone shivering. Cave glow dim, atmosphere cautious and hopeful.',
+    pagePurpose: 'Crossing the threshold — child accepts the invitation',
+  },
+  12: {
+    shotType: 'medium intimate',
+    subjectScale: 'medium',
+    camera: 'medium close on Dini at the stone — wing being shifted aside, gap forming',
+    subjectDominance:
+      "Dini gently shifts ONE wing aside, opening a small space on the warm stone between himself and the shivering baby dragon. Child sits respectfully nearby on cave floor (not yet on the stone). Stone glow brightens fractionally where the new space opens. FOCAL ACTION: Dini's wing-shift creating room.",
+    staging:
+      'Dini moving his wing aside, creating a visible small gap on the warm stone, baby nestled on warm zone, child sits attentively nearby. Stone glows slightly brighter.',
+    pagePurpose: 'Making room — the literal physical act of sharing',
+  },
+  13: {
+    shotType: 'medium intimate three-shot',
+    subjectScale: 'medium',
+    camera: 'medium close — all three on/around the glowing stone',
+    subjectDominance:
+      "Child now sits on the warm stone in the gap Dini made. Baby dragon has crawled close and nestled against the child's side. Dini exhales a soft warm breath. Stone glows visibly BRIGHTER under all three. Cave hums (visible warm light). FOCAL READ: three-way warmth.",
+    staging:
+      "Child seated on the warm stone, baby dragon nestled against child's side, Dini exhaling soft breath nearby, stone glowing visibly brighter with all three together. Cave warm.",
+    pagePurpose: 'The "stone of three" — physical inclusion completed',
+  },
+  14: {
+    shotType: 'medium-wide cave perspective',
+    subjectScale: 'medium',
+    camera: 'medium-wide showing cave wall with smaller stones lighting up around',
+    subjectDominance:
+      "Cave perspective showing the warmth visibly SPREADING outward. Big stone glows. Smaller stones along the cave wall also light up. Dini's previously-cold tail tip is now warm and visible in light. Baby has sneezed a tiny copper spark that just lit another stone. Dini is wide-eyed in mild amazement.",
+    staging:
+      'Wider cave view, multiple stones glowing in chain reaction, Dini\'s tail now warm, baby with a tiny spark of fire at its nose, freshly-lit stones around the cave.',
+    pagePurpose: 'Warmth multiplies — the uncomfortable truth: "I thought if I give my warmth, I\'d have less"',
+  },
+  15: {
+    shotType: 'intimate medium',
+    subjectScale: 'medium',
+    camera: 'medium shot — child + Dini + sleeping baby on the bright stone',
+    subjectDominance:
+      'Child sits with Dini and the now-SLEEPING baby dragon on the bright stone. Child has a soft thoughtful smile. Dini raises a comically expressive dragon eyebrow (the "cookie comparison"). Cave glows steadily warm. Quiet humor moment.',
+    staging:
+      'Child and Dini side by side on warm stone, sleeping baby curled between them. Dini with one raised eyebrow expression. Cave warm and golden.',
+    pagePurpose: '"Warmth isn\'t like a cookie" — the metaphor lands quietly',
+  },
+  16: {
+    shotType: 'medium intimate',
+    subjectScale: 'medium',
+    camera: 'medium shot of all three settled on the stone, cave fully warm',
+    subjectDominance:
+      'Dini scoots over slightly MORE, making room one more time. Baby dragon and child both nestled on the warm bright stone. Dini\'s face shows a tiny conceding smile (he\'s accepting it). Cave is FULLY GLOWING WARM now — chain of lit stones throughout.',
+    staging:
+      'All three on the stone settled in, cave warmly lit throughout, Dini with a softened smile.',
+    pagePurpose: '"Stone of three" — name accepted',
+  },
+  17: {
+    shotType: 'medium transitional descent',
+    subjectScale: 'small',
+    camera: 'medium-wide showing mountain path descending + home visible through window',
+    subjectDominance:
+      'Child returns DOWN the mountain path with the small abstract orange light leading. Approaching the family home (red roof visible). Inside the window: mom holds a crying newborn baby, dad searching for a pacifier under a blanket — a busy, tired moment. The orange light remains ABSTRACT (NO face, NO wings, NO creature, NO fairy).',
+    staging:
+      'Mountain path descending toward home with red-roofed house at base. Through the window, busy parents with crying newborn. Small abstract orange light hovering on the path ahead of the child. NO dragon visible.',
+    pagePurpose: 'Returning home — same scene as departure but child is changed',
+  },
+  18: {
+    shotType: 'medium intimate family inclusion',
+    subjectScale: 'small',
+    camera: 'medium-wide on the sofa — mom + dad + child + newborn',
+    subjectDominance:
+      "Child sits CLOSE to mom on the sofa. Mom's free arm pulls child in (visible inclusion gesture). Baby's tiny hand wraps around the child's finger. Dad sits on other side, just having found the pacifier. The newborn is a TINY SWADDLED human baby — NOT a toddler. Gentle moment of inclusion. Soft evening light through window. NO dragon, NO cave.",
+    staging:
+      "Cozy living room sofa. Mom + dad on sofa together, swaddled newborn in mom's arms, child pulled in close by mom's free arm, baby's tiny hand on child's finger. Soft evening light.",
+    pagePurpose: 'Physical inclusion — the warmth from the cave is now home',
+  },
+  19: {
+    shotType: 'medium-wide family hug',
+    subjectScale: 'medium',
+    camera: 'medium-wide on the family hug — slightly disheveled, very warm',
+    subjectDominance:
+      'Family hug: mom, dad, swaddled newborn baby, AND the child all together on the sofa. Imperfect but warm. The pacifier has fallen on the floor visibly. The blanket is half-slumped off the sofa. Everyone slightly disheveled but close. Child eyes softly closed for a moment, peaceful. Golden evening glow through window. THE HEART LINE moment.',
+    staging:
+      'Sofa family hug, all four members close, slight chaos (pacifier on floor, blanket half-slumped), everyone happy and warm. Golden hour glow through window.',
+    pagePurpose: '"The hug didn\'t get smaller — it learned to make room"',
+  },
+  20: {
+    shotType: 'wide intimate bedtime',
+    subjectScale: 'small',
+    camera: 'wide bedroom at night — child in bed, windowsill in frame',
+    subjectDominance:
+      'Night. The child is tucked into bed peacefully, soft expression. On the windowsill in the foreground/middle ground, a tiny warm orange spark glows softly — a small ember reminder from the mountain. Moonlight through the window. In the next room (visible through a slightly-open doorway), a faint warm light suggests the baby is also peaceful. Home is quiet and at rest. The orange spark remains ABSTRACT (no face, no creature, no Dini).',
+    staging:
+      "Child's bedroom at night. Child tucked peacefully in bed. Tiny warm orange spark on windowsill (abstract — just a soft glow). Moonlight. Doorway to baby's room with faint warm light. Quiet rest.",
+    pagePurpose: 'Residue ending — "there is room"; the warmth persists',
   },
 };
 

@@ -1,5 +1,5 @@
 /**
- * Style 01 + gpt-image-2 — dragon_dini (Dini) 10-page continuity audition.
+ * Style 01 + gpt-image-2 — dragon_dini (Dini) 20-page full-book audition.
  *
  * Usage:
  *   PHASE2_STYLE01_BOOK_PIPELINE=true
@@ -9,7 +9,8 @@
  *   STYLE01_QA_IMAGE_QUALITY=low (default) | medium | high
  *   npx tsx --require ./scripts/shims/register-server-only.cjs scripts/run-style01-dini-audition.ts
  *
- * Optional: ONLY_PAGES=1,2,3,4,5,6,7,8,9,10
+ * Optional: ONLY_PAGES=1,2,...,20
+ * Preview: npm run dev → http://localhost:3000/dev/style01-book-preview
  */
 import { config as loadEnv } from 'dotenv';
 loadEnv({ path: '.env.local' });
@@ -45,7 +46,7 @@ const ILLUSTRATION_STYLE = 'soft_hand_drawn_storybook';
 const CHILD_NAME = process.env.CHILD_NAME?.trim() || 'נועם';
 const CHILD_AGE = Number.parseInt(process.env.CHILD_AGE?.trim() ?? '5', 10) || 5;
 const CHILD_GENDER = (process.env.CHILD_GENDER?.trim() || 'boy') as 'boy' | 'girl';
-const MAX_PAGES = 10;
+const MAX_PAGES = 20;
 const PAGE_SOFT_TIMEOUT_MS = 4 * 60 * 1000;
 
 function resolveAuditionQuality(): string {
@@ -58,7 +59,7 @@ function resolveAuditionQuality(): string {
 
 function parseOnlyPages(): number[] {
   const raw = process.env.ONLY_PAGES?.trim();
-  if (!raw) return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  if (!raw) return Array.from({ length: MAX_PAGES }, (_, i) => i + 1);
   return raw
     .split(/[,\s]+/)
     .map((s) => Number.parseInt(s.trim(), 10))
@@ -227,7 +228,7 @@ async function main(): Promise<void> {
   );
 
   const manifest = {
-    audition: 'style01-dragon-dini-10p',
+    audition: 'style01-dragon-dini-20p',
     model: resolveStyle01GptModel(),
     quality: q,
     provider: 'gpt-image',
@@ -236,22 +237,24 @@ async function main(): Promise<void> {
     storyFile: STORY_FILE,
     refConfig: resolveStyle01RefBudgetConfig(),
     orderId,
+    manifestDir: path.basename(outDir),
+    previewUrl: `/dev/style01-book-preview?dir=${encodeURIComponent(path.basename(outDir))}`,
     runtimeMs: Date.now() - startedAt,
     failedPages,
     totalEstimatedCostUsd: totalEstimatedCostUsd > 0 ? totalEstimatedCostUsd : null,
     costRateSource: sampleCost.costRateSource,
     pages: manifestPages,
     acceptanceChecklist: [
-      'Pages 1–5: no human child (Dini cave world)',
-      'Pages 6–9: no companion (child home world + mountain path)',
-      'Page 10: both child and Dini in cave',
-      'Dini copper-orange adult dragon — NOT green/teal',
-      'Baby dragon: copper hatchling, MUCH smaller than Dini, distinct from Dini (no horns, no developed spikes, newborn proportions)',
-      'Glowing stone consistent across cave pages (1, 2, 3, 4, 5, 10)',
-      'Blue-speckled egg: intact p3, cracking p4, fragments p5+',
-      'Pages 6-7 read as cozy indoor home (red roof, blue window, family interior)',
-      'Pages 8-9 read as transition (magical orange light → mountain path)',
-      'Soft watercolor Style 01 — not cinematic Style 02',
+      'Pages 1–5: NO human child (Dini cave world — egg/hatching arc)',
+      'Pages 6–7: child at home with parents+newborn baby, NO Dini, NO cave',
+      'Pages 8–9: child in transition (abstract orange light → mountain path), NO Dini',
+      'Page 10: child arrives at cave — eye contact with Dini, glowing stone off-center',
+      'Pages 11–16: child + Dini + baby on warming stone (chain of glow lighting up cave)',
+      'Pages 17–20: child BACK HOME — NO Dini visible, NO cave; p20 = abstract orange spark on windowsill, NOT a tiny dragon figure',
+      'Dini consistency across cave pages (1, 2, 3, 4, 5, 10, 11–16): 2 horns, peach wings, cream segmented belly, large golden eyes',
+      'Child consistency across all child-present pages (6–20): sun-graphic shirt, red sneakers, green wristband, age 4–5, same face',
+      'baby_dragon stays distinct from Dini (no merge) — smaller, less developed, no adult horns',
+      'No companion bleed: pages 6-9 and 17-20 have NO dragon, NO cave imagery',
     ],
   };
 
@@ -259,7 +262,7 @@ async function main(): Promise<void> {
   await writeFile(
     path.join(outDir, 'QA.md'),
     [
-      '# Style 01 — dragon_dini (Dini) 10-page continuity audition QA',
+      '# Style 01 — dragon_dini (Dini) 20-page full-book audition QA',
       '',
       '## Acceptance',
       '',
@@ -285,6 +288,7 @@ async function main(): Promise<void> {
   console.log(
     `Est. cost: ${manifest.totalEstimatedCostUsd != null ? `$${manifest.totalEstimatedCostUsd.toFixed(2)}` : 'unset — no usage tokens'}`
   );
+  console.log(`Preview: http://localhost:3000/dev/style01-book-preview?dir=${encodeURIComponent(path.basename(outDir))}`);
 }
 
 main().catch((err) => {
