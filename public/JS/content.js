@@ -473,8 +473,9 @@ const CONTENT = {
       voices: [
         { id: 'mom',         label: 'אמא',         emoji: '👩' },
         { id: 'dad',         label: 'אבא',         emoji: '👨' },
-        { id: 'dad_calm',    label: 'אבא רגוע',    emoji: '👨' },
-        { id: 'big_sister',  label: 'אחות גדולה',  emoji: '👧' },
+        { id: 'dad_calm',    label: 'אבא רגוע',        emoji: '👨' },
+        { id: 'dad_thick',   label: 'אבא עם קול עבה',  emoji: '👨' },
+        { id: 'big_sister',  label: 'אחות גדולה',      emoji: '👧' },
         { id: 'big_brother', label: 'אח גדול',     emoji: '🧒' },
         { id: 'fairy',       label: 'פייה קסומה',  emoji: '🧚' },
       ],

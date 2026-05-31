@@ -67,6 +67,17 @@ export const VOICES: VoiceConfig[] = [
     style: 0.10,
   },
   {
+    id: 'dad_thick',
+    label: 'אבא עם קול עבה',
+    description: 'קול אבא עבה ומחבק',
+    emoji: '👨',
+    provider: 'elevenlabs',
+    elevenlabsVoiceId: 'cPoqAvGWCPfCfyPMwe4z',
+    previewUrl: null,
+    stability: 0.70,
+    similarityBoost: 0.78,
+  },
+  {
     id: 'big_sister',
     label: 'אחות גדולה',
     description: 'קול אחות גדולה, רגוע ומחבק',
