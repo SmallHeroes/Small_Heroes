@@ -20,6 +20,7 @@ import {
 import {
   buildStyle01BookPagePrompt,
   buildStyle01ChildVisualLock,
+  buildStyle01ChildAnatomicalLock,
   buildStyle01CompanionTextLock,
   buildStyle01CompositionBlock,
   buildStyle01EntityPresenceBlock,
@@ -137,6 +138,10 @@ export function assembleStyle01Phase2Prompt(
     ? buildStyle01WardrobeLock({ childStructured: input.childStructured })
     : undefined;
 
+  const childAnatomicalLock = childPresenceAllowsVisualLock(entityPresence.childPresence)
+    ? buildStyle01ChildAnatomicalLock()
+    : undefined;
+
   const companionTextLock =
     entityPresence.companionPresence === 'present'
       ? buildStyle01CompanionTextLock({
@@ -170,6 +175,7 @@ export function assembleStyle01Phase2Prompt(
     sceneDescription,
     childVisualLock,
     wardrobeLock,
+    childAnatomicalLock,
     companionTextLock,
     recurringObjectLocks: objectLocks || undefined,
     recurringEntityLocks: entityLocks || undefined,

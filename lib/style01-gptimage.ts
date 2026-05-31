@@ -170,7 +170,28 @@ ANATOMY EXACT COUNT (must not drift between pages):
   Must NEVER extend down the full spine to the tail. Must NEVER become a saw-spine ridge.
 - Wings: 2, peach/coral membrane. Same size relative to body across all pages.
 - Body proportion: rounded childlike — head ~30% of body height, body chubby not lean.
-  Must NEVER become a long lean adult dragon body.`;
+  Must NEVER become a long lean adult dragon body.
+
+ABSOLUTE ANATOMY LOCK (mandatory — never drift between pages):
+- Body size: small-to-medium dragon. NOT a giant. NOT an adult war-dragon. Dini is approximately the size of a large dog, not a horse.
+- Horns: EXACTLY TWO short horns on the head. Not three. Not one. Not changing. Short and slightly curved.
+- Side ear-fins: small lateral fin-like ears constant on every page. Same shape, same size.
+- Wings: small, folded close to body most of the time. Membrane color: warm peach-orange. NEVER huge spread wings. NEVER bat-like wide.
+- Back: small soft ridge bumps (NOT large spikes, NOT changing spike pattern between pages).
+- Belly: pale cream with visible soft horizontal segment lines. SAME segmentation every page.
+- Eyes: large, friendly, warm amber-brown. SAME size and shape every page.
+- Snout: short and rounded, not elongated. Friendly expression.
+- Tail: short-to-medium, tapered, ending in a small curved tip. NEVER long whip-tail.
+
+FORBIDDEN DRAGON RENDERINGS:
+- NOT a lizard. NOT a dinosaur. NOT a salamander.
+- NOT an adult war-dragon. NOT a Skyrim-style dragon.
+- NOT a Western heraldic dragon with huge horns and giant spread wings.
+- NOT a teen dragon between baby and adult.
+- NOT identical to the baby_dragon (anti-merge applies).
+
+CONSISTENCY OVER POSE:
+Whatever the pose or angle on each page, Dini's anatomy stays constant: 2 horns (not 4), small folded wings (not huge spread), small ridge bumps (not changing spikes), peach-orange membrane (not red, not yellow, not green).`;
 
 export type Style01SubjectScale = 'small' | 'medium' | 'large';
 
@@ -609,12 +630,41 @@ export function buildStyle01ChildVisualLock(input: {
 export function buildStyle01WardrobeLock(_input?: {
   childStructured?: { clothing: string };
 }): string {
+  /**
+   * NOAM TEST CHILD ANCHOR (temporary):
+   *
+   * For this Dini/Noam audition only, the yellow sun icon on the blue shirt is
+   * part of Noam's temporary test-child visual DNA. It is a deliberate QA anchor
+   * used to measure character consistency across pages. It must NOT become a
+   * production default. In production, wardrobe will be derived from the
+   * uploaded child photo and/or parent-provided child configuration.
+   *
+   * Do NOT overfit the whole child identity to the sun icon. The sun is a
+   * secondary visual anchor, not the definition of the child. See
+   * buildStyle01ChildAnatomicalLock for the identity-side anchors.
+   */
   return `BOOK WARDROBE LOCK (mandatory — never drift, every page where child appears):
 - Shirt: plain solid sky-blue t-shirt with a small yellow sun graphic at center chest. NO stripes. NO patterns. NO logos. NO other shapes. NEVER a striped shirt. NEVER a plain blue shirt without the sun.
 - Shorts: dark denim shorts, mid-thigh length. Same wash on every page.
 - Shoes: RED sneakers with white laces and white rubber soles. MANDATORY red. NEVER white sneakers. NEVER any other color.
 - Wrist accessory: small green wristband on LEFT wrist, visible on every page.
 - Same outfit on every page. NEVER substitute or simplify any element.`;
+}
+
+export function buildStyle01ChildAnatomicalLock(_input?: {
+  childStructured?: { age: number };
+}): string {
+  return `CHILD ANATOMICAL LOCK (mandatory — never drift between pages):
+- Age: approximately 4–5 years old (preschool/kindergarten age). NOT 7–8. NOT a school-age child. NOT a teenager. NOT a toddler-baby.
+- Body proportions: small child body. Head is slightly large relative to body (typical preschool proportions). NOT an adult body shrunk down. NOT a teen build.
+- Hair: dark brown, slightly wavy, short-to-medium length. SAME volume and silhouette on every page. NOT straight, NOT longer than mid-ear, NOT styled differently between pages.
+- Face: large dark eyes, soft round cheeks, small button nose, gentle childlike expression. SAME face shape and features every page.
+- Skin tone: SAME light olive skin tone on every page. NEVER drift lighter or darker between pages.
+- Ethnicity: SAME apparent ethnicity on every page. No drift between pages.
+- Forbidden child renderings: NOT a teen, NOT a school-age (8+) child, NOT a baby/toddler, NOT a different child between pages.
+
+CHILD CONSISTENCY OVER WARDROBE ANCHORS:
+The wardrobe (sun icon, red shoes, green wristband) is a secondary visual anchor — it helps but does not define the child. The child's age, face, hair, body proportions, and skin tone must remain consistent across every page even when the sun icon or wristband is partially hidden or out of frame. NEVER define the child by the wardrobe.`;
 }
 
 export function buildStyle01CompanionTextLock(input: {
@@ -759,6 +809,7 @@ export function buildStyle01BookPagePrompt(input: {
   sceneDescription: string;
   childVisualLock?: string;
   wardrobeLock?: string;
+  childAnatomicalLock?: string;
   companionTextLock?: string;
   recurringObjectLocks?: string;
   recurringEntityLocks?: string;
@@ -779,6 +830,7 @@ export function buildStyle01BookPagePrompt(input: {
     input.companionTextLock ?? '',
     input.childVisualLock ?? '',
     input.wardrobeLock ?? '',
+    input.childAnatomicalLock ?? '',
     STYLE_01_CHILD_PHOTO_IDENTITY_RULE,
     STYLE_01_REFERENCE_INSTRUCTION,
     STYLE_01_NO_TEXT,
