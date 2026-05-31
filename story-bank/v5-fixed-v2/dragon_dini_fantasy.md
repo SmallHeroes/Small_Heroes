@@ -1,372 +1,335 @@
-# Story: dragon_dini_fantasy — Story Bank v5 (Literary Rewrite)
-Generated: 2026-05-28T18:00:00.000Z
-Source: manual literary rewrite (Guy draft → adapt-pass)
+# Story: dragon_dini_fantasy — Story Bank v5 (Literary Rewrite v2)
+Generated: 2026-05-31T22:00:00.000Z
+Source: Guy literary rewrite — Benjamin & egg-with-boundary (replaces "warm stones" v1)
 Companion canonical name: דיני (per lib/companions.ts dragon_dini.name)
-Prompt-version: v5-literary
-Notes: fantasy / NEW_SIBLING / 20 pages / residue = small warm spark on windowsill = the warmth that spreads
+Prompt-version: v5-literary-v2
+Notes: fantasy / NEW_SIBLING / 20 pages / endingType=action / metaphor=soft-boundaries / female Dini (mid-sized friendly young dragon)
 
 ---
-title: "{{childName}} ודיני במערת האבנים החמות"
+title: "{{childName}} וביצת הדרקון שחיפשה גבול"
 companionId: dragon_dini
 direction: fantasy
 category: NEW_SIBLING
 gender: male
 pages: 20
-endingType: residue
-worldRule: "חום לא כמו עוגייה — כשנותנים אותו, יש יותר. החדר מתחמם."
+endingType: action
+worldRule: "דברים קטנים בועטים לכל הכיוונים כי העולם מרגיש גדול מדי — מבצרים טובים יודעים לעשות מקום"
 powerCard:
-  title: "כרטיס המקום של {{childName}}"
-  subtitle: "כשמשהו אחר נכנס למשפחה"
-  coreTool: "warmth shared multiplies"
+  title: "כרטיס המבצר של {{childName}}"
+  subtitle: "כשמשהו חדש נכנס למשפחה"
+  coreTool: "soft boundaries — wrap, don't squeeze"
   steps:
-    - "אני מרגיש/ה מה שאני מרגיש/ה"
-    - "אני זוכר/ת שהחיבוק לא נהיה קטן"
-    - "אני בודק/ת אם יש מקום לעוד אחד"
-    - "ואז אני עושה מקום"
-  companionReminder: "החיבוק לא נהיה קטן יותר. הוא למד לעשות מקום."
+    - "אני {שם|שמה} לב מי באמת בועט"
+    - "אני {שואל|שואלת}: מה {הוא|היא} צריכ/ה?"
+    - "אני {עוטף|עוטפת} ברוך — לא חזק, לא רופף"
+    - "אני {מרחיב|מרחיבה} את המבצר במקום לסגור אותו"
+  companionReminder: "מבצרים טובים יודעים לעשות מקום."
   visualMotifs:
-    - "warm windowsill spark"
-    - "dragon stone of three"
-    - "family hug widening"
-    - "soft ember glow"
+    - "silver ribbon wrap"
+    - "expanded pillow fortress"
+    - "yellow blanket tuck"
+    - "egg burrito"
 ---
 
-storyStyle: literary fantasy with parallel-world structure, gentle dragon humor, slow emotional resolution
-metaphor: warmth shared is warmth multiplied — the favorite stone becomes "an stone of three" without shrinking; new sibling expands love rather than dividing it
-stakes: the child returns home still believing the family's love is a finite cookie to be split; treats the baby as a thief of attention
-quietPagePosition: 13
-heartLine: page 19 — "החיבוק לא נהיה קטן יותר." / "הוא למד לעשות מקום."
-emotionalMistake: page 5 (and page 7 for the child) — both Dini and the child internally protest the new arrival while trying to be polite outside
-uncomfortableTruth: page 14 — "חשבתי שאם אתן מהחום שלי, יישאר לי פחות." Dini names the fear directly, only after the warmth has actually spread.
-parallelStructure: pages 1–5 establish Dini's loss; pages 6–7 mirror the child's; pages 8–10 the crossing; pages 11–16 the cave; pages 17–20 the home returned
+storyStyle: literary fantasy with slapstick humor, parallel-world structure, child-active problem solving, real failure-before-success arc
+metaphor: small things kick everywhere because the world feels too big — wrapping them in something soft (not too tight, not too loose) gives them a place to feel where safety begins
+stakes: the child's bedroom kingdom is being disrupted by a noisy new baby; the dragon-world quest mirrors the same problem with a runaway dragon egg
+quietPagePosition: 12
+heartLine: page 15 — "לפעמים דברים קטנים בועטים לכל הכיוונים כי העולם מרגיש גדול מדי"
+emotionalMistake: pages 8–9 — the child tries to roar and dance the egg into submission, both fail
+uncomfortableTruth: page 12 — "היא לא מנסה לתפוס את כל החדר... אולי שתיהן." (the egg and the baby sister are the same problem)
+parallelStructure: pages 1–2 establish home + new baby disruption; pages 3–4 dragon arrives at the child's bedroom; pages 5–15 quest in the dragon world; pages 16–19 hatching and the return home; page 20 home transformed with new fortress rules
 
 --- Page 1 ---
-גבוה בהר, במקום שבו העננים היו נחים כשהתעייפו, גר דרקון בשם דיני.
-דיני לא היה דרקון רגיל.
-הקשקשים שלו נצצו כמו נחושת מלוטשת, הכנפיים שלו היו בצבע שקיעה, והאש שלו לא שרפה שום דבר.
-האש של דיני היתה אש מחבקת.
-היא היתה כתומה, רכה, ונעימה כמו שמיכה ביום קר.
-במערה שלו היו אבנים חלקות שהאירו באור חמים.
-ודיני אהב אותן מאוד.
-במיוחד את האבן הגדולה ביותר.
-האבן שלו.
+ל{{childName}} היו חוקי ממלכה מאוד רציניים בחדר של {{childName}}.
+חוק מספר 1: אסור לגעת במבצר כריות הספה.
+חוק מספר 2: הדינוזאורים תמיד מקבלים את השמיכה הגדולה.
+אבל אז הגיע הדבר הרועש הזה.
+וואאא־אה־אההה!
+הוא צרח מהחדר הסמוך, ומרוב רעש קירות הכריות של {{childName}} נפלו — בלי בכלל שמישהו נגע בהם.
 
-imageDirection: A high mountain cave above the clouds. A young copper-scaled dragon (Dini) curls inside a warm, glowing cave. Smooth stones glow soft amber around him. His scales are polished copper, wings the color of sunset.
+imageDirection: A determined 5-year-old child in mismatched animal-print pajamas (NOT dinosaur-themed clothing), sitting inside an elaborate fort built from couch cushions and blankets, holding a plastic T-rex like a scepter. Through an open doorway in the background, a crib emits jagged comic-style sound waves.
 
 --- Page 2 ---
-בכל ערב דיני היה מתכרבל על האבן הגדולה.
-היא היתה בדיוק בגודל של דרקון אחד.
-לא שניים.
-אחד.
-הוא היה מניח עליה את הבטן, מקפל את הזנב סביב עצמו, ונושף נשיפה קטנה של חום.
-האבנים מסביב היו מתחילות לזהור.
-הוםםם.
-כך שרו האבנים כשהיה להן נעים.
-דיני אהב את השיר הזה.
-הוא היה עוצם עיניים וחולם חלומות של דרקונים:
-על עננים בצורת עוגות, על אגמים של אור, ועל מערות שבהן אף אחד לא מזיז לך את האבן.
+"בואו {תכיר|תכירי} את האחות הקטנה החדשה," לחשה אמא.
+היא נראתה כאילו לא ישנה מאז יום שלישי שעבר.
+התינוקת הייתה ראש קטן וקירח, פה ענקי, וזוג גרביים ירוקים שבעטו לכל הכיוונים.
+{{childName}} {נגע|נגעה} בכף הרגל שלה בקצה הזנב של הרפטור מפלסטיק.
+היא הייתה רכה כמו בצק קטן.
+"היא תופסת יותר מדי מקום," {רטן|רטנה} {{childName}}.
+אמא נאנחה חיוך עייף.
+"היא לא עושה את זה בכוונה. היא פשוט כל כך חדשה, שהיא עוד לומדת איך להסתדר בתוך העולם."
+התינוקת בעטה בשמיכה והעיפה אותה הצידה.
+{{childName}} {הסתכל|הסתכלה} עליה.
+"היא לא לומדת מהר במיוחד."
 
-imageDirection: Dini curled snugly on a large smooth glowing stone in the cave. His tail wrapped around himself. His belly resting on the stone. A faint warm orange light pulses from beneath him. Other smaller stones around the cave glow gently in response.
+imageDirection: The child stands on tiptoe peering over the rail of a wooden crib with a skeptical expression, gently touching the baby's foot with the tail of a plastic T-rex. The mother stands beside the child holding a half-empty bottle, very tired but loving.
 
 --- Page 3 ---
-בוקר אחד, כשדיני חזר מטיסת שמש קצרה, הוא נעצר בפתח המערה.
-משהו היה על האבן הגדולה שלו.
-משהו עגול.
-משהו כחול־מנוקד.
-משהו שזז.
-דיני התקרב בזהירות.
-"סליחה," הוא אמר, כי דיני היה דרקון מנומס מאוד, "אתה במקרה אבן?"
-הדבר העגול עשה:
-טוק.
-דיני קפץ אחורה.
-"אבנים לא עושות טוק," הוא לחש.
-ואז הופיע סדק קטן.
-ואחריו עוד אחד.
+באותו לילה, {{childName}} לא {הצליח|הצליחה} לישון.
+הבית היה שקט מדי.
+שקט כזה שמחכה לצרחה הבאה.
+ואז—
+בום־שריטה.
+משהו התגלגל בתוך ארגז הצעצועים של {{childName}}.
+לא שריטה של מפלצת.
+לא שריטה של עכבר.
+שריטה מגושמת וקשקשית של "לא התכוונתי לנחות פה".
+{{childName}} {הציץ|הציצה} פנימה.
+שתי עיניים גדולות ובוהקות, בצבע דבש, מצמצו אל {{childName}} מתוך ערימת קוביות העץ.
+זו לא הייתה מפלצת.
+מפלצות לא נתקעות עם דלי פלסטיק על האף.
 
-imageDirection: Dini hovers at the cave entrance, looking in with cautious curiosity. On his beloved large stone sits a strange round blue-speckled object that is slowly moving. Sunset light through the cave mouth.
+imageDirection: The child leans over a deep toy chest in a moonlit bedroom. From a pile of plush toys and wooden blocks peers Dini — a young female copper-scaled dragon, mid-sized (slightly larger than a golden retriever, smaller than a pony). Her copper scales shimmer; an upturned plastic bucket is stuck on her snout.
 
 --- Page 4 ---
-הביצה נפתחה.
-מתוכה התגלגל דרקון תינוק.
-הוא היה קטן כל כך, שאפשר היה כמעט לשים אותו בתוך קערת מרק.
-היו לו כנפיים זעירות, רגליים מתנדנדות, ואש קטנה באף שנראתה יותר כמו פיהוק מאשר להבה.
-"פפ," אמר התינוק.
-דיני הסתכל עליו.
-התינוק הסתכל על דיני.
-ואז התינוק זחל ישר אל האבן הגדולה, התכרבל עליה, ונרדם.
-דיני פתח את הפה.
-סגר אותו.
-פתח שוב.
-"ברוך הבא," הוא אמר לבסוף.
-אבל בלב שלו משהו אמר:
-רגע. זאת האבן שלי.
+"או!" אמרה הדרקונית, וניערה את הדלי מהאף.
+שלוש קוביות עפו ישר לתוך מגירת הגרביים של {{childName}}.
+"{אתה מלך|את מלכת} הדינוזאורים!"
+{{childName}} {הזדקף|הזדקפה}.
+"נכון," {אמר|אמרה} {{childName}}.
+"אני צריכה מישהו שמבין במבצרים, בחוקים ובשמיכות," אמרה הדרקונית. "הביצה של המשפחה שלי נכנסה להתקף גלגולים ענקי, והיא פשוט לא מוכנה להישאר בקן."
+{{childName}} {כיווץ|כיווצה} עיניים.
+"אני {מומחה|מומחית} להתקפי גלגולים."
+"קיוויתי {שתגיד|שתגידי} את זה," אמרה הדרקונית. "אני דיני."
 
-imageDirection: The blue-speckled egg is cracking open on the glowing stone. One tiny copper-orange baby dragon is just emerging from inside the cracked shell. Dini watches in surprise beside the stone. No second baby. No intact full egg.
+imageDirection: Dini shakes her head joyfully, sending wooden blocks flying. She is youthful, playful, mid-sized — like a friendly dog-sized dragon you could ride if she let you. The child stands tall in mismatched animal-print pajamas, hands on hips, like a serious fortress commander.
 
 --- Page 5 ---
-דיני ניסה להיות דרקון גדול וטוב.
-הוא נשף חום רך סביב התינוק.
-הוםםם, שרו האבנים.
-התינוק נאנח מתוך שינה והתקרב עוד יותר לאבן הגדולה.
-דיני זז קצת הצידה.
-ואז עוד קצת.
-עד שחצי זנב שלו נשאר מחוץ לחום.
-"זה בסדר," אמר דיני לעצמו. "אני דרקון בוגר. דרקונים בוגרים יודעים לחלוק."
-אבל הזנב שלו לא הרגיש בוגר בכלל.
-הוא הרגיש קר.
-וקצת נעלב.
+דיני {הזדנבה|השתחלה} ישר דרך החלק האחורי של ארגז הצעצועים.
+{{childName}} {התגלגל|התגלגלה} אחריה.
+במקום קירות עץ, הם יצאו אל גבעות מתגלגלות של טחב כתום ורך.
+האדמה קפצה מתחת לרגליים של {{childName}}.
+בּוֹינג.
+בּוֹינג.
+גם דיני קפצה קצת, למרות שניסתה להיראות מקצועית מאוד.
+"אלה גבעות הטרמפולינה," היא אמרה. "ושם נמצא הקן של המשפחה שלי."
+היא הצביעה בזנב.
+"כלומר," הוסיפה, "בדרך כלל."
 
-imageDirection: The baby dragon nestles on the big warm stone. Dini has scooted aside, half his tail now resting off the warm zone in cooler shadow. His expression — politely composed but visibly trying not to look hurt.
+imageDirection: The child and Dini emerge from the back of a glowing toy chest portal into a magical landscape of rolling orange moss hills — soft, bouncy, trampoline-like. The sky is a gentle purple twilight. The world feels enchanted, warm, and safe-to-fall-on.
 
 --- Page 6 ---
-רחוק משם, בבית עם גג אדום וחלון כחול, גר/ה {{childName}}.
-עד לא מזמן, הבית היה פשוט.
-אמא היתה של {{childName}}. אבא היה של {{childName}}. הספה היתה מקום לחיבוקים של {{childName}}. והשירים לפני השינה היו שירים של {{childName}}.
-ואז {הגיע|הגיעה} {תינוק|תינוקת} {חדש|חדשה} הביתה.
-{קטן|קטנה}. {רך|רכה}. {קולני|קולנית} באופן מפתיע.
-כולם אמרו: "איזה מתוק/ה."
-{{childName}} הסתכל/ה ואמר/ה גם: "מתוק/ה."
-אבל בפנים היתה מילה אחרת.
-הממ.
+בתוך קן עשוי כריות כחולות וספוגיות ישבה ביצה ענקית.
+היא הייתה ירוקה־טחבית ובהירה, עם נמשים קטנים בצבע נחושת.
+אבל הביצה לא באמת ישבה.
+היא קפצה.
+בונג! בונג!
+היא דילגה מעל כרית אחת, נתקעה בכנף של דיני, הסתובבה במקום, והתגלגלה לכיוון מדרון חלקלק.
+דיני זינקה אחריה.
+"רואה?" היא קראה. "התקף גלגולים!"
 
-imageDirection: A cozy home with red roof and blue window in a green valley. Inside, the child stands on a rug watching mom and dad cradling a small newborn baby. Sun streaming in through the window.
+imageDirection: A nest made of round blue spongy cushions sits in a depression in the orange moss. Inside is a large moss-green egg with copper freckles. The egg bounces in mid-air mid-frame, having just ricocheted off Dini's wing, while Dini lunges to catch it with her tongue out in concentration.
 
 --- Page 7 ---
-{התינוק|התינוקת} {קיבל|קיבלה} הרבה ידיים.
-ידיים של אמא. ידיים של אבא. ידיים של סבתא.
-{התינוק|התינוקת} {קיבל|קיבלה} שירים. וקולות קטנים. וחיבוקים שנמשכו הרבה זמן.
-{{childName}} אהב/ה את {התינוק|התינוקת}.
-באמת.
-אבל לפעמים, כשאמא אמרה "רגע, אני עם {התינוק|התינוקת}", או כשאבא לחש "ששש, {הוא|היא} כמעט {נרדם|נרדמת}," הלב של {{childName}} היה נעשה קטן.
-לא קטן מאוד.
-רק קטן מספיק כדי לחשוב:
-אולי נשאר פחות בשבילי.
+"היא לא עוצרת!" קראה דיני, והחליקה על הבטן כדי לעצור את הביצה.
+"היא רק מתגלגלת, בועטת ומתהפכת. כאילו היא מנסה למצוא איפה נגמר הכול!"
+{{childName}} {שילב|שילבה} ידיים.
+זה נשמע מוכר.
+"{ניסית|ניסית} להסביר לה את חוקי הקן?"
+דיני מצמצה.
+"ביצי דרקון לא מצטיינות בהקשבה."
+"גם אחיות תינוקות לא," {אמר|אמרה} {{childName}}.
 
-imageDirection: A family living room. Mom holds the baby with grandma close by, baby getting many gentle hands. The child sits on the floor a little apart, holding a toy block, watching quietly. Warm soft afternoon light.
+imageDirection: Dini sprawled belly-down on the orange moss, using her chin to halt the wobbling egg before a slope. The child stands beside her with arms folded, looking like a very certified fortress-consultant. Tail-tip of Dini twitching with effort.
 
 --- Page 8 ---
-אחר הצהריים אחד, כש{{childName}} ישב/ה ליד החלון, נכנס לחדר אור כתום ורך.
-לא אור של שמש.
-לא אור של מנורה.
-אור שהיה לו ריח של אבן חמימה ושל סיפור.
-הוא נגע בקצה האצבע של {{childName}} ודגדג אותה בעדינות.
-"היי," אמר/ה {{childName}}.
-האור זחל אל הרצפה, עבר מתחת לכיסא, ונעצר ליד הדלת.
-הוא נראה כמו שביל קטן.
-{{childName}} הסתכל/ה סביב.
-אמא היתה עסוקה. אבא היה עם {התינוק|התינוקת}.
-אז {{childName}} עמד/ה.
-"אני רק {בודק|בודקת} משהו," אמר/ה.
-והלך/ה אחרי האור.
+"ניסיתי את נשיפת הדרקון הכי חמימה שלי," אמרה דיני.
+היא הדגימה בזהירות.
+פְּףףף.
+פרח קטן לידם נקלה קלות ונראה מופתע מאוד.
+{{childName}} {צעד|צעדה} אל הביצה הרועדת.
+{נשם|נשמה} נשימה עמוקה.
+ואז {נתן|נתנה} את שאגת הדינוזאור הכי טובה, הכי רועשת והכי מפחידה.
+"רווווווואאאאר!"
+הביצה עצרה.
+לשנייה אחת.
+ואז קפצה פי שניים יותר גבוה וכמעט עפה מעל הראש של {{childName}}.
+"אוקיי," {אמר|אמרה} {{childName}}. "לא שאגות."
 
-imageDirection: A small magical orange light glides across the living room floor like a soft glowing trail. The child rises and follows curiously. Mom and dad are engaged with the baby in the background, unaware.
+imageDirection: The child gives a full-body dinosaur roar. The egg trembles, then SHOOTS up into the air with comic motion lines. Dini looks startled. Beside them, a small flower is freshly singed and looks indignant — a beat of slapstick comedy.
 
 --- Page 9 ---
-השביל הכתום הוביל מחוץ לבית, דרך הגינה, מעבר לעץ הרימון, ועד למרגלות ההר.
-שם, בין שתי אבנים גדולות, היתה דרך צרה.
-היא עלתה למעלה.
-לא מהר.
-לא ישר.
-דרך של הרים, שאוהבים לקחת את הזמן.
-{{childName}} טיפס/ה בזהירות.
-האור הקטן הלך {לפניו|לפניה}.
-בכל פעם שהדרך נראתה ארוכה מדי, האור האיר רק את האבן הבאה.
-רק אותה.
-וזה הספיק לצעד אחד.
-אחר כך עוד אחד.
+{{childName}} {נזכר|נזכרה} איך אמא ניערה רעשן צבעוני כשהתינוקת נופפה בידיים לכל עבר.
+{קטף|קטפה} שני תרמילי זרעים חלולים וסגולים מצמח קרוב.
+ואז {ניער|ניערה} אותם כמו מרקשים.
+צ׳יק־א־צ׳יק־א־צ׳יק!
+{רקד|רקדה} שמאלה.
+{רקד|רקדה} ימינה.
+ואפילו עשה כיפוף ברכיים מאוד רציני.
+הביצה הפסיקה להתגלגל.
+ואז התחילה לרטוט כל כך מהר, שהיא נראתה כמו כתם מטושטש.
+דיני התקרבה.
+"אני חושבת שהיא שונאת מוזיקה."
+"אני {חושב|חושבת} שהיא שונאת את המוזיקה שלי," {אמר|אמרה} {{childName}}.
 
-imageDirection: A child climbs a narrow mountain path between huge stones. A single small orange floating light hovers just one step ahead, lighting only the next stone. The mountain rises into clouds above.
+imageDirection: The child shakes two purple seed-pod maracas in a frenetic dance in front of the egg. The egg vibrates in place, motion-blurred entirely, unimpressed. Dini watches with worried curiosity.
 
 --- Page 10 ---
-בסוף הדרך היתה מערה.
-מתוכה יצא חום נעים.
-{{childName}} הציץ/ה פנימה.
-במרכז המערה שכב דרקון גדול בצבע נחושת.
-לידו, על אבן זוהרת, התכרבל דרקון תינוק.
-הדרקון הגדול נראה עייף.
-הדרקון התינוק רעד קצת.
-והאבנים סביבם שרו הוםםם חלש מאוד.
-"אוי לא," מלמל הדרקון הגדול. "לא מספיק חם."
-הוא נשף שוב.
-האור התחזק לרגע.
-ואז נחלש.
-דיני הביט באבן הגדולה שלו, ואז בתינוק, ואז בזנב הקר שלו.
+הביצה עשתה סלטה אחורית ענקית.
+היא פספסה את הזנב של דיני, קפצה מכרית אחת, ונחתה על מגלשה ארוכה וחלקה של קריסטל כחול.
+"לתפוס את הביצה!" {צעק|צעקה} {{childName}}.
+דיני זינקה על המגלשה והחליקה על הבטן.
+{{childName}} {קפץ|קפצה} לה על הגב.
+הם גלשו למטה.
+ווייייייי—
+"משימת הצלה מקצועית!" צעקה דיני.
+"מקצועית מאוד!" {צעק|צעקה} {{childName}} בחזרה, כשהחולצה של הפיג׳מה עלתה {לו|לה} על הפרצוף.
 
-imageDirection: The child peeks into the cave entrance. Inside, Dini the copper dragon lies tiredly beside a large stone where the baby dragon shivers slightly. The cave stones glow faintly — a weakened amber.
+imageDirection: Dini slides belly-first down a long blue crystal slide like a toboggan. The child clings to her neck, laughing and screaming, while the freckled egg careens ahead of them like a runaway ball.
 
 --- Page 11 ---
-{{childName}} נכנס/ה צעד אחד למערה.
-דיני הרים את הראש.
-"שלום," אמר בזהירות. "{אתה|את} במקרה {יודע|יודעת} איך מחממים דרקון תינוק?"
-"לא," אמר/ה {{childName}}.
-דיני נאנח.
-"גם אני לא לגמרי. וזה מביך, כי אני דרקון."
-התינוק עשה פפ קטן ורעד שוב.
-{{childName}} הרגיש/ה משהו בחזה.
-משהו דומה לאור שמשך {אותו|אותה} לכאן.
-לא אש.
-לא פחד.
-ניצוץ קטן.
-"אולי," אמר/ה {{childName}} בשקט, "אולי לא צריך שתחמם אותו לבד."
-דיני מצמץ.
-"לא לבד?"
+הם החליקו אל עמקי הלחישות.
+צמחי סוף ענקיים ופרוותיים התנודדו מעליהם ונשפו רוח חמימה.
+ווווו־וויייי!
+הביצה פגעה בקרקע והתחילה להסתובב כמו סביבון.
+סיבוב ועוד סיבוב.
+מהר יותר ויותר.
+ישר לכיוון שלולית סגולה ודביקה של לשד־מרשמלו רך.
+דיני התנשפה.
+"אם היא תיתקע בזה, נצטרך לשטוף ביצה במשך שבוע!"
 
-imageDirection: The child takes one careful step into the cave. Dini raises his head with cautious hope. The baby dragon shivers on the stone. The cave glow is dim but the child's face is determined.
+imageDirection: A whimsical valley filled with giant fuzzy reed-like plants swaying gently. The egg spins on its tip like a top, kicking up colored dust, heading toward a sticky purple puddle of melted-marshmallow goo.
 
 --- Page 12 ---
-דיני הסתכל על האבן הגדולה.
-הוא אהב את האבן הזאת.
-היא הכירה את הבטן שלו. היא הכירה את הזנב שלו. היא אפילו הכירה את הנחירה הקטנה שהוא עשה כשחלם על עוגות ענן.
-אבל התינוק רעד.
-{{childName}} התיישב/ה ליד האבן, לא קרוב מדי.
-"אפשר לעשות מקום," אמר/ה.
-דיני הזיז כנף אחת.
-קצת.
-ואז עוד קצת.
-פתאום היה מקום קטן בין דיני לבין התינוק.
-לא מקום גדול.
-אבל מקום של התחלה.
+{{childName}} {הביט|הביטה} בביצה המסתובבת.
+נמשי הנחושת שלה נמרחו לפס אחד.
+היא נראתה כל כך פרועה.
+אבל היא לא נראתה כאילו היא מנסה לברוח.
+היא נראתה… אבודה.
+כאילו היא לא יודעת איפה לעצור.
+{{childName}} {הסתכל|הסתכלה} על הידיים של {{childName}}.
+{חשב|חשבה} על מבצר הכריות.
+מבצר מרגיש טוב יותר כשהקירות שלו בדיוק במקום.
+ואז {חשב|חשבה} על התינוקת, עטופה בשמיכה הצהובה, רגועה סוף סוף לדקה שלמה.
+"היא לא מנסה לתפוס את כל החדר," {אמר|אמרה} {{childName}} לאט.
+דיני ריחפה לידו.
+"מי?"
+"אולי שתיהן."
 
-imageDirection: Dini gently shifts one wing aside, opening a small space on the warm stone between himself and the shivering baby dragon. The child sits respectfully nearby. The stone's glow brightens fractionally.
+imageDirection: The child watches the spinning egg with a thoughtful, dawning realization. A gentle memory-bubble shows the baby sister wrapped in a yellow blanket, peaceful. A wide ribbon-like silver grass strand hangs from a nearby reed plant within the child's reach.
 
 --- Page 13 ---
-{{childName}} התקרב/ה וישב/ה במקום הקטן.
-האבן היתה חמימה.
-התינוק פקח עין אחת, רחרח, וזחל אל {{childName}}.
-הוא היה קל יותר מכרית, וחם יותר מכוס שוקו.
-{{childName}} שם/ה יד בזהירות ליד גבו.
-"שלום," לחש/ה.
-התינוק עשה פפ שמח.
-דיני נשף נשיפה רכה.
-באותו רגע, האבן שמתחת לשלושתם נדלקה קצת יותר.
-הוםםם.
-הצליל היה עמוק יותר.
-כאילו המערה אמרה:
-ככה.
+{{childName}} {תפס|תפסה} את סרט הכסף הארוך.
+"היא לא צריכה שאגה!" {צעק|צעקה} {{childName}}. "היא צריכה מבצר!"
+ואז {{childName}} {רץ|רצה} אל הביצה המסתובבת.
+זה לא היה הרעיון הכי אלגנטי של {{childName}}.
+{{childName}} {כרך|כרכה} יד אחת סביב הביצה.
+ואז רגל אחת.
+ואז איכשהו את כל הגוף.
+"סרט!" {צעק|צעקה} {{childName}}.
+דיני זרקה ל{{childName}} את הקצה.
+{{childName}} {עטף|עטפה} את הביצה פעם אחת.
+פעמיים.
+שלוש פעמים.
+ואז {הידק|הידקה} את הקצה טוב־טוב.
 
-imageDirection: The child sits on the warm stone. The baby dragon has crawled close and nestled against the child's side. Dini exhales a soft warm breath. The stone glows visibly brighter under all three. The cave hums.
+imageDirection: Comic action shot — the child is half-wrapped around the spinning egg, dizzy but determined, wrestling it down while wrapping it with a wide stretchy silver ribbon. Dini stands beside throwing the ribbon-end like a tag-team partner.
 
 --- Page 14 ---
-דיני הסתכל סביב.
-האבן הגדולה שלו לא היתה קטנה יותר.
-להפך.
-כשהתינוק התקרב, וכש{{childName}} ישב/ה לידם, החום התפשט.
-לא רק תחת הבטן של דיני.
-גם לצדדים. גם לאבנים הקטנות. גם עד קצה הזנב הקר.
-"זה מוזר," אמר דיני.
-"מה?" שאל/ה {{childName}}.
-"חשבתי שאם אתן מהחום שלי, יישאר לי פחות."
-התינוק התעטש ניצוץ קטן.
-פף!
-אבן קטנה לידו נדלקה.
-דיני בהה בה.
-"אבל עכשיו יש יותר."
+הביצה הפסיקה להסתובב.
+היא התנדנדה.
+נחתה ברכות על הטחב.
+היא לא התגלגלה.
+היא לא קפצה.
+היא פשוט…
+נשמה.
+אור ירוק־נחושתי ואיטי פעם דרך הקליפה.
+{{childName}} {שכב|שכבה} על הגב לידה, {מאובק|מאובקת} וגאה.
+"בוריטו ביצה," {אמר|אמרה} {{childName}}.
+דיני לחשה, "בוריטו ביצה אלגנטי מאוד."
 
-imageDirection: Cave perspective showing the warmth visibly spreading. The big stone glows. Smaller stones along the cave wall also light up. Dini's previously-cold tail tip is now warm. The baby has sneezed a tiny spark that lit another stone. Dini wide-eyed.
+imageDirection: The egg lies still on the orange moss, wrapped in the wide silver ribbon like a giant burrito. The child lies on his/her back beside it, dusty and proud. Dini looks enchanted and relieved.
 
 --- Page 15 ---
-{{childName}} חשב/ה על הבית.
-על אמא עם {התינוק|התינוקת}.
-על אבא ששר שירים שקטים.
-על המקום בספה שנראה פתאום קטן יותר.
-"אולי חום הוא לא כמו עוגייה," אמר/ה.
-דיני הרים גבה דרקונית.
-"חבל. אני אוהב עוגיות."
-"אם נותנים עוגייה, נשאר פחות," אמר/ה {{childName}}. "אבל אם נותנים חום…"
-דיני נשף נשיפה קטנה.
-האבן זהרה.
-"אז החדר מתחמם," אמר.
-"ואז יש יותר מקום לכולם," אמר/ה {{childName}}.
-התינוק נרדם בדיוק באמצע התשובה, כי תינוקות לא תמיד מחכים לסוף של משפטים חשובים.
+דיני נחתה לידם וקיפלה את הכנפיים קרוב לגוף.
+"זה עבד," היא לחשה. "היא הייתה צריכה משהו רך מסביב. מקום להרגיש בו איפה בטוח."
+{{childName}} {טפח|טפחה} על הביצה העטופה.
+"לפעמים דברים קטנים בועטים לכל הכיוונים כי העולם מרגיש גדול מדי."
+דיני הביטה ב{{childName}}.
+"זה חוק של {מלך|מלכת} הדינוזאורים?"
+{{childName}} {חשב|חשבה} על הגרביים הוורודים של התינוקת, שבעטו באוויר בלי הפסקה.
+"אולי," {אמר|אמרה} {{childName}}. "חוק חדש."
 
-imageDirection: The child sits with Dini and the now-sleeping baby dragon on the bright stone. The child has a soft thoughtful smile. Dini raises a comically expressive dragon eyebrow at the cookie comparison. The cave glows steadily warm.
+imageDirection: Dini curls protectively around the child and the wrapped egg. The light shifts to warm amber. The wrapped egg pulses with a slow, safe rhythm. THIS IS THE HEART-LINE MOMENT — tender, quiet, dawn-of-understanding.
 
 --- Page 16 ---
-דיני פינה עוד מקום.
-הפעם בלי לעשות פרצוף.
-כמעט.
-הוא עדיין עשה פרצוף קטן, אבל רק זנב אחד שם לב.
-{{childName}} צחק/ה.
-"קשה לחלוק את האבן הכי טובה?"
-"מאוד," אמר דיני מיד. "היא האבן של הבטן שלי."
-"אולי עכשיו היא אבן של שלושה," אמר/ה {{childName}}.
-דיני הסתכל על התינוק.
-על {{childName}}.
-על האבן.
-ואז, לאט לאט, הוא חייך.
-"אבן של שלושה," הוא חזר.
-האבנים שרו הוםםם, כאילו אהבו את השם החדש.
+קראק.
+סרט הכסף נקרע.
+הקליפה נסדקה בדיוק באמצע.
+ומתוכה התגלגל דרקון תינוק.
+היו לו קשקשים רכים בצבע ירוק־טחב, נמשים קטנים בצבע נחושת, וקרומי כנפיים בצבע אפרסק.
+הכנפיים שלו היו גדולות מדי בשביל הגוף.
+על הראש היו לו שתי בליטות רכות וקטנות.
+לא קרניים עדיין.
+כמעט קרניים.
+אולי יום אחד קרניים.
+הדרקון התינוק מצמץ אל העולם הגדול.
+ואז התעטש.
+ענן קטן בצורת כוכב יצא לו מהאף.
 
-imageDirection: Dini scoots over slightly more, making room. Baby dragon and child both nestled on the warm bright stone. Dini's face shows a tiny conceding smile. The cave is fully glowing warm now.
+imageDirection: Cracked eggshell halves on the orange moss. A baby dragon — moss-green scales with copper freckles matching the shell, peach-colored wing membranes oversized for the body, large head with two soft bumps (NOT horns yet) — sits in the shell with a piece of shell still on his snout.
 
 --- Page 17 ---
-האור הכתום ליווה את {{childName}} בחזרה מההר.
-הדרך למטה הרגישה קצרה יותר.
-אולי כי הרים אוהבים ילדים שכבר גילו משהו.
-ואולי כי {{childName}} חשב/ה על אמא ואבא ועל {התינוק|התינוקת}.
-{כשהגיע|כשהגיעה} הביתה, נשמע בכי קטן מהסלון.
-לא קטן באוזניים.
-קטן בגוף.
-{התינוק|התינוקת} {בכה|בכתה}.
-אמא החזיקה {אותו|אותה} ונראתה עייפה.
-אבא חיפש את המוצץ מתחת לשמיכה.
-הבית היה מלא מדי.
-{{childName}} עמד/ה בדלת.
-הפירור הישן בלב חזר.
-אבל הוא לא היה חד כמו קודם.
+הדרקון התינוק {עשה|עשה} צעד אחד.
+הזנב שלו הלך שמאלה.
+הרגליים שלו הלכו ימינה.
+והפרצוף שלו הלך ישר אל החיק של {{childName}}.
+פלופ.
+{{childName}} {צחק|צחקה}.
+הדרקון התינוק התכרבל עם האף הרטוב שלו בתוך פיג׳מת החיות של {{childName}} והשמיע קול קטן.
+"ציף."
+דיני כיסתה את הפה בכנף אחת.
+"אני חושבת," היא לחשה, "שהוא אוהב את הממלכה שלך."
 
-imageDirection: The child returns down the mountain path with the small orange light leading. Approaching the family home. Inside, visible through the window, mom holds a crying baby, dad searching for a pacifier — a busy, tired-looking moment.
+imageDirection: The child sits cross-legged and laughs as the baby dragon faceplants gently into his/her lap. The baby's tail wags like a puppy's. Dini approaches with a warm, proud smile.
 
 --- Page 18 ---
-{{childName}} התקרב/ה אל הספה.
-"אפשר לשבת לידכם?" שאל/ה.
-אמא פתחה יד אחת.
-"תמיד."
-{{childName}} התיישב/ה קרוב.
-בהתחלה היה חיבוק אחד {לתינוק|לתינוקת}.
-ואז אמא משכה את {{childName}} פנימה.
-אבא מצא סוף סוף את המוצץ, אבל {התינוק|התינוקת} כבר {הפסיק|הפסיקה} לבכות לרגע.
-{{childName}} הושיט/ה אצבע קטנה.
-{התינוק|התינוקת} {תפס|תפסה} אותה.
-האחיזה היתה חלשה.
-אבל חמה.
-בדיוק כמו פפ קטן של דרקון.
+דיני נגעה בעדינות בכתף של {{childName}} עם האף.
+"הוא חושב {שאתה מפקד|שאת מפקדת} המבצר."
+{{childName}} {ליטף|ליטפה} את הבליטות הרכות שעל ראש הדרקון התינוק.
+"הוא הולך להפיל הרבה דברים," {אמר|אמרה} {{childName}}.
+הדרקון התינוק התעטש עוד ענן קטן בצורת כוכב.
+הענן נחת ל{{childName}} על האף ונעלם.
+{{childName}} {חייך|חייכה}.
+"אבל אני {מניח|מניחה} שהוא יכול להישאר בממלכה."
+העיניים של דיני התחממו כמו דבש.
+"זה חוק עם לב גדול מאוד."
 
-imageDirection: The child sits close to mom on the sofa. Mom's free arm pulls the child in. The baby's small hand wraps around the child's finger. A gentle moment of inclusion. Soft evening light.
+imageDirection: The child hugs the baby dragon's neck. The baby releases a small harmless puff of smoke that bursts into a tiny star-shaped cloud. Dini glows beside them — proud, warm.
 
 --- Page 19 ---
-{{childName}} הסתכל/ה על אמא.
-"החיבוק לא נהיה קטן יותר," אמר/ה.
-אמא חייכה, אבל העיניים שלה היו קצת מבריקות.
-"לא," היא אמרה. "הוא למד לעשות מקום."
-אבא התיישב בצד השני והניח יד על הגב של {{childName}}.
-עכשיו החיבוק היה גדול יותר.
-לא מסודר.
-לא שקט.
-עם {תינוק|תינוקת} באמצע, ומוצץ שנפל שוב, ושמיכה שהתגלגלה לרצפה.
-אבל חם.
-{{childName}} עצם/ה עיניים לרגע.
-בלב {שלו|שלה} נדלקה אבן קטנה.
-הוםםם.
+פתח ארגז הצעצועים נצנץ באוויר.
+היה לו ריח קלוש של עץ, שטיח וגרב אחת אבודה.
+דיני דחפה את {{childName}} בעדינות.
+"תודה, {שומר|שומרת} החוקים."
+{{childName}} {נופף|נופפה} לשלום.
+גם הדרקון התינוק נופף, ואז נפל הצידה.
+דיני תפסה אותו בזנב.
+"עדיין לומד איפה הוא נגמר," היא אמרה.
+ואז גבעות הטרמפולינה נמוגו.
 
-imageDirection: Family hug — mom, dad, baby, and the child all together on the sofa. Imperfect but warm. The pacifier has fallen on the floor, the blanket is half-slumped. Everyone slightly disheveled but close. Golden evening glow through the window.
+imageDirection: The child steps backward through a shimmering portal-shape that is the open back of the wooden toy chest. Dini and the baby dragon wave goodbye; the baby still has a piece of eggshell on his snout and is mid-faceplant, with Dini catching his tail. The magic dissolves into the child's bedroom.
 
 --- Page 20 ---
-בלילה, כש{{childName}} נכנס/ה למיטה, היה על אדן החלון ניצוץ כתום קטן.
-הוא לא שרף.
-הוא לא הבהיל.
-הוא רק זהר.
-רחוק בהר, דיני כנראה הזיז שוב את הזנב כדי לפנות מקום.
-ואולי עשה פרצוף קטן.
-ואולי לא.
-{{childName}} חייך/ה.
-בחדר השני {התינוק|התינוקת} {השמיע|השמיעה} קול קטן.
-פעם, הקול הזה היה מרגיש כמו משהו שלוקח מקום.
-עכשיו הוא הרגיש כמו עוד אבן שנדלקת.
-{{childName}} לחש/ה:
-"יש מקום."
-והניצוץ שעל החלון הבהב כאילו ענה:
-יש.
+התינוקת הייתה ערה.
+הרגליים שלה בעטו לכל הכיוונים.
+הפנים שלה התחילו להפוך לוורודות.
+השמיכה שלה הייתה חצי מחוץ לעריסה.
+אמא הושיטה יד לבקבוק.
+אבא הושיט יד למוצץ.
+{{childName}} {הושיט|הושיטה} יד לשמיכה הצהובה.
+{תחב|תחבה} קצה אחד.
+ואז את הקצה השני.
+לא חזק מדי.
+לא רופף מדי.
+בדיוק מספיק.
+התינוקת הפסיקה לבעוט.
+היא מצמצה אל {{childName}}.
+ואז נאנחה ועצמה את העיניים.
+{{childName}} {חייך|חייכה}.
+{{childName}} {חזר|חזרה} אל מבצר הכריות, {דחף|דחפה} את הכיסאות רחוק יותר, ו{פרש|פרשה} את השמיכה הגדולה רחב יותר.
+לממלכה היו חוקים חדשים עכשיו.
+וקצת יותר מקום.
 
-imageDirection: Night. The child tucked into bed peaceful. On the windowsill, a tiny warm orange spark glows softly — a small ember from the mountain. Moonlight. In the next room, a faint warm light suggests the baby is also peaceful. The home is quiet and at rest.
-WORD_COUNT: [68, 77, 58, 76, 62, 62, 60, 77, 64, 66, 69, 69, 58, 65, 77, 71, 71, 57, 65, 72] = [1344]
+imageDirection: The child carefully wraps the baby sister in a yellow blanket in the crib — not too tight, not too loose. The baby calms. In the final beat, the child expands the pillow fortress in the living room: pushing chairs outward and spreading an additional blanket wider, so the kingdom feels bigger.
