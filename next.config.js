@@ -24,6 +24,19 @@ const nextConfig = {
     '/api/orders/[orderId]/power-card': ['./story-bank/**/*', './node_modules/@sparticuz/chromium/**/*'],
   },
   /**
+   * Style 01 audition assets live under public/companions/<id>/style01-sheets/.
+   * These reference PNGs (~2-3 MB each) are read ONLY by audition scripts running
+   * locally, gated behind PHASE2_STYLE01_BOOK_PIPELINE=true. Production code paths
+   * (Vercel) never read them, so the file-trace MUST exclude them or the
+   * serverless function exceeds Vercel's 250 MB unzipped cap.
+   *
+   * If you ever enable PHASE2_STYLE01_BOOK_PIPELINE in production, replace this
+   * with a URL-fetch flow that reads sheets via the public CDN URL, not fs.readFile.
+   */
+  outputFileTracingExcludes: {
+    '*': ['public/companions/**/style01-sheets/**'],
+  },
+  /**
    * Legacy .html entry points and direct /public/HTML/*.html URLs -> canonical
    * paths. Query string is preserved by Next (not listed in destination).
    */
