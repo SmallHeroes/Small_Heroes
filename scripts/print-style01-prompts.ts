@@ -1,7 +1,7 @@
 /**
  * scripts/print-style01-prompts.ts
  *
- * Prompt-only printer for Style 01 — Dini fantasy + Dobi adventure, pages 1-5.
+ * Prompt-only printer for Style 01 — Dini fantasy (pages 1-10) + Dobi adventure (pages 1-5).
  * NO image API calls. NO OpenAI cost. NO file uploads to OpenAI.
  *
  * Calls assembleStyle01Phase2Prompt() directly per page and writes the result
@@ -30,7 +30,7 @@ import { assembleStyle01Phase2Prompt } from '../lib/style01-prompt-assembly';
 const CHILD_NAME = process.env.CHILD_NAME?.trim() || 'נועם';
 const CHILD_AGE = Number.parseInt(process.env.CHILD_AGE?.trim() ?? '5', 10) || 5;
 const CHILD_GENDER = (process.env.CHILD_GENDER?.trim() || 'boy') as 'boy' | 'girl';
-const MAX_PAGES = 5;
+const MAX_PAGES_DEFAULT = 5;
 const OUT_DIR = path.join(process.cwd(), 'outputs', 'style01-prompts');
 
 type Target = {
@@ -38,6 +38,7 @@ type Target = {
   label: string;
   companionId: string;
   storyFile: string;
+  maxPages: number;
 };
 
 const TARGETS: Target[] = [
@@ -46,12 +47,14 @@ const TARGETS: Target[] = [
     label: 'Dini fantasy (dragon)',
     companionId: 'dragon_dini',
     storyFile: 'story-bank/v5-fixed-v2/dragon_dini_fantasy.md',
+    maxPages: 10,
   },
   {
     id: 'dobi',
     label: 'Dobi adventure (bear cub)',
     companionId: 'bear_cub_gahal',
     storyFile: 'story-bank/v5-fixed-v2/bear_cub_gahal_adventure.md',
+    maxPages: MAX_PAGES_DEFAULT,
   },
 ];
 
@@ -87,12 +90,12 @@ async function runOne(target: Target): Promise<void> {
     CHILD_NAME,
     companion.name,
     CHILD_GENDER,
-    { maxPages: MAX_PAGES, skipPersonalizationGate: true }
+    { maxPages: target.maxPages, skipPersonalizationGate: true }
   );
 
   await mkdir(OUT_DIR, { recursive: true });
 
-  for (let i = 0; i < Math.min(MAX_PAGES, story.pages.length); i++) {
+  for (let i = 0; i < Math.min(target.maxPages, story.pages.length); i++) {
     const page = story.pages[i];
     const pageNumber = page.pageNumber ?? i + 1;
 
@@ -148,15 +151,17 @@ async function main(): Promise<void> {
   console.log(`  CHILD_NAME=${CHILD_NAME}  AGE=${CHILD_AGE}  GENDER=${CHILD_GENDER}`);
   console.log(`  out: ${OUT_DIR}`);
 
+  let totalFiles = 0;
   for (const target of TARGETS) {
     try {
       await runOne(target);
+      totalFiles += target.maxPages;
     } catch (err) {
       console.error(`! ${target.label} failed:`, err);
     }
   }
 
-  console.log(`\nDone. ${TARGETS.length * MAX_PAGES} prompt files written under: ${OUT_DIR}`);
+  console.log(`\nDone. ${totalFiles} prompt files written under: ${OUT_DIR}`);
   console.log(`(NO OpenAI / image API was called.)`);
 }
 

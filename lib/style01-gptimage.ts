@@ -247,6 +247,56 @@ export const DRAGON_DINI_COMPOSITION_BY_PAGE: Record<number, Style01CompositionS
       'Emotional wider — Dini at cooler edge, copper baby on warm zone of the stone. Cave interior with depth and atmosphere visible. INTERIOR ONLY — no outdoor staging.',
     pagePurpose: 'Sharing warmth inside the cave — emotional squeeze, not outdoor exploration',
   },
+  6: {
+    shotType: 'wide establishing transition',
+    subjectScale: 'small',
+    camera: 'wide interior home — cozy living room visible, child in foreground, family with newborn in background',
+    subjectDominance:
+      'Cozy home interior — red-roofed house exterior visible through window, child watches mom and dad cradling a small newborn baby; child in lower-third, family scene fills frame. CRITICAL: the newborn is a TINY HUMAN BABY held by an adult — not a toddler, not another standing child. The child protagonist (Noam) is the only independent standing child in the scene.',
+    staging:
+      'Interior home with sunlight through blue window, mom and dad holding newborn baby (held in arms — looks newborn-sized, not toddler-sized) on sofa/chair, child standing on rug watching quietly. NO dragon, NO cave, NO mountain.',
+    pagePurpose: 'Switch to child world — new sibling has arrived',
+  },
+  7: {
+    shotType: 'medium emotional',
+    subjectScale: 'small',
+    camera: 'medium-wide home interior — family living room, soft warm afternoon light',
+    subjectDominance:
+      'Mom + grandma + others attending to baby with many gentle hands; child sits a little apart on the floor, holding a small toy, watching quietly. The baby is a TINY HUMAN NEWBORN being held — not a toddler, not another standing/walking child. The child protagonist remains the only independent child.',
+    staging:
+      'Living room: family clustered around baby getting gentle attention; child sits alone on rug holding a wooden block, watching from a small distance. Warm afternoon light. NO dragon, NO cave.',
+    pagePurpose: "Show the child's quiet emotional distance from the family's focus",
+  },
+  8: {
+    shotType: 'medium magical',
+    subjectScale: 'small',
+    camera: 'medium-wide interior — orange glowing light path on the floor leading toward door',
+    subjectDominance:
+      'Small magical orange light glides across living room floor like a soft glowing trail; child rises curiously to follow; family in background still occupied with baby (unaware). The orange light is ABSTRACT — no face, no wings, no creature body, no fairy, no fireball, no eyes.',
+    staging:
+      'Same home interior. A small orange glowing magical light hovers just above the floor, tracing a path from near the window, under a chair, toward the door. Child standing, drawn to follow. Family in background unaware. NO dragon visible — only the light hint. Light is a soft abstract glow, NOT a creature.',
+    pagePurpose: 'Mystery invitation — magical light leads child on a journey',
+  },
+  9: {
+    shotType: 'wide journey',
+    subjectScale: 'small',
+    camera: 'wide outdoor mountain — narrow path between huge boulders, mountain rises into clouds above',
+    subjectDominance:
+      'Child small on narrow path between two massive grey boulders; single small orange floating light hovers exactly one step ahead, lighting only the next stone; mountain rises into soft clouds above. The orange light remains ABSTRACT — no face, no wings, no creature, no fairy, no fireball.',
+    staging:
+      'Outdoor mountain landscape, narrow ascending path between huge stones, child mid-climb carefully, single small orange magical light just one step ahead. The mountain rises into soft clouds. NO cave entrance visible yet — that comes in p10. Light is a soft abstract glow.',
+    pagePurpose: 'The journey upward — guidance one step at a time',
+  },
+  10: {
+    shotType: 'discovery medium-wide',
+    subjectScale: 'medium',
+    camera: 'medium-wide at cave entrance — child peeks in, Dini and baby visible inside',
+    subjectDominance:
+      "Child cautiously peeks into cave entrance; inside, Dini the adult copper dragon lies tiredly beside the large glowing stone where the baby dragon shivers slightly. Read priority: child and Dini's first emotional reaction are the MAIN read. Baby dragon is small and secondary but clearly visible. The glowing stone is environment — NOT the main subject. Exactly ONE adult Dini and exactly ONE baby dragon. No second adult dragon. Baby has no adult horns/wings/spikes.",
+    staging:
+      'Mountain cave entrance with child standing in the threshold looking in; inside the cave Dini lies near the large glowing stone, the baby dragon nestled on the stone shivering, cave stones glowing dimly. Atmosphere: cool, dim, in need of warmth. Do NOT let glowing stone or baby dragon dominate the frame — focal point is the moment of meeting.',
+    pagePurpose: 'First meeting — child arrives at the parallel world',
+  },
 };
 
 /** bear_cub_gahal (Dobi) — 10-page continuity audition composition targets. */

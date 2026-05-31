@@ -1,15 +1,15 @@
 /**
- * Style 01 + gpt-image-1 — dragon_dini 5-page controlled audition (Path B').
+ * Style 01 + gpt-image-2 — dragon_dini (Dini) 10-page continuity audition.
  *
  * Usage:
  *   PHASE2_STYLE01_BOOK_PIPELINE=true
  *   PHASE2_STYLE01_REF_CONFIG=A
  *   IMAGE_PROVIDER=gpt-image
+ *   STYLE_01_GPT_MODEL=gpt-image-2
+ *   STYLE01_QA_IMAGE_QUALITY=low (default) | medium | high
  *   npx tsx --require ./scripts/shims/register-server-only.cjs scripts/run-style01-dini-audition.ts
  *
- * Optional: CHILD_PHOTO_PATH=... (only used on pages where childPresence !== absent)
- * Optional: STORY_BANK_SKIP_PERSONALIZATION_GATE=true (pages 1–5 are companion-only; child name appears from page 6)
- * Composition: per-page targets + subjectScale in lib/style01-gptimage.ts DRAGON_DINI_COMPOSITION_BY_PAGE
+ * Optional: ONLY_PAGES=1,2,3,4,5,6,7,8,9,10
  */
 import { config as loadEnv } from 'dotenv';
 loadEnv({ path: '.env.local' });
@@ -34,24 +34,31 @@ import { estimateGptImage2CostUsd } from '../lib/pricing';
 import {
   DRAGON_DINI_COMPOSITION_BY_PAGE,
   DRAGON_DINI_RECURRING_OBJECT_CATALOG,
-  DRAGON_DINI_RECURRING_ENTITY_CATALOG,
   isStyle01Phase2BookPipelineEnabled,
   resolveStyle01RefBudgetConfig,
   resolveStyle01GptModel,
-  resolveStyle01StoryLocks,
 } from '../lib/style01-gptimage';
 
 const STORY_FILE = 'dragon_dini_fantasy.md';
+const COMPANION_ID = 'dragon_dini';
 const ILLUSTRATION_STYLE = 'soft_hand_drawn_storybook';
 const CHILD_NAME = process.env.CHILD_NAME?.trim() || 'נועם';
 const CHILD_AGE = Number.parseInt(process.env.CHILD_AGE?.trim() ?? '5', 10) || 5;
 const CHILD_GENDER = (process.env.CHILD_GENDER?.trim() || 'boy') as 'boy' | 'girl';
-const MAX_PAGES = 5;
+const MAX_PAGES = 10;
 const PAGE_SOFT_TIMEOUT_MS = 4 * 60 * 1000;
+
+function resolveAuditionQuality(): string {
+  return (
+    process.env.STYLE01_QA_IMAGE_QUALITY?.trim().toLowerCase() ||
+    process.env.GPT_IMAGE_QUALITY?.trim().toLowerCase() ||
+    'unknown'
+  );
+}
 
 function parseOnlyPages(): number[] {
   const raw = process.env.ONLY_PAGES?.trim();
-  if (!raw) return [1, 2, 3, 4, 5];
+  if (!raw) return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
   return raw
     .split(/[,\s]+/)
     .map((s) => Number.parseInt(s.trim(), 10))
@@ -59,6 +66,12 @@ function parseOnlyPages(): number[] {
 }
 
 function assertEnv(): void {
+  // Audition default: LOW quality unless caller overrides via STYLE01_QA_IMAGE_QUALITY or GPT_IMAGE_QUALITY.
+  // This DOES NOT change production behavior — production code paths use the regular GPT_IMAGE_QUALITY env at runtime in a separate process.
+  process.env.GPT_IMAGE_QUALITY =
+    process.env.STYLE01_QA_IMAGE_QUALITY?.trim().toLowerCase() ||
+    process.env.GPT_IMAGE_QUALITY?.trim().toLowerCase() ||
+    'low';
   process.env.STYLE_01_AUDITION_MODE = 'true';
   process.env.CHILD_ANCHOR_VARIANTS = '1';
   process.env.IMAGE_PROVIDER = 'gpt-image';
@@ -83,8 +96,8 @@ async function main(): Promise<void> {
   assertEnv();
 
   const onlyPages = parseOnlyPages();
-  const companion = getCompanionById('dragon_dini');
-  if (!companion) throw new Error('dragon_dini companion not found');
+  const companion = getCompanionById(COMPANION_ID);
+  if (!companion) throw new Error(`${COMPANION_ID} companion not found`);
 
   const storyPath = path.join(process.cwd(), 'story-bank', 'v5-fixed-v2', STORY_FILE);
   const ts = new Date().toISOString().replace(/[:.]/g, '-');
@@ -101,13 +114,7 @@ async function main(): Promise<void> {
     CHILD_NAME,
     companion.name,
     CHILD_GENDER,
-    {
-      maxPages: MAX_PAGES,
-      // dragon_dini_fantasy pages 1-5 are companion-only (child appears from page 6).
-      // The personalization gate would fail because childName is not in the rendered text.
-      // For this prompt-set audition we bypass it; production paths never set this flag.
-      skipPersonalizationGate: true,
-    }
+    { maxPages: MAX_PAGES }
   );
 
   const pagesToRender = story.pages.filter((p) => onlyPages.includes(p.pageNumber));
@@ -160,6 +167,7 @@ async function main(): Promise<void> {
 
   const manifestPages: Array<Record<string, unknown>> = [];
   let totalEstimatedCostUsd = 0;
+  const q = resolveAuditionQuality();
 
   for (const page of pagesToRender) {
     const image = results.get(page.pageNumber);
@@ -171,7 +179,6 @@ async function main(): Promise<void> {
       companionName: companion.name,
       companionId: companion.id,
       recurringObjectCatalog: DRAGON_DINI_RECURRING_OBJECT_CATALOG,
-      recurringEntityCatalog: DRAGON_DINI_RECURRING_ENTITY_CATALOG,
     });
     const composition = DRAGON_DINI_COMPOSITION_BY_PAGE[page.pageNumber];
     const localPath = path.join(outDir, `page-${String(page.pageNumber).padStart(2, '0')}.png`);
@@ -200,6 +207,10 @@ async function main(): Promise<void> {
       finalPrompt: promptText,
       refsPassed: meta?.style01Meta?.referenceBreakdown ?? null,
       model: image?.provider ?? 'failed',
+      quality: q,
+      provider: 'gpt-image',
+      style: 'style01',
+      promptPath: path.relative(process.cwd(), promptPath),
       sceneClass: meta?.style01Meta?.sceneClass ?? null,
       imageUrl: image?.url ?? null,
       localPng: existsSync(localPath) ? localPath : null,
@@ -208,12 +219,6 @@ async function main(): Promise<void> {
       durationMs: meta?.style01Meta?.durationMs ?? null,
       estimatedCostUsd: cost.estimatedCostUsd,
       costRateSource: cost.costRateSource,
-      acceptanceNotes: {
-        noChild: entityPresence.childPresence === 'absent',
-        diniPresent: entityPresence.companionPresence === 'present',
-        recurringObjects: entityPresence.recurringObjects,
-        recurringEntities: entityPresence.recurringEntities,
-      },
     });
   }
 
@@ -222,8 +227,11 @@ async function main(): Promise<void> {
   );
 
   const manifest = {
-    audition: 'style01-dragon-dini-5p',
+    audition: 'style01-dragon-dini-10p',
     model: resolveStyle01GptModel(),
+    quality: q,
+    provider: 'gpt-image',
+    style: 'style01',
     illustrationStyle: ILLUSTRATION_STYLE,
     storyFile: STORY_FILE,
     refConfig: resolveStyle01RefBudgetConfig(),
@@ -234,13 +242,15 @@ async function main(): Promise<void> {
     costRateSource: sampleCost.costRateSource,
     pages: manifestPages,
     acceptanceChecklist: [
-      'Pages 1–3: no human child in image',
-      'Dini copper/orange (not green) across pages',
-      'Glowing stone same object when visible',
-      'Blue-speckled egg same object on page 3+',
-      'Baby dragon copper-orange (recurringEntityLock) on pages 4–5',
-      'Page 5 cave interior only — no outdoor drift',
-      'Compositions: p1 wide establishing, p2 intimate close, p3 discovery',
+      'Pages 1–5: no human child (Dini cave world)',
+      'Pages 6–9: no companion (child home world + mountain path)',
+      'Page 10: both child and Dini in cave',
+      'Dini copper-orange adult dragon — NOT green/teal',
+      'Baby dragon: copper hatchling, MUCH smaller than Dini, distinct from Dini (no horns, no developed spikes, newborn proportions)',
+      'Glowing stone consistent across cave pages (1, 2, 3, 4, 5, 10)',
+      'Blue-speckled egg: intact p3, cracking p4, fragments p5+',
+      'Pages 6-7 read as cozy indoor home (red roof, blue window, family interior)',
+      'Pages 8-9 read as transition (magical orange light → mountain path)',
       'Soft watercolor Style 01 — not cinematic Style 02',
     ],
   };
@@ -249,22 +259,20 @@ async function main(): Promise<void> {
   await writeFile(
     path.join(outDir, 'QA.md'),
     [
-      '# Style 01 — dragon_dini 5-page audition QA',
+      '# Style 01 — dragon_dini (Dini) 10-page continuity audition QA',
       '',
       '## Acceptance',
       '',
-      '- [ ] Pages 1–3: **no human child**',
-      '- [ ] Dini **copper/orange**, not green',
-      '- [ ] **Glowing stone** consistent',
-      '- [ ] **Blue-speckled egg** consistent (page 3+)',
-      '- [ ] Composition variety (wide / intimate / discovery)',
+      '- [ ] Pages 1–5: **no human child**',
+      '- [ ] Pages 6–9: **no companion**',
+      '- [ ] Page 10: **child + Dini reunion**',
+      '- [ ] Dini **copper-orange** — not green/teal',
+      '- [ ] Baby dragon distinct from adult Dini',
       '- [ ] Soft watercolor — **not** Style 02 cinematic',
-      '',
-      '## Per page',
       '',
       ...manifestPages.map(
         (p) =>
-          `### Page ${p.pageNumber}\n- childPresence: ${(p.entityPresence as { childPresence: string }).childPresence}\n- composition: ${JSON.stringify(p.compositionTarget)}\n- [ ] pass\n`
+          `### Page ${p.pageNumber}\n- childPresence: ${(p.entityPresence as { childPresence: string }).childPresence}\n- [ ] pass\n`
       ),
     ].join('\n'),
     'utf-8'
@@ -273,7 +281,10 @@ async function main(): Promise<void> {
   console.log('\n=== Done ===');
   console.log(`Manifest: ${path.join(outDir, 'manifest.json')}`);
   console.log(`Failed pages: ${failedPages.length ? failedPages.join(', ') : 'none'}`);
-  console.log(`Est. cost: ${manifest.totalEstimatedCostUsd != null ? `$${manifest.totalEstimatedCostUsd.toFixed(2)}` : 'unset — configure GPT_IMAGE_2_COST_PER_1K_*'}`);
+  console.log(`Quality: ${q}`);
+  console.log(
+    `Est. cost: ${manifest.totalEstimatedCostUsd != null ? `$${manifest.totalEstimatedCostUsd.toFixed(2)}` : 'unset — no usage tokens'}`
+  );
 }
 
 main().catch((err) => {

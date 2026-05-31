@@ -67,6 +67,34 @@ export const DRAGON_DINI_PAGE_STORY_STATES: Record<number, PageStoryState> = {
       baby_dragon: 'present',
     },
   },
+  6: {
+    presentEntities: [],
+    forbiddenEntities: ['dini', 'baby_dragon', 'glowing_stone', 'blue_speckled_egg', 'mountain_cave'],
+    objectStates: {},
+  },
+  7: {
+    presentEntities: [],
+    forbiddenEntities: ['dini', 'baby_dragon', 'glowing_stone', 'blue_speckled_egg', 'mountain_cave'],
+    objectStates: {},
+  },
+  8: {
+    presentEntities: [],
+    forbiddenEntities: ['dini', 'baby_dragon', 'glowing_stone', 'blue_speckled_egg'],
+    objectStates: {},
+  },
+  9: {
+    presentEntities: [],
+    forbiddenEntities: ['dini', 'baby_dragon', 'glowing_stone', 'blue_speckled_egg'],
+    objectStates: {},
+  },
+  10: {
+    presentEntities: ['glowing_stone', 'baby_dragon'],
+    forbiddenEntities: ['intact_blue_speckled_egg', 'intact_full_egg'],
+    objectStates: {
+      glowing_stone: 'intact',
+      baby_dragon: 'present',
+    },
+  },
 };
 
 export const BEAR_CUB_DOBI_PAGE_STORY_STATES: Record<number, PageStoryState> = {
