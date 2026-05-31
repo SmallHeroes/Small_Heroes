@@ -271,7 +271,7 @@ export const BEAR_CUB_DOBI_COMPOSITION_BY_PAGE: Record<number, Style01Compositio
     shotType: 'medium walk-away',
     subjectScale: 'medium',
     camera: 'medium-wide tracking shot — forest path depth visible',
-    subjectDominance: 'Dobi mouth closed, cheeks puffed, walking away gently; path and trees share frame',
+    subjectDominance: 'Dobi clamping mouth shut with effort, cheeks puffed, shoulders hunched, taking one careful step away; path and trees share frame',
     staging: 'Forest path, tense shoulders, squirrel watching from bush',
     pagePurpose: 'Choosing safe release over lashing out',
   },

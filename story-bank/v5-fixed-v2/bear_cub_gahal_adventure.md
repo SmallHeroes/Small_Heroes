@@ -89,7 +89,7 @@ imageDirection: Dobi discovers the berry bush completely bare. A cheeky squirrel
 דובי לא ענה.
 זה היה קשה מאוד.
 
-imageDirection: Dobi presses his mouth closed, cheeks slightly puffed, eyes upset but gentle, paws curled softly. He turns away from the squirrel with visible effort and starts walking into the forest. Tense shoulders. The squirrel watches from the bush.
+imageDirection: Dobi clamps his mouth shut with visible effort, cheeks puffed like he is holding in a big roar, eyebrows knitted, eyes watery but gentle. His paws are curled into soft fists against his chest, shoulders hunched. He turns away from the squirrel and takes one careful step into the forest path. The squirrel watches from the berry bush. No teeth, no open mouth, no snarl.
 
 --- Page 4 ---
 בקצה היער {עמד|עמדה} {{childName}}.
