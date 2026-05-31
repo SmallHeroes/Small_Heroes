@@ -89,7 +89,7 @@ imageDirection: Dobi discovers the berry bush completely bare. A cheeky squirrel
 דובי לא ענה.
 זה היה קשה מאוד.
 
-imageDirection: Dobi turns away from the squirrel, holding back a roar. He walks into the forest with tense shoulders, choosing not to roar at the squirrel. The squirrel watches from the bush.
+imageDirection: Dobi presses his mouth closed, cheeks slightly puffed, eyes upset but gentle, paws curled softly. He turns away from the squirrel with visible effort and starts walking into the forest. Tense shoulders. The squirrel watches from the bush.
 
 --- Page 4 ---
 בקצה היער {עמד|עמדה} {{childName}}.
@@ -121,7 +121,7 @@ imageDirection: The child stands at the forest edge holding a broken favorite cr
 יש מקום שלא כועסים בו על אף אחד.
 אבל כן נותנים לכעס לצאת.
 
-imageDirection: Dobi gently nudges the child's hand with his cool nose, then turns toward a deeper forest path. The child looks surprised and begins to follow, still holding the broken crayon.
+imageDirection: Dobi's black wet nose physically touches the open palm of the child's left hand. This nose-to-palm contact is the focal action of the page, clearly visible in the foreground. The child looks down at the touch, surprised. Behind them, a deeper forest path leads further in. Child still holds the broken red-orange crayon in the other hand.
 
 --- Page 6 ---
 הם עברו בין שרכים גבוהים.

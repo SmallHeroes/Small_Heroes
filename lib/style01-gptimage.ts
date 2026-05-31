@@ -271,7 +271,7 @@ export const BEAR_CUB_DOBI_COMPOSITION_BY_PAGE: Record<number, Style01Compositio
     shotType: 'medium walk-away',
     subjectScale: 'medium',
     camera: 'medium-wide tracking shot — forest path depth visible',
-    subjectDominance: 'Dobi holding back a roar, walking away; path and trees share frame',
+    subjectDominance: 'Dobi mouth closed, cheeks puffed, walking away gently; path and trees share frame',
     staging: 'Forest path, tense shoulders, squirrel watching from bush',
     pagePurpose: 'Choosing safe release over lashing out',
   },
@@ -296,6 +296,7 @@ export const BEAR_CUB_DOBI_COMPOSITION_BY_PAGE: Record<number, Style01Compositio
 export const BEAR_CUB_DOBI_RECURRING_OBJECT_CATALOG: Record<string, string[]> = {
   berry_bush: ['berry bush', 'shrub', 'bush', 'branches', 'פטל', 'שיח'],
   mossy_rock: ['mossy green rock', 'mossy rock', 'green rock', 'סלע'],
+  broken_crayon: ['broken crayon', 'red-orange crayon', 'snapped crayon', 'broken red crayon', 'עפרון שבור'],
 };
 
 export const BEAR_CUB_DOBI_RECURRING_OBJECT_LOCKS: Record<string, string> = {
@@ -303,6 +304,8 @@ export const BEAR_CUB_DOBI_RECURRING_OBJECT_LOCKS: Record<string, string> = {
 The same wild forest berry bush. Distinctive visual signature: round dark-green leaves arranged in clusters of three, with bright crimson-red berries (small, round, ~1cm each) hanging in tight clusters of 5–7 berries. Bush height approximately knee-high to the child. Slightly weathered look — a real forest bush, not a manicured garden plant. Same exact bush appears in every page where present — same shape, same berry density, same lean to one side.`,
   mossy_rock: `RECURRING OBJECT LOCK — MOSSY GREEN ROCK:
 The same large mossy boulder. Distinctive visual signature: rounded grey granite boulder approximately waist-high to the child, with a thick velvety moss covering the top third (vivid green moss, soft texture, slightly darker green in shaded crevices). Small patches of orange-yellow lichen on the exposed grey rock face. Same exact rock in every page where present — same silhouette, same moss coverage, same lichen pattern.`,
+  broken_crayon: `RECURRING OBJECT LOCK — BROKEN CRAYON:
+The same broken crayon, snapped into two uneven pieces. Color: warm red-orange (like a sun-drawing crayon, NOT blue, NOT green, NOT yellow). Both pieces visible, jagged white break edge between them. Held in the child's left hand throughout pages where present — same color, same break angle, same proportions. NEVER intact, NEVER a different color.`,
 };
 
 export const BEAR_CUB_DOBI_COMPANION_LOCK = `COMPANION LOCK — DOBI (warm living bear cub):
