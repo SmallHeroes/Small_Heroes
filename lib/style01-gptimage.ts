@@ -6,6 +6,7 @@ import { existsSync, readdirSync } from 'fs';
 import path from 'path';
 import { STYLE_IDS } from './styles';
 import type { Style02RefBudgetConfig } from './style02-gptimage';
+import { resolveStyle01StoryWardrobeLock } from './style01-story-wardrobe';
 
 export const STYLE_01_GPT_MODEL_DEFAULT = 'gpt-image-1';
 
@@ -42,7 +43,7 @@ export const STYLE_01_FRAMING_RULE = `FRAMING RULE — BREATHE:
 - Environment must occupy at least 50% of visible area.
 - Avoid tight portrait crops. Avoid close-up faces unless explicitly specified as "close-up" shotType.
 - For "wide" / "medium-wide" / "establishing" shots: characters should be in lower third or off-center, environment dominates.
-- For "intimate" shots: still leave breathing room — cave ceiling, surrounding stones, depth visible. NOT a portrait crop.
+- For "intimate" shots: still leave breathing room — show the surrounding environment described in THIS page's staging (never default to a cave or any fixed location); keep depth and scene context visible. NOT a portrait crop.
 - FORBIDDEN: character filling frame, tight headshot, claustrophobic framing, no environmental context.`;
 
 export const STYLE_01_REFERENCE_INSTRUCTION =
@@ -333,6 +334,19 @@ export function shouldUseStyle01Phase2Path(styleIdInput?: string | null): boolea
   return isStyle01Phase2BookPipelineEnabled() && isStyle01BookStyle(styleIdInput);
 }
 
+/** Audition-only quality — reads STYLE01_QA_IMAGE_QUALITY, never GPT_IMAGE_QUALITY. */
+export function resolveStyle01AuditionImageQuality(): 'low' | 'medium' | 'high' {
+  const q = process.env.STYLE01_QA_IMAGE_QUALITY?.trim().toLowerCase();
+  if (q === 'low' || q === 'medium' || q === 'high') return q;
+  throw new Error(
+    '[style01] STYLE01_QA_IMAGE_QUALITY must be low, medium, or high when STYLE_01_AUDITION_MODE=true'
+  );
+}
+
+export function isStyle01AuditionModeEnabled(): boolean {
+  return process.env.STYLE_01_AUDITION_MODE?.trim().toLowerCase() === 'true';
+}
+
 export function resolveStyle01RefBudgetConfig(): Style02RefBudgetConfig {
   const raw = (process.env.PHASE2_STYLE01_REF_CONFIG ?? process.env.PHASE2_STYLE02_REF_CONFIG ?? 'A')
     .trim()
@@ -431,6 +445,7 @@ export function resolveStyle01CompanionReferencePath(
 }
 
 export function buildStyle01ChildVisualLock(input: {
+  companionId?: string | null;
   childName?: string | null;
   childDescription?: string;
   childStructured?: { face: string; hair: string; body: string; signature: string };
@@ -441,29 +456,24 @@ export function buildStyle01ChildVisualLock(input: {
   if (cs?.face?.trim() && cs?.hair?.trim()) {
     const ageBit = input.childAge ? ` Age ${input.childAge}.` : '';
     const genderBit = input.childGender ? ` ${input.childGender}.` : '';
-    return `CHILD VISUAL LOCK (verbatim when child appears): ${cs.face}. ${cs.hair}. ${cs.body}.${ageBit}${genderBit} ${cs.signature ?? ''}`.trim();
+    let signature = (cs.signature ?? '').trim();
+    if (input.companionId === 'dragon_dini' && /dinosaur|dino toy|green toy/i.test(signature)) {
+      signature = 'Identity-only — no clothing or toy props in this line (see WARDROBE LOCK and scene).';
+    }
+    return `CHILD VISUAL LOCK (verbatim when child appears): ${cs.face}. ${cs.hair}. ${cs.body}.${ageBit}${genderBit} ${signature}`.trim();
   }
   const name = (input.childName ?? 'the child').trim();
   const desc = (input.childDescription ?? 'young child protagonist').trim();
   return `CHILD VISUAL LOCK (verbatim when child appears): ${name} — ${desc}.`.trim();
 }
 
-export function buildStyle01WardrobeLock(_input?: {
+export function buildStyle01WardrobeLock(input?: {
+  companionId?: string | null;
   childStructured?: { clothing: string };
 }): string {
-  /**
-   * NOAM TEST CHILD ANCHOR (temporary):
-   *
-   * For this Dini/Noam audition only, the yellow sun icon on the blue shirt is
-   * part of Noam's temporary test-child visual DNA. It is a deliberate QA anchor
-   * used to measure character consistency across pages. It must NOT become a
-   * production default. In production, wardrobe will be derived from the
-   * uploaded child photo and/or parent-provided child configuration.
-   *
-   * Do NOT overfit the whole child identity to the sun icon. The sun is a
-   * secondary visual anchor, not the definition of the child. See
-   * buildStyle01ChildAnatomicalLock for the identity-side anchors.
-   */
+  const storyWardrobe = resolveStyle01StoryWardrobeLock(input?.companionId);
+  if (storyWardrobe) return storyWardrobe;
+
   return `BOOK WARDROBE LOCK (mandatory — never drift, every page where child appears):
 - Shirt: plain solid sky-blue t-shirt with a small yellow sun graphic at center chest. NO stripes. NO patterns. NO logos. NO other shapes. NEVER a striped shirt. NEVER a plain blue shirt without the sun.
 - Shorts: dark denim shorts, mid-thigh length. Same wash on every page.
@@ -472,20 +482,32 @@ export function buildStyle01WardrobeLock(_input?: {
 - Same outfit on every page. NEVER substitute or simplify any element.`;
 }
 
-export function buildStyle01ChildAnatomicalLock(_input?: {
+export function buildStyle01ChildAnatomicalLock(input?: {
+  companionId?: string | null;
   childStructured?: { age: number };
 }): string {
-  return `CHILD ANATOMICAL LOCK (mandatory — never drift between pages):
+  const base = `CHILD ANATOMICAL LOCK (mandatory — never drift between pages):
 - Age: approximately 4–5 years old (preschool/kindergarten age). NOT 7–8. NOT a school-age child. NOT a teenager. NOT a toddler-baby.
 - Body proportions: small child body. Head is slightly large relative to body (typical preschool proportions). NOT an adult body shrunk down. NOT a teen build.
 - Hair: dark brown, slightly wavy, short-to-medium length. SAME volume and silhouette on every page. NOT straight, NOT longer than mid-ear, NOT styled differently between pages.
 - Face: large dark eyes, soft round cheeks, small button nose, gentle childlike expression. SAME face shape and features every page.
 - Skin tone: SAME light olive skin tone on every page. NEVER drift lighter or darker between pages.
 - Ethnicity: SAME apparent ethnicity on every page. No drift between pages.
-- Forbidden child renderings: NOT a teen, NOT a school-age (8+) child, NOT a baby/toddler, NOT a different child between pages.
+- Forbidden child renderings: NOT a teen, NOT a school-age (8+) child, NOT a baby/toddler, NOT a different child between pages.`;
+
+  if (input?.companionId === 'dragon_dini') {
+    return `${base}
+- EXACTLY ONE child protagonist in the frame when a child is present — NEVER two children, NEVER a duplicate protagonist, NEVER a second child building or playing separately.
+- NEVER a second copy of the same child in background/foreground.
+
+CHILD CONSISTENCY OVER WARDROBE:
+The bird-print pajamas are story-constant wardrobe — they help continuity but do NOT define identity. Face, hair, skin, age, and proportions must match every page even when pajama details are partially hidden.`;
+  }
+
+  return `${base}
 
 CHILD CONSISTENCY OVER WARDROBE ANCHORS:
-The wardrobe (sun icon, red shoes, green wristband) is a secondary visual anchor — it helps but does not define the child. The child's age, face, hair, body proportions, and skin tone must remain consistent across every page even when the sun icon or wristband is partially hidden or out of frame. NEVER define the child by the wardrobe.`;
+The wardrobe is a secondary visual anchor — it helps but does not define the child. The child's age, face, hair, body proportions, and skin tone must remain consistent across every page even when wardrobe details are partially hidden or out of frame. NEVER define the child by the wardrobe.`;
 }
 
 export function buildStyle01CompanionTextLock(input: {

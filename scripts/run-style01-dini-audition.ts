@@ -55,10 +55,11 @@ const MAX_STORY_PAGES = 20;
 const DEFAULT_RENDER_PAGES = [1, 13, 15, 20];
 const PAGE_SOFT_TIMEOUT_MS = 4 * 60 * 1000;
 
+/** Positive day-clothes lock lines only — not "NEVER red sneakers" prohibitions in bird pajama lock. */
 const DAY_CLOTHES_LEFTOVER_PATTERNS: Array<{ label: string; re: RegExp }> = [
-  { label: 'sun t-shirt wardrobe', re: /\bsky-blue t-shirt with a small yellow sun\b/i },
-  { label: 'denim shorts wardrobe', re: /\bdark denim shorts\b/i },
-  { label: 'red sneakers wardrobe', re: /\bRED sneakers\b/i },
+  { label: 'sun t-shirt wardrobe', re: /plain solid sky-blue t-shirt with a small yellow sun/i },
+  { label: 'denim shorts wardrobe', re: /Shorts: dark denim shorts/i },
+  { label: 'red sneakers wardrobe', re: /Shoes: RED sneakers/i },
 ];
 
 const OLD_STORY_LEFTOVER_PATTERNS: Array<{ label: string; re: RegExp }> = [

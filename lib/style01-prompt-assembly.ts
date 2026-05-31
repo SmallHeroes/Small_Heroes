@@ -126,6 +126,7 @@ export function assembleStyle01Phase2Prompt(
 
   const childVisualLock = childPresenceAllowsVisualLock(entityPresence.childPresence)
     ? buildStyle01ChildVisualLock({
+        companionId: input.companion?.id,
         childName: input.childFirstName,
         childDescription: input.childDescription,
         childStructured: input.childStructured,
@@ -135,11 +136,14 @@ export function assembleStyle01Phase2Prompt(
     : undefined;
 
   const wardrobeLock = childPresenceAllowsVisualLock(entityPresence.childPresence)
-    ? buildStyle01WardrobeLock({ childStructured: input.childStructured })
+    ? buildStyle01WardrobeLock({
+        companionId: input.companion?.id,
+        childStructured: input.childStructured,
+      })
     : undefined;
 
   const childAnatomicalLock = childPresenceAllowsVisualLock(entityPresence.childPresence)
-    ? buildStyle01ChildAnatomicalLock()
+    ? buildStyle01ChildAnatomicalLock({ companionId: input.companion?.id })
     : undefined;
 
   const companionTextLock =
@@ -157,6 +161,7 @@ export function assembleStyle01Phase2Prompt(
     ? buildStoryStateForbiddenBlock(pageStoryState)
     : '';
 
+  const compositionSpec = storyLocks.compositionByPage?.[input.pageNumber];
   const compositionBlock = buildStyle01CompositionBlock({
     pageNumber: input.pageNumber,
     imageDirection,
@@ -169,7 +174,11 @@ export function assembleStyle01Phase2Prompt(
     forbiddenEntities: forbiddenMerged,
   });
 
-  const sceneDescription = imageDirection;
+  // Story-bank imageDirection may still mention obsolete clothing; composition staging + wardrobe lock win.
+  const sceneDescription =
+    input.companion?.id === 'dragon_dini' && compositionSpec?.staging?.trim()
+      ? compositionSpec.staging.trim()
+      : imageDirection;
 
   const prompt = buildStyle01BookPagePrompt({
     sceneDescription,

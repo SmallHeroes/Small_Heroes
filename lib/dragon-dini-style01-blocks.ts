@@ -136,7 +136,7 @@ A small soft baby blanket, warm yellow color (like soft butter or pale sunshine)
 A deep wooden toy chest in the child's bedroom. Distinctive visual signature: warm honey-brown wood with visible grain, hinged lid (open in scenes where it functions as portal), interior depth visible filled with wooden blocks and plush toys. On pages 3, 5, 19 the back of the chest GLOWS faintly as a portal between worlds — soft warm-light shimmer visible at the rear interior. Otherwise (p1, p2, p20) it sits as ordinary furniture.`,
 
   t_rex_toy: `RECURRING OBJECT LOCK — T-REX/RAPTOR TOY:
-A small plastic dinosaur toy held by the child — alternates between T-rex shape (p1, p2, p8) and raptor shape (mentioned p2). Distinctive visual signature: forest-green plastic with darker green spine stripe, articulated legs and tail, approximately the size of the child's forearm. Same exact toy across all appearances — same color, same proportions. On p1 held aloft like a scepter; on p2 used as a gentle tail-probe over the crib rail.`,
+A small rigid PLASTIC toy dinosaur (T-rex shape on p1/p2/p8) — clearly artificial, matte plastic, palm-to-forearm sized, obviously inanimate. Distinctive visual signature on p1: bright orange OR bright blue plastic (NOT green — must not read as moss-green baby dragon or live Dini), darker accent stripe, articulated legs and tail. Same toy identity across pages but p1 color must be non-green for clarity. On p1 held aloft like a scepter; on p2 used as a gentle tail-probe over the crib rail. NEVER alive, NOT Dini, NOT the baby dragon, NOT moss-green scales.`,
 
   green_speckled_egg: `RECURRING OBJECT LOCK — GREEN SPECKLED DRAGON EGG:
 The runaway dragon egg. Distinctive visual signature: oval egg shape, slightly larger than a soccer ball, base color moss-green (slightly muted, like new spring moss), covered with small copper-orange freckles in irregular cluster patterns. Surface is smooth and slightly waxy, with a soft inner glow that pulses faintly when calm. Same exact egg appears in every page where present — same green tone, same copper freckle pattern (do not redraw freckles randomly).
@@ -146,7 +146,7 @@ STATES: intact (p3 forbidden — egg unseen; pp 6–13 intact and bouncing); wra
 ABSOLUTELY NEVER: blue, white, golden, gem-like, or any color other than moss-green-with-copper-freckles. NEVER on a glowing amber stone (that was the old story). NEVER cracked early.`,
 
   silver_ribbon: `RECURRING OBJECT LOCK — SILVER RIBBON:
-A wide stretchy ribbon, woven from silvery-grey reed-grass strands of the whisper valley. Distinctive visual signature: about as wide as the child's forearm, satiny silver-grey surface with a slight shimmer (NOT metallic, NOT mirror — closer to silvery silk), strong but flexible. Appears in pp 12–15 as the wrap material. Same exact ribbon every appearance — same width, same silvery-grey color. On p13 actively being wrapped around the egg; on p14–15 fully wrapped around the egg like a burrito; on p16 visibly torn open by the hatching baby.`,
+A wide stretchy ribbon woven from silvery-grey reed-grass strands of the whisper valley. Distinctive visual signature: about as wide as the child's forearm, soft silver-grey CLOTH ribbon / soft woven fabric sash — matte, flexible, visible fabric weave or soft textile texture. NOT metal, NOT plastic, NOT a hard band, NOT mirror-shiny, NOT foil. Slight soft sheen like silk gauze at most. Strong but flexible. Appears in pp 12–15 as the wrap material. On p13 actively being wrapped around the egg; on p14–15 fully wrapped like a soft fabric burrito; on p16 torn open by the hatching baby.`,
 
   orange_moss_hills: `RECURRING OBJECT LOCK — ORANGE MOSS HILLS:
 The signature landscape of Dini's dragon world. Distinctive visual signature: rolling soft hills covered in vivid orange-tangerine moss (like a sponge surface), slightly springy/trampoline-like, soft-edge gentle slopes. Sky above is a warm purple twilight (NOT day, NOT night). Same exact moss texture and color across pages 5–15 whenever the dragon-world landscape is shown. Feels safe to fall on — comforting, NOT dangerous-looking.`,
@@ -271,7 +271,9 @@ ANATOMY EXACT COUNT (must not drift between pages):
 
 - Snout: short and rounded, NOT elongated.
 
-- Tail: short-to-medium, tapered, ending in a small curved tip.
+- Tail: short-to-medium, tapered, ending in a small curved tip. EXACTLY ONE tail — never two tails, never a forked or duplicated tail, never a second tail silhouette.
+
+- Age read: young juvenile/adolescent dragon, clearly BIGGER than a hatchling; NOT an infant/chibi dragon, NOT baby-proportioned.
 
 PERSONALITY ON PAGE (must be visually readable):
 
@@ -307,9 +309,9 @@ export const DRAGON_DINI_COMPOSITION_BY_PAGE: Record<number, Style01CompositionS
     subjectScale: 'medium',
     camera: 'wide angle on the child seated inside an elaborate pillow fortress in a cozy living room',
     subjectDominance:
-      'Child centered in the fortress, holding T-rex toy aloft like a scepter; cushion walls visible around; open doorway in background reveals crib with jagged comic-style sound waves emanating.',
+      'Same child as every other page in the book — identical face, hair, skin tone, age. Child centered in the fortress, holding a small bright orange-or-blue plastic T-rex toy aloft like a scepter (clearly inanimate plastic, NOT alive); cushion walls visible; open doorway reveals crib with jagged comic sound waves.',
     staging:
-      "5-year-old child seated cross-legged inside an elaborate pillow-and-blanket fort, mismatched animal-print pajamas (NOT dinosaur-themed clothing), holding a plastic T-rex up like a scepter. Living room interior; open doorway to baby's room visible in background with crib and stylized sound-wave shapes drawn comically. Warm afternoon light.",
+      "5-year-old protagonist seated cross-legged inside an elaborate pillow-and-blanket fort, holding a small rigid bright orange OR bright blue plastic T-rex toy up like a scepter — matte plastic, obviously a toy, NOT alive, NOT Dini, NOT the baby dragon. Living room interior; open doorway to baby's room with crib and stylized sound-wave shapes. Warm afternoon light. SAME child identity as pages 10/13/15/20.",
     pagePurpose:
       'Introduce child as fortress-king with serious kingdom rules; introduce the disruptive new noise from the next room',
   },
@@ -320,7 +322,7 @@ export const DRAGON_DINI_COMPOSITION_BY_PAGE: Record<number, Style01CompositionS
     subjectDominance:
       "Child stands on tiptoe at the crib rail, gently extending the tail of the T-rex toy to touch baby sister's foot; mother stands beside holding a half-empty bottle.",
     staging:
-      'Wooden crib with white painted rails. Inside the crib: a tiny bald newborn baby sister wearing GREEN socks (NOT pink), small yellow blanket beside her. Child stands on tiptoe at the rail in mismatched animal-print pajamas, leaning to touch the baby\'s foot with the plastic T-rex tail. Mother (tired but loving) stands beside the child holding a half-empty baby bottle. Soft daytime light.',
+      "Wooden crib with white painted rails. Inside: tiny bald newborn baby sister wearing GREEN socks (NOT pink), small yellow blanket beside her. Child on tiptoe at the rail, leaning to touch the baby's foot with the plastic T-rex tail. Mother (tired but loving) beside holding a half-empty baby bottle. Soft daytime light.",
     pagePurpose:
       'First meeting between child and the new baby — gentle but skeptical; establishes the "she takes too much space" emotional read',
   },
@@ -331,7 +333,7 @@ export const DRAGON_DINI_COMPOSITION_BY_PAGE: Record<number, Style01CompositionS
     subjectDominance:
       "Child leaning into a deep wooden toy chest in a moonlit bedroom. From inside the chest, Dini's honey-amber eyes peek out from amid wooden blocks; a plastic bucket is stuck on her snout.",
     staging:
-      "Nighttime bedroom. Child in animal-print pajamas leaning over a deep wooden toy chest, lid open. Inside the chest: piles of wooden blocks and plush toys, with Dini's two large honey-amber eyes peeking up through them. An upturned plastic bucket is stuck on Dini's snout (comedy beat). Soft moonlight from a window.",
+      "Nighttime bedroom. Child leaning over a deep wooden toy chest, lid open. Inside: wooden blocks and plush toys; Dini's two large honey-amber eyes peek up through them. Plastic bucket stuck on Dini's snout (comedy). Soft moonlight from a window.",
     pagePurpose: "Dini's first appearance — comedy debut, child's curiosity activated",
   },
   4: {
@@ -341,7 +343,7 @@ export const DRAGON_DINI_COMPOSITION_BY_PAGE: Record<number, Style01CompositionS
     subjectDominance:
       'Dini shaking her head joyfully (bucket flying off), sending wooden blocks scattering. She is mid-sized — slightly larger than a golden retriever, smaller than a pony. Child stands tall with hands on hips like a fortress commander.',
     staging:
-      'Bedroom interior, toy chest behind Dini. Dini is fully visible now — a young female copper-scaled dragon, mid-sized, peach-coral wings folded, friendly expression. She is shaking her head joyfully and three wooden blocks fly comically through the air. Child stands tall in animal-print pajamas, hands on hips. Plastic T-rex on the floor beside the child.',
+      'Bedroom interior, toy chest behind Dini. Young female copper-scaled dragon, mid-sized, peach-coral wings folded, friendly expression; shaking head joyfully — three wooden blocks fly through the air. Child stands tall, hands on hips like a fortress commander. Plastic T-rex on the floor beside the child.',
     pagePurpose: 'Dini commissions the child as fortress-expert — alliance formed',
   },
   5: {
@@ -371,7 +373,7 @@ export const DRAGON_DINI_COMPOSITION_BY_PAGE: Record<number, Style01CompositionS
     subjectDominance:
       'Dini sprawled belly-down on the orange moss using her chin to halt the wobbling egg before a slope. Child stands beside her with arms folded, looking like a certified fortress-consultant.',
     staging:
-      'Orange moss hills. Dini lying belly-down on the moss, chin pressed against the green speckled egg to halt it. Child stands beside her in animal-print pajamas, arms folded, advisor-like posture. Tail-tip of Dini twitching with effort (small motion lines).',
+      'Orange moss hills. Dini lying belly-down on the moss, chin pressed against the green speckled egg to halt it. Child stands beside her, arms folded, advisor-like posture. Tail-tip of Dini twitching with effort (small motion lines).',
     pagePurpose: 'Child positions as expert; emotional mirror — egg sounds like sister',
   },
   8: {
@@ -401,7 +403,7 @@ export const DRAGON_DINI_COMPOSITION_BY_PAGE: Record<number, Style01CompositionS
     subjectDominance:
       'Dini slides belly-first down a long blue crystal slide like a toboggan. Child clings to her neck, laughing and screaming. The green speckled egg careens ahead of them like a runaway ball.',
     staging:
-      'A long smooth blue crystal slide descends from the orange moss hills toward a valley below. Dini lies belly-down on the slide, peach-coral wings folded, mid-slide. Child clings to her neck with both arms, animal-print pajama shirt blown up by the wind, face full of delighted terror. The green speckled egg rolls down ahead of them just out of reach. Motion lines.',
+      'Long smooth blue crystal slide from orange moss hills toward a valley. Dini belly-down on the slide, peach-coral wings folded, mid-slide. Child clings to her neck, face full of delighted terror. Green speckled egg rolls ahead just out of reach. Motion lines.',
     pagePurpose: 'Action set-piece — bonding through shared chaos',
   },
   11: {
@@ -431,7 +433,7 @@ export const DRAGON_DINI_COMPOSITION_BY_PAGE: Record<number, Style01CompositionS
     subjectDominance:
       'The child is half-wrapped around the spinning egg, dizzy but determined, wrestling it down while wrapping it with a wide stretchy silver ribbon. Dini stands beside throwing the ribbon-end like a tag-team partner.',
     staging:
-      'Whisper valley floor. Child wrapped half around the green speckled egg, one arm around it, one leg around it, looking dizzy from the egg\'s spin but determined. The wide silver ribbon is being looped around them both. Dini stands beside the action, mouth holding one end of the ribbon, eyes wide with concentration.',
+      "Whisper valley floor. Child wrapped half around the green speckled egg, dizzy but determined, looping a wide soft silver-grey CLOTH fabric ribbon around the egg (matte textile, NOT metal or plastic). Dini beside the action, mouth holding one ribbon end, eyes wide with concentration.",
     pagePurpose: 'Climax action — child solves the problem with soft physical containment',
   },
   14: {
@@ -447,11 +449,11 @@ export const DRAGON_DINI_COMPOSITION_BY_PAGE: Record<number, Style01CompositionS
   15: {
     shotType: 'intimate quiet — heart line',
     subjectScale: 'medium',
-    camera: 'intimate medium shot — Dini curled protectively around child + wrapped egg',
+    camera: 'intimate medium shot — Dini curled protectively around child + wrapped egg in open orange-moss shelter',
     subjectDominance:
-      'Dini curls protectively around the child and the wrapped egg. Light shifts to warm amber. The wrapped egg pulses with a slow, safe rhythm. THIS IS THE HEART-LINE MOMENT — tender, quiet, dawn-of-understanding.',
+      'Dini curls protectively around the child and the fabric-wrapped egg in a soft outdoor nest nook on orange moss — NOT a cave. Warm amber dusk light. Mid-sized Dini (golden-retriever-to-pony scale) curls AROUND the child without towering over him. EXACTLY ONE tail visible. Heart-line moment — tender, quiet.',
     staging:
-      "Whisper valley, but light has shifted to warm amber dusk. Dini curls her mid-sized body around the child and the wrapped egg, peach-coral wings folded close. Child sits on the moss with hand resting gently on the silver-wrapped egg. The egg pulses with a slow soft amber-green glow visible through the ribbon. Dini's face soft and understanding. The moment is quiet — emotional center of the book.",
+      "OPEN dragon world — soft protected nest: a cushion hollow / warm orange-moss shelter / blanket-like safe nook under open purple-twilight sky with orange moss visible around. NOT a cave, NOT a stone tunnel, NOT a dragon lair, NOT rocky walls. Dini curls her mid-sized body (larger than a golden retriever, smaller than a pony — does NOT dwarf the child) around the child and silver-fabric-wrapped egg; peach-coral wings folded; EXACTLY ONE tail. Child sits in the moss, hand on the wrapped egg. Egg pulses soft glow through cloth ribbon. Dini's face soft and understanding.",
     pagePurpose: 'HEART LINE — "small things kick everywhere because the world feels too big"',
   },
   16: {
@@ -471,7 +473,7 @@ export const DRAGON_DINI_COMPOSITION_BY_PAGE: Record<number, Style01CompositionS
     subjectDominance:
       "Child sits cross-legged and laughs as the baby dragon faceplants gently into his/her lap. The baby's tail wags like a puppy's. Dini approaches with a warm, proud smile.",
     staging:
-      "Orange moss floor. Child sits cross-legged in animal-print pajamas (a little dusty), laughing. The baby dragon (moss-green + copper freckles + peach-coral wings + shell-piece on snout) has just taken one shaky step and faceplanted gently into the child's lap. His tail wags like a puppy. Dini approaches from behind, mid-sized body relaxed, face beaming with proud warm smile (no teeth showing).",
+      "Orange moss floor. Child sits cross-legged (a little dusty), laughing. Baby dragon (moss-green + copper freckles + peach-coral wings + shell on snout) faceplants gently into the child's lap; tail wags like a puppy. Dini approaches, mid-sized, proud warm smile (no teeth).",
     pagePurpose: 'Joyful bonding — baby chooses the child',
   },
   18: {
@@ -497,11 +499,11 @@ export const DRAGON_DINI_COMPOSITION_BY_PAGE: Record<number, Style01CompositionS
   20: {
     shotType: 'medium-wide home — sister wrap + expanded fortress',
     subjectScale: 'medium',
-    camera: 'medium-wide showing crib with sister AND, in foreground, the expanded pillow fortress',
+    camera: 'medium-wide — one child at crib, expanded fortress visible in same room',
     subjectDominance:
-      'Two-beat composition: (1) Child carefully wraps the baby sister in the yellow blanket in the crib — not too tight, not too loose; baby calms; (2) Foreground or adjacent: child expands the pillow fortress, pushing chairs outward and spreading an additional blanket wider.',
+      'EXACTLY ONE child — the protagonist kneeling at the crib, gently tucking the yellow blanket around the calm baby sister. The ALREADY-expanded pillow fortress is visible in the same living room as background context (not being built). Parents watch quietly. NEVER a second child.',
     staging:
-      'Home interior — same living room as p1, but the fortress is now visibly LARGER. In the middle ground: crib visible through open doorway, child gently tucks the yellow blanket around the baby sister in the crib (baby is now calm, sleepy eyes). In the foreground: the pillow fortress is expanded — chairs pushed outward as additional supports, an extra blanket spread across to make the roof wider. Parents in background (mom with bottle, dad with pacifier) looking on with quiet relief. Warm evening light.',
+      'Home interior — same living room as p1. ONE protagonist child kneels at the wooden crib through the open doorway, gently wrapping the yellow blanket around the sleepy baby sister (not too tight, not too loose). In the same room, the pillow fortress is ALREADY visibly LARGER than p1 — chairs pushed outward, extra blanket on the roof — but NO second child building it. Parents in soft background (mom with bottle, dad with pacifier). Warm evening light. EXACTLY ONE child in the scene.',
     pagePurpose: 'FINAL — kingdom transformed with new rules and more room',
   },
 };
