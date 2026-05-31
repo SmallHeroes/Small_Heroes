@@ -329,7 +329,7 @@ export const BEAR_CUB_DOBI_COMPOSITION_BY_PAGE: Record<number, Style01Compositio
     camera: 'medium shot at pond edge — both characters mid-throw, water with splashes',
     subjectDominance: 'Dobi skipping a flat stone across pond; child mid-throw with a smooth grey stone; visible splashes and ripples in pond',
     staging: 'Pond edge with small smooth grey stones scattered around the bank; both characters mid-throw, two small splashes visible in pond water',
-    pagePurpose: 'Physical anger release through stone-throwing',
+    pagePurpose: 'Physical release through stone-throwing — safe water receiving heavy feelings',
   },
 };
 
