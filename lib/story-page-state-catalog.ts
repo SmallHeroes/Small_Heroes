@@ -95,6 +95,31 @@ export const BEAR_CUB_DOBI_PAGE_STORY_STATES: Record<number, PageStoryState> = {
     forbiddenEntities: [],
     objectStates: { broken_crayon: 'intact' },
   },
+  6: {
+    presentEntities: ['pond', 'fallen_log'],
+    forbiddenEntities: [],
+    objectStates: { pond: 'intact', fallen_log: 'intact' },
+  },
+  7: {
+    presentEntities: ['pond'],
+    forbiddenEntities: [],
+    objectStates: { pond: 'intact' },
+  },
+  8: {
+    presentEntities: ['pond'],
+    forbiddenEntities: [],
+    objectStates: { pond: 'intact' },
+  },
+  9: {
+    presentEntities: ['pond'],
+    forbiddenEntities: [],
+    objectStates: { pond: 'intact' },
+  },
+  10: {
+    presentEntities: ['pond'],
+    forbiddenEntities: [],
+    objectStates: { pond: 'intact' },
+  },
 };
 
 const STORY_STATE_BY_COMPANION: Record<string, Record<number, PageStoryState>> = {
@@ -189,6 +214,8 @@ export function resolveStoryStateLockBundle(companionId?: string | null): StoryS
         berry_bush: 'BERRY BUSH',
         mossy_rock: 'MOSSY GREEN ROCK',
         broken_crayon: 'BROKEN CRAYON',
+        pond: 'POND',
+        fallen_log: 'FALLEN LOG',
       },
       entityLockLabels: {},
       formatObjectLock: formatDobiObjectLock,

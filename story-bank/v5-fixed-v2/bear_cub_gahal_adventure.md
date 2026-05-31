@@ -225,7 +225,7 @@ imageDirection: Dobi and the child roar together across the pond. Birds fly up f
 לא כדי לשבור.
 רק אל הבריכה, שידעה לקבל דברים כבדים.
 
-imageDirection: Dobi skips a flat stone across the pond, grumbling about berries. The child chooses a smooth stone and throws it too, silently releasing the broken crayon anger into the splash.
+imageDirection: Dobi skips a flat stone across the pond, grumbling about berries. The child chooses a smooth grey stone and throws it too, silently releasing the anger into the splash. The broken crayon stays out of sight in the child's pocket.
 
 --- Page 11 ---
 אבן אחת קיבלה את הידיים שרצו לדחוף.

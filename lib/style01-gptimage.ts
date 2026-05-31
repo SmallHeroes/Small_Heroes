@@ -249,7 +249,7 @@ export const DRAGON_DINI_COMPOSITION_BY_PAGE: Record<number, Style01CompositionS
   },
 };
 
-/** bear_cub_gahal (Dobi) — 5-page audition composition targets. */
+/** bear_cub_gahal (Dobi) — 10-page continuity audition composition targets. */
 export const BEAR_CUB_DOBI_COMPOSITION_BY_PAGE: Record<number, Style01CompositionSpec> = {
   1: {
     shotType: 'wide establishing',
@@ -291,12 +291,54 @@ export const BEAR_CUB_DOBI_COMPOSITION_BY_PAGE: Record<number, Style01Compositio
     staging: 'Soft forest edge; Dobi nudges hand; child surprised; trees and path in background',
     pagePurpose: 'Companion invites child toward safe release',
   },
+  6: {
+    shotType: 'wide establishing transition',
+    subjectScale: 'small',
+    camera: 'wide forest path opening into clearing — depth visible, archway of trees, pond clearing ahead',
+    subjectDominance: 'Dobi and child small in lower third walking forward; lush ferns, mossy roots, pond clearing revealed ahead',
+    staging: 'Forest path with tall ferns and mossy roots opening into pond clearing — round blue pond and large fallen log visible ahead',
+    pagePurpose: 'Transition from anger to safe space — environment shift, discovery of pond',
+  },
+  7: {
+    shotType: 'intimate medium',
+    subjectScale: 'medium',
+    camera: 'medium shot — Dobi at pond edge, mirror-still water with his reflection visible',
+    subjectDominance: 'Dobi alone at pond edge, mouth closed after the roar, seeing his upset reflection in the still blue water; ripples beginning to break the reflection',
+    staging: 'Still mirror pond, Dobi just finished roaring, mouth now closed, ripples spreading from where his roar hit the water, his rippled reflection beginning to fragment',
+    pagePurpose: 'Self-confrontation through reflection — discovering safe roar',
+  },
+  8: {
+    shotType: 'medium two-shot',
+    subjectScale: 'medium',
+    camera: 'medium-wide at pond edge — both characters and water visible',
+    subjectDominance: 'Child and Dobi side by side at pond edge; child mid-roar toward the water (NOT toward Dobi), Dobi watching calmly',
+    staging: 'Pond edge, child roaring toward the still water with soft round open mouth (vowel shape, no teeth), Dobi watching gently from beside, ripples spreading outward across pond',
+    pagePurpose: 'Child learns roaring at safe space — the pond receives it',
+  },
+  9: {
+    shotType: 'medium-wide action',
+    subjectScale: 'medium',
+    camera: 'medium-wide at pond — sky visible above tree canopy',
+    subjectDominance: 'Child and Dobi both roaring together toward the water; two small birds startled from a tree branch overhead, one looking offended (secondary detail, not focal)',
+    staging: 'Pond, both characters mid-roar toward water (not at each other, not at viewer), two small birds flying up from nearby tree branch — birds are background secondary',
+    pagePurpose: 'Shared release — anger begins to move through the body',
+  },
+  10: {
+    shotType: 'medium action',
+    subjectScale: 'medium',
+    camera: 'medium shot at pond edge — both characters mid-throw, water with splashes',
+    subjectDominance: 'Dobi skipping a flat stone across pond; child mid-throw with a smooth grey stone; visible splashes and ripples in pond',
+    staging: 'Pond edge with small smooth grey stones scattered around the bank; both characters mid-throw, two small splashes visible in pond water',
+    pagePurpose: 'Physical anger release through stone-throwing',
+  },
 };
 
 export const BEAR_CUB_DOBI_RECURRING_OBJECT_CATALOG: Record<string, string[]> = {
   berry_bush: ['berry bush', 'shrub', 'bush', 'branches', 'פטל', 'שיח'],
   mossy_rock: ['mossy green rock', 'mossy rock', 'green rock', 'סלע'],
   broken_crayon: ['broken crayon', 'red-orange crayon', 'snapped crayon', 'broken red crayon', 'עפרון שבור'],
+  pond: ['pond', 'water', 'mirror-like water', 'blue pond', 'still pond', 'בריכה'],
+  fallen_log: ['fallen log', 'fallen tree', 'log', 'tree trunk', 'גזע'],
 };
 
 export const BEAR_CUB_DOBI_RECURRING_OBJECT_LOCKS: Record<string, string> = {
@@ -306,6 +348,10 @@ The same wild forest berry bush. Distinctive visual signature: round dark-green 
 The same large mossy boulder. Distinctive visual signature: rounded grey granite boulder approximately waist-high to the child, with a thick velvety moss covering the top third (vivid green moss, soft texture, slightly darker green in shaded crevices). Small patches of orange-yellow lichen on the exposed grey rock face. Same exact rock in every page where present — same silhouette, same moss coverage, same lichen pattern.`,
   broken_crayon: `RECURRING OBJECT LOCK — BROKEN CRAYON:
 The same broken crayon, snapped into two uneven pieces. Color: warm red-orange (like a sun-drawing crayon, NOT blue, NOT green, NOT yellow). Both pieces visible, jagged white break edge between them. Held in the child's left hand throughout pages where present — same color, same break angle, same proportions. NEVER intact, NEVER a different color.`,
+  pond: `RECURRING OBJECT LOCK — POND:
+The same hidden forest pond. Distinctive visual signature: round shape, roughly 4-5 meters across (NOT a lake, NOT an ocean, NOT a river, NOT a swimming pool, NOT a puddle). Water color is deep clear blue (like a piece of sky fallen to earth), mirror-still surface when calm with reflections of the tree canopy above. Surrounded by smooth grey river stones and small mossy rocks at the edge. One large fallen log lies near the right edge of the pond. Same exact pond appears in every page where present — same size, same shape, same blue water tone, same edge details. It is small, intimate, contained — a safe container the size of a child's bedroom rug.`,
+  fallen_log: `RECURRING OBJECT LOCK — FALLEN LOG:
+The same large fallen tree trunk lying horizontally near the pond's right edge. Distinctive visual signature: thick old oak or pine trunk, weathered grey-brown bark with patches of vivid green moss along the top length, gentle slope (one end slightly higher than the other), broken at one end with exposed pale heartwood. Approximately as long as 4 children laid end-to-end. Same exact log appears in every page where present — same orientation, same moss coverage, same broken end.`,
 };
 
 export const BEAR_CUB_DOBI_COMPANION_LOCK = `COMPANION LOCK — DOBI (warm living bear cub):

@@ -44,12 +44,12 @@ const ILLUSTRATION_STYLE = 'soft_hand_drawn_storybook';
 const CHILD_NAME = process.env.CHILD_NAME?.trim() || 'נועם';
 const CHILD_AGE = Number.parseInt(process.env.CHILD_AGE?.trim() ?? '5', 10) || 5;
 const CHILD_GENDER = (process.env.CHILD_GENDER?.trim() || 'boy') as 'boy' | 'girl';
-const MAX_PAGES = 5;
+const MAX_PAGES = 10;
 const PAGE_SOFT_TIMEOUT_MS = 4 * 60 * 1000;
 
 function parseOnlyPages(): number[] {
   const raw = process.env.ONLY_PAGES?.trim();
-  if (!raw) return [1, 2, 3, 4, 5];
+  if (!raw) return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
   return raw
     .split(/[,\s]+/)
     .map((s) => Number.parseInt(s.trim(), 10))
@@ -207,7 +207,7 @@ async function main(): Promise<void> {
   );
 
   const manifest = {
-    audition: 'style01-bear-cub-dobi-5p',
+    audition: 'style01-bear-cub-dobi-10p',
     model: resolveStyle01GptModel(),
     illustrationStyle: ILLUSTRATION_STYLE,
     storyFile: STORY_FILE,
@@ -219,11 +219,12 @@ async function main(): Promise<void> {
     costRateSource: sampleCost.costRateSource,
     pages: manifestPages,
     acceptanceChecklist: [
-      'Pages 1–3: no human child (companion-only)',
-      'Pages 4–5: child present when imageDirection includes child',
-      'Dobi warm-brown bear cub consistent',
-      'Berry bush + mossy rock recurring objects when visible',
-      'Composition variety across 5 pages',
+      'Pages 1–3, 7: no human child (companion-only)',
+      'Pages 4–6, 8–10: child present',
+      'Dobi warm-brown bear cub consistent across all pages',
+      'Berry bush + mossy rock pages 1–3 only; pond + fallen log pages 6–10',
+      'Broken crayon visible pages 4–5 only (in pocket pages 6–10)',
+      'Composition variety across all 10 pages',
       'Soft watercolor Style 01 — not cinematic Style 02',
     ],
   };
@@ -232,7 +233,7 @@ async function main(): Promise<void> {
   await writeFile(
     path.join(outDir, 'QA.md'),
     [
-      '# Style 01 — bear_cub_gahal (Dobi) 5-page audition QA',
+      '# Style 01 — bear_cub_gahal (Dobi) 10-page continuity audition QA',
       '',
       '## Acceptance',
       '',
