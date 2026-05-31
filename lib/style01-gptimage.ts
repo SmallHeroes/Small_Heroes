@@ -368,6 +368,13 @@ CUB PROPORTIONS LOCK (mandatory — never violate):
 - Belly is round and soft. NOT the lean, muscular silhouette of an adult brown bear.
 - The viewer should immediately read "young animal" — not "scaled-down adult bear."
 
+ABSOLUTE SIZE RULE vs CHILD (mandatory on every page where both appear):
+- Dobi is noticeably SMALLER than the child. Never the same height.
+- On all fours: top of Dobi's head reaches BELOW the child's hip line.
+- Standing upright on hind legs: top of Dobi's head reaches BELOW the child's chest line.
+- If Dobi appears alone in a page (no child), Dobi still reads visually as a small cub — small body, large head, short stubby legs.
+- NEVER scale Dobi up to teen-bear or adult-bear size. NEVER let Dobi tower over or match the child.
+
 CHILD-SAFE EMOTION RULE (mandatory — never violate, even on anger/frustration pages):
 - NO bared teeth visible. Mouth stays closed or slightly open in a soft pout.
 - NO snarling expression. NO aggressive baring of canines or incisors.
@@ -549,14 +556,15 @@ export function buildStyle01ChildVisualLock(input: {
   return `CHILD VISUAL LOCK (verbatim when child appears): ${name} — ${desc}.`.trim();
 }
 
-export function buildStyle01WardrobeLock(input: {
+export function buildStyle01WardrobeLock(_input?: {
   childStructured?: { clothing: string };
 }): string {
-  const clothing = input.childStructured?.clothing?.trim();
-  if (clothing) {
-    return `BOOK WARDROBE LOCK (same outfit whenever child appears): ${clothing}`;
-  }
-  return 'BOOK WARDROBE LOCK (same outfit whenever child appears): comfortable storybook clothes — consistent colors across pages.';
+  return `BOOK WARDROBE LOCK (mandatory — never drift, every page where child appears):
+- Shirt: plain solid sky-blue t-shirt with a small yellow sun graphic at center chest. NO stripes. NO patterns. NO logos. NO other shapes. NEVER a striped shirt. NEVER a plain blue shirt without the sun.
+- Shorts: dark denim shorts, mid-thigh length. Same wash on every page.
+- Shoes: RED sneakers with white laces and white rubber soles. MANDATORY red. NEVER white sneakers. NEVER any other color.
+- Wrist accessory: small green wristband on LEFT wrist, visible on every page.
+- Same outfit on every page. NEVER substitute or simplify any element.`;
 }
 
 export function buildStyle01CompanionTextLock(input: {

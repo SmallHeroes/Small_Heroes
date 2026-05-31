@@ -1,14 +1,15 @@
 /**
- * Style 01 + gpt-image-2 — bear_cub_gahal (Dobi) 5-page audition.
+ * Style 01 + gpt-image-2 — bear_cub_gahal (Dobi) 10-page continuity audition.
  *
  * Usage:
  *   PHASE2_STYLE01_BOOK_PIPELINE=true
  *   PHASE2_STYLE01_REF_CONFIG=A
  *   IMAGE_PROVIDER=gpt-image
  *   STYLE_01_GPT_MODEL=gpt-image-2
+ *   STYLE01_QA_IMAGE_QUALITY=low (default) | medium | high
  *   npx tsx --require ./scripts/shims/register-server-only.cjs scripts/run-style01-dobi-audition.ts
  *
- * Optional: ONLY_PAGES=1,2,3,4,5
+ * Optional: ONLY_PAGES=1,2,3,4,5,6,7,8,9,10
  */
 import { config as loadEnv } from 'dotenv';
 loadEnv({ path: '.env.local' });
@@ -57,6 +58,12 @@ function parseOnlyPages(): number[] {
 }
 
 function assertEnv(): void {
+  // Audition default: LOW quality unless caller overrides via STYLE01_QA_IMAGE_QUALITY or GPT_IMAGE_QUALITY.
+  // This DOES NOT change production behavior — production code paths use the regular GPT_IMAGE_QUALITY env at runtime in a separate process.
+  process.env.GPT_IMAGE_QUALITY =
+    process.env.STYLE01_QA_IMAGE_QUALITY?.trim().toLowerCase() ||
+    process.env.GPT_IMAGE_QUALITY?.trim().toLowerCase() ||
+    'low';
   process.env.STYLE_01_AUDITION_MODE = 'true';
   process.env.CHILD_ANCHOR_VARIANTS = '1';
   process.env.IMAGE_PROVIDER = 'gpt-image';
@@ -191,6 +198,7 @@ async function main(): Promise<void> {
       finalPrompt: promptText,
       refsPassed: meta?.style01Meta?.referenceBreakdown ?? null,
       model: image?.provider ?? 'failed',
+      quality: process.env.GPT_IMAGE_QUALITY ?? 'unknown',
       sceneClass: meta?.style01Meta?.sceneClass ?? null,
       imageUrl: image?.url ?? null,
       localPng: existsSync(localPath) ? localPath : null,
@@ -209,6 +217,7 @@ async function main(): Promise<void> {
   const manifest = {
     audition: 'style01-bear-cub-dobi-10p',
     model: resolveStyle01GptModel(),
+    quality: process.env.GPT_IMAGE_QUALITY ?? 'unknown',
     illustrationStyle: ILLUSTRATION_STYLE,
     storyFile: STORY_FILE,
     refConfig: resolveStyle01RefBudgetConfig(),
@@ -254,6 +263,7 @@ async function main(): Promise<void> {
   console.log('\n=== Done ===');
   console.log(`Manifest: ${path.join(outDir, 'manifest.json')}`);
   console.log(`Failed pages: ${failedPages.length ? failedPages.join(', ') : 'none'}`);
+  console.log(`Quality: ${process.env.GPT_IMAGE_QUALITY ?? 'unknown'}`);
   console.log(
     `Est. cost: ${manifest.totalEstimatedCostUsd != null ? `$${manifest.totalEstimatedCostUsd.toFixed(2)}` : 'unset — no usage tokens'}`
   );

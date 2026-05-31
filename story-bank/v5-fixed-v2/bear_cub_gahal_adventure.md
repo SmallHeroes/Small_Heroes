@@ -159,7 +159,7 @@ imageDirection: Dobi leads the child through a lush forest path with tall ferns,
 המים רעדו.
 המראה נשברה למאה חתיכות קטנות ורוקדות.
 
-imageDirection: Dobi stands at the still pond, sees his angry reflection, takes an imperfect breath, and roars across the water. Ripples shatter the mirror-like pond into dancing fragments.
+imageDirection: Dobi alone at the pond edge, mouth now closed after the roar. In the water he sees his own faint, watery, distorted reflection — clearly a reflection broken into soft wavy fragments, NOT a second separate bear. Ripples spread outward across the mirror-still water. Style is soft watercolor — the reflection should look diffuse and flat on the water surface, never solid like a real second character.
 
 --- Page 8 ---
 {{childName}} {קפא|קפאה}.
@@ -225,7 +225,7 @@ imageDirection: Dobi and the child roar together across the pond. Birds fly up f
 לא כדי לשבור.
 רק אל הבריכה, שידעה לקבל דברים כבדים.
 
-imageDirection: Dobi skips a flat stone across the pond, grumbling about berries. The child chooses a smooth grey stone and throws it too, silently releasing the anger into the splash. The broken crayon stays out of sight in the child's pocket.
+imageDirection: Dobi and the child stand at the pond edge skipping smooth flat stones across the safe blue water. The pond receives heavy feelings. This is calm, focused, physical release into a body of water — NOT throwing objects in anger. Splashes and ripples are gentle and contained. Faces are calm or quietly determined, not red-faced angry. The broken crayon stays out of sight in the child's pocket.
 
 --- Page 11 ---
 אבן אחת קיבלה את הידיים שרצו לדחוף.
