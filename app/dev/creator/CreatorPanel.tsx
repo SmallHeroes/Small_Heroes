@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { estimateQaConsoleCostUsd } from '@/lib/qa-console-cost';
+import styles from './creator-panel.module.css';
 
 type StoryEntry = { storyKey: string; storyFile: string; label: string; companionId: string; direction: string };
 type VoiceEntry = { id: string; label: string; description: string; emoji: string };
@@ -84,6 +85,8 @@ export function CreatorPanel() {
     if (!n) return 0;
     return estimateQaConsoleCostUsd(n, quality, generateAudio);
   }, [mode, selectedPages.size, quality, generateAudio]);
+
+  const maxPagesPerRun = meta?.maxPagesPerRun ?? 12;
 
   const togglePage = (n: number) => {
     setSelectedPages((prev) => {
@@ -249,320 +252,362 @@ export function CreatorPanel() {
   }, [storyKey]);
 
   return (
-    <div
-      style={{
-        padding: '16px 20px',
-        maxWidth: 960,
-        margin: '0 auto',
-        fontFamily: 'system-ui, sans-serif',
-        fontSize: 14,
-        color: '#0f172a',
-      }}
-    >
-      <h1 style={{ margin: '0 0 4px', fontSize: 22 }}>CREATOR</h1>
-      <p style={{ margin: '0 0 16px', color: '#64748b', fontSize: 13 }}>
-        Dev-only · gpt-image-2 Style 01/02 · photo-faithful DNA ·{' '}
-        <Link href="/dev/viewer" style={{ color: '#2563eb' }}>
-          VIEWER
+    <div className={styles.shell}>
+      <header className={styles.header}>
+        <div>
+          <h1 className={styles.headerTitle}>CREATOR</h1>
+          <p className={styles.headerSubtitle}>dev-only · gpt-image-2 · Style 01/02</p>
+        </div>
+        <Link href="/dev/viewer" className={styles.viewerLink}>
+          VIEWER →
         </Link>
-      </p>
+      </header>
 
-      <fieldset
-        style={{
-          border: '1px solid #e2e8f0',
-          borderRadius: 8,
-          padding: 12,
-          marginBottom: 16,
-        }}
-      >
-        <legend style={{ padding: '0 6px', fontWeight: 600 }}>Mode</legend>
-        <label style={{ marginRight: 16 }}>
-          <input
-            type="radio"
-            name="runMode"
-            checked={mode === 'audition'}
-            onChange={() => setMode('audition')}
-            disabled={running}
-          />{' '}
-          Audition (fast — selected pages, no DB order)
-        </label>
-        <label>
-          <input
-            type="radio"
-            name="runMode"
-            checked={mode === 'fullBook'}
-            onChange={() => setMode('fullBook')}
-            disabled={running}
-          />{' '}
-          Full book (real order — cover + reader + audio)
-        </label>
-      </fieldset>
-
-      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
-        <label>
-          Story
-          <select
-            value={storyKey}
-            onChange={(e) => setStoryKey(e.target.value)}
-            style={{ display: 'block', width: '100%', marginTop: 4, padding: 8 }}
-            disabled={running}
-          >
-            {(meta?.stories ?? []).map((s) => (
-              <option key={s.storyKey} value={s.storyKey}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          Illustration style
-          <select
-            value={illustrationStyle}
-            onChange={(e) => setIllustrationStyle(e.target.value)}
-            style={{ display: 'block', width: '100%', marginTop: 4, padding: 8 }}
-            disabled={running || mode === 'audition'}
-            title={mode === 'audition' ? 'Audition fast path uses Style 01 phase-2' : ''}
-          >
-            {(meta?.illustrationStyles ?? []).map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-          {mode === 'audition' ? (
-            <span style={{ fontSize: 11, color: '#64748b' }}>Audition: Style 01 engine</span>
-          ) : null}
-        </label>
-
-        <label>
-          Voice {generateAudio ? '' : '(off)'}
-          <select
-            value={voiceId}
-            onChange={(e) => setVoiceId(e.target.value)}
-            style={{ display: 'block', width: '100%', marginTop: 4, padding: 8 }}
-            disabled={running || !generateAudio}
-          >
-            {(meta?.voices ?? []).map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.emoji} {v.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {mode === 'audition' ? (
-          <label>
-            Quality
-            <select
-              value={quality}
-              onChange={(e) => setQuality(e.target.value as 'low' | 'medium')}
-              style={{ display: 'block', width: '100%', marginTop: 4, padding: 8 }}
-              disabled={running}
+      <div className={styles.card}>
+        <section className={styles.section}>
+          <span className={styles.sectionLabel}>Mode</span>
+          <div className={styles.modeGrid}>
+            <label
+              className={`${styles.modeCard} ${mode === 'audition' ? styles.modeCardSelected : ''}`}
             >
-              <option value="low">LOW (default)</option>
-              <option value="medium">MEDIUM (guarded)</option>
-            </select>
-          </label>
-        ) : (
-          <label>
-            Pages to render
-            <select
-              value={fullBookMaxPages}
-              onChange={(e) => setFullBookMaxPages(Number(e.target.value))}
-              style={{ display: 'block', width: '100%', marginTop: 4, padding: 8 }}
-              disabled={running}
+              <input
+                type="radio"
+                name="runMode"
+                checked={mode === 'audition'}
+                onChange={() => setMode('audition')}
+                disabled={running}
+              />
+              <span className={styles.modeCardTitle}>Audition</span>
+              <span className={styles.modeCardDesc}>Fast · selected pages · no DB</span>
+            </label>
+            <label
+              className={`${styles.modeCard} ${mode === 'fullBook' ? styles.modeCardSelected : ''}`}
             >
-              {(meta?.fullBookPageOptions ?? [3, 5, 10]).map((n) => (
-                <option key={n} value={n}>
-                  {n} pages
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-      </div>
+              <input
+                type="radio"
+                name="runMode"
+                checked={mode === 'fullBook'}
+                onChange={() => setMode('fullBook')}
+                disabled={running}
+              />
+              <span className={styles.modeCardTitle}>Full book</span>
+              <span className={styles.modeCardDesc}>Real order · cover + reader + audio</span>
+            </label>
+          </div>
+        </section>
 
-      <div style={{ marginTop: 12 }}>
-        <span style={{ fontWeight: 600 }}>Child</span>
-        <div style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap' }}>
-          {(meta?.childPresets ?? []).map((p) => (
-            <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <section className={`${styles.section} ${styles.sectionBorder}`}>
+          <div className={styles.selectGrid}>
+            <div className={styles.field}>
+              <label className={styles.fieldLabel} htmlFor="creator-story">
+                Story
+              </label>
+              <select
+                id="creator-story"
+                className={styles.select}
+                value={storyKey}
+                onChange={(e) => setStoryKey(e.target.value)}
+                disabled={running}
+              >
+                {(meta?.stories ?? []).map((s) => (
+                  <option key={s.storyKey} value={s.storyKey}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.fieldLabel} htmlFor="creator-style">
+                Illustration style
+              </label>
+              <select
+                id="creator-style"
+                className={styles.select}
+                value={illustrationStyle}
+                onChange={(e) => setIllustrationStyle(e.target.value)}
+                disabled={running || mode === 'audition'}
+                title={mode === 'audition' ? 'Audition fast path uses Style 01 phase-2' : ''}
+              >
+                {(meta?.illustrationStyles ?? []).map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+              {mode === 'audition' ? (
+                <span className={styles.fieldHint}>Audition uses Style 01 engine</span>
+              ) : null}
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.fieldLabel} htmlFor="creator-voice">
+                Voice
+              </label>
+              <select
+                id="creator-voice"
+                className={styles.select}
+                value={voiceId}
+                onChange={(e) => setVoiceId(e.target.value)}
+                disabled={running || !generateAudio}
+              >
+                {(meta?.voices ?? []).map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.emoji} {v.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.field}>
+              {mode === 'audition' ? (
+                <>
+                  <label className={styles.fieldLabel} htmlFor="creator-quality">
+                    Quality
+                  </label>
+                  <select
+                    id="creator-quality"
+                    className={styles.select}
+                    value={quality}
+                    onChange={(e) => setQuality(e.target.value as 'low' | 'medium')}
+                    disabled={running}
+                  >
+                    <option value="low">Low (default)</option>
+                    <option value="medium">Medium (guarded)</option>
+                  </select>
+                </>
+              ) : (
+                <>
+                  <label className={styles.fieldLabel} htmlFor="creator-pages-count">
+                    Pages to render
+                  </label>
+                  <select
+                    id="creator-pages-count"
+                    className={styles.select}
+                    value={fullBookMaxPages}
+                    onChange={(e) => setFullBookMaxPages(Number(e.target.value))}
+                    disabled={running}
+                  >
+                    {(meta?.fullBookPageOptions ?? [3, 5, 10]).map((n) => (
+                      <option key={n} value={n}>
+                        {n} pages
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <section className={`${styles.section} ${styles.sectionBorder}`}>
+          <span className={styles.sectionLabel}>Child</span>
+          <div className={styles.childRadioRow}>
+            {(meta?.childPresets ?? []).map((p) => (
+              <label key={p.id} className={styles.childRadio}>
+                <input
+                  type="radio"
+                  name="childPreset"
+                  checked={childPreset === p.id}
+                  onChange={() => {
+                    setChildPreset(p.id as 'noam' | 'mia');
+                    setChildName(p.label.split(' ')[0] ?? p.id);
+                    setChildGender(p.gender === 'girl' ? 'girl' : 'boy');
+                    setChildAge(p.age);
+                  }}
+                  disabled={running}
+                />
+                {p.id === 'noam' ? 'נועם' : p.id === 'mia' ? 'מיה' : p.label}
+              </label>
+            ))}
+            <label className={styles.childRadio}>
               <input
                 type="radio"
                 name="childPreset"
-                checked={childPreset === p.id}
-                onChange={() => {
-                  setChildPreset(p.id as 'noam' | 'mia');
-                  setChildName(p.label.split(' ')[0] ?? p.id);
-                  setChildGender(p.gender === 'girl' ? 'girl' : 'boy');
-                  setChildAge(p.age);
-                }}
+                checked={childPreset === 'custom'}
+                onChange={() => setChildPreset('custom')}
                 disabled={running}
               />
-              {p.label}
+              Custom
             </label>
-          ))}
-          <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <input
-              type="radio"
-              name="childPreset"
-              checked={childPreset === 'custom'}
-              onChange={() => setChildPreset('custom')}
-              disabled={running}
-            />
-            Custom
-          </label>
-        </div>
-        {childPreset === 'custom' ? (
-          <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-            <input
-              value={childName}
-              onChange={(e) => setChildName(e.target.value)}
-              placeholder="שם"
-              style={{ padding: 6, flex: 1, minWidth: 100 }}
-              disabled={running}
-            />
-            <select
-              value={childGender}
-              onChange={(e) => setChildGender(e.target.value as 'boy' | 'girl')}
-              disabled={running}
-            >
-              <option value="girl">Girl</option>
-              <option value="boy">Boy</option>
-            </select>
-            <input
-              type="number"
-              min={2}
-              max={12}
-              value={childAge}
-              onChange={(e) => setChildAge(Number(e.target.value) || 5)}
-              style={{ width: 64, padding: 6 }}
-              disabled={running}
-            />
           </div>
-        ) : null}
-      </div>
 
-      {mode === 'audition' ? (
-        <div style={{ marginTop: 12 }}>
-          <span>Pages ({selectedPages.size} selected, max {meta?.maxPagesPerRun ?? 12})</span>
-          <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-            <button type="button" onClick={() => applyPreset('representative10')} disabled={running}>
-              Representative 10
-            </button>
-            <button type="button" onClick={() => applyPreset('all')} disabled={running}>
-              All
-            </button>
-            <button type="button" onClick={() => applyPreset('clear')} disabled={running}>
-              Clear
-            </button>
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 4,
-              marginTop: 8,
-              maxHeight: 100,
-              overflowY: 'auto',
-            }}
-          >
-            {pageNumbers.map((n) => (
-              <label
-                key={n}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  padding: '2px 6px',
-                  background: selectedPages.has(n) ? '#0d9488' : '#e2e8f0',
-                  borderRadius: 4,
-                  cursor: 'pointer',
-                }}
-              >
+          {childPreset === 'custom' ? (
+            <div className={styles.customChildGrid}>
+              <div className={styles.field}>
+                <label className={styles.fieldLabel} htmlFor="creator-child-name">
+                  Name
+                </label>
+                <input
+                  id="creator-child-name"
+                  className={styles.input}
+                  value={childName}
+                  onChange={(e) => setChildName(e.target.value)}
+                  disabled={running}
+                />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.fieldLabel} htmlFor="creator-child-gender">
+                  Gender
+                </label>
+                <select
+                  id="creator-child-gender"
+                  className={styles.select}
+                  value={childGender}
+                  onChange={(e) => setChildGender(e.target.value as 'boy' | 'girl')}
+                  disabled={running}
+                >
+                  <option value="girl">Girl</option>
+                  <option value="boy">Boy</option>
+                </select>
+              </div>
+              <div className={styles.field}>
+                <label className={styles.fieldLabel} htmlFor="creator-child-age">
+                  Age
+                </label>
+                <input
+                  id="creator-child-age"
+                  type="number"
+                  min={2}
+                  max={12}
+                  className={styles.numberInput}
+                  value={childAge}
+                  onChange={(e) => setChildAge(Number(e.target.value) || 5)}
+                  disabled={running}
+                />
+              </div>
+            </div>
+          ) : null}
+        </section>
+
+        {mode === 'audition' ? (
+          <section className={`${styles.section} ${styles.sectionBorder}`}>
+            <div className={styles.pagesHeader}>
+              <div className={styles.pagesHeaderLeft}>
+                <span className={styles.sectionLabel} style={{ marginBottom: 0 }}>
+                  Pages to render
+                </span>
+                <span className={styles.pagesCaption}>
+                  {selectedPages.size} selected · max {maxPagesPerRun}
+                </span>
+              </div>
+              <div className={styles.presetRow}>
+                <button
+                  type="button"
+                  className={styles.presetBtn}
+                  onClick={() => applyPreset('clear')}
+                  disabled={running}
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  className={styles.presetBtn}
+                  onClick={() => applyPreset('all')}
+                  disabled={running}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  className={styles.presetBtn}
+                  onClick={() => applyPreset('representative10')}
+                  disabled={running}
+                >
+                  Representative 10
+                </button>
+              </div>
+            </div>
+            <div className={styles.chipRow}>
+              {pageNumbers.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className={`${styles.chip} ${selectedPages.has(n) ? styles.chipSelected : ''}`}
+                  onClick={() => togglePage(n)}
+                  disabled={running}
+                  aria-pressed={selectedPages.has(n)}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        <section className={`${styles.section} ${styles.sectionBorder}`}>
+          <div className={styles.optionsRow}>
+            <label className={styles.uploadBtn}>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
+                disabled={running}
+              />
+              Child photo
+            </label>
+            {photoFile ? <span className={styles.uploadFileName}>{photoFile.name}</span> : null}
+            <label className={styles.checkLabel}>
+              <input
+                type="checkbox"
+                checked={generateAudio}
+                onChange={(e) => setGenerateAudio(e.target.checked)}
+                disabled={running}
+              />
+              Generate narration audio
+            </label>
+            {mode === 'fullBook' ? (
+              <label className={styles.checkLabel}>
                 <input
                   type="checkbox"
-                  checked={selectedPages.has(n)}
-                  onChange={() => togglePage(n)}
+                  checked={skipCover}
+                  onChange={(e) => setSkipCover(e.target.checked)}
                   disabled={running}
-                  style={{ marginLeft: 4 }}
                 />
-                {n}
+                Skip cover
               </label>
-            ))}
+            ) : null}
           </div>
-        </div>
-      ) : null}
+        </section>
 
-      <label style={{ display: 'block', marginTop: 12 }}>
-        Child photo (optional — photo-faithful DNA; temp only)
-        <input
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
-          disabled={running}
-          style={{ display: 'block', marginTop: 4 }}
-        />
-      </label>
+        <section className={`${styles.section} ${styles.sectionBorder}`}>
+          <div className={styles.footer}>
+            <span className={styles.costEstimate}>
+              {mode === 'audition' && costEstimate != null
+                ? `Est. ~$${costEstimate.toFixed(3)}`
+                : mode === 'fullBook'
+                  ? 'Full book — cost varies by page count'
+                  : ''}
+            </span>
+            <button
+              type="button"
+              className={styles.runBtn}
+              onClick={onRun}
+              disabled={running || !meta}
+            >
+              {running ? 'Running…' : 'Run'}
+            </button>
+          </div>
+        </section>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 10 }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <input
-            type="checkbox"
-            checked={generateAudio}
-            onChange={(e) => setGenerateAudio(e.target.checked)}
-            disabled={running}
-          />
-          Generate narration audio
-        </label>
-        {mode === 'fullBook' ? (
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <input
-              type="checkbox"
-              checked={skipCover}
-              onChange={(e) => setSkipCover(e.target.checked)}
-              disabled={running}
-            />
-            Skip cover
-          </label>
+        {error || lastRunInfo || viewerLink ? (
+          <div className={styles.statusBlock}>
+            {error ? (
+              <p className={styles.alertError} role="alert">
+                {error}
+              </p>
+            ) : null}
+            {lastRunInfo ? <p className={styles.alertSuccess}>{lastRunInfo}</p> : null}
+            {viewerLink ? (
+              <p>
+                <Link href={viewerLink} className={styles.resultLink}>
+                  Open in VIEWER →
+                </Link>
+              </p>
+            ) : null}
+          </div>
         ) : null}
       </div>
-
-      <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <button
-          type="button"
-          onClick={onRun}
-          disabled={running || !meta}
-          style={{
-            padding: '10px 24px',
-            background: running ? '#94a3b8' : '#2563eb',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 8,
-            fontWeight: 600,
-            cursor: running ? 'wait' : 'pointer',
-          }}
-        >
-          {running ? 'Running…' : 'Run'}
-        </button>
-        {mode === 'audition' && costEstimate != null ? (
-          <span style={{ fontSize: 12, color: '#64748b' }}>Est. ~${costEstimate.toFixed(3)}</span>
-        ) : null}
-      </div>
-
-      {error ? (
-        <p style={{ color: '#dc2626', marginTop: 12 }} role="alert">
-          {error}
-        </p>
-      ) : null}
-      {lastRunInfo ? <p style={{ color: '#15803d', marginTop: 8, fontSize: 13 }}>{lastRunInfo}</p> : null}
-      {viewerLink ? (
-        <p style={{ marginTop: 8 }}>
-          <Link href={viewerLink} style={{ color: '#2563eb', fontWeight: 600 }}>
-            Open in VIEWER →
-          </Link>
-        </p>
-      ) : null}
     </div>
   );
 }
