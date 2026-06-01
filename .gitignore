@@ -54,3 +54,9 @@ scripts/check-voices*
 zi*
 image-experiment-1/
 recipe-output/
+
+# Working artifacts / handoff docs (local only, not source, regenerable)
+outputs/
+briefs/
+docs/
+1.txt
