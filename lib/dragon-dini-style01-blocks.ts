@@ -249,7 +249,9 @@ DINI IDENTITY (mandatory — never drift between pages):
 
 - Age: YOUNG (juvenile-to-adolescent dragon, NOT a baby, NOT an adult, NOT a war-dragon).
 
-- Size: MID-SIZED. Specifically: slightly larger than a golden retriever, smaller than a pony. A child could ride her playfully if she let them; she's not so huge she dwarfs the child. Approximately as tall as the child's chest when standing on four legs, or as tall as the child when she rears up on her hind legs.
+- Size: LARGE-DOG / GOLDEN-RETRIEVER scale relative to the child — CONSTANT on EVERY page. On all fours her back ≈ the seated child's shoulder height. Standing or reared up on hind legs at most ~1.3× the child's height. NEVER smaller than a cat. NEVER pony-sized, NEVER landscape-scale, NEVER a towering war-dragon. Dini is the SAME size relative to the child on EVERY page — never giant, never tiny.
+
+- Intimate pages (p15, p17, p18): she may curl protectively BESIDE or partly around the child while staying this same large-dog size. She must NOT wrap around the entire scene, fill the frame, or encircle the child like a giant serpent. Partial protective curl only — child and egg remain clearly visible in frame.
 
 - Scales: SHIMMERING COPPER-ORANGE (warm copper with sunset highlights), NOT green, NOT blue, NOT teal, NOT red.
 
@@ -449,11 +451,11 @@ export const DRAGON_DINI_COMPOSITION_BY_PAGE: Record<number, Style01CompositionS
   15: {
     shotType: 'intimate quiet — heart line',
     subjectScale: 'medium',
-    camera: 'intimate medium shot — Dini curled protectively around child + wrapped egg in open orange-moss shelter',
+    camera: 'intimate medium shot — Dini beside child + wrapped egg in open orange-moss nest nook',
     subjectDominance:
-      'Dini curls protectively around the child and the fabric-wrapped egg in a soft outdoor nest nook on orange moss — NOT a cave. Warm amber dusk light. Mid-sized Dini (golden-retriever-to-pony scale) curls AROUND the child without towering over him. EXACTLY ONE tail visible. Heart-line moment — tender, quiet.',
+      'Heart-line moment on open orange moss — NOT a cave. Dini at LARGE-DOG scale (same size as p13) sits or curls PARTIALLY beside the child and fabric-wrapped egg — protective but NOT encircling the whole scene, NOT giant, NOT filling the frame. Warm amber dusk. EXACTLY ONE tail. Child and egg clearly visible.',
     staging:
-      "OPEN dragon world — soft protected nest: a cushion hollow / warm orange-moss shelter / blanket-like safe nook under open purple-twilight sky with orange moss visible around. NOT a cave, NOT a stone tunnel, NOT a dragon lair, NOT rocky walls. Dini curls her mid-sized body (larger than a golden retriever, smaller than a pony — does NOT dwarf the child) around the child and silver-fabric-wrapped egg; peach-coral wings folded; EXACTLY ONE tail. Child sits in the moss, hand on the wrapped egg. Egg pulses soft glow through cloth ribbon. Dini's face soft and understanding.",
+      "OPEN dragon world — soft protected nest: cushion hollow / warm orange-moss shelter / blanket-like safe nook under open purple-twilight sky. NOT a cave, NOT stone tunnel, NOT dragon lair, NOT rocky walls. Dini at CONSTANT large-dog / golden-retriever scale (back ≈ seated child's shoulder; reared max ~1.3× child height) — SAME relative size as on p13, NEVER giant. She curls PARTIALLY beside the child and silver-fabric-wrapped egg (protective, not serpent-wrap); peach-coral wings folded; EXACTLY ONE tail. Child sits in moss, hand on wrapped egg. Egg pulses soft glow through cloth ribbon. Dini's face soft and understanding. Environment dominates — characters breathe in frame.",
     pagePurpose: 'HEART LINE — "small things kick everywhere because the world feels too big"',
   },
   16: {
@@ -497,13 +499,13 @@ export const DRAGON_DINI_COMPOSITION_BY_PAGE: Record<number, Style01CompositionS
     pagePurpose: 'Farewell — child takes the new understanding home',
   },
   20: {
-    shotType: 'medium-wide home — sister wrap + expanded fortress',
+    shotType: 'medium-wide home — emotional closing',
     subjectScale: 'medium',
-    camera: 'medium-wide — one child at crib, expanded fortress visible in same room',
+    camera: 'medium-wide gentle 3/4 angle on crib — one child, calm resolved ending',
     subjectDominance:
-      'EXACTLY ONE child — the protagonist kneeling at the crib, gently tucking the yellow blanket around the calm baby sister. The ALREADY-expanded pillow fortress is visible in the same living room as background context (not being built). Parents watch quietly. NEVER a second child.',
+      'EXACTLY ONE child kneels beside the crib at natural child scale, gently laying the yellow blanket over the swaddled newborn baby sister. Crib at natural proportions from a gentle 3/4 angle. Parents warm and secondary in upper background — mom may hold bottle; dad stands relaxed with one hand gently on mom\'s shoulder, EMPTY hands (no pacifier, no bottle, no toy). Expanded pillow fort calm in background. Emotional, resolved, book-ending.',
     staging:
-      'Home interior — same living room as p1. ONE protagonist child kneels at the wooden crib through the open doorway, gently wrapping the yellow blanket around the sleepy baby sister (not too tight, not too loose). In the same room, the pillow fortress is ALREADY visibly LARGER than p1 — chairs pushed outward, extra blanket on the roof — but NO second child building it. Parents in soft background (mom with bottle, dad with pacifier). Warm evening light. EXACTLY ONE child in the scene.',
+      'Home interior — calm emotional closing image. EXACTLY ONE protagonist child kneels or leans beside the wooden crib at natural child scale (no harsh foreshortening, no awkward perspective), gently laying the yellow blanket over a small swaddled newborn baby sister proportionate to the crib. Crib shown from a gentle 3/4 angle at natural proportions. Baby sleepy and calm. Parents in soft upper/background only — warm, emotional, visually secondary: mom may hold a baby bottle; dad stands relaxed beside her with one hand gently on mom\'s shoulder and EMPTY hands (NO pacifier, NO bottle, NO toy in dad\'s hands). ALREADY-expanded pillow fortress visible as calm background context in the same room — not clutter, not being built. Warm evening light. NEVER a second or duplicate child.',
     pagePurpose: 'FINAL — kingdom transformed with new rules and more room',
   },
 };

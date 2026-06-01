@@ -51,8 +51,8 @@ const CHILD_NAME = process.env.CHILD_NAME?.trim() || 'נועם';
 const CHILD_AGE = Number.parseInt(process.env.CHILD_AGE?.trim() ?? '5', 10) || 5;
 const CHILD_GENDER = (process.env.CHILD_GENDER?.trim() || 'boy') as 'boy' | 'girl';
 const MAX_STORY_PAGES = 20;
-/** Full selective set: 1,6,10,13,15,16,20. Re-audit after fixes: 1,13,15,20 only. */
-const DEFAULT_RENDER_PAGES = [1, 13, 15, 20];
+/** Round 2: p15 + p20 only. Prior runs: 1,13,15,20 or full selective set via ONLY_PAGES. */
+const DEFAULT_RENDER_PAGES = [15, 20];
 const PAGE_SOFT_TIMEOUT_MS = 4 * 60 * 1000;
 
 /** Positive day-clothes lock lines only — not "NEVER red sneakers" prohibitions in bird pajama lock. */
@@ -243,11 +243,20 @@ async function assembleAndAuditPrompts(
 
     let mustHave: RegExp[] = [];
     if (page.pageNumber === 20) {
-      mustHave = [/yellow blanket/i, /pillow fortress|expanded/i, /BIRDS/i];
-    } else if (page.pageNumber === 1) {
-      mustHave = [/pillow fortress|pillow_fortress/i, /BIRDS/i];
-    } else if (page.pageNumber === 13 || page.pageNumber === 15) {
-      mustHave = [/BIRDS/i, /fabric|CLOTH/i];
+      mustHave = [
+        /yellow blanket/i,
+        /EXACTLY ONE/i,
+        /EMPTY hands|NO pacifier/i,
+        /3\/4|gentle 3\/4/i,
+        /BIRDS/i,
+      ];
+    } else if (page.pageNumber === 15) {
+      mustHave = [
+        /NOT a cave/i,
+        /large-dog|golden-retriever|SAME relative size/i,
+        /PARTIALLY|partially/i,
+        /BIRDS/i,
+      ];
     } else if (page.pageNumber === 16) {
       mustHave = [/moss-green/i, /copper freckles/i];
     }
@@ -456,11 +465,9 @@ async function main(): Promise<void> {
     pages: manifestPages,
     allStoryPages,
     acceptanceChecklist: [
-      'Bird-print pajamas identical on all child pages (NOT sun shirt / denim / red sneakers)',
-      'p1: same child face as rest; plastic toy clearly non-green and inanimate',
-      'p13: silver ribbon = soft cloth fabric, NOT metal',
-      'p15: soft orange-moss nest nook — NO cave; Dini mid-sized with ONE tail',
-      'p20: EXACTLY ONE child at crib; expanded fort in background only',
+      'p15: Dini at constant large-dog scale (same as p13) — partial encircle only, NOT giant, NOT cave',
+      'p20: EXACTLY ONE child; natural crib 3/4; parents secondary; dad EMPTY hands',
+      'Bird-print pajamas on child pages',
       'anchor missing in logs = EXPECTED until new character sheets',
     ],
   };
