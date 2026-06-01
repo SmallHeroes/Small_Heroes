@@ -2,16 +2,16 @@ import { readFile } from 'fs/promises';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   loadStyle01AuditionManifest,
+  resolveAuditionPageAudioPath,
   resolveAuditionPageImagePath,
 } from '@/lib/style01-audition-preview';
+import { devOnlyJsonError, isDevEnvironment } from '@/lib/dev-only-guard';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  if (process.env.NODE_ENV === 'production') {
-    return new NextResponse(null, { status: 404 });
-  }
+  if (!isDevEnvironment()) return devOnlyJsonError();
 
   const dir = req.nextUrl.searchParams.get('dir')?.trim();
   const root = req.nextUrl.searchParams.get('root')?.trim() as
@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
     | undefined;
   const pageRaw = req.nextUrl.searchParams.get('page');
   const pageNumber = pageRaw ? Number.parseInt(pageRaw, 10) : NaN;
+  const kind = req.nextUrl.searchParams.get('kind')?.trim() === 'audio' ? 'audio' : 'image';
 
   if (!dir || !Number.isFinite(pageNumber) || pageNumber < 1) {
     return NextResponse.json({ error: 'dir and page required' }, { status: 400 });
@@ -30,6 +31,20 @@ export async function GET(req: NextRequest) {
     const page = manifest.pages?.find((p) => p.pageNumber === pageNumber);
     if (!page) {
       return NextResponse.json({ error: 'Page not found' }, { status: 404 });
+    }
+
+    if (kind === 'audio') {
+      const audioPath = resolveAuditionPageAudioPath(dirPath, page);
+      if (!audioPath) {
+        return NextResponse.json({ error: 'Audio file missing' }, { status: 404 });
+      }
+      const buffer = await readFile(audioPath);
+      return new NextResponse(buffer, {
+        headers: {
+          'Content-Type': 'audio/mpeg',
+          'Cache-Control': 'no-store',
+        },
+      });
     }
 
     const filePath = resolveAuditionPageImagePath(dirPath, page);

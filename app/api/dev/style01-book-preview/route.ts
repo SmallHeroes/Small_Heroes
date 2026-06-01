@@ -4,22 +4,19 @@ import {
   auditionAssetUrl,
   listStyle01DiniAuditions,
   loadStyle01AuditionManifest,
+  resolveAuditionPageAudioPath,
   resolveAuditionPageImagePath,
 } from '@/lib/style01-audition-preview';
 import { loadStoryFromBank } from '@/backend/providers/story-bank-loader';
 import { getCompanionById } from '@/lib/companions';
+import { storyBankRoot } from '@/lib/qa-console-stories';
+import { devOnlyJsonError, isDevEnvironment } from '@/lib/dev-only-guard';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const STORY_FILE = 'dragon_dini_fantasy.md';
-const COMPANION_ID = 'dragon_dini';
-const TOTAL_PAGES = 20;
-
 export async function GET(req: NextRequest) {
-  if (process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'Dev preview only' }, { status: 404 });
-  }
+  if (!isDevEnvironment()) return devOnlyJsonError();
 
   const dir = req.nextUrl.searchParams.get('dir')?.trim();
   const root = req.nextUrl.searchParams.get('root')?.trim() as
@@ -34,16 +31,31 @@ export async function GET(req: NextRequest) {
 
   try {
     const { dirPath, manifest } = await loadStyle01AuditionManifest(dir, root);
-    const companion = getCompanionById(COMPANION_ID);
-    const childName = process.env.CHILD_NAME?.trim() || 'נועם';
-    const childGender = (process.env.CHILD_GENDER?.trim() || 'boy') as 'boy' | 'girl';
 
+    const storyFile =
+      manifest.storyFile?.trim() ||
+      (manifest.companionId && manifest.direction
+        ? `${manifest.companionId}_${manifest.direction}.md`
+        : 'dragon_dini_fantasy.md');
+
+    const companionId =
+      manifest.companionId?.trim() ||
+      storyFile.replace(/_(bedtime|adventure|fantasy)\.md$/i, '');
+    const companion = getCompanionById(companionId);
+
+    const childName = manifest.childProfile?.name?.trim() || 'נועם';
+    const childGender = (manifest.childProfile?.gender?.trim() || 'boy') as 'boy' | 'girl';
+    const direction =
+      manifest.direction?.trim() ||
+      (storyFile.match(/_(bedtime|adventure|fantasy)\.md$/i)?.[1] ?? 'fantasy');
+
+    const maxPages = manifest.totalStoryPages ?? 20;
     const story = await loadStoryFromBank(
-      pathJoinStory(STORY_FILE),
+      path.join(storyBankRoot(), storyFile),
       childName,
-      companion?.name ?? 'דיני',
+      companion?.name ?? companionId,
       childGender,
-      { maxPages: TOTAL_PAGES }
+      { maxPages }
     );
 
     const renderedByPage = new Map(
@@ -52,7 +64,20 @@ export async function GET(req: NextRequest) {
         .map((p) => [p.pageNumber, p] as const)
     );
 
-    const pages = story.pages
+    const allStoryPages = manifest.allStoryPages;
+    const sourcePages =
+      allStoryPages && allStoryPages.length > 0
+        ? allStoryPages.map((ap) => {
+            const storyPage = story.pages.find((s) => s.pageNumber === ap.pageNumber);
+            return {
+              pageNumber: ap.pageNumber,
+              text: ap.hebrewText ?? storyPage?.text ?? '',
+              narrationText: ap.narrationText ?? storyPage?.narrationText,
+            };
+          })
+        : story.pages;
+
+    const pages = sourcePages
       .sort((a, b) => a.pageNumber - b.pageNumber)
       .map((storyPage) => {
         const rendered = renderedByPage.get(storyPage.pageNumber);
@@ -62,44 +87,61 @@ export async function GET(req: NextRequest) {
             : null;
         const hasLocal = rendered ? Boolean(resolveAuditionPageImagePath(dirPath, rendered)) : false;
         const imageUrl =
-          remote ?? (hasLocal ? auditionAssetUrl(dir, storyPage.pageNumber) : null);
+          remote ?? (hasLocal ? auditionAssetUrl(dir, storyPage.pageNumber, 'image') : null);
         const isRendered = Boolean(imageUrl);
+
+        const hasAudio = rendered ? Boolean(resolveAuditionPageAudioPath(dirPath, rendered)) : false;
+        const audioUrl = hasAudio
+          ? rendered?.audioUrl ?? auditionAssetUrl(dir, storyPage.pageNumber, 'audio')
+          : null;
 
         return {
           pageNumber: storyPage.pageNumber,
           text: storyPage.text,
+          narrationText: storyPage.narrationText,
           imageUrl: isRendered ? imageUrl : null,
+          audioUrl,
           renderStatus: isRendered
             ? ('rendered' as const)
             : ('not rendered in this audition' as const),
         };
       });
 
+    const title =
+      manifest.qaConsole && manifest.storyKey
+        ? `QA — ${manifest.storyKey} (${childName})`
+        : 'Style 01 book preview';
+
     return NextResponse.json({
       id: manifest.orderId ?? dir,
       childName,
-      storyDirection: 'fantasy',
+      storyDirection: direction,
       storyLength: 'long',
       book: {
-        title: 'דיני — ביצת הגבול (Style 01 preview)',
+        title,
         pages,
       },
       manifestMeta: {
         dir,
         root: root ?? 'auto',
         audition: manifest.audition,
+        qaConsole: manifest.qaConsole,
+        storyKey: manifest.storyKey,
+        storyFile: manifest.storyFile,
+        companionId,
+        direction,
+        voiceId: manifest.voiceId,
         quality: manifest.quality,
         model: manifest.model,
-        renderedPageNumbers: manifest.renderedPageNumbers ?? pages.filter((p) => p.renderStatus === 'rendered').map((p) => p.pageNumber),
-        totalStoryPages: manifest.totalStoryPages ?? TOTAL_PAGES,
+        childProfile: manifest.childProfile,
+        renderedPageNumbers:
+          manifest.renderedPageNumbers ??
+          pages.filter((p) => p.renderStatus === 'rendered').map((p) => p.pageNumber),
+        totalStoryPages: manifest.totalStoryPages ?? story.pages.length,
       },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to load manifest';
     return NextResponse.json({ error: message }, { status: 404 });
   }
-}
-
-function pathJoinStory(file: string): string {
-  return path.join(process.cwd(), 'story-bank', 'v5-fixed-v2', file);
 }

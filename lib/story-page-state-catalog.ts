@@ -11,12 +11,12 @@ import {
 export const DRAGON_DINI_PAGE_STORY_STATES: Record<number, PageStoryState> = {
   1: {
     presentEntities: ['pillow_fortress', 't_rex_toy', 'crib'],
-    forbiddenEntities: ['dini', 'baby_dragon', 'green_speckled_egg', 'toy_chest_portal', 'orange_moss_hills', 'silver_ribbon'],
+    forbiddenEntities: ['dini', 'baby_dragon', 'green_speckled_egg', 'toy_chest', 'orange_moss_hills', 'silver_ribbon'],
     objectStates: { pillow_fortress: 'intact', t_rex_toy: 'intact', crib: 'intact' },
   },
   2: {
     presentEntities: ['crib', 'yellow_blanket', 't_rex_toy', 'baby_sister'],
-    forbiddenEntities: ['dini', 'baby_dragon', 'green_speckled_egg', 'pillow_fortress', 'toy_chest_portal'],
+    forbiddenEntities: ['dini', 'baby_dragon', 'green_speckled_egg', 'pillow_fortress', 'toy_chest'],
     objectStates: { crib: 'intact', yellow_blanket: 'intact', t_rex_toy: 'intact' },
   },
   3: {
