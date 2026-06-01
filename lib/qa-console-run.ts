@@ -27,6 +27,7 @@ import {
   shouldUseStyle01Phase2Path,
 } from '@/lib/style01-gptimage';
 import { resolveDefaultPageStoryState } from '@/lib/story-page-state-catalog';
+import { reportStyle01ChildScaleViolations } from '@/lib/style01-child-scale-validator';
 import { V3_COMPANION_BANK_CATEGORY } from '@/backend/providers/story-bank-index';
 import {
   ChildPhotoUploadError,
@@ -326,6 +327,7 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
         break;
       }
     }
+    reportStyle01ChildScaleViolations({ log: (line) => console.warn(line) });
   }
 
   const child = resolveChildProfile(input.child);
@@ -413,7 +415,7 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
         manifestDir,
         outputRoot: 'outputs/style01-auditions',
         manifestPath: path.join(outDir, 'manifest.json'),
-        previewUrl: `/dev/style01-book-preview?dir=${encodeURIComponent(manifestDir)}&root=outputs`,
+        previewUrl: `/dev/viewer?dir=${encodeURIComponent(manifestDir)}&root=outputs`,
         model: resolveStyle01GptModel(),
         quality: input.quality,
         estimatedCostUsd: estimateQaConsoleCostUsd(pages.length, input.quality, Boolean(input.generateAudio)),
@@ -575,7 +577,7 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
       outputRoot: 'outputs/style01-auditions',
       totalStoryPages: story.pages.length,
       renderedPageNumbers,
-      previewUrl: `/dev/style01-book-preview?dir=${encodeURIComponent(manifestDir)}&root=outputs`,
+      previewUrl: `/dev/viewer?dir=${encodeURIComponent(manifestDir)}&root=outputs`,
       runtimeMs: Date.now() - startedAt,
       failedPages,
       totalEstimatedCostUsd:

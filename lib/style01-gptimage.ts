@@ -128,7 +128,7 @@ export function subjectScaleHeightRange(scale: Style01SubjectScale): string {
     case 'small':
       return '25-35';
     case 'medium':
-      return '35-50';
+      return '35-55';
     case 'large':
       return '50-60';
   }
@@ -142,6 +142,11 @@ export type Style01CompositionSpec = {
   pagePurpose: string;
   /** Character height in frame — small/medium/large per Style 01 breathe rule. */
   subjectScale: Style01SubjectScale;
+  /**
+   * Rare world-scale breath: child may read smaller ONLY when identity is not the page beat.
+   * Max ~1–2 per book. Child must still match CHILD VISUAL LOCK (not anonymous silhouette).
+   */
+  allowSmallChildForEstablishing?: boolean;
 };
 
 /** bear_cub_gahal (Dobi) — 10-page continuity audition composition targets. */
@@ -565,11 +570,32 @@ export function buildStyle01RecurringEntityLocks(
     .join('\n\n');
 }
 
+function buildChildIdentityCompositionAddendum(
+  scale: Style01SubjectScale,
+  allowSmallEstablishing: boolean
+): string {
+  if (allowSmallEstablishing) {
+    return [
+      'IDENTITY COMPOSITION (establishing exception — allowSmallChildForEstablishing):',
+      'Child may read smaller in frame but MUST remain recognizable — same hair, face, skin, and age as CHILD VISUAL LOCK.',
+      'Frontal or 3/4 face visible; NOT back-turned; NOT an anonymous tiny silhouette.',
+    ].join('\n');
+  }
+  return [
+    'IDENTITY COMPOSITION (child protagonist present):',
+    'Child face clearly readable — frontal or 3/4 view, NOT back-view, NOT distant profile silhouette.',
+    `Child head/face occupies roughly ${subjectScaleHeightRange(scale)}% of illustration height (match SUBJECT SCALE).`,
+    'Same child as CHILD VISUAL LOCK on every page — hair, age, skin, face; do NOT shrink into a generic younger child.',
+  ].join('\n');
+}
+
 export function buildStyle01CompositionBlock(input: {
   pageNumber: number;
   imageDirection?: string | null;
   compositionOverride?: Style01CompositionSpec;
   compositionByPage?: Record<number, Style01CompositionSpec>;
+  /** When true, inject identity-scale composition rules (default for child-present pages). */
+  childOnPage?: boolean;
 }): string {
   const spec =
     input.compositionOverride ??
@@ -577,10 +603,15 @@ export function buildStyle01CompositionBlock(input: {
     DRAGON_DINI_COMPOSITION_BY_PAGE[input.pageNumber] ??
     inferCompositionFromImageDirection(input.imageDirection);
 
-  const scale = spec.subjectScale ?? 'medium';
+  const childOnPage = input.childOnPage ?? compositionAssumesChildPresent(spec);
+  let scale = spec.subjectScale ?? 'medium';
+  if (childOnPage && scale === 'small' && !spec.allowSmallChildForEstablishing) {
+    scale = 'medium';
+  }
   const heightRange = subjectScaleHeightRange(scale);
+  const allowSmall = Boolean(spec.allowSmallChildForEstablishing);
 
-  return [
+  const parts = [
     'COMPOSITION:',
     `shotType: ${spec.shotType}`,
     `camera: ${spec.camera}`,
@@ -588,7 +619,20 @@ export function buildStyle01CompositionBlock(input: {
     `staging: ${spec.staging}`,
     `pagePurpose: ${spec.pagePurpose}`,
     `SUBJECT SCALE: ${scale}. Character occupies approx ${heightRange}% of frame height. Environment fills the rest.`,
-  ].join('\n');
+  ];
+  if (childOnPage) {
+    parts.push(buildChildIdentityCompositionAddendum(scale, allowSmall));
+  }
+  return parts.join('\n');
+}
+
+/** @internal exported for child-scale validator */
+export function compositionAssumesChildPresent(spec: Style01CompositionSpec): boolean {
+  const hay = `${spec.subjectDominance} ${spec.staging} ${spec.pagePurpose}`.toLowerCase();
+  if (/\bno child\b|child not in|without (the )?child|solo moment|dini'?s solo|not in this frame/.test(hay)) {
+    return false;
+  }
+  return true;
 }
 
 function inferCompositionFromImageDirection(imageDirection?: string | null): Style01CompositionSpec {

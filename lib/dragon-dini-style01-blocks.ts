@@ -350,12 +350,13 @@ export const DRAGON_DINI_COMPOSITION_BY_PAGE: Record<number, Style01CompositionS
   },
   5: {
     shotType: 'wide establishing — dragon world arrival',
-    subjectScale: 'small',
-    camera: 'wide environmental shot — child and Dini emerging from a glowing toy-chest portal into orange moss hills',
+    subjectScale: 'medium',
+    camera:
+      'medium-wide environmental — child and Dini in foreground lower third (faces readable), orange moss hills and portal beyond',
     subjectDominance:
-      'Child and Dini standing small in the lower third of the frame, having just emerged from a shimmering portal behind them. They face a vast landscape of rolling orange moss hills under purple twilight sky.',
+      'Child and Dini in the lower third, faces readable (frontal or 3/4). Same child identity as every page — identical hair, skin tone, age 8, photo-derived face. Vast rolling orange moss hills and purple twilight fill the upper frame for wonder.',
     staging:
-      'Magical landscape — soft rolling orange moss hills (springy trampoline-like), purple twilight sky above with a few distant glowing motes. The toy chest portal shimmers behind the child and Dini (faint warm light fading). Both stand small in lower-third of frame, looking out. NO cave. NO dinosaur-era scenery.',
+      'Magical landscape — soft rolling orange moss hills, purple twilight sky with distant glowing motes. Toy chest portal shimmers behind child and Dini. Child and Dini stand in lower third facing the hills; child face clearly visible (~40% frame height), NOT a tiny anonymous figure. NO cave. NO dinosaur-era scenery.',
     pagePurpose: 'Reveal of the dragon-world — establish the otherworld with movement and wonder',
   },
   6: {
@@ -409,13 +410,14 @@ export const DRAGON_DINI_COMPOSITION_BY_PAGE: Record<number, Style01CompositionS
     pagePurpose: 'Action set-piece — bonding through shared chaos',
   },
   11: {
-    shotType: 'wide environmental — whisper valley threat',
-    subjectScale: 'small',
-    camera: 'wide shot of the whisper valley — giant fuzzy reeds, spinning egg, marshmallow swamp threat in middle distance',
+    shotType: 'medium-wide — whisper valley threat',
+    subjectScale: 'medium',
+    camera:
+      'medium-wide — spinning egg mid-frame with child and Dini in foreground watching (faces readable 3/4)',
     subjectDominance:
-      'A whimsical valley filled with giant fuzzy reed-like plants swaying gently. The egg spins on its tip like a top, kicking up colored dust, heading toward a sticky purple puddle of melted-marshmallow goo.',
+      'Giant fuzzy reeds sway; green speckled egg spins toward a glossy purple marshmallow swamp puddle. Child and Dini in foreground — faces readable, same child identity as every page (long hair, age 8, photo-derived face). Child ~40% frame height, NOT a distant silhouette.',
     staging:
-      'Whisper valley — wide environmental shot. Giant fuzzy reed-plants towering, silvery-green plumes swaying. The green speckled egg spins on its tip in the foreground, motion-blurred to a single line of color. In the middle distance: a glossy purple marshmallow swamp puddle — a clear visual threat. Child and Dini visible small in the frame, watching anxiously.',
+      'Whisper valley. Giant fuzzy reed-plants with silvery-green plumes. Egg spins on its tip in mid-frame, motion-blurred. Purple marshmallow swamp puddle in middle distance — clear threat. Child and Dini in foreground beside each other, 3/4 faces visible, watching anxiously.',
     pagePurpose: 'Escalating stakes — third location, real danger of egg getting stuck',
   },
   12: {
