@@ -1,12 +1,18 @@
 import { NextResponse } from 'next/server';
 import { devOnlyJsonError, isDevEnvironment } from '@/lib/dev-only-guard';
-import { buildCreatorMetaPayload } from '@/lib/dev-creator-meta';
+import { devViewerUrlForEntry, listDevViewerLibrary } from '@/lib/dev-viewer-library';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** @deprecated Use /api/dev/creator/meta */
 export async function GET() {
   if (!isDevEnvironment()) return devOnlyJsonError();
-  return NextResponse.json(await buildCreatorMetaPayload());
+
+  const entries = await listDevViewerLibrary();
+  return NextResponse.json({
+    entries: entries.map((e) => ({
+      ...e,
+      viewerUrl: devViewerUrlForEntry(e),
+    })),
+  });
 }

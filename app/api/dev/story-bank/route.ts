@@ -36,6 +36,7 @@ const ALLOWED_PAGE_COUNTS = new Set<number>(GOLDEN_SHELF_PAGE_OPTIONS);
 function normalizeMaxPages(value: unknown): GoldenShelfPageOption {
   const n = typeof value === 'number' ? value : parseInt(String(value ?? ''), 10);
   if (ALLOWED_PAGE_COUNTS.has(n)) return n as GoldenShelfPageOption;
+  if (n === 15 || n === 20) return n as GoldenShelfPageOption;
   return 3;
 }
 
@@ -132,6 +133,8 @@ export async function POST(req: NextRequest) {
     maxPages?: number;
     skipCover?: boolean;
     generateAudio?: boolean;
+    voiceId?: string | null;
+    childPhotoBase64?: string | null;
   };
 
   const {
@@ -141,11 +144,22 @@ export async function POST(req: NextRequest) {
     childAge = 5,
     companionName = 'צפרדע',
     illustrationStyle: illustrationStyleRaw = 'soft_hand_drawn_storybook',
-    childImageUrl = null,
+    childImageUrl: childImageUrlRaw = null,
     maxPages: maxPagesRaw = 3,
     skipCover = false,
     generateAudio = false,
+    voiceId: voiceIdRaw = 'mom',
+    childPhotoBase64 = null,
   } = body;
+
+  const childImageUrl =
+    childImageUrlRaw?.trim() ||
+    (childPhotoBase64?.trim()
+      ? childPhotoBase64.trim().startsWith('data:')
+        ? childPhotoBase64.trim()
+        : `data:image/jpeg;base64,${childPhotoBase64.trim()}`
+      : null);
+  const voiceId = voiceIdRaw?.trim() || 'mom';
 
   const maxPages = normalizeMaxPages(maxPagesRaw);
 
@@ -256,7 +270,7 @@ export async function POST(req: NextRequest) {
         textStatus: 'done',
         imageStatus: 'running',
         audioEnabled: generateAudio,
-        selectedVoice: generateAudio ? 'mom' : null,
+        selectedVoice: generateAudio ? voiceId : null,
         audioStatus: generateAudio ? 'pending' : 'done',
         packageStatus: 'pending',
         bookName: story.title,
@@ -509,7 +523,7 @@ export async function POST(req: NextRequest) {
         try {
           const result = await generatePageAudio({
             narrationText: narration,
-            voiceId: 'mom',
+            voiceId,
             sleepMode: false,
             orderId: order.id,
             pageNumber: page.pageNumber,
@@ -539,6 +553,7 @@ export async function POST(req: NextRequest) {
     });
 
     const bookUrl = ROUTES.readerV2(order.id, accessKey);
+    const viewerUrl = `/dev/viewer?orderId=${encodeURIComponent(order.id)}&accessKey=${encodeURIComponent(accessKey)}`;
 
     return NextResponse.json({
       success: true,
@@ -546,6 +561,7 @@ export async function POST(req: NextRequest) {
       bookId: book.id,
       accessKey,
       bookUrl,
+      viewerUrl,
       pagesRendered: imageOutcome.results.size,
       pagesFailed: imageOutcome.failedPages,
       maxPages,

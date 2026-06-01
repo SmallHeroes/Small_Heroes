@@ -5,7 +5,6 @@ import { buildCreatorMetaPayload } from '@/lib/dev-creator-meta';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** @deprecated Use /api/dev/creator/meta */
 export async function GET() {
   if (!isDevEnvironment()) return devOnlyJsonError();
   return NextResponse.json(await buildCreatorMetaPayload());
