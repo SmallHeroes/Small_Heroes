@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { STORY_LENGTHS } from '../../../../backend/config/wizard';
+import { sweepStaleGenerationJobs } from '@/lib/generation-chunked/sweeper';
 
 type StageStatus = 'pending' | 'running' | 'done' | 'failed';
 type StageName  = 'text' | 'images' | 'audio' | 'package' | 'done';
@@ -88,6 +89,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'orderId required' }, { status: 400 });
     }
 
+    void sweepStaleGenerationJobs(3);
+
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       select: {
@@ -101,12 +104,25 @@ export async function GET(req: NextRequest) {
         audioStatus:   true,
         packageStatus: true,
         lastError:     true,
+        generationJob: {
+          select: {
+            currentStage: true,
+            status: true,
+            textDone: true,
+            imagesDone: true,
+            audioDone: true,
+            packaged: true,
+            retryable: true,
+          },
+        },
         book: {
           select: {
             readUrl: true,
             coverImageUrl: true,
             pages: {
               select: {
+                pageNumber: true,
+                audioUrl: true,
                 imageAsset: { select: { id: true } },
               },
             },
@@ -135,10 +151,26 @@ export async function GET(req: NextRequest) {
     const failedStage   = deriveFailedStage(ts, is, as, ps, audio);
     const progress      = computeProgress(ts, is, as, ps, audio, imageCompletionRatio);
 
+    const pagesWithAudio =
+      order.book?.pages?.filter((p) => Boolean(p.audioUrl?.trim())).length ?? 0;
+    const pagesNeedingAudio = order.audioEnabled
+      ? order.book?.pages?.filter((p) => true).length ?? expectedPageCount
+      : 0;
+
     const body: Record<string, unknown> = {
       status:       order.status,
       progress,
-      currentStage,
+      currentStage: order.generationJob?.currentStage ?? currentStage,
+      jobStage: order.generationJob?.currentStage ?? null,
+      pagesDone: completedPageImages,
+      pagesTotal: expectedPageCount,
+      coverDone: hasCover,
+      imagesDone: order.generationJob?.imagesDone ?? is === 'done',
+      audioDone: order.generationJob?.audioDone ?? as === 'done',
+      packaged: order.generationJob?.packaged ?? ps === 'done',
+      retryable: order.generationJob?.retryable ?? false,
+      audioPagesDone: pagesWithAudio,
+      audioPagesTotal: pagesNeedingAudio,
     };
 
     if (failedStage !== null) body.failedStage = failedStage;

@@ -36,6 +36,7 @@ import {
   deriveLayout,
   type PageLayout,
 } from '../../../backend/providers/image-prompt-enricher';
+import { startChunkedGeneration } from '@/lib/generation-chunked/start';
 
 const activeOrderLocks = new Set<string>();
 const GENERATION_ELIGIBLE_STATUS = 'paid';
@@ -316,8 +317,20 @@ function ageBandFromAge(age: number | null | undefined): '3-5' | '5-7' | '7-9' {
   return '7-9';
 }
 
-// ─── Main Orchestrator ────────────────────────────────
+// ─── Main Orchestrator (chunked — production default) ───
 export async function triggerGeneration(orderId: string, reason = 'unspecified'): Promise<void> {
+  if (process.env.GENERATION_MONOLITH === 'true') {
+    return runMonolithicGeneration(orderId, reason);
+  }
+  const result = await startChunkedGeneration(orderId, reason);
+  if (!result.started) {
+    generationLogger.warn('Chunked start rejected', { orderId, reason, message: result.message });
+  }
+  return;
+}
+
+/** @deprecated Single-invocation path — dev only when GENERATION_MONOLITH=true */
+export async function runMonolithicGeneration(orderId: string, reason = 'unspecified'): Promise<void> {
   if (!orderId || typeof orderId !== 'string') {
     generationLogger.warn('Trigger skipped due to invalid orderId');
     return;
@@ -1437,12 +1450,13 @@ export async function POST(req: Request) {
     }
 
     const triggerReason = typeof reason === 'string' && reason.trim().length > 0 ? reason.trim() : 'manual_api';
-    generateApiLogger.info('Manual trigger accepted', { orderId, reason: triggerReason });
-    triggerGeneration(orderId, triggerReason).catch((err) => {
-      generateApiLogger.error('Async trigger failed after acceptance', err, { orderId });
-    });
+    generateApiLogger.info('Manual trigger accepted (chunked)', { orderId, reason: triggerReason });
+    const result = await startChunkedGeneration(orderId, triggerReason);
+    if (!result.started) {
+      return Response.json({ error: result.message ?? 'Could not start generation' }, { status: 409 });
+    }
 
-    return Response.json({ started: true, orderId });
+    return Response.json({ started: true, orderId, mode: 'chunked' });
 
   } catch (error) {
 

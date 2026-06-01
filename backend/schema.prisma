@@ -345,6 +345,8 @@ model ImageAsset {
   width       Int?
   height      Int?
   style       String?
+  /// orderId + artifactType + page + model + quality + generationVersion — skip duplicate paid gen
+  idempotencyKey String? @unique
 
   createdAt   DateTime @default(now())
 }
@@ -418,6 +420,25 @@ model GenerationJob {
   audioDone   Boolean @default(false)
   packaged    Boolean @default(false)
 
+  /// Chunked pipeline: text | dna | cover | page_images | audio | video | package | done | failed
+  currentStage       String   @default("pending")
+  lockedBy           String?
+  leaseExpiresAt     DateTime?
+  generationVersion  Int      @default(1)
+  provider           String?
+  model              String?
+  quality            String?
+  triggerReason      String?
+  retryable          Boolean  @default(false)
+  /// Cached DNA / story paths between chunks (JSON)
+  pipelineCache      Json?
+  completedPageNumbers Json?
+  failedPageNumbers    Json?
+  pageAttempts         Json?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([status, leaseExpiresAt])
+  @@index([currentStage])
 }

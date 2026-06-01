@@ -4,6 +4,23 @@
     "app/api/generate/route.ts": {
       "maxDuration": 300,
       "memory": 1024
+    },
+    "app/api/generate/worker/route.ts": {
+      "maxDuration": 300,
+      "memory": 1024
+    },
+    "app/api/generate/start/route.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "app/api/generate/cron/sweep/route.ts": {
+      "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/generate/cron/sweep",
+      "schedule": "*/2 * * * *"
+    }
+  ]
 }

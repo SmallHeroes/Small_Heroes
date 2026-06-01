@@ -3500,6 +3500,10 @@ export async function generateAllPageImages(
     pdfEnabled?: boolean;
     /** Soft per-page cap (ms); rejects with timeout error when exceeded. */
     pageGenerationTimeoutMs?: number;
+    /** Chunked worker: stop after generating this many new pages (skipped existing do not count). */
+    maxNewPages?: number;
+    /** Chunked worker: stop before this timestamp (ms since epoch). */
+    workerDeadlineMs?: number;
     /** guarded-v2 — production recipe id for explicit page cards (e.g. bolly_bedtime_age_5). */
     guardedV2RecipeId?: string | null;
   }
@@ -3825,7 +3829,26 @@ export async function generateAllPageImages(
     }
   };
 
+  let newPagesGenerated = 0;
+
   for (const page of pagesToGenerate) {
+    if (config.workerDeadlineMs && Date.now() >= config.workerDeadlineMs) {
+      console.log(
+        `[Image] Chunk worker deadline reached; stopping before page ${page.pageNumber} (${results.size} pages in this invocation)`
+      );
+      break;
+    }
+    if (config.maxNewPages != null && config.maxNewPages > 0 && newPagesGenerated >= config.maxNewPages) {
+      console.log(
+        `[Image] maxNewPages=${config.maxNewPages} reached; stopping before page ${page.pageNumber}`
+      );
+      break;
+    }
+    if (existingPages.has(page.pageNumber)) {
+      console.log(`[Image] Page ${page.pageNumber} already complete; skipping generation`);
+      continue;
+    }
+
     const expectedCharacterIds = page.expectedCharacterIds && page.expectedCharacterIds.length > 0
       ? page.expectedCharacterIds
       : ['child'];
@@ -4335,6 +4358,7 @@ export async function generateAllPageImages(
 
     results.set(page.pageNumber, image);
     generatedPages.add(page.pageNumber);
+    newPagesGenerated += 1;
     // ── Page-output-as-anchor (May 15 regression fix) ──
     // Storing the generated page URL as the child anchor causes every subsequent
     // page to be rendered as images.edit with this page as visual reference. The
