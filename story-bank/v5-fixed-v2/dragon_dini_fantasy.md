@@ -17,11 +17,11 @@ worldRule: "דברים קטנים בועטים לכל הכיוונים כי הע
 powerCard:
   title: "כרטיס המבצר של {{childName}}"
   subtitle: "כשמשהו חדש נכנס למשפחה"
-  coreTool: "soft boundaries — wrap, don't squeeze"
+  coreTool: "soft boundaries, wrap, don't squeeze"
   steps:
     - "אני {שם|שמה} לב מי באמת בועט"
     - "אני {שואל|שואלת}: מה {הוא|היא} צריכ/ה?"
-    - "אני {עוטף|עוטפת} ברוך — לא חזק, לא רופף"
+    - "אני {עוטף|עוטפת} ברוך, לא חזק ולא רופף"
     - "אני {מרחיב|מרחיבה} את המבצר במקום לסגור אותו"
   companionReminder: "מבצרים טובים יודעים לעשות מקום."
   visualMotifs:
@@ -333,3 +333,5 @@ imageDirection: The child steps backward through a shimmering portal-shape that 
 וקצת יותר מקום.
 
 imageDirection: The child carefully wraps the baby sister in a yellow blanket in the crib — not too tight, not too loose. The baby calms. In the final beat, the child expands the pillow fortress in the living room: pushing chairs outward and spreading an additional blanket wider, so the kingdom feels bigger.
+
+WORD_COUNT: [47, 89, 68, 63, 59, 50, 49, 62, 69, 61, 47, 76, 65, 41, 63, 65, 56, 65, 48, 85] = 1228

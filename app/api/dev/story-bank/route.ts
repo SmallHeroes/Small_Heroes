@@ -21,6 +21,12 @@ import {
 import { storePresentationBuffer } from '@/lib/image-storage';
 import { ROUTES } from '@/lib/routes';
 import { generatePageAudio } from '@/backend/providers/audio';
+import { startChunkedGeneration } from '@/lib/generation-chunked/start';
+import type { PipelineCache } from '@/lib/generation-pipeline/types';
+
+function useChunkedGeneration(): boolean {
+  return process.env.GENERATION_MONOLITH !== 'true';
+}
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -135,6 +141,8 @@ export async function POST(req: NextRequest) {
     generateAudio?: boolean;
     voiceId?: string | null;
     childPhotoBase64?: string | null;
+    /** Validate story + personalization only — no DB, no images, no audio. */
+    packageDryRun?: boolean;
   };
 
   const {
@@ -150,6 +158,7 @@ export async function POST(req: NextRequest) {
     generateAudio = false,
     voiceId: voiceIdRaw = 'mom',
     childPhotoBase64 = null,
+    packageDryRun = false,
   } = body;
 
   const childImageUrl =
@@ -215,9 +224,41 @@ export async function POST(req: NextRequest) {
       childName,
       effectiveCompanionName,
       childGender,
-      { maxPages }
+      { maxPages: packageDryRun ? 20 : maxPages }
     );
-    console.log(`[StoryBank] Loaded "${storyFull.title}" — ${storyFull.pages.length} pages (maxPages=${maxPages})`);
+    console.log(`[StoryBank] Loaded "${storyFull.title}" — ${storyFull.pages.length} pages (maxPages=${packageDryRun ? 20 : maxPages})`);
+
+    if (packageDryRun) {
+      const markdown = await fs.readFile(filePath, 'utf-8');
+      const { parseAndValidateStoryPowerCard, extractYamlFrontmatterBlock, parsePowerCardFromFrontmatterYaml, resolvePowerCard } =
+        await import('@/lib/power-cards');
+      const slug = storyFile.replace(/\.md$/, '');
+      const powerResult = parseAndValidateStoryPowerCard(markdown, slug);
+      const powerErrors = powerResult.issues.filter((i) => i.severity === 'error');
+      if (powerErrors.length > 0 || !powerResult.spec) {
+        return NextResponse.json(
+          { error: 'powerCard validation failed', issues: powerErrors },
+          { status: 400 }
+        );
+      }
+      const yamlBlock = extractYamlFrontmatterBlock(markdown);
+      if (yamlBlock) {
+        resolvePowerCard({ powerCard: parsePowerCardFromFrontmatterYaml(yamlBlock) });
+      }
+      if (!/WORD_COUNT:\s*\[/.test(markdown)) {
+        return NextResponse.json({ error: 'Missing WORD_COUNT line' }, { status: 400 });
+      }
+      return NextResponse.json({
+        success: true,
+        mode: 'packageDryRun',
+        storyFile,
+        pages: storyFull.pages.length,
+        title: storyFull.title,
+        powerCard: true,
+        wordCountLine: true,
+        personalizationSample: storyFull.pages[0]?.text?.slice(0, 120),
+      });
+    }
 
     if (storyFull.pages.length === 0) {
       return NextResponse.json({ error: 'No pages found in story file' }, { status: 400 });
@@ -298,7 +339,37 @@ export async function POST(req: NextRequest) {
       })),
     });
 
-    // Use loaded story text for DNA (respects maxPages truncation at source markers).
+    const pipelineCache: PipelineCache = {
+      devStoryBankFile: filePath,
+      devSkipCover: skipCover,
+      challengeCategory,
+      directionForV3: storyDirection ?? undefined,
+    };
+
+    if (useChunkedGeneration()) {
+      await startChunkedGeneration(order.id, 'creator_story_bank', {
+        pipelineCache,
+      });
+
+      const bookUrl = ROUTES.readerV2(order.id, accessKey);
+      const viewerUrl = `/dev/viewer?orderId=${encodeURIComponent(order.id)}&accessKey=${encodeURIComponent(accessKey)}`;
+
+      return NextResponse.json({
+        success: true,
+        orderId: order.id,
+        bookId: book.id,
+        accessKey,
+        bookUrl,
+        viewerUrl,
+        maxPages,
+        mode: 'chunked',
+        polling: true,
+        statusUrl: `/api/generate/status?orderId=${encodeURIComponent(order.id)}`,
+        hint: 'Full book uses chunked /api/generate/worker — poll statusUrl until ready.',
+      });
+    }
+
+    // Legacy synchronous path (GENERATION_MONOLITH=true only)
     const allText = story.pages.map((p) => p.text).join('\n');
     const dna = await generateStoryBankCharacterDNA({
       childName,
