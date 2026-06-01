@@ -695,6 +695,7 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
     hasChildPhoto: Boolean(order.childImageUrl),
   });
 
+  // Same engine as full book: generateAllPageImages → generateImage → Style 01/02 phase-2 gpt-image-2.
   const imageOutcome = await generateAllPageImages(
     [{ ...pageForGeneration, supportingCharacters }],
     {

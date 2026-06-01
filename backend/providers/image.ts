@@ -96,6 +96,10 @@ import {
   type Style01SceneClass,
 } from '../../lib/style01-gptimage';
 import { assembleStyle01Phase2Prompt } from '../../lib/style01-prompt-assembly';
+import {
+  assertShippedBookStyleEngineActive,
+  resolveLegacyImageProviderEnv,
+} from '../../lib/image-engine-guard';
 import type { PageStoryState } from '../../lib/story-page-state';
 import { storeImageFromBuffer, storeImageFromProviderUrl } from '../../lib/image-storage';
 import type { BookPageTemplate } from '../../lib/bookPageLayout';
@@ -2130,10 +2134,7 @@ function buildDirectionPreviewStyleLockPrefix(styleIdInput: string): string {
 }
 
 function normalizeImageProviderEnv(): 'replicate' | 'dall-e-3' | 'gpt-image' {
-  const raw = (process.env.IMAGE_PROVIDER ?? 'replicate').trim().toLowerCase();
-  if (raw === 'dall-e-3') return 'dall-e-3';
-  if (raw === 'gpt-image') return 'gpt-image';
-  return 'replicate';
+  return resolveLegacyImageProviderEnv();
 }
 
 /**
@@ -2832,7 +2833,7 @@ async function generateWithGPTImageStyle02(input: ImageInput): Promise<Generated
   };
 }
 
-/** Phase 2 — Style 01 book pages via gpt-image-1 + scene-typed style refs + entity presence locks. */
+/** Phase 2 — Style 01 book pages via gpt-image-2 (STYLE_01_GPT_MODEL) + scene-typed style refs. */
 async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<GeneratedImage> {
   const hiResPdf = !!input.printPdfOptimized;
   const size = hiResPdf ? '1536x1536' : '1024x1536';
@@ -3208,6 +3209,7 @@ export async function generateImage(input: ImageInput): Promise<GeneratedImage> 
   if (shouldUseStyle01Phase2Path(input.illustrationStyle)) {
     return generateWithGPTImageStyle01Phase2(input);
   }
+  assertShippedBookStyleEngineActive(input.illustrationStyle);
   if (isImageGenerationDisabled()) {
     console.warn(
       `[ImageGuard] Mock image returned orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} route=provider reason=DISABLE_IMAGE_GENERATION`
@@ -3295,94 +3297,8 @@ function buildCoverPrompt(input: CoverImageInput): string {
   return coverPrompt;
 }
 
-function buildGPTCoverPrompt(input: CoverImageInput): string {
-  // Use structured child description when available
-  const cs = input.childStructured;
-  const childDesc = cs && cs.face && cs.clothing
-    ? `${cs.face}. ${cs.hair}. ${cs.body}. Wearing: ${cs.clothing}. ${cs.signature}`
-    : (input.childDescription ?? '').trim() || 'a young child shown as the story hero';
-
-  // Use structured companion when available, else flat description
-  const cps = input.companionStructured;
-  let companionDesc = '';
-  if (cps && cps.species && cps.coloring) {
-    companionDesc = `${cps.species}, ${cps.size}. ${cps.coloring}. ${cps.feature}`;
-  } else if (input.companion?.visualDescription) {
-    companionDesc = input.companion.visualDescription;
-  } else if (input.entityVisualLock) {
-    companionDesc = `a small friendly ${input.entityVisualLock.shape}, ${input.entityVisualLock.color}`;
-  }
-
-  // Use explicit cover scene description when provided (story-bank path),
-  // otherwise fall back to generic warm scene
-  const coverSceneDesc = (input.directionStoryPremise ?? '').trim();
-
-  const sceneParts = coverSceneDesc
-    ? [
-        `Children's book cover illustration: ${childDesc}.`,
-        `Scene: ${coverSceneDesc}.`,
-        companionDesc ? `Companion: ${companionDesc}.` : '',
-        // EMOTION: default to warm-and-curious; story mood inherits via storyboardprompt for body pages.
-        'The child has a soft warm expression — curious, gentle, calmly engaged. NOT sad, NOT scared. This is a book cover; first impression must invite the reader in.',
-        'Warm bright soft lighting — daylight, not dim or moody.',
-        // SIZE: enforce smaller character + reserved title zone explicitly.
-        'COMPOSITION RULES (CRITICAL): The child + companion together occupy NO MORE than 50-55% of the canvas. They are positioned in the LOWER 60-65% of the frame. The top 35% of the canvas MUST be calm, clear, and visually quiet — sky / soft gradient / cream / dissolved environment — leaving wide-open space for a Hebrew title to be overlaid. NEVER place the character\'s head, hand, or any prop inside the top 30% of the canvas.',
-        'ZERO text, letters, or words anywhere in the image.',
-      ]
-    : [
-        `Children's book cover illustration: ${childDesc} in a cozy, brightly lit setting, soft smile, curious gentle expression.`,
-        companionDesc ? `${companionDesc} is nearby, part of the scene.` : '',
-        'Warm inviting mood; cheerful and hopeful. The child looks happy, calm, and curious — NOT sad, NOT scared.',
-        'Bright soft daylight lighting.',
-        'COMPOSITION RULES (CRITICAL): The child + companion together occupy NO MORE than 50-55% of the canvas. Positioned in the LOWER 60-65% of the frame. The top 35% MUST be calm, clear, and visually quiet for a Hebrew title overlay. NEVER place the character\'s head, hand, or any prop inside the top 30% of the canvas.',
-        'ZERO text, letters, or words anywhere in the image.',
-      ];
-
-  const scene = sceneParts.filter(Boolean).join(' ');
-  const coverStyleContract = input.illustrationStyle
-    ? getStyleContract(input.illustrationStyle)
-    : null;
-  const coverStyleDesc = coverStyleContract?.renderingDescription ?? '';
-  const style = coverStyleDesc
-    ? `${coverStyleDesc}. Book cover composition. Cheerful and bright. No text, no letters, no title, no words.`
-    : "Modern children's picture book cover in vivid saturated full colors with rich detailed scenery edge-to-edge. Cheerful and bright. No text, no letters, no title, no words.";
-  return `${scene}\n\n${style}`;
-}
-
 export async function generateBookCover(input: CoverImageInput): Promise<GeneratedImage> {
-  const provider = normalizeImageProviderEnv();
-
-  if (provider === 'gpt-image') {
-    const rawCoverPrompt = buildGPTCoverPrompt(input);
-    const prompt = sanitizePromptForSafety(rawCoverPrompt);
-    console.log(`[gpt_cover_prompt] orderId=${input.orderId ?? 'unknown'} promptLen=${prompt.length}`);
-
-    const hiResPdf = !!input.printPdfOptimized;
-    const result = await generateGPTImage({
-      finalPrompt: prompt,
-      negativePrompt: 'text, letters, words, numbers, watermark, signature, frame, border, sad, scared, dark, crying',
-      size: hiResPdf ? '1536x1536' : '1024x1536',
-      quality: 'high',
-      referenceImages: input.referenceImages,
-    });
-
-    const durableUrl = await storeImageFromBuffer({
-      buffer: result.buffer,
-      orderId: input.orderId,
-      pageNumber: 0,
-      assetType: 'cover',
-      contentType: 'image/png',
-    });
-
-    return {
-      url: durableUrl,
-      rawUrl: durableUrl,
-      width: hiResPdf ? 1536 : 1024,
-      height: hiResPdf ? 1536 : 1536,
-      provider: 'gpt-image-1',
-      prompt,
-    };
-  }
+  assertShippedBookStyleEngineActive(input.illustrationStyle);
 
   const pagePrompt = buildCoverPrompt(input);
   return generateImage({
@@ -3605,6 +3521,7 @@ export async function generateAllPageImages(
   const lightingModes = new Map<number, Lighting>();
   const failedPages: number[] = [];
   const normalizedStyle = normalizeStyleId(config.illustrationStyle);
+  assertShippedBookStyleEngineActive(normalizedStyle);
   const style02Phase2Active = shouldUseStyle02Phase2Path(normalizedStyle);
   const style02BookProfile = style02Phase2Active ? resolveStyle02BookPromptProfile() : 'default';
   const style02ChildVisualLock =
