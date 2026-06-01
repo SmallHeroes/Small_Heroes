@@ -23,6 +23,7 @@ import {
   buildStyle01ChildAnatomicalLock,
   buildStyle01CompanionTextLock,
   buildStyle01CompositionBlock,
+  compositionAssumesChildPresent,
   buildStyle01EntityPresenceBlock,
   buildStyle01RecurringEntityLocks,
   buildStyle01RecurringObjectLocks,
@@ -78,13 +79,15 @@ export function assembleStyle01Phase2Prompt(
     input.pageStoryState ??
     resolveDefaultPageStoryState(input.companion?.id, input.pageNumber);
 
+  const compositionSpec = storyLocks.compositionByPage?.[input.pageNumber];
+
   const imageDirection = resolveStyle01SceneDescription({
     rawScenePrompt: input.rawScenePrompt,
     pagePrompt: input.pagePrompt,
     mechanicalScene: input.mechanicalScene,
   });
 
-  const entityPresence = derivePageEntityPresence({
+  let entityPresence = derivePageEntityPresence({
     bookPageText: input.bookPageText,
     imageDirection,
     rawScenePrompt: input.rawScenePrompt,
@@ -95,6 +98,27 @@ export function assembleStyle01Phase2Prompt(
     recurringObjectCatalog: storyLocks.recurringObjectCatalog,
     recurringEntityCatalog: storyLocks.recurringEntityCatalog,
   });
+
+  if (compositionSpec && compositionAssumesChildPresent(compositionSpec)) {
+    if (entityPresence.childPresence === 'absent') {
+      entityPresence = {
+        ...entityPresence,
+        childPresence: 'present',
+        forbiddenEntities: entityPresence.forbiddenEntities.filter(
+          (key) =>
+            ![
+              'human child',
+              'young boy',
+              'young girl',
+              'kid',
+              'toddler',
+              'human protagonist',
+              'realistic child portrait',
+            ].includes(key)
+        ),
+      };
+    }
+  }
 
   const stateLockBundle = resolveStoryStateLockBundle(input.companion?.id);
   let objectLocks = '';
@@ -164,11 +188,16 @@ export function assembleStyle01Phase2Prompt(
     ? buildStoryStateForbiddenBlock(pageStoryState)
     : '';
 
-  const compositionSpec = storyLocks.compositionByPage?.[input.pageNumber];
+  const childOnPage =
+    entityPresence.childPresence === 'present' ||
+    entityPresence.childPresence === 'partial' ||
+    entityPresence.childPresence === 'background';
+
   const compositionBlock = buildStyle01CompositionBlock({
     pageNumber: input.pageNumber,
     imageDirection,
     compositionByPage: storyLocks.compositionByPage,
+    childOnPage,
   });
 
   const entityPresenceBlock = buildStyle01EntityPresenceBlock({

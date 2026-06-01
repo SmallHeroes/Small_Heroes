@@ -189,7 +189,7 @@ imageDirection: Dini slides belly-first down a long blue crystal slide like a to
 דיני התנשפה.
 "אם היא תיתקע בזה, נצטרך לשטוף ביצה במשך שבוע!"
 
-imageDirection: A whimsical valley filled with giant fuzzy reed-like plants swaying gently. The egg spins on its tip like a top, kicking up colored dust, heading toward a sticky purple puddle of melted-marshmallow goo.
+imageDirection: Whisper valley — giant fuzzy reeds sway. The child and Dini watch from the foreground (faces readable, 3/4) as the green speckled egg spins toward a sticky purple marshmallow swamp puddle.
 
 --- Page 12 ---
 {{childName}} {הביט|הביטה} בביצה המסתובבת.
