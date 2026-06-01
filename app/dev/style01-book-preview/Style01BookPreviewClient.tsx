@@ -10,6 +10,7 @@ import {
 import { DesktopBookSpread } from '@/app/book/[id]/read-v2/components/DesktopBookSpread';
 import { MobileBookPage } from '@/app/book/[id]/read-v2/components/MobileBookPage';
 import styles from '@/app/book/[id]/read-v2/reader-v2.module.css';
+import { QaConsolePanel } from './QaConsolePanel';
 
 type AuditionSummary = {
   dir: string;
@@ -18,12 +19,14 @@ type AuditionSummary = {
   pageCount: number;
   audition?: string;
   quality?: string;
+  label?: string;
 };
 
 type PreviewPage = {
   pageNumber: number;
   text: string;
   imageUrl: string | null;
+  audioUrl?: string | null;
   renderStatus?: 'rendered' | 'not rendered in this audition';
 };
 
@@ -33,6 +36,11 @@ type PreviewPayload = {
   manifestMeta?: {
     renderedPageNumbers?: number[];
     totalStoryPages?: number;
+    storyKey?: string;
+    model?: string;
+    quality?: string;
+    voiceId?: string;
+    childProfile?: { name?: string };
   };
 };
 
@@ -96,6 +104,7 @@ export function Style01BookPreviewClient({
             pageNumber: p.pageNumber,
             text: p.text,
             imageUrl: p.imageUrl,
+            audioUrl: p.audioUrl,
             layout: 'standard',
             illustrationAspect: 'portrait',
             textTreatment: 'standard',
@@ -182,10 +191,12 @@ export function Style01BookPreviewClient({
           position: 'relative',
         }}
       >
-        <strong>Style 01 Dini — boundary-egg book preview (dev)</strong>
+        <strong>Style 01 QA book preview (dev)</strong>
         <p style={{ margin: '6px 0 0', fontSize: 12, opacity: 0.85 }}>
-          {manifestMeta?.totalStoryPages ?? 20} story pages · rendered in this run:{' '}
+          {manifestMeta?.storyKey ?? 'audition'} · {manifestMeta?.childProfile?.name ?? 'child'} ·{' '}
+          {manifestMeta?.totalStoryPages ?? 20} pages · rendered:{' '}
           {(manifestMeta?.renderedPageNumbers ?? []).join(', ') || '—'}
+          {manifestMeta?.model ? ` · ${manifestMeta.model} / ${manifestMeta.quality}` : ''}
         </p>
         <label style={{ display: 'block', marginTop: 8, fontSize: 13 }}>
           Audition manifest:
@@ -196,12 +207,20 @@ export function Style01BookPreviewClient({
           >
             {auditions.map((a) => (
               <option key={`${a.root ?? 'auto'}:${a.dir}`} value={a.dir}>
-                {a.dir} ({a.pageCount} rendered{a.quality ? ` · ${a.quality}` : ''})
+                {a.label ?? a.dir} ({a.pageCount} rendered{a.quality ? ` · ${a.quality}` : ''})
               </option>
             ))}
           </select>
         </label>
       </div>
+
+      <QaConsolePanel
+        onRunComplete={(dir) => {
+          setSelectedDir(dir);
+          setSelectedRoot('outputs');
+          loadBook(dir, 'outputs').catch(() => undefined);
+        }}
+      />
 
       {status === 'loading' ? <section className={styles.centerState}>טוען ספר…</section> : null}
 
@@ -296,6 +315,14 @@ export function Style01BookPreviewClient({
                 </>
               ) : null}
             </p>
+            {currentPreviewPage?.audioUrl ? (
+              <audio
+                key={currentPreviewPage.audioUrl}
+                controls
+                src={currentPreviewPage.audioUrl}
+                style={{ width: '100%', maxWidth: 360, marginBottom: 8 }}
+              />
+            ) : null}
             <button type="button" className={styles.controlBtn} onClick={goPrev} disabled={isFirst}>
               הקודם
             </button>
