@@ -9,6 +9,7 @@ import {
   resolveReplicateImageModel,
   resolveReplicateImageModelForStyle,
 } from './replicate';
+import { normalizeReferenceImageBuffer } from './child-photo-normalize';
 
 export interface GenerateImageInput {
   finalPrompt: string;
@@ -340,17 +341,19 @@ async function referenceToOpenAIFile(
 ): Promise<Awaited<ReturnType<typeof toFile>>> {
   const resolved = resolveReferenceSource(source);
   if (existsSync(resolved)) {
-    const buffer = readFileSync(resolved);
-    const ext = resolved.toLowerCase().endsWith('.png') ? 'png' : 'jpg';
-    return toFile(buffer, `reference-${indexHint}.${ext}`, {
-      type: ext === 'png' ? 'image/png' : 'image/jpeg',
-    });
+    const raw = readFileSync(resolved);
+    const { buffer, ext, mime } = await normalizeReferenceImageBuffer(raw, indexHint);
+    return toFile(buffer, `reference-${indexHint}.${ext}`, { type: mime });
   }
 
   const res = await fetch(resolved);
   if (!res.ok) throw new Error(`Reference image fetch failed: ${resolved} (HTTP ${res.status})`);
   const arrayBuf = await res.arrayBuffer();
-  return toFile(Buffer.from(arrayBuf), `reference-${indexHint}.png`, { type: 'image/png' });
+  const { buffer, ext, mime } = await normalizeReferenceImageBuffer(
+    Buffer.from(arrayBuf),
+    indexHint
+  );
+  return toFile(buffer, `reference-${indexHint}.${ext}`, { type: mime });
 }
 
 /**

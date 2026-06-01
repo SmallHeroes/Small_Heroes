@@ -143,7 +143,10 @@ export function assembleStyle01Phase2Prompt(
     : undefined;
 
   const childAnatomicalLock = childPresenceAllowsVisualLock(entityPresence.childPresence)
-    ? buildStyle01ChildAnatomicalLock({ companionId: input.companion?.id })
+    ? buildStyle01ChildAnatomicalLock({
+        companionId: input.companion?.id,
+        childAge: input.childAge ?? undefined,
+      })
     : undefined;
 
   const companionTextLock =

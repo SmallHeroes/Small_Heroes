@@ -482,32 +482,50 @@ export function buildStyle01WardrobeLock(input?: {
 - Same outfit on every page. NEVER substitute or simplify any element.`;
 }
 
+function childAgeBandLabel(age: number): string {
+  if (age <= 3) return 'toddler';
+  if (age <= 5) return 'preschool/kindergarten';
+  if (age <= 8) return 'young school-age';
+  return 'school-age';
+}
+
+function buildChildAgeLockLine(age: number): string {
+  const band = childAgeBandLabel(age);
+  if (age <= 3) {
+    return `approximately ${age} years old (${band}). NOT a school-age child. NOT a teenager.`;
+  }
+  if (age <= 5) {
+    return `approximately ${age} years old (${band}). Face and body must read as this age — NOT an older school-age child, NOT a teen, NOT a baby younger than ${age}.`;
+  }
+  if (age <= 8) {
+    return `approximately ${age} years old (${band}). Face and body proportions must read as this age — NOT a teen, NOT a preschool toddler, NOT an adult shrunk down.`;
+  }
+  return `approximately ${age} years old (${band}). Proportions must read as this age — NOT a teen/adult, NOT a much younger child.`;
+}
+
+/** Structural child lock only — appearance comes from CHILD VISUAL LOCK (photo-derived). */
 export function buildStyle01ChildAnatomicalLock(input?: {
   companionId?: string | null;
-  childStructured?: { age: number };
+  childAge?: number;
 }): string {
-  const base = `CHILD ANATOMICAL LOCK (mandatory — never drift between pages):
-- Age: approximately 4–5 years old (preschool/kindergarten age). NOT 7–8. NOT a school-age child. NOT a teenager. NOT a toddler-baby.
-- Body proportions: small child body. Head is slightly large relative to body (typical preschool proportions). NOT an adult body shrunk down. NOT a teen build.
-- Hair: dark brown, slightly wavy, short-to-medium length. SAME volume and silhouette on every page. NOT straight, NOT longer than mid-ear, NOT styled differently between pages.
-- Face: large dark eyes, soft round cheeks, small button nose, gentle childlike expression. SAME face shape and features every page.
-- Skin tone: SAME light olive skin tone on every page. NEVER drift lighter or darker between pages.
-- Ethnicity: SAME apparent ethnicity on every page. No drift between pages.
-- Forbidden child renderings: NOT a teen, NOT a school-age (8+) child, NOT a baby/toddler, NOT a different child between pages.`;
+  const age = Math.max(2, Math.min(12, input?.childAge ?? 5));
+  const base = `CHILD ANATOMICAL LOCK (structural only — NO hair color, skin tone, eye color, or face-feature descriptors here; those come ONLY from CHILD VISUAL LOCK):
+- Age: ${buildChildAgeLockLine(age)}
+- Body proportions: child-appropriate build for age ${age}. Head-to-body ratio appropriate for this age. NOT an adult body shrunk down.
+- Expression: gentle childlike expression vocabulary; SAME child every page.
+- EXACTLY ONE child protagonist when a child is present — NEVER two children, NEVER a duplicate protagonist, NEVER a second copy of the same child in background/foreground.`;
 
   if (input?.companionId === 'dragon_dini') {
     return `${base}
-- EXACTLY ONE child protagonist in the frame when a child is present — NEVER two children, NEVER a duplicate protagonist, NEVER a second child building or playing separately.
-- NEVER a second copy of the same child in background/foreground.
 
 CHILD CONSISTENCY OVER WARDROBE:
-The bird-print pajamas are story-constant wardrobe — they help continuity but do NOT define identity. Face, hair, skin, age, and proportions must match every page even when pajama details are partially hidden.`;
+Bird-print pajamas are story-constant wardrobe only. Face, hair, skin, age, and proportions must match CHILD VISUAL LOCK on every page even when pajama details are partially hidden.`;
   }
 
   return `${base}
 
-CHILD CONSISTENCY OVER WARDROBE ANCHORS:
-The wardrobe is a secondary visual anchor — it helps but does not define the child. The child's age, face, hair, body proportions, and skin tone must remain consistent across every page even when wardrobe details are partially hidden or out of frame. NEVER define the child by the wardrobe.`;
+CHILD CONSISTENCY OVER WARDROBE:
+Wardrobe is secondary. Age, face, hair, body, and skin must match CHILD VISUAL LOCK every page even when outfit details are partially hidden.`;
 }
 
 export function buildStyle01CompanionTextLock(input: {

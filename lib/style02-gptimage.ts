@@ -249,13 +249,11 @@ the cap must NOT hide the face, eyes, or hair silhouette.
 Curls and hair shape must remain visible and consistent on every page.
 Position the cap so the brim does not cast a shadow across the eyes.`;
 
-export const GUARDED_V1_CHILD_LOCK = `CHILD — same illustrated boy on every page.
-Use the reference photo as INSPIRATION ONLY for:
-age (~5–6), face shape, hair color and curl pattern, skin tone,
-eye impression, general expression.
-This is illustration, not portraiture — do NOT chase photoreal likeness,
-do NOT invent a different generic child between pages.
-Same boy. Same face structure. Same hair. Same expression vocabulary.`;
+export const GUARDED_V1_CHILD_LOCK = `CHILD — same illustrated child on every page.
+Use the reference photo as INSPIRATION ONLY for age-appropriate build, face shape, hair, skin tone, and expression.
+Illustration, not portraiture — do NOT chase photoreal likeness, do NOT invent a different generic child between pages.
+Same child. Same face structure. Same hair. Same expression vocabulary.
+Do NOT invent hair clips, glasses, hats, jewelry, or facial marks unless they appear in the photo reference.`;
 
 export const GUARDED_V1_COMPANION_LOCK = `BOLLY — same named recurring companion on every page.
 Bolly is NOT a generic armadillo. He is the same specific character throughout.

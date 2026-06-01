@@ -13,6 +13,15 @@ import {
   resolveStoryBankPlaceholders,
   type WizardPersonalizationContext,
 } from '../../lib/story-bank-personalization';
+import {
+  ChildPhotoUploadError,
+  normalizePhotoUrlForVision,
+} from '../../lib/child-photo-normalize';
+import {
+  buildPhotoAnchoredChildStructured,
+  joinChildStructuredDNA,
+  sanitizeChildStructuredAgainstPhoto,
+} from '../../lib/child-photo-dna-sanitize';
 
 export type LoadStoryFromBankOptions = {
   patchContext?: PatchContext | null;
@@ -745,17 +754,10 @@ ${pagesBlock}`;
  * The output is INJECTED into the image-generation prompt as a HARD constraint
  * so every page renders a child who actually resembles the user's real child.
  */
-export async function describeChildFromPhoto(photoUrl: string): Promise<string | null> {
-  if (!photoUrl || photoUrl.trim().length === 0) return null;
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    console.warn('[StoryBank/PhotoVision] ANTHROPIC_API_KEY missing — photo description skipped.');
-    return null;
-  }
+const CHILD_PHOTO_VISION_SYSTEM_PROMPT =
+  "You are a children's book illustrator describing a real child's appearance so that another illustrator can draw a cartoon version that clearly resembles them. Be specific about facial features that are recognizable. Never describe emotions, expressions, or clothing — only stable physical features.";
 
-  const systemPrompt = "You are a children's book illustrator describing a real child's appearance so that another illustrator can draw a cartoon version that clearly resembles them. Be specific about facial features that are recognizable. Never describe emotions, expressions, or clothing — only stable physical features.";
-
-  const userPrompt = `Look at this photo of a child and describe their PHYSICAL APPEARANCE for a children's-book illustrator who needs to draw a cartoon version that clearly looks like THIS specific child.
+const CHILD_PHOTO_VISION_USER_PROMPT = `Look at this photo of a child and describe their PHYSICAL APPEARANCE for a children's-book illustrator who needs to draw a cartoon version that clearly looks like THIS specific child.
 
 Describe in 40-60 words, covering ONLY:
 - Face shape (round, oval, heart-shaped)
@@ -772,6 +774,79 @@ DO NOT describe:
 
 Return ONLY the description as plain text — no preamble, no JSON, no quotes. Just the description.`;
 
+async function describeChildFromPhotoOpenAI(photoUrl: string): Promise<string | null> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+  const model = process.env.CHILD_PHOTO_VISION_MODEL?.trim() || 'gpt-4o';
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        max_tokens: 400,
+        temperature: 0.2,
+        messages: [
+          { role: 'system', content: CHILD_PHOTO_VISION_SYSTEM_PROMPT },
+          {
+            role: 'user',
+            content: [
+              { type: 'image_url', image_url: { url: photoUrl, detail: 'high' } },
+              { type: 'text', text: CHILD_PHOTO_VISION_USER_PROMPT },
+            ],
+          },
+        ],
+      }),
+    });
+    if (!res.ok) {
+      console.warn(
+        `[StoryBank/PhotoVision] OpenAI Vision ${res.status}: ${(await res.text()).slice(0, 200)}`
+      );
+      return null;
+    }
+    const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const description = data.choices?.[0]?.message?.content?.trim() ?? '';
+    if (description.length < 20) {
+      console.warn(
+        `[StoryBank/PhotoVision] OpenAI description too short (${description.length} chars), discarding.`
+      );
+      return null;
+    }
+    console.log(
+      `[StoryBank/PhotoVision] OpenAI fallback description (${description.length} chars): "${description.slice(0, 120)}..."`
+    );
+    return description;
+  } catch (err) {
+    console.error('[StoryBank/PhotoVision] OpenAI fallback failed:', err);
+    return null;
+  }
+}
+
+export async function describeChildFromPhoto(photoUrl: string): Promise<string | null> {
+  if (!photoUrl || photoUrl.trim().length === 0) return null;
+
+  let visionUrl: string;
+  try {
+    visionUrl = await normalizePhotoUrlForVision(photoUrl);
+  } catch (err) {
+    if (err instanceof ChildPhotoUploadError) {
+      console.warn(`[StoryBank/PhotoVision] ${err.message}`);
+      throw err;
+    }
+    throw new ChildPhotoUploadError();
+  }
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    console.warn(
+      '[StoryBank/PhotoVision] ANTHROPIC_API_KEY missing — trying OpenAI vision fallback (same prompt).'
+    );
+    return describeChildFromPhotoOpenAI(visionUrl);
+  }
+
+  const systemPrompt = CHILD_PHOTO_VISION_SYSTEM_PROMPT;
+  const userPrompt = CHILD_PHOTO_VISION_USER_PROMPT;
+
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -785,7 +860,7 @@ Return ONLY the description as plain text — no preamble, no JSON, no quotes. J
           {
             role: 'user',
             content: [
-              { type: 'image', source: { type: 'url', url: photoUrl } },
+              { type: 'image', source: { type: 'url', url: visionUrl } },
               { type: 'text', text: userPrompt },
             ],
           },
@@ -794,7 +869,7 @@ Return ONLY the description as plain text — no preamble, no JSON, no quotes. J
     });
     if (!res.ok) {
       console.warn(`[StoryBank/PhotoVision] Claude Vision ${res.status}: ${(await res.text()).slice(0, 200)}`);
-      return null;
+      return describeChildFromPhotoOpenAI(visionUrl);
     }
     const data = await res.json();
     const description: string = data.content?.[0]?.text?.trim() ?? '';
@@ -806,7 +881,7 @@ Return ONLY the description as plain text — no preamble, no JSON, no quotes. J
     return description;
   } catch (err) {
     console.error('[StoryBank/PhotoVision] Failed to call Claude Vision:', err);
-    return null;
+    return describeChildFromPhotoOpenAI(visionUrl);
   }
 }
 
@@ -904,16 +979,16 @@ COMPANION:
 STYLE:
 - Illustration style: ${params.illustrationStyle}
 
-${params.childPhotoDescription ? `\n⚠️  REAL CHILD PHOTO REFERENCE (HIGHEST PRIORITY — OVERRIDES STORY DEFAULTS):\nThe person reading this book has uploaded a photo of the REAL child. Here is the description of their face:\n\n"${params.childPhotoDescription}"\n\nThe character you describe MUST clearly resemble this real child. Their face, skin tone, hair color/length/texture, eye shape/color, and any distinctive features above MUST be reflected in your "face", "hair", and "signature" fields below. Do NOT invent different features. This is the most important constraint.\n` : ''}
+${params.childPhotoDescription ? `\n⚠️  REAL CHILD PHOTO REFERENCE (HIGHEST PRIORITY — OVERRIDES STORY DEFAULTS):\nThe person reading this book has uploaded a photo of the REAL child. Here is the description of their face:\n\n"${params.childPhotoDescription}"\n\nThe character you describe MUST clearly resemble this real child. Their face, skin tone, hair color/length/texture, eye shape/color, and any distinctive features above MUST be reflected in your "face" and "hair" fields below. Do NOT invent different features. This is the most important constraint.\n` : ''}
 
 RULES FOR CHILD:
 - Describe PHYSICAL appearance only — no personality, no emotions, no actions
 - Each field must be self-contained and specific
 - "face": face shape + skin tone + eye color/shape + any distinctive facial feature (15-25 words)
-- "hair": exact color + length + style + any hair accessory (10-20 words)
-- "body": build + approximate height for age (10-15 words)
+- "hair": exact color + length + style from the photo reference only (10-20 words). Do NOT add hair clips, bows, headbands, or other accessories unless explicitly in the photo reference above
+- "body": build + approximate height for age ${params.childAge} (10-15 words)
 - "clothing": EXACT outfit description — this outfit is LOCKED for the ENTIRE book. Include every garment, color, and any pattern. (15-25 words)
-- "signature": ONE unique visual detail that anchors this character's identity across pages (5-10 words). Example: "small red hair clip on left side" or "missing front tooth"
+${params.childPhotoDescription ? `- "signature": OPTIONAL. Only a distinctive facial feature explicitly stated in the photo reference (5-10 words). Leave empty string "" if the photo has no unique facial mark. NEVER invent hair clips, glasses, hats, jewelry, birthmarks, or freckles unless explicitly in the photo reference` : `- "signature": ONE unique visual detail that anchors this character's identity across pages (5-10 words)`}
 - DO NOT include the character's name anywhere in visual descriptions
 - DO NOT put any text, letters, numbers, or words on clothing
 
@@ -979,8 +1054,16 @@ Return JSON:
     coloring: `${'Orange tabby with white chest patch'}`,
     feature: `Big round curious eyes that always look directly at the child`,
   };
+  const photoAnchoredChild = params.childPhotoDescription?.trim()
+    ? buildPhotoAnchoredChildStructured(
+        params.childPhotoDescription.trim(),
+        params.childAge,
+        params.childGender
+      )
+    : null;
+
   const fallback: StoryBankCharacterDNA = {
-    childStructured: fallbackChildStructured,
+    childStructured: photoAnchoredChild ?? fallbackChildStructured,
     companionStructured: fallbackCompanionStructured,
     childDNA: `${fallbackChildStructured.face}. ${fallbackChildStructured.hair}. ${fallbackChildStructured.body}. ${fallbackChildStructured.clothing}. ${fallbackChildStructured.signature}.`,
     companionDNA: `${fallbackCompanionStructured.species}, ${fallbackCompanionStructured.size}. ${fallbackCompanionStructured.coloring}. ${fallbackCompanionStructured.feature}.`,
@@ -1023,10 +1106,23 @@ Return JSON:
     const text = data.choices?.[0]?.message?.content ?? '';
     const parsed = parseJsonResponse<Partial<StoryBankCharacterDNA>>(text);
 
-    return assembleDNA(parsed, fallback);
+    return finalizeDNA(assembleDNA(parsed, fallback));
   } catch (error) {
     console.warn('[StoryBankDNA] failed, using fallback DNA:', error);
-    return fallback;
+    return finalizeDNA(fallback);
+  }
+
+  function finalizeDNA(dna: StoryBankCharacterDNA): StoryBankCharacterDNA {
+    if (!params.childPhotoDescription?.trim()) return dna;
+    const childStructured = sanitizeChildStructuredAgainstPhoto(
+      dna.childStructured,
+      params.childPhotoDescription
+    );
+    return {
+      ...dna,
+      childStructured,
+      childDNA: joinChildStructuredDNA(childStructured),
+    };
   }
 
   /** Merge LLM output with fallback, validating structured fields. */
