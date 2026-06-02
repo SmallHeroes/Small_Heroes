@@ -389,6 +389,8 @@ export interface ImageInput {
     clothing: string;
     signature: string;
   };
+  /** Per-order expression mini-sheet anchor used as ref[0] for this page. */
+  childExpressionAnchorKind?: string;
   /** Structured companion identity lock — labeled fields for GPT Image consistency. */
   companionStructured?: {
     species: string;
@@ -2683,10 +2685,19 @@ async function generateWithGPTImageStyle02(input: ImageInput): Promise<Generated
   const styleRefPaths = resolveStyle02StyleReferencePaths(subsetKey, styleRefCount);
   const childPhotoPath = input.referenceImages?.[0];
   const companionRefPath = resolveCompanionReferencePath(input.companion?.image ?? null);
+  const otherCharacterRefPaths = (input.anchorCharacters ?? [])
+    .filter(
+      (entry) =>
+        entry.anchorImageUrl &&
+        entry.characterId !== 'child' &&
+        !entry.characterId.startsWith('companion:')
+    )
+    .map((entry) => entry.anchorImageUrl);
   const { paths: referenceImages, breakdown } = assembleStyle02BookReferences({
     styleRefPaths,
     childPhotoPath: refConfig === 'C' ? undefined : childPhotoPath,
     companionRefPath: refConfig === 'B' ? undefined : companionRefPath,
+    otherCharacterRefPaths,
     config: refConfig,
   });
 
@@ -2755,10 +2766,21 @@ async function generateWithGPTImageStyle02(input: ImageInput): Promise<Generated
     `[style02_phase2] orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} ` +
       `subset=${subsetKey} refConfig=${refConfig} sceneClass=${sceneClass} ` +
       `refs=${referenceImages.length} breakdown=${JSON.stringify({
-        style: breakdown.style.length,
         child: breakdown.child.length,
         companion: breakdown.companion.length,
+        otherCharacters: (breakdown.otherCharacters ?? []).length,
+        style: breakdown.style.length,
       })}`
+  );
+  console.log(
+    `[style02_refs] orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} ` +
+      `characterRefs=${JSON.stringify([
+        ...breakdown.child,
+        ...breakdown.companion,
+        ...(breakdown.otherCharacters ?? []),
+      ])} ` +
+      `styleRefs=${JSON.stringify(breakdown.style)} ` +
+      `finalOrder=${JSON.stringify(referenceImages)}`
   );
 
   const result = await generateGPTImage({
@@ -2854,6 +2876,12 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
           .join(' ')
       : '';
 
+  const childRefPath = input.referenceImages?.[0];
+  const useCanonicalChildAnchorRef =
+    !!childRefPath &&
+    (childRefPath.includes('/character-anchors/') ||
+      childRefPath.includes('character-anchors%2F'));
+
   const assembled = assembleStyle01Phase2Prompt({
     pageNumber: input.pageNumber ?? 0,
     pagePrompt: input.pagePrompt,
@@ -2868,6 +2896,7 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
     companion: input.companion,
     companionStructured: input.companionStructured,
     pageStoryState: input.pageStoryState,
+    useCanonicalChildAnchorRef,
   });
 
   const { prompt: finalPrompt, sceneDescription, sceneClass, entityPresence, pageStoryState } =
@@ -2883,10 +2912,19 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
   const styleRefCount = useMultiCompanionSheets ? 1 : refConfig === 'A' ? 2 : 3;
   const styleRefPaths = resolveStyle01StyleReferencePaths(sceneClass, styleRefCount);
   const childPhotoPath = input.referenceImages?.[0];
+  const otherCharacterRefPaths = (input.anchorCharacters ?? [])
+    .filter(
+      (entry) =>
+        entry.anchorImageUrl &&
+        entry.characterId !== 'child' &&
+        !entry.characterId.startsWith('companion:')
+    )
+    .map((entry) => entry.anchorImageUrl);
   const { paths: referenceImages, breakdown } = assembleStyle01BookReferences({
     styleRefPaths,
     childPhotoPath: refConfig === 'C' ? undefined : childPhotoPath,
     companionRefPaths: refConfig === 'B' ? undefined : companionRefPaths,
+    otherCharacterRefPaths,
     config: refConfig,
     includeChildPhoto: childPresenceAllowsReferencePhoto(entityPresence.childPresence),
     useMultiCompanionSheets,
@@ -2898,11 +2936,49 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
     `[style01_phase2] orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} ` +
       `sceneClass=${sceneClass} refConfig=${refConfig} childPresence=${entityPresence.childPresence} ` +
       `refs=${referenceImages.length} breakdown=${JSON.stringify({
-        style: breakdown.style.length,
         child: breakdown.child.length,
         companion: breakdown.companion.length,
+        otherCharacters: (breakdown.otherCharacters ?? []).length,
+        style: breakdown.style.length,
       })}`
   );
+  const characterRefPaths = [
+    ...breakdown.child,
+    ...breakdown.companion,
+    ...(breakdown.otherCharacters ?? []),
+  ];
+  console.log(
+    `[style01_refs] orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} ` +
+      `characterRefs=${JSON.stringify(characterRefPaths)} ` +
+      `styleRefs=${JSON.stringify(breakdown.style)} ` +
+      `finalOrder=${JSON.stringify(referenceImages)} ` +
+      `canonicalAnchorRef=${useCanonicalChildAnchorRef}`
+  );
+  const manifestDir = process.env.PAGE_REF_MANIFEST_DIR?.trim();
+  if (manifestDir && input.orderId && input.pageNumber != null) {
+    const fs = await import('fs');
+    const pathMod = await import('path');
+    fs.mkdirSync(manifestDir, { recursive: true });
+    const manifestPath = pathMod.join(manifestDir, `page-${input.pageNumber}.json`);
+    fs.writeFileSync(
+      manifestPath,
+      JSON.stringify(
+        {
+          orderId: input.orderId,
+          pageNumber: input.pageNumber,
+          canonicalAnchorRef: useCanonicalChildAnchorRef,
+          childExpressionKind: input.childExpressionAnchorKind ?? null,
+          characterRefs: characterRefPaths,
+          styleRefs: breakdown.style,
+          finalOrder: referenceImages,
+          refConfig,
+          sceneClass,
+        },
+        null,
+        2
+      )
+    );
+  }
   console.log(`[style01_phase2_prompt] page=${input.pageNumber} ===PROMPT START===\n${prompt}\n===PROMPT END===`);
 
   const style01Model = resolveStyle01GptModel();
@@ -3506,6 +3582,16 @@ export async function generateAllPageImages(
     workerDeadlineMs?: number;
     /** guarded-v2 — production recipe id for explicit page cards (e.g. bolly_bedtime_age_5). */
     guardedV2RecipeId?: string | null;
+    /** When set, picks per-page child ref (expression mini-sheet) before style refs. */
+    resolvePageChildExpressionRef?: (ctx: {
+      pageNumber: number;
+      imagePrompt?: string;
+      bookPageText?: string;
+      rawScenePrompt?: string;
+      shotType?: string;
+      action?: string;
+      emotion?: string;
+    }) => { url: string; kind: string } | null;
   }
 ): Promise<{
   results: Map<number, GeneratedImage>;
@@ -3881,6 +3967,24 @@ export async function generateAllPageImages(
       characterRegistry,
       protagonistVisualLock
     );
+    const exprRef = config.resolvePageChildExpressionRef?.({
+      pageNumber: page.pageNumber,
+      imagePrompt: page.imagePrompt,
+      bookPageText: page.bookPageText,
+      rawScenePrompt: page.rawScenePrompt,
+      shotType: pageStoryboard.shotType,
+      action: pageStoryboard.action,
+      emotion: pageStoryboard.emotion,
+    });
+    if (exprRef?.url && expectedCharacterIds.includes('child')) {
+      characterAnchors.child = exprRef.url;
+    }
+    const pageReferenceImages =
+      exprRef?.url != null
+        ? [exprRef.url, ...(config.referenceImages?.slice(1) ?? [])]
+        : config.referenceImages;
+    const pageChildExpressionKind = exprRef?.kind;
+
     const unresolvedCharacterIds = expectedCharacterIds
       .filter((characterId) => !characterAnchors[characterId])
       .sort((a, b) => rankCharacter(a) - rankCharacter(b));
@@ -3896,12 +4000,12 @@ export async function generateAllPageImages(
       name: characterRegistry[characterId]?.name ?? characterId,
       anchorImageUrl: characterAnchors[characterId],
     }));
-    const baseReferenceImages = config.referenceImages ?? [];
+    const baseReferenceImages = pageReferenceImages ?? [];
     const anchorReferenceImages = passedAnchorUrls;
     const mergedReferenceImages = [...new Set([...baseReferenceImages, ...anchorReferenceImages])];
     const referenceImages = mergedReferenceImages.length > 0 ? mergedReferenceImages : undefined;
     const childExpected = expectedCharacterIds.includes('child');
-    const childReferenceRequested = Boolean(config.referenceImages?.[0]);
+    const childReferenceRequested = Boolean(pageReferenceImages?.[0]);
     const childAnchorAvailable = Boolean(characterAnchors.child);
     const childReferenceReachesProvider = Boolean(
       referenceImages && (childReferenceRequested || childAnchorAvailable)
@@ -3914,7 +4018,7 @@ export async function generateAllPageImages(
         page: page.pageNumber,
         expectedCharacterIds,
         availableAnchorIds,
-        requestedRefCount: config.referenceImages?.length ?? 0,
+        requestedRefCount: pageReferenceImages?.length ?? 0,
       });
       failedPages.push(page.pageNumber);
       continue;
@@ -4009,7 +4113,12 @@ export async function generateAllPageImages(
 
     let image: GeneratedImage | null = null;
     let lastError: unknown = null;
-    const baseReferenceImage = config.referenceImages?.[0];
+    const baseReferenceImage = pageReferenceImages?.[0];
+    if (exprRef) {
+      console.log(
+        `[child_expression_ref] page=${page.pageNumber} kind=${exprRef.kind} url=${exprRef.url.slice(0, 80)}…`
+      );
+    }
     const anchorVariantPlan = resolveChildAnchorVariantPlan({
       imagePrompt: page.imagePrompt,
       rawScenePrompt: page.rawScenePrompt,
@@ -4075,6 +4184,7 @@ export async function generateAllPageImages(
               propDNA: config.propDNA,
               childStructured: config.childStructured,
               companionStructured: config.companionStructured,
+              childExpressionAnchorKind: pageChildExpressionKind,
               printPdfOptimized: !!config.pdfEnabled,
               style02ChildVisualLock,
               style02WardrobeLock,
@@ -4223,6 +4333,7 @@ export async function generateAllPageImages(
                 propDNA: config.propDNA,
                 childStructured: config.childStructured,
                 companionStructured: config.companionStructured,
+                childExpressionAnchorKind: pageChildExpressionKind,
                 printPdfOptimized: !!config.pdfEnabled,
                 style02ChildVisualLock,
                 style02WardrobeLock,
@@ -4318,6 +4429,7 @@ export async function generateAllPageImages(
               propDNA: config.propDNA,
               childStructured: config.childStructured,
               companionStructured: config.companionStructured,
+              childExpressionAnchorKind: pageChildExpressionKind,
               printPdfOptimized: !!config.pdfEnabled,
               style02ChildVisualLock,
               style02WardrobeLock,

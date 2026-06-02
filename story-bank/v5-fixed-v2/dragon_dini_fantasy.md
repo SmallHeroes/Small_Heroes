@@ -51,10 +51,10 @@ parallelStructure: pages 1–2 establish home + new baby disruption; pages 3–4
 imageDirection: A determined 5-year-old child in mismatched animal-print pajamas (NOT dinosaur-themed clothing), sitting inside an elaborate fort built from couch cushions and blankets, holding a plastic T-rex like a scepter. Through an open doorway in the background, a crib emits jagged comic-style sound waves.
 
 --- Page 2 ---
-"בואו {תכיר|תכירי} את האחות הקטנה החדשה," לחשה אמא.
+"{בוא|בואי} {תכיר|תכירי} את האחות הקטנה החדשה," לחשה אמא.
 היא נראתה כאילו לא ישנה מאז יום שלישי שעבר.
 התינוקת הייתה ראש קטן וקירח, פה ענקי, וזוג גרביים ירוקים שבעטו לכל הכיוונים.
-{{childName}} {נגע|נגעה} בכף הרגל שלה בקצה הזנב של הרפטור מפלסטיק.
+{{childName}} {נגע|נגעה} בכף הרגל שלה בקצה הזנב של הדינוזאור מפלסטיק.
 היא הייתה רכה כמו בצק קטן.
 "היא תופסת יותר מדי מקום," {רטן|רטנה} {{childName}}.
 אמא נאנחה חיוך עייף.
@@ -88,7 +88,7 @@ imageDirection: The child leans over a deep toy chest in a moonlit bedroom. From
 "{אתה מלך|את מלכת} הדינוזאורים!"
 {{childName}} {הזדקף|הזדקפה}.
 "נכון," {אמר|אמרה} {{childName}}.
-"אני צריכה מישהו שמבין במבצרים, בחוקים ובשמיכות," אמרה הדרקונית. "הביצה של המשפחה שלי נכנסה להתקף גלגולים ענקי, והיא פשוט לא מוכנה להישאר בקן."
+"אני {צריך|צריכה} מישהו שמבין במבצרים, בחוקים ובשמיכות," אמרה הדרקונית. "הביצה של המשפחה שלי נכנסה להתקף גלגולים ענקי, והיא פשוט לא מוכנה להישאר בקן."
 {{childName}} {כיווץ|כיווצה} עיניים.
 "אני {מומחה|מומחית} להתקפי גלגולים."
 "קיוויתי {שתגיד|שתגידי} את זה," אמרה הדרקונית. "אני דיני."
@@ -156,7 +156,7 @@ imageDirection: The child gives a full-body dinosaur roar. The egg trembles, the
 צ׳יק־א־צ׳יק־א־צ׳יק!
 {רקד|רקדה} שמאלה.
 {רקד|רקדה} ימינה.
-ואפילו עשה כיפוף ברכיים מאוד רציני.
+ואפילו {עשה|עשתה} כיפוף ברכיים מאוד רציני.
 הביצה הפסיקה להתגלגל.
 ואז התחילה לרטוט כל כך מהר, שהיא נראתה כמו כתם מטושטש.
 דיני התקרבה.
@@ -203,7 +203,7 @@ imageDirection: Whisper valley — giant fuzzy reeds sway. The child and Dini wa
 מבצר מרגיש טוב יותר כשהקירות שלו בדיוק במקום.
 ואז {חשב|חשבה} על התינוקת, עטופה בשמיכה הצהובה, רגועה סוף סוף לדקה שלמה.
 "היא לא מנסה לתפוס את כל החדר," {אמר|אמרה} {{childName}} לאט.
-דיני ריחפה לידו.
+דיני ריחפה {לידו|לידה}.
 "מי?"
 "אולי שתיהן."
 

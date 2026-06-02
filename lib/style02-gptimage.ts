@@ -386,10 +386,11 @@ export function assembleStyle02BookReferences(input: {
   styleRefPaths: string[];
   childPhotoPath?: string;
   companionRefPath?: string;
+  otherCharacterRefPaths?: string[];
   config: Style02RefBudgetConfig;
 }): { paths: string[]; breakdown: Record<string, string[]> } {
   const styleAll = input.styleRefPaths;
-  const breakdown: Record<string, string[]> = { style: [], child: [], companion: [] };
+  const breakdown: Record<string, string[]> = { style: [], child: [], companion: [], otherCharacters: [] };
 
   switch (input.config) {
     case 'A': {
@@ -413,6 +414,13 @@ export function assembleStyle02BookReferences(input: {
     }
   }
 
-  const paths = [...breakdown.style, ...breakdown.child, ...breakdown.companion];
+  // Identity-critical ordering: character anchors must precede style refs.
+  breakdown.otherCharacters = (input.otherCharacterRefPaths ?? []).filter(Boolean);
+  const paths = [
+    ...breakdown.child,
+    ...breakdown.companion,
+    ...breakdown.otherCharacters,
+    ...breakdown.style,
+  ];
   return { paths, breakdown };
 }

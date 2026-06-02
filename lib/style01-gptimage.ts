@@ -58,6 +58,13 @@ export const STYLE_01_ANTI_STYLE02 =
 export const STYLE_01_CHILD_PHOTO_IDENTITY_RULE =
   'CHILD PHOTO (if attached): IDENTITY ONLY — face shape, hair, skin tone, age, gender. Render as soft hand-drawn watercolor storybook child — NEVER photoreal cutout. Outfit from WARDROBE LOCK and scene, never from photo.';
 
+/** When reference[0] is the per-order canonical child anchor (not the raw upload). */
+export const STYLE_01_CANONICAL_CHILD_ANCHOR_RULE =
+  'CANONICAL CHILD ANCHOR (reference[0]): IDENTITY ONLY — face, hair, skin tone, age, gender. ' +
+  'Do NOT copy the anchor neutral standing pose, portrait framing, tight crop, or empty background. ' +
+  'Each page MUST show this child performing the scene action with a natural, varied pose appropriate to the story beat. ' +
+  'REJECT copying the anchor like a sticker into a new background.';
+
 /** Scene-typed Style 01 reference subsets. */
 export const STYLE_01_REF_SUBSETS: Record<
   Style01SceneSubsetKey,
@@ -721,6 +728,8 @@ export function buildStyle01BookPagePrompt(input: {
   environmentLock?: string;
   compositionBlock?: string;
   entityPresenceBlock?: string;
+  /** True when images.edit ref[0] is the order canonical anchor PNG (not raw photo). */
+  useCanonicalChildAnchorRef?: boolean;
 }): string {
   return [
     input.sceneDescription.trim(),
@@ -736,7 +745,7 @@ export function buildStyle01BookPagePrompt(input: {
     input.childVisualLock ?? '',
     input.wardrobeLock ?? '',
     input.childAnatomicalLock ?? '',
-    STYLE_01_CHILD_PHOTO_IDENTITY_RULE,
+    input.useCanonicalChildAnchorRef ? STYLE_01_CANONICAL_CHILD_ANCHOR_RULE : STYLE_01_CHILD_PHOTO_IDENTITY_RULE,
     STYLE_01_REFERENCE_INSTRUCTION,
     STYLE_01_NO_TEXT,
     STYLE_01_ANTI_STYLE02,
@@ -751,15 +760,17 @@ export function assembleStyle01BookReferences(input: {
   /** @deprecated use companionRefPaths */
   companionRefPath?: string;
   companionRefPaths?: string[];
+  otherCharacterRefPaths?: string[];
   config: Style02RefBudgetConfig;
   includeChildPhoto: boolean;
   useMultiCompanionSheets?: boolean;
 }): { paths: string[]; breakdown: Record<string, string[]> } {
   const styleAll = input.styleRefPaths;
-  const breakdown: Record<string, string[]> = { style: [], child: [], companion: [] };
+  const breakdown: Record<string, string[]> = { style: [], child: [], companion: [], otherCharacters: [] };
   const companionPaths =
     input.companionRefPaths ??
     (input.companionRefPath ? [input.companionRefPath] : []);
+  const otherCharacterPaths = (input.otherCharacterRefPaths ?? []).filter(Boolean);
   const multiSheets = input.useMultiCompanionSheets && companionPaths.length >= 3;
 
   switch (input.config) {
@@ -800,7 +811,14 @@ export function assembleStyle01BookReferences(input: {
     }
   }
 
-  const paths = [...breakdown.style, ...breakdown.child, ...breakdown.companion];
+  // Identity-critical ordering: character anchors must precede style refs.
+  breakdown.otherCharacters = otherCharacterPaths;
+  const paths = [
+    ...breakdown.child,
+    ...breakdown.companion,
+    ...breakdown.otherCharacters,
+    ...breakdown.style,
+  ];
   return { paths, breakdown };
 }
 

@@ -11,6 +11,7 @@ import {
   assertStoryPersonalizationGate,
   normalizeWizardChildGender,
   resolveStoryBankPlaceholders,
+  runStoryPersonalizationGate,
   type WizardPersonalizationContext,
 } from '../../lib/story-bank-personalization';
 import {
@@ -22,6 +23,24 @@ import {
   joinChildStructuredDNA,
   sanitizeChildStructuredAgainstPhoto,
 } from '../../lib/child-photo-dna-sanitize';
+import {
+  normalizeChildPhotoHairDescription,
+  resolveDevChildHairOverride,
+} from '../../lib/child-photo-hair';
+
+/** Thrown when gender/name personalization cannot produce verified final text. */
+export class StoryBankPersonalizationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'StoryBankPersonalizationError';
+  }
+}
+
+const PERSONALIZATION_MAX_ATTEMPTS = 3;
+
+function escapeRegexLiteral(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 export type LoadStoryFromBankOptions = {
   patchContext?: PatchContext | null;
@@ -29,6 +48,8 @@ export type LoadStoryFromBankOptions = {
   letterContext?: LetterContext | null;
   /** When set, keep only the first N story pages (truncates at `--- Page N ---` markers). */
   maxPages?: number;
+  /** Skip LLM gender/name passes (use after text is finalized — image/cover loads only). */
+  skipLlmPersonalization?: boolean;
 };
 
 export { truncateStoryMarkdownToPages } from '../../lib/story-bank-truncate';
@@ -144,19 +165,44 @@ export async function loadStoryFromBank(
   }
 
   // ── Gender adaptation ──────────────────────────────────────────────
-  // If the child's gender doesn't match the story's written gender,
-  // run an LLM call to swap all gendered Hebrew forms.
-  if (childGender) {
-    const allText = pages.map(p => p.text).join('\n');
-    // Prefer explicit metadata; fall back to regex detection
-    const storyGender = normalizedExplicitGender ?? detectStoryGender(allText);
+  // Chip-resolved v5 stories are correct by construction; LLM swap is belt-and-suspenders only.
+  if (childGender && !options?.skipLlmPersonalization) {
+    const allText = pages.map((p) => p.text).join('\n');
     const targetGender = childGender === 'girl' ? 'female' : 'male';
-    console.log(`[StoryBank] Gender: explicit=${normalizedExplicitGender}, detected=${normalizedExplicitGender ? 'skipped' : detectStoryGender(allText)}, target=${targetGender}`);
+    const genderAfterChips = detectStoryGender(allText);
+    console.log(
+      `[StoryBank] Gender: yamlExplicit=${normalizedExplicitGender}, afterChips=${genderAfterChips}, target=${targetGender}`
+    );
 
-    if (storyGender && storyGender !== targetGender) {
-      console.log(`[StoryBank] Gender mismatch: story=${storyGender}, target=${targetGender}. Running LLM swap...`);
-      const swappedPages = await swapGender(pages, storyGender, targetGender, childName);
-      // Replace text + narrationText with swapped versions
+    const genderGateFailures = runStoryPersonalizationGate({
+      wizard: personalizationCtx,
+      pages: pages.map((p) => ({
+        pageNumber: p.pageNumber,
+        text: p.text,
+        imagePrompt: p.imagePrompt,
+      })),
+    }).filter(
+      (f) =>
+        f.includes('gender') ||
+        f.includes('gendered child marker') ||
+        f.includes('gender chip') ||
+        f.includes('gender slash')
+    );
+    const genderGateClean = genderGateFailures.length === 0;
+
+    const needsSwap =
+      genderAfterChips != null
+        ? genderAfterChips !== targetGender
+        : !genderGateClean &&
+          normalizedExplicitGender != null &&
+          normalizedExplicitGender !== targetGender;
+
+    if (needsSwap) {
+      const fromGender = (genderAfterChips ?? normalizedExplicitGender)!;
+      console.log(
+        `[StoryBank] Gender mismatch after chips: from=${fromGender}, target=${targetGender}. Running LLM swap...`
+      );
+      const swappedPages = await swapGender(pages, fromGender, targetGender, childName);
       for (let i = 0; i < pages.length; i++) {
         if (swappedPages[i]) {
           pages[i].text = swappedPages[i];
@@ -165,15 +211,27 @@ export async function loadStoryFromBank(
       }
       console.log(`[StoryBank] Gender swap complete (${pages.length} pages).`);
     } else {
-      console.log(`[StoryBank] Gender match or undetectable (story=${storyGender}, target=${targetGender}). No swap needed.`);
+      console.log(
+        `[StoryBank] Gender OK after chips (afterChips=${genderAfterChips}, gateClean=${genderGateClean}). No swap needed.`
+      );
     }
   }
 
   // ── Child name personalization ─────────────────────────────────────
-  // v5-fixed-v2 stories use generic "הילד"/"הילדה" instead of {{childName}}.
-  // Run an LLM pass that naturally weaves the child's actual name in 2-4
-  // key moments so the book feels personal without overusing the name.
-  if (childName && childName.trim().length > 0) {
+  if (
+    childName &&
+    childName.trim().length > 0 &&
+    !options?.skipLlmPersonalization
+  ) {
+    const nameCountBefore = pages.reduce(
+      (acc, p) => acc + ((p.text ?? '').match(new RegExp(escapeRegexLiteral(childName.trim()), 'g')) || []).length,
+      0
+    );
+    if (nameCountBefore >= 4) {
+      console.log(
+        `[StoryBank] Name personalization skipped — '${childName}' already appears ${nameCountBefore} times`
+      );
+    } else {
     const targetGenderForName: 'female' | 'male' =
       childGender && /female|girl|f|בת|ילדה|נקבה|she|her/i.test(String(childGender)) ? 'female' : 'male';
     try {
@@ -195,7 +253,12 @@ export async function loadStoryFromBank(
       console.warn(`[StoryBank] WARNING: name appears only ${totalNameCount}x — model was too conservative.`);
     }
     } catch (err) {
-      console.error('[StoryBank] Name personalization failed — keeping generic text:', err);
+      throw err instanceof StoryBankPersonalizationError
+        ? err
+        : new StoryBankPersonalizationError(
+            `Name personalization failed: ${err instanceof Error ? err.message : String(err)}`
+          );
+    }
     }
   }
 
@@ -512,100 +575,114 @@ async function swapGender(
 הטקסט:
 ${pagesBlock}`;
 
-  try {
-    let responseText = '';
+  let lastError: unknown = null;
 
-    if (provider === 'anthropic') {
-      const apiKey = process.env.ANTHROPIC_API_KEY;
-      if (!apiKey) throw new Error('ANTHROPIC_API_KEY not set');
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model,
-          max_tokens: 4000,
-          temperature: 0.1,
-          system: systemPrompt,
-          messages: [{ role: 'user', content: userPrompt }],
-        }),
-      });
-      if (!res.ok) throw new Error(`Anthropic ${res.status}: ${await res.text()}`);
-      const data = await res.json();
-      responseText = data.content?.[0]?.text ?? '';
-    } else {
-      const apiKey = process.env.OPENAI_API_KEY;
-      if (!apiKey) throw new Error('OPENAI_API_KEY not set');
-      // gpt-5.x models are served via /v1/responses, not /v1/chat/completions.
-      // Auto-route to avoid silent 400s that previously made gender swap a no-op.
-      const useResponsesAPI = model.startsWith('gpt-5.') || model.includes('-pro');
+  for (let attempt = 1; attempt <= PERSONALIZATION_MAX_ATTEMPTS; attempt++) {
+    try {
+      let responseText = '';
 
-      if (useResponsesAPI) {
-        const body: Record<string, unknown> = {
-          model,
-          max_output_tokens: 4000,
-          input: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-          ],
-          text: { format: { type: 'json_object' } },
-        };
-        const res = await fetch('https://api.openai.com/v1/responses', {
+      if (provider === 'anthropic') {
+        const apiKey = process.env.ANTHROPIC_API_KEY;
+        if (!apiKey) throw new Error('ANTHROPIC_API_KEY not set');
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
-          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
+          headers: {
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model,
+            max_tokens: 4000,
+            temperature: 0.1,
+            system: systemPrompt,
+            messages: [{ role: 'user', content: userPrompt }],
+          }),
         });
-        if (!res.ok) throw new Error(`OpenAI Responses ${res.status}: ${await res.text()}`);
+        if (!res.ok) throw new Error(`Anthropic ${res.status}: ${await res.text()}`);
         const data = await res.json();
-        responseText =
-          data.output_text ??
-          data.output?.find((item: { type?: string; content?: Array<{ type?: string; text?: string }> }) => item.type === 'message')
-            ?.content?.find((c: { type?: string; text?: string }) => c.type === 'output_text')?.text ??
-          '';
+        responseText = data.content?.[0]?.text ?? '';
       } else {
-        const body: Record<string, unknown> = {
-          model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-          ],
-          response_format: { type: 'json_object' },
-          temperature: 0.1,
-          max_tokens: 4000,
-        };
-        const res = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
-        const data = await res.json();
-        responseText = data.choices?.[0]?.message?.content ?? '';
+        const apiKey = process.env.OPENAI_API_KEY;
+        if (!apiKey) throw new Error('OPENAI_API_KEY not set');
+        const useResponsesAPI = model.startsWith('gpt-5.') || model.includes('-pro');
+
+        if (useResponsesAPI) {
+          const body: Record<string, unknown> = {
+            model,
+            max_output_tokens: 4000,
+            input: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt },
+            ],
+            text: { format: { type: 'json_object' } },
+          };
+          const res = await fetch('https://api.openai.com/v1/responses', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          if (!res.ok) throw new Error(`OpenAI Responses ${res.status}: ${await res.text()}`);
+          const data = await res.json();
+          responseText =
+            data.output_text ??
+            data.output?.find((item: { type?: string; content?: Array<{ type?: string; text?: string }> }) => item.type === 'message')
+              ?.content?.find((c: { type?: string; text?: string }) => c.type === 'output_text')?.text ??
+            '';
+        } else {
+          const body: Record<string, unknown> = {
+            model,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt },
+            ],
+            response_format: { type: 'json_object' },
+            temperature: 0.1,
+            max_tokens: 4000,
+          };
+          const res = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
+          const data = await res.json();
+          responseText = data.choices?.[0]?.message?.content ?? '';
+        }
       }
-    }
 
-    // Parse JSON response
-    const cleaned = responseText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-    if (!cleaned) {
-      console.warn('[StoryBank] Gender swap returned empty response. Skipping swap.');
-      return pages.map(p => p.text);
-    }
-    const parsed = JSON.parse(cleaned) as { pages?: string[] };
+      const cleaned = responseText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+      if (!cleaned) {
+        throw new StoryBankPersonalizationError(
+          `Gender swap returned empty response (attempt ${attempt}/${PERSONALIZATION_MAX_ATTEMPTS})`
+        );
+      }
+      const parsed = JSON.parse(cleaned) as { pages?: string[] };
 
-    if (!Array.isArray(parsed.pages) || parsed.pages.length !== pages.length) {
-      console.warn(`[StoryBank] Gender swap returned ${parsed.pages?.length ?? 0} pages, expected ${pages.length}. Skipping swap.`);
-      return pages.map(p => p.text);
-    }
+      if (!Array.isArray(parsed.pages) || parsed.pages.length !== pages.length) {
+        throw new StoryBankPersonalizationError(
+          `Gender swap returned ${parsed.pages?.length ?? 0} pages, expected ${pages.length} (attempt ${attempt}/${PERSONALIZATION_MAX_ATTEMPTS})`
+        );
+      }
 
-    console.log(`[StoryBank] Gender swap SUCCESS — ${parsed.pages.length} pages swapped from ${fromGender} to ${toGender}.`);
-    return parsed.pages;
-  } catch (error) {
-    console.error(`[StoryBank] Gender swap LLM call FAILED, keeping original ${fromGender} text. Model=${model}. Error:`, error);
-    return pages.map(p => p.text);
+      console.log(
+        `[StoryBank] Gender swap SUCCESS — ${parsed.pages.length} pages swapped from ${fromGender} to ${toGender}.`
+      );
+      return parsed.pages;
+    } catch (error) {
+      lastError = error;
+      console.warn(
+        `[StoryBank] Gender swap attempt ${attempt}/${PERSONALIZATION_MAX_ATTEMPTS} failed:`,
+        error instanceof Error ? error.message : error
+      );
+    }
   }
+
+  throw new StoryBankPersonalizationError(
+    `Gender swap failed after ${PERSONALIZATION_MAX_ATTEMPTS} attempts: ${
+      lastError instanceof Error ? lastError.message : String(lastError)
+    }`
+  );
 }
 
 /**
@@ -727,18 +804,20 @@ ${pagesBlock}`;
 
     const cleaned = responseText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
     if (!cleaned) {
-      console.warn('[StoryBank] Name personalization returned empty — keeping generic text.');
-      return pages.map(p => p.text);
+      throw new StoryBankPersonalizationError('Name personalization returned empty response');
     }
     const parsed = JSON.parse(cleaned) as { pages?: string[] };
     if (!Array.isArray(parsed.pages) || parsed.pages.length !== pages.length) {
-      console.warn(`[StoryBank] Name personalization returned ${parsed.pages?.length ?? 0} pages, expected ${pages.length}. Skipping.`);
-      return pages.map(p => p.text);
+      throw new StoryBankPersonalizationError(
+        `Name personalization returned ${parsed.pages?.length ?? 0} pages, expected ${pages.length}`
+      );
     }
     return parsed.pages;
   } catch (error) {
-    console.error('[StoryBank] Name personalization LLM call failed — keeping generic text:', error);
-    return pages.map(p => p.text);
+    if (error instanceof StoryBankPersonalizationError) throw error;
+    throw new StoryBankPersonalizationError(
+      `Name personalization LLM call failed: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 }
 
@@ -762,7 +841,12 @@ const CHILD_PHOTO_VISION_USER_PROMPT = `Look at this photo of a child and descri
 Describe in 40-60 words, covering ONLY:
 - Face shape (round, oval, heart-shaped)
 - Skin tone (warm pale, light olive, medium tan, deep brown, etc — be specific)
-- Hair: exact color, length, texture (straight/wavy/curly), and how it falls
+- Hair (CRITICAL — measure carefully): exact color; texture (straight/wavy/curly/coily); LENGTH using these rules:
+  * LONG = hair ends at or below the shoulders, past the jaw, mid-back, or waist — say "long" explicitly
+  * MEDIUM = ends between chin and shoulders only
+  * SHORT = above chin / ears / pixie / cropped only
+  * Do NOT call shoulder-length or longer hair "short" or "short-to-medium"
+  * Describe how the hair falls (e.g. past shoulders, frames face, volume)
 - Eyes: shape (round/almond/upturned) and color
 - Distinctive features: freckles, dimples, gap teeth, glasses, eyebrow shape, prominent cheeks, etc.
 
@@ -812,10 +896,11 @@ async function describeChildFromPhotoOpenAI(photoUrl: string): Promise<string | 
       );
       return null;
     }
+    const normalized = normalizeChildPhotoHairDescription(description);
     console.log(
-      `[StoryBank/PhotoVision] OpenAI fallback description (${description.length} chars): "${description.slice(0, 120)}..."`
+      `[StoryBank/PhotoVision] OpenAI fallback description (${normalized.length} chars): "${normalized.slice(0, 120)}..."`
     );
-    return description;
+    return normalized;
   } catch (err) {
     console.error('[StoryBank/PhotoVision] OpenAI fallback failed:', err);
     return null;
@@ -877,8 +962,14 @@ export async function describeChildFromPhoto(photoUrl: string): Promise<string |
       console.warn(`[StoryBank/PhotoVision] Description too short (${description.length} chars), discarding.`);
       return null;
     }
-    console.log(`[StoryBank/PhotoVision] Got description (${description.length} chars): "${description.slice(0, 120)}..."`);
-    return description;
+    const normalized = normalizeChildPhotoHairDescription(description);
+    if (normalized !== description) {
+      console.log('[StoryBank/PhotoVision] Applied hair-length normalization to vision description');
+    }
+    console.log(
+      `[StoryBank/PhotoVision] Got description (${normalized.length} chars): "${normalized.slice(0, 120)}..."`
+    );
+    return normalized;
   } catch (err) {
     console.error('[StoryBank/PhotoVision] Failed to call Claude Vision:', err);
     return describeChildFromPhotoOpenAI(visionUrl);
@@ -985,7 +1076,7 @@ RULES FOR CHILD:
 - Describe PHYSICAL appearance only — no personality, no emotions, no actions
 - Each field must be self-contained and specific
 - "face": face shape + skin tone + eye color/shape + any distinctive facial feature (15-25 words)
-- "hair": exact color + length + style from the photo reference only (10-20 words). Do NOT add hair clips, bows, headbands, or other accessories unless explicitly in the photo reference above
+- "hair": exact color + LENGTH + texture from the photo reference only (10-20 words). If the photo says long/shoulder-length/past shoulders/curly past jaw, the hair field MUST say long — never shorten to medium or short. Do NOT add hair clips, bows, headbands, or other accessories unless explicitly in the photo reference above
 - "body": build + approximate height for age ${params.childAge} (10-15 words)
 - "clothing": EXACT outfit description — this outfit is LOCKED for the ENTIRE book. Include every garment, color, and any pattern. (15-25 words)
 ${params.childPhotoDescription ? `- "signature": OPTIONAL. Only a distinctive facial feature explicitly stated in the photo reference (5-10 words). Leave empty string "" if the photo has no unique facial mark. NEVER invent hair clips, glasses, hats, jewelry, birthmarks, or freckles unless explicitly in the photo reference` : `- "signature": ONE unique visual detail that anchors this character's identity across pages (5-10 words)`}

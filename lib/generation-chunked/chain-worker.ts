@@ -1,7 +1,8 @@
 /**
- * Best-effort accelerator — correctness does NOT depend on this succeeding.
+ * Fire-and-forget worker kick — MUST NOT await the next worker finishing.
+ * Correctness is DB state + sweeper/resume, not this request.
  */
-export async function chainGenerationWorker(orderId: string): Promise<void> {
+export function chainGenerationWorker(orderId: string): void {
   const base = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || '').replace(/\/$/, '');
   if (!base) {
     console.warn('[chunked-gen] chain skipped — no APP URL');
@@ -15,17 +16,18 @@ export async function chainGenerationWorker(orderId: string): Promise<void> {
   }
 
   const url = `${base}/api/generate/worker`;
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderId, secret }),
-      signal: AbortSignal.timeout(15_000),
+  void fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orderId, secret }),
+    keepalive: true,
+  })
+    .then((res) => {
+      if (!res.ok) {
+        console.warn('[chunked-gen] chain worker non-OK', orderId, res.status);
+      }
+    })
+    .catch((err) => {
+      console.warn('[chunked-gen] chain worker failed (non-fatal)', orderId, err);
     });
-    if (!res.ok) {
-      console.warn('[chunked-gen] chain worker non-OK', orderId, res.status);
-    }
-  } catch (err) {
-    console.warn('[chunked-gen] chain worker failed (non-fatal)', orderId, err);
-  }
 }

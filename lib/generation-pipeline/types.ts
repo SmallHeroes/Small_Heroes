@@ -32,6 +32,87 @@ export type PipelineCache = {
     negativeRules?: string[];
     worldDNA?: string;
   };
+  expectedPageCount?: number;
+  textFinalized?: boolean;
+  characterAnchorStore?: Record<
+    string,
+    {
+      orderId: string;
+      styleId: string;
+      characterId: string;
+      role: 'child' | 'companion' | 'creature' | 'family_member';
+      anchorType: 'canonical_portrait' | 'character_sheet' | 'predefined_sheet';
+      source: 'uploaded_photo' | 'companion_sheet' | 'generated_story_anchor' | 'static_asset';
+      url: string;
+      provider?: string;
+      model?: string;
+      quality?: string;
+      promptUsed?: string;
+      inputDescriptionUsed?: string;
+      referenceOrderUsed?: string[];
+      qaStatus?: 'pending' | 'pending_review' | 'passed' | 'failed';
+      anchorQuality?: string;
+      resemblanceScore?: number;
+      thresholdUsed?: number;
+      qaNotes?: string;
+      createdAt: string;
+      updatedAt: string;
+    }
+  >;
+  /** Set true after explicit human/dev anchor approval (CHILD_ANCHOR_REVIEW_OK or API). */
+  childAnchorApproved?: boolean;
+  stage0SelectedAttempt?: number;
+  stage0AnchorPrompt?: string;
+  stage0AnchorReferenceOrderLabels?: string[];
+  /** Per-order mini expression sheet (edits from approved canonical anchor). */
+  childExpressionSheet?: {
+    baseAnchorUrl: string;
+    /** Legacy: all kinds approved at once. */
+    approved?: boolean;
+    /** Per-kind approval (neutral, happy, worried, action, etc.). */
+    approvedKinds?: Array<'neutral' | 'happy' | 'worried' | 'shouting' | 'action'>;
+    /** Selected shouting ref for pages: v1 = anchors.shouting, v2/v3 = shoutingVariants. */
+    selectedShouting?: 'v1' | 'v2' | 'v3';
+    shoutingVariants?: Partial<
+      Record<
+        'v2' | 'v3',
+        {
+          url: string;
+          qaStatus: 'pending_review' | 'passed' | 'failed';
+          resemblanceToBase?: number;
+          createdAt: string;
+        }
+      >
+    >;
+    anchors: Partial<
+      Record<
+        'neutral' | 'happy' | 'worried' | 'shouting' | 'action',
+        {
+          url: string;
+          qaStatus: 'pending_review' | 'passed' | 'failed';
+          resemblanceToBase?: number;
+          styleQaPass?: boolean;
+          attempts?: number;
+          createdAt: string;
+        }
+      >
+    >;
+  };
+  stage0AnchorCandidates?: Array<{
+    attempt: number;
+    url: string;
+    model?: string;
+    resemblanceScore?: number;
+    faceDetectConfidence?: number;
+    faceAreaRatio?: number;
+    embeddingMismatch?: boolean;
+    colorMismatch?: boolean;
+    geometryWeird?: boolean;
+    passed?: boolean;
+    semanticPass?: boolean;
+    embeddingVerdict?: 'hard_fail' | 'soft_ok';
+    createdAt: string;
+  }>;
 };
 
 export type ChunkProcessResult = {

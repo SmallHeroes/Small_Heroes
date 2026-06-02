@@ -47,6 +47,7 @@ export type Style01PromptAssemblyInput = {
   companion?: { id: string; name: string; visualDescription?: string; image?: string } | null;
   companionStructured?: { species: string; size: string; coloring: string; feature: string };
   pageStoryState?: PageStoryState | null;
+  useCanonicalChildAnchorRef?: boolean;
 };
 
 export type Style01PromptAssemblyResult = {
@@ -223,6 +224,7 @@ export function assembleStyle01Phase2Prompt(
     environmentLock: [environmentLock, storyStateForbiddenBlock].filter(Boolean).join('\n\n') || undefined,
     compositionBlock,
     entityPresenceBlock,
+    useCanonicalChildAnchorRef: input.useCanonicalChildAnchorRef,
   });
 
   const sceneClass = classifyStyle01SceneClass({

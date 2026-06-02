@@ -27,9 +27,14 @@ export async function acquireGenerationLease(orderId: string): Promise<string | 
 }
 
 export async function releaseGenerationLease(orderId: string, workerId: string): Promise<void> {
+  const now = new Date();
   await prisma.generationJob.updateMany({
     where: { orderId, lockedBy: workerId },
-    data: { lockedBy: null, leaseExpiresAt: null },
+    data: {
+      lockedBy: null,
+      // Expire immediately so the next worker/sweeper can claim without waiting TTL.
+      leaseExpiresAt: now,
+    },
   });
 }
 

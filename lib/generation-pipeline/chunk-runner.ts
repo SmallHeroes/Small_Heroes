@@ -28,7 +28,7 @@ import {
   fetchImageBuffer,
   placementModeFromPageTemplate,
 } from '@/lib/illustrationPresentation';
-import { storePresentationBuffer } from '@/lib/image-storage';
+import { storePresentationBuffer, storeImageFromDataUrl, uploadOrderSubpathAsset } from '@/lib/image-storage';
 import { mergeGptImageReferenceSources } from '@/lib/image-reference-utils';
 import {
   buildPersistedCharacterAnchorsJson,
@@ -59,7 +59,38 @@ import {
   detectExpectedCharactersForPage,
   resolveCompanionForOrder,
 } from './anchor-registry';
-import { evaluatePhotoGate, resolveResemblanceThresholdConfig } from '@/lib/resemblance-core';
+import {
+  evaluatePhotoGate,
+  resolveEffectiveThreshold,
+  resolveResemblanceThresholdConfig,
+  scoreResemblanceAgainstReference,
+} from '@/lib/resemblance-core';
+import { generateGPTImage } from '@/lib/generate-image';
+import {
+  applyDevHairOverrideToPhotoDescription,
+  resolveDevChildHairOverride,
+} from '@/lib/child-photo-hair';
+import { STYLE_01_AVOIDANCE_NEGATIVE } from '@/lib/style01-gptimage';
+import {
+  buildStage0MethodBPrompt,
+  generateStage0MethodBAnchor,
+} from '@/lib/generation-pipeline/stage0-method-b';
+import { resolveStyle01StoryWardrobeLock } from '@/lib/style01-story-wardrobe';
+import { evaluateAnchorStyleFromVision } from '@/lib/anchor-style-qa';
+import {
+  evaluateAnchorEmbeddingScore,
+  evaluateAnchorSemanticQa,
+  isChildAnchorReviewApproved,
+  resolveAnchorGateConfig,
+} from '@/lib/anchor-resemblance-gate';
+import {
+  getApprovedChildCanonicalAnchor,
+  getChildCanonicalAnchor,
+  isChildExpressionSheetActive,
+  resolveApprovedExpressionAnchorUrl,
+  upsertCharacterAnchor,
+} from './character-anchor-store';
+import { resolveChildExpressionKindForPage } from './child-expression-page-map';
 import {
   collectExistingImagePageNumbers,
   compositionRulesForTemplate,
@@ -103,6 +134,73 @@ async function saveCache(orderId: string, cache: PipelineCache) {
   });
 }
 
+function persistChildAnchorOnOrder(
+  order: Order,
+  childPatch: Record<string, unknown>
+): Prisma.OrderUpdateInput['characterAnchors'] {
+  const existingAnchors =
+    order.characterAnchors && typeof order.characterAnchors === 'object'
+      ? (order.characterAnchors as Record<string, unknown>)
+      : {};
+  return {
+    ...existingAnchors,
+    child: {
+      ...(existingAnchors.child as Record<string, unknown> | undefined),
+      ...childPatch,
+    },
+  } as Prisma.InputJsonValue;
+}
+
+async function promotePendingChildAnchorToPassed(
+  order: Order,
+  cache: PipelineCache
+): Promise<PipelineCache> {
+  const child = getChildCanonicalAnchor(cache);
+  if (!child?.url) return cache;
+  const anchorGate = resolveAnchorGateConfig();
+  const approved = isChildAnchorReviewApproved(order.id, cache, order);
+  if (!approved) return cache;
+
+  const nextCache: PipelineCache = {
+    ...cache,
+    childAnchorApproved: true,
+    characterAnchorStore: upsertCharacterAnchor(cache, {
+      ...child,
+      qaStatus: 'passed',
+      updatedAt: new Date().toISOString(),
+    }).characterAnchorStore,
+  };
+
+  await prisma.order.update({
+    where: { id: order.id },
+    data: {
+      characterAnchors: persistChildAnchorOnOrder(order, {
+        anchorImageUrl: child.url,
+        anchorType: 'canonical_portrait',
+        source: child.source,
+        qaStatus: 'passed',
+        anchorApproved: true,
+        anchorQuality: child.anchorQuality,
+        styleId: child.styleId,
+        provider: child.provider,
+        model: child.model,
+        promptUsed: child.promptUsed,
+        inputDescriptionUsed: child.inputDescriptionUsed,
+        referenceOrderUsed: child.referenceOrderUsed,
+        resemblanceScore: child.resemblanceScore,
+        thresholdUsed: child.thresholdUsed,
+        qaNotes: child.qaNotes,
+      }),
+    },
+  });
+
+  console.log(
+    `[anchor_review] orderId=${order.id} promoted pending anchor to passed ` +
+      `score=${(child.resemblanceScore ?? 0).toFixed(3)} pageThreshold=${anchorGate.embeddingStrongAt} (unchanged)`
+  );
+  return nextCache;
+}
+
 async function runTextStage(order: Order, cache: PipelineCache): Promise<PipelineCache> {
   if (cache.textFinalized) {
     await prisma.order.update({ where: { id: order.id }, data: { textStatus: 'done' } });
@@ -118,8 +216,16 @@ async function runTextStage(order: Order, cache: PipelineCache): Promise<Pipelin
 }
 
 async function runDnaStage(order: Order, cache: PipelineCache): Promise<PipelineCache> {
-  if (cache.dna?.childDNA) return cache;
+  if (getApprovedChildCanonicalAnchor(cache)) {
+    await saveCache(order.id, cache);
+    return cache;
+  }
 
+  let nextCache: PipelineCache = cache;
+
+  if (cache.dna?.childDNA) {
+    // DNA already finalized — continue to Stage 0 / pending promotion only.
+  } else {
   const book = await prisma.generatedBook.findUnique({
     where: { orderId: order.id },
     include: { pages: { orderBy: { pageNumber: 'asc' } } },
@@ -132,10 +238,38 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
     wizardMeta.challengeCategory ?? null
   );
 
+  let childReferenceImageUrl = order.childImageUrl ?? '';
+  if (childReferenceImageUrl.startsWith('data:image/')) {
+    // Canonicalize inline uploads to a stable URL so all gates read identical bytes.
+    childReferenceImageUrl = await storeImageFromDataUrl({
+      dataUrl: childReferenceImageUrl,
+      orderId: order.id,
+      assetPath: `references/stage0-child-photo-${Date.now()}`,
+    });
+    await prisma.order.update({
+      where: { id: order.id },
+      data: { childImageUrl: childReferenceImageUrl },
+    });
+    order.childImageUrl = childReferenceImageUrl;
+  }
+
   let childPhotoDescription: string | null = null;
-  if (order.childImageUrl) {
+  if (childReferenceImageUrl) {
     try {
-      childPhotoDescription = await describeChildFromPhoto(order.childImageUrl);
+      childPhotoDescription = await describeChildFromPhoto(childReferenceImageUrl);
+      const devHairOverride = resolveDevChildHairOverride({
+        orderId: order.id,
+        childName: order.childName ?? undefined,
+      });
+      if (devHairOverride) {
+        childPhotoDescription = applyDevHairOverrideToPhotoDescription(
+          childPhotoDescription,
+          devHairOverride
+        );
+        console.log(
+          `[PhotoHair] Applied DEV_CHILD_PHOTO_HAIR_OVERRIDE for orderId=${order.id} childName=${order.childName ?? ''}`
+        );
+      }
     } catch {
       childPhotoDescription = null;
     }
@@ -156,7 +290,7 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
   const childDescBase = `A ${order.childGender === 'girl' ? 'girl' : 'boy'} named ${order.childName}, approximately ${order.childAge ?? 5} years old`;
   const lockedChildDescription = dna.childDNA || childDescBase;
 
-  const nextCache: PipelineCache = {
+  nextCache = {
     ...cache,
     lockedChildDescription,
     childPhotoDescription,
@@ -170,6 +304,299 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
       worldDNA: dna.worldDNA,
     },
   };
+  }
+
+  // Stage 0 (once per order): create canonical child anchor in book style.
+  let existingChildAnchor = getChildCanonicalAnchor(nextCache);
+  if (!existingChildAnchor && (nextCache.stage0AnchorCandidates?.length ?? 0) > 0) {
+    const { attachPendingChildAnchorFromCandidate, pickStage0Candidate } = await import(
+      './stage0-candidate-recovery'
+    );
+    const recovered = pickStage0Candidate(nextCache);
+    if (recovered) {
+      nextCache = attachPendingChildAnchorFromCandidate(order, nextCache, recovered);
+      existingChildAnchor = getChildCanonicalAnchor(nextCache);
+      console.log(
+        `[anchor_stage0] orderId=${order.id} recovered pending anchor from candidate attempt=${recovered.attempt} score=${(recovered.resemblanceScore ?? 0).toFixed(3)}`
+      );
+    }
+  }
+
+  const existingChildAnchorForGate = existingChildAnchor;
+  if (getApprovedChildCanonicalAnchor(nextCache)) {
+    await saveCache(order.id, nextCache);
+    return nextCache;
+  } else if (existingChildAnchorForGate?.qaStatus === 'pending_review') {
+    nextCache = await promotePendingChildAnchorToPassed(order, nextCache);
+    if (!getApprovedChildCanonicalAnchor(nextCache)) {
+      await saveCache(order.id, nextCache);
+      throw new Error(
+        `ANCHOR_REVIEW_REQUIRED: child anchor awaits human approval (bestScore=${(
+          existingChildAnchorForGate.resemblanceScore ?? 0
+        ).toFixed(3)}). Set CHILD_ANCHOR_REVIEW_OK=true or CHILD_ANCHOR_REVIEW_OK_ORDER_IDS=${order.id} after eyeball QA.`
+      );
+    }
+    await saveCache(order.id, nextCache);
+  } else if (
+    !existingChildAnchorForGate &&
+    (order.childImageUrl ?? '').trim() &&
+    process.env.GENERATION_ANCHOR_EXPERIMENT === 'true'
+  ) {
+    throw new Error(
+      'GENERATION_ANCHOR_EXPERIMENT=true: use scripts/run-stage0-anchor-experiment.ts instead of production Stage 0'
+    );
+  } else if (!existingChildAnchorForGate && (order.childImageUrl ?? '').trim()) {
+    const childReferenceImageUrl = order.childImageUrl ?? '';
+    const stage0Companion = resolveCompanionForOrder(order);
+    const wardrobeLock = resolveStyle01StoryWardrobeLock(stage0Companion?.id) ?? '';
+    const anchorPrompt = buildStage0MethodBPrompt({
+      order,
+      lockedChildDescription,
+      wardrobeLock,
+      childPhotoDescription,
+    });
+    const thresholdConfig = resolveResemblanceThresholdConfig();
+    const effectiveThreshold = resolveEffectiveThreshold(order.illustrationStyle, thresholdConfig);
+    const anchorGateConfig = resolveAnchorGateConfig();
+    const maxAnchorAttempts = Math.min(
+      4,
+      Math.max(1, Number.parseInt(process.env.CHILD_ANCHOR_MAX_ATTEMPTS ?? '3', 10) || 3)
+    );
+    const candidateRows: NonNullable<PipelineCache['stage0AnchorCandidates']> = [];
+    let bestResult: Awaited<ReturnType<typeof generateStage0MethodBAnchor>> | null = null;
+    let bestAttempt = 0;
+    for (let attempt = 1; attempt <= maxAnchorAttempts; attempt += 1) {
+      const result = await generateStage0MethodBAnchor({
+        order,
+        childPhotoUrl: childReferenceImageUrl,
+        lockedChildDescription,
+        wardrobeLock,
+        childPhotoDescription,
+        childStructuredHair: dna.childStructured?.hair,
+        attemptSuffix: `a${attempt}`,
+      });
+      candidateRows.push({
+        attempt,
+        url: result.anchorUrl,
+        model: result.anchorModel,
+        resemblanceScore: result.resemblanceScore,
+        faceDetectConfidence: 1,
+        embeddingVerdict: result.embeddingVerdict as 'hard_fail' | 'soft_ok',
+        semanticPass: result.semantic.ok,
+        createdAt: new Date().toISOString(),
+      });
+      if (!bestResult || result.resemblanceScore > bestResult.resemblanceScore) {
+        bestResult = result;
+        bestAttempt = attempt;
+      }
+      console.log(
+        `[anchor_stage0_attempt] orderId=${order.id} method=B attempt=${attempt}/${maxAnchorAttempts} ` +
+          `score=${result.resemblanceScore.toFixed(3)} embeddingVerdict=${result.embeddingVerdict}`
+      );
+    }
+    if (!bestResult) {
+      throw new Error('ANCHOR_QA_BLOCK: no anchor candidates generated');
+    }
+    const anchorUrl = bestResult.anchorUrl;
+    const anchorModel = bestResult.anchorModel;
+    const anchorReferenceImages = bestResult.referenceImages;
+    const anchorReferenceOrderLabels = bestResult.referenceOrderLabels;
+    const similarity = { resemblanceScore: bestResult.resemblanceScore, faceDetectConfidence: 1 };
+    const embeddingEval = evaluateAnchorEmbeddingScore(bestResult.resemblanceScore, anchorGateConfig);
+    const semantic = bestResult.semantic;
+    const anchorPhotoDescription = await describeChildFromPhoto(anchorUrl).catch(() => null);
+    for (const row of candidateRows) {
+      row.semanticPass = semantic.ok;
+      row.passed = row.attempt === bestAttempt && semantic.ok && row.embeddingVerdict !== 'hard_fail';
+    }
+    nextCache.stage0AnchorCandidates = candidateRows;
+    nextCache.stage0AnchorPrompt = anchorPrompt;
+    nextCache.stage0AnchorReferenceOrderLabels = anchorReferenceOrderLabels;
+    nextCache.stage0SelectedAttempt = bestAttempt;
+
+    if (embeddingEval.hardFail) {
+      await saveCache(order.id, nextCache);
+      throw new Error(
+        `ANCHOR_QA_BLOCK: embedding hard-fail (bestScore=${similarity.resemblanceScore.toFixed(3)} ` +
+          `< ${anchorGateConfig.embeddingHardFailBelow}) — clearly wrong identity`
+      );
+    }
+    if (!semantic.ok) {
+      await saveCache(order.id, nextCache);
+      throw new Error(
+        `ANCHOR_QA_BLOCK: semantic checks failed (genderMismatch=${semantic.genderMismatch} ` +
+          `missingHairTraits=${semantic.missingHairTraits.join('|') || 'none'} ` +
+          `faceDetectOk=${semantic.faceDetectOk} bestScore=${similarity.resemblanceScore.toFixed(3)})`
+      );
+    }
+
+    const styleQa = bestResult.styleQa;
+    if (!styleQa.ok) {
+      await saveCache(order.id, nextCache);
+      throw new Error(
+        `ANCHOR_QA_BLOCK: style HARD fail — not cute Style 01 watercolor (photoreal=${styleQa.looksPhotoreal} portrait=${styleQa.looksPortrait} notes=${styleQa.notes})`
+      );
+    }
+
+    const reviewApproved = isChildAnchorReviewApproved(order.id, nextCache, order);
+    const qaStatus = reviewApproved ? 'passed' : 'pending_review';
+    nextCache.childAnchorApproved = reviewApproved;
+
+    nextCache.characterAnchorStore = upsertCharacterAnchor(nextCache, {
+      orderId: order.id,
+      styleId: order.illustrationStyle,
+      characterId: 'child',
+      role: 'child',
+      anchorType: 'canonical_portrait',
+      source: 'uploaded_photo',
+      url: anchorUrl,
+      provider: 'openai',
+      model: anchorModel,
+      quality: process.env.GPT_IMAGE_QUALITY?.trim() || 'low',
+      promptUsed: anchorPrompt,
+      inputDescriptionUsed: lockedChildDescription,
+      referenceOrderUsed: anchorReferenceImages,
+      qaStatus,
+      anchorQuality: process.env.GPT_IMAGE_QUALITY?.trim() || 'low',
+      resemblanceScore: similarity.resemblanceScore,
+      thresholdUsed: effectiveThreshold,
+      qaNotes: [
+        anchorPhotoDescription ?? '',
+        `anchorGate: embedding=${embeddingEval.verdict} score=${similarity.resemblanceScore.toFixed(3)}`,
+        `pageThreshold=${effectiveThreshold.toFixed(3)} (unchanged)`,
+      ]
+        .filter(Boolean)
+        .join(' | '),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }).characterAnchorStore;
+
+    await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        characterAnchors: persistChildAnchorOnOrder(order, {
+          anchorImageUrl: anchorUrl,
+          anchorType: 'canonical_portrait',
+          source: 'uploaded_photo',
+          qaStatus,
+          anchorApproved: reviewApproved,
+          anchorQuality: process.env.GPT_IMAGE_QUALITY?.trim() || 'low',
+          styleId: order.illustrationStyle,
+          provider: 'openai',
+          model: anchorModel,
+          promptUsed: anchorPrompt,
+          inputDescriptionUsed: lockedChildDescription,
+          referenceOrderUsed: anchorReferenceImages,
+          resemblanceScore: similarity.resemblanceScore,
+          thresholdUsed: effectiveThreshold,
+          qaNotes: anchorPhotoDescription ?? undefined,
+        }),
+      },
+    });
+
+    if (!reviewApproved) {
+      await saveCache(order.id, nextCache);
+      throw new Error(
+        `ANCHOR_REVIEW_REQUIRED: semantic checks passed; embedding soft-ok (bestScore=${similarity.resemblanceScore.toFixed(
+          3
+        )}, pageThreshold=${effectiveThreshold.toFixed(3)} unchanged). ` +
+          `Eyeball candidate attempt ${bestAttempt} then set CHILD_ANCHOR_REVIEW_OK=true or ` +
+          `CHILD_ANCHOR_REVIEW_OK_ORDER_IDS=${order.id} and re-run DNA stage.`
+      );
+    }
+    console.log(
+      `[anchor_stage0] orderId=${order.id} approved score=${similarity.resemblanceScore.toFixed(3)} attempt=${bestAttempt}`
+    );
+  }
+
+  const resolvedCompanionForStore = resolveCompanionForOrder(order);
+  if (resolvedCompanionForStore?.image) {
+    const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const companionUrl = resolvedCompanionForStore.image.startsWith('http')
+      ? resolvedCompanionForStore.image
+      : `${appBaseUrl}${resolvedCompanionForStore.image.startsWith('/') ? '' : '/'}${resolvedCompanionForStore.image}`;
+    nextCache.characterAnchorStore = upsertCharacterAnchor(nextCache, {
+      orderId: order.id,
+      styleId: order.illustrationStyle,
+      characterId: companionAnchorKey(resolvedCompanionForStore.id),
+      role: 'companion',
+      anchorType: 'predefined_sheet',
+      source: 'companion_sheet',
+      url: companionUrl,
+      provider: 'static',
+      model: 'n/a',
+      quality: 'source',
+      qaStatus: 'passed',
+      anchorQuality: 'source',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }).characterAnchorStore;
+    const existingAnchors =
+      order.characterAnchors && typeof order.characterAnchors === 'object'
+        ? (order.characterAnchors as Record<string, unknown>)
+        : {};
+    await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        characterAnchors: {
+          ...existingAnchors,
+          [companionAnchorKey(resolvedCompanionForStore.id)]: {
+            ...((existingAnchors[companionAnchorKey(resolvedCompanionForStore.id)] as Record<string, unknown>) ?? {}),
+            anchorImageUrl: companionUrl,
+            anchorType: 'predefined_sheet',
+            source: 'companion_sheet',
+            qaStatus: 'passed',
+            styleId: order.illustrationStyle,
+          },
+        },
+      },
+    });
+  }
+
+  const babyDragonAnchorUrl = process.env.DINI_BABY_DRAGON_ANCHOR_URL?.trim();
+  if (babyDragonAnchorUrl) {
+    nextCache.characterAnchorStore = upsertCharacterAnchor(nextCache, {
+      orderId: order.id,
+      styleId: order.illustrationStyle,
+      characterId: 'baby_dragon:dini_hatchling',
+      role: 'creature',
+      anchorType: 'predefined_sheet',
+      source: 'static_asset',
+      url: babyDragonAnchorUrl,
+      provider: 'static',
+      model: 'n/a',
+      quality: 'source',
+      qaStatus: 'passed',
+      anchorQuality: 'source',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }).characterAnchorStore;
+    const existingAnchors =
+      order.characterAnchors && typeof order.characterAnchors === 'object'
+        ? (order.characterAnchors as Record<string, unknown>)
+        : {};
+    await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        characterAnchors: {
+          ...existingAnchors,
+          'baby_dragon:dini_hatchling': {
+            ...(existingAnchors['baby_dragon:dini_hatchling'] as Record<string, unknown> | undefined),
+            name: 'Baby Dragon Hatchling',
+            description:
+              'Moss-green baby dragon with copper freckles, peach-coral oversized wings, and soft rounded head bumps.',
+            relationship: 'creature',
+            aliases: ['baby dragon', 'hatchling', 'dini hatchling', 'דרקון קטן'],
+            anchorImageUrl: babyDragonAnchorUrl,
+            anchorType: 'predefined_sheet',
+            source: 'static_asset',
+            qaStatus: 'passed',
+            styleId: order.illustrationStyle,
+          },
+        },
+      },
+    });
+  }
 
   await saveCache(order.id, nextCache);
   return nextCache;
@@ -189,8 +616,18 @@ async function runCoverStage(order: Order, cache: PipelineCache): Promise<void> 
   const topicLabel = TOPICS.find((t) => t.id === order.topic)?.label ?? order.topic;
   const lockedChildDescription = cache.lockedChildDescription ?? cache.dna?.childDNA ?? '';
   const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const childCanonicalAnchor = getApprovedChildCanonicalAnchor(cache);
+  const pendingChildAnchor = getChildCanonicalAnchor(cache);
+  if (!childCanonicalAnchor?.url) {
+    if (pendingChildAnchor?.qaStatus === 'pending_review') {
+      throw new Error(
+        `ANCHOR_REVIEW_REQUIRED: child anchor pending human approval (score=${(pendingChildAnchor.resemblanceScore ?? 0).toFixed(3)}).`
+      );
+    }
+    throw new Error('ANCHOR_GATE_BLOCK: approved child canonical anchor missing before cover generation.');
+  }
   const gptReferenceImages = mergeGptImageReferenceSources(
-    order.childImageUrl,
+    childCanonicalAnchor.url,
     resolvedCompanion,
     appBaseUrl
   );
@@ -329,6 +766,12 @@ async function runPageImagesChunk(
       { text: p.text, imagePrompt: p.imagePrompt, imageSubject: p.imageSubject ?? '' },
       anchorRegistry
     );
+    const haystack = `${p.text} ${p.imagePrompt} ${p.imageSubject ?? ''}`.toLowerCase();
+    const babyDragonSignals = ['baby dragon', 'hatchling', 'hatching', 'egg', 'דרקון קטן', 'בקע', 'ביצה'];
+    const hasBabyDragon = babyDragonSignals.some((token) => haystack.includes(token));
+    if (hasBabyDragon && process.env.DINI_BABY_DRAGON_ANCHOR_URL?.trim()) {
+      baseIds.push('baby_dragon:dini_hatchling');
+    }
     const subj = (p.imageSubject ?? '').toLowerCase();
     if (resolvedCompanion && !subj.startsWith('environment') && !subj.startsWith('object:')) {
       return {
@@ -398,8 +841,21 @@ async function runPageImagesChunk(
 
   const lockedChildDescription = cache.lockedChildDescription ?? cache.dna?.childDNA ?? '';
   const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const childCanonicalAnchor = getApprovedChildCanonicalAnchor(cache);
+  const pendingChildAnchor = getChildCanonicalAnchor(cache);
+  const childExpectedOnAnyPage = pagesForGen.some((p) => (p.expectedCharacterIds ?? []).includes('child'));
+  if (childExpectedOnAnyPage && !childCanonicalAnchor?.url) {
+    if (pendingChildAnchor?.qaStatus === 'pending_review') {
+      throw new Error(
+        `ANCHOR_REVIEW_REQUIRED: child anchor pending human approval (score=${(pendingChildAnchor.resemblanceScore ?? 0).toFixed(3)}). Per-page resemblance gate unchanged.`
+      );
+    }
+    throw new Error(
+      'ANCHOR_GATE_BLOCK: approved child canonical anchor missing. Retry/fail before paid page generation.'
+    );
+  }
   const gptReferenceImages = mergeGptImageReferenceSources(
-    order.childImageUrl,
+    childCanonicalAnchor!.url,
     resolvedCompanion,
     appBaseUrl
   );
@@ -409,6 +865,7 @@ async function runPageImagesChunk(
   const resemblanceThresholdConfig = resolveResemblanceThresholdConfig();
 
   const workerDeadline = deadlineMs(startedAt, budgetMs);
+  const expressionSheetActive = isChildExpressionSheetActive(cache);
   const imageOutcome = await generateAllPageImages(pagesForGen, {
     illustrationStyle: order.illustrationStyle,
     childName: order.childName,
@@ -416,6 +873,14 @@ async function runPageImagesChunk(
     childGender: order.childGender,
     childDescription: lockedChildDescription,
     referenceImages: gptReferenceImages,
+    resolvePageChildExpressionRef: expressionSheetActive
+      ? (ctx) => {
+          const kind = resolveChildExpressionKindForPage(ctx);
+          const url =
+            resolveApprovedExpressionAnchorUrl(cache, kind) ?? childCanonicalAnchor!.url;
+          return { url, kind };
+        }
+      : undefined,
     characterRegistry,
     initialCharacterAnchors,
     existingPageNumbers: existingPageNumbers,
@@ -809,6 +1274,9 @@ export async function processGenerationChunk(
       if (stage === 'dna') {
         await updateStage(orderId, 'dna');
         cache = await runDnaStage(order, cache);
+        if (process.env.GENERATION_ANCHOR_ONLY === 'true') {
+          return { stage: 'dna', done: true, stopChunk: true };
+        }
         stage = 'cover';
         continue;
       }

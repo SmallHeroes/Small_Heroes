@@ -280,6 +280,8 @@ export async function POST(req: NextRequest) {
       ])
     );
 
+    const chunkedGen = useChunkedGeneration();
+
     const order = await prisma.order.create({
       data: {
         id: orderId,
@@ -308,8 +310,8 @@ export async function POST(req: NextRequest) {
         basePrice: 0,
         addonsPrice: 0,
         totalPrice: 0,
-        textStatus: 'done',
-        imageStatus: 'running',
+        textStatus: chunkedGen ? 'pending' : 'done',
+        imageStatus: chunkedGen ? 'pending' : 'running',
         audioEnabled: generateAudio,
         selectedVoice: generateAudio ? voiceId : null,
         audioStatus: generateAudio ? 'pending' : 'done',
@@ -344,11 +346,13 @@ export async function POST(req: NextRequest) {
       devSkipCover: skipCover,
       challengeCategory,
       directionForV3: storyDirection ?? undefined,
+      expectedPageCount: story.pages.length,
     };
 
-    if (useChunkedGeneration()) {
+    if (chunkedGen) {
       await startChunkedGeneration(order.id, 'creator_story_bank', {
         pipelineCache,
+        skipWorkerChain: process.env.STORY_BANK_SKIP_WORKER_CHAIN === 'true',
       });
 
       const bookUrl = ROUTES.readerV2(order.id, accessKey);

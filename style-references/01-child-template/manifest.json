@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "description": "Style 01 neutral child character templates for anchor edit base (not scene refs)",
+  "files": {
+    "girl": "girl.png",
+    "boy": "boy.png"
+  }
+}

@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import fs from 'fs';
+import path from 'path';
 import {
   assertStoryPersonalizationGate,
   resolveGenderAlternationChips,
@@ -92,4 +94,25 @@ describe('story-bank personalization gate', () => {
     }
   });
 
+  it('passes dragon_dini_fantasy offline (chips only, no LLM swap)', () => {
+    const fp = path.join(process.cwd(), 'story-bank/v5-fixed-v2/dragon_dini_fantasy.md');
+    const md = fs.readFileSync(fp, 'utf8');
+    const childName = 'נועה';
+    const pages = [...md.matchAll(/--- Page (\d+) ---\n([\s\S]*?)(?=\n--- Page |\nWORD_COUNT:)/g)].map(
+      (m) => ({
+        pageNumber: Number(m[1]),
+        text: resolveStoryBankPlaceholders(m[2].trim(), {
+          childName,
+          childGender: 'girl',
+          companionName: 'דיני',
+        }),
+      })
+    );
+    expect(pages.length).toBe(20);
+    const failures = runStoryPersonalizationGate({
+      wizard: { childName, childGender: 'girl', companionName: 'דיני' },
+      pages,
+    });
+    expect(failures).toEqual([]);
+  });
 });

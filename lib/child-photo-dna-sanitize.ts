@@ -1,3 +1,8 @@
+import {
+  hairFieldFromPhotoDescription,
+  reconcileStructuredHairWithPhoto,
+} from './child-photo-hair';
+
 export type StructuredChildDNA = {
   face: string;
   hair: string;
@@ -82,7 +87,7 @@ export function buildPhotoAnchoredChildStructured(
   const photo = childPhotoDescription.trim();
   return {
     face: photo,
-    hair: 'Match hair color, length, and texture from the photo reference in the face lock above',
+    hair: hairFieldFromPhotoDescription(photo),
     body: `Build and height appropriate for a ${childAge}-year-old ${genderWord}`,
     clothing: 'Story wardrobe lock on each page — not from photo',
     signature: signatureFromPhotoOnly(photo),
@@ -108,11 +113,13 @@ export function sanitizeChildStructuredAgainstPhoto(
     working = {
       ...working,
       face: childPhotoDescription.trim(),
-      hair: 'As described in the photo reference (face lock)',
+      hair: hairFieldFromPhotoDescription(childPhotoDescription),
       signature: signatureFromPhotoOnly(childPhotoDescription),
     };
   }
   let { face, hair, signature } = working;
+
+  hair = reconcileStructuredHairWithPhoto(hair, childPhotoDescription);
 
   if (signature && photoMentionsAccessory(signature, photoLower)) {
     console.warn(

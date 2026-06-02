@@ -216,7 +216,19 @@ export async function generateReplicateImage(input: GenerateImageInput): Promise
   };
 }
 
-export type GPTImageReferenceMode = 'identity' | 'companion_dual' | 'style' | 'style02_book';
+export type GPTImageReferenceMode =
+  | 'identity'
+  | 'companion_dual'
+  | 'style'
+  | 'style02_book'
+  /** Stage 0 anchor: ref[0] = Style 01 child template base; style refs follow; no photo. */
+  | 'anchor_template'
+  /** Stage 0 anchor: template first, style refs, raw photo last (identity cue only). */
+  | 'anchor_template_photo_last'
+  /** Per-order expression sheet: edit from approved canonical child anchor only. */
+  | 'anchor_expression_from_canonical'
+  /** Expression variant: canonical identity + optional direction ref (expression only, not anger identity). */
+  | 'anchor_expression_with_direction';
 
 /** Default cap (gpt-image-1). Override via GPT_IMAGE_EDIT_MAX_REFERENCES for gpt-image-2 probes. */
 export const GPT_IMAGE_EDIT_MAX_REFERENCES = 4;
@@ -309,10 +321,51 @@ export const STYLE02_BOOK_REFERENCE_PREFIX = (
   '[TARGET SCENE]\n'
 );
 
+/** Stage 0 anchor — template is edit base; photo must NOT drive realism. */
+export const STYLE01_ANCHOR_TEMPLATE_BASE_PREFIX = (
+  '[STYLE 01 ANCHOR — TEMPLATE BASE]\n' +
+  'Image 1 is the STYLE 01 CHILD CHARACTER TEMPLATE. Copy ONLY visual language from it: eye size, head/body proportions, softness, rounded simplified features, watercolor storybook rendering.\n' +
+  'Do NOT copy the template child\'s specific face identity — personalize using CHILD VISUAL LOCK text below.\n' +
+  'Later images (if any) are watercolor TECHNIQUE references only — linework, pigment, paper texture. Do NOT copy their scenes, creatures, or compositions.\n' +
+  'OUTPUT: cute simplified hand-drawn watercolor storybook child — NOT photorealistic, NOT a photographic portrait, NOT semi-realistic.\n\n' +
+  '[TARGET CHARACTER]\n'
+);
+
+export const STYLE01_ANCHOR_TEMPLATE_PHOTO_LAST_PREFIX = (
+  '[STYLE 01 ANCHOR — TEMPLATE + PHOTO CUE]\n' +
+  'Image 1: STYLE 01 CHILD TEMPLATE — base proportions, eye size, softness, watercolor rendering (visual language).\n' +
+  'Middle images: watercolor technique references only.\n' +
+  'Last image: REAL CHILD PHOTO — identity cues ONLY (hair color/length/texture, skin tone, eye color/shape, face structure, age). ' +
+  'Do NOT copy photo realism, studio lighting, portrait framing, or photographic skin texture.\n' +
+  'Personalize the template child to match identity cues + CHILD VISUAL LOCK. Stay cute simplified Style 01 watercolor.\n\n' +
+  '[TARGET CHARACTER]\n'
+);
+
+/** Expression mini-sheet: same child as canonical anchor; expression/pose variant only. */
+export const STYLE01_ANCHOR_EXPRESSION_FROM_CANONICAL_PREFIX = (
+  '[STYLE 01 EXPRESSION ANCHOR — CANONICAL BASE]\n' +
+  'Image 1 is the APPROVED canonical child anchor for this order. Preserve EXACT face shape, eye size and placement, nose, cheeks, skin tone, age (5), long curly brown hair volume, bird-print pajamas, green left wrist bracelet, cute Style 01 watercolor rendering.\n' +
+  'Change ONLY the facial expression and simple body pose as specified below. Clean near-empty warm cream background. NO props. NO companion. NO family. NO text.\n' +
+  'Do NOT invent a new child. Do NOT make younger/baby-faced. Do NOT hide eyes behind expression. Do NOT shrink eyes for open mouth.\n\n' +
+  '[TARGET EXPRESSION]\n'
+);
+
+export const STYLE01_ANCHOR_EXPRESSION_WITH_DIRECTION_PREFIX = (
+  '[STYLE 01 EXPRESSION ANCHOR — CANONICAL + DIRECTION]\n' +
+  'Image 1: APPROVED canonical child anchor — preserve EXACT Mia identity (face, eyes, nose, cheeks, hair volume, pajamas, bracelet, Style 01 watercolor).\n' +
+  'Image 2 (if present): open-mouth DIRECTION ONLY — borrow mouth-open energy, NOT adult anger, NOT changed jaw/cheeks, NOT different child.\n' +
+  'Output must match Image 1 identity with softer childlike expression per TARGET below. Clean cream background. NO props.\n\n' +
+  '[TARGET EXPRESSION]\n'
+);
+
 function resolveReferencePrefix(
   mode: GPTImageReferenceMode,
   referenceCount: number
 ): string {
+  if (mode === 'anchor_template') return STYLE01_ANCHOR_TEMPLATE_BASE_PREFIX;
+  if (mode === 'anchor_template_photo_last') return STYLE01_ANCHOR_TEMPLATE_PHOTO_LAST_PREFIX;
+  if (mode === 'anchor_expression_from_canonical') return STYLE01_ANCHOR_EXPRESSION_FROM_CANONICAL_PREFIX;
+  if (mode === 'anchor_expression_with_direction') return STYLE01_ANCHOR_EXPRESSION_WITH_DIRECTION_PREFIX;
   if (mode === 'style02_book') return STYLE02_BOOK_REFERENCE_PREFIX;
   if (mode === 'style') return STYLE_REFERENCE_PREFIX;
   if (mode === 'companion_dual' || referenceCount >= 2) return DUAL_REFERENCE_PREFIX;
