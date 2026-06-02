@@ -3900,6 +3900,25 @@ export async function generateAllPageImages(
     const anchorReferenceImages = passedAnchorUrls;
     const mergedReferenceImages = [...new Set([...baseReferenceImages, ...anchorReferenceImages])];
     const referenceImages = mergedReferenceImages.length > 0 ? mergedReferenceImages : undefined;
+    const childExpected = expectedCharacterIds.includes('child');
+    const childReferenceRequested = Boolean(config.referenceImages?.[0]);
+    const childAnchorAvailable = Boolean(characterAnchors.child);
+    const childReferenceReachesProvider = Boolean(
+      referenceImages && (childReferenceRequested || childAnchorAvailable)
+    );
+    if (childExpected && !childReferenceReachesProvider) {
+      const message =
+        `[ImageGate] Page ${page.pageNumber} blocked: child expected but no child reference reached provider`;
+      console.error(message, {
+        orderId: config.orderId ?? 'unknown',
+        page: page.pageNumber,
+        expectedCharacterIds,
+        availableAnchorIds,
+        requestedRefCount: config.referenceImages?.length ?? 0,
+      });
+      failedPages.push(page.pageNumber);
+      continue;
+    }
     console.log('[image_reference_and_lock]', {
       page: page.pageNumber,
       referenceImageExists: baseReferenceImages.length > 0,
@@ -4112,6 +4131,19 @@ export async function generateAllPageImages(
         inputStrength: inputPhotoStrength,
       });
       const selectedCandidate = candidateImages.find((c, idx) => idx === selection.selectedIndex) ?? candidateImages[0];
+      if (childExpected && selection.resemblanceStatus === 'soft_fail') {
+        const message =
+          `[ImageGate] Page ${page.pageNumber} blocked: child anchor resemblance soft_fail (${selection.reason})`;
+        console.error(message, {
+          orderId: config.orderId ?? 'unknown',
+          page: page.pageNumber,
+          reasonCodes: selection.reasonCodes,
+          scores: selection.scores,
+          selectedIndex: selection.selectedIndex,
+        });
+        failedPages.push(page.pageNumber);
+        continue;
+      }
       image = selectedCandidate.image;
 
       await emitResemblanceAudit({
@@ -4400,7 +4432,12 @@ export async function generateAllPageImages(
         }
       }
     } else if (availableAnchorIds.length === 0 && expectedCharacterIds.length > 0) {
-      console.warn(`[Image] Page ${page.pageNumber} — anchor missing for expected characters, generated without reference`);
+      // NOTE: availableAnchorIds tracks dynamic/page-output anchors only.
+      // Child identity can still be correctly anchored by the external child photo
+      // passed via referenceImages (images.edit path), so do not block on this signal.
+      console.warn(
+        `[Image] Page ${page.pageNumber} — anchor registry empty for expected characters; proceeding because provider references may still be present`
+      );
     }
 
   }

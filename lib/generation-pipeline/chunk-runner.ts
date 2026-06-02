@@ -53,16 +53,33 @@ import {
   shouldSkipPaidPageImageRegen,
 } from '@/lib/generation-chunked/paid-artifact-guard';
 import { heartbeatLease } from '@/lib/generation-chunked/lease';
+import { finalizeAndPersistStoryText } from './text-finalization';
+import {
+  buildImagePipelineAnchors,
+  detectExpectedCharactersForPage,
+  resolveCompanionForOrder,
+} from './anchor-registry';
+import { evaluatePhotoGate, resolveResemblanceThresholdConfig } from '@/lib/resemblance-core';
 import {
   collectExistingImagePageNumbers,
   compositionRulesForTemplate,
-  effectiveStoryDirectionForV3,
   normalizePageTemplate,
   parsePipelineCache,
 } from './helpers';
 import type { ChunkProcessResult, PipelineCache } from './types';
 
 const log = createLogger({ subsystem: 'chunk-runner' });
+
+function parseImagePageFilter(): Set<number> | null {
+  const raw = process.env.CHUNKED_IMAGE_PAGE_FILTER?.trim();
+  if (!raw) return null;
+  const values = raw
+    .split(/[,\s]+/)
+    .map((v) => Number.parseInt(v, 10))
+    .filter((v) => Number.isFinite(v) && v > 0);
+  if (values.length === 0) return null;
+  return new Set(values);
+}
 
 function deadlineMs(startedAt: number, budgetMs: number): number {
   return startedAt + budgetMs;
@@ -87,110 +104,17 @@ async function saveCache(orderId: string, cache: PipelineCache) {
 }
 
 async function runTextStage(order: Order, cache: PipelineCache): Promise<PipelineCache> {
-  const existingBook = await prisma.generatedBook.findUnique({ where: { orderId: order.id } });
-  if (existingBook) {
-    const pageCount = await prisma.bookPage.count({ where: { bookId: existingBook.id } });
-    if (pageCount > 0) {
-      await prisma.order.update({ where: { id: order.id }, data: { textStatus: 'done' } });
-      await prisma.generationJob.update({ where: { orderId: order.id }, data: { textDone: true } });
-      return cache;
-    }
-  }
-
-  await prisma.order.update({ where: { id: order.id }, data: { textStatus: 'running' } });
-
-  const wizardMeta = getWizardMeta(order.characterAnchors);
-  const resolvedCompanion = getCompanionByIdAndCategory(
-    wizardMeta.companionCharacterId ?? null,
-    wizardMeta.challengeCategory ?? null
-  );
-  const challengeCategory = wizardMeta.challengeCategory ?? order.topic ?? 'GENERAL_FEARS';
-  const storyLength = (order.storyLength as 'short' | 'medium' | 'long') ?? 'medium';
-  const directionForV3 = effectiveStoryDirectionForV3(order.storyDirection, storyLength);
-
-  let selection = selectCompanionStory(resolvedCompanion?.id, directionForV3);
-  let storyBankVersion: 'v3' | 'v1' = 'v3';
-  if (!selection) {
-    selection = selectStoryFromBank(challengeCategory, storyLength);
-    storyBankVersion = 'v1';
-  }
-  if (!selection) throw new Error(`No story-bank story for category=${challengeCategory}`);
-
-  const storyDir = storyBankVersion === 'v3' ? STORY_BANK_V3_DIR_NAME : 'raw';
-  const storyFilePath =
-    cache.devStoryBankFile ??
-    path.join(process.cwd(), 'story-bank', storyDir, selection.filename);
-
-  const story = await loadStoryFromBank(
-    storyFilePath,
-    order.childName || '',
-    resolvedCompanion?.name ?? 'צפרדע',
-    order.childGender || undefined,
-    {
-      patchContext: buildPatchContextFromOrder(order, wizardMeta),
-      letterContext:
-        resolvedCompanion?.id && resolvedCompanion?.name
-          ? buildLetterContextFromOrder(order, wizardMeta, {
-              id: resolvedCompanion.id,
-              name: resolvedCompanion.name,
-            })
-          : null,
-    }
-  );
-
-  const compositionByPage = new Map(
-    (story.pageCompositionPlan ?? []).map((c) => [c.pageNumber, c])
-  );
-  const assignedTemplates = assignTemplatesForBook(
-    story.pages.map((p) => ({
-      pageNumber: p.pageNumber,
-      text: p.text,
-      imageSubject: p.imageSubject,
-      pageIntent: compositionByPage.get(p.pageNumber)?.pageIntent,
-    }))
-  );
-  const templateByPage = new Map<number, BookPageTemplate>(
-    story.pages.map((p, i) => [p.pageNumber, assignedTemplates[i] ?? 'art_top_text_bottom'])
-  );
-
-  const book =
-    existingBook ??
-    (await prisma.generatedBook.create({
-      data: {
-        orderId: order.id,
-        title: order.bookName || story.title,
-        coverText: story.coverText,
-      },
-    }));
-
-  if (!existingBook) {
-    await prisma.bookPage.createMany({
-      data: story.pages.map((p) => ({
-        bookId: book.id,
-        pageNumber: p.pageNumber,
-        text: p.text,
-        narrationText: p.narrationText,
-        pageTemplate: templateByPage.get(p.pageNumber),
-      })),
+  if (cache.textFinalized) {
+    await prisma.order.update({ where: { id: order.id }, data: { textStatus: 'done' } });
+    await prisma.generationJob.update({
+      where: { orderId: order.id },
+      data: { textDone: true },
     });
+    return cache;
   }
-
-  const nextCache: PipelineCache = {
-    ...cache,
-    storyFilePath,
-    storyBankVersion,
-    selectionFilename: selection.filename,
-    directionForV3,
-    challengeCategory,
-  };
-
-  await prisma.order.update({ where: { id: order.id }, data: { textStatus: 'done' } });
-  await prisma.generationJob.update({
-    where: { orderId: order.id },
-    data: { textDone: true },
-  });
-
-  return nextCache;
+  const result = await finalizeAndPersistStoryText(order, cache);
+  await saveCache(order.id, result.cache);
+  return result.cache;
 }
 
 async function runDnaStage(order: Order, cache: PipelineCache): Promise<PipelineCache> {
@@ -261,10 +185,7 @@ async function runCoverStage(order: Order, cache: PipelineCache): Promise<void> 
   assertShippedBookStyleEngineActive(order.illustrationStyle);
 
   const wizardMeta = getWizardMeta(order.characterAnchors);
-  const resolvedCompanion = getCompanionByIdAndCategory(
-    wizardMeta.companionCharacterId ?? null,
-    wizardMeta.challengeCategory ?? null
-  );
+  const resolvedCompanion = resolveCompanionForOrder(order);
   const topicLabel = TOPICS.find((t) => t.id === order.topic)?.label ?? order.topic;
   const lockedChildDescription = cache.lockedChildDescription ?? cache.dna?.childDNA ?? '';
   const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -281,7 +202,8 @@ async function runCoverStage(order: Order, cache: PipelineCache): Promise<void> 
     storyFilePath,
     order.childName || '',
     resolvedCompanion?.name ?? 'צפרדע',
-    order.childGender || undefined
+    order.childGender || undefined,
+    { skipLlmPersonalization: true }
   );
 
   const coverImage = await generateBookCover({
@@ -338,27 +260,43 @@ async function runPageImagesChunk(
   if (!book) throw new Error('Book missing');
 
   const existingPageNumbers = collectExistingImagePageNumbers(book.pages);
-  const pendingPages = book.pages.filter((p) => !shouldSkipPaidPageImageRegen(p.imageAsset));
+  const pendingPagesAll = book.pages.filter((p) => !shouldSkipPaidPageImageRegen(p.imageAsset));
+  const imagePageFilter = parseImagePageFilter();
+  const pendingPages = imagePageFilter
+    ? pendingPagesAll.filter((p) => imagePageFilter.has(p.pageNumber))
+    : pendingPagesAll;
+  if (imagePageFilter) {
+    log.info('Image page filter active', {
+      orderId: order.id,
+      pages: [...imagePageFilter].sort((a, b) => a - b),
+      pendingFiltered: pendingPages.length,
+      pendingAll: pendingPagesAll.length,
+    });
+  }
   if (pendingPages.length === 0) {
-    await prisma.order.update({ where: { id: order.id }, data: { imageStatus: 'done' } });
-    await prisma.generationJob.update({ where: { orderId: order.id }, data: { imagesDone: true } });
+    if (!imagePageFilter) {
+      await prisma.order.update({ where: { id: order.id }, data: { imageStatus: 'done' } });
+      await prisma.generationJob.update({ where: { orderId: order.id }, data: { imagesDone: true } });
+    }
     return { cache, stopChunk: false, failed: false };
   }
 
   const storyFilePath = cache.devStoryBankFile ?? cache.storyFilePath;
   if (!storyFilePath) throw new Error('storyFilePath missing');
 
+  if (!cache.textFinalized) {
+    throw new Error('PRE-SPEND GATE: text not finalized — abort before paid images');
+  }
+
   const wizardMeta = getWizardMeta(order.characterAnchors);
-  const resolvedCompanion = getCompanionByIdAndCategory(
-    wizardMeta.companionCharacterId ?? null,
-    wizardMeta.challengeCategory ?? null
-  );
+  const resolvedCompanion = resolveCompanionForOrder(order);
 
   const story = await loadStoryFromBank(
     storyFilePath,
     order.childName || '',
     resolvedCompanion?.name ?? 'צפרדע',
-    order.childGender || undefined
+    order.childGender || undefined,
+    { skipLlmPersonalization: true }
   );
 
   const compositionByPage = new Map(
@@ -377,8 +315,40 @@ async function runPageImagesChunk(
 
   const pagesToRender = pendingPages.slice(0, PAGE_IMAGES_PER_CHUNK);
   const pageNumbersThisChunk = new Set(pagesToRender.map((p) => p.pageNumber));
+  const dbTextByPage = new Map(book.pages.map((p) => [p.pageNumber, p.text]));
 
-  const pagesForGen = story.pages
+  const { anchorRegistry, initialCharacterAnchors, characterRegistry } = buildImagePipelineAnchors({
+    order,
+    lockedChildDescription: cache.lockedChildDescription ?? cache.dna?.childDNA ?? '',
+    resolvedCompanion,
+    characterSheet: story.characterSheet,
+    appBaseUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+  });
+  const pagesWithDetectedCharacters = story.pages.map((p) => {
+    const baseIds = detectExpectedCharactersForPage(
+      { text: p.text, imagePrompt: p.imagePrompt, imageSubject: p.imageSubject ?? '' },
+      anchorRegistry
+    );
+    const subj = (p.imageSubject ?? '').toLowerCase();
+    if (resolvedCompanion && !subj.startsWith('environment') && !subj.startsWith('object:')) {
+      return {
+        ...p,
+        expectedCharacterIds: [...new Set([...baseIds, companionAnchorKey(resolvedCompanion.id)])],
+      };
+    }
+    return { ...p, expectedCharacterIds: baseIds };
+  });
+  const appearances = pagesWithDetectedCharacters.reduce<Record<string, number>>((acc, page) => {
+    for (const id of page.expectedCharacterIds ?? []) acc[id] = (acc[id] ?? 0) + 1;
+    return acc;
+  }, {});
+  const recurringCharacterIds = new Set(
+    Object.entries(appearances)
+      .filter(([characterId, count]) => characterId === 'child' || count > 1)
+      .map(([characterId]) => characterId)
+  );
+
+  const pagesForGen = pagesWithDetectedCharacters
     .filter((p) => pageNumbersThisChunk.has(p.pageNumber))
     .map((p) => {
       const template = templateByPage.get(p.pageNumber) ?? 'art_top_text_bottom';
@@ -403,7 +373,7 @@ async function runPageImagesChunk(
         pageNumber: p.pageNumber,
         imagePrompt: enriched.imagePrompt,
         rawScenePrompt: enriched.rawScenePrompt,
-        bookPageText: p.text,
+        bookPageText: dbTextByPage.get(p.pageNumber) ?? p.text,
         pageTemplate: template,
         imageSubject: p.imageSubject,
         pageIntent: comp?.pageIntent,
@@ -420,7 +390,9 @@ async function runPageImagesChunk(
           : undefined,
         compositionRules: compositionRulesForTemplate(template, comp),
         environmentContinuity: comp?.consistencyNotes,
-        expectedCharacterIds: ['child', ...(resolvedCompanion ? [companionAnchorKey(resolvedCompanion.id)] : [])],
+        expectedCharacterIds: (p.expectedCharacterIds ?? ['child']).filter((id) =>
+          recurringCharacterIds.has(id)
+        ),
       };
     });
 
@@ -431,6 +403,10 @@ async function runPageImagesChunk(
     resolvedCompanion,
     appBaseUrl
   );
+  const inputPhotoStrength = order.childImageUrl
+    ? await evaluatePhotoGate(order.childImageUrl).then((g) => g.inputStrength).catch(() => 'adequate' as const)
+    : 'adequate';
+  const resemblanceThresholdConfig = resolveResemblanceThresholdConfig();
 
   const workerDeadline = deadlineMs(startedAt, budgetMs);
   const imageOutcome = await generateAllPageImages(pagesForGen, {
@@ -440,18 +416,38 @@ async function runPageImagesChunk(
     childGender: order.childGender,
     childDescription: lockedChildDescription,
     referenceImages: gptReferenceImages,
+    characterRegistry,
+    initialCharacterAnchors,
     existingPageNumbers: existingPageNumbers,
     maxNewPages: PAGE_IMAGES_PER_CHUNK,
     workerDeadlineMs: workerDeadline,
     orderId: order.id,
     characterSheet: story.characterSheet,
     concept: story.concept,
+    heroVisualLock: story.heroVisualLock,
+    styleLock: story.styleLock,
+    entityVisualLock: story.entityVisualLock,
     childStructured: cache.dna?.childStructured,
     companionStructured: cache.dna?.companionStructured,
     propDNA: cache.dna?.propDNA,
     extraNegativeRules: cache.dna?.negativeRules,
     companion: resolvedCompanion,
     challengeCategory: cache.challengeCategory,
+    inputPhotoStrength,
+    resemblanceThresholdConfig,
+    onAnchorsResolved: async (resolvedAnchors) => {
+      for (const [characterId, url] of Object.entries(resolvedAnchors)) {
+        if (!anchorRegistry[characterId]) continue;
+        anchorRegistry[characterId].anchorImageUrl = url;
+      }
+      await prisma.order.update({
+        where: { id: order.id },
+        data: {
+          characterAnchors: buildPersistedCharacterAnchorsJson(anchorRegistry, wizardMeta) as Prisma.InputJsonValue,
+          ...(resolvedAnchors.child ? { childImageUrl: resolvedAnchors.child } : {}),
+        },
+      });
+    },
   });
 
   const presentationEnabled =
@@ -757,7 +753,7 @@ export async function deriveStartingStage(
   job: { textDone: boolean; imagesDone: boolean; audioDone: boolean; packaged: boolean },
   cache: PipelineCache
 ): Promise<ChunkStage> {
-  if (!job.textDone) return 'text';
+  if (!job.textDone || !cache.textFinalized) return 'text';
   if (!cache.dna?.childDNA) return 'dna';
   const book = await prisma.generatedBook.findUnique({
     where: { orderId },
