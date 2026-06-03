@@ -18,6 +18,11 @@ import {
   resolveStoryStateLockBundle,
 } from './story-page-state-catalog';
 import {
+  buildRecurringLocksFromDeclarations,
+  type StoryRecurringEntityDeclaration,
+} from './story-bank/recurring-entities';
+import { buildStructuredObjectCompositionAddendum } from './structured-object-composition';
+import {
   buildStyle01BookPagePrompt,
   buildStyle01ChildVisualLock,
   buildStyle01ChildAnatomicalLock,
@@ -48,6 +53,9 @@ export type Style01PromptAssemblyInput = {
   companionStructured?: { species: string; size: string; coloring: string; feature: string };
   pageStoryState?: PageStoryState | null;
   useCanonicalChildAnchorRef?: boolean;
+  storyRecurringEntityDeclarations?: StoryRecurringEntityDeclaration[];
+  compositionStrictRetry?: boolean;
+  totalPages?: number;
 };
 
 export type Style01PromptAssemblyResult = {
@@ -75,7 +83,10 @@ export function resolveStyle01SceneDescription(input: {
 export function assembleStyle01Phase2Prompt(
   input: Style01PromptAssemblyInput
 ): Style01PromptAssemblyResult {
-  const storyLocks = resolveStyle01StoryLocks(input.companion?.id);
+  const storyLocks = resolveStyle01StoryLocks(
+    input.companion?.id,
+    input.storyRecurringEntityDeclarations
+  );
   const pageStoryState =
     input.pageStoryState ??
     resolveDefaultPageStoryState(input.companion?.id, input.pageNumber);
@@ -144,6 +155,19 @@ export function assembleStyle01Phase2Prompt(
     }
   }
 
+  if (input.storyRecurringEntityDeclarations?.length) {
+    const { locks } = buildRecurringLocksFromDeclarations(input.storyRecurringEntityDeclarations);
+    const declKeys = [
+      ...entityPresence.recurringEntities,
+      ...entityPresence.recurringObjects,
+    ].filter((k) => locks[k]);
+    if (declKeys.length) {
+      entityLocks = [entityLocks, buildStyle01RecurringEntityLocks(declKeys, locks)]
+        .filter(Boolean)
+        .join('\n\n');
+    }
+  }
+
   const forbiddenMerged = mergeStoryStateForbidden(
     entityPresence.forbiddenEntities,
     pageStoryState
@@ -185,6 +209,16 @@ export function assembleStyle01Phase2Prompt(
       : undefined;
 
   const environmentLock = storyLocks.pageEnvironmentLock?.(input.pageNumber);
+  const structuredObjectBlock = buildStructuredObjectCompositionAddendum({
+    imagePrompt: input.pagePrompt ?? undefined,
+    bookPageText: input.bookPageText,
+    rawScenePrompt: imageDirection,
+    staging: compositionSpec?.staging,
+    pageNumber: input.pageNumber,
+    totalPages: input.totalPages,
+    pagePurpose: compositionSpec?.pagePurpose,
+    strictRetry: input.compositionStrictRetry,
+  });
   const storyStateForbiddenBlock = pageStoryState
     ? buildStoryStateForbiddenBlock(pageStoryState)
     : '';
@@ -221,7 +255,9 @@ export function assembleStyle01Phase2Prompt(
     companionTextLock,
     recurringObjectLocks: objectLocks || undefined,
     recurringEntityLocks: entityLocks || undefined,
-    environmentLock: [environmentLock, storyStateForbiddenBlock].filter(Boolean).join('\n\n') || undefined,
+    environmentLock:
+      [environmentLock, structuredObjectBlock, storyStateForbiddenBlock].filter(Boolean).join('\n\n') ||
+      undefined,
     compositionBlock,
     entityPresenceBlock,
     useCanonicalChildAnchorRef: input.useCanonicalChildAnchorRef,

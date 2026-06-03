@@ -127,7 +127,7 @@ export const DRAGON_DINI_RECURRING_OBJECT_LOCKS: Record<string, string> = {
 The child's fort built from couch cushions and soft blankets. Made of approx 5–7 large soft couch cushions arranged as walls, draped with one large soft blanket as a "roof." Cozy, child-scale (the child fits inside comfortably standing or sitting). Always inside the child's home — never in the dragon world. On page 20 the fortress is EXPANDED — chairs pushed outward, an additional blanket spread wider — visibly bigger than on page 1.`,
 
   crib: `RECURRING OBJECT LOCK — CRIB:
-The same wooden baby crib in the adjacent room (visible through an open doorway). Distinctive visual signature: white-painted spindled wooden rails on all four sides, low to the floor with short legs, a small yellow blanket draped inside, soft mattress visible. Same exact crib appears in every page where present — same rail spacing, same paint, same yellow blanket inside.`,
+The same wooden baby crib in the adjacent room (visible through an open doorway). Distinctive visual signature: white-painted spindled wooden rails on all FOUR sides forming a CLOSED rectangle — front/near rail always present and continuous (never open, never missing). Low to the floor with short legs; soft mattress and yellow blanket fully INSIDE the rails. Same exact crib every page — same rail spacing, same paint, same closed-box geometry.`,
 
   yellow_blanket: `RECURRING OBJECT LOCK — YELLOW BLANKET:
 A small soft baby blanket, warm yellow color (like soft butter or pale sunshine), about the size of a folded large napkin. Appears in three places: (1) inside the crib in p1, p2, p20; (2) as a memory-bubble image in p12 wrapped around the baby sister; (3) actively wrapped around the baby sister by the child on p20 as the final transfer-of-learning moment. Same exact yellow blanket every time — same color, same fabric weight, same proportions.`,
@@ -139,7 +139,9 @@ A deep wooden toy chest in the child's bedroom. Distinctive visual signature: wa
 A small rigid PLASTIC toy dinosaur (T-rex shape on p1/p2/p8) — clearly artificial, matte plastic, palm-to-forearm sized, obviously inanimate. Distinctive visual signature on p1: bright orange OR bright blue plastic (NOT green — must not read as moss-green baby dragon or live Dini), darker accent stripe, articulated legs and tail. Same toy identity across pages but p1 color must be non-green for clarity. On p1 held aloft like a scepter; on p2 used as a gentle tail-probe over the crib rail. NEVER alive, NOT Dini, NOT the baby dragon, NOT moss-green scales.`,
 
   green_speckled_egg: `RECURRING OBJECT LOCK — GREEN SPECKLED DRAGON EGG:
-The runaway dragon egg. Distinctive visual signature: oval egg shape, slightly larger than a soccer ball, base color moss-green (slightly muted, like new spring moss), covered with small copper-orange freckles in irregular cluster patterns. Surface is smooth and slightly waxy, with a soft inner glow that pulses faintly when calm. Same exact egg appears in every page where present — same green tone, same copper freckle pattern (do not redraw freckles randomly).
+The runaway dragon egg. Distinctive visual signature: oval egg shape, base color moss-green (slightly muted, like new spring moss), covered with small copper-orange freckles in irregular cluster patterns. Surface is smooth and slightly waxy, with a soft inner glow that pulses faintly when calm. Same exact egg appears in every page where present — same green tone, same copper freckle pattern (do not redraw freckles randomly).
+
+SIZE LOCK (mandatory every appearance): fixed scale ≈ large pillow / big ball / slightly larger than a soccer ball — child can wrap arms around it or hold it in lap. NEVER barrel-sized, NEVER person-sized, NEVER taller than the child's waist, NEVER as large as Dini the dragon.
 
 STATES: intact (p3 forbidden — egg unseen; pp 6–13 intact and bouncing); wrapped in silver ribbon (p13 end through p15, looks like a "burrito"); cracked open (p16 — shell fragments scattered around hatched baby).
 
@@ -191,31 +193,31 @@ export const DRAGON_DINI_RECURRING_ENTITY_CATALOG: Record<string, string[]> = {
 
 export const DRAGON_DINI_RECURRING_ENTITY_LOCKS: Record<string, string> = {
   baby_dragon: `RECURRING ENTITY LOCK — BABY DRAGON (moss-green hatchling):
-The same baby dragon whenever shown — newly hatched at p16, present through p19. Distinctive visual signature:
+Use the attached baby-dragon anchor image for IDENTITY ONLY (species, colors, proportions) — NOT pose or background. The same newborn hatchling whenever shown — p16 through p19.
 
-- Scales: SOFT MOSS-GREEN (slightly muted, similar tone to spring moss), NOT copper, NOT blue, NOT yellow.
+Distinctive visual signature:
 
-- Freckles: small copper-orange freckles dotted across the scales (matching the eggshell pattern).
+- Scales: SOFT MOSS-GREEN (slightly muted), NOT copper, NOT blue.
 
-- Wing membranes: peach-coral color (soft warm pink-orange), oversized for the small body (wing-span larger than body length).
+- Freckles: small copper-orange freckles (matching eggshell).
 
-- Head: large, rounded, juvenile proportions — head approx 35% of total body length.
+- Wing membranes: peach-coral, oversized for tiny body.
 
-- Top of head: TWO SOFT BUMPS where horns will eventually grow — NOT actual horns yet. Soft, round, no point.
+- Head: large rounded newborn proportions — TWO SOFT BUMPS only (horn nubs), NOT pointed horns.
 
-- Eyes: large, dark amber, with a single small white highlight in each. Friendly, curious, slightly clumsy expression.
+- Eyes: large dark amber, friendly curious.
 
-- Snout: very short and rounded, almost button-like.
+- Snout: very short rounded button snout.
 
-- Belly: pale cream underside.
+- Belly: pale cream.
 
-- Body size: small enough to fit comfortably in a 5-year-old child's lap — about the size of a small cat.
+SIZE LOCK vs Dini (mandatory): baby is a NEWBORN hatchling — round, baby-like, clearly MUCH smaller than Dini. About small-cat / lap-pet scale (fits in child's lap). Dini remains large-dog / golden-retriever scale beside the child. NEVER render baby as a small adult dragon. NEVER same body mass as Dini.
 
-ANTI-MERGE with Dini (mother dragon): Dini is COPPER scales (not green). Baby is MOSS-GREEN (not copper). Color palette is the primary visual separator. NEVER recolor either to match the other.
+ANTI-MERGE with Dini: Dini COPPER-ORANGE; baby MOSS-GREEN. NEVER recolor either.
 
-SIGNATURE running gag: a piece of broken eggshell stuck on the baby's snout in pp 16, 19 — keep it visible.
+SIGNATURE: eggshell piece on snout in pp 16, 19 when applicable.
 
-NEVER an adult-proportioned dragon. NEVER horns developed beyond soft bumps. NEVER without the peach-coral wing color. NEVER same color as Dini.`,
+When a baby-dragon reference image is attached: match that hatchling design exactly; pose/action comes from the scene only.`,
 
   baby_sister: `RECURRING ENTITY LOCK — BABY SISTER (newborn human):
 The newborn baby sister in the crib. Distinctive visual signature:
@@ -501,13 +503,20 @@ export const DRAGON_DINI_COMPOSITION_BY_PAGE: Record<number, Style01CompositionS
     pagePurpose: 'Farewell — child takes the new understanding home',
   },
   20: {
-    shotType: 'medium-wide home — emotional closing',
+    shotType: 'medium-wide emotional closing — closed crib, child standing',
     subjectScale: 'medium',
-    camera: 'medium-wide gentle 3/4 angle on crib — one child, calm resolved ending',
+    camera:
+      'Medium-wide slightly elevated 3/4: FULL closed crib box readable (four corners/sides); continuous near top rail; child STANDING outside, hands only over top rail',
     subjectDominance:
-      'EXACTLY ONE child kneels beside the crib at natural child scale, gently laying the yellow blanket over the swaddled newborn baby sister. Crib at natural proportions from a gentle 3/4 angle. Parents warm and secondary in upper background — mom may hold bottle; dad stands relaxed with one hand gently on mom\'s shoulder, EMPTY hands (no pacifier, no bottle, no toy). Expanded pillow fort calm in background. Emotional, resolved, book-ending.',
+      'Mia STANDS beside the closed crib (do not kneel). She leans forward over the TOP rail; both hands on the yellow blanket from ABOVE — hands OVER the rail, never through bars or an open front. Baby visible inside, over the top of the near rail. Parents behind — warm gaze at Mia and baby. EXACTLY ONE child.',
     staging:
-      'Home interior — calm emotional closing image. EXACTLY ONE protagonist child kneels or leans beside the wooden crib at natural child scale (no harsh foreshortening, no awkward perspective), gently laying the yellow blanket over a small swaddled newborn baby sister proportionate to the crib. Crib shown from a gentle 3/4 angle at natural proportions. Baby sleepy and calm. Parents in soft upper/background only — warm, emotional, visually secondary: mom may hold a baby bottle; dad stands relaxed beside her with one hand gently on mom\'s shoulder and EMPTY hands (NO pacifier, NO bottle, NO toy in dad\'s hands). ALREADY-expanded pillow fortress visible as calm background context in the same room — not clutter, not being built. Warm evening light. NEVER a second or duplicate child.',
-    pagePurpose: 'FINAL — kingdom transformed with new rules and more room',
+      'Home closing — warm evening, proud quiet completion. Mia STANDS beside a CLOSED wooden crib (four continuous rails; near/front rail fully visible, NOT open or missing). She leans gently over the TOP rail; both hands adjust the yellow blanket from ABOVE — arms and body do NOT enter or intersect the crib walls. Slightly elevated 3/4 side view so the swaddled newborn is visible OVER the top of the near rail (never by removing the front rail). Blanket tucked inside, over the baby on the mattress. Parents behind Mia — soft, proud, watching Mia and baby (not blank wall, not camera). Expanded pillow fortress calm in background. Natural head/neck. NEVER arms reaching through rails; NEVER blanket breaking the rail; NEVER drop-side gap.',
+    pagePurpose: 'FINAL — warm closed-crib closing; kingdom transformed',
   },
 };
+
+/** Injected on p20 only — release-blocker anatomy + emotional closing. */
+export const DRAGON_DINI_PAGE_20_CLOSING_BLOCK = `PAGE 20 CLOSING — CLOSED CRIB + STANDING (mandatory):
+Mia STANDS beside the closed crib; leans over the TOP rail only; hands on yellow blanket from ABOVE — never through rails or open front.
+Crib: four continuous rails; near rail closed and visible; baby inside on mattress; blanket inside over baby; elevated 3/4 view to see baby over top rail.
+Natural head/neck. Parents look at Mia and baby. EXACTLY ONE child.`;

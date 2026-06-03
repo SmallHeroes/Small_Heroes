@@ -8,6 +8,30 @@ Notes: fantasy / NEW_SIBLING / 20 pages / endingType=action / metaphor=soft-boun
 ---
 title: "{{childName}} וביצת הדרקון שחיפשה גבול"
 companionId: dragon_dini
+recurringEntities:
+  green_speckled_egg:
+    role: object
+    visualDescription: Moss-green oval dragon egg with copper-orange freckle clusters; smooth waxy surface; soft inner glow when calm.
+    sizeLock: Same physical size on every page; first visible egg size is canonical; never barrel-shaped or person-sized.
+    colorLock: moss-green base with copper freckles
+    appearsFromPage: 6
+    appearsUntilPage: 16
+    negativeDriftRules:
+      - person-sized or barrel-shaped egg
+      - egg scale larger than the child torso
+      - random freckle pattern redraw each page
+  baby_dragon:
+    role: creature
+    visualDescription: Newborn moss-green hatchling with copper freckles, peach-coral wing membranes, large head with soft bumps (not horns); clearly much smaller than Dini.
+    sizeLock: Always reads as newborn/toddler creature — smaller than Dini (large-dog scale); never mini-adult dragon.
+    ageStage: newborn hatchling
+    appearsFromPage: 16
+    appearsUntilPage: 19
+    referenceAnchorEnv: DINI_BABY_DRAGON_ANCHOR_URL
+    negativeDriftRules:
+      - adult-proportioned mini dragon
+      - same body scale as Dini
+      - copper-orange scales (that is Dini, not the baby)
 direction: fantasy
 category: NEW_SIBLING
 gender: male

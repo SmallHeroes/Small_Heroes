@@ -38,12 +38,12 @@ async function main() {
   ]);
 
   const prompt = [
-    'Canonical anchor for characterId: baby_dragon:dini_hatchling.',
-    'Neutral character-only portrait on clean light background.',
-    'No child, no egg, no scene, no cave, no props, no text.',
-    'Style 01 watercolor storybook illustration.',
-    'Design lock: moss-green body, copper freckles, peach-coral oversized wings, soft rounded head bumps (NOT horns).',
-    'Friendly consistent hatchling proportions, front/three-quarter neutral pose.',
+    'Canonical NEWBORN baby dragon hatchling anchor — characterId: baby_dragon:dini_hatchling.',
+    'Neutral character-only on clean cream background. NO child, NO Dini mother dragon, NO egg, NO scene, NO text.',
+    'Style 01 soft watercolor storybook — cute, non-realistic.',
+    'Moss-green scales, copper freckles, peach-coral oversized wings, pale cream belly, soft rounded head bumps (NOT horns).',
+    'SIZE: small-cat / lap-pet scale — round baby proportions, clearly a NEWBORN — MUCH smaller than an adult or juvenile dragon.',
+    'Front or 3/4 standing/sitting, gentle curious expression.',
   ].join('\n');
 
   const result = await generateGPTImage({
