@@ -21,6 +21,41 @@ export type ChallengeCategory =
   | 'MEDICAL_PROCEDURE'
   | 'OTHER';
 
+/** Ten wizard topics — each maps to exactly three active companions. */
+export const ACTIVE_WIZARD_CATEGORIES = [
+  'NIGHT_FEAR',
+  'ANGER_FRUSTRATION',
+  'NEW_SIBLING',
+  'NOISE_FEAR',
+  'SENSITIVITY_OVERWHELM',
+  'SOCIAL',
+  'TRANSITION',
+  'SELF_CONFIDENCE',
+  'FOCUS_LEARNING',
+  'MEDICAL_PROCEDURE',
+] as const satisfies readonly ChallengeCategory[];
+
+/** Parked companions — data/assets preserved; not offered in wizard. */
+export const FUTURE_POOL_COMPANION_IDS = [
+  'octopus_seara',
+  'salamander_lahav',
+  'bee_ima',
+  'mole_sheket',
+  'captain_navat',
+  'seahorse_yam',
+  'ant_harutza',
+  'firefly_namit',
+  'mongoose_zariz',
+] as const;
+
+export type FuturePoolCompanionId = (typeof FUTURE_POOL_COMPANION_IDS)[number];
+
+/** No v5 story files yet — placeholder roster slots only. */
+export const COMPANION_STORY_PENDING_ALL_DIRECTIONS = ['baby_elephant', 'monkey'] as const;
+
+/** Bedtime story only today; adventure + fantasy pending (#17 editorial). */
+export const COMPANION_STORY_PENDING_ADV_FANTASY = ['bolly_armadillo'] as const;
+
 export type Companion = {
   id: string;
   name: string;
@@ -67,13 +102,13 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
         'A friendly deep-blue cartoon whale with smooth skin and a gentle smile; a soft bioluminescent hum glows around him as if his song is visible light in calm water.',
     },
     {
-      id: 'mole_sheket',
-      name: 'החפרפרת חוֹפִי',
-      tagline: 'חפרפרת שחיה מתחת לאדמה בשקט מוחלט ומלמדת למצוא את השקט הפנימי',
-      image: '/companions/NOISE_FEAR/mole_sheket.jpg',
-      narrativeHook: 'בתוך כל רעש יש שכבה של שקט — רק צריך לחפור אליה',
+      id: 'baby_elephant',
+      name: 'baby_elephant',
+      tagline: 'שותף חדש — תמונת ייחוס בהמתנה',
+      image: '/companions/NOISE_FEAR/baby_elephant.jpg',
+      narrativeHook: 'PLACEHOLDER — story + reference asset pending (#17 editorial)',
       visualDescription:
-        'A small velvety mole with tiny round ears, closed calm eyes, and soft brown fur; wears a cozy knitted scarf; paws hold a little glowing crystal; radiates underground peace and quiet safety.',
+        'PLACEHOLDER — small friendly baby elephant companion in soft watercolor storybook style; reference jpg pending.',
     },
   ],
   NIGHT_FEAR: [
@@ -154,25 +189,16 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
         'A small chubby dragon with rounded snout, pastel scales, and tiny wing nubs; carries a “guardian’s sash”; friendly eyes; looks protective, not dangerous.',
     },
     {
-      id: 'bee_ima',
-      name: 'הדבורה דְּבוֹרִי',
-      tagline: 'מלכת דבורים בכוורת שגדלה — ויצרה יותר דבש',
-      image: '/companions/NEW_SIBLING/bee_ima.jpg',
-      narrativeHook: 'משפחה שמתרחבת מייצרת יותר מתיקות',
+      id: 'puppy_neeman',
+      name: 'הכלבלב רוֹקִי',
+      tagline: 'כלבלב שהולך איתך לכל מקום ואף פעם לא מוותר עליך',
+      image: '/companions/OTHER/puppy_neeman.jpg',
+      narrativeHook: 'לא משנה מה קורה — אני כאן',
       visualDescription:
-        'A proud bee queen in soft cartoon style, golden and black stripes, small crown, gentle smile; a tiny honeycomb brooch; wings shimmer like warm kitchen light.',
+        'A small golden-brown puppy with floppy ears, big warm brown eyes, a wagging tail, and a loyal expression; wears a tiny red bandana; looks eager, devoted, and always ready to follow you anywhere.',
     },
   ],
   SELF_CONFIDENCE: [
-    {
-      id: 'lion_shaket',
-      name: 'האריה לֵיוֹ',
-      tagline: 'גור ביישן שמגלה שהשאגה תמיד הייתה בפנים',
-      image: '/companions/SELF_CONFIDENCE/lion_shaket.jpg',
-      narrativeHook: 'הקול שלך קיים — רק מחכה שתקרא לו',
-      visualDescription:
-        'A small shy lion cub with a fluffy mane starting to grow, big hesitant eyes, soft round ears; a tiny cape-like scarf; always looks on the edge of a brave roar.',
-    },
     {
       id: 'butterfly_zohar',
       name: 'הפרפר זֹהַר',
@@ -182,14 +208,15 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
       visualDescription:
         'A beautiful butterfly with iridescent pastel wings that shimmer between purple and gold; a small friendly face with big warm eyes; a faint cocoon charm around the neck; wings spread wide with confidence.',
     },
+    BOLLY_ARMADILLO,
     {
-      id: 'ant_harutza',
-      name: 'הנמלה טִיטִי',
-      tagline: 'נמלה זעירה שמזיזה דברים פי מאה מגודלה — גודל לא קובע כוח',
-      image: '/companions/SELF_CONFIDENCE/ant_harutza.jpg',
-      narrativeHook: 'קטן לא אומר חלש',
+      id: 'monkey',
+      name: 'monkey',
+      tagline: 'שותף חדש — תמונת ייחוס בהמתנה',
+      image: '/companions/SELF_CONFIDENCE/monkey.jpg',
+      narrativeHook: 'PLACEHOLDER — story + reference asset pending (#17 editorial)',
       visualDescription:
-        'A tiny determined ant with a shiny dark-red carapace, bright expressive eyes, and strong little legs; carries a leaf flag on her back like a cape; stands tall despite being small; looks brave and industrious.',
+        'PLACEHOLDER — small friendly monkey companion in soft watercolor storybook style; reference jpg pending.',
     },
   ],
   SOCIAL: [
@@ -223,13 +250,13 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
   ],
   FOCUS_LEARNING: [
     {
-      id: 'hawk_had',
-      name: 'הבז רוּפִי',
-      tagline: 'בז שרואה עכבר מגובה קילומטר — מלמד לנעול מבט על דבר אחד',
-      image: '/companions/FOCUS_LEARNING/hawk_had.jpg',
-      narrativeHook: 'ריכוז זה לבחור מה לראות, לא לראות הכל',
+      id: 'parrot_tzivon',
+      name: 'התוכי תּוּתִי',
+      tagline: 'תוכי צבעוני שמדבר בשפה שלך ומוצא את הצד המצחיק',
+      image: '/companions/OTHER/parrot_tzivon.jpg',
+      narrativeHook: 'אפילו ביום אפור אפשר למצוא צבע',
       visualDescription:
-        'A sleek young hawk with sharp golden eyes, warm brown-cream feathers, and a focused gaze; wears a tiny aviator scarf; wings slightly folded back ready to dive; looks alert, precise, and friendly.',
+        'A colorful cartoon parrot with bright green, yellow, and red feathers, a curved beak in a permanent grin, bright playful eyes, and ruffled head feathers; perches on a small branch; looks chatty and cheerful.',
     },
     {
       id: 'dolphin_shahkan',
@@ -241,54 +268,17 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
         'A playful grey-blue dolphin with a wide smile, bright curious eyes, and a small splash crown on its head; carries a tiny book in one flipper; looks joyful and intelligent.',
     },
     {
-      id: 'captain_navat',
-      name: 'הקפטנית רוֹלִי',
-      tagline: 'לוטרת-ים עם כובע קפטן שמנווטת ספינת מחשבות',
-      image: '/companions/FOCUS_LEARNING/captain_navat.jpg',
-      narrativeHook: 'ריכוז זה הגה, לא כלוב',
+      id: 'hawk_had',
+      name: 'הבז רוּפִי',
+      tagline: 'בז שרואה עכבר מגובה קילומטר — מלמד לנעול מבט על דבר אחד',
+      image: '/companions/FOCUS_LEARNING/hawk_had.jpg',
+      narrativeHook: 'ריכוז זה לבחור מה לראות, לא לראות הכל',
       visualDescription:
-        'An otter wearing a small captain’s hat and scarf, holding a ship wheel prop; a tiny “thought-bubble ship” made of soft clouds; cheerful and alert.',
+        'A sleek young hawk with sharp golden eyes, warm brown-cream feathers, and a focused gaze; wears a tiny aviator scarf; wings slightly folded back ready to dive; looks alert, precise, and friendly.',
     },
   ],
-  GENERAL_FEARS: [
-    {
-      id: 'firefly_namit',
-      name: 'הגחלילית נָמִית',
-      tagline: 'גחלילית זעירה שנושאת אור קטן לכל מקום חשוך',
-      image: '/companions/GENERAL_FEARS/firefly_namit.jpg',
-      narrativeHook: 'לא צריך אור גדול — מספיק אחד קטן שנע איתך',
-      visualDescription:
-        'A tiny cute firefly with a warm yellow-green glowing abdomen, big round friendly eyes, delicate translucent wings, and small antennae; carries a miniature lantern; radiates gentle warmth in darkness.',
-    },
-    {
-      id: 'bunny_ometz',
-      name: 'הארנבון בּוּנִי',
-      tagline: 'ארנבון שנולד פחדן וגילה שאומץ הוא שריר שאפשר לאמן',
-      image: '/companions/GENERAL_FEARS/bunny_ometz.jpg',
-      narrativeHook: 'להיות פחדן לא אומר שאתה לא אמיץ',
-      visualDescription:
-        'A small soft bunny with long floppy ears, wide uncertain eyes that are also brave, and a tiny heart-shaped badge pinned to the chest; fur is cream-white with a blush on the cheeks; looks vulnerable but standing tall.',
-    },
-    {
-      id: 'mongoose_zariz',
-      name: 'הנמייה זוּמִי',
-      tagline: 'נמייה מהירה וחסרת פחד שפוגשת כל צל פנים אל פנים',
-      image: '/companions/GENERAL_FEARS/mongoose_zariz.jpg',
-      narrativeHook: 'הפחד מתכווץ כשמסתכלים עליו ישר',
-      visualDescription:
-        'A sleek agile mongoose with warm brown fur, alert bright eyes, a bushy tail, and a confident stance; wears a tiny explorer vest; looks quick, fearless, and ready for anything.',
-    },
-  ],
+  GENERAL_FEARS: [],
   ANGER_FRUSTRATION: [
-    {
-      id: 'octopus_seara',
-      name: 'התמנון זוּזִי',
-      tagline: 'תמנון עם 8 זרועות שמתנפנפות כשהוא כועס — ולומד לכוון כל אחת',
-      image: '/companions/ANGER_FRUSTRATION/octopus_seara.jpg',
-      narrativeHook: 'כעס הוא אנרגיה — תבחר לאן היא הולכת',
-      visualDescription:
-        'A small cartoon octopus with expressive eyes, eight curly tentacles in warm orange-red tones; when calm the tentacles are neatly curled, when upset they flail wildly; wears a tiny sailor hat; looks emotional but lovable.',
-    },
     {
       id: 'bear_cub_gahal',
       name: 'הדוב דּוֹבִּי',
@@ -299,13 +289,22 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
         'A chubby brown bear cub with big expressive eyebrows, warm amber eyes, and large soft paws; a faint warm glow around the chest like inner fire; looks strong but gentle; wears a small woven bracelet.',
     },
     {
-      id: 'salamander_lahav',
-      name: 'הסלמנדרה רוּמִי',
-      tagline: 'סלמנדרת אש שחיה בתוך להבות ואף פעם לא נשרפת',
-      image: '/companions/ANGER_FRUSTRATION/salamander_lahav.jpg',
-      narrativeHook: 'אפשר לגעת באש בלי שהיא תשרוף אותך',
+      id: 'lion_shaket',
+      name: 'האריה לֵיוֹ',
+      tagline: 'גור ביישן שמגלה שהשאגה תמיד הייתה בפנים',
+      image: '/companions/SELF_CONFIDENCE/lion_shaket.jpg',
+      narrativeHook: 'הקול שלך קיים — רק מחכה שתקרא לו',
       visualDescription:
-        'A small fire salamander with glossy black skin and bright orange-yellow flame patterns; calm wise eyes; a soft warm glow emanates from the body; looks ancient and peaceful despite living in fire; small and cute.',
+        'A small shy lion cub with a fluffy mane starting to grow, big hesitant eyes, soft round ears; a tiny cape-like scarf; always looks on the edge of a brave roar.',
+    },
+    {
+      id: 'wolf_pup_siyar',
+      name: 'גור הזאב לוּלוּ',
+      tagline: 'גור זאב צעיר עם אינסטינקט להקה — אף אחד לא הולך לבד',
+      image: '/companions/OTHER/wolf_pup_siyar.jpg',
+      narrativeHook: 'כוח אמיתי הוא כשמישהו הולך לידך',
+      visualDescription:
+        'A young wolf pup with soft grey-silver fur, bright blue-grey eyes, pointed ears, and a bushy tail; looks brave but still puppy-cute; wears a small woven friendship bracelet around one paw; pack instinct in every glance.',
     },
   ],
   SENSITIVITY_OVERWHELM: [
@@ -338,7 +337,15 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
     },
   ],
   MEDICAL_PROCEDURE: [
-    BOLLY_ARMADILLO,
+    {
+      id: 'gecko_rifa',
+      name: 'השממית גֵּקִי',
+      tagline: 'שממית שמחליפה עור ומצמיחה זנב חדש — מומחית להתחדשות',
+      image: '/companions/MEDICAL_PROCEDURE/gecko_rifa.jpg',
+      narrativeHook: 'מה שנשבר יכול לגדול מחדש, אפילו יותר חזק',
+      visualDescription:
+        'A cute small gecko with bright green skin, large friendly eyes with vertical pupils, sticky toe pads, and a regrowing tail tip that glows faintly; wears a tiny leaf cape; looks curious, adaptable, and full of life.',
+    },
     {
       id: 'starfish_kokhavi',
       name: 'כוכבי',
@@ -349,61 +356,132 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
         'A cheerful five-pointed starfish in warm coral-pink color with a friendly face, tiny dot eyes, and a gentle smile; one arm has a small bandage as a badge of healing; soft pastel glow around the body; looks resilient and warm.',
     },
     {
-      id: 'seahorse_yam',
-      name: 'הסוסון גְּלִי',
-      tagline: 'סוסון ים עם שריון טבעי שנראה יפה ולא מפחיד',
-      image: '/companions/MEDICAL_PROCEDURE/seahorse_yam.jpg',
-      narrativeHook: 'הגנה לא חייבת להיות קשה — היא יכולה להיות יפה',
+      id: 'bunny_ometz',
+      name: 'הארנבון בּוּנִי',
+      tagline: 'ארנבון שנולד פחדן וגילה שאומץ הוא שריר שאפשר לאמן',
+      image: '/companions/GENERAL_FEARS/bunny_ometz.jpg',
+      narrativeHook: 'להיות פחדן לא אומר שאתה לא אמיץ',
       visualDescription:
-        'A small graceful seahorse with iridescent scales in soft turquoise and gold, a curled tail, a proud upright posture, and calm kind eyes; the bony armor plates look like decorative jewelry rather than protection; gentle and elegant.',
-    },
-    {
-      id: 'gecko_rifa',
-      name: 'השממית גֵּקִי',
-      tagline: 'שממית שמחליפה עור ומצמיחה זנב חדש — מומחית להתחדשות',
-      image: '/companions/MEDICAL_PROCEDURE/gecko_rifa.jpg',
-      narrativeHook: 'מה שנשבר יכול לגדול מחדש, אפילו יותר חזק',
-      visualDescription:
-        'A cute small gecko with bright green skin, large friendly eyes with vertical pupils, sticky toe pads, and a regrowing tail tip that glows faintly; wears a tiny leaf cape; looks curious, adaptable, and full of life.',
+        'A small soft bunny with long floppy ears, wide uncertain eyes that are also brave, and a tiny heart-shaped badge pinned to the chest; fur is cream-white with a blush on the cheeks; looks vulnerable but standing tall.',
     },
   ],
-  OTHER: [
-    {
-      id: 'puppy_neeman',
-      name: 'הכלבלב רוֹקִי',
-      tagline: 'כלבלב שהולך איתך לכל מקום ואף פעם לא מוותר עליך',
-      image: '/companions/OTHER/puppy_neeman.jpg',
-      narrativeHook: 'לא משנה מה קורה — אני כאן',
-      visualDescription:
-        'A small golden-brown puppy with floppy ears, big warm brown eyes, a wagging tail, and a loyal expression; wears a tiny red bandana; looks eager, devoted, and always ready to follow you anywhere.',
-    },
-    {
-      id: 'parrot_tzivon',
-      name: 'התוכי תּוּתִי',
-      tagline: 'תוכי צבעוני שמדבר בשפה שלך ומוצא את הצד המצחיק',
-      image: '/companions/OTHER/parrot_tzivon.jpg',
-      narrativeHook: 'אפילו ביום אפור אפשר למצוא צבע',
-      visualDescription:
-        'A colorful cartoon parrot with bright green, yellow, and red feathers, a curved beak in a permanent grin, bright playful eyes, and ruffled head feathers; perches on a small branch; looks chatty and cheerful.',
-    },
-    {
-      id: 'wolf_pup_siyar',
-      name: 'גור הזאב לוּלוּ',
-      tagline: 'גור זאב צעיר עם אינסטינקט להקה — אף אחד לא הולך לבד',
-      image: '/companions/OTHER/wolf_pup_siyar.jpg',
-      narrativeHook: 'כוח אמיתי הוא כשמישהו הולך לידך',
-      visualDescription:
-        'A young wolf pup with soft grey-silver fur, bright blue-grey eyes, pointed ears, and a bushy tail; looks brave but still puppy-cute; wears a small woven friendship bracelet around one paw; pack instinct in every glance.',
-    },
-  ],
+  OTHER: [],
+};
+
+/** Parked companion profiles — not in wizard roster; preserved for dev/direct story loads. */
+const FUTURE_POOL_COMPANION_BY_ID: Record<FuturePoolCompanionId, Companion> = {
+  octopus_seara: {
+    id: 'octopus_seara',
+    name: 'התמנון זוּזִי',
+    tagline: 'תמנון עם 8 זרועות שמתנפנפות כשהוא כועס — ולומד לכוון כל אחת',
+    image: '/companions/ANGER_FRUSTRATION/octopus_seara.jpg',
+    narrativeHook: 'כעס הוא אנרגיה — תבחר לאן היא הולכת',
+    visualDescription:
+      'A small cartoon octopus with expressive eyes, eight curly tentacles in warm orange-red tones; when calm the tentacles are neatly curled, when upset they flail wildly; wears a tiny sailor hat; looks emotional but lovable.',
+  },
+  salamander_lahav: {
+    id: 'salamander_lahav',
+    name: 'הסלמנדרה רוּמִי',
+    tagline: 'סלמנדרת אש שחיה בתוך להבות ואף פעם לא נשרפת',
+    image: '/companions/ANGER_FRUSTRATION/salamander_lahav.jpg',
+    narrativeHook: 'אפשר לגעת באש בלי שהיא תשרוף אותך',
+    visualDescription:
+      'A small fire salamander with glossy black skin and bright orange-yellow flame patterns; calm wise eyes; a soft warm glow emanates from the body; looks ancient and peaceful despite living in fire; small and cute.',
+  },
+  bee_ima: {
+    id: 'bee_ima',
+    name: 'הדבורה דְּבוֹרִי',
+    tagline: 'מלכת דבורים בכוורת שגדלה — ויצרה יותר דבש',
+    image: '/companions/NEW_SIBLING/bee_ima.jpg',
+    narrativeHook: 'משפחה שמתרחבת מייצרת יותר מתיקות',
+    visualDescription:
+      'A proud bee queen in soft cartoon style, golden and black stripes, small crown, gentle smile; a tiny honeycomb brooch; wings shimmer like warm kitchen light.',
+  },
+  mole_sheket: {
+    id: 'mole_sheket',
+    name: 'החפרפרת חוֹפִי',
+    tagline: 'חפרפרת שחיה מתחת לאדמה בשקט מוחלט ומלמדת למצוא את השקט הפנימי',
+    image: '/companions/NOISE_FEAR/mole_sheket.jpg',
+    narrativeHook: 'בתוך כל רעש יש שכבה של שקט — רק צריך לחפור אליה',
+    visualDescription:
+      'A small velvety mole with tiny round ears, closed calm eyes, and soft brown fur; wears a cozy knitted scarf; paws hold a little glowing crystal; radiates underground peace and quiet safety.',
+  },
+  captain_navat: {
+    id: 'captain_navat',
+    name: 'הקפטנית רוֹלִי',
+    tagline: 'לוטרת-ים עם כובע קפטן שמנווטת ספינת מחשבות',
+    image: '/companions/FOCUS_LEARNING/captain_navat.jpg',
+    narrativeHook: 'ריכוז זה הגה, לא כלוב',
+    visualDescription:
+      'An otter wearing a small captain’s hat and scarf, holding a ship wheel prop; a tiny “thought-bubble ship” made of soft clouds; cheerful and alert.',
+  },
+  seahorse_yam: {
+    id: 'seahorse_yam',
+    name: 'הסוסון גְּלִי',
+    tagline: 'סוסון ים עם שריון טבעי שנראה יפה ולא מפחיד',
+    image: '/companions/MEDICAL_PROCEDURE/seahorse_yam.jpg',
+    narrativeHook: 'הגנה לא חייבת להיות קשה — היא יכולה להיות יפה',
+    visualDescription:
+      'A small graceful seahorse with iridescent scales in soft turquoise and gold, a curled tail, a proud upright posture, and calm kind eyes; the bony armor plates look like decorative jewelry rather than protection; gentle and elegant.',
+  },
+  ant_harutza: {
+    id: 'ant_harutza',
+    name: 'הנמלה טִיטִי',
+    tagline: 'נמלה זעירה שמזיזה דברים פי מאה מגודלה — גודל לא קובע כוח',
+    image: '/companions/SELF_CONFIDENCE/ant_harutza.jpg',
+    narrativeHook: 'קטן לא אומר חלש',
+    visualDescription:
+      'A tiny determined ant with a shiny dark-red carapace, bright expressive eyes, and strong little legs; carries a leaf flag on her back like a cape; stands tall despite being small; looks brave and industrious.',
+  },
+  firefly_namit: {
+    id: 'firefly_namit',
+    name: 'הגחלילית נָמִית',
+    tagline: 'גחלילית זעירה שנושאת אור קטן לכל מקום חשוך',
+    image: '/companions/GENERAL_FEARS/firefly_namit.jpg',
+    narrativeHook: 'לא צריך אור גדול — מספיק אחד קטן שנע איתך',
+    visualDescription:
+      'A tiny cute firefly with a warm yellow-green glowing abdomen, big round friendly eyes, delicate translucent wings, and small antennae; carries a miniature lantern; radiates gentle warmth in darkness.',
+  },
+  mongoose_zariz: {
+    id: 'mongoose_zariz',
+    name: 'הנמייה זוּמִי',
+    tagline: 'נמייה מהירה וחסרת פחד שפוגשת כל צל פנים אל פנים',
+    image: '/companions/GENERAL_FEARS/mongoose_zariz.jpg',
+    narrativeHook: 'הפחד מתכווץ כשמסתכלים עליו ישר',
+    visualDescription:
+      'A sleek agile mongoose with warm brown fur, alert bright eyes, a bushy tail, and a confident stance; wears a tiny explorer vest; looks quick, fearless, and ready for anything.',
+  },
 };
 
 const ALL_COMPANIONS: Companion[] = Object.values(COMPANIONS_BY_CATEGORY).flat();
+
+export function isFuturePoolCompanion(id: string | null | undefined): boolean {
+  if (!id) return false;
+  return (FUTURE_POOL_COMPANION_IDS as readonly string[]).includes(id.trim());
+}
+
+/** Active wizard roster ids (30) — derived from COMPANIONS_BY_CATEGORY. */
+export function listActiveCompanionIds(): string[] {
+  const ids: string[] = [];
+  for (const category of ACTIVE_WIZARD_CATEGORIES) {
+    for (const companion of COMPANIONS_BY_CATEGORY[category]) {
+      ids.push(companion.id);
+    }
+  }
+  return ids;
+}
+
+export function getFuturePoolCompanion(id: string): Companion | null {
+  const key = id.trim() as FuturePoolCompanionId;
+  return FUTURE_POOL_COMPANION_BY_ID[key] ?? null;
+}
 
 export function getCompanionById(id: string | null | undefined): Companion | null {
   if (!id || typeof id !== 'string') return null;
   const normalized = id.trim().toLowerCase().replace(/-/g, '_');
   if (MVP_COMPANIONS[normalized]) return MVP_COMPANIONS[normalized];
+  const future = FUTURE_POOL_COMPANION_BY_ID[normalized as FuturePoolCompanionId];
+  if (future) return future;
   return ALL_COMPANIONS.find((c) => c.id === id) ?? null;
 }
 

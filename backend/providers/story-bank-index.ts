@@ -15,6 +15,7 @@
 import { existsSync } from 'fs';
 import { join } from 'path';
 import type { ChallengeCategory } from '../../lib/companions';
+import { isFuturePoolCompanion, listActiveCompanionIds } from '../../lib/companions';
 
 const STORY_BANK_DIR = join(process.cwd(), 'story-bank', 'raw');
 // Companion-direction stories. Defaults to v5-fixed-v2 (97% PASS QA, 108 stories).
@@ -23,43 +24,15 @@ const V3_STORY_DIR_NAME = (process.env.STORY_BANK_V3_DIR || 'v5-fixed-v2').trim(
 const V3_STORY_DIR = join(process.cwd(), 'story-bank', V3_STORY_DIR_NAME);
 export const STORY_BANK_V3_DIR_NAME = V3_STORY_DIR_NAME;
 
-/** Companions with handcrafted v3 markdown stories (one file per direction).
- *  All 36 companions have 3 directions each (bedtime/adventure/fantasy) = 108 stories.
- *  Categories align with `lib/companions.ts` wizard categories. */
-const V3_COMPANIONS = new Set([
-  // ANGER_FRUSTRATION
-  'octopus_seara', 'bear_cub_gahal', 'salamander_lahav',
-  // NIGHT_FEAR
-  'bat_lily', 'fox_uri', 'owl_chacham',
-  // TRANSITION
-  'chameleon_koko', 'squirrel_navad', 'turtle_beiti',
-  // SENSITIVITY_OVERWHELM
-  'fawn_tzvi', 'snail_sheli', 'kitten_mishi',
-  // SOCIAL
-  'panda_anat', 'bear_mati', 'hedgehog_rachi',
-  // FOCUS_LEARNING
-  'hawk_had', 'dolphin_shahkan', 'captain_navat',
-  // NEW_SIBLING
-  'pelican_kis', 'dragon_dini', 'bee_ima',
-  // SELF_CONFIDENCE
-  'lion_shaket', 'butterfly_zohar', 'ant_harutza',
-  // NOISE_FEAR
-  'footstep_giant', 'song_whale', 'mole_sheket',
-  // GENERAL_FEARS
-  'firefly_namit', 'bunny_ometz', 'mongoose_zariz',
-  // MEDICAL_PROCEDURE
-  'starfish_kokhavi', 'seahorse_yam', 'gecko_rifa',
-  // OTHER
-  'puppy_neeman', 'parrot_tzivon', 'wolf_pup_siyar',
-  // BEDTIME_ANTICIPATION (Bolly — flagship v0.5 recipe)
-  'bolly_armadillo',
-]);
+/** Active wizard roster — companion-specific v5 markdown stories when files exist. */
+const V3_COMPANIONS = new Set(listActiveCompanionIds());
 
+/** Wizard category → raw bank category (legacy batch pool naming). */
 export const V3_COMPANION_BANK_CATEGORY: Record<string, BankCategory> = {
   // ANGER_FRUSTRATION
-  octopus_seara: 'ANGER_FRUSTRATION',
   bear_cub_gahal: 'ANGER_FRUSTRATION',
-  salamander_lahav: 'ANGER_FRUSTRATION',
+  lion_shaket: 'ANGER_FRUSTRATION',
+  wolf_pup_siyar: 'ANGER_FRUSTRATION',
   // NIGHT_FEAR
   bat_lily: 'NIGHT_FEAR',
   fox_uri: 'NIGHT_FEAR',
@@ -77,34 +50,25 @@ export const V3_COMPANION_BANK_CATEGORY: Record<string, BankCategory> = {
   bear_mati: 'SOCIAL',
   hedgehog_rachi: 'SOCIAL',
   // FOCUS_LEARNING → FOCUS
-  hawk_had: 'FOCUS',
+  parrot_tzivon: 'FOCUS',
   dolphin_shahkan: 'FOCUS',
-  captain_navat: 'FOCUS',
+  hawk_had: 'FOCUS',
   // NEW_SIBLING → SIBLING
   pelican_kis: 'SIBLING',
   dragon_dini: 'SIBLING',
-  bee_ima: 'SIBLING',
+  puppy_neeman: 'SIBLING',
   // SELF_CONFIDENCE → CONFIDENCE
-  lion_shaket: 'CONFIDENCE',
   butterfly_zohar: 'CONFIDENCE',
-  ant_harutza: 'CONFIDENCE',
+  bolly_armadillo: 'CONFIDENCE',
+  monkey: 'CONFIDENCE',
   // NOISE_FEAR → SIRENS
   footstep_giant: 'SIRENS',
   song_whale: 'SIRENS',
-  mole_sheket: 'SIRENS',
-  // GENERAL_FEARS
-  firefly_namit: 'GENERAL_FEARS',
-  bunny_ometz: 'GENERAL_FEARS',
-  mongoose_zariz: 'GENERAL_FEARS',
+  baby_elephant: 'SIRENS',
   // MEDICAL_PROCEDURE → MEDICAL
-  starfish_kokhavi: 'MEDICAL',
-  seahorse_yam: 'MEDICAL',
   gecko_rifa: 'MEDICAL',
-  // OTHER → GENERAL_FEARS (fallback bank category)
-  puppy_neeman: 'GENERAL_FEARS',
-  parrot_tzivon: 'GENERAL_FEARS',
-  wolf_pup_siyar: 'GENERAL_FEARS',
-  bolly_armadillo: 'MEDICAL',
+  starfish_kokhavi: 'MEDICAL',
+  bunny_ometz: 'MEDICAL',
 };
 
 // ── Category mapping: wizard → story-bank ───────────────────────
@@ -333,6 +297,7 @@ export function selectCompanionStory(
   direction: string | null | undefined,
 ): StoryBankSelection | null {
   if (!companionId || !direction) return null;
+  if (isFuturePoolCompanion(companionId)) return null;
   if (!V3_COMPANIONS.has(companionId)) return null;
 
   const dir = direction.trim().toLowerCase();

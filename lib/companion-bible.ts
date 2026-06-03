@@ -79,6 +79,17 @@ const BIBLE: Record<string, CompanionBibleEntry> = {
     maxConsecutiveAbsent: 2,
     introByPage: { bedtime: 3, adventure: 3, fantasy: 5 },
   },
+  fox_uri: {
+    companionId: 'fox_uri',
+    canonicalName: 'השועל אוּרי',
+    nameClean: 'אוּרי',
+    gender: 'male',
+    forbiddenAnatomy: ['feathers', 'נוצות', 'shell', 'armor', 'wings', 'כנפיים', 'hooves', 'פרסות'],
+    forbiddenObjects: ['scarf', 'neck scarf', 'chest star', 'star on chest', 'צעיף', 'כוכב על החזה'],
+    forbiddenTone: ['predatory', 'scary fox', 'therapeutic lecture'],
+    maxConsecutiveAbsent: 2,
+    introByPage: { bedtime: 3, adventure: 3, fantasy: 5 },
+  },
   bolly_armadillo: {
     companionId: 'bolly_armadillo',
     canonicalName: 'בּוֹלִי',
