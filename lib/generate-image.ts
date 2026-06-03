@@ -228,7 +228,11 @@ export type GPTImageReferenceMode =
   /** Per-order expression sheet: edit from approved canonical child anchor only. */
   | 'anchor_expression_from_canonical'
   /** Expression variant: canonical identity + optional direction ref (expression only, not anger identity). */
-  | 'anchor_expression_with_direction';
+  | 'anchor_expression_with_direction'
+  /** Companion sheet: Style 01 re-render from canonical companion jpg (front view). */
+  | 'anchor_companion_from_jpg'
+  /** Companion sheet: angle/expression variant from approved Style 01 front sheet view. */
+  | 'anchor_companion_from_sheet_view';
 
 /** Default cap (gpt-image-1). Override via GPT_IMAGE_EDIT_MAX_REFERENCES for gpt-image-2 probes. */
 export const GPT_IMAGE_EDIT_MAX_REFERENCES = 4;
@@ -358,6 +362,22 @@ export const STYLE01_ANCHOR_EXPRESSION_WITH_DIRECTION_PREFIX = (
   '[TARGET EXPRESSION]\n'
 );
 
+/** Companion multi-angle sheet — identity from reference jpg, Style 01 watercolor. */
+export const STYLE01_ANCHOR_COMPANION_FROM_JPG_PREFIX = (
+  '[STYLE 01 COMPANION SHEET — REFERENCE PHOTO]\n' +
+  'Image 1 is the canonical companion reference. Use ONLY for creature identity: species, colors, markings, proportions, accessories, silhouette.\n' +
+  'Re-render as cute simplified hand-drawn watercolor storybook — NOT photoreal. Clean near-empty cream background. NO scene. NO child. NO humans.\n\n' +
+  '[TARGET VIEW]\n'
+);
+
+/** Companion sheet variant — same creature as Image 1 front anchor; change angle/expression only. */
+export const STYLE01_ANCHOR_COMPANION_FROM_SHEET_PREFIX = (
+  '[STYLE 01 COMPANION SHEET — APPROVED FRONT ANCHOR]\n' +
+  'Image 1 is the APPROVED Style 01 front view of this companion. Preserve EXACT species, colors, markings, proportions, and accessories.\n' +
+  'Change ONLY camera angle / facing / expression per TARGET. NOT a new creature. Clean cream background. NO scene. NO child.\n\n' +
+  '[TARGET VIEW]\n'
+);
+
 function resolveReferencePrefix(
   mode: GPTImageReferenceMode,
   referenceCount: number
@@ -366,6 +386,8 @@ function resolveReferencePrefix(
   if (mode === 'anchor_template_photo_last') return STYLE01_ANCHOR_TEMPLATE_PHOTO_LAST_PREFIX;
   if (mode === 'anchor_expression_from_canonical') return STYLE01_ANCHOR_EXPRESSION_FROM_CANONICAL_PREFIX;
   if (mode === 'anchor_expression_with_direction') return STYLE01_ANCHOR_EXPRESSION_WITH_DIRECTION_PREFIX;
+  if (mode === 'anchor_companion_from_jpg') return STYLE01_ANCHOR_COMPANION_FROM_JPG_PREFIX;
+  if (mode === 'anchor_companion_from_sheet_view') return STYLE01_ANCHOR_COMPANION_FROM_SHEET_PREFIX;
   if (mode === 'style02_book') return STYLE02_BOOK_REFERENCE_PREFIX;
   if (mode === 'style') return STYLE_REFERENCE_PREFIX;
   if (mode === 'companion_dual' || referenceCount >= 2) return DUAL_REFERENCE_PREFIX;

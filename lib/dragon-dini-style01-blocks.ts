@@ -226,7 +226,7 @@ The newborn baby sister in the crib. Distinctive visual signature:
 
 - Head: small and round, mostly BALD with maybe a faint wisp of soft fuzz (newborn).
 
-- Pinkish skin tone (typical newborn flush).
+- Skin tone DERIVES from the order family-coherence profile (same band as the hero child’s family — gentle newborn warmth OK; FORBIDDEN: unrelated default pale-pink flush).
 
 - Eyes: usually closed sleeping or partly squinted; when open, dark and unfocused.
 

@@ -1,0 +1,37 @@
+{
+  "companionId": "octopus_seara",
+  "referenceJpg": "/companions/ANGER_FRUSTRATION/octopus_seara.jpg",
+  "generatedAt": "2026-06-03T12:45:09.475Z",
+  "views": {
+    "front": {
+      "filename": "front.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.9945668910167365
+    },
+    "three_quarter_front": {
+      "filename": "3-4.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.997199254932794
+    },
+    "side": {
+      "filename": "side.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.9971298434207588
+    },
+    "three_quarter_back": {
+      "filename": "back.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.9947872252676524
+    },
+    "happy": {
+      "filename": "happy.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.9978177716201831
+    },
+    "theme": {
+      "filename": "theme.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.9980601824829868
+    }
+  }
+}

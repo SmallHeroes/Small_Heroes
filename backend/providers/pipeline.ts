@@ -512,6 +512,12 @@ export interface GeneratedStory {
   entityVisualLock?:     EntityVisualLock;
   /** English cover scene hint for story-bank stories (extracted from metadata). */
   coverSceneHint?:       string;
+  /** Declared in story-bank frontmatter — recurring entity locks (data-driven). */
+  storyRecurringEntities?: import('@/lib/story-bank/recurring-entities').StoryRecurringEntityDeclaration[];
+  /** Global lighting atmosphere for all pages (story-bank frontmatter / category / inference). */
+  storyTimeOfDay?: import('@/lib/story-time-of-day').StoryTimeOfDay;
+  storyCategory?: string | null;
+  pageTimeOfDayOverrides?: Partial<Record<number, import('@/lib/story-time-of-day').StoryTimeOfDay>>;
   meta: {
     provider:         string;
     model:            string;

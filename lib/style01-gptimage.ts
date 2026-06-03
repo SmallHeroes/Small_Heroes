@@ -7,6 +7,28 @@ import path from 'path';
 import { STYLE_IDS } from './styles';
 import type { Style02RefBudgetConfig } from './style02-gptimage';
 import { resolveStyle01StoryWardrobeLock } from './style01-story-wardrobe';
+import {
+  COMPANION_SHEET_VIEW_FILENAME,
+  listPublishedCompanionSheetViews,
+} from './generation-pipeline/companion-character-sheet';
+import {
+  resolveCompanionSheetViewForPage,
+  resolveCompanionViewIntentForPage,
+} from './generation-pipeline/companion-sheet-page-map';
+import type { CompanionPresence } from './image-entity-presence';
+import {
+  classifyStyle01SceneClass,
+  resolveStyle01SceneRefSubset,
+  type Style01SceneClass,
+  type Style01SceneSubsetKey,
+} from './style-scene-class';
+
+export {
+  classifyStyle01SceneClass,
+  resolveStyle01SceneRefSubset,
+  type Style01SceneClass,
+  type Style01SceneSubsetKey,
+};
 
 export const STYLE_01_GPT_MODEL_DEFAULT = 'gpt-image-1';
 
@@ -20,17 +42,6 @@ export function resolveStyle01GptModel(): string {
 export const STYLE_01_GPT_MODEL = STYLE_01_GPT_MODEL_DEFAULT;
 
 export const STYLE_01_REF_DIR = path.join(process.cwd(), 'style-references', '01');
-
-export type Style01SceneClass =
-  | 'fantasy-cave'
-  | 'forest-day'
-  | 'forest-clearing'
-  | 'forest-path'
-  | 'outdoor-nature'
-  | 'cozy-interior'
-  | 'outdoor-magical';
-
-export type Style01SceneSubsetKey = 'fantasy-cave' | 'cozy-interior' | 'outdoor-magical';
 
 export const STYLE_01_SHARED =
   "Style 01: soft hand-drawn children's storybook illustration on warm cream paper. Gentle transparent watercolor washes, delicate linework, luminous muted palette, cozy picture-book warmth. NOT cinematic Style 02. NOT dense ink-and-gouache. NOT photorealistic. NOT Pixar CGI.";
@@ -97,19 +108,6 @@ export const STYLE_01_REF_SUBSETS: Record<
   },
 };
 
-const FANTASY_CAVE_RE =
-  /\b(cave|cave mouth|cave entrance|cave interior|inside cave|stalactites|stalagmites|mountain cave|mountain peak|cliff|glowing stones?|warm stone|amber glow|cavern|grotto|hollow|rocky walls|מערה|אבנ(?:ים|ה)|הר|מצוק|נטיפים|זיבים)\b/iu;
-const FOREST_CLEARING_RE =
-  /\b(forest clearing|sunny forest|berry bush|mossy green rock|clearing)\b/iu;
-const FOREST_PATH_RE =
-  /\b(forest path|deeper forest path|walking into the forest|woods path|path into the forest)\b/iu;
-const FOREST_DAY_RE =
-  /\b(forest edge|forest\b|woods\b|trees(?: around| nearby| above)|meadow|woodland|יער|חורש|squirrel|berry bush)\b/iu;
-const COZY_INTERIOR_RE =
-  /\b(bedroom|bedside|crib|windowsill|indoor room|חדר|מיטה|עריסה)\b/iu;
-const OUTDOOR_MAGICAL_RE =
-  /\b(sky|clouds|mountain peak|above the clouds|שמיים|עננים)\b/iu;
-
 import {
   DRAGON_DINI_COMPANION_LOCK,
   DRAGON_DINI_COMPOSITION_BY_PAGE,
@@ -118,6 +116,8 @@ import {
   DRAGON_DINI_RECURRING_OBJECT_CATALOG,
   DRAGON_DINI_RECURRING_OBJECT_LOCKS,
 } from './dragon-dini-style01-blocks';
+import type { StoryRecurringEntityDeclaration } from './story-bank/recurring-entities';
+import { buildRecurringLocksFromDeclarations } from './story-bank/recurring-entities';
 
 export {
   DRAGON_DINI_RECURRING_OBJECT_CATALOG,
@@ -300,13 +300,31 @@ export type Style01StoryLockBundle = {
   pageEnvironmentLock?: (pageNumber: number) => string | undefined;
 };
 
-export function resolveStyle01StoryLocks(companionId?: string | null): Style01StoryLockBundle {
+export function resolveStyle01StoryLocks(
+  companionId?: string | null,
+  storyDeclarations?: StoryRecurringEntityDeclaration[]
+): Style01StoryLockBundle {
   if (companionId === 'dragon_dini') {
+    const fromBank = storyDeclarations?.length
+      ? buildRecurringLocksFromDeclarations(storyDeclarations)
+      : null;
     return {
-      recurringObjectCatalog: DRAGON_DINI_RECURRING_OBJECT_CATALOG,
-      recurringObjectLocks: DRAGON_DINI_RECURRING_OBJECT_LOCKS,
-      recurringEntityCatalog: DRAGON_DINI_RECURRING_ENTITY_CATALOG,
-      recurringEntityLocks: DRAGON_DINI_RECURRING_ENTITY_LOCKS,
+      recurringObjectCatalog: {
+        ...DRAGON_DINI_RECURRING_OBJECT_CATALOG,
+        ...(fromBank?.catalog ?? {}),
+      },
+      recurringObjectLocks: {
+        ...DRAGON_DINI_RECURRING_OBJECT_LOCKS,
+        ...(fromBank?.locks ?? {}),
+      },
+      recurringEntityCatalog: {
+        ...DRAGON_DINI_RECURRING_ENTITY_CATALOG,
+        ...(fromBank?.catalog ?? {}),
+      },
+      recurringEntityLocks: {
+        ...DRAGON_DINI_RECURRING_ENTITY_LOCKS,
+        ...(fromBank?.locks ?? {}),
+      },
       companionLock: DRAGON_DINI_COMPANION_LOCK,
       compositionByPage: DRAGON_DINI_COMPOSITION_BY_PAGE,
     };
@@ -319,6 +337,15 @@ export function resolveStyle01StoryLocks(companionId?: string | null): Style01St
       recurringEntityLocks: {},
       companionLock: BEAR_CUB_DOBI_COMPANION_LOCK,
       compositionByPage: BEAR_CUB_DOBI_COMPOSITION_BY_PAGE,
+    };
+  }
+  if (storyDeclarations?.length) {
+    const fromBank = buildRecurringLocksFromDeclarations(storyDeclarations);
+    return {
+      recurringObjectCatalog: fromBank.catalog,
+      recurringObjectLocks: fromBank.locks,
+      recurringEntityCatalog: fromBank.catalog,
+      recurringEntityLocks: fromBank.locks,
     };
   }
   return {
@@ -367,32 +394,6 @@ export function resolveStyle01RefBudgetConfig(): Style02RefBudgetConfig {
   return 'A';
 }
 
-export function resolveStyle01SceneRefSubset(sceneClass: Style01SceneClass): Style01SceneSubsetKey {
-  if (sceneClass === 'fantasy-cave') return 'fantasy-cave';
-  if (sceneClass === 'cozy-interior') return 'cozy-interior';
-  return 'outdoor-magical';
-}
-
-export function classifyStyle01SceneClass(input: {
-  imagePrompt?: string;
-  bookPageText?: string;
-  rawScenePrompt?: string;
-}): Style01SceneClass {
-  const hay = [input.imagePrompt ?? '', input.rawScenePrompt ?? '', input.bookPageText ?? ''].join(' ');
-
-  // Cave is the most specific scene — when cave keywords appear, cave wins
-  // even if forest words also appear (e.g. plants near cave entrance).
-  if (FANTASY_CAVE_RE.test(hay)) return 'fantasy-cave';
-
-  if (FOREST_PATH_RE.test(hay)) return 'forest-path';
-  if (FOREST_CLEARING_RE.test(hay)) return 'forest-clearing';
-  if (FOREST_DAY_RE.test(hay)) return 'forest-day';
-
-  if (COZY_INTERIOR_RE.test(hay)) return 'cozy-interior';
-  if (OUTDOOR_MAGICAL_RE.test(hay)) return 'outdoor-nature';
-  return 'fantasy-cave';
-}
-
 export function resolveStyle01StyleReferencePaths(
   sceneClass: Style01SceneClass,
   maxCount: number
@@ -416,6 +417,12 @@ export function resolveStyle01CompanionReferencePaths(input: {
   companionId?: string | null;
   companionImage?: string | null;
   presentEntities?: string[];
+  companionPresence?: CompanionPresence;
+  /** When set with a published multi-view sheet, returns one angle-appropriate sheet path. */
+  pageNumber?: number;
+  imagePrompt?: string;
+  bookPageText?: string;
+  rawScenePrompt?: string;
 }): string[] {
   const companionId = input.companionId?.trim();
   const paths: string[] = [];
@@ -434,6 +441,46 @@ export function resolveStyle01CompanionReferencePaths(input: {
 
   if (companionId) {
     const sheetsDir = path.join(process.cwd(), 'public', 'companions', companionId, 'style01-sheets');
+    const published = listPublishedCompanionSheetViews(companionId);
+    const publishedCount = Object.keys(published).length;
+
+    if (publishedCount >= 4 && published.front) {
+      const viewIntent = resolveCompanionViewIntentForPage({
+        pageNumber: input.pageNumber,
+        imagePrompt: input.imagePrompt,
+        bookPageText: input.bookPageText,
+        rawScenePrompt: input.rawScenePrompt,
+        companionPresence: input.companionPresence,
+      });
+      if (viewIntent === 'partial' || viewIntent === 'silhouette') {
+        return [];
+      }
+      const viewKind = resolveCompanionSheetViewForPage({
+        pageNumber: input.pageNumber,
+        imagePrompt: input.imagePrompt,
+        bookPageText: input.bookPageText,
+        rawScenePrompt: input.rawScenePrompt,
+        companionPresence: input.companionPresence,
+      });
+      const picked =
+        published[viewKind] ??
+        published.three_quarter_front ??
+        published.front;
+      if (picked) return [picked];
+    }
+
+    if (publishedCount >= 3) {
+      const ordered = ['front', 'three_quarter_front', 'side', 'happy', 'theme', 'three_quarter_back'] as const;
+      const multi: string[] = [];
+      for (const k of ordered) {
+        const fname = COMPANION_SHEET_VIEW_FILENAME[k];
+        const p = path.join(sheetsDir, fname);
+        if (existsSync(p)) multi.push(p);
+        if (multi.length >= 3) break;
+      }
+      if (multi.length >= 3) return multi.slice(0, 3);
+    }
+
     const sheetPaths = listStyle01SheetImages(sheetsDir, 3);
     if (sheetPaths.length >= 3) {
       return sheetPaths.slice(0, 3);
@@ -557,6 +604,15 @@ export function buildStyle01CompanionTextLock(input: {
   return '';
 }
 
+export function buildStyle01CompanionSilhouetteLock(): string {
+  return [
+    'COMPANION SILHOUETTE LOCK (match approved companion reference sheet):',
+    'Keep consistent ear length and shape, tail size and shape, chest marking, body proportions, and creature age/size across every page.',
+    'Do NOT enlarge ears, sharpen ear tips, shrink or grow the tail, or change body scale vs the reference sheet.',
+    'Same fox/creature size every page — not a larger or pointier-eared variant.',
+  ].join('\n');
+}
+
 export function buildStyle01RecurringObjectLocks(
   objectKeys: string[],
   lockMap: Record<string, string> = DRAGON_DINI_RECURRING_OBJECT_LOCKS
@@ -607,7 +663,6 @@ export function buildStyle01CompositionBlock(input: {
   const spec =
     input.compositionOverride ??
     input.compositionByPage?.[input.pageNumber] ??
-    DRAGON_DINI_COMPOSITION_BY_PAGE[input.pageNumber] ??
     inferCompositionFromImageDirection(input.imageDirection);
 
   const childOnPage = input.childOnPage ?? compositionAssumesChildPresent(spec);
@@ -708,6 +763,14 @@ export function buildStyle01EntityPresenceBlock(input: {
   }
   if (input.companionPresence === 'present') {
     lines.push('Companion MUST appear and match COMPANION LOCK.');
+  } else if (input.companionPresence === 'partial') {
+    lines.push(
+      'Companion appears PARTIALLY ONLY — show only the body part or clue described in the scene (tail tip, paw, ear). Do NOT render the full companion body or face.'
+    );
+  } else if (input.companionPresence === 'offscreen_hint') {
+    lines.push(
+      'Companion is OFFSCREEN — show only the hint described (shadow, distant glow, tail tip outside window, pawprint). Do NOT render the full companion in frame.'
+    );
   } else {
     lines.push('NO companion creature in this scene.');
   }

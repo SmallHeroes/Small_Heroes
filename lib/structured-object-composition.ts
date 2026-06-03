@@ -104,10 +104,10 @@ export function detectStructuredObjectsInText(...texts: Array<string | null | un
 }
 
 export function sceneHasStructuredObjects(input: {
-  imagePrompt?: string;
-  bookPageText?: string;
-  rawScenePrompt?: string;
-  staging?: string;
+  imagePrompt?: string | null;
+  bookPageText?: string | null;
+  rawScenePrompt?: string | null;
+  staging?: string | null;
 }): boolean {
   return detectStructuredObjectsInText(
     input.imagePrompt,
@@ -117,26 +117,38 @@ export function sceneHasStructuredObjects(input: {
   ).length > 0;
 }
 
+/** Word-boundary crib/cot/bassinet/playpen only — NOT generic bed/bedroom/furniture. */
+const EXPLICIT_CRIB_PATTERNS = [
+  /\bcrib\b/i,
+  /\bcot\b/i,
+  /\bbassinet(?:te)?\b/i,
+  /\bplaypen\b/i,
+  /\bplay pen\b/i,
+  /\bcrib rail/i,
+  /\bbaby bed\b/i,
+  /(?:^|[^\w])עריסה(?:$|[^\w])/u,
+  /מיטת תינוק/u,
+] as const;
+
 export function sceneHasRailedBedOrCrib(input: {
-  imagePrompt?: string;
-  bookPageText?: string;
-  rawScenePrompt?: string;
-  staging?: string;
+  imagePrompt?: string | null;
+  bookPageText?: string | null;
+  rawScenePrompt?: string | null;
+  staging?: string | null;
 }): boolean {
   const hay = [input.imagePrompt, input.bookPageText, input.rawScenePrompt, input.staging]
     .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
-  return RAILED_BED_TERMS.some((term) => hay.includes(term.toLowerCase()));
+    .join(' ');
+  return EXPLICIT_CRIB_PATTERNS.some((re) => re.test(hay));
 }
 
 export function isEmotionalClosingBeat(input: {
   pageNumber: number;
   totalPages?: number;
   pagePurpose?: string;
-  imagePrompt?: string;
-  bookPageText?: string;
-  staging?: string;
+  imagePrompt?: string | null;
+  bookPageText?: string | null;
+  staging?: string | null;
 }): boolean {
   if (input.totalPages && input.pageNumber === input.totalPages) return true;
   const hay = [input.pagePurpose, input.imagePrompt, input.bookPageText, input.staging]
@@ -146,10 +158,10 @@ export function isEmotionalClosingBeat(input: {
 }
 
 export function buildStructuredObjectCompositionAddendum(input: {
-  imagePrompt?: string;
-  bookPageText?: string;
-  rawScenePrompt?: string;
-  staging?: string;
+  imagePrompt?: string | null;
+  bookPageText?: string | null;
+  rawScenePrompt?: string | null;
+  staging?: string | null;
   pageNumber?: number;
   totalPages?: number;
   pagePurpose?: string;

@@ -10,6 +10,7 @@ title: "אורי ומפת הצללים"
 companionId: fox_uri
 direction: adventure
 category: NIGHT_FEAR
+timeOfDay: night
 gender: male
 pages: 15
 endingType: residue

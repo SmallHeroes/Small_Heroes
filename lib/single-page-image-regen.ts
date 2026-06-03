@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { Prisma } from '@prisma/client';
 import path from 'path';
 import { generateAllPageImages } from '@/backend/providers/image';
 import {
@@ -118,8 +119,8 @@ function compositionRulesForTemplate(
     'pageTemplate=art_top_text_bottom',
     `camera=${camera}`,
     `focus=${focus}`,
-    'upper-half visual focus with calmer lower composition density',
-    'designed to naturally fade downward into paper for text area',
+    'full-frame illustration filling the entire image edge-to-edge — do NOT fade, blank, vignette, or empty any area into paper; paint the bottom fully',
+    'keep the main face/focal subject clear of the very bottom caption strip (mobile overlays text there); on desktop the illustration is shown full and standalone',
     `topTextAreaPlan=${topZone}`,
   ].join(' | ');
 }
@@ -659,6 +660,29 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
     anchorRegistry.child.description = lockedChildDescription;
   }
 
+  const {
+    ensureFamilyCoherenceBundle,
+    getFamilyCoherenceFromAnchors,
+    persistFamilyCoherenceOnOrder,
+  } = await import('@/lib/family-coherence');
+  let familyCoherence =
+    getFamilyCoherenceFromAnchors(order.characterAnchors) ?? null;
+  if (!familyCoherence) {
+    familyCoherence = ensureFamilyCoherenceBundle(order, {
+      childPhotoDescription,
+      childStructured: dna.childStructured,
+    });
+    await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        characterAnchors: persistFamilyCoherenceOnOrder(
+          order.characterAnchors,
+          familyCoherence
+        ) as Prisma.InputJsonValue,
+      },
+    });
+  }
+
   const supportingCharacters = (pageForGeneration.expectedCharacterIds || [])
     .filter((id) => id !== 'child' && !id.startsWith('companion:'))
     .map((id) => ({ id, character: anchorRegistry[id] }))
@@ -731,6 +755,7 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
       directionEmotionalLabel: selectedDirection?.emotionalLabel,
       directionStoryPremise: selectedDirection?.storyPremise,
       pdfEnabled: order.pdfEnabled,
+      familyCoherence,
     }
   );
 

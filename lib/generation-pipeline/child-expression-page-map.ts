@@ -2,6 +2,8 @@ import type { ChildExpressionKind } from './child-expression-sheet';
 
 export type PageExpressionContext = {
   pageNumber: number;
+  /** When set, Dini-only page overrides apply; other companions use generic heuristics only. */
+  companionId?: string | null;
   imagePrompt?: string;
   bookPageText?: string;
   rawScenePrompt?: string;
@@ -35,8 +37,10 @@ function isStrongLocomotionBeat(haystack: string): boolean {
 }
 
 export function resolveChildExpressionKindForPage(ctx: PageExpressionContext): ChildExpressionKind {
-  const override = DRAGON_DINI_PAGE_OVERRIDES[ctx.pageNumber];
-  if (override) return override;
+  if (ctx.companionId === 'dragon_dini') {
+    const override = DRAGON_DINI_PAGE_OVERRIDES[ctx.pageNumber];
+    if (override) return override;
+  }
 
   const haystack = [
     ctx.imagePrompt,

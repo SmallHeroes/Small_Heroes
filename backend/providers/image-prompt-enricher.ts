@@ -20,25 +20,22 @@ export interface EnrichInput {
 }
 
 const COMPOSITION_TEMPLATES: Record<PageLayout, (input: EnrichInput) => string> = {
-  full_bleed_soft: ({ textZone, wordCount }) => {
-    const textArea = textZone === 'top_clear' ? 'TOP 40%' : 'LOWER 40%';
-    const focalArea = textZone === 'top_clear' ? 'LOWER 60%' : 'UPPER 60%';
+  full_bleed_soft: ({ wordCount }) => {
     const density = wordCount > 45
-      ? 'Use simplified composition with strong silhouettes — text will compete for attention.'
+      ? 'Use simplified composition with strong silhouettes — keep it readable.'
       : 'Composition can include rich detail, varied textures, painterly nuance.';
     return [
       'COMPOSITION RULES:',
-      `- Full-page bleed composition. Aspect 4:5 vertical.`,
-      `- Critical focal subject and characters in ${focalArea} of frame.`,
-      `- ${textArea} must be visually QUIET: soft pastel sky, blurred ground, gentle texture (sand/blanket/water surface). Avoid critical details, faces, or busy patterns there.`,
-      `- Lighting transitions smoothly from subject area to text reservation area.`,
+      `- TRUE full-bleed illustration filling the ENTIRE frame edge-to-edge. Aspect 4:5 vertical.`,
+      `- Paint EVERY area of the canvas fully, including the bottom — do NOT leave any region quiet, blurred, empty, faded, or dissolving into paper. There is NO reserved text panel and NO empty band.`,
+      `- Keep the main face/focal subject out of the very bottom ~15% strip (mobile overlays caption text there), but still PAINT that strip fully (ground, floor, grass, scenery) — it must not be blank.`,
       `- ${density}`,
-      // BREATHING-ROOM RULES (added per user feedback — characters were filling 75%+ of frames):
-      `- CHARACTER SIZE: The main character should occupy roughly 35-50% of the frame (their designated area), NOT dominate the entire image.`,
-      `- ENVIRONMENT VISIBLE: Show the WORLD around the character — garden, room corner, ground, sky, props, depth. The character lives in a place; show the place.`,
-      `- BREATHING SPACE: Leave ~15-25% of the frame as soft visual "air" (sky, blurred ground, atmospheric haze) — even in their designated area.`,
+      `- PALETTE: soft, muted, gentle watercolor tones on warm cream paper — calm and desaturated, like a classic printed children's book. Color comes from delicate pigment layering, NOT from intensity. Do NOT render vivid, neon, glossy, or oversaturated colors.`,
+      // BREATHING-ROOM RULES (keep — prevents tight crops; characters were filling 75%+ of frames):
+      `- CHARACTER SIZE: The main character should occupy roughly 35-50% of the frame, NOT dominate the entire image.`,
+      `- ENVIRONMENT VISIBLE: Show the WORLD around the character — garden, room corner, ground, sky, props, depth. The character lives in a place; show the place edge-to-edge.`,
       `- AVOID TIGHT CROPS: Unless the storyboard specifies close_up shot type, do NOT crop to head-and-shoulders or fill the frame with the character.`,
-      `- Reference style: classic Hebrew children's books (Devorah Omer, Shoham Smit) — characters live within illustrated worlds, not as portrait close-ups.`,
+      `- Reference style: classic Hebrew children's books (Devorah Omer, Shoham Smit) — characters live within fully-painted illustrated worlds, not as portrait close-ups.`,
     ].join('\n');
   },
 

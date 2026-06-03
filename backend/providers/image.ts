@@ -97,6 +97,18 @@ import {
 } from '../../lib/style01-gptimage';
 import { assembleStyle01Phase2Prompt } from '../../lib/style01-prompt-assembly';
 import {
+  evaluatePageVisualQa,
+  resolvePageVisualQaConfig,
+} from '../../lib/generation-pipeline/page-visual-qa';
+import { resolveCompanionViewIntentForPage, resolveCompanionSheetViewForPage } from '../../lib/generation-pipeline/companion-sheet-page-map';
+import { COMPANION_SHEET_VIEW_FILENAME } from '../../lib/generation-pipeline/companion-character-sheet';
+import {
+  isEmotionalClosingBeat,
+  sceneHasRailedBedOrCrib,
+  sceneHasStructuredObjects,
+} from '../../lib/structured-object-composition';
+import type { StoryRecurringEntityDeclaration } from '../../lib/story-bank/recurring-entities';
+import {
   assertShippedBookStyleEngineActive,
   resolveLegacyImageProviderEnv,
 } from '../../lib/image-engine-guard';
@@ -421,6 +433,17 @@ export interface ImageInput {
   guardedV2RecipeId?: string | null;
   /** Per-page story state — recurring object/entity locks scoped to page narrative. */
   pageStoryState?: PageStoryState | null;
+  /** Story-bank `recurringEntities:` declarations (data-driven locks). */
+  storyRecurringEntityDeclarations?: StoryRecurringEntityDeclaration[];
+  /** Stricter furniture/object composition on visual-QA retry. */
+  compositionStrictRetry?: boolean;
+  /** Stricter night/dusk lighting block on time_of_day_mismatch retry. */
+  timeOfDayStrictRetry?: boolean;
+  storyTimeOfDay?: import('../../lib/story-time-of-day').StoryTimeOfDay;
+  pageTimeOfDayOverrides?: Partial<Record<number, import('../../lib/story-time-of-day').StoryTimeOfDay>>;
+  effectivePageTimeOfDay?: import('../../lib/story-time-of-day').StoryTimeOfDay;
+  /** Order-level human family coherence (parents, newborn sibling). */
+  familyCoherence?: import('../../lib/family-coherence').FamilyCoherenceBundle | null;
 }
 
 export interface Style02PageMeta {
@@ -448,6 +471,18 @@ export interface Style01PageMeta {
   refConfig: string;
   usage?: Record<string, unknown> | null;
   durationMs?: number;
+  storyTimeOfDay?: import('../../lib/story-time-of-day').StoryTimeOfDay;
+  effectivePageTimeOfDay?: import('../../lib/story-time-of-day').StoryTimeOfDay;
+  pageVisualQa?: {
+    passed: boolean;
+    reason: string;
+    details: string;
+    regenAttempts: number;
+    timeOfDayOk?: boolean;
+    companionSilhouetteOk?: boolean;
+  };
+  needsHumanReview?: boolean;
+  companionViewIntent?: import('../../lib/companion-view-intent').CompanionViewIntent;
 }
 
 export interface GeneratedImage {
@@ -2856,7 +2891,126 @@ async function generateWithGPTImageStyle02(input: ImageInput): Promise<Generated
 }
 
 /** Phase 2 — Style 01 book pages via gpt-image-2 (STYLE_01_GPT_MODEL) + scene-typed style refs. */
+async function patchPageRefManifestQa(input: {
+  orderId?: string;
+  pageNumber?: number;
+  pageVisualQa: NonNullable<Style01PageMeta['pageVisualQa']>;
+}): Promise<void> {
+  const manifestDir = process.env.PAGE_REF_MANIFEST_DIR?.trim();
+  if (!manifestDir || !input.orderId || input.pageNumber == null) return;
+  const fs = await import('fs');
+  const pathMod = await import('path');
+  const manifestPath = pathMod.join(manifestDir, `page-${input.pageNumber}.json`);
+  if (!fs.existsSync(manifestPath)) return;
+  try {
+    const existing = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as Record<string, unknown>;
+    fs.writeFileSync(
+      manifestPath,
+      JSON.stringify({ ...existing, pageVisualQa: input.pageVisualQa }, null, 2)
+    );
+  } catch {
+    /* ignore manifest patch errors */
+  }
+}
+
 async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<GeneratedImage> {
+  const qaConfig = resolvePageVisualQaConfig();
+  let compositionStrictRetry = input.compositionStrictRetry ?? false;
+  let timeOfDayStrictRetry = input.timeOfDayStrictRetry ?? false;
+  let regenAttempts = 0;
+  let last: GeneratedImage | null = null;
+
+  while (true) {
+    last = await generateWithGPTImageStyle01Phase2Once({
+      ...input,
+      compositionStrictRetry,
+      timeOfDayStrictRetry,
+    });
+    if (!qaConfig.enabled) return last;
+
+    const entityPresence = deriveImageInputEntityPresence(input);
+    const expectsChild = entityPresence.childPresence === 'present';
+    const expectsCompanion = entityPresence.companionPresence === 'present';
+    const structuredCtx = {
+      imagePrompt: input.rawScenePrompt ?? input.pagePrompt ?? undefined,
+      bookPageText: input.bookPageText ?? undefined,
+      rawScenePrompt: input.rawScenePrompt ?? undefined,
+    };
+    const hasStructuredObjects = sceneHasStructuredObjects(structuredCtx);
+    const hasRailedBedOrCrib = sceneHasRailedBedOrCrib(structuredCtx);
+    const isEmotionalClosing = isEmotionalClosingBeat({
+      pageNumber: input.pageNumber,
+      totalPages: input.totalPages,
+      imagePrompt: input.pagePrompt ?? undefined,
+      bookPageText: input.bookPageText ?? undefined,
+    });
+    const { pageHasHumanFamily } = await import('../../lib/family-coherence');
+    const hasHumanFamily = pageHasHumanFamily({
+      bookPageText: input.bookPageText,
+      imageDirection: input.rawScenePrompt ?? input.pagePrompt,
+      rawScenePrompt: input.rawScenePrompt,
+      pagePrompt: input.pagePrompt,
+      presentEntityIds: input.pageStoryState?.presentEntities,
+    });
+    const effectivePageTimeOfDay =
+      last.style01Meta?.effectivePageTimeOfDay ?? input.effectivePageTimeOfDay ?? null;
+    const qa = await evaluatePageVisualQa({
+      imageUrl: last.url,
+      expectsChild,
+      expectsCompanion,
+      expectedPageTimeOfDay: effectivePageTimeOfDay,
+      isEmotionalClosing,
+      hasStructuredObjects,
+      hasRailedBedOrCrib,
+      hasHumanFamily,
+    });
+
+    const needsHumanReview = !qa.passed && regenAttempts >= qaConfig.maxRegens;
+    const enriched: GeneratedImage = {
+      ...last,
+      style01Meta: {
+        ...last.style01Meta!,
+        pageVisualQa: {
+          passed: qa.passed,
+          reason: qa.reason,
+          details: qa.details,
+          regenAttempts,
+          timeOfDayOk: qa.flags.timeOfDayOk,
+          companionSilhouetteOk: qa.flags.companionSilhouetteOk,
+        },
+        needsHumanReview,
+      },
+    };
+
+    if (qa.passed || regenAttempts >= qaConfig.maxRegens) {
+      if (needsHumanReview) {
+        console.warn(
+          `[page_visual_qa] FLAG_HUMAN_REVIEW orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} ` +
+            `reason=${qa.reason} details=${qa.details} regenAttempts=${regenAttempts}`
+        );
+      }
+      await patchPageRefManifestQa({
+        orderId: input.orderId,
+        pageNumber: input.pageNumber,
+        pageVisualQa: enriched.style01Meta!.pageVisualQa!,
+      });
+      return enriched;
+    }
+
+    console.log(
+      `[page_visual_qa] regen orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} ` +
+        `reason=${qa.reason} attempt=${regenAttempts + 1}/${qaConfig.maxRegens} details=${qa.details}`
+    );
+    regenAttempts += 1;
+    if (qa.reason === 'time_of_day_mismatch') {
+      timeOfDayStrictRetry = true;
+    } else {
+      compositionStrictRetry = true;
+    }
+  }
+}
+
+async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise<GeneratedImage> {
   const hiResPdf = !!input.printPdfOptimized;
   const size = hiResPdf ? '1536x1536' : '1024x1536';
   const quality = resolveStyle01Phase2ImageQuality();
@@ -2884,6 +3038,7 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
 
   const assembled = assembleStyle01Phase2Prompt({
     pageNumber: input.pageNumber ?? 0,
+    totalPages: input.totalPages,
     pagePrompt: input.pagePrompt,
     rawScenePrompt: input.rawScenePrompt,
     mechanicalScene: mechanicalScene || undefined,
@@ -2897,16 +3052,44 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
     companionStructured: input.companionStructured,
     pageStoryState: input.pageStoryState,
     useCanonicalChildAnchorRef,
+    storyRecurringEntityDeclarations: input.storyRecurringEntityDeclarations,
+    compositionStrictRetry: input.compositionStrictRetry,
+    timeOfDayStrictRetry: input.timeOfDayStrictRetry,
+    storyTimeOfDay: input.storyTimeOfDay,
+    pageTimeOfDayOverrides: input.pageTimeOfDayOverrides,
+    familyCoherence: input.familyCoherence ?? null,
   });
 
-  const { prompt: finalPrompt, sceneDescription, sceneClass, entityPresence, pageStoryState } =
-    assembled;
+  const {
+    prompt: finalPrompt,
+    sceneDescription,
+    sceneClass,
+    entityPresence,
+    pageStoryState,
+    storyTimeOfDay,
+    effectivePageTimeOfDay,
+  } = assembled;
 
   const refConfig = resolveStyle01RefBudgetConfig();
-  const companionRefPaths = resolveStyle01CompanionReferencePaths({
-    companionId: input.companion?.id,
-    companionImage: input.companion?.image,
-    presentEntities: pageStoryState?.presentEntities,
+  const companionRefPaths =
+    entityPresence.companionPresence === 'absent'
+      ? []
+      : resolveStyle01CompanionReferencePaths({
+          companionId: input.companion?.id,
+          companionImage: input.companion?.image,
+          presentEntities: pageStoryState?.presentEntities,
+          companionPresence: entityPresence.companionPresence,
+          pageNumber: input.pageNumber,
+          imagePrompt: input.pagePrompt,
+          bookPageText: input.bookPageText ?? undefined,
+          rawScenePrompt: input.rawScenePrompt ?? undefined,
+        });
+  const companionViewIntent = resolveCompanionViewIntentForPage({
+    pageNumber: input.pageNumber,
+    imagePrompt: input.pagePrompt,
+    bookPageText: input.bookPageText ?? undefined,
+    rawScenePrompt: input.rawScenePrompt ?? undefined,
+    companionPresence: entityPresence.companionPresence,
   });
   const useMultiCompanionSheets = companionRefPaths.length >= 3;
   const styleRefCount = useMultiCompanionSheets ? 1 : refConfig === 'A' ? 2 : 3;
@@ -2960,6 +3143,23 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
     const pathMod = await import('path');
     fs.mkdirSync(manifestDir, { recursive: true });
     const manifestPath = pathMod.join(manifestDir, `page-${input.pageNumber}.json`);
+    const companionSheetView =
+      breakdown.companion[0]?.includes('style01-sheets')
+        ? breakdown.companion[0].replace(/\\/g, '/').split('/').pop()?.replace(/\.[^.]+$/, '') ?? null
+        : null;
+    const companionSheetViewKind = companionSheetView
+      ? resolveCompanionSheetViewForPage({
+          pageNumber: input.pageNumber,
+          imagePrompt: input.pagePrompt,
+          bookPageText: input.bookPageText ?? undefined,
+          rawScenePrompt: input.rawScenePrompt ?? undefined,
+          companionPresence: entityPresence.companionPresence,
+        })
+      : null;
+    const expectedSheetFilename =
+      companionSheetViewKind != null
+        ? COMPANION_SHEET_VIEW_FILENAME[companionSheetViewKind]
+        : null;
     fs.writeFileSync(
       manifestPath,
       JSON.stringify(
@@ -2973,6 +3173,17 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
           finalOrder: referenceImages,
           refConfig,
           sceneClass,
+          storyTimeOfDay,
+          effectivePageTimeOfDay,
+          companionPresence: entityPresence.companionPresence,
+          companionViewIntent,
+          companionSheetView,
+          companionSheetViewKind,
+          companionViewMatchesSheet:
+            expectedSheetFilename != null && companionSheetView != null
+              ? companionSheetView === expectedSheetFilename.replace(/\.png$/i, '') ||
+                companionSheetView === expectedSheetFilename
+              : null,
         },
         null,
         2
@@ -3038,6 +3249,9 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
       refConfig,
       usage: result.usage ?? null,
       durationMs: result.durationMs,
+      storyTimeOfDay,
+      effectivePageTimeOfDay,
+      companionViewIntent,
     },
   };
 }
@@ -3592,6 +3806,11 @@ export async function generateAllPageImages(
       action?: string;
       emotion?: string;
     }) => { url: string; kind: string } | null;
+    /** Parsed from story-bank `recurringEntities:` frontmatter. */
+    storyRecurringEntityDeclarations?: StoryRecurringEntityDeclaration[];
+    storyTimeOfDay?: import('../../lib/story-time-of-day').StoryTimeOfDay;
+    pageTimeOfDayOverrides?: Partial<Record<number, import('../../lib/story-time-of-day').StoryTimeOfDay>>;
+    familyCoherence?: import('../../lib/family-coherence').FamilyCoherenceBundle | null;
   }
 ): Promise<{
   results: Map<number, GeneratedImage>;
@@ -3974,7 +4193,7 @@ export async function generateAllPageImages(
       rawScenePrompt: page.rawScenePrompt,
       shotType: pageStoryboard.shotType,
       action: pageStoryboard.action,
-      emotion: pageStoryboard.emotion,
+      emotion: pageStoryboard.emotionalTone,
     });
     if (exprRef?.url && expectedCharacterIds.includes('child')) {
       characterAnchors.child = exprRef.url;
@@ -4107,6 +4326,24 @@ export async function generateAllPageImages(
       pageStoryboard,
       expectedCharacterIds,
     };
+    const style01PipelineFields: Pick<
+      ImageInput,
+      | 'storyRecurringEntityDeclarations'
+      | 'totalPages'
+      | 'familyCoherence'
+      | 'storyTimeOfDay'
+      | 'pageTimeOfDayOverrides'
+    > = {
+      totalPages: pagesToGenerate.length,
+      ...(shouldUseStyle01Phase2Path(normalizedStyle)
+        ? {
+            storyRecurringEntityDeclarations: config.storyRecurringEntityDeclarations,
+            familyCoherence: config.familyCoherence ?? null,
+            storyTimeOfDay: config.storyTimeOfDay,
+            pageTimeOfDayOverrides: config.pageTimeOfDayOverrides,
+          }
+        : {}),
+    };
     console.log(
       `[Image] Page ${page.pageNumber}/${pagesToGenerate.length} — expectedCharacters=[${expectedCharacterIds.join(', ')}] unresolved=[${unresolvedCharacterIds.join(', ')}] suitable=[${suitableCharacterIds.join(', ')}] assigned=[${assignedCharacterIds.join(', ')}] availableAnchors=[${availableAnchorIds.join(', ')}] passedAnchors=[${anchorCharacters.map((entry) => entry.characterId).join(', ')}]`
     );
@@ -4168,7 +4405,6 @@ export async function generateAllPageImages(
               compositionRules: page.compositionRules,
               environmentContinuity: page.environmentContinuity,
               pageNumber: page.pageNumber,
-              totalPages: pagesToGenerate.length,
               assetType: 'page',
               companion: config.companion ?? null,
               photoQuality: config.photoQuality,
@@ -4189,6 +4425,7 @@ export async function generateAllPageImages(
               style02ChildVisualLock,
               style02WardrobeLock,
               style02CompanionTextLock,
+              ...style01PipelineFields,
               ...visualDirectorPageFields,
               seed,
             }),
@@ -4317,7 +4554,6 @@ export async function generateAllPageImages(
                 compositionRules: page.compositionRules,
                 environmentContinuity: page.environmentContinuity,
                 pageNumber: page.pageNumber,
-                totalPages: pagesToGenerate.length,
                 assetType: 'page',
                 companion: config.companion ?? null,
                 photoQuality: config.photoQuality,
@@ -4338,6 +4574,7 @@ export async function generateAllPageImages(
                 style02ChildVisualLock,
                 style02WardrobeLock,
                 style02CompanionTextLock,
+                ...style01PipelineFields,
                 ...visualDirectorPageFields,
                 seed,
               }),
@@ -4413,7 +4650,6 @@ export async function generateAllPageImages(
               compositionRules: page.compositionRules,
               environmentContinuity: page.environmentContinuity,
               pageNumber: page.pageNumber,
-              totalPages: pagesToGenerate.length,
               assetType: 'page',
               companion: config.companion ?? null,
               photoQuality: config.photoQuality,
@@ -4434,6 +4670,7 @@ export async function generateAllPageImages(
               style02ChildVisualLock,
               style02WardrobeLock,
               style02CompanionTextLock,
+              ...style01PipelineFields,
               ...visualDirectorPageFields,
             });
           },

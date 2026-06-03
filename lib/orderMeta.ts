@@ -41,7 +41,8 @@ export type CharacterAnchorsWizardMeta = {
  */
 export function buildPersistedCharacterAnchorsJson(
   anchorRegistry: Record<string, CharacterAnchorPersistence>,
-  wizardMeta: CharacterAnchorsWizardMeta
+  wizardMeta: CharacterAnchorsWizardMeta,
+  existing?: Prisma.JsonValue | null
 ): Prisma.JsonValue {
   const out: Record<string, unknown> = {};
   if (wizardMeta.companionCharacterId || wizardMeta.challengeCategory || (wizardMeta.categoryAnswers && wizardMeta.categoryAnswers.length > 0) || wizardMeta.photoQuality) {
@@ -65,6 +66,10 @@ export function buildPersistedCharacterAnchorsJson(
       anchorImageUrl: character.anchorImageUrl ?? null,
       aliases: character.aliases ?? [],
     };
+  }
+  if (existing && typeof existing === 'object' && !Array.isArray(existing)) {
+    const prev = existing as Record<string, unknown>;
+    if (prev._familyCoherence) out._familyCoherence = prev._familyCoherence;
   }
   return out as Prisma.JsonValue;
 }

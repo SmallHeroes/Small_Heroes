@@ -10,6 +10,8 @@ export type PipelineCache = {
   /** Dev story-bank: direct file path already loaded */
   devStoryBankFile?: string;
   devSkipCover?: boolean;
+  /** Skip LLM gender/name personalization in text finalization (dev generalization tests). */
+  skipLlmPersonalization?: boolean;
   lockedChildDescription?: string;
   childPhotoDescription?: string | null;
   dna?: {
@@ -98,6 +100,8 @@ export type PipelineCache = {
       >
     >;
   };
+  /** Order-level human family coherence (#18) — mirrors Order.characterAnchors._familyCoherence */
+  familyCoherence?: import('../family-coherence').FamilyCoherenceBundle;
   stage0AnchorCandidates?: Array<{
     attempt: number;
     url: string;

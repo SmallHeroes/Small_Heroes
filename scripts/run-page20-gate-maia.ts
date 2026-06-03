@@ -23,6 +23,13 @@ async function download(url: string, dest: string) {
 
 async function main() {
   const outDir = path.join(process.cwd(), 'outputs', 'stage0-experiment', ORDER_ID, 'pages');
+  const frozenPath = path.join(outDir, 'page-20-frozen.json');
+  if (fs.existsSync(frozenPath) && process.env.P20_ALLOW_REGEN !== 'true') {
+    console.error(
+      '[page20-gate] p20 is frozen (page-20-frozen.json). Set P20_ALLOW_REGEN=true to override.'
+    );
+    process.exit(1);
+  }
   const manifestDir = path.join(outDir, 'ref-manifests');
   fs.mkdirSync(outDir, { recursive: true });
   fs.mkdirSync(manifestDir, { recursive: true });

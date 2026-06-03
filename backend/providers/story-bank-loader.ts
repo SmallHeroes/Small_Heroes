@@ -27,6 +27,17 @@ import {
   normalizeChildPhotoHairDescription,
   resolveDevChildHairOverride,
 } from '../../lib/child-photo-hair';
+import {
+  parsePageTimeOfDayFromBlock,
+  parseStoryCategoryFromFrontmatter,
+  parseStoryTimeOfDayFromFrontmatter,
+  resolveStoryTimeOfDay,
+  type StoryTimeOfDay,
+} from '../../lib/story-time-of-day';
+import {
+  parseRecurringEntitiesFromStoryMarkdown,
+  resolveDeclarationAnchorUrls,
+} from '../../lib/story-bank/recurring-entities';
 
 /** Thrown when gender/name personalization cannot produce verified final text. */
 export class StoryBankPersonalizationError extends Error {
@@ -111,11 +122,15 @@ export async function loadStoryFromBank(
 
   const pageParts = raw.split(/---\s*Page\s*(\d+)\s*---/).slice(1);
   const pages: StoryPage[] = [];
+  const pageTimeOfDayOverrides: Partial<Record<number, StoryTimeOfDay>> = {};
 
   for (let i = 0; i < pageParts.length; i += 2) {
     const pageNumber = parseInt(pageParts[i], 10);
     if (!Number.isFinite(pageNumber)) continue;
     const block = pageParts[i + 1] ?? '';
+
+    const pageTimeOverride = parsePageTimeOfDayFromBlock(block);
+    if (pageTimeOverride) pageTimeOfDayOverrides[pageNumber] = pageTimeOverride;
 
     const imageDirectionMatch = block.match(/imageDirection:\s*(.+)/);
     const imageDirection = imageDirectionMatch?.[1]?.trim() ?? '';
@@ -317,10 +332,26 @@ export async function loadStoryFromBank(
   // Use explicit English coverScene from story file when available
   const coverSceneHint = coverSceneRaw || undefined;
 
+  const storyRecurringEntities = resolveDeclarationAnchorUrls(
+    parseRecurringEntitiesFromStoryMarkdown(raw)
+  );
+
+  const storyCategory = parseStoryCategoryFromFrontmatter(raw);
+  const frontmatterTimeOfDay = parseStoryTimeOfDayFromFrontmatter(raw);
+  const storyTimeOfDay = resolveStoryTimeOfDay({
+    frontmatterTimeOfDay,
+    category: storyCategory,
+    pages,
+  });
+
   return {
     title,
     coverText: title,
     coverSceneHint,
+    storyCategory,
+    storyTimeOfDay,
+    pageTimeOfDayOverrides:
+      Object.keys(pageTimeOfDayOverrides).length > 0 ? pageTimeOfDayOverrides : undefined,
     characterSheet: {
       mainCharacter: { name: childName, visualDescription: '' },
       supportingCharacters: [
@@ -348,6 +379,7 @@ export async function loadStoryFromBank(
       resolution: { action: '', transformation: '' },
     },
     pages,
+    storyRecurringEntities,
     meta: {
       provider: 'story-bank',
       model: 'pre-written',

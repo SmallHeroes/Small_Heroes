@@ -72,7 +72,7 @@ async function main(): Promise<void> {
     }
     const resolvedSteps = powerResult.spec!.steps.map((step) =>
       resolveSlashedGenderForms(
-        resolveStoryBankPlaceholders(step, { childName, childGender: gender }),
+        resolveStoryBankPlaceholders(step, { childName, childGender: gender, companionName }),
         gender
       )
     );

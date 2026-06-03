@@ -117,8 +117,8 @@ function compositionRulesForTemplate(
     'pageTemplate=art_top_text_bottom',
     `camera=${camera}`,
     `focus=${focus}`,
-    'upper-half visual focus with calmer lower composition density',
-    'designed to naturally fade downward into paper for text area',
+    'full-frame illustration filling the entire image edge-to-edge — do NOT fade, blank, vignette, or empty any area into paper; paint the bottom fully',
+    'keep the main face/focal subject clear of the very bottom caption strip (mobile overlays text there); on desktop the illustration is shown full and standalone',
     `topTextAreaPlan=${topZone}`,
   ].join(' | ');
 }
@@ -143,6 +143,10 @@ export async function POST(req: NextRequest) {
     childPhotoBase64?: string | null;
     /** Validate story + personalization only — no DB, no images, no audio. */
     packageDryRun?: boolean;
+    /** Skip LLM gender/name personalization (dev generalization tests with fixed hero). */
+    skipPersonalization?: boolean;
+    /** Do not HTTP-chain worker from route (CLI driver owns worker loop). */
+    skipWorkerChain?: boolean;
   };
 
   const {
@@ -159,6 +163,8 @@ export async function POST(req: NextRequest) {
     voiceId: voiceIdRaw = 'mom',
     childPhotoBase64 = null,
     packageDryRun = false,
+    skipPersonalization = false,
+    skipWorkerChain = false,
   } = body;
 
   const childImageUrl =
@@ -224,7 +230,10 @@ export async function POST(req: NextRequest) {
       childName,
       effectiveCompanionName,
       childGender,
-      { maxPages: packageDryRun ? 20 : maxPages }
+      {
+        maxPages: packageDryRun ? 20 : maxPages,
+        skipLlmPersonalization: skipPersonalization || packageDryRun,
+      }
     );
     console.log(`[StoryBank] Loaded "${storyFull.title}" — ${storyFull.pages.length} pages (maxPages=${packageDryRun ? 20 : maxPages})`);
 
@@ -344,15 +353,18 @@ export async function POST(req: NextRequest) {
     const pipelineCache: PipelineCache = {
       devStoryBankFile: filePath,
       devSkipCover: skipCover,
+      skipLlmPersonalization: skipPersonalization || packageDryRun,
       challengeCategory,
       directionForV3: storyDirection ?? undefined,
       expectedPageCount: story.pages.length,
+      ...(skipPersonalization || packageDryRun ? { textFinalized: true } : {}),
     };
 
     if (chunkedGen) {
       await startChunkedGeneration(order.id, 'creator_story_bank', {
         pipelineCache,
-        skipWorkerChain: process.env.STORY_BANK_SKIP_WORKER_CHAIN === 'true',
+        skipWorkerChain:
+          skipWorkerChain || process.env.STORY_BANK_SKIP_WORKER_CHAIN === 'true',
       });
 
       const bookUrl = ROUTES.readerV2(order.id, accessKey);
@@ -488,6 +500,7 @@ export async function POST(req: NextRequest) {
               image: '',
               visualDescription: dna.companionDNA,
             },
+        storyRecurringEntityDeclarations: story.storyRecurringEntities,
       }
     );
 

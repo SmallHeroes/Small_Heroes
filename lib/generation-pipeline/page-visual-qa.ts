@@ -1,6 +1,10 @@
 /**
  * Bounded per-page visual QA (one vision call) — all Style 01 book pages.
  */
+import {
+  evaluateFamilyCoherenceFlags,
+  FAMILY_COHERENCE_QA_PROMPT,
+} from '../family-coherence/qa';
 
 export type PageVisualQaReason =
   | 'ok'
@@ -11,6 +15,8 @@ export type PageVisualQaReason =
   | 'object_geometry_failed'
   | 'furniture_geometry_failed'
   | 'closed_crib_geometry_failed'
+  | 'time_of_day_mismatch'
+  | 'family_coherence_failed'
   | 'emotional_staging_failed'
   | 'vision_skipped'
   | 'vision_error';
@@ -26,6 +32,8 @@ export type PageVisualQaResult = {
     singleChildOk: boolean;
     objectGeometryOk: boolean;
     emotionalStagingOk: boolean;
+    timeOfDayOk: boolean;
+    companionSilhouetteOk: boolean;
   };
   raw?: Record<string, unknown>;
 };
@@ -81,6 +89,43 @@ Also return:
 FAIL closed_crib_geometry if ANY: openFrontRail, childThroughRail, disconnectedRails, blanketThroughRails,
 OR closedCribOk/nearRailPresent/childOutsideCrib/blanketInsideRails/babyInsideCrib is false.
 Be STRICT on crib geometry — when in doubt on impossible rails, FAIL.`;
+
+const QA_PROMPT_TIME_OF_DAY = `
+
+TIME OF DAY — CHECK CAREFULLY (when story expects NIGHT or DUSK):
+Also return:
+{
+  "timeOfDayOk": true ONLY if the scene reads as true night or dusk/twilight — NOT bright daylight,
+  "readsAsDaylight": true if sunny, golden afternoon, bright pastoral garden, blue daytime sky, or general daylight feel even if sky is cropped,
+  "readsAsNight": true if dark indigo/navy sky, moon/stars, or clear night-garden darkness with local warm light pools,
+  "timeOfDayNotes": "one short sentence"
+}
+
+FAIL time_of_day if timeOfDayOk is false OR readsAsDaylight is true on a NIGHT/DUSK story page.
+Detect "daylight feel", not only explicit sky color. Readable children's-book night is OK — do NOT require pitch black.`;
+
+const QA_PROMPT_COMPANION_SILHOUETTE = `
+
+COMPANION SILHOUETTE (when a companion creature is expected):
+Also return:
+{
+  "companionSilhouetteOk": true if companion ears/tail/body proportions look consistent with a stable design (no suddenly longer/pointier ears, no major tail or body scale drift),
+  "companionSilhouetteNotes": "one short sentence if drift noticed"
+}
+Track silhouette drift — do NOT fail overall pass solely for minor ear/tail drift unless extreme.`;
+
+function defaultQaFlags(): PageVisualQaResult['flags'] {
+  return {
+    anatomyOk: true,
+    identityOk: true,
+    styleOk: true,
+    singleChildOk: true,
+    objectGeometryOk: true,
+    emotionalStagingOk: true,
+    timeOfDayOk: true,
+    companionSilhouetteOk: true,
+  };
+}
 
 function evaluateClosedCribFlags(raw: Record<string, unknown>): boolean {
   const cribFieldsOk =
@@ -175,9 +220,12 @@ async function evaluateClosedCribStrictQa(imageUrl: string): Promise<{
 export async function evaluatePageVisualQa(input: {
   imageUrl: string;
   expectsChild?: boolean;
+  expectsCompanion?: boolean;
+  expectedPageTimeOfDay?: import('../story-time-of-day').StoryTimeOfDay | null;
   isEmotionalClosing?: boolean;
   hasStructuredObjects?: boolean;
   hasRailedBedOrCrib?: boolean;
+  hasHumanFamily?: boolean;
 }): Promise<PageVisualQaResult> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -185,19 +233,19 @@ export async function evaluatePageVisualQa(input: {
       passed: true,
       reason: 'vision_skipped',
       details: 'OPENAI_API_KEY missing',
-      flags: {
-        anatomyOk: true,
-        identityOk: true,
-        styleOk: true,
-        singleChildOk: true,
-        objectGeometryOk: true,
-        emotionalStagingOk: true,
-      },
+      flags: defaultQaFlags(),
     };
   }
 
+  const checkTimeOfDay =
+    input.expectedPageTimeOfDay === 'night' || input.expectedPageTimeOfDay === 'dusk';
+
   const contextLines = [
     input.expectsChild ? 'A child protagonist is expected on this page.' : '',
+    input.expectsCompanion ? 'A companion creature is expected on this page.' : '',
+    checkTimeOfDay
+      ? `STORY TIME OF DAY: ${input.expectedPageTimeOfDay?.toUpperCase()} — reject daylight/sunny/golden-afternoon feel.`
+      : '',
     input.isEmotionalClosing ? 'This is an emotional closing / resolution page.' : '',
     input.hasStructuredObjects
       ? 'Structured furniture/objects (crib, bed, blanket, etc.) may appear — check geometry carefully.'
@@ -205,12 +253,19 @@ export async function evaluatePageVisualQa(input: {
     input.hasRailedBedOrCrib
       ? 'CRIB OR RAILED BED IS EXPECTED — apply CLOSED CRIB rules strictly. Reject open/missing front rail, arms through rails, blanket breaking rails.'
       : '',
+    input.hasHumanFamily
+      ? 'HUMAN FAMILY (mother/father/newborn sibling) expected — check family visual coherence with the child hero.'
+      : '',
   ]
     .filter(Boolean)
     .join('\n');
 
   const qaPrompt =
-    QA_PROMPT_BASE + (input.hasRailedBedOrCrib ? QA_PROMPT_CLOSED_CRIB : '');
+    QA_PROMPT_BASE +
+    (input.hasRailedBedOrCrib ? QA_PROMPT_CLOSED_CRIB : '') +
+    (checkTimeOfDay ? QA_PROMPT_TIME_OF_DAY : '') +
+    (input.expectsCompanion ? QA_PROMPT_COMPANION_SILHOUETTE : '') +
+    (input.hasHumanFamily ? FAMILY_COHERENCE_QA_PROMPT : '');
 
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -237,14 +292,7 @@ export async function evaluatePageVisualQa(input: {
         passed: true,
         reason: 'vision_error',
         details: `HTTP ${res.status}`,
-        flags: {
-          anatomyOk: true,
-          identityOk: true,
-          styleOk: true,
-          singleChildOk: true,
-          objectGeometryOk: true,
-          emotionalStagingOk: true,
-        },
+        flags: defaultQaFlags(),
       };
     }
 
@@ -255,6 +303,9 @@ export async function evaluatePageVisualQa(input: {
 
     const closedCribOk = input.hasRailedBedOrCrib
       ? evaluateClosedCribFlags(raw)
+      : true;
+    const familyCoherenceOk = input.hasHumanFamily
+      ? evaluateFamilyCoherenceFlags(raw)
       : true;
 
     const flags = {
@@ -268,11 +319,19 @@ export async function evaluatePageVisualQa(input: {
         closedCribOk,
       emotionalStagingOk:
         !input.isEmotionalClosing || raw.emotionalStagingOk !== false,
+      timeOfDayOk:
+        !checkTimeOfDay ||
+        (raw.timeOfDayOk !== false && raw.readsAsDaylight !== true),
+      companionSilhouetteOk: !input.expectsCompanion || raw.companionSilhouetteOk !== false,
     };
 
     let reason: PageVisualQaReason = 'ok';
     if (!flags.anatomyOk) reason = 'anatomy_failed';
-    else if (input.hasRailedBedOrCrib && !closedCribOk) {
+    else if (input.hasHumanFamily && !familyCoherenceOk) {
+      reason = 'family_coherence_failed';
+    } else if (checkTimeOfDay && !flags.timeOfDayOk) {
+      reason = 'time_of_day_mismatch';
+    } else if (input.hasRailedBedOrCrib && !closedCribOk) {
       reason = 'closed_crib_geometry_failed';
     } else if (!flags.objectGeometryOk && input.hasStructuredObjects) {
       reason = raw.blanketThroughRails ? 'furniture_geometry_failed' : 'object_geometry_failed';
@@ -291,6 +350,12 @@ export async function evaluatePageVisualQa(input: {
               .filter(([, v]) => !v)
               .map(([k]) => k)
               .join(', ')}`;
+    if (!flags.companionSilhouetteOk && typeof raw.companionSilhouetteNotes === 'string') {
+      details = `${details}; silhouette: ${raw.companionSilhouetteNotes}`;
+    }
+    if (checkTimeOfDay && !flags.timeOfDayOk && typeof raw.timeOfDayNotes === 'string') {
+      details = `${details}; timeOfDay: ${raw.timeOfDayNotes}`;
+    }
 
     let strictCribRaw: Record<string, unknown> | undefined;
     if (passed && input.hasRailedBedOrCrib) {
@@ -316,14 +381,7 @@ export async function evaluatePageVisualQa(input: {
       passed: true,
       reason: 'vision_error',
       details: e instanceof Error ? e.message : String(e),
-      flags: {
-        anatomyOk: true,
-        identityOk: true,
-        styleOk: true,
-        singleChildOk: true,
-        objectGeometryOk: true,
-        emotionalStagingOk: true,
-      },
+      flags: defaultQaFlags(),
     };
   }
 }

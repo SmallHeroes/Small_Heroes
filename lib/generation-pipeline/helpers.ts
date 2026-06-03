@@ -63,8 +63,8 @@ export function compositionRulesForTemplate(
     'pageTemplate=art_top_text_bottom',
     `camera=${camera}`,
     `focus=${focus}`,
-    'upper-half visual focus with calmer lower composition density',
-    'designed to naturally fade downward into paper for text area',
+    'full-frame illustration filling the entire image edge-to-edge — do NOT fade, blank, vignette, or empty any area into paper; paint the bottom fully',
+    'keep the main face/focal subject clear of the very bottom caption strip (mobile overlays text there); on desktop the illustration is shown full and standalone',
     `topTextAreaPlan=${topZone}`,
   ].join(' | ');
 }

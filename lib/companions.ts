@@ -93,7 +93,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
       image: '/companions/NIGHT_FEAR/fox_uri.jpg',
       narrativeHook: 'מלמד ערמומיות ובחירה חכמה במקום פחד',
       visualDescription:
-        'A small copper-tinged fox with warm lantern-like eyes and a fluffy tail; wears a light scarf; always looks clever, alert, and kind, never predatory.',
+        'A small copper-tinged fox with warm lantern-like eyes, a fluffy white-tipped tail, and a small glowing neck lantern (collar lantern) that can switch off or on; never a scarf or chest star; always looks clever, alert, and kind, never predatory.',
     },
     {
       id: 'owl_chacham',

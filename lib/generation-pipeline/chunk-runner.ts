@@ -76,6 +76,11 @@ import {
   generateStage0MethodBAnchor,
 } from '@/lib/generation-pipeline/stage0-method-b';
 import { resolveStyle01StoryWardrobeLock } from '@/lib/style01-story-wardrobe';
+import {
+  ensureFamilyCoherenceBundle,
+  getFamilyCoherenceFromAnchors,
+  persistFamilyCoherenceOnOrder,
+} from '@/lib/family-coherence';
 import { evaluateAnchorStyleFromVision } from '@/lib/anchor-style-qa';
 import {
   evaluateAnchorEmbeddingScore,
@@ -86,6 +91,7 @@ import {
 import {
   getApprovedChildCanonicalAnchor,
   getChildCanonicalAnchor,
+  getCharacterAnchorStore,
   isChildExpressionSheetActive,
   resolveApprovedExpressionAnchorUrl,
   upsertCharacterAnchor,
@@ -290,10 +296,29 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
   const childDescBase = `A ${order.childGender === 'girl' ? 'girl' : 'boy'} named ${order.childName}, approximately ${order.childAge ?? 5} years old`;
   const lockedChildDescription = dna.childDNA || childDescBase;
 
+  const familyBundle = ensureFamilyCoherenceBundle(order, {
+    childPhotoDescription,
+    childStructured: dna.childStructured,
+  });
+  await prisma.order.update({
+    where: { id: order.id },
+    data: {
+      characterAnchors: persistFamilyCoherenceOnOrder(
+        order.characterAnchors,
+        familyBundle
+      ) as Prisma.InputJsonValue,
+    },
+  });
+  order.characterAnchors = persistFamilyCoherenceOnOrder(
+    order.characterAnchors,
+    familyBundle
+  ) as Prisma.JsonValue;
+
   nextCache = {
     ...cache,
     lockedChildDescription,
     childPhotoDescription,
+    familyCoherence: familyBundle,
     dna: {
       childDNA: dna.childDNA,
       companionDNA: dna.companionDNA,
@@ -305,6 +330,12 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
     },
   };
   }
+
+  const lockedChildDescription =
+    nextCache.lockedChildDescription?.trim() ||
+    nextCache.dna?.childDNA?.trim() ||
+    `A ${order.childGender === 'girl' ? 'girl' : 'boy'} named ${order.childName}, approximately ${order.childAge ?? 5} years old`;
+  const childPhotoDescription = nextCache.childPhotoDescription ?? null;
 
   // Stage 0 (once per order): create canonical child anchor in book style.
   let existingChildAnchor = getChildCanonicalAnchor(nextCache);
@@ -372,7 +403,7 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
         lockedChildDescription,
         wardrobeLock,
         childPhotoDescription,
-        childStructuredHair: dna.childStructured?.hair,
+        childStructuredHair: nextCache.dna?.childStructured?.hair,
         attemptSuffix: `a${attempt}`,
       });
       candidateRows.push({
@@ -548,13 +579,13 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
             qaStatus: 'passed',
             styleId: order.illustrationStyle,
           },
-        },
+        } as Prisma.InputJsonValue,
       },
     });
   }
 
   const babyDragonAnchorUrl = process.env.DINI_BABY_DRAGON_ANCHOR_URL?.trim();
-  if (babyDragonAnchorUrl) {
+  if (babyDragonAnchorUrl && resolvedCompanionForStore?.id === 'dragon_dini') {
     nextCache.characterAnchorStore = upsertCharacterAnchor(nextCache, {
       orderId: order.id,
       styleId: order.illustrationStyle,
@@ -725,6 +756,26 @@ async function runPageImagesChunk(
     throw new Error('PRE-SPEND GATE: text not finalized — abort before paid images');
   }
 
+  let familyCoherenceForImages =
+    cache.familyCoherence ?? getFamilyCoherenceFromAnchors(order.characterAnchors) ?? null;
+  if (!familyCoherenceForImages && cache.dna?.childStructured) {
+    familyCoherenceForImages = ensureFamilyCoherenceBundle(order, {
+      childPhotoDescription: cache.childPhotoDescription,
+      childStructured: cache.dna.childStructured,
+    });
+    await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        characterAnchors: persistFamilyCoherenceOnOrder(
+          order.characterAnchors,
+          familyCoherenceForImages
+        ) as Prisma.InputJsonValue,
+      },
+    });
+    cache = { ...cache, familyCoherence: familyCoherenceForImages };
+    await saveCache(order.id, cache);
+  }
+
   const wizardMeta = getWizardMeta(order.characterAnchors);
   const resolvedCompanion = resolveCompanionForOrder(order);
 
@@ -761,15 +812,27 @@ async function runPageImagesChunk(
     characterSheet: story.characterSheet,
     appBaseUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
   });
+  const babyAnchorUrl =
+    process.env.DINI_BABY_DRAGON_ANCHOR_URL?.trim() ||
+    (getCharacterAnchorStore(cache)['baby_dragon:dini_hatchling'] as { url?: string } | undefined)?.url;
+  if (babyAnchorUrl) {
+    initialCharacterAnchors['baby_dragon:dini_hatchling'] = babyAnchorUrl;
+    anchorRegistry['baby_dragon:dini_hatchling'] = {
+      name: 'Baby Dragon Hatchling',
+      description:
+        'Moss-green newborn hatchling with copper freckles — much smaller than Dini; soft cute proportions.',
+      relationship: 'creature',
+      anchorImageUrl: babyAnchorUrl,
+      aliases: ['baby dragon', 'hatchling', 'דרקון תינוק'],
+    };
+  }
   const pagesWithDetectedCharacters = story.pages.map((p) => {
     const baseIds = detectExpectedCharactersForPage(
       { text: p.text, imagePrompt: p.imagePrompt, imageSubject: p.imageSubject ?? '' },
       anchorRegistry
     );
-    const haystack = `${p.text} ${p.imagePrompt} ${p.imageSubject ?? ''}`.toLowerCase();
-    const babyDragonSignals = ['baby dragon', 'hatchling', 'hatching', 'egg', 'דרקון קטן', 'בקע', 'ביצה'];
-    const hasBabyDragon = babyDragonSignals.some((token) => haystack.includes(token));
-    if (hasBabyDragon && process.env.DINI_BABY_DRAGON_ANCHOR_URL?.trim()) {
+    const hasBabyDragon = p.pageNumber >= 16 && p.pageNumber <= 19 && Boolean(babyAnchorUrl);
+    if (hasBabyDragon) {
       baseIds.push('baby_dragon:dini_hatchling');
     }
     const subj = (p.imageSubject ?? '').toLowerCase();
@@ -875,7 +938,10 @@ async function runPageImagesChunk(
     referenceImages: gptReferenceImages,
     resolvePageChildExpressionRef: expressionSheetActive
       ? (ctx) => {
-          const kind = resolveChildExpressionKindForPage(ctx);
+          const kind = resolveChildExpressionKindForPage({
+            ...ctx,
+            companionId: resolvedCompanion?.id ?? null,
+          });
           const url =
             resolveApprovedExpressionAnchorUrl(cache, kind) ?? childCanonicalAnchor!.url;
           return { url, kind };
@@ -913,6 +979,10 @@ async function runPageImagesChunk(
         },
       });
     },
+    storyRecurringEntityDeclarations: story.storyRecurringEntities,
+    storyTimeOfDay: story.storyTimeOfDay,
+    pageTimeOfDayOverrides: story.pageTimeOfDayOverrides,
+    familyCoherence: familyCoherenceForImages,
   });
 
   const presentationEnabled =

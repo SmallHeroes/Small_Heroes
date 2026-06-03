@@ -73,6 +73,7 @@ export async function finalizeAndPersistStoryText(
       order.childGender || undefined,
       {
         maxPages: cache.devStoryBankFile ? maxPages : undefined,
+        skipLlmPersonalization: cache.skipLlmPersonalization === true,
         patchContext: buildPatchContextFromOrder(order, wizardMeta),
         letterContext:
           resolvedCompanion?.id && resolvedCompanion?.name

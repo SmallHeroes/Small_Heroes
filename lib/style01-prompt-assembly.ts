@@ -8,6 +8,12 @@ import {
   type PageEntityPresenceContract,
 } from './image-entity-presence';
 import {
+  buildStoryTimeOfDayLockBlock,
+  resolveEffectivePageTimeOfDay,
+  resolveStoryTimeOfDay,
+  type StoryTimeOfDay,
+} from './story-time-of-day';
+import {
   buildStoryStateForbiddenBlock,
   buildStoryStateLockBlocks,
   mergeStoryStateForbidden,
@@ -23,9 +29,16 @@ import {
 } from './story-bank/recurring-entities';
 import { buildStructuredObjectCompositionAddendum } from './structured-object-composition';
 import {
+  applyFamilyCoherenceToEntityLocks,
+  buildFamilyCoherencePromptBlock,
+  type FamilyCoherenceBundle,
+} from './family-coherence';
+import { buildCompanionAccessoryLockBlock } from './companion-accessory';
+import {
   buildStyle01BookPagePrompt,
   buildStyle01ChildVisualLock,
   buildStyle01ChildAnatomicalLock,
+  buildStyle01CompanionSilhouetteLock,
   buildStyle01CompanionTextLock,
   buildStyle01CompositionBlock,
   compositionAssumesChildPresent,
@@ -56,6 +69,11 @@ export type Style01PromptAssemblyInput = {
   storyRecurringEntityDeclarations?: StoryRecurringEntityDeclaration[];
   compositionStrictRetry?: boolean;
   totalPages?: number;
+  /** Once per order — human family visual coherence (parents, newborn sibling). */
+  familyCoherence?: FamilyCoherenceBundle | null;
+  storyTimeOfDay?: import('./story-time-of-day').StoryTimeOfDay;
+  pageTimeOfDayOverrides?: Partial<Record<number, import('./story-time-of-day').StoryTimeOfDay>>;
+  timeOfDayStrictRetry?: boolean;
 };
 
 export type Style01PromptAssemblyResult = {
@@ -65,6 +83,8 @@ export type Style01PromptAssemblyResult = {
   entityPresence: PageEntityPresenceContract;
   pageStoryState: PageStoryState | null;
   compositionBlock: string;
+  storyTimeOfDay: import('./story-time-of-day').StoryTimeOfDay;
+  effectivePageTimeOfDay: import('./story-time-of-day').StoryTimeOfDay;
 };
 
 /** Story-bank imageDirection is authoritative — never collapse on temporal connectors. */
@@ -198,17 +218,70 @@ export function assembleStyle01Phase2Prompt(
       })
     : undefined;
 
+  const accessoryLock = buildCompanionAccessoryLockBlock({
+    companionId: input.companion?.id,
+    companionName: input.companion?.name,
+    companionPresence: entityPresence.companionPresence,
+  });
+
   const companionTextLock =
     entityPresence.companionPresence === 'present'
-      ? buildStyle01CompanionTextLock({
-          companionName: input.companion?.name,
-          companionStructured: input.companionStructured,
-          companionVisualDescription: input.companion?.visualDescription,
-          storyCompanionLock: storyLocks.companionLock,
-        })
-      : undefined;
+      ? [
+          buildStyle01CompanionTextLock({
+            companionName: input.companion?.name,
+            companionStructured: input.companionStructured,
+            companionVisualDescription: input.companion?.visualDescription,
+            storyCompanionLock: storyLocks.companionLock,
+          }),
+          buildStyle01CompanionSilhouetteLock(),
+          accessoryLock,
+        ]
+          .filter(Boolean)
+          .join('\n\n')
+      : entityPresence.companionPresence === 'partial' ||
+          entityPresence.companionPresence === 'offscreen_hint'
+        ? accessoryLock
+        : undefined;
+
+  const storyTimeOfDay: StoryTimeOfDay =
+    input.storyTimeOfDay ??
+    resolveStoryTimeOfDay({
+      category: null,
+      pages: [{ text: input.bookPageText ?? undefined, imagePrompt: imageDirection }],
+    });
+  const effectivePageTimeOfDay = resolveEffectivePageTimeOfDay({
+    storyTimeOfDay,
+    pageNumber: input.pageNumber,
+    pageTimeOfDayOverrides: input.pageTimeOfDayOverrides,
+    imageDirection,
+    bookPageText: input.bookPageText,
+  });
+  const timeOfDayLock = buildStoryTimeOfDayLockBlock({
+    effectiveTimeOfDay: effectivePageTimeOfDay,
+    imageDirection,
+    strictRetry: input.timeOfDayStrictRetry,
+  });
 
   const environmentLock = storyLocks.pageEnvironmentLock?.(input.pageNumber);
+  const familyRoleDetectInput = {
+    bookPageText: input.bookPageText,
+    imageDirection,
+    rawScenePrompt: input.rawScenePrompt,
+    pagePrompt: input.pagePrompt,
+    staging: compositionSpec?.staging,
+    presentEntityIds: pageStoryState?.presentEntities,
+  };
+  if (input.familyCoherence) {
+    entityLocks = applyFamilyCoherenceToEntityLocks(
+      entityLocks,
+      input.familyCoherence,
+      familyRoleDetectInput
+    );
+  }
+  const familyCoherenceBlock = buildFamilyCoherencePromptBlock(
+    input.familyCoherence,
+    familyRoleDetectInput
+  );
   const structuredObjectBlock = buildStructuredObjectCompositionAddendum({
     imagePrompt: input.pagePrompt ?? undefined,
     bookPageText: input.bookPageText,
@@ -256,8 +329,9 @@ export function assembleStyle01Phase2Prompt(
     recurringObjectLocks: objectLocks || undefined,
     recurringEntityLocks: entityLocks || undefined,
     environmentLock:
-      [environmentLock, structuredObjectBlock, storyStateForbiddenBlock].filter(Boolean).join('\n\n') ||
-      undefined,
+      [environmentLock, familyCoherenceBlock, structuredObjectBlock, storyStateForbiddenBlock, timeOfDayLock]
+        .filter(Boolean)
+        .join('\n\n') || undefined,
     compositionBlock,
     entityPresenceBlock,
     useCanonicalChildAnchorRef: input.useCanonicalChildAnchorRef,
@@ -267,6 +341,7 @@ export function assembleStyle01Phase2Prompt(
     imagePrompt: input.pagePrompt ?? undefined,
     bookPageText: input.bookPageText ?? undefined,
     rawScenePrompt: imageDirection,
+    effectivePageTimeOfDay,
   });
 
   return {
@@ -276,6 +351,8 @@ export function assembleStyle01Phase2Prompt(
     entityPresence,
     pageStoryState,
     compositionBlock,
+    storyTimeOfDay,
+    effectivePageTimeOfDay,
   };
 }
 
