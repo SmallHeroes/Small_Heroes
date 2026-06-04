@@ -2,6 +2,7 @@
  * One-way adapter: legacy API book payload → StoryScene[].
  */
 
+import { formatHebrewForDisplay } from '@/lib/hebrew-text';
 import { recomputeStorySceneLayout } from './recompute-scene-layout';
 import type {
   IllustrationAspect,
@@ -87,7 +88,7 @@ function legacyPageToScene(
     sceneIndex,
     sceneId: page.sceneId ?? `scene-${page.pageNumber}`,
     kind,
-    text: compactStoryText(page.text ?? ''),
+    text: compactStoryText(formatHebrewForDisplay(page.text ?? '')),
     illustration: {
       imageUrl,
       aspect: illustrationAspect,

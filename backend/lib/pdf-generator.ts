@@ -18,6 +18,7 @@
 import { PDFDocument, PDFFont, PDFPage, rgb } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import sharp from 'sharp';
+import { stripNikud } from '@/lib/hebrew-text';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 
@@ -108,7 +109,7 @@ async function loadHeeboFont(): Promise<Buffer> {
 }
 
 function sanitizeText(value: string): string {
-  return value.replace(/\s+/g, ' ').trim();
+  return stripNikud(value).replace(/\s+/g, ' ').trim();
 }
 
 /** Hebrew-aware word wrap. Breaks on whitespace; falls back to char-count for unspaced runs. */

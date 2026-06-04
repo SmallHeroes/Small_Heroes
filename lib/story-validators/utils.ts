@@ -1,4 +1,7 @@
+import { stripNikud } from '@/lib/hebrew-text';
 import type { Finding, FindingSeverity } from './types';
+
+export { stripNikud } from '@/lib/hebrew-text';
 
 export function normalizeCompanionId(raw: string): string {
   return raw.trim().toLowerCase().replace(/-/g, '_');
@@ -50,10 +53,6 @@ export function levenshtein(a: string, b: string): number {
 
 export function normalizeForMatch(text: string): string {
   return stripNikud(text).replace(/\s+/g, ' ').trim().toLowerCase();
-}
-
-export function stripNikud(text: string): string {
-  return text.replace(/[\u0591-\u05C7]/g, '');
 }
 
 export function countOccurrences(haystack: string, needle: string): number {

@@ -1,3 +1,4 @@
+export { formatHebrewForDisplay, stripNikud } from '@/lib/hebrew-text';
 export * from './types';
 export * from './scene-count';
 export * from './design-tokens';
