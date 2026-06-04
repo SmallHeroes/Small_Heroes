@@ -1,145 +1,197 @@
-# Story: lion_shaket_adventure — Story Bank v5 (Hybrid: GPT-5 skeleton + Claude prose)
-Generated: 2026-05-13T22:12:26.903Z
-Skeleton model: gpt-5.3-chat-latest
-Prose model: claude-sonnet-4-5-20250929
-Total time: 61.2s
-Prompt-version: v5
+# Story: lion_shaket_adventure — Story Bank v5 (Golden)
+Generated: 2026-06-03T18:00:00.000Z
+Source: Guy + ChatGPT + Claude QA (golden adventure, 12 beats)
+Prompt-version: v5-literary-golden
+Notes: partial nikud for TTS; display/PDF strip niqqud; Shaket MALE; timeOfDay=day golden sand kingdom + bedroom frames.
 
 ---
----
-title: "הַמִּלָּה שֶׁשּׁוֹקַעַת"
+title: "{{childName}} ושָׁקֵט נותנים לרעם מקום"
 companionId: lion_shaket
 direction: adventure
-category: COURAGE_BRAVERY
+category: ANGER_FRUSTRATION
+timeOfDay: day
 gender: male
-pages: 15
+pages: 12
 endingType: residue
-worldRule: עולם של קולות שיש להם משקל. הלחישות נחות נמוך והשאגות עפות לאוויר. החוק לא מתבטל.
+worldRule: "כפות. רעמה. מקום — לכוון את הכעס, לא לבלוע אותו."
+powerCard:
+  title: "כרטיס הרעם של {{childName}}"
+  subtitle: "כשהכעס ממלא את כל הגוף"
+  coreTool: "כפות. רעמה. מקום — לכוון את הכעס, לא לבלוע אותו"
+  steps:
+    - "כעס אומר שזה היה חשוב"
+    - "כפות באדמה"
+    - "מכוונים למקום אחד"
+    - "ברור/ה יותר, לא גדול/ה יותר"
+  companionReminder: "כפות. רעמה. מקום — לכוון את הכעס, לא לבלוע אותו."
+  visualMotifs:
+    - "fallen block castle"
+    - "golden sand portal"
+    - "stone gate circle mark"
+    - "paws planted ritual"
+    - "focused golden roar-line"
 ---
 
-storyStyle: quiet emotional adventure
-metaphor: sound as physical weight in the world
-stakes: a small winged creature will be carried away by loud winds if no one calls it down
-emotionalArc: posing confidence → growing strain → quiet fracture → small accidental voice → chosen small voice
-quietPage: 11
-heartLine: עמוד 8 — Shaket curls slightly and presses his paw to the red ribbon three times, eyes closed, before looking up again.
-emotionalMistake: עמוד 5 — The child imitates a loud roaring pose and turns away from Shaket's silence as if it doesn't count.
-uncomfortableTruth: עמוד 6 — The creature drifts higher while Shaket keeps posing, and nothing changes.
+storyStyle: daytime magical anger adventure, aim-the-roar not suppress
+metaphor: anger has a roar that needs a place — not the whole world
+stakes: the castle fell and rage fills the chest until it finds direction
+quietPagePosition: 7
+heartLine: עמוד 11 — שאגה ממוקדת לעיגול; השער נפתח.
+emotionalMistake: עמוד 5 — שָׁקֵט שואג לפני שיש מקום; השער לא זז.
+uncomfortableTruth: עמוד 7 — גם שָׁקֵט מפחד שלא ישמעו שמשהו חשוב קרה.
+agencyTransfer: עמוד 10 — {{childName}} אומר/ת: לא גדולה יותר, ברורה יותר.
 
 --- Page 1 ---
-לֵיוֹ עומד על אבן גבוהה.
-הוא פותח את הפה רחב רחב, מרים את הראש, ועומד ככה.
-אין קול.
-הוא מסתכל על הצל שלו על הרצפה — ארי גדול.
+{{childName}} {בנה|בנתה} ארמון.
+לא סתם מגדל. ארמון עם שער, צריחים, וחדר קטן לחיות.
+הקובייה האדומה הייתה האחרונה.
+ואז—
+קְלַק. טַאח!
+הארמון נפל.
+"לא!" יצא מ{{childName}} בקול גדול.
+בתוך החזה קם רעם חם.
 
-imageDirection: small lion puffed up, mouth wide open, no sound visible, long shadow behind him
+imageDirection: The child sits on the bedroom floor beside a collapsed wooden block castle, furious and hurt, hands clenched near the fallen blocks. Shaket is not present yet. companionPresence: absent; view: 3-4.
 
 --- Page 2 ---
-אתה מגיע לאבנים ורואה את לֵיוֹ.
-"שָׁאַגְתָּ?" אתה שׁוֹאֵל.
-לֵיוֹ לא זז. הפה שלו עדיין פתוח.
-הוא מסתכל עלייך קצת, וחושב.
-אולי כן, אולי לא.
+הקובייה האדומה רעדה.
+רְרְרְרְ.
+מתחתיה נפתח שער של חול זהוב.
+{{childName}} {הציץ|הציצה} פנימה.
+החול נשם כמו משהו חי.
+ואז הוא משך בעדינות.
+{{childName}} {החליק|החליקה} פנימה, אל ממלכת הרעמים הקטנים.
+שם אפילו האבנים נהמו בשקט.
 
-imageDirection: child leaning in, curious, Shaket frozen mid-pose
+imageDirection: A golden sand portal opens beneath the red block, gently pulling the child into a warm kingdom of round stones and soft golden sand. The fallen castle remains faintly visible behind the portal. Shaket is not present yet. companionPresence: absent; view: wide.
 
 --- Page 3 ---
-למעלה באוויר, יצור קטן עם כנפיים מתחיל לעוף.
-אבל הוא לא מנפנף.
-קולות גדולים באים מרחוק, ונושאים אותו כמו רוּחַ.
-היצור מנסה לרדת, אבל הוא עולה.
+על סלע נמוך ישב גוּר אריות.
+הרעמה שלו הייתה קטנה, עקומה, ומלאה חול.
+"רְרְרוכים הבאים," הוא ניסה לומר בקול מלכותי.
+פּוּף.
+הרעמה התנפחה, הזנב קפץ, וארמון חול קטן נפל לידו.
+"אופס," אמר הגור. "אני שָׁקֵט. זה שם עם תקווה."
 
-imageDirection: small delicate creature being carried by visible swirling sound-waves
+imageDirection: Shaket the young lion cub sits on a low stone with a small messy sandy mane. As he tries to speak grandly, his mane puffs and his tail knocks over a tiny sand castle. The child watches, almost smiling. companionPresence: present; view: front/3-4.
 
 --- Page 4 ---
-לֵיוֹ רץ מתחת ליצור.
-הוא עומד עוד יותר גבוה, פותח את הפה עוד יותר רחב.
-ככה בדיוק יעשׂה ארי גדול.
-היצור ממשיך לעלות.
+"הארמון שלי נפל," {אמר|אמרה} {{childName}}. "והכול בפנים רותח."
+שָׁקֵט הנהן.
+"זה כַּעַס עם רעמה," אמר. "הוא לא סתם בא."
+הוא שם כפה על החזה.
+"כַּעַס אומר: זה היה חשוב לי."
+{{childName}} {הסתכל|הסתכלה} על הידיים.
+הן עדיין רצו לזרוק משהו.
 
-imageDirection: Shaket stretching taller, mouth open, creature unaffected above
+imageDirection: The child tells Shaket about the fallen castle. Shaket listens seriously, one paw on his chest, while the child looks down at tense hands. The golden kingdom surrounds them. companionPresence: present; view: medium/3-4.
 
 --- Page 5 ---
-אתה עומד לידו ופותח את הפה חזק חזק.
-"שָׁאָגָה!" אתה קורא למעלה לשׁמים.
-הקול שלך עף גבוה.
-לֵיוֹ עומד לידך, קטן.
-אתה לא מסתכל עליו.
+מעבר לגבעה עמד שער אבן גדול.
+במרכזו היה עיגול חלק, כמו מקום שמחכה.
+מאחורי השער נשמעו כדורי חול קטנים.
+הם רצו להתגלגל הביתה.
+שָׁקֵט הזדקף.
+"אני אפתח אותו!"
+הזנב שלו הצליף.
+החזה שלו התמלא.
+והשאגה יצאה לפניו.
 
-imageDirection: child shouting upward, bold sound waves rising high, Shaket small beside
+imageDirection: A heavy stone gate blocks a sandy path, with a clear circular mark in its center. Shaket stands ready, tail lashing and chest filling before he roars. The child watches tensely. companionPresence: present; view: wide.
 
 --- Page 6 ---
-היצור עולה עוד יותר רחוק.
-לֵיוֹ עומד בתנוחה הכי חזקה שיש לו.
-הזנב שלו מתחיל לרעוד קצת.
-כלום לא משתנה.
+רררררר!
+השְׁאָגָה עפה לכל הכיוונים.
+היא העיפה חול. כופפה עשב. גלגלה שבלול מבולבל.
+אבל השער?
+השער לא זז.
+שָׁקֵט סגר את הפה.
+"אוי," אמר. "השאגה שלי נפלה על כולם."
+{{childName}} {ניגב|ניגבה} חול מהלחי.
+"חוץ מעל השער."
 
-imageDirection: creature now distant, Shaket straining in pose below, no effect
+imageDirection: Shaket's roar bursts outward as a messy dusty cloud, bending grass and rolling a tiny snail while the stone gate remains closed. Shaket looks embarrassed; the child wipes sand from one cheek. companionPresence: present; view: wide/action.
 
 --- Page 7 ---
-מרחוק נשמעת שׁאָגָה ענקית.
-היא מרימה עלים, אבנים קטנות, ענף.
-הכול עף למעלה.
-רק קולות גדולים מגיעים לשׁם.
+שָׁקֵט התיישב.
+הרעמה שלו נפלה על העיניים.
+"אם אני לא שואג מיד," לחש, "אולי אף אחד לא ידע שמשהו חשוב קרה."
+{{childName}} {שתק|שתקה} רגע.
+זה הרגיש נכון.
+"גם הארמון שלי היה חשוב," {אמר|אמרה}.
+שָׁקֵט הרים את הראש.
+"אז לא נזרוק את השאגה," אמר. "ניתן לה מקום."
 
-imageDirection: objects carried by booming sound waves, contrast with stillness below
+imageDirection: Shaket sits low beside the path, mane fallen over his eyes, suddenly vulnerable. The child sits near him, understanding the feeling. The stone gate waits in the background. companionPresence: present; view: medium/3-4.
 
 --- Page 8 ---
-לֵיוֹ יושב ליד האבן.
-הוא נוגע בסרט האדום על הכף שלו — פעם אחת. עוד פעם. ועוד.
-עיניים עצומות.
-אז הוא פותח את העיניים ומסתכל למעלה.
+שָׁקֵט קם.
+"אצל אריות," אמר, "עושים ככה."
+שתי כפות באדמה.
+רעמה למעלה.
+עיניים על המקום.
+"כפות. רעמה. מקום."
+{{childName}} {עמד|עמדה} לידו.
+שתי רגליים באדמה.
+עיניים על העיגול שבשער.
+הכַּעַס עוד היה חם.
+אבל עכשיו הוא חיכה רגע.
 
-imageDirection: close-up of paw touching red ribbon, body small and contained
+imageDirection: Shaket demonstrates the lion ritual: paws planted, mane lifted, eyes focused on the circular mark on the gate. The child mirrors him with feet planted, learning the stance. companionPresence: present; view: side/3-4.
 
 --- Page 9 ---
-לֵיוֹ קם, מנסה שוב.
-עומד גבוה, פה פתוח.
-אבל הזנב שלו מתכרבל פנימה.
-הרגליים שלו רועדות קצת.
-היצור כבר רחוק רחוק.
+קודם ניסו על אבן קטנה.
+"לא לכל העולם," {אמר|אמרה} {{childName}}. "רק לשם."
+שָׁקֵט הביט באבן.
+רְר קטן.
+האבן זזה בדיוק למקום.
+שום חול לא עף. שום שבלול לא התגלגל.
+שָׁקֵט פער עיניים.
+"השאגה ידעה איפה לנחות."
 
-imageDirection: pose collapsing slightly, tail tucked, creature still drifting
+imageDirection: The child points to a small pebble as the safe target. Shaket plants his paws and releases a tiny focused roar that moves only the pebble. Both look surprised and pleased. companionPresence: present; view: close/3-4.
 
 --- Page 10 ---
-אתה רץ לאבן גבוהה יותר ומטפס.
-אתה מושיט יד למעלה, מנסה להגיע.
-היצור רחוק רק קצת.
-אתה כמעט נופל.
+עכשיו עמדו מול שער האבן.
+הוא היה גדול.
+והכַּעַס היה גדול.
+שָׁקֵט בלע רוק.
+"שאגת מלך?"
+{{childName}} {הסתכל|הסתכלה} על העיגול שבשער.
+"לא גדולה יותר," {אמר|אמרה}. "ברורה יותר."
+שָׁקֵט נשם.
+כפות. רעמה. מקום.
+"לשם," {אמר|אמרה} {{childName}}.
 
-imageDirection: child stretching upward, unstable footing, creature just out of reach
+imageDirection: The child and Shaket face the large stone gate. The child points calmly to the circular mark in the gate's center while Shaket steadies himself, tail still and mane lifted. companionPresence: present; view: 3-4.
 
 --- Page 11 ---
-לֵיוֹ נוגע בסרט האדום שעל הכף שלו.
+שָׁקֵט שאג.
+{{childName}} {שאג|שאגה} איתו.
+לא על השמיים. לא על החול. לא על כל העולם.
+למקום אחד.
+קו של רעם זהוב יצא ישר אל העיגול.
+השער רעד.
+חרק.
+ונפתח.
+כדורי החול התגלגלו החוצה בשקט שמח.
+שָׁקֵט חייך.
+"השאגה נשארה שאגה," אמר. "רק מצאה בית."
 
-imageDirection: still close-up, quiet moment, no motion around
+imageDirection: The child and Shaket stand grounded together, sending one focused golden roar-line into the circle at the center of the gate. The gate opens, releasing small sand-balls that roll out gently. companionPresence: present; view: wide/action.
 
 --- Page 12 ---
-לֵיוֹ פותח את הפה, ומילה קטנה יוצאת.
-"בּוֹא."
-המילה לא עפה למעלה. היא נחה נמוך.
-היצור מפסיק לעלות, ומסתכל למטה.
+החול הזהוב החזיר את {{childName}} אל החדר.
+הארמון עדיין היה מפוזר.
+הכַּעַס עוד היה שם.
+אבל עכשיו הוא לא בעט בכל הגוף.
+{{childName}} {לקח|לקחה} קובייה אחת.
+ואז עוד אחת.
+בסיס רחב. שער חדש. צריח קטן.
+"זה עדיין לא פייר," {אמר|אמרה}.
+ואז, בשקט חזק:
+"אבל הארמון היה חשוב. אז אני בונה אותו שוב."
 
-imageDirection: tiny soft sound shown as a low, gentle ripple, creature responding
+imageDirection: Back in the bedroom, the child sits beside the fallen blocks and begins rebuilding with a wider, stronger base. The child looks determined and grounded, not magically calm. Shaket is absent. companionPresence: absent; view: 3-4.
 
---- Page 13 ---
-"בּוֹא," לֵיוֹ אומר שוב. בשקט.
-היצור יורד קצת, עוד קצת.
-אתה מושיט יד, והוא מגיע אליך.
-
-imageDirection: child and creature closer, soft low sound holding it near
-
---- Page 14 ---
-היצור מרים את הכנפיים ועף רחוק, אל האופק.
-נוצה קטנה שלו נופלת לאט.
-
-imageDirection: creature flying free, feather drifting down slowly
-
---- Page 15 ---
-הסרט האדום מונח על האבן ליד הנוצה.
-לֵיוֹ עומד צעד אחד ממך.
-שניכם מסתכלים החוצה.
-
-imageDirection: ribbon and feather side by side, Shaket slightly apart, shared gaze outward
-
-WORD_COUNT: [28, 31, 28, 24, 28, 22, 20, 23, 24, 22, 8, 25, 20, 16, 16] = 335
+WORD_COUNT: [32, 34, 39, 39, 37, 36, 46, 37, 36, 35, 44, 52] = [467]
