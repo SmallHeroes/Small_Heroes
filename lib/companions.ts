@@ -222,7 +222,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
   SOCIAL: [
     {
       id: 'panda_anat',
-      name: 'הפנדה ענת',
+      name: 'הפנדה עֲנָת',
       tagline: 'פנדה רכה שמגלה שחברים טובים אוהבים גם את השקט',
       image: '/companions/SOCIAL/panda_anat.jpg',
       narrativeHook: 'לא חייבים להיות רועשים כדי להיות נראים',

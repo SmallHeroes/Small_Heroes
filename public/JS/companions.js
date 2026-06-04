@@ -31,7 +31,7 @@ window.COMPANIONS_BY_CATEGORY = {
     { id: 'monkey', name: 'monkey', tagline: 'שותף חדש — תמונת ייחוס בהמתנה', image: '/companions/SELF_CONFIDENCE/monkey.jpg', narrativeHook: 'PLACEHOLDER — story + reference asset pending' },
   ],
   SOCIAL: [
-    { id: 'panda_anat', name: 'הפנדה ענת', tagline: 'פנדה רכה שמגלה שחברים טובים אוהבים גם את השקט', image: '/companions/SOCIAL/panda_anat.jpg', narrativeHook: 'לא חייבים להיות רועשים כדי להיות נראים' },
+    { id: 'panda_anat', name: 'הפנדה עֲנָת', tagline: 'פנדה רכה שמגלה שחברים טובים אוהבים גם את השקט', image: '/companions/SOCIAL/panda_anat.jpg', narrativeHook: 'לא חייבים להיות רועשים כדי להיות נראים' },
     { id: 'bear_mati', name: 'המַנְצֵחַ מתי', tagline: 'דוב-מנצח שמראה שלכל קול יש מקום בתזמורת', image: '/companions/SOCIAL/bear_mati.jpg', narrativeHook: 'שייכות היא על מציאת התפקיד, לא על דומות' },
     { id: 'hedgehog_rachi', name: 'הקיפוד רַכִּי', tagline: 'קיפוד שלומד לרכך קוצים רק לרגע של חיבוק', image: '/companions/SOCIAL/hedgehog_rachi.jpg', narrativeHook: 'להיות רך בלי לאבד את עצמך' },
   ],
