@@ -1,129 +1,216 @@
-# Story: dolphin_shahkan_fantasy — Story Bank v5 (Hybrid: GPT-5 skeleton + Claude prose)
-Generated: 2026-05-13T21:46:37.161Z
-Skeleton model: gpt-5.3-chat-latest
-Prose model: claude-sonnet-4-5-20250929
-Total time: 97.8s
-Prompt-version: v5
+# Story: dolphin_shahkan_fantasy — Story Bank v5 (Golden)
+Generated: 2026-06-03T16:00:00.000Z
+Source: Guy + ChatGPT + Claude QA (golden fantasy, 16 beats)
+Prompt-version: v5-literary-golden
+Notes: partial nikud for TTS; display/PDF strip niqqud; Shahkan MALE; timeOfDay=day desk/reef; imageDirections may omit readable Hebrew in art.
 
 ---
----
-title: "דּוּדִי וְהַגַּל הַבּוֹרֵחַ"
+title: "{{childName}} ושַׁחְקָן תופסים קֶצֶב"
 companionId: dolphin_shahkan
 direction: fantasy
 category: FOCUS_LEARNING
+timeOfDay: day
 gender: male
-pages: 20
-endingType: distance
-
+pages: 16
+endingType: residue
+worldRule: "אפשר ללמוד בגלים — גל קטן ואז ממשיכים."
+powerCard:
+  title: "כרטיס הגַּל של {{childName}}"
+  subtitle: "כשהמילה הארוכה בורחת"
+  coreTool: "אפשר ללמוד בגלים — גל קטן ואז ממשיכים"
+  steps:
+    - "טַף — גל קטן"
+    - "בקֶצֶב שלי, לא מהר מדי"
+    - "אות אחת על הגַּל"
+    - "ואז ממשיכים"
+  companionReminder: "גַּל קטן, ואז ממשיכים."
+  visualMotifs:
+    - "homework desk"
+    - "notebook lines to waves"
+    - "letter-fish"
+    - "flat coral tap"
+    - "tiny bubble at page edge"
 ---
 
-storyStyle: playful kinetic fantasy
-metaphor: waves as thoughts that can be surfed instead of stopped
-stakes: if the child cannot catch and follow one wave, they will lose the glowing map drifting out to sea
-emotionalArc: dazzling chaos → exciting overdrive → scattered frustration → forced stillness and quiet fear → self-made rhythm and distant calm
-quietPage: 12
-heartLine: עמוד 10 — דּוּדִי עוצר, נותן לגל זוהר אחד לעבור לידו בלי לזוז.
-emotionalMistake: עמוד 6 — הילד צועק על דּוּדִי שיפסיק לקפוץ ופשוט יעזור, ומסתובב הצידה.
-uncomfortableTruth: עמוד 11 — הילד רואה שדּוּדִי לא יכול פשוט להאט, ואולי לא יוכל לעזור כמו שקיווה.
+storyStyle: playful learning fantasy, desk-to-reef, child-led rhythm
+metaphor: focus is one small wave at a time — not catching everything at once
+stakes: the long word scatters until the child finds a pace that holds
+quietPagePosition: 8
+heartLine: עמוד 10 — אות ראשונה על הגַּל; שַׁחְקָן גולש בקצב של הילד.
+emotionalMistake: עמוד 6 — שַׁחְקָן שוחה מהר מדי ומפזר את האותיות.
+uncomfortableTruth: עמוד 7 — מהירות של שַׁחְקָן עושה את הראש עמוס שוב.
+agencyTransfer: עמוד 8 — הילד יוצר גל שקט; שַׁחְקָן עוצר ומקשיב.
 
 --- Page 1 ---
-אני עומד על חוף מוזר. הים מלא גלים זוהרים שרצים לכל הכיוונים. כל גל זז אחרת. אחד קופץ, אחד מתגלגל, אחד נעלם. אני מנסה לעקוב אחרי אחד, אבל העיניים שלי קופצות לאחר. אף גל לא נשאר.
+על השולחן חיכה דף.
+ועל הדף חיכתה מילה ארוכה: הַרְפַּתְקָה.
+{{childName}} {החזיק|החזיקה} עיפרון.
+הרגל קיפצה מתחת לכיסא. האצבעות רצו לצייר משהו בצד.
+"אני לא {מצליח|מצליחה} לתפוס אותה," {אמר|אמרה} בשקט.
 
-imageDirection: colorful chaotic sea with many glowing wave paths crossing
+imageDirection: The child sits at a homework desk, pencil in hand, restless and frustrated. A page with one long Hebrew word sits open, but readable text is not required in the illustration. Shahkan is not present yet. companionPresence: absent; view: 3-4.
 
 --- Page 2 ---
-משהו מתפוצץ מהמים. דולפין עף באוויר, מתיז מים לכל עבר, נוחת עם שלאפ! ענק. הוא צוחק. "היי-היי-שלום-מה-שלומך-רָצִיתִי-לוֹמַר-משהו-אבל-שָׁכַחְתִּי!" הוא נושף. "אני דּוּדִי!"
+קצה העיפרון נקש על הדף.
+טַף.
+הקו הכחול במחברת זז קצת.
+טַף.
+הקו נהיה גַּל.
+ועוד גַּל.
+פתאום הדף כולו נפתח כמו רִיף תת־ימי קטן, מלא אותיות ששחו כמו דגיגים.
 
-imageDirection: dolphin mid-air, water splashing everywhere, energetic motion lines
+imageDirection: The notebook lines ripple into gentle waves, and the desk transforms into a small magical learning reef. Letter-like fish begin to swim above the page. The child leans closer, surprised. Shahkan is not present yet. companionPresence: absent; view: 3-4.
 
 --- Page 3 ---
-דּוּדִי שׁוֹחֶה מהר לגל אחד, ואז קופץ לשני. עכשיו הוא שם, עכשיו פה. יש לו שלושה דּוּדִים באותו רגע. הקולות שלו עושים טיק-טיק-טיק מהיר. "כולם-מעניינים-לא-יכול-לבחור-רואה?" הוא קורא ונעלם אחרי גל רביעי.
+{{childName}} {ריחף|ריחפה} בתוך המים הקלים.
+הגוף שמח לזוז.
+אבל האותיות לא חיכו.
+הן שחו ימינה. שחו שמאלה. התחבאו מאחורי בועות.
+איך קוראים מילה, אם כל אות עושה סיבוב משלה?
 
-imageDirection: multiple afterimages of Dudi zigzagging across waves
+imageDirection: The child floats gently inside the learning reef, surrounded by scattered letter-fish moving in different directions. The child looks curious but overwhelmed. Shahkan is still absent. companionPresence: absent; view: wide.
 
 --- Page 4 ---
-רחוק בים, גל אחד זוהר יותר חזק. בתוכו יש משהו כמו מפה, דקה וזוהרת. היא מרחפת בתוך הגל והגל נע הרחק. "דּוּדִי!" אני קורא. "המפה בורחת!" דּוּדִי מסתובב, העיניים שלו נפתחות. "אופס!"
+מתוך שובל בועות קפץ דולפין צעיר.
+"יוּשׁ!" הוא קרא. "אני שַׁחְקָן."
+הוא עשה סיבוב קטן באוויר וחזר למים בחיוך רחב.
+"מה תופסים? אות? גַּל? רגע? אני מוכן כבר לפני שהתחלנו!"
 
-imageDirection: a single brighter wave carrying a shimmering map-like shape
+imageDirection: Shahkan bursts in from behind a coral shape with playful bubbles, doing one small flip. He looks joyful and eager, while the child watches with cautious hope. companionPresence: present; view: front/3-4.
 
 --- Page 5 ---
-דּוּדִי שׁוֹחֶה כמו חץ לכיוון המפה. אבל אז הוא רואה גל אחר, וקופץ אליו. ועוד אחד. "אני-אתפוס-את-כולם-תראה-תראה!" הוא צועק ומתיז. יש מים בכל מקום. אני כבר לא רואה את המפה.
+שַׁחְקָן צלל אל האותיות.
+הוא חזר מהר מאוד, עם שלוש אותיות על החוטם.
+"מצאתי!"
+{{childName}} {הסתכל|הסתכלה}.
+האותיות היו יפות. אבל בכלל לא במקום.
+"זה לא מסודר," {אמר|אמרה}. "זה סלט אותיות רטוב."
 
-imageDirection: Dudi jumping between multiple waves, splashes overlapping
+imageDirection: Shahkan balances three mixed-up letter-fish on his nose, looking proud. The child points at the letters with an amused but doubtful expression. Keep the letter shapes symbolic, not necessarily readable. companionPresence: present; view: side/3-4.
 
 --- Page 6 ---
-"דּוּדִי, רגע!" אני אומר. "אני כבר לא רואה את המפה." אני מסתובב הצידה. דּוּדִי קופץ באמצע אוויר, קופא. הסנפירים שלו תלויים. הוא לא אומר כלום.
+שַׁחְקָן ניסה שוב.
+הוא שחה מהר. מהר יותר. מהר מדי.
+הבועות שלו פיזרו את האותיות לכל הכיוונים.
+"אוי," אמר שַׁחְקָן. "אני עוזר בקֶצֶב של התזה."
+הוא עצר לרגע.
+"זה לא קֶצֶב טוב."
 
-imageDirection: child frustrated, Dudi mid-jump frozen in surprise
+imageDirection: Shahkan swims too fast and creates too many bubbles, scattering the letter-fish farther apart. He looks sheepish, realizing his speed made the task harder. The child floats nearby, watching. companionPresence: present; view: medium.
 
 --- Page 7 ---
-דּוּדִי נוחת במים. הוא מנסה לשחות לאט, אבל הגוף שלו מסתובב במעגלים. קולות מבולבלים יוצאים ממנו — טיק-טק-טיק-טוק — כמו שעון שבור. הוא עושה עיגול, ועוד עיגול. המים מסביבו מלאים קווים מבולבלים.
+האותיות הסתובבו סביבם.
+שַׁחְקָן התחיל לשחות בשמיניות קטנות.
+עוד שמינית. ועוד אחת.
+המים נעשו עמוסים.
+{{childName}} {הרגיש|הרגישה} שהראש שוב קופץ כמו ליד השולחן.
+"רגע," {אמר|אמרה}. "צריך קֶצֶב אחר."
 
-imageDirection: circular ripples, messy sonar lines bouncing everywhere
+imageDirection: Shahkan swims anxious figure-eights, making the water busy with bubbles and moving letters. The child holds still in the middle, noticing the chaos and preparing to choose a different rhythm. companionPresence: present; view: wide/action.
 
 --- Page 8 ---
-הגל עם המפה כבר רחוק. הוא קטן, רק נקודה זוהרת באופק. אני מנסה לשחות אליו, אבל הוא רחוק מדי. דּוּדִי מסתובב בעיגולים. אף אחד לא מגיע לשום מקום.
+ליד {{childName}} היה אלמוג שטוח.
+{{childName}} {נגע|נגעה} בו באצבע.
+טַף.
+גַּל קטן יצא מהנגיעה.
+לא גַּל גדול. לא התזה.
+רק עיגול מים שקט.
+שַׁחְקָן הפסיק לשחות והביט.
 
-imageDirection: small distant glowing wave slipping away
+imageDirection: The child taps a flat coral surface with one finger, creating a single calm circular ripple. Shahkan pauses mid-motion and looks toward the ripple, intrigued. The scattered letters slow slightly. companionPresence: present; view: close/3-4.
 
 --- Page 9 ---
-דּוּדִי פתאום קופץ גבוה גבוה. "אני-יכול-לתקן-את-זה-תראה-עכשיו-אני-אהיה-מהר-יותר!" הוא צועק וקופץ שוב. המים מתפוצצים כמו כתר זהב ענק. הוא זז כל כך מהר שהזנב שלו נעלם. "תראה-תראה-עכשיו!"
+{{childName}} {נקש|נקשה} שוב.
+טַף.
+עוד גַּל קטן.
+"לא מהר שלך," {אמר|אמרה} {{childName}}. "בקֶצֶב שלי."
+שַׁחְקָן התקרב לאט.
+הגוף שלו, שהיה כולו קפיצות, נהיה ארוך וחלק.
+"יוּשׁ," לחש. "אני שומע."
 
-imageDirection: huge splash crown glowing brightly, exaggerated motion
+imageDirection: The child taps a steady slow rhythm on the coral. Shahkan approaches carefully, his body lengthening into a calmer glide. The child leads the rhythm; Shahkan follows. companionPresence: present; view: front/3-4.
 
 --- Page 10 ---
-ואז דּוּדִי עוצר. הוא שׁוֹחֶה במקום, והגוף שלו דומם. גל זוהר אחד עובר לידו לאט. דּוּדִי לא קופץ. הוא פשוט מסתכל איך הגל נע. הכתר על הראש שלו כמעט לא זוהר.
+טַף.
+האות הראשונה התקרבה.
+שַׁחְקָן לא זינק.
+הוא גלש.
+לאט, בדיוק בתוך הגַּל.
+הוא הוביל את האות אל הקו הכחול.
+"אחת," אמר {{childName}}.
+שַׁחְקָן חייך.
+"רוכבים אחת."
 
-imageDirection: still dolphin, one glowing wave slipping by untouched
+imageDirection: At the child's tap, one letter-fish swims closer. Shahkan glides smoothly with the ripple and guides the single letter onto a glowing line. The child watches, focused and in control. companionPresence: present; view: 3-4.
 
 --- Page 11 ---
-אני מסתכל על דּוּדִי. הוא לא זז, אבל אני רואה שזה קשה לו. הגוף שלו רועד קצת. אולי הוא לא יכול פשוט להאט. אולי הוא לא יוכל לעזור כמו שחשבתי. המים סביבנו שקטים ואפורים.
+טַף. עוד אות.
+טַף. עוד אחת.
+שַׁחְקָן כבר לא דהר.
+הוא חיכה לגַּל של {{childName}}.
+כל אות מצאה מקום.
+לא בבת אחת.
+אחת־אחת.
+המילה התחילה להיראות פחות מפחידה.
 
-imageDirection: child watching Dudi, space between them, dim colors
+imageDirection: The child keeps the slow tapping rhythm while Shahkan guides one letter-fish at a time onto the line. The reef feels calmer and more organized. Show several letters settling into place symbolically. companionPresence: present; view: 3-4.
 
 --- Page 12 ---
-גל קטן עובר ביני לבין דּוּדִי. רק אחד. הוא לא זוהר.
+פתאום שַׁחְקָן כמעט קפץ קדימה.
+הזנב שלו כבר עשה חצי סיבוב.
+אבל הוא עצר.
+"אופס," לחש. "הגַּל עוד לא הגיע."
+{{childName}} {חייך|חייכה}.
+טַף.
+"עכשיו," {אמר|אמרה}.
+ושַׁחְקָן גלש בדיוק בזמן.
 
-imageDirection: minimal scene, gentle ripple line across still water
+imageDirection: Shahkan almost rushes ahead, tail half-curled for a quick leap, then stops himself and waits for the child's next tap. The child smiles and gives the timing cue. companionPresence: present; view: side/3-4.
 
 --- Page 13 ---
-אני שׂם את היד במים. טפיחה קטנה. ואז עוד אחת. טפ. טפ. טפ. קצב איטי. הגלים הקטנים שנוצרים זהים.
+האותיות התחברו על הקו.
+הַרְפַּתְקָה.
+המילה הייתה עדיין ארוכה.
+אבל כבר לא קוצים.
+היא הייתה שורה שאפשר לקרוא.
+שַׁחְקָן עשה קפיצה קטנה, לא גדולה מדי.
+"יוּשׁ," אמר. "זה היה גַּל שלם."
 
-imageDirection: child making repeating ripples with hands
+imageDirection: The completed word is represented by organized glowing letter-shapes on a line; exact readable text is not required. Shahkan makes a small controlled celebration jump while the child looks proud. companionPresence: present; view: wide.
 
 --- Page 14 ---
-דּוּדִי מוציא סונָר. לא מהיר — איטי. טיק. רגע. טיק. רגע. טיק. הוא זז קדימה בדיוק אחרי כל טיק. הגוף שלו עוקב אחרי הקצב שלי.
+הרִיף התחיל להתקפל בחזרה לדף.
+הבועות נהיו נקודות עיפרון.
+הגלים חזרו להיות שורות.
+{{childName}} {ישב|ישבה} שוב ליד השולחן.
+העיפרון היה ביד.
+המילה הארוכה עמדה על הדף.
+והגוף עדיין זז קצת.
+אבל עכשיו היה לו קֶצֶב.
 
-imageDirection: clean sonar rings matching ripple timing
+imageDirection: The magical reef folds back into the real notebook and desk. The child sits at the desk holding the pencil, calmer but still gently moving. The page shows an organized learning task; exact readable text is not required. companionPresence: absent; view: 3-4.
 
 --- Page 15 ---
-אנחנו שניים שוחים ביחד. אני עושה טפיחה — הוא עושה טיק. אנחנו עוצרים. ואז שוב. גל אחד עובר, ואנחנו עוקבים אחריו. רק אחרי הגל הזה. לא אחרי אחר.
+{{childName}} {קרא|קראה} את המילה.
+לא מהר.
+הַרְ־פַּתְ־קָה.
+הרגל תופפה מתחת לכיסא.
+טַף. טַף.
+הפעם זה לא הפריע.
+זה עזר.
+{{childName}} {עבר|עברה} אל השורה הבאה.
 
-imageDirection: alternating motion and stillness, clear path forming
+imageDirection: The child reads at the desk, one foot tapping a small steady rhythm under the chair. The child looks focused, not frozen. Shahkan is not visible, but a tiny ripple shape remains near the page edge. companionPresence: offscreen_hint; view: 3-4.
 
 --- Page 16 ---
-דּוּדִי פתאום הופך לחלק כמו חץ. הכתר שלו זוהר חזק וקבוע. הוא שׁוֹחֶה ישר, בלי לקפוץ, ישר לגל עם המפה. אני שׁוֹחֶה אחריו. המים נפתחים לפנינו.
+בקצה הדף הופיעה בועה קטנה.
+בתוכה חייך שַׁחְקָן.
+"גַּל קטן," הוא לחש, "ואז ממשיכים."
+{{childName}} {חייך|חייכה} בחזרה.
+הראש עוד קפץ לפעמים. הרגל עוד רצתה לזוז.
+אבל עכשיו {{childName}} {ידע|ידעה}:
+אפשר ללמוד בגלים.
 
-imageDirection: Dudi streamlined like an arrow, crown glowing steadily
+imageDirection: A tiny bubble at the page edge shows Shahkan smiling as a gentle hint, while the child continues working with quiet confidence. One foot keeps a small rhythm under the desk. companionPresence: offscreen_hint; view: 3-4.
 
---- Page 17 ---
-אני מגיע לגל, ושׂם את היד בתוכו. המפה נוגעת באצבעות שלי — קרירה וזוהרת. הגל נשבר סביבי בעדינות. האור מהמפה עולה באוויר רגע, ואז נשאר ביד שלי.
-
-imageDirection: map in child's hands, soft splash, light shining
-
---- Page 18 ---
-דּוּדִי שׁוֹחֶה הרחק יותר. הוא כבר קופץ קצת בין גלים קטנים, רחוק ממני. הוא לא חוזר. אני רואה את הסנפיר שלו מנופף, אבל הוא קטן עכשיו באופק.
-
-imageDirection: Dudi smaller in frame, playful but less central
-
---- Page 19 ---
-אני חוזר לחוף. עושה טפיחה אחת במים, ועוקב אחרי הגל הקטן שנוצר. עוצר. עוד טפיחה. עוד גל. אני יכול לעקוב אחרי אחד בלי דּוּדִי.
-
-imageDirection: child focused, gentle repeating motion, one wave
-
---- Page 20 ---
-אני עומד על החוף עם המפה ביד. השמש יורדת, והים הופך לכחול כהה. הגלים ממשיכים לזוז. רחוק רחוק, אני רואה נקודה קטנה קופצת. דּוּדִי עדיין שם.
-
-imageDirection: cool tones, child foreground, tiny dolphin silhouette far away
-
-WORD_COUNT: [38, 35, 38, 36, 34, 31, 35, 28, 37, 30, 33, 11, 22, 24, 30, 31, 34, 29, 26, 32] = 614
+WORD_COUNT: [29, 30, 29, 30, 31, 32, 28, 27, 29, 27, 28, 29, 31, 35, 24, 32] = [471]

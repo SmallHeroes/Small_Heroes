@@ -1,150 +1,169 @@
-# Story: chameleon_koko_adventure — Story Bank v5 (Hybrid: GPT-5 skeleton + Claude prose)
-Generated: 2026-05-13T21:44:05.531Z
-Skeleton model: gpt-5.3-chat-latest
-Prose model: claude-sonnet-4-5-20250929
-Total time: 67.3s
-Prompt-version: v5
+# Story: chameleon_koko_adventure — Story Bank v5 (Golden)
+Generated: 2026-06-03T16:00:00.000Z
+Source: Guy + ChatGPT + Claude QA (golden adventure, 12 beats)
+Prompt-version: v5-literary-golden
+Notes: partial nikud for TTS; display/PDF strip niqqud; Koko female; timeOfDay=day new home.
 
 ---
----
-title: "הַכְּתָמים של קוֹקוֹ"
+title: "{{childName}} וקוֹקוֹ בצבע החדש"
 companionId: chameleon_koko
 direction: adventure
 category: TRANSITION
-gender: male
-pages: 15
+timeOfDay: day
+gender: female
+pages: 12
 endingType: residue
-
+worldRule: "אפשר להיות קצת כמו המקום — אבל לא להפוך למקום."
+powerCard:
+  title: "כרטיס הזנב של {{childName}}"
+  subtitle: "כשבית חדש מרגיש לבן מדי"
+  coreTool: "אפשר להיות קצת כמו המקום — אבל לא להפוך למקום"
+  steps:
+    - "זנב-עוגן — אני עדיין אני"
+    - "אני מתאים/ה קצת"
+    - "לא עד שנעלמים"
+    - "אני מביא/ה דבר אחד שלי"
+  companionReminder: "אפשר להיות קצת כמו המקום — אבל לא להפוך למקום."
+  visualMotifs:
+    - "moving boxes"
+    - "white walls"
+    - "tail-anchor color patch"
+    - "labeled child box"
+    - "old toy on new bed"
 ---
 
-storyStyle: playful adventure with emotional undercurrent
-metaphor: colors as identity carried through change
-stakes: the child may feel erased in the new place and stop trying to connect at all
-emotionalArc: curiosity → overwhelm → confusion → identity rupture → quiet integration
-quietPage: 10
-heartLine: עמוד 8 — קוֹקוֹ נוגע בכתם צבע ישן על הגוף שלו ונעצר לגמרי, כאילו מקשיב למשהו.
-emotionalMistake: עמוד 5 — הילד אומר לקוקו לבחור צבע אחד ולא להתחלף כל הזמן כי זה מעצבן.
-uncomfortableTruth: עמוד 9 — הילד מבין שקוקו באמת לא יודע מה הצבע האמיתי שלו, ואולי אף פעם לא ידע.
+storyStyle: gentle daytime transition, new bedroom, tail-anchor identity
+metaphor: blending a little is okay — disappearing into the wall is not
+stakes: the new room stays white and empty until something of the child moves in
+quietPagePosition: 10
+heartLine: עמוד 9 — {{childName}} מוצא/ת את קוֹקוֹ ומזכיר/ה את זנב-העוגן.
+emotionalMistake: עמוד 8 — קוֹקוֹ נבלעת בקיר כשהקולות מהסלון בוערים.
+uncomfortableTruth: עמוד 8 — גם קוֹקוֹ מפחדת מהמהירות של המעבר.
+agencyTransfer: עמוד 9 — הילד מוביל; קוֹקוֹ חוזרת לעצמה.
 
 --- Page 1 ---
-אני עומד על גבעה קטנה.
-מולי יער מלא צבעים.
-כל עץ שונה. כל פרח זורח.
-אני לא יודע מאיפה להתחיל.
+הבית החדש עמד פתוח.
+ארגזים היו בכל מקום. הקירות היו לבנים מדי. הרצפה השמיעה צעד אחר.
+כמו בית שעוד לא הכיר את הרגליים של {{childName}}.
+{{childName}} {עמד|עמדה} בפתח החדר החדש.
+"זה החדר שלי?" נשאל בשקט.
+אבל שום דבר עוד לא הרגיש שלי.
 
-imageDirection: child standing with a small bag, looking at a vivid forest from a hill
+imageDirection: The child stands at the doorway of a new bedroom filled with moving boxes, looking unsure. The room is clean, unfamiliar, and not yet personal. Koko is not present yet. companionPresence: absent; view: 3-4.
 
 --- Page 2 ---
-משהו קופץ מענף לענף מולי.
-זיקית קטנה משנה צבע כל שנייה — ירוק, כתום, סגול, צהוב.
-רק הצעיף המפוספס שלו נשאר אותו דבר.
-"ואז! ואז! יש פה המון דברים! בוא נראה!" הוא צועק.
+על אחד הארגזים זזה נקודה ירוקה.
+ואז הנקודה נהייתה עין.
+ואז כל הארגז מצמץ.
+"שלום," אמרה זִיקִית קטנה. "אני קוֹקוֹ."
+היא הייתה חצי ירוקה, חצי קרטון.
+"סליחה," צחקקה. "התאמתי לארגז קצת יותר מדי."
 
-imageDirection: bright chameleon jumping between branches, colors shifting wildly, striped scarf constant
+imageDirection: Koko appears on top of a moving box, half blending into the cardboard pattern and half showing her own green color. The child looks startled, then curious. Keep the new bedroom and boxes visible. companionPresence: present; view: front/3-4.
 
 --- Page 3 ---
-"אני קוֹקוֹ!" הוא אומר וכבר קופץ קדימה.
-"בוא! בוא!"
-אני עוד לא מוכן, אבל הוא כבר רץ פנימה.
-אני נכנס אחריו ליער.
+קוֹקוֹ ירדה מהארגז לאט.
+"מקום חדש עושה לי חשק לצבע חדש," אמרה.
+היא נגעה בקיר הלבן. מיד הופיעו עליה פסים לבנים.
+היא נגעה בשטיח. נקודות שטיח קפצו לה על הבטן.
+{{childName}} כמעט {חייך|חייכה}.
 
-imageDirection: Koko mid-leap, child hesitating but following
+imageDirection: Koko steps from the box to the floor, touching the white wall and then the rug as her body picks up small matching patterns. The child watches, amused but still hesitant. companionPresence: present; view: 3-4.
 
 --- Page 4 ---
-קוקו עוצר ליד פרח אדום ונעשה אדום.
-אז קופץ לסלע אפור ונעשה אפור.
-ואז לעלים ירוקים — ירוק.
-הוא נראה בבית בכל מקום.
-אני רץ אחריו. לא מצליח להשיג אותו.
+"ככה מתרגלים?" {שאל|שאלה} {{childName}}.
+"קצת," אמרה קוֹקוֹ. "אבל לא עד שנעלמים."
+היא סִלְסְלָה את הזנב קדימה.
+בקצה שלו נשאר כתם קטן בצבע שלה.
+"זה זְנַב־עוגן," לחשה. "הוא מזכיר לי: אני עדיין קוֹקוֹ."
 
-imageDirection: sequence of Koko changing colors to match flowers, rocks, leaves
+imageDirection: Koko curls her tail forward and shows the child the small unchanged color patch at its tip. The child leans closer, interested. The room remains unfamiliar around them. companionPresence: present; view: close/3-4.
 
 --- Page 5 ---
-"קוקו, חכה רגע..." אני אומר.
-הוא משנה צבע שוב, מהר מהר.
-"למה אתה מתחלף כל הזמן? אני מתבלבל," אני אומר בקול חזק.
-קוקו עוצר באמצע קפיצה.
-העיניים שלו רחבות.
+הם יצאו למסע בחדר החדש.
+קודם אל החלון.
+האור נפל על הרצפה בריבוע בהיר.
+קוֹקוֹ נכנסה לתוכו ונהייתה כמעט כולה זהב.
+"אוי," אמרה. "עכשיו אני נראית כמו בוקר."
+{{childName}} {צחק|צחקה}.
+"אבל הזנב שלך עדיין שלך."
 
-imageDirection: child frowning, Koko mid-color-change looking startled
+imageDirection: The child and Koko explore the window area. Sunlight makes a bright square on the floor, and Koko partly blends into it, looking comically bright. The child points to Koko's unchanged tail tip. companionPresence: present; view: 3-4.
 
 --- Page 6 ---
-קוקו מנסה להישאר כתום.
-אבל אז הצבע רועד. ועוד פעם. ועוד.
-הוא מתחלף מהר יותר מאי פעם.
-עכשיו הוא כמעט שקוף.
-רק הצעיף עוד נראה.
+אחר כך הם מצאו מדף ריק.
+"פה יהיו הספרים שלי," {אמר|אמרה} {{childName}}.
+קוֹקוֹ טיפסה עליו. היא קיבלה צבע של עץ.
+"אם אשאר פה הרבה," אמרה, "אולי אצמיח עלים."
+היא בדקה את הזנב.
+"לא. עדיין קוֹקוֹ."
 
-imageDirection: Koko flickering between colors rapidly, nearly transparent except scarf
+imageDirection: Koko climbs onto an empty wooden shelf and changes partly to its wood color. The child imagines where books will go, beginning to claim the space. Koko checks her tail tip again. companionPresence: present; view: side/3-4.
 
 --- Page 7 ---
-אני מתקרב אליו לאט.
-על הגוף שלו יש כתמים קטנים — צבעים שלא התחלפו.
-כתם ירוק פה. כתם כחול שם.
-הם נשארו מהמקומות שהוא היה בהם.
+ליד המיטה החדשה עמד ארגז סגור.
+עליו היה כתוב: דברים של {{childName}}.
+{{childName}} {פתח|פתחה} אותו.
+בפנים חיכו שמיכה, ספר, ובובה ישנה.
+החדר החדש נעשה קצת פחות חדש.
+קוֹקוֹ התקרבה.
+"הנה הצבעים שלך."
 
-imageDirection: close-up of Koko with tiny mismatched color patches across his skin
+imageDirection: The child opens a labeled box and finds familiar personal things inside: a blanket, book, and old toy. Koko watches warmly beside the box, her colors softening. This is the first personal anchor moment. companionPresence: present; view: 3-4.
 
 --- Page 8 ---
-קוקו מושיט יד אחת.
-הוא נוגע בכתם הצבע הירוק על הזנב.
-הוא לא זז.
-הצבעים שלו נהיים רכים ושקטים.
+פתאום נשמעו קולות מהסלון.
+"איפה לשים את השולחן?" "מי ראה את הברגים?" "זהירות עם המנורה!"
+קוֹקוֹ נבהלה.
+פסים חדים עלו על הגב שלה.
+היא נצמדה לקיר.
+ועוד קצת.
+ועוד.
+עד שכמעט לא ראו אותה.
 
-imageDirection: Koko calm, one soft color, touching a patch, scarf gently hanging
+imageDirection: Noisy moving voices come from outside the room. Koko becomes stressed: sharp stripes appear and she presses against the wall, blending too much into it. The child notices her fading into the background. companionPresence: present; view: 3-4.
 
 --- Page 9 ---
-"קוקו," אני שואל בשקט, "מה הצבע האמיתי שלך?"
-הוא מביט בי.
-שתי העיניים לכיוונים שונים.
-הוא לא עונה.
+{{childName}} {חיפש|חיפשה} את קוֹקוֹ.
+"קוֹקוֹ?"
+על הקיר זזה רק עין אחת.
+ואז קצה זנב קטן.
+{{childName}} {התקרב|התקרבה}.
+"את מתאימה יותר מדי," {אמר|אמרה} בשקט. "תסתכלי בזנב שלך."
+קוֹקוֹ מצמצה.
 
-imageDirection: Koko blank and pale, eyes unfocused, child leaning closer waiting
+imageDirection: The child looks closely at the wall and finds Koko almost hidden, only one eye and her tail tip visible. The child gently points toward Koko's tail anchor. Koko is surprised and listening. companionPresence: partial; view: partial.
 
 --- Page 10 ---
-קוקו נעלם כמעט לגמרי.
-הצעיף תלוי באוויר.
+קוֹקוֹ הסתכלה בקצה הזנב.
+הכתם הקטן עוד היה שם.
+היא נשמה.
+הפסים החדים התרככו. הקיר הפסיק לבלוע אותה.
+"נכון," אמרה. "אפשר להיות קצת כמו המקום."
+היא חייכה.
+"אבל לא להפוך למקום."
 
-imageDirection: only the striped scarf clearly visible, faint outline of Koko
+imageDirection: Koko looks at her tail tip and slowly reappears from the wall; her sharp stripes soften into calmer colors. The child stands nearby with relief and pride. companionPresence: present; view: 3-4.
 
 --- Page 11 ---
-אני מטפס על הענפים.
-אני רואה כתמי צבע קטנים תקועים על העלים, על הקליפה.
-אני אוסף אותם בזהירות.
-כל כתם הוא מקום שקוקו היה בו.
+{{childName}} {הסתכל|הסתכלה} סביב החדר.
+קיר חדש. רצפה חדשה. חלון חדש.
+ואז על הארגז הפתוח.
+השמיכה. הספר. הבובה הישנה.
+{{childName}} {הניח|הניחה} את הבובה על המיטה.
+"זה בא איתי," {אמר|אמרה}.
 
-imageDirection: child reaching across branches collecting small bits of color
+imageDirection: The child chooses the old toy from the open box and places it on the new bed, marking the room as theirs. Koko watches with a happy, calm color pattern. Keep the new room and boxes around them. companionPresence: present; view: 3-4.
 
 --- Page 12 ---
-אני שם את הכתמים על קוקו אחד אחד.
-לא בוחר איזה צבע.
-כל הכתמים ביחד.
-קוקו מתחיל להופיע שוב.
+בערב, החדר עוד היה חדש.
+אבל כבר לא ריק.
+קוֹקוֹ ישבה על המדף, בצבע של עץ וקצת בצבע שלה.
+"מחר," אמרה, "נמצא עוד צבע שלנו."
+{{childName}} {נכנס|נכנסה} למיטה.
+הבית החדש נשאר חדש.
+אבל בתוך החדש היה כבר משהו שלי.
 
-imageDirection: child carefully touching Koko, patches reappearing across his body
+imageDirection: Closing scene in the new bedroom: the familiar toy rests on the bed, and Koko sits on the shelf partly matching the wood while keeping her own tail color visible. The child settles into bed, calmer. companionPresence: present; view: 3-4.
 
---- Page 13 ---
-קוקו זז לאט.
-הצבעים עולים על הגוף שלו — כתמים כתמים, לא צבע אחד.
-הוא נושם.
-הצעיף זז ברוח.
-
-imageDirection: Koko glowing with mixed colors, scarf bright and steady
-
---- Page 14 ---
-קוקו קופץ קדימה לתוך היער.
-הוא עדיין משנה צבעים, אבל יותר לאט.
-על הענף ליד היד שלי נשאר כתם צבע קטן.
-כתום וסגול.
-
-imageDirection: Koko mid-air, small color patch left behind near the child's hand
-
---- Page 15 ---
-אני יושב על הענף.
-אני מחזיק את הכתם ביד.
-היער לא זר כמו קודם.
-רחוק בין העצים אני רואה פס מהצעיף.
-
-imageDirection: child sitting quietly with the patch, scarf stripe faintly visible far away in trees
-
-WORD_COUNT: [22, 31, 21, 33, 32, 27, 26, 19, 18, 8, 26, 22, 20, 24, 23] = 352
+WORD_COUNT: [42, 33, 33, 32, 35, 35, 32, 34, 28, 31, 28, 39] = [402]
