@@ -14,9 +14,31 @@ export const COMPANION_ACCESSORY_PROFILES: Partial<Record<string, CompanionAcces
     canonicalAccessory: 'small glowing neck lantern',
     accessoryLocation: 'around the neck (collar lantern)',
     accessoryBehavior:
-      'can be switched off or on; when lit gives a soft warm glow on the ground; secret-path keeper mood',
+      'can be switched off or on; when lit gives a soft warm glow on the ground; secret-path keeper mood; brightness = courage meter (flickers/shrinks with fear)',
     accessoryRequiredWhenVisible: true,
     forbiddenAlternatives: ['scarf', 'neck scarf', 'chest star', 'star on chest', 'lantern on chest'],
+  },
+  panda_anat: {
+    canonicalAccessory: 'small pause-stone / leaf she sets down before entering',
+    accessoryLocation: 'on the ground before her (pause marker ritual)',
+    accessoryBehavior:
+      'she places it as a ritual before trying to enter a social scene; may be absent on partial/small/silhouette views',
+    accessoryRequiredWhenVisible: true,
+    forbiddenAlternatives: [
+      'held bouquet',
+      'large prop in paws',
+      'conflicting handheld object',
+      'notebook',
+      'umbrella',
+    ],
+  },
+  dragon_dini: {
+    canonicalAccessory: 'terracotta sash (diagonal across body)',
+    accessoryLocation: 'diagonal across torso (terracotta sash)',
+    accessoryBehavior:
+      'warm guardian sash; visible when body clearly shown; may be absent on partial/offscreen/small views',
+    accessoryRequiredWhenVisible: true,
+    forbiddenAlternatives: ['scarf', 'necklace', 'cape', 'chest star', 'neck scarf'],
   },
 };
 
@@ -46,8 +68,8 @@ export function buildCompanionAccessoryLockBlock(input: {
     return [
       `COMPANION ACCESSORY (partial/offscreen — ${name}):`,
       `Canonical accessory is ${profile.canonicalAccessory} at ${profile.accessoryLocation}.`,
-      'Do NOT show a contradictory accessory (no scarf, no chest star).',
-      'The canonical lantern need NOT be visible when only a tail tip, paw, or distant clue appears.',
+      'Do NOT show a contradictory accessory.',
+      `The canonical accessory (${profile.canonicalAccessory}) need NOT be visible when only a tail tip, paw, or distant clue appears.`,
       forbid,
     ].join('\n');
   }
@@ -57,7 +79,7 @@ export function buildCompanionAccessoryLockBlock(input: {
   return [
     `COMPANION ACCESSORY LOCK — ${name}:`,
     `ALWAYS ${profile.canonicalAccessory} at ${profile.accessoryLocation}. ${profile.accessoryBehavior}.`,
-    'When the companion body/face is clearly visible, the neck lantern MUST be present and correct.',
+    `When the companion body/face is clearly visible, ${profile.canonicalAccessory} MUST be present and correct.`,
     forbid,
   ].join('\n');
 }
