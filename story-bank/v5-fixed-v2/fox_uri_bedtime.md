@@ -35,84 +35,82 @@ powerCard:
 storyStyle: cozy bedtime night-check, childlike Uri voice, lantern-as-courage-meter
 metaphor: fear becomes checkable when you light just a little — not all the dark
 stakes: the child stays frozen under the blanket while the room grows scary shapes
-quietPagePosition: 6
-heartLine: עמוד 7 — יחד מאירים רק חלק קטן מהחושך; הענף מחבב על הזכוכית כמו יד קטנה.
-emotionalMistake: עמוד 5 — אורי מדבר כאילו בשליטה, אבל הפנס מתכווץ והזנב מתחבא.
+quietPagePosition: 7
+heartLine: עמוד 6 — {{childName}} מקשיב/ה לחלון; אורי מופתע והפנס מתחזק.
+emotionalMistake: עמוד 5 — אורי מדבר בקול אמיץ מדי, אבל הפנס מתכווץ כמו גחלילית ביישנית.
 uncomfortableTruth: עמוד 6 — {{childName}} מקשיב/ה לחלון יותר טוב מאורי.
 agencyTransfer: עמוד 6 — הילד מוביל; אורי מופתע ומאיר שוב.
 
 --- Page 1 ---
-{{childName}} {שכב|שכבה} במיטה, והשמיכה עד האף.
-רק העיניים {צצו|צצו} החוצה.
-על הקיר, צל ארוך מהכיסא נמשך כמו מישהו על קצות האצבעות.
-קצת מצחיק. קצת מלחיץ.
-{{childName}} {לא|לא} {הזיז|הזיזה} שוב.
+בלילה, כשהחדר התעטף בכחול שקט, הצֵל של הכיסא טיפס על הקיר.
+הוא היה ארוך מדי. ארוך כמו משהו שעומד על קצות האצבעות.
+{{childName}} {משך|משכה} את השמיכה עד האף.
+ואז הצֵל עשה… כמעט תנועה.
 
-imageDirection: Child in bed, blanket pulled to the nose with only the eyes peeking. On the wall, a long chair-shadow stretches like something on tiptoe — a little funny, a little eerie, not menacing. Intimate bedroom: bed on one side, chair + shadowed wall on the other. Companion NOT present yet.
+imageDirection: The child lies in the same bedroom bed, blanket pulled up to the nose, eyes fixed on the tall chair-shadow climbing the wall. The chair and hanging clothes form a shape that almost looks alive. Uri is not present yet. companionPresence: absent; view: 3-4.
 
 --- Page 2 ---
-על אדן החלון הופיע שועל קטן.
-פרווה נחושתית, קצה זנב לבן, פנס על הצוואר דולק עגול וחם.
-"אֲנִי אוּרִי," אמר השועל. "שׁוֹמֵר שְׁבִילִים סוֹדִי.
-בּוֹא {נבדוק|נבדוק} בְּקָטֶן."
-{{childName}} {הביט|הביטה} מתחת לשמיכה. {סקרן|סקרנית}. וקצת {מפוחד|מפוחדת}.
+ליד החלון נשמע רשרוש קטן.
+לא רשרוש גדול. רשרוש בגודל של סוד.
+על אֶדֶן החלון עמד שועל נחושת קטן, עם קצה זנב לבן ופנס זוהר על הצַוָּאר.
+"שלום," לחש. "אני אוּרי. אני לא מגרש חֹשֶךְ. אני מאיר אותו טיפונת."
 
-imageDirection: On the windowsill the fox appears for the first time — small, friendly (not sly), white tail-tip, his neck lantern glowing a warm circle of light on the sill and wall. The child watches from under the blanket, curious and a little afraid. A quiet magical moment — one small point of light in the dark room. companionPresence: present; view: front/3-4.
+imageDirection: Uri appears for the first time on the windowsill, lifting his small lantern so a warm circle of light touches the sill and wall. The child watches from under the blanket, curious but still unsure. Same bedroom, same bed and window. companionPresence: present; view: front/3-4.
 
 --- Page 3 ---
-אוּרִי קָפַץ לְאַט אֶל הַמִּטָּה.
-הוּא הֵרִים אֶת הַפָּנָס, וְעִגּוּל אוֹר רַךְ נָפַל עַל הַכִּסֵּא וְעַל הַצֵּל שֶׁעַל הַקִּיר.
-"זֶה נִרְאֶה חָשׁוּד בָּאוֹזְנַיִם," לָחַשׁ אוּרִי.
-"אוּלַי… מַפְלֶצֶת-הַמְּעִיל."
-הוּא הִתְקַדֵּם קְדִימָה — אֲבָל רֶגֶל אַחַת רָצָה אָחוֹרָה, וְהַזָּנָב שֶׁלּוֹ מָתוּחַ מְעַט.
+אוּרי הרים את הפנס אל הכיסא.
+האור שלו היה עגול ורך, כמו עוגיית ירח.
+"{עמוד|עמדי} מאחוריי," לחש. "יכול להיות שזו מפלצת-המעיל."
+הוא התקדם צעד אחד. ואז חזר חצי צעד.
+"אני מתקרב," אמר, "אבל לא בהגזמה."
 
-imageDirection: The fox stands near the child (floor or bed-edge), lifting his neck lantern so a round soft beam falls on the chair and its wall-shadow. The child peeks from the blanket beside him. The fox is brave-but-nervous — leaning forward but one paw wants to step back, tail slightly tense. The shadow still reads as a cute "coat-monster," not scary. Light beam leads the eye from lantern to chair. view: 3-4.
+imageDirection: Uri stands near the bed, angling his lantern toward the same chair-shadow. He leans forward bravely while one paw pulls slightly back. The child stays just behind him, peeking toward the chair. The light reveals only part of the shadow. companionPresence: present; view: side/3-4.
 
 --- Page 4 ---
-הָאוֹר גִּלָּה אֶת הָאֱמֶת.
-רַק חוּלְצָה עַל גַּב הַכִּסֵּא.
-שְׁרוּוָל אֶחָד כְּמוֹ צַוָּאר אָרוֹךְ. כַּפְתּוֹר כְּמוֹ עַיִן מְנוּמֶנֶת.
-"אָה," אָמַר אוּרִי וְהִתְיַישֵּׁר בִּגְאֵוּת קְטַנָּה. "מְעִיל. יָדַעְתִּי. כְּמַעַט מֵהַהַתְחָלָה."
-הַפָּנָס שֶׁלּוֹ זָרַח חזק יותר.
-{{childName}} {חייך|חייכה} חיוך קטן.
+האור נגע בצֵל.
+זו הייתה רק חולצה על גב הכיסא. שרוול אחד נראה כמו צוואר ארוך, וכפתור אחד נראה כמו עין ישנונית.
+אוּרי הזדקף.
+"אה," אמר. "חולצה עם דמיון מפותח." הפנס שלו זהר קצת יותר. "ידעתי. כמעט."
 
-imageDirection: The lantern beam reveals the truth — only a shirt draped on the chair-back: one sleeve like a long neck, a button like a sleepy eye (clearly why it looked scary; now it's funny). The fox stands upright in small exaggerated pride, lantern glowing a bit stronger. The child looks calmer, a small smile.
+imageDirection: The lantern light now clearly reveals the chair and hanging shirt that made the shadow. Uri stands taller with small proud posture, lantern brighter again. The child relaxes, noticing the sleeve and button that caused the funny monster shape. companionPresence: present; view: 3-4.
 
 --- Page 5 ---
-הַחֶדֶר שָׁקַט שׁוּב — אֲבָל הַפַּעַם יוֹתֵר מְתוּחַ.
-טִיק-טִיק. רַךְ.
-אוּרִי קָפָא בִּמְקוֹמוֹ.
-הַפָּנָס עַל צַוָּארוֹ הִתְכַּוֵּץ לְנְקֻדָּה קְטַנָּה, כְּמוֹ גַּחֲלִילִית בַּיְשָׁנִית.
-הַזָּנָב שֶׁלּוֹ הִתְחַבֵּא מֵאַחֲרֵי הָרֶגֶל.
-{{childName}} {הקשיב|הקשיבה}. {ער|ערה}. לֹא {קפוא|קפואה}.
+ואז נשמע תַּק.
+ועוד תַּק.
+מתחת למיטה? מאחורי הארון? אולי בתוך החֹשֶךְ עצמו?
+אוּרי קפא. הפנס שלו נעשה קטן כמו גחלילית ביישנית.
+"הממ," אמר בקול אמיץ מדי. "זה כבר חֹשֶךְ מתקתק."
 
-imageDirection: The room is quiet and tense again (not too scary). A new soft tick-tick sound. The fox freezes — his neck lantern shrinks to a tiny weak glow like a shy firefly, tail hiding behind his leg. The child is alert but not frozen, listening. Hint a few possible sound-sources (under bed / by wardrobe / toward window) without clutter. The darkest, hardest beat — lantern nearly out. childExpression: worried/alert.
+imageDirection: The child and Uri both pause in the bedroom, listening. Uri is frozen with his lantern shrunk to a tiny glow, tail trying to hide behind one leg. The room points attention toward several possible sound sources: bed, closet, window. companionPresence: present; view: 3-4.
 
 --- Page 6 ---
-{{childName}} {התיישב|התיישבה} במיטה.
-{הוא|היא} {הקשיב|הקשיבה} אֶל הַחַלּוֹן. לֹא {קפץ|קפצה}. לֹא {ברח|ברחה}. רַק {בדק|בדקה}.
-אוּרִי הִבִּיט ב{{childName}}. עֵינַיִם רְחָבוֹת. "וָאו," {לחש|לחשה} אוּרִי. "{אתה|את} {מקשיב|מקשיבה} יוֹתֵר טוֹב מִמֶּנִּי."
-הַפָּנָס שֶׁלּוֹ נִפְתַּח שׁוּב לְאוֹר רַךְ.
+{{childName}} {לא|לא} {קפץ|קפצה} מהמיטה.
+רק {הקשיב|הקשיבה}.
+תַּק. תַּק.
+"זה לא מתחת למיטה," {לחש|לחשה} {{childName}}. "זה ליד החלון."
+אוּרי מצמץ. הזנב שלו הפסיק להתחבא.
+"נכון," אמר. "האוזניים שלך בדקו מצוין."
 
-imageDirection: CHILD-LEADS beat. The child is the center — sitting up, listening intently toward the window, calm and checking (not jumping, not fleeing). The fox beside, surprised and impressed, eyes wide, tail no longer hiding, lantern beginning to strengthen. Composition points toward the window (gaze-line / soft light). The child leads here, not the fox.
+imageDirection: The child sits still on the bed, listening carefully toward the window instead of jumping away. Uri looks up at the child with surprised admiration; his tail comes out from hiding and the lantern begins to strengthen. Same bedroom continuity. companionPresence: present; view: 3-4.
 
 --- Page 7 ---
-לְיַד הַחַלּוֹן {עָמְדוּ|עָמְדוּ} יַחַד.
-אוּרִי {הֵאִיר|הֵאִיר} רַק חֵלֶק קָטָן מִן הַחשֶׁךְ — לֹא אֶת כָּל הַחֶדֶר.
-הָאוֹר מָצָא עָנָף קָטָן שֶׁמָּחַק עַל הַזְּכוּכִית.
-טוֹק. טוֹק. כְּמוֹ יָד קְטַנָּה שֶׁמְּנַפְנֶפֶת.
-אוּרִי {נשף|נשפה} — אַחֲרֵי הַפַּחַד הַקָּטָן.
-{{childName}} {כמעט|כמעט} {צחק|צחקה}. חִיּוּךְ בָּרוּר וְקָטָן.
+הם האירו רק טיפונת.
+לא את כל החֹשֶךְ.
+ליד החלון התנדנד עָנָף קטן ונקש על הזכוכית: תַּק. תַּק.
+אוּרי נשם החוצה.
+"עָנָף," אמר. "עָנָף קטן עם קול של ענק."
+{{childName}} כמעט {צחק|צחקה}. החדר כבר לא נראה גדול כל כך.
 
-imageDirection: By the window, the fox and child together light only a SMALL part of the dark (not the whole room). The lantern beam reveals a little branch outside tapping the glass — cute, like a small waving hand, not scary. The fox looks relieved (breathed out after a small fear); the child almost laughing, small clear smile. Room feels smaller and warmer than the opening. Keep the lantern a LOCAL circle of light — do NOT turn night into day. Indirect moonlight only; no big moon.
+imageDirection: The child and Uri shine one small circle of lantern light toward the window, revealing a little branch tapping the glass. Uri visibly exhales with relief; the child almost laughs. Keep the room intimate, with the discovered branch as the clear focus. companionPresence: present; view: 3-4.
 
 --- Page 8 ---
-{{childName}} {שכב|שכבה} שׁוּב עַל הַכָּרִית. בָּטוּחַ.
-הַצֵּל מִן הַכִּסֵּא עֲדַיִין עַל הַקִּיר — אֲבָל עַכְשָׁיו הוּא רַק כִּסֵּא שֶׁעוֹשֶׂה צוּרָה.
-עַל אֲדַן הַחַלּוֹן יָשַׁב אוּרִי. הַפָּנָס חַם וְרַךְ.
-קְצֵה הַזָּנָב הַלָּבָן שֶׁלּוֹ נֶעֱלַם הַחוּצָה בְּעַדִינוּת.
-{{childName}} {לחש|לחשה}: "מאירים טיפונת. לא את כל החושך."
+{{childName}} {חזר|חזרה} אל הכרית.
+הצֵל של הכיסא נשאר על הקיר, אבל עכשיו הוא היה רק כיסא שעושה צורה.
+אוּרי ישב על אֶדֶן החלון, והפנס שלו זהר חם ורך.
+"אם החֹשֶךְ עושה פרצוף," לחש, "לא חייבים להאיר את כולו. רק טיפונת."
+קצה הזנב הלבן נעלם בחוץ.
+הלילה נשאר לילה. אבל עכשיו היה בו שביל קטן ומוכר.
 
-imageDirection: Calm warm closing. The child is back on the pillow, safe and settled. The chair-shadow is still on the wall but now just looks like a chair making a shape — not scary. The fox sits on the windowsill, lantern glowing warm and soft, half-leaving — show part of him or his white tail-tip disappearing gently outside (tail stays ATTACHED and logical, not floating). Outside, a faint hint of a small soft path of light. Closed cozy bedtime composition — quiet, safe, emotionally resolved. Indirect moonlight only; no big moon.
+imageDirection: The child rests back on the pillow, calm now, with the same chair-shadow still visible but no longer scary. Uri sits on the windowsill, lantern soft and warm, then begins to slip outside; only a grounded tail-tip hint remains near the window edge. companionPresence: partial; view: partial.
 
-WORD_COUNT: [28, 32, 35, 33, 32, 30, 32, 28] = [250]
+WORD_COUNT: [33, 39, 36, 37, 31, 29, 39, 55] = [299]
