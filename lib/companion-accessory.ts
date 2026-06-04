@@ -22,8 +22,8 @@ export const COMPANION_ACCESSORY_PROFILES: Partial<Record<string, CompanionAcces
     canonicalAccessory: 'small pause-stone / leaf she sets down before entering',
     accessoryLocation: 'on the ground before her (pause marker ritual)',
     accessoryBehavior:
-      'she places it as a ritual before trying to enter a social scene; may be absent on partial/small/silhouette views',
-    accessoryRequiredWhenVisible: true,
+      'appears during her pause ritual before entering a social scene; NOT mandatory whenever visible',
+    accessoryRequiredWhenVisible: false,
     forbiddenAlternatives: [
       'held bouquet',
       'large prop in paws',
