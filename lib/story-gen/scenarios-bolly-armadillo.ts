@@ -57,8 +57,9 @@ export const BOLLY_B1_LAHITRAF: PhaseBScenario = {
   antiPatternNotes:
     'distinct from panda_anat: panda = הקצב שלי יוצר מקום; Bolly = נראה/ת קצת, נכנס/ת קצת, חוזר/ת אם צריך.',
   forbiddenPatterns: [...BOLLY_QA_FAIL_PATTERNS, 'enter slowly as sole agency', 'panda rhythm makes space'],
-  setting: 'חצר / גינה — ילדים משחקים, הילד/ה בשוליים',
-  incitingIncident: 'משחק פעיל — הילד/ה {קופא|קופאת} בשול',
+  setting: 'חצר / גינה — משחק "חישוקים" סביב כדור צבעוני במעגל; הילד/ה בשוליים',
+  incitingIncident:
+    'הכדור עובר בין הילדים במעגל — מי שבמרכז תופס; הילד/ה {רוצה|רוצה} להצטרף אבל {קופא|קופאת} בשול',
   emotionalCore: 'פחד ממבט של כולם בבת אחת — לא פחד מהמשחק עצמו',
   companionRole:
     'בּוֹלִי nose→eye→step; קומדיה: התקדמות עגולה, רגל רועדת, "הגעתי במצב עגול"',

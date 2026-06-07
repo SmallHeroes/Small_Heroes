@@ -135,7 +135,7 @@ async function main(): Promise<void> {
   );
 
   console.log(`[gen-story] craft-v2.1 overall=${advisoryBundle.craftV21.overall} placement=${advisoryBundle.craftV21.ladderPlacement}`);
-  console.log(`[gen-story] validators pageCount=${advisoryBundle.validators.pageCount}/${advisoryBundle.validators.expectedPages} warnings=${advisoryBundle.validators.warnings.length}`);
+  console.log(`[gen-story] validators advisoryResult=${advisoryBundle.validators.advisoryResult} pageCount=${advisoryBundle.validators.pageCount}/${advisoryBundle.validators.expectedPages} failures=${advisoryBundle.validators.failures.length} warnings=${advisoryBundle.validators.warnings.length}`);
   console.log(`[gen-story] Wrote artifacts to ${runDir}`);
   console.log('[gen-story] Done.');
 }

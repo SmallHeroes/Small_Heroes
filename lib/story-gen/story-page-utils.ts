@@ -18,9 +18,14 @@ export function countPageWords(prose: string): number {
   return tokens?.length ?? 0;
 }
 
+/** Normalize NBSP / narrow spaces so page-header regexes match. */
+export function fixUnicodeSpaces(text: string): string {
+  return text.replace(/[\u00a0\u202f\u2009]/g, ' ');
+}
+
 export function parseStoryPages(markdown: string): Array<{ page: number; body: string }> {
   const pages: Array<{ page: number; body: string }> = [];
-  const body = markdown.replace(/\r?\nWORD_COUNT:[\s\S]*$/i, '');
+  const body = fixUnicodeSpaces(markdown).replace(/\r?\nWORD_COUNT:[\s\S]*$/i, '');
   const re =
     /\r?\n--- Page (\d+) ---\r?\n([\s\S]*?)(?=\r?\n--- Page \d+ ---|\r?\nWORD_COUNT:|$)/g;
   let m: RegExpExecArray | null;
@@ -29,7 +34,7 @@ export function parseStoryPages(markdown: string): Array<{ page: number; body: s
   }
   if (pages.length === 0) {
     const h3 =
-      /\r?\n### Page (\d+)\r?\n([\s\S]*?)(?=\r?\n### Page \d+|\r?\nWORD_COUNT:|$)/g;
+      /\r?\n### Page (\d+)\s*\r?\n([\s\S]*?)(?=\r?\n### Page \d+|\r?\nWORD_COUNT:|$)/g;
     while ((m = h3.exec('\n' + body)) !== null) {
       pages.push({ page: parseInt(m[1], 10), body: m[2] ?? '' });
     }
@@ -74,9 +79,11 @@ export function formatWordCountLine(perPage: number[]): string {
 }
 
 export function parseWordCountLine(markdown: string): number[] | null {
-  const m = markdown.match(/WORD_COUNT:\s*\[([^\]]+)\]/i);
+  const m = markdown.match(/WORD_COUNT:\s*\[([^\]]*)\]/i);
   if (!m) return null;
-  return m[1].split(',').map((s) => parseInt(s.trim(), 10));
+  const inner = m[1].trim();
+  if (!inner) return [];
+  return inner.split(',').map((s) => parseInt(s.trim(), 10));
 }
 
 export function hasValidYamlFrontmatter(markdown: string): boolean {

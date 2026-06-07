@@ -40,6 +40,12 @@ function formatPhaseBExtensions(scenario: PhaseBScenario, companionId: string): 
     lines.push(`Forbidden patterns: ${scenario.forbiddenPatterns.join(' · ')}`);
   }
 
+  if (scenario.direction === 'adventure') {
+    lines.push(
+      'Play concreteness (REQUIRED in prose): name the specific group game/play-pattern, a concrete object, a turn or rule, and visible movement — never generic "kids playing" / "ילדים משחקים" alone.'
+    );
+  }
+
   if (companionId === 'bolly_armadillo') {
     lines.push(`Companion engine: ${BOLLY_ENGINE}`);
     lines.push(`Signature refrains (may echo, not spam): ${BOLLY_REFRAINS.join(' · ')}`);

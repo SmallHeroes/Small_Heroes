@@ -19,6 +19,10 @@ import {
   parseStoryPages,
   parseWordCountLine,
 } from './story-page-utils';
+import {
+  directionWordBand,
+  WORD_BAND_THIN_FAIL_MAJORITY,
+} from './word-bands';
 
 export interface AdvisoryPlaceholderReport {
   status: 'not_implemented_yet';
@@ -42,6 +46,7 @@ export interface Run1ValidatorPageRow {
 export interface Run1ValidatorReport {
   status: 'advisory_deterministic';
   notARealGate: true;
+  advisoryResult: 'pass' | 'fail';
   direction: StoryDirection;
   expectedPages: number;
   pageCount: number;
@@ -53,7 +58,10 @@ export interface Run1ValidatorReport {
     allPagesHaveImageDirection: boolean;
     wordCountLinePresent: boolean;
     wordCountMatchesValidator: boolean;
+    wordBandThinFail: boolean;
+    identicalGenderChipFail: boolean;
   };
+  failures: string[];
   warnings: string[];
   hardMaxWarnings: string[];
 }
@@ -70,22 +78,8 @@ export interface Run1AdvisoryBundle {
   generatedAt: string;
 }
 
-const ADVENTURE_WORD_MIN = 30;
-const ADVENTURE_WORD_MAX = 50;
-const ADVENTURE_HARD_MAX = 65;
-
-const BEDTIME_WORD_MIN = 25;
-const BEDTIME_WORD_MAX = 45;
-const BEDTIME_HARD_MAX = 55;
-
 function wordBand(direction: StoryDirection): { min: number; max: number; hardMax: number } {
-  if (direction === 'adventure') {
-    return { min: ADVENTURE_WORD_MIN, max: ADVENTURE_WORD_MAX, hardMax: ADVENTURE_HARD_MAX };
-  }
-  if (direction === 'bedtime') {
-    return { min: BEDTIME_WORD_MIN, max: BEDTIME_WORD_MAX, hardMax: BEDTIME_HARD_MAX };
-  }
-  return { min: 35, max: 55, hardMax: 70 };
+  return directionWordBand(direction);
 }
 
 export function buildSwapTestPlaceholder(): AdvisoryPlaceholderReport {
@@ -119,6 +113,7 @@ export function runDeterministicValidators(args: {
   const band = wordBand(args.direction);
   const pages = parseStoryPages(args.storyMarkdown);
   const warnings: string[] = [];
+  const failures: string[] = [];
   const hardMaxWarnings: string[] = [];
 
   const hasCanonical = /--- Page \d+ ---/.test(args.storyMarkdown);
@@ -152,7 +147,9 @@ export function runDeterministicValidators(args: {
     const imageDirectionLine = imgMatch?.[0]?.trim() ?? '';
     const { malformed, identical } = analyzeGenderChips(proseOnly);
     if (malformed.length) warnings.push(`Page ${page}: malformed chips — ${malformed.join(', ')}`);
-    if (identical.length) warnings.push(`Page ${page}: identical chip options — ${identical.join(', ')}`);
+    if (identical.length) {
+      failures.push(`Page ${page}: identical gender chip options — ${identical.join(', ')}`);
+    }
 
     return {
       page,
@@ -190,9 +187,23 @@ export function runDeterministicValidators(args: {
     );
   }
 
+  const belowMinCount = pageRows.filter((p) => p.bandStatus === 'below').length;
+  const wordBandThinFail =
+    pageRows.length > 0 &&
+    belowMinCount / pageRows.length > WORD_BAND_THIN_FAIL_MAJORITY;
+  if (wordBandThinFail) {
+    failures.push(
+      `WORD_BAND thinness gate FAIL: ${belowMinCount}/${pageRows.length} pages below ${band.min} words (majority threshold)`
+    );
+  }
+
+  const identicalGenderChipFail = pageRows.some((p) => p.identicalChipPairs.length > 0);
+  const advisoryResult = failures.length > 0 ? 'fail' : 'pass';
+
   return {
     status: 'advisory_deterministic',
     notARealGate: true,
+    advisoryResult,
     direction: args.direction,
     expectedPages,
     pageCount: pages.length,
@@ -204,7 +215,10 @@ export function runDeterministicValidators(args: {
       allPagesHaveImageDirection: allImg,
       wordCountLinePresent,
       wordCountMatchesValidator,
+      wordBandThinFail,
+      identicalGenderChipFail,
     },
+    failures,
     warnings,
     hardMaxWarnings,
   };

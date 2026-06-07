@@ -5,6 +5,7 @@
 import {
   computePageWordCounts,
   fixHebrewLatinDrift,
+  fixUnicodeSpaces,
   formatWordCountLine,
   PHASE_B_DEFAULT_CHILD_GENDER,
   PHASE_B_PROMPT_VERSION,
@@ -16,11 +17,12 @@ function stripLlmWordCountLine(md: string): string {
 }
 
 function extractPageSection(md: string): string {
-  const idx = md.search(/\r?\n--- Page 1 ---/);
-  if (idx >= 0) return md.slice(idx).trim();
-  const h3 = md.search(/\r?\n### Page 1 /);
-  if (h3 >= 0) return md.slice(h3).trim();
-  return md;
+  const normalized = fixUnicodeSpaces(md);
+  const idx = normalized.search(/\r?\n--- Page 1 ---/);
+  if (idx >= 0) return normalized.slice(idx).trim();
+  const h3 = normalized.search(/\r?\n### Page 1\s/);
+  if (h3 >= 0) return normalized.slice(h3).trim();
+  return normalized;
 }
 
 function yamlQuote(value: string): string {
@@ -81,7 +83,53 @@ function buildMetadataBlock(outline: StoryOutline): string {
 }
 
 function normalizePageHeaders(pageSection: string): string {
-  return pageSection.replace(/\r?\n### Page (\d+)\r?\n/g, '\n--- Page $1 ---\n');
+  return fixUnicodeSpaces(pageSection).replace(
+    /\r?\n### Page (\d+)\s*\r?\n/g,
+    '\n--- Page $1 ---\n'
+  );
+}
+
+/** Remove LLM-echoed duplicate header/YAML/fenced blocks between metadata and Page 1. */
+function stripEchoedFrontmatterDuplicates(md: string): string {
+  const normalized = fixUnicodeSpaces(md);
+  const pageStart = normalized.search(/\r?\n(?:--- Page 1 ---|### Page 1\s)/);
+  if (pageStart < 0) return normalized;
+
+  const prefix = normalized.slice(0, pageStart);
+  const suffix = normalized.slice(pageStart);
+
+  const yamlBlock = prefix.match(/(?:^|\r?\n)---\r?\n[\s\S]*?\r?\n---/);
+  if (!yamlBlock || yamlBlock.index == null) return normalized;
+
+  const afterYamlIdx = yamlBlock.index + yamlBlock[0].length;
+  const head = prefix.slice(0, afterYamlIdx);
+  let meta = prefix.slice(afterYamlIdx);
+
+  meta = meta
+    .replace(
+      /\r?\n# Story:[\s\S]*?(?=\r?\n(?:storyStyle:|--- Page 1 ---|### Page 1\s|$))/g,
+      ''
+    )
+    .replace(/\r?\n```ya?ml[\s\S]*?```/g, '')
+    .replace(/\r?\n---\r?\n[\s\S]*?\r?\n---/g, '')
+    .replace(/\r?\n---\s*$/g, '');
+
+  return `${head}${meta}`.trimEnd() + suffix;
+}
+
+function stripEchoedBlocksBeforeFirstPage(md: string): string {
+  const normalized = fixUnicodeSpaces(md);
+  const pageMatch = normalized.match(/\r?\n(?:--- Page 1 ---|### Page 1\s)/);
+  if (!pageMatch || pageMatch.index == null) return normalized;
+  const idx = pageMatch.index;
+  let before = normalized.slice(0, idx);
+  const after = normalized.slice(idx);
+  before = before.replace(/\r?\n```ya?ml[\s\S]*?```/g, '');
+  const storyMarkers = [...before.matchAll(/\r?\n# Story:/g)];
+  if (storyMarkers.length > 1 && storyMarkers[1].index != null) {
+    before = before.slice(0, storyMarkers[1].index);
+  }
+  return before + after;
 }
 
 export function normalizePhaseBStoryMarkdown(args: {
@@ -89,17 +137,24 @@ export function normalizePhaseBStoryMarkdown(args: {
   scenario: Scenario;
   outline: StoryOutline;
 }): string {
-  let md = fixHebrewLatinDrift(args.rawMarkdown);
+  let md = fixUnicodeSpaces(fixHebrewLatinDrift(args.rawMarkdown));
   md = stripLlmWordCountLine(md);
+  md = stripEchoedBlocksBeforeFirstPage(md);
 
   const pageSection = normalizePageHeaders(extractPageSection(md));
   const inlineMeta = buildMetadataBlock(args.outline);
 
   const header = buildHeaderBlock(args.scenario);
   const yaml = buildYamlBlock(args.scenario, args.outline);
-  const pages = fixHebrewLatinDrift(pageSection);
+  let pages = fixHebrewLatinDrift(pageSection);
+  pages = pages.replace(/\r?\n---\r?\n(?=\r?\n--- Page \d+ ---)/g, '\n');
 
   const assembled = [header, '', yaml, '', inlineMeta, '', pages].join('\n').trim();
-  const counts = computePageWordCounts(assembled);
-  return `${assembled}\n\n${formatWordCountLine(counts)}`;
+  let deduped = stripEchoedFrontmatterDuplicates(assembled);
+  const pageIdx = deduped.search(/\r?\n(?:--- Page 1 ---|### Page 1\s)/);
+  if (pageIdx >= 0) {
+    deduped = deduped.slice(0, pageIdx) + normalizePageHeaders(deduped.slice(pageIdx));
+  }
+  const counts = computePageWordCounts(deduped);
+  return `${deduped}\n\n${formatWordCountLine(counts)}`;
 }
