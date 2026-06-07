@@ -1,146 +1,104 @@
-# Story: bunny_ometz_adventure — Story Bank v5 (Hybrid: GPT-5 skeleton + Claude prose)
-Generated: 2026-05-14T06:10:28.975Z
-Skeleton model: gpt-5.3-chat-latest
-Prose model: claude-sonnet-4-5-20250929
-Total time: 74.8s
-Prompt-version: v5
+# Story: bunny_ometz_adventure — Story Bank v5 (Golden)
+Generated: 2026-06-07T12:00:00.000Z
+Source: Guy + ChatGPT + Claude QA (golden adventure, 12 beats)
+Prompt-version: v5-literary-golden
+Notes: partial nikud for TTS; display/PDF strip niqqud; Ometz MALE; timeOfDay=day clinic medical adventure.
 
 ---
----
-title: "אִם וְאוּלַי גם"
+title: "{{childName}} וְאֹמֶץ מוֹצְאִים אֶת הַכַּפּוֹת"
 companionId: bunny_ometz
 direction: adventure
-category: GENERAL_FEARS
+category: MEDICAL_PROCEDURE
+timeOfDay: day
 gender: male
-pages: 15
+pages: 12
 endingType: residue
-worldRule: עולם של תרחישים שמתממשים בקטן. החוק לא מתבטל.
+worldRule: "אֲנִי רוֹעֵד וַאֲנִי אַמִּיץ בְּאוֹתוֹ הַזְּמַן — כַּפּוֹת בַּמָּקוֹם, וְאָז צַעַד קָטָן."
+powerCard:
+  title: "כרטיס הכפות של {{childName}}"
+  subtitle: "כשהגוף רועד לפני הרופא"
+  coreTool: "אני רועד ואני אמיץ באותו זמן — כפות במקום, ואז צעד קטן"
+  steps:
+    - "אני מרגיש/ה את הרעד בגוף"
+    - "אני {מניח|מניחה} כפות במקום"
+    - "אני {נושם|נושמת} ו{סופר|סופרת} לאט"
+    - "אני {עושֶה|עוֹשָה} צעד קטן קדימה"
+  companionReminder: "רועד ואמיץ באותו זמן — כפות במקום."
+  visualMotifs:
+    - "clinic waiting room stickers"
+    - "exam chair mountain"
+    - "paws planted flat"
+    - "colorful bandage flag"
+    - "trembling ears over eyes"
 ---
 
-storyStyle: gentle adventure with escalating imagined scenarios
-metaphor: a narrated storm that is louder than the real weather
-stakes: if the child follows the imagined worst, they will run away and leave a small creature trapped
-emotionalArc: anticipation → escalation → overwhelm → noticing → quiet acceptance
-quietPage: 11
-heartLine: עמוד 8 — Ometz gently presses his ears down and curls around his medal, trying to make himself smaller.
-emotionalMistake: עמוד 5 — The child snaps at Ometz to stop talking and pushes past him.
-uncomfortableTruth: עמוד 9 — The child realizes Ometz cannot stop the stories even when they make things worse.
+storyStyle: daytime medical clinic adventure, trembling-and-brave paws ritual
+metaphor: fear shakes the body while courage stays planted — both at once
+stakes: the balloon in the belly before the doctor's door opens
+quietPagePosition: 8
+heartLine: עמוד 8 — "רוֹעֵד. וְנִשְׁאָר."
+emotionalMistake: עמוד 4 — אֹמֶץ מסתיר עיניים מאחורי אוזניים כשהדלת נפתחת.
+uncomfortableTruth: עמוד 7 — גם אֹמֶץ נבהל באמת; הרגליים האחוריות רוצות לרקוד.
+agencyTransfer: עמוד 9 — {{childName}} {בוחר|בוחרת} איזו יד ו{מבקש|מבקשת} לספור.
 
 --- Page 1 ---
-בּוּנִי יושב בחדר ליד הדלת.
-המדליה שלו נוצצת על החזה.
-"אִם הדלת תִסָגֵר," הוא אומר, "אוּלַי לא נוּכַל לצאת. ואוּלַי הַמַפְתֵחַ לא יהיה איתנו. ואולי גם נישאר פה לבד."
-הוא נושם ואומר: "אני לא פוחד, אני רק מכין את עצמי."
+הַמִּרְפָּאָה הֵרִיחָה כְּמוֹ סַבּוֹן נָקִי וְאוֹר לָבָן. עַל הַקִּיר הָיוּ מַדְבֵּקוֹת צִבְעוֹנִיּוֹת שֶׁל חַיּוֹת, אֲבָל בַּבֶּטֶן שֶׁל {{childName}} הָיָה בַּלּוֹן קָטָן וּמָתוּחַ. הַכִּסֵּא בַּחֲדַר הַהַמְתָּנָה הָיָה גָּבוֹהַּ מִדַּי. דֶּלֶת הָרוֹפֵא עָמְדָה סְגוּרָה, וּמֵאֲחוֹרֶיהָ חִכָּה הַלֹּא-נוֹדָע.
 
-imageDirection: rabbit upright, medal shining, arrows and imagined hazards sketched around a simple door
+imageDirection: The child sits beside a parent in a bright, clean clinic waiting room, looking slightly anxious and pulling at their collar. Colorful animal stickers are on the wall, and the doctor's closed door is visible. Ometz is not yet present. companionPresence: absent; view: 3-4.
 
 --- Page 2 ---
-אני עומד ליד הפתח.
-שומע משהו חלש בחוץ.
-"בּוּנִי," אני אומר, "שמעת את זה?"
-הוא מרים את הראש. האוזניים שלו זקופות.
+מִתַּחַת לַכִּסֵּא שֶׁל אִמָּא הֵצִיצָה אֹזֶן אֲרֻכָּה וּוְרֻדָּה. אָז יָצָא אַף קָטָן, שֶׁזָּז מַהֵר כְּמוֹ מְכוֹנַת תְּפִירָה. זֶה הָיָה אֹמֶץ. הוּא הָיָה אַרְנָב רַךְ וּמָתוֹק, אֲבָל הַבִּרְכַּיִם הַדַּקּוֹת שֶׁלּוֹ דָּפְקוּ זוֹ בָּזוֹ בְּקֶצֶב מַצְחִיק: טוֹק-טוֹק-טוֹק. "שָׁלוֹם," לָחַשׁ בְּחִיּוּךְ רָעוּד.
 
-imageDirection: child peeking in, ear tilted, soft shadow beyond the door
+imageDirection: A small, soft-furred rabbit with long ears peeks out from under a waiting room chair. His tiny pink nose is twitching rapidly. The child looks down from the chair with surprised curiosity. companionPresence: present; view: front/3-4.
 
 --- Page 3 ---
-בּוּנִי קופץ מהר.
-"אִם נֵלֵךְ החוצה," הוא מתחיל, "אוּלַי תִהְיֶה רוּחַ חזקה. ואוּלַי הרוּחַ תִסְגוֹר את הדלת. ואוּלַי גם נִפּוֹל."
-הקול שלו מהיר, והמילים רצות אחת אחרי השנייה.
-בראש שלי הרוּחַ כבר ענקית.
+"מָה אַתָּה עוֹשֶׂה שָׁם?" {לָחַשׁ|לָחֲשָׁה} {{childName}}. אֹמֶץ הִבִּיט בַּדֶּלֶת, וְהַכַּפּוֹת הָאֲחֹרִיּוֹת שֶׁלּוֹ קִפְצְצוּ בְּלִי לַעְצֹר. "אֲנִי לֹא בּוֹרֵחַ," אָמַר אֹמֶץ בְּקוֹל גֵּאֶה. "אֲנִי רַק מְחַמֵּם אֶת הָרַגְלַיִם לִרִיצָה קַלָּה וּמְהִירָה הַחוּצָה." {{childName}} כִּמְעַט {צָחַק|צָחֲקָה} בַּפַּעַם הָרִאשׁוֹנָה.
 
-imageDirection: his speech swirls into big shadowy scenarios dwarfing the simple hallway
+imageDirection: Ometz stands on his hind legs, which are bouncing comically as if preparing for a sprint. His ears drape over his shoulders. The child looks amused, leaning down toward him. companionPresence: present; view: side/3-4.
 
 --- Page 4 ---
-אנחנו יוצאים למסדרון.
-בּוּנִי הולך ומדבר.
-"אִם נִפְנֶה פה, אוּלַי יהיה חושך. ואוּלַי לא נראה את הדרך בחזרה. ואוּלַי גם יש משהו שם."
-המסדרון ארוך, אבל בּוּנִי רואה משהו אחר.
+הַדֶּלֶת נִפְתְּחָה. הָרוֹפֵא קָרָא: "{{childName}}." הַבַּלּוֹן בַּבֶּטֶן שֶׁל {{childName}} נִהְיָה כָּבֵד וּמָתוּחַ עוֹד יוֹתֵר. הַגּוּף רָצָה לַעֲשׂוֹת סִיבוּב מָהִיר אָחוֹרָה. אֹמֶץ נֶעֱמַד וְהִסְתִּיר אֶת הָעֵינַיִם הַשְּׁחוֹרוֹת שֶׁלּוֹ מֵאֲחוֹרֵי אָזְנָיו. "הָרַגְלַיִם שֶׁלִּי לֹא קִבְּלוּ אֶת הַהוֹדָעָה שֶׁנִּכְנָסִים," לָחַשׁ מִתּוֹךְ הַפַּרְוָה. אִמָּא הוֹשִׁיטָה יָד חַמָּה. צַעַד קָטָן שֶׁל אִמָּא, צַעַד רוֹעֵד שֶׁל {{childName}}, וְעוֹד צַעַד קָטָן אֶחָד. וְהֵם נִכְנְסוּ.
 
-imageDirection: long corridor with tiny real objects and huge imagined overlays
+imageDirection: The friendly doctor stands at the open door, calling the child. The child hesitates, clutching their parent's hand. Beside them, Ometz has pulled his long ears completely over his face to hide. companionPresence: present; view: wide.
 
 --- Page 5 ---
-"אני לא יכול יותר," אני אומר.
-הקול שלי יוצא חזק מדי.
-אני עובר לידו ולא מסתכל אחורה.
-האוזניים של בּוּנִי מתחילות לרדת לאחור.
+הֵם נִכְנְסוּ פְּנִימָה. בְּאֶמְצַע הַחֶדֶר עָמַד "הַר הַיְּשִׁיבָה" - כִּסֵּא הַבְּדִיקוֹת הַגָּבוֹהַּ שֶׁל הָרוֹפֵא. אֹמֶץ קָפַץ בִּזְרִיזוּת עַל הַמַּדָּף וְהִנִּיחַ שְׁתֵּי כַּפּוֹת קְדָמִיּוֹת שְׁטוּחוֹת. "כַּפּוֹת בַּמָּקוֹם," הוּא לָחַשׁ לְעַצְמוֹ בְּרִכּוּז. הָאַף שֶׁלּוֹ עֲדַיִן רָעַד, אֲבָל הַגּוּף שֶׁלּוֹ הִפְסִיק לְקַפֵּץ. "{{childName}}, {תַּנִּיחַ|תַּנִּיחִי} גַּם."
 
-imageDirection: child moving forward, Ometz slightly behind, ears starting to flatten
+imageDirection: The child climbs onto the high examination chair. Ometz sits on the examination table safety ledge, firmly pressing his small white paws flat against the clean surface to steady himself. companionPresence: present; view: 3-4.
 
 --- Page 6 ---
-ליד החלון יש משהו קטן.
-יצור עם כנפיים, קצת מסתבך בחוּט דק.
-בּוּנִי עוצר ואומר בקול נמוך: "אִם נִגַע בו, אוּלַי הוא יִפְחַד ויִתְפָּרֵק. ואוּלַי יִפְרוֹשׂ כנפיים ויִפְגַע בנו. ואוּלַי גם—"
-בראש שלי אני רואה סערה ענקית. אבל היצור פשוט רועד.
+הָרוֹפֵא לָקַח אֶת הַסְּטֶטוֹסְקוֹפּ. "זֶה יִהְיֶה קְצָת קַר," הוּא אָמַר. הָעִגּוּל הַכָּסֹף נָגַע בַּגּוּף שֶׁל {{childName}}. קָרִיר. קְצָת מְדַגְדֵּג. {{childName}} {לֹא אָהַב|לֹא אָהֲבָה} אֶת זֶה, אֲבָל {נִשְׁאַר|נִשְׁאֲרָה} עַל הַכִּסֵּא. אֹמֶץ לָחַץ אֶת הַכַּפּוֹת שֶׁלּוֹ בַּמָּקוֹם וְסָפַר בְּשֶׁקֶט: "אַחַת... שְׁתַּיִם... שָׁלֹשׁ." "זֶהוּ," חִיֵּךְ הָרוֹפֵא. "נִגְמַר הַקֹּר."
 
-imageDirection: tiny creature tangled lightly, contrasted with Ometz's huge imagined storm scene
+imageDirection: The doctor gently places the stethoscope on the child's chest. The child stays seated, uneasy but steady. Ometz sits nearby counting softly, paws planted and nose twitching. companionPresence: present; view: close/3-4.
 
 --- Page 7 ---
-היצור מנפנף בכנף אחת.
-רוּחַ קלה באה מהחלון.
-כוס קטנה על השולחן מתהפכת. ניירות עפים.
-"רָאִיתָ?" בּוּנִי לוחש. "זה קורה."
+וְאָז הָרוֹפֵא פָּתַח מְגֵרָה קְטַנָּה. בִּפְנִים הָיְתָה דְּקִירָה קְטַנָּה. וְגַם פְּלַסְטֶר צִבְעוֹנִי. אֹמֶץ נִבְהַל בֶּאֱמֶת. הָאָזְנַיִם שֶׁלּוֹ נִדְבְּקוּ לַגַּב. הַכַּפּוֹת הָאֲחֹרִיּוֹת הִתְחִילוּ לִרְקֹד בַּמָּקוֹם. "זֶה אוּלַי יִצְבֹּט רֶגַע," לָחַשׁ. "אֲנִי מַרְגִּישׁ אֶת הַבְּרִיחָה מִטַּפֶּסֶת לִי לַזָּנָב."
 
-imageDirection: a cup tips, papers scatter, small but real movement
+imageDirection: The doctor prepares a small syringe and a colorful bandage. Ometz's ears flatten against his back in honest panic, and his back paws twitch with the urge to run. The child looks worried but stays seated. companionPresence: present; view: wide.
 
 --- Page 8 ---
-בּוּנִי זז אחורה לפינה.
-האוזניים שלו שטוחות לאחור. הזנב רועד.
-הוא מוריד את הראש, והמדליה מחליקה קדימה.
-הוא מתכרבל ליד הקיר ולוחש משהו לעצמו.
+{{childName}} הִבִּיט בָּאֹמֶץ. "אַתָּה מְפַחֵד?" "מְאֹד," אָמַר אֹמֶץ. הָאָף שֶׁלּוֹ זָז מַהֵר-מַהֵר. וְאָז הוּא הוֹרִיד שְׁתֵּי כַּפּוֹת אֶל הַכִּסֵּא. הֵן רָעֲדוּ. אֲבָל נִשְׁאֲרוּ. "{תִּרְאֶה|תִּרְאִי}," הוּא לָחַשׁ. "רוֹעֵד. וְנִשְׁאָר." {{childName}} {הִסְתַּכֵּל|הִסְתַּכְּלָה} עַל הַכַּפּוֹת שֶׁלּוֹ.
 
-imageDirection: he curls small, ears down, medal slipping forward
+imageDirection: The child and Ometz share a close, quiet look. Ometz places both paws down; they tremble, but stay planted. The clinic background softens around their small brave moment. companionPresence: present; view: close/3-4.
 
 --- Page 9 ---
-אני מסתכל על היצור הקטן.
-אני מסתכל על בּוּנִי.
-היצור רק תקוע קצת. זה הכול.
-אבל בּוּנִי לא רואה את זה. הוא רואה משהו אחר.
+{{childName}} {נָשַׁם|נָשְׁמָה} נְשִׁימָה עֲמֻקָּה. "אֲנִי {בוֹחֵר|בּוֹחֶרֶת} אֶת הַיָּד הַזֹּאת," נֶאֱמַר. הַיָּד הוּשְׁטָה קָדִימָה. הַיָּד הַשְּׁנִיָּה הֶחְזִיקָה אֶת הַהוֹרֶה חָזָק. "אֲנִי רוֹצֶה לִסְפֹּר," {אָמַר|אָמְרָה} {{childName}}. אֹמֶץ עָמַד לְיַד הַכִּסֵּא. הָאָף שֶׁלּוֹ רָעַד. הַכַּפּוֹת שֶׁלּוֹ נִשְׁאֲרוּ.
 
-imageDirection: child looking between tiny creature and Ometz's imagined shadows
+imageDirection: The child chooses which arm to offer and holds the parent's hand tightly with the other hand. Ometz stands nearby, trembling but planted. The doctor waits gently. companionPresence: present; view: 3-4.
 
 --- Page 10 ---
-אני ניגש לחלון.
-יש שרפרף קטן, אני עולה עליו.
-מושיט את היד לאט.
-בּוּנִי לא זז מהפינה.
+"כַּפּוֹת בַּמָּקוֹם," לָחַשׁ אֹמֶץ. {{childName}} {אָמַר|אָמְרָה}: "אַחַת..." הַיָּד רָעֲדָה קְצָת. "שְׁתַּיִם..." הַהוֹרֶה {לָחַץ|לָחֲצָה} בַּעֲדִינוּת. "שָׁלֹשׁ. עַכְשָׁו." הָיְתָה צְבִיטָה קְטַנָּה. לֹא נְעִימָה. רַק רֶגַּע. וְאָז הִיא כְּבָר הָיְתָה מֵאֲחוֹרֵיהֶם.
 
-imageDirection: child balancing, hand extended, real scene clear and contained
+imageDirection: The doctor gives the injection gently as the child counts and holds still. The parent holds the child's other hand. Ometz watches with ears high and paws pressed firmly down. companionPresence: present; view: close-up.
 
 --- Page 11 ---
-אני משחרר את היצור מהחוּט.
-הכנף שלו נפתחת.
+הָרוֹפֵא הִדְבִּיק פְּלַסְטֶר צִבְעוֹנִי עַל הַיָּד. הַפְּלַסְטֶר נִרְאָה כְּמוֹ דֶּגֶל קָטָן שֶׁאֹמֵר: נִשְׁאַרְתִּי. אֹמֶץ עָשָׂה פַּרְצוּף מְכֻוָּץ וּמַצְחִיק, כְּאִלּוּ הַצְּבִיטָה הָיְתָה גַּם בָּאָף שֶׁלּוֹ. וְאָז הָאָזְנַיִם שֶׁלּוֹ קָפְצוּ לְמַעְלָה. "עָבַר," הוּא לָחַשׁ. "רָעַדְתָּ," {אָמַר|אָמְרָה} {{childName}}. "נָכוֹן," חִיֵּךְ אֹמֶץ. "וְגַם נִשְׁאַרְתִּי."
 
-imageDirection: gentle hands freeing a small wing
+imageDirection: The doctor places a bright patterned bandage on the child's arm. Ometz makes a funny wrinkled face of relief, then his ears spring upward. The child looks proud and a little surprised. companionPresence: present; view: medium/3-4.
 
 --- Page 12 ---
-היצור עף.
-רוּחַ קלה באה מהחלון, אבל לא יותר.
-הוא עולה ויוצא החוצה.
-שקט.
+בַּחוּץ הָיְתָה שֶׁמֶשׁ. הַיָּד שֶׁל {{childName}} הָיְתָה מְקֻשֶּׁטֶת בִּפְלַסְטֶר. "רָעַדְתִּי," {אָמַר|אָמְרָה} {{childName}}. "גַּם אֲנִי," אָמַר אֹמֶץ, וְקָפַץ קְפִיצָה קְטַנָּה. "זֶה לֹא בִּיטֵּל." {{childName}} {חִיֵּךְ|חִיֵּכָה}. הַגּוּף עוֹד זָכַר אֶת הַפַּחַד. אֲבָל עַכְשָׁו הוּא יָדַע מִשְׁפָּט חָדָשׁ: "אֲנִי {רוֹעֵד|רוֹעֶדֶת}. וַאֲנִי {אַמִּיץ|אַמִיצָה}. בְּאוֹתוֹ הַזְּמַן."
 
-imageDirection: light flutter, breeze minimal, no chaos
+imageDirection: Outside the clinic in bright sunlight, the child proudly shows the colorful bandage. Ometz leaps gently beside them, happy and relieved. The parent walks nearby, and the child looks proud of their brave moment. companionPresence: present; view: 3-4.
 
---- Page 13 ---
-בּוּנִי מרים את הראש.
-הוא מסתכל על החלון הפתוח.
-הצללים שראה נעלמים. נשאר רק החדר.
-האוזניים שלו עולות קצת.
-
-imageDirection: his posture easing, imagined shadows fading
-
---- Page 14 ---
-היצור כבר רחוק.
-נוצה קטנה נופלת על קצה החלון.
-השמיים בחוץ רגועים.
-
-imageDirection: open sky, tiny figure departing, feather drifting down
-
---- Page 15 ---
-אני ובּוּנִי עומדים ליד החלון.
-לא נוגעים, רק קרוב.
-המדליה של בּוּנִי תלויה על ענף בחוץ.
-השמיים גדולים ושקטים.
-
-imageDirection: quiet scene, medal hanging, both figures small under a wide calm sky
-
-WORD_COUNT: [47, 22, 42, 28, 23, 38, 26, 28, 26, 22, 12, 22, 24, 18, 22] = 400
+WORD_COUNT: [36, 41, 36, 57, 41, 43, 36, 34, 34, 28, 40, 41] = 467
