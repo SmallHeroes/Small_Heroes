@@ -7,7 +7,8 @@ import {
   buildProseSystemPrompt,
   buildProseUserPrompt,
 } from './prompts';
-import { buildPhaseBAdvisoryReport } from './scenario-prompt-block';
+import { buildPhaseBAdvisoryReport, isPhaseBScenario } from './scenario-prompt-block';
+import { normalizePhaseBStoryMarkdown } from './story-markdown-normalize';
 import type {
   PromptSnapshot,
   Scenario,
@@ -72,8 +73,9 @@ export async function generateStoryFromScenario(args: {
     );
   }
 
+  const phaseB = isPhaseBScenario(scenario);
   const proseLlm = createLlm(modelConfig.draftModel);
-  const proseSystem = buildProseSystemPrompt(scenario.direction);
+  const proseSystem = buildProseSystemPrompt(scenario.direction, phaseB);
   const proseUser = buildProseUserPrompt({
     companionBlock,
     scenario,
@@ -98,12 +100,21 @@ export async function generateStoryFromScenario(args: {
     outputTokens: proseResult.outputTokens,
   });
 
+  let storyMarkdown = proseResult.text.trim();
+  if (phaseB) {
+    storyMarkdown = normalizePhaseBStoryMarkdown({
+      rawMarkdown: storyMarkdown,
+      scenario,
+      outline,
+    });
+  }
+
   return {
     companionId: scenario.companionId,
     direction: scenario.direction,
     scenario,
     outline,
-    storyMarkdown: proseResult.text.trim(),
+    storyMarkdown,
     prompts,
     modelVersions: {
       ...modelConfig,

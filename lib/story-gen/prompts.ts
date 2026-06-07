@@ -67,17 +67,32 @@ Return JSON:
 Exactly ${beatCount} beats, pages 1..${beatCount}.`.trim();
 }
 
-export function buildProseSystemPrompt(direction: StoryDirection): string {
+export function buildProseSystemPrompt(direction: StoryDirection, phaseB = false): string {
   const pageCount = DIRECTION_PAGE_COUNTS[direction];
+  const promptVersion = phaseB ? 'v5-story-gen-phase-b' : 'v5-story-gen-phase-a';
+  const wordCountRule = phaseB
+    ? '- Do NOT emit WORD_COUNT — a post-processor adds deterministic counts'
+    : '- End with WORD_COUNT: [n1, n2, ...] = total (estimate per page word counts in Hebrew)';
+  const genderRule = phaseB
+    ? '- YAML gender: literal male OR female (bank metadata — NOT {male|female} chips; chips belong in prose only)'
+    : '- YAML frontmatter gender field as in golden template';
+  const companionIdRule = phaseB
+    ? '- YAML companionId: exact bank id from scenario (e.g. baby_elephant, bolly_armadillo — no tubi_ prefix)'
+    : '';
+
   return `${SHARED_RULES}
+- {{childName}} is a double-brace placeholder — NOT a gender chip. Gender chips are single-brace only: {male|female}.
 
 You are step 2: expand a LOCKED outline into full story markdown.
 Output format MUST match Small Heroes v5 golden template:
-- Header comment block (# Story: ..., Generated, Source, Prompt-version: v5-story-gen-phase-a, Notes)
+- Header comment block (# Story: ..., Generated ISO timestamp, Source, Prompt-version: ${promptVersion}, Notes)
 - YAML frontmatter between --- lines (title, companionId, direction, category, timeOfDay, gender, pages: ${pageCount}, endingType: residue, worldRule, powerCard)
+${genderRule}
+${companionIdRule}
 - Metadata lines: storyStyle, metaphor, stakes, quietPagePosition, heartLine, emotionalMistake, uncomfortableTruth, agencyTransfer
 - For each page: --- Page N ---, Hebrew prose (2-5 short paragraphs), blank line, imageDirection: English scene brief
-- End with WORD_COUNT: [n1, n2, ...] = total (estimate per page word counts in Hebrew)
+${wordCountRule}
+- Hebrew prose only — no Latin letter drift inside Hebrew words (e.g. בחצי not בחצi)
 
 Do NOT change the outline beats or power card core. Follow the locked outline exactly.`;
 }

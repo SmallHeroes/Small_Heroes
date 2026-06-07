@@ -11,6 +11,14 @@ import {
 import { extractStoryBodyFromMarkdown } from './craft-rubric-v2';
 import type { Scenario, StoryDirection } from './story-generation-types';
 import { DIRECTION_PAGE_COUNTS } from './story-generation-types';
+import {
+  analyzeGenderChips,
+  countPageWords,
+  hasValidYamlFrontmatter,
+  pageProseOnly,
+  parseStoryPages,
+  parseWordCountLine,
+} from './story-page-utils';
 
 export interface AdvisoryPlaceholderReport {
   status: 'not_implemented_yet';
@@ -44,6 +52,7 @@ export interface Run1ValidatorReport {
     pageHeaderStyle: 'canonical' | 'markdown_h3' | 'mixed' | 'missing';
     allPagesHaveImageDirection: boolean;
     wordCountLinePresent: boolean;
+    wordCountMatchesValidator: boolean;
   };
   warnings: string[];
   hardMaxWarnings: string[];
@@ -79,52 +88,6 @@ function wordBand(direction: StoryDirection): { min: number; max: number; hardMa
   return { min: 35, max: 55, hardMax: 70 };
 }
 
-function countHebrewWords(text: string): number {
-  const stripped = text
-    .replace(/imageDirection\s*:[^\n]*/gi, '')
-    .replace(/\{\{[^}]+\}\}/g, ' ')
-    .replace(/[{}]/g, ' ');
-  const tokens = stripped.match(/[\u0590-\u05FF]+|[A-Za-z]+|\d+/g);
-  return tokens?.length ?? 0;
-}
-
-function analyzeChips(prose: string): { malformed: string[]; identical: string[] } {
-  const malformed: string[] = [];
-  const identical: string[] = [];
-  const chipRe = /\{([^{}|]+)\|([^{}|]+)\}/g;
-  let m: RegExpExecArray | null;
-  while ((m = chipRe.exec(prose)) !== null) {
-    const full = m[0];
-    const left = m[1].trim();
-    const right = m[2].trim();
-    if (!left || !right) malformed.push(full);
-    if (left === right) identical.push(full);
-  }
-  const orphan = prose.match(/\{[^{}|]*\}(?!\|)/g) ?? [];
-  for (const o of orphan) {
-    if (!o.includes('|')) malformed.push(o);
-  }
-  return { malformed, identical };
-}
-
-function parsePages(markdown: string): Array<{ page: number; body: string }> {
-  const pages: Array<{ page: number; body: string }> = [];
-  const re =
-    /\r?\n--- Page (\d+) ---\r?\n([\s\S]*?)(?=\r?\n--- Page \d+ ---|\r?\nWORD_COUNT:|$)/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec('\n' + markdown)) !== null) {
-    pages.push({ page: parseInt(m[1], 10), body: m[2] ?? '' });
-  }
-  if (pages.length === 0) {
-    const h3 =
-      /\r?\n### Page (\d+)\r?\n([\s\S]*?)(?=\r?\n### Page \d+|\r?\nWORD_COUNT:|$)/g;
-    while ((m = h3.exec('\n' + markdown)) !== null) {
-      pages.push({ page: parseInt(m[1], 10), body: m[2] ?? '' });
-    }
-  }
-  return pages;
-}
-
 export function buildSwapTestPlaceholder(): AdvisoryPlaceholderReport {
   return {
     status: 'not_implemented_yet',
@@ -154,7 +117,7 @@ export function runDeterministicValidators(args: {
 }): Run1ValidatorReport {
   const expectedPages = args.expectedPages ?? DIRECTION_PAGE_COUNTS[args.direction];
   const band = wordBand(args.direction);
-  const pages = parsePages(args.storyMarkdown);
+  const pages = parseStoryPages(args.storyMarkdown);
   const warnings: string[] = [];
   const hardMaxWarnings: string[] = [];
 
@@ -170,8 +133,8 @@ export function runDeterministicValidators(args: {
   }
 
   const pageRows: Run1ValidatorPageRow[] = pages.map(({ page, body }) => {
-    const proseOnly = body.replace(/imageDirection\s*:[^\n]*/gi, '').trim();
-    const wc = countHebrewWords(proseOnly);
+    const proseOnly = pageProseOnly(body);
+    const wc = countPageWords(proseOnly);
     let bandStatus: Run1ValidatorPageRow['bandStatus'] = 'ok';
     if (wc > band.hardMax) bandStatus = 'hard_max';
     else if (wc > band.max) bandStatus = 'above';
@@ -187,7 +150,7 @@ export function runDeterministicValidators(args: {
 
     const imgMatch = body.match(/imageDirection\s*:\s*(.+)/i);
     const imageDirectionLine = imgMatch?.[0]?.trim() ?? '';
-    const { malformed, identical } = analyzeChips(proseOnly);
+    const { malformed, identical } = analyzeGenderChips(proseOnly);
     if (malformed.length) warnings.push(`Page ${page}: malformed chips — ${malformed.join(', ')}`);
     if (identical.length) warnings.push(`Page ${page}: identical chip options — ${identical.join(', ')}`);
 
@@ -211,10 +174,21 @@ export function runDeterministicValidators(args: {
   const allImg = pageRows.length > 0 && pageRows.every((p) => p.imageDirectionPresent);
   if (!allImg) warnings.push('One or more pages missing imageDirection line');
 
-  const hasYaml = /^---\r?\n[\s\S]*?\r?\n---/.test(args.storyMarkdown);
+  const hasYaml = hasValidYamlFrontmatter(args.storyMarkdown);
   if (!hasYaml) warnings.push('Missing YAML frontmatter block (--- ... ---)');
 
   const wordCountLinePresent = /WORD_COUNT\s*:/i.test(args.storyMarkdown);
+  const lineCounts = parseWordCountLine(args.storyMarkdown);
+  const validatorCounts = pageRows.map((p) => p.wordCount);
+  const wordCountMatchesValidator =
+    lineCounts !== null &&
+    lineCounts.length === validatorCounts.length &&
+    lineCounts.every((n, i) => n === validatorCounts[i]);
+  if (wordCountLinePresent && !wordCountMatchesValidator) {
+    warnings.push(
+      `WORD_COUNT line [${lineCounts?.join(', ') ?? '?'}] !== validator [${validatorCounts.join(', ')}]`
+    );
+  }
 
   return {
     status: 'advisory_deterministic',
@@ -229,6 +203,7 @@ export function runDeterministicValidators(args: {
       pageHeaderStyle,
       allPagesHaveImageDirection: allImg,
       wordCountLinePresent,
+      wordCountMatchesValidator,
     },
     warnings,
     hardMaxWarnings,
