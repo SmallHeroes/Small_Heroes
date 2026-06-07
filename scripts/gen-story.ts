@@ -24,6 +24,7 @@ import {
 import { resolveScenario } from '../lib/story-gen/scenario-resolver';
 import type { GenderChipRepairReport } from '../lib/story-gen/gender-chip-repair';
 import type { HebrewSanityReport } from '../lib/story-gen/hebrew-sanity';
+import type { ProofreadReport } from '../lib/story-gen/proofread-pass';
 import type { ThinPageEnrichReport } from '../lib/story-gen/thin-page-enrich';
 import {
   DEFAULT_STORY_GEN_MODELS,
@@ -96,6 +97,7 @@ async function main(): Promise<void> {
   const chipRepairReport = result.advisoryReport?.genderChipRepair as
     | GenderChipRepairReport
     | undefined;
+  const proofreadReport = result.advisoryReport?.proofread as ProofreadReport | undefined;
   const hebrewSanityReport = result.advisoryReport?.hebrewSanity as HebrewSanityReport | undefined;
 
   if (enrichReport) {
@@ -116,6 +118,16 @@ async function main(): Promise<void> {
     );
     console.log(`[gen-story] chip repair: ${chipRepairReport.totalRepaired} identical chips collapsed`);
   }
+  if (proofreadReport) {
+    fs.writeFileSync(
+      path.join(runDir, 'proofread-report.json'),
+      JSON.stringify(proofreadReport, null, 2),
+      'utf8'
+    );
+    console.log(
+      `[gen-story] proofread: ${proofreadReport.changeCount} change(s) on pages [${proofreadReport.pagesTouched.join(', ')}]`
+    );
+  }
   if (hebrewSanityReport) {
     fs.writeFileSync(
       path.join(runDir, 'hebrew-sanity-report.json'),
@@ -125,7 +137,7 @@ async function main(): Promise<void> {
     console.log(`[gen-story] hebrew sanity: ${hebrewSanityReport.hitCount} suspicious hit(s)`);
   }
 
-  console.log('[gen-story] Running craft-v2.1 + deterministic validators (swap/freshness placeholders)...');
+  console.log('[gen-story] Running craft-v2.1 + validators + swap/freshness (advisory)...');
   const advisoryBundle = await buildRun1AdvisoryBundle({
     scenario,
     storyMarkdown: result.storyMarkdown,
@@ -133,13 +145,14 @@ async function main(): Promise<void> {
     judgeModel: DEFAULT_STORY_GEN_MODELS.judgeModel,
     enrichReport,
     chipRepairReport,
+    proofreadReport,
     hebrewSanity: hebrewSanityReport,
   });
 
   const advisoryReport = {
     ...(result.advisoryReport ?? {}),
     run1Advisory: advisoryBundle,
-    note: 'swapTest and freshnessTest are placeholders only — not real scores.',
+    note: 'swapTest and freshnessTest are real advisory gates — not auto-reroll.',
   };
 
   fs.writeFileSync(
@@ -174,6 +187,8 @@ async function main(): Promise<void> {
   );
 
   console.log(`[gen-story] craft-v2.1 overall=${advisoryBundle.craftV21.overall} placement=${advisoryBundle.craftV21.ladderPlacement}`);
+  console.log(`[gen-story] swap-test verdict=${advisoryBundle.swapTest.verdict} score=${advisoryBundle.swapTest.bindingScore}`);
+  console.log(`[gen-story] freshness-test recommendation=${advisoryBundle.freshnessTest.recommendation} shapeMax=${advisoryBundle.freshnessTest.shapeOverlapMax}`);
   console.log(`[gen-story] validators advisoryResult=${advisoryBundle.validators.advisoryResult} pageCount=${advisoryBundle.validators.pageCount}/${advisoryBundle.validators.expectedPages} failures=${advisoryBundle.validators.failures.length} warnings=${advisoryBundle.validators.warnings.length}`);
   console.log(`[gen-story] Wrote artifacts to ${runDir}`);
   console.log('[gen-story] Done.');

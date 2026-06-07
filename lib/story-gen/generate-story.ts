@@ -10,6 +10,7 @@ import {
 import { buildPhaseBAdvisoryReport, isPhaseBScenario } from './scenario-prompt-block';
 import { repairGenderChipsInStory, type GenderChipRepairReport } from './gender-chip-repair';
 import { scanHebrewSanity, type HebrewSanityReport } from './hebrew-sanity';
+import { runProofreadPass, type ProofreadReport } from './proofread-pass';
 import { normalizePhaseBStoryMarkdown } from './story-markdown-normalize';
 import { runThinPageEnrichPass, type ThinPageEnrichReport } from './thin-page-enrich';
 import type {
@@ -106,6 +107,7 @@ export async function generateStoryFromScenario(args: {
   let storyMarkdown = proseResult.text.trim();
   let thinPageEnrich: ThinPageEnrichReport | undefined;
   let genderChipRepair: GenderChipRepairReport | undefined;
+  let proofread: ProofreadReport | undefined;
   let hebrewSanity: HebrewSanityReport | undefined;
 
   if (phaseB) {
@@ -132,6 +134,13 @@ export async function generateStoryFromScenario(args: {
     storyMarkdown = chipResult.markdown;
     genderChipRepair = chipResult.report;
 
+    const proofreadResult = await runProofreadPass({
+      storyMarkdown,
+      modelId: modelConfig.draftModel,
+    });
+    storyMarkdown = proofreadResult.markdown;
+    proofread = proofreadResult.report;
+
     hebrewSanity = scanHebrewSanity(storyMarkdown);
   }
 
@@ -150,6 +159,7 @@ export async function generateStoryFromScenario(args: {
       ...buildPhaseBAdvisoryReport({ scenario, companionBlock }),
       ...(thinPageEnrich ? { thinPageEnrich } : {}),
       ...(genderChipRepair ? { genderChipRepair } : {}),
+      ...(proofread ? { proofread } : {}),
       ...(hebrewSanity ? { hebrewSanity } : {}),
     },
   };

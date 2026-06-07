@@ -26,6 +26,9 @@ import {
 import type { GenderChipRepairReport } from './gender-chip-repair';
 import type { HebrewSanityReport } from './hebrew-sanity';
 import type { ThinPageEnrichReport } from './thin-page-enrich';
+import type { ProofreadReport } from './proofread-pass';
+import { runFreshnessTest, type FreshnessTestReport } from './freshness-test';
+import { runSwapTest, type SwapTestReport } from './swap-test';
 
 export interface AdvisoryPlaceholderReport {
   status: 'not_implemented_yet';
@@ -76,8 +79,8 @@ export interface Run1AdvisoryBundle {
   direction: StoryDirection;
   craftV21: CraftRubricV21Report;
   validators: Run1ValidatorReport;
-  swapTest: AdvisoryPlaceholderReport;
-  freshnessTest: AdvisoryPlaceholderReport;
+  swapTest: SwapTestReport;
+  freshnessTest: FreshnessTestReport;
   generatedAt: string;
 }
 
@@ -274,6 +277,7 @@ export async function buildRun1AdvisoryBundle(args: {
   judgeModel?: string;
   enrichReport?: ThinPageEnrichReport;
   chipRepairReport?: GenderChipRepairReport;
+  proofreadReport?: ProofreadReport;
   hebrewSanity?: HebrewSanityReport;
 }): Promise<Run1AdvisoryBundle> {
   const storyBody = extractStoryBodyFromMarkdown(args.storyMarkdown);
@@ -295,6 +299,21 @@ export async function buildRun1AdvisoryBundle(args: {
     }
   );
 
+  const [swapTest, freshnessTest] = await Promise.all([
+    runSwapTest({
+      storyMarkdown: args.storyMarkdown,
+      companionId: args.scenario.companionId,
+      modelId: args.judgeModel,
+    }),
+    runFreshnessTest({
+      storyMarkdown: args.storyMarkdown,
+      candidateId: args.scenario.id,
+      companionId: args.scenario.companionId,
+      modelId: args.judgeModel,
+      excludeSelfFromCorpus: true,
+    }),
+  ]);
+
   return {
     runLabel: args.runLabel ?? 'phase-b-run-1-canary',
     scenarioId: args.scenario.id,
@@ -302,8 +321,8 @@ export async function buildRun1AdvisoryBundle(args: {
     direction: args.scenario.direction,
     craftV21,
     validators,
-    swapTest: buildSwapTestPlaceholder(),
-    freshnessTest: buildFreshnessTestPlaceholder(),
+    swapTest,
+    freshnessTest,
     generatedAt: new Date().toISOString(),
   };
 }
