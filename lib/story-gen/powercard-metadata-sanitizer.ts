@@ -108,7 +108,7 @@ function scanChildStep(
   const isArmadillo = companionId === 'bolly_armadillo';
 
   if (isElephant) {
-    if (/חדק|חטם|trunk/i.test(stripped)) {
+    if (/חדק|חטם|trunk/i.test(stripped) && !/\(או[^)]*\)/.test(step)) {
       hits.push({
         field: 'powerCard.steps',
         stepIndex,
@@ -248,6 +248,38 @@ function applyStepReplacementsInBlock(block: string): {
   return { block: out, fixes };
 }
 
+/** Strip leftover parentheticals after anatomy replacement on child-facing steps. */
+function stripSanitizedStepParentheticals(block: string): {
+  block: string;
+  fixes: PowerCardSanitizerReport['fixes'];
+} {
+  let out = block;
+  const fixes: PowerCardSanitizerReport['fixes'] = [];
+
+  const stepLineRe = /^(\s+-\s+)(.+)$/gm;
+  out = out.replace(stepLineRe, (full, prefix: string, stepContent: string) => {
+    let step = stepContent.trim();
+    const before = step;
+
+    step = step.replace(/\s*\(או[^)]*\)/g, '');
+    step = step.replace(/"\s*\(או[^)]*\)"/g, '"');
+    step = step.replace(/(\{[^}]+\}[^"(]*?)\s*\(או[^)]*\)/g, '$1');
+
+    if (step !== before) {
+      fixes.push({
+        field: 'powerCard.steps',
+        before,
+        after: step,
+        reason: 'parenthetical_residue',
+      });
+      return `${prefix}${step}`;
+    }
+    return full;
+  });
+
+  return { block: out, fixes };
+}
+
 function removeLabelLeaks(block: string): { block: string; fixes: PowerCardSanitizerReport['fixes'] } {
   let out = block;
   const fixes: PowerCardSanitizerReport['fixes'] = [];
@@ -284,6 +316,10 @@ export function sanitizePowerCardMetadata(args: {
   const stepResult = applyStepReplacementsInBlock(block);
   block = stepResult.block;
   allFixes.push(...stepResult.fixes);
+
+  const residueResult = stripSanitizedStepParentheticals(block);
+  block = residueResult.block;
+  allFixes.push(...residueResult.fixes);
 
   const markdown = block.trimEnd() + suffix;
   const scanAfter = scanPowerCardMetadata(markdown, args.companionId);

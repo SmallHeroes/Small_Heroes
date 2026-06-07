@@ -179,13 +179,25 @@ export async function runThinPageEnrichPass(args: {
       neighborContext: neighborContext || undefined,
     });
 
-    const result = await llm.call({
-      stage: `enrich-page-${page}`,
-      systemPrompt,
-      userPrompt,
-      maxOutputTokens: 1024,
-      temperature: 0.5,
-    });
+    let result;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        result = await llm.call({
+          stage: `enrich-page-${page}`,
+          systemPrompt,
+          userPrompt,
+          maxOutputTokens: 1024,
+          temperature: 0.5,
+        });
+        break;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const retryable = /OpenAI Responses (429|502|503|504)/.test(msg);
+        if (!retryable || attempt === 3) throw err;
+        await new Promise((r) => setTimeout(r, attempt * 2000));
+      }
+    }
+    if (!result) continue;
 
     prompts.push({
       stage: `enrich-page-${page}`,

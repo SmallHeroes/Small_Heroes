@@ -24,6 +24,7 @@ import {
   WORD_BAND_THIN_FAIL_MAJORITY,
 } from './word-bands';
 import type { GenderChipRepairReport } from './gender-chip-repair';
+import type { ChipNormalizeReport } from './chip-normalize';
 import type { HebrewSanityReport } from './hebrew-sanity';
 import type { ThinPageEnrichReport } from './thin-page-enrich';
 import type { ProofreadReport } from './proofread-pass';
@@ -236,6 +237,7 @@ function applyPostProcessValidatorFailures(
   args: {
     enrichReport?: ThinPageEnrichReport;
     chipRepairReport?: GenderChipRepairReport;
+    chipNormalizeReport?: ChipNormalizeReport;
     hebrewSanity?: HebrewSanityReport;
     powerCardSanitizer?: PowerCardSanitizerReport;
   }
@@ -250,6 +252,11 @@ function applyPostProcessValidatorFailures(
     failures.push(
       `ENRICH_UNDER_FLOOR: pages ${args.enrichReport.underFloorAfterEnrich.join(', ')} still below ${args.enrichReport.floorWords} after one enrich pass`
     );
+  }
+  if (args.chipNormalizeReport?.unrepaired.length) {
+    for (const u of args.chipNormalizeReport.unrepaired) {
+      failures.push(`Page ${u.page}: unrepaired partial chip — ${u.token}`);
+    }
   }
   if (args.chipRepairReport?.unrepaired.length) {
     for (const u of args.chipRepairReport.unrepaired) {
@@ -285,6 +292,7 @@ export async function buildRun1AdvisoryBundle(args: {
   judgeModel?: string;
   enrichReport?: ThinPageEnrichReport;
   chipRepairReport?: GenderChipRepairReport;
+  chipNormalizeReport?: ChipNormalizeReport;
   proofreadReport?: ProofreadReport;
   hebrewSanity?: HebrewSanityReport;
   powerCardSanitizer?: PowerCardSanitizerReport;
@@ -304,7 +312,9 @@ export async function buildRun1AdvisoryBundle(args: {
     {
       enrichReport: args.enrichReport,
       chipRepairReport: args.chipRepairReport,
+      chipNormalizeReport: args.chipNormalizeReport,
       hebrewSanity: args.hebrewSanity,
+      powerCardSanitizer: args.powerCardSanitizer,
     }
   );
 
