@@ -1,8 +1,13 @@
 /**
- * Phase A — outline-first story generation CLI (advisory only; no live bank writes).
+ * Outline-first story generation CLI (Phase A kill-switch + Phase B by --scenario-id).
+ * Advisory only — no live bank writes.
  *
+ * Phase A:
  *   npx tsx --require ./scripts/shims/register-server-only.cjs scripts/gen-story.ts
- *   npx tsx --require ./scripts/shims/register-server-only.cjs scripts/gen-story.ts --companion bolly_armadillo --direction adventure
+ *
+ * Phase B Run 1 example:
+ *   npx tsx --require ./scripts/shims/register-server-only.cjs scripts/gen-story.ts \
+ *     --companion baby_elephant --direction adventure --scenario-id tubi_s5_ha_zikukim_adv
  */
 import { config as loadEnv } from 'dotenv';
 loadEnv({ path: '.env.local' });
@@ -12,17 +17,25 @@ import fs from 'fs';
 import path from 'path';
 
 import { generateStoryFromScenario } from '../lib/story-gen/generate-story';
-import { BOLLY_ADVENTURE_KILL_SWITCH_SCENARIO } from '../lib/story-gen/scenarios-phase-a';
+import {
+  buildRun1AdvisoryBundle,
+  formatCraftV21Summary,
+} from '../lib/story-gen/run1-advisory';
+import { resolveScenario } from '../lib/story-gen/scenario-resolver';
 import {
   DEFAULT_STORY_GEN_MODELS,
-  type Scenario,
   type StoryDirection,
 } from '../lib/story-gen/story-generation-types';
 
-function parseArgs(): { companionId: string; direction: StoryDirection } {
+function parseArgs(): {
+  companionId: string;
+  direction: StoryDirection;
+  scenarioId?: string;
+} {
   const argv = process.argv.slice(2);
   let companionId = 'bolly_armadillo';
   let direction: StoryDirection = 'adventure';
+  let scenarioId: string | undefined;
 
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--companion' && argv[i + 1]) companionId = argv[++i];
@@ -30,28 +43,23 @@ function parseArgs(): { companionId: string; direction: StoryDirection } {
       const d = argv[++i] as StoryDirection;
       if (d === 'bedtime' || d === 'adventure' || d === 'fantasy') direction = d;
     }
+    if ((argv[i] === '--scenario-id' || argv[i] === '--scenario') && argv[i + 1]) {
+      scenarioId = argv[++i];
+    }
   }
-  return { companionId, direction };
-}
-
-function resolveScenario(companionId: string, direction: StoryDirection): Scenario {
-  if (companionId === 'bolly_armadillo' && direction === 'adventure') {
-    return BOLLY_ADVENTURE_KILL_SWITCH_SCENARIO;
-  }
-  throw new Error(
-    `No Phase A scenario for ${companionId}/${direction}. Add a hand-written scenario in lib/story-gen/scenarios-phase-a.ts`
-  );
+  return { companionId, direction, scenarioId };
 }
 
 async function main(): Promise<void> {
-  const { companionId, direction } = parseArgs();
-  const scenario = resolveScenario(companionId, direction);
+  const { companionId, direction, scenarioId } = parseArgs();
+  const scenario = resolveScenario({ companionId, direction, scenarioId });
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const runDir = path.join(process.cwd(), 'outputs', 'story-gen-runs', timestamp);
   fs.mkdirSync(runDir, { recursive: true });
 
-  console.log(`[gen-story] Phase A run → ${runDir}`);
-  console.log(`[gen-story] companion=${companionId} direction=${direction}`);
+  const phaseLabel = scenarioId ? 'Phase B' : 'Phase A';
+  console.log(`[gen-story] ${phaseLabel} run → ${runDir}`);
+  console.log(`[gen-story] companion=${companionId} direction=${direction} scenarioId=${scenario.id}`);
   console.log(`[gen-story] draftModel=${DEFAULT_STORY_GEN_MODELS.draftModel}`);
 
   const result = await generateStoryFromScenario({
@@ -80,16 +88,56 @@ async function main(): Promise<void> {
     JSON.stringify(result.scenario, null, 2),
     'utf8'
   );
-  if (result.advisoryReport) {
-    fs.writeFileSync(
-      path.join(runDir, 'advisory-report.json'),
-      JSON.stringify(result.advisoryReport, null, 2),
-      'utf8'
-    );
-  }
 
-  console.log(`[gen-story] Wrote outline.json, story.md, prompts.json, model-versions.json`);
-  console.log(`[gen-story] Done.`);
+  console.log('[gen-story] Running craft-v2.1 + deterministic validators (swap/freshness placeholders)...');
+  const advisoryBundle = await buildRun1AdvisoryBundle({
+    scenario,
+    storyMarkdown: result.storyMarkdown,
+    runLabel: scenarioId ? 'phase-b-run-1-canary' : 'phase-a-advisory',
+    judgeModel: DEFAULT_STORY_GEN_MODELS.judgeModel,
+  });
+
+  const advisoryReport = {
+    ...(result.advisoryReport ?? {}),
+    run1Advisory: advisoryBundle,
+    note: 'swapTest and freshnessTest are placeholders only — not real scores.',
+  };
+
+  fs.writeFileSync(
+    path.join(runDir, 'advisory-report.json'),
+    JSON.stringify(advisoryReport, null, 2),
+    'utf8'
+  );
+  fs.writeFileSync(
+    path.join(runDir, 'craft-v2.1.json'),
+    JSON.stringify(advisoryBundle.craftV21, null, 2),
+    'utf8'
+  );
+  fs.writeFileSync(
+    path.join(runDir, 'validator-report.json'),
+    JSON.stringify(advisoryBundle.validators, null, 2),
+    'utf8'
+  );
+  fs.writeFileSync(
+    path.join(runDir, 'swap-test.json'),
+    JSON.stringify(advisoryBundle.swapTest, null, 2),
+    'utf8'
+  );
+  fs.writeFileSync(
+    path.join(runDir, 'freshness-test.json'),
+    JSON.stringify(advisoryBundle.freshnessTest, null, 2),
+    'utf8'
+  );
+  fs.writeFileSync(
+    path.join(runDir, 'craft-v2.1-summary.txt'),
+    formatCraftV21Summary(advisoryBundle.craftV21),
+    'utf8'
+  );
+
+  console.log(`[gen-story] craft-v2.1 overall=${advisoryBundle.craftV21.overall} placement=${advisoryBundle.craftV21.ladderPlacement}`);
+  console.log(`[gen-story] validators pageCount=${advisoryBundle.validators.pageCount}/${advisoryBundle.validators.expectedPages} warnings=${advisoryBundle.validators.warnings.length}`);
+  console.log(`[gen-story] Wrote artifacts to ${runDir}`);
+  console.log('[gen-story] Done.');
 }
 
 main().catch((err) => {
