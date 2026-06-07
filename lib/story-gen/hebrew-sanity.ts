@@ -11,6 +11,8 @@ export const KNOWN_SUSPICIOUS_HEBREW = [
   'מַצִּיָּה',
   'בתַרְנוּג',
   'בתרנוג',
+  'נומבפנים',
+  'לעף אחד',
 ] as const;
 
 export interface HebrewSanityHit {
