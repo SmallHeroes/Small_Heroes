@@ -9,6 +9,7 @@ import {
 } from './prompts';
 import { buildPhaseBAdvisoryReport, isPhaseBScenario } from './scenario-prompt-block';
 import { normalizePhaseBStoryMarkdown } from './story-markdown-normalize';
+import { runThinPageEnrichPass, type ThinPageEnrichReport } from './thin-page-enrich';
 import type {
   PromptSnapshot,
   Scenario,
@@ -101,12 +102,27 @@ export async function generateStoryFromScenario(args: {
   });
 
   let storyMarkdown = proseResult.text.trim();
+  let thinPageEnrich: ThinPageEnrichReport | undefined;
+
   if (phaseB) {
     storyMarkdown = normalizePhaseBStoryMarkdown({
       rawMarkdown: storyMarkdown,
       scenario,
       outline,
     });
+
+    if (scenario.direction === 'adventure') {
+      const enrichResult = await runThinPageEnrichPass({
+        storyMarkdown,
+        scenario,
+        outline,
+        companionBlock,
+        modelId: modelConfig.draftModel,
+      });
+      storyMarkdown = enrichResult.markdown;
+      thinPageEnrich = enrichResult.report;
+      prompts.push(...enrichResult.prompts);
+    }
   }
 
   return {
@@ -120,6 +136,9 @@ export async function generateStoryFromScenario(args: {
       ...modelConfig,
       resolvedAt: new Date().toISOString(),
     },
-    advisoryReport: buildPhaseBAdvisoryReport({ scenario, companionBlock }),
+    advisoryReport: {
+      ...buildPhaseBAdvisoryReport({ scenario, companionBlock }),
+      ...(thinPageEnrich ? { thinPageEnrich } : {}),
+    },
   };
 }

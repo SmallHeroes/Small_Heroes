@@ -1,6 +1,7 @@
 import type { Scenario, StoryDirection, StoryOutline } from './story-generation-types';
 import { DIRECTION_PAGE_COUNTS } from './story-generation-types';
 import { formatScenarioPromptBlock } from './scenario-prompt-block';
+import { formatAdventureDensityExemplarBlock } from './adventure-density-exemplar';
 import { ADVENTURE_WORD_MAX, ADVENTURE_WORD_MIN } from './word-bands';
 
 const ANTI_POETIC_CLOSURE = `
@@ -93,7 +94,10 @@ export function buildProseSystemPrompt(direction: StoryDirection, phaseB = false
   const companionIdRule = phaseB
     ? '- YAML companionId: exact bank id from scenario (e.g. baby_elephant, bolly_armadillo — no tubi_ prefix)'
     : '';
-  const adventureBlock = direction === 'adventure' ? `\n${ADVENTURE_PROSE_RULES}` : '';
+  const adventureBlock =
+    direction === 'adventure'
+      ? `\n${ADVENTURE_PROSE_RULES}\n\n${formatAdventureDensityExemplarBlock()}`
+      : '';
 
   return `${SHARED_RULES}
 - {{childName}} is a double-brace placeholder — NOT a gender chip. Gender chips are single-brace only: {male|female}.

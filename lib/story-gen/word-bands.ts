@@ -9,8 +9,8 @@ export const BEDTIME_WORD_MIN = 25;
 export const BEDTIME_WORD_MAX = 45;
 export const BEDTIME_HARD_MAX = 55;
 
-/** Fail thinness gate when strictly more than half of pages are below direction min. */
-export const WORD_BAND_THIN_FAIL_MAJORITY = 0.5;
+/** Fail thinness gate when strictly more than 25% of pages are below direction min. */
+export const WORD_BAND_THIN_FAIL_MAJORITY = 0.25;
 
 export function directionWordBand(direction: StoryDirection): {
   min: number;

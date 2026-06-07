@@ -142,11 +142,23 @@ export function normalizePhaseBStoryMarkdown(args: {
   md = stripEchoedBlocksBeforeFirstPage(md);
 
   const pageSection = normalizePageHeaders(extractPageSection(md));
-  const inlineMeta = buildMetadataBlock(args.outline);
+  return finalizePhaseBMarkdownFromPages({
+    scenario: args.scenario,
+    outline: args.outline,
+    pageSection,
+  });
+}
 
+/** Rebuild normalized Phase B markdown from page section (post-enrich). */
+export function finalizePhaseBMarkdownFromPages(args: {
+  scenario: Scenario;
+  outline: StoryOutline;
+  pageSection: string;
+}): string {
+  const inlineMeta = buildMetadataBlock(args.outline);
   const header = buildHeaderBlock(args.scenario);
   const yaml = buildYamlBlock(args.scenario, args.outline);
-  let pages = fixHebrewLatinDrift(pageSection);
+  let pages = fixHebrewLatinDrift(normalizePageHeaders(args.pageSection));
   pages = pages.replace(/\r?\n---\r?\n(?=\r?\n--- Page \d+ ---)/g, '\n');
 
   const assembled = [header, '', yaml, '', inlineMeta, '', pages].join('\n').trim();

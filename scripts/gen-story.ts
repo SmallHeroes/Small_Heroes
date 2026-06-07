@@ -22,6 +22,7 @@ import {
   formatCraftV21Summary,
 } from '../lib/story-gen/run1-advisory';
 import { resolveScenario } from '../lib/story-gen/scenario-resolver';
+import type { ThinPageEnrichReport } from '../lib/story-gen/thin-page-enrich';
 import {
   DEFAULT_STORY_GEN_MODELS,
   type StoryDirection,
@@ -88,6 +89,18 @@ async function main(): Promise<void> {
     JSON.stringify(result.scenario, null, 2),
     'utf8'
   );
+
+  const enrichReport = result.advisoryReport?.thinPageEnrich as ThinPageEnrichReport | undefined;
+  if (enrichReport) {
+    fs.writeFileSync(
+      path.join(runDir, 'enrich-report.json'),
+      JSON.stringify(enrichReport, null, 2),
+      'utf8'
+    );
+    console.log(
+      `[gen-story] thin-page enrich: ${enrichReport.pagesEnriched.length} pages enriched; before total=${enrichReport.beforeCounts.reduce((a, b) => a + b, 0)} after total=${enrichReport.afterCounts.reduce((a, b) => a + b, 0)}`
+    );
+  }
 
   console.log('[gen-story] Running craft-v2.1 + deterministic validators (swap/freshness placeholders)...');
   const advisoryBundle = await buildRun1AdvisoryBundle({

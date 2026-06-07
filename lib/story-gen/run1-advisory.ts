@@ -193,7 +193,7 @@ export function runDeterministicValidators(args: {
     belowMinCount / pageRows.length > WORD_BAND_THIN_FAIL_MAJORITY;
   if (wordBandThinFail) {
     failures.push(
-      `WORD_BAND thinness gate FAIL: ${belowMinCount}/${pageRows.length} pages below ${band.min} words (majority threshold)`
+      `WORD_BAND thinness gate FAIL: ${belowMinCount}/${pageRows.length} pages below ${band.min} words (>25% threshold)`
     );
   }
 
