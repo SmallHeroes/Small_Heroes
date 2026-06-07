@@ -1,5 +1,6 @@
 import type { Scenario, StoryDirection, StoryOutline } from './story-generation-types';
 import { DIRECTION_PAGE_COUNTS } from './story-generation-types';
+import { formatScenarioPromptBlock } from './scenario-prompt-block';
 
 const SHARED_RULES = `
 You write Hebrew picture-book stories for Small Heroes (ages 3–6).
@@ -27,24 +28,12 @@ export function buildOutlineUserPrompt(args: {
   beatCount: number;
 }): string {
   const { companionBlock, scenario, fewShotsBlock, beatCount } = args;
+  const scenarioBlock = formatScenarioPromptBlock(scenario, scenario.companionId);
   return `
-Companion profile:
+Companion profile (DeepProfile):
 ${companionBlock}
 
-Scenario (locked — do not drift):
-- id: ${scenario.id}
-- setting: ${scenario.setting}
-- inciting: ${scenario.incitingIncident}
-- emotional core: ${scenario.emotionalCore}
-- companion role: ${scenario.companionRole}
-- agency transfer: ${scenario.agencyTransfer}
-- climax: ${scenario.climaxShape}
-- ending residue: ${scenario.endingResidue}
-- distinctness: ${scenario.distinctnessNotes}
-
-Direction: ${scenario.direction} (${beatCount} pages)
-Category: ${scenario.category}
-Title seed: ${scenario.titleSeed}
+${scenarioBlock}
 
 Golden-tier references (match craft, not plot):
 ${fewShotsBlock}
@@ -100,13 +89,12 @@ export function buildProseUserPrompt(args: {
   fewShotsBlock: string;
 }): string {
   const { companionBlock, scenario, outline, fewShotsBlock } = args;
+  const scenarioBlock = formatScenarioPromptBlock(scenario, scenario.companionId);
   return `
-Companion profile:
+Companion profile (DeepProfile):
 ${companionBlock}
 
-Scenario id: ${scenario.id}
-Companion id: ${scenario.companionId}
-Direction: ${scenario.direction}
+${scenarioBlock}
 
 LOCKED OUTLINE (JSON):
 ${JSON.stringify(outline, null, 2)}
@@ -114,5 +102,6 @@ ${JSON.stringify(outline, null, 2)}
 One golden prose sample (format reference only):
 ${fewShotsBlock.split('---')[0]?.trim() ?? fewShotsBlock.slice(0, 2500)}
 
+Honor Phase B contract if present: QA line, engine/tool as action, child agency, comic beat, forbidden patterns.
 Write the complete story markdown now.`.trim();
 }

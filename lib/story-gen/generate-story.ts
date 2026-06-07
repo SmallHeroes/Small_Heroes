@@ -7,6 +7,7 @@ import {
   buildProseSystemPrompt,
   buildProseUserPrompt,
 } from './prompts';
+import { buildPhaseBAdvisoryReport } from './scenario-prompt-block';
 import type {
   PromptSnapshot,
   Scenario,
@@ -108,5 +109,6 @@ export async function generateStoryFromScenario(args: {
       ...modelConfig,
       resolvedAt: new Date().toISOString(),
     },
+    advisoryReport: buildPhaseBAdvisoryReport({ scenario, companionBlock }),
   };
 }

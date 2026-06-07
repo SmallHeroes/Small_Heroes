@@ -80,6 +80,13 @@ async function main(): Promise<void> {
     JSON.stringify(result.scenario, null, 2),
     'utf8'
   );
+  if (result.advisoryReport) {
+    fs.writeFileSync(
+      path.join(runDir, 'advisory-report.json'),
+      JSON.stringify(result.advisoryReport, null, 2),
+      'utf8'
+    );
+  }
 
   console.log(`[gen-story] Wrote outline.json, story.md, prompts.json, model-versions.json`);
   console.log(`[gen-story] Done.`);

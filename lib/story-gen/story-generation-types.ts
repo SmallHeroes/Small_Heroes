@@ -119,4 +119,6 @@ export interface StoryGenRunResult {
   storyMarkdown: string;
   prompts: PromptSnapshot[];
   modelVersions: StoryGenModelConfig & { resolvedAt: string };
+  /** Phase B plumbing — scenario + profile advisory snapshot (no judge scores). */
+  advisoryReport?: Record<string, unknown>;
 }
