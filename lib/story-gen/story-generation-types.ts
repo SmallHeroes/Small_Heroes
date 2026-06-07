@@ -43,6 +43,33 @@ export interface Scenario {
   distinctnessNotes: string;
 }
 
+/** Phase B — hand-authored scenario bank fields (companion-specific). */
+export type ScenarioStatus = 'active' | 'reserve';
+
+export interface PhaseBScenario extends Scenario {
+  status: ScenarioStatus;
+  /** Hebrew working title */
+  titleHe: string;
+  /** Required on every Tubi scenario */
+  qaLine: string;
+  trigger: string;
+  childProblem: string;
+  misread: string;
+  companionEntry: string;
+  engineUse: string;
+  childAgency: string;
+  comicBeat: string;
+  imagery: string;
+  climax: string;
+  residue: string;
+  whyThisIsFresh: string;
+  /** Hard guardrails (anti-whale, anti-fawn, etc.) */
+  forbiddenPatterns?: string[];
+  antiPatternNotes?: string;
+  /** Phase B validation order — lower runs first; omit for reserve/unscheduled */
+  validationOrder?: number;
+}
+
 export interface OutlineBeat {
   page: number;
   beatSummary: string;
