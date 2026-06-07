@@ -1,238 +1,138 @@
-# Story: song_whale_bedtime — Story Bank v5 (Literary Rewrite)
-Generated: 2026-05-28T23:30:00.000Z
-Source: AI writer → adapt-pass
-Companion canonical name: לולי (per lib/companions.ts song_whale.name)
-Prompt-version: v5-literary
-Notes: bedtime / LONELINESS / 10 pages / residue = small hum inside the chest
+# Story: song_whale_bedtime — Story Bank v5 (Golden)
+Generated: 2026-06-04T00:00:00.000Z
+Source: Guy + ChatGPT + Claude QA (golden bedtime, 8 beats)
+Prompt-version: v5-literary-golden
+Notes: partial nikud for TTS; reader/PDF strip niqqud at display; Shiro MALE; stormy night whale-in-window.
 
 ---
-title: "{{childName}} ולולי בשיר שחזר"
+title: "{{childName}} ושִׁירוֹ שומעים את השיר"
 companionId: song_whale
 direction: bedtime
-category: LONELINESS
+category: NOISE_FEAR
+timeOfDay: night
 gender: male
-pages: 10
+pages: 8
 endingType: residue
-worldRule: "קול שנשלח באמת לא נעלם מיד — הוא מחפש דרך."
+worldRule: "לכל קול גדול יש זנב של שיר — מוצאים אותו ומזמזמים."
 powerCard:
-  title: "כרטיס הקול של {{childName}}"
-  subtitle: "כשאני מרגיש/ה שלא שמעו אותי"
-  coreTool: "send one small voice"
+  title: "כרטיס השיר של {{childName}}"
+  subtitle: "כשהרעם נכנס לחדר בקול גדול"
+  coreTool: "לכל קול גדול יש זנב של שיר — מוצאים אותו ומזמזמים"
   steps:
-    - "אני מוצא/ת קול קטן"
-    - "אני נותן/ת לו לצאת לאט"
-    - "אני מחכה רגע"
-    - "אני זוכר/ת: קול אמיתי מחפש דרך"
-  companionReminder: "קול שנשלח באמת לא נעלם מיד."
+    - "שומעים את זנב הקול"
+    - "נושמים"
+    - "מזמזמים מממ"
+    - "רוכבים על השיר"
+  companionReminder: "לכל קול גדול יש זנב של שיר — מוצאים אותו ומזמזמים."
   visualMotifs:
-    - "whale song line glowing through water"
-    - "watery moonlit window"
-    - "deep ocean blue gradient"
-    - "distant echo wave"
+    - "rain on window"
+    - "whale outline in rain"
+    - "thunder boom then mmmm tail"
+    - "tiny hum vibration"
+    - "soft tap-tap rain rhythm"
 ---
 
-storyStyle: contemplative bedtime, slow whale-song rhythm, deep water imagery
-metaphor: a song sent into deep dark water finds answers from far away — being unheard isn't being alone, it's being further from the listeners
-stakes: the child carries unsaid words to bed like shells in a pocket, feels small and unheard
-quietPagePosition: 5
-heartLine: page 2 — "קול שנשלח באמת לא נעלם מיד. הוא מחפש דרך."
-heartLine2: page 9 — "המילים של {{childName}} לא נעלמו. הן פשוט כבר לא היו סגורות בפנים."
-emotionalMistake: page 3 — child tried to tell something small but important; everyone said "עוד רגע" and the moment never came
-uncomfortableTruth: page 5 — Luli waits "like an ocean" — not like an adult who wants to keep talking
-agencyTransfer: page 8 — the child sends a single word, then another small phrase ("רציתי לספר"), at their own pace
+storyStyle: stormy night bedtime, whale-in-window partial, hum co-regulation
+metaphor: every big sound has a song-tail — find it and hum along
+stakes: thunder enters the room until the child and Shiro learn to ride the song-tail
+quietPagePosition: 7
+heartLine: עמוד 7 — {{childName}} מחכה/תה לזנב ומזמזם/ה עם שִׁירוֹ; הגשם תופף רך.
+emotionalMistake: עמוד 4 — {{childName}} {כיסה|כיסתה} אוזניים; שִׁירוֹ עוצם עין — שניהם בורחים מהבּוּם.
+uncomfortableTruth: עמוד 3 — גם שִׁירוֹ מפחד לשיר, שלא יפחדו ממנו.
+agencyTransfer: עמוד 5 — {{childName}} {מוצא|מוצאת} את ה־מְמְמְ של הרעם לפני שִׁירוֹ.
 
 --- Page 1 ---
-עמוק עמוק בתוך הים הגדול גרה לולי.
-לולי היתה לווייתנית קטנה.
-קטנה בשביל לווייתנית, זאת אומרת.
-הגב שלה היה כחול־אפור, כמו ענן לפני גשם טוב, ומתחת לעיניים היו לה שני סימנים לבנים, דקים, שנראו כמו טיפות אור.
-יותר מכל דבר אחר, לולי אהבה לשיר.
-לא שירים עם מילים.
-שירים של ים.
-ארוכים.
-רכים.
-כאלה שמתחילים עמוק בפנים ויוצאים לאט אל המים.
+בלילה התחילה סופה.
+הגשם תופף על החלון: טַף־טַף־טַף.
+ואז, פתאום—
+בּוּם!
+{{childName}} {התכווץ|התכווצה} מתחת לשמיכה עד קצה האף.
+הרַעַם לא דפק בדלת.
+הוא פשוט נכנס פנימה בקול גדול.
 
-imageDirection: Deep blue ocean with soft light filtering from above. Luli, a gentle blue-gray young whale with white tear-shaped markings under her eyes, sings softly. Shimmering song waves drift from her mouth.
+imageDirection: The child lies in bed during a storm, startled under the blanket as rain hits the window and the shutter moves. Shiro is not visible yet. companionPresence: absent; view: 3-4.
 
 --- Page 2 ---
-כל ערב לולי שלחה שיר אל המים החשוכים.
-מממממ.
-השיר עבר בין אצות גבוהות.
-חלף ליד דגים קטנים שהעמידו פנים שהם לא מקשיבים.
-נגע בסלעים ישנים.
-והמשיך רחוק.
-הים היה גדול מאוד.
-לפעמים גדול מדי אפילו בשביל שיר של לווייתנית.
-אז לולי חיכתה.
-לא תמיד היתה תשובה מיד.
-לפעמים לא היתה תשובה בכלל.
-אבל לולי ידעה משהו חשוב:
-קול שנשלח באמת לא נעלם מיד.
-הוא מחפש דרך.
+עוד רַעַם התגלגל בחוץ.
+בּוּם־בּוּם.
+על הזכוכית זזו טיפות הגשם.
+הן התאספו לקווים כחולים ורכים.
+גב עגול. סנפיר איטי. עין אחת טובה.
+"שלום," לחש קול עמוק מתוך הגשם. "אני שִׁירוֹ."
 
-imageDirection: Luli's glowing song travels through vast dark ocean water, past tall seaweed, small fish, and old rocks. The ocean feels huge and quiet, but the song keeps moving.
+imageDirection: Rain on the bedroom window gathers into the soft outline of a huge gentle whale outside the glass: blue back, slow fin, one kind eye. The child watches from bed, still cautious. companionPresence: present; view: partial/front.
 
 --- Page 3 ---
-באותו לילה, רחוק מעל הים, {{childName}} {שכב|שכבה} במיטה ולא {נרדם|נרדמה}.
-החדר היה נעים.
-השמיכה היתה רכה.
-הכרית היתה במקום הנכון.
-אבל בלב של {{childName}} היה שקט כבד.
-לא שקט של מנוחה.
-שקט של משהו שלא נאמר.
-באותו יום, {{childName}} {ניסה|ניסתה} לספר משהו.
-משהו קטן.
-משהו חשוב.
-אבל כולם היו עסוקים.
-אחד מיהר.
-אחת דיברה בטלפון.
-מישהו אמר "עוד רגע".
-והרגע הזה לא הגיע.
+"אתה עשית את הבּוּם?" {שאל|שאלה} {{childName}}.
+שִׁירוֹ כמעט נעלם בתוך הגשם.
+"לא," לחש. "אבל גם אני נבהלתי."
+הטיפות שעל החלון רעדו.
+"יש לי קול גדול," אמר. "לפעמים אני מפחד לשיר, שלא יפחדו ממני."
 
-imageDirection: Cozy child's bedroom at night. The child lies awake, thoughtful and a little sad. Soft shadows, warm blanket, quiet room. The feeling is not fear, but being unheard.
+imageDirection: The whale shape in the rain becomes softer and slightly faded, shy after the child's question. The child sits up in bed, listening. Raindrops tremble on the glass. companionPresence: present; view: partial/3-4.
 
 --- Page 4 ---
-{{childName}} {הסתובב|הסתובבה} לצד אחד.
-ואז לצד השני.
-המילים שלא נאמרו לא נפלו מהמיטה.
-הן נשארו.
-כמו צדפים קטנים בכיס.
-הן לא כאבו ממש.
-אבל הן היו שם.
-"לא משנה," {לחש|לחשה} {{childName}}.
-אבל זה כן שינה קצת.
-פתאום, ליד החלון, הופיע אור כחול רך.
-הזכוכית נעשתה כמו מים.
-ומעבר לה, כאילו כל הלילה הפך לים, הופיעה לולי.
-גדולה.
-שקטה.
-עם עין טובה שהביטה פנימה.
-היא לא שאלה מה קרה.
-לפעמים שאלה היא יותר מדי.
-לולי פשוט פתחה פה ושרה צליל אחד קטן.
-מממממ.
+הרַעַם חזר.
+בּוּם!
+{{childName}} {כיסה|כיסתה} את האוזניים.
+שִׁירוֹ עצם את העין הגדולה שלו.
+שניהם חיכו.
+ואחרי הבּוּם נשאר באוויר קול ארוך.
+מְמְמְמְ.
+שִׁירוֹ פקח עין.
+"שמעת?" לחש. "לרַעַם יש זנב של שיר."
 
-imageDirection: The bedroom window turns dreamlike and watery. Luli's enormous gentle whale face appears outside the window, singing one soft glowing note into the child's room.
+imageDirection: Thunder booms; the child covers their ears while the whale outside closes one large eye. Afterward both listen, noticing the lingering vibration in the rain and window. companionPresence: present; view: 3-4.
 
 --- Page 5 ---
-הצליל של לולי נכנס לחדר.
-לא רק דרך האוזניים.
-גם דרך הכרית.
-דרך השמיכה.
-דרך המקום הקטן בלב של {{childName}} שהרגיש לא נשמע.
-מממממ.
-זה לא היה שיר שמכריח להיות שמח.
-זה היה שיר שאומר:
-אני כאן.
-לולי עצרה.
-היא חיכתה.
-לא חיכתה מהר.
-לא חיכתה כמו מבוגר שכבר רוצה להמשיך לדבר.
-היא חיכתה כמו ים.
-{{childName}} {הבין|הבינה} בלי מילים.
-עכשיו תורי.
+{{childName}} {הוריד|הורידה} לאט את הידיים.
+הגשם המשיך לנגן: טַף־טַף־טַף.
+בקצה הרַעַם הרחוק נשאר ה־מְמְמְ.
+{{childName}} {לקח|לקחה} נשימה קטנה.
+"מממ."
+הטיפות על החלון זזו לאט יותר.
+שִׁירוֹ הביט {בו|בה} בהפתעה מתוקה.
+"{אתה|את} מצאת את השיר שלו."
 
-imageDirection: A single warm glowing hum wraps around the child's blanket and pillow. Luli waits quietly outside the watery window, fully attentive. The child listens and begins to understand.
+imageDirection: The child lowers their hands and hums softly from bed. Raindrops on the window begin moving more slowly, responding to the small hum. The whale watches with gentle surprise. companionPresence: present; view: 3-4.
 
 --- Page 6 ---
-בהתחלה לא יצא כלום.
-{{childName}} {פתח|פתחה} את הפה.
-{סגר|סגרה}.
-{פתח|פתחה} שוב.
-הקול היה קטן מאוד.
-כמעט לא קול.
-הוּמממ.
-הוא רעד קצת.
-ואז התיישב.
-לולי הקשיבה.
-לא בערך.
-לא תוך כדי משהו אחר.
-היא הקשיבה עם כל הגוף הגדול שלה.
-עם הסנפירים.
-עם הגב.
-עם הלב הלווייתני שלה.
-והקול הקטן של {{childName}} עבר דרך החלון המימי וירד אל הים.
+שִׁירוֹ פתח פה גדול.
+ואז סגר אותו מיד.
+"שלי גדול מדי," לחש. "הוא ירעיד את המיטה."
+{{childName}} {חייך|חייכה} קצת.
+"אז תשיר קטן. כמו בועה."
+שִׁירוֹ חשב.
+לִוְיָתָן גדול מאוד, שר קטן מאוד?
+הוא ניסה.
+"מממ."
+החלון רעד רק טיפונת.
 
-imageDirection: The child, still tucked in bed, lets out a tiny hum. Luli listens with her whole body. A faint glowing sound line travels from the child through the watery window into the ocean.
+imageDirection: The gentle whale outside the window opens his massive mouth slightly, then hesitates, afraid of being too loud. The child encourages him from bed. Shiro tries a tiny hum, making only a small gentle vibration in the glass. companionPresence: present; view: partial/3-4.
 
 --- Page 7 ---
-השיר הקטן ירד עמוק.
-עבר ליד מדוזה שקופה.
-עבר ליד סוסון ים מנומנם.
-עבר ליד צדף שחשב שהוא אבן.
-ואז, רחוק מאוד, באה תשובה.
-מממ־אווו.
-ועוד אחת.
-אווו־מממ.
-ועוד אחת, דקה ועדינה, אולי של לווייתן קטן.
-הים לא היה ריק.
-הוא היה מלא קולות שחיכו בשקט.
-{{childName}} {התרומם|התרוממה} קצת על הכרית.
-"הם שמעו אותי?" {לחש|לחשה}.
-לולי הבהבה בעין אחת.
-בטח.
+הרַעַם חזר פעם אחרונה.
+בּוּוּם.
+הפעם {{childName}} {לא|לא} {התחבא|התחבאה}.
+{הוא|היא} {חיכה|חיכתה} לזנב שלו.
+מְמְמְמְ.
+{{childName}} {זמזם|זמזמה}.
+שִׁירוֹ זמזם {איתו|איתה}.
+והגשם על החלון כבר לא הכה.
+הוא תופף רך:
+טַף. טַף. טַף.
 
-imageDirection: The child's glowing hum travels into deep ocean. Distant whale-song notes answer from far below, shimmering among jellyfish, seahorses, and shells. The child listens in awe.
+imageDirection: A final thunder rolls outside. The child waits, then hums with the lingering sound while Shiro hums too. Rain on the window becomes visually rhythmic and gentle, with soft repeated drops. companionPresence: present; view: 3-4.
 
 --- Page 8 ---
-{{childName}} {שלח|שלחה} עוד הוּמממ קטן.
-הפעם הוא לא רעד כל כך.
-ואז, בלי לתכנן, יצאה גם מילה.
-רק אחת.
-"היום," {לחש|לחשה} {{childName}}.
-לולי לא זזה.
-היא לא קפצה על המילה.
-לא מיהרה לשאול.
-אז {{childName}} {שלח|שלחה} עוד קצת.
-"רציתי לספר."
-המילים יצאו לאט.
-לא סיפור שלם.
-רק קצה של מה שהיה בפנים.
-ומהים חזרה תשובה רכה.
-לא תשובה עם פתרון.
-תשובה שאומרת:
-שמעתי.
+הסופה עוד הייתה בחוץ.
+אבל החדר כבר לא היה לבד.
+הגשם טפח. הרוח נשפה. הרַעַם התגלגל רחוק.
+ושִׁירוֹ שר נמוך, נמוך, מעבר לחלון.
+{{childName}} {התכרבל|התכרבלה} עמוק בשמיכה.
+הבּוּם כבר לא קפץ פנימה.
+הוא עבר דרך הזכוכית הרטובה, ונעשה שיר.
 
-imageDirection: The child whispers a few small words after humming, hand near chest. Luli remains still and listening. Gentle answering whale-song glows softly from the ocean beyond the window.
+imageDirection: The child rests sleepily under the blanket with a peaceful expression. Outside, rain streaks the window softly, and the gentle blue outline of Shiro remains beyond the glass, humming over the storm. companionPresence: present; view: 3-4.
 
---- Page 9 ---
-השמיכה כבר לא היתה כבדה כל כך.
-הכרית נהייתה רכה יותר.
-או שאולי הראש של {{childName}} הניח עליה פחות דברים.
-מממממ, שרה לולי.
-הוּמממ, {ענה|ענתה} {{childName}}.
-רחוק רחוק, מתחת לכל הים, עלו עוד קולות.
-לא כולם ידעו את הסיפור.
-זה לא היה חשוב.
-כל אחד שלח צליל קטן משלו.
-והצלילים נפגשו במים, כמו אורות קטנים שלא רצו להיות לבד.
-המילים של {{childName}} לא נעלמו.
-הן פשוט כבר לא היו סגורות בפנים.
-העיניים התחילו להיסגר.
-
-imageDirection: The child grows sleepy under the blanket while soft glowing whale-song notes and the child's tiny hum mingle like lights across the room and ocean. The mood is connected and relieved.
-
---- Page 10 ---
-לולי נשארה ליד החלון עוד רגע.
-אחר כך החלון חזר להיות חלון.
-הים חזר להיות רחוק.
-אבל בתוך {{childName}} נשאר הוּמממ קטן.
-לא גדול.
-לא רועש.
-מספיק כדי לזכור שיש קול.
-ומחר, אולי, אפשר יהיה לנסות שוב.
-קצת.
-בזמן ארוחת בוקר.
-או בדרך לגן.
-או כשמישהו יגיד "עוד רגע".
-עמוק בים, לולי שרה אל החשכה.
-ומעליה, בבית הקטן, {{childName}} {נרדם|נרדמה}.
-לא כי הכל נהיה שמח.
-אלא כי הלילה כבר לא היה שקט לגמרי.
-היה בו שיר.
-והשיר ידע את הדרך חזרה.
-
-imageDirection: Final split feeling: Luli singing quietly in the moonlit ocean below, while above, the child sleeps peacefully in bed with a faint glowing hum near the chest. The room and sea feel gently connected.
-
-WORD_COUNT: [61, 67, 63, 82, 62, 59, 60, 63, 74, 81] = [672]
+WORD_COUNT: [28, 30, 33, 32, 35, 39, 31, 39] = [267]
