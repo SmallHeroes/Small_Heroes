@@ -320,7 +320,7 @@ ${proseBody.trim()}
 === END PROSE ===${imageSection}`;
 }
 
-function extractImageDirectionBlock(storyBody: string): string {
+export function extractImageDirectionBlock(storyBody: string): string {
   const lines = storyBody.split(/\r?\n/);
   const blocks: string[] = [];
   let currentPage = '';
