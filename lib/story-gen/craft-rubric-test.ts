@@ -4,37 +4,27 @@
  */
 
 import { OpenAIResponsesLLM, parseJsonFromLLM } from '../story-generator/llm';
+import {
+  CRAFT_DIMENSIONS,
+  CRAFT_FLAG_THRESHOLD,
+  CRAFT_HARD_FAIL_IDS,
+  type CraftDimension,
+  type CraftHardFailId,
+  type CraftVerdict,
+} from './craft-rubric-shared';
 import { DEFAULT_STORY_GEN_MODELS } from './story-generation-types';
 
 /** Bump when rubric definitions or scoring rules change. */
 export const CRAFT_RUBRIC_PROMPT_VERSION = 'craft-rubric-v1';
 
-export const CRAFT_DIMENSIONS = [
-  'childDelight',
-  'humor',
-  'pageTurnValue',
-  'visualRichness',
-  'emotionalTruth',
-  'childAgency',
-  'companionMemorability',
-  'hebrewOrality',
-  'ageFit',
-  'rereadability',
-  'commercialQuality',
-  'imageReadiness',
-] as const;
-
-export type CraftDimension = (typeof CRAFT_DIMENSIONS)[number];
-
-export const CRAFT_HARD_FAIL_IDS = [
-  'moralizingEnding',
-  'childPassiveThroughStory',
-  'adultTherapeuticExplanation',
-  'fearSanitizedOrDismissed',
-  'genericCompanionSubstitutable',
-] as const;
-
-export type CraftHardFailId = (typeof CRAFT_HARD_FAIL_IDS)[number];
+export {
+  CRAFT_DIMENSIONS,
+  CRAFT_FLAG_THRESHOLD,
+  CRAFT_HARD_FAIL_IDS,
+  type CraftDimension,
+  type CraftHardFailId,
+  type CraftVerdict,
+} from './craft-rubric-shared';
 
 export interface CraftDimensionScore {
   dimension: CraftDimension;
@@ -50,8 +40,6 @@ export interface CraftHardFailResult {
   evidenceQuote: string;
 }
 
-export type CraftVerdict = 'strong' | 'acceptable' | 'weak' | 'fail';
-
 export interface CraftRubricReport {
   promptVersion: string;
   overall: number;
@@ -65,8 +53,6 @@ export interface CraftRubricReport {
   inputTokens?: number;
   outputTokens?: number;
 }
-
-export const CRAFT_FLAG_THRESHOLD = 5;
 
 const DIMENSION_GUIDE: Record<CraftDimension, string> = {
   childDelight:
@@ -252,12 +238,31 @@ export function extractGoldenStoryBody(markdown: string): string {
     pages.push(`--- Page ${pageNum} ---\n${chunk}`);
   }
 
-  if (pages.length === 0) {
-    return markdown.trim();
+  if (pages.length > 0) {
+    return `${title ? `title: "${title}"\n\n` : ''}${pages.join('\n\n')}`.trim();
   }
 
-  const header = title ? `title: "${title}"\n\n` : '';
-  return `${header}${pages.join('\n\n')}`.trim();
+  const hashRe =
+    /\r?\n(?:--- Page (\d+) ---|### Page (\d+))\r?\n([\s\S]*?)(?=\r?\n(?:--- Page \d+ ---|### Page \d+|\r?\nWORD_COUNT:)|$)/g;
+  while ((match = hashRe.exec(markdown)) !== null) {
+    const pageNum = match[1] ?? match[2];
+    pages.push(`--- Page ${pageNum} ---\n${(match[3] ?? '').trim()}`);
+  }
+
+  if (pages.length > 0) {
+    return `${title ? `title: "${title}"\n\n` : ''}${pages.join('\n\n')}`.trim();
+  }
+
+  const hebrewRe = /עמוד (\d+)\r?\n([\s\S]*?)(?=עמוד \d+|$)/g;
+  while ((match = hebrewRe.exec(markdown)) !== null) {
+    pages.push(`--- Page ${match[1]} ---\n${(match[2] ?? '').trim()}`);
+  }
+
+  if (pages.length > 0) {
+    return `${title ? `title: "${title}"\n\n` : ''}${pages.join('\n\n')}`.trim();
+  }
+
+  return markdown.trim();
 }
 
 export interface DecoySpec {
