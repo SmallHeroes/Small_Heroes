@@ -5,6 +5,11 @@ export const ADVENTURE_WORD_MIN = 35;
 export const ADVENTURE_WORD_MAX = 50;
 export const ADVENTURE_HARD_MAX = 65;
 
+/** Thin-page enrich target band (adventure). */
+export const ENRICH_TARGET_MIN = 40;
+export const ENRICH_TARGET_MAX = 48;
+export const ENRICH_HARD_MAX = 55;
+
 export const BEDTIME_WORD_MIN = 25;
 export const BEDTIME_WORD_MAX = 45;
 export const BEDTIME_HARD_MAX = 55;

@@ -23,6 +23,9 @@ import {
   directionWordBand,
   WORD_BAND_THIN_FAIL_MAJORITY,
 } from './word-bands';
+import type { GenderChipRepairReport } from './gender-chip-repair';
+import type { HebrewSanityReport } from './hebrew-sanity';
+import type { ThinPageEnrichReport } from './thin-page-enrich';
 
 export interface AdvisoryPlaceholderReport {
   status: 'not_implemented_yet';
@@ -224,11 +227,54 @@ export function runDeterministicValidators(args: {
   };
 }
 
+function applyPostProcessValidatorFailures(
+  report: Run1ValidatorReport,
+  args: {
+    enrichReport?: ThinPageEnrichReport;
+    chipRepairReport?: GenderChipRepairReport;
+    hebrewSanity?: HebrewSanityReport;
+  }
+): Run1ValidatorReport {
+  const failures = [...report.failures];
+
+  if (args.enrichReport?.enrichOvershootFail) {
+    const pages = args.enrichReport.enrichOvershoot.map((o) => `p${o.page}=${o.wordCount}`).join(', ');
+    failures.push(`ENRICH_OVERSHOOT: ${pages} (limit ${args.enrichReport.enrichHardMax})`);
+  }
+  if (args.enrichReport?.underFloorAfterEnrichFail) {
+    failures.push(
+      `ENRICH_UNDER_FLOOR: pages ${args.enrichReport.underFloorAfterEnrich.join(', ')} still below ${args.enrichReport.floorWords} after one enrich pass`
+    );
+  }
+  if (args.chipRepairReport?.unrepaired.length) {
+    for (const u of args.chipRepairReport.unrepaired) {
+      failures.push(`Page ${u.page}: unrepaired chip — ${u.chip}`);
+    }
+  }
+  if (args.hebrewSanity?.advisoryFail) {
+    const tokens = args.hebrewSanity.hits.map((h) => `p${h.page}:${h.token}`).join(', ');
+    failures.push(`HEBREW_SANITY suspicious tokens: ${tokens}`);
+  }
+
+  return {
+    ...report,
+    failures,
+    advisoryResult: failures.length > 0 ? 'fail' : 'pass',
+    formatChecks: {
+      ...report.formatChecks,
+      identicalGenderChipFail: report.pages.some((p) => p.identicalChipPairs.length > 0),
+    },
+  };
+}
+
 export async function buildRun1AdvisoryBundle(args: {
   scenario: Scenario;
   storyMarkdown: string;
   runLabel?: string;
   judgeModel?: string;
+  enrichReport?: ThinPageEnrichReport;
+  chipRepairReport?: GenderChipRepairReport;
+  hebrewSanity?: HebrewSanityReport;
 }): Promise<Run1AdvisoryBundle> {
   const storyBody = extractStoryBodyFromMarkdown(args.storyMarkdown);
   const craftV21 = await runCraftRubricTestV21({
@@ -236,17 +282,26 @@ export async function buildRun1AdvisoryBundle(args: {
     modelId: args.judgeModel,
   });
 
+  const validators = applyPostProcessValidatorFailures(
+    runDeterministicValidators({
+      storyMarkdown: args.storyMarkdown,
+      direction: args.scenario.direction,
+      expectedPages: args.scenario.beatCount,
+    }),
+    {
+      enrichReport: args.enrichReport,
+      chipRepairReport: args.chipRepairReport,
+      hebrewSanity: args.hebrewSanity,
+    }
+  );
+
   return {
     runLabel: args.runLabel ?? 'phase-b-run-1-canary',
     scenarioId: args.scenario.id,
     companionId: args.scenario.companionId,
     direction: args.scenario.direction,
     craftV21,
-    validators: runDeterministicValidators({
-      storyMarkdown: args.storyMarkdown,
-      direction: args.scenario.direction,
-      expectedPages: args.scenario.beatCount,
-    }),
+    validators,
     swapTest: buildSwapTestPlaceholder(),
     freshnessTest: buildFreshnessTestPlaceholder(),
     generatedAt: new Date().toISOString(),

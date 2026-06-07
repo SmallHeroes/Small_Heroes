@@ -22,6 +22,8 @@ import {
   formatCraftV21Summary,
 } from '../lib/story-gen/run1-advisory';
 import { resolveScenario } from '../lib/story-gen/scenario-resolver';
+import type { GenderChipRepairReport } from '../lib/story-gen/gender-chip-repair';
+import type { HebrewSanityReport } from '../lib/story-gen/hebrew-sanity';
 import type { ThinPageEnrichReport } from '../lib/story-gen/thin-page-enrich';
 import {
   DEFAULT_STORY_GEN_MODELS,
@@ -91,6 +93,11 @@ async function main(): Promise<void> {
   );
 
   const enrichReport = result.advisoryReport?.thinPageEnrich as ThinPageEnrichReport | undefined;
+  const chipRepairReport = result.advisoryReport?.genderChipRepair as
+    | GenderChipRepairReport
+    | undefined;
+  const hebrewSanityReport = result.advisoryReport?.hebrewSanity as HebrewSanityReport | undefined;
+
   if (enrichReport) {
     fs.writeFileSync(
       path.join(runDir, 'enrich-report.json'),
@@ -98,8 +105,24 @@ async function main(): Promise<void> {
       'utf8'
     );
     console.log(
-      `[gen-story] thin-page enrich: ${enrichReport.pagesEnriched.length} pages enriched; before total=${enrichReport.beforeCounts.reduce((a, b) => a + b, 0)} after total=${enrichReport.afterCounts.reduce((a, b) => a + b, 0)}`
+      `[gen-story] thin-page enrich: ${enrichReport.pagesEnriched.length} pages; before total=${enrichReport.beforeCounts.reduce((a: number, b: number) => a + b, 0)} after total=${enrichReport.afterCounts.reduce((a: number, b: number) => a + b, 0)} overshoot=${enrichReport.enrichOvershoot.length}`
     );
+  }
+  if (chipRepairReport) {
+    fs.writeFileSync(
+      path.join(runDir, 'chip-repair-report.json'),
+      JSON.stringify(chipRepairReport, null, 2),
+      'utf8'
+    );
+    console.log(`[gen-story] chip repair: ${chipRepairReport.totalRepaired} identical chips collapsed`);
+  }
+  if (hebrewSanityReport) {
+    fs.writeFileSync(
+      path.join(runDir, 'hebrew-sanity-report.json'),
+      JSON.stringify(hebrewSanityReport, null, 2),
+      'utf8'
+    );
+    console.log(`[gen-story] hebrew sanity: ${hebrewSanityReport.hitCount} suspicious hit(s)`);
   }
 
   console.log('[gen-story] Running craft-v2.1 + deterministic validators (swap/freshness placeholders)...');
@@ -108,6 +131,9 @@ async function main(): Promise<void> {
     storyMarkdown: result.storyMarkdown,
     runLabel: scenarioId ? 'phase-b-run-1-canary' : 'phase-a-advisory',
     judgeModel: DEFAULT_STORY_GEN_MODELS.judgeModel,
+    enrichReport,
+    chipRepairReport,
+    hebrewSanity: hebrewSanityReport,
   });
 
   const advisoryReport = {
