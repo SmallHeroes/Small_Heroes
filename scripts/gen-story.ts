@@ -25,6 +25,7 @@ import { resolveScenario } from '../lib/story-gen/scenario-resolver';
 import type { GenderChipRepairReport } from '../lib/story-gen/gender-chip-repair';
 import type { HebrewSanityReport } from '../lib/story-gen/hebrew-sanity';
 import type { ProofreadReport } from '../lib/story-gen/proofread-pass';
+import type { PowerCardSanitizerReport } from '../lib/story-gen/powercard-metadata-sanitizer';
 import type { ThinPageEnrichReport } from '../lib/story-gen/thin-page-enrich';
 import {
   DEFAULT_STORY_GEN_MODELS,
@@ -98,6 +99,9 @@ async function main(): Promise<void> {
     | GenderChipRepairReport
     | undefined;
   const proofreadReport = result.advisoryReport?.proofread as ProofreadReport | undefined;
+  const powerCardSanitizerReport = result.advisoryReport?.powerCardSanitizer as
+    | PowerCardSanitizerReport
+    | undefined;
   const hebrewSanityReport = result.advisoryReport?.hebrewSanity as HebrewSanityReport | undefined;
 
   if (enrichReport) {
@@ -117,6 +121,16 @@ async function main(): Promise<void> {
       'utf8'
     );
     console.log(`[gen-story] chip repair: ${chipRepairReport.totalRepaired} identical chips collapsed`);
+  }
+  if (powerCardSanitizerReport) {
+    fs.writeFileSync(
+      path.join(runDir, 'powercard-sanitizer-report.json'),
+      JSON.stringify(powerCardSanitizerReport, null, 2),
+      'utf8'
+    );
+    console.log(
+      `[gen-story] powerCard sanitizer: ${powerCardSanitizerReport.fixCount} fix(es), ${powerCardSanitizerReport.hitCount} remaining hit(s)`
+    );
   }
   if (proofreadReport) {
     fs.writeFileSync(

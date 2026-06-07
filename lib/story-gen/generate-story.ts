@@ -11,6 +11,10 @@ import { buildPhaseBAdvisoryReport, isPhaseBScenario } from './scenario-prompt-b
 import { repairGenderChipsInStory, type GenderChipRepairReport } from './gender-chip-repair';
 import { scanHebrewSanity, type HebrewSanityReport } from './hebrew-sanity';
 import { runProofreadPass, type ProofreadReport } from './proofread-pass';
+import {
+  sanitizePowerCardMetadata,
+  type PowerCardSanitizerReport,
+} from './powercard-metadata-sanitizer';
 import { normalizePhaseBStoryMarkdown } from './story-markdown-normalize';
 import { runThinPageEnrichPass, type ThinPageEnrichReport } from './thin-page-enrich';
 import type {
@@ -108,6 +112,7 @@ export async function generateStoryFromScenario(args: {
   let thinPageEnrich: ThinPageEnrichReport | undefined;
   let genderChipRepair: GenderChipRepairReport | undefined;
   let proofread: ProofreadReport | undefined;
+  let powerCardSanitizer: PowerCardSanitizerReport | undefined;
   let hebrewSanity: HebrewSanityReport | undefined;
 
   if (phaseB) {
@@ -141,6 +146,13 @@ export async function generateStoryFromScenario(args: {
     storyMarkdown = proofreadResult.markdown;
     proofread = proofreadResult.report;
 
+    const sanitizerResult = sanitizePowerCardMetadata({
+      storyMarkdown,
+      companionId: scenario.companionId,
+    });
+    storyMarkdown = sanitizerResult.markdown;
+    powerCardSanitizer = sanitizerResult.report;
+
     hebrewSanity = scanHebrewSanity(storyMarkdown);
   }
 
@@ -160,6 +172,7 @@ export async function generateStoryFromScenario(args: {
       ...(thinPageEnrich ? { thinPageEnrich } : {}),
       ...(genderChipRepair ? { genderChipRepair } : {}),
       ...(proofread ? { proofread } : {}),
+      ...(powerCardSanitizer ? { powerCardSanitizer } : {}),
       ...(hebrewSanity ? { hebrewSanity } : {}),
     },
   };

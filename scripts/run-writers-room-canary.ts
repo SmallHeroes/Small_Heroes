@@ -12,12 +12,8 @@ import fs from 'fs';
 import path from 'path';
 
 import { runAuthorRewritePass } from '../lib/story-gen/author-rewrite-pass';
-import { repairGenderChipsInStory } from '../lib/story-gen/gender-chip-repair';
-import { scanHebrewSanity } from '../lib/story-gen/hebrew-sanity';
-import { runProofreadPass } from '../lib/story-gen/proofread-pass';
-import { buildRun1AdvisoryBundle } from '../lib/story-gen/run1-advisory';
+import { runPostRewritePipeline } from '../lib/story-gen/post-rewrite-pipeline';
 import { resolveScenarioById } from '../lib/story-gen/scenario-resolver';
-import { normalizePhaseBStoryMarkdown } from '../lib/story-gen/story-markdown-normalize';
 import {
   computePageWordCounts,
   parseWordCountLine,
@@ -85,40 +81,12 @@ async function postRewritePipeline(args: {
   scenario: ReturnType<typeof resolveScenarioById>;
   outline: StoryOutline;
 }) {
-  let md = normalizePhaseBStoryMarkdown({
-    rawMarkdown: args.storyMarkdown,
+  return runPostRewritePipeline({
+    storyMarkdown: args.storyMarkdown,
     scenario: args.scenario,
     outline: args.outline,
-  });
-
-  const chipResult = repairGenderChipsInStory(md);
-  md = chipResult.markdown;
-
-  const proofreadResult = await runProofreadPass({
-    storyMarkdown: md,
-    modelId: DEFAULT_STORY_GEN_MODELS.draftModel,
-  });
-  md = proofreadResult.markdown;
-
-  const hebrewSanity = scanHebrewSanity(md);
-
-  const advisory = await buildRun1AdvisoryBundle({
-    scenario: args.scenario,
-    storyMarkdown: md,
     runLabel: 'writers-room-canary',
-    judgeModel: DEFAULT_STORY_GEN_MODELS.judgeModel,
-    chipRepairReport: chipResult.report,
-    proofreadReport: proofreadResult.report,
-    hebrewSanity,
   });
-
-  return {
-    storyMarkdown: md,
-    chipRepair: chipResult.report,
-    proofread: proofreadResult.report,
-    hebrewSanity,
-    advisory,
-  };
 }
 
 async function main(): Promise<void> {
@@ -178,6 +146,11 @@ async function main(): Promise<void> {
 
     fs.writeFileSync(path.join(afterDir, 'story.after-rewrite.md'), post.storyMarkdown, 'utf8');
     fs.writeFileSync(path.join(afterDir, 'story.md'), post.storyMarkdown, 'utf8');
+    fs.writeFileSync(
+      path.join(afterDir, 'powercard-sanitizer-report.json'),
+      JSON.stringify(post.powerCardSanitizer, null, 2),
+      'utf8'
+    );
     fs.writeFileSync(
       path.join(afterDir, 'proofread-report.json'),
       JSON.stringify(post.proofread, null, 2),

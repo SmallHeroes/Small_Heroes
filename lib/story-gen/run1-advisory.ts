@@ -27,6 +27,7 @@ import type { GenderChipRepairReport } from './gender-chip-repair';
 import type { HebrewSanityReport } from './hebrew-sanity';
 import type { ThinPageEnrichReport } from './thin-page-enrich';
 import type { ProofreadReport } from './proofread-pass';
+import type { PowerCardSanitizerReport } from './powercard-metadata-sanitizer';
 import { runFreshnessTest, type FreshnessTestReport } from './freshness-test';
 import { runSwapTest, type SwapTestReport } from './swap-test';
 
@@ -236,6 +237,7 @@ function applyPostProcessValidatorFailures(
     enrichReport?: ThinPageEnrichReport;
     chipRepairReport?: GenderChipRepairReport;
     hebrewSanity?: HebrewSanityReport;
+    powerCardSanitizer?: PowerCardSanitizerReport;
   }
 ): Run1ValidatorReport {
   const failures = [...report.failures];
@@ -258,6 +260,12 @@ function applyPostProcessValidatorFailures(
     const tokens = args.hebrewSanity.hits.map((h) => `p${h.page}:${h.token}`).join(', ');
     failures.push(`HEBREW_SANITY suspicious tokens: ${tokens}`);
   }
+  if (args.powerCardSanitizer?.advisoryFail) {
+    const items = args.powerCardSanitizer.hits
+      .map((h) => `${h.field}${h.stepIndex != null ? `[${h.stepIndex}]` : ''}:${h.reason}`)
+      .join(', ');
+    failures.push(`POWERCARD_SANITIZER: ${items}`);
+  }
 
   return {
     ...report,
@@ -279,6 +287,7 @@ export async function buildRun1AdvisoryBundle(args: {
   chipRepairReport?: GenderChipRepairReport;
   proofreadReport?: ProofreadReport;
   hebrewSanity?: HebrewSanityReport;
+  powerCardSanitizer?: PowerCardSanitizerReport;
 }): Promise<Run1AdvisoryBundle> {
   const storyBody = extractStoryBodyFromMarkdown(args.storyMarkdown);
   const craftV21 = await runCraftRubricTestV21({
