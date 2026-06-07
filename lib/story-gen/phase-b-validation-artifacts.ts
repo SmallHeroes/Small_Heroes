@@ -24,6 +24,16 @@ export const PHASE_B_VALIDATION_ARTIFACTS: PhaseBValidationArtifact[] = [
     notes:
       'Architecture/density/validators pass. Human literary polish deferred; swap/freshness placeholders only.',
   },
+  {
+    scenarioId: 'tubi_s2_ha_bayit_bed',
+    companionId: 'baby_elephant',
+    direction: 'bedtime',
+    runFolder: 'outputs/story-gen-runs/2026-06-07T18-59-38-961Z',
+    pipelineValidation: 'pass',
+    bankPromotion: 'no',
+    notes:
+      'Tubi engine pass; no whale drift. Local cleanup: remove English too-SHUT, fix אסוג, replace קול כשר, p7 polish/thinness. swap/freshness placeholders only.',
+  },
 ];
 
 export function getValidationArtifact(scenarioId: string): PhaseBValidationArtifact | undefined {
