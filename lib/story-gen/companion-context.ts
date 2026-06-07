@@ -56,9 +56,11 @@ export function buildCompanionContextBlock(companionId: string): string {
   const displayName =
     companionId === 'bolly_armadillo'
       ? BOLLY_ARMADILLO.name
-      : profile.companionId === companionId
-        ? profile.companionId
-        : companionId;
+      : companionId === 'baby_elephant'
+        ? 'טוּבִּי'
+        : profile.companionId === companionId
+          ? profile.companionId
+          : companionId;
 
   const hasRichProfile =
     profile.companionId === companionId &&
