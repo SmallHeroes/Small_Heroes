@@ -83,8 +83,14 @@ export interface WritersRoomBoundedLoopReport {
 
 type PipelineResult = Awaited<ReturnType<typeof runPostRewritePipeline>>;
 
-function collectTechnicalFailures(pipeline: PipelineResult): string[] {
-  const failures = [...pipeline.advisory.validators.failures];
+function collectTechnicalFailures(
+  pipeline: PipelineResult,
+  options?: { ignoreWordBandThinness?: boolean }
+): string[] {
+  let failures = [...pipeline.advisory.validators.failures];
+  if (options?.ignoreWordBandThinness) {
+    failures = failures.filter((f) => !f.startsWith('WORD_BAND thinness gate FAIL'));
+  }
   if (pipeline.chipSafety.advisoryFail) {
     for (const h of pipeline.chipSafety.hits) {
       failures.push(`CHIP_SAFETY p${h.page} ${h.field}: ${h.token} (${h.reason})`);
@@ -132,9 +138,10 @@ function collectTechnicalFailures(pipeline: PipelineResult): string[] {
 
 function buildStageReports(
   pipeline: PipelineResult,
-  taste: TasteJudgeReport
+  taste: TasteJudgeReport,
+  options?: { ignoreWordBandThinness?: boolean }
 ): WritersRoomStageReport[] {
-  const technicalFailures = collectTechnicalFailures(pipeline);
+  const technicalFailures = collectTechnicalFailures(pipeline, options);
   const stages: WritersRoomStageReport[] = [
     {
       stage: 'chip-normalize',
@@ -222,6 +229,7 @@ async function runGatePass(args: {
   runLabel: string;
   skipProofread?: boolean;
   skipAdventureEnrich?: boolean;
+  ignoreWordBandThinness?: boolean;
   judgeModel?: string;
   draftModel?: string;
 }): Promise<WritersRoomGatePassResult> {
@@ -258,7 +266,9 @@ async function runGatePass(args: {
     modelId: args.judgeModel,
   });
 
-  const technicalFailures = collectTechnicalFailures(pipeline);
+  const technicalFailures = collectTechnicalFailures(pipeline, {
+    ignoreWordBandThinness: args.ignoreWordBandThinness,
+  });
   const technicalPass = technicalFailures.length === 0;
 
   return {
@@ -267,7 +277,9 @@ async function runGatePass(args: {
     taste,
     technicalFailures,
     technicalPass,
-    stages: buildStageReports(pipeline, taste),
+    stages: buildStageReports(pipeline, taste, {
+      ignoreWordBandThinness: args.ignoreWordBandThinness,
+    }),
     chipNormalize: pipeline.chipNormalize,
     chipRepair: pipeline.chipRepair,
     chipSafety: pipeline.chipSafety,
@@ -320,9 +332,15 @@ export async function runWritersRoomBoundedLoop(args: {
   storyMarkdown: string;
   scenario: Scenario;
   outline: StoryOutline;
+  /** Override scenarioId in the report (e.g. probe routing ids). */
+  reportId?: string;
   runLabel?: string;
   skipProofread?: boolean;
   skipAdventureEnrich?: boolean;
+  /** Probe routing validation: thin craft-calibration bodies fail word-band only. */
+  ignoreWordBandThinness?: boolean;
+  /** Do not spend author rewrite (e.g. beautiful-but-wrong / engine-age risk). */
+  blockAuthorRewrite?: boolean;
   judgeModel?: string;
   draftModel?: string;
 }): Promise<WritersRoomBoundedLoopReport> {
@@ -337,6 +355,7 @@ export async function runWritersRoomBoundedLoop(args: {
     runLabel: `${runLabel}-initial`,
     skipProofread: args.skipProofread,
     skipAdventureEnrich: args.skipAdventureEnrich,
+    ignoreWordBandThinness: args.ignoreWordBandThinness,
     judgeModel,
     draftModel,
   });
@@ -346,16 +365,25 @@ export async function runWritersRoomBoundedLoop(args: {
     technicalPass: initial.technicalPass,
   });
 
-  if (initialRoute !== 'needs_rewrite_pass') {
+  const reportId = args.reportId ?? args.scenario.id;
+
+  if (initialRoute !== 'needs_rewrite_pass' || args.blockAuthorRewrite) {
+    const blockedRewrite =
+      initialRoute === 'needs_rewrite_pass' && args.blockAuthorRewrite;
+    const terminal: WritersRoomTerminal = blockedRewrite
+      ? initial.taste.verdict === 'FAIL'
+        ? 'needs_human_review_or_reroll'
+        : 'needs_human_review'
+      : (initialRoute as WritersRoomTerminal);
     return {
-      scenarioId: args.scenario.id,
+      scenarioId: reportId,
       companionId: args.scenario.companionId,
       direction: args.scenario.direction,
-      terminal: initialRoute,
+      terminal,
       technicalPass: initial.technicalPass,
       technicalFailures: initial.technicalFailures,
       authorRewriteUsed: false,
-      tasteBefore: initial.taste,
+      tasteBefore: blockedRewrite ? initial.taste : undefined,
       finalTaste: initial.taste,
       craftV21: initial.advisory.craftV21,
       swapTest: initial.advisory.swapTest,
@@ -385,6 +413,7 @@ export async function runWritersRoomBoundedLoop(args: {
     runLabel: `${runLabel}-post-rewrite`,
     skipProofread: args.skipProofread,
     skipAdventureEnrich: args.skipAdventureEnrich,
+    ignoreWordBandThinness: args.ignoreWordBandThinness,
     judgeModel,
     draftModel,
   });
@@ -398,7 +427,7 @@ export async function runWritersRoomBoundedLoop(args: {
     postRoute === 'needs_rewrite_pass' ? 'needs_human_review' : postRoute;
 
   return {
-    scenarioId: args.scenario.id,
+    scenarioId: reportId,
     companionId: args.scenario.companionId,
     direction: args.scenario.direction,
     terminal,
