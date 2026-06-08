@@ -64,7 +64,8 @@ WORD_COUNT: [1] = 1`;
   it('keeps generic feminine fallback disabled in chip-normalize source', () => {
     const src = fs.readFileSync(path.join(process.cwd(), 'lib/story-gen/chip-normalize.ts'), 'utf8');
     expect(src).not.toMatch(/fullChipForStem/);
-    expect(src).toMatch(/allowlist-only/i);
+    expect(src).toMatch(/safeConvertSlashGender/);
+    expect(src).toMatch(/fail-closed|NO blind/i);
   });
 
   it('applies S5 neutral stakes rewrite without slash forms', () => {

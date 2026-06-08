@@ -125,6 +125,7 @@ PRESERVE (non-negotiable — same story, better prose):
 - Same page count and page order
 - Same emotional arc, scenario beats, child agency moment, climax shape, emotional problem
 - Gender chips {male|female} with DIFFERENT options — keep format; one verb per chip
+- NEVER slash-gender forms (הולך/ת, מצליח/ה, שומר/ת) — always full chips like {הולך|הולכת}, {מצליח|מצליחה}, {עוקב|עוקבת}
 - Every child verb/adjective: full {male|female} chip OR genuinely neutral Hebrew — never masculine-as-neutral (e.g. not "מוריד ראש" bare after {{childName}})
 - {{childName}} placeholders
 - Same psychological tool — do not change the coping mechanism

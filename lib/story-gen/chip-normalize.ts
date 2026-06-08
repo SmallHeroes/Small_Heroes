@@ -1,6 +1,6 @@
 /**
- * Allowlist-only gender chip normalization.
- * NO generic feminine guessing — unrecognized patterns stay unchanged and fail validation.
+ * Gender chip normalization — allowlist + safe slash-pattern converter.
+ * NO blind stem+suffix guessing; unrecognized patterns stay unchanged and fail validation.
  */
 
 import {
@@ -14,18 +14,25 @@ export interface ChipNormalizeEntry {
   page: number;
   before: string;
   after: string;
-  reason: 'partial_suffix_chip' | 'slash_chip' | 'full_slash_chip';
+  reason:
+    | 'partial_suffix_chip'
+    | 'slash_chip'
+    | 'full_slash_chip'
+    | 'safe_slash_regular'
+    | 'safe_slash_exception';
 }
 
 export interface ChipNormalizeReport {
-  status: 'deterministic_normalize_allowlist';
+  status: 'deterministic_normalize_safe_slash';
   fixes: ChipNormalizeEntry[];
   fixCount: number;
+  convertedRegularCount: number;
+  convertedExceptionCount: number;
   unrepaired: Array<{ page: number; token: string; reason: string }>;
   advisoryFail: boolean;
 }
 
-/** Trusted masculine → feminine pairs. Only these may be auto-normalized. */
+/** Trusted masculine → feminine pairs. Partial-suffix and full-slash allowlist. */
 export const TRUSTED_STEM_PAIRS: Record<string, { male: string; female: string }> = {
   מתיישב: { male: 'מתיישב', female: 'מתיישבת' },
   מציץ: { male: 'מציץ', female: 'מציצה' },
@@ -85,6 +92,31 @@ export const TRUSTED_STEM_PAIRS: Record<string, { male: string; female: string }
   נופל: { male: 'נופל', female: 'נופלת' },
   מזיז: { male: 'מזיז', female: 'מזיזה' },
 };
+
+/** Irregular slash forms — explicit map only; no guessing. */
+export const VERIFIED_SLASH_EXCEPTIONS: Record<string, { male: string; female: string }> = {
+  'עצמו/ה': { male: 'עצמו', female: 'עצמה' },
+  'שלו/ה': { male: 'שלו', female: 'שלה' },
+  'ילד/ה': { male: 'ילד', female: 'ילדה' },
+  'אחד/ת': { male: 'אחד', female: 'אחת' },
+  'אחר/ת': { male: 'אחר', female: 'אחרת' },
+};
+
+const FINAL_LETTERS = new Set(['ך', 'ם', 'ן', 'ף', 'ץ']);
+
+function isBrokenChipPair(male: string, female: string): boolean {
+  const chip = `{${male}|${female}}`;
+  if (/\{מחייך\|מחייךת\}/.test(chip)) return true;
+  if (/\{מושך\|מושךת\}/.test(chip)) return true;
+  if (/\{שלו\|שלוה\}/.test(chip)) return true;
+  if (/\{עצמו\|עצמוה\}/.test(chip)) return true;
+  if (/ךת|םת|ןת|ףת|ץת/.test(female)) return true;
+  if (/יםה$/.test(female)) return true;
+  if (male === 'שלו' && female === 'שלוה') return true;
+  if (male === 'עצמו' && female === 'עצמוה') return true;
+  if (female === male + 'ת' && male.endsWith('ך')) return true;
+  return false;
+}
 
 export function stripHebrewDiacritics(text: string): string {
   return text.replace(/[\u0591-\u05C7\u05F3\u05F4]/g, '');
@@ -165,66 +197,146 @@ function buildAllowlistReplacements(): Array<{
     }
   }
 
+  for (const [slash, pair] of Object.entries(VERIFIED_SLASH_EXCEPTIONS)) {
+    rules.push({
+      pattern: new RegExp(escapeRegExp(slash), 'g'),
+      replacement: `{${pair.male}|${pair.female}}`,
+      reason: 'safe_slash_exception',
+    });
+  }
+
   return rules;
 }
 
 const ALLOWLIST_REPLACEMENTS = buildAllowlistReplacements();
 
 const UNREPAIRED_PARTIAL_SUFFIX = /[\u0590-\u05FF]{2,}\{[תה]\}/g;
-const UNREPAIRED_SLASH_GENDER =
+const SLASH_GENDER_PATTERN =
   /[\u0590-\u05FF][\u0590-\u05FF\u05B0-\u05C7]*\/(?:ת|ה|[\u0590-\u05FF][\u0590-\u05FF\u05B0-\u05C7]*)/g;
 
-const NIKUD_SLASH_GENDER =
-  /[\u0590-\u05FF][\u0590-\u05FF\u05B0-\u05C7]*\/(?:ת|ה|[\u0590-\u05FF][\u0590-\u05FF\u05B0-\u05C7]*)/g;
-
-function tryRepairNikudSlash(match: string): string | null {
-  const slashIdx = match.indexOf('/');
-  if (slashIdx < 0) return null;
-  const left = stripHebrewDiacritics(match.slice(0, slashIdx));
-  const right = stripHebrewDiacritics(match.slice(slashIdx + 1));
-
-  const pairs = Object.values(TRUSTED_STEM_PAIRS).sort(
-    (a, b) => stripHebrewDiacritics(b.male).length - stripHebrewDiacritics(a.male).length
-  );
-
-  for (const pair of pairs) {
+function lookupTrustedPair(left: string, right: string): { male: string; female: string } | null {
+  for (const pair of Object.values(TRUSTED_STEM_PAIRS)) {
     const male = stripHebrewDiacritics(pair.male);
     const female = stripHebrewDiacritics(pair.female);
-    if (!left.endsWith(male)) continue;
+    if (!left.endsWith(male) && left !== male) continue;
     const okRight =
       right === female ||
-      (right === 'ה' && (female.endsWith('ה') || female.endsWith('ת'))) ||
+      (right === 'ה' && female.endsWith('ה')) ||
       (right === 'ת' && female.endsWith('ת'));
     if (!okRight) continue;
-    const prefix = left.slice(0, left.length - male.length);
-    return `${prefix}{${pair.male}|${pair.female}}`;
+    return pair;
   }
   return null;
 }
 
-function repairNikudSlashForms(
+export type SafeSlashConvertResult = {
+  male: string;
+  female: string;
+  kind: 'exception' | 'regular';
+};
+
+/**
+ * Conservative slash → {male|female} converter. Returns null if unsafe.
+ */
+export function safeConvertSlashGender(match: string): SafeSlashConvertResult | null {
+  const strippedKey = stripHebrewDiacritics(match);
+
+  for (const [slash, pair] of Object.entries(VERIFIED_SLASH_EXCEPTIONS)) {
+    if (stripHebrewDiacritics(slash) === strippedKey) {
+      return { ...pair, kind: 'exception' };
+    }
+  }
+
+  const slashIdx = match.indexOf('/');
+  if (slashIdx < 0) return null;
+
+  const left = stripHebrewDiacritics(match.slice(0, slashIdx));
+  const right = stripHebrewDiacritics(match.slice(slashIdx + 1));
+
+  const trusted = lookupTrustedPair(left, right);
+  if (trusted) {
+    return { male: trusted.male, female: trusted.female, kind: 'exception' };
+  }
+
+  if (right.length > 1) {
+    for (const pair of Object.values(TRUSTED_STEM_PAIRS)) {
+      if (stripHebrewDiacritics(pair.male) === left && stripHebrewDiacritics(pair.female) === right) {
+        return { male: pair.male, female: pair.female, kind: 'exception' };
+      }
+    }
+    return null;
+  }
+
+  let male = left;
+  let female: string;
+
+  if (right === 'ת') {
+    if (left.endsWith('ך')) {
+      female = left.slice(0, -1) + 'כת';
+    } else if (FINAL_LETTERS.has(left[left.length - 1] ?? '')) {
+      return null;
+    } else {
+      female = left + 'ת';
+    }
+  } else if (right === 'ה') {
+    if (FINAL_LETTERS.has(left[left.length - 1] ?? '')) {
+      return null;
+    }
+    female = left + 'ה';
+  } else {
+    return null;
+  }
+
+  if (isBrokenChipPair(male, female)) return null;
+  return { male, female, kind: 'regular' };
+}
+
+function splitLeadingVav(match: string): { prefix: string; core: string } {
+  const slashAt = match.indexOf('/');
+  if (slashAt < 0) return { prefix: '', core: match };
+  const beforeSlash = match.slice(0, slashAt);
+  if (beforeSlash.startsWith('ו') && beforeSlash.length > 1) {
+    return { prefix: 'ו', core: match.slice(1) };
+  }
+  return { prefix: '', core: match };
+}
+
+function repairSafeSlashForms(
   text: string,
   page: number,
   fixes: ChipNormalizeEntry[]
 ): string {
-  return text.replace(NIKUD_SLASH_GENDER, (match) => {
-    const repaired = tryRepairNikudSlash(match);
-    if (!repaired || repaired === match) return match;
-    fixes.push({ page, before: match, after: repaired, reason: 'slash_chip' });
-    return repaired;
+  return text.replace(SLASH_GENDER_PATTERN, (match) => {
+    const { prefix, core } = splitLeadingVav(match);
+    const converted = safeConvertSlashGender(core);
+    if (!converted) return match;
+    const chip = `${prefix}{${converted.male}|${converted.female}}`;
+    if (isBrokenChipPair(converted.male, converted.female)) return match;
+    fixes.push({
+      page,
+      before: match,
+      after: chip,
+      reason:
+        converted.kind === 'exception' ? 'safe_slash_exception' : 'safe_slash_regular',
+    });
+    APPROVED_CHIP_PAIRS.add(chipPairKey(converted.male, converted.female));
+    return chip;
   });
 }
 
 function collectUnrepairedTokens(text: string, page: number): ChipNormalizeReport['unrepaired'] {
   const hits: ChipNormalizeReport['unrepaired'] = [];
-  for (const re of [UNREPAIRED_PARTIAL_SUFFIX, UNREPAIRED_SLASH_GENDER]) {
+  for (const re of [UNREPAIRED_PARTIAL_SUFFIX, SLASH_GENDER_PATTERN]) {
     re.lastIndex = 0;
     let m: RegExpExecArray | null;
     while ((m = re.exec(text)) !== null) {
       hits.push({
         page,
         token: m[0],
-        reason: re === UNREPAIRED_PARTIAL_SUFFIX ? 'partial_suffix_unrecognized' : 'slash_gender_unrecognized',
+        reason:
+          re === UNREPAIRED_PARTIAL_SUFFIX
+            ? 'partial_suffix_unrecognized'
+            : 'unrepaired_slash_gender',
       });
     }
   }
@@ -247,7 +359,7 @@ function normalizeChipsInText(text: string, page: number): {
     });
   }
 
-  out = repairNikudSlashForms(out, page, fixes);
+  out = repairSafeSlashForms(out, page, fixes);
 
   const unrepaired = collectUnrepairedTokens(out, page);
   return { text: out, fixes, unrepaired };
@@ -295,12 +407,19 @@ export function normalizePartialGenderChips(markdown: string): {
       arr.findIndex((x) => x.page === u.page && x.token === u.token && x.reason === u.reason) === i
   );
 
+  const convertedRegularCount = allFixes.filter((f) => f.reason === 'safe_slash_regular').length;
+  const convertedExceptionCount = allFixes.filter(
+    (f) => f.reason === 'safe_slash_exception'
+  ).length;
+
   return {
     markdown: out,
     report: {
-      status: 'deterministic_normalize_allowlist',
+      status: 'deterministic_normalize_safe_slash',
       fixes: allFixes,
       fixCount: allFixes.length,
+      convertedRegularCount,
+      convertedExceptionCount,
       unrepaired: dedupedUnrepaired,
       advisoryFail: dedupedUnrepaired.length > 0,
     },
