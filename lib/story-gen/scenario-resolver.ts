@@ -1,11 +1,13 @@
 import { BOLLY_ADVENTURE_KILL_SWITCH_SCENARIO } from './scenarios-phase-a';
 import { getBabyElephantScenario } from './scenarios-baby-elephant';
 import { getBollyArmadilloScenario } from './scenarios-bolly-armadillo';
+import { getDragonDiniScenario } from './scenarios-dragon-dini';
 import type { PhaseBScenario, Scenario, StoryDirection } from './story-generation-types';
 
 const PHASE_B_LOOKUP: Array<(id: string) => PhaseBScenario | undefined> = [
   getBabyElephantScenario,
   getBollyArmadilloScenario,
+  getDragonDiniScenario,
 ];
 
 export function resolveScenarioById(scenarioId: string): PhaseBScenario {
@@ -14,7 +16,7 @@ export function resolveScenarioById(scenarioId: string): PhaseBScenario {
     if (hit) return hit;
   }
   throw new Error(
-    `Unknown Phase B scenario id "${scenarioId}". Check scenarios-baby-elephant.ts / scenarios-bolly-armadillo.ts.`
+    `Unknown Phase B scenario id "${scenarioId}". Check scenarios-baby-elephant.ts / scenarios-bolly-armadillo.ts / scenarios-dragon-dini.ts.`
   );
 }
 
