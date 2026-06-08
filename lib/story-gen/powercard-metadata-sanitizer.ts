@@ -128,6 +128,28 @@ function scanChildStep(
         autoFixed: false,
       });
     }
+    if (/מקפל[^.]*אוזנ|אוזנ[^.]*(?:לחצי|מקפל)/i.test(stripped)) {
+      hits.push({
+        field: 'powerCard.steps',
+        stepIndex,
+        token: step,
+        reason: 'companion_anatomy_on_child_step',
+        context:
+          'Child step must not fold companion ears — use child body (hands near ears, listening)',
+        autoFixed: false,
+      });
+    }
+  }
+
+  if (/מקפל[^.]*אוזנ|אוזנ[^.]*לחצי/i.test(stripped) && !isElephant) {
+    hits.push({
+      field: 'powerCard.steps',
+      stepIndex,
+      token: step,
+      reason: 'companion_anatomy_on_child_step',
+      context: 'Child step ascribes companion ear-fold action to the child',
+      autoFixed: false,
+    });
   }
 
   if (isArmadillo && /קליפה|שריון|shell/i.test(stripped)) {
