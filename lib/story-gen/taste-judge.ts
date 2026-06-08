@@ -1,5 +1,5 @@
 /**
- * Taste Judge v1 — product/editorial gate (NOT craft scoring).
+ * Taste Judge v2 — product/editorial gate (NOT craft scoring).
  * One question: would a parent pay, read aloud happily, child ask again?
  */
 
@@ -13,7 +13,7 @@ import {
 import { DEFAULT_STORY_GEN_MODELS } from './story-generation-types';
 import type { StoryDirection } from './story-generation-types';
 
-export const TASTE_JUDGE_PROMPT_VERSION = 'taste-judge-v1';
+export const TASTE_JUDGE_PROMPT_VERSION = 'taste-judge-v2';
 
 export type TasteVerdict =
   | 'BANK_READY'
@@ -58,6 +58,8 @@ export interface TasteJudgeReport {
   weakestLine: string;
   strongestLine: string;
   reasons: string[];
+  /** Required when verdict=BANK_READY — the 2 parent-quotable lines the judge relied on. */
+  quotableLines?: string[];
   rewriteInstruction?: string[];
   humanReason?: string;
   failReason?: string;
@@ -215,15 +217,47 @@ This is a PRODUCT / EDITORIAL taste gate — NOT a craft rubric. No 0–10 score
 THE ONE QUESTION:
 "Would a parent pay for this, read it aloud happily, and would a child ask to hear it again?"
 
+THE PAID-PRODUCT QUESTION (ask yourself honestly):
+"Would a parent feel this was worth paying ₪59–99 for as a premium personalized book?"
+If the honest answer is "pleasant, but forgettable" → CANNOT be BANK_READY.
+
 You receive Hebrew PROSE PAGES ONLY. You do NOT see YAML, metadata, power cards, image directions, validators, or chip formatting rules.
 Do NOT reason about chips, YAML, format, metadata, companionId, or technical correctness. If you mention those, your judgment is invalid.
 
 VERDICTS (pick exactly one):
-- BANK_READY — paid-product quality; parent reads aloud happily; child may ask again; memorable voice; embodied action; page-turn energy; companion feels specific and delightful.
+- BANK_READY — paid-product quality; parent reads aloud happily; child may ask again; memorable voice; embodied action; page-turn energy; companion feels specific and delightful. HIGH BAR — see below.
 - STRONG_DRAFT — commercially promising and good, but needs light human polish; NOT auto-ship.
 - REWRITE — structurally/engine-right but not delightful, memorable, or read-aloud enough; ONE author rewrite might fix.
 - HUMAN_REVIEW — promising or pretty BUT age/engine/sensitivity/tone risk needs a human decision.
 - FAIL — wrong age/engine/structure; generic/swappable; do not auto-rewrite.
+
+BANK_READY BAR (concrete, non-gameable):
+BANK_READY REQUIRES ALL of the following:
+1. ≥2 genuinely parent-quotable / child-repeatable lines (verbatim Hebrew from the story).
+2. Child-native humor OR embodied companion comedy — not just calm encouragement.
+3. A companion with a SPECIFIC voice / signature behavior / comic engine that would WEAKEN the story if swapped for another animal.
+4. A small wow / surprise / tender image that sticks.
+5. Strong reread pull — a child would ask again tomorrow.
+
+"Nice encouragement" does NOT count as quotable. Examples of what DOES count:
+- "הַצָּצָה אחת נחשבת."
+- "לא כל בולי בבת אחת."
+- "אני רועד. ואני אמיץ. באותו הזמן."
+- "אני לא מגרש חֹשֶךְ. אני מאיר אותו טיפונת."
+If you cannot name 2 specific quotable lines from THIS story → NOT BANK_READY.
+
+COMPETENT-FLAT CAP:
+If a story is structurally correct, calm, clean, and age-appropriate BUT lacks ALL of:
+(a) ≥2 genuinely quotable lines, (b) child-native humor or embodied companion comedy,
+(c) a non-swappable companion voice, (d) a small wow/surprise/tender image, (e) strong reread pull —
+then it must NOT be BANK_READY. Max verdict = STRONG_DRAFT, usually REWRITE.
+"Fine, correct, and forgettable" ≠ paid product.
+
+COMPANION DELIGHT (tightened):
+A companion is NOT delightful just for being gentle or having species traits.
+"A small snail with a house on its back" is a snail fact, not a character.
+A generic calm mentor that only says "אפשר צעד קטן" or "אַתְּ יְכוֹלָה" = NOT BANK_READY.
+BANK_READY requires a specific voice / signature behavior / comic engine.
 
 EXPLICIT RULE:
 Pretty language is NOT a compensating factor. If age or engine are wrong, beauty does NOT rescue the story.
@@ -231,9 +265,9 @@ If prose is beautiful but age/engine wrong → prefer HUMAN_REVIEW or FAIL over 
 
 RUBRIC (answer internally, then output axis pass/fail):
 1. Would a child ask for this again tomorrow? (rereadability)
-2. At least 2 memorable/quotable lines? (memorability)
-3. Companion funny/specific/embodied — not swappable calm mentor? (companionDelight)
-4. Child DOES something visible and meaningful? 
+2. At least 2 genuinely quotable lines — not generic encouragement? (memorability)
+3. Companion specific/funny/embodied — would swapping animals weaken it? (companionDelight)
+4. Child DOES something visible and meaningful?
 5. A small wow/laugh/tender surprise?
 6. Every page creates a page-turn reason? (pageTurnEnergy)
 7. Read-aloud natural — not adult-poetic/therapeutic? (readAloudNaturalness)
@@ -246,6 +280,7 @@ MANDATORY WEAKNESS (do not gush over one good line):
 - reasons[] must cite REAL story lines in Hebrew
 - Answer: where might a child lose interest? where does it sound adult? first thing you'd rewrite?
 
+If verdict=BANK_READY → quotableLines[] REQUIRED: exactly 2 verbatim Hebrew lines from the story that justify BANK_READY (parent would quote aloud unprompted).
 If verdict=REWRITE → rewriteInstruction[] (2–4 concrete, prose-only instructions).
 If verdict=HUMAN_REVIEW → humanReason (age/engine/sensitivity risk).
 If verdict=FAIL → failReason.
@@ -263,6 +298,7 @@ Return ONLY valid JSON:
     { "axis": "companionDelight", "result": "pass" | "fail" },
     { "axis": "pageTurnEnergy", "result": "pass" | "fail" }
   ],
+  "quotableLines": ["Hebrew quote 1", "Hebrew quote 2"],
   "weakestPage": { "page": number, "reason": "string" },
   "weakestLine": "Hebrew quote",
   "strongestLine": "Hebrew quote",
@@ -312,6 +348,7 @@ interface RawTasteJudge {
   weakestLine?: string;
   strongestLine?: string;
   reasons?: string[];
+  quotableLines?: string[];
   rewriteInstruction?: string[];
   humanReason?: string;
   failReason?: string;
@@ -347,6 +384,11 @@ function normalizeTasteReport(
   if (!raw.weakestLine?.trim()) reasons.push('(judge omitted weakestLine)');
   if (!raw.strongestLine?.trim()) reasons.push('(judge omitted strongestLine)');
 
+  const quotableLines =
+    verdict === 'BANK_READY'
+      ? (raw.quotableLines ?? []).map((l) => l.trim()).filter(Boolean)
+      : undefined;
+
   return {
     promptVersion: TASTE_JUDGE_PROMPT_VERSION,
     verdict,
@@ -359,6 +401,7 @@ function normalizeTasteReport(
     weakestLine: raw.weakestLine?.trim() || '(missing)',
     strongestLine: raw.strongestLine?.trim() || '(missing)',
     reasons,
+    quotableLines,
     rewriteInstruction:
       verdict === 'REWRITE' ? (raw.rewriteInstruction ?? []).filter(Boolean) : undefined,
     humanReason: verdict === 'HUMAN_REVIEW' ? raw.humanReason?.trim() : undefined,
@@ -380,7 +423,7 @@ export async function runTasteJudge(args: {
   const llm = new OpenAIResponsesLLM(modelId);
 
   const result = await llm.call({
-    stage: 'taste-judge-v1',
+    stage: 'taste-judge-v2',
     systemPrompt: buildTasteJudgeSystemPrompt(),
     userPrompt: buildTasteJudgeUserPrompt(args.prose, args.context),
     jsonMode: true,
@@ -388,7 +431,7 @@ export async function runTasteJudge(args: {
     temperature: 0,
   });
 
-  const parsed = parseJsonFromLLM<RawTasteJudge>(result.text, 'taste-judge-v1');
+  const parsed = parseJsonFromLLM<RawTasteJudge>(result.text, 'taste-judge-v2');
   return normalizeTasteReport(parsed, modelId, {
     inputTokens: result.inputTokens,
     outputTokens: result.outputTokens,
@@ -454,21 +497,36 @@ export function evaluateTasteCalibrationGate(
 
   const goldens = items.filter((i) => i.category === 'golden');
   const goldenBankReady = goldens.filter((i) => i.report.verdict === 'BANK_READY').length;
-  const goldenStrong = goldens.filter((i) => i.report.verdict === 'STRONG_DRAFT').length;
+  const goldenStrong = goldens.filter(
+    (i) => i.report.verdict === 'STRONG_DRAFT'
+  );
   const goldenLow = goldens.filter((i) =>
     ['REWRITE', 'FAIL', 'HUMAN_REVIEW'].includes(i.report.verdict)
   );
 
-  if (goldenStrong > 2) {
-    warnings.push(`Goldens: ${goldenStrong} STRONG_DRAFT (expected ≤2)`);
-  }
-  if (goldenBankReady + goldenStrong < 8) {
+  if (goldenBankReady < 8) {
     warnings.push(
-      `Goldens: only ${goldenBankReady + goldenStrong}/10 at BANK_READY or STRONG_DRAFT (expected most)`
+      `Goldens: only ${goldenBankReady}/10 BANK_READY (expected ≥8; STRONG_DRAFT drops are OK if sharp)`
+    );
+  }
+  for (const g of goldenStrong) {
+    surprisingVerdicts.push(
+      `Golden ${g.id}: STRONG_DRAFT — ${g.report.reasons.slice(0, 2).join(' · ')}`
     );
   }
   for (const g of goldenLow) {
     surprisingVerdicts.push(`Golden ${g.id}: ${g.report.verdict} — flag for human review`);
+  }
+
+  const snail = items.find((i) => i.id === 'midtier_1');
+  if (snail) {
+    if (snail.report.verdict === 'BANK_READY') {
+      failures.push(`midtier_1 (Quiet Snail): must NOT be BANK_READY (got BANK_READY)`);
+    } else if (!['STRONG_DRAFT', 'REWRITE'].includes(snail.report.verdict)) {
+      failures.push(
+        `midtier_1 (Quiet Snail): expected STRONG_DRAFT or REWRITE (got ${snail.report.verdict})`
+      );
+    }
   }
 
   const b4 = items.find((i) => i.id === 'bolly_b4_hacheder_bed');
@@ -511,6 +569,14 @@ export function evaluateTasteCalibrationGate(
     if (!item.report.weakestLine || item.report.weakestLine === '(missing)') {
       warnings.push(`${item.id}: missing weakestLine`);
     }
+    if (item.report.verdict === 'BANK_READY') {
+      const ql = item.report.quotableLines ?? [];
+      if (ql.length < 2) {
+        failures.push(
+          `${item.id}: BANK_READY missing 2 quotableLines (got ${ql.length})`
+        );
+      }
+    }
   }
 
   return {
@@ -524,16 +590,23 @@ export function evaluateTasteCalibrationGate(
 
 export function formatTasteCalibrationTable(items: TasteCalibrationItem[]): string {
   const header =
-    '| story | category | verdict | confidence | weakestPage | weakestLine | strongestLine | reasons |';
+    '| story | category | verdict | confidence | quotableLines | weakestPage | weakestLine | strongestLine | reasons |';
   const sep =
-    '| --- | --- | --- | --- | --- | --- | --- | --- |';
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- |';
   const rows = items.map((item) => {
     const r = item.report;
     const reasons = r.reasons.slice(0, 2).join(' · ').replace(/\|/g, '/');
-    const wLine = r.weakestLine.replace(/\|/g, '/').slice(0, 60);
-    const sLine = r.strongestLine.replace(/\|/g, '/').slice(0, 60);
+    const wLine = r.weakestLine.replace(/\|/g, '/').slice(0, 50);
+    const sLine = r.strongestLine.replace(/\|/g, '/').slice(0, 50);
     const wp = r.weakestPage.page ? `p${r.weakestPage.page}` : '?';
-    return `| ${item.id} | ${item.category} | ${r.verdict} | ${r.confidence} | ${wp}: ${r.weakestPage.reason.slice(0, 40)} | ${wLine} | ${sLine} | ${reasons} |`;
+    const ql =
+      r.verdict === 'BANK_READY' && r.quotableLines?.length
+        ? r.quotableLines
+            .slice(0, 2)
+            .map((l) => l.replace(/\|/g, '/').slice(0, 40))
+            .join(' / ')
+        : '—';
+    return `| ${item.id} | ${item.category} | ${r.verdict} | ${r.confidence} | ${ql} | ${wp}: ${r.weakestPage.reason.slice(0, 30)} | ${wLine} | ${sLine} | ${reasons} |`;
   });
   return [header, sep, ...rows].join('\n');
 }

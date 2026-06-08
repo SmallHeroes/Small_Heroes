@@ -1,5 +1,5 @@
 /**
- * Taste Judge v1 — blind calibration runner (product/editorial gate).
+ * Taste Judge v2 — blind calibration runner (product/editorial gate).
  *
  *   npx tsx --require ./scripts/shims/register-server-only.cjs scripts/run-taste-calibration.ts
  */
@@ -23,6 +23,7 @@ import {
   normalizeTasteProbeProse,
   parseTasteProbeSpecs,
   runTasteJudge,
+  TASTE_JUDGE_PROMPT_VERSION,
   type TasteCalibrationItem,
 } from '../lib/story-gen/taste-judge';
 
@@ -262,9 +263,10 @@ async function main(): Promise<void> {
   const table = formatTasteCalibrationTable(items);
 
   const reportMd = [
-    '# Taste Judge v1 — Calibration Report',
+    `# Taste Judge ${TASTE_JUDGE_PROMPT_VERSION} — Calibration Report`,
     '',
     `**Run:** ${timestamp}`,
+    `**Prompt:** ${TASTE_JUDGE_PROMPT_VERSION}`,
     `**Model:** ${DEFAULT_STORY_GEN_MODELS.judgeModel}`,
     `**Gate:** ${gate.pass ? 'PASS' : 'FAIL'}`,
     '',
