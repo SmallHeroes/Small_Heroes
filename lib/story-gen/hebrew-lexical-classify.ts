@@ -3,7 +3,7 @@
  */
 
 import { resolveCompanionNameMarkers } from './companion-gender';
-import { ONOMATOPOEIA_ALLOWLIST } from './hebrew-lexical-backstop';
+import { resolveSoundWordsForCompanion } from './hebrew-lexical-sound-allowlist';
 import type {
   HebrewLexicalDomain,
   HebrewLexicalFinding,
@@ -32,7 +32,7 @@ export function buildLexicalAllowContext(markdown: string): LexicalAllowContext 
   return {
     companionId,
     companionNames,
-    soundWords: ONOMATOPOEIA_ALLOWLIST,
+    soundWords: resolveSoundWordsForCompanion(companionId),
   };
 }
 

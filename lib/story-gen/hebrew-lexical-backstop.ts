@@ -11,35 +11,13 @@ import type {
 
 export type { HebrewLexicalHit, HebrewLexicalHitSource } from './hebrew-lexical-types';
 
-/** Intentional onomatopoeia / sound-words — never BLOCKER. */
-export const ONOMATOPOEIA_ALLOWLIST = [
-  'פּוּף',
-  'פוף',
-  'טַף־טַף',
-  'טף־טַף',
-  'טַף',
-  'קְלָק',
-  'קלק',
-  'דִּינג',
-  'דינג',
-  'בּוּם',
-  'בום',
-  'רְרוּם',
-  'ררום',
-  'פְּססס',
-  'פססס',
-  'פְּלוּפּ',
-  'פלופ',
-  'קליק',
-  'קְלִיק',
-  'טִיק',
-  'טָאק',
-  'תִּקְתּוּק',
-  'פיפס',
-  'פִּפְּס',
-  'פִּפְּס',
-  'בּוּם',
-] as const;
+export {
+  ONOMATOPOEIA_ALLOWLIST,
+  COMPANION_SCOPED_SOUND_WORDS,
+  resolveSoundWordsForCompanion,
+  formatSoundAllowlistForPrompt,
+} from './hebrew-lexical-sound-allowlist';
+import { ONOMATOPOEIA_ALLOWLIST, resolveSoundWordsForCompanion } from './hebrew-lexical-sound-allowlist';
 
 function stripHebrewDiacritics(text: string): string {
   return text.replace(/[\u0591-\u05C7\u05F3\u05F4]/g, '');
@@ -130,9 +108,9 @@ export const DETERMINISTIC_LEXICAL_PATTERNS: DeterministicPattern[] = [
   },
 ];
 
-function isAllowlistedSoundToken(token: string): boolean {
+function isAllowlistedSoundToken(token: string, companionId: string | null): boolean {
   const bare = stripHebrewDiacritics(token);
-  return ONOMATOPOEIA_ALLOWLIST.some(
+  return resolveSoundWordsForCompanion(companionId).some(
     (a) => stripHebrewDiacritics(a) === bare || bare.includes(stripHebrewDiacritics(a))
   );
 }
@@ -172,6 +150,7 @@ function scanBrokenChipWords(prose: string, page: number): HebrewLexicalHit[] {
 export function runDeterministicLexicalBackstop(markdown: string): HebrewLexicalHit[] {
   const hits: HebrewLexicalHit[] = [];
   const seen = new Set<string>();
+  const companionId = markdown.match(/companionId:\s*(\S+)/)?.[1]?.trim() ?? null;
 
   for (const { page, body } of parseStoryPages(markdown)) {
     const prose = pageProseOnly(body);
@@ -194,7 +173,7 @@ export function runDeterministicLexicalBackstop(markdown: string): HebrewLexical
         const original = m[0];
         const key = `p${page}:${original}:${issue}`;
         if (seen.has(key)) continue;
-        if (!phraseLevel && isAllowlistedSoundToken(original)) continue;
+        if (!phraseLevel && isAllowlistedSoundToken(original, companionId)) continue;
         const proseIdx = stripHebrewDiacritics(prose).indexOf(original, m.index);
         if (proseIdx >= 0 && isInsideDoublePlaceholder(prose, proseIdx)) continue;
         seen.add(key);

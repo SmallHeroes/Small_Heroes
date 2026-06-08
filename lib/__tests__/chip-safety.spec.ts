@@ -16,11 +16,20 @@ describe('chip normalization allowlist-only', () => {
     expect(report.advisoryFail).toBe(false);
   });
 
-  it('does not guess feminine for unrecognized slash forms', () => {
+  it('converts safe regular /ה slash (מדגים/ה → chip) per Step 4.1 converter', () => {
     const input = '--- Page 1 ---\nטקסט עם מַדְגִּים/ה ועוד.\n\nWORD_COUNT: [4] = 4';
     const { markdown, report } = normalizePartialGenderChips(input);
-    expect(markdown).toContain('מַדְגִּים/ה');
-    expect(report.unrepaired.some((u) => u.token.includes('מַדְגִּים/ה'))).toBe(true);
+    expect(markdown).toContain('{מדגים|מדגימה}');
+    expect(report.unrepaired).toHaveLength(0);
+    expect(report.advisoryFail).toBe(false);
+    expect(report.fixes.some((f) => f.reason === 'safe_slash_regular')).toBe(true);
+  });
+
+  it('does not guess feminine for irregular full-slash forms (fail-closed)', () => {
+    const input = '--- Page 1 ---\nטקסט עם מדגים/מדגימות ועוד.\n\nWORD_COUNT: [4] = 4';
+    const { markdown, report } = normalizePartialGenderChips(input);
+    expect(markdown).toContain('מדגים/מדגימות');
+    expect(report.unrepaired.some((u) => u.token.includes('מדגים/מדגימות'))).toBe(true);
     expect(report.advisoryFail).toBe(true);
   });
 });

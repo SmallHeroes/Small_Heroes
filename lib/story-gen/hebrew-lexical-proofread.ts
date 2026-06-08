@@ -16,14 +16,19 @@ import {
 } from './hebrew-lexical-routing';
 import {
   dedupeLexicalHits,
-  ONOMATOPOEIA_ALLOWLIST,
   runDeterministicLexicalBackstop,
 } from './hebrew-lexical-backstop';
+import { formatSoundAllowlistForPrompt } from './hebrew-lexical-sound-allowlist';
 import type { HebrewLexicalFinding, HebrewLexicalHit } from './hebrew-lexical-types';
 import { pageProseOnly, parseStoryPages } from './story-page-utils';
 import { DEFAULT_STORY_GEN_MODELS } from './story-generation-types';
 
-export { ONOMATOPOEIA_ALLOWLIST, runDeterministicLexicalBackstop } from './hebrew-lexical-backstop';
+export {
+  ONOMATOPOEIA_ALLOWLIST,
+  COMPANION_SCOPED_SOUND_WORDS,
+  resolveSoundWordsForCompanion,
+  runDeterministicLexicalBackstop,
+} from './hebrew-lexical-backstop';
 export type {
   HebrewLexicalDomain,
   HebrewLexicalFinding,
@@ -91,7 +96,7 @@ async function runLexicalLlmPass(args: {
     prose: pageProseOnly(body),
   }));
 
-  const soundList = ONOMATOPOEIA_ALLOWLIST.join(', ');
+  const soundList = formatSoundAllowlistForPrompt(args.companionId);
   const companionNames = args.companionId
     ? resolveCompanionNameMarkers(args.companionId).join(', ')
     : '(none)';
@@ -102,7 +107,7 @@ Propose MINIMAL corrections only — do NOT polish style or literary voice.
 
 NEVER flag (classify mentally as ALLOW — omit from findings):
 - Companion names from this story: ${companionNames}
-- Approved sound-words / onomatopoeia: ${soundList}
+- Approved sound-words / onomatopoeia (companion-scoped belly sounds only for that companion): ${soundList}
 - {{childName}} and {{placeholders}}
 - Gender chips {male|female} (unless a chip SIDE is a non-word)
 - Valid nikud variants of real Hebrew words

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildLexicalAllowContext,
   classifyLexicalHit,
   classifyLexicalHits,
   summarizeLexicalFindings,
@@ -133,5 +134,48 @@ describe('runDeterministicLexicalBackstop + severity', () => {
     );
     expect(poof.severity).toBe('ALLOW');
     expect(poof.domain).toBe('allowed_sound_word');
+  });
+
+  it('allows Tubi companion-scoped belly sound בְּרוּם but not for other companions', () => {
+    const s6Snippet = `---
+companionId: baby_elephant
+---
+--- Page 3 ---
+טוּבִּי מנסה לעצור נשימה, אבל הבֶּטֶן שלו גונחת קודם, בְּרוּם רך.
+
+WORD_COUNT: [8] = 8`;
+
+    const tubiCtx = buildLexicalAllowContext(s6Snippet);
+    const brum = classifyLexicalHit(
+      {
+        page: 3,
+        original: 'בְּרוּם רך',
+        issue: 'belly sound',
+        suggestedMinimalFix: '',
+        source: 'llm',
+      },
+      tubiCtx
+    );
+    expect(brum.severity).toBe('ALLOW');
+    expect(brum.domain).toBe('allowed_sound_word');
+
+    const bollyCtx = buildLexicalAllowContext(`---
+companionId: bolly_armadillo
+---
+--- Page 1 ---
+בְּרוּם רך
+
+WORD_COUNT: [1] = 1`);
+    const brumBolly = classifyLexicalHit(
+      {
+        page: 1,
+        original: 'בְּרוּם רך',
+        issue: 'not a bolly sound',
+        suggestedMinimalFix: '',
+        source: 'llm',
+      },
+      bollyCtx
+    );
+    expect(brumBolly.severity).not.toBe('ALLOW');
   });
 });
