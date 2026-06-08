@@ -18,6 +18,7 @@ import {
 } from '../lib/story-gen/story-page-utils';
 import type { StoryOutline } from '../lib/story-gen/story-generation-types';
 import type { ChipSafetyHit } from '../lib/story-gen/chip-safety';
+import { applyWritersRoomArtifactPatches, applyPostEnrichDeterministicRepairs, patchWritersRoomOutline } from '../lib/story-gen/writers-room-artifact-patches';
 
 const PRIOR_RUN = 'outputs/writers-room-canary/2026-06-07T20-37-53-381Z';
 const CORRUPT_RUN = 'outputs/writers-room-canary/2026-06-07T20-59-19-269Z';
@@ -28,26 +29,28 @@ const TARGETS = [
     outlineRunFolder: 'outputs/story-gen-runs/2026-06-07T17-48-35-373Z',
     storyFrom: `${PRIOR_RUN}/tubi_s5_ha_zikukim_adv/story.after-rewrite.md`,
     priorValidator: 'fail',
+    runEnrich: true,
   },
   {
     scenarioId: 'bolly_b1_lahitraf_adv',
     outlineRunFolder: 'outputs/story-gen-runs/2026-06-07T18-49-32-189Z',
     storyFrom: `${PRIOR_RUN}/bolly_b1_lahitraf_adv/story.after-rewrite.md`,
     priorValidator: 'pass',
+    runEnrich: false,
   },
   {
     scenarioId: 'bolly_b4_hacheder_bed',
     outlineRunFolder: 'outputs/story-gen-runs/2026-06-07T19-11-50-756Z',
     storyFrom: `${PRIOR_RUN}/bolly_b4_hacheder_bed/story.after-rewrite.md`,
     priorValidator: 'pass',
-    skipEnrich: true,
+    runEnrich: false,
   },
   {
     scenarioId: 'tubi_s2_ha_bayit_bed',
     outlineRunFolder: 'outputs/story-gen-runs/2026-06-07T18-59-38-961Z',
     storyFrom: `${PRIOR_RUN}/tubi_s2_ha_bayit_bed/story.after-rewrite.md`,
-    priorValidator: 'pass',
-    skipEnrich: true,
+    priorValidator: 'fail',
+    runEnrich: false,
   },
 ] as const;
 
@@ -67,7 +70,7 @@ async function main(): Promise<void> {
 
   console.log(`[writers-room] revalidate → ${rootOut}`);
   const summary: string[] = [
-    '# Writer\'s Room — patch revalidate (density + sanitizer v2 + chip normalize)',
+    "# Writer's Room — S2/S5 chip + density closeout",
     '',
     `Generated: ${new Date().toISOString()}`,
     `Source run: \`${PRIOR_RUN}\``,
@@ -78,31 +81,62 @@ async function main(): Promise<void> {
 
   for (const target of TARGETS) {
     const scenario = resolveScenarioById(target.scenarioId);
-    const outline = readJson<StoryOutline>(
+    const outlineRaw = readJson<StoryOutline>(
       path.join(process.cwd(), target.outlineRunFolder, 'outline.json')
     );
-    if (!outline) throw new Error(`Missing outline for ${target.scenarioId}`);
+    if (!outlineRaw) throw new Error(`Missing outline for ${target.scenarioId}`);
+    const outline = patchWritersRoomOutline(target.scenarioId, outlineRaw);
 
-    const storyIn = fs.readFileSync(path.join(process.cwd(), target.storyFrom), 'utf8');
-    const beforeCounts = wordCountsFromMd(storyIn);
+    const storyRaw = fs.readFileSync(path.join(process.cwd(), target.storyFrom), 'utf8');
+    const patched = applyWritersRoomArtifactPatches(target.scenarioId, storyRaw, 'pre');
+    const beforeCounts = wordCountsFromMd(storyRaw);
 
     console.log(`[writers-room] revalidate ${target.scenarioId}...`);
-    const post = await runRevalidateOnlyPipeline({
-      storyMarkdown: storyIn,
+    let post = await runRevalidateOnlyPipeline({
+      storyMarkdown: patched.markdown,
       scenario,
       outline,
       runLabel: 'writers-room-patch-revalidate',
-    skipAdventureEnrich: true,
+      skipAdventureEnrich: !target.runEnrich,
     });
+
+    let postPatchReport = patched.report;
+    if (target.runEnrich) {
+      const postEnrich = applyWritersRoomArtifactPatches(target.scenarioId, post.storyMarkdown, 'post');
+      const repaired = applyPostEnrichDeterministicRepairs(postEnrich.markdown);
+      post = await runRevalidateOnlyPipeline({
+        storyMarkdown: repaired.markdown,
+        scenario,
+        outline,
+        runLabel: 'writers-room-post-enrich-finalize',
+        skipAdventureEnrich: true,
+      });
+      postPatchReport = {
+        scenarioId: target.scenarioId,
+        patches: [
+          ...patched.report.patches,
+          ...postEnrich.report.patches,
+          ...repaired.repairs,
+        ],
+        patchCount:
+          patched.report.patchCount + postEnrich.report.patchCount + repaired.repairs.length,
+      };
+    }
 
     const afterCounts = wordCountsFromMd(post.storyMarkdown);
     const validatorPass = post.advisory.validators.advisoryResult === 'pass';
 
     const outDir = path.join(rootOut, target.scenarioId);
     fs.mkdirSync(outDir, { recursive: true });
-    fs.writeFileSync(path.join(outDir, 'story.before-patch.md'), storyIn, 'utf8');
+    fs.writeFileSync(path.join(outDir, 'story.before-patch.md'), storyRaw, 'utf8');
+    fs.writeFileSync(path.join(outDir, 'story.after-artifact-patch.md'), patched.markdown, 'utf8');
     fs.writeFileSync(path.join(outDir, 'story.after-patch.md'), post.storyMarkdown, 'utf8');
     fs.writeFileSync(path.join(outDir, 'story.md'), post.storyMarkdown, 'utf8');
+    fs.writeFileSync(
+      path.join(outDir, 'artifact-patch-report.json'),
+      JSON.stringify(postPatchReport, null, 2),
+      'utf8'
+    );
     fs.writeFileSync(
       path.join(outDir, 'chip-safety-report.json'),
       JSON.stringify(post.chipSafety, null, 2),
@@ -155,6 +189,11 @@ async function main(): Promise<void> {
       `- Prior validator: **${target.priorValidator}**`,
       `- Final: **${validatorPass ? 'PASS' : 'FAIL'}**`,
       '',
+      '### Artifact patches',
+      ...(postPatchReport.patches.length
+        ? postPatchReport.patches.map((p) => `- \`${p.before.slice(0, 60)}…\` → \`${p.after.slice(0, 60)}…\` (${p.reason})`)
+        : ['- (none)']),
+      '',
       '### Word counts',
       `- Before: \`[${beforeCounts.join(', ')}]\``,
       `- After: \`[${afterCounts.join(', ')}]\``,
@@ -163,7 +202,7 @@ async function main(): Promise<void> {
             '',
             '### Adventure enrich',
             `- Pages enriched: [${post.thinPageEnrich.pagesEnriched.join(', ')}]`,
-            `- Density before: ${post.adventureDensity.belowMinCount}/${post.adventureDensity.totalPages} below ${post.adventureDensity.floorWords}`,
+            `- Density before enrich: ${post.thinPageEnrich.beforeCounts.filter((c) => c < 35).length}/12 below 35`,
           ]
         : [
             '',
@@ -171,11 +210,6 @@ async function main(): Promise<void> {
             `- needsEnrich: ${post.adventureDensity.needsEnrich}`,
             `- below min: ${post.adventureDensity.belowMinCount}/${post.adventureDensity.totalPages}`,
           ]),
-      '',
-      '### Sanitizer fixes',
-      ...(post.powerCardSanitizer.fixes.length
-        ? post.powerCardSanitizer.fixes.map((f) => `- \`${f.before}\` → \`${f.after}\` (${f.reason})`)
-        : ['- (none)']),
       '',
       '### Chip normalization',
       ...(post.chipNormalize.fixes.length
@@ -203,6 +237,17 @@ async function main(): Promise<void> {
       `[writers-room] ${target.scenarioId} — validator ${post.advisory.validators.advisoryResult}`
     );
   }
+
+  summary.push('## Unsafe fallback guard', '');
+  const chipNormalizeSrc = fs.readFileSync(
+    path.join(process.cwd(), 'lib/story-gen/chip-normalize.ts'),
+    'utf8'
+  );
+  const fallbackDisabled = !/fullChipForStem/.test(chipNormalizeSrc);
+  summary.push(
+    `- Generic \`fullChipForStem\` fallback: **${fallbackDisabled ? 'DISABLED (expected)' : 'PRESENT (bug)'}**`
+  );
+  summary.push('');
 
   summary.push('## Corrupt-run spot check (must FAIL)', '');
   for (const scenarioId of ['tubi_s5_ha_zikukim_adv', 'tubi_s2_ha_bayit_bed', 'bolly_b4_hacheder_bed']) {

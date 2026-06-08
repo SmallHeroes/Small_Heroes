@@ -284,7 +284,7 @@ function applyPostProcessValidatorFailures(
 
   return {
     ...report,
-    failures,
+    failures: [...new Set(failures)],
     advisoryResult: failures.length > 0 ? 'fail' : 'pass',
     formatChecks: {
       ...report.formatChecks,

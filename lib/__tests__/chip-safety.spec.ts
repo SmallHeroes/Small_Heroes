@@ -1,6 +1,9 @@
+import fs from 'fs';
+import path from 'path';
 import { describe, expect, it } from 'vitest';
 import { normalizePartialGenderChips } from '../story-gen/chip-normalize';
 import { scanChipSafety } from '../story-gen/chip-safety';
+import { applyWritersRoomArtifactPatches } from '../story-gen/writers-room-artifact-patches';
 
 describe('chip normalization allowlist-only', () => {
   it('normalizes trusted partial suffix chips', () => {
@@ -56,5 +59,31 @@ WORD_COUNT: [1] = 1`;
     const report = scanChipSafety(md);
     expect(report.advisoryFail).toBe(true);
     expect(report.hits.some((h) => h.reason === 'remaining_slash_gender')).toBe(true);
+  });
+
+  it('keeps generic feminine fallback disabled in chip-normalize source', () => {
+    const src = fs.readFileSync(path.join(process.cwd(), 'lib/story-gen/chip-normalize.ts'), 'utf8');
+    expect(src).not.toMatch(/fullChipForStem/);
+    expect(src).toMatch(/allowlist-only/i);
+  });
+
+  it('applies S5 neutral stakes rewrite without slash forms', () => {
+    const before =
+      'stakes: הילד/ה רוצה לראות את הזיקוקים אך הבּוּמים גדולים מדי; אם בורח/ת מפסיד/ה את היופי, אם נשאר/ת בלי גבול — מציף.';
+    const { markdown, report } = applyWritersRoomArtifactPatches(
+      'tubi_s5_ha_zikukim_adv',
+      `---\n${before}\n`
+    );
+    expect(report.patchCount).toBeGreaterThan(0);
+    expect(markdown).toContain('אם יוצאים מהר מדי');
+    expect(markdown).not.toContain('בורח/ת');
+  });
+
+  it('applies S2 neutral uncomfortableTruth without future-tense slash chips', () => {
+    const before =
+      'uncomfortableTruth: עמוד 4 — {{childName}} מְפַחֵד/ת שֶׁאִם יִסְגֹּר/תִסְגֹּר יִפְסְפֵּס/תִפְסְפֵּס אֶת אִמָּא.';
+    const { markdown } = applyWritersRoomArtifactPatches('tubi_s2_ha_bayit_bed', before);
+    expect(markdown).toContain('קול אמא נשאר רחוק');
+    expect(markdown).not.toContain('יִסְגֹּר/ת');
   });
 });

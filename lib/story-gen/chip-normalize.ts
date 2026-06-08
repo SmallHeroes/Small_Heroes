@@ -58,6 +58,25 @@ export const TRUSTED_STEM_PAIRS: Record<string, { male: string; female: string }
   שואל: { male: 'שואל', female: 'שואלת' },
   מותח: { male: 'מותח', female: 'מותחת' },
   מסתובב: { male: 'מסתובב', female: 'מסתובבת' },
+  בוחר: { male: 'בוחר', female: 'בוחרת' },
+  מחליט: { male: 'מחליט', female: 'מחליטה' },
+  מוריד: { male: 'מוריד', female: 'מורידה' },
+  עוצם: { male: 'עוצם', female: 'עוצמת' },
+  פותח: { male: 'פותח', female: 'פותחת' },
+  מצטרף: { male: 'מצטרף', female: 'מצטרפת' },
+  מפחד: { male: 'מפחד', female: 'מפחדת' },
+  מסתכל: { male: 'מסתכל', female: 'מסתכלת' },
+  נשען: { male: 'נשען', female: 'נשענת' },
+  מרגיש: { male: 'מרגיש', female: 'מרגישה' },
+  מכוון: { male: 'מכוון', female: 'מכוונת' },
+  ומכוון: { male: 'ומכוון', female: 'ומכוונת' },
+  מחזיק: { male: 'מחזיק', female: 'מחזיקה' },
+  מצמיד: { male: 'מצמיד', female: 'מצמידה' },
+  מסמן: { male: 'מסמן', female: 'מסמנת' },
+  ומסמן: { male: 'ומסמן', female: 'ומסמנת' },
+  שם: { male: 'שם', female: 'שמה' },
+  מצחקק: { male: 'מצחקק', female: 'מצחקקת' },
+  נעצר: { male: 'נעצר', female: 'נעצרה' },
 };
 
 export function stripHebrewDiacritics(text: string): string {
@@ -123,6 +142,20 @@ function buildAllowlistReplacements(): Array<{
         reason: 'slash_chip',
       });
     }
+    if (stem === 'שלו') {
+      rules.push({
+        pattern: /שלו\/שלה/g,
+        replacement: chip,
+        reason: 'slash_chip',
+      });
+    }
+    if (pair.male !== pair.female) {
+      rules.push({
+        pattern: new RegExp(`${escapeRegExp(pair.male)}/${escapeRegExp(pair.female)}`, 'g'),
+        replacement: chip,
+        reason: 'full_slash_chip',
+      });
+    }
   }
 
   return rules;
@@ -133,6 +166,47 @@ const ALLOWLIST_REPLACEMENTS = buildAllowlistReplacements();
 const UNREPAIRED_PARTIAL_SUFFIX = /[\u0590-\u05FF]{2,}\{[תה]\}/g;
 const UNREPAIRED_SLASH_GENDER =
   /[\u0590-\u05FF][\u0590-\u05FF\u05B0-\u05C7]*\/(?:ת|ה|[\u0590-\u05FF][\u0590-\u05FF\u05B0-\u05C7]*)/g;
+
+const NIKUD_SLASH_GENDER =
+  /[\u0590-\u05FF][\u0590-\u05FF\u05B0-\u05C7]*\/(?:ת|ה|[\u0590-\u05FF][\u0590-\u05FF\u05B0-\u05C7]*)/g;
+
+function tryRepairNikudSlash(match: string): string | null {
+  const slashIdx = match.indexOf('/');
+  if (slashIdx < 0) return null;
+  const left = stripHebrewDiacritics(match.slice(0, slashIdx));
+  const right = stripHebrewDiacritics(match.slice(slashIdx + 1));
+
+  const pairs = Object.values(TRUSTED_STEM_PAIRS).sort(
+    (a, b) => stripHebrewDiacritics(b.male).length - stripHebrewDiacritics(a.male).length
+  );
+
+  for (const pair of pairs) {
+    const male = stripHebrewDiacritics(pair.male);
+    const female = stripHebrewDiacritics(pair.female);
+    if (!left.endsWith(male)) continue;
+    const okRight =
+      right === female ||
+      (right === 'ה' && (female.endsWith('ה') || female.endsWith('ת'))) ||
+      (right === 'ת' && female.endsWith('ת'));
+    if (!okRight) continue;
+    const prefix = left.slice(0, left.length - male.length);
+    return `${prefix}{${pair.male}|${pair.female}}`;
+  }
+  return null;
+}
+
+function repairNikudSlashForms(
+  text: string,
+  page: number,
+  fixes: ChipNormalizeEntry[]
+): string {
+  return text.replace(NIKUD_SLASH_GENDER, (match) => {
+    const repaired = tryRepairNikudSlash(match);
+    if (!repaired || repaired === match) return match;
+    fixes.push({ page, before: match, after: repaired, reason: 'slash_chip' });
+    return repaired;
+  });
+}
 
 function collectUnrepairedTokens(text: string, page: number): ChipNormalizeReport['unrepaired'] {
   const hits: ChipNormalizeReport['unrepaired'] = [];
@@ -165,6 +239,8 @@ function normalizeChipsInText(text: string, page: number): {
       return replacement;
     });
   }
+
+  out = repairNikudSlashForms(out, page, fixes);
 
   const unrepaired = collectUnrepairedTokens(out, page);
   return { text: out, fixes, unrepaired };
