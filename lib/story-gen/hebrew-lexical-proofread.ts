@@ -10,6 +10,11 @@ import {
   summarizeLexicalFindings,
 } from './hebrew-lexical-classify';
 import {
+  applyBlockerAuthorityPolicy,
+  computeLexicalRoutingState,
+  type LexicalRoutingState,
+} from './hebrew-lexical-routing';
+import {
   dedupeLexicalHits,
   ONOMATOPOEIA_ALLOWLIST,
   runDeterministicLexicalBackstop,
@@ -32,6 +37,14 @@ export {
   classifyLexicalHits,
   summarizeLexicalFindings,
 } from './hebrew-lexical-classify';
+export {
+  applyBlockerAuthorityPolicy,
+  applyLexicalTerminalCap,
+  computeLexicalRoutingState,
+  isHighSeverityProseReview,
+  isSlashFormFinding,
+  type LexicalRoutingState,
+} from './hebrew-lexical-routing';
 
 export const HEBREW_LEXICAL_PROMPT_VERSION = 'hebrew-lexical-v2-severity';
 
@@ -50,6 +63,10 @@ export interface HebrewLexicalProofreadReport {
   allows: HebrewLexicalFinding[];
   deterministicHitCount: number;
   llmHitCount: number;
+  demotedLlmBlockerCount: number;
+  highSeverityProseReviewCount: number;
+  slashFormFindingCount: number;
+  routing: LexicalRoutingState;
   advisoryWarn: boolean;
   advisoryFail: boolean;
   modelId?: string;
@@ -164,12 +181,18 @@ export async function runHebrewLexicalProofread(args: {
   }
 
   const merged = dedupeLexicalHits([...deterministic, ...llmHits]);
-  const findings = classifyLexicalHits(merged, args.storyMarkdown);
+  const classified = classifyLexicalHits(merged, args.storyMarkdown);
+  const { findings, demotedLlmBlockers } = applyBlockerAuthorityPolicy(
+    classified,
+    deterministic
+  );
   const summary = summarizeLexicalFindings(findings);
+  const routing = computeLexicalRoutingState(findings, demotedLlmBlockers);
 
-  const advisoryWarn = summary.blockerCount + summary.reviewCount > 0;
+  const advisoryWarn =
+    routing.blockerCount + routing.highSeverityProseReviewCount > 0;
   const advisoryFail =
-    mode === 'blocking' && summary.blockerCount > 0;
+    mode === 'blocking' && routing.blockerCount > 0;
 
   return {
     status: 'hebrew_lexical_proofread_v2',
@@ -185,6 +208,10 @@ export async function runHebrewLexicalProofread(args: {
     allows: summary.allows,
     deterministicHitCount: deterministic.length,
     llmHitCount: llmHits.length,
+    demotedLlmBlockerCount: demotedLlmBlockers.length,
+    highSeverityProseReviewCount: routing.highSeverityProseReviewCount,
+    slashFormFindingCount: routing.slashFormFindings.length,
+    routing,
     advisoryWarn,
     advisoryFail,
     modelId: args.skipLlm ? undefined : modelId,

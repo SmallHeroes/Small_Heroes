@@ -34,6 +34,15 @@ import {
   type TasteJudgeReport,
   type TasteVerdict,
 } from './taste-judge';
+import {
+  applyLexicalTerminalCap,
+  lexicalRoutingSummary,
+  type LexicalRoutingState,
+} from './hebrew-lexical-routing';
+import {
+  runHebrewLexicalProofread,
+  type HebrewLexicalProofreadReport,
+} from './hebrew-lexical-proofread';
 import type { Scenario, StoryOutline } from './story-generation-types';
 import { DEFAULT_STORY_GEN_MODELS } from './story-generation-types';
 
@@ -65,6 +74,7 @@ export interface WritersRoomGatePassResult {
   powerCardSanitizer: PowerCardSanitizerReport;
   proofread?: ProofreadReport;
   thinPageEnrich?: ThinPageEnrichReport;
+  hebrewLexical?: HebrewLexicalProofreadReport;
 }
 
 export interface WritersRoomBoundedLoopReport {
@@ -88,6 +98,11 @@ export interface WritersRoomBoundedLoopReport {
   /** Final story text after loop (post-rewrite if rewrite ran). */
   finalStoryMarkdown: string;
   generatedAt: string;
+  /** Taste-based terminal before lexical routing cap. */
+  tasteTerminal?: WritersRoomTerminal;
+  /** Lexical routing applied to terminal (Step 4.4). */
+  lexicalRouting?: LexicalRoutingState;
+  hebrewLexical?: HebrewLexicalProofreadReport;
 }
 
 type PipelineResult = Awaited<ReturnType<typeof runPostRewritePipeline>>;
@@ -148,7 +163,7 @@ function collectTechnicalFailures(
 function buildStageReports(
   pipeline: PipelineResult,
   taste: TasteJudgeReport,
-  options?: { ignoreWordBandThinness?: boolean }
+  options?: { ignoreWordBandThinness?: boolean; hebrewLexical?: HebrewLexicalProofreadReport }
 ): WritersRoomStageReport[] {
   const technicalFailures = collectTechnicalFailures(pipeline, options);
   const stages: WritersRoomStageReport[] = [
@@ -228,6 +243,16 @@ function buildStageReports(
     }
   );
 
+  if (options?.hebrewLexical) {
+    stages.push({
+      stage: 'hebrew-lexical-routing',
+      pass:
+        options.hebrewLexical.routing.blockerCount === 0 &&
+        options.hebrewLexical.routing.highSeverityProseReviewCount === 0,
+      summary: lexicalRoutingSummary(options.hebrewLexical.routing),
+    });
+  }
+
   return stages;
 }
 
@@ -241,6 +266,7 @@ async function runGatePass(args: {
   ignoreWordBandThinness?: boolean;
   judgeModel?: string;
   draftModel?: string;
+  skipLexical?: boolean;
 }): Promise<WritersRoomGatePassResult> {
   let pipeline: PipelineResult;
   if (args.skipProofread) {
@@ -275,6 +301,14 @@ async function runGatePass(args: {
     modelId: args.judgeModel,
   });
 
+  const hebrewLexical = args.skipLexical
+    ? undefined
+    : await runHebrewLexicalProofread({
+        storyMarkdown: pipeline.storyMarkdown,
+        mode: 'report_only',
+        modelId: args.judgeModel,
+      });
+
   const technicalFailures = collectTechnicalFailures(pipeline, {
     ignoreWordBandThinness: args.ignoreWordBandThinness,
   });
@@ -288,6 +322,7 @@ async function runGatePass(args: {
     technicalPass,
     stages: buildStageReports(pipeline, taste, {
       ignoreWordBandThinness: args.ignoreWordBandThinness,
+      hebrewLexical,
     }),
     chipNormalize: pipeline.chipNormalize,
     chipRepair: pipeline.chipRepair,
@@ -297,6 +332,7 @@ async function runGatePass(args: {
     powerCardSanitizer: pipeline.powerCardSanitizer,
     proofread: args.skipProofread ? undefined : pipeline.proofread,
     thinPageEnrich: pipeline.thinPageEnrich,
+    hebrewLexical,
   };
 }
 
@@ -401,11 +437,14 @@ export async function runWritersRoomBoundedLoop(args: {
   if (initialRoute !== 'needs_rewrite_pass' || args.blockAuthorRewrite) {
     const blockedRewrite =
       initialRoute === 'needs_rewrite_pass' && args.blockAuthorRewrite;
-    const terminal: WritersRoomTerminal = blockedRewrite
+    const tasteTerminal: WritersRoomTerminal = blockedRewrite
       ? initial.taste.verdict === 'FAIL'
         ? 'needs_human_review_or_reroll'
         : 'needs_human_review'
       : (initialRoute as WritersRoomTerminal);
+    const terminal = initial.hebrewLexical
+      ? applyLexicalTerminalCap(tasteTerminal, initial.hebrewLexical.routing)
+      : tasteTerminal;
     return {
       scenarioId: reportId,
       companionId: args.scenario.companionId,
@@ -423,6 +462,9 @@ export async function runWritersRoomBoundedLoop(args: {
       passLabel: 'initial',
       finalStoryMarkdown: initial.storyMarkdown,
       generatedAt: new Date().toISOString(),
+      tasteTerminal,
+      lexicalRouting: initial.hebrewLexical?.routing,
+      hebrewLexical: initial.hebrewLexical,
     };
   }
 
@@ -458,11 +500,14 @@ export async function runWritersRoomBoundedLoop(args: {
     modelId: judgeModel,
   });
 
-  const terminal = terminalFromPostRewrite({
+  const tasteTerminal = terminalFromPostRewrite({
     tasteVerdict: postRewrite.taste.verdict,
     technicalPass: postRewrite.technicalPass,
     preservation,
   });
+  const terminal = postRewrite.hebrewLexical
+    ? applyLexicalTerminalCap(tasteTerminal, postRewrite.hebrewLexical.routing)
+    : tasteTerminal;
 
   return {
     scenarioId: reportId,
@@ -503,6 +548,9 @@ export async function runWritersRoomBoundedLoop(args: {
     preservation,
     finalStoryMarkdown: postRewrite.storyMarkdown,
     generatedAt: new Date().toISOString(),
+    tasteTerminal,
+    lexicalRouting: postRewrite.hebrewLexical?.routing,
+    hebrewLexical: postRewrite.hebrewLexical,
   };
 }
 
