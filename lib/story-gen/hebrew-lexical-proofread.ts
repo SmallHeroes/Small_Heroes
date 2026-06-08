@@ -1,28 +1,53 @@
 /**
- * Hebrew lexical proofread — LLM-first native-Hebrew detector + deterministic backstop.
- * Report mode by default; blocking only after calibration.
+ * Hebrew lexical proofread — LLM-first + deterministic backstop + severity tiers.
+ * Report mode by default; blocking only after calibration passes.
  */
 
 import { OpenAIResponsesLLM, parseJsonFromLLM } from '../story-generator/llm';
-import { pageProseOnly, parseStoryPages } from './story-page-utils';
+import { resolveCompanionNameMarkers } from './companion-gender';
+import {
+  classifyLexicalHits,
+  summarizeLexicalFindings,
+} from './hebrew-lexical-classify';
 import {
   dedupeLexicalHits,
   ONOMATOPOEIA_ALLOWLIST,
   runDeterministicLexicalBackstop,
-  type HebrewLexicalHit,
 } from './hebrew-lexical-backstop';
+import type { HebrewLexicalFinding, HebrewLexicalHit } from './hebrew-lexical-types';
+import { pageProseOnly, parseStoryPages } from './story-page-utils';
 import { DEFAULT_STORY_GEN_MODELS } from './story-generation-types';
 
 export { ONOMATOPOEIA_ALLOWLIST, runDeterministicLexicalBackstop } from './hebrew-lexical-backstop';
-export type { HebrewLexicalHit, HebrewLexicalHitSource } from './hebrew-lexical-backstop';
+export type {
+  HebrewLexicalDomain,
+  HebrewLexicalFinding,
+  HebrewLexicalHit,
+  HebrewLexicalHitSource,
+  HebrewLexicalSeverity,
+} from './hebrew-lexical-types';
+export {
+  buildLexicalAllowContext,
+  classifyLexicalHit,
+  classifyLexicalHits,
+  summarizeLexicalFindings,
+} from './hebrew-lexical-classify';
 
-export const HEBREW_LEXICAL_PROMPT_VERSION = 'hebrew-lexical-v1';
+export const HEBREW_LEXICAL_PROMPT_VERSION = 'hebrew-lexical-v2-severity';
 
 export interface HebrewLexicalProofreadReport {
-  status: 'hebrew_lexical_proofread_v1';
+  status: 'hebrew_lexical_proofread_v2';
   promptVersion: string;
   mode: 'report_only' | 'blocking';
-  hits: HebrewLexicalHit[];
+  /** All findings after severity classification. */
+  findings: HebrewLexicalFinding[];
+  hits: HebrewLexicalFinding[];
+  blockerCount: number;
+  reviewCount: number;
+  allowCount: number;
+  blockers: HebrewLexicalFinding[];
+  reviews: HebrewLexicalFinding[];
+  allows: HebrewLexicalFinding[];
   deterministicHitCount: number;
   llmHitCount: number;
   advisoryWarn: boolean;
@@ -42,31 +67,40 @@ interface LlmLexicalRow {
 async function runLexicalLlmPass(args: {
   markdown: string;
   modelId: string;
+  companionId: string | null;
 }): Promise<{ hits: HebrewLexicalHit[]; inputTokens: number; outputTokens: number }> {
   const pages = parseStoryPages(args.markdown).map(({ page, body }) => ({
     page,
     prose: pageProseOnly(body),
   }));
 
-  const allowlist = ONOMATOPOEIA_ALLOWLIST.join(', ');
+  const soundList = ONOMATOPOEIA_ALLOWLIST.join(', ');
+  const companionNames = args.companionId
+    ? resolveCompanionNameMarkers(args.companionId).join(', ')
+    : '(none)';
 
   const systemPrompt = `You are a native Hebrew proofreader for Israeli children's picture books (ages 3–6).
-Mark every word or short phrase that is NOT valid Hebrew, is a broken/truncated verb form, or sounds invented/unnatural to a native parent reader.
-Propose a MINIMAL correction only — do NOT polish style, rhythm, or literary voice.
+Flag words/phrases that are NOT valid Hebrew, broken conjugations, or unnatural to a native parent reader.
+Propose MINIMAL corrections only — do NOT polish style or literary voice.
 
-PRESERVE EXACTLY (never flag or change):
-- Gender chips {male|female}
-- {{childName}} and other {{placeholders}}
-- Partial nikud on words
-- Proper names
-- Intentional onomatopoeia: ${allowlist}
+NEVER flag (classify mentally as ALLOW — omit from findings):
+- Companion names from this story: ${companionNames}
+- Approved sound-words / onomatopoeia: ${soundList}
+- {{childName}} and {{placeholders}}
+- Gender chips {male|female} (unless a chip SIDE is a non-word)
+- Valid nikud variants of real Hebrew words
+- imageDirection lines
+
+Severity guide (for your issue text):
+- BLOCKER: non-word, broken verb, unreadable form
+- REVIEW: valid Hebrew but jarring simile / forced phrase / unclear for age 4–8
 
 Return ONLY JSON:
 {
   "findings": [
     {
       "page": 1,
-      "original": "exact substring from prose",
+      "original": "exact substring",
       "issue": "why invalid/unnatural",
       "suggestedMinimalFix": "minimal fix"
     }
@@ -74,7 +108,7 @@ Return ONLY JSON:
 }
 If prose is clean, return { "findings": [] }.`;
 
-  const userPrompt = `Review Hebrew prose only. Flag non-words and invented Hebrew; ignore imageDirection.\n${JSON.stringify(pages, null, 2)}`;
+  const userPrompt = `Review Hebrew prose only.\n${JSON.stringify(pages, null, 2)}`;
 
   const llm = new OpenAIResponsesLLM(args.modelId);
   const result = await llm.call({
@@ -110,6 +144,8 @@ export async function runHebrewLexicalProofread(args: {
 }): Promise<HebrewLexicalProofreadReport> {
   const mode = args.mode ?? 'report_only';
   const modelId = args.modelId ?? DEFAULT_STORY_GEN_MODELS.judgeModel;
+  const companionId =
+    args.storyMarkdown.match(/companionId:\s*(\S+)/)?.[1]?.trim() ?? null;
 
   const deterministic = runDeterministicLexicalBackstop(args.storyMarkdown);
   let llmHits: HebrewLexicalHit[] = [];
@@ -120,24 +156,37 @@ export async function runHebrewLexicalProofread(args: {
     const llmResult = await runLexicalLlmPass({
       markdown: args.storyMarkdown,
       modelId,
+      companionId,
     });
     llmHits = llmResult.hits;
     inputTokens = llmResult.inputTokens;
     outputTokens = llmResult.outputTokens;
   }
 
-  const hits = dedupeLexicalHits([...deterministic, ...llmHits]);
-  const advisoryWarn = hits.length > 0;
+  const merged = dedupeLexicalHits([...deterministic, ...llmHits]);
+  const findings = classifyLexicalHits(merged, args.storyMarkdown);
+  const summary = summarizeLexicalFindings(findings);
+
+  const advisoryWarn = summary.blockerCount + summary.reviewCount > 0;
+  const advisoryFail =
+    mode === 'blocking' && summary.blockerCount > 0;
 
   return {
-    status: 'hebrew_lexical_proofread_v1',
+    status: 'hebrew_lexical_proofread_v2',
     promptVersion: HEBREW_LEXICAL_PROMPT_VERSION,
     mode,
-    hits,
+    findings,
+    hits: findings,
+    blockerCount: summary.blockerCount,
+    reviewCount: summary.reviewCount,
+    allowCount: summary.allowCount,
+    blockers: summary.blockers,
+    reviews: summary.reviews,
+    allows: summary.allows,
     deterministicHitCount: deterministic.length,
     llmHitCount: llmHits.length,
     advisoryWarn,
-    advisoryFail: mode === 'blocking' && advisoryWarn,
+    advisoryFail,
     modelId: args.skipLlm ? undefined : modelId,
     inputTokens: args.skipLlm ? undefined : inputTokens,
     outputTokens: args.skipLlm ? undefined : outputTokens,

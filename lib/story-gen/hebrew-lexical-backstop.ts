@@ -3,7 +3,15 @@
  */
 
 import { pageProseOnly, parseStoryPages } from './story-page-utils';
+import type {
+  HebrewLexicalDomain,
+  HebrewLexicalHit,
+  HebrewLexicalSeverity,
+} from './hebrew-lexical-types';
 
+export type { HebrewLexicalHit, HebrewLexicalHitSource } from './hebrew-lexical-types';
+
+/** Intentional onomatopoeia / sound-words — never BLOCKER. */
 export const ONOMATOPOEIA_ALLOWLIST = [
   'פּוּף',
   'פוף',
@@ -29,17 +37,9 @@ export const ONOMATOPOEIA_ALLOWLIST = [
   'תִּקְתּוּק',
   'פיפס',
   'פִּפְּס',
+  'פִּפְּס',
+  'בּוּם',
 ] as const;
-
-export type HebrewLexicalHitSource = 'deterministic' | 'llm';
-
-export interface HebrewLexicalHit {
-  page: number;
-  original: string;
-  issue: string;
-  suggestedMinimalFix: string;
-  source: HebrewLexicalHitSource;
-}
 
 function stripHebrewDiacritics(text: string): string {
   return text.replace(/[\u0591-\u05C7\u05F3\u05F4]/g, '');
@@ -54,57 +54,119 @@ type DeterministicPattern = {
   pattern: RegExp;
   issue: string;
   suggest: string;
+  severity: HebrewLexicalSeverity;
+  domain: HebrewLexicalDomain;
   phraseLevel?: boolean;
+  chipScan?: boolean;
 };
 
 export const DETERMINISTIC_LEXICAL_PATTERNS: DeterministicPattern[] = [
   {
     pattern: /מִצְטָמֵצ|מצטמ[ץצ]|מצטמת/,
     issue: 'truncated/broken verb (מצטמצ — missing final ם)',
-    suggest: 'מתכווצ/מתכווצת',
+    suggest: '{מתכווץ|מתכווצת}',
+    severity: 'BLOCKER',
+    domain: 'malformed_inflection',
+    chipScan: true,
   },
   {
     pattern: /מצציץ|מצמיץ|מצטץ/,
     issue: 'invented nonce for מציץ',
     suggest: 'מציץ',
+    severity: 'BLOCKER',
+    domain: 'non_word',
   },
   {
-    pattern: /בתוך החולש(?:\s|$|[.,!?—–-])/,
+    pattern: /בתוך החולש|בְּתוֹךְ הַחוֹלֵשׁ|הַחוֹלֵשׁ/,
     issue: 'non-word (חולש — likely חולשה)',
-    suggest: 'בתוך החולשה',
+    suggest: 'בתוך הגוף',
+    severity: 'BLOCKER',
+    domain: 'non_word',
+  },
+  {
+    pattern: /מַהְנֵה|מהנה(?!ן)/,
+    issue: 'non-word (מהנה — likely מהנהן)',
+    suggest: 'מהנהן',
+    severity: 'BLOCKER',
+    domain: 'non_word',
+  },
+  {
+    pattern: /כמעט[־-]?שׁ?[ֵ]?ן/,
+    issue: 'unclear phrase for ages 4–8 (כמעט־שן)',
+    suggest: 'קול כמעט ישן',
+    severity: 'REVIEW',
+    domain: 'age_inappropriate_register',
+  },
+  {
+    pattern: /קִצְקָשׁ|קיצקש/,
+    issue: 'non-word (קיצקש)',
+    suggest: 'מסתובב קצת',
+    severity: 'BLOCKER',
+    domain: 'non_word',
   },
   {
     pattern: /ריצ['\u05F3\u2019]?רוץ[^\n]{0,40}ריצ['\u05F3\u2019]?רוץ/,
     issue: 'forced unnatural tongue-twister phrasing',
-    suggest: 'simplify zipper/fidget description',
+    suggest: 'האצבעות משחקות ברוכסן',
+    severity: 'REVIEW',
+    domain: 'unnatural_phrase',
     phraseLevel: true,
   },
   {
     pattern: /נָח בֵּין גְּלִידוֹת|נח בין גלידות/,
     issue: 'unnatural simile (nach between ice creams)',
-    suggest: 'simpler resting image',
+    suggest: 'נוח שקט על הברכיים',
+    severity: 'REVIEW',
+    domain: 'unnatural_phrase',
     phraseLevel: true,
   },
   {
     pattern: /פִּתְחוֹנֵי קָפִיץ|פתחוני קפיץ/,
     issue: 'jarring invented metaphor',
-    suggest: 'simpler mouth/opening image',
+    suggest: 'פתחונים קטנים',
+    severity: 'REVIEW',
+    domain: 'unnatural_phrase',
     phraseLevel: true,
   },
 ];
 
-function isAllowlistedToken(token: string): boolean {
+function isAllowlistedSoundToken(token: string): boolean {
   const bare = stripHebrewDiacritics(token);
   return ONOMATOPOEIA_ALLOWLIST.some(
     (a) => stripHebrewDiacritics(a) === bare || bare.includes(stripHebrewDiacritics(a))
   );
 }
 
-function isInsidePlaceholder(prose: string, index: number): boolean {
+function isInsideDoublePlaceholder(prose: string, index: number): boolean {
   const before = prose.slice(0, index);
   const openDbl = (before.match(/\{\{/g) ?? []).length;
   const closeDbl = (before.match(/\}\}/g) ?? []).length;
   return openDbl > closeDbl;
+}
+
+function scanBrokenChipWords(prose: string, page: number): HebrewLexicalHit[] {
+  const hits: HebrewLexicalHit[] = [];
+  const chipRe = /\{([^{}|]+)\|([^{}|]+)\}/g;
+  let m: RegExpExecArray | null;
+  while ((m = chipRe.exec(prose)) !== null) {
+    for (const side of [m[1], m[2]]) {
+      const bare = stripHebrewDiacritics(side);
+      for (const { pattern, issue, suggest, severity, domain } of DETERMINISTIC_LEXICAL_PATTERNS) {
+        if (!pattern.test(bare)) continue;
+        hits.push({
+          page,
+          original: m[0],
+          issue: `${issue} (chip side: ${side.trim()})`,
+          suggestedMinimalFix: suggest,
+          source: 'deterministic',
+          severity,
+          domain: domain === 'malformed_inflection' ? 'broken_chip_word' : domain,
+        });
+        break;
+      }
+    }
+  }
+  return hits;
 }
 
 export function runDeterministicLexicalBackstop(markdown: string): HebrewLexicalHit[] {
@@ -115,17 +177,26 @@ export function runDeterministicLexicalBackstop(markdown: string): HebrewLexical
     const prose = pageProseOnly(body);
     const stripped = stripHebrewDiacritics(prose);
 
-    for (const { pattern, issue, suggest, phraseLevel } of DETERMINISTIC_LEXICAL_PATTERNS) {
+    hits.push(...scanBrokenChipWords(prose, page));
+
+    for (const {
+      pattern,
+      issue,
+      suggest,
+      severity,
+      domain,
+      phraseLevel,
+    } of DETERMINISTIC_LEXICAL_PATTERNS) {
       const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
       const globalPattern = new RegExp(pattern.source, flags);
       let m: RegExpExecArray | null;
       while ((m = globalPattern.exec(stripped)) !== null) {
         const original = m[0];
-        const key = `p${page}:${original}`;
+        const key = `p${page}:${original}:${issue}`;
         if (seen.has(key)) continue;
-        if (!phraseLevel && isAllowlistedToken(original)) continue;
+        if (!phraseLevel && isAllowlistedSoundToken(original)) continue;
         const proseIdx = stripHebrewDiacritics(prose).indexOf(original, m.index);
-        if (proseIdx >= 0 && isInsidePlaceholder(prose, proseIdx)) continue;
+        if (proseIdx >= 0 && isInsideDoublePlaceholder(prose, proseIdx)) continue;
         seen.add(key);
         hits.push({
           page,
@@ -133,6 +204,8 @@ export function runDeterministicLexicalBackstop(markdown: string): HebrewLexical
           issue,
           suggestedMinimalFix: suggest,
           source: 'deterministic',
+          severity,
+          domain,
         });
       }
     }
