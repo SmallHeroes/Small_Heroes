@@ -25,6 +25,8 @@ import {
 } from './word-bands';
 import type { GenderChipRepairReport } from './gender-chip-repair';
 import type { ChipNormalizeReport } from './chip-normalize';
+import type { ChipSafetyReport } from './chip-safety';
+import { scanChipSafety } from './chip-safety';
 import type { HebrewSanityReport } from './hebrew-sanity';
 import type { ThinPageEnrichReport } from './thin-page-enrich';
 import type { ProofreadReport } from './proofread-pass';
@@ -238,6 +240,7 @@ function applyPostProcessValidatorFailures(
     enrichReport?: ThinPageEnrichReport;
     chipRepairReport?: GenderChipRepairReport;
     chipNormalizeReport?: ChipNormalizeReport;
+    chipSafety?: ChipSafetyReport;
     hebrewSanity?: HebrewSanityReport;
     powerCardSanitizer?: PowerCardSanitizerReport;
   }
@@ -253,9 +256,14 @@ function applyPostProcessValidatorFailures(
       `ENRICH_UNDER_FLOOR: pages ${args.enrichReport.underFloorAfterEnrich.join(', ')} still below ${args.enrichReport.floorWords} after one enrich pass`
     );
   }
-  if (args.chipNormalizeReport?.unrepaired.length) {
+  if (args.chipNormalizeReport?.advisoryFail) {
     for (const u of args.chipNormalizeReport.unrepaired) {
-      failures.push(`Page ${u.page}: unrepaired partial chip — ${u.token}`);
+      failures.push(`CHIP_NORMALIZE unrepaired p${u.page}: ${u.token} (${u.reason})`);
+    }
+  }
+  if (args.chipSafety?.advisoryFail) {
+    for (const h of args.chipSafety.hits) {
+      failures.push(`CHIP_SAFETY p${h.page} ${h.field}: ${h.token} (${h.reason})`);
     }
   }
   if (args.chipRepairReport?.unrepaired.length) {
@@ -293,6 +301,7 @@ export async function buildRun1AdvisoryBundle(args: {
   enrichReport?: ThinPageEnrichReport;
   chipRepairReport?: GenderChipRepairReport;
   chipNormalizeReport?: ChipNormalizeReport;
+  chipSafety?: ChipSafetyReport;
   proofreadReport?: ProofreadReport;
   hebrewSanity?: HebrewSanityReport;
   powerCardSanitizer?: PowerCardSanitizerReport;
@@ -313,6 +322,7 @@ export async function buildRun1AdvisoryBundle(args: {
       enrichReport: args.enrichReport,
       chipRepairReport: args.chipRepairReport,
       chipNormalizeReport: args.chipNormalizeReport,
+      chipSafety: args.chipSafety,
       hebrewSanity: args.hebrewSanity,
       powerCardSanitizer: args.powerCardSanitizer,
     }

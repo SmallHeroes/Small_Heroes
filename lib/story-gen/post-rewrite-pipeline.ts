@@ -5,6 +5,7 @@
 
 import { checkAdventureDensity } from './adventure-density-gate';
 import { normalizePartialGenderChips, type ChipNormalizeReport } from './chip-normalize';
+import { scanChipSafety, type ChipSafetyReport } from './chip-safety';
 import { buildCompanionContextBlock } from './companion-context';
 import { repairGenderChipsInStory, type GenderChipRepairReport } from './gender-chip-repair';
 import { scanHebrewSanity, type HebrewSanityReport } from './hebrew-sanity';
@@ -84,6 +85,7 @@ export async function runPostRewritePipeline(args: {
   thinPageEnrich?: ThinPageEnrichReport;
   powerCardSanitizer: PowerCardSanitizerReport;
   hebrewSanity: HebrewSanityReport;
+  chipSafety: ChipSafetyReport;
   advisory: Run1AdvisoryBundle;
 }> {
   const companionBlock =
@@ -147,6 +149,7 @@ export async function runPostRewritePipeline(args: {
   };
 
   const hebrewSanity = scanHebrewSanity(md);
+  const chipSafety = scanChipSafety(md);
 
   const advisory = await buildRun1AdvisoryBundle({
     scenario: args.scenario,
@@ -159,12 +162,14 @@ export async function runPostRewritePipeline(args: {
     hebrewSanity,
     powerCardSanitizer: sanitizerResult.report,
     enrichReport: enrichResult.enrichReport,
+    chipSafety,
   });
 
   return {
     storyMarkdown: md,
     chipNormalize: chipPasses.chipNormalize,
     chipRepair: chipPasses.chipRepair,
+    chipSafety,
     proofread,
     adventureDensity: enrichResult.densityCheck,
     thinPageEnrich: enrichResult.enrichReport,
@@ -189,6 +194,7 @@ export async function runRevalidateOnlyPipeline(args: {
   thinPageEnrich?: ThinPageEnrichReport;
   powerCardSanitizer: PowerCardSanitizerReport;
   hebrewSanity: HebrewSanityReport;
+  chipSafety: ChipSafetyReport;
   advisory: Run1AdvisoryBundle;
 }> {
   const companionBlock = buildCompanionContextBlock(args.scenario.companionId);
@@ -237,6 +243,7 @@ export async function runRevalidateOnlyPipeline(args: {
   };
 
   const hebrewSanity = scanHebrewSanity(md);
+  const chipSafety = scanChipSafety(md);
 
   const advisory = await buildRun1AdvisoryBundle({
     scenario: args.scenario,
@@ -248,12 +255,14 @@ export async function runRevalidateOnlyPipeline(args: {
     hebrewSanity,
     powerCardSanitizer: sanitizerResult.report,
     enrichReport: enrichResult.enrichReport,
+    chipSafety,
   });
 
   return {
     storyMarkdown: md,
     chipNormalize: chipPasses.chipNormalize,
     chipRepair: chipPasses.chipRepair,
+    chipSafety,
     adventureDensity: enrichResult.densityCheck,
     thinPageEnrich: enrichResult.enrichReport,
     powerCardSanitizer: sanitizerResult.report,

@@ -17,8 +17,10 @@ import {
   parseWordCountLine,
 } from '../lib/story-gen/story-page-utils';
 import type { StoryOutline } from '../lib/story-gen/story-generation-types';
+import type { ChipSafetyHit } from '../lib/story-gen/chip-safety';
 
 const PRIOR_RUN = 'outputs/writers-room-canary/2026-06-07T20-37-53-381Z';
+const CORRUPT_RUN = 'outputs/writers-room-canary/2026-06-07T20-59-19-269Z';
 
 const TARGETS = [
   {
@@ -90,7 +92,7 @@ async function main(): Promise<void> {
       scenario,
       outline,
       runLabel: 'writers-room-patch-revalidate',
-      skipAdventureEnrich: 'skipEnrich' in target ? target.skipEnrich : false,
+    skipAdventureEnrich: true,
     });
 
     const afterCounts = wordCountsFromMd(post.storyMarkdown);
@@ -101,6 +103,11 @@ async function main(): Promise<void> {
     fs.writeFileSync(path.join(outDir, 'story.before-patch.md'), storyIn, 'utf8');
     fs.writeFileSync(path.join(outDir, 'story.after-patch.md'), post.storyMarkdown, 'utf8');
     fs.writeFileSync(path.join(outDir, 'story.md'), post.storyMarkdown, 'utf8');
+    fs.writeFileSync(
+      path.join(outDir, 'chip-safety-report.json'),
+      JSON.stringify(post.chipSafety, null, 2),
+      'utf8'
+    );
     fs.writeFileSync(
       path.join(outDir, 'chip-normalize-report.json'),
       JSON.stringify(post.chipNormalize, null, 2),
@@ -178,7 +185,14 @@ async function main(): Promise<void> {
         ? ['', '**Unrepaired chips:**', ...post.chipNormalize.unrepaired.map((u) => `- p${u.page}: \`${u.token}\``)]
         : []),
       '',
-      '### Validator',
+      '### Chip safety hits',
+      ...(post.chipSafety.hits.length
+        ? post.chipSafety.hits.map(
+            (h: ChipSafetyHit) => `- p${h.page} ${h.field}: \`${h.token}\` (${h.reason})`
+          )
+        : ['- (none)']),
+      '',
+      '### Validator failures',
       ...(post.advisory.validators.failures.length
         ? post.advisory.validators.failures.map((f) => `- FAIL: ${f}`)
         : ['- PASS']),
@@ -189,6 +203,24 @@ async function main(): Promise<void> {
       `[writers-room] ${target.scenarioId} — validator ${post.advisory.validators.advisoryResult}`
     );
   }
+
+  summary.push('## Corrupt-run spot check (must FAIL)', '');
+  for (const scenarioId of ['tubi_s5_ha_zikukim_adv', 'tubi_s2_ha_bayit_bed', 'bolly_b4_hacheder_bed']) {
+    const corruptPath = path.join(
+      process.cwd(),
+      CORRUPT_RUN,
+      scenarioId,
+      'story.after-patch.md'
+    );
+    if (!fs.existsSync(corruptPath)) continue;
+    const corruptMd = fs.readFileSync(corruptPath, 'utf8');
+    const { scanChipSafety } = await import('../lib/story-gen/chip-safety');
+    const safety = scanChipSafety(corruptMd);
+    summary.push(
+      `- **${scenarioId}** corrupt artifact: ${safety.advisoryFail ? 'FAIL (expected)' : 'PASS (unexpected)'} — ${safety.hitCount} hit(s)`
+    );
+  }
+  summary.push('');
 
   summary.push('## Final verdicts', '');
   for (const r of results) {
