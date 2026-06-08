@@ -17,6 +17,13 @@ export {
   resolveSoundWordsForCompanion,
   formatSoundAllowlistForPrompt,
 } from './hebrew-lexical-sound-allowlist';
+import {
+  RE_BROKEN_HOLES,
+  RE_BROKEN_KITZKASH,
+  RE_BROKEN_MAHNEH,
+  RE_BROKEN_METSITS,
+  RE_BROKEN_MITZTAMETS,
+} from './hebrew-lexical-broken-forms';
 import { ONOMATOPOEIA_ALLOWLIST, resolveSoundWordsForCompanion } from './hebrew-lexical-sound-allowlist';
 
 function stripHebrewDiacritics(text: string): string {
@@ -40,7 +47,7 @@ type DeterministicPattern = {
 
 export const DETERMINISTIC_LEXICAL_PATTERNS: DeterministicPattern[] = [
   {
-    pattern: /מִצְטָמֵצ|מצטמ[ץצ]|מצטמת/,
+    pattern: RE_BROKEN_MITZTAMETS,
     issue: 'truncated/broken verb (מצטמצ — missing final ם)',
     suggest: '{מתכווץ|מתכווצת}',
     severity: 'BLOCKER',
@@ -48,21 +55,21 @@ export const DETERMINISTIC_LEXICAL_PATTERNS: DeterministicPattern[] = [
     chipScan: true,
   },
   {
-    pattern: /מצציץ|מצמיץ|מצטץ/,
+    pattern: RE_BROKEN_METSITS,
     issue: 'invented nonce for מציץ',
     suggest: 'מציץ',
     severity: 'BLOCKER',
     domain: 'non_word',
   },
   {
-    pattern: /בתוך החולש|בְּתוֹךְ הַחוֹלֵשׁ|הַחוֹלֵשׁ/,
+    pattern: RE_BROKEN_HOLES,
     issue: 'non-word (חולש — likely חולשה)',
     suggest: 'בתוך הגוף',
     severity: 'BLOCKER',
     domain: 'non_word',
   },
   {
-    pattern: /מַהְנֵה|מהנה(?!ן)/,
+    pattern: RE_BROKEN_MAHNEH,
     issue: 'non-word (מהנה — likely מהנהן)',
     suggest: 'מהנהן',
     severity: 'BLOCKER',
@@ -76,7 +83,7 @@ export const DETERMINISTIC_LEXICAL_PATTERNS: DeterministicPattern[] = [
     domain: 'age_inappropriate_register',
   },
   {
-    pattern: /קִצְקָשׁ|קיצקש/,
+    pattern: RE_BROKEN_KITZKASH,
     issue: 'non-word (קיצקש)',
     suggest: 'מסתובב קצת',
     severity: 'BLOCKER',

@@ -2,7 +2,13 @@ import type { Scenario, StoryDirection, StoryOutline } from './story-generation-
 import { DIRECTION_PAGE_COUNTS } from './story-generation-types';
 import { formatScenarioPromptBlock } from './scenario-prompt-block';
 import { formatAdventureDensityExemplarBlock } from './adventure-density-exemplar';
-import { ADVENTURE_WORD_MAX, ADVENTURE_WORD_MIN } from './word-bands';
+import { formatFantasyDensityExemplarBlock } from './fantasy-density-exemplar';
+import {
+  ADVENTURE_WORD_MAX,
+  ADVENTURE_WORD_MIN,
+  FANTASY_WORD_MAX,
+  FANTASY_WORD_MIN,
+} from './word-bands';
 
 const ANTI_POETIC_CLOSURE = `
 - Anti-poetic-closure: do NOT end pages or the story with abstract adult metaphors ("נשאר בלב", "שפת X", "נקודה רכה", "הגוף מספר") unless grounded in a visible child action in the same beat (e.g. foot on soil, hand on ball — not disembodied poetry).`.trim();
@@ -14,6 +20,15 @@ ADVENTURE PROSE (mandatory — not bedtime rhythm):
 - Every page needs at least one specific visual or movement detail (object, body part, sound, or named action).
 - The group play scene MUST be concrete: name the game/play-pattern, include a specific object, a turn or rule, and a visible movement — NEVER generic "ילדים משחקים" / "kids playing" without specifics.
 - Gender chips MUST differ: {male|female} options must NOT be identical (e.g. never {מנסה|מנסה}).`.trim();
+
+const FANTASY_PROSE_RULES = `
+FANTASY PROSE (mandatory — 16-page read-aloud book, not a synopsis):
+- Target ${FANTASY_WORD_MIN}–${FANTASY_WORD_MAX} Hebrew words per page (3–5 short sentences with concrete world detail).
+- Each page MUST include: (1) visible action or movement, (2) concrete setting/world detail (nest, cliff, wing, sky — not abstract), (3) a body or emotion signal, (4) a small story beat that advances the page.
+- Do NOT write one-beat summary pages — every page is a full read-aloud moment with substance.
+- Do NOT pad with long sentences or moral lectures; add concrete visible detail and movement, not word count for its own sake.
+- Thin pages FAIL the thinness gate.
+- Gender chips MUST differ: {male|female} options must NOT be identical.`.trim();
 
 const SHARED_RULES = `
 You write Hebrew picture-book stories for Small Heroes (ages 3–6).
@@ -96,10 +111,12 @@ export function buildProseSystemPrompt(direction: StoryDirection, phaseB = false
   const companionIdRule = phaseB
     ? '- YAML companionId: exact bank id from scenario (e.g. baby_elephant, bolly_armadillo — no tubi_ prefix)'
     : '';
-  const adventureBlock =
+  const densityBlock =
     direction === 'adventure'
       ? `\n${ADVENTURE_PROSE_RULES}\n\n${formatAdventureDensityExemplarBlock()}`
-      : '';
+      : direction === 'fantasy'
+        ? `\n${FANTASY_PROSE_RULES}\n\n${formatFantasyDensityExemplarBlock()}`
+        : '';
 
   return `${SHARED_RULES}
 - {{childName}} is a double-brace placeholder — NOT a gender chip. Gender chips are single-brace only: {male|female}.
@@ -112,7 +129,7 @@ ${genderRule}
 ${companionIdRule}
 - Metadata lines: storyStyle, metaphor, stakes, quietPagePosition, heartLine, emotionalMistake, uncomfortableTruth, agencyTransfer
 - For each page: --- Page N ---, Hebrew prose (2-5 short paragraphs), blank line, then one line "imageDirection: English scene brief" (no markdown bold, label and value on the same line)
-${adventureBlock}
+${densityBlock}
 ${wordCountRule}
 - Hebrew prose only — no Latin letter drift inside Hebrew words (e.g. בחצי not בחצi)
 
@@ -141,5 +158,6 @@ ${fewShotsBlock.split('---')[0]?.trim() ?? fewShotsBlock.slice(0, 2500)}
 
 Honor Phase B contract if present: QA line, engine/tool as action, child agency, comic beat, forbidden patterns.
 ${scenario.direction === 'adventure' ? 'Honor locked play-concreteness in the scenario block — use the named game, object, and turn in prose.' : ''}
+${scenario.direction === 'fantasy' ? 'Honor fantasy density: each page = visible action + concrete world detail + body/emotion signal + small story movement — not a one-beat summary.' : ''}
 Write the complete story markdown now.`.trim();
 }

@@ -3,6 +3,13 @@
  */
 
 import { resolveCompanionNameMarkers } from './companion-gender';
+import {
+  RE_BROKEN_HOLES,
+  RE_BROKEN_KITZKASH,
+  RE_BROKEN_MAHNEH,
+  RE_BROKEN_METSITS,
+  RE_BROKEN_MITZTAMETS,
+} from './hebrew-lexical-broken-forms';
 import { resolveSoundWordsForCompanion } from './hebrew-lexical-sound-allowlist';
 import type {
   HebrewLexicalDomain,
@@ -70,15 +77,15 @@ const DETERMINISTIC_DOMAIN_HINTS: Array<{
   severity: HebrewLexicalSeverity;
   domain: HebrewLexicalDomain;
 }> = [
-  { pattern: /מצטמ|מצטמת/, severity: 'BLOCKER', domain: 'malformed_inflection' },
-  { pattern: /מצציץ|מצמיץ|מצטץ/, severity: 'BLOCKER', domain: 'non_word' },
-  { pattern: /החולש|חוֹלֵשׁ/, severity: 'BLOCKER', domain: 'non_word' },
-  { pattern: /מַהְנֵה|מהנה(?!ן)/, severity: 'BLOCKER', domain: 'non_word' },
+  { pattern: RE_BROKEN_MITZTAMETS, severity: 'BLOCKER', domain: 'malformed_inflection' },
+  { pattern: RE_BROKEN_METSITS, severity: 'BLOCKER', domain: 'non_word' },
+  { pattern: RE_BROKEN_HOLES, severity: 'BLOCKER', domain: 'non_word' },
+  { pattern: RE_BROKEN_MAHNEH, severity: 'BLOCKER', domain: 'non_word' },
   { pattern: /כמעט[־-]?ש/, severity: 'REVIEW', domain: 'age_inappropriate_register' },
   { pattern: /ריצ.+רוץ/, severity: 'REVIEW', domain: 'unnatural_phrase' },
   { pattern: /נח בין גלידות|נָח בֵּין/, severity: 'REVIEW', domain: 'unnatural_phrase' },
   { pattern: /פתחוני קפיץ|פִּתְחוֹנֵי/, severity: 'REVIEW', domain: 'unnatural_phrase' },
-  { pattern: /קִצְקָשׁ|קיצקש/, severity: 'BLOCKER', domain: 'non_word' },
+  { pattern: RE_BROKEN_KITZKASH, severity: 'BLOCKER', domain: 'non_word' },
 ];
 
 function inferSeverityDomain(
