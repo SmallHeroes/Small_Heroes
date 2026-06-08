@@ -85,6 +85,8 @@ export interface WritersRoomBoundedLoopReport {
   stages: WritersRoomStageReport[];
   passLabel: 'initial' | 'post_rewrite';
   preservation?: RewritePreservationReport;
+  /** Final story text after loop (post-rewrite if rewrite ran). */
+  finalStoryMarkdown: string;
   generatedAt: string;
 }
 
@@ -419,6 +421,7 @@ export async function runWritersRoomBoundedLoop(args: {
       freshnessTest: initial.advisory.freshnessTest,
       stages: initial.stages,
       passLabel: 'initial',
+      finalStoryMarkdown: initial.storyMarkdown,
       generatedAt: new Date().toISOString(),
     };
   }
@@ -498,6 +501,7 @@ export async function runWritersRoomBoundedLoop(args: {
     ],
     passLabel: 'post_rewrite',
     preservation,
+    finalStoryMarkdown: postRewrite.storyMarkdown,
     generatedAt: new Date().toISOString(),
   };
 }

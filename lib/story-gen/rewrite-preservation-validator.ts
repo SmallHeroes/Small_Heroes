@@ -151,7 +151,7 @@ interface RawPreservationLlm {
   emotionalProblemPreserved?: boolean;
   scenarioDistinctnessPreserved?: boolean;
   doNotWritePreserved?: boolean;
-  failureCodes?: RewritePreservationFailureCode[];
+  failureCodes?: string[];
   reasons?: string[];
   evidenceBefore?: string[];
   evidenceAfter?: string[];
@@ -461,8 +461,9 @@ export async function runRewritePreservationValidator(args: {
       doNotWritePreserved: llmRaw.doNotWritePreserved !== false,
     };
     for (const rawCode of llmRaw.failureCodes ?? []) {
-      const code =
-        rawCode === 'SCENARIO_REPLACED' ? 'STRUCTURAL_REPLACEMENT' : rawCode;
+      const code = (
+        rawCode === 'SCENARIO_REPLACED' ? 'STRUCTURAL_REPLACEMENT' : rawCode
+      ) as RewritePreservationFailureCode;
       if (!failureCodes.includes(code)) failureCodes.push(code);
     }
     for (const r of llmRaw.reasons ?? []) reasons.push(r);
