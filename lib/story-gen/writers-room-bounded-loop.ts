@@ -23,6 +23,11 @@ import type { Run1AdvisoryBundle } from './run1-advisory';
 import type { SwapTestReport } from './swap-test';
 import type { ThinPageEnrichReport } from './thin-page-enrich';
 import {
+  runRewritePreservationValidator,
+  preservationBlocksShip,
+  type RewritePreservationReport,
+} from './rewrite-preservation-validator';
+import {
   buildTasteContext,
   extractTasteProseFromMarkdown,
   runTasteJudge,
@@ -34,6 +39,7 @@ import { DEFAULT_STORY_GEN_MODELS } from './story-generation-types';
 
 export type WritersRoomTerminal =
   | 'bank_ready_candidate'
+  | 'post_rewrite_bank_ready_candidate_needs_human_review'
   | 'strong_draft_needs_light_human_polish'
   | 'needs_human_review'
   | 'needs_human_review_or_reroll';
@@ -78,6 +84,7 @@ export interface WritersRoomBoundedLoopReport {
   freshnessTest: FreshnessTestReport;
   stages: WritersRoomStageReport[];
   passLabel: 'initial' | 'post_rewrite';
+  preservation?: RewritePreservationReport;
   generatedAt: string;
 }
 
@@ -291,6 +298,28 @@ async function runGatePass(args: {
   };
 }
 
+export function terminalFromPostRewrite(args: {
+  tasteVerdict: TasteVerdict;
+  technicalPass: boolean;
+  preservation: RewritePreservationReport;
+}): WritersRoomTerminal {
+  if (!args.technicalPass || preservationBlocksShip(args.preservation)) {
+    return 'needs_human_review';
+  }
+
+  switch (args.tasteVerdict) {
+    case 'BANK_READY':
+      return 'post_rewrite_bank_ready_candidate_needs_human_review';
+    case 'STRONG_DRAFT':
+      return 'strong_draft_needs_light_human_polish';
+    case 'REWRITE':
+    case 'HUMAN_REVIEW':
+    case 'FAIL':
+    default:
+      return 'needs_human_review';
+  }
+}
+
 export function terminalFromTaste(args: {
   tasteVerdict: TasteVerdict;
   technicalPass: boolean;
@@ -418,13 +447,19 @@ export async function runWritersRoomBoundedLoop(args: {
     draftModel,
   });
 
-  const postRoute = terminalFromTaste({
-    tasteVerdict: postRewrite.taste.verdict,
-    technicalPass: postRewrite.technicalPass,
+  const preservation = await runRewritePreservationValidator({
+    beforeMarkdown: initial.storyMarkdown,
+    afterMarkdown: postRewrite.storyMarkdown,
+    scenario: args.scenario,
+    outline: args.outline,
+    modelId: judgeModel,
   });
 
-  const terminal: WritersRoomTerminal =
-    postRoute === 'needs_rewrite_pass' ? 'needs_human_review' : postRoute;
+  const terminal = terminalFromPostRewrite({
+    tasteVerdict: postRewrite.taste.verdict,
+    technicalPass: postRewrite.technicalPass,
+    preservation,
+  });
 
   return {
     scenarioId: reportId,
@@ -455,8 +490,14 @@ export async function runWritersRoomBoundedLoop(args: {
         ...s,
         stage: `post-rewrite/${s.stage}`,
       })),
+      {
+        stage: 'rewrite-preservation-v1',
+        pass: preservation.verdict === 'pass',
+        summary: `${preservation.verdict} (${preservation.failureCodes.join(', ') || 'none'})`,
+      },
     ],
     passLabel: 'post_rewrite',
+    preservation,
     generatedAt: new Date().toISOString(),
   };
 }

@@ -16,7 +16,7 @@ import {
 import { finalizePhaseBMarkdownFromPages } from './story-markdown-normalize';
 import type { Scenario, StoryDirection, StoryOutline } from './story-generation-types';
 
-export const AUTHOR_REWRITE_PROMPT_VERSION = 'author-rewrite-v1';
+export const AUTHOR_REWRITE_PROMPT_VERSION = 'author-rewrite-v2';
 
 export type AuthorRewriteInput = {
   storyMarkdown: string;
@@ -115,28 +115,36 @@ function buildDeLoadedPagesPayload(markdown: string): string {
 
 function buildSystemPrompt(): string {
   return `You are a Hebrew children's-book author/editor (ages 5–8, read aloud).
-Your job is to rewrite a STRONG DRAFT into book-ready children's prose while preserving structure.
+Your job is to rewrite a STRONG DRAFT into book-ready children's prose while preserving the SAME story identity.
 You are NOT a therapist, NOT a poet for adults, NOT a formatter.
 
-PRESERVE (non-negotiable):
+PRESERVE (non-negotiable — same story, better prose):
+- EXACT companion: same name, species/animal, voice, coping engine — do NOT swap companions
+- Do NOT introduce any other SmallHeroes companion or different animal
+- Same scenario situation — do NOT flatten a specific scenario into the companion's generic/default story
 - Same page count and page order
-- Same emotional arc, scenario beats, child agency moment, companion engine
+- Same emotional arc, scenario beats, child agency moment, climax shape, emotional problem
 - Gender chips {male|female} with DIFFERENT options — keep format; one verb per chip
 - Every child verb/adjective: full {male|female} chip OR genuinely neutral Hebrew — never masculine-as-neutral (e.g. not "מוריד ראש" bare after {{childName}})
 - {{childName}} placeholders
 - Same psychological tool — do not change the coping mechanism
 - Bedtime stays soft/quiet; no loud action or moral lecture
+- Title and scenario contract unchanged
 
-IMPROVE:
+IMPROVE (prose only):
 - Oral, concrete, child-native Hebrew
 - Companion body comedy and distinct voice
 - Sensory action you can see/hear
 - Weak endings → concrete residue (blanket, door-light, half-open shell, one small choice)
 - Remove adult-poetic abstractions, therapy language, garbles, English leaks
 
-AVOID:
+FORBIDDEN:
+- Do NOT solve the story by replacing it with a different story
+- Do NOT change the coping engine or companion engine
 - Moral summaries, explaining the lesson, companion-as-lecturer
 - New plot mechanics, fantasy additions, page bloat beyond direction range
+
+A better story that is not the same story = FAILURE. Preserve identity even if a different story would be better.
 
 Return ONLY JSON:
 {
@@ -267,7 +275,7 @@ export async function runAuthorRewritePass(
   const userPrompt = buildUserPrompt(args);
 
   const result = await llm.call({
-    stage: 'author-rewrite-v1',
+    stage: 'author-rewrite-v2',
     systemPrompt,
     userPrompt,
     jsonMode: true,
@@ -275,7 +283,7 @@ export async function runAuthorRewritePass(
     temperature: 0.65,
   });
 
-  const parsed = parseJsonFromLLM<RawRewriteResponse>(result.text, 'author-rewrite-v1');
+  const parsed = parseJsonFromLLM<RawRewriteResponse>(result.text, 'author-rewrite-v2');
   const expectedPages = args.scenario.beatCount;
 
   if (!parsed.pages?.length) {

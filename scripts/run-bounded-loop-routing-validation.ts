@@ -36,18 +36,23 @@ function initialTasteVerdict(report: WritersRoomBoundedLoopReport): string {
   return report.tasteBefore?.verdict ?? report.finalTaste.verdict;
 }
 
+function preservationSummary(report: WritersRoomBoundedLoopReport): string {
+  if (!report.authorRewriteUsed) return '—';
+  if (!report.preservation) return 'missing';
+  return report.preservation.verdict;
+}
+
+function preservationCodes(report: WritersRoomBoundedLoopReport): string {
+  if (!report.preservation?.failureCodes.length) return '—';
+  return report.preservation.failureCodes.join(', ');
+}
+
 function routingRow(report: WritersRoomBoundedLoopReport): string {
   const initial = initialTasteVerdict(report);
   const rewrite = report.authorRewriteUsed ? 'yes' : 'no';
-  const delta =
-    report.tasteBefore && report.tasteAfter
-      ? describeTasteDelta(report.tasteBefore, report.tasteAfter)
-      : '—';
-  const beforeAfter =
-    report.tasteBefore && report.tasteAfter
-      ? `${report.tasteBefore.verdict}→${report.tasteAfter.verdict} (${delta})`
-      : '—';
-  return `| ${report.scenarioId} | ${initial} | ${rewrite} | ${beforeAfter} | ${report.finalTaste.verdict} | ${report.terminal} | tech=${report.technicalPass ? 'PASS' : 'FAIL'} |`;
+  const postRewriteTaste =
+    report.tasteAfter?.verdict ?? (report.authorRewriteUsed ? '—' : report.finalTaste.verdict);
+  return `| ${report.scenarioId} | ${initial} | ${rewrite} | ${postRewriteTaste} | ${preservationSummary(report)} | ${preservationCodes(report)} | ${report.terminal} | tech=${report.technicalPass ? 'PASS' : 'FAIL'} |`;
 }
 
 async function main(): Promise<void> {
@@ -105,13 +110,31 @@ async function main(): Promise<void> {
     ) {
       violations.push(`${fixture.probeId}: must NOT route bank_ready_candidate on initial pass`);
     }
+    if (report.authorRewriteUsed && report.terminal === 'bank_ready_candidate') {
+      violations.push(
+        `${fixture.probeId}: post-rewrite must NOT terminal as bank_ready_candidate (got ${report.terminal})`
+      );
+    }
     if (
-      fixture.expectNeverBankReady &&
-      report.terminal === 'bank_ready_candidate' &&
-      report.authorRewriteUsed
+      report.authorRewriteUsed &&
+      report.preservation?.verdict === 'fail' &&
+      report.terminal !== 'needs_human_review'
+    ) {
+      violations.push(
+        `${fixture.probeId}: preservation FAIL must route needs_human_review (got ${report.terminal})`
+      );
+    }
+    if (
+      fixture.probeId === 'boring_1' &&
+      report.authorRewriteUsed &&
+      report.preservation?.verdict !== 'fail' &&
+      report.preservation?.failureCodes.some((c) =>
+        ['COMPANION_LAUNDERING', 'COMPANION_IDENTITY_CHANGED', 'SPECIES_CHANGED'].includes(c)
+      ) === false &&
+      report.finalTaste.verdict === 'BANK_READY'
     ) {
       surprises.push(
-        `${fixture.probeId}: author rewrite lifted taste to BANK_READY — loop routed ship terminal; human must sanity-check rewrite over-polish`
+        `boring_1: post-rewrite BANK_READY without companion laundering codes — verify prose identity manually`
       );
     }
     if (fixture.probeId === 'midtier_1' && initial !== 'REWRITE') {
@@ -208,9 +231,9 @@ async function main(): Promise<void> {
   );
 
   const routingTableHeader =
-    '| item | initial taste | rewrite? | before→after (delta) | final taste | terminal | technical |';
+    '| item | initial taste | rewrite? | post-rewrite taste | preservation | failure codes | terminal | technical |';
   const routingTableSep =
-    '| --- | --- | --- | --- | --- | --- | --- |';
+    '| --- | --- | --- | --- | --- | --- | --- | --- |';
   const routingRows = partAReports.map(routingRow);
   const partBRow = routingRow(partBReport);
 
@@ -221,8 +244,21 @@ async function main(): Promise<void> {
         ? describeTasteDelta(r.tasteBefore!, r.tasteAfter)
         : 'unknown';
       const techAfter = r.technicalPass ? 'PASS' : 'FAIL';
-      return `- **${r.scenarioId}**: ${r.tasteBefore?.verdict}→${r.finalTaste.verdict} (${delta}); post-rewrite tech=${techAfter}; terminal=${r.terminal}`;
+      const pres = r.preservation
+        ? `${r.preservation.verdict} [${r.preservation.failureCodes.join(', ') || 'none'}]`
+        : 'n/a';
+      const presReasons = r.preservation?.reasons.slice(0, 2).join(' · ') ?? '';
+      return `- **${r.scenarioId}**: before=${r.tasteBefore?.verdict} after=${r.finalTaste.verdict} (${delta}); tech=${techAfter}; preservation=${pres}; terminal=${r.terminal}${presReasons ? `; ${presReasons}` : ''}`;
     });
+
+  const postRewriteBankReady = partAReports.filter(
+    (r) =>
+      r.authorRewriteUsed &&
+      r.finalTaste.verdict === 'BANK_READY'
+  );
+  const anyPostRewriteBankReadyCandidate = partAReports.some(
+    (r) => r.authorRewriteUsed && r.terminal === 'bank_ready_candidate'
+  );
 
   const reportMd = [
     '# Bounded Loop — Routing Validation',
@@ -249,6 +285,17 @@ async function main(): Promise<void> {
     `- **Final terminal:** ${partBReport.terminal}`,
     `- **Confirmation:** final state is **${terminalBlocked ? 'BLOCKED' : 'NOT BLOCKED'}** even though raw taste is **${rawTaste}** (${tastePassLike ? 'PASS-like' : 'not PASS-like'}).`,
   ];
+
+  reportMd.push(
+    '',
+    '## Confirmations',
+    '',
+    `- No post-rewrite item terminaled as normal \`bank_ready_candidate\`: **${anyPostRewriteBankReadyCandidate ? 'FAIL' : 'PASS'}**`,
+    `- Post-rewrite BANK_READY count: ${postRewriteBankReady.length} (must route to post_rewrite_bank_ready_candidate_needs_human_review or needs_human_review)`,
+    `- HUMAN_REVIEW/FAIL rewrite triggers: checked per item`,
+    `- Max one rewrite per item: enforced by loop`,
+    `- Part B no-fail-open: ${terminalBlocked && !partBReport.technicalPass ? 'PASS' : 'see violations'}`,
+  );
 
   if (rewriteNotes.length) {
     reportMd.push('', '## Rewrite before/after', '', ...rewriteNotes);
