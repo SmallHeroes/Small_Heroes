@@ -25,6 +25,8 @@ export const KNOWN_SUSPICIOUS_HEBREW = [
   'בוחר/ת קול כשר',
   'בוחר/ת קוֹל כָּשֵׁר',
   'נושף/ת קטנה מהחדק',
+  'כמעט שירה',
+  'כמו שיר',
 ] as const;
 
 /** Latin fragments to flag anywhere in Hebrew prose (case-insensitive). */

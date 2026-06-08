@@ -25,6 +25,7 @@ import {
 } from './word-bands';
 import type { GenderChipRepairReport } from './gender-chip-repair';
 import type { ChipNormalizeReport } from './chip-normalize';
+import type { BareChildGenderReport } from './bare-child-gender';
 import type { ChipSafetyReport } from './chip-safety';
 import { scanChipSafety } from './chip-safety';
 import type { HebrewSanityReport } from './hebrew-sanity';
@@ -241,6 +242,7 @@ function applyPostProcessValidatorFailures(
     chipRepairReport?: GenderChipRepairReport;
     chipNormalizeReport?: ChipNormalizeReport;
     chipSafety?: ChipSafetyReport;
+    bareChildGender?: BareChildGenderReport;
     hebrewSanity?: HebrewSanityReport;
     powerCardSanitizer?: PowerCardSanitizerReport;
   }
@@ -264,6 +266,11 @@ function applyPostProcessValidatorFailures(
   if (args.chipSafety?.advisoryFail) {
     for (const h of args.chipSafety.hits) {
       failures.push(`CHIP_SAFETY p${h.page} ${h.field}: ${h.token} (${h.reason})`);
+    }
+  }
+  if (args.bareChildGender?.advisoryFail) {
+    for (const h of args.bareChildGender.failHits) {
+      failures.push(`BARE_CHILD_GENDER p${h.page}: ${h.token} (${h.reason})`);
     }
   }
   if (args.chipRepairReport?.unrepaired.length) {
@@ -302,6 +309,7 @@ export async function buildRun1AdvisoryBundle(args: {
   chipRepairReport?: GenderChipRepairReport;
   chipNormalizeReport?: ChipNormalizeReport;
   chipSafety?: ChipSafetyReport;
+  bareChildGender?: BareChildGenderReport;
   proofreadReport?: ProofreadReport;
   hebrewSanity?: HebrewSanityReport;
   powerCardSanitizer?: PowerCardSanitizerReport;
@@ -323,6 +331,7 @@ export async function buildRun1AdvisoryBundle(args: {
       chipRepairReport: args.chipRepairReport,
       chipNormalizeReport: args.chipNormalizeReport,
       chipSafety: args.chipSafety,
+      bareChildGender: args.bareChildGender,
       hebrewSanity: args.hebrewSanity,
       powerCardSanitizer: args.powerCardSanitizer,
     }

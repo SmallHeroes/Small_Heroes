@@ -70,7 +70,7 @@ async function main(): Promise<void> {
 
   console.log(`[writers-room] revalidate → ${rootOut}`);
   const summary: string[] = [
-    "# Writer's Room — S2/S5 chip + density closeout",
+    "# Writer's Room — bare child-gender + literary read closeout",
     '',
     `Generated: ${new Date().toISOString()}`,
     `Source run: \`${PRIOR_RUN}\``,
@@ -175,6 +175,11 @@ async function main(): Promise<void> {
       'utf8'
     );
     fs.writeFileSync(
+      path.join(outDir, 'bare-child-gender-report.json'),
+      JSON.stringify(post.bareChildGender, null, 2),
+      'utf8'
+    );
+    fs.writeFileSync(
       path.join(outDir, 'craft-v2.1.json'),
       JSON.stringify(post.advisory.craftV21, null, 2),
       'utf8'
@@ -225,6 +230,18 @@ async function main(): Promise<void> {
             (h: ChipSafetyHit) => `- p${h.page} ${h.field}: \`${h.token}\` (${h.reason})`
           )
         : ['- (none)']),
+      '',
+      '### Bare child-gender',
+      ...(post.bareChildGender.failHits.length
+        ? post.bareChildGender.failHits.map(
+            (h) => `- FAIL p${h.page}: \`${h.token}\` (${h.reason})`
+          )
+        : ['- fail hits: (none)']),
+      ...(post.bareChildGender.warningHits.length
+        ? post.bareChildGender.warningHits.map(
+            (h) => `- WARN p${h.page}: \`${h.token}\` (${h.reason})`
+          )
+        : ['- warnings: (none)']),
       '',
       '### Validator failures',
       ...(post.advisory.validators.failures.length

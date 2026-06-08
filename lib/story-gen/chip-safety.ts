@@ -7,7 +7,8 @@ export type ChipSafetyReason =
   | 'mixed_malformed_chip'
   | 'duplicate_suffix_artifact'
   | 'remaining_slash_gender'
-  | 'partial_suffix_remaining';
+  | 'partial_suffix_remaining'
+  | 'phrase_level_chip';
 
 export interface ChipSafetyHit {
   page: number;
@@ -142,6 +143,15 @@ function scanText(
         token: full,
         reason: 'mixed_malformed_chip',
         context: 'Empty chip side',
+      });
+    }
+    if (left.includes(' ו') && right.includes(' ו')) {
+      hits.push({
+        page,
+        field,
+        token: full,
+        reason: 'phrase_level_chip',
+        context: 'Phrase-level chip — split into per-verb {male|female} chips',
       });
     }
   }

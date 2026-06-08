@@ -77,6 +77,13 @@ export const TRUSTED_STEM_PAIRS: Record<string, { male: string; female: string }
   שם: { male: 'שם', female: 'שמה' },
   מצחקק: { male: 'מצחקק', female: 'מצחקקת' },
   נעצר: { male: 'נעצר', female: 'נעצרה' },
+  מאזין: { male: 'מאזין', female: 'מאזינה' },
+  שומע: { male: 'שומע', female: 'שומעת' },
+  בודק: { male: 'בודק', female: 'בודקת' },
+  מיישר: { male: 'מיישר', female: 'מיישרת' },
+  ומיישר: { male: 'ומיישר', female: 'ומיישרת' },
+  נופל: { male: 'נופל', female: 'נופלת' },
+  מזיז: { male: 'מזיז', female: 'מזיזה' },
 };
 
 export function stripHebrewDiacritics(text: string): string {

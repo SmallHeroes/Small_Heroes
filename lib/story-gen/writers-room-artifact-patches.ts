@@ -128,8 +128,13 @@ const S2_PATCHES: ArtifactPatchEntry[] = [
   },
   {
     before: '{{childName}} מַרְכִּין/ה רֹאשׁ וּמַאֲזִין/ה.',
-    after: '{{childName}} מוריד ראש ומאזין.',
-    reason: 'neutral_rewrite',
+    after: '{{childName}} {מוריד|מורידה} ראש ו{מאזין|מאזינה}.',
+    reason: 'explicit_chip',
+  },
+  {
+    before: '{{childName}} מוריד ראש ומאזין.',
+    after: '{{childName}} {מוריד|מורידה} ראש ו{מאזין|מאזינה}.',
+    reason: 'explicit_chip',
   },
   {
     before:
@@ -187,6 +192,36 @@ const S5_POST_ENRICH_PATCHES: ArtifactPatchEntry[] = [
     after: 'באוזן הרכה —',
     reason: 'neutral_rewrite',
   },
+  {
+    before: 'נשיפה יוצאת לאט, כמעט שירה.',
+    after: 'נְשִׁיפָה יוצאת לאט, רכה וארוכה.',
+    reason: 'neutral_rewrite',
+  },
+  {
+    before: '{{childName}} {מחייך ומניח יד על הבטן|מחייכת ומניחה יד על הבטן}',
+    after: '{{childName}} {מחייך|מחייכת} ו{מניח|מניחה} יד על הבטן',
+    reason: 'explicit_chip',
+  },
+  {
+    before: '{{childName}} {מושך את השרוול|מושכת את השרוול}',
+    after: '{{childName}} {מושך|מושכת} את השרוול',
+    reason: 'explicit_chip',
+  },
+  {
+    before: 'שומע/ת',
+    after: '{שומע|שומעת}',
+    reason: 'explicit_chip',
+  },
+  {
+    before: 'ו{מושיט|מושיטה} יד לחדק',
+    after: 'ו{נוגע|נוגעת} בחוט הקצר שלו',
+    reason: 'neutral_rewrite',
+  },
+  {
+    before: 'נשיפה יוצאת לאט, כמעט שירה',
+    after: 'נְשִׁיפָה יוצאת לאט, רכה וארוכה',
+    reason: 'neutral_rewrite',
+  },
 ];
 
 const PATCHES_BY_SCENARIO: Record<string, ArtifactPatchEntry[]> = {
@@ -212,6 +247,11 @@ export function applyPostEnrichDeterministicRepairs(markdown: string): {
       label: 'מניח{יד|ה}',
     },
     {
+      pattern: /מניח\{\s*ה\|\s*\}/g,
+      after: '{מניח|מניחה}',
+      label: 'מניח{ה|}',
+    },
+    {
       pattern: /צוחק\{[^}]+\}/g,
       after: '{צוחק|צוחקת}',
       label: 'צוחק{…}',
@@ -225,6 +265,41 @@ export function applyPostEnrichDeterministicRepairs(markdown: string): {
       pattern: /נושמ\{\s*ים\|ה\}/g,
       after: '{נושם|נושמת}',
       label: 'נושם{ים|ה}',
+    },
+    {
+      pattern: /מניח\{\s*\|\s*ה\}/g,
+      after: '{מניח|מניחה}',
+      label: 'מניח{|ה}',
+    },
+    {
+      pattern: /מרגיש\{\s*\|\s*ה\}/g,
+      after: '{מרגיש|מרגישה}',
+      label: 'מרגיש{|ה}',
+    },
+    {
+      pattern: /מושך\{\s*את\|ת את\}/g,
+      after: '{מושך|מושכת}',
+      label: 'מושך{ את|ת את}',
+    },
+    {
+      pattern: /ונ\{שם\|שמה\}/g,
+      after: 'ו{נושם|נושמת}',
+      label: 'ונ{שם|שמה}',
+    },
+    {
+      pattern: /בודק\{\s*אם עוד ניצוץ נדלק\|ת אם עוד ניצוץ נדלק\}/g,
+      after: '{בודק|בודקת} אם עוד ניצוץ נדלק',
+      label: 'בודק{…}',
+    },
+    {
+      pattern: /מניח\{\s*את\|ה\}/g,
+      after: '{מניח|מניחה}',
+      label: 'מניח{ את|ה}',
+    },
+    {
+      pattern: /נושם\{\s*עמוק\|ת עמוק\}/g,
+      after: '{נושם|נושמת} עמוק',
+      label: 'נושם{ עמוק|ת עמוק}',
     },
   ];
 
@@ -290,7 +365,13 @@ export function applyPostEnrichDeterministicRepairs(markdown: string): {
   });
   out = fixedLines.join('\n');
 
-  const slashFixes: Array<[string, string]> = [['שלו/שלה', '{שלו|שלה}']];
+  const slashFixes: Array<[string, string]> = [
+    ['שלו/שלה', '{שלו|שלה}'],
+    ['נופל/ת', '{נופל|נופלת}'],
+    ['מזיז/ה', '{מזיז|מזיזה}'],
+    ['ומיישר/ת', '{ומיישר|ומיישרת}'],
+    ['שומע/ת', '{שומע|שומעת}'],
+  ];
   for (const [before, after] of slashFixes) {
     if (!out.includes(before)) continue;
     out = out.split(before).join(after);

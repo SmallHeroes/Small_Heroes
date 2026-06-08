@@ -5,6 +5,7 @@
 
 import { checkAdventureDensity } from './adventure-density-gate';
 import { normalizePartialGenderChips, type ChipNormalizeReport } from './chip-normalize';
+import { scanBareChildGender, type BareChildGenderReport } from './bare-child-gender';
 import { scanChipSafety, type ChipSafetyReport } from './chip-safety';
 import { buildCompanionContextBlock } from './companion-context';
 import { repairGenderChipsInStory, type GenderChipRepairReport } from './gender-chip-repair';
@@ -86,6 +87,7 @@ export async function runPostRewritePipeline(args: {
   powerCardSanitizer: PowerCardSanitizerReport;
   hebrewSanity: HebrewSanityReport;
   chipSafety: ChipSafetyReport;
+  bareChildGender: BareChildGenderReport;
   advisory: Run1AdvisoryBundle;
 }> {
   const companionBlock =
@@ -150,6 +152,7 @@ export async function runPostRewritePipeline(args: {
 
   const hebrewSanity = scanHebrewSanity(md);
   const chipSafety = scanChipSafety(md);
+  const bareChildGender = scanBareChildGender(md);
 
   const advisory = await buildRun1AdvisoryBundle({
     scenario: args.scenario,
@@ -163,6 +166,7 @@ export async function runPostRewritePipeline(args: {
     powerCardSanitizer: sanitizerResult.report,
     enrichReport: enrichResult.enrichReport,
     chipSafety,
+    bareChildGender,
   });
 
   return {
@@ -170,6 +174,7 @@ export async function runPostRewritePipeline(args: {
     chipNormalize: chipPasses.chipNormalize,
     chipRepair: chipPasses.chipRepair,
     chipSafety,
+    bareChildGender,
     proofread,
     adventureDensity: enrichResult.densityCheck,
     thinPageEnrich: enrichResult.enrichReport,
@@ -195,6 +200,7 @@ export async function runRevalidateOnlyPipeline(args: {
   powerCardSanitizer: PowerCardSanitizerReport;
   hebrewSanity: HebrewSanityReport;
   chipSafety: ChipSafetyReport;
+  bareChildGender: BareChildGenderReport;
   advisory: Run1AdvisoryBundle;
 }> {
   const companionBlock = buildCompanionContextBlock(args.scenario.companionId);
@@ -244,6 +250,7 @@ export async function runRevalidateOnlyPipeline(args: {
 
   const hebrewSanity = scanHebrewSanity(md);
   const chipSafety = scanChipSafety(md);
+  const bareChildGender = scanBareChildGender(md);
 
   const advisory = await buildRun1AdvisoryBundle({
     scenario: args.scenario,
@@ -256,6 +263,7 @@ export async function runRevalidateOnlyPipeline(args: {
     powerCardSanitizer: sanitizerResult.report,
     enrichReport: enrichResult.enrichReport,
     chipSafety,
+    bareChildGender,
   });
 
   return {
@@ -263,6 +271,7 @@ export async function runRevalidateOnlyPipeline(args: {
     chipNormalize: chipPasses.chipNormalize,
     chipRepair: chipPasses.chipRepair,
     chipSafety,
+    bareChildGender,
     adventureDensity: enrichResult.densityCheck,
     thinPageEnrich: enrichResult.enrichReport,
     powerCardSanitizer: sanitizerResult.report,

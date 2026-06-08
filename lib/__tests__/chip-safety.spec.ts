@@ -79,6 +79,13 @@ WORD_COUNT: [1] = 1`;
     expect(markdown).not.toContain('בורח/ת');
   });
 
+  it('applies S2 p6 bare-verb fix with explicit chips', () => {
+    const before = '{{childName}} מוריד ראש ומאזין.';
+    const { markdown } = applyWritersRoomArtifactPatches('tubi_s2_ha_bayit_bed', before);
+    expect(markdown).toContain('{מוריד|מורידה}');
+    expect(markdown).toContain('{מאזין|מאזינה}');
+  });
+
   it('applies S2 neutral uncomfortableTruth without future-tense slash chips', () => {
     const before =
       'uncomfortableTruth: עמוד 4 — {{childName}} מְפַחֵד/ת שֶׁאִם יִסְגֹּר/תִסְגֹּר יִפְסְפֵּס/תִפְסְפֵּס אֶת אִמָּא.';
