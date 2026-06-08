@@ -104,6 +104,24 @@ export const VERIFIED_SLASH_EXCEPTIONS: Record<string, { male: string; female: s
 
 const FINAL_LETTERS = new Set(['ך', 'ם', 'ן', 'ף', 'ץ']);
 
+/** Final-form → regular before slash suffix (ך ם ן ף ץ). Orthography-only — no meaning guess. */
+const FINAL_TO_REGULAR: Record<string, string> = {
+  'ך': 'כ',
+  'ם': 'מ',
+  'ן': 'נ',
+  'ף': 'פ',
+  'ץ': 'צ',
+};
+
+function feminineFromFinalLetterSlashStem(stem: string, suffix: 'ת' | 'ה'): string {
+  const last = stem[stem.length - 1] ?? '';
+  const regular = FINAL_TO_REGULAR[last];
+  if (regular) {
+    return stem.slice(0, -1) + regular + suffix;
+  }
+  return stem + suffix;
+}
+
 function isBrokenChipPair(male: string, female: string): boolean {
   const chip = `{${male}|${female}}`;
   if (/\{מחייך\|מחייךת\}/.test(chip)) return true;
@@ -115,6 +133,7 @@ function isBrokenChipPair(male: string, female: string): boolean {
   if (male === 'שלו' && female === 'שלוה') return true;
   if (male === 'עצמו' && female === 'עצמוה') return true;
   if (female === male + 'ת' && male.endsWith('ך')) return true;
+  if (male === 'שלום' && female === 'שלומה') return true;
   return false;
 }
 
@@ -270,19 +289,8 @@ export function safeConvertSlashGender(match: string): SafeSlashConvertResult | 
   let male = left;
   let female: string;
 
-  if (right === 'ת') {
-    if (left.endsWith('ך')) {
-      female = left.slice(0, -1) + 'כת';
-    } else if (FINAL_LETTERS.has(left[left.length - 1] ?? '')) {
-      return null;
-    } else {
-      female = left + 'ת';
-    }
-  } else if (right === 'ה') {
-    if (FINAL_LETTERS.has(left[left.length - 1] ?? '')) {
-      return null;
-    }
-    female = left + 'ה';
+  if (right === 'ת' || right === 'ה') {
+    female = feminineFromFinalLetterSlashStem(left, right);
   } else {
     return null;
   }

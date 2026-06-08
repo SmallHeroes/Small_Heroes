@@ -19,6 +19,7 @@ import {
   parseStoryPages,
   parseWordCountLine,
 } from './story-page-utils';
+import { scanImageDirectionFormat } from './image-direction-validator';
 import {
   directionWordBand,
   WORD_BAND_THIN_FAIL_MAJORITY,
@@ -209,6 +210,16 @@ export function runDeterministicValidators(args: {
   }
 
   const identicalGenderChipFail = pageRows.some((p) => p.identicalChipPairs.length > 0);
+
+  const imageDirectionFormat = scanImageDirectionFormat(args.storyMarkdown);
+  if (imageDirectionFormat.advisoryWarn) {
+    for (const h of imageDirectionFormat.hits) {
+      warnings.push(
+        `Page ${h.page}: malformed imageDirection (${h.reason}) — ${h.snippet.slice(0, 120)}`
+      );
+    }
+  }
+
   const advisoryResult = failures.length > 0 ? 'fail' : 'pass';
 
   return {

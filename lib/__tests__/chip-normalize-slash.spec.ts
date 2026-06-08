@@ -22,6 +22,11 @@ const SHOULD_CONVERT: Array<[string, string]> = [
   ['מאבד/ת', '{מאבד|מאבדת}'],
   ['עצמו/ה', '{עצמו|עצמה}'],
   ['שלו/ה', '{שלו|שלה}'],
+  ['צריך/ה', '{צריך|צריכה}'],
+  ['מוצף/ת', '{מוצף|מוצפת}'],
+  ['עייף/ה', '{עייף|עייפה}'],
+  ['קטן/ה', '{קטן|קטנה}'],
+  ['רץ/ה', '{רץ|רצה}'],
 ];
 
 describe('safeConvertSlashGender', () => {
@@ -45,9 +50,9 @@ describe('safeConvertSlashGender', () => {
   });
 
   it('fails closed on unknown irregular slash form', () => {
-    expect(safeConvertSlashGender('מַדְגִּים/ה')).toBeNull();
-    const { markdown, report } = normalizePartialGenderChips(page('טקסט עם מַדְגִּים/ה.'));
-    expect(markdown).toContain('מַדְגִּים/ה');
+    expect(safeConvertSlashGender('שלום/ה')).toBeNull();
+    const { markdown, report } = normalizePartialGenderChips(page('טקסט עם שלום/ה.'));
+    expect(markdown).toContain('שלום/ה');
     expect(report.unrepaired.some((u) => u.reason === 'unrepaired_slash_gender')).toBe(true);
     expect(report.advisoryFail).toBe(true);
   });

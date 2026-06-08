@@ -26,7 +26,7 @@ Rules:
 - Companion must sound specific — not generic therapist voice.
 - No moralizing lecture; show through action and residue ending.
 - Avoid template phrases: "ואז הבין/הבינה", "בסוף הכל הסתדר", "היה/הייתה מאושר/ת".
-- imageDirection lines are English, one per page, after prose.
+- imageDirection lines are English, one clean line per page after prose — format exactly "imageDirection: ..." on one line (never wrap in markdown bold or split the label across lines).
 ${ANTI_POETIC_CLOSURE}
 `.trim();
 
@@ -111,7 +111,7 @@ Output format MUST match Small Heroes v5 golden template:
 ${genderRule}
 ${companionIdRule}
 - Metadata lines: storyStyle, metaphor, stakes, quietPagePosition, heartLine, emotionalMistake, uncomfortableTruth, agencyTransfer
-- For each page: --- Page N ---, Hebrew prose (2-5 short paragraphs), blank line, imageDirection: English scene brief
+- For each page: --- Page N ---, Hebrew prose (2-5 short paragraphs), blank line, then one line "imageDirection: English scene brief" (no markdown bold, label and value on the same line)
 ${adventureBlock}
 ${wordCountRule}
 - Hebrew prose only — no Latin letter drift inside Hebrew words (e.g. בחצי not בחצi)
