@@ -49,7 +49,8 @@ export async function finalizeAndPersistStoryText(
     if (!selection) {
       throw new StoryBankPersonalizationError(`No story-bank story for category=${challengeCategory}`);
     }
-    const storyDir = storyBankVersion === 'v3' ? STORY_BANK_V3_DIR_NAME : 'raw';
+    const storyDir =
+      selection.dirName ?? (storyBankVersion === 'v3' ? STORY_BANK_V3_DIR_NAME : 'raw');
     storyFilePath = path.join(process.cwd(), 'story-bank', storyDir, selection.filename);
     cache = {
       ...cache,

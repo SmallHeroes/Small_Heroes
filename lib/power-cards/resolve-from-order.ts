@@ -53,7 +53,12 @@ export async function resolvePowerCardRenderInputForOrder(
   const selection = selectCompanionStory(companionId, direction);
   if (!selection) return null;
 
-  const storyPath = path.join(process.cwd(), 'story-bank', STORY_BANK_V3_DIR_NAME, selection.filename);
+  const storyPath = path.join(
+    process.cwd(),
+    'story-bank',
+    selection.dirName ?? STORY_BANK_V3_DIR_NAME,
+    selection.filename
+  );
   const markdown = await fs.readFile(storyPath, 'utf8');
   const slug = selection.base;
   const parsed = parseAndValidateStoryPowerCard(markdown, slug);

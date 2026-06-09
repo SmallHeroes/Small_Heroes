@@ -319,7 +319,8 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
     throw new Error(`No story-bank story found for category=${challengeCategory}`);
   }
 
-  let storyDir = storyBankVersion === 'v3' ? STORY_BANK_V3_DIR_NAME : 'raw';
+  let storyDir =
+    selection.dirName ?? (storyBankVersion === 'v3' ? STORY_BANK_V3_DIR_NAME : 'raw');
   let storyFilePath = path.join(process.cwd(), 'story-bank', storyDir, selection.filename);
 
   // ── Legacy-order fallback ──
@@ -357,11 +358,12 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
       for (const dir of directions) {
         const candidate = selectCompanionStory(compId, dir);
         if (candidate) {
-          const candidatePath = path.join(process.cwd(), 'story-bank', STORY_BANK_V3_DIR_NAME, candidate.filename);
+          const candidateDir = candidate.dirName ?? STORY_BANK_V3_DIR_NAME;
+          const candidatePath = path.join(process.cwd(), 'story-bank', candidateDir, candidate.filename);
           if (existsSync(candidatePath)) {
             selection = candidate;
             storyBankVersion = 'v3';
-            storyDir = STORY_BANK_V3_DIR_NAME;
+            storyDir = candidateDir;
             storyFilePath = candidatePath;
             regenLogger.info('Story file recovered via v3 fallback', {
               orderId,

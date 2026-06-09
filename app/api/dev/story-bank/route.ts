@@ -147,6 +147,8 @@ export async function POST(req: NextRequest) {
     skipPersonalization?: boolean;
     /** Do not HTTP-chain worker from route (CLI driver owns worker loop). */
     skipWorkerChain?: boolean;
+    /** Force loading from an alternate bank dir (dev-only; 'v3-approved' supported). */
+    bankDir?: string;
   };
 
   const {
@@ -165,6 +167,7 @@ export async function POST(req: NextRequest) {
     packageDryRun = false,
     skipPersonalization = false,
     skipWorkerChain = false,
+    bankDir = undefined,
   } = body;
 
   const childImageUrl =
@@ -186,7 +189,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'storyFile must be a simple .md file name' }, { status: 400 });
   }
 
-  const filePath = path.join(STORY_BANK_RAW, storyFile);
+  if (bankDir !== undefined && bankDir !== 'v3-approved') {
+    return NextResponse.json({ error: "bankDir must be 'v3-approved' when provided" }, { status: 400 });
+  }
+
+  const filePath =
+    bankDir === 'v3-approved'
+      ? path.join(process.cwd(), 'story-bank', 'v3-approved', storyFile)
+      : path.join(STORY_BANK_RAW, storyFile);
 
   const illustrationStyle = normalizeIllustrationStyle(illustrationStyleRaw);
   const accessKey = randomUUID();

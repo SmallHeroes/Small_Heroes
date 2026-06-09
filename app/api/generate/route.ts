@@ -501,7 +501,8 @@ export async function runMonolithicGeneration(orderId: string, reason = 'unspeci
       directionForV3,
     });
 
-    const storyDir = storyBankVersion === 'v3' ? STORY_BANK_V3_DIR_NAME : 'raw';
+    const storyDir =
+      selection.dirName ?? (storyBankVersion === 'v3' ? STORY_BANK_V3_DIR_NAME : 'raw');
     const storyFilePath = path.join(process.cwd(), 'story-bank', storyDir, selection.filename);
     generationLogger.info('Story file path resolved', { orderId, storyDir, storyFilePath, storyBankVersion });
     const patchContext = buildPatchContextFromOrder(order, wizardMeta);

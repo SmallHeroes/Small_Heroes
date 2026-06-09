@@ -7,6 +7,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      'server-only': path.resolve(__dirname, 'scripts/shims/server-only.cjs'),
       '@': path.resolve(__dirname, '.'),
     },
   },

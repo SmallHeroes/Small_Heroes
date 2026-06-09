@@ -344,6 +344,10 @@ export async function loadStoryFromBank(
     pages,
   });
 
+  // Traceability for v3-approved imports (optional frontmatter; absent in v5 bank files).
+  const storyIdMatch = raw.match(/^storyId:\s*['"]?(.+?)['"]?\s*$/m);
+  const sourceRunDirMatch = raw.match(/^sourceRunDir:\s*['"]?(.+?)['"]?\s*$/m);
+
   return {
     title,
     coverText: title,
@@ -385,6 +389,8 @@ export async function loadStoryFromBank(
       model: 'pre-written',
       tokens: 0,
       totalTokens: 0,
+      ...(storyIdMatch?.[1] ? { storyId: storyIdMatch[1].trim() } : {}),
+      ...(sourceRunDirMatch?.[1] ? { sourceRunDir: sourceRunDirMatch[1].trim() } : {}),
     },
   };
 }

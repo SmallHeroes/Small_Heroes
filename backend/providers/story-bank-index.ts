@@ -24,6 +24,16 @@ const V3_STORY_DIR_NAME = (process.env.STORY_BANK_V3_DIR || 'v5-fixed-v2').trim(
 const V3_STORY_DIR = join(process.cwd(), 'story-bank', V3_STORY_DIR_NAME);
 export const STORY_BANK_V3_DIR_NAME = V3_STORY_DIR_NAME;
 
+// Generator-v3 owner-approved stories (imported via scripts/import-v3-approved-story.ts).
+// Served ONLY when ENABLE_V3_APPROVED_BANK=true; flag off = path untouched.
+export const V3_APPROVED_DIR_NAME = 'v3-approved';
+const V3_APPROVED_DIR = join(process.cwd(), 'story-bank', V3_APPROVED_DIR_NAME);
+
+/** Read at call time (not module load) so tests and runtime toggles both work. */
+export function isV3ApprovedBankEnabled(): boolean {
+  return process.env.ENABLE_V3_APPROVED_BANK === 'true';
+}
+
 /** Active wizard roster — companion-specific v5 markdown stories when files exist. */
 const V3_COMPANIONS = new Set(listActiveCompanionIds());
 
@@ -224,6 +234,11 @@ export interface StoryBankSelection {
   title: string;
   /** Resolved bank category */
   bankCategory: BankCategory;
+  /**
+   * Bank directory override (e.g. 'v3-approved'). Undefined for all default-path
+   * selections — callers fall back to STORY_BANK_V3_DIR_NAME / 'raw' as before.
+   */
+  dirName?: string;
 }
 
 /**
@@ -304,6 +319,18 @@ export function selectCompanionStory(
   if (dir !== 'bedtime' && dir !== 'adventure' && dir !== 'fantasy') return null;
 
   const filename = `${companionId}_${dir}.md`;
+
+  // Owner-approved Generator-v3 entry takes precedence ONLY behind the flag.
+  if (isV3ApprovedBankEnabled() && existsSync(join(V3_APPROVED_DIR, filename))) {
+    return {
+      filename,
+      base: `${companionId}_${dir}`,
+      title: 'v3-approved companion story',
+      bankCategory: V3_COMPANION_BANK_CATEGORY[companionId] ?? 'GENERAL_FEARS',
+      dirName: V3_APPROVED_DIR_NAME,
+    };
+  }
+
   const fullPath = join(V3_STORY_DIR, filename);
 
   if (!existsSync(fullPath)) {

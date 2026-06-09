@@ -524,6 +524,9 @@ export interface GeneratedStory {
     tokens?:          number;
     totalTokens?:     number;
     qualityWarnings?: string[];
+    /** Traceability for v3-approved bank entries (frontmatter storyId / sourceRunDir). */
+    storyId?:         string;
+    sourceRunDir?:    string;
   };
 }
 
