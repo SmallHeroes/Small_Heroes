@@ -7,26 +7,28 @@ import path from 'path';
 
 import { OpenAIResponsesLLM, parseJsonFromLLM } from '../story-generator/llm';
 import { buildCompanionContextBlock } from '../story-gen/companion-context';
-import {
-  buildHardenedPremiseP10,
-  hardenedPremiseToSpineFields,
-  POPCORN_TONE_GUARD,
-} from './hardened-premise-p10';
+import { buildHardenedPremiseP10 } from './hardened-premise-p10';
+import { buildHardenedPremiseKokoP04 } from './hardened-premise-koko-p04';
+import { hardenedPremiseToSpineFields, toneGuardForSpec } from './premise-to-spine';
 import type { PageBeatV3, PremiseExperimentSpecV3, StoryPremiseCandidate, StorySpineV3 } from './types';
-import { validateAllBeatsV3, validateStorySpineV3 } from './structure-validator';
+import { validateAllBeatsV3, validateStorySpineForSpec } from './structure-validator';
 
-const SPINE_SYSTEM = `You convert a LOCKED hardened StoryPremise into StorySpineV3 JSON.
-You are NOT writing prose. Copy the locked arc fields faithfully — popcorn-specific, not generic.
+function buildSpineSystem(spec: PremiseExperimentSpecV3): string {
+  return `You convert a LOCKED hardened StoryPremise into StorySpineV3 JSON.
+You are NOT writing prose. Copy the locked arc fields faithfully — premise-specific, not generic.
 
 FORBIDDEN generic template:
-- "Dini wraps → child notices air gap → child helps Dini leave room"
-- abstract "needs space / release / calm understanding"
+- companion over-wraps → child finds air-gap gentler way (popcorn collapse)
+- abstract "needs space / release / calm understanding" only
+- reassurance fable without physical events
 
-REQUIRED: popcorn-specific chain (lid gag, wing roof, towel flap, wind tunnel, popcorn rain).
+Return ONLY StorySpineV3 JSON matching the schema exactly.
+Companion: ${spec.companionId}
+Theme: ${spec.resilienceTheme}`.trim();
+}
 
-Return ONLY StorySpineV3 JSON matching the schema exactly.`.trim();
-
-const BEATS_SYSTEM = `You convert StorySpineV3 + hardened premise into page-level SCENE EVENTS for ages 5–7.
+function buildBeatsSystem(spec: PremiseExperimentSpecV3): string {
+  return `You convert StorySpineV3 + hardened premise into page-level SCENE EVENTS for ages 5–8.
 You are NOT writing Hebrew prose.
 
 Each PageBeatV3 MUST include ALL fields:
@@ -38,21 +40,22 @@ HARD FAIL if:
 - event only emotional/internal
 - pageTurnReason generic ("what happens next?")
 - visualAnchor abstract
+- companion solves climax
 
-POPCORN ARC (must appear across pages):
-1. Hook — kernel yells "אש!", Dini arrives
-2. Child want — promised sibling, movie night, first time alone
-3. Dini builds "popcorn safety nest" (pots, towels, wing — silly not scary)
-4. First try-fail — lid rattles, popcorn cloud hits wing + Dini warm breath makes more popping
-5. Second try-fail — move to table, wing as roof, kernel lands on Dini's nose
-6. Discovery — towel flap, grains settle, needs small wind not heavy wing
-7. Brave action — child towel-sail, directs Dini's breath under it, wind tunnel
-8. Payoff — popcorn arc/rain into bowl, kernel on nose, "עוד סרט!"
-9. Residue pages — warm silly, not lecture
+REQUIRED arc shape:
+1. Hook — weird/funny opening event
+2. Child want — specific, child-owned
+3. Companion comic misread / wrong help
+4. First try-fail — visible
+5. Escalation — funnier/harder
+6. Child discovery — notices pattern physically
+7. Brave child action — child leads
+8. Visible payoff + residue pages (not lesson)
 
-SAFETY: ${POPCORN_TONE_GUARD}
+SAFETY: ${toneGuardForSpec(spec)}
 
 Return ONLY { "beats": PageBeatV3[] } with exact page count requested.`.trim();
+}
 
 export async function runPhase2SpineAndBeats(args: {
   premise: StoryPremiseCandidate;
@@ -64,13 +67,13 @@ export async function runPhase2SpineAndBeats(args: {
 }): Promise<{
   spine: StorySpineV3;
   beats: PageBeatV3[];
-  spineHardFails: ReturnType<typeof validateStorySpineV3>;
+  spineHardFails: ReturnType<typeof validateStorySpineForSpec>;
   beatHardFails: ReturnType<typeof validateAllBeatsV3>;
 }> {
   const pageCount = args.pageCount ?? 12;
   fs.mkdirSync(args.runDir, { recursive: true });
 
-  const lockedSpine = hardenedPremiseToSpineFields(args.premise);
+  const lockedSpine = hardenedPremiseToSpineFields(args.premise, args.spec);
   const companionBlock = buildCompanionContextBlock(args.spec.companionId);
   const llm = new OpenAIResponsesLLM(args.modelId);
 
@@ -92,7 +95,7 @@ export async function runPhase2SpineAndBeats(args: {
   console.log('[v3 phase2] StorySpineV3...');
   const spineResult = await llm.call({
     stage: 'v3-spine-v3',
-    systemPrompt: SPINE_SYSTEM,
+    systemPrompt: buildSpineSystem(args.spec),
     userPrompt: `
 Companion: ${companionBlock}
 
@@ -112,7 +115,7 @@ ${JSON.stringify(args.premise, null, 2)}`.trim(),
   console.log('[v3 phase2] PageBeatV3...');
   const beatsResult = await llm.call({
     stage: 'v3-beats-v3',
-    systemPrompt: BEATS_SYSTEM,
+    systemPrompt: buildBeatsSystem(args.spec),
     userPrompt: `
 SPINE:
 ${JSON.stringify(spine, null, 2)}
@@ -131,8 +134,8 @@ Return valid json only.`.trim(),
   const parsed = parseJsonFromLLM<{ beats: PageBeatV3[] }>(beatsResult.text, 'v3-beats-v3');
   const beats = normalizeBeats(parsed.beats, pageCount);
 
-  const spineHardFails = validateStorySpineV3(spine);
-  const beatHardFails = validateAllBeatsV3(beats);
+  const spineHardFails = validateStorySpineForSpec(spine, args.spec, args.premise);
+  const beatHardFails = validateAllBeatsV3(beats, args.spec);
 
   fs.writeFileSync(path.join(args.runDir, 'story-spine.json'), JSON.stringify(spine, null, 2));
   fs.writeFileSync(path.join(args.runDir, 'page-beats.json'), JSON.stringify(beats, null, 2));
@@ -151,9 +154,9 @@ function normalizeBeats(beats: PageBeatV3[], pageCount: number): PageBeatV3[] {
     childDoes: b.childDoes?.trim() || '{{childName}} פועל/ת',
     companionDoes: b.companionDoes?.trim(),
     whatChanges: b.whatChanges?.trim() || 'המצב משתנה',
-    whatGetsFunnierOrHarder: b.whatGetsFunnierOrHarder?.trim() || 'יותר בלאגן פופקורן',
+    whatGetsFunnierOrHarder: b.whatGetsFunnierOrHarder?.trim() || 'המצב מסתבך',
     pageTurnReason: b.pageTurnReason?.trim() || 'משהו קורה בהמשך',
-    visualAnchor: b.visualAnchor?.trim() || 'bowl, popcorn, Dini wing',
+    visualAnchor: b.visualAnchor?.trim() || 'child and companion in scene',
   })).slice(0, pageCount);
 }
 
@@ -181,5 +184,6 @@ export function loadPremiseFromRun(runDir: string, premiseId: string): StoryPrem
 
 export function getDefaultHardenedPremise(premiseId: string): StoryPremiseCandidate {
   if (premiseId === 'dini_premise_10') return buildHardenedPremiseP10();
+  if (premiseId === 'koko_premise_04') return buildHardenedPremiseKokoP04();
   throw new Error(`No hardened premise for ${premiseId}`);
 }

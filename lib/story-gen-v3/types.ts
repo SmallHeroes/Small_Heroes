@@ -48,7 +48,22 @@ export type PremiseFamily =
   | 'everyday_magical_invasion'
   | 'companion_causes_comic_mess'
   | 'child_game_social'
-  | 'object_creature_absurdity';
+  | 'object_creature_absurdity'
+  | 'companion_overdoes'
+  | 'object_refuses'
+  | 'map_or_path_changes'
+  | 'body_signal_leaks'
+  | 'home_object_moves'
+  | 'sound_has_weight'
+  | 'quiet_truth'
+  | 'hidden_pattern'
+  | 'other';
+
+export const PAGE_COUNT_BY_DIRECTION: Record<StoryDirectionV3, number> = {
+  bedtime: 10,
+  adventure: 15,
+  fantasy: 20,
+};
 
 export interface GoldenPremiseRecord {
   sourceStoryId: string;
@@ -99,11 +114,15 @@ export interface PremiseExperimentSpecV3 {
   companionId: string;
   direction: StoryDirectionV3;
   resilienceTheme: string;
+  category?: string;
+  pageCount?: number;
   childAgeMin: number;
   childAgeMax: number;
   candidateCount: number;
   calibrationGoldenIds: string[];
   forbidPlotCopy: string[];
+  mustAvoid?: string[];
+  mustInclude?: string[];
 }
 
 export interface PremiseExperimentRunResult {

@@ -22,8 +22,12 @@ const COMPANION_OWNS_RE =
 const BABY_OWNS_RE =
   /^(the\s+)?(baby\s+dragon|תינוק[\s-]?דרקון)\s+(saves|leads|solves|teaches|מציל|מוביל|פותר)/i;
 
+const POPCORN_COLLAPSE_RE =
+  /העטיפה\/החזקה מדי|הבעיה היא לא הסכנה|לשחרר|צריך מרחב|אוויר בפנים|מגבת.*מפרש|מנהרת רוח|קן פופקורן/i;
+
 const HUMOR_MARKERS = [
   /funny|ridiculous|absurd|stuck|tangled|oops|מצחיק|תקוע|נתקע|נפל|התלפף|בייגל|פופקורן|גרב|כרית|שבלול/i,
+  /צבע|פסים|הסוואה|מתחבא|כתום|ירוק|אפור|קונפטי|עיניים|מפוספס|הד|מסדרון|ארגז|מדבקה/i,
 ];
 
 function fieldLen(s: string | undefined, min: number): boolean {
@@ -151,8 +155,66 @@ function whyNotFableWeak(c: StoryPremiseCandidate): boolean {
   return false;
 }
 
+function hasPopcornCollapse(candidate: StoryPremiseCandidate): boolean {
+  const arcBlob = [
+    candidate.childDiscovery,
+    candidate.companionWrongHelp,
+    candidate.escalation,
+    candidate.braveChildAction,
+    candidate.companionComicEngineUsed,
+  ].join(' ');
+  return POPCORN_COLLAPSE_RE.test(arcBlob);
+}
+
+function hasWrongCompanionLeak(candidate: StoryPremiseCandidate): boolean {
+  const blob = `${candidate.companionWrongHelp} ${candidate.companionComicEngineUsed} ${candidate.titleSeed} ${candidate.oneLineHook}`;
+  const id = candidate.id.toLowerCase();
+
+  if (/koko|chameleon/.test(id) && /דיני|דרקון|כנף|קן פופקורן/i.test(blob)) return true;
+  if (/lion/.test(id) && /דיני|קוֹקוֹ|chameleon|פופקורן|כנף.*קן/i.test(blob)) return true;
+  if (/bunny/.test(id) && /דיני|קוֹקוֹ|chameleon|פופקורן|לֵיוֹ|שאגה.*משקל/i.test(blob)) return true;
+  if (/turtle/.test(id) && /דיני|קוֹקוֹ|chameleon|פופקורן|פסים|הסוואה/i.test(blob)) return true;
+  return false;
+}
+
+const MEDICAL_FORBIDDEN_RE =
+  /זה לא יכאב|אין מה לפחד|תהיה אמיץ|הרופא נחמד|אם תירגע הכול יעבור/i;
+
+function hasMedicalForbidden(candidate: StoryPremiseCandidate): boolean {
+  if (!/bunny|ometz|medical/i.test(`${candidate.id} ${candidate.resilienceTheme}`)) return false;
+  return MEDICAL_FORBIDDEN_RE.test(JSON.stringify(candidate));
+}
+
 export function validatePremiseHardFails(candidate: StoryPremiseCandidate): PremiseHardFail[] {
   const fails: PremiseHardFail[] = [];
+
+  if (hasPopcornCollapse(candidate)) {
+    fails.push({
+      code: 'popcorn_collapse_shape',
+      message: 'Premise collapsed into over-wrap / air-gap popcorn template',
+    });
+  }
+  if (hasWrongCompanionLeak(candidate)) {
+    fails.push({
+      code: 'wrong_companion_leak',
+      message: 'Premise contains wrong-companion or prior-scenario residue',
+    });
+  }
+  if (hasMedicalForbidden(candidate)) {
+    fails.push({
+      code: 'medical_forbidden_phrase',
+      message: 'Medical premise uses forbidden reassurance/minimization phrase',
+    });
+  }
+  if (
+    /koko|chameleon/i.test(candidate.id) &&
+    candidate.braveChildAction === candidate.bigReleasePayoff
+  ) {
+    fails.push({
+      code: 'payoff_not_child_action',
+      message: 'braveChildAction duplicates payoff — child does not own climax',
+    });
+  }
 
   if (!hasWeirdHook(candidate)) {
     fails.push({ code: 'no_weird_funny_hook', message: 'Missing weird/funny concrete hook' });

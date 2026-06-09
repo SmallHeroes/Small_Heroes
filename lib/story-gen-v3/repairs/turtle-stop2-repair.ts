@@ -1,0 +1,196 @@
+/**
+ * Turtle STOP 2 spine repair — child makes new room feel like mine;
+ * material sticker climax, NOT breath / convince-turtle-to-release.
+ */
+
+import type { PageBeatV3, StorySpineV3 } from '../types';
+
+export const TURTLE_REPAIR_META = {
+  repairedFrom: 'child_manages_turtle_over_holding + p13_breath_climax',
+  beatHardFailsBefore: [
+    { code: 'generic_template', message: 'Spine contains generic wrap/reassurance template language' },
+    { code: 'popcorn_shape', message: 'Child manages companion over-holding — Dini/popcorn smell' },
+    { code: 'breath_climax', message: 'p13 warm breath climax — abstract, not material' },
+  ],
+  beatHardFailsAfter: [] as Array<{ code: string; message: string; page?: number }>,
+};
+
+export function buildTurtleRepairedSpine(): StorySpineV3 {
+  return {
+    premiseId: 'turtle_premise_07_repair',
+    titleSeed: '{{childName}} וטוֹלִי — סימן שמחבר',
+    oneLineHook: 'הבית החדש מחכה, אבל טוֹלִי נושאת את כל הבית הישן על הקונכייה.',
+    childWant: 'לגרום לחדר החדש להרגיש שלי — לא רק לחכות שטוֹלִי תשחרר.',
+    hiddenResilienceTool: 'בית עובר בחפץ וסימן פיזי — לא בסיסמה.',
+    physicalProblem: 'קונכייה תפוחה מלאה; החדר החדש ריק מדי בלי סימן מוכר.',
+    playSystem: 'ילד בוחר חפץ ישן אחד ומוצא מקום שבו ישן וחדש נוגעים.',
+    keyObjects: ['מדבקת כוכב ישנה', 'מדף חדש', 'קונכייה'],
+    companionWrongHelp: 'טוֹלִי אורזת הכול על הגב ואומרת "אני כבר בבית" בכל מקום.',
+    firstTryFail: 'ילד מושך חפצים מהקונכייה — הם חוזרים פנימה; טוֹלִי נמשכת לתוך הקליפה.',
+    diniOverHelpAfterFirstFail: 'טוֹלִי מציעה "בית אורחים" בקונכייה במקום לעזור לסימן בחדר.',
+    secondTryFail: 'יותר דברים על הקונכייה — פחות רואים את החדר החדש.',
+    childDiscovery: 'מדבקת כוכב מהחדר הישן יכולה לגשר בין ישן לחדש.',
+    braveChildAction:
+      'מדביק מדבקת כוכב ישנה על שפת הקונכייה, נוגע בה במדף החדש — קו זהב מחבר.',
+    bigReleasePayoff:
+      'בקונכייה נשאר מעגל ריק אחד; {{childName}} שם שם נורת לילה חדשה אחת — אירוע, לא שיעור.',
+    toneGuard: 'Homesickness physical — object/ritual/mark, not slogan.',
+    oneSentenceEventChain:
+      'קונכייה מלאה → ילד רוצה חדר שלי → מדבקת כוכב ישנה → מדבקה על קונכייה נוגעת במדף → קו זהב → מקום ריק לדבר חדש אחד',
+  };
+}
+
+export function buildTurtleRepairedBeats(): PageBeatV3[] {
+  return [
+    {
+      page: 1,
+      event: 'הבית החדש כבר כאן — אבל טוֹלִי עומדת עם קונכייה תפוחה כמו מזוודה.',
+      childDoes: '{{childName}} פותח את דלת החדר החדש — ריק, חם, זר.',
+      companionDoes: 'טוֹלִי אומרת "אני כבר בבית" ומסתובבת לקיר.',
+      whatChanges: 'שני בתים — אחד על הגב, אחד מול העיניים.',
+      whatGetsFunnierOrHarder: 'קונכייה משמיעה צעצועים מתגלגלים בפנים.',
+      pageTurnReason: 'מה יש בפנים?',
+      visualAnchor: 'stuffed shell, empty new room',
+    },
+    {
+      page: 2,
+      event: 'טוֹלִי "אורזת לנסיעה" — שמה כרית, גרב ותמונה על הקונכייה.',
+      childDoes: '{{childName}} מנסה להרים כרית מהמדף החדש — מרגיש זר.',
+      companionDoes: 'טוֹלִי מוסיפה עוד כרית על הגב עד שלא רואים אותה.',
+      whatChanges: 'החדר החדש נשאר ריק; הישן נודד לגב.',
+      whatGetsFunnierOrHarder: 'קונכייה מתנדנדת כמו עגלה.',
+      pageTurnReason: 'איך לגרום לחדר להרגיש שלי?',
+      visualAnchor: 'shell piled with home objects',
+    },
+    {
+      page: 3,
+      event: '{{childName}} מוצא קופסת "חדר ישן" בפינה.',
+      childDoes: 'פותח — ריח מוכר של ספר ושמיכה.',
+      companionDoes: 'טוֹלִי מציצה: "זה בית אורחים שלי."',
+      whatChanges: 'יש חפצים ישנים ממש, לא רק בקונכייה.',
+      whatGetsFunnierOrHarder: 'טוֹלִי מנסה להכניס את הקופסה לתוך הקליפה.',
+      pageTurnReason: 'מה יבחר הילד?',
+      visualAnchor: 'open box, familiar blanket smell',
+    },
+    {
+      page: 4,
+      event: '{{childName}} מחליק מדבקת כוכב ישנה מהקופסה.',
+      childDoes: 'מחזיק אותה על כף היד — זוכר איפה הייתה בחדר הישן.',
+      companionDoes: 'טוֹלִי אומרת "גם לי יש כוכב" ומראה מדבקה דהויה על הקליפה.',
+      whatChanges: 'חפץ אחד קטן יכול לגשר.',
+      whatGetsFunnierOrHarder: 'שתי מדבקות — ישנה וחדשה-דהויה.',
+      pageTurnReason: 'איפה ישן וחדש נוגעים?',
+      visualAnchor: 'old star sticker in palm',
+    },
+    {
+      page: 5,
+      event: '{{childName}} מסתכל על מסגרת הדלת — שם החדר הישן נפגש עם החדש.',
+      childDoes: 'מניח את המדבקה על המסגרת לרגע — בודק.',
+      companionDoes: 'טוֹלִי נמשכת לתוך הקליפה: "שם יש רוח ישנה."',
+      whatChanges: 'נמצא מקום מגע פיזי בין ישן לחדש.',
+      whatGetsFunnierOrHarder: 'טוֹלִי מדברת מבפנים מעומעם.',
+      pageTurnReason: 'האם המדבקה תישאר שם?',
+      visualAnchor: 'sticker on doorframe threshold',
+    },
+    {
+      page: 6,
+      event: 'המדבקה נופלת — הדבק הישן לא מחזיק על העץ החדש.',
+      childDoes: '{{childName}} מחפש מקום אחר: שפת המדף הריק.',
+      companionDoes: 'טוֹלִי מציעה להדביק על הקונכייה במקום.',
+      whatChanges: 'צריך שני מקומות שמדברים זה עם זה.',
+      whatGetsFunnierOrHarder: 'קונכייה מסתובבת — מדבקות רועדות.',
+      pageTurnReason: 'איך מחברים בלי לשכנע את טוֹלִי לשחרר?',
+      visualAnchor: 'sticker falling, empty shelf lip',
+    },
+    {
+      page: 7,
+      event: '{{childName}} מדביק מדבקת כוכב על שפת הקונכייה — לא בפנים, על השפה.',
+      childDoes: 'לוחץ בעדינות — הכוכב מחזיק.',
+      companionDoes: 'טוֹלִי מהנהנת: "זה שלט בית."',
+      whatChanges: 'סימן ישן על גוף טוֹלִי — גלוי.',
+      whatGetsFunnierOrHarder: 'קונכייה נראית כמו בית עם שלט.',
+      pageTurnReason: 'האם יש מקום מקביל במדף?',
+      visualAnchor: 'star sticker on shell rim',
+    },
+    {
+      page: 8,
+      event: '{{childName}} מדביק מדבקת כוכב שנייה (ריקה) על שפת המדף החדש.',
+      childDoes: 'מיישר את שתי המדבקות בעיניים — אותו גובה.',
+      companionDoes: 'טוֹלִי מסתובבת לאט לראות את המדף.',
+      whatChanges: 'שני כוכבים מחכים זה מול זה.',
+      whatGetsFunnierOrHarder: 'טוֹלִי מתקרבת בזהירות — קונכייה כבדה.',
+      pageTurnReason: 'מה קורה כשהם נוגעים?',
+      visualAnchor: 'two star stickers aligned across room',
+    },
+    {
+      page: 9,
+      event: '{{childName}} מצמיד את הכוכב על הקונכייה אל הכוכב על המדף — נוגע.',
+      childDoes: 'מחזיק שתי שניות — משחרר.',
+      companionDoes: 'טוֹלִי קופאת — לא נמשכת פנימה.',
+      whatChanges: 'קו דק זהב מופיע בין הכוכבים ונשאר על הקיר.',
+      whatGetsFunnierOrHarder: 'הקו מרצד כמו שביל קטן.',
+      pageTurnReason: 'האם החדר נראה אחרת?',
+      visualAnchor: 'gold line connecting shell star to shelf star',
+    },
+    {
+      page: 10,
+      event: 'על הקיר, הקו הזהב נוגע גם במסגרת הדלת — ישן וחדש באותו מקום.',
+      childDoes: '{{childName}} מעביר אצבע לאורך הקו.',
+      companionDoes: 'טוֹלִי מריחה את המדף — מזהה ריח ספר מוכר מהקופסה.',
+      whatChanges: 'החדר מקבל טקסטורה — לא רק צבע.',
+      whatGetsFunnierOrHarder: 'טוֹלִי מציצה החוצה מהקליפה יותר מקודם.',
+      pageTurnReason: 'מה עוד חסר?',
+      visualAnchor: 'gold line meets doorframe, turtle nose out',
+    },
+    {
+      page: 11,
+      event: 'בתוך הקונכייה נראה מעגל ריק אחד — מדבקה הוסרה, נשאר מקום.',
+      childDoes: '{{childName}} מצביע על המעגל: "פה חדש."',
+      companionDoes: 'טוֹלִי אומרת "שמרתי מקום" — בפעם הראשונה לא "כבר בבית".',
+      whatChanges: 'טוֹלִי משאירה מקום לדבר חדש אחד — לא משחררת הכול.',
+      whatGetsFunnierOrHarder: 'מעגל ריק זוהר קלות.',
+      pageTurnReason: 'מה ישים הילד שם?',
+      visualAnchor: 'empty circle spot inside shell',
+    },
+    {
+      page: 12,
+      event: '{{childName}} מביא נורת לילה קטנה מהחדר החדש.',
+      childDoes: 'מניח אותה במעגל הריק — לוחץ פעם אחת.',
+      companionDoes: 'טוֹלִי מחזיקה את הקונכייה יציבה — לא נמשכת.',
+      whatChanges: 'דבר חדש אחד נכנס לבית על הגב.',
+      whatGetsFunnierOrHarder: 'אור רך נופל על הכוכבים.',
+      pageTurnReason: 'איך נראה הסוף?',
+      visualAnchor: 'night light clicked into empty shell circle',
+    },
+    {
+      page: 13,
+      event: 'הכוכב על המדף והכוכב על הקונכייה מחזיקים; הקו הזהב עדיין שם.',
+      childDoes: '{{childName}} שם ספר אחד על המדף — ליד הכוכב.',
+      companionDoes: 'טוֹלִי שמה אבן קטנה ליד הנורה — "שכנת."',
+      whatChanges: 'חדר שלי + בית על הגב — שניהם אמיתיים.',
+      whatGetsFunnierOrHarder: 'אין נשיפה, אין שחרור — רק סידור.',
+      pageTurnReason: 'רגע אחרון?',
+      visualAnchor: 'shelf with book, shell with night light',
+    },
+    {
+      page: 14,
+      event: 'טוֹלִי מתיישבת ליד המדף — ראש החוצה, קונכייה נוגעת בקו הזהב.',
+      childDoes: '{{childName}} יושב לידה — לא מושך אותה החוצה.',
+      companionDoes: 'טוֹלִי לוחשת "האור פה... גם כן."',
+      whatChanges: 'טוֹלִי רואה את החדר — לא רק את הישן.',
+      whatGetsFunnierOrHarder: 'קו הזהב מנצנץ פעם אחת.',
+      pageTurnReason: 'סגירה.',
+      visualAnchor: 'child and turtle beside gold line',
+    },
+    {
+      page: 15,
+      event: 'תמונה: כוכב על מדף, כוכב על קונכייה, קו זהב ביניהם, נורה דולקת במעגל.',
+      childDoes: '{{childName}} מכבה את האור הגדול — נשארת רק נורת הלילה.',
+      companionDoes: 'טוֹלִי סוגרת עין אחת — השנייה על הכוכב.',
+      whatChanges: 'סיום בתמונה/אירוע — לא משפט שיעור.',
+      whatGetsFunnierOrHarder: 'שקט חמים, חדר נראה מוכר.',
+      pageTurnReason: 'סוף.',
+      visualAnchor: 'final image: two stars, gold line, night light — no slogan text',
+    },
+  ];
+}
