@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { analyzePhotoDataUrl } from '../../../../lib/resemblance-core';
+import { hebrewPhotoMessage } from '../../../../lib/photo-quality-messages';
 import { enforceRateLimit, enforceSameOrigin } from '../../../../lib/request-security';
 
 export async function POST(req: NextRequest) {
@@ -27,7 +28,10 @@ export async function POST(req: NextRequest) {
       decision: result.status,
       reasonCodes: result.reasonCodes,
     });
-    return NextResponse.json(result);
+    return NextResponse.json({
+      ...result,
+      messageHe: hebrewPhotoMessage(result.reasonCodes, { faceCount: result.faceCount }),
+    });
   } catch (error) {
     return NextResponse.json(
       {

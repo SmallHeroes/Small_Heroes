@@ -436,6 +436,11 @@ function classifyPhotoFromMetrics(params: {
     (dominantFaceRatio >= 0.04 && dominantFaceRatio / secondaryComparable >= dominantRatioMin);
   if (!hasDominant) reasonCodes.push('multiple_faces_no_dominant');
 
+  // The checkout PhotoGate requires EXACTLY one face (personalization anchors
+  // on a single child). Flag it here so the parent fixes the photo at the
+  // upload step instead of being blocked at checkout.
+  if (faceCount > 1) reasonCodes.push('face_count_not_exactly_one');
+
   if (dominantFaceRatio < 0.04) reasonCodes.push('face_too_small_critical');
   else if (dominantFaceRatio < 0.06) reasonCodes.push('face_too_small');
   else if (dominantFaceRatio < 0.12) reasonCodes.push('face_borderline_size');
@@ -443,7 +448,8 @@ function classifyPhotoFromMetrics(params: {
   if (params.sharpness < 14) reasonCodes.push('low_sharpness');
   if (params.brightness < 35) reasonCodes.push('low_brightness');
 
-  const blocked = !hasDominant || dominantFaceRatio < 0.04 || params.sharpness < 14;
+  const blocked =
+    faceCount > 1 || !hasDominant || dominantFaceRatio < 0.04 || params.sharpness < 14;
   const warning =
     faceCount > 1 ||
     dominantFaceRatio < 0.12 ||

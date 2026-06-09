@@ -13,6 +13,7 @@ import { createPaymeCheckout } from '@/lib/payme';
 import { env, isFakePaymentEnabled } from '@/lib/env';
 import { ROUTES } from '@/lib/routes';
 import { evaluatePhotoGate } from '@/lib/resemblance-core';
+import { hebrewPhotoMessage } from '@/lib/photo-quality-messages';
 
 const logger = createLogger({ subsystem: 'checkout', route: '/api/checkout' });
 
@@ -149,9 +150,13 @@ export async function POST(req: NextRequest) {
           brightness: Math.round(photoGate.brightness),
           sharpness: Math.round(photoGate.sharpness),
         });
+        // Hebrew, parent-facing — the wizard displays `error` verbatim.
+        const messageHe =
+          hebrewPhotoMessage(photoGate.reasons, { faceCount: photoGate.faceCount }) ??
+          'יש בעיה בתמונה שהעליתם — נסו תמונה ברורה של הילד/ה לבד.';
         return NextResponse.json(
           {
-            error: 'Child photo quality check failed',
+            error: messageHe,
             reason: 'photogate_rejected',
             details: photoGate.reasons,
           },

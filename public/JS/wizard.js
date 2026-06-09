@@ -184,14 +184,36 @@ const PHOTO_ANALYSIS_THRESHOLDS = {
   minSharpnessGood: 22,
   minSharpnessWarning: 14,
 };
-const PHOTO_REASON_CODE_COPY = {
-  multiple_faces_no_dominant: 'כמה אנשים בפריים — אם אפשר, תמונה עם פנים אחתות בולטות',
-  face_too_small: 'הפנים יחסית קטנות בפריים',
-  face_too_small_critical: 'הפנים יחסית קטנות בפריים',
-  low_sharpness: 'התמונה קצת מטושטשת',
-  low_brightness: 'התמונה קצת חשוכה',
-  no_face_detected: 'קשה לנו לזהות פנים בבירור',
-};
+// Friendly Hebrew per reason code — mirrors lib/photo-quality-messages.ts on the
+// server (the server's messageHe wins when /api/photo/analyze responds).
+const PHOTO_REASON_MESSAGES_HE = [
+  {
+    codes: ['face_count_not_exactly_one', 'multiple_faces_no_dominant'],
+    message: 'בתמונה יש יותר מפנים אחד — צריך תמונה של הילד/ה לבד.',
+  },
+  { codes: ['no_face_detected'], message: 'לא זוהו פנים בתמונה — נסו תמונה ברורה של הפנים.' },
+  {
+    codes: ['face_too_small_critical', 'face_area_too_small'],
+    message: 'הפנים בתמונה קטנות מדי — נסו תמונה מקרוב יותר.',
+  },
+  {
+    codes: ['face_too_small', 'face_borderline_size'],
+    message: 'הפנים בתמונה קטנות יחסית — תמונה מקרוב תיתן תוצאה מדויקת יותר.',
+  },
+  { codes: ['low_sharpness', 'sharpness_too_low'], message: 'התמונה מטושטשת — נסו תמונה חדה יותר.' },
+  { codes: ['low_brightness'], message: 'התמונה כהה מדי — נסו תמונה עם יותר אור.' },
+  { codes: ['brightness_out_of_range'], message: 'התאורה בתמונה לא מתאימה — נסו תמונה עם אור טבעי ונעים.' },
+];
+
+function hebrewPhotoMessageFromCodes(reasonCodes) {
+  if (!Array.isArray(reasonCodes) || reasonCodes.length === 0) return null;
+  if (reasonCodes.length === 1 && reasonCodes[0] === 'no_photo') return null;
+  if (reasonCodes.indexOf('analysis_unavailable') > -1) return null;
+  for (const entry of PHOTO_REASON_MESSAGES_HE) {
+    if (entry.codes.some((code) => reasonCodes.indexOf(code) > -1)) return entry.message;
+  }
+  return null;
+}
 const ORDER_SUBMIT_TIMEOUT_MS = 45_000;
 const WIZARD_SESSION_ID_STORAGE_KEY = 'smallheroes.wizardSessionId';
 const ROUTES = window.SH_ROUTES || {
@@ -1830,12 +1852,31 @@ function updatePhotoStepBottomBar() {
 
   const st = state.photoQuality?.status;
   const hasPhoto = Boolean(state.photo);
-  const isWarningOrBlocked =
-    st === PHOTO_QUALITY_STATUS.WARNING || st === PHOTO_QUALITY_STATUS.BLOCKED;
+
+  if (hasPhoto && st === PHOTO_QUALITY_STATUS.BLOCKED) {
+    // A blocked photo will not pass the checkout PhotoGate — block continuing
+    // WITH it: replace the photo, or explicitly continue without one.
+    btn.textContent = 'להחליף תמונה';
+    btn.onclick = () => {
+      const input = document.getElementById('photo-input');
+      if (input) input.click();
+    };
+    btn.disabled = false;
+    if (btnAnyway) {
+      btnAnyway.hidden = false;
+      btnAnyway.textContent = 'להמשיך בלי תמונה';
+      btnAnyway.onclick = () => {
+        clearPhotoQualityState();
+        goNext();
+      };
+    }
+    if (photoReassure) photoReassure.hidden = false;
+    return;
+  }
 
   btn.textContent = !hasPhoto
     ? 'להמשיך בלי תמונה'
-    : isWarningOrBlocked
+    : st === PHOTO_QUALITY_STATUS.WARNING
       ? 'להמשיך בכל זאת'
       : 'ממשיכים';
   btn.onclick = goNext;
@@ -1882,11 +1923,16 @@ function renderPhotoQualityMessage() {
     return;
   }
 
+  const reasonMessage =
+    state.photoQuality?.messageHe ||
+    hebrewPhotoMessageFromCodes(state.photoQuality?.reasonCodes);
+
   if (status === PHOTO_QUALITY_STATUS.WARNING) {
     box.hidden = false;
     box.innerHTML = `
     <div class="photo-quality-alert photo-quality-alert--warning">
-      <div class="photo-quality-alert-title">${PHOTO_MSG_WARNING}</div>
+      <div class="photo-quality-alert-title">${reasonMessage || PHOTO_MSG_WARNING}</div>
+      ${reasonMessage ? `<p class="photo-helper-text">${PHOTO_MSG_WARNING}</p>` : ''}
     </div>
   `;
     updatePhotoStepBottomBar();
@@ -1896,7 +1942,8 @@ function renderPhotoQualityMessage() {
   box.hidden = false;
   box.innerHTML = `
     <div class="photo-quality-alert photo-quality-alert--blocked">
-      <div class="photo-quality-alert-title">${PHOTO_MSG_BLOCKED}</div>
+      <div class="photo-quality-alert-title">${reasonMessage || PHOTO_MSG_BLOCKED}</div>
+      <p class="photo-helper-text">אפשר להחליף לתמונה אחרת, או להמשיך בלי תמונה.</p>
     </div>
   `;
   updatePhotoStepBottomBar();
@@ -1993,6 +2040,9 @@ function classifyPhotoQuality(metrics) {
     };
   }
   if (!metrics.hasDominantFace) reasonCodes.push('multiple_faces_no_dominant');
+  // Checkout PhotoGate requires EXACTLY one face — surface it here so the
+  // parent fixes the photo at the upload step, not at payment.
+  if (faceCount > 1) reasonCodes.push('face_count_not_exactly_one');
   if (metrics.dominantFaceRatio < PHOTO_ANALYSIS_THRESHOLDS.minBlockedFaceRatio) {
     reasonCodes.push('face_too_small_critical');
   } else if (metrics.dominantFaceRatio < PHOTO_ANALYSIS_THRESHOLDS.minWarningFaceRatio) {
@@ -2006,6 +2056,7 @@ function classifyPhotoQuality(metrics) {
   if (!metrics.brightness || metrics.brightness < 35) reasonCodes.push('low_brightness');
 
   const blocked =
+    faceCount > 1 ||
     !metrics.hasDominantFace ||
     metrics.dominantFaceRatio < PHOTO_ANALYSIS_THRESHOLDS.minBlockedFaceRatio ||
     metrics.sharpness < PHOTO_ANALYSIS_THRESHOLDS.minSharpnessWarning;
@@ -2034,42 +2085,46 @@ function classifyPhotoQuality(metrics) {
 }
 
 async function analyzePhotoQuality(dataUrl) {
-  const imageEl = await createImageFromDataUrl(dataUrl);
-  const { sharpness, brightness } = computeSharpnessAndBrightness(imageEl);
+  // Server analysis first — it is the same detector family the checkout
+  // PhotoGate uses, so the upload-step verdict predicts the final gate.
   try {
-    const faces = await detectFaces(imageEl);
-    const imageArea = Math.max(1, imageEl.naturalWidth * imageEl.naturalHeight);
-    const faceRatios = faces
-      .map((face) => {
-        const box = face?.boundingBox || {};
-        const width = Number(box.width || 0);
-        const height = Number(box.height || 0);
-        const area = width > 0 && height > 0 ? width * height : 0;
-        return area / imageArea;
-      })
-      .filter((ratio) => ratio >= PHOTO_ANALYSIS_THRESHOLDS.minCountedFaceRatio)
-      .sort((a, b) => b - a);
-    const dominantFaceRatio = faceRatios[0] || 0;
-    const secondaryComparable = faceRatios.find(
-      (ratio, idx) => idx > 0 && ratio >= PHOTO_ANALYSIS_THRESHOLDS.minSecondaryComparableRatio
-    ) || 0;
-    const hasDominantFace =
-      faceRatios.length === 1 ||
-      secondaryComparable <= 0 ||
-      (dominantFaceRatio >= PHOTO_ANALYSIS_THRESHOLDS.minBlockedFaceRatio &&
-        dominantFaceRatio / secondaryComparable >= PHOTO_ANALYSIS_THRESHOLDS.dominantFaceRatioMin);
-    const result = classifyPhotoQuality({
-      faceCount: faceRatios.length,
-      dominantFaceRatio,
-      hasDominantFace,
-      sharpness,
-      brightness,
-    });
-    return result;
-  } catch (_) {
     const serverResult = await analyzePhotoQualityViaServer(dataUrl);
     return serverResult;
+  } catch (_) {
+    /* server unavailable — fall back to in-browser analysis below */
   }
+  // In-browser fallback (FaceDetector). If this throws too, handlePhoto
+  // records analysis_unavailable as a soft warning.
+  const imageEl = await createImageFromDataUrl(dataUrl);
+  const { sharpness, brightness } = computeSharpnessAndBrightness(imageEl);
+  const faces = await detectFaces(imageEl);
+  const imageArea = Math.max(1, imageEl.naturalWidth * imageEl.naturalHeight);
+  const faceRatios = faces
+    .map((face) => {
+      const box = face?.boundingBox || {};
+      const width = Number(box.width || 0);
+      const height = Number(box.height || 0);
+      const area = width > 0 && height > 0 ? width * height : 0;
+      return area / imageArea;
+    })
+    .filter((ratio) => ratio >= PHOTO_ANALYSIS_THRESHOLDS.minCountedFaceRatio)
+    .sort((a, b) => b - a);
+  const dominantFaceRatio = faceRatios[0] || 0;
+  const secondaryComparable = faceRatios.find(
+    (ratio, idx) => idx > 0 && ratio >= PHOTO_ANALYSIS_THRESHOLDS.minSecondaryComparableRatio
+  ) || 0;
+  const hasDominantFace =
+    faceRatios.length === 1 ||
+    secondaryComparable <= 0 ||
+    (dominantFaceRatio >= PHOTO_ANALYSIS_THRESHOLDS.minBlockedFaceRatio &&
+      dominantFaceRatio / secondaryComparable >= PHOTO_ANALYSIS_THRESHOLDS.dominantFaceRatioMin);
+  return classifyPhotoQuality({
+    faceCount: faceRatios.length,
+    dominantFaceRatio,
+    hasDominantFace,
+    sharpness,
+    brightness,
+  });
 }
 
 async function handlePhoto(e) {
@@ -2106,6 +2161,9 @@ async function handlePhoto(e) {
         faceCount: 0,
         reasonCodes: ['analysis_unavailable'],
       };
+    }
+    if (!state.photoQuality.messageHe) {
+      state.photoQuality.messageHe = hebrewPhotoMessageFromCodes(state.photoQuality.reasonCodes);
     }
     renderPhotoQualityMessage();
     savePhotoQualityToStorage();
