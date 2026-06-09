@@ -17,29 +17,10 @@ import {
   type CategoryAnswer,
   type PhotoQualityMeta,
 } from '../../../lib/orderMeta';
-
-const DIRECTION_TO_STORY_LENGTH: Record<string, 'short' | 'medium' | 'long'> = {
-  bedtime: 'short',
-  adventure: 'medium',
-  fantasy: 'long',
-};
-
-function resolveStoryPackage(product: {
-  length?: string;
-  direction?: string;
-}): { storyLength: 'short' | 'medium' | 'long'; storyDirection: string } {
-  const raw = typeof product?.direction === 'string' ? product.direction.trim().toLowerCase() : '';
-  if (raw === 'bedtime' || raw === 'adventure' || raw === 'fantasy') {
-    return { storyLength: DIRECTION_TO_STORY_LENGTH[raw], storyDirection: raw };
-  }
-  const legacy = product?.length;
-  if (legacy === 'short' || legacy === 'medium' || legacy === 'long') {
-    const storyDirection =
-      legacy === 'short' ? 'bedtime' : legacy === 'long' ? 'fantasy' : 'adventure';
-    return { storyLength: legacy, storyDirection };
-  }
-  return { storyLength: 'medium', storyDirection: 'adventure' };
-}
+import {
+  resolveStoryProductTruth,
+  StoryProductResolutionError,
+} from '../../../backend/providers/story-product-resolver';
 
 function toStringOrNull(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
@@ -132,7 +113,32 @@ export async function POST(req: NextRequest) {
           },
         ) as object)
       : undefined;
-    const { storyLength, storyDirection } = resolveStoryPackage(product ?? {});
+    // Source of truth: direction/pages/price come from the story that will be
+    // served (companion golden / v3-approved binding) — never from a guess.
+    let resolvedProduct;
+    try {
+      resolvedProduct = resolveStoryProductTruth({
+        companionId: storedCompanionId,
+        clientDirection: product?.direction,
+        legacyLength: product?.length,
+      });
+    } catch (error) {
+      if (error instanceof StoryProductResolutionError) {
+        console.error('[POST /api/orders] product resolution failed:', error.message);
+        return NextResponse.json({ error: error.message }, { status: error.httpStatus });
+      }
+      throw error;
+    }
+    const { storyLength, storyDirection, pages } = resolvedProduct;
+    if (
+      typeof product?.direction === 'string' &&
+      product.direction.trim() &&
+      product.direction.trim().toLowerCase() !== storyDirection
+    ) {
+      console.warn(
+        `[POST /api/orders] client direction "${product.direction}" overridden by story truth "${storyDirection}" (source=${resolvedProduct.source})`
+      );
+    }
     const pricing = computePricing({
       length: storyLength,
       direction: storyDirection,
@@ -271,7 +277,16 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ orderId: order.id, totalPrice: pricing.totalPrice });
+    return NextResponse.json({
+      orderId: order.id,
+      totalPrice: pricing.totalPrice,
+      product: {
+        direction: storyDirection,
+        pages,
+        basePrice: pricing.basePrice,
+        source: resolvedProduct.source,
+      },
+    });
 
   } catch (error) {
     if (

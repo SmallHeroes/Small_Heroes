@@ -12,15 +12,16 @@ const WIZ_DEFAULTS = {
   helpers: [],
   avoid: [],
   lengths: [],
+  // Prices must match the server pricing table (backend/config/wizard.ts DIRECTION_PAGE_MAP).
   directionPackages: [
-    { id: 'bedtime', label: 'סיפור לפני שינה', pagesLine: '10 עמודים', price: 79, priceILS: 79 },
-    { id: 'adventure', label: 'הרפתקה', pagesLine: '15 עמודים', price: 99, priceILS: 99 },
-    { id: 'fantasy', label: 'מסע פלאי', pagesLine: '20 עמודים', price: 139, priceILS: 139 },
+    { id: 'bedtime', label: 'סיפור לפני שינה', pagesLine: '10 עמודים', price: 59, priceILS: 59 },
+    { id: 'adventure', label: 'הרפתקה', pagesLine: '15 עמודים', price: 79, priceILS: 79 },
+    { id: 'fantasy', label: 'מסע פלאי', pagesLine: '20 עמודים', price: 99, priceILS: 99 },
   ],
   productPackages: [
-    { id: 'bedtime', productName: 'ספר לילה טוב', pages: 10, priceILS: 79, includes: [], bestFor: [] },
-    { id: 'adventure', productName: 'הרפתקה אישית', pages: 15, priceILS: 99, includes: [], bestFor: [] },
-    { id: 'fantasy', productName: 'ספר פנטזיה', pages: 20, priceILS: 139, includes: [], bestFor: [] },
+    { id: 'bedtime', productName: 'ספר לילה טוב', pages: 10, priceILS: 59, includes: [], bestFor: [] },
+    { id: 'adventure', productName: 'הרפתקה אישית', pages: 15, priceILS: 79, includes: [], bestFor: [] },
+    { id: 'fantasy', productName: 'ספר פנטזיה', pages: 20, priceILS: 99, includes: [], bestFor: [] },
   ],
   styles: [],
   voices: [],
@@ -139,7 +140,8 @@ const WIZ = {
 };
 const COMMON = HE_CONTENT.common || { brand: '', tagline: '', navCta: '' };
 const PRODUCT_PACKAGES = WIZ.productPackages;
-const PRODUCT_PRICES = { bedtime: 79, adventure: 99, fantasy: 139 };
+// Must match backend/config/wizard.ts DIRECTION_PAGE_MAP — server is the source of truth.
+const PRODUCT_PRICES = { bedtime: 59, adventure: 79, fantasy: 99 };
 const PRODUCT_ICON_EMOJI = {
   book: '📖',
   audio: '🎧',
@@ -344,6 +346,8 @@ const state = {
   storyDirection: null, /* bedtime | adventure | fantasy */
   productId: null,
   priceILS: null,
+  /** Server-resolved {direction,pages,priceILS,source} from /api/wizard/product-truth. */
+  productTruth: null,
   style: null,
   styleSelected: false,
   audioEnabled: true,
@@ -670,13 +674,56 @@ function bindDraftFieldPersistListeners() {
 }
 
 function computeTotal() {
+  // Server-resolved truth wins — it reflects the story that will actually be served.
+  if (state.productTruth && typeof state.productTruth.priceILS === 'number') {
+    return { base: state.productTruth.priceILS, addons: 0, total: state.productTruth.priceILS };
+  }
   if (state.priceILS != null) {
     return { base: state.priceILS, addons: 0, total: state.priceILS };
   }
-  const base = state.storyDirection
-    ? PRICES.base[state.storyDirection] || PRICES.base.adventure
-    : 0;
+  // No silent fallback to another package's price — unknown direction shows 0
+  // until the user picks; the server rejects orders without a real direction.
+  const base = state.storyDirection ? PRICES.base[state.storyDirection] || 0 : 0;
   return { base, addons: 0, total: base };
+}
+
+/* ── SERVER PRODUCT TRUTH ───────────────────────────────────── */
+// Asks the server which direction/pages/price the chosen companion's story
+// actually has (e.g. a v3-approved binding forces bedtime/10/₪59). The server
+// is authoritative — the summary must match the book that will be generated.
+let productTruthFetchSeq = 0;
+async function syncProductTruthFromServer() {
+  const companionId = state.companionCharacterId || '';
+  const direction = state.storyDirection || '';
+  if (!companionId && !direction) return;
+  const seq = ++productTruthFetchSeq;
+  try {
+    const params = new URLSearchParams();
+    if (companionId) params.set('companionId', companionId);
+    if (direction) params.set('direction', direction);
+    const res = await fetch(`/api/wizard/product-truth?${params.toString()}`);
+    if (seq !== productTruthFetchSeq) return;
+    if (!res.ok) return; /* e.g. direction not chosen yet — server validates again at order time */
+    const truth = await res.json();
+    if (seq !== productTruthFetchSeq) return;
+    if (!truth || !VALID_STORY_DIRECTIONS.includes(truth.direction)) return;
+    state.productTruth = truth;
+    if (truth.direction !== state.storyDirection) {
+      // Story binding overrides the local choice (summary == served book).
+      applyProductSelection(truth.direction, { revealTotal: false });
+    }
+    state.priceILS = truth.priceILS;
+    if (state.currentStep === 8) {
+      renderProductCards();
+      refreshTotal();
+    } else if (state.currentStep === 9) {
+      buildSummary();
+      refreshTotal();
+    }
+    queueWizardSave();
+  } catch (_) {
+    /* network failure — order API still enforces the truth server-side */
+  }
 }
 
 /* ── STATIC DATA ─────────────────────────────────────────────── */
@@ -906,6 +953,7 @@ function renderCompanionCards() {
 
     btn.addEventListener('click', () => {
       state.companionCharacterId = c.id;
+      state.productTruth = null; /* re-resolve product truth for the new companion */
       const catalog = getTopicCatalog();
       if (catalog) {
         const resolved = catalog.resolveCategoryFromCompanionId(c.id);
@@ -1180,11 +1228,13 @@ function updateUI() {
   if (state.currentStep === 8) {
     renderProductCards();
     refreshTotal();
+    syncProductTruthFromServer();
   }
 
   if (state.currentStep === 9) {
     setText('s9Title', renderTemplate(WIZ.steps.s9.title, { name: resolveWizardChildName() }));
     buildSummary();
+    syncProductTruthFromServer();
   }
 
   const photoHint = document.getElementById('photo-reupload-hint');
@@ -2241,11 +2291,16 @@ function refreshTotal() {
 function buildSummary() {
   const { base, total } = computeTotal();
 
-  const productPkg =
-    PRODUCT_PACKAGES.find((d) => d.id === state.productId || d.id === state.storyDirection) ||
-    PRODUCT_PACKAGES[1];
+  // No fallback package — showing a product the customer didn't choose
+  // (and won't receive) is a trust bug. Server truth wins when available.
+  const summaryDirection =
+    state.productTruth?.direction || state.productId || state.storyDirection || null;
+  const productPkg = summaryDirection
+    ? PRODUCT_PACKAGES.find((d) => d.id === summaryDirection)
+    : null;
   const productName = productPkg?.productName || '';
-  const dirPages = productPkg?.pages ? `${productPkg.pages} עמודים` : '';
+  const pagesCount = state.productTruth?.pages ?? productPkg?.pages ?? null;
+  const dirPages = pagesCount ? `${pagesCount} עמודים` : '';
   const styleObj = ILLUSTRATION_STYLES.find((s) => s.id === state.style);
   const voiceObj = VOICES.find((v) => v.id === state.voice);
 
