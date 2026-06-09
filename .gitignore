@@ -50,6 +50,9 @@ scripts/test-audio*
 scripts/test-voice*
 scripts/check-voices*
 
+# Script run logs (never commit)
+scripts/*.log
+
 # Temp files
 zi*
 image-experiment-1/
