@@ -112,3 +112,51 @@ export interface PremiseExperimentRunResult {
   tournament: PremiseTournamentResult;
   stoppedAt: 'premise_complete' | 'error';
 }
+
+/** Phase 2 — scene-event spine (v3 schema). */
+export interface StorySpineV3 {
+  premiseId: string;
+  titleSeed: string;
+  oneLineHook: string;
+  childWant: string;
+  hiddenResilienceTool: string;
+  physicalProblem: string;
+  playSystem: string;
+  keyObjects: string[];
+  companionWrongHelp: string;
+  firstTryFail: string;
+  diniOverHelpAfterFirstFail: string;
+  secondTryFail: string;
+  childDiscovery: string;
+  braveChildAction: string;
+  bigReleasePayoff: string;
+  toneGuard: string;
+  oneSentenceEventChain: string;
+}
+
+/** Phase 2 — page-level scene events (v3 schema). */
+export interface PageBeatV3 {
+  page: number;
+  event: string;
+  childDoes: string;
+  companionDoes?: string;
+  whatChanges: string;
+  whatGetsFunnierOrHarder: string;
+  pageTurnReason: string;
+  visualAnchor: string;
+}
+
+export interface StructureHardFail {
+  code: string;
+  message: string;
+  page?: number;
+}
+
+export interface Phase2RunResult {
+  runDir: string;
+  premiseId: string;
+  pageCount: number;
+  spineHardFails: StructureHardFail[];
+  beatHardFails: StructureHardFail[];
+  stoppedAt: 'phase2_complete';
+}

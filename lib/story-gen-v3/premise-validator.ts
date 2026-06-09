@@ -50,6 +50,14 @@ function countHumorOpportunities(c: StoryPremiseCandidate): number {
 }
 
 function hasConcretePlayableObject(c: StoryPremiseCandidate): boolean {
+  const play = c.playSystem?.trim() ?? '';
+  if (play.length >= 12 && !ABSTRACT_OBJECT_RE.test(play)) {
+    const playConcrete =
+      /\b(draw|slide|game|hide|מרדף|קפיצ|משחק|מגלשה|מחבוא|ציור|ריצה|קערה|פופקורן|גרב|כנף|דלי|חול)\b/i.test(
+        play
+      );
+    if (playConcrete) return true;
+  }
   if (!c.keyObjects?.length) return false;
   const joined = c.keyObjects.join(' ').toLowerCase();
   if (ABSTRACT_OBJECT_RE.test(joined)) return false;
