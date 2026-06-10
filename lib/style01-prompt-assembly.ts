@@ -51,6 +51,14 @@ import {
   resolveStyle01StoryLocks,
   type Style01SceneClass,
 } from './style01-gptimage';
+import {
+  buildCompanionSizeVsChildLock,
+  buildMutualGazeInteractionLock,
+  buildPageExpressionLock,
+  buildStyle01CoverCompositionBlock,
+  buildStyle01CoverSceneDescription,
+  resolvePageSceneFidelityAddendum,
+} from './style01-visual-polish';
 
 export type Style01PromptAssemblyInput = {
   pageNumber: number;
@@ -79,6 +87,11 @@ export type Style01PromptAssemblyInput = {
   challengeCategory?: string | null;
   /** True ONLY when the storyboard explicitly chose a close_up shot; otherwise close-up wording is sanitized out of the scene. */
   explicitCloseUp?: boolean;
+  assetType?: 'page' | 'cover';
+  storyTitle?: string | null;
+  coverText?: string | null;
+  topicLabel?: string | null;
+  coverSceneHint?: string | null;
 };
 
 export type Style01PromptAssemblyResult = {
@@ -156,6 +169,31 @@ export function assembleStyle01Phase2Prompt(
     recurringObjectCatalog: storyLocks.recurringObjectCatalog,
     recurringEntityCatalog: storyLocks.recurringEntityCatalog,
   });
+
+  const isCover = input.assetType === 'cover';
+  if (
+    isCover &&
+    (input.childStructured?.face?.trim() || input.childDescription?.trim())
+  ) {
+    if (entityPresence.childPresence === 'absent') {
+      entityPresence = {
+        ...entityPresence,
+        childPresence: 'present',
+        forbiddenEntities: entityPresence.forbiddenEntities.filter(
+          (key) =>
+            ![
+              'human child',
+              'young boy',
+              'young girl',
+              'kid',
+              'toddler',
+              'human protagonist',
+              'realistic child portrait',
+            ].includes(key)
+        ),
+      };
+    }
+  }
 
   if (compositionSpec && compositionAssumesChildPresent(compositionSpec)) {
     if (entityPresence.childPresence === 'absent') {
@@ -331,12 +369,14 @@ export function assembleStyle01Phase2Prompt(
     entityPresence.childPresence === 'partial' ||
     entityPresence.childPresence === 'background';
 
-  const compositionBlock = buildStyle01CompositionBlock({
-    pageNumber: input.pageNumber,
-    imageDirection,
-    compositionByPage: storyLocks.compositionByPage,
-    childOnPage,
-  });
+  const compositionBlock = isCover
+    ? buildStyle01CoverCompositionBlock()
+    : buildStyle01CompositionBlock({
+        pageNumber: input.pageNumber,
+        imageDirection,
+        compositionByPage: storyLocks.compositionByPage,
+        childOnPage,
+      });
 
   const entityPresenceBlock = buildStyle01EntityPresenceBlock({
     childPresence: entityPresence.childPresence,
@@ -344,11 +384,45 @@ export function assembleStyle01Phase2Prompt(
     forbiddenEntities: forbiddenMerged,
   });
 
+  const pageExpressionLock = isCover
+    ? undefined
+    : buildPageExpressionLock({
+        pageNumber: input.pageNumber,
+        companionId: input.companion?.id,
+        childPresence: entityPresence.childPresence,
+      });
+  const mutualGazeLock = isCover
+    ? undefined
+    : buildMutualGazeInteractionLock({
+        bookPageText: input.bookPageText,
+        imageDirection,
+        childPresence: entityPresence.childPresence,
+      });
+  const companionSizeLock = buildCompanionSizeVsChildLock({
+    childPresence: entityPresence.childPresence,
+    companionPresence: entityPresence.companionPresence,
+  });
+  const sceneFidelityAddendum = isCover
+    ? ''
+    : resolvePageSceneFidelityAddendum({
+        companionId: input.companion?.id,
+        pageNumber: input.pageNumber,
+      });
+
   // Story-bank imageDirection may still mention obsolete clothing; composition staging + wardrobe lock win.
-  const sceneDescription =
-    input.companion?.id === 'dragon_dini' && compositionSpec?.staging?.trim()
+  let sceneDescription = isCover
+    ? buildStyle01CoverSceneDescription({
+        storyTitle: input.storyTitle,
+        coverText: input.coverText,
+        topicLabel: input.topicLabel,
+        coverSceneHint: input.coverSceneHint ?? imageDirection,
+      })
+    : input.companion?.id === 'dragon_dini' && compositionSpec?.staging?.trim()
       ? compositionSpec.staging.trim()
       : imageDirection;
+  if (sceneFidelityAddendum) {
+    sceneDescription = `${sceneFidelityAddendum}\n\n${sceneDescription}`;
+  }
 
   const prompt = buildStyle01BookPagePrompt({
     sceneDescription,
@@ -365,6 +439,10 @@ export function assembleStyle01Phase2Prompt(
     compositionBlock,
     entityPresenceBlock,
     useCanonicalChildAnchorRef: input.useCanonicalChildAnchorRef,
+    isCover,
+    pageExpressionLock,
+    mutualGazeLock,
+    companionSizeLock,
   });
 
   const sceneClass = classifyStyle01SceneClass({

@@ -223,6 +223,82 @@ describe('COMPANION LOCK source — registry visualDescription ONLY for registry
   });
 });
 
+describe('visual polish — smoke #2 brief (cover locks, expression, gaze, size, p1 fidelity)', () => {
+  const childStructured = {
+    face: 'Oval face shape, light olive skin tone. Almond-shaped brown eyes. Prominent cheeks.',
+    hair: 'Long, light brown curly hair that falls past the shoulders.',
+    body: 'Build and height appropriate for a 7-year-old girl.',
+    clothing: 'sky-blue t-shirt with yellow sun, denim shorts, red sneakers',
+    signature: 'prominent cheek',
+  };
+
+  it('cover assembly includes full child locks + cover composition (not interior framing)', () => {
+    const { prompt, entityPresence } = assembleStyle01Phase2Prompt({
+      pageNumber: 0,
+      assetType: 'cover',
+      storyTitle: 'האוזניים של בּוּנִי־אומץ',
+      coverText: 'hook',
+      topicLabel: 'טיפולים רפואיים',
+      coverSceneHint: 'child and bunny in clinic waiting room',
+      childFirstName: 'יובל',
+      childAge: 7,
+      childGender: 'girl',
+      childStructured,
+      challengeCategory: 'MEDICAL_PROCEDURE',
+      companion: { id: 'bunny_ometz', name: 'הארנבון בּוּנִי', visualDescription: 'cream-white bunny' },
+    });
+    expect(entityPresence.childPresence).toBe('present');
+    expect(prompt).toMatch(/CHILD VISUAL LOCK/);
+    expect(prompt).toMatch(/BOOK WARDROBE LOCK/);
+    expect(prompt).toMatch(/CHILD ANATOMICAL LOCK/);
+    expect(prompt).toMatch(/COVER COMPOSITION/);
+    expect(prompt).toMatch(/TITLE-SAFE BAND/);
+    expect(prompt).not.toMatch(/FRAMING RULE — BREATHE/);
+    expect(prompt).toMatch(/COMPANION SIZE vs CHILD/);
+    expect(prompt).toMatch(/25–35%/);
+    expect(prompt).toMatch(/SCENARIO SETTING LOCK/);
+    expect(prompt).toMatch(/pediatric clinic/);
+  });
+
+  it('p1 carries PAGE EXPRESSION, scene fidelity, and companion size lock', () => {
+    const { prompt } = assembleStyle01Phase2Prompt({
+      pageNumber: 1,
+      rawScenePrompt: BUNNY_P1_IMAGE_DIRECTION,
+      bookPageText: BUNNY_P1_TEXT,
+      childFirstName: 'יובל',
+      childAge: 7,
+      childGender: 'girl',
+      childStructured,
+      challengeCategory: 'MEDICAL_PROCEDURE',
+      companion: { id: 'bunny_ometz', name: 'הארנבון בּוּנִי', visualDescription: 'cream-white bunny' },
+    });
+    expect(prompt).toMatch(/PAGE EXPRESSION:.*curious and slightly nervous/i);
+    expect(prompt).toMatch(/PAGE SCENE FIDELITY/);
+    expect(prompt).toMatch(/INSIDE the clinic room/);
+    expect(prompt).toMatch(/Do NOT hide Bunny behind the door/);
+    expect(prompt).toMatch(/COMPANION SIZE vs CHILD/);
+    expect(prompt).toMatch(/SCENE INTERACTION \/ GAZE/);
+  });
+
+  it('p6 carries brave-uncertainty expression and mutual gaze for thermometer beat', () => {
+    const { prompt } = assembleStyle01Phase2Prompt({
+      pageNumber: 6,
+      rawScenePrompt: 'nurse leaning in with thermometer, child hand slightly forward',
+      bookPageText:
+        'האחות מתקרבת עם המדחום. יובל מזיזה יד קטנה קדימה, כמו אוזן במשחק, סימן סודי לעצמה.',
+      childFirstName: 'יובל',
+      childAge: 7,
+      childGender: 'girl',
+      childStructured,
+      challengeCategory: 'MEDICAL_PROCEDURE',
+      companion: { id: 'bunny_ometz', name: 'הארנבון בּוּנִי', visualDescription: 'cream-white bunny' },
+    });
+    expect(prompt).toMatch(/PAGE EXPRESSION:.*NOT a broad smile/i);
+    expect(prompt).toMatch(/SCENE INTERACTION \/ GAZE/);
+    expect(prompt).toMatch(/NOT at the camera/);
+  });
+});
+
 describe('missing companion sheet — fail loudly (no weak fallbacks)', () => {
   it('throws for a sheet-less companion (turtle_beiti) by default', () => {
     delete process.env[ENV_KEY];

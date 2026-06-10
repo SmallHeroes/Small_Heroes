@@ -411,6 +411,11 @@ export interface ImageInput {
     coloring: string;
     feature: string;
   };
+  /** Cover assembly — Style 01 cover scene fields (same locks as interior pages). */
+  storyTitle?: string | null;
+  coverText?: string | null;
+  topicLabel?: string | null;
+  coverSceneHint?: string | null;
   /** High-res GPT Image sizing (square) + optional upscale path when PDF add-on purchased. */
   printPdfOptimized?: boolean;
   /** Phase 2 Style 02 — verbatim per-book locks (identical bytes every page). */
@@ -589,6 +594,9 @@ export interface CoverImageInput {
   childStructured?: { face: string; hair: string; body: string; clothing: string; signature: string };
   /** Structured companion identity for cover. */
   companionStructured?: { species: string; size: string; coloring: string; feature: string };
+  childAge?: number | null;
+  childGender?: string | null;
+  coverSceneHint?: string;
   /** Larger square GPT renders for קובץ מוכן להדפסה. */
   printPdfOptimized?: boolean;
 }
@@ -3078,6 +3086,11 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     challengeCategory: input.challengeCategory ?? null,
     // Close-up wording survives ONLY when the storyboard explicitly chose close_up.
     explicitCloseUp: input.pageStoryboard?.shotType === 'close_up',
+    assetType: input.assetType,
+    storyTitle: input.storyTitle,
+    coverText: input.coverText,
+    topicLabel: input.topicLabel,
+    coverSceneHint: input.coverSceneHint,
   });
 
   const {
@@ -3610,7 +3623,8 @@ function buildCoverPrompt(input: CoverImageInput): string {
 export async function generateBookCover(input: CoverImageInput): Promise<GeneratedImage> {
   assertShippedBookStyleEngineActive(input.illustrationStyle);
 
-  const pagePrompt = buildCoverPrompt(input);
+  const useStyle01 = shouldUseStyle01Phase2Path(input.illustrationStyle);
+  const pagePrompt = useStyle01 ? '' : buildCoverPrompt(input);
   return generateImage({
     pagePrompt,
     illustrationStyle: input.illustrationStyle,
@@ -3623,6 +3637,14 @@ export async function generateBookCover(input: CoverImageInput): Promise<Generat
     totalPages: 1,
     assetType: 'cover',
     childFirstName: input.childName,
+    childAge: input.childAge,
+    childGender: input.childGender,
+    childStructured: input.childStructured,
+    companionStructured: input.companionStructured,
+    storyTitle: input.storyTitle,
+    coverText: input.coverText,
+    topicLabel: input.topicLabel,
+    coverSceneHint: input.coverSceneHint,
     // Cover shares the SAME reference-assembly path as pages: companion id+image
     // let the style01 path resolve the published character sheet for the cover too.
     companion: (input.companion ?? null) as unknown as ImageInput['companion'],
@@ -3637,8 +3659,9 @@ export async function generateBookCover(input: CoverImageInput): Promise<Generat
       background: 'full',
       emotion: 'calm',
     },
-    compositionRules:
-      'Cover composition only: keep title-safe area in top 25-40% calm and uncluttered; focal subject in lower-mid area with strong silhouette; avoid centered symmetry and avoid cropped head/hands.',
+    compositionRules: useStyle01
+      ? undefined
+      : 'Cover composition only: keep title-safe area in top 25-40% calm and uncluttered; focal subject in lower-mid area with strong silhouette; avoid centered symmetry and avoid cropped head/hands.',
     printPdfOptimized: input.printPdfOptimized,
   });
 }

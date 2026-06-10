@@ -189,6 +189,14 @@ async function main() {
   push(`- adversarial DNA replayed from failed cache: \`${contaminatedDNA.slice(0, 90)}…\``);
   push();
 
+  const childStructured = {
+    face: 'Oval face shape, light olive skin tone. Almond-shaped brown eyes. Prominent cheeks.',
+    hair: 'Long, light brown curly hair that falls past the shoulders.',
+    body: 'Build and height appropriate for a 7-year-old girl.',
+    clothing: 'sky-blue t-shirt with yellow sun, denim shorts, red sneakers',
+    signature: 'prominent cheek',
+  };
+
   const assembleFor = (input: {
     pageNumber: number;
     rawScenePrompt?: string | null;
@@ -197,6 +205,7 @@ async function main() {
     imageSubject?: string | null;
     isLetter?: boolean;
     label: string;
+    assetType?: 'page' | 'cover';
   }) => {
     const layout = deriveLayout({
       pageNumber: input.pageNumber,
@@ -224,6 +233,12 @@ async function main() {
       childAge: order.childAge,
       childGender: order.childGender,
       childDescription: '(child DNA generated at render — placeholder)',
+      childStructured,
+      assetType: input.assetType,
+      storyTitle: input.assetType === 'cover' ? story.title : undefined,
+      coverText: input.assetType === 'cover' ? story.coverText : undefined,
+      topicLabel: input.assetType === 'cover' ? (order.topic ?? 'MEDICAL_PROCEDURE') : undefined,
+      coverSceneHint: input.assetType === 'cover' ? story.coverSceneHint : undefined,
       companion: {
         id: companion.id,
         name: companion.name,
@@ -273,6 +288,7 @@ async function main() {
       imagePrompt: story.coverSceneHint ?? story.pages[0]?.imagePrompt ?? '',
       bookPageText: story.title,
       label: 'cover',
+      assetType: 'cover' as const,
     },
     ...MANIFEST_PAGES.map((n) => {
       const p = story.pages.find((sp) => sp.pageNumber === n);
@@ -327,6 +343,31 @@ async function main() {
     );
     const settingOk = /SCENARIO SETTING LOCK/.test(prompt) && /pediatric clinic/i.test(prompt);
     check(`C5b-${label}`, `[${label}] scenarioSettingLock (clinic) present`, settingOk, settingOk ? 'present' : 'MISSING');
+
+    // P-series: smoke #2 visual-polish lines
+    if (label === 'cover') {
+      const coverLocks =
+        /CHILD VISUAL LOCK/.test(prompt) &&
+        /BOOK WARDROBE LOCK/.test(prompt) &&
+        /CHILD ANATOMICAL LOCK/.test(prompt) &&
+        /COVER COMPOSITION/.test(prompt);
+      check(`P1-${label}`, `[${label}] full child locks + cover composition`, coverLocks, coverLocks ? 'present' : 'MISSING');
+    }
+    if (label === 'p1') {
+      const p1Polish =
+        /PAGE EXPRESSION:.*curious and slightly nervous/i.test(prompt) &&
+        /PAGE SCENE FIDELITY/.test(prompt) &&
+        /INSIDE the clinic room/.test(prompt);
+      check(`P2-${label}`, `[${label}] PAGE EXPRESSION + p1 scene fidelity`, p1Polish, p1Polish ? 'present' : 'MISSING');
+    }
+    if (label === 'p6') {
+      const p6Polish =
+        /PAGE EXPRESSION:.*NOT a broad smile/i.test(prompt) &&
+        /SCENE INTERACTION \/ GAZE/.test(prompt);
+      check(`P3-${label}`, `[${label}] brave expression + mutual gaze`, p6Polish, p6Polish ? 'present' : 'MISSING');
+    }
+    const sizeOk = /COMPANION SIZE vs CHILD/.test(prompt) && /25–35%/.test(prompt);
+    check(`P4-${label}`, `[${label}] companion size anchor (registry + prompt line)`, sizeOk, sizeOk ? 'present' : 'MISSING');
 
     push(`## ${label === 'cover' ? 'Cover' : `Page ${t.pageNumber}`}`);
     push();

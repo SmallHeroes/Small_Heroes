@@ -841,13 +841,21 @@ export function buildStyle01BookPagePrompt(input: {
   entityPresenceBlock?: string;
   /** True when images.edit ref[0] is the order canonical anchor PNG (not raw photo). */
   useCanonicalChildAnchorRef?: boolean;
+  /** Cover uses COVER COMPOSITION instead of interior FRAMING RULE. */
+  isCover?: boolean;
+  pageExpressionLock?: string;
+  mutualGazeLock?: string;
+  companionSizeLock?: string;
 }): string {
   return [
     input.sceneDescription.trim(),
     input.entityPresenceBlock ?? '',
     input.compositionBlock ?? '',
     input.environmentLock ?? '',
-    STYLE_01_FRAMING_RULE,
+    input.pageExpressionLock ?? '',
+    input.mutualGazeLock ?? '',
+    input.companionSizeLock ?? '',
+    input.isCover ? '' : STYLE_01_FRAMING_RULE,
     STYLE_01_SHARED,
     STYLE_01_RENDERING_CORRECTION,
     input.recurringObjectLocks ?? '',

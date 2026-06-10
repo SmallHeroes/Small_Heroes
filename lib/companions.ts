@@ -362,7 +362,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
       image: '/companions/GENERAL_FEARS/bunny_ometz.jpg',
       narrativeHook: 'להיות פחדן לא אומר שאתה לא אמיץ',
       visualDescription:
-        'A small soft bunny with long floppy ears, wide uncertain eyes that are also brave, and a tiny heart-shaped badge pinned to the chest; fur is cream-white with a blush on the cheeks; looks vulnerable but standing tall.',
+        'A small soft bunny with long floppy ears, wide uncertain eyes that are also brave, and a tiny heart-shaped badge pinned to the chest; fur is cream-white with a blush on the cheeks; looks vulnerable but standing tall. Small companion — roughly 25–35% of the child\'s standing height (about knee to mid-thigh beside the child). Never waist-high. Never toddler-sized.',
     },
   ],
   OTHER: [],
