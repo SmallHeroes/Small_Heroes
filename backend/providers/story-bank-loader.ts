@@ -872,9 +872,11 @@ ${pagesBlock}`;
  * so every page renders a child who actually resembles the user's real child.
  */
 const CHILD_PHOTO_VISION_SYSTEM_PROMPT =
-  "You are a children's book illustrator describing a real child's appearance so that another illustrator can draw a cartoon version that clearly resembles them. Be specific about facial features that are recognizable. Never describe emotions, expressions, or clothing — only stable physical features.";
+  "You are a children's book illustrator describing a real child's appearance so that another illustrator can draw a cartoon version that clearly resembles them. Be specific about facial features that are recognizable. Never describe emotions, expressions, or clothing — only stable physical features. If the photo contains more than one person, describe ONLY the most prominent / foreground child and completely ignore any background people or faces.";
 
 const CHILD_PHOTO_VISION_USER_PROMPT = `Look at this photo of a child and describe their PHYSICAL APPEARANCE for a children's-book illustrator who needs to draw a cartoon version that clearly looks like THIS specific child.
+
+IMPORTANT: if more than one person appears in the photo, describe ONLY the most prominent / foreground child (the largest, clearest face). Ignore any background people or partial faces entirely — they are not the subject.
 
 Describe in 40-60 words, covering ONLY:
 - Face shape (round, oval, heart-shaped)

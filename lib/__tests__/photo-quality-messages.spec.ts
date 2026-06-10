@@ -5,20 +5,19 @@
 import { describe, expect, it } from 'vitest';
 import { hebrewPhotoMessage } from '../photo-quality-messages';
 
+const MSG_MULTI =
+  'יש בתמונה כמה פנים בולטות ולא ברור מי הגיבור/ה — צריך תמונה שבה הילד/ה במרכז וברור.';
+
 describe('hebrewPhotoMessage', () => {
-  it('checkout gate multi-face code → "more than one face" message', () => {
-    expect(hebrewPhotoMessage(['face_count_not_exactly_one'], { faceCount: 3 })).toBe(
-      'בתמונה יש יותר מפנים אחד — צריך תמונה של הילד/ה לבד.'
-    );
+  it('multiple_faces_no_dominant (the only multi-face code the gates emit) → dominant-face message', () => {
+    expect(hebrewPhotoMessage(['multiple_faces_no_dominant'])).toBe(MSG_MULTI);
   });
 
-  it('upload analyzer multi-face code maps to the same message', () => {
-    expect(hebrewPhotoMessage(['multiple_faces_no_dominant'])).toBe(
-      'בתמונה יש יותר מפנים אחד — צריך תמונה של הילד/ה לבד.'
-    );
+  it('legacy face_count_not_exactly_one (old stored wizard states) maps to the same message', () => {
+    expect(hebrewPhotoMessage(['face_count_not_exactly_one'], { faceCount: 3 })).toBe(MSG_MULTI);
   });
 
-  it('face_count_not_exactly_one with zero faces → no-face message, not multi-face', () => {
+  it('legacy face_count_not_exactly_one with zero faces → no-face message, not multi-face', () => {
     expect(hebrewPhotoMessage(['face_count_not_exactly_one'], { faceCount: 0 })).toBe(
       'לא זוהו פנים בתמונה — נסו תמונה ברורה של הפנים.'
     );
@@ -37,9 +36,7 @@ describe('hebrewPhotoMessage', () => {
   });
 
   it('face-count problems outrank blur (most actionable first)', () => {
-    expect(hebrewPhotoMessage(['low_sharpness', 'face_count_not_exactly_one'], { faceCount: 2 })).toBe(
-      'בתמונה יש יותר מפנים אחד — צריך תמונה של הילד/ה לבד.'
-    );
+    expect(hebrewPhotoMessage(['low_sharpness', 'multiple_faces_no_dominant'])).toBe(MSG_MULTI);
   });
 
   it('no codes → null (nothing to show)', () => {

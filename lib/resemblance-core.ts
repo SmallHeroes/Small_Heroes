@@ -50,6 +50,8 @@ type ImageStats = {
   sharpness: number;
   faceCount: number;
   faceAreaRatio: number;
+  /** All detected face-blob area ratios, sorted descending. */
+  faceRatios: number[];
   faceDetectConfidence: number;
   width: number;
   height: number;
@@ -197,7 +199,11 @@ function isLikelySkinPixel(r: number, g: number, b: number): boolean {
   return r > 80 && g > 40 && b > 20 && r > g && r > b && Math.abs(r - g) > 10;
 }
 
-function detectFaceLikeBlobs(rgb: Buffer, width: number, height: number): { faceCount: number; largestRatio: number } {
+function detectFaceLikeBlobs(
+  rgb: Buffer,
+  width: number,
+  height: number
+): { faceCount: number; largestRatio: number; ratios: number[] } {
   const area = width * height;
   const minBlobArea = Math.max(40, Math.floor(area * 0.01));
   const mask = new Uint8Array(area);
@@ -211,6 +217,7 @@ function detectFaceLikeBlobs(rgb: Buffer, width: number, height: number): { face
   const queue = new Int32Array(area);
   let components = 0;
   let largest = 0;
+  const blobAreas: number[] = [];
   for (let start = 0; start < area; start++) {
     if (!mask[start] || visited[start]) continue;
     let head = 0;
@@ -239,12 +246,14 @@ function detectFaceLikeBlobs(rgb: Buffer, width: number, height: number): { face
     }
     if (count >= minBlobArea) {
       components++;
+      blobAreas.push(count);
       if (count > largest) largest = count;
     }
   }
   return {
     faceCount: components,
     largestRatio: largest / area,
+    ratios: blobAreas.map((count) => count / area).sort((a, b) => b - a),
   };
 }
 
@@ -351,10 +360,44 @@ async function computeImageStats(url: string): Promise<ImageStats> {
     sharpness,
     faceCount: faceBlobs.faceCount,
     faceAreaRatio: faceBlobs.largestRatio,
+    faceRatios: faceBlobs.ratios,
     faceDetectConfidence,
     width,
     height,
   };
+}
+
+/**
+ * Shared dominant-face rule — ONE rule for the upload analyzer AND the
+ * checkout gate. A photo passes the face-count check when there is one
+ * clearly dominant face; small/background faces are invisible to the user.
+ *
+ * Thresholds (owner-locked 2026-06-10, do not tune silently):
+ *  - counted face: ratio ≥ 0.012 of image
+ *  - comparable secondary: ratio ≥ 0.02
+ *  - dominance: dominant ≥ 0.04 AND dominant/secondary ≥ 1.45
+ */
+export function resolveEffectiveFace(faceRatios: number[]): {
+  faceCount: number;
+  dominantFaceRatio: number;
+  secondaryComparableRatio: number;
+  hasDominant: boolean;
+} {
+  const minCountedFaceRatio = 0.012;
+  const minSecondaryComparableRatio = 0.02;
+  const dominantRatioMin = 1.45;
+  const counted = faceRatios
+    .filter((ratio) => ratio >= minCountedFaceRatio)
+    .sort((a, b) => b - a);
+  const dominantFaceRatio = counted[0] ?? 0;
+  const secondaryComparableRatio =
+    counted.find((ratio, idx) => idx > 0 && ratio >= minSecondaryComparableRatio) ?? 0;
+  const faceCount = counted.length;
+  const hasDominant =
+    faceCount <= 1 ||
+    secondaryComparableRatio <= 0 ||
+    (dominantFaceRatio >= 0.04 && dominantFaceRatio / secondaryComparableRatio >= dominantRatioMin);
+  return { faceCount, dominantFaceRatio, secondaryComparableRatio, hasDominant };
 }
 
 export async function evaluatePhotoGate(photoUrl: string): Promise<{
@@ -367,26 +410,30 @@ export async function evaluatePhotoGate(photoUrl: string): Promise<{
   brightness: number;
 }> {
   const stats = await computeImageStats(photoUrl);
+  const face = resolveEffectiveFace(stats.faceRatios);
   const reasons: string[] = [];
-  if (stats.faceCount !== 1) reasons.push('face_count_not_exactly_one');
-  if (stats.faceAreaRatio < 0.06) reasons.push('face_area_too_small');
+  // Dominant-face rule (shared with the upload analyzer): one clearly dominant
+  // face passes; several comparable faces fail; zero faces fail.
+  if (face.faceCount === 0) reasons.push('no_face_detected');
+  else if (!face.hasDominant) reasons.push('multiple_faces_no_dominant');
+  if (face.dominantFaceRatio < 0.06) reasons.push('face_area_too_small');
   if (stats.sharpness < 30) reasons.push('sharpness_too_low');
   if (stats.brightness < 45 || stats.brightness > 215) reasons.push('brightness_out_of_range');
   const passed = reasons.length === 0;
 
   let inputStrength: InputPhotoStrength = 'strong';
-  if (stats.faceAreaRatio < 0.1 || stats.sharpness < 80 || stats.brightness < 60 || stats.brightness > 190) {
+  if (face.dominantFaceRatio < 0.1 || stats.sharpness < 80 || stats.brightness < 60 || stats.brightness > 190) {
     inputStrength = 'adequate';
   }
-  if (stats.faceAreaRatio < 0.08 || stats.sharpness < 50 || stats.brightness < 55 || stats.brightness > 205) {
+  if (face.dominantFaceRatio < 0.08 || stats.sharpness < 50 || stats.brightness < 55 || stats.brightness > 205) {
     inputStrength = 'weak';
   }
   return {
     passed,
     inputStrength,
     reasons,
-    faceCount: stats.faceCount,
-    faceAreaRatio: stats.faceAreaRatio,
+    faceCount: face.faceCount,
+    faceAreaRatio: face.dominantFaceRatio,
     sharpness: stats.sharpness,
     brightness: stats.brightness,
   };
@@ -410,13 +457,7 @@ function classifyPhotoFromMetrics(params: {
   sharpness: number;
   brightness: number;
 }): PhotoAnalysisResult {
-  const minCountedFaceRatio = 0.012;
-  const minSecondaryComparableRatio = 0.02;
-  const dominantRatioMin = 1.45;
-  const countedFaces = params.faceRatios.filter((ratio) => ratio >= minCountedFaceRatio);
-  const dominantFaceRatio = countedFaces[0] ?? 0;
-  const secondaryComparable = countedFaces.find((ratio, idx) => idx > 0 && ratio >= minSecondaryComparableRatio) ?? 0;
-  const faceCount = countedFaces.length;
+  const { faceCount, dominantFaceRatio, hasDominant } = resolveEffectiveFace(params.faceRatios);
 
   const reasonCodes: string[] = [];
   if (faceCount === 0) {
@@ -430,16 +471,10 @@ function classifyPhotoFromMetrics(params: {
     };
   }
 
-  const hasDominant =
-    faceCount === 1 ||
-    secondaryComparable <= 0 ||
-    (dominantFaceRatio >= 0.04 && dominantFaceRatio / secondaryComparable >= dominantRatioMin);
+  // Dominant-face rule: one clearly dominant face passes — small/background
+  // faces are invisible to the user (no warning, no block). Only several
+  // comparable faces block.
   if (!hasDominant) reasonCodes.push('multiple_faces_no_dominant');
-
-  // The checkout PhotoGate requires EXACTLY one face (personalization anchors
-  // on a single child). Flag it here so the parent fixes the photo at the
-  // upload step instead of being blocked at checkout.
-  if (faceCount > 1) reasonCodes.push('face_count_not_exactly_one');
 
   if (dominantFaceRatio < 0.04) reasonCodes.push('face_too_small_critical');
   else if (dominantFaceRatio < 0.06) reasonCodes.push('face_too_small');
@@ -448,10 +483,8 @@ function classifyPhotoFromMetrics(params: {
   if (params.sharpness < 14) reasonCodes.push('low_sharpness');
   if (params.brightness < 35) reasonCodes.push('low_brightness');
 
-  const blocked =
-    faceCount > 1 || !hasDominant || dominantFaceRatio < 0.04 || params.sharpness < 14;
+  const blocked = !hasDominant || dominantFaceRatio < 0.04 || params.sharpness < 14;
   const warning =
-    faceCount > 1 ||
     dominantFaceRatio < 0.12 ||
     params.sharpness < 22 ||
     params.brightness < 35;

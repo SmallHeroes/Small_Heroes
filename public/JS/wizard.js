@@ -188,8 +188,9 @@ const PHOTO_ANALYSIS_THRESHOLDS = {
 // server (the server's messageHe wins when /api/photo/analyze responds).
 const PHOTO_REASON_MESSAGES_HE = [
   {
-    codes: ['face_count_not_exactly_one', 'multiple_faces_no_dominant'],
-    message: 'בתמונה יש יותר מפנים אחד — צריך תמונה של הילד/ה לבד.',
+    // face_count_not_exactly_one is a legacy alias (old stored wizard states).
+    codes: ['multiple_faces_no_dominant', 'face_count_not_exactly_one'],
+    message: 'יש בתמונה כמה פנים בולטות ולא ברור מי הגיבור/ה — צריך תמונה שבה הילד/ה במרכז וברור.',
   },
   { codes: ['no_face_detected'], message: 'לא זוהו פנים בתמונה — נסו תמונה ברורה של הפנים.' },
   {
@@ -2028,10 +2029,10 @@ function classifyPhotoQuality(metrics) {
       reasonCodes: ['no_face_detected'],
     };
   }
+  // Dominant-face rule (matches the server gates): one clearly dominant face
+  // passes — background faces are invisible to the user. Only several
+  // comparable faces block.
   if (!metrics.hasDominantFace) reasonCodes.push('multiple_faces_no_dominant');
-  // Checkout PhotoGate requires EXACTLY one face — surface it here so the
-  // parent fixes the photo at the upload step, not at payment.
-  if (faceCount > 1) reasonCodes.push('face_count_not_exactly_one');
   if (metrics.dominantFaceRatio < PHOTO_ANALYSIS_THRESHOLDS.minBlockedFaceRatio) {
     reasonCodes.push('face_too_small_critical');
   } else if (metrics.dominantFaceRatio < PHOTO_ANALYSIS_THRESHOLDS.minWarningFaceRatio) {
@@ -2045,7 +2046,6 @@ function classifyPhotoQuality(metrics) {
   if (!metrics.brightness || metrics.brightness < 35) reasonCodes.push('low_brightness');
 
   const blocked =
-    faceCount > 1 ||
     !metrics.hasDominantFace ||
     metrics.dominantFaceRatio < PHOTO_ANALYSIS_THRESHOLDS.minBlockedFaceRatio ||
     metrics.sharpness < PHOTO_ANALYSIS_THRESHOLDS.minSharpnessWarning;
@@ -2060,7 +2060,6 @@ function classifyPhotoQuality(metrics) {
     };
   }
   const warning =
-    faceCount > 1 ||
     metrics.dominantFaceRatio < PHOTO_ANALYSIS_THRESHOLDS.minGoodFaceRatio ||
     metrics.sharpness < PHOTO_ANALYSIS_THRESHOLDS.minSharpnessGood;
   return {

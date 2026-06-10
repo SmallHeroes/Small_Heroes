@@ -67,7 +67,9 @@ export const STYLE_01_ANTI_STYLE02 =
   'NOT Style 02. NOT cinematic fantasy. NOT dense ink crosshatching. NOT dramatic spotlight noir. NOT semi-realistic portrait rendering.';
 
 export const STYLE_01_CHILD_PHOTO_IDENTITY_RULE =
-  'CHILD PHOTO (if attached): IDENTITY ONLY — face shape, hair, skin tone, age, gender. Render as soft hand-drawn watercolor storybook child — NEVER photoreal cutout. Outfit from WARDROBE LOCK and scene, never from photo.';
+  'CHILD PHOTO (if attached): IDENTITY ONLY — face shape, hair, skin tone, age, gender. ' +
+  'If the photo shows more than one person, anchor ONLY on the most prominent / foreground child; ignore background people or faces completely. ' +
+  'Render as soft hand-drawn watercolor storybook child — NEVER photoreal cutout. Outfit from WARDROBE LOCK and scene, never from photo.';
 
 /** When reference[0] is the per-order canonical child anchor (not the raw upload). */
 export const STYLE_01_CANONICAL_CHILD_ANCHOR_RULE =

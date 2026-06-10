@@ -290,6 +290,7 @@ function resolveEnvGPTQuality(): 'low' | 'medium' | 'high' {
 const REFERENCE_PHOTO_PREFIX = (
   '[REFERENCE PHOTO USAGE - CRITICAL]\n' +
   'The attached photo shows the REAL child who is the protagonist of this storybook page. ' +
+  'If more than one person appears in the photo, the protagonist is the most prominent / foreground child — ignore any background people or faces completely. ' +
   'Use the photo ONLY to anchor the child face: face shape, skin tone, hair color and length, ' +
   'eye shape and color, and any distinctive facial features (freckles, dimples, etc.). ' +
   'The rendered child MUST clearly look like the real child in the photo.\n' +
@@ -303,6 +304,7 @@ const REFERENCE_PHOTO_PREFIX = (
 const DUAL_REFERENCE_PREFIX = (
   '[REFERENCE IMAGES - CRITICAL]\n' +
   'Image 1: The REAL child protagonist. Use ONLY for face identity — face shape, skin tone, hair color/texture cues, eyes, distinctive features. ' +
+  'If more than one person appears, anchor ONLY on the most prominent / foreground child and ignore background people. ' +
   'DO NOT copy pose, outfit, lighting, or background from the photo.\n' +
   'Image 2: BOLLY the armadillo companion — the canonical Bolly design. Match his shell plate pattern, proportions, tan-brown coloring, and pink belly exactly on every page.\n' +
   'OUTFIT AND HAIRSTYLE: defined in BOOK WARDROBE LOCK below — they override any clothing visible in Image 1.\n' +

@@ -6,7 +6,8 @@
  * face_too_small…) and the checkout gate (face_count_not_exactly_one…).
  */
 
-const MSG_MULTIPLE_FACES = 'בתמונה יש יותר מפנים אחד — צריך תמונה של הילד/ה לבד.';
+const MSG_MULTIPLE_FACES =
+  'יש בתמונה כמה פנים בולטות ולא ברור מי הגיבור/ה — צריך תמונה שבה הילד/ה במרכז וברור.';
 const MSG_NO_FACE = 'לא זוהו פנים בתמונה — נסו תמונה ברורה של הפנים.';
 const MSG_FACE_TOO_SMALL = 'הפנים בתמונה קטנות מדי — נסו תמונה מקרוב יותר.';
 const MSG_FACE_SMALLISH = 'הפנים בתמונה קטנות יחסית — תמונה מקרוב תיתן תוצאה מדויקת יותר.';
@@ -15,9 +16,12 @@ const MSG_DARK = 'התמונה כהה מדי — נסו תמונה עם יותר
 const MSG_LIGHTING = 'התאורה בתמונה לא מתאימה — נסו תמונה עם אור טבעי ונעים.';
 const MSG_GENERIC = 'קשה לנו לעבוד עם התמונה הזו — נסו תמונה ברורה של הפנים של הילד/ה.';
 
-/** Ordered by what the parent should fix first. */
+/** Ordered by what the parent should fix first.
+ *  `face_count_not_exactly_one` is a LEGACY alias — the gates now emit only
+ *  `multiple_faces_no_dominant` (dominant-face rule), but old wizard states
+ *  persisted in localStorage may still carry the old code. */
 const REASON_PRIORITY: Array<{ codes: string[]; message: string }> = [
-  { codes: ['face_count_not_exactly_one', 'multiple_faces_no_dominant'], message: MSG_MULTIPLE_FACES },
+  { codes: ['multiple_faces_no_dominant', 'face_count_not_exactly_one'], message: MSG_MULTIPLE_FACES },
   { codes: ['no_face_detected'], message: MSG_NO_FACE },
   { codes: ['face_too_small_critical', 'face_area_too_small'], message: MSG_FACE_TOO_SMALL },
   { codes: ['face_too_small', 'face_borderline_size'], message: MSG_FACE_SMALLISH },
