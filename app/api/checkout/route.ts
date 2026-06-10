@@ -139,6 +139,21 @@ export async function POST(req: NextRequest) {
       addonLabels.length > 0 ? `תוספות: ${addonLabels.join(', ')}` : null,
     ].filter(Boolean);
 
+    // Photo is MANDATORY (v1): an order without a child photo must not reach
+    // payment — the product promise is a photo-personalized hero.
+    if (!order.childImageUrl) {
+      logger.warn('Checkout blocked: order has no child photo', { orderId });
+      return NextResponse.json(
+        {
+          error:
+            'כדי ליצור את הספר צריך תמונה אחת ברורה של הילד או הילדה. חזרו לשלב התמונה והעלו תמונה.',
+          reason: 'photo_required',
+          details: ['child_image_missing'],
+        },
+        { status: 422 }
+      );
+    }
+
     if (order.childImageUrl) {
       const photoGate = await evaluatePhotoGate(order.childImageUrl);
       if (!photoGate.passed) {

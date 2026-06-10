@@ -165,9 +165,9 @@ const PHOTO_QUALITY_STATUS = {
 const PHOTO_MSG_WARNING =
   'אפשר להמשיך ככה, אבל תמונה ברורה יותר תיתן תוצאה מדויקת יותר 🙏';
 const PHOTO_MSG_BLOCKED =
-  'קשה לזהות את הפנים בתמונה. אפשר להמשיך, אבל תמונה ברורה יותר תעזור לנו לדייק את הדמות 🙏';
+  'קשה לזהות את הפנים בתמונה — נסו תמונה ברורה יותר של הפנים 🙏';
 const PHOTO_MSG_NO_PHOTO_HELPER =
-  'תמונה ברורה של הפנים תעזור לנו ליצור דמות מדויקת יותר 😊';
+  'כדי שהילד/ה יהיו גיבורי הספר, העלו תמונה אחת ברורה של הפנים.';
 
 const PHOTO_QUALITY_COPY = {
   good: { title: 'תמונה טובה — נוכל לבנות ממנה דמות' },
@@ -1182,14 +1182,10 @@ function updateUI() {
   const bar        = document.getElementById("bottom-bar");
   const btn        = document.getElementById("btn-continue");
   const backBtn    = document.getElementById("btn-back");
-  const btnAnyway  = document.getElementById("btn-continue-anyway");
-  const photoReassure = document.getElementById("photo-step-reassure");
 
   if (bar && btn && backBtn) {
     if (state.currentStep <= 1 || state.currentStep === 9) {
       bar.classList.add("hidden");
-      if (btnAnyway) btnAnyway.hidden = true;
-      if (photoReassure) photoReassure.hidden = true;
     } else {
       bar.classList.remove("hidden");
 
@@ -1201,8 +1197,6 @@ function updateUI() {
           state.currentStep === 7  ? WIZ.nav.continueToSummary :
           WIZ.nav.continueDefault;
         btn.onclick = goNext;
-        if (btnAnyway) btnAnyway.hidden = true;
-        if (photoReassure) photoReassure.hidden = true;
         if (state.currentStep === 2) {
           btn.disabled = !state.companionCharacterId;
         } else if (state.currentStep === 5) {
@@ -1294,6 +1288,14 @@ function goNext() {
 
     if (!state.childName) {
       shake(document.getElementById("child-name"));
+      return;
+    }
+
+    // Photo is MANDATORY (v1): only a GOOD/WARNING photo passes step 3,
+    // even if goNext is triggered outside the bottom-bar button.
+    if (!state.photo || state.photoQuality?.status === PHOTO_QUALITY_STATUS.BLOCKED) {
+      shake(document.getElementById('photo-area'));
+      renderPhotoQualityMessage();
       return;
     }
   }
@@ -1846,47 +1848,34 @@ function renderPhotoUploadArea() {
 function updatePhotoStepBottomBar() {
   if (state.currentStep !== 3) return;
   const btn = document.getElementById('btn-continue');
-  const btnAnyway = document.getElementById('btn-continue-anyway');
-  const photoReassure = document.getElementById('photo-step-reassure');
   if (!btn) return;
 
   const st = state.photoQuality?.status;
   const hasPhoto = Boolean(state.photo);
+  const openPhotoPicker = () => {
+    const input = document.getElementById('photo-input');
+    if (input) input.click();
+  };
 
-  if (hasPhoto && st === PHOTO_QUALITY_STATUS.BLOCKED) {
-    // A blocked photo will not pass the checkout PhotoGate — block continuing
-    // WITH it: replace the photo, or explicitly continue without one.
-    btn.textContent = 'להחליף תמונה';
-    btn.onclick = () => {
-      const input = document.getElementById('photo-input');
-      if (input) input.click();
-    };
+  // Photo is MANDATORY (v1): no photo / blocked photo → the only action is
+  // uploading or replacing a photo. Continuing requires GOOD or WARNING.
+  if (!hasPhoto) {
+    btn.textContent = 'העלו תמונה כדי להמשיך';
+    btn.onclick = openPhotoPicker;
     btn.disabled = false;
-    if (btnAnyway) {
-      btnAnyway.hidden = false;
-      btnAnyway.textContent = 'להמשיך בלי תמונה';
-      btnAnyway.onclick = () => {
-        clearPhotoQualityState();
-        goNext();
-      };
-    }
-    if (photoReassure) photoReassure.hidden = false;
     return;
   }
 
-  btn.textContent = !hasPhoto
-    ? 'להמשיך בלי תמונה'
-    : st === PHOTO_QUALITY_STATUS.WARNING
-      ? 'להמשיך בכל זאת'
-      : 'ממשיכים';
+  if (st === PHOTO_QUALITY_STATUS.BLOCKED) {
+    btn.textContent = 'להחליף תמונה';
+    btn.onclick = openPhotoPicker;
+    btn.disabled = false;
+    return;
+  }
+
+  btn.textContent = st === PHOTO_QUALITY_STATUS.WARNING ? 'להמשיך בכל זאת' : 'ממשיכים';
   btn.onclick = goNext;
   btn.disabled = false;
-  if (btnAnyway) {
-    btnAnyway.hidden = true;
-  }
-  if (photoReassure) {
-    photoReassure.hidden = hasPhoto;
-  }
 }
 
 function clearPhotoQualityState() {
@@ -1943,7 +1932,7 @@ function renderPhotoQualityMessage() {
   box.innerHTML = `
     <div class="photo-quality-alert photo-quality-alert--blocked">
       <div class="photo-quality-alert-title">${reasonMessage || PHOTO_MSG_BLOCKED}</div>
-      <p class="photo-helper-text">אפשר להחליף לתמונה אחרת, או להמשיך בלי תמונה.</p>
+      <p class="photo-helper-text">אפשר להחליף לתמונה אחרת וננסה שוב.</p>
     </div>
   `;
   updatePhotoStepBottomBar();
