@@ -13,15 +13,17 @@ const WIZ_DEFAULTS = {
   avoid: [],
   lengths: [],
   // Prices must match the server pricing table (backend/config/wizard.ts DIRECTION_PAGE_MAP).
+  // Page numbers here = PHYSICAL pages for display ONLY (beats × 2; the engine
+  // generates 8/12/16 beats). Authoritative display value: productTruth.displayPages.
   directionPackages: [
-    { id: 'bedtime', label: 'סיפור לפני שינה', pagesLine: '10 עמודים', price: 59, priceILS: 59 },
-    { id: 'adventure', label: 'הרפתקה', pagesLine: '15 עמודים', price: 79, priceILS: 79 },
-    { id: 'fantasy', label: 'מסע פלאי', pagesLine: '20 עמודים', price: 99, priceILS: 99 },
+    { id: 'bedtime', label: 'סיפור לפני שינה', pagesLine: '16 עמודים', price: 59, priceILS: 59 },
+    { id: 'adventure', label: 'הרפתקה', pagesLine: '24 עמודים', price: 79, priceILS: 79 },
+    { id: 'fantasy', label: 'מסע פלאי', pagesLine: '32 עמודים', price: 99, priceILS: 99 },
   ],
   productPackages: [
-    { id: 'bedtime', productName: 'ספר לילה טוב', pages: 10, priceILS: 59, includes: [], bestFor: [] },
-    { id: 'adventure', productName: 'הרפתקה אישית', pages: 15, priceILS: 79, includes: [], bestFor: [] },
-    { id: 'fantasy', productName: 'ספר פנטזיה', pages: 20, priceILS: 99, includes: [], bestFor: [] },
+    { id: 'bedtime', productName: 'ספר לילה טוב', pages: 16, priceILS: 59, includes: [], bestFor: [] },
+    { id: 'adventure', productName: 'הרפתקה אישית', pages: 24, priceILS: 79, includes: [], bestFor: [] },
+    { id: 'fantasy', productName: 'ספר פנטזיה', pages: 32, priceILS: 99, includes: [], bestFor: [] },
   ],
   styles: [],
   voices: [],
@@ -372,7 +374,8 @@ const state = {
   storyDirection: null, /* bedtime | adventure | fantasy */
   productId: null,
   priceILS: null,
-  /** Server-resolved {direction,pages,priceILS,source} from /api/wizard/product-truth. */
+  /** Server-resolved {direction,pages(beats),displayPages,priceILS,source}
+   *  from /api/wizard/product-truth. UI renders displayPages ONLY. */
   productTruth: null,
   style: null,
   styleSelected: false,
@@ -2371,7 +2374,9 @@ function buildSummary() {
     ? PRODUCT_PACKAGES.find((d) => d.id === summaryDirection)
     : null;
   const productName = productPkg?.productName || '';
-  const pagesCount = state.productTruth?.pages ?? productPkg?.pages ?? null;
+  // PHYSICAL pages only — server-provided displayPages, never the beat count
+  // and never computed here. (productPkg.pages is already physical.)
+  const pagesCount = state.productTruth?.displayPages ?? productPkg?.pages ?? null;
   const dirPages = pagesCount ? `${pagesCount} עמודים` : '';
   const styleObj = ILLUSTRATION_STYLES.find((s) => s.id === state.style);
   const voiceObj = VOICES.find((v) => v.id === state.voice);

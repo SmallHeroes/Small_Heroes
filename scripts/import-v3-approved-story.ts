@@ -38,10 +38,12 @@ import { scanSuffixChipsInMarkdown } from '../lib/story-gen-v3/suffix-chip-scan'
 
 const V3_APPROVED_DIR = path.join(process.cwd(), 'story-bank', 'v3-approved');
 
+// Canonical BEAT counts (2026-06-10, goldens-aligned). One beat = one image +
+// one text block; customers see beats × 2 physical pages (display only).
 const PAGES_BY_DIRECTION: Record<string, number> = {
-  bedtime: 10,
-  adventure: 15,
-  fantasy: 20,
+  bedtime: 8,
+  adventure: 12,
+  fantasy: 16,
 };
 
 interface Approval {

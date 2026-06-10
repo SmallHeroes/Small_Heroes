@@ -59,10 +59,13 @@ export type PremiseFamily =
   | 'hidden_pattern'
   | 'other';
 
+// Canonical BEAT counts (2026-06-10, goldens-aligned): one beat = one
+// generated image + one text block. Customer-facing physical pages are
+// beats × 2 — display conversion only, never used by the engine.
 export const PAGE_COUNT_BY_DIRECTION: Record<StoryDirectionV3, number> = {
-  bedtime: 10,
-  adventure: 15,
-  fantasy: 20,
+  bedtime: 8,
+  adventure: 12,
+  fantasy: 16,
 };
 
 export interface GoldenPremiseRecord {

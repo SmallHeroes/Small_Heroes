@@ -26,7 +26,10 @@ export async function GET(request: Request) {
     });
     return NextResponse.json({
       direction: resolved.storyDirection,
+      // BEATS — generation units. UI must never render this number directly.
       pages: resolved.pages,
+      // PHYSICAL pages (beats × 2) — the only number the UI displays.
+      displayPages: resolved.displayPages,
       priceILS: resolved.priceILS,
       source: resolved.source,
     });

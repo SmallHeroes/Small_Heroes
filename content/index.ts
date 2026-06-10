@@ -5,6 +5,8 @@
  * (layout metadata, email templates, checkout labels).
  */
 
+import { DIRECTION_PAGE_MAP, displayPagesForBeats } from '../backend/config/wizard';
+
 // ── COMMON — used by app/layout.tsx ────────────────────────────────
 export const COMMON = {
   siteTitle:       'גיבורים קטנים — ספרי ילדים אישיים',
@@ -31,24 +33,32 @@ export function checkoutProductName(childName: string): string {
   return `ספר אישי עבור ${childName}`;
 }
 
+// Customer-facing page numbers = PHYSICAL pages (beats × 2), derived from the
+// canonical beat map via the single displayPagesForBeats() helper.
+function physicalPagesFor(direction: string): number {
+  return displayPagesForBeats(DIRECTION_PAGE_MAP[direction]?.pages ?? 0);
+}
+
 export function checkoutProductDescription(
   storyLength: string,
   storyDirection?: string | null
 ): string {
   const byDirection: Record<string, string> = {
-    bedtime: 'סיפור לפני שינה — 10 עמודים',
-    adventure: 'הרפתקה — 15 עמודים',
-    fantasy: 'מסע פלאי — 20 עמודים',
+    bedtime: `סיפור לפני שינה — ${physicalPagesFor('bedtime')} עמודים`,
+    adventure: `הרפתקה — ${physicalPagesFor('adventure')} עמודים`,
+    fantasy: `מסע פלאי — ${physicalPagesFor('fantasy')} עמודים`,
   };
   const dir = typeof storyDirection === 'string' ? storyDirection.trim().toLowerCase() : '';
   if (dir && byDirection[dir]) return byDirection[dir];
 
+  // Legacy lengths map to the same directions (a NEW checkout with a legacy
+  // session still receives a canonical-length book).
   const lengthLabel: Record<string, string> = {
-    short:  'סיפור לפני שינה — 10 עמודים',
-    medium: 'הרפתקה — 15 עמודים',
-    long:   'מסע פלאי — 20 עמודים',
+    short:  byDirection.bedtime,
+    medium: byDirection.adventure,
+    long:   byDirection.fantasy,
   };
-  return lengthLabel[storyLength] || '15 עמודים';
+  return lengthLabel[storyLength] || byDirection.adventure;
 }
 
 export const CHECKOUT_ADDONS = {

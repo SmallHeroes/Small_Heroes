@@ -15,7 +15,7 @@
 
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
-import { DIRECTION_PAGE_MAP } from '../config/wizard';
+import { DIRECTION_PAGE_MAP, displayPagesForBeats } from '../config/wizard';
 import {
   isV3ApprovedBankEnabled,
   selectCompanionStory,
@@ -50,8 +50,12 @@ export class StoryProductResolutionError extends Error {
 export type ResolvedStoryProduct = {
   storyDirection: StoryDirection;
   storyLength: 'short' | 'medium' | 'long';
-  /** Page count of the actual story that will be served (frontmatter truth). */
+  /** BEAT count of the actual story that will be served (frontmatter truth).
+   *  One beat = one generated image + one text block — drives generation. */
   pages: number;
+  /** PHYSICAL page count for customer display ONLY (beats × 2 — each beat is
+   *  a printed spread). NEVER feed this into generation. */
+  displayPages: number;
   /** Base price — always from DIRECTION_PAGE_MAP (the pricing table). */
   priceILS: number;
   source: 'v3_approved_binding' | 'companion_golden' | 'client_direction' | 'legacy_length';
@@ -87,12 +91,23 @@ function buildResolved(
       500
     );
   }
+  // Story frontmatter is the page-count truth (the serve path renders the
+  // file as-is); the table is the expected canonical default.
+  const pages = frontmatterPages ?? map.pages;
+  // Launch-routing guard: a non-golden/templated story whose beat count
+  // deviates from the canonical 8/12/16 must not silently enter launch
+  // routing — the displayed package would not match the served book.
+  if (frontmatterPages != null && frontmatterPages !== map.pages) {
+    console.warn(
+      `[story-product-resolver] story ${storyFile ?? '(unknown)'} declares pages=${frontmatterPages} ` +
+        `but canonical for ${direction} is ${map.pages} beats (source=${source}) — non-canonical story bound`
+    );
+  }
   return {
     storyDirection: direction,
     storyLength: DIRECTION_TO_STORY_LENGTH[direction],
-    // Story frontmatter is the page-count truth (the serve path renders the
-    // file as-is); the table is the expected default.
-    pages: frontmatterPages ?? map.pages,
+    pages,
+    displayPages: displayPagesForBeats(pages),
     priceILS: map.priceILS,
     source,
     ...(storyFile ? { storyFile } : {}),

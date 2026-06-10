@@ -282,7 +282,9 @@ export async function POST(req: NextRequest) {
       totalPrice: pricing.totalPrice,
       product: {
         direction: storyDirection,
+        // BEATS — generation units; UI renders displayPages only.
         pages,
+        displayPages: resolvedProduct.displayPages,
         basePrice: pricing.basePrice,
         source: resolvedProduct.source,
       },

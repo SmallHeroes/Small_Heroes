@@ -1,12 +1,14 @@
 /**
  * Order product source-of-truth: direction/pages/price must come from the
  * story that will actually be served — never from a silent fallback.
- * Acceptance (launch-blocker): forcing the Bunny v3 story → bedtime/10/₪59,
- * even when the client claims adventure/15/₪99.
+ * Acceptance (launch-blocker): forcing the Bunny v3 story → bedtime/8 beats/₪59,
+ * even when the client claims adventure.
+ * Canonical BEAT counts (2026-06-10): bedtime=8, adventure=12, fantasy=16;
+ * customer display = beats × 2 physical pages (displayPages).
  */
 import fs from 'fs';
 import path from 'path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   resolveStoryProductTruth,
@@ -40,9 +42,9 @@ describe('resolveStoryProductTruth', () => {
     else process.env.ENABLE_V3_APPROVED_BANK = originalFlag;
   });
 
-  it('ACCEPTANCE: bunny v3 binding overrides client adventure claim → bedtime/10/59', () => {
+  it('ACCEPTANCE: bunny v3 binding overrides client adventure claim → bedtime/8 beats/59 (display 16)', () => {
     process.env.ENABLE_V3_APPROVED_BANK = 'true';
-    if (createdFixture) writeBunnyFixture(10);
+    if (createdFixture) writeBunnyFixture(8);
 
     const resolved = resolveStoryProductTruth({
       companionId: 'bunny_ometz',
@@ -50,14 +52,15 @@ describe('resolveStoryProductTruth', () => {
     });
     expect(resolved.storyDirection).toBe('bedtime');
     expect(resolved.storyLength).toBe('short');
-    expect(resolved.pages).toBe(10);
+    expect(resolved.pages).toBe(8);
+    expect(resolved.displayPages).toBe(16);
     expect(resolved.priceILS).toBe(59);
     expect(resolved.source).toBe('v3_approved_binding');
   });
 
   it('flag OFF: v3-approved file is ignored, client direction resolves via companion golden', () => {
     delete process.env.ENABLE_V3_APPROVED_BANK;
-    if (createdFixture) writeBunnyFixture(10);
+    if (createdFixture) writeBunnyFixture(8);
 
     const resolved = resolveStoryProductTruth({
       companionId: 'bunny_ometz',
@@ -68,10 +71,10 @@ describe('resolveStoryProductTruth', () => {
     expect(resolved.source).toBe('companion_golden');
   });
 
-  it('v3 binding with mismatched pages frontmatter fails loudly (500)', () => {
+  it('v3 binding with mismatched pages frontmatter fails loudly (500) — old 10-beat bedtime rejected', () => {
     process.env.ENABLE_V3_APPROVED_BANK = 'true';
     if (!createdFixture) return; // never overwrite a real import
-    writeBunnyFixture(15);
+    writeBunnyFixture(10);
 
     expect(() =>
       resolveStoryProductTruth({ companionId: 'bunny_ometz', clientDirection: 'bedtime' })
@@ -98,9 +101,48 @@ describe('resolveStoryProductTruth', () => {
     expect(resolved.source).toBe('legacy_length');
   });
 
-  it('pages derive from the served story frontmatter when it deviates from the table', () => {
+  it('non-canonical frontmatter: pages follow the served story, dev warning fires (launch-routing guard)', () => {
     delete process.env.ENABLE_V3_APPROVED_BANK;
-    // dog_layla_adventure is one of the v5 files with pages=12 (frontmatter truth).
+    // Templated v5 adventure files with pages=15 (old rule) deviate from the
+    // new canonical 12 beats — they must resolve to their ACTUAL count and warn.
+    const v5Dir = path.join(
+      process.cwd(),
+      'story-bank',
+      (process.env.STORY_BANK_V3_DIR || 'v5-fixed-v2').trim()
+    );
+    const samples = fs
+      .readdirSync(v5Dir)
+      .filter((f) => /_adventure\.md$/.test(f) && /^pages:\s*15\s*$/m.test(fs.readFileSync(path.join(v5Dir, f), 'utf8')));
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      // Not every bank file belongs to a servable (active) companion — find
+      // one the selector actually binds.
+      let resolved = null;
+      for (const sample of samples) {
+        try {
+          resolved = resolveStoryProductTruth({
+            companionId: sample.replace(/_adventure\.md$/, ''),
+            clientDirection: 'adventure',
+          });
+          break;
+        } catch {
+          /* companion not servable — try the next file */
+        }
+      }
+      if (!resolved) return; // bank normalized / no servable deviating story
+      expect(resolved.pages).toBe(15); // frontmatter truth — served as-is
+      expect(resolved.displayPages).toBe(30);
+      expect(resolved.priceILS).toBe(79); // price stays on the table
+      expect(
+        warnSpy.mock.calls.some((args) => String(args[0]).includes('non-canonical story bound'))
+      ).toBe(true);
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it('canonical frontmatter (12-beat adventure) binds without a warning', () => {
+    delete process.env.ENABLE_V3_APPROVED_BANK;
     const v5Dir = path.join(
       process.cwd(),
       'story-bank',
@@ -109,10 +151,18 @@ describe('resolveStoryProductTruth', () => {
     const sample = fs
       .readdirSync(v5Dir)
       .find((f) => /_adventure\.md$/.test(f) && /^pages:\s*12\s*$/m.test(fs.readFileSync(path.join(v5Dir, f), 'utf8')));
-    if (!sample) return; // bank normalized — nothing to assert
+    if (!sample) return;
     const companionId = sample.replace(/_adventure\.md$/, '');
-    const resolved = resolveStoryProductTruth({ companionId, clientDirection: 'adventure' });
-    expect(resolved.pages).toBe(12);
-    expect(resolved.priceILS).toBe(79); // price stays on the table
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const resolved = resolveStoryProductTruth({ companionId, clientDirection: 'adventure' });
+      expect(resolved.pages).toBe(12);
+      expect(resolved.displayPages).toBe(24);
+      expect(
+        warnSpy.mock.calls.some((args) => String(args[0]).includes('non-canonical story bound'))
+      ).toBe(false);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });

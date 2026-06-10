@@ -370,15 +370,33 @@ export type Superpower = typeof SUPERPOWER_OPTIONS[number];
 
 // ─── Product Config ───────────────────────────────────
 // Direction = page count. No separate length picker.
-// bedtime=10p, adventure=15p, fantasy=20p
+//
+// `pages` = BEATS (engine units): one beat = one generated image + one text
+// block. Canonical counts (Guy, 2026-06-10, goldens-aligned): bedtime=8,
+// adventure=12, fantasy=16 beats.
+//
+// ⚠️ NEVER store PHYSICAL page counts (16/24/32) here — the generator derives
+// its image loop from this map; physical numbers would render 2× images.
+// Display conversion lives ONLY in displayPagesForBeats() below.
 export const DIRECTION_PAGE_MAP: Record<string, { pages: number; priceILS: number }> = {
-  bedtime:   { pages: 10, priceILS: 59 },
-  adventure: { pages: 15, priceILS: 79 },
-  fantasy:   { pages: 20, priceILS: 99 },
+  bedtime:   { pages: 8,  priceILS: 59 },
+  adventure: { pages: 12, priceILS: 79 },
+  fantasy:   { pages: 16, priceILS: 99 },
 };
 
-// Legacy STORY_LENGTHS kept for backward compat with existing orders in DB.
-// New orders derive length from direction via DIRECTION_PAGE_MAP.
+/**
+ * BEATS → PHYSICAL pages for customer-facing display ONLY.
+ * Each beat = a printed spread (image page + text page), standard
+ * picture-book counting — so 8/12/16 beats display as 16/24/32 עמודים.
+ * This is the ONLY place the ×2 conversion lives; UI renders the result and
+ * never computes the number itself.
+ */
+export function displayPagesForBeats(beats: number): number {
+  return beats * 2;
+}
+
+// LEGACY — reflects pre-2026-06-10 counts; kept as historical truth for
+// existing orders in DB. New orders use DIRECTION_PAGE_MAP (8/12/16 beats).
 export const STORY_LENGTHS = [
   { id: 'short',  label: 'סיפור לפני שינה', pages: 10, priceILS: 59 },
   { id: 'medium', label: 'הרפתקה',          pages: 15, priceILS: 79 },
