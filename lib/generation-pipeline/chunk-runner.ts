@@ -1194,7 +1194,7 @@ async function runAudioChunk(order: Order, startedAt: number, budgetMs: number):
   return true;
 }
 
-async function runPackageStage(order: Order): Promise<void> {
+async function runPackageStage(order: Order, cache: PipelineCache): Promise<void> {
   const book = await prisma.generatedBook.findUnique({
     where: { orderId: order.id },
     include: {
@@ -1205,7 +1205,13 @@ async function runPackageStage(order: Order): Promise<void> {
 
   const expectedPages = book.pages.length;
   const withImages = book.pages.filter((p) => shouldSkipPaidPageImageRegen(p.imageAsset)).length;
-  const hasCover = Boolean(book.coverImageUrl?.trim() || order.coverImageUrl?.trim());
+  // devSkipCover must be honored here exactly like deriveStartingStage does —
+  // otherwise dev-skip orders deadlock on "Package blocked: cover=false"
+  // (killed orders 8b43e5e7, e6101da7). PDF/reader already handle cover-less
+  // books via the book.coverImageUrl conditional below.
+  const hasCover = Boolean(
+    book.coverImageUrl?.trim() || order.coverImageUrl?.trim() || cache.devSkipCover
+  );
 
   if (!hasCover || withImages < expectedPages) {
     throw new Error(
@@ -1323,6 +1329,22 @@ export async function processGenerationChunk(
   }
 
   let cache = parsePipelineCache(job.pipelineCache);
+
+  // Resume-path approval hook (covers ALL stages): a pending child anchor that
+  // was approved after a failure (CHILD_ANCHOR_REVIEW_OK / _ORDER_IDS / cache
+  // flag) must be promoted BEFORE stage dispatch. Promotion used to live only
+  // inside the DNA stage, which resume skips once childDNA exists — leaving
+  // approved orders permanently deadlocked on ANCHOR_REVIEW_REQUIRED at
+  // cover/page stages. Unapproved pending anchors still hit the stage throws.
+  const pendingChildAnchorAtEntry = getChildCanonicalAnchor(cache);
+  if (
+    pendingChildAnchorAtEntry?.qaStatus === 'pending_review' &&
+    isChildAnchorReviewApproved(order.id, cache, order)
+  ) {
+    cache = await promotePendingChildAnchorToPassed(order, cache);
+    await saveCache(orderId, cache);
+  }
+
   let stage: ChunkStage =
     job.currentStage === 'pending' || job.currentStage === 'failed'
       ? await deriveStartingStage(orderId, job, cache)
@@ -1384,7 +1406,7 @@ export async function processGenerationChunk(
 
       if (stage === 'package') {
         await updateStage(orderId, 'package');
-        await runPackageStage(order);
+        await runPackageStage(order, cache);
         return { stage: 'done', done: true, stopChunk: false };
       }
 
