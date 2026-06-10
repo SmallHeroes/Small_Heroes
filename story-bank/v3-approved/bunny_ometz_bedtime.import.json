@@ -1,0 +1,12 @@
+{
+  "storyId": "confidence_bunny_ometz_medical-stop3-2026-06-09T17-43-41-766Z",
+  "sourceRunDir": "outputs/story-gen-v3-runs/confidence_bunny_ometz_medical-stop3-2026-06-09T17-43-41-766Z",
+  "companionId": "bunny_ometz",
+  "direction": "bedtime",
+  "pageCount": 8,
+  "approvedBy": "Guy",
+  "approvedAt": "2026-06-10T12:28:29+03:00",
+  "approvalNote": "Approved after full Hebrew aloud read",
+  "importedAt": "2026-06-10T18:05:11.034Z",
+  "servedOnlyWhen": "ENABLE_V3_APPROVED_BANK=true"
+}

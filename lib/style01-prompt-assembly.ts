@@ -28,6 +28,7 @@ import {
   type StoryRecurringEntityDeclaration,
 } from './story-bank/recurring-entities';
 import { buildStructuredObjectCompositionAddendum } from './structured-object-composition';
+import { buildScenarioSettingLockBlock } from './scenario-setting-lock';
 import {
   applyFamilyCoherenceToEntityLocks,
   buildFamilyCoherencePromptBlock,
@@ -74,6 +75,10 @@ export type Style01PromptAssemblyInput = {
   storyTimeOfDay?: import('./story-time-of-day').StoryTimeOfDay;
   pageTimeOfDayOverrides?: Partial<Record<number, import('./story-time-of-day').StoryTimeOfDay>>;
   timeOfDayStrictRetry?: boolean;
+  /** Wizard challenge category — drives the story-level SCENARIO SETTING LOCK. */
+  challengeCategory?: string | null;
+  /** True ONLY when the storyboard explicitly chose a close_up shot; otherwise close-up wording is sanitized out of the scene. */
+  explicitCloseUp?: boolean;
 };
 
 export type Style01PromptAssemblyResult = {
@@ -86,6 +91,24 @@ export type Style01PromptAssemblyResult = {
   storyTimeOfDay: import('./story-time-of-day').StoryTimeOfDay;
   effectivePageTimeOfDay: import('./story-time-of-day').StoryTimeOfDay;
 };
+
+/**
+ * Strip close-up language from a scene direction unless the storyboard explicitly
+ * chose close_up. v3 imageDirections often say "close-up of ..." decoratively and
+ * the model obeys the words over the framing rules — giant cropped faces.
+ * Handles ASCII and unicode hyphens (e.g. "close‑up").
+ */
+const CLOSE_UP_OF_RE = /\b(?:soft\s+|tight\s+|extreme\s+)?close[\s\-\u2010-\u2015]?up\s+(?:of|on)\s+/gi;
+const CLOSE_UP_STANDALONE_RE = /\b(?:soft\s+|tight\s+|extreme\s+)?close[\s\-\u2010-\u2015]?up\b/gi;
+
+export function sanitizeCloseUpLanguage(scene: string, explicitCloseUp?: boolean): string {
+  if (explicitCloseUp) return scene;
+  return scene
+    .replace(CLOSE_UP_OF_RE, 'view of ')
+    .replace(CLOSE_UP_STANDALONE_RE, 'medium view')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
 
 /** Story-bank imageDirection is authoritative — never collapse on temporal connectors. */
 export function resolveStyle01SceneDescription(input: {
@@ -113,11 +136,14 @@ export function assembleStyle01Phase2Prompt(
 
   const compositionSpec = storyLocks.compositionByPage?.[input.pageNumber];
 
-  const imageDirection = resolveStyle01SceneDescription({
-    rawScenePrompt: input.rawScenePrompt,
-    pagePrompt: input.pagePrompt,
-    mechanicalScene: input.mechanicalScene,
-  });
+  const imageDirection = sanitizeCloseUpLanguage(
+    resolveStyle01SceneDescription({
+      rawScenePrompt: input.rawScenePrompt,
+      pagePrompt: input.pagePrompt,
+      mechanicalScene: input.mechanicalScene,
+    }),
+    input.explicitCloseUp
+  );
 
   let entityPresence = derivePageEntityPresence({
     bookPageText: input.bookPageText,
@@ -261,6 +287,9 @@ export function assembleStyle01Phase2Prompt(
     imageDirection,
     strictRetry: input.timeOfDayStrictRetry,
   });
+  // Story-level setting lock (same injection pattern as the time-of-day lock):
+  // category controls LOCATION; direction controls format only — bedtime ≠ bedroom.
+  const scenarioSettingLock = buildScenarioSettingLockBlock(input.challengeCategory);
 
   const environmentLock = storyLocks.pageEnvironmentLock?.(input.pageNumber);
   const familyRoleDetectInput = {
@@ -329,7 +358,7 @@ export function assembleStyle01Phase2Prompt(
     recurringObjectLocks: objectLocks || undefined,
     recurringEntityLocks: entityLocks || undefined,
     environmentLock:
-      [environmentLock, familyCoherenceBlock, structuredObjectBlock, storyStateForbiddenBlock, timeOfDayLock]
+      [scenarioSettingLock, environmentLock, familyCoherenceBlock, structuredObjectBlock, storyStateForbiddenBlock, timeOfDayLock]
         .filter(Boolean)
         .join('\n\n') || undefined,
     compositionBlock,

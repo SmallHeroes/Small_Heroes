@@ -70,7 +70,7 @@ import {
   applyDevHairOverrideToPhotoDescription,
   resolveDevChildHairOverride,
 } from '@/lib/child-photo-hair';
-import { STYLE_01_AVOIDANCE_NEGATIVE } from '@/lib/style01-gptimage';
+import { STYLE_01_AVOIDANCE_NEGATIVE, assertCompanionSheetRenderable } from '@/lib/style01-gptimage';
 import {
   buildStage0MethodBPrompt,
   generateStage0MethodBAnchor,
@@ -674,6 +674,9 @@ async function runCoverStage(order: Order, cache: PipelineCache): Promise<void> 
     { skipLlmPersonalization: true }
   );
 
+  // Fail loudly BEFORE paid cover generation when the companion has no published sheet.
+  assertCompanionSheetRenderable(resolvedCompanion);
+
   const coverImage = await generateBookCover({
     childName: order.childName,
     topicLabel,
@@ -687,12 +690,16 @@ async function runCoverStage(order: Order, cache: PipelineCache): Promise<void> 
     heroVisualLock: story.heroVisualLock,
     styleLock: story.styleLock,
     entityVisualLock: story.entityVisualLock,
+    // id+image included so the cover resolves the SAME companion sheet refs as pages.
     companion: resolvedCompanion
       ? {
+          id: resolvedCompanion.id,
           name: resolvedCompanion.name,
           visualDescription: cache.dna?.companionDNA || resolvedCompanion.visualDescription,
+          image: resolvedCompanion.image,
         }
       : undefined,
+    challengeCategory: cache.challengeCategory ?? wizardMeta.challengeCategory ?? null,
     childStructured: cache.dna?.childStructured,
     companionStructured: cache.dna?.companionStructured,
   });
@@ -778,6 +785,9 @@ async function runPageImagesChunk(
 
   const wizardMeta = getWizardMeta(order.characterAnchors);
   const resolvedCompanion = resolveCompanionForOrder(order);
+
+  // Fail loudly BEFORE paid page generation when the companion has no published sheet.
+  assertCompanionSheetRenderable(resolvedCompanion);
 
   const story = await loadStoryFromBank(
     storyFilePath,

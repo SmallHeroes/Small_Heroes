@@ -10,6 +10,11 @@ describe('stripNikud / display layer', () => {
     expect(stripped).not.toMatch(/[\u0591-\u05C7]/);
   });
 
+  it('preserves maqaf (U+05BE) — hyphenated names must not fuse', () => {
+    expect(stripNikud('בּוּנִי־אומץ יושב')).toBe('בוני־אומץ יושב');
+    expect(formatHebrewForDisplay('בּוּנִי־אומץ')).toContain('־');
+  });
+
   it('reader scenes use display text without nikud while bank raw keeps nikud', () => {
     const bankText = 'אֲנִי אוּרִי. {שכב|שכבה} במיטה.';
     const scenes = adaptLegacyBookToStoryScenes({

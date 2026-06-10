@@ -580,8 +580,10 @@ export interface CoverImageInput {
   heroVisualLock?: HeroVisualLock;
   styleLock?: StyleLock;
   entityVisualLock?: EntityVisualLock;
-  /** Wizard companion — should appear on cover when present. */
-  companion?: { name: string; visualDescription: string };
+  /** Wizard companion — should appear on cover when present. id+image enable sheet reference resolution (same path as pages). */
+  companion?: { id?: string; name: string; visualDescription: string; image?: string };
+  /** Wizard challenge category — drives the story-level SCENARIO SETTING LOCK on the cover too. */
+  challengeCategory?: string | null;
   /** Structured child identity for cover. */
   childStructured?: { face: string; hair: string; body: string; clothing: string; signature: string };
   /** Structured companion identity for cover. */
@@ -3059,6 +3061,9 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     storyTimeOfDay: input.storyTimeOfDay,
     pageTimeOfDayOverrides: input.pageTimeOfDayOverrides,
     familyCoherence: input.familyCoherence ?? null,
+    challengeCategory: input.challengeCategory ?? null,
+    // Close-up wording survives ONLY when the storyboard explicitly chose close_up.
+    explicitCloseUp: input.pageStoryboard?.shotType === 'close_up',
   });
 
   const {
@@ -3604,6 +3609,10 @@ export async function generateBookCover(input: CoverImageInput): Promise<Generat
     totalPages: 1,
     assetType: 'cover',
     childFirstName: input.childName,
+    // Cover shares the SAME reference-assembly path as pages: companion id+image
+    // let the style01 path resolve the published character sheet for the cover too.
+    companion: (input.companion ?? null) as unknown as ImageInput['companion'],
+    challengeCategory: input.challengeCategory ?? null,
     heroVisualLock: input.heroVisualLock,
     styleLock: input.styleLock,
     entityVisualLock: input.entityVisualLock,

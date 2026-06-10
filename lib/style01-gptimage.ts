@@ -50,6 +50,7 @@ export const STYLE_01_RENDERING_CORRECTION =
   'RENDERING: soft watercolor storybook — visible paper texture, gentle pigment bleeds, rounded expressive characters, warm local color, airy negative space. NOT harsh shadows. NOT global orange filter. NOT empty cream void background.';
 
 export const STYLE_01_FRAMING_RULE = `FRAMING RULE — BREATHE:
+- Medium-wide storybook scene; environment visible; child and companion mostly full-figure; no giant cropped faces or oversized foreground characters unless shotType=close_up explicitly.
 - Characters fill NO MORE than 35-50% of frame height.
 - Environment must occupy at least 50% of visible area.
 - Avoid tight portrait crops. Avoid close-up faces unless explicitly specified as "close-up" shotType.
@@ -487,10 +488,37 @@ export function resolveStyle01CompanionReferencePaths(input: {
     if (sheetPaths.length >= 3) {
       return sheetPaths.slice(0, 3);
     }
+
+    // No published style01 character sheet. A single flat companion image is a
+    // WEAK anchor that loses to style references (proven: bunny→armadillo).
+    // Customer renders must fail loudly; dev experiments can opt in explicitly.
+    if (process.env.ALLOW_SINGLE_IMAGE_COMPANION_REF?.trim().toLowerCase() !== 'true') {
+      throw new Error(
+        `Missing companion character sheet for ${companionId} — cannot render book. ` +
+          `Publish style01-sheets via generate-companion-sheet --publish, or set ` +
+          `ALLOW_SINGLE_IMAGE_COMPANION_REF=true for dev experiments only.`
+      );
+    }
   }
 
   const single = resolveStyle01CompanionReferencePath(input.companionImage);
   return single ? [single] : [];
+}
+
+/**
+ * Pre-spend gate: throws `Missing companion character sheet for <id>` when the
+ * companion has no published style01 sheet (unless ALLOW_SINGLE_IMAGE_COMPANION_REF=true).
+ * Call before paid cover/page generation so renders fail BEFORE spending.
+ */
+export function assertCompanionSheetRenderable(
+  companion: { id?: string | null; image?: string | null } | null | undefined
+): void {
+  if (!companion?.id) return;
+  resolveStyle01CompanionReferencePaths({
+    companionId: companion.id,
+    companionImage: companion.image,
+    companionPresence: 'present',
+  });
 }
 
 export function resolveStyle01CompanionReferencePath(

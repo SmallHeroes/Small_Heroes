@@ -82,9 +82,24 @@ function deriveChildPresence(input: DerivePageEntityPresenceInput): ChildPresenc
   const primary = imageDir.length > 0 ? imageDir : full;
 
   if (!mentionsHumanChild(primary, input.childFirstName)) {
-    // Fallback: Hebrew body text only when imageDirection silent on child
-    if (imageDir.length > 0) return 'absent';
-    return mentionsHumanChild(full, input.childFirstName) ? 'present' : 'absent';
+    // imageDirection silent on child — consult the page text before declaring absent.
+    // v3 imageDirections often describe a detail ("bunny ears popping up") while the
+    // child IS in the scene per the Hebrew text; declaring absent drops the child
+    // anchor reference and forbids the child, and the model then invents a generic
+    // child from style references (bunny p1 boy contamination). Only environment/
+    // object subjects keep the child out.
+    const subject = input.visualDirection?.imageSubject?.toLowerCase() ?? '';
+    if (subject === 'environment' || subject === 'object' || subject.startsWith('object:')) {
+      return 'absent';
+    }
+    const textMentionsChild = mentionsHumanChild(
+      input.bookPageText ?? '',
+      input.childFirstName
+    );
+    if (imageDir.length > 0) return textMentionsChild ? 'present' : 'absent';
+    return textMentionsChild || mentionsHumanChild(full, input.childFirstName)
+      ? 'present'
+      : 'absent';
   }
 
   if (CHILD_BACKGROUND.test(primary) || CHILD_BACKGROUND.test(full)) return 'background';
