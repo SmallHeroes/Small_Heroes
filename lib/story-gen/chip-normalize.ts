@@ -100,6 +100,8 @@ export const VERIFIED_SLASH_EXCEPTIONS: Record<string, { male: string; female: s
   'ילד/ה': { male: 'ילד', female: 'ילדה' },
   'אחד/ת': { male: 'אחד', female: 'אחת' },
   'אחר/ת': { male: 'אחר', female: 'אחרת' },
+  'לאח/אחות': { male: 'לאח', female: 'לאחות' },
+  'האח/האחות': { male: 'האח', female: 'האחות' },
 };
 
 const FINAL_LETTERS = new Set(['ך', 'ם', 'ן', 'ף', 'ץ']);

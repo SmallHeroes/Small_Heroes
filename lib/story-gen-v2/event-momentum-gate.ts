@@ -72,22 +72,25 @@ export function runEventMomentumGate(args: {
   const weakPageTurnPages: number[] = [];
 
   for (const beat of beats) {
-    const eventBlob = `${beat.eventOnPage} ${beat.complicationOrChange}`;
-    if (NO_EVENT_RE.test(beat.eventOnPage.trim()) || eventBlob.trim().length < 12) {
+    const eventOnPage = beat.eventOnPage?.trim() ?? '';
+    const complication = beat.complicationOrChange?.trim() ?? '';
+    const childAction = beat.childAction?.trim() ?? '';
+    const eventBlob = `${eventOnPage} ${complication}`;
+    if (!eventOnPage || NO_EVENT_RE.test(eventOnPage) || eventBlob.length < 12) {
       pagesWithoutConcreteEvent.push(beat.page);
     }
 
     if (
-      PASSIVE_CHILD_RE.test(beat.childAction.trim()) ||
-      (WATCH_ONLY_RE.test(beat.childAction) &&
+      PASSIVE_CHILD_RE.test(childAction) ||
+      (WATCH_ONLY_RE.test(childAction) &&
         !/\b(שואל|לוקח|מציע|מחליט|בוחר|ממציא|עושה|צועד|ניגש|מזיז|פותח|סוגר|אומר)\b/i.test(
-          beat.childAction
+          childAction
         ))
     ) {
       passiveChildPages.push(beat.page);
     }
 
-    if (tooSimilar(beat.storyFactBefore, beat.storyFactAfter)) {
+    if (tooSimilar(beat.storyFactBefore ?? '', beat.storyFactAfter ?? '')) {
       staticPages.push(beat.page);
       notes.push(`p${beat.page}: static — before≈after`);
     }

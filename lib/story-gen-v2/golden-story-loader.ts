@@ -9,6 +9,7 @@ const STORY_BANK_DIR = path.join(
 
 const GOLDEN_FILES: Record<string, string> = {
   panda_anat_adventure: 'panda_anat_adventure.md',
+  dragon_dini_fantasy: 'dragon_dini_fantasy.md',
 };
 
 export function loadGoldenStoryMarkdown(sourceId: string): string {
