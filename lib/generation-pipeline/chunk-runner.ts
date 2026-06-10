@@ -5,7 +5,10 @@ import { Prisma, type Order } from '@prisma/client';
 import path from 'path';
 import { prisma } from '@/lib/prisma';
 import { createLogger } from '@/lib/logger';
-import { assertShippedBookStyleEngineActive } from '@/lib/image-engine-guard';
+import {
+  assertOrderStyleSellable,
+  assertShippedBookStyleEngineActive,
+} from '@/lib/image-engine-guard';
 import { assignTemplatesForBook, type BookPageTemplate } from '@/lib/bookPageLayout';
 import { TOPICS } from '@/backend/config/wizard';
 import { sendBookReadyEmail } from '@/backend/lib/email';
@@ -695,7 +698,9 @@ async function runCoverStage(order: Order, cache: PipelineCache): Promise<void> 
       ? {
           id: resolvedCompanion.id,
           name: resolvedCompanion.name,
-          visualDescription: cache.dna?.companionDNA || resolvedCompanion.visualDescription,
+          // Gap-1 rule: registry companion → registry visualDescription, NEVER LLM dna.companionDNA
+          // (proven failure: "stuffed gray rabbit" DNA vs canonical cream-white bunny).
+          visualDescription: resolvedCompanion.visualDescription,
           image: resolvedCompanion.image,
         }
       : undefined,
@@ -1327,6 +1332,10 @@ export async function processGenerationChunk(
 
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) return { stage: 'failed', done: true, stopChunk: true, error: 'Order not found' };
+
+  // Gap 2 (bunny forensics): Style 02 orders are blocked server-side until the
+  // Style 02 gate chain opens — never render an ungated style for a customer.
+  assertOrderStyleSellable(order.illustrationStyle, `generation chunk orderId=${orderId}`);
 
   const job = await prisma.generationJob.findUnique({ where: { orderId } });
   if (!job) return { stage: 'failed', done: true, stopChunk: true, error: 'Job not found' };

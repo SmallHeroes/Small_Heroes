@@ -26,6 +26,7 @@ import {
   resolveStyle01StyleReferencePaths,
 } from '@/lib/style01-gptimage';
 import { describeChildFromPhoto } from '@/backend/providers/story-bank-loader';
+import { assertPipelineStyleBranchMatchesOrder } from '@/lib/image-engine-guard';
 
 export type Stage0MethodBResult = {
   anchorUrl: string;
@@ -45,6 +46,8 @@ export function buildStage0MethodBReferences(input: {
   childGender: string | null | undefined;
 }): { paths: string[]; labels: string[] } {
   const templatePath = resolveStyle01ChildTemplatePath(input.childGender);
+  // Subset choice is technique-only since the character-free ref flip (Task 5) —
+  // every subset now carries watercolor texture/palette refs with NO characters.
   const styleRefPaths = resolveStyle01StyleReferencePaths(
     'fantasy-cave',
     resolveStyle01RefBudgetConfig() === 'A' ? 2 : 3
@@ -100,6 +103,13 @@ export async function generateStage0MethodBAnchor(input: {
   childStructuredHair?: string | null;
   attemptSuffix?: string;
 }): Promise<Stage0MethodBResult> {
+  // Gap 2 (bunny forensics): this anchor flow is Style 01 only (Style 01 template,
+  // prompt, and style refs). A Style 02 order reaching it = silent style mixing — throw.
+  assertPipelineStyleBranchMatchesOrder({
+    orderIllustrationStyle: input.order.illustrationStyle,
+    pipelineStyleBranch: 'style01',
+    context: 'stage0-method-b child anchor',
+  });
   const { paths, labels } = buildStage0MethodBReferences({
     childPhotoUrl: input.childPhotoUrl,
     childGender: input.order.childGender,

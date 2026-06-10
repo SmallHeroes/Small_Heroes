@@ -254,6 +254,7 @@ export function assembleStyle01Phase2Prompt(
     entityPresence.companionPresence === 'present'
       ? [
           buildStyle01CompanionTextLock({
+            companionId: input.companion?.id,
             companionName: input.companion?.name,
             companionStructured: input.companionStructured,
             companionVisualDescription: input.companion?.visualDescription,

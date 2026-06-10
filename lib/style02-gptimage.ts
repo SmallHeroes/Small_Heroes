@@ -5,6 +5,7 @@
 import { existsSync } from 'fs';
 import path from 'path';
 import { STYLE_IDS } from './styles';
+import { resolveCompanionLockSource } from './companion-lock-source';
 
 export const STYLE_02_GPT_MODEL = 'gpt-image-2';
 
@@ -210,16 +211,26 @@ export function buildStyle02WardrobeLock(input: {
 }
 
 export function buildStyle02CompanionTextLock(input: {
+  companionId?: string | null;
   companionName?: string;
   companionStructured?: { species: string; size: string; coloring: string; feature: string };
   companionVisualDescription?: string;
 }): string {
-  const cps = input.companionStructured;
+  // Gap-1 rule: registry companion → registry visualDescription ONLY; DNA only for non-registry entities.
+  const lockSource = resolveCompanionLockSource({
+    companionId: input.companionId,
+    dnaStructured: input.companionStructured ?? null,
+    dnaVisualDescription: input.companionVisualDescription ?? null,
+  });
+  if (lockSource.source === 'registry') {
+    return `COMPANION LOCK: ${input.companionName ?? 'companion'} — ${lockSource.visualDescription}. Same design every page.`;
+  }
+  const cps = lockSource.structured;
   if (cps?.species?.trim()) {
     return `COMPANION LOCK: ${input.companionName ?? 'companion'} — ${cps.species}, ${cps.size}. ${cps.coloring}. ${cps.feature}. Same design every page.`;
   }
-  if (input.companionVisualDescription?.trim()) {
-    return `COMPANION LOCK: ${input.companionName ?? 'companion'} — ${input.companionVisualDescription.trim()}. Same design every page.`;
+  if (lockSource.visualDescription) {
+    return `COMPANION LOCK: ${input.companionName ?? 'companion'} — ${lockSource.visualDescription}. Same design every page.`;
   }
   return '';
 }

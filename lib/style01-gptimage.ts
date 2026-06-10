@@ -16,6 +16,7 @@ import {
   resolveCompanionViewIntentForPage,
 } from './generation-pipeline/companion-sheet-page-map';
 import type { CompanionPresence } from './image-entity-presence';
+import { resolveCompanionLockSource } from './companion-lock-source';
 import {
   classifyStyle01SceneClass,
   resolveStyle01SceneRefSubset,
@@ -79,35 +80,41 @@ export const STYLE_01_CANONICAL_CHILD_ANCHOR_RULE =
   'Each page MUST show this child performing the scene action with a natural, varied pose appropriate to the story beat. ' +
   'REJECT copying the anchor like a sticker into a new background.';
 
-/** Scene-typed Style 01 reference subsets. */
+/**
+ * Scene-typed Style 01 reference subsets.
+ *
+ * CHARACTER-FREE RULE (bunny forensics Task 5, Guy approved 2026-06-10):
+ * style refs carry TECHNIQUE ONLY — watercolor texture, palette, paper,
+ * linework. NO children, NO creatures. The previous refs contained strong
+ * characters (boy+armadillo etc.) that overrode weak companion anchors and
+ * contaminated books. Originals archived in style-references/01/_archive/.
+ */
 export const STYLE_01_REF_SUBSETS: Record<
   Style01SceneSubsetKey,
   { filenames: string[]; reason: string }
 > = {
   'fantasy-cave': {
     filenames: [
-      'ChatGPT Image May 18, 2026, 11_57_09 AM.png',
-      'ChatGPT Image May 18, 2026, 11_59_17 AM.png',
-      'ChatGPT Image May 18, 2026, 12_00_57 PM.png',
-      'ChatGPT Image May 18, 2026, 12_06_22 PM.png',
+      'style01-texture-night-window.png',
+      'style01-texture-porch-lavender.png',
+      'style01-texture-stream-rocks.png',
     ],
-    reason: 'Warm cave / magical interior watercolor refs.',
+    reason: 'Warm interior technique refs (character-free): curtain/moon, stone wall/ivy, water texture.',
   },
   'cozy-interior': {
     filenames: [
-      'ChatGPT Image May 18, 2026, 12_12_02 PM.png',
-      'ChatGPT Image May 18, 2026, 12_14_37 PM.png',
-      'ChatGPT Image May 18, 2026, 11_48_10 AM.png',
+      'style01-texture-night-window.png',
+      'style01-texture-porch-lavender.png',
     ],
-    reason: 'Bedroom / cozy interior soft watercolor refs.',
+    reason: 'Interior technique refs (character-free): warm window light, soft washes.',
   },
   'outdoor-magical': {
     filenames: [
-      'ChatGPT Image May 18, 2026, 11_48_10 AM.png',
-      'ChatGPT Image May 18, 2026, 12_06_22 PM.png',
-      'ChatGPT Image May 18, 2026, 12_14_37 PM.png',
+      'style01-texture-night-mountains.png',
+      'style01-texture-stream-rocks.png',
+      'style01-texture-porch-lavender.png',
     ],
-    reason: 'Outdoor / sky / magical landscape watercolor refs.',
+    reason: 'Outdoor technique refs (character-free): night sky/peaks, stream/rocks, garden wall.',
   },
 };
 
@@ -618,18 +625,29 @@ Wardrobe is secondary. Age, face, hair, body, and skin must match CHILD VISUAL L
 }
 
 export function buildStyle01CompanionTextLock(input: {
+  companionId?: string | null;
   companionName?: string;
   companionStructured?: { species: string; size: string; coloring: string; feature: string };
   companionVisualDescription?: string;
   storyCompanionLock?: string;
 }): string {
+  // Hand-authored canonical locks (Dini/Dobi) stay top precedence — they ARE registry-grade truth.
   if (input.storyCompanionLock?.trim()) return input.storyCompanionLock.trim();
-  const cps = input.companionStructured;
+  // Gap-1 rule: registry companion → registry visualDescription ONLY; DNA only for non-registry entities.
+  const lockSource = resolveCompanionLockSource({
+    companionId: input.companionId,
+    dnaStructured: input.companionStructured ?? null,
+    dnaVisualDescription: input.companionVisualDescription ?? null,
+  });
+  if (lockSource.source === 'registry') {
+    return `COMPANION LOCK: ${input.companionName ?? 'companion'} — ${lockSource.visualDescription}. Same design every page.`;
+  }
+  const cps = lockSource.structured;
   if (cps?.species?.trim()) {
     return `COMPANION LOCK: ${input.companionName ?? 'companion'} — ${cps.species}, ${cps.size}. ${cps.coloring}. ${cps.feature}. Same design every page.`;
   }
-  if (input.companionVisualDescription?.trim()) {
-    return `COMPANION LOCK: ${input.companionName ?? 'companion'} — ${input.companionVisualDescription.trim()}. Same design every page.`;
+  if (lockSource.visualDescription) {
+    return `COMPANION LOCK: ${input.companionName ?? 'companion'} — ${lockSource.visualDescription}. Same design every page.`;
   }
   return '';
 }

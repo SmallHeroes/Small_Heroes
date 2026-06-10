@@ -18,14 +18,69 @@ const PILOT_COMPANIONS = ['dragon_dini', 'fox_uri', 'octopus_seara'] as const;
 async function main() {
   const args = process.argv.slice(2).filter((a) => !a.startsWith('--'));
   const publish = process.argv.includes('--publish');
+  // --publish-only: copy the ALREADY-GENERATED (and eyeball-approved) PNGs from
+  // outputs/companion-sheets/<id>/ to public/ — no regeneration, no new spend,
+  // and the published assets are exactly the ones the owner approved.
+  const publishOnly = process.argv.includes('--publish-only');
   const companionId = args[0]?.trim();
 
   if (!companionId) {
     console.error(
-      'Usage: npx tsx --require ./scripts/shims/register-server-only.cjs scripts/generate-companion-sheet.ts <companionId> [--publish]'
+      'Usage: npx tsx --require ./scripts/shims/register-server-only.cjs scripts/generate-companion-sheet.ts <companionId> [--publish|--publish-only]'
     );
     console.error(`Pilot ids: ${PILOT_COMPANIONS.join(', ')}`);
     process.exit(1);
+  }
+
+  if (publishOnly) {
+    const {
+      COMPANION_SHEET_VIEW_FILENAME,
+      COMPANION_SHEET_VIEW_KINDS,
+      resolveCompanionPublicSheetsDir,
+    } = await import('@/lib/generation-pipeline/companion-character-sheet');
+    const outDir = path.join(process.cwd(), 'outputs', 'companion-sheets', companionId);
+    const reportPath = path.join(outDir, 'report.json');
+    if (!fs.existsSync(reportPath)) {
+      console.error(`No generated sheet found at ${outDir} — run generation first.`);
+      process.exit(1);
+    }
+    const bundle = JSON.parse(fs.readFileSync(reportPath, 'utf-8')) as {
+      companionId: string;
+      referenceJpg: string;
+      generatedAt: string;
+      views: Record<string, { qaStatus: string; resemblanceToIdentity: number } | undefined>;
+    };
+    const pubDir = resolveCompanionPublicSheetsDir(companionId);
+    fs.mkdirSync(pubDir, { recursive: true });
+    for (const kind of COMPANION_SHEET_VIEW_KINDS) {
+      const fname = COMPANION_SHEET_VIEW_FILENAME[kind];
+      const src = path.join(outDir, fname);
+      if (!fs.existsSync(src)) continue;
+      fs.copyFileSync(src, path.join(pubDir, fname));
+      console.log(`[companion-sheet] published ${fname}`);
+    }
+    fs.writeFileSync(
+      path.join(pubDir, 'manifest.json'),
+      JSON.stringify(
+        {
+          companionId: bundle.companionId,
+          referenceJpg: bundle.referenceJpg,
+          generatedAt: bundle.generatedAt,
+          views: Object.fromEntries(
+            COMPANION_SHEET_VIEW_KINDS.flatMap((k) => {
+              const v = bundle.views[k];
+              return v
+                ? [[k, { filename: COMPANION_SHEET_VIEW_FILENAME[k], qaStatus: v.qaStatus, resemblanceToIdentity: v.resemblanceToIdentity }]]
+                : [];
+            })
+          ),
+        },
+        null,
+        2
+      )
+    );
+    console.log(`[companion-sheet] publish-only done → ${pubDir}`);
+    return;
   }
 
   if (!process.env.OPENAI_API_KEY) {

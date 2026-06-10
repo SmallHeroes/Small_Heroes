@@ -109,6 +109,7 @@ import {
 } from '../../lib/structured-object-composition';
 import type { StoryRecurringEntityDeclaration } from '../../lib/story-bank/recurring-entities';
 import {
+  assertPipelineStyleBranchMatchesOrder,
   assertShippedBookStyleEngineActive,
   resolveLegacyImageProviderEnv,
 } from '../../lib/image-engine-guard';
@@ -2679,6 +2680,12 @@ async function generateWithGPTImage(input: ImageInput): Promise<GeneratedImage> 
 
 /** Phase 2 — Style 02 book pages via gpt-image-2 + scene-typed style refs + character budget. */
 async function generateWithGPTImageStyle02(input: ImageInput): Promise<GeneratedImage> {
+  // Gap 2: hard fail if this Style 02 branch runs for a non-Style-02 order.
+  assertPipelineStyleBranchMatchesOrder({
+    orderIllustrationStyle: input.illustrationStyle,
+    pipelineStyleBranch: 'style02',
+    context: `generateWithGPTImageStyle02 orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber ?? '?'}`,
+  });
   const hiResPdf = !!input.printPdfOptimized;
   const size = hiResPdf ? '1536x1536' : '1024x1536';
   const quality = resolveGPTBookQuality();
@@ -2704,6 +2711,7 @@ async function generateWithGPTImageStyle02(input: ImageInput): Promise<Generated
       ? (input.style02CompanionTextLock ??
         (input.companion
           ? buildStyle02CompanionTextLock({
+              companionId: input.companion.id,
               companionName: input.companion.name,
               companionStructured: input.companionStructured,
               companionVisualDescription: input.companion.visualDescription,
@@ -2917,6 +2925,12 @@ async function patchPageRefManifestQa(input: {
 }
 
 async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<GeneratedImage> {
+  // Gap 2: hard fail if this Style 01 branch runs for a non-Style-01 order.
+  assertPipelineStyleBranchMatchesOrder({
+    orderIllustrationStyle: input.illustrationStyle,
+    pipelineStyleBranch: 'style01',
+    context: `generateWithGPTImageStyle01Phase2 orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber ?? '?'}`,
+  });
   const qaConfig = resolvePageVisualQaConfig();
   let compositionStrictRetry = input.compositionStrictRetry ?? false;
   let timeOfDayStrictRetry = input.timeOfDayStrictRetry ?? false;
@@ -3860,6 +3874,7 @@ export async function generateAllPageImages(
   const style02CompanionTextLock =
     style02Phase2Active && style02BookProfile === 'default' && config.companion
       ? buildStyle02CompanionTextLock({
+          companionId: config.companion.id,
           companionName: config.companion.name,
           companionStructured: config.companionStructured,
           companionVisualDescription: config.companion.visualDescription,

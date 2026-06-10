@@ -5,8 +5,11 @@ import { buildScenarioSettingLockBlock, resolveScenarioSettingLock } from '../sc
 import {
   STYLE_01_FRAMING_RULE,
   assertCompanionSheetRenderable,
+  buildStyle01CompanionTextLock,
   resolveStyle01CompanionReferencePaths,
 } from '../style01-gptimage';
+import { buildStyle02CompanionTextLock } from '../style02-gptimage';
+import { resolveCompanionLockSource } from '../companion-lock-source';
 
 /** Bunny v3 order cmq82b5f3 page 1 — imageDirection omits the child; Hebrew text has her. */
 const BUNNY_P1_IMAGE_DIRECTION =
@@ -136,17 +139,101 @@ describe('close-up sanitization (giant-portrait drift)', () => {
   });
 });
 
+// Gap 1 (forensics addendum): DNA text that contradicted the canonical bunny on order cmq82b5f3.
+const CONTAMINATED_DNA_STRUCTURED = {
+  species: 'Stuffed rabbit toy',
+  size: 'small, plush',
+  coloring: 'Soft gray fur with white inner ears',
+  feature: 'button eyes and stitched nose',
+};
+
+describe('COMPANION LOCK source — registry visualDescription ONLY for registry companions (Gap 1)', () => {
+  it('bunny order lock carries cream/heart-badge registry text, never stuffed/gray DNA', () => {
+    const lock = buildStyle01CompanionTextLock({
+      companionId: 'bunny_ometz',
+      companionName: 'הארנבון בּוּנִי',
+      companionStructured: CONTAMINATED_DNA_STRUCTURED,
+      companionVisualDescription: 'Stuffed rabbit toy with soft gray fur',
+    });
+    expect(lock).toMatch(/cream-white/);
+    expect(lock).toMatch(/heart-shaped badge/);
+    expect(lock).not.toMatch(/stuffed/i);
+    expect(lock).not.toMatch(/gray/i);
+  });
+
+  it('rule is horizontal — ANY registry companion ignores LLM DNA (fox_uri)', () => {
+    const lock = buildStyle01CompanionTextLock({
+      companionId: 'fox_uri',
+      companionName: 'fox uri',
+      companionStructured: {
+        species: 'Orange fox',
+        size: 'large',
+        coloring: 'Orange fur',
+        feature: 'bushy tail',
+      },
+      companionVisualDescription: 'Orange fur fox',
+    });
+    expect(resolveCompanionLockSource({ companionId: 'fox_uri' }).source).toBe('registry');
+    expect(lock).not.toMatch(/Orange fur/);
+  });
+
+  it('DNA is still allowed for non-registry dynamic entities', () => {
+    const lock = buildStyle01CompanionTextLock({
+      companionId: 'baby_creature_oneoff',
+      companionName: 'baby cloud',
+      companionStructured: {
+        species: 'tiny cloud spirit',
+        size: 'palm-sized',
+        coloring: 'pearl white',
+        feature: 'misty trailing tail',
+      },
+    });
+    expect(lock).toMatch(/tiny cloud spirit/);
+    expect(resolveCompanionLockSource({ companionId: 'baby_creature_oneoff' }).source).toBe('none');
+  });
+
+  it('applies to Style 02 lock builder as well', () => {
+    const lock = buildStyle02CompanionTextLock({
+      companionId: 'bunny_ometz',
+      companionName: 'הארנבון בּוּנִי',
+      companionStructured: CONTAMINATED_DNA_STRUCTURED,
+      companionVisualDescription: 'Stuffed rabbit toy with soft gray fur',
+    });
+    expect(lock).toMatch(/cream-white/);
+    expect(lock).not.toMatch(/stuffed|gray/i);
+  });
+
+  it('assembled bunny page prompt carries the registry lock end-to-end', () => {
+    const { prompt } = assembleStyle01Phase2Prompt({
+      pageNumber: 1,
+      rawScenePrompt: BUNNY_P1_IMAGE_DIRECTION,
+      bookPageText: BUNNY_P1_TEXT,
+      childFirstName: 'יובל',
+      companion: {
+        id: 'bunny_ometz',
+        name: 'הארנבון בּוּנִי',
+        visualDescription: 'Stuffed rabbit toy with soft gray fur',
+      },
+      companionStructured: CONTAMINATED_DNA_STRUCTURED,
+    });
+    expect(prompt).toMatch(/cream-white/);
+    expect(prompt).toMatch(/heart-shaped badge/);
+    expect(prompt).not.toMatch(/stuffed/i);
+    expect(prompt).not.toMatch(/Soft gray fur/i);
+  });
+});
+
 describe('missing companion sheet — fail loudly (no weak fallbacks)', () => {
-  it('throws for a sheet-less companion (bunny_ometz) by default', () => {
+  it('throws for a sheet-less companion (turtle_beiti) by default', () => {
     delete process.env[ENV_KEY];
     expect(() =>
       resolveStyle01CompanionReferencePaths({
-        companionId: 'bunny_ometz',
-        companionImage: '/companions/GENERAL_FEARS/bunny_ometz.jpg',
+        companionId: 'turtle_beiti',
+        companionImage: '/companions/TRANSITION/turtle_beiti.jpg',
         companionPresence: 'present',
       })
-    ).toThrow(/Missing companion character sheet for bunny_ometz/);
-    expect(() => assertCompanionSheetRenderable({ id: 'bunny_ometz', image: '/companions/GENERAL_FEARS/bunny_ometz.jpg' })).toThrow(
+    ).toThrow(/Missing companion character sheet for turtle_beiti/);
+    expect(() => assertCompanionSheetRenderable({ id: 'turtle_beiti', image: '/companions/TRANSITION/turtle_beiti.jpg' })).toThrow(
       /cannot render book/
     );
   });
@@ -154,12 +241,12 @@ describe('missing companion sheet — fail loudly (no weak fallbacks)', () => {
   it('allows the single-image fallback only with the dev escape hatch', () => {
     process.env[ENV_KEY] = 'true';
     const refs = resolveStyle01CompanionReferencePaths({
-      companionId: 'bunny_ometz',
-      companionImage: '/companions/GENERAL_FEARS/bunny_ometz.jpg',
+      companionId: 'turtle_beiti',
+      companionImage: '/companions/TRANSITION/turtle_beiti.jpg',
       companionPresence: 'present',
     });
     expect(refs).toHaveLength(1);
-    expect(refs[0]).toMatch(/bunny_ometz\.jpg$/);
+    expect(refs[0]).toMatch(/turtle_beiti\.jpg$/);
   });
 
   it('passes for companions with published sheets and for no-companion orders', () => {

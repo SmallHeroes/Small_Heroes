@@ -1,0 +1,37 @@
+{
+  "companionId": "bunny_ometz",
+  "referenceJpg": "/companions/GENERAL_FEARS/bunny_ometz.jpg",
+  "generatedAt": "2026-06-10T18:13:08.020Z",
+  "views": {
+    "front": {
+      "filename": "front.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.998439870645635
+    },
+    "three_quarter_front": {
+      "filename": "3-4.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.9989323938906914
+    },
+    "side": {
+      "filename": "side.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.9982365415161237
+    },
+    "three_quarter_back": {
+      "filename": "back.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.9993367775282781
+    },
+    "happy": {
+      "filename": "happy.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.999487850110937
+    },
+    "theme": {
+      "filename": "theme.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.9993482764706407
+    }
+  }
+}

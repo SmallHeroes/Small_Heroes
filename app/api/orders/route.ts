@@ -8,6 +8,7 @@ import { randomUUID } from 'crypto';
 import { Prisma } from '@prisma/client';
 import { computePricing } from '../../../backend/config/wizard';
 import { mapStyleToDatabaseValue } from '../../../lib/styles';
+import { assertOrderStyleSellable } from '../../../lib/image-engine-guard';
 import { enforceRateLimit, enforceSameOrigin } from '../../../lib/request-security';
 import { prisma } from '../../../lib/prisma';
 import { storeImageFromDataUrl } from '../../../lib/image-storage';
@@ -150,6 +151,17 @@ export async function POST(req: NextRequest) {
     const persistedIllustrationStyle = mapStyleToDatabaseValue(
       product?.illustrationStyle ?? 'soft_hand_drawn_storybook'
     );
+    // Gap 2 (bunny forensics): Style 02 is visible in the wizard but NOT sellable
+    // until its gate chain opens. Server-side block — the UI can be bypassed.
+    try {
+      assertOrderStyleSellable(persistedIllustrationStyle, 'order creation');
+    } catch (err) {
+      console.warn(`[POST /api/orders] ${(err as Error).message}`);
+      return NextResponse.json(
+        { error: 'illustration_style_not_available', message: 'הסגנון המבוקש עדיין לא זמין לרכישה' },
+        { status: 400 }
+      );
+    }
     const uploadScopeId = `draft-${randomUUID()}`;
 
     const rawChildImage = toStringOrNull(child?.imageUrl);

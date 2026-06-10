@@ -424,10 +424,18 @@ export async function POST(req: NextRequest) {
         directionStoryPremise: story.coverSceneHint,
         childStructured: dna.childStructured,
         companionStructured: dna.companionStructured,
-        companion: {
-          name: effectiveCompanionName,
-          visualDescription: dna.companionDNA,
-        },
+        // Gap-1 rule: registry companion → registry visualDescription; DNA only for non-registry entities.
+        companion: resolvedCompanion
+          ? {
+              id: resolvedCompanion.id,
+              name: resolvedCompanion.name,
+              visualDescription: resolvedCompanion.visualDescription,
+              image: resolvedCompanion.image,
+            }
+          : {
+              name: effectiveCompanionName,
+              visualDescription: dna.companionDNA,
+            },
       });
 
       await prisma.generatedBook.update({
@@ -500,7 +508,8 @@ export async function POST(req: NextRequest) {
               tagline: resolvedCompanion.tagline ?? '',
               narrativeHook: resolvedCompanion.narrativeHook ?? '',
               image: resolvedCompanion.image,
-              visualDescription: dna.companionDNA || resolvedCompanion.visualDescription,
+              // Gap-1 rule: registry truth, never LLM dna.companionDNA for registry companions.
+              visualDescription: resolvedCompanion.visualDescription,
             }
           : {
               id: 'story-bank',

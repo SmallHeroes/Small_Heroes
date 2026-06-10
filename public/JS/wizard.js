@@ -563,6 +563,11 @@ function restoreWizardState() {
     if (typeof state.styleSelected !== 'boolean') {
       state.styleSelected = Boolean(state.style);
     }
+    // Restored sessions may carry the not-yet-sellable Style 02 — force a re-pick.
+    if (state.style && normalizeClientStyleId(state.style) === 'detailed_whimsical_world') {
+      state.style = null;
+      state.styleSelected = false;
+    }
     if (state.style) {
       state.style = normalizeClientStyleId(state.style);
     } else {
@@ -2266,16 +2271,30 @@ function renderStyleStepGrid() {
   wrap.innerHTML = '';
 
   ILLUSTRATION_STYLES.forEach((s) => {
+    // Style 02 is visible but NOT sellable until its render-quality gate opens
+    // (owner decision 2026-06-10). The server also rejects it — this is just honest UI.
+    const comingSoon = s.id === 'detailed_whimsical_world';
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'style-btn style-card style-step-card' + (s.id === state.style ? ' selected' : '');
+    btn.className =
+      'style-btn style-card style-step-card' +
+      (s.id === state.style ? ' selected' : '') +
+      (comingSoon ? ' style-card-coming-soon' : '');
     btn.innerHTML = `
       <span class="style-card-image-wrap">
         <img class="style-card-image" src="${getStylePreviewDataUrl(s.id)}" alt="${s.label}" />
+        ${comingSoon ? '<span class="style-card-coming-soon-badge">בקרוב</span>' : ''}
       </span>
       <span class="style-card-name">${s.label}</span>
       <span class="style-card-desc">${s.description || ''}</span>
     `;
+    if (comingSoon) {
+      btn.disabled = true;
+      btn.setAttribute('aria-disabled', 'true');
+      btn.title = 'הסגנון הזה יהיה זמין בקרוב';
+      wrap.appendChild(btn);
+      return;
+    }
 
     btn.addEventListener('click', () => {
       document.querySelectorAll('#style-step-grid .style-btn').forEach((b) => b.classList.remove('selected'));
