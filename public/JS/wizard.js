@@ -168,6 +168,9 @@ const PHOTO_MSG_BLOCKED =
   'קשה לזהות את הפנים בתמונה — נסו תמונה ברורה יותר של הפנים 🙏';
 const PHOTO_MSG_NO_PHOTO_HELPER =
   'כדי שהילד/ה יהיו גיבורי הספר, העלו תמונה אחת ברורה של הפנים.';
+// Honest expectation-setting for the no-photo path — no overpromising.
+const PHOTO_MSG_NO_PHOTO_DISCLAIMER =
+  'בלי תמונה ניצור גיבור/ה מאוירים לפי הגיל והמין שבחרתם — אבל בלי תמונה אין לנו ממה לדמות, והדמות בספר לא תיראה כמו הילד/ה שלכם. אפשר להוסיף תמונה בכל שלב עד התשלום.';
 
 const PHOTO_QUALITY_COPY = {
   good: { title: 'תמונה טובה — נוכל לבנות ממנה דמות' },
@@ -1183,10 +1186,12 @@ function updateUI() {
   const bar        = document.getElementById("bottom-bar");
   const btn        = document.getElementById("btn-continue");
   const backBtn    = document.getElementById("btn-back");
+  const btnAnyway  = document.getElementById("btn-continue-anyway");
 
   if (bar && btn && backBtn) {
     if (state.currentStep <= 1 || state.currentStep === 9) {
       bar.classList.add("hidden");
+      if (btnAnyway) btnAnyway.hidden = true;
     } else {
       bar.classList.remove("hidden");
 
@@ -1198,6 +1203,7 @@ function updateUI() {
           state.currentStep === 7  ? WIZ.nav.continueToSummary :
           WIZ.nav.continueDefault;
         btn.onclick = goNext;
+        if (btnAnyway) btnAnyway.hidden = true;
         if (state.currentStep === 2) {
           btn.disabled = !state.companionCharacterId;
         } else if (state.currentStep === 5) {
@@ -1292,9 +1298,10 @@ function goNext() {
       return;
     }
 
-    // Photo is MANDATORY (v1): only a GOOD/WARNING photo passes step 3,
-    // even if goNext is triggered outside the bottom-bar button.
-    if (!state.photo || state.photoQuality?.status === PHOTO_QUALITY_STATUS.BLOCKED) {
+    // No photo is allowed (generic-child path, disclaimer shown at this step) —
+    // but a photo that EXISTS and is BLOCKED must be replaced or explicitly
+    // cleared before continuing.
+    if (state.photo && state.photoQuality?.status === PHOTO_QUALITY_STATUS.BLOCKED) {
       shake(document.getElementById('photo-area'));
       renderPhotoQualityMessage();
       return;
@@ -1858,25 +1865,39 @@ function updatePhotoStepBottomBar() {
     if (input) input.click();
   };
 
-  // Photo is MANDATORY (v1): no photo / blocked photo → the only action is
-  // uploading or replacing a photo. Continuing requires GOOD or WARNING.
+  const btnAnyway = document.getElementById('btn-continue-anyway');
+
+  // No photo: continuing is allowed, with the honest generic-child disclaimer
+  // shown in the photo area. The upload area stays the primary CTA.
   if (!hasPhoto) {
-    btn.textContent = 'העלו תמונה כדי להמשיך';
-    btn.onclick = openPhotoPicker;
+    btn.textContent = 'להמשיך בלי תמונה';
+    btn.onclick = goNext;
     btn.disabled = false;
+    if (btnAnyway) btnAnyway.hidden = true;
     return;
   }
 
+  // BLOCKED photo: the user must either replace it, or explicitly clear it
+  // (drops to the no-photo state with the disclaimer) — never continue with it.
   if (st === PHOTO_QUALITY_STATUS.BLOCKED) {
     btn.textContent = 'להחליף תמונה';
     btn.onclick = openPhotoPicker;
     btn.disabled = false;
+    if (btnAnyway) {
+      btnAnyway.hidden = false;
+      btnAnyway.textContent = 'להמשיך בלי התמונה הזו';
+      btnAnyway.onclick = () => {
+        clearPhotoQualityState();
+        queueWizardSave();
+      };
+    }
     return;
   }
 
   btn.textContent = st === PHOTO_QUALITY_STATUS.WARNING ? 'להמשיך בכל זאת' : 'ממשיכים';
   btn.onclick = goNext;
   btn.disabled = false;
+  if (btnAnyway) btnAnyway.hidden = true;
 }
 
 function clearPhotoQualityState() {
@@ -1899,7 +1920,12 @@ function renderPhotoQualityMessage() {
 
   if (!state.photo) {
     box.hidden = false;
-    box.innerHTML = `<p class="photo-helper-text">${PHOTO_MSG_NO_PHOTO_HELPER}</p>`;
+    box.innerHTML = `
+      <p class="photo-helper-text">${PHOTO_MSG_NO_PHOTO_HELPER}</p>
+      <div class="photo-quality-alert photo-quality-alert--warning">
+        <div class="photo-quality-alert-title">${PHOTO_MSG_NO_PHOTO_DISCLAIMER}</div>
+      </div>
+    `;
     updatePhotoStepBottomBar();
     return;
   }

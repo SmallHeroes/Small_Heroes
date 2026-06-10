@@ -47,6 +47,7 @@ export async function listDevViewerLibrary(): Promise<DevLibraryEntry[]> {
           id: true,
           paymentId: true,
           childName: true,
+          childImageUrl: true,
           status: true,
           illustrationStyle: true,
           storyDirection: true,
@@ -62,10 +63,13 @@ export async function listDevViewerLibrary(): Promise<DevLibraryEntry[]> {
       const order = b.order!;
       const title = b.title?.trim() || order.bookName?.trim() || 'Book';
       const child = order.childName?.trim() || '';
+      // Generic-child books (no photo uploaded) must be identifiable at a
+      // glance during the ship-gate review.
+      const noPhoto = !order.childImageUrl;
       return {
         key: `order:${order.id}`,
         kind: 'order' as const,
-        label: `[order] ${title}${child ? ` · ${child}` : ''} · ${order.status}`,
+        label: `[order]${noPhoto ? ' [NO-PHOTO]' : ''} ${title}${child ? ` · ${child}` : ''} · ${order.status}`,
         mtimeMs: b.createdAt.getTime(),
         orderId: order.id,
         accessKey: order.paymentId!,
