@@ -279,7 +279,8 @@ export interface GenerateGPTImageResult {
 function resolveEnvGPTQuality(): 'low' | 'medium' | 'high' {
   const q = process.env.GPT_IMAGE_QUALITY?.trim().toLowerCase();
   if (q === 'low' || q === 'medium' || q === 'high') return q;
-  return 'high';
+  // Unset → LOW (cost-safe). Production must set GPT_IMAGE_QUALITY=high explicitly.
+  return 'low';
 }
 
 /** Identity-preservation prefix prepended when a reference photo is provided.
