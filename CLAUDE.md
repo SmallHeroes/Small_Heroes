@@ -26,7 +26,7 @@ Do NOT run a full book render without explicit approval. Default to a page-only 
 ## Repo landmines (current)
 - **EOL/CRLF churn**: `git status` shows ~800 files modified that are line-ending only (no `.gitattributes`, `core.autocrlf` unset). Until fixed (see task to add `.gitattributes` + renormalize), **stage with explicit pathspecs only — NEVER `git add -A`.**
 - **`docs/` is gitignored**: new files under `docs/` need `git add -f` (or a carve-out for `docs/ai-workflow/`).
-- **Always run `npx tsc --noEmit` before committing** — `tsx` runtime does not type-check; broken types will fail the Vercel build. Commit only when tsc is clean.
+- **Always run `npm run check` before committing** (`tsc --noEmit` + `vitest run`) — `tsx` runtime does not type-check; broken types will fail the Vercel build. Commit only when check is green.
 - Standalone scripts import `server-only`; run them with `--require ./scripts/shims/register-server-only.cjs`.
 - Commit per green milestone — don't let work accumulate uncommitted on one branch.
 

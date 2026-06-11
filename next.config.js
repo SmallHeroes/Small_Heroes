@@ -9,8 +9,9 @@ const nextConfig = {
     'puppeteer-core',
   ],
   typescript: {
-    // TypeScript errors don't block Turbopack compilation;
-    // skip the redundant tsc check so Vercel deploys succeed.
+    // TODO(production-push): flip to false once `npm run check` is green in CI.
+    // TypeScript errors don't block Turbopack compilation today;
+    // `npm run check` (tsc + vitest) is the pre-push contract until then.
     ignoreBuildErrors: true,
   },
   /**
