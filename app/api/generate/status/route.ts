@@ -5,7 +5,25 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
-import { STORY_LENGTHS } from '../../../../backend/config/wizard';
+import { DIRECTION_PAGE_MAP, STORY_LENGTHS } from '../../../../backend/config/wizard';
+
+type BeatDirection = keyof typeof DIRECTION_PAGE_MAP;
+
+/** Beat count for progress UI — direction truth first, legacy length for old DB rows. */
+function resolveExpectedBeatCount(order: {
+  storyDirection: string | null;
+  storyLength: string | null;
+  book?: { pages: unknown[] } | null;
+}): number {
+  const dir = order.storyDirection?.trim().toLowerCase();
+  if (dir && dir in DIRECTION_PAGE_MAP) {
+    return DIRECTION_PAGE_MAP[dir as BeatDirection].pages;
+  }
+  const legacy = STORY_LENGTHS.find((length) => length.id === order.storyLength);
+  if (legacy) return legacy.pages;
+  if (order.book?.pages?.length) return order.book.pages.length;
+  return DIRECTION_PAGE_MAP.adventure.pages;
+}
 import { sweepStaleGenerationJobs } from '@/lib/generation-chunked/sweeper';
 
 type StageStatus = 'pending' | 'running' | 'done' | 'failed';
@@ -98,6 +116,7 @@ export async function GET(req: NextRequest) {
         status:        true,
         audioEnabled:  true,
         storyLength:   true,
+        storyDirection: true,
         coverImageUrl: true,
         textStatus:    true,
         imageStatus:   true,
@@ -140,7 +159,7 @@ export async function GET(req: NextRequest) {
     const as = order.audioStatus   as StageStatus;
     const ps = order.packageStatus as StageStatus;
     const audio = order.audioEnabled;
-    const expectedPageCount = STORY_LENGTHS.find((length) => length.id === order.storyLength)?.pages ?? 15;
+    const expectedPageCount = resolveExpectedBeatCount(order);
     const expectedImageUnits = expectedPageCount + 1; // +1 for cover generation
     const completedPageImages = order.book?.pages?.filter((page) => Boolean(page.imageAsset?.id)).length ?? 0;
     const hasCover = Boolean(order.book?.coverImageUrl || order.coverImageUrl);

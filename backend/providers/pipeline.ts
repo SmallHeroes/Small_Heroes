@@ -3597,6 +3597,10 @@ export function validateStoryQuality(story: GeneratedStory, input: StoryInput): 
 // Main entry point
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * LEGACY monolithic story generator — NOT used by chunked serve (story-bank path).
+ * Page count still comes from STORY_LENGTHS for any dev/script callers of story.ts.
+ */
 export async function runStoryPipeline(input: StoryInput): Promise<GeneratedStory> {
   const len         = STORY_LENGTHS.find(l => l.id === input.storyLength) ?? STORY_LENGTHS[1];
   const requestedDebugPages = Number(input.debugPageCount);
