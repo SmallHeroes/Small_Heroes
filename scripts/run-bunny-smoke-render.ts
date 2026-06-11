@@ -30,6 +30,12 @@ import { parsePipelineCache } from '../lib/generation-pipeline/helpers';
 import { assertCompanionSheetRenderable } from '../lib/style01-gptimage';
 import { resolveCompanionForOrder } from '../lib/generation-pipeline/anchor-registry';
 import { getWizardMeta } from '../lib/orderMeta';
+import {
+  buildRawVsNormalizedContactSheet,
+  isBookColorNormalizeEnabled,
+  normalizeRawDirToNormalized,
+  sortBookPngFiles,
+} from '../lib/book-color-normalize';
 import type { Prisma } from '@prisma/client';
 
 const BANK_FILE = path.join(process.cwd(), 'story-bank', 'v3-approved', 'bunny_ometz_bedtime.md');
@@ -291,6 +297,23 @@ async function main() {
   if (!final.done) throw new Error('smoke targets incomplete after chunk budget — inspect job state');
 
   await downloadImages(final.urls, outputDir);
+
+  if (isBookColorNormalizeEnabled() && path.basename(outputDir) === 'raw') {
+    const normalizedDir = path.join(path.dirname(outputDir), 'normalized');
+    const files = await normalizeRawDirToNormalized({ rawDir: outputDir, normalizedDir });
+    console.log(`[smoke] color normalize → ${normalizedDir}/ (${files.length} files)`);
+    const allRaw = sortBookPngFiles(fs.readdirSync(outputDir));
+    if (allRaw.length >= 8) {
+      const contactPath = path.join(path.dirname(outputDir), 'contact-sheet-raw-vs-normalized.png');
+      await buildRawVsNormalizedContactSheet({
+        rawDir: outputDir,
+        normalizedDir,
+        outPath: contactPath,
+        files: allRaw,
+      });
+      console.log(`[smoke] contact sheet → ${contactPath}`);
+    }
+  }
 
   const job = await prisma.generationJob.findUnique({ where: { orderId } });
   const cache = parsePipelineCache(job?.pipelineCache);
