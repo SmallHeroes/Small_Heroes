@@ -19,7 +19,7 @@ const PowerCardSpecSchema = z.object({
   visualMotifs: z
     .array(z.string().min(1))
     .min(3, 'visualMotifs must have at least 3 items')
-    .max(4, 'visualMotifs must have at most 4 items'),
+    .max(5, 'visualMotifs must have at most 5 items'),
 });
 
 function countWords(text: string): number {
@@ -94,7 +94,9 @@ function toPowerCardSpec(parsed: z.infer<typeof PowerCardSpecSchema>): PowerCard
     visualMotifs:
       motifs.length === 3
         ? (motifs as [string, string, string])
-        : (motifs as [string, string, string, string]),
+        : motifs.length === 4
+          ? (motifs as [string, string, string, string])
+          : (motifs as [string, string, string, string, string]),
   };
 }
 

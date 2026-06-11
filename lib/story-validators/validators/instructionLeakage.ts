@@ -48,11 +48,21 @@ const META_PHRASES = [
   'note:', 'hint:', 'quote:',
 ];
 
+/** Letter/digit boundary — JS \\b is unreliable adjacent to Hebrew script. */
+const META_TOKEN_BOUNDARY = `(?<![\\p{L}\\p{N}])`;
+const META_TOKEN_END = `(?![\\p{L}\\p{N}])`;
+
 /** Structural regex patterns. */
 const META_PATTERNS: Array<{ re: RegExp; label: string }> = [
   // "עמוד 11:" or "Page 11:" — page label leaked into prose
-  { re: /\bעמוד\s+\d+\s*:/, label: 'עמוד N:' },
-  { re: /\bPage\s+\d+\s*:/i, label: 'Page N:' },
+  {
+    re: new RegExp(`${META_TOKEN_BOUNDARY}עמוד\\s+\\d+\\s*:${META_TOKEN_END}`, 'u'),
+    label: 'עמוד N:',
+  },
+  {
+    re: new RegExp(`${META_TOKEN_BOUNDARY}Page\\s+\\d+\\s*:${META_TOKEN_END}`, 'iu'),
+    label: 'Page N:',
+  },
 ];
 
 /** Hebrew dialogue verbs — past AND present, both genders. A colon-quote

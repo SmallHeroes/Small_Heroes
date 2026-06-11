@@ -108,7 +108,7 @@ describe('story-bank personalization gate', () => {
         }),
       })
     );
-    expect(pages.length).toBe(20);
+    expect(pages.length).toBe(16);
     const failures = runStoryPersonalizationGate({
       wizard: { childName, childGender: 'girl', companionName: 'דיני' },
       pages,

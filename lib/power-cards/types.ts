@@ -11,8 +11,11 @@ export interface PowerCardSpec {
   coreTool: string;
   steps: [string, string, string, string];
   companionReminder: string;
-  /** 3–4 English visual hooks for design/dev */
-  visualMotifs: [string, string, string] | [string, string, string, string];
+  /** 3–5 English visual hooks for design/dev */
+  visualMotifs:
+    | [string, string, string]
+    | [string, string, string, string]
+    | [string, string, string, string, string];
 }
 
 export type PowerCardPalette = 'moonlit' | 'earth-warm' | 'magical-cool';

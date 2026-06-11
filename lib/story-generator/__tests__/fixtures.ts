@@ -4,7 +4,17 @@ import {
   defaultBollyPages,
 } from '@/lib/story-validators/__tests__/helpers';
 import { getDirectionDNA, MOMENT_WINDOWS } from '../data/direction-dna';
-import type { GenerateInput, Plan } from '../types';
+import type { GenerateInput, MvpCompanionId, Plan } from '../types';
+
+const NAMED_COMPANION_ACTION: Record<MvpCompanionId, string> = {
+  bolly_armadillo: 'בולי פותח לוחית אחת',
+  bat_lily: 'לילי עוטפת כנף',
+  chameleon_koko: 'קים משנה גוון בעדינות',
+};
+
+function companionLatestPage(direction: GenerateInput['direction']): number {
+  return direction === 'fantasy' ? 1 : direction === 'adventure' ? 2 : 3;
+}
 
 function kimPages(count: number, childName: string, momentPage: number) {
   const dirs = [
@@ -45,6 +55,9 @@ export function buildMockPlan(input: GenerateInput): Plan {
         ? { sound: 'ששש', appearsOnPages: hookPages }
         : { phrase: 'הצבע מהמקום הקודם', appearsOnPages: hookPages };
 
+  const companionLatest = companionLatestPage(input.direction);
+  const namedCompanionAction = NAMED_COMPANION_ACTION[input.companionId];
+
   const beatMap = Array.from({ length: pageCount }, (_, i) => {
     const pageNumber = i + 1;
     return {
@@ -52,13 +65,13 @@ export function buildMockPlan(input: GenerateInput): Plan {
       location: pageNumber <= 3 ? 'חדר' : pageNumber < momentPage ? 'מסדרון' : 'מיטה',
       childAction: pageNumber === momentPage ? 'נוגע בעדינות' : 'מקשיב ונושם',
       companionAction:
-        pageNumber <= 2
-          ? 'ממתין בקרבה'
+        pageNumber <= companionLatest
+          ? namedCompanionAction
           : input.companionId === 'bolly_armadillo'
-            ? 'פותח לוחית אחת'
+            ? 'בולי מקשיב לרחשה'
             : input.companionId === 'bat_lily'
-              ? 'עוטפת כנף'
-              : 'משנה גוון בעדינות',
+              ? 'לילי לוחשת ששש'
+              : 'קים משנה גוון בעדינות',
       emotionalRead: pageNumber < momentPage ? 'מתח עדין' : 'רוגע גובר',
       wordCountTarget: input.childAge <= 5 ? 32 : 42,
     };
