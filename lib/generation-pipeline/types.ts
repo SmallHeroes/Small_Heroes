@@ -35,6 +35,17 @@ export type PipelineCache = {
     worldDNA?: string;
   };
   expectedPageCount?: number;
+  /** Per-book cinematography plan (derived at render or story override). JSON-serializable for pipelineCache. */
+  bookShotPlan?: {
+    pageCount: number;
+    source: 'derived' | 'override';
+    pages: Array<{
+      page: number;
+      shot: string;
+      angle?: string;
+      rationale: string;
+    }>;
+  };
   textFinalized?: boolean;
   characterAnchorStore?: Record<
     string,

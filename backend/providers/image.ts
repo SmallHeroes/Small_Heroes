@@ -433,6 +433,8 @@ export interface ImageInput {
   }>;
   /** Per-page storyboard row — required when FLUX_CLEAN_PROMPT=on (Replicate). */
   pageStoryboard?: PageVisualStoryboard;
+  /** Per-book cinematography slot (BookShotPlan) — drives Style 01 COMPOSITION block. */
+  pageShot?: import('../../lib/book-shot-plan').PageShot | null;
   /** Pipeline character ids for this page (e.g. child, companion:bolly_armadillo). */
   expectedCharacterIds?: string[];
   /** guarded-v2 recipe id when using production recipe page cards. */
@@ -3084,8 +3086,10 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     pageTimeOfDayOverrides: input.pageTimeOfDayOverrides,
     familyCoherence: input.familyCoherence ?? null,
     challengeCategory: input.challengeCategory ?? null,
-    // Close-up wording survives ONLY when the storyboard explicitly chose close_up.
-    explicitCloseUp: input.pageStoryboard?.shotType === 'close_up',
+    // Close-up wording survives when BookShotPlan or storyboard chose close_up.
+    explicitCloseUp:
+      input.pageShot?.shot === 'close_up' || input.pageStoryboard?.shotType === 'close_up',
+    pageShot: input.pageShot ?? null,
     assetType: input.assetType,
     storyTitle: input.storyTitle,
     coverText: input.coverText,
@@ -3858,6 +3862,8 @@ export async function generateAllPageImages(
     storyTimeOfDay?: import('../../lib/story-time-of-day').StoryTimeOfDay;
     pageTimeOfDayOverrides?: Partial<Record<number, import('../../lib/story-time-of-day').StoryTimeOfDay>>;
     familyCoherence?: import('../../lib/family-coherence').FamilyCoherenceBundle | null;
+    /** Per-book shot plan — derived at render or story override; consumed by Style 01 assembly. */
+    bookShotPlan?: import('../../lib/book-shot-plan').BookShotPlan;
   }
 ): Promise<{
   results: Map<number, GeneratedImage>;
@@ -4211,6 +4217,16 @@ export async function generateAllPageImages(
         [{ pageNumber: page.pageNumber, imagePrompt: page.imagePrompt, bookPageText: page.bookPageText }],
         []
       )[0];
+    const pageShot =
+      config.bookShotPlan?.pages.find((slot) => slot.page === page.pageNumber) ?? null;
+    if (config.bookShotPlan) {
+      console.log('[book-shot-plan]', {
+        page: page.pageNumber,
+        shot: pageShot?.shot,
+        angle: pageShot?.angle ?? 'eye',
+        rationale: pageShot?.rationale?.slice(0, 80),
+      });
+    }
     textZones.set(page.pageNumber, pageStoryboard.textZone);
     lightingModes.set(page.pageNumber, pageStoryboard.lighting);
     console.log('[storyboard]', {
@@ -4381,6 +4397,7 @@ export async function generateAllPageImages(
       | 'familyCoherence'
       | 'storyTimeOfDay'
       | 'pageTimeOfDayOverrides'
+      | 'pageShot'
     > = {
       totalPages: pagesToGenerate.length,
       ...(shouldUseStyle01Phase2Path(normalizedStyle)
@@ -4389,6 +4406,7 @@ export async function generateAllPageImages(
             familyCoherence: config.familyCoherence ?? null,
             storyTimeOfDay: config.storyTimeOfDay,
             pageTimeOfDayOverrides: config.pageTimeOfDayOverrides,
+            pageShot,
           }
         : {}),
     };

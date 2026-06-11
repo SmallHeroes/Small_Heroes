@@ -36,6 +36,11 @@ import {
 } from './family-coherence';
 import { buildCompanionAccessoryLockBlock } from './companion-accessory';
 import {
+  pageShotUsesRelaxedBreathe,
+  shotPlanToCompositionSpec,
+  type PageShot,
+} from './book-shot-plan';
+import {
   buildStyle01BookPagePrompt,
   buildStyle01ChildVisualLock,
   buildStyle01ChildAnatomicalLock,
@@ -49,6 +54,8 @@ import {
   buildStyle01WardrobeLock,
   classifyStyle01SceneClass,
   resolveStyle01StoryLocks,
+  STYLE_01_FRAMING_RULE,
+  STYLE_01_FRAMING_RULE_CLOSE_UP,
   type Style01SceneClass,
 } from './style01-gptimage';
 import {
@@ -90,6 +97,8 @@ export type Style01PromptAssemblyInput = {
   challengeCategory?: string | null;
   /** True ONLY when the storyboard explicitly chose a close_up shot; otherwise close-up wording is sanitized out of the scene. */
   explicitCloseUp?: boolean;
+  /** Per-book cinematography slot from BookShotPlan (derived or override). */
+  pageShot?: PageShot | null;
   assetType?: 'page' | 'cover';
   storyTitle?: string | null;
   coverText?: string | null;
@@ -150,7 +159,11 @@ export function assembleStyle01Phase2Prompt(
     input.pageStoryState ??
     resolveDefaultPageStoryState(input.companion?.id, input.pageNumber);
 
-  const compositionSpec = storyLocks.compositionByPage?.[input.pageNumber];
+  const shotPlanSpec = input.pageShot ? shotPlanToCompositionSpec(input.pageShot) : undefined;
+  const compositionSpec =
+    shotPlanSpec ?? storyLocks.compositionByPage?.[input.pageNumber];
+  const explicitCloseUp =
+    input.explicitCloseUp === true || input.pageShot?.shot === 'close_up';
 
   const imageDirection = sanitizeCloseUpLanguage(
     resolveStyle01SceneDescription({
@@ -158,7 +171,7 @@ export function assembleStyle01Phase2Prompt(
       pagePrompt: input.pagePrompt,
       mechanicalScene: input.mechanicalScene,
     }),
-    input.explicitCloseUp
+    explicitCloseUp
   );
 
   let entityPresence = derivePageEntityPresence({
@@ -377,7 +390,8 @@ export function assembleStyle01Phase2Prompt(
     : buildStyle01CompositionBlock({
         pageNumber: input.pageNumber,
         imageDirection,
-        compositionByPage: storyLocks.compositionByPage,
+        compositionOverride: shotPlanSpec,
+        compositionByPage: shotPlanSpec ? undefined : storyLocks.compositionByPage,
         childOnPage,
       });
 
@@ -463,6 +477,11 @@ export function assembleStyle01Phase2Prompt(
     entityPresenceBlock,
     useCanonicalChildAnchorRef: input.useCanonicalChildAnchorRef,
     isCover,
+    framingRule: isCover
+      ? undefined
+      : pageShotUsesRelaxedBreathe(input.pageShot ?? undefined)
+        ? STYLE_01_FRAMING_RULE_CLOSE_UP
+        : STYLE_01_FRAMING_RULE,
     pageExpressionLock,
     mutualGazeLock,
     companionSizeLock,

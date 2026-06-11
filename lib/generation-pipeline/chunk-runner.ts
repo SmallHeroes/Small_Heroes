@@ -805,6 +805,17 @@ async function runPageImagesChunk(
     { skipLlmPersonalization: true }
   );
 
+  let bookShotPlan = cache.bookShotPlan;
+  if (!bookShotPlan) {
+    const { beatsFromStoryPages, resolveBookShotPlan } = await import('@/lib/book-shot-plan');
+    bookShotPlan = resolveBookShotPlan({
+      storyFilePath,
+      pages: beatsFromStoryPages(story.pages),
+    });
+    cache = { ...cache, bookShotPlan };
+    await saveCache(order.id, cache);
+  }
+
   const compositionByPage = new Map(
     (story.pageCompositionPlan ?? []).map((c) => [c.pageNumber, c])
   );
@@ -1001,6 +1012,7 @@ async function runPageImagesChunk(
     storyTimeOfDay: story.storyTimeOfDay,
     pageTimeOfDayOverrides: story.pageTimeOfDayOverrides,
     familyCoherence: familyCoherenceForImages,
+    bookShotPlan: bookShotPlan as import('@/lib/book-shot-plan').BookShotPlan,
   });
 
   const presentationEnabled =

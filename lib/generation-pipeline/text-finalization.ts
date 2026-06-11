@@ -17,6 +17,7 @@ import {
 } from './helpers';
 import type { PipelineCache } from './types';
 import { resolveCompanionForOrder } from './anchor-registry';
+import { beatsFromStoryPages, resolveBookShotPlan } from '@/lib/book-shot-plan';
 
 /**
  * PRE-SPEND gate: load, personalize, validate, and persist final story text.
@@ -187,6 +188,11 @@ export async function finalizeAndPersistStoryText(
     }
   }
 
+  const bookShotPlan = resolveBookShotPlan({
+    storyFilePath,
+    pages: beatsFromStoryPages(story.pages),
+  });
+
   const nextCache: PipelineCache = {
     ...cache,
     storyFilePath,
@@ -194,6 +200,7 @@ export async function finalizeAndPersistStoryText(
     challengeCategory,
     textFinalized: true,
     expectedPageCount: story.pages.length,
+    bookShotPlan,
   };
 
   await prisma.order.update({ where: { id: order.id }, data: { textStatus: 'done' } });

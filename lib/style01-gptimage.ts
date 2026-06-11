@@ -59,6 +59,13 @@ export const STYLE_01_FRAMING_RULE = `FRAMING RULE — BREATHE:
 - For "intimate" shots: still leave breathing room — show the surrounding environment described in THIS page's staging (never default to a cave or any fixed location); keep depth and scene context visible. NOT a portrait crop.
 - FORBIDDEN: character filling frame, tight headshot, claustrophobic framing, no environmental context.`;
 
+/** Sanctioned close_up / intimate pages — tight crop allowed; identity locks unchanged. */
+export const STYLE_01_FRAMING_RULE_CLOSE_UP = `FRAMING RULE — BREATHE (close_up / intimate page):
+- Tight crop allowed — child + companion hands/face/meaningful object share the frame.
+- Intimacy over aggression: NO giant isolated face portrait; companion or story object should remain visible.
+- Anatomy and identity locks unchanged (CHILD VISUAL LOCK, companion lock).
+- Still enough context to read the story beat — not a blank void background.`;
+
 export const STYLE_01_REFERENCE_INSTRUCTION =
   'Use attached STYLE reference images for VISUAL STYLE ONLY: soft watercolor technique, paper texture, gentle palette, picture-book warmth. Do NOT copy exact creatures, text, signs, compositions, or characters from references. Create the new original scene below.';
 
@@ -843,6 +850,8 @@ export function buildStyle01BookPagePrompt(input: {
   useCanonicalChildAnchorRef?: boolean;
   /** Cover uses COVER COMPOSITION instead of interior FRAMING RULE. */
   isCover?: boolean;
+  /** Defaults to STYLE_01_FRAMING_RULE; close_up pages use relaxed variant. */
+  framingRule?: string;
   pageExpressionLock?: string;
   mutualGazeLock?: string;
   companionSizeLock?: string;
@@ -855,7 +864,7 @@ export function buildStyle01BookPagePrompt(input: {
     input.pageExpressionLock ?? '',
     input.mutualGazeLock ?? '',
     input.companionSizeLock ?? '',
-    input.isCover ? '' : STYLE_01_FRAMING_RULE,
+    input.isCover ? '' : (input.framingRule ?? STYLE_01_FRAMING_RULE),
     STYLE_01_SHARED,
     STYLE_01_RENDERING_CORRECTION,
     input.recurringObjectLocks ?? '',

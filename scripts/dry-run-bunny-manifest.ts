@@ -42,9 +42,21 @@ import {
   assertOrderStyleSellable,
   resolveOrderStyleBranch,
 } from '../lib/image-engine-guard';
+import {
+  beatsFromStoryPages,
+  formatBookShotPlanTable,
+  isBookShotPlanValid,
+  resolveBookShotPlan,
+} from '../lib/book-shot-plan';
 
 const FAILED_ORDER_ID = 'cmq82b5f300024wyolypqecob';
 const BANK_FILE = path.join(process.cwd(), 'story-bank', 'v3-approved', 'bunny_ometz_bedtime.md');
+const LEGACY_GOLDEN_FILE = path.join(
+  process.cwd(),
+  'story-bank',
+  'v5-fixed-v2',
+  'bolly_armadillo_bedtime.md'
+);
 const APPROVED_STYLE_REFS = [
   'style01-texture-night-window.png',
   'style01-texture-stream-rocks.png',
@@ -175,6 +187,42 @@ async function main() {
     { skipLlmPersonalization: true }
   );
 
+  const bookShotPlan = resolveBookShotPlan({
+    storyFilePath: BANK_FILE,
+    pages: beatsFromStoryPages(story.pages),
+  });
+  check(
+    'SP1',
+    'BookShotPlan contract valid (bunny v3)',
+    isBookShotPlanValid(bookShotPlan),
+    `source=${bookShotPlan.source} shots=${[...new Set(bookShotPlan.pages.map((p) => p.shot))].join(', ')}`
+  );
+
+  const legacyMd = fs.readFileSync(LEGACY_GOLDEN_FILE, 'utf8');
+  const legacyBeats: Array<{ page: number; imageDirection: string; bookPageText: string }> = [];
+  for (const m of legacyMd.matchAll(
+    /--- Page (\d+) ---\r?\n([\s\S]*?)(?=\r?\n--- Page |\r?\nWORD_COUNT:|$)/g
+  )) {
+    const block = m[2];
+    const dir = block.match(/^imageDirection:\s*(.+)$/m)?.[1]?.trim() ?? '';
+    const text = block
+      .split(/\r?\n/)
+      .filter((line) => !line.startsWith('imageDirection:'))
+      .join('\n')
+      .trim();
+    legacyBeats.push({ page: Number(m[1]), imageDirection: dir, bookPageText: text });
+  }
+  const legacyShotPlan = resolveBookShotPlan({
+    storyFilePath: LEGACY_GOLDEN_FILE,
+    pages: legacyBeats,
+  });
+  check(
+    'SP2',
+    'BookShotPlan contract valid (legacy bolly golden)',
+    isBookShotPlanValid(legacyShotPlan),
+    `pages=${legacyShotPlan.pageCount} shots=${[...new Set(legacyShotPlan.pages.map((p) => p.shot))].join(', ')}`
+  );
+
   const lines: string[] = [];
   const push = (s = '') => lines.push(s);
   push(`# DRY-RUN Prompt Manifest — fresh order \`${orderId}\` (bunny, Style 01)`);
@@ -187,6 +235,18 @@ async function main() {
   push(`- order.illustrationStyle: \`${order.illustrationStyle}\` → branch \`${branch}\` · challengeCategory: \`${challengeCategory}\` · refConfig: \`${refConfig}\``);
   push(`- child anchor: SIMULATED placeholder (Stage-0 generates at render; binding logic exercised for real)`);
   push(`- adversarial DNA replayed from failed cache: \`${contaminatedDNA.slice(0, 90)}…\``);
+  push();
+  push('## BookShotPlan (v3 bunny — derived at render)');
+  push();
+  push(`source: \`${bookShotPlan.source}\` · pageCount: ${bookShotPlan.pageCount}`);
+  push();
+  push(formatBookShotPlanTable(bookShotPlan));
+  push();
+  push('## BookShotPlan (legacy golden — bolly_armadillo_bedtime)');
+  push();
+  push(`source: \`${legacyShotPlan.source}\` · pageCount: ${legacyShotPlan.pageCount}`);
+  push();
+  push(formatBookShotPlanTable(legacyShotPlan));
   push();
 
   const childStructured = {
@@ -223,12 +283,18 @@ async function main() {
       pageNumber: input.pageNumber,
       totalPages: story.pages.length,
     });
+    const pageShot =
+      input.assetType === 'cover'
+        ? null
+        : bookShotPlan.pages.find((p) => p.page === input.pageNumber) ?? null;
+
     const assembled = assembleStyle01Phase2Prompt({
       pageNumber: input.pageNumber,
       totalPages: story.pages.length,
       pagePrompt: enriched.imagePrompt,
       rawScenePrompt: enriched.rawScenePrompt,
       bookPageText: input.bookPageText,
+      pageShot,
       childFirstName: order.childName,
       childAge: order.childAge,
       childGender: order.childGender,
@@ -278,7 +344,7 @@ async function main() {
       includeChildPhoto,
       useMultiCompanionSheets,
     });
-    return { assembled, finalRefs, breakdown, label: input.label };
+    return { assembled, finalRefs, breakdown, label: input.label, pageShot };
   };
 
   const targets = [
@@ -306,7 +372,7 @@ async function main() {
   ];
 
   for (const t of targets) {
-    const { assembled, finalRefs, breakdown, label } = assembleFor(t);
+    const { assembled, finalRefs, breakdown, label, pageShot } = assembleFor(t);
     const prompt = assembled.prompt;
 
     // C1: registry lock present, contamination absent
@@ -381,6 +447,26 @@ async function main() {
     }
     push(`- entityPresence: child=\`${assembled.entityPresence.childPresence}\` companion=\`${assembled.entityPresence.companionPresence}\``);
     push(`- sceneClass: \`${assembled.sceneClass}\` · effectivePageTimeOfDay: \`${assembled.effectivePageTimeOfDay}\``);
+    if (label !== 'cover' && pageShot) {
+      push(
+        `- bookShot: \`${pageShot.shot}\` (${pageShot.angle ?? 'eye'}) — ${pageShot.rationale.replace(/\|/g, '/')}`
+      );
+      const compShot = assembled.compositionBlock.match(/^shotType:\s*(.+)$/m)?.[1]?.trim();
+      const shotAligned =
+        pageShot.shot === 'close_up'
+          ? compShot === 'close_up'
+          : pageShot.shot === 'dynamic_angle'
+            ? /dynamic action beat/i.test(assembled.compositionBlock)
+            : pageShot.shot === 'establishing_wide' || pageShot.shot === 'medium_wide'
+              ? /establishing|medium-wide/i.test(assembled.compositionBlock)
+              : Boolean(compShot);
+      check(
+        `SP-${label}`,
+        `[${label}] COMPOSITION block reflects BookShotPlan`,
+        shotAligned,
+        `plan=${pageShot.shot} composition shotType=${compShot ?? 'MISSING'}`
+      );
+    }
     push(`- child ref: ${breakdown.child.length ? `bound → \`${breakdown.child[0]}\`` : '(not bound)'} `);
     push(`- companion refs: ${breakdown.companion.map((r) => `\`${path.basename(r)}\``).join(', ') || '(none)'}`);
     push(`- style refs: ${breakdown.style.map((r) => `\`${path.basename(r)}\``).join(', ')}`);
