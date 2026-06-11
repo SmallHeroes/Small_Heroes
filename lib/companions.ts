@@ -185,8 +185,8 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
     },
     {
       id: 'dragon_dini',
-      name: 'הדרקון דיני',
-      tagline: 'דרקונון צעיר שמגלה שהכוח שלו גדל כשהוא שומר',
+      name: 'הדרקונית דיני',
+      tagline: 'דרקונית צעירה שמגלה שהכוח שלה גדל כשהיא שומרת',
       image: '/companions/NEW_SIBLING/dragon_dini.jpg',
       cardImage: '/companions/dragon_dini/style01-sheets/front.png',
       narrativeHook: 'להיות אח גדול/ה זה מאפיין של כוח',
