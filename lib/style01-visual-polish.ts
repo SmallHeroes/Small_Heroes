@@ -75,6 +75,66 @@ export function resolvePageSceneFidelityAddendum(input: {
   return '';
 }
 
+/** Always-on — comic motion must not detach body parts (ears, tails, limbs). */
+export function buildStyle01AnatomyIntegrityLock(): string {
+  return [
+    'ANATOMY INTEGRITY (always):',
+    'All body parts stay ATTACHED — ears, tails, limbs never detach or float.',
+    'Comic exaggeration is expressed through posture, stretch, and motion lines — NEVER through detachment.',
+  ].join('\n');
+}
+
+const MENTIONED_CHARACTER_ACTING_RE =
+  /(?:מרימה|מחייכת|אומרת|צועקת|מתקרבת|נכנסת|speaks?|smiling|shouting|raising|leaning|opens?|examining|handing)/i;
+
+const NURSE_MENTION_RE = /(?:nurse|אחות)/i;
+const DOCTOR_MENTION_RE = /(?:doctor|רופא|דוקטור)/i;
+const MIRROR_MENTION_RE = /(?:mirror|מראה)/i;
+
+/**
+ * Characters named in page prose as acting/reacting must appear (background OK).
+ */
+export function buildMentionedCharacterPresenceLock(
+  bookPageText?: string | null
+): string {
+  const text = (bookPageText ?? '').trim();
+  if (!text) return '';
+
+  const lines: string[] = [];
+  if (NURSE_MENTION_RE.test(text) && MENTIONED_CHARACTER_ACTING_RE.test(text)) {
+    lines.push(
+      'Nurse (אחות): MUST appear in the illustration — background presence is fine. Show the action the text describes (e.g. raising eyes, quiet smile, speaking).'
+    );
+  }
+  if (DOCTOR_MENTION_RE.test(text) && MENTIONED_CHARACTER_ACTING_RE.test(text)) {
+    lines.push(
+      'Doctor: MUST appear in the illustration — background presence is fine when the text describes them acting.'
+    );
+  }
+  if (lines.length === 0) return '';
+
+  return [
+    'MENTIONED-CHARACTER PRESENCE:',
+    ...lines,
+    'Any character the page text describes as acting/reacting (speaking, smiling, raising eyes) MUST appear — background is fine; absence is not.',
+  ].join('\n');
+}
+
+/** Mirror scenes: physical character + reflection, matched pose. */
+export function buildReflectionRuleLock(input: {
+  bookPageText?: string | null;
+  imageDirection?: string | null;
+}): string {
+  const hay = [input.bookPageText, input.imageDirection].filter(Boolean).join(' ');
+  if (!MIRROR_MENTION_RE.test(hay)) return '';
+
+  return [
+    'REFLECTION RULE (mirror scenes):',
+    'When a mirror shows a character\'s reflection, the physical character must also be visible in the scene — NOT only inside the mirror.',
+    'Reflection matches pose: show both the real bodies in front of the mirror AND their reflections.',
+  ].join('\n');
+}
+
 export function buildCompanionSizeVsChildLock(input: {
   childPresence?: string;
   companionPresence?: string;

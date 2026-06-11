@@ -28,7 +28,7 @@ imageDirection: close‑up of springy bunny ears popping up as nurse opens the d
 האוזניים שלו דווקא רועדות כמו קפיצים, והחיוך שלה מתארך קצת מרוב בלבול.
 
 --- Page 2 ---
-imageDirection: bunny mid-sneeze breaking the ear-statue game — ears flying upward while child still holds her imaginary ears up
+imageDirection: bunny mid-sneeze on exam table — ears ATTACHED springing upward with motion lines; child still holds imaginary ears on her head
 
 {{childName}} מחליטה לשחק. "פסל אוזניים! מי שזז מפסיד!"  
 היא מחזיקה את האוזניים הדמיוניות שלה בשתי ידיים, ובּוּנִי מתיישר לידה, אוזניים מתוחות כמו חבלים.  
@@ -55,7 +55,7 @@ imageDirection: bunny standing on chair, shouting heroically, child trying to hu
 הידיים של {{childName}} ואוזניו של בּוּנִי רועדות כאילו מנגנות יחד שיר סודי.
 
 --- Page 5 ---
-imageDirection: mirror reflection — child wiggling hands like ears, bunny wiggling ears, both smiling
+imageDirection: child and real bunny in front of clinic mirror — BOTH visible in scene AND reflected, wiggling hands/ears like a game, both smiling
 
 {{childName}} נושמת חם דרך האף, ומסתכלת במראה הקטנה.  
 היא מנענעת בכוונה את הידיים כאילו היו אוזניים.  

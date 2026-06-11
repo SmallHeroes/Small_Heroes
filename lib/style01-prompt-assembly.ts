@@ -53,8 +53,11 @@ import {
 } from './style01-gptimage';
 import {
   buildCompanionSizeVsChildLock,
+  buildMentionedCharacterPresenceLock,
   buildMutualGazeInteractionLock,
   buildPageExpressionLock,
+  buildReflectionRuleLock,
+  buildStyle01AnatomyIntegrityLock,
   buildStyle01CoverCompositionBlock,
   buildStyle01CoverSceneDescription,
   resolvePageSceneFidelityAddendum,
@@ -402,6 +405,16 @@ export function assembleStyle01Phase2Prompt(
     childPresence: entityPresence.childPresence,
     companionPresence: entityPresence.companionPresence,
   });
+  const anatomyIntegrityLock = buildStyle01AnatomyIntegrityLock();
+  const mentionedCharacterLock = isCover
+    ? ''
+    : buildMentionedCharacterPresenceLock(input.bookPageText);
+  const reflectionRuleLock = isCover
+    ? ''
+    : buildReflectionRuleLock({
+        bookPageText: input.bookPageText,
+        imageDirection,
+      });
   const sceneFidelityAddendum = isCover
     ? ''
     : resolvePageSceneFidelityAddendum({
@@ -433,7 +446,17 @@ export function assembleStyle01Phase2Prompt(
     recurringObjectLocks: objectLocks || undefined,
     recurringEntityLocks: entityLocks || undefined,
     environmentLock:
-      [scenarioSettingLock, environmentLock, familyCoherenceBlock, structuredObjectBlock, storyStateForbiddenBlock, timeOfDayLock]
+      [
+        scenarioSettingLock,
+        environmentLock,
+        familyCoherenceBlock,
+        structuredObjectBlock,
+        storyStateForbiddenBlock,
+        timeOfDayLock,
+        anatomyIntegrityLock,
+        mentionedCharacterLock,
+        reflectionRuleLock,
+      ]
         .filter(Boolean)
         .join('\n\n') || undefined,
     compositionBlock,

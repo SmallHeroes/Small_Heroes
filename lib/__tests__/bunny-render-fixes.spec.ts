@@ -299,6 +299,54 @@ describe('visual polish — smoke #2 brief (cover locks, expression, gaze, size,
   });
 });
 
+describe('general integrity locks (anatomy, mentioned-character, reflection)', () => {
+  const childStructured = {
+    face: 'Oval face',
+    hair: 'Long curly hair',
+    body: '7-year-old girl',
+    clothing: 'sky-blue shirt',
+    signature: 'cheeks',
+  };
+
+  it('always injects ANATOMY INTEGRITY on interior pages', () => {
+    const { prompt } = assembleStyle01Phase2Prompt({
+      pageNumber: 2,
+      rawScenePrompt: 'bunny mid-sneeze, ears springing with motion lines',
+      bookPageText: 'אפצי!',
+      childFirstName: 'יובל',
+      companion: { id: 'bunny_ometz', name: 'בּוּנִי', visualDescription: 'cream bunny' },
+    });
+    expect(prompt).toMatch(/ANATOMY INTEGRITY/);
+    expect(prompt).toMatch(/never detach or float/i);
+  });
+
+  it('requires nurse presence when prose describes her acting (p4/p8)', () => {
+    const { prompt } = assembleStyle01Phase2Prompt({
+      pageNumber: 4,
+      rawScenePrompt: 'bunny on chair shouting, child hushing',
+      bookPageText: 'האחות מרימה עיניים ומחייכת בשקט.',
+      childFirstName: 'יובל',
+      childStructured,
+      challengeCategory: 'MEDICAL_PROCEDURE',
+      companion: { id: 'bunny_ometz', name: 'בּוּנִי', visualDescription: 'cream bunny' },
+    });
+    expect(prompt).toMatch(/MENTIONED-CHARACTER PRESENCE/);
+    expect(prompt).toMatch(/Nurse.*MUST appear/i);
+  });
+
+  it('injects REFLECTION RULE when mirror is in scene (p5)', () => {
+    const { prompt } = assembleStyle01Phase2Prompt({
+      pageNumber: 5,
+      rawScenePrompt: 'child and bunny in front of clinic mirror, both reflected',
+      bookPageText: '{{childName}} מסתכלת במראה הקטנה.',
+      childFirstName: 'יובל',
+      companion: { id: 'bunny_ometz', name: 'בּוּנִי', visualDescription: 'cream bunny' },
+    });
+    expect(prompt).toMatch(/REFLECTION RULE/);
+    expect(prompt).toMatch(/physical character must also be visible/i);
+  });
+});
+
 describe('missing companion sheet — fail loudly (no weak fallbacks)', () => {
   it('throws for a sheet-less companion (turtle_beiti) by default', () => {
     delete process.env[ENV_KEY];
