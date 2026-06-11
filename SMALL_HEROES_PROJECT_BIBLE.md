@@ -1,5 +1,7 @@
 # Small Heroes — Project Bible
 
+> ⚠️ **HISTORICAL (May 2026).** Current truth: **8/12/16 beats**, **16/24/32** display pages, **₪59/79/99**, MVP matrix **6×3×1** — see `outputs/DECISION_MEMO_launch_matrix_lock.md` + `CLAUDE.md`.
+
 **Last updated:** May 12, 2026
 **Repo:** https://github.com/SmallHeroes/Small_Heroes
 **Live:** Vercel (Next.js)
