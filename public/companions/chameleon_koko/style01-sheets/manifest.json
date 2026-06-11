@@ -1,0 +1,38 @@
+{
+  "companionId": "chameleon_koko",
+  "referenceJpg": "/companions/TRANSITION/chameleon_koko.jpg",
+  "generatedAt": "2026-06-11T12:34:24.937Z",
+  "approvedBy": "Guy 2026-06-11 (v3 canon: warm yellowish-green + mustard satchel)",
+  "views": {
+    "front": {
+      "filename": "front.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 1
+    },
+    "three_quarter_front": {
+      "filename": "3-4.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.9771877761501366
+    },
+    "side": {
+      "filename": "side.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.9963757802444267
+    },
+    "three_quarter_back": {
+      "filename": "back.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.8604328536371921
+    },
+    "happy": {
+      "filename": "happy.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.9887432492802706
+    },
+    "theme": {
+      "filename": "theme.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.997888659071763
+    }
+  }
+}
