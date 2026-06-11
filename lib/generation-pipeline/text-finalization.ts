@@ -3,11 +3,7 @@ import path from 'path';
 import { prisma } from '@/lib/prisma';
 import { assignTemplatesForBook, type BookPageTemplate } from '@/lib/bookPageLayout';
 import { loadStoryFromBank, StoryBankPersonalizationError } from '@/backend/providers/story-bank-loader';
-import {
-  selectCompanionStory,
-  selectStoryFromBank,
-  STORY_BANK_V3_DIR_NAME,
-} from '@/backend/providers/story-bank-index';
+import { selectCompanionStory, STORY_BANK_V3_DIR_NAME } from '@/backend/providers/story-bank-index';
 import { buildLetterContextFromOrder, buildPatchContextFromOrder } from '@/backend/providers/personalization';
 import { getWizardMeta } from '@/lib/orderMeta';
 import {
@@ -40,22 +36,19 @@ export async function finalizeAndPersistStoryText(
 
   let storyFilePath = cache.devStoryBankFile ?? cache.storyFilePath;
   if (!storyFilePath) {
-    let selection = selectCompanionStory(resolvedCompanion?.id, directionForV3);
-    let storyBankVersion: 'v3' | 'v1' = 'v3';
+    const selection = selectCompanionStory(resolvedCompanion?.id, directionForV3);
     if (!selection) {
-      selection = selectStoryFromBank(challengeCategory, storyLength);
-      storyBankVersion = 'v1';
+      throw new StoryBankPersonalizationError(
+        `No companion story file for companion=${resolvedCompanion?.id ?? '(none)'} direction=${directionForV3} — ` +
+          'v1 category/raw fallback removed; bind a v3-approved golden for this product.'
+      );
     }
-    if (!selection) {
-      throw new StoryBankPersonalizationError(`No story-bank story for category=${challengeCategory}`);
-    }
-    const storyDir =
-      selection.dirName ?? (storyBankVersion === 'v3' ? STORY_BANK_V3_DIR_NAME : 'raw');
+    const storyDir = selection.dirName ?? STORY_BANK_V3_DIR_NAME;
     storyFilePath = path.join(process.cwd(), 'story-bank', storyDir, selection.filename);
     cache = {
       ...cache,
       storyFilePath,
-      storyBankVersion,
+      storyBankVersion: 'v3',
       selectionFilename: selection.filename,
       directionForV3,
       challengeCategory,

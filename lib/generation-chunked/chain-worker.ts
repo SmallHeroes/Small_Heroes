@@ -2,16 +2,41 @@
  * Fire-and-forget worker kick — MUST NOT await the next worker finishing.
  * Correctness is DB state + sweeper/resume, not this request.
  */
+import { prisma } from '@/lib/prisma';
+
+async function failGenerationChain(orderId: string, message: string): Promise<void> {
+  console.error(`[chunked-gen] ${message}`, { orderId });
+  await prisma.generationJob.update({
+    where: { orderId },
+    data: {
+      status: 'failed',
+      lastError: message,
+      failedAt: new Date(),
+      retryable: true,
+    },
+  });
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { status: 'failed', lastError: message },
+  });
+}
+
 export function chainGenerationWorker(orderId: string): void {
   const base = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || '').replace(/\/$/, '');
   if (!base) {
-    console.warn('[chunked-gen] chain skipped — no APP URL');
+    void failGenerationChain(
+      orderId,
+      'Generation chain aborted: NEXT_PUBLIC_APP_URL / APP_URL is not configured'
+    );
     return;
   }
 
   const secret = process.env.GENERATION_SECRET?.trim();
   if (!secret) {
-    console.warn('[chunked-gen] chain skipped — GENERATION_SECRET missing');
+    void failGenerationChain(
+      orderId,
+      'Generation chain aborted: GENERATION_SECRET is not configured'
+    );
     return;
   }
 
