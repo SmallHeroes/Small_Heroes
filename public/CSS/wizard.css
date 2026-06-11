@@ -2828,3 +2828,112 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* MVP challenge cards (step 1) */
+.mvp-challenge-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 720px) {
+  .mvp-challenge-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mvp-challenge-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 16px;
+  border: 2px solid #e8e2f5;
+  border-radius: 20px;
+  background: #fff;
+  text-align: right;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.mvp-challenge-card:hover:not(:disabled) {
+  border-color: #b9a6f0;
+  box-shadow: 0 8px 24px rgba(92, 75, 138, 0.1);
+  transform: translateY(-2px);
+}
+
+.mvp-challenge-card.selected {
+  border-color: #7c5cfc;
+  box-shadow: 0 0 0 3px rgba(124, 92, 252, 0.18);
+}
+
+.mvp-challenge-card--parked {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.mvp-challenge-card-emoji {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.mvp-challenge-card-img {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 14px;
+  align-self: flex-start;
+}
+
+.mvp-challenge-card-img--placeholder {
+  background: #f0ebff;
+}
+
+.mvp-challenge-card-label {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #2c2938;
+}
+
+.mvp-challenge-card-companion {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #6b5b95;
+}
+
+.mvp-challenge-card-oneliner {
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: #5a5670;
+}
+
+.mvp-challenge-card-badge {
+  position: absolute;
+  top: 10px;
+  inset-inline-start: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #4a3b7a;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.product-card-coming-soon {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.product-card-coming-soon-badge {
+  position: absolute;
+  top: 12px;
+  inset-inline-start: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(74, 59, 122, 0.92);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  z-index: 1;
+}

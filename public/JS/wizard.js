@@ -391,7 +391,84 @@ const state = {
   /* contact (summary) */
   contactName: "",
   contactEmail: "",
+
+  /** Loaded from GET /api/wizard/mvp-matrix — sellable slots + challenge cards. */
+  mvpMatrix: null,
 };
+
+/* ── MVP MATRIX WIZARD FLOW ─────────────────────────────────── */
+function isCompanionStepEnabled() {
+  return Boolean(state.mvpMatrix?.dev?.showCompanionStep);
+}
+
+function wizardStepCount() {
+  return isCompanionStepEnabled() ? 9 : 8;
+}
+
+function wizardDisplayStep(physicalStep) {
+  if (!isCompanionStepEnabled() && physicalStep > 2) return physicalStep - 1;
+  return physicalStep;
+}
+
+function nextPhysicalStep(physicalStep) {
+  if (!isCompanionStepEnabled() && physicalStep === 1) return 3;
+  return physicalStep + 1;
+}
+
+function prevPhysicalStep(physicalStep) {
+  if (!isCompanionStepEnabled() && physicalStep === 3) return 1;
+  return physicalStep - 1;
+}
+
+function normalizeStepAfterMvpLoad() {
+  if (!isCompanionStepEnabled() && state.currentStep === 2) {
+    state.currentStep = 3;
+  }
+  state.totalSteps = wizardStepCount();
+}
+
+function getMvpSlotForTopic(topicId) {
+  if (!state.mvpMatrix?.categories) return null;
+  const id = normalizeWizardTopicId(topicId);
+  return (
+    state.mvpMatrix.categories.find((c) => c.topicId === id) ||
+    state.mvpMatrix.parkedCategories?.find((c) => c.topicId === id) ||
+    null
+  );
+}
+
+function getDirectionSellability(direction) {
+  const cat = state.challengeCategory;
+  if (!cat || !state.mvpMatrix?.categories) return { sellable: true, configured: 'approved' };
+  const slot = state.mvpMatrix.categories.find((c) => c.category === cat);
+  return slot?.directions?.[direction] || { sellable: false, configured: 'missing' };
+}
+
+function applyMatrixCompanionForCategory(category) {
+  if (!category || !state.mvpMatrix?.categories) return;
+  const slot = state.mvpMatrix.categories.find((c) => c.category === category);
+  if (slot?.companion?.id) {
+    state.companionCharacterId = slot.companion.id;
+    state.productTruth = null;
+  }
+}
+
+async function loadMvpMatrix() {
+  try {
+    const res = await fetch('/api/wizard/mvp-matrix', { cache: 'no-store' });
+    if (!res.ok) {
+      console.error('[wizard] mvp-matrix HTTP', res.status);
+      return;
+    }
+    state.mvpMatrix = await res.json();
+    normalizeStepAfterMvpLoad();
+    if (state.challengeCategory) {
+      applyMatrixCompanionForCategory(state.challengeCategory);
+    }
+  } catch (err) {
+    console.error('[wizard] mvp-matrix load failed', err);
+  }
+}
 
 /* ── PRICING ─────────────────────────────────────────────────── */
 const PRICES = {
@@ -489,7 +566,9 @@ function migrateLegacyWizardStep(step) {
     n = migrate15to10(n);
   }
   const tenToNine = { 1: 1, 2: 1, 3: 2, 4: 3, 5: 4, 6: 8, 7: 5, 8: 6, 9: 7, 10: 9 };
-  return tenToNine[n] || 1;
+  let mapped = tenToNine[n] || 1;
+  if (!isCompanionStepEnabled() && mapped === 2) mapped = 3;
+  return mapped;
 }
 
 function normalizeProductStateFromLegacy() {
@@ -1022,7 +1101,6 @@ function init() {
   }
   bindDraftFieldPersistListeners();
   buildPills();
-  renderTopics();
   renderSuperpowerChips();
   renderGoalsChips();
   renderProductCards();
@@ -1032,6 +1110,13 @@ function init() {
   restorePhotoQualityFromStorage();
   renderPhotoUploadArea();
   renderPhotoQualityMessage();
+  loadMvpMatrix().finally(() => {
+    normalizeStepAfterMvpLoad();
+    buildPills();
+    renderTopics();
+    updateUI();
+    refreshTotal();
+  });
   updateUI();
   refreshTotal();
   track('wizard_started');
@@ -1144,6 +1229,7 @@ function buildPills() {
   if (!c) return;
 
   c.innerHTML = "";
+  state.totalSteps = wizardStepCount();
 
   for (let i = 1; i <= state.totalSteps; i++) {
     const p = document.createElement("div");
@@ -1154,20 +1240,22 @@ function buildPills() {
 }
 
 function updateProgress() {
+  const displayStep = wizardDisplayStep(state.currentStep);
+  const total = wizardStepCount();
   const lbl = document.getElementById("progress-label");
   if (lbl) lbl.textContent = WIZ.progressLabel
-    .replace('{current}', state.currentStep)
-    .replace('{total}',   state.totalSteps);
+    .replace('{current}', displayStep)
+    .replace('{total}', total);
 
-  for (let i = 1; i <= state.totalSteps; i++) {
+  for (let i = 1; i <= total; i++) {
     const p = document.getElementById("pill-" + i);
     if (!p) continue;
 
     p.className =
       "pill" +
-      (i < state.currentStep
+      (i < displayStep
         ? " done"
-        : i === state.currentStep
+        : i === displayStep
         ? " active"
         : "");
   }
@@ -1361,7 +1449,7 @@ function goNext() {
     return;
   }
 
-  state.currentStep++;
+  state.currentStep = nextPhysicalStep(stepBeforeAdvance);
   updateUI();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -1382,7 +1470,7 @@ function shake(el) {
 function goBack() {
   if (state.currentStep <= 1) return;
 
-  state.currentStep--;
+  state.currentStep = prevPhysicalStep(state.currentStep);
 
   updateUI();
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1448,10 +1536,15 @@ function addTopicChip(wrap, t, afterSelect) {
   wrap.appendChild(d);
 }
 
-function goToCompanionStep() {
-  state.currentStep = 2;
+function goAfterChallengeSelect() {
+  applyMatrixCompanionForCategory(state.challengeCategory);
+  state.currentStep = isCompanionStepEnabled() ? 2 : 3;
   updateUI();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function goToCompanionStep() {
+  goAfterChallengeSelect();
 }
 
 function updateVoiceStepSubtitle() {
@@ -1481,13 +1574,88 @@ function updateHeroNotesTitle() {
   setText('heroNotesFeelingQ', renderTemplate(hn.feelingQ || '', { name: childName }));
 }
 
+function addMvpChallengeCard(wrap, slot) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'mvp-challenge-card' + (slot.publicVisible === false ? ' mvp-challenge-card--parked' : '');
+  btn.setAttribute('data-id', slot.topicId || slot.category);
+  btn.setAttribute('data-category', slot.category);
+
+  const companion = slot.companion || {};
+  const imgHtml = companion.image
+    ? `<img class="mvp-challenge-card-img" src="${companion.image}" alt="" loading="lazy" />`
+    : '<div class="mvp-challenge-card-img mvp-challenge-card-img--placeholder"></div>';
+
+  btn.innerHTML = `
+    <span class="mvp-challenge-card-emoji" aria-hidden="true">${slot.emoji || '✨'}</span>
+    ${imgHtml}
+    <span class="mvp-challenge-card-label">${slot.label || ''}</span>
+    <span class="mvp-challenge-card-companion">${slot.companionLine || companion.name || ''}</span>
+    <span class="mvp-challenge-card-oneliner">${slot.oneLiner || ''}</span>
+    ${slot.publicVisible === false ? '<span class="mvp-challenge-card-badge">dev</span>' : ''}
+  `;
+
+  if (slot.publicVisible === false) {
+    btn.disabled = true;
+    btn.setAttribute('aria-disabled', 'true');
+    wrap.appendChild(btn);
+    return;
+  }
+
+  btn.addEventListener('click', () => {
+    wrap.querySelectorAll('.mvp-challenge-card').forEach((c) => c.classList.remove('selected'));
+    btn.classList.add('selected');
+    const previousTopic = state.topic;
+    const topicId = slot.topicId;
+    const isReselect = previousTopic === topicId;
+    if (!isReselect && previousTopic) {
+      state.companionCharacterId = null;
+      state.productId = null;
+      state.storyDirection = null;
+      state.productTruth = null;
+    }
+    state.topic = topicId;
+    state.topicLabel = slot.label;
+    state.challengeCategory = slot.category;
+    applyMatrixCompanionForCategory(slot.category);
+
+    if (isReselect && state.categoryBranching && !state.categoryBranching._fetchFailed) {
+      queueWizardSave();
+      setTimeout(goAfterChallengeSelect, 220);
+      return;
+    }
+    if (!isReselect) {
+      state.categoryBranching = null;
+      state.categoryAnswers = [];
+    }
+    queueWizardSave();
+    loadCategoryBranchForTopic(topicId, goAfterChallengeSelect);
+  });
+
+  wrap.appendChild(btn);
+}
+
 function renderTopics() {
   const wrap = document.getElementById('topic-chips');
   if (!wrap) return;
   wrap.innerHTML = '';
-  TOPICS.forEach((topic) => {
-    addTopicChip(wrap, topic, goToCompanionStep);
-  });
+
+  if (state.mvpMatrix?.categories?.length) {
+    wrap.classList.add('mvp-challenge-grid');
+    const header = state.mvpMatrix.header;
+    if (header?.title) setText('s2Title', header.title);
+    if (header?.sub) setText('s2Sub', header.sub);
+
+    state.mvpMatrix.categories.forEach((slot) => addMvpChallengeCard(wrap, slot));
+    if (state.mvpMatrix.dev?.showParkedCategories && Array.isArray(state.mvpMatrix.parkedCategories)) {
+      state.mvpMatrix.parkedCategories.forEach((slot) => addMvpChallengeCard(wrap, slot));
+    }
+  } else {
+    wrap.classList.remove('mvp-challenge-grid');
+    TOPICS.forEach((topic) => {
+      addTopicChip(wrap, topic, goAfterChallengeSelect);
+    });
+  }
 
   if (state.topic) {
     const normalized = normalizeWizardTopicId(state.topic);
@@ -2218,10 +2386,15 @@ function renderProductCards() {
   });
 
   pkgs.forEach((pkg) => {
+    const dirMeta = getDirectionSellability(pkg.id);
+    const comingSoon = dirMeta.sellable === false;
     const card = document.createElement('button');
     card.type = 'button';
-    const selected = pkg.id === state.productId || pkg.id === state.storyDirection;
-    card.className = 'product-card' + (selected ? ' selected' : '');
+    const selected = !comingSoon && (pkg.id === state.productId || pkg.id === state.storyDirection);
+    card.className =
+      'product-card' +
+      (selected ? ' selected' : '') +
+      (comingSoon ? ' product-card-coming-soon' : '');
     card.setAttribute('data-product', pkg.id);
 
     const bestForHtml = (pkg.bestFor || [])
@@ -2240,6 +2413,7 @@ function renderProductCards() {
       : (copy.ctaChoose || 'לבחירה');
 
     card.innerHTML = `
+      ${comingSoon ? '<span class="product-card-coming-soon-badge">בקרוב</span>' : ''}
       <span class="product-card-name">${pkg.productName || pkg.id}</span>
       <span class="product-card-tagline">${pkg.tagline || ''}</span>
       <span class="product-card-pages">${pkg.pages} עמודים</span>
@@ -2251,16 +2425,29 @@ function renderProductCards() {
       <span class="product-card-cta">${ctaLabel}</span>
     `;
 
-    card.addEventListener('click', () => {
-      applyProductSelection(pkg.id);
-      renderProductCards();
-      const cont = document.getElementById('btn-continue');
-      if (cont && state.currentStep === 8) cont.disabled = false;
-      queueWizardSave();
-    });
+    if (comingSoon) {
+      card.disabled = true;
+      card.setAttribute('aria-disabled', 'true');
+      card.title = 'הכיוון הזה יהיה זמין בקרוב';
+    } else {
+      card.addEventListener('click', () => {
+        applyProductSelection(pkg.id);
+        renderProductCards();
+        const cont = document.getElementById('btn-continue');
+        if (cont && state.currentStep === 8) cont.disabled = false;
+        queueWizardSave();
+      });
+    }
 
     wrap.appendChild(card);
   });
+
+  if (state.productId && !getDirectionSellability(state.productId).sellable) {
+    state.productId = null;
+    state.storyDirection = null;
+    state.priceILS = null;
+    state.productTruth = null;
+  }
 }
 
 /* ── STEP 12: STYLE CARDS ────────────────────────────────────── */
