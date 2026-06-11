@@ -216,6 +216,45 @@ export function allMvpCategories(): MvpCategory[] {
 }
 
 /** Topic id (wizard) → MVP category */
+export class MvpMatrixValidationError extends Error {
+  readonly httpStatus = 422;
+  constructor(message: string) {
+    super(message);
+    this.name = 'MvpMatrixValidationError';
+  }
+}
+
+/** Server gate: derive companion from matrix; reject non-sellable or mismatched client claims. */
+export function enforceMvpOrderSlot(input: {
+  challengeCategory?: string | null;
+  clientDirection?: string | null;
+  clientCompanionId?: string | null;
+}): { category: MvpCategory; direction: StoryDirection; companionId: string } {
+  const category = normalizeMvpCategory(input.challengeCategory);
+  if (!category) {
+    throw new MvpMatrixValidationError('השילוב שנבחר אינו זמין לרכישה כרגע');
+  }
+
+  const direction = normalizeStoryDirection(input.clientDirection);
+  if (!direction) {
+    throw new MvpMatrixValidationError('יש לבחור סוג חוויה תקין לפני המשך');
+  }
+
+  if (!isSlotSellable(category, direction)) {
+    throw new MvpMatrixValidationError(
+      'השילוב שנבחר אינו זמין לרכישה כרגע — נסו כיוון אחר או אתגר אחר'
+    );
+  }
+
+  const companionId = companionForCategory(category)!;
+  const clientCompanion = String(input.clientCompanionId ?? '').trim();
+  if (clientCompanion && clientCompanion !== companionId) {
+    throw new MvpMatrixValidationError('דמות המלווה אינה תואמת לאתגר שנבחר');
+  }
+
+  return { category, direction, companionId };
+}
+
 export function categoryForTopicId(topicId: string): MvpCategory | null {
   const id = String(topicId ?? '').trim();
   for (const [category, copy] of Object.entries(MVP_WIZARD_CARD_COPY) as Array<

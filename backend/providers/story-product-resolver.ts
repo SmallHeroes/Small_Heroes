@@ -17,6 +17,11 @@ import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { DIRECTION_PAGE_MAP, displayPagesForBeats } from '../config/wizard';
 import {
+  companionForCategory,
+  isSlotSellable,
+  normalizeMvpCategory,
+} from '../config/mvp-story-matrix';
+import {
   isV3ApprovedBankEnabled,
   selectCompanionStory,
   STORY_BANK_V3_DIR_NAME,
@@ -118,10 +123,33 @@ function buildResolved(
  * Resolve the order product from the story that will actually be served.
  * Throws StoryProductResolutionError (400 client / 500 config) — never guesses.
  */
+function assertMatrixBinding(
+  challengeCategory: string | null | undefined,
+  companionId: string,
+  direction: StoryDirection
+): void {
+  const category = normalizeMvpCategory(challengeCategory);
+  if (!category) return;
+  const expectedCompanion = companionForCategory(category);
+  if (expectedCompanion && companionId && expectedCompanion !== companionId) {
+    throw new StoryProductResolutionError(
+      `Matrix mismatch: category ${category} requires companion ${expectedCompanion}, got ${companionId}`,
+      422
+    );
+  }
+  if (!isSlotSellable(category, direction)) {
+    throw new StoryProductResolutionError(
+      `Matrix slot not sellable: ${category} × ${direction}`,
+      422
+    );
+  }
+}
+
 export function resolveStoryProductTruth(input: {
   companionId?: string | null;
   clientDirection?: string | null;
   legacyLength?: string | null;
+  challengeCategory?: string | null;
 }): ResolvedStoryProduct {
   const clientDirection = normalizeDirection(input.clientDirection);
   const companionId = typeof input.companionId === 'string' ? input.companionId.trim() : '';
@@ -155,7 +183,9 @@ export function resolveStoryProductTruth(input: {
             500
           );
         }
-        return buildResolved(direction, 'v3_approved_binding', storyFile, fm.pages);
+        const resolved = buildResolved(direction, 'v3_approved_binding', storyFile, fm.pages);
+        assertMatrixBinding(input.challengeCategory, companionId, resolved.storyDirection);
+        return resolved;
       }
     }
   }
@@ -188,7 +218,9 @@ export function resolveStoryProductTruth(input: {
           500
         );
       }
-      return buildResolved(direction, 'companion_golden', storyFile, fm.pages);
+      const resolved = buildResolved(direction, 'companion_golden', storyFile, fm.pages);
+      assertMatrixBinding(input.challengeCategory, companionId, resolved.storyDirection);
+      return resolved;
     }
     // Companion without a golden for this direction → the wizard offered a
     // product we cannot serve. Loud failure, not a silent reroute.
@@ -198,5 +230,7 @@ export function resolveStoryProductTruth(input: {
     );
   }
 
-  return buildResolved(direction, clientDirection ? 'client_direction' : 'legacy_length');
+  const resolved = buildResolved(direction, clientDirection ? 'client_direction' : 'legacy_length');
+  assertMatrixBinding(input.challengeCategory, companionId, resolved.storyDirection);
+  return resolved;
 }

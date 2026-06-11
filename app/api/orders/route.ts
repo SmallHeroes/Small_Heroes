@@ -19,6 +19,10 @@ import {
   type PhotoQualityMeta,
 } from '../../../lib/orderMeta';
 import {
+  enforceMvpOrderSlot,
+  MvpMatrixValidationError,
+} from '../../../backend/config/mvp-story-matrix';
+import {
   resolveStoryProductTruth,
   StoryProductResolutionError,
 } from '../../../backend/providers/story-product-resolver';
@@ -101,27 +105,49 @@ export async function POST(req: NextRequest) {
     const storedChallengeCategory = toStringOrNull(w.challengeCategory);
     const categoryAnswers = normalizeCategoryAnswers(w.categoryAnswers);
     const photoQuality = normalizePhotoQuality(w.photoQuality);
+
+    // MVP matrix gate — derive companion from category; reject non-sellable slots (422).
+    let matrixCompanionId = storedCompanionId;
+    let matrixDirection = product?.direction;
+    try {
+      const enforced = enforceMvpOrderSlot({
+        challengeCategory: storedChallengeCategory,
+        clientDirection: product?.direction,
+        clientCompanionId: storedCompanionId,
+      });
+      matrixCompanionId = enforced.companionId;
+      matrixDirection = enforced.direction;
+    } catch (error) {
+      if (error instanceof MvpMatrixValidationError) {
+        console.warn('[POST /api/orders] MVP matrix rejected:', error.message);
+        return NextResponse.json({ error: error.message }, { status: 422 });
+      }
+      throw error;
+    }
+
     const hasWizardMeta =
-      Boolean(storedCompanionId || storedChallengeCategory || categoryAnswers.length > 0 || photoQuality);
+      Boolean(matrixCompanionId || storedChallengeCategory || categoryAnswers.length > 0 || photoQuality);
     const characterAnchorsPayload = hasWizardMeta
       ? (buildPersistedCharacterAnchorsJson(
           {},
           {
-            ...(storedCompanionId ? { companionCharacterId: storedCompanionId } : {}),
+            ...(matrixCompanionId ? { companionCharacterId: matrixCompanionId } : {}),
             ...(storedChallengeCategory ? { challengeCategory: storedChallengeCategory } : {}),
             ...(categoryAnswers.length > 0 ? { categoryAnswers } : {}),
             ...(photoQuality ? { photoQuality } : {}),
           },
         ) as object)
       : undefined;
+
     // Source of truth: direction/pages/price come from the story that will be
     // served (companion golden / v3-approved binding) — never from a guess.
     let resolvedProduct;
     try {
       resolvedProduct = resolveStoryProductTruth({
-        companionId: storedCompanionId,
-        clientDirection: product?.direction,
+        companionId: matrixCompanionId,
+        clientDirection: matrixDirection,
         legacyLength: product?.length,
+        challengeCategory: storedChallengeCategory,
       });
     } catch (error) {
       if (error instanceof StoryProductResolutionError) {
