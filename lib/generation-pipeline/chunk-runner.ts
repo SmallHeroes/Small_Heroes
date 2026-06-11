@@ -1146,7 +1146,7 @@ async function runPageImagesChunk(
     where: { bookId: book.id, imageAsset: null },
   });
   const allDone = stillPending === 0 && imageOutcome.failedPages.length === 0;
-  if (allDone) {
+  if (allDone && !imagePageFilter) {
     await prisma.order.update({ where: { id: order.id }, data: { imageStatus: 'done' } });
     await prisma.generationJob.update({ where: { orderId: order.id }, data: { imagesDone: true } });
   }

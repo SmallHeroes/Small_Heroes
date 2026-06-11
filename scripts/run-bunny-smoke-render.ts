@@ -43,6 +43,7 @@ type SmokeArgs = {
   outputDir: string;
   rerender: boolean;
   scrubAnchors: boolean;
+  keepCover: boolean;
 };
 
 function parsePages(raw: string): { includeCover: boolean; pageNumbers: number[] } {
@@ -63,6 +64,7 @@ function parseArgs(): SmokeArgs {
   let outputDir = 'outputs/bunny-smoke2-images';
   let rerender = false;
   let scrubAnchors = false;
+  let keepCover = false;
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -90,13 +92,17 @@ function parseArgs(): SmokeArgs {
       scrubAnchors = true;
       continue;
     }
+    if (arg === '--keep-cover') {
+      keepCover = true;
+      continue;
+    }
     if (!arg.startsWith('--')) {
       orderId = arg;
     }
   }
 
   const { includeCover, pageNumbers } = parsePages(pages);
-  return { orderId, includeCover, pageNumbers, quality, outputDir, rerender, scrubAnchors };
+  return { orderId, includeCover, pageNumbers, quality, outputDir, rerender, scrubAnchors, keepCover };
 }
 
 async function clearTargetImages(
@@ -156,7 +162,7 @@ async function downloadImages(
 
 async function main() {
   const args = parseArgs();
-  const { orderId, includeCover, pageNumbers, quality, outputDir, rerender, scrubAnchors } = args;
+  const { orderId, includeCover, pageNumbers, quality, outputDir, rerender, scrubAnchors, keepCover } = args;
 
   if (quality !== 'low') {
     throw new Error(`Smoke render requires --quality low (got "${quality}")`);
@@ -207,7 +213,7 @@ async function main() {
   }
 
   if (rerender) {
-    await clearTargetImages(orderId, includeCover, pageNumbers);
+    await clearTargetImages(orderId, keepCover ? false : includeCover, pageNumbers);
   }
 
   const wizardMeta = getWizardMeta(
