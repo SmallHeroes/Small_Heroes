@@ -60,7 +60,7 @@ function buildCategoryPayload(category: MvpCategory, publicVisible: boolean) {
       ? {
           id: companion.id,
           name: companion.name,
-          image: companion.image,
+          image: companion.cardImage ?? companion.image,
           tagline: companion.tagline,
         }
       : { id: companionId, name: companionId, image: '', tagline: '' },

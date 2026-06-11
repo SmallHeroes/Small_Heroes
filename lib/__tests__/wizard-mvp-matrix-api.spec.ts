@@ -12,6 +12,7 @@ describe('GET /api/wizard/mvp-matrix', () => {
 
     const night = body.categories.find((c: { category: string }) => c.category === 'NIGHT_FEAR');
     expect(night?.companion?.id).toBe('fox_uri');
+    expect(night?.companion?.image).toBe('/companions/fox_uri/style01-sheets/front.png');
     expect(night?.directions?.bedtime?.sellable).toBe(true);
     expect(night?.directions?.fantasy?.sellable).toBe(false);
   });

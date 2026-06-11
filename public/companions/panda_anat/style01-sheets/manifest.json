@@ -1,0 +1,37 @@
+{
+  "companionId": "panda_anat",
+  "referenceJpg": "/companions/SOCIAL/panda_anat.jpg",
+  "generatedAt": "2026-06-11T12:29:15.845Z",
+  "views": {
+    "front": {
+      "filename": "front.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.7563191847802936
+    },
+    "three_quarter_front": {
+      "filename": "3-4.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.9984731294474893
+    },
+    "side": {
+      "filename": "side.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.9985412893615523
+    },
+    "three_quarter_back": {
+      "filename": "back.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.9987696083813942
+    },
+    "happy": {
+      "filename": "happy.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.9993655961655684
+    },
+    "theme": {
+      "filename": "theme.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.9990820745875311
+    }
+  }
+}

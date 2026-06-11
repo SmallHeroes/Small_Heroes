@@ -62,6 +62,8 @@ export type Companion = {
   tagline: string;
   narrativeHook: string;
   image: string;
+  /** Wizard challenge-card art (style01 sheet); identity ref stays in `image`. */
+  cardImage?: string;
   /** English, image-prompt friendly — must stay stable for Flux anchors */
   visualDescription: string;
 };
@@ -126,6 +128,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
       name: 'השועל אוּרי',
       tagline: 'שועל נחושתי עם עיני פנס שמכיר כל מסלול של הלילה',
       image: '/companions/NIGHT_FEAR/fox_uri.jpg',
+      cardImage: '/companions/fox_uri/style01-sheets/front.png',
       narrativeHook: 'מלמד ערמומיות ובחירה חכמה במקום פחד',
       visualDescription:
         'A small copper-tinged fox with warm lantern-like eyes, a fluffy white-tipped tail, and a small glowing neck lantern (collar lantern) that can switch off or on; never a scarf or chest star; always looks clever, alert, and kind, never predatory.',
@@ -146,6 +149,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
       name: 'הזיקית קִים',
       tagline: 'שובבה שנושאת צבע מכל מקום שהייתה בו',
       image: '/companions/TRANSITION/chameleon_koko.jpg',
+      cardImage: '/companions/chameleon_koko/style01-sheets/front.png',
       narrativeHook: 'מראה שבכל מקום חדש חלק מהבית נוסע איתך',
       visualDescription:
         'A small playful chameleon with patchwork pastel patches that change gently; a striped scarf; big sweet eyes; looks mischievous and adventurous.',
@@ -184,6 +188,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
       name: 'הדרקון דיני',
       tagline: 'דרקונון צעיר שמגלה שהכוח שלו גדל כשהוא שומר',
       image: '/companions/NEW_SIBLING/dragon_dini.jpg',
+      cardImage: '/companions/dragon_dini/style01-sheets/front.png',
       narrativeHook: 'להיות אח גדול/ה זה מאפיין של כוח',
       visualDescription:
         'A small chubby dragon with rounded snout, pastel scales, and tiny wing nubs; carries a “guardian’s sash”; friendly eyes; looks protective, not dangerous.',
@@ -225,6 +230,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
       name: 'הפנדה עֲנָת',
       tagline: 'פנדה רכה שמגלה שחברים טובים אוהבים גם את השקט',
       image: '/companions/SOCIAL/panda_anat.jpg',
+      cardImage: '/companions/panda_anat/style01-sheets/front.png',
       narrativeHook: 'לא חייבים להיות רועשים כדי להיות נראים',
       visualDescription:
         'A soft panda in muted colors, gentle eyes, a small music-note patch on a sweater; posture is quiet and open; very huggable, calm presence.',
@@ -293,6 +299,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
       name: 'האריה לֵיוֹ',
       tagline: 'גור ביישן שמגלה שהשאגה תמיד הייתה בפנים',
       image: '/companions/SELF_CONFIDENCE/lion_shaket.jpg',
+      cardImage: '/companions/lion_shaket/style01-sheets/front.png',
       narrativeHook: 'הקול שלך קיים — רק מחכה שתקרא לו',
       visualDescription:
         'A small shy lion cub with a fluffy mane starting to grow, big hesitant eyes, soft round ears; a tiny cape-like scarf; always looks on the edge of a brave roar.',
@@ -360,6 +367,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
       name: 'הארנבון בּוּנִי',
       tagline: 'ארנבון שנולד פחדן וגילה שאומץ הוא שריר שאפשר לאמן',
       image: '/companions/GENERAL_FEARS/bunny_ometz.jpg',
+      cardImage: '/companions/bunny_ometz/style01-sheets/happy.png',
       narrativeHook: 'להיות פחדן לא אומר שאתה לא אמיץ',
       visualDescription:
         'A small soft bunny with long floppy ears, wide uncertain eyes that are also brave, and a tiny heart-shaped badge pinned to the chest; fur is cream-white with a blush on the cheeks; looks vulnerable but standing tall. Small companion — roughly 25–35% of the child\'s standing height (about knee to mid-thigh beside the child). Never waist-high. Never toddler-sized.',

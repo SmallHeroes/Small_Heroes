@@ -1,0 +1,37 @@
+{
+  "companionId": "lion_shaket",
+  "referenceJpg": "/companions/SELF_CONFIDENCE/lion_shaket.jpg",
+  "generatedAt": "2026-06-11T11:13:48.526Z",
+  "views": {
+    "front": {
+      "filename": "front.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.9905982498579733
+    },
+    "three_quarter_front": {
+      "filename": "3-4.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.8947240729145897
+    },
+    "side": {
+      "filename": "side.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.884688000450044
+    },
+    "three_quarter_back": {
+      "filename": "back.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.9872184724440407
+    },
+    "happy": {
+      "filename": "happy.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.9146603475807639
+    },
+    "theme": {
+      "filename": "theme.png",
+      "qaStatus": "passed",
+      "resemblanceToIdentity": 0.9438429736022392
+    }
+  }
+}
