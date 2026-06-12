@@ -27,6 +27,7 @@ import {
   scanRawArtifactTokensInMarkdown,
   scanSlashChipsInMarkdown,
 } from './artifact-token-scan';
+import { scanChildLexiconInMarkdown } from './child-lexicon-scan';
 import { derivePageCountFromStoryMarkdown } from './derive-page-count';
 import { validateStoryMdReadBack } from './story-read-back-validation';
 import { runStoryAliveGate } from './story-alive-gate';
@@ -192,6 +193,25 @@ export function runDeterministicDiagnosis(
       actionMode: 'FAIL',
       confidence: 1,
       whyItFailsAloud: `Slash chip "${hit.match}" must be full {male|female} curly form.`,
+      replacementRisk: 'low',
+      requiresHumanDecision: false,
+    });
+  }
+
+  const lexiconScan = scanChildLexiconInMarkdown(markdown);
+  for (const hit of lexiconScan.hits) {
+    const key = `lexicon:${hit.page}:${hit.ruleId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    issues.push({
+      id: `child-lexicon-${hit.page}-${hit.ruleId}`,
+      page: hit.page,
+      exactLine: hit.line,
+      issueType: 'adult_or_technical_wording',
+      severity: 'high',
+      actionMode: 'FAIL',
+      confidence: 1,
+      whyItFailsAloud: `Word "${hit.match}" is outside ages 5–8 read-aloud lexicon — replace with simpler child-known wording.`,
       replacementRisk: 'low',
       requiresHumanDecision: false,
     });
@@ -589,7 +609,8 @@ export async function runHebrewReadAloudEditor(
       ? 'koko_transition'
       : input.companionId === 'lion_shaket' ||
           input.companionId === 'bunny_ometz' ||
-          input.companionId === 'turtle_beiti'
+          input.companionId === 'turtle_beiti' ||
+          input.companionId === 'fox_uri'
         ? 'confidence_generic'
         : 'dini_popcorn');
   const artifactTokenScan = scanRawArtifactTokensInMarkdown(markdown);

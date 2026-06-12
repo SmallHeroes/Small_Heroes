@@ -24,7 +24,10 @@ const JUDGE_SYSTEM = `You score children's story PREMISES (not prose) for Small 
 
 Score each dimension 0–10 (integers).
 Reward story electricity first — hook, physical play, comic engine, child agency, visible payoff.
-Penalize therapeutic fables, abstract magic objects, companion-led arcs.
+Penalize therapeutic fables, abstract magic objects, companion-led arcs (companion solves climax or owns discovery).
+
+ROLE RULE: The child protagonist is always {{childName}} — never call the companion by the child's name in notes.
+Companion names (Uri, Koko, Dini, etc.) are separate from the child; critique child vs companion roles neutrally.
 
 emotionalAlignment: does a real child feeling exist under the funny hook? (threshold ≥6 required)
 
@@ -34,6 +37,15 @@ Return ONLY JSON:
   "weightedTotal": number,
   "notes": string
 }`.trim();
+
+/** Exported for regression tests — judge/critic prompts stay companion-neutral. */
+export const PREMISE_CRITIC_SYSTEM = `You are a harsh premise critic. List 2–4 specific weaknesses of this children's story premise.
+Focus: therapeutic fable risk, abstract symbolism, weak hook, companion-led arc (companion solves climax), flat payoff.
+
+ROLE RULE: The child protagonist is {{childName}} in titleSeed/childWant — never confuse companion name with the child.
+Example mistake to avoid: calling the child "Uri" when Uri is the fox companion.
+
+Return ONLY JSON: { "attacks": string[] }`.trim();
 
 export function computeWeightedTotal(scores: PremiseScoreDimensions): number {
   let total = 0;
@@ -91,9 +103,7 @@ export async function criticAttackPremise(args: {
   const llm = new OpenAIResponsesLLM(args.modelId);
   const result = await llm.call({
     stage: 'v3-premise-critic',
-    systemPrompt: `You are a harsh premise critic. List 2–4 specific weaknesses of this children's story premise.
-Focus: therapeutic fable risk, abstract symbolism, weak hook, Dini-led arc, flat payoff.
-Return ONLY JSON: { "attacks": string[] }`,
+    systemPrompt: PREMISE_CRITIC_SYSTEM,
     userPrompt: JSON.stringify(args.candidate, null, 2),
     jsonMode: true,
     maxOutputTokens: 512,

@@ -1,0 +1,52 @@
+{
+  "version": "ages-5-8-v1",
+  "description": "Blocked adult/abstract/technical Hebrew for read-aloud ages 5–8. Extend this file — do not hardcode in scan logic.",
+  "blockedPhrases": [
+    "דואט רשמי",
+    "דואט",
+    "קונצרט גשם פרטי",
+    "קונצרט",
+    "תקשורת",
+    "גורלי",
+    "קצין תאורה",
+    "קצין",
+    "ספוט על במה",
+    "ספוט",
+    "חרישיים",
+    "בצעדים חרישיים",
+    "פעורות",
+    "פעור",
+    "מסוקרנים",
+    "מסוקרן",
+    "דרמטי",
+    "נדרך",
+    "גיחך",
+    "גיחכה",
+    "מרצדת",
+    "רוח מתכתית",
+    "מתכתית",
+    "מתופף מים",
+    "הקור הקטן",
+    "תו סיום",
+    "תוף-פה",
+    "תוף‑פה",
+    "להלך",
+    "להשתרר",
+    "תדהמה",
+    "בהינף",
+    "לפתע פתאום",
+    "בחגיגיות"
+  ],
+  "blockedWordPatterns": [
+    {
+      "id": "literary_possessive_panso",
+      "pattern": "פנסו",
+      "note": "Use הפנס שלו — no literary possessive suffix on פנס"
+    },
+    {
+      "id": "literary_possessive_zanav",
+      "pattern": "(?<![ה])זנבו",
+      "note": "Use הזנב שלו"
+    }
+  ]
+}

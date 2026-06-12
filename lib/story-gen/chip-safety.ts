@@ -2,13 +2,21 @@
  * Fail-closed chip safety scan — metadata + prose + powerCard.
  */
 
+import {
+  BARE_PIPE_CHIP_RE,
+  scanExposedChildGenderInMarkdown,
+  stripValidGenderChipsForBarePipeScan,
+} from '../story-gen-v3/artifact-token-scan';
+
 export type ChipSafetyReason =
   | 'blacklisted_unsafe_chip'
   | 'mixed_malformed_chip'
   | 'duplicate_suffix_artifact'
   | 'remaining_slash_gender'
   | 'partial_suffix_remaining'
-  | 'phrase_level_chip';
+  | 'phrase_level_chip'
+  | 'bare_pipe_gender'
+  | 'exposed_child_gender';
 
 export interface ChipSafetyHit {
   page: number;
@@ -129,6 +137,19 @@ function scanText(
     });
   }
 
+  const withoutValidChips = stripValidGenderChipsForBarePipeScan(text);
+  let barePipe: RegExpExecArray | null;
+  const barePipeRe = new RegExp(BARE_PIPE_CHIP_RE.source, 'g');
+  while ((barePipe = barePipeRe.exec(withoutValidChips)) !== null) {
+    hits.push({
+      page,
+      field,
+      token: barePipe[0],
+      reason: 'bare_pipe_gender',
+      context: 'Bare pipe gender chip — must be full {male|female} curly form',
+    });
+  }
+
   const withoutDouble = text.replace(/\{\{[^}]+\}\}/g, ' ');
   const chipRe = new RegExp(CHIP_PAIR_RE.source, 'g');
   let chip: RegExpExecArray | null;
@@ -164,6 +185,16 @@ export function scanChipSafety(markdown: string): ChipSafetyReport {
 
   for (const { page, text } of proseBlocks(markdown)) {
     scanText(text, page, 'prose', hits);
+  }
+
+  for (const hit of scanExposedChildGenderInMarkdown(markdown).hits) {
+    hits.push({
+      page: hit.page,
+      field: 'prose',
+      token: hit.match,
+      reason: 'exposed_child_gender',
+      context: `Bare ${hit.match} on {{childName}} line — use {male|female} chip`,
+    });
   }
 
   const deduped = hits.filter(

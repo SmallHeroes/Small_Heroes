@@ -156,7 +156,8 @@ export function runStoryAliveGate(args: {
   const isBunny = args.companionId === 'bunny_ometz';
   const isLion = args.companionId === 'lion_shaket';
   const isTurtle = args.companionId === 'turtle_beiti';
-  const isConfidenceCompanion = isKoko || isBunny || isLion || isTurtle;
+  const isFox = args.companionId === 'fox_uri';
+  const isConfidenceCompanion = isKoko || isBunny || isLion || isTurtle || isFox;
   const expectedPageCount = args.expectedPageCount ?? 12;
   const anchorPatterns =
     isConfidenceCompanion && args.premise ? buildPremiseAnchors(args.premise) : ANCHOR_PATTERNS;
@@ -184,7 +185,9 @@ export function runStoryAliveGate(args: {
         ? p1.length > 35 && /שלולית|צעק|ליאו|לֵיוֹ|שאג|מגרש/i.test(p1)
         : isTurtle
           ? p1.length > 35 && /טוֹלִי|קונכייה|חדר|בית/i.test(p1)
-          : /אש|פופקורן|גרעין/i.test(p1);
+          : isFox
+            ? p1.length > 35 && /טִיק|טיק|טָאק|אוּרי|אורי|פנס|מרפסת/i.test(p1)
+            : /אש|פופקורן|גרעין/i.test(p1);
   checks.push({ id: 'hook_alive_p1', pass: hookAlive });
   if (!hookAlive && !isConfidenceCompanion) hardFails.push('hook not alive on page 1');
   if (!hookAlive && isConfidenceCompanion) softWarnings.push('hook not alive on page 1');
@@ -201,7 +204,9 @@ export function runStoryAliveGate(args: {
         ? pages.length >= 3 && /ליאו|לֵיוֹ|שאג|שלולית|מחליק/i.test(earlyProse)
         : isTurtle
           ? pages.length >= 3 && /טוֹלִי|קונכייה|צחק|עגלה/i.test(earlyProse)
-          : pages.length >= 3 && /דיני|קן|פופקורן|אש/i.test(earlyProse);
+          : isFox
+            ? pages.length >= 3 && /אוּרי|אורי|צחק|גיחך|פנס|טִיק|טיק/i.test(earlyProse)
+            : pages.length >= 3 && /דיני|קן|פופקורן|אש/i.test(earlyProse);
   checks.push({ id: 'humor_by_p3', pass: laughEarly });
   if (!laughEarly && !isConfidenceCompanion) hardFails.push('no humor signal by page 3');
   if (!laughEarly && isConfidenceCompanion) softWarnings.push('no humor signal by page 3');
@@ -239,7 +244,9 @@ export function runStoryAliveGate(args: {
         ? /לחיש|צחוק|מדבקה|קליק|מדלג/i.test(penultProse)
         : isTurtle
           ? /כוכב|קו|זהב|נורה|מדבקה/i.test(penultProse)
-          : /גשם|קשת|קופץ|פופקורן/i.test(penultProse);
+          : isFox
+            ? /תופף|צחק|מים|קצב|פּוּם|פְּלוּפּ|מצחיק/i.test(penultProse)
+            : /גשם|קשת|קופץ|פופקורן/i.test(penultProse);
   const emotionalRelease = isKoko
     ? /נשאר|מחר|עדיין|שוב|זנב|חדר|בית|חיים|ציור|מזכרת|גשר/i.test(finalProse)
     : isBunny
@@ -248,7 +255,9 @@ export function runStoryAliveGate(args: {
         ? /לחיש|חיוך|שטיח|בית|שקט/i.test(finalProse)
         : isTurtle
           ? /נורה|בית|שקט|כוכב|יחד/i.test(finalProse)
-          : /אח|אחות|גא|הצלח|קערה מלאה/i.test(finalProse);
+          : isFox
+            ? /לילה טוב|שקט|גאה|פנס|טיפה|פְּלוּפּ/i.test(finalProse)
+            : /אח|אחות|גא|הצלח|קערה מלאה/i.test(finalProse);
   checks.push({ id: 'comic_release_penult', pass: comicRelease });
   checks.push({ id: 'emotional_release_final', pass: emotionalRelease });
   if (!comicRelease && !isConfidenceCompanion) hardFails.push(`p${expectedPageCount - 1} missing comic release`);
@@ -256,7 +265,9 @@ export function runStoryAliveGate(args: {
 
   const companionSolves = isKoko
     ? /קוֹקוֹ (פתרה|הצילה|המציאה|הובילה את הפתרון)/i.test(fullProse)
-    : /דיני (פתרה|הצילה|המציאה|הובילה את הפתרון)/i.test(fullProse);
+    : isFox
+      ? /אוּרי (פתר|הציל|המציא|הוביל את הפתרון)/i.test(fullProse)
+      : /דיני (פתרה|הצילה|המציאה|הובילה את הפתרון)/i.test(fullProse);
   checks.push({ id: 'companion_not_climax_solver', pass: !companionSolves });
   if (companionSolves) hardFails.push('companion solves climax');
 
@@ -286,6 +297,13 @@ export function runStoryAliveGate(args: {
     if (/עיניים/.test(fullProse)) humorMoments++;
     if (/פאניקה|רגוע/.test(fullProse)) humorMoments++;
     if (/קונפטי|מוקדם/.test(fullProse)) humorMoments++;
+  } else if (isFox) {
+    if (/אוּרי|אורי/.test(fullProse)) humorMoments++;
+    if (/טִיק|טיק|טָאק|טפטוף|דלי/.test(fullProse)) humorMoments++;
+    if (/פנס|מאיר|קצין/.test(fullProse)) humorMoments++;
+    if (/צחק|גיחך|מצחיק/.test(fullProse)) humorMoments++;
+    if (/כמעט|אולי|רשמית|ידעתי/.test(fullProse)) humorMoments++;
+    if (/זנב|אפצ'י|קונצרט/.test(fullProse)) humorMoments++;
   } else {
     if (/אש/.test(fullProse)) humorMoments++;
     if (/קן/.test(fullProse)) humorMoments++;

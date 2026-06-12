@@ -1,10 +1,11 @@
 /**
  * Normalize LLM premise output to canonical StoryPremiseCandidate fields.
+ * Creative arc fields are NEVER back-filled from companion defaults (fail-closed).
  */
 
 import type { StoryPremiseCandidate } from './types';
 
-type RawPremise = StoryPremiseCandidate &
+export type PremiseNormalizeInput = Partial<StoryPremiseCandidate> &
   Record<string, unknown> & {
     hook?: string;
     opening?: string;
@@ -15,10 +16,35 @@ type RawPremise = StoryPremiseCandidate &
     keyObject?: string[];
   };
 
-const OBJECT_HINTS =
-  /שמיכה|גרב|סל|כביסה|פופקורן|כיס|דלי|מגבת|כפתור|קופס|מדבקה|ענן|כרית|נעל|חול|דלי|ביצה|תינוק|שבלול|פחם|סנדוויץ/i;
+/** MVP matrix + confidence-batch companions with cosmetic fallbacks only. */
+export const KNOWN_PREMISE_COMPANION_IDS = [
+  'fox_uri',
+  'panda_anat',
+  'bunny_ometz',
+  'dragon_dini',
+  'chameleon_koko',
+  'lion_shaket',
+  'turtle_beiti',
+] as const;
 
-function pickString(raw: RawPremise, ...keys: string[]): string {
+export type KnownPremiseCompanionId = (typeof KNOWN_PREMISE_COMPANION_IDS)[number];
+
+/** Never defaulted — missing in raw → gate missing_creative_fields. */
+export const CREATIVE_PREMISE_FIELDS = [
+  'companionComicEngineUsed',
+  'companionWrongHelp',
+  'escalation',
+  'childDiscovery',
+] as const satisfies readonly (keyof StoryPremiseCandidate)[];
+
+const OBJECT_HINTS =
+  /שמיכה|גרב|סל|כביסה|פופקורן|כיס|דלי|מגבת|כפתור|קופס|מדבקה|ענן|כרית|נעל|חול|ביצה|תינוק|שבלול|פחם|סנדוויץ/i;
+
+/** Exact collapse-template phrases from removed Dini defaults — not any Dini mention. */
+const DINI_COLLAPSE_TEMPLATE_RE =
+  /הגנה דרקונית מוגזמת|עוטפת\/סוגרת\/בונה הגנה יותר מדי|יותר עטיפה, יותר בלאגן, פחות מקום לנשום|הבעיה היא לא הסכנה אלא העטיפה\/החזקה מדי/;
+
+function pickString(raw: PremiseNormalizeInput, ...keys: string[]): string {
   for (const k of keys) {
     const v = raw[k];
     if (typeof v === 'string' && v.trim()) return v.trim();
@@ -26,7 +52,7 @@ function pickString(raw: RawPremise, ...keys: string[]): string {
   return '';
 }
 
-function inferKeyObjects(raw: RawPremise): string[] {
+function inferKeyObjects(raw: PremiseNormalizeInput): string[] {
   if (Array.isArray(raw.keyObjects) && raw.keyObjects.length) {
     return raw.keyObjects.map(String);
   }
@@ -50,70 +76,75 @@ function inferKeyObjects(raw: RawPremise): string[] {
   return [...found].slice(0, 5);
 }
 
-function companionDefaults(companionId: string): {
+const COMPANION_COSMETIC_DEFAULTS: Record<
+  KnownPremiseCompanionId,
+  { titleFallback: string; mattersSuffix: string }
+> = {
+  fox_uri: {
+    titleFallback: '{{childName}} ואוּרי',
+    mattersSuffix: 'זה חשוב לו/לה עכשיו, לא רק לשועל.',
+  },
+  panda_anat: {
+    titleFallback: '{{childName}} ועֲנָת',
+    mattersSuffix: 'זה חשוב לו/לה עכשיו, לא רק לפנדה.',
+  },
+  bunny_ometz: {
+    titleFallback: '{{childName}} ובוּנִי',
+    mattersSuffix: 'זה חשוב לו/לה עכשיו, לא רק לארנב.',
+  },
+  dragon_dini: {
+    titleFallback: '{{childName}} ודִּינִי',
+    mattersSuffix: 'זה חשוב לו/לה עכשיו, לא רק לדרקונית.',
+  },
+  chameleon_koko: {
+    titleFallback: '{{childName}} וקִים',
+    mattersSuffix: 'זה חשוב לו/לה עכשיו, לא רק לזיקית.',
+  },
+  lion_shaket: {
+    titleFallback: '{{childName}} ולֵיוֹ',
+    mattersSuffix: 'זה חשוב לו/לה עכשיו, לא רק לאריה.',
+  },
+  turtle_beiti: {
+    titleFallback: '{{childName}} וטוֹלִי',
+    mattersSuffix: 'זה חשוב לו/לה עכשיו, לא רק לצב.',
+  },
+};
+
+export function companionCosmeticDefaults(companionId: string): {
   titleFallback: string;
-  comicEngine: string;
-  wrongHelp: string;
-  escalation: string;
-  childDiscovery: string;
   mattersSuffix: string;
 } {
-  if (companionId === 'chameleon_koko') {
-    return {
-      titleFallback: '{{childName}} וקוֹקוֹ',
-      comicEngine: 'הסוואת צבעים — מתאימה לדבר הלא נכון, צבע בוגד לפני מילים',
-      wrongHelp: 'קוֹקוֹ מתחבאת/מתאימה צבע במקום הלא נכון ומסתירה את הבעיה האמיתית',
-      escalation: 'המצב מסתבך — יותר צבעים, יותר הסוואה, פחות ברור איפה קוֹקוֹ',
-      childDiscovery: 'הילד שם לב לדפוס פיזי קטן — לא לרגש, לא לשיעור',
-      mattersSuffix: 'זה חשוב לו/לה עכשיו, לא רק לקוֹקוֹ.',
-    };
+  const defs = COMPANION_COSMETIC_DEFAULTS[companionId as KnownPremiseCompanionId];
+  if (!defs) {
+    throw new Error(
+      `[premise-normalize] unknown companionId "${companionId}" — add cosmetic defaults or fix spec`
+    );
   }
-  if (companionId === 'lion_shaket') {
-    return {
-      titleFallback: '{{childName}} ולֵיוֹ',
-      comicEngine: 'קול עם משקל — שאגה/לחישה נופלת פיזית, זנב מכה ברצפה',
-      wrongHelp: 'לֵיוֹ מנסה להיות שקט/גדול בדרך לא נכונה — הקול עושה נזק קומי',
-      escalation: 'יותר רעש, יותר משקל — אבל לא רק הסלמה; צריך תור אמצע',
-      childDiscovery: 'הילד מגלה איך קול קטן אמיתי עובד בעולם הזה',
-      mattersSuffix: 'זה חשוב לו/לה עכשיו, לא רק לאריה.',
-    };
+  return defs;
+}
+
+export function missingCreativePremiseFields(candidate: StoryPremiseCandidate): string[] {
+  const missing: string[] = [];
+  for (const field of CREATIVE_PREMISE_FIELDS) {
+    const v = candidate[field];
+    if (typeof v !== 'string' || v.trim().length < 12) {
+      missing.push(field);
+    }
   }
-  if (companionId === 'bunny_ometz') {
-    return {
-      titleFallback: '{{childName}} ובוּנִי',
-      comicEngine: 'אוזניים מספרות אמת — משפט אמיץ יוצא הפוך, לחישה אמיתית',
-      wrongHelp: 'בוּנִי מתרגל אומץ יותר מדי במקום לתת לילד לבחור רגע קטן',
-      escalation: 'יותר "ואולי", יותר תרחישים — הפחד גדל בלי שקר',
-      childDiscovery: 'הילד מוצא משהו קטן שהוא כן שולט בו — לא הבטחה רפואית',
-      mattersSuffix: 'זה חשוב לו/לה עכשיו, לא רק לארנב.',
-    };
-  }
-  if (companionId === 'turtle_beiti') {
-    return {
-      titleFallback: '{{childName}} וטוֹלִי',
-      comicEngine: 'בית על הגב — קונכייה, אריזה, נסיגה בזמן לא נכון',
-      wrongHelp: 'טוֹלִי "כבר בבית" / נמשכת לקונכייה במקום לעזור לילד לבנות סימן פיזי',
-      escalation: 'יותר דברים על הקונכייה, פחות רואים את המקום החדש',
-      childDiscovery: 'הילד שם/מוצא חפץ או טקס שמעביר בית למקום החדש',
-      mattersSuffix: 'זה חשוב לו/לה עכשיו, לא רק לצב.',
-    };
-  }
-  return {
-    titleFallback: '{{childName}} ודִּינִי',
-    comicEngine: 'הגנה דרקונית מוגזמת — כנף/זנב/קן במקום לא נכון',
-    wrongHelp: 'דִּינִי עוטפת/סוגרת/בונה הגנה יותר מדי במקום לתת לילד לנסות',
-    escalation: 'המצב גדל — יותר עטיפה, יותר בלאגן, פחות מקום לנשום',
-    childDiscovery: 'הילד שם לב שהבעיה היא לא הסכנה אלא העטיפה/החזקה מדי',
-    mattersSuffix: 'זה חשוב לו/לה עכשיו, לא רק לדרקון.',
-  };
+  return missing;
+}
+
+export function hasDiniCollapseResidue(candidate: StoryPremiseCandidate): boolean {
+  const blob = CREATIVE_PREMISE_FIELDS.map((f) => candidate[f] ?? '').join(' ');
+  return DINI_COLLAPSE_TEMPLATE_RE.test(blob);
 }
 
 export function normalizePremiseCandidate(
-  raw: RawPremise,
+  raw: PremiseNormalizeInput,
   fallbackTheme: string,
-  companionId = 'dragon_dini'
+  companionId: string
 ): StoryPremiseCandidate {
-  const defs = companionDefaults(companionId);
+  const defs = companionCosmeticDefaults(companionId);
   const tryFailBlob = pickString(raw, 'tryFail', 'firstTry');
   const hook = pickString(raw, 'oneLineHook', 'hook');
   const opening = pickString(raw, 'openingWeirdEvent', 'opening') || hook;
@@ -122,7 +153,7 @@ export function normalizePremiseCandidate(
   const hidden = pickString(raw, 'hiddenResilienceTool', 'hiddenResilience');
 
   return {
-    id: raw.id,
+    id: String(raw.id ?? 'premise_unknown'),
     titleSeed: pickString(raw, 'titleSeed') || defs.titleFallback,
     resilienceTheme: pickString(raw, 'resilienceTheme') || fallbackTheme,
     hiddenResilienceTool: hidden || 'גבול רך — קרוב מספיק, פתוח מספיק',
@@ -136,8 +167,8 @@ export function normalizePremiseCandidate(
       pickString(raw, 'physicalProblem') || play || opening || 'משהו פיזי בבית נתקע או משתגע',
     playSystem: play,
     keyObjects: inferKeyObjects(raw),
-    companionComicEngineUsed: pickString(raw, 'companionComicEngineUsed') || defs.comicEngine,
-    companionWrongHelp: pickString(raw, 'companionWrongHelp') || defs.wrongHelp,
+    companionComicEngineUsed: pickString(raw, 'companionComicEngineUsed'),
+    companionWrongHelp: pickString(raw, 'companionWrongHelp'),
     firstTry: pickString(raw, 'firstTry') || tryFailBlob.split(';')[0]?.trim() || tryFailBlob,
     whyFirstTryFails:
       pickString(raw, 'whyFirstTryFails') ||
@@ -149,8 +180,8 @@ export function normalizePremiseCandidate(
       tryFailBlob ||
       opening ||
       'בלאגן פיזי קטן שאפשר לצייר',
-    escalation: pickString(raw, 'escalation') || defs.escalation,
-    childDiscovery: pickString(raw, 'childDiscovery') || defs.childDiscovery,
+    escalation: pickString(raw, 'escalation'),
+    childDiscovery: pickString(raw, 'childDiscovery'),
     braveChildAction:
       pickString(raw, 'braveChildAction') || 'הילד עושה פעולה קטנה וברורה שמשנה את המצב',
     bigReleasePayoff: pickString(raw, 'bigReleasePayoff'),

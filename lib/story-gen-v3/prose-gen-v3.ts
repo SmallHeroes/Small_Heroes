@@ -9,9 +9,9 @@ import {
   getComicBitsForCompanion,
 } from '../story-gen-v2/companion-comic-bits';
 import {
-  formatV3ComicBitsForPrompt,
-  getV3ComicBitsForCompanion,
+  buildV3ComicBitBankPromptBlock,
   getV3ForbiddenNearGolden,
+  V3_COMIC_BIT_DOSAGE_INSTRUCTION,
 } from './companion-comic-bits';
 import { BUNNY_MEDICAL_PROSE_BLOCK } from './medical-prose-guardrails';
 import type { PremiseExperimentSpecV3, PageBeatV3, StoryPremiseCandidate, StorySpineV3 } from './types';
@@ -40,6 +40,12 @@ Shell-as-home comedy; physical marks/objects carry home — NO unearned slogans.
 Feminine fixed: קוֹקוֹ אמרה, קוֹקוֹ הפכה — NO gender chips on Koko.
 Color comedy is physical — panic-orange, striped-wall fail, backpack eyes.
 Koko misreads transition problems; does NOT solve climax.`;
+  }
+  if (companionId === 'fox_uri') {
+    return `## אוּרי (fox_uri)
+Masculine fixed: אוּרי אמר, אוּרי לחש — NO gender chips on Uri.
+Lantern/scout engine: proud wrong reads, dramatic guard duty, tail slips before words.
+Tip-of-light only — child inspects fear in small steps. Uri does NOT solve climax or erase fear.`;
   }
   return `## דִּינִי
 Feminine fixed: דיני אמרה — NO gender chips on Dini.
@@ -72,12 +78,22 @@ Child wants, tries, fails, discovers, leads brave action. Companion does NOT sol
 ${companionDisplayRules(spec.companionId)}
 
 ## Companion comic bit bank
-Use 2–3 bits from bank, adapted into natural Hebrew. Max 1 bank bit per page.
-NEVER emit raw bit ids like [koko_striped_wall_only] or any [snake_case] token in prose.
+${V3_COMIC_BIT_DOSAGE_INSTRUCTION}
 Do not invent golden-copy lines.
+
+## Child lexicon (MANDATORY ages 5–8)
+Hebrew vocabulary for ages 5–8 ONLY. No abstract/adult/technical words (דואט, קונצרט, תקשורת, גורלי, קצין, ספוט, חרישי, פעור, מסוקרן, דרמטי, נדרך).
+The companion's formal-funny voice must be built from SIMPLE words a 6-year-old knows.
+Physical sensations described concretely (טיפה קרירה על האצבע — not הקור הקטן).
+Imagery through child-known objects: הצגה, שיר, תוף, מפלצת, משחק.
+No literary possessive suffixes (פנסו, זנבו — write הפנס שלו, הזנב שלו).
 
 ## Gender chips (MANDATORY)
 Every child-gendered verb/adj near {{childName}}: full {male|female} with DIFFERENT options.
+CORRECT: {{childName}} {התכופף|התכופפה} {החליט|החליטה}
+FORBIDDEN: {{childName}} התכופף|התכופפה (bare pipe without braces — importer cannot resolve)
+FORBIDDEN: בעצמו, לבדו, שלו on child lines — use ב{עצמו|עצמה}, ל{בדו|בדה}, {שלו|שלה}
+FORBIDDEN: ה{וא|יא} סגר{ה} slash/partial forms
 {{childName}} stays double-braced — never a chip.
 
 ## v5 markdown format
@@ -105,11 +121,8 @@ Do NOT emit WORD_COUNT.`.trim();
 }
 
 function comicBitsBlock(companionId: string): { bits: string; forbidden: string } {
-  const v3Bits = getV3ComicBitsForCompanion(companionId);
-  const v2Bits = getComicBitsForCompanion(companionId);
-  const bits = v3Bits.length
-    ? formatV3ComicBitsForPrompt(v3Bits)
-    : formatComicBitsForPrompt(v2Bits);
+  const v3Block = buildV3ComicBitBankPromptBlock(companionId);
+  const bits = v3Block || formatComicBitsForPrompt(getComicBitsForCompanion(companionId));
   const forbidden = getV3ForbiddenNearGolden(companionId);
   return {
     bits,
@@ -137,6 +150,8 @@ export async function generateProseV3(args: {
   premise: StoryPremiseCandidate;
   modelId: string;
   generatedAt?: string;
+  /** Optional human-approved mandates appended to user prompt (structure gate, etc.). */
+  proseMandates?: string;
 }): Promise<{ storyMarkdown: string; inputTokens: number; outputTokens: number }> {
   const companionBlock = buildCompanionContextBlock(args.spec.companionId);
   const { bits, forbidden } = comicBitsBlock(args.spec.companionId);
@@ -145,7 +160,7 @@ export async function generateProseV3(args: {
   const userPrompt = `
 Companion: ${companionBlock}
 
-COMIC BIT BANK (place 2–3, max 1/page):
+COMIC BIT BANK:
 ${bits}
 
 FORBIDDEN NEAR-GOLDEN:
@@ -162,7 +177,7 @@ ${JSON.stringify(args.premise, null, 2)}
 
 ${buildAnchors(args.premise)}
 
-Generated timestamp: ${generatedAt}
+${args.proseMandates?.trim() ? `${args.proseMandates.trim()}\n\n` : ''}Generated timestamp: ${generatedAt}
 titleSeed: ${args.spine.titleSeed}
 
 ${args.spec.companionId === 'lion_shaket' && args.beats.length >= 20 ? `

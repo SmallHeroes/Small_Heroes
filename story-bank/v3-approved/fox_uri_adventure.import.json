@@ -1,0 +1,12 @@
+{
+  "storyId": "slot01-sprint11_slot01_night_fear_fox_adventure-prose-uri_premise_10-2026-06-12T07-15-49-776Z",
+  "sourceRunDir": "outputs/sprint-11-runs/slot01-sprint11_slot01_night_fear_fox_adventure-prose-uri_premise_10-2026-06-12T07-15-49-776Z",
+  "companionId": "fox_uri",
+  "direction": "adventure",
+  "pageCount": 12,
+  "approvedBy": "Guy",
+  "approvedAt": "2026-06-12T15:00:00+03:00",
+  "approvalNote": "Aloud read r3 — Guy approved (micro-fixes p10/p12 applied same session)",
+  "importedAt": "2026-06-12T08:10:27.081Z",
+  "servedOnlyWhen": "ENABLE_V3_APPROVED_BANK=true"
+}

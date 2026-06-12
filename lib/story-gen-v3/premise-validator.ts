@@ -2,6 +2,10 @@
  * Deterministic hard-fail checks for StoryPremiseCandidate.
  */
 
+import {
+  hasDiniCollapseResidue,
+  missingCreativePremiseFields,
+} from './premise-normalize';
 import type { PremiseHardFail, StoryPremiseCandidate } from './types';
 
 const ABSTRACT_OBJECT_RE =
@@ -174,6 +178,8 @@ function hasWrongCompanionLeak(candidate: StoryPremiseCandidate): boolean {
   if (/lion/.test(id) && /דיני|קוֹקוֹ|chameleon|פופקורן|כנף.*קן/i.test(blob)) return true;
   if (/bunny/.test(id) && /דיני|קוֹקוֹ|chameleon|פופקורן|לֵיוֹ|שאגה.*משקל/i.test(blob)) return true;
   if (/turtle/.test(id) && /דיני|קוֹקוֹ|chameleon|פופקורן|פסים|הסוואה/i.test(blob)) return true;
+  if (/uri|fox/.test(id) && /דיני|דרקון|כנף|קן|פופקורן|העטיפה|עוטפת/i.test(blob)) return true;
+  if (/panda|anat/.test(id) && /דיני|דרקון|כנף|פופקורן|אוּרי|פנס צווארי/i.test(blob)) return true;
   return false;
 }
 
@@ -187,6 +193,20 @@ function hasMedicalForbidden(candidate: StoryPremiseCandidate): boolean {
 
 export function validatePremiseHardFails(candidate: StoryPremiseCandidate): PremiseHardFail[] {
   const fails: PremiseHardFail[] = [];
+
+  const missingCreative = missingCreativePremiseFields(candidate);
+  if (missingCreative.length > 0) {
+    fails.push({
+      code: 'missing_creative_fields',
+      message: `Missing creative fields from generator (not defaulted): ${missingCreative.join(', ')}`,
+    });
+  }
+  if (hasDiniCollapseResidue(candidate)) {
+    fails.push({
+      code: 'dini_collapse_residue',
+      message: 'Creative fields contain Dini/popcorn-collapse template residue',
+    });
+  }
 
   if (hasPopcornCollapse(candidate)) {
     fails.push({

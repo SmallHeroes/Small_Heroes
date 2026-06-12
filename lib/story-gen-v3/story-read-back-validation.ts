@@ -6,6 +6,8 @@ import fs from 'fs';
 
 import { pageProseOnly, parseStoryPages } from '../story-gen/story-page-utils';
 import {
+  scanBarePipeChipsInMarkdown,
+  scanExposedChildGenderInMarkdown,
   scanRawArtifactTokensInMarkdown,
   scanSlashChipsInMarkdown,
 } from './artifact-token-scan';
@@ -214,6 +216,18 @@ export function validateStoryMdReadBack(args: {
   const slashScan = scanSlashChipsInMarkdown(text);
   if (!slashScan.slashChipStylePass) {
     failures.push(`slash chips in prose: ${slashScan.slashChipCount} hit(s)`);
+  }
+
+  const barePipeScan = scanBarePipeChipsInMarkdown(text);
+  if (!barePipeScan.barePipeChipPass) {
+    failures.push(`bare pipe gender chips in prose: ${barePipeScan.barePipeChipCount} hit(s)`);
+  }
+
+  const exposedGenderScan = scanExposedChildGenderInMarkdown(text);
+  if (!exposedGenderScan.exposedChildGenderPass) {
+    failures.push(
+      `exposed child gender forms in prose: ${exposedGenderScan.hitCount} hit(s)`
+    );
   }
 
   const suffixScan = scanSuffixChipsInMarkdown(text);
