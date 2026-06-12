@@ -22,7 +22,10 @@ function parsePageShot(raw: unknown): PageShot | null {
   if (!Number.isFinite(page) || page < 1 || !SHOT_TYPES.includes(shot)) return null;
   const rationale = String(o.rationale ?? '').trim();
   if (!rationale) return null;
-  const angle = o.angle === 'low' || o.angle === 'high' || o.angle === 'eye' ? o.angle : undefined;
+  const angle =
+    o.angle === 'low' || o.angle === 'high' || o.angle === 'eye' || o.angle === 'over_shoulder'
+      ? o.angle
+      : undefined;
   return { page, shot, rationale, ...(angle ? { angle } : {}) };
 }
 

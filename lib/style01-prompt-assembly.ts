@@ -36,7 +36,8 @@ import {
 } from './family-coherence';
 import { buildCompanionAccessoryLockBlock } from './companion-accessory';
 import {
-  pageShotUsesRelaxedBreathe,
+  assertOverShoulderAllowed,
+  resolveStyle01FramingRuleForPageShot,
   shotPlanToCompositionSpec,
   type PageShot,
 } from './book-shot-plan';
@@ -55,7 +56,6 @@ import {
   classifyStyle01SceneClass,
   resolveStyle01StoryLocks,
   STYLE_01_FRAMING_RULE,
-  STYLE_01_FRAMING_RULE_CLOSE_UP,
   type Style01SceneClass,
 } from './style01-gptimage';
 import {
@@ -159,6 +159,7 @@ export function assembleStyle01Phase2Prompt(
     input.pageStoryState ??
     resolveDefaultPageStoryState(input.companion?.id, input.pageNumber);
 
+  if (input.pageShot) assertOverShoulderAllowed(input.pageShot);
   const shotPlanSpec = input.pageShot ? shotPlanToCompositionSpec(input.pageShot) : undefined;
   const compositionSpec =
     shotPlanSpec ?? storyLocks.compositionByPage?.[input.pageNumber];
@@ -479,9 +480,8 @@ export function assembleStyle01Phase2Prompt(
     isCover,
     framingRule: isCover
       ? undefined
-      : pageShotUsesRelaxedBreathe(input.pageShot ?? undefined)
-        ? STYLE_01_FRAMING_RULE_CLOSE_UP
-        : STYLE_01_FRAMING_RULE,
+      : resolveStyle01FramingRuleForPageShot(input.pageShot ?? undefined) ??
+        STYLE_01_FRAMING_RULE,
     pageExpressionLock,
     mutualGazeLock,
     companionSizeLock,
@@ -512,9 +512,9 @@ export function assertStyle01PromptInvariants(
   imageDirection: string,
   pageNumber?: number
 ): void {
-  if (!prompt.includes('FRAMING RULE — BREATHE')) {
+  if (!/FRAMING RULE —/.test(prompt)) {
     throw new Error(
-      `Page ${pageNumber ?? '?'} prompt missing FRAMING RULE — BREATHE`
+      `Page ${pageNumber ?? '?'} prompt missing FRAMING RULE block`
     );
   }
   if (!/SUBJECT SCALE:\s*(small|medium|large)/.test(prompt)) {

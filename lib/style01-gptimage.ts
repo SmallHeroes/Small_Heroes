@@ -166,6 +166,10 @@ export type Style01CompositionSpec = {
   pagePurpose: string;
   /** Character height in frame — small/medium/large per Style 01 breathe rule. */
   subjectScale: Style01SubjectScale;
+  /** B1: explicit percent range when shot-aware mapping overrides defaults. */
+  frameHeightPercent?: string;
+  /** B1: manifest label for shot-aware framing family. */
+  framingFamily?: string;
   /**
    * Rare world-scale breath: child may read smaller ONLY when identity is not the page beat.
    * Max ~1–2 per book. Child must still match CHILD VISUAL LOCK (not anonymous silhouette).
@@ -725,7 +729,7 @@ export function buildStyle01CompositionBlock(input: {
   if (childOnPage && scale === 'small' && !spec.allowSmallChildForEstablishing) {
     scale = 'medium';
   }
-  const heightRange = subjectScaleHeightRange(scale);
+  const heightRange = spec.frameHeightPercent ?? subjectScaleHeightRange(scale);
   const allowSmall = Boolean(spec.allowSmallChildForEstablishing);
 
   const parts = [

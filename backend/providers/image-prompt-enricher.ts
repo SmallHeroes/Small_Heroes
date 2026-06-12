@@ -7,6 +7,9 @@
  * Pipeline position: story.imageDirection → enrichImageDirection() → GPT image API
  */
 
+import type { PageShot } from '@/lib/book-shot-plan/types';
+import { buildShotAwareEnricherCompositionRules } from '@/lib/book-shot-plan/compose';
+
 export type PageLayout = 'full_bleed_soft' | 'vignette_breath' | 'asymmetric_split' | 'letter' | 'cover';
 export type TextZone = 'top_clear' | 'bottom_clear' | null;
 
@@ -17,6 +20,8 @@ export interface EnrichInput {
   textZone: TextZone;
   isQuietPage?: boolean;
   isClosing?: boolean;
+  /** When set, shot-aware rules replace conflicting static 35–50% / AVOID TIGHT CROPS lines. */
+  pageShot?: PageShot | null;
 }
 
 const COMPOSITION_TEMPLATES: Record<PageLayout, (input: EnrichInput) => string> = {
@@ -79,7 +84,9 @@ const COMPOSITION_TEMPLATES: Record<PageLayout, (input: EnrichInput) => string> 
 };
 
 export function enrichImageDirection(input: EnrichInput): string {
-  const composition = COMPOSITION_TEMPLATES[input.layout](input);
+  const composition = input.pageShot
+    ? buildShotAwareEnricherCompositionRules(input.pageShot, input.layout, input.wordCount)
+    : COMPOSITION_TEMPLATES[input.layout](input);
   return `${input.rawImageDirection.trim()}\n\n${composition}`;
 }
 
@@ -135,6 +142,7 @@ export function buildEnrichedScenePrompt(args: {
   isQuietPage?: boolean;
   pageNumber: number;
   totalPages: number;
+  pageShot?: PageShot | null;
 }): { rawScenePrompt: string; imagePrompt: string } {
   const rawImageDirection = (args.rawScenePrompt ?? args.imagePrompt ?? '').trim();
   const wordCount = countHebrewWords(args.text);
@@ -145,6 +153,7 @@ export function buildEnrichedScenePrompt(args: {
     textZone: parseEnrichTextZone(args.textZone),
     isQuietPage: args.isQuietPage,
     isClosing: args.pageNumber === args.totalPages,
+    pageShot: args.pageShot,
   });
 
   const rawScene = args.rawScenePrompt?.trim();

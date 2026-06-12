@@ -894,6 +894,15 @@ async function runPageImagesChunk(
         text: p.text,
         isLetter: Boolean(p.isLetter),
       });
+      const pageShotRaw = bookShotPlan?.pages.find((slot) => slot.page === p.pageNumber);
+      const pageShot = pageShotRaw
+        ? ({
+            page: pageShotRaw.page,
+            shot: pageShotRaw.shot,
+            angle: pageShotRaw.angle,
+            rationale: pageShotRaw.rationale,
+          } as import('@/lib/book-shot-plan').PageShot)
+        : null;
       const enriched = buildEnrichedScenePrompt({
         rawScenePrompt: p.rawScenePrompt,
         imagePrompt: p.imagePrompt,
@@ -903,6 +912,7 @@ async function runPageImagesChunk(
         isLetter: p.isLetter,
         pageNumber: p.pageNumber,
         totalPages: story.pages.length,
+        pageShot,
       });
       return {
         pageNumber: p.pageNumber,

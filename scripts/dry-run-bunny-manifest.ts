@@ -45,6 +45,7 @@ import {
 import {
   beatsFromStoryPages,
   formatBookShotPlanTable,
+  formatPageShotFramingSummary,
   isBookShotPlanValid,
   resolveBookShotPlan,
 } from '../lib/book-shot-plan';
@@ -273,6 +274,10 @@ async function main() {
       text: input.bookPageText ?? '',
       isLetter: Boolean(input.isLetter),
     });
+    const pageShot =
+      input.assetType === 'cover'
+        ? null
+        : bookShotPlan.pages.find((p) => p.page === input.pageNumber) ?? null;
     const enriched = buildEnrichedScenePrompt({
       rawScenePrompt: input.rawScenePrompt ?? undefined,
       imagePrompt: input.imagePrompt,
@@ -282,11 +287,8 @@ async function main() {
       isLetter: input.isLetter,
       pageNumber: input.pageNumber,
       totalPages: story.pages.length,
+      pageShot,
     });
-    const pageShot =
-      input.assetType === 'cover'
-        ? null
-        : bookShotPlan.pages.find((p) => p.page === input.pageNumber) ?? null;
 
     const assembled = assembleStyle01Phase2Prompt({
       pageNumber: input.pageNumber,
@@ -451,6 +453,9 @@ async function main() {
       push(
         `- bookShot: \`${pageShot.shot}\` (${pageShot.angle ?? 'eye'}) — ${pageShot.rationale.replace(/\|/g, '/')}`
       );
+      push('```');
+      push(formatPageShotFramingSummary(pageShot));
+      push('```');
       const compShot = assembled.compositionBlock.match(/^shotType:\s*(.+)$/m)?.[1]?.trim();
       const shotAligned =
         pageShot.shot === 'close_up'

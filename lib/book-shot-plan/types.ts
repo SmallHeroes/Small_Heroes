@@ -8,7 +8,7 @@ export const SHOT_TYPES = [
 ] as const;
 
 export type ShotType = (typeof SHOT_TYPES)[number];
-export type ShotAngle = 'eye' | 'low' | 'high';
+export type ShotAngle = 'eye' | 'low' | 'high' | 'over_shoulder';
 
 export interface PageShot {
   page: number;
