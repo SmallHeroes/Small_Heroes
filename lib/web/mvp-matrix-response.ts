@@ -17,6 +17,7 @@ import {
   type MvpCategory,
   type StoryDirection,
 } from '@/backend/config/mvp-story-matrix';
+import { DIRECTION_PAGE_MAP, displayPagesForBeats } from '@/backend/config/wizard';
 
 const DIRECTIONS: StoryDirection[] = ['bedtime', 'adventure', 'fantasy'];
 
@@ -29,15 +30,21 @@ function buildCategoryPayload(category: MvpCategory, publicVisible: boolean) {
   const directions = Object.fromEntries(
     DIRECTIONS.map((direction) => {
       const summary = matrixSlotSummary(category, direction);
+      const pageMap = DIRECTION_PAGE_MAP[direction];
       return [
         direction,
         {
           configured: summary.configured,
           sellable: summary.sellable,
+          priceILS: pageMap?.priceILS ?? 0,
+          displayPages: displayPagesForBeats(pageMap?.pages ?? 0),
         },
       ];
     })
-  ) as Record<StoryDirection, { configured: string; sellable: boolean }>;
+  ) as Record<
+    StoryDirection,
+    { configured: string; sellable: boolean; priceILS: number; displayPages: number }
+  >;
 
   return {
     category,

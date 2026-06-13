@@ -514,6 +514,36 @@ function applyInitialDirectionFromContext() {
   state.productId = null;
 }
 
+/**
+ * /start handoff: ?category=CATEGORY&direction=bedtime|adventure|fantasy
+ * Query params are initial UI state only — sellability comes from mvp-matrix.
+ * Invalid or non-sellable combos fall back to normal step-1 category selection.
+ */
+function tryApplyWizardHandoffFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const categoryParam = params.get('category');
+  const directionParam = params.get('direction');
+  if (!categoryParam || !directionParam) return false;
+  if (!VALID_STORY_DIRECTIONS.includes(directionParam)) return false;
+  if (!state.mvpMatrix?.categories) return false;
+
+  const slot = state.mvpMatrix.categories.find((c) => c.category === categoryParam);
+  if (!slot || slot.publicVisible === false) return false;
+
+  const dirMeta = slot.directions?.[directionParam];
+  if (!dirMeta?.sellable) return false;
+
+  state.challengeCategory = slot.category;
+  state.topic = slot.topicId;
+  state.topicLabel = slot.label;
+  applyMatrixCompanionForCategory(slot.category);
+  applyProductSelection(directionParam, { revealTotal: false });
+  state.currentStep = 3;
+  loadCategoryBranchForTopic(slot.topicId);
+  queueWizardSave();
+  return true;
+}
+
 function persistPreferredDirection(direction) {
   if (!VALID_STORY_DIRECTIONS.includes(direction)) return;
   try {
@@ -1111,6 +1141,9 @@ function init() {
   renderPhotoUploadArea();
   renderPhotoQualityMessage();
   loadMvpMatrix().finally(() => {
+    if (!restored) {
+      tryApplyWizardHandoffFromUrl();
+    }
     normalizeStepAfterMvpLoad();
     buildPills();
     renderTopics();

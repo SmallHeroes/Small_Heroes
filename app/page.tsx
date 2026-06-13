@@ -50,7 +50,7 @@ export default function HomePage() {
             שהוא/היא עובר/ת עכשיו.
           </p>
           <Link
-            href="/wizard"
+            href="/start"
             className={styles.ctaPrimary}
             data-event="landing_start_click"
           >
@@ -140,7 +140,7 @@ export default function HomePage() {
           </p>
           <div className={styles.footerCta}>
             <Link
-              href="/wizard"
+              href="/start"
               className={styles.ctaPrimary}
               data-event="landing_start_click"
             >
