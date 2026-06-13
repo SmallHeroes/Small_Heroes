@@ -8,7 +8,7 @@ import { STYLE_IDS } from './styles';
 import { resolveCompanionLockSource } from './companion-lock-source';
 import { resolveStyle01StoryWardrobeLock } from './style01-story-wardrobe';
 import type { BookLocationBible, PageLocationPlan } from './story-location-bible/types';
-import type { StoryTimeOfDay } from './story-time-of-day';
+import { buildStoryTimeOfDayLockBlock, type StoryTimeOfDay } from './story-time-of-day';
 
 export const STYLE_02_GPT_MODEL = 'gpt-image-2';
 
@@ -28,7 +28,10 @@ export type Style02SceneClass =
 export type Style02RefBudgetConfig = 'A' | 'B' | 'C';
 
 export const STYLE_02_SHARED =
-  'Style 02: a richly rendered semi-realistic cinematic fantasy children\'s-book illustration. Highly detailed and immersive, with dimensional painted forms, refined linework, realistic materials, strong motivated lighting, layered foreground-midground-background depth, and dense environmental storytelling. The image should feel hand-crafted and magical, but not soft watercolor, not pale pencil, not flat cartoon, not generic nursery art. Strong cinematic light and shadow; warm local glow balanced by cool shadows; rich colors and visible texture. The child is illustrated and expressive, cute but believable, never CGI, never plastic, never Pixar, never doll-like.';
+  'Style 02: a richly rendered semi-realistic cinematic fantasy children\'s-book illustration. Highly detailed and immersive, with dimensional painted forms, refined linework, realistic materials, strong motivated lighting, layered foreground-midground-background depth, and dense environmental storytelling. The image should feel hand-crafted and magical, but not soft watercolor, not pale pencil, not flat cartoon, not generic nursery art. Strong cinematic light and shadow; warm local glow balanced by cool shadows; rich colors and visible texture. Image brightness matches the scene time of day — daytime scenes are bright and well-lit; only true night/evening scenes are dark. The child is illustrated and expressive, cute but believable, never CGI, never plastic, never Pixar, never doll-like.';
+
+export const STYLE_02_ANTI_GLOBAL_DARK =
+  'NOT globally dark, underexposed, or murky overall. NOT a dark filter over the whole frame. Cool shadows and rich contrast in shadow pockets are GOOD — cinematic depth does NOT mean a dark overall image. Daytime must read bright and readable.';
 
 export const STYLE_02_RENDERING_CORRECTION =
   'RENDERING: dimensional painted rendering, material definition, visible volume, controlled detailed linework, strong light direction, crisp focal hierarchy, layered atmospheric depth, rich shadows, detailed props everywhere. NOT pale watercolor wash, NOT soft pencil haze, NOT muddy softness, NOT low-contrast pastel, NOT simplified nursery look, NOT weak flat lighting, NOT empty backgrounds. "Not photorealistic" does NOT mean soft watercolor — illustrated but deep, material-rich, cinematic.';
@@ -46,7 +49,7 @@ export const STYLE_02_CHARACTER_GUARD =
   'Child: semi-realistic illustrated storybook character — expressive eyes, natural proportions with slight charm, believable hand-painted skin texture, fabric folds, emotional nuance. NOT Pixar, NOT plastic CGI, NOT doll eyes, NOT hyperreal portrait, NOT flat cartoon, NOT Style-01 nursery simplicity.';
 
 export const STYLE_02_AVOIDANCE_NEGATIVE =
-  'No copied owls, dragons, turtles, fairies, giants from references unless tiny toys only. No readable text. No Pixar-smooth child. No photorealistic camera portrait.';
+  'No copied owls, dragons, turtles, fairies, giants from references unless tiny toys only. No readable text. No Pixar-smooth child. No photorealistic camera portrait. No globally dark, underexposed, or murky overall image on daytime scenes.';
 
 /** Scene-typed subsets — canonical from locked audition manifest. */
 export const STYLE_02_REF_SUBSETS: Record<
@@ -64,21 +67,22 @@ export const STYLE_02_REF_SUBSETS: Record<
   },
   'classroom-day': {
     filenames: [
+      'ChatGPT Image May 18, 2026, 02_24_45 PM.png',
       'ChatGPT Image May 18, 2026, 12_36_35 PM.png',
-      'ChatGPT Image May 18, 2026, 01_46_14 PM.png',
-      'ChatGPT Image May 18, 2026, 11_41_43 AM.png',
       'ChatGPT Image May 18, 2026, 02_01_50 PM.png',
+      'ChatGPT Image May 18, 2026, 01_46_14 PM.png',
     ],
-    reason: 'Daytime interior + dimensional materials; no night refs.',
+    reason:
+      'Bright daytime interior refs — open daylight, well-lit rooms, dimensional materials; no night-bedroom or globally murky refs.',
   },
   'clinic-day': {
     filenames: [
+      'ChatGPT Image May 18, 2026, 02_24_45 PM.png',
       'ChatGPT Image May 18, 2026, 12_36_35 PM.png',
       'ChatGPT Image May 18, 2026, 02_01_50 PM.png',
       'ChatGPT Image May 18, 2026, 01_46_14 PM.png',
-      'ChatGPT Image May 18, 2026, 11_41_43 AM.png',
     ],
-    reason: 'Bright clinic/day interior + jars/wood study materials.',
+    reason: 'Bright clinic/day interior + jars/wood study materials; lead with open daylight refs.',
   },
   'forest-magical': {
     filenames: [
@@ -469,11 +473,49 @@ export function resolveStyle02BookPromptProfile(): Style02BookPromptProfile {
   return resolveStyle02Step5Profile() ?? 'default';
 }
 
+export function buildStyle02DayLightingBlock(strictRetry?: boolean): string {
+  const lines = [
+    'SCENE TIME-OF-DAY LOCK — DAY:',
+    'Bright daylight or well-lit interior — open, luminous, readable atmosphere.',
+    'Strong motivated light with cinematic depth — rich contrast and cool shadows in pockets, but the OVERALL image is bright and well-exposed, NOT globally dark, underexposed, or murky.',
+    'NOT night, NOT moody dusk, NOT a dim room unless the story explicitly calls for it.',
+  ];
+  if (strictRetry) {
+    lines.push(
+      'REGENERATION — BRIGHTNESS (mandatory): Previous render was too dark for a DAY scene. Increase overall brightness and daylight clarity while keeping cinematic depth, cool shadows, and fantasy detail.'
+    );
+  }
+  return lines.join('\n');
+}
+
+/** Per-page lighting lock — same effectivePageTimeOfDay signal as the scene classifier. */
+export function buildStyle02SceneLightingBlock(input: {
+  effectivePageTimeOfDay?: StoryTimeOfDay;
+  imageDirection?: string | null;
+  strictRetry?: boolean;
+}): string {
+  const time = input.effectivePageTimeOfDay ?? 'day';
+  if (time === 'day') {
+    return buildStyle02DayLightingBlock(input.strictRetry);
+  }
+  const nightBlock = buildStoryTimeOfDayLockBlock({
+    effectiveTimeOfDay: time,
+    imageDirection: input.imageDirection,
+    strictRetry: input.strictRetry,
+  });
+  return nightBlock ?? buildStyle02DayLightingBlock(input.strictRetry);
+}
+
+export function isStyle02DayEffectiveTime(time?: StoryTimeOfDay | null): boolean {
+  return time === 'day' || time === 'dawn';
+}
+
 export function buildStyle02BookPagePrompt(input: {
   sceneDescription: string;
   childVisualLock?: string;
   wardrobeLock?: string;
   companionTextLock?: string;
+  sceneLightingBlock?: string;
   profile?: Style02BookPromptProfile;
   /** Per-page composition reminder (guarded-v1). */
   pageCompositionNote?: string;
@@ -510,8 +552,10 @@ export function buildStyle02BookPagePrompt(input: {
   return [
     input.sceneDescription.trim(),
     input.bedtimeMedicalTone ? STYLE_02_BEDTIME_MEDICAL_TONE : '',
+    input.sceneLightingBlock ?? '',
     STYLE_02_SHARED,
     STYLE_02_RENDERING_CORRECTION,
+    STYLE_02_ANTI_GLOBAL_DARK,
     input.childVisualLock ?? '',
     input.wardrobeLock ?? '',
     input.companionTextLock ?? '',

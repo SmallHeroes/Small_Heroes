@@ -274,9 +274,9 @@ ZERO text, letters, numbers, or symbols anywhere.`,
       "Traditional ink-and-gouache mixed media on textured paper. Scratchy black/brown ink contour lines with visible nib strokes, crosshatching for shadow, layered opaque gouache pigment, translucent watercolor washes, dry brush texture, paper grain and tooth visible, pigment granulation and ink bleed where colors pool. Matte paint surface, uneven hand-painted edges, misregistered paint at line boundaries. Dense illustrated environment filled with narrative micro-details. Believable child proportions, stylized expressive face. Rough ink nib linework with opaque paint layering throughout.",
     pipeline: {
       colorPalette:
-        'muted earthy ochres with cool indigo shadows — desaturated vintage palette, high color harmony',
+        'rich cinematic palette — warm ochres, olive greens, dusty blues, cool indigo shadows; high color harmony without global desaturation',
       lightingStyle:
-        'practical light sources in scene (lamps, candles, window light) with cool shadow contrast',
+        'strong motivated practical light with cinematic depth — brightness matches time of day; daytime bright, night/evening dark',
       textureStyle:
         'ink nib linework with opaque gouache and translucent watercolor — visible paper tooth, pigment granulation, dry brush marks',
       renderingBehavior:
@@ -286,7 +286,7 @@ ZERO text, letters, numbers, or symbols anywhere.`,
     imageNudge: {
       title: 'DETAILED_WHIMSICAL_WORLD_NUDGE',
       lines: [
-        'Ink-and-gouache mixed media: scratchy ink contour lines, crosshatching, opaque gouache pigment layering, matte watercolor washes, paper grain visible, pigment granulation, dry brush marks, ink bleed. Dense illustrated environment with narrative micro-details. Practical light sources with cool indigo shadows. Upper area lighter for text overlay. Rough handmade linework with opaque paint — not colored pencil, not crayon, not smooth digital.',
+        'Ink-and-gouache mixed media: scratchy ink contour lines, crosshatching, opaque gouache pigment layering, matte watercolor washes, paper grain visible, pigment granulation, dry brush marks, ink bleed. Dense illustrated environment with narrative micro-details. Strong motivated light with cool indigo shadows — cinematic depth, NOT globally dark. Image brightness matches time of day. Upper area lighter for text overlay. Rough handmade linework with opaque paint — not colored pencil, not crayon, not smooth digital.',
       ],
     },
     lineRules: [
@@ -295,8 +295,8 @@ ZERO text, letters, numbers, or symbols anywhere.`,
       'Varied line weight: thicker for main characters, thinner for environmental details',
     ],
     colorRules: [
-      'Muted earthy palette — desaturated ochres, olive greens, dusty blues, cool indigo shadows',
-      'Slightly muted vintage quality with high color harmony',
+      'Rich cinematic palette — warm ochres, olive greens, dusty blues, cool indigo shadows',
+      'High color harmony with depth — NOT globally desaturated or vintage-muted by default',
       'Gouache opacity and watercolor transparency layered together — visible brushwork and pigment variation',
     ],
     shadingRules: [
@@ -305,9 +305,9 @@ ZERO text, letters, numbers, or symbols anywhere.`,
       'Layered depth through atmospheric color temperature shifts — cooler in distance',
     ],
     lightingRules: [
-      'Practical light sources in scene (lamps, lanterns, fairy lights, candles, window light)',
-      'Cool blue fill in shadows for contrast against practical lights',
-      'Lighting motivated by scene objects, not global golden-hour wash',
+      'Strong motivated practical light sources (lamps, lanterns, window light, daylight)',
+      'Cool blue fill in shadows for contrast — rich cinematic depth, not a dark overall image',
+      'Image brightness matches scene time of day — daytime scenes bright and well-lit; only true night/evening scenes dark',
     ],
     backgroundRules: [
       'FULLY DETAILED edge-to-edge — every surface filled with narrative micro-details',
@@ -331,6 +331,7 @@ ZERO text, letters, numbers, or symbols anywhere.`,
       'No empty or white backgrounds',
       'No stock illustration look',
       'No text, letters, numbers, or symbols in the image',
+      'No globally dark, underexposed, or murky overall image — cool shadows OK, dark OVERALL frame not OK on daytime scenes',
     ],
     optionBlock: `MEDIUM LOCK — INK AND GOUACHE MIXED MEDIA:
 Traditional mixed-media illustration created with black ink linework and opaque gouache paint on textured paper.
@@ -360,9 +361,9 @@ Expressive face with personality.
 Clearly visible and recognizable within the dense environment.
 
 COLOR AND LIGHT:
-Muted earthy ochres, olive greens, dusty blues, cool indigo shadows.
-Practical light sources (lamps, candles, window light) — not global golden wash.
-Cool shadows contrast with pools of light from scene objects.
+Rich cinematic ochres, olive greens, dusty blues, cool indigo shadows — high harmony, NOT globally desaturated.
+Strong motivated practical light — cinematic depth with cool shadows, NOT a murky dark overall image.
+Image brightness matches time of day: daytime bright and well-lit; only true night/evening scenes dark.
 
 ZERO text, letters, numbers, or symbols anywhere.`,
   },

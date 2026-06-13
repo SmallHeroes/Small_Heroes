@@ -55,6 +55,7 @@ import {
   buildStyle02ChildVisualLock,
   buildStyle02CompanionTextLock,
   classifyStyle02SceneClassDetailed,
+  buildStyle02SceneLightingBlock,
   resolveStyle02BookWardrobeLock,
   resolveCompanionReferencePath,
   isStyle02CloseUpScene,
@@ -2840,12 +2841,19 @@ async function generateWithGPTImageStyle02(input: ImageInput): Promise<Generated
     }
   }
 
+  const sceneLightingBlock = buildStyle02SceneLightingBlock({
+    effectivePageTimeOfDay: input.effectivePageTimeOfDay ?? input.storyTimeOfDay,
+    imageDirection: input.rawScenePrompt ?? input.pagePrompt,
+    strictRetry: input.timeOfDayStrictRetry,
+  });
+
   const finalPrompt = buildStyle02BookPagePrompt({
     sceneDescription,
     profile,
     bedtimeMedicalTone,
     closeUpRule: profile === 'guarded-v1' && isStyle02CloseUpScene(sceneDescription),
     guardedV2PromptOverride,
+    sceneLightingBlock,
     ...(profile === 'default' ? { childVisualLock, wardrobeLock, companionTextLock } : {}),
   });
   const prompt = sanitizePromptForSafety(finalPrompt);
