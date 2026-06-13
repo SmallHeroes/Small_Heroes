@@ -1,8 +1,7 @@
 /**
  * Order product source-of-truth: direction/pages/price must come from the
  * story that will actually be served — never from a silent fallback.
- * Acceptance (launch-blocker): forcing the Bunny v3 story → bedtime/8 beats/₪59,
- * even when the client claims adventure.
+ * Point-of-sale integrity: client direction is NEVER overridden by a v3 binding.
  * Canonical BEAT counts (2026-06-10): bedtime=8, adventure=12, fantasy=16;
  * customer display = beats × 2 physical pages (displayPages).
  */
@@ -14,6 +13,7 @@ import {
   resolveStoryProductTruth,
   StoryProductResolutionError,
 } from '../../backend/providers/story-product-resolver';
+import { allMvpCategories, companionForCategory, isSlotSellable } from '../../backend/config/mvp-story-matrix';
 
 const V3_APPROVED_DIR = path.join(process.cwd(), 'story-bank', 'v3-approved');
 const BUNNY_BEDTIME = path.join(V3_APPROVED_DIR, 'bunny_ometz_bedtime.md');
@@ -42,7 +42,7 @@ describe('resolveStoryProductTruth', () => {
     else process.env.ENABLE_V3_APPROVED_BANK = originalFlag;
   });
 
-  it('ACCEPTANCE: bunny v3 binding overrides client adventure claim → bedtime/8 beats/59 (display 16)', () => {
+  it('client adventure + bunny (v3 bedtime only) → v5 adventure golden, NOT bedtime override', () => {
     process.env.ENABLE_V3_APPROVED_BANK = 'true';
     if (createdFixture) writeBunnyFixture(8);
 
@@ -50,12 +50,46 @@ describe('resolveStoryProductTruth', () => {
       companionId: 'bunny_ometz',
       clientDirection: 'adventure',
     });
+    expect(resolved.storyDirection).toBe('adventure');
+    expect(resolved.storyLength).toBe('medium');
+    expect(resolved.priceILS).toBe(79);
+    expect(resolved.source).toBe('companion_golden');
+  });
+
+  it('client bedtime + bunny → v3 bedtime binding preserved', () => {
+    process.env.ENABLE_V3_APPROVED_BANK = 'true';
+    if (createdFixture) writeBunnyFixture(8);
+
+    const resolved = resolveStoryProductTruth({
+      companionId: 'bunny_ometz',
+      clientDirection: 'bedtime',
+    });
     expect(resolved.storyDirection).toBe('bedtime');
     expect(resolved.storyLength).toBe('short');
     expect(resolved.pages).toBe(8);
     expect(resolved.displayPages).toBe(16);
     expect(resolved.priceILS).toBe(59);
     expect(resolved.source).toBe('v3_approved_binding');
+  });
+
+  it('guard: sellable matrix combos never change direction between request and response', () => {
+    process.env.ENABLE_V3_APPROVED_BANK = 'true';
+    if (createdFixture) writeBunnyFixture(8);
+
+    const directions = ['bedtime', 'adventure', 'fantasy'] as const;
+    for (const category of allMvpCategories()) {
+      for (const direction of directions) {
+        if (!isSlotSellable(category, direction)) continue;
+        const companionId = companionForCategory(category);
+        if (!companionId) continue;
+        const resolved = resolveStoryProductTruth({
+          companionId,
+          clientDirection: direction,
+          challengeCategory: category,
+        });
+        expect(resolved.storyDirection).toBe(direction);
+      }
+    }
   });
 
   it('flag OFF: v3-approved file is ignored, client direction resolves via companion golden', () => {

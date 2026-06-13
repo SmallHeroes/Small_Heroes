@@ -6,8 +6,8 @@
  * customer must not see "15 pages / ₪99" and receive a 10-page book.
  *
  * Resolution order:
- *  1. v3-approved binding (ENABLE_V3_APPROVED_BANK=true + companion has an
- *     owner-approved story) — that story's frontmatter direction wins.
+ *  1. v3-approved binding when client direction matches an on-disk v3 story
+ *     (never substitute a different bound direction for the client's choice).
  *  2. Client direction validated against the companion's golden in the bank.
  *  3. Legacy product.length mapping (old sessions) — still validated.
  *  Missing/invalid direction with no derivable story → loud 400.
@@ -154,36 +154,37 @@ export function resolveStoryProductTruth(input: {
   const clientDirection = normalizeDirection(input.clientDirection);
   const companionId = typeof input.companionId === 'string' ? input.companionId.trim() : '';
 
-  // ── 1. v3-approved binding — server truth overrides client claims ──
+  // ── 1. v3-approved binding — only when direction explicitly matches ──
   if (companionId && isV3ApprovedBankEnabled()) {
     const v3ApprovedDir = join(process.cwd(), 'story-bank', V3_APPROVED_DIR_NAME);
     const boundDirections = DIRECTIONS.filter((d) =>
       existsSync(join(v3ApprovedDir, `${companionId}_${d}.md`))
     );
-    if (boundDirections.length > 0) {
-      const direction =
-        clientDirection && boundDirections.includes(clientDirection)
-          ? clientDirection
-          : boundDirections[0];
-      // Respect the serve path's own rules (active companion etc.) — if the
-      // selector would not serve this binding, fall through to the normal path.
-      const selection = selectCompanionStory(companionId, direction);
+    const v3Direction =
+      clientDirection && boundDirections.includes(clientDirection)
+        ? clientDirection
+        : !clientDirection && boundDirections.length > 0
+          ? boundDirections[0]
+          : null;
+
+    if (v3Direction) {
+      const selection = selectCompanionStory(companionId, v3Direction);
       if (selection?.dirName === V3_APPROVED_DIR_NAME) {
         const storyFile = join(v3ApprovedDir, selection.filename);
         const fm = readStoryFrontmatter(storyFile);
-        if (fm.direction && fm.direction !== direction) {
+        if (fm.direction && fm.direction !== v3Direction) {
           throw new StoryProductResolutionError(
             `v3-approved story ${selection.filename} declares direction=${fm.direction} — misconfigured import`,
             500
           );
         }
-        if (fm.pages != null && fm.pages !== DIRECTION_PAGE_MAP[direction].pages) {
+        if (fm.pages != null && fm.pages !== DIRECTION_PAGE_MAP[v3Direction].pages) {
           throw new StoryProductResolutionError(
-            `v3-approved story ${selection.filename} declares pages=${fm.pages}, expected ${DIRECTION_PAGE_MAP[direction].pages} for ${direction}`,
+            `v3-approved story ${selection.filename} declares pages=${fm.pages}, expected ${DIRECTION_PAGE_MAP[v3Direction].pages} for ${v3Direction}`,
             500
           );
         }
-        const resolved = buildResolved(direction, 'v3_approved_binding', storyFile, fm.pages);
+        const resolved = buildResolved(v3Direction, 'v3_approved_binding', storyFile, fm.pages);
         assertMatrixBinding(input.challengeCategory, companionId, resolved.storyDirection);
         return resolved;
       }
