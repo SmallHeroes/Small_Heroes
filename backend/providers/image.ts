@@ -51,7 +51,6 @@ import { composeVisualDirectorPrompt, type VisualDirectorInput } from '../../lib
 import type { Companion } from '../../lib/companions';
 import { generateGPTImage, generateReplicateImage } from '../../lib/generate-image';
 import {
-  assembleStyle02BookReferences,
   buildStyle02BookPagePrompt,
   buildStyle02ChildVisualLock,
   buildStyle02CompanionTextLock,
@@ -114,6 +113,11 @@ import {
   assertShippedBookStyleEngineActive,
   resolveLegacyImageProviderEnv,
 } from '../../lib/image-engine-guard';
+import {
+  assembleStyle02BookReferencesWithLocks,
+  buildBookImageLockContext,
+  resolvePageImageLockSlice,
+} from '../../lib/book-image-lock-context';
 import type { PageStoryState } from '../../lib/story-page-state';
 import { storeImageFromBuffer, storeImageFromProviderUrl } from '../../lib/image-storage';
 import type { BookPageTemplate } from '../../lib/bookPageLayout';
@@ -2756,11 +2760,15 @@ async function generateWithGPTImageStyle02(input: ImageInput): Promise<Generated
         !entry.characterId.startsWith('companion:')
     )
     .map((entry) => entry.anchorImageUrl);
-  const { paths: referenceImages, breakdown } = assembleStyle02BookReferences({
+  const isolatedObjectRefPaths = (
+    input.pageLocationPlan?.referenceSheets?.isolatedObjectPaths ?? []
+  ).filter(Boolean);
+  const { paths: referenceImages, breakdown } = assembleStyle02BookReferencesWithLocks({
     styleRefPaths,
-    childPhotoPath: refConfig === 'C' ? undefined : childPhotoPath,
+    childAnchorPath: refConfig === 'C' ? undefined : childPhotoPath,
     companionRefPath: refConfig === 'B' ? undefined : companionRefPath,
     otherCharacterRefPaths,
+    isolatedObjectRefPaths,
     config: refConfig,
   });
 
@@ -2828,9 +2836,13 @@ async function generateWithGPTImageStyle02(input: ImageInput): Promise<Generated
   console.log(
     `[style02_phase2] orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} ` +
       `subset=${subsetKey} refConfig=${refConfig} sceneClass=${sceneClass} ` +
+      `pageShot=${input.pageShot?.shot ?? '—'} zone=${input.pageLocationPlan?.zoneId ?? '—'} ` +
+      `timeOfDay=${input.effectivePageTimeOfDay ?? input.storyTimeOfDay ?? '—'} ` +
+      `isolatedObjects=${isolatedObjectRefPaths.length} ` +
       `refs=${referenceImages.length} breakdown=${JSON.stringify({
         child: breakdown.child.length,
         companion: breakdown.companion.length,
+        isolatedObjects: (breakdown.isolatedObjects ?? []).length,
         otherCharacters: (breakdown.otherCharacters ?? []).length,
         style: breakdown.style.length,
       })}`
@@ -3942,6 +3954,18 @@ export async function generateAllPageImages(
       `[Phase2] Style 02 gpt-image-2 book path | model=${STYLE_02_GPT_MODEL} | refConfig=${resolveStyle02RefBudgetConfig()} | NOT live customer path`
     );
   }
+  const bookLockContext = buildBookImageLockContext({
+    bookShotPlan: config.bookShotPlan ?? null,
+    storyLocationPlan: config.storyLocationPlan ?? null,
+    storyTimeOfDay: config.storyTimeOfDay,
+    pageTimeOfDayOverrides: config.pageTimeOfDayOverrides,
+    familyCoherence: config.familyCoherence ?? null,
+    storyRecurringEntityDeclarations: config.storyRecurringEntityDeclarations,
+    childCanonicalAnchorPath: config.initialCharacterAnchors?.child ?? null,
+    totalPages: pagesToGenerate.length,
+  });
+  const phase2BookPipelineActive =
+    shouldUseStyle01Phase2Path(normalizedStyle) || style02Phase2Active;
   console.log(
     `[Image] Generating ${pagesToGenerate.length} images | ` +
     `style=${normalizedStyle} | ` +
@@ -4245,12 +4269,13 @@ export async function generateAllPageImages(
         [{ pageNumber: page.pageNumber, imagePrompt: page.imagePrompt, bookPageText: page.bookPageText }],
         []
       )[0];
-    const pageShot =
-      config.bookShotPlan?.pages.find((slot) => slot.page === page.pageNumber) ?? null;
-    const pageLocationPlan =
-      config.storyLocationPlan
-        ? (config.storyLocationPlan.pagePlans.find((p) => p.page === page.pageNumber) ?? null)
-        : null;
+    const lockSlice = resolvePageImageLockSlice(bookLockContext, page.pageNumber, {
+      imageDirection: page.rawScenePrompt ?? page.imagePrompt,
+      bookPageText: page.bookPageText,
+    });
+    const pageShot = lockSlice.pageShot;
+    const pageLocationPlan = lockSlice.pageLocationPlan;
+    const effectivePageTimeOfDay = lockSlice.effectivePageTimeOfDay;
     if (config.bookShotPlan) {
       console.log('[book-shot-plan]', {
         page: page.pageNumber,
@@ -4422,26 +4447,28 @@ export async function generateAllPageImages(
       pageStoryboard,
       expectedCharacterIds,
     };
-    const style01PipelineFields: Pick<
+    const bookPipelineLockFields: Pick<
       ImageInput,
       | 'storyRecurringEntityDeclarations'
       | 'totalPages'
       | 'familyCoherence'
       | 'storyTimeOfDay'
       | 'pageTimeOfDayOverrides'
+      | 'effectivePageTimeOfDay'
       | 'pageShot'
       | 'locationBible'
       | 'pageLocationPlan'
     > = {
       totalPages: pagesToGenerate.length,
-      ...(shouldUseStyle01Phase2Path(normalizedStyle)
+      ...(phase2BookPipelineActive
         ? {
             storyRecurringEntityDeclarations: config.storyRecurringEntityDeclarations,
             familyCoherence: config.familyCoherence ?? null,
             storyTimeOfDay: config.storyTimeOfDay,
             pageTimeOfDayOverrides: config.pageTimeOfDayOverrides,
+            effectivePageTimeOfDay,
             pageShot,
-            locationBible: config.storyLocationPlan?.bible ?? null,
+            locationBible: lockSlice.locationBible,
             pageLocationPlan,
           }
         : {}),
@@ -4527,7 +4554,7 @@ export async function generateAllPageImages(
               style02ChildVisualLock,
               style02WardrobeLock,
               style02CompanionTextLock,
-              ...style01PipelineFields,
+              ...bookPipelineLockFields,
               ...visualDirectorPageFields,
               seed,
             }),
@@ -4676,7 +4703,7 @@ export async function generateAllPageImages(
                 style02ChildVisualLock,
                 style02WardrobeLock,
                 style02CompanionTextLock,
-                ...style01PipelineFields,
+                ...bookPipelineLockFields,
                 ...visualDirectorPageFields,
                 seed,
               }),
@@ -4772,7 +4799,7 @@ export async function generateAllPageImages(
               style02ChildVisualLock,
               style02WardrobeLock,
               style02CompanionTextLock,
-              ...style01PipelineFields,
+              ...bookPipelineLockFields,
               ...visualDirectorPageFields,
             });
           },

@@ -1,0 +1,206 @@
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { describe, expect, it } from 'vitest';
+
+import { beatsFromStoryPages, resolveBookShotPlan } from '../book-shot-plan';
+import {
+  assembleStyle02BookReferencesWithLocks,
+  buildBookImageLockContext,
+  formatStyle02LockManifestLine,
+  resolvePageImageLockSlice,
+  STYLE02_REFERENCE_KIND_ORDER,
+  validateStyle02ReferenceOrder,
+} from '../book-image-lock-context';
+import { loadStoryFromBank } from '../../backend/providers/story-bank-loader';
+import { getCompanionById } from '../companions';
+import {
+  enrichStoryLocationPlanWithReferenceSheets,
+  resolveStoryLocationPlan,
+} from '../story-location-bible';
+import {
+  classifyStyle02SceneClass,
+  resolveStyle02RefBudgetConfig,
+  resolveStyle02StyleReferencePaths,
+  resolveStyle02SubsetKey,
+  resolveCompanionReferencePath,
+} from '../style02-gptimage';
+
+const FOX_BANK = path.join(process.cwd(), 'story-bank', 'v3-approved', 'fox_uri_adventure.md');
+
+function writeApprovedFixture(dir: string) {
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'bucket-object.png'), Buffer.from('bucket-object'));
+  fs.writeFileSync(
+    path.join(dir, 'manifest.json'),
+    JSON.stringify({
+      zoneId: 'balcony_drip_area',
+      approvedBy: 'Guy test fixture',
+      generatedAt: '2026-06-12T00:00:00.000Z',
+      files: { isolatedObject: 'bucket-object.png' },
+    })
+  );
+}
+
+describe('BookImageLockContext — Style 02 lock contract', () => {
+  it('resolvePageImageLockSlice derives shot, location, time-of-day, and object refs', async () => {
+    if (!fs.existsSync(FOX_BANK)) return;
+
+    const story = await loadStoryFromBank(FOX_BANK, 'נועה', 'אורי', 'girl', {
+      skipLlmPersonalization: true,
+      maxPages: 20,
+    });
+    const beats = beatsFromStoryPages(story.pages);
+    const shotPlan = resolveBookShotPlan({ storyFilePath: FOX_BANK, pages: beats });
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'style02-lock-'));
+    const approvedDir = path.join(
+      tmpRoot,
+      'story-bank',
+      'v3-approved',
+      'fox_uri_adventure.zone-sheets',
+      'balcony_drip_area'
+    );
+    writeApprovedFixture(approvedDir);
+    const origCwd = process.cwd();
+    process.chdir(tmpRoot);
+    try {
+      const locationPlan = enrichStoryLocationPlanWithReferenceSheets(
+        resolveStoryLocationPlan({
+          storyFilePath: FOX_BANK,
+          challengeCategory: 'NIGHT_FEAR',
+          direction: 'adventure',
+          pages: beats,
+        }),
+        FOX_BANK
+      );
+      const ctx = buildBookImageLockContext({
+        bookShotPlan: shotPlan,
+        storyLocationPlan: locationPlan,
+        storyTimeOfDay: story.storyTimeOfDay ?? 'night',
+        pageTimeOfDayOverrides: story.pageTimeOfDayOverrides,
+        totalPages: 20,
+      });
+
+      const p5 = resolvePageImageLockSlice(ctx, 5, {
+        imageDirection: story.pages[4]?.imagePrompt,
+        bookPageText: story.pages[4]?.bookPageText,
+      });
+      expect(p5.pageShot?.shot).toBeTruthy();
+      expect(p5.pageLocationPlan?.zoneId).toBeTruthy();
+      expect(p5.effectivePageTimeOfDay).toBeTruthy();
+    } finally {
+      process.chdir(origCwd);
+      fs.rmSync(tmpRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('assembleStyle02BookReferencesWithLocks orders child → companion → objects → style', () => {
+    const styleRefs = [
+      '/style/a.png',
+      '/style/b.png',
+      '/style/c.png',
+    ];
+    const { paths, breakdown } = assembleStyle02BookReferencesWithLocks({
+      styleRefPaths: styleRefs,
+      childAnchorPath: '/anchors/child.png',
+      companionRefPath: '/refs/fox.png',
+      isolatedObjectRefPaths: ['/zones/bucket-object.png'],
+      config: 'A',
+    });
+
+    const validation = validateStyle02ReferenceOrder(breakdown);
+    expect(validation.ok, validation.violations.join('; ')).toBe(true);
+    expect(breakdown.child).toEqual(['/anchors/child.png']);
+    expect(breakdown.companion).toEqual(['/refs/fox.png']);
+    expect(breakdown.isolatedObjects).toEqual(['/zones/bucket-object.png']);
+    expect(paths.length).toBeGreaterThan(0);
+
+    const childIdx = paths.indexOf('/anchors/child.png');
+    const companionIdx = paths.indexOf('/refs/fox.png');
+    const objectIdx = paths.indexOf('/zones/bucket-object.png');
+    const firstStyleIdx = paths.findIndex((p) => p.startsWith('/style/'));
+    expect(childIdx).toBeLessThan(companionIdx);
+    expect(companionIdx).toBeLessThan(objectIdx);
+    if (firstStyleIdx >= 0) {
+      expect(objectIdx).toBeLessThan(firstStyleIdx);
+    }
+  });
+
+  it('STYLE02_REFERENCE_KIND_ORDER lists identity kinds before style', () => {
+    expect(STYLE02_REFERENCE_KIND_ORDER.indexOf('child')).toBeLessThan(
+      STYLE02_REFERENCE_KIND_ORDER.indexOf('style')
+    );
+    expect(STYLE02_REFERENCE_KIND_ORDER.indexOf('isolatedObjects')).toBeLessThan(
+      STYLE02_REFERENCE_KIND_ORDER.indexOf('style')
+    );
+  });
+
+  it('fox_uri Style 02 manifest: all pages receive lock slice fields', async () => {
+    if (!fs.existsSync(FOX_BANK)) return;
+
+    const companion = getCompanionById('fox_uri');
+    expect(companion).toBeTruthy();
+
+    const story = await loadStoryFromBank(FOX_BANK, 'נועה', 'אורי', 'girl', {
+      skipLlmPersonalization: true,
+      maxPages: 20,
+    });
+    const beats = beatsFromStoryPages(story.pages);
+    const shotPlan = resolveBookShotPlan({ storyFilePath: FOX_BANK, pages: beats });
+    const locationPlan = resolveStoryLocationPlan({
+      storyFilePath: FOX_BANK,
+      challengeCategory: 'NIGHT_FEAR',
+      direction: 'adventure',
+      pages: beats,
+    });
+    const ctx = buildBookImageLockContext({
+      bookShotPlan: shotPlan,
+      storyLocationPlan: locationPlan,
+      storyTimeOfDay: story.storyTimeOfDay ?? 'night',
+      pageTimeOfDayOverrides: story.pageTimeOfDayOverrides,
+      totalPages: 20,
+    });
+
+    const refConfig = resolveStyle02RefBudgetConfig();
+    const companionRef = resolveCompanionReferencePath(companion!.image);
+
+    for (let pageNum = 1; pageNum <= 20; pageNum++) {
+      const page = story.pages[pageNum - 1];
+      const slice = resolvePageImageLockSlice(ctx, pageNum, {
+        imageDirection: page?.imagePrompt,
+        bookPageText: page?.bookPageText,
+      });
+      const plannedLoc = locationPlan.pagePlans.find((p) => p.page === pageNum);
+      if (plannedLoc) {
+        expect(slice.pageLocationPlan, `page ${pageNum} missing pageLocationPlan`).toBeTruthy();
+      }
+      expect(slice.effectivePageTimeOfDay, `page ${pageNum} missing timeOfDay`).toBeTruthy();
+      const plannedShot = shotPlan.pages.find((p) => p.page === pageNum);
+      if (plannedShot) {
+        expect(slice.pageShot, `page ${pageNum} missing pageShot`).toBeTruthy();
+      }
+
+      const sceneClass = classifyStyle02SceneClass({
+        imagePrompt: page?.imagePrompt,
+        bookPageText: page?.bookPageText,
+      });
+      const subsetKey = resolveStyle02SubsetKey(sceneClass);
+      const styleRefs = resolveStyle02StyleReferencePaths(subsetKey, refConfig === 'A' ? 2 : 3);
+
+      const { paths, breakdown } = assembleStyle02BookReferencesWithLocks({
+        styleRefPaths: styleRefs,
+        childAnchorPath: '(simulated-child-anchor)',
+        companionRefPath: companionRef,
+        isolatedObjectRefPaths: slice.isolatedObjectRefPaths,
+        config: refConfig,
+      });
+
+      const validation = validateStyle02ReferenceOrder(breakdown);
+      expect(validation.ok, `page ${pageNum}: ${validation.violations.join('; ')}`).toBe(true);
+      expect(paths.length).toBeGreaterThan(0);
+
+      const line = formatStyle02LockManifestLine({ pageNumber: pageNum, slice, breakdown, paths });
+      expect(line).toMatch(new RegExp(`^p${pageNum}`));
+    }
+  });
+});
