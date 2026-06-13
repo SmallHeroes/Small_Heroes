@@ -28,6 +28,7 @@ import { createLogger } from '../../../lib/logger';
 import { getCompanionById, getCompanionByIdAndCategory, getCompanionReferencePublicUrl } from '../../../lib/companions';
 import { mergeGptImageReferenceSources } from '../../../lib/image-reference-utils';
 import { buildPersistedCharacterAnchorsJson, companionAnchorKey, getWizardMeta } from '../../../lib/orderMeta';
+import { tryDeleteOriginalChildPhotoAfterGeneration } from '../../../lib/child-photo-deletion';
 import { buildLetterContextFromOrder, buildPatchContextFromOrder } from '../../../backend/providers/personalization';
 import { ROUTES } from '../../../lib/routes';
 import { evaluatePhotoGate, resolveResemblanceThresholdConfig } from '../../../lib/resemblance-core';
@@ -1389,6 +1390,8 @@ export async function runMonolithicGeneration(orderId: string, reason = 'unspeci
     } catch (emailErr) {
       generationLogger.error('Ready email failed (non-fatal)', emailErr, { orderId });
     }
+
+    await tryDeleteOriginalChildPhotoAfterGeneration(orderId);
 
   } catch (error) {
     generationLogger.error('Generation failed', error, { orderId });

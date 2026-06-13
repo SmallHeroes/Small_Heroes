@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sweepStaleGenerationJobs } from '@/lib/generation-chunked/sweeper';
+import { sweepPendingChildPhotoDeletions } from '@/lib/child-photo-deletion';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -14,5 +15,6 @@ export async function GET(req: NextRequest) {
   }
 
   const resumed = await sweepStaleGenerationJobs(10);
-  return NextResponse.json({ resumed });
+  const photoDeletions = await sweepPendingChildPhotoDeletions(10);
+  return NextResponse.json({ resumed, photoDeletions });
 }

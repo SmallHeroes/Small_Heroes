@@ -40,6 +40,10 @@ import {
 } from '@/lib/orderMeta';
 import { buildLetterContextFromOrder, buildPatchContextFromOrder } from '@/backend/providers/personalization';
 import { ROUTES } from '@/lib/routes';
+import {
+  mergeOriginalChildPhotoUrlIntoAnchors,
+  tryDeleteOriginalChildPhotoAfterGeneration,
+} from '@/lib/child-photo-deletion';
 import { getCompanionByIdAndCategory } from '@/lib/companions';
 import { buildEnrichedScenePrompt, deriveLayout } from '@/backend/providers/image-prompt-enricher';
 import {
@@ -257,7 +261,13 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
     });
     await prisma.order.update({
       where: { id: order.id },
-      data: { childImageUrl: childReferenceImageUrl },
+      data: {
+        childImageUrl: childReferenceImageUrl,
+        characterAnchors: mergeOriginalChildPhotoUrlIntoAnchors(
+          order.characterAnchors,
+          childReferenceImageUrl
+        ) as Prisma.InputJsonValue,
+      },
     });
     order.childImageUrl = childReferenceImageUrl;
   }
@@ -1063,7 +1073,11 @@ async function runPageImagesChunk(
       await prisma.order.update({
         where: { id: order.id },
         data: {
-          characterAnchors: buildPersistedCharacterAnchorsJson(anchorRegistry, wizardMeta) as Prisma.InputJsonValue,
+          characterAnchors: buildPersistedCharacterAnchorsJson(
+            anchorRegistry,
+            wizardMeta,
+            order.characterAnchors
+          ) as Prisma.InputJsonValue,
           ...(resolvedAnchors.child ? { childImageUrl: resolvedAnchors.child } : {}),
         },
       });
@@ -1378,6 +1392,8 @@ async function runPackageStage(order: Order, cache: PipelineCache): Promise<void
   } catch (e) {
     log.error('Ready email failed (non-fatal)', e, { orderId: order.id });
   }
+
+  await tryDeleteOriginalChildPhotoAfterGeneration(order.id);
 }
 
 export async function deriveStartingStage(

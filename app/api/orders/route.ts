@@ -26,6 +26,7 @@ import {
   resolveStoryProductTruth,
   StoryProductResolutionError,
 } from '../../../backend/providers/story-product-resolver';
+import { mergeOriginalChildPhotoUrlIntoAnchors } from '../../../lib/child-photo-deletion';
 
 function toStringOrNull(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
@@ -228,6 +229,11 @@ export async function POST(req: NextRequest) {
       familyContext: normalizedFamilyContext,
     };
 
+    const persistedCharacterAnchors = mergeOriginalChildPhotoUrlIntoAnchors(
+      characterAnchorsPayload ?? null,
+      childImageUrl
+    );
+
     // Upsert customer
     const customer = await prisma.customer.upsert({
       where: { email: contact.email },
@@ -279,7 +285,7 @@ export async function POST(req: NextRequest) {
         dedication:       dedication || null,
         childImageUrl:    childImageUrl || null,
         familyContext:    normalizedFamilyContext,
-        characterAnchors: characterAnchorsPayload ?? Prisma.JsonNull,
+        characterAnchors: persistedCharacterAnchors ?? Prisma.JsonNull,
 
         // Story
         topic,
