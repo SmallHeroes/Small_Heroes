@@ -9,6 +9,9 @@ import { DIRECTION_PAGE_MAP, displayPagesForBeats } from '../backend/config/wiza
 
 // ── COMMON — used by app/layout.tsx ────────────────────────────────
 export const COMMON = {
+  brand:           'גיבורים קטנים',
+  tagline:         'סיפורי חוסן לילדים',
+  navCta:          'ליצירת הספר',
   siteTitle:       'גיבורים קטנים — ספרי ילדים אישיים',
   siteDescription: 'ספר ילדים מותאם אישית שנכתב סביב מה שהילד שלכם עובר עכשיו — עם דמות שדומה לו, סיפור שהוא מזדהה איתו, וסוף שנותן לו כוח.',
 };
