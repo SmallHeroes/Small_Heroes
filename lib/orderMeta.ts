@@ -70,6 +70,7 @@ export function buildPersistedCharacterAnchorsJson(
   if (existing && typeof existing === 'object' && !Array.isArray(existing)) {
     const prev = existing as Record<string, unknown>;
     if (prev._familyCoherence) out._familyCoherence = prev._familyCoherence;
+    if (prev._privacy) out._privacy = prev._privacy;
   }
   return out as Prisma.JsonValue;
 }
