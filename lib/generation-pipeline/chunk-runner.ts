@@ -8,6 +8,7 @@ import { createLogger } from '@/lib/logger';
 import {
   assertOrderStyleSellable,
   assertShippedBookStyleEngineActive,
+  resolveOrderStyleBranch,
 } from '@/lib/image-engine-guard';
 import { assignTemplatesForBook, type BookPageTemplate } from '@/lib/bookPageLayout';
 import { TOPICS } from '@/backend/config/wizard';
@@ -82,6 +83,11 @@ import {
   buildStage0MethodBPrompt,
   generateStage0MethodBAnchor,
 } from '@/lib/generation-pipeline/stage0-method-b';
+import {
+  buildStage0Style02Prompt,
+  generateStage0Style02Anchor,
+} from '@/lib/generation-pipeline/stage0-method-style02';
+import { buildStyle02WardrobeLock } from '@/lib/style02-gptimage';
 import { resolveStyle01StoryWardrobeLock } from '@/lib/style01-story-wardrobe';
 import {
   ensureFamilyCoherenceBundle,
@@ -392,13 +398,27 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
   } else if (!existingChildAnchorForGate && (order.childImageUrl ?? '').trim()) {
     const childReferenceImageUrl = order.childImageUrl ?? '';
     const stage0Companion = resolveCompanionForOrder(order);
-    const wardrobeLock = resolveStyle01StoryWardrobeLock(stage0Companion?.id) ?? '';
-    const anchorPrompt = buildStage0MethodBPrompt({
-      order,
-      lockedChildDescription,
-      wardrobeLock,
-      childPhotoDescription,
-    });
+    const orderBranch = resolveOrderStyleBranch(order.illustrationStyle);
+    const storyWardrobe = resolveStyle01StoryWardrobeLock(stage0Companion?.id);
+    const wardrobeLock =
+      orderBranch === 'style02'
+        ? (storyWardrobe ??
+          buildStyle02WardrobeLock({ childStructured: nextCache.dna?.childStructured }))
+        : (storyWardrobe ?? '');
+    const anchorPrompt =
+      orderBranch === 'style02'
+        ? buildStage0Style02Prompt({
+            order,
+            lockedChildDescription,
+            wardrobeLock,
+            childPhotoDescription,
+          })
+        : buildStage0MethodBPrompt({
+            order,
+            lockedChildDescription,
+            wardrobeLock,
+            childPhotoDescription,
+          });
     const thresholdConfig = resolveResemblanceThresholdConfig();
     const effectiveThreshold = resolveEffectiveThreshold(order.illustrationStyle, thresholdConfig);
     const anchorGateConfig = resolveAnchorGateConfig();
@@ -407,18 +427,32 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
       Math.max(1, Number.parseInt(process.env.CHILD_ANCHOR_MAX_ATTEMPTS ?? '3', 10) || 3)
     );
     const candidateRows: NonNullable<PipelineCache['stage0AnchorCandidates']> = [];
-    let bestResult: Awaited<ReturnType<typeof generateStage0MethodBAnchor>> | null = null;
+    let bestResult:
+      | Awaited<ReturnType<typeof generateStage0MethodBAnchor>>
+      | Awaited<ReturnType<typeof generateStage0Style02Anchor>>
+      | null = null;
     let bestAttempt = 0;
     for (let attempt = 1; attempt <= maxAnchorAttempts; attempt += 1) {
-      const result = await generateStage0MethodBAnchor({
-        order,
-        childPhotoUrl: childReferenceImageUrl,
-        lockedChildDescription,
-        wardrobeLock,
-        childPhotoDescription,
-        childStructuredHair: nextCache.dna?.childStructured?.hair,
-        attemptSuffix: `a${attempt}`,
-      });
+      const result =
+        orderBranch === 'style02'
+          ? await generateStage0Style02Anchor({
+              order,
+              childPhotoUrl: childReferenceImageUrl,
+              lockedChildDescription,
+              wardrobeLock,
+              childPhotoDescription,
+              childStructuredHair: nextCache.dna?.childStructured?.hair,
+              attemptSuffix: `a${attempt}`,
+            })
+          : await generateStage0MethodBAnchor({
+              order,
+              childPhotoUrl: childReferenceImageUrl,
+              lockedChildDescription,
+              wardrobeLock,
+              childPhotoDescription,
+              childStructuredHair: nextCache.dna?.childStructured?.hair,
+              attemptSuffix: `a${attempt}`,
+            });
       candidateRows.push({
         attempt,
         url: result.anchorUrl,
@@ -478,7 +512,9 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
     if (!styleQa.ok) {
       await saveCache(order.id, nextCache);
       throw new Error(
-        `ANCHOR_QA_BLOCK: style HARD fail — not cute Style 01 watercolor (photoreal=${styleQa.looksPhotoreal} portrait=${styleQa.looksPortrait} notes=${styleQa.notes})`
+        orderBranch === 'style02'
+          ? `ANCHOR_QA_BLOCK: Style 02 anchor HARD fail — not semi-realistic illustrated storybook (photorealCutout=${'looksPhotorealCutout' in styleQa ? styleQa.looksPhotorealCutout : false} portrait=${styleQa.looksPortrait} notes=${styleQa.notes})`
+          : `ANCHOR_QA_BLOCK: style HARD fail — not cute Style 01 watercolor (photoreal=${'looksPhotoreal' in styleQa ? styleQa.looksPhotoreal : false} portrait=${styleQa.looksPortrait} notes=${styleQa.notes})`
       );
     }
 

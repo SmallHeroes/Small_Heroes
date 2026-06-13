@@ -6,9 +6,12 @@ import { describe, expect, it } from 'vitest';
 import { beatsFromStoryPages, resolveBookShotPlan } from '../book-shot-plan';
 import {
   assembleStyle02BookReferencesWithLocks,
+  assertStyle02SellableChildAnchorInBreakdown,
   buildBookImageLockContext,
   formatStyle02LockManifestLine,
+  isStyle02CanonicalChildAnchorPath,
   resolvePageImageLockSlice,
+  resolveStyle02ChildAnchorPath,
   STYLE02_REFERENCE_KIND_ORDER,
   validateStyle02ReferenceOrder,
 } from '../book-image-lock-context';
@@ -135,6 +138,76 @@ describe('BookImageLockContext — Style 02 lock contract', () => {
     );
   });
 
+  it('canonical anchor path flows into BookImageLockContext and breakdown.child', () => {
+    const anchor =
+      'https://app.example/orders/abc/character-anchors/child-canonical-style02-a1.png';
+    expect(isStyle02CanonicalChildAnchorPath(anchor)).toBe(true);
+
+    const ctx = buildBookImageLockContext({
+      childCanonicalAnchorPath: anchor,
+    });
+    expect(ctx.childCanonicalAnchorPath).toBe(anchor);
+
+    const resolved = resolveStyle02ChildAnchorPath({
+      childCanonicalAnchorPath: ctx.childCanonicalAnchorPath,
+    });
+    expect(resolved).toBe(anchor);
+
+    const { breakdown } = assembleStyle02BookReferencesWithLocks({
+      styleRefPaths: ['/style/a.png', '/style/b.png'],
+      childAnchorPath: resolved,
+      companionRefPath: '/refs/fox.png',
+      config: 'A',
+      requireChildAnchor: true,
+    });
+    expect(breakdown.child).toEqual([anchor]);
+  });
+
+  it('requireChildAnchor overrides config C so sellable path keeps child ref', () => {
+    const anchor = '/orders/x/character-anchors/child-canonical-style02-a1.png';
+    const { breakdown } = assembleStyle02BookReferencesWithLocks({
+      styleRefPaths: ['/style/a.png', '/style/b.png', '/style/c.png'],
+      childAnchorPath: anchor,
+      companionRefPath: '/refs/fox.png',
+      config: 'C',
+      requireChildAnchor: true,
+    });
+    expect(breakdown.child).toEqual([anchor]);
+    expect(breakdown.companion.length).toBeGreaterThan(0);
+  });
+
+  it('assertStyle02SellableChildAnchorInBreakdown throws when sellable and child missing', () => {
+    const prev = process.env.STYLE02_SELLABLE;
+    process.env.STYLE02_SELLABLE = 'true';
+    try {
+      expect(() =>
+        assertStyle02SellableChildAnchorInBreakdown({
+          breakdown: { child: [], style: ['/s.png'], companion: [], otherCharacters: [] },
+          childAnchorPath: '/orders/x/character-anchors/child-canonical-style02.png',
+        })
+      ).toThrow(/config C cannot omit child ref/);
+    } finally {
+      if (prev === undefined) delete process.env.STYLE02_SELLABLE;
+      else process.env.STYLE02_SELLABLE = prev;
+    }
+  });
+
+  it('resolveStyle02RefBudgetConfig locks to A when STYLE02_SELLABLE=true', async () => {
+    const { resolveStyle02RefBudgetConfig } = await import('../style02-gptimage');
+    const prevSellable = process.env.STYLE02_SELLABLE;
+    const prevConfig = process.env.PHASE2_STYLE02_REF_CONFIG;
+    process.env.STYLE02_SELLABLE = 'true';
+    process.env.PHASE2_STYLE02_REF_CONFIG = 'C';
+    try {
+      expect(resolveStyle02RefBudgetConfig()).toBe('A');
+    } finally {
+      if (prevSellable === undefined) delete process.env.STYLE02_SELLABLE;
+      else process.env.STYLE02_SELLABLE = prevSellable;
+      if (prevConfig === undefined) delete process.env.PHASE2_STYLE02_REF_CONFIG;
+      else process.env.PHASE2_STYLE02_REF_CONFIG = prevConfig;
+    }
+  });
+
   it('fox_uri Style 02 manifest: all pages receive lock slice fields', async () => {
     if (!fs.existsSync(FOX_BANK)) return;
 
@@ -153,16 +226,22 @@ describe('BookImageLockContext — Style 02 lock contract', () => {
       direction: 'adventure',
       pages: beats,
     });
+    const childAnchor =
+      'https://app.example/orders/demo/character-anchors/child-canonical-style02-a1.png';
     const ctx = buildBookImageLockContext({
       bookShotPlan: shotPlan,
       storyLocationPlan: locationPlan,
       storyTimeOfDay: story.storyTimeOfDay ?? 'night',
       pageTimeOfDayOverrides: story.pageTimeOfDayOverrides,
+      childCanonicalAnchorPath: childAnchor,
       totalPages: 20,
     });
 
     const refConfig = resolveStyle02RefBudgetConfig();
     const companionRef = resolveCompanionReferencePath(companion!.image);
+    const resolvedChildAnchor = resolveStyle02ChildAnchorPath({
+      childCanonicalAnchorPath: ctx.childCanonicalAnchorPath,
+    });
 
     for (let pageNum = 1; pageNum <= 20; pageNum++) {
       const page = story.pages[pageNum - 1];
@@ -189,18 +268,21 @@ describe('BookImageLockContext — Style 02 lock contract', () => {
 
       const { paths, breakdown } = assembleStyle02BookReferencesWithLocks({
         styleRefPaths: styleRefs,
-        childAnchorPath: '(simulated-child-anchor)',
+        childAnchorPath: resolvedChildAnchor,
         companionRefPath: companionRef,
         isolatedObjectRefPaths: slice.isolatedObjectRefPaths,
         config: refConfig,
+        requireChildAnchor: true,
       });
 
       const validation = validateStyle02ReferenceOrder(breakdown);
       expect(validation.ok, `page ${pageNum}: ${validation.violations.join('; ')}`).toBe(true);
+      expect(breakdown.child?.length ?? 0).toBe(1);
       expect(paths.length).toBeGreaterThan(0);
 
       const line = formatStyle02LockManifestLine({ pageNumber: pageNum, slice, breakdown, paths });
       expect(line).toMatch(new RegExp(`^p${pageNum}`));
+      expect(line).toMatch(/child=1/);
     }
   });
 });

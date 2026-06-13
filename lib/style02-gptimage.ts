@@ -113,7 +113,9 @@ export function shouldUseStyle02Phase2Path(styleIdInput?: string | null): boolea
   return isStyle02Phase2BookPipelineEnabled() && isStyle02BookStyle(styleIdInput);
 }
 
+/** When STYLE02_SELLABLE=true, config C (no child ref) is forbidden on the sellable path. */
 export function resolveStyle02RefBudgetConfig(): Style02RefBudgetConfig {
+  if (process.env.STYLE02_SELLABLE?.trim().toLowerCase() === 'true') return 'A';
   const raw = (process.env.PHASE2_STYLE02_REF_CONFIG ?? 'A').trim().toUpperCase();
   if (raw === 'B' || raw === 'C') return raw;
   return 'A';

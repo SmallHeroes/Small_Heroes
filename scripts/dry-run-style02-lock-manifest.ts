@@ -21,6 +21,7 @@ import {
   buildBookImageLockContext,
   formatStyle02LockManifestLine,
   resolvePageImageLockSlice,
+  resolveStyle02ChildAnchorPath,
   validateStyle02ReferenceOrder,
 } from '../lib/book-image-lock-context';
 import {
@@ -39,7 +40,8 @@ import {
 
 const BANK_FILE = path.join(process.cwd(), 'story-bank', 'v3-approved', 'fox_uri_adventure.md');
 const OUT_DIR = path.join(process.cwd(), 'outputs', 'style02-lock-dry-run');
-const SIMULATED_CHILD_ANCHOR = '(child canonical anchor — Style02 Stage0 in Step 2)';
+const SIMULATED_CHILD_ANCHOR =
+  'https://app.example/orders/demo/character-anchors/child-canonical-style02-a1.png';
 
 function basenameRef(p: string): string {
   return path.basename(p.replace(/\\/g, '/'));
@@ -83,11 +85,15 @@ async function main(): Promise<void> {
     storyLocationPlan: locationPlan,
     storyTimeOfDay: story.storyTimeOfDay ?? 'night',
     pageTimeOfDayOverrides: story.pageTimeOfDayOverrides,
+    childCanonicalAnchorPath: SIMULATED_CHILD_ANCHOR,
     totalPages: 20,
   });
 
   const refConfig = resolveStyle02RefBudgetConfig();
   const companionRef = resolveCompanionReferencePath(companion.image);
+  const childAnchorPath = resolveStyle02ChildAnchorPath({
+    childCanonicalAnchorPath: ctx.childCanonicalAnchorPath,
+  });
 
   const lines: string[] = [];
   const push = (s: string) => lines.push(s);
@@ -127,10 +133,11 @@ async function main(): Promise<void> {
 
     const { paths, breakdown } = assembleStyle02BookReferencesWithLocks({
       styleRefPaths: styleRefs,
-      childAnchorPath: SIMULATED_CHILD_ANCHOR,
+      childAnchorPath,
       companionRefPath: companionRef,
       isolatedObjectRefPaths: slice.isolatedObjectRefPaths,
       config: refConfig,
+      requireChildAnchor: true,
     });
 
     const validation = validateStyle02ReferenceOrder(breakdown);

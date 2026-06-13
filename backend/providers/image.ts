@@ -117,6 +117,7 @@ import {
   assembleStyle02BookReferencesWithLocks,
   buildBookImageLockContext,
   resolvePageImageLockSlice,
+  resolveStyle02ChildAnchorPath,
 } from '../../lib/book-image-lock-context';
 import type { PageStoryState } from '../../lib/story-page-state';
 import { storeImageFromBuffer, storeImageFromProviderUrl } from '../../lib/image-storage';
@@ -460,6 +461,8 @@ export interface ImageInput {
   effectivePageTimeOfDay?: import('../../lib/story-time-of-day').StoryTimeOfDay;
   /** Order-level human family coherence (parents, newborn sibling). */
   familyCoherence?: import('../../lib/family-coherence').FamilyCoherenceBundle | null;
+  /** Style 02 canonical child anchor URL/path (Stage0 Style02 — not raw upload photo). */
+  childCanonicalAnchorPath?: string | null;
 }
 
 export interface Style02PageMeta {
@@ -2750,7 +2753,11 @@ async function generateWithGPTImageStyle02(input: ImageInput): Promise<Generated
   const refConfig = resolveStyle02RefBudgetConfig();
   const styleRefCount = refConfig === 'A' ? 2 : 3;
   const styleRefPaths = resolveStyle02StyleReferencePaths(subsetKey, styleRefCount);
-  const childPhotoPath = input.referenceImages?.[0];
+  const childAnchorPath = resolveStyle02ChildAnchorPath({
+    childCanonicalAnchorPath: input.childCanonicalAnchorPath,
+    anchorCharacters: input.anchorCharacters,
+    referenceImages: input.referenceImages,
+  });
   const companionRefPath = resolveCompanionReferencePath(input.companion?.image ?? null);
   const otherCharacterRefPaths = (input.anchorCharacters ?? [])
     .filter(
@@ -2765,11 +2772,12 @@ async function generateWithGPTImageStyle02(input: ImageInput): Promise<Generated
   ).filter(Boolean);
   const { paths: referenceImages, breakdown } = assembleStyle02BookReferencesWithLocks({
     styleRefPaths,
-    childAnchorPath: refConfig === 'C' ? undefined : childPhotoPath,
+    childAnchorPath,
     companionRefPath: refConfig === 'B' ? undefined : companionRefPath,
     otherCharacterRefPaths,
     isolatedObjectRefPaths,
     config: refConfig,
+    requireChildAnchor: Boolean(childAnchorPath),
   });
 
   const vd = input.visualDirection;
@@ -3961,7 +3969,10 @@ export async function generateAllPageImages(
     pageTimeOfDayOverrides: config.pageTimeOfDayOverrides,
     familyCoherence: config.familyCoherence ?? null,
     storyRecurringEntityDeclarations: config.storyRecurringEntityDeclarations,
-    childCanonicalAnchorPath: config.initialCharacterAnchors?.child ?? null,
+    childCanonicalAnchorPath: resolveStyle02ChildAnchorPath({
+      childCanonicalAnchorPath: config.initialCharacterAnchors?.child ?? null,
+      referenceImages: config.referenceImages,
+    }),
     totalPages: pagesToGenerate.length,
   });
   const phase2BookPipelineActive =
@@ -4458,6 +4469,7 @@ export async function generateAllPageImages(
       | 'pageShot'
       | 'locationBible'
       | 'pageLocationPlan'
+      | 'childCanonicalAnchorPath'
     > = {
       totalPages: pagesToGenerate.length,
       ...(phase2BookPipelineActive
@@ -4470,6 +4482,7 @@ export async function generateAllPageImages(
             pageShot,
             locationBible: lockSlice.locationBible,
             pageLocationPlan,
+            childCanonicalAnchorPath: bookLockContext.childCanonicalAnchorPath ?? null,
           }
         : {}),
     };

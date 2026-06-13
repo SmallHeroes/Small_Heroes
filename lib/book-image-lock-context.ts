@@ -17,6 +17,7 @@ import {
   type Style02RefBudgetConfig,
 } from './style02-gptimage';
 import { resolveGPTImageEditMaxReferences } from './generate-image';
+import { isStyle02Sellable } from './image-engine-guard';
 
 /** Book-level locks resolved once per render — shared by both style renderers. */
 export interface BookImageLockContext {
@@ -104,6 +105,46 @@ export function resolvePageImageLockSlice(
   };
 }
 
+export function isStyle02CanonicalChildAnchorPath(pathOrUrl?: string | null): boolean {
+  if (!pathOrUrl?.trim()) return false;
+  const hay = pathOrUrl.replace(/\\/g, '/');
+  return (
+    hay.includes('/character-anchors/') ||
+    hay.includes('character-anchors%2F') ||
+    hay.includes('child-canonical-style02')
+  );
+}
+
+export function resolveStyle02ChildAnchorPath(input: {
+  childCanonicalAnchorPath?: string | null;
+  anchorCharacters?: Array<{ characterId: string; anchorImageUrl?: string }>;
+  referenceImages?: string[];
+}): string | undefined {
+  if (input.childCanonicalAnchorPath?.trim()) {
+    return input.childCanonicalAnchorPath.trim();
+  }
+  const fromAnchor = input.anchorCharacters?.find((c) => c.characterId === 'child')?.anchorImageUrl;
+  if (fromAnchor?.trim()) return fromAnchor.trim();
+  const first = input.referenceImages?.[0]?.trim();
+  if (first && isStyle02CanonicalChildAnchorPath(first)) return first;
+  return first;
+}
+
+/** Sellable Style 02 must keep the canonical child anchor in ref breakdown (config C omits child). */
+export function assertStyle02SellableChildAnchorInBreakdown(input: {
+  breakdown: Record<string, string[]>;
+  childAnchorPath?: string;
+  sellablePath?: boolean;
+}): void {
+  const sellable = input.sellablePath ?? isStyle02Sellable();
+  if (!sellable || !input.childAnchorPath?.trim()) return;
+  if ((input.breakdown.child?.length ?? 0) < 1) {
+    throw new Error(
+      '[Style02] sellable path requires canonical child anchor in reference breakdown — config C cannot omit child ref'
+    );
+  }
+}
+
 /**
  * Style 02 reference assembly with full lock contract:
  * child → companion → isolatedObjects → otherCharacters → style
@@ -117,17 +158,27 @@ export function assembleStyle02BookReferencesWithLocks(input: {
   otherCharacterRefPaths?: string[];
   isolatedObjectRefPaths?: string[];
   config: Style02RefBudgetConfig;
+  /** When true, canonical child anchor is always included (overrides config C). */
+  requireChildAnchor?: boolean;
 }): { paths: string[]; breakdown: Record<string, string[]> } {
   const companionPath =
     input.companionRefPath ??
     (input.companionRefPaths?.length ? input.companionRefPaths[0] : undefined);
 
+  let effectiveConfig = input.config;
+  if (input.requireChildAnchor && input.childAnchorPath?.trim() && effectiveConfig === 'C') {
+    effectiveConfig = 'A';
+  }
+
   const base = assembleStyle02BookReferences({
     styleRefPaths: input.styleRefPaths,
-    childPhotoPath: input.childAnchorPath,
-    companionRefPath: companionPath,
+    childPhotoPath:
+      effectiveConfig === 'C' && !input.requireChildAnchor
+        ? undefined
+        : input.childAnchorPath,
+    companionRefPath: effectiveConfig === 'B' ? undefined : companionPath,
     otherCharacterRefPaths: input.otherCharacterRefPaths,
-    config: input.config,
+    config: effectiveConfig,
   });
 
   const isolatedPaths = (input.isolatedObjectRefPaths ?? []).filter(Boolean);
@@ -155,6 +206,11 @@ export function assembleStyle02BookReferencesWithLocks(input: {
       ...breakdown.style,
     ];
   }
+
+  assertStyle02SellableChildAnchorInBreakdown({
+    breakdown,
+    childAnchorPath: input.childAnchorPath,
+  });
 
   return { paths, breakdown };
 }
