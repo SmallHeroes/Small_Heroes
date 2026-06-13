@@ -21,6 +21,39 @@ import { DIRECTION_PAGE_MAP, displayPagesForBeats } from '@/backend/config/wizar
 
 const DIRECTIONS: StoryDirection[] = ['bedtime', 'adventure', 'fantasy'];
 
+/** Hebrew labels for wizard categories not yet in MVP (dev parked cards on legacy step-1). */
+const PARKED_CATEGORY_COPY: Partial<
+  Record<
+    ChallengeCategory,
+    { topicId: string; label: string; emoji: string; oneLiner: string }
+  >
+> = {
+  NOISE_FEAR: {
+    topicId: 'sirens',
+    label: 'רעשים ואזעקות',
+    emoji: '💥',
+    oneLiner: 'רעשים חזקים, אזעקות או התרגשות מפתאומית',
+  },
+  SELF_CONFIDENCE: {
+    topicId: 'confidence',
+    label: 'ביטחון וערך עצמי',
+    emoji: '🌟',
+    oneLiner: 'כשחשוב לחזק ביטחון, שייכות וערך עצמי',
+  },
+  SENSITIVITY_OVERWHELM: {
+    topicId: 'sensitivity',
+    label: 'רגישות ועומס',
+    emoji: '🌿',
+    oneLiner: 'רגישות גבוהה, עומס רגשי או שינויים קטנים שמרגישים גדולים',
+  },
+  FOCUS_LEARNING: {
+    topicId: 'focus',
+    label: 'קשב, סקרנות ולמידה',
+    emoji: '🦋',
+    oneLiner: 'קשב, סקרנות, למידה או התמודדות עם משימות חדשות',
+  },
+};
+
 export type MvpMatrixCategoryPayload = ReturnType<typeof buildCategoryPayload>;
 
 function buildCategoryPayload(category: MvpCategory, publicVisible: boolean) {
@@ -74,22 +107,25 @@ export function buildMvpMatrixResponse() {
   const parkedCategories = dev
     ? (ACTIVE_WIZARD_CATEGORIES as readonly ChallengeCategory[])
         .filter((cat) => !mvpSet.has(cat as MvpCategory))
-        .map((cat) => ({
-          category: cat,
-          topicId: null,
-          label: cat,
-          emoji: '🔒',
-          oneLiner: 'לא ב-MVP — dev only',
-          companionLine: '',
-          publicVisible: false,
-          companion: null,
-          directions: Object.fromEntries(
-            DIRECTIONS.map((direction) => [
-              direction,
-              { configured: 'missing' as const, sellable: false },
-            ])
-          ),
-        }))
+        .map((cat) => {
+          const copy = PARKED_CATEGORY_COPY[cat];
+          return {
+            category: cat,
+            topicId: copy?.topicId ?? null,
+            label: copy?.label ?? cat,
+            emoji: copy?.emoji ?? '🔒',
+            oneLiner: copy?.oneLiner ?? 'לא ב-MVP — dev only',
+            companionLine: '',
+            publicVisible: false,
+            companion: null,
+            directions: Object.fromEntries(
+              DIRECTIONS.map((direction) => [
+                direction,
+                { configured: 'missing' as const, sellable: false },
+              ])
+            ),
+          };
+        })
     : [];
 
   return {

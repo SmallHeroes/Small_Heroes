@@ -392,6 +392,9 @@ const state = {
   contactName: "",
   contactEmail: "",
 
+  /** Direction chosen on /start — skip wizard step-8 product cards. */
+  directionLockedFromStart: false,
+
   /** Loaded from GET /api/wizard/mvp-matrix — sellable slots + challenge cards. */
   mvpMatrix: null,
 };
@@ -401,28 +404,86 @@ function isCompanionStepEnabled() {
   return Boolean(state.mvpMatrix?.dev?.showCompanionStep);
 }
 
+/** Legacy step-1/2 only when explicitly requested — never default in dev, never a /start back-target. */
+function isLegacyChallengeStepsEnabled() {
+  try {
+    return new URLSearchParams(window.location.search).get('legacyWizard') === '1';
+  } catch (_) {
+    return false;
+  }
+}
+
+function parseWizardUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    category: params.get('category'),
+    direction: params.get('direction'),
+  };
+}
+
+function hasPendingStartHandoffParams() {
+  const { category, direction } = parseWizardUrlParams();
+  return Boolean(category && direction && VALID_STORY_DIRECTIONS.includes(direction));
+}
+
+function shouldSkipProductStep() {
+  return Boolean(state.directionLockedFromStart);
+}
+
+/** Physical step ids visible in the current flow (public /start handoff skips 1, 2, 8). */
+function getVisiblePhysicalSteps() {
+  const steps = [];
+  if (isLegacyChallengeStepsEnabled() && !state.directionLockedFromStart) {
+    steps.push(1);
+    if (isCompanionStepEnabled()) steps.push(2);
+  }
+  steps.push(3, 4, 5, 6, 7);
+  if (!shouldSkipProductStep()) steps.push(8);
+  steps.push(9);
+  return steps;
+}
+
 function wizardStepCount() {
-  return isCompanionStepEnabled() ? 9 : 8;
+  return getVisiblePhysicalSteps().length;
 }
 
 function wizardDisplayStep(physicalStep) {
-  if (!isCompanionStepEnabled() && physicalStep > 2) return physicalStep - 1;
-  return physicalStep;
+  const visible = getVisiblePhysicalSteps();
+  const idx = visible.indexOf(physicalStep);
+  return idx >= 0 ? idx + 1 : 1;
 }
 
 function nextPhysicalStep(physicalStep) {
-  if (!isCompanionStepEnabled() && physicalStep === 1) return 3;
-  return physicalStep + 1;
+  const visible = getVisiblePhysicalSteps();
+  const idx = visible.indexOf(physicalStep);
+  if (idx >= 0 && idx < visible.length - 1) return visible[idx + 1];
+  return Math.min(physicalStep + 1, 9);
 }
 
 function prevPhysicalStep(physicalStep) {
-  if (!isCompanionStepEnabled() && physicalStep === 3) return 1;
-  return physicalStep - 1;
+  const visible = getVisiblePhysicalSteps();
+  const idx = visible.indexOf(physicalStep);
+  if (idx <= 0) return null;
+  return visible[idx - 1];
+}
+
+function allowsWizardWithoutHandoff(restored) {
+  if (isLegacyChallengeStepsEnabled()) return true;
+  if (restored && state.currentStep >= 3 && state.topic && state.storyDirection) return true;
+  return false;
 }
 
 function normalizeStepAfterMvpLoad() {
   if (!isCompanionStepEnabled() && state.currentStep === 2) {
     state.currentStep = 3;
+  }
+  if (shouldSkipProductStep() && state.currentStep === 8) {
+    state.currentStep = 9;
+  }
+  const visible = getVisiblePhysicalSteps();
+  if (!visible.includes(state.currentStep)) {
+    const fallback = visible.find((s) => s >= state.currentStep);
+    state.currentStep = fallback != null ? fallback : visible[visible.length - 1];
   }
   state.totalSteps = wizardStepCount();
 }
@@ -516,8 +577,7 @@ function applyInitialDirectionFromContext() {
 
 /**
  * /start handoff: ?category=CATEGORY&direction=bedtime|adventure|fantasy
- * Query params are initial UI state only — sellability comes from mvp-matrix.
- * Invalid or non-sellable combos fall back to normal step-1 category selection.
+ * Valid params override stale session draft (category, direction, step).
  */
 function tryApplyWizardHandoffFromUrl() {
   const params = new URLSearchParams(window.location.search);
@@ -533,12 +593,24 @@ function tryApplyWizardHandoffFromUrl() {
   const dirMeta = slot.directions?.[directionParam];
   if (!dirMeta?.sellable) return false;
 
+  const categoryChanged = state.challengeCategory && state.challengeCategory !== slot.category;
+  const directionChanged = state.storyDirection && state.storyDirection !== directionParam;
+
   state.challengeCategory = slot.category;
   state.topic = slot.topicId;
   state.topicLabel = slot.label;
   applyMatrixCompanionForCategory(slot.category);
   applyProductSelection(directionParam, { revealTotal: false });
-  state.currentStep = 3;
+  state.directionLockedFromStart = true;
+
+  if (categoryChanged || directionChanged || state.currentStep <= 2) {
+    state.currentStep = 3;
+    if (categoryChanged) {
+      state.categoryBranching = null;
+      state.categoryAnswers = [];
+    }
+  }
+
   loadCategoryBranchForTopic(slot.topicId);
   queueWizardSave();
   return true;
@@ -668,6 +740,9 @@ function restoreWizardState() {
     if (!Array.isArray(state.categoryAnswers)) state.categoryAnswers = [];
     if (typeof state.dedication !== 'string') state.dedication = '';
     if (typeof state.videoEnabled !== 'boolean') state.videoEnabled = false;
+    if (typeof state.directionLockedFromStart !== 'boolean') {
+      state.directionLockedFromStart = hasPendingStartHandoffParams();
+    }
     normalizeProductStateFromLegacy();
     if (typeof state.styleSelected !== 'boolean') {
       state.styleSelected = Boolean(state.style);
@@ -917,99 +992,13 @@ function getBranchCategoryForTopic(topicId) {
   return applyChallengeCategoryForTopic(topicId) || 'OTHER';
 }
 
-function normalizeFollowupQuestion(questionItem, index) {
-  if (typeof questionItem === 'string') {
-    return {
-      id: `q_${index + 1}`,
-      question: questionItem,
-      quickAnswers: [],
-      placeholder: 'פרטו עוד אם תרצו',
-      priority: 0,
-      intent: '',
-      showIf: null,
-    };
-  }
-  if (!questionItem || typeof questionItem !== 'object') return null;
-  const question = typeof questionItem.question === 'string' ? questionItem.question : '';
-  if (!question) return null;
-  const quickAnswers = Array.isArray(questionItem.quickAnswers)
-    ? questionItem.quickAnswers.filter((a) => typeof a === 'string' && a.trim())
-    : [];
-  return {
-    id: typeof questionItem.id === 'string' ? questionItem.id : `q_${index + 1}`,
-    question,
-    quickAnswers,
-    placeholder:
-      typeof questionItem.placeholder === 'string' && questionItem.placeholder.trim()
-        ? questionItem.placeholder
-        : 'פרטו עוד אם תרצו',
-    priority: Number.isFinite(Number(questionItem.priority)) ? Number(questionItem.priority) : 0,
-    intent: typeof questionItem.intent === 'string' ? questionItem.intent : '',
-    showIf: questionItem.showIf && typeof questionItem.showIf === 'object' ? questionItem.showIf : null,
-  };
-}
-
-let followupUpdateTimer = null;
-let followupRefreshSerial = 0;
-
-function getNormalizedFollowupQuestions() {
-  const questions = Array.isArray(state.categoryBranching?.followUpQuestions)
-    ? state.categoryBranching.followUpQuestions
-    : [];
-  return questions.slice(0, 3).map((q, i) => normalizeFollowupQuestion(q, i)).filter(Boolean);
-}
-
-function collectFollowupDraftFromDom() {
-  const wrap = document.getElementById('category-followup-wrap');
-  const questions = getNormalizedFollowupQuestions();
-  if (!wrap || questions.length === 0) return [];
-  return questions.map((item, i) => {
-    const textEl = wrap.querySelector(`[data-cat-q-text="${i}"]`);
-    const selectedQuickAnswers = Array.from(wrap.querySelectorAll(`[data-cat-q-chip="${i}"].selected`))
-      .map((node) => String(node.getAttribute('data-chip-value') || '').trim())
-      .filter(Boolean);
-    return {
-      questionId: item.id,
-      question: item.question,
-      answer: textEl && 'value' in textEl ? String(textEl.value || '').trim() : '',
-      ...(selectedQuickAnswers.length > 0 ? { selectedQuickAnswers } : {}),
-    };
-  });
-}
-
-function persistFollowupDraftFromDom() {
-  state.categoryAnswers = collectFollowupDraftFromDom();
-}
-
-function upsertCategoryAnswerDraft(nextDraft) {
-  const current = Array.isArray(state.categoryAnswers) ? [...state.categoryAnswers] : [];
-  const idx = current.findIndex((row) => row && row.questionId === nextDraft.questionId);
-  if (idx >= 0) {
-    current[idx] = {
-      ...current[idx],
-      ...nextDraft,
-    };
-  } else {
-    current.push(nextDraft);
-  }
-  state.categoryAnswers = current;
-  queueWizardSave();
-}
-
 function getChallengeCategoryForTopicId(topicId) {
   return applyChallengeCategoryForTopic(topicId);
 }
 
-async function fetchCategoryBranching(category, currentAnswers) {
+async function fetchCategoryBranching(category) {
   const query = new URLSearchParams();
   query.set('category', String(category || ''));
-  if (Array.isArray(currentAnswers) && currentAnswers.length > 0) {
-    const compactAnswers = currentAnswers.map((item) => ({
-      ...(item?.questionId ? { questionId: item.questionId } : {}),
-      ...(Array.isArray(item?.selectedQuickAnswers) ? { selectedQuickAnswers: item.selectedQuickAnswers } : {}),
-    }));
-    query.set('currentAnswers', JSON.stringify(compactAnswers));
-  }
   const response = await fetch('/api/categories/branch?' + query.toString(), { cache: 'no-store' });
   if (!response.ok) {
     let errBody = '';
@@ -1120,15 +1109,28 @@ function renderCompanionCards() {
 
 /* ── INIT ────────────────────────────────────────────────────── */
 function init() {
+  document.body.classList.add('wizard-booting');
+
   state.style = state.style ? normalizeClientStyleId(state.style) : null;
   pendingPhotoPickerOpen = false;
   initWizardContent();
+
+  const pendingHandoff = hasPendingStartHandoffParams();
+  if (pendingHandoff) {
+    state.currentStep = 3;
+    state.directionLockedFromStart = true;
+  }
+
   const restored = restoreWizardState();
+
   if (!restored) {
-    applyInitialDirectionFromContext();
+    if (!pendingHandoff) {
+      applyInitialDirectionFromContext();
+    }
     state.style = null;
     state.styleSelected = false;
   }
+
   bindDraftFieldPersistListeners();
   buildPills();
   renderSuperpowerChips();
@@ -1140,19 +1142,30 @@ function init() {
   restorePhotoQualityFromStorage();
   renderPhotoUploadArea();
   renderPhotoQualityMessage();
+
   loadMvpMatrix().finally(() => {
-    if (!restored) {
-      tryApplyWizardHandoffFromUrl();
+    const handoffApplied = tryApplyWizardHandoffFromUrl();
+
+    if (!handoffApplied && !allowsWizardWithoutHandoff(restored)) {
+      window.location.replace('/start');
+      return;
     }
+
+    if (!handoffApplied && !isLegacyChallengeStepsEnabled() && state.currentStep <= 2) {
+      window.location.replace('/start');
+      return;
+    }
+
     normalizeStepAfterMvpLoad();
     buildPills();
-    renderTopics();
+    if (isLegacyChallengeStepsEnabled()) {
+      renderTopics();
+    }
     updateUI();
     refreshTotal();
+    document.body.classList.remove('wizard-booting');
+    track('wizard_started');
   });
-  updateUI();
-  refreshTotal();
-  track('wizard_started');
 }
 
 /* ── STATIC CONTENT BINDING ──────────────────────────────────── */
@@ -1318,11 +1331,11 @@ function updateUI() {
   const btnAnyway  = document.getElementById("btn-continue-anyway");
 
   if (bar && btn && backBtn) {
-    if (state.currentStep <= 1 || state.currentStep === 9) {
-      bar.classList.add("hidden");
-      if (btnAnyway) btnAnyway.hidden = true;
-    } else {
-      bar.classList.remove("hidden");
+      if (state.currentStep <= 1 || state.currentStep === 9) {
+        bar.classList.add("hidden");
+        if (btnAnyway) btnAnyway.hidden = true;
+      } else {
+        bar.classList.remove("hidden");
 
       if (state.currentStep === 3) {
         updatePhotoStepBottomBar();
@@ -1501,9 +1514,18 @@ function shake(el) {
 }
 
 function goBack() {
-  if (state.currentStep <= 1) return;
+  if (state.currentStep === 3 && state.directionLockedFromStart) {
+    window.location.replace('/start');
+    return;
+  }
 
-  state.currentStep = prevPhysicalStep(state.currentStep);
+  const prev = prevPhysicalStep(state.currentStep);
+  if (prev == null) {
+    window.location.replace('/start');
+    return;
+  }
+
+  state.currentStep = prev;
 
   updateUI();
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1697,173 +1719,6 @@ function renderTopics() {
     const selected = wrap.querySelector(`[data-id="${normalized}"]`);
     if (selected) selected.classList.add('selected');
   }
-}
-
-function retryCategoryBranchFetch() {
-  const cat = String(state.challengeCategory || '');
-  if (!cat) return;
-  state.categoryBranching = null;
-  updateUI();
-  (async function () {
-    try {
-      const data = await fetchCategoryBranching(cat);
-      state.categoryBranching = { ...data, _fetchFailed: false };
-    } catch (e) {
-      console.error('[wizard] category branch retry failed', e);
-      state.categoryBranching = {
-        followUpQuestions: [],
-        hebrewLabel: state.topicLabel,
-        _fetchFailed: true,
-      };
-    }
-    updateUI();
-  })();
-}
-
-function scheduleDynamicFollowupRefresh() {
-  if (followupUpdateTimer) {
-    clearTimeout(followupUpdateTimer);
-  }
-  followupUpdateTimer = setTimeout(async () => {
-    followupUpdateTimer = null;
-    const cat = String(state.challengeCategory || '');
-    if (!cat || !state.categoryBranching || state.categoryBranching._fetchFailed) return;
-    const serial = ++followupRefreshSerial;
-    const currentAnswers = collectFollowupDraftFromDom();
-    state.categoryAnswers = currentAnswers;
-    try {
-      const data = await fetchCategoryBranching(cat, currentAnswers);
-      if (serial !== followupRefreshSerial) return;
-      state.categoryBranching = { ...data, _fetchFailed: false };
-      renderCategoryFollowupFields();
-      queueWizardSave();
-    } catch (e) {
-      console.error('[wizard] dynamic follow-up refresh failed', e);
-    }
-  }, 140);
-}
-
-function renderCategoryFollowupFields() {
-  const wrap = document.getElementById('category-followup-wrap');
-  if (!wrap) return;
-  if (!state.categoryBranching) {
-    wrap.innerHTML = '<p class="category-followup-wait">טוענים…</p>';
-    return;
-  }
-  if (state.categoryBranching._fetchFailed) {
-    wrap.innerHTML = `
-      <p class="category-followup-error">השאלות עוד נטענות. אפשר לנסות שוב בעוד רגע.</p>
-      <button type="button" class="btn-retry-cat" id="cat-retry-btn">לטעינה מחדש</button>
-    `;
-    const btn = document.getElementById('cat-retry-btn');
-    if (btn) {
-      btn.addEventListener('click', () => retryCategoryBranchFetch());
-    }
-    return;
-  }
-  const rawQuestions = state.categoryBranching.followUpQuestions;
-  if (!Array.isArray(rawQuestions) || rawQuestions.length === 0) {
-    wrap.innerHTML = '<p class="category-followup-skip">אפשר להמשיך — אין שאלות נוספות לנושא הזה.</p>';
-    return;
-  }
-  const followupQuestions = rawQuestions
-    .slice(0, 3)
-    .map((questionItem, index) => normalizeFollowupQuestion(questionItem, index))
-    .filter(Boolean);
-  if (followupQuestions.length === 0) {
-    wrap.innerHTML = '<p class="category-followup-skip">אפשר להמשיך — אין שאלות נוספות לנושא הזה.</p>';
-    return;
-  }
-
-  wrap.innerHTML = '';
-  followupQuestions.forEach((item, i) => {
-    const block = document.createElement('div');
-    block.className = 'form-group category-followup-item';
-
-    const lab = document.createElement('span');
-    lab.className = 'form-label category-followup-label';
-    lab.textContent = item.question;
-    block.appendChild(lab);
-
-    const quickWrap = document.createElement('div');
-    quickWrap.className = 'category-followup-quick-wrap';
-    const prev = (state.categoryAnswers || []).find((a) => a.questionId === item.id) ||
-      (state.categoryAnswers || []).find((a) => a.question === item.question);
-    const preselected = new Set(Array.isArray(prev?.selectedQuickAnswers) ? prev.selectedQuickAnswers : []);
-
-    item.quickAnswers.forEach((quickAnswer) => {
-      const chip = document.createElement('button');
-      chip.type = 'button';
-      chip.className = 'chip category-followup-chip';
-      chip.textContent = quickAnswer;
-      chip.setAttribute('data-cat-q-chip', String(i));
-      chip.setAttribute('data-chip-value', quickAnswer);
-      if (preselected.has(quickAnswer)) chip.classList.add('selected');
-      chip.addEventListener('click', () => {
-        chip.classList.toggle('selected');
-        const selectedQuickAnswers = Array.from(quickWrap.querySelectorAll('.category-followup-chip.selected'))
-          .map((node) => String(node.getAttribute('data-chip-value') || '').trim())
-          .filter(Boolean);
-        upsertCategoryAnswerDraft({
-          questionId: item.id,
-          question: item.question,
-          answer: input.value.trim(),
-          ...(selectedQuickAnswers.length > 0 ? { selectedQuickAnswers } : {}),
-        });
-        if (quickAnswer === 'אחר' && chip.classList.contains('selected')) {
-          const targetInput = wrap.querySelector(`[data-cat-q-text="${i}"]`);
-          if (targetInput && typeof targetInput.focus === 'function') targetInput.focus();
-        }
-        if (i === 0) scheduleDynamicFollowupRefresh();
-      });
-      quickWrap.appendChild(chip);
-    });
-    if (item.quickAnswers.length > 0) block.appendChild(quickWrap);
-
-    const input = document.createElement('textarea');
-    input.className = 'wiz-textarea category-followup-textarea';
-    input.rows = 2;
-    input.placeholder = item.placeholder || 'פרטו עוד אם תרצו';
-    input.setAttribute('data-cat-q-text', String(i));
-    if (prev && prev.answer) input.value = prev.answer;
-    input.addEventListener('input', () => {
-      const selectedQuickAnswers = Array.from(quickWrap.querySelectorAll('.category-followup-chip.selected'))
-        .map((node) => String(node.getAttribute('data-chip-value') || '').trim())
-        .filter(Boolean);
-      upsertCategoryAnswerDraft({
-        questionId: item.id,
-        question: item.question,
-        answer: input.value.trim(),
-        ...(selectedQuickAnswers.length > 0 ? { selectedQuickAnswers } : {}),
-      });
-    });
-
-    const optionalNote = document.createElement('span');
-    optionalNote.className = 'form-label-note category-followup-note';
-    optionalNote.textContent = 'אופציונלי';
-
-    block.appendChild(optionalNote);
-    block.appendChild(input);
-    wrap.appendChild(block);
-  });
-
-  const displayedAnswers = followupQuestions.map((item, i) => {
-    const prev = (state.categoryAnswers || []).find((a) => a.questionId === item.id) ||
-      (state.categoryAnswers || []).find((a) => a.question === item.question);
-    const textEl = wrap.querySelector(`[data-cat-q-text="${i}"]`);
-    const selectedQuickAnswers = Array.from(wrap.querySelectorAll(`[data-cat-q-chip="${i}"].selected`))
-      .map((node) => String(node.getAttribute('data-chip-value') || '').trim())
-      .filter(Boolean);
-    return {
-      questionId: item.id,
-      question: item.question,
-      answer: textEl && 'value' in textEl ? String(textEl.value || '').trim() : (prev?.answer || ''),
-      ...(selectedQuickAnswers.length > 0 ? { selectedQuickAnswers } : {}),
-    };
-  });
-  const displayedIds = new Set(displayedAnswers.map((row) => row.questionId));
-  const hiddenPreserved = (state.categoryAnswers || []).filter((row) => row && row.questionId && !displayedIds.has(row.questionId));
-  state.categoryAnswers = [...displayedAnswers, ...hiddenPreserved];
 }
 
 /* ── TRAIT CHIPS ─────────────────────────────────────────────── */
