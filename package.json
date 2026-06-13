@@ -4,7 +4,7 @@
     "dev:raw": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint --no-cache",
+    "lint": "node scripts/lint-honest-gate.mjs",
     "check": "tsc --noEmit && vitest run",
     "test": "vitest run",
     "test:watch": "vitest"
