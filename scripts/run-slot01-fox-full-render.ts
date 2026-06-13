@@ -30,6 +30,10 @@ const RAW_DIR = path.join(OUT_ROOT, 'raw');
 /** Girl example photo + approved Stage-0 anchor (dev reuse). */
 const TEMPLATE_ANCHOR_ORDER_ID = '345ecd64-c9c2-4e0a-8f9d-a35de8d09883';
 
+function hasFlag(name: string): boolean {
+  return process.argv.includes(name);
+}
+
 function flag(name: string): string | null {
   const i = process.argv.indexOf(name);
   return i >= 0 ? process.argv[i + 1] ?? null : null;
@@ -52,6 +56,60 @@ async function resolveChildPhoto(): Promise<string> {
     return mia.childImageUrl;
   }
   throw new Error('No child photo — pass --photo or ensure Mia order has childImageUrl');
+}
+
+async function ensureFullBookPages(orderId: string): Promise<void> {
+  const { prisma } = await import('@/lib/prisma');
+  const { loadStoryFromBank } = await import('@/backend/providers/story-bank-loader');
+  const { assignTemplatesForBook } = await import('@/lib/bookPageLayout');
+  const { getCompanionById } = await import('@/lib/companions');
+
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  const book = await prisma.generatedBook.findUnique({
+    where: { orderId },
+    include: { pages: true },
+  });
+  if (!order || !book) throw new Error(`order/book missing for ${orderId}`);
+
+  const companion = getCompanionById('fox_uri');
+  const story = await loadStoryFromBank(
+    BANK_FILE,
+    order.childName ?? 'נועה',
+    companion?.name ?? 'אורי',
+    order.childGender ?? 'girl',
+    { skipLlmPersonalization: true, maxPages: 20 }
+  );
+  if (story.pages.length < 12) {
+    throw new Error(`expected 12 beats, loaded ${story.pages.length}`);
+  }
+
+  const existing = new Set(book.pages.map((p) => p.pageNumber));
+  const missing = story.pages.filter((p) => !existing.has(p.pageNumber));
+  if (missing.length === 0) return;
+
+  const templates = assignTemplatesForBook(
+    story.pages.map((page) => ({
+      pageNumber: page.pageNumber,
+      text: page.text,
+      imageSubject: page.imageSubject,
+    }))
+  );
+  const templateByPage = new Map(story.pages.map((p, i) => [p.pageNumber, templates[i]]));
+
+  await prisma.bookPage.createMany({
+    data: missing.map((p) => ({
+      bookId: book.id,
+      pageNumber: p.pageNumber,
+      text: p.text,
+      narrationText: p.narrationText,
+      pageTemplate: templateByPage.get(p.pageNumber) ?? 'art_top_text_bottom',
+    })),
+  });
+  await prisma.generatedBook.update({
+    where: { id: book.id },
+    data: { title: story.title, coverText: story.coverText },
+  });
+  console.log(`[slot01] backfilled book pages: +${missing.length} (now ${story.pages.length} beats)`);
 }
 
 async function seedApprovedChildAnchorFromTemplate(orderId: string): Promise<void> {
@@ -100,13 +158,23 @@ async function seedApprovedChildAnchorFromTemplate(orderId: string): Promise<voi
     characterAnchorStore: templateCache.characterAnchorStore,
     challengeCategory: 'NIGHT_FEAR',
     directionForV3: 'adventure',
+    expectedPageCount: 12,
   };
+  delete (nextCache as { storyLocationPlan?: unknown }).storyLocationPlan;
+
+  const book = await prisma.generatedBook.findUnique({
+    where: { orderId },
+    include: { pages: { include: { imageAsset: true } } },
+  });
+  const renderedPages = (book?.pages ?? []).filter((p) => p.imageAsset?.url).length;
+  const resumeStage = book?.coverImageUrl && renderedPages > 0 ? 'page_images' : 'cover';
 
   await prisma.generationJob.update({
     where: { orderId },
     data: {
-      status: 'pending',
-      currentStage: 'cover',
+      status: 'running',
+      currentStage: resumeStage,
+      imagesDone: false,
       lastError: null,
       failedAt: null,
       retryable: true,
@@ -135,6 +203,7 @@ async function seedApprovedChildAnchorFromTemplate(orderId: string): Promise<voi
 }
 
 async function prepareOrderForRender(orderId: string): Promise<void> {
+  await ensureFullBookPages(orderId);
   await seedApprovedChildAnchorFromTemplate(orderId);
 }
 
@@ -151,7 +220,7 @@ async function createOrder(): Promise<string> {
       childGender: 'girl',
       childAge: 6,
       illustrationStyle: 'soft_hand_drawn_storybook',
-      maxPages: 12,
+      maxPages: 20,
       skipCover: false,
       skipPersonalization: true,
       skipWorkerChain: true,
@@ -178,6 +247,11 @@ async function writeShotPlanReport(orderId: string): Promise<void> {
     isBookShotPlanValid,
     resolveBookShotPlan,
   } = await import('@/lib/book-shot-plan');
+  const {
+    formatLocationPlanTable,
+    resolvePageLocationPlan,
+    resolveStoryLocationPlan,
+  } = await import('@/lib/story-location-bible');
 
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) throw new Error(`order ${orderId} not found`);
@@ -196,8 +270,31 @@ async function writeShotPlanReport(orderId: string): Promise<void> {
     storyFilePath: BANK_FILE,
     pages: beatsFromStoryPages(story.pages),
   });
+  const locationPlan = resolveStoryLocationPlan({
+    storyFilePath: BANK_FILE,
+    challengeCategory: 'NIGHT_FEAR',
+    direction: 'adventure',
+    pages: beatsFromStoryPages(story.pages),
+  });
 
   const manifestDir = path.join(OUT_ROOT, 'ref-manifests');
+  const refRows: string[] = [];
+  for (const pageNum of [0, ...Array.from({ length: 12 }, (_, i) => i + 1)]) {
+    const mf = path.join(manifestDir, `page-${pageNum}.json`);
+    if (!fs.existsSync(mf)) continue;
+    const manifest = JSON.parse(fs.readFileSync(mf, 'utf8')) as {
+      finalOrder?: string[];
+      zoneSetRefs?: string[];
+      objectAnchorRefs?: string[];
+      locationZoneId?: string;
+    };
+    const loc = resolvePageLocationPlan(locationPlan, pageNum);
+    const label = pageNum === 0 ? 'cover' : `p${pageNum}`;
+    refRows.push(
+      `| ${label} | ${loc?.zoneId ?? manifest.locationZoneId ?? '-'} | ${(manifest.zoneSetRefs ?? []).map((r) => path.basename(r)).join(', ') || '—'} | ${(manifest.objectAnchorRefs ?? []).map((r) => path.basename(r)).join(', ') || '—'} | ${(manifest.finalOrder ?? []).length} refs |`
+    );
+  }
+
   const framingByPage: string[] = [];
   for (const p of plan.pages) {
     const summary = formatPageShotFramingSummary(p);
@@ -230,6 +327,18 @@ async function writeShotPlanReport(orderId: string): Promise<void> {
     '```',
     formatBookShotPlanTable(plan),
     '```',
+    '',
+    '## LocationBible (sidecar)',
+    '',
+    '```',
+    formatLocationPlanTable(locationPlan),
+    '```',
+    '',
+    '## Final references per page (from ref-manifests)',
+    '',
+    '| Page | zoneId | zoneSet | objectAnchor | ref count |',
+    '| --- | --- | --- | --- | --- |',
+    ...refRows,
     '',
     '## Framing summary per page',
     '',
@@ -272,7 +381,7 @@ async function main(): Promise<void> {
   }
 
   let orderId = flag('--orderId')?.trim() ?? '';
-  const rerender = Boolean(flag('--rerender'));
+  const rerender = hasFlag('--rerender');
   if (!orderId) {
     orderId = await createOrder();
   } else {

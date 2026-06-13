@@ -38,8 +38,8 @@ import {
 } from '../lib/book-color-normalize';
 import type { Prisma } from '@prisma/client';
 
-const BANK_FILE = path.join(process.cwd(), 'story-bank', 'v3-approved', 'bunny_ometz_bedtime.md');
-const MAX_CHUNKS = 25;
+const DEFAULT_BANK_FILE = path.join(process.cwd(), 'story-bank', 'v3-approved', 'bunny_ometz_bedtime.md');
+const MAX_CHUNKS = 80;
 
 type SmokeArgs = {
   orderId: string;
@@ -50,6 +50,7 @@ type SmokeArgs = {
   rerender: boolean;
   scrubAnchors: boolean;
   keepCover: boolean;
+  bankFile: string;
 };
 
 function parsePages(raw: string): { includeCover: boolean; pageNumbers: number[] } {
@@ -71,6 +72,7 @@ function parseArgs(): SmokeArgs {
   let rerender = false;
   let scrubAnchors = false;
   let keepCover = false;
+  let bankFile = DEFAULT_BANK_FILE;
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -102,13 +104,17 @@ function parseArgs(): SmokeArgs {
       keepCover = true;
       continue;
     }
+    if (arg === '--bankFile' && argv[i + 1]) {
+      bankFile = path.resolve(argv[++i]);
+      continue;
+    }
     if (!arg.startsWith('--')) {
       orderId = arg;
     }
   }
 
   const { includeCover, pageNumbers } = parsePages(pages);
-  return { orderId, includeCover, pageNumbers, quality, outputDir, rerender, scrubAnchors, keepCover };
+  return { orderId, includeCover, pageNumbers, quality, outputDir, rerender, scrubAnchors, keepCover, bankFile };
 }
 
 async function clearTargetImages(
@@ -168,7 +174,7 @@ async function downloadImages(
 
 async function main() {
   const args = parseArgs();
-  const { orderId, includeCover, pageNumbers, quality, outputDir, rerender, scrubAnchors, keepCover } = args;
+  const { orderId, includeCover, pageNumbers, quality, outputDir, rerender, scrubAnchors, keepCover, bankFile } = args;
 
   if (quality !== 'low') {
     throw new Error(`Smoke render requires --quality low (got "${quality}")`);
@@ -177,7 +183,7 @@ async function main() {
   if (process.env.PHASE2_STYLE01_BOOK_PIPELINE?.trim() !== 'true') {
     throw new Error('PHASE2_STYLE01_BOOK_PIPELINE must be true');
   }
-  if (!fs.existsSync(BANK_FILE)) throw new Error(`bank file missing: ${BANK_FILE}`);
+  if (!fs.existsSync(bankFile)) throw new Error(`bank file missing: ${bankFile}`);
 
   if (pageNumbers.length > 0) {
     process.env.CHUNKED_IMAGE_PAGE_FILTER = pageNumbers.join(',');
@@ -235,9 +241,9 @@ async function main() {
         currentStage: 'pending',
         triggerReason: 'bunny-smoke-render',
         pipelineCache: {
-          storyFilePath: BANK_FILE,
+          storyFilePath: bankFile,
           storyBankVersion: 'v3',
-          selectionFilename: path.basename(BANK_FILE),
+          selectionFilename: path.basename(bankFile),
           directionForV3: 'bedtime',
           challengeCategory: wizardMeta.challengeCategory ?? 'MEDICAL_PROCEDURE',
         } as Prisma.InputJsonValue,

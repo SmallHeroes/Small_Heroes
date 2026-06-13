@@ -96,6 +96,7 @@ import {
   type Style01SceneClass,
 } from '../../lib/style01-gptimage';
 import { assembleStyle01Phase2Prompt } from '../../lib/style01-prompt-assembly';
+import { assembleStyle01BookReferencesWithZoneSheets } from '../../lib/story-location-bible/zone-sheets';
 import {
   evaluatePageVisualQa,
   resolvePageVisualQaConfig,
@@ -435,6 +436,9 @@ export interface ImageInput {
   pageStoryboard?: PageVisualStoryboard;
   /** Per-book cinematography slot (BookShotPlan) — drives Style 01 COMPOSITION block. */
   pageShot?: import('../../lib/book-shot-plan').PageShot | null;
+  /** Per-book location continuity — drives BOOK LOCATION CONTINUITY block. */
+  locationBible?: import('../../lib/story-location-bible').BookLocationBible | null;
+  pageLocationPlan?: import('../../lib/story-location-bible').PageLocationPlan | null;
   /** Pipeline character ids for this page (e.g. child, companion:bolly_armadillo). */
   expectedCharacterIds?: string[];
   /** guarded-v2 recipe id when using production recipe page cards. */
@@ -599,6 +603,9 @@ export interface CoverImageInput {
   childAge?: number | null;
   childGender?: string | null;
   coverSceneHint?: string;
+  /** Location continuity for cover (page 0). */
+  locationBible?: import('../../lib/story-location-bible').BookLocationBible | null;
+  pageLocationPlan?: import('../../lib/story-location-bible').PageLocationPlan | null;
   /** Larger square GPT renders for קובץ מוכן להדפסה. */
   printPdfOptimized?: boolean;
 }
@@ -3090,6 +3097,8 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     explicitCloseUp:
       input.pageShot?.shot === 'close_up' || input.pageStoryboard?.shotType === 'close_up',
     pageShot: input.pageShot ?? null,
+    locationBible: input.locationBible ?? null,
+    pageLocationPlan: input.pageLocationPlan ?? null,
     assetType: input.assetType,
     storyTitle: input.storyTitle,
     coverText: input.coverText,
@@ -3140,7 +3149,7 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
         !entry.characterId.startsWith('companion:')
     )
     .map((entry) => entry.anchorImageUrl);
-  const { paths: referenceImages, breakdown } = assembleStyle01BookReferences({
+  const { paths: referenceImages, breakdown } = assembleStyle01BookReferencesWithZoneSheets({
     styleRefPaths,
     childPhotoPath: refConfig === 'C' ? undefined : childPhotoPath,
     companionRefPaths: refConfig === 'B' ? undefined : companionRefPaths,
@@ -3148,6 +3157,7 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     config: refConfig,
     includeChildPhoto: childPresenceAllowsReferencePhoto(entityPresence.childPresence),
     useMultiCompanionSheets,
+    isolatedObjectRefPaths: input.pageLocationPlan?.referenceSheets?.isolatedObjectPaths,
   });
 
   const prompt = sanitizePromptForSafety(finalPrompt);
@@ -3158,6 +3168,9 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
       `refs=${referenceImages.length} breakdown=${JSON.stringify({
         child: breakdown.child.length,
         companion: breakdown.companion.length,
+        zoneSet: (breakdown.zoneSet ?? []).length,
+        objectAnchors: (breakdown.objectAnchors ?? []).length,
+        isolatedObjects: (breakdown.isolatedObjects ?? breakdown.objectAnchors ?? []).length,
         otherCharacters: (breakdown.otherCharacters ?? []).length,
         style: breakdown.style.length,
       })}`
@@ -3165,11 +3178,14 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
   const characterRefPaths = [
     ...breakdown.child,
     ...breakdown.companion,
+    ...(breakdown.zoneSet ?? []),
+    ...(breakdown.objectAnchors ?? []),
     ...(breakdown.otherCharacters ?? []),
   ];
   console.log(
     `[style01_refs] orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} ` +
       `characterRefs=${JSON.stringify(characterRefPaths)} ` +
+      `isolatedObjectRefs=${JSON.stringify(breakdown.isolatedObjects ?? breakdown.objectAnchors ?? [])} ` +
       `styleRefs=${JSON.stringify(breakdown.style)} ` +
       `finalOrder=${JSON.stringify(referenceImages)} ` +
       `canonicalAnchorRef=${useCanonicalChildAnchorRef}`
@@ -3206,9 +3222,18 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
           canonicalAnchorRef: useCanonicalChildAnchorRef,
           childExpressionKind: input.childExpressionAnchorKind ?? null,
           characterRefs: characterRefPaths,
+          zoneSetRefs: breakdown.zoneSet ?? [],
+          objectAnchorRefs: breakdown.objectAnchors ?? [],
+          isolatedObjectRefs: breakdown.isolatedObjects ?? breakdown.objectAnchors ?? [],
           styleRefs: breakdown.style,
           finalOrder: referenceImages,
           refConfig,
+          locationZoneId: input.pageLocationPlan?.zoneId ?? null,
+          pageAction: input.pageLocationPlan?.pageAction ?? null,
+          expectedBucketVisibility: input.pageLocationPlan?.expectedBucketVisibility ?? null,
+          zoneObjectRefsAttached: Boolean(
+            (breakdown.isolatedObjects ?? breakdown.objectAnchors ?? []).length
+          ),
           sceneClass,
           storyTimeOfDay,
           effectivePageTimeOfDay,
@@ -3653,6 +3678,8 @@ export async function generateBookCover(input: CoverImageInput): Promise<Generat
     // let the style01 path resolve the published character sheet for the cover too.
     companion: (input.companion ?? null) as unknown as ImageInput['companion'],
     challengeCategory: input.challengeCategory ?? null,
+    locationBible: input.locationBible ?? null,
+    pageLocationPlan: input.pageLocationPlan ?? null,
     heroVisualLock: input.heroVisualLock,
     styleLock: input.styleLock,
     entityVisualLock: input.entityVisualLock,
@@ -3864,6 +3891,7 @@ export async function generateAllPageImages(
     familyCoherence?: import('../../lib/family-coherence').FamilyCoherenceBundle | null;
     /** Per-book shot plan — derived at render or story override; consumed by Style 01 assembly. */
     bookShotPlan?: import('../../lib/book-shot-plan').BookShotPlan;
+    storyLocationPlan?: import('../../lib/story-location-bible').StoryLocationPlanBundle;
   }
 ): Promise<{
   results: Map<number, GeneratedImage>;
@@ -4219,6 +4247,10 @@ export async function generateAllPageImages(
       )[0];
     const pageShot =
       config.bookShotPlan?.pages.find((slot) => slot.page === page.pageNumber) ?? null;
+    const pageLocationPlan =
+      config.storyLocationPlan
+        ? (config.storyLocationPlan.pagePlans.find((p) => p.page === page.pageNumber) ?? null)
+        : null;
     if (config.bookShotPlan) {
       console.log('[book-shot-plan]', {
         page: page.pageNumber,
@@ -4398,6 +4430,8 @@ export async function generateAllPageImages(
       | 'storyTimeOfDay'
       | 'pageTimeOfDayOverrides'
       | 'pageShot'
+      | 'locationBible'
+      | 'pageLocationPlan'
     > = {
       totalPages: pagesToGenerate.length,
       ...(shouldUseStyle01Phase2Path(normalizedStyle)
@@ -4407,6 +4441,8 @@ export async function generateAllPageImages(
             storyTimeOfDay: config.storyTimeOfDay,
             pageTimeOfDayOverrides: config.pageTimeOfDayOverrides,
             pageShot,
+            locationBible: config.storyLocationPlan?.bible ?? null,
+            pageLocationPlan,
           }
         : {}),
     };

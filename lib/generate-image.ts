@@ -232,7 +232,9 @@ export type GPTImageReferenceMode =
   /** Companion sheet: Style 01 re-render from canonical companion jpg (front view). */
   | 'anchor_companion_from_jpg'
   /** Companion sheet: angle/expression variant from approved Style 01 front sheet view. */
-  | 'anchor_companion_from_sheet_view';
+  | 'anchor_companion_from_sheet_view'
+  /** Zone object anchor: closer crop derived from approved zone set sheet — same assets/mood. */
+  | 'zone_set_derived_object';
 
 /** Default cap (gpt-image-1). Override via GPT_IMAGE_EDIT_MAX_REFERENCES for gpt-image-2 probes. */
 export const GPT_IMAGE_EDIT_MAX_REFERENCES = 4;
@@ -381,6 +383,16 @@ export const STYLE01_ANCHOR_COMPANION_FROM_SHEET_PREFIX = (
   '[TARGET VIEW]\n'
 );
 
+/** Object anchor sheet — same set assets as approved zone set reference; tighter crop only. */
+export const STYLE01_ZONE_SET_DERIVED_OBJECT_PREFIX = (
+  '[STYLE 01 ZONE SET — APPROVED SET REFERENCE]\n' +
+  'Image 1 is the APPROVED zone set reference for this location. Preserve EXACT set geometry, mood, lighting, and object identity:\n' +
+  'same warm window glow on the left, same stone/plaster window-ledge drip source, same terracotta floor tiles, same safe black metal-bar railing, same wooden chair scale cue on the right, same small galvanized metal bucket under the drip.\n' +
+  'Match the SAME dark moonlit home-night mood — NO daylight, NO dusk, NO alternate furniture, NO alternate railing, NO faucet/downspout.\n' +
+  'Change ONLY camera distance — compose CLOSER on the bucket + ledge drip while keeping the same continuous asset truth. ZERO characters. NO humans. NO creatures.\n\n' +
+  '[TARGET OBJECT ANCHOR]\n'
+);
+
 function resolveReferencePrefix(
   mode: GPTImageReferenceMode,
   referenceCount: number
@@ -391,6 +403,7 @@ function resolveReferencePrefix(
   if (mode === 'anchor_expression_with_direction') return STYLE01_ANCHOR_EXPRESSION_WITH_DIRECTION_PREFIX;
   if (mode === 'anchor_companion_from_jpg') return STYLE01_ANCHOR_COMPANION_FROM_JPG_PREFIX;
   if (mode === 'anchor_companion_from_sheet_view') return STYLE01_ANCHOR_COMPANION_FROM_SHEET_PREFIX;
+  if (mode === 'zone_set_derived_object') return STYLE01_ZONE_SET_DERIVED_OBJECT_PREFIX;
   if (mode === 'style02_book') return STYLE02_BOOK_REFERENCE_PREFIX;
   if (mode === 'style') return STYLE_REFERENCE_PREFIX;
   if (mode === 'companion_dual' || referenceCount >= 2) return DUAL_REFERENCE_PREFIX;

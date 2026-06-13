@@ -28,7 +28,11 @@ import {
   type StoryRecurringEntityDeclaration,
 } from './story-bank/recurring-entities';
 import { buildStructuredObjectCompositionAddendum } from './structured-object-composition';
-import { buildScenarioSettingLockBlock } from './scenario-setting-lock';
+import { buildResolvedLocationEnvironmentBlock } from './story-location-bible';
+import {
+  buildIsolatedObjectReferencePromptBlock,
+  buildPageActionPromptBlock,
+} from './story-location-bible/zone-sheets';
 import {
   applyFamilyCoherenceToEntityLocks,
   buildFamilyCoherencePromptBlock,
@@ -99,6 +103,10 @@ export type Style01PromptAssemblyInput = {
   explicitCloseUp?: boolean;
   /** Per-book cinematography slot from BookShotPlan (derived or override). */
   pageShot?: PageShot | null;
+  /** Per-book location continuity (derived or sidecar). */
+  locationBible?: import('./story-location-bible').BookLocationBible | null;
+  pageLocationPlan?: import('./story-location-bible').PageLocationPlan | null;
+  storyWorldOverride?: string | null;
   assetType?: 'page' | 'cover';
   storyTitle?: string | null;
   coverText?: string | null;
@@ -343,9 +351,17 @@ export function assembleStyle01Phase2Prompt(
     imageDirection,
     strictRetry: input.timeOfDayStrictRetry,
   });
-  // Story-level setting lock (same injection pattern as the time-of-day lock):
-  // category controls LOCATION; direction controls format only — bedtime ≠ bedroom.
-  const scenarioSettingLock = buildScenarioSettingLockBlock(input.challengeCategory);
+  // Location continuity absorbs scenario-setting-lock — one resolved location truth only.
+  const locationEnvironmentBlock = buildResolvedLocationEnvironmentBlock({
+    challengeCategory: input.challengeCategory,
+    storyWorldOverride: input.storyWorldOverride,
+    locationBible: input.locationBible,
+    pageLocationPlan: input.pageLocationPlan,
+    pageShot: input.pageShot,
+    isCover,
+  });
+  const pageActionBlock = buildPageActionPromptBlock(input.pageLocationPlan);
+  const isolatedObjectRefBlock = buildIsolatedObjectReferencePromptBlock(input.pageLocationPlan);
 
   const environmentLock = storyLocks.pageEnvironmentLock?.(input.pageNumber);
   const familyRoleDetectInput = {
@@ -462,7 +478,7 @@ export function assembleStyle01Phase2Prompt(
     recurringEntityLocks: entityLocks || undefined,
     environmentLock:
       [
-        scenarioSettingLock,
+        locationEnvironmentBlock,
         environmentLock,
         familyCoherenceBlock,
         structuredObjectBlock,
@@ -477,6 +493,8 @@ export function assembleStyle01Phase2Prompt(
     compositionBlock,
     entityPresenceBlock,
     useCanonicalChildAnchorRef: input.useCanonicalChildAnchorRef,
+    pageActionBlock: pageActionBlock ?? undefined,
+    isolatedObjectRefBlock: isolatedObjectRefBlock ?? undefined,
     isCover,
     framingRule: isCover
       ? undefined

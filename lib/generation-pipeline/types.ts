@@ -46,6 +46,26 @@ export type PipelineCache = {
       rationale: string;
     }>;
   };
+  /** Per-book location continuity (derived or sidecar). JSON-serializable for pipelineCache. */
+  storyLocationPlan?: {
+    bible: {
+      continuityMode: string;
+      primarySetting: string;
+      forbiddenDrift: string[];
+      transitionRules: string[];
+      source: string;
+      pageCount?: number;
+      allowedZones: Array<{ id: string; description: string }>;
+    };
+    pagePlans: Array<{
+      page: number;
+      zoneId: string;
+      visibleAnchors: string[];
+      allowedVariation: string;
+      forbiddenDrift: string[];
+      cameraPositionHint?: string;
+    }>;
+  };
   textFinalized?: boolean;
   characterAnchorStore?: Record<
     string,

@@ -859,18 +859,15 @@ export function buildStyle01BookPagePrompt(input: {
   pageExpressionLock?: string;
   mutualGazeLock?: string;
   companionSizeLock?: string;
+  /** Mandatory page action — placed after identity locks, before location text. */
+  pageActionBlock?: string;
+  /** Isolated object ref instruction when bucket-object.png attached. */
+  isolatedObjectRefBlock?: string;
 }): string {
   return [
     input.sceneDescription.trim(),
     input.entityPresenceBlock ?? '',
     input.compositionBlock ?? '',
-    input.environmentLock ?? '',
-    input.pageExpressionLock ?? '',
-    input.mutualGazeLock ?? '',
-    input.companionSizeLock ?? '',
-    input.isCover ? '' : (input.framingRule ?? STYLE_01_FRAMING_RULE),
-    STYLE_01_SHARED,
-    STYLE_01_RENDERING_CORRECTION,
     input.recurringObjectLocks ?? '',
     input.recurringEntityLocks ?? '',
     input.companionTextLock ?? '',
@@ -878,6 +875,15 @@ export function buildStyle01BookPagePrompt(input: {
     input.wardrobeLock ?? '',
     input.childAnatomicalLock ?? '',
     input.useCanonicalChildAnchorRef ? STYLE_01_CANONICAL_CHILD_ANCHOR_RULE : STYLE_01_CHILD_PHOTO_IDENTITY_RULE,
+    input.pageActionBlock ?? '',
+    input.isolatedObjectRefBlock ?? '',
+    input.environmentLock ?? '',
+    input.pageExpressionLock ?? '',
+    input.mutualGazeLock ?? '',
+    input.companionSizeLock ?? '',
+    input.isCover ? '' : (input.framingRule ?? STYLE_01_FRAMING_RULE),
+    STYLE_01_SHARED,
+    STYLE_01_RENDERING_CORRECTION,
     STYLE_01_REFERENCE_INSTRUCTION,
     STYLE_01_NO_TEXT,
     STYLE_01_ANTI_STYLE02,

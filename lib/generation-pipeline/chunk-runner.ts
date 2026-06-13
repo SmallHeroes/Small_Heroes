@@ -636,6 +636,35 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
   return nextCache;
 }
 
+async function ensureStoryLocationPlan(
+  order: Order,
+  cache: PipelineCache,
+  storyFilePath: string,
+  story: Awaited<ReturnType<typeof loadStoryFromBank>>,
+  challengeCategory: string | null | undefined
+): Promise<{ cache: PipelineCache; storyLocationPlan: import('@/lib/story-location-bible').StoryLocationPlanBundle }> {
+  const cached = cache.storyLocationPlan as
+    | import('@/lib/story-location-bible').StoryLocationPlanBundle
+    | undefined;
+  if (cached?.bible && cached.pagePlans?.length) {
+    const { enrichStoryLocationPlanWithReferenceSheets } = await import('@/lib/story-location-bible/zone-sheets');
+    const storyLocationPlan = enrichStoryLocationPlanWithReferenceSheets(cached, storyFilePath);
+    const nextCache = { ...cache, storyLocationPlan };
+    return { cache: nextCache, storyLocationPlan };
+  }
+  const { beatsFromStoryPages } = await import('@/lib/book-shot-plan');
+  const { resolveStoryLocationPlan } = await import('@/lib/story-location-bible');
+  const storyLocationPlan = resolveStoryLocationPlan({
+    storyFilePath,
+    challengeCategory,
+    direction: cache.directionForV3,
+    pages: beatsFromStoryPages(story.pages),
+  });
+  const nextCache = { ...cache, storyLocationPlan };
+  await saveCache(order.id, nextCache);
+  return { cache: nextCache, storyLocationPlan };
+}
+
 async function runCoverStage(order: Order, cache: PipelineCache): Promise<void> {
   if (cache.devSkipCover) return;
 
@@ -680,6 +709,16 @@ async function runCoverStage(order: Order, cache: PipelineCache): Promise<void> 
   // Fail loudly BEFORE paid cover generation when the companion has no published sheet.
   assertCompanionSheetRenderable(resolvedCompanion);
 
+  const { cache: cacheWithLocation, storyLocationPlan } = await ensureStoryLocationPlan(
+    order,
+    cache,
+    storyFilePath,
+    story,
+    cache.challengeCategory ?? wizardMeta.challengeCategory
+  );
+  const { resolvePageLocationPlan } = await import('@/lib/story-location-bible');
+  const coverLocationPlan = resolvePageLocationPlan(storyLocationPlan, 0);
+
   const coverImage = await generateBookCover({
     childName: order.childName,
     topicLabel,
@@ -707,7 +746,9 @@ async function runCoverStage(order: Order, cache: PipelineCache): Promise<void> 
           image: resolvedCompanion.image,
         }
       : undefined,
-    challengeCategory: cache.challengeCategory ?? wizardMeta.challengeCategory ?? null,
+    challengeCategory: cacheWithLocation.challengeCategory ?? wizardMeta.challengeCategory ?? null,
+    locationBible: storyLocationPlan.bible,
+    pageLocationPlan: coverLocationPlan,
     childStructured: cache.dna?.childStructured,
     companionStructured: cache.dna?.companionStructured,
   });
@@ -815,6 +856,15 @@ async function runPageImagesChunk(
     cache = { ...cache, bookShotPlan };
     await saveCache(order.id, cache);
   }
+
+  const { cache: cacheWithLocation, storyLocationPlan } = await ensureStoryLocationPlan(
+    order,
+    cache,
+    storyFilePath,
+    story,
+    cache.challengeCategory ?? wizardMeta.challengeCategory
+  );
+  cache = cacheWithLocation;
 
   const compositionByPage = new Map(
     (story.pageCompositionPlan ?? []).map((c) => [c.pageNumber, c])
@@ -1023,6 +1073,7 @@ async function runPageImagesChunk(
     pageTimeOfDayOverrides: story.pageTimeOfDayOverrides,
     familyCoherence: familyCoherenceForImages,
     bookShotPlan: bookShotPlan as import('@/lib/book-shot-plan').BookShotPlan,
+    storyLocationPlan,
   });
 
   const presentationEnabled =
