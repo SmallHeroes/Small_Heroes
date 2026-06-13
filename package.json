@@ -5,7 +5,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "node scripts/lint-honest-gate.mjs",
-    "release-check": "node scripts/release-check.mjs",
+    "release-check": "tsx scripts/release-check.ts",
     "check": "tsc --noEmit && vitest run",
     "test": "vitest run",
     "test:watch": "vitest"

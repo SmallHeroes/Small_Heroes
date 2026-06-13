@@ -40,7 +40,7 @@ Do NOT run a full book render without explicit approval. Default to a page-only 
 **Not production:** `lib/story-generator/*` (legacy Plan→Draft generator), `lib/story-gen-v2/*`, `lib/story-gen-v3/*` writers-room pipeline, `app/api/debug/*`. These are dev-only / experiment — banners on entrypoints, do not wire into wizard without explicit approval.
 
 ## Release guard
-Before deploy: `npm run release-check` (requires `ENABLE_V3_APPROVED_BANK=true` — without it, v3 slots bunny bedtime + fox adventure are unsellable; matrix drops to 6/18). Stability contract: `npm run check` (tsc + vitest). `npm run lint` is an honest skip until ESLint migration (see `scripts/lint-honest-gate.mjs`).
+Before deploy: `npm run release-check` (requires `ENABLE_V3_APPROVED_BANK=true` — without it, v3 slots bunny bedtime + fox adventure are unsellable; matrix drops to 6/18). Stability contract: `npm run check` (tsc + vitest). `npm run lint` is an honest skip until ESLint migration (see `scripts/lint-honest-gate.mjs` — TODO: real ESLint post-launch).
 
 ## Color normalization
 Default ON since 2026-06-11 (Guy-approved warm bias +5% from contact sheet). See `lib/book-color-normalize.ts`.

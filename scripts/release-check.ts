@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 /**
  * Pre-deploy release check — fails before ship if F&F v3 config is incomplete.
  * Does NOT run in production runtime; invoke in CI or before deploy only.
@@ -9,12 +9,12 @@ import {
   allMvpCategories,
   configuredSlotStatus,
   isSlotSellable,
-} from '../backend/config/mvp-story-matrix.ts';
+} from '../backend/config/mvp-story-matrix';
 
-const DIRECTIONS = ['bedtime', 'adventure', 'fantasy'];
+const DIRECTIONS = ['bedtime', 'adventure', 'fantasy'] as const;
 
-function v3ApprovedSlots() {
-  const slots = [];
+function v3ApprovedSlots(): string[] {
+  const slots: string[] = [];
   for (const category of allMvpCategories()) {
     for (const direction of DIRECTIONS) {
       if (configuredSlotStatus(category, direction) === 'approved_v3') {
@@ -25,7 +25,7 @@ function v3ApprovedSlots() {
   return slots;
 }
 
-function countSellable() {
+function countSellable(): number {
   let n = 0;
   for (const category of allMvpCategories()) {
     for (const direction of DIRECTIONS) {
