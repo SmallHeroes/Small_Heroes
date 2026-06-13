@@ -1,9 +1,8 @@
 /**
- * GET /api/wizard/product-truth?companionId=…&direction=…
+ * GET /api/wizard/product-truth?companionId=…&direction=…&challengeCategory=…
  *
  * Returns the server-resolved product (direction/pages/price) for the story
- * that will actually be served, so the wizard summary always matches the book
- * and the charge. Same resolver the orders API uses — UI cannot drift.
+ * that will actually be served. Same resolver + matrix assert as POST /api/orders.
  */
 
 import { NextResponse } from 'next/server';
@@ -23,6 +22,7 @@ export async function GET(request: Request) {
       companionId: searchParams.get('companionId'),
       clientDirection: searchParams.get('direction'),
       legacyLength: searchParams.get('length'),
+      challengeCategory: searchParams.get('challengeCategory'),
     });
     return NextResponse.json({
       direction: resolved.storyDirection,

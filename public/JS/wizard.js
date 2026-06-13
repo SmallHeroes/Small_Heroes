@@ -801,9 +801,8 @@ function computeTotal() {
 }
 
 /* ── SERVER PRODUCT TRUTH ───────────────────────────────────── */
-// Asks the server which direction/pages/price the chosen companion's story
-// actually has (e.g. a v3-approved binding forces bedtime/10/₪59). The server
-// is authoritative — the summary must match the book that will be generated.
+// Server-resolved direction/pages/price for the wizard summary — must match POST /api/orders.
+// Client direction is preserved (v3 binding only when direction matches); matrix assert runs when challengeCategory is sent.
 let productTruthFetchSeq = 0;
 async function syncProductTruthFromServer() {
   const companionId = state.companionCharacterId || '';
@@ -814,6 +813,7 @@ async function syncProductTruthFromServer() {
     const params = new URLSearchParams();
     if (companionId) params.set('companionId', companionId);
     if (direction) params.set('direction', direction);
+    if (state.challengeCategory) params.set('challengeCategory', state.challengeCategory);
     const res = await fetch(`/api/wizard/product-truth?${params.toString()}`);
     if (seq !== productTruthFetchSeq) return;
     if (!res.ok) return; /* e.g. direction not chosen yet — server validates again at order time */
