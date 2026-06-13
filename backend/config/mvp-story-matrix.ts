@@ -19,7 +19,7 @@ const DIRECTIONS: StoryDirection[] = ['bedtime', 'adventure', 'fantasy'];
 export const MVP_STORY_MATRIX = {
   NIGHT_FEAR: {
     companionId: 'fox_uri',
-    directions: { bedtime: 'approved', adventure: 'missing', fantasy: 'missing' },
+    directions: { bedtime: 'approved', adventure: 'approved_v3', fantasy: 'missing' },
   },
   SOCIAL: {
     companionId: 'panda_anat',

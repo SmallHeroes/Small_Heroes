@@ -1,0 +1,16 @@
+{
+  "approvedBy": "Guy",
+  "approvedAt": "2026-06-12",
+  "zoneId": "balcony_drip_area",
+  "storyKey": "fox_uri_adventure",
+  "setSource": "set-candidate-01.png",
+  "bucketSource": "bucket-from-set-candidate-01.png",
+  "isolatedObjectSource": "bucket-object-candidate-01.png",
+  "generatedAt": "2026-06-13T06:30:00.000Z",
+  "files": {
+    "set": "set.png",
+    "objects": ["bucket.png"],
+    "isolatedObject": "bucket-object.png"
+  },
+  "notes": "set.png = design artifact only (never attached to pages). bucket-object.png = isolated Style 01 object anchor for p5-12. Scene bucket.png retained as archive."
+}

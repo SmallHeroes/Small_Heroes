@@ -1,0 +1,328 @@
+{
+  "continuityMode": "location_cluster",
+  "primarySetting": "The whole story takes place in and immediately around the child's own home at night: the child's bedroom, the bedroom window area, and a small safe home balcony / under-window drip area. This is one continuous home-night setting, not a journey. The child and Uri move only within this small connected set.",
+  "fixedAnchors": [
+    {
+      "id": "child_bedroom",
+      "label": "same child bedroom",
+      "description": "Same child bedroom at night with bed, window, curtains, warm lamp glow",
+      "mustRemainSameAcrossPages": true
+    },
+    {
+      "id": "child_bed",
+      "label": "same child bed",
+      "description": "Same bed in the same bedroom every time the bedroom appears",
+      "mustRemainSameAcrossPages": true
+    },
+    {
+      "id": "window",
+      "label": "same window",
+      "description": "Same bedroom window and curtains — gateway to the small safe balcony/drip area",
+      "mustRemainSameAcrossPages": true
+    },
+    {
+      "id": "metal_bucket",
+      "label": "same metal bucket",
+      "description": "Same small galvanized METAL bucket under/near the drip source — dull silver/galvanized metal, NOT plastic, NOT a blue toy pail — one object, not redesigned each page",
+      "mustRemainSameAcrossPages": true
+    },
+    {
+      "id": "drip_source",
+      "label": "same drip source",
+      "description": "Same drip source: water drips slowly from the stone/plaster WINDOW LEDGE directly above the bucket — gentle drip from the ledge edge. NEVER a downspout, gutter, drainpipe, faucet, wall pipe, roof pipe, or tap.",
+      "mustRemainSameAcrossPages": true
+    },
+    {
+      "id": "home_night",
+      "label": "same moonlit home night",
+      "description": "Same moonlit night with warm indoor light and soft lantern glow relationship",
+      "mustRemainSameAcrossPages": true
+    }
+  ],
+  "allowedZones": [
+    {
+      "id": "bedroom_window",
+      "description": "Inside the same child bedroom at night. Same bed, window, curtains, warm lamp/faint moonlight. Bucket/drip may be hinted near the window but not yet dominate.",
+      "stableGeometry": [
+        "same bed against same wall",
+        "same window with same curtains",
+        "warm lamp or faint moonlight through window"
+      ],
+      "visualAnchors": [
+        "same child bed",
+        "same window",
+        "same curtains",
+        "warm indoor night light"
+      ],
+      "allowedCameraAccess": ["eye level medium", "intimate near window", "medium wide showing bed and window"]
+    },
+    {
+      "id": "balcony_threshold",
+      "description": "Transition between bedroom window/door and the small safe balcony. Same window/curtain/door relationship. No high-balcony drama.",
+      "stableGeometry": [
+        "window/door opens to small safe balcony",
+        "low safe railing or wall edge",
+        "same floor transition from bedroom to balcony"
+      ],
+      "visualAnchors": [
+        "same window frame",
+        "same curtains",
+        "safe low railing",
+        "home-like balcony corner"
+      ],
+      "allowedCameraAccess": ["threshold medium", "eye level at doorway"]
+    },
+    {
+      "id": "balcony_drip_area",
+      "description": "Small safe home balcony or under-window outdoor corner. Same metal bucket under/near a drip source. Same floor/railing/wall relationship. No garden journey, no stream, no rooftop, no cliff.",
+      "stableGeometry": [
+        "small enclosed home balcony or under-window corner",
+        "same metal bucket placement zone",
+        "same drip source above bucket",
+        "safe low railing"
+      ],
+      "visualAnchors": [
+        "same metal bucket",
+        "same drip source",
+        "same balcony floor",
+        "same safe railing"
+      ],
+      "allowedCameraAccess": ["medium wide showing bucket zone", "low angle near floor", "dynamic angle on same set"],
+      "referenceSheet": {
+        "setFile": "set.png",
+        "isolatedObjectFile": "bucket-object.png"
+      }
+    },
+    {
+      "id": "bucket_close_area",
+      "description": "Close area around the same metal bucket and same drip source. Bucket may be viewed from different angles but remains the same object in the same physical zone. Water stays in/near bucket; no open water.",
+      "stableGeometry": [
+        "same bucket on same balcony floor",
+        "same drip landing in bucket",
+        "same railing/wall in background"
+      ],
+      "visualAnchors": [
+        "same metal bucket",
+        "same drip source",
+        "same balcony floor",
+        "ripples in bucket water only"
+      ],
+      "allowedCameraAccess": ["close-up on bucket", "medium near bucket", "low angle at bucket rim"]
+    },
+    {
+      "id": "bedroom_window_or_bucket_resolution",
+      "description": "Warm closing beat returning to the same bedroom/window/bucket world. The night now feels friendly and musical.",
+      "stableGeometry": [
+        "same bedroom or same bucket zone as earlier pages",
+        "calm moonlit home night"
+      ],
+      "visualAnchors": [
+        "same window or same bucket",
+        "calm moonlight",
+        "warm friendly night mood"
+      ],
+      "allowedCameraAccess": ["medium wide resolving shot", "intimate calm framing"]
+    }
+  ],
+  "forbiddenDrift": [
+    "forest",
+    "stream",
+    "river",
+    "pond",
+    "bridge",
+    "rooftop",
+    "cliff",
+    "village overlook",
+    "unrelated outdoor landscape",
+    "open water body",
+    "new bedroom design every page",
+    "bucket under bed unless story text explicitly says so",
+    "high dangerous balcony",
+    "stone cliff balcony",
+    "garden journey",
+    "under-bed scene unless story text says so",
+    "downspout",
+    "gutter",
+    "drainpipe",
+    "faucet",
+    "wall pipe",
+    "roof pipe",
+    "tap",
+    "plumbing pipe"
+  ],
+  "transitionRules": [
+    "Move only between zones of the same home-night cluster — bedroom, window, small safe balcony, bucket area.",
+    "Camera moves; the set does not redesign.",
+    "Balcony must feel safe, enclosed, home-like, child-safe — never high, cliff-like, or rooftop-like."
+  ],
+  "pageCount": 12,
+  "pagePlans": [
+    {
+      "page": 0,
+      "zoneId": "bedroom_window",
+      "visibleAnchors": [
+        "same child bed",
+        "same window",
+        "same curtains",
+        "child + fox companion with neck lantern",
+        "warm indoor night light",
+        "curious mood at window"
+      ],
+      "cameraPositionHint": "INSIDE child's bedroom near the night window — Noya + Uri curious, lantern/flashlight mystery mood. Title-safe band at top.",
+      "allowedVariation": "Soft suspense curiosity; moonlit window view from inside room",
+      "forbiddenDrift": [
+        "visible bucket",
+        "metal bucket",
+        "drip source",
+        "falling water",
+        "water-catching object",
+        "downspout",
+        "gutter",
+        "faucet",
+        "plastic bucket",
+        "blue bucket",
+        "forest",
+        "stream",
+        "rooftop",
+        "cliff",
+        "open water"
+      ],
+      "pageAction": "Noya and Uri inside the bedroom near the night window — curious, soft suspense, lantern/flashlight mood. A mysterious sound is hinted outside but the solution is NOT shown. NO bucket. NO drip. NO falling water.",
+      "expectedBucketVisibility": "hidden",
+      "visualSpoilerPolicy": {
+        "hiddenObjects": ["metal_bucket", "drip_source", "falling_water"],
+        "note": "Cover preserves mystery — inside bedroom near window, no bucket or drip solution visible"
+      }
+    },
+    {
+      "page": 1,
+      "zoneId": "bedroom_window",
+      "visibleAnchors": ["same child bed", "same window", "same curtains", "hint of drip sound near window"],
+      "allowedVariation": "Establish bedroom-window world; moonlit home night",
+      "forbiddenDrift": ["forest", "stream", "garden journey", "rooftop", "cliff", "visible bucket", "metal bucket", "drip source", "water-catching object"],
+      "pageAction": "Noa hears a mysterious sound at the window; Uri startles and jumps. NO visible bucket, NO drip source, NO water-catching object.",
+      "expectedBucketVisibility": "hidden",
+      "visualSpoilerPolicy": {
+        "hiddenObjects": ["metal_bucket", "drip_source"],
+        "note": "Sound mystery only — no visible bucket or drip solution"
+      }
+    },
+    {
+      "page": 2,
+      "zoneId": "bedroom_window",
+      "visibleAnchors": ["same window", "flashlight beam near window", "same bedroom"],
+      "allowedVariation": "Flashlight cone may move; same room",
+      "forbiddenDrift": ["new room", "outdoor landscape", "stream", "visible bucket", "metal bucket", "drip source"],
+      "pageAction": "Uri holds the courage-meter flashlight upside-down so the light shines on his own nose. NO bucket visible.",
+      "expectedBucketVisibility": "hidden",
+      "visualSpoilerPolicy": {
+        "hiddenObjects": ["metal_bucket", "drip_source"],
+        "note": "Flashlight comedy beat — bucket still hidden"
+      }
+    },
+    {
+      "page": 3,
+      "zoneId": "bedroom_window",
+      "visibleAnchors": ["same window area", "same bedroom", "balcony railing glimpse"],
+      "allowedVariation": "Rhythm game near window; same set",
+      "forbiddenDrift": ["pond", "river", "forest", "visible bucket", "metal bucket", "drip source"],
+      "pageAction": "Noa counts the rhythm aloud; Uri writes in an imaginary scout notebook. NO bucket visible.",
+      "expectedBucketVisibility": "hidden",
+      "visualSpoilerPolicy": {
+        "hiddenObjects": ["metal_bucket", "drip_source"],
+        "note": "Rhythm game at window — solution not yet revealed"
+      }
+    },
+    {
+      "page": 4,
+      "zoneId": "balcony_threshold",
+      "visibleAnchors": ["same dry metal railing", "same window/door relationship", "same home balcony edge"],
+      "allowedVariation": "Finger tap on same railing; threshold beat",
+      "forbiddenDrift": ["stone cliff railing", "rooftop", "bridge", "visible bucket", "metal bucket", "wet railing", "drip source"],
+      "pageAction": "Noa taps a DRY balcony metal-bar railing; Uri's tail betrays his fear. NO bucket, NO water on railing.",
+      "expectedBucketVisibility": "hidden",
+      "visualSpoilerPolicy": {
+        "hiddenObjects": ["metal_bucket", "drip_source"],
+        "note": "Dry railing tap — bucket reveal comes next page"
+      }
+    },
+    {
+      "page": 5,
+      "zoneId": "balcony_drip_area",
+      "visibleAnchors": ["same metal bucket", "same drip source", "same balcony floor", "flashlight revealing bucket"],
+      "cameraPositionHint": "Reveal the same metal bucket near window/balcony drip — NOT under bed",
+      "allowedVariation": "Flashlight may roll; bucket is discovered in same drip zone",
+      "forbiddenDrift": ["under bed", "forest", "stream", "new location", "garden", "downspout", "gutter", "drainpipe", "faucet", "wall pipe", "roof pipe", "tap"],
+      "pageAction": "The flashlight rolls and REVEALS the old galvanized metal bucket for the FIRST time under the window-ledge drip.",
+      "expectedBucketVisibility": "first_reveal",
+      "visualSpoilerPolicy": {
+        "revealObjects": ["metal_bucket"],
+        "note": "FIRST REVEAL of the metal bucket"
+      }
+    },
+    {
+      "page": 6,
+      "zoneId": "bucket_close_area",
+      "visibleAnchors": ["same metal bucket", "same drip source", "droplet about to fall"],
+      "allowedVariation": "Close on same bucket lip",
+      "forbiddenDrift": ["pond", "river", "new bucket design", "downspout", "gutter", "drainpipe", "faucet", "wall pipe", "roof pipe", "tap"],
+      "pageAction": "Noa leans her ear close to the bucket rim; Uri holds the flashlight like a trembling sword.",
+      "expectedBucketVisibility": "visible"
+    },
+    {
+      "page": 7,
+      "zoneId": "bucket_close_area",
+      "visibleAnchors": ["same metal bucket", "same drip source", "ripples in bucket water"],
+      "allowedVariation": "Hand near same bucket; water in bucket only",
+      "forbiddenDrift": ["open water", "stream", "pool", "downspout", "gutter", "drainpipe", "faucet", "wall pipe", "roof pipe", "tap"],
+      "pageAction": "A single drop falls; Noa's fingertip touches the cold drop — close on hand and drop.",
+      "expectedBucketVisibility": "visible"
+    },
+    {
+      "page": 8,
+      "zoneId": "bucket_close_area",
+      "visibleAnchors": ["same metal bucket", "child and fox at same bucket", "rhythmic drips in bucket"],
+      "allowedVariation": "Playful duet staging — NOT static sitting near bucket",
+      "forbiddenDrift": ["new room", "river", "pond", "static seated pose near bucket", "downspout", "gutter", "drainpipe", "faucet", "wall pipe", "roof pipe", "tap"],
+      "pageAction": "Uri talks to the rain/bucket in a funny official voice; Noa plays along — a duet, mid-gesture, playful movement.",
+      "expectedBucketVisibility": "visible"
+    },
+    {
+      "page": 9,
+      "zoneId": "bucket_close_area",
+      "visibleAnchors": ["same metal bucket", "same drip rhythm", "ear near bucket rim"],
+      "allowedVariation": "Listening beat at same bucket",
+      "forbiddenDrift": ["stream", "musical note pond", "open water body", "downspout", "gutter", "drainpipe", "faucet", "wall pipe", "roof pipe", "tap"],
+      "pageAction": "Noa presses her ear to the bucket, recognizing a rhythm; musical listening feel.",
+      "expectedBucketVisibility": "visible"
+    },
+    {
+      "page": 10,
+      "zoneId": "bucket_close_area",
+      "visibleAnchors": ["same metal bucket", "same drip source", "child gently shifting same bucket under drip"],
+      "cameraPositionHint": "Gentle sideways shift of SAME bucket under SAME drip — not pouring into open water",
+      "allowedVariation": "Bucket moves slightly within same drip zone only",
+      "forbiddenDrift": ["river", "pond", "stream", "pool", "open water", "pouring water away from bucket", "static bucket pose", "downspout", "gutter", "drainpipe", "faucet", "wall pipe", "roof pipe", "tap"],
+      "pageAction": "Noa GRIPS the bucket handle and SLIDES it sideways under the drip; Uri holds the lantern like a stage spotlight.",
+      "expectedBucketVisibility": "visible"
+    },
+    {
+      "page": 11,
+      "zoneId": "bucket_close_area",
+      "visibleAnchors": ["same metal bucket", "same drip source", "playful tapping on same bucket rim"],
+      "allowedVariation": "Musical play at same bucket — drumming comedy",
+      "forbiddenDrift": ["dancing water in pond", "new location", "static seated pose", "downspout", "gutter", "drainpipe", "faucet", "wall pipe", "roof pipe", "tap"],
+      "pageAction": "Noa DRUMS on the bucket rim; Uri makes funny mouth-drum sounds; water rhythm playful, joyful movement.",
+      "expectedBucketVisibility": "visible"
+    },
+    {
+      "page": 12,
+      "zoneId": "bedroom_window_or_bucket_resolution",
+      "visibleAnchors": ["same still bucket OR same window/bedroom", "calm moonlight", "friendly night"],
+      "allowedVariation": "Warm resolution in same home-night world",
+      "forbiddenDrift": ["new bedroom", "rooftop", "cliff", "open landscape", "downspout", "gutter", "drainpipe", "faucet", "wall pipe", "roof pipe", "tap"],
+      "pageAction": "Last drop; Noa switches the flashlight off; quiet warm resolution, slightly wider framing.",
+      "expectedBucketVisibility": "background"
+    }
+  ]
+}
