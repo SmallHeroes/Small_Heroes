@@ -64,7 +64,8 @@ Extract premise DNA. id should be "${args.sourceStoryId}_premise". titleSeed may
     direction: args.direction,
     premise: normalizePremiseCandidate(
       { ...parsed.premise, id: `${args.sourceStoryId}_premise` },
-      'golden calibration'
+      'golden calibration',
+      args.companionId
     ),
     calibrationNotes: parsed.calibrationNotes,
   };

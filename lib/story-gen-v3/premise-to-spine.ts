@@ -1,5 +1,6 @@
 import type { PremiseExperimentSpecV3, StoryPremiseCandidate, StorySpineV3 } from './types';
 import { POPCORN_TONE_GUARD } from './hardened-premise-p10';
+import { FOX_URI_NIGHT_TONE_GUARD } from './hardened-premise-uri-p10';
 
 export const KOKO_TRANSITION_TONE_GUARD = [
   'Warm, silly, safe — color camouflage comedy and new-place physical confusion.',
@@ -11,6 +12,9 @@ export const KOKO_TRANSITION_TONE_GUARD = [
 export function toneGuardForSpec(spec: PremiseExperimentSpecV3): string {
   if (spec.companionId === 'chameleon_koko') return KOKO_TRANSITION_TONE_GUARD;
   if (spec.companionId === 'dragon_dini') return POPCORN_TONE_GUARD;
+  if (spec.companionId === 'fox_uri' && spec.category === 'NIGHT_FEAR') {
+    return FOX_URI_NIGHT_TONE_GUARD;
+  }
   return 'Warm, silly, safe picture-book tone.';
 }
 

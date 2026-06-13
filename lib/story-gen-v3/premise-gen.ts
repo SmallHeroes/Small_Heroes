@@ -6,7 +6,10 @@ import { OpenAIResponsesLLM, parseJsonFromLLM } from '../story-generator/llm';
 import { buildCompanionContextBlock } from '../story-gen/companion-context';
 import type { GoldenPremiseRecord, PremiseExperimentSpecV3, StoryPremiseCandidate } from './types';
 import { formatGoldenPremisesForPrompt } from './golden-premise-extract';
-import { normalizePremiseCandidate } from './premise-normalize';
+import {
+  missingCreativePremiseFields,
+  normalizePremiseCandidate,
+} from './premise-normalize';
 import {
   getCompanionPremiseEngineBlock,
   getPremiseFamilyQuotas,
@@ -33,9 +36,19 @@ A premise is a concrete story situation with story electricity — not a lesson.
 No light-stone, spark gate, glowing ring, magic mirror of feelings.
 Test: if a child cannot touch, throw, drop, hide, or laugh at it — too abstract.
 
-## Each candidate MUST fill every StoryPremiseCandidate field.
+## Each candidate MUST fill every StoryPremiseCandidate field with EXACT JSON keys below.
 whyNotTherapeuticFable must convincingly explain why this is a story, not a fable.
 whyNotGoldenCopy must explain freshness vs calibration goldens.
+
+REQUIRED keys per candidate (exact spellings — missing keys fail the gate):
+id, titleSeed, resilienceTheme, hiddenResilienceTool, oneLineHook, openingWeirdEvent,
+childWant, whyItMattersToChild, physicalProblem, playSystem, keyObjects,
+companionComicEngineUsed, companionWrongHelp, firstTry, whyFirstTryFails, funnyFailureImage,
+escalation, childDiscovery, braveChildAction, bigReleasePayoff, oneResilienceLineMax,
+whyChildWillCare, whyParentWillCare, whyNotTherapeuticFable, whyNotGoldenCopy, premiseFamily
+
+companionComicEngineUsed, companionWrongHelp, escalation, childDiscovery must be UNIQUE per candidate
+and specific to THIS companion's comic engine — never generic dragon-wrap or popcorn-collapse arcs.
 
 Return ONLY JSON: { "candidates": StoryPremiseCandidate[] }`.trim();
 
@@ -76,6 +89,7 @@ ${args.spec.category ? `\nCATEGORY: ${args.spec.category}` : ''}
 ${args.spec.pageCount ? `\nPAGE COUNT (locked): ${args.spec.pageCount}` : ''}
 ${args.spec.mustAvoid?.length ? `\nMUST AVOID:\n${args.spec.mustAvoid.map((m) => `- ${m}`).join('\n')}` : ''}
 ${args.spec.mustInclude?.length ? `\nMUST INCLUDE:\n${args.spec.mustInclude.map((m) => `- ${m}`).join('\n')}` : ''}
+${args.spec.premiseCreativeBrief ? `\nCREATIVE BRIEF (seed — do not copy verbatim):\n${args.spec.premiseCreativeBrief}` : ''}
 
 Generate exactly ${args.spec.candidateCount} premise candidates spanning families:
 ${familyInstructions}
@@ -109,8 +123,8 @@ TRANSITION stories need a PHYSICAL transition problem (object/place/box/map), no
     );
   }
 
-  return parsed.candidates.map((c, i) =>
-    normalizePremiseCandidate(
+  return parsed.candidates.map((c, i) => {
+    const normalized = normalizePremiseCandidate(
       {
         ...c,
         id: c.id?.trim() || `${idPrefix}_${String(i + 1).padStart(2, '0')}`,
@@ -118,6 +132,13 @@ TRANSITION stories need a PHYSICAL transition problem (object/place/box/map), no
       },
       args.spec.resilienceTheme,
       args.spec.companionId
-    )
-  );
+    );
+    const missing = missingCreativePremiseFields(normalized);
+    if (missing.length > 0) {
+      console.warn(
+        `[v3-premise-gen] ${normalized.id} missing creative fields (will hard-fail): ${missing.join(', ')}`
+      );
+    }
+    return normalized;
+  });
 }

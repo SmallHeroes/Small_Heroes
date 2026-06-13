@@ -106,6 +106,41 @@ const BUNNY_FAMILIES: PremiseFamilyQuota[] = [
 
 
 
+const FOX_FAMILIES: PremiseFamilyQuota[] = [
+  {
+    family: 'companion_overdoes',
+    count: 3,
+    hint: 'Uri proud scout — wrong shadow name, overconfident approach, official voice slip',
+  },
+  {
+    family: 'body_signal_leaks',
+    count: 3,
+    hint: 'Lantern shrinks/flickers; tail hides — body before brave words',
+  },
+  {
+    family: 'object_creature_absurdity',
+    count: 3,
+    hint: 'Night object misread — laundry, hose, boot, sock; dramatic name then downgrade',
+  },
+  {
+    family: 'hidden_pattern',
+    count: 3,
+    hint:
+      'Child hears/sees what Uri missed — sound source, real shape, safe path. uri_premise_10 MUST be: night sound Uri misreads → ordinary-but-magical truth (drip on bucket, wind chime, moth wing). Plus 2 more hidden_pattern variants with different sounds/objects.',
+  },
+];
+
+/** Guy-approved fox_uri bank — creation guide for premise-gen (never copy bit lines). */
+export function getFoxUriPremiseEngineFromApprovedBank(): string {
+  return `## Uri (fox_uri) approved comic engine — creation guide ONLY (do not copy bit lines)
+- Lantern-as-courage-meter: shrinks when scared, swells on wrong ID, flickers when too fast, steadies when child leads
+- Proud-but-wrong scout: dramatic names for shadows/sounds, then gentle downgrade — NOT wise helper
+- Tail/body betrays fear before words admit it
+- Child corrects Uri — better ears or braver small step than fox bravado
+- Quiet courage: one small light circle, one step — not hero speech
+FORBIDDEN in Uri premises: dragon/Dini over-wrap, popcorn nest, wing roof, "העטיפה מדי", bureaucrat plot as whole story`;
+}
+
 const TURTLE_FAMILIES: PremiseFamilyQuota[] = [
 
   { family: 'home_object_moves', count: 3, hint: 'Shell, map, mark, ritual object carries home physically' },
@@ -131,6 +166,7 @@ export function getPremiseFamilyQuotas(spec: PremiseExperimentSpecV3): PremiseFa
   if (spec.companionId === 'bunny_ometz') return BUNNY_FAMILIES;
 
   if (spec.companionId === 'turtle_beiti') return TURTLE_FAMILIES;
+  if (spec.companionId === 'fox_uri') return FOX_FAMILIES;
 
   return DINI_FAMILIES;
 
@@ -190,6 +226,18 @@ export function getCompanionPremiseEngineBlock(spec: PremiseExperimentSpecV3): s
 
   }
 
+  if (spec.companionId === 'fox_uri') {
+    return `${getFoxUriPremiseEngineFromApprovedBank()}
+- NIGHT_FEAR / inspectable fear — backyard/porch child-scale adventure, not epic quest`;
+  }
+
+  if (spec.companionId === 'panda_anat') {
+    return `## Anat (panda_anat) comic engine — SOCIAL / gentle joining
+- body-before-mind hesitation — sand sinks, knees vote, talks to objects
+- NOT therapist panda — physical shy comedy
+- child leads join/play moment; Anat models imperfect try`;
+  }
+
   if (spec.companionId === 'turtle_beiti') {
 
     return `## Turtle (turtle_beiti) comic engine — HOMESICKNESS / home comes with you
@@ -231,6 +279,7 @@ export function premiseIdPrefix(spec: PremiseExperimentSpecV3): string {
   if (spec.companionId === 'bunny_ometz') return 'bunny_premise';
 
   if (spec.companionId === 'turtle_beiti') return 'turtle_premise';
+  if (spec.companionId === 'fox_uri') return 'uri_premise';
 
   return `${spec.companionId}_premise`;
 

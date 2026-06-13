@@ -9,6 +9,7 @@ import { OpenAIResponsesLLM, parseJsonFromLLM } from '../story-generator/llm';
 import { buildCompanionContextBlock } from '../story-gen/companion-context';
 import { buildHardenedPremiseP10 } from './hardened-premise-p10';
 import { buildHardenedPremiseKokoP04 } from './hardened-premise-koko-p04';
+import { buildHardenedPremiseUriP10 } from './hardened-premise-uri-p10';
 import { hardenedPremiseToSpineFields, toneGuardForSpec } from './premise-to-spine';
 import type { PageBeatV3, PremiseExperimentSpecV3, StoryPremiseCandidate, StorySpineV3 } from './types';
 import { validateAllBeatsV3, validateStorySpineForSpec } from './structure-validator';
@@ -185,5 +186,6 @@ export function loadPremiseFromRun(runDir: string, premiseId: string): StoryPrem
 export function getDefaultHardenedPremise(premiseId: string): StoryPremiseCandidate {
   if (premiseId === 'dini_premise_10') return buildHardenedPremiseP10();
   if (premiseId === 'koko_premise_04') return buildHardenedPremiseKokoP04();
+  if (premiseId === 'uri_premise_10') return buildHardenedPremiseUriP10();
   throw new Error(`No hardened premise for ${premiseId}`);
 }

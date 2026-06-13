@@ -15,6 +15,7 @@ const GOLDEN_FILES: Record<string, string> = {
   panda_anat_adventure: 'panda_anat_adventure.md',
   dragon_dini_fantasy: 'dragon_dini_fantasy.md',
   fox_uri_adventure: 'fox_uri_adventure.md',
+  fox_uri_bedtime: 'fox_uri_bedtime.md',
   dragon_dini_bedtime: 'dragon_dini_bedtime.md',
   octopus_seara_adventure: 'octopus_seara_adventure.md',
   chameleon_koko_adventure: 'chameleon_koko_adventure.md',

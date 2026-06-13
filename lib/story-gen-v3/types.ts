@@ -126,6 +126,8 @@ export interface PremiseExperimentSpecV3 {
   forbidPlotCopy: string[];
   mustAvoid?: string[];
   mustInclude?: string[];
+  /** Optional creative seed for premise-gen (not copied into prose). */
+  premiseCreativeBrief?: string;
 }
 
 export interface PremiseExperimentRunResult {
