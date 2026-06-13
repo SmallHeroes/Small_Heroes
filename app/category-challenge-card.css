@@ -16,19 +16,19 @@
   min-width: 0;
 }
 
-/* Desktop: single row of 6. */
+/* Desktop: single row of 6 — larger presence. */
 @media (min-width: 768px) {
   .mvp-challenge-grid {
     display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
     justify-content: center;
-    gap: clamp(10px, 1.6vw, 14px);
+    gap: 8px;
   }
 
   .mvp-challenge-grid > * {
     flex: 1 1 0;
-    max-width: 200px;
+    max-width: 224px;
   }
 }
 
@@ -149,4 +149,20 @@ button.mvp-challenge-card {
   background: #ede8ff;
   color: #6b5b95;
   z-index: 1;
+}
+
+/* Desktop presence overrides — high specificity so they win over any base rule
+   regardless of stylesheet load order. Mobile untouched. */
+@media (min-width: 768px) {
+  .mvp-challenge-grid .mvp-challenge-card {
+    min-height: 420px;
+  }
+
+  .mvp-challenge-grid .mvp-challenge-card-img-wrap {
+    height: 320px;
+  }
+
+  .mvp-challenge-grid .mvp-challenge-card-label {
+    font-size: 20px;
+  }
 }
