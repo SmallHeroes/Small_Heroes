@@ -1,3 +1,9 @@
+/**
+ * DEV-ONLY — Legacy MVP story generator (Plan → Draft → Validate → Repair).
+ * NOT on the production golden path. Production orders use:
+ * wizard matrix → POST /api/orders → chunked generation (chunk-runner) → story-bank-loader.
+ * Entry point invoked only from app/api/debug/* and scripts/ — never from customer generate flow.
+ */
 export { generateStory, normalizeGenerateInput } from './stages/orchestrate';
 export { runPlan } from './stages/plan';
 export { validatePlan } from './stages/validatePlan';

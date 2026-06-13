@@ -33,3 +33,8 @@ Do NOT run a full book render without explicit approval. Default to a page-only 
 ## Source of truth
 - Live state & open questions: latest handoff doc + `SMALL_HEROES_PROJECT_BIBLE.md`.
 - Workflow protocol: `docs/ai-workflow/`.
+
+## Production golden path (ONLY path for customer orders)
+`wizard MVP matrix` → `POST /api/orders` (`resolveStoryProductTruth` + matrix assert) → `chunked generation` (`lib/generation-pipeline/chunk-runner.ts`) → `story-bank-loader` (`v3-approved` + `v5-fixed-v2`) → image/style gates.
+
+**Not production:** `lib/story-generator/*` (legacy Plan→Draft generator), `lib/story-gen-v2/*`, `lib/story-gen-v3/*` writers-room pipeline, `app/api/debug/*`. These are dev-only / experiment — banners on entrypoints, do not wire into wizard without explicit approval.

@@ -29,6 +29,9 @@ import { generateStoryFromRecipe } from './orchestrate-recipe';
 import { isRecipeModeEnabled } from '../recipes';
 
 /**
+ * DEV-ONLY orchestrator for lib/story-generator — see index.ts golden-path note.
+ * Production story serve path: story-bank-loader + chunk-runner (not this module).
+ *
  * v0.4.5 — Plan fallback injection.
  * When the plan-level companion-gate fails twice, inject a deterministic
  * companion action so the Author has explicit guidance on where to place
