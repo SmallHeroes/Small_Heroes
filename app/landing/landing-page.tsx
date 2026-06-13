@@ -252,31 +252,6 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
             </div>
           </section>
 
-          <section className="section sample-section" id="sample">
-            <div className="wrap sample-wrap">
-              <div className="sample-text">
-                <div className="sample-kicker">{L.sample.kicker}</div>
-                <h2 className="sample-h2">{L.sample.h2}</h2>
-                <p className="sample-p">{L.sample.p1}</p>
-                <p className="sample-caption">{L.sample.caption}</p>
-                <a href={startHref} className="btn-primary" data-event="landing_start_click">
-                  {L.sample.cta}
-                </a>
-              </div>
-
-              <div className="sample-img-wrap sample-preview-wrap">
-                {/* TODO: temporary placeholder — replace with a real generated book sample. */}
-                <figure className="sample-book-illustration">
-                  <img
-                    src="/Images/Book.webp"
-                    alt="המחשה — דוגמה לספר מותאם אישית"
-                    loading="lazy"
-                  />
-                </figure>
-              </div>
-            </div>
-          </section>
-
           <section className="section why-section">
             <div className="wrap">
               <h2 className="section-h2">{L.why.h2}</h2>
@@ -306,6 +281,31 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                     </div>
                   </article>
                 ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="section sample-section" id="sample">
+            <div className="wrap sample-wrap">
+              <div className="sample-text">
+                <div className="sample-kicker">{L.sample.kicker}</div>
+                <h2 className="sample-h2">{L.sample.h2}</h2>
+                <p className="sample-p">{L.sample.p1}</p>
+                <p className="sample-caption">{L.sample.caption}</p>
+                <a href={startHref} className="btn-primary" data-event="landing_start_click">
+                  {L.sample.cta}
+                </a>
+              </div>
+
+              <div className="sample-img-wrap sample-preview-wrap">
+                {/* TODO: temporary placeholder — replace with a real generated book sample. */}
+                <figure className="sample-book-illustration">
+                  <img
+                    src="/Images/Book.webp"
+                    alt="המחשה — דוגמה לספר מותאם אישית"
+                    loading="lazy"
+                  />
+                </figure>
               </div>
             </div>
           </section>
