@@ -10,6 +10,7 @@ import { buildMvpMatrixResponse } from '@/lib/web/mvp-matrix-response';
  */
 import './landing/main.css';
 import './landing/landing.css';
+import './category-challenge-card.css';
 
 export const metadata: Metadata = {
   title: 'גיבורים קטנים — ספרי ילדים מותאמים אישית לחיזוק רגשי',
@@ -38,5 +39,5 @@ export const metadata: Metadata = {
 export default function HomePage() {
   const matrix = buildMvpMatrixResponse();
   const content = getLandingContent(matrix.categories);
-  return <LandingPage content={content} startHref={ROUTES.start} />;
+  return <LandingPage content={content} startHref={ROUTES.start} matrixCategories={matrix.categories} />;
 }

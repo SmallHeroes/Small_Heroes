@@ -53,7 +53,7 @@ export const MVP_WIZARD_CARD_COPY: Record<
 > = {
   NIGHT_FEAR: {
     topicId: 'night',
-    label: 'פחד בלילה',
+    label: 'פחדים בלילה',
     emoji: '🌙',
     companionLine: 'עם אוּרי השועל והפנס הקטן',
     oneLiner: 'סיפור שעוזר להכיר את הלילה במקום לפחד ממנו',
@@ -88,7 +88,7 @@ export const MVP_WIZARD_CARD_COPY: Record<
   },
   ANGER_FRUSTRATION: {
     topicId: 'anger',
-    label: 'כעס ותסכול',
+    label: 'כעס גדול',
     emoji: '⚡',
     companionLine: 'עם האריה לֵיוֹ',
     oneLiner: 'הקול שלך קיים — לפעמים הלחש חזק מהצעקה',

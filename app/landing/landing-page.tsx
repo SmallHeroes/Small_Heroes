@@ -5,6 +5,8 @@ import Script from 'next/script';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { COMMON } from '@/content';
 import type { LandingContent } from '@/content/landing';
+import { CategoryChallengeCard } from '@/app/category-challenge-card';
+import type { MvpMatrixCategoryPayload } from '@/lib/web/mvp-matrix-response';
 import { ROUTES } from '@/lib/routes';
 
 type GalleryStyle = 'style01' | 'style02';
@@ -37,9 +39,10 @@ const FOX_URI_PREVIEW = [
 type LandingPageProps = {
   content: LandingContent;
   startHref: string;
+  matrixCategories: MvpMatrixCategoryPayload[];
 };
 
-export default function LandingPage({ content: L, startHref }: LandingPageProps) {
+export default function LandingPage({ content: L, startHref, matrixCategories }: LandingPageProps) {
   const [galleryStyle, setGalleryStyle] = useState<GalleryStyle>('style02');
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
   const [navCtaHref, setNavCtaHref] = useState<string>(startHref);
@@ -165,12 +168,13 @@ export default function LandingPage({ content: L, startHref }: LandingPageProps)
             <div className="wrap">
               <h2 className="section-h2">{L.helps.h2}</h2>
               <p className="section-sub">{L.helps.sub}</p>
-              <div className="why-grid helps-grid">
-                {L.helps.cards.map((card) => (
-                  <article key={card.topicId} className="why-card helps-card">
-                    <h3>{card.title}</h3>
-                    <p>{card.body}</p>
-                  </article>
+              <div className="mvp-challenge-grid mvp-challenge-grid--landing">
+                {matrixCategories.map((slot) => (
+                  <CategoryChallengeCard
+                    key={slot.category}
+                    slot={slot}
+                    data-event="landing_challenge_view"
+                  />
                 ))}
               </div>
             </div>

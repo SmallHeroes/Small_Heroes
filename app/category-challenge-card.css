@@ -1,0 +1,152 @@
+/**
+ * Unified MVP category challenge cards — landing, /start, legacy wizard.
+ * Keep in sync with public/CSS/wizard.css (.mvp-challenge-* block).
+ */
+
+/* Mobile-first: 2-column grid (2 per row × 3 rows = 6). No carousel. */
+.mvp-challenge-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  align-items: stretch;
+  gap: 12px;
+  padding: 4px 0 10px;
+}
+
+.mvp-challenge-grid > * {
+  min-width: 0;
+}
+
+/* Desktop: single row of 6. */
+@media (min-width: 768px) {
+  .mvp-challenge-grid {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: center;
+    gap: clamp(10px, 1.6vw, 14px);
+  }
+
+  .mvp-challenge-grid > * {
+    flex: 1 1 0;
+    max-width: 200px;
+  }
+}
+
+.mvp-challenge-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-height: 360px;
+  padding: 0;
+  border: 1px solid rgba(220, 210, 198, 0.28);
+  border-radius: 18px;
+  background: #fffcf8;
+  box-shadow: 0 4px 18px rgba(92, 75, 138, 0.06);
+  text-align: right;
+  font: inherit;
+  color: inherit;
+  cursor: default;
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+button.mvp-challenge-card {
+  cursor: pointer;
+}
+
+.mvp-challenge-card:hover:not(:disabled) {
+  border-color: rgba(196, 176, 240, 0.55);
+  box-shadow: 0 8px 24px rgba(92, 75, 138, 0.1);
+  transform: translateY(-2px);
+}
+
+.mvp-challenge-card.selected {
+  border-color: rgba(136, 108, 255, 0.65);
+  box-shadow: 0 0 0 3px rgba(136, 108, 255, 0.18);
+}
+
+.mvp-challenge-card--parked {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.mvp-challenge-card-img-wrap {
+  flex: 0 0 auto;
+  height: clamp(190px, 17vw, 230px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0;
+  background: #fdf8ee;
+  border-radius: 17px 17px 0 0;
+  border-bottom: 1px solid rgba(210, 198, 185, 0.35);
+}
+
+.mvp-challenge-card-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  transform: scale(1.06);
+  transform-origin: center bottom;
+}
+
+.mvp-challenge-card-img--placeholder {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border-radius: 0;
+  background: #fdf8ee;
+}
+
+.mvp-challenge-card-text {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-height: 0;
+  background: #fffcf8;
+}
+
+.mvp-challenge-card-label {
+  font-weight: 700;
+  font-size: clamp(15px, 1.6vw, 17px);
+  line-height: 1.25;
+  color: #2b2440;
+  margin: 0;
+}
+
+.mvp-challenge-card-companion {
+  color: #886cff;
+  font-weight: 600;
+  font-size: clamp(12px, 1.3vw, 13.5px);
+  margin: 0;
+}
+
+.mvp-challenge-card-oneliner {
+  color: #9a96a8;
+  font-size: clamp(11.5px, 1.2vw, 13px);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.mvp-challenge-card-badge {
+  position: absolute;
+  top: 10px;
+  inset-inline-start: 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #ede8ff;
+  color: #6b5b95;
+  z-index: 1;
+}

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { CategoryChallengeCard } from '@/app/category-challenge-card';
 import type { MvpMatrixCategoryPayload } from '@/lib/web/mvp-matrix-response';
 import { DIRECTION_LABELS, DIRECTION_ORDER } from '@/lib/web/direction-display';
 import type { StoryDirection } from '@/backend/config/mvp-story-matrix';
@@ -41,29 +42,16 @@ export default function StartClient({ headerTitle, headerSub, categories }: Star
               <h1 className={styles.title}>{headerTitle}</h1>
               <p className={styles.sub}>{headerSub}</p>
             </div>
-            <div className={styles.grid}>
+            <div className="mvp-challenge-grid mvp-challenge-grid--start">
               {categories.map((slot) => (
-                <button
+                <CategoryChallengeCard
                   key={slot.category}
-                  type="button"
-                  className={styles.card}
-                  data-event="start_challenge_select"
-                  data-category={slot.category}
+                  slot={slot}
+                  as="button"
+                  selected={selectedCategory === slot.category}
                   onClick={() => setSelectedCategory(slot.category)}
-                >
-                  {slot.companion.image ? (
-                    <img
-                      className={styles.cardImg}
-                      src={slot.companion.image}
-                      alt=""
-                      width={96}
-                      height={96}
-                    />
-                  ) : null}
-                  <span className={styles.cardLabel}>{slot.label}</span>
-                  <span className={styles.cardCompanion}>עם {slot.companion.name}</span>
-                  <span className={styles.cardOneLiner}>{slot.oneLiner}</span>
-                </button>
+                  data-event="start_challenge_select"
+                />
               ))}
             </div>
           </>

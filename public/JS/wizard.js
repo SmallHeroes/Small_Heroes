@@ -1615,16 +1615,18 @@ function addMvpChallengeCard(wrap, slot) {
   btn.setAttribute('data-category', slot.category);
 
   const companion = slot.companion || {};
+  const companionLine = companion.name ? `עם ${companion.name}` : '';
   const imgHtml = companion.image
-    ? `<img class="mvp-challenge-card-img" src="${companion.image}" alt="" loading="lazy" />`
-    : '<div class="mvp-challenge-card-img mvp-challenge-card-img--placeholder"></div>';
+    ? `<div class="mvp-challenge-card-img-wrap"><img class="mvp-challenge-card-img" src="${companion.image}" alt="" loading="lazy" /></div>`
+    : '<div class="mvp-challenge-card-img-wrap"><span class="mvp-challenge-card-img mvp-challenge-card-img--placeholder" aria-hidden="true"></span></div>';
 
   btn.innerHTML = `
-    <span class="mvp-challenge-card-emoji" aria-hidden="true">${slot.emoji || '✨'}</span>
     ${imgHtml}
-    <span class="mvp-challenge-card-label">${slot.label || ''}</span>
-    <span class="mvp-challenge-card-companion">${slot.companionLine || companion.name || ''}</span>
-    <span class="mvp-challenge-card-oneliner">${slot.oneLiner || ''}</span>
+    <div class="mvp-challenge-card-text">
+      <span class="mvp-challenge-card-label">${slot.label || ''}</span>
+      ${companionLine ? `<span class="mvp-challenge-card-companion">${companionLine}</span>` : ''}
+      <span class="mvp-challenge-card-oneliner">${slot.oneLiner || ''}</span>
+    </div>
     ${slot.publicVisible === false ? '<span class="mvp-challenge-card-badge">dev</span>' : ''}
   `;
 
@@ -1674,7 +1676,7 @@ function renderTopics() {
   wrap.innerHTML = '';
 
   if (state.mvpMatrix?.categories?.length) {
-    wrap.classList.add('mvp-challenge-grid');
+    wrap.classList.add('mvp-challenge-grid', 'mvp-challenge-grid--wizard');
     const header = state.mvpMatrix.header;
     if (header?.title) setText('s2Title', header.title);
     if (header?.sub) setText('s2Sub', header.sub);
@@ -1684,7 +1686,7 @@ function renderTopics() {
       state.mvpMatrix.parkedCategories.forEach((slot) => addMvpChallengeCard(wrap, slot));
     }
   } else {
-    wrap.classList.remove('mvp-challenge-grid');
+    wrap.classList.remove('mvp-challenge-grid', 'mvp-challenge-grid--wizard');
     TOPICS.forEach((topic) => {
       addTopicChip(wrap, topic, goAfterChallengeSelect);
     });

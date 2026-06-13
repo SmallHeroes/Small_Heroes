@@ -2,7 +2,6 @@
  * Server-side mirror of CONTENT.he.landing (public/JS/content.js).
  * Keep in sync manually with the client bundle.
  */
-import { buildHomepageHelpCards } from '@/lib/canonical-topics';
 import type { MvpMatrixCategoryPayload } from '@/lib/web/mvp-matrix-response';
 import type { StoryDirection } from '@/backend/config/mvp-story-matrix';
 
@@ -223,10 +222,6 @@ function pricingCardsFromMatrix(categories: MvpMatrixCategoryPayload[]) {
 export function getLandingContent(matrixCategories: MvpMatrixCategoryPayload[]) {
   return {
     ...LANDING_COPY,
-    helps: {
-      ...LANDING_COPY.helps,
-      cards: buildHomepageHelpCards(),
-    },
     pricing: {
       ...LANDING_COPY.pricing,
       cards: pricingCardsFromMatrix(matrixCategories),
