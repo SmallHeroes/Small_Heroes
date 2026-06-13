@@ -45,7 +45,7 @@ function inferCompanionInjection(companionId: string): string {
     case 'bat_lily':
       return 'לִילִי תלויה על קצה המדף. ששש קטן.';
     case 'chameleon_koko':
-      return 'קִים על הקיר ליד נועה. הצעיף הפסים שלה ברור.';
+      return 'קִים על הקיר ליד נועה. התיק הקטן בכתף נשאר.';
     default:
       return 'המלווה נכנס לסיפור.';
   }
