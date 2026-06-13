@@ -49,15 +49,11 @@ const nextConfig = {
   async rewrites() {
     return {
       /**
-       * beforeFiles: run before the App Router matches "/". Without this,
-       * app/page.tsx handles "/" and returns null (blank white screen) while
-       * the "/" -> legacy HTML rewrite never takes effect.
-       *
-       * afterFiles: canonical app paths -> public/HTML/ static shells.
+       * beforeFiles: legacy HTML shells only where App Router has no page yet.
+       * Rollback: restore `{ source: '/', destination: '/HTML/index.html' }` here
+       * to revert to the legacy landing if the React page breaks.
        */
-      beforeFiles: [
-        { source: '/', destination: '/HTML/index.html' },
-      ],
+      beforeFiles: [],
       afterFiles: [
         { source: '/gate', destination: '/HTML/gate.html' },
         { source: '/wizard', destination: '/HTML/wizard.html' },
