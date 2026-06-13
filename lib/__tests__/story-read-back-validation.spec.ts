@@ -69,4 +69,31 @@ describe('story.md read-back validation (P0)', () => {
     expect(text.includes('אחרי הסרט')).toBe(true);
     expect(text.includes('קרצה')).toBe(true);
   });
+
+  it('completedEnding is false when story has bare pipe gender chip in prose', () => {
+    mkdirSync(RUN_DIR, { recursive: true });
+    const storyMd = path.join(RUN_DIR, 'bare-pipe-chip.md');
+    writeFileSync(
+      storyMd,
+      [
+        '---',
+        'title: "fixture"',
+        '---',
+        '--- Page 1 ---',
+        'imageDirection: child at window',
+        'הילד התכופף|התכופפה ליד החלון.',
+      ].join('\n'),
+      'utf8'
+    );
+
+    const result = validateStoryMdReadBack({
+      storyMarkdownPath: storyMd,
+      expectedPageCount: 1,
+      endingProfile: 'confidence_generic',
+      requiredEndingMarkers: [],
+    });
+
+    expect(result.completedEnding).toBe(false);
+    expect(result.failures.some((f) => f.includes('bare pipe'))).toBe(true);
+  });
 });

@@ -301,6 +301,8 @@ export function validateStoryMdReadBack(args: {
       f.includes('truncated') ||
       f.includes('raw artifact token') ||
       f.includes('slash chips') ||
+      f.includes('bare pipe') ||
+      f.includes('exposed child gender') ||
       f.includes('suffix chips') ||
       f.includes('p12 ending does not match') ||
       (isDiniPopcorn && (f.includes('אחרי הסרט') || f.includes('קרצה')))
@@ -310,6 +312,8 @@ export function validateStoryMdReadBack(args: {
     !hasTruncatedP12Ending(text) &&
     artifactScan.pass &&
     slashScan.slashChipStylePass &&
+    barePipeScan.barePipeChipPass &&
+    exposedGenderScan.exposedChildGenderPass &&
     suffixScan.suffixChipPass &&
     (markers.length === 0 ||
       markers.every((m) => text.includes(m) || stripNiqqud(text).includes(stripNiqqud(m))));
