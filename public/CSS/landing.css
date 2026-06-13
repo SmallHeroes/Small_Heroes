@@ -186,7 +186,7 @@
   min-height: 32px;
   padding: 8px 16px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #fff4d6 0%, var(--yellow) 100%);
+  background: var(--yellow);
   color: #3d2f10;
   font-family: var(--fb);
   font-size: 13px;
@@ -1086,8 +1086,8 @@
 /* Trust — warm reassurance strip (not why-cards) */
 .trust-band {
   padding: 56px 0 64px;
-  background: linear-gradient(180deg, #fff8f0 0%, #fdeee0 48%, #f9e8dc 100%);
-  border-block: 1px solid rgba(210, 170, 140, 0.25);
+  background: var(--yellow);
+  border-block: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .trust-band__inner {
@@ -1115,7 +1115,7 @@
 }
 
 .trust-point {
-  background: rgba(255, 255, 255, 0.72);
+  background: #fff;
   border-radius: 20px;
   padding: 24px 18px;
   text-align: center;
@@ -1157,7 +1157,7 @@
 }
 
 .footer--warm {
-  background: linear-gradient(165deg, #3d2a5c 0%, #5b3d8a 45%, #7c5cfc 100%);
+  background: #2b2b31;
 }
 
 .footer-inner {
