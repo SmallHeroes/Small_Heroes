@@ -272,7 +272,7 @@ const COMPANION_IDENTITY_REMINDER: Record<MvpCompanionId, string> = {
   bat_lily:
     "לִילִי's identity is in her wings, her בלילה רואים אחרת, her tiny lantern. The plot moves through gentle wrapping and a small light inside the dark.",
   chameleon_koko:
-    "קִים's identity is in her striped scarf, her פששש, her הצבע מהמקום הקודם. The plot moves through carrying a color from one place to the next.",
+    "קִים's identity is in her tiny mustard shoulder satchel (her travel bag), her פששש, her shy warm-green self — ONE harmonious green, NOT patchwork, NOT scarf. The plot moves through carrying a piece of home in the satchel.",
 };
 
 export function buildDraftUserPrompt(plan: Plan, input: GenerateInput): string {

@@ -331,10 +331,10 @@ const CONTEXTUAL_INJECT_LINES: Record<string, Record<InjectContext, string>> = {
     'support-quiet': 'לִילִי נחה לידה, כנף עוטפת אותה.',
   },
   chameleon_koko: {
-    'entrance': 'קִים על הקיר ליד נועה. הצעיף הפסים שלה לא משתנה.',
+    'entrance': 'קִים על הקיר ליד נועה. התיק הקטן בכתף נשאר.',
     'fear-object': 'קִים עצרה ליד החפץ. הצבע מהמקום הקודם עוד פה.',
     'after-mirror': 'קִים פתחה עין אחת אחורה ואחת קדימה.',
-    'support-quiet': 'קִים על הכרית ליד נועה. הצעיף נשאר.',
+    'support-quiet': 'קִים על הכרית ליד נועה. התיק נשאר.',
   },
 };
 

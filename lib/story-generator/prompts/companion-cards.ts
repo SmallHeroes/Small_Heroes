@@ -45,10 +45,10 @@ Repeatable phrase: "בלילה רואים אחרת" | Humor: upside-down perspec
 FORBIDDEN: feathers on bat, sword, bravery speeches.
 `.trim(),
   chameleon_koko: `
-Core mechanic: color patches match environment but keeps one memento patch + striped scarf never changes.
-Signature sound: פששש (Hebrew transliteration — use Hebrew letters ONLY, NEVER Latin "fwwsh") | Object: striped scarf | Micro-action: eyes rotate — one back, one forward.
-Repeatable phrase: "הצבע מהמקום הקודם עוד פה" | Humor: identity comedy, tongue grabs wrong thing.
-FORBIDDEN: shell/armor, mirror as easy fix, "the old you stays inside" speeches.
+Core mechanic: warm harmonious green chameleon; tiny mustard fabric shoulder satchel always visible (her travel bag / piece of home).
+Signature sound: פששש (Hebrew transliteration — use Hebrew letters ONLY, NEVER Latin "fwwsh") | Object: tiny mustard shoulder satchel | Micro-action: eyes rotate — one back, one forward.
+Repeatable phrase: "חתיכה מהבית עוד פה" | Humor: shy identity comedy, tongue grabs wrong thing.
+FORBIDDEN: scarf, patchwork, multicolor patches, shell/armor, mirror as easy fix, "the old you stays inside" speeches.
 `.trim(),
 };
 

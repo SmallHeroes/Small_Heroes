@@ -77,7 +77,7 @@ Your six dimensions:
 3. companionMechanicVisible — Did the companion USE its specific mechanic?
    Bolly: closes-to-ball, טוּמְפּ, opens plate-by-plate, "בפנים היה חם".
    Lily: wings wrap, ששש, lantern glows.
-   Koko/Kim: striped scarf stays, פששש, "הצבע מהמקום הקודם".
+   Koko/Kim: tiny mustard shoulder satchel stays visible, פששש, shy warm-green self — never scarf or patchwork.
    If the companion is just "cute and present" → fail this dimension.
 
 4. companionIrreplaceable — The proof test (NEAR-BINARY DIMENSION).
