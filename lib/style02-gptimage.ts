@@ -172,10 +172,13 @@ function resolveZoneEnvironmentKind(
       return 'forest';
     }
     if (/clinic|medical office|doctor/.test(hay)) return 'clinic';
-    if (/balcony|porch|outdoor corner|under-window|drip area/.test(hay)) return 'home-outdoor';
-    if (/bedroom|indoor|same child bedroom|inside the same/.test(hay)) return 'interior';
+    if (/balcony|porch|outdoor corner|under-window|drip area|orange moss hills|dragon world meadow/.test(hay)) {
+      return 'home-outdoor';
+    }
+    if (/bedroom|indoor|same child bedroom|inside the same|toy chest|real bedroom/.test(hay)) {
+      return 'interior';
+    }
   }
-  if (bible?.continuityMode === 'fantasy_world') return 'forest';
   return null;
 }
 

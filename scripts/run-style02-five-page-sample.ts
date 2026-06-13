@@ -23,6 +23,7 @@ process.env.STORY_BANK_SKIP_WORKER_CHAIN = 'true';
 process.env.GENERATION_DISABLE_SELF_CHAIN = 'true';
 /** Dev worker path only — NOT a production sellability flip. */
 process.env.STYLE02_SELLABLE = 'true';
+delete process.env.PHASE2_STEP5_PROFILE;
 
 import './shims/register-server-only.cjs';
 
@@ -89,6 +90,9 @@ async function main() {
   console.log(`\n=== STYLE 02 five-page sample (${label}) ===\n`);
   console.log(`Story: ${STORY_FILE} | pages: ${SELECTED_PAGES.join(', ')}`);
   console.log(`Quality: ${process.env.GPT_IMAGE_QUALITY} | PHASE2_STYLE02_BOOK_PIPELINE=true\n`);
+  console.warn(
+    '[style02-sample] STYLE02_SELLABLE=true for this dev run only — stop for Guy eyeball before any production flip.\n'
+  );
 
   if (hasFlag('--selection-only')) {
     console.log('[stop] --selection-only');
@@ -134,6 +138,30 @@ async function main() {
   process.env.CHUNKED_IMAGE_PAGE_FILTER = SELECTED_PAGES.join(',');
   process.env.PAGE_REF_MANIFEST_DIR = manifestDir;
 
+  async function ensureJobLeaseable() {
+    const j = await prisma.generationJob.findUnique({ where: { orderId } });
+    if (!j) return;
+    const leaseStale = !j.lockedBy || !j.leaseExpiresAt || j.leaseExpiresAt < new Date();
+    const needsReset = j.status === 'failed' || j.currentStage === 'failed';
+    if (!needsReset && !leaseStale) return;
+    await prisma.generationJob.updateMany({
+      where: { orderId },
+      data: {
+        lockedBy: null,
+        leaseExpiresAt: new Date(0),
+        ...(needsReset
+          ? {
+              status: 'pending',
+              currentStage: 'pending',
+              lastError: null,
+              failedAt: null,
+              retryable: true,
+            }
+          : {}),
+      },
+    });
+  }
+
   await prisma.generationJob.update({
     where: { orderId },
     data: {
@@ -149,12 +177,13 @@ async function main() {
   });
 
   for (let i = 0; i < 120; i++) {
+    await ensureJobLeaseable();
     await runGenerationWorkerInvocation(orderId);
     const job = await prisma.generationJob.findUnique({ where: { orderId } });
     const cache = parsePipelineCache(job?.pipelineCache);
     const approved = getApprovedChildCanonicalAnchor(cache);
     if (approved?.url) {
-      console.log(`[stage0] anchor ok score=${approved.resemblanceScore?.toFixed(3)}`);
+      console.log(`[stage0] anchor ok score=${approved.resemblanceScore?.toFixed(3)} url=${approved.url.slice(0, 80)}…`);
       break;
     }
     if (job?.status === 'failed') {
@@ -163,15 +192,41 @@ async function main() {
     await new Promise((r) => setTimeout(r, 2500));
   }
 
-  const job = await prisma.generationJob.findUnique({ where: { orderId } });
-  if (job?.status !== 'done' && job?.currentStage !== 'done') {
-    for (let i = 0; i < 80; i++) {
-      await runGenerationWorkerInvocation(orderId);
-      const j = await prisma.generationJob.findUnique({ where: { orderId } });
-      if (j?.status === 'done' || j?.imageDone) break;
-      if (j?.status === 'failed') throw new Error(j.lastError ?? 'failed');
-      await new Promise((r) => setTimeout(r, 3000));
+  const { clearOrderPageImages } = await import('@/lib/generation-chunked/clear-page-images-for-regen');
+  const cleared = await clearOrderPageImages(prisma, orderId, [...SELECTED_PAGES]);
+  console.log(`[pages] cleared ${cleared} assets; generating ${SELECTED_PAGES.join(',')}`);
+
+  await prisma.generationJob.update({
+    where: { orderId },
+    data: {
+      status: 'pending',
+      currentStage: 'page_images',
+      lastError: null,
+      failedAt: null,
+      retryable: true,
+      imagesDone: false,
+    },
+  });
+
+  const done = new Set<number>();
+  for (let attempt = 1; attempt <= 120; attempt++) {
+    await ensureJobLeaseable();
+    await runGenerationWorkerInvocation(orderId);
+    const rows = await prisma.bookPage.findMany({
+      where: { book: { orderId }, pageNumber: { in: [...SELECTED_PAGES] } },
+      select: { pageNumber: true, imageAsset: { select: { url: true } } },
+    });
+    for (const row of rows) {
+      if (!row.imageAsset?.url || done.has(row.pageNumber)) continue;
+      await download(row.imageAsset.url, path.join(pagesDir, `page-${row.pageNumber}.png`));
+      done.add(row.pageNumber);
+      console.log(`[pages] saved page-${row.pageNumber}.png`);
     }
+    if (SELECTED_PAGES.every((p) => done.has(p))) break;
+    await new Promise((r) => setTimeout(r, 2500));
+  }
+  if (!SELECTED_PAGES.every((p) => done.has(p))) {
+    throw new Error(`Incomplete pages: missing ${SELECTED_PAGES.filter((p) => !done.has(p)).join(',')}`);
   }
 
   const { loadStoryFromBank } = await import('@/backend/providers/story-bank-loader');
@@ -197,14 +252,16 @@ async function main() {
     const manifest = fs.existsSync(manifestPath)
       ? (JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as Record<string, unknown>)
       : null;
-    const promptPath = path.join(promptsDir, `page-${pageNumber}-prompt.txt`);
-    const prompt = fs.existsSync(promptPath) ? fs.readFileSync(promptPath, 'utf8') : '';
-
     const bookPage = await prisma.bookPage.findFirst({
       where: { book: { orderId }, pageNumber },
-      select: { imageAsset: { select: { url: true } } },
+      select: { imageAsset: { select: { url: true } }, imagePrompt: true },
     });
     const imageUrl = bookPage?.imageAsset?.url;
+    const promptFromDb = bookPage?.imagePrompt ?? '';
+    const promptPath = path.join(promptsDir, `page-${pageNumber}-prompt.txt`);
+    const prompt = fs.existsSync(promptPath)
+      ? fs.readFileSync(promptPath, 'utf8')
+      : promptFromDb;
     const localPath = path.join(pagesDir, `page-${pageNumber}.png`);
     if (imageUrl) {
       await download(imageUrl, localPath);

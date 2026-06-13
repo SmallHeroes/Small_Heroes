@@ -153,3 +153,38 @@ describe('resolveStyle02BookWardrobeLock — single source', () => {
     expect(page).toBe(anchor);
   });
 });
+
+describe('classifyStyle02SceneClass — fantasy_world bedroom', () => {
+  it('day bedroom in fantasy_world book → daytime-interior, not forest-magical', () => {
+    const result = classifyStyle02SceneClassDetailed({
+      effectivePageTimeOfDay: 'day',
+      pageLocationPlan: {
+        page: 1,
+        zoneId: 'story_default',
+        visibleAnchors: ['same child bedroom'],
+        allowedVariation: 'camera may move',
+        forbiddenDrift: [],
+      },
+      locationBible: {
+        continuityMode: 'fantasy_world',
+        primarySetting: 'child bedroom and dragon world',
+        allowedZones: [
+          {
+            id: 'story_default',
+            description: 'Same child bedroom with toy chest and yellow blanket',
+            stableGeometry: ['bed against wall'],
+            visualAnchors: ['same child bedroom'],
+            allowedCameraAccess: ['medium wide'],
+          },
+        ],
+        fixedAnchors: [],
+        forbiddenDrift: [],
+        transitionRules: [],
+        source: 'derived',
+      },
+      imagePrompt: 'child sits alone on the bed with yellow blanket nearby',
+    });
+    expect(result.source).toBe('locks');
+    expect(result.sceneClass).toBe('daytime-interior');
+  });
+});
