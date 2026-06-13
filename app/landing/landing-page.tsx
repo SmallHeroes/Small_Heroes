@@ -27,14 +27,22 @@ const GALLERY_STYLE02 = [
   '/Images/gallery/gallery-r-6.jpg',
 ];
 
+const FOX_URI_PREVIEW = [
+  { src: '/marketing/fox-uri-preview/cover.png', alt: 'כריכת ספר לדוגמה — אוּרי' },
+  { src: '/marketing/fox-uri-preview/p5.png', alt: 'עמוד מהספר — רגע בדרך' },
+  { src: '/marketing/fox-uri-preview/p10.png', alt: 'עמוד מהספר — משחק' },
+  { src: '/marketing/fox-uri-preview/p12.png', alt: 'עמוד מהספר — סיום' },
+] as const;
+
 type LandingPageProps = {
   content: LandingContent;
+  startHref: string;
 };
 
-export default function LandingPage({ content: L }: LandingPageProps) {
+export default function LandingPage({ content: L, startHref }: LandingPageProps) {
   const [galleryStyle, setGalleryStyle] = useState<GalleryStyle>('style02');
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
-  const [navCtaHref, setNavCtaHref] = useState<string>(ROUTES.wizard);
+  const [navCtaHref, setNavCtaHref] = useState<string>(startHref);
   const [navCtaText, setNavCtaText] = useState(COMMON.navCta);
 
   const btnStyle01Ref = useRef<HTMLButtonElement>(null);
@@ -79,10 +87,6 @@ export default function LandingPage({ content: L }: LandingPageProps) {
     };
   }, []);
 
-  function wizardDirectionHref(direction: string) {
-    return `${ROUTES.wizard}?direction=${direction}`;
-  }
-
   return (
     <>
       <Script src="/JS/gate.js" strategy="beforeInteractive" />
@@ -107,7 +111,7 @@ export default function LandingPage({ content: L }: LandingPageProps) {
               <a href={ROUTES.myBooks}>הספרים שלי</a>
             </nav>
 
-            <a href={navCtaHref} className="nav-cta">
+            <a href={navCtaHref} className="nav-cta" data-event="landing_start_click">
               {navCtaText}
             </a>
           </div>
@@ -128,7 +132,11 @@ export default function LandingPage({ content: L }: LandingPageProps) {
                 </ul>
 
                 <div className="hero-btns">
-                  <a href={ROUTES.wizard} className="btn-primary">
+                  <a
+                    href={startHref}
+                    className="btn-primary"
+                    data-event="landing_start_click"
+                  >
                     {L.hero.ctaPrimary}
                   </a>
                   <a href="#sample" className="btn-light">
@@ -237,7 +245,7 @@ export default function LandingPage({ content: L }: LandingPageProps) {
             </div>
 
             <div className="wrap gallery-cta-wrap">
-              <a href={ROUTES.wizard} className="btn-primary">
+              <a href={startHref} className="btn-primary" data-event="landing_start_click">
                 {L.gallery.cta}
               </a>
             </div>
@@ -251,19 +259,23 @@ export default function LandingPage({ content: L }: LandingPageProps) {
                 <p className="sample-p">{L.sample.p1}</p>
                 <p className="sample-p">{L.sample.p2}</p>
                 <p className="sample-quote">{L.sample.quote}</p>
-                <a href={ROUTES.wizard} className="btn-primary">
+                <a href={startHref} className="btn-primary" data-event="landing_start_click">
                   {L.sample.cta}
                 </a>
               </div>
 
-              <div className="sample-img-wrap">
-                <img
-                  src="/Images/gallery/gallery-6.jpg"
-                  alt="דוגמה מתוך הספר"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
+              <div className="sample-img-wrap sample-preview-wrap">
+                <p className="sample-kicker">הצצה מספר לדוגמה</p>
+                <p className="sample-p sample-preview-note">
+                  כך נראה ספר אחד שיצרנו — כל ספר נבנה מחדש לפי הילד/ה שלכם.
+                </p>
+                <div className="gallery-track sample-preview-track">
+                  {FOX_URI_PREVIEW.map((frame) => (
+                    <div key={frame.src} className="gallery-card">
+                      <img src={frame.src} alt={frame.alt} loading="lazy" />
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </section>
@@ -353,10 +365,11 @@ export default function LandingPage({ content: L }: LandingPageProps) {
                       ₪<span>{card.price}</span>
                     </div>
                     <a
-                      href={wizardDirectionHref(card.direction)}
+                      href={startHref}
                       className={
                         (index === 1 ? 'btn-primary' : 'btn-outline') + ' price-btn'
                       }
+                      data-event="landing_start_click"
                     >
                       {card.cta}
                     </a>
@@ -408,7 +421,7 @@ export default function LandingPage({ content: L }: LandingPageProps) {
               </h2>
               <p className="footer-sub">{L.footer.sub}</p>
 
-              <a href={ROUTES.wizard} className="btn-primary footer-cta">
+              <a href={startHref} className="btn-primary footer-cta" data-event="landing_start_click">
                 {L.footer.cta}
               </a>
             </div>

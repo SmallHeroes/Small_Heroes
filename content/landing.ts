@@ -3,6 +3,8 @@
  * Keep in sync manually with the client bundle.
  */
 import { buildHomepageHelpCards } from '@/lib/canonical-topics';
+import type { MvpMatrixCategoryPayload } from '@/lib/web/mvp-matrix-response';
+import type { StoryDirection } from '@/backend/config/mvp-story-matrix';
 
 export const LANDING_COPY = {
   hero: {
@@ -93,7 +95,7 @@ export const LANDING_COPY = {
   pricing: {
     h2: 'בחרו את הסיפור שמתאים לכם',
     sub: 'כל ספר נוצר אישית — הכיוון קובע את האורך והאווירה.',
-    note: 'כל הספרים כוללים דמות מותאמת, איורים מקוריים וסיפור שנבנה לפי מה שסיפרתם.',
+    note: 'המחיר נקבע לפי סוג החוויה ואורך הספר.',
     cards: [
       {
         kicker: 'סיפור לפני שינה',
@@ -202,12 +204,32 @@ export const LANDING_COPY = {
 
 export type LandingContent = ReturnType<typeof getLandingContent>;
 
-export function getLandingContent() {
+function pricingCardsFromMatrix(categories: MvpMatrixCategoryPayload[]) {
+  const ref = categories[0]?.directions;
+  if (!ref) return [...LANDING_COPY.pricing.cards];
+
+  return LANDING_COPY.pricing.cards.map((card) => {
+    const direction = card.direction as StoryDirection;
+    const meta = ref[direction];
+    if (!meta) return { ...card };
+    return {
+      ...card,
+      pages: `${meta.displayPages} עמ'`,
+      price: String(meta.priceILS),
+    };
+  });
+}
+
+export function getLandingContent(matrixCategories: MvpMatrixCategoryPayload[]) {
   return {
     ...LANDING_COPY,
     helps: {
       ...LANDING_COPY.helps,
       cards: buildHomepageHelpCards(),
+    },
+    pricing: {
+      ...LANDING_COPY.pricing,
+      cards: pricingCardsFromMatrix(matrixCategories),
     },
   };
 }

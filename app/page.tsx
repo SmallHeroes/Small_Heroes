@@ -1,8 +1,15 @@
 import type { Metadata } from 'next';
 import LandingPage from './landing/landing-page';
 import { getLandingContent } from '@/content/landing';
-import '../../public/CSS/main.css';
-import '../../public/CSS/landing.css';
+import { ROUTES } from '@/lib/routes';
+import { buildMvpMatrixResponse } from '@/lib/web/mvp-matrix-response';
+/**
+ * Landing styles — copied from public/CSS/{main,landing}.css (App Router cannot
+ * import from public/). Legacy HTML shells still link public/CSS/* directly;
+ * keep both copies in sync until legacy pages are retired.
+ */
+import './landing/main.css';
+import './landing/landing.css';
 
 export const metadata: Metadata = {
   title: 'גיבורים קטנים — ספרי ילדים מותאמים אישית לחיזוק רגשי',
@@ -29,6 +36,7 @@ export const metadata: Metadata = {
 };
 
 export default function HomePage() {
-  const content = getLandingContent();
-  return <LandingPage content={content} />;
+  const matrix = buildMvpMatrixResponse();
+  const content = getLandingContent(matrix.categories);
+  return <LandingPage content={content} startHref={ROUTES.start} />;
 }

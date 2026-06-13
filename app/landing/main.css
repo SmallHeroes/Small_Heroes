@@ -1,0 +1,289 @@
+/* ═══════════════════════════════════════════════════════════
+   MAIN.CSS — גיבורים קטנים
+   Shared foundation
+   ═══════════════════════════════════════════════════════════ */
+
+@font-face {
+  font-family: 'Abraham';
+  src: url('/Fonts/Abraham-Regular.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --purple: #886cff;
+  --purple-d: #7459f0;
+  --purple-lt: #ede8ff;
+  --purple-bg: #faf8ff;
+  --yellow: #ffee6c;
+  --dark: #18171a;
+  --mid: #5f5a70;
+  --soft: #9692aa;
+  --white: #ffffff;
+  --border: #ebe7f7;
+  --bg-light: #f7f6fb;
+  --bg-lighter: #fafafa;
+
+  --fd: 'Abraham', 'Heebo', sans-serif;
+  --fb: 'Heebo', sans-serif;
+
+  --max-w: 1440px;
+  --nav-h: 78px;
+
+  --shadow-card: 0 10px 28px rgba(40, 33, 74, 0.05);
+  --shadow-btn: 0 10px 22px rgba(136, 108, 255, 0.18);
+}
+
+/* Global hidden attribute — must beat class-level display rules */
+[hidden] { display: none !important; }
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  max-width: 100%;
+    overflow-x: hidden;
+}
+
+body {
+  font-family: var(--fb);
+  background: #fff;
+  min-height: 100vh;
+  direction: rtl;
+  color: var(--dark);
+  overflow-x: hidden;
+  line-height: 1.5;
+  max-width: 100%;
+    overflow-x: hidden;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.wrap {
+  max-width: var(--max-w);
+  margin: 0 auto;
+  width: 100%;
+  padding: 0 48px;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d4c9ff;
+  border-radius: 999px;
+}
+
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: var(--nav-h);
+  background: rgba(255,255,255,0.92);
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.navbar .wrap {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-icon {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+
+.logo-icon-sq {
+  position: absolute;
+  inset: 0;
+  background: var(--purple);
+  border-radius: 12px;
+}
+
+.logo-icon-dot {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  background: var(--yellow);
+  border-radius: 8px;
+}
+
+.logo-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.logo-brand {
+  font-family: var(--fd);
+  font-size: 25px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.logo-tagline {
+  font-size: 13px;
+  color: #6f6a80;
+  line-height: 1.2;
+}
+
+.nav-cta,
+.btn-primary,
+.btn-outline,
+.btn-light {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  border-radius: 999px;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.nav-cta,
+.btn-primary {
+  background: var(--purple);
+  color: #fff;
+  border: none;
+  box-shadow: var(--shadow-btn);
+}
+
+.nav-cta:hover,
+.btn-primary:hover {
+  background: var(--purple-d);
+  transform: translateY(-2px);
+}
+
+.nav-cta {
+  padding: 0 22px;
+  height: 46px;
+  font-family: var(--fb);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.btn-primary {
+  padding: 0 24px;
+  min-height: 48px;
+  font-family: var(--fb);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.btn-outline {
+  padding: 0 24px;
+  min-height: 48px;
+  background: transparent;
+  color: var(--purple);
+  border: 2px solid var(--purple);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.btn-outline:hover {
+  background: var(--purple-lt);
+  transform: translateY(-2px);
+}
+
+.btn-light {
+  padding: 0 24px;
+  min-height: 48px;
+  background: #ededed;
+  color: #000;
+  border: none;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.btn-light:hover {
+  background: #e2e2e2;
+  transform: translateY(-2px);
+}
+
+@media (max-width: 960px) {
+  .wrap {
+    padding: 0 24px;
+  }
+
+  .logo-brand {
+    font-size: 21px;
+  }
+
+  .logo-tagline {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .wrap {
+    padding: 0 16px;
+  }
+
+  .navbar {
+    height: 70px;
+  }
+
+  .logo-icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .logo-icon-dot {
+    width: 20px;
+    height: 20px;
+    top: 9px;
+    right: 9px;
+  }
+
+  .logo-brand {
+    font-size: 18px;
+  }
+
+  .nav-cta {
+    height: 42px;
+    padding: 0 16px;
+    font-size: 14px;
+  }
+
+  .btn-primary,
+  .btn-outline,
+  .btn-light {
+    width: 100%;
+  }
+}
