@@ -164,10 +164,10 @@ const PHOTO_QUALITY_STATUS = {
   WARNING: 'warning',
   BLOCKED: 'blocked',
 };
-const PHOTO_MSG_WARNING =
-  'התמונה תעבוד! אפשר להמשיך, להחליף תמונה, או להמשיך בלי תמונה.';
-const PHOTO_MSG_BLOCKED =
-  'ייתכן שהתמונה פחות אידיאלית — אפשר להמשיך, להחליף תמונה, או להמשיך בלי תמונה.';
+const PHOTO_MSG_GUIDANCE =
+  'התמונה לא מספיק ברורה — מומלץ לבחור תמונה איכותית יותר.';
+const PHOTO_MSG_WARNING = PHOTO_MSG_GUIDANCE;
+const PHOTO_MSG_BLOCKED = PHOTO_MSG_GUIDANCE;
 const PHOTO_MSG_NO_PHOTO_HELPER =
   'כדי שהילד/ה יהיו גיבורי הספר, העלו תמונה אחת ברורה של הפנים.';
 // Honest expectation-setting for the no-photo path — no overpromising.
@@ -1992,16 +1992,11 @@ function renderPhotoQualityMessage() {
     return;
   }
 
-  const reasonMessage =
-    state.photoQuality?.messageHe ||
-    hebrewPhotoMessageFromCodes(state.photoQuality?.reasonCodes);
-
   if (status === PHOTO_QUALITY_STATUS.WARNING) {
     box.hidden = false;
     box.innerHTML = `
     <div class="photo-quality-alert photo-quality-alert--warning">
-      <div class="photo-quality-alert-title">${reasonMessage || PHOTO_MSG_WARNING}</div>
-      <p class="photo-helper-text">📷 אפשר להחליף תמונה למעלה, להמשיך עם התמונה, או להמשיך בלי תמונה.</p>
+      <div class="photo-quality-alert-title">${PHOTO_MSG_GUIDANCE}</div>
     </div>
   `;
     updatePhotoStepBottomBar();

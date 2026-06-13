@@ -5,7 +5,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { estimateQaConsoleCostUsd } from '@/lib/qa-console-cost';
 import styles from './creator-panel.module.css';
 
-type StoryEntry = { storyKey: string; storyFile: string; label: string; companionId: string; direction: string };
+type StoryEntry = {
+  storyKey: string;
+  storyFile: string;
+  label: string;
+  companionId: string;
+  direction: string;
+  bankDir?: 'v3-approved';
+  source?: string;
+};
 type VoiceEntry = { id: string; label: string; description: string; emoji: string };
 type StyleEntry = { id: string; label: string; blurb: string };
 type ChildPreset = { id: string; label: string; gender: string; age: number };
@@ -52,7 +60,11 @@ export function CreatorPanel() {
       .then((data: MetaResponse) => {
         setMeta(data);
         if (data.stories?.length) {
-          setStoryKey((prev) => (prev && data.stories.some((s) => s.storyKey === prev) ? prev : data.stories[0].storyKey));
+          setStoryKey((prev) => {
+            if (prev && data.stories.some((s) => s.storyKey === prev)) return prev;
+            const foxV3 = data.stories.find((s) => s.storyKey === 'fox_uri_adventure@v3-approved');
+            return foxV3?.storyKey ?? data.stories[0].storyKey;
+          });
         }
         if (data.voices?.length) setVoiceId(data.voices[0].id);
         if (data.illustrationStyles?.length) {
@@ -69,10 +81,12 @@ export function CreatorPanel() {
       .catch(() => setError('Failed to load CREATOR metadata'));
   }, []);
 
-  const storyFile = useMemo(
-    () => meta?.stories.find((s) => s.storyKey === storyKey)?.storyFile ?? '',
+  const selectedStory = useMemo(
+    () => meta?.stories.find((s) => s.storyKey === storyKey) ?? null,
     [meta?.stories, storyKey]
   );
+
+  const storyFile = useMemo(() => selectedStory?.storyFile ?? '', [selectedStory]);
 
   const pageNumbers = useMemo(
     () => Array.from({ length: totalPages }, (_, i) => i + 1),
@@ -198,6 +212,7 @@ export function CreatorPanel() {
             generateAudio,
             voiceId: generateAudio ? voiceId : null,
             childPhotoBase64,
+            ...(selectedStory?.bankDir === 'v3-approved' ? { bankDir: 'v3-approved' } : {}),
           }),
         });
         const data = (await res.json()) as {
@@ -239,6 +254,7 @@ export function CreatorPanel() {
     voiceId,
     generateAudio,
     illustrationStyle,
+    selectedStory,
     fullBookMaxPages,
     skipCover,
   ]);
@@ -256,7 +272,7 @@ export function CreatorPanel() {
       <header className={styles.header}>
         <div>
           <h1 className={styles.headerTitle}>CREATOR</h1>
-          <p className={styles.headerSubtitle}>dev-only · gpt-image-2 · Style 01/02</p>
+          <p className={styles.headerSubtitle}>dev-only · chunked pipeline · gpt-image-2 LOW default</p>
         </div>
         <Link href="/dev/viewer" className={styles.viewerLink}>
           VIEWER →

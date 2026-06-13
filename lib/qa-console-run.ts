@@ -33,7 +33,7 @@ import {
   ChildPhotoUploadError,
   normalizePhotoUrlForVision,
 } from '@/lib/child-photo-normalize';
-import { storyBankRoot, storyFileForKey } from '@/lib/qa-console-stories';
+import { storyPathForKey, storyFileForKey, parseStoryKey } from '@/lib/qa-console-stories';
 
 import {
   estimateQaConsoleCostUsd,
@@ -310,8 +310,9 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
   assertHardGuards(input.quality);
 
   const storyFile = storyFileForKey(input.storyKey);
-  const storyPath = path.join(storyBankRoot(), storyFile);
-  const [, companionId, direction] = input.storyKey.match(/^(.+)_(bedtime|adventure|fantasy)$/) ?? [];
+  const storyPath = storyPathForKey(input.storyKey);
+  const { baseKey } = parseStoryKey(input.storyKey);
+  const [, companionId, direction] = baseKey.match(/^(.+)_(bedtime|adventure|fantasy)$/) ?? [];
   if (!companionId || !direction) throw new Error('Invalid story key');
 
   const companion = getCompanionById(companionId);
