@@ -19,7 +19,7 @@ function companionLatestPage(direction: GenerateInput['direction']): number {
 function kimPages(count: number, childName: string, momentPage: number) {
   const dirs = [
     'Wide magical garden, child left, chameleon on branch right.',
-    'Medium shot, striped scarf visible, child center.',
+    'Medium shot, child center, simple prop visible.',
     'Close shot, eyes rotate, child and companion foreground.',
   ];
   const hookPages = [3, 8, 14].filter((p) => p <= count);

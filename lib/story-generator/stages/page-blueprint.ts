@@ -203,7 +203,7 @@ function deriveCompanionRequired(args: {
 const COMPANION_SIGNATURES: Record<string, RegExp> = {
   bolly_armadillo: /בולי|טומפ|טוּמְפּ|שריון/,
   bat_lily: /לילי|ששש|כנף|פנס/,
-  chameleon_koko: /קים|קוקו|פששש|צעיף/,
+  chameleon_koko: /קים|קוקו|פששש/,
 };
 
 /**
