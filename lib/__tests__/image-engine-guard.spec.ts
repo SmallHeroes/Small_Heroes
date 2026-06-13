@@ -5,6 +5,8 @@ import {
   assertShippedBookStyleEngineActive,
   resolveLegacyImageProviderEnv,
   resolveOrderStyleBranch,
+  isStyle02GalleryLive,
+  isStyle02Sellable,
 } from '../image-engine-guard';
 
 const ENV_KEYS = [
@@ -12,6 +14,7 @@ const ENV_KEYS = [
   'PHASE2_STYLE01_BOOK_PIPELINE',
   'PHASE2_STYLE02_BOOK_PIPELINE',
   'STYLE02_SELLABLE',
+  'STYLE02_GALLERY_LIVE',
 ] as const;
 
 function saveEnv(): Record<string, string | undefined> {
@@ -92,6 +95,21 @@ describe('style branch + sellable gates (bunny forensics Gap 2)', () => {
   it('opens Style 02 only with the explicit env gate', () => {
     process.env.STYLE02_SELLABLE = 'true';
     expect(() => assertOrderStyleSellable('detailed_whimsical_world')).not.toThrow();
+  });
+
+  it('gallery live follows STYLE02_GALLERY_LIVE override, else STYLE02_SELLABLE', () => {
+    delete process.env.STYLE02_GALLERY_LIVE;
+    delete process.env.STYLE02_SELLABLE;
+    expect(isStyle02GalleryLive()).toBe(false);
+
+    process.env.STYLE02_SELLABLE = 'true';
+    expect(isStyle02GalleryLive()).toBe(true);
+
+    process.env.STYLE02_GALLERY_LIVE = 'false';
+    expect(isStyle02GalleryLive()).toBe(false);
+
+    process.env.STYLE02_GALLERY_LIVE = 'true';
+    expect(isStyle02GalleryLive()).toBe(true);
   });
 
   it('never blocks Style 01 orders', () => {

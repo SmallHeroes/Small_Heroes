@@ -29,13 +29,6 @@ const GALLERY_STYLE02 = [
   '/Images/gallery/gallery-r-6.jpg',
 ];
 
-const FOX_URI_PREVIEW = [
-  { src: '/marketing/fox-uri-preview/cover.png', alt: 'כריכת ספר לדוגמה — אוּרי' },
-  { src: '/marketing/fox-uri-preview/p5.png', alt: 'עמוד מהספר — רגע בדרך' },
-  { src: '/marketing/fox-uri-preview/p10.png', alt: 'עמוד מהספר — משחק' },
-  { src: '/marketing/fox-uri-preview/p12.png', alt: 'עמוד מהספר — סיום' },
-] as const;
-
 type LandingPageProps = {
   content: LandingContent;
   startHref: string;
@@ -43,7 +36,7 @@ type LandingPageProps = {
 };
 
 export default function LandingPage({ content: L, startHref, matrixCategories }: LandingPageProps) {
-  const [galleryStyle, setGalleryStyle] = useState<GalleryStyle>('style02');
+  const [galleryStyle, setGalleryStyle] = useState<GalleryStyle>('style01');
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
   const [navCtaHref, setNavCtaHref] = useState<string>(startHref);
   const [navCtaText, setNavCtaText] = useState(COMMON.navCta);
@@ -191,18 +184,6 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                 aria-label="סגנון איור בגלריה"
               >
                 <button
-                  ref={btnStyle02Ref}
-                  type="button"
-                  className={
-                    'gallery-toggle-btn' + (galleryStyle === 'style02' ? ' is-active' : '')
-                  }
-                  role="tab"
-                  aria-selected={galleryStyle === 'style02'}
-                  onClick={() => setGalleryStyle('style02')}
-                >
-                  {L.gallery.toggleStyle02}
-                </button>
-                <button
                   ref={btnStyle01Ref}
                   type="button"
                   className={
@@ -213,6 +194,18 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                   onClick={() => setGalleryStyle('style01')}
                 >
                   {L.gallery.toggleStyle01}
+                </button>
+                <button
+                  ref={btnStyle02Ref}
+                  type="button"
+                  className={
+                    'gallery-toggle-btn' + (galleryStyle === 'style02' ? ' is-active' : '')
+                  }
+                  role="tab"
+                  aria-selected={galleryStyle === 'style02'}
+                  onClick={() => setGalleryStyle('style02')}
+                >
+                  {L.gallery.toggleStyle02}
                 </button>
                 <span className="gallery-toggle-pill" ref={pillRef} />
               </div>
@@ -248,6 +241,10 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               </div>
             </div>
 
+            {galleryStyle === 'style02' ? (
+              <p className="gallery-style02-preview-note">{L.gallery.style02PreviewNote}</p>
+            ) : null}
+
             <div className="wrap gallery-cta-wrap">
               <a href={startHref} className="btn-primary" data-event="landing_start_click">
                 {L.gallery.cta}
@@ -269,17 +266,18 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               </div>
 
               <div className="sample-img-wrap sample-preview-wrap">
-                <p className="sample-kicker">הצצה מספר לדוגמה</p>
+                <p className="sample-kicker">הצצה מהספר</p>
                 <p className="sample-p sample-preview-note">
-                  כך נראה ספר אחד שיצרנו — כל ספר נבנה מחדש לפי הילד/ה שלכם.
+                  המחשה — כל ספר נבנה אישית לפי הילד/ה
                 </p>
-                <div className="gallery-track sample-preview-track">
-                  {FOX_URI_PREVIEW.map((frame) => (
-                    <div key={frame.src} className="gallery-card">
-                      <img src={frame.src} alt={frame.alt} loading="lazy" />
-                    </div>
-                  ))}
-                </div>
+                {/* TODO: temporary placeholder — replace with a real generated book sample. */}
+                <figure className="sample-book-illustration">
+                  <img
+                    src="/Images/Book.webp"
+                    alt="המחשה — דוגמה לספר מותאם אישית"
+                    loading="lazy"
+                  />
+                </figure>
               </div>
             </div>
           </section>

@@ -108,15 +108,15 @@
 
         <!-- Style toggle -->
         <div class="gallery-toggle" id="galleryToggle" role="tablist" aria-label="סגנון איור בגלריה">
-          <button type="button" class="gallery-toggle-btn is-active" data-gallery-style="style02" id="toggleStyle02" role="tab" aria-selected="true">עולם קסום</button>
-          <button type="button" class="gallery-toggle-btn" data-gallery-style="style01" id="toggleStyle01" role="tab" aria-selected="false">רך וחמים</button>
+          <button type="button" class="gallery-toggle-btn is-active" data-gallery-style="style01" id="toggleStyle01" role="tab" aria-selected="true">רך וחמים</button>
+          <button type="button" class="gallery-toggle-btn" data-gallery-style="style02" id="toggleStyle02" role="tab" aria-selected="false">עולם קסום</button>
           <span class="gallery-toggle-pill" id="togglePill"></span>
         </div>
       </div>
 
       <div class="gallery-layers">
         <!-- Style 01 — רך וחמים -->
-        <div class="gallery-track gallery-layer" id="galleryTrackStyle01">
+        <div class="gallery-track gallery-layer is-visible" id="galleryTrackStyle01">
           <div class="gallery-card"><img src="../Images/gallery/gallery-1.jpg" alt="עמוד מתוך ספר — מאוייר" loading="lazy" /></div>
           <div class="gallery-card"><img src="../Images/gallery/gallery-2.jpg" alt="עמוד מתוך ספר — מאוייר" loading="lazy" /></div>
           <div class="gallery-card"><img src="../Images/gallery/gallery-3.jpg" alt="עמוד מתוך ספר — מאוייר" loading="lazy" /></div>
@@ -125,8 +125,8 @@
           <div class="gallery-card"><img src="../Images/gallery/gallery-6.jpg" alt="עמוד מתוך ספר — מאוייר" loading="lazy" /></div>
         </div>
 
-        <!-- Style 02 — עולם קסום (default visible) -->
-        <div class="gallery-track gallery-layer is-visible" id="galleryTrackStyle02">
+        <!-- Style 02 — עולם קסום -->
+        <div class="gallery-track gallery-layer" id="galleryTrackStyle02">
           <div class="gallery-card"><img src="../Images/gallery/gallery-r-1.jpg" alt="עמוד מתוך ספר — ריאליסטי" loading="lazy" /></div>
           <div class="gallery-card"><img src="../Images/gallery/gallery-r-2.jpg" alt="עמוד מתוך ספר — ריאליסטי" loading="lazy" /></div>
           <div class="gallery-card"><img src="../Images/gallery/gallery-r-3.jpg" alt="עמוד מתוך ספר — ריאליסטי" loading="lazy" /></div>
@@ -137,6 +137,8 @@
 
         <!-- Style 03 removed — gpt-image-1 cannot produce ink-and-gouache via API -->
       </div>
+
+      <p class="gallery-style02-preview-note" id="galleryStyle02PreviewNote" hidden>סגנון 'עולם קסום' עדיין בבדיקות — יהיה זמין להזמנה בקרוב.</p>
 
       <div class="wrap gallery-cta-wrap">
         <a href="/wizard" class="btn-primary" id="galleryCta"></a>

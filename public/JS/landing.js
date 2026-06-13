@@ -98,7 +98,7 @@ function initLandingContent() {
       pill.style.left  = btn.offsetLeft + 'px';
       pill.style.width = btn.offsetWidth + 'px';
     }
-    positionPill(btnStyle02);
+    positionPill(btnStyle01);
 
     function switchTo(style) {
       const map = {
@@ -109,8 +109,9 @@ function initLandingContent() {
         style01: layer01,
         style02: layer02,
       };
-      const activeBtn = map[style] || btnStyle02;
-      const showLayer = layerMap[style] || layer02;
+      const activeBtn = map[style] || btnStyle01;
+      const showLayer = layerMap[style] || layer01;
+      const previewNote = document.getElementById('galleryStyle02PreviewNote');
 
       [btnStyle01, btnStyle02].forEach((b) => {
         const on = b === activeBtn;
@@ -125,6 +126,8 @@ function initLandingContent() {
         layer.classList.toggle('is-visible', visible);
         layer.setAttribute('aria-hidden', visible ? 'false' : 'true');
       });
+
+      if (previewNote) previewNote.hidden = style !== 'style02';
     }
 
     btnStyle01.addEventListener('click', () => switchTo('style01'));
@@ -132,7 +135,7 @@ function initLandingContent() {
 
     window.addEventListener('resize', () => {
       const active =
-        [btnStyle01, btnStyle02].find((b) => b.classList.contains('is-active')) || btnStyle02;
+        [btnStyle01, btnStyle02].find((b) => b.classList.contains('is-active')) || btnStyle01;
       positionPill(active);
     });
   })();

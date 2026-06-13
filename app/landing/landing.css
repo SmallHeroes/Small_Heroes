@@ -338,6 +338,16 @@
   color: #fff;
 }
 
+.gallery-style02-preview-note {
+  text-align: center;
+  font-size: 14px;
+  color: var(--mid);
+  margin: 16px auto 0;
+  max-width: 480px;
+  line-height: 1.5;
+  padding: 0 16px;
+}
+
 @media (max-width: 640px) {
   .gallery-toggle {
     max-width: 100%;
@@ -603,6 +613,23 @@
 .sample-preview-wrap .sample-preview-note {
   font-size: 16px;
   margin-bottom: 14px;
+  max-width: 420px;
+}
+
+.sample-book-illustration {
+  margin: 0;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #f7f4fb;
+  box-shadow: 0 18px 46px rgba(136, 108, 255, 0.12);
+}
+
+.sample-book-illustration img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: min(72vh, 720px);
+  object-fit: contain;
 }
 
 .sample-preview-track {
@@ -1236,6 +1263,18 @@
 
   .sample-p {
     max-width: 100%;
+  }
+
+  .sample-preview-wrap .sample-preview-note {
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .sample-book-illustration {
+    width: 100%;
+    max-width: 520px;
+    margin-inline: auto;
   }
 
   .hero-sub2 {

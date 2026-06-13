@@ -39,5 +39,11 @@ export const metadata: Metadata = {
 export default function HomePage() {
   const matrix = buildMvpMatrixResponse();
   const content = getLandingContent(matrix.categories);
-  return <LandingPage content={content} startHref={ROUTES.start} matrixCategories={matrix.categories} />;
+  return (
+    <LandingPage
+      content={content}
+      startHref={ROUTES.start}
+      matrixCategories={matrix.categories}
+    />
+  );
 }

@@ -42,6 +42,8 @@ export const LANDING_COPY = {
     cta: 'לראות איך זה נראה',
     toggleStyle01: 'רך וחמים',
     toggleStyle02: 'עולם קסום',
+    style02PreviewNote:
+      "סגנון 'עולם קסום' עדיין בבדיקות — יהיה זמין להזמנה בקרוב.",
   },
 
   why: {

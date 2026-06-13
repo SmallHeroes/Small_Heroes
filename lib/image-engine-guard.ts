@@ -28,6 +28,14 @@ export function isStyle02Sellable(): boolean {
   return process.env.STYLE02_SELLABLE?.trim().toLowerCase() === 'true';
 }
 
+/** Landing gallery toggle — Style 02 selectable when live (defaults to sellable flag). */
+export function isStyle02GalleryLive(): boolean {
+  const gallery = process.env.STYLE02_GALLERY_LIVE?.trim().toLowerCase();
+  if (gallery === 'true') return true;
+  if (gallery === 'false') return false;
+  return isStyle02Sellable();
+}
+
 export function assertOrderStyleSellable(
   illustrationStyle?: string | null,
   context = 'render'
