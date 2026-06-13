@@ -6,7 +6,6 @@
  *   npm run release-check
  */
 import {
-  MVP_STORY_MATRIX,
   allMvpCategories,
   configuredSlotStatus,
   isSlotSellable,
@@ -14,8 +13,8 @@ import {
 
 const DIRECTIONS = ['bedtime', 'adventure', 'fantasy'];
 
-function v3ApprovedSlots(): string[] {
-  const slots: string[] = [];
+function v3ApprovedSlots() {
+  const slots = [];
   for (const category of allMvpCategories()) {
     for (const direction of DIRECTIONS) {
       if (configuredSlotStatus(category, direction) === 'approved_v3') {
@@ -26,7 +25,7 @@ function v3ApprovedSlots(): string[] {
   return slots;
 }
 
-function countSellable(): number {
+function countSellable() {
   let n = 0;
   for (const category of allMvpCategories()) {
     for (const direction of DIRECTIONS) {
