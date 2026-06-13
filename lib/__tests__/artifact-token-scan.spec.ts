@@ -3,6 +3,8 @@ import path from 'path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  scanBarePipeChipsInMarkdown,
+  scanExposedChildGenderInMarkdown,
   scanRawArtifactTokensInMarkdown,
   scanSlashChipsInMarkdown,
 } from '../story-gen-v3/artifact-token-scan';
@@ -50,6 +52,20 @@ describe('artifact token scan', () => {
     const scan = scanSlashChipsInMarkdown(md);
     expect(scan.slashChipStylePass).toBe(false);
     expect(scan.slashChipCount).toBeGreaterThan(0);
+  });
+
+  it('detects exposed child gender on childName lines', () => {
+    const md = '--- Page 2 ---\n{{childName}} {החליט|החליטה} לבדוק בעצמו מי מתופף שם.\n';
+    const scan = scanExposedChildGenderInMarkdown(md);
+    expect(scan.exposedChildGenderPass).toBe(false);
+    expect(scan.hits[0]?.match).toBe('בעצמו');
+  });
+
+  it('detects bare pipe gender chips', () => {
+    const md = '--- Page 1 ---\n{{childName}} החליט|החליטה לבדוק.\n';
+    const scan = scanBarePipeChipsInMarkdown(md);
+    expect(scan.barePipeChipPass).toBe(false);
+    expect(scan.hits[0]?.match).toBe('החליט|החליטה');
   });
 
   it('FAILs suffix chips but ALLOWs full pipe chips and {{childName}}', () => {

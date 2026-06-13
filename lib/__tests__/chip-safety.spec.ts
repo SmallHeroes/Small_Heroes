@@ -4,6 +4,11 @@ import { describe, expect, it } from 'vitest';
 import { normalizePartialGenderChips } from '../story-gen/chip-normalize';
 import { scanChipSafety } from '../story-gen/chip-safety';
 import { applyWritersRoomArtifactPatches } from '../story-gen/writers-room-artifact-patches';
+import { applyV3ChipArtifactFixes } from '../story-gen-v3/chip-artifact-fix';
+import {
+  resolveGenderAlternationChips,
+  resolveStoryBankPlaceholders,
+} from '../story-bank-personalization';
 
 describe('chip normalization allowlist-only', () => {
   it('normalizes trusted partial suffix chips', () => {
@@ -56,6 +61,49 @@ describe('chip safety fail-closed scan', () => {
       '--- Page 1 ---\n{{childName}} {מתיישב|מתיישבת} ו{נוגע|נוגעת}.\n\nWORD_COUNT: [4] = 4'
     );
     expect(report.advisoryFail).toBe(false);
+  });
+
+  it('flags exposed child gender forms on {{childName}} lines', () => {
+    const report = scanChipSafety(
+      '--- Page 2 ---\n{{childName}} {החליט|החליטה} לבדוק בעצמו מי מתופף שם.\n\nWORD_COUNT: [4] = 4'
+    );
+    expect(report.advisoryFail).toBe(true);
+    expect(report.hits.some((h) => h.reason === 'exposed_child_gender' && h.token === 'בעצמו')).toBe(
+      true
+    );
+  });
+
+  it('flags bare pipe gender chips (fail-closed — importer needs braces)', () => {
+    const report = scanChipSafety(
+      '--- Page 1 ---\n{{childName}} התכופף|התכופפה אל החלון.\n\nWORD_COUNT: [4] = 4'
+    );
+    expect(report.advisoryFail).toBe(true);
+    expect(report.hits.some((h) => h.reason === 'bare_pipe_gender')).toBe(true);
+  });
+
+  it('wrapBarePipe fixes prose and personalization resolves boy/girl on page 1', () => {
+    const broken = '--- Page 1 ---\n{{childName}} התכופף|התכופפה אל החלון.\n';
+    expect(scanChipSafety(broken).advisoryFail).toBe(true);
+
+    const fixed = applyV3ChipArtifactFixes(broken).markdown;
+    expect(fixed).toContain('{התכופף|התכופפה}');
+    expect(scanChipSafety(fixed).advisoryFail).toBe(false);
+
+    const boy = resolveStoryBankPlaceholders(fixed, {
+      childName: 'נועם',
+      childGender: 'boy',
+      companionName: 'אוּרי',
+    });
+    expect(boy).toContain('נועם התכופף אל החלון');
+    expect(boy).not.toContain('|');
+
+    const girl = resolveStoryBankPlaceholders(fixed, {
+      childName: 'נועה',
+      childGender: 'girl',
+      companionName: 'אוּרי',
+    });
+    expect(girl).toContain('נועה התכופפה אל החלון');
+    expect(resolveGenderAlternationChips('התכופף|התכופפה', 'boy')).toBe('התכופף|התכופפה');
   });
 
   it('flags remaining slash gender in metadata', () => {

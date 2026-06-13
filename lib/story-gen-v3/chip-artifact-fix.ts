@@ -2,6 +2,8 @@
  * v3 Sprint B — deterministic chip/format repairs (not Hebrew polish).
  */
 
+import { BARE_PIPE_CHIP_RE } from './artifact-token-scan';
+
 const BROKEN_CHIP_FIXES: Array<[RegExp, string]> = [
   [/\{הרימו\|הרימה\}/g, '{הרים|הרימה}'],
   [/\{הרים\|הריםה\}/g, '{הרים|הרימה}'],
@@ -37,9 +39,35 @@ const KNOWN_MALFORMED_VERB: Record<string, { male: string; female: string }> = {
   'התכופף/{התכופפה}': { male: 'מתכופף', female: 'מתכופפת' },
 };
 
+/** Wrap bare Hebrew|Hebrew gender pairs into {male|female} — personalization requires braces. */
+export function wrapBarePipeGenderChips(text: string): { text: string; fixes: string[] } {
+  const fixes: string[] = [];
+  const placeholders: string[] = [];
+  let protectedText = text.replace(/\{[^{}|]+\|[^{}]+\}/g, (match) => {
+    const idx = placeholders.length;
+    placeholders.push(match);
+    return `\x00CURLY${idx}\x00`;
+  });
+
+  protectedText = protectedText.replace(BARE_PIPE_CHIP_RE, (match) => {
+    fixes.push(`bare-pipe: ${match}`);
+    const [male, female] = match.split('|');
+    return `{${male}|${female}}`;
+  });
+
+  const out = protectedText.replace(/\x00CURLY(\d+)\x00/g, (_, i) => placeholders[parseInt(i, 10)] ?? '');
+  return { text: out, fixes };
+}
+
 export function applyV3ChipArtifactFixes(markdown: string): { markdown: string; fixes: string[] } {
   const fixes: string[] = [];
   let md = markdown;
+
+  const bareWrap = wrapBarePipeGenderChips(md);
+  if (bareWrap.fixes.length > 0) {
+    md = bareWrap.text;
+    fixes.push(...bareWrap.fixes);
+  }
 
   for (const [re, replacement] of BROKEN_CHIP_FIXES) {
     if (md.match(re)) {

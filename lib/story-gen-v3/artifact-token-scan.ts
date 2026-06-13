@@ -41,8 +41,30 @@ export interface SlashChipStyleReport {
   slashChipCount: number;
 }
 
+export interface BarePipeChipHit {
+  page: number;
+  match: string;
+  line: string;
+}
+
+export interface BarePipeChipStyleReport {
+  barePipeChipPass: boolean;
+  hits: BarePipeChipHit[];
+  barePipeChipCount: number;
+}
+
 /** Hebrew verb/adj slash gender form: נכנס/ת, מצביע/ה, תלה/תה */
 const SLASH_CHIP_RE = /[\u0590-\u05FF][\u0590-\u05FF\u05F3\u05F4\-]*\/[\u0590-\u05FF][\u0590-\u05FF\u05F3\u05F4\-]*/g;
+
+/** Bare pipe without braces — importer expects {male|female}, not התכופף|התכופפה */
+export const BARE_PIPE_CHIP_RE =
+  /[\u0590-\u05FF][\u0590-\u05FF\u05B0-\u05C7\u05F3\u05F4'\-]*\|[\u0590-\u05FF][\u0590-\u05FF\u05B0-\u05C7\u05F3\u05F4'\-]*/g;
+
+export function stripValidGenderChipsForBarePipeScan(text: string): string {
+  return text
+    .replace(/\{\{[^}]+\}\}/g, ' ')
+    .replace(/\{[^{}|]+\|[^{}]+\}/g, ' ');
+}
 
 const SLASH_CHIP_ALLOWLIST = new Set(['ו/או', 'א/ב']);
 
@@ -91,6 +113,83 @@ export function scanSlashChipsInMarkdown(markdown: string): SlashChipStyleReport
     slashChipStylePass: hits.length === 0,
     hits,
     slashChipCount: hits.length,
+  };
+}
+
+const HEBREW_WORD_EDGE = '(?<![\\u0590-\\u05FF])';
+const HEBREW_WORD_END = '(?![\\u0590-\\u05FF])';
+
+/** Bare masculine/feminine child-referent forms — must be {male|female} chips on {{childName}} lines. */
+const EXPOSED_CHILD_GENDER_ON_CHILD_LINE: Array<{ re: RegExp; label: string }> = [
+  { re: new RegExp(`${HEBREW_WORD_EDGE}בעצמו${HEBREW_WORD_END}`, 'g'), label: 'בעצמו' },
+  { re: new RegExp(`${HEBREW_WORD_EDGE}בעצמה${HEBREW_WORD_END}`, 'g'), label: 'בעצמה' },
+  { re: new RegExp(`${HEBREW_WORD_EDGE}לבדו${HEBREW_WORD_END}`, 'g'), label: 'לבדו' },
+  { re: new RegExp(`${HEBREW_WORD_EDGE}לבדה${HEBREW_WORD_END}`, 'g'), label: 'לבדה' },
+  { re: new RegExp(`${HEBREW_WORD_EDGE}שלו${HEBREW_WORD_END}`, 'g'), label: 'שלו' },
+  { re: new RegExp(`${HEBREW_WORD_EDGE}שלה${HEBREW_WORD_END}`, 'g'), label: 'שלה' },
+];
+
+export interface ExposedChildGenderHit {
+  page: number;
+  match: string;
+  line: string;
+}
+
+export interface ExposedChildGenderReport {
+  exposedChildGenderPass: boolean;
+  hits: ExposedChildGenderHit[];
+  hitCount: number;
+}
+
+export function scanExposedChildGenderInMarkdown(markdown: string): ExposedChildGenderReport {
+  const hits: ExposedChildGenderHit[] = [];
+
+  for (const { page, body } of parseStoryPages(markdown)) {
+    const prose = pageProseOnly(body);
+    for (const rawLine of prose.split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line || line.includes('imageDirection') || !line.includes('{{childName}}')) continue;
+      const stripped = stripValidGenderChipsForBarePipeScan(line);
+      for (const { re, label } of EXPOSED_CHILD_GENDER_ON_CHILD_LINE) {
+        re.lastIndex = 0;
+        if (re.test(stripped)) {
+          hits.push({ page, match: label, line: line.slice(0, 120) });
+        }
+      }
+    }
+  }
+
+  const deduped = hits.filter(
+    (h, i, arr) => arr.findIndex((x) => x.page === h.page && x.match === h.match) === i
+  );
+
+  return {
+    exposedChildGenderPass: deduped.length === 0,
+    hits: deduped,
+    hitCount: deduped.length,
+  };
+}
+
+export function scanBarePipeChipsInMarkdown(markdown: string): BarePipeChipStyleReport {
+  const hits: BarePipeChipHit[] = [];
+
+  for (const { page, body } of parseStoryPages(markdown)) {
+    const prose = pageProseOnly(body);
+    for (const rawLine of prose.split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line || line.includes('imageDirection')) continue;
+      const stripped = stripValidGenderChipsForBarePipeScan(line);
+      const matches = stripped.match(BARE_PIPE_CHIP_RE) ?? [];
+      for (const match of matches) {
+        hits.push({ page, match, line: line.slice(0, 120) });
+      }
+    }
+  }
+
+  return {
+    barePipeChipPass: hits.length === 0,
+    hits,
+    barePipeChipCount: hits.length,
   };
 }
 
