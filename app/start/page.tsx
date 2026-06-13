@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { buildMvpMatrixResponse } from '@/lib/web/mvp-matrix-response';
 import StartClient from './start-client';
+import '../landing/main.css';
 import '../category-challenge-card.css';
 
 export const metadata: Metadata = {
