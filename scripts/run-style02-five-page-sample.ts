@@ -21,6 +21,8 @@ process.env.PHASE2_STYLE02_REF_CONFIG = 'A';
 process.env.GPT_IMAGE_QUALITY = process.env.GPT_IMAGE_QUALITY?.trim() || 'low';
 process.env.STORY_BANK_SKIP_WORKER_CHAIN = 'true';
 process.env.GENERATION_DISABLE_SELF_CHAIN = 'true';
+/** Dev worker path only — NOT a production sellability flip. */
+process.env.STYLE02_SELLABLE = 'true';
 
 import './shims/register-server-only.cjs';
 
