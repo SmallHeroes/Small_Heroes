@@ -165,9 +165,9 @@ const PHOTO_QUALITY_STATUS = {
   BLOCKED: 'blocked',
 };
 const PHOTO_MSG_WARNING =
-  'אפשר להמשיך ככה, אבל תמונה ברורה יותר תיתן תוצאה מדויקת יותר 🙏';
+  'התמונה תעבוד! אפשר להמשיך, להחליף תמונה, או להמשיך בלי תמונה.';
 const PHOTO_MSG_BLOCKED =
-  'קשה לזהות את הפנים בתמונה — נסו תמונה ברורה יותר של הפנים 🙏';
+  'ייתכן שהתמונה פחות אידיאלית — אפשר להמשיך, להחליף תמונה, או להמשיך בלי תמונה.';
 const PHOTO_MSG_NO_PHOTO_HELPER =
   'כדי שהילד/ה יהיו גיבורי הספר, העלו תמונה אחת ברורה של הפנים.';
 // Honest expectation-setting for the no-photo path — no overpromising.
@@ -197,18 +197,18 @@ const PHOTO_REASON_MESSAGES_HE = [
     codes: ['multiple_faces_no_dominant', 'face_count_not_exactly_one'],
     message: 'יש בתמונה כמה פנים בולטות ולא ברור מי הגיבור/ה — צריך תמונה שבה הילד/ה במרכז וברור.',
   },
-  { codes: ['no_face_detected'], message: 'לא זוהו פנים בתמונה — נסו תמונה ברורה של הפנים.' },
+  { codes: ['no_face_detected'], message: 'ייתכן שהתמונה פחות אידיאלית — אפשר להמשיך, להחליף תמונה, או להמשיך בלי תמונה.' },
   {
     codes: ['face_too_small_critical', 'face_area_too_small'],
-    message: 'הפנים בתמונה קטנות מדי — נסו תמונה מקרוב יותר.',
+    message: 'הפנים קטנות יחסית — תמונה מקרוב יכולה לעזור, אבל אפשר להמשיך גם ככה.',
   },
   {
     codes: ['face_too_small', 'face_borderline_size'],
-    message: 'הפנים בתמונה קטנות יחסית — תמונה מקרוב תיתן תוצאה מדויקת יותר.',
+    message: 'התמונה תעבוד! תמונה קצת יותר קרובה יכולה לעזור לדיוק — או פשוט להמשיך.',
   },
-  { codes: ['low_sharpness', 'sharpness_too_low'], message: 'התמונה מטושטשת — נסו תמונה חדה יותר.' },
-  { codes: ['low_brightness'], message: 'התמונה כהה מדי — נסו תמונה עם יותר אור.' },
-  { codes: ['brightness_out_of_range'], message: 'התאורה בתמונה לא מתאימה — נסו תמונה עם אור טבעי ונעים.' },
+  { codes: ['low_sharpness', 'sharpness_too_low'], message: 'התמונה תעבוד! תמונה חדה יותר יכולה לעזור — או פשוט להמשיך.' },
+  { codes: ['low_brightness'], message: 'התאורה כהה יחסית — אפשר להמשיך עם התמונה הזו או לנסות תמונה עם יותר אור.' },
+  { codes: ['brightness_out_of_range'], message: 'התאורה לא אידיאלית — אפשר להמשיך גם ככה.' },
 ];
 
 function hebrewPhotoMessageFromCodes(reasonCodes) {
@@ -1440,14 +1440,8 @@ function goNext() {
       return;
     }
 
-    // No photo is allowed (generic-child path, disclaimer shown at this step) —
-    // but a photo that EXISTS and is BLOCKED must be replaced or explicitly
-    // cleared before continuing.
-    if (state.photo && state.photoQuality?.status === PHOTO_QUALITY_STATUS.BLOCKED) {
-      shake(document.getElementById('photo-area'));
-      renderPhotoQualityMessage();
-      return;
-    }
+    // PhotoGuidance: quality warnings never block — parent can always continue,
+    // replace, or proceed without a photo.
   }
 
   if (state.currentStep === 7) {
@@ -1926,10 +1920,6 @@ function updatePhotoStepBottomBar() {
 
   const st = state.photoQuality?.status;
   const hasPhoto = Boolean(state.photo);
-  const openPhotoPicker = () => {
-    const input = document.getElementById('photo-input');
-    if (input) input.click();
-  };
 
   const btnAnyway = document.getElementById('btn-continue-anyway');
 
@@ -1943,27 +1933,22 @@ function updatePhotoStepBottomBar() {
     return;
   }
 
-  // BLOCKED photo: the user must either replace it, or explicitly clear it
-  // (drops to the no-photo state with the disclaimer) — never continue with it.
-  if (st === PHOTO_QUALITY_STATUS.BLOCKED) {
-    btn.textContent = 'להחליף תמונה';
-    btn.onclick = openPhotoPicker;
-    btn.disabled = false;
-    if (btnAnyway) {
-      btnAnyway.hidden = false;
-      btnAnyway.textContent = 'להמשיך בלי התמונה הזו';
-      btnAnyway.onclick = () => {
-        clearPhotoQualityState();
-        queueWizardSave();
-      };
-    }
-    return;
-  }
-
-  btn.textContent = st === PHOTO_QUALITY_STATUS.WARNING ? 'להמשיך בכל זאת' : 'ממשיכים';
+  // Photo uploaded: always allow continue (PhotoGuidance — warnings are advisory).
+  btn.textContent = st === PHOTO_QUALITY_STATUS.WARNING ? 'המשך עם התמונה' : 'ממשיכים';
   btn.onclick = goNext;
   btn.disabled = false;
-  if (btnAnyway) btnAnyway.hidden = true;
+  if (btnAnyway) {
+    if (st === PHOTO_QUALITY_STATUS.WARNING) {
+      btnAnyway.hidden = false;
+      btnAnyway.textContent = 'המשיך בלי תמונה';
+      btnAnyway.onclick = () => {
+        clearPhotoQualityState();
+        goNext();
+      };
+    } else {
+      btnAnyway.hidden = true;
+    }
+  }
 }
 
 function clearPhotoQualityState() {
@@ -1996,7 +1981,9 @@ function renderPhotoQualityMessage() {
     return;
   }
 
-  const status = state.photoQuality?.status || PHOTO_QUALITY_STATUS.BLOCKED;
+  const rawStatus = state.photoQuality?.status || PHOTO_QUALITY_STATUS.GOOD;
+  const status =
+    rawStatus === PHOTO_QUALITY_STATUS.BLOCKED ? PHOTO_QUALITY_STATUS.WARNING : rawStatus;
 
   if (status === PHOTO_QUALITY_STATUS.GOOD) {
     box.innerHTML = '';
@@ -2014,20 +2001,14 @@ function renderPhotoQualityMessage() {
     box.innerHTML = `
     <div class="photo-quality-alert photo-quality-alert--warning">
       <div class="photo-quality-alert-title">${reasonMessage || PHOTO_MSG_WARNING}</div>
-      ${reasonMessage ? `<p class="photo-helper-text">${PHOTO_MSG_WARNING}</p>` : ''}
+      <p class="photo-helper-text">📷 אפשר להחליף תמונה למעלה, להמשיך עם התמונה, או להמשיך בלי תמונה.</p>
     </div>
   `;
     updatePhotoStepBottomBar();
     return;
   }
 
-  box.hidden = false;
-  box.innerHTML = `
-    <div class="photo-quality-alert photo-quality-alert--blocked">
-      <div class="photo-quality-alert-title">${reasonMessage || PHOTO_MSG_BLOCKED}</div>
-      <p class="photo-helper-text">אפשר להחליף לתמונה אחרת וננסה שוב.</p>
-    </div>
-  `;
+  box.hidden = true;
   updatePhotoStepBottomBar();
 }
 
@@ -2065,6 +2046,10 @@ async function analyzePhotoQualityViaServer(dataUrl) {
   if (!data || typeof data !== 'object' || typeof data.status !== 'string') {
     throw new Error('server_photo_analyze_invalid');
   }
+  if (data.status === PHOTO_QUALITY_STATUS.BLOCKED) {
+    data.status = PHOTO_QUALITY_STATUS.WARNING;
+  }
+  if (data.canContinue !== false) data.canContinue = true;
   return data;
 }
 
@@ -2112,55 +2097,31 @@ function classifyPhotoQuality(metrics) {
   const reasonCodes = [];
   const faceCount = metrics.faceCount;
   if (faceCount === 0) {
-    return {
-      status: PHOTO_QUALITY_STATUS.BLOCKED,
-      faceCount: 0,
-      dominantFaceRatio: 0,
-      sharpness: Number(metrics.sharpness?.toFixed?.(2) || metrics.sharpness || 0),
-      brightness: Number(metrics.brightness?.toFixed?.(2) || metrics.brightness || 0),
-      reasonCodes: ['no_face_detected'],
-    };
-  }
-  // Dominant-face rule (matches the server gates): one clearly dominant face
-  // passes — background faces are invisible to the user. Only several
-  // comparable faces block.
-  if (!metrics.hasDominantFace) reasonCodes.push('multiple_faces_no_dominant');
-  if (metrics.dominantFaceRatio < PHOTO_ANALYSIS_THRESHOLDS.minBlockedFaceRatio) {
-    reasonCodes.push('face_too_small_critical');
-  } else if (metrics.dominantFaceRatio < PHOTO_ANALYSIS_THRESHOLDS.minWarningFaceRatio) {
-    reasonCodes.push('face_too_small');
-  } else if (metrics.dominantFaceRatio < PHOTO_ANALYSIS_THRESHOLDS.minGoodFaceRatio) {
-    reasonCodes.push('face_too_small');
+    reasonCodes.push('no_face_detected');
+  } else {
+    if (!metrics.hasDominantFace) reasonCodes.push('multiple_faces_no_dominant');
+    if (metrics.dominantFaceRatio < PHOTO_ANALYSIS_THRESHOLDS.minBlockedFaceRatio) {
+      reasonCodes.push('face_too_small_critical');
+    } else if (metrics.dominantFaceRatio < PHOTO_ANALYSIS_THRESHOLDS.minWarningFaceRatio) {
+      reasonCodes.push('face_too_small');
+    } else if (metrics.dominantFaceRatio < PHOTO_ANALYSIS_THRESHOLDS.minGoodFaceRatio) {
+      reasonCodes.push('face_borderline_size');
+    }
   }
   if (metrics.sharpness < PHOTO_ANALYSIS_THRESHOLDS.minSharpnessWarning) {
     reasonCodes.push('low_sharpness');
   }
-  if (!metrics.brightness || metrics.brightness < 35) reasonCodes.push('low_brightness');
+  if (!metrics.brightness || metrics.brightness < 18) reasonCodes.push('low_brightness');
 
-  const blocked =
-    !metrics.hasDominantFace ||
-    metrics.dominantFaceRatio < PHOTO_ANALYSIS_THRESHOLDS.minBlockedFaceRatio ||
-    metrics.sharpness < PHOTO_ANALYSIS_THRESHOLDS.minSharpnessWarning;
-  if (blocked) {
-    return {
-      status: PHOTO_QUALITY_STATUS.BLOCKED,
-      faceCount,
-      dominantFaceRatio: Number(metrics.dominantFaceRatio.toFixed(4)),
-      sharpness: Number(metrics.sharpness.toFixed(2)),
-      brightness: Number(metrics.brightness.toFixed(2)),
-      reasonCodes,
-    };
-  }
-  const warning =
-    metrics.dominantFaceRatio < PHOTO_ANALYSIS_THRESHOLDS.minGoodFaceRatio ||
-    metrics.sharpness < PHOTO_ANALYSIS_THRESHOLDS.minSharpnessGood;
+  const warning = reasonCodes.length > 0;
   return {
     status: warning ? PHOTO_QUALITY_STATUS.WARNING : PHOTO_QUALITY_STATUS.GOOD,
     faceCount,
-    dominantFaceRatio: Number(metrics.dominantFaceRatio.toFixed(4)),
+    dominantFaceRatio: Number((metrics.dominantFaceRatio || 0).toFixed(4)),
     sharpness: Number(metrics.sharpness.toFixed(2)),
     brightness: Number(metrics.brightness.toFixed(2)),
     reasonCodes,
+    canContinue: true,
   };
 }
 

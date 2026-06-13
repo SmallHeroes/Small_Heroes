@@ -30,6 +30,8 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({
       ...result,
+      canContinue: result.canContinue,
+      warnings: result.warnings,
       messageHe: hebrewPhotoMessage(result.reasonCodes, { faceCount: result.faceCount }),
     });
   } catch (error) {

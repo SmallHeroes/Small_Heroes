@@ -13,7 +13,6 @@ import { createPaymeCheckout } from '@/lib/payme';
 import { env, isFakePaymentEnabled } from '@/lib/env';
 import { ROUTES } from '@/lib/routes';
 import { evaluatePhotoGate } from '@/lib/resemblance-core';
-import { hebrewPhotoMessage } from '@/lib/photo-quality-messages';
 
 const logger = createLogger({ subsystem: 'checkout', route: '/api/checkout' });
 
@@ -146,35 +145,16 @@ export async function POST(req: NextRequest) {
     }
 
     if (order.childImageUrl) {
-      const photoGate = await evaluatePhotoGate(order.childImageUrl);
-      if (!photoGate.passed) {
-        logger.warn('Checkout blocked by PhotoGate', {
+      const photoGuidance = await evaluatePhotoGate(order.childImageUrl);
+      if (photoGuidance.warnings.length > 0) {
+        logger.info('PhotoGuidance advisory at checkout (quality never blocks payment)', {
           orderId,
-          reasons: photoGate.reasons,
-          faceCount: photoGate.faceCount,
-          faceAreaRatio: photoGate.faceAreaRatio,
-          brightness: Math.round(photoGate.brightness),
-          sharpness: Math.round(photoGate.sharpness),
-        });
-        // Hebrew, parent-facing — the wizard displays `error` verbatim.
-        const messageHe =
-          hebrewPhotoMessage(photoGate.reasons, { faceCount: photoGate.faceCount }) ??
-          'יש בעיה בתמונה שהעליתם — נסו תמונה ברורה של הילד/ה לבד.';
-        return NextResponse.json(
-          {
-            error: messageHe,
-            reason: 'photogate_rejected',
-            details: photoGate.reasons,
-          },
-          { status: 422 }
-        );
-      }
-      if (photoGate.inputStrength === 'weak') {
-        logger.warn('PhotoGate accepted weak input photo', {
-          orderId,
-          faceAreaRatio: photoGate.faceAreaRatio,
-          brightness: Math.round(photoGate.brightness),
-          sharpness: Math.round(photoGate.sharpness),
+          warnings: photoGuidance.warnings,
+          faceCount: photoGuidance.faceCount,
+          faceAreaRatio: photoGuidance.faceAreaRatio,
+          brightness: Math.round(photoGuidance.brightness),
+          sharpness: Math.round(photoGuidance.sharpness),
+          inputStrength: photoGuidance.inputStrength,
         });
       }
     }

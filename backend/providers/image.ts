@@ -519,10 +519,10 @@ type WarningRetryCandidate = {
 };
 
 function scoreWarningCandidate(candidate: WarningRetryCandidate): number {
-  const confidenceScore = candidate.faceDetectConfidence ?? -1;
-  const areaScore = candidate.faceAreaRatio ?? -1;
-  const faceCountPenalty = candidate.faceCount === 0 ? -0.2 : 0;
-  return confidenceScore * 10 + areaScore + faceCountPenalty;
+  // Neutral defaults when heuristic face signal is missing — avoids tone bias on illustrated output.
+  const confidenceScore = candidate.faceDetectConfidence ?? 0.5;
+  const areaScore = candidate.faceAreaRatio ?? 0.05;
+  return confidenceScore * 10 + areaScore;
 }
 
 function selectBestImage(candidates: WarningRetryCandidate[]): WarningRetryCandidate {

@@ -48,6 +48,7 @@ type ImageStats = {
   embedding: number[];
   brightness: number;
   sharpness: number;
+  normalizedSharpness: number;
   faceCount: number;
   faceAreaRatio: number;
   /** All detected face-blob area ratios, sorted descending. */
@@ -59,13 +60,35 @@ type ImageStats = {
 
 export type PhotoQualityStatus = 'good' | 'warning' | 'blocked';
 
+/** Real face detector spike — see outputs/cursor-brief-photo-gate-fairness.md Step 4. */
+export const PHOTO_FACE_DETECTOR_V2_FLAG = 'PHOTO_FACE_DETECTOR_V2';
+
+export type PhotoGuidanceResult = {
+  /** False only for corrupt/invalid/unreadable files (thrown before guidance). */
+  canContinue: boolean;
+  warnings: string[];
+  /** @deprecated use warnings — kept for logging compat */
+  reasons: string[];
+  /** @deprecated quality never blocks valid images — mirrors canContinue */
+  passed: boolean;
+  inputStrength: InputPhotoStrength;
+  faceCount: number;
+  faceAreaRatio: number;
+  sharpness: number;
+  brightness: number;
+  normalizedSharpness: number;
+};
+
 export type PhotoAnalysisResult = {
   faceCount: number;
   dominantFaceRatio: number;
   sharpness: number;
   brightness: number;
+  normalizedSharpness: number;
   status: PhotoQualityStatus;
   reasonCodes: string[];
+  warnings: string[];
+  canContinue: boolean;
 };
 
 const DEFAULT_THRESHOLD_CONFIG: ResemblanceThresholdConfig = {
@@ -334,6 +357,59 @@ function computeSharpness(gray: number[], width: number, height: number): number
   return variance(lap);
 }
 
+/** Laplacian variance normalized by image contrast — fair for darker/smooth skin tones. */
+function normalizedSharpnessScore(gray: number[], width: number, height: number): number {
+  const raw = computeSharpness(gray, width, height);
+  const contrast = Math.max(1, variance(gray));
+  return raw / contrast;
+}
+
+/**
+ * Generation-tier hint — collapsed to a single tier so adequate/strong never diverge
+ * in anchor selection or downstream quality (tone-fair; see PhotoGuidance brief).
+ */
+function resolveFairInputPhotoStrength(
+  _dominantFaceRatio: number,
+  _normalizedSharpness: number
+): InputPhotoStrength {
+  return 'adequate';
+}
+
+export function resolvePhotoGuidanceFromMetrics(params: {
+  faceRatios: number[];
+  sharpness: number;
+  brightness: number;
+  normalizedSharpness: number;
+}): PhotoGuidanceResult {
+  const { faceCount, dominantFaceRatio, hasDominant } = resolveEffectiveFace(params.faceRatios);
+  const warnings: string[] = [];
+
+  if (faceCount === 0) warnings.push('no_face_detected');
+  else if (!hasDominant) warnings.push('multiple_faces_no_dominant');
+
+  if (dominantFaceRatio > 0 && dominantFaceRatio < 0.06) warnings.push('face_area_too_small');
+  else if (dominantFaceRatio > 0 && dominantFaceRatio < 0.12) warnings.push('face_borderline_size');
+
+  if (params.normalizedSharpness < 0.12) warnings.push('sharpness_too_low');
+  if (params.brightness < 18) warnings.push('low_brightness');
+  if (params.brightness > 245) warnings.push('brightness_out_of_range');
+
+  const inputStrength = resolveFairInputPhotoStrength(dominantFaceRatio, params.normalizedSharpness);
+
+  return {
+    canContinue: true,
+    warnings,
+    reasons: warnings,
+    passed: true,
+    inputStrength,
+    faceCount,
+    faceAreaRatio: dominantFaceRatio,
+    sharpness: params.sharpness,
+    brightness: params.brightness,
+    normalizedSharpness: params.normalizedSharpness,
+  };
+}
+
 async function computeImageStats(url: string): Promise<ImageStats> {
   const source = await fetchImageBuffer(url);
   const resized = await sharp(source)
@@ -352,12 +428,14 @@ async function computeImageStats(url: string): Promise<ImageStats> {
   }
   const brightness = mean(gray);
   const sharpness = computeSharpness(gray, width, height);
+  const normalizedSharpness = normalizedSharpnessScore(gray, width, height);
   const faceBlobs = detectFaceLikeBlobs(rgb, width, height);
   const faceDetectConfidence = clamp(faceBlobs.largestRatio * 6, 0, 1);
   return {
     embedding: buildEmbedding(rgb),
     brightness,
     sharpness,
+    normalizedSharpness,
     faceCount: faceBlobs.faceCount,
     faceAreaRatio: faceBlobs.largestRatio,
     faceRatios: faceBlobs.ratios,
@@ -400,43 +478,15 @@ export function resolveEffectiveFace(faceRatios: number[]): {
   return { faceCount, dominantFaceRatio, secondaryComparableRatio, hasDominant };
 }
 
-export async function evaluatePhotoGate(photoUrl: string): Promise<{
-  passed: boolean;
-  inputStrength: InputPhotoStrength;
-  reasons: string[];
-  faceCount: number;
-  faceAreaRatio: number;
-  sharpness: number;
-  brightness: number;
-}> {
+/** PhotoGuidance — advisory only; never blocks checkout/generation on quality. */
+export async function evaluatePhotoGate(photoUrl: string): Promise<PhotoGuidanceResult> {
   const stats = await computeImageStats(photoUrl);
-  const face = resolveEffectiveFace(stats.faceRatios);
-  const reasons: string[] = [];
-  // Dominant-face rule (shared with the upload analyzer): one clearly dominant
-  // face passes; several comparable faces fail; zero faces fail.
-  if (face.faceCount === 0) reasons.push('no_face_detected');
-  else if (!face.hasDominant) reasons.push('multiple_faces_no_dominant');
-  if (face.dominantFaceRatio < 0.06) reasons.push('face_area_too_small');
-  if (stats.sharpness < 30) reasons.push('sharpness_too_low');
-  if (stats.brightness < 45 || stats.brightness > 215) reasons.push('brightness_out_of_range');
-  const passed = reasons.length === 0;
-
-  let inputStrength: InputPhotoStrength = 'strong';
-  if (face.dominantFaceRatio < 0.1 || stats.sharpness < 80 || stats.brightness < 60 || stats.brightness > 190) {
-    inputStrength = 'adequate';
-  }
-  if (face.dominantFaceRatio < 0.08 || stats.sharpness < 50 || stats.brightness < 55 || stats.brightness > 205) {
-    inputStrength = 'weak';
-  }
-  return {
-    passed,
-    inputStrength,
-    reasons,
-    faceCount: face.faceCount,
-    faceAreaRatio: face.dominantFaceRatio,
+  return resolvePhotoGuidanceFromMetrics({
+    faceRatios: stats.faceRatios,
     sharpness: stats.sharpness,
     brightness: stats.brightness,
-  };
+    normalizedSharpness: stats.normalizedSharpness,
+  });
 }
 
 export async function evaluateImageFaceSignal(imageUrl: string): Promise<{
@@ -456,46 +506,21 @@ function classifyPhotoFromMetrics(params: {
   faceRatios: number[];
   sharpness: number;
   brightness: number;
+  normalizedSharpness: number;
 }): PhotoAnalysisResult {
-  const { faceCount, dominantFaceRatio, hasDominant } = resolveEffectiveFace(params.faceRatios);
-
-  const reasonCodes: string[] = [];
-  if (faceCount === 0) {
-    return {
-      faceCount: 0,
-      dominantFaceRatio: 0,
-      sharpness: params.sharpness,
-      brightness: params.brightness,
-      status: 'blocked',
-      reasonCodes: ['no_face_detected'],
-    };
-  }
-
-  // Dominant-face rule: one clearly dominant face passes — small/background
-  // faces are invisible to the user (no warning, no block). Only several
-  // comparable faces block.
-  if (!hasDominant) reasonCodes.push('multiple_faces_no_dominant');
-
-  if (dominantFaceRatio < 0.04) reasonCodes.push('face_too_small_critical');
-  else if (dominantFaceRatio < 0.06) reasonCodes.push('face_too_small');
-  else if (dominantFaceRatio < 0.12) reasonCodes.push('face_borderline_size');
-
-  if (params.sharpness < 14) reasonCodes.push('low_sharpness');
-  if (params.brightness < 35) reasonCodes.push('low_brightness');
-
-  const blocked = !hasDominant || dominantFaceRatio < 0.04 || params.sharpness < 14;
-  const warning =
-    dominantFaceRatio < 0.12 ||
-    params.sharpness < 22 ||
-    params.brightness < 35;
-
+  const guidance = resolvePhotoGuidanceFromMetrics(params);
+  const { faceCount, dominantFaceRatio } = resolveEffectiveFace(params.faceRatios);
+  const warnings = guidance.warnings;
   return {
     faceCount,
     dominantFaceRatio,
     sharpness: params.sharpness,
     brightness: params.brightness,
-    status: blocked ? 'blocked' : warning ? 'warning' : 'good',
-    reasonCodes,
+    normalizedSharpness: params.normalizedSharpness,
+    status: warnings.length > 0 ? 'warning' : 'good',
+    reasonCodes: warnings,
+    warnings,
+    canContinue: true,
   };
 }
 
@@ -524,8 +549,9 @@ export async function analyzePhotoDataUrl(dataUrl: string): Promise<PhotoAnalysi
   const brightness = mean(gray);
   const sharpnessRaw = computeSharpness(gray, width, height);
   const sharpness = Math.max(0, Math.sqrt(sharpnessRaw) / 2);
+  const normalizedSharpness = normalizedSharpnessScore(gray, width, height);
   const faceRatios = detectFaceLikeBlobRatios(rgb, width, height);
-  return classifyPhotoFromMetrics({ faceRatios, sharpness, brightness });
+  return classifyPhotoFromMetrics({ faceRatios, sharpness, brightness, normalizedSharpness });
 }
 
 export async function scoreResemblanceAgainstReference(params: {
@@ -626,6 +652,7 @@ export function selectResemblanceAnchor(params: {
   if (sanityDisagreement) confidence = downgrade(confidence);
   if (lowDiversity) confidence = downgrade(confidence);
   if (top.faceDetectConfidence < 0.35) confidence = 'low';
+  // inputStrength kept for audit metadata only — weak tier no longer assigned by PhotoGuidance.
   if (params.inputStrength === 'weak') confidence = downgrade(confidence);
   if (extremeMismatch) confidence = 'low';
 
