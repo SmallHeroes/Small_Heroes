@@ -144,10 +144,10 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               </div>
 
               <div className="hero-img-wrap">
-                <div className="hero-glow" />
+                <div className="hero-glow" aria-hidden="true" />
                 <img
-                  src="/Images/HeroIllustrated.png"
-                  alt="ילד גיבור"
+                  src="/Images/hero-child-fox.png"
+                  alt="ילד וחבר הסיפור"
                   className="hero-img"
                   onError={(e) => {
                     e.currentTarget.style.display = 'none';
@@ -266,10 +266,6 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               </div>
 
               <div className="sample-img-wrap sample-preview-wrap">
-                <p className="sample-kicker">הצצה מהספר</p>
-                <p className="sample-p sample-preview-note">
-                  המחשה — כל ספר נבנה אישית לפי הילד/ה
-                </p>
                 {/* TODO: temporary placeholder — replace with a real generated book sample. */}
                 <figure className="sample-book-illustration">
                   <img
