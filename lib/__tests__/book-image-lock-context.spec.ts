@@ -83,7 +83,7 @@ describe('BookImageLockContext — Style 02 lock contract', () => {
 
       const p5 = resolvePageImageLockSlice(ctx, 5, {
         imageDirection: story.pages[4]?.imagePrompt,
-        bookPageText: story.pages[4]?.bookPageText,
+        bookPageText: story.pages[4]?.text,
       });
       expect(p5.pageShot?.shot).toBeTruthy();
       expect(p5.pageLocationPlan?.zoneId).toBeTruthy();
@@ -168,7 +168,7 @@ describe('BookImageLockContext — Style 02 lock contract', () => {
       const page = story.pages[pageNum - 1];
       const slice = resolvePageImageLockSlice(ctx, pageNum, {
         imageDirection: page?.imagePrompt,
-        bookPageText: page?.bookPageText,
+        bookPageText: page?.text,
       });
       const plannedLoc = locationPlan.pagePlans.find((p) => p.page === pageNum);
       if (plannedLoc) {
@@ -182,7 +182,7 @@ describe('BookImageLockContext — Style 02 lock contract', () => {
 
       const sceneClass = classifyStyle02SceneClass({
         imagePrompt: page?.imagePrompt,
-        bookPageText: page?.bookPageText,
+        bookPageText: page?.text,
       });
       const subsetKey = resolveStyle02SubsetKey(sceneClass);
       const styleRefs = resolveStyle02StyleReferencePaths(subsetKey, refConfig === 'A' ? 2 : 3);

@@ -113,12 +113,12 @@ async function main(): Promise<void> {
     const page = story.pages[pageNum - 1];
     const slice = resolvePageImageLockSlice(ctx, pageNum, {
       imageDirection: page?.imagePrompt,
-      bookPageText: page?.bookPageText,
+      bookPageText: page?.text,
     });
 
     const sceneClass = classifyStyle02SceneClass({
       imagePrompt: page?.imagePrompt,
-      bookPageText: page?.bookPageText,
+      bookPageText: page?.text,
       environment: page?.imagePrompt,
     });
     const subsetKey = resolveStyle02SubsetKey(sceneClass);
