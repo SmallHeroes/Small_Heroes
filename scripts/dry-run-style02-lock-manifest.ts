@@ -31,7 +31,8 @@ import {
   resolveStoryLocationPlan,
 } from '../lib/story-location-bible';
 import {
-  classifyStyle02SceneClass,
+  classifyStyle02SceneClassDetailed,
+  resolveStyle02BookWardrobeLock,
   resolveStyle02RefBudgetConfig,
   resolveStyle02StyleReferencePaths,
   resolveStyle02SubsetKey,
@@ -112,6 +113,9 @@ async function main(): Promise<void> {
   push('## Location plan');
   push(formatLocationPlanTable(locationPlan));
   push('');
+  const bookWardrobe = resolveStyle02BookWardrobeLock({ companionId: companion.id });
+  push(`Book wardrobe source: ${bookWardrobe.source}`);
+  push('');
   push('## Per-page Style 02 lock + reference order');
   push('');
 
@@ -122,11 +126,15 @@ async function main(): Promise<void> {
       bookPageText: page?.text,
     });
 
-    const sceneClass = classifyStyle02SceneClass({
+    const sceneClassification = classifyStyle02SceneClassDetailed({
+      effectivePageTimeOfDay: slice.effectivePageTimeOfDay,
+      pageLocationPlan: slice.pageLocationPlan,
+      locationBible: slice.locationBible,
       imagePrompt: page?.imagePrompt,
       bookPageText: page?.text,
       environment: page?.imagePrompt,
     });
+    const sceneClass = sceneClassification.sceneClass;
     const subsetKey = resolveStyle02SubsetKey(sceneClass);
     const styleRefCount = refConfig === 'A' ? 2 : 3;
     const styleRefs = resolveStyle02StyleReferencePaths(subsetKey, styleRefCount);
@@ -158,7 +166,7 @@ async function main(): Promise<void> {
     } else {
       push('location: (no page plan)');
     }
-    push(`sceneClass=${sceneClass} subset=${subsetKey} orderOk=${validation.ok}`);
+    push(`sceneClass=${sceneClass} subset=${subsetKey} classifier=${sceneClassification.source} orderOk=${validation.ok}`);
     if (!validation.ok) {
       push(`ORDER VIOLATIONS: ${validation.violations.join('; ')}`);
     }

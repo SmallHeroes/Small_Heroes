@@ -1,62 +1,155 @@
-import { describe, expect, it } from 'vitest';
-import { classifyStyle02SceneClass } from '../style02-gptimage';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  classifyStyle02SceneClass,
+  classifyStyle02SceneClassDetailed,
+  resolveStyle02BookWardrobeLock,
+  STYLE02_GENERIC_WARDROBE_FALLBACK,
+} from '../style02-gptimage';
+import type { BookLocationBible, PageLocationPlan } from '../story-location-bible/types';
 
-/** Previous short-book run — Hebrew bedroom prose + English imageDirections. */
-const BOLLY_BEDTIME_PAGES: Array<{ bookPageText: string; imagePrompt: string }> = [
-  {
-    bookPageText:
-      'מיכל שוכבת במיטה, האור העמום מהמסדרון משאיר פס רך על הקיר. על המדף מחכה מדחום קטן.',
-    imagePrompt:
-      'evening bedroom, soft night light, small thermometer resting on a shelf by the bed',
-  },
-  {
-    bookPageText: 'מיכל מושכת את השמיכה סביב רגליה.',
-    imagePrompt: 'close-up bed and pillow, Bolly mid small roll, blanket detail',
-  },
-  {
-    bookPageText: 'עיניה גולשות אל המדחום שעל המדף.',
-    imagePrompt: 'child in bed, eyes drifting toward the small thermometer on the shelf, then away',
-  },
-  {
-    bookPageText: 'המחשבה על מחר גורמת לכתפיים שלה לעלות מעט.',
-    imagePrompt: "close-up child's shoulders rising slightly, hand half-closing, in bed",
-  },
-  {
-    bookPageText: 'בּוֹלִי מתקרב אליה ונעצר.',
-    imagePrompt: 'close-up Bolly curled into a small ball on the blanket beside the child',
-  },
-  {
-    bookPageText: 'היא מסתכלת ביד שלה. היד נסגרת לאגרוף קטן ואז נפתחת לאט לאט.',
-    imagePrompt: 'close-up small hand closing to a fist then opening slowly, on the blanket',
-  },
-  {
-    bookPageText: 'היא מושיטה אצבע קטנה ונוגעת בבּוֹלִי בעדינות.',
-    imagePrompt: "close-up child's finger gently touching Bolly, one small plate open",
-  },
-  {
-    bookPageText: 'המדחום עדיין על המדף, באותו מקום.',
-    imagePrompt: 'child looking calmly at the thermometer still resting on the shelf, body relaxed',
-  },
-  {
-    bookPageText: 'מיכל מחייכת חיוך שקט.',
-    imagePrompt: "close-up Bolly nudging the pillow, child's small quiet smile, body soft in bed",
-  },
-  {
-    bookPageText: 'היא ישנה בשקט, נשימה רגועה.',
-    imagePrompt:
-      'close-up bedside warm light, child asleep, thermometer still small on the shelf, Bolly snug',
-  },
-];
+const FOX_BALCONY_ZONE: PageLocationPlan = {
+  page: 5,
+  zoneId: 'balcony_drip_area',
+  visibleAnchors: ['same metal bucket'],
+  allowedVariation: 'camera may move',
+  forbiddenDrift: [],
+};
 
-describe('classifyStyle02SceneClass — bolly bedtime', () => {
-  it('classifies all 10 bedroom pages as night-bedroom (not forest-outdoor)', () => {
-    const classes = BOLLY_BEDTIME_PAGES.map((p) =>
+const BEDROOM_ZONE: PageLocationPlan = {
+  page: 1,
+  zoneId: 'bedroom_window',
+  visibleAnchors: ['same child bed'],
+  allowedVariation: 'camera may move',
+  forbiddenDrift: [],
+};
+
+const FOREST_BIBLE: BookLocationBible = {
+  continuityMode: 'fantasy_world',
+  primarySetting: 'magical forest village',
+  allowedZones: [
+    {
+      id: 'enchanted_glade',
+      description: 'Magical forest meadow with mushrooms and fairy lights',
+      stableGeometry: ['same trail'],
+      visualAnchors: ['glowing mushrooms'],
+      allowedCameraAccess: ['wide'],
+    },
+  ],
+  fixedAnchors: [],
+  forbiddenDrift: [],
+  transitionRules: [],
+  source: 'derived',
+};
+
+describe('classifyStyle02SceneClass — lock-driven', () => {
+  it('day timeOfDay → daytime subset even when text mentions lantern and Bolly', () => {
+    const result = classifyStyle02SceneClassDetailed({
+      effectivePageTimeOfDay: 'day',
+      pageLocationPlan: BEDROOM_ZONE,
+      imagePrompt:
+        'close-up Bolly curled on blanket beside warm glow from indoor lantern, child in bed',
+      bookPageText: 'בּוֹלִי מתקרב אליה ליד המנורה',
+    });
+    expect(result.source).toBe('locks');
+    expect(result.sceneClass).toBe('daytime-interior');
+  });
+
+  it('night timeOfDay → night-bedroom via locks (not keyword soup)', () => {
+    const result = classifyStyle02SceneClassDetailed({
+      effectivePageTimeOfDay: 'night',
+      pageLocationPlan: BEDROOM_ZONE,
+      imagePrompt: 'child with flashlight on balcony floor',
+      bookPageText: 'בלילה שקט',
+    });
+    expect(result.source).toBe('locks');
+    expect(result.sceneClass).toBe('night-bedroom');
+  });
+
+  it('dusk counts as night for ref subset', () => {
+    expect(
       classifyStyle02SceneClass({
-        imagePrompt: p.imagePrompt,
-        bookPageText: p.bookPageText,
+        effectivePageTimeOfDay: 'dusk',
+        pageLocationPlan: FOX_BALCONY_ZONE,
       })
+    ).toBe('night-bedroom');
+  });
+
+  it('forest zone → forest-outdoor-environment regardless of warm glow words', () => {
+    const result = classifyStyle02SceneClassDetailed({
+      effectivePageTimeOfDay: 'day',
+      pageLocationPlan: {
+        ...FOX_BALCONY_ZONE,
+        zoneId: 'enchanted_glade',
+      },
+      locationBible: FOREST_BIBLE,
+      imagePrompt: 'warm glow lantern near mushrooms',
+    });
+    expect(result.source).toBe('locks');
+    expect(result.sceneClass).toBe('forest-outdoor-environment');
+  });
+
+  it('regex fallback fires and logs when time/location locks missing', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = classifyStyle02SceneClassDetailed({
+      imagePrompt: 'evening bedroom, soft night light, child in bed',
+      bookPageText: 'מיכל שוכבת במיטה',
+    });
+    expect(result.source).toBe('regex-fallback');
+    expect(result.sceneClass).toBe('night-bedroom');
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('[style02-scene-classifier] regex fallback')
     );
-    expect(classes.every((c) => c === 'night-bedroom')).toBe(true);
-    expect(classes.filter((c) => c === 'forest-outdoor-environment')).toHaveLength(0);
+    warn.mockRestore();
+  });
+});
+
+describe('resolveStyle02BookWardrobeLock — single source', () => {
+  it('story companion wardrobe wins over DNA clothing', () => {
+    const { lock, source } = resolveStyle02BookWardrobeLock({
+      companionId: 'dragon_dini',
+      childStructured: { clothing: 'purple sequin dress with glitter boots' },
+    });
+    expect(source).toBe('story');
+    expect(lock).toContain('dragon_dini_fantasy');
+    expect(lock).not.toContain('purple sequin dress');
+  });
+
+  it('DNA clothing when no story wardrobe', () => {
+    const clothing = 'navy hoodie, gray joggers, white sneakers';
+    const { lock, source } = resolveStyle02BookWardrobeLock({
+      companionId: 'fox_uri',
+      childStructured: { clothing },
+    });
+    expect(source).toBe('dna');
+    expect(lock).toBe(
+      `BOOK WARDROBE LOCK (verbatim every page — same outfit all pages): ${clothing}`
+    );
+  });
+
+  it('generic fallback only when DNA empty and logs', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { lock, source } = resolveStyle02BookWardrobeLock({
+      companionId: 'fox_uri',
+      childStructured: { clothing: '' },
+    });
+    expect(source).toBe('generic');
+    expect(lock).toContain(STYLE02_GENERIC_WARDROBE_FALLBACK);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('[style02-wardrobe] generic fallback')
+    );
+    warn.mockRestore();
+  });
+
+  it('anchor and page prompts share identical lock bytes', () => {
+    const clothing = 'yellow raincoat, blue boots';
+    const anchor = resolveStyle02BookWardrobeLock({
+      companionId: 'fox_uri',
+      childStructured: { clothing },
+    }).lock;
+    const page = resolveStyle02BookWardrobeLock({
+      companionId: 'fox_uri',
+      childStructured: { clothing },
+    }).lock;
+    expect(page).toBe(anchor);
   });
 });

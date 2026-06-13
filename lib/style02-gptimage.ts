@@ -6,6 +6,9 @@ import { existsSync } from 'fs';
 import path from 'path';
 import { STYLE_IDS } from './styles';
 import { resolveCompanionLockSource } from './companion-lock-source';
+import { resolveStyle01StoryWardrobeLock } from './style01-story-wardrobe';
+import type { BookLocationBible, PageLocationPlan } from './story-location-bible/types';
+import type { StoryTimeOfDay } from './story-time-of-day';
 
 export const STYLE_02_GPT_MODEL = 'gpt-image-2';
 
@@ -121,18 +124,88 @@ export function resolveStyle02RefBudgetConfig(): Style02RefBudgetConfig {
   return 'A';
 }
 
-const NIGHT_BEDROOM_RE =
-  /\b(bedroom|bed\b|bedside|blanket|pillow|quilt|mattress|shelf|asleep|sleeping|sleep\b|bedtime|nightlight|night light|lamplight|lantern|indoor lantern|dusk window|thermometer|moonlight|moon\b|stars at night|bolly|armadillo|plate open|warm glow|child in bed|beside the child)\b|(?:מיטה|שמיכה|כרית|חדר|לילה|נרדם|ישן|ישנה|מדחום|מדף|מסדרון|עמום|בּוֹלִי|בולי)/iu;
+/** Weak regex fallback only — must NOT match companion names or ambient glow words. */
+const NIGHT_BEDROOM_FALLBACK_RE =
+  /\b(bedroom|bed\b|bedside|blanket|pillow|quilt|mattress|asleep|sleeping|sleep\b|bedtime|nightlight|night light|moonlight|moon\b|stars at night|child in bed)\b|(?:מיטה|שמיכה|כרית|חדר שינה|לילה|נרדם|ישן|ישנה)/iu;
 
-const DAYTIME_INTERIOR_RE =
+const DAYTIME_INTERIOR_FALLBACK_RE =
   /\b(classroom|kindergarten|school\b|gan\b|clinic|office|kitchen|living room|indoor)\b|(?:כיתה|גן|בית ספר|מרפאה)/iu;
 
-/** Outdoor magical — only when no bedroom/daytime interior cues matched first. */
-const FOREST_OUTDOOR_RE =
+const FOREST_OUTDOOR_FALLBACK_RE =
   /\b(forest|woods|trees|mushroom|meadow|glade|wildflowers|hills|trail through|path through|garden path|village square|outdoor sunbeam)\b|(?:יער|שביל|אחו|גבעות|פרחי בר)/iu;
 
-/** Classify page scene text → scene class for reference subset selection. */
-export function classifyStyle02SceneClass(input: {
+export type Style02SceneClassifierSource = 'locks' | 'regex-fallback';
+
+export type Style02SceneClassResult = {
+  sceneClass: Style02SceneClass;
+  source: Style02SceneClassifierSource;
+};
+
+type ZoneEnvironmentKind = 'forest' | 'clinic' | 'interior' | 'home-outdoor';
+
+function resolveZoneEnvironmentKind(
+  zoneId: string,
+  bible?: BookLocationBible | null
+): ZoneEnvironmentKind | null {
+  const id = zoneId.toLowerCase();
+  if (/forest|woods|meadow|glade|magical_forest|fairy|village_trail|enchanted/.test(id)) {
+    return 'forest';
+  }
+  if (/clinic|medical|doctor|hospital|מרפאה/.test(id)) return 'clinic';
+  if (/balcony|porch|yard|garden|threshold|bucket|drip|outdoor/.test(id)) {
+    return 'home-outdoor';
+  }
+  if (/bedroom|bed_|_bed|window|room|kitchen|hallway|indoor|classroom|gan|school/.test(id)) {
+    return 'interior';
+  }
+
+  const zone = bible?.allowedZones.find((z) => z.id === zoneId);
+  if (zone) {
+    const hay = [zone.id, zone.description, ...zone.visualAnchors, ...zone.stableGeometry]
+      .join(' ')
+      .toLowerCase();
+    if (/\bforest\b|fairy village|magical forest|meadow|enchanted woods/.test(hay)) {
+      return 'forest';
+    }
+    if (/clinic|medical office|doctor/.test(hay)) return 'clinic';
+    if (/balcony|porch|outdoor corner|under-window|drip area/.test(hay)) return 'home-outdoor';
+    if (/bedroom|indoor|same child bedroom|inside the same/.test(hay)) return 'interior';
+  }
+  if (bible?.continuityMode === 'fantasy_world') return 'forest';
+  return null;
+}
+
+function isNightTimeOfDay(time: StoryTimeOfDay): boolean {
+  return time === 'night' || time === 'dusk';
+}
+
+function isDayTimeOfDay(time: StoryTimeOfDay): boolean {
+  return time === 'day' || time === 'dawn';
+}
+
+function classifyStyle02SceneFromPageLocks(input: {
+  effectivePageTimeOfDay?: StoryTimeOfDay;
+  pageLocationPlan?: PageLocationPlan | null;
+  locationBible?: BookLocationBible | null;
+}): Style02SceneClass | null {
+  const time = input.effectivePageTimeOfDay;
+  if (!time) return null;
+
+  const zoneId = input.pageLocationPlan?.zoneId;
+  const env = zoneId ? resolveZoneEnvironmentKind(zoneId, input.locationBible) : null;
+
+  if (env === 'forest') return 'forest-outdoor-environment';
+  if (env === 'clinic') return 'daytime-interior';
+
+  if (time === 'mixed') {
+    return null;
+  }
+  if (isNightTimeOfDay(time)) return 'night-bedroom';
+  if (isDayTimeOfDay(time)) return 'daytime-interior';
+  return null;
+}
+
+function classifyStyle02SceneFromRegexFallback(input: {
   imagePrompt?: string;
   bookPageText?: string;
   environment?: string;
@@ -145,16 +218,46 @@ export function classifyStyle02SceneClass(input: {
     input.lighting ?? '',
   ].join(' ');
 
-  if (NIGHT_BEDROOM_RE.test(hay)) {
-    return 'night-bedroom';
-  }
-  if (DAYTIME_INTERIOR_RE.test(hay)) {
-    return 'daytime-interior';
-  }
-  if (FOREST_OUTDOOR_RE.test(hay)) {
-    return 'forest-outdoor-environment';
-  }
+  if (NIGHT_BEDROOM_FALLBACK_RE.test(hay)) return 'night-bedroom';
+  if (DAYTIME_INTERIOR_FALLBACK_RE.test(hay)) return 'daytime-interior';
+  if (FOREST_OUTDOOR_FALLBACK_RE.test(hay)) return 'forest-outdoor-environment';
   return 'daytime-interior';
+}
+
+/** Classify page scene for Style 02 reference subset — locks first, regex last. */
+export function classifyStyle02SceneClassDetailed(input: {
+  effectivePageTimeOfDay?: StoryTimeOfDay;
+  pageLocationPlan?: PageLocationPlan | null;
+  locationBible?: BookLocationBible | null;
+  imagePrompt?: string;
+  bookPageText?: string;
+  environment?: string;
+  lighting?: string;
+}): Style02SceneClassResult {
+  const fromLocks = classifyStyle02SceneFromPageLocks(input);
+  if (fromLocks) {
+    return { sceneClass: fromLocks, source: 'locks' };
+  }
+
+  console.warn(
+    '[style02-scene-classifier] regex fallback — missing effectivePageTimeOfDay and/or pageLocationPlan.zoneId'
+  );
+  return {
+    sceneClass: classifyStyle02SceneFromRegexFallback(input),
+    source: 'regex-fallback',
+  };
+}
+
+export function classifyStyle02SceneClass(input: {
+  effectivePageTimeOfDay?: StoryTimeOfDay;
+  pageLocationPlan?: PageLocationPlan | null;
+  locationBible?: BookLocationBible | null;
+  imagePrompt?: string;
+  bookPageText?: string;
+  environment?: string;
+  lighting?: string;
+}): Style02SceneClass {
+  return classifyStyle02SceneClassDetailed(input).sceneClass;
 }
 
 export function resolveStyle02SubsetKey(sceneClass: Style02SceneClass): Style02SceneSubsetKey {
@@ -200,16 +303,44 @@ export function buildStyle02ChildVisualLock(input: {
   return `CHILD VISUAL LOCK (verbatim every page): ${name} — ${desc}.${ageBit}${genderBit}`.trim();
 }
 
+export const STYLE02_GENERIC_WARDROBE_FALLBACK =
+  'comfortable adventure clothes — long-sleeve top, durable pants, simple shoes; colors stay consistent across all pages.';
+
+export type Style02WardrobeLockSource = 'story' | 'dna' | 'generic';
+
+/** Single per-book wardrobe source — anchor + every page prompt must use this. */
+export function resolveStyle02BookWardrobeLock(input: {
+  companionId?: string | null;
+  childStructured?: { clothing: string };
+  childDescription?: string;
+}): { lock: string; source: Style02WardrobeLockSource } {
+  const storyLock = resolveStyle01StoryWardrobeLock(input.companionId);
+  if (storyLock?.trim()) {
+    return { lock: storyLock.trim(), source: 'story' };
+  }
+  const clothing = input.childStructured?.clothing?.trim();
+  if (clothing) {
+    return {
+      lock: `BOOK WARDROBE LOCK (verbatim every page — same outfit all pages): ${clothing}`,
+      source: 'dna',
+    };
+  }
+  console.warn(
+    '[style02-wardrobe] generic fallback — no story wardrobe lock and empty childStructured.clothing'
+  );
+  return {
+    lock: `BOOK WARDROBE LOCK (verbatim every page — same outfit all pages): ${STYLE02_GENERIC_WARDROBE_FALLBACK}`,
+    source: 'generic',
+  };
+}
+
 /** ONE wardrobe lock — identical outfit every page (Phase 2 test control). */
 export function buildStyle02WardrobeLock(input: {
+  companionId?: string | null;
   childStructured?: { clothing: string };
   childDescription?: string;
 }): string {
-  const clothing = input.childStructured?.clothing?.trim();
-  if (clothing) {
-    return `BOOK WARDROBE LOCK (verbatim every page — same outfit all pages): ${clothing}`;
-  }
-  return 'BOOK WARDROBE LOCK (verbatim every page — same outfit all pages): comfortable adventure clothes — long-sleeve top, durable pants, simple shoes; colors stay consistent across all pages.';
+  return resolveStyle02BookWardrobeLock(input).lock;
 }
 
 export function buildStyle02CompanionTextLock(input: {

@@ -54,8 +54,8 @@ import {
   buildStyle02BookPagePrompt,
   buildStyle02ChildVisualLock,
   buildStyle02CompanionTextLock,
-  buildStyle02WardrobeLock,
-  classifyStyle02SceneClass,
+  classifyStyle02SceneClassDetailed,
+  resolveStyle02BookWardrobeLock,
   resolveCompanionReferencePath,
   isStyle02CloseUpScene,
   resolveStyle02BookPromptProfile,
@@ -2728,7 +2728,12 @@ async function generateWithGPTImageStyle02(input: ImageInput): Promise<Generated
       : undefined;
   const wardrobeLock =
     profile === 'default'
-      ? (input.style02WardrobeLock ?? buildStyle02WardrobeLock({ childStructured: input.childStructured }))
+      ? (input.style02WardrobeLock ??
+        resolveStyle02BookWardrobeLock({
+          companionId: input.companion?.id,
+          childStructured: input.childStructured,
+          childDescription: input.childDescription,
+        }).lock)
       : undefined;
   const companionTextLock =
     profile === 'default'
@@ -2743,12 +2748,16 @@ async function generateWithGPTImageStyle02(input: ImageInput): Promise<Generated
           : ''))
       : undefined;
 
-  const sceneClass = classifyStyle02SceneClass({
+  const sceneClassification = classifyStyle02SceneClassDetailed({
+    effectivePageTimeOfDay: input.effectivePageTimeOfDay,
+    pageLocationPlan: input.pageLocationPlan,
+    locationBible: input.locationBible,
     imagePrompt: input.pagePrompt,
     bookPageText: input.bookPageText ?? undefined,
     environment: input.pageStoryboard?.environment,
     lighting: input.pageStoryboard?.lighting,
   });
+  const sceneClass = sceneClassification.sceneClass;
   const subsetKey = resolveStyle02SubsetKey(sceneClass);
   const refConfig = resolveStyle02RefBudgetConfig();
   const styleRefCount = refConfig === 'A' ? 2 : 3;
@@ -2844,6 +2853,7 @@ async function generateWithGPTImageStyle02(input: ImageInput): Promise<Generated
   console.log(
     `[style02_phase2] orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} ` +
       `subset=${subsetKey} refConfig=${refConfig} sceneClass=${sceneClass} ` +
+      `classifier=${sceneClassification.source} ` +
       `pageShot=${input.pageShot?.shot ?? '—'} zone=${input.pageLocationPlan?.zoneId ?? '—'} ` +
       `timeOfDay=${input.effectivePageTimeOfDay ?? input.storyTimeOfDay ?? '—'} ` +
       `isolatedObjects=${isolatedObjectRefPaths.length} ` +
@@ -3944,10 +3954,20 @@ export async function generateAllPageImages(
           childGender: config.childGender,
         })
       : undefined;
-  const style02WardrobeLock =
+  const style02WardrobeResolved =
     style02Phase2Active && style02BookProfile === 'default'
-      ? buildStyle02WardrobeLock({ childStructured: config.childStructured, childDescription: config.childDescription })
-      : undefined;
+      ? resolveStyle02BookWardrobeLock({
+          companionId: config.companion?.id,
+          childStructured: config.childStructured,
+          childDescription: config.childDescription,
+        })
+      : null;
+  const style02WardrobeLock = style02WardrobeResolved?.lock;
+  if (style02WardrobeResolved?.source === 'generic') {
+    console.warn(
+      `[style02-wardrobe] order=${config.orderId ?? 'unknown'} generic fallback wardrobe — empty DNA clothing`
+    );
+  }
   const style02CompanionTextLock =
     style02Phase2Active && style02BookProfile === 'default' && config.companion
       ? buildStyle02CompanionTextLock({

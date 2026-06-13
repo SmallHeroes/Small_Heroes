@@ -22,7 +22,8 @@ import {
   resolveStoryLocationPlan,
 } from '../story-location-bible';
 import {
-  classifyStyle02SceneClass,
+  classifyStyle02SceneClassDetailed,
+  resolveStyle02BookWardrobeLock,
   resolveStyle02RefBudgetConfig,
   resolveStyle02StyleReferencePaths,
   resolveStyle02SubsetKey,
@@ -259,10 +260,15 @@ describe('BookImageLockContext — Style 02 lock contract', () => {
         expect(slice.pageShot, `page ${pageNum} missing pageShot`).toBeTruthy();
       }
 
-      const sceneClass = classifyStyle02SceneClass({
+      const sceneClassification = classifyStyle02SceneClassDetailed({
+        effectivePageTimeOfDay: slice.effectivePageTimeOfDay,
+        pageLocationPlan: slice.pageLocationPlan,
+        locationBible: slice.locationBible,
         imagePrompt: page?.imagePrompt,
         bookPageText: page?.text,
       });
+      const sceneClass = sceneClassification.sceneClass;
+      expect(sceneClassification.source, `page ${pageNum} should use lock classifier`).toBe('locks');
       const subsetKey = resolveStyle02SubsetKey(sceneClass);
       const styleRefs = resolveStyle02StyleReferencePaths(subsetKey, refConfig === 'A' ? 2 : 3);
 

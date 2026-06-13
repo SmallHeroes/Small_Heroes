@@ -87,7 +87,7 @@ import {
   buildStage0Style02Prompt,
   generateStage0Style02Anchor,
 } from '@/lib/generation-pipeline/stage0-method-style02';
-import { buildStyle02WardrobeLock } from '@/lib/style02-gptimage';
+import { resolveStyle02BookWardrobeLock } from '@/lib/style02-gptimage';
 import { resolveStyle01StoryWardrobeLock } from '@/lib/style01-story-wardrobe';
 import {
   ensureFamilyCoherenceBundle,
@@ -400,10 +400,16 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
     const stage0Companion = resolveCompanionForOrder(order);
     const orderBranch = resolveOrderStyleBranch(order.illustrationStyle);
     const storyWardrobe = resolveStyle01StoryWardrobeLock(stage0Companion?.id);
+    const style02Wardrobe =
+      orderBranch === 'style02'
+        ? resolveStyle02BookWardrobeLock({
+            companionId: stage0Companion?.id,
+            childStructured: nextCache.dna?.childStructured,
+          })
+        : null;
     const wardrobeLock =
       orderBranch === 'style02'
-        ? (storyWardrobe ??
-          buildStyle02WardrobeLock({ childStructured: nextCache.dna?.childStructured }))
+        ? style02Wardrobe!.lock
         : (storyWardrobe ?? '');
     const anchorPrompt =
       orderBranch === 'style02'
