@@ -3,6 +3,8 @@
  *
  *   npx tsx --require ./scripts/shims/register-server-only.cjs scripts/generate-companion-sheet.ts dragon_dini
  *   npx tsx --require ./scripts/shims/register-server-only.cjs scripts/generate-companion-sheet.ts fox_uri --publish
+ *   npx tsx --require ./scripts/shims/register-server-only.cjs scripts/generate-companion-sheet.ts panda_anat --views=front,3-4,side,happy,theme
+ *   npx tsx --require ./scripts/shims/register-server-only.cjs scripts/generate-companion-sheet.ts chameleon_koko --canon-redo
  */
 import { config as loadEnv } from 'dotenv';
 import fs from 'fs';
@@ -15,18 +17,38 @@ import './shims/register-server-only.cjs';
 
 const PILOT_COMPANIONS = ['dragon_dini', 'fox_uri', 'octopus_seara'] as const;
 
+const VIEW_ALIAS: Record<string, string> = {
+  front: 'front',
+  '3-4': 'three_quarter_front',
+  three_quarter_front: 'three_quarter_front',
+  side: 'side',
+  back: 'three_quarter_back',
+  three_quarter_back: 'three_quarter_back',
+  happy: 'happy',
+  theme: 'theme',
+};
+
+function parseViewsFlag(raw: string | undefined): string[] | undefined {
+  if (!raw?.trim()) return undefined;
+  const kinds = raw
+    .split(',')
+    .map((part) => VIEW_ALIAS[part.trim()])
+    .filter(Boolean);
+  return kinds.length > 0 ? kinds : undefined;
+}
+
 async function main() {
   const args = process.argv.slice(2).filter((a) => !a.startsWith('--'));
   const publish = process.argv.includes('--publish');
-  // --publish-only: copy the ALREADY-GENERATED (and eyeball-approved) PNGs from
-  // outputs/companion-sheets/<id>/ to public/ — no regeneration, no new spend,
-  // and the published assets are exactly the ones the owner approved.
   const publishOnly = process.argv.includes('--publish-only');
+  const canonRedo = process.argv.includes('--canon-redo');
+  const viewsArg = process.argv.find((a) => a.startsWith('--views='));
+  const viewsToRegenerate = parseViewsFlag(viewsArg?.split('=')[1]);
   const companionId = args[0]?.trim();
 
   if (!companionId) {
     console.error(
-      'Usage: npx tsx --require ./scripts/shims/register-server-only.cjs scripts/generate-companion-sheet.ts <companionId> [--publish|--publish-only]'
+      'Usage: npx tsx --require ./scripts/shims/register-server-only.cjs scripts/generate-companion-sheet.ts <companionId> [--publish|--publish-only|--canon-redo|--views=front,3-4,...]'
     );
     console.error(`Pilot ids: ${PILOT_COMPANIONS.join(', ')}`);
     process.exit(1);
@@ -107,6 +129,8 @@ async function main() {
     companionId,
     outDir,
     publishToPublic: publish,
+    canonRedo,
+    viewsToRegenerate: viewsToRegenerate as import('@/lib/generation-pipeline/companion-character-sheet').CompanionSheetViewKind[] | undefined,
   });
 
   const readme = [
@@ -124,7 +148,7 @@ async function main() {
     '',
     publish
       ? 'Published to public/companions/.../style01-sheets/'
-      : 'Eyeball PNGs here. Re-run with --publish to copy into public/companions/<id>/style01-sheets/',
+      : 'Eyeball PNGs here. Re-run with --publish-only to copy into public/companions/<id>/style01-sheets/',
     '',
     'Pilot order: dragon_dini → fox_uri → octopus_seara',
   ].join('\n');

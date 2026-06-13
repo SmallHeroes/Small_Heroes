@@ -1,11 +1,19 @@
 import type { CompanionPresence } from './image-entity-presence';
 
+export type CompanionAccessoryContext = 'story_page' | 'character_sheet';
+
 export type CompanionAccessoryProfile = {
   canonicalAccessory: string;
   accessoryLocation: string;
   accessoryBehavior: string;
   accessoryRequiredWhenVisible: boolean;
   forbiddenAlternatives: string[];
+  /** When false, ritual/story props are omitted on multi-angle character sheets. */
+  showOnCharacterSheet?: boolean;
+  /** Override accessory text for character sheets (e.g. sweater patch only, no ground ritual prop). */
+  characterSheetAccessory?: string;
+  characterSheetAccessoryLocation?: string;
+  characterSheetAccessoryBehavior?: string;
 };
 
 /** Canonical story accessories — one per companion when defined. */
@@ -24,12 +32,40 @@ export const COMPANION_ACCESSORY_PROFILES: Partial<Record<string, CompanionAcces
     accessoryBehavior:
       'appears during her pause ritual before entering a social scene; NOT mandatory whenever visible',
     accessoryRequiredWhenVisible: false,
+    showOnCharacterSheet: false,
+    characterSheetAccessory: 'small music-note patch on a soft sweater',
+    characterSheetAccessoryLocation: 'on the chest of her sweater',
+    characterSheetAccessoryBehavior:
+      'same simple note patch every time; sweater/back visible on back views — quiet social calm marker; NO ground props on character sheets',
     forbiddenAlternatives: [
       'held bouquet',
       'large prop in paws',
       'conflicting handheld object',
       'notebook',
       'umbrella',
+      'pause-stone on ground',
+      'leaf on ground',
+      'stone prop',
+      'leaf prop',
+    ],
+  },
+  chameleon_koko: {
+    canonicalAccessory: 'tiny fabric shoulder satchel in warm mustard',
+    accessoryLocation: 'one shoulder — small soft travel bag strap',
+    accessoryBehavior:
+      'her little travel bag ("a piece of home travels with her"); visibly SMALLER and fabric-soft vs any dragon guardian bag — compact satchel silhouette only',
+    accessoryRequiredWhenVisible: true,
+    forbiddenAlternatives: [
+      'scarf',
+      'striped scarf',
+      'neck scarf',
+      'patchwork',
+      'multicolor patches',
+      'pink spots',
+      'large knapsack',
+      'big backpack',
+      'dragon-sized bag',
+      'terracotta sash',
     ],
   },
   dragon_dini: {
@@ -57,9 +93,31 @@ export function buildCompanionAccessoryLockBlock(input: {
   companionId?: string | null;
   companionName?: string | null;
   companionPresence: CompanionPresence;
+  context?: CompanionAccessoryContext;
 }): string | undefined {
   const profile = resolveCompanionAccessoryProfile(input.companionId);
   if (!profile) return undefined;
+
+  const context = input.context ?? 'story_page';
+  if (context === 'character_sheet' && profile.showOnCharacterSheet === false) {
+    if (!profile.characterSheetAccessory) return undefined;
+    const name = input.companionName?.trim() || input.companionId || 'companion';
+    const forbid = profile.forbiddenAlternatives.map((f) => `NEVER ${f}`).join('; ');
+    if (input.companionPresence === 'partial' || input.companionPresence === 'offscreen_hint') {
+      return [
+        `COMPANION ACCESSORY (partial/offscreen — ${name}):`,
+        `On character sheets the canonical visible accessory is ${profile.characterSheetAccessory} at ${profile.characterSheetAccessoryLocation ?? 'on body'}.`,
+        forbid,
+      ].join('\n');
+    }
+    if (!companionPresenceShowsAccessory(input.companionPresence)) return undefined;
+    return [
+      `COMPANION ACCESSORY LOCK — ${name} (character sheet):`,
+      `ALWAYS ${profile.characterSheetAccessory} at ${profile.characterSheetAccessoryLocation ?? 'on body'}. ${profile.characterSheetAccessoryBehavior ?? ''}.`,
+      'NO pause-stone, NO leaf, NO ground ritual props on character sheets.',
+      forbid,
+    ].join('\n');
+  }
 
   const name = input.companionName?.trim() || input.companionId || 'companion';
   const forbid = profile.forbiddenAlternatives.map((f) => `NEVER ${f}`).join('; ');

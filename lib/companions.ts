@@ -152,7 +152,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
       cardImage: '/companions/chameleon_koko/style01-sheets/front.png',
       narrativeHook: 'מראה שבכל מקום חדש חלק מהבית נוסע איתך',
       visualDescription:
-        'A small playful chameleon with patchwork pastel patches that change gently; a striped scarf; big sweet eyes; looks mischievous and adventurous.',
+        'A small round chameleon in soft warm green with a gentle yellowish-green glow — ONE harmonious green-to-warm-yellow tone across the body (NOT patches, NOT pink spots, NOT pure mint); pale cream-yellow belly; big warm round eyes; shy gentle smile; tail softly curled; carries a TINY fabric shoulder satchel in warm mustard — her little travel bag ("a piece of home travels with her"); cute simplified storybook proportions — warm, huggable, slightly shy.',
     },
     {
       id: 'squirrel_navad',

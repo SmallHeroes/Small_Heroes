@@ -16,7 +16,7 @@ window.COMPANIONS_BY_CATEGORY = {
     { id: 'owl_chacham', name: 'הינשוף בּוּבּוּ', tagline: 'ינשוף זקן ששומר על העולם בזמן שהוא ישן', image: '/companions/NIGHT_FEAR/owl_chacham.jpg', narrativeHook: 'נוכחות שקטה ואיתנה בשעות החלשות של הלילה' },
   ],
   TRANSITION: [
-    { id: 'chameleon_koko', name: 'הזיקית קִים', tagline: 'שובבה שנושאת צבע מכל מקום שהייתה בו', image: '/companions/TRANSITION/chameleon_koko.jpg', narrativeHook: 'מראה שבכל מקום חדש חלק מהבית נוסע איתך' },
+    { id: 'chameleon_koko', name: 'הזיקית קִים', tagline: 'שובבה שנושאת צבע מכל מקום שהייתה בו', image: '/companions/TRANSITION/chameleon_koko.jpg', narrativeHook: 'מראה שבכל מקום חדש חלק מהבית נוסע איתך', visualDescription: 'A small round chameleon in soft warm green with a gentle yellowish-green glow — ONE harmonious green-to-warm-yellow tone across the body (NOT patches, NOT pink spots, NOT pure mint); pale cream-yellow belly; big warm round eyes; shy gentle smile; tail softly curled; carries a TINY fabric shoulder satchel in warm mustard — her little travel bag ("a piece of home travels with her"); cute simplified storybook proportions — warm, huggable, slightly shy.' },
     { id: 'squirrel_navad', name: 'הסנאי נוּטִי', tagline: 'סנאי שקבר אוצרות של אומץ בכל עץ חדש', image: '/companions/TRANSITION/squirrel_navad.jpg', narrativeHook: 'כל מקום זר מכיל מתנה מוחבאת' },
     { id: 'turtle_beiti', name: 'הצב טוֹלִי', tagline: 'הצב שהשריון שלו הוא הבית שלו', image: '/companions/TRANSITION/turtle_beiti.jpg', narrativeHook: 'בית זה מה שאתה נוסע, לא מה שנשאר מאחור' },
   ],

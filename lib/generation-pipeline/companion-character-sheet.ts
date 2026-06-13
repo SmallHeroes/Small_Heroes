@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, writeFileSync, copyFileSync } from 'fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, copyFileSync } from 'fs';
 import { dirname, join } from 'path';
 import type { ChallengeCategory } from '@/lib/companions';
 import { COMPANIONS_BY_CATEGORY, getCompanionById } from '@/lib/companions';
@@ -91,6 +91,10 @@ const THEME_EXPRESSION_BY_CATEGORY: Partial<Record<ChallengeCategory, string>> =
     'THEME expression (calm & reassuring): soft steady eyes, relaxed posture — a gentle night-guide mood, not scared, not predatory.',
   ANGER_FRUSTRATION:
     'THEME expression (calm breath): tentacles/limbs settling, eyes focused but soft — upset energy redirected, still lovable.',
+  SOCIAL:
+    'THEME expression (quiet belonging): gentle open posture, soft eyes — calm social presence without needing to be loud.',
+  TRANSITION:
+    'THEME expression (shy warmth): soft curious eyes, tail gently curled — new-place courage without chaos.',
   NEW_SIBLING:
     'THEME expression (protective guardian): proud gentle stance, nurturing eyes — big-sibling protector mood, not aggressive.',
   SENSITIVITY_OVERWHELM:
@@ -134,6 +138,7 @@ function buildCompanionSheetPrompt(input: {
   visualDescription: string;
   category: ChallengeCategory | null;
   isFrontFromJpg: boolean;
+  isPromptOnlyFront?: boolean;
 }): string {
   const viewLine =
     input.kind === 'theme'
@@ -143,9 +148,16 @@ function buildCompanionSheetPrompt(input: {
   const accessoryLock = buildCompanionAccessoryLockBlock({
     companionId: input.companionId,
     companionPresence: 'present',
+    context: 'character_sheet',
   });
 
-  const intro = input.isFrontFromJpg
+  const intro = input.isPromptOnlyFront
+    ? [
+        'STYLE 01 COMPANION CHARACTER SHEET — FRONT (canon redo from visual lock only).',
+        'NO reference photo. Draw this companion EXACTLY from the COMPANION VISUAL LOCK below.',
+        'Cute simplified hand-drawn watercolor storybook illustration — NOT photoreal, NOT 3D render.',
+      ]
+    : input.isFrontFromJpg
     ? [
         'STYLE 01 COMPANION CHARACTER SHEET — FRONT (identity lock from reference photo).',
         'Image 1 is the canonical companion reference photo. Preserve EXACT species, colors, markings, proportions, accessories, and silhouette.',
@@ -290,6 +302,7 @@ export async function generateCompanionSheetView(input: {
   paletteRefPath: string;
   localOutPath: string;
   isFrontFromJpg: boolean;
+  isPromptOnlyFront?: boolean;
   attemptSuffix?: string;
 }): Promise<CompanionSheetViewResult> {
   const companion = getCompanionById(input.companionId);
@@ -302,53 +315,80 @@ export async function generateCompanionSheetView(input: {
   const minResemblance =
     Number.parseFloat(process.env.COMPANION_SHEET_MIN_RESEMBLANCE ?? '0.22') || 0.22;
 
+  const promptOnly = input.isPromptOnlyFront === true;
   const prompt = buildCompanionSheetPrompt({
     companionId: input.companionId,
     kind: input.kind,
     visualDescription: companion.visualDescription,
     category,
     isFrontFromJpg: input.isFrontFromJpg,
+    isPromptOnlyFront: promptOnly,
   });
 
   let lastFailure = 'unknown';
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const gen = await generateGPTImage({
-      finalPrompt: prompt,
-      negativePrompt: STYLE_01_AVOIDANCE_NEGATIVE,
-      referenceImages: [input.identityRefPath],
-      referenceMode: input.isFrontFromJpg
-        ? 'anchor_companion_from_jpg'
-        : 'anchor_companion_from_sheet_view',
-      requireReferenceEdit: true,
-      size: '1024x1536',
-      quality: (process.env.GPT_IMAGE_QUALITY?.trim() || 'low') as 'low' | 'medium' | 'high',
-      modelOverride: resolveStyle01GptModel(),
-    });
+    let gen: Awaited<ReturnType<typeof generateGPTImage>>;
+    try {
+      gen = await generateGPTImage({
+        finalPrompt: prompt,
+        negativePrompt: STYLE_01_AVOIDANCE_NEGATIVE,
+        referenceImages: promptOnly ? undefined : [input.identityRefPath],
+        referenceMode: promptOnly
+          ? undefined
+          : input.isFrontFromJpg
+            ? 'anchor_companion_from_jpg'
+            : 'anchor_companion_from_sheet_view',
+        requireReferenceEdit: !promptOnly,
+        size: '1024x1536',
+        quality: (process.env.GPT_IMAGE_QUALITY?.trim() || 'low') as 'low' | 'medium' | 'high',
+        modelOverride: resolveStyle01GptModel(),
+      });
+    } catch (err) {
+      const code = (err as { code?: string })?.code;
+      if (code === 'moderation_blocked' && attempt < maxAttempts) {
+        lastFailure = `moderation_blocked attempt ${attempt}`;
+        console.warn(
+          `[companion_sheet] moderation blocked companion=${input.companionId} view=${input.kind} attempt=${attempt}/${maxAttempts}`
+        );
+        continue;
+      }
+      throw err;
+    }
 
     mkdirSync(dirname(input.localOutPath), { recursive: true });
     writeFileSync(input.localOutPath, gen.buffer);
 
-    const scored = await scoreResemblanceAgainstReference({
-      referenceImageUrl: input.identityRefPath,
-      candidateImageUrl: input.localOutPath,
-      effectiveThreshold: 0.7,
-      minAcceptableScore: 0.7,
-    });
-    const embedding = evaluateAnchorEmbeddingScore(scored.resemblanceScore, anchorGate);
+    const scored = promptOnly
+      ? null
+      : await scoreResemblanceAgainstReference({
+          referenceImageUrl: input.identityRefPath,
+          candidateImageUrl: input.localOutPath,
+          effectiveThreshold: 0.7,
+          minAcceptableScore: 0.7,
+        });
+    const resemblanceScore = scored?.resemblanceScore ?? 1;
+    const embedding = promptOnly
+      ? { hardFail: false, verdict: 'prompt_only_front' }
+      : evaluateAnchorEmbeddingScore(resemblanceScore, anchorGate);
     const styleQa = await evaluateAnchorStyleFromVision(input.localOutPath);
     const stylePass = styleQa.ok;
-    const paletteQa = await evaluateCompanionPaletteFaithfulness(
-      input.paletteRefPath,
-      input.localOutPath
-    );
+    const paletteQa = promptOnly
+      ? {
+          ok: true,
+          clearlyOversaturated: false,
+          sameMutedPalette: true,
+          notes: 'prompt-only front — palette QA skipped',
+        }
+      : await evaluateCompanionPaletteFaithfulness(input.paletteRefPath, input.localOutPath);
     const palettePass = paletteQa.ok;
-    const identityOk = !embedding.hardFail && scored.resemblanceScore >= minResemblance;
+    const identityOk =
+      promptOnly || (!embedding.hardFail && resemblanceScore >= minResemblance);
 
     if (identityOk && stylePass && palettePass) {
       return {
         kind: input.kind,
         localPath: input.localOutPath,
-        resemblanceToIdentity: scored.resemblanceScore,
+        resemblanceToIdentity: resemblanceScore,
         styleQaPass: stylePass,
         paletteQaPass: palettePass,
         qaStatus: 'passed',
@@ -357,7 +397,7 @@ export async function generateCompanionSheetView(input: {
       };
     }
 
-    lastFailure = `resemblance=${scored.resemblanceScore.toFixed(3)} style=${stylePass} palette=${palettePass} (${paletteQa.notes}) embedding=${embedding.verdict}`;
+    lastFailure = `resemblance=${resemblanceScore.toFixed(3)} style=${stylePass} palette=${palettePass} (${paletteQa.notes}) embedding=${embedding.verdict}`;
     console.warn(
       `[companion_sheet] reject companion=${input.companionId} view=${input.kind} attempt=${attempt}/${maxAttempts} ${lastFailure}`
     );
@@ -368,53 +408,97 @@ export async function generateCompanionSheetView(input: {
   );
 }
 
+function loadExistingSheetBundle(outDir: string): CompanionCharacterSheetBundle | null {
+  const reportPath = join(outDir, 'report.json');
+  if (!existsSync(reportPath)) return null;
+  try {
+    return JSON.parse(readFileSync(reportPath, 'utf-8')) as CompanionCharacterSheetBundle;
+  } catch {
+    return null;
+  }
+}
+
 export async function generateCompanionCharacterSheet(input: {
   companionId: string;
   outDir: string;
   /** When true, also copy passed views to public/companions/<id>/style01-sheets/ */
   publishToPublic?: boolean;
+  /** Regenerate only these views; others preserved from report.json when present. */
+  viewsToRegenerate?: CompanionSheetViewKind[];
+  /** Front from visual lock only — canon redesign without reference jpg identity. */
+  canonRedo?: boolean;
 }): Promise<CompanionCharacterSheetBundle> {
   const companion = getCompanionById(input.companionId);
   if (!companion) throw new Error(`Unknown companion: ${input.companionId}`);
 
   const jpgPath = resolveCompanionReferenceJpgPath(companion.image);
-  if (!jpgPath) throw new Error(`Companion reference jpg not found: ${companion.image}`);
+  const canonRedo = input.canonRedo === true;
+  if (!canonRedo && !jpgPath) {
+    throw new Error(`Companion reference jpg not found: ${companion.image}`);
+  }
 
   const category = resolveCompanionCategory(input.companionId);
   mkdirSync(input.outDir, { recursive: true });
 
-  const views: Partial<Record<CompanionSheetViewKind, CompanionSheetViewResult>> = {};
+  const existing = loadExistingSheetBundle(input.outDir);
+  const views: Partial<Record<CompanionSheetViewKind, CompanionSheetViewResult>> = {
+    ...(existing?.views ?? {}),
+  };
   const suffix = Date.now();
+  const regenSet = new Set(
+    input.viewsToRegenerate?.length ? input.viewsToRegenerate : COMPANION_SHEET_VIEW_KINDS
+  );
 
   const frontPath = join(input.outDir, COMPANION_SHEET_VIEW_FILENAME.front);
-  console.log(`[companion_sheet] ${input.companionId} generating front from jpg`);
-  const front = await generateCompanionSheetView({
-    companionId: input.companionId,
-    kind: 'front',
-    identityRefPath: jpgPath,
-    paletteRefPath: jpgPath,
-    localOutPath: frontPath,
-    isFrontFromJpg: true,
-    attemptSuffix: `${suffix}-front`,
-  });
-  views.front = front;
+  if (regenSet.has('front')) {
+    if (canonRedo) {
+      console.log(`[companion_sheet] ${input.companionId} generating front (canon redo — prompt only)`);
+      views.front = await generateCompanionSheetView({
+        companionId: input.companionId,
+        kind: 'front',
+        identityRefPath: frontPath,
+        paletteRefPath: jpgPath ?? frontPath,
+        localOutPath: frontPath,
+        isFrontFromJpg: false,
+        isPromptOnlyFront: true,
+        attemptSuffix: `${suffix}-front`,
+      });
+    } else {
+      console.log(`[companion_sheet] ${input.companionId} generating front from jpg`);
+      views.front = await generateCompanionSheetView({
+        companionId: input.companionId,
+        kind: 'front',
+        identityRefPath: jpgPath!,
+        paletteRefPath: jpgPath!,
+        localOutPath: frontPath,
+        isFrontFromJpg: true,
+        attemptSuffix: `${suffix}-front`,
+      });
+    }
+  }
 
-  const identityForAngles = front.localPath;
+  const identityForAngles = views.front?.localPath;
+  if (!identityForAngles) {
+    throw new Error(
+      `Companion sheet needs a front view identity — generate front first or include it in --views`
+    );
+  }
+  const paletteRefPath =
+    canonRedo || regenSet.has('front') ? identityForAngles : (jpgPath ?? identityForAngles);
 
   for (const kind of COMPANION_SHEET_VIEW_KINDS) {
-    if (kind === 'front') continue;
+    if (kind === 'front' || !regenSet.has(kind)) continue;
     const localOutPath = join(input.outDir, COMPANION_SHEET_VIEW_FILENAME[kind]);
     console.log(`[companion_sheet] ${input.companionId} generating ${kind}`);
-    const result = await generateCompanionSheetView({
+    views[kind] = await generateCompanionSheetView({
       companionId: input.companionId,
       kind,
       identityRefPath: identityForAngles,
-      paletteRefPath: jpgPath,
+      paletteRefPath,
       localOutPath,
       isFrontFromJpg: false,
       attemptSuffix: `${suffix}-${kind}`,
     });
-    views[kind] = result;
   }
 
   const bundle: CompanionCharacterSheetBundle = {
