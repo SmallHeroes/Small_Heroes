@@ -66,12 +66,29 @@ function initLandingContent() {
 
   // ── Trust & Privacy ─────────────────────────────────────────────────────────
   if (L.trust) {
-    setText('trustH2',  L.trust.h2);
-    setText('trustSub', L.trust.sub);
-    setText('trustPhotoTitle',       L.trust.photoTitle);
-    setText('trustPhotoBody',        L.trust.photoBody);
-    setText('trustQcTitle',          L.trust.qcTitle);
-    setText('trustQcBody',           L.trust.qcBody);
+    setText('trustH2', L.trust.h2);
+    const trustPoints = document.getElementById('trustPoints');
+    if (trustPoints && L.trust.pillars) {
+      trustPoints.innerHTML = '';
+      L.trust.pillars.forEach((pillar) => {
+        const article = document.createElement('article');
+        article.className = 'trust-point';
+        const icon = document.createElement('span');
+        icon.className = 'trust-point__icon';
+        icon.setAttribute('aria-hidden', 'true');
+        icon.textContent = pillar.icon;
+        const title = document.createElement('h3');
+        title.className = 'trust-point__title';
+        title.textContent = pillar.title;
+        const body = document.createElement('p');
+        body.className = 'trust-point__text';
+        body.textContent = pillar.body;
+        article.appendChild(icon);
+        article.appendChild(title);
+        article.appendChild(body);
+        trustPoints.appendChild(article);
+      });
+    }
   }
 
   // ── Gallery ───────────────────────────────────────────────────────────────────
@@ -153,9 +170,8 @@ function initLandingContent() {
   setText('sampleH2',     L.sample.h2);
   const sampleP1 = document.getElementById('sampleP1');
   if (sampleP1 && L.sample.p1) setText('sampleP1', L.sample.p1);
-  setText('sampleP2',     L.sample.p2);
+  setText('sampleCaption', L.sample.caption);
   setText('sampleCta',    L.sample.cta);
-  setText('sampleQuote',  L.sample.quote);
 
   // ── How ───────────────────────────────────────────────────────────────────────
   setText('howH2', L.how.h2);

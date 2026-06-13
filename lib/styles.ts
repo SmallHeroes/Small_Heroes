@@ -80,9 +80,9 @@ Let emotional clarity read clearly in that style.`.trim();
 export const STYLE_REGISTRY: Record<StyleId, StyleContract> = {
   [STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK]: {
     id: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
-    userLabel: 'רך וחמים',
+    userLabel: 'ריאליסטי מאוייר',
     wizardBlurb:
-      'איור רך וחם בצבעי מים — דמויות עגולות וחמודות, גוונים עדינים ואווירת חיבוק. סגנון ספר ילדים קלאסי, מנחם ועדין.',
+      'איור ריאליסטי וחם, עם דמויות שמרגישות קרובות ולא מאיימות.',
     renderingDescription:
       "Premium children's book illustration — adorable round characters with large sparkling eyes, rosy cheeks, and button noses. Rich detailed watercolor on textured cream paper with warm soft tones. Lush illustrated backgrounds rendered with watercolor detail that matches the scene described on each page (forests with trees and undergrowth, undersea with coral and kelp, bedrooms with toys, mountains, gardens — whatever the page calls for). Every surface has texture and story. Like a bestselling picture book by a master illustrator. NOT photorealistic, NOT 3D, NOT flat or minimal.",
     pipeline: {
@@ -516,7 +516,7 @@ export interface StyleProfile {
 export const STYLE_PROFILES: Record<DatabaseIllustrationStyle, StyleProfile> = {
   pencil_watercolor: {
     id: 'pencil_watercolor',
-    label: 'רך וחמים',
+    label: 'ריאליסטי מאוייר',
     colorPalette: 'warm pastels with cream base',
     lightingStyle: 'soft diffused',
     textureStyle: 'hand-drawn ink outlines',

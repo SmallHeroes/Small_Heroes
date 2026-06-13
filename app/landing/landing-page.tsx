@@ -258,8 +258,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                 <div className="sample-kicker">{L.sample.kicker}</div>
                 <h2 className="sample-h2">{L.sample.h2}</h2>
                 <p className="sample-p">{L.sample.p1}</p>
-                <p className="sample-p">{L.sample.p2}</p>
-                <p className="sample-quote">{L.sample.quote}</p>
+                <p className="sample-caption">{L.sample.caption}</p>
                 <a href={startHref} className="btn-primary" data-event="landing_start_click">
                   {L.sample.cta}
                 </a>
@@ -315,23 +314,17 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
             <div className="wrap trust-band__inner">
               <header className="trust-band__header">
                 <h2 className="trust-band__h2">{L.trust.h2}</h2>
-                <p className="trust-band__sub">{L.trust.sub}</p>
               </header>
               <div className="trust-points">
-                <div className="trust-point">
-                  <span className="trust-point__icon" aria-hidden="true">
-                    📷
-                  </span>
-                  <h3 className="trust-point__title">{L.trust.photoTitle}</h3>
-                  <p className="trust-point__text">{L.trust.photoBody}</p>
-                </div>
-                <div className="trust-point">
-                  <span className="trust-point__icon" aria-hidden="true">
-                    ✨
-                  </span>
-                  <h3 className="trust-point__title">{L.trust.qcTitle}</h3>
-                  <p className="trust-point__text">{L.trust.qcBody}</p>
-                </div>
+                {L.trust.pillars.map((pillar) => (
+                  <article key={pillar.title} className="trust-point">
+                    <span className="trust-point__icon" aria-hidden="true">
+                      {pillar.icon}
+                    </span>
+                    <h3 className="trust-point__title">{pillar.title}</h3>
+                    <p className="trust-point__text">{pillar.body}</p>
+                  </article>
+                ))}
               </div>
             </div>
           </section>

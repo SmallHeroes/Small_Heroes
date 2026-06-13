@@ -108,14 +108,14 @@
 
         <!-- Style toggle -->
         <div class="gallery-toggle" id="galleryToggle" role="tablist" aria-label="סגנון איור בגלריה">
-          <button type="button" class="gallery-toggle-btn is-active" data-gallery-style="style01" id="toggleStyle01" role="tab" aria-selected="true">רך וחמים</button>
+          <button type="button" class="gallery-toggle-btn is-active" data-gallery-style="style01" id="toggleStyle01" role="tab" aria-selected="true">ריאליסטי מאוייר</button>
           <button type="button" class="gallery-toggle-btn" data-gallery-style="style02" id="toggleStyle02" role="tab" aria-selected="false">עולם קסום</button>
           <span class="gallery-toggle-pill" id="togglePill"></span>
         </div>
       </div>
 
       <div class="gallery-layers">
-        <!-- Style 01 — רך וחמים -->
+        <!-- Style 01 — ריאליסטי מאוייר -->
         <div class="gallery-track gallery-layer is-visible" id="galleryTrackStyle01">
           <div class="gallery-card"><img src="../Images/gallery/gallery-1.jpg" alt="עמוד מתוך ספר — מאוייר" loading="lazy" /></div>
           <div class="gallery-card"><img src="../Images/gallery/gallery-2.jpg" alt="עמוד מתוך ספר — מאוייר" loading="lazy" /></div>
@@ -152,8 +152,7 @@
           <div class="sample-kicker" id="sampleKicker"></div>
           <h2 class="sample-h2" id="sampleH2"></h2>
           <p class="sample-p" id="sampleP1"></p>
-          <p class="sample-p" id="sampleP2"></p>
-          <p class="sample-quote" id="sampleQuote"></p>
+          <p class="sample-caption" id="sampleCaption"></p>
           <a href="/wizard" class="btn-primary" id="sampleCta"></a>
         </div>
 
@@ -223,20 +222,8 @@
       <div class="wrap trust-band__inner">
         <header class="trust-band__header">
           <h2 class="trust-band__h2" id="trustH2"></h2>
-          <p class="trust-band__sub" id="trustSub"></p>
         </header>
-        <div class="trust-points">
-          <div class="trust-point">
-            <span class="trust-point__icon" aria-hidden="true">📷</span>
-            <h3 class="trust-point__title" id="trustPhotoTitle"></h3>
-            <p class="trust-point__text" id="trustPhotoBody"></p>
-          </div>
-          <div class="trust-point">
-            <span class="trust-point__icon" aria-hidden="true">✨</span>
-            <h3 class="trust-point__title" id="trustQcTitle"></h3>
-            <p class="trust-point__text" id="trustQcBody"></p>
-          </div>
-        </div>
+        <div class="trust-points" id="trustPoints"></div>
       </div>
     </section>
 
