@@ -95,6 +95,8 @@ export interface PageLocationPlan {
   pageAction?: string;
   /** When true, attach isolated object refs from zone sheet (if published). Overrides fox bucket heuristics. */
   attachIsolatedObjectRefs?: boolean;
+  /** When set, only these manifest filenames attach (basename match). */
+  isolatedObjectFiles?: string[];
   visualSpoilerPolicy?: VisualSpoilerPolicy;
   expectedBucketVisibility?: ExpectedBucketVisibility;
   referenceSheets?: PageReferenceSheets;

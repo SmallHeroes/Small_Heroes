@@ -105,17 +105,29 @@ async function main(): Promise<void> {
     'night_bedroom'
   );
   const hasPillowObj = fs.existsSync(path.join(zoneDir, 'pillow-cave-object.png'));
-  const hasLampObj = fs.existsSync(path.join(zoneDir, 'night-lamp-object.png'));
+  const hasFoldObj = fs.existsSync(path.join(zoneDir, 'blanket-fold-object.png'));
   check('ZS1', fs.existsSync(path.join(zoneDir, 'manifest.json')), 'zone manifest present');
-  if (!hasPillowObj || !hasLampObj) {
+  if (!hasPillowObj || !hasFoldObj) {
     check(
       'ZS2',
       false,
-      `object PNGs pending — run generate-zone-sheet (pillow=${hasPillowObj}, lamp=${hasLampObj})`
+      `required object PNGs pending — pillow=${hasPillowObj}, blanket-fold=${hasFoldObj}`
     );
   } else {
-    check('ZS2', true, 'pillow-cave + night-lamp object PNGs published');
+    check('ZS2', true, 'pillow-cave + blanket-fold object PNGs published');
   }
+
+  const expectedObjectsByPage: Record<string, string[]> = {
+    cover: ['pillow-cave-object.png'],
+    p1: ['pillow-cave-object.png'],
+    p2: [],
+    p3: [],
+    p4: [],
+    p5: [],
+    p6: ['pillow-cave-object.png', 'blanket-fold-object.png'],
+    p7: ['blanket-fold-object.png'],
+    p8: ['pillow-cave-object.png', 'blanket-fold-object.png'],
+  };
 
   const lines: string[] = [];
   const push = (s = '') => lines.push(s);
@@ -254,6 +266,21 @@ async function main(): Promise<void> {
     push(`- entityPresence: child=\`${assembled.entityPresence.childPresence}\` companion=\`${assembled.entityPresence.companionPresence}\``);
     push(`- refs: ${finalOrderLabels.join(' → ') || '(none)'}`);
     push(`- object anchors: ${(breakdown.objectAnchors ?? []).map(basenameRef).join(', ') || '(none — generate zone sheets)'}`);
+
+    const expected = expectedObjectsByPage[label] ?? [];
+    if (hasPillowObj && hasFoldObj && expected.length > 0) {
+      const attached = (breakdown.objectAnchors ?? []).map(basenameRef);
+      const match =
+        expected.length === attached.length &&
+        expected.every((e) => attached.includes(e));
+      check(`OBJ-${label}`, match, `expected [${expected.join(', ')}] got [${attached.join(', ')}]`);
+    } else if (expected.length === 0) {
+      check(
+        `OBJ-${label}`,
+        (breakdown.objectAnchors ?? []).length === 0,
+        'no object refs expected on this page'
+      );
+    }
     push();
     push('<details><summary>Assembled prompt</summary>');
     push();

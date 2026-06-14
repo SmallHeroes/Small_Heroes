@@ -68,6 +68,9 @@ function parsePagePlan(raw: unknown): PageLocationPlan | null {
     pageAction: o.pageAction ? String(o.pageAction).trim() : undefined,
     attachIsolatedObjectRefs:
       typeof o.attachIsolatedObjectRefs === 'boolean' ? o.attachIsolatedObjectRefs : undefined,
+    isolatedObjectFiles: Array.isArray(o.isolatedObjectFiles)
+      ? o.isolatedObjectFiles.map(String).filter(Boolean)
+      : undefined,
     expectedBucketVisibility: o.expectedBucketVisibility
       ? (String(o.expectedBucketVisibility).trim() as PageLocationPlan['expectedBucketVisibility'])
       : undefined,

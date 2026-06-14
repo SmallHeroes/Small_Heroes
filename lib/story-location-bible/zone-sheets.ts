@@ -171,7 +171,11 @@ export function resolvePageReferenceSheets(
   if (!pageAllowsIsolatedObjectRef(pagePlan)) return undefined;
 
   const objFiles = resolveIsolatedObjectFiles(sheetZone, manifest);
-  const isolatedObjectPaths = objFiles
+  const requested = pagePlan.isolatedObjectFiles?.map((f) => f.trim()).filter(Boolean);
+  const filtered = requested?.length
+    ? objFiles.filter((f) => requested.some((r) => path.basename(r) === path.basename(f)))
+    : objFiles;
+  const isolatedObjectPaths = filtered
     .map((f) => path.join(dir, f))
     .filter((p) => existsSync(p));
   if (!isolatedObjectPaths.length) return undefined;

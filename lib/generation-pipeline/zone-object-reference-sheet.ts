@@ -436,3 +436,189 @@ export async function generateIsolatedBucketObjectSheet(input: {
   console.log(`[zone-sheet] isolated bucket-object → ${input.outPath} (${gen.durationMs}ms)`);
   return { localPath: input.outPath, prompt, model: gen.model, durationMs: gen.durationMs };
 }
+
+export type LionBedtimeObjectKind = 'pillow_cave' | 'blanket_fold';
+
+const LION_OBJECT_ZERO_CHAR = `ZERO CHARACTERS — CRITICAL:
+NO child. NO human. NO lion. NO creature. NO animal. NO silhouette figures.
+If any character appears, the image is unusable.`;
+
+const BLANKET_FOLD_NEGATIVE = [
+  STYLE_01_AVOIDANCE_NEGATIVE,
+  'lightning',
+  'thunder bolt',
+  'symbol',
+  'glow',
+  'portal',
+  'magic',
+  'magical',
+  'artifact',
+  'orb',
+  'beam',
+  'text',
+  'letters',
+  'hebrew',
+  'special effect',
+  'sparkle',
+  'shimmer',
+  'neon',
+  'character',
+  'human',
+  'lion',
+  'child',
+].join(', ');
+
+const PILLOW_CAVE_NEGATIVE = [
+  STYLE_01_AVOIDANCE_NEGATIVE,
+  'character',
+  'human',
+  'lion',
+  'child',
+  'bedroom scene',
+  'full room',
+  'lamp dominating',
+  'text',
+].join(', ');
+
+function buildLionPillowCaveObjectPrompt(bible: BookLocationBible, variant: 'collapsed' | 'built' = 'collapsed'): string {
+  const pillow = findFixedAnchor(bible, 'pillow_cave');
+  const stateLine =
+    variant === 'collapsed'
+      ? 'Show COLLAPSED / SCATTERED pillow fort: 2–3 child-scale pillows tumbled on cream paper — one top pillow fallen sideways, fort FAILED (not a standing cave).'
+      : 'Show a small built pillow fort with soft opening — optional second state.';
+  return [
+    STYLE_01_SHARED,
+    STYLE_01_NO_TEXT,
+    STYLE_01_ANTI_STYLE02,
+    '',
+    'ISOLATED OBJECT SHEET — PILLOW-CAVE FORT:',
+    LION_OBJECT_ZERO_CHAR,
+    '',
+    'OBJECT ONLY on neutral warm cream paper background — like a companion character sheet.',
+    'NO full bedroom, NO bed frame, NO child, NO lamp dominating frame, NO environment scene.',
+    pillow ? `PILLOW CAVE: ${pillow.description}` : '',
+    '',
+    stateLine,
+    'Child-scale soft pillows (not adult sofa cushions). Soft watercolor Style 01 storybook.',
+    'Readable identity reference for the same pillow-cave object across pages.',
+    'Single object group centered on cream paper.',
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+function buildLionBlanketFoldObjectPrompt(bible: BookLocationBible): string {
+  const fold = findFixedAnchor(bible, 'blanket_thunder_corner');
+  return [
+    STYLE_01_SHARED,
+    STYLE_01_NO_TEXT,
+    STYLE_01_ANTI_STYLE02,
+    '',
+    'ISOLATED OBJECT SHEET — BLANKET FOLD BY PILLOW (plain, NOT magical):',
+    LION_OBJECT_ZERO_CHAR,
+    '',
+    'OBJECT ONLY on neutral warm cream paper background.',
+    'NO full bedroom. NO child. NO lion. NO lamp. NO scene layout.',
+    fold ? `FOLD: ${fold.description}` : '',
+    '',
+    'Show ONLY: a soft corner/fold of a child blanket beside a simple pillow edge hint.',
+    'The fold is ORDINARY fabric — cozy quilt or soft blanket with a gentle crease.',
+    'PLAIN blanket detail — emotionally named thunder corner in story but visually NOT special.',
+    'HARD NEGATIVES: NO lightning bolt, NO thunder symbol, NO glow, NO portal, NO magic artifact, NO text.',
+    'If it looks magical or like a special power object, the image is REJECTED.',
+    'Soft watercolor Style 01. Single close object study on cream paper.',
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+export type LionBedtimeObjectCandidate = {
+  kind: LionBedtimeObjectKind;
+  candidateIndex: number;
+  localPath: string;
+  prompt: string;
+  model: string;
+  durationMs: number;
+};
+
+export async function generateLionBedtimeObjectCandidates(input: {
+  bible: BookLocationBible;
+  outDir: string;
+  candidates?: number;
+  quality?: 'low' | 'medium' | 'high';
+  pillowVariant?: 'collapsed' | 'built';
+  objects?: 'both' | 'pillow' | 'fold';
+}): Promise<{
+  generatedAt: string;
+  quality: 'low' | 'medium' | 'high';
+  candidatesPerObject: number;
+  pillowCave: LionBedtimeObjectCandidate[];
+  blanketFold: LionBedtimeObjectCandidate[];
+}> {
+  const candidatesPerObject = input.candidates ?? 3;
+  const quality = input.quality ?? 'low';
+  const pillowVariant = input.pillowVariant ?? 'collapsed';
+  const objects = input.objects ?? 'both';
+  const styleRefs = resolveStyle01StyleReferencePaths('cozy-interior', 2);
+  const generatedAt = new Date().toISOString();
+  const pillowCave: LionBedtimeObjectCandidate[] = [];
+  const blanketFold: LionBedtimeObjectCandidate[] = [];
+
+  mkdirSync(input.outDir, { recursive: true });
+
+  for (let i = 1; i <= candidatesPerObject; i += 1) {
+    if (objects === 'both' || objects === 'pillow') {
+      const pillowPath = join(input.outDir, `pillow-cave-candidate-${String(i).padStart(2, '0')}.png`);
+      const pillowPrompt = buildLionPillowCaveObjectPrompt(input.bible, pillowVariant);
+      const pillowGen = await generateGPTImage({
+        finalPrompt: pillowPrompt,
+        negativePrompt: PILLOW_CAVE_NEGATIVE,
+        referenceImages: styleRefs,
+        referenceMode: 'style',
+        requireReferenceEdit: styleRefs.length > 0,
+        size: '1024x1024',
+        quality,
+        modelOverride: resolveStyle01GptModel(),
+      });
+      writeFileSync(pillowPath, pillowGen.buffer);
+      pillowCave.push({
+        kind: 'pillow_cave',
+        candidateIndex: i,
+        localPath: pillowPath,
+        prompt: pillowPrompt,
+        model: pillowGen.model,
+        durationMs: pillowGen.durationMs,
+      });
+      console.log(`[lion-object] pillow-cave (${pillowVariant}) candidate ${i} → ${pillowPath} (${pillowGen.durationMs}ms)`);
+    }
+
+    if (objects === 'both' || objects === 'fold') {
+      const foldPath = join(input.outDir, `blanket-fold-candidate-${String(i).padStart(2, '0')}.png`);
+      const foldPrompt = buildLionBlanketFoldObjectPrompt(input.bible);
+      const foldGen = await generateGPTImage({
+        finalPrompt: foldPrompt,
+        negativePrompt: BLANKET_FOLD_NEGATIVE,
+        referenceImages: styleRefs,
+        referenceMode: 'style',
+        requireReferenceEdit: styleRefs.length > 0,
+        size: '1024x1024',
+        quality,
+        modelOverride: resolveStyle01GptModel(),
+      });
+      writeFileSync(foldPath, foldGen.buffer);
+      blanketFold.push({
+        kind: 'blanket_fold',
+        candidateIndex: i,
+        localPath: foldPath,
+        prompt: foldPrompt,
+        model: foldGen.model,
+        durationMs: foldGen.durationMs,
+      });
+      console.log(`[lion-object] blanket-fold candidate ${i} → ${foldPath} (${foldGen.durationMs}ms)`);
+    }
+  }
+
+  const report = { generatedAt, quality, candidatesPerObject, pillowCave, blanketFold };
+  writeFileSync(join(input.outDir, 'report.json'), JSON.stringify(report, null, 2));
+  return report;
+}

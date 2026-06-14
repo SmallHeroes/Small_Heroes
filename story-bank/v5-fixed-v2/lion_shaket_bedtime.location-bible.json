@@ -59,7 +59,7 @@
       ],
       "referenceSheet": {
         "isolatedObjectFile": "pillow-cave-object.png",
-        "objectFiles": ["night-lamp-object.png"]
+        "objectFiles": ["blanket-fold-object.png"]
       }
     }
   ],
@@ -89,7 +89,7 @@
     "Pillow-cave stays scattered after collapse — never magically perfect until a new story day.",
     "פינת הרעם is always a soft blanket fold — never a invented magical corner prop."
   ],
-  "isolatedObjectPromptInstruction": "Use the ISOLATED OBJECT reference images for OBJECT IDENTITY and SCALE ONLY: pillow-cave fort (built/collapsed states) and/or small warm night lamp. Neutral cream background in refs is NOT the page background. Do NOT copy reference composition. NEVER attach a composed bedroom scene ref. Blanket-fold thunder corner is a blanket detail — NOT a magical object, NO lightning symbol.",
+  "isolatedObjectPromptInstruction": "Use the ISOLATED OBJECT reference images for OBJECT IDENTITY and SCALE ONLY: (a) pillow-cave fort — built or collapsed/scattered states; (b) blanket-fold by pillow — a plain soft fold in the child's blanket (פינת הרעם), NOT a magical object. Neutral cream background in refs is NOT the page background. Do NOT copy reference composition. NEVER attach a composed bedroom scene ref. REJECT at render if fold looks magical: no lightning, no glow portal, no text, no symbol.",
   "pageCount": 8,
   "pagePlans": [
     {
@@ -113,7 +113,8 @@
         "new room"
       ],
       "pageAction": "Cover: child and Leo in cozy night bedroom beside soft scattered pillow-cave and warm lamp. Leo gentle and soft-maned; child calmer but not overly smiling. Emotional promise = a big feeling gets a small safe place. NO glowing thunder-corner spoiler.",
-      "attachIsolatedObjectRefs": true
+      "attachIsolatedObjectRefs": true,
+      "isolatedObjectFiles": ["pillow-cave-object.png"]
     },
     {
       "page": 1,
@@ -122,7 +123,8 @@
       "allowedVariation": "Frustration beat; warm readable lamp",
       "forbiddenDrift": ["Leo present", "outdoor", "magical corner", "pitch black"],
       "pageAction": "Child sits beside COLLAPSED pillow-cave fort — top pillow fallen, fort just failed. Child holds blanket tightly, frustrated and hurt. Leo NOT present yet.",
-      "attachIsolatedObjectRefs": true
+      "attachIsolatedObjectRefs": true,
+      "isolatedObjectFiles": ["pillow-cave-object.png"]
     },
     {
       "page": 2,
@@ -140,7 +142,7 @@
       "allowedVariation": "Mane lifts slightly; mouth NOT wide scary",
       "forbiddenDrift": ["wide open aggressive mouth", "sound-effect text", "lamp knocked over"],
       "pageAction": "Leo begins tiny almost-roar then stops gently — mane lifts slightly, mouth NOT wide or scary. Child tiny almost-smile. Lamp calm.",
-      "attachIsolatedObjectRefs": true
+      "attachIsolatedObjectRefs": false
     },
     {
       "page": 4,
@@ -167,7 +169,8 @@
       "allowedVariation": "Thunder corner named — soft fold only",
       "forbiddenDrift": ["magical corner object", "lightning icon", "rebuilt fort"],
       "pageAction": "Child finds small blanket FOLD beside pillow — thunder corner. Leo places two paws on blanket; child one hand beside paws. Scattered pillow cave visible. Fold is blanket detail only.",
-      "attachIsolatedObjectRefs": true
+      "attachIsolatedObjectRefs": true,
+      "isolatedObjectFiles": ["pillow-cave-object.png", "blanket-fold-object.png"]
     },
     {
       "page": 7,
@@ -185,7 +188,8 @@
         "loud climax roar"
       ],
       "pageAction": "SMALL INTIMATE: child leans toward blanket fold and releases tiny quiet sound; Leo adds tiny pillow-sized soft near-roar. Both safe and slightly amused. NO text, NO bubbles, NO wide mouth, NO magical beam. Optional: very subtle warm softness in fold only.",
-      "attachIsolatedObjectRefs": true
+      "attachIsolatedObjectRefs": true,
+      "isolatedObjectFiles": ["blanket-fold-object.png"]
     },
     {
       "page": 8,
@@ -194,7 +198,8 @@
       "allowedVariation": "Lamp may dim softly",
       "forbiddenDrift": ["magically rebuilt fort", "outdoor", "scary lion"],
       "pageAction": "Child lies down near Leo, calm and sleepy. Pillow cave still scattered. Blanket-fold thunder corner remains. Lamp dims softly. Warm grounded ending.",
-      "attachIsolatedObjectRefs": true
+      "attachIsolatedObjectRefs": true,
+      "isolatedObjectFiles": ["pillow-cave-object.png", "blanket-fold-object.png"]
     }
   ]
 }
