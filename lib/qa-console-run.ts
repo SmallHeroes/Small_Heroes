@@ -184,17 +184,34 @@ function promptTextForOldStoryScan(prompt: string): string {
 function auditPrompt(
   prompt: string,
   pageNumber: number,
-  companionId: string
-): string[] {
+  companionId: string,
+  auditCtx?: { direction?: string; timeOfDay?: string; storyFile?: string }
+): { hits: string[]; warnings: string[] } {
   const hits: string[] = [];
-  const patterns =
-    companionId === 'dragon_dini'
-      ? [...DRAGON_DINI_OLD_STORY_PATTERNS, ...DAY_CLOTHES_LEFTOVER_PATTERNS]
-      : [...DAY_CLOTHES_LEFTOVER_PATTERNS];
+  const warnings: string[] = [];
+  const isNightBedtimeStory =
+    auditCtx?.direction === 'bedtime' ||
+    auditCtx?.timeOfDay === 'night' ||
+    auditCtx?.storyFile?.includes('_bedtime') ||
+    companionId === 'dragon_dini';
+
   const scanned = promptTextForOldStoryScan(prompt);
-  for (const { label, re } of patterns) {
-    if (re.test(scanned)) hits.push(`${label} (page ${pageNumber})`);
+
+  if (companionId === 'dragon_dini') {
+    for (const { label, re } of DRAGON_DINI_OLD_STORY_PATTERNS) {
+      if (re.test(scanned)) hits.push(`${label} (page ${pageNumber})`);
+    }
   }
+
+  if (isNightBedtimeStory) {
+    for (const { label, re } of DAY_CLOTHES_LEFTOVER_PATTERNS) {
+      if (re.test(scanned)) hits.push(`${label} (page ${pageNumber})`);
+    }
+    if (!/\bpajama|slipper-sock|nightwear|two-piece pajamas\b/i.test(prompt)) {
+      warnings.push(`missing explicit nightwear/pajama wording (page ${pageNumber}) — warning only`);
+    }
+  }
+
   if (companionId === 'dragon_dini' && /\bcave ceiling\b/i.test(prompt)) {
     hits.push(`cave ceiling framing residue (page ${pageNumber})`);
   }
@@ -211,7 +228,7 @@ function auditPrompt(
       if (!re.test(prompt)) hits.push(`missing expected rewrite cue ${re} (page ${pageNumber})`);
     }
   }
-  return hits;
+  return { hits, warnings };
 }
 
 function assertChildPhotoDescriptionQuality(description: string): void {
@@ -381,6 +398,12 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
     const promptsDir = path.join(outDir, 'prompts');
     await mkdir(promptsDir, { recursive: true });
     const allHits: string[] = [];
+    const allWarnings: string[] = [];
+    const auditCtx = {
+      direction,
+      timeOfDay: story.storyTimeOfDay,
+      storyFile: baseKey,
+    };
     for (const page of pagesToRender) {
       const assembled = assembleStyle01Phase2Prompt({
         pageNumber: page.pageNumber,
@@ -395,6 +418,10 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
         companion,
         companionStructured: dna.companionStructured,
         pageStoryState: resolveDefaultPageStoryState(companion.id, page.pageNumber),
+        storyFile: baseKey,
+        direction,
+        storyTimeOfDay: story.storyTimeOfDay,
+        pageTimeOfDayOverrides: story.pageTimeOfDayOverrides,
       });
       const prompt = assembled.prompt;
       await writeFile(
@@ -402,7 +429,12 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
         prompt,
         'utf-8'
       );
-      allHits.push(...auditPrompt(prompt, page.pageNumber, companion.id));
+      const audit = auditPrompt(prompt, page.pageNumber, companion.id, auditCtx);
+      allHits.push(...audit.hits);
+      allWarnings.push(...audit.warnings);
+    }
+    for (const w of [...new Set(allWarnings)]) {
+      console.warn(`[qa-console] ${w}`);
     }
     if (allHits.length) {
       throw new Error(

@@ -576,9 +576,12 @@ export function buildStyle01ChildVisualLock(input: {
 
 export function buildStyle01WardrobeLock(input?: {
   companionId?: string | null;
+  storyFile?: string | null;
+  direction?: string | null;
+  timeOfDay?: string | null;
   childStructured?: { clothing: string };
 }): string {
-  const storyWardrobe = resolveStyle01StoryWardrobeLock(input?.companionId);
+  const storyWardrobe = resolveStyle01StoryWardrobeLock(input?.companionId, input?.storyFile);
   if (storyWardrobe) return storyWardrobe;
 
   return `BOOK WARDROBE LOCK (mandatory — never drift, every page where child appears):

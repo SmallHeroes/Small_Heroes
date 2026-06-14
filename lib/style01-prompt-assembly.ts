@@ -107,6 +107,12 @@ export type Style01PromptAssemblyInput = {
   locationBible?: import('./story-location-bible').BookLocationBible | null;
   pageLocationPlan?: import('./story-location-bible').PageLocationPlan | null;
   storyWorldOverride?: string | null;
+  /** Path or basename of story bank file (e.g. lion_shaket_bedtime) — drives story-aware wardrobe lock. */
+  storyFile?: string | null;
+  /** Reserved for future generic night→pajamas routing. */
+  direction?: string | null;
+  /** Reserved for future generic night→pajamas routing. */
+  timeOfDay?: string | null;
   assetType?: 'page' | 'cover';
   storyTitle?: string | null;
   coverText?: string | null;
@@ -296,6 +302,9 @@ export function assembleStyle01Phase2Prompt(
   const wardrobeLock = childPresenceAllowsVisualLock(entityPresence.childPresence)
     ? buildStyle01WardrobeLock({
         companionId: input.companion?.id,
+        storyFile: input.storyFile,
+        direction: input.direction,
+        timeOfDay: input.timeOfDay ?? input.storyTimeOfDay,
         childStructured: input.childStructured,
       })
     : undefined;

@@ -464,6 +464,10 @@ export interface ImageInput {
   familyCoherence?: import('../../lib/family-coherence').FamilyCoherenceBundle | null;
   /** Style 02 canonical child anchor URL/path (Stage0 Style02 — not raw upload photo). */
   childCanonicalAnchorPath?: string | null;
+  /** Story bank file basename (e.g. lion_shaket_bedtime) — story-aware wardrobe lock. */
+  storyFile?: string | null;
+  /** Story direction (bedtime/adventure/fantasy) — reserved for future generic nightwear routing. */
+  direction?: string | null;
 }
 
 export interface Style02PageMeta {
@@ -3142,6 +3146,8 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     coverText: input.coverText,
     topicLabel: input.topicLabel,
     coverSceneHint: input.coverSceneHint,
+    storyFile: input.storyFile,
+    direction: input.direction,
   });
 
   const {
@@ -3930,6 +3936,9 @@ export async function generateAllPageImages(
     /** Per-book shot plan — derived at render or story override; consumed by Style 01 assembly. */
     bookShotPlan?: import('../../lib/book-shot-plan').BookShotPlan;
     storyLocationPlan?: import('../../lib/story-location-bible').StoryLocationPlanBundle;
+    /** Story bank file basename for story-aware wardrobe lock. */
+    storyFile?: string | null;
+    direction?: 'bedtime' | 'adventure' | 'fantasy';
   }
 ): Promise<{
   results: Map<number, GeneratedImage>;
@@ -4498,8 +4507,12 @@ export async function generateAllPageImages(
       | 'locationBible'
       | 'pageLocationPlan'
       | 'childCanonicalAnchorPath'
+      | 'storyFile'
+      | 'direction'
     > = {
       totalPages: pagesToGenerate.length,
+      storyFile: config.storyFile ?? null,
+      direction: config.direction ?? config.directionArchetype ?? null,
       ...(phase2BookPipelineActive
         ? {
             storyRecurringEntityDeclarations: config.storyRecurringEntityDeclarations,

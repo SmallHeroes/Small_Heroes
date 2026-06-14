@@ -183,6 +183,8 @@ async function main(): Promise<void> {
       childFirstName: CHILD_NAME,
       childGender: CHILD_GENDER,
       childAge: 6,
+      storyFile: 'lion_shaket_bedtime',
+      direction: 'bedtime',
     });
 
     const companionRefPaths =

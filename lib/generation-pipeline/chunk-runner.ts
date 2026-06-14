@@ -399,7 +399,9 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
     const childReferenceImageUrl = order.childImageUrl ?? '';
     const stage0Companion = resolveCompanionForOrder(order);
     const orderBranch = resolveOrderStyleBranch(order.illustrationStyle);
-    const storyWardrobe = resolveStyle01StoryWardrobeLock(stage0Companion?.id);
+    const storyFilePath = cache.devStoryBankFile ?? cache.storyFilePath;
+    const storyFileKey = storyFilePath ? path.basename(storyFilePath, '.md') : undefined;
+    const storyWardrobe = resolveStyle01StoryWardrobeLock(stage0Companion?.id, storyFileKey);
     const style02Wardrobe =
       orderBranch === 'style02'
         ? resolveStyle02BookWardrobeLock({
@@ -1070,6 +1072,7 @@ async function runPageImagesChunk(
 
   const workerDeadline = deadlineMs(startedAt, budgetMs);
   const expressionSheetActive = isChildExpressionSheetActive(cache);
+  const storyFileKey = storyFilePath ? path.basename(storyFilePath, '.md') : undefined;
   const imageOutcome = await generateAllPageImages(pagesForGen, {
     illustrationStyle: order.illustrationStyle,
     childName: order.childName,
@@ -1130,6 +1133,8 @@ async function runPageImagesChunk(
     familyCoherence: familyCoherenceForImages,
     bookShotPlan: bookShotPlan as import('@/lib/book-shot-plan').BookShotPlan,
     storyLocationPlan,
+    storyFile: storyFileKey,
+    direction: (cache.directionForV3 as 'bedtime' | 'adventure' | 'fantasy' | undefined) ?? undefined,
   });
 
   const presentationEnabled =

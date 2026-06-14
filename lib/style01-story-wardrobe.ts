@@ -8,11 +8,32 @@ Soft two-piece pajamas. Base color pale dusty-blue (or warm cream), with a small
 
 CHILD IDENTITY vs WARDROBE: Use CHILD VISUAL LOCK + ANATOMICAL LOCK for face, hair, skin, age, gender only — NOT clothing from the child profile or photo.`;
 
+export const LION_SHAKET_BEDTIME_WARDROBE_LOCK = `BOOK WARDROBE LOCK — STORY lion_shaket_bedtime (mandatory every page the child appears):
+Soft two-piece pajamas, gender-neutral. Base color warm cream or soft sand-beige, with a small, evenly-repeated all-over print of simple tiny moons-and-dots in warm tones (mustard, soft coral) — NOT blue and NOT a star print, so the pajamas never blend into the child's blue star blanket ("פינת הרעם"). Long-sleeve top + matching pajama pants, identical on every page. Soft cream slipper-socks (preferred over bare feet — avoids foot-rendering glitches). The child is dressed for bed/night the ENTIRE book. SAME pajamas on every page. NEVER day clothes, NEVER a sky-blue sun t-shirt, NEVER denim shorts, NEVER red sneakers, NEVER outdoor shoes.
+
+CHILD IDENTITY vs WARDROBE: Use CHILD VISUAL LOCK + ANATOMICAL LOCK for face, hair, skin, age, gender only — NOT clothing from the child profile or photo.`;
+
+/** Story-file overrides take priority (lets one companion differ by direction). */
+const WARDROBE_BY_STORY_FILE: Record<string, string> = {
+  lion_shaket_bedtime: LION_SHAKET_BEDTIME_WARDROBE_LOCK,
+};
+
 const WARDROBE_BY_COMPANION_ID: Record<string, string> = {
   dragon_dini: DRAGON_DINI_FANTASY_WARDROBE_LOCK,
 };
 
-export function resolveStyle01StoryWardrobeLock(companionId?: string | null): string | undefined {
-  if (!companionId) return undefined;
-  return WARDROBE_BY_COMPANION_ID[companionId];
+export function storyFileKeyFromPath(storyFile?: string | null): string | undefined {
+  if (!storyFile?.trim()) return undefined;
+  const base = storyFile.replace(/\\/g, '/').split('/').pop() ?? storyFile;
+  return base.replace(/\.md$/i, '').trim() || undefined;
+}
+
+export function resolveStyle01StoryWardrobeLock(
+  companionId?: string | null,
+  storyFile?: string | null
+): string | undefined {
+  const key = storyFileKeyFromPath(storyFile);
+  if (key && WARDROBE_BY_STORY_FILE[key]) return WARDROBE_BY_STORY_FILE[key];
+  if (companionId && WARDROBE_BY_COMPANION_ID[companionId]) return WARDROBE_BY_COMPANION_ID[companionId];
+  return undefined;
 }
