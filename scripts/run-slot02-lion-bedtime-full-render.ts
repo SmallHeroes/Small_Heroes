@@ -12,6 +12,7 @@ import { config as loadEnv } from 'dotenv';
 import { spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import type { Prisma } from '@prisma/client';
 
 loadEnv({ path: '.env.local' });
 loadEnv();
@@ -72,7 +73,17 @@ async function createOrder(): Promise<string> {
   if (!res.ok || !data.orderId) {
     throw new Error(`Create order failed: ${JSON.stringify(data)}`);
   }
-  console.log(`[slot02] order created ${data.orderId} child=${childName} (${childGender})`);
+  const { prisma } = await import('@/lib/prisma');
+  const order = await prisma.order.findUnique({
+    where: { id: data.orderId },
+    select: { childImageUrl: true },
+  });
+  if (!order?.childImageUrl?.trim()) {
+    throw new Error(
+      `Order ${data.orderId} missing childImageUrl — Stage 0 cannot run. Pass --photo with a valid image.`
+    );
+  }
+  console.log(`[slot02] order created ${data.orderId} child=${childName} (${childGender}) photo=ok`);
   return data.orderId;
 }
 
@@ -130,7 +141,7 @@ async function ensureFullBookPages(orderId: string): Promise<void> {
   console.log(`[slot02] backfilled book pages: +${missing.length}`);
 }
 
-async function prepareOrderForRender(orderId: string): Promise<void> {
+async function prepareOrderForRender(orderId: string, resetAnchor: boolean): Promise<void> {
   const { prisma } = await import('@/lib/prisma');
   const { parsePipelineCache } = await import('@/lib/generation-pipeline/helpers');
 
@@ -138,8 +149,19 @@ async function prepareOrderForRender(orderId: string): Promise<void> {
 
   const job = await prisma.generationJob.findUnique({ where: { orderId } });
   const cache = job ? parsePipelineCache(job.pipelineCache) : {};
+  const store =
+    cache.characterAnchorStore && typeof cache.characterAnchorStore === 'object'
+      ? { ...(cache.characterAnchorStore as Record<string, unknown>) }
+      : {};
+  if (resetAnchor) {
+    delete store.child;
+    delete cache.stage0AnchorCandidates;
+    delete cache.stage0AnchorPrompt;
+    delete cache.childAnchorApproved;
+  }
   const nextCache = {
     ...cache,
+    characterAnchorStore: store,
     devStoryBankFile: BANK_FILE,
     skipLlmPersonalization: true,
     textFinalized: true,
@@ -152,10 +174,10 @@ async function prepareOrderForRender(orderId: string): Promise<void> {
     where: { orderId },
     data: {
       status: 'running',
-      currentStage: 'cover',
+      currentStage: 'pending',
       imagesDone: false,
       textDone: true,
-      pipelineCache: nextCache,
+      pipelineCache: nextCache as Prisma.InputJsonValue,
     },
   });
 }
@@ -191,9 +213,21 @@ async function main(): Promise<void> {
   } else {
     console.log(`[slot02] resuming order ${orderId}`);
   }
-  await prepareOrderForRender(orderId);
+  await prepareOrderForRender(orderId, !flag('--orderId')?.trim());
 
-  process.env.CHILD_ANCHOR_REVIEW_OK_ORDER_IDS = orderId;
+  if (hasFlag('--approve-anchor')) {
+    process.env.CHILD_ANCHOR_REVIEW_OK_ORDER_IDS = [
+      process.env.CHILD_ANCHOR_REVIEW_OK_ORDER_IDS ?? '',
+      orderId,
+    ]
+      .filter(Boolean)
+      .join(',');
+    console.log(`[slot02] anchor approval enabled for ${orderId}`);
+  } else {
+    console.log(
+      '[slot02] Stage 0 will pause at ANCHOR_REVIEW_REQUIRED — re-run with --approve-anchor after Guy eyeball'
+    );
+  }
   process.env.PAGE_REF_MANIFEST_DIR = path.join(path.dirname(outputDir), 'ref-manifests');
   fs.mkdirSync(process.env.PAGE_REF_MANIFEST_DIR, { recursive: true });
   fs.mkdirSync(outputDir, { recursive: true });
