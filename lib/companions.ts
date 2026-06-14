@@ -296,11 +296,11 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
     },
     {
       id: 'lion_shaket',
-      name: 'האריה לֵיוֹ',
-      tagline: 'גור ביישן שמגלה שהשאגה תמיד הייתה בפנים',
-      image: '/companions/SELF_CONFIDENCE/lion_shaket.jpg',
+      name: 'האריה ליאו',
+      tagline: 'גור אריה עם שאגה גדולה מהגוף — לומד לתת לרעם מקום, לא לבלוע אותו',
+      image: '/companions/ANGER_FRUSTRATION/lion_shaket.jpg',
       cardImage: '/companions/lion_shaket/style01-sheets/front.png',
-      narrativeHook: 'הקול שלך קיים — רק מחכה שתקרא לו',
+      narrativeHook: 'לכעס יש רעם — והוא צריך מקום ללכת אליו',
       visualDescription:
         'A small shy lion cub with a fluffy mane starting to grow, big hesitant eyes, soft round ears; a tiny cape-like scarf; always looks on the edge of a brave roar.',
     },

@@ -23,8 +23,8 @@ const HOMESICKNESS_SLOGAN =
 
 const COMPANION_LEAK: Record<string, RegExp> = {
   lion_shaket: /דיני|דרקון|קוֹקוֹ|chameleon|פופקורן|כנף.*קן/i,
-  bunny_ometz: /דיני|דרקון|קוֹקוֹ|chameleon|פופקורן|לֵיוֹ|lion/i,
-  turtle_beiti: /דיני|דרקון|קוֹקוֹ|chameleon|פופקורן|לֵיוֹ|בוּנִי.*אוזנ/i,
+  bunny_ometz: /דיני|דרקון|קוֹקוֹ|chameleon|פופקורן|ליאו|lion/i,
+  turtle_beiti: /דיני|דרקון|קוֹקוֹ|chameleon|פופקורן|ליאו|בוּנִי.*אוזנ/i,
   chameleon_koko: /דיני|דרקון|כנף.*קן|פופקורן/i,
 };
 

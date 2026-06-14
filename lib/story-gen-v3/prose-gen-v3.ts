@@ -26,7 +26,7 @@ Ear comedy is ONLY on בוּנִי — {{childName}} is a human child with NO ra
 ${BUNNY_MEDICAL_PROSE_BLOCK}`;
   }
   if (companionId === 'lion_shaket') {
-    return `## לֵיוֹ (lion_shaket)
+    return `## ליאו (lion_shaket)
 Masculine fixed — NO gender chips on Leo.
 Sound-weight comedy: roar/whisper has physical weight; tail thumps.`;
   }

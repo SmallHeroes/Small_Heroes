@@ -43,7 +43,7 @@ window.COMPANIONS_BY_CATEGORY = {
   GENERAL_FEARS: [],
   ANGER_FRUSTRATION: [
     { id: 'bear_cub_gahal', name: 'הדוב דּוֹבִּי', tagline: 'גור דובים עם רגשות ענקיים שלומד שנשימה עמוקה היא הכוח הכי גדול', image: '/companions/ANGER_FRUSTRATION/bear_cub_gahal.jpg', narrativeHook: 'גדול מבפנים לא חייב להיות הרסני' },
-    { id: 'lion_shaket', name: 'האריה לֵיוֹ', tagline: 'גור ביישן שמגלה שהשאגה תמיד הייתה בפנים', image: '/companions/lion_shaket/style01-sheets/front.png', narrativeHook: 'הקול שלך קיים — רק מחכה שתקרא לו' },
+    { id: 'lion_shaket', name: 'האריה ליאו', tagline: 'גור אריה עם שאגה גדולה מהגוף — לומד לתת לרעם מקום, לא לבלוע אותו', image: '/companions/lion_shaket/style01-sheets/front.png', narrativeHook: 'לכעס יש רעם — והוא צריך מקום ללכת אליו' },
     { id: 'wolf_pup_siyar', name: 'גור הזאב לוּלוּ', tagline: 'גור זאב צעיר עם אינסטינקט להקה — אף אחד לא הולך לבד', image: '/companions/OTHER/wolf_pup_siyar.jpg', narrativeHook: 'כוח אמיתי הוא כשמישהו הולך לידך' },
   ],
   SENSITIVITY_OVERWHELM: [

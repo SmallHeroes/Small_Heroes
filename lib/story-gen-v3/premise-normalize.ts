@@ -101,7 +101,7 @@ const COMPANION_COSMETIC_DEFAULTS: Record<
     mattersSuffix: 'זה חשוב לו/לה עכשיו, לא רק לזיקית.',
   },
   lion_shaket: {
-    titleFallback: '{{childName}} ולֵיוֹ',
+    titleFallback: '{{childName}} וליאו',
     mattersSuffix: 'זה חשוב לו/לה עכשיו, לא רק לאריה.',
   },
   turtle_beiti: {

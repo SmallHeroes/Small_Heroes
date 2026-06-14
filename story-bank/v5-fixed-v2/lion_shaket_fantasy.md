@@ -27,7 +27,7 @@ emotionalMistake: עמוד 6 — The child dismisses Leo's small sound and asks 
 uncomfortableTruth: עמוד 12 — The child realizes the missed moment cannot be undone and the thing that needed a voice is still out of reach
 
 --- Page 1 ---
-לֵיוֹ עומד על גבעה ירוקה. הוא פותח את הפה רחב. לא יוצא קול.
+ליאו עומד על גבעה ירוקה. הוא פותח את הפה רחב. לא יוצא קול.
 למעלה באוויר הוא רואה צורות גדולות של שׁאגות שעפות גבוה גבוה. הן של אריות אחרים.
 הוא סוגר את הפה. מחכה.
 
@@ -36,12 +36,12 @@ imageDirection: small lion standing tall, mouth open, sky filled with faint floa
 --- Page 2 ---
 אני מגיע לקצה הגבעה. רואה אותו עומד כך.
 "שׁאגת?" אני שׁואל.
-לֵיוֹ קופא. לא זז.
+ליאו קופא. לא זז.
 
 imageDirection: child looking curious, Leo frozen mid-pose
 
 --- Page 3 ---
-לֵיוֹ מחייך קצת. הוא מסתכל למעלה ומצביע על השׁמיים.
+ליאו מחייך קצת. הוא מסתכל למעלה ומצביע על השׁמיים.
 שׁם, רחוק, שׁאגות גדולות צפות לאט.
 קרוב לאדמה אין כלום.
 
@@ -56,27 +56,27 @@ imageDirection: small glowing word resting on grass, slightly indented
 
 --- Page 5 ---
 מולנו יש בור רדוד. בצד השׁני יושׁב משׁהו קטן וזוהר.
-לֵיוֹ מסתכל עליו. אני מסתכל.
+ליאו מסתכל עליו. אני מסתכל.
 הלחישׁות שׁלנו נחות על האדמה. השׁאגות רחוק למעלה. והדבר הזה נשׁאר שׁם.
 
 imageDirection: object just out of reach, whispers scattered low, roars far above
 
 --- Page 6 ---
-"לֵיוֹ," אני אומר. "שׁאג כמו אריה גדול. ככה זה יעבוד."
+"ליאו," אני אומר. "שׁאג כמו אריה גדול. ככה זה יעבוד."
 הוא פותח פה קצת ויוצא קול דק.
 אני לא מסתכל למטה על הקול. אני מסתכל למעלה.
 
 imageDirection: child gesturing upward, Leo shrinking slightly though posed tall
 
 --- Page 7 ---
-לֵיוֹ עומד גבוה מאוד. הוא מרים את החזה. מרים את הראש.
+ליאו עומד גבוה מאוד. הוא מרים את החזה. מרים את הראש.
 פותח את הפה רחב מאוד.
 האוויר שׁקט. שׁום דבר לא זז.
 
 imageDirection: exaggerated stance, empty still air
 
 --- Page 8 ---
-לֵיוֹ מנסה שׁוב. יוצא קול קטן מהפה שׁלו.
+ליאו מנסה שׁוב. יוצא קול קטן מהפה שׁלו.
 הקול נופל ישׁר לרגליים שׁלו. כבד.
 הוא מביט למטה עליו.
 
@@ -90,14 +90,14 @@ imageDirection: tiny sound settling heavily, Leo glancing down
 imageDirection: large sound drifting upward away from the object
 
 --- Page 10 ---
-לֵיוֹ עומד ליד הבור. הוא פותח פה שׁוב.
+ליאו עומד ליד הבור. הוא פותח פה שׁוב.
 הוא מסתכל עלי. אני רואה את העיניים שׁלו.
 הוא לא בטוח.
 
 imageDirection: close-up of Leo's face, open mouth, unsure eyes
 
 --- Page 11 ---
-לֵיוֹ מניח את הכף על הקול שׁנפל. הכף מונחת עליו בשׁקט.
+ליאו מניח את הכף על הקול שׁנפל. הכף מונחת עליו בשׁקט.
 הוא לא זז.
 הקול נשׁאר שׁם מתחת.
 
@@ -111,7 +111,7 @@ imageDirection: paw resting over small glowing sound, quiet stillness
 imageDirection: object untouched, light shifting, distance emphasized
 
 --- Page 13 ---
-לֵיוֹ פותח את הפה. יוצאת מילה אחת. "כאן."
+ליאו פותח את הפה. יוצאת מילה אחת. "כאן."
 היא קטנה. אבל יש לה משׁקל אחר.
 המילה נוחתת על האדמה ליד הבור.
 
@@ -120,17 +120,17 @@ imageDirection: tiny sound emerging, denser than before
 --- Page 14 ---
 המילה נוגעת בדבר הקטן. הוא זז מעט.
 לא הרבה. רק קצת קרוב יותר אלינו.
-לֵיוֹ מסתכל על המילה.
+ליאו מסתכל על המילה.
 
 imageDirection: object shifting just a bit as the word presses against it
 
 --- Page 15 ---
-לֵיוֹ נוגע בסרט האדום על הכף. פעם אחת. עוד פעם. ושׁוב.
+ליאו נוגע בסרט האדום על הכף. פעם אחת. עוד פעם. ושׁוב.
 
 imageDirection: focused detail of paw and red ribbon
 
 --- Page 16 ---
-לֵיוֹ אומר מילה אחת. "בוא."
+ליאו אומר מילה אחת. "בוא."
 המילה נוחתת ליד הדבר הקטן. דוחפת אותו עוד קצת.
 עכשׁיו אני יכול להגיע אליו.
 
@@ -138,7 +138,7 @@ imageDirection: small grounded sound pushing object across gap
 
 --- Page 17 ---
 אני מרים את הדבר הקטן. הוא חם.
-אני מסתכל על לֵיוֹ. אחר כך מסתכל למטה על המילה שׁלו על האדמה.
+אני מסתכל על ליאו. אחר כך מסתכל למטה על המילה שׁלו על האדמה.
 היא עדיין שׁם.
 
 imageDirection: child holding object, looking down at lingering small sound
@@ -151,14 +151,14 @@ imageDirection: child holding object, looking down at lingering small sound
 imageDirection: large floating sounds far above, unreachable
 
 --- Page 19 ---
-לֵיוֹ יושׁב על הדשׁא. הוא לא עומד גבוה.
+ליאו יושׁב על הדשׁא. הוא לא עומד גבוה.
 הקול הקטן שׁלו ליד הכפות.
 הוא לא זז.
 
 imageDirection: calm seated posture, grounded presence
 
 --- Page 20 ---
-אני הולך עם הדבר הקטן ביד. לֵיוֹ נשׁאר מאחור.
+אני הולך עם הדבר הקטן ביד. ליאו נשׁאר מאחור.
 הסרט האדום על הכף שׁלו.
 המרחק בינינו גדל לאט.
 

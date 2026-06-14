@@ -5,7 +5,7 @@ Prompt-version: v5-literary-golden
 Notes: partial nikud for TTS; display/PDF strip niqqud; Shaket MALE; timeOfDay=day golden sand kingdom + bedroom frames.
 
 ---
-title: "{{childName}} ושָׁקֵט נותנים לרעם מקום"
+title: "{{childName}} וליאו נותנים לרעם מקום"
 companionId: lion_shaket
 direction: adventure
 category: ANGER_FRUSTRATION
@@ -37,8 +37,8 @@ metaphor: anger has a roar that needs a place — not the whole world
 stakes: the castle fell and rage fills the chest until it finds direction
 quietPagePosition: 7
 heartLine: עמוד 11 — שאגה ממוקדת לעיגול; השער נפתח.
-emotionalMistake: עמוד 5 — שָׁקֵט שואג לפני שיש מקום; השער לא זז.
-uncomfortableTruth: עמוד 7 — גם שָׁקֵט מפחד שלא ישמעו שמשהו חשוב קרה.
+emotionalMistake: עמוד 5 — ליאו שואג לפני שיש מקום; השער לא זז.
+uncomfortableTruth: עמוד 7 — גם ליאו מפחד שלא ישמעו שמשהו חשוב קרה.
 agencyTransfer: עמוד 10 — {{childName}} אומר/ת: לא גדולה יותר, ברורה יותר.
 
 --- Page 1 ---
@@ -71,13 +71,13 @@ imageDirection: A golden sand portal opens beneath the red block, gently pulling
 "רְרְרוכים הבאים," הוא ניסה לומר בקול מלכותי.
 פּוּף.
 הרעמה התנפחה, הזנב קפץ, וארמון חול קטן נפל לידו.
-"אופס," אמר הגור. "אני שָׁקֵט. זה שם עם תקווה."
+"אופס," אמר הגור. "אני ליאו. ואני עוד לומד לאן השאגה הולכת."
 
 imageDirection: Shaket the young lion cub sits on a low stone with a small messy sandy mane. As he tries to speak grandly, his mane puffs and his tail knocks over a tiny sand castle. The child watches, almost smiling. companionPresence: present; view: front/3-4.
 
 --- Page 4 ---
 "הארמון שלי נפל," {אמר|אמרה} {{childName}}. "והכול בפנים רותח."
-שָׁקֵט הנהן.
+ליאו הנהן.
 "זה כַּעַס עם רעמה," אמר. "הוא לא סתם בא."
 הוא שם כפה על החזה.
 "כַּעַס אומר: זה היה חשוב לי."
@@ -91,7 +91,7 @@ imageDirection: The child tells Shaket about the fallen castle. Shaket listens s
 במרכזו היה עיגול חלק, כמו מקום שמחכה.
 מאחורי השער נשמעו כדורי חול קטנים.
 הם רצו להתגלגל הביתה.
-שָׁקֵט הזדקף.
+ליאו הזדקף.
 "אני אפתח אותו!"
 הזנב שלו הצליף.
 החזה שלו התמלא.
@@ -105,7 +105,7 @@ imageDirection: A heavy stone gate blocks a sandy path, with a clear circular ma
 היא העיפה חול. כופפה עשב. גלגלה שבלול מבולבל.
 אבל השער?
 השער לא זז.
-שָׁקֵט סגר את הפה.
+ליאו סגר את הפה.
 "אוי," אמר. "השאגה שלי נפלה על כולם."
 {{childName}} {ניגב|ניגבה} חול מהלחי.
 "חוץ מעל השער."
@@ -113,19 +113,19 @@ imageDirection: A heavy stone gate blocks a sandy path, with a clear circular ma
 imageDirection: Shaket's roar bursts outward as a messy dusty cloud, bending grass and rolling a tiny snail while the stone gate remains closed. Shaket looks embarrassed; the child wipes sand from one cheek. companionPresence: present; view: wide/action.
 
 --- Page 7 ---
-שָׁקֵט התיישב.
+ליאו התיישב.
 הרעמה שלו נפלה על העיניים.
 "אם אני לא שואג מיד," לחש, "אולי אף אחד לא ידע שמשהו חשוב קרה."
 {{childName}} {שתק|שתקה} רגע.
 זה הרגיש נכון.
 "גם הארמון שלי היה חשוב," {אמר|אמרה}.
-שָׁקֵט הרים את הראש.
+ליאו הרים את הראש.
 "אז לא נזרוק את השאגה," אמר. "ניתן לה מקום."
 
 imageDirection: Shaket sits low beside the path, mane fallen over his eyes, suddenly vulnerable. The child sits near him, understanding the feeling. The stone gate waits in the background. companionPresence: present; view: medium/3-4.
 
 --- Page 8 ---
-שָׁקֵט קם.
+ליאו קם.
 "אצל אריות," אמר, "עושים ככה."
 שתי כפות באדמה.
 רעמה למעלה.
@@ -142,11 +142,11 @@ imageDirection: Shaket demonstrates the lion ritual: paws planted, mane lifted, 
 --- Page 9 ---
 קודם ניסו על אבן קטנה.
 "לא לכל העולם," {אמר|אמרה} {{childName}}. "רק לשם."
-שָׁקֵט הביט באבן.
+ליאו הביט באבן.
 רְר קטן.
 האבן זזה בדיוק למקום.
 שום חול לא עף. שום שבלול לא התגלגל.
-שָׁקֵט פער עיניים.
+ליאו פער עיניים.
 "השאגה ידעה איפה לנחות."
 
 imageDirection: The child points to a small pebble as the safe target. Shaket plants his paws and releases a tiny focused roar that moves only the pebble. Both look surprised and pleased. companionPresence: present; view: close/3-4.
@@ -155,18 +155,18 @@ imageDirection: The child points to a small pebble as the safe target. Shaket pl
 עכשיו עמדו מול שער האבן.
 הוא היה גדול.
 והכַּעַס היה גדול.
-שָׁקֵט בלע רוק.
+ליאו בלע רוק.
 "שאגת מלך?"
 {{childName}} {הסתכל|הסתכלה} על העיגול שבשער.
 "לא גדולה יותר," {אמר|אמרה}. "ברורה יותר."
-שָׁקֵט נשם.
+ליאו נשם.
 כפות. רעמה. מקום.
 "לשם," {אמר|אמרה} {{childName}}.
 
 imageDirection: The child and Shaket face the large stone gate. The child points calmly to the circular mark in the gate's center while Shaket steadies himself, tail still and mane lifted. companionPresence: present; view: 3-4.
 
 --- Page 11 ---
-שָׁקֵט שאג.
+ליאו שאג.
 {{childName}} {שאג|שאגה} איתו.
 לא על השמיים. לא על החול. לא על כל העולם.
 למקום אחד.
@@ -175,7 +175,7 @@ imageDirection: The child and Shaket face the large stone gate. The child points
 חרק.
 ונפתח.
 כדורי החול התגלגלו החוצה בשקט שמח.
-שָׁקֵט חייך.
+ליאו חייך.
 "השאגה נשארה שאגה," אמר. "רק מצאה בית."
 
 imageDirection: The child and Shaket stand grounded together, sending one focused golden roar-line into the circle at the center of the gate. The gate opens, releasing small sand-balls that roll out gently. companionPresence: present; view: wide/action.

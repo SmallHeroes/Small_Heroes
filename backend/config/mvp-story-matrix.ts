@@ -90,8 +90,8 @@ export const MVP_WIZARD_CARD_COPY: Record<
     topicId: 'anger',
     label: 'כעס גדול',
     emoji: '⚡',
-    companionLine: 'עם האריה לֵיוֹ',
-    oneLiner: 'הקול שלך קיים — לפעמים הלחש חזק מהצעקה',
+    companionLine: 'עם האריה ליאו',
+    oneLiner: 'כשהכעס ממלא את כל הגוף — לומדים לכוון אותו, לא לבלוע אותו',
   },
 };
 

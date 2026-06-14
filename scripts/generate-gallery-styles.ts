@@ -255,7 +255,7 @@ const GALLERY_SCENES: GallerySceneDef[] = [
     child: { name: 'נועם', gender: 'boy', age: 6 },
     direction: 'adventure',
     bookPageText:
-      'נועם מרגיש כעס גדול בחזה, ולֵיוֹ האריה הקטן יושב לידו על השטיח — לפעמים ללחש חזק יותר מצעקה.',
+      'נועם מרגיש כעס גדול בחזה, וליאו האריה הקטן יושב לידו על השטיח — לפעמים ללחש חזק יותר מצעקה.',
     sceneCore: [
       'Home living room — big-feeling moment — NOT a portrait.',
       'A 6-year-old boy sits on a soft rug, knees up, fists loosely clenched, face showing frustrated feeling but not scary rage.',
@@ -274,7 +274,7 @@ const GALLERY_SCENES: GallerySceneDef[] = [
       framingType: 'medium-environment',
       sceneClass: 'daytime-interior',
       bookPageText:
-        'נועם מרגיש כעס גדול בחזה, ולֵיוֹ האריה הקטן יושב לידו על השטיח — לפעמים ללחש חזק יותר מצעקה.',
+        'נועם מרגיש כעס גדול בחזה, וליאו האריה הקטן יושב לידו על השטיח — לפעמים ללחש חזק יותר מצעקה.',
       imageIntent: 'boy on rug with frustrated feeling and small lion companion at home',
     },
     usePhotoReference: false,

@@ -7,7 +7,7 @@ Prompt-version: v5
 
 ---
 ---
-title: "לֵיוֹ וְהַקּוֹל הַקָּטָן"
+title: "ליאו וְהַקּוֹל הַקָּטָן"
 companionId: lion_shaket
 direction: bedtime
 category: COURAGE_BRAVERY
@@ -22,12 +22,12 @@ metaphor: voices have physical weight and shape the world
 stakes: if no sound is made, the stuck object will sink out of reach
 emotionalArc: posing confidence → pressure and failure → vulnerability revealed → small true action → quiet resolution
 quietPage: 7
-heartLine: עמוד 5 — לֵיוֹ יושב נמוך, הזנב מתכרבל לבטן, והראש יורד. הילד מסתכל בלי לדבר.
+heartLine: עמוד 5 — ליאו יושב נמוך, הזנב מתכרבל לבטן, והראש יורד. הילד מסתכל בלי לדבר.
 emotionalMistake: עמוד 3 — הילד מסתובב ואומר שזה לא שאגה אמיתית.
-uncomfortableTruth: עמוד 6 — לֵיוֹ פותח את הפה בתנוחה מושלמת אבל שום קול לא יוצא, והצעצוע שוקע עוד קצת.
+uncomfortableTruth: עמוד 6 — ליאו פותח את הפה בתנוחה מושלמת אבל שום קול לא יוצא, והצעצוע שוקע עוד קצת.
 
 --- Page 1 ---
-לֵיוֹ עומד לבד על החול.
+ליאו עומד לבד על החול.
 
 הוא מרים את הראש גבוה, פותח את הפה רחב.
 
@@ -40,9 +40,9 @@ imageDirection: small lion puffed up, mouth wide, no sound lines, long shadows
 --- Page 2 ---
 ילד מגיע לקצה החול.
 
-הוא מסתכל על לֵיוֹ. "שאגת עכשיו?"
+הוא מסתכל על ליאו. "שאגת עכשיו?"
 
-לֵיוֹ מחייך. הוא לא עונה.
+ליאו מחייך. הוא לא עונה.
 
 הסנטר שלו עדיין מורם.
 
@@ -51,16 +51,16 @@ imageDirection: child leaning in, curious, Shaket mid-pose with lifted chin
 --- Page 3 ---
 צעצוע של הילד מתחיל לשקוע בחול הרך.
 
-"לֵיוֹ!" קורא הילד.
+"ליאו!" קורא הילד.
 
-לֵיוֹ עדיין בתנוחה. הפה פתוח, אין קול.
+ליאו עדיין בתנוחה. הפה פתוח, אין קול.
 
 הילד מסתובב. "אני לא רואה איך זה עוזר."
 
 imageDirection: toy half-sunk, child frowning, Shaket frozen mid-pose
 
 --- Page 4 ---
-לֵיוֹ עומד יותר גבוה. החזה קדימה.
+ליאו עומד יותר גבוה. החזה קדימה.
 
 הפה פתוח עוד יותר.
 
@@ -71,7 +71,7 @@ imageDirection: toy half-sunk, child frowning, Shaket frozen mid-pose
 imageDirection: exaggerated stance, wide open mouth, toy deeper, no movement lines from sound
 
 --- Page 5 ---
-לֵיוֹ מנסה שוב.
+ליאו מנסה שוב.
 
 אז הוא יושב נמוך על החול.
 
@@ -82,7 +82,7 @@ imageDirection: exaggerated stance, wide open mouth, toy deeper, no movement lin
 imageDirection: small lion sitting low, tail tucked, child watching quietly
 
 --- Page 6 ---
-לֵיוֹ מרים את הראש עוד פעם אחת.
+ליאו מרים את הראש עוד פעם אחת.
 
 התנוחה מושלמת. הפה פתוח.
 
@@ -93,14 +93,14 @@ imageDirection: small lion sitting low, tail tucked, child watching quietly
 imageDirection: still open mouth, no sound lines, toy nearly gone, tension in stillness
 
 --- Page 7 ---
-לֵיוֹ נוגע בסרט האדום על הכף.
+ליאו נוגע בסרט האדום על הכף.
 
 פעם אחת. פעם שתיים. פעם שלוש.
 
 imageDirection: close-up of paw and red ribbon, gentle evening light
 
 --- Page 8 ---
-הילד כורע ליד לֵיוֹ.
+הילד כורע ליד ליאו.
 
 הם אומרים ביחד מילה קטנה אחת.
 
@@ -109,7 +109,7 @@ imageDirection: close-up of paw and red ribbon, gentle evening light
 imageDirection: soft sound waves close to the ground, toy held in place, both leaning forward
 
 --- Page 9 ---
-לֵיוֹ אומר שוב מילה קטנה.
+ליאו אומר שוב מילה קטנה.
 
 הקול נמוך, ברור.
 
@@ -120,7 +120,7 @@ imageDirection: child reaching toy, Shaket seated steady, small sound lines hugg
 --- Page 10 ---
 הם יושבים קרוב, כתף ליד כתף.
 
-לֵיוֹ נוגע בסרט בעדינות. הילד נשען עליו.
+ליאו נוגע בסרט בעדינות. הילד נשען עליו.
 
 השמיים נעשים חמימים. החול רך.
 

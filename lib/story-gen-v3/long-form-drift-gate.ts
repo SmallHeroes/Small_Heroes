@@ -18,7 +18,7 @@ export interface LongFormDriftResult {
 const ESCALATION_RE =
   /גדל|יותר|מסתבך|chaos|escalat|רעש|עולה|מתחזק|harder|worse/i;
 const COMPANION_REACT_RE =
-  /לֵיוֹ|lion|companion|אריה|reac|מגיב|אומר|עושה|tail|זנב|roar|שאג/i;
+  /ליאו|lion|companion|אריה|reac|מגיב|אומר|עושה|tail|זנב|roar|שאג/i;
 const CHILD_ACTION_RE =
   /ילד|child|מנסה|discover|מגלה|reversal|הופך|בוחר|שם לב|action|עושה משהו|מחליט/i;
 

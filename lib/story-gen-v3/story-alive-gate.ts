@@ -182,7 +182,7 @@ export function runStoryAliveGate(args: {
     : isBunny
       ? p1.length > 35 && /בוּנִי|אוזנ|אחות|חדר|קליניק/i.test(p1)
       : isLion
-        ? p1.length > 35 && /שלולית|צעק|ליאו|לֵיוֹ|שאג|מגרש/i.test(p1)
+        ? p1.length > 35 && /שלולית|צעק|ליאו|שאג|מגרש/i.test(p1)
         : isTurtle
           ? p1.length > 35 && /טוֹלִי|קונכייה|חדר|בית/i.test(p1)
           : isFox
@@ -201,7 +201,7 @@ export function runStoryAliveGate(args: {
     : isBunny
       ? pages.length >= 3 && /בוּנִי|אוזנ|פסל|קופצ/i.test(earlyProse)
       : isLion
-        ? pages.length >= 3 && /ליאו|לֵיוֹ|שאג|שלולית|מחליק/i.test(earlyProse)
+        ? pages.length >= 3 && /ליאו|שאג|שלולית|מחליק/i.test(earlyProse)
         : isTurtle
           ? pages.length >= 3 && /טוֹלִי|קונכייה|צחק|עגלה/i.test(earlyProse)
           : isFox
@@ -279,7 +279,7 @@ export function runStoryAliveGate(args: {
     if (/לחש|רועד/.test(fullProse)) humorMoments++;
     if (/התעטש|שיהוק/.test(fullProse)) humorMoments++;
   } else if (isLion) {
-    if (/ליאו|לֵיוֹ/.test(fullProse)) humorMoments++;
+    if (/ליאו/.test(fullProse)) humorMoments++;
     if (/שאג|לחיש/.test(fullProse)) humorMoments++;
     if (/שלולית|רטוב/.test(fullProse)) humorMoments++;
     if (/מחליק|קפץ/.test(fullProse)) humorMoments++;

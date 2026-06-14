@@ -176,7 +176,7 @@ function hasWrongCompanionLeak(candidate: StoryPremiseCandidate): boolean {
 
   if (/koko|chameleon/.test(id) && /דיני|דרקון|כנף|קן פופקורן/i.test(blob)) return true;
   if (/lion/.test(id) && /דיני|קוֹקוֹ|chameleon|פופקורן|כנף.*קן/i.test(blob)) return true;
-  if (/bunny/.test(id) && /דיני|קוֹקוֹ|chameleon|פופקורן|לֵיוֹ|שאגה.*משקל/i.test(blob)) return true;
+  if (/bunny/.test(id) && /דיני|קוֹקוֹ|chameleon|פופקורן|ליאו|שאגה.*משקל/i.test(blob)) return true;
   if (/turtle/.test(id) && /דיני|קוֹקוֹ|chameleon|פופקורן|פסים|הסוואה/i.test(blob)) return true;
   if (/uri|fox/.test(id) && /דיני|דרקון|כנף|קן|פופקורן|העטיפה|עוטפת/i.test(blob)) return true;
   if (/panda|anat/.test(id) && /דיני|דרקון|כנף|פופקורן|אוּרי|פנס צווארי/i.test(blob)) return true;
