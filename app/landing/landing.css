@@ -1086,7 +1086,7 @@
 /* Trust — warm reassurance strip (not why-cards) */
 .trust-band {
   padding: 56px 0 64px;
-  background: var(--yellow);
+  background: var(--bg-lighter);
   border-block: 1px solid rgba(0, 0, 0, 0.06);
 }
 
@@ -1131,8 +1131,14 @@
   margin: 0 auto 14px;
   border-radius: 50%;
   background: rgba(136, 108, 255, 0.12);
+  color: #6f53e0;
   font-size: 1.35rem;
   line-height: 1;
+}
+
+.trust-point__icon svg {
+  width: 26px;
+  height: 26px;
 }
 
 .trust-point__title {

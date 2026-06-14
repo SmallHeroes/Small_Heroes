@@ -9,6 +9,35 @@ import { CategoryChallengeCard } from '@/app/category-challenge-card';
 import type { MvpMatrixCategoryPayload } from '@/lib/web/mvp-matrix-response';
 import { ROUTES } from '@/lib/routes';
 
+/* Trust-band line icons (order matches L.trust.pillars: privacy · human review · Hebrew/age · support) */
+const TRUST_ICONS = [
+  (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6l7-3z" />
+      <path d="M8.8 12.2l2.1 2.1 4.3-4.3" />
+    </svg>
+  ),
+  (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2.2 12S5.6 5.6 12 5.6 21.8 12 21.8 12 18.4 18.4 12 18.4 2.2 12 2.2 12z" />
+      <circle cx="12" cy="12" r="2.6" />
+    </svg>
+  ),
+  (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 6.2C10.1 5 7.8 4.4 5.2 4.4c-.9 0-1.4.3-1.4 1V18c0 .6.4.9 1.1.8 2.4-.4 4.6 0 7.1 1.5" />
+      <path d="M12 6.2C13.9 5 16.2 4.4 18.8 4.4c.9 0 1.4.3 1.4 1V18c0 .6-.4.9-1.1.8-2.4-.4-4.6 0-7.1 1.5" />
+      <path d="M12 6.2V21" />
+    </svg>
+  ),
+  (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20.5 11.5a7.5 7.5 0 0 1-10.8 6.7L4.5 19.5l1.3-3.9A7.5 7.5 0 1 1 20.5 11.5z" />
+      <path d="M12 14.2c-2.3-1.5-3.1-2.8-3.1-3.9A1.55 1.55 0 0 1 12 9.1a1.55 1.55 0 0 1 3.1 1.2c0 1.1-.8 2.4-3.1 3.9z" />
+    </svg>
+  ),
+];
+
 type GalleryStyle = 'style01' | 'style02';
 
 const GALLERY_STYLE01 = [
@@ -316,10 +345,10 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                 <h2 className="trust-band__h2">{L.trust.h2}</h2>
               </header>
               <div className="trust-points">
-                {L.trust.pillars.map((pillar) => (
+                {L.trust.pillars.map((pillar, i) => (
                   <article key={pillar.title} className="trust-point">
                     <span className="trust-point__icon" aria-hidden="true">
-                      {pillar.icon}
+                      {TRUST_ICONS[i] ?? pillar.icon}
                     </span>
                     <h3 className="trust-point__title">{pillar.title}</h3>
                     <p className="trust-point__text">{pillar.body}</p>
