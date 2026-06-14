@@ -90,7 +90,7 @@ const THEME_EXPRESSION_BY_CATEGORY: Partial<Record<ChallengeCategory, string>> =
   NIGHT_FEAR:
     'THEME expression (calm & reassuring): soft steady eyes, relaxed posture — a gentle night-guide mood, not scared, not predatory.',
   ANGER_FRUSTRATION:
-    'THEME expression (calm breath): tentacles/limbs settling, eyes focused but soft — upset energy redirected, still lovable.',
+    'THEME expression (calm breath): soft settling posture, eyes focused but soft — upset energy redirected, still lovable.',
   SOCIAL:
     'THEME expression (quiet belonging): gentle open posture, soft eyes — calm social presence without needing to be loud.',
   TRANSITION:

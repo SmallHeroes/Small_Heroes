@@ -3,6 +3,8 @@ import type { CompanionPresence } from './image-entity-presence';
 export type CompanionAccessoryContext = 'story_page' | 'character_sheet';
 
 export type CompanionAccessoryProfile = {
+  /** When true, only forbidden-alternative lines are emitted — no canonical wearable. */
+  accessoryForbiddenOnly?: boolean;
   canonicalAccessory: string;
   accessoryLocation: string;
   accessoryBehavior: string;
@@ -76,6 +78,22 @@ export const COMPANION_ACCESSORY_PROFILES: Partial<Record<string, CompanionAcces
     accessoryRequiredWhenVisible: true,
     forbiddenAlternatives: ['scarf', 'necklace', 'cape', 'chest star', 'neck scarf'],
   },
+  lion_shaket: {
+    canonicalAccessory: 'small round frame hand-drum on a soft side strap (warm wood frame, tan head)',
+    accessoryLocation: 'soft strap across the body, drum resting at his side (hands-free)',
+    accessoryBehavior:
+      'where the big roar/thunder gets a place — a beat, not swallowed and not blasting the whole room; tapping it = aiming the anger ("כפות. רעמה. מקום"). Visible when the body is shown; may rest beside him on quiet/close/sleep pages.',
+    accessoryRequiredWhenVisible: true,
+    forbiddenAlternatives: [
+      'scarf',
+      'neck scarf',
+      'cape',
+      'cape-like scarf',
+      'bow',
+      'chest star',
+      'necklace',
+    ],
+  },
 };
 
 export function resolveCompanionAccessoryProfile(
@@ -99,10 +117,20 @@ export function buildCompanionAccessoryLockBlock(input: {
   if (!profile) return undefined;
 
   const context = input.context ?? 'story_page';
+  const name = input.companionName?.trim() || input.companionId || 'companion';
+  const forbid = profile.forbiddenAlternatives.map((f) => `NEVER ${f}`).join('; ');
+
+  if (profile.accessoryForbiddenOnly) {
+    if (!companionPresenceShowsAccessory(input.companionPresence)) return undefined;
+    return [
+      `COMPANION ACCESSORY LOCK — ${name}:`,
+      'NO cape, NO scarf, NO bow, NO neck accessory — plain soft lion cub only.',
+      forbid,
+    ].join('\n');
+  }
+
   if (context === 'character_sheet' && profile.showOnCharacterSheet === false) {
     if (!profile.characterSheetAccessory) return undefined;
-    const name = input.companionName?.trim() || input.companionId || 'companion';
-    const forbid = profile.forbiddenAlternatives.map((f) => `NEVER ${f}`).join('; ');
     if (input.companionPresence === 'partial' || input.companionPresence === 'offscreen_hint') {
       return [
         `COMPANION ACCESSORY (partial/offscreen — ${name}):`,
@@ -118,9 +146,6 @@ export function buildCompanionAccessoryLockBlock(input: {
       forbid,
     ].join('\n');
   }
-
-  const name = input.companionName?.trim() || input.companionId || 'companion';
-  const forbid = profile.forbiddenAlternatives.map((f) => `NEVER ${f}`).join('; ');
 
   if (input.companionPresence === 'partial' || input.companionPresence === 'offscreen_hint') {
     return [

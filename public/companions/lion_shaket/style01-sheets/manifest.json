@@ -1,37 +1,37 @@
 {
   "companionId": "lion_shaket",
   "referenceJpg": "/companions/ANGER_FRUSTRATION/lion_shaket.jpg",
-  "generatedAt": "2026-06-11T11:13:48.526Z",
+  "generatedAt": "2026-06-14T14:49:18.592Z",
   "views": {
     "front": {
       "filename": "front.png",
       "qaStatus": "passed",
-      "resemblanceToIdentity": 0.9905982498579733
+      "resemblanceToIdentity": 1
     },
     "three_quarter_front": {
       "filename": "3-4.png",
       "qaStatus": "passed",
-      "resemblanceToIdentity": 0.8947240729145897
+      "resemblanceToIdentity": 0.8279009121687844
     },
     "side": {
       "filename": "side.png",
       "qaStatus": "passed",
-      "resemblanceToIdentity": 0.884688000450044
+      "resemblanceToIdentity": 0.9675074961962967
     },
     "three_quarter_back": {
       "filename": "back.png",
       "qaStatus": "passed",
-      "resemblanceToIdentity": 0.9872184724440407
+      "resemblanceToIdentity": 0.9744838952285166
     },
     "happy": {
       "filename": "happy.png",
       "qaStatus": "passed",
-      "resemblanceToIdentity": 0.9146603475807639
+      "resemblanceToIdentity": 0.979060720148103
     },
     "theme": {
       "filename": "theme.png",
       "qaStatus": "passed",
-      "resemblanceToIdentity": 0.9438429736022392
+      "resemblanceToIdentity": 0.9935829481593824
     }
   }
 }
