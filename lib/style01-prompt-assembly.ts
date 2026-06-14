@@ -2,6 +2,7 @@
  * Style 01 phase-2 prompt assembly — single source of truth for tests + image provider.
  */
 import {
+  assertCompanionPresenceConsistency,
   childPresenceAllowsReferencePhoto,
   childPresenceAllowsVisualLock,
   derivePageEntityPresence,
@@ -246,6 +247,14 @@ export function assembleStyle01Phase2Prompt(
       };
     }
   }
+
+  assertCompanionPresenceConsistency({
+    pageNumber: input.pageNumber,
+    imageDirection,
+    companionPresence: entityPresence.companionPresence,
+    companionName: input.companion?.name,
+    companionId: input.companion?.id,
+  });
 
   const stateLockBundle = resolveStoryStateLockBundle(input.companion?.id);
   let objectLocks = '';

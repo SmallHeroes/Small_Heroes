@@ -147,7 +147,100 @@ function companionPresenceTokens(
     tokens.add('seara');
     tokens.add('זוזי');
   }
+  if (id === 'lion_shaket') {
+    tokens.add('lion');
+    tokens.add('leo');
+    tokens.add('shaket');
+    tokens.add('ליאו');
+    tokens.add('אריה');
+  }
   return [...tokens];
+}
+
+const NEGATION_BEFORE_COMPANION_TOKEN_RE =
+  /\b(?:no|not|without|never|forbidden)\s+(?:a\s+)?(?:scary\s+)?$/i;
+const COMPANION_ABSENT_AFTER_NAME_RE =
+  /\b(?:is\s+)?not\s+(?:(?:yet\s+)?present|visible|there|shown|in\s+(?:the\s+)?(?:scene|image|frame)|(?:a\s+)?(?:companion|sidekick))\b/i;
+
+/** Positive companion name mention — ignores negation windows (no Leo, Leo not present yet, etc.). */
+export function tokenMentionedPositively(text: string, token: string): boolean {
+  if (!token || token.length < 2) return false;
+  const lower = text.toLowerCase();
+  const tokenLower = token.toLowerCase();
+  let searchFrom = 0;
+  while (searchFrom < lower.length) {
+    const pos = lower.indexOf(tokenLower, searchFrom);
+    if (pos === -1) return false;
+
+    const before = text.slice(Math.max(0, pos - 50), pos);
+    if (NEGATION_BEFORE_COMPANION_TOKEN_RE.test(before)) {
+      searchFrom = pos + tokenLower.length;
+      continue;
+    }
+
+    const after = text.slice(pos + token.length, pos + token.length + 50);
+    if (COMPANION_ABSENT_AFTER_NAME_RE.test(after)) {
+      searchFrom = pos + tokenLower.length;
+      continue;
+    }
+
+    return true;
+  }
+  return false;
+}
+
+export function findPositiveCompanionMentionInImageDirection(
+  imageDirection: string,
+  companionName: string,
+  companionId?: string | null
+): string | null {
+  const tokens = companionPresenceTokens(companionName, companionId).sort(
+    (a, b) => b.length - a.length
+  );
+  for (const token of tokens) {
+    if (tokenMentionedPositively(imageDirection, token)) {
+      return token;
+    }
+  }
+  return null;
+}
+
+export class CompanionPresenceConflictError extends Error {
+  constructor(
+    pageNumber: number,
+    matchedToken: string,
+    companionPresence: CompanionPresence
+  ) {
+    super(
+      `COMPANION_PRESENCE_CONFLICT page ${pageNumber}: imageDirection names the companion ("${matchedToken}") but presence resolved '${companionPresence}' — prompt would say no-companion while describing one. Fix tokens or imageDirection.`
+    );
+    this.name = 'CompanionPresenceConflictError';
+  }
+}
+
+export function assertCompanionPresenceConsistency(input: {
+  pageNumber?: number;
+  imageDirection?: string | null;
+  companionPresence: CompanionPresence;
+  companionName?: string | null;
+  companionId?: string | null;
+}): void {
+  if (input.companionPresence !== 'absent') return;
+  const imageDir = (input.imageDirection ?? '').trim();
+  if (!imageDir || !input.companionName?.trim()) return;
+
+  const matched = findPositiveCompanionMentionInImageDirection(
+    imageDir,
+    input.companionName,
+    input.companionId
+  );
+  if (matched) {
+    throw new CompanionPresenceConflictError(
+      input.pageNumber ?? 0,
+      matched,
+      input.companionPresence
+    );
+  }
 }
 
 const COMPANION_PARTIAL_RE =
@@ -166,9 +259,11 @@ function deriveCompanionPresence(input: DerivePageEntityPresenceInput): Companio
   const hebrew = (input.bookPageText ?? '').trim();
   const hay = [imageDir, hebrew, input.pagePrompt ?? ''].join('\n');
 
-  const mentionsCompanion =
-    tokens.some((t) => t.length >= 2 && imageDir.toLowerCase().includes(t.toLowerCase())) ||
-    tokens.some((t) => t.length >= 2 && hebrew.includes(t));
+  const mentionsCompanionInImageDir = tokens.some(
+    (t) => t.length >= 2 && tokenMentionedPositively(imageDir, t)
+  );
+  const mentionsCompanionInHebrew = tokens.some((t) => t.length >= 2 && hebrew.includes(t));
+  const mentionsCompanion = mentionsCompanionInImageDir || mentionsCompanionInHebrew;
 
   if (!mentionsCompanion && !COMPANION_PARTIAL_RE.test(hay) && !COMPANION_OFFSCREEN_RE.test(hay)) {
     if (!hebrew && !imageDir) return 'present';
@@ -191,7 +286,7 @@ function deriveCompanionPresence(input: DerivePageEntityPresenceInput): Companio
     return 'present';
   }
 
-  if (tokens.some((t) => t.length >= 2 && imageDir.toLowerCase().includes(t.toLowerCase()))) {
+  if (tokens.some((t) => t.length >= 2 && tokenMentionedPositively(imageDir, t))) {
     return 'present';
   }
   if (tokens.some((t) => t.length >= 2 && hebrew.includes(t))) return 'present';
