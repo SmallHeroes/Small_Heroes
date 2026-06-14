@@ -1244,7 +1244,6 @@ Return JSON:
   }
 
   function finalizeDNA(dna: StoryBankCharacterDNA): StoryBankCharacterDNA {
-    if (!params.childPhotoDescription?.trim()) return dna;
     const childStructured = sanitizeChildStructuredAgainstPhoto(
       dna.childStructured,
       params.childPhotoDescription
@@ -1298,7 +1297,7 @@ Return JSON:
     // Build flat DNA from structured if LLM didn't provide it
     const childDNA =
       parsed.childDNA?.trim() ||
-      `${childStructured.face}. ${childStructured.hair}. ${childStructured.body}. ${childStructured.clothing}. ${childStructured.signature}.`;
+      joinChildStructuredDNA(childStructured);
     const companionDNA =
       parsed.companionDNA?.trim() ||
       `${companionStructured.species}, ${companionStructured.size}. ${companionStructured.coloring}. ${companionStructured.feature}.`;

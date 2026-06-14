@@ -27,6 +27,7 @@ import {
 } from '@/lib/style01-gptimage';
 import { describeChildFromPhoto } from '@/backend/providers/story-bank-loader';
 import { assertPipelineStyleBranchMatchesOrder } from '@/lib/image-engine-guard';
+import { assertIdentityLockFreeOfClothingWhenWardrobeApplies } from '@/lib/child-photo-dna-sanitize';
 
 export type Stage0MethodBResult = {
   anchorUrl: string;
@@ -109,6 +110,10 @@ export async function generateStage0MethodBAnchor(input: {
     orderIllustrationStyle: input.order.illustrationStyle,
     pipelineStyleBranch: 'style01',
     context: 'stage0-method-b child anchor',
+  });
+  assertIdentityLockFreeOfClothingWhenWardrobeApplies({
+    identityLockText: input.lockedChildDescription,
+    wardrobeLock: input.wardrobeLock,
   });
   const { paths, labels } = buildStage0MethodBReferences({
     childPhotoUrl: input.childPhotoUrl,

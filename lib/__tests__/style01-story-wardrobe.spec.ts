@@ -31,6 +31,13 @@ describe('style01 story-aware wardrobe lock', () => {
       childFirstName: 'עומר',
       childGender: 'boy',
       childAge: 6,
+      childStructured: {
+        face: 'Round face, warm skin, brown eyes.',
+        hair: 'Short dark hair.',
+        body: 'Build for a 6-year-old boy.',
+        clothing: 'Wearing a light blue t-shirt, dark denim shorts, and red sneakers.',
+        signature: '',
+      },
       companion: { id: 'lion_shaket', name: 'ליאו' },
       storyFile: 'lion_shaket_bedtime',
       direction: 'bedtime',
@@ -39,6 +46,13 @@ describe('style01 story-aware wardrobe lock', () => {
     expect(prompt).toContain('two-piece pajamas');
     expect(prompt).not.toMatch(/plain solid sky-blue t-shirt with a small yellow sun/i);
     expect(prompt).not.toMatch(/Shoes: RED sneakers/i);
+    const visualLockMatch = prompt.match(
+      /CHILD VISUAL LOCK \(verbatim when child appears\):([\s\S]*?)(?:\n\n|$)/
+    );
+    expect(visualLockMatch?.[1] ?? '').not.toMatch(/t-shirt/i);
+    expect(visualLockMatch?.[1] ?? '').not.toMatch(/denim/i);
+    expect(visualLockMatch?.[1] ?? '').not.toMatch(/sneakers/i);
+    expect(visualLockMatch?.[1] ?? '').not.toMatch(/Wearing/i);
   });
 
   it('adventure assembly keeps daytime default wardrobe', () => {

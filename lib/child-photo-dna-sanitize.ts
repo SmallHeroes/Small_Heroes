@@ -11,6 +11,113 @@ export type StructuredChildDNA = {
   signature: string;
 };
 
+/** Clothing is story-level (wardrobe lock) — never part of the identity lock. */
+export const SAFE_CHILD_CLOTHING_POINTER = 'Story wardrobe lock on each page — not from photo';
+
+const IDENTITY_CLOTHING_PHRASES_EN = ['dressed in'] as const;
+
+const IDENTITY_CLOTHING_BLOCKLIST_EN = [
+  'shirt',
+  't-shirt',
+  'tee',
+  'shorts',
+  'pants',
+  'trousers',
+  'jeans',
+  'denim',
+  'dress',
+  'skirt',
+  'shoe',
+  'shoes',
+  'sneaker',
+  'sneakers',
+  'sandals',
+  'boots',
+  'socks',
+  'hat',
+  'cap',
+  'outfit',
+  'clothing',
+  'clothes',
+  'wearing',
+  'wears',
+] as const;
+
+const IDENTITY_CLOTHING_BLOCKLIST_HE = [
+  'חולצה',
+  'טי-שירט',
+  'מכנסיים',
+  'מכנס',
+  "ג'ינס",
+  'שמלה',
+  'חצאית',
+  'נעל',
+  'נעליים',
+  'סנדלים',
+  'מגפיים',
+  'גרביים',
+  'כובע',
+  'לובש',
+  'לובשת',
+  'לבוש',
+  'לבושה',
+  'מחליפה',
+] as const;
+
+export class IdentityClothingLeakError extends Error {
+  readonly matchedWord: string;
+
+  constructor(matchedWord: string) {
+    super(
+      `IDENTITY_CLOTHING_LEAK: child identity lock contains a clothing word ("${matchedWord}") while a wardrobe lock applies — clothing must come only from the wardrobe lock.`
+    );
+    this.name = 'IdentityClothingLeakError';
+    this.matchedWord = matchedWord;
+  }
+}
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function findClothingWordInIdentityText(text: string): string | null {
+  if (!text?.trim()) return null;
+  const lower = text.toLowerCase();
+  for (const phrase of IDENTITY_CLOTHING_PHRASES_EN) {
+    if (lower.includes(phrase)) return phrase;
+  }
+  for (const word of [...IDENTITY_CLOTHING_BLOCKLIST_EN].sort((a, b) => b.length - a.length)) {
+    const re = new RegExp(`\\b${escapeRegExp(word)}\\b`, 'i');
+    if (re.test(lower)) return word;
+  }
+  for (const word of IDENTITY_CLOTHING_BLOCKLIST_HE) {
+    if (text.includes(word)) return word;
+  }
+  return null;
+}
+
+/** Hard-fail when identity text carries clothing while a story wardrobe lock is active. */
+export function assertIdentityLockFreeOfClothingWhenWardrobeApplies(input: {
+  identityLockText: string;
+  wardrobeLock?: string | null;
+  childStructured?: Pick<StructuredChildDNA, 'face' | 'hair' | 'body' | 'signature'> | null;
+}): void {
+  if (!input.wardrobeLock?.trim()) return;
+
+  const texts = [
+    input.identityLockText,
+    input.childStructured?.face,
+    input.childStructured?.hair,
+    input.childStructured?.body,
+    input.childStructured?.signature,
+  ].filter((t): t is string => Boolean(t?.trim()));
+
+  for (const text of texts) {
+    const hit = findClothingWordInIdentityText(text);
+    if (hit) throw new IdentityClothingLeakError(hit);
+  }
+}
+
 /** Accessories/props that must not be invented when a real photo description exists. */
 const GENERIC_FALLBACK_MARKERS =
   /\b(stuffed bunny|worn stuffed|light olive skin|thin red fabric|tucked behind ears|almond-shaped eyes)\b/i;
@@ -89,7 +196,7 @@ export function buildPhotoAnchoredChildStructured(
     face: photo,
     hair: hairFieldFromPhotoDescription(photo),
     body: `Build and height appropriate for a ${childAge}-year-old ${genderWord}`,
-    clothing: 'Story wardrobe lock on each page — not from photo',
+    clothing: SAFE_CHILD_CLOTHING_POINTER,
     signature: signatureFromPhotoOnly(photo),
   };
 }
@@ -103,7 +210,9 @@ export function sanitizeChildStructuredAgainstPhoto(
   child: StructuredChildDNA,
   childPhotoDescription: string | null | undefined
 ): StructuredChildDNA {
-  if (!childPhotoDescription?.trim()) return child;
+  if (!childPhotoDescription?.trim()) {
+    return { ...child, clothing: SAFE_CHILD_CLOTHING_POINTER };
+  }
 
   const photoLower = childPhotoDescription.toLowerCase();
   let working = child;
@@ -137,11 +246,17 @@ export function sanitizeChildStructuredAgainstPhoto(
     face = stripAccessoryPhrases(face);
   }
 
-  return { ...child, face, hair, signature: signature.trim() };
+  return {
+    ...child,
+    face,
+    hair,
+    signature: signature.trim(),
+    clothing: SAFE_CHILD_CLOTHING_POINTER,
+  };
 }
 
 export function joinChildStructuredDNA(child: StructuredChildDNA): string {
-  const parts = [child.face, child.hair, child.body, child.clothing];
+  const parts = [child.face, child.hair, child.body];
   if (child.signature?.trim()) parts.push(child.signature.trim());
   return parts.filter(Boolean).join('. ') + '.';
 }

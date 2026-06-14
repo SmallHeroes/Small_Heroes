@@ -40,6 +40,8 @@ import {
   type FamilyCoherenceBundle,
 } from './family-coherence';
 import { buildCompanionAccessoryLockBlock } from './companion-accessory';
+import { assertIdentityLockFreeOfClothingWhenWardrobeApplies } from './child-photo-dna-sanitize';
+import { resolveStyle01StoryWardrobeLock } from './style01-story-wardrobe';
 import {
   assertOverShoulderAllowed,
   resolveStyle01FramingRuleForPageShot,
@@ -317,6 +319,15 @@ export function assembleStyle01Phase2Prompt(
         childStructured: input.childStructured,
       })
     : undefined;
+
+  const storyWardrobeLock = resolveStyle01StoryWardrobeLock(input.companion?.id, input.storyFile);
+  if (storyWardrobeLock && childVisualLock) {
+    assertIdentityLockFreeOfClothingWhenWardrobeApplies({
+      identityLockText: [childVisualLock, input.childDescription].filter(Boolean).join('\n'),
+      wardrobeLock: storyWardrobeLock,
+      childStructured: input.childStructured,
+    });
+  }
 
   const childAnatomicalLock = childPresenceAllowsVisualLock(entityPresence.childPresence)
     ? buildStyle01ChildAnatomicalLock({
