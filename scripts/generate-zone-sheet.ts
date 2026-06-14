@@ -21,6 +21,7 @@ function parseFlag(name: string): string | undefined {
 async function main() {
   const storyKey = parseFlag('story');
   const zoneId = parseFlag('zone');
+  const bankDir = parseFlag('bank-dir') || 'v3-approved';
   const candidatesRaw = parseFlag('candidates');
   const candidatesPerArtifact = candidatesRaw ? Number.parseInt(candidatesRaw, 10) : 3;
   const regenFromSet = parseFlag('regen-bucket-from-set');
@@ -38,8 +39,8 @@ async function main() {
     process.exit(1);
   }
 
-  const storyMd = path.join(process.cwd(), 'story-bank', 'v3-approved', `${storyKey}.md`);
-  const sidecar = path.join(process.cwd(), 'story-bank', 'v3-approved', `${storyKey}.location-bible.json`);
+  const storyMd = path.join(process.cwd(), 'story-bank', bankDir, `${storyKey}.md`);
+  const sidecar = path.join(process.cwd(), 'story-bank', bankDir, `${storyKey}.location-bible.json`);
   if (!fs.existsSync(storyMd)) {
     console.error(`Story not found: ${storyMd}`);
     process.exit(1);

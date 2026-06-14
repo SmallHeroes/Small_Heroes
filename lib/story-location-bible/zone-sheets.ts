@@ -41,6 +41,18 @@ export function resolveApprovedZoneSheetsDir(storyKey: string, zoneId: string): 
   return path.join(process.cwd(), 'story-bank', 'v3-approved', `${storyKey}.zone-sheets`, zoneId);
 }
 
+/** Zone sheets colocated with story file (v5 golden pre-import) or v3-approved fallback. */
+export function resolveZoneSheetsDirForStory(storyFilePath: string, zoneId: string): string {
+  const storyKey = storyKeyFromStoryFilePath(storyFilePath);
+  const colocated = path.join(
+    path.dirname(storyFilePath),
+    `${storyKey}.zone-sheets`,
+    zoneId
+  );
+  if (existsSync(colocated)) return colocated;
+  return resolveApprovedZoneSheetsDir(storyKey, zoneId);
+}
+
 export function resolveZoneSheetCandidatesDir(storyKey: string, zoneId: string): string {
   return path.join(process.cwd(), 'outputs', 'zone-sheets', storyKey, zoneId, 'candidates');
 }
@@ -103,7 +115,11 @@ export function resolveZoneForAssetSheets(
 }
 
 export function pageAllowsIsolatedObjectRef(pagePlan: PageLocationPlan): boolean {
-  // Cover mystery — never attach bucket object ref on cover
+  if (typeof pagePlan.attachIsolatedObjectRefs === 'boolean') {
+    return pagePlan.attachIsolatedObjectRefs;
+  }
+
+  // Cover mystery — never attach bucket object ref on cover (fox)
   if (pagePlan.page === 0) return false;
 
   const hidden = pagePlan.visualSpoilerPolicy?.hiddenObjects ?? [];
@@ -112,6 +128,20 @@ export function pageAllowsIsolatedObjectRef(pagePlan: PageLocationPlan): boolean
   if (pagePlan.page >= 5 && pagePlan.page <= 12) return true;
 
   return false;
+}
+
+function resolveIsolatedObjectFiles(sheetZone: LocationZone, manifest: ZoneSheetManifest): string[] {
+  const files = new Set<string>();
+  const primary =
+    sheetZone.referenceSheet?.isolatedObjectFile ??
+    manifest.files.isolatedObject ??
+    sheetZone.referenceSheet?.objectFiles?.find((f) => f.includes('object'));
+  if (primary) files.add(String(primary));
+  for (const f of sheetZone.referenceSheet?.objectFiles ?? manifest.files.objects ?? []) {
+    if (f?.trim()) files.add(String(f).trim());
+  }
+  if (!files.size) files.add('bucket-object.png');
+  return [...files];
 }
 
 export function resolveIsolatedObjectFile(
@@ -128,25 +158,27 @@ export function resolveIsolatedObjectFile(
 
 export function resolvePageReferenceSheets(
   bible: BookLocationBible,
-  storyKey: string,
+  storyFilePath: string,
   pagePlan: PageLocationPlan
 ): PageReferenceSheets | undefined {
   const sheetZone = resolveZoneForAssetSheets(bible, pagePlan.zoneId);
   if (!sheetZone?.referenceSheet) return undefined;
 
-  const dir = resolveApprovedZoneSheetsDir(storyKey, sheetZone.id);
+  const dir = resolveZoneSheetsDirForStory(storyFilePath, sheetZone.id);
   const manifest = loadApprovedZoneSheetManifest(dir);
   if (!manifest) return undefined;
 
   if (!pageAllowsIsolatedObjectRef(pagePlan)) return undefined;
 
-  const objFile = resolveIsolatedObjectFile(sheetZone, manifest);
-  const objPath = path.join(dir, objFile);
-  if (!existsSync(objPath)) return undefined;
+  const objFiles = resolveIsolatedObjectFiles(sheetZone, manifest);
+  const isolatedObjectPaths = objFiles
+    .map((f) => path.join(dir, f))
+    .filter((p) => existsSync(p));
+  if (!isolatedObjectPaths.length) return undefined;
 
   return {
     zoneId: sheetZone.id,
-    isolatedObjectPaths: [objPath],
+    isolatedObjectPaths,
   };
 }
 
@@ -159,7 +191,7 @@ export function enrichStoryLocationPlanWithReferenceSheets(
     ...bundle,
     pagePlans: bundle.pagePlans.map((plan) => ({
       ...plan,
-      referenceSheets: resolvePageReferenceSheets(bundle.bible, storyKey, plan),
+      referenceSheets: resolvePageReferenceSheets(bundle.bible, storyFilePath, plan),
     })),
   };
 }
@@ -195,17 +227,18 @@ export function buildVisualSpoilerPromptBlock(
 }
 
 export function buildIsolatedObjectReferencePromptBlock(
-  pagePlan: PageLocationPlan | null | undefined
+  pagePlan: PageLocationPlan | null | undefined,
+  bible?: BookLocationBible | null
 ): string | null {
   if (!pagePlan?.referenceSheets?.isolatedObjectPaths?.length) return null;
-  return ISOLATED_OBJECT_REFERENCE_INSTRUCTION;
+  return bible?.isolatedObjectPromptInstruction?.trim() || ISOLATED_OBJECT_REFERENCE_INSTRUCTION;
 }
 
 /** @deprecated use buildIsolatedObjectReferencePromptBlock */
 export function buildZoneObjectReferencePromptBlock(
   pagePlan: PageLocationPlan | null | undefined
 ): string | null {
-  return buildIsolatedObjectReferencePromptBlock(pagePlan);
+  return buildIsolatedObjectReferencePromptBlock(pagePlan, undefined);
 }
 
 export function assembleStyle01BookReferencesWithZoneSheets(input: {

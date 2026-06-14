@@ -66,6 +66,8 @@ function parsePagePlan(raw: unknown): PageLocationPlan | null {
       'Camera may move closer/wider per PageShot; spatial relationships remain stable.',
     forbiddenDrift: Array.isArray(o.forbiddenDrift) ? o.forbiddenDrift.map(String) : [],
     pageAction: o.pageAction ? String(o.pageAction).trim() : undefined,
+    attachIsolatedObjectRefs:
+      typeof o.attachIsolatedObjectRefs === 'boolean' ? o.attachIsolatedObjectRefs : undefined,
     expectedBucketVisibility: o.expectedBucketVisibility
       ? (String(o.expectedBucketVisibility).trim() as PageLocationPlan['expectedBucketVisibility'])
       : undefined,
@@ -107,6 +109,10 @@ function parseBookLocationBible(raw: Record<string, unknown>, source: BookLocati
     transitionRules: Array.isArray(raw.transitionRules) ? raw.transitionRules.map(String) : [],
     source,
     pageCount: Number.isFinite(Number(raw.pageCount)) ? Number(raw.pageCount) : undefined,
+    isolatedObjectPromptInstruction:
+      typeof raw.isolatedObjectPromptInstruction === 'string'
+        ? String(raw.isolatedObjectPromptInstruction).trim()
+        : undefined,
   };
 }
 

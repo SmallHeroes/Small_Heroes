@@ -80,6 +80,8 @@ export interface BookLocationBible {
   transitionRules: string[];
   source: LocationBibleSource;
   pageCount?: number;
+  /** Optional override for isolated-object reference block (e.g. lion pillow-cave, not bucket). */
+  isolatedObjectPromptInstruction?: string;
 }
 
 export interface PageLocationPlan {
@@ -91,6 +93,8 @@ export interface PageLocationPlan {
   forbiddenDrift: string[];
   /** Mandatory single action line — wins over location continuity in prompt. */
   pageAction?: string;
+  /** When true, attach isolated object refs from zone sheet (if published). Overrides fox bucket heuristics. */
+  attachIsolatedObjectRefs?: boolean;
   visualSpoilerPolicy?: VisualSpoilerPolicy;
   expectedBucketVisibility?: ExpectedBucketVisibility;
   referenceSheets?: PageReferenceSheets;

@@ -361,7 +361,10 @@ export function assembleStyle01Phase2Prompt(
     isCover,
   });
   const pageActionBlock = buildPageActionPromptBlock(input.pageLocationPlan);
-  const isolatedObjectRefBlock = buildIsolatedObjectReferencePromptBlock(input.pageLocationPlan);
+  const isolatedObjectRefBlock = buildIsolatedObjectReferencePromptBlock(
+    input.pageLocationPlan,
+    input.locationBible
+  );
 
   const environmentLock = storyLocks.pageEnvironmentLock?.(input.pageNumber);
   const familyRoleDetectInput = {

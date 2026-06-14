@@ -1,0 +1,11 @@
+{
+  "zoneId": "night_bedroom",
+  "approvedBy": "Guy",
+  "approvedAt": "2026-06-14",
+  "generatedAt": "2026-06-14T00:00:00.000Z",
+  "files": {
+    "isolatedObject": "pillow-cave-object.png",
+    "objects": ["night-lamp-object.png"]
+  },
+  "notes": "Slot #2 lion bedtime — isolated Style01 object refs only. NO composed bedroom scene set. Generate via generate-zone-sheet.ts then Guy eyeball."
+}

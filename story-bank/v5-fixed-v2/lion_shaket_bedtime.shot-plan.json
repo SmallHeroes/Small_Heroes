@@ -1,0 +1,54 @@
+{
+  "pageCount": 8,
+  "source": "override",
+  "pages": [
+    {
+      "page": 1,
+      "shot": "medium_wide",
+      "angle": "eye",
+      "rationale": "Gentle bedtime establish — collapsed pillow-cave, readable night bedroom"
+    },
+    {
+      "page": 2,
+      "shot": "medium",
+      "angle": "eye",
+      "rationale": "Leo arrives — intimate medium, no drama angle"
+    },
+    {
+      "page": 3,
+      "shot": "intimate",
+      "angle": "eye",
+      "rationale": "Tiny almost-roar beat — close but not scary wide mouth"
+    },
+    {
+      "page": 4,
+      "shot": "medium",
+      "angle": "eye",
+      "rationale": "Blanket-hide mistake — medium holds readable text + body language"
+    },
+    {
+      "page": 5,
+      "shot": "intimate",
+      "angle": "eye",
+      "rationale": "Heart line — Leo low and vulnerable, eye-level intimate"
+    },
+    {
+      "page": 6,
+      "shot": "close_up",
+      "angle": "eye",
+      "rationale": "Thunder-corner choice — hands/paws on blanket fold"
+    },
+    {
+      "page": 7,
+      "shot": "close_up",
+      "angle": "eye",
+      "rationale": "Soft near-roar turn — small intimate faces, no low-angle drama"
+    },
+    {
+      "page": 8,
+      "shot": "medium",
+      "angle": "eye",
+      "rationale": "Sleepy resolution — warm medium, lamp dimming"
+    }
+  ]
+}

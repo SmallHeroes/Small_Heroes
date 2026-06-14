@@ -1,0 +1,200 @@
+{
+  "continuityMode": "single_location",
+  "primarySetting": "One consistent night bedroom for the whole story: same child bed, same small warm bedside lamp, same blanket, same scattered pillow-cave fort near the bed, optional same window. Contained, safe, warm, readable — NOT dark horror lighting. No location change across pages.",
+  "fixedAnchors": [
+    {
+      "id": "night_bedroom",
+      "label": "same night bedroom",
+      "description": "Same child bedroom at night — warm readable lamp glow, not pitch black",
+      "mustRemainSameAcrossPages": true
+    },
+    {
+      "id": "child_bed",
+      "label": "same child bed",
+      "description": "Same bed with blanket every page",
+      "mustRemainSameAcrossPages": true
+    },
+    {
+      "id": "bedside_lamp",
+      "label": "same small warm lamp",
+      "description": "Same small warm bedside lamp — cozy night light, may dim on final page only",
+      "mustRemainSameAcrossPages": true
+    },
+    {
+      "id": "pillow_cave",
+      "label": "same pillow-cave fort",
+      "description": "Same pillow-cave fort zone near the bed — built on p1, collapsed/scattered p1 onward, never magically rebuilt",
+      "mustRemainSameAcrossPages": true
+    },
+    {
+      "id": "blanket_thunder_corner",
+      "label": "same blanket-fold thunder corner",
+      "description": "Soft fold/corner in the child's blanket by the pillow — emotionally named פינת הרעם. A blanket detail, NOT a magical object, NO lightning symbol, NO glow artifact, NO text",
+      "mustRemainSameAcrossPages": true
+    }
+  ],
+  "allowedZones": [
+    {
+      "id": "night_bedroom",
+      "description": "Single night bedroom zone. Same bed, blanket, warm lamp, pillow-cave area near bed. Camera may move closer/wider but the room does not redesign.",
+      "stableGeometry": [
+        "same bed against same wall",
+        "same blanket on bed",
+        "same small warm lamp beside bed",
+        "pillow-cave fort area on floor or bed edge near pillows",
+        "optional same window with soft night outside"
+      ],
+      "visualAnchors": [
+        "same child bed",
+        "same blanket",
+        "same warm bedside lamp",
+        "scattered pillow-cave pillows",
+        "blanket fold thunder-corner by pillow"
+      ],
+      "allowedCameraAccess": [
+        "eye level medium",
+        "intimate close",
+        "medium close on bed/blanket",
+        "gentle 3/4 — NO low-angle drama"
+      ],
+      "referenceSheet": {
+        "isolatedObjectFile": "pillow-cave-object.png",
+        "objectFiles": ["night-lamp-object.png"]
+      }
+    }
+  ],
+  "forbiddenDrift": [
+    "new bedroom design every page",
+    "outdoor scene",
+    "jungle",
+    "savanna",
+    "realistic scary lion",
+    "wide aggressive roaring mouth",
+    "comic sound-effect lines",
+    "speech bubbles",
+    "written letters or text in scene",
+    "magical thunder beam or orb",
+    "meditation or breathing-exercise pose",
+    "calm-down worksheet feeling",
+    "glowing healing artifact",
+    "lightning bolt symbol",
+    "thunder icon object",
+    "pitch-black unreadable pages",
+    "hospital",
+    "clinic",
+    "playground"
+  ],
+  "transitionRules": [
+    "No location change — only camera distance/framing varies within the same night bedroom.",
+    "Pillow-cave stays scattered after collapse — never magically perfect until a new story day.",
+    "פינת הרעם is always a soft blanket fold — never a invented magical corner prop."
+  ],
+  "isolatedObjectPromptInstruction": "Use the ISOLATED OBJECT reference images for OBJECT IDENTITY and SCALE ONLY: pillow-cave fort (built/collapsed states) and/or small warm night lamp. Neutral cream background in refs is NOT the page background. Do NOT copy reference composition. NEVER attach a composed bedroom scene ref. Blanket-fold thunder corner is a blanket detail — NOT a magical object, NO lightning symbol.",
+  "pageCount": 8,
+  "pagePlans": [
+    {
+      "page": 0,
+      "zoneId": "night_bedroom",
+      "visibleAnchors": [
+        "same child bed",
+        "same warm lamp",
+        "scattered soft pillow-cave",
+        "child calmer but not overly smiling",
+        "Leo gentle beside child"
+      ],
+      "cameraPositionHint": "Cozy night bedroom cover — warmth + emotional promise, title-safe band at top. NO magical thunder corner glow.",
+      "allowedVariation": "Warm readable night light; promise of safe small place for big feeling",
+      "forbiddenDrift": [
+        "magical glowing thunder corner",
+        "lightning symbol",
+        "wide scary roar",
+        "technique-focused composition",
+        "outdoor",
+        "new room"
+      ],
+      "pageAction": "Cover: child and Leo in cozy night bedroom beside soft scattered pillow-cave and warm lamp. Leo gentle and soft-maned; child calmer but not overly smiling. Emotional promise = a big feeling gets a small safe place. NO glowing thunder-corner spoiler.",
+      "attachIsolatedObjectRefs": true
+    },
+    {
+      "page": 1,
+      "zoneId": "night_bedroom",
+      "visibleAnchors": ["same bed", "same lamp", "collapsed pillow-cave", "fallen top pillow"],
+      "allowedVariation": "Frustration beat; warm readable lamp",
+      "forbiddenDrift": ["Leo present", "outdoor", "magical corner", "pitch black"],
+      "pageAction": "Child sits beside COLLAPSED pillow-cave fort — top pillow fallen, fort just failed. Child holds blanket tightly, frustrated and hurt. Leo NOT present yet.",
+      "attachIsolatedObjectRefs": true
+    },
+    {
+      "page": 2,
+      "zoneId": "night_bedroom",
+      "visibleAnchors": ["same bed", "same lamp", "same blanket", "Leo on blanket edge"],
+      "allowedVariation": "Leo arrives gently",
+      "forbiddenDrift": ["scary lion", "outdoor", "rebuilt perfect fort"],
+      "pageAction": "Small soft-maned Leo cub sits gently on blanket edge; child still holds blanket but turns toward Leo. Cozy warm lamp.",
+      "attachIsolatedObjectRefs": false
+    },
+    {
+      "page": 3,
+      "zoneId": "night_bedroom",
+      "visibleAnchors": ["same lamp", "Leo tiny almost-roar", "same bedroom"],
+      "allowedVariation": "Mane lifts slightly; mouth NOT wide scary",
+      "forbiddenDrift": ["wide open aggressive mouth", "sound-effect text", "lamp knocked over"],
+      "pageAction": "Leo begins tiny almost-roar then stops gently — mane lifts slightly, mouth NOT wide or scary. Child tiny almost-smile. Lamp calm.",
+      "attachIsolatedObjectRefs": true
+    },
+    {
+      "page": 4,
+      "zoneId": "night_bedroom",
+      "visibleAnchors": ["blanket pulled to nose", "Leo watching gently"],
+      "allowedVariation": "Heavy blanket hiding attempt",
+      "forbiddenDrift": ["meditation pose", "breathing exercise", "outdoor"],
+      "pageAction": "Child pulls blanket up to nose trying to hide the feeling — blanket looks heavy, body tense underneath. Leo watches quietly beside, concerned but gentle.",
+      "attachIsolatedObjectRefs": false
+    },
+    {
+      "page": 5,
+      "zoneId": "night_bedroom",
+      "visibleAnchors": ["Leo low", "one paw on blanket", "child listening"],
+      "allowedVariation": "Intimate heart beat",
+      "forbiddenDrift": ["therapy worksheet", "calm-down poster", "outdoor"],
+      "pageAction": "Leo sits low and vulnerable, one paw on blanket; child listens, hands loosen grip. Intimate cozy night room.",
+      "attachIsolatedObjectRefs": false
+    },
+    {
+      "page": 6,
+      "zoneId": "night_bedroom",
+      "visibleAnchors": ["scattered pillow cave", "blanket fold thunder corner", "Leo two paws + child hand on blanket"],
+      "allowedVariation": "Thunder corner named — soft fold only",
+      "forbiddenDrift": ["magical corner object", "lightning icon", "rebuilt fort"],
+      "pageAction": "Child finds small blanket FOLD beside pillow — thunder corner. Leo places two paws on blanket; child one hand beside paws. Scattered pillow cave visible. Fold is blanket detail only.",
+      "attachIsolatedObjectRefs": true
+    },
+    {
+      "page": 7,
+      "zoneId": "night_bedroom",
+      "visibleAnchors": ["blanket fold", "child leaning", "Leo tiny soft near-roar"],
+      "allowedVariation": "Very subtle warm softness in fold ONLY — nothing more",
+      "forbiddenDrift": [
+        "comic sound-effect lines",
+        "written letters",
+        "speech bubbles",
+        "exaggerated wide-open mouth",
+        "magical beam or orb",
+        "meditation pose",
+        "breathing exercise",
+        "loud climax roar"
+      ],
+      "pageAction": "SMALL INTIMATE: child leans toward blanket fold and releases tiny quiet sound; Leo adds tiny pillow-sized soft near-roar. Both safe and slightly amused. NO text, NO bubbles, NO wide mouth, NO magical beam. Optional: very subtle warm softness in fold only.",
+      "attachIsolatedObjectRefs": true
+    },
+    {
+      "page": 8,
+      "zoneId": "night_bedroom",
+      "visibleAnchors": ["child sleepy near Leo", "scattered pillow cave", "blanket fold remains", "lamp dimming"],
+      "allowedVariation": "Lamp may dim softly",
+      "forbiddenDrift": ["magically rebuilt fort", "outdoor", "scary lion"],
+      "pageAction": "Child lies down near Leo, calm and sleepy. Pillow cave still scattered. Blanket-fold thunder corner remains. Lamp dims softly. Warm grounded ending.",
+      "attachIsolatedObjectRefs": true
+    }
+  ]
+}
