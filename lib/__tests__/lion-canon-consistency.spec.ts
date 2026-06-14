@@ -55,26 +55,26 @@ describe('Lion (lion_shaket) ANGER canon consistency', () => {
     expect(name).not.toContain(OLD_NIKUD_NAME);
   });
 
-  it('registry visualDescription is soft lion cub with signature drum — no scarf/cape/shy/brave-roar', () => {
+  it('registry visualDescription is clean soft lion cub — no scarf/cape/drum/shy/brave-roar', () => {
     const desc = getCompanionById(LION_ID)?.visualDescription ?? '';
-    const positiveOnly = desc.replace(/\bNO\s+\w+/gi, '');
+    const positiveOnly = desc.replace(/\bNO\s+[\w\s]+/gi, '');
     expect(desc).toMatch(/gentle lion cub/i);
-    expect(desc).toMatch(/hand-drum|drum/i);
-    expect(desc).toMatch(/warm wood frame/i);
     expect(desc).toMatch(/NO cape/i);
     expect(desc).toMatch(/NO scarf/i);
+    expect(desc).toMatch(/no held prop/i);
     expect(positiveOnly).not.toMatch(/scarf/i);
     expect(positiveOnly).not.toMatch(/cape/i);
+    expect(positiveOnly).not.toMatch(/drum/i);
     expect(desc).not.toMatch(/\bshy\b/i);
     expect(desc).not.toMatch(/brave roar/i);
   });
 
-  it('accessory profile locks small side-strap drum and forbids scarf/cape', () => {
+  it('accessory profile forbids scarf/cape/drum — no canonical accessory', () => {
     const profile = COMPANION_ACCESSORY_PROFILES[LION_ID];
-    expect(profile?.accessoryForbiddenOnly).toBeUndefined();
-    expect(profile?.canonicalAccessory).toMatch(/drum/i);
+    expect(profile?.accessoryForbiddenOnly).toBe(true);
+    expect(profile?.canonicalAccessory).toBe('');
     expect(profile?.forbiddenAlternatives).toEqual(
-      expect.arrayContaining(['scarf', 'cape', 'cape-like scarf', 'bow', 'necklace'])
+      expect.arrayContaining(['scarf', 'cape', 'cape-like scarf', 'bow', 'drum', 'hand drum', 'necklace'])
     );
     const lock = buildCompanionAccessoryLockBlock({
       companionId: LION_ID,
@@ -83,11 +83,10 @@ describe('Lion (lion_shaket) ANGER canon consistency', () => {
       context: 'character_sheet',
     });
     expect(lock).toBeDefined();
-    expect(lock).toMatch(/ALWAYS small round frame hand-drum/i);
-    expect(lock).toMatch(/soft strap across the body/i);
+    expect(lock).toMatch(/NO cape, NO scarf, NO bow, NO drum/i);
+    expect(lock).toMatch(/NEVER drum/i);
     expect(lock).toMatch(/NEVER scarf/i);
-    expect(lock).toMatch(/NEVER cape/i);
-    expect(lock).not.toMatch(/plain soft lion cub only/i);
+    expect(lock).not.toMatch(/ALWAYS\s+/i);
   });
 
   it('lion golden stories use ליאו — no standalone Shaket name token or legacy nikud spelling', () => {

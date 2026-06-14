@@ -302,7 +302,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
       cardImage: '/companions/lion_shaket/style01-sheets/front.png',
       narrativeHook: 'לכעס יש רעם — והוא צריך מקום ללכת אליו',
       visualDescription:
-        'A small gentle lion cub with a fluffy mane starting to grow, big emotionally alert eyes, soft round ears; warm, sensitive, and expressive, with the feeling of a small honest roar waiting inside. He carries a SMALL round frame hand-drum on a soft strap across his body, resting at his side (warm wood frame, tan head) — this is where his big roar gets a place, a beat, never swallowed and never blasting the whole room. NO cape, NO scarf, NO bow, no neck accessory.',
+        'A small gentle lion cub with a fluffy mane starting to grow, big emotionally alert eyes, soft round ears; NO cape, NO scarf, NO bow, no held prop, no neck accessory; warm, sensitive, and expressive, with the feeling of a small honest roar waiting inside.',
     },
     {
       id: 'wolf_pup_siyar',

@@ -79,17 +79,19 @@ export const COMPANION_ACCESSORY_PROFILES: Partial<Record<string, CompanionAcces
     forbiddenAlternatives: ['scarf', 'necklace', 'cape', 'chest star', 'neck scarf'],
   },
   lion_shaket: {
-    canonicalAccessory: 'small round frame hand-drum on a soft side strap (warm wood frame, tan head)',
-    accessoryLocation: 'soft strap across the body, drum resting at his side (hands-free)',
-    accessoryBehavior:
-      'where the big roar/thunder gets a place — a beat, not swallowed and not blasting the whole room; tapping it = aiming the anger ("כפות. רעמה. מקום"). Visible when the body is shown; may rest beside him on quiet/close/sleep pages.',
-    accessoryRequiredWhenVisible: true,
+    accessoryForbiddenOnly: true,
+    canonicalAccessory: '',
+    accessoryLocation: '',
+    accessoryBehavior: '',
+    accessoryRequiredWhenVisible: false,
     forbiddenAlternatives: [
       'scarf',
       'neck scarf',
       'cape',
       'cape-like scarf',
       'bow',
+      'drum',
+      'hand drum',
       'chest star',
       'necklace',
     ],
@@ -124,7 +126,7 @@ export function buildCompanionAccessoryLockBlock(input: {
     if (!companionPresenceShowsAccessory(input.companionPresence)) return undefined;
     return [
       `COMPANION ACCESSORY LOCK — ${name}:`,
-      'NO cape, NO scarf, NO bow, NO neck accessory — plain soft lion cub only.',
+      'NO cape, NO scarf, NO bow, NO drum, NO held prop, NO neck accessory — plain soft lion cub only.',
       forbid,
     ].join('\n');
   }
