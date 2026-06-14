@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { devOnlyJsonError, isDevEnvironment } from '@/lib/dev-only-guard';
+import { QaAnchorReviewRequiredError } from '@/lib/qa-console-anchor';
 import {
   friendlyQaError,
   QA_CONSOLE_MAX_PAGES,
@@ -25,6 +26,8 @@ type RunBody = {
   voiceId?: string | null;
   generateAudio?: boolean;
   promptAuditOnly?: boolean;
+  approveAnchorCacheKey?: string | null;
+  forceRegenerateAnchor?: boolean;
 };
 
 function normalizePhotoDataUrl(raw?: string): string | undefined {
@@ -102,6 +105,8 @@ export async function POST(req: NextRequest) {
       voiceId: body.voiceId ?? null,
       generateAudio: Boolean(body.generateAudio),
       promptAuditOnly: Boolean(body.promptAuditOnly),
+      approveAnchorCacheKey: body.approveAnchorCacheKey ?? null,
+      forceRegenerateAnchor: Boolean(body.forceRegenerateAnchor),
     });
 
     return NextResponse.json({
@@ -110,6 +115,17 @@ export async function POST(req: NextRequest) {
       previewPath: result.previewUrl,
     });
   } catch (err) {
+    if (err instanceof QaAnchorReviewRequiredError) {
+      return NextResponse.json(
+        {
+          ok: false,
+          anchorReviewRequired: true,
+          error: err.message,
+          ...err.review,
+        },
+        { status: 409 }
+      );
+    }
     console.error('[qa-console/run]', err);
     return NextResponse.json({ error: friendlyQaError(err) }, { status: 500 });
   }

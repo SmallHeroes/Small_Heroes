@@ -34,6 +34,11 @@ import {
   normalizePhotoUrlForVision,
 } from '@/lib/child-photo-normalize';
 import { storyPathForKey, storyFileForKey, parseStoryKey } from '@/lib/qa-console-stories';
+import {
+  QaAnchorReviewRequiredError,
+  resolveQaConsoleChildReference,
+} from '@/lib/qa-console-anchor';
+import { storyFileKeyFromPath } from '@/lib/style01-story-wardrobe';
 
 import {
   estimateQaConsoleCostUsd,
@@ -66,6 +71,9 @@ export type QaConsoleRunInput = {
   generateAudio?: boolean;
   promptAuditOnly?: boolean;
   runLabelPrefix?: string;
+  /** Approve a cached Stage 0 anchor (wardrobe-locked stories) and continue page render. */
+  approveAnchorCacheKey?: string | null;
+  forceRegenerateAnchor?: boolean;
 };
 
 export type QaConsoleRunResult = {
@@ -309,6 +317,7 @@ function formatOutDir(prefix: string): string {
 }
 
 export function friendlyQaError(err: unknown): string {
+  if (err instanceof QaAnchorReviewRequiredError) return err.message;
   if (err instanceof ChildPhotoUploadError) return err.message;
   if (err instanceof Error) {
     if (err.message.startsWith('ABORT:')) return err.message.replace(/^ABORT:\s*/, '');
@@ -458,11 +467,32 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
       };
     }
 
+    let childPhotoUrlForRefs = '';
+    if (childPhotoPath && (existsSync(childPhotoPath) || childPhotoPath.startsWith('http'))) {
+      childPhotoUrlForRefs = await normalizePhotoUrlForVision(
+        child.photoDataUrl?.trim() || childPhotoPath
+      );
+    } else if (child.photoDataUrl?.trim()) {
+      childPhotoUrlForRefs = await normalizePhotoUrlForVision(child.photoDataUrl.trim());
+    }
+
+    const storyFileKey = storyFileKeyFromPath(baseKey) ?? baseKey;
+    const childRef = await resolveQaConsoleChildReference({
+      companionId,
+      storyFileKey,
+      child: { name: child.name, gender: child.gender, age: child.age },
+      childPhotoUrl: childPhotoUrlForRefs,
+      photoPath: childPhotoPath,
+      photoDataUrl: child.photoDataUrl,
+      lockedChildDescription: dna.childDNA,
+      childPhotoDescription,
+      approveAnchorCacheKey: input.approveAnchorCacheKey,
+      forceRegenerateAnchor: input.forceRegenerateAnchor,
+    });
+
     const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const referenceImages =
-      childPhotoPath && (existsSync(childPhotoPath) || childPhotoPath.startsWith('http'))
-        ? mergeGptImageReferenceSources(childPhotoPath, companion, appBaseUrl) ?? []
-        : mergeGptImageReferenceSources(null, companion, appBaseUrl) ?? [];
+      mergeGptImageReferenceSources(childRef.childRefUrl, companion, appBaseUrl) ?? [];
 
     const orderId = `qa-console-${randomUUID().slice(0, 8)}`;
     const companionKey = `companion:${companion.id}`;
@@ -597,6 +627,8 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
         age: child.age,
         photoFaithful: Boolean(childPhotoDescription),
         preset: 'preset' in input.child ? input.child.preset : undefined,
+        stage0AnchorCacheKey: childRef.anchorCacheKey,
+        usedApprovedStage0Anchor: childRef.usedApprovedAnchor,
       },
       voiceId: voiceId ?? undefined,
       model,

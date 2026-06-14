@@ -53,6 +53,11 @@ export function CreatorPanel() {
   const [error, setError] = useState('');
   const [lastRunInfo, setLastRunInfo] = useState('');
   const [viewerLink, setViewerLink] = useState('');
+  const [pendingAnchor, setPendingAnchor] = useState<{
+    cacheKey: string;
+    previewUrl: string;
+    resemblanceScore: number;
+  } | null>(null);
 
   useEffect(() => {
     fetch('/api/dev/creator/meta', { cache: 'no-store' })
@@ -132,6 +137,96 @@ export function CreatorPanel() {
       reader.readAsDataURL(file);
     });
 
+  const runAudition = useCallback(
+    async (approveAnchorCacheKey?: string | null) => {
+      if (!meta) return;
+      const pages = [...selectedPages].sort((a, b) => a - b);
+      if (!pages.length) throw new Error('Select at least one page');
+      if (pages.length > meta.maxPagesPerRun) {
+        throw new Error(`Maximum ${meta.maxPagesPerRun} pages per audition run`);
+      }
+
+      let childPhotoBase64: string | undefined;
+      if (photoFile) {
+        childPhotoBase64 = await fileToDataUrl(photoFile);
+      }
+
+      const preset = meta.childPresets.find((p) => p.id === childPreset);
+      const resolvedName =
+        childPreset === 'custom' ? childName.trim() : preset?.label.split(' ')[0] ?? childName;
+      const resolvedGender =
+        childPreset === 'custom' ? childGender : preset?.gender === 'girl' ? 'girl' : 'boy';
+      const resolvedAge = childPreset === 'custom' ? childAge : preset?.age ?? 5;
+
+      const body: Record<string, unknown> = {
+        storyKey,
+        pages,
+        quality,
+        voiceId: generateAudio ? voiceId : null,
+        generateAudio,
+        childPhotoBase64,
+      };
+      if (approveAnchorCacheKey) {
+        body.approveAnchorCacheKey = approveAnchorCacheKey;
+      }
+      if (childPreset === 'noam' || childPreset === 'mia') {
+        body.childPreset = childPreset;
+      } else {
+        body.child = { name: resolvedName, gender: resolvedGender, age: resolvedAge };
+      }
+
+      const res = await fetch('/api/dev/qa-console/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        anchorReviewRequired?: boolean;
+        cacheKey?: string;
+        previewUrl?: string;
+        resemblanceScore?: number;
+        manifestDir?: string;
+        model?: string;
+        estimatedCostUsd?: number;
+        runtimeMs?: number;
+      };
+
+      if (res.status === 409 && data.anchorReviewRequired && data.cacheKey) {
+        setPendingAnchor({
+          cacheKey: data.cacheKey,
+          previewUrl: data.previewUrl ?? `/api/dev/qa-console/anchor?key=${encodeURIComponent(data.cacheKey)}`,
+          resemblanceScore: data.resemblanceScore ?? 0,
+        });
+        setLastRunInfo('Stage 0 anchor generated — approve below, then render pages.');
+        return;
+      }
+
+      if (!res.ok) throw new Error(data.error || 'Run failed');
+
+      setPendingAnchor(null);
+      const link =
+        data.previewUrl ?? `/dev/viewer?dir=${encodeURIComponent(data.manifestDir ?? '')}&root=outputs`;
+      setViewerLink(link);
+      setLastRunInfo(
+        `Audition ${data.manifestDir ?? ''} · ${data.model ?? 'gpt-image-2'} · ~$${(data.estimatedCostUsd ?? 0).toFixed(3)} · ${Math.round((data.runtimeMs ?? 0) / 1000)}s`
+      );
+    },
+    [
+      meta,
+      selectedPages,
+      photoFile,
+      childPreset,
+      childName,
+      childGender,
+      childAge,
+      storyKey,
+      quality,
+      generateAudio,
+      voiceId,
+    ]
+  );
+
   const onRun = useCallback(async () => {
     if (!meta || !storyFile) return;
     if (quality === 'medium') {
@@ -143,61 +238,20 @@ export function CreatorPanel() {
     setError('');
     setViewerLink('');
     try {
-      let childPhotoBase64: string | undefined;
-      if (photoFile) {
-        childPhotoBase64 = await fileToDataUrl(photoFile);
-      }
-
-      const preset = meta.childPresets.find((p) => p.id === childPreset);
-      const resolvedName =
-        childPreset === 'custom' ? childName.trim() : preset?.label.split(' ')[0] ?? childName;
-      const resolvedGender =
-        childPreset === 'custom' ? childGender : preset?.gender === 'girl' ? 'girl' : 'boy';
-      const resolvedAge =
-        childPreset === 'custom' ? childAge : preset?.age ?? 5;
-
       if (mode === 'audition') {
-        const pages = [...selectedPages].sort((a, b) => a - b);
-        if (!pages.length) throw new Error('Select at least one page');
-        if (pages.length > meta.maxPagesPerRun) {
-          throw new Error(`Maximum ${meta.maxPagesPerRun} pages per audition run`);
-        }
-
-        const body: Record<string, unknown> = {
-          storyKey,
-          pages,
-          quality,
-          voiceId: generateAudio ? voiceId : null,
-          generateAudio,
-          childPhotoBase64,
-        };
-        if (childPreset === 'noam' || childPreset === 'mia') {
-          body.childPreset = childPreset;
-        } else {
-          body.child = { name: resolvedName, gender: resolvedGender, age: resolvedAge };
-        }
-
-        const res = await fetch('/api/dev/qa-console/run', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-        const data = (await res.json()) as {
-          error?: string;
-          previewUrl?: string;
-          manifestDir?: string;
-          model?: string;
-          estimatedCostUsd?: number;
-          runtimeMs?: number;
-        };
-        if (!res.ok) throw new Error(data.error || 'Run failed');
-
-        const link = data.previewUrl ?? `/dev/viewer?dir=${encodeURIComponent(data.manifestDir ?? '')}&root=outputs`;
-        setViewerLink(link);
-        setLastRunInfo(
-          `Audition ${data.manifestDir ?? ''} · ${data.model ?? 'gpt-image-2'} · ~$${(data.estimatedCostUsd ?? 0).toFixed(3)} · ${Math.round((data.runtimeMs ?? 0) / 1000)}s`
-        );
+        await runAudition(null);
       } else {
+        let childPhotoBase64: string | undefined;
+        if (photoFile) {
+          childPhotoBase64 = await fileToDataUrl(photoFile);
+        }
+        const preset = meta.childPresets.find((p) => p.id === childPreset);
+        const resolvedName =
+          childPreset === 'custom' ? childName.trim() : preset?.label.split(' ')[0] ?? childName;
+        const resolvedGender =
+          childPreset === 'custom' ? childGender : preset?.gender === 'girl' ? 'girl' : 'boy';
+        const resolvedAge = childPreset === 'custom' ? childAge : preset?.age ?? 5;
+
         const res = await fetch('/api/dev/story-bank', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -242,22 +296,34 @@ export function CreatorPanel() {
   }, [
     meta,
     mode,
-    selectedPages,
+    runAudition,
+    storyFile,
     quality,
     photoFile,
-    storyKey,
-    storyFile,
     childPreset,
     childName,
     childGender,
     childAge,
-    voiceId,
-    generateAudio,
     illustrationStyle,
     selectedStory,
     fullBookMaxPages,
     skipCover,
+    generateAudio,
+    voiceId,
   ]);
+
+  const onApproveAnchorAndRun = useCallback(async () => {
+    if (!pendingAnchor) return;
+    setRunning(true);
+    setError('');
+    try {
+      await runAudition(pendingAnchor.cacheKey);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Run failed');
+    } finally {
+      setRunning(false);
+    }
+  }, [pendingAnchor, runAudition]);
 
   useEffect(() => {
     if (storyKey.includes('dragon_dini') && storyKey.includes('fantasy')) {
@@ -605,6 +671,30 @@ export function CreatorPanel() {
             </button>
           </div>
         </section>
+
+        {pendingAnchor ? (
+          <div className={styles.statusBlock}>
+            <p className={styles.fieldLabel}>Stage 0 child anchor — approve before page render</p>
+            <p className={styles.fieldHint}>
+              Resemblance {pendingAnchor.resemblanceScore.toFixed(3)} · must show story pajamas, not day
+              clothes
+            </p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={pendingAnchor.previewUrl}
+              alt="Stage 0 child anchor candidate"
+              className={styles.anchorPreview}
+            />
+            <button
+              type="button"
+              className={styles.runBtn}
+              onClick={onApproveAnchorAndRun}
+              disabled={running}
+            >
+              {running ? 'Rendering…' : 'Approve anchor & render pages'}
+            </button>
+          </div>
+        ) : null}
 
         {error || lastRunInfo || viewerLink ? (
           <div className={styles.statusBlock}>
