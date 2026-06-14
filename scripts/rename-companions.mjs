@@ -67,7 +67,7 @@ const NEW_NAMES = [
   { id: 'pelican_kis',      newName: 'פֵּלִי' },
   { id: 'bee_ima',          newName: 'דְּבוֹרִי' },
   // SELF_CONFIDENCE
-  { id: 'lion_shaket',      newName: 'לֵיוֹ' },
+  { id: 'lion_shaket',      newName: 'ליאו' },
   { id: 'ant_harutza',      newName: 'טִיטִי' },
   // NOISE_FEAR
   { id: 'footstep_giant',   newName: 'בּוּמִי' },
