@@ -1,6 +1,11 @@
 import { readdir } from 'fs/promises';
 import path from 'path';
+import {
+  MVP_STORY_MATRIX,
+  type SlotStatus,
+} from '@/backend/config/mvp-story-matrix';
 import { STORY_BANK_V3_DIR_NAME, V3_APPROVED_DIR_NAME } from '@/backend/providers/story-bank-index';
+import { getCompanionById } from '@/lib/companions';
 
 export type QaStoryBankSource = 'v5' | 'v3-approved';
 
@@ -13,6 +18,27 @@ export type QaStoryBankEntry = {
   /** When set, dev routes load from story-bank/v3-approved/ instead of the default v5 dir. */
   bankDir?: 'v3-approved';
   source: QaStoryBankSource;
+};
+
+export type CreatorStoryBankEntry = QaStoryBankEntry & {
+  matrixStatus: SlotStatus;
+};
+
+const MVP_COMPANION_IDS: Set<string> = new Set(
+  Object.values(MVP_STORY_MATRIX).map((slot) => slot.companionId)
+);
+
+const DIRECTION_LABEL_HE: Record<QaStoryBankEntry['direction'], string> = {
+  bedtime: 'לילה טוב',
+  adventure: 'הרפתקה',
+  fantasy: 'פנטזיה',
+};
+
+const MATRIX_STATUS_SORT: Record<SlotStatus, number> = {
+  approved: 0,
+  approved_v3: 1,
+  in_gate: 2,
+  missing: 3,
 };
 
 const DIRECTION_SUFFIX = /_(bedtime|adventure|fantasy)\.md$/i;
@@ -102,4 +128,63 @@ export async function listQaStoryBankEntries(): Promise<QaStoryBankEntry[]> {
     'v3-approved'
   );
   return [...approved, ...v5];
+}
+
+function lookupMatrixStatus(
+  companionId: string,
+  direction: QaStoryBankEntry['direction']
+): SlotStatus | null {
+  for (const slot of Object.values(MVP_STORY_MATRIX)) {
+    if (slot.companionId === companionId) {
+      return slot.directions[direction];
+    }
+  }
+  return null;
+}
+
+function matrixStatusLabelHe(status: SlotStatus): string {
+  switch (status) {
+    case 'approved':
+    case 'approved_v3':
+      return 'נמכר';
+    case 'in_gate':
+    case 'missing':
+      return 'בבדיקה';
+  }
+}
+
+function creatorStoryLabel(
+  companionId: string,
+  direction: QaStoryBankEntry['direction'],
+  matrixStatus: SlotStatus
+): string {
+  const companion = getCompanionById(companionId);
+  const name = companion?.name ?? companionId;
+  return `${name} · ${DIRECTION_LABEL_HE[direction]} · ${matrixStatusLabelHe(matrixStatus)}`;
+}
+
+/** MVP-matrix goldens only — human companion labels + configured slot status (creator UI). */
+export async function listCreatorStoryBankEntries(): Promise<CreatorStoryBankEntry[]> {
+  const all = await listQaStoryBankEntries();
+  const filtered: CreatorStoryBankEntry[] = [];
+
+  for (const entry of all) {
+    if (!MVP_COMPANION_IDS.has(entry.companionId)) continue;
+    const matrixStatus = lookupMatrixStatus(entry.companionId, entry.direction);
+    if (!matrixStatus) continue;
+
+    filtered.push({
+      ...entry,
+      matrixStatus,
+      label: creatorStoryLabel(entry.companionId, entry.direction, matrixStatus),
+    });
+  }
+
+  filtered.sort((a, b) => {
+    const byStatus = MATRIX_STATUS_SORT[a.matrixStatus] - MATRIX_STATUS_SORT[b.matrixStatus];
+    if (byStatus !== 0) return byStatus;
+    return a.label.localeCompare(b.label, 'he');
+  });
+
+  return filtered;
 }

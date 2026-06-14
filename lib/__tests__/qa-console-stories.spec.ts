@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { listQaStoryBankEntries, parseStoryKey, storyPathForKey } from '../qa-console-stories';
+import {
+  listCreatorStoryBankEntries,
+  listQaStoryBankEntries,
+  parseStoryKey,
+  storyPathForKey,
+} from '../qa-console-stories';
 
 describe('listQaStoryBankEntries', () => {
   it('includes v3-approved owner slots and v5 stories with distinct keys', async () => {
@@ -23,5 +28,25 @@ describe('listQaStoryBankEntries', () => {
     const { bankDir } = parseStoryKey('fox_uri_adventure@v3-approved');
     expect(bankDir).toBe('v3-approved');
     expect(storyPathForKey('fox_uri_adventure@v3-approved')).toMatch(/story-bank[/\\]v3-approved[/\\]fox_uri_adventure\.md$/);
+  });
+});
+
+describe('listCreatorStoryBankEntries', () => {
+  it('keeps MVP-matrix stories only, with human labels and matrixStatus', async () => {
+    const entries = await listCreatorStoryBankEntries();
+    expect(entries.length).toBeGreaterThan(0);
+    expect(entries.every((e) => e.matrixStatus)).toBe(true);
+
+    expect(entries.some((e) => e.companionId === 'turtle_beiti')).toBe(false);
+
+    const lionBedtime = entries.find(
+      (e) => e.storyKey === 'lion_shaket_bedtime' && e.source === 'v5'
+    );
+    expect(lionBedtime).toBeDefined();
+    expect(lionBedtime?.matrixStatus).toBe('missing');
+    expect(lionBedtime?.label).toContain('האריה ליאו');
+    expect(lionBedtime?.label).toContain('לילה טוב');
+    expect(lionBedtime?.label).toContain('בבדיקה');
+    expect(lionBedtime?.label).not.toMatch(/shaket|lion_shaket/i);
   });
 });

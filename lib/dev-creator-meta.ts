@@ -4,12 +4,12 @@ import {
   QA_CONSOLE_MAX_PAGES,
   QA_REPRESENTATIVE_PAGES,
 } from '@/lib/qa-console-cost';
-import { listQaStoryBankEntries } from '@/lib/qa-console-stories';
+import { listCreatorStoryBankEntries } from '@/lib/qa-console-stories';
 import { listQaConsoleVoices } from '@/lib/qa-console-run';
 import { WIZARD_ILLUSTRATION_STYLES } from '@/lib/styles';
 
 export async function buildCreatorMetaPayload() {
-  const stories = await listQaStoryBankEntries();
+  const stories = await listCreatorStoryBankEntries();
   const voices = listQaConsoleVoices();
 
   return {
