@@ -12,6 +12,7 @@ import type { StoryTimeOfDay } from './story-time-of-day';
 import { resolveEffectivePageTimeOfDay } from './story-time-of-day';
 import type { FamilyCoherenceBundle } from './family-coherence';
 import type { StoryRecurringEntityDeclaration } from './story-bank/recurring-entities';
+import type { SceneMemory, SceneMemoryPlan } from './scene-memory/types';
 import {
   assembleStyle02BookReferences,
   type Style02RefBudgetConfig,
@@ -23,6 +24,7 @@ import { isStyle02Sellable } from './image-engine-guard';
 export interface BookImageLockContext {
   bookShotPlan: BookShotPlan | null;
   storyLocationPlan: StoryLocationPlanBundle | null;
+  sceneMemoryPlan: SceneMemoryPlan | null;
   storyTimeOfDay?: StoryTimeOfDay;
   pageTimeOfDayOverrides?: Partial<Record<number, StoryTimeOfDay>>;
   familyCoherence?: FamilyCoherenceBundle | null;
@@ -40,6 +42,7 @@ export interface PageImageLockSlice {
   locationBible: BookLocationBible | null;
   effectivePageTimeOfDay: StoryTimeOfDay;
   isolatedObjectRefPaths: string[];
+  sceneMemory: SceneMemory | null;
 }
 
 export const STYLE02_REFERENCE_KIND_ORDER = [
@@ -55,6 +58,7 @@ export type Style02ReferenceKind = (typeof STYLE02_REFERENCE_KIND_ORDER)[number]
 export function buildBookImageLockContext(input: {
   bookShotPlan?: BookShotPlan | null;
   storyLocationPlan?: StoryLocationPlanBundle | null;
+  sceneMemoryPlan?: SceneMemoryPlan | null;
   storyTimeOfDay?: StoryTimeOfDay;
   pageTimeOfDayOverrides?: Partial<Record<number, StoryTimeOfDay>>;
   familyCoherence?: FamilyCoherenceBundle | null;
@@ -65,6 +69,7 @@ export function buildBookImageLockContext(input: {
   return {
     bookShotPlan: input.bookShotPlan ?? null,
     storyLocationPlan: input.storyLocationPlan ?? null,
+    sceneMemoryPlan: input.sceneMemoryPlan ?? null,
     storyTimeOfDay: input.storyTimeOfDay,
     pageTimeOfDayOverrides: input.pageTimeOfDayOverrides,
     familyCoherence: input.familyCoherence ?? null,
@@ -102,6 +107,7 @@ export function resolvePageImageLockSlice(
     locationBible: ctx.storyLocationPlan?.bible ?? null,
     effectivePageTimeOfDay,
     isolatedObjectRefPaths,
+    sceneMemory: ctx.sceneMemoryPlan?.memory ?? null,
   };
 }
 

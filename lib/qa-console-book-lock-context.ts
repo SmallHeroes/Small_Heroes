@@ -13,6 +13,8 @@ import {
   type StoryLocationPlanBundle,
 } from '@/lib/story-location-bible';
 import { resolveStyle01StoryWardrobeLock } from '@/lib/style01-story-wardrobe';
+import { resolveSceneMemoryPlan } from '@/lib/scene-memory';
+import type { SceneMemoryPlan } from '@/lib/scene-memory/types';
 
 /** Day-default wardrobe tokens — must not appear when a story wardrobe lock is active. */
 const DAY_DEFAULT_WARDROBE_PATTERNS: RegExp[] = [
@@ -30,6 +32,7 @@ export type QaBookLockContext = {
     | undefined;
   bookShotPlan: BookShotPlan;
   storyLocationPlan: StoryLocationPlanBundle;
+  sceneMemoryPlan: SceneMemoryPlan | null;
 };
 
 export function resolveQaBookLockContext(args: {
@@ -56,6 +59,10 @@ export function resolveQaBookLockContext(args: {
     direction: args.direction,
     pages: beats,
   });
+  const sceneMemoryPlan = resolveSceneMemoryPlan({
+    storyLocationPlan,
+    bookShotPlan,
+  });
   return {
     storyFile: args.storyFileKey,
     direction: args.direction,
@@ -63,6 +70,7 @@ export function resolveQaBookLockContext(args: {
     pageTimeOfDayOverrides: args.pageTimeOfDayOverrides,
     bookShotPlan,
     storyLocationPlan,
+    sceneMemoryPlan,
   };
 }
 
@@ -100,6 +108,7 @@ export function buildQaImageGenerationLockFields(
   pageTimeOfDayOverrides: QaBookLockContext['pageTimeOfDayOverrides'];
   bookShotPlan: BookShotPlan;
   storyLocationPlan: StoryLocationPlanBundle;
+  sceneMemoryPlan: SceneMemoryPlan | null;
 } {
   return {
     storyFile: lockContext.storyFile,
@@ -108,6 +117,7 @@ export function buildQaImageGenerationLockFields(
     pageTimeOfDayOverrides: lockContext.pageTimeOfDayOverrides,
     bookShotPlan: lockContext.bookShotPlan,
     storyLocationPlan: lockContext.storyLocationPlan,
+    sceneMemoryPlan: lockContext.sceneMemoryPlan,
   };
 }
 

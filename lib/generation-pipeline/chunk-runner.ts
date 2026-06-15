@@ -920,6 +920,12 @@ async function runPageImagesChunk(
   );
   cache = cacheWithLocation;
 
+  const { resolveSceneMemoryPlan } = await import('@/lib/scene-memory');
+  const sceneMemoryPlan = resolveSceneMemoryPlan({
+    storyLocationPlan,
+    bookShotPlan: bookShotPlan as import('@/lib/book-shot-plan').BookShotPlan,
+  });
+
   const compositionByPage = new Map(
     (story.pageCompositionPlan ?? []).map((c) => [c.pageNumber, c])
   );
@@ -1133,6 +1139,7 @@ async function runPageImagesChunk(
     familyCoherence: familyCoherenceForImages,
     bookShotPlan: bookShotPlan as import('@/lib/book-shot-plan').BookShotPlan,
     storyLocationPlan,
+    sceneMemoryPlan,
     storyFile: storyFileKey,
     direction: (cache.directionForV3 as 'bedtime' | 'adventure' | 'fantasy' | undefined) ?? undefined,
   });
