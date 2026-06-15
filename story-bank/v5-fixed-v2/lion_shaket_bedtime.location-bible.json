@@ -1,6 +1,6 @@
 {
   "continuityMode": "single_location",
-  "primarySetting": "One consistent night bedroom for the whole story: same child bed, same small warm bedside lamp, same blanket, same scattered pillow-cave fort near the bed, optional same window. Contained, safe, warm, readable — NOT dark horror lighting. No location change across pages.",
+  "primarySetting": "One consistent night bedroom for the whole story: same fixed bed, window, lamp, rug, pillow-cave, and blanket every page. Contained, safe, warm, readable — NOT dark horror lighting. No location change across pages.",
   "fixedAnchors": [
     {
       "id": "night_bedroom",
@@ -38,11 +38,13 @@
       "id": "night_bedroom",
       "description": "Single night bedroom zone. Same bed, blanket, warm lamp, pillow-cave area near bed. Camera may move closer/wider but the room does not redesign.",
       "stableGeometry": [
-        "same bed against same wall",
-        "same blanket on bed",
-        "same small warm lamp beside bed",
-        "pillow-cave fort area on floor or bed edge near pillows",
-        "optional same window with soft night outside"
+        "bed on back-right wall, headboard to the right",
+        "window on back-left wall with purple curtains",
+        "bedside table with warm lamp between bed and window",
+        "round blue-grey rug centered on floor",
+        "pillow-cave fort on rug, left-center",
+        "blue blanket with gold moon/star pattern on bed",
+        "upper-right shelf with books only"
       ],
       "visualAnchors": [
         "same child bed",
@@ -63,6 +65,58 @@
       }
     }
   ],
+  "setTopology": {
+    "elements": [
+      {
+        "id": "Bed",
+        "placement": "back-right wall, headboard to the right"
+      },
+      {
+        "id": "Window",
+        "placement": "back-left wall, PURPLE curtains",
+        "colorLock": "when visible show night sky with moon; never invent daylight"
+      },
+      {
+        "id": "Lamp+table",
+        "placement": "bedside table between bed and window; lamp is warm key light"
+      },
+      {
+        "id": "Rug",
+        "placement": "round, blue-grey, CENTER of floor"
+      },
+      {
+        "id": "Pillow-cave",
+        "placement": "ON the rug, LEFT-CENTER"
+      },
+      {
+        "id": "Blanket",
+        "placement": "on bed",
+        "colorLock": "blue with gold moon/star pattern (fixed design)"
+      },
+      {
+        "id": "Pillows",
+        "placement": "on bed and scattered near pillow-cave",
+        "colorLock": "blue, purple, mustard/yellow, cream (fixed palette)"
+      },
+      {
+        "id": "Shelf",
+        "placement": "upper-RIGHT wall",
+        "colorLock": "BOOKS ONLY, no plush"
+      }
+    ],
+    "walls": "warm cream",
+    "floor": "warm wood",
+    "timeOfDay": "night",
+    "forbidden": [
+      "decorative props not listed in set topology",
+      "plush toys on shelf",
+      "daylight through window"
+    ]
+  },
+  "setElementFiles": {
+    "pillow-cave": "pillow-cave-object.png",
+    "blanket-fold": "blanket-fold-object.png"
+  },
   "forbiddenDrift": [
     "new bedroom design every page",
     "outdoor scene",
