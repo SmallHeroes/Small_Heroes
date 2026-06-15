@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 
-import { isStateBearingFactId, normalizeObservedState } from './fact-compare';
+import { isFortFormPrimaryFact, isStateBearingFactId, normalizeObservedState } from './fact-compare';
 import type { ObservedSceneFacts, SceneMemory } from './types';
 
 const VISION_CONFIDENCE_THRESHOLD = 0.55;
@@ -59,6 +59,9 @@ export async function analyzeSceneMemoryImage(
 
   const statefulIds = factIds.filter(isStateBearingFactId);
 
+  const fortFormIds = factIds.filter(isFortFormPrimaryFact);
+  const otherStatefulIds = statefulIds.filter((id) => !isFortFormPrimaryFact(id));
+
   const prompt = `Scene continuity evidence from a children's book illustration.
 
 Return ONLY compact JSON (omit null fields; keep strings under 8 words):
@@ -66,7 +69,7 @@ Return ONLY compact JSON (omit null fields; keep strings under 8 words):
   "facts": [{
     "factId": "...",
     "position": "back-left|back-right|left|right|center|foreground|background|not_visible",
-    "state": "built_or_tent|collapsed|scattered|folded|dimmed|unchanged|not_visible|ambiguous",
+    "state": "see rules per fact type",
     "appearance": "colour/material if visible",
     "confidence": 0-1,
     "visibility": "visible"|"uncertain"|"not_visible"
@@ -77,11 +80,15 @@ Return ONLY compact JSON (omit null fields; keep strings under 8 words):
 
 Expected fact ids: ${factIds.join(', ')}
 Inventory: ${inventory.join(', ')}
-Stateful facts (MUST include state): ${statefulIds.join(', ') || 'none'}
+
+Fort/cave facts (ids: ${fortFormIds.join(', ') || 'none'}) — state MUST be one of:
+standing_canopy | loose_pile | collapsed | scattered | not_visible | ambiguous
+- standing_canopy = visible roof/overhead plane, tunnel entrance, or pillow/blanket held up enclosing a space (DRIFT if story expects collapsed pile)
+- loose_pile = soft heap/stack leaning together, NO stable roof, NO tunnel opening (collapsed-acceptable)
+Other stateful facts (${otherStatefulIds.join(', ') || 'none'}): folded|dimmed|unchanged|not_visible|ambiguous only when relevant.
 
 Rules:
 - Include ONLY facts you can see or rule out; skip invisible facts (add id to unknowns).
-- For Pillow-cave / Pillows / Blanket / Lamp: report state from enum (built_or_tent = standing fort/tent).
 - not_visible = cropped/occluded; uncertain = ambiguous (confidence <= 0.5).
 - unauthorizedProps = visible items NOT in inventory.
 - Do NOT use background/foreground as position for walls/floor — use appearance colour instead.`;

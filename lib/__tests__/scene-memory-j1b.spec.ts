@@ -40,7 +40,7 @@ describe('SceneMemory J1B — detector hardening', () => {
     expect(memory.inventory.every((id) => id in memory.stableFacts)).toBe(true);
   });
 
-  it('expected collapsed + observed built_or_tent => drift', () => {
+  it('expected collapsed + observed standing_canopy => drift', () => {
     const memory = lionMemory();
     const report = buildSceneMemoryDriftReport({
       page: 1,
@@ -52,7 +52,7 @@ describe('SceneMemory J1B — detector hardening', () => {
           {
             factId: 'Pillow-cave',
             position: 'left',
-            state: 'built_or_tent',
+            state: 'standing_canopy',
             confidence: 0.9,
             visibility: 'visible',
           },
@@ -64,7 +64,7 @@ describe('SceneMemory J1B — detector hardening', () => {
     });
     const cave = report.perFact.find((r) => r.factId === 'Pillow-cave');
     expect(cave?.status).toBe('drift');
-    expect(cave?.note).toMatch(/state mismatch/i);
+    expect(cave?.note).toMatch(/standing canopy/i);
   });
 
   it('expected collapsed + observed collapsed/scattered => pass', () => {
@@ -170,6 +170,7 @@ describe('SceneMemory J1B — detector hardening', () => {
     const memory = lionMemory();
     expect(getExpectedStateForPage(memory, 'Pillow-cave', 1)).toBe('collapsed');
     expect(statesCompatible('collapsed', 'scattered')).toBe(true);
-    expect(statesCompatible('collapsed', 'built_or_tent')).toBe(false);
+    expect(statesCompatible('collapsed', 'loose_pile')).toBe(true);
+    expect(statesCompatible('collapsed', 'standing_canopy')).toBe(false);
   });
 });

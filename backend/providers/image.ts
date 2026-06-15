@@ -105,6 +105,11 @@ import {
   selectPageSetElementRefs,
 } from '../../lib/story-location-bible/set-topology';
 import {
+  analyzeSceneMemoryImage,
+  buildSceneMemoryDriftReport,
+  promptContainsSceneMemoryLock,
+} from '../../lib/scene-memory';
+import {
   evaluatePageVisualQa,
   resolvePageVisualQaConfig,
 } from '../../lib/generation-pipeline/page-visual-qa';
@@ -452,6 +457,7 @@ export interface ImageInput {
   /** Per-book location continuity — drives BOOK LOCATION CONTINUITY block. */
   locationBible?: import('../../lib/story-location-bible').BookLocationBible | null;
   pageLocationPlan?: import('../../lib/story-location-bible').PageLocationPlan | null;
+  sceneMemory?: import('../../lib/scene-memory/types').SceneMemory | null;
   /** Pipeline character ids for this page (e.g. child, companion:bolly_armadillo). */
   expectedCharacterIds?: string[];
   /** guarded-v2 recipe id when using production recipe page cards. */
@@ -518,6 +524,9 @@ export interface Style01PageMeta {
   setRefsRequested?: string[];
   setRefsPassed?: string[];
   setRefsDropped?: string[];
+  sceneId?: string | null;
+  sceneMemoryLockPresent?: boolean;
+  sceneMemoryDriftReport?: import('../../lib/scene-memory/types').SceneMemoryDriftReport | null;
 }
 
 export interface GeneratedImage {
@@ -3152,6 +3161,7 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     pageShot: input.pageShot ?? null,
     locationBible: input.locationBible ?? null,
     pageLocationPlan: input.pageLocationPlan ?? null,
+    sceneMemory: input.sceneMemory ?? null,
     assetType: input.assetType,
     storyTitle: input.storyTitle,
     coverText: input.coverText,
@@ -3338,6 +3348,8 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
               : null,
           ...buildSetRefManifestFields(setRefSelection),
           setTopologyLockPresent: promptContainsSetTopologyLock(prompt),
+          sceneId: input.sceneMemory?.sceneId ?? null,
+          sceneMemoryLockPresent: promptContainsSceneMemoryLock(prompt),
         },
         null,
         2
@@ -3386,6 +3398,21 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
   });
 
   const [widthStr, heightStr] = size.split('x');
+
+  let sceneMemoryDriftReport: import('../../lib/scene-memory/types').SceneMemoryDriftReport | null =
+    null;
+  if (input.sceneMemory && process.env.SCENE_MEMORY_DRIFT_REPORT_ENABLED !== 'false') {
+    const observed = await analyzeSceneMemoryImage(durableUrl, input.sceneMemory);
+    sceneMemoryDriftReport = buildSceneMemoryDriftReport({
+      page: input.pageNumber ?? 0,
+      memory: input.sceneMemory,
+      observed,
+      sceneMemoryLockPresent: promptContainsSceneMemoryLock(prompt),
+      pageAction: input.pageLocationPlan?.pageAction ?? undefined,
+      pageShot: input.pageShot ?? null,
+    });
+  }
+
   return {
     url: durableUrl,
     rawUrl: durableUrl,
@@ -3408,6 +3435,9 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
       companionViewIntent,
       ...buildSetRefManifestFields(setRefSelection),
       setTopologyLockPresent: promptContainsSetTopologyLock(prompt),
+      sceneId: input.sceneMemory?.sceneId ?? null,
+      sceneMemoryLockPresent: promptContainsSceneMemoryLock(prompt),
+      sceneMemoryDriftReport,
     },
   };
 }
@@ -3986,6 +4016,7 @@ export async function generateAllPageImages(
     /** Per-book shot plan — derived at render or story override; consumed by Style 01 assembly. */
     bookShotPlan?: import('../../lib/book-shot-plan').BookShotPlan;
     storyLocationPlan?: import('../../lib/story-location-bible').StoryLocationPlanBundle;
+    sceneMemoryPlan?: import('../../lib/scene-memory/types').SceneMemoryPlan | null;
     /** Story bank file basename for story-aware wardrobe lock. */
     storyFile?: string | null;
     direction?: 'bedtime' | 'adventure' | 'fantasy';
@@ -4052,6 +4083,7 @@ export async function generateAllPageImages(
   const bookLockContext = buildBookImageLockContext({
     bookShotPlan: config.bookShotPlan ?? null,
     storyLocationPlan: config.storyLocationPlan ?? null,
+    sceneMemoryPlan: config.sceneMemoryPlan ?? null,
     storyTimeOfDay: config.storyTimeOfDay,
     pageTimeOfDayOverrides: config.pageTimeOfDayOverrides,
     familyCoherence: config.familyCoherence ?? null,
@@ -4556,6 +4588,7 @@ export async function generateAllPageImages(
       | 'pageShot'
       | 'locationBible'
       | 'pageLocationPlan'
+      | 'sceneMemory'
       | 'childCanonicalAnchorPath'
       | 'storyFile'
       | 'direction'
@@ -4573,6 +4606,7 @@ export async function generateAllPageImages(
             pageShot,
             locationBible: lockSlice.locationBible,
             pageLocationPlan,
+            sceneMemory: lockSlice.sceneMemory,
             childCanonicalAnchorPath: bookLockContext.childCanonicalAnchorPath ?? null,
           }
         : {}),

@@ -23,6 +23,9 @@ export type SceneMemoryProvenance =
 export type SceneMemoryFactKind = 'position' | 'appearance' | 'stateful';
 
 export type SceneMemoryObservedState =
+  | 'standing_canopy'
+  | 'loose_pile'
+  | 'nest'
   | 'built_or_tent'
   | 'collapsed'
   | 'scattered'
@@ -101,6 +104,7 @@ export type SceneMemoryDriftPerFact = {
   expected?: string;
   observed?: string;
   note?: string;
+  lowSeverityNote?: string;
 };
 
 export type SceneMemoryDriftReport = {

@@ -23,9 +23,14 @@ export { buildSceneMemoryLockBlock, promptContainsSceneMemoryLock } from './comp
 export {
   appearanceCompatible,
   deriveFactKind,
+  fortFormStateIsDrift,
   getExpectedStateForPage,
+  isFortFormPrimaryFact,
+  isStandingCanopy,
+  isWithinLockedPalette,
   normalizeObservedState,
   positionsCompatible,
+  shouldEnforceStatefulDrift,
   statesCompatible,
 } from './fact-compare';
 export {
