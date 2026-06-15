@@ -104,6 +104,52 @@ export function buildStage0MethodBReferences(input: {
   };
 }
 
+/** Strip toddler-pushing wording from identity text — keep real traits (round face, prominent cheeks). */
+export function sanitizeStage0AnchorIdentityText(text: string): string {
+  return text
+    .replace(/\byoung-child softness\b/gi, '')
+    .replace(/\bbaby-soft(ness)?\b/gi, '')
+    .replace(/\btoddler(-like)?\b/gi, '')
+    .replace(/\binfant(-like)?\b/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/,\s*,/g, ',')
+    .replace(/\.\s*\./g, '.')
+    .trim();
+}
+
+export const STAGE0_ANCHOR_ANTI_TODDLER =
+  'ANTI-TODDLER (mandatory): NOT baby cheeks, NOT infant cheeks, NOT toddler chub, NOT baby face, NOT infant proportions, NOT toddler body. This is NOT a 2–3-year-old.';
+
+/** Calibrated age lock — kindergarten-age ~5, must not overshoot to 7–8. */
+export function buildStage0AnchorAgeLockLine(input: {
+  childAge: number | null | undefined;
+  childGender: string | null | undefined;
+}): string {
+  const age = input.childAge ?? 5;
+  const isBoy = input.childGender === 'boy';
+  const genderNoun = isBoy ? 'boy' : 'girl';
+  const pronoun = isBoy ? 'He' : 'She';
+  const objectPronoun = isBoy ? 'him' : 'her';
+
+  if (age === 5) {
+    return (
+      `The child is a 5-year-old kindergarten-age ${genderNoun} — clearly NOT a toddler, NOT a baby, NOT an infant. ` +
+      `${pronoun} should read as about age 5: a young child with kindergarten-age proportions, slightly longer limbs than a toddler, ` +
+      `less baby-chubby face, and more defined facial features than a 2–3-year-old, while still remaining soft, warm, and childlike. ` +
+      `Do NOT make ${objectPronoun} look 7–8 or older.`
+    );
+  }
+
+  const band =
+    age <= 3 ? 'toddler-age' : age <= 5 ? 'kindergarten-age' : age <= 8 ? 'young school-age' : 'school-age';
+  const notToddler = age > 3 ? ', NOT a toddler' : '';
+  return (
+    `The child is a ${age}-year-old ${band} ${genderNoun} — clearly NOT a baby, NOT an infant${notToddler}. ` +
+    `${pronoun} should read as about age ${age} with ${band} proportions — not younger, not ${age + 2}–${age + 3} or older. ` +
+    'Still soft, warm, and childlike.'
+  );
+}
+
 export function buildStage0MethodBPrompt(input: {
   order: Pick<Order, 'childGender' | 'childAge'>;
   lockedChildDescription: string;
@@ -111,16 +157,23 @@ export function buildStage0MethodBPrompt(input: {
   childPhotoDescription?: string | null;
   referenceLayout?: Stage0MethodBReferenceLayout;
 }): string {
-  const genderWord = input.order.childGender === 'boy' ? 'boy' : 'girl';
   const layout = input.referenceLayout ?? 'photo_only_no_template';
   const usesGenericTemplate =
     layout === 'template_first_photo_last' || layout === 'photo_first_with_template';
+  const lockedChildDescription = sanitizeStage0AnchorIdentityText(input.lockedChildDescription);
+  const childPhotoDescription = input.childPhotoDescription
+    ? sanitizeStage0AnchorIdentityText(input.childPhotoDescription)
+    : null;
   return [
     layout === 'photo_only_no_template'
       ? 'CANONICAL CHILD ANCHOR — PERSONALIZED STORYBOOK (Style 01 watercolor). Photo-first identity + watercolor style refs (no generic child template).'
       : 'CANONICAL CHILD ANCHOR — PERSONALIZED STORYBOOK (Style 01 watercolor). Method B: template visual language + photo identity cues.',
     'Generate ONE neutral child portrait for continuity across pages.',
-    `The child MUST read clearly as a ${genderWord} of about ${input.order.childAge ?? 5}.`,
+    buildStage0AnchorAgeLockLine({
+      childAge: input.order.childAge,
+      childGender: input.order.childGender,
+    }),
+    STAGE0_ANCHOR_ANTI_TODDLER,
     'Front or 3/4 view, half/full body, clean near-empty background.',
     'NO props. NO companion. NO family. NO story objects. NO text.',
     usesGenericTemplate
@@ -128,10 +181,10 @@ export function buildStage0MethodBPrompt(input: {
       : 'REFERENCE IMAGE 1 is the child photo — identity only (hair/skin/eyes/face). Style ref images provide watercolor technique only. Do NOT copy photo realism or day clothes from the photo.',
     STYLE_01_SHARED,
     STYLE_01_RENDERING_CORRECTION,
-    `CHILD VISUAL LOCK: ${input.lockedChildDescription}`,
+    `CHILD VISUAL LOCK: ${lockedChildDescription}`,
     input.wardrobeLock ?? '',
-    input.childPhotoDescription
-      ? `PHOTO IDENTITY CUES (reference photo — hair/skin/eyes/face only, never clothing or realism): ${input.childPhotoDescription}`
+    childPhotoDescription
+      ? `PHOTO IDENTITY CUES (reference photo — hair/skin/eyes/face only, never clothing or realism): ${childPhotoDescription}`
       : '',
     STYLE_01_CHILD_PHOTO_IDENTITY_RULE,
     STYLE_01_REFERENCE_INSTRUCTION,

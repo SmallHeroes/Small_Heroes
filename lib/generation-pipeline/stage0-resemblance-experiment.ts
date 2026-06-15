@@ -28,10 +28,10 @@ import {
 
 /** Corrected Bar identity — olive/tan, not vision-misread "warm pale". */
 export const LION_BEDTIME_BAR_CHILD_PHOTO_DESCRIPTION =
-  'Round face with prominent cheeks and young-child softness. Warm olive / tan sun-kissed skin tone (NOT pale). Short dark brown curly hair with unruly volume. Large dark brown eyes.';
+  'Round face with prominent cheeks. Warm olive / tan sun-kissed skin tone (NOT pale). Short dark brown curly hair with unruly volume. Large dark brown eyes.';
 
 export const LION_BEDTIME_BAR_LOCKED_CHILD_DESCRIPTION =
-  'Round face with prominent cheeks and young-child softness. Warm olive / tan sun-kissed skin tone (NOT pale). Short dark brown curly hair with unruly volume. Large dark brown eyes. Build and height appropriate for a 5-year-old boy.';
+  'Round face with prominent cheeks. Warm olive / tan sun-kissed skin tone (NOT pale). Short dark brown curly hair with unruly volume. Large dark brown eyes. Build and height appropriate for a 5-year-old boy.';
 
 export type LionBedtimeBarAnchorVariant = 'A' | 'B';
 
