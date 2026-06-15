@@ -225,6 +225,10 @@ export type GPTImageReferenceMode =
   | 'anchor_template'
   /** Stage 0 anchor: template first, style refs, raw photo last (identity cue only). */
   | 'anchor_template_photo_last'
+  /** Stage 0 experiment: raw photo first for identity; template + style refs follow (proportions/style). */
+  | 'anchor_photo_template_middle'
+  /** Stage 0 experiment: raw photo first; style refs only — no generic child template. */
+  | 'anchor_photo_style_only'
   /** Per-order expression sheet: edit from approved canonical child anchor only. */
   | 'anchor_expression_from_canonical'
   /** Expression variant: canonical identity + optional direction ref (expression only, not anger identity). */
@@ -350,6 +354,25 @@ export const STYLE01_ANCHOR_TEMPLATE_PHOTO_LAST_PREFIX = (
   '[TARGET CHARACTER]\n'
 );
 
+export const STYLE01_ANCHOR_PHOTO_TEMPLATE_MIDDLE_PREFIX = (
+  '[STYLE 01 ANCHOR — PHOTO-FIRST IDENTITY + TEMPLATE PROPORTIONS]\n' +
+  'Image 1: REAL CHILD PHOTO — PRIMARY identity anchor (hair, skin tone, eye shape/color, face structure, age). ' +
+  'Do NOT copy photo realism, beach/outdoor setting, shirtless/day clothes, or photographic skin texture.\n' +
+  'Image 2: STYLE 01 CHILD TEMPLATE — proportions, eye size, softness, watercolor rendering ONLY (NOT face identity).\n' +
+  'Later images: watercolor technique references only.\n' +
+  'Render as cute simplified Style 01 watercolor child wearing BOOK WARDROBE LOCK pajamas — NOT photo clothing.\n\n' +
+  '[TARGET CHARACTER]\n'
+);
+
+export const STYLE01_ANCHOR_PHOTO_STYLE_ONLY_PREFIX = (
+  '[STYLE 01 ANCHOR — PHOTO-FIRST IDENTITY, NO TEMPLATE]\n' +
+  'Image 1: REAL CHILD PHOTO — PRIMARY identity anchor (hair, skin tone, eye shape/color, face structure, age). ' +
+  'Do NOT copy photo realism, beach/outdoor setting, shirtless/day clothes, or photographic skin texture.\n' +
+  'Later images: watercolor technique/style references only — linework, pigment, paper texture, palette.\n' +
+  'Render as cute simplified Style 01 watercolor child wearing BOOK WARDROBE LOCK pajamas — NOT photo clothing.\n\n' +
+  '[TARGET CHARACTER]\n'
+);
+
 /** Expression mini-sheet: same child as canonical anchor; expression/pose variant only. */
 export const STYLE01_ANCHOR_EXPRESSION_FROM_CANONICAL_PREFIX = (
   '[STYLE 01 EXPRESSION ANCHOR — CANONICAL BASE]\n' +
@@ -399,6 +422,8 @@ function resolveReferencePrefix(
 ): string {
   if (mode === 'anchor_template') return STYLE01_ANCHOR_TEMPLATE_BASE_PREFIX;
   if (mode === 'anchor_template_photo_last') return STYLE01_ANCHOR_TEMPLATE_PHOTO_LAST_PREFIX;
+  if (mode === 'anchor_photo_template_middle') return STYLE01_ANCHOR_PHOTO_TEMPLATE_MIDDLE_PREFIX;
+  if (mode === 'anchor_photo_style_only') return STYLE01_ANCHOR_PHOTO_STYLE_ONLY_PREFIX;
   if (mode === 'anchor_expression_from_canonical') return STYLE01_ANCHOR_EXPRESSION_FROM_CANONICAL_PREFIX;
   if (mode === 'anchor_expression_with_direction') return STYLE01_ANCHOR_EXPRESSION_WITH_DIRECTION_PREFIX;
   if (mode === 'anchor_companion_from_jpg') return STYLE01_ANCHOR_COMPANION_FROM_JPG_PREFIX;

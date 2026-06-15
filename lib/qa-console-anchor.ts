@@ -3,7 +3,6 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from
 import path from 'path';
 import type { Order } from '@prisma/client';
 import {
-  buildStage0MethodBPrompt,
   generateStage0MethodBAnchor,
 } from '@/lib/generation-pipeline/stage0-method-b';
 import {
@@ -198,12 +197,7 @@ export async function generateQaStage0AnchorCandidate(input: {
   saveQaAnchorCache(entry);
   writeFileSync(
     path.join(QA_ANCHOR_ROOT, cacheKey, 'anchor-prompt.txt'),
-    buildStage0MethodBPrompt({
-      order: fakeOrder as Order,
-      lockedChildDescription: input.lockedChildDescription,
-      wardrobeLock,
-      childPhotoDescription: input.childPhotoDescription,
-    }),
+    result.anchorPrompt,
     'utf-8'
   );
   return entry;

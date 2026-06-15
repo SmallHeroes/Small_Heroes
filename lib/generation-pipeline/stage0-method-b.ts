@@ -28,6 +28,22 @@ import {
 import { describeChildFromPhoto } from '@/backend/providers/story-bank-loader';
 import { assertPipelineStyleBranchMatchesOrder } from '@/lib/image-engine-guard';
 import { assertIdentityLockFreeOfClothingWhenWardrobeApplies } from '@/lib/child-photo-dna-sanitize';
+import type { GPTImageReferenceMode } from '@/lib/generate-image';
+
+export type Stage0MethodBReferenceLayout =
+  /** Legacy — template dominates edit base; photo last. */
+  | 'template_first_photo_last'
+  /** Photo first, then template + style refs. */
+  | 'photo_first_with_template'
+  /** Production default — photo + style refs only; no generic boy/girl template. */
+  | 'photo_only_no_template';
+
+export type Stage0MethodBReferences = {
+  paths: string[];
+  labels: string[];
+  referenceMode: GPTImageReferenceMode;
+  layout: Stage0MethodBReferenceLayout;
+};
 
 export type Stage0MethodBResult = {
   anchorUrl: string;
@@ -41,27 +57,50 @@ export type Stage0MethodBResult = {
   embeddingVerdict: string;
 };
 
-/** Production Stage 0: template base + style refs + raw photo last (method B). */
+/** Production Stage 0: photo-first identity + style refs (no generic child template). */
 export function buildStage0MethodBReferences(input: {
   childPhotoUrl: string;
   childGender: string | null | undefined;
-}): { paths: string[]; labels: string[] } {
-  const templatePath = resolveStyle01ChildTemplatePath(input.childGender);
+  layout?: Stage0MethodBReferenceLayout;
+}): Stage0MethodBReferences {
+  const layout = input.layout ?? 'photo_only_no_template';
   // Subset choice is technique-only since the character-free ref flip (Task 5) —
   // every subset now carries watercolor texture/palette refs with NO characters.
   const styleRefPaths = resolveStyle01StyleReferencePaths(
     'fantasy-cave',
     resolveStyle01RefBudgetConfig() === 'A' ? 2 : 3
   );
+  const styleLabels = [
+    'style01_ref_1',
+    'style01_ref_2',
+    ...(styleRefPaths.length > 2 ? ['style01_ref_3'] : []),
+  ] as const;
+
+  if (layout === 'photo_only_no_template') {
+    return {
+      layout,
+      referenceMode: 'anchor_photo_style_only',
+      paths: [input.childPhotoUrl, ...styleRefPaths],
+      labels: ['raw_child_photo', ...styleLabels],
+    };
+  }
+
+  const templatePath = resolveStyle01ChildTemplatePath(input.childGender);
+
+  if (layout === 'photo_first_with_template') {
+    return {
+      layout,
+      referenceMode: 'anchor_photo_template_middle',
+      paths: [input.childPhotoUrl, templatePath, ...styleRefPaths],
+      labels: ['raw_child_photo', 'style01_child_template', ...styleLabels],
+    };
+  }
+
   return {
+    layout: 'template_first_photo_last',
+    referenceMode: 'anchor_template_photo_last',
     paths: [templatePath, ...styleRefPaths, input.childPhotoUrl],
-    labels: [
-      'style01_child_template',
-      'style01_ref_1',
-      'style01_ref_2',
-      ...(styleRefPaths.length > 2 ? ['style01_ref_3'] : []),
-      'raw_child_photo',
-    ],
+    labels: ['style01_child_template', ...styleLabels, 'raw_child_photo'],
   };
 }
 
@@ -70,21 +109,29 @@ export function buildStage0MethodBPrompt(input: {
   lockedChildDescription: string;
   wardrobeLock?: string;
   childPhotoDescription?: string | null;
+  referenceLayout?: Stage0MethodBReferenceLayout;
 }): string {
   const genderWord = input.order.childGender === 'boy' ? 'boy' : 'girl';
+  const layout = input.referenceLayout ?? 'photo_only_no_template';
+  const usesGenericTemplate =
+    layout === 'template_first_photo_last' || layout === 'photo_first_with_template';
   return [
-    'CANONICAL CHILD ANCHOR — PERSONALIZED STORYBOOK (Style 01 watercolor). Method B: template visual language + photo identity cues.',
+    layout === 'photo_only_no_template'
+      ? 'CANONICAL CHILD ANCHOR — PERSONALIZED STORYBOOK (Style 01 watercolor). Photo-first identity + watercolor style refs (no generic child template).'
+      : 'CANONICAL CHILD ANCHOR — PERSONALIZED STORYBOOK (Style 01 watercolor). Method B: template visual language + photo identity cues.',
     'Generate ONE neutral child portrait for continuity across pages.',
     `The child MUST read clearly as a ${genderWord} of about ${input.order.childAge ?? 5}.`,
     'Front or 3/4 view, half/full body, clean near-empty background.',
     'NO props. NO companion. NO family. NO story objects. NO text.',
-    'The SYSTEM TEMPLATE provides Style 01 proportions/rendering ONLY — NOT this child\'s identity.',
+    usesGenericTemplate
+      ? 'The SYSTEM TEMPLATE provides Style 01 proportions/rendering ONLY — NOT this child\'s identity.'
+      : 'REFERENCE IMAGE 1 is the child photo — identity only (hair/skin/eyes/face). Style ref images provide watercolor technique only. Do NOT copy photo realism or day clothes from the photo.',
     STYLE_01_SHARED,
     STYLE_01_RENDERING_CORRECTION,
     `CHILD VISUAL LOCK: ${input.lockedChildDescription}`,
     input.wardrobeLock ?? '',
     input.childPhotoDescription
-      ? `PHOTO IDENTITY CUES (last reference — hair/skin/eyes/face only): ${input.childPhotoDescription}`
+      ? `PHOTO IDENTITY CUES (reference photo — hair/skin/eyes/face only, never clothing or realism): ${input.childPhotoDescription}`
       : '',
     STYLE_01_CHILD_PHOTO_IDENTITY_RULE,
     STYLE_01_REFERENCE_INSTRUCTION,
@@ -103,6 +150,7 @@ export async function generateStage0MethodBAnchor(input: {
   childPhotoDescription?: string | null;
   childStructuredHair?: string | null;
   attemptSuffix?: string;
+  referenceLayout?: Stage0MethodBReferenceLayout;
 }): Promise<Stage0MethodBResult> {
   // Gap 2 (bunny forensics): this anchor flow is Style 01 only (Style 01 template,
   // prompt, and style refs). A Style 02 order reaching it = silent style mixing — throw.
@@ -115,11 +163,16 @@ export async function generateStage0MethodBAnchor(input: {
     identityLockText: input.lockedChildDescription,
     wardrobeLock: input.wardrobeLock,
   });
-  const { paths, labels } = buildStage0MethodBReferences({
+  const refs = buildStage0MethodBReferences({
     childPhotoUrl: input.childPhotoUrl,
     childGender: input.order.childGender,
+    layout: input.referenceLayout,
   });
-  const anchorPrompt = buildStage0MethodBPrompt(input);
+  const { paths, labels, referenceMode } = refs;
+  const anchorPrompt = buildStage0MethodBPrompt({
+    ...input,
+    referenceLayout: refs.layout,
+  });
 
   console.log(
     `[anchor_stage0_method_b] orderId=${input.order.id} finalOrder=${JSON.stringify(labels)} ` +
@@ -130,7 +183,7 @@ export async function generateStage0MethodBAnchor(input: {
     finalPrompt: anchorPrompt,
     negativePrompt: STYLE_01_AVOIDANCE_NEGATIVE,
     referenceImages: paths,
-    referenceMode: 'anchor_template_photo_last',
+    referenceMode,
     requireReferenceEdit: true,
     size: '1024x1536',
     quality: (process.env.GPT_IMAGE_QUALITY?.trim() || 'low') as 'low' | 'medium' | 'high',
