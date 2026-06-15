@@ -109,6 +109,7 @@ export type Style01PromptAssemblyInput = {
   /** Per-book location continuity (derived or sidecar). */
   locationBible?: import('./story-location-bible').BookLocationBible | null;
   pageLocationPlan?: import('./story-location-bible').PageLocationPlan | null;
+  sceneMemory?: import('./scene-memory/types').SceneMemory | null;
   storyWorldOverride?: string | null;
   /** Path or basename of story bank file (e.g. lion_shaket_bedtime) — drives story-aware wardrobe lock. */
   storyFile?: string | null;
@@ -392,6 +393,7 @@ export function assembleStyle01Phase2Prompt(
     pageLocationPlan: input.pageLocationPlan,
     pageShot: input.pageShot,
     isCover,
+    sceneMemory: input.sceneMemory,
   });
   const pageActionBlock = buildPageActionPromptBlock(input.pageLocationPlan);
   const isolatedObjectRefBlock = buildIsolatedObjectReferencePromptBlock(

@@ -19,7 +19,7 @@ export type {
 } from './types';
 
 export { analyzeSceneMemoryImage, VISION_CONFIDENCE_THRESHOLD } from './analyze';
-export { buildSceneMemoryLockBlock, promptContainsSceneMemoryLock } from './compose';
+export { buildSceneMemoryLockBlock, buildSceneMemoryGenerationConstraints, promptContainsSceneMemoryLock, promptContainsSceneMemoryGenerationConstraints } from './compose';
 export {
   appearanceCompatible,
   deriveFactKind,

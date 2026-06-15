@@ -1,5 +1,7 @@
 import type { PageShot } from '../book-shot-plan/types';
 import { buildSetTopologyLockBlock } from './set-topology';
+import { buildSceneMemoryLockBlock } from '../scene-memory/compose';
+import type { SceneMemory } from '../scene-memory/types';
 import type { BookLocationBible, PageLocationPlan } from './types';
 
 export function resolveZoneById(bible: BookLocationBible, zoneId: string) {
@@ -24,7 +26,7 @@ export const COVER_MYSTERY_LOCK =
 export function buildLocationContinuityPromptBlock(
   bible: BookLocationBible,
   pagePlan: PageLocationPlan,
-  options?: { pageShot?: PageShot | null; isCover?: boolean }
+  options?: { pageShot?: PageShot | null; isCover?: boolean; sceneMemory?: SceneMemory | null }
 ): string {
   const zone = resolveZoneById(bible, pagePlan.zoneId);
   const shotNote = options?.pageShot
@@ -60,6 +62,14 @@ export function buildLocationContinuityPromptBlock(
   const topologyBlock = buildSetTopologyLockBlock(bible);
   if (topologyBlock) {
     lines.push('', topologyBlock);
+  }
+
+  const sceneMemoryBlock = buildSceneMemoryLockBlock(options?.sceneMemory, {
+    pageShot: options?.pageShot,
+    pageNumber: pagePlan.page,
+  });
+  if (sceneMemoryBlock) {
+    lines.push('', sceneMemoryBlock);
   }
 
   if (bible.transitionRules.length) {

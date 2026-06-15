@@ -47,6 +47,7 @@ import {
   resolveQaPageShot,
 } from '@/lib/qa-console-book-lock-context';
 import { promptContainsSetTopologyLock } from '@/lib/story-location-bible/set-topology';
+import { promptContainsSceneMemoryLock, writeSceneMemoryDriftReportFile } from '@/lib/scene-memory';
 
 import {
   estimateQaConsoleCostUsd,
@@ -454,6 +455,7 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
         pageShot: resolveQaPageShot(lockContext.bookShotPlan, page.pageNumber),
         pageLocationPlan: resolveQaPageLocationPlan(lockContext.storyLocationPlan, page.pageNumber),
         locationBible: lockContext.storyLocationPlan.bible,
+        sceneMemory: lockContext.sceneMemoryPlan?.memory ?? null,
         challengeCategory: V3_COMPANION_BANK_CATEGORY[companionId] ?? 'GENERAL_FEARS',
       });
       const prompt = assembled.prompt;
@@ -544,6 +546,7 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
         pageShot: resolveQaPageShot(lockContext.bookShotPlan, page.pageNumber),
         pageLocationPlan: resolveQaPageLocationPlan(lockContext.storyLocationPlan, page.pageNumber),
         locationBible: lockContext.storyLocationPlan.bible,
+        sceneMemory: lockContext.sceneMemoryPlan?.memory ?? null,
         challengeCategory: V3_COMPANION_BANK_CATEGORY[companionId] ?? 'GENERAL_FEARS',
       }).prompt;
       assertQaRenderWardrobeParity(renderPrompt, {
@@ -611,6 +614,9 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
             setRefsRequested?: string[];
             setRefsPassed?: string[];
             setRefsDropped?: string[];
+            sceneId?: string | null;
+            sceneMemoryLockPresent?: boolean;
+            sceneMemoryDriftReport?: import('@/lib/scene-memory/types').SceneMemoryDriftReport | null;
           };
         }
       )?.style01Meta;
@@ -661,7 +667,21 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
         setRefsRequested: style01Meta?.setRefsRequested ?? [],
         setRefsPassed: style01Meta?.setRefsPassed ?? [],
         setRefsDropped: style01Meta?.setRefsDropped ?? [],
+        sceneId: style01Meta?.sceneId ?? lockContext.sceneMemoryPlan?.memory.sceneId ?? null,
+        sceneMemoryLockPresent:
+          style01Meta?.sceneMemoryLockPresent ??
+          promptContainsSceneMemoryLock(image?.prompt ?? ''),
+        sceneMemoryDriftReport: style01Meta?.sceneMemoryDriftReport ?? null,
       });
+
+      const driftReport = style01Meta?.sceneMemoryDriftReport;
+      if (driftReport) {
+        const driftPath = await writeSceneMemoryDriftReportFile(outDir, driftReport);
+        manifestPages[manifestPages.length - 1].sceneMemoryDriftPath = path.relative(
+          process.cwd(),
+          driftPath
+        );
+      }
     }
 
     const allStoryPages = story.pages
