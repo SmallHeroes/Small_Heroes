@@ -1,13 +1,8 @@
 /**
  * generate-companions.mjs
  *
- * Generates companion card images using GPT Image (gpt-image-1).
- * Style 01: cute illustrated cartoon storybook style.
- *
- * Usage:
- *   node scripts/generate-companions.mjs                    # all companions
- *   node scripts/generate-companions.mjs --test 3           # first 3 only
- *   node scripts/generate-companions.mjs --ids octopus_seara,fawn_tzvi,starfish_kokhavi
+ * LEGACY — DO NOT RUN. Pre-B3 canon; can silently overwrite clean companion sheets.
+ * Use outputs/companion-sheets/ workflow instead.
  */
 
 import { readFileSync, mkdirSync, writeFileSync, existsSync } from 'fs';
@@ -15,6 +10,11 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import sharp from 'sharp';
+
+console.error(
+  'DO NOT RUN — scripts/generate-companions.mjs carries pre-B3 canon and can overwrite clean companion sheets. Use outputs/companion-sheets/ workflow instead.'
+);
+process.exit(1);
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
