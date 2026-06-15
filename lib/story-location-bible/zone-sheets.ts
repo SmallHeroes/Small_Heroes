@@ -156,6 +156,20 @@ export function resolveIsolatedObjectFile(
   );
 }
 
+function resolveCatalogObjectFilenames(
+  bible: BookLocationBible,
+  sheetZone: LocationZone,
+  manifest: ZoneSheetManifest
+): string[] {
+  const fromManifest = resolveIsolatedObjectFiles(sheetZone, manifest);
+  const fromBible = bible.setElementFiles
+    ? Object.values(bible.setElementFiles)
+        .map((f) => f.trim())
+        .filter(Boolean)
+    : [];
+  return [...new Set([...fromManifest, ...fromBible])];
+}
+
 export function resolvePageReferenceSheets(
   bible: BookLocationBible,
   storyFilePath: string,
@@ -170,7 +184,7 @@ export function resolvePageReferenceSheets(
 
   if (!pageAllowsIsolatedObjectRef(pagePlan)) return undefined;
 
-  const objFiles = resolveIsolatedObjectFiles(sheetZone, manifest);
+  const objFiles = resolveCatalogObjectFilenames(bible, sheetZone, manifest);
   const requested = pagePlan.isolatedObjectFiles?.map((f) => f.trim()).filter(Boolean);
   const filtered = requested?.length
     ? objFiles.filter((f) => requested.some((r) => path.basename(r) === path.basename(f)))
@@ -292,6 +306,11 @@ export function assembleStyle01BookReferencesWithZoneSheets(input: {
       ...breakdown.otherCharacters,
       ...breakdown.style,
     ];
+  }
+  if (paths.length > maxRefs) {
+    throw new Error(
+      `[style01_refs] reference budget exceeded after explicit set-ref selection (${paths.length}/${maxRefs}) — identity refs must not be evicted`
+    );
   }
 
   return { paths, breakdown };

@@ -46,6 +46,7 @@ import {
   resolveQaPageLocationPlan,
   resolveQaPageShot,
 } from '@/lib/qa-console-book-lock-context';
+import { promptContainsSetTopologyLock } from '@/lib/story-location-bible/set-topology';
 
 import {
   estimateQaConsoleCostUsd,
@@ -602,6 +603,17 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
 
       const usage = (image as { style01Meta?: { usage?: Record<string, unknown> } } | undefined)
         ?.style01Meta?.usage;
+      const style01Meta = (
+        image as {
+          style01Meta?: {
+            usage?: Record<string, unknown>;
+            setTopologyLockPresent?: boolean;
+            setRefsRequested?: string[];
+            setRefsPassed?: string[];
+            setRefsDropped?: string[];
+          };
+        }
+      )?.style01Meta;
       const cost = estimateGptImage2CostUsd(usage);
       if (cost.estimatedCostUsd != null) totalEstimatedCostUsd += cost.estimatedCostUsd;
 
@@ -643,6 +655,12 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
           image?.url && !failedPages.includes(page.pageNumber) ? 'rendered' : 'not rendered in this audition',
         usage: usage ?? null,
         estimatedCostUsd: cost.estimatedCostUsd,
+        setTopologyLockPresent:
+          style01Meta?.setTopologyLockPresent ??
+          promptContainsSetTopologyLock(image?.prompt ?? ''),
+        setRefsRequested: style01Meta?.setRefsRequested ?? [],
+        setRefsPassed: style01Meta?.setRefsPassed ?? [],
+        setRefsDropped: style01Meta?.setRefsDropped ?? [],
       });
     }
 

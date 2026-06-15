@@ -7,6 +7,10 @@ import {
   enrichStoryLocationPlanWithReferenceSheets,
   parseLocationZoneReferenceSheet,
 } from './zone-sheets';
+import {
+  parseSetElementFiles,
+  parseSetTopology,
+} from './set-topology';
 import type {
   BookLocationBible,
   FixedAnchor,
@@ -116,6 +120,10 @@ function parseBookLocationBible(raw: Record<string, unknown>, source: BookLocati
       typeof raw.isolatedObjectPromptInstruction === 'string'
         ? String(raw.isolatedObjectPromptInstruction).trim()
         : undefined,
+    setTopology: parseSetTopology(raw.setTopology),
+    setElementFiles: parseSetElementFiles(raw.setElementFiles),
+    setTopologyMapPath:
+      typeof raw.setTopologyMapPath === 'string' ? String(raw.setTopologyMapPath).trim() : undefined,
   };
 }
 

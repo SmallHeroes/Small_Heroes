@@ -1,4 +1,5 @@
 import type { PageShot } from '../book-shot-plan/types';
+import { buildSetTopologyLockBlock } from './set-topology';
 import type { BookLocationBible, PageLocationPlan } from './types';
 
 export function resolveZoneById(bible: BookLocationBible, zoneId: string) {
@@ -54,6 +55,11 @@ export function buildLocationContinuityPromptBlock(
 
   if (pageUsesBucketAnchors(pagePlan)) {
     lines.push('', 'DRIP SOURCE (canonical):', WINDOW_LEDGE_DRIP_LOCK);
+  }
+
+  const topologyBlock = buildSetTopologyLockBlock(bible);
+  if (topologyBlock) {
+    lines.push('', topologyBlock);
   }
 
   if (bible.transitionRules.length) {

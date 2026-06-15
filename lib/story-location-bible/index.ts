@@ -67,6 +67,16 @@ export {
   ZONE_OBJECT_REFERENCE_INSTRUCTION,
   ZONE_SHEET_ASSET_PARENT,
 } from './zone-sheets';
+export {
+  buildSetTopologyLockBlock,
+  buildSetRefManifestFields,
+  computeMaxSetElementRefSlots,
+  parseSetElementFiles,
+  parseSetTopology,
+  promptContainsSetTopologyLock,
+  selectPageSetElementRefs,
+} from './set-topology';
+export type { PageSetElementRefSelection } from './set-topology';
 export type {
   BookLocationBible,
   ExpectedBucketVisibility,
@@ -77,6 +87,8 @@ export type {
   LocationZoneReferenceSheet,
   PageLocationPlan,
   PageReferenceSheets,
+  SetTopology,
+  SetTopologyElement,
   StoryLocationPlanBundle,
   VisualSpoilerPolicy,
   ZoneSheetManifest,

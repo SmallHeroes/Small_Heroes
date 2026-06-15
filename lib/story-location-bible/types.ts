@@ -71,6 +71,23 @@ export interface FixedAnchor {
   mustRemainSameAcrossPages: boolean;
 }
 
+/** Fixed spatial relations for a single-location interior set (data-driven; no story branches). */
+export interface SetTopologyElement {
+  id: string;
+  placement: string;
+  wall?: string;
+  zone?: string;
+  colorLock?: string;
+}
+
+export interface SetTopology {
+  elements: SetTopologyElement[];
+  walls?: string;
+  floor?: string;
+  timeOfDay?: string;
+  forbidden?: string[];
+}
+
 export interface BookLocationBible {
   continuityMode: LocationContinuityMode;
   primarySetting: string;
@@ -82,6 +99,12 @@ export interface BookLocationBible {
   pageCount?: number;
   /** Optional override for isolated-object reference block (e.g. lion pillow-cave, not bucket). */
   isolatedObjectPromptInstruction?: string;
+  /** Fixed room geography — rendered as SET TOPOLOGY LOCK in prompts. */
+  setTopology?: SetTopology;
+  /** elementId → isolated asset filename (resolved under zone-sheets dir). */
+  setElementFiles?: Record<string, string>;
+  /** Future composed topology map — UNUSED in Round 1 (behind future flag). */
+  setTopologyMapPath?: string;
 }
 
 export interface PageLocationPlan {

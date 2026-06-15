@@ -49,7 +49,8 @@ import {
 } from '@/lib/styles';
 import { composeVisualDirectorPrompt, type VisualDirectorInput } from '../../lib/visualDirector';
 import type { Companion } from '../../lib/companions';
-import { generateGPTImage, generateReplicateImage } from '../../lib/generate-image';
+import path from 'path';
+import { generateGPTImage, generateReplicateImage, resolveGPTImageEditMaxReferences } from '../../lib/generate-image';
 import {
   buildStyle02BookPagePrompt,
   buildStyle02ChildVisualLock,
@@ -97,6 +98,12 @@ import {
 } from '../../lib/style01-gptimage';
 import { assembleStyle01Phase2Prompt } from '../../lib/style01-prompt-assembly';
 import { assembleStyle01BookReferencesWithZoneSheets } from '../../lib/story-location-bible/zone-sheets';
+import {
+  buildSetRefManifestFields,
+  computeMaxSetElementRefSlots,
+  promptContainsSetTopologyLock,
+  selectPageSetElementRefs,
+} from '../../lib/story-location-bible/set-topology';
 import {
   evaluatePageVisualQa,
   resolvePageVisualQaConfig,
@@ -507,6 +514,10 @@ export interface Style01PageMeta {
   };
   needsHumanReview?: boolean;
   companionViewIntent?: import('../../lib/companion-view-intent').CompanionViewIntent;
+  setTopologyLockPresent?: boolean;
+  setRefsRequested?: string[];
+  setRefsPassed?: string[];
+  setRefsDropped?: string[];
 }
 
 export interface GeneratedImage {
@@ -3181,9 +3192,6 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     rawScenePrompt: input.rawScenePrompt ?? undefined,
     companionPresence: entityPresence.companionPresence,
   });
-  const useMultiCompanionSheets = companionRefPaths.length >= 3;
-  const styleRefCount = useMultiCompanionSheets ? 1 : refConfig === 'A' ? 2 : 3;
-  const styleRefPaths = resolveStyle01StyleReferencePaths(sceneClass, styleRefCount);
   const childPhotoPath = input.referenceImages?.[0];
   const otherCharacterRefPaths = (input.anchorCharacters ?? [])
     .filter(
@@ -3193,15 +3201,49 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
         !entry.characterId.startsWith('companion:')
     )
     .map((entry) => entry.anchorImageUrl);
+  const useMultiCompanionSheets = companionRefPaths.length >= 3;
+  const includeChildPhoto = childPresenceAllowsReferencePhoto(entityPresence.childPresence);
+  const companionSlotsUsed =
+    refConfig === 'B' ? 0 : useMultiCompanionSheets ? (includeChildPhoto && childPhotoPath ? 2 : 3) : companionRefPaths[0] ? 1 : 0;
+  const childSlotsUsed = includeChildPhoto && refConfig !== 'C' && childPhotoPath ? 1 : 0;
+  const otherSlotsUsed = otherCharacterRefPaths.length;
+  const candidateSetRefPaths = (
+    input.pageLocationPlan?.referenceSheets?.isolatedObjectPaths ?? []
+  ).filter(Boolean);
+  const maxSetSlots = computeMaxSetElementRefSlots(
+    childSlotsUsed + companionSlotsUsed + otherSlotsUsed
+  );
+  const setRefSelection = selectPageSetElementRefs({
+    pagePlan: input.pageLocationPlan,
+    pageShot: input.pageShot,
+    candidatePaths: candidateSetRefPaths,
+    setElementFiles: input.locationBible?.setElementFiles,
+    maxSlots: maxSetSlots,
+  });
+  const maxRefs = resolveGPTImageEditMaxReferences();
+  const styleSlots = Math.max(
+    0,
+    maxRefs -
+      childSlotsUsed -
+      companionSlotsUsed -
+      otherSlotsUsed -
+      setRefSelection.selected.length
+  );
+  const styleRefCount = useMultiCompanionSheets
+    ? Math.min(1, styleSlots)
+    : refConfig === 'A'
+      ? Math.min(2, styleSlots)
+      : Math.min(3, styleSlots);
+  const styleRefPaths = resolveStyle01StyleReferencePaths(sceneClass, styleRefCount);
   const { paths: referenceImages, breakdown } = assembleStyle01BookReferencesWithZoneSheets({
     styleRefPaths,
     childPhotoPath: refConfig === 'C' ? undefined : childPhotoPath,
     companionRefPaths: refConfig === 'B' ? undefined : companionRefPaths,
     otherCharacterRefPaths,
     config: refConfig,
-    includeChildPhoto: childPresenceAllowsReferencePhoto(entityPresence.childPresence),
+    includeChildPhoto,
     useMultiCompanionSheets,
-    isolatedObjectRefPaths: input.pageLocationPlan?.referenceSheets?.isolatedObjectPaths,
+    isolatedObjectRefPaths: setRefSelection.selected,
   });
 
   const prompt = sanitizePromptForSafety(finalPrompt);
@@ -3230,6 +3272,10 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     `[style01_refs] orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} ` +
       `characterRefs=${JSON.stringify(characterRefPaths)} ` +
       `isolatedObjectRefs=${JSON.stringify(breakdown.isolatedObjects ?? breakdown.objectAnchors ?? [])} ` +
+      `setRefsRequested=${JSON.stringify(setRefSelection.requested.map((p) => path.basename(p)))} ` +
+      `setRefsPassed=${JSON.stringify(setRefSelection.selected.map((p) => path.basename(p)))} ` +
+      `setRefsDropped=${JSON.stringify(setRefSelection.dropped.map((p) => path.basename(p)))} ` +
+      `setTopologyLockPresent=${promptContainsSetTopologyLock(prompt)} ` +
       `styleRefs=${JSON.stringify(breakdown.style)} ` +
       `finalOrder=${JSON.stringify(referenceImages)} ` +
       `canonicalAnchorRef=${useCanonicalChildAnchorRef}`
@@ -3290,6 +3336,8 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
               ? companionSheetView === expectedSheetFilename.replace(/\.png$/i, '') ||
                 companionSheetView === expectedSheetFilename
               : null,
+          ...buildSetRefManifestFields(setRefSelection),
+          setTopologyLockPresent: promptContainsSetTopologyLock(prompt),
         },
         null,
         2
@@ -3358,6 +3406,8 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
       storyTimeOfDay,
       effectivePageTimeOfDay,
       companionViewIntent,
+      ...buildSetRefManifestFields(setRefSelection),
+      setTopologyLockPresent: promptContainsSetTopologyLock(prompt),
     },
   };
 }
