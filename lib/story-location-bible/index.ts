@@ -1,3 +1,4 @@
+import type { SceneMemory } from '../scene-memory/types';
 import { buildScenarioSettingLockBlock } from '../scenario-setting-lock';
 import type { PageShot } from '../book-shot-plan/types';
 import { buildLocationContinuityPromptBlock } from './compose';
@@ -15,6 +16,7 @@ export function buildResolvedLocationEnvironmentBlock(args: {
   pageLocationPlan?: PageLocationPlan | null;
   pageShot?: PageShot | null;
   isCover?: boolean;
+  sceneMemory?: SceneMemory | null;
 }): string {
   const bible = args.locationBible;
   const plan = args.pageLocationPlan;
@@ -23,6 +25,7 @@ export function buildResolvedLocationEnvironmentBlock(args: {
     const locationBlock = buildLocationContinuityPromptBlock(bible, plan, {
       pageShot: args.pageShot,
       isCover: args.isCover,
+      sceneMemory: args.sceneMemory,
     });
     const spoilerBlock = buildVisualSpoilerPromptBlock(plan);
     const parts = [locationBlock, spoilerBlock].filter(Boolean);

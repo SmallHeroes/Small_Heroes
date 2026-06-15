@@ -40,6 +40,7 @@ describe('QA console book lock-context parity', () => {
     expect(fields.storyTimeOfDay).toBe('night');
     expect(fields.bookShotPlan.pages.length).toBeGreaterThan(0);
     expect(fields.storyLocationPlan.pagePlans.length).toBeGreaterThan(0);
+    expect(fields.sceneMemoryPlan?.memory.sceneId).toBeTruthy();
   });
 
   it('lion_shaket_bedtime render prompt has pajama lock and not day-default wardrobe', () => {
