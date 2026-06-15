@@ -4,15 +4,15 @@
   "pages": [
     {
       "page": 1,
-      "shot": "medium_wide",
+      "shot": "establishing_wide",
       "angle": "eye",
-      "rationale": "Gentle bedtime establish — collapsed pillow-cave, readable night bedroom"
+      "rationale": "True wide bedroom establish — full night room, pillow-cave, thunder corner readable"
     },
     {
       "page": 2,
-      "shot": "medium",
+      "shot": "medium_wide",
       "angle": "eye",
-      "rationale": "Leo arrives — intimate medium, no drama angle"
+      "rationale": "Leo arrives — medium-wide holds child + companion + bedroom context"
     },
     {
       "page": 3,
@@ -22,9 +22,9 @@
     },
     {
       "page": 4,
-      "shot": "medium",
+      "shot": "medium_wide",
       "angle": "eye",
-      "rationale": "Blanket-hide mistake — medium holds readable text + body language"
+      "rationale": "Blanket-hide mistake — medium-wide holds readable text + body language + room"
     },
     {
       "page": 5,
@@ -34,15 +34,15 @@
     },
     {
       "page": 6,
-      "shot": "close_up",
+      "shot": "medium",
       "angle": "eye",
-      "rationale": "Thunder-corner choice — hands/paws on blanket fold"
+      "rationale": "Thunder-corner choice — medium holds hands/paws on blanket fold with room context"
     },
     {
       "page": 7,
       "shot": "close_up",
       "angle": "eye",
-      "rationale": "Soft near-roar turn — small intimate faces, no low-angle drama"
+      "rationale": "Soft near-roar turn — single deliberate close-up for intimate faces"
     },
     {
       "page": 8,

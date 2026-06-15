@@ -106,9 +106,10 @@ export function shotPlanToCompositionSpec(shot: PageShot): Style01CompositionSpe
       return {
         shotType: 'medium story beat',
         subjectScale: 'medium',
+        frameHeightPercent: '35-50',
         framingFamily: 'medium',
         camera: `medium shot, ${angle} level`,
-        subjectDominance: 'Balanced character and environment',
+        subjectDominance: 'Balanced character and environment — full figures readable',
         staging: 'Action embedded in setting — objects and companions legible',
         pagePurpose: 'Quiet transition or story advancement',
       };
