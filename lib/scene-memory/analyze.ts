@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs';
 
+import { isStateBearingFactId, normalizeObservedState } from './fact-compare';
 import type { ObservedSceneFacts, SceneMemory } from './types';
 
 const VISION_CONFIDENCE_THRESHOLD = 0.55;
@@ -56,22 +57,34 @@ export async function analyzeSceneMemoryImage(
   const inventory = expectedMemory.inventory;
   const factIds = Object.keys(expectedMemory.stableFacts);
 
+  const statefulIds = factIds.filter(isStateBearingFactId);
+
   const prompt = `Scene continuity evidence from a children's book illustration.
 
 Return ONLY compact JSON (omit null fields; keep strings under 8 words):
 {
-  "facts": [{ "factId": "...", "position": "...", "confidence": 0-1, "visibility": "visible"|"uncertain"|"not_visible" }],
+  "facts": [{
+    "factId": "...",
+    "position": "back-left|back-right|left|right|center|foreground|background|not_visible",
+    "state": "built_or_tent|collapsed|scattered|folded|dimmed|unchanged|not_visible|ambiguous",
+    "appearance": "colour/material if visible",
+    "confidence": 0-1,
+    "visibility": "visible"|"uncertain"|"not_visible"
+  }],
   "unauthorizedProps": [],
   "unknowns": []
 }
 
 Expected fact ids: ${factIds.join(', ')}
 Inventory: ${inventory.join(', ')}
+Stateful facts (MUST include state): ${statefulIds.join(', ') || 'none'}
 
 Rules:
 - Include ONLY facts you can see or rule out; skip invisible facts (add id to unknowns).
+- For Pillow-cave / Pillows / Blanket / Lamp: report state from enum (built_or_tent = standing fort/tent).
 - not_visible = cropped/occluded; uncertain = ambiguous (confidence <= 0.5).
-- unauthorizedProps = visible items NOT in inventory.`;
+- unauthorizedProps = visible items NOT in inventory.
+- Do NOT use background/foreground as position for walls/floor — use appearance colour instead.`;
 
   async function callVision(strictCompact: boolean): Promise<string> {
     const imageUrl = imageToDataUrl(image);
@@ -160,7 +173,7 @@ Rules:
         position: f.position != null ? String(f.position) : undefined,
         appearance: f.appearance != null ? String(f.appearance) : undefined,
         color: f.color != null ? String(f.color) : undefined,
-        state: f.state != null ? String(f.state) : undefined,
+        state: f.state != null ? normalizeObservedState(String(f.state)) : undefined,
         confidence: visibility === 'uncertain' || visibility === 'not_visible' ? Math.min(confidence, 0.5) : confidence,
         visibility,
       };

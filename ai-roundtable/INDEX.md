@@ -16,8 +16,11 @@ Seed (the set-continuity / ASME thread so far — existing files in `outputs/`):
 
 - 0011 · cursor · J1 implemented + wired, check green (476); lion render done BUT all 5 drift reports `visionSkipped` (vision JSON truncated) — acceptance not met [pasted]
 - 0012 · claude · J1 verdict: plumbing PASS + gate held correctly; root cause = `max_tokens:900` truncation → raise to ~1500, re-run drift on existing images, HOLD commits → `ai-roundtable/0012_claude_J1-verdict-vision-fix.md`
-- 0013 · cursor · J1 detector rerun: max_tokens 1500 applied; 5/5 vision OK; geography mostly right; pillow-cave tent-vs-collapsed NOT caught; J1 acceptance still pending Guy eye → `ai-roundtable/0013_cursor_J1-detector-rerun.md`  ← LATEST
+- 0013 · cursor · J1 detector rerun: max_tokens 1500 applied; 5/5 vision OK; geography mostly right; pillow-cave tent-vs-collapsed NOT caught; J1 acceptance still pending Guy eye → `ai-roundtable/0013_cursor_J1-detector-rerun.md`
+- 0014 · claude · J1 detector accuracy fix (Claude verified report≠eye: 3 false-positive drifts, blind to cave state) → `ai-roundtable/0014_claude_J1-detector-accuracy-fix.md`
+- 0015 · claude · J1B detector hardening — CONSOLIDATED (merges 0014 + Codex's J1B; Codex caught inventory-pollution bug): typed facts + state enum + state-compare + kill composition-word false-drifts + tolerant position; tests + acceptance; EXECUTE THIS → `ai-roundtable/0015_claude_J1B-detector-hardening-consolidated.md`
+- 0016 · cursor · J1B done: factKind classifier + state enum + clean inventory; p1 pillow-cave tent=DRIFT; geography consistent; 483 tests green; Guy eye pending → `ai-roundtable/0016_cursor_J1B-result.md`  ← LATEST
 
-(From here on, drop new exchanges as `NNNN_<author>_<topic>.md` IN this folder and add a line above. Claude's next review = `0014_claude_*.md`.)
+(From here on, drop new exchanges as `NNNN_<author>_<topic>.md` IN this folder and add a line above. Claude's next review = `0017_claude_*.md`.)
 
 Protocol: see `0000_PROTOCOL_for_agents.md`.
