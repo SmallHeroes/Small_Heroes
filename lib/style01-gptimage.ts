@@ -666,12 +666,46 @@ export function buildStyle01CompanionTextLock(input: {
   return '';
 }
 
-export function buildStyle01CompanionSilhouetteLock(): string {
+export function resolveCompanionSpeciesSilhouetteLabel(input: {
+  companionId?: string | null;
+  companionStructured?: { species?: string };
+  companionVisualDescription?: string;
+}): string {
+  const lockSource = resolveCompanionLockSource({
+    companionId: input.companionId,
+    dnaStructured:
+      input.companionStructured &&
+      'size' in input.companionStructured &&
+      'coloring' in input.companionStructured &&
+      'feature' in input.companionStructured
+        ? (input.companionStructured as import('./companion-lock-source').CompanionStructuredProfile)
+        : null,
+    dnaVisualDescription: input.companionVisualDescription ?? null,
+  });
+  if (lockSource.structured?.species?.trim()) {
+    return lockSource.structured.species.trim();
+  }
+  const desc = (lockSource.visualDescription ?? '').trim();
+  if (!desc) return 'companion';
+  const withoutArticle = desc.replace(
+    /^A[n]?\s+(?:small\s+)?(?:gentle\s+)?(?:friendly\s+)?(?:soft[\w-]*\s+)?/i,
+    ''
+  );
+  const creature = withoutArticle.split(/\s+with\b/i)[0]?.split(/[,;]/)[0]?.trim();
+  return creature || 'companion';
+}
+
+export function buildStyle01CompanionSilhouetteLock(input?: {
+  companionId?: string | null;
+  companionStructured?: { species?: string };
+  companionVisualDescription?: string;
+}): string {
+  const species = resolveCompanionSpeciesSilhouetteLabel(input ?? {});
   return [
     'COMPANION SILHOUETTE LOCK (match approved companion reference sheet):',
-    'Keep consistent ear length and shape, tail size and shape, chest marking, body proportions, and creature age/size across every page.',
+    `Keep consistent ear length and shape, tail size and shape, chest marking, body proportions, and ${species} age/size across every page.`,
     'Do NOT enlarge ears, sharpen ear tips, shrink or grow the tail, or change body scale vs the reference sheet.',
-    'Same fox/creature size every page — not a larger or pointier-eared variant.',
+    `Same ${species} size every page — not a larger or pointier-eared variant than the reference sheet.`,
   ].join('\n');
 }
 
@@ -709,7 +743,7 @@ function buildChildIdentityCompositionAddendum(
   return [
     'IDENTITY COMPOSITION (child protagonist present):',
     'Child face clearly readable — frontal or 3/4 view, NOT back-view, NOT distant profile silhouette.',
-    `Child head/face occupies roughly ${subjectScaleHeightRange(scale)}% of illustration height (match SUBJECT SCALE).`,
+    `Child full figure occupies roughly ${subjectScaleHeightRange(scale)}% of illustration height (match SUBJECT SCALE) — not head-only crop unless shot plan says close_up.`,
     'Same child as CHILD VISUAL LOCK on every page — hair, age, skin, face; do NOT shrink into a generic younger child.',
   ].join('\n');
 }

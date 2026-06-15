@@ -352,7 +352,11 @@ export function assembleStyle01Phase2Prompt(
             companionVisualDescription: input.companion?.visualDescription,
             storyCompanionLock: storyLocks.companionLock,
           }),
-          buildStyle01CompanionSilhouetteLock(),
+          buildStyle01CompanionSilhouetteLock({
+            companionId: input.companion?.id,
+            companionStructured: input.companionStructured,
+            companionVisualDescription: input.companion?.visualDescription,
+          }),
           accessoryLock,
         ]
           .filter(Boolean)
