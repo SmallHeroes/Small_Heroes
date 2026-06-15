@@ -34,7 +34,7 @@ export function buildLocationContinuityPromptBlock(
   const lines = [
     'BOOK LOCATION CONTINUITY:',
     'This book uses one coherent physical set. Camera angles may change, but fixed spaces and objects must not redesign between pages.',
-    'Same physical set across pages. Do not redesign the room/balcony/bucket. Camera may move according to PageShot. Do not change to unrelated location.',
+    'Same physical set across pages. Do not redesign the location set. Camera may move according to PageShot. Do not change to unrelated location.',
     '',
     `STORY WORLD: ${bible.primarySetting.trim()}`,
     '',
@@ -83,7 +83,7 @@ function shotIntegrationNote(shot: PageShot): string {
     case 'medium_wide':
       return 'PageShot is wide — show MORE of the same location set; do not swap to a new environment.';
     case 'close_up':
-      return 'PageShot is close-up — show FEWER anchors, but visible anchors must still be correct. Even in close-up, use the same metal bucket / drip area when in bucket zones. Do not introduce new water bodies or a new room.';
+      return 'PageShot is close-up — show FEWER anchors, but visible anchors must still be correct. Do not introduce props or furniture not listed in SET TOPOLOGY LOCK. Do not swap to a new room.';
     case 'dynamic_angle':
       return 'PageShot is dynamic — move the camera, not the scene. Same physical set; new angle only.';
     case 'intimate':

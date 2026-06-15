@@ -222,7 +222,7 @@ export function buildPageActionPromptBlock(
   return [
     'PAGE ACTION — MANDATORY (wins over location continuity and generic staging):',
     action,
-    'Draw EXACTLY this action. Do NOT default to "child + fox sitting near bucket" unless this action says so.',
+    'Draw EXACTLY this action. Do NOT substitute a generic staging template unless this action says so.',
   ].join('\n');
 }
 

@@ -13,6 +13,7 @@ import {
   promptContainsSetTopologyLock,
   selectPageSetElementRefs,
 } from '../story-location-bible/set-topology';
+import { assembleStyle01Phase2Prompt } from '../style01-prompt-assembly';
 
 const LION_STORY = path.join(
   process.cwd(),
@@ -135,5 +136,36 @@ describe('Set Topology Lock (Brief I — general mechanism)', () => {
     expect(selection.selected).toEqual(['/fake/blanket-fold-object.png']);
     expect(selection.dropped).toContain('/fake/set-map.png');
     expect(selection.selected).not.toContain('/fake/set-map.png');
+  });
+
+  it('lion bedtime prompt has no fox/bucket staging strings', () => {
+    const bundle = loadStoryLocationPlanOverride(LION_STORY)!;
+    const p1 = bundle.pagePlans.find((p) => p.page === 1)!;
+    const { prompt } = assembleStyle01Phase2Prompt({
+      pageNumber: 1,
+      pagePrompt: 'Night bedroom, collapsed pillow fort.',
+      bookPageText: 'כבר היה לילה.',
+      childFirstName: 'בר',
+      childAge: 6,
+      childGender: 'boy',
+      childStructured: {
+        face: 'Round face.',
+        hair: 'Short hair.',
+        body: 'Child build.',
+        clothing: 'Pajamas.',
+        signature: '',
+      },
+      companion: { id: 'lion_shaket', name: 'ליאו' },
+      storyFile: 'lion_shaket_bedtime',
+      direction: 'bedtime',
+      storyTimeOfDay: 'night',
+      pageLocationPlan: p1,
+      locationBible: bundle.bible,
+    });
+    expect(prompt).toContain('SET TOPOLOGY LOCK');
+    expect(prompt).not.toMatch(/fox sitting near bucket/i);
+    expect(prompt).not.toMatch(/child \+ fox/i);
+    expect(prompt).not.toMatch(/galvanized.*bucket/i);
+    expect(prompt).not.toMatch(/WINDOW LEDGE DRIP/i);
   });
 });
