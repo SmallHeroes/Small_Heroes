@@ -39,6 +39,13 @@ import {
   resolveQaConsoleChildReference,
 } from '@/lib/qa-console-anchor';
 import { storyFileKeyFromPath } from '@/lib/style01-story-wardrobe';
+import {
+  assertQaRenderWardrobeParity,
+  buildQaImageGenerationLockFields,
+  resolveQaBookLockContext,
+  resolveQaPageLocationPlan,
+  resolveQaPageShot,
+} from '@/lib/qa-console-book-lock-context';
 
 import {
   estimateQaConsoleCostUsd,
@@ -404,6 +411,18 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
       childPhotoDescription,
     });
 
+    const storyFileKey = storyFileKeyFromPath(baseKey) ?? baseKey;
+    const lockContext = resolveQaBookLockContext({
+      storyPath,
+      storyFileKey,
+      direction: direction as 'bedtime' | 'adventure' | 'fantasy',
+      challengeCategory: V3_COMPANION_BANK_CATEGORY[companionId] ?? 'GENERAL_FEARS',
+      pages: story.pages,
+      storyTimeOfDay: story.storyTimeOfDay,
+      pageTimeOfDayOverrides: story.pageTimeOfDayOverrides,
+    });
+    const imageLockFields = buildQaImageGenerationLockFields(lockContext);
+
     const promptsDir = path.join(outDir, 'prompts');
     await mkdir(promptsDir, { recursive: true });
     const allHits: string[] = [];
@@ -427,10 +446,14 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
         companion,
         companionStructured: dna.companionStructured,
         pageStoryState: resolveDefaultPageStoryState(companion.id, page.pageNumber),
-        storyFile: baseKey,
+        storyFile: storyFileKey,
         direction,
         storyTimeOfDay: story.storyTimeOfDay,
         pageTimeOfDayOverrides: story.pageTimeOfDayOverrides,
+        pageShot: resolveQaPageShot(lockContext.bookShotPlan, page.pageNumber),
+        pageLocationPlan: resolveQaPageLocationPlan(lockContext.storyLocationPlan, page.pageNumber),
+        locationBible: lockContext.storyLocationPlan.bible,
+        challengeCategory: V3_COMPANION_BANK_CATEGORY[companionId] ?? 'GENERAL_FEARS',
       });
       const prompt = assembled.prompt;
       await writeFile(
@@ -476,7 +499,6 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
       childPhotoUrlForRefs = await normalizePhotoUrlForVision(child.photoDataUrl.trim());
     }
 
-    const storyFileKey = storyFileKeyFromPath(baseKey) ?? baseKey;
     const childRef = await resolveQaConsoleChildReference({
       companionId,
       storyFileKey,
@@ -499,6 +521,36 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
     const startedAt = Date.now();
     const q = resolveStyle01AuditionImageQuality();
     const model = resolveStyle01GptModel();
+
+    for (const page of pagesToRender) {
+      const renderPrompt = assembleStyle01Phase2Prompt({
+        pageNumber: page.pageNumber,
+        pagePrompt: page.imagePrompt,
+        rawScenePrompt: page.rawScenePrompt,
+        bookPageText: page.text,
+        childFirstName: child.name,
+        childAge: child.age,
+        childGender: child.gender,
+        childDescription: dna.childDNA,
+        childStructured: dna.childStructured,
+        companion,
+        companionStructured: dna.companionStructured,
+        pageStoryState: resolveDefaultPageStoryState(companion.id, page.pageNumber),
+        storyFile: storyFileKey,
+        direction,
+        storyTimeOfDay: story.storyTimeOfDay,
+        pageTimeOfDayOverrides: story.pageTimeOfDayOverrides,
+        pageShot: resolveQaPageShot(lockContext.bookShotPlan, page.pageNumber),
+        pageLocationPlan: resolveQaPageLocationPlan(lockContext.storyLocationPlan, page.pageNumber),
+        locationBible: lockContext.storyLocationPlan.bible,
+        challengeCategory: V3_COMPANION_BANK_CATEGORY[companionId] ?? 'GENERAL_FEARS',
+      }).prompt;
+      assertQaRenderWardrobeParity(renderPrompt, {
+        companionId: companion.id,
+        storyFile: storyFileKey,
+        pageNumber: page.pageNumber,
+      });
+    }
 
     const { results, failedPages } = await generateAllPageImages(
       pagesToRender.map((page) => ({
@@ -524,6 +576,7 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
         propDNA: dna.propDNA,
         extraNegativeRules: dna.negativeRules,
         pageGenerationTimeoutMs: PAGE_SOFT_TIMEOUT_MS,
+        ...imageLockFields,
       }
     );
 
