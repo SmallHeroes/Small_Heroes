@@ -1,0 +1,78 @@
+{
+  "pageCount": 12,
+  "source": "override",
+  "pages": [
+    {
+      "page": 1,
+      "shot": "medium_wide",
+      "angle": "eye",
+      "rationale": "Rule 1: page 1 establishes place and relationship"
+    },
+    {
+      "page": 2,
+      "shot": "intimate",
+      "angle": "eye",
+      "rationale": "Rule 2: emotional-peak beat — child + companion intimacy (not giant face portrait)"
+    },
+    {
+      "page": 3,
+      "shot": "dynamic_angle",
+      "angle": "eye",
+      "rationale": "Rule 3: action/comedy beat — dynamic composition or playful staging"
+    },
+    {
+      "page": 4,
+      "shot": "medium_wide",
+      "angle": "eye",
+      "rationale": "Fill beat — medium/medium-wide variety between featured shots"
+    },
+    {
+      "page": 5,
+      "shot": "dynamic_angle",
+      "angle": "low",
+      "rationale": "Rule 3: action/comedy beat — dynamic composition or playful staging"
+    },
+    {
+      "page": 6,
+      "shot": "medium_wide",
+      "angle": "eye",
+      "rationale": "Rule 4: quiet transition — medium-wide baseline with environment context"
+    },
+    {
+      "page": 7,
+      "shot": "medium",
+      "angle": "eye",
+      "rationale": "Fill beat — medium/medium-wide variety between featured shots"
+    },
+    {
+      "page": 8,
+      "shot": "medium_wide",
+      "angle": "eye",
+      "rationale": "Fill beat — medium/medium-wide variety between featured shots"
+    },
+    {
+      "page": 9,
+      "shot": "medium_wide",
+      "angle": "eye",
+      "rationale": "Fill beat — medium/medium-wide variety between featured shots"
+    },
+    {
+      "page": 10,
+      "shot": "close_up",
+      "angle": "eye",
+      "rationale": "Rule 2: emotional-peak beat — child + companion intimacy (not giant face portrait)"
+    },
+    {
+      "page": 11,
+      "shot": "medium_wide",
+      "angle": "eye",
+      "rationale": "Fill beat — medium/medium-wide variety between featured shots"
+    },
+    {
+      "page": 12,
+      "shot": "establishing_wide",
+      "angle": "eye",
+      "rationale": "Rule 5: final page — warm resolving composition, slightly wider than preceding beat"
+    }
+  ]
+}
