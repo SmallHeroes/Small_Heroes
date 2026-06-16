@@ -93,7 +93,10 @@ button.mvp-challenge-card {
   border-radius: 0;
   background: transparent;
   padding: 0;
-  transform: scale(1.06);
+  /* scale = size of the character; translateY pushes the art down so the empty
+     cream margin under the character's feet is clipped by the wrap (overflow:hidden).
+     Bottom-gap knob = the translateY %. */
+  transform: scale(1.04) translateY(8%);
   transform-origin: center bottom;
 }
 

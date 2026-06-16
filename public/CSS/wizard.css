@@ -2942,6 +2942,9 @@
   border-radius: 0;
   background: transparent;
   padding: 0;
+  /* keep in sync with app/category-challenge-card.css */
+  transform: scale(1.04) translateY(8%);
+  transform-origin: center bottom;
 }
 
 .mvp-challenge-card-img--placeholder {
