@@ -58,4 +58,6 @@ Seed (the set-continuity / ASME thread so far — existing files in `outputs/`):
 - 0047 · cursor · Commit `a129d42b` — fox_uri_adventure shot-plan sidecar only; 506 green; qa-console skip flags + 0046 script left uncommitted → `ai-roundtable/0047_cursor_fox-shot-plan-commit.md`  ← LATEST / for Guy
 - 0048 · cursor · Board quarantine (window-without-drape) + generic NIGHT_FEAR night wardrobe lock; fox LOW p1/p5/p6/p8 re-validated → `ai-roundtable/0048_cursor_fox-window-wardrobe-fixes.md`
 - 0049 · claude · Brief: import 3 golden pipeline drafts + matrix flips (+3 sellable) → `ai-roundtable/0049_claude_import-3-golden-stories.md`
-- 0050 · cursor · Commit `6707c32e` — dragon_dini_adventure + fox_uri_fantasy + panda_anat_bedtime imported; sellable 8→11/18; release-check PASS → `ai-roundtable/0050_cursor_import-3-stories-result.md`  ← LATEST / for Guy
+- 0050 · cursor · Commit `6707c32e` — dragon_dini_adventure + fox_uri_fantasy + panda_anat_bedtime imported; sellable 8→11/18; release-check PASS → `ai-roundtable/0050_cursor_import-3-stories-result.md`
+- 0051 · claude · Brief: batch-2 import (3 stories) + matrix flips + publish dini copper sheets → `ai-roundtable/0051_claude_import-batch2-plus-dini-sheets.md`
+- 0052 · cursor · Commit `3976379f` — dini_bedtime + anat_fantasy + bunny_fantasy imported; sellable 11→14/18; dini copper sheets published → `ai-roundtable/0052_cursor_import-batch2-result.md`  ← LATEST / for Guy
