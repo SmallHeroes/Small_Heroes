@@ -1,0 +1,12 @@
+{
+  "storyId": "golden-dragon_dini_adventure-2026-06-16",
+  "sourceRunDir": "outputs/story-pipeline-import-runs/golden-dragon_dini_adventure-2026-06-16",
+  "companionId": "dragon_dini",
+  "direction": "adventure",
+  "pageCount": 12,
+  "approvedBy": "Guy",
+  "approvedAt": "2026-06-16T15:00:00+03:00",
+  "approvalNote": "golden pipeline draft - Claude QA PASS",
+  "importedAt": "2026-06-16T13:53:49.968Z",
+  "servedOnlyWhen": "ENABLE_V3_APPROVED_BANK=true"
+}

@@ -1,0 +1,12 @@
+{
+  "storyId": "golden-fox_uri_fantasy-2026-06-16",
+  "sourceRunDir": "outputs/story-pipeline-import-runs/golden-fox_uri_fantasy-2026-06-16",
+  "companionId": "fox_uri",
+  "direction": "fantasy",
+  "pageCount": 16,
+  "approvedBy": "Guy",
+  "approvedAt": "2026-06-16T15:00:00+03:00",
+  "approvalNote": "golden pipeline draft - Claude QA PASS",
+  "importedAt": "2026-06-16T13:53:50.615Z",
+  "servedOnlyWhen": "ENABLE_V3_APPROVED_BANK=true"
+}

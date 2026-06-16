@@ -19,11 +19,11 @@ const DIRECTIONS: StoryDirection[] = ['bedtime', 'adventure', 'fantasy'];
 export const MVP_STORY_MATRIX = {
   NIGHT_FEAR: {
     companionId: 'fox_uri',
-    directions: { bedtime: 'approved', adventure: 'approved_v3', fantasy: 'missing' },
+    directions: { bedtime: 'approved', adventure: 'approved_v3', fantasy: 'approved_v3' },
   },
   SOCIAL: {
     companionId: 'panda_anat',
-    directions: { bedtime: 'missing', adventure: 'approved', fantasy: 'missing' },
+    directions: { bedtime: 'approved_v3', adventure: 'approved', fantasy: 'missing' },
   },
   MEDICAL_PROCEDURE: {
     companionId: 'bunny_ometz',
@@ -31,7 +31,7 @@ export const MVP_STORY_MATRIX = {
   },
   NEW_SIBLING: {
     companionId: 'dragon_dini',
-    directions: { bedtime: 'missing', adventure: 'missing', fantasy: 'approved' },
+    directions: { bedtime: 'missing', adventure: 'approved_v3', fantasy: 'approved' },
   },
   TRANSITION: {
     companionId: 'chameleon_koko',
