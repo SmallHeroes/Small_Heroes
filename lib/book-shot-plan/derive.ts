@@ -19,6 +19,11 @@ function scoreEmotional(page: PageBeatInput): number {
   return score;
 }
 
+function needsTrueCloseUp(page: PageBeatInput): boolean {
+  const hay = haystack(page);
+  return /\bclose.?up\b|תקריב|face.?only|eyes|tears|finger|whispered truth/.test(hay);
+}
+
 function scoreAction(page: PageBeatInput): number {
   const hay = haystack(page);
   let score = 0;
@@ -179,9 +184,16 @@ export function deriveBookShotPlan(pages: PageBeatInput[]): BookShotPlan {
   }
 
   const emotionalPages = pickTopPages(sorted, scoreEmotional, quotas.emotionalClose, used);
+  let closeUpUsed = 0;
+  const primaryEmotionalPage = emotionalPages[0] ?? null;
   for (const pn of emotionalPages) {
     const page = sorted.find((p) => p.page === pn)!;
-    const shot: ShotType = scoreEmotional(page) >= 5 ? 'close_up' : 'intimate';
+    const highImpactPrimary = pageCount > 8 && pn === primaryEmotionalPage && scoreEmotional(page) >= 5;
+    const useCloseUp =
+      (needsTrueCloseUp(page) && scoreEmotional(page) >= 6 && closeUpUsed < 1) ||
+      (highImpactPrimary && closeUpUsed < 1);
+    const shot: ShotType = useCloseUp ? 'close_up' : 'intimate';
+    if (useCloseUp) closeUpUsed += 1;
     assigned.set(
       pn,
       applyReadabilityOverride(
@@ -201,7 +213,12 @@ export function deriveBookShotPlan(pages: PageBeatInput[]): BookShotPlan {
   for (const pn of quietPages) {
     assigned.set(
       pn,
-      makeShot(pn, 'medium', 'Rule 4: quiet transition — medium shot with environment context', 'eye')
+      makeShot(
+        pn,
+        'medium_wide',
+        'Rule 4: quiet transition — medium-wide baseline with environment context',
+        'eye'
+      )
     );
     used.add(pn);
   }
@@ -230,7 +247,7 @@ export function deriveBookShotPlan(pages: PageBeatInput[]): BookShotPlan {
     used.add(finalPage.page);
   }
 
-  const alternates: ShotType[] = ['medium', 'medium_wide', 'medium', 'medium_wide'];
+  const alternates: ShotType[] = ['medium_wide', 'medium', 'medium_wide', 'medium_wide'];
   let altIdx = 0;
   for (const page of sorted) {
     if (assigned.has(page.page)) continue;

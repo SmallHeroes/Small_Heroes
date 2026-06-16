@@ -2,6 +2,9 @@ import type { PageShot } from '../book-shot-plan/types';
 import { buildSetTopologyLockBlock } from './set-topology';
 import { buildSceneMemoryLockBlock } from '../scene-memory/compose';
 import type { SceneMemory } from '../scene-memory/types';
+import { buildSetAppearanceLockBlock } from '../set-appearance/compose';
+import type { SceneAppearanceMemory } from '../set-appearance/types';
+import { buildStagingLockBlock } from './staging-lock';
 import type { BookLocationBible, PageLocationPlan } from './types';
 
 export function resolveZoneById(bible: BookLocationBible, zoneId: string) {
@@ -26,7 +29,13 @@ export const COVER_MYSTERY_LOCK =
 export function buildLocationContinuityPromptBlock(
   bible: BookLocationBible,
   pagePlan: PageLocationPlan,
-  options?: { pageShot?: PageShot | null; isCover?: boolean; sceneMemory?: SceneMemory | null }
+  options?: {
+    pageShot?: PageShot | null;
+    isCover?: boolean;
+    sceneMemory?: SceneMemory | null;
+    sceneAppearance?: SceneAppearanceMemory | null;
+    imageDirection?: string;
+  }
 ): string {
   const zone = resolveZoneById(bible, pagePlan.zoneId);
   const shotNote = options?.pageShot
@@ -70,6 +79,19 @@ export function buildLocationContinuityPromptBlock(
   });
   if (sceneMemoryBlock) {
     lines.push('', sceneMemoryBlock);
+  }
+
+  const appearanceBlock = buildSetAppearanceLockBlock(options?.sceneAppearance, {
+    pageShot: options?.pageShot,
+    pageNumber: pagePlan.page,
+  });
+  if (appearanceBlock) {
+    lines.push('', appearanceBlock);
+  }
+
+  const stagingBlock = buildStagingLockBlock(pagePlan, options?.imageDirection);
+  if (stagingBlock) {
+    lines.push('', stagingBlock);
   }
 
   if (bible.transitionRules.length) {

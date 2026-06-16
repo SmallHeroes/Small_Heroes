@@ -3,11 +3,15 @@ import { describe, expect, it } from 'vitest';
 
 import {
   applyBookColorNormalize,
+  applyBookToneCatch,
   BOOK_COLOR_NORMALIZE_DEFAULT,
   BOOK_COLOR_SATURATION,
+  BOOK_TONE_LUMINANCE_CATCH_MAX,
   BOOK_COLOR_WARM_B_SCALE,
   BOOK_COLOR_WARM_R_SCALE,
+  computeBookAverageToneStats,
   isBookColorNormalizeEnabled,
+  measureImageToneStats,
 } from '../book-color-normalize';
 
 describe('book-color-normalize', () => {
@@ -40,5 +44,24 @@ describe('book-color-normalize', () => {
     expect(BOOK_COLOR_WARM_R_SCALE).toBe(1.05);
     expect(BOOK_COLOR_WARM_B_SCALE).toBe(0.95);
     expect(BOOK_COLOR_SATURATION).toBe(0.92);
+  });
+
+  it('tone catch stays within conservative luminance bounds', async () => {
+    const bright = await sharp({
+      create: { width: 8, height: 8, channels: 3, background: { r: 230, g: 220, b: 210 } },
+    })
+      .png()
+      .toBuffer();
+    const dim = await sharp({
+      create: { width: 8, height: 8, channels: 3, background: { r: 90, g: 85, b: 80 } },
+    })
+      .png()
+      .toBuffer();
+    const bookAvg = await computeBookAverageToneStats([bright, dim]);
+    const caught = await applyBookToneCatch(dim, bookAvg);
+    const before = await measureImageToneStats(dim);
+    const after = await measureImageToneStats(caught);
+    expect(after.luminance - before.luminance).toBeLessThanOrEqual(BOOK_TONE_LUMINANCE_CATCH_MAX + 0.02);
+    expect(after.luminance).toBeGreaterThan(before.luminance);
   });
 });

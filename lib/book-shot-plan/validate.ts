@@ -72,13 +72,13 @@ export function validateBookShotPlan(plan: BookShotPlan): ShotPlanValidationIssu
     });
   }
 
-  const quietMediumPages = pages.filter(
-    (p) => p.shot === 'medium' && p.page !== 1 && p.page !== plan.pageCount
+  const quietPages = pages.filter(
+    (p) => QUIET.includes(p.shot) && p.page !== 1 && p.page !== plan.pageCount
   );
-  if (quietMediumPages.length < quotas.quietTransition) {
+  if (quietPages.length < quotas.quietTransition) {
     issues.push({
       rule: '4',
-      message: `need ≥${quotas.quietTransition} quiet transition medium pages (have ${quietMediumPages.length})`,
+      message: `need ≥${quotas.quietTransition} quiet transition medium/medium-wide pages (have ${quietPages.length})`,
     });
   }
 

@@ -1,4 +1,6 @@
 import type { SceneMemory } from '../scene-memory/types';
+import type { SceneAppearanceMemory } from '../set-appearance/types';
+import { buildSetAppearanceLockBlock } from '../set-appearance/compose';
 import { buildScenarioSettingLockBlock } from '../scenario-setting-lock';
 import type { PageShot } from '../book-shot-plan/types';
 import { buildLocationContinuityPromptBlock } from './compose';
@@ -17,6 +19,8 @@ export function buildResolvedLocationEnvironmentBlock(args: {
   pageShot?: PageShot | null;
   isCover?: boolean;
   sceneMemory?: SceneMemory | null;
+  sceneAppearance?: SceneAppearanceMemory | null;
+  imageDirection?: string;
 }): string {
   const bible = args.locationBible;
   const plan = args.pageLocationPlan;
@@ -26,6 +30,8 @@ export function buildResolvedLocationEnvironmentBlock(args: {
       pageShot: args.pageShot,
       isCover: args.isCover,
       sceneMemory: args.sceneMemory,
+      sceneAppearance: args.sceneAppearance,
+      imageDirection: args.imageDirection,
     });
     const spoilerBlock = buildVisualSpoilerPromptBlock(plan);
     const parts = [locationBlock, spoilerBlock].filter(Boolean);
@@ -41,6 +47,12 @@ export {
   buildLocationContinuityPromptBlock,
   formatPageLocationManifestLine,
 } from './compose';
+export {
+  buildStagingLockBlock,
+  inferStagingSurface,
+  promptContainsStagingLock,
+} from './staging-lock';
+export type { StagingSurface } from './staging-lock';
 export { deriveBookLocationBible, derivePageLocationPlans } from './derive';
 export {
   formatLocationPlanTable,
@@ -90,6 +102,7 @@ export type {
   LocationZoneReferenceSheet,
   PageLocationPlan,
   PageReferenceSheets,
+  PageStagingOverride,
   SetTopology,
   SetTopologyElement,
   StoryLocationPlanBundle,

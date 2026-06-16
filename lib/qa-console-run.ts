@@ -1,5 +1,5 @@
 import { existsSync } from 'fs';
-import { mkdir, writeFile } from 'fs/promises';
+import { mkdir, readFile, writeFile } from 'fs/promises';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import { mkdtemp, rm, writeFile as writeFileFs } from 'fs/promises';
@@ -48,6 +48,19 @@ import {
 } from '@/lib/qa-console-book-lock-context';
 import { promptContainsSetTopologyLock } from '@/lib/story-location-bible/set-topology';
 import { promptContainsSceneMemoryLock, writeSceneMemoryDriftReportFile } from '@/lib/scene-memory';
+import {
+  approveSetAppearanceBoardManifest,
+  BOARD_MANIFEST_VERSION,
+  buildAppearanceDriftReport,
+  ensureSetAppearanceBoard,
+  isSetAppearanceBoardUsable,
+  loadSetAppearanceBoardManifest,
+  promptContainsSetAppearanceLock,
+  seedSceneAppearanceMemory,
+  writeAppearanceDriftReportFile,
+} from '@/lib/set-appearance';
+import { measureImageToneStats } from '@/lib/book-color-normalize';
+import { resolveStyle01StyleReferencePaths } from '@/lib/style01-gptimage';
 
 import {
   estimateQaConsoleCostUsd,
@@ -82,6 +95,8 @@ export type QaConsoleRunInput = {
   runLabelPrefix?: string;
   /** Approve a cached Stage 0 anchor (wardrobe-locked stories) and continue page render. */
   approveAnchorCacheKey?: string | null;
+  /** Approve a QA-passed set appearance board for this scene id and attach it to page render. */
+  approveSetAppearanceBoardSceneId?: string | null;
   forceRegenerateAnchor?: boolean;
 };
 
@@ -424,6 +439,37 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
       pageTimeOfDayOverrides: story.pageTimeOfDayOverrides,
     });
     const imageLockFields = buildQaImageGenerationLockFields(lockContext);
+    const sceneAppearance = seedSceneAppearanceMemory({
+      sceneMemory: lockContext.sceneMemoryPlan?.memory ?? null,
+      locationBible: lockContext.storyLocationPlan.bible,
+    });
+    let setAppearanceBoardPath: string | null = null;
+    if (sceneAppearance && process.env.SET_APPEARANCE_BOARD_ENABLED !== 'false') {
+      const existing = loadSetAppearanceBoardManifest(sceneAppearance.sceneId);
+      const styleRefs = resolveStyle01StyleReferencePaths('fantasy-cave-night', 1);
+      const forceRegenerate = process.env.SET_APPEARANCE_BOARD_FORCE_REGENERATE === 'true';
+      const keepExisting =
+        existing?.boardVersion === BOARD_MANIFEST_VERSION && existing.qaPassed;
+      const boardManifest = await ensureSetAppearanceBoard({
+        appearance: sceneAppearance,
+        styleRefPaths: styleRefs,
+        existing: keepExisting ? existing : null,
+        quality: input.quality,
+        forceRegenerate,
+      });
+      if (input.approveSetAppearanceBoardSceneId?.trim() === sceneAppearance.sceneId && boardManifest.qaPassed) {
+        approveSetAppearanceBoardManifest(sceneAppearance.sceneId);
+      }
+      const refreshed = loadSetAppearanceBoardManifest(sceneAppearance.sceneId);
+      if (isSetAppearanceBoardUsable(refreshed)) {
+        setAppearanceBoardPath = refreshed!.boardPath;
+        console.log(`[qa-console] set appearance board (approved): ${setAppearanceBoardPath}`);
+      } else {
+        console.warn(
+          `[qa-console] set appearance board pending — qaPassed=${boardManifest.qaPassed} approved=${boardManifest.approved}; fixed objects via TEXT on non-state pages`
+        );
+      }
+    }
 
     const promptsDir = path.join(outDir, 'prompts');
     await mkdir(promptsDir, { recursive: true });
@@ -456,6 +502,7 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
         pageLocationPlan: resolveQaPageLocationPlan(lockContext.storyLocationPlan, page.pageNumber),
         locationBible: lockContext.storyLocationPlan.bible,
         sceneMemory: lockContext.sceneMemoryPlan?.memory ?? null,
+        sceneAppearance,
         challengeCategory: V3_COMPANION_BANK_CATEGORY[companionId] ?? 'GENERAL_FEARS',
       });
       const prompt = assembled.prompt;
@@ -547,6 +594,7 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
         pageLocationPlan: resolveQaPageLocationPlan(lockContext.storyLocationPlan, page.pageNumber),
         locationBible: lockContext.storyLocationPlan.bible,
         sceneMemory: lockContext.sceneMemoryPlan?.memory ?? null,
+        sceneAppearance,
         challengeCategory: V3_COMPANION_BANK_CATEGORY[companionId] ?? 'GENERAL_FEARS',
       }).prompt;
       assertQaRenderWardrobeParity(renderPrompt, {
@@ -581,6 +629,8 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
         extraNegativeRules: dna.negativeRules,
         pageGenerationTimeoutMs: PAGE_SOFT_TIMEOUT_MS,
         ...imageLockFields,
+        sceneAppearance,
+        setAppearanceBoardPath,
       }
     );
 
@@ -617,6 +667,9 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
             sceneId?: string | null;
             sceneMemoryLockPresent?: boolean;
             sceneMemoryDriftReport?: import('@/lib/scene-memory/types').SceneMemoryDriftReport | null;
+            setAppearanceLockPresent?: boolean;
+            setAppearanceBoardAttached?: boolean;
+            appearanceDriftReport?: import('@/lib/set-appearance/types').AppearanceDriftReport | null;
           };
         }
       )?.style01Meta;
@@ -672,6 +725,10 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
           style01Meta?.sceneMemoryLockPresent ??
           promptContainsSceneMemoryLock(image?.prompt ?? ''),
         sceneMemoryDriftReport: style01Meta?.sceneMemoryDriftReport ?? null,
+        setAppearanceLockPresent:
+          style01Meta?.setAppearanceLockPresent ??
+          promptContainsSetAppearanceLock(image?.prompt ?? ''),
+        setAppearanceBoardAttached: style01Meta?.setAppearanceBoardAttached ?? Boolean(setAppearanceBoardPath),
       });
 
       const driftReport = style01Meta?.sceneMemoryDriftReport;
@@ -682,6 +739,34 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
           driftPath
         );
       }
+    }
+
+    const pageLuminances = new Map<number, number>();
+    for (const mp of manifestPages) {
+      const localPng = mp.localPng as string | null | undefined;
+      if (!localPng) continue;
+      const buf = await readFile(localPng);
+      pageLuminances.set(mp.pageNumber as number, (await measureImageToneStats(buf)).luminance);
+    }
+    const lumValues = [...pageLuminances.values()];
+    const bookMeanLuminance =
+      lumValues.length > 0 ? lumValues.reduce((a, b) => a + b, 0) / lumValues.length : null;
+    for (let i = 0; i < manifestPages.length; i++) {
+      const driftReport = manifestPages[i].sceneMemoryDriftReport as
+        | import('@/lib/scene-memory/types').SceneMemoryDriftReport
+        | null
+        | undefined;
+      if (!driftReport) continue;
+      const pageNum = manifestPages[i].pageNumber as number;
+      const pageLum = pageLuminances.get(pageNum);
+      const appearanceReport = buildAppearanceDriftReport({
+        sceneMemoryDrift: driftReport,
+        pageLuminanceDelta:
+          bookMeanLuminance != null && pageLum != null ? pageLum - bookMeanLuminance : null,
+      });
+      const appearancePath = await writeAppearanceDriftReportFile(outDir, appearanceReport);
+      manifestPages[i].appearanceDriftReport = appearanceReport;
+      manifestPages[i].appearanceDriftPath = path.relative(process.cwd(), appearancePath);
     }
 
     const allStoryPages = story.pages
@@ -728,6 +813,8 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
       style: 'style01',
       illustrationStyle: ILLUSTRATION_STYLE,
       refConfig: resolveStyle01RefBudgetConfig(),
+      setAppearanceBoardPath,
+      sceneAppearanceSceneId: sceneAppearance?.sceneId ?? null,
       orderId,
       manifestDir,
       outputRoot: 'outputs/style01-auditions',

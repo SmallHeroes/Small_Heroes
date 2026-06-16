@@ -273,24 +273,31 @@ export function assembleStyle01BookReferencesWithZoneSheets(input: {
   objectAnchorRefPaths?: string[];
   /** Isolated object refs (bucket-object.png) — identity only */
   isolatedObjectRefPaths?: string[];
+  /** J2.5 — single set-appearance board replaces per-object refs when present */
+  setAppearanceBoardPath?: string | null;
 }): { paths: string[]; breakdown: Record<string, string[]> } {
   const base = assembleStyle01BookReferences(input);
-  const objectPaths = (
-    input.isolatedObjectRefPaths ??
-    input.objectAnchorRefPaths ??
-    []
-  ).filter(Boolean);
+  const boardPath = input.setAppearanceBoardPath?.trim();
+  const objectPaths = boardPath
+    ? [boardPath]
+    : (
+        input.isolatedObjectRefPaths ??
+        input.objectAnchorRefPaths ??
+        []
+      ).filter(Boolean);
 
   const breakdown: Record<string, string[]> = {
     ...base.breakdown,
     zoneSet: [],
-    objectAnchors: objectPaths,
+    objectAnchors: boardPath ? [] : objectPaths,
     isolatedObjects: objectPaths,
+    setAppearanceBoard: boardPath ? [boardPath] : [],
   };
 
   let paths = [
     ...breakdown.child,
     ...breakdown.companion,
+    ...breakdown.setAppearanceBoard,
     ...breakdown.objectAnchors,
     ...breakdown.otherCharacters,
     ...breakdown.style,

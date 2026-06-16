@@ -13,6 +13,16 @@ export const BOOK_COLOR_WARM_R_SCALE = 1.05;
 export const BOOK_COLOR_WARM_B_SCALE = 0.95;
 export const BOOK_COLOR_SATURATION = 0.92;
 
+/** Max per-page luminance catch vs book mean (conservative — skin/hair/fur safe). */
+export const BOOK_TONE_LUMINANCE_CATCH_MAX = 0.08;
+/** Max warmth shift per channel in tone catch. */
+export const BOOK_TONE_WARMTH_CATCH_MAX = 0.06;
+
+export type BookImageToneStats = {
+  luminance: number;
+  warmth: number;
+};
+
 export function isBookColorNormalizeEnabled(): boolean {
   const raw = process.env.BOOK_COLOR_NORMALIZE?.trim().toLowerCase();
   if (!raw) return BOOK_COLOR_NORMALIZE_DEFAULT;
@@ -33,6 +43,55 @@ export async function applyBookColorNormalize(input: Buffer): Promise<Buffer> {
       [0, 0, scales[2] * BOOK_COLOR_WARM_B_SCALE],
     ])
     .modulate({ saturation: BOOK_COLOR_SATURATION })
+    .png()
+    .toBuffer();
+}
+
+export async function measureImageToneStats(input: Buffer): Promise<BookImageToneStats> {
+  const stats = await sharp(input).stats();
+  const r = stats.channels[0].mean / 255;
+  const g = stats.channels[1].mean / 255;
+  const b = Math.max(stats.channels[2].mean / 255, 0.01);
+  return {
+    luminance: (r + g + b) / 3,
+    warmth: r / b,
+  };
+}
+
+export async function computeBookAverageToneStats(buffers: Buffer[]): Promise<BookImageToneStats> {
+  if (buffers.length === 0) {
+    return { luminance: 0.5, warmth: 1 };
+  }
+  const stats = await Promise.all(buffers.map(measureImageToneStats));
+  return {
+    luminance: stats.reduce((sum, s) => sum + s.luminance, 0) / stats.length,
+    warmth: stats.reduce((sum, s) => sum + s.warmth, 0) / stats.length,
+  };
+}
+
+/** Mild luminance/warmth catch toward book average — after prompt lighting-lock + color normalize. */
+export async function applyBookToneCatch(
+  input: Buffer,
+  bookAverage: BookImageToneStats
+): Promise<Buffer> {
+  const page = await measureImageToneStats(input);
+  const lumDelta = bookAverage.luminance - page.luminance;
+  const warmDelta = bookAverage.warmth - page.warmth;
+  const lumFactor =
+    1 + Math.max(-BOOK_TONE_LUMINANCE_CATCH_MAX, Math.min(BOOK_TONE_LUMINANCE_CATCH_MAX, lumDelta * 0.35));
+  const warmShift = Math.max(
+    -BOOK_TONE_WARMTH_CATCH_MAX,
+    Math.min(BOOK_TONE_WARMTH_CATCH_MAX, (warmDelta - 1) * 0.25)
+  );
+  const warmR = 1 + warmShift;
+  const warmB = 1 - warmShift * 0.6;
+  return sharp(input)
+    .modulate({ brightness: lumFactor })
+    .recomb([
+      [warmR, 0, 0],
+      [0, 1, 0],
+      [0, 0, warmB],
+    ])
     .png()
     .toBuffer();
 }
@@ -62,9 +121,12 @@ export async function normalizeRawDirToNormalized(args: {
     throw new Error(`no PNG files in ${rawDir}`);
   }
   fs.mkdirSync(normalizedDir, { recursive: true });
-  for (const file of files) {
-    const input = fs.readFileSync(path.join(rawDir, file));
-    const output = await applyBookColorNormalize(input);
+  const rawBuffers = files.map((file) => fs.readFileSync(path.join(rawDir, file)));
+  const bookToneTarget = await computeBookAverageToneStats(rawBuffers);
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const colorNormalized = await applyBookColorNormalize(rawBuffers[i]);
+    const output = await applyBookToneCatch(colorNormalized, bookToneTarget);
     fs.writeFileSync(path.join(normalizedDir, file), output);
   }
   return files;

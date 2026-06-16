@@ -107,6 +107,15 @@ export interface BookLocationBible {
   setTopologyMapPath?: string;
 }
 
+export type StagingSurfaceOverride = 'floor' | 'bed';
+
+/** Optional per-page staging override when keyword inference misreads surface. */
+export interface PageStagingOverride {
+  surface: StagingSurfaceOverride;
+  /** Named anchor for the STAGING LOCK line (e.g. "the scattered pillow-cave"). */
+  anchorHint?: string;
+}
+
 export interface PageLocationPlan {
   page: number;
   zoneId: string;
@@ -116,6 +125,8 @@ export interface PageLocationPlan {
   forbiddenDrift: string[];
   /** Mandatory single action line — wins over location continuity in prompt. */
   pageAction?: string;
+  /** Overrides inferred floor/bed staging surface for STAGING LOCK. */
+  staging?: PageStagingOverride;
   /** When true, attach isolated object refs from zone sheet (if published). Overrides fox bucket heuristics. */
   attachIsolatedObjectRefs?: boolean;
   /** When set, only these manifest filenames attach (basename match). */

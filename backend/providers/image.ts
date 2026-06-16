@@ -100,9 +100,7 @@ import { assembleStyle01Phase2Prompt } from '../../lib/style01-prompt-assembly';
 import { assembleStyle01BookReferencesWithZoneSheets } from '../../lib/story-location-bible/zone-sheets';
 import {
   buildSetRefManifestFields,
-  computeMaxSetElementRefSlots,
   promptContainsSetTopologyLock,
-  selectPageSetElementRefs,
 } from '../../lib/story-location-bible/set-topology';
 import {
   analyzeSceneMemoryImage,
@@ -458,6 +456,9 @@ export interface ImageInput {
   locationBible?: import('../../lib/story-location-bible').BookLocationBible | null;
   pageLocationPlan?: import('../../lib/story-location-bible').PageLocationPlan | null;
   sceneMemory?: import('../../lib/scene-memory/types').SceneMemory | null;
+  sceneAppearance?: import('../../lib/set-appearance/types').SceneAppearanceMemory | null;
+  /** J2.5 approved set-appearance board — replaces per-object isolated refs */
+  setAppearanceBoardPath?: string | null;
   /** Pipeline character ids for this page (e.g. child, companion:bolly_armadillo). */
   expectedCharacterIds?: string[];
   /** guarded-v2 recipe id when using production recipe page cards. */
@@ -527,6 +528,9 @@ export interface Style01PageMeta {
   sceneId?: string | null;
   sceneMemoryLockPresent?: boolean;
   sceneMemoryDriftReport?: import('../../lib/scene-memory/types').SceneMemoryDriftReport | null;
+  setAppearanceLockPresent?: boolean;
+  setAppearanceBoardAttached?: boolean;
+  appearanceDriftReport?: import('../../lib/set-appearance/types').AppearanceDriftReport | null;
 }
 
 export interface GeneratedImage {
@@ -3162,6 +3166,7 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     locationBible: input.locationBible ?? null,
     pageLocationPlan: input.pageLocationPlan ?? null,
     sceneMemory: input.sceneMemory ?? null,
+    sceneAppearance: input.sceneAppearance ?? null,
     assetType: input.assetType,
     storyTitle: input.storyTitle,
     coverText: input.coverText,
@@ -3217,33 +3222,33 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     refConfig === 'B' ? 0 : useMultiCompanionSheets ? (includeChildPhoto && childPhotoPath ? 2 : 3) : companionRefPaths[0] ? 1 : 0;
   const childSlotsUsed = includeChildPhoto && refConfig !== 'C' && childPhotoPath ? 1 : 0;
   const otherSlotsUsed = otherCharacterRefPaths.length;
+  const { loadSetAppearanceBoardManifest, resolveStyle01SetRefBudget } =
+    await import('../../lib/set-appearance');
   const candidateSetRefPaths = (
     input.pageLocationPlan?.referenceSheets?.isolatedObjectPaths ?? []
   ).filter(Boolean);
-  const maxSetSlots = computeMaxSetElementRefSlots(
-    childSlotsUsed + companionSlotsUsed + otherSlotsUsed
-  );
-  const setRefSelection = selectPageSetElementRefs({
-    pagePlan: input.pageLocationPlan,
+  const boardManifest = input.setAppearanceBoardPath
+    ? loadSetAppearanceBoardManifest(input.sceneMemory?.sceneId ?? '')
+    : null;
+  const refBudget = resolveStyle01SetRefBudget({
+    pageNumber: input.pageNumber,
+    pageLocationPlan: input.pageLocationPlan,
     pageShot: input.pageShot,
-    candidatePaths: candidateSetRefPaths,
-    setElementFiles: input.locationBible?.setElementFiles,
-    maxSlots: maxSetSlots,
+    sceneMemory: input.sceneMemory,
+    locationBible: input.locationBible,
+    setAppearanceBoardPath: input.setAppearanceBoardPath,
+    boardManifest,
+    refConfig,
+    childSlotsUsed,
+    companionSlotsUsed,
+    otherSlotsUsed,
+    useMultiCompanionSheets,
   });
-  const maxRefs = resolveGPTImageEditMaxReferences();
-  const styleSlots = Math.max(
-    0,
-    maxRefs -
-      childSlotsUsed -
-      companionSlotsUsed -
-      otherSlotsUsed -
-      setRefSelection.selected.length
-  );
-  const styleRefCount = useMultiCompanionSheets
-    ? Math.min(1, styleSlots)
-    : refConfig === 'A'
-      ? Math.min(2, styleSlots)
-      : Math.min(3, styleSlots);
+  const {
+    appearanceBoardPath,
+    setRefSelection,
+    styleRefCount,
+  } = refBudget;
   const styleRefPaths = resolveStyle01StyleReferencePaths(sceneClass, styleRefCount);
   const { paths: referenceImages, breakdown } = assembleStyle01BookReferencesWithZoneSheets({
     styleRefPaths,
@@ -3253,7 +3258,8 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     config: refConfig,
     includeChildPhoto,
     useMultiCompanionSheets,
-    isolatedObjectRefPaths: setRefSelection.selected,
+    isolatedObjectRefPaths: appearanceBoardPath ? [] : setRefSelection.selected,
+    setAppearanceBoardPath: appearanceBoardPath,
   });
 
   const prompt = sanitizePromptForSafety(finalPrompt);
@@ -3413,6 +3419,18 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     });
   }
 
+  const { promptContainsSetAppearanceLock, buildAppearanceDriftReport } = await import(
+    '../../lib/set-appearance'
+  );
+  let appearanceDriftReport: import('../../lib/set-appearance/types').AppearanceDriftReport | null =
+    null;
+  if (sceneMemoryDriftReport) {
+    appearanceDriftReport = buildAppearanceDriftReport({
+      sceneMemoryDrift: sceneMemoryDriftReport,
+      pageLuminanceDelta: null,
+    });
+  }
+
   return {
     url: durableUrl,
     rawUrl: durableUrl,
@@ -3438,6 +3456,9 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
       sceneId: input.sceneMemory?.sceneId ?? null,
       sceneMemoryLockPresent: promptContainsSceneMemoryLock(prompt),
       sceneMemoryDriftReport,
+      setAppearanceLockPresent: promptContainsSetAppearanceLock(prompt),
+      setAppearanceBoardAttached: Boolean(appearanceBoardPath),
+      appearanceDriftReport,
     },
   };
 }
@@ -4017,6 +4038,8 @@ export async function generateAllPageImages(
     bookShotPlan?: import('../../lib/book-shot-plan').BookShotPlan;
     storyLocationPlan?: import('../../lib/story-location-bible').StoryLocationPlanBundle;
     sceneMemoryPlan?: import('../../lib/scene-memory/types').SceneMemoryPlan | null;
+    sceneAppearance?: import('../../lib/set-appearance/types').SceneAppearanceMemory | null;
+    setAppearanceBoardPath?: string | null;
     /** Story bank file basename for story-aware wardrobe lock. */
     storyFile?: string | null;
     direction?: 'bedtime' | 'adventure' | 'fantasy';
@@ -4589,6 +4612,8 @@ export async function generateAllPageImages(
       | 'locationBible'
       | 'pageLocationPlan'
       | 'sceneMemory'
+      | 'sceneAppearance'
+      | 'setAppearanceBoardPath'
       | 'childCanonicalAnchorPath'
       | 'storyFile'
       | 'direction'
@@ -4607,6 +4632,8 @@ export async function generateAllPageImages(
             locationBible: lockSlice.locationBible,
             pageLocationPlan,
             sceneMemory: lockSlice.sceneMemory,
+            sceneAppearance: config.sceneAppearance ?? null,
+            setAppearanceBoardPath: config.setAppearanceBoardPath ?? null,
             childCanonicalAnchorPath: bookLockContext.childCanonicalAnchorPath ?? null,
           }
         : {}),
