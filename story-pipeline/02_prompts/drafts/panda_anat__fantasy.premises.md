@@ -1,0 +1,18 @@
+# Premise Lab · `panda_anat` · fantasy (8 candidates) — light guardrails
+
+SOCIAL · 16 beats · age 4–6. Completes SOCIAL to **3/3**.
+**Guardrails (light):** עֲנָת's magic = a *quiet center*, not a noisy journey; slowness = precision (don't let a fast fantasy force her to run); not a sleep-guide; keep a concrete object. ⭐ mandatory-spine slot (premise → spine → prose). Score = input, you pick.
+**Anchor:** the world rushes; עֲנָת is "always last" — and being last/slow is exactly how you see the one opening everyone missed, and enter it.
+
+---
+
+1. **The still-point town.** A town where everyone walks too fast to notice each other. Child + עֲנָת move slow and become the one still point others drift toward — a lonely kid finds them. · object: עֲנָת's pause-stone, glowing · not-generic: purest עֲנָת — slow = the gift others gather around · risk: keep it social (a real other kid), not just "be calm" · **fresh 8 / truth 8 / fit 10 = 8.7**
+2. **The slow seat.** A spinning carousel-world where every seat is full and whirling; the child can't get on. עֲנָת waits and spots the one slow seat that comes round each turn; child times a slow step on. · object: the slow seat · not-generic: musical-chairs energy as fantasy, late-arrival gift · risk: motion could feel rushed — keep her unhurried · **fresh 7 / truth 8 / fit 9 = 8.0**
+3. **The door that opens slowly.** A door that shuts on anyone who rushes it; the fast crowd keeps getting locked out. Child + עֲנָת approach slow and it opens — a quiet friend inside. · object: the slow door · not-generic: "enter slow" literalized · risk: a bit static for 16 beats — needs a journey to the door · **fresh 7 / truth 8 / fit 8 = 7.7**
+4. **The waiting-bloom garden.** Flowers that bloom only for those who wait; the hurrying crowd tramples past and misses them; child + עֲנָת wait, and a path of blooms opens toward a friend. · object: the waiting-bloom · not-generic: patience reveals the path · risk: pretty but could drift gentle-abstract · **fresh 7 / truth 7 / fit 8 = 7.3**
+5. **The patient ferry.** A starlight ferry that pulls away the instant you rush, but waits when you're calm. Child + עֲנָת board last — and find others who also waited. · object: the patient ferry · not-generic: "last but still arrives" + finds her people · risk: keep the boarding social, not solitary · **fresh 7 / truth 7 / fit 8 = 7.3**
+6. **One slow note.** A music-world where everyone plays fast and the child can't catch the tune. עֲנָת hums one slow note that *holds* — and others land on the slow note with her. · object: the one held note (visualized) · not-generic: belonging by joining slow · risk: ⚠ keep it about social joining, not sensory/sound (overlaps elephant) · **fresh 6 / truth 7 / fit 7 = 6.7**
+7. **The slow cloud.** A playground of leaping clouds; the child keeps missing the jump as fast clouds zip by. עֲנָת shows the slow cloud that always comes around; child steps on in their own time. · object: the slow cloud · not-generic: enter at your pace · risk: close to #2 (timing a slow ride) · **fresh 6 / truth 7 / fit 8 = 6.9**
+8. **The breath that slows the world.** A world that speeds up when you panic and slows when you breathe; child learns to slow it, and a hidden quiet room — with a friend in it — appears. · object: the slowing breath · not-generic: control via calm · risk: ⚠ most abstract; closest to "breathing exercise" → least on-canon for עֲנָת · **fresh 6 / truth 7 / fit 6 = 6.3**
+
+**Top 2:** **#1 Still-point town** (purest עֲנָת; grounded; genuinely social) · **#2 Slow seat** (concrete, child times the entry, musical-chairs DNA). **Alt:** #5 patient ferry. **Avoid:** #8 (abstract/breathing), #6 (sound-overlap).
