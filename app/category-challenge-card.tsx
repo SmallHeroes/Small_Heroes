@@ -1,5 +1,15 @@
 import type { MvpMatrixCategoryPayload } from '@/lib/web/mvp-matrix-response';
 
+/** Home/start category-card art per MVP category (public/Images/Categories). */
+const CATEGORY_CARD_IMAGE: Record<string, string> = {
+  NIGHT_FEAR: '/Images/Categories/StartUri.webp',
+  SOCIAL: '/Images/Categories/StartAnat.webp',
+  MEDICAL_PROCEDURE: '/Images/Categories/StartBuny.webp',
+  NEW_SIBLING: '/Images/Categories/StartDuni.webp',
+  TRANSITION: '/Images/Categories/StartKim.webp',
+  ANGER_FRUSTRATION: '/Images/Categories/StartLeo.webp',
+};
+
 type CategoryChallengeCardProps = {
   slot: MvpMatrixCategoryPayload;
   as?: 'button' | 'article';
@@ -32,8 +42,9 @@ export function CategoryChallengeCard({
 
   const companionLine = companion.name ? `עם ${companion.name}` : '';
 
-  const imageBlock = companion.image ? (
-    <img className="mvp-challenge-card-img" src={companion.image} alt="" loading="lazy" />
+  const cardImageSrc = CATEGORY_CARD_IMAGE[slot.category] ?? companion.image;
+  const imageBlock = cardImageSrc ? (
+    <img className="mvp-challenge-card-img" src={cardImageSrc} alt="" loading="lazy" />
   ) : (
     <span className="mvp-challenge-card-img mvp-challenge-card-img--placeholder" aria-hidden="true" />
   );
