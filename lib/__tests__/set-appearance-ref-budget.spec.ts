@@ -36,7 +36,7 @@ function approvedBoardManifest(boardPath: string): SetAppearanceBoardManifest {
     approved: true,
     humanApprovedAt: '2026-06-16T00:00:00.000Z',
     qaPassed: true,
-    boardVersion: 'fixed-objects-only-r1',
+    boardVersion: 'fixed-objects-only-r2',
     generatedAt: '2026-06-16T00:00:00.000Z',
     quality: 'low',
   };

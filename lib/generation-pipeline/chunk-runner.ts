@@ -759,6 +759,8 @@ async function runCoverStage(order: Order, cache: PipelineCache): Promise<void> 
     order.childName || '',
     resolvedCompanion?.name ?? 'צפרדע',
     order.childGender || undefined,
+    // v3-approved bank stories personalize via {{childName}} + gender chips (deterministic).
+    // Do NOT run LLM gender/name rewrite on the production path — chips are QA'd at import.
     { skipLlmPersonalization: true }
   );
 
@@ -899,6 +901,8 @@ async function runPageImagesChunk(
     order.childName || '',
     resolvedCompanion?.name ?? 'צפרדע',
     order.childGender || undefined,
+    // v3-approved bank stories personalize via {{childName}} + gender chips (deterministic).
+    // Do NOT run LLM gender/name rewrite on the production path — chips are QA'd at import.
     { skipLlmPersonalization: true }
   );
 

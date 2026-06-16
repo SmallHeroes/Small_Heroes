@@ -86,4 +86,19 @@ describe('child-photo-dna-sanitize — identity vs wardrobe', () => {
       })
     ).toThrow(/IDENTITY_CLOTHING_LEAK.*t-shirt/);
   });
+
+  it('allows jewelry-only signature when wardrobe lock applies', () => {
+    expect(() =>
+      assertIdentityLockFreeOfClothingWhenWardrobeApplies({
+        identityLockText: 'Round face. Dark hair.',
+        wardrobeLock: LION_SHAKET_BEDTIME_WARDROBE_LOCK,
+        childStructured: {
+          face: 'Round face.',
+          hair: 'Dark hair.',
+          body: 'Child build.',
+          signature: 'Always wears a small silver bracelet.',
+        },
+      })
+    ).not.toThrow();
+  });
 });

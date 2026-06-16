@@ -4,6 +4,7 @@ import { assembleStyle01Phase2Prompt } from '../style01-prompt-assembly';
 import { buildStyle01WardrobeLock } from '../style01-gptimage';
 import {
   DRAGON_DINI_FANTASY_WARDROBE_LOCK,
+  GENERIC_NIGHT_STORY_WARDROBE_LOCK,
   LION_SHAKET_BEDTIME_WARDROBE_LOCK,
   resolveStyle01StoryWardrobeLock,
 } from '../style01-story-wardrobe';
@@ -21,6 +22,15 @@ describe('style01 story-aware wardrobe lock', () => {
 
   it('dragon_dini still resolves companion wardrobe lock', () => {
     expect(resolveStyle01StoryWardrobeLock('dragon_dini')).toBe(DRAGON_DINI_FANTASY_WARDROBE_LOCK);
+  });
+
+  it('fox_uri_adventure resolves generic night wardrobe via NIGHT_FEAR category', () => {
+    expect(
+      resolveStyle01StoryWardrobeLock('fox_uri', 'fox_uri_adventure', {
+        storyTimeOfDay: 'night',
+        category: 'NIGHT_FEAR',
+      })
+    ).toBe(GENERIC_NIGHT_STORY_WARDROBE_LOCK);
   });
 
   it('bedtime story assembly uses pajamas — not daytime default', () => {
@@ -53,6 +63,33 @@ describe('style01 story-aware wardrobe lock', () => {
     expect(visualLockMatch?.[1] ?? '').not.toMatch(/denim/i);
     expect(visualLockMatch?.[1] ?? '').not.toMatch(/sneakers/i);
     expect(visualLockMatch?.[1] ?? '').not.toMatch(/Wearing/i);
+  });
+
+  it('fox night adventure assembly uses pajamas — not daytime default', () => {
+    const { prompt } = assembleStyle01Phase2Prompt({
+      pageNumber: 5,
+      pagePrompt: 'Child and fox on balcony at night, flashlight beam on metal bucket on floor.',
+      rawScenePrompt: 'Child and fox on balcony at night, flashlight beam on metal bucket on floor.',
+      bookPageText: 'מיה והשועל מתקרבים לדלי.',
+      childFirstName: 'מיה',
+      childGender: 'girl',
+      childAge: 8,
+      childStructured: {
+        face: 'Round face, warm skin, brown eyes.',
+        hair: 'Long dark hair.',
+        body: 'Build for an 8-year-old girl.',
+        clothing: 'Story wardrobe lock on each page — not from photo',
+        signature: '',
+      },
+      companion: { id: 'fox_uri', name: 'אוּרי' },
+      storyFile: 'fox_uri_adventure',
+      direction: 'adventure',
+      storyTimeOfDay: 'night',
+      challengeCategory: 'NIGHT_FEAR',
+    });
+    expect(prompt).toContain('two-piece pajamas');
+    expect(prompt).not.toMatch(/plain solid sky-blue t-shirt with a small yellow sun/i);
+    expect(prompt).not.toMatch(/Shoes: RED sneakers/i);
   });
 
   it('adventure assembly keeps daytime default wardrobe', () => {

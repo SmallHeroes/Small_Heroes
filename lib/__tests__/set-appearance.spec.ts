@@ -93,6 +93,9 @@ describe('Set Appearance J2.5', () => {
     expect(boardPrompt).toMatch(/NO pillow-cave/i);
     expect(boardPrompt).toMatch(/NO blanket/i);
     expect(boardPrompt).toMatch(/NO arch/i);
+    expect(boardPrompt).toMatch(/WINDOW STUDY RULE/i);
+    expect(boardPrompt).toMatch(/NO curtains/i);
+    expect(boardPrompt).toMatch(/bare frame \+ glass/i);
     const fixed = filterSignaturesForFixedBoard(appearance!.signatures);
     expect(fixed.some((s) => /pillow-cave/i.test(s.factId))).toBe(false);
     expect(fixed.some((s) => /blanket/i.test(s.factId))).toBe(false);

@@ -80,8 +80,21 @@ function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/** Jewelry / continuity accessories — not story wardrobe; allowed in signature when wardrobe lock applies. */
+const JEWELRY_ACCESSORY_PATTERN =
+  /\b(bracelet|necklace|pendant|choker|wristband|earring|anklet|locket)\b/i;
+
 export function findClothingWordInIdentityText(text: string): string | null {
   if (!text?.trim()) return null;
+  if (
+    JEWELRY_ACCESSORY_PATTERN.test(text) &&
+    /\b(wears?|wearing)\b/i.test(text) &&
+    !/\b(shirt|t-?shirt|tee|shorts|pants|trousers|jeans|dress|skirt|shoe|sneaker|sandal|boot|sock|pajama|legging|outfit|clothing|clothes)\b/i.test(
+      text
+    )
+  ) {
+    return null;
+  }
   const lower = text.toLowerCase();
   for (const phrase of IDENTITY_CLOTHING_PHRASES_EN) {
     if (lower.includes(phrase)) return phrase;

@@ -97,6 +97,10 @@ export type QaConsoleRunInput = {
   approveAnchorCacheKey?: string | null;
   /** Approve a QA-passed set appearance board for this scene id and attach it to page render. */
   approveSetAppearanceBoardSceneId?: string | null;
+  /** Skip LLM gender/name personalization (v3-approved stories with pre-resolved chips). */
+  skipLlmPersonalization?: boolean;
+  /** DEV/QA-CONSOLE ONLY — bypasses day-clothes prompt audit during repro runs. Never set on production order/chunk path. */
+  skipPromptAudit?: boolean;
   forceRegenerateAnchor?: boolean;
 };
 
@@ -402,7 +406,10 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
       child.name,
       companion.name,
       child.gender,
-      { maxPages: Math.max(...pages) }
+      {
+        maxPages: Math.max(...pages),
+        skipLlmPersonalization: input.skipLlmPersonalization,
+      }
     );
 
     const pagesToRender = story.pages.filter((p) => pages.includes(p.pageNumber));
@@ -518,7 +525,7 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
     for (const w of [...new Set(allWarnings)]) {
       console.warn(`[qa-console] ${w}`);
     }
-    if (allHits.length) {
+    if (allHits.length && !input.skipPromptAudit) {
       throw new Error(
         `Prompt audit failed:\n${[...new Set(allHits)].map((h) => `  - ${h}`).join('\n')}`
       );
@@ -601,6 +608,8 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
         companionId: companion.id,
         storyFile: storyFileKey,
         pageNumber: page.pageNumber,
+        storyTimeOfDay: story.storyTimeOfDay,
+        challengeCategory: V3_COMPANION_BANK_CATEGORY[companionId] ?? 'GENERAL_FEARS',
       });
     }
 
