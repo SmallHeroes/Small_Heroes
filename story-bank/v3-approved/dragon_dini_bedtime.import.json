@@ -1,0 +1,12 @@
+{
+  "storyId": "golden-dragon_dini_bedtime-2026-06-16",
+  "sourceRunDir": "outputs/story-pipeline-import-runs/golden-dragon_dini_bedtime-2026-06-16",
+  "companionId": "dragon_dini",
+  "direction": "bedtime",
+  "pageCount": 8,
+  "approvedBy": "Guy",
+  "approvedAt": "2026-06-16T20:00:00+03:00",
+  "approvalNote": "golden pipeline draft - Claude QA PASS",
+  "importedAt": "2026-06-16T18:23:04.641Z",
+  "servedOnlyWhen": "ENABLE_V3_APPROVED_BANK=true"
+}

@@ -23,15 +23,15 @@ export const MVP_STORY_MATRIX = {
   },
   SOCIAL: {
     companionId: 'panda_anat',
-    directions: { bedtime: 'approved_v3', adventure: 'approved', fantasy: 'missing' },
+    directions: { bedtime: 'approved_v3', adventure: 'approved', fantasy: 'approved_v3' },
   },
   MEDICAL_PROCEDURE: {
     companionId: 'bunny_ometz',
-    directions: { bedtime: 'approved_v3', adventure: 'approved', fantasy: 'missing' },
+    directions: { bedtime: 'approved_v3', adventure: 'approved', fantasy: 'approved_v3' },
   },
   NEW_SIBLING: {
     companionId: 'dragon_dini',
-    directions: { bedtime: 'missing', adventure: 'approved_v3', fantasy: 'approved' },
+    directions: { bedtime: 'approved_v3', adventure: 'approved_v3', fantasy: 'approved' },
   },
   TRANSITION: {
     companionId: 'chameleon_koko',

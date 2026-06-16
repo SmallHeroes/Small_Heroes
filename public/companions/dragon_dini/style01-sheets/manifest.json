@@ -1,37 +1,37 @@
 {
   "companionId": "dragon_dini",
-  "referenceJpg": "/companions/NEW_SIBLING/dragon_dini.jpg",
-  "generatedAt": "2026-06-03T12:39:45.770Z",
+  "referenceJpg": "/companions/dragon_dini/style01-sheets/front.png",
+  "generatedAt": "2026-06-16T17:53:21.079Z",
   "views": {
     "front": {
       "filename": "front.png",
       "qaStatus": "passed",
-      "resemblanceToIdentity": 0.9891581398607481
+      "resemblanceToIdentity": 1
     },
     "three_quarter_front": {
       "filename": "3-4.png",
       "qaStatus": "passed",
-      "resemblanceToIdentity": 0.9970149401042101
+      "resemblanceToIdentity": 0.9802317213552091
     },
     "side": {
       "filename": "side.png",
       "qaStatus": "passed",
-      "resemblanceToIdentity": 0.9948217799628087
+      "resemblanceToIdentity": 0.9931969756076454
     },
     "three_quarter_back": {
       "filename": "back.png",
       "qaStatus": "passed",
-      "resemblanceToIdentity": 0.9938331379706796
+      "resemblanceToIdentity": 0.993496196820395
     },
     "happy": {
       "filename": "happy.png",
       "qaStatus": "passed",
-      "resemblanceToIdentity": 0.998765846359881
+      "resemblanceToIdentity": 0.9968752312242358
     },
     "theme": {
       "filename": "theme.png",
       "qaStatus": "passed",
-      "resemblanceToIdentity": 0.999226631914969
+      "resemblanceToIdentity": 0.994993486321609
     }
   }
 }

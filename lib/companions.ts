@@ -191,7 +191,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
       cardImage: '/companions/dragon_dini/style01-sheets/front.png',
       narrativeHook: 'להיות אח גדול/ה זה מאפיין של כוח',
       visualDescription:
-        'A small chubby dragon with rounded snout, pastel scales, and tiny wing nubs; carries a “guardian’s sash”; friendly eyes; looks protective, not dangerous.',
+        'A young female dragon, mid-sized (large-dog scale), toddler-chubby and scrappy-friendly. Shimmering COPPER-ORANGE scales (warm copper with sunset highlights) — NOT green. Soft cream belly. Exactly 2 peach-coral folded wings, small rounded back-spikes. Large warm honey-amber eyes. Short rounded button snout, small rounded horns, soft ear-frills. Terracotta guardian sash diagonally across chest (matte cloth). Warm, caring, protective — never fierce.',
     },
     {
       id: 'puppy_neeman',

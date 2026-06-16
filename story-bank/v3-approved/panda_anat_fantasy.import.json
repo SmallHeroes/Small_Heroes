@@ -1,0 +1,12 @@
+{
+  "storyId": "golden-panda_anat_fantasy-2026-06-16",
+  "sourceRunDir": "outputs/story-pipeline-import-runs/golden-panda_anat_fantasy-2026-06-16",
+  "companionId": "panda_anat",
+  "direction": "fantasy",
+  "pageCount": 16,
+  "approvedBy": "Guy",
+  "approvedAt": "2026-06-16T20:00:00+03:00",
+  "approvalNote": "golden pipeline draft - Claude QA PASS",
+  "importedAt": "2026-06-16T18:23:05.300Z",
+  "servedOnlyWhen": "ENABLE_V3_APPROVED_BANK=true"
+}

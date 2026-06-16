@@ -72,6 +72,34 @@ Return ONLY JSON:
 
 FAIL if clearlyOversaturated is true OR sameMutedPalette is false.`;
 
+/** Sheet-only visual lock for dragon_dini canon redo (copper-orange; NOT the stale green jpg). */
+const DRAGON_DINI_SHEET_VISUAL_LOCK = `Dini — a young FEMALE dragon, toddler-chubby and scrappy-friendly, with the slapstick energy of a young creature still figuring out her own size. Size: like a large careful dog (mid-sized), NOT a big beast.
+- Scales: SHIMMERING COPPER-ORANGE (warm copper with soft sunset highlights). NOT green, NOT blue, NOT teal, NOT red.
+- Belly + inner-throat: soft cream.
+- Wings: exactly 2, PEACH-CORAL (warm pink-orange) membranes, modest size, folded close to the body (NOT giant, NOT spread wide).
+- Small rounded back-spikes in the same peach-coral.
+- Eyes: large, warm HONEY-AMBER, friendly and protective — never fierce, never scary.
+- Snout: short, rounded button snout (NOT elongated). Small rounded horns + soft ear-frills.
+- Canonical accessory: a TERRACOTTA guardian's sash worn diagonally across the chest — matte cloth, soft fabric weave (not metal, not shiny).
+- Personality read: warm, caring, a little over-eager.
+Illustration style: soft warm watercolor + gentle colored-pencil children's storybook art; cozy, rounded, huggable; clean gentle linework; plain cream / off-white background.
+HARD RULES: full body, centered, clear readable silhouette. NO text, NO labels, NO arrows. NO second dragon. NO egg. NO baby dragon. The terracotta sash is present and visible. Scales stay copper-orange in every view (never green).`;
+
+const DRAGON_DINI_SHEET_VIEW_SCENE: Record<CompanionSheetViewKind, string> = {
+  front:
+    'Front view, standing upright and symmetric, relaxed friendly posture, looking at the viewer.',
+  three_quarter_front:
+    'Three-quarter front view, body angled ~30°, one wing slightly visible, warm friendly posture.',
+  side:
+    'Full side profile view, standing, tail relaxed, clear silhouette of snout, horn, wing and tail.',
+  three_quarter_back:
+    'Three-quarter back view from behind, showing the folded peach-coral wings, back-spikes and tail; head turned slightly so one honey-amber eye is visible.',
+  happy:
+    'Front view, joyful happy expression — bright open smile, eyes warm and crinkled, a small eager bounce in the posture.',
+  theme:
+    'Front/3-4 view in Dini\'s signature pose: her tail curling into a gentle protective circle and one wing held open like "a hug with a gap" (a wing-wall with a clear opening). Warm, caring expression. Character only, no other objects.',
+};
+
 const VIEW_SCENE: Record<CompanionSheetViewKind, string> = {
   front:
     'FRONT-FACING full-body view: creature faces the viewer, neutral calm expression, centered on near-empty warm cream background.',
@@ -132,6 +160,21 @@ function resolveThemeScene(category: ChallengeCategory | null): string {
   return `${base} Isolated on near-empty warm cream background. NO scene. NO child. NO humans.`;
 }
 
+function resolveCompanionSheetVisualLock(companionId: string, visualDescription: string): string {
+  if (companionId === 'dragon_dini') return DRAGON_DINI_SHEET_VISUAL_LOCK;
+  return visualDescription;
+}
+
+function resolveCompanionSheetViewLine(
+  companionId: string,
+  kind: CompanionSheetViewKind,
+  category: ChallengeCategory | null
+): string {
+  if (companionId === 'dragon_dini') return DRAGON_DINI_SHEET_VIEW_SCENE[kind];
+  if (kind === 'theme') return resolveThemeScene(category);
+  return VIEW_SCENE[kind];
+}
+
 function buildCompanionSheetPrompt(input: {
   companionId: string;
   kind: CompanionSheetViewKind;
@@ -140,10 +183,8 @@ function buildCompanionSheetPrompt(input: {
   isFrontFromJpg: boolean;
   isPromptOnlyFront?: boolean;
 }): string {
-  const viewLine =
-    input.kind === 'theme'
-      ? resolveThemeScene(input.category)
-      : VIEW_SCENE[input.kind];
+  const visualLock = resolveCompanionSheetVisualLock(input.companionId, input.visualDescription);
+  const viewLine = resolveCompanionSheetViewLine(input.companionId, input.kind, input.category);
 
   const accessoryLock = buildCompanionAccessoryLockBlock({
     companionId: input.companionId,
@@ -176,7 +217,7 @@ function buildCompanionSheetPrompt(input: {
     'Clean near-empty warm cream paper background. NO environment scene. NO forest. NO room. NO child protagonist. NO human family. NO other creatures. NO text or letters.',
     STYLE_01_SHARED,
     STYLE_01_RENDERING_CORRECTION,
-    `COMPANION VISUAL LOCK (verbatim): ${input.visualDescription}`,
+    `COMPANION VISUAL LOCK (verbatim): ${visualLock}`,
     accessoryLock,
     STYLE_01_NO_TEXT,
     STYLE_01_ANTI_STYLE02,
@@ -501,10 +542,11 @@ export async function generateCompanionCharacterSheet(input: {
     });
   }
 
+  const sheetFrontRef = `/companions/${input.companionId}/style01-sheets/front.png`;
   const bundle: CompanionCharacterSheetBundle = {
     companionId: input.companionId,
     companionName: companion.name,
-    referenceJpg: companion.image,
+    referenceJpg: canonRedo ? sheetFrontRef : companion.image,
     category,
     visualDescription: companion.visualDescription,
     generatedAt: new Date().toISOString(),
