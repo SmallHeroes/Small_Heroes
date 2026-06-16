@@ -34,9 +34,16 @@ function signatureFromFact(factId: string, fact: SceneMemory['stableFacts'][stri
     sig.silhouette = 'fixed headboard shape and bed frame silhouette';
     sig.material = fact.appearance?.trim() || 'warm wood headboard';
     sig.formNote = 'same bed DESIGN family every page — camera angle may vary';
-  } else if (/window|curtain/i.test(id)) {
-    sig.colorFamily = fact.color?.trim() || fact.position;
-    sig.formNote = 'same curtain length, tie style, and colour family';
+  } else if (/^curtain|curtains|drape|drapes|valance/i.test(id)) {
+    sig.formNote = 'curtains excluded from fixed board — window frame only';
+  } else if (/window/i.test(id)) {
+    sig.silhouette = 'bare window frame with clear glass panes';
+    const rawPalette = [fact.color, fact.position].filter(Boolean).join(' ').trim();
+    sig.colorFamily = /curtain|drape|fabric|valance|swag/i.test(rawPalette)
+      ? 'warm wood frame with cool moonlit glass panes'
+      : rawPalette || 'warm wood frame with cool moonlit glass panes';
+    sig.formNote =
+      'NO curtains, drapes, valances, or fabric — bare frame and glass only; same frame design every page';
   } else if (/lamp/i.test(id)) {
     sig.formNote = 'same bedside lamp shape and warm glow colour';
     sig.material = 'small warm table lamp';

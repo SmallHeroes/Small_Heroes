@@ -318,11 +318,15 @@ export function assembleStyle01Phase2Prompt(
         storyFile: input.storyFile,
         direction: input.direction,
         timeOfDay: input.timeOfDay ?? input.storyTimeOfDay,
+        challengeCategory: input.challengeCategory,
         childStructured: input.childStructured,
       })
     : undefined;
 
-  const storyWardrobeLock = resolveStyle01StoryWardrobeLock(input.companion?.id, input.storyFile);
+  const storyWardrobeLock = resolveStyle01StoryWardrobeLock(input.companion?.id, input.storyFile, {
+    storyTimeOfDay: input.storyTimeOfDay ?? input.timeOfDay,
+    category: input.challengeCategory,
+  });
   if (storyWardrobeLock && childVisualLock) {
     assertIdentityLockFreeOfClothingWhenWardrobeApplies({
       identityLockText: [childVisualLock, input.childDescription].filter(Boolean).join('\n'),

@@ -25,6 +25,13 @@ const CONTAMINATION_TERMS = [
   'draped blanket',
   'upright drape',
   'fabric drape',
+  'curtain',
+  'curtains',
+  'drape',
+  'drapes',
+  'valance',
+  'swag',
+  'tieback',
 ];
 
 /**
@@ -45,13 +52,20 @@ export async function qaSetAppearanceBoardImage(boardPath: string): Promise<Boar
   const prompt = `You are QA for a FIXED-OBJECTS-ONLY children's book set appearance reference sheet.
 
 The sheet should show ONLY isolated fixed bedroom objects on neutral cream paper:
-bed/headboard style, window+curtains, lamp/nightstand, wall shelf+books, rug, wall/floor palette swatches.
+bed/headboard style, bare window frame + glass (NO fabric), lamp/nightstand, wall shelf+books, rug, wall/floor palette swatches.
 
 REJECT (contaminated=true) if the image shows ANY of:
 - pillow pile, pillow cave, pillow fort, scattered pillow heap
 - blanket, blanket fold, draped/upright fabric, fabric arch
+- curtains, drapes, valances, swags, tiebacks, or ANY soft hanging fabric on or around windows
 - tent, canopy, teepee, tunnel, roof, arch opening, fort structure
 - any collapsible/stateful object form
+
+ALLOWED (contaminated=false) — do NOT reject for these:
+- bare rectangular window frame with clear glass panes (a visible window opening showing glass or night sky is CORRECT)
+- empty window frame without any fabric — this is the intended design
+
+When in doubt: if you see only wood/plastic frame + glass and NO hanging cloth → contaminated=false.
 
 Return ONLY JSON:
 {

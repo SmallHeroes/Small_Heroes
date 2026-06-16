@@ -147,9 +147,18 @@ function deriveRequiredWardrobePatterns(wardrobeLock: string): RegExp[] {
  */
 export function assertQaRenderWardrobeParity(
   prompt: string,
-  args: { companionId: string; storyFile: string; pageNumber: number }
+  args: {
+    companionId: string;
+    storyFile: string;
+    pageNumber: number;
+    storyTimeOfDay?: import('@/lib/story-time-of-day').StoryTimeOfDay;
+    challengeCategory?: string | null;
+  }
 ): void {
-  const wardrobeLock = resolveStyle01StoryWardrobeLock(args.companionId, args.storyFile);
+  const wardrobeLock = resolveStyle01StoryWardrobeLock(args.companionId, args.storyFile, {
+    storyTimeOfDay: args.storyTimeOfDay,
+    category: args.challengeCategory,
+  });
   if (!wardrobeLock) return;
 
   const required = deriveRequiredWardrobePatterns(wardrobeLock);

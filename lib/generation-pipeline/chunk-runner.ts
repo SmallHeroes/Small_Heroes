@@ -401,7 +401,9 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
     const orderBranch = resolveOrderStyleBranch(order.illustrationStyle);
     const storyFilePath = cache.devStoryBankFile ?? cache.storyFilePath;
     const storyFileKey = storyFilePath ? path.basename(storyFilePath, '.md') : undefined;
-    const storyWardrobe = resolveStyle01StoryWardrobeLock(stage0Companion?.id, storyFileKey);
+    const storyWardrobe = resolveStyle01StoryWardrobeLock(stage0Companion?.id, storyFileKey, {
+      category: cache.challengeCategory,
+    });
     const style02Wardrobe =
       orderBranch === 'style02'
         ? resolveStyle02BookWardrobeLock({

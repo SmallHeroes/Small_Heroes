@@ -579,9 +579,13 @@ export function buildStyle01WardrobeLock(input?: {
   storyFile?: string | null;
   direction?: string | null;
   timeOfDay?: string | null;
+  challengeCategory?: string | null;
   childStructured?: { clothing: string };
 }): string {
-  const storyWardrobe = resolveStyle01StoryWardrobeLock(input?.companionId, input?.storyFile);
+  const storyWardrobe = resolveStyle01StoryWardrobeLock(input?.companionId, input?.storyFile, {
+    storyTimeOfDay: input?.timeOfDay,
+    category: input?.challengeCategory,
+  });
   if (storyWardrobe) return storyWardrobe;
 
   return `BOOK WARDROBE LOCK (mandatory — never drift, every page where child appears):

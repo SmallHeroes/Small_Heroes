@@ -98,6 +98,7 @@ export function buildSetAppearanceBoardPrompt(appearance: SceneAppearanceMemory)
 
   return [
     'CHARACTER-FREE FIXED SET APPEARANCE REFERENCE SHEET — isolated FIXED object studies on neutral warm cream paper.',
+    'CRITICAL WINDOW RULE: every window study is BARE FRAME + GLASS PANES ONLY — zero curtains, zero drapes, zero valances, zero hanging fabric of any kind.',
     'Layout: grid of SEPARATE fixed furniture/surfaces with breathing room — NOT a composed bedroom scene, NOT a room interior.',
     'NO child, NO animal, NO human figures, NO characters.',
     '',
@@ -105,6 +106,8 @@ export function buildSetAppearanceBoardPrompt(appearance: SceneAppearanceMemory)
     ...objectLines,
     '',
     'BED STUDY RULE: show headboard + bed frame silhouette ONLY — bare mattress, NO pillows on bed, NO blanket on bed.',
+    '',
+    'WINDOW STUDY RULE: show bare window FRAME and GLASS panes ONLY — NO curtains, drapes, valances, tiebacks, or any soft fabric on or around the window.',
     '',
     BOARD_QUARANTINE_FORBIDDEN_LINES,
     '',

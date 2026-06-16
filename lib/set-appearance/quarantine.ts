@@ -1,7 +1,7 @@
 import { isFortFormPrimaryFact, isBlanketFact, isPillowAggregateFact } from '../scene-memory/fact-compare';
 import type { SceneAppearanceMemory, SceneAppearanceSignature } from './types';
 
-export const BOARD_MANIFEST_VERSION = 'fixed-objects-only-r1';
+export const BOARD_MANIFEST_VERSION = 'fixed-objects-only-r2';
 
 /** Facts allowed on the fixed-appearance board (never stateful/collapsible). */
 export function isFixedBoardFactId(factId: string): boolean {
@@ -11,7 +11,8 @@ export function isFixedBoardFactId(factId: string): boolean {
   if (isPillowAggregateFact(factId)) return false;
   if (/pillow/i.test(id)) return false;
   if (id === 'bed' || /^bed\b/.test(id)) return true;
-  if (/window|curtain/.test(id)) return true;
+  if (/^curtain|curtains|drape|drapes|valance/i.test(id)) return false;
+  if (/window/i.test(id)) return true;
   if (/lamp|table/.test(id)) return true;
   if (/shelf/.test(id)) return true;
   if (/rug/.test(id)) return true;
@@ -38,6 +39,7 @@ export const BOARD_QUARANTINE_FORBIDDEN_LINES = [
   'FORBIDDEN on this sheet (contamination = reject):',
   '- NO pillow-cave, pillow pile, pillow fort, or scattered pillows heap',
   '- NO blanket, blanket fold, draped fabric, or upright fabric drape',
+  '- NO curtains, drapes, valances, swags, tiebacks, or ANY soft fabric on or around windows — windows are bare frame + glass panes ONLY',
   '- NO arch, opening, tunnel, roof, canopy, tent, teepee, or fort structure',
   '- NO collapsible or stateful objects — FIXED furniture/surfaces ONLY',
 ].join('\n');
