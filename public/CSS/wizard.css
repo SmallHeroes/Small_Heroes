@@ -2923,7 +2923,6 @@
 
 .mvp-challenge-card-img-wrap {
   flex: 0 0 auto;
-  height: clamp(190px, 17vw, 230px);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -2943,8 +2942,6 @@
   border-radius: 0;
   background: transparent;
   padding: 0;
-  transform: scale(1.06);
-  transform-origin: center bottom;
 }
 
 .mvp-challenge-card-img--placeholder {
@@ -3004,14 +3001,6 @@
 /* Desktop presence overrides — high specificity so they win over any base rule
    regardless of stylesheet load order. Mobile untouched. */
 @media (min-width: 768px) {
-  .mvp-challenge-grid .mvp-challenge-card {
-    min-height: 420px;
-  }
-
-  .mvp-challenge-grid .mvp-challenge-card-img-wrap {
-    height: 280px;
-  }
-
   .mvp-challenge-grid .mvp-challenge-card-label {
     font-size: 20px;
   }
