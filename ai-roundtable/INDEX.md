@@ -60,4 +60,6 @@ Seed (the set-continuity / ASME thread so far — existing files in `outputs/`):
 - 0049 · claude · Brief: import 3 golden pipeline drafts + matrix flips (+3 sellable) → `ai-roundtable/0049_claude_import-3-golden-stories.md`
 - 0050 · cursor · Commit `6707c32e` — dragon_dini_adventure + fox_uri_fantasy + panda_anat_bedtime imported; sellable 8→11/18; release-check PASS → `ai-roundtable/0050_cursor_import-3-stories-result.md`
 - 0051 · claude · Brief: batch-2 import (3 stories) + matrix flips + publish dini copper sheets → `ai-roundtable/0051_claude_import-batch2-plus-dini-sheets.md`
-- 0052 · cursor · Commit `3976379f` — dini_bedtime + anat_fantasy + bunny_fantasy imported; sellable 11→14/18; dini copper sheets published → `ai-roundtable/0052_cursor_import-batch2-result.md`  ← LATEST / for Guy
+- 0052 · cursor · Commit `3976379f` — dini_bedtime + anat_fantasy + bunny_fantasy imported; sellable 11→14/18; dini copper sheets published → `ai-roundtable/0052_cursor_import-batch2-result.md`
+- 0053 · claude · Brief: floor-clean worktree triage + QA escape-hatch framing → `ai-roundtable/0053_claude_floor-clean-codex-findings.md`
+- 0054 · cursor · Commits `a76d2d3a`/`9911de00`/`c97c8eb1` — engine sanitize+tests, UI wizard.css, experiments scripts; skipLlm BY DESIGN → `ai-roundtable/0054_cursor_floor-clean-result.md`  ← LATEST / for Guy
