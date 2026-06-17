@@ -2891,7 +2891,7 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  min-height: 360px;
+  min-height: 320px;
   padding: 0;
   border: 1px solid rgba(220, 210, 198, 0.28);
   border-radius: 18px;
@@ -2923,6 +2923,7 @@
 
 .mvp-challenge-card-img-wrap {
   flex: 0 0 auto;
+  height: 240px;
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -2938,12 +2939,12 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
-  object-position: center bottom;
+  object-position: center;
   border-radius: 0;
   background: transparent;
   padding: 0;
-  /* keep in sync with app/category-challenge-card.css */
-  transform: scale(1.04) translateY(8%);
+  /* keep in sync with app/category-challenge-card.css — MOBILE; desktop override below */
+  transform: scale(1.1) translateY(3%);
   transform-origin: center bottom;
 }
 
@@ -3001,9 +3002,22 @@
   z-index: 1;
 }
 
-/* Desktop presence overrides — high specificity so they win over any base rule
-   regardless of stylesheet load order. Mobile untouched. */
+/* Desktop presence overrides — keep in sync with app/category-challenge-card.css */
 @media (min-width: 768px) {
+  .mvp-challenge-grid .mvp-challenge-card {
+    min-height: 420px;
+  }
+
+  .mvp-challenge-grid .mvp-challenge-card-img-wrap {
+    height: 320px;
+  }
+
+  .mvp-challenge-grid .mvp-challenge-card-img {
+    object-position: center;
+    transform: scale(1.04) translateY(3%);
+    transform-origin: center bottom;
+  }
+
   .mvp-challenge-grid .mvp-challenge-card-label {
     font-size: 20px;
   }
