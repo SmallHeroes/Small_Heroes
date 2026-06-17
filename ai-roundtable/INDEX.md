@@ -1,4 +1,4 @@
-﻿# Roundtable Index (append-only â€” newest at bottom)
+# Roundtable Index (append-only â€” newest at bottom)
 
 Format: `NNNN Â· author Â· topic Â· one-line` (â†’ file path if it lives elsewhere)
 
@@ -55,8 +55,7 @@ Seed (the set-continuity / ASME thread so far â€” existing files in `output
 - 0044 Â· cursor Â· Milestone 1 DONE: ref-budget regression tests (multi-state both refs + style-before-state + GUY-7 humanApprovedAt gate); `resolveStyle01SetRefBudget` extracted; env auto-approve removed; 506 green â†’ `ai-roundtable/0044_cursor_commit-and-tests.md`
 - 0045 Â· cursor Â· Milestone 2 DONE: general STAGING LOCK (`stagingSurface` inference + optional override + one hard line); lion p6/p8â†’floor in tests; prompt assembly verified; 506 green â†’ `ai-roundtable/0045_cursor_staging-lock.md`
 - 0046 Â· cursor Â· STAGING proof lion p6/p8 LOW + book #2 fox_uri p1/5/6/8 (scene memory + appearance + staging; board QA reject on curtains); stagingSurface table + images + drift JSON â†’ `ai-roundtable/0046_cursor_staging-proof-and-book2.md`
-- 0047 Â· cursor Â· Commit `a129d42b` â€” fox_uri_adventure shot-plan sidecar only; 506 green; qa-console skip flags + 0046 script left uncommitted â†’ `ai-roundtable/0047_cursor_fox-shot-plan-commit.md`  â† LATEST / for Guy
-- 0048 Â· cursor Â· Board quarantine (window-without-drape) + generic NIGHT_FEAR night wardrobe lock; fox LOW p1/p5/p6/p8 re-validated â†’ `ai-roundtable/0048_cursor_fox-window-wardrobe-fixes.md`
+- 0047 Â· cursor Â· Commit `a129d42b` â€” fox_uri_adventure shot-plan sidecar only; 506 green; qa-console skip flags + 0046 script left uncommitted â†’ `ai-roundtable/0047_cursor_fox-shot-plan-commit.md`- 0048 Â· cursor Â· Board quarantine (window-without-drape) + generic NIGHT_FEAR night wardrobe lock; fox LOW p1/p5/p6/p8 re-validated â†’ `ai-roundtable/0048_cursor_fox-window-wardrobe-fixes.md`
 - 0049 Â· claude Â· Brief: import 3 golden pipeline drafts + matrix flips (+3 sellable) â†’ `ai-roundtable/0049_claude_import-3-golden-stories.md`
 - 0050 Â· cursor Â· Commit `6707c32e` â€” dragon_dini_adventure + fox_uri_fantasy + panda_anat_bedtime imported; sellable 8â†’11/18; release-check PASS â†’ `ai-roundtable/0050_cursor_import-3-stories-result.md`
 - 0051 Â· claude Â· Brief: batch-2 import (3 stories) + matrix flips + publish dini copper sheets â†’ `ai-roundtable/0051_claude_import-batch2-plus-dini-sheets.md`
@@ -68,5 +67,8 @@ Seed (the set-continuity / ASME thread so far â€” existing files in `output
 - 0057 Â· claude Â· Brief: P0 fix v3-approved-bank.spec deletes real bunny_ometz_fantasy slot â†’ `ai-roundtable/0057_claude_fix-v3bank-test-deletes-real-slot.md`
 - 0058 Â· cursor Â· backup/restore in v3-approved-bank.spec + koko/lion premise files; bunny slot survives check â†’ `ai-roundtable/0058_cursor_v3bank-test-fix-result.md`
 - 0059 Â· claude Â· Brief: landing section swap + sample-book frame + category-card sizing â†’ `ai-roundtable/0059_claude_landing-and-card-ui-batch.md`
-- 0060 Â· cursor Â· 0057/0058 verified; landing sampleâ†‘gallery + frame strip; category CSS `a04669f8` â†’ `ai-roundtable/0060_cursor_ui-batch-result.md`  â† LATEST / for Guy
-
+- 0060 Â· cursor Â· 0057/0058 verified; landing sampleâ†‘gallery + frame strip; category CSS `a04669f8` â†’ `ai-roundtable/0060_cursor_ui-batch-result.md`
+- 0061 Â· claude Â· Brief: import koko bedtime (איתי fix) + koko fantasy + lion bedtime flip â†' `ai-roundtable/0061_claude_import-koko-lion-bedtime.md`
+- 0062 Â· cursor Â· koko + lion bedtime imported; TRANSITION.bedtime + ANGER.bedtime flips; 16/18 `de06b792` â†' `ai-roundtable/0062_cursor_import-koko-lion-bedtime-result.md`
+- 0063 Â· claude Â· Brief: finish 0061 - koko fantasy + verify איתי fix â†' `ai-roundtable/0063_claude_import-koko-both-finish-0061.md`
+- 0064 Â· cursor Â· koko fantasy imported; TRANSITION.fantasy flip; TRANSITION 3/3; 17/18 â†' `ai-roundtable/0064_cursor_import-koko-both-result.md`  â† LATEST / for Guy
