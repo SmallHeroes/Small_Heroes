@@ -57,6 +57,11 @@ describe('chameleon_koko_fantasy presence prompt contract (0071/J)', () => {
     expect(prompt).toMatch(/COMPANION LOCK:/i);
     expect(prompt).toMatch(/EXACTLY ONE child protagonist/i);
     expect(prompt).not.toMatch(/pink dots/i);
+    expect(prompt).toMatch(/ONE single chameleon, Kim/i);
+    expect(prompt).toMatch(/shimmering mid-transformation/i);
+    expect(prompt).toMatch(/EXACTLY ONE chameleon/i);
+    expect(prompt).toMatch(/never multiple Kims/i);
+    expect(prompt).not.toMatch(/changing into green, yellow, then/i);
   });
 });
 

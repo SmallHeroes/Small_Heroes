@@ -784,10 +784,13 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
     }
 
     const entityQaFailedPages: number[] = [];
+    const entityQaUnverifiedPages: number[] = [];
     for (let i = 0; i < manifestPages.length; i++) {
       const mp = manifestPages[i];
       const imageUrl = mp.imageUrl as string | null | undefined;
-      if (!imageUrl || mp.failed) continue;
+      const localPng = mp.localPng as string | null | undefined;
+      const entityQaImageSource = localPng ?? imageUrl;
+      if (!entityQaImageSource || mp.failed) continue;
 
       const pageNum = mp.pageNumber as number;
       const page = pagesToRender.find((p) => p.pageNumber === pageNum);
@@ -801,14 +804,19 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
       });
 
       const entityQa = await evaluatePageEntityQa({
-        imageUrl,
+        imageUrl: entityQaImageSource,
         companionId,
         companionName: companion.name,
         expectsCompanion: entityPresence.companionPresence === 'present',
         expectsChild: entityPresence.childPresence !== 'absent',
       });
       manifestPages[i].entityQa = entityQa;
-      if (!entityQa.passed && entityQa.hardFailures.length > 0) {
+      if (entityQa.status === 'error') {
+        entityQaUnverifiedPages.push(pageNum);
+        console.warn(
+          `[qa-console] entity QA ERROR page ${pageNum} (unverified, not pass): ${entityQaHardFailSummary(entityQa)}`
+        );
+      } else if (entityQa.status === 'fail' && entityQa.hardFailures.length > 0) {
         entityQaFailedPages.push(pageNum);
         manifestPages[i].failed = true;
         console.warn(
@@ -886,6 +894,9 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
     }
     if (entityQaFailedPages.length) {
       throw new Error(`Entity QA hard-fail pages: ${entityQaFailedPages.join(', ')}`);
+    }
+    if (entityQaUnverifiedPages.length) {
+      throw new Error(`Entity QA unverified pages: ${entityQaUnverifiedPages.join(', ')}`);
     }
 
     return {

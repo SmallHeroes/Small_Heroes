@@ -5,6 +5,7 @@
  *     scripts/run-koko-fantasy-gate.ts
  *
  * Optional:
+ *   ONLY_PAGES=5
  *   CHILD_PHOTO_PATH=path/to/boy.jpg
  *   APPROVE_ANCHOR_CACHE_KEY=chameleon_koko_fantasy__...
  *   PROMPT_AUDIT_ONLY=true
@@ -20,9 +21,20 @@ import './shims/register-server-only.cjs';
 import { approveQaAnchorCache } from '../lib/qa-console-anchor';
 import { runQaConsoleRender } from '../lib/qa-console-run';
 
-const PAGES = [1, 2, 3, 4, 5];
+const DEFAULT_PAGES = [1, 2, 3, 4, 5];
+
+function parsePages(): number[] {
+  const raw = process.env.ONLY_PAGES?.trim();
+  if (!raw) return DEFAULT_PAGES;
+  const nums = raw
+    .split(/[,\s]+/)
+    .map((s) => Number.parseInt(s.trim(), 10))
+    .filter((n) => Number.isFinite(n) && n > 0);
+  return nums.length ? nums : DEFAULT_PAGES;
+}
 
 async function main(): Promise<void> {
+  const pages = parsePages();
   const promptAuditOnly = process.env.PROMPT_AUDIT_ONLY?.trim().toLowerCase() === 'true';
   const childPhotoPath = process.env.CHILD_PHOTO_PATH?.trim();
   const approveKey = process.env.APPROVE_ANCHOR_CACHE_KEY?.trim();
@@ -43,7 +55,7 @@ async function main(): Promise<void> {
 
   const result = await runQaConsoleRender({
     storyKey: 'chameleon_koko_fantasy@v3-approved',
-    pages: PAGES,
+    pages,
     child,
     quality: 'low',
     skipLlmPersonalization: true,
