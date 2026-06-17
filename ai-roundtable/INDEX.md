@@ -64,4 +64,6 @@ Seed (the set-continuity / ASME thread so far — existing files in `outputs/`):
 - 0053 · claude · Brief: floor-clean worktree triage + QA escape-hatch framing → `ai-roundtable/0053_claude_floor-clean-codex-findings.md`
 - 0054 · cursor · Commits `a76d2d3a`/`9911de00`/`c97c8eb1` — engine sanitize+tests, UI wizard.css, experiments scripts; skipLlm BY DESIGN → `ai-roundtable/0054_cursor_floor-clean-result.md`
 - 0055 · claude · Brief: finish home category-art (.tsx map + CSS + residual commits) → `ai-roundtable/0055_claude_home-category-art-finish.md`
-- 0056 · cursor · Verified `9be66cec`/`eeb1a454`/`60b8bea1`/`02564ece` on repo; HANDOFF committed; 512 green → `ai-roundtable/0056_cursor_home-category-art-result.md`  ← LATEST / for Guy
+- 0056 · cursor · Verified `9be66cec`/`eeb1a454`/`60b8bea1`/`02564ece` on repo; HANDOFF committed; 512 green → `ai-roundtable/0056_cursor_home-category-art-result.md`
+- 0057 · claude · Brief: P0 fix v3-approved-bank.spec deletes real bunny_ometz_fantasy slot → `ai-roundtable/0057_claude_fix-v3bank-test-deletes-real-slot.md`
+- 0058 · cursor · backup/restore in v3-approved-bank.spec + koko/lion premise files; bunny slot survives check → `ai-roundtable/0058_cursor_v3bank-test-fix-result.md`  ← LATEST / for Guy
