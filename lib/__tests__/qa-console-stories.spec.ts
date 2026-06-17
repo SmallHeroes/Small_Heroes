@@ -48,5 +48,15 @@ describe('listCreatorStoryBankEntries', () => {
     expect(lionBedtime?.label).toContain('לילה טוב');
     expect(lionBedtime?.label).not.toContain('בבדיקה');
     expect(lionBedtime?.label).not.toMatch(/shaket|lion_shaket/i);
+
+    const lionFantasy = entries.find(
+      (e) => e.storyKey === 'lion_shaket_fantasy' && e.source === 'v5'
+    );
+    expect(lionFantasy).toBeDefined();
+    expect(lionFantasy?.matrixStatus).toBe('approved_v3');
+    expect(lionFantasy?.label).toContain('האריה ליאו');
+    expect(lionFantasy?.label).toContain('פנטזיה');
+    expect(lionFantasy?.label).not.toContain('בבדיקה');
+    expect(lionFantasy?.label).not.toMatch(/shaket|lion_shaket/i);
   });
 });

@@ -39,7 +39,7 @@ export const MVP_STORY_MATRIX = {
   },
   ANGER_FRUSTRATION: {
     companionId: 'lion_shaket',
-    directions: { bedtime: 'approved_v3', adventure: 'approved', fantasy: 'missing' },
+    directions: { bedtime: 'approved_v3', adventure: 'approved', fantasy: 'approved_v3' },
   },
 } as const satisfies Record<
   string,
