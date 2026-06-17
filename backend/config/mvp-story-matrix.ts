@@ -35,7 +35,7 @@ export const MVP_STORY_MATRIX = {
   },
   TRANSITION: {
     companionId: 'chameleon_koko',
-    directions: { bedtime: 'approved_v3', adventure: 'approved', fantasy: 'missing' },
+    directions: { bedtime: 'approved_v3', adventure: 'approved', fantasy: 'approved_v3' },
   },
   ANGER_FRUSTRATION: {
     companionId: 'lion_shaket',
