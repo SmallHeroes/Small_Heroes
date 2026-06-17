@@ -1,0 +1,75 @@
+{
+  "continuityMode": "single_location",
+  "primarySetting": "The whole story takes place in ONE cozy child's bedroom at night: the child's bed, a warm small bedside lamp, a collapsed pillow-cave fort by the bed, and the child's blanket. It is the SAME night bedroom on every page — never a clinic, never daylight, never another room, never outdoors.",
+  "forbiddenDrift": [
+    "clinic", "hospital", "medical setting",
+    "daylight", "sunlight", "bright daytime room",
+    "a different room", "kitchen or living room", "outdoors",
+    "more than one Leo / duplicate or cloned lion",
+    "duplicate or cloned child",
+    "a magically rebuilt standing pillow fort (it stays collapsed/scattered)",
+    "redesigning the bedroom set between pages"
+  ],
+  "transitionRules": [
+    "Stay in the SAME night bedroom on every page — camera may move, the room must not redesign.",
+    "Never cut to a clinic, a daytime room, another room, or outdoors.",
+    "The pillow-cave stays collapsed/scattered (never magically rebuilt); the thunder-corner blanket fold appears once the child makes it."
+  ],
+  "pageCount": 8,
+  "sceneGraph": {
+    "scenes": [
+      {
+        "id": "night_bedroom",
+        "label": "The night bedroom",
+        "description": "One cozy child's bedroom at night — the child's bed, a warm small bedside lamp, a collapsed pillow-cave fort by the bed, the child's blanket. The single set for the whole book.",
+        "transitionsTo": [],
+        "visualAnchors": ["the child's bed", "warm bedside lamp light", "the collapsed pillow-cave", "the child's blanket"],
+        "pages": [1, 2, 3, 4, 5, 6, 7, 8]
+      }
+    ],
+    "recurringObjects": [
+      {
+        "id": "bed",
+        "label": "the child's bed",
+        "identity": "The SAME child's bed every page with the same warm small bedside lamp beside it and the same blanket. A child's bed, never a crib or hospital bed.",
+        "appearsInScenes": ["night_bedroom"],
+        "forbiddenDrift": ["a different bed design", "a crib or hospital bed", "more than one bed"],
+        "stateTimeline": [
+          { "page": 1, "state": "the child sits on the bed beside the fallen pillow-cave, holding the blanket tightly, the bedside lamp lit" },
+          { "page": 8, "state": "the child lies down calm and sleepy in the same bed as the lamp dims softly" }
+        ]
+      },
+      {
+        "id": "pillow_cave",
+        "label": "the pillow-cave fort",
+        "identity": "The SAME pile of bed pillows the child built into a small cave/fort by the bed. After it falls it stays a collapsed, scattered heap — NEVER a rebuilt standing fort or tent.",
+        "appearsInScenes": ["night_bedroom"],
+        "forbiddenDrift": ["a standing or rebuilt pillow fort/tent/canopy", "a different set of pillows", "the pillow-cave magically fixed"],
+        "stateTimeline": [
+          { "page": 1, "state": "just collapsed — the top pillow has fallen, the little cave is down" },
+          { "page": 6, "state": "scattered across the floor near the bed, pillows lying as if tired" },
+          { "page": 8, "state": "still gently scattered, NOT magically rebuilt" }
+        ]
+      },
+      {
+        "id": "thunder_corner",
+        "label": "the thunder corner",
+        "identity": "A small fold in the blanket beside the pillow that the child chooses as the 'thunder corner' — a small place to put the anger. The same small blanket fold once it is made.",
+        "forbiddenDrift": ["a glowing magical object", "a separate prop or toy (it is only a fold in the blanket)", "more than one thunder corner"],
+        "stateTimeline": [
+          { "page": 6, "state": "the child finds and chooses a small fold in the blanket beside the pillow as the thunder corner; Leo's two paws and the child's hand rest on it" },
+          { "page": 7, "state": "the thunder corner is used — a small soft warm ripple-like glow rests in the blanket fold (no text or symbols)" },
+          { "page": 8, "state": "the blanket-fold thunder corner remains by the pillow" }
+        ]
+      }
+    ],
+    "forbiddenDrift": [
+      "any clinic, hospital, or medical setting",
+      "daylight or a bright daytime room",
+      "any room other than this one night bedroom",
+      "outdoors of any kind",
+      "a rebuilt standing pillow fort",
+      "more than one lion or child"
+    ]
+  }
+}

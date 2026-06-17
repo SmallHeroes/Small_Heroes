@@ -1,0 +1,78 @@
+{
+  "continuityMode": "single_location",
+  "primarySetting": "The whole story takes place in ONE cozy child's bedroom at night that is shared with the new baby: the child's bed, the new baby asleep in a small crib by the wall, and the child's soft blanket. Warm bedside lamp. It is the SAME night bedroom on every page — never a clinic, never daylight, never another room, never outdoors.",
+  "forbiddenDrift": [
+    "clinic", "hospital", "doctor's office", "medical setting",
+    "daylight", "sunlight", "bright daytime room",
+    "a different room", "kitchen or living room", "outdoors",
+    "more than one Dini / duplicate or cloned dragon",
+    "duplicate or cloned child", "a second baby",
+    "an empty crib (the new baby is always asleep in it)",
+    "redesigning the bedroom set between pages"
+  ],
+  "transitionRules": [
+    "Stay in the SAME night bedroom on every page — camera may move, the room must not redesign.",
+    "Never cut to a clinic, a daytime room, another room, or outdoors.",
+    "The blanket is the only object whose state changes; the bed and the baby's crib stay the same."
+  ],
+  "pageCount": 8,
+  "sceneGraph": {
+    "scenes": [
+      {
+        "id": "night_bedroom",
+        "label": "The shared night bedroom",
+        "description": "One cozy child's bedroom at night shared with the new baby — the child's bed, the new baby asleep in a small crib by the wall, warm bedside lamp. The single set for the whole book.",
+        "transitionsTo": [],
+        "visualAnchors": ["the child's bed", "the new baby's crib", "the child's blanket", "warm bedside lamp light"],
+        "pages": [1, 2, 3, 4, 5, 6, 7, 8]
+      }
+    ],
+    "recurringObjects": [
+      {
+        "id": "bed",
+        "label": "the child's bed",
+        "identity": "The SAME child's bed every page — same headboard and the same soft blanket. A child's bed, never a crib or hospital bed.",
+        "appearsInScenes": ["night_bedroom"],
+        "forbiddenDrift": ["a different bed design", "a crib or hospital bed for the child", "more than one child's bed"],
+        "stateTimeline": [
+          { "page": 1, "state": "the child lies in bed, tucked in by a parent" },
+          { "page": 8, "state": "the child sleeps in the same bed, blanket with a soft open gap near the hand" }
+        ]
+      },
+      {
+        "id": "baby_crib",
+        "label": "the new baby's crib",
+        "identity": "The SAME small wooden crib standing by the wall, with the new baby asleep inside it. The same crib and the same one sleeping baby every page.",
+        "appearsInScenes": ["night_bedroom"],
+        "forbiddenDrift": ["an empty crib", "a second baby or second crib", "the crib moved to a different wall", "a cradle or hospital bassinet instead of the crib"],
+        "stateTimeline": [
+          { "page": 1, "state": "the new baby asleep in the crib, just tucked in by the parent" },
+          { "page": 8, "state": "the new baby sighs softly in sleep in the same crib" }
+        ]
+      },
+      {
+        "id": "blanket",
+        "label": "the child's blanket",
+        "identity": "The SAME single soft blanket on the child's bed — the story's key object. Same blanket throughout; only how it is folded changes.",
+        "appearsInScenes": ["night_bedroom"],
+        "forbiddenDrift": ["a different blanket pattern or color", "more than one blanket", "a hospital sheet instead of the soft blanket"],
+        "stateTimeline": [
+          { "page": 2, "state": "pulled up to the child's chin" },
+          { "page": 4, "state": "over-folded by Dini's tail — too many folds, one of the child's knees trapped" },
+          { "page": 5, "state": "bundled too tightly around the child (safe but unable to move)" },
+          { "page": 6, "state": "the child opens a small gap in one fold near the hand" },
+          { "page": 7, "state": "a small open gap stays near the hand; the child's hand slips through to touch the teddy" },
+          { "page": 8, "state": "a soft visible gap near the hand remains as the child sleeps" }
+        ]
+      }
+    ],
+    "forbiddenDrift": [
+      "any clinic, hospital, or medical setting",
+      "daylight or a bright daytime room",
+      "any room other than this one shared night bedroom",
+      "outdoors of any kind",
+      "the baby missing from the crib",
+      "more than one dragon, child, or baby"
+    ]
+  }
+}

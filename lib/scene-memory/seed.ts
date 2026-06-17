@@ -97,6 +97,11 @@ function stableFactsFromTopology(bible: BookLocationBible): SceneMemory['stableF
  * Scene-Graph recurring objects → book-wide stable facts. Used only for SINGLE-scene books
  * (one fixed room): the objects live in that one room every page, so asserting them as a
  * book-wide set is correct and desirable. Each object's identity becomes one stable fact.
+ *
+ * Only WHOLE-STORY objects (those declaring appearsInScenes) are seeded; an object that
+ * appears partway through (stateTimeline only, e.g. a note drawn on page 6, a thunder-corner
+ * made on page 6) must NOT be asserted as "always present" — the per-page RECURRING OBJECT
+ * LOCK governs it on exactly the pages it exists.
  */
 function stableFactsFromSceneGraph(bible: BookLocationBible): SceneMemory['stableFacts'] {
   const recurring = bible.sceneGraph?.recurringObjects ?? [];
@@ -104,6 +109,7 @@ function stableFactsFromSceneGraph(bible: BookLocationBible): SceneMemory['stabl
   for (const obj of recurring) {
     const id = obj.id.trim();
     if (!id || facts[id]) continue;
+    if (!obj.appearsInScenes?.length) continue;
     facts[id] = withFactKind(id, {
       position: obj.identity.trim(),
       confidence: 0.8,

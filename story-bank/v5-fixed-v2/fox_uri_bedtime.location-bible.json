@@ -1,0 +1,77 @@
+{
+  "continuityMode": "single_location",
+  "primarySetting": "The whole story takes place in ONE cozy child's bedroom at night: the child's bed, a chair with a shirt hung on its back (whose shadow climbs the wall), and the bedroom window with night outside. Uri the fox appears on the windowsill with his neck lantern. It is the SAME night bedroom on every page — never a clinic, never daylight, never another room, never outdoors beyond the night seen through the window.",
+  "forbiddenDrift": [
+    "clinic", "hospital", "medical setting",
+    "daylight", "sunlight", "bright daytime room",
+    "a different room", "kitchen or living room", "going outdoors",
+    "an actual monster (the scary shape is only the chair and shirt)",
+    "more than one Uri / duplicate or cloned fox",
+    "duplicate or cloned child",
+    "redesigning the bedroom set between pages"
+  ],
+  "transitionRules": [
+    "Stay in the SAME night bedroom on every page — camera may move, the room must not redesign.",
+    "Never cut to a clinic, a daytime room, another room, or step outdoors; night is only seen through the window.",
+    "The chair-shadow and the window branch are the same objects throughout; only what the lantern reveals about them changes."
+  ],
+  "pageCount": 8,
+  "sceneGraph": {
+    "scenes": [
+      {
+        "id": "night_bedroom",
+        "label": "The night bedroom",
+        "description": "One cozy child's bedroom at night — the child's bed, a chair with a shirt on its back casting a shadow on the wall, and the window with night outside. The single set for the whole book.",
+        "transitionsTo": [],
+        "visualAnchors": ["the child's bed", "the chair with a shirt on its back", "the bedroom window", "Uri's warm neck-lantern glow"],
+        "pages": [1, 2, 3, 4, 5, 6, 7, 8]
+      }
+    ],
+    "recurringObjects": [
+      {
+        "id": "bed",
+        "label": "the child's bed",
+        "identity": "The SAME child's bed every page with the same blanket. A child's bed, never a crib or hospital bed.",
+        "appearsInScenes": ["night_bedroom"],
+        "forbiddenDrift": ["a different bed design", "a crib or hospital bed", "more than one bed"],
+        "stateTimeline": [
+          { "page": 1, "state": "the child lies in bed, blanket pulled up to the nose, watching the wall" },
+          { "page": 8, "state": "the child rests back on the pillow in the same bed, calm now" }
+        ]
+      },
+      {
+        "id": "chair_with_shirt",
+        "label": "the chair with the shirt",
+        "identity": "The SAME chair near the bed with a shirt hung over its back; its tall shadow climbs the wall. It is ONLY a chair and a shirt — never a real creature. Same chair and same shirt every page.",
+        "appearsInScenes": ["night_bedroom"],
+        "forbiddenDrift": ["a real monster or creature", "a different chair design", "the shirt becoming a different garment", "more than one chair"],
+        "stateTimeline": [
+          { "page": 1, "state": "the tall chair-shadow on the wall looks almost alive, like a coat-monster" },
+          { "page": 3, "state": "the lantern light reaches it and reveals only part of the shadow" },
+          { "page": 4, "state": "fully revealed as just the chair and the hanging shirt — one sleeve looked like a long neck, one button like a sleepy eye" },
+          { "page": 8, "state": "still casts a chair-shape shadow on the wall, but no longer scary" }
+        ]
+      },
+      {
+        "id": "window",
+        "label": "the bedroom window",
+        "identity": "The SAME bedroom window with night outside; a small branch outside taps the glass. Same window every page; Uri perches on its sill.",
+        "appearsInScenes": ["night_bedroom"],
+        "forbiddenDrift": ["a different window shape or position", "an open door or skylight instead of the window", "daylight outside the window"],
+        "stateTimeline": [
+          { "page": 2, "state": "Uri the fox first appears on the windowsill, lifting his neck lantern" },
+          { "page": 6, "state": "the child listens toward the window, recognizing the sound comes from there" },
+          { "page": 7, "state": "a little branch outside is revealed tapping the glass — the source of the tapping sound" },
+          { "page": 8, "state": "Uri sits on the windowsill then slips outside, only a grounded tail-tip hint remaining near the window edge" }
+        ]
+      }
+    ],
+    "forbiddenDrift": [
+      "any clinic, hospital, or medical setting",
+      "daylight or a bright daytime room",
+      "any room other than this one night bedroom",
+      "an actual monster instead of the chair-and-shirt shadow",
+      "more than one fox or child"
+    ]
+  }
+}

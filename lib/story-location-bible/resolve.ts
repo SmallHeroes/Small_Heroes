@@ -2,7 +2,12 @@ import fs from 'fs';
 
 import { readStoryWorldOverrideFromFrontmatter } from '../scenario-setting-lock';
 import type { PageBeatInput } from '../book-shot-plan/types';
-import { deriveBookLocationBible, derivePageLocationPlans } from './derive';
+import {
+  deriveBookLocationBible,
+  derivePageLocationPlans,
+  derivePagePlansFromSceneGraph,
+  deriveZonesFromSceneGraph,
+} from './derive';
 import {
   enrichStoryLocationPlanWithReferenceSheets,
   parseLocationZoneReferenceSheet,
@@ -116,6 +121,9 @@ function parseSceneNode(raw: unknown): LocationSceneNode | null {
     visualAnchors: Array.isArray(o.visualAnchors)
       ? o.visualAnchors.map(String).filter(Boolean)
       : undefined,
+    pages: Array.isArray(o.pages)
+      ? o.pages.map(Number).filter((n) => Number.isFinite(n) && n > 0)
+      : undefined,
   };
 }
 
@@ -201,6 +209,25 @@ function parseBookLocationBible(raw: Record<string, unknown>, source: BookLocati
   };
 }
 
+/**
+ * Auto-derive allowedZones + pagePlans from the sceneGraph when the bible omits them, so an
+ * author can write ONLY the sceneGraph (single source of truth). No-op when they're authored
+ * (existing koko/bunny bibles load unchanged) or when there is no sceneGraph.
+ */
+function materializeSceneGraphDefaults(parsed: Record<string, unknown>): void {
+  const sceneGraph = parseSceneGraph(parsed.sceneGraph);
+  if (!sceneGraph) return;
+  const zonesEmpty = !Array.isArray(parsed.allowedZones) || !(parsed.allowedZones as unknown[]).length;
+  const plansEmpty = !Array.isArray(parsed.pagePlans) || !(parsed.pagePlans as unknown[]).length;
+  if (zonesEmpty) {
+    parsed.allowedZones = deriveZonesFromSceneGraph(sceneGraph) as unknown[];
+  }
+  if (plansEmpty) {
+    const pageCount = Number.isFinite(Number(parsed.pageCount)) ? Number(parsed.pageCount) : undefined;
+    parsed.pagePlans = derivePagePlansFromSceneGraph(sceneGraph, pageCount) as unknown[];
+  }
+}
+
 /** Sidecar `<story>.location-bible.json` or frontmatter `locationBible:` JSON. */
 export function loadStoryLocationPlanOverride(
   storyFilePath: string,
@@ -210,6 +237,7 @@ export function loadStoryLocationPlanOverride(
   if (fs.existsSync(sidecar)) {
     try {
       const parsed = JSON.parse(fs.readFileSync(sidecar, 'utf8')) as Record<string, unknown>;
+      materializeSceneGraphDefaults(parsed);
       const bible = parseBookLocationBible(parsed, 'sidecar');
       const pagePlans = (Array.isArray(parsed.pagePlans) ? parsed.pagePlans : [])
         .map(parsePagePlan)
@@ -229,6 +257,7 @@ export function loadStoryLocationPlanOverride(
   if (!planLine) return null;
   try {
     const parsed = JSON.parse(planLine[1]) as Record<string, unknown>;
+    materializeSceneGraphDefaults(parsed);
     const bible = parseBookLocationBible(parsed, 'frontmatter');
     const pagePlans = (Array.isArray(parsed.pagePlans) ? parsed.pagePlans : [])
       .map(parsePagePlan)

@@ -54,7 +54,12 @@ export {
   promptContainsStagingLock,
 } from './staging-lock';
 export type { StagingSurface } from './staging-lock';
-export { deriveBookLocationBible, derivePageLocationPlans } from './derive';
+export {
+  deriveBookLocationBible,
+  derivePageLocationPlans,
+  derivePagePlansFromSceneGraph,
+  deriveZonesFromSceneGraph,
+} from './derive';
 export {
   formatLocationPlanTable,
   isStoryLocationPlanValid,

@@ -99,6 +99,12 @@ export interface LocationSceneNode {
   /** Scene-graph edges — the next scene(s) reachable from this one along the journey. */
   transitionsTo?: string[];
   visualAnchors?: string[];
+  /**
+   * Pages this scene covers. Lets allowedZones + pagePlans be auto-derived from the
+   * sceneGraph alone (single source of truth) — see deriveLocationPlanFromSceneGraph.
+   * Optional: a bible may instead author allowedZones/pagePlans explicitly.
+   */
+  pages?: number[];
 }
 
 /** One state of a recurring object on a specific page (free-text lock note). */
