@@ -1,4 +1,5 @@
 import path from 'path';
+import { existsSync } from 'fs';
 import {
   assignTemplatesForBook,
   textPlacementForTemplate,
@@ -15,6 +16,7 @@ import {
 import { loadStoryFromBank } from '@/backend/providers/story-bank-loader';
 import { getCompanionById } from '@/lib/companions';
 import { storyBankRoot } from '@/lib/qa-console-stories';
+import { V3_APPROVED_DIR_NAME } from '@/backend/providers/story-bank-index';
 
 export type DevViewerPage = {
   pageNumber: number;
@@ -53,6 +55,20 @@ function normalizePageTemplate(value: string | null | undefined): BookPageTempla
   return null;
 }
 
+/**
+ * Resolve the story-bank .md for the viewer text overlay. Prefer v3-approved
+ * (live source for approved_v3 slots) so the viewer shows the SAME text the
+ * render used; fall back to the default v5 dir. Fixes the 404 when a v5 copy
+ * was quarantined/renamed (e.g. *.superseded.md).
+ */
+function resolveViewerStoryPath(storyFile: string): string {
+  const v3 = path.join(process.cwd(), 'story-bank', V3_APPROVED_DIR_NAME, storyFile);
+  if (existsSync(v3)) return v3;
+  const v5 = path.join(storyBankRoot(), storyFile);
+  if (existsSync(v5)) return v5;
+  return v5;
+}
+
 export async function loadDevViewerAuditionBook(
   dir: string,
   root?: 'phase2-logs' | 'outputs'
@@ -77,7 +93,7 @@ export async function loadDevViewerAuditionBook(
 
   const maxPages = manifest.totalStoryPages ?? 20;
   const story = await loadStoryFromBank(
-    path.join(storyBankRoot(), storyFile),
+    resolveViewerStoryPath(storyFile),
     childName,
     companion?.name ?? companionId,
     childGender,
