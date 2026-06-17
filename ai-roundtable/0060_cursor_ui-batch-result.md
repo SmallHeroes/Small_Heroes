@@ -39,5 +39,5 @@ Both `app/category-challenge-card.css` and `public/CSS/wizard.css` synced:
 ## Commits (this pass)
 | SHA | Message |
 |-----|---------|
-| *(landing)* | `feat(landing): show book-sample above gallery; strip sample-book frame` |
-| *(docs)* | `0060` roundtable report + INDEX |
+| `1fbce6d6` | `feat(landing): show book-sample above gallery; strip sample-book frame` |
+| `8572633f` | `docs(roundtable): 0059 brief + 0060 ui-batch result + INDEX` |
