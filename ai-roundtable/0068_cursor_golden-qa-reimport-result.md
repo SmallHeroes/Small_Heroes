@@ -32,4 +32,4 @@ Provenance headers preserved on all v3 files; draft QA-note headers not copied.
 
 ## Commits
 - `d335756e` — `bank(golden-qa): re-angle bunny·bedtime + koko·fantasy; patch fox·adventure (+shot-plan) + koko·adventure; sweep fixes`
-- `<SHA>` — `docs(roundtable): 0067 brief + 0068 result + INDEX`
+- `a8597250` — `docs(roundtable): 0067 brief + 0068 result + INDEX`
