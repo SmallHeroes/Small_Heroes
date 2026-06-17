@@ -637,10 +637,7 @@
   margin: 0 auto;
   width: 100%;
   max-width: 100%;
-  border-radius: 24px;
   overflow: hidden;
-  background: #f7f4fb;
-  box-shadow: 0 18px 46px rgba(136, 108, 255, 0.12);
 }
 
 .sample-book-illustration img {

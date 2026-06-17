@@ -202,6 +202,64 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
             </div>
           </section>
 
+          <section className="section sample-section" id="sample">
+            <div className="wrap sample-wrap">
+              <div className="sample-text">
+                <div className="sample-kicker">{L.sample.kicker}</div>
+                <h2 className="sample-h2">{L.sample.h2}</h2>
+                <p className="sample-p">{L.sample.p1}</p>
+                <p className="sample-caption">{L.sample.caption}</p>
+                <a href={startHref} className="btn-primary" data-event="landing_start_click">
+                  {L.sample.cta}
+                </a>
+              </div>
+
+              <div className="sample-img-wrap sample-preview-wrap">
+                {/* TODO: temporary placeholder — replace with a real generated book sample. */}
+                <figure className="sample-book-illustration">
+                  <img
+                    src="/Images/Book.webp"
+                    alt="המחשה — דוגמה לספר מותאם אישית"
+                    loading="lazy"
+                  />
+                </figure>
+              </div>
+            </div>
+          </section>
+
+          <section className="section why-section">
+            <div className="wrap">
+              <h2 className="section-h2">{L.why.h2}</h2>
+              <p className="section-sub">{L.why.sub}</p>
+
+              <div className="why-grid">
+                {L.why.cards.map((card) => (
+                  <article key={card.title} className="why-card">
+                    <h3>{card.title}</h3>
+                    <p>{card.body}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="how-it-works-section how-section" id="how">
+            <div className="wrap">
+              <h2 className="section-h2">{L.how.h2}</h2>
+
+              <div className="steps-row">
+                {L.how.steps.map((step) => (
+                  <article key={step.title} className="how-card">
+                    <div className="how-step">
+                      <div className="how-num">{step.title}</div>
+                      <p>{step.body}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+
           <section className="gallery-section">
             <div className="wrap">
               <h2 className="gallery-h2">{L.gallery.h2}</h2>
@@ -278,64 +336,6 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               <a href={startHref} className="btn-primary" data-event="landing_start_click">
                 {L.gallery.cta}
               </a>
-            </div>
-          </section>
-
-          <section className="section why-section">
-            <div className="wrap">
-              <h2 className="section-h2">{L.why.h2}</h2>
-              <p className="section-sub">{L.why.sub}</p>
-
-              <div className="why-grid">
-                {L.why.cards.map((card) => (
-                  <article key={card.title} className="why-card">
-                    <h3>{card.title}</h3>
-                    <p>{card.body}</p>
-                  </article>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <section className="how-it-works-section how-section" id="how">
-            <div className="wrap">
-              <h2 className="section-h2">{L.how.h2}</h2>
-
-              <div className="steps-row">
-                {L.how.steps.map((step) => (
-                  <article key={step.title} className="how-card">
-                    <div className="how-step">
-                      <div className="how-num">{step.title}</div>
-                      <p>{step.body}</p>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <section className="section sample-section" id="sample">
-            <div className="wrap sample-wrap">
-              <div className="sample-text">
-                <div className="sample-kicker">{L.sample.kicker}</div>
-                <h2 className="sample-h2">{L.sample.h2}</h2>
-                <p className="sample-p">{L.sample.p1}</p>
-                <p className="sample-caption">{L.sample.caption}</p>
-                <a href={startHref} className="btn-primary" data-event="landing_start_click">
-                  {L.sample.cta}
-                </a>
-              </div>
-
-              <div className="sample-img-wrap sample-preview-wrap">
-                {/* TODO: temporary placeholder — replace with a real generated book sample. */}
-                <figure className="sample-book-illustration">
-                  <img
-                    src="/Images/Book.webp"
-                    alt="המחשה — דוגמה לספר מותאם אישית"
-                    loading="lazy"
-                  />
-                </figure>
-              </div>
             </div>
           </section>
 
