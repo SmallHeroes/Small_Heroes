@@ -5,6 +5,7 @@ import type { Order } from '@prisma/client';
 import {
   generateStage0MethodBAnchor,
 } from '@/lib/generation-pipeline/stage0-method-b';
+import { buildStyle01WardrobeLock } from '@/lib/style01-gptimage';
 import {
   resolveStyle01StoryWardrobeLock,
   storyFileKeyFromPath,
@@ -44,8 +45,19 @@ export class QaAnchorReviewRequiredError extends Error {
   }
 }
 
-export function qaAnchorRequiresStage0(companionId: string, storyFileKey: string): boolean {
-  return Boolean(resolveStyle01StoryWardrobeLock(companionId, storyFileKey));
+export function qaAnchorRequiresStage0(_companionId: string, _storyFileKey: string): boolean {
+  // QA console always uses illustrated Stage 0 anchor — never raw photo (0071/E).
+  return true;
+}
+
+export function resolveQaStage0WardrobeLock(
+  companionId: string,
+  storyFileKey: string
+): string {
+  return (
+    resolveStyle01StoryWardrobeLock(companionId, storyFileKey) ??
+    buildStyle01WardrobeLock({ companionId, storyFile: storyFileKey })
+  );
 }
 
 export function allowRawPhotoRefForWardrobeStory(): boolean {
@@ -157,10 +169,7 @@ export async function generateQaStage0AnchorCandidate(input: {
   childPhotoDescription?: string | null;
   photoFingerprint: string;
 }): Promise<QaAnchorCacheEntry> {
-  const wardrobeLock = resolveStyle01StoryWardrobeLock(input.companionId, input.storyFileKey);
-  if (!wardrobeLock) {
-    throw new Error(`No wardrobe lock for ${input.companionId}/${input.storyFileKey}`);
-  }
+  const wardrobeLock = resolveQaStage0WardrobeLock(input.companionId, input.storyFileKey);
 
   const cacheKey = buildQaAnchorCacheKey({
     photoFingerprint: input.photoFingerprint,
@@ -239,7 +248,7 @@ export async function resolveQaConsoleChildReference(input: {
     photoPath: input.photoPath,
     photoDataUrl: input.photoDataUrl,
   });
-  const wardrobeLock = resolveStyle01StoryWardrobeLock(input.companionId, storyKey)!;
+  const wardrobeLock = resolveQaStage0WardrobeLock(input.companionId, storyKey)!;
   const cacheKey = buildQaAnchorCacheKey({
     photoFingerprint: photoFp,
     storyFileKey: storyKey,

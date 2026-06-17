@@ -9,6 +9,55 @@ import {
 } from '../image-entity-presence';
 import { assembleStyle01Phase2Prompt } from '../style01-prompt-assembly';
 
+describe('derivePageEntityPresence chameleon_koko', () => {
+  it('honors explicit companionPresence: present when Kim is named (koko fantasy p2)', () => {
+    const contract = derivePageEntityPresence({
+      companionId: 'chameleon_koko',
+      companionName: 'הזיקית קִים',
+      imageDirection:
+        'Kim steps out from behind a low stone with a mustard satchel. companionPresence: present. view: front 3-4.',
+      bookPageText: 'קים יצאה מהצל. זיקית קטנה, עם תיק צד חרדלי.',
+    });
+    expect(contract.companionPresence).toBe('present');
+    expect(contract.forbiddenEntities).not.toContain('companion creature');
+  });
+
+  it('explicit companionPresence: present wins over missing name tokens (koko fantasy p5)', () => {
+    const contract = derivePageEntityPresence({
+      companionId: 'chameleon_koko',
+      companionName: 'הזיקית קִים',
+      imageDirection:
+        'Kim tries to match the gate color. companionPresence: present. view: close 3-4.',
+      bookPageText: 'קים הרימה אצבע קטנה.',
+    });
+    expect(contract.companionPresence).toBe('present');
+  });
+
+  it('matches קים in Hebrew text with niqqud stripped (heuristic fallback)', () => {
+    const contract = derivePageEntityPresence({
+      companionId: 'chameleon_koko',
+      companionName: 'הזיקית קִים',
+      imageDirection: 'Morning path, child walks slowly.',
+      bookPageText: 'קים יצאה מהצל.',
+    });
+    expect(contract.companionPresence).toBe('present');
+  });
+});
+
+describe('assertCompanionPresenceConsistency explicit token', () => {
+  it('throws when explicit present conflicts with resolved absent', () => {
+    expect(() =>
+      assertCompanionPresenceConsistency({
+        pageNumber: 2,
+        imageDirection: 'Kim on stone. companionPresence: present.',
+        companionPresence: 'absent',
+        companionName: 'הזיקית קִים',
+        companionId: 'chameleon_koko',
+      })
+    ).toThrow(CompanionPresenceConflictError);
+  });
+});
+
 describe('derivePageEntityPresence lion_shaket', () => {
   it('detects Leo in English imageDirection when Hebrew text omits the name (p4 swallow beat)', () => {
     const contract = derivePageEntityPresence({

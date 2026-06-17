@@ -1,7 +1,11 @@
 /**
  * Per-page entity presence contract for image prompts.
  * Story page text + imageDirection are authoritative (imageDirection first).
+ * Explicit `companionPresence:` / `childPresence:` tokens win over heuristics.
  */
+
+import { companionPresenceTokens } from './companion-presence-aliases';
+import { stripNikud } from './hebrew-text';
 
 export type ChildPresence = 'present' | 'absent' | 'background' | 'partial';
 export type CompanionPresence = 'present' | 'absent' | 'partial' | 'offscreen_hint';
@@ -74,7 +78,50 @@ function mentionsHumanChild(text: string, childFirstName?: string | null): boole
   return false;
 }
 
+const EXPLICIT_COMPANION_PRESENCE_RE =
+  /companionPresence:\s*(present|absent|partial|offscreen(?:_hint)?)\b/i;
+const EXPLICIT_CHILD_PRESENCE_RE =
+  /childPresence:\s*(present|absent|background|partial)\b/i;
+
+function parseExplicitCompanionPresence(text: string): CompanionPresence | null {
+  const m = text.match(EXPLICIT_COMPANION_PRESENCE_RE);
+  if (!m) return null;
+  const raw = m[1].toLowerCase();
+  if (raw === 'offscreen' || raw === 'offscreen_hint') return 'offscreen_hint';
+  if (raw === 'present' || raw === 'absent' || raw === 'partial') return raw;
+  return null;
+}
+
+function parseExplicitChildPresence(text: string): ChildPresence | null {
+  const m = text.match(EXPLICIT_CHILD_PRESENCE_RE);
+  if (!m) return null;
+  const raw = m[1].toLowerCase();
+  if (raw === 'present' || raw === 'absent' || raw === 'background' || raw === 'partial') {
+    return raw;
+  }
+  return null;
+}
+
+function explicitCompanionPresenceFromInput(
+  input: DerivePageEntityPresenceInput
+): CompanionPresence | null {
+  const imageDir = (input.imageDirection ?? input.rawScenePrompt ?? '').trim();
+  const fromDir = parseExplicitCompanionPresence(imageDir);
+  if (fromDir) return fromDir;
+  return parseExplicitCompanionPresence(haystack(input));
+}
+
+function explicitChildPresenceFromInput(input: DerivePageEntityPresenceInput): ChildPresence | null {
+  const imageDir = (input.imageDirection ?? input.rawScenePrompt ?? '').trim();
+  const fromDir = parseExplicitChildPresence(imageDir);
+  if (fromDir) return fromDir;
+  return parseExplicitChildPresence(haystack(input));
+}
+
 function deriveChildPresence(input: DerivePageEntityPresenceInput): ChildPresence {
+  const explicit = explicitChildPresenceFromInput(input);
+  if (explicit) return explicit;
+
   const imageDir = (input.imageDirection ?? input.rawScenePrompt ?? '').trim();
   const full = haystack(input);
 
@@ -112,51 +159,6 @@ function deriveChildPresence(input: DerivePageEntityPresenceInput): ChildPresenc
   return 'present';
 }
 
-function companionPresenceTokens(
-  companionName: string,
-  companionId?: string | null
-): string[] {
-  const tokens = new Set<string>();
-  const trimmed = companionName.trim();
-  if (trimmed) {
-    tokens.add(trimmed);
-    tokens.add(trimmed.toLowerCase());
-    const parts = trimmed.split(/\s+/).filter((p) => p.length >= 2);
-    if (parts.length > 1) {
-      const short = parts[parts.length - 1];
-      tokens.add(short);
-      tokens.add(short.toLowerCase());
-    }
-  }
-  const id = (companionId ?? '').toLowerCase();
-  if (id === 'fox_uri') {
-    tokens.add('fox');
-    tokens.add('uri');
-    tokens.add('אורי');
-    tokens.add('אוּרי');
-  }
-  if (id === 'dragon_dini') {
-    tokens.add('dini');
-    tokens.add('דיני');
-  }
-  if (id === 'bear_cub_gahal') {
-    tokens.add('dobi');
-  }
-  if (id === 'octopus_seara') {
-    tokens.add('octopus');
-    tokens.add('seara');
-    tokens.add('זוזי');
-  }
-  if (id === 'lion_shaket') {
-    tokens.add('lion');
-    tokens.add('leo');
-    tokens.add('shaket');
-    tokens.add('ליאו');
-    tokens.add('אריה');
-  }
-  return [...tokens];
-}
-
 const NEGATION_BEFORE_COMPANION_TOKEN_RE =
   /\b(?:no|not|without|never|forbidden)\s+(?:a\s+)?(?:scary\s+)?$/i;
 const COMPANION_ABSENT_AFTER_NAME_RE =
@@ -165,28 +167,36 @@ const COMPANION_ABSENT_AFTER_NAME_RE =
 /** Positive companion name mention — ignores negation windows (no Leo, Leo not present yet, etc.). */
 export function tokenMentionedPositively(text: string, token: string): boolean {
   if (!token || token.length < 2) return false;
-  const lower = text.toLowerCase();
-  const tokenLower = token.toLowerCase();
+  const textNorm = stripNikud(text).toLowerCase();
+  const tokenNorm = stripNikud(token).toLowerCase();
   let searchFrom = 0;
-  while (searchFrom < lower.length) {
-    const pos = lower.indexOf(tokenLower, searchFrom);
+  while (searchFrom < textNorm.length) {
+    const pos = textNorm.indexOf(tokenNorm, searchFrom);
     if (pos === -1) return false;
 
     const before = text.slice(Math.max(0, pos - 50), pos);
     if (NEGATION_BEFORE_COMPANION_TOKEN_RE.test(before)) {
-      searchFrom = pos + tokenLower.length;
+      searchFrom = pos + tokenNorm.length;
       continue;
     }
 
-    const after = text.slice(pos + token.length, pos + token.length + 50);
+    const after = text.slice(pos + tokenNorm.length, pos + tokenNorm.length + 50);
     if (COMPANION_ABSENT_AFTER_NAME_RE.test(after)) {
-      searchFrom = pos + tokenLower.length;
+      searchFrom = pos + tokenNorm.length;
       continue;
     }
 
     return true;
   }
   return false;
+}
+
+function hebrewTokenMentioned(hebrewText: string, token: string): boolean {
+  if (!token || token.length < 2) return false;
+  if (/^[a-z]/i.test(token)) {
+    return tokenMentionedPositively(hebrewText, token);
+  }
+  return stripNikud(hebrewText).includes(stripNikud(token));
 }
 
 export function findPositiveCompanionMentionInImageDirection(
@@ -225,8 +235,20 @@ export function assertCompanionPresenceConsistency(input: {
   companionName?: string | null;
   companionId?: string | null;
 }): void {
-  if (input.companionPresence !== 'absent') return;
   const imageDir = (input.imageDirection ?? '').trim();
+
+  if (input.companionPresence === 'absent') {
+    const explicitPresent = parseExplicitCompanionPresence(imageDir);
+    if (explicitPresent === 'present') {
+      throw new CompanionPresenceConflictError(
+        input.pageNumber ?? 0,
+        'companionPresence: present',
+        input.companionPresence
+      );
+    }
+  }
+
+  if (input.companionPresence !== 'absent') return;
   if (!imageDir || !input.companionName?.trim()) return;
 
   const matched = findPositiveCompanionMentionInImageDirection(
@@ -254,6 +276,9 @@ function deriveCompanionPresence(input: DerivePageEntityPresenceInput): Companio
   const companionName = input.companionName?.trim();
   if (!companionName) return 'absent';
 
+  const explicit = explicitCompanionPresenceFromInput(input);
+  if (explicit) return explicit;
+
   const tokens = companionPresenceTokens(companionName, input.companionId);
   const imageDir = (input.imageDirection ?? input.rawScenePrompt ?? '').trim();
   const hebrew = (input.bookPageText ?? '').trim();
@@ -262,7 +287,9 @@ function deriveCompanionPresence(input: DerivePageEntityPresenceInput): Companio
   const mentionsCompanionInImageDir = tokens.some(
     (t) => t.length >= 2 && tokenMentionedPositively(imageDir, t)
   );
-  const mentionsCompanionInHebrew = tokens.some((t) => t.length >= 2 && hebrew.includes(t));
+  const mentionsCompanionInHebrew = tokens.some(
+    (t) => t.length >= 2 && hebrewTokenMentioned(hebrew, t)
+  );
   const mentionsCompanion = mentionsCompanionInImageDir || mentionsCompanionInHebrew;
 
   if (!mentionsCompanion && !COMPANION_PARTIAL_RE.test(hay) && !COMPANION_OFFSCREEN_RE.test(hay)) {
@@ -289,7 +316,7 @@ function deriveCompanionPresence(input: DerivePageEntityPresenceInput): Companio
   if (tokens.some((t) => t.length >= 2 && tokenMentionedPositively(imageDir, t))) {
     return 'present';
   }
-  if (tokens.some((t) => t.length >= 2 && hebrew.includes(t))) return 'present';
+  if (tokens.some((t) => t.length >= 2 && hebrewTokenMentioned(hebrew, t))) return 'present';
 
   if (!hebrew && !imageDir) return 'present';
 
@@ -331,7 +358,20 @@ export function derivePageEntityPresence(
     forbiddenEntities.push(...FORBIDDEN_WHEN_CHILD_ABSENT);
   }
   if (companionPresence === 'absent') {
-    forbiddenEntities.push('companion creature', 'duplicate mascot', 'sidekick animal');
+    const imageDir = (input.imageDirection ?? input.rawScenePrompt ?? '').trim();
+    const explicitPresent = parseExplicitCompanionPresence(imageDir) === 'present';
+    const namedInScene =
+      Boolean(input.companionName?.trim()) &&
+      Boolean(
+        findPositiveCompanionMentionInImageDirection(
+          imageDir,
+          input.companionName!,
+          input.companionId
+        )
+      );
+    if (!explicitPresent && !namedInScene) {
+      forbiddenEntities.push('companion creature', 'duplicate mascot', 'sidekick animal');
+    }
   }
 
   return {

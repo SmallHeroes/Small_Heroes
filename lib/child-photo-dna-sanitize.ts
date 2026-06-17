@@ -173,6 +173,30 @@ function stripAccessoryPhrases(text: string): string {
   return out.replace(/\s{2,}/g, ' ').replace(/,\s*,/g, ',').trim();
 }
 
+/** Strip incidental photo-mark phrasing that vision models over-amplify into face locks. */
+const INCIDENTAL_FACE_MARK_RE = [
+  /\bnoticeable marks? on (the )?cheeks?\b/gi,
+  /\bmarks? on (the )?cheeks?\b/gi,
+  /\bfaint (skin )?marks?\b/gi,
+  /\bsubtle (skin )?marks?\b/gi,
+  /\bprominent cheeks?\b/gi,
+];
+
+export function sanitizeIncidentalFaceMarkPhrasing(
+  text: string,
+  childPhotoDescription?: string | null
+): string {
+  if (!text?.trim()) return text;
+  const photoLower = (childPhotoDescription ?? '').toLowerCase();
+  const photoAffirmsMarks = /\b(birthmark|mole on|freckle|dimple)\b/i.test(photoLower);
+  if (photoAffirmsMarks) return text.trim();
+  let out = text;
+  for (const re of INCIDENTAL_FACE_MARK_RE) {
+    out = out.replace(re, '');
+  }
+  return out.replace(/\s{2,}/g, ' ').replace(/,\s*,/g, ',').replace(/\.\s*\./g, '.').trim();
+}
+
 /** Facial-only anchor from photo text — never invent props. */
 function signatureFromPhotoOnly(photoDescription: string): string {
   const lower = photoDescription.toLowerCase();
@@ -181,8 +205,6 @@ function signatureFromPhotoOnly(photoDescription: string): string {
     'dimple',
     'gap tooth',
     'gap between',
-    'prominent cheek',
-    'full cheek',
     'wide-set eye',
     'thick brow',
     'arched brow',
@@ -241,6 +263,7 @@ export function sanitizeChildStructuredAgainstPhoto(
   }
   let { face, hair, signature } = working;
 
+  face = sanitizeIncidentalFaceMarkPhrasing(face, childPhotoDescription);
   hair = reconcileStructuredHairWithPhoto(hair, childPhotoDescription);
 
   if (signature && photoMentionsAccessory(signature, photoLower)) {
@@ -263,7 +286,7 @@ export function sanitizeChildStructuredAgainstPhoto(
     ...child,
     face,
     hair,
-    signature: signature.trim(),
+    signature: sanitizeIncidentalFaceMarkPhrasing(signature.trim(), childPhotoDescription),
     clothing: SAFE_CHILD_CLOTHING_POINTER,
   };
 }

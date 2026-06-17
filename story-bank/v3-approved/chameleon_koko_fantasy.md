@@ -86,13 +86,13 @@ imageDirection: A magical color gate blocks the path before the kindergarten. Th
 היא עצמה עיניים.
 הפכה לירוקה.
 ואז לצהובה.
-ואז לירוקה עם נקודות ורודות.
+ואז לירוקה-צהובה מבולבלת.
 האף נשאר כתום.
 התיק נשאר חרדלי.
 קים פתחה עין אחת.
 "אני חושבת שזה לא בדיוק עבד."
 
-imageDirection: Kim tries to match the gate color, changing into green, yellow, then green with pink dots, while her orange nose and mustard satchel remain unchanged. {{childName}} watches with nervous amusement. companionPresence: present. view: close 3-4.
+imageDirection: Kim tries to match the gate color, changing into green, yellow, then a muddled yellow-green, while her orange nose and mustard satchel remain unchanged. {{childName}} watches with nervous amusement. companionPresence: present. view: close 3-4.
 
 --- Page 6 ---
 השער הבהב בעדינות.

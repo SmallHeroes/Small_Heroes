@@ -16,6 +16,7 @@ import {
   resolveCompanionViewIntentForPage,
 } from './generation-pipeline/companion-sheet-page-map';
 import type { CompanionPresence } from './image-entity-presence';
+import { sanitizeIncidentalFaceMarkPhrasing } from './child-photo-dna-sanitize';
 import { resolveCompanionLockSource } from './companion-lock-source';
 import {
   classifyStyle01SceneClass,
@@ -563,14 +564,17 @@ export function buildStyle01ChildVisualLock(input: {
   if (cs?.face?.trim() && cs?.hair?.trim()) {
     const ageBit = input.childAge ? ` Age ${input.childAge}.` : '';
     const genderBit = input.childGender ? ` ${input.childGender}.` : '';
-    let signature = (cs.signature ?? '').trim();
+    const face = sanitizeIncidentalFaceMarkPhrasing(cs.face);
+    let signature = sanitizeIncidentalFaceMarkPhrasing((cs.signature ?? '').trim());
     if (input.companionId === 'dragon_dini' && /dinosaur|dino toy|green toy/i.test(signature)) {
       signature = 'Identity-only — no clothing or toy props in this line (see WARDROBE LOCK and scene).';
     }
-    return `CHILD VISUAL LOCK (verbatim when child appears): ${cs.face}. ${cs.hair}. ${cs.body}.${ageBit}${genderBit} ${signature}`.trim();
+    return `CHILD VISUAL LOCK (verbatim when child appears): ${face}. ${cs.hair}. ${cs.body}.${ageBit}${genderBit} ${signature}`.trim();
   }
   const name = (input.childName ?? 'the child').trim();
-  const desc = (input.childDescription ?? 'young child protagonist').trim();
+  const desc = sanitizeIncidentalFaceMarkPhrasing(
+    (input.childDescription ?? 'young child protagonist').trim()
+  );
   return `CHILD VISUAL LOCK (verbatim when child appears): ${name} — ${desc}.`.trim();
 }
 

@@ -12,12 +12,17 @@ import {
 } from '../qa-console-anchor';
 
 describe('qa-console-anchor', () => {
+  it('requires Stage 0 for all QA console renders (0071/E)', () => {
+    expect(qaAnchorRequiresStage0('lion_shaket', 'lion_shaket_bedtime')).toBe(true);
+    expect(qaAnchorRequiresStage0('chameleon_koko', 'chameleon_koko_fantasy')).toBe(true);
+  });
+
   it('requires Stage 0 for wardrobe-locked lion bedtime', () => {
     expect(qaAnchorRequiresStage0('lion_shaket', 'lion_shaket_bedtime')).toBe(true);
   });
 
-  it('does not require Stage 0 for stories without wardrobe lock', () => {
-    expect(qaAnchorRequiresStage0('lion_shaket', 'lion_shaket_adventure')).toBe(false);
+  it('requires Stage 0 for stories without story wardrobe lock too', () => {
+    expect(qaAnchorRequiresStage0('lion_shaket', 'lion_shaket_adventure')).toBe(true);
   });
 
   it('builds stable cache keys from photo + story + wardrobe', () => {

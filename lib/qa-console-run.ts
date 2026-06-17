@@ -61,6 +61,11 @@ import {
 } from '@/lib/set-appearance';
 import { measureImageToneStats } from '@/lib/book-color-normalize';
 import { resolveStyle01StyleReferencePaths } from '@/lib/style01-gptimage';
+import { derivePageEntityPresence } from '@/lib/image-entity-presence';
+import {
+  evaluatePageEntityQa,
+  entityQaHardFailSummary,
+} from '@/lib/generation-pipeline/page-entity-qa';
 
 import {
   estimateQaConsoleCostUsd,
@@ -778,6 +783,40 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
       manifestPages[i].appearanceDriftPath = path.relative(process.cwd(), appearancePath);
     }
 
+    const entityQaFailedPages: number[] = [];
+    for (let i = 0; i < manifestPages.length; i++) {
+      const mp = manifestPages[i];
+      const imageUrl = mp.imageUrl as string | null | undefined;
+      if (!imageUrl || mp.failed) continue;
+
+      const pageNum = mp.pageNumber as number;
+      const page = pagesToRender.find((p) => p.pageNumber === pageNum);
+      const entityPresence = derivePageEntityPresence({
+        bookPageText: page?.text,
+        imageDirection: page?.rawScenePrompt,
+        rawScenePrompt: page?.rawScenePrompt,
+        childFirstName: child.name,
+        companionName: companion.name,
+        companionId: companion.id,
+      });
+
+      const entityQa = await evaluatePageEntityQa({
+        imageUrl,
+        companionId,
+        companionName: companion.name,
+        expectsCompanion: entityPresence.companionPresence === 'present',
+        expectsChild: entityPresence.childPresence !== 'absent',
+      });
+      manifestPages[i].entityQa = entityQa;
+      if (!entityQa.passed && entityQa.hardFailures.length > 0) {
+        entityQaFailedPages.push(pageNum);
+        manifestPages[i].failed = true;
+        console.warn(
+          `[qa-console] entity QA HARD FAIL page ${pageNum}: ${entityQaHardFailSummary(entityQa)}`
+        );
+      }
+    }
+
     const allStoryPages = story.pages
       .sort((a, b) => a.pageNumber - b.pageNumber)
       .map((p) => {
@@ -844,6 +883,9 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
 
     if (failedPages.length) {
       throw new Error(`Image generation failed for pages: ${failedPages.join(', ')}`);
+    }
+    if (entityQaFailedPages.length) {
+      throw new Error(`Entity QA hard-fail pages: ${entityQaFailedPages.join(', ')}`);
     }
 
     return {

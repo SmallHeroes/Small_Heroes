@@ -2,6 +2,8 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import path from 'path';
 import { describe, expect, it, beforeAll } from 'vitest';
 import { validateStory, type ValidationInput } from '../index';
+import { companionNameValidator } from '../validators/companionName';
+import { parseStoryMarkdown } from '../parser';
 import {
   buildStoryMarkdown,
   defaultBedtimePages,
@@ -507,5 +509,55 @@ describe('validateStory', () => {
       expect(report.verdict).toBe('FAIL');
       expect(report.findings.some((f) => f.validator === 'modeCompliance')).toBe(true);
     });
+  });
+});
+
+describe('companionName chameleon_koko denylist (0071/G)', () => {
+  const kokoContext = baseInput({
+    context: {
+      companionId: 'chameleon_koko',
+      direction: 'fantasy',
+      pageCount: 10,
+      childName: 'נועם',
+      childGender: 'boy',
+      childAge: 5,
+      declared: {
+        moment: { page: 5, physicalAction: 'נגע' },
+        hook: { phrase: 'האף נשאר כתום', appearsOnPages: [2, 5] },
+      },
+    },
+  }).context;
+
+  function runKimNameCheck(pageText: string) {
+    const pages = kimPages(10, 'נועם');
+    pages[0] = { ...pages[0], text: pageText };
+    const md = buildStoryMarkdown(
+      { title: 'קים', companionId: 'chameleon_koko', direction: 'fantasy', pages: 10 },
+      pages
+    );
+    const parsed = parseStoryMarkdown(md);
+    return companionNameValidator.run({
+      parsed,
+      input: {
+        storyMarkdown: md,
+        mode: 'production',
+        context: kokoContext,
+      },
+    });
+  }
+
+  it('allows canonical קים', () => {
+    const findings = runKimNameCheck('קים יצאה מהצל וחייכה.');
+    expect(findings.filter((f) => f.severity === 'BLOCKING')).toHaveLength(0);
+  });
+
+  it('blocks hallucinated קוקו', () => {
+    const findings = runKimNameCheck('קוקו קפץ מהקופסה.');
+    expect(findings.some((f) => f.severity === 'BLOCKING' && /קוקו/.test(f.message))).toBe(true);
+  });
+
+  it('blocks hallucinated כימי', () => {
+    const findings = runKimNameCheck('כימי נגעה בצבע.');
+    expect(findings.some((f) => f.severity === 'BLOCKING')).toBe(true);
   });
 });
