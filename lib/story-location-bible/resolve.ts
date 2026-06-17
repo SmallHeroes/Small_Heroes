@@ -14,8 +14,12 @@ import {
 import type {
   BookLocationBible,
   FixedAnchor,
+  LocationSceneNode,
   LocationZone,
   PageLocationPlan,
+  RecurringObjectLock,
+  RecurringObjectStateEntry,
+  SceneGraph,
   StoryLocationPlanBundle,
 } from './types';
 
@@ -96,6 +100,75 @@ function parsePagePlan(raw: unknown): PageLocationPlan | null {
   };
 }
 
+function parseSceneNode(raw: unknown): LocationSceneNode | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const id = String(o.id ?? '').trim();
+  const description = String(o.description ?? '').trim();
+  if (!id || !description) return null;
+  return {
+    id,
+    label: o.label ? String(o.label).trim() : undefined,
+    description,
+    transitionsTo: Array.isArray(o.transitionsTo)
+      ? o.transitionsTo.map(String).filter(Boolean)
+      : undefined,
+    visualAnchors: Array.isArray(o.visualAnchors)
+      ? o.visualAnchors.map(String).filter(Boolean)
+      : undefined,
+  };
+}
+
+function parseRecurringObject(raw: unknown): RecurringObjectLock | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const id = String(o.id ?? '').trim();
+  const label = String(o.label ?? '').trim();
+  const identity = String(o.identity ?? '').trim();
+  if (!id || !label || !identity) return null;
+  const stateTimeline = (Array.isArray(o.stateTimeline) ? o.stateTimeline : [])
+    .map((s): RecurringObjectStateEntry | null => {
+      if (!s || typeof s !== 'object') return null;
+      const so = s as Record<string, unknown>;
+      const page = Number(so.page);
+      const state = String(so.state ?? '').trim();
+      if (!Number.isFinite(page) || !state) return null;
+      return { page, state };
+    })
+    .filter(Boolean) as RecurringObjectStateEntry[];
+  return {
+    id,
+    label,
+    identity,
+    appearsInScenes: Array.isArray(o.appearsInScenes)
+      ? o.appearsInScenes.map(String).filter(Boolean)
+      : undefined,
+    forbiddenDrift: Array.isArray(o.forbiddenDrift)
+      ? o.forbiddenDrift.map(String).filter(Boolean)
+      : undefined,
+    stateTimeline: stateTimeline.sort((a, b) => a.page - b.page),
+  };
+}
+
+function parseSceneGraph(raw: unknown): SceneGraph | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const o = raw as Record<string, unknown>;
+  const scenes = (Array.isArray(o.scenes) ? o.scenes : [])
+    .map(parseSceneNode)
+    .filter(Boolean) as LocationSceneNode[];
+  const recurringObjects = (Array.isArray(o.recurringObjects) ? o.recurringObjects : [])
+    .map(parseRecurringObject)
+    .filter(Boolean) as RecurringObjectLock[];
+  if (!scenes.length && !recurringObjects.length) return undefined;
+  return {
+    scenes,
+    recurringObjects,
+    forbiddenDrift: Array.isArray(o.forbiddenDrift)
+      ? o.forbiddenDrift.map(String).filter(Boolean)
+      : undefined,
+  };
+}
+
 function parseBookLocationBible(raw: Record<string, unknown>, source: BookLocationBible['source']): BookLocationBible | null {
   const primarySetting = String(raw.primarySetting ?? '').trim();
   const continuityMode = String(raw.continuityMode ?? '').trim();
@@ -124,6 +197,7 @@ function parseBookLocationBible(raw: Record<string, unknown>, source: BookLocati
     setElementFiles: parseSetElementFiles(raw.setElementFiles),
     setTopologyMapPath:
       typeof raw.setTopologyMapPath === 'string' ? String(raw.setTopologyMapPath).trim() : undefined,
+    sceneGraph: parseSceneGraph(raw.sceneGraph),
   };
 }
 

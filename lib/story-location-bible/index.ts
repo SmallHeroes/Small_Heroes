@@ -45,6 +45,7 @@ export function buildResolvedLocationEnvironmentBlock(args: {
 
 export {
   buildLocationContinuityPromptBlock,
+  buildRecurringObjectLockBlock,
   formatPageLocationManifestLine,
 } from './compose';
 export {
@@ -98,11 +99,15 @@ export type {
   FixedAnchor,
   LocationBibleSource,
   LocationContinuityMode,
+  LocationSceneNode,
   LocationZone,
   LocationZoneReferenceSheet,
   PageLocationPlan,
   PageReferenceSheets,
   PageStagingOverride,
+  RecurringObjectLock,
+  RecurringObjectStateEntry,
+  SceneGraph,
   SetTopology,
   SetTopologyElement,
   StoryLocationPlanBundle,

@@ -88,6 +88,51 @@ export interface SetTopology {
   forbidden?: string[];
 }
 
+/**
+ * Scene-Graph node — a named place the book moves through.
+ * General structure (auto-generatable per story); koko is the first populated pilot.
+ */
+export interface LocationSceneNode {
+  id: string;
+  label?: string;
+  description: string;
+  /** Scene-graph edges — the next scene(s) reachable from this one along the journey. */
+  transitionsTo?: string[];
+  visualAnchors?: string[];
+}
+
+/** One state of a recurring object on a specific page (free-text lock note). */
+export interface RecurringObjectStateEntry {
+  page: number;
+  state: string;
+}
+
+/**
+ * Recurring-Object lock — an object whose identity must stay constant wherever it
+ * appears across scenes, while its state may evolve per stateTimeline.
+ */
+export interface RecurringObjectLock {
+  id: string;
+  label: string;
+  /** Identity that must hold every appearance — the part that never drifts. */
+  identity: string;
+  /** Scene ids this object may appear in. */
+  appearsInScenes?: string[];
+  forbiddenDrift?: string[];
+  stateTimeline: RecurringObjectStateEntry[];
+}
+
+/**
+ * Scene-Graph + Recurring-Object lock layer. The schema is generic and reusable
+ * for all 18 stories; per-story data is authored (or auto-generated) into the sidecar.
+ * When present, this layer drives scene-memory derivation over the generic fallback.
+ */
+export interface SceneGraph {
+  scenes: LocationSceneNode[];
+  recurringObjects: RecurringObjectLock[];
+  forbiddenDrift?: string[];
+}
+
 export interface BookLocationBible {
   continuityMode: LocationContinuityMode;
   primarySetting: string;
@@ -97,6 +142,8 @@ export interface BookLocationBible {
   transitionRules: string[];
   source: LocationBibleSource;
   pageCount?: number;
+  /** Scene-Graph + Recurring-Object lock layer — overrides the generic fallback when present. */
+  sceneGraph?: SceneGraph;
   /** Optional override for isolated-object reference block (e.g. lion pillow-cave, not bucket). */
   isolatedObjectPromptInstruction?: string;
   /** Fixed room geography — rendered as SET TOPOLOGY LOCK in prompts. */

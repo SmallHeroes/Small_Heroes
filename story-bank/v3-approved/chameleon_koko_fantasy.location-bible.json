@@ -1,0 +1,334 @@
+{
+  "continuityMode": "journey",
+  "primarySetting": "A morning journey on the path to a new kindergarten, where a magical gate of shifting colors stands across the way. The book moves outdoors along the kindergarten path, pauses at the threshold of the color gate, glimpses the changing color courtyard just beyond it, and finally arrives at the ordinary real-world kindergarten door. This is an outdoor daytime journey — NEVER an indoor bedroom or domestic interior.",
+  "fixedAnchors": [
+    {
+      "id": "color_gate",
+      "label": "the color gate",
+      "description": "The same magical gate of shifting light-colors across the kindergarten path — same gate every appearance, only its state changes (opening, empty circle, blue ring).",
+      "mustRemainSameAcrossPages": true
+    },
+    {
+      "id": "blue_button",
+      "label": "the small blue button",
+      "description": "The same small smooth blue button from the child's old sweater — carried from the path, placed into the gate, left behind as residue.",
+      "mustRemainSameAcrossPages": true
+    },
+    {
+      "id": "kindergarten_path",
+      "label": "the kindergarten path",
+      "description": "The same morning path leading toward the new kindergarten — outdoor, bright, unfamiliar.",
+      "mustRemainSameAcrossPages": true
+    }
+  ],
+  "allowedZones": [
+    {
+      "id": "kindergarten_path",
+      "description": "An outdoor morning path leading toward a new kindergarten, bright but unfamiliar. The real kindergarten is visible far ahead at the end of the path. Open daytime exterior — never an indoor room.",
+      "stableGeometry": [
+        "outdoor path leading forward toward the kindergarten",
+        "new kindergarten visible far ahead at the path's end",
+        "low stones and open morning sky along the path"
+      ],
+      "visualAnchors": [
+        "the kindergarten path",
+        "the new kindergarten far ahead",
+        "small blue button in the child's pocket"
+      ],
+      "allowedCameraAccess": ["eye level along path", "medium wide on path", "close on hand/pocket"]
+    },
+    {
+      "id": "color_gate_threshold",
+      "description": "The threshold of a tall magical gate made of shifting light-colors that stands across the same kindergarten path, blocking the way forward. Outdoors, in front of the gate on the path — NOT an indoor room. The colorful courtyard is only glimpsed through openings in the gate.",
+      "stableGeometry": [
+        "the same color gate standing across the path",
+        "child and Kim small in front of the gate on the path",
+        "courtyard glimpsed only through openings in the gate"
+      ],
+      "visualAnchors": [
+        "the color gate",
+        "the kindergarten path underfoot",
+        "small blue button"
+      ],
+      "allowedCameraAccess": ["medium wide on gate and characters", "close on gate detail", "over-the-shoulder through gate opening"]
+    },
+    {
+      "id": "color_courtyard",
+      "description": "Inside the magical changing-color courtyard reached just beyond the gate. Children receive small soft colored stripes yet remain clearly themselves. New but friendly. Reached only after the gate opens.",
+      "stableGeometry": [
+        "open colorful courtyard just beyond the gate",
+        "low steps and soft color washes across the space",
+        "the gate behind/at the edge of the courtyard"
+      ],
+      "visualAnchors": [
+        "changing-color courtyard",
+        "small blue mark near the gate",
+        "low step where Kim sits"
+      ],
+      "allowedCameraAccess": ["medium wide in courtyard", "eye level among children"]
+    },
+    {
+      "id": "real_kindergarten_entrance",
+      "description": "Back in the ordinary real world at the everyday entrance of the new kindergarten — an ordinary, non-magical door. NO magical color gate is visible here. Outdoor daytime entrance.",
+      "stableGeometry": [
+        "ordinary real-world kindergarten door",
+        "everyday entrance with no magical gate",
+        "the child at the threshold of the real door"
+      ],
+      "visualAnchors": [
+        "ordinary kindergarten door",
+        "empty pocket where the button used to be",
+        "calm grounded child"
+      ],
+      "allowedCameraAccess": ["eye level at door", "medium wide on entrance"]
+    }
+  ],
+  "forbiddenDrift": [
+    "indoor room",
+    "bedroom",
+    "domestic interior of any kind",
+    "bed, lamp, shelf, rug, pillows or other bedroom furniture",
+    "more than one Kim / duplicate or cloned chameleon",
+    "duplicate or cloned child / two children protagonists",
+    "solid wooden or iron fence-gate (the gate is shifting light-color, not wood or metal)",
+    "redesigning the color gate's form between pages (identity holds; only state changes)",
+    "clinic, hospital, deep forest, or unrelated fantasy wilderness",
+    "real-world kindergarten door appearing during the gate-world pages (4-13)",
+    "magical color gate appearing in the real-world pages (15-16)"
+  ],
+  "transitionRules": [
+    "Move forward only along the journey: kindergarten path -> color gate threshold -> color courtyard -> ordinary real-world kindergarten door.",
+    "Camera may move; each scene's set must not redesign between pages.",
+    "The color gate is the SAME gate every time it appears — only its state changes per the story (opening, empty circle, blue ring).",
+    "Outdoor path and gate scenes never become an indoor room."
+  ],
+  "pageCount": 16,
+  "sceneGraph": {
+    "scenes": [
+      {
+        "id": "kindergarten_path",
+        "label": "The kindergarten path",
+        "description": "Outdoor morning path toward the new kindergarten, bright but unfamiliar.",
+        "transitionsTo": ["color_gate_threshold"],
+        "visualAnchors": ["the kindergarten path", "new kindergarten far ahead", "blue button in pocket"]
+      },
+      {
+        "id": "color_gate_threshold",
+        "label": "The color gate threshold",
+        "description": "In front of the same magical color gate standing across the path. The courtyard is glimpsed only through openings in the gate.",
+        "transitionsTo": ["color_courtyard"],
+        "visualAnchors": ["the color gate", "kindergarten path underfoot", "empty circle at the gate's center"]
+      },
+      {
+        "id": "color_courtyard",
+        "label": "The changing-color courtyard",
+        "description": "Inside the soft changing-color courtyard reached just beyond the opened gate.",
+        "transitionsTo": ["real_kindergarten_entrance"],
+        "visualAnchors": ["changing-color courtyard", "low step", "small blue mark near the gate"]
+      },
+      {
+        "id": "real_kindergarten_entrance",
+        "label": "The real kindergarten door",
+        "description": "Back in the ordinary real world at the everyday, non-magical kindergarten door.",
+        "transitionsTo": [],
+        "visualAnchors": ["ordinary kindergarten door", "empty pocket", "calm grounded child"]
+      }
+    ],
+    "recurringObjects": [
+      {
+        "id": "color_gate",
+        "label": "the color gate",
+        "identity": "A standing STONE ARCHWAY across the kindergarten path; the opening of the arch is filled with a softly shifting RAINBOW field (green, yellow, pink and soft unnamed hues), and a small EMPTY CIRCLE sits at the very center of the arch, waiting to be filled. The SAME stone arch and the SAME central empty circle every appearance — only the colors and the state change, never the arch's design.",
+        "appearsInScenes": ["color_gate_threshold", "color_courtyard"],
+        "forbiddenDrift": [
+          "solid wooden or iron gate (it is a stone arch with a rainbow center)",
+          "indoor doorway or room",
+          "a different gate design per page",
+          "more than one gate",
+          "the central empty circle missing or relocated"
+        ],
+        "stateTimeline": [
+          { "page": 4, "state": "first appearance — the stone arch stands CLOSED across the path, its rainbow center shifting between green, yellow and pink, the empty circle at its center waiting" },
+          { "page": 6, "state": "the rainbow center glows softly, colors drifting calmly within the same stone arch" },
+          { "page": 7, "state": "a small opening in the rainbow field reveals the colorful courtyard beyond the arch" },
+          { "page": 8, "state": "Kim perches on a low ridge of the stone arch" },
+          { "page": 9, "state": "the empty circle at the center of the arch is clearly uncolored and waiting" },
+          { "page": 10, "state": "the empty circle sits softly glowing at the center of the arch in the background" },
+          { "page": 11, "state": "the small blue button is set INTO the empty circle at the center of the stone arch" },
+          { "page": 12, "state": "a stable blue ring forms around the button; the rest of the rainbow field stays many-colored but calm" },
+          { "page": 13, "state": "the stone arch OPENS just enough for one child and Kim to pass through" }
+        ]
+      },
+      {
+        "id": "blue_button",
+        "label": "the small blue button",
+        "identity": "A single small smooth blue button from the child's old sweater — the same button throughout, small enough to travel in a pocket.",
+        "appearsInScenes": ["kindergarten_path", "color_gate_threshold", "real_kindergarten_entrance"],
+        "forbiddenDrift": [
+          "a different button color or size",
+          "more than one button",
+          "a bead, coin, or gem instead of a button"
+        ],
+        "stateTimeline": [
+          { "page": 1, "state": "kept in the child's pocket, small and blue, fallen from the old sweater" },
+          { "page": 10, "state": "shown on the child's open palm, close up" },
+          { "page": 11, "state": "placed into the empty circle at the center of the color gate" },
+          { "page": 12, "state": "embedded and stable inside the calm blue ring of the gate" },
+          { "page": 15, "state": "left behind in the gate world — the child touches the empty pocket where it used to be (residue)" }
+        ]
+      },
+      {
+        "id": "ordinary_kindergarten_door",
+        "label": "the ordinary kindergarten door",
+        "identity": "The everyday, non-magical door of the new real-world kindergarten — a plain ordinary door, not a magical gate.",
+        "appearsInScenes": ["kindergarten_path", "real_kindergarten_entrance"],
+        "forbiddenDrift": [
+          "magical color gate in place of the ordinary door",
+          "indoor bedroom door",
+          "a grand or fantastical doorway"
+        ],
+        "stateTimeline": [
+          { "page": 1, "state": "the real kindergarten visible far ahead at the end of the path, bright but unfamiliar" },
+          { "page": 15, "state": "an ordinary, non-magical kindergarten door — no color gate; the everyday entrance" },
+          { "page": 16, "state": "the same ordinary door, now open as the child steps inside" }
+        ]
+      }
+    ],
+    "forbiddenDrift": [
+      "any indoor room or bedroom for path/gate/courtyard scenes",
+      "bedroom furniture (bed, lamp, shelf, rug, pillows)",
+      "duplicate Kim or duplicate child",
+      "swapping the magical gate and the ordinary door between the fantasy and real-world pages"
+    ]
+  },
+  "pagePlans": [
+    {
+      "page": 1,
+      "zoneId": "kindergarten_path",
+      "visibleAnchors": ["the kindergarten path", "new kindergarten far ahead", "blue button in pocket"],
+      "allowedVariation": "Camera may move closer or wider per PageShot; outdoor morning path holds.",
+      "forbiddenDrift": ["indoor room", "bedroom", "color gate (not yet revealed)"],
+      "pageAction": "On the first morning, the child walks slowly along the outdoor path toward the new kindergarten, one hand in the pocket holding the small blue button. The kindergarten is visible far ahead. NO magical gate yet."
+    },
+    {
+      "page": 2,
+      "zoneId": "kindergarten_path",
+      "visibleAnchors": ["the kindergarten path", "low stone beside the path", "Kim the chameleon"],
+      "allowedVariation": "Close 3-4 on Kim's first appearance; same outdoor path.",
+      "forbiddenDrift": ["indoor room", "more than one Kim", "color gate"],
+      "pageAction": "Kim the chameleon appears beside a low stone on the path — green-purple mix, bright orange nose, mustard shoulder satchel. The child notices her. EXACTLY ONE Kim."
+    },
+    {
+      "page": 3,
+      "zoneId": "kindergarten_path",
+      "visibleAnchors": ["the kindergarten path", "new kindergarten entrance at the path's end", "child and Kim"],
+      "allowedVariation": "Side 3-4 looking down the path; same outdoor set.",
+      "forbiddenDrift": ["indoor room", "color gate (not yet)", "duplicate child"],
+      "pageAction": "The child and Kim look down the path toward the new kindergarten entrance at its end. Kim's mustard satchel slips forward comically."
+    },
+    {
+      "page": 4,
+      "zoneId": "color_gate_threshold",
+      "visibleAnchors": ["the color gate", "the kindergarten path", "child and Kim small in front of the gate"],
+      "allowedVariation": "Wide; same color gate across the same path.",
+      "forbiddenDrift": ["indoor room", "solid wooden/iron gate", "a different gate design"],
+      "pageAction": "A magical color gate of shifting light-colors blocks the path before the kindergarten, drifting between green, yellow, pink and soft hues. The child and Kim stand small in front of it on the path."
+    },
+    {
+      "page": 5,
+      "zoneId": "color_gate_threshold",
+      "visibleAnchors": ["the color gate", "the kindergarten path", "Kim mid-transformation"],
+      "allowedVariation": "Close 3-4 on the single Kim; in front of the same gate on the path.",
+      "forbiddenDrift": ["indoor room", "multiple Kims / a row of chameleons", "duplicate child", "bedroom furniture"],
+      "pageAction": "EXACTLY ONE Kim shimmers mid-transformation in front of the same color gate on the kindergarten path (NOT an indoor room) — one body washing green-to-yellow, orange nose and mustard satchel unchanged. The child watches, one child only."
+    },
+    {
+      "page": 6,
+      "zoneId": "color_gate_threshold",
+      "visibleAnchors": ["the color gate glowing softly", "the kindergarten path", "Kim pointing at her orange nose"],
+      "allowedVariation": "3-4; same gate, colors drifting calmly.",
+      "forbiddenDrift": ["indoor room", "a redesigned gate", "duplicate Kim"],
+      "pageAction": "The gate glows softly while Kim points proudly at her orange nose. The child smiles a little but keeps one hand tight in the pocket, still worried."
+    },
+    {
+      "page": 7,
+      "zoneId": "color_gate_threshold",
+      "visibleAnchors": ["small opening in the color gate", "courtyard glimpsed through the opening", "child watching anxiously"],
+      "allowedVariation": "Over-the-shoulder through the gate opening; child remains outside on the path.",
+      "forbiddenDrift": ["child fully inside the courtyard", "indoor room", "the gate redesigned"],
+      "pageAction": "Through a small opening in the gate, children inside the colorful courtyard receive small colored stripes yet stay clearly themselves. The child watches anxiously from the path, hand tight in pocket. Kim nearby."
+    },
+    {
+      "page": 8,
+      "zoneId": "color_gate_threshold",
+      "visibleAnchors": ["the color gate", "Kim perched on a low ridge of the gate", "the kindergarten path"],
+      "allowedVariation": "Medium 3-4; same gate.",
+      "forbiddenDrift": ["indoor room", "a different gate", "duplicate Kim"],
+      "pageAction": "Kim perches on a low ridge of the color gate, mustard satchel caught on a tiny notch, looking down at the child with a steady, kind expression. Orange nose clear."
+    },
+    {
+      "page": 9,
+      "zoneId": "color_gate_threshold",
+      "visibleAnchors": ["the color gate with a small empty uncolored spot at center", "the kindergarten path", "Kim landing on the path"],
+      "allowedVariation": "3-4; same gate, empty center spot revealed.",
+      "forbiddenDrift": ["indoor room", "the gate redesigned", "button already placed"],
+      "pageAction": "Kim lands slightly crooked on the path after climbing down. The child notices a small empty round spot at the center of the shifting gate — clearly uncolored and waiting."
+    },
+    {
+      "page": 10,
+      "zoneId": "color_gate_threshold",
+      "visibleAnchors": ["small blue button on the open palm", "empty circle in the gate softly glowing behind", "Kim leaning close"],
+      "allowedVariation": "Close; same gate in background.",
+      "forbiddenDrift": ["indoor room", "a different button", "button already placed in the gate"],
+      "pageAction": "Close-up of the child opening a palm to show the small smooth blue button. Kim leans close, orange nose and mustard satchel visible. The empty circle in the gate glows softly behind."
+    },
+    {
+      "page": 11,
+      "zoneId": "color_gate_threshold",
+      "visibleAnchors": ["the child placing the blue button into the gate's empty circle", "the color gate", "Kim watching proudly"],
+      "allowedVariation": "Front 3-4 — main agency moment; same gate.",
+      "forbiddenDrift": ["indoor room", "a different button or circle", "blue ring already formed"],
+      "pageAction": "Main agency moment. The child places the small blue button into the empty circle at the center of the shifting color gate. Kim watches proudly from below. The gate's colors move around the stable blue button."
+    },
+    {
+      "page": 12,
+      "zoneId": "color_gate_threshold",
+      "visibleAnchors": ["stable blue ring forming around the button in the gate", "the rest of the gate many-colored but calm", "child relaxing"],
+      "allowedVariation": "Wide 3-4; same gate, blue ring stable.",
+      "forbiddenDrift": ["indoor room", "the gate redesigned", "gate fully opened (comes next page)"],
+      "pageAction": "The gate settles as a small stable blue ring forms around the button. The rest of the gate stays many-colored but calm. The child visibly relaxes. Kim smiles."
+    },
+    {
+      "page": 13,
+      "zoneId": "color_gate_threshold",
+      "visibleAnchors": ["the color gate opening just enough", "child and Kim passing through", "Kim with a small new colored stripe"],
+      "allowedVariation": "3-4; same gate, opening just enough to pass.",
+      "forbiddenDrift": ["indoor room", "the gate vanishing entirely", "Kim's orange nose or mustard satchel changing"],
+      "pageAction": "The gate opens just enough for the child and Kim. Kim walks through with a small new colored stripe on her body, while her orange nose and mustard satchel stay unchanged. The child follows, calmer."
+    },
+    {
+      "page": 14,
+      "zoneId": "color_courtyard",
+      "visibleAnchors": ["changing-color courtyard", "low step where Kim sits", "small blue mark near the gate"],
+      "allowedVariation": "3-4; inside the courtyard just beyond the gate.",
+      "forbiddenDrift": ["indoor room", "the path/gate becoming a bedroom", "duplicate child"],
+      "pageAction": "Inside the magical changing-color courtyard, one child notices the small blue mark near the gate. The child answers with quiet confidence while Kim sits nearby on a low step. The courtyard feels new but friendly."
+    },
+    {
+      "page": 15,
+      "zoneId": "real_kindergarten_entrance",
+      "visibleAnchors": ["ordinary real-world kindergarten door", "empty pocket where the button used to be", "Kim sitting quietly nearby"],
+      "allowedVariation": "3-4; ordinary real-world entrance, NO magical gate.",
+      "forbiddenDrift": ["magical color gate visible", "indoor room", "the blue button still in the pocket"],
+      "pageAction": "Back in the real world. The child stands before the ordinary door of the new kindergarten, touching the pocket where the button used to be. Kim sits quietly nearby. NO magical gate visible."
+    },
+    {
+      "page": 16,
+      "zoneId": "real_kindergarten_entrance",
+      "visibleAnchors": ["the ordinary kindergarten door now open", "child stepping inside", "Kim near the child's shoulder"],
+      "allowedVariation": "3-4; same ordinary door, now open.",
+      "forbiddenDrift": ["magical color gate", "indoor bedroom", "duplicate Kim or child"],
+      "pageAction": "Final real-world entrance. The child opens the ordinary kindergarten door and steps inside. Kim perches near the child's shoulder, orange nose and mustard satchel visible. The child is still a little cautious but grounded."
+    }
+  ]
+}

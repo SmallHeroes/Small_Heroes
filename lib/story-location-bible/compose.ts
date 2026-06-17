@@ -5,10 +5,71 @@ import type { SceneMemory } from '../scene-memory/types';
 import { buildSetAppearanceLockBlock } from '../set-appearance/compose';
 import type { SceneAppearanceMemory } from '../set-appearance/types';
 import { buildStagingLockBlock } from './staging-lock';
-import type { BookLocationBible, PageLocationPlan } from './types';
+import type {
+  BookLocationBible,
+  PageLocationPlan,
+  RecurringObjectLock,
+} from './types';
 
 export function resolveZoneById(bible: BookLocationBible, zoneId: string) {
   return bible.allowedZones.find((z) => z.id === zoneId);
+}
+
+function recurringObjectPageRange(obj: RecurringObjectLock): string {
+  const pages = obj.stateTimeline.map((s) => s.page).filter((p) => Number.isFinite(p));
+  if (!pages.length) return '';
+  const min = Math.min(...pages);
+  const max = Math.max(...pages);
+  return min === max ? `page ${min}` : `pages ${min}–${max}`;
+}
+
+/** Exact state for this page, else carry forward the most recent prior state. */
+function recurringObjectStateForPage(obj: RecurringObjectLock, page: number): string | null {
+  const exact = obj.stateTimeline.find((s) => s.page === page);
+  if (exact) return exact.state;
+  const prior = obj.stateTimeline
+    .filter((s) => s.page <= page)
+    .sort((a, b) => a.page - b.page)
+    .pop();
+  return prior?.state ?? null;
+}
+
+function recurringObjectAppearsOnPage(obj: RecurringObjectLock, pagePlan: PageLocationPlan): boolean {
+  if (obj.stateTimeline.some((s) => s.page === pagePlan.page)) return true;
+  return obj.appearsInScenes?.includes(pagePlan.zoneId) ?? false;
+}
+
+/**
+ * RECURRING OBJECT LOCK — injects the bible's recurring-object identity + this page's state
+ * for every recurring object that appears on the page (by stateTimeline OR appearsInScenes).
+ * Identity is held constant across appearances; only the per-page state changes.
+ */
+export function buildRecurringObjectLockBlock(
+  bible: BookLocationBible,
+  pagePlan: PageLocationPlan
+): string | null {
+  const objects = bible.sceneGraph?.recurringObjects ?? [];
+  const present = objects.filter((o) => recurringObjectAppearsOnPage(o, pagePlan));
+  if (!present.length) return null;
+
+  return present
+    .map((o) => {
+      const identity = o.identity.trim().replace(/\.?$/, '.');
+      const bareLabel = o.label.replace(/^(the|a|an)\s+/i, '');
+      const range = recurringObjectPageRange(o);
+      const rangeNote = range ? ` (${range})` : '';
+      const state = recurringObjectStateForPage(o, pagePlan.page);
+      const stateNote = state ? ` This page's state: ${state.trim().replace(/\.?$/, '.')}` : '';
+      const forbidden = o.forbiddenDrift?.length
+        ? ` Never: ${o.forbiddenDrift.join('; ')}.`
+        : '';
+      return (
+        `RECURRING OBJECT LOCK — ${o.label}: ${identity} ` +
+        `The SAME physical ${bareLabel} every time it appears${rangeNote}; ` +
+        `only its STATE changes, never its design.${stateNote}${forbidden}`
+      );
+    })
+    .join('\n\n');
 }
 
 function pageUsesBucketAnchors(pagePlan: PageLocationPlan): boolean {
@@ -59,6 +120,11 @@ export function buildLocationContinuityPromptBlock(
     '',
     shotNote,
   ];
+
+  const recurringBlock = buildRecurringObjectLockBlock(bible, pagePlan);
+  if (recurringBlock) {
+    lines.push('', recurringBlock);
+  }
 
   if (options?.isCover) {
     lines.push('', 'COVER:', COVER_MYSTERY_LOCK);

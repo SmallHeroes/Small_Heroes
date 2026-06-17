@@ -93,6 +93,17 @@ function stableFactsFromTopology(bible: BookLocationBible): SceneMemory['stableF
   return facts;
 }
 
+/**
+ * A scene-graph journey book has no single fixed set: its recurring objects appear in
+ * different scenes and are absent from others. Continuity for them is governed per-page by
+ * the scene-aware RECURRING OBJECT LOCK, NOT by a book-wide scene-memory set — which would
+ * wrongly assert e.g. the color gate as "must remain" on the real-world pages where it is
+ * forbidden. Books with an authored setTopology (a genuine fixed interior) are unaffected.
+ */
+function isSceneGraphJourneyBook(bible: BookLocationBible): boolean {
+  return Boolean(bible.sceneGraph?.recurringObjects?.length) && !bible.setTopology?.elements?.length;
+}
+
 function stableFactsFromZoneGeometry(bible: BookLocationBible): SceneMemory['stableFacts'] {
   const facts: SceneMemory['stableFacts'] = {};
   for (const zone of bible.allowedZones) {
@@ -188,6 +199,11 @@ export function seedSceneMemoryPlan(args: {
   bookShotPlan?: BookShotPlan | null;
 }): SceneMemoryPlan | null {
   const bible = args.storyLocationPlan.bible;
+
+  // Journey scene-graph books: recurring objects are locked per-page/scene by the
+  // RECURRING OBJECT LOCK block, so we do not also build a contradictory book-wide set.
+  if (isSceneGraphJourneyBook(bible)) return null;
+
   const seedSource = pickSeedSource(bible, args.bookShotPlan ?? null);
 
   const fromTopology = stableFactsFromTopology(bible);
@@ -208,6 +224,8 @@ export function seedSceneMemoryPlan(args: {
   const forbiddenChanges = [
     ...(bible.setTopology?.forbidden ?? []),
     ...bible.forbiddenDrift,
+    ...(bible.sceneGraph?.forbiddenDrift ?? []),
+    ...(bible.sceneGraph?.recurringObjects ?? []).flatMap((o) => o.forbiddenDrift ?? []),
     'props not listed in scene inventory',
     'relocating fixed furniture without story authorization',
   ];

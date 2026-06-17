@@ -92,7 +92,7 @@ imageDirection: A magical color gate blocks the path before the kindergarten. Th
 קים פתחה עין אחת.
 "אני חושבת שזה לא בדיוק עבד."
 
-imageDirection: ONE single chameleon, Kim — her one body shimmering mid-transformation, a blend of green and yellow washing across the SAME body (a single creature caught between colors, NOT separate chameleons, NOT a row of them), while her bright orange nose and mustard satchel stay unchanged. {{childName}} watches with nervous amusement, one child only. EXACTLY ONE chameleon and EXACTLY ONE child — never multiple Kims, never duplicate or clone the child. companionPresence: present. view: close 3-4.
+imageDirection: ONE single chameleon, Kim — her one body shimmering mid-transformation, a blend of green and yellow washing across the SAME body (a single creature caught between colors, NOT separate chameleons, NOT a row of them), while her bright orange nose and mustard satchel stay unchanged. {{childName}} watches with nervous amusement, one child only. EXACTLY ONE chameleon and EXACTLY ONE child — never multiple Kims, never duplicate or clone the child. The scene takes place in front of the same color gate on the kindergarten path (NOT an indoor room). companionPresence: present. view: close 3-4.
 
 --- Page 6 ---
 השער הבהב בעדינות.
