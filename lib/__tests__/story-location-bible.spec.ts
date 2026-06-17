@@ -121,7 +121,7 @@ describe('StoryLocationBible', () => {
     const beats = beatsFromStoryPages(pages);
     const shotPlan = resolveBookShotPlan({ storyFilePath: FOX_BANK, pages: beats });
     const p10Shot = shotPlan.pages.find((p) => p.page === 10);
-    expect(p10Shot?.shot).toBe('close_up');
+    expect(p10Shot?.shot).toBe('medium_wide');
   });
 
   it('fallback safety: without bible input, scenario lock still applies', () => {

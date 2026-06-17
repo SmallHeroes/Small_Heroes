@@ -84,7 +84,7 @@ imageDirection: The lantern light now clearly reveals the chair and hanging shir
 imageDirection: The child and Uri both pause in the bedroom, listening. Uri is frozen with his lantern shrunk to a tiny glow, tail trying to hide behind one leg. The room points attention toward several possible sound sources: bed, closet, window. companionPresence: present; view: 3-4.
 
 --- Page 6 ---
-{{childName}} {לא|לא} {קפץ|קפצה} מהמיטה.
+{{childName}} לא {קפץ|קפצה} מהמיטה.
 רק {הקשיב|הקשיבה}.
 תַּק. תַּק.
 "זה לא מתחת למיטה," {לחש|לחשה} {{childName}}. "זה ליד החלון."

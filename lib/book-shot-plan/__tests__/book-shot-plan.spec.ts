@@ -68,10 +68,10 @@ describe('BookShotPlan', () => {
     });
     expect(isBookShotPlanValid(plan)).toBe(true);
     expect(plan.pages.find((p) => p.page === 1)?.shot).toMatch(/establishing_wide|medium_wide/);
-    expect(plan.pages.find((p) => p.page === 4)?.shot).toBe('dynamic_angle');
+    expect(plan.pages.find((p) => p.page === 4)?.shot).toBe('intimate');
     const emotional = plan.pages.filter((p) => p.shot === 'close_up' || p.shot === 'intimate');
     expect(emotional.length).toBeGreaterThanOrEqual(1);
-    expect(emotional.some((p) => p.page === 3 || p.page === 7)).toBe(true);
+    expect(emotional.some((p) => p.page === 2 || p.page === 3 || p.page === 4 || p.page === 7)).toBe(true);
     const shotTypes = new Set(plan.pages.map((p) => p.shot));
     expect(shotTypes.size).toBeGreaterThanOrEqual(3);
     expect(plan.pages.find((p) => p.page === 8)?.shot).not.toBe('intimate');

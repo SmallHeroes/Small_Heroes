@@ -7,243 +7,258 @@ approvedBy: "Guy"
 approvedAt: "2026-06-17T14:00:00+03:00"
 importedAt: "2026-06-17T09:34:47.722Z"
 ---
-title: "{{childName}} וקים: הצבע שלא התחבא"
+title: "{{childName}} וקִים: שער הצבעים"
 companionId: chameleon_koko
 direction: fantasy
 category: TRANSITION
 pages: 16
 gender: female
-endingType: resolution
-worldRule: "אפשר להחליף צבע בלי להיעלם; הצבע שמביאים מהבית נשאר ומכיר אותך."
-coreLine: "אני יכולה להחליף צבע, אבל אני לא חייבת להיעלם."
-storyObject: "גולה כחולה מאדן החלון הישן (home-token)"
-recurringGag: "קים מנסה להתאים צבע, מתבלבלת, והתיק החרדלי והאף הכתום מסרבים להשתנות"
-childAgencyAction: "{{childName}} {פותח|פותחת} את האגרוף, {מניח|מניחה} את הגולה הכחולה בעולם המשתנה ואז על אדן החלון בחדר החדש"
-visualSet: "חדר חדש עם ארגזים → עולם צבעים מתחלפים → סלע כחול יציב → אדן חלון בחדר החדש"
-heartLine: "עמוד 9 — קים: 'אני יכולה להחליף צבע, אבל אני לא חייבת להיעלם. אם אהיה בדיוק כמו הקיר — מי בכלל ידע שהגעתי?'"
-emotionalMistake: "עמוד 7 — {{childName}} {מנסה|מנסה} להדביק כל צבע משתנה — והכול בורח; היד נסגרת על הגולה באגרוף"
-agencyTransfer: "עמוד 10–12 — {{childName}} {פותח|פותחת} את האגרוף ו{מניח|מניחה} את הגולה הכחולה → נוצר כתם כחול יציב"
-quietPagePosition: 11
+endingType: residue
+worldRule: "אפשר להיכנס למקום חדש בלי להיעלם; מקום חדש יכול ללמוד גם צבע שלך."
+coreLine: "גם הכחול שלי נכנס."
+storyObject: "כפתור כחול קטן מהסוודר הישן"
+recurringGag: "קים מנסה להתאים צבע לשער, אבל האף הכתום והתיק החרדלי שלה לא מקבלים הוראות"
+childAgencyAction: "{{childName}} {מוציא|מוציאה} כפתור כחול מהכיס ו{מניח|מניחה} אותו במקום הריק בשער הצבעים"
+visualSet: "דרך בוקר לגן חדש → שער צבעים קסום → חצר צבעים משתנה → דלת הגן האמיתית"
+heartLine: "עמוד 8 — קים: 'אני יכולה להחליף צבע, אבל אני לא חייבת להיעלם'"
+emotionalMistake: "עמוד 6 — {{childName}} חושב/ת: 'אולי כדי להיכנס, צריך להשאיר את הצבע שלי בחוץ' (להיעלם כדי להשתייך)"
+agencyTransfer: "עמוד 10–11 — {{childName}} מוציא/ה את הכפתור הכחול ומניח/ה אותו בעיגול הריק במרכז השער"
+quietPagePosition: 15
+niqqud: partial
 ---
 
 --- Page 1 ---
-בלילה הראשון בבית החדש, {{childName}} {שכב|שכבה} במיטה ו{הקשיב|הקשיבה}.
-החדר היה מלא ארגזים חומים.
-הקירות היו ירוקים, אבל לא ירוק מוכר.
-כש{{childName}} {זז|זזה} מתחת לשמיכה, השמיכה עשתה הד קטן,
-כאילו כל החדר היה קופסה גדולה מדי.
-על הרצפה, בתוך קופסה פתוחה, חיכתה גולה כחולה מאדן החלון הישן.
-אבל כאן, שום דבר לא הריח כמו בית.
+בבוקר הראשון בדרך לגן החדש, {{childName}} {הלך|הלכה} לאט.
+לא לאט של עייף.
+לאט של: עוד רגע מגיעים, ואני עוד לא {יודע|יודעת} איך להיות שם.
+בכיס היה כפתור כחול קטן.
+הוא נפל מהסוודר הישן.
+{{childName}} {שמר|שמרה} אותו בכיס, כי הוא היה קטן מספיק לבוא יחד.
 
-imageDirection: {{childName}} lies awake in a dim new green bedroom under a blanket. Tall cardboard moving boxes line the walls. A small open box near the bed contains a soft blue marble. Worried, quiet mood. companionPresence: absent. view: 3-4.
+imageDirection: Morning path toward a new kindergarten entrance. {{childName}} walks slowly with one hand in the pocket, holding a small blue button. The kindergarten is visible ahead, bright but unfamiliar. companionPresence: absent. view: 3-4.
 
 --- Page 2 ---
-פתאום נשמע קול קטן על קצה המיטה.
+ליד אבן נמוכה נשמע:
 טיק.
 טק.
 פְּלַאק.
-מתוך הצל של הארגז יצאה קים.
-זיקית קטנה, עם תיק צד חרדלי ואף כתום מאוד.
-קים הביטה בקיר הירוק.
-"אני רגע מתאימה את עצמי," אמרה.
-היא עצמה עין אחת.
-ואז עוד עין.
-הגב שלה נהיה סגול.
-הזנב קיבל פסים ורודים.
-והאף?
-האף נשאר כתום לגמרי.
-"אוי," מלמלה קים.
-"רציתי להיות קיר. יצא לי חציל מבולבל."
+משהו ירוק זז על האבן.
+ואז משהו סגול.
+ואז אף כתום מאוד פרץ החוצה.
+קים יצאה מהצל.
+זיקית קטנה, עם תיק צד חרדלי.
+"שלום," אמרה.
+"ניסיתי להתאים לאבן.
+יצא לי סלט עם אף."
 
-imageDirection: Kim the chameleon appears on the bed edge with a small mustard satchel and bright orange nose. Her body is comically mismatched purple with pink stripes. {{childName}} sits up, surprised and almost smiling. companionPresence: present. view: close 3-4.
+imageDirection: Kim the chameleon appears beside a low stone on the path. Her body is a funny green-purple mix, with a bright orange nose and a small mustard shoulder satchel. {{childName}} notices her. companionPresence: present. view: close 3-4.
 
 --- Page 3 ---
-{{childName}} {התיישב|התיישבה} במיטה.
-"החדר הזה חדש מדי," {לחש|לחשה}.
-"אני {מרגיש|מרגישה} כאן קטן. כאילו אני לא במקום שלי."
-קים טיפסה קרוב יותר.
-התיק החרדלי שלה נתקע לרגע בשמיכה.
-"סליחה," אמרה לתיק.
-ואז הסתכלה על האף הכתום שלה.
-"האף שלי לא מקבל הוראות מקירות חדשים," אמרה.
-"וגם {אתה|את} לא {חייב|חייבת}."
-היא הצביעה אל הקופסה הפתוחה.
-"אולי יש שם משהו קטן שכן הגיע מהבית."
+{{childName}} {התכופף|התכופפה} אליה.
+"את באה לגן החדש?" {שאל|שאלה}.
+קים הסתכלה קדימה.
+התיק החרדלי שלה החליק קצת, כאילו גם הוא רצה לראות.
+"אני באה למקומות חדשים," אמרה קים.
+"אבל אני לא תמיד מסכימה להיות בדיוק כמוהם."
+האף הכתום שלה הסכים מאוד.
 
-imageDirection: Kim sits near the child’s feet, mustard satchel caught in the blanket for a funny beat. She points toward the small open box on the floor with the blue marble. Child leans forward, listening. companionPresence: present. view: 3-4.
+imageDirection: {{childName}} and Kim look toward the new kindergarten entrance at the end of the path. Kim's mustard satchel slips forward comically, and her orange nose points ahead. companionPresence: present. view: side 3-4.
 
 --- Page 4 ---
-{{childName}} {ירד|ירדה} מהמיטה.
-בקופסה היו כמה דברים:
-צעצוע ישן.
-ספר עם פינה מקופלת.
-גרב אחת שכבר התייאשה מלחפש את השנייה.
-ומתחת לכולם —
-גולה כחולה.
-קטנה.
-חלקה.
-מאדן החלון הישן.
-{{childName}} {הרים|הרימה} אותה בזהירות.
-"זה," {אמר|אמרה}.
-"את זה הבאתי מהבית."
+כשהם התקרבו, הדרך התכופפה.
+באמצע השביל עמד שער גדול.
+לא שער ברזל.
+לא שער עץ.
+שער צבעים.
+הוא היה ירוק, ואז צהוב, ואז ורוד, ואז צבע שלא היה לו שם אבל נראה בטוח מאוד.
+השער אמר בקול רך:
+"כדי להיכנס, צריך להיות בצבע המקום."
 
-imageDirection: Child kneels beside a small open moving box and lifts a soft frayed blue marble from under familiar objects. Kim stands beside the box, watching closely with her orange nose and mustard satchel visible. companionPresence: present. view: close.
+imageDirection: A magical color gate blocks the path before the kindergarten. The gate shifts gently between green, yellow, pink, and unnamed soft colors. {{childName}} and Kim stand small in front of it. companionPresence: present. view: wide.
 
 --- Page 5 ---
-מאחורי הארגז הגבוה נפתח שביל של אור.
-השביל החליף צבע בכל צעד.
-צהוב.
-ורוד.
-סגול רך.
-{{childName}} {החזיק|החזיקה} את הגולה הכחולה.
-קים צעדה {לפניו|לפניה}.
-לפחות ניסתה.
-כי התיק החרדלי שלה כל הזמן נתקע בקצה של הצבע הבא.
-"סליחה," אמרה קים לשביל.
-"יש לי תיק עם דעות."
-
-imageDirection: A soft glowing path opens behind a moving box. The path gently shifts colors underfoot. {{childName}} holds the blue marble while Kim walks ahead, her mustard satchel snagging humorously on the shifting color edge. companionPresence: present. view: wide.
-
---- Page 6 ---
-מאחורי הארגז היה עולם שכל הזמן השתנה.
-עצים החליפו עלים.
-דלתות החליפו צבע.
-עננים החליפו מצב רוח.
-מתוך האוויר נשמע קול עדין:
-"כאן כולם מתאימים צבע. כאן כולם משתנים יחד."
-{{childName}} {הביט|הביטה} בשרוולים של הפיג'מה.
-לרגע, גם הם נראו חיוורים.
-
-imageDirection: Dreamlike fantasy world with soft pastel trees, doors, and clouds gently shifting colors. {{childName}} looks down at pale-looking pajama sleeves while holding the blue marble. Kim watches the changing world. companionPresence: present. view: wide.
-
---- Page 7 ---
-{{childName}} {ניסה|ניסתה} לעמוד על מקום ירוק.
-אבל כש{הגיע|הגיעה} לשם — הוא כבר היה צהוב.
-{{childName}} {ניסה|ניסתה} לעמוד על מקום כחול.
-אבל כש{הגיע|הגיעה} לשם — הוא כבר היה ורוד.
-"אני לא {מצליח|מצליחה}," {אמר|אמרה} {{childName}}.
-"הכול משתנה מהר מדי."
-היד עם הגולה הכחולה נסגרה חזק.
-
-imageDirection: {{childName}} tries stepping onto shifting colored patches, but each changes just before arrival. The child looks frustrated and small, clutching the blue marble tightly. Kim stands nearby on a changing stone. companionPresence: present. view: 3-4.
-
---- Page 8 ---
-"{תסתכל|תסתכלי} עליי," אמרה קים.
-"אני זיקית. זה אמור להיות החלק שאני טובה בו."
-היא קפצה על השביל.
-"עכשיו אני צהובה."
+{{childName}} {בלע|בלעה} רוק.
+"ואם אני לא בצבע המקום?"
+השער לא כעס.
+הוא רק נהיה כחול־כמעט־לא־כחול.
+קים הרימה אצבע קטנה.
+"אני אדגים."
 היא עצמה עיניים.
-התאמצה.
-והפכה לירוקה עם זנב כחול.
+הפכה לירוקה.
+ואז לצהובה.
+ואז לירוקה עם נקודות ורודות.
 האף נשאר כתום.
 התיק נשאר חרדלי.
 קים פתחה עין אחת.
-"אה," אמרה.
-"זה לא צהוב. זה קישוא שהתבלבל בדרך."
-{{childName}} {צחק|צחקה} קצת.
+"אני חושבת שזה לא בדיוק עבד."
 
-imageDirection: Kim attempts to turn yellow but becomes a funny green-and-blue patchwork. Her orange nose and mustard satchel remain unchanged. {{childName}} laughs softly for the first time. companionPresence: present. view: close 3-4.
+imageDirection: Kim tries to match the gate color, changing into green, yellow, then green with pink dots, while her orange nose and mustard satchel remain unchanged. {{childName}} watches with nervous amusement. companionPresence: present. view: close 3-4.
+
+--- Page 6 ---
+השער הבהב בעדינות.
+"לא בדיוק צבע המקום," אמר.
+קים הביטה באף שלה.
+"נכון," אמרה.
+"זה האף שלי.
+הוא לא מקבל הוראות משערים."
+{{childName}} {צחק|צחקה} קצת.
+אבל הצחוק היה קטן.
+כי בפנים, {{childName}} עדיין {חשב|חשבה}:
+אולי כדי להיכנס, צריך להשאיר את הצבע שלי בחוץ.
+
+imageDirection: The gate glows softly while Kim points proudly at her orange nose. {{childName}} smiles a little but keeps one hand tight in the pocket, still worried. companionPresence: present. view: 3-4.
+
+--- Page 7 ---
+השער נפתח לרגע.
+מאחוריו נראתה חצר גדולה.
+ילדים עברו שם.
+כל אחד קיבל פס קטן מהשער:
+פס ירוק על שרוול.
+פס צהוב על כובע.
+פס ורוד על נעל.
+הילדים לא נעלמו.
+אבל {{childName}} לא {שם|שמה} לב לזה מיד.
+{{childName}} רק {החזיק|החזיקה} חזק יותר את הכפתור שבכיס.
+
+imageDirection: Through a small opening in the gate, children inside the colorful courtyard receive small colored stripes on clothes and shoes, but remain clearly themselves. {{childName}} watches anxiously, hand tight in pocket. Kim nearby. companionPresence: present. view: over-the-shoulder.
+
+--- Page 8 ---
+קים טיפסה על קצה השער.
+התיק החרדלי שלה נתקע בבליטה קטנה.
+"אוי," אמרה קים לתיק.
+"גם אתה לא רוצה להיות בצבע של שער?"
+התיק לא ענה.
+הוא היה תיק.
+אבל הוא נשאר חרדלי מאוד.
+קים הביטה ב{{childName}}.
+"אני יכולה להחליף צבע," אמרה.
+"אבל אני לא חייבת להיעלם."
+
+imageDirection: Kim perches on a low ridge of the color gate, her mustard satchel caught on a tiny notch. She looks down at {{childName}} with a steady, kind expression. Orange nose clear. companionPresence: present. view: medium 3-4.
 
 --- Page 9 ---
-קים התיישבה על אבן.
-הצבעים שלה נרגעו קצת.
-"אני יכולה להחליף צבע," אמרה.
-"אבל אני לא חייבת להיעלם.
-אם אהיה בדיוק כמו הקיר — מי בכלל ידע שהגעתי?"
-היא הצביעה באף הכתום על היד של {{childName}}.
-"ומה אצלך? איפה הצבע שהבאת מהבית?"
+"אם אהיה בדיוק כמו השער," אמרה קים,
+"מי ידע שקים הגיעה?"
+היא ירדה מהשער ונחתה קצת עקום.
+פְּלַאק.
+"נחיתה בצבע אישי," מלמלה.
+פתאום {{childName}} {ראה|ראתה} משהו באמצע השער.
+עיגול קטן וריק.
+לא ירוק.
+לא צהוב.
+לא ורוד.
+ריק.
+כמו מקום שמחכה להכיר צבע חדש.
 
-imageDirection: Kim sits on a soft pastel rock, calmer now, orange nose prominent. She gently points toward the child’s closed fist. The shifting background softens behind them. companionPresence: present. view: close.
+imageDirection: Kim lands slightly crooked on the path after climbing down. {{childName}} notices a small empty round spot in the center of the shifting gate. The spot is clearly uncolored and waiting. companionPresence: present. view: 3-4.
 
 --- Page 10 ---
-{{childName}} {הביט|הביטה} ביד.
-הגולה הכחולה הייתה סגורה בפנים.
-חזק.
-בחושך של האגרוף.
-קים התקרבה.
-"אי אפשר להראות למקום חדש צבע כשהוא סגור באגרוף," אמרה בשקט.
-"המקום לא יכול להכיר אותך ככה."
-{{childName}} {נשם|נשמה}.
-לאט.
-ואז {פתח|פתחה} את היד.
+{{childName}} {הוציא|הוציאה} את הכפתור הכחול מהכיס.
+הוא לא זהר.
+לא שר.
+לא עשה קסם גדול.
+הוא פשוט היה כחול.
+כחול של סוודר ישן.
+כחול של בוקר מוכר.
+כחול שבא עם {{childName}} עד לכאן.
+קים התקרבה ולחשה:
+"נראה לי שהשער עוד לא מכיר את הכחול שלך."
 
-imageDirection: Close-up on the child’s tight fist slowly opening to reveal the soft blue marble. Kim’s kind face and orange nose are nearby. The surrounding colors pause slightly. companionPresence: present. view: close.
+imageDirection: Close-up of {{childName}} opening a palm to show a small smooth blue button. Kim leans close, orange nose and mustard satchel visible. The empty circle in the gate glows softly in the background. companionPresence: present. view: close.
 
 --- Page 11 ---
-הגולה הכחולה נחה בכף היד.
-היא לא הבהיקה.
-לא שרה.
-לא עשתה קסם גדול.
-היא פשוט הייתה כחולה.
-כחול שמכיר בוקר ישן.
-כחול שמכיר חלון ישן.
-כחול שהגיע עם {{childName}}.
-לידם, סלע קטן הפסיק להחליף צבעים.
-הוא חיכה.
-כמו חבר שמקשיב.
-
-imageDirection: The blue marble rests quietly in the child’s open palm. A nearby smooth boulder stops shifting and settles into a calm gray-blue tone, as if listening. Kim watches gently. companionPresence: present. view: close 3-4.
-
---- Page 12 ---
-{{childName}} {התכופף|התכופפה} ו{הניח|הניחה} את הגולה הכחולה על הסלע הקטן.
-הכחול הישן נגע במקום החדש.
-מסביב לגולה נוצר כתם כחול יציב.
-הוא לא קפץ לוורוד.
-לא ברח לצהוב.
-הוא נשאר.
-{{childName}} {חייך|חייכה}.
-"עכשיו יש כאן נקודה אחת שמכירה אותי."
-
-imageDirection: Child places the blue marble on a small boulder beside the path. A steady soft blue spot forms around it while the rest of the world continues gently shifting. Kim stands beside the child. companionPresence: present. view: close.
-
---- Page 13 ---
-העולם מסביב לא הפסיק להשתנות.
-העצים הרחוקים עוד החליפו עלים.
-העננים עוד עברו צבע.
-המקום החדש נשאר חדש.
-אבל ליד הסלע הכחול, {{childName}} כבר {ידע|ידעה} איפה לעמוד.
-קים נכנסה אל האור הכחול.
-חצי ממנה נהיה כחול.
-חצי ממנה נהיה ירוק.
-האף נשאר כתום.
-התיק נשאר חרדלי.
-"כחול משם," אמרה קים.
-"ירוק מכאן.
-ואף כתום אחד שלא מוותר."
-
-imageDirection: The shifting world continues in the background, but the area around the blue boulder feels steady. Kim stands in the blue glow, half blue and half green, orange nose and mustard satchel unchanged. Child smiles. companionPresence: present. view: medium 3-4.
-
---- Page 14 ---
-{{childName}} {הרים|הרימה} את הגולה הכחולה.
-הפעם, היד נשארה פתוחה.
-{הוא|היא} וקים חזרו בשביל האור אל החדר החדש.
-הארגזים עוד עמדו שם.
-הקירות עוד היו ירוקים.
-החלון עוד היה ריק.
-{{childName}} {הלך|הלכה} אל אדן החלון ו{הניח|הניחה} עליו את הגולה הכחולה.
+{{childName}} {התקרב|התקרבה} אל השער.
+צעד אחד.
+ועוד צעד.
+השער החליף צבעים מהר:
+צהוב.
+ירוק.
+ורוד.
+כמעט סגול.
+אבל {{childName}} לא {רדף|רדפה} אחרי הצבעים.
+{{childName}} {הרים|הרימה} את הכפתור הכחול ו{הניח|הניחה} אותו בעיגול הריק.
 בדיוק באמצע.
 
-imageDirection: Back in the real green bedroom, {{childName}} walks to the empty windowsill with the blue marble in an open hand and places it carefully in the center. Kim watches from a moving box. companionPresence: present. view: 3-4.
+imageDirection: Main agency moment. {{childName}} places the small blue button into the empty circle at the center of the shifting color gate. Kim watches proudly from below. The gate's colors move around the stable blue button. companionPresence: present. view: front 3-4.
+
+--- Page 12 ---
+לרגע, השער שתק.
+ואז הוא עשה:
+טיק.
+לא טיק גדול.
+לא טיק מפחיד.
+טיק קטן של משהו שמבין.
+מסביב לכפתור נפתח פס כחול.
+הפס לא צבע את כל השער.
+הוא רק נתן לו עוד צבע אחד לדעת.
+"אה," לחש השער.
+"גם כחול."
+{{childName}} {נשם|נשמה} עד הסוף.
+
+imageDirection: The gate settles as a small stable blue ring forms around the button. The rest of the gate remains many-colored but calm. {{childName}} visibly relaxes. Kim smiles. companionPresence: present. view: wide 3-4.
+
+--- Page 13 ---
+השער נפתח.
+לא בבת אחת.
+בפתיחה קטנה ונעימה.
+בדיוק בגודל של {ילד|ילדה} וזיקית עם תיק.
+קים נכנסה ראשונה.
+הגוף שלה קיבל פס צבעוני קטן.
+האף נשאר כתום.
+התיק נשאר חרדלי.
+"מצוין," אמרה קים.
+"נכנסתי, ולא איבדתי שום חלק חשוב."
+{{childName}} {נכנס|נכנסה} אחריה.
+עם הצבע של השער.
+ועם הכחול שלו.
+
+imageDirection: The gate opens just enough for {{childName}} and Kim. Kim walks through with a small new colored stripe on her body, while her orange nose and mustard satchel remain unchanged. {{childName}} follows, calmer. companionPresence: present. view: 3-4.
+
+--- Page 14 ---
+בחצר הצבעים, הכול היה חדש.
+הקולות.
+הרצפה.
+הילדים.
+אפילו הרוח נשמעה אחרת.
+אבל ליד השער היה עכשיו פס כחול קטן.
+{ילד|ילדה} אחד {עצר|עצרה} לידו.
+"זה שלך?" {שאל|שאלה}.
+{{childName}} {הנהן|הנהנה}.
+"כן," {אמר|אמרה}.
+"גם הוא נכנס."
+
+imageDirection: Inside the magical color courtyard, one child notices the small blue mark near the gate. {{childName}} answers with quiet confidence while Kim sits nearby on a low step. The courtyard feels new but friendly. companionPresence: present. view: 3-4.
 
 --- Page 15 ---
-באותו רגע, ההד בחדר נהיה קטן יותר.
-לא נעלם.
-רק קטן.
-הארגזים נשארו ארגזים.
-הקירות נשארו ירוקים.
-החדר לא הפסיק להיות חדש.
-אבל על אדן החלון חיכה כחול קטן שבא עם {{childName}}.
-והאוויר הרגיש קצת פחות זר.
+אחר כך, בדרך האמיתית, השער הקסום כבר לא היה שם.
+רק הדלת של הגן החדש.
+דלת רגילה.
+שלט רגיל.
+ורצפה רגילה שעדיין הרגישה קצת לא רגילה.
+{{childName}} {נגע|נגעה} בכיס.
+הכפתור כבר לא היה שם.
+אבל האצבעות עוד זכרו את העיגול הקטן שלו.
+והיד עוד זכרה:
+גם הכחול שלי נכנס.
 
-imageDirection: The new green bedroom looks softer under warm night lighting. Moving boxes still visible. The small blue marble rests safely on the windowsill, catching a gentle bit of moonlight. Kim nearby. companionPresence: present. view: wide.
+imageDirection: Back in the real world. {{childName}} stands before the ordinary door of the new kindergarten, touching the pocket where the button used to be. Kim sits quietly nearby. No magical gate visible. companionPresence: present. view: 3-4.
 
 --- Page 16 ---
-{{childName}} {חזר|חזרה} למיטה ו{נכנס|נכנסה} מתחת לשמיכה.
-קים התכרבלה על המדף ליד התיק החרדלי שלה.
-האף הכתום שלה נשאר בחוץ.
-"לילה טוב לשם," {לחש|לחשה} {{childName}}.
-"לילה טוב לכאן," ענתה קים בפיהוק קטן.
-וליד החלון, הכחול והירוק נשארו ערים עוד רגע.
-ואז גם הם הלכו לישון.
+{{childName}} {פתח|פתחה} את הדלת.
+לא מהר.
+לא בלי פחד.
+פשוט {פתח|פתחה}.
+בפנים היו קולות חדשים.
+וריח חדש.
+וגן שעוד לא הכיר את {{childName}}.
+קים טיפסה אל הכתף של {{childName}}.
+התיק החרדלי שלה התנדנד מאחור.
+"מקומות חדשים," לחשה קים,
+"לא יודעים הכול ביום הראשון.
+אפשר ללמד אותם צבע אחד קטן."
+{{childName}} {נכנס|נכנסה}.
+צעד אחד.
+ועוד אחד.
+ובלב, ליד כל החדש, נשאר כחול קטן.
 
-imageDirection: Cozy final wide shot. {{childName}} asleep peacefully in bed. Blue marble rests on the windowsill under moonlight. Kim curls on a low shelf beside her mustard satchel, orange nose visible. Warm, safe bedtime mood. companionPresence: present. view: wide front.
+imageDirection: Final real-world entrance. {{childName}} opens the ordinary kindergarten door and steps inside. Kim perches near the child's shoulder, orange nose and mustard satchel visible. The child is still a little cautious but grounded. companionPresence: present. view: 3-4.

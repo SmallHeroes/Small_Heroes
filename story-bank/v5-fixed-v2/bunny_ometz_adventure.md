@@ -82,7 +82,7 @@ imageDirection: The doctor prepares a small syringe and a colorful bandage. Omet
 imageDirection: The child and Ometz share a close, quiet look. Ometz places both paws down; they tremble, but stay planted. The clinic background softens around their small brave moment. companionPresence: present; view: close/3-4.
 
 --- Page 9 ---
-{{childName}} {נָשַׁם|נָשְׁמָה} נְשִׁימָה עֲמֻקָּה. "אֲנִי {בוֹחֵר|בּוֹחֶרֶת} אֶת הַיָּד הַזֹּאת," נֶאֱמַר. הַיָּד הוּשְׁטָה קָדִימָה. הַיָּד הַשְּׁנִיָּה הֶחְזִיקָה אֶת הַהוֹרֶה חָזָק. "אֲנִי רוֹצֶה לִסְפֹּר," {אָמַר|אָמְרָה} {{childName}}. אֹמֶץ עָמַד לְיַד הַכִּסֵּא. הָאָף שֶׁלּוֹ רָעַד. הַכַּפּוֹת שֶׁלּוֹ נִשְׁאֲרוּ.
+{{childName}} {נָשַׁם|נָשְׁמָה} נְשִׁימָה עֲמֻקָּה. "אֲנִי {בוֹחֵר|בּוֹחֶרֶת} אֶת הַיָּד הַזֹּאת," {אָמַר|אָמְרָה}. הַיָּד הוּשְׁטָה קָדִימָה. הַיָּד הַשְּׁנִיָּה הֶחְזִיקָה אֶת הַהוֹרֶה חָזָק. "אֲנִי רוֹצֶה לִסְפֹּר," {אָמַר|אָמְרָה} {{childName}}. אֹמֶץ עָמַד לְיַד הַכִּסֵּא. הָאָף שֶׁלּוֹ רָעַד. הַכַּפּוֹת שֶׁלּוֹ נִשְׁאֲרוּ.
 
 imageDirection: The child chooses which arm to offer and holds the parent's hand tightly with the other hand. Ometz stands nearby, trembling but planted. The doctor waits gently. companionPresence: present; view: 3-4.
 

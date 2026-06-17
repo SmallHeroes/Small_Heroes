@@ -34,9 +34,9 @@
     },
     {
       "page": 6,
-      "shot": "medium_wide",
+      "shot": "intimate",
       "angle": "eye",
-      "rationale": "Rule 4: quiet transition — medium-wide baseline with environment context"
+      "rationale": "Rule 2: emotional-peak beat — child + companion intimacy (not giant face portrait)"
     },
     {
       "page": 7,
@@ -52,25 +52,23 @@
     },
     {
       "page": 9,
-      "shot": "medium_wide",
-      "angle": "eye",
-      "rationale": "Fill beat — medium/medium-wide variety between featured shots"
+      "shot": "medium",
+      "rationale": "Fill beat — medium/medium-wide variety between featured shots → consecutive-run break (rule 6)"
     },
     {
       "page": 10,
-      "shot": "close_up",
+      "shot": "medium_wide",
       "angle": "eye",
-      "rationale": "Rule 2: emotional-peak beat — child + companion intimacy (not giant face portrait)"
+      "rationale": "Rule 4: quiet transition — medium-wide baseline with environment context"
     },
     {
       "page": 11,
-      "shot": "medium_wide",
-      "angle": "eye",
-      "rationale": "Fill beat — medium/medium-wide variety between featured shots"
+      "shot": "medium",
+      "rationale": "Fill beat — medium/medium-wide variety between featured shots → consecutive-run break (rule 6)"
     },
     {
       "page": 12,
-      "shot": "establishing_wide",
+      "shot": "medium_wide",
       "angle": "eye",
       "rationale": "Rule 5: final page — warm resolving composition, slightly wider than preceding beat"
     }

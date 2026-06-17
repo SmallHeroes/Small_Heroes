@@ -16,11 +16,10 @@ companionId: fox_uri
 direction: adventure
 category: NIGHT_FEAR
 pages: 12
-gender: female
 endingType: residue
 ---
 --- Page 1 ---
-imageDirection: moonlit balcony edge, dripping shadow under railing
+imageDirection: moonlit balcony edge and dark shadow under railing; the sound source is hidden. No bucket visible, no visible drip source yet. companionPresence: present. view: 3-4.
 
 בלילה שקט אחד, נשמע מתחת לחלון צליל מוזר: "טִיק‑טָאק… טִיק‑טָאק".  
 {{childName}} {התכופף|התכופפה} אל החלון, עיניים גדולות-גדולות בחושך.  
@@ -29,16 +28,25 @@ imageDirection: moonlit balcony edge, dripping shadow under railing
 הוא קפץ לאחור — והבהיל גם את עצמו וגם את {{childName}}.
 
 --- Page 2 ---
-imageDirection: child with flashlight beam cutting small cone of light on balcony floor
+imageDirection: Child and Uri step toward the window/balcony area. Uri wears a small warm neck-lantern that points awkwardly upward and lights his own nose. No bucket visible yet. companionPresence: present. view: 3-4.
 
-{{childName}} {החליט|החליטה} לבדוק ב{עצמו|עצמה} מי מתופף שם.  
-הפנס‑מד‑האומץ נדלק — אור קטן ורועד.  
-אוּרי מחזיק את הפנס הפוך ואומר בקול עליז: "אני השומר של האור!"  
-האור מאיר רק את האף שלו, שנוצץ כמו כפתור.  
-שוב נשמע "טִיק‑טָאק" קרוב יותר. הם ניגשים בשקט-בשקט.
+{{childName}} {החליט|החליטה} לבדוק ב{עצמו|עצמה} מי מתופף שם בלילה.  
+הפנס שעל צווארו של אוּרי נדלק.  
+אור קטן.  
+קצת רועד.  
+אוּרי הרים את הסנטר.  
+"אני שומר האור," אמר.  
+אבל הפנס שעל צווארו האיר ישר על האף שלו.  
+האף נצץ כמו כפתור קטן.  
+אוּרי פזל אליו.  
+"גם האף שומר," אמר. "כנראה."  
+שוב נשמע:  
+טִיק־טָאק.  
+קרוב יותר.  
+{{childName}} ואוּרי ניגשו בשקט־בשקט.
 
 --- Page 3 ---
-imageDirection: balcony railing, small metal bucket glinting in faint light
+imageDirection: Moonlit balcony railing and a dark safe corner near the window. The source of the sound is still hidden. No bucket visible yet, no drip source visible yet. Uri's neck-lantern makes a small warm oval of light. companionPresence: present. view: 3-4.
 
 הצליל חזר בקצב קבוע. {{childName}} {ספר|ספרה} בלחש: "אחת, שתיים, שלוש…"  
 אוּרי שלף פנקס דמיוני ורשם: "קוד סודי של טפטוף!"  
@@ -56,73 +64,152 @@ imageDirection: dry metal balcony railing, finger tap echo, no water splash yet
 הם צחקו בלחש. אולי זה באמת שיר של מתכת.
 
 --- Page 5 ---
-imageDirection: rolling flashlight beam revealing metal bucket under balcony chair
+imageDirection: Uri's neck-lantern turns sideways and sends a small beam across the balcony floor, revealing the same old galvanized metal bucket near the safe railing. The child approaches slowly. companionPresence: present. view: wide 3-4.
 
-אוּרי מנופף בידיים כמו שומר חשוב מאוד. "הכול בשליטה!"  
-הפנס מחליק לו מהכף יד ומתגלגל — האור קופץ על הרצפה.  
-פתאום מתגלה דלי פח, ישן ומבריק בקצה המרפסת.  
-"זהו! מפלצת הפח!" צעק אוּרי, נבהל מהאור של עצמו.  
-{{childName}} {התקרב|התקרבה} לאט לאט אל הדלי המנצנץ.
+אוּרי נופף בידיים כמו שומר חשוב מאוד.  
+"הכול בשליטה!"  
+בדיוק אז, הפנס שעל צווארו הסתובב הצדה.  
+האור קפץ על הרצפה, עלה על רגל הכיסא, דילג על כפכף אחד, ונעצר בקצה המרפסת.  
+שם עמד דלי פח ישן.  
+קטן.  
+מבריק.  
+ושקט מדי.  
+אוּרי קפא.  
+"מצאנו," לחש.  
+"מפלצת פח."  
+{{childName}} {התקרב|התקרבה} לאט.  
+הדלי לא זז.  
+רק עשה:  
+טִיק.
 
 --- Page 6 ---
-imageDirection: close-up of droplet about to fall into metal bucket
+imageDirection: Close-up of the same galvanized metal bucket under a small ledge drip. Child leans close to listen; Uri's neck-lantern glows softly beside the bucket rim. companionPresence: present. view: close 3-4.
 
-שוב נשמע "טִיק‑טָאק" — הפעם ממש מתוך הדלי.  
-{{childName}} {התכופף|התכופפה} ו{הצמיד|הצמידה} אוזן לשפה הקרירה.  
-אוּרי החזיק את הפנס כמו חרב רועדת.  
-פתאום — "אַפּצ'י!" הפח החזיר הד מצחיק.  
-שניהם התפקעו מצחוק. משהו בפנים באמת מנגן!
+שוב נשמע:  
+טִיק־טָאק.  
+הפעם ממש מתוך הדלי.  
+{{childName}} {התכופף|התכופפה} ו{הצמיד|הצמידה} אוזן לשפת הדלי הקרירה.  
+אוּרי התקרב בזהירות.  
+הפנס שעל צווארו רעד כמו ירח קטן.  
+ואז—  
+אַפְּצִ'י!  
+אוּרי התעטש.  
+הדלי החזיר:  
+צִ'י־צִ'י־צִ'י.  
+אוּרי נרתע.  
+"אוי," אמר. "יש לו קול של דלי."  
+{{childName}} {צחק|צחקה}.  
+משהו בפנים באמת ניגן.
 
 --- Page 7 ---
-imageDirection: droplet splash creating concentric rings in bucket water
+imageDirection: One clear droplet falls from the ledge into the metal bucket, making a small ripple. Child's finger catches a tiny cool drop; Uri watches with surprised relief. companionPresence: present. view: close.
 
-טיפה אחת נפלה — "טִיק‑טָאק" ברור ויפה.  
-{{childName}} {הושיט|הושיטה} יד ו{הרגיש|הרגישה} טיפה קרירה על האצבע.  
-"זה תוף של מים!" צעק אוּרי, הפנס שלו מתנפח מגאווה ואז מחשיך חצי.  
-הקצב נהיה מהיר יותר — כאילו הדלי עונה.  
-הם הביטו זה בזה, סקרנים. אם מזיזים את הדלי — אולי גם השיר משתנה?
+טיפה אחת נפלה.  
+טִיק.  
+עוד טיפה.  
+טָאק.  
+{{childName}} {הושיט|הושיטה} אצבע קטנה.  
+טיפה קרירה נגעה בה.  
+"זה מים," {לחש|לחשה} {{childName}}.  
+אוּרי הוציא אוויר כאילו שמר אותו בכיסים.  
+"מים," אמר.  
+הוא הביט בדלי.  
+"בשם כל השועלים, זו מפלצת רטובה מאוד קטנה."  
+טיפה נפלה שוב.  
+טִיק.  
+אוּרי לחש לדלי:  
+"סליחה שקראתי לך מפלצת."
 
 --- Page 8 ---
-imageDirection: child and fox companion crouched, rhythmic drips splashing in metal bucket
+imageDirection: Child and Uri crouch beside the same bucket, listening closely. The bucket and drip source are clear; no new object, no new location. Uri's neck-lantern is soft and steady. companionPresence: present. view: 3-4.
 
-{{childName}} {תופף|תופפת} באצבע אחת על שפת הדלי.  
-אוּרי מיד הצטרף בקול מצחיק: "שלום, גשם! מה שלומך?"  
-הם כבר יודעים שזה רק מים — אבל משחקים "כאילו מישהו עונה".  
-הצלילים מסתבכים, יוצרים שיר מבולגן.  
-"זה שיר של שניים!" מכריז אוּרי ומוחא כף.
+{{childName}} {עצר|עצרה}.  
+"רגע," {אמר|אמרה}. "תקשיב."  
+שלוש טיפות.  
+טִיק־טִיק־טִיק.  
+שקט קטן.  
+ואז עוד שתיים.  
+טָאק־טָאק.  
+אוּרי ניסה לחזור על זה.  
+"טִיק־טוּק־בּוּם?"  
+{{childName}} {צחק|צחקה}.  
+"לא בום."  
+"נכון," אמר אוּרי.  
+"בום היה רעיון שלי."  
+הם הקשיבו שוב.  
+הדלי לא סתם עשה רעש.  
+היה לו סדר קטן.
 
 --- Page 9 ---
-imageDirection: child ear near bucket, musical note shapes in reflected water
+imageDirection: Child grips the same bucket handle and slides it slightly sideways under the same drip source. Uri's neck-lantern casts a small warm stage-like beam from his neck, not a handheld flashlight. companionPresence: present. view: 3-4.
 
-{{childName}} {עצר|עצרה}, {הקשיב|הקשיבה} היטב.  
-שלוש טיפות — הפסקה קטנה — ואז עוד שתיים. שיר!  
-אוּרי ניסה לשיר את הקצב, אבל פיספס בכוונה: "טִיק‑טוּק‑בּוּם!"  
-הפחד נמס בתוך הצחוק.  
-{{childName}} {רצה|רצתה} לנסות לשנות את הצליל ב{עצמו|עצמה}.
+{{childName}} {החזיק|החזיקה} את ידית הדלי.  
+לא חזק.  
+בזהירות.  
+{{childName}} {הזיז|הזיזה} אותו קצת הצדה.  
+הטיפה הבאה נפלה במקום אחר.  
+פְּלוּפּ.  
+לא טִיק.  
+לא טָאק.  
+פְּלוּפּ רך.  
+אוּרי פער עיניים.  
+"הרעש השתנה!"  
+{{childName}} {חייך|חייכה}.  
+"כשמקשיבים לרעש, הוא יכול להפוך לקצב."  
+אוּרי הביט בדלי.  
+ואז ב{{childName}}.  
+ואז שוב בדלי.  
+"אני ידעתי," אמר. "בערך. אחרי שראיתי."
 
 --- Page 10 ---
-imageDirection: bucket repositioned, gentle drip pattern creating softer ripples
+imageDirection: Child lightly taps the rim of the same metal bucket while droplets fall into it. Uri makes silly mouth-drum sounds beside the bucket, neck-lantern warm and low. companionPresence: present. view: medium 3-4.
 
-{{childName}} {החזיק|החזיקה} את הדלי ו{הזיז|הזיזה} אותו בעדינות הצידה.  
-"זהו הרגע הגדול!" הכריז אוּרי, מחזיק את הפנס גבוה, כמו אור של הצגה.  
-הטיפה נפלה — "פְּלוּפּ" רך ונעים.  
-הם הביטו במים הרוקדים.  
-"זה שיר גשם רק שלנו," חייך אוּרי בגאווה.
+{{childName}} {תופף|תופפה} קלות על שפת הדלי.  
+טָאק.  
+הטיפה ענתה:  
+פְּלוּפּ.  
+אוּרי עשה בפה:  
+פּוּם־פָּאם!  
+הדלי ענה:  
+טָאק־פְּלוּפּ.  
+{{childName}} {עשה|עשתה} עוד טָאק קטן.  
+הדלי ענה.  
+הטיפות ענו.  
+אפילו האף של אוּרי נצץ בקצב.  
+אוּרי לחש:  
+"זה כבר לא רעש שמבהיל.  
+זה רעש שמקשיבים לו."
 
 --- Page 11 ---
-imageDirection: child and fox companion illuminated by small flashlight, droplets dancing in bucket
+imageDirection: Child and Uri sit calmly beside the same bucket, listening to the last gentle rhythm. Uri's neck-lantern glows like a small warm dot; bucket stays in place under the drip. companionPresence: present. view: close 3-4.
 
-{{childName}} {התחיל|התחילה} לתופף קלות על שפת הדלי.  
-אוּרי עשה בפה קולות של תוף מצחיקים: "פּוּם‑פָּאם‑פְּלוּפּ!"  
-הטיפות ענו בקצב חדש.  
-כבר אין שום חשש — רק צחוק וריקוד של מים.  
-{{childName}} {עשה|עשתה} טָאק-טָאק, אוּרי עשה פּוּם-פָּאם, והדלי עשה פְּלוּפּ בדיוק באמצע.
+הם ישבו ליד הדלי.  
+לא רחוק מדי.  
+לא קרוב מדי.  
+קרוב מספיק לשמוע.  
+רחוק מספיק לא להיבהל.  
+טיפה נפלה.  
+פְּלוּפּ.  
+אוּרי לא קפץ.  
+{{childName}} לא {קפץ|קפצה}.  
+"אם לילה עושה רעש," לחש אוּרי,  
+"קודם מקשיבים.  
+אחר כך מאירים טיפונת."  
+{{childName}} {הקשיב|הקשיבה}.  
+הלילה עוד היה לילה.  
+אבל עכשיו היה לו קצב.
 
 --- Page 12 ---
-imageDirection: moonlight glint on still bucket, calm child beside the bucket on balcony
+imageDirection: Moonlight glints on the still bucket under the ledge. Child stands calmly near the window/balcony edge with Uri beside them; Uri's neck-lantern remains soft and warm. Quiet safe home-night resolution. companionPresence: present. view: 3-4.
 
-נפלה טיפה אחרונה — "פְּלוּפּ" אחד רך, כמו סוף של שיר.  
-{{childName}} {כיבּה|כיבתה} את הפנס‑מד‑האומץ.  
-אוּרי הצדיע, הפנס שלו נשאר יציב וחם. "עכשיו אני רק מאיר," לחש.  
-"מי שבודק — כבר כאן."  
-{{childName}} {הקשיב|הקשיבה} רגע — הלילה כבר לא נשמע כמו מפלצת, אלא כמו שיר קטן שמחכה בחוץ.
+נפלה טיפה אחרונה.  
+פְּלוּפּ אחד רך, כמו סוף של שיר.  
+הפנס שעל צווארו של אוּרי נשאר קטן וחם.  
+"עכשיו," אמר אוּרי, "אני לא שומר האור."  
+הוא הביט בדלי.  
+"אני רק מאיר לו טיפונת."  
+{{childName}} {הקשיב|הקשיבה} עוד רגע.  
+מתחת לחלון לא חיכתה מפלצת.  
+חיכה דלי.  
+חיכו טיפות.  
+וחיכה שיר קטן שכבר היה לו שם.
