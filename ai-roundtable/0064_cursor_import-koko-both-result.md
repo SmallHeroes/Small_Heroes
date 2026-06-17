@@ -18,5 +18,5 @@ Date: 2026-06-17
 - `ENABLE_V3_APPROVED_BANK=true npm run release-check`: **PASS**, sellable **17/18** (only `ANGER_FRUSTRATION.fantasy` remains missing)
 
 ## Commits
-- `<SHA>` — `feat(bank): import koko fantasy + TRANSITION.fantasy flip → 17/18 (TRANSITION 3/3)`
-- `<SHA>` — `docs(roundtable): 0063 brief + 0064 result + INDEX`
+- `b0707ed7` — `feat(bank): import koko fantasy + TRANSITION.fantasy flip → 17/18 (TRANSITION 3/3)`
+- `6a0ecb86` — `docs(roundtable): 0063 brief + 0064 result + INDEX`
