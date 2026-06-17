@@ -26,6 +26,6 @@ Date: 2026-06-17
 ## Commits
 | SHA | Message |
 |-----|---------|
-| *(test)* | `fix(test): v3-approved-bank spec must not overwrite/delete the real bunny_ometz_fantasy slot (backup/restore)` |
-| *(premise)* | `docs(story-pipeline): koko + lion premise-lab sets` |
-| *(docs)* | `0058` roundtable report + INDEX |
+| `4295aa96` | `fix(test): v3-approved-bank spec must not overwrite/delete the real bunny_ometz_fantasy slot (backup/restore)` |
+| `4f1846fa` | `docs(story-pipeline): koko + lion premise-lab sets` |
+| `b3ba937e` | `docs(roundtable): 0057 brief + 0058 v3bank test fix result + INDEX` |
