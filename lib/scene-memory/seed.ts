@@ -94,14 +94,39 @@ function stableFactsFromTopology(bible: BookLocationBible): SceneMemory['stableF
 }
 
 /**
- * A scene-graph journey book has no single fixed set: its recurring objects appear in
- * different scenes and are absent from others. Continuity for them is governed per-page by
- * the scene-aware RECURRING OBJECT LOCK, NOT by a book-wide scene-memory set — which would
+ * Scene-Graph recurring objects → book-wide stable facts. Used only for SINGLE-scene books
+ * (one fixed room): the objects live in that one room every page, so asserting them as a
+ * book-wide set is correct and desirable. Each object's identity becomes one stable fact.
+ */
+function stableFactsFromSceneGraph(bible: BookLocationBible): SceneMemory['stableFacts'] {
+  const recurring = bible.sceneGraph?.recurringObjects ?? [];
+  const facts: SceneMemory['stableFacts'] = {};
+  for (const obj of recurring) {
+    const id = obj.id.trim();
+    if (!id || facts[id]) continue;
+    facts[id] = withFactKind(id, {
+      position: obj.identity.trim(),
+      confidence: 0.8,
+      lockLevel: 'soft',
+      provenance: ['authored_seed'],
+    });
+  }
+  return facts;
+}
+
+/**
+ * A MULTI-scene scene-graph (journey) book has no single fixed set: its recurring objects
+ * appear in some scenes and are absent from others. Continuity for them is governed per-page
+ * by the scene-aware RECURRING OBJECT LOCK, NOT by a book-wide scene-memory set — which would
  * wrongly assert e.g. the color gate as "must remain" on the real-world pages where it is
- * forbidden. Books with an authored setTopology (a genuine fixed interior) are unaffected.
+ * forbidden. A SINGLE-scene book (one room) is a genuine fixed set and is NOT suppressed.
  */
 function isSceneGraphJourneyBook(bible: BookLocationBible): boolean {
-  return Boolean(bible.sceneGraph?.recurringObjects?.length) && !bible.setTopology?.elements?.length;
+  return (
+    Boolean(bible.sceneGraph?.recurringObjects?.length) &&
+    (bible.sceneGraph?.scenes?.length ?? 0) > 1 &&
+    !bible.setTopology?.elements?.length
+  );
 }
 
 function stableFactsFromZoneGeometry(bible: BookLocationBible): SceneMemory['stableFacts'] {
@@ -207,10 +232,13 @@ export function seedSceneMemoryPlan(args: {
   const seedSource = pickSeedSource(bible, args.bookShotPlan ?? null);
 
   const fromTopology = stableFactsFromTopology(bible);
+  const fromSceneGraph = stableFactsFromSceneGraph(bible);
   const stableFacts =
     Object.keys(fromTopology).length > 0
       ? fromTopology
-      : stableFactsFromZoneGeometry(bible);
+      : Object.keys(fromSceneGraph).length > 0
+        ? fromSceneGraph
+        : stableFactsFromZoneGeometry(bible);
 
   if (!Object.keys(stableFacts).length && bible.continuityMode !== 'single_location') {
     return null;

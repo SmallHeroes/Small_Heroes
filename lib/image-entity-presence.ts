@@ -162,7 +162,7 @@ function deriveChildPresence(input: DerivePageEntityPresenceInput): ChildPresenc
 const NEGATION_BEFORE_COMPANION_TOKEN_RE =
   /\b(?:no|not|without|never|forbidden)\s+(?:a\s+)?(?:scary\s+)?$/i;
 const COMPANION_ABSENT_AFTER_NAME_RE =
-  /\b(?:is\s+)?not\s+(?:(?:yet\s+)?present|visible|there|shown|in\s+(?:the\s+)?(?:scene|image|frame)|(?:a\s+)?(?:companion|sidekick))\b/i;
+  /\b(?:(?:is\s+)?not\s+(?:(?:yet\s+)?present|visible|there|shown|in\s+(?:the\s+)?(?:scene|image|frame)|(?:a\s+)?(?:companion|sidekick))|(?:is\s+)?absent|(?:is\s+)?gone)\b/i;
 
 /** Positive companion name mention — ignores negation windows (no Leo, Leo not present yet, etc.). */
 export function tokenMentionedPositively(text: string, token: string): boolean {

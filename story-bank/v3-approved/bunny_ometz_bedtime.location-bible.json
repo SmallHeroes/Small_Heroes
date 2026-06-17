@@ -1,0 +1,202 @@
+{
+  "continuityMode": "single_location",
+  "primarySetting": "The whole story takes place in ONE cozy child's bedroom at night, the evening before a morning medical check-up. Warm bedside lamp light, a bed with a soft blanket, a bedside table, a rug, a window with night outside, and tomorrow's shoes and folded clothes set ready on the floor. It is the SAME night bedroom on every page — never a clinic, never daylight, never another room, never outdoors.",
+  "fixedAnchors": [
+    {
+      "id": "bed",
+      "label": "the child's bed",
+      "description": "The same child's bed with the same headboard and the same soft blanket every page.",
+      "mustRemainSameAcrossPages": true
+    },
+    {
+      "id": "tomorrow_shoes",
+      "label": "tomorrow's shoes",
+      "description": "The same single pair of shoes set ready for tomorrow, standing on the floor beside the bed all story.",
+      "mustRemainSameAcrossPages": true
+    },
+    {
+      "id": "night_bedroom",
+      "label": "the night bedroom",
+      "description": "The same cozy bedroom at night with warm bedside lamp light — not a clinic, not daylight.",
+      "mustRemainSameAcrossPages": true
+    }
+  ],
+  "allowedZones": [
+    {
+      "id": "night_bedroom",
+      "description": "One cozy child's bedroom at night before a morning check-up. Warm bedside lamp, bed with a soft blanket, bedside table, rug on the floor, window with night outside. Tomorrow's shoes and folded clothes stand ready on the floor near the bed. Same room, warm and safe — NOT a clinic, NOT daylight, NOT another room, NOT outdoors.",
+      "stableGeometry": [
+        "same bed against the same wall",
+        "same bedside table beside the bed",
+        "same rug on the floor by the bed",
+        "tomorrow's shoes standing ready on the floor near the bed",
+        "warm bedside lamp glow, night beyond the window"
+      ],
+      "visualAnchors": [
+        "the child's bed",
+        "tomorrow's shoes",
+        "the bedside table",
+        "warm bedside lamp light"
+      ],
+      "allowedCameraAccess": ["eye level intimate", "medium 3-4 of bed and floor", "close on hands/note", "medium wide showing bed, rug and shoes"]
+    }
+  ],
+  "forbiddenDrift": [
+    "clinic",
+    "hospital",
+    "exam room",
+    "doctor's office",
+    "medical tools or equipment",
+    "daylight",
+    "sunlight",
+    "bright daytime room",
+    "a different room",
+    "kitchen or living room",
+    "outdoors",
+    "garden or street",
+    "more than one bunny / duplicate or cloned rabbit",
+    "duplicate or cloned child / two children protagonists",
+    "redesigning the bedroom set between pages"
+  ],
+  "transitionRules": [
+    "Stay in the SAME night bedroom on every page — the camera may move, the room must not redesign.",
+    "Never cut to a clinic, a daytime room, another room, or outdoors — the check-up is only tomorrow and is never shown.",
+    "Tomorrow's shoes stay standing ready by the bed throughout; the note is the only object whose state changes."
+  ],
+  "pageCount": 8,
+  "sceneGraph": {
+    "scenes": [
+      {
+        "id": "night_bedroom",
+        "label": "The night bedroom",
+        "description": "One cozy child's bedroom at night, the evening before a morning medical check-up. The single set for the whole book.",
+        "transitionsTo": [],
+        "visualAnchors": ["the child's bed", "tomorrow's shoes", "the bedside table", "warm bedside lamp light"]
+      }
+    ],
+    "recurringObjects": [
+      {
+        "id": "bed",
+        "label": "the child's bed",
+        "identity": "The SAME child's bed every page — same headboard shape and the same soft blanket. A child's bed, never a crib, bunk bed, or hospital bed.",
+        "appearsInScenes": ["night_bedroom"],
+        "forbiddenDrift": [
+          "a different bed design between pages",
+          "a crib, bunk bed, or hospital bed",
+          "more than one bed"
+        ],
+        "stateTimeline": [
+          { "page": 1, "state": "the child lies awake under the blanket" },
+          { "page": 4, "state": "the child watches from under the blanket, hands near the chin" },
+          { "page": 5, "state": "the child sits on the edge of the bed, bare feet reaching the rug" },
+          { "page": 8, "state": "the child is tucked peacefully back under the blanket" }
+        ]
+      },
+      {
+        "id": "tomorrow_shoes",
+        "label": "tomorrow's shoes",
+        "identity": "The SAME single pair of small shoes set ready for tomorrow, standing neatly together on the floor beside the bed. The same shoes throughout — not slippers, not a second pair.",
+        "appearsInScenes": ["night_bedroom"],
+        "forbiddenDrift": [
+          "a different pair of shoes",
+          "more than one pair",
+          "slippers instead of shoes",
+          "shoes moved far from the bed"
+        ],
+        "stateTimeline": [
+          { "page": 1, "state": "standing ready on the floor beside the bed, with tomorrow's folded clothes" }
+        ]
+      },
+      {
+        "id": "tomorrow_note",
+        "label": "the small note for tomorrow",
+        "identity": "A SINGLE small piece of note paper the child prepares for tomorrow. The same small note throughout — not a book, not a letter, not a sheet of many pages.",
+        "appearsInScenes": ["night_bedroom"],
+        "forbiddenDrift": [
+          "more than one note",
+          "a book, letter, or large sheet instead of a small note",
+          "printed or typed text on the note"
+        ],
+        "stateTimeline": [
+          { "page": 1, "state": "blank, resting on the bedside table" },
+          { "page": 6, "state": "the child draws two simple little feet on it with an oversized pencil" },
+          { "page": 7, "state": "the child holds the small note while opening a trembling fist" },
+          { "page": 8, "state": "resting on the floor beside tomorrow's shoes" }
+        ]
+      }
+    ],
+    "forbiddenDrift": [
+      "a clinic, hospital, exam room, or any medical setting",
+      "daylight or a bright daytime room",
+      "any room other than this one night bedroom",
+      "outdoors of any kind",
+      "more than one bunny or a duplicate child"
+    ]
+  },
+  "pagePlans": [
+    {
+      "page": 1,
+      "zoneId": "night_bedroom",
+      "visibleAnchors": ["the child's bed", "tomorrow's shoes", "tomorrow's folded clothes", "warm bedside lamp light"],
+      "allowedVariation": "Camera may move closer or wider per PageShot; same night bedroom holds.",
+      "forbiddenDrift": ["clinic", "daylight", "another room", "outdoors", "bunny visible (absent this page)"],
+      "pageAction": "Cozy bedroom at night. The child lies awake under the blanket, looking toward the shoes and folded clothes set ready for tomorrow on the floor. Warm bedside lamp, worried but safe mood. NO bunny yet."
+    },
+    {
+      "page": 2,
+      "zoneId": "night_bedroom",
+      "visibleAnchors": ["the child's bed edge", "Bunny Ometz with a heart badge", "warm bedside lamp light"],
+      "allowedVariation": "Close 3-4 on Bunny's arrival; same bedroom.",
+      "forbiddenDrift": ["clinic", "daylight", "more than one bunny", "another room"],
+      "pageAction": "Something soft hops onto the edge of the bed — Bunny Ometz, a small rabbit with long ears and a heart badge on his chest. He tries a brave pose but both ears flop down. The child watches, surprised. EXACTLY ONE bunny."
+    },
+    {
+      "page": 3,
+      "zoneId": "night_bedroom",
+      "visibleAnchors": ["the child's blanket", "Bunny with one ear up one hiding", "heart badge"],
+      "allowedVariation": "Close; same bedroom, warm light.",
+      "forbiddenDrift": ["clinic tools", "daylight", "another room", "duplicate bunny"],
+      "pageAction": "Bunny sits near the child's blanket, one ear popping up and the other hiding near his cheek, touching his heart badge gently. The child begins to relax into curiosity. NO clinic tools."
+    },
+    {
+      "page": 4,
+      "zoneId": "night_bedroom",
+      "visibleAnchors": ["Bunny's small feet on the blanket", "the child under the blanket", "warm bedside lamp light"],
+      "allowedVariation": "Close 3-4; intimate bedtime, same room.",
+      "forbiddenDrift": ["clinic", "daylight", "another room", "outdoors"],
+      "pageAction": "Bunny places both small feet firmly on the blanket, showing they tremble but stay. The child watches from under the blanket, hands near the chin. Warm intimate bedtime scene."
+    },
+    {
+      "page": 5,
+      "zoneId": "night_bedroom",
+      "visibleAnchors": ["the child sitting on the bed edge", "bare feet on the rug beside Bunny's feet", "tomorrow's shoes nearby", "heart badge"],
+      "allowedVariation": "3-4 of bed edge and rug; same bedroom.",
+      "forbiddenDrift": ["clinic", "daylight", "another room", "outdoors"],
+      "pageAction": "The child sits on the edge of the bed with bare feet placed on the rug beside Bunny's feet. Bunny's heart badge is visible; his ears are uneven but calm. Tomorrow's shoes stand ready nearby."
+    },
+    {
+      "page": 6,
+      "zoneId": "night_bedroom",
+      "visibleAnchors": ["the small note on the bedside table", "the child drawing two little feet", "Bunny with an oversized pencil", "heart badge"],
+      "allowedVariation": "Close 3-4 at the bedside table; same bedroom.",
+      "forbiddenDrift": ["clinic", "daylight", "another room", "printed text on the note"],
+      "pageAction": "The child draws two simple little feet on the small note at the bedside table. Bunny comically carries an oversized pencil, long ears dragging softly. Heart badge visible. Cozy night light."
+    },
+    {
+      "page": 7,
+      "zoneId": "night_bedroom",
+      "visibleAnchors": ["the child holding the small note", "a trembling fist opening one finger", "Bunny with one ear raised one down"],
+      "allowedVariation": "Close on hands and note; same bedroom.",
+      "forbiddenDrift": ["clinic", "daylight", "another room", "more than one note"],
+      "pageAction": "Close-up of the child holding the small note and slowly opening a trembling fist — one finger, then more. Bunny sits nearby with one ear raised hopefully and one ear still down. Safe bedtime mood."
+    },
+    {
+      "page": 8,
+      "zoneId": "night_bedroom",
+      "visibleAnchors": ["the child tucked in bed", "the small note resting beside tomorrow's shoes", "Bunny curled asleep near his heart badge"],
+      "allowedVariation": "Wide front of the whole room; same bedroom, night stillness.",
+      "forbiddenDrift": ["clinic", "daylight", "another room", "outdoors"],
+      "pageAction": "Final cozy bedroom shot. The child is tucked peacefully in bed. The small note rests on the floor beside tomorrow's shoes. Bunny sleeps curled near his heart badge, one long ear still slightly awake. Warm night stillness."
+    }
+  ]
+}
