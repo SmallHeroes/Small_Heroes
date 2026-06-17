@@ -1,0 +1,12 @@
+{
+  "storyId": "golden-chameleon_koko_bedtime-2026-06-17",
+  "sourceRunDir": "outputs/story-pipeline-import-runs/golden-chameleon_koko_bedtime-2026-06-17",
+  "companionId": "chameleon_koko",
+  "direction": "bedtime",
+  "pageCount": 8,
+  "approvedBy": "Guy",
+  "approvedAt": "2026-06-17T12:00:00+03:00",
+  "approvalNote": "golden pipeline draft - Claude QA PASS",
+  "importedAt": "2026-06-17T09:25:00.151Z",
+  "servedOnlyWhen": "ENABLE_V3_APPROVED_BANK=true"
+}

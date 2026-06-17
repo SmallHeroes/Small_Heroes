@@ -35,11 +35,11 @@ export const MVP_STORY_MATRIX = {
   },
   TRANSITION: {
     companionId: 'chameleon_koko',
-    directions: { bedtime: 'missing', adventure: 'approved', fantasy: 'missing' },
+    directions: { bedtime: 'approved_v3', adventure: 'approved', fantasy: 'missing' },
   },
   ANGER_FRUSTRATION: {
     companionId: 'lion_shaket',
-    directions: { bedtime: 'missing', adventure: 'approved', fantasy: 'missing' },
+    directions: { bedtime: 'approved_v3', adventure: 'approved', fantasy: 'missing' },
   },
 } as const satisfies Record<
   string,

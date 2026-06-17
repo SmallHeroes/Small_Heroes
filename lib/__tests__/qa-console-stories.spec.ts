@@ -43,10 +43,10 @@ describe('listCreatorStoryBankEntries', () => {
       (e) => e.storyKey === 'lion_shaket_bedtime' && e.source === 'v5'
     );
     expect(lionBedtime).toBeDefined();
-    expect(lionBedtime?.matrixStatus).toBe('missing');
+    expect(lionBedtime?.matrixStatus).toBe('approved_v3');
     expect(lionBedtime?.label).toContain('האריה ליאו');
     expect(lionBedtime?.label).toContain('לילה טוב');
-    expect(lionBedtime?.label).toContain('בבדיקה');
+    expect(lionBedtime?.label).not.toContain('בבדיקה');
     expect(lionBedtime?.label).not.toMatch(/shaket|lion_shaket/i);
   });
 });
