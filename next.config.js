@@ -19,29 +19,44 @@ const nextConfig = {
    * function bundle on Vercel. Without this, existsSync returns false and
    * print-ready PDF generation silently fails.
    */
-  outputFileTracingIncludes: {
-    '/api/generate': ['./backend/assets/fonts/**/*', './story-bank/**/*'],
-    '/api/debug/regen-page': ['./story-bank/**/*'],
-    '/api/orders/[orderId]/power-card': ['./story-bank/**/*', './node_modules/@sparticuz/chromium/**/*'],
-  },
   /**
-   * Keep serverless functions under Vercel's 250MB cap (Phase 1 of Goal A / 0083).
-   * The big offenders are ffmpeg+ffprobe installers (~309MB, used ONLY by backend/providers/video.ts
-   * → the /api/orders/[orderId]/video route), @sparticuz/chromium (~67MB, used ONLY by the power-card
-   * PDF route), and the bundled story assets (public/companions ~90MB + style-references ~78MB).
-   * Excludes below strip those from functions that don't need them at runtime. The video route and the
-   * power-card route are intentionally NOT excluded so they keep their deps.
+   * Bundle backend fonts + story-bank text + the Style01 reference subset into the functions that
+   * read them from disk at runtime (0086 fix). resolveStyle01StyleReferencePaths() returns disk paths
+   * under style-references/01 and the image loader does existsSync()->readFileSync() (NO URL fallback),
+   * so these MUST be on the function disk in prod. Only the Style01 subset (style-references/01 ~24MB +
+   * 01-child-template ~4MB) is bundled — Style02 (~49MB) stays excluded.
+   */
+  outputFileTracingIncludes: (() => {
+    const STYLE01_REFS = ['./style-references/01/**/*', './style-references/01-child-template/**/*'];
+    const includes = {
+      '/api/generate': ['./backend/assets/fonts/**/*', './story-bank/**/*', ...STYLE01_REFS],
+      '/api/generate/worker': ['./story-bank/**/*', ...STYLE01_REFS],
+      '/api/generate/cron/sweep': ['./story-bank/**/*', ...STYLE01_REFS],
+      '/api/dev/generation/resume': ['./story-bank/**/*', ...STYLE01_REFS],
+      '/api/debug/regen-page': ['./story-bank/**/*', ...STYLE01_REFS],
+      '/api/orders/[orderId]/power-card': ['./story-bank/**/*', './node_modules/@sparticuz/chromium/**/*'],
+    };
+    return includes;
+  })(),
+  /**
+   * Keep serverless functions under Vercel's 250MB cap (Goal A / 0083; 0086 ref-load fix).
+   * Real size offenders (route-specific): ffmpeg+ffprobe (used ONLY by backend/providers/video.ts →
+   * /api/orders/[orderId]/video) and @sparticuz/chromium (used ONLY by the power-card PDF route).
+   * Those stay excluded everywhere else. public/companions (~90MB) is excluded from the functions but
+   * remains CDN-served from /public — companion refs resolve to a CDN URL via mergeGptImageReferenceSources
+   * (baseUrl passed in /api/generate), so the render fetches them by URL. Style01 refs are bundled on
+   * disk (see outputFileTracingIncludes) because they have NO URL fallback; only Style02 is excluded.
    * NOTE: /api/generate imports video via a dynamic, optional, non-fatal `if (order.videoEnabled)`
-   * branch — excluding ffmpeg there only makes that optional video stage a no-op (caught + logged);
-   * real video generation runs on the dedicated /api/orders/[orderId]/video function.
+   * branch — excluding ffmpeg there only makes that optional video stage a no-op (caught + logged).
    */
   outputFileTracingExcludes: (() => {
     const MEDIA = ['node_modules/@ffmpeg-installer/**', 'node_modules/@ffprobe-installer/**'];
     const HEADLESS = ['node_modules/@sparticuz/chromium/**', 'node_modules/puppeteer-core/**'];
-    const STORY_ASSETS = ['public/companions/**', 'style-references/**'];
-    // Generation routes need story-bank (text, ~12MB, kept via outputFileTracingIncludes) but NOT the
-    // bundled companion/style-reference image bytes — those are served to the image API by CDN URL,
-    // not read from the function disk. Dropping them (90MB+78MB) keeps these functions under 250MB.
+    const COMPANIONS = ['public/companions/**']; // CDN-served; companion refs fetched by URL in prod
+    const STYLE02 = ['style-references/02/**', 'style-references/style-02-locked-samples/**']; // not used by Style01
+    const ALL_STYLE = ['style-references/**'];
+    // Generation routes: keep Style01 refs (bundled via includes) + story-bank; drop media/headless +
+    // companions (CDN) + Style02.
     const GENERATION_ROUTES = [
       '/api/generate',
       '/api/generate/worker',
@@ -49,7 +64,7 @@ const nextConfig = {
       '/api/dev/generation/resume',
       '/api/debug/regen-page',
     ];
-    // Payment / status / webhook routes never render — drop everything heavy.
+    // Payment / status / webhook routes never render — drop every asset + heavy dep.
     const LEAN_ROUTES = [
       '/api/orders',
       '/api/generate/status',
@@ -59,10 +74,10 @@ const nextConfig = {
       '/api/dev/fake-payment/confirm',
     ];
     const excludes = {};
-    for (const r of GENERATION_ROUTES) excludes[r] = [...MEDIA, ...HEADLESS, ...STORY_ASSETS];
-    for (const r of LEAN_ROUTES) excludes[r] = [...MEDIA, ...HEADLESS, ...STORY_ASSETS, 'story-bank/**'];
-    // dev story-bank browser lists the bank → keep story-bank, drop media/headless/companions/style-refs.
-    excludes['/api/dev/story-bank'] = [...MEDIA, ...HEADLESS, ...STORY_ASSETS];
+    for (const r of GENERATION_ROUTES) excludes[r] = [...MEDIA, ...HEADLESS, ...COMPANIONS, ...STYLE02];
+    for (const r of LEAN_ROUTES) excludes[r] = [...MEDIA, ...HEADLESS, ...COMPANIONS, ...ALL_STYLE, 'story-bank/**'];
+    // dev story-bank browser lists the bank → keep story-bank, drop media/headless/companions/all-style.
+    excludes['/api/dev/story-bank'] = [...MEDIA, ...HEADLESS, ...COMPANIONS, ...ALL_STYLE];
     return excludes;
   })(),
   /**
