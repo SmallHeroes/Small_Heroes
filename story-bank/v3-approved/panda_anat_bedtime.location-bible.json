@@ -1,0 +1,81 @@
+{
+  "continuityMode": "location_cluster",
+  "primarySetting": "Mostly ONE child's bedroom at night with a warm bedside lamp and a small child's chair; ONE page (p2) is a brief daytime kindergarten MEMORY of a musical-chairs ring. Anat the panda arrives slowly and slides to the floor. The night bedroom is the SAME set on every night page — never a clinic; the only daytime page is the explicit gan memory.",
+  "forbiddenDrift": [
+    "clinic", "hospital", "medical setting",
+    "a different bedroom",
+    "more than one Anat / duplicate or cloned panda",
+    "duplicate or cloned child",
+    "the musical-chairs ring appearing inside the night bedroom",
+    "redesigning the night-bedroom set between pages"
+  ],
+  "transitionRules": [
+    "Night pages stay in the SAME night bedroom — camera may move, the room must not redesign.",
+    "The ONLY non-bedroom page is p2, an explicit daytime kindergarten musical-chairs memory; the ring of chairs must NOT appear on the night pages.",
+    "The small child's chair is the only object whose placement changes (corner -> beside the bed = tomorrow's chair)."
+  ],
+  "pageCount": 8,
+  "sceneGraph": {
+    "scenes": [
+      {
+        "id": "night_bedroom",
+        "label": "The night bedroom",
+        "description": "One child's bedroom at night — the child's bed, a warm bedside lamp pool of light, a small child's chair, dark window. The main set for the book.",
+        "transitionsTo": [],
+        "visualAnchors": ["the child's bed", "warm bedside lamp light", "the small child's chair", "dark window"],
+        "pages": [1, 3, 4, 5, 6, 7, 8]
+      },
+      {
+        "id": "gan_memory",
+        "label": "The daytime gan memory",
+        "description": "A brief DAYTIME kindergarten memory: a ring of small chairs mid musical-chairs game, every seat taken, the child at the edge with one shoe half-tied. A remembered flashback, not the bedroom.",
+        "transitionsTo": ["night_bedroom"],
+        "visualAnchors": ["ring of small kindergarten chairs", "children mid-game", "child at the edge of the circle"],
+        "pages": [2]
+      }
+    ],
+    "recurringObjects": [
+      {
+        "id": "bed",
+        "label": "the child's bed",
+        "identity": "The SAME child's bed every night page with the same blanket, in the warm bedside-lamp light. A child's bed, never a crib or hospital bed.",
+        "appearsInScenes": ["night_bedroom"],
+        "presencePolicy": "whole_scene",
+        "forbiddenDrift": ["a different bed design", "a crib or hospital bed", "more than one bed"],
+        "stateTimeline": [
+          { "page": 1, "state": "the child lies in bed, blanket to the nose, restless and worried" },
+          { "page": 8, "state": "the child is asleep under the blanket in the same bed" }
+        ]
+      },
+      {
+        "id": "small_chair",
+        "label": "the small child's chair",
+        "identity": "A SINGLE small child's chair — the social residue object ('tomorrow's chair'). The same small chair throughout; not an adult chair, not a stool, not more than one.",
+        "presencePolicy": "timeline_only",
+        "forbiddenDrift": ["a different chair", "more than one chair", "an adult-sized chair or stool"],
+        "stateTimeline": [
+          { "page": 5, "state": "a small empty child's chair stands in the corner of the bedroom" },
+          { "page": 6, "state": "pulled out near Anat; Anat slides slowly off it back to the floor" },
+          { "page": 7, "state": "deliberately placed BESIDE the bed as 'tomorrow's chair' — the focal object in lamp light" },
+          { "page": 8, "state": "waiting beside the bed in a soft pool of lamp light, ready for tomorrow" }
+        ]
+      },
+      {
+        "id": "gan_chairs",
+        "label": "the ring of kindergarten chairs",
+        "identity": "The remembered ring of small kindergarten chairs from the daytime musical-chairs game. Appears ONLY in the gan memory, never in the night bedroom.",
+        "presencePolicy": "timeline_only",
+        "forbiddenDrift": ["the chair ring appearing in the night bedroom", "a single chair instead of a ring"],
+        "stateTimeline": [
+          { "page": 2, "state": "daytime: a ring of small chairs mid-game, every seat taken, the child at the edge with one shoe half-tied" }
+        ]
+      }
+    ],
+    "forbiddenDrift": [
+      "a clinic, hospital, or medical setting",
+      "any bedroom other than this one night bedroom (night pages)",
+      "the musical-chairs ring inside the night bedroom",
+      "more than one panda or child"
+    ]
+  }
+}

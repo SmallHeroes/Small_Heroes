@@ -1,0 +1,90 @@
+{
+  "continuityMode": "single_location",
+  "primarySetting": "The whole story takes place in ONE new, unfamiliar child's bedroom at night on the first night after moving: tall brown cardboard moving boxes crowd the room, plain green walls, an empty windowsill, the child's bed. Kim the chameleon (orange nose, mustard satchel) keeps her own colors. It is the SAME new bedroom on every page — never the magical color-gate world from Kim's other story, never a clinic, never daylight, never the old home, never outdoors.",
+  "forbiddenDrift": [
+    "magical color gate / shifting-rainbow portal / any fantasy-world setting",
+    "clinic", "hospital", "medical setting",
+    "daylight", "sunlight", "bright daytime room",
+    "the old home / a different bedroom", "outdoors",
+    "more than one Kim / duplicate or cloned chameleon",
+    "duplicate or cloned child",
+    "redesigning the new-bedroom set between pages"
+  ],
+  "transitionRules": [
+    "Stay in the SAME new night bedroom on every page — camera may move, the room must not redesign.",
+    "Never the magical color gate (that is Kim's OTHER story); never daylight, a clinic, the old home, or outdoors.",
+    "The blue fabric swatch is the only object whose placement changes; bed, moving boxes and windowsill stay the same."
+  ],
+  "pageCount": 8,
+  "sceneGraph": {
+    "scenes": [
+      {
+        "id": "new_bedroom",
+        "label": "The new night bedroom",
+        "description": "One new, unfamiliar child's bedroom at night after moving — tall brown cardboard moving boxes, plain green walls, an empty windowsill, the child's bed, warm quiet night. The single set for the whole book.",
+        "transitionsTo": [],
+        "visualAnchors": ["the child's bed", "tall cardboard moving boxes", "the empty windowsill", "plain green walls"],
+        "pages": [1, 2, 3, 4, 5, 6, 7, 8]
+      }
+    ],
+    "recurringObjects": [
+      {
+        "id": "bed",
+        "label": "the child's bed",
+        "identity": "The SAME child's bed every page with the same blanket. A child's bed, never a crib or hospital bed.",
+        "appearsInScenes": ["new_bedroom"],
+        "presencePolicy": "whole_scene",
+        "forbiddenDrift": ["a different bed design", "a crib or hospital bed", "more than one bed"],
+        "stateTimeline": [
+          { "page": 1, "state": "the child lies in bed, blanket to the chin, looking at the ceiling of the new room" },
+          { "page": 8, "state": "the child is tucked peacefully back in the same bed" }
+        ]
+      },
+      {
+        "id": "moving_boxes",
+        "label": "the cardboard moving boxes",
+        "identity": "The SAME tall brown cardboard moving boxes crowding the new room. Plain packing boxes, same arrangement family every page.",
+        "appearsInScenes": ["new_bedroom"],
+        "presencePolicy": "whole_scene",
+        "forbiddenDrift": ["furniture instead of boxes", "the boxes vanished", "a tidy fully-unpacked room"],
+        "stateTimeline": [
+          { "page": 1, "state": "tall cardboard boxes crowd the room, unfamiliar and bare" }
+        ]
+      },
+      {
+        "id": "windowsill",
+        "label": "the windowsill",
+        "identity": "The SAME window with an empty wooden windowsill in the new room; the blue fabric swatch is later placed at its center. Same window/sill every page.",
+        "appearsInScenes": ["new_bedroom"],
+        "presencePolicy": "whole_scene",
+        "forbiddenDrift": ["a magical gate where the window is", "a different window", "curtains already hung"],
+        "stateTimeline": [
+          { "page": 1, "state": "the windowsill is empty, nothing of home on it yet" },
+          { "page": 6, "state": "the child places the blue fabric swatch at the center of the windowsill" },
+          { "page": 8, "state": "the blue fabric rests on the windowsill in soft moonlight" }
+        ]
+      },
+      {
+        "id": "blue_fabric",
+        "label": "the blue fabric swatch",
+        "identity": "A SINGLE small soft slightly-frayed BLUE fabric swatch cut from the old curtain — the home-token. The same small blue cloth throughout; not a toy, not a blanket, not a different color.",
+        "presencePolicy": "timeline_only",
+        "forbiddenDrift": ["a different color or object", "more than one swatch", "a full curtain or blanket instead of a small swatch"],
+        "stateTimeline": [
+          { "page": 4, "state": "lifted carefully from the small moving box (found under old-home objects)" },
+          { "page": 5, "state": "held tightly in the child's fist, close to the chest" },
+          { "page": 6, "state": "placed open at the center of the empty windowsill" },
+          { "page": 7, "state": "resting on the windowsill with a soft warm glow" },
+          { "page": 8, "state": "resting on the windowsill in soft moonlight" }
+        ]
+      }
+    ],
+    "forbiddenDrift": [
+      "the magical color gate or any fantasy-world setting (Kim's other story)",
+      "a clinic, hospital, or medical setting",
+      "daylight or a bright daytime room",
+      "the old home, another room, or outdoors",
+      "more than one chameleon or child"
+    ]
+  }
+}
