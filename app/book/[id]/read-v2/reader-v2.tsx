@@ -99,7 +99,11 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
   const touchStartXRef = useRef<number | null>(null);
   const keyPart = resolvedAccessKey ? `&accessKey=${encodeURIComponent(resolvedAccessKey)}` : '';
   const readyHref = `/ready?orderId=${encodeURIComponent(bookId)}${keyPart}`;
-  const generationSecret = process.env.NEXT_PUBLIC_GENERATION_SECRET;
+  // GUY-28: never ship the generation secret to the public client. The in-reader regen control is a
+  // dev/creator tool; read the secret ONLY outside production so Next dead-code-eliminates the
+  // NEXT_PUBLIC reference from the prod bundle (regen is simply disabled on the public site).
+  const generationSecret =
+    process.env.NODE_ENV === 'production' ? undefined : process.env.NEXT_PUBLIC_GENERATION_SECRET;
 
   const currentScene = storyScenes[currentSceneIndex] ?? null;
   const imageUrls = useMemo(
