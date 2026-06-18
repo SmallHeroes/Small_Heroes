@@ -1,4 +1,5 @@
 import 'server-only';
+import { isVercelProductionRuntime } from './runtime-env';
 
 type StoryProvider = 'openai' | 'claude';
 type ImageProvider = 'replicate' | 'dall-e-3' | 'gpt-image';
@@ -138,9 +139,9 @@ export function validateEnv(): AppEnv {
     }
   }
   if (PAYMENT_PROVIDER === 'fake') {
-    const isProd = process.env.NODE_ENV === 'production';
-    if (isProd && !ALLOW_FAKE_PAYMENTS) {
-      errors.push('PAYMENT_PROVIDER=fake is forbidden in production');
+    // Real prod (VERCEL_ENV=production) → fake is ALWAYS forbidden, even with flags.
+    if (isVercelProductionRuntime()) {
+      errors.push('PAYMENT_PROVIDER=fake is forbidden on real production (VERCEL_ENV=production)');
     }
     if (!ENABLE_FAKE_PAYMENT) {
       errors.push('ENABLE_FAKE_PAYMENT=true is required when PAYMENT_PROVIDER=fake');
@@ -203,12 +204,23 @@ export function isWaitlistMode(): boolean {
   return env.NEXT_PUBLIC_BUY_MODE !== 'live';
 }
 
-export function isFakePaymentEnabled(): boolean {
+/**
+ * Single source of truth for whether the fake-payment flow may run in this runtime.
+ * Real prod (VERCEL_ENV=production) → NEVER, even with flags. Preview/dev → only when
+ * PAYMENT_PROVIDER=fake AND both flags are on.
+ */
+export function canUseFakePayments(): boolean {
   return (
     env.PAYMENT_PROVIDER === 'fake' &&
     env.ENABLE_FAKE_PAYMENT &&
-    process.env.NODE_ENV !== 'production'
+    env.ALLOW_FAKE_PAYMENTS &&
+    !isVercelProductionRuntime()
   );
+}
+
+/** Thin backward-compatible alias — one implementation (canUseFakePayments). */
+export function isFakePaymentEnabled(): boolean {
+  return canUseFakePayments();
 }
 
 export const env = validateEnv();

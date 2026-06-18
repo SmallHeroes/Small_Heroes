@@ -10,15 +10,11 @@ import { enforceRateLimit, enforceSameOrigin } from '../../../lib/request-securi
 import { prisma } from '@/lib/prisma';
 import { createLogger } from '@/lib/logger';
 import { createPaymeCheckout } from '@/lib/payme';
-import { env, isFakePaymentEnabled, isWaitlistMode } from '@/lib/env';
+import { env, isFakePaymentEnabled, canUseFakePayments, isWaitlistMode } from '@/lib/env';
 import { ROUTES } from '@/lib/routes';
 import { evaluatePhotoGate } from '@/lib/resemblance-core';
 
 const logger = createLogger({ subsystem: 'checkout', route: '/api/checkout' });
-
-function canUseLocalFakeFallback(): boolean {
-  return process.env.NODE_ENV !== 'production' && env.ENABLE_FAKE_PAYMENT;
-}
 
 async function createFakeCheckoutResponse(params: {
   orderId: string;
@@ -98,8 +94,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (env.PAYMENT_PROVIDER === 'fake' && process.env.NODE_ENV === 'production') {
-      logger.error('Checkout blocked: fake payment provider is forbidden in production');
+    if (env.PAYMENT_PROVIDER === 'fake' && !canUseFakePayments()) {
+      logger.error('Checkout blocked: fake payment not permitted in this runtime', {
+        vercelEnv: process.env.VERCEL_ENV ?? null,
+        allowFake: env.ALLOW_FAKE_PAYMENTS,
+        enableFake: env.ENABLE_FAKE_PAYMENT,
+      });
       return NextResponse.json({ error: 'Payment provider misconfigured' }, { status: 503 });
     }
     if (env.PAYMENT_PROVIDER !== 'payme' && env.PAYMENT_PROVIDER !== 'fake') {
@@ -225,7 +225,7 @@ export async function POST(req: NextRequest) {
         },
       });
     } catch (error) {
-      if (canUseLocalFakeFallback()) {
+      if (canUseFakePayments()) {
         logger.warn('PayMe checkout failed; falling back to fake checkout in local/dev', {
           orderId: order.id,
           paymentProvider: env.PAYMENT_PROVIDER,

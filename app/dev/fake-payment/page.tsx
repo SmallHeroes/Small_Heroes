@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
-import { env } from '@/lib/env';
+import { canUseFakePayments } from '@/lib/env';
 import FakePaymentActions from './FakePaymentActions';
 
 export const metadata: Metadata = {
@@ -18,7 +18,7 @@ type PageProps = {
 };
 
 export default async function FakePaymentPage({ searchParams }: PageProps) {
-  if (process.env.NODE_ENV === 'production' || env.PAYMENT_PROVIDER !== 'fake' || !env.ENABLE_FAKE_PAYMENT) {
+  if (!canUseFakePayments()) {
     notFound();
   }
 

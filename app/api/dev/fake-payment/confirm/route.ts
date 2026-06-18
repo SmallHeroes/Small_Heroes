@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createLogger } from '@/lib/logger';
 import { enforceRateLimit, enforceSameOrigin } from '@/lib/request-security';
-import { env } from '@/lib/env';
+import { canUseFakePayments } from '@/lib/env';
 import { ROUTES } from '@/lib/routes';
 import { triggerGeneration } from '../../../generate/route';
 
 const logger = createLogger({ subsystem: 'fake-payment', route: '/api/dev/fake-payment/confirm' });
 
 export async function POST(req: NextRequest) {
-  if (process.env.NODE_ENV === 'production' || env.PAYMENT_PROVIDER !== 'fake' || !env.ENABLE_FAKE_PAYMENT) {
+  if (!canUseFakePayments()) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
