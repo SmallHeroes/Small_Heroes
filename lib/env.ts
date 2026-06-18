@@ -3,6 +3,7 @@ import 'server-only';
 type StoryProvider = 'openai' | 'claude';
 type ImageProvider = 'replicate' | 'dall-e-3' | 'gpt-image';
 type PaymentProvider = 'payme' | 'stripe' | 'fake';
+type BuyMode = 'waitlist' | 'live';
 
 export type AppEnv = {
   DATABASE_URL: string;
@@ -20,6 +21,8 @@ export type AppEnv = {
   APP_URL: string;
   GENERATION_SECRET: string;
   NEXT_PUBLIC_APP_URL: string;
+  /** Buy flow mode. 'waitlist' (default) = no real charges, CTAs capture waitlist signups. */
+  NEXT_PUBLIC_BUY_MODE: BuyMode;
   STORY_PROVIDER: StoryProvider;
   IMAGE_PROVIDER: ImageProvider;
   OPENAI_API_KEY?: string;
@@ -84,6 +87,10 @@ export function validateEnv(): AppEnv {
   const SUPABASE_URL = readRequired('SUPABASE_URL', errors);
   const SUPABASE_SERVICE_ROLE_KEY = readRequired('SUPABASE_SERVICE_ROLE_KEY', errors);
   const SUPABASE_STORAGE_BUCKET = (process.env.SUPABASE_STORAGE_BUCKET || 'book-images').trim();
+
+  // Buy mode defaults to 'waitlist' (safe: no real charges) unless explicitly set to 'live'.
+  const NEXT_PUBLIC_BUY_MODE: BuyMode =
+    (process.env.NEXT_PUBLIC_BUY_MODE || '').trim().toLowerCase() === 'live' ? 'live' : 'waitlist';
 
   const STORY_PROVIDER = normalizeStoryProvider(process.env.STORY_PROVIDER);
   const IMAGE_PROVIDER = normalizeImageProvider(process.env.IMAGE_PROVIDER);
@@ -174,6 +181,7 @@ export function validateEnv(): AppEnv {
     APP_URL: APP_URL || NEXT_PUBLIC_APP_URL,
     GENERATION_SECRET,
     NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_BUY_MODE,
     STORY_PROVIDER,
     IMAGE_PROVIDER,
     OPENAI_API_KEY,
@@ -188,6 +196,11 @@ export function validateEnv(): AppEnv {
   };
 
   return cachedEnv;
+}
+
+/** Waitlist mode = no real charges; buy CTAs capture a waitlist signup instead of checking out. */
+export function isWaitlistMode(): boolean {
+  return env.NEXT_PUBLIC_BUY_MODE !== 'live';
 }
 
 export function isFakePaymentEnabled(): boolean {

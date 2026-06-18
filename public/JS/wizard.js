@@ -2851,6 +2851,27 @@ async function handleSubmit() {
       throw new Error(checkoutResponse.message || 'לא הצלחנו לפתוח את התשלום כרגע.');
     }
 
+    // Waitlist mode: server captured the lead and did NOT create a charge — confirm, do not redirect.
+    if (checkoutResponse.data && checkoutResponse.data.mode === 'waitlist') {
+      track('waitlist_signup', { topic: state.topic, storyDirection: state.storyDirection });
+      clearWizardSessionId();
+      try {
+        sessionStorage.removeItem(WIZARD_STORAGE_KEY);
+      } catch (_) {
+        /* ignore */
+      }
+      const waitlistMsg =
+        checkoutResponse.data.message || 'נרשמת לרשימה! נודיע לך במייל כשהספר מוכן 🎉';
+      const payBtn = document.getElementById('btn-pay');
+      if (payBtn) {
+        payBtn.textContent = 'נרשמת לרשימה ✓';
+        payBtn.disabled = true;
+        payBtn.classList.remove('is-pressed');
+      }
+      showSubmitError(waitlistMsg);
+      return;
+    }
+
     const { url } = checkoutResponse.data || {};
     if (!url) {
       reportClientIssue('checkout_failed', { reason: 'missing_checkout_url', orderId });

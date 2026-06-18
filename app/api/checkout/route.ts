@@ -10,7 +10,7 @@ import { enforceRateLimit, enforceSameOrigin } from '../../../lib/request-securi
 import { prisma } from '@/lib/prisma';
 import { createLogger } from '@/lib/logger';
 import { createPaymeCheckout } from '@/lib/payme';
-import { env, isFakePaymentEnabled } from '@/lib/env';
+import { env, isFakePaymentEnabled, isWaitlistMode } from '@/lib/env';
 import { ROUTES } from '@/lib/routes';
 import { evaluatePhotoGate } from '@/lib/resemblance-core';
 
@@ -68,6 +68,36 @@ export async function POST(req: NextRequest) {
       windowMs: 60_000,
     });
     if (rateLimitError) return rateLimitError;
+
+    // WAITLIST HARD GUARD (Goal A): in waitlist mode NO real charge can ever be created. Capture the
+    // already-created order as a lead (it holds email + child name) and return a waitlist response
+    // BEFORE any payment-provider logic runs. This is the single money chokepoint.
+    if (isWaitlistMode()) {
+      let waitlistOrderId: string | undefined;
+      try {
+        ({ orderId: waitlistOrderId } = await req.json());
+      } catch {
+        /* body optional for the guard */
+      }
+      if (waitlistOrderId) {
+        const leadOrder = await prisma.order
+          .findUnique({ where: { id: waitlistOrderId } })
+          .catch(() => null);
+        logger.info('Waitlist signup captured (no charge — BUY_MODE=waitlist)', {
+          orderId: waitlistOrderId,
+          customerEmail: leadOrder?.customerEmail ?? null,
+          childName: leadOrder?.childName ?? null,
+        });
+      }
+      return NextResponse.json(
+        {
+          mode: 'waitlist',
+          message: 'נרשמת לרשימה! נודיע לך במייל ברגע שהספר מוכן 🎉',
+        },
+        { status: 200 }
+      );
+    }
+
     if (env.PAYMENT_PROVIDER === 'fake' && process.env.NODE_ENV === 'production') {
       logger.error('Checkout blocked: fake payment provider is forbidden in production');
       return NextResponse.json({ error: 'Payment provider misconfigured' }, { status: 503 });
