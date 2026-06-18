@@ -63,3 +63,9 @@ outputs/
 briefs/
 docs/
 1.txt
+
+# World-lock sample render montages + scratch builders (regenerable, local only)
+*_contact.png
+*_contact_sheet.png
+scripts/_build-contact-sheet.mjs
+scripts/_build-koko-contact-sheet.mjs
