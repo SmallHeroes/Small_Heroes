@@ -39,7 +39,9 @@ const nextConfig = {
     const MEDIA = ['node_modules/@ffmpeg-installer/**', 'node_modules/@ffprobe-installer/**'];
     const HEADLESS = ['node_modules/@sparticuz/chromium/**', 'node_modules/puppeteer-core/**'];
     const STORY_ASSETS = ['public/companions/**', 'style-references/**'];
-    // Generation routes render images / read story-bank — keep assets, drop only media + headless.
+    // Generation routes need story-bank (text, ~12MB, kept via outputFileTracingIncludes) but NOT the
+    // bundled companion/style-reference image bytes — those are served to the image API by CDN URL,
+    // not read from the function disk. Dropping them (90MB+78MB) keeps these functions under 250MB.
     const GENERATION_ROUTES = [
       '/api/generate',
       '/api/generate/worker',
@@ -57,7 +59,7 @@ const nextConfig = {
       '/api/dev/fake-payment/confirm',
     ];
     const excludes = {};
-    for (const r of GENERATION_ROUTES) excludes[r] = [...MEDIA, ...HEADLESS];
+    for (const r of GENERATION_ROUTES) excludes[r] = [...MEDIA, ...HEADLESS, ...STORY_ASSETS];
     for (const r of LEAN_ROUTES) excludes[r] = [...MEDIA, ...HEADLESS, ...STORY_ASSETS, 'story-bank/**'];
     // dev story-bank browser lists the bank → keep story-bank, drop media/headless/companions/style-refs.
     excludes['/api/dev/story-bank'] = [...MEDIA, ...HEADLESS, ...STORY_ASSETS];
