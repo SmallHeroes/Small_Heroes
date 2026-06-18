@@ -13,11 +13,12 @@
   display: none !important;
 }
 
+/* Match the home/start navbar exactly (was 0.72 — read washed-out over the wizard gradient). */
 .navbar {
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 #progress-wrap {
@@ -96,9 +97,10 @@
   max-width: 1100px;
 }
 
-/* Category step holds the 6-up MVP grid — widen to match the landing/start container. */
+/* Category step holds the 6-up MVP grid — widen to the home container (--max-w 1440) so the
+   grid below can reach its 1344px cap and render cards at the same size as the home page. */
 #step-1 {
-  max-width: 1180px;
+  max-width: 1440px;
 }
 
 @keyframes fadeUp {
@@ -2563,7 +2565,8 @@
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
-  max-width: 1120px;
+  /* = landing .wrap inner (--max-w 1440 − 2×48 padding); matches home cards (~217px). */
+  max-width: 1344px;
   align-items: stretch;
 }
 

@@ -49,7 +49,10 @@ export default function StartClient({ headerTitle, headerSub, categories }: Star
       </header>
 
       <main className={styles.main}>
-        <div className={styles.shell} key={selectedSlot ? 'direction' : 'challenge'}>
+        <div
+          className={[styles.shell, !selectedSlot ? styles.shellWide : ''].filter(Boolean).join(' ')}
+          key={selectedSlot ? 'direction' : 'challenge'}
+        >
           {!selectedSlot ? (
             <>
               <div className={styles.intro}>

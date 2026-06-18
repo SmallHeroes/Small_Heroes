@@ -97,6 +97,12 @@
   animation: startFadeUp 0.34s ease;
 }
 
+/* Challenge view widens to the landing grid width so the category slots render at the
+   SAME size as the home page (~217px cards). Direction view keeps the narrower --start-max. */
+.shellWide {
+  max-width: 1344px;
+}
+
 @keyframes startFadeUp {
   from {
     opacity: 0;
@@ -139,7 +145,8 @@
 
 .challengeWrap :global(.mvp-challenge-grid--start) {
   width: 100%;
-  max-width: var(--start-max);
+  /* = landing .wrap inner (--max-w 1440 − 2×48 padding); keeps cards identical to the home page. */
+  max-width: 1344px;
   margin-inline: auto;
   justify-content: center;
   padding: 8px 0 4px;
