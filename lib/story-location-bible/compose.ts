@@ -56,6 +56,21 @@ export function recurringObjectAppearsOnPage(
   return obj.stateTimeline.some((s) => s.page === pagePlan.page);
 }
 
+/** The recurring objects locked onto a page, with the state expected there — for world QA. */
+export function resolvePageRecurringObjects(
+  bible: BookLocationBible,
+  pagePlan: Pick<PageLocationPlan, 'page' | 'zoneId'>
+): Array<{ id: string; label: string; identity: string; state: string | null }> {
+  return (bible.sceneGraph?.recurringObjects ?? [])
+    .filter((o) => recurringObjectAppearsOnPage(o, pagePlan))
+    .map((o) => ({
+      id: o.id,
+      label: o.label,
+      identity: o.identity,
+      state: recurringObjectStateForPage(o, pagePlan.page),
+    }));
+}
+
 /**
  * RECURRING OBJECT LOCK — injects the bible's recurring-object identity + this page's state
  * for every recurring object that appears on the page (by stateTimeline OR appearsInScenes).

@@ -66,6 +66,11 @@ import {
   evaluatePageEntityQa,
   entityQaHardFailSummary,
 } from '@/lib/generation-pipeline/page-entity-qa';
+import {
+  evaluatePageWorldQa,
+  worldQaHardFailSummary,
+} from '@/lib/generation-pipeline/page-world-qa';
+import { resolvePageRecurringObjects, resolveZoneById } from '@/lib/story-location-bible';
 
 import {
   estimateQaConsoleCostUsd,
@@ -825,6 +830,52 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
       }
     }
 
+    // World QA (brief 0078 Phase D) — only for world-locked stories (bible carries a sceneGraph).
+    // Hard-fail on gross drift: wrong zone, recurring object in wrong state, forbidden setting.
+    const worldQaFailedPages: number[] = [];
+    const worldQaUnverifiedPages: number[] = [];
+    const worldBible = lockContext.storyLocationPlan.bible;
+    if (worldBible.sceneGraph?.recurringObjects?.length) {
+      const worldForbidden = [
+        ...worldBible.forbiddenDrift,
+        ...(worldBible.sceneGraph.forbiddenDrift ?? []),
+      ];
+      for (let i = 0; i < manifestPages.length; i++) {
+        const mp = manifestPages[i];
+        const worldImageSource = (mp.localPng as string | null) ?? (mp.imageUrl as string | null);
+        if (!worldImageSource || mp.failed) continue;
+        const pageNum = mp.pageNumber as number;
+        const pagePlan = resolveQaPageLocationPlan(lockContext.storyLocationPlan, pageNum);
+        if (!pagePlan) continue;
+        const zoneDescription =
+          resolveZoneById(worldBible, pagePlan.zoneId)?.description ?? worldBible.primarySetting;
+        const objects = resolvePageRecurringObjects(worldBible, pagePlan).map((o) => ({
+          label: o.label,
+          state: o.state,
+        }));
+
+        const worldQa = await evaluatePageWorldQa({
+          imageUrl: worldImageSource,
+          zoneDescription,
+          objects,
+          forbiddenScenes: worldForbidden,
+        });
+        manifestPages[i].worldQa = worldQa;
+        if (worldQa.status === 'error') {
+          worldQaUnverifiedPages.push(pageNum);
+          console.warn(
+            `[qa-console] world QA ERROR page ${pageNum} (unverified): ${worldQaHardFailSummary(worldQa)}`
+          );
+        } else if (worldQa.status === 'fail' && worldQa.hardFailures.length > 0) {
+          worldQaFailedPages.push(pageNum);
+          manifestPages[i].failed = true;
+          console.warn(
+            `[qa-console] world QA HARD FAIL page ${pageNum}: ${worldQaHardFailSummary(worldQa)}`
+          );
+        }
+      }
+    }
+
     const allStoryPages = story.pages
       .sort((a, b) => a.pageNumber - b.pageNumber)
       .map((p) => {
@@ -897,6 +948,14 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
     }
     if (entityQaUnverifiedPages.length) {
       throw new Error(`Entity QA unverified pages: ${entityQaUnverifiedPages.join(', ')}`);
+    }
+    if (worldQaFailedPages.length) {
+      throw new Error(`World QA hard-fail pages: ${worldQaFailedPages.join(', ')}`);
+    }
+    if (worldQaUnverifiedPages.length) {
+      console.warn(
+        `[qa-console] world QA unverified pages (not blocking): ${worldQaUnverifiedPages.join(', ')}`
+      );
     }
 
     return {
