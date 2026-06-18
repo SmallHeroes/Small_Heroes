@@ -851,7 +851,7 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
           resolveZoneById(worldBible, pagePlan.zoneId)?.description ?? worldBible.primarySetting;
         const objects = resolvePageRecurringObjects(worldBible, pagePlan).map((o) => ({
           label: o.label,
-          state: o.state,
+          identity: o.identity,
         }));
 
         const worldQa = await evaluatePageWorldQa({

@@ -12,8 +12,8 @@ export type PageWorldQaStatus = 'pass' | 'fail' | 'error';
 
 export type PageWorldQaObjectExpectation = {
   label: string;
-  /** Expected state on this page, or null when only presence/identity matters. */
-  state: string | null;
+  /** Locked identity (the part that must never drift — design, not transient state). */
+  identity: string;
 };
 
 export type PageWorldQaResult = {
@@ -35,23 +35,20 @@ export function buildWorldQaPrompt(input: {
   forbiddenScenes: string[];
 }): string {
   const objLines = input.objects.length
-    ? input.objects
-        .map(
-          (o) =>
-            `  - "${o.label}"${o.state ? ` — expected state: ${o.state}` : ' — expected: present, same design'}`
-        )
-        .join('\n')
+    ? input.objects.map((o) => `  - "${o.label}": ${o.identity}`).join('\n')
     : '  (none)';
   const forbidden = input.forbiddenScenes.length
     ? input.forbiddenScenes.map((f) => `"${f}"`).join(', ')
     : '(none)';
 
   return `You are strict WORLD/SETTING QA for a children's picture-book page. Judge the SETTING and the
-listed recurring objects ONLY. Ignore character counts/identity (a separate QA covers those).
+IDENTITY of the listed recurring objects ONLY. Ignore character counts/identity (a separate QA covers
+those), and ignore camera framing.
 
 Expected setting for this page: ${input.zoneDescription}
 
-Expected recurring objects (identity must hold; only state may change):
+Recurring objects whose DESIGN/IDENTITY must stay constant wherever they appear (they may be in any
+state or pose; an object simply being out of frame is FINE):
 ${objLines}
 
 Forbidden settings/scenes (must NOT be the page's location): ${forbidden}
@@ -59,14 +56,15 @@ Forbidden settings/scenes (must NOT be the page's location): ${forbidden}
 Return ONLY JSON:
 {
   "settingMatchesZone": true if the overall location/setting plausibly matches the expected setting above (same KIND of place; camera/angle may differ),
-  "objects": [ { "label": "<label>", "presentInExpectedState": true if that object is visible AND its design/state is consistent with the expectation (not redesigned into a different object, not an obviously contradictory state) } ],
+  "objects": [ { "label": "<label>", "visible": true if that object is clearly in frame, "consistentWithIdentity": true if (when visible) it matches the identity above and is NOT redesigned into a different object/material/shape } ],
   "forbiddenScenePresent": true ONLY if the page's overall SETTING is one of the forbidden settings listed (e.g. an indoor room when an outdoor scene is expected, a clinic, daylight when night expected, a forest/stream). Ignore character/count issues.,
   "notes": "one short sentence"
 }
 
-Be lenient on camera angle, framing, and palette variation. HARD-fail only GROSS drift:
+Be lenient on camera angle, framing, pose, and palette. An object that is out of frame is NOT a failure.
+HARD-fail only GROSS drift:
 - wrong_zone if settingMatchesZone is false.
-- object_state_drift if any listed object has presentInExpectedState false.
+- object_state_drift if a listed object is VISIBLE but consistentWithIdentity is false (redesigned into a different object).
 - forbidden_scene if forbiddenScenePresent is true.`;
 }
 
@@ -94,7 +92,9 @@ export function evaluateWorldQaFromRaw(input: {
     ? (input.raw.objects as Array<Record<string, unknown>>)
     : [];
   for (const ro of rawObjects) {
-    if (ro?.presentInExpectedState === false) {
+    // Drift ONLY when the object is actually visible AND redesigned. Out-of-frame is fine
+    // (camera framing varies); transient pose/state is not a drift.
+    if (ro?.visible === true && ro?.consistentWithIdentity === false) {
       const label = typeof ro.label === 'string' ? ro.label : 'object';
       driftObjects.push(label);
     }

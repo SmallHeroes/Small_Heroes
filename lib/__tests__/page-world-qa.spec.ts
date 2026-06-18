@@ -7,18 +7,18 @@ import {
 
 describe('page world QA (deterministic evaluator)', () => {
   const objects = [
-    { label: 'the color gate', state: 'closed across the path' },
-    { label: 'the small blue button', state: 'in the pocket' },
+    { label: 'the color gate', identity: 'a stone arch with a shifting rainbow center' },
+    { label: 'the small blue button', identity: 'a small blue button from the old sweater' },
   ];
 
-  it('passes when setting matches, objects in state, no forbidden scene', () => {
+  it('passes when setting matches, visible objects consistent, no forbidden scene', () => {
     const r = evaluateWorldQaFromRaw({
       objects,
       raw: {
         settingMatchesZone: true,
         objects: [
-          { label: 'the color gate', presentInExpectedState: true },
-          { label: 'the small blue button', presentInExpectedState: true },
+          { label: 'the color gate', visible: true, consistentWithIdentity: true },
+          { label: 'the small blue button', visible: false, consistentWithIdentity: true },
         ],
         forbiddenScenePresent: false,
         notes: 'ok',
@@ -27,6 +27,19 @@ describe('page world QA (deterministic evaluator)', () => {
     expect(r.status).toBe('pass');
     expect(r.passed).toBe(true);
     expect(r.hardFailures).toEqual([]);
+  });
+
+  it('does NOT fail when an object is simply out of frame', () => {
+    const r = evaluateWorldQaFromRaw({
+      objects,
+      raw: {
+        settingMatchesZone: true,
+        objects: [{ label: 'the color gate', visible: false, consistentWithIdentity: false }],
+        forbiddenScenePresent: false,
+      },
+    });
+    expect(r.status).toBe('pass');
+    expect(r.driftObjects).toEqual([]);
   });
 
   it('hard-fails wrong_zone', () => {
@@ -38,12 +51,12 @@ describe('page world QA (deterministic evaluator)', () => {
     expect(r.hardFailures).toContain('wrong_zone');
   });
 
-  it('hard-fails object_state_drift and lists the drifted object', () => {
+  it('hard-fails object_state_drift only when a VISIBLE object is redesigned', () => {
     const r = evaluateWorldQaFromRaw({
       objects,
       raw: {
         settingMatchesZone: true,
-        objects: [{ label: 'the color gate', presentInExpectedState: false }],
+        objects: [{ label: 'the color gate', visible: true, consistentWithIdentity: false }],
         forbiddenScenePresent: false,
       },
     });
