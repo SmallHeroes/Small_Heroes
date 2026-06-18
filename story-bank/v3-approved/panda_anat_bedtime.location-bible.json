@@ -23,7 +23,8 @@
         "description": "One child's bedroom at night — the child's bed, a warm bedside lamp pool of light, a small child's chair, dark window. The main set for the book.",
         "transitionsTo": [],
         "visualAnchors": ["the child's bed", "warm bedside lamp light", "the small child's chair", "dark window"],
-        "pages": [1, 3, 4, 5, 6, 7, 8]
+        "pages": [1, 3, 4, 5, 6, 7, 8],
+        "timeOfDay": "night"
       },
       {
         "id": "gan_memory",
@@ -31,7 +32,9 @@
         "description": "A brief DAYTIME kindergarten memory: a ring of small chairs mid musical-chairs game, every seat taken, the child at the edge with one shoe half-tied. A remembered flashback, not the bedroom.",
         "transitionsTo": ["night_bedroom"],
         "visualAnchors": ["ring of small kindergarten chairs", "children mid-game", "child at the edge of the circle"],
-        "pages": [2]
+        "pages": [2],
+        "timeOfDay": "day",
+        "crowdExpected": true
       }
     ],
     "recurringObjects": [

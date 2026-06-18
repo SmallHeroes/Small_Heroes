@@ -109,6 +109,8 @@ export function evaluateEntityQaFromRaw(input: {
   expectsChild: boolean;
   expectsCompanion: boolean;
   raw: Record<string, unknown>;
+  /** Crowd/flashback scene — many children are expected, so raw duplicate-child count is not failed. */
+  allowMultipleChildren?: boolean;
 }): PageEntityQaResult {
   if (isIncompleteEntityQaRaw(input.raw, input)) {
     return errorResult('incomplete vision JSON — entity QA unverified', input.raw);
@@ -116,15 +118,19 @@ export function evaluateEntityQaFromRaw(input: {
 
   const hardFailures: PageEntityQaFailure[] = [];
 
-  if (input.expectsChild && input.raw.singleChildOnly === false) {
-    hardFailures.push('duplicate_child');
-  }
-  if (
-    input.expectsChild &&
-    typeof input.raw.duplicateChildCount === 'number' &&
-    input.raw.duplicateChildCount > 1
-  ) {
-    if (!hardFailures.includes('duplicate_child')) hardFailures.push('duplicate_child');
+  // In a crowd/flashback scene (e.g. a musical-chairs ring), multiple children are correct — skip the
+  // raw duplicate-child count. (Hero-clone is a separate concern; raw count cannot distinguish it.)
+  if (!input.allowMultipleChildren) {
+    if (input.expectsChild && input.raw.singleChildOnly === false) {
+      hardFailures.push('duplicate_child');
+    }
+    if (
+      input.expectsChild &&
+      typeof input.raw.duplicateChildCount === 'number' &&
+      input.raw.duplicateChildCount > 1
+    ) {
+      if (!hardFailures.includes('duplicate_child')) hardFailures.push('duplicate_child');
+    }
   }
   if (input.expectsCompanion && input.raw.singleCompanionOnly === false) {
     hardFailures.push('duplicate_companion');
@@ -162,6 +168,8 @@ export async function evaluatePageEntityQa(input: {
   companionName?: string | null;
   expectsCompanion: boolean;
   expectsChild: boolean;
+  /** Crowd/flashback scene — relax the single-child count (multiple children expected). */
+  allowMultipleChildren?: boolean;
 }): Promise<PageEntityQaResult> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -226,6 +234,7 @@ export async function evaluatePageEntityQa(input: {
       expectsChild: input.expectsChild,
       expectsCompanion: input.expectsCompanion,
       raw,
+      allowMultipleChildren: input.allowMultipleChildren,
     });
   } catch (e) {
     return errorResult(e instanceof Error ? e.message : String(e));

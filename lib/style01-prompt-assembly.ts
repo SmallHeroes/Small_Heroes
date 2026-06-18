@@ -312,19 +312,35 @@ export function assembleStyle01Phase2Prompt(
       })
     : undefined;
 
+  // Scene-time-aware wardrobe: resolve THIS page's effective time-of-day (scene-graph override wins)
+  // so a daytime flashback page in a bedtime story gets day clothes while night pages get pajamas.
+  const storyTimeOfDay: StoryTimeOfDay =
+    input.storyTimeOfDay ??
+    resolveStoryTimeOfDay({
+      category: null,
+      pages: [{ text: input.bookPageText ?? undefined, imagePrompt: imageDirection }],
+    });
+  const effectivePageTimeOfDay = resolveEffectivePageTimeOfDay({
+    storyTimeOfDay,
+    pageNumber: input.pageNumber,
+    pageTimeOfDayOverrides: input.pageTimeOfDayOverrides,
+    imageDirection,
+    bookPageText: input.bookPageText,
+  });
+
   const wardrobeLock = childPresenceAllowsVisualLock(entityPresence.childPresence)
     ? buildStyle01WardrobeLock({
         companionId: input.companion?.id,
         storyFile: input.storyFile,
         direction: input.direction,
-        timeOfDay: input.timeOfDay ?? input.storyTimeOfDay,
+        timeOfDay: input.timeOfDay ?? effectivePageTimeOfDay,
         challengeCategory: input.challengeCategory,
         childStructured: input.childStructured,
       })
     : undefined;
 
   const storyWardrobeLock = resolveStyle01StoryWardrobeLock(input.companion?.id, input.storyFile, {
-    storyTimeOfDay: input.storyTimeOfDay ?? input.timeOfDay,
+    storyTimeOfDay: input.timeOfDay ?? effectivePageTimeOfDay,
     category: input.challengeCategory,
   });
   if (storyWardrobeLock && childVisualLock) {
@@ -372,19 +388,6 @@ export function assembleStyle01Phase2Prompt(
         ? accessoryLock
         : undefined;
 
-  const storyTimeOfDay: StoryTimeOfDay =
-    input.storyTimeOfDay ??
-    resolveStoryTimeOfDay({
-      category: null,
-      pages: [{ text: input.bookPageText ?? undefined, imagePrompt: imageDirection }],
-    });
-  const effectivePageTimeOfDay = resolveEffectivePageTimeOfDay({
-    storyTimeOfDay,
-    pageNumber: input.pageNumber,
-    pageTimeOfDayOverrides: input.pageTimeOfDayOverrides,
-    imageDirection,
-    bookPageText: input.bookPageText,
-  });
   const timeOfDayLock = buildStoryTimeOfDayLockBlock({
     effectiveTimeOfDay: effectivePageTimeOfDay,
     imageDirection,

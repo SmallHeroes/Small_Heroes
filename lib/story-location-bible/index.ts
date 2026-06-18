@@ -62,7 +62,13 @@ export {
   validateSceneGraph,
 } from './derive';
 export type { SceneGraphValidationIssue } from './derive';
-export { recurringObjectAppearsOnPage, resolvePageRecurringObjects, resolveZoneById } from './compose';
+export {
+  pageCrowdExpected,
+  recurringObjectAppearsOnPage,
+  resolvePageRecurringObjects,
+  resolveZoneById,
+  scenePageTimeOfDayOverrides,
+} from './compose';
 export {
   formatLocationPlanTable,
   isStoryLocationPlanValid,

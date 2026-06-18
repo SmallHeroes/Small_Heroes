@@ -56,6 +56,32 @@ export function recurringObjectAppearsOnPage(
   return obj.stateTimeline.some((s) => s.page === pagePlan.page);
 }
 
+/** Per-page time-of-day overrides derived from sceneGraph scene `timeOfDay` (scene-time-aware wardrobe). */
+export function scenePageTimeOfDayOverrides(
+  bible: BookLocationBible,
+  pagePlans: PageLocationPlan[]
+): Partial<Record<number, import('../story-time-of-day').StoryTimeOfDay>> {
+  const scenes = bible.sceneGraph?.scenes ?? [];
+  const out: Partial<Record<number, import('../story-time-of-day').StoryTimeOfDay>> = {};
+  if (!scenes.length) return out;
+  const byId = new Map(scenes.map((s) => [s.id, s]));
+  for (const plan of pagePlans) {
+    const tod = byId.get(plan.zoneId)?.timeOfDay;
+    if (tod) out[plan.page] = tod;
+  }
+  return out;
+}
+
+/** Whether the page's scene is a crowd/flashback scene (relaxes single-child entity QA). */
+export function pageCrowdExpected(
+  bible: BookLocationBible,
+  pagePlan: Pick<PageLocationPlan, 'zoneId'>
+): boolean {
+  return (
+    bible.sceneGraph?.scenes.find((s) => s.id === pagePlan.zoneId)?.crowdExpected === true
+  );
+}
+
 /** The recurring objects locked onto a page, with the state expected there — for world QA. */
 export function resolvePageRecurringObjects(
   bible: BookLocationBible,

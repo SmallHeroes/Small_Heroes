@@ -105,6 +105,17 @@ export interface LocationSceneNode {
    * Optional: a bible may instead author allowedZones/pagePlans explicitly.
    */
   pages?: number[];
+  /**
+   * Scene time-of-day — drives scene-time-aware wardrobe (e.g. a daytime flashback scene inside a
+   * bedtime story gets day clothes, while the night-bedroom scenes get pajamas). 'day' | 'night' | …
+   */
+  timeOfDay?: import('../story-time-of-day').StoryTimeOfDay;
+  /**
+   * When true, single-protagonist entity QA is relaxed for this scene's pages (a crowd/flashback
+   * scene legitimately shows many children — e.g. a musical-chairs ring). Hero-clone is still wrong,
+   * but raw duplicate-child count is not hard-failed here.
+   */
+  crowdExpected?: boolean;
 }
 
 /** One state of a recurring object on a specific page (free-text lock note). */

@@ -70,7 +70,12 @@ import {
   evaluatePageWorldQa,
   worldQaHardFailSummary,
 } from '@/lib/generation-pipeline/page-world-qa';
-import { resolvePageRecurringObjects, resolveZoneById } from '@/lib/story-location-bible';
+import {
+  pageCrowdExpected,
+  resolvePageRecurringObjects,
+  resolveZoneById,
+  scenePageTimeOfDayOverrides,
+} from '@/lib/story-location-bible';
 
 import {
   estimateQaConsoleCostUsd,
@@ -231,7 +236,8 @@ function auditPrompt(
   prompt: string,
   pageNumber: number,
   companionId: string,
-  auditCtx?: { direction?: string; timeOfDay?: string; storyFile?: string }
+  auditCtx?: { direction?: string; timeOfDay?: string; storyFile?: string },
+  pageIsDaytime?: boolean
 ): { hits: string[]; warnings: string[] } {
   const hits: string[] = [];
   const warnings: string[] = [];
@@ -249,7 +255,9 @@ function auditPrompt(
     }
   }
 
-  if (isNightBedtimeStory) {
+  // Day clothes are correct on a daytime page (e.g. a daytime flashback scene inside a bedtime
+  // story) — only treat them as leftover contamination on the night pages.
+  if (isNightBedtimeStory && !pageIsDaytime) {
     for (const { label, re } of DAY_CLOTHES_LEFTOVER_PATTERNS) {
       if (re.test(scanned)) hits.push(`${label} (page ${pageNumber})`);
     }
@@ -455,7 +463,19 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
       storyTimeOfDay: story.storyTimeOfDay,
       pageTimeOfDayOverrides: story.pageTimeOfDayOverrides,
     });
+    // Scene-time-aware wardrobe: a sceneGraph scene's `timeOfDay` overrides the page time-of-day
+    // (bible wins over story-level), so e.g. a daytime flashback page gets day clothes.
+    const mergedPageTimeOfDayOverrides = {
+      ...(story.pageTimeOfDayOverrides ?? {}),
+      ...scenePageTimeOfDayOverrides(
+        lockContext.storyLocationPlan.bible,
+        lockContext.storyLocationPlan.pagePlans
+      ),
+    };
     const imageLockFields = buildQaImageGenerationLockFields(lockContext);
+    // Make the ACTUAL image-generation path scene-time-aware too (not just the audit prompt): feed the
+    // scene-derived per-page time-of-day so night pages get pajamas and daytime flashback pages get day clothes.
+    imageLockFields.pageTimeOfDayOverrides = mergedPageTimeOfDayOverrides;
     const sceneAppearance = seedSceneAppearanceMemory({
       sceneMemory: lockContext.sceneMemoryPlan?.memory ?? null,
       locationBible: lockContext.storyLocationPlan.bible,
@@ -514,7 +534,7 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
         storyFile: storyFileKey,
         direction,
         storyTimeOfDay: story.storyTimeOfDay,
-        pageTimeOfDayOverrides: story.pageTimeOfDayOverrides,
+        pageTimeOfDayOverrides: mergedPageTimeOfDayOverrides,
         pageShot: resolveQaPageShot(lockContext.bookShotPlan, page.pageNumber),
         pageLocationPlan: resolveQaPageLocationPlan(lockContext.storyLocationPlan, page.pageNumber),
         locationBible: lockContext.storyLocationPlan.bible,
@@ -528,7 +548,13 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
         prompt,
         'utf-8'
       );
-      const audit = auditPrompt(prompt, page.pageNumber, companion.id, auditCtx);
+      const audit = auditPrompt(
+        prompt,
+        page.pageNumber,
+        companion.id,
+        auditCtx,
+        mergedPageTimeOfDayOverrides[page.pageNumber] === 'day'
+      );
       allHits.push(...audit.hits);
       allWarnings.push(...audit.warnings);
     }
@@ -606,7 +632,7 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
         storyFile: storyFileKey,
         direction,
         storyTimeOfDay: story.storyTimeOfDay,
-        pageTimeOfDayOverrides: story.pageTimeOfDayOverrides,
+        pageTimeOfDayOverrides: mergedPageTimeOfDayOverrides,
         pageShot: resolveQaPageShot(lockContext.bookShotPlan, page.pageNumber),
         pageLocationPlan: resolveQaPageLocationPlan(lockContext.storyLocationPlan, page.pageNumber),
         locationBible: lockContext.storyLocationPlan.bible,
@@ -618,7 +644,9 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
         companionId: companion.id,
         storyFile: storyFileKey,
         pageNumber: page.pageNumber,
-        storyTimeOfDay: story.storyTimeOfDay,
+        // Page's EFFECTIVE time-of-day (scene override wins) so a daytime page is not held to the
+        // night/pajama wardrobe parity.
+        storyTimeOfDay: mergedPageTimeOfDayOverrides[page.pageNumber] ?? story.storyTimeOfDay,
         challengeCategory: V3_COMPANION_BANK_CATEGORY[companionId] ?? 'GENERAL_FEARS',
       });
     }
@@ -808,12 +836,16 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
         companionId: companion.id,
       });
 
+      const entityQaPlan = resolveQaPageLocationPlan(lockContext.storyLocationPlan, pageNum);
       const entityQa = await evaluatePageEntityQa({
         imageUrl: entityQaImageSource,
         companionId,
         companionName: companion.name,
         expectsCompanion: entityPresence.companionPresence === 'present',
         expectsChild: entityPresence.childPresence !== 'absent',
+        allowMultipleChildren: entityQaPlan
+          ? pageCrowdExpected(lockContext.storyLocationPlan.bible, entityQaPlan)
+          : false,
       });
       manifestPages[i].entityQa = entityQa;
       if (entityQa.status === 'error') {

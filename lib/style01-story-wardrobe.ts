@@ -50,14 +50,15 @@ export function shouldUseGenericNightStoryWardrobe(
   ctx?: StoryWardrobeContext,
   storyFileKey?: string | null
 ): boolean {
-  // A `_bedtime` story is night by definition — match the prompt audit, which already treats every
-  // `_bedtime` story as a night story. This covers bedtime slots whose overall storyTimeOfDay is not
-  // tagged "night" (e.g. a story with a single daytime flashback page) so they still get pajamas.
-  if (storyFileKey && /_bedtime$/i.test(storyFileKey)) return true;
-  if (!ctx) return false;
-  const tod = (ctx.storyTimeOfDay ?? '').toString().trim().toLowerCase();
+  // Scene-time-aware: an explicit DAYTIME page wins (day clothes) even inside a bedtime story —
+  // e.g. a daytime flashback scene. This `ctx.storyTimeOfDay` is the page's EFFECTIVE time-of-day.
+  const tod = (ctx?.storyTimeOfDay ?? '').toString().trim().toLowerCase();
+  if (tod === 'day') return false;
   if (tod === 'night' || tod === 'dusk') return true;
-  const cat = ctx.category?.trim().toUpperCase();
+  // Otherwise a `_bedtime` story defaults to night (matches the prompt audit, which treats every
+  // `_bedtime` story as night). Covers bedtime slots whose page time-of-day is untagged.
+  if (storyFileKey && /_bedtime$/i.test(storyFileKey)) return true;
+  const cat = ctx?.category?.trim().toUpperCase();
   return Boolean(cat && NIGHT_CATEGORY_DEFAULTS.has(cat));
 }
 

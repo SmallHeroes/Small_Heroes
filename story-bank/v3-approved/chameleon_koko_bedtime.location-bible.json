@@ -24,7 +24,8 @@
         "description": "One new, unfamiliar child's bedroom at night after moving — tall brown cardboard moving boxes, plain green walls, an empty windowsill, the child's bed, warm quiet night. The single set for the whole book.",
         "transitionsTo": [],
         "visualAnchors": ["the child's bed", "tall cardboard moving boxes", "the empty windowsill", "plain green walls"],
-        "pages": [1, 2, 3, 4, 5, 6, 7, 8]
+        "pages": [1, 2, 3, 4, 5, 6, 7, 8],
+        "timeOfDay": "night"
       }
     ],
     "recurringObjects": [

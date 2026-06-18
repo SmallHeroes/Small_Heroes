@@ -124,6 +124,13 @@ function parseSceneNode(raw: unknown): LocationSceneNode | null {
     pages: Array.isArray(o.pages)
       ? o.pages.map(Number).filter((n) => Number.isFinite(n) && n > 0)
       : undefined,
+    timeOfDay: ((): LocationSceneNode['timeOfDay'] => {
+      const t = String(o.timeOfDay ?? '').trim().toLowerCase();
+      return t === 'day' || t === 'night' || t === 'dusk' || t === 'dawn' || t === 'mixed'
+        ? (t as LocationSceneNode['timeOfDay'])
+        : undefined;
+    })(),
+    crowdExpected: o.crowdExpected === true,
   };
 }
 
