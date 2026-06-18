@@ -25,6 +25,45 @@ const nextConfig = {
     '/api/orders/[orderId]/power-card': ['./story-bank/**/*', './node_modules/@sparticuz/chromium/**/*'],
   },
   /**
+   * Keep serverless functions under Vercel's 250MB cap (Phase 1 of Goal A / 0083).
+   * The big offenders are ffmpeg+ffprobe installers (~309MB, used ONLY by backend/providers/video.ts
+   * → the /api/orders/[orderId]/video route), @sparticuz/chromium (~67MB, used ONLY by the power-card
+   * PDF route), and the bundled story assets (public/companions ~90MB + style-references ~78MB).
+   * Excludes below strip those from functions that don't need them at runtime. The video route and the
+   * power-card route are intentionally NOT excluded so they keep their deps.
+   * NOTE: /api/generate imports video via a dynamic, optional, non-fatal `if (order.videoEnabled)`
+   * branch — excluding ffmpeg there only makes that optional video stage a no-op (caught + logged);
+   * real video generation runs on the dedicated /api/orders/[orderId]/video function.
+   */
+  outputFileTracingExcludes: (() => {
+    const MEDIA = ['node_modules/@ffmpeg-installer/**', 'node_modules/@ffprobe-installer/**'];
+    const HEADLESS = ['node_modules/@sparticuz/chromium/**', 'node_modules/puppeteer-core/**'];
+    const STORY_ASSETS = ['public/companions/**', 'style-references/**'];
+    // Generation routes render images / read story-bank — keep assets, drop only media + headless.
+    const GENERATION_ROUTES = [
+      '/api/generate',
+      '/api/generate/worker',
+      '/api/generate/cron/sweep',
+      '/api/dev/generation/resume',
+      '/api/debug/regen-page',
+    ];
+    // Payment / status / webhook routes never render — drop everything heavy.
+    const LEAN_ROUTES = [
+      '/api/orders',
+      '/api/generate/status',
+      '/api/payme/return',
+      '/api/webhooks/payme',
+      '/api/webhooks/stripe',
+      '/api/dev/fake-payment/confirm',
+    ];
+    const excludes = {};
+    for (const r of GENERATION_ROUTES) excludes[r] = [...MEDIA, ...HEADLESS];
+    for (const r of LEAN_ROUTES) excludes[r] = [...MEDIA, ...HEADLESS, ...STORY_ASSETS, 'story-bank/**'];
+    // dev story-bank browser lists the bank → keep story-bank, drop media/headless/companions/style-refs.
+    excludes['/api/dev/story-bank'] = [...MEDIA, ...HEADLESS, ...STORY_ASSETS];
+    return excludes;
+  })(),
+  /**
    * Legacy .html entry points and direct /public/HTML/*.html URLs -> canonical
    * paths. Query string is preserved by Next (not listed in destination).
    */
