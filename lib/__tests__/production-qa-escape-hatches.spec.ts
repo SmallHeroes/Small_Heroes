@@ -11,7 +11,7 @@ function listSourceFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (entry.name === 'node_modules' || entry.name === '.git') continue;
+      if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === '.next') continue;
       listSourceFiles(full, acc);
     } else if (/\.(ts|tsx|js|mjs)$/.test(entry.name)) {
       acc.push(full);

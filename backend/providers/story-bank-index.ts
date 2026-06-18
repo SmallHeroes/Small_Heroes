@@ -29,6 +29,17 @@ export const STORY_BANK_V3_DIR_NAME = V3_STORY_DIR_NAME;
 export const V3_APPROVED_DIR_NAME = 'v3-approved';
 const V3_APPROVED_DIR = join(process.cwd(), 'story-bank', V3_APPROVED_DIR_NAME);
 
+/** v5 stories superseded by v3-approved — never served from v5 path (old canon). */
+export const V5_SUPERSEDED_STORY_FILENAMES = new Set([
+  'chameleon_koko_bedtime.md',
+  'chameleon_koko_fantasy.md',
+]);
+
+export function isSupersededV5StoryFilename(filename: string): boolean {
+  const base = filename.split(/[/\\]/).pop() ?? filename;
+  return V5_SUPERSEDED_STORY_FILENAMES.has(base);
+}
+
 /** Read at call time (not module load) so tests and runtime toggles both work. */
 export function isV3ApprovedBankEnabled(): boolean {
   return process.env.ENABLE_V3_APPROVED_BANK === 'true';
@@ -329,6 +340,11 @@ export function selectCompanionStory(
       bankCategory: V3_COMPANION_BANK_CATEGORY[companionId] ?? 'GENERAL_FEARS',
       dirName: V3_APPROVED_DIR_NAME,
     };
+  }
+
+  if (isSupersededV5StoryFilename(filename)) {
+    console.warn(`[story-bank] superseded v5 story blocked: ${filename}`);
+    return null;
   }
 
   const fullPath = join(V3_STORY_DIR, filename);

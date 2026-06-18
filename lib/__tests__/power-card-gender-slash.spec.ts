@@ -3,7 +3,7 @@ import path from 'path';
 import { describe, expect, it } from 'vitest';
 import {
   GOLDEN_SHELF_POWER_CARD_SLUGS,
-  GOLDEN_SHELF_STORY_DIR,
+  goldenShelfStoryRelPath,
   extractYamlFrontmatterBlock,
   parsePowerCardFromFrontmatterYaml,
   resolvePowerCard,
@@ -19,7 +19,7 @@ const UNRESOLVED_HEBREW_SLASH_RE =
 function loadGoldenPowerCardLines(): string[] {
   const lines: string[] = [];
   for (const slug of GOLDEN_SHELF_POWER_CARD_SLUGS) {
-    const filePath = path.join(process.cwd(), GOLDEN_SHELF_STORY_DIR, `${slug}.md`);
+    const filePath = path.join(process.cwd(), goldenShelfStoryRelPath(slug));
     const markdown = fs.readFileSync(filePath, 'utf8');
     const yamlBlock = extractYamlFrontmatterBlock(markdown);
     expect(yamlBlock, `${slug} frontmatter`).toBeTruthy();

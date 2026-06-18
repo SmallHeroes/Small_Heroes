@@ -89,4 +89,18 @@ describe('v3-approved bank selection (flag-gated, additive)', () => {
     expect(content).toContain('bunny_ometz');
     expect(content).toContain('MEDICAL_PROCEDURE');
   });
+
+  it('flag OFF: superseded v5 koko bedtime/fantasy are not served from v5', () => {
+    delete process.env.ENABLE_V3_APPROVED_BANK;
+    expect(selectCompanionStory('chameleon_koko', 'bedtime')).toBeNull();
+    expect(selectCompanionStory('chameleon_koko', 'fantasy')).toBeNull();
+  });
+
+  it('flag ON: v3-approved koko fantasy still served despite v5 supersede', () => {
+    process.env.ENABLE_V3_APPROVED_BANK = 'true';
+    const selection = selectCompanionStory('chameleon_koko', 'fantasy');
+    expect(selection).not.toBeNull();
+    expect(selection?.dirName).toBe('v3-approved');
+    expect(selection?.filename).toBe('chameleon_koko_fantasy.md');
+  });
 });

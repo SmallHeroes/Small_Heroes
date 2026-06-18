@@ -28,6 +28,15 @@ export type GoldenShelfPowerCardSlug = (typeof GOLDEN_SHELF_POWER_CARD_SLUGS)[nu
 
 export const GOLDEN_SHELF_STORY_DIR = 'story-bank/v5-fixed-v2';
 
+/** Archived v5 copy — powerCard dev only; production loader blocks live path. */
+const GOLDEN_SHELF_FILENAME_OVERRIDES: Partial<Record<GoldenShelfPowerCardSlug, string>> = {
+  chameleon_koko_fantasy: 'chameleon_koko_fantasy.superseded.md',
+};
+
 export function goldenShelfStoryFilename(slug: GoldenShelfPowerCardSlug): string {
-  return `${slug}.md`;
+  return GOLDEN_SHELF_FILENAME_OVERRIDES[slug] ?? `${slug}.md`;
+}
+
+export function goldenShelfStoryRelPath(slug: GoldenShelfPowerCardSlug): string {
+  return `${GOLDEN_SHELF_STORY_DIR}/${goldenShelfStoryFilename(slug)}`;
 }

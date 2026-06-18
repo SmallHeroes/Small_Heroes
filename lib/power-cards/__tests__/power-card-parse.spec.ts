@@ -5,6 +5,7 @@ import {
   GOLDEN_SHELF_POWER_CARD_SLUGS,
   GOLDEN_SHELF_STORY_DIR,
   goldenShelfStoryFilename,
+  goldenShelfStoryRelPath,
   parseAndValidateStoryPowerCard,
   parsePowerCardFromFrontmatterYaml,
   resolvePowerCard,
@@ -103,11 +104,7 @@ describe('powerCard parse + validate', () => {
   it('validates all 19 golden shelf powerCard blocks', () => {
     const failures: string[] = [];
     for (const slug of GOLDEN_SHELF_POWER_CARD_SLUGS) {
-      const filePath = path.join(
-        process.cwd(),
-        GOLDEN_SHELF_STORY_DIR,
-        goldenShelfStoryFilename(slug),
-      );
+      const filePath = path.join(process.cwd(), goldenShelfStoryRelPath(slug));
       const markdown = fs.readFileSync(filePath, 'utf8');
       const result = parseAndValidateStoryPowerCard(markdown, slug);
       const errors = result.issues.filter((i) => i.severity === 'error');

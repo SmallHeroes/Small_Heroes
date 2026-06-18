@@ -5,6 +5,7 @@ export {
   GOLDEN_SHELF_POWER_CARD_SLUGS,
   GOLDEN_SHELF_STORY_DIR,
   goldenShelfStoryFilename,
+  goldenShelfStoryRelPath,
 } from './shelf';
 export type {
   ParsedStoryPowerCard,
