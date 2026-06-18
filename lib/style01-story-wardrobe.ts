@@ -46,7 +46,14 @@ export function storyFileKeyFromPath(storyFile?: string | null): string | undefi
   return base.replace(/\.md$/i, '').trim() || undefined;
 }
 
-export function shouldUseGenericNightStoryWardrobe(ctx?: StoryWardrobeContext): boolean {
+export function shouldUseGenericNightStoryWardrobe(
+  ctx?: StoryWardrobeContext,
+  storyFileKey?: string | null
+): boolean {
+  // A `_bedtime` story is night by definition — match the prompt audit, which already treats every
+  // `_bedtime` story as a night story. This covers bedtime slots whose overall storyTimeOfDay is not
+  // tagged "night" (e.g. a story with a single daytime flashback page) so they still get pajamas.
+  if (storyFileKey && /_bedtime$/i.test(storyFileKey)) return true;
   if (!ctx) return false;
   const tod = (ctx.storyTimeOfDay ?? '').toString().trim().toLowerCase();
   if (tod === 'night' || tod === 'dusk') return true;
@@ -62,6 +69,6 @@ export function resolveStyle01StoryWardrobeLock(
   const key = storyFileKeyFromPath(storyFile);
   if (key && WARDROBE_BY_STORY_FILE[key]) return WARDROBE_BY_STORY_FILE[key];
   if (companionId && WARDROBE_BY_COMPANION_ID[companionId]) return WARDROBE_BY_COMPANION_ID[companionId];
-  if (shouldUseGenericNightStoryWardrobe(ctx)) return GENERIC_NIGHT_STORY_WARDROBE_LOCK;
+  if (shouldUseGenericNightStoryWardrobe(ctx, key)) return GENERIC_NIGHT_STORY_WARDROBE_LOCK;
   return undefined;
 }
