@@ -80,8 +80,25 @@ Branch alias: `https://small-heroes-git-feat-chunked-generation-smallheroes-proj
 - `/dev` + `/api/debug` 404 in prod + no NEXT_PUBLIC secret on client: ✅ (code; will confirm live once READY)
 - `npm run check` green: ✅
 
+## UPDATE (memory-removal experiment result)
+`00b87f10` (drop `memory`) → `dpl_5MxUxQuWKUFGRgwu9FBzQLfWKTJv` (commit `8afceafd`) = **still ERROR**
+(~190s; build clean: compiles, 29 static pages, build traces, NO size warning/error). So the `memory`
+setting was NOT the cause. The post-build deploy error is **opaque to every tool I have**: build logs
+end clean at the route table / "Deploying outputs"; runtime logs are empty (deploy never went live);
+MCP `get_deployment` has no error field; no `gh` CLI on this machine.
+
+**ACTION FOR GUY (only the dashboard exposes this):** open the deploy error for the latest
+`feat/chunked-generation` deployment —
+`https://vercel.com/smallheroes-projects/small-heroes/5MxUxQuWKUFGRgwu9FBzQLfWKTJv` — and paste the
+ERROR text. Given build success + ERROR ~2-3 min after "Deploying outputs", and that it is NOT size
+(fixed) and NOT memory (tested), likely culprits: a Fluid-compute/plan limit (serverless function
+**count** or **total deployment upload size**), a deployment-promotion timeout, or a project-setting
+mismatch. With the dashboard error text I can fix it immediately.
+
+I am NOT pushing further blind experiments (each is an ~8-min failing build). Size + waitlist + gates
+are done and committed; the remaining gate is this one dashboard-only diagnosis.
+
 ## Next
-1. Confirm the `00b87f10` deploy (memory removal) — if READY, update this report with the live preview.
-2. If still ERROR: Guy reads the Vercel deploy error (dashboard) for the latest dpl; I fix from there.
-3. After green preview: Codex review of the 239-commit cutover → Guy sets prod env + flips
+1. Guy pastes the dashboard deploy error for `dpl_5MxUxQuWKUFGRgwu9FBzQLfWKTJv` → I fix → green preview.
+2. After green preview: Codex review of the 239-commit cutover → Guy sets prod env + flips
    `NEXT_PUBLIC_BUY_MODE=waitlist` + removes password → merge to main (all gated, NOT done here).
