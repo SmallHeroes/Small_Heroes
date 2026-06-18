@@ -2,16 +2,13 @@
   "buildCommand": "next build",
   "functions": {
     "app/api/generate/route.ts": {
-      "maxDuration": 300,
-      "memory": 1024
+      "maxDuration": 300
     },
     "app/api/generate/worker/route.ts": {
-      "maxDuration": 300,
-      "memory": 1024
+      "maxDuration": 300
     },
     "app/api/generate/start/route.ts": {
-      "maxDuration": 60,
-      "memory": 1024
+      "maxDuration": 60
     },
     "app/api/generate/cron/sweep/route.ts": {
       "maxDuration": 60
