@@ -114,6 +114,17 @@ export interface RecurringObjectStateEntry {
 }
 
 /**
+ * When/where a recurring object is locked onto a page:
+ * - `timeline_only` (DEFAULT) — only the pages in its stateTimeline. Correct for PARTIAL objects
+ *   that appear/change partway (a note drawn on p6, a button placed on p11). Never forced onto a
+ *   page where it does not exist yet.
+ * - `whole_scene` — every page of the scenes in `appearsInScenes`. ONLY for real set fixtures
+ *   (bed / window / the gate-as-set) that are physically present throughout their scene(s).
+ * - `explicit_pages` — exactly the pages in `appearsOnPages`.
+ */
+export type RecurringObjectPresencePolicy = 'whole_scene' | 'timeline_only' | 'explicit_pages';
+
+/**
  * Recurring-Object lock — an object whose identity must stay constant wherever it
  * appears across scenes, while its state may evolve per stateTimeline.
  */
@@ -122,8 +133,12 @@ export interface RecurringObjectLock {
   label: string;
   /** Identity that must hold every appearance — the part that never drifts. */
   identity: string;
-  /** Scene ids this object may appear in. */
+  /** Scene ids this object may appear in (used by `whole_scene`). */
   appearsInScenes?: string[];
+  /** Presence policy — defaults to `timeline_only` when omitted (safe for partial objects). */
+  presencePolicy?: RecurringObjectPresencePolicy;
+  /** Exact pages this object appears on — used only with `explicit_pages`. */
+  appearsOnPages?: number[];
   forbiddenDrift?: string[];
   stateTimeline: RecurringObjectStateEntry[];
 }
@@ -137,6 +152,12 @@ export interface SceneGraph {
   scenes: LocationSceneNode[];
   recurringObjects: RecurringObjectLock[];
   forbiddenDrift?: string[];
+  /**
+   * When false (DEFAULT), `derivePagePlansFromSceneGraph` requires every page (1..pageCount) to be
+   * covered by some scene's `pages` and THROWS on a gap — no silent carry-forward. Set true to
+   * intentionally let an uncovered page inherit the previous scene.
+   */
+  allowCarryForward?: boolean;
 }
 
 export interface BookLocationBible {

@@ -32,8 +32,9 @@ function sceneGraphPageCount(sceneGraph: SceneGraph, pageCount?: number): number
 }
 
 /**
- * Scene-Graph → pagePlans. Each page maps to the scene whose `pages` covers it; pages with
- * no explicit owner carry forward the previous scene (single-scene books cover every page).
+ * Scene-Graph → pagePlans. Each page maps to the scene whose `pages` covers it. By default EVERY
+ * page (1..total) must be covered — an uncovered page THROWS (no silent carry-forward). Set
+ * `sceneGraph.allowCarryForward = true` to intentionally let a gap inherit the previous scene.
  * pageAction is intentionally left undefined — the per-page action comes from the story's
  * imageDirection, and recurring-object state is injected by the RECURRING OBJECT LOCK block.
  */
@@ -48,6 +49,20 @@ export function derivePagePlansFromSceneGraph(
   const pageToScene = new Map<number, (typeof sceneGraph.scenes)[number]>();
   for (const scene of sceneGraph.scenes) {
     for (const page of scene.pages ?? []) pageToScene.set(page, scene);
+  }
+
+  const allowCarryForward = sceneGraph.allowCarryForward === true;
+  if (!allowCarryForward) {
+    const missing: number[] = [];
+    for (let page = 1; page <= total; page++) {
+      if (!pageToScene.has(page)) missing.push(page);
+    }
+    if (missing.length) {
+      throw new Error(
+        `SceneGraph page coverage gap: page(s) ${missing.join(', ')} of ${total} map to no scene. ` +
+          `Add them to a scene's "pages", or set sceneGraph.allowCarryForward=true to inherit the previous scene.`
+      );
+    }
   }
 
   const forbiddenDrift = sceneGraph.forbiddenDrift ?? [];
@@ -65,6 +80,66 @@ export function derivePagePlansFromSceneGraph(
     });
   }
   return plans;
+}
+
+export type SceneGraphValidationIssue = { code: string; detail: string };
+
+/**
+ * SceneGraph QA — deterministic structural hard-signal over the bible (the world-lock analogue of
+ * entity-QA, at plan level). Validates: every page maps to a scene (unless allowCarryForward); every
+ * recurringObject references real scenes; whole_scene objects declare appearsInScenes; explicit_pages
+ * objects declare appearsOnPages; stateTimeline/appearsOnPages pages are within range. Returns all
+ * issues (empty = pass). The post-render VISION version (true Phase D) is a separate follow-up.
+ */
+export function validateSceneGraph(
+  sceneGraph: SceneGraph | undefined,
+  pageCount?: number
+): SceneGraphValidationIssue[] {
+  const issues: SceneGraphValidationIssue[] = [];
+  if (!sceneGraph) return issues;
+
+  const sceneIds = new Set(sceneGraph.scenes.map((s) => s.id));
+  const total = sceneGraphPageCount(sceneGraph, pageCount);
+
+  if (!sceneGraph.allowCarryForward && total > 0) {
+    const covered = new Set<number>();
+    for (const s of sceneGraph.scenes) for (const p of s.pages ?? []) covered.add(p);
+    const missing: number[] = [];
+    for (let p = 1; p <= total; p++) if (!covered.has(p)) missing.push(p);
+    if (missing.length) {
+      issues.push({ code: 'page_coverage_gap', detail: `pages ${missing.join(', ')} map to no scene` });
+    }
+  }
+
+  for (const s of sceneGraph.scenes) {
+    for (const p of s.pages ?? []) {
+      if (total > 0 && (p < 1 || p > total)) {
+        issues.push({ code: 'scene_page_out_of_range', detail: `scene ${s.id} page ${p} > ${total}` });
+      }
+    }
+  }
+
+  for (const o of sceneGraph.recurringObjects) {
+    const policy = o.presencePolicy ?? 'timeline_only';
+    for (const sceneId of o.appearsInScenes ?? []) {
+      if (!sceneIds.has(sceneId)) {
+        issues.push({ code: 'object_unknown_scene', detail: `${o.id} → unknown scene "${sceneId}"` });
+      }
+    }
+    if (policy === 'whole_scene' && !o.appearsInScenes?.length) {
+      issues.push({ code: 'whole_scene_no_scenes', detail: `${o.id} is whole_scene but has no appearsInScenes` });
+    }
+    if (policy === 'explicit_pages' && !o.appearsOnPages?.length) {
+      issues.push({ code: 'explicit_pages_no_pages', detail: `${o.id} is explicit_pages but has no appearsOnPages` });
+    }
+    for (const p of [...o.stateTimeline.map((t) => t.page), ...(o.appearsOnPages ?? [])]) {
+      if (total > 0 && (p < 1 || p > total)) {
+        issues.push({ code: 'object_page_out_of_range', detail: `${o.id} page ${p} > ${total}` });
+      }
+    }
+  }
+
+  return issues;
 }
 
 const NIGHT_FEAR_FORBIDDEN = [

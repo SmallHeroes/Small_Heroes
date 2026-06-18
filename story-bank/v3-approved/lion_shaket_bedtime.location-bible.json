@@ -33,6 +33,7 @@
         "label": "the child's bed",
         "identity": "The SAME child's bed every page with the same warm small bedside lamp beside it and the same blanket. A child's bed, never a crib or hospital bed.",
         "appearsInScenes": ["night_bedroom"],
+        "presencePolicy": "whole_scene",
         "forbiddenDrift": ["a different bed design", "a crib or hospital bed", "more than one bed"],
         "stateTimeline": [
           { "page": 1, "state": "the child sits on the bed beside the fallen pillow-cave, holding the blanket tightly, the bedside lamp lit" },
@@ -44,6 +45,7 @@
         "label": "the pillow-cave fort",
         "identity": "The SAME pile of bed pillows the child built into a small cave/fort by the bed. After it falls it stays a collapsed, scattered heap — NEVER a rebuilt standing fort or tent.",
         "appearsInScenes": ["night_bedroom"],
+        "presencePolicy": "whole_scene",
         "forbiddenDrift": ["a standing or rebuilt pillow fort/tent/canopy", "a different set of pillows", "the pillow-cave magically fixed"],
         "stateTimeline": [
           { "page": 1, "state": "just collapsed — the top pillow has fallen, the little cave is down" },
@@ -55,6 +57,7 @@
         "id": "thunder_corner",
         "label": "the thunder corner",
         "identity": "A small fold in the blanket beside the pillow that the child chooses as the 'thunder corner' — a small place to put the anger. The same small blanket fold once it is made.",
+        "presencePolicy": "timeline_only",
         "forbiddenDrift": ["a glowing magical object", "a separate prop or toy (it is only a fold in the blanket)", "more than one thunder corner"],
         "stateTimeline": [
           { "page": 6, "state": "the child finds and chooses a small fold in the blanket beside the pillow as the thunder corner; Leo's two paws and the child's hand rest on it" },

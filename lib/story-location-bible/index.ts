@@ -59,7 +59,10 @@ export {
   derivePageLocationPlans,
   derivePagePlansFromSceneGraph,
   deriveZonesFromSceneGraph,
+  validateSceneGraph,
 } from './derive';
+export type { SceneGraphValidationIssue } from './derive';
+export { recurringObjectAppearsOnPage } from './compose';
 export {
   formatLocationPlanTable,
   isStoryLocationPlanValid,
@@ -111,6 +114,7 @@ export type {
   PageReferenceSheets,
   PageStagingOverride,
   RecurringObjectLock,
+  RecurringObjectPresencePolicy,
   RecurringObjectStateEntry,
   SceneGraph,
   SetTopology,

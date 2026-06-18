@@ -146,6 +146,7 @@
         "label": "the color gate",
         "identity": "A standing STONE ARCHWAY across the kindergarten path; the opening of the arch is filled with a softly shifting RAINBOW field (green, yellow, pink and soft unnamed hues), and a small EMPTY CIRCLE sits at the very center of the arch, waiting to be filled. The SAME stone arch and the SAME central empty circle every appearance — only the colors and the state change, never the arch's design.",
         "appearsInScenes": ["color_gate_threshold", "color_courtyard"],
+        "presencePolicy": "whole_scene",
         "forbiddenDrift": [
           "solid wooden or iron gate (it is a stone arch with a rainbow center)",
           "indoor doorway or room",
@@ -170,6 +171,7 @@
         "label": "the small blue button",
         "identity": "A single small smooth blue button from the child's old sweater — the same button throughout, small enough to travel in a pocket.",
         "appearsInScenes": ["kindergarten_path", "color_gate_threshold", "real_kindergarten_entrance"],
+        "presencePolicy": "timeline_only",
         "forbiddenDrift": [
           "a different button color or size",
           "more than one button",
@@ -188,6 +190,7 @@
         "label": "the ordinary kindergarten door",
         "identity": "The everyday, non-magical door of the new real-world kindergarten — a plain ordinary door, not a magical gate.",
         "appearsInScenes": ["kindergarten_path", "real_kindergarten_entrance"],
+        "presencePolicy": "whole_scene",
         "forbiddenDrift": [
           "magical color gate in place of the ordinary door",
           "indoor bedroom door",

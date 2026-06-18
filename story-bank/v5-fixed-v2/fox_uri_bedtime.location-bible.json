@@ -33,6 +33,7 @@
         "label": "the child's bed",
         "identity": "The SAME child's bed every page with the same blanket. A child's bed, never a crib or hospital bed.",
         "appearsInScenes": ["night_bedroom"],
+        "presencePolicy": "whole_scene",
         "forbiddenDrift": ["a different bed design", "a crib or hospital bed", "more than one bed"],
         "stateTimeline": [
           { "page": 1, "state": "the child lies in bed, blanket pulled up to the nose, watching the wall" },
@@ -44,6 +45,7 @@
         "label": "the chair with the shirt",
         "identity": "The SAME chair near the bed with a shirt hung over its back; its tall shadow climbs the wall. It is ONLY a chair and a shirt — never a real creature. Same chair and same shirt every page.",
         "appearsInScenes": ["night_bedroom"],
+        "presencePolicy": "whole_scene",
         "forbiddenDrift": ["a real monster or creature", "a different chair design", "the shirt becoming a different garment", "more than one chair"],
         "stateTimeline": [
           { "page": 1, "state": "the tall chair-shadow on the wall looks almost alive, like a coat-monster" },
@@ -57,6 +59,7 @@
         "label": "the bedroom window",
         "identity": "The SAME bedroom window with night outside; a small branch outside taps the glass. Same window every page; Uri perches on its sill.",
         "appearsInScenes": ["night_bedroom"],
+        "presencePolicy": "whole_scene",
         "forbiddenDrift": ["a different window shape or position", "an open door or skylight instead of the window", "daylight outside the window"],
         "stateTimeline": [
           { "page": 2, "state": "Uri the fox first appears on the windowsill, lifting his neck lantern" },

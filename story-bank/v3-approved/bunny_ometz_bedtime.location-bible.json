@@ -80,6 +80,7 @@
         "label": "the child's bed",
         "identity": "The SAME child's bed every page — same headboard shape and the same soft blanket. A child's bed, never a crib, bunk bed, or hospital bed.",
         "appearsInScenes": ["night_bedroom"],
+        "presencePolicy": "whole_scene",
         "forbiddenDrift": [
           "a different bed design between pages",
           "a crib, bunk bed, or hospital bed",
@@ -97,6 +98,7 @@
         "label": "tomorrow's shoes",
         "identity": "The SAME single pair of small shoes set ready for tomorrow, standing neatly together on the floor beside the bed. The same shoes throughout — not slippers, not a second pair.",
         "appearsInScenes": ["night_bedroom"],
+        "presencePolicy": "whole_scene",
         "forbiddenDrift": [
           "a different pair of shoes",
           "more than one pair",
@@ -111,7 +113,7 @@
         "id": "tomorrow_note",
         "label": "the small note for tomorrow",
         "identity": "A SINGLE small piece of note paper the child prepares for tomorrow. The same small note throughout — not a book, not a letter, not a sheet of many pages.",
-        "appearsInScenes": ["night_bedroom"],
+        "presencePolicy": "timeline_only",
         "forbiddenDrift": [
           "more than one note",
           "a book, letter, or large sheet instead of a small note",

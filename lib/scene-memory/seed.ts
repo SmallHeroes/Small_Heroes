@@ -109,7 +109,9 @@ function stableFactsFromSceneGraph(bible: BookLocationBible): SceneMemory['stabl
   for (const obj of recurring) {
     const id = obj.id.trim();
     if (!id || facts[id]) continue;
-    if (!obj.appearsInScenes?.length) continue;
+    // Only WHOLE-SCENE fixtures are asserted as always-present book-wide facts. Partial objects
+    // (timeline_only / explicit_pages) are governed per-page by the RECURRING OBJECT LOCK.
+    if ((obj.presencePolicy ?? 'timeline_only') !== 'whole_scene') continue;
     facts[id] = withFactKind(id, {
       position: obj.identity.trim(),
       confidence: 0.8,

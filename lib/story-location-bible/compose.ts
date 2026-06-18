@@ -34,9 +34,26 @@ function recurringObjectStateForPage(obj: RecurringObjectLock, page: number): st
   return prior?.state ?? null;
 }
 
-function recurringObjectAppearsOnPage(obj: RecurringObjectLock, pagePlan: PageLocationPlan): boolean {
-  if (obj.stateTimeline.some((s) => s.page === pagePlan.page)) return true;
-  return obj.appearsInScenes?.includes(pagePlan.zoneId) ?? false;
+/**
+ * Resolve whether a recurring object is locked onto this page, per its presencePolicy.
+ * Default `timeline_only` — a partial object appears ONLY on its stateTimeline pages, never forced
+ * onto every page of the scene. `whole_scene` = every page of `appearsInScenes` (real fixtures).
+ * `explicit_pages` = exactly `appearsOnPages`.
+ */
+export function recurringObjectAppearsOnPage(
+  obj: RecurringObjectLock,
+  pagePlan: Pick<PageLocationPlan, 'page' | 'zoneId'>
+): boolean {
+  const policy = obj.presencePolicy ?? 'timeline_only';
+  if (policy === 'explicit_pages') {
+    return obj.appearsOnPages?.includes(pagePlan.page) ?? false;
+  }
+  if (policy === 'whole_scene') {
+    if (obj.stateTimeline.some((s) => s.page === pagePlan.page)) return true;
+    return obj.appearsInScenes?.includes(pagePlan.zoneId) ?? false;
+  }
+  // timeline_only (default)
+  return obj.stateTimeline.some((s) => s.page === pagePlan.page);
 }
 
 /**

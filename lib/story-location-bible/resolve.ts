@@ -144,12 +144,21 @@ function parseRecurringObject(raw: unknown): RecurringObjectLock | null {
       return { page, state };
     })
     .filter(Boolean) as RecurringObjectStateEntry[];
+  const rawPolicy = String(o.presencePolicy ?? '').trim();
+  const presencePolicy =
+    rawPolicy === 'whole_scene' || rawPolicy === 'timeline_only' || rawPolicy === 'explicit_pages'
+      ? (rawPolicy as RecurringObjectLock['presencePolicy'])
+      : undefined;
   return {
     id,
     label,
     identity,
     appearsInScenes: Array.isArray(o.appearsInScenes)
       ? o.appearsInScenes.map(String).filter(Boolean)
+      : undefined,
+    presencePolicy,
+    appearsOnPages: Array.isArray(o.appearsOnPages)
+      ? o.appearsOnPages.map(Number).filter((n) => Number.isFinite(n) && n > 0)
       : undefined,
     forbiddenDrift: Array.isArray(o.forbiddenDrift)
       ? o.forbiddenDrift.map(String).filter(Boolean)
@@ -174,6 +183,7 @@ function parseSceneGraph(raw: unknown): SceneGraph | undefined {
     forbiddenDrift: Array.isArray(o.forbiddenDrift)
       ? o.forbiddenDrift.map(String).filter(Boolean)
       : undefined,
+    allowCarryForward: o.allowCarryForward === true,
   };
 }
 
@@ -224,7 +234,14 @@ function materializeSceneGraphDefaults(parsed: Record<string, unknown>): void {
   }
   if (plansEmpty) {
     const pageCount = Number.isFinite(Number(parsed.pageCount)) ? Number(parsed.pageCount) : undefined;
-    parsed.pagePlans = derivePagePlansFromSceneGraph(sceneGraph, pageCount) as unknown[];
+    try {
+      parsed.pagePlans = derivePagePlansFromSceneGraph(sceneGraph, pageCount) as unknown[];
+    } catch (err) {
+      // Loud, not silent: a coverage gap means the bible is malformed — surface it and rethrow so
+      // the loader does not load a half-derived plan.
+      console.error(`[location-bible] sceneGraph deriver rejected: ${(err as Error).message}`);
+      throw err;
+    }
   }
 }
 
