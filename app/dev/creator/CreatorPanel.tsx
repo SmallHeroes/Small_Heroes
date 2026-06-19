@@ -32,6 +32,90 @@ type MetaResponse = {
 
 type RunMode = 'audition' | 'fullBook';
 
+const MAX_SOURCE_PHOTO_BYTES = 15 * 1024 * 1024;
+const MAX_CHILD_PHOTO_DATA_URL_CHARS = 3_200_000;
+const MAX_CREATOR_JSON_BODY_CHARS = 4_000_000;
+const CHILD_PHOTO_MAX_DIMENSION = 1600;
+const CHILD_PHOTO_JPEG_QUALITIES = [0.86, 0.78, 0.68];
+
+async function readJsonResponse<T>(res: Response): Promise<T> {
+  const text = await res.text();
+  const trimmed = text.trim();
+  if (!trimmed) return {} as T;
+
+  try {
+    return JSON.parse(trimmed) as T;
+  } catch {
+    if (res.status === 413 || /^Request Entity Too Large/i.test(trimmed)) {
+      throw new Error(
+        'The photo upload is too large for the QA server. The Creator now compresses photos automatically; choose a smaller image if this repeats.'
+      );
+    }
+
+    const plainText = trimmed
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .slice(0, 240);
+    throw new Error(plainText || `Request failed (${res.status})`);
+  }
+}
+
+function loadImageFromFile(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Could not read photo file'));
+    };
+    image.src = objectUrl;
+  });
+}
+
+async function fileToChildPhotoDataUrl(file: File): Promise<string> {
+  if (file.size > MAX_SOURCE_PHOTO_BYTES) {
+    throw new Error('Child photo is too large. Use an image under 15 MB.');
+  }
+
+  const image = await loadImageFromFile(file);
+  const naturalWidth = image.naturalWidth || image.width;
+  const naturalHeight = image.naturalHeight || image.height;
+  if (!naturalWidth || !naturalHeight) {
+    throw new Error('Could not read photo dimensions');
+  }
+
+  const scale = Math.min(1, CHILD_PHOTO_MAX_DIMENSION / Math.max(naturalWidth, naturalHeight));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(naturalHeight * scale));
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Could not prepare photo for upload');
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+  for (const quality of CHILD_PHOTO_JPEG_QUALITIES) {
+    const dataUrl = canvas.toDataURL('image/jpeg', quality);
+    if (dataUrl.length <= MAX_CHILD_PHOTO_DATA_URL_CHARS) return dataUrl;
+  }
+
+  throw new Error('Child photo is still too large after compression. Use a smaller image.');
+}
+
+function stringifyCreatorBody(body: Record<string, unknown>): string {
+  const json = JSON.stringify(body);
+  if (json.length > MAX_CREATOR_JSON_BODY_CHARS) {
+    throw new Error('Creator request is too large. Use fewer pages or a smaller child photo.');
+  }
+  return json;
+}
+
 export function CreatorPanel() {
   const [meta, setMeta] = useState<MetaResponse | null>(null);
   const [mode, setMode] = useState<RunMode>('audition');
@@ -61,7 +145,11 @@ export function CreatorPanel() {
 
   useEffect(() => {
     fetch('/api/dev/creator/meta', { cache: 'no-store' })
-      .then((r) => r.json())
+      .then(async (r) => {
+        const data = await readJsonResponse<MetaResponse | { error?: string }>(r);
+        if (!r.ok) throw new Error('error' in data ? data.error || 'Failed to load CREATOR metadata' : 'Failed to load CREATOR metadata');
+        return data as MetaResponse;
+      })
       .then((data: MetaResponse) => {
         setMeta(data);
         if (data.stories?.length) {
@@ -129,14 +217,6 @@ export function CreatorPanel() {
     setSelectedPages(new Set(rep.filter((p) => p <= totalPages)));
   };
 
-  const fileToDataUrl = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(new Error('Could not read photo file'));
-      reader.readAsDataURL(file);
-    });
-
   const runAudition = useCallback(
     async (approveAnchorCacheKey?: string | null) => {
       if (!meta) return;
@@ -148,7 +228,7 @@ export function CreatorPanel() {
 
       let childPhotoBase64: string | undefined;
       if (photoFile) {
-        childPhotoBase64 = await fileToDataUrl(photoFile);
+        childPhotoBase64 = await fileToChildPhotoDataUrl(photoFile);
       }
 
       const preset = meta.childPresets.find((p) => p.id === childPreset);
@@ -178,9 +258,9 @@ export function CreatorPanel() {
       const res = await fetch('/api/dev/qa-console/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: stringifyCreatorBody(body),
       });
-      const data = (await res.json()) as {
+      const data = await readJsonResponse<{
         error?: string;
         anchorReviewRequired?: boolean;
         cacheKey?: string;
@@ -190,7 +270,7 @@ export function CreatorPanel() {
         model?: string;
         estimatedCostUsd?: number;
         runtimeMs?: number;
-      };
+      }>(res);
 
       if (res.status === 409 && data.anchorReviewRequired && data.cacheKey) {
         setPendingAnchor({
@@ -243,7 +323,7 @@ export function CreatorPanel() {
       } else {
         let childPhotoBase64: string | undefined;
         if (photoFile) {
-          childPhotoBase64 = await fileToDataUrl(photoFile);
+          childPhotoBase64 = await fileToChildPhotoDataUrl(photoFile);
         }
         const preset = meta.childPresets.find((p) => p.id === childPreset);
         const resolvedName =
@@ -252,30 +332,32 @@ export function CreatorPanel() {
           childPreset === 'custom' ? childGender : preset?.gender === 'girl' ? 'girl' : 'boy';
         const resolvedAge = childPreset === 'custom' ? childAge : preset?.age ?? 5;
 
+        const body: Record<string, unknown> = {
+          storyFile,
+          childName: resolvedName,
+          childGender: resolvedGender,
+          childAge: resolvedAge,
+          illustrationStyle,
+          maxPages: fullBookMaxPages,
+          skipCover,
+          generateAudio,
+          voiceId: generateAudio ? voiceId : null,
+          childPhotoBase64,
+          ...(selectedStory?.bankDir === 'v3-approved' ? { bankDir: 'v3-approved' } : {}),
+        };
+
         const res = await fetch('/api/dev/story-bank', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            storyFile,
-            childName: resolvedName,
-            childGender: resolvedGender,
-            childAge: resolvedAge,
-            illustrationStyle,
-            maxPages: fullBookMaxPages,
-            skipCover,
-            generateAudio,
-            voiceId: generateAudio ? voiceId : null,
-            childPhotoBase64,
-            ...(selectedStory?.bankDir === 'v3-approved' ? { bankDir: 'v3-approved' } : {}),
-          }),
+          body: stringifyCreatorBody(body),
         });
-        const data = (await res.json()) as {
+        const data = await readJsonResponse<{
           error?: string;
           viewerUrl?: string;
           orderId?: string;
           pagesRendered?: number;
           orderStatus?: string;
-        };
+        }>(res);
         if (!res.ok) throw new Error(data.error || 'Full book failed');
 
         const link =
