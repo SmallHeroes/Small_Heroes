@@ -87,6 +87,15 @@ describe('env-separation guard (0089 P0)', () => {
     );
   });
 
+  it('throws when DATABASE_URL points at the prod project even if SUPABASE_URL is staging', () => {
+    process.env.VERCEL_ENV = 'preview';
+    process.env.NEXT_PUBLIC_APP_URL = 'https://preview.vercel.app';
+    process.env.SUPABASE_URL = 'https://qvksgpzzosotubcbizay.supabase.co';
+    process.env.DATABASE_URL =
+      'postgresql://postgres:pass@db.ozxjmnzybzetqudivlbw.supabase.co:5432/postgres';
+    expect(() => assertEnvSeparation()).toThrow(/DATABASE_URL\/DIRECT_URL/);
+  });
+
   it('does NOT throw when Preview uses staging resources', () => {
     process.env.VERCEL_ENV = 'preview';
     process.env.NEXT_PUBLIC_APP_URL = 'https://small-heroes-git-feat-x.vercel.app';

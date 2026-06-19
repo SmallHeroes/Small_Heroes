@@ -45,6 +45,10 @@ export function findProdResourceLeak(): string | null {
   if (supabaseHost && supabaseHost.includes(PROD_SUPABASE_REF)) {
     return `SUPABASE_URL "${supabaseHost}" is the PRODUCTION Supabase project`;
   }
+  const dbConn = `${process.env.DATABASE_URL || ''}|${process.env.DIRECT_URL || ''}`.toLowerCase();
+  if (dbConn.includes(PROD_SUPABASE_REF)) {
+    return `DATABASE_URL/DIRECT_URL points at the PRODUCTION Supabase project (${PROD_SUPABASE_REF})`;
+  }
   return null;
 }
 
