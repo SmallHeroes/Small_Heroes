@@ -8,7 +8,7 @@ import { NextResponse, type NextRequest } from 'next/server';
  *
  * Narrow exceptions:
  * - fake-payment surface: Preview/staging only, with fake-payment flags.
- * - QA/dev console: Preview/staging only, with ALLOW_STAGING_QA=true.
+ * - QA/dev console: Preview/staging only, with ALLOW_STAGING_QA=true and the site-password cookie.
  *
  * Read process.env DIRECTLY here — middleware is edge and must not import the server-only env module.
  */
@@ -33,7 +33,17 @@ export function middleware(req: NextRequest): NextResponse {
       (vercelEnv === 'preview' || vercelEnv === 'development') &&
       process.env.ALLOW_STAGING_QA === 'true';
     if (stagingQaAllowed && (isDevPageRoute || isDevApiRoute)) {
-      return NextResponse.next();
+      const sitePassword = process.env.SITE_PASSWORD || '';
+      const hasQaAccessCookie =
+        sitePassword.length > 0 && req.cookies.get('sh_access')?.value === sitePassword;
+      if (hasQaAccessCookie) return NextResponse.next();
+      if (isDevPageRoute) {
+        const gateUrl = req.nextUrl.clone();
+        gateUrl.pathname = '/HTML/gate.html';
+        gateUrl.searchParams.set('next', `${pathname}${req.nextUrl.search}`);
+        return NextResponse.redirect(gateUrl);
+      }
+      return NextResponse.json({ error: 'QA gate required' }, { status: 401 });
     }
     if (isDevPageRoute || isDebugApiRoute || isDevApiRoute) {
       return new NextResponse('Not Found', { status: 404 });

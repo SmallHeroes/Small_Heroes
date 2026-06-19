@@ -40,6 +40,7 @@ const BASE_ENV: Record<string, string> = {
   OPENAI_API_KEY: 'openai-key',
   DISABLE_IMAGE_GENERATION: 'true',
   NEXT_PUBLIC_BUY_MODE: 'live',
+  SITE_PASSWORD: 'site-secret',
 };
 
 const MANAGED = [
@@ -47,6 +48,7 @@ const MANAGED = [
   'ENABLE_FAKE_PAYMENT',
   'ALLOW_FAKE_PAYMENTS',
   'ALLOW_STAGING_QA',
+  'SITE_PASSWORD',
   'VERCEL_ENV',
   'NODE_ENV',
 ];
@@ -223,11 +225,15 @@ describe('checkout route fake gate', () => {
 });
 
 describe('middleware staging fake-payment exception', () => {
-  async function run(pathname: string, env: Record<string, string | undefined>) {
+  async function run(pathname: string, env: Record<string, string | undefined>, cookie?: string) {
     setEnv({ NODE_ENV: 'production', ...env });
     vi.resetModules();
     const { middleware } = await import('@/middleware');
-    return middleware(new NextRequest(`https://example.com${pathname}`));
+    return middleware(
+      new NextRequest(`https://example.com${pathname}`, {
+        headers: cookie ? { cookie } : undefined,
+      })
+    );
   }
 
   const FAKE_ON = { VERCEL_ENV: 'preview', PAYMENT_PROVIDER: 'fake', ALLOW_FAKE_PAYMENTS: 'true', ENABLE_FAKE_PAYMENT: 'true' };
@@ -252,18 +258,42 @@ describe('middleware staging fake-payment exception', () => {
     expect(res.status).toBe(404);
   });
 
-  it('QA /dev routes pass on preview only with ALLOW_STAGING_QA', async () => {
+  it('QA /dev routes redirect to the site gate on preview without the access cookie', async () => {
     const res = await run('/dev/creator', { VERCEL_ENV: 'preview', ALLOW_STAGING_QA: 'true' });
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toContain('/HTML/gate.html');
+    expect(res.headers.get('location')).toContain('next=%2Fdev%2Fcreator');
+  });
+
+  it('QA /dev routes pass on preview only with ALLOW_STAGING_QA and access cookie', async () => {
+    const res = await run(
+      '/dev/creator',
+      { VERCEL_ENV: 'preview', ALLOW_STAGING_QA: 'true' },
+      'sh_access=site-secret'
+    );
     expect(res.status).toBe(200);
   });
 
-  it('QA /api/dev routes pass on preview only with ALLOW_STAGING_QA', async () => {
+  it('QA /api/dev routes return 401 on preview without the access cookie', async () => {
     const res = await run('/api/dev/creator/meta', { VERCEL_ENV: 'preview', ALLOW_STAGING_QA: 'true' });
+    expect(res.status).toBe(401);
+  });
+
+  it('QA /api/dev routes pass on preview only with ALLOW_STAGING_QA and access cookie', async () => {
+    const res = await run(
+      '/api/dev/creator/meta',
+      { VERCEL_ENV: 'preview', ALLOW_STAGING_QA: 'true' },
+      'sh_access=site-secret'
+    );
     expect(res.status).toBe(200);
   });
 
   it('SAFETY: QA /dev routes 404 on real prod even with ALLOW_STAGING_QA', async () => {
-    const res = await run('/dev/creator', { VERCEL_ENV: 'production', ALLOW_STAGING_QA: 'true' });
+    const res = await run(
+      '/dev/creator',
+      { VERCEL_ENV: 'production', ALLOW_STAGING_QA: 'true' },
+      'sh_access=site-secret'
+    );
     expect(res.status).toBe(404);
   });
 
