@@ -38,6 +38,7 @@ import {
   type PageLayout,
 } from '../../../backend/providers/image-prompt-enricher';
 import { startChunkedGeneration } from '@/lib/generation-chunked/start';
+import { assertEnvSeparation } from '@/lib/generation-chunked/env-separation-guard';
 
 const activeOrderLocks = new Set<string>();
 const GENERATION_ELIGIBLE_STATUS = 'paid';
@@ -320,6 +321,7 @@ function ageBandFromAge(age: number | null | undefined): '3-5' | '5-7' | '7-9' {
 
 // ─── Main Orchestrator (chunked — production default) ───
 export async function triggerGeneration(orderId: string, reason = 'unspecified'): Promise<void> {
+  assertEnvSeparation();
   if (process.env.GENERATION_MONOLITH === 'true') {
     return runMonolithicGeneration(orderId, reason);
   }
@@ -332,6 +334,7 @@ export async function triggerGeneration(orderId: string, reason = 'unspecified')
 
 /** @deprecated Single-invocation path — dev only when GENERATION_MONOLITH=true */
 export async function runMonolithicGeneration(orderId: string, reason = 'unspecified'): Promise<void> {
+  assertEnvSeparation();
   if (!orderId || typeof orderId !== 'string') {
     generationLogger.warn('Trigger skipped due to invalid orderId');
     return;

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   assertEnvSeparation,
@@ -6,7 +6,20 @@ import {
   isProductionRuntime,
 } from '../env-separation-guard';
 
-const KEYS = ['VERCEL_ENV', 'NEXT_PUBLIC_APP_URL', 'APP_URL', 'SUPABASE_URL'] as const;
+const KEYS = [
+  'VERCEL_ENV',
+  'NEXT_PUBLIC_APP_URL',
+  'APP_URL',
+  'SUPABASE_URL',
+  'DATABASE_URL',
+  'GENERATION_SECRET',
+  'SUPABASE_SERVICE_ROLE_KEY',
+  'PAYMENT_PROVIDER',
+  'ENABLE_FAKE_PAYMENT',
+  'ALLOW_FAKE_PAYMENTS',
+  'IMAGE_PROVIDER',
+  'OPENAI_API_KEY',
+] as const;
 
 describe('env-separation guard (0089 P0)', () => {
   const saved: Record<string, string | undefined> = {};
@@ -34,6 +47,44 @@ describe('env-separation guard (0089 P0)', () => {
     process.env.NEXT_PUBLIC_APP_URL = 'https://preview.vercel.app';
     process.env.SUPABASE_URL = 'https://ozxjmnzybzetqudivlbw.supabase.co';
     expect(() => assertEnvSeparation()).toThrow(/PRODUCTION Supabase project/);
+  });
+
+  it('guards the shared worker entrypoint before lease/DB work', async () => {
+    vi.resetModules();
+    process.env.VERCEL_ENV = 'preview';
+    process.env.NEXT_PUBLIC_APP_URL = 'https://preview.vercel.app';
+    process.env.SUPABASE_URL = 'https://ozxjmnzybzetqudivlbw.supabase.co';
+    process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/test';
+    process.env.GENERATION_SECRET = 'test-secret';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role';
+    process.env.PAYMENT_PROVIDER = 'fake';
+    process.env.ENABLE_FAKE_PAYMENT = 'true';
+    process.env.ALLOW_FAKE_PAYMENTS = 'true';
+    process.env.IMAGE_PROVIDER = 'gpt-image';
+    process.env.OPENAI_API_KEY = 'sk-test';
+    const { runGenerationWorkerInvocation } = await import('../process-worker');
+    await expect(runGenerationWorkerInvocation('ord_env_guard')).rejects.toThrow(
+      /PRODUCTION Supabase project/
+    );
+  });
+
+  it('guards chunked start before order/job DB writes', async () => {
+    vi.resetModules();
+    process.env.VERCEL_ENV = 'preview';
+    process.env.NEXT_PUBLIC_APP_URL = 'https://preview.vercel.app';
+    process.env.SUPABASE_URL = 'https://ozxjmnzybzetqudivlbw.supabase.co';
+    process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/test';
+    process.env.GENERATION_SECRET = 'test-secret';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role';
+    process.env.PAYMENT_PROVIDER = 'fake';
+    process.env.ENABLE_FAKE_PAYMENT = 'true';
+    process.env.ALLOW_FAKE_PAYMENTS = 'true';
+    process.env.IMAGE_PROVIDER = 'gpt-image';
+    process.env.OPENAI_API_KEY = 'sk-test';
+    const { startChunkedGeneration } = await import('../start');
+    await expect(startChunkedGeneration('ord_env_guard', 'test')).rejects.toThrow(
+      /PRODUCTION Supabase project/
+    );
   });
 
   it('does NOT throw when Preview uses staging resources', () => {

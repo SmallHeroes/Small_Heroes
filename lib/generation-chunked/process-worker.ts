@@ -5,6 +5,7 @@ import { processGenerationChunk } from '@/lib/generation-pipeline/chunk-runner';
 import { acquireGenerationLease, releaseGenerationLease } from './lease';
 
 import { chainGenerationWorker } from './chain-worker';
+import { assertEnvSeparation } from './env-separation-guard';
 
 
 
@@ -21,6 +22,10 @@ export async function runGenerationWorkerInvocation(orderId: string): Promise<{
   error?: string;
 
 }> {
+
+  // Guard at the shared worker entrypoint so cron/manual/direct worker invocations
+  // cannot bypass the self-chain protection.
+  assertEnvSeparation();
 
   const workerId = await acquireGenerationLease(orderId);
 
