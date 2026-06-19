@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { startChunkedGeneration } from '@/lib/generation-chunked/start';
 import { runGenerationWorkerInvocation } from '@/lib/generation-chunked/process-worker';
+import { isDevEnvironment } from '@/lib/dev-only-guard';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,7 +12,7 @@ export const dynamic = 'force-dynamic';
  * POST { orderId, runWorkerNow?: boolean }
  */
 export async function POST(req: NextRequest) {
-  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEV_GENERATION_RESUME !== 'true') {
+  if (!isDevEnvironment() && process.env.ALLOW_DEV_GENERATION_RESUME !== 'true') {
     return NextResponse.json({ error: 'Not available' }, { status: 404 });
   }
 

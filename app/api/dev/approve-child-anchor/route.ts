@@ -6,13 +6,14 @@ import {
   attachPendingChildAnchorFromCandidate,
   pickStage0Candidate,
 } from '@/lib/generation-pipeline/stage0-candidate-recovery';
+import { isDevEnvironment } from '@/lib/dev-only-guard';
 
 /**
  * Dev-only: mark the Stage 0 child anchor as human-approved so paid pages may proceed.
  * POST { "orderId": "...", "attempt": 2 }  // attempt optional — defaults to best score
  */
 export async function POST(req: Request) {
-  if (process.env.NODE_ENV === 'production') {
+  if (!isDevEnvironment()) {
     return NextResponse.json({ error: 'Not available in production' }, { status: 403 });
   }
 

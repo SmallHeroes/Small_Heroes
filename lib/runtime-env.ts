@@ -10,3 +10,16 @@
 export function isVercelProductionRuntime(): boolean {
   return (process.env.VERCEL_ENV || '').toLowerCase() === 'production';
 }
+
+export function isVercelNonProductionRuntime(): boolean {
+  const vercelEnv = (process.env.VERCEL_ENV || '').toLowerCase();
+  return vercelEnv === 'preview' || vercelEnv === 'development';
+}
+
+/**
+ * Allows the QA/dev console on Vercel Preview/development only, behind an explicit flag.
+ * Never opens on real Production, even if the flag is accidentally set there.
+ */
+export function canAccessStagingQa(): boolean {
+  return process.env.ALLOW_STAGING_QA === 'true' && isVercelNonProductionRuntime();
+}

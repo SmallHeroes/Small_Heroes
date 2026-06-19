@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { notFound } from 'next/navigation';
 import { getCompanionById } from '@/lib/companions';
+import { isDevEnvironment } from '@/lib/dev-only-guard';
 import {
   GOLDEN_SHELF_STORY_DIR,
   paletteForDirection,
@@ -83,7 +84,7 @@ async function loadSampleInput(config: SampleConfig): Promise<PowerCardRenderInp
 }
 
 export default async function PowerCardEndScreenDevPage() {
-  if (process.env.NODE_ENV === 'production') {
+  if (!isDevEnvironment()) {
     notFound();
   }
 

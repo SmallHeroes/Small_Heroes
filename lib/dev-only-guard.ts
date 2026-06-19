@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
+import { canAccessStagingQa } from './runtime-env';
 
 export function isDevEnvironment(): boolean {
-  return process.env.NODE_ENV !== 'production';
+  return process.env.NODE_ENV !== 'production' || canAccessStagingQa();
 }
 
 export function devOnlyJsonError(status = 404): NextResponse {

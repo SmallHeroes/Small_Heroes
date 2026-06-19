@@ -23,6 +23,7 @@ import { ROUTES } from '@/lib/routes';
 import { generatePageAudio } from '@/backend/providers/audio';
 import { startChunkedGeneration } from '@/lib/generation-chunked/start';
 import type { PipelineCache } from '@/lib/generation-pipeline/types';
+import { isDevEnvironment } from '@/lib/dev-only-guard';
 
 function useChunkedGeneration(): boolean {
   return process.env.GENERATION_MONOLITH !== 'true';
@@ -124,7 +125,7 @@ function compositionRulesForTemplate(
 }
 
 export async function POST(req: NextRequest) {
-  if (process.env.NODE_ENV === 'production') {
+  if (!isDevEnvironment()) {
     return NextResponse.json({ error: 'Not available in production' }, { status: 404 });
   }
 

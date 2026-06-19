@@ -3,6 +3,7 @@ import path from 'path';
 import { notFound } from 'next/navigation';
 import PowerCardPreview from '@/app/book/[id]/read-v2/components/PowerCardPreview';
 import { getCompanionById } from '@/lib/companions';
+import { isDevEnvironment } from '@/lib/dev-only-guard';
 import {
   GOLDEN_SHELF_STORY_DIR,
   paletteForDirection,
@@ -77,7 +78,7 @@ async function loadSampleInput(config: SampleConfig): Promise<PowerCardRenderInp
 }
 
 export default async function PowerCardPreviewDevPage() {
-  if (process.env.NODE_ENV === 'production') {
+  if (!isDevEnvironment()) {
     notFound();
   }
 

@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { isDevEnvironment } from '@/lib/dev-only-guard';
 import { DevBookViewer } from './DevBookViewer';
 
 type PageProps = {
@@ -11,7 +12,7 @@ function asSingle(value: string | string[] | undefined): string | undefined {
 }
 
 export default async function DevViewerPage({ searchParams }: PageProps) {
-  if (process.env.NODE_ENV === 'production') {
+  if (!isDevEnvironment()) {
     notFound();
   }
 

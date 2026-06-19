@@ -42,7 +42,14 @@ const BASE_ENV: Record<string, string> = {
   NEXT_PUBLIC_BUY_MODE: 'live',
 };
 
-const MANAGED = ['PAYMENT_PROVIDER', 'ENABLE_FAKE_PAYMENT', 'ALLOW_FAKE_PAYMENTS', 'VERCEL_ENV', 'NODE_ENV'];
+const MANAGED = [
+  'PAYMENT_PROVIDER',
+  'ENABLE_FAKE_PAYMENT',
+  'ALLOW_FAKE_PAYMENTS',
+  'ALLOW_STAGING_QA',
+  'VERCEL_ENV',
+  'NODE_ENV',
+];
 
 function setEnv(overrides: Record<string, string | undefined>) {
   for (const k of MANAGED) delete process.env[k];
@@ -77,6 +84,36 @@ describe('isVercelProductionRuntime', () => {
     expect(isVercelProductionRuntime()).toBe(false);
     delete process.env.VERCEL_ENV;
     expect(isVercelProductionRuntime()).toBe(false);
+  });
+});
+
+describe('staging QA runtime access', () => {
+  it('allows dev environment checks on Preview only when ALLOW_STAGING_QA=true', async () => {
+    setEnv({ NODE_ENV: 'production', VERCEL_ENV: 'preview', ALLOW_STAGING_QA: 'true' });
+    vi.resetModules();
+    const { isDevEnvironment } = await import('@/lib/dev-only-guard');
+    expect(isDevEnvironment()).toBe(true);
+  });
+
+  it('keeps dev environment checks closed on Preview without the flag', async () => {
+    setEnv({ NODE_ENV: 'production', VERCEL_ENV: 'preview', ALLOW_STAGING_QA: undefined });
+    vi.resetModules();
+    const { isDevEnvironment } = await import('@/lib/dev-only-guard');
+    expect(isDevEnvironment()).toBe(false);
+  });
+
+  it('keeps dev environment checks closed on real prod even with the flag', async () => {
+    setEnv({ NODE_ENV: 'production', VERCEL_ENV: 'production', ALLOW_STAGING_QA: 'true' });
+    vi.resetModules();
+    const { isDevEnvironment } = await import('@/lib/dev-only-guard');
+    expect(isDevEnvironment()).toBe(false);
+  });
+
+  it('keeps dev environment checks closed in generic production without VERCEL_ENV', async () => {
+    setEnv({ NODE_ENV: 'production', VERCEL_ENV: undefined, ALLOW_STAGING_QA: 'true' });
+    vi.resetModules();
+    const { isDevEnvironment } = await import('@/lib/dev-only-guard');
+    expect(isDevEnvironment()).toBe(false);
   });
 });
 
@@ -212,6 +249,31 @@ describe('middleware staging fake-payment exception', () => {
 
   it('other /dev routes 404 even on preview + flags', async () => {
     const res = await run('/dev/regen-page', FAKE_ON);
+    expect(res.status).toBe(404);
+  });
+
+  it('QA /dev routes pass on preview only with ALLOW_STAGING_QA', async () => {
+    const res = await run('/dev/creator', { VERCEL_ENV: 'preview', ALLOW_STAGING_QA: 'true' });
+    expect(res.status).toBe(200);
+  });
+
+  it('QA /api/dev routes pass on preview only with ALLOW_STAGING_QA', async () => {
+    const res = await run('/api/dev/creator/meta', { VERCEL_ENV: 'preview', ALLOW_STAGING_QA: 'true' });
+    expect(res.status).toBe(200);
+  });
+
+  it('SAFETY: QA /dev routes 404 on real prod even with ALLOW_STAGING_QA', async () => {
+    const res = await run('/dev/creator', { VERCEL_ENV: 'production', ALLOW_STAGING_QA: 'true' });
+    expect(res.status).toBe(404);
+  });
+
+  it('SAFETY: QA /dev routes 404 in generic production without VERCEL_ENV', async () => {
+    const res = await run('/dev/creator', { VERCEL_ENV: undefined, ALLOW_STAGING_QA: 'true' });
+    expect(res.status).toBe(404);
+  });
+
+  it('SAFETY: /api/debug stays closed even when staging QA is open', async () => {
+    const res = await run('/api/debug/minimal-e2e', { VERCEL_ENV: 'preview', ALLOW_STAGING_QA: 'true' });
     expect(res.status).toBe(404);
   });
 });
