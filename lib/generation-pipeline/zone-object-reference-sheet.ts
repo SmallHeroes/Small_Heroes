@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 
 import { generateGPTImage } from '@/lib/generate-image';
+import { assertCanonGenerationLocal } from './runtime-artifact-store';
 import type { BookLocationBible, FixedAnchor, LocationZone } from '@/lib/story-location-bible/types';
 import { resolveZoneById } from '@/lib/story-location-bible/compose';
 import {
@@ -233,6 +234,7 @@ export async function generateBucketCandidatesFromSetReference(input: {
   quality?: 'low' | 'medium' | 'high';
   outputPrefix?: string;
 }): Promise<ZoneSheetGenerationBundle> {
+  assertCanonGenerationLocal('generateBucketCandidatesFromSetReference');
   const zone = resolveZoneById(input.bible, input.zoneId);
   if (!zone) throw new Error(`Unknown zone: ${input.zoneId}`);
 
@@ -290,6 +292,7 @@ export async function generateZoneObjectSheetCandidates(input: {
   candidatesPerArtifact?: number;
   quality?: 'low' | 'medium' | 'high';
 }): Promise<ZoneSheetGenerationBundle> {
+  assertCanonGenerationLocal('generateZoneObjectSheetCandidates');
   const zone = resolveZoneById(input.bible, input.zoneId);
   if (!zone) throw new Error(`Unknown zone: ${input.zoneId}`);
   if (!zone.referenceSheet) {
@@ -399,6 +402,7 @@ export async function generateIsolatedBucketObjectSheet(input: {
   outPath: string;
   quality?: 'low' | 'medium' | 'high';
 }): Promise<{ localPath: string; prompt: string; model: string; durationMs: number }> {
+  assertCanonGenerationLocal('generateIsolatedBucketObjectSheet');
   const prompt = buildIsolatedBucketObjectPrompt(input.bible);
   const styleRefs = resolveStyle01StyleReferencePaths('cozy-interior', 1);
   const quality = input.quality ?? 'low';
@@ -555,6 +559,7 @@ export async function generateLionBedtimeObjectCandidates(input: {
   pillowCave: LionBedtimeObjectCandidate[];
   blanketFold: LionBedtimeObjectCandidate[];
 }> {
+  assertCanonGenerationLocal('generateLionBedtimeObjectCandidates');
   const candidatesPerObject = input.candidates ?? 3;
   const quality = input.quality ?? 'low';
   const pillowVariant = input.pillowVariant ?? 'collapsed';

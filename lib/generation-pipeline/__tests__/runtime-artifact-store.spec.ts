@@ -18,6 +18,7 @@ import { uploadOrderArtifact } from '../../image-storage';
 import {
   assertArtifactWriteAllowed,
   assertCacheHasNoLocalArtifactPaths,
+  assertCanonGenerationLocal,
   cleanupTemp,
   findEphemeralLocalArtifactPaths,
   isUnderOsTmp,
@@ -168,5 +169,25 @@ describe('pipelineCache local-path invariant (0094 M3b)', () => {
   it('does NOT flag https URLs that merely contain the word outputs', () => {
     const cache = { u: 'https://cdn.example.com/outputs/page.png' };
     expect(findEphemeralLocalArtifactPaths(cache)).toEqual([]);
+  });
+});
+
+describe('canon generation load-only guard (0094 M4)', () => {
+  const saved = process.env.VERCEL_ENV;
+  afterEach(() => {
+    if (saved === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = saved;
+  });
+
+  it('throws on a serverless runtime (canon tools never run in the cloud)', () => {
+    process.env.VERCEL_ENV = 'preview';
+    expect(() => assertCanonGenerationLocal('generateCompanionCharacterSheet')).toThrow(
+      /local canon\/dev tool/
+    );
+  });
+
+  it('is a no-op on local dev (no VERCEL_ENV)', () => {
+    delete process.env.VERCEL_ENV;
+    expect(() => assertCanonGenerationLocal('generateZoneObjectSheetCandidates')).not.toThrow();
   });
 });

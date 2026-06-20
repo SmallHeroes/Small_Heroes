@@ -73,6 +73,24 @@ export function assertArtifactWriteAllowed(absPath: string): void {
  * Creates it (mkdir -p) and returns the absolute path. Callers join filenames onto it and must clean
  * up via `cleanupTemp` when done. NEVER use this for anything a later chunk needs — it's invocation-local.
  */
+/**
+ * Canon/reference-sheet generators (companion sheets, zone/object sheets, …) are LOCAL dev tools that
+ * write committed assets under public/ or story-bank/. They must never run on a serverless runtime: in
+ * the cloud those assets are pre-baked, committed, and loaded read-only. Call at the top of each
+ * generator so a stray production invocation fails fast with a clear message instead of mkdir-ing a
+ * canon asset mid-render (which is what ENOENT'd on /var/task).
+ */
+export function assertCanonGenerationLocal(toolName: string): void {
+  if (isServerlessRuntime()) {
+    throw new Error(
+      `[runtime-artifact-store] ${toolName} is a local canon/dev tool and must not run on a serverless ` +
+        `runtime (VERCEL_ENV="${process.env.VERCEL_ENV}"). Its assets are pre-baked and committed ` +
+        `(public/companions/<id>/style01-sheets, story-bank/v3-approved/...) and loaded read-only in the ` +
+        `cloud — regenerate them locally and commit, never mid-render.`
+    );
+  }
+}
+
 export function artifactsBaseDir(kind: string): string {
   const safeKind = sanitizeSegment(kind) || 'misc';
   const base = isServerlessRuntime()

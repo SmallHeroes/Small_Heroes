@@ -10,6 +10,7 @@ import {
 import { evaluateAnchorStyleFromVision } from '@/lib/anchor-style-qa';
 import { normalizePhotoUrlForVision } from '@/lib/child-photo-normalize';
 import { generateGPTImage } from '@/lib/generate-image';
+import { assertCanonGenerationLocal } from './runtime-artifact-store';
 import { scoreResemblanceAgainstReference } from '@/lib/resemblance-core';
 import {
   STYLE_01_ANTI_STYLE02,
@@ -346,6 +347,7 @@ export async function generateCompanionSheetView(input: {
   isPromptOnlyFront?: boolean;
   attemptSuffix?: string;
 }): Promise<CompanionSheetViewResult> {
+  assertCanonGenerationLocal('generateCompanionSheetView');
   const companion = getCompanionById(input.companionId);
   if (!companion) throw new Error(`Unknown companion: ${input.companionId}`);
   const category = resolveCompanionCategory(input.companionId);
@@ -469,6 +471,7 @@ export async function generateCompanionCharacterSheet(input: {
   /** Front from visual lock only — canon redesign without reference jpg identity. */
   canonRedo?: boolean;
 }): Promise<CompanionCharacterSheetBundle> {
+  assertCanonGenerationLocal('generateCompanionCharacterSheet');
   const companion = getCompanionById(input.companionId);
   if (!companion) throw new Error(`Unknown companion: ${input.companionId}`);
 
