@@ -215,6 +215,44 @@ export async function uploadOrderSubpathAsset(input: {
   return buildPublicUrl(url, bucket, key);
 }
 
+export interface UploadOrderArtifactInput {
+  orderId: string;
+  /** Logical artifact bucket under the order folder, e.g. `set-appearance-boards` or `debug`. */
+  kind: string;
+  /** File name (may contain subpath segments), e.g. `scene_bedroom/board.png`. Sanitized internally. */
+  filename: string;
+  buffer: Buffer;
+  contentType: string;
+}
+
+/**
+ * Low-level durable-artifact upload that returns BOTH the public URL and the storage key.
+ * Used by RuntimeArtifactStore so callers can persist a descriptor `{url, storageKey}` in
+ * pipelineCache. Stores under `orders/{orderId}/{kind}/{filename}`.
+ */
+export async function uploadOrderArtifact(
+  input: UploadOrderArtifactInput
+): Promise<{ url: string; storageKey: string }> {
+  if (!input.orderId) throw new Error('uploadOrderArtifact: orderId is required.');
+  const { url, bucket } = getSupabaseEnv();
+  const supabase = getSupabaseClient();
+  const safeKind = sanitizeAssetPathSegment(input.kind);
+  const safeName = sanitizeAssetPathSegment(input.filename);
+  const key = `orders/${input.orderId}/${safeKind}/${safeName}`;
+
+  const uploadResult = await supabase.storage.from(bucket).upload(key, input.buffer, {
+    contentType: input.contentType,
+    upsert: true,
+    cacheControl: '31536000',
+  });
+
+  if (uploadResult.error) {
+    throw new Error(`Supabase artifact upload failed (${key}): ${uploadResult.error.message}`);
+  }
+
+  return { url: buildPublicUrl(url, bucket, key), storageKey: key };
+}
+
 export async function storePresentationBuffer(input: StorePresentationInput): Promise<string> {
   const { url, bucket } = getSupabaseEnv();
   const supabase = getSupabaseClient();
