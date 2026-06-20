@@ -10,8 +10,13 @@ import {
   resolveStyle01StoryWardrobeLock,
   storyFileKeyFromPath,
 } from '@/lib/style01-story-wardrobe';
+import { artifactsBaseDir } from '@/lib/generation-pipeline/runtime-artifact-store';
 
-export const QA_ANCHOR_ROOT = path.join(process.cwd(), 'outputs', 'qa-anchors');
+// Serverless (qa.smallheroes.co.il preview) → under the OS temp dir (Vercel FS is read-only except
+// /tmp); local dev → ./outputs/qa-anchors as before. VERCEL_ENV is constant per process, so this is
+// safe to resolve once at module load. The QA anchor cache is per-invocation in the cloud (cold across
+// chunks) — fine for the single-image audition; durable Supabase caching is deferred to M5.
+export const QA_ANCHOR_ROOT = artifactsBaseDir('qa-anchors');
 
 export type QaAnchorCacheEntry = {
   cacheKey: string;

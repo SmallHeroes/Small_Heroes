@@ -4,6 +4,7 @@ import path from 'path';
 import { randomUUID } from 'crypto';
 import { mkdtemp, rm, writeFile as writeFileFs } from 'fs/promises';
 import { tmpdir } from 'os';
+import { artifactsBaseDir } from '@/lib/generation-pipeline/runtime-artifact-store';
 import { generateAllPageImages } from '@/backend/providers/image';
 import {
   describeChildFromPhoto,
@@ -359,7 +360,10 @@ function formatOutDir(prefix: string): string {
     String(d.getMonth() + 1).padStart(2, '0') +
     String(d.getDate()).padStart(2, '0');
   const hms = d.toISOString().slice(11, 19).replace(/:/g, '');
-  return path.join(process.cwd(), 'outputs', 'style01-auditions', `${prefix}-${ymd}-${hms}`);
+  // Serverless (qa preview) → under the OS temp dir; local dev → ./outputs/style01-auditions as before.
+  // The audition runs in a single invocation, so /tmp is sufficient for the write-then-read flow.
+  // Serving these artifacts via Supabase URLs for the cloud viewer is deferred to M5.
+  return path.join(artifactsBaseDir('style01-auditions'), `${prefix}-${ymd}-${hms}`);
 }
 
 export function friendlyQaError(err: unknown): string {

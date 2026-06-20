@@ -2992,6 +2992,24 @@ async function patchPageRefManifestQa(input: {
 }): Promise<void> {
   const manifestDir = process.env.PAGE_REF_MANIFEST_DIR?.trim();
   if (!manifestDir || !input.orderId || input.pageNumber == null) return;
+  const { isServerlessRuntime, persistJson } = await import(
+    '../../lib/generation-pipeline/runtime-artifact-store'
+  );
+  if (isServerlessRuntime()) {
+    // No project-FS read-modify-write in the cloud (the page manifest lives in Supabase debug, not on
+    // /var/task). Emit a sibling QA snapshot instead. Best-effort — this is debug-only telemetry.
+    try {
+      await persistJson(
+        input.orderId,
+        'debug/page-ref',
+        `page-${input.pageNumber}-qa.json`,
+        input.pageVisualQa
+      );
+    } catch {
+      /* debug-only — never fail a render over a manifest patch */
+    }
+    return;
+  }
   const fs = await import('fs');
   const pathMod = await import('path');
   const manifestPath = pathMod.join(manifestDir, `page-${input.pageNumber}.json`);
@@ -3298,10 +3316,6 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
   );
   const manifestDir = process.env.PAGE_REF_MANIFEST_DIR?.trim();
   if (manifestDir && input.orderId && input.pageNumber != null) {
-    const fs = await import('fs');
-    const pathMod = await import('path');
-    fs.mkdirSync(manifestDir, { recursive: true });
-    const manifestPath = pathMod.join(manifestDir, `page-${input.pageNumber}.json`);
     const companionSheetView =
       breakdown.companion[0]?.includes('style01-sheets')
         ? breakdown.companion[0].replace(/\\/g, '/').split('/').pop()?.replace(/\.[^.]+$/, '') ?? null
@@ -3319,48 +3333,66 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
       companionSheetViewKind != null
         ? COMPANION_SHEET_VIEW_FILENAME[companionSheetViewKind]
         : null;
-    fs.writeFileSync(
-      manifestPath,
-      JSON.stringify(
-        {
-          orderId: input.orderId,
-          pageNumber: input.pageNumber,
-          canonicalAnchorRef: useCanonicalChildAnchorRef,
-          childExpressionKind: input.childExpressionAnchorKind ?? null,
-          characterRefs: characterRefPaths,
-          zoneSetRefs: breakdown.zoneSet ?? [],
-          objectAnchorRefs: breakdown.objectAnchors ?? [],
-          isolatedObjectRefs: breakdown.isolatedObjects ?? breakdown.objectAnchors ?? [],
-          styleRefs: breakdown.style,
-          finalOrder: referenceImages,
-          refConfig,
-          locationZoneId: input.pageLocationPlan?.zoneId ?? null,
-          pageAction: input.pageLocationPlan?.pageAction ?? null,
-          expectedBucketVisibility: input.pageLocationPlan?.expectedBucketVisibility ?? null,
-          zoneObjectRefsAttached: Boolean(
-            (breakdown.isolatedObjects ?? breakdown.objectAnchors ?? []).length
-          ),
-          sceneClass,
-          storyTimeOfDay,
-          effectivePageTimeOfDay,
-          companionPresence: entityPresence.companionPresence,
-          companionViewIntent,
-          companionSheetView,
-          companionSheetViewKind,
-          companionViewMatchesSheet:
-            expectedSheetFilename != null && companionSheetView != null
-              ? companionSheetView === expectedSheetFilename.replace(/\.png$/i, '') ||
-                companionSheetView === expectedSheetFilename
-              : null,
-          ...buildSetRefManifestFields(setRefSelection),
-          setTopologyLockPresent: promptContainsSetTopologyLock(prompt),
-          sceneId: input.sceneMemory?.sceneId ?? null,
-          sceneMemoryLockPresent: promptContainsSceneMemoryLock(prompt),
-        },
-        null,
-        2
-      )
+    const pageRefManifest = {
+      orderId: input.orderId,
+      pageNumber: input.pageNumber,
+      canonicalAnchorRef: useCanonicalChildAnchorRef,
+      childExpressionKind: input.childExpressionAnchorKind ?? null,
+      characterRefs: characterRefPaths,
+      zoneSetRefs: breakdown.zoneSet ?? [],
+      objectAnchorRefs: breakdown.objectAnchors ?? [],
+      isolatedObjectRefs: breakdown.isolatedObjects ?? breakdown.objectAnchors ?? [],
+      styleRefs: breakdown.style,
+      finalOrder: referenceImages,
+      refConfig,
+      locationZoneId: input.pageLocationPlan?.zoneId ?? null,
+      pageAction: input.pageLocationPlan?.pageAction ?? null,
+      expectedBucketVisibility: input.pageLocationPlan?.expectedBucketVisibility ?? null,
+      zoneObjectRefsAttached: Boolean(
+        (breakdown.isolatedObjects ?? breakdown.objectAnchors ?? []).length
+      ),
+      sceneClass,
+      storyTimeOfDay,
+      effectivePageTimeOfDay,
+      companionPresence: entityPresence.companionPresence,
+      companionViewIntent,
+      companionSheetView,
+      companionSheetViewKind,
+      companionViewMatchesSheet:
+        expectedSheetFilename != null && companionSheetView != null
+          ? companionSheetView === expectedSheetFilename.replace(/\.png$/i, '') ||
+            companionSheetView === expectedSheetFilename
+          : null,
+      ...buildSetRefManifestFields(setRefSelection),
+      setTopologyLockPresent: promptContainsSetTopologyLock(prompt),
+      sceneId: input.sceneMemory?.sceneId ?? null,
+      sceneMemoryLockPresent: promptContainsSceneMemoryLock(prompt),
+    };
+    const { isServerlessRuntime, persistJson } = await import(
+      '../../lib/generation-pipeline/runtime-artifact-store'
     );
+    if (isServerlessRuntime()) {
+      // Cloud: never write /var/task — emit the page-ref manifest to Supabase debug instead.
+      // Best-effort; this is debug telemetry, not consumed by a future chunk.
+      try {
+        await persistJson(
+          input.orderId,
+          'debug/page-ref',
+          `page-${input.pageNumber}.json`,
+          pageRefManifest
+        );
+      } catch {
+        /* debug-only — never fail a render over a manifest write */
+      }
+    } else {
+      const fs = await import('fs');
+      const pathMod = await import('path');
+      fs.mkdirSync(manifestDir, { recursive: true });
+      fs.writeFileSync(
+        pathMod.join(manifestDir, `page-${input.pageNumber}.json`),
+        JSON.stringify(pageRefManifest, null, 2)
+      );
+    }
   }
   console.log(`[style01_phase2_prompt] page=${input.pageNumber} ===PROMPT START===\n${prompt}\n===PROMPT END===`);
 

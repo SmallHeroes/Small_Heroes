@@ -73,6 +73,15 @@ export function assertArtifactWriteAllowed(absPath: string): void {
  * Creates it (mkdir -p) and returns the absolute path. Callers join filenames onto it and must clean
  * up via `cleanupTemp` when done. NEVER use this for anything a later chunk needs — it's invocation-local.
  */
+export function artifactsBaseDir(kind: string): string {
+  const safeKind = sanitizeSegment(kind) || 'misc';
+  const base = isServerlessRuntime()
+    ? path.join(os.tmpdir(), TEMP_NAMESPACE, safeKind)
+    : path.join(process.cwd(), 'outputs', safeKind);
+  assertArtifactWriteAllowed(base);
+  return base;
+}
+
 export function tempPath(orderId: string, kind: string): string {
   const dir = path.join(
     os.tmpdir(),
