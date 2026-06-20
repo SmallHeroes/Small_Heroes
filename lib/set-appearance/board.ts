@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 
 import type { PageShot } from '../book-shot-plan/types';
+import { artifactsBaseDir } from '../generation-pipeline/runtime-artifact-store';
 import type { SceneAppearanceMemory, SetAppearanceBoardManifest } from './types';
 import {
   BOARD_MANIFEST_VERSION,
@@ -9,11 +10,12 @@ import {
   buildFixedBoardAppearanceMemory,
 } from './quarantine';
 
-export const SET_APPEARANCE_BOARD_ROOT = path.join(
-  process.cwd(),
-  'outputs',
-  'set-appearance-boards'
-);
+// Set-appearance boards are a DEV/QA-console artifact (not wired into the chunked production render),
+// generated and consumed within a single invocation. On a serverless runtime the board PNG + manifest
+// live under the OS temp dir (Vercel FS is read-only except /tmp); local dev keeps ./outputs as before.
+// existsSync()-based usability and local-path refs still work because it's all one invocation — no
+// cross-chunk durability is required, so no Supabase descriptor is needed here.
+export const SET_APPEARANCE_BOARD_ROOT = artifactsBaseDir('set-appearance-boards');
 
 export function setAppearanceBoardDir(sceneId: string): string {
   return path.join(SET_APPEARANCE_BOARD_ROOT, sceneId.replace(/[^a-z0-9_-]+/gi, '_'));
