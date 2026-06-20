@@ -17,7 +17,9 @@ vi.mock('../../image-storage', () => ({
 import { uploadOrderArtifact } from '../../image-storage';
 import {
   assertArtifactWriteAllowed,
+  assertCacheHasNoLocalArtifactPaths,
   cleanupTemp,
+  findEphemeralLocalArtifactPaths,
   isUnderOsTmp,
   maybeMirrorLocal,
   persistBuffer,
@@ -121,5 +123,50 @@ describe('runtime-artifact-store (0094 M1)', () => {
     } finally {
       fs.rmSync(path.join(process.cwd(), 'outputs', 'mirror-test'), { recursive: true, force: true });
     }
+  });
+});
+
+describe('pipelineCache local-path invariant (0094 M3b)', () => {
+  it('passes a clean cache (URLs + committed story-bank paths only)', () => {
+    const cache = {
+      storyFilePath: 'story-bank/v3-approved/dragon_dini_bedtime.md',
+      devStoryBankFile: 'story-bank/v3-approved/fox_adventure.md',
+      dna: { childDNA: 'a freckled child', companionDNA: 'a small dragon' },
+      characterAnchorStore: {
+        child: {
+          url:
+            'https://qvksgpzzosotubcbizay.supabase.co/storage/v1/object/public/book-images/' +
+            'orders/o1/character-anchors/child.png',
+        },
+      },
+      childExpressionSheet: {
+        baseAnchorUrl:
+          'https://qvksgpzzosotubcbizay.supabase.co/storage/v1/object/public/book-images/orders/o1/x.png',
+      },
+    };
+    expect(findEphemeralLocalArtifactPaths(cache)).toEqual([]);
+    expect(() => assertCacheHasNoLocalArtifactPaths(cache)).not.toThrow();
+  });
+
+  it('flags an ./outputs artifact path', () => {
+    const cache = { board: { boardPath: 'outputs/set-appearance-boards/scene1/board.png' } };
+    const found = findEphemeralLocalArtifactPaths(cache);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toContain('board.boardPath');
+    expect(() => assertCacheHasNoLocalArtifactPaths(cache)).toThrow(/ephemeral local artifact path/);
+  });
+
+  it('flags Windows-absolute and /tmp and /var/task paths, anywhere in the tree', () => {
+    const cache = {
+      a: 'C:\\Users\\guy\\outputs\\board.png',
+      b: { nested: ['ok', '/tmp/small-heroes/o1/scratch/p.png'] },
+      c: '/var/task/outputs/page.json',
+    };
+    expect(findEphemeralLocalArtifactPaths(cache).length).toBe(3);
+  });
+
+  it('does NOT flag https URLs that merely contain the word outputs', () => {
+    const cache = { u: 'https://cdn.example.com/outputs/page.png' };
+    expect(findEphemeralLocalArtifactPaths(cache)).toEqual([]);
   });
 });

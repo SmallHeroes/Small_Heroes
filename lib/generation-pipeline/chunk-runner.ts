@@ -27,6 +27,10 @@ import {
 import { generateAllPageImages, generateBookCover } from '@/backend/providers/image';
 import { generatePageAudio } from '@/backend/providers/audio';
 import {
+  assertCacheHasNoLocalArtifactPaths,
+  isServerlessRuntime,
+} from './runtime-artifact-store';
+import {
   buildPresentationWebpFromBuffer,
   evaluateImageSignal,
   fetchImageBuffer,
@@ -147,6 +151,10 @@ async function updateStage(orderId: string, stage: ChunkStage, extra?: Prisma.Ge
 }
 
 async function saveCache(orderId: string, cache: PipelineCache) {
+  // Cross-chunk invariant: in the cloud the cache must carry only durable URLs/descriptors — a local
+  // artifact path would not exist in the next invocation. Fail loud rather than render against a
+  // phantom path. Local dev is unaffected (the guard only fires on a serverless runtime).
+  if (isServerlessRuntime()) assertCacheHasNoLocalArtifactPaths(cache);
   await prisma.generationJob.update({
     where: { orderId },
     data: { pipelineCache: cache as Prisma.InputJsonValue },

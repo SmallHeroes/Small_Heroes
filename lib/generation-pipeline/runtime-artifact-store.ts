@@ -146,6 +146,60 @@ export async function persistJson(
 }
 
 /**
+ * Cache invariant (0094 M3b)
+ * --------------------------
+ * pipelineCache is carried across serverless invocations, so it must hold ONLY durable references
+ * (https URLs / descriptors) — never an ephemeral, invocation-local artifact path. A path under
+ * `outputs/`, `/tmp`, `/var/task`, or a Windows absolute dir would simply not exist in the next
+ * chunk's invocation. Committed read-only paths (e.g. `story-bank/v3-approved/...md`) are fine and are
+ * deliberately NOT flagged — only ephemeral/writable artifact locations are.
+ */
+const EPHEMERAL_PATH_PATTERNS: RegExp[] = [
+  /^[A-Za-z]:[\\/]/, // Windows absolute (C:\..., includes the temp dir)
+  /^\/(?:var\/task|tmp)(?:[\\/]|$)/, // serverless absolute scratch / read-only bundle root
+  /(?:^|[\\/])outputs[\\/]/, // any ./outputs artifact directory
+];
+
+function looksLikeEphemeralLocalPath(value: string): boolean {
+  const v = value.trim();
+  if (!v) return false;
+  if (/^https?:\/\//i.test(v) || /^data:/i.test(v)) return false; // URLs/data are the durable form
+  return EPHEMERAL_PATH_PATTERNS.some((re) => re.test(v));
+}
+
+/** Recursively collect `keyPath = value` strings in `node` that look like ephemeral local paths. */
+export function findEphemeralLocalArtifactPaths(node: unknown): string[] {
+  const out: string[] = [];
+  const walk = (n: unknown, keyP: string): void => {
+    if (typeof n === 'string') {
+      if (looksLikeEphemeralLocalPath(n)) out.push(`${keyP || '(root)'} = ${n}`);
+      return;
+    }
+    if (Array.isArray(n)) {
+      n.forEach((c, i) => walk(c, `${keyP}[${i}]`));
+      return;
+    }
+    if (n && typeof n === 'object') {
+      for (const [k, v] of Object.entries(n)) walk(v, keyP ? `${keyP}.${k}` : k);
+    }
+  };
+  walk(node, '');
+  return out;
+}
+
+/** Throw if `cache` carries any ephemeral local artifact path (see findEphemeralLocalArtifactPaths). */
+export function assertCacheHasNoLocalArtifactPaths(cache: unknown): void {
+  const offenders = findEphemeralLocalArtifactPaths(cache);
+  if (offenders.length) {
+    throw new Error(
+      `[runtime-artifact-store] pipelineCache must carry only durable URLs/descriptors across chunks, ` +
+        `but found ephemeral local artifact path(s): ${offenders.join('; ')}. Persist the artifact via ` +
+        `persistBuffer()/persistJson() and store its {url, storageKey} descriptor instead.`
+    );
+  }
+}
+
+/**
  * Mirror an artifact to `./outputs/{relPath}` for local eyeballing — ONLY when
  * `LOCAL_ARTIFACTS_ENABLED === 'true'` AND not on a serverless runtime. No-op otherwise, so it can
  * be called unconditionally from the render path without ever writing the project FS in the cloud.
