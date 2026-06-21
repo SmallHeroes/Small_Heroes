@@ -352,6 +352,12 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
             </div>
           </section>
 
+          <section className="early-stage-band" aria-label="הודעת השקה">
+            <div className="wrap early-stage-band__inner">
+              <p className="early-stage-band__line">{L.earlyStage.line}</p>
+            </div>
+          </section>
+
           <section className="section pricing-section" id="pricing">
             <div className="wrap">
               <h2 className="section-h2">{L.pricing.h2}</h2>
