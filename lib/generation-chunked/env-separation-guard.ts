@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { isVercelProductionRuntime } from '@/lib/runtime-env';
+
 /**
  * Env-separation guard (roundtable 0089 P0).
  *
@@ -66,5 +68,38 @@ export function assertEnvSeparation(): void {
         `staging resources only — set the Preview-scoped env vars (NEXT_PUBLIC_APP_URL = the ` +
         `Preview domain; SUPABASE_URL = the staging project).`
     );
+  }
+}
+
+/**
+ * Production generation hard-disable (P0 prod-cutover guard).
+ *
+ * A kill-switch to keep the customer render path OFF on real Vercel Production until generation is
+ * explicitly enabled — WITHOUT touching preview/local (QA must keep rendering). It is production-only via
+ * isVercelProductionRuntime(), and is distinct from DISABLE_IMAGE_GENERATION (which mocks image output;
+ * it is not a boundary). Default-disabled on prod: generation runs there only when ENABLE_PROD_GENERATION
+ * is explicitly 'true'.
+ */
+export class ProdGenerationDisabledError extends Error {
+  readonly code = 'generation_disabled_on_prod';
+  constructor() {
+    super(
+      '[prod-generation-guard] Production generation is hard-disabled: VERCEL_ENV is "production" and ' +
+        'ENABLE_PROD_GENERATION is not "true". Set ENABLE_PROD_GENERATION=true on Production to enable ' +
+        'the customer render path. Preview/local QA is never gated.'
+    );
+    this.name = 'ProdGenerationDisabledError';
+  }
+}
+
+/** True only on real Vercel Production while ENABLE_PROD_GENERATION is not explicitly 'true'. */
+export function isProdGenerationDisabled(): boolean {
+  return isVercelProductionRuntime() && process.env.ENABLE_PROD_GENERATION !== 'true';
+}
+
+/** Throw ProdGenerationDisabledError when prod generation is hard-disabled. No-op on preview/local. */
+export function assertProdGenerationAllowed(): void {
+  if (isProdGenerationDisabled()) {
+    throw new ProdGenerationDisabledError();
   }
 }

@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { createLogger } from '@/lib/logger';
 import { chainGenerationWorker } from './chain-worker';
 import { GENERATION_VERSION } from './constants';
-import { assertEnvSeparation } from './env-separation-guard';
+import { assertEnvSeparation, assertProdGenerationAllowed } from './env-separation-guard';
 import type { PipelineCache } from '@/lib/generation-pipeline/types';
 
 const log = createLogger({ subsystem: 'chunked-gen', route: 'start' });
@@ -15,6 +15,8 @@ export async function startChunkedGeneration(
   reason = 'unspecified',
   options?: { pipelineCache?: PipelineCache; skipWorkerChain?: boolean }
 ): Promise<{ started: boolean; orderId: string; message?: string }> {
+  // Hard-disable on prod (P0 cutover guard) BEFORE any DB/job work or spend.
+  assertProdGenerationAllowed();
   // Guard before any DB writes so staging/local cannot mark prod orders or create prod jobs.
   assertEnvSeparation();
 
