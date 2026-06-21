@@ -170,6 +170,26 @@ describe('pipelineCache local-path invariant (0094 M3b)', () => {
     const cache = { u: 'https://cdn.example.com/outputs/page.png' };
     expect(findEphemeralLocalArtifactPaths(cache)).toEqual([]);
   });
+
+  // 0095 P0: committed read-only bundle assets survive across invocations — allowed in cache.
+  it('does NOT flag committed read-only bundle paths under /var/task (story-bank, public)', () => {
+    const cache = {
+      storyFilePath: '/var/task/story-bank/v3-approved/dragon_dini_bedtime.md', // legacy absolute committed
+      sheet: '/var/task/public/companions/dragon_dini/style01-sheets/front.png',
+    };
+    expect(findEphemeralLocalArtifactPaths(cache)).toEqual([]);
+    expect(() => assertCacheHasNoLocalArtifactPaths(cache)).not.toThrow();
+  });
+
+  it('still flags a GENERATED artifact written under /var/task/outputs', () => {
+    expect(
+      findEphemeralLocalArtifactPaths({ x: '/var/task/outputs/set-appearance-boards/s/board.png' })
+    ).toHaveLength(1);
+  });
+
+  it('still flags a non-committed absolute /var/task path', () => {
+    expect(findEphemeralLocalArtifactPaths({ x: '/var/task/something/else.png' })).toHaveLength(1);
+  });
 });
 
 describe('canon generation load-only guard (0094 M4)', () => {

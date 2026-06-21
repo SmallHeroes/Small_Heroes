@@ -30,6 +30,7 @@ import {
   assertCacheHasNoLocalArtifactPaths,
   isServerlessRuntime,
 } from './runtime-artifact-store';
+import { resolveCachedStoryFilePath } from './story-path';
 import {
   buildPresentationWebpFromBuffer,
   evaluateImageSignal,
@@ -407,7 +408,7 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
     const childReferenceImageUrl = order.childImageUrl ?? '';
     const stage0Companion = resolveCompanionForOrder(order);
     const orderBranch = resolveOrderStyleBranch(order.illustrationStyle);
-    const storyFilePath = cache.devStoryBankFile ?? cache.storyFilePath;
+    const storyFilePath = resolveCachedStoryFilePath(cache);
     const storyFileKey = storyFilePath ? path.basename(storyFilePath, '.md') : undefined;
     const storyWardrobe = resolveStyle01StoryWardrobeLock(stage0Companion?.id, storyFileKey, {
       category: cache.challengeCategory,
@@ -759,7 +760,7 @@ async function runCoverStage(order: Order, cache: PipelineCache): Promise<void> 
     appBaseUrl
   );
 
-  const storyFilePath = cache.devStoryBankFile ?? cache.storyFilePath;
+  const storyFilePath = resolveCachedStoryFilePath(cache);
   if (!storyFilePath) throw new Error('storyFilePath missing in pipeline cache');
 
   const story = await loadStoryFromBank(
@@ -871,7 +872,7 @@ async function runPageImagesChunk(
     return { cache, stopChunk: false, failed: false };
   }
 
-  const storyFilePath = cache.devStoryBankFile ?? cache.storyFilePath;
+  const storyFilePath = resolveCachedStoryFilePath(cache);
   if (!storyFilePath) throw new Error('storyFilePath missing');
 
   if (!cache.textFinalized) {

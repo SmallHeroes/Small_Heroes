@@ -16,6 +16,7 @@ import {
   effectiveStoryDirectionForV3,
 } from './helpers';
 import type { PipelineCache } from './types';
+import { resolveCachedStoryFilePath, toRepoRelativeStoryPath } from './story-path';
 import { resolveCompanionForOrder } from './anchor-registry';
 import { beatsFromStoryPages, resolveBookShotPlan } from '@/lib/book-shot-plan';
 
@@ -35,7 +36,7 @@ export async function finalizeAndPersistStoryText(
   const storyLength = (order.storyLength as 'short' | 'medium' | 'long') ?? 'medium';
   const directionForV3 = effectiveStoryDirectionForV3(order.storyDirection, storyLength);
 
-  let storyFilePath = cache.devStoryBankFile ?? cache.storyFilePath;
+  let storyFilePath = resolveCachedStoryFilePath(cache);
   if (!storyFilePath) {
     const selection = selectCompanionStory(resolvedCompanion?.id, directionForV3);
     if (!selection) {
@@ -48,7 +49,9 @@ export async function finalizeAndPersistStoryText(
     storyFilePath = path.join(process.cwd(), 'story-bank', storyDir, selection.filename);
     cache = {
       ...cache,
-      storyFilePath,
+      // Store the story ref REPO-RELATIVE (0095 P0) — absolute paths must not enter pipelineCache.
+      storyFilePath: toRepoRelativeStoryPath(storyFilePath),
+      storyDir,
       storyBankVersion: 'v3',
       selectionFilename: selection.filename,
       directionForV3,
@@ -195,7 +198,8 @@ export async function finalizeAndPersistStoryText(
 
   const nextCache: PipelineCache = {
     ...cache,
-    storyFilePath,
+    // Repo-relative — never an absolute path in cache (0095 P0).
+    storyFilePath: toRepoRelativeStoryPath(storyFilePath),
     directionForV3,
     challengeCategory,
     textFinalized: true,

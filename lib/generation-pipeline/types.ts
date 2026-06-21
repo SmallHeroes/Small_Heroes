@@ -2,7 +2,15 @@ import type { Companion } from '@/lib/companions';
 import type { BookPageTemplate } from '@/lib/bookPageLayout';
 
 export type PipelineCache = {
+  /**
+   * Story `.md` reference. Stored REPO-RELATIVE (posix) — never an absolute/`process.cwd()` path —
+   * so the cross-chunk cache-invariant guard does not flag it (0095 P0). Resolve to absolute via
+   * `resolveCachedStoryFilePath()` (lib/generation-pipeline/story-path.ts). Legacy in-flight caches may
+   * still hold an absolute committed path; the resolver and guard both tolerate that.
+   */
   storyFilePath?: string;
+  /** Repo-relative story-bank subdir (e.g. `v3-approved`) — pairs with `selectionFilename`. */
+  storyDir?: string;
   storyBankVersion?: 'v3' | 'v1';
   selectionFilename?: string;
   directionForV3?: 'bedtime' | 'adventure' | 'fantasy';

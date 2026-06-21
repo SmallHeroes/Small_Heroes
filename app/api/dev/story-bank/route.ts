@@ -11,6 +11,7 @@ import { prisma } from '@/lib/prisma';
 import { buildPersistedCharacterAnchorsJson } from '@/lib/orderMeta';
 import { GOLDEN_SHELF_PAGE_OPTIONS, type GoldenShelfPageOption } from '@/lib/power-cards/golden-shelf-catalog';
 import { V3_COMPANION_BANK_CATEGORY } from '@/backend/providers/story-bank-index';
+import { toRepoRelativeStoryPath } from '@/lib/generation-pipeline/story-path';
 import { assignTemplatesForBook, type BookPageTemplate } from '@/lib/bookPageLayout';
 import {
   buildPresentationWebpFromBuffer,
@@ -362,7 +363,8 @@ export async function POST(req: NextRequest) {
     });
 
     const pipelineCache: PipelineCache = {
-      devStoryBankFile: filePath,
+      // Repo-relative — pipelineCache must not carry absolute paths across chunks (0095 P0).
+      devStoryBankFile: toRepoRelativeStoryPath(filePath),
       devSkipCover: skipCover,
       skipLlmPersonalization: skipPersonalization || packageDryRun,
       challengeCategory,

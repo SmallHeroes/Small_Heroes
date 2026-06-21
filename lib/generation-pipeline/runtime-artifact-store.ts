@@ -178,10 +178,19 @@ const EPHEMERAL_PATH_PATTERNS: RegExp[] = [
   /(?:^|[\\/])outputs[\\/]/, // any ./outputs artifact directory
 ];
 
+/**
+ * Committed, read-only bundle assets (the deployment's `story-bank/` and `public/` trees) DO exist in
+ * every serverless invocation, so referencing them across chunks is legitimate — they are not ephemeral
+ * artifacts. Only generated WRITES outside `/tmp` are forbidden. This carve-out covers in-flight caches
+ * that still hold an absolute committed path (e.g. a legacy `/var/task/story-bank/...` storyFilePath).
+ */
+const COMMITTED_BUNDLE_READ = /^\/var\/task\/(?:story-bank|public)\//i;
+
 function looksLikeEphemeralLocalPath(value: string): boolean {
   const v = value.trim();
   if (!v) return false;
   if (/^https?:\/\//i.test(v) || /^data:/i.test(v)) return false; // URLs/data are the durable form
+  if (COMMITTED_BUNDLE_READ.test(v)) return false; // committed read-only bundle, not a generated artifact
   return EPHEMERAL_PATH_PATTERNS.some((re) => re.test(v));
 }
 
