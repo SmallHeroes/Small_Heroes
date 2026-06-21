@@ -15,6 +15,12 @@ import {
 // live under the OS temp dir (Vercel FS is read-only except /tmp); local dev keeps ./outputs as before.
 // existsSync()-based usability and local-path refs still work because it's all one invocation — no
 // cross-chunk durability is required, so no Supabase descriptor is needed here.
+//
+// ⚠️ NOT production-durable yet (0095 P2). This /tmp storage is correct ONLY while boards stay
+// DEV/QA-only and same-invocation. The moment a board must cross chunks or enter the production render
+// path (chunk-runner), it MUST become a durable Supabase artifact + {url,storageKey} descriptor in
+// pipelineCache (and the manifest's boardPath must become a URL, with isSetAppearanceBoardUsable
+// trusting the descriptor instead of existsSync). Do not treat this as closed.
 export const SET_APPEARANCE_BOARD_ROOT = artifactsBaseDir('set-appearance-boards');
 
 export function setAppearanceBoardDir(sceneId: string): string {
