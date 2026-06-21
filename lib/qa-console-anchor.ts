@@ -10,7 +10,22 @@ import {
   resolveStyle01StoryWardrobeLock,
   storyFileKeyFromPath,
 } from '@/lib/style01-story-wardrobe';
-import { artifactsBaseDir } from '@/lib/generation-pipeline/runtime-artifact-store';
+import {
+  artifactsBaseDir,
+  isServerlessRuntime,
+  persistJson,
+} from '@/lib/generation-pipeline/runtime-artifact-store';
+import { downloadOrderArtifactJson } from '@/lib/image-storage';
+
+/**
+ * Durable QA Stage-0 anchor candidate (0096 M5a). On serverless the /tmp anchor cache is gone in the
+ * SEPARATE "approve & render" invocation, which produced `No QA anchor cache for key <cacheKey>`. So the
+ * candidate STATE (this JSON entry, which already carries the Supabase anchor image URL) is persisted to
+ * staging Supabase under `orders/qa-anchor/{cacheKey}/candidate.json`, and read back on approve. Local
+ * dev keeps the fast /tmp path. Production anchor handling (DB-backed pipelineCache) is untouched.
+ */
+const QA_ANCHOR_DURABLE_ORDER = 'qa-anchor';
+const QA_ANCHOR_CANDIDATE_FILE = 'candidate.json';
 
 // Serverless (qa.smallheroes.co.il preview) → under the OS temp dir (Vercel FS is read-only except
 // /tmp); local dev → ./outputs/qa-anchors as before. VERCEL_ENV is constant per process, so this is
@@ -101,7 +116,15 @@ export function qaAnchorLocalPngPath(cacheKey: string): string {
   return path.join(QA_ANCHOR_ROOT, cacheKey, 'anchor.png');
 }
 
-export function loadQaAnchorCache(cacheKey: string): QaAnchorCacheEntry | null {
+export async function loadQaAnchorCache(cacheKey: string): Promise<QaAnchorCacheEntry | null> {
+  if (isServerlessRuntime()) {
+    // Durable source of truth across invocations (the /tmp copy below does not survive).
+    return downloadOrderArtifactJson<QaAnchorCacheEntry>({
+      orderId: QA_ANCHOR_DURABLE_ORDER,
+      kind: cacheKey,
+      filename: QA_ANCHOR_CANDIDATE_FILE,
+    });
+  }
   const metaPath = qaAnchorMetaPath(cacheKey);
   if (!existsSync(metaPath)) return null;
   try {
@@ -111,22 +134,32 @@ export function loadQaAnchorCache(cacheKey: string): QaAnchorCacheEntry | null {
   }
 }
 
-export function saveQaAnchorCache(entry: QaAnchorCacheEntry): void {
-  const dir = path.join(QA_ANCHOR_ROOT, entry.cacheKey);
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(qaAnchorMetaPath(entry.cacheKey), JSON.stringify(entry, null, 2));
+export async function saveQaAnchorCache(entry: QaAnchorCacheEntry): Promise<void> {
+  // Local fast-path (same-invocation serving / local dev viewer png). Best-effort on serverless /tmp.
+  try {
+    const dir = path.join(QA_ANCHOR_ROOT, entry.cacheKey);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(qaAnchorMetaPath(entry.cacheKey), JSON.stringify(entry, null, 2));
+  } catch {
+    /* /tmp is best-effort; the durable copy below is authoritative on serverless */
+  }
+  if (isServerlessRuntime()) {
+    await persistJson(QA_ANCHOR_DURABLE_ORDER, entry.cacheKey, QA_ANCHOR_CANDIDATE_FILE, entry);
+  }
 }
 
-export function approveQaAnchorCache(cacheKey: string): QaAnchorCacheEntry {
-  const entry = loadQaAnchorCache(cacheKey);
+export async function approveQaAnchorCache(cacheKey: string): Promise<QaAnchorCacheEntry> {
+  const entry = await loadQaAnchorCache(cacheKey);
   if (!entry) {
     throw new Error(`No QA anchor cache for key ${cacheKey}`);
   }
-  if (!existsSync(entry.localPath)) {
+  // On serverless the /tmp PNG is gone across invocations; the durable anchor IMAGE lives at
+  // entry.anchorUrl (Supabase), so only require the local PNG in local dev.
+  if (!isServerlessRuntime() && !existsSync(entry.localPath)) {
     throw new Error(`QA anchor PNG missing at ${entry.localPath}`);
   }
   entry.approved = true;
-  saveQaAnchorCache(entry);
+  await saveQaAnchorCache(entry);
   return entry;
 }
 
@@ -208,7 +241,7 @@ export async function generateQaStage0AnchorCandidate(input: {
     generatedAt: new Date().toISOString(),
     anchorPrompt: result.anchorPrompt,
   };
-  saveQaAnchorCache(entry);
+  await saveQaAnchorCache(entry);
   writeFileSync(
     path.join(QA_ANCHOR_ROOT, cacheKey, 'anchor-prompt.txt'),
     result.anchorPrompt,
@@ -261,7 +294,7 @@ export async function resolveQaConsoleChildReference(input: {
   });
 
   if (input.approveAnchorCacheKey?.trim()) {
-    const approved = approveQaAnchorCache(input.approveAnchorCacheKey.trim());
+    const approved = await approveQaAnchorCache(input.approveAnchorCacheKey.trim());
     if (approved.cacheKey !== cacheKey) {
       throw new Error(
         `Anchor cache key mismatch: approved ${approved.cacheKey} but current run expects ${cacheKey}`
@@ -274,7 +307,7 @@ export async function resolveQaConsoleChildReference(input: {
     };
   }
 
-  let cached = input.forceRegenerateAnchor ? null : loadQaAnchorCache(cacheKey);
+  let cached = input.forceRegenerateAnchor ? null : await loadQaAnchorCache(cacheKey);
   if (!cached || input.forceRegenerateAnchor) {
     cached = await generateQaStage0AnchorCandidate({
       companionId: input.companionId,

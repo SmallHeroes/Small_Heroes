@@ -242,9 +242,7 @@ export async function uploadOrderArtifact(
   if (!input.orderId) throw new Error('uploadOrderArtifact: orderId is required.');
   const { url, bucket } = getSupabaseEnv();
   const supabase = getSupabaseClient();
-  const safeKind = sanitizeAssetPathSegment(input.kind);
-  const safeName = sanitizeAssetPathSegment(input.filename);
-  const key = `orders/${input.orderId}/${safeKind}/${safeName}`;
+  const key = orderArtifactStorageKey(input.orderId, input.kind, input.filename);
 
   const uploadResult = await supabase.storage.from(bucket).upload(key, input.buffer, {
     contentType: input.contentType,
@@ -257,6 +255,33 @@ export async function uploadOrderArtifact(
   }
 
   return { url: buildPublicUrl(url, bucket, key), storageKey: key };
+}
+
+/** Deterministic storage key for an order artifact: `orders/{orderId}/{kind}/{filename}`. */
+export function orderArtifactStorageKey(orderId: string, kind: string, filename: string): string {
+  return `orders/${orderId}/${sanitizeAssetPathSegment(kind)}/${sanitizeAssetPathSegment(filename)}`;
+}
+
+/**
+ * Download + parse a durable JSON artifact previously written via `uploadOrderArtifact`/`persistJson`
+ * (same `{orderId, kind, filename}` key). Returns null if absent or unparseable. Used by the dev
+ * QA flow to read state that must survive across serverless invocations (0096 M5a).
+ */
+export async function downloadOrderArtifactJson<T = unknown>(input: {
+  orderId: string;
+  kind: string;
+  filename: string;
+}): Promise<T | null> {
+  const { bucket } = getSupabaseEnv();
+  const supabase = getSupabaseClient();
+  const key = orderArtifactStorageKey(input.orderId, input.kind, input.filename);
+  const { data, error } = await supabase.storage.from(bucket).download(key);
+  if (error || !data) return null;
+  try {
+    return JSON.parse(await data.text()) as T;
+  } catch {
+    return null;
+  }
 }
 
 export async function storePresentationBuffer(input: StorePresentationInput): Promise<string> {

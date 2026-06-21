@@ -41,7 +41,7 @@ describe('qa-console-anchor', () => {
     expect(a).toContain('lion_shaket_bedtime');
   });
 
-  it('approves cached anchor entries for reuse', () => {
+  it('approves cached anchor entries for reuse', async () => {
     const cacheKey = 'test_lion__fp__wardrobe';
     const localPath = path.join(process.cwd(), 'outputs', 'qa-anchors', cacheKey, 'anchor.png');
     mkdirSync(path.dirname(localPath), { recursive: true });
@@ -58,10 +58,10 @@ describe('qa-console-anchor', () => {
       resemblanceScore: 0.88,
       generatedAt: new Date().toISOString(),
     };
-    saveQaAnchorCache(entry);
-    expect(loadQaAnchorCache(entry.cacheKey)?.approved).toBe(false);
-    const approved = approveQaAnchorCache(entry.cacheKey);
+    await saveQaAnchorCache(entry);
+    expect((await loadQaAnchorCache(entry.cacheKey))?.approved).toBe(false);
+    const approved = await approveQaAnchorCache(entry.cacheKey);
     expect(approved.approved).toBe(true);
-    expect(loadQaAnchorCache(entry.cacheKey)?.approved).toBe(true);
+    expect((await loadQaAnchorCache(entry.cacheKey))?.approved).toBe(true);
   });
 });
