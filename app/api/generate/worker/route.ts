@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runGenerationWorkerInvocation } from '@/lib/generation-chunked/process-worker';
+import { isProdGenerationDisabled } from '@/lib/generation-chunked/env-separation-guard';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
+  // P0 prod-cutover: hard-disable on real Production BEFORE reading body/auth/secret.
+  if (isProdGenerationDisabled()) {
+    return NextResponse.json({ error: 'generation_disabled_on_prod' }, { status: 503 });
+  }
   try {
     const body = await req.json();
     const { orderId, secret } = body as { orderId?: string; secret?: string };

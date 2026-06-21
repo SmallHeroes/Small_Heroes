@@ -5,7 +5,7 @@ import { processGenerationChunk } from '@/lib/generation-pipeline/chunk-runner';
 import { acquireGenerationLease, releaseGenerationLease } from './lease';
 
 import { chainGenerationWorker } from './chain-worker';
-import { assertEnvSeparation } from './env-separation-guard';
+import { assertEnvSeparation, assertProdGenerationAllowed } from './env-separation-guard';
 
 
 
@@ -23,6 +23,9 @@ export async function runGenerationWorkerInvocation(orderId: string): Promise<{
 
 }> {
 
+  // Hard-disable on prod (P0 cutover guard) BEFORE any lease/DB/spend at the shared worker entrypoint
+  // (covers the minutes-cron sweep + manual/direct worker invocations).
+  assertProdGenerationAllowed();
   // Guard at the shared worker entrypoint so cron/manual/direct worker invocations
   // cannot bypass the self-chain protection.
   assertEnvSeparation();
