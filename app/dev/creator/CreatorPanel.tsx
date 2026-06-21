@@ -2,6 +2,10 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  fileToChildPhotoDataUrl,
+  readJsonResponse,
+} from '@/lib/child-photo-client';
 import { estimateQaConsoleCostUsd } from '@/lib/qa-console-cost';
 import styles from './creator-panel.module.css';
 
@@ -32,80 +36,13 @@ type MetaResponse = {
 
 type RunMode = 'audition' | 'fullBook';
 
-const MAX_SOURCE_PHOTO_BYTES = 15 * 1024 * 1024;
-const MAX_CHILD_PHOTO_DATA_URL_CHARS = 3_200_000;
 const MAX_CREATOR_JSON_BODY_CHARS = 4_000_000;
-const CHILD_PHOTO_MAX_DIMENSION = 1600;
-const CHILD_PHOTO_JPEG_QUALITIES = [0.86, 0.78, 0.68];
 
-async function readJsonResponse<T>(res: Response): Promise<T> {
-  const text = await res.text();
-  const trimmed = text.trim();
-  if (!trimmed) return {} as T;
+const CREATOR_PHOTO_TOO_LARGE_MESSAGE =
+  'The photo upload is too large for the QA server. The Creator now compresses photos automatically; choose a smaller image if this repeats.';
 
-  try {
-    return JSON.parse(trimmed) as T;
-  } catch {
-    if (res.status === 413 || /^Request Entity Too Large/i.test(trimmed)) {
-      throw new Error(
-        'The photo upload is too large for the QA server. The Creator now compresses photos automatically; choose a smaller image if this repeats.'
-      );
-    }
-
-    const plainText = trimmed
-      .replace(/<[^>]*>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .slice(0, 240);
-    throw new Error(plainText || `Request failed (${res.status})`);
-  }
-}
-
-function loadImageFromFile(file: File): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(file);
-    const image = new Image();
-    image.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-      resolve(image);
-    };
-    image.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error('Could not read photo file'));
-    };
-    image.src = objectUrl;
-  });
-}
-
-async function fileToChildPhotoDataUrl(file: File): Promise<string> {
-  if (file.size > MAX_SOURCE_PHOTO_BYTES) {
-    throw new Error('Child photo is too large. Use an image under 15 MB.');
-  }
-
-  const image = await loadImageFromFile(file);
-  const naturalWidth = image.naturalWidth || image.width;
-  const naturalHeight = image.naturalHeight || image.height;
-  if (!naturalWidth || !naturalHeight) {
-    throw new Error('Could not read photo dimensions');
-  }
-
-  const scale = Math.min(1, CHILD_PHOTO_MAX_DIMENSION / Math.max(naturalWidth, naturalHeight));
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(naturalWidth * scale));
-  canvas.height = Math.max(1, Math.round(naturalHeight * scale));
-
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Could not prepare photo for upload');
-
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-
-  for (const quality of CHILD_PHOTO_JPEG_QUALITIES) {
-    const dataUrl = canvas.toDataURL('image/jpeg', quality);
-    if (dataUrl.length <= MAX_CHILD_PHOTO_DATA_URL_CHARS) return dataUrl;
-  }
-
-  throw new Error('Child photo is still too large after compression. Use a smaller image.');
+async function readCreatorJsonResponse<T>(res: Response): Promise<T> {
+  return readJsonResponse<T>(res, { payloadTooLargeMessage: CREATOR_PHOTO_TOO_LARGE_MESSAGE });
 }
 
 function stringifyCreatorBody(body: Record<string, unknown>): string {
@@ -146,7 +83,7 @@ export function CreatorPanel() {
   useEffect(() => {
     fetch('/api/dev/creator/meta', { cache: 'no-store' })
       .then(async (r) => {
-        const data = await readJsonResponse<MetaResponse | { error?: string }>(r);
+        const data = await readCreatorJsonResponse<MetaResponse | { error?: string }>(r);
         if (!r.ok) throw new Error('error' in data ? data.error || 'Failed to load CREATOR metadata' : 'Failed to load CREATOR metadata');
         return data as MetaResponse;
       })
@@ -260,7 +197,7 @@ export function CreatorPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: stringifyCreatorBody(body),
       });
-      const data = await readJsonResponse<{
+      const data = await readCreatorJsonResponse<{
         error?: string;
         anchorReviewRequired?: boolean;
         cacheKey?: string;
@@ -351,7 +288,7 @@ export function CreatorPanel() {
           headers: { 'Content-Type': 'application/json' },
           body: stringifyCreatorBody(body),
         });
-        const data = await readJsonResponse<{
+        const data = await readCreatorJsonResponse<{
           error?: string;
           viewerUrl?: string;
           orderId?: string;
