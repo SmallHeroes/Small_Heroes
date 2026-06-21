@@ -9,7 +9,7 @@ import { CategoryChallengeCard } from '@/app/category-challenge-card';
 import type { MvpMatrixCategoryPayload } from '@/lib/web/mvp-matrix-response';
 import { ROUTES } from '@/lib/routes';
 
-/* Trust-band line icons (order matches L.trust.pillars: privacy · human review · Hebrew/age · support) */
+/* Trust-band line icons (order matches L.trust.pillars: privacy · human review · Hebrew/age) */
 const TRUST_ICONS = [
   (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
@@ -28,12 +28,6 @@ const TRUST_ICONS = [
       <path d="M12 6.2C10.1 5 7.8 4.4 5.2 4.4c-.9 0-1.4.3-1.4 1V18c0 .6.4.9 1.1.8 2.4-.4 4.6 0 7.1 1.5" />
       <path d="M12 6.2C13.9 5 16.2 4.4 18.8 4.4c.9 0 1.4.3 1.4 1V18c0 .6-.4.9-1.1.8-2.4-.4-4.6 0-7.1 1.5" />
       <path d="M12 6.2V21" />
-    </svg>
-  ),
-  (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20.5 11.5a7.5 7.5 0 0 1-10.8 6.7L4.5 19.5l1.3-3.9A7.5 7.5 0 1 1 20.5 11.5z" />
-      <path d="M12 14.2c-2.3-1.5-3.1-2.8-3.1-3.9A1.55 1.55 0 0 1 12 9.1a1.55 1.55 0 0 1 3.1 1.2c0 1.1-.8 2.4-3.1 3.9z" />
     </svg>
   ),
 ];
@@ -355,6 +349,12 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                   </article>
                 ))}
               </div>
+            </div>
+          </section>
+
+          <section className="early-stage-band" aria-label="הודעת השקה">
+            <div className="wrap early-stage-band__inner">
+              <p className="early-stage-band__line">{L.earlyStage.line}</p>
             </div>
           </section>
 

@@ -1087,6 +1087,20 @@
   border-block: 1px solid rgba(0, 0, 0, 0.06);
 }
 
+.early-stage-band {
+  padding: 20px 0;
+  background: #fff8ef;
+  border-block: 1px solid rgba(0, 0, 0, 0.06);
+  text-align: center;
+}
+
+.early-stage-band__line {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-muted, #5a4f47);
+}
+
 .trust-band__inner {
   text-align: center;
 }
