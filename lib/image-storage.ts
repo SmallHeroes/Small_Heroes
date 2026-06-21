@@ -284,6 +284,23 @@ export async function downloadOrderArtifactJson<T = unknown>(input: {
   }
 }
 
+/**
+ * List the immediate children (files + sub-folders) of a storage prefix. Used by the dev QA viewer to
+ * enumerate cloud-persisted auditions (0096 M5b). Returns `{ name, updatedAt }`; folders have no updatedAt.
+ */
+export async function listStorageFolder(
+  prefix: string
+): Promise<{ name: string; updatedAt?: string }[]> {
+  const { bucket } = getSupabaseEnv();
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.storage.from(bucket).list(prefix, { limit: 1000 });
+  if (error || !data) return [];
+  return data.map((o) => ({
+    name: o.name,
+    updatedAt: (o as { updated_at?: string }).updated_at,
+  }));
+}
+
 export async function storePresentationBuffer(input: StorePresentationInput): Promise<string> {
   const { url, bucket } = getSupabaseEnv();
   const supabase = getSupabaseClient();

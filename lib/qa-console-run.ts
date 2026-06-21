@@ -5,6 +5,7 @@ import { randomUUID } from 'crypto';
 import { mkdtemp, rm, writeFile as writeFileFs } from 'fs/promises';
 import { tmpdir } from 'os';
 import { artifactsBaseDir } from '@/lib/generation-pipeline/runtime-artifact-store';
+import { persistAuditionManifestDurable } from '@/lib/style01-audition-preview';
 import { generateAllPageImages } from '@/backend/providers/image';
 import {
   describeChildFromPhoto,
@@ -975,6 +976,8 @@ export async function runQaConsoleRender(input: QaConsoleRunInput): Promise<QaCo
     };
 
     await writeFile(path.join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2), 'utf-8');
+    // Durable copy so the dev viewer/library can read this audition from Supabase in serverless (0096 M5b).
+    await persistAuditionManifestDurable(manifestDir, manifest);
 
     if (failedPages.length) {
       throw new Error(`Image generation failed for pages: ${failedPages.join(', ')}`);
