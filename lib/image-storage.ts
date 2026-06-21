@@ -53,11 +53,17 @@ export interface StoreDataUrlInput {
   assetPath: string;
 }
 
-function sanitizeAssetPathSegment(assetPath: string): string {
+/**
+ * Sanitize a storage path/subpath. Allows `.` so file extensions survive (0096 M5c — previously `.png`
+ * was mangled to `-png`, leaving objects with no real extension), while collapsing `..` so a built
+ * subpath can never traverse out of its order folder. Exported for unit testing.
+ */
+export function sanitizeAssetPathSegment(assetPath: string): string {
   return String(assetPath)
     .replace(/\\/g, '/')
     .replace(/^\/+|\/+$/g, '')
-    .replace(/[^a-zA-Z0-9/_-]+/g, '-');
+    .replace(/[^a-zA-Z0-9/_.-]+/g, '-') // allow '.' so extensions are preserved
+    .replace(/\.{2,}/g, '.'); // no parent-dir traversal ("..")
 }
 
 /**
