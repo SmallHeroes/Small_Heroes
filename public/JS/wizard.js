@@ -155,6 +155,7 @@ const PRODUCT_ICON_EMOJI = {
 const LENGTH_TO_DIRECTION = { short: 'bedtime', medium: 'adventure', long: 'fantasy' };
 const STORY_LENGTH_FROM_DIRECTION = { bedtime: 'short', adventure: 'medium', fantasy: 'long' };
 const clientApi = window.SmallHeroesClient || window.__smallHeroesClientApi || null;
+const childPhotoClient = window.SmallHeroesChildPhoto || null;
 const PHOTO_ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const PHOTO_MAX_SIZE_BYTES = 15 * 1024 * 1024;
 
@@ -2037,7 +2038,12 @@ async function analyzePhotoQualityViaServer(dataUrl) {
     body: JSON.stringify({ dataUrl }),
   });
   if (!response.ok) throw new Error('server_photo_analyze_failed');
-  const data = await response.json();
+  let data;
+  if (childPhotoClient && typeof childPhotoClient.readJsonResponse === 'function') {
+    data = await childPhotoClient.readJsonResponse(response);
+  } else {
+    data = await response.json();
+  }
   if (!data || typeof data !== 'object' || typeof data.status !== 'string') {
     throw new Error('server_photo_analyze_invalid');
   }
@@ -2176,7 +2182,13 @@ async function handlePhoto(e) {
     reportClientIssue('photo_validation_failed', { reason: 'invalid_type', mime: file.type || 'unknown' });
     return;
   }
-  if (file.size > PHOTO_MAX_SIZE_BYTES) {
+  if (!childPhotoClient || typeof childPhotoClient.fileToChildPhotoDataUrl !== 'function') {
+    clearPhotoQualityState();
+    showPhotoError('לא הצלחנו להכין את התמונה. רעננו את הדף ונסו שוב.');
+    if (input) input.value = '';
+    return;
+  }
+  if (file.size > childPhotoClient.MAX_SOURCE_PHOTO_BYTES) {
     clearPhotoQualityState();
     showPhotoError('התמונה גדולה מדי כרגע. נסו תמונה עד 15MB.');
     if (input) input.value = '';
@@ -2184,13 +2196,12 @@ async function handlePhoto(e) {
     return;
   }
 
-  const reader = new FileReader();
-
-  reader.onload = async (ev) => {
-    state.photo = ev.target.result;
+  try {
+    const dataUrl = await childPhotoClient.fileToChildPhotoDataUrl(file);
+    state.photo = dataUrl;
     renderPhotoUploadArea();
     try {
-      state.photoQuality = await analyzePhotoQuality(String(ev.target.result || ''));
+      state.photoQuality = await analyzePhotoQuality(String(dataUrl || ''));
     } catch (_) {
       state.photoQuality = {
         status: PHOTO_QUALITY_STATUS.WARNING,
@@ -2205,14 +2216,18 @@ async function handlePhoto(e) {
     savePhotoQualityToStorage();
     sessionExpectChildPhotoReplay = false;
     queueWizardSave();
-  };
-  reader.onerror = () => {
+  } catch (err) {
     clearPhotoQualityState();
-    showPhotoError('לא הצלחנו לקרוא את הקובץ הזה. נסו תמונה אחרת.');
-    reportClientIssue('photo_read_failed', { reason: 'file_reader_error' });
-  };
-
-  reader.readAsDataURL(file);
+    const message =
+      childPhotoClient && typeof childPhotoClient.childPhotoUploadErrorHe === 'function'
+        ? childPhotoClient.childPhotoUploadErrorHe(err)
+        : 'התמונה גדולה מדי — נסה תמונה קטנה יותר';
+    showPhotoError(message);
+    if (input) input.value = '';
+    reportClientIssue('photo_compression_failed', {
+      reason: err && err.message ? err.message : String(err),
+    });
+  }
 }
 
 /* ── STEP 8: PRODUCT CARDS ───────────────────────────────────── */
@@ -2815,16 +2830,40 @@ async function handleSubmit() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const fallbackData = await orderRes.json().catch(() => ({}));
-      orderResponse = orderRes.ok
-        ? { ok: true, data: fallbackData, message: null, reason: null, status: orderRes.status }
-        : {
-            ok: false,
-            data: fallbackData,
-            message: fallbackData.error || 'יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏',
-            reason: 'http_error',
-            status: orderRes.status,
-          };
+      let fallbackData = {};
+      try {
+        if (childPhotoClient && typeof childPhotoClient.readJsonResponse === 'function') {
+          fallbackData = await childPhotoClient.readJsonResponse(orderRes);
+        } else {
+          fallbackData = await orderRes.json();
+        }
+      } catch (parseErr) {
+        const parseMessage =
+          parseErr && parseErr.message
+            ? parseErr.message
+            : 'התמונה גדולה מדי — נסה תמונה קטנה יותר';
+        orderResponse = {
+          ok: false,
+          data: {},
+          message: parseMessage,
+          reason: orderRes.status === 413 ? 'payload_too_large' : 'invalid_json',
+          status: orderRes.status,
+        };
+        fallbackData = null;
+      }
+      if (fallbackData !== null) {
+        orderResponse = orderRes.ok
+          ? { ok: true, data: fallbackData, message: null, reason: null, status: orderRes.status }
+          : {
+              ok: false,
+              data: fallbackData,
+              message:
+                (fallbackData && fallbackData.error) ||
+                'יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏',
+              reason: 'http_error',
+              status: orderRes.status,
+            };
+      }
     }
 
     if (!orderResponse.ok) {

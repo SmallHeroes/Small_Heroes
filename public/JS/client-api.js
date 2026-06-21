@@ -60,16 +60,29 @@
       const data = safeParseJson(rawText);
 
       if (!res.ok) {
+        const payloadTooLarge =
+          res.status === 413 || /^Request Entity Too Large/i.test(rawText || '');
         return {
           ok: false,
           status: res.status,
           data,
-          reason: 'http_error',
-          message: extractErrorMessage(data, fallbackMessage),
+          reason: payloadTooLarge ? 'payload_too_large' : 'http_error',
+          message: payloadTooLarge
+            ? 'התמונה גדולה מדי — נסה תמונה קטנה יותר'
+            : extractErrorMessage(data, fallbackMessage),
         };
       }
 
       if (!data) {
+        if (res.status === 413 || /^Request Entity Too Large/i.test(rawText || '')) {
+          return {
+            ok: false,
+            status: res.status,
+            data: null,
+            reason: 'payload_too_large',
+            message: 'התמונה גדולה מדי — נסה תמונה קטנה יותר',
+          };
+        }
         return {
           ok: false,
           status: res.status,
