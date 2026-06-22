@@ -94,6 +94,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // PAYMENTS DISABLED (gated/waitlist prod with no payment backend). Reached only past the waitlist
+    // short-circuit above; hard-stop here so we never create or fulfill an order with no provider.
+    if (env.PAYMENT_PROVIDER === 'none') {
+      logger.error('Checkout blocked: payments are disabled (PAYMENT_PROVIDER=none)', {
+        vercelEnv: process.env.VERCEL_ENV ?? null,
+        buyMode: env.NEXT_PUBLIC_BUY_MODE,
+      });
+      return NextResponse.json({ error: 'payment_disabled' }, { status: 503 });
+    }
+
     if (env.PAYMENT_PROVIDER === 'fake' && !canUseFakePayments()) {
       logger.error('Checkout blocked: fake payment not permitted in this runtime', {
         vercelEnv: process.env.VERCEL_ENV ?? null,

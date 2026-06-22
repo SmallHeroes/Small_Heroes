@@ -3,7 +3,7 @@ import { isVercelProductionRuntime } from './runtime-env';
 
 type StoryProvider = 'openai' | 'claude';
 type ImageProvider = 'replicate' | 'dall-e-3' | 'gpt-image';
-type PaymentProvider = 'payme' | 'stripe' | 'fake';
+type PaymentProvider = 'payme' | 'stripe' | 'fake' | 'none';
 type BuyMode = 'waitlist' | 'live';
 
 export type AppEnv = {
@@ -60,11 +60,37 @@ function normalizeImageProvider(value: string | undefined): ImageProvider {
   return 'replicate';
 }
 
-function normalizePaymentProvider(value: string | undefined): PaymentProvider {
+/**
+ * Resolve PAYMENT_PROVIDER. No silent stripe default: a missing provider means "no payment backend"
+ * (returns 'none'), which is only valid for a gated/waitlist runtime. Real charges (BUY_MODE=live)
+ * require an explicit, recognized provider; 'none' is rejected there. Unknown values fail boot rather
+ * than falling back, so a typo can never silently route money through the wrong backend.
+ */
+function normalizePaymentProvider(
+  value: string | undefined,
+  buyMode: BuyMode,
+  errors: string[]
+): PaymentProvider {
   const raw = (value ?? '').trim().toLowerCase();
+  if (raw === '') {
+    if (buyMode === 'live') {
+      errors.push('PAYMENT_PROVIDER is required when BUY_MODE=live');
+    }
+    return 'none';
+  }
   if (raw === 'payme') return 'payme';
+  if (raw === 'stripe') return 'stripe';
   if (raw === 'fake') return 'fake';
-  return 'stripe';
+  if (raw === 'none') {
+    if (buyMode === 'live') {
+      errors.push('PAYMENT_PROVIDER=none is not allowed when BUY_MODE=live (set payme or stripe)');
+    }
+    return 'none';
+  }
+  errors.push(
+    `PAYMENT_PROVIDER="${value}" is not a recognized provider (expected payme, stripe, fake, or none)`
+  );
+  return 'none';
 }
 
 export function validateEnv(): AppEnv {
@@ -76,7 +102,15 @@ export function validateEnv(): AppEnv {
   const errors: string[] = [];
 
   const DATABASE_URL = readRequired('DATABASE_URL', errors);
-  const PAYMENT_PROVIDER = normalizePaymentProvider(process.env.PAYMENT_PROVIDER);
+  // Buy mode defaults to 'waitlist' (safe: no real charges) unless explicitly set to 'live'.
+  // Resolved before PAYMENT_PROVIDER because provider validity depends on it.
+  const NEXT_PUBLIC_BUY_MODE: BuyMode =
+    (process.env.NEXT_PUBLIC_BUY_MODE || '').trim().toLowerCase() === 'live' ? 'live' : 'waitlist';
+  const PAYMENT_PROVIDER = normalizePaymentProvider(
+    process.env.PAYMENT_PROVIDER,
+    NEXT_PUBLIC_BUY_MODE,
+    errors
+  );
   const ENABLE_FAKE_PAYMENT = process.env.ENABLE_FAKE_PAYMENT === 'true';
   const ALLOW_FAKE_PAYMENTS = process.env.ALLOW_FAKE_PAYMENTS === 'true';
   const GENERATION_SECRET = readRequired('GENERATION_SECRET', errors);
@@ -88,10 +122,6 @@ export function validateEnv(): AppEnv {
   const SUPABASE_URL = readRequired('SUPABASE_URL', errors);
   const SUPABASE_SERVICE_ROLE_KEY = readRequired('SUPABASE_SERVICE_ROLE_KEY', errors);
   const SUPABASE_STORAGE_BUCKET = (process.env.SUPABASE_STORAGE_BUCKET || 'book-images').trim();
-
-  // Buy mode defaults to 'waitlist' (safe: no real charges) unless explicitly set to 'live'.
-  const NEXT_PUBLIC_BUY_MODE: BuyMode =
-    (process.env.NEXT_PUBLIC_BUY_MODE || '').trim().toLowerCase() === 'live' ? 'live' : 'waitlist';
 
   const STORY_PROVIDER = normalizeStoryProvider(process.env.STORY_PROVIDER);
   const IMAGE_PROVIDER = normalizeImageProvider(process.env.IMAGE_PROVIDER);
@@ -112,20 +142,30 @@ export function validateEnv(): AppEnv {
   const PAYME_VERIFY_PATH = process.env.PAYME_VERIFY_PATH?.trim();
   const PAYME_REDIRECT_TRUST_MODE = process.env.PAYME_REDIRECT_TRUST_MODE === 'true';
 
-  if (STORY_PROVIDER === 'openai' && !OPENAI_API_KEY) {
-    errors.push('OPENAI_API_KEY is required when STORY_PROVIDER=openai');
-  }
-  if (STORY_PROVIDER === 'claude' && !ANTHROPIC_API_KEY) {
-    errors.push('ANTHROPIC_API_KEY is required when STORY_PROVIDER=claude');
-  }
-  if (!imageGenerationDisabled && IMAGE_PROVIDER === 'replicate' && !REPLICATE_API_TOKEN) {
-    errors.push('REPLICATE_API_TOKEN is required when IMAGE_PROVIDER=replicate');
-  }
-  if (!imageGenerationDisabled && IMAGE_PROVIDER === 'dall-e-3' && !OPENAI_API_KEY) {
-    errors.push('OPENAI_API_KEY is required when IMAGE_PROVIDER=dall-e-3');
-  }
-  if (!imageGenerationDisabled && IMAGE_PROVIDER === 'gpt-image' && !OPENAI_API_KEY) {
-    errors.push('OPENAI_API_KEY is required when IMAGE_PROVIDER=gpt-image');
+  // Story/image render creds are only needed when generation can actually run on THIS runtime.
+  // On real Vercel Production with the prod-generation kill-switch off (ENABLE_PROD_GENERATION !==
+  // 'true'), the customer render path is hard-disabled (see lib/generation-chunked/env-separation-
+  // guard.ts → isProdGenerationDisabled), so a gated/waitlist prod must boot WITHOUT render creds.
+  // Preview/local QA always needs them. Mirrors that guard's condition intentionally.
+  const generationEnabledHere = !(
+    isVercelProductionRuntime() && process.env.ENABLE_PROD_GENERATION !== 'true'
+  );
+  if (generationEnabledHere) {
+    if (STORY_PROVIDER === 'openai' && !OPENAI_API_KEY) {
+      errors.push('OPENAI_API_KEY is required when STORY_PROVIDER=openai');
+    }
+    if (STORY_PROVIDER === 'claude' && !ANTHROPIC_API_KEY) {
+      errors.push('ANTHROPIC_API_KEY is required when STORY_PROVIDER=claude');
+    }
+    if (!imageGenerationDisabled && IMAGE_PROVIDER === 'replicate' && !REPLICATE_API_TOKEN) {
+      errors.push('REPLICATE_API_TOKEN is required when IMAGE_PROVIDER=replicate');
+    }
+    if (!imageGenerationDisabled && IMAGE_PROVIDER === 'dall-e-3' && !OPENAI_API_KEY) {
+      errors.push('OPENAI_API_KEY is required when IMAGE_PROVIDER=dall-e-3');
+    }
+    if (!imageGenerationDisabled && IMAGE_PROVIDER === 'gpt-image' && !OPENAI_API_KEY) {
+      errors.push('OPENAI_API_KEY is required when IMAGE_PROVIDER=gpt-image');
+    }
   }
   if (PAYMENT_PROVIDER === 'stripe') {
     if (!STRIPE_SECRET_KEY) errors.push('STRIPE_SECRET_KEY is required when PAYMENT_PROVIDER=stripe');
