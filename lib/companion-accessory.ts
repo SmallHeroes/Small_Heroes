@@ -78,6 +78,29 @@ export const COMPANION_ACCESSORY_PROFILES: Partial<Record<string, CompanionAcces
     accessoryRequiredWhenVisible: true,
     forbiddenAlternatives: ['scarf', 'necklace', 'cape', 'chest star', 'neck scarf'],
   },
+  bunny_ometz: {
+    // Canon: bunny's visualDescription (lib/companions.ts) — "a tiny heart-shaped badge pinned to
+    // the chest". Worded to match exactly; no new visual canon invented.
+    canonicalAccessory: 'tiny heart-shaped badge pinned to the chest',
+    accessoryLocation: 'on the chest (pinned heart-shaped badge)',
+    accessoryBehavior:
+      "the same simple heart-shaped chest badge every time — bunny's small courage marker; flat against the chest fur; never swapped for a different shape",
+    accessoryRequiredWhenVisible: true,
+    forbiddenAlternatives: [
+      'scarf',
+      'neck scarf',
+      'cape',
+      'bow',
+      'hat',
+      'necklace',
+      'glasses',
+      'backpack',
+      'held toy',
+      'held toys',
+      'chest star',
+      'star badge',
+    ],
+  },
   lion_shaket: {
     accessoryForbiddenOnly: true,
     canonicalAccessory: '',
