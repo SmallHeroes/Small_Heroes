@@ -1,5 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { listStyle01DiniAuditions } from '@/lib/style01-audition-preview';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger({ subsystem: 'dev-viewer-library' });
 
 export type DevLibraryEntry = {
   key: string;
@@ -24,9 +27,10 @@ export function devViewerUrlForEntry(entry: DevLibraryEntry): string {
   return '/dev/viewer';
 }
 
-export async function listDevViewerLibrary(): Promise<DevLibraryEntry[]> {
+/** Cloud-persisted audition runs (Supabase storage in serverless; local FS in dev). */
+async function listAuditionEntries(): Promise<DevLibraryEntry[]> {
   const auditions = await listStyle01DiniAuditions();
-  const auditionEntries: DevLibraryEntry[] = auditions.map((a) => ({
+  return auditions.map((a) => ({
     key: `audition:${a.root ?? 'auto'}:${a.dir}`,
     kind: 'audition',
     label: `[audition] ${a.label ?? a.dir}`,
@@ -34,7 +38,10 @@ export async function listDevViewerLibrary(): Promise<DevLibraryEntry[]> {
     dir: a.dir,
     root: a.root,
   }));
+}
 
+/** Generated books (orders) from Postgres. */
+async function listOrderEntries(): Promise<DevLibraryEntry[]> {
   const books = await prisma.generatedBook.findMany({
     orderBy: { createdAt: 'desc' },
     take: 150,
@@ -57,7 +64,7 @@ export async function listDevViewerLibrary(): Promise<DevLibraryEntry[]> {
     },
   });
 
-  const orderEntries: DevLibraryEntry[] = books
+  return books
     .filter((b) => b.order?.paymentId)
     .map((b) => {
       const order = b.order!;
@@ -75,6 +82,26 @@ export async function listDevViewerLibrary(): Promise<DevLibraryEntry[]> {
         accessKey: order.paymentId!,
       };
     });
+}
+
+/**
+ * The library is assembled from two INDEPENDENT sources: cloud-persisted auditions (Supabase storage)
+ * and generated-book orders (Postgres). Isolate them so a failure in one source can't 500 the whole
+ * endpoint (0096 M5b made auditions serverless-safe but the endpoint still hard-coupled them with the
+ * orders query) — in serverless the library still lists from Supabase even if the DB query hiccups.
+ * Each failure is logged with its stack so the cause is observable instead of an opaque 500.
+ */
+export async function listDevViewerLibrary(): Promise<DevLibraryEntry[]> {
+  const [auditionEntries, orderEntries] = await Promise.all([
+    listAuditionEntries().catch((err) => {
+      logger.error('Failed to list audition entries (Supabase storage)', err);
+      return [] as DevLibraryEntry[];
+    }),
+    listOrderEntries().catch((err) => {
+      logger.error('Failed to list order entries (Postgres)', err);
+      return [] as DevLibraryEntry[];
+    }),
+  ]);
 
   return [...auditionEntries, ...orderEntries].sort((a, b) => b.mtimeMs - a.mtimeMs);
 }
