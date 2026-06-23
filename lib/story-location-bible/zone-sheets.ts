@@ -275,6 +275,12 @@ export function assembleStyle01BookReferencesWithZoneSheets(input: {
   isolatedObjectRefPaths?: string[];
   /** J2.5 — single set-appearance board replaces per-object refs when present */
   setAppearanceBoardPath?: string | null;
+  /**
+   * Phase-1 VisualContract: plot-critical object/state reference sheets (e.g. stone-gate
+   * closed/open). PROTECTED tier — these outrank style refs and must never be dropped to
+   * keep a style ref under budget pressure (amendment #4).
+   */
+  criticalObjectRefPaths?: string[];
 }): { paths: string[]; breakdown: Record<string, string[]> } {
   const base = assembleStyle01BookReferences(input);
   const boardPath = input.setAppearanceBoardPath?.trim();
@@ -289,6 +295,7 @@ export function assembleStyle01BookReferencesWithZoneSheets(input: {
   const breakdown: Record<string, string[]> = {
     ...base.breakdown,
     zoneSet: [],
+    criticalObjects: (input.criticalObjectRefPaths ?? []).filter(Boolean),
     objectAnchors: boardPath ? [] : objectPaths,
     isolatedObjects: objectPaths,
     setAppearanceBoard: boardPath ? [boardPath] : [],
@@ -302,6 +309,7 @@ export function assembleStyle01BookReferencesWithZoneSheets(input: {
   const rebuildPaths = () => [
     ...breakdown.child,
     ...breakdown.companion,
+    ...breakdown.criticalObjects, // PROTECTED — plot-critical object/state refs outrank style (#4)
     ...breakdown.setAppearanceBoard, // PROTECTED — same tier as child/companion identity refs
     ...breakdown.objectAnchors,
     ...breakdown.otherCharacters,
