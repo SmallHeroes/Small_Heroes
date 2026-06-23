@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { withRetry } from '@/lib/retry';
 
 let supabaseClient: SupabaseClient | null = null;
 
@@ -28,6 +29,43 @@ function getSupabaseClient(): SupabaseClient {
 
 function buildPublicUrl(url: string, bucket: string, key: string): string {
   return `${url.replace(/\/$/, '')}/storage/v1/object/public/${bucket}/${key}`;
+}
+
+/**
+ * Upload a buffer to Supabase storage with retry + exponential backoff + a per-attempt
+ * timeout. supabase-js resolves network failures as `{ error: { message: 'fetch failed' } }`
+ * rather than throwing, so we surface that as a throw for `withRetry` to retry. `upsert: true`
+ * makes every retry idempotent (a slow attempt that times out and is re-sent is safe).
+ * Hardens the Stage-0 anchor upload "fetch failed" blip seen on 2026-06-23.
+ */
+async function uploadToSupabaseWithRetry(params: {
+  supabase: SupabaseClient;
+  bucket: string;
+  key: string;
+  body: Buffer;
+  contentType: string;
+  /** Preserved error-message prefix per call site (kept stable for logs/tests). */
+  errorPrefix: string;
+}): Promise<void> {
+  const attempts = Math.max(1, Number.parseInt(process.env.SUPABASE_UPLOAD_MAX_ATTEMPTS ?? '4', 10) || 4);
+  const timeoutMs = Math.max(1000, Number.parseInt(process.env.SUPABASE_UPLOAD_TIMEOUT_MS ?? '30000', 10) || 30000);
+  try {
+    await withRetry(
+      async () => {
+        const { error } = await params.supabase.storage
+          .from(params.bucket)
+          .upload(params.key, params.body, {
+            contentType: params.contentType,
+            upsert: true,
+            cacheControl: '31536000',
+          });
+        if (error) throw new Error(error.message);
+      },
+      { attempts, timeoutMs, baseDelayMs: 500, factor: 3, label: 'supabase-upload' }
+    );
+  } catch (err) {
+    throw new Error(`${params.errorPrefix}: ${(err as Error)?.message ?? 'unknown'}`);
+  }
 }
 
 function extensionFromContentType(contentType: string | null): string {
@@ -94,15 +132,14 @@ export async function storeImageFromDataUrl(input: StoreDataUrlInput): Promise<s
   const orderFolder = input.orderId ? `orders/${input.orderId}` : 'orders/unknown';
   const key = `${orderFolder}/${safePath}-${Date.now()}.${ext}`;
 
-  const uploadResult = await supabase.storage.from(bucket).upload(key, fileBuffer, {
+  await uploadToSupabaseWithRetry({
+    supabase,
+    bucket,
+    key,
+    body: fileBuffer,
     contentType,
-    upsert: true,
-    cacheControl: '31536000',
+    errorPrefix: 'Supabase upload failed',
   });
-
-  if (uploadResult.error) {
-    throw new Error(`Supabase upload failed: ${uploadResult.error.message}`);
-  }
 
   return buildPublicUrl(url, bucket, key);
 }
@@ -134,17 +171,14 @@ export async function storeImageFromProviderUrl(input: StoreImageInput): Promise
       ? `${folder}/cover/cover-${Date.now()}.${ext}`
       : `${folder}/pages/page-${String(input.pageNumber).padStart(3, '0')}-${Date.now()}.${ext}`;
 
-  const uploadResult = await supabase.storage
-    .from(bucket)
-    .upload(key, fileBuffer, {
-      contentType,
-      upsert: true,
-      cacheControl: '31536000',
-    });
-
-  if (uploadResult.error) {
-    throw new Error(`Supabase upload failed: ${uploadResult.error.message}`);
-  }
+  await uploadToSupabaseWithRetry({
+    supabase,
+    bucket,
+    key,
+    body: fileBuffer,
+    contentType,
+    errorPrefix: 'Supabase upload failed',
+  });
 
   return buildPublicUrl(url, bucket, key);
 }
@@ -177,15 +211,14 @@ export async function storeImageFromBuffer(input: StoreBufferInput): Promise<str
       ? `${folder}/cover/cover-${Date.now()}.${ext}`
       : `${folder}/pages/page-${String(input.pageNumber).padStart(3, '0')}-${Date.now()}.${ext}`;
 
-  const uploadResult = await supabase.storage.from(bucket).upload(key, input.buffer, {
+  await uploadToSupabaseWithRetry({
+    supabase,
+    bucket,
+    key,
+    body: input.buffer,
     contentType,
-    upsert: true,
-    cacheControl: '31536000',
+    errorPrefix: 'Supabase buffer upload failed',
   });
-
-  if (uploadResult.error) {
-    throw new Error(`Supabase buffer upload failed: ${uploadResult.error.message}`);
-  }
 
   return buildPublicUrl(url, bucket, key);
 }
@@ -208,15 +241,14 @@ export async function uploadOrderSubpathAsset(input: {
   const folder = input.orderId ? `orders/${input.orderId}` : 'orders/unknown';
   const key = `${folder}/${safeSub}`;
 
-  const uploadResult = await supabase.storage.from(bucket).upload(key, input.buffer, {
+  await uploadToSupabaseWithRetry({
+    supabase,
+    bucket,
+    key,
+    body: input.buffer,
     contentType: input.contentType,
-    upsert: true,
-    cacheControl: '31536000',
+    errorPrefix: `Supabase upload failed (${key})`,
   });
-
-  if (uploadResult.error) {
-    throw new Error(`Supabase upload failed (${key}): ${uploadResult.error.message}`);
-  }
 
   return buildPublicUrl(url, bucket, key);
 }
@@ -244,15 +276,14 @@ export async function uploadOrderArtifact(
   const supabase = getSupabaseClient();
   const key = orderArtifactStorageKey(input.orderId, input.kind, input.filename);
 
-  const uploadResult = await supabase.storage.from(bucket).upload(key, input.buffer, {
+  await uploadToSupabaseWithRetry({
+    supabase,
+    bucket,
+    key,
+    body: input.buffer,
     contentType: input.contentType,
-    upsert: true,
-    cacheControl: '31536000',
+    errorPrefix: `Supabase artifact upload failed (${key})`,
   });
-
-  if (uploadResult.error) {
-    throw new Error(`Supabase artifact upload failed (${key}): ${uploadResult.error.message}`);
-  }
 
   return { url: buildPublicUrl(url, bucket, key), storageKey: key };
 }
@@ -341,14 +372,14 @@ export async function storeWizardCharacterPhotoUpload(params: {
   const supabase = getSupabaseClient();
   const ext = extensionFromContentType(normalized);
   const key = `wizard/char-photos/${Date.now()}-${randomUUID().slice(0, 10)}.${ext}`;
-  const uploadResult = await supabase.storage.from(bucket).upload(key, params.buffer, {
+  await uploadToSupabaseWithRetry({
+    supabase,
+    bucket,
+    key,
+    body: params.buffer,
     contentType: normalized,
-    upsert: true,
-    cacheControl: '31536000',
+    errorPrefix: 'Supabase upload failed',
   });
-  if (uploadResult.error) {
-    throw new Error(`Supabase upload failed: ${uploadResult.error.message}`);
-  }
   return buildPublicUrl(url, bucket, key);
 }
 

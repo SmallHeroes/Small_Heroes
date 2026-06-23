@@ -2,6 +2,7 @@ import 'server-only';
 
 import sharp from 'sharp';
 import { readFile } from 'fs/promises';
+import { withRetry } from '@/lib/retry';
 
 export type ResemblanceStatus = 'pass' | 'soft_fail';
 export type ResemblanceConfidence = 'high' | 'medium' | 'low';
@@ -183,6 +184,9 @@ export function resolveEffectiveThreshold(
   return threshold;
 }
 
+/** Marks a fetch failure as non-retryable (genuine 4xx other than 429). */
+class NonRetryableFetchError extends Error {}
+
 async function fetchImageBuffer(url: string): Promise<Buffer> {
   // resolveReferenceImageSource may return an absolute local filesystem path
   // (when the public asset exists on disk). Node's fetch rejects bare paths
@@ -192,26 +196,34 @@ async function fetchImageBuffer(url: string): Promise<Buffer> {
   if (!isHttpUrl && !isDataUrl) {
     return readFile(url);
   }
-  // Replicate's CDN occasionally returns ECONNRESET mid-stream; retry transient
-  // network failures with exponential backoff (300ms, 900ms, 2700ms).
-  let lastError: unknown = null;
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
-      if (!res.ok) throw new Error(`Failed fetching image for resemblance: ${res.status}`);
+  // Supabase storage / Replicate CDN occasionally fail transiently ("fetch failed",
+  // ECONNRESET mid-stream, or a slow read that overruns the per-attempt timeout —
+  // both Stage-0 anchor failures on 2026-06-23). Retry with exponential backoff and a
+  // sane per-attempt timeout; only a genuine 4xx (not 429) fails fast.
+  const attempts = Math.max(1, Number.parseInt(process.env.IMAGE_FETCH_MAX_ATTEMPTS ?? '4', 10) || 4);
+  const timeoutMs = Math.max(1000, Number.parseInt(process.env.IMAGE_FETCH_TIMEOUT_MS ?? '30000', 10) || 30000);
+  return withRetry(
+    async (signal) => {
+      const res = await fetch(url, { signal });
+      if (!res.ok) {
+        const msg = `Failed fetching image for resemblance: ${res.status}`;
+        if (res.status >= 400 && res.status < 500 && res.status !== 429) {
+          throw new NonRetryableFetchError(msg);
+        }
+        throw new Error(msg);
+      }
       const arr = await res.arrayBuffer();
       return Buffer.from(arr);
-    } catch (err) {
-      lastError = err;
-      if (attempt === 3) break;
-      const backoffMs = 300 * Math.pow(3, attempt - 1);
-      console.warn(
-        `[fetchImageBuffer] attempt ${attempt}/3 failed (${(err as Error)?.message ?? 'unknown'}); retrying in ${backoffMs}ms`
-      );
-      await new Promise((r) => setTimeout(r, backoffMs));
+    },
+    {
+      attempts,
+      timeoutMs,
+      baseDelayMs: 300,
+      factor: 3,
+      label: 'fetchImageBuffer',
+      shouldRetry: (err) => !(err instanceof NonRetryableFetchError),
     }
-  }
-  throw lastError;
+  );
 }
 
 function rgbToY(r: number, g: number, b: number): number {
