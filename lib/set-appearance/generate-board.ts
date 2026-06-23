@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from 'fs';
 import path from 'path';
 
 import { generateGPTImage } from '../generate-image';
+import { resolveStyle01GptModel } from '../style01-gptimage';
 import type { SceneAppearanceMemory, SetAppearanceBoardManifest } from './types';
 import { qaSetAppearanceBoardImage } from './board-qa';
 import {
@@ -28,6 +29,10 @@ export async function generateSetAppearanceBoard(args: {
     referenceMode: 'style02_book',
     quality,
     size: '1024x1024',
+    // Use the same resolver as every other Style-01 image call. Without this the board fell through to
+    // the raw GPT_IMAGE_MODEL env var, so an empty/misconfigured value (e.g. '') broke the board render
+    // even though page renders worked — and the board generates first, taking down the whole run.
+    modelOverride: resolveStyle01GptModel(),
   });
 
   writeFileSync(boardPath, result.buffer);
