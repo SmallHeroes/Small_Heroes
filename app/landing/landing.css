@@ -1083,7 +1083,7 @@
 
 .early-stage-band {
   padding: 20px 0;
-  background: #fff8ef;
+  background: var(--yellow);
   border-block: 1px solid rgba(0, 0, 0, 0.06);
 }
 
@@ -1096,7 +1096,7 @@
   max-width: 42rem;
   font-size: 16px;
   line-height: 1.65;
-  color: var(--text-muted, #5a4f47);
+  color: #3d2f10;
 }
 
 .trust-band__inner {
