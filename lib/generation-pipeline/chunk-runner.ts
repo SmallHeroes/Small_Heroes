@@ -25,7 +25,7 @@ import {
   STORY_BANK_V3_DIR_NAME,
 } from '@/backend/providers/story-bank-index';
 import { generateAllPageImages, generateBookCover } from '@/backend/providers/image';
-import { generatePageAudio } from '@/backend/providers/audio';
+import { generatePageAudio, generateCoverTitleAudio } from '@/backend/providers/audio';
 import {
   assertCacheHasNoLocalArtifactPaths,
   isServerlessRuntime,
@@ -1361,6 +1361,21 @@ async function runAudioChunk(order: Order, startedAt: number, budgetMs: number):
     },
   });
   if (remaining === 0) {
+    // Cover title narration (once) — the chosen voice reads the book title for the cover
+    // play button. Non-fatal: a failure here must not block marking audio done.
+    if (book.coverImageUrl?.trim() && !book.coverAudioUrl?.trim() && book.title?.trim() && order.selectedVoice) {
+      try {
+        const cover = await generateCoverTitleAudio({
+          title: book.title,
+          voiceId: order.selectedVoice,
+          orderId: order.id,
+        });
+        await prisma.generatedBook.update({ where: { id: book.id }, data: { coverAudioUrl: cover.url } });
+        log.info('Cover title audio generated', { orderId: order.id, url: cover.url });
+      } catch (err) {
+        log.warn('Cover title audio failed (non-fatal)', { orderId: order.id, err: String(err) });
+      }
+    }
     await prisma.order.update({ where: { id: order.id }, data: { audioStatus: 'done' } });
     await prisma.generationJob.update({ where: { orderId: order.id }, data: { audioDone: true } });
     return false;

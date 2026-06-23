@@ -237,6 +237,27 @@ export async function generatePageAudio(input: {
   return { url };
 }
 
+/**
+ * Cover title-narration audio — the chosen voice reads the BOOK TITLE for a cover
+ * play button. Same ElevenLabs + Supabase path as page audio; persisted as
+ * `{orderId}-cover.mp3`.
+ */
+export async function generateCoverTitleAudio(input: {
+  title: string;
+  voiceId: string;
+  orderId: string;
+}): Promise<{ url: string }> {
+  const voice = getVoiceById(input.voiceId);
+  if (!voice) throw new Error(`Unknown voice: ${input.voiceId}`);
+
+  const text = input.title.trim();
+  if (!text) throw new Error('Empty book title');
+
+  const audioBuffer = await callElevenLabs(text, voice.elevenlabsVoiceId);
+  const url = await storeAudio(audioBuffer, `${input.orderId}-cover.mp3`);
+  return { url };
+}
+
 
 // ─── Voice Preview ────────────────────────────────────
 /**

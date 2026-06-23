@@ -294,6 +294,7 @@ model GeneratedBook {
   title       String
   coverText   String?
   coverImageUrl String?
+  coverAudioUrl String?   // fairy-voice narration of the book title (cover play button)
   pages       BookPage[]
 
   audioAsset  AudioAsset?
