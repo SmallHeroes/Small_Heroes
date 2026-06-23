@@ -70,6 +70,8 @@ type Props = {
   devLayoutFlags?: DevLayoutQueryFlags;
 };
 
+const AUTO_PLAY_DELAY_MS = 1500;
+
 export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Props) {
   const resolvedAccessKey = useMemo(() => {
     if (accessKey) return accessKey;
@@ -96,6 +98,9 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
   const [regenMessage, setRegenMessage] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const autoPlayTimerRef = useRef<number | null>(null);
+  /** Scene the user explicitly paused — suppress auto-play until they turn the page. */
+  const userPausedSceneIdRef = useRef<string | null>(null);
   const touchStartXRef = useRef<number | null>(null);
   const keyPart = resolvedAccessKey ? `&accessKey=${encodeURIComponent(resolvedAccessKey)}` : '';
   const readyHref = `/ready?orderId=${encodeURIComponent(bookId)}${keyPart}`;
@@ -121,6 +126,24 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
   const showAudioButton = sceneAllowsAudio(currentScene, fallbackBookAudioUrl);
   const isFirstPage = currentSceneIndex === 0;
   const isLastPage = currentSceneIndex >= storyScenes.length - 1 && storyScenes.length > 0;
+
+  const clearAutoPlayTimer = useCallback(() => {
+    if (autoPlayTimerRef.current != null) {
+      window.clearTimeout(autoPlayTimerRef.current);
+      autoPlayTimerRef.current = null;
+    }
+  }, []);
+
+  const stopNarration = useCallback(
+    (resetTime = true) => {
+      clearAutoPlayTimer();
+      const audio = audioRef.current;
+      if (!audio) return;
+      audio.pause();
+      if (resetTime) audio.currentTime = 0;
+    },
+    [clearAutoPlayTimer]
+  );
 
   const desktopSpread = useMemo(
     () =>
@@ -221,47 +244,70 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
     };
   }, []);
 
+  useEffect(() => () => stopNarration(), [stopNarration]);
+
+  useEffect(() => {
+    if (showEndScreen || showPowerCardScreen) {
+      stopNarration();
+    }
+  }, [showEndScreen, showPowerCardScreen, stopNarration]);
+
+  useEffect(() => {
+    userPausedSceneIdRef.current = null;
+  }, [currentSceneIndex]);
+
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio) return;
-    if (currentScene?.kind === 'cover' || currentScene?.effectiveTextTreatment === 'captionless') {
+    if (!audio || status !== 'ready') return;
+    if (showEndScreen || showPowerCardScreen) return;
+
+    const src = audioSrcForCurrentScene;
+    const sceneId = currentScene?.sceneId ?? null;
+
+    if (!src) {
+      if (hasPerPageAudio) stopNarration();
+      return;
+    }
+
+    if (userPausedSceneIdRef.current === sceneId) {
+      clearAutoPlayTimer();
       audio.pause();
       return;
     }
-  }, [currentScene?.kind, currentScene?.effectiveTextTreatment]);
 
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const src = audioSrcForCurrentScene;
-    if (!src) {
-      if (hasPerPageAudio) {
-        audio.pause();
-        audio.currentTime = 0;
-      }
-      return;
-    }
-
-    audio.pause();
-    audio.currentTime = 0;
+    stopNarration();
     audio.src = src;
     audio.load();
 
-    const timer = window.setTimeout(() => {
+    autoPlayTimerRef.current = window.setTimeout(() => {
+      autoPlayTimerRef.current = null;
       audio.play().catch(() => {
         console.log('[read-v2] auto-play blocked, user interaction required');
       });
-    }, 1000);
+    }, AUTO_PLAY_DELAY_MS);
 
-    return () => window.clearTimeout(timer);
-  }, [currentSceneIndex, audioSrcForCurrentScene, hasPerPageAudio]);
+    return () => {
+      clearAutoPlayTimer();
+      audio.pause();
+    };
+  }, [
+    audioSrcForCurrentScene,
+    clearAutoPlayTimer,
+    currentScene?.sceneId,
+    currentSceneIndex,
+    hasPerPageAudio,
+    showEndScreen,
+    showPowerCardScreen,
+    status,
+    stopNarration,
+  ]);
 
   const bumpTransition = useCallback(() => {
     setTransitionKey((k) => k + 1);
   }, []);
 
   const next = useCallback(() => {
+    stopNarration();
     if (!storyScenes.length) return;
     if (showPowerCardScreen) {
       setShowPowerCardScreen(false);
@@ -280,9 +326,10 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
     setShowPowerCardScreen(false);
     bumpTransition();
     setCurrentSceneIndex((prev) => Math.min(prev + 1, storyScenes.length - 1));
-  }, [bumpTransition, isLastPage, powerCardInput, showPowerCardScreen, storyScenes.length]);
+  }, [bumpTransition, isLastPage, powerCardInput, showPowerCardScreen, stopNarration, storyScenes.length]);
 
   const prev = useCallback(() => {
+    stopNarration();
     if (showEndScreen) {
       setShowEndScreen(false);
       if (powerCardInput) {
@@ -296,12 +343,14 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
     }
     bumpTransition();
     setCurrentSceneIndex((prev) => Math.max(prev - 1, 0));
-  }, [bumpTransition, powerCardInput, showEndScreen, showPowerCardScreen]);
+  }, [bumpTransition, powerCardInput, showEndScreen, showPowerCardScreen, stopNarration]);
 
   const toggleAudio = useCallback(async () => {
     const audio = audioRef.current;
     const src = audioSrcForCurrentScene;
     if (!audio || !src) return;
+
+    clearAutoPlayTimer();
 
     try {
       const resolved = new URL(src, typeof window !== 'undefined' ? window.location.origin : 'http://localhost')
@@ -320,6 +369,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
     }
 
     if (audio.paused) {
+      userPausedSceneIdRef.current = null;
       try {
         await audio.play();
       } catch {
@@ -327,8 +377,10 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
       }
       return;
     }
+
+    userPausedSceneIdRef.current = currentScene?.sceneId ?? null;
     audio.pause();
-  }, [audioSrcForCurrentScene]);
+  }, [audioSrcForCurrentScene, clearAutoPlayTimer, currentScene?.sceneId]);
 
   /**
    * RTL book navigation (desktop + keyboard):
@@ -542,7 +594,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
       data-dev-wide-spread={devLayoutFlags.forceWideSpreadScene ?? ''}
       data-dev-wide-portrait={devLayoutFlags.forceWideSpreadPortrait ?? ''}
     >
-      <a href={readyHref} className={styles.closeBtn} aria-label="סגירה">
+      <a href={readyHref} className={styles.closeBtn} aria-label="סגירה" onClick={() => stopNarration()}>
         ×
       </a>
 
