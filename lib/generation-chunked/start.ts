@@ -4,6 +4,12 @@ import { createLogger } from '@/lib/logger';
 import { chainGenerationWorker } from './chain-worker';
 import { GENERATION_VERSION } from './constants';
 import { assertEnvSeparation, assertProdGenerationAllowed } from './env-separation-guard';
+import { getWizardMeta } from '@/lib/orderMeta';
+import {
+  assessStoryRenderReadiness,
+  deriveStoryKey,
+  isVisualContractGateEnabled,
+} from '@/lib/visual-contract/render-readiness';
 import type { PipelineCache } from '@/lib/generation-pipeline/types';
 
 const log = createLogger({ subsystem: 'chunked-gen', route: 'start' });
@@ -43,6 +49,19 @@ export async function startChunkedGeneration(
   const directionSet = order.storyDirectionSet;
   if (directionSet && !directionSet.selectedDirection) {
     return { started: false, orderId, message: 'Awaiting story direction selection' };
+  }
+
+  // Increment 3 — visual-contract render PRECONDITION (amendment #5, fail-closed, flag-gated).
+  // A story may not enter full render unless its contract is render-ready + calibration-trusted.
+  if (isVisualContractGateEnabled()) {
+    const wizardMeta = getWizardMeta(order.characterAnchors);
+    const storyKey = deriveStoryKey(wizardMeta.companionCharacterId, order.storyDirection);
+    const readiness = assessStoryRenderReadiness(storyKey);
+    if (!readiness.allowed) {
+      log.warn('Blocked by visual-contract gate (not render-ready)', { orderId, storyKey, reason: readiness.reason });
+      return { started: false, orderId, message: `visual contract not render-ready: ${readiness.reason}` };
+    }
+    log.info('Visual-contract gate passed', { orderId, storyKey });
   }
 
   try {
