@@ -229,8 +229,8 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               <div className="why-grid">
                 {L.why.cards.map((card) => (
                   <article key={card.title} className="why-card">
-                    <h3>{card.title}</h3>
-                    <p>{card.body}</p>
+                    <h3 className="landing-card-title">{card.title}</h3>
+                    <p className="landing-card-body">{card.body}</p>
                   </article>
                 ))}
               </div>
@@ -245,8 +245,8 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                 {L.how.steps.map((step) => (
                   <article key={step.title} className="how-card">
                     <div className="how-step">
-                      <div className="how-num">{step.title}</div>
-                      <p>{step.body}</p>
+                      <div className="landing-card-title">{step.title}</div>
+                      <p className="landing-card-body">{step.body}</p>
                     </div>
                   </article>
                 ))}

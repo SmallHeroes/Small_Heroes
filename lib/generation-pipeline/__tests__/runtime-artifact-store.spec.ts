@@ -181,6 +181,42 @@ describe('pipelineCache local-path invariant (0094 M3b)', () => {
     expect(() => assertCacheHasNoLocalArtifactPaths(cache)).not.toThrow();
   });
 
+  // 0103: Style-01 anchor referenceOrderUsed carries committed /var/task/style-references textures.
+  it('does NOT flag committed read-only style-references paths in anchor referenceOrderUsed', () => {
+    const cache = {
+      characterAnchorStore: {
+        child: {
+          url:
+            'https://qvksgpzzosotubcbizay.supabase.co/storage/v1/object/public/book-images/orders/o1/character-anchors/child.png',
+          referenceOrderUsed: [
+            'https://qvksgpzzosotubcbizay.supabase.co/storage/v1/object/public/book-images/orders/o1/references/main-child.jpg',
+            '/var/task/style-references/01/style01-texture-night-window.png',
+            '/var/task/style-references/01/style01-texture-porch-lavender.png',
+          ],
+        },
+      },
+    };
+    expect(findEphemeralLocalArtifactPaths(cache)).toEqual([]);
+    expect(() => assertCacheHasNoLocalArtifactPaths(cache)).not.toThrow();
+  });
+
+  it('still flags a genuinely ephemeral /var/task/outputs path alongside committed style-references', () => {
+    const cache = {
+      characterAnchorStore: {
+        child: {
+          referenceOrderUsed: [
+            '/var/task/style-references/01/style01-texture-night-window.png', // committed → ok
+            '/var/task/outputs/anchors/o1/candidate-1.png', // generated → flagged
+          ],
+        },
+      },
+    };
+    const found = findEphemeralLocalArtifactPaths(cache);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toContain('/var/task/outputs/anchors/o1/candidate-1.png');
+    expect(() => assertCacheHasNoLocalArtifactPaths(cache)).toThrow(/ephemeral local artifact path/);
+  });
+
   it('still flags a GENERATED artifact written under /var/task/outputs', () => {
     expect(
       findEphemeralLocalArtifactPaths({ x: '/var/task/outputs/set-appearance-boards/s/board.png' })

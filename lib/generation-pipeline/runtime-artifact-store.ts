@@ -179,12 +179,13 @@ const EPHEMERAL_PATH_PATTERNS: RegExp[] = [
 ];
 
 /**
- * Committed, read-only bundle assets (the deployment's `story-bank/` and `public/` trees) DO exist in
- * every serverless invocation, so referencing them across chunks is legitimate — they are not ephemeral
- * artifacts. Only generated WRITES outside `/tmp` are forbidden. This carve-out covers in-flight caches
- * that still hold an absolute committed path (e.g. a legacy `/var/task/story-bank/...` storyFilePath).
+ * Committed, read-only bundle assets (the deployment's `story-bank/`, `public/`, and `style-references/`
+ * trees) DO exist in every serverless invocation, so referencing them across chunks is legitimate — they
+ * are not ephemeral artifacts. Only generated WRITES outside `/tmp` are forbidden. This carve-out covers
+ * in-flight caches that still hold an absolute committed path (e.g. a legacy `/var/task/story-bank/...`
+ * storyFilePath, or the Style-01 anchor `referenceOrderUsed` paths under `/var/task/style-references/...`).
  */
-const COMMITTED_BUNDLE_READ = /^\/var\/task\/(?:story-bank|public)\//i;
+const COMMITTED_BUNDLE_READ = /^\/var\/task\/(?:story-bank|public|style-references)\//i;
 
 function looksLikeEphemeralLocalPath(value: string): boolean {
   const v = value.trim();

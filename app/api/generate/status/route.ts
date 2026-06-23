@@ -26,6 +26,16 @@ function resolveExpectedBeatCount(order: {
 }
 import { sweepStaleGenerationJobs } from '@/lib/generation-chunked/sweeper';
 
+/** Prisma `@default(cuid())` — reject garbage before DB to avoid Prisma/driver 500s. */
+const ORDER_ID_RE = /^c[a-z0-9]{24}$/i;
+
+function parseOrderIdParam(req: NextRequest): string | null {
+  const raw = req.nextUrl.searchParams.get('orderId');
+  const orderId = raw?.trim() ?? '';
+  if (!orderId || !ORDER_ID_RE.test(orderId)) return null;
+  return orderId;
+}
+
 type StageStatus = 'pending' | 'running' | 'done' | 'failed';
 type StageName  = 'text' | 'images' | 'audio' | 'package' | 'done';
 
@@ -101,12 +111,12 @@ function computeProgress(
 }
 
 export async function GET(req: NextRequest) {
-  try {
-    const orderId = req.nextUrl.searchParams.get('orderId');
-    if (!orderId) {
-      return NextResponse.json({ error: 'orderId required' }, { status: 400 });
-    }
+  const orderId = parseOrderIdParam(req);
+  if (!orderId) {
+    return NextResponse.json({ error: 'invalid_order_id' }, { status: 400 });
+  }
 
+  try {
     void sweepStaleGenerationJobs(3);
 
     const order = await prisma.order.findUnique({
@@ -151,7 +161,7 @@ export async function GET(req: NextRequest) {
     });
 
     if (!order) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+      return NextResponse.json({ error: 'order_not_found' }, { status: 404 });
     }
 
     const ts = order.textStatus    as StageStatus;

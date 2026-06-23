@@ -294,29 +294,31 @@ export function assembleStyle01BookReferencesWithZoneSheets(input: {
     setAppearanceBoard: boardPath ? [boardPath] : [],
   };
 
-  let paths = [
+  // Single source of truth for ref ordering AND priority. Protected tier (never trimmed): child
+  // anchor + companion lock + the set-appearance board (the room anchor). Only style refs drop under
+  // budget pressure. Previously the trim loop rebuilt `paths` from a SEPARATE inline array that
+  // omitted setAppearanceBoard, so the moment any style ref was popped the room anchor was silently
+  // evicted ("why did the room change again"). Rebuilding from one function keeps the board in.
+  const rebuildPaths = () => [
     ...breakdown.child,
     ...breakdown.companion,
-    ...breakdown.setAppearanceBoard,
+    ...breakdown.setAppearanceBoard, // PROTECTED — same tier as child/companion identity refs
     ...breakdown.objectAnchors,
     ...breakdown.otherCharacters,
-    ...breakdown.style,
+    ...breakdown.style, // first (and only) tier to drop under budget pressure
   ];
+  let paths = rebuildPaths();
 
   const maxRefs = resolveGPTImageEditMaxReferences();
   while (paths.length > maxRefs && breakdown.style.length > 0) {
     breakdown.style.pop();
-    paths = [
-      ...breakdown.child,
-      ...breakdown.companion,
-      ...breakdown.objectAnchors,
-      ...breakdown.otherCharacters,
-      ...breakdown.style,
-    ];
+    paths = rebuildPaths();
   }
   if (paths.length > maxRefs) {
+    // Out of droppable style refs and still over budget — fail loud rather than silently evict an
+    // identity ref or the room anchor.
     throw new Error(
-      `[style01_refs] reference budget exceeded after explicit set-ref selection (${paths.length}/${maxRefs}) — identity refs must not be evicted`
+      `[style01_refs] reference budget exceeded after explicit set-ref selection (${paths.length}/${maxRefs}) — identity + set-appearance-board refs must not be evicted`
     );
   }
 
