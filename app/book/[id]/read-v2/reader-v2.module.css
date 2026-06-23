@@ -35,7 +35,7 @@
   align-items: center;
   justify-content: center;
   font-size: 24px;
-  z-index: 20;
+  z-index: 40;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.32);
@@ -60,6 +60,37 @@
     background: rgba(52, 42, 34, 0.88);
     color: rgba(255, 248, 235, 0.96);
   }
+}
+
+.handsFreeStartOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 24px;
+  border: none;
+  background: rgba(20, 14, 8, 0.42);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.handsFreeStartLabel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 160px;
+  padding: 16px 28px;
+  border-radius: 999px;
+  background: rgba(255, 248, 235, 0.96);
+  color: #2e2a22;
+  font-size: 1.25rem;
+  font-weight: 700;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
 }
 
 .centerState {

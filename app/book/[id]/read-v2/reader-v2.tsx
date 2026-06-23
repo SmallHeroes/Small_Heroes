@@ -105,6 +105,9 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
   const [isRetrying, setIsRetrying] = useState(false);
   const [isRegeneratingPage, setIsRegeneratingPage] = useState(false);
   const [regenMessage, setRegenMessage] = useState<string | null>(null);
+  /** Browser autoplay policy — one user gesture unlocks hands-free narration for the session. */
+  const [handsFreeUnlocked, setHandsFreeUnlocked] = useState(false);
+  const handsFreeUnlockedRef = useRef(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const autoPlayTimerRef = useRef<number | null>(null);
@@ -165,6 +168,21 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
     },
     [clearAutoAdvanceTimer, clearAutoPlayTimer]
   );
+
+  const unlockHandsFreeSession = useCallback(async () => {
+    if (handsFreeUnlockedRef.current) return;
+    handsFreeUnlockedRef.current = true;
+    setHandsFreeUnlocked(true);
+    const audio = audioRef.current;
+    if (!audio) return;
+    try {
+      await audio.play();
+      audio.pause();
+      audio.currentTime = 0;
+    } catch {
+      // Gesture registered; per-page loads will call play() after unlock.
+    }
+  }, []);
 
   const desktopSpread = useMemo(
     () =>
@@ -236,6 +254,8 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
             ? data.book.audioUrl.trim()
             : null
         );
+        handsFreeUnlockedRef.current = false;
+        setHandsFreeUnlocked(false);
         setStatus('ready');
       } catch {
         setErrorMessage('נכשלה טעינת הספר. נסו שוב בעוד רגע.');
@@ -340,6 +360,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
     const onPause = () => setIsAudioPlaying(false);
     const onEnded = () => {
       setIsAudioPlaying(false);
+      if (!handsFreeUnlockedRef.current) return;
       if (!storytimeAutoAdvanceRef.current) return;
       if (userPausedSceneIdRef.current) return;
       clearAutoAdvanceTimer();
@@ -361,6 +382,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || status !== 'ready') return;
+    if (!handsFreeUnlocked) return;
     if (showEndScreen || showPowerCardScreen) return;
 
     const src = audioSrcForCurrentScene;
@@ -402,6 +424,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
     hasPerPageAudio,
     showEndScreen,
     showPowerCardScreen,
+    handsFreeUnlocked,
     status,
     stopNarration,
   ]);
@@ -409,6 +432,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
   /** No-audio pages: dwell by text length, then storytime auto-advance. */
   useEffect(() => {
     if (status !== 'ready' || showEndScreen || showPowerCardScreen) return;
+    if (!handsFreeUnlocked) return;
     if (!storytimeAutoAdvanceRef.current) return;
     if (isLastPage) return;
     if (userPausedSceneIdRef.current === currentScene?.sceneId) return;
@@ -431,10 +455,14 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
     isLastPage,
     showEndScreen,
     showPowerCardScreen,
+    handsFreeUnlocked,
     status,
   ]);
 
   const toggleAudio = useCallback(async () => {
+    if (!handsFreeUnlockedRef.current) {
+      await unlockHandsFreeSession();
+    }
     const audio = audioRef.current;
     const src = audioSrcForCurrentScene;
     if (!audio || !src) return;
@@ -470,7 +498,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
 
     userPausedSceneIdRef.current = currentScene?.sceneId ?? null;
     audio.pause();
-  }, [audioSrcForCurrentScene, clearAutoAdvanceTimer, clearAutoPlayTimer, currentScene?.sceneId]);
+  }, [audioSrcForCurrentScene, clearAutoAdvanceTimer, clearAutoPlayTimer, currentScene?.sceneId, unlockHandsFreeSession]);
 
   /**
    * RTL book navigation (desktop + keyboard):
@@ -687,6 +715,17 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
       <a href={readyHref} className={styles.closeBtn} aria-label="סגירה" onClick={() => stopNarration()}>
         ×
       </a>
+
+      {status === 'ready' && !handsFreeUnlocked && !showEndScreen && !showPowerCardScreen && (
+        <button
+          type="button"
+          className={styles.handsFreeStartOverlay}
+          onClick={() => void unlockHandsFreeSession()}
+          aria-label="התחלת האזנה אוטומטית"
+        >
+          <span className={styles.handsFreeStartLabel}>▶ התחל</span>
+        </button>
+      )}
 
       {status === 'loading' && <section className={styles.centerState}>פותחים את הספר...</section>}
 
