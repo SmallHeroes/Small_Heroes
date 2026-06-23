@@ -30,7 +30,7 @@ import { evaluatePageAgainstContract, decideGateVerdict } from '../lib/visual-co
 // main() (after the server-only shim) since they pull the render engine.
 
 const STORY_KEY = 'lion_shaket_adventure';
-const PAGES = [1, 2, 6, 11, 12];
+const DEFAULT_PAGES = [1, 2, 6, 11, 12];
 const DEFAULT_CHILD_ANCHOR =
   'https://qvksgpzzosotubcbizay.supabase.co/storage/v1/object/public/book-images/orders/cmqq8j8zm0002la04ofmhxi4n/character-anchors/child-canonical-method-b-a3.png';
 
@@ -47,6 +47,8 @@ async function main() {
   const { observePageForContract } = await import('../lib/visual-contract/contract-vision');
 
   const childAnchor = flag('--childAnchor') || DEFAULT_CHILD_ANCHOR;
+  const pagesArg = flag('--pages');
+  const PAGES = pagesArg ? pagesArg.split(',').map((n) => parseInt(n.trim(), 10)).filter((n) => Number.isFinite(n)) : DEFAULT_PAGES;
   const model = resolveStyle01GptModel();
   const outDir = path.join(process.cwd(), 'outputs', 'visual-contract-calibration', STORY_KEY);
   const pagesDir = path.join(outDir, 'pages');
@@ -66,6 +68,35 @@ async function main() {
   const companionFront = listPublishedCompanionSheetViews('lion_shaket').front ?? null;
   console.log(`[calibrate] companion front sheet: ${companionFront ?? '(none — single image fallback)'}`);
 
+  // --regate: re-run the (tightened) hard gate on EXISTING page images, no re-render.
+  // Used to prove the tightened gate now FAILS the pre-fix armadillo renders.
+  if (process.argv.includes('--regate')) {
+    const reports: Array<Record<string, unknown>> = [];
+    for (const page of PAGES) {
+      const imgPath = path.join(pagesDir, `page-${String(page).padStart(2, '0')}.png`);
+      if (!fs.existsSync(imgPath)) {
+        console.warn(`[regate] page ${page}: no existing image at ${imgPath}`);
+        continue;
+      }
+      const dataUrl = `data:image/png;base64,${fs.readFileSync(imgPath).toString('base64')}`;
+      const obs = await observePageForContract(dataUrl, contract, page);
+      const gate = evaluatePageAgainstContract(contract, page, obs);
+      const byClass = {
+        continuity: gate.failures.filter((f) => f.failureClass === 'continuity').map((f) => f.assertion),
+        entity: gate.failures.filter((f) => f.failureClass === 'entity').map((f) => f.assertion),
+        storytelling: gate.failures.filter((f) => f.failureClass === 'storytelling').map((f) => f.assertion),
+      };
+      console.log(`[regate] page ${page} → ${gate.passed ? 'PASS' : 'FAIL'} ${gate.passed ? '' : JSON.stringify(byClass)}`);
+      reports.push({ page, passed: gate.passed, failuresByClass: byClass, failures: gate.failures });
+    }
+    fs.writeFileSync(
+      path.join(outDir, 'calibration-report-regate.json'),
+      JSON.stringify({ mode: 'regate-existing', pages: reports, passed: reports.filter((r) => r.passed).length, total: reports.length }, null, 2)
+    );
+    console.log(`[regate] ${reports.filter((r) => r.passed).length}/${reports.length} passed (expected: FAILs on the armadillo renders).`);
+    return;
+  }
+
   // ── Generate critical-object reference sheets (one per object/state we use).
   const obj = (id: string) => contract.criticalObjects.find((o) => o.objectId === id)!;
   const sheetSpecs: Array<{ key: string; objectId: string; state: string }> = [
@@ -77,6 +108,12 @@ async function main() {
   ];
   const sheetPath: Record<string, string> = {};
   for (const spec of sheetSpecs) {
+    const cached = path.join(objDir, `${spec.key.replace(/[^a-z0-9]+/gi, '_')}.png`);
+    if (fs.existsSync(cached)) {
+      sheetPath[spec.key] = cached;
+      console.log(`[calibrate] object sheet ${spec.key} → reuse ${path.basename(cached)}`);
+      continue;
+    }
     try {
       const res = await generateObjectReferenceSheet(obj(spec.objectId), spec.state, 'low');
       const p = path.join(objDir, `${spec.key.replace(/[^a-z0-9]+/gi, '_')}.png`);

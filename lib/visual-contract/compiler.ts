@@ -297,6 +297,12 @@ export function compileBookVisualContract(
     }
 
     const mustNotShow: string[] = ['duplicate/clone of the child', 'photoreal cutout (must be illustrated)'];
+    // No uninvited creatures (the calibration armadillo): only the declared companion may appear.
+    mustNotShow.push(
+      present && companionLock
+        ? `any animals or creatures other than the companion ${companionLock.companionId}`
+        : 'any animals, pets, or creatures of any kind'
+    );
     if (present && companionLock?.characterScaleLock.neverAdultOrGiant) {
       mustNotShow.push('adult or giant lion (companion must stay a small cub)');
     }

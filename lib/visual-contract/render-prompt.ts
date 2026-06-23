@@ -29,6 +29,17 @@ export function buildCalibrationPagePrompt(
   lines.push(`Emotional tone: ${pc.emotionalBeat.replace(/_/g, ' ')}.`);
   lines.push(`Show exactly ONE child named ${childName} (the protagonist), illustrated — never a photo or photoreal cutout, never duplicated/cloned.`);
 
+  // Hard cast allow-list — gpt-image tends to add an uninvited "default pet" (an armadillo
+  // showed up across calibration); name it explicitly and forbid any other creature.
+  const cast =
+    pc.companion.present && contract.companionLock
+      ? `the child and the small ${contract.companionLock.species ?? 'companion'} cub`
+      : 'the child only';
+  lines.push(
+    `The ONLY living characters allowed anywhere in the image — including the background — are: ${cast}. ` +
+      `Do NOT add any other animal, pet, armadillo, rodent, or bird; no extra creatures of any kind.`
+  );
+
   if (pc.companion.present && contract.companionLock) {
     const lock = contract.companionLock;
     lines.push(

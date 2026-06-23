@@ -68,6 +68,13 @@ describe('VisualContractCompiler — Leo (lion_shaket_adventure)', () => {
     expect(gate.stateTimeline.find((s) => s.page === 11)?.state).toMatch(/open/);
   });
 
+  it('forbids uninvited creatures on every page (armadillo finding)', () => {
+    const p1 = contract.pageContracts.find((p) => p.page === 1)!; // companion absent
+    expect(p1.mustNotShow.join(' ').toLowerCase()).toMatch(/animals.*creatures|creatures of any kind/);
+    const p11 = contract.pageContracts.find((p) => p.page === 11)!; // companion present
+    expect(p11.mustNotShow.join(' ').toLowerCase()).toMatch(/other than the companion/);
+  });
+
   it('is render-ready with confidence above the fail-closed bar', () => {
     expect(contract.renderReady).toBe(true);
     expect(contract.renderReadyBlockers).toEqual([]);
@@ -141,6 +148,35 @@ describe('Visual Contract hard gate — three failure classes', () => {
     const cont = r.failures.filter((f) => f.failureClass === 'continuity').map((f) => f.assertion);
     expect(cont).toContain('scene_mismatch');
     expect(cont).toContain('object_identity_confusion');
+  });
+
+  it('ENTITY: an uninvited creature on a companion-absent page is now a HARD fail', () => {
+    // p1: companion absent. An animal present (the armadillo) must hard-fail entity.
+    const obs = { sceneId: 'bedroom', childCount: 1, photoreal: false, companion: { present: true, smallCub: null, species: 'armadillo' }, objects: {}, mustShowSatisfied: ['protagonist:child'], mustNotShowViolations: [] };
+    const r = evaluatePageAgainstContract(contract, 1, obs);
+    const entity = r.failures.filter((f) => f.failureClass === 'entity').map((f) => f.assertion);
+    expect(entity).toContain('unexpected_companion');
+    expect(r.passed).toBe(false);
+  });
+
+  it('CONTINUITY: a portal-transition page (p2) accepts bedroom OR fantasy_exterior scene', () => {
+    const p2 = contract.pageContracts.find((p) => p.page === 2)!;
+    const objects: Record<string, { present: boolean; correctScale: boolean; correctState: boolean; confusedWith: null }> = {};
+    for (const oid of p2.mustShow.filter((m) => m.startsWith('object:')).map((m) => m.slice('object:'.length))) {
+      objects[oid] = { present: true, correctScale: true, correctState: true, confusedWith: null };
+    }
+    const obs: PageVisionObservation = {
+      sceneId: 'bedroom', // vision sees the room floor; contract labels it fantasy_exterior
+      childCount: 1,
+      photoreal: false,
+      companion: null,
+      objects,
+      mustShowSatisfied: p2.mustShow.filter((m) => !m.startsWith('object:')),
+      mustNotShowViolations: [],
+    };
+    const r = evaluatePageAgainstContract(contract, 2, obs);
+    expect(r.failures.filter((f) => f.assertion === 'scene_mismatch')).toHaveLength(0);
+    expect(r.passed).toBe(true);
   });
 
   it('STORYTELLING: flags the missing central action (roar-line) and rerolls then fails', () => {

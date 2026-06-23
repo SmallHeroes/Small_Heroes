@@ -49,7 +49,7 @@ export type GateVerdict = 'accept' | 'reroll' | 'fail';
 
 function classifyMustNot(s: string): FailureClass {
   const l = s.toLowerCase();
-  if (/clone|duplicate|photoreal|adult|giant|lion/.test(l)) return 'entity';
+  if (/clone|duplicate|photoreal|adult|giant|lion|animal|creature|\bpet\b|companion/.test(l)) return 'entity';
   if (/gate|portal|bedroom|kingdom|furniture|scene/.test(l)) return 'continuity';
   return 'storytelling';
 }
@@ -68,12 +68,23 @@ export function evaluatePageAgainstContract(
   }
 
   // ── continuity: scene + critical objects (identity/scale/state).
+  // "return" is the SAME physical room as "bedroom" — treat them as equivalent so a clean
+  // return page isn't false-flagged when vision reports "bedroom".
+  const normScene = (s: string) => (s === 'return' ? 'bedroom' : s);
   const expectedScene = contract.worldStateByPage[String(page)];
-  if (obs.sceneId && expectedScene && obs.sceneId !== expectedScene) {
+  // A golden_sand_portal page is a TRANSITION (portal opens on the room floor while the
+  // fantasy world emerges) — accept either the room or the fantasy exterior there.
+  const isPortalTransition = pc.mustShow.includes('object:golden_sand_portal');
+  const acceptableScenes = new Set<string>(expectedScene ? [normScene(expectedScene)] : []);
+  if (isPortalTransition) {
+    acceptableScenes.add('bedroom');
+    acceptableScenes.add('fantasy_exterior');
+  }
+  if (obs.sceneId && expectedScene && !acceptableScenes.has(normScene(obs.sceneId))) {
     failures.push({
       failureClass: 'continuity',
       assertion: 'scene_mismatch',
-      detail: `expected sceneId="${expectedScene}", observed "${obs.sceneId}"`,
+      detail: `expected sceneId="${expectedScene}"${isPortalTransition ? ' (portal transition)' : ''}, observed "${obs.sceneId}"`,
     });
   }
   const requiredObjectIds = pc.mustShow
@@ -120,7 +131,13 @@ export function evaluatePageAgainstContract(
       }
     }
   } else if (obs.companion?.present === true) {
-    warnings.push({ failureClass: 'entity', assertion: 'unexpected_companion', detail: 'companion present on a no-companion page' });
+    // An uninvited creature on a companion-absent page is a HARD entity failure
+    // (the calibration armadillo) — not a warning.
+    failures.push({
+      failureClass: 'entity',
+      assertion: 'unexpected_companion',
+      detail: 'an animal/creature is present on a page where no companion is allowed',
+    });
   }
 
   // ── storytelling: non-object mustShow satisfied + mustNotShow not violated.
