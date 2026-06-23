@@ -490,6 +490,13 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
         `[anchor_stage0_attempt] orderId=${order.id} method=B attempt=${attempt}/${maxAnchorAttempts} ` +
           `score=${result.resemblanceScore.toFixed(3)} embeddingVerdict=${result.embeddingVerdict}`
       );
+      // Persist candidates incrementally so a transient blip (upload/fetch) on a LATER
+      // attempt does not discard anchors already generated this run. The Stage-0 recovery
+      // path (pickStage0Candidate / attachPendingChildAnchorFromCandidate) resumes from
+      // these on the next retry instead of re-spending GPT image generation from scratch.
+      nextCache.stage0AnchorCandidates = [...candidateRows];
+      nextCache.stage0AnchorPrompt = anchorPrompt;
+      await saveCache(order.id, nextCache);
     }
     if (!bestResult) {
       throw new Error('ANCHOR_QA_BLOCK: no anchor candidates generated');
