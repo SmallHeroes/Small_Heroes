@@ -4,6 +4,7 @@
  * Integrate with Resend, SendGrid, or Nodemailer.
  */
 import { EMAIL } from '@/content';
+import { buildOtpLoginEmail } from '@/backend/lib/otp-login-email';
 
 export interface BookReadyEmailData {
   to: string;
@@ -47,19 +48,7 @@ async function sendOtpWithResend(data: OtpEmailData): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error('RESEND_API_KEY not set');
 
-  const html = `
-<!DOCTYPE html>
-<html dir="rtl" lang="he">
-<head><meta charset="UTF-8" /></head>
-<body style="font-family: Arial, sans-serif; background:#F9F7FF; margin:0; padding:24px;">
-  <div style="max-width:480px; margin:0 auto; background:#fff; border-radius:16px; padding:28px;">
-    <h2 style="margin:0 0 12px; color:#7C3AED;">קוד הכניסה שלך לגיבורים קטנים</h2>
-    <p style="margin:0 0 12px; color:#4B5563;">הכניסו את הקוד הבא כדי להתחבר:</p>
-    <div style="font-size:32px; font-weight:700; letter-spacing:4px; color:#111827; margin:8px 0 14px;">${data.code}</div>
-    <p style="margin:0; color:#6B7280; font-size:14px;">הקוד בתוקף ל-10 דקות.</p>
-  </div>
-</body>
-</html>`;
+  const email = buildOtpLoginEmail(data.code);
 
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -68,10 +57,11 @@ async function sendOtpWithResend(data: OtpEmailData): Promise<void> {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: EMAIL.from,
+      from: email.from,
       to: [data.to],
-      subject: 'קוד כניסה לגיבורים קטנים',
-      html,
+      subject: email.subject,
+      html: email.html,
+      text: email.text,
     }),
   });
 
@@ -79,7 +69,7 @@ async function sendOtpWithResend(data: OtpEmailData): Promise<void> {
     const bodyText = await res.text().catch(() => '');
     console.error('[auth][resend] OTP send failed', {
       status: res.status,
-      from: EMAIL.from,
+      from: email.from,
       to: data.to,
       body: bodyText.slice(0, 500),
     });
