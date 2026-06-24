@@ -228,7 +228,7 @@ const CONTENT = {
           titleFallback: 'כמה מילים על הגיבור/ה שלכם',
           titleTemplate: 'כמה מילים על {name}',
           sub: 'לא חובה — אבל זה יכול להפוך את הספר להרבה יותר אישי.',
-          strengthQ: 'מה אתם אוהבים במיוחד ב{name}?',
+          strengthQ: 'מה הכי מאפיין אותו/ה?',
           feelingQ: 'איך הייתם רוצים ש{name} ירגיש בסוף הסיפור?',
           skipCta: 'אפשר להמשיך גם בלי זה',
         },
@@ -301,19 +301,6 @@ const CONTENT = {
           includesLine: 'כל חבילה כוללת: ספר דיגיטלי מאויר · קריינות מקצועית · PDF להדפסה · כרטיס כוח אישי',
           ctaChoose: 'לבחירה',
           ctaSelected: 'זו הבחירה שלי',
-          powerCardPreview: {
-            title: 'כרטיס הכוח של {name}',
-            subtitle: 'ארבעה צעדים קטנים שאפשר לחזור אליהם גם אחרי הסיפור',
-            steps: [
-              'נושמ/ת עמוק ומקשיב/ה לעצמי',
-              'נותן/ת שם לרגש או לצל',
-              'בוחר/ת צעד קטן אחד',
-              'זוכר/ת שיש לי חבר/ה לצד',
-            ],
-            reminder: 'צעד קטן אחד — זה מספיק.',
-            companionFallback: 'החבר/ה שלכם',
-            childFallback: 'הגיבור/ה',
-          },
         },
 
         /* ── Step 9 — Summary + Payment ─────────────────── */
@@ -423,8 +410,10 @@ const CONTENT = {
       productPackages: [
         {
           id: 'bedtime',
+          kicker: 'סיפור לפני שינה',
+          featured: false,
           productName: 'ספר לילה טוב אישי',
-          tagline: 'סיפור קצר, רגוע ומחבק לפני השינה.',
+          tagline: 'לילד שצריך רגיעה לפני שינה — סיפור שקט, מסר ברור, ואווירה מרגיעה.',
           pages: 16,
           priceILS: 59,
           bestFor: [
@@ -443,8 +432,11 @@ const CONTENT = {
         },
         {
           id: 'adventure',
+          kicker: 'הרפתקה',
+          featured: true,
+          launchBadge: 'בחירת ההשקה',
           productName: 'הרפתקה אישית',
-          tagline: 'מסע אישי עם אתגר, פעולה וחבר מלווה.',
+          tagline: 'לילד שצריך אומץ מול משהו חדש או מפחיד — הרפתקה עם התפתחות רגשית.',
           pages: 24,
           priceILS: 79,
           bestFor: [
@@ -464,8 +456,10 @@ const CONTENT = {
         },
         {
           id: 'fantasy',
+          kicker: 'פנטזיה',
+          featured: false,
           productName: 'ספר פנטזיה אישי',
-          tagline: 'ספר קסום ועשיר עם עולם מלא ודמיון גדול.',
+          tagline: 'לילד עם דמיון עשיר — עולם פנטזיה מלא, עומק ורגעים שנבנים לאט.',
           pages: 32,
           priceILS: 99,
           bestFor: [
@@ -504,13 +498,13 @@ const CONTENT = {
       ],
 
       voices: [
-        { id: 'mom',         label: 'אמא',         emoji: '👩' },
-        { id: 'dad',         label: 'אבא',         emoji: '👨' },
-        { id: 'grandma',     label: 'סבתא',        emoji: '👵' },
-        { id: 'dad_thick',   label: 'אבא עם קול עבה',  emoji: '👨' },
-        { id: 'big_sister',  label: 'אחות גדולה',      emoji: '👧' },
-        { id: 'big_brother', label: 'אח גדול',     emoji: '🧒' },
-        { id: 'fairy',       label: 'פייה קסומה',  emoji: '🧚' },
+        { id: 'mom',         label: 'אמא',         emoji: '👩', sampleUrl: '/voice-samples/mom.mp3' },
+        { id: 'dad',         label: 'אבא',         emoji: '👨', sampleUrl: '/voice-samples/dad.mp3' },
+        { id: 'grandma',     label: 'סבתא',        emoji: '👵', sampleUrl: '/voice-samples/grandma.mp3' },
+        { id: 'dad_thick',   label: 'אבא עם קול עבה',  emoji: '👨', sampleUrl: '/voice-samples/dad_thick.mp3' },
+        { id: 'big_sister',  label: 'אחות גדולה',      emoji: '👧', sampleUrl: '/voice-samples/big_sister.mp3' },
+        { id: 'big_brother', label: 'אח גדול',     emoji: '🧒', sampleUrl: '/voice-samples/big_brother.mp3' },
+        { id: 'fairy',       label: 'פייה קסומה',  emoji: '🧚', sampleUrl: '/voice-samples/fairy.mp3' },
       ],
 
       summary: {

@@ -647,18 +647,6 @@ function getCompanionImageForSummary() {
   return '';
 }
 
-function getCompanionNameForPreview() {
-  const cat = state.challengeCategory;
-  const companionId = state.companionCharacterId;
-  if (cat && companionId && globalThis.COMPANIONS_BY_CATEGORY?.[cat]) {
-    const found = globalThis.COMPANIONS_BY_CATEGORY[cat].find((c) => c.id === companionId);
-    if (found?.name) return found.name;
-  }
-  const slot = getMvpSlotForTopic(state.topic);
-  if (slot?.companion?.name) return slot.companion.name;
-  return WIZ.steps.product?.powerCardPreview?.companionFallback || 'החבר/ה שלכם';
-}
-
 function ensureDefaultStyleSelection() {
   if (state.style && normalizeClientStyleId(state.style) === 'detailed_whimsical_world') {
     state.style = null;
@@ -1181,7 +1169,6 @@ function init() {
   renderSuperpowerChips();
   renderGoalsChips();
   renderProductCards();
-  renderWizardPowerCardPreview();
   renderStyleStepGrid();
   renderVoiceBtns();
   bindPhotoUploadInteractions();
@@ -1270,7 +1257,6 @@ function initWizardContent() {
   // Step 8 — product
   setText('productTitle', WIZ.steps.product?.title || '');
   setText('productSub',   WIZ.steps.product?.sub || '');
-  setText('productIncludesLine', WIZ.steps.product?.includesLine || '');
   setText('bottomBarTotalLabel', 'סה"כ:');
 
   // Step 7 — book + dedication
@@ -1438,7 +1424,6 @@ function updateUI() {
 
   if (state.currentStep === 8) {
     renderProductCards();
-    renderWizardPowerCardPreview();
     refreshTotal();
     syncProductTruthFromServer();
   }
@@ -1806,6 +1791,7 @@ function renderGoalsChips() {
   if (!wrap) return;
   wrap.innerHTML = '';
   (WIZ.goals || []).forEach((g) => {
+    if (g.id === 'other') return;
     const d = document.createElement('div');
     d.className = 'chip';
     if ((state.goals || []).indexOf(g.label) > -1) d.classList.add('selected');
@@ -1919,15 +1905,9 @@ function restorePhotoQualityFromStorage() {
       ) {
         state.photoQuality = parsed.photoQuality;
       }
-      updatePhotoHeroTitle();
-      renderPhotoQualityMessage();
+      updatePhotoQualityMessage();
     }
   } catch (_) {}
-}
-
-function updatePhotoHeroTitle() {
-  const t = document.getElementById('photo-hero-title');
-  if (t) t.hidden = !state.photo;
 }
 
 function renderPhotoUploadArea() {
@@ -2007,14 +1987,12 @@ function clearPhotoQualityState() {
   };
   savePhotoQualityToStorage();
   renderPhotoUploadArea();
-  updatePhotoHeroTitle();
   renderPhotoQualityMessage();
 }
 
 function renderPhotoQualityMessage() {
   const box = document.getElementById('photo-quality-message');
   if (!box) return;
-  updatePhotoHeroTitle();
 
   if (!state.photo) {
     box.hidden = false;
@@ -2277,47 +2255,6 @@ async function handlePhoto(e) {
 }
 
 /* ── STEP 8: PRODUCT CARDS ───────────────────────────────────── */
-function renderWizardPowerCardPreview() {
-  const el = document.getElementById('wizard-power-card-preview');
-  if (!el) return;
-
-  const preview = WIZ.steps.product?.powerCardPreview;
-  if (!preview) {
-    el.innerHTML = '';
-    return;
-  }
-
-  const companionImg = getCompanionImageForSummary();
-  const companionName = getCompanionNameForPreview();
-  const steps = Array.isArray(preview.steps) ? preview.steps : [];
-  const childName = resolveWizardChildName() || preview.childFallback || 'הגיבור/ה';
-
-  el.innerHTML = `
-    <article class="wizard-tips-card" aria-label="דוגמה לכרטיס כוח">
-      <header class="wizard-tips-card-brand">גיבורים קטנים</header>
-      <div class="wizard-tips-card-hero">
-        ${
-          companionImg
-            ? `<div class="wizard-tips-card-avatar"><img src="${companionImg}" alt="" loading="lazy" /></div>`
-            : ''
-        }
-        <h3 class="wizard-tips-card-title">${(preview.title || '').replace('{name}', childName)}</h3>
-        <p class="wizard-tips-card-sub">${preview.subtitle || ''}</p>
-      </div>
-      <ol class="wizard-tips-card-steps" aria-label="ארבעה צעדים">
-        ${steps
-          .map(
-            (step, index) =>
-              `<li><span class="wizard-tips-card-step-num" aria-hidden="true">${index + 1}.</span><span class="wizard-tips-card-step-text">${step.replace('{name}', childName)}</span></li>`,
-          )
-          .join('')}
-      </ol>
-      <p class="wizard-tips-card-reminder">&ldquo;${(preview.reminder || '').replace('{name}', childName)}&rdquo;</p>
-      <p class="wizard-tips-card-attribution">— ${companionName}</p>
-    </article>
-  `;
-}
-
 function renderProductCards() {
   const wrap = document.getElementById('product-cards');
   if (!wrap) return;
@@ -2342,17 +2279,26 @@ function renderProductCards() {
     card.className =
       'product-card' +
       (selected ? ' selected' : '') +
+      (pkg.featured ? ' product-card--featured' : '') +
       (comingSoon ? ' product-card-coming-soon' : '');
     card.setAttribute('data-product', pkg.id);
+
+    const includesHtml = (pkg.includes || [])
+      .map((item) => `<li>${item.label}</li>`)
+      .join('');
 
     const ctaLabel = selected
       ? (copy.ctaSelected || 'זו הבחירה שלי')
       : (copy.ctaChoose || 'לבחירה');
 
     card.innerHTML = `
+      ${pkg.launchBadge ? `<span class="product-card-pill product-card-pill--floating">${pkg.launchBadge}</span>` : ''}
       ${comingSoon ? '<span class="product-card-coming-soon-badge">בקרוב</span>' : ''}
+      <span class="product-card-kicker">${pkg.kicker || ''}</span>
       <span class="product-card-name">${pkg.productName || pkg.id}</span>
       <span class="product-card-pages">${pkg.pages} עמודים</span>
+      <p class="product-card-desc">${pkg.tagline || ''}</p>
+      <ul class="product-card-includes" aria-label="מה כלול בחבילה">${includesHtml}</ul>
       <span class="product-card-price">₪<span class="product-card-price-digits">${pkg.priceILS}</span></span>
       <span class="product-card-cta">${ctaLabel}</span>
     `;
@@ -2432,46 +2378,133 @@ function renderStyleStepGrid() {
 }
 
 /* ── STEP 6: VOICE BUTTONS ───────────────────────────────────── */
+let voicePreviewAudio = null;
+let voicePreviewPlayingId = null;
+
+function resetVoicePreviewButtons() {
+  document.querySelectorAll('.voice-play-btn').forEach((btn) => {
+    btn.classList.remove('is-loading', 'is-playing');
+    btn.textContent = '▶';
+    btn.disabled = false;
+  });
+}
+
+function stopVoicePreview() {
+  if (voicePreviewAudio) {
+    voicePreviewAudio.pause();
+    voicePreviewAudio = null;
+  }
+  voicePreviewPlayingId = null;
+  resetVoicePreviewButtons();
+}
+
 function renderVoiceBtns() {
-  const wrap = document.getElementById("voice-btns");
+  const wrap = document.getElementById('voice-btns');
   if (!wrap) return;
 
-  wrap.innerHTML = "";
+  stopVoicePreview();
+  wrap.innerHTML = '';
+
+  const previewLabel = WIZ.steps.voice?.voicePreview || 'האזינו לדוגמה';
 
   VOICES.forEach((v) => {
-    const btn = document.createElement("button");
-    btn.type      = "button";
-    btn.className = "voice-btn" + (v.id === state.voice ? " selected" : "");
-    btn.id        = "voice-" + v.id;
+    const card = document.createElement('div');
+    card.className = 'voice-btn' + (v.id === state.voice ? ' selected' : '');
+    card.id = 'voice-' + v.id;
+    card.setAttribute('role', 'button');
+    card.tabIndex = 0;
 
-    btn.innerHTML = `
+    const playBtn = document.createElement('button');
+    playBtn.type = 'button';
+    playBtn.className = 'voice-play-btn';
+    playBtn.title = previewLabel;
+    playBtn.setAttribute('aria-label', `${previewLabel} — ${v.label}`);
+    playBtn.textContent = '▶';
+
+    card.innerHTML = `
       <span class="voice-btn-emoji">${v.emoji}</span>
       <span class="voice-btn-label">${v.label}</span>
-      <span class="voice-play-btn" title="${WIZ.steps.voice?.voicePreview || 'האזינו לדוגמה'}" aria-hidden="true">▶</span>
     `;
+    card.appendChild(playBtn);
 
-    btn.addEventListener("click", () => {
-      document.querySelectorAll(".voice-btn").forEach((b) => b.classList.remove("selected"));
-
-      btn.classList.add("selected");
+    const selectVoice = () => {
+      document.querySelectorAll('.voice-btn').forEach((b) => b.classList.remove('selected'));
+      card.classList.add('selected');
       state.voice = v.id;
       queueWizardSave();
+    };
+
+    card.addEventListener('click', selectVoice);
+    card.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        selectVoice();
+      }
     });
 
-    const playBtn = btn.querySelector(".voice-play-btn");
-    if (playBtn) {
-      playBtn.addEventListener("click", (event) => {
-        event.stopPropagation();
-        playVoicePreview(v.id);
-      });
-    }
+    playBtn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      playVoicePreview(v.id);
+    });
 
-    wrap.appendChild(btn);
+    wrap.appendChild(card);
   });
 }
 
 function playVoicePreview(voiceId) {
-  // TODO: implement voice preview playback
+  const voice = VOICES.find((v) => v.id === voiceId);
+  if (!voice?.sampleUrl) return;
+
+  const playBtn = document.querySelector(`#voice-${voiceId} .voice-play-btn`);
+  if (!playBtn) return;
+
+  if (voicePreviewPlayingId === voiceId && voicePreviewAudio && !voicePreviewAudio.paused) {
+    stopVoicePreview();
+    return;
+  }
+
+  stopVoicePreview();
+
+  const audio = new Audio(voice.sampleUrl);
+  voicePreviewAudio = audio;
+  voicePreviewPlayingId = voiceId;
+
+  playBtn.classList.add('is-loading');
+  playBtn.textContent = '…';
+  playBtn.disabled = true;
+
+  const finish = () => {
+    if (voicePreviewPlayingId === voiceId) {
+      stopVoicePreview();
+    }
+  };
+
+  audio.addEventListener(
+    'ended',
+    () => {
+      finish();
+    },
+    { once: true },
+  );
+  audio.addEventListener(
+    'error',
+    () => {
+      finish();
+    },
+    { once: true },
+  );
+
+  audio
+    .play()
+    .then(() => {
+      playBtn.classList.remove('is-loading');
+      playBtn.classList.add('is-playing');
+      playBtn.textContent = '❚❚';
+      playBtn.disabled = false;
+    })
+    .catch(() => {
+      finish();
+    });
 }
 
 /* ── STEP 8: SLEEP TOGGLE ────────────────────────────────────── */
