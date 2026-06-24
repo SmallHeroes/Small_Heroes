@@ -1,0 +1,47 @@
+name: staging-generation-sweep
+
+# INSTALL: copy this file to .github/workflows/staging-generation-sweep.yml on a branch pushed
+# with a workflow-scoped token (Guy / repo admin), then add the repo secrets below. It lives under
+# scripts/ci/ here only because the token used to open this PR lacks GitHub `workflow` scope.
+#
+# WHY: Vercel preview/staging crons DO NOT run, so nothing reclaims a stalled chunked
+# generation job once browser status-polling stops. This external scheduler hits the durable
+# sweep endpoint (Authorization: Bearer CRON_SECRET) so expired leases are reclaimed.
+#
+# GitHub's scheduled-cron floor is ~5 min, so we schedule every 5 min and loop 5x at 60s inside
+# the job to approximate a 1-minute cadence. This is the IMMEDIATE fix; the DURABLE follow-up is a
+# real queue (QStash / Inngest). Prod uses the Vercel cron in vercel.json — this targets staging.
+#
+# Required repo secrets:
+#   STAGING_SWEEP_URL  e.g. https://<staging-deployment>/api/generate/cron/sweep
+#   CRON_SECRET        same value as the staging CRON_SECRET env var
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: staging-generation-sweep
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Hit the sweep endpoint every ~minute
+        env:
+          SWEEP_URL: ${{ secrets.STAGING_SWEEP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -u
+          if [ -z "${SWEEP_URL}" ] || [ -z "${CRON_SECRET}" ]; then
+            echo "STAGING_SWEEP_URL / CRON_SECRET not set — skipping (configure repo secrets)."
+            exit 0
+          fi
+          for i in 1 2 3 4 5; do
+            code=$(curl -s -o /tmp/sweep_out -w "%{http_code}" \
+              -H "Authorization: Bearer ${CRON_SECRET}" "${SWEEP_URL}" || echo "000")
+            echo "sweep attempt ${i}/5 -> HTTP ${code}: $(cat /tmp/sweep_out 2>/dev/null | head -c 300)"
+            if [ "${i}" -lt 5 ]; then sleep 60; fi
+          done
