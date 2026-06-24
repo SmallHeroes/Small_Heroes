@@ -124,6 +124,7 @@ export async function GET(req: NextRequest) {
       select: {
         id:            true,
         status:        true,
+        childName:     true,
         audioEnabled:  true,
         storyLength:   true,
         storyDirection: true,
@@ -188,6 +189,7 @@ export async function GET(req: NextRequest) {
 
     const body: Record<string, unknown> = {
       status:       order.status,
+      childName:    order.childName,
       progress,
       currentStage: order.generationJob?.currentStage ?? currentStage,
       jobStage: order.generationJob?.currentStage ?? null,
