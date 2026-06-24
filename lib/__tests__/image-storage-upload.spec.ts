@@ -59,7 +59,10 @@ describe('uploadOrderSubpathAsset — serverless-hardened upload', () => {
     expect(post.url).toContain('/storage/v1/object/book-images/orders/o1/character-anchors/');
     expect(post.headers!['x-upsert']).toBe('true');
     expect(post.headers!['Content-Length']).toBe(String(args.buffer.length));
-    expect(post.headers!['Authorization']).toContain('service-role-test-key');
+    // The storage gateway needs BOTH headers as the service-role JWT — omitting `apikey`
+    // caused 403 "Invalid Compact JWS" on every write (root cause 2026-06-23).
+    expect(post.headers!['apikey']).toBe('service-role-test-key');
+    expect(post.headers!['Authorization']).toBe('Bearer service-role-test-key');
   });
 
   it('upload times out (object stored server-side) → exists-check HEAD ok → treated as success', async () => {
