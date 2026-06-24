@@ -264,7 +264,7 @@
   margin: 0;
   font-family: var(--font-book-display);
   font-weight: var(--book-display-weight, 500);
-  font-size: 18px;
+  font-size: 36px;
   line-height: 1.2;
   color: #fff9f0;
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.55), 0 1px 3px rgba(0, 0, 0, 0.45);
@@ -272,7 +272,7 @@
 
 @media (min-width: 1024px) {
   .coverDisplayTitle {
-    font-size: 20px;
+    font-size: 48px;
   }
 }
 
@@ -334,7 +334,7 @@
   direction: rtl;
   text-align: right;
   font-family: var(--reader-font-stack);
-  font-size: 20px;
+  font-size: 16px;
   line-height: 1.55;
   font-weight: 500;
   letter-spacing: 0.01em;
@@ -412,7 +412,7 @@
   text-align: right;
   font-family: var(--font-book-prose);
   font-weight: var(--book-prose-weight, 400);
-  font-size: 21px;
+  font-size: 16px;
   line-height: 1.6;
   color: #2e2a22;
   white-space: normal;
@@ -870,7 +870,7 @@
 
 .mobileBodyText {
   font-family: var(--reader-font-stack);
-  font-size: clamp(15px, 4.5vw, 22px);
+  font-size: 16px;
   line-height: 1.5;
   font-weight: 500;
   color: #393123;
@@ -937,7 +937,7 @@
 
   .spreadTextLine {
     font-family: var(--reader-font-stack);
-    font-size: clamp(20px, 1.5vw, 24px);
+    font-size: 20px;
     line-height: 1.55;
     font-weight: 400;
     /* Warm dark brown — feels like ink on warm paper, not harsh black */
@@ -1267,6 +1267,27 @@
 }
 
 @media (min-width: 1024px) {
+  .overlayPageText,
+  .paperPageText {
+    font-size: 20px;
+  }
+
+  .rootReaderReady .openBookFrame .proseBody,
+  .rootReaderReady .openBookFrame .proseLine,
+  .rootReaderReady .openBookFrame .openTextSafe .storyText,
+  .rootReaderReady .openBookFrame .wideTextOverlay .proseLine {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 1023px) {
+  .rootReaderReady .mobileScene .mobileTextOverlay .sentence,
+  .rootReaderReady .mobileScene .mobileProse {
+    font-size: 16px;
+  }
+}
+
+@media (min-width: 1024px) {
   .rootReaderReady {
     background: #1f1a17;
     color: rgba(255, 248, 235, 0.92);
@@ -1533,7 +1554,7 @@
   min-width: 0;
   margin-inline: auto;
   font-family: var(--font-book-prose);
-  font-size: 18px;
+  font-size: 20px;
   font-weight: var(--book-prose-weight, 400);
   line-height: 1.5;
   letter-spacing: 0.02em;
@@ -1578,7 +1599,7 @@
 
 .proseBody {
   font-family: var(--font-book-prose);
-  font-size: var(--book-body-desktop, 24px);
+  font-size: var(--book-body-desktop, 20px);
   font-weight: var(--book-prose-weight, 400);
   line-height: var(--book-line-height, 1.6);
   letter-spacing: 0.02em;
@@ -1614,7 +1635,7 @@
 .wideTextOverlay .proseLine {
   font-family: var(--font-book-prose);
   font-weight: var(--book-prose-weight, 400);
-  font-size: var(--book-body-desktop, 22px);
+  font-size: var(--book-body-desktop, 20px);
 }
 
 /* Illustration loading / failure */
@@ -1724,7 +1745,7 @@
 .mobileTextOverlay .sentence {
   margin: 0 0 0.6em 0;
   font-family: var(--font-book-prose);
-  font-size: 21px;
+  font-size: 16px;
   line-height: 1.6;
   font-weight: var(--book-prose-weight, 400);
   color: #ffffff;
@@ -1739,7 +1760,7 @@
 .mobileProse {
   margin: 0;
   font-family: var(--font-book-prose);
-  font-size: var(--book-body-mobile, 22px);
+  font-size: var(--book-body-mobile, 16px);
   line-height: var(--book-line-height, 1.6);
   font-weight: var(--book-prose-weight, 400);
   color: #ffffff;
