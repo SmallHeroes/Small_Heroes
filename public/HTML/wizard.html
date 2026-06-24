@@ -128,19 +128,17 @@
     <!-- ── Step 4 — Hero notes (optional) ────────────────────── -->
     <div class="step step--hero-notes" id="step-4">
       <p class="step-microcopy" id="heroNotesMicro"></p>
-      <div class="hero-notes-card">
-        <h2 class="step-title hero-notes-card-title" id="heroNotesTitle"></h2>
-        <p class="step-sub hero-notes-card-sub" id="heroNotesSub"></p>
-        <div class="hero-notes-block">
-          <p class="hero-notes-q" id="heroNotesStrengthQ"></p>
-          <div class="trait-chips-wrap" id="hero-superpower-chips"></div>
-        </div>
-        <div class="hero-notes-block hero-notes-block--inner">
-          <p class="hero-notes-q" id="heroNotesFeelingQ"></p>
-          <div class="chips-wrap" id="hero-goals-chips"></div>
-        </div>
-        <button type="button" class="hero-notes-skip" onclick="goNext()">אפשר להמשיך גם בלי זה</button>
+      <h2 class="step-title" id="heroNotesTitle"></h2>
+      <p class="step-sub" id="heroNotesSub"></p>
+      <div class="hero-notes-block">
+        <p class="hero-notes-q" id="heroNotesStrengthQ"></p>
+        <div class="trait-chips-wrap" id="hero-superpower-chips"></div>
       </div>
+      <div class="hero-notes-block">
+        <p class="hero-notes-q" id="heroNotesFeelingQ"></p>
+        <div class="chips-wrap" id="hero-goals-chips"></div>
+      </div>
+      <button type="button" class="hero-notes-skip" onclick="goNext()">אפשר להמשיך גם בלי זה</button>
     </div>
 
     <!-- ── Step 5 — Style ──────────────────────────────────── -->
@@ -180,7 +178,7 @@
         <div class="form-hint" id="sBookNameHint"></div>
       </div>
 
-      <h3 class="step-title" style="font-size:clamp(22px,3vw,32px);margin-bottom:8px;">
+      <h3 class="step-section-label">
         <span id="dedicationHeading"></span>
         <span class="optional-badge" id="dedicationOptionalBadge"></span>
       </h3>
@@ -257,7 +255,7 @@
   <script src="/JS/analytics.js"></script>
   <script src="/JS/client-api.js"></script>
   <script src="/JS/child-photo-client.js"></script>
-  <script src="/JS/wizard.js?v=wizard-start-handoff-v2"></script>
+  <script src="/JS/wizard.js?v=wizard-mobile-cleanup-v1"></script>
 </body>
 
 </html>
