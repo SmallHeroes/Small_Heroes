@@ -100,8 +100,18 @@ export type PipelineCache = {
       updatedAt: string;
     }
   >;
-  /** Set true after explicit human/dev anchor approval (CHILD_ANCHOR_REVIEW_OK or API). */
+  /**
+   * Set true once the child anchor is accepted for page generation — via auto-accept
+   * (best-of-N >= soft threshold), the dev/QA override, or accept-best-and-flag after
+   * the regenerate budget is spent. Anchors are never left in a customer dead-end.
+   */
   childAnchorApproved?: boolean;
+  /**
+   * True when the accepted anchor was below the auto-accept soft threshold after the
+   * regenerate budget was exhausted (accepted as best-available). Flags the order for
+   * asynchronous human QA; does NOT block generation. `reason` records severity.
+   */
+  childAnchorLowConfidence?: { reason: 'soft_band' | 'hard_band'; score: number };
   stage0SelectedAttempt?: number;
   stage0AnchorPrompt?: string;
   stage0AnchorReferenceOrderLabels?: string[];

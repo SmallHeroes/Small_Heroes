@@ -33,15 +33,22 @@ function buildPublicUrl(url: string, bucket: string, key: string): string {
 
 /** HEAD the public object URL — returns true if the object is actually stored. */
 async function supabaseObjectExists(url: string, bucket: string, key: string): Promise<boolean> {
-  try {
-    const res = await fetch(buildPublicUrl(url, bucket, key), {
-      method: 'HEAD',
-      signal: AbortSignal.timeout(10000),
-    });
-    return res.ok;
-  } catch {
-    return false;
+  // Retry the HEAD a couple of times: a transient timeout/abort on the existence check
+  // ITSELF ("This operation was aborted") must not produce a false-negative that fails a
+  // render whose object is actually stored. A definitive 404 short-circuits (truly absent).
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      const res = await fetch(buildPublicUrl(url, bucket, key), {
+        method: 'HEAD',
+        signal: AbortSignal.timeout(10000),
+      });
+      if (res.ok) return true;
+      if (res.status === 404) return false;
+    } catch {
+      // transient (timeout/abort/network) — fall through to one more attempt
+    }
   }
+  return false;
 }
 
 /**
@@ -64,7 +71,7 @@ async function supabaseObjectExists(url: string, bucket: string, key: string): P
  *      if it is present, treat the upload as successful rather than failing a render whose
  *      asset is actually stored. `x-upsert:true` keeps every retry idempotent.
  */
-async function uploadToSupabaseWithRetry(params: {
+export async function uploadToSupabaseWithRetry(params: {
   bucket: string;
   key: string;
   body: Buffer;
@@ -399,20 +406,19 @@ export async function listStorageFolder(
 
 export async function storePresentationBuffer(input: StorePresentationInput): Promise<string> {
   const { url, bucket } = getSupabaseEnv();
-  const supabase = getSupabaseClient();
 
   const folder = input.orderId ? `orders/${input.orderId}` : 'orders/unknown';
   const key = `${folder}/pages/page-${String(input.pageNumber).padStart(3, '0')}-present-${Date.now()}.webp`;
 
-  const uploadResult = await supabase.storage.from(bucket).upload(key, input.buffer, {
+  // Route through the hardened direct-REST path (retry + drain + HEAD-net) so a transient
+  // serverless abort on this per-page upload no longer fails the render (order cmqrsdi8).
+  await uploadToSupabaseWithRetry({
+    bucket,
+    key,
+    body: input.buffer,
     contentType: 'image/webp',
-    upsert: true,
-    cacheControl: '31536000',
+    errorPrefix: 'Supabase presentation upload failed',
   });
-
-  if (uploadResult.error) {
-    throw new Error(`Supabase presentation upload failed: ${uploadResult.error.message}`);
-  }
 
   return buildPublicUrl(url, bucket, key);
 }

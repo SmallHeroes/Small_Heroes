@@ -186,12 +186,21 @@ async function promotePendingChildAnchorToPassed(
   const child = getChildCanonicalAnchor(cache);
   if (!child?.url) return cache;
   const anchorGate = resolveAnchorGateConfig();
-  const approved = isChildAnchorReviewApproved(order.id, cache, order);
-  if (!approved) return cache;
+  // Resume path: a pending anchor from a prior run already exists. Never re-block — it was
+  // already generated. Auto-accept if it clears the calibrated soft floor (or the dev/QA
+  // override is set); otherwise accept-best-and-flag for async QA. No env var, no dead-end.
+  const score = child.resemblanceScore ?? 0;
+  const embeddingEval = evaluateAnchorEmbeddingScore(score, anchorGate);
+  const override = isChildAnchorReviewApproved(order.id, cache, order);
+  const lowConfidence: PipelineCache['childAnchorLowConfidence'] =
+    embeddingEval.autoAccept || override
+      ? undefined
+      : { reason: embeddingEval.band === 'hard_fail' ? 'hard_band' : 'soft_band', score };
 
   const nextCache: PipelineCache = {
     ...cache,
     childAnchorApproved: true,
+    childAnchorLowConfidence: lowConfidence,
     characterAnchorStore: upsertCharacterAnchor(cache, {
       ...child,
       qaStatus: 'passed',
@@ -224,7 +233,8 @@ async function promotePendingChildAnchorToPassed(
 
   console.log(
     `[anchor_review] orderId=${order.id} promoted pending anchor to passed ` +
-      `score=${(child.resemblanceScore ?? 0).toFixed(3)} pageThreshold=${anchorGate.embeddingStrongAt} (unchanged)`
+      `score=${score.toFixed(3)} band=${embeddingEval.band}` +
+      `${lowConfidence ? ` lowConfidence=${lowConfidence.reason} (flagged for async QA)` : ' (auto-accept)'}`
   );
   return nextCache;
 }
@@ -386,13 +396,14 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
     await saveCache(order.id, nextCache);
     return nextCache;
   } else if (existingChildAnchorForGate?.qaStatus === 'pending_review') {
+    // promotePendingChildAnchorToPassed now always accepts-best (auto-accept or flag),
+    // so a pending anchor never dead-ends. The only way this stays unapproved is a
+    // corrupt anchor row with no usable URL — a genuine error, retryable as a fresh run.
     nextCache = await promotePendingChildAnchorToPassed(order, nextCache);
     if (!getApprovedChildCanonicalAnchor(nextCache)) {
-      await saveCache(order.id, nextCache);
+      // Drop the unusable pending anchor so the next run regenerates from scratch.
       throw new Error(
-        `ANCHOR_REVIEW_REQUIRED: child anchor awaits human approval (bestScore=${(
-          existingChildAnchorForGate.resemblanceScore ?? 0
-        ).toFixed(3)}). Set CHILD_ANCHOR_REVIEW_OK=true or CHILD_ANCHOR_REVIEW_OK_ORDER_IDS=${order.id} after eyeball QA.`
+        `ANCHOR_QA_BLOCK: pending child anchor is unusable (missing URL); regenerating on retry.`
       );
     }
     await saveCache(order.id, nextCache);
@@ -441,9 +452,13 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
     const thresholdConfig = resolveResemblanceThresholdConfig();
     const effectiveThreshold = resolveEffectiveThreshold(order.illustrationStyle, thresholdConfig);
     const anchorGateConfig = resolveAnchorGateConfig();
+    // Regenerate budget: keep generating candidates (best-of-N) until one clears the
+    // calibrated soft-accept floor or the budget is spent. Default 4 (≈ initial 3 + one
+    // regenerate round); capped at 6 to bound gpt-image spend. We early-exit the loop the
+    // moment a candidate auto-accepts, so a strong first anchor costs only one attempt.
     const maxAnchorAttempts = Math.min(
-      4,
-      Math.max(1, Number.parseInt(process.env.CHILD_ANCHOR_MAX_ATTEMPTS ?? '3', 10) || 3)
+      6,
+      Math.max(1, Number.parseInt(process.env.CHILD_ANCHOR_MAX_ATTEMPTS ?? '4', 10) || 4)
     );
     const candidateRows: NonNullable<PipelineCache['stage0AnchorCandidates']> = [];
     let bestResult:
@@ -497,6 +512,16 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
       nextCache.stage0AnchorCandidates = [...candidateRows];
       nextCache.stage0AnchorPrompt = anchorPrompt;
       await saveCache(order.id, nextCache);
+
+      // Early-exit: a candidate that clears the soft-accept floor will auto-accept below —
+      // no need to spend the rest of the regenerate budget chasing a marginally higher score.
+      if (evaluateAnchorEmbeddingScore(result.resemblanceScore, anchorGateConfig).autoAccept) {
+        console.log(
+          `[anchor_stage0] orderId=${order.id} auto-accept floor cleared at attempt ${attempt} ` +
+            `(score=${result.resemblanceScore.toFixed(3)} >= ${anchorGateConfig.embeddingSoftAcceptAt}); stopping regenerate`
+        );
+        break;
+      }
     }
     if (!bestResult) {
       throw new Error('ANCHOR_QA_BLOCK: no anchor candidates generated');
@@ -518,13 +543,10 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
     nextCache.stage0AnchorReferenceOrderLabels = anchorReferenceOrderLabels;
     nextCache.stage0SelectedAttempt = bestAttempt;
 
-    if (embeddingEval.hardFail) {
-      await saveCache(order.id, nextCache);
-      throw new Error(
-        `ANCHOR_QA_BLOCK: embedding hard-fail (bestScore=${similarity.resemblanceScore.toFixed(3)} ` +
-          `< ${anchorGateConfig.embeddingHardFailBelow}) — clearly wrong identity`
-      );
-    }
+    // NOTE: embedding hard-fail is NO LONGER a customer dead-end. After spending the
+    // regenerate budget above, we accept the best-of-N anchor and flag low-confidence ones
+    // (incl. hard-band) for asynchronous human QA below — never blocking the order on an
+    // env var. Semantic / style checks remain hard gates (genuine quality, retryable).
     if (!semantic.ok) {
       await saveCache(order.id, nextCache);
       throw new Error(
@@ -544,9 +566,22 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
       );
     }
 
-    const reviewApproved = isChildAnchorReviewApproved(order.id, nextCache, order);
-    const qaStatus = reviewApproved ? 'passed' : 'pending_review';
-    nextCache.childAnchorApproved = reviewApproved;
+    // Customer-safe acceptance: auto-accept best-of-N at/above the calibrated soft floor
+    // (or the dev/QA override); otherwise accept-best-and-flag (regenerate budget already
+    // spent above). The anchor is ALWAYS accepted for page generation — no env var, no
+    // dead-end. qaStatus stays 'passed' so downstream proceeds; low confidence is recorded
+    // separately (childAnchorLowConfidence + qaNotes) for async human QA.
+    const override = isChildAnchorReviewApproved(order.id, nextCache, order);
+    const lowConfidence: PipelineCache['childAnchorLowConfidence'] =
+      embeddingEval.autoAccept || override
+        ? undefined
+        : {
+            reason: embeddingEval.band === 'hard_fail' ? 'hard_band' : 'soft_band',
+            score: similarity.resemblanceScore,
+          };
+    const qaStatus = 'passed';
+    nextCache.childAnchorApproved = true;
+    nextCache.childAnchorLowConfidence = lowConfidence;
 
     nextCache.characterAnchorStore = upsertCharacterAnchor(nextCache, {
       orderId: order.id,
@@ -568,7 +603,9 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
       thresholdUsed: effectiveThreshold,
       qaNotes: [
         anchorPhotoDescription ?? '',
-        `anchorGate: embedding=${embeddingEval.verdict} score=${similarity.resemblanceScore.toFixed(3)}`,
+        `anchorGate: band=${embeddingEval.band} score=${similarity.resemblanceScore.toFixed(3)} ` +
+          `(softAccept=${anchorGateConfig.embeddingSoftAcceptAt} hardFail=${anchorGateConfig.embeddingHardFailBelow})`,
+        lowConfidence ? `LOW_CONFIDENCE(${lowConfidence.reason}) — flagged for async QA` : 'auto-accept',
         `pageThreshold=${effectiveThreshold.toFixed(3)} (unchanged)`,
       ]
         .filter(Boolean)
@@ -585,7 +622,7 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
           anchorType: 'canonical_portrait',
           source: 'uploaded_photo',
           qaStatus,
-          anchorApproved: reviewApproved,
+          anchorApproved: true,
           anchorQuality: process.env.GPT_IMAGE_QUALITY?.trim() || 'low',
           styleId: order.illustrationStyle,
           provider: 'openai',
@@ -600,18 +637,11 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
       },
     });
 
-    if (!reviewApproved) {
-      await saveCache(order.id, nextCache);
-      throw new Error(
-        `ANCHOR_REVIEW_REQUIRED: semantic checks passed; embedding soft-ok (bestScore=${similarity.resemblanceScore.toFixed(
-          3
-        )}, pageThreshold=${effectiveThreshold.toFixed(3)} unchanged). ` +
-          `Eyeball candidate attempt ${bestAttempt} then set CHILD_ANCHOR_REVIEW_OK=true or ` +
-          `CHILD_ANCHOR_REVIEW_OK_ORDER_IDS=${order.id} and re-run DNA stage.`
-      );
-    }
+    await saveCache(order.id, nextCache);
     console.log(
-      `[anchor_stage0] orderId=${order.id} approved score=${similarity.resemblanceScore.toFixed(3)} attempt=${bestAttempt}`
+      `[anchor_stage0] orderId=${order.id} accepted score=${similarity.resemblanceScore.toFixed(3)} ` +
+        `attempt=${bestAttempt} band=${embeddingEval.band}` +
+        `${lowConfidence ? ` lowConfidence=${lowConfidence.reason} (flagged for async QA)` : ' (auto-accept)'}`
     );
   }
 
