@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ReaderV2 mobile body 18px preview</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Heebo, Arial, sans-serif; background: #111; }
+    .frame { position: relative; width: 390px; height: 844px; overflow: hidden; background: #1f1a17; }
+    .scene {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, #6b8fd4 0%, #d4a574 55%, #8fbc8f 100%);
+    }
+    .mobileTextOverlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 20px 32px 56px;
+      background: linear-gradient(
+        to top,
+        rgba(20, 14, 8, 0.58) 0%,
+        rgba(20, 14, 8, 0.28) 34%,
+        rgba(20, 14, 8, 0) 82%
+      );
+      direction: rtl;
+    }
+    .sentence {
+      margin: 0 0 0.1em 0;
+      font-size: 18px;
+      line-height: 1.6;
+      font-weight: 400;
+      color: #ffffff;
+      text-align: right;
+      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
+    }
+    .sentence:last-child { margin-bottom: 0; }
+    .label {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      color: rgba(255, 255, 255, 0.55);
+      font-size: 11px;
+      z-index: 2;
+    }
+  </style>
+</head>
+<body>
+  <div class="frame" id="capture">
+    <div class="label">mobile · body 18px · margin 0.1em</div>
+    <div class="scene">
+      <div class="mobileTextOverlay">
+        <p class="sentence">האריה הקטן פתח את העיניים וחייך אל אמא שלו.</p>
+        <p class="sentence">הוא לקח נשימה עמוקה, והרגיש איך הלב שלו מתרגע לאט.</p>
+        <p class="sentence">«אני כאן איתך», לחשה אמא, ושמתה את כפה החמה על גבו.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

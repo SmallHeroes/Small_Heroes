@@ -1283,7 +1283,7 @@
 @media (max-width: 1023px) {
   .rootReaderReady .mobileScene .mobileTextOverlay .sentence,
   .rootReaderReady .mobileScene .mobileProse {
-    font-size: 16px;
+    font-size: 18px;
   }
 }
 
@@ -1743,9 +1743,9 @@
 }
 
 .mobileTextOverlay .sentence {
-  margin: 0 0 0.6em 0;
+  margin: 0 0 0.1em 0;
   font-family: var(--font-book-prose);
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1.6;
   font-weight: var(--book-prose-weight, 400);
   color: #ffffff;
@@ -1760,7 +1760,7 @@
 .mobileProse {
   margin: 0;
   font-family: var(--font-book-prose);
-  font-size: var(--book-body-mobile, 16px);
+  font-size: var(--book-body-mobile, 18px);
   line-height: var(--book-line-height, 1.6);
   font-weight: var(--book-prose-weight, 400);
   color: #ffffff;
