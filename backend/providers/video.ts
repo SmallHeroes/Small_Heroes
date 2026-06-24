@@ -16,6 +16,7 @@ import { randomUUID } from 'crypto';
 import { execFile } from 'child_process';
 import { basename } from 'path';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { uploadToSupabaseWithRetry } from '../../lib/image-storage';
 
 const FFMPEG_BIN = ffmpegInstaller.path.replace(/\\/g, '/');
 const FFPROBE_BIN = ffprobeInstaller.path.replace(/\\/g, '/');
@@ -57,17 +58,17 @@ function getSupabase(): SupabaseClient {
 
 /** Public URL after upload — same convention as audio. */
 export async function storeVideo(buffer: Buffer, filename: string): Promise<string> {
-  const supabase = getSupabase();
   const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'book-images';
   const key = `video/${filename}`;
 
-  const { error } = await supabase.storage.from(bucket).upload(key, buffer, {
+  // Hardened direct-REST path (retry + drain + HEAD-net) instead of raw supabase-js .upload.
+  await uploadToSupabaseWithRetry({
+    bucket,
+    key,
+    body: buffer,
     contentType: 'video/mp4',
-    upsert: true,
-    cacheControl: '31536000',
+    errorPrefix: 'Video upload failed',
   });
-
-  if (error) throw new Error(`Video upload failed: ${error.message}`);
 
   const url = process.env.SUPABASE_URL!;
   return `${url.replace(/\/$/, '')}/storage/v1/object/public/${bucket}/${key}`;

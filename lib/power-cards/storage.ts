@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { uploadToSupabaseWithRetry } from '../image-storage';
 
 let supabaseClient: SupabaseClient | null = null;
 
@@ -57,16 +58,14 @@ export async function putCachedPowerCardExport(
   if (!buffer.length) throw new Error('Cannot cache empty Power Card export buffer.');
 
   const { bucket } = getSupabaseEnv();
-  const supabase = getSupabaseClient();
   const key = cacheKey(orderId, format);
 
-  const uploadResult = await supabase.storage.from(bucket).upload(key, buffer, {
+  // Hardened direct-REST path (retry + drain + HEAD-net) instead of raw supabase-js .upload.
+  await uploadToSupabaseWithRetry({
+    bucket,
+    key,
+    body: buffer,
     contentType: contentTypeForFormat(format),
-    upsert: true,
-    cacheControl: '31536000',
+    errorPrefix: 'Power Card cache upload failed',
   });
-
-  if (uploadResult.error) {
-    throw new Error(`Power Card cache upload failed: ${uploadResult.error.message}`);
-  }
 }
