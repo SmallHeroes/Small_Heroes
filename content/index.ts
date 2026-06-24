@@ -20,6 +20,25 @@ export const COMMON = {
 export const EMAIL = {
   from: 'גיבורים קטנים <noreply@smallheroes.co.il>',
   subject: (childName: string) => `הספר של ${childName} מוכן!`,
+  otp: {
+    from: 'גיבורים קטנים <hello@smallheroes.co.il>',
+    ttlMinutes: 10,
+    subject: 'קוד כניסה לגיבורים קטנים',
+    headline: 'קוד הכניסה שלך',
+    instruction: 'הכניסו את הקוד הבא כדי להתחבר לחשבון:',
+    preheader: (code: string) => `קוד הכניסה שלכם: ${code} — תקף ל-10 דקות`,
+    ttlNote: (minutes: number) => `תקף ל-${minutes} דקות`,
+    ignoreNote: 'לא ביקשת? התעלם',
+    plainText: (code: string) =>
+      [
+        'קוד הכניסה שלך לגיבורים קטנים',
+        '',
+        `הקוד שלך: ${code}`,
+        '',
+        'הקוד תקף ל-10 דקות.',
+        'לא ביקשת את הקוד? אפשר להתעלם מהודעה זו.',
+      ].join('\n'),
+  },
   body: {
     greeting:  (name: string)      => `שלום ${name},`,
     headline:  (childName: string) => `הספר של ${childName} מוכן!`,
