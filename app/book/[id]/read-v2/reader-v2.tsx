@@ -790,10 +790,10 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
           <section className={`${styles.pageStage} ${styles.bookStageInner}`}>
             <div className={styles.bookTableStage}>
               <div className={styles.bookSpreadWrap}>
-                {/* RTL desktop: ‹ points into the book (forward); › points back */}
+                {/* RTL: physical screen-left = next (‹); screen-right = previous (›) */}
                 <button
                   type="button"
-                  className={`${styles.spreadNavBtn} ${styles.spreadNavPrev}`}
+                  className={`${styles.spreadNavBtn} ${styles.spreadNavForward}`}
                   onClick={nextManual}
                   aria-label={isLastPage ? 'סיום הספר' : 'עמוד הבא'}
                 >
@@ -826,10 +826,9 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
                 ) : (
                   renderInteriorScene(currentScene)
                 )}
-                {/* RTL desktop: › on the trailing edge = previous page */}
                 <button
                   type="button"
-                  className={`${styles.spreadNavBtn} ${styles.spreadNavNext}`}
+                  className={`${styles.spreadNavBtn} ${styles.spreadNavBack}`}
                   onClick={prevManual}
                   disabled={isFirstPage}
                   aria-label="עמוד קודם"
@@ -887,17 +886,17 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
             <button
               type="button"
               className={styles.mobileEdgeBtn}
-              onClick={prevManual}
-              disabled={isFirstPage}
-              aria-label="עמוד קודם"
+              onClick={nextManual}
+              aria-label={isLastPage ? 'סיום הספר' : 'עמוד הבא'}
             >
               ‹
             </button>
             <button
               type="button"
               className={styles.mobileEdgeBtn}
-              onClick={nextManual}
-              aria-label={isLastPage ? 'סיום הספר' : 'עמוד הבא'}
+              onClick={prevManual}
+              disabled={isFirstPage}
+              aria-label="עמוד קודם"
             >
               ›
             </button>
