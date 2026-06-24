@@ -31,15 +31,40 @@ function buildPublicUrl(url: string, bucket: string, key: string): string {
   return `${url.replace(/\/$/, '')}/storage/v1/object/public/${bucket}/${key}`;
 }
 
+/** HEAD the public object URL — returns true if the object is actually stored. */
+async function supabaseObjectExists(url: string, bucket: string, key: string): Promise<boolean> {
+  try {
+    const res = await fetch(buildPublicUrl(url, bucket, key), {
+      method: 'HEAD',
+      signal: AbortSignal.timeout(10000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Upload a buffer to Supabase storage with retry + exponential backoff + a per-attempt
- * timeout. supabase-js resolves network failures as `{ error: { message: 'fetch failed' } }`
- * rather than throwing, so we surface that as a throw for `withRetry` to retry. `upsert: true`
- * makes every retry idempotent (a slow attempt that times out and is re-sent is safe).
- * Hardens the Stage-0 anchor upload "fetch failed" blip seen on 2026-06-23.
+ * Upload a buffer to Supabase Storage, hardened for the Vercel serverless runtime.
+ *
+ * ROOT CAUSE (2026-06-23, pinned from Supabase storage logs): the supabase-js `.upload()`
+ * POST reaches Supabase and returns 200 + ObjectCreated on EVERY attempt — the object IS
+ * stored — but inside the serverless function the client hangs handling the response for
+ * the larger anchor PNG, hits the per-attempt timeout, retries (each re-uploading, 200
+ * server-side, then ObjectAdminDelete from the next upsert), and the function never
+ * observes success → the job fails although the asset exists. Smaller uploads (child
+ * photo/refs) don't hang, so the run proceeds until the bigger anchor PNG. Plain
+ * retry/backoff cannot help — every attempt "succeeds" remotely.
+ *
+ * Fix:
+ *  (a) Bypass supabase-js with a direct REST POST. The body is a Node Buffer, so undici
+ *      sends a real Content-Length (not chunked/streamed), and we FULLY drain the response
+ *      body (`res.text()`) so the socket is released instead of left half-read.
+ *  (b) Quick unblock / safety net: on ANY attempt error or timeout, HEAD-check the object —
+ *      if it is present, treat the upload as successful rather than failing a render whose
+ *      asset is actually stored. `x-upsert:true` keeps every retry idempotent.
  */
 async function uploadToSupabaseWithRetry(params: {
-  supabase: SupabaseClient;
   bucket: string;
   key: string;
   body: Buffer;
@@ -47,23 +72,69 @@ async function uploadToSupabaseWithRetry(params: {
   /** Preserved error-message prefix per call site (kept stable for logs/tests). */
   errorPrefix: string;
 }): Promise<void> {
+  const { url, serviceRoleKey } = getSupabaseEnv();
   const attempts = Math.max(1, Number.parseInt(process.env.SUPABASE_UPLOAD_MAX_ATTEMPTS ?? '4', 10) || 4);
   const timeoutMs = Math.max(1000, Number.parseInt(process.env.SUPABASE_UPLOAD_TIMEOUT_MS ?? '30000', 10) || 30000);
+  const region = process.env.VERCEL_REGION || 'local'; // Supabase storage is us-east-1; note cross-region.
+  const objectEndpoint = `${url.replace(/\/$/, '')}/storage/v1/object/${params.bucket}/${params.key}`;
+
+  // A fixed-size Blob (not a stream) makes undici send a real Content-Length, not chunked.
+  // Uint8Array.from yields a fresh ArrayBuffer-backed array (valid BlobPart; avoids the
+  // Buffer/SharedArrayBuffer generic mismatch).
+  const bodyBytes = Uint8Array.from(params.body);
+  const bodyBlob = new Blob([bodyBytes], { type: params.contentType });
+
+  const uploadOnceOrDetectStored = async (): Promise<void> => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const startedAt = Date.now();
+    try {
+      const res = await fetch(objectEndpoint, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${serviceRoleKey}`,
+          'Content-Type': params.contentType,
+          'Content-Length': String(bodyBytes.byteLength),
+          'cache-control': 'max-age=31536000',
+          'x-upsert': 'true',
+        },
+        body: bodyBlob,
+        signal: controller.signal,
+      });
+      // ALWAYS drain the response body so undici releases the socket (an un-drained body
+      // on a pooled keep-alive connection is a prime serverless-hang source).
+      const text = await res.text().catch(() => '');
+      if (!res.ok) throw new Error(`HTTP ${res.status}${text ? ` ${text.slice(0, 200)}` : ''}`);
+      console.log(
+        `[supabase-upload] ok key=${params.key} bytes=${params.body.length} status=${res.status} ` +
+          `clen=${res.headers.get('content-length') ?? '?'} ms=${Date.now() - startedAt} region=${region}`
+      );
+    } catch (err) {
+      // The POST may have stored the object before the client errored/timed out (the exact
+      // serverless hang seen on 2026-06-23). If it's present, treat as success.
+      if (await supabaseObjectExists(url, params.bucket, params.key)) {
+        console.warn(
+          `[supabase-upload] attempt errored (${(err as Error)?.message ?? 'unknown'}) after ` +
+            `${Date.now() - startedAt}ms but object EXISTS — treating as success key=${params.key} bytes=${params.body.length}`
+        );
+        return;
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
   try {
-    await withRetry(
-      async () => {
-        const { error } = await params.supabase.storage
-          .from(params.bucket)
-          .upload(params.key, params.body, {
-            contentType: params.contentType,
-            upsert: true,
-            cacheControl: '31536000',
-          });
-        if (error) throw new Error(error.message);
-      },
-      { attempts, timeoutMs, baseDelayMs: 500, factor: 3, label: 'supabase-upload' }
-    );
+    await withRetry(() => uploadOnceOrDetectStored(), {
+      attempts,
+      baseDelayMs: 500,
+      factor: 3,
+      label: 'supabase-upload',
+    });
   } catch (err) {
+    // Last safety net before failing the render: the object may have landed on a late retry.
+    if (await supabaseObjectExists(url, params.bucket, params.key)) return;
     throw new Error(`${params.errorPrefix}: ${(err as Error)?.message ?? 'unknown'}`);
   }
 }
@@ -126,14 +197,12 @@ export async function storeImageFromDataUrl(input: StoreDataUrlInput): Promise<s
   }
 
   const { url, bucket } = getSupabaseEnv();
-  const supabase = getSupabaseClient();
   const ext = extensionFromContentType(contentType);
   const safePath = sanitizeAssetPathSegment(input.assetPath);
   const orderFolder = input.orderId ? `orders/${input.orderId}` : 'orders/unknown';
   const key = `${orderFolder}/${safePath}-${Date.now()}.${ext}`;
 
   await uploadToSupabaseWithRetry({
-    supabase,
     bucket,
     key,
     body: fileBuffer,
@@ -153,7 +222,6 @@ export interface StoreImageInput {
 
 export async function storeImageFromProviderUrl(input: StoreImageInput): Promise<string> {
   const { url, bucket } = getSupabaseEnv();
-  const supabase = getSupabaseClient();
 
   const downloadRes = await fetch(input.providerUrl);
   if (!downloadRes.ok) {
@@ -172,7 +240,6 @@ export async function storeImageFromProviderUrl(input: StoreImageInput): Promise
       : `${folder}/pages/page-${String(input.pageNumber).padStart(3, '0')}-${Date.now()}.${ext}`;
 
   await uploadToSupabaseWithRetry({
-    supabase,
     bucket,
     key,
     body: fileBuffer,
@@ -201,7 +268,6 @@ export interface StoreBufferInput {
 /** Persist a PNG (or other) buffer from providers that return base64 (e.g. GPT Image). */
 export async function storeImageFromBuffer(input: StoreBufferInput): Promise<string> {
   const { url, bucket } = getSupabaseEnv();
-  const supabase = getSupabaseClient();
 
   const contentType = input.contentType || 'image/png';
   const ext = extensionFromContentType(contentType);
@@ -212,7 +278,6 @@ export async function storeImageFromBuffer(input: StoreBufferInput): Promise<str
       : `${folder}/pages/page-${String(input.pageNumber).padStart(3, '0')}-${Date.now()}.${ext}`;
 
   await uploadToSupabaseWithRetry({
-    supabase,
     bucket,
     key,
     body: input.buffer,
@@ -236,13 +301,11 @@ export async function uploadOrderSubpathAsset(input: {
 }): Promise<string> {
   if (!input.orderId) throw new Error('uploadOrderSubpathAsset: orderId is required.');
   const { url, bucket } = getSupabaseEnv();
-  const supabase = getSupabaseClient();
   const safeSub = sanitizeAssetPathSegment(input.subpath);
   const folder = input.orderId ? `orders/${input.orderId}` : 'orders/unknown';
   const key = `${folder}/${safeSub}`;
 
   await uploadToSupabaseWithRetry({
-    supabase,
     bucket,
     key,
     body: input.buffer,
@@ -273,11 +336,9 @@ export async function uploadOrderArtifact(
 ): Promise<{ url: string; storageKey: string }> {
   if (!input.orderId) throw new Error('uploadOrderArtifact: orderId is required.');
   const { url, bucket } = getSupabaseEnv();
-  const supabase = getSupabaseClient();
   const key = orderArtifactStorageKey(input.orderId, input.kind, input.filename);
 
   await uploadToSupabaseWithRetry({
-    supabase,
     bucket,
     key,
     body: input.buffer,
@@ -369,11 +430,9 @@ export async function storeWizardCharacterPhotoUpload(params: {
     throw new Error('Image exceeds size limit.');
   }
   const { url, bucket } = getSupabaseEnv();
-  const supabase = getSupabaseClient();
   const ext = extensionFromContentType(normalized);
   const key = `wizard/char-photos/${Date.now()}-${randomUUID().slice(0, 10)}.${ext}`;
   await uploadToSupabaseWithRetry({
-    supabase,
     bucket,
     key,
     body: params.buffer,
