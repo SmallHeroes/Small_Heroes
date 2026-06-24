@@ -20,6 +20,7 @@ enum OrderStatus {
   ready
   failed
   partial // story+images ready but audio failed
+  needs_human_qa // book rendered but held from customer delivery pending human QA (e.g. low-confidence anchor)
 }
 
 enum GenerationStatus {
@@ -154,6 +155,10 @@ model Order {
   imageStatus        GenerationStatus @default(pending)
   audioStatus        GenerationStatus @default(pending)
   packageStatus      GenerationStatus @default(pending)
+
+  // Delivery hold: when status == needs_human_qa, why it was held (e.g.
+  // "anchor_low_confidence:soft_band"). Cleared/ignored once QA releases to ready.
+  deliveryHoldReason String?
 
   // Error tracking
   lastError          String?

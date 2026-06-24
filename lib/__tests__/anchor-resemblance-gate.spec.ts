@@ -3,6 +3,7 @@ import {
   evaluateAnchorEmbeddingScore,
   evaluateAnchorSemanticQa,
   isChildAnchorReviewApproved,
+  resolveAnchorDeliveryGate,
   resolveAnchorGateConfig,
 } from '../anchor-resemblance-gate';
 
@@ -91,6 +92,32 @@ describe('anchor-resemblance-gate', () => {
     });
     expect(semantic.ok).toBe(false);
     expect(semantic.genderMismatch).toBe(true);
+  });
+
+  describe('resolveAnchorDeliveryGate (delivery hold consumer)', () => {
+    it('delivers a clear anchor (>= soft accept): ready + book-ready email', () => {
+      const gate = resolveAnchorDeliveryGate(undefined);
+      expect(gate.held).toBe(false);
+      expect(gate.orderStatus).toBe('ready');
+      expect(gate.sendBookReadyEmail).toBe(true);
+      expect(gate.reason).toBeNull();
+    });
+
+    it('HOLDS a soft-band anchor (0.15–0.22): renders, needs_human_qa, NO email', () => {
+      const gate = resolveAnchorDeliveryGate({ reason: 'soft_band', score: 0.18 });
+      expect(gate.held).toBe(true);
+      expect(gate.orderStatus).toBe('needs_human_qa');
+      expect(gate.sendBookReadyEmail).toBe(false);
+      expect(gate.reason).toBe('anchor_low_confidence:soft_band');
+    });
+
+    it('HOLDS a hard-band anchor (<0.15): renders for internal review, needs_human_qa, NO email', () => {
+      const gate = resolveAnchorDeliveryGate({ reason: 'hard_band', score: 0.12 });
+      expect(gate.held).toBe(true);
+      expect(gate.orderStatus).toBe('needs_human_qa');
+      expect(gate.sendBookReadyEmail).toBe(false);
+      expect(gate.reason).toBe('anchor_low_confidence:hard_band');
+    });
   });
 
   it('reads CHILD_ANCHOR_REVIEW_OK_ORDER_IDS (dev/QA override path retained)', () => {

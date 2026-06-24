@@ -99,6 +99,39 @@ export function evaluateAnchorEmbeddingScore(
   };
 }
 
+/** Low-confidence flag shape (mirrors PipelineCache.childAnchorLowConfidence). */
+export type AnchorLowConfidence = { reason: 'soft_band' | 'hard_band'; score: number } | null | undefined;
+
+export type AnchorDeliveryGate = {
+  /** True → book renders for internal QA but is NOT customer-deliverable. */
+  held: boolean;
+  /** Order status to persist at completion. */
+  orderStatus: 'ready' | 'needs_human_qa';
+  /** Whether the customer "book ready" email may be sent. */
+  sendBookReadyEmail: boolean;
+  /** Persisted reason when held (Order.deliveryHoldReason), else null. */
+  reason: string | null;
+};
+
+/**
+ * Maps an accepted anchor's low-confidence flag to a delivery decision. This is the
+ * CONSUMER of childAnchorLowConfidence — without it, low-confidence anchors would ship
+ * silently. Both soft- and hard-band anchors render (for internal review) but are HELD
+ * from customer delivery (no book-ready email, status needs_human_qa) until a human
+ * releases them. A clear (>= soft-accept) anchor delivers normally.
+ */
+export function resolveAnchorDeliveryGate(lowConfidence: AnchorLowConfidence): AnchorDeliveryGate {
+  if (!lowConfidence) {
+    return { held: false, orderStatus: 'ready', sendBookReadyEmail: true, reason: null };
+  }
+  return {
+    held: true,
+    orderStatus: 'needs_human_qa',
+    sendBookReadyEmail: false,
+    reason: `anchor_low_confidence:${lowConfidence.reason}`,
+  };
+}
+
 export function evaluateAnchorSemanticQa(params: {
   childGender: string | null | undefined;
   childPhotoDescription: string | null | undefined;

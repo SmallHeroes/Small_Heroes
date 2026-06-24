@@ -34,7 +34,12 @@ export async function runGenerationToCompletion(
     if (!order) {
       return { orderId, done: false, chunks, status: null, error: 'Order not found' };
     }
-    if (order.status === 'ready' || order.status === 'partial') {
+    if (
+      order.status === 'ready' ||
+      order.status === 'partial' ||
+      order.status === 'needs_human_qa'
+    ) {
+      // needs_human_qa: rendered + held for QA — terminal for the run loop (not restarted).
       return { orderId, done: true, chunks, status: order.status, lastStage: 'done' };
     }
 
@@ -67,7 +72,10 @@ export async function runGenerationToCompletion(
       });
       return {
         orderId,
-        done: finalOrder?.status === 'ready' || finalOrder?.status === 'partial',
+        done:
+          finalOrder?.status === 'ready' ||
+          finalOrder?.status === 'partial' ||
+          finalOrder?.status === 'needs_human_qa',
         chunks,
         status: finalOrder?.status ?? null,
         lastStage: result.stage,

@@ -32,7 +32,8 @@ export async function startChunkedGeneration(
     return { started: false, orderId, message: 'Order not found' };
   }
 
-  if (order.status === 'ready' || order.status === 'partial') {
+  if (order.status === 'ready' || order.status === 'partial' || order.status === 'needs_human_qa') {
+    // needs_human_qa: book already rendered, held for human QA — do NOT restart generation.
     return { started: false, orderId, message: 'Already completed' };
   }
 

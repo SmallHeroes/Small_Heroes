@@ -104,6 +104,7 @@ import {
   evaluateAnchorEmbeddingScore,
   evaluateAnchorSemanticQa,
   isChildAnchorReviewApproved,
+  resolveAnchorDeliveryGate,
   resolveAnchorGateConfig,
 } from '@/lib/anchor-resemblance-gate';
 import {
@@ -1469,9 +1470,19 @@ async function runPackageStage(order: Order, cache: PipelineCache): Promise<void
 
   await prisma.generatedBook.update({ where: { id: book.id }, data: { readUrl } });
 
+  // Delivery gate: a low-confidence anchor renders the book (for internal QA) but HOLDS it
+  // from customer delivery — status needs_human_qa + no book-ready email — until a human
+  // releases it. This is the consumer of childAnchorLowConfidence (set in Stage 0); without
+  // it a held anchor would ship silently. A clear anchor delivers normally.
+  const deliveryGate = resolveAnchorDeliveryGate(cache.childAnchorLowConfidence);
+
   await prisma.order.update({
     where: { id: order.id },
-    data: { status: 'ready', packageStatus: 'done' },
+    data: {
+      status: deliveryGate.orderStatus,
+      packageStatus: 'done',
+      deliveryHoldReason: deliveryGate.reason,
+    },
   });
   await prisma.generationJob.update({
     where: { orderId: order.id },
@@ -1483,20 +1494,34 @@ async function runPackageStage(order: Order, cache: PipelineCache): Promise<void
     },
   });
 
-  logServerEvent('full_generation_completed', { orderId: order.id, style: order.illustrationStyle });
+  logServerEvent('full_generation_completed', {
+    orderId: order.id,
+    style: order.illustrationStyle,
+    // Telemetry for anchor recalibration: score + band + delivery outcome per order.
+    anchorScore: cache.childAnchorLowConfidence?.score,
+    anchorBand: cache.childAnchorLowConfidence?.reason ?? 'auto_accept',
+    deliveryHeld: deliveryGate.held,
+  });
 
-  try {
-    const firstAudio = book.pages.find((p) => p.audioUrl?.trim());
-    await sendBookReadyEmail({
-      to: order.customerEmail,
-      customerName: order.customerName ?? order.childName,
-      childName: order.childName,
-      readUrl,
-      audioUrl: firstAudio?.audioUrl ?? undefined,
-      pdfUrl: pdfUrl ?? undefined,
+  if (!deliveryGate.sendBookReadyEmail) {
+    log.warn('Book-ready email withheld — order held for human QA', {
+      orderId: order.id,
+      reason: deliveryGate.reason,
     });
-  } catch (e) {
-    log.error('Ready email failed (non-fatal)', e, { orderId: order.id });
+  } else {
+    try {
+      const firstAudio = book.pages.find((p) => p.audioUrl?.trim());
+      await sendBookReadyEmail({
+        to: order.customerEmail,
+        customerName: order.customerName ?? order.childName,
+        childName: order.childName,
+        readUrl,
+        audioUrl: firstAudio?.audioUrl ?? undefined,
+        pdfUrl: pdfUrl ?? undefined,
+      });
+    } catch (e) {
+      log.error('Ready email failed (non-fatal)', e, { orderId: order.id });
+    }
   }
 
   await tryDeleteOriginalChildPhotoAfterGeneration(order.id);
@@ -1547,17 +1572,15 @@ export async function processGenerationChunk(
 
   let cache = parsePipelineCache(job.pipelineCache);
 
-  // Resume-path approval hook (covers ALL stages): a pending child anchor that
-  // was approved after a failure (CHILD_ANCHOR_REVIEW_OK / _ORDER_IDS / cache
-  // flag) must be promoted BEFORE stage dispatch. Promotion used to live only
-  // inside the DNA stage, which resume skips once childDNA exists — leaving
-  // approved orders permanently deadlocked on ANCHOR_REVIEW_REQUIRED at
-  // cover/page stages. Unapproved pending anchors still hit the stage throws.
+  // Resume-path acceptance hook (covers ALL stages): a pending child anchor must be
+  // resolved BEFORE stage dispatch. Promotion used to live only inside the DNA stage,
+  // which resume skips once childDNA exists — leaving orders deadlocked at the cover/page
+  // ANCHOR_REVIEW_REQUIRED throws. promotePendingChildAnchorToPassed now applies the SAME
+  // accept-best logic as fresh generation (auto-accept >= soft floor, else accept-best +
+  // flag low-confidence for the delivery hold), so ANY pending anchor self-heals on resume
+  // without a dev override. The dev/QA override still short-circuits to a clean accept.
   const pendingChildAnchorAtEntry = getChildCanonicalAnchor(cache);
-  if (
-    pendingChildAnchorAtEntry?.qaStatus === 'pending_review' &&
-    isChildAnchorReviewApproved(order.id, cache, order)
-  ) {
+  if (pendingChildAnchorAtEntry?.qaStatus === 'pending_review') {
     cache = await promotePendingChildAnchorToPassed(order, cache);
     await saveCache(orderId, cache);
   }
