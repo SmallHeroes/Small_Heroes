@@ -427,19 +427,14 @@ function hasPendingStartHandoffParams() {
   return Boolean(category && direction && VALID_STORY_DIRECTIONS.includes(direction));
 }
 
-function shouldSkipProductStep() {
-  return Boolean(state.directionLockedFromStart);
-}
-
-/** Physical step ids visible in the current flow (public /start handoff skips 1, 2, 8). */
+/** Physical step ids visible in the current flow (public /start handoff skips 1, 2 only). */
 function getVisiblePhysicalSteps() {
   const steps = [];
   if (isLegacyChallengeStepsEnabled() && !state.directionLockedFromStart) {
     steps.push(1);
     if (isCompanionStepEnabled()) steps.push(2);
   }
-  steps.push(3, 4, 5, 6, 7);
-  if (!shouldSkipProductStep()) steps.push(8);
+  steps.push(3, 4, 5, 6, 7, 8);
   steps.push(9);
   return steps;
 }
@@ -477,9 +472,6 @@ function allowsWizardWithoutHandoff(restored) {
 function normalizeStepAfterMvpLoad() {
   if (!isCompanionStepEnabled() && state.currentStep === 2) {
     state.currentStep = 3;
-  }
-  if (shouldSkipProductStep() && state.currentStep === 8) {
-    state.currentStep = 9;
   }
   const visible = getVisiblePhysicalSteps();
   if (!visible.includes(state.currentStep)) {
@@ -540,6 +532,7 @@ const PRICES = {
 const WIZARD_STORAGE_KEY = 'wizard_state';
 const PREFERRED_DIRECTION_STORAGE_KEY = 'preferredDirection';
 const VALID_STORY_DIRECTIONS = ['bedtime', 'adventure', 'fantasy'];
+const DEFAULT_WIZARD_STYLE = 'soft_hand_drawn_storybook';
 
 /** Hint after resume: preview was stripped from sessionStorage. */
 let sessionExpectChildPhotoReplay = false;
@@ -623,6 +616,31 @@ function persistPreferredDirection(direction) {
     localStorage.setItem(PREFERRED_DIRECTION_STORAGE_KEY, direction);
   } catch (_) {
     /* localStorage unavailable */
+  }
+}
+
+function getCompanionImageForSummary() {
+  const cat = state.challengeCategory;
+  const companionId = state.companionCharacterId;
+  if (cat && companionId && globalThis.COMPANIONS_BY_CATEGORY?.[cat]) {
+    const found = globalThis.COMPANIONS_BY_CATEGORY[cat].find((c) => c.id === companionId);
+    if (found?.image) return found.image;
+  }
+  const slot = getMvpSlotForTopic(state.topic);
+  if (slot?.companion?.image) return slot.companion.image;
+  return '';
+}
+
+function ensureDefaultStyleSelection() {
+  if (state.style && normalizeClientStyleId(state.style) === 'detailed_whimsical_world') {
+    state.style = null;
+    state.styleSelected = false;
+  }
+  if (!state.styleSelected || !state.style) {
+    state.style = DEFAULT_WIZARD_STYLE;
+    state.styleSelected = true;
+  } else {
+    state.style = normalizeClientStyleId(state.style);
   }
 }
 
@@ -1128,8 +1146,7 @@ function init() {
     if (!pendingHandoff) {
       applyInitialDirectionFromContext();
     }
-    state.style = null;
-    state.styleSelected = false;
+    ensureDefaultStyleSelection();
   }
 
   bindDraftFieldPersistListeners();
@@ -1341,7 +1358,7 @@ function updateUI() {
       } else {
         btn.textContent =
           state.currentStep === 4  ? WIZ.nav.continueToStory   :
-          state.currentStep === 7  ? WIZ.nav.continueToSummary :
+          state.currentStep === 7  ? (getVisiblePhysicalSteps().includes(8) ? WIZ.nav.continueToPackage : WIZ.nav.continueToSummary) :
           WIZ.nav.continueDefault;
         btn.onclick = goNext;
         if (btnAnyway) btnAnyway.hidden = true;
@@ -1386,6 +1403,7 @@ function updateUI() {
   }
 
   if (state.currentStep === 5) {
+    ensureDefaultStyleSelection();
     renderStyleStepGrid();
   }
 
@@ -2314,6 +2332,8 @@ function renderStyleStepGrid() {
   const wrap = document.getElementById('style-step-grid');
   if (!wrap) return;
 
+  ensureDefaultStyleSelection();
+
   wrap.innerHTML = '';
 
   ILLUSTRATION_STYLES.forEach((s) => {
@@ -2455,6 +2475,8 @@ function buildSummary() {
   const bookPanelEl = document.getElementById('summary-book-panel');
   if (bookPanelEl) {
     const stylePreview = state.style ? getStylePreviewDataUrl(state.style) : '';
+    const companionImg = getCompanionImageForSummary();
+    const heroVisual = companionImg || stylePreview;
     const packageLine = [
       WIZ.summary.packagePrefix,
       productName,
@@ -2468,12 +2490,16 @@ function buildSummary() {
       ? `${WIZ.summary.stylePrefix} ${styleLabel}`
       : '';
     bookPanelEl.innerHTML = `
-      <div class="summary-book-preview">
-        ${stylePreview ? `<div class="summary-book-thumb"><img src="${stylePreview}" alt="" /></div>` : ''}
-        <div class="summary-book-meta">
-          <div class="summary-book-name">${bookTitle}</div>
-          ${packageLine ? `<p class="summary-book-line">${packageLine}</p>` : ''}
-          ${styleLine ? `<p class="summary-book-line">${styleLine}</p>` : ''}
+      <div class="summary-power-card">
+        ${heroVisual ? `
+          <div class="summary-power-card-visual">
+            <img src="${heroVisual}" alt="" loading="lazy" />
+          </div>
+        ` : ''}
+        <div class="summary-power-card-body">
+          <h3 class="summary-power-card-title">${bookTitle}</h3>
+          ${packageLine ? `<p class="summary-power-card-line">${packageLine}</p>` : ''}
+          ${styleLine ? `<p class="summary-power-card-line summary-power-card-line--muted">${styleLine}</p>` : ''}
         </div>
       </div>
     `;
