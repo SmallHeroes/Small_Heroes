@@ -19,6 +19,8 @@ type CategoryChallengeCardProps = {
   className?: string;
   'data-event'?: string;
   'data-category'?: string;
+  'data-reveal'?: string;
+  'data-reveal-delay'?: string;
 };
 
 export function CategoryChallengeCard({
