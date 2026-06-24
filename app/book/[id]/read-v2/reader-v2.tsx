@@ -790,13 +790,12 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
           <section className={`${styles.pageStage} ${styles.bookStageInner}`}>
             <div className={styles.bookTableStage}>
               <div className={styles.bookSpreadWrap}>
-                {/* RTL: right control = previous */}
+                {/* RTL desktop: ‹ points into the book (forward); › points back */}
                 <button
                   type="button"
                   className={`${styles.spreadNavBtn} ${styles.spreadNavPrev}`}
-                  onClick={prevManual}
-                  disabled={isFirstPage}
-                  aria-label="עמוד קודם"
+                  onClick={nextManual}
+                  aria-label={isLastPage ? 'סיום הספר' : 'עמוד הבא'}
                 >
                   ‹
                 </button>
@@ -827,12 +826,13 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
                 ) : (
                   renderInteriorScene(currentScene)
                 )}
-                {/* RTL: left control = next */}
+                {/* RTL desktop: › on the trailing edge = previous page */}
                 <button
                   type="button"
                   className={`${styles.spreadNavBtn} ${styles.spreadNavNext}`}
-                  onClick={nextManual}
-                  aria-label={isLastPage ? 'סיום הספר' : 'עמוד הבא'}
+                  onClick={prevManual}
+                  disabled={isFirstPage}
+                  aria-label="עמוד קודם"
                 >
                   ›
                 </button>
