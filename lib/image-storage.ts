@@ -92,6 +92,10 @@ async function uploadToSupabaseWithRetry(params: {
       const res = await fetch(objectEndpoint, {
         method: 'POST',
         headers: {
+          // Supabase's storage gateway needs BOTH the apikey AND the Authorization bearer —
+          // both must be the service-role JWT (the same one getSupabaseClient/createClient uses).
+          // Omitting `apikey` makes the gateway reject every write with 403 "Invalid Compact JWS".
+          apikey: serviceRoleKey,
           Authorization: `Bearer ${serviceRoleKey}`,
           'Content-Type': params.contentType,
           'Content-Length': String(bodyBytes.byteLength),
