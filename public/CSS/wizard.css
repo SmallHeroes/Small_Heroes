@@ -2409,12 +2409,46 @@
 }
 
 .s9-grid--balanced {
-  grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
   direction: rtl;
 }
 
-.s9-card--summary {
+.s9-hero {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.s9-hero-sparkle {
+  font-size: 28px;
+  line-height: 1;
+  margin-bottom: 10px;
+}
+
+.s9-hero-title {
+  margin-bottom: 8px;
+}
+
+.s9-hero-sub {
+  font-family: var(--fb);
+  font-size: 16px;
+  font-weight: 400;
+  color: #525064;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.s9-summary-divider {
+  border: 0;
+  border-top: 1px solid #ebe7f2;
+  margin: 20px 0;
+}
+
+.s9-card--summary,
+.s9-card--checkout {
   padding: 28px 30px;
+  align-self: start;
 }
 
 .s9-card--summary .s9-card-title--secondary {
@@ -2429,7 +2463,6 @@
 .s9-card--checkout {
   display: flex;
   flex-direction: column;
-  justify-content: center;
 }
 
 .s9-card--checkout .contact-form {
@@ -2474,24 +2507,45 @@
   border-top: 1px solid #ebe7f2;
 }
 
-.s9-card--summary .price-row--total {
-  margin-top: 8px;
-  padding-top: 12px;
-  border-top: 1px solid #ebe7f2;
+.s9-card--summary .price-row--total,
+.s9-card--summary .price-row--summary-total {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.s9-card--summary .price-row--summary-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 0;
+  border-bottom: none;
+  font-family: var(--fd);
+  font-size: 18px;
+  font-weight: 800;
+  color: #18171d;
+}
+
+.s9-card--summary .price-row--summary-total .val {
+  font-size: 24px;
+  font-weight: 900;
+  color: #8467ff;
 }
 
 .summary-book-preview {
   display: flex;
   gap: 16px;
-  align-items: flex-start;
-  margin-bottom: 18px;
+  align-items: stretch;
+  margin-bottom: 0;
 }
 
 .summary-book-thumb {
-  flex: 0 0 92px;
-  width: 92px;
-  height: 92px;
-  border-radius: 18px;
+  flex: 0 0 112px;
+  width: 112px;
+  align-self: stretch;
+  min-height: 0;
+  border-radius: 16px;
   overflow: hidden;
   border: 1px solid #e4dfef;
   background: #f7f4fb;
@@ -2507,14 +2561,27 @@
 .summary-book-meta {
   flex: 1 1 auto;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
 }
 
 .summary-book-name {
-  margin-bottom: 10px;
+  margin: 0;
   font-family: var(--fd);
   font-size: 22px;
   font-weight: 800;
   color: #18171d;
+  line-height: 1.2;
+}
+
+.summary-book-line {
+  margin: 0;
+  font-family: var(--fb);
+  font-size: 15px;
+  line-height: 1.5;
+  color: #525064;
 }
 
 @media (max-width: 767px) {
@@ -2544,7 +2611,13 @@
   }
 
   .summary-book-preview {
-    flex-direction: column;
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .summary-book-thumb {
+    flex-basis: 96px;
+    width: 96px;
   }
 }
 

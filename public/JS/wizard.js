@@ -1242,8 +1242,6 @@ function initWizardContent() {
   // Step 15 — summary + payment
   setText('s9Title', renderTemplate(WIZ.steps.s9.title, { name: resolveWizardChildName() }));
   setText('s9Sub',          WIZ.steps.s9.sub);
-  setText('s9CardBookTitle',    WIZ.steps.s9.cardBookTitle || WIZ.steps.s9.card2Title);
-  setText('s9CardDetailsTitle', WIZ.steps.s9.cardDetailsTitle || WIZ.steps.s9.card1Title);
   setText('s9NameLabel',    WIZ.steps.s9.nameLabel);
   setText('s9EmailLabel',   WIZ.steps.s9.emailLabel);
   setText('btn-pay',        WIZ.steps.s9.submitBtn);
@@ -2431,7 +2429,7 @@ function refreshTotal() {
 
 /* ── STEP 9: BUILD SUMMARY ───────────────────────────────────── */
 function buildSummary() {
-  const { base, total } = computeTotal();
+  const { total } = computeTotal();
 
   // No fallback package — showing a product the customer didn't choose
   // (and won't receive) is a trust bug. Server truth wins when available.
@@ -2448,7 +2446,6 @@ function buildSummary() {
   const styleObj = ILLUSTRATION_STYLES.find((s) => s.id === state.style);
   const voiceObj = VOICES.find((v) => v.id === state.voice);
 
-  const lenLabel   = productName;
   const styleLabel = styleObj?.label || "";
   const voiceLabel = voiceObj?.label || "";
   const topicLabel = state.topicLabel || state.topic || "";
@@ -2457,22 +2454,26 @@ function buildSummary() {
 
   const bookPanelEl = document.getElementById('summary-book-panel');
   if (bookPanelEl) {
-  const stylePreview = state.style ? getStylePreviewDataUrl(state.style) : '';
+    const stylePreview = state.style ? getStylePreviewDataUrl(state.style) : '';
+    const packageLine = [
+      WIZ.summary.packagePrefix,
+      productName,
+      dirPages ? `· ${dirPages}` : '',
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const styleLine = styleLabel
+      ? `${WIZ.summary.stylePrefix} ${styleLabel}`
+      : '';
     bookPanelEl.innerHTML = `
       <div class="summary-book-preview">
         ${stylePreview ? `<div class="summary-book-thumb"><img src="${stylePreview}" alt="" /></div>` : ''}
         <div class="summary-book-meta">
           <div class="summary-book-name">${bookTitle}</div>
-          <div class="summary-row">
-            <span class="summary-icon">📄</span>
-            <span class="summary-label">${WIZ.summary.lengthLabel}</span>
-            <span class="summary-val">${productName} · ${dirPages}</span>
-          </div>
-          <div class="summary-row">
-            <span class="summary-icon">🎨</span>
-            <span class="summary-label">${WIZ.summary.styleLabel}</span>
-            <span class="summary-val">${styleLabel}</span>
-          </div>
+          ${packageLine ? `<p class="summary-book-line">${packageLine}</p>` : ''}
+          ${styleLine ? `<p class="summary-book-line">${styleLine}</p>` : ''}
         </div>
       </div>
     `;
@@ -2503,46 +2504,15 @@ function buildSummary() {
         ? { icon: "📖", label: WIZ.summary.topicLabel,  val: topicDisplayVal }
         : null,
       { icon: "🎧", label: WIZ.summary.audioLabel, val: voiceLabel || "✓" },
-      { icon: "📥", label: WIZ.summary.pdfLabel, val: "✓" },
       state.videoEnabled
-        ? { icon: "🎬", label: WIZ.summary.videoLabel || 'סרטון:', val: '✓' }
+        ? { icon: "🎬", label: WIZ.summary.videoLabel, val: "✓" }
         : null,
-      state.sleepMode
-        ? { icon: "🌙", label: WIZ.summary.sleepLabel, val: "✓" }
+      state.pdfEnabled
+        ? { icon: "🃏", label: WIZ.summary.powerCardLabel, val: "✓" }
         : null,
     ].filter(Boolean);
 
-    // ── Emotional context capture (helpers/difficulties/etc) ─────
-    const toSummaryLabels = (selected, lookup) => {
-      if (!Array.isArray(selected) || selected.length === 0) return null;
-      const labels = selected
-        .map((value) => {
-          if (typeof value !== 'string') return null;
-          const byId = Array.isArray(lookup) ? lookup.find((x) => x && x.id === value) : null;
-          const byLabel = byId || (Array.isArray(lookup) ? lookup.find((x) => x && x.label === value) : null);
-          const rawLabel = byLabel?.label || value;
-          return String(rawLabel)
-            .replace(/^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1F9FF}\s]+/gu, '')
-            .trim();
-        })
-        .filter(Boolean);
-      return labels.length > 0 ? labels.join(', ') : null;
-    };
-
-    const superpowerVal = toSummaryLabels(state.childSuperpower, WIZ.superpowers || []);
-    const goalsVal = toSummaryLabels(state.goals, WIZ.goals || []);
-    const heroNoteParts = [superpowerVal, goalsVal].filter(Boolean);
-    const heroNotesVal = heroNoteParts.length ? heroNoteParts.join(' · ') : null;
-
-    const extraDetails = heroNotesVal
-      ? `<div class="summary-row summary-row--soft">
-        <span class="summary-icon">💜</span>
-        <span class="summary-label">על הגיבור/ה:</span>
-        <span class="summary-val">${heroNotesVal}</span>
-      </div>`
-      : '';
-
-    sumEl.innerHTML = `${rows
+    sumEl.innerHTML = rows
       .map(
         (r) => `
         <div class="summary-row">
@@ -2552,24 +2522,18 @@ function buildSummary() {
         </div>
       `,
       )
-      .join("")}${extraDetails}`;
+      .join("");
   }
 
   // ── Price breakdown ─────────────────────────────────────────
   const priceEl = document.getElementById("price-breakdown");
   if (priceEl) {
-    const rows = `
-      <div class="price-row">
-        <span class="label">${productName || WIZ.summary.bookDigital.replace('{length}', lenLabel)}</span>
-        <span class="val">₪${base}</span>
-      </div>
-      <div class="price-row price-row--total">
+    priceEl.innerHTML = `
+      <div class="price-row price-row--summary-total">
         <span class="label">${WIZ.summary.totalLabel || 'סה"כ לתשלום:'}</span>
         <span class="val">₪${total}</span>
       </div>
     `;
-
-    priceEl.innerHTML = rows;
   }
 
   // ── Dynamic footer line based on whether photo was uploaded ─────

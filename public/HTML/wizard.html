@@ -201,18 +201,18 @@
     <!-- ── Step 9 — Summary + Payment ─────────────────────── -->
     <div class="step" id="step-9">
       <p class="step-microcopy" id="summaryMicro"></p>
-      <div style="text-align:center;margin-bottom:10px;">
-        <span style="font-size:28px;">✨</span>
-      </div>
-      <h2 class="step-title" id="s9Title" style="margin-bottom:6px;"></h2>
-      <p class="step-title" id="s9Sub" style="font-size:clamp(18px,2.6vw,28px);margin-bottom:20px;"></p>
+      <header class="s9-hero">
+        <div class="s9-hero-sparkle" aria-hidden="true">✨</div>
+        <h2 class="step-title s9-hero-title" id="s9Title"></h2>
+        <p class="step-sub s9-hero-sub" id="s9Sub"></p>
+      </header>
 
       <div class="s9-grid s9-grid--balanced">
         <div class="s9-card s9-card--summary">
-          <div class="s9-card-title" id="s9CardBookTitle"></div>
           <div id="summary-book-panel"></div>
-          <div class="s9-card-title s9-card-title--secondary" id="s9CardDetailsTitle"></div>
+          <div class="s9-summary-divider" aria-hidden="true"></div>
           <div id="order-summary"></div>
+          <div class="s9-summary-divider" aria-hidden="true"></div>
           <div id="price-breakdown"></div>
         </div>
 
