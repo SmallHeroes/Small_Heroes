@@ -1,17 +1,16 @@
 .card {
-  --pc-bg: #1a1f3a;
-  --pc-bg-gradient: linear-gradient(135deg, #1a1f3a 0%, #2d3561 50%, #1a1f3a 100%);
-  --pc-text-primary: #f5f3ff;
-  --pc-text-secondary: #cbd5e1;
-  --pc-accent: #fbbf24;
-  --pc-border-glow: rgba(251, 191, 36, 0.3);
+  --pc-bg: #FFFCF1;
+  --pc-bg-gradient: linear-gradient(180deg, #fffbe8 0%, #ffffff 92%);
+  --pc-text-primary: #18171a;
+  --pc-text-secondary: #5f5a70;
+  --pc-accent: #886cff;
+  --pc-border-glow: rgba(255, 238, 108, 0.55);
 
   position: relative;
   box-sizing: border-box;
   width: 100%;
-  max-width: 320px;
-  aspect-ratio: 148 / 210;
-  border-radius: 14px;
+  max-width: 360px;
+  border-radius: 20px;
   overflow: hidden;
   background: var(--pc-bg-gradient);
   color: var(--pc-text-primary);
@@ -20,7 +19,7 @@
   text-align: center;
   box-shadow:
     0 0 0 1px var(--pc-border-glow),
-    0 18px 40px rgba(0, 0, 0, 0.28);
+    0 12px 32px rgba(136, 108, 255, 0.1);
   display: flex;
   flex-direction: column;
 }
@@ -32,7 +31,7 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  padding: 10px 6.5% 12px;
+  padding: 16px 14px 18px;
 }
 
 .header {
@@ -58,18 +57,17 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5em;
-  max-height: 25%;
-  padding: 12px 0 6px;
+  gap: 0.45em;
+  padding: 8px 0 10px;
 }
 
 .avatarWrap {
-  width: clamp(58px, 15vw, 70px);
-  height: clamp(58px, 15vw, 70px);
+  width: clamp(84px, 22vw, 104px);
+  height: clamp(84px, 22vw, 104px);
   border-radius: 50%;
   padding: 3px;
-  background: linear-gradient(145deg, var(--pc-accent), transparent 70%);
-  box-shadow: 0 0 20px var(--pc-border-glow);
+  background: linear-gradient(145deg, #ffee6c, rgba(136, 108, 255, 0.35) 70%);
+  box-shadow: 0 10px 24px rgba(136, 108, 255, 0.14);
 }
 
 .avatar {
@@ -101,9 +99,9 @@
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: clamp(0.35rem, 1.8vw, 0.6rem);
-  padding: 1% 0;
+  justify-content: flex-start;
+  gap: 0.45rem;
+  padding: 4px 0 8px;
   margin: 0;
   min-height: 0;
   list-style: none;

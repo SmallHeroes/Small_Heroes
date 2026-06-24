@@ -423,8 +423,8 @@ function parseWizardUrlParams() {
 }
 
 function hasPendingStartHandoffParams() {
-  const { category, direction } = parseWizardUrlParams();
-  return Boolean(category && direction && VALID_STORY_DIRECTIONS.includes(direction));
+  const { category } = parseWizardUrlParams();
+  return Boolean(category);
 }
 
 /** Physical step ids visible in the current flow (public /start handoff skips 1, 2 only). */
@@ -465,7 +465,7 @@ function prevPhysicalStep(physicalStep) {
 
 function allowsWizardWithoutHandoff(restored) {
   if (isLegacyChallengeStepsEnabled()) return true;
-  if (restored && state.currentStep >= 3 && state.topic && state.storyDirection) return true;
+  if (restored && state.currentStep >= 3 && state.topic) return true;
   return false;
 }
 
@@ -570,32 +570,48 @@ function applyInitialDirectionFromContext() {
 }
 
 /**
- * /start handoff: ?category=CATEGORY&direction=bedtime|adventure|fantasy
- * Valid params override stale session draft (category, direction, step).
+ * /start handoff: ?category=CATEGORY[&direction=… legacy optional]
+ * Category is required; direction is chosen in wizard step 8 (not on /start).
  */
 function tryApplyWizardHandoffFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const categoryParam = params.get('category');
   const directionParam = params.get('direction');
-  if (!categoryParam || !directionParam) return false;
-  if (!VALID_STORY_DIRECTIONS.includes(directionParam)) return false;
+  if (!categoryParam) return false;
   if (!state.mvpMatrix?.categories) return false;
 
   const slot = state.mvpMatrix.categories.find((c) => c.category === categoryParam);
   if (!slot || slot.publicVisible === false) return false;
 
-  const dirMeta = slot.directions?.[directionParam];
-  if (!dirMeta?.sellable) return false;
-
   const categoryChanged = state.challengeCategory && state.challengeCategory !== slot.category;
-  const directionChanged = state.storyDirection && state.storyDirection !== directionParam;
+  const directionChanged =
+    directionParam &&
+    VALID_STORY_DIRECTIONS.includes(directionParam) &&
+    state.storyDirection &&
+    state.storyDirection !== directionParam;
 
   state.challengeCategory = slot.category;
   state.topic = slot.topicId;
   state.topicLabel = slot.label;
   applyMatrixCompanionForCategory(slot.category);
-  applyProductSelection(directionParam, { revealTotal: false });
-  state.directionLockedFromStart = true;
+  state.directionLockedFromStart = false;
+
+  if (directionParam && VALID_STORY_DIRECTIONS.includes(directionParam)) {
+    const dirMeta = slot.directions?.[directionParam];
+    if (dirMeta?.sellable) {
+      applyProductSelection(directionParam, { revealTotal: false });
+    } else {
+      state.storyDirection = null;
+      state.productId = null;
+      state.priceILS = null;
+      state.productTruth = null;
+    }
+  } else {
+    state.storyDirection = null;
+    state.productId = null;
+    state.priceILS = null;
+    state.productTruth = null;
+  }
 
   if (categoryChanged || directionChanged || state.currentStep <= 2) {
     state.currentStep = 3;
@@ -629,6 +645,18 @@ function getCompanionImageForSummary() {
   const slot = getMvpSlotForTopic(state.topic);
   if (slot?.companion?.image) return slot.companion.image;
   return '';
+}
+
+function getCompanionNameForPreview() {
+  const cat = state.challengeCategory;
+  const companionId = state.companionCharacterId;
+  if (cat && companionId && globalThis.COMPANIONS_BY_CATEGORY?.[cat]) {
+    const found = globalThis.COMPANIONS_BY_CATEGORY[cat].find((c) => c.id === companionId);
+    if (found?.name) return found.name;
+  }
+  const slot = getMvpSlotForTopic(state.topic);
+  if (slot?.companion?.name) return slot.companion.name;
+  return WIZ.steps.product?.powerCardPreview?.companionFallback || 'החבר/ה שלכם';
 }
 
 function ensureDefaultStyleSelection() {
@@ -760,7 +788,7 @@ function restoreWizardState() {
     if (typeof state.dedication !== 'string') state.dedication = '';
     if (typeof state.videoEnabled !== 'boolean') state.videoEnabled = false;
     if (typeof state.directionLockedFromStart !== 'boolean') {
-      state.directionLockedFromStart = hasPendingStartHandoffParams();
+      state.directionLockedFromStart = false;
     }
     normalizeProductStateFromLegacy();
     if (typeof state.styleSelected !== 'boolean') {
@@ -1137,7 +1165,6 @@ function init() {
   const pendingHandoff = hasPendingStartHandoffParams();
   if (pendingHandoff) {
     state.currentStep = 3;
-    state.directionLockedFromStart = true;
   }
 
   const restored = restoreWizardState();
@@ -1154,6 +1181,7 @@ function init() {
   renderSuperpowerChips();
   renderGoalsChips();
   renderProductCards();
+  renderWizardPowerCardPreview();
   renderStyleStepGrid();
   renderVoiceBtns();
   bindPhotoUploadInteractions();
@@ -1242,6 +1270,7 @@ function initWizardContent() {
   // Step 8 — product
   setText('productTitle', WIZ.steps.product?.title || '');
   setText('productSub',   WIZ.steps.product?.sub || '');
+  setText('productIncludesLine', WIZ.steps.product?.includesLine || '');
   setText('bottomBarTotalLabel', 'סה"כ:');
 
   // Step 7 — book + dedication
@@ -1409,6 +1438,7 @@ function updateUI() {
 
   if (state.currentStep === 8) {
     renderProductCards();
+    renderWizardPowerCardPreview();
     refreshTotal();
     syncProductTruthFromServer();
   }
@@ -1525,7 +1555,7 @@ function shake(el) {
 }
 
 function goBack() {
-  if (state.currentStep === 3 && state.directionLockedFromStart) {
+  if (state.currentStep === 3 && state.challengeCategory) {
     window.location.replace('/start');
     return;
   }
@@ -2247,6 +2277,47 @@ async function handlePhoto(e) {
 }
 
 /* ── STEP 8: PRODUCT CARDS ───────────────────────────────────── */
+function renderWizardPowerCardPreview() {
+  const el = document.getElementById('wizard-power-card-preview');
+  if (!el) return;
+
+  const preview = WIZ.steps.product?.powerCardPreview;
+  if (!preview) {
+    el.innerHTML = '';
+    return;
+  }
+
+  const companionImg = getCompanionImageForSummary();
+  const companionName = getCompanionNameForPreview();
+  const steps = Array.isArray(preview.steps) ? preview.steps : [];
+  const childName = resolveWizardChildName() || preview.childFallback || 'הגיבור/ה';
+
+  el.innerHTML = `
+    <article class="wizard-tips-card" aria-label="דוגמה לכרטיס כוח">
+      <header class="wizard-tips-card-brand">גיבורים קטנים</header>
+      <div class="wizard-tips-card-hero">
+        ${
+          companionImg
+            ? `<div class="wizard-tips-card-avatar"><img src="${companionImg}" alt="" loading="lazy" /></div>`
+            : ''
+        }
+        <h3 class="wizard-tips-card-title">${(preview.title || '').replace('{name}', childName)}</h3>
+        <p class="wizard-tips-card-sub">${preview.subtitle || ''}</p>
+      </div>
+      <ol class="wizard-tips-card-steps" aria-label="ארבעה צעדים">
+        ${steps
+          .map(
+            (step, index) =>
+              `<li><span class="wizard-tips-card-step-num" aria-hidden="true">${index + 1}.</span><span class="wizard-tips-card-step-text">${step.replace('{name}', childName)}</span></li>`,
+          )
+          .join('')}
+      </ol>
+      <p class="wizard-tips-card-reminder">&ldquo;${(preview.reminder || '').replace('{name}', childName)}&rdquo;</p>
+      <p class="wizard-tips-card-attribution">— ${companionName}</p>
+    </article>
+  `;
+}
+
 function renderProductCards() {
   const wrap = document.getElementById('product-cards');
   if (!wrap) return;
@@ -2274,17 +2345,6 @@ function renderProductCards() {
       (comingSoon ? ' product-card-coming-soon' : '');
     card.setAttribute('data-product', pkg.id);
 
-    const bestForHtml = (pkg.bestFor || [])
-      .map((item) => `<li>${item}</li>`)
-      .join('');
-
-    const includesHtml = (pkg.includes || [])
-      .map((item) => {
-        const emoji = PRODUCT_ICON_EMOJI[item.icon] || '✓';
-        return `<li><span class="product-card-include-icon" aria-hidden="true">${emoji}</span>${item.label}</li>`;
-      })
-      .join('');
-
     const ctaLabel = selected
       ? (copy.ctaSelected || 'זו הבחירה שלי')
       : (copy.ctaChoose || 'לבחירה');
@@ -2292,12 +2352,7 @@ function renderProductCards() {
     card.innerHTML = `
       ${comingSoon ? '<span class="product-card-coming-soon-badge">בקרוב</span>' : ''}
       <span class="product-card-name">${pkg.productName || pkg.id}</span>
-      <span class="product-card-tagline">${pkg.tagline || ''}</span>
       <span class="product-card-pages">${pkg.pages} עמודים</span>
-      <p class="product-card-bestfor-label">${copy.bestForLabel || 'מתאים במיוחד ל:'}</p>
-      <ul class="product-card-bestfor">${bestForHtml}</ul>
-      <p class="product-card-includes-label">${copy.includesLabel || 'כלול במחיר:'}</p>
-      <ul class="product-card-includes">${includesHtml}</ul>
       <span class="product-card-price">₪<span class="product-card-price-digits">${pkg.priceILS}</span></span>
       <span class="product-card-cta">${ctaLabel}</span>
     `;
@@ -2475,8 +2530,6 @@ function buildSummary() {
   const bookPanelEl = document.getElementById('summary-book-panel');
   if (bookPanelEl) {
     const stylePreview = state.style ? getStylePreviewDataUrl(state.style) : '';
-    const companionImg = getCompanionImageForSummary();
-    const heroVisual = companionImg || stylePreview;
     const packageLine = [
       WIZ.summary.packagePrefix,
       productName,
@@ -2490,16 +2543,12 @@ function buildSummary() {
       ? `${WIZ.summary.stylePrefix} ${styleLabel}`
       : '';
     bookPanelEl.innerHTML = `
-      <div class="summary-power-card">
-        ${heroVisual ? `
-          <div class="summary-power-card-visual">
-            <img src="${heroVisual}" alt="" loading="lazy" />
-          </div>
-        ` : ''}
-        <div class="summary-power-card-body">
-          <h3 class="summary-power-card-title">${bookTitle}</h3>
-          ${packageLine ? `<p class="summary-power-card-line">${packageLine}</p>` : ''}
-          ${styleLine ? `<p class="summary-power-card-line summary-power-card-line--muted">${styleLine}</p>` : ''}
+      <div class="summary-book-preview">
+        ${stylePreview ? `<div class="summary-book-thumb"><img src="${stylePreview}" alt="" /></div>` : ''}
+        <div class="summary-book-meta">
+          <div class="summary-book-name">${bookTitle}</div>
+          ${packageLine ? `<p class="summary-book-line">${packageLine}</p>` : ''}
+          ${styleLine ? `<p class="summary-book-line">${styleLine}</p>` : ''}
         </div>
       </div>
     `;
