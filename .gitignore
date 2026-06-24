@@ -46,6 +46,9 @@ story-bank/*.xlsx
 
 # Voice / audio test files
 voice-samples/
+# ...but DO track the production wizard voice previews (served by the ▶ buttons in the wizard).
+!public/voice-samples/
+!public/voice-samples/**
 scripts/test-audio*
 scripts/test-voice*
 scripts/check-voices*
