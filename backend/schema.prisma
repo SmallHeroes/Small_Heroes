@@ -435,6 +435,15 @@ model GenerationJob {
   quality            String?
   triggerReason      String?
   retryable          Boolean  @default(false)
+
+  // Reliability / recovery diagnostics (additive). The HTTP self-chain is best-effort;
+  // durable recovery is the sweeper reclaiming expired leases. These make a silent chain
+  // failure DB-visible and bound infinite re-spend on a stuck stage.
+  staleReclaimCount  Int      @default(0)  // times the sweeper has reclaimed this job
+  lastReclaimStage   String?              // progress fingerprint at last reclaim (stage:completedCount)
+  lastChainStatus    Int?                 // HTTP status of the last self-chain kick (e.g. 401)
+  lastChainError     String?              // last self-chain failure (host/status/body snippet)
+  lastWorkerKickAt   DateTime?            // when the last self-chain kick was attempted
   /// Cached DNA / story paths between chunks (JSON)
   pipelineCache      Json?
   completedPageNumbers Json?

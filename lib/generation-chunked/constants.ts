@@ -1,5 +1,24 @@
-/** DB lease duration — worker must finish or release before this expires. */
-export const GENERATION_LEASE_MS = 4 * 60 * 1000;
+/**
+ * DB lease duration — must exceed the worker's hard kill (maxDuration=300s) with margin so a
+ * worker that runs its full invocation NEVER has its lease expire mid-run (which would let a
+ * sweeper double-claim and double-spend). The loop also heartbeats between stages; the lease
+ * only expires when a worker is genuinely dead. 7min = 300s maxDuration + 120s margin.
+ */
+export const GENERATION_LEASE_MS = 7 * 60 * 1000;
+
+/**
+ * Anti-infinite-spend: max times the sweeper will reclaim a job that is NOT making progress
+ * (same stage:completedCount fingerprint) before hard-failing it (retryable=false). A job that
+ * advances resets the counter. Env-overridable for tests.
+ */
+export function getMaxStaleReclaims(): number {
+  const raw = process.env.GENERATION_MAX_STALE_RECLAIMS?.trim();
+  if (raw) {
+    const n = Number.parseInt(raw, 10);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return 8;
+}
 
 /** Stop chunk work before Vercel 300s hard limit (env override for tests). */
 export function getWorkerBudgetMs(): number {
