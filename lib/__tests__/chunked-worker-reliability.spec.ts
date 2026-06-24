@@ -15,6 +15,7 @@ const ENV_KEYS = [
   'GENERATION_SECRET',
   'CRON_SECRET',
   'GENERATION_MAX_STALE_RECLAIMS',
+  'VERCEL_AUTOMATION_BYPASS_SECRET',
 ];
 let snapshot: Record<string, string | undefined>;
 beforeEach(() => {
@@ -117,6 +118,35 @@ describe('chainGenerationWorker — a non-OK chain writes a DB-visible diagnosti
         expect.objectContaining({ data: expect.objectContaining({ lastChainStatus: 200 }) })
       )
     );
+  });
+
+  async function captureChainHeaders(): Promise<Record<string, string>> {
+    vi.doMock('@/lib/prisma', () => ({ prisma: { generationJob: { update: vi.fn(async () => ({})) }, order: { update: vi.fn(async () => ({})) } } }));
+    vi.doMock('@/lib/generation-chunked/env-separation-guard', () => ({ assertEnvSeparation: vi.fn() }));
+    const fetchMock = vi.fn(async () => ({ ok: true, status: 200, text: async () => 'ok' }));
+    vi.stubGlobal('fetch', fetchMock);
+    const { chainGenerationWorker } = await import('@/lib/generation-chunked/chain-worker');
+    chainGenerationWorker('o1');
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    return init.headers as Record<string, string>;
+  }
+
+  it('adds the Vercel protection-bypass header when VERCEL_AUTOMATION_BYPASS_SECRET is set', async () => {
+    process.env.VERCEL_URL = 'dep-abc.vercel.app';
+    process.env.GENERATION_SECRET = 'sek';
+    process.env.VERCEL_AUTOMATION_BYPASS_SECRET = 'bypass-123';
+    const headers = await captureChainHeaders();
+    expect(headers['x-vercel-protection-bypass']).toBe('bypass-123');
+    expect(headers['x-vercel-set-bypass-cookie']).toBe('false');
+  });
+
+  it('omits the protection-bypass header when the secret is NOT set', async () => {
+    process.env.VERCEL_URL = 'dep-abc.vercel.app';
+    process.env.GENERATION_SECRET = 'sek';
+    const headers = await captureChainHeaders();
+    expect(headers['x-vercel-protection-bypass']).toBeUndefined();
+    expect(headers['x-vercel-set-bypass-cookie']).toBeUndefined();
   });
 });
 

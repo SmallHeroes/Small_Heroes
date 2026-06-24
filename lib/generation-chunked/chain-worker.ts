@@ -96,14 +96,24 @@ export function chainGenerationWorker(orderId: string): void {
   // Stamp the kick attempt durably (so a hung/failed chain is visible even before the response).
   void recordChainDiagnostic(orderId, { lastWorkerKickAt: new Date(), lastChainError: null });
 
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    // Internal auth: Bearer is primary; x-generation-secret for compat; body secret too.
+    Authorization: `Bearer ${secret}`,
+    'x-generation-secret': secret,
+  };
+  // Vercel Deployment Protection is on for preview — get the internal self-call past the 401 with
+  // the automation bypass secret (when configured). Do NOT set the bypass cookie on this server
+  // request. Only added when VERCEL_AUTOMATION_BYPASS_SECRET is present.
+  const bypassSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim();
+  if (bypassSecret) {
+    headers['x-vercel-protection-bypass'] = bypassSecret;
+    headers['x-vercel-set-bypass-cookie'] = 'false';
+  }
+
   void fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      // Internal auth: Bearer is primary; x-generation-secret for compat; body secret too.
-      Authorization: `Bearer ${secret}`,
-      'x-generation-secret': secret,
-    },
+    headers,
     body: JSON.stringify({ orderId, secret }),
     keepalive: true,
   })

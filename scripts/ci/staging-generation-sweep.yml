@@ -8,13 +8,20 @@ name: staging-generation-sweep
 # generation job once browser status-polling stops. This external scheduler hits the durable
 # sweep endpoint (Authorization: Bearer CRON_SECRET) so expired leases are reclaimed.
 #
+# Preview deployments also have Vercel Deployment Protection (returns 401), so we send the
+# automation bypass secret (x-vercel-protection-bypass) when VERCEL_AUTOMATION_BYPASS_SECRET is
+# configured. A cron-job.org / UptimeRobot monitor hitting the same URL must send BOTH headers:
+#   Authorization: Bearer <CRON_SECRET>
+#   x-vercel-protection-bypass: <VERCEL_AUTOMATION_BYPASS_SECRET>
+#
 # GitHub's scheduled-cron floor is ~5 min, so we schedule every 5 min and loop 5x at 60s inside
 # the job to approximate a 1-minute cadence. This is the IMMEDIATE fix; the DURABLE follow-up is a
 # real queue (QStash / Inngest). Prod uses the Vercel cron in vercel.json — this targets staging.
 #
 # Required repo secrets:
-#   STAGING_SWEEP_URL  e.g. https://<staging-deployment>/api/generate/cron/sweep
-#   CRON_SECRET        same value as the staging CRON_SECRET env var
+#   STAGING_SWEEP_URL               e.g. https://<staging-deployment>/api/generate/cron/sweep
+#   CRON_SECRET                     same value as the staging CRON_SECRET env var
+#   VERCEL_AUTOMATION_BYPASS_SECRET (optional) staging Deployment Protection bypass secret
 on:
   schedule:
     - cron: '*/5 * * * *'
@@ -33,15 +40,21 @@ jobs:
         env:
           SWEEP_URL: ${{ secrets.STAGING_SWEEP_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: |
           set -u
           if [ -z "${SWEEP_URL}" ] || [ -z "${CRON_SECRET}" ]; then
             echo "STAGING_SWEEP_URL / CRON_SECRET not set — skipping (configure repo secrets)."
             exit 0
           fi
+          # Add the Deployment Protection bypass header only when the secret is configured.
+          bypass_args=()
+          if [ -n "${BYPASS_SECRET}" ]; then
+            bypass_args=(-H "x-vercel-protection-bypass: ${BYPASS_SECRET}")
+          fi
           for i in 1 2 3 4 5; do
             code=$(curl -s -o /tmp/sweep_out -w "%{http_code}" \
-              -H "Authorization: Bearer ${CRON_SECRET}" "${SWEEP_URL}" || echo "000")
+              -H "Authorization: Bearer ${CRON_SECRET}" "${bypass_args[@]}" "${SWEEP_URL}" || echo "000")
             echo "sweep attempt ${i}/5 -> HTTP ${code}: $(cat /tmp/sweep_out 2>/dev/null | head -c 300)"
             if [ "${i}" -lt 5 ]; then sleep 60; fi
           done
