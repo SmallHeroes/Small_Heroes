@@ -224,7 +224,7 @@ describe('checkout route fake gate', () => {
   });
 });
 
-describe('middleware staging fake-payment exception', () => {
+describe('middleware staging QA gate (open browsing, gated book-creation trigger)', () => {
   async function run(pathname: string, env: Record<string, string | undefined>, cookie?: string) {
     setEnv({ NODE_ENV: 'production', ...env });
     vi.resetModules();
@@ -236,74 +236,88 @@ describe('middleware staging fake-payment exception', () => {
     );
   }
 
-  const FAKE_ON = { VERCEL_ENV: 'preview', PAYMENT_PROVIDER: 'fake', ALLOW_FAKE_PAYMENTS: 'true', ENABLE_FAKE_PAYMENT: 'true' };
+  // Staging QA open: ALLOW_STAGING_QA is the master switch for /dev visibility on preview.
+  const QA_ON = { VERCEL_ENV: 'preview', ALLOW_STAGING_QA: 'true' };
+  // The book-creation trigger additionally needs the fake-payment flags.
+  const QA_FAKE_ON = {
+    ...QA_ON,
+    PAYMENT_PROVIDER: 'fake',
+    ALLOW_FAKE_PAYMENTS: 'true',
+    ENABLE_FAKE_PAYMENT: 'true',
+  };
 
-  it('fake-payment page passes on preview + flags', async () => {
-    const res = await run('/dev/fake-payment', FAKE_ON);
+  // --- Open browsing: /dev pages + /api/dev, NO cookie, NO password prompt on refresh ---
+
+  it('opens a /dev page on staging without any cookie (no gate redirect)', async () => {
+    const res = await run('/dev/creator', QA_ON);
     expect(res.status).toBe(200);
   });
 
-  it('fake confirm api passes on preview + flags', async () => {
-    const res = await run('/api/dev/fake-payment/confirm', FAKE_ON);
+  it('opens the /dev/fake-payment page on staging without a cookie', async () => {
+    const res = await run('/dev/fake-payment', QA_ON);
     expect(res.status).toBe(200);
   });
 
-  it('SAFETY: fake-payment page 404s on real prod even with flags', async () => {
-    const res = await run('/dev/fake-payment', { ...FAKE_ON, VERCEL_ENV: 'production' });
-    expect(res.status).toBe(404);
-  });
-
-  it('other /dev routes 404 even on preview + flags', async () => {
-    const res = await run('/dev/regen-page', FAKE_ON);
-    expect(res.status).toBe(404);
-  });
-
-  it('QA /dev routes redirect to the site gate on preview without the access cookie', async () => {
-    const res = await run('/dev/creator', { VERCEL_ENV: 'preview', ALLOW_STAGING_QA: 'true' });
-    expect(res.status).toBe(307);
-    expect(res.headers.get('location')).toContain('/HTML/gate.html');
-    expect(res.headers.get('location')).toContain('next=%2Fdev%2Fcreator');
-  });
-
-  it('QA /dev routes pass on preview only with ALLOW_STAGING_QA and access cookie', async () => {
-    const res = await run(
-      '/dev/creator',
-      { VERCEL_ENV: 'preview', ALLOW_STAGING_QA: 'true' },
-      'sh_access=site-secret'
-    );
+  it('opens an /api/dev route on staging without a cookie', async () => {
+    const res = await run('/api/dev/creator/meta', QA_ON);
     expect(res.status).toBe(200);
   });
 
-  it('QA /api/dev routes return 401 on preview without the access cookie', async () => {
-    const res = await run('/api/dev/creator/meta', { VERCEL_ENV: 'preview', ALLOW_STAGING_QA: 'true' });
+  // --- Book-creation trigger stays password-gated ---
+
+  it('book-creation trigger returns 401 on staging WITHOUT the site-password cookie', async () => {
+    const res = await run('/api/dev/fake-payment/confirm', QA_FAKE_ON);
     expect(res.status).toBe(401);
   });
 
-  it('QA /api/dev routes pass on preview only with ALLOW_STAGING_QA and access cookie', async () => {
-    const res = await run(
-      '/api/dev/creator/meta',
-      { VERCEL_ENV: 'preview', ALLOW_STAGING_QA: 'true' },
-      'sh_access=site-secret'
-    );
+  it('book-creation trigger passes on staging WITH fake flags + the site-password cookie', async () => {
+    const res = await run('/api/dev/fake-payment/confirm', QA_FAKE_ON, 'sh_access=site-secret');
     expect(res.status).toBe(200);
   });
 
-  it('SAFETY: QA /dev routes 404 on real prod even with ALLOW_STAGING_QA', async () => {
+  it('book-creation trigger 401s with the cookie but WITHOUT the fake-payment flags', async () => {
+    const res = await run('/api/dev/fake-payment/confirm', QA_ON, 'sh_access=site-secret');
+    expect(res.status).toBe(401);
+  });
+
+  it('book-creation trigger 401s with the wrong cookie value', async () => {
+    const res = await run('/api/dev/fake-payment/confirm', QA_FAKE_ON, 'sh_access=wrong');
+    expect(res.status).toBe(401);
+  });
+
+  // --- INVARIANT: real prod 404s everything; preview without the flag 404s ---
+
+  it('SAFETY: /dev pages 404 on real prod even with ALLOW_STAGING_QA + cookie', async () => {
+    const res = await run('/dev/creator', { ...QA_ON, VERCEL_ENV: 'production' }, 'sh_access=site-secret');
+    expect(res.status).toBe(404);
+  });
+
+  it('SAFETY: /api/dev 404s on real prod even with ALLOW_STAGING_QA + cookie', async () => {
+    const res = await run('/api/dev/creator/meta', { ...QA_ON, VERCEL_ENV: 'production' }, 'sh_access=site-secret');
+    expect(res.status).toBe(404);
+  });
+
+  it('SAFETY: book-creation trigger 404s on real prod even with flags + cookie', async () => {
     const res = await run(
-      '/dev/creator',
-      { VERCEL_ENV: 'production', ALLOW_STAGING_QA: 'true' },
+      '/api/dev/fake-payment/confirm',
+      { ...QA_FAKE_ON, VERCEL_ENV: 'production' },
       'sh_access=site-secret'
     );
     expect(res.status).toBe(404);
   });
 
-  it('SAFETY: QA /dev routes 404 in generic production without VERCEL_ENV', async () => {
+  it('SAFETY: /dev 404s on preview WITHOUT ALLOW_STAGING_QA', async () => {
+    const res = await run('/dev/creator', { VERCEL_ENV: 'preview' });
+    expect(res.status).toBe(404);
+  });
+
+  it('SAFETY: /dev 404s in generic production without VERCEL_ENV', async () => {
     const res = await run('/dev/creator', { VERCEL_ENV: undefined, ALLOW_STAGING_QA: 'true' });
     expect(res.status).toBe(404);
   });
 
-  it('SAFETY: /api/debug stays closed even when staging QA is open', async () => {
-    const res = await run('/api/debug/minimal-e2e', { VERCEL_ENV: 'preview', ALLOW_STAGING_QA: 'true' });
+  it('SAFETY: /api/debug stays 404 even when staging QA is open', async () => {
+    const res = await run('/api/debug/minimal-e2e', QA_ON);
     expect(res.status).toBe(404);
   });
 });
