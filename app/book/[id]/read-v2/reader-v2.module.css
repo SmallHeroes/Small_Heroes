@@ -1106,59 +1106,62 @@
   top: 50%;
   transform: translateY(-50%);
   z-index: 30;
-  width: 44px;
-  height: 44px;
+  width: 32px;
+  height: 32px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(30, 22, 14, 0.55);
   color: rgba(255, 248, 235, 0.92);
-  font-size: 22px;
+  font-size: 17px;
+  line-height: 1;
   cursor: pointer;
   font-family: var(--font-ui);
   backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
 }
 
-/* RTL: right control hosts forward (‹); left control hosts back (›) — see reader-v2.tsx */
-.spreadNavPrev {
-  right: calc(100% + 12px);
+/* Physical screen-left = story forward (RTL next page) */
+.spreadNavForward {
+  left: -40px;
 }
 
-/* RTL: left control = back */
-.spreadNavNext {
-  left: calc(100% + 12px);
+/* Physical screen-right = story back */
+.spreadNavBack {
+  right: -40px;
 }
 
 @media (min-width: 1024px) {
   .spreadNavBtn {
-    width: 40px;
-    height: 40px;
-    font-size: 20px;
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
     border: 1px solid rgba(255, 248, 235, 0.14);
     background: rgba(38, 30, 24, 0.78);
     color: rgba(255, 248, 235, 0.9);
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.24);
   }
 
   .spreadNavBtn:hover:not(:disabled) {
     background: rgba(48, 38, 30, 0.92);
   }
 
-  /* Hug the book edges — page-turn affordance, not distant carousel */
-  .spreadNavPrev {
-    right: calc(100% - 10px);
+  .spreadNavForward {
+    left: -36px;
   }
 
-  .spreadNavNext {
-    left: calc(100% - 10px);
+  .spreadNavBack {
+    right: -36px;
   }
 
-  /* Cover is a single narrow page — pull arrows outward for breathing room */
-  .bookSpreadWrap:has(.tplCover) .spreadNavPrev {
-    right: calc(100% + 20px);
+  .bookSpreadWrap:has(.tplCover) .spreadNavForward {
+    left: -44px;
   }
 
-  .bookSpreadWrap:has(.tplCover) .spreadNavNext {
-    left: calc(100% + 20px);
+  .bookSpreadWrap:has(.tplCover) .spreadNavBack {
+    right: -44px;
   }
 }
 
@@ -1283,7 +1286,7 @@
 @media (max-width: 1023px) {
   .rootReaderReady .mobileScene .mobileTextOverlay .sentence,
   .rootReaderReady .mobileScene .mobileProse {
-    font-size: 18px;
+    font-size: 17px;
   }
 }
 
@@ -1743,10 +1746,10 @@
 }
 
 .mobileTextOverlay .sentence {
-  margin: 0 0 0.1em 0;
+  margin: 0 0 0.05em 0;
   font-family: var(--font-book-prose);
-  font-size: 18px;
-  line-height: 1.6;
+  font-size: 17px;
+  line-height: 1.55;
   font-weight: var(--book-prose-weight, 400);
   color: #ffffff;
   text-align: right;
@@ -1760,8 +1763,8 @@
 .mobileProse {
   margin: 0;
   font-family: var(--font-book-prose);
-  font-size: var(--book-body-mobile, 18px);
-  line-height: var(--book-line-height, 1.6);
+  font-size: var(--book-body-mobile, 17px);
+  line-height: var(--book-line-height, 1.55);
   font-weight: var(--book-prose-weight, 400);
   color: #ffffff;
   text-align: right;
@@ -1787,46 +1790,45 @@
 
 
 /* ── Mobile swipe-hint edge arrows ─────────────────────────
-   The .mobileEdgeNav div sits over the whole reader root with
-   pointer-events:none; only the two .mobileEdgeBtn arrows accept
-   touches so the swipe gesture on the illustration is not blocked.
-   Hebrew RTL: left arrow = next, right arrow = prev (already correct
-   in JSX). Hidden on desktop (≥1024px). */
+   Physical screen edges (direction:ltr) — not mirrored by page RTL.
+   Left = next (‹), right = previous (›). Hidden on desktop (≥1024px). */
 .mobileEdgeNav {
   position: absolute;
   inset: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  direction: ltr;
   pointer-events: none;
   z-index: 14;
+  padding: 0 6px;
 }
 
 .mobileEdgeBtn {
   pointer-events: auto;
   appearance: none;
-  border: none;
-  background: rgba(20, 14, 8, 0.06);
-  color: rgba(255, 248, 235, 0.38);
-  font-size: 40px;
+  border: 1px solid rgba(255, 248, 235, 0.12);
+  border-radius: 999px;
+  background: rgba(38, 30, 24, 0.55);
+  color: rgba(255, 248, 235, 0.72);
+  font-size: 16px;
   line-height: 1;
-  width: 44px;
-  height: 96px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  padding: 0;
   transition: background 0.18s ease, color 0.18s ease, opacity 0.18s ease;
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
 }
 
-.mobileEdgeBtn:first-child {
-  border-radius: 0 12px 12px 0;
-}
-
+.mobileEdgeBtn:first-child,
 .mobileEdgeBtn:last-child {
-  border-radius: 12px 0 0 12px;
+  border-radius: 999px;
 }
 
 .mobileEdgeBtn:disabled {
