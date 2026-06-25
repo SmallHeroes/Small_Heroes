@@ -486,7 +486,15 @@ export function parseImageDirection(dir: string): ShotVisualDirection | undefine
   };
 }
 
-/** Extract location/setting from imageDirection text. */
+/**
+ * Extract location/setting from imageDirection text.
+ *
+ * ADVISORY ONLY (Visual Contract Compiler authority rule): this keyword classifier is a HINT. Once a
+ * BookVisualContract governs a book, the page's location identity comes from the contract
+ * (`locationId`/`zoneId`) and this output may NEVER override it — it caused the gate→cave
+ * reclassification by promoting a zone to a whole new world. See lib/visual-contract-compiler
+ * (resolveAuthoritativePageLocation). Use it only to inform camera/action phrasing.
+ */
 function extractLocationZone(dir: string): string {
   const d = dir.toLowerCase();
   // Indoor locations
