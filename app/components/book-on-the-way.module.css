@@ -1,0 +1,243 @@
+.wrap {
+  font-family: 'Heebo', sans-serif;
+  background: radial-gradient(120% 120% at 50% 0%, #fffdf6 0%, #fbf4e6 60%, #f6ecd8 100%);
+  border-radius: 20px;
+  padding: 34px 22px 30px;
+  position: relative;
+  overflow: hidden;
+  min-height: 520px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.scene {
+  position: relative;
+  width: 215px;
+  height: 185px;
+  margin: 14px 0 2px;
+}
+
+.book {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: botwFloat 5s ease-in-out infinite;
+}
+
+@keyframes botwFloat {
+  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+  50% { transform: translateY(-11px) rotate(1.5deg); }
+}
+
+.glow {
+  position: absolute;
+  inset: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(136, 108, 255, 0.28) 0%, rgba(255, 238, 108, 0.18) 45%, transparent 70%);
+  filter: blur(6px);
+  animation: botwBreathe 4s ease-in-out infinite;
+}
+
+@keyframes botwBreathe {
+  0%, 100% { opacity: 0.6; transform: scale(0.92); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+.bloom {
+  transform-origin: center;
+  transform-box: fill-box;
+  opacity: 0;
+  animation: botwBloom 4.5s ease-in-out infinite;
+}
+
+@keyframes botwBloom {
+  0% { opacity: 0; transform: scale(0); }
+  25% { opacity: 0.85; transform: scale(1); }
+  70% { opacity: 0.85; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.6); }
+}
+
+.badge {
+  position: absolute;
+  bottom: 18px;
+  left: 30px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #34c39a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(52, 195, 154, 0.4);
+  animation: botwPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both;
+}
+
+@keyframes botwPop {
+  0% { transform: scale(0) rotate(-30deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+.spark {
+  position: absolute;
+  color: #ffce4a;
+  animation: botwTwinkle 2.6s ease-in-out infinite;
+  font-size: 14px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+@keyframes botwTwinkle {
+  0%, 100% { opacity: 0.25; transform: scale(0.7); }
+  50% { opacity: 1; transform: scale(1.15) translateY(-5px); }
+}
+
+.rise {
+  position: absolute;
+  bottom: 8%;
+  color: #b3a7ff;
+  opacity: 0;
+  animation: botwRise 5s ease-in infinite;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+@keyframes botwRise {
+  0% { opacity: 0; transform: translateY(0) scale(0.6); }
+  20% { opacity: 0.9; }
+  100% { opacity: 0; transform: translateY(-260px) scale(1); }
+}
+
+.title {
+  font-weight: 800;
+  font-size: 25px;
+  color: #2b2350;
+  margin: 16px 0 6px;
+  line-height: 1.3;
+}
+
+.titleAccent {
+  color: #6b4eff;
+}
+
+.sub {
+  font-size: 14px;
+  color: #7c7498;
+  margin: 0 0 4px;
+  max-width: 330px;
+  line-height: 1.65;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  background: rgba(136, 108, 255, 0.08);
+  border-radius: 20px;
+  padding: 6px 14px;
+}
+
+.pdot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #886cff;
+  animation: botwPulse 1.3s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes botwPulse {
+  0%, 100% { opacity: 0.4; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+.statusMsg {
+  font-size: 12.5px;
+  color: #6b4eff;
+  font-weight: 500;
+  transition: opacity 0.25s;
+}
+
+.statusMsgFade {
+  opacity: 0;
+}
+
+.mailChip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid #ece3d2;
+  border-radius: 14px;
+  padding: 10px 16px;
+  margin-top: 20px;
+}
+
+.mailChip span {
+  font-size: 13px;
+  color: #473f6b;
+  font-weight: 500;
+}
+
+.note {
+  font-size: 12px;
+  color: #a59cbb;
+  margin: 16px 0 0;
+  max-width: 300px;
+  line-height: 1.6;
+}
+
+.readyTitle {
+  font-weight: 800;
+  font-size: 26px;
+  color: #2b2350;
+  margin: 20px 0 10px;
+}
+
+.readyBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 28px;
+  margin-top: 18px;
+  border: none;
+  border-radius: 999px;
+  background: #886cff;
+  color: #fff;
+  font-family: 'Heebo', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 8px 24px rgba(136, 108, 255, 0.28);
+}
+
+.readyBtn:hover {
+  background: #6b4eff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .book,
+  .glow,
+  .bloom,
+  .spark,
+  .rise,
+  .pdot {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .wrap {
+    min-height: 480px;
+    padding: 28px 16px 24px;
+  }
+
+  .title {
+    font-size: 22px;
+  }
+}

@@ -1,0 +1,96 @@
+.main {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 32px clamp(16px, 4vw, 28px) 48px;
+  font-family: var(--fb, 'Heebo', sans-serif);
+}
+
+.head h1 {
+  font-family: var(--fd, 'Heebo', sans-serif);
+  font-size: clamp(28px, 4vw, 36px);
+  font-weight: 900;
+  margin: 0 0 8px;
+  color: var(--dark, #18171d);
+}
+
+.head p {
+  margin: 0 0 24px;
+  color: #6f6a80;
+  font-size: 15px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  border: 1px solid #e4dfef;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 8px 22px rgba(36, 24, 74, 0.05);
+}
+
+.cover {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  display: block;
+  background: #f7f4fb;
+}
+
+.body {
+  padding: 14px 16px 16px;
+}
+
+.body h3 {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.meta {
+  font-size: 13px;
+  color: #886cff;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.primaryBtn,
+.outlineBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.primaryBtn {
+  background: var(--purple, #886cff);
+  color: #fff;
+}
+
+.outlineBtn {
+  border: 2px solid var(--purple, #886cff);
+  color: var(--purple, #886cff);
+  background: transparent;
+}
+
+.empty {
+  text-align: center;
+  padding: 48px 16px;
+  color: #7c7498;
+  font-size: 16px;
+}
