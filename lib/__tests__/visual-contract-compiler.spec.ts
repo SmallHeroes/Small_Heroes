@@ -145,6 +145,36 @@ describe('derivePageVisualContracts', () => {
   });
 });
 
+describe('normalizeRawBookVisualContract — absorbs LLM shape variations (the ענת calibration finding)', () => {
+  it('coerces string wardrobe, assigns recurringProp ids from names, remaps propState by name', async () => {
+    const { normalizeRawBookVisualContract, validateBookVisualContract } = await import('@/lib/visual-contract-compiler');
+    const raw = {
+      version: 1,
+      worldType: 'bedroom at night',
+      locations: [{ id: 'bedroom', name: 'Bedroom', description: 'a child bedroom at night' }],
+      zones: [],
+      cast: {
+        child: { id: 'child', role: 'child', wardrobe: 'yellow pajamas' }, // string wardrobe
+        companion: { id: 'panda', role: 'companion', wardrobe: { outfit: 'red scarf' } }, // outfit key
+      },
+      recurringProps: [{ name: 'blanket', description: 'a soft blanket' }], // no id
+      forbiddenGlobalElements: 'dragon, monster', // string list
+      coverContract: { worldType: 'bedroom at night', locationId: 'bedroom', mustShow: ['child'], mustNotShow: [] },
+      pageContracts: [
+        { pageNumber: 1, locationId: 'bedroom', mustShow: [], mustNotShow: [], characterPresence: { child: true, companion: false }, propState: [{ propId: 'blanket', state: 'folded' }], camera: 'wide' },
+      ],
+    };
+    const norm = normalizeRawBookVisualContract(raw);
+    const r = validateBookVisualContract(norm);
+    expect(r.ok).toBe(true); // previously failed-closed; normalization makes it valid
+    const n = norm as Record<string, any>;
+    expect(n.cast.child.wardrobe.description).toBe('yellow pajamas');
+    expect(n.cast.companion.wardrobe.description).toBe('red scarf');
+    expect(n.recurringProps[0].id).toBe('blanket'); // id derived from name
+    expect(n.forbiddenGlobalElements).toEqual(['dragon', 'monster']);
+  });
+});
+
 describe('compileBookVisualContract (fail-closed parse + validate)', () => {
   const input = { storyKey: 'demo_playground', fullStoryText: 'Anat played at the playground...', pageCount: 2 };
 

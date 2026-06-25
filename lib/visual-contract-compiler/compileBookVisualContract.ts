@@ -14,6 +14,7 @@ import {
   assertValidBookVisualContract,
   InvalidVisualContractError,
 } from './validateBookVisualContract';
+import { normalizeRawBookVisualContract } from './normalizeRawContract';
 
 /** Minimal LLM seam: system+user prompt in, raw model text (expected JSON) out. */
 export type ContractLlmCaller = (system: string, user: string) => Promise<string>;
@@ -67,6 +68,12 @@ export function buildCompileUserPrompt(input: CompileBookVisualContractInput): s
     'version (number = 1), storyKey, worldType, locations[], zones[], cast{child,companion?}, recurringProps[], forbiddenGlobalElements[], coverContract{worldType,locationId,timeOfDay?,mustShow[],mustNotShow[]}, pageContracts[].',
     'Each pageContract: pageNumber, locationId, zoneId?, sameLocationAs?, mustShow[], mustNotShow[], characterPresence{child,companion}, propState[{propId,state}], camera.',
     '',
+    'EXACT SHAPE (match these key names precisely):',
+    '- cast.child and cast.companion: {"id","role","name","wardrobe":{"description":"...","forbidden":["..."]}} — wardrobe is an OBJECT with a "description" string, NOT a bare string.',
+    '- recurringProps: [{"id":"snake_case_id","name":"...","description":"..."}] — every prop MUST have an "id".',
+    '- propState[].propId MUST equal one of recurringProps[].id (use the id, not the name).',
+    '- forbiddenGlobalElements is a JSON array of strings.',
+    '',
     'FULL STORY TEXT:',
     input.fullStoryText,
   ].join('\n');
@@ -107,7 +114,9 @@ export async function compileBookVisualContract(
 ): Promise<BookVisualContract> {
   const call = deps?.callLLM ?? defaultContractLlmCaller;
   const raw = await call(buildCompileSystemPrompt(), buildCompileUserPrompt(input));
-  const parsed = parseContractJson(raw) as Record<string, unknown>;
+  // Coerce common LLM shape variations into the canonical schema BEFORE validating (general; genuinely
+  // missing content still fails closed).
+  const parsed = normalizeRawBookVisualContract(parseContractJson(raw)) as Record<string, unknown>;
 
   // Default the version + stamp provenance/storyKey before validating.
   if (parsed.version === undefined) parsed.version = BOOK_VISUAL_CONTRACT_VERSION;

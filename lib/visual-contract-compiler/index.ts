@@ -22,6 +22,7 @@ export {
   type ContractLlmCaller,
   type CompileBookVisualContractInput,
 } from './compileBookVisualContract';
+export { normalizeRawBookVisualContract } from './normalizeRawContract';
 export {
   derivePageVisualContracts,
   type ResolvedPageContract,
