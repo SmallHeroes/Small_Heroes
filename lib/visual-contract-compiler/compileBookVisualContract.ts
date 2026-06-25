@@ -118,6 +118,20 @@ export async function compileBookVisualContract(
   // missing content still fails closed).
   const parsed = normalizeRawBookVisualContract(parseContractJson(raw)) as Record<string, unknown>;
 
+  // Always forbid stray creatures (gpt-image's default-pet habit — the recurring uninvited armadillo;
+  // first seen 2026-06, confirmed by the ענת calibration). General, not per-story: if the LLM didn't
+  // already forbid other animals, add the guard so BOTH the render prompt steers away from them AND
+  // the vision gate flags them. Without this the forbidden-entity check is inert when the list is empty.
+  {
+    const forbidden = Array.isArray(parsed.forbiddenGlobalElements)
+      ? (parsed.forbiddenGlobalElements as unknown[]).filter((x): x is string => typeof x === 'string')
+      : [];
+    if (!forbidden.some((f) => /\b(creature|animal|pet)\b/i.test(f))) {
+      forbidden.push('any animal, creature, or pet that is not the story\'s declared companion');
+    }
+    parsed.forbiddenGlobalElements = forbidden;
+  }
+
   // Default the version + stamp provenance/storyKey before validating.
   if (parsed.version === undefined) parsed.version = BOOK_VISUAL_CONTRACT_VERSION;
   if (input.storyKey && parsed.storyKey === undefined) parsed.storyKey = input.storyKey;

@@ -107,6 +107,7 @@ async function renderPage(block: string, companionSheet: string, styleRefs: stri
     STYLE_01_SHARED,
     STYLE_01_NO_TEXT,
     block,
+    'CAST ALLOW-LIST: ONLY the child and the declared companion may appear. NO other animals, creatures, or pets — specifically NO armadillo, NO pangolin, NO extra background animal.',
     'Render this single Style 01 watercolor children\'s-book illustration faithfully to the VISUAL CONTRACT above.',
   ].join('\n\n');
   const result = await generateGPTImage({
