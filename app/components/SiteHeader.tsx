@@ -26,7 +26,10 @@ export function SiteHeader({ variant = 'full', confirmLeave = false }: SiteHeade
         if (!res.ok || cancelled) return;
         const data = await res.json();
         if (data?.user?.email && !cancelled) {
-          setUser({ email: data.user.email });
+          setUser({
+            email: data.user.email,
+            hasBooks: Boolean(data.hasBooks),
+          });
         }
       } catch {
         /* auth optional */
@@ -63,6 +66,10 @@ export function SiteHeader({ variant = 'full', confirmLeave = false }: SiteHeade
     [confirmLeave],
   );
 
+  const onAuthChange = useCallback((next: AuthUser | null) => {
+    setUser(next);
+  }, []);
+
   const headerClass = [
     styles.header,
     scrolled ? styles.headerScrolled : '',
@@ -73,36 +80,42 @@ export function SiteHeader({ variant = 'full', confirmLeave = false }: SiteHeade
 
   const logoClass = [styles.logo, scrolled ? styles.logoScaled : ''].filter(Boolean).join(' ');
 
+  const showMyBooksNav = Boolean(user?.hasBooks);
+
   return (
     <header className={headerClass}>
       <div className={styles.inner}>
-        <Link href={ROUTES.home} className={logoClass} aria-label={COMMON.brand} onClick={onLogoClick}>
-          <div className={styles.logoIcon}>
-            <div className={styles.logoIconSq} />
-            <div className={styles.logoIconDot} />
-          </div>
-          <div className={styles.logoText}>
-            <span className={styles.logoBrand}>{COMMON.brand}</span>
-            <span className={styles.logoTagline}>{COMMON.tagline}</span>
-          </div>
-        </Link>
+        <div className={styles.startCluster}>
+          <Link href={ROUTES.home} className={logoClass} aria-label={COMMON.brand} onClick={onLogoClick}>
+            <div className={styles.logoIcon}>
+              <div className={styles.logoIconSq} />
+              <div className={styles.logoIconDot} />
+            </div>
+            <div className={styles.logoText}>
+              <span className={styles.logoBrand}>{COMMON.brand}</span>
+              <span className={styles.logoTagline}>{COMMON.tagline}</span>
+            </div>
+          </Link>
 
-        <div className={styles.rightCluster}>
           {variant === 'full' ? (
             <nav className={styles.navLinks} aria-label="ניווט ראשי">
-              <a href="/#how">איך זה עובד</a>
-              <a href="/#pricing">מחירים</a>
-              <Link href={ROUTES.myBooks}>הספרים שלי</Link>
+              <a href="/#how" className={styles.navLinkDesktop}>
+                איך זה עובד
+              </a>
+              <a href="/#pricing" className={styles.navLinkDesktop}>
+                מחירים
+              </a>
+              {showMyBooksNav ? (
+                <Link href={ROUTES.myBooks} className={styles.navLinkMyBooks}>
+                  הספרים שלי
+                </Link>
+              ) : null}
             </nav>
           ) : null}
+        </div>
 
-          {!user && variant === 'full' ? (
-            <Link href={ROUTES.start} className={`${styles.navCta} ${styles.navCtaVisible}`} data-event="landing_start_click">
-              {COMMON.navCta}
-            </Link>
-          ) : null}
-
-          <AccountControl user={user} onAuthChange={setUser} />
+        <div className={styles.endCluster}>
+          <AccountControl user={user} onAuthChange={onAuthChange} />
         </div>
       </div>
     </header>

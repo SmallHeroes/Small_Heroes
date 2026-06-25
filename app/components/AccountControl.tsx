@@ -7,6 +7,7 @@ import styles from './account-control.module.css';
 
 export type AuthUser = {
   email: string;
+  hasBooks: boolean;
 };
 
 type AccountControlProps = {
@@ -15,16 +16,17 @@ type AccountControlProps = {
 };
 
 const MOBILE_MAX = 640;
+const SITE_SHARE_URL = typeof window !== 'undefined' ? window.location.origin : 'https://smallheroes.co.il';
 
 function PersonOutlineIcon() {
   return (
     <svg
-      width="22"
-      height="22"
+      width="18"
+      height="18"
       viewBox="0 0 24 24"
       fill="none"
-      stroke="currentColor"
-      strokeWidth={1.7}
+      stroke="#fff"
+      strokeWidth={1.8}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
@@ -40,6 +42,7 @@ export function AccountControl({ user, onAuthChange }: AccountControlProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     const mq = window.matchMedia(`(max-width: ${MOBILE_MAX}px)`);
@@ -48,6 +51,12 @@ export function AccountControl({ user, onAuthChange }: AccountControlProps) {
     mq.addEventListener('change', sync);
     return () => mq.removeEventListener('change', sync);
   }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 2600);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
 
   const close = useCallback(() => setOpen(false), []);
 
@@ -85,19 +94,49 @@ export function AccountControl({ user, onAuthChange }: AccountControlProps) {
     window.location.href = ROUTES.home;
   };
 
+  const onShare = async () => {
+    close();
+    const url = window.location.origin || SITE_SHARE_URL;
+    const title = 'גיבורים קטנים';
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title, url });
+        return;
+      } catch {
+        /* user cancelled or unsupported */
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setToast('הקישור הועתק');
+    } catch {
+      setToast('לא הצלחנו להעתיק את הקישור');
+    }
+  };
+
+  const onSubscribe = () => {
+    close();
+    // TODO(Guy): subscription destination TBD — route/modal not built yet
+    setToast('מנוי — בקרוב');
+  };
+
   const initial = user?.email?.trim().charAt(0).toUpperCase() || '?';
 
   const menuItems = (
     <>
-      <Link href={ROUTES.myBooks} className={styles.menuItem} onClick={close}>
-        הספרים שלי
-      </Link>
-      {/* TODO: dedicated account settings page */}
-      <Link href={ROUTES.myBooks} className={styles.menuItem} onClick={close}>
-        החשבון שלי
-      </Link>
+      {user?.hasBooks && isMobile ? (
+        <Link href={ROUTES.myBooks} className={styles.menuItem} onClick={close}>
+          הספרים שלי
+        </Link>
+      ) : null}
+      <button type="button" className={styles.menuItem} onClick={onShare}>
+        שיתוף
+      </button>
+      <button type="button" className={styles.menuItem} onClick={onSubscribe}>
+        סאבסקרייב
+      </button>
       <button type="button" className={`${styles.menuItem} ${styles.menuItemDanger}`} onClick={onLogout}>
-        יציאה
+        התנתקות
       </button>
     </>
   );
@@ -105,9 +144,14 @@ export function AccountControl({ user, onAuthChange }: AccountControlProps) {
   if (!user) {
     return (
       <div className={styles.wrap}>
-        <Link href={ROUTES.login} className={styles.loginLink} aria-label="התחברות">
+        <Link href={ROUTES.login} className={styles.circleBtn} aria-label="התחברות">
           <PersonOutlineIcon />
         </Link>
+        {toast ? (
+          <span className={styles.toast} role="status">
+            {toast}
+          </span>
+        ) : null}
       </div>
     );
   }
@@ -116,7 +160,7 @@ export function AccountControl({ user, onAuthChange }: AccountControlProps) {
     <div className={styles.wrap} ref={wrapRef}>
       <button
         type="button"
-        className={styles.avatarBtn}
+        className={styles.circleBtn}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={menuId}
@@ -124,6 +168,12 @@ export function AccountControl({ user, onAuthChange }: AccountControlProps) {
       >
         {initial}
       </button>
+
+      {toast ? (
+        <span className={styles.toast} role="status">
+          {toast}
+        </span>
+      ) : null}
 
       {open && !isMobile ? (
         <div id={menuId} className={styles.menu} role="menu">

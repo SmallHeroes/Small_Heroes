@@ -3,23 +3,7 @@
   flex-shrink: 0;
 }
 
-.loginLink {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  color: #6b4eff;
-  text-decoration: none;
-  transition: background 0.15s ease;
-}
-
-.loginLink:hover {
-  background: rgba(107, 78, 255, 0.08);
-}
-
-.avatarBtn {
+.circleBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -34,9 +18,11 @@
   font-weight: 700;
   cursor: pointer;
   line-height: 1;
+  text-decoration: none;
+  flex-shrink: 0;
 }
 
-.avatarBtn:focus-visible {
+.circleBtn:focus-visible {
   outline: 2px solid #886cff;
   outline-offset: 2px;
 }
@@ -76,6 +62,22 @@
 
 .menuItemDanger {
   color: #b42318;
+}
+
+.toast {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: #2b2350;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  z-index: 70;
+  pointer-events: none;
 }
 
 .sheetBackdrop {
