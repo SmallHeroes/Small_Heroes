@@ -3,7 +3,12 @@ import {
   buildArtifactIdempotencyKey,
   isValidImageAssetUrl,
 } from '@/lib/generation-chunked/artifact-keys';
-import { GENERATION_VERSION, getWorkerBudgetMs, PAGE_IMAGES_PER_CHUNK } from '@/lib/generation-chunked/constants';
+import {
+  GENERATION_VERSION,
+  getPageImagesPerChunk,
+  getPageStartMinBudgetMs,
+  getWorkerBudgetMs,
+} from '@/lib/generation-chunked/constants';
 
 describe('generation-chunked', () => {
   it('builds stable artifact idempotency keys', () => {
@@ -55,8 +60,28 @@ describe('generation-chunked', () => {
     if (prev) process.env.GENERATION_WORKER_BUDGET_MS = prev;
   });
 
-  it('uses conservative page chunk size', () => {
-    expect(PAGE_IMAGES_PER_CHUNK).toBeGreaterThanOrEqual(1);
-    expect(PAGE_IMAGES_PER_CHUNK).toBeLessThanOrEqual(3);
+  it('page chunk size defaults to 1 (cloud-safe) and honors the env override', () => {
+    const prev = process.env.PAGE_IMAGES_PER_CHUNK;
+    delete process.env.PAGE_IMAGES_PER_CHUNK;
+    expect(getPageImagesPerChunk()).toBe(1); // QA/staging/cloud default
+    process.env.PAGE_IMAGES_PER_CHUNK = '2';
+    expect(getPageImagesPerChunk()).toBe(2); // local/LOW experiments
+    process.env.PAGE_IMAGES_PER_CHUNK = '0'; // invalid → clamp to default
+    expect(getPageImagesPerChunk()).toBe(1);
+    if (prev === undefined) delete process.env.PAGE_IMAGES_PER_CHUNK;
+    else process.env.PAGE_IMAGES_PER_CHUNK = prev;
+  });
+
+  it('page-start budget guard leaves room inside the worker budget', () => {
+    const prev = process.env.PAGE_START_MIN_BUDGET_MS;
+    delete process.env.PAGE_START_MIN_BUDGET_MS;
+    // Must require a large slice of the budget (a page needs most of the envelope) but still be
+    // satisfiable by a fresh worker.
+    expect(getPageStartMinBudgetMs()).toBeGreaterThanOrEqual(150_000);
+    expect(getPageStartMinBudgetMs()).toBeLessThanOrEqual(getWorkerBudgetMs());
+    process.env.PAGE_START_MIN_BUDGET_MS = '180000';
+    expect(getPageStartMinBudgetMs()).toBe(180_000);
+    if (prev === undefined) delete process.env.PAGE_START_MIN_BUDGET_MS;
+    else process.env.PAGE_START_MIN_BUDGET_MS = prev;
   });
 });

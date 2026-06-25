@@ -30,8 +30,49 @@ export function getWorkerBudgetMs(): number {
   return 230_000;
 }
 
-/** Max new page images per worker invocation (worst-case ~120s each). */
-export const PAGE_IMAGES_PER_CHUNK = 2;
+/**
+ * Max new page images per worker invocation. Env-configurable (`PAGE_IMAGES_PER_CHUNK`) with a safe
+ * default of **1** for QA/staging/cloud — one durable page per invocation is the only size that
+ * reliably fits the 300s worker on Vercel (a page is gpt-image + refs + upload + postprocess). Bump
+ * to 2 only for local/LOW experiments. Clamped to [1, 4].
+ */
+export function getPageImagesPerChunk(): number {
+  const raw = process.env.PAGE_IMAGES_PER_CHUNK?.trim();
+  if (raw) {
+    const n = Number.parseInt(raw, 10);
+    if (Number.isFinite(n) && n >= 1) return Math.min(4, n);
+  }
+  return 1;
+}
+
+/**
+ * Minimum worker budget that must remain before STARTING a page render. A page needs most of the
+ * 300s envelope; if less than this is free, the chunk runner defers (stopChunk) and lets the
+ * self-chain kick a FRESH worker with a full budget rather than start a paid render it cannot
+ * finish (the page_images stall: a reclaimed render attempted inside a near-exhausted/60s runtime).
+ */
+export function getPageStartMinBudgetMs(): number {
+  const raw = process.env.PAGE_START_MIN_BUDGET_MS?.trim();
+  if (raw) {
+    const n = Number.parseInt(raw, 10);
+    if (Number.isFinite(n) && n > 5_000) return n;
+  }
+  return 200_000;
+}
+
+/**
+ * Time reserved AFTER a page's gpt-image render for upload + presentation + DB persist, subtracted
+ * from the remaining worker budget to derive the per-page soft timeout — so a render aborts by
+ * soft-timeout (and the page is retried on a fresh worker) before the function is hard-killed.
+ */
+export function getPagePersistMarginMs(): number {
+  const raw = process.env.PAGE_PERSIST_MARGIN_MS?.trim();
+  if (raw) {
+    const n = Number.parseInt(raw, 10);
+    if (Number.isFinite(n) && n > 1_000) return n;
+  }
+  return 45_000;
+}
 
 /** Max narration pages per audio chunk. */
 export const AUDIO_PAGES_PER_CHUNK = 3;
