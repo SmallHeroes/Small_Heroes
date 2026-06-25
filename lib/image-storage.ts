@@ -51,6 +51,33 @@ function persistTimeoutMs(): number {
   return Math.max(1000, Number.parseInt(process.env.SUPABASE_PERSIST_TIMEOUT_MS ?? '20000', 10) || 20000);
 }
 
+/**
+ * Anchor persist budget — the SUPABASE_PERSIST_* contract (not the generic SUPABASE_UPLOAD_* path)
+ * with an anchor-specific per-attempt timeout. The Stage-0 child anchor is a single critical upload
+ * (the whole render gates on it), so it gets a longer per-attempt window than ordinary uploads.
+ * Attempts default to a bounded 5 so the WORST case (attempts × timeout) stays under the 300s
+ * function ceiling; the deadline gate in Stage 0 only STARTS an attempt it can finish.
+ */
+function anchorPersistAttempts(): number {
+  const raw = process.env.ANCHOR_PERSIST_MAX_ATTEMPTS ?? process.env.SUPABASE_PERSIST_MAX_ATTEMPTS ?? '5';
+  return Math.max(1, Number.parseInt(raw, 10) || 5);
+}
+function anchorPersistTimeoutMs(): number {
+  return Math.max(1000, Number.parseInt(process.env.ANCHOR_PERSIST_TIMEOUT_MS ?? '45000', 10) || 45000);
+}
+
+/** Supabase project ref from the storage URL host (`https://<ref>.supabase.co` → `<ref>`). */
+export function supabaseProjectRefFromUrl(rawUrl: string | undefined | null): string {
+  if (!rawUrl) return 'unknown';
+  try {
+    const host = new URL(rawUrl).host;
+    const ref = host.split('.')[0];
+    return ref || 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
 function getSupabaseEnv() {
   const url = process.env.SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -386,6 +413,165 @@ export async function storeImageFromBuffer(input: StoreBufferInput): Promise<str
   });
 
   return buildPublicUrl(url, bucket, key);
+}
+
+export interface StoreGeneratedAnchorInput {
+  orderId: string;
+  /** Attempt suffix, e.g. `a1` — becomes part of the deterministic key. */
+  attemptSuffix: string;
+  buffer: Buffer;
+  /** default: image/png */
+  contentType?: string;
+}
+
+/**
+ * Persist a Stage-0 child-anchor buffer durably. This is the anchor_persist sub-stage, kept SEPARATE
+ * from anchor_generate so a persistence failure never re-runs GPT.
+ *
+ *  - Deterministic CONTENT-HASH key `character-anchors/child-canonical-method-b-{attempt}-{hash}.png`
+ *    (no Date.now): the same bytes always map to the same key, so the upload's HEAD-net detects an
+ *    object that was actually stored even when the client hung handling the response (the 2026-06
+ *    serverless hang) — the headline "stored but never observed → re-GPT loop" failure.
+ *  - SUPABASE_PERSIST_* contract with an anchor-specific 45s per-attempt timeout (anchorPersist*()).
+ *  - Throws a TAGGED ImagePersistenceError on genuine failure so the Stage-0 loop treats it as a
+ *    persistence problem (retry the job / recover) and NEVER spends another GPT image.
+ */
+export async function storeGeneratedAnchorBuffer(
+  input: StoreGeneratedAnchorInput
+): Promise<{ url: string; storageKey: string }> {
+  if (!input.orderId) throw new Error('storeGeneratedAnchorBuffer: orderId is required.');
+  const { url, bucket } = getSupabaseEnv();
+  const contentType = input.contentType || 'image/png';
+  const ext = extensionFromContentType(contentType);
+  const hash = bufferHash(input.buffer);
+  const safeAttempt = sanitizeAssetPathSegment(input.attemptSuffix || 'a1');
+  const key = `orders/${input.orderId}/character-anchors/child-canonical-method-b-${safeAttempt}-${hash}.${ext}`;
+
+  // anchor_generate already succeeded (we hold the bytes) — everything here is pure persistence.
+  storageEvent('anchor_persist_start', {
+    orderId: input.orderId,
+    attempt: safeAttempt,
+    bytes: input.buffer.length,
+    key,
+  });
+
+  await uploadToSupabaseWithRetry({
+    bucket,
+    key,
+    body: input.buffer,
+    contentType,
+    errorPrefix: `Supabase anchor upload failed (${key})`,
+    attempts: anchorPersistAttempts(),
+    timeoutMs: anchorPersistTimeoutMs(),
+  });
+
+  return { url: buildPublicUrl(url, bucket, key), storageKey: key };
+}
+
+export interface StorageLatencyProbe {
+  ok: boolean;
+  bytes: number;
+  attempt: number;
+  timeoutMs: number;
+  durationMs: number;
+  vercelRegion: string;
+  supabaseProjectRef: string;
+  status: number | null;
+  headStatus: number | null;
+}
+
+/**
+ * Synthetic Supabase storage latency probe — a small controlled upload + HEAD, timed and logged,
+ * to SEPARATE infra degradation (Supabase/region slow right now) from a too-tight render budget.
+ * Best-effort: it NEVER throws and never fails a render; it only emits a `storage_latency_probe`
+ * log line and returns the measurement. Uses a fixed per-region key (upsert) so probe objects do
+ * not accumulate.
+ */
+export async function probeSupabaseStorageLatency(params: {
+  bytes?: number;
+} = {}): Promise<StorageLatencyProbe> {
+  const region = process.env.VERCEL_REGION || 'local';
+  let supabaseUrl: string | undefined;
+  let bucket = 'book-images';
+  try {
+    const env = getSupabaseEnv();
+    supabaseUrl = env.url;
+    bucket = env.bucket;
+  } catch {
+    // Missing creds — emit a no-op probe rather than throwing.
+  }
+  const projectRef = supabaseProjectRefFromUrl(supabaseUrl);
+  const bytes = Math.max(1, params.bytes ?? 32 * 1024);
+  const timeoutMs = Math.max(
+    1000,
+    Number.parseInt(process.env.STORAGE_PROBE_TIMEOUT_MS ?? '10000', 10) || 10000
+  );
+
+  const probe: StorageLatencyProbe = {
+    ok: false,
+    bytes,
+    attempt: 1,
+    timeoutMs,
+    durationMs: 0,
+    vercelRegion: region,
+    supabaseProjectRef: projectRef,
+    status: null,
+    headStatus: null,
+  };
+
+  if (!supabaseUrl) {
+    storageEvent('storage_latency_probe', { synthetic: true, ...probe, skipped: 'no_supabase_env' });
+    return probe;
+  }
+
+  const { serviceRoleKey } = getSupabaseEnv();
+  const key = `orders/_diagnostics/storage-latency-probe-${sanitizeAssetPathSegment(region)}.bin`;
+  const endpoint = `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/${bucket}/${key}`;
+  const body = new Blob([new Uint8Array(bytes)], { type: 'application/octet-stream' });
+  const startedAt = Date.now();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+        'Content-Type': 'application/octet-stream',
+        'Content-Length': String(bytes),
+        'x-upsert': 'true',
+      },
+      body,
+      signal: controller.signal,
+    });
+    await res.text().catch(() => '');
+    probe.status = res.status;
+    probe.durationMs = Date.now() - startedAt;
+    // HEAD the object to capture the read-side status too.
+    try {
+      const head = await fetch(buildPublicUrl(supabaseUrl, bucket, key), {
+        method: 'HEAD',
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      probe.headStatus = head.status;
+    } catch {
+      probe.headStatus = null;
+    }
+    probe.ok = res.ok;
+  } catch (err) {
+    probe.durationMs = Date.now() - startedAt;
+    storageEvent('storage_latency_probe', {
+      synthetic: true,
+      ...probe,
+      error: (err as Error)?.message ?? 'unknown',
+    });
+    return probe;
+  } finally {
+    clearTimeout(timer);
+  }
+
+  storageEvent('storage_latency_probe', { synthetic: true, ...probe });
+  return probe;
 }
 
 /** Upload a processed WebP page illustration (reader / future PDF). */

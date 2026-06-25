@@ -3,7 +3,12 @@ import {
   buildArtifactIdempotencyKey,
   isValidImageAssetUrl,
 } from '@/lib/generation-chunked/artifact-keys';
-import { GENERATION_VERSION, getWorkerBudgetMs, PAGE_IMAGES_PER_CHUNK } from '@/lib/generation-chunked/constants';
+import {
+  GENERATION_VERSION,
+  getAnchorAttemptBudgetMs,
+  getWorkerBudgetMs,
+  PAGE_IMAGES_PER_CHUNK,
+} from '@/lib/generation-chunked/constants';
 
 describe('generation-chunked', () => {
   it('builds stable artifact idempotency keys', () => {
@@ -53,6 +58,18 @@ describe('generation-chunked', () => {
     delete process.env.GENERATION_WORKER_BUDGET_MS;
     expect(getWorkerBudgetMs()).toBeLessThanOrEqual(240_000);
     if (prev) process.env.GENERATION_WORKER_BUDGET_MS = prev;
+  });
+
+  it('anchor attempt budget fits a single attempt under the worker budget', () => {
+    const prev = process.env.ANCHOR_ATTEMPT_BUDGET_MS;
+    delete process.env.ANCHOR_ATTEMPT_BUDGET_MS;
+    // Must be enough to finish one generate+persist+QA, yet leave room inside the worker budget.
+    expect(getAnchorAttemptBudgetMs()).toBeGreaterThanOrEqual(60_000);
+    expect(getAnchorAttemptBudgetMs()).toBeLessThan(getWorkerBudgetMs());
+    process.env.ANCHOR_ATTEMPT_BUDGET_MS = '90000';
+    expect(getAnchorAttemptBudgetMs()).toBe(90_000);
+    if (prev === undefined) delete process.env.ANCHOR_ATTEMPT_BUDGET_MS;
+    else process.env.ANCHOR_ATTEMPT_BUDGET_MS = prev;
   });
 
   it('uses conservative page chunk size', () => {
