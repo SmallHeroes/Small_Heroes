@@ -21,7 +21,7 @@
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  max-width: 1120px;
+  max-width: var(--site-max);
   width: 100%;
 }
 
@@ -651,7 +651,7 @@
 }
 
 .fit-wrap {
-  max-width: 1120px;
+  max-width: var(--site-max);
   margin: 0 auto;
 }
 

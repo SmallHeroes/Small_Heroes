@@ -1,7 +1,7 @@
 /* /start — warm landing-aligned entry flow */
 
 .root {
-  --start-max: 1120px;
+  --start-max: var(--site-max, 1440px);
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
