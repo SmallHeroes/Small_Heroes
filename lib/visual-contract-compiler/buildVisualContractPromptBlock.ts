@@ -58,3 +58,18 @@ export function buildVisualContractPromptBlock(
 
   return lines.filter((l): l is string => l != null).join('\n');
 }
+
+/**
+ * Compose the final GPT-Image prompt with the contract block FIRST (authoritative), then the legacy
+ * scene prompt. Pure + idempotent: a blank/absent block returns the base prompt unchanged (legacy
+ * behavior), and a base prompt that already begins with the block is not double-prefixed.
+ */
+export function composeContractAuthoritativePrompt(
+  contractBlock: string | undefined | null,
+  basePrompt: string
+): string {
+  const block = (contractBlock ?? '').trim();
+  if (!block) return basePrompt;
+  if (basePrompt.startsWith(block)) return basePrompt;
+  return `${block}\n\n${basePrompt}`;
+}

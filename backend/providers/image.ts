@@ -48,6 +48,7 @@ import {
   type StyleId,
 } from '@/lib/styles';
 import { composeVisualDirectorPrompt, type VisualDirectorInput } from '../../lib/visualDirector';
+import { composeContractAuthoritativePrompt } from '../../lib/visual-contract-compiler/buildVisualContractPromptBlock';
 import type { Companion } from '../../lib/companions';
 import path from 'path';
 import { generateGPTImage, generateReplicateImage, resolveGPTImageEditMaxReferences } from '../../lib/generate-image';
@@ -334,6 +335,13 @@ function buildMockImageResult(input: ImageInput): GeneratedImage {
 // ─── Types ────────────────────────────────────────────
 export interface ImageInput {
   pagePrompt: string;            // from story generator (LLM-produced, may already contain styleToken)
+  /**
+   * Authoritative BookVisualContract prompt block for this page (from lib/visual-contract-compiler).
+   * When present it is PREPENDED to the final GPT-Image prompt so the contract OUTRANKS imageDirection
+   * (location/cast/wardrobe/forbidden). Only set when VISUAL_CONTRACT_ENFORCEMENT is on AND a valid
+   * contract exists; otherwise undefined → legacy behavior unchanged.
+   */
+  visualContractPromptBlock?: string;
   illustrationStyle: string;     // canonical active ids + legacy aliases normalized in lib/styles.ts
   childDescription?: string;     // fallback if no characterSheet
   characterSheet?: CharacterSheet;
@@ -2651,7 +2659,10 @@ async function generateWithGPTImage(input: ImageInput): Promise<GeneratedImage> 
 
   const entityPresence = deriveImageInputEntityPresence(input);
   const rawPrompt = buildGPTImagePrompt(input);
-  const prompt = sanitizePromptForSafety(rawPrompt);
+  const sanitized = sanitizePromptForSafety(rawPrompt);
+  // Visual Contract authority: when a contract block is supplied, it is PREPENDED so the contract
+  // outranks imageDirection (location/cast/wardrobe/forbidden). Absent → legacy prompt unchanged.
+  const prompt = composeContractAuthoritativePrompt(input.visualContractPromptBlock, sanitized);
   const referenceImages = filterReferenceImagesForEntityPresence(
     input.referenceImages,
     entityPresence

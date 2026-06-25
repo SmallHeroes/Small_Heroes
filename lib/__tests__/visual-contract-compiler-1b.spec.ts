@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
+  composeContractAuthoritativePrompt,
   derivePageVisualContracts,
   planPageReferences,
   evaluatePageContractQa,
@@ -198,6 +199,18 @@ describe('runVisualContractCalibration — gate before full render', () => {
       })
     ).rejects.toSatisfy(isInvalidVisualContractError);
     expect(rendered).toBe(false);
+  });
+});
+
+describe('composeContractAuthoritativePrompt — render-seam injection', () => {
+  it('prepends the contract block (authoritative-first) and is idempotent', () => {
+    expect(composeContractAuthoritativePrompt('CONTRACT', 'scene prompt')).toBe('CONTRACT\n\nscene prompt');
+    // already-prefixed → not double-applied
+    expect(composeContractAuthoritativePrompt('CONTRACT', 'CONTRACT\n\nscene prompt')).toBe('CONTRACT\n\nscene prompt');
+  });
+  it('returns the base prompt unchanged when no block (legacy behavior)', () => {
+    expect(composeContractAuthoritativePrompt(undefined, 'scene')).toBe('scene');
+    expect(composeContractAuthoritativePrompt('   ', 'scene')).toBe('scene');
   });
 });
 

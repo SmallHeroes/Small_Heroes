@@ -26,7 +26,10 @@ export {
   derivePageVisualContracts,
   type ResolvedPageContract,
 } from './derivePageVisualContracts';
-export { buildVisualContractPromptBlock } from './buildVisualContractPromptBlock';
+export {
+  buildVisualContractPromptBlock,
+  composeContractAuthoritativePrompt,
+} from './buildVisualContractPromptBlock';
 export {
   resolveAuthoritativePageLocation,
   isLocationZoneAdvisoryOnly,
