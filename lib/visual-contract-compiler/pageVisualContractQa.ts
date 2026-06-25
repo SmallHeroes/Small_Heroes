@@ -112,7 +112,7 @@ export function buildContractVisionInstruction(
     'Inspect this children\'s-book illustration and answer ONLY as JSON.',
     `Expected place: ${location?.name ?? page.locationId}${location?.description ? ` (${location.description})` : ''}.`,
     `Forbidden (must NOT appear): ${(contract.forbiddenGlobalElements ?? []).join(', ') || 'none'}.`,
-    'In forbiddenEntitiesPresent, list EVERY animal/creature visible that is NOT the child and NOT the declared companion — including a background or secondary animal (e.g. an armadillo, pangolin, or extra pet) EVEN IF the companion is also present. A second creature is a violation.',
+    'In forbiddenEntitiesPresent, list EVERY LIVE animal/creature visible that is NOT the child and NOT the declared companion — including a background or secondary live animal (e.g. an armadillo, pangolin, or extra pet) EVEN IF the companion is also present. A second live creature is a violation. Do NOT list plush toys, stuffed animals, dolls, pictures, or decor — only living characters.',
     `Required to be visible: ${resolveMajorProps(page, contract).join(', ') || 'none'}.`,
     page.characterPresence.companion
       ? `Companion outfit must be: ${page.companionWardrobeLock ?? '(locked outfit)'}.`

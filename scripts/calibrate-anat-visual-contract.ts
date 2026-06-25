@@ -157,35 +157,72 @@ async function main(): Promise<void> {
   const companionSheet = `public/companions/${companionId}/style01-sheets/front.png`;
   const styleRefs = resolveStyle01StyleReferencePaths('bedroom-night', 2);
 
+  const MAX_REROLLS = Math.max(0, Number.parseInt(process.env.VISUAL_CONTRACT_MAX_REROLLS ?? '2', 10) || 2);
   const report: Array<Record<string, unknown>> = [];
+
   for (const pageNumber of selection.pageNumbers) {
     const isCover = pageNumber === 0;
     const page = isCover ? coverPage(contract) : byNum.get(pageNumber);
     if (!page) continue;
+    const label = isCover ? 'cover' : `page-${String(pageNumber).padStart(2, '0')}`;
     const block = buildVisualContractPromptBlock(page, contract);
-    console.log(`[calib] rendering ${isCover ? 'cover' : `page ${pageNumber}`} (location=${page.locationId}${page.zoneId ? `/${page.zoneId}` : ''})...`);
-    const buffer = await renderPage(block, companionSheet, styleRefs);
-    const file = path.join(OUT_DIR, 'pages', `${isCover ? 'cover' : `page-${String(pageNumber).padStart(2, '0')}`}.png`);
-    writeFileSync(file, buffer);
-
     const instruction = buildContractVisionInstruction(page, contract, isCover);
-    const visionRaw = await visionObserve(buffer, instruction);
-    const observation = interpretVisionJson(visionRaw);
-    const verdict = evaluatePageContractQa({ page, observation, isCover });
-    console.log(
-      `[calib]   → ${verdict.pass ? 'PASS' : 'FAIL'}${verdict.failures.length ? ` [${verdict.failures.map((f) => f.check).join(', ')}]` : ''}  file=${file}`
-    );
-    report.push({ pageNumber, isCover, file, pass: verdict.pass, failures: verdict.failures, observation });
+
+    const attempts: Array<Record<string, unknown>> = [];
+    let detectedStray = false; // any attempt the gate flagged a forbidden/extra creature
+    let finalPass = false;
+    let finalFile = '';
+    // attempt 0 = first render; bounded reroll on FAIL (detect → reroll → clean).
+    for (let attempt = 0; attempt <= MAX_REROLLS; attempt++) {
+      const buffer = await renderPage(block, companionSheet, styleRefs);
+      const file = path.join(OUT_DIR, 'pages', `${label}-attempt-${attempt}.png`);
+      writeFileSync(file, buffer);
+      const observation = interpretVisionJson(await visionObserve(buffer, instruction));
+      const verdict = evaluatePageContractQa({ page, observation, isCover });
+      const flaggedStray = verdict.failures.some((f) => f.check === 'forbidden_entity');
+      if (flaggedStray) detectedStray = true;
+      attempts.push({ attempt, file, pass: verdict.pass, failures: verdict.failures, observation });
+      console.log(
+        `[calib] ${label} attempt ${attempt}: ${verdict.pass ? 'PASS' : 'FAIL'}` +
+          `${verdict.failures.length ? ` [${verdict.failures.map((f) => f.check).join(', ')}]` : ''}` +
+          ` forbiddenSeen=${JSON.stringify(observation.forbiddenEntitiesPresent)} loc=${observation.locationMatchesContract}`
+      );
+      if (verdict.pass) {
+        finalPass = true;
+        finalFile = file;
+        // Promote the clean attempt to the canonical page file for eyeballing.
+        writeFileSync(path.join(OUT_DIR, 'pages', `${label}.png`), buffer);
+        break;
+      }
+    }
+    const rerolledToClean = detectedStray && finalPass && attempts.length > 1;
+    report.push({ pageNumber, isCover, label, finalPass, detectedStray, rerolledToClean, finalFile, attempts });
   }
 
-  const allPass = report.every((r) => r.pass);
+  const locationStable = report.every((r) =>
+    (r.attempts as Array<{ observation: { locationMatchesContract: boolean } }>).every((a) => a.observation.locationMatchesContract)
+  );
+  const allFinalPass = report.every((r) => r.finalPass);
+  const demonstratedDetectRerollClean = report.some((r) => r.rerolledToClean);
+  // Architecture PASS requires: location stable, every page ends clean, AND at least one real
+  // detect→reroll→clean cycle was observed (gate detection alone is not sufficient).
+  const architecturePass = locationStable && allFinalPass && demonstratedDetectRerollClean;
+
   writeFileSync(
     path.join(OUT_DIR, 'calibration-report.json'),
-    JSON.stringify({ storyKey: STORY_KEY, allPass, results: report }, null, 2)
+    JSON.stringify(
+      { storyKey: STORY_KEY, architecturePass, locationStable, allFinalPass, demonstratedDetectRerollClean, maxRerolls: MAX_REROLLS, results: report },
+      null,
+      2
+    )
   );
-  console.log(`\n[calib] ===== ${allPass ? 'ALL 5 RISK PAGES PASS' : 'FAIL — DO NOT FULL-RENDER'} =====`);
+  console.log(
+    `\n[calib] ===== locationStable=${locationStable} allFinalPass=${allFinalPass} ` +
+      `detect→reroll→clean=${demonstratedDetectRerollClean} → architecture ${architecturePass ? 'PASS' : 'NOT PROVEN'} =====`
+  );
+  console.log('[calib] (eyeball the per-page *.png before trusting the gate — a false-pass armadillo = FAIL)');
   console.log(`[calib] report: ${path.join(OUT_DIR, 'calibration-report.json')}`);
-  if (!allPass) process.exitCode = 2;
+  if (!architecturePass) process.exitCode = 2;
 }
 
 main().catch((err) => {
