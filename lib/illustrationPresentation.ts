@@ -10,6 +10,7 @@
 
 import sharp from 'sharp';
 import type { BookPageLayout, BookPageTemplate } from './bookPageLayout';
+import { withRetry } from './retry';
 
 export type PlacementMode = 'character_vignette' | 'scene_soft_frame' | 'full_bleed_safe';
 
@@ -44,11 +45,31 @@ function rgbDistance(
 }
 
 export async function fetchImageBuffer(sourceUrl: string): Promise<Buffer> {
-  const res = await fetch(sourceUrl);
-  if (!res.ok) {
-    throw new Error(`Presentation: failed to fetch source image (${res.status})`);
-  }
-  return Buffer.from(await res.arrayBuffer());
+  // Retry + per-attempt timeout: Supabase storage / CDN fetches of render-path references and
+  // page images occasionally abort transiently ("This operation was aborted"); a single blip must
+  // not fail the page. A genuine 4xx (other than 429) is non-retryable.
+  return withRetry(
+    async (signal) => {
+      const res = await fetch(sourceUrl, { signal });
+      if (!res.ok) {
+        const err = new Error(`Presentation: failed to fetch source image (${res.status})`);
+        (err as { status?: number }).status = res.status;
+        throw err;
+      }
+      return Buffer.from(await res.arrayBuffer());
+    },
+    {
+      attempts: 4,
+      baseDelayMs: 500,
+      factor: 2,
+      timeoutMs: 30000,
+      label: 'fetchImageBuffer',
+      shouldRetry: (e) => {
+        const status = (e as { status?: number })?.status;
+        return status === undefined || status === 429 || status >= 500;
+      },
+    }
+  );
 }
 
 export async function evaluateImageSignal(

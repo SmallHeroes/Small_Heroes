@@ -6,6 +6,7 @@
 
 import { getVoiceById, SLEEP_MODE_OVERRIDES } from '../config/voices';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { uploadToSupabaseWithRetry } from '../../lib/image-storage';
 
 // ─── Retry + Timeout Config ─────────────────────────
 const MAX_RETRIES = 2;
@@ -147,23 +148,20 @@ export async function callElevenLabs(
 
 // ─── Store Audio ──────────────────────────────────────
 export async function storeAudio(buffer: Buffer, filename: string): Promise<string> {
-  const supabase = getSupabase();
   const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'book-images';
   const key = `audio/${filename}`;
 
   console.log(`[Audio] Uploading ${filename} (${(buffer.length / 1024).toFixed(1)} KB) to Supabase...`);
 
-  const { error } = await supabase.storage
-    .from(bucket)
-    .upload(key, buffer, {
-      contentType: 'audio/mpeg',
-      upsert: true,
-      cacheControl: '31536000',
-    });
-
-  if (error) {
-    throw new Error(`Supabase audio upload failed: ${error.message}`);
-  }
+  // Hardened direct-REST path (retry + drain + HEAD-net) instead of raw supabase-js .upload, so a
+  // transient serverless abort on audio persistence doesn't fail the render.
+  await uploadToSupabaseWithRetry({
+    bucket,
+    key,
+    body: buffer,
+    contentType: 'audio/mpeg',
+    errorPrefix: 'Supabase audio upload failed',
+  });
 
   const url = process.env.SUPABASE_URL!;
   const publicUrl = `${url.replace(/\/$/, '')}/storage/v1/object/public/${bucket}/${key}`;

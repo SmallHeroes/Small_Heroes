@@ -1,6 +1,4 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-
-let supabaseClient: SupabaseClient | null = null;
+import { uploadToSupabaseWithRetry } from '../../lib/image-storage';
 
 function getSupabaseEnv() {
   const url = process.env.SUPABASE_URL;
@@ -17,14 +15,6 @@ function getSupabaseEnv() {
   return { url, serviceRoleKey, bucket };
 }
 
-function getSupabaseClient(): SupabaseClient {
-  if (!supabaseClient) {
-    const { url, serviceRoleKey } = getSupabaseEnv();
-    supabaseClient = createClient(url, serviceRoleKey);
-  }
-  return supabaseClient;
-}
-
 function buildPublicUrl(url: string, bucket: string, key: string): string {
   return `${url.replace(/\/$/, '')}/storage/v1/object/public/${bucket}/${key}`;
 }
@@ -38,31 +28,26 @@ export async function uploadPrintReadyArtifacts(
   if (!pdfBuffer || pdfBuffer.length === 0) throw new Error('pdfBuffer is empty.');
 
   const { url, bucket } = getSupabaseEnv();
-  const supabase = getSupabaseClient();
   const baseKey = `orders/${orderId}/pdf`;
 
   const metaBody = `${JSON.stringify(metadata, null, 2)}\n`;
   const metaBuffer = Buffer.from(metaBody, 'utf8');
 
-  const pdfUpload = await supabase.storage.from(bucket).upload(`${baseKey}/print-ready.pdf`, pdfBuffer, {
+  // Hardened direct-REST path (retry + drain + HEAD-net) instead of raw supabase-js .upload.
+  await uploadToSupabaseWithRetry({
+    bucket,
+    key: `${baseKey}/print-ready.pdf`,
+    body: pdfBuffer,
     contentType: 'application/pdf',
-    upsert: true,
-    cacheControl: '31536000',
+    errorPrefix: 'Supabase print-ready PDF upload failed',
   });
-  if (pdfUpload.error) {
-    throw new Error(`Supabase print-ready PDF upload failed: ${pdfUpload.error.message}`);
-  }
-
-  const metaUpload = await supabase.storage
-    .from(bucket)
-    .upload(`${baseKey}/print-ready-metadata.json`, metaBuffer, {
-      contentType: 'application/json',
-      upsert: true,
-      cacheControl: '3600',
-    });
-  if (metaUpload.error) {
-    throw new Error(`Supabase print metadata upload failed: ${metaUpload.error.message}`);
-  }
+  await uploadToSupabaseWithRetry({
+    bucket,
+    key: `${baseKey}/print-ready-metadata.json`,
+    body: metaBuffer,
+    contentType: 'application/json',
+    errorPrefix: 'Supabase print metadata upload failed',
+  });
 
   return {
     pdfUrl: buildPublicUrl(url, bucket, `${baseKey}/print-ready.pdf`),
@@ -76,18 +61,15 @@ export async function uploadPdfToStorage(orderId: string, pdfBuffer: Buffer): Pr
   if (!pdfBuffer || pdfBuffer.length === 0) throw new Error('pdfBuffer is empty.');
 
   const { url, bucket } = getSupabaseEnv();
-  const supabase = getSupabaseClient();
   const key = `orders/${orderId}/pdf/book-${Date.now()}.pdf`;
 
-  const uploadResult = await supabase.storage.from(bucket).upload(key, pdfBuffer, {
+  await uploadToSupabaseWithRetry({
+    bucket,
+    key,
+    body: pdfBuffer,
     contentType: 'application/pdf',
-    upsert: true,
-    cacheControl: '31536000',
+    errorPrefix: 'Supabase PDF upload failed',
   });
-
-  if (uploadResult.error) {
-    throw new Error(`Supabase PDF upload failed: ${uploadResult.error.message}`);
-  }
 
   return buildPublicUrl(url, bucket, key);
 }

@@ -131,7 +131,7 @@ import {
   resolveStyle02ChildAnchorPath,
 } from '../../lib/book-image-lock-context';
 import type { PageStoryState } from '../../lib/story-page-state';
-import { storeImageFromBuffer, storeImageFromProviderUrl } from '../../lib/image-storage';
+import { storeImageFromBuffer, storeImageFromProviderUrl, isImagePersistenceError } from '../../lib/image-storage';
 import type { BookPageTemplate } from '../../lib/bookPageLayout';
 import {
   isFluxProOverrideActive,
@@ -4394,6 +4394,16 @@ export async function generateAllPageImages(
         return generated;
       } catch (error) {
         lastError = error;
+        // Persistence (Supabase upload) failed AFTER the image was generated. Re-running GPT will
+        // NOT fix a storage problem and wastes an expensive generation, so do NOT regenerate —
+        // fail the page now; the chunk resume/sweep retries persistence on the next pass.
+        if (isImagePersistenceError(error)) {
+          console.warn(
+            `[Image] upload_failed_no_regenerate page=${pageNumber} ${attemptContext} attempt=${attempt}; ` +
+              `err=${error instanceof Error ? error.message : String(error)}`
+          );
+          throw error;
+        }
         const retriesLeft = MAX_PAGE_ATTEMPTS - attempt;
         if (retriesLeft <= 0) break;
         if (isRateLimitError(error)) {
@@ -4403,10 +4413,12 @@ export async function generateAllPageImages(
           );
           await sleep(retryMs);
         } else {
+          // GPT/image generation itself failed (or timed out) — this is the ONLY case we regenerate.
           console.warn(
-            `[Image] Page ${pageNumber} ${attemptContext} failed on attempt ${attempt}; retriesLeft=${retriesLeft}; err=${
-              error instanceof Error ? error.message : String(error)
-            }`
+            `[Image] page_regenerated_only_because_gpt_failed page=${pageNumber} ${attemptContext} ` +
+              `attempt=${attempt}; retriesLeft=${retriesLeft}; err=${
+                error instanceof Error ? error.message : String(error)
+              }`
           );
         }
       }

@@ -1,8 +1,50 @@
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { withRetry } from '@/lib/retry';
 
 let supabaseClient: SupabaseClient | null = null;
+
+/**
+ * Thrown when image generation SUCCEEDED but persistence (Supabase upload) failed after the full
+ * retry budget + HEAD-net. The render loop catches this to AVOID re-running GPT (an upload problem
+ * is not fixed by spending another image generation). See backend/providers/image.ts.
+ */
+export class ImagePersistenceError extends Error {
+  readonly isPersistenceError = true as const;
+  constructor(message: string, readonly cause?: unknown) {
+    super(message);
+    this.name = 'ImagePersistenceError';
+  }
+}
+
+export function isImagePersistenceError(e: unknown): e is ImagePersistenceError {
+  return e instanceof ImagePersistenceError || (e as { isPersistenceError?: boolean })?.isPersistenceError === true;
+}
+
+/** Short, greppable structured log for the storage/persist pipeline. */
+function storageEvent(event: string, fields: Record<string, unknown> = {}): void {
+  const parts = Object.entries(fields)
+    .filter(([, v]) => v !== undefined && v !== null)
+    .map(([k, v]) => `${k}=${typeof v === 'string' ? v : JSON.stringify(v)}`);
+  console.log(`[storage] ${event}${parts.length ? ` ${parts.join(' ')}` : ''}`);
+}
+
+/** Content-hash (first 16 hex) — deterministic key per buffer → idempotent uploads + HEAD detect. */
+function bufferHash(buffer: Buffer): string {
+  return createHash('sha256').update(buffer).digest('hex').slice(0, 16);
+}
+
+/**
+ * Persistence retry budget for render-path image buffers — LONGER than the default upload budget so a
+ * transient Supabase abort is absorbed by upload retries instead of bubbling up and triggering an
+ * expensive GPT regenerate. Env-overridable.
+ */
+function persistAttempts(): number {
+  return Math.max(1, Number.parseInt(process.env.SUPABASE_PERSIST_MAX_ATTEMPTS ?? '8', 10) || 8);
+}
+function persistTimeoutMs(): number {
+  return Math.max(1000, Number.parseInt(process.env.SUPABASE_PERSIST_TIMEOUT_MS ?? '45000', 10) || 45000);
+}
 
 function getSupabaseEnv() {
   const url = process.env.SUPABASE_URL;
@@ -78,10 +120,15 @@ export async function uploadToSupabaseWithRetry(params: {
   contentType: string;
   /** Preserved error-message prefix per call site (kept stable for logs/tests). */
   errorPrefix: string;
+  /** Override the retry budget (render-path persistence uses a longer one). */
+  attempts?: number;
+  timeoutMs?: number;
 }): Promise<void> {
   const { url, serviceRoleKey } = getSupabaseEnv();
-  const attempts = Math.max(1, Number.parseInt(process.env.SUPABASE_UPLOAD_MAX_ATTEMPTS ?? '4', 10) || 4);
-  const timeoutMs = Math.max(1000, Number.parseInt(process.env.SUPABASE_UPLOAD_TIMEOUT_MS ?? '30000', 10) || 30000);
+  const attempts =
+    params.attempts ?? Math.max(1, Number.parseInt(process.env.SUPABASE_UPLOAD_MAX_ATTEMPTS ?? '4', 10) || 4);
+  const timeoutMs =
+    params.timeoutMs ?? Math.max(1000, Number.parseInt(process.env.SUPABASE_UPLOAD_TIMEOUT_MS ?? '30000', 10) || 30000);
   const region = process.env.VERCEL_REGION || 'local'; // Supabase storage is us-east-1; note cross-region.
   const objectEndpoint = `${url.replace(/\/$/, '')}/storage/v1/object/${params.bucket}/${params.key}`;
 
@@ -91,7 +138,10 @@ export async function uploadToSupabaseWithRetry(params: {
   const bodyBytes = Uint8Array.from(params.body);
   const bodyBlob = new Blob([bodyBytes], { type: params.contentType });
 
+  let attemptNo = 0;
   const uploadOnceOrDetectStored = async (): Promise<void> => {
+    attemptNo += 1;
+    storageEvent('upload_attempt', { key: params.key, attempt: attemptNo, of: attempts, bytes: params.body.length });
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     const startedAt = Date.now();
@@ -124,10 +174,12 @@ export async function uploadToSupabaseWithRetry(params: {
       // The POST may have stored the object before the client errored/timed out (the exact
       // serverless hang seen on 2026-06-23). If it's present, treat as success.
       if (await supabaseObjectExists(url, params.bucket, params.key)) {
-        console.warn(
-          `[supabase-upload] attempt errored (${(err as Error)?.message ?? 'unknown'}) after ` +
-            `${Date.now() - startedAt}ms but object EXISTS — treating as success key=${params.key} bytes=${params.body.length}`
-        );
+        storageEvent('upload_recovered_by_head', {
+          key: params.key,
+          attempt: attemptNo,
+          afterMs: Date.now() - startedAt,
+          err: (err as Error)?.message ?? 'unknown',
+        });
         return;
       }
       throw err;
@@ -144,9 +196,14 @@ export async function uploadToSupabaseWithRetry(params: {
       label: 'supabase-upload',
     });
   } catch (err) {
-    // Last safety net before failing the render: the object may have landed on a late retry.
-    if (await supabaseObjectExists(url, params.bucket, params.key)) return;
-    throw new Error(`${params.errorPrefix}: ${(err as Error)?.message ?? 'unknown'}`);
+    // Last safety net before failing: the object may have landed on a late retry.
+    if (await supabaseObjectExists(url, params.bucket, params.key)) {
+      storageEvent('upload_recovered_by_head', { key: params.key, attempt: attemptNo, finalNet: true });
+      return;
+    }
+    // Persistence genuinely failed after the full budget + HEAD-net. Throw a TAGGED error so the
+    // render loop does NOT re-run GPT for an upload problem (see ImagePersistenceError).
+    throw new ImagePersistenceError(`${params.errorPrefix}: ${(err as Error)?.message ?? 'unknown'}`, err);
   }
 }
 
@@ -244,11 +301,22 @@ export async function storeImageFromProviderUrl(input: StoreImageInput): Promise
   const bytes = await downloadRes.arrayBuffer();
   const fileBuffer = Buffer.from(bytes);
 
+  // Image generation succeeded (provider URL downloaded) — from here it's pure persistence.
+  storageEvent('gpt_image_success', {
+    orderId: input.orderId,
+    page: input.assetType === 'cover' ? 'cover' : input.pageNumber,
+    bytes: fileBuffer.length,
+  });
+
+  // Content-hash key (no Date.now): the SAME image always maps to the SAME key, so the upload
+  // HEAD-net detects an already-stored object across retries; a regenerated (different) image
+  // gets a different key. Avoids the Date.now-on-retry blindspot.
   const folder = input.orderId ? `orders/${input.orderId}` : 'orders/unknown';
+  const hash = bufferHash(fileBuffer);
   const key =
     input.assetType === 'cover'
-      ? `${folder}/cover/cover-${Date.now()}.${ext}`
-      : `${folder}/pages/page-${String(input.pageNumber).padStart(3, '0')}-${Date.now()}.${ext}`;
+      ? `${folder}/cover/cover-${hash}.${ext}`
+      : `${folder}/pages/page-${String(input.pageNumber).padStart(3, '0')}-${hash}.${ext}`;
 
   await uploadToSupabaseWithRetry({
     bucket,
@@ -256,6 +324,8 @@ export async function storeImageFromProviderUrl(input: StoreImageInput): Promise
     body: fileBuffer,
     contentType,
     errorPrefix: 'Supabase upload failed',
+    attempts: persistAttempts(),
+    timeoutMs: persistTimeoutMs(),
   });
 
   return buildPublicUrl(url, bucket, key);
@@ -282,11 +352,23 @@ export async function storeImageFromBuffer(input: StoreBufferInput): Promise<str
 
   const contentType = input.contentType || 'image/png';
   const ext = extensionFromContentType(contentType);
+
+  // GPT returned a buffer — generation is DONE. Everything below is pure persistence; a failure
+  // here must NOT cause a regenerate (uploadToSupabaseWithRetry throws ImagePersistenceError).
+  storageEvent('gpt_image_success', {
+    orderId: input.orderId,
+    page: input.assetType === 'cover' ? 'cover' : input.pageNumber,
+    bytes: input.buffer.length,
+  });
+
+  // Content-hash key (no Date.now) → deterministic per image → HEAD-net detects an already-stored
+  // object across retries; a different (regenerated) image gets a different key.
   const folder = input.orderId ? `orders/${input.orderId}` : 'orders/unknown';
+  const hash = bufferHash(input.buffer);
   const key =
     input.assetType === 'cover'
-      ? `${folder}/cover/cover-${Date.now()}.${ext}`
-      : `${folder}/pages/page-${String(input.pageNumber).padStart(3, '0')}-${Date.now()}.${ext}`;
+      ? `${folder}/cover/cover-${hash}.${ext}`
+      : `${folder}/pages/page-${String(input.pageNumber).padStart(3, '0')}-${hash}.${ext}`;
 
   await uploadToSupabaseWithRetry({
     bucket,
@@ -294,6 +376,8 @@ export async function storeImageFromBuffer(input: StoreBufferInput): Promise<str
     body: input.buffer,
     contentType,
     errorPrefix: 'Supabase buffer upload failed',
+    attempts: persistAttempts(),
+    timeoutMs: persistTimeoutMs(),
   });
 
   return buildPublicUrl(url, bucket, key);
@@ -407,17 +491,20 @@ export async function listStorageFolder(
 export async function storePresentationBuffer(input: StorePresentationInput): Promise<string> {
   const { url, bucket } = getSupabaseEnv();
 
+  // Content-hash key (no Date.now) + longer persist budget so a transient serverless abort on this
+  // per-page upload is absorbed by retries and never bubbles into a regenerate (order cmqrsdi8).
   const folder = input.orderId ? `orders/${input.orderId}` : 'orders/unknown';
-  const key = `${folder}/pages/page-${String(input.pageNumber).padStart(3, '0')}-present-${Date.now()}.webp`;
+  const hash = bufferHash(input.buffer);
+  const key = `${folder}/pages/page-${String(input.pageNumber).padStart(3, '0')}-present-${hash}.webp`;
 
-  // Route through the hardened direct-REST path (retry + drain + HEAD-net) so a transient
-  // serverless abort on this per-page upload no longer fails the render (order cmqrsdi8).
   await uploadToSupabaseWithRetry({
     bucket,
     key,
     body: input.buffer,
     contentType: 'image/webp',
     errorPrefix: 'Supabase presentation upload failed',
+    attempts: persistAttempts(),
+    timeoutMs: persistTimeoutMs(),
   });
 
   return buildPublicUrl(url, bucket, key);
