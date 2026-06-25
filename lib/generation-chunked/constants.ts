@@ -30,6 +30,21 @@ export function getWorkerBudgetMs(): number {
   return 230_000;
 }
 
+/**
+ * Time one Stage-0 anchor attempt needs to complete generate + persist + QA. The anchor loop will
+ * not START a new attempt unless at least this much of the worker budget remains, so a single
+ * attempt's GPT + Supabase I/O always fits inside one invocation rather than being killed mid-persist
+ * (which loses the buffer and re-GPTs on the next worker). Env-overridable for tests/calibration.
+ */
+export function getAnchorAttemptBudgetMs(): number {
+  const raw = process.env.ANCHOR_ATTEMPT_BUDGET_MS?.trim();
+  if (raw) {
+    const n = Number.parseInt(raw, 10);
+    if (Number.isFinite(n) && n > 5_000) return n;
+  }
+  return 150_000;
+}
+
 /** Max new page images per worker invocation (worst-case ~120s each). */
 export const PAGE_IMAGES_PER_CHUNK = 2;
 

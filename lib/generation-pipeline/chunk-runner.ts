@@ -37,7 +37,14 @@ import {
   fetchImageBuffer,
   placementModeFromPageTemplate,
 } from '@/lib/illustrationPresentation';
-import { storePresentationBuffer, storeImageFromDataUrl, uploadOrderSubpathAsset } from '@/lib/image-storage';
+import {
+  storePresentationBuffer,
+  storeImageFromDataUrl,
+  uploadOrderSubpathAsset,
+  storeGeneratedAnchorBuffer,
+  isImagePersistenceError,
+  probeSupabaseStorageLatency,
+} from '@/lib/image-storage';
 import { mergeGptImageReferenceSources } from '@/lib/image-reference-utils';
 import {
   buildPersistedCharacterAnchorsJson,
@@ -55,6 +62,7 @@ import { buildEnrichedScenePrompt, deriveLayout } from '@/backend/providers/imag
 import {
   AUDIO_PAGES_PER_CHUNK,
   GENERATION_VERSION,
+  getAnchorAttemptBudgetMs,
   getWorkerBudgetMs,
   MAX_PAGE_GENERATION_ATTEMPTS,
   PAGE_IMAGES_PER_CHUNK,
@@ -86,7 +94,8 @@ import {
 import { STYLE_01_AVOIDANCE_NEGATIVE, assertCompanionSheetRenderable } from '@/lib/style01-gptimage';
 import {
   buildStage0MethodBPrompt,
-  generateStage0MethodBAnchor,
+  generateStage0MethodBAnchorBuffer,
+  qaStage0Anchor,
 } from '@/lib/generation-pipeline/stage0-method-b';
 import {
   buildStage0Style02Prompt,
@@ -254,10 +263,15 @@ async function runTextStage(order: Order, cache: PipelineCache): Promise<Pipelin
   return result.cache;
 }
 
-async function runDnaStage(order: Order, cache: PipelineCache): Promise<PipelineCache> {
+async function runDnaStage(
+  order: Order,
+  cache: PipelineCache,
+  startedAt: number,
+  budgetMs: number
+): Promise<{ cache: PipelineCache; deferred: boolean }> {
   if (getApprovedChildCanonicalAnchor(cache)) {
     await saveCache(order.id, cache);
-    return cache;
+    return { cache, deferred: false };
   }
 
   let nextCache: PipelineCache = cache;
@@ -395,7 +409,7 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
   const existingChildAnchorForGate = existingChildAnchor;
   if (getApprovedChildCanonicalAnchor(nextCache)) {
     await saveCache(order.id, nextCache);
-    return nextCache;
+    return { cache: nextCache, deferred: false };
   } else if (existingChildAnchorForGate?.qaStatus === 'pending_review') {
     // promotePendingChildAnchorToPassed now always accepts-best (auto-accept or flag),
     // so a pending anchor never dead-ends. The only way this stays unapproved is a
@@ -462,78 +476,183 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
       Math.max(1, Number.parseInt(process.env.CHILD_ANCHOR_MAX_ATTEMPTS ?? '4', 10) || 4)
     );
     const candidateRows: NonNullable<PipelineCache['stage0AnchorCandidates']> = [];
-    let bestResult:
-      | Awaited<ReturnType<typeof generateStage0MethodBAnchor>>
-      | Awaited<ReturnType<typeof generateStage0Style02Anchor>>
-      | null = null;
+    // styleQa is style01 (AnchorStyleQaResult) OR style02 (AnchorStyle02QaResult); the gate below
+    // narrows via `'looksPhotoreal(Cutout)' in styleQa`, so the candidate carries the union.
+    type AnchorCandidateQa = {
+      resemblanceScore: number;
+      faceDetectConfidence: number;
+      semantic: Awaited<ReturnType<typeof qaStage0Anchor>>['semantic'];
+      styleQa:
+        | Awaited<ReturnType<typeof qaStage0Anchor>>['styleQa']
+        | Awaited<ReturnType<typeof generateStage0Style02Anchor>>['styleQa'];
+      embeddingVerdict: string;
+    };
+    type PersistedAnchorCandidate = {
+      attempt: number;
+      anchorUrl: string;
+      anchorModel: string;
+      referenceImages: string[];
+      referenceOrderLabels: string[];
+      qa: AnchorCandidateQa;
+    };
+    let bestCandidate: PersistedAnchorCandidate | null = null;
     let bestAttempt = 0;
+
+    // Synthetic Supabase storage latency probe — a baseline measurement before we persist the real
+    // anchor, so the logs separate "Supabase/region is slow right now" (infra) from "the worker
+    // budget was too tight" (config). Best-effort; never throws / never fails the render.
+    await probeSupabaseStorageLatency({ bytes: 64 * 1024 }).catch(() => undefined);
+
     for (let attempt = 1; attempt <= maxAnchorAttempts; attempt += 1) {
-      const result =
-        orderBranch === 'style02'
-          ? await generateStage0Style02Anchor({
-              order,
-              childPhotoUrl: childReferenceImageUrl,
-              lockedChildDescription,
-              wardrobeLock,
-              childPhotoDescription,
-              childStructuredHair: nextCache.dna?.childStructured?.hair,
-              attemptSuffix: `a${attempt}`,
-            })
-          : await generateStage0MethodBAnchor({
-              order,
-              childPhotoUrl: childReferenceImageUrl,
-              lockedChildDescription,
-              wardrobeLock,
-              childPhotoDescription,
-              childStructuredHair: nextCache.dna?.childStructured?.hair,
-              attemptSuffix: `a${attempt}`,
-            });
+      // Deadline gate (anchor_generate guard): only START an attempt we can finish (generate +
+      // persist + QA) within the remaining worker budget — never begin work that gets killed
+      // mid-persist (buffer lost → re-GPT on the next worker).
+      const remainingMs = deadlineMs(startedAt, budgetMs) - Date.now();
+      if (remainingMs < getAnchorAttemptBudgetMs()) {
+        if (!bestCandidate) {
+          // Nothing durable yet and not enough budget to finish one attempt — defer to a fresh
+          // worker (full budget) instead of starting work this invocation cannot complete.
+          console.log(
+            `[anchor_stage0] orderId=${order.id} deferring anchor: remainingMs=${remainingMs} < attemptBudget=${getAnchorAttemptBudgetMs()}`
+          );
+          await saveCache(order.id, nextCache);
+          return { cache: nextCache, deferred: true };
+        }
+        console.log(
+          `[anchor_stage0] orderId=${order.id} stopping regenerate early (budget): remainingMs=${remainingMs} < attemptBudget`
+        );
+        break;
+      }
+
+      let candidate: PersistedAnchorCandidate;
+      try {
+        if (orderBranch === 'style02') {
+          // Style 02 is gate-blocked for customers (not the golden MVP path); it keeps its existing
+          // coupled generate+persist, but still surfaces ImagePersistenceError to the handler below.
+          const result = await generateStage0Style02Anchor({
+            order,
+            childPhotoUrl: childReferenceImageUrl,
+            lockedChildDescription,
+            wardrobeLock,
+            childPhotoDescription,
+            childStructuredHair: nextCache.dna?.childStructured?.hair,
+            attemptSuffix: `a${attempt}`,
+          });
+          candidate = {
+            attempt,
+            anchorUrl: result.anchorUrl,
+            anchorModel: result.anchorModel,
+            referenceImages: result.referenceImages,
+            referenceOrderLabels: result.referenceOrderLabels,
+            qa: {
+              resemblanceScore: result.resemblanceScore,
+              faceDetectConfidence: 1,
+              semantic: result.semantic,
+              styleQa: result.styleQa,
+              embeddingVerdict: result.embeddingVerdict,
+            },
+          };
+        } else {
+          // anchor_generate → buffer (no Supabase, no QA).
+          const gen = await generateStage0MethodBAnchorBuffer({
+            order,
+            childPhotoUrl: childReferenceImageUrl,
+            lockedChildDescription,
+            wardrobeLock,
+            childPhotoDescription,
+            childStructuredHair: nextCache.dna?.childStructured?.hair,
+          });
+          // anchor_persist — durable, deterministic content-hash key + HEAD recovery. Throws a
+          // tagged ImagePersistenceError on genuine failure (handled below) so we NEVER re-GPT for
+          // an upload problem.
+          const persisted = await storeGeneratedAnchorBuffer({
+            orderId: order.id,
+            attemptSuffix: `a${attempt}`,
+            buffer: gen.buffer,
+            contentType: 'image/png',
+          });
+          // anchor_qa — runs only AFTER a durable URL exists.
+          const qa = await qaStage0Anchor({
+            order,
+            childPhotoUrl: childReferenceImageUrl,
+            anchorUrl: persisted.url,
+            childPhotoDescription,
+            childStructuredHair: nextCache.dna?.childStructured?.hair,
+          });
+          candidate = {
+            attempt,
+            anchorUrl: persisted.url,
+            anchorModel: gen.anchorModel,
+            referenceImages: gen.referenceImages,
+            referenceOrderLabels: gen.referenceOrderLabels,
+            qa,
+          };
+        }
+      } catch (err) {
+        if (isImagePersistenceError(err)) {
+          // anchor_persist failed after the full retry budget + HEAD-net. Generation already
+          // succeeded; an upload problem is NOT fixed by spending another GPT image.
+          if (bestCandidate) {
+            console.log(
+              `[anchor_persist] orderId=${order.id} attempt=${attempt} persist failed; accepting ` +
+                `${candidateRows.length} durable candidate(s) without re-GPT`
+            );
+            break;
+          }
+          // No durable candidate yet. Fail the job as retryable WITHOUT re-GPT this invocation. The
+          // deterministic key + HEAD recovery means a stored-but-hung upload would already have been
+          // recovered; reaching here = the object is truly absent. Do NOT persist the cache here —
+          // leaving DNA unsaved makes the failed order resume at the `dna` stage (regenerate/recover)
+          // rather than dead-end at the cover ANCHOR_GATE_BLOCK.
+          throw err;
+        }
+        throw err;
+      }
+
+      // anchor candidate row recorded ONLY AFTER a durable URL exists (no row for a lost buffer).
       candidateRows.push({
         attempt,
-        url: result.anchorUrl,
-        model: result.anchorModel,
-        resemblanceScore: result.resemblanceScore,
+        url: candidate.anchorUrl,
+        model: candidate.anchorModel,
+        resemblanceScore: candidate.qa.resemblanceScore,
         faceDetectConfidence: 1,
-        embeddingVerdict: result.embeddingVerdict as 'hard_fail' | 'soft_ok',
-        semanticPass: result.semantic.ok,
+        embeddingVerdict: candidate.qa.embeddingVerdict as 'hard_fail' | 'soft_ok',
+        semanticPass: candidate.qa.semantic.ok,
         createdAt: new Date().toISOString(),
       });
-      if (!bestResult || result.resemblanceScore > bestResult.resemblanceScore) {
-        bestResult = result;
+      if (!bestCandidate || candidate.qa.resemblanceScore > bestCandidate.qa.resemblanceScore) {
+        bestCandidate = candidate;
         bestAttempt = attempt;
       }
       console.log(
-        `[anchor_stage0_attempt] orderId=${order.id} method=B attempt=${attempt}/${maxAnchorAttempts} ` +
-          `score=${result.resemblanceScore.toFixed(3)} embeddingVerdict=${result.embeddingVerdict}`
+        `[anchor_stage0_attempt] orderId=${order.id} branch=${orderBranch} attempt=${attempt}/${maxAnchorAttempts} ` +
+          `score=${candidate.qa.resemblanceScore.toFixed(3)} embeddingVerdict=${candidate.qa.embeddingVerdict}`
       );
-      // Persist candidates incrementally so a transient blip (upload/fetch) on a LATER
-      // attempt does not discard anchors already generated this run. The Stage-0 recovery
-      // path (pickStage0Candidate / attachPendingChildAnchorFromCandidate) resumes from
-      // these on the next retry instead of re-spending GPT image generation from scratch.
+      // Persist candidates incrementally so a later-attempt blip never discards earlier durable
+      // anchors; the recovery path resumes from these instead of re-spending GPT.
       nextCache.stage0AnchorCandidates = [...candidateRows];
       nextCache.stage0AnchorPrompt = anchorPrompt;
       await saveCache(order.id, nextCache);
 
-      // Early-exit: a candidate that clears the soft-accept floor will auto-accept below —
-      // no need to spend the rest of the regenerate budget chasing a marginally higher score.
-      if (evaluateAnchorEmbeddingScore(result.resemblanceScore, anchorGateConfig).autoAccept) {
+      if (evaluateAnchorEmbeddingScore(candidate.qa.resemblanceScore, anchorGateConfig).autoAccept) {
         console.log(
           `[anchor_stage0] orderId=${order.id} auto-accept floor cleared at attempt ${attempt} ` +
-            `(score=${result.resemblanceScore.toFixed(3)} >= ${anchorGateConfig.embeddingSoftAcceptAt}); stopping regenerate`
+            `(score=${candidate.qa.resemblanceScore.toFixed(3)} >= ${anchorGateConfig.embeddingSoftAcceptAt}); stopping regenerate`
         );
         break;
       }
     }
-    if (!bestResult) {
+    if (!bestCandidate) {
       throw new Error('ANCHOR_QA_BLOCK: no anchor candidates generated');
     }
-    const anchorUrl = bestResult.anchorUrl;
-    const anchorModel = bestResult.anchorModel;
-    const anchorReferenceImages = bestResult.referenceImages;
-    const anchorReferenceOrderLabels = bestResult.referenceOrderLabels;
-    const similarity = { resemblanceScore: bestResult.resemblanceScore, faceDetectConfidence: 1 };
-    const embeddingEval = evaluateAnchorEmbeddingScore(bestResult.resemblanceScore, anchorGateConfig);
-    const semantic = bestResult.semantic;
+    const anchorUrl = bestCandidate.anchorUrl;
+    const anchorModel = bestCandidate.anchorModel;
+    const anchorReferenceImages = bestCandidate.referenceImages;
+    const anchorReferenceOrderLabels = bestCandidate.referenceOrderLabels;
+    const similarity = { resemblanceScore: bestCandidate.qa.resemblanceScore, faceDetectConfidence: 1 };
+    const embeddingEval = evaluateAnchorEmbeddingScore(bestCandidate.qa.resemblanceScore, anchorGateConfig);
+    const semantic = bestCandidate.qa.semantic;
+    const styleQa = bestCandidate.qa.styleQa;
     const anchorPhotoDescription = await describeChildFromPhoto(anchorUrl).catch(() => null);
     for (const row of candidateRows) {
       row.semanticPass = semantic.ok;
@@ -557,7 +676,6 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
       );
     }
 
-    const styleQa = bestResult.styleQa;
     if (!styleQa.ok) {
       await saveCache(order.id, nextCache);
       throw new Error(
@@ -736,7 +854,7 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
   }
 
   await saveCache(order.id, nextCache);
-  return nextCache;
+  return { cache: nextCache, deferred: false };
 }
 
 async function ensureStoryLocationPlan(
@@ -1626,9 +1744,15 @@ export async function processGenerationChunk(
 
       if (stage === 'dna') {
         await updateStage(orderId, 'dna');
-        cache = await runDnaStage(order, cache);
+        const dnaResult = await runDnaStage(order, cache, startedAt, budgetMs);
+        cache = dnaResult.cache;
         if (process.env.GENERATION_ANCHOR_ONLY === 'true') {
           return { stage: 'dna', done: true, stopChunk: true };
+        }
+        if (dnaResult.deferred) {
+          // Not enough budget to finish a Stage-0 anchor attempt this invocation — resume dna on a
+          // fresh worker (full budget) rather than advance to cover without an anchor.
+          return { stage: 'dna', done: false, stopChunk: true };
         }
         stage = 'cover';
         continue;

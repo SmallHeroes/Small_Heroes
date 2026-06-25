@@ -195,16 +195,37 @@ export function buildStage0MethodBPrompt(input: {
     .join('\n\n');
 }
 
-export async function generateStage0MethodBAnchor(input: {
+/** anchor_generate sub-stage output — the GPT buffer + its prompt/refs, BEFORE any persistence. */
+export type Stage0MethodBBuffer = {
+  buffer: Buffer;
+  anchorModel: string;
+  anchorPrompt: string;
+  referenceImages: string[];
+  referenceOrderLabels: string[];
+};
+
+/** anchor_qa sub-stage output — resemblance + semantic + style verdicts for a PERSISTED anchor URL. */
+export type Stage0AnchorQa = {
+  resemblanceScore: number;
+  faceDetectConfidence: number;
+  semantic: ReturnType<typeof evaluateAnchorSemanticQa>;
+  styleQa: Awaited<ReturnType<typeof evaluateAnchorStyleFromVision>>;
+  embeddingVerdict: string;
+};
+
+/**
+ * anchor_generate: build refs + prompt, call GPT, return the BUFFER. No Supabase, no QA — so a
+ * persistence failure downstream never re-runs this (expensive) generation.
+ */
+export async function generateStage0MethodBAnchorBuffer(input: {
   order: Order;
   childPhotoUrl: string;
   lockedChildDescription: string;
   wardrobeLock?: string;
   childPhotoDescription?: string | null;
   childStructuredHair?: string | null;
-  attemptSuffix?: string;
   referenceLayout?: Stage0MethodBReferenceLayout;
-}): Promise<Stage0MethodBResult> {
+}): Promise<Stage0MethodBBuffer> {
   // Gap 2 (bunny forensics): this anchor flow is Style 01 only (Style 01 template,
   // prompt, and style refs). A Style 02 order reaching it = silent style mixing — throw.
   assertPipelineStyleBranchMatchesOrder({
@@ -243,26 +264,38 @@ export async function generateStage0MethodBAnchor(input: {
     modelOverride: resolveStyle01GptModel(),
   });
 
+  return {
+    buffer: anchorResult.buffer,
+    anchorModel: anchorResult.model,
+    anchorPrompt,
+    referenceImages: paths,
+    referenceOrderLabels: labels,
+  };
+}
+
+/**
+ * anchor_qa: score a PERSISTED anchor URL (resemblance + semantic + style). URL-based and
+ * branch-agnostic so the same QA runs on any Stage-0 anchor once it has a durable URL.
+ */
+export async function qaStage0Anchor(input: {
+  order: Pick<Order, 'illustrationStyle' | 'childGender'>;
+  childPhotoUrl: string;
+  anchorUrl: string;
+  childPhotoDescription?: string | null;
+  childStructuredHair?: string | null;
+}): Promise<Stage0AnchorQa> {
   const thresholdConfig = resolveResemblanceThresholdConfig();
   const pageThreshold = resolveEffectiveThreshold(input.order.illustrationStyle, thresholdConfig);
   const anchorGate = resolveAnchorGateConfig();
 
-  const { uploadOrderSubpathAsset } = await import('@/lib/image-storage');
-  const anchorUrl = await uploadOrderSubpathAsset({
-    orderId: input.order.id,
-    subpath: `character-anchors/child-canonical-method-b-${input.attemptSuffix ?? Date.now()}.png`,
-    buffer: anchorResult.buffer,
-    contentType: 'image/png',
-  });
-
   const similarity = await scoreResemblanceAgainstReference({
     referenceImageUrl: input.childPhotoUrl,
-    candidateImageUrl: anchorUrl,
+    candidateImageUrl: input.anchorUrl,
     effectiveThreshold: pageThreshold,
     minAcceptableScore: thresholdConfig.minAcceptableScore,
   });
   const embeddingEval = evaluateAnchorEmbeddingScore(similarity.resemblanceScore, anchorGate);
-  const anchorPhotoDescription = await describeChildFromPhoto(anchorUrl).catch(() => null);
+  const anchorPhotoDescription = await describeChildFromPhoto(input.anchorUrl).catch(() => null);
   const semantic = evaluateAnchorSemanticQa({
     childGender: input.order.childGender,
     childPhotoDescription: input.childPhotoDescription,
@@ -271,17 +304,62 @@ export async function generateStage0MethodBAnchor(input: {
     faceDetectConfidence: similarity.faceDetectConfidence,
     config: anchorGate,
   });
-  const styleQa = await evaluateAnchorStyleFromVision(anchorUrl);
+  const styleQa = await evaluateAnchorStyleFromVision(input.anchorUrl);
 
   return {
-    anchorUrl,
-    anchorModel: anchorResult.model,
-    anchorPrompt,
-    referenceImages: paths,
-    referenceOrderLabels: labels,
     resemblanceScore: similarity.resemblanceScore,
+    faceDetectConfidence: similarity.faceDetectConfidence,
     semantic,
     styleQa,
     embeddingVerdict: embeddingEval.verdict,
+  };
+}
+
+/**
+ * Backward-compatible composer (anchor_generate → anchor_persist → anchor_qa) for callers that
+ * want a single call (qa-console, experiments). The production chunk-runner drives the sub-stages
+ * directly so it can be deadline-aware and avoid re-GPT on a persistence failure.
+ *
+ * Persistence now uses storeGeneratedAnchorBuffer (SUPABASE_PERSIST_* contract + deterministic
+ * content-hash key + HEAD recovery) instead of the generic uploadOrderSubpathAsset path.
+ */
+export async function generateStage0MethodBAnchor(input: {
+  order: Order;
+  childPhotoUrl: string;
+  lockedChildDescription: string;
+  wardrobeLock?: string;
+  childPhotoDescription?: string | null;
+  childStructuredHair?: string | null;
+  attemptSuffix?: string;
+  referenceLayout?: Stage0MethodBReferenceLayout;
+}): Promise<Stage0MethodBResult> {
+  const gen = await generateStage0MethodBAnchorBuffer(input);
+
+  const { storeGeneratedAnchorBuffer } = await import('@/lib/image-storage');
+  const { url: anchorUrl } = await storeGeneratedAnchorBuffer({
+    orderId: input.order.id,
+    attemptSuffix: input.attemptSuffix ?? 'a1',
+    buffer: gen.buffer,
+    contentType: 'image/png',
+  });
+
+  const qa = await qaStage0Anchor({
+    order: input.order,
+    childPhotoUrl: input.childPhotoUrl,
+    anchorUrl,
+    childPhotoDescription: input.childPhotoDescription,
+    childStructuredHair: input.childStructuredHair,
+  });
+
+  return {
+    anchorUrl,
+    anchorModel: gen.anchorModel,
+    anchorPrompt: gen.anchorPrompt,
+    referenceImages: gen.referenceImages,
+    referenceOrderLabels: gen.referenceOrderLabels,
+    resemblanceScore: qa.resemblanceScore,
+    semantic: qa.semantic,
+    styleQa: qa.styleQa,
+    embeddingVerdict: qa.embeddingVerdict,
   };
 }
