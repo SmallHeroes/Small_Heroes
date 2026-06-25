@@ -6,12 +6,14 @@ import { ROUTES } from '@/lib/routes';
 import styles from './my-books.module.css';
 
 type BookEntry = {
-  title?: string;
+  orderId?: string;
+  title?: string | null;
   childName?: string;
   status: string;
   readyUrl: string;
-  pdfUrl?: string | null;
   coverImageUrl?: string | null;
+  companionName?: string | null;
+  companionImage?: string | null;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -21,6 +23,58 @@ const STATUS_LABELS: Record<string, string> = {
   paid: 'ממתין ליצירה',
   failed: 'נכשל',
 };
+
+function bookTitle(book: BookEntry) {
+  return book.title || `ספר עבור ${book.childName || 'הילד/ה'}`;
+}
+
+function BookCard({ book }: { book: BookEntry }) {
+  const title = bookTitle(book);
+  const isReady = book.status === 'ready';
+  const companionLine = book.childName
+    ? `${book.childName} וחברים`
+    : book.companionName
+      ? `עם ${book.companionName}`
+      : null;
+
+  const content = (
+    <>
+      <img
+        className={styles.cover}
+        src={book.coverImageUrl || '/Images/ExamplePage.png'}
+        alt={title}
+      />
+      <div className={styles.body}>
+        <h3 className={styles.title}>{title}</h3>
+        {book.companionName && companionLine ? (
+          <div className={styles.companion}>
+            {book.companionImage ? (
+              <img className={styles.companionImg} src={book.companionImage} alt="" loading="lazy" />
+            ) : null}
+            <span>{companionLine}</span>
+          </div>
+        ) : null}
+        {!isReady ? (
+          <div className={styles.meta}>{STATUS_LABELS[book.status] || book.status}</div>
+        ) : null}
+      </div>
+    </>
+  );
+
+  if (isReady) {
+    return (
+      <Link
+        href={book.readyUrl}
+        className={`${styles.card} ${styles.cardReady}`}
+        aria-label={`פתיחת הספר ${title}`}
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return <article className={styles.card}>{content}</article>;
+}
 
 export function MyBooksClient() {
   const [subtitle, setSubtitle] = useState('טוענים את הספרים שלכם...');
@@ -66,30 +120,8 @@ export function MyBooksClient() {
         <div className={styles.empty}>עדיין לא נוצרו ספרים בחשבון הזה.</div>
       ) : (
         <section className={styles.grid}>
-          {books.map((book, index) => (
-            <article key={`${book.readyUrl}-${index}`} className={styles.card}>
-              <img
-                className={styles.cover}
-                src={book.coverImageUrl || '/Images/ExamplePage.png'}
-                alt={book.title || 'עטיפת ספר'}
-              />
-              <div className={styles.body}>
-                <h3>{book.title || `ספר עבור ${book.childName || 'הילד/ה'}`}</h3>
-                {book.status !== 'ready' ? (
-                  <div className={styles.meta}>{STATUS_LABELS[book.status] || book.status}</div>
-                ) : null}
-                <div className={styles.actions}>
-                  <Link href={book.readyUrl} className={styles.primaryBtn}>
-                    פתיחת הספר
-                  </Link>
-                  {book.pdfUrl ? (
-                    <a href={book.pdfUrl} className={styles.outlineBtn} download>
-                      PDF
-                    </a>
-                  ) : null}
-                </div>
-              </div>
-            </article>
+          {books.map((book) => (
+            <BookCard key={book.orderId || book.readyUrl} book={book} />
           ))}
         </section>
       )}
