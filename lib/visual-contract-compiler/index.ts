@@ -33,3 +33,45 @@ export {
   type LocationHint,
   type ResolvedLocationAuthority,
 } from './resolveLocationAuthority';
+
+// ── Phase 1B — enforcement ──
+export {
+  planPageReferences,
+  resolveLocationSetRef,
+  type ReferencePlan,
+  type AvailableRefs,
+  type PlannedRef,
+  type RefSlotKind,
+} from './referenceBudgetPlanner';
+export {
+  evaluatePageContractQa,
+  observePageForContractQa,
+  buildContractVisionInstruction,
+  interpretVisionJson,
+  resolveMajorProps,
+  type ContractQaCheck,
+  type ContractQaVerdict,
+  type ContractQaFailure,
+  type PageVisionObservation,
+  type ContractVisionCaller,
+} from './pageVisualContractQa';
+export {
+  selectCalibrationPages,
+  type CalibrationSelection,
+} from './selectCalibrationPages';
+export {
+  runVisualContractCalibration,
+  type CalibrationRenderer,
+  type CalibrationVision,
+  type CalibrationResult,
+  type CalibrationPageResult,
+  type CalibrationRenderTarget,
+} from './calibrateBookVisualContract';
+export {
+  requireValidContractForRender,
+  isVisualContractEnforcementEnabled,
+  isVisualContractDevOverrideEnabled,
+  MissingVisualContractError,
+  isMissingVisualContractError,
+  type RenderContext,
+} from './contractRenderGuards';
