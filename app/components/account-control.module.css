@@ -1,0 +1,133 @@
+.wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.loginLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: #6b4eff;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+.loginLink:hover {
+  background: rgba(107, 78, 255, 0.08);
+}
+
+.avatarBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: #886cff;
+  color: #fff;
+  font-family: var(--fb, 'Heebo', sans-serif);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.avatarBtn:focus-visible {
+  outline: 2px solid #886cff;
+  outline-offset: 2px;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 200px;
+  padding: 8px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 12px 32px rgba(36, 24, 74, 0.12);
+  z-index: 60;
+}
+
+.menuItem {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #2b2350;
+  font-family: var(--fb, 'Heebo', sans-serif);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: right;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.menuItem:hover {
+  background: rgba(136, 108, 255, 0.08);
+}
+
+.menuItemDanger {
+  color: #b42318;
+}
+
+.sheetBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(24, 20, 40, 0.4);
+  z-index: 80;
+  animation: acFadeIn 0.2s ease;
+}
+
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 90;
+  padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
+  border-radius: 20px 20px 0 0;
+  background: #fff;
+  box-shadow: 0 -8px 32px rgba(36, 24, 74, 0.14);
+  animation: acSlideUp 0.28s ease;
+}
+
+.sheetHandle {
+  width: 40px;
+  height: 4px;
+  margin: 0 auto 12px;
+  border-radius: 999px;
+  background: #e4dfef;
+}
+
+.sheetTitle {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #7c7498;
+  text-align: center;
+}
+
+@keyframes acFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes acSlideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheetBackdrop,
+  .sheet {
+    animation: none;
+  }
+}
