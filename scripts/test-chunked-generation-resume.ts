@@ -14,8 +14,8 @@ import {
 } from '../lib/generation-chunked/artifact-keys';
 import {
   GENERATION_VERSION,
+  getPageImagesPerChunk,
   MAX_PAGE_GENERATION_ATTEMPTS,
-  PAGE_IMAGES_PER_CHUNK,
 } from '../lib/generation-chunked/constants';
 import {
   findExistingPageImageAsset,
@@ -117,7 +117,7 @@ async function proofTimeoutResume(): Promise<ProofResult> {
     });
 
     const pending = dbPages.filter((p) => !shouldSkipPaidPageImageRegen(p.imageAsset));
-    const nextChunk = pending.slice(0, PAGE_IMAGES_PER_CHUNK).map((p) => p.pageNumber);
+    const nextChunk = pending.slice(0, getPageImagesPerChunk()).map((p) => p.pageNumber);
 
     const pass =
       pending.length === 2 &&

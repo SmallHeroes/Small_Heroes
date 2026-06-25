@@ -230,8 +230,8 @@ describe('cron sweep auth', () => {
   });
 });
 
-describe('sweepStaleGenerationJobs — durable recovery of the cmqs class + anti-infinite-spend', () => {
-  function mockPrisma(jobs: Array<Record<string, unknown>>) {
+describe('sweepStaleGenerationJobs — DISPATCHER boundary (kicks the worker route, never renders in-process)', () => {
+  function mockSweeperDeps(jobs: Array<Record<string, unknown>>) {
     // The cron describe doMock'd the sweeper module; ensure we import the REAL sweeper here.
     vi.doUnmock('@/lib/generation-chunked/sweeper');
     const update = vi.fn(async () => ({}));
@@ -242,41 +242,88 @@ describe('sweepStaleGenerationJobs — durable recovery of the cmqs class + anti
         order: { update: orderUpdate },
       },
     }));
-    return { update, orderUpdate };
+    // The sweeper must DISPATCH via the self-chain helper — never run the chunk in-process.
+    const kick = vi.fn(() => {});
+    vi.doMock('@/lib/generation-chunked/chain-worker', () => ({ chainGenerationWorker: kick }));
+    // Spy proves the compute path is NOT taken inside the 60s cron.
+    const invoke = vi.fn(async () => ({ ok: true }));
+    vi.doMock('@/lib/generation-chunked/process-worker', () => ({ runGenerationWorkerInvocation: invoke }));
+    return { update, orderUpdate, kick, invoke };
   }
 
-  it('reclaims an expired-lease running job with retryable=false and resumes it (the cmqs class)', async () => {
-    const { update } = mockPrisma([
+  it('dispatches a reclaimed job via the worker route — does NOT render in-process', async () => {
+    const { update, kick, invoke } = mockSweeperDeps([
       { orderId: 'cmqs', currentStage: 'text', staleReclaimCount: 0, lastReclaimStage: null, completedPageNumbers: [] },
     ]);
-    const invoke = vi.fn(async () => ({ ok: true, stage: 'dna' }));
-    vi.doMock('@/lib/generation-chunked/process-worker', () => ({ runGenerationWorkerInvocation: invoke }));
-
     const { sweepStaleGenerationJobs } = await import('@/lib/generation-chunked/sweeper');
     const processed = await sweepStaleGenerationJobs(10);
 
-    expect(invoke).toHaveBeenCalledWith('cmqs');
+    expect(kick).toHaveBeenCalledWith('cmqs'); // dispatched to /api/generate/worker
+    expect(invoke).not.toHaveBeenCalled(); // compute NOT run inside the 60s cron
     expect(processed).toBe(1);
-    // Recorded the reclaim (count→1, fingerprint text:0) — not a hard fail.
+    // Reclaim recorded AND kick telemetry stamped (lastWorkerKickAt) — like a normal chain hop.
     expect(update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ staleReclaimCount: 1, lastReclaimStage: 'text:0' }) })
+      expect.objectContaining({
+        data: expect.objectContaining({
+          staleReclaimCount: 1,
+          lastReclaimStage: 'text:0',
+          lastWorkerKickAt: expect.any(Date),
+        }),
+      })
     );
   });
 
-  it('hard-fails (retryable=false) after max no-progress reclaims instead of re-spending forever', async () => {
-    process.env.GENERATION_MAX_STALE_RECLAIMS = '3';
-    const { update } = mockPrisma([
-      { orderId: 'stuck', currentStage: 'text', staleReclaimCount: 3, lastReclaimStage: 'text:0', completedPageNumbers: [] },
+  it('rekicks a stale page_images:0 job via the worker route (the cmqtd stall) — never in cron', async () => {
+    const { kick, invoke } = mockSweeperDeps([
+      {
+        orderId: 'cmqtd',
+        currentStage: 'page_images',
+        staleReclaimCount: 0,
+        lastReclaimStage: null,
+        completedPageNumbers: [],
+      },
     ]);
-    const invoke = vi.fn(async () => ({ ok: true }));
-    vi.doMock('@/lib/generation-chunked/process-worker', () => ({ runGenerationWorkerInvocation: invoke }));
-
     const { sweepStaleGenerationJobs } = await import('@/lib/generation-chunked/sweeper');
     await sweepStaleGenerationJobs(10);
 
-    expect(invoke).not.toHaveBeenCalled(); // stopped re-spending
+    expect(kick).toHaveBeenCalledWith('cmqtd');
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it('hard-fails (retryable=false) after max no-progress reclaims — and does NOT dispatch', async () => {
+    process.env.GENERATION_MAX_STALE_RECLAIMS = '3';
+    const { update, kick } = mockSweeperDeps([
+      { orderId: 'stuck', currentStage: 'text', staleReclaimCount: 3, lastReclaimStage: 'text:0', completedPageNumbers: [] },
+    ]);
+    const { sweepStaleGenerationJobs } = await import('@/lib/generation-chunked/sweeper');
+    await sweepStaleGenerationJobs(10);
+
+    expect(kick).not.toHaveBeenCalled(); // stopped re-spending
     expect(update).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ status: 'failed', retryable: false }) })
+    );
+  });
+
+  it('advancing progress (completedPageNumbers grows) resets the no-progress counter', async () => {
+    // Job previously reclaimed at page_images:0; now a page has persisted (completedPageNumbers=[1]),
+    // so the fingerprint advances to page_images:1 and the reclaim counter resets to 1 (not climbing).
+    const { update, kick } = mockSweeperDeps([
+      {
+        orderId: 'adv',
+        currentStage: 'page_images',
+        staleReclaimCount: 4,
+        lastReclaimStage: 'page_images:0',
+        completedPageNumbers: [1],
+      },
+    ]);
+    const { sweepStaleGenerationJobs } = await import('@/lib/generation-chunked/sweeper');
+    await sweepStaleGenerationJobs(10);
+
+    expect(kick).toHaveBeenCalledWith('adv');
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ staleReclaimCount: 1, lastReclaimStage: 'page_images:1' }),
+      })
     );
   });
 });

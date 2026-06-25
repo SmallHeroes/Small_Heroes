@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { runGenerationWorkerInvocation } from './process-worker';
+import { chainGenerationWorker } from './chain-worker';
 import { getMaxStaleReclaims } from './constants';
 
 /** Progress fingerprint — changes when the job advances (stage or completed-page count). */
@@ -10,9 +10,14 @@ function progressFingerprint(currentStage: string, completedPageNumbers: unknown
 
 /**
  * Source-of-truth continuation: reclaim ANY expired-lease job in pending/running (regardless of
- * `retryable`) and invoke the worker in-process (same path as cron). Does NOT depend on the HTTP
- * self-fetch completing — this is the durable recovery for stuck jobs (e.g. a chain 401 that left
- * the job running with an expired lease).
+ * `retryable`) and **dispatch** it to the worker route — the sweeper is a DISPATCHER, never a
+ * renderer. It must NOT run the chunk in-process: the sweep runs inside the 60s cron route
+ * (`/api/generate/cron/sweep`, maxDuration=60), and a `page_images` chunk (gpt-image + refs +
+ * upload + postprocess) cannot finish in 60s — it would be killed mid-render with no asset and no
+ * error, leaving the lease to expire and the reclaim counter to climb (the silent stall loop).
+ * Instead it kicks `/api/generate/worker` (maxDuration=300) via the existing self-chain helper, so
+ * a reclaim is telemetry-indistinguishable from a normal chain hop and compute happens only on the
+ * 300s worker route.
  *
  * Anti-infinite-spend: each reclaim that does NOT change the progress fingerprint increments
  * staleReclaimCount; a job that advances resets it. After getMaxStaleReclaims() no-progress
@@ -71,14 +76,23 @@ export async function sweepStaleGenerationJobs(
       continue;
     }
 
-    // Record the reclaim attempt before invoking so a crash mid-invocation still counts.
+    // Record the reclaim attempt AND stamp the kick telemetry durably (awaited) so a reclaim that
+    // dispatches a worker is indistinguishable from a normal chain hop — even if the fire-and-forget
+    // diagnostic inside chainGenerationWorker does not flush before this cron route returns.
     await prisma.generationJob.update({
       where: { orderId: job.orderId },
-      data: { staleReclaimCount: nextCount, lastReclaimStage: fingerprint },
+      data: {
+        staleReclaimCount: nextCount,
+        lastReclaimStage: fingerprint,
+        lastWorkerKickAt: now,
+        lastChainStatus: null,
+        lastChainError: null,
+      },
     });
 
-    const result = await runGenerationWorkerInvocation(job.orderId);
-    if (result.ok) processed += 1;
+    // Dispatcher boundary: kick the 300s worker route; NEVER render in-process inside the 60s cron.
+    chainGenerationWorker(job.orderId);
+    processed += 1;
   }
 
   return processed;

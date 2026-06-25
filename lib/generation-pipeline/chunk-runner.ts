@@ -55,9 +55,11 @@ import { buildEnrichedScenePrompt, deriveLayout } from '@/backend/providers/imag
 import {
   AUDIO_PAGES_PER_CHUNK,
   GENERATION_VERSION,
+  getPageImagesPerChunk,
+  getPagePersistMarginMs,
+  getPageStartMinBudgetMs,
   getWorkerBudgetMs,
   MAX_PAGE_GENERATION_ATTEMPTS,
-  PAGE_IMAGES_PER_CHUNK,
   type ChunkStage,
 } from '@/lib/generation-chunked/constants';
 import { buildArtifactIdempotencyKey, isValidImageAssetUrl } from '@/lib/generation-chunked/artifact-keys';
@@ -931,6 +933,21 @@ async function runPageImagesChunk(
     return { cache, stopChunk: false, failed: false };
   }
 
+  // Page deadline guard: never START a paid page render this worker cannot finish. A page
+  // (gpt-image + refs + upload + postprocess) needs the bulk of the 300s envelope; if too little
+  // budget remains, stop cleanly — the lease is released by process-worker and the self-chain kicks
+  // a FRESH worker with a full budget. This is what stops a reclaimed/near-exhausted runtime from
+  // attempting a render it gets killed mid-way (no asset, no error, lease left to expire → reclaim loop).
+  const remainingForPageMs = deadlineMs(startedAt, budgetMs) - Date.now();
+  if (remainingForPageMs < getPageStartMinBudgetMs()) {
+    log.info('Page render deferred — insufficient worker budget; rekicking a fresh worker', {
+      orderId: order.id,
+      remainingMs: remainingForPageMs,
+      needMs: getPageStartMinBudgetMs(),
+    });
+    return { cache, stopChunk: true, failed: false };
+  }
+
   const storyFilePath = resolveCachedStoryFilePath(cache);
   if (!storyFilePath) throw new Error('storyFilePath missing');
 
@@ -1014,7 +1031,7 @@ async function runPageImagesChunk(
     story.pages.map((p, i) => [p.pageNumber, assignedTemplates[i] ?? 'art_top_text_bottom'])
   );
 
-  const pagesToRender = pendingPages.slice(0, PAGE_IMAGES_PER_CHUNK);
+  const pagesToRender = pendingPages.slice(0, getPageImagesPerChunk());
   const pageNumbersThisChunk = new Set(pagesToRender.map((p) => p.pageNumber));
   const dbTextByPage = new Map(book.pages.map((p) => [p.pageNumber, p.text]));
 
@@ -1151,6 +1168,13 @@ async function runPageImagesChunk(
   const resemblanceThresholdConfig = resolveResemblanceThresholdConfig();
 
   const workerDeadline = deadlineMs(startedAt, budgetMs);
+  // Per-page soft timeout derived from the remaining worker budget (mirrors the dev path at
+  // qa-console-run.ts): a page render aborts by soft-timeout — leaving the persist margin for
+  // upload/postprocess — BEFORE the function is hard-killed, so the page retries on a fresh worker.
+  const pageGenerationTimeoutMs = Math.max(
+    30_000,
+    workerDeadline - Date.now() - getPagePersistMarginMs()
+  );
   const expressionSheetActive = isChildExpressionSheetActive(cache);
   const storyFileKey = storyFilePath ? path.basename(storyFilePath, '.md') : undefined;
   const imageOutcome = await generateAllPageImages(pagesForGen, {
@@ -1174,8 +1198,9 @@ async function runPageImagesChunk(
     characterRegistry,
     initialCharacterAnchors,
     existingPageNumbers: existingPageNumbers,
-    maxNewPages: PAGE_IMAGES_PER_CHUNK,
+    maxNewPages: getPageImagesPerChunk(),
     workerDeadlineMs: workerDeadline,
+    pageGenerationTimeoutMs,
     orderId: order.id,
     characterSheet: story.characterSheet,
     concept: story.concept,
@@ -1327,6 +1352,20 @@ async function runPageImagesChunk(
       /* non-fatal */
     }
   }
+
+  // Durable per-page progress. The watchdog fingerprint (sweeper.progressFingerprint) reads
+  // completedPageNumbers; without a writer it stayed inert (always page_images:0), so a genuinely
+  // advancing job looked "stuck" and risked a wrong no-progress hard-fail. Recompute from the source
+  // of truth (pages with a persisted imageAsset) so the fingerprint advances as pages land.
+  const completedPages = await prisma.bookPage.findMany({
+    where: { bookId: book.id, NOT: { imageAsset: null } },
+    select: { pageNumber: true },
+    orderBy: { pageNumber: 'asc' },
+  });
+  await prisma.generationJob.update({
+    where: { orderId: order.id },
+    data: { completedPageNumbers: completedPages.map((p) => p.pageNumber) as Prisma.InputJsonValue },
+  });
 
   const job = await prisma.generationJob.findUnique({ where: { orderId: order.id } });
   const pageAttempts = (job?.pageAttempts as Record<string, number> | null) ?? {};
