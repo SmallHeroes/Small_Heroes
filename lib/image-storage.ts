@@ -38,12 +38,17 @@ function bufferHash(buffer: Buffer): string {
  * Persistence retry budget for render-path image buffers — LONGER than the default upload budget so a
  * transient Supabase abort is absorbed by upload retries instead of bubbling up and triggering an
  * expensive GPT regenerate. Env-overridable.
+ *
+ * Bounded so the WORST-CASE cumulative persist time (attempts × timeout + backoff) stays well under
+ * the 300s Vercel function ceiling — the old 8×45s=360s budget could itself outlive the function and
+ * get the render killed mid-persist. The head-recovery exists-check (upload_recovered_by_head) means
+ * an exhausted attempt whose object actually stored is still recovered, so fewer attempts is safe.
  */
 function persistAttempts(): number {
-  return Math.max(1, Number.parseInt(process.env.SUPABASE_PERSIST_MAX_ATTEMPTS ?? '8', 10) || 8);
+  return Math.max(1, Number.parseInt(process.env.SUPABASE_PERSIST_MAX_ATTEMPTS ?? '5', 10) || 5);
 }
 function persistTimeoutMs(): number {
-  return Math.max(1000, Number.parseInt(process.env.SUPABASE_PERSIST_TIMEOUT_MS ?? '45000', 10) || 45000);
+  return Math.max(1000, Number.parseInt(process.env.SUPABASE_PERSIST_TIMEOUT_MS ?? '20000', 10) || 20000);
 }
 
 function getSupabaseEnv() {

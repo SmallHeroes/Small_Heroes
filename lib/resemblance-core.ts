@@ -3,6 +3,7 @@ import 'server-only';
 import sharp from 'sharp';
 import { readFile } from 'fs/promises';
 import { withRetry } from '@/lib/retry';
+import { BoundedAsyncCache } from '@/lib/image-buffer-cache';
 
 export type ResemblanceStatus = 'pass' | 'soft_fail';
 export type ResemblanceConfidence = 'high' | 'medium' | 'low';
@@ -187,7 +188,24 @@ export function resolveEffectiveThreshold(
 /** Marks a fetch failure as non-retryable (genuine 4xx other than 429). */
 class NonRetryableFetchError extends Error {}
 
+/**
+ * Per-warm-worker cache of fetched image bytes, keyed by URL/path. The child anchor is
+ * read repeatedly during a render (resemblance scoring of every candidate + downstream
+ * gates); without this, each read re-hit Supabase and a single slow read could overrun
+ * the worker. Content at an order asset URL is immutable, so caching by URL is safe.
+ */
+const imageBufferCache = new BoundedAsyncCache<Buffer>();
+
+/** Reset the buffer cache — test-only seam. */
+export function __resetResemblanceBufferCache(): void {
+  imageBufferCache.clear();
+}
+
 async function fetchImageBuffer(url: string): Promise<Buffer> {
+  return imageBufferCache.getOrLoad(url, () => loadImageBuffer(url));
+}
+
+async function loadImageBuffer(url: string): Promise<Buffer> {
   // resolveReferenceImageSource may return an absolute local filesystem path
   // (when the public asset exists on disk). Node's fetch rejects bare paths
   // with "unknown scheme" — read them directly.
@@ -199,9 +217,11 @@ async function fetchImageBuffer(url: string): Promise<Buffer> {
   // Supabase storage / Replicate CDN occasionally fail transiently ("fetch failed",
   // ECONNRESET mid-stream, or a slow read that overruns the per-attempt timeout —
   // both Stage-0 anchor failures on 2026-06-23). Retry with exponential backoff and a
-  // sane per-attempt timeout; only a genuine 4xx (not 429) fails fast.
-  const attempts = Math.max(1, Number.parseInt(process.env.IMAGE_FETCH_MAX_ATTEMPTS ?? '4', 10) || 4);
-  const timeoutMs = Math.max(1000, Number.parseInt(process.env.IMAGE_FETCH_TIMEOUT_MS ?? '30000', 10) || 30000);
+  // sane per-attempt timeout; only a genuine 4xx (not 429) fails fast. The per-attempt
+  // timeout is deliberately well under the 300s function ceiling — a hung read must
+  // fail fast and retry/abort, never silently consume the whole render budget.
+  const attempts = Math.max(1, Number.parseInt(process.env.IMAGE_FETCH_MAX_ATTEMPTS ?? '3', 10) || 3);
+  const timeoutMs = Math.max(1000, Number.parseInt(process.env.IMAGE_FETCH_TIMEOUT_MS ?? '12000', 10) || 12000);
   return withRetry(
     async (signal) => {
       const res = await fetch(url, { signal });
