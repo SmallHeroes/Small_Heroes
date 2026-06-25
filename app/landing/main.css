@@ -29,6 +29,7 @@
   --fb: 'Heebo', sans-serif;
 
   --max-w: 1440px;
+  --site-max: 1440px;
   --nav-h: 78px;
 
   --shadow-card: 0 10px 28px rgba(40, 33, 74, 0.05);
@@ -48,7 +49,7 @@ html {
   font-size: 16px;
   scroll-behavior: smooth;
   max-width: 100%;
-    overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {
@@ -57,10 +58,9 @@ body {
   min-height: 100vh;
   direction: rtl;
   color: var(--dark);
-  overflow-x: hidden;
+  overflow-x: clip;
   line-height: 1.5;
   max-width: 100%;
-    overflow-x: hidden;
 }
 
 img {
@@ -81,8 +81,8 @@ textarea {
 }
 
 .wrap {
-  max-width: var(--max-w);
-  margin: 0 auto;
+  max-width: var(--site-max);
+  margin-inline: auto;
   width: 100%;
   padding: 0 48px;
 }
