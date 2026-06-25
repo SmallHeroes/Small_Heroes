@@ -3211,13 +3211,13 @@ mustNotInclude rules:
 - If entity is NOT mentioned in page text → mustNotInclude: ["entity name"]
 - Always include: ["text", "words", "letters", "UI elements"]
 
-LOCATION ZONE DIVERSITY — MANDATORY:
-No two consecutive pages may use the same locationZone.
-For ${pageCount} pages, use AT LEAST ${Math.min(pageCount, 5)} different locationZones.
-Rotate: bed, floor-level, doorway, window, shelf area, under-bed, closet edge, hallway strip, ceiling-view, etc.
+LOCATION CONTINUITY — MANDATORY:
+Camera angle and action vary every page. The LOCATION stays the same unless the story explicitly moves to a new place.
+The same place shown from a new angle is expected and correct — do NOT invent a new setting to create variety.
+A new locationZone is appropriate ONLY when the story text moves the scene somewhere new.
 
 VARIETY ENFORCEMENT:
-- Different physical verb + different locationZone on every page
+- Different physical verb + different camera angle on every page (same location unless the story moves)
 - Express emotions through BODY LANGUAGE: "wide eyes, rigid shoulders" not "scared"
 - Banned words in imagePrompt: cozy, magical, beautiful, detailed, stunning, vibrant, warm, whimsical, enchanting, heartwarming, charming, delightful
 
@@ -3338,7 +3338,7 @@ You output STRUCTURED JSON — not prose poetry, not metaphors.
 
 For each page, describe ONLY what a camera would see:
 - Physical objects, body positions, spatial relationships
-- Concrete locations within the story's setting (locationZone changes every page)
+- Concrete locations within the story's setting (the location stays the same unless the story explicitly moves to a new place)
 - Specific lighting conditions
 - Character actions as physical verbs (reaching, kneeling, turning) — never replace action with vibes
 
@@ -3349,7 +3349,7 @@ NEVER use:
 - Mood-only words ("magical atmosphere") — show the body/posture/light instead
 
 ALWAYS:
-- Each page uses a DIFFERENT locationZone from the previous page
+- The LOCATION stays the same unless the story explicitly moves to a new place — the same place from a new camera angle is expected and correct (do NOT invent a new setting for variety)
 - Each page uses a DIFFERENT characterPose / mainAction framing
 - Each page lists DIFFERENT visibleObjects focal props
 - Emotion appears as emotionVisual: face + shoulders + hands posture, not adjectives alone
