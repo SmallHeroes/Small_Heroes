@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
+import { SiteHeader } from '@/app/components/SiteHeader';
 import ReaderV2 from './reader-v2';
 import { ROUTES } from '@/lib/routes';
+import '../../../landing/main.css';
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -32,7 +34,12 @@ export default async function BookReadV2Page({ params, searchParams }: PageProps
         }
       : {};
 
-  return <ReaderV2 bookId={id} accessKey={accessKey} devLayoutFlags={devLayoutFlags} />;
+  return (
+    <>
+      <SiteHeader variant="compact" />
+      <ReaderV2 bookId={id} accessKey={accessKey} devLayoutFlags={devLayoutFlags} />
+    </>
+  );
 }
 
 function parseOptionalInt(value: string | undefined): number | undefined {

@@ -7,8 +7,8 @@ import { COMMON } from '@/content';
 import type { LandingContent } from '@/content/landing';
 import { CategoryChallengeCard } from '@/app/category-challenge-card';
 import type { MvpMatrixCategoryPayload } from '@/lib/web/mvp-matrix-response';
-import { ROUTES } from '@/lib/routes';
 import { initLandingMotion } from './motion';
+import { SiteHeader } from '@/app/components/SiteHeader';
 
 /* Trust-band line icons (order matches L.trust.pillars: privacy · human review · Hebrew/age) */
 const TRUST_ICONS = [
@@ -62,8 +62,6 @@ type LandingPageProps = {
 export default function LandingPage({ content: L, startHref, matrixCategories }: LandingPageProps) {
   const [galleryStyle, setGalleryStyle] = useState<GalleryStyle>('style01');
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
-  const [navCtaHref, setNavCtaHref] = useState<string>(startHref);
-  const [navCtaText, setNavCtaText] = useState(COMMON.navCta);
 
   const btnStyle01Ref = useRef<HTMLButtonElement>(null);
   const btnStyle02Ref = useRef<HTMLButtonElement>(null);
@@ -89,55 +87,12 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
 
   useEffect(() => initLandingMotion(), []);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch('/api/auth/me', { credentials: 'include' });
-        if (!res.ok || cancelled) return;
-        const data = await res.json();
-        if (data?.user && !cancelled) {
-          setNavCtaText('החשבון שלי');
-          setNavCtaHref(ROUTES.myBooks);
-        }
-      } catch {
-        /* auth optional on landing */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   return (
     <>
       <Script src="/JS/gate.js" strategy="beforeInteractive" />
 
       <div className="landing-body" data-motion="on">
-        <header className="navbar">
-          <div className="wrap">
-            <Link href="/" className="logo" aria-label="גיבורים קטנים">
-              <div className="logo-icon">
-                <div className="logo-icon-sq" />
-                <div className="logo-icon-dot" />
-              </div>
-              <div className="logo-text">
-                <span className="logo-brand">{COMMON.brand}</span>
-                <span className="logo-tagline">{COMMON.tagline}</span>
-              </div>
-            </Link>
-
-            <nav className="nav-links">
-              <a href="#how">איך זה עובד</a>
-              <a href="#pricing">מחירים</a>
-              <a href={ROUTES.myBooks}>הספרים שלי</a>
-            </nav>
-
-            <a href={navCtaHref} className="nav-cta" data-event="landing_start_click">
-              {navCtaText}
-            </a>
-          </div>
-        </header>
+        <SiteHeader variant="full" />
 
         <main>
           <section className="hero">

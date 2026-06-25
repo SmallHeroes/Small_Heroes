@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { BookOnTheWay } from '@/app/components/BookOnTheWay';
+import { SiteHeader } from '@/app/components/SiteHeader';
 import {
   fileToChildPhotoDataUrl,
   readJsonResponse,
@@ -79,6 +81,9 @@ export function CreatorPanel() {
     previewUrl: string;
     resemblanceScore: number;
   } | null>(null);
+  const [bookWait, setBookWait] = useState<{ orderId: string; childName: string } | null>(null);
+  const [bookWaitReady, setBookWaitReady] = useState(false);
+  const [bookWaitReaderHref, setBookWaitReaderHref] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     fetch('/api/dev/creator/meta', { cache: 'no-store' })
@@ -254,6 +259,9 @@ export function CreatorPanel() {
     setRunning(true);
     setError('');
     setViewerLink('');
+    setBookWait(null);
+    setBookWaitReady(false);
+    setBookWaitReaderHref(undefined);
     try {
       if (mode === 'audition') {
         await runAudition(null);
@@ -297,15 +305,21 @@ export function CreatorPanel() {
         }>(res);
         if (!res.ok) throw new Error(data.error || 'Full book failed');
 
-        const link =
-          data.viewerUrl ??
-          (data.orderId
-            ? `/dev/viewer?orderId=${encodeURIComponent(data.orderId)}`
-            : '/dev/viewer');
-        setViewerLink(link);
-        setLastRunInfo(
-          `Full book order ${data.orderId?.slice(0, 8) ?? ''} · ${data.pagesRendered ?? 0} pages · ${data.orderStatus ?? ''}`
-        );
+        if (data.orderId && (data.orderStatus === 'generating' || data.orderStatus === 'paid')) {
+          setBookWait({ orderId: data.orderId, childName: resolvedName });
+          setLastRunInfo('');
+          setViewerLink('');
+        } else {
+          const link =
+            data.viewerUrl ??
+            (data.orderId
+              ? `/dev/viewer?orderId=${encodeURIComponent(data.orderId)}`
+              : '/dev/viewer');
+          setViewerLink(link);
+          setLastRunInfo(
+            `Full book order ${data.orderId?.slice(0, 8) ?? ''} · ${data.pagesRendered ?? 0} pages · ${data.orderStatus ?? ''}`,
+          );
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Run failed');
@@ -352,8 +366,36 @@ export function CreatorPanel() {
     }
   }, [storyKey]);
 
+  useEffect(() => {
+    if (!bookWait || bookWaitReady) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/generate/status?orderId=${encodeURIComponent(bookWait.orderId)}`);
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (data.status === 'ready' || data.status === 'partial') {
+          setBookWaitReady(true);
+          setBookWaitReaderHref(
+            data.readUrl ?? `/dev/viewer?orderId=${encodeURIComponent(bookWait.orderId)}`,
+          );
+        }
+      } catch {
+        /* retry */
+      }
+    };
+    poll();
+    const timer = setInterval(poll, 2500);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [bookWait, bookWaitReady]);
+
   return (
     <div className={styles.shell}>
+      <SiteHeader variant="compact" />
+
       <header className={styles.header}>
         <div>
           <h1 className={styles.headerTitle}>CREATOR</h1>
@@ -712,6 +754,16 @@ export function CreatorPanel() {
             >
               {running ? 'Rendering…' : 'Approve anchor & render pages'}
             </button>
+          </div>
+        ) : null}
+
+        {bookWait ? (
+          <div className={styles.statusBlock}>
+            <BookOnTheWay
+              childName={bookWait.childName}
+              ready={bookWaitReady}
+              readerHref={bookWaitReaderHref}
+            />
           </div>
         ) : null}
 

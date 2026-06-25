@@ -1,8 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import { CategoryChallengeCard } from '@/app/category-challenge-card';
-import { COMMON } from '@/content';
+import { SiteHeader } from '@/app/components/SiteHeader';
 import type { MvpMatrixCategoryPayload } from '@/lib/web/mvp-matrix-response';
 import styles from './start.module.css';
 
@@ -20,20 +19,7 @@ export default function StartClient({ headerTitle, headerSub, categories }: Star
 
   return (
     <div className={styles.root}>
-      <header className={styles.navbar}>
-        <div className={styles.navbarInner}>
-          <Link href="/" className={styles.logo} aria-label={COMMON.brand}>
-            <div className={styles.logoIcon}>
-              <div className={styles.logoIconSq} />
-              <div className={styles.logoIconDot} />
-            </div>
-            <div className={styles.logoText}>
-              <span className={styles.logoBrand}>{COMMON.brand}</span>
-              <span className={styles.logoTagline}>{COMMON.tagline}</span>
-            </div>
-          </Link>
-        </div>
-      </header>
+      <SiteHeader variant="full" />
 
       <main className={styles.main}>
         <div className={[styles.shell, styles.shellWide].join(' ')}>
