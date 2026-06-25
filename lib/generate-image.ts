@@ -10,6 +10,8 @@ import {
   resolveReplicateImageModelForStyle,
 } from './replicate';
 import { normalizeReferenceImageBuffer } from './child-photo-normalize';
+import { BoundedAsyncCache } from './image-buffer-cache';
+import { withRetry } from './retry';
 
 export interface GenerateImageInput {
   finalPrompt: string;
@@ -450,25 +452,81 @@ function resolveReferenceSource(source: string): string {
   return trimmed;
 }
 
+/** Marks a reference fetch as non-retryable (genuine 4xx other than 429). */
+class NonRetryableReferenceError extends Error {}
+
+type NormalizedReference = { buffer: Buffer; ext: string; mime: string };
+
+/**
+ * Per-warm-worker cache of NORMALIZED reference bytes, keyed by resolved source. The
+ * cover and every page pass the SAME references (child anchor + companion sheet) to
+ * gpt-image; without this each render re-fetched + re-normalized them from Supabase,
+ * and a single hung read was enough to overrun the 300s function ceiling and trigger
+ * the cover regenerate-loop. Reference content is immutable per URL/path, so caching is
+ * safe across calls within a warm worker.
+ */
+const referenceFileCache = new BoundedAsyncCache<NormalizedReference>();
+
+/** Reset the reference cache — test-only seam. */
+export function __resetReferenceFileCache(): void {
+  referenceFileCache.clear();
+}
+
+async function loadNormalizedReference(
+  resolved: string,
+  indexHint: number
+): Promise<NormalizedReference> {
+  if (existsSync(resolved)) {
+    const raw = readFileSync(resolved);
+    return normalizeReferenceImageBuffer(raw, indexHint);
+  }
+
+  // Bound the remote read: a bare fetch here had NO timeout, so a slow/hanging Supabase
+  // read consumed the whole render budget (the `[GPTImage] Done in 720321ms` symptom).
+  // Few attempts + a short per-attempt timeout keep the cover/page render inside the
+  // function ceiling; the cache above makes a remote read rare to begin with.
+  const attempts = Math.max(
+    1,
+    Number.parseInt(process.env.REFERENCE_FETCH_MAX_ATTEMPTS ?? '3', 10) || 3
+  );
+  const timeoutMs = Math.max(
+    1000,
+    Number.parseInt(process.env.REFERENCE_FETCH_TIMEOUT_MS ?? '12000', 10) || 12000
+  );
+  const arrayBuf = await withRetry(
+    async (signal) => {
+      const res = await fetch(resolved, { signal });
+      if (!res.ok) {
+        const msg = `Reference image fetch failed: ${resolved} (HTTP ${res.status})`;
+        if (res.status >= 400 && res.status < 500 && res.status !== 429) {
+          throw new NonRetryableReferenceError(msg);
+        }
+        throw new Error(msg);
+      }
+      return res.arrayBuffer();
+    },
+    {
+      attempts,
+      timeoutMs,
+      baseDelayMs: 300,
+      factor: 3,
+      label: 'referenceFetch',
+      shouldRetry: (err) => !(err instanceof NonRetryableReferenceError),
+    }
+  );
+  return normalizeReferenceImageBuffer(Buffer.from(arrayBuf), indexHint);
+}
+
 /** Load a reference image from URL or local absolute /public path. */
 async function referenceToOpenAIFile(
   source: string,
   indexHint: number
 ): Promise<Awaited<ReturnType<typeof toFile>>> {
   const resolved = resolveReferenceSource(source);
-  if (existsSync(resolved)) {
-    const raw = readFileSync(resolved);
-    const { buffer, ext, mime } = await normalizeReferenceImageBuffer(raw, indexHint);
-    return toFile(buffer, `reference-${indexHint}.${ext}`, { type: mime });
-  }
-
-  const res = await fetch(resolved);
-  if (!res.ok) throw new Error(`Reference image fetch failed: ${resolved} (HTTP ${res.status})`);
-  const arrayBuf = await res.arrayBuffer();
-  const { buffer, ext, mime } = await normalizeReferenceImageBuffer(
-    Buffer.from(arrayBuf),
-    indexHint
+  const { buffer, ext, mime } = await referenceFileCache.getOrLoad(resolved, () =>
+    loadNormalizedReference(resolved, indexHint)
   );
+  // toFile consumes the buffer per call, so build a fresh File from the cached bytes.
   return toFile(buffer, `reference-${indexHint}.${ext}`, { type: mime });
 }
 

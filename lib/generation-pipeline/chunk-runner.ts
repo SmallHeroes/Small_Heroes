@@ -768,12 +768,32 @@ async function ensureStoryLocationPlan(
   return { cache: nextCache, storyLocationPlan };
 }
 
-async function runCoverStage(order: Order, cache: PipelineCache): Promise<void> {
-  if (cache.devSkipCover) return;
+/**
+ * Render the cover. Returns true when the cover is present/rendered, false when it was
+ * deferred because the worker is already over budget (the loop then stops and the next
+ * invocation resumes at the cover stage). Deferring BEFORE spending GPT — rather than
+ * starting a render this invocation cannot finish before the 300s ceiling — is what
+ * stops the "killed mid-cover → buffer lost → re-GPT" loop.
+ */
+async function runCoverStage(
+  order: Order,
+  cache: PipelineCache,
+  startedAt: number,
+  budgetMs: number
+): Promise<boolean> {
+  if (cache.devSkipCover) return true;
 
   const book = await prisma.generatedBook.findUnique({ where: { orderId: order.id } });
   if (!book) throw new Error('Book missing');
-  if (book.coverImageUrl && isValidImageAssetUrl(book.coverImageUrl)) return;
+  if (book.coverImageUrl && isValidImageAssetUrl(book.coverImageUrl)) return true;
+
+  // Do not START a cover render we cannot afford to finish this invocation. The cover is
+  // a single GPT image whose worst case (reference I/O + render + persist) must fit under
+  // the function ceiling; if the budget is already spent, defer to the next worker.
+  if (overBudget(startedAt, budgetMs)) {
+    log.info('Cover deferred — worker over budget before render', { orderId: order.id });
+    return false;
+  }
 
   assertShippedBookStyleEngineActive(order.illustrationStyle);
 
@@ -866,6 +886,7 @@ async function runCoverStage(order: Order, cache: PipelineCache): Promise<void> 
     where: { id: order.id },
     data: { coverImageUrl: coverImage.url },
   });
+  return true;
 }
 
 async function runPageImagesChunk(
@@ -1615,7 +1636,11 @@ export async function processGenerationChunk(
 
       if (stage === 'cover') {
         await updateStage(orderId, 'cover');
-        await runCoverStage(order, cache);
+        const coverDone = await runCoverStage(order, cache, startedAt, budgetMs);
+        if (!coverDone) {
+          // Deferred (over budget) — stop this invocation; the next worker resumes at cover.
+          return { stage: 'cover', done: false, stopChunk: true };
+        }
         stage = 'page_images';
         continue;
       }
