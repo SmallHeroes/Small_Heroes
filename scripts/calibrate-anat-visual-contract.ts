@@ -26,6 +26,8 @@ import {
   buildContractVisionInstruction,
   interpretVisionJson,
   evaluatePageContractQa,
+  buildContractRerollSuppression,
+  caughtStrayEntities,
   type BookVisualContract,
   type ResolvedPageContract,
 } from '@/lib/visual-contract-compiler';
@@ -101,18 +103,31 @@ function coverPage(contract: BookVisualContract): ResolvedPageContract {
   };
 }
 
-async function renderPage(block: string, companionSheet: string, styleRefs: string[]): Promise<Buffer> {
+async function renderPage(
+  block: string,
+  companionSheet: string,
+  styleRefs: string[],
+  suppression = '',
+  extraNegative = ''
+): Promise<Buffer> {
   const { generateGPTImage } = await import('@/lib/generate-image');
-  const finalPrompt = [
-    STYLE_01_SHARED,
-    STYLE_01_NO_TEXT,
-    block,
-    'CAST ALLOW-LIST: ONLY the child and the declared companion may appear. NO other animals, creatures, or pets — specifically NO armadillo, NO pangolin, NO extra background animal.',
-    'Render this single Style 01 watercolor children\'s-book illustration faithfully to the VISUAL CONTRACT above.',
-  ].join('\n\n');
+  const parts: string[] = [];
+  // On a reroll the fed-back correction LEADS the prompt (max attention); attempt 0 keeps the static
+  // allow-list. The authoritative contract block is always present.
+  if (suppression) parts.push(suppression);
+  parts.push(STYLE_01_SHARED, STYLE_01_NO_TEXT, block);
+  if (!suppression) {
+    parts.push(
+      'CAST ALLOW-LIST: ONLY the child and the declared companion may appear. NO other animals, creatures, or pets — specifically NO armadillo, NO pangolin, NO extra background animal.'
+    );
+  }
+  parts.push('Render this single Style 01 watercolor children\'s-book illustration faithfully to the VISUAL CONTRACT above.');
   const result = await generateGPTImage({
-    finalPrompt,
-    negativePrompt: STYLE_01_AVOIDANCE_NEGATIVE,
+    finalPrompt: parts.join('\n\n'),
+    // Push the specific caught strays into the negative prompt too (a strong suppression lever).
+    negativePrompt: extraNegative
+      ? `${STYLE_01_AVOIDANCE_NEGATIVE}, ${extraNegative}`
+      : STYLE_01_AVOIDANCE_NEGATIVE,
     referenceImages: [companionSheet, ...styleRefs].filter(Boolean),
     size: '1024x1536',
     quality: 'low',
@@ -172,20 +187,25 @@ async function main(): Promise<void> {
     let detectedStray = false; // any attempt the gate flagged a forbidden/extra creature
     let finalPass = false;
     let finalFile = '';
-    // attempt 0 = first render; bounded reroll on FAIL (detect → reroll → clean).
+    // attempt 0 = first render; bounded FEEDBACK-AWARE reroll on FAIL (detect → reroll → clean): the
+    // caught entity / wrong location / etc. from the failed attempt is fed into the next attempt's
+    // suppression (prompt-lead + negative prompt) — NOT a blind re-render of the same prompt.
+    let suppression = '';
+    let extraNegative = '';
     for (let attempt = 0; attempt <= MAX_REROLLS; attempt++) {
-      const buffer = await renderPage(block, companionSheet, styleRefs);
+      const buffer = await renderPage(block, companionSheet, styleRefs, suppression, extraNegative);
       const file = path.join(OUT_DIR, 'pages', `${label}-attempt-${attempt}.png`);
       writeFileSync(file, buffer);
       const observation = interpretVisionJson(await visionObserve(buffer, instruction));
       const verdict = evaluatePageContractQa({ page, observation, isCover });
       const flaggedStray = verdict.failures.some((f) => f.check === 'forbidden_entity');
       if (flaggedStray) detectedStray = true;
-      attempts.push({ attempt, file, pass: verdict.pass, failures: verdict.failures, observation });
+      attempts.push({ attempt, file, pass: verdict.pass, failures: verdict.failures, observation, fedBackSuppression: Boolean(suppression) });
       console.log(
         `[calib] ${label} attempt ${attempt}: ${verdict.pass ? 'PASS' : 'FAIL'}` +
           `${verdict.failures.length ? ` [${verdict.failures.map((f) => f.check).join(', ')}]` : ''}` +
-          ` forbiddenSeen=${JSON.stringify(observation.forbiddenEntitiesPresent)} loc=${observation.locationMatchesContract}`
+          ` forbiddenSeen=${JSON.stringify(observation.forbiddenEntitiesPresent)} loc=${observation.locationMatchesContract}` +
+          `${suppression ? ' (fed-back suppression applied)' : ''}`
       );
       if (verdict.pass) {
         finalPass = true;
@@ -194,6 +214,9 @@ async function main(): Promise<void> {
         writeFileSync(path.join(OUT_DIR, 'pages', `${label}.png`), buffer);
         break;
       }
+      // Feed the gate's findings forward so the NEXT attempt actively suppresses what was caught.
+      suppression = buildContractRerollSuppression({ observation, verdict, page, contract, attempt });
+      extraNegative = caughtStrayEntities(observation).join(', ');
     }
     const rerolledToClean = detectedStray && finalPass && attempts.length > 1;
     report.push({ pageNumber, isCover, label, finalPass, detectedStray, rerolledToClean, finalFile, attempts });

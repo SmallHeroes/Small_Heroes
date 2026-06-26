@@ -64,6 +64,11 @@ export {
   type CalibrationSelection,
 } from './selectCalibrationPages';
 export {
+  buildContractRerollSuppression,
+  caughtStrayEntities,
+  type ContractRerollInput,
+} from './buildContractReroll';
+export {
   runVisualContractCalibration,
   type CalibrationRenderer,
   type CalibrationVision,
