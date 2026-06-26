@@ -25,7 +25,7 @@ import {
   STORY_BANK_V3_DIR_NAME,
 } from '@/backend/providers/story-bank-index';
 import { generateAllPageImages, generateBookCover } from '@/backend/providers/image';
-import { ensureBookVisualContract } from './visual-contract-stage';
+import { ensureBookVisualContract, getCachedVisualContract } from './visual-contract-stage';
 import { generatePageAudio } from '@/backend/providers/audio';
 import {
   assertCacheHasNoLocalArtifactPaths,
@@ -1203,6 +1203,9 @@ async function runPageImagesChunk(
   const expressionSheetActive = isChildExpressionSheetActive(cache);
   const storyFileKey = storyFilePath ? path.basename(storyFilePath, '.md') : undefined;
   const imageOutcome = await generateAllPageImages(pagesForGen, {
+    // Flag-gated authoritative visual contract (compiled + cached above). undefined when enforcement
+    // is off → generateAllPageImages applies no block (legacy).
+    visualContract: getCachedVisualContract(cache) ?? undefined,
     illustrationStyle: order.illustrationStyle,
     childName: order.childName,
     childAge: order.childAge,

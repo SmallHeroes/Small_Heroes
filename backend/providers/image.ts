@@ -48,7 +48,13 @@ import {
   type StyleId,
 } from '@/lib/styles';
 import { composeVisualDirectorPrompt, type VisualDirectorInput } from '../../lib/visualDirector';
-import { composeContractAuthoritativePrompt } from '../../lib/visual-contract-compiler/buildVisualContractPromptBlock';
+import {
+  composeContractAuthoritativePrompt,
+  buildVisualContractPromptBlock,
+} from '../../lib/visual-contract-compiler/buildVisualContractPromptBlock';
+import { derivePageVisualContracts } from '../../lib/visual-contract-compiler/derivePageVisualContracts';
+import { isVisualContractEnforcementEnabled } from '../../lib/visual-contract-compiler/contractRenderGuards';
+import type { BookVisualContract } from '../../lib/visual-contract-compiler/types';
 import type { Companion } from '../../lib/companions';
 import path from 'path';
 import { generateGPTImage, generateReplicateImage, resolveGPTImageEditMaxReferences } from '../../lib/generate-image';
@@ -3206,7 +3212,7 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
   });
 
   const {
-    prompt: finalPrompt,
+    prompt: assembledPrompt,
     sceneDescription,
     sceneClass,
     entityPresence,
@@ -3214,6 +3220,10 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     storyTimeOfDay,
     effectivePageTimeOfDay,
   } = assembled;
+  // Visual Contract authority on the LIVE Style 01 path: when a contract block is supplied it is
+  // PREPENDED so the contract outranks the assembled imageDirection (location/cast/wardrobe/forbidden).
+  // Absent block → assembled prompt unchanged (legacy behavior). Mirrors the base generateWithGPTImage seam.
+  const finalPrompt = composeContractAuthoritativePrompt(input.visualContractPromptBlock, assembledPrompt);
 
   const refConfig = resolveStyle01RefBudgetConfig();
   const companionRefPaths =
@@ -4086,6 +4096,12 @@ export async function generateAllPageImages(
     /** Story bank file basename for story-aware wardrobe lock. */
     storyFile?: string | null;
     direction?: 'bedtime' | 'adventure' | 'fantasy';
+    /**
+     * Compiled BookVisualContract for this book (flag-gated, non-prod). When present AND enforcement
+     * is on, each page gets the authoritative contract block PREPENDED at the render seam so the
+     * contract outranks imageDirection (location/cast/wardrobe/forbidden). Absent → legacy behavior.
+     */
+    visualContract?: BookVisualContract;
   }
 ): Promise<{
   results: Map<number, GeneratedImage>;
@@ -4450,6 +4466,21 @@ export async function generateAllPageImages(
 
   let newPagesGenerated = 0;
 
+  // Visual Contract (flag-gated, non-prod): pre-derive the authoritative per-page block once per book.
+  // Empty map when enforcement is off or no contract → undefined block → legacy prompt unchanged.
+  const contractBlockByPage = new Map<number, string>();
+  if (isVisualContractEnforcementEnabled() && config.visualContract) {
+    for (const pc of derivePageVisualContracts(config.visualContract)) {
+      contractBlockByPage.set(pc.pageNumber, buildVisualContractPromptBlock(pc, config.visualContract));
+    }
+    console.log(
+      `[visual-contract] enforced — authoritative block for ${contractBlockByPage.size} pages | ` +
+        `world="${config.visualContract.worldType}" ` +
+        `locations=[${config.visualContract.locations.map((l) => l.id).join(', ')}] ` +
+        `forbidden=[${config.visualContract.forbiddenGlobalElements.join(', ')}]`
+    );
+  }
+
   for (const page of pagesToGenerate) {
     if (config.workerDeadlineMs && Date.now() >= config.workerDeadlineMs) {
       console.log(
@@ -4640,6 +4671,7 @@ export async function generateAllPageImages(
       | 'pageStoryboard'
       | 'expectedCharacterIds'
       | 'guardedV2RecipeId'
+      | 'visualContractPromptBlock'
     > = {
       bookPageText: page.bookPageText ?? null,
       guardedV2RecipeId:
@@ -4654,6 +4686,7 @@ export async function generateAllPageImages(
       supportingCharacters: page.supportingCharacters ?? [],
       pageStoryboard,
       expectedCharacterIds,
+      visualContractPromptBlock: contractBlockByPage.get(page.pageNumber),
     };
     const bookPipelineLockFields: Pick<
       ImageInput,
