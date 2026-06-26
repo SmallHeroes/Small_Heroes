@@ -8,6 +8,7 @@ import {
   selectCalibrationPages,
   runVisualContractCalibration,
   requireValidContractForRender,
+  isVisualContractEnforcementEnabled,
   isMissingVisualContractError,
   isInvalidVisualContractError,
   type BookVisualContract,
@@ -243,6 +244,38 @@ describe('requireValidContractForRender — fail-closed migration contract', () 
 
   it('layer OFF + no contract → legacy pass (no throw)', () => {
     delete process.env.VISUAL_CONTRACT_ENFORCEMENT;
+    expect(requireValidContractForRender(null, 'production')).toBeNull();
+  });
+});
+
+describe('isVisualContractEnforcementEnabled — flag + non-production hard gate', () => {
+  const originalVercelEnv = process.env.VERCEL_ENV;
+  afterEach(() => {
+    if (originalVercelEnv === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = originalVercelEnv;
+  });
+
+  it('OFF by default (no flag)', () => {
+    delete process.env.VISUAL_CONTRACT_ENFORCEMENT;
+    delete process.env.VERCEL_ENV;
+    expect(isVisualContractEnforcementEnabled()).toBe(false);
+  });
+
+  it('ON in non-production (preview/local) when the flag is set', () => {
+    process.env.VISUAL_CONTRACT_ENFORCEMENT = 'true';
+    process.env.VERCEL_ENV = 'preview';
+    expect(isVisualContractEnforcementEnabled()).toBe(true);
+  });
+
+  it('NEVER enabled on Vercel Production, even with the flag set (leak-proof)', () => {
+    process.env.VISUAL_CONTRACT_ENFORCEMENT = 'true';
+    process.env.VERCEL_ENV = 'production';
+    expect(isVisualContractEnforcementEnabled()).toBe(false);
+  });
+
+  it('on prod runtime, flag set + missing contract → legacy pass (enforcement is off on prod)', () => {
+    process.env.VISUAL_CONTRACT_ENFORCEMENT = 'true';
+    process.env.VERCEL_ENV = 'production';
     expect(requireValidContractForRender(null, 'production')).toBeNull();
   });
 });

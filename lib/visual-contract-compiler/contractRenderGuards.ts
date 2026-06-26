@@ -5,19 +5,28 @@
  *  - QA audition: fails with a clear, actionable message (never silently proceeds).
  *  - Dev creator: an override is allowed ONLY when explicitly set (VISUAL_CONTRACT_DEV_OVERRIDE).
  *
- * Enforcement of the whole layer is also flag-gated by VISUAL_CONTRACT_ENFORCEMENT so it can be
- * enabled per-environment after the calibration gate proves out — renders STAY STOPPED until then.
+ * Enforcement of the whole layer is flag-gated by VISUAL_CONTRACT_ENFORCEMENT so it can be enabled
+ * per-environment after the calibration gate proves out — renders STAY STOPPED until then. The flag is
+ * additionally hard-gated to NON-PRODUCTION runtimes: even if VISUAL_CONTRACT_ENFORCEMENT=true leaks
+ * onto Vercel Production, enforcement stays OFF there (QA/preview/local only) until prod is explicitly
+ * cut over — mirroring the prod-generation kill-switch so the live customer path stays on legacy behavior.
  */
 import {
   validateBookVisualContract,
   InvalidVisualContractError,
 } from './validateBookVisualContract';
+import { isVercelProductionRuntime } from '@/lib/runtime-env';
 import type { BookVisualContract } from './types';
 
 export type RenderContext = 'production' | 'qa_audition' | 'dev_creator';
 
-/** Whether the contract layer is enforced in this environment (default OFF — renders stay stopped). */
+/**
+ * Whether the contract layer is enforced in this environment. Default OFF (renders stay on legacy
+ * behavior). Hard-gated to non-production: NEVER true on Vercel Production regardless of the env var —
+ * QA/preview/local only. Prod is cut over deliberately later, not by this flag leaking onto it.
+ */
 export function isVisualContractEnforcementEnabled(): boolean {
+  if (isVercelProductionRuntime()) return false;
   return process.env.VISUAL_CONTRACT_ENFORCEMENT === 'true';
 }
 
