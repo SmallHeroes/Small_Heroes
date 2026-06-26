@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import type { Companion } from '@/lib/companions';
 import type { BookPageTemplate } from '@/lib/bookPageLayout';
 
@@ -166,6 +167,14 @@ export type PipelineCache = {
     embeddingVerdict?: 'hard_fail' | 'soft_ok';
     createdAt: string;
   }>;
+  /**
+   * Compiled BookVisualContract (lib/visual-contract-compiler), serialized for pipelineCache. Derived
+   * ONCE per book and reused across chunks/pages (one LLM call per book, not per page). Stored as
+   * Prisma JSON so PipelineCache stays assignable to the DB JSON column; read/write the typed contract
+   * via getCachedVisualContract / ensureBookVisualContract in visual-contract-stage.ts. Only populated
+   * when VISUAL_CONTRACT_ENFORCEMENT is on (non-prod hard gate); absence → legacy render behavior.
+   */
+  visualContract?: Prisma.InputJsonValue;
 };
 
 export type ChunkProcessResult = {

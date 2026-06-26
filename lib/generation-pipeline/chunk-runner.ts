@@ -25,6 +25,7 @@ import {
   STORY_BANK_V3_DIR_NAME,
 } from '@/backend/providers/story-bank-index';
 import { generateAllPageImages, generateBookCover } from '@/backend/providers/image';
+import { ensureBookVisualContract } from './visual-contract-stage';
 import { generatePageAudio } from '@/backend/providers/audio';
 import {
   assertCacheHasNoLocalArtifactPaths,
@@ -990,6 +991,30 @@ async function runPageImagesChunk(
     // Do NOT run LLM gender/name rewrite on the production path — chips are QA'd at import.
     { skipLlmPersonalization: true }
   );
+
+  // Visual Contract Compiler (flag-gated, non-prod): compile the BookVisualContract once per book from
+  // the full story and persist it on pipelineCache so every page/chunk reuses it. Fail-closed — an
+  // invalid contract throws here, BEFORE any paid page render. No-op when enforcement is off (legacy).
+  {
+    const vcc = await ensureBookVisualContract({
+      cache,
+      storyKey: storyFilePath ? path.basename(storyFilePath, '.md') : undefined,
+      pages: story.pages,
+      childName: order.childName,
+      childGender: order.childGender,
+      companion: resolvedCompanion ? { id: resolvedCompanion.id, name: resolvedCompanion.name } : null,
+    });
+    if (vcc.compiled) {
+      cache = vcc.cache;
+      await saveCache(order.id, cache);
+      log.info('Visual contract compiled + cached', {
+        orderId: order.id,
+        worldType: vcc.contract?.worldType,
+        locations: vcc.contract?.locations.map((l) => l.id),
+        forbidden: vcc.contract?.forbiddenGlobalElements,
+      });
+    }
+  }
 
   let bookShotPlan = cache.bookShotPlan;
   if (!bookShotPlan) {
