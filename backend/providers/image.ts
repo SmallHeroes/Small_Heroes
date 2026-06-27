@@ -52,9 +52,17 @@ import {
   composeContractAuthoritativePrompt,
   buildVisualContractPromptBlock,
 } from '../../lib/visual-contract-compiler/buildVisualContractPromptBlock';
-import { derivePageVisualContracts } from '../../lib/visual-contract-compiler/derivePageVisualContracts';
+import {
+  derivePageVisualContracts,
+  type ResolvedPageContract,
+} from '../../lib/visual-contract-compiler/derivePageVisualContracts';
 import { isVisualContractEnforcementEnabled } from '../../lib/visual-contract-compiler/contractRenderGuards';
 import type { BookVisualContract } from '../../lib/visual-contract-compiler/types';
+import {
+  runPageContractGate,
+  isVisualContractQaBlockError,
+} from '../../lib/generation-pipeline/visual-contract-gate';
+import { callVisualContractVision } from '../../lib/generation-pipeline/visual-contract-vision';
 import type { Companion } from '../../lib/companions';
 import path from 'path';
 import { generateGPTImage, generateReplicateImage, resolveGPTImageEditMaxReferences } from '../../lib/generate-image';
@@ -4473,11 +4481,15 @@ export async function generateAllPageImages(
 
   let newPagesGenerated = 0;
 
-  // Visual Contract (flag-gated, non-prod): pre-derive the authoritative per-page block once per book.
-  // Empty map when enforcement is off or no contract → undefined block → legacy prompt unchanged.
+  // Visual Contract (flag-gated, non-prod): pre-derive the authoritative per-page block + page contract
+  // once per book. Empty maps when enforcement is off or no contract → undefined block + gate skipped →
+  // legacy prompt/flow unchanged (the flag-OFF regression baseline).
   const contractBlockByPage = new Map<number, string>();
-  if (isVisualContractEnforcementEnabled() && config.visualContract) {
+  const contractPageByNum = new Map<number, ResolvedPageContract>();
+  const vccEnforcedForBook = isVisualContractEnforcementEnabled() && Boolean(config.visualContract);
+  if (vccEnforcedForBook && config.visualContract) {
     for (const pc of derivePageVisualContracts(config.visualContract)) {
+      contractPageByNum.set(pc.pageNumber, pc);
       contractBlockByPage.set(pc.pageNumber, buildVisualContractPromptBlock(pc, config.visualContract));
     }
     console.log(
@@ -4679,6 +4691,7 @@ export async function generateAllPageImages(
       | 'expectedCharacterIds'
       | 'guardedV2RecipeId'
       | 'visualContractPromptBlock'
+      | 'disableInternalPageQa'
     > = {
       bookPageText: page.bookPageText ?? null,
       guardedV2RecipeId:
@@ -4694,6 +4707,9 @@ export async function generateAllPageImages(
       pageStoryboard,
       expectedCharacterIds,
       visualContractPromptBlock: contractBlockByPage.get(page.pageNumber),
+      // VCC-on → skip the internal PageVisualQa regen on every render path; runPageContractGate owns
+      // the reroll budget. Off → false → internal regen unchanged (flag-off regression baseline).
+      disableInternalPageQa: vccEnforcedForBook,
     };
     const bookPipelineLockFields: Pick<
       ImageInput,
@@ -5082,6 +5098,101 @@ export async function generateAllPageImages(
       );
       failedPages.push(page.pageNumber);
       continue;
+    }
+
+    // ── Visual Contract gate + bounded feedback reroll (flag-gated) ──
+    // Runs on the finalized image. A page that can't pass the contract gate is DROPPED (failedPages) and
+    // NEVER promoted to results/generatedPages/callbacks/DB (no-leak). Internal PageVisualQa regen is
+    // disabled on this path (disableInternalPageQa), so the gate owns the whole per-page render budget:
+    // attempt 0 reuses the already-rendered image, then ≤ VISUAL_CONTRACT_MAX_REROLLS single rerolls.
+    const vccPageContract = contractPageByNum.get(page.pageNumber);
+    const vccPageBlock = contractBlockByPage.get(page.pageNumber);
+    if (vccEnforcedForBook && config.visualContract && vccPageContract && vccPageBlock) {
+      const vccAttempt0 = image;
+      const vccMaxRerolls = Math.max(0, Number.parseInt(process.env.VISUAL_CONTRACT_MAX_REROLLS ?? '2', 10) || 2);
+      const renderVccReroll = (block: string, extraNeg: string) =>
+        runImageWithThrottleAndRetry(
+          () =>
+            generateImage({
+              pagePrompt: storyboardPrompt,
+              illustrationStyle: normalizedStyle,
+              pageTemplate: effectivePageTemplate,
+              childDescription: config.childDescription,
+              referenceImages,
+              anchorCharacters,
+              orderId: config.orderId,
+              characterSheet: config.characterSheet,
+              concept: config.concept,
+              heroVisualLock: config.heroVisualLock,
+              styleLock: config.styleLock,
+              entityVisualLock: config.entityVisualLock,
+              pageIntent: effectivePageIntent,
+              composition: page.composition,
+              compositionRules: page.compositionRules,
+              environmentContinuity: page.environmentContinuity,
+              pageNumber: page.pageNumber,
+              assetType: 'page',
+              companion: config.companion ?? null,
+              photoQuality: config.photoQuality,
+              directionArchetype: config.directionArchetype,
+              directionEmotionalLabel: config.directionEmotionalLabel,
+              directionStoryPremise: config.directionStoryPremise,
+              challengeCategory: config.challengeCategory,
+              childAge: config.childAge ?? null,
+              childGender: config.childGender ?? null,
+              textZone: pageStoryboard.textZone,
+              pageLayoutStyle: pageStoryboard.pageLayoutStyle,
+              propDNA: config.propDNA,
+              childStructured: config.childStructured,
+              companionStructured: config.companionStructured,
+              childExpressionAnchorKind: pageChildExpressionKind,
+              printPdfOptimized: !!config.pdfEnabled,
+              style02ChildVisualLock,
+              style02WardrobeLock,
+              style02CompanionTextLock,
+              ...bookPipelineLockFields,
+              ...visualDirectorPageFields,
+              // Reroll overrides: lead with the fed-back correction; push caught strays to the negative.
+              visualContractPromptBlock: block,
+              extraNegativeRules: extraNeg
+                ? [...(config.extraNegativeRules ?? []), extraNeg]
+                : config.extraNegativeRules,
+            }),
+          page.pageNumber,
+          'vcc-reroll'
+        );
+      try {
+        const gated = await runPageContractGate<GeneratedImage>({
+          page: vccPageContract,
+          contract: config.visualContract,
+          isCover: false,
+          maxRerolls: vccMaxRerolls,
+          vision: callVisualContractVision,
+          render: async ({ suppression, extraNegative, attempt }) => {
+            if (attempt === 0) return { image: vccAttempt0, url: vccAttempt0.url };
+            const rerolled = await renderVccReroll(
+              composeContractAuthoritativePrompt(suppression, vccPageBlock),
+              extraNegative
+            );
+            return { image: rerolled, url: rerolled.url };
+          },
+        });
+        image = gated.image;
+        if (gated.passedAttempt > 0) {
+          console.log(
+            `[visual-contract] page ${page.pageNumber} cleared the gate on reroll ${gated.passedAttempt} (renders=${gated.renderCalls})`
+          );
+        }
+      } catch (vccErr) {
+        if (isVisualContractQaBlockError(vccErr)) {
+          console.error(
+            `[visual-contract] page ${page.pageNumber} BLOCKED by the contract gate — dropping (no-leak): ${vccErr.message}`
+          );
+          failedPages.push(page.pageNumber);
+          continue;
+        }
+        throw vccErr;
+      }
     }
 
     if (
