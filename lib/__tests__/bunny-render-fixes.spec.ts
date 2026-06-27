@@ -254,7 +254,9 @@ describe('visual polish — smoke #2 brief (cover locks, expression, gaze, size,
     expect(prompt).toMatch(/COVER COMPOSITION/);
     expect(prompt).toMatch(/TITLE-SAFE BAND/);
     expect(prompt).not.toMatch(/FRAMING RULE — BREATHE/);
-    expect(prompt).toMatch(/COMPANION SIZE vs CHILD/);
+    // The dead "COMPANION SIZE vs CHILD: keep the exact registry size relation" polish line was
+    // removed (pointed at non-existent data). Companion size is verified via the registry scale text;
+    // the canonical scale lock now lives in the flag-gated VCC contract block.
     expect(prompt).toMatch(/25–35%/);
     expect(prompt).toMatch(/SCENARIO SETTING LOCK/);
     expect(prompt).toMatch(/pediatric clinic/);
@@ -276,7 +278,8 @@ describe('visual polish — smoke #2 brief (cover locks, expression, gaze, size,
     expect(prompt).toMatch(/PAGE SCENE FIDELITY/);
     expect(prompt).toMatch(/INSIDE the clinic room/);
     expect(prompt).toMatch(/Do NOT hide Bunny behind the door/);
-    expect(prompt).toMatch(/COMPANION SIZE vs CHILD/);
+    // Dead polish size line removed — verify the surviving registry companion-size lock instead.
+    expect(prompt).toMatch(/Never waist-high|25–35%/);
     expect(prompt).toMatch(/SCENE INTERACTION \/ GAZE/);
   });
 

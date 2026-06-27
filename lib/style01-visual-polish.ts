@@ -135,16 +135,17 @@ export function buildReflectionRuleLock(input: {
   ].join('\n');
 }
 
-export function buildCompanionSizeVsChildLock(input: {
+/**
+ * DEPRECATED no-op. The old line ("keep the exact registry size relation") pointed at non-existent
+ * registry data, so it never enforced anything (the dead scale line). The companion size-vs-child
+ * lock now lives in the canonical scaleContract carried by the (flag-gated) VCC contract block — see
+ * lib/companion-scale.ts + buildVisualContractPromptBlock. Kept as a no-op so the legacy assembly
+ * caller stays stable; remove when that path is retired.
+ */
+export function buildCompanionSizeVsChildLock(_input: {
   childPresence?: string;
   companionPresence?: string;
 }): string {
-  if (
-    input.childPresence === 'present' &&
-    (input.companionPresence === 'present' || input.companionPresence === 'partial')
-  ) {
-    return 'COMPANION SIZE vs CHILD: keep the exact registry size relation on every page.';
-  }
   return '';
 }
 

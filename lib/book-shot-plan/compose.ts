@@ -195,7 +195,7 @@ export function buildShotAwareFramingRule(shot: PageShot): string {
     case 'establishing_wide':
       return [
         'FRAMING RULE — establishing_wide:',
-        '- CHARACTER SCALE: small — child and companion approx 15–25% of frame height.',
+        '- CHARACTER SCALE: small — the CHILD is approx 15–25% of frame height. The companion is NOT the same height: size it RELATIVE to the child per the locked COMPANION SIZE contract (do not equalize child and companion).',
         '- The environment dominates and leads the image.',
         '- Full place visible: room depth, floor, walls, ceiling/sky, entry points, important props.',
         '- Characters embedded in the world, not dominating it.',
@@ -295,7 +295,7 @@ export function buildShotAwareEnricherCompositionRules(
   if (family === 'establishing_wide' || family === 'medium_wide') {
     return [
       ...bleedBase,
-      '- CHARACTER SCALE: small — child and companion approx 15–25% of frame height.',
+      '- CHARACTER SCALE: small — the CHILD is approx 15–25% of frame height. The companion is NOT the same height: size it RELATIVE to the child per the locked COMPANION SIZE contract (do not equalize child and companion).',
       '- Environment dominates and leads; full setting visible.',
       '- Characters embedded in the world — not portrait close-ups.',
     ].join('\n');
