@@ -88,6 +88,28 @@ export function getCompanionScaleContract(companionId?: string | null): Companio
   return id && COMPANION_SCALE_CONTRACTS[id] ? COMPANION_SCALE_CONTRACTS[id] : null;
 }
 
+function arraysEqual<T>(x: readonly T[] | undefined, y: readonly T[] | undefined): boolean {
+  return Array.isArray(x) && Array.isArray(y) && x.length === y.length && x.every((v, i) => v === y[i]);
+}
+
+/**
+ * Deep value-equality for two scale contracts (over the type's fixed shape — order-independent).
+ * Used to decide whether a PERSISTED contract's scale still matches the current canon; a mismatch
+ * means the canon changed and the cached contract must be recompiled.
+ */
+export function companionScaleContractsEqual(
+  a: CompanionScaleContract | null | undefined,
+  b: CompanionScaleContract | null | undefined
+): boolean {
+  if (!a || !b) return a === b;
+  return (
+    a.ratioToChild === b.ratioToChild &&
+    a.humanLandmark === b.humanLandmark &&
+    arraysEqual(a.ratioBand, b.ratioBand) &&
+    arraysEqual(a.prohibitions, b.prohibitions)
+  );
+}
+
 /** Authoritative one-block prompt line for a scale contract (used by the contract block + the cover). */
 export function buildCompanionScalePromptLine(sc: CompanionScaleContract): string {
   const pct = Math.round(sc.ratioToChild * 100);

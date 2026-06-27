@@ -115,6 +115,43 @@ describe('ensureBookVisualContract', () => {
     expect(res.contract?.cast.companion?.scaleContract?.ratioToChild).toBeDefined();
   });
 
+  it('enforcement ON + cached scaleContract does NOT match the current canon → recompiles (deep-equal, not just present)', async () => {
+    process.env.VISUAL_CONTRACT_ENFORCEMENT = 'true';
+    delete process.env.VERCEL_ENV;
+    // current version + a PRESENT-but-stale scaleContract (a different, older canon).
+    const staleMismatch = JSON.parse(validContractJson()) as Record<string, any>;
+    staleMismatch.version = 2;
+    staleMismatch.cast.companion.scaleContract = {
+      ratioToChild: 0.99,
+      ratioBand: [0.9, 0.99],
+      humanLandmark: 'an old, wrong companion size',
+      prohibitions: ['outdated'],
+    };
+    const callLLM = vi.fn(async () => validContractJson());
+    const res = await ensureBookVisualContract(
+      { cache: { visualContract: staleMismatch }, companion: { id: 'panda_anat' }, pages: samplePages },
+      { callLLM }
+    );
+    expect(res.compiled).toBe(true); // scale != current canon → NOT reused, recompiled
+    expect(callLLM).toHaveBeenCalledTimes(1);
+    expect(res.contract?.cast.companion?.scaleContract?.ratioToChild).toBe(0.6); // re-stamped to the canon
+  });
+
+  it('enforcement ON + cached contract that no longer validates structurally → recompiles', async () => {
+    process.env.VISUAL_CONTRACT_ENFORCEMENT = 'true';
+    delete process.env.VERCEL_ENV;
+    const broken = JSON.parse(validContractJson()) as Record<string, any>;
+    broken.version = 2;
+    broken.locations = []; // structurally invalid → full revalidation fails
+    const callLLM = vi.fn(async () => validContractJson());
+    const res = await ensureBookVisualContract(
+      { cache: { visualContract: broken }, companion: { id: 'panda_anat' }, pages: samplePages },
+      { callLLM }
+    );
+    expect(res.compiled).toBe(true); // failed revalidation → recompiled
+    expect(callLLM).toHaveBeenCalledTimes(1);
+  });
+
   it('enforcement ON + invalid contract from the model → throws (fail-closed, no silent render)', async () => {
     process.env.VISUAL_CONTRACT_ENFORCEMENT = 'true';
     delete process.env.VERCEL_ENV;

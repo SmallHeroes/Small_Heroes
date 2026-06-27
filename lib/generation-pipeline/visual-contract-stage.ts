@@ -15,11 +15,12 @@ import type { Prisma } from '@prisma/client';
 import {
   compileBookVisualContract,
   isVisualContractEnforcementEnabled,
+  validateBookVisualContract,
   BOOK_VISUAL_CONTRACT_VERSION,
   type BookVisualContract,
   type ContractLlmCaller,
 } from '@/lib/visual-contract-compiler';
-import { getCompanionScaleContract } from '@/lib/companion-scale';
+import { getCompanionScaleContract, companionScaleContractsEqual } from '@/lib/companion-scale';
 import type { PipelineCache } from './types';
 
 /**
@@ -31,16 +32,18 @@ export function getCachedVisualContract(cache: PipelineCache): BookVisualContrac
 }
 
 /**
- * A cached contract is scale-valid when a non-MVP companion needs nothing, or an MVP companion's
- * cached contract actually carries a scaleContract. Keys cache reuse on scale validity (not just the
- * version number) so a contract persisted before the scale stamp is treated as stale and recompiled.
+ * A cached contract's scale is current when a non-MVP companion needs nothing, or an MVP companion's
+ * cached scaleContract DEEP-EQUALS the current canon. Deep-equal (not just "present", not a revision
+ * counter) so that ANY change to the canonical bands/landmark/prohibitions invalidates stale persisted
+ * contracts and forces a recompile.
  */
 export function cachedScaleContractOk(
   cached: BookVisualContract,
   companionId?: string | null
 ): boolean {
-  if (!getCompanionScaleContract(companionId)) return true; // non-MVP / no companion → no requirement
-  return cached.cast?.companion?.scaleContract != null;
+  const canon = getCompanionScaleContract(companionId);
+  if (!canon) return true; // non-MVP / no companion → no scale requirement
+  return companionScaleContractsEqual(cached.cast?.companion?.scaleContract, canon);
 }
 
 /** Concatenate page prose into the full-story text the contract is compiled from (page-ordered). */
@@ -91,11 +94,13 @@ export async function ensureBookVisualContract(
   }
   if (input.cache.visualContract) {
     const cached = getCachedVisualContract(input.cache);
-    // Reuse only when current-version AND the scale lock is intact for this companion (a version bump
-    // OR a missing MVP scaleContract invalidates the cache → fall through and recompile).
+    // Reuse ONLY when ALL hold (else recompile): (1) current contract version, (2) the whole cached
+    // contract STILL validates structurally, and (3) the cached scaleContract deep-equals the current
+    // canon for an MVP companion. Any drift in the schema or the canonical scale invalidates the cache.
     if (
       cached &&
       cached.version === BOOK_VISUAL_CONTRACT_VERSION &&
+      validateBookVisualContract(cached).ok &&
       cachedScaleContractOk(cached, input.companion?.id)
     ) {
       return { cache: input.cache, contract: cached, compiled: false };

@@ -4,6 +4,7 @@ import {
   COMPANION_SCALE_CONTRACTS,
   getCompanionScaleContract,
   buildCompanionScalePromptLine,
+  companionScaleContractsEqual,
 } from '@/lib/companion-scale';
 import { MVP_STORY_MATRIX } from '@/backend/config/mvp-story-matrix';
 
@@ -41,6 +42,26 @@ describe('getCompanionScaleContract', () => {
     expect(getCompanionScaleContract(null)).toBeNull();
     expect(getCompanionScaleContract(undefined)).toBeNull();
     expect(getCompanionScaleContract('')).toBeNull();
+  });
+});
+
+describe('companionScaleContractsEqual (deep value-equality for cache validity)', () => {
+  it('true for the same contract and a structural clone', () => {
+    const a = COMPANION_SCALE_CONTRACTS.panda_anat;
+    expect(companionScaleContractsEqual(a, a)).toBe(true);
+    expect(companionScaleContractsEqual(a, { ...a, ratioBand: [...a.ratioBand], prohibitions: [...a.prohibitions] })).toBe(true);
+  });
+  it('false on any field drift (ratio, band, landmark, prohibitions)', () => {
+    const a = COMPANION_SCALE_CONTRACTS.panda_anat;
+    expect(companionScaleContractsEqual(a, { ...a, ratioToChild: a.ratioToChild + 0.01 })).toBe(false);
+    expect(companionScaleContractsEqual(a, { ...a, ratioBand: [a.ratioBand[0] - 0.05, a.ratioBand[1]] })).toBe(false);
+    expect(companionScaleContractsEqual(a, { ...a, humanLandmark: a.humanLandmark + '!' })).toBe(false);
+    expect(companionScaleContractsEqual(a, { ...a, prohibitions: [...a.prohibitions, 'extra'] })).toBe(false);
+  });
+  it('false when one side is null/undefined', () => {
+    expect(companionScaleContractsEqual(COMPANION_SCALE_CONTRACTS.panda_anat, null)).toBe(false);
+    expect(companionScaleContractsEqual(undefined, COMPANION_SCALE_CONTRACTS.panda_anat)).toBe(false);
+    expect(companionScaleContractsEqual(null, undefined)).toBe(false);
   });
 });
 
