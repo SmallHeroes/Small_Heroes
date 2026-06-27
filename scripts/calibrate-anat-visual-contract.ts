@@ -197,7 +197,12 @@ async function main(): Promise<void> {
       const file = path.join(OUT_DIR, 'pages', `${label}-attempt-${attempt}.png`);
       writeFileSync(file, buffer);
       const observation = interpretVisionJson(await visionObserve(buffer, instruction));
-      const verdict = evaluatePageContractQa({ page, observation, isCover });
+      const verdict = evaluatePageContractQa({
+        page,
+        observation,
+        isCover,
+        scaleContract: contract.cast.companion?.scaleContract ?? null,
+      });
       const flaggedStray = verdict.failures.some((f) => f.check === 'forbidden_entity');
       if (flaggedStray) detectedStray = true;
       attempts.push({ attempt, file, pass: verdict.pass, failures: verdict.failures, observation, fedBackSuppression: Boolean(suppression) });

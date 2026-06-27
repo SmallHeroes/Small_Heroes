@@ -93,6 +93,19 @@ export function buildContractRerollSuppression(input: ContractRerollInput): stri
     );
   }
 
+  // companion_scale — gross size violation. Feed the canonical band back (the brief's "previous
+  // companion was ~child-sized; redraw within canonical band").
+  const scaleFail = verdict.failures.find((f) => f.check === 'companion_scale');
+  if (scaleFail) {
+    const sc = contract.cast.companion?.scaleContract;
+    lines.push(
+      `${emph}The companion was the WRONG SIZE relative to the child (${scaleFail.detail}). ` +
+        (sc
+          ? `Redraw the companion as ${sc.humanLandmark} — about ${Math.round(sc.ratioToChild * 100)}% of the child's height; ${sc.prohibitions.join('; ')}.`
+          : 'Redraw the companion clearly smaller than the child, within its canonical size band.')
+    );
+  }
+
   // Only a header means no actionable contract failure (e.g. a verdict with an unknown check) — render clean.
   return lines.length > 1 ? lines.join('\n') : '';
 }
