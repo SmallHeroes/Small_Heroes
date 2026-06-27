@@ -21,7 +21,14 @@ const COMMON_PROHIBITIONS = [
   'never shrunk to a tiny palm-sized toy or figurine — always a living animal companion',
 ];
 
-/** Canonical scale per MVP companion id. Absent id → no scale lock (legacy behavior). */
+/**
+ * Canonical scale per MVP companion id. Absent id → no scale lock (legacy behavior).
+ *
+ * PROVISIONAL — the ratio bands below are first-pass estimates. Confirm them against the T16
+ * measurable proof (eyeball actual companion-vs-child ratios on real renders, tune the bands, THEN
+ * declare canonical). Until then the conservative gate (high SCALE_CONFIDENCE_MIN + not_measurable
+ * default) prevents false-fails on these provisional bands.
+ */
 export const COMPANION_SCALE_CONTRACTS: Record<string, CompanionScaleContract> = {
   // SOCIAL — a small panda cub: clearly shorter than the child, chest-high.
   panda_anat: {

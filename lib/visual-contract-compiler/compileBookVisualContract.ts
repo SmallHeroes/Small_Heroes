@@ -68,7 +68,7 @@ export function buildCompileUserPrompt(input: CompileBookVisualContractInput): s
     companion,
     '',
     'Produce a JSON object with exactly these keys:',
-    'version (number = 1), storyKey, worldType, locations[], zones[], cast{child,companion?}, recurringProps[], forbiddenGlobalElements[], coverContract{worldType,locationId,timeOfDay?,mustShow[],mustNotShow[]}, pageContracts[].',
+    `version (number = ${BOOK_VISUAL_CONTRACT_VERSION}), storyKey, worldType, locations[], zones[], cast{child,companion?}, recurringProps[], forbiddenGlobalElements[], coverContract{worldType,locationId,timeOfDay?,mustShow[],mustNotShow[]}, pageContracts[].`,
     'Each pageContract: pageNumber, locationId, zoneId?, sameLocationAs?, mustShow[], mustNotShow[], characterPresence{child,companion}, propState[{propId,state}], camera.',
     '',
     'EXACT SHAPE (match these key names precisely):',
@@ -145,6 +145,16 @@ export async function compileBookVisualContract(
     const cast = parsed.cast as { companion?: Record<string, unknown> };
     if (cast.companion && typeof cast.companion === 'object') {
       cast.companion.scaleContract = input.companionScaleContract;
+    }
+  }
+  // Fail-closed: an MVP companion (canonical scale supplied) MUST end up with a scaleContract. If the
+  // LLM omitted cast.companion entirely, stamping couldn't attach it → refuse to render.
+  if (input.companionScaleContract) {
+    const cast = parsed.cast as { companion?: { scaleContract?: unknown } } | undefined;
+    if (!cast?.companion || cast.companion.scaleContract == null) {
+      throw new InvalidVisualContractError([
+        'MVP companion requires a scaleContract, but the compiled contract has no cast.companion.scaleContract',
+      ]);
     }
   }
   parsed.provenance = {

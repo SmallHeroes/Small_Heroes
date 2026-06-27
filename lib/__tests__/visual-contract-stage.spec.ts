@@ -98,6 +98,23 @@ describe('ensureBookVisualContract', () => {
     expect(callLLM2).not.toHaveBeenCalled();
   });
 
+  it('enforcement ON + cached MVP contract WITHOUT a scaleContract → recompiles (cache keyed on scale validity)', async () => {
+    process.env.VISUAL_CONTRACT_ENFORCEMENT = 'true';
+    delete process.env.VERCEL_ENV;
+    // A current-version cached contract for an MVP companion (panda_anat) but missing the scale lock.
+    const staleV2NoScale = JSON.parse(validContractJson()) as Record<string, any>;
+    staleV2NoScale.version = 2;
+    delete staleV2NoScale.cast.companion.scaleContract;
+    const callLLM = vi.fn(async () => validContractJson());
+    const res = await ensureBookVisualContract(
+      { cache: { visualContract: staleV2NoScale }, companion: { id: 'panda_anat' }, pages: samplePages },
+      { callLLM }
+    );
+    expect(res.compiled).toBe(true); // version matched but scale was missing → recompiled
+    expect(callLLM).toHaveBeenCalledTimes(1);
+    expect(res.contract?.cast.companion?.scaleContract?.ratioToChild).toBeDefined();
+  });
+
   it('enforcement ON + invalid contract from the model → throws (fail-closed, no silent render)', async () => {
     process.env.VISUAL_CONTRACT_ENFORCEMENT = 'true';
     delete process.env.VERCEL_ENV;

@@ -15,8 +15,12 @@
 import type { BookVisualContract, CompanionScaleContract } from './types';
 import type { ResolvedPageContract } from './derivePageVisualContracts';
 
-/** Min vision confidence to TRUST a scale measurement; below it → not_measurable (never a failure). */
-export const SCALE_CONFIDENCE_MIN = 0.6;
+/**
+ * Min vision confidence to TRUST a scale measurement; below it → not_measurable (never a failure).
+ * Deliberately HIGH (0.8) — the scale bands are provisional and the gate is a conservative safety net,
+ * so we only hard-fail on a confident measurement to avoid false-fails.
+ */
+export const SCALE_CONFIDENCE_MIN = 0.8;
 
 export type ContractQaCheck =
   | 'wrong_location'

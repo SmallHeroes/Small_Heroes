@@ -99,6 +99,32 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
       if (!isObj(comp.wardrobe) || !isStr((comp.wardrobe as Record<string, unknown>).description)) {
         errors.push('cast.companion present but wardrobe.description missing');
       }
+      // scaleContract (optional, but when present it must be well-formed — see lib/companion-scale.ts).
+      const sc = comp.scaleContract;
+      if (sc !== undefined && sc !== null) {
+        if (!isObj(sc)) {
+          errors.push('cast.companion.scaleContract must be an object');
+        } else {
+          const ratio = sc.ratioToChild;
+          const band = sc.ratioBand;
+          if (typeof ratio !== 'number' || !(ratio > 0 && ratio < 1)) {
+            errors.push('scaleContract.ratioToChild must be a number in (0,1)');
+          }
+          if (
+            !Array.isArray(band) ||
+            band.length !== 2 ||
+            typeof band[0] !== 'number' ||
+            typeof band[1] !== 'number' ||
+            !(band[0] > 0 && band[0] < band[1] && band[1] <= 1)
+          ) {
+            errors.push('scaleContract.ratioBand must be [min,max] numbers with 0<min<max<=1');
+          } else if (typeof ratio === 'number' && (ratio < band[0] || ratio > band[1])) {
+            errors.push('scaleContract.ratioToChild must lie within ratioBand');
+          }
+          if (!isStr(sc.humanLandmark)) errors.push('scaleContract.humanLandmark missing');
+          if (!isStrArr(sc.prohibitions)) errors.push('scaleContract.prohibitions must be a string[]');
+        }
+      }
     }
   }
 

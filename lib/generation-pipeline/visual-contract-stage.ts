@@ -30,6 +30,19 @@ export function getCachedVisualContract(cache: PipelineCache): BookVisualContrac
   return (cache.visualContract ?? null) as unknown as BookVisualContract | null;
 }
 
+/**
+ * A cached contract is scale-valid when a non-MVP companion needs nothing, or an MVP companion's
+ * cached contract actually carries a scaleContract. Keys cache reuse on scale validity (not just the
+ * version number) so a contract persisted before the scale stamp is treated as stale and recompiled.
+ */
+export function cachedScaleContractOk(
+  cached: BookVisualContract,
+  companionId?: string | null
+): boolean {
+  if (!getCompanionScaleContract(companionId)) return true; // non-MVP / no companion → no requirement
+  return cached.cast?.companion?.scaleContract != null;
+}
+
 /** Concatenate page prose into the full-story text the contract is compiled from (page-ordered). */
 export function assembleFullStoryText(
   pages: Array<{ pageNumber: number; text?: string | null }>
@@ -78,9 +91,13 @@ export async function ensureBookVisualContract(
   }
   if (input.cache.visualContract) {
     const cached = getCachedVisualContract(input.cache);
-    // Reuse only when the persisted contract is the CURRENT version. A version bump (e.g. the scale
-    // dimension) invalidates stale contracts → fall through and recompile.
-    if (cached && cached.version === BOOK_VISUAL_CONTRACT_VERSION) {
+    // Reuse only when current-version AND the scale lock is intact for this companion (a version bump
+    // OR a missing MVP scaleContract invalidates the cache → fall through and recompile).
+    if (
+      cached &&
+      cached.version === BOOK_VISUAL_CONTRACT_VERSION &&
+      cachedScaleContractOk(cached, input.companion?.id)
+    ) {
       return { cache: input.cache, contract: cached, compiled: false };
     }
   }
