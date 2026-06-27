@@ -11,7 +11,10 @@
  * generate them, and there is no vision-QA gate yet. Everything here is text-only and deterministic.
  */
 
-export const BOOK_VISUAL_CONTRACT_VERSION = 1 as const;
+// v2: added the canonical companion scaleContract dimension (cast.companion.scaleContract). Bumping
+// the version invalidates persisted v1 contracts so they recompile with the scale lock (see
+// ensureBookVisualContract).
+export const BOOK_VISUAL_CONTRACT_VERSION = 2 as const;
 
 /** A set reference for a location. 1A: schema-only — `status: 'none'` until 1B generates/stores it. */
 export interface SetReferenceDescriptor {
@@ -56,6 +59,24 @@ export interface WardrobeLock {
   forbidden?: string[];
 }
 
+/**
+ * Canonical companion SIZE-vs-child lock — the primary lever for the scale dimension (the companion
+ * reference is an isolated figure with no child, so it cannot anchor relative size). General per
+ * companion, NEVER per-story. Stamped onto the contract from the canonical map (lib/companion-scale.ts)
+ * during compile — not LLM-generated. The authoritative prompt block carries the human landmark; the
+ * code-computed scale gate measures companion-height ÷ child-height against `ratioBand`.
+ */
+export interface CompanionScaleContract {
+  /** Canonical companion-height ÷ child-height when both stand on the same ground (child ≈ 5–6yo). */
+  ratioToChild: number;
+  /** Hard acceptable band [min, max] for the code-computed gate (outside → gross violation). */
+  ratioBand: [number, number];
+  /** Plain human landmark for the authoritative prompt (e.g. "reaches the child's waist"). */
+  humanLandmark: string;
+  /** Explicit giant/toy prohibitions (e.g. "never as tall as the child", "never a tiny toy"). */
+  prohibitions: string[];
+}
+
 export type VisualCastRole = 'child' | 'companion';
 
 export interface VisualCastMember {
@@ -63,6 +84,8 @@ export interface VisualCastMember {
   role: VisualCastRole;
   name?: string;
   wardrobe: WardrobeLock;
+  /** Companion only: canonical size-vs-child lock (stamped from the canon during compile). */
+  scaleContract?: CompanionScaleContract;
 }
 
 /** Child is always present in the cast; companion is optional (some stories have none). */

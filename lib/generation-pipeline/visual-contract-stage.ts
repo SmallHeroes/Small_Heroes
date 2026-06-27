@@ -15,9 +15,11 @@ import type { Prisma } from '@prisma/client';
 import {
   compileBookVisualContract,
   isVisualContractEnforcementEnabled,
+  BOOK_VISUAL_CONTRACT_VERSION,
   type BookVisualContract,
   type ContractLlmCaller,
 } from '@/lib/visual-contract-compiler';
+import { getCompanionScaleContract } from '@/lib/companion-scale';
 import type { PipelineCache } from './types';
 
 /**
@@ -75,7 +77,12 @@ export async function ensureBookVisualContract(
     return { cache: input.cache, contract: getCachedVisualContract(input.cache), compiled: false };
   }
   if (input.cache.visualContract) {
-    return { cache: input.cache, contract: getCachedVisualContract(input.cache), compiled: false };
+    const cached = getCachedVisualContract(input.cache);
+    // Reuse only when the persisted contract is the CURRENT version. A version bump (e.g. the scale
+    // dimension) invalidates stale contracts → fall through and recompile.
+    if (cached && cached.version === BOOK_VISUAL_CONTRACT_VERSION) {
+      return { cache: input.cache, contract: cached, compiled: false };
+    }
   }
 
   const contract = await compileBookVisualContract(
@@ -86,6 +93,8 @@ export async function ensureBookVisualContract(
       childName: input.childName ?? undefined,
       childGender: input.childGender ?? undefined,
       companion: input.companion ?? null,
+      // Canonical size-vs-child lock for this companion (null for non-MVP / no companion).
+      companionScaleContract: getCompanionScaleContract(input.companion?.id),
     },
     deps
   );

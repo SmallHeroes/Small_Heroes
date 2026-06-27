@@ -15,7 +15,7 @@ import {
  *  companion, a forbidden dragon, and a stone-gate prop that opens. */
 function validContract(): BookVisualContract {
   return {
-    version: 1,
+    version: 2,
     storyKey: 'demo_playground',
     worldType: 'sunny outdoor playground',
     locations: [
@@ -90,7 +90,7 @@ describe('validateBookVisualContract (fail-closed)', () => {
   });
 
   it('rejects missing cast.child wardrobe, empty pages, and bad version', () => {
-    expect(validateBookVisualContract({ ...validContract(), version: 2 }).ok).toBe(false);
+    expect(validateBookVisualContract({ ...validContract(), version: 99 }).ok).toBe(false);
     expect(validateBookVisualContract({ ...validContract(), pageContracts: [] }).ok).toBe(false);
     const noChild = validContract() as unknown as Record<string, unknown>;
     (noChild.cast as Record<string, unknown>).child = { id: 'child', role: 'child' };
@@ -149,7 +149,7 @@ describe('normalizeRawBookVisualContract â€” absorbs LLM shape variations (the ×
   it('coerces string wardrobe, assigns recurringProp ids from names, remaps propState by name', async () => {
     const { normalizeRawBookVisualContract, validateBookVisualContract } = await import('@/lib/visual-contract-compiler');
     const raw = {
-      version: 1,
+      version: 2,
       worldType: 'bedroom at night',
       locations: [{ id: 'bedroom', name: 'Bedroom', description: 'a child bedroom at night' }],
       zones: [],

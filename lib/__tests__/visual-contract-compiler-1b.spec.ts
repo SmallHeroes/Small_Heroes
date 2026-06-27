@@ -17,7 +17,7 @@ import {
 
 function contract(): BookVisualContract {
   return {
-    version: 1,
+    version: 2,
     storyKey: 'demo_playground',
     worldType: 'sunny outdoor playground',
     locations: [

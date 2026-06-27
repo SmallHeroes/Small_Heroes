@@ -9,6 +9,7 @@
 import {
   BOOK_VISUAL_CONTRACT_VERSION,
   type BookVisualContract,
+  type CompanionScaleContract,
 } from './types';
 import {
   assertValidBookVisualContract,
@@ -27,6 +28,8 @@ export interface CompileBookVisualContractInput {
   childName?: string;
   childGender?: string;
   companion?: { id: string; name?: string } | null;
+  /** Canonical companion size-vs-child lock — stamped onto cast.companion (NOT LLM-generated). */
+  companionScaleContract?: CompanionScaleContract | null;
 }
 
 /** Default caller — lazily pulls the shared pipeline LLM so the VCC module graph stays light. */
@@ -132,9 +135,18 @@ export async function compileBookVisualContract(
     parsed.forbiddenGlobalElements = forbidden;
   }
 
-  // Default the version + stamp provenance/storyKey before validating.
-  if (parsed.version === undefined) parsed.version = BOOK_VISUAL_CONTRACT_VERSION;
+  // Force the current contract version (override any LLM value) so persisted contracts carry it and
+  // a version bump invalidates the cache.
+  parsed.version = BOOK_VISUAL_CONTRACT_VERSION;
   if (input.storyKey && parsed.storyKey === undefined) parsed.storyKey = input.storyKey;
+  // Stamp the CANONICAL companion scale contract onto cast.companion — deterministic, never trust the
+  // LLM for scale (the size-vs-child lever).
+  if (input.companionScaleContract && parsed.cast && typeof parsed.cast === 'object') {
+    const cast = parsed.cast as { companion?: Record<string, unknown> };
+    if (cast.companion && typeof cast.companion === 'object') {
+      cast.companion.scaleContract = input.companionScaleContract;
+    }
+  }
   parsed.provenance = {
     source: 'llm',
     compiledFromPages: input.pageCount,

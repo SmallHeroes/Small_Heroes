@@ -9,6 +9,7 @@
  */
 import type { BookVisualContract } from './types';
 import type { ResolvedPageContract } from './derivePageVisualContracts';
+import { buildCompanionScalePromptLine } from '@/lib/companion-scale';
 
 function line(label: string, value: string | undefined | null): string | null {
   if (!value || !value.trim()) return null;
@@ -23,6 +24,10 @@ export function buildVisualContractPromptBlock(
   const presence: string[] = [];
   if (page.characterPresence.child) presence.push('child');
   if (page.characterPresence.companion) presence.push('companion');
+  // Companion size-vs-child lock — only when the companion is actually on the page.
+  const companionScale = page.characterPresence.companion
+    ? contract.cast.companion?.scaleContract
+    : undefined;
 
   const propState = (page.propState ?? [])
     .map((p) => {
@@ -49,6 +54,7 @@ export function buildVisualContractPromptBlock(
     line('CAST PRESENT', presence.join(' + ') || 'none'),
     line('CHILD WARDROBE (locked)', page.childWardrobeLock),
     line('COMPANION WARDROBE (locked)', page.companionWardrobeLock),
+    companionScale ? buildCompanionScalePromptLine(companionScale) : null,
     line('PROP STATE', propState || undefined),
     line('MUST SHOW', (page.mustShow ?? []).join('; ') || undefined),
     line('MUST NOT SHOW (never render)', (page.mustNotShow ?? []).join('; ') || undefined),
