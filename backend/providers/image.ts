@@ -348,6 +348,12 @@ export interface ImageInput {
    * contract exists; otherwise undefined → legacy behavior unchanged.
    */
   visualContractPromptBlock?: string;
+  /**
+   * When true, generateWithGPTImageStyle01Phase2 does a SINGLE render and SKIPS its internal
+   * PageVisualQa regen loop. Set on the VCC-enforced path so runPageContractGate owns the reroll and
+   * the per-page render budget can't multiply (internal regens × VCC rerolls). Default false → legacy.
+   */
+  disableInternalPageQa?: boolean;
   illustrationStyle: string;     // canonical active ids + legacy aliases normalized in lib/styles.ts
   childDescription?: string;     // fallback if no characterSheet
   characterSheet?: CharacterSheet;
@@ -3061,7 +3067,8 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
       compositionStrictRetry,
       timeOfDayStrictRetry,
     });
-    if (!qaConfig.enabled) return last;
+    // VCC-enforced path: one render, no internal regen — runPageContractGate owns the reroll budget.
+    if (!qaConfig.enabled || input.disableInternalPageQa) return last;
 
     const entityPresence = deriveImageInputEntityPresence(input);
     const expectsChild = entityPresence.childPresence === 'present';
