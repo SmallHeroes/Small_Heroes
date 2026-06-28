@@ -4391,7 +4391,11 @@ export async function generateAllPageImages(
 
   const resemblesMonitorEnabled = process.env.RESEMBLANCE_PAGE_MONITOR_ENABLED !== 'false';
   const THROTTLE_DELAY_MS = 1500;
-  const MAX_PAGE_ATTEMPTS = 3;
+  // When VCC owns the per-page loop, the contract gate's bounded feedback-reroll IS the retry loop, so
+  // cap provider retries to 1 — a transient render failure fails fast (recovered by the gate/sweep),
+  // and the total renders/page can't multiply (provider retries × VCC rerolls). Off → legacy 3.
+  const MAX_PAGE_ATTEMPTS =
+    isVisualContractEnforcementEnabled() && Boolean(config.visualContract) ? 1 : 3;
 
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

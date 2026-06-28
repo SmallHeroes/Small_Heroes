@@ -26,6 +26,7 @@ import {
 } from '@/backend/providers/story-bank-index';
 import { generateAllPageImages, generateBookCover } from '@/backend/providers/image';
 import { ensureBookVisualContract, getCachedVisualContract } from './visual-contract-stage';
+import { isVisualContractEnforcementEnabled } from '@/lib/visual-contract-compiler';
 import { generatePageAudio } from '@/backend/providers/audio';
 import {
   assertCacheHasNoLocalArtifactPaths,
@@ -1397,9 +1398,14 @@ async function runPageImagesChunk(
 
   const job = await prisma.generationJob.findUnique({ where: { orderId: order.id } });
   const pageAttempts = (job?.pageAttempts as Record<string, number> | null) ?? {};
+  // When VCC owns the per-page loop, the contract gate's bounded reroll already spent this page's render
+  // budget — a failed page is TERMINAL on this chunk (no cross-chunk retry multiplication / re-spend).
+  const vccOwnsPageLoop = isVisualContractEnforcementEnabled() && Boolean(getCachedVisualContract(cache));
   for (const pn of imageOutcome.failedPages) {
     const key = String(pn);
-    pageAttempts[key] = (pageAttempts[key] ?? 0) + 1;
+    pageAttempts[key] = vccOwnsPageLoop
+      ? MAX_PAGE_GENERATION_ATTEMPTS
+      : (pageAttempts[key] ?? 0) + 1;
     if (pageAttempts[key] >= MAX_PAGE_GENERATION_ATTEMPTS) {
       await prisma.generationJob.update({
         where: { orderId: order.id },
