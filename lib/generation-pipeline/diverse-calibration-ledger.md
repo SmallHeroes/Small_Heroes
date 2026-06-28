@@ -52,3 +52,37 @@ DEV assets in `outputs/diverse-calibration/dev/assets/` (16 pages + anchors) + `
 4. Build + decide crop on DEV; freeze crop/thresholds/model/prompt. THEN unlock holdout (separate approval).
 
 Hard-pair anchors (c01–c08) are REUSED (front-load) — never re-rendered.
+
+## Whole-scene baseline on DEV (2026-06-28) — DECISIVE: hard negatives 100 % false-pass
+
+Scored 26 anchor→page pairs with the CURRENT gate (`checkChildIdentityViaVision` + asymmetric policy
+same ≥ 0.95 / different ≥ 0.90). NO image renders; **26 vision-judge calls** (within the approved judge
+budget). Image-gen spend UNCHANGED at **42 / 72**. Artifact: `outputs/diverse-calibration/dev/baseline-result.json`.
+
+| bucket | n | expect | correct | not_measurable | wrong |
+|---|---|---|---|---|---|
+| clear_positive (page-1) | 8 | pass | 8 | 0 | 0 |
+| stress_positive (page-2) | 6 | pass | 6 | 0 | 0 |
+| stress_positive_expression (c01,c09 page-2) | 2 | pass | 2 | 0 | 0 |
+| hard_negative (pA/pB cross, page-1 only) | 4 | fail | **0** | 0 | **4 FALSE-PASS** |
+| easy_negative (fixed balanced sample, page-1) | 6 | fail | 6 | 0 | 0 |
+
+**Decisive finding:** every positive AND every hard negative scored the IDENTICAL `same@0.95`; every easy
+negative scored `different@1.00`. The whole-scene judge is effectively binary and CANNOT resolve hard
+lookalikes when scene + wardrobe + style are matched (the controlled page-1 scene). 100 % false-pass on
+the hard negatives ⇒ **crop+align is NECESSARY** as the discriminating instrument — this matrix is the
+baseline crop must beat. Positives + easy negatives are already clean, so crop must hold those while
+lifting hard-negative recall off the floor.
+
+### Three no-spend fixes folded in (Codex)
+1. **Stress re-tag.** `effectiveStress` (split harness) swapped only the stress NAME, not the DESCRIPTION,
+   so hard-pair page-2 scenes followed the per-INDEX description. Fixed for the HOLDOUT (full clause swap).
+   DEV pages keep their actual per-index stress — eyeball-confirmed (c02 = occlusion): c01/c09 = profile,
+   c02/c10 = occlusion, c03/c11 = multi_child, c04/c12 = small_target. Baseline uses these actual tags.
+2. **Ledger merge.** c01's 3 records (overwritten after the smoke) merged back into `render-ledger.json`
+   (page URLs HTTP-200 verified; expression-anchor URL not recovered from the log — non-blocking, baseline
+   scores the canonical anchor).
+3. **Extraneous entity = noise.** Any unexpected creature on a page is `extraneous_entity`, NOT an identity
+   failure → this set is explicitly NOT a valid proof of the entity gate.
+
+STOPPED before crop (Codex). Holdout LOCKED.

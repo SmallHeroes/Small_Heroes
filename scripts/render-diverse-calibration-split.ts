@@ -59,14 +59,23 @@ function syntheticOrder(c: ManifestChild): Order {
   return { id: `calib-${c.id}`, childName: c.id, childGender: c.gender, childAge: c.age, illustrationStyle: 'pencil_watercolor' } as unknown as Order;
 }
 
-/** Hard-pair members must share the SAME stress scene — derive it from the pair, not the per-child index. */
+/** Full scene clause per stress kind (mirrors the builder) — so a re-tag swaps the DESCRIPTION, not just the name. */
+const STRESS_CLAUSE: Record<string, string> = {
+  profile: 'the child in 3/4-to-profile view turning to look at a butterfly',
+  occlusion: 'the child partly behind a low fence, lower face occluded by a raised hand waving',
+  multi_child: 'the child in a small group of 2-3 OTHER different children at a sandbox (the target child most prominent, front-left)',
+  small_target: 'a wide park scene where the child is small in frame (~20% height), reading a book on a bench',
+};
+
+/** Hard-pair members must share the SAME stress scene — swap BOTH the name AND the full scene description. */
 function effectiveStress(c: ManifestChild): { page: number; stress: string; wardrobe: string; prompt: string } {
   const stressPage = c.pages.find((p) => p.page === 2)!;
   if (!c.pair) return stressPage;
-  // deterministic per-pair stress so both members match
   const byPair: Record<string, string> = { pA: 'profile', pB: 'occlusion', pC: 'multi_child', pD: 'small_target' };
   const stress = byPair[c.pair] ?? stressPage.stress;
-  return { ...stressPage, stress, prompt: stressPage.prompt.replace(/STRESS case \([a-z_]+\)/, `STRESS case (${stress})`) };
+  const base = `Children's storybook watercolour page. The child wears ${stressPage.wardrobe}.`;
+  const prompt = `${base} STRESS case (${stress}): ${STRESS_CLAUSE[stress]}. Natural, varied pose. No text.`;
+  return { ...stressPage, stress, prompt };
 }
 
 async function main() {
