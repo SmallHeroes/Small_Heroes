@@ -200,4 +200,30 @@ describe('evaluateRerollIdentity — vision (Fix B) is authoritative when presen
     const v = evaluateRerollIdentity({ score: 0.5, vision: { sameChild: 'different', confidence: 0.4, reason: 'maybe' } });
     expect(v.status).toBe('not_measurable');
   });
+
+  it('P1-a: visionExpected (flag ON) + NO vision verdict → not_measurable, NEVER a histogram hard-fail', () => {
+    // histogram says clear mismatch on a measurable single face (would FAIL on the flag-OFF path), but a
+    // failed vision call on the flag-ON path must be not_measurable, not fail.
+    const v = evaluateRerollIdentity({
+      score: 0.2,
+      geometryWeird: false,
+      faceDetectConfidence: 0.9,
+      clearMismatch: true,
+      vision: null,
+      visionExpected: true,
+    });
+    expect(v.status).toBe('not_measurable');
+  });
+
+  it('flag OFF (visionExpected false) + clear histogram mismatch → still fails (the immediate un-break path)', () => {
+    const v = evaluateRerollIdentity({
+      score: 0.2,
+      geometryWeird: false,
+      faceDetectConfidence: 0.9,
+      clearMismatch: true,
+      vision: null,
+      visionExpected: false,
+    });
+    expect(v.status).toBe('fail');
+  });
 });

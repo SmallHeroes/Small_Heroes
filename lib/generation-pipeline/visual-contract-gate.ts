@@ -174,6 +174,11 @@ export function evaluateRerollIdentity(input: {
   clearMismatch?: boolean | null;
   /** Real identity (vision-LLM). When present, it OVERRIDES the histogram as the primary signal. */
   vision?: ChildIdentityVerdict | null;
+  /**
+   * TRUE when the vision gate is ON (VISUAL_CONTRACT_IDENTITY_VISION). Then a MISSING vision verdict
+   * (call threw / returned null) → not_measurable — the histogram must NEVER hard-fail on this path.
+   */
+  visionExpected?: boolean;
 }): RerollIdentityVerdict {
   const score = typeof input.score === 'number' ? input.score : null;
 
@@ -189,7 +194,18 @@ export function evaluateRerollIdentity(input: {
     return { status: 'not_measurable', score, reason: `vision: not confident enough (${sameChild} @ ${confidence.toFixed(2)}) — ${reason}` };
   }
 
-  // 2) No vision → weak palette-histogram fallback (the immediate un-break).
+  // P1-a: vision gate ON but NO vision verdict (the call threw / returned null) → not_measurable. The weak
+  // palette-histogram must NEVER produce a hard FAIL on the flag-on path (that was the exact false-drop bug
+  // we removed). The histogram fallback below is the flag-OFF path ONLY.
+  if (input.visionExpected) {
+    return {
+      status: 'not_measurable',
+      score,
+      reason: 'vision identity gate ON but no vision verdict (call failed/unavailable) — not measurable; histogram may not hard-fail here',
+    };
+  }
+
+  // 2) No vision (flag OFF) → weak palette-histogram fallback (the immediate un-break).
   const reliablyMeasured =
     !input.geometryWeird &&
     (input.faceDetectConfidence ?? 0) >= IDENTITY_MIN_FACE_DETECT_CONFIDENCE &&

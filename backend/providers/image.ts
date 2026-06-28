@@ -5278,11 +5278,14 @@ export async function generateAllPageImages(
                 source: 'page_monitor',
               });
               // Fix B (flag-gated, OFF by default): real vision-LLM identity overrides the histogram.
-              const visionVerdict = isChildIdentityVisionEnabled()
+              // P1-a: when the gate is ON, a FAILED vision call → not_measurable (visionExpected) — the
+              // histogram must NEVER hard-fail on the flag-on path.
+              const visionEnabled = isChildIdentityVisionEnabled();
+              const visionVerdict = visionEnabled
                 ? await checkChildIdentityViaVision(recheckChildRef, rerollUrl).catch((err) => {
                     console.warn(
                       `[visual-contract] page ${page.pageNumber} child-identity vision failed ` +
-                        `(${(err as Error)?.message ?? 'error'}) — falling back to palette histogram`
+                        `(${(err as Error)?.message ?? 'error'}) — verdict will be not_measurable (no histogram fail)`
                     );
                     return null;
                   })
@@ -5293,6 +5296,7 @@ export async function generateAllPageImages(
                 faceDetectConfidence: rerollScore.faceDetectConfidence,
                 clearMismatch: rerollScore.sanityFlags.embeddingMismatch,
                 vision: visionVerdict,
+                visionExpected: visionEnabled,
               });
               console.log(
                 `[visual-contract] page ${page.pageNumber} reroll (attempt ${passedAttempt}) identity=${verdict.status} — ${verdict.reason}`
