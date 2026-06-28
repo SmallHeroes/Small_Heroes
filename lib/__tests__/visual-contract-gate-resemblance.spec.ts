@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { gatePageWithResemblance } from '@/lib/generation-pipeline/visual-contract-gate';
+import {
+  gatePageWithResemblance,
+  rerollKeepsResemblance,
+} from '@/lib/generation-pipeline/visual-contract-gate';
 import type { BookVisualContract } from '@/lib/visual-contract-compiler';
 import type { ResolvedPageContract } from '@/lib/visual-contract-compiler/derivePageVisualContracts';
 
@@ -128,6 +131,52 @@ describe('gatePageWithResemblance — live per-page decision (gate + reroll rese
       vision,
       maxRerolls: 2,
       resemblanceRecheck: null,
+    });
+    expect(out.kept).toBe(true);
+    if (out.kept) expect((out.image as { tag: string }).tag).toBe('img-1');
+  });
+});
+
+describe('rerollKeepsResemblance — real reroll-resemblance enforcement (P1-1)', () => {
+  it('drops BELOW the effective threshold, keeps AT/ABOVE it (0.69 blocked, 0.70 passes)', () => {
+    expect(rerollKeepsResemblance(0.69, 0.7)).toBe(false);
+    expect(rerollKeepsResemblance(0.7, 0.7)).toBe(true);
+    expect(rerollKeepsResemblance(0.71, 0.7)).toBe(true);
+  });
+
+  it('fails CLOSED on a null/absent score', () => {
+    expect(rerollKeepsResemblance(null, 0.7)).toBe(false);
+    expect(rerollKeepsResemblance(undefined, 0.7)).toBe(false);
+  });
+
+  it('enforces on a reroll with NO anchor-election: a 0.69 reroll → page dropped', async () => {
+    const { render } = renderSpy();
+    const vision = vi.fn().mockResolvedValueOnce(FAIL_ARMADILLO).mockResolvedValueOnce(PASS);
+    // recheck encodes the REAL rule (effective threshold 0.70), independent of any anchor-election
+    const recheck = async () => rerollKeepsResemblance(0.69, 0.7);
+    const out = await gatePageWithResemblance({
+      page,
+      contract,
+      render,
+      vision,
+      maxRerolls: 2,
+      resemblanceRecheck: recheck,
+    });
+    expect(out.kept).toBe(false);
+    if (!out.kept) expect(out.reason).toMatch(/resemblance/i);
+  });
+
+  it('enforces on a reroll with NO anchor-election: a 0.70 reroll → page kept', async () => {
+    const { render } = renderSpy();
+    const vision = vi.fn().mockResolvedValueOnce(FAIL_ARMADILLO).mockResolvedValueOnce(PASS);
+    const recheck = async () => rerollKeepsResemblance(0.7, 0.7);
+    const out = await gatePageWithResemblance({
+      page,
+      contract,
+      render,
+      vision,
+      maxRerolls: 2,
+      resemblanceRecheck: recheck,
     });
     expect(out.kept).toBe(true);
     if (out.kept) expect((out.image as { tag: string }).tag).toBe('img-1');

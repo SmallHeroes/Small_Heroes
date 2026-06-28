@@ -61,7 +61,10 @@ import {
   requireValidContractForRender,
 } from '../../lib/visual-contract-compiler/contractRenderGuards';
 import type { BookVisualContract } from '../../lib/visual-contract-compiler/types';
-import { gatePageWithResemblance } from '../../lib/generation-pipeline/visual-contract-gate';
+import {
+  gatePageWithResemblance,
+  rerollKeepsResemblance,
+} from '../../lib/generation-pipeline/visual-contract-gate';
 import { callVisualContractVision } from '../../lib/generation-pipeline/visual-contract-vision';
 import type { Companion } from '../../lib/companions';
 import path from 'path';
@@ -5212,6 +5215,12 @@ export async function generateAllPageImages(
           page.pageNumber,
           'vcc-reroll'
         );
+      // P1-1: a PROMOTED reroll on ANY page where the child is expected (NOT just anchor-election) must
+      // still meet the resemblance threshold. Reference = the election ref if present, else the canonical
+      // child anchor; null → no child to compare (recheck skipped).
+      const recheckChildRef: string | null = expectedCharacterIds.includes('child')
+        ? baseReferenceImage ?? characterAnchors.child ?? null
+        : null;
       const gateOutcome = await gatePageWithResemblance<GeneratedImage>({
         page: vccPageContract,
         contract: config.visualContract,
@@ -5226,51 +5235,52 @@ export async function generateAllPageImages(
           );
           return { image: rerolled, url: rerolled.url };
         },
-        // G2: anchor-election pages only — a PROMOTED reroll must still pass resemblance so the contract
-        // correction can't silently lose child identity. Returning false DROPS the page (no-leak).
-        resemblanceRecheck:
-          shouldRunAnchorElection && baseReferenceImage
-            ? async (rerollImage, rerollUrl, passedAttempt) => {
-                const rerollThreshold = resolveEffectiveThreshold(
-                  normalizedStyle.toLowerCase(),
-                  thresholdConfig
+        // P1-1: a PROMOTED reroll must still meet the EFFECTIVE resemblance threshold (~0.70), NOT just
+        // the 0.55 floor — below it → DROP (no-leak). Applies to every child page, not only election.
+        resemblanceRecheck: recheckChildRef
+          ? async (rerollImage, rerollUrl, passedAttempt) => {
+              if (!recheckChildRef) return true; // narrows for TS; unreachable under the ternary guard
+              const rerollThreshold = resolveEffectiveThreshold(
+                normalizedStyle.toLowerCase(),
+                thresholdConfig
+              );
+              const rerollScore = await scoreResemblanceAgainstReference({
+                referenceImageUrl: recheckChildRef,
+                candidateImageUrl: rerollUrl,
+                effectiveThreshold: rerollThreshold,
+                minAcceptableScore: thresholdConfig.minAcceptableScore,
+              });
+              await emitResemblanceAudit({
+                orderId: config.orderId,
+                pageNumber: page.pageNumber,
+                selected: true,
+                model: rerollImage.provider,
+                styleId: normalizedStyle,
+                resemblanceScore: rerollScore.resemblanceScore,
+                threshold: rerollThreshold,
+                minAcceptableScore: thresholdConfig.minAcceptableScore,
+                softFailBand: thresholdConfig.softFailBand,
+                extremeMargin: thresholdConfig.extremeMargin,
+                faceDetectConfidence: rerollScore.faceDetectConfidence,
+                faceAreaRatio: rerollScore.faceAreaRatio,
+                sanityDisagreement:
+                  rerollScore.sanityFlags.embeddingMismatch ||
+                  rerollScore.sanityFlags.colorMismatch ||
+                  rerollScore.sanityFlags.geometryWeird,
+                source: 'page_monitor',
+              });
+              // Real enforcement: meet the effective threshold or drop (the 0.55 floor is NOT enough).
+              if (!rerollKeepsResemblance(rerollScore.resemblanceScore, rerollThreshold)) {
+                console.error(
+                  `[visual-contract] page ${page.pageNumber} reroll (attempt ${passedAttempt}) cleared the contract ` +
+                    `gate but resemblance ${(rerollScore.resemblanceScore ?? 0).toFixed(3)} < threshold ` +
+                    `${rerollThreshold.toFixed(3)} — dropping (no-leak)`
                 );
-                const rerollScore = await scoreResemblanceAgainstReference({
-                  referenceImageUrl: baseReferenceImage,
-                  candidateImageUrl: rerollUrl,
-                  effectiveThreshold: rerollThreshold,
-                  minAcceptableScore: thresholdConfig.minAcceptableScore,
-                });
-                await emitResemblanceAudit({
-                  orderId: config.orderId,
-                  pageNumber: page.pageNumber,
-                  selected: true,
-                  model: rerollImage.provider,
-                  styleId: normalizedStyle,
-                  resemblanceScore: rerollScore.resemblanceScore,
-                  threshold: rerollThreshold,
-                  minAcceptableScore: thresholdConfig.minAcceptableScore,
-                  softFailBand: thresholdConfig.softFailBand,
-                  extremeMargin: thresholdConfig.extremeMargin,
-                  faceDetectConfidence: rerollScore.faceDetectConfidence,
-                  faceAreaRatio: rerollScore.faceAreaRatio,
-                  sanityDisagreement:
-                    rerollScore.sanityFlags.embeddingMismatch ||
-                    rerollScore.sanityFlags.colorMismatch ||
-                    rerollScore.sanityFlags.geometryWeird,
-                  source: 'page_monitor',
-                });
-                const score = rerollScore.resemblanceScore ?? 0;
-                if (score < thresholdConfig.minAcceptableScore) {
-                  console.error(
-                    `[visual-contract] page ${page.pageNumber} reroll (attempt ${passedAttempt}) cleared the contract ` +
-                      `gate but resemblance ${score.toFixed(3)} < min ${thresholdConfig.minAcceptableScore} — dropping (no-leak)`
-                  );
-                  return false;
-                }
-                return true;
+                return false;
               }
-            : null,
+              return true;
+            }
+          : null,
       });
       // Proof sink (T16): persist prompt + per-attempt verdicts + PASS/BLOCK for this page (env-gated).
       await writeVisualContractProof({

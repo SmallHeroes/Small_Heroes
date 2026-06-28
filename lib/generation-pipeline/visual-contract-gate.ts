@@ -137,6 +137,18 @@ export type PageGateOutcome<TImage> =
   | { kept: false; reason: string; renderCalls: number; verdicts: ContractQaVerdict[] };
 
 /**
+ * A promoted reroll preserves child identity iff its resemblance meets the EFFECTIVE threshold (~0.70) —
+ * NOT merely the lower "minimum acceptable" floor (~0.55). A null/absent score fails closed (drop).
+ * Used by the live resemblanceRecheck so a contract fix can never ship a low-identity reroll.
+ */
+export function rerollKeepsResemblance(
+  score: number | null | undefined,
+  effectiveThreshold: number
+): boolean {
+  return typeof score === 'number' && score >= effectiveThreshold;
+}
+
+/**
  * The full live decision for one page: run the contract gate (bounded feedback reroll), and — when a
  * REROLL is promoted on an election page — re-run resemblance so a contract fix can't silently lose
  * child identity. Returns kept:false on a contract block OR a failed resemblance re-check; the caller
