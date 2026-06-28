@@ -116,3 +116,44 @@ export async function runPageContractGate<TImage>(
     verdicts[verdicts.length - 1] ?? { pass: false, failures: [] }
   );
 }
+
+/**
+ * Re-score resemblance on a PROMOTED reroll (election pages only): return false to DROP the page
+ * because the contract correction lost child identity. Not called on attempt 0 or non-election pages.
+ */
+export type ResemblanceRecheck<TImage> = (
+  image: TImage,
+  url: string,
+  passedAttempt: number
+) => Promise<boolean>;
+
+export type PageGateOutcome<TImage> =
+  | { kept: true; image: TImage; renderCalls: number; passedAttempt: number }
+  | { kept: false; reason: string };
+
+/**
+ * The full live decision for one page: run the contract gate (bounded feedback reroll), and — when a
+ * REROLL is promoted on an election page — re-run resemblance so a contract fix can't silently lose
+ * child identity. Returns kept:false on a contract block OR a failed resemblance re-check; the caller
+ * drops the page (failedPages) and promotes NOTHING (no-leak). This is the unit the live loop runs.
+ */
+export async function gatePageWithResemblance<TImage>(
+  input: RunPageContractGateInput<TImage> & {
+    resemblanceRecheck?: ResemblanceRecheck<TImage> | null;
+  }
+): Promise<PageGateOutcome<TImage>> {
+  let result: RunPageContractGateResult<TImage>;
+  try {
+    result = await runPageContractGate(input);
+  } catch (e) {
+    if (isVisualContractQaBlockError(e)) return { kept: false, reason: e.message };
+    throw e;
+  }
+  if (input.resemblanceRecheck && result.passedAttempt > 0) {
+    const ok = await input.resemblanceRecheck(result.image, result.url, result.passedAttempt);
+    if (!ok) {
+      return { kept: false, reason: `reroll (attempt ${result.passedAttempt}) failed the resemblance re-check` };
+    }
+  }
+  return { kept: true, image: result.image, renderCalls: result.renderCalls, passedAttempt: result.passedAttempt };
+}
