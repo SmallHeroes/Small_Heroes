@@ -86,3 +86,52 @@ lifting hard-negative recall off the floor.
    failure → this set is explicitly NOT a valid proof of the entity gate.
 
 STOPPED before crop (Codex). Holdout LOCKED.
+
+## Crop+align vs whole-scene on DEV (2026-06-28) — crop INSUFFICIENT; the JUDGE is the bottleneck
+
+FAIR head detector (vision-LLM, **blind to the reference** → physically cannot pick the best-match face; picks
+the protagonist by prominence; ambiguity/failure → `not_measurable`, never whole-scene auto-pass) + sharp
+cropper (square head incl hair/ears/chin; eye-level alignment ONLY when frontal + reliable, never force-distorts
+a profile). Head-to-head on the SAME 26 pairs, SAME judge/prompt/**FIXED** thresholds — only the INPUT changed
+(whole image vs head crop). NO image renders; detections cached; **x3 per hard direction in both arms**.
+Artifact: `outputs/diverse-calibration/dev/crop-vs-wholescene-result.json` (full rows: actual model, verdict
+reason, judge + detector prompt versions, run index, per-image detector pose/conf/aligned).
+
+| bucket | whole-scene | crop+align |
+|---|---|---|
+| clear positives (8) | 8 pass | 8 pass |
+| stress positives (8) | 8 pass | 6 pass + 2 not_measurable (c10 occlusion, c12 small-target) |
+| easy negatives (6) | 6 fail | 6 fail |
+| hard negatives (4 dir × 3 = 12) | 0 fail / **12 FALSE-PASS** | 0 fail / **12 FALSE-PASS** |
+
+Bar: clear ✓ · stress ✓ · easy ✓ · hard-neg ZERO-auto-pass ✗ (12/12 pass) · hard ≥3/4 majority-fail ✗ (0/4).
+**BAR NOT MET → holdout NOT requested. crop/thresholds/model/prompt NOT frozen.**
+
+### Eyeball diagnosis (decisive): JUDGE bottleneck — not crop, not too-similar pairs
+Both arms scored EVERY hard-neg run the IDENTICAL `same@0.95` — the same canned value as every true positive
+(easy negatives = `different@1.00`). The judge is near-binary (*plausibly-same* vs *obviously-different*) and
+does NOT calibrate identity confidence. Eyeballing the cropped faces:
+- **pA c01 vs c02:** c01 = tighter springy curls + rounder face; c02 = longer looser waves + longer face
+  (+ a stray dragon = `extraneous_entity`). Distinct-but-similar — a human (and Guy's front-load verdict) tells
+  them apart.
+- **pB c03 vs c04:** both blonde/blue-eyed boys; c04 reads distinctly younger/rounder. Distinguishable.
+Crop correctly removed the scene/wardrobe confounds (clean buckets held; occlusion/small-target honestly became
+`not_measurable` instead of force-passing) — but gpt-4o @ `detail:low` rubber-stamps similar children as
+`same@0.95`. **Crop is NECESSARY but INSUFFICIENT alone.**
+
+### Recommended next lever (needs Guy/Codex sign-off — changes the judge Codex fixed for the comparison)
+Re-judge the SAME cached DEV crops with a STRONGER judge config: `detail:'high'` + a discrimination-forcing
+prompt (enumerate distinguishing features; "same" only if NO meaningful difference; bias to different/uncertain
+on doubt); optionally a stronger vision model. Cheap (crops cached → ~26–34 judge calls, NO detection, NO
+renders). Decision rule: if it lifts hard-neg recall while holding the clean buckets → freeze crop+strict-judge
+and proceed to holdout; if NO judge config catches distinct-but-similar children → vision-LLM identity has a
+discrimination floor and the similar-child case needs a different mechanism (mandatory human-review when the
+anchor reads generic, or a dedicated model). Thresholds still must stay fixed across any such comparison.
+
+## Pre-prod-flag-on requirements (tracked; do NOT block the crop work)
+- **P1-b durability** (code-verified `chunk-runner.ts:1599`): `identityVisionHold = isChildIdentityVisionEnabled()`
+  reads the env flag at PACKAGING time, not a persisted fact that the book was RENDERED with identity-vision. If
+  the flag flips off (or packaging runs in a different process/deploy) between render and packaging, the hold
+  vanishes → a book rendered with the experimental gate could ship. BEFORE any prod flag-on: persist
+  `identityVisionUsed`/`qaHold` on the order or pipeline cache AT RENDER TIME and force the package hold by that
+  PERSISTENT value, not the live env read. (Not now — required before flag-on.)
