@@ -7,9 +7,11 @@
  *     construction). Includes the T16 order (cmqt4635e) pages 1-2 + the page-3 storage images (the reroll
  *     that scored the 0.252 false-low + attempt-0).
  *   - NEGATIVES (different child): order A's anchor vs order B's page where childName differs.
- * Scores every pair with checkChildIdentityViaVision, sweeps the confidence threshold, prints a confusion
- * matrix, and recommends a threshold in [0.75,0.85] that holds false-fails at ~0 while catching different
- * children — while confirming the same→pass side actually passes.
+ * Scores every pair with checkChildIdentityViaVision, then applies the REAL gate policy — ASYMMETRIC:
+ * same >= IDENTITY_VISION_SAME_MIN_CONFIDENCE → pass, different >= IDENTITY_VISION_DIFFERENT_MIN_CONFIDENCE
+ * → fail, else human review — and writes that policy's confusion + the diagnostic per-threshold sweep, so
+ * the artifact matches the gate (no symmetric-threshold drift). CALIB_ANALYZE_ONLY=1 recomputes from the
+ * committed scores (no DB, no vision).
  *
  * NOT a render. One gpt-4o vision call per pair (text+vision). Set CALIB_DRY_RUN=1 to gather + size the
  * data without any vision calls (free).
@@ -29,6 +31,7 @@ import './shims/register-server-only.cjs';
 const DRY = process.env.CALIB_DRY_RUN === '1';
 const MAX_POS = Number(process.env.CALIB_MAX_POS ?? 30);
 const MAX_NEG = Number(process.env.CALIB_MAX_NEG ?? 30);
+const ANALYZE_ONLY = process.env.CALIB_ANALYZE_ONLY === '1'; // recompute the matrix+policy from existing scores (no DB/vision)
 const T16_ORDER = 'cmqt4635e0002il04xrm12dde';
 const T16_PAGES_BASE =
   'https://qvksgpzzosotubcbizay.supabase.co/storage/v1/object/public/book-images/orders/cmqt4635e0002il04xrm12dde/pages/';
@@ -62,7 +65,77 @@ function sample<T>(arr: T[], n: number, seed: number): T[] {
   return out;
 }
 
+/** Apply the REAL gate policy (asymmetric, from the gate module thresholds) to one scored pair. */
+function classifyByPolicy(s: Scored, thr: { same: number; different: number }): 'pass' | 'fail' | 'not_measurable' {
+  if (s.verdict === 'same' && s.confidence >= thr.same) return 'pass';
+  if (s.verdict === 'different' && s.confidence >= thr.different) return 'fail';
+  return 'not_measurable';
+}
+
+/** Confusion matrix (diagnostic sweep) + the REAL asymmetric policy result; writes the artifact. */
+function analyzeAndWrite(
+  scored: Scored[],
+  thr: { same: number; different: number },
+  outDir: string,
+  outFile: string
+): void {
+  const pos = scored.filter((s) => s.label === 'same');
+  const neg = scored.filter((s) => s.label === 'different');
+
+  // Per-threshold sweep — diagnostic only; shows WHY one symmetric threshold can't split the false-passes.
+  const thresholds = [0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0];
+  const matrix = thresholds.map((t) => {
+    const posPass = pos.filter((s) => s.verdict === 'same' && s.confidence >= t).length;
+    const posFalseFail = pos.filter((s) => s.verdict === 'different' && s.confidence >= t).length;
+    const negCatch = neg.filter((s) => s.verdict === 'different' && s.confidence >= t).length;
+    const negMiss = neg.filter((s) => s.verdict === 'same' && s.confidence >= t).length;
+    return {
+      threshold: t,
+      posN: pos.length, posPass, posFalseFail, posNotMeasurable: pos.length - posPass - posFalseFail,
+      negN: neg.length, negCatch, negMiss, negNotMeasurable: neg.length - negCatch - negMiss,
+    };
+  });
+
+  // THE REAL GATE POLICY (asymmetric): same >= thr.same → pass; different >= thr.different → fail; else review.
+  const tally = (rows: Scored[]) => {
+    const r = { pass: 0, fail: 0, not_measurable: 0 };
+    for (const s of rows) r[classifyByPolicy(s, thr)] += 1;
+    return r;
+  };
+  const p = tally(pos);
+  const n = tally(neg);
+  const policy = {
+    sameMinConfidence: thr.same,
+    differentMinConfidence: thr.different,
+    positives: { n: pos.length, autoPass: p.pass, falseFail: p.fail, humanReview: p.not_measurable },
+    negatives: { n: neg.length, autoFail: n.fail, falsePass: n.pass, humanReview: n.not_measurable },
+  };
+
+  console.table(matrix);
+  console.log(`\n[calib] ASYMMETRIC POLICY (the REAL gate — same>=${thr.same} → pass, different>=${thr.different} → fail):`);
+  console.log(JSON.stringify(policy, null, 2));
+
+  fs.mkdirSync(outDir, { recursive: true });
+  fs.writeFileSync(outFile, JSON.stringify({ policy, matrix, scored }, null, 2));
+  console.log(`[calib] wrote ${outFile}`);
+}
+
 async function main() {
+  const outDir = path.join(process.cwd(), 'outputs', 'identity-calibration');
+  const outFile = path.join(outDir, 'calibration.json');
+  const { IDENTITY_VISION_SAME_MIN_CONFIDENCE, IDENTITY_VISION_DIFFERENT_MIN_CONFIDENCE } = await import(
+    '@/lib/generation-pipeline/visual-contract-gate'
+  );
+  const thr = { same: IDENTITY_VISION_SAME_MIN_CONFIDENCE, different: IDENTITY_VISION_DIFFERENT_MIN_CONFIDENCE };
+
+  // Recompute the matrix + policy from the committed scores (no DB, no vision spend).
+  if (ANALYZE_ONLY) {
+    const existing = JSON.parse(fs.readFileSync(outFile, 'utf8')) as { scored: Scored[] };
+    console.log(`[calib] ANALYZE-ONLY: re-using ${existing.scored.length} scored pairs from ${outFile}`);
+    analyzeAndWrite(existing.scored, thr, outDir, outFile);
+    return;
+  }
+
   const { prisma } = await import('@/lib/prisma');
   const { getApprovedChildCanonicalAnchor } = await import('@/lib/generation-pipeline/character-anchor-store');
   const { checkChildIdentityViaVision } = await import('@/lib/generation-pipeline/child-identity-vision');
@@ -156,45 +229,7 @@ async function main() {
     }
   }
 
-  // Confusion matrix across candidate thresholds.
-  const pos = scored.filter((s) => s.label === 'same');
-  const neg = scored.filter((s) => s.label === 'different');
-  const thresholds = [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9];
-  const matrix = thresholds.map((t) => {
-    const posPass = pos.filter((s) => s.verdict === 'same' && s.confidence >= t).length;
-    const posFalseFail = pos.filter((s) => s.verdict === 'different' && s.confidence >= t).length;
-    const negCatch = neg.filter((s) => s.verdict === 'different' && s.confidence >= t).length;
-    const negMiss = neg.filter((s) => s.verdict === 'same' && s.confidence >= t).length; // different child PASSED — bad
-    return {
-      threshold: t,
-      posN: pos.length,
-      posPass,
-      posFalseFail,
-      posNotMeasurable: pos.length - posPass - posFalseFail,
-      negN: neg.length,
-      negCatch,
-      negMiss,
-      negNotMeasurable: neg.length - negCatch - negMiss,
-    };
-  });
-  console.log('\n[calib] CONFUSION MATRIX (posFalseFail must be ~0; negCatch high; negMiss must be ~0):');
-  console.table(matrix);
-
-  // Recommend: in [0.75,0.85], minimize false-fails, then maximize catch.
-  const band = matrix.filter((m) => m.threshold >= 0.75 && m.threshold <= 0.85);
-  const recommended =
-    [...band].sort((a, b) => a.posFalseFail - b.posFalseFail || b.negCatch - a.negCatch)[0] ?? matrix[0];
-  console.log(
-    `\n[calib] RECOMMENDED IDENTITY_VISION_MIN_CONFIDENCE = ${recommended.threshold}  ` +
-      `(false-fails ${recommended.posFalseFail}/${recommended.posN}, different-child catch ${recommended.negCatch}/${recommended.negN}, ` +
-      `negMiss ${recommended.negMiss}/${recommended.negN})`
-  );
-
-  const outDir = path.join(process.cwd(), 'outputs', 'identity-calibration');
-  fs.mkdirSync(outDir, { recursive: true });
-  const outFile = path.join(outDir, 'calibration.json');
-  fs.writeFileSync(outFile, JSON.stringify({ recommended, matrix, scored }, null, 2));
-  console.log(`[calib] wrote ${outFile}`);
+  analyzeAndWrite(scored, thr, outDir, outFile);
   await prisma.$disconnect();
 }
 
