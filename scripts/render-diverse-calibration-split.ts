@@ -29,6 +29,7 @@ import './shims/register-server-only.cjs';
 
 const SPLIT = (process.env.CALIB_SPLIT ?? 'dev') as 'dev' | 'holdout';
 const RENDER = process.env.CALIB_RENDER === '1';
+const SMOKE = process.env.CALIB_SMOKE === '1'; // render only the FIRST split child (page-render smoke test)
 const HOLDOUT_UNLOCK = process.env.CALIB_HOLDOUT_UNLOCK === '1';
 const HARD_CAP = 72;
 
@@ -75,9 +76,10 @@ async function main() {
   const root = path.join(process.cwd(), 'outputs', 'diverse-calibration');
   const manifest = JSON.parse(fs.readFileSync(path.join(root, 'set-manifest.json'), 'utf8')) as { children: ManifestChild[] };
   const hardpairs = fs.existsSync(path.join(root, 'hardpairs', 'hardpairs-result.json'))
-    ? (JSON.parse(fs.readFileSync(path.join(root, 'hardpairs', 'hardpairs-result.json'), 'utf8')) as Array<{ id: string; anchorUrl: string }>)
+    ? (JSON.parse(fs.readFileSync(path.join(root, 'hardpairs', 'hardpairs-result.json'), 'utf8')) as Array<{ id: string; anchorUrl: string; photoUrl: string }>)
     : [];
   const anchorByChild = new Map(hardpairs.map((h) => [h.id, h.anchorUrl]));
+  const photoByChild = new Map<string, string>(hardpairs.filter((h) => h.photoUrl).map((h) => [h.id, h.photoUrl]));
 
   const splitChildren = manifest.children.filter((c) => c.split === SPLIT);
   const needCanonical = splitChildren.filter((c) => !anchorByChild.has(c.id)); // distinct children (hard pairs already have anchors)
@@ -133,21 +135,30 @@ async function main() {
   const ledger: Array<Record<string, unknown>> = [];
   const dl = async (url: string, dest: string) => { const r = await fetch(url); fs.writeFileSync(dest, Buffer.from(await r.arrayBuffer())); };
 
-  for (const c of splitChildren) {
+  const targets = SMOKE ? splitChildren.slice(0, 1) : splitChildren;
+  if (SMOKE) console.log(`[split] SMOKE — first split child only: ${targets[0]?.id} (page-render + expression smoke test)`);
+  for (const c of targets) {
+    // Resume-safe: skip a child whose pages are already rendered (e.g. the c01 smoke) — never re-spend.
+    if ([1, 2].every((n) => fs.existsSync(path.join(outDir, `${c.id}-page${n}.png`)))) {
+      console.log(`[split] ${c.id} pages already rendered — skipping (no re-spend)`);
+      continue;
+    }
     // canonical anchor — reuse hard-pair, else render
     let canonical = anchorByChild.get(c.id) ?? null;
     if (!canonical) {
       const photo = await generateGPTImage({ finalPrompt: c.photoPrompt, size: '1024x1024', quality: 'low' });
       const photoUrl = await uploadOrderSubpathAsset({ orderId: `calib-${c.id}`, subpath: 'source-photo.png', buffer: photo.buffer, contentType: 'image/png' });
+      photoByChild.set(c.id, photoUrl);
       const anchor = await generateStage0MethodBAnchor({ order: syntheticOrder(c), childPhotoUrl: photoUrl, lockedChildDescription: lockedDescription(c) });
       canonical = anchor.anchorUrl;
       ledger.push({ id: c.id, kind: 'photo' }, { id: c.id, kind: 'canonical_anchor', url: canonical });
       await dl(canonical, path.join(outDir, `${c.id}-anchor.png`));
     }
-    // expression anchor (USED as first ref on the expression page)
+    // expression anchor (USED as first ref on the expression page) — from the synthetic PHOTO, not the anchor.
     let expr: string | null = null;
     if (c.expressionAnchor) {
-      const ea = await generateStage0MethodBAnchor({ order: syntheticOrder(c), childPhotoUrl: canonical, lockedChildDescription: `${lockedDescription(c)} Expression sheet variant.`, attemptSuffix: 'expr' });
+      const exprPhoto = photoByChild.get(c.id) ?? canonical;
+      const ea = await generateStage0MethodBAnchor({ order: syntheticOrder(c), childPhotoUrl: exprPhoto, lockedChildDescription: `${lockedDescription(c)} Expression variant: warm open smile.`, attemptSuffix: 'expr' });
       expr = ea.anchorUrl;
       ledger.push({ id: c.id, kind: 'expression_anchor', url: expr });
     }
