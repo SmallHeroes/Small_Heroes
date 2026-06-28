@@ -1,20 +1,23 @@
 /**
  * Pick the 5 RISK calibration pages (NOT pages 1–5) — the spreads most likely to expose a contract/
- * render mismatch. Deterministic selection from the contract:
- *   1. cover                       (always)
- *   2. establishing-location       — first page of the most-used location
- *   3. zone-transition-same-place  — a page whose location == prev page but zone differs
- *   4. companion + action          — a companion-present page (prefer one with an action verb)
- *   5. key-prop / continuity       — a page where a recurring prop's state CHANGES (or any prop page)
+ * render mismatch. Deterministic selection from the contract. EXCLUDES the cover and yields 5 DISTINCT
+ * MEASURABLE FACE pages (the child is present, so identity AND companion-vs-child scale are measurable):
+ *   1. establishing-location       — first face page at the most-used location
+ *   2. zone-transition-same-place  — a face page whose location == prev page but zone differs
+ *   3. companion + action          — a face page WITH the companion (prefer an action verb) → scale-measurable
+ *   4. key-prop / continuity       — a face page where a recurring prop's state CHANGES
+ *   5. (+ fill)                    — additional DISTINCT face pages, preferring companion-present (scale)
  *
- * Only these render first; the hard gate runs on them before any full render.
+ * The set never collapses below 5 when ≥5 face pages exist (the old version deduped to 3 and included
+ * the cover). The hard gate runs on these before any full render.
  */
 import type { BookVisualContract, PageVisualContract } from './types';
 
 export interface CalibrationSelection {
-  /** Page numbers to render+gate (cover represented as `0`). */
+  /** 5 DISTINCT measurable face page numbers (no cover). */
   pageNumbers: number[];
-  cover: true;
+  /** The cover is intentionally NOT a calibration target (the proof is measurable FACE pages). */
+  cover: false;
   establishingLocation: number | null;
   zoneTransitionSamePlace: number | null;
   companionAction: number | null;
@@ -33,32 +36,37 @@ function mostUsedLocationId(pages: PageVisualContract[]): string | null {
 }
 
 export function selectCalibrationPages(contract: BookVisualContract): CalibrationSelection {
-  const pages = [...contract.pageContracts].sort((a, b) => a.pageNumber - b.pageNumber);
+  const all = [...contract.pageContracts].sort((a, b) => a.pageNumber - b.pageNumber);
+  // MEASURABLE FACE pages: child present → identity + companion-vs-child scale are measurable.
+  const facePages = all.filter((p) => p.characterPresence.child);
+  const pool = facePages.length > 0 ? facePages : all; // defensive: never operate on an empty pool
 
-  // 2. establishing-location: first page at the most-used location
-  const primaryLoc = mostUsedLocationId(pages);
-  const establishingLocation = pages.find((p) => p.locationId === primaryLoc)?.pageNumber ?? pages[0]?.pageNumber ?? null;
+  // 1. establishing-location: first face page at the most-used location
+  const primaryLoc = mostUsedLocationId(pool);
+  const establishingLocation =
+    (pool.find((p) => p.locationId === primaryLoc) ?? pool[0])?.pageNumber ?? null;
 
-  // 3. zone transition within the SAME location
+  // 2. zone transition within the SAME location (among face pages)
   let zoneTransitionSamePlace: number | null = null;
-  for (let i = 1; i < pages.length; i++) {
-    const prev = pages[i - 1];
-    const cur = pages[i];
+  for (let i = 1; i < pool.length; i++) {
+    const prev = pool[i - 1];
+    const cur = pool[i];
     if (cur.locationId === prev.locationId && cur.zoneId && cur.zoneId !== prev.zoneId) {
       zoneTransitionSamePlace = cur.pageNumber;
       break;
     }
   }
 
-  // 4. companion + action (prefer an action verb in the camera direction)
-  const companionPages = pages.filter((p) => p.characterPresence.companion);
+  // 3. companion + action (a FACE page that also has the companion → scale-measurable)
+  const companionFacePages = pool.filter((p) => p.characterPresence.companion);
   const companionAction =
-    (companionPages.find((p) => ACTION_VERB.test(p.camera)) ?? companionPages[0])?.pageNumber ?? null;
+    (companionFacePages.find((p) => ACTION_VERB.test(p.camera)) ?? companionFacePages[0])?.pageNumber ??
+    null;
 
-  // 5. key-prop continuity: a page where a recurring prop's state CHANGES vs an earlier page
+  // 4. key-prop continuity: a face page where a recurring prop's state CHANGES vs an earlier page
   let keyProp: number | null = null;
   const lastState = new Map<string, string>();
-  outer: for (const p of pages) {
+  outer: for (const p of pool) {
     for (const ps of p.propState ?? []) {
       const prev = lastState.get(ps.propId);
       if (prev !== undefined && prev !== ps.state) {
@@ -68,17 +76,24 @@ export function selectCalibrationPages(contract: BookVisualContract): Calibratio
       lastState.set(ps.propId, ps.state);
     }
   }
-  // fallback: first page that has any prop state
-  if (keyProp == null) keyProp = pages.find((p) => (p.propState ?? []).length > 0)?.pageNumber ?? null;
+  if (keyProp == null) keyProp = pool.find((p) => (p.propState ?? []).length > 0)?.pageNumber ?? null;
 
-  const ordered = [0, establishingLocation, zoneTransitionSamePlace, companionAction, keyProp];
-  const pageNumbers = Array.from(
-    new Set(ordered.filter((n): n is number => n != null))
-  );
+  // Assemble 5 DISTINCT face pages: the 4 risk dimensions first, then fill from companion-present face
+  // pages (scale-measurable), then any face page — so the set never collapses below 5.
+  const picks: number[] = [];
+  const add = (n: number | null) => {
+    if (n != null && picks.length < 5 && !picks.includes(n)) picks.push(n);
+  };
+  add(establishingLocation);
+  add(zoneTransitionSamePlace);
+  add(companionAction);
+  add(keyProp);
+  for (const p of companionFacePages) add(p.pageNumber);
+  for (const p of pool) add(p.pageNumber);
 
   return {
-    pageNumbers,
-    cover: true,
+    pageNumbers: [...picks].sort((a, b) => a - b),
+    cover: false,
     establishingLocation,
     zoneTransitionSamePlace,
     companionAction,

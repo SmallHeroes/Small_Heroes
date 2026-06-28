@@ -134,14 +134,38 @@ describe('pageVisualContractQa — exactly 5 checks', () => {
   });
 });
 
-describe('selectCalibrationPages — 5 risk pages', () => {
-  it('picks cover + establishing-location + zone-transition + companion + key-prop', () => {
+describe('selectCalibrationPages — measurable face pages (no cover)', () => {
+  it('excludes the cover and picks establishing + zone-transition + companion + key-prop', () => {
     const sel = selectCalibrationPages(contract());
-    expect(sel.pageNumbers).toContain(0); // cover
+    expect(sel.cover).toBe(false);
+    expect(sel.pageNumbers).not.toContain(0); // cover is NOT a calibration target
+    expect(sel.pageNumbers).toEqual([1, 2]); // the 2 face pages in this 2-page fixture (distinct)
     expect(sel.establishingLocation).toBe(1);
-    expect(sel.zoneTransitionSamePlace).toBe(2); // page 2 same location, different zone
-    expect(sel.companionAction).toBe(2); // companion present + "reaching"
-    expect(sel.keyProp).toBe(2); // stone_gate closed→open
+    expect(sel.zoneTransitionSamePlace).toBe(2);
+    expect(sel.companionAction).toBe(2);
+    expect(sel.keyProp).toBe(2);
+  });
+
+  it('yields 5 DISTINCT face pages (never the cover) even when the dimension picks overlap', () => {
+    const sixPages: BookVisualContract = {
+      ...contract(),
+      pageContracts: [1, 2, 3, 4, 5, 6].map((n) => ({
+        pageNumber: n,
+        locationId: 'playground_main',
+        zoneId: n % 2 === 0 ? 'gate' : 'sandbox',
+        sameLocationAs: n > 1 ? n - 1 : null,
+        mustShow: [],
+        mustNotShow: [],
+        characterPresence: { child: true, companion: n >= 3 },
+        propState: [{ propId: 'stone_gate', state: n % 2 === 0 ? 'open' : 'closed' }],
+        camera: n === 4 ? 'child reaching toward the gate' : 'wide shot',
+      })),
+    };
+    const sel = selectCalibrationPages(sixPages);
+    expect(sel.cover).toBe(false);
+    expect(sel.pageNumbers).not.toContain(0);
+    expect(sel.pageNumbers).toHaveLength(5);
+    expect(new Set(sel.pageNumbers).size).toBe(5); // all distinct
   });
 });
 
