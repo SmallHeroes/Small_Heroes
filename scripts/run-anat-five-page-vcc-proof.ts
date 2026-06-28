@@ -14,18 +14,21 @@
  *   - proof/page-<n>.json               prompt block + per-attempt verdicts + PASS/BLOCK (VISUAL_CONTRACT_PROOF_DIR)
  *   - proof-report.json                 the rolled-up index of all of the above
  *
- * Guardrails baked in:
+ * Guardrails baked in (FAIL-CLOSED):
  *   - CHUNKED_IMAGE_PAGE_FILTER = the 5 pages → image-only, and PARKS before audio/package/full-book.
  *   - VISUAL_CONTRACT_ENFORCEMENT = true → the gate + bounded reroll actually run (non-prod only).
- *   - LOW tier comes from the ORDER (set the order to LOW before running); this script does not upgrade it.
+ *   - LOW enforced IN CODE: GPT_IMAGE_QUALITY=low + STYLE_01_AUDITION_MODE=false (refuses a preset HIGH).
+ *   - Clears images ONLY for a non-prod panda_anat (MVP QA) order with VCC_PROOF_ALLOW_CLEAR=1.
+ *   - Refuses fewer than 5 distinct face pages; a page is "complete" only with BOTH gate-proof + manifest.
+ *   - Wipes the proof dir each run and rejects any artifact older than run start (no stale pollution).
  *
  * The contract is compiled on demand: if the order has no cached BookVisualContract this script compiles
  * + persists one (ensureBookVisualContract, same inputs as the live pipeline) so T16 is ONE reproducible
  * command — no separate "compile first" step.
  *
- * Usage:  VCC_PROOF_ORDER_ID=<anat order id> npx tsx scripts/run-anat-five-page-vcc-proof.ts
- * COST:   this RENDERS (paid) + one contract-compile LLM call if none is cached. Do NOT run until Codex
- *         signs off on the T16 render.
+ * Usage:  VCC_PROOF_ORDER_ID=<anat order id> VCC_PROOF_ALLOW_CLEAR=1 npx tsx scripts/run-anat-five-page-vcc-proof.ts
+ * COST:   this RENDERS (paid, LOW) + one contract-compile LLM call if none is cached. Do NOT run until
+ *         Codex signs off on the T16 render.
  */
 import type { Prisma } from '@prisma/client';
 import { config as loadEnv } from 'dotenv';
@@ -40,7 +43,7 @@ import './shims/register-server-only.cjs';
 function requireOrderId(): string {
   const id = process.env.VCC_PROOF_ORDER_ID?.trim();
   if (!id) {
-    throw new Error('Set VCC_PROOF_ORDER_ID=<order id> (a LOW ענת order; its contract is compiled on demand if missing).');
+    throw new Error('Set VCC_PROOF_ORDER_ID=<order id> (a non-prod panda_anat QA order; contract compiled on demand).');
   }
   return id;
 }
@@ -52,52 +55,80 @@ async function download(url: string, dest: string) {
   fs.writeFileSync(dest, Buffer.from(await res.arrayBuffer()));
 }
 
-function readJsonIfExists(p: string): unknown {
-  return fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : null;
+/** Read JSON only if the file exists AND is from THIS run (mtime >= runStart) — stale files are rejected. */
+function readFreshJson(p: string, minMtimeMs: number): unknown {
+  if (!fs.existsSync(p)) return null;
+  if (fs.statSync(p).mtimeMs < minMtimeMs) {
+    console.warn(`[vcc-proof] ignoring STALE ${path.basename(p)} (older than run start)`);
+    return null;
+  }
+  return JSON.parse(fs.readFileSync(p, 'utf8'));
 }
 
 async function main() {
+  const runStart = Date.now();
   const root = path.join(process.cwd(), 'outputs', 'visual-contract-proof', ORDER_ID);
   const manifestDir = path.join(root, 'ref-manifests');
   const proofDir = path.join(root, 'proof');
+  // CLEAN/ISOLATE: wipe any prior run's artifacts so nothing stale can survive, then recreate fresh.
+  fs.rmSync(root, { recursive: true, force: true });
   for (const d of [root, manifestDir, proofDir]) fs.mkdirSync(d, { recursive: true });
 
-  // The gate must run, and the run must PARK before audio/package — set BEFORE importing the worker.
+  // Set BEFORE importing the worker: gate ON, park before audio/package, manifest + proof sinks.
   process.env.VISUAL_CONTRACT_ENFORCEMENT = 'true';
   process.env.GENERATION_DISABLE_SELF_CHAIN = 'true';
   process.env.PAGE_REF_MANIFEST_DIR = manifestDir;
   process.env.VISUAL_CONTRACT_PROOF_DIR = proofDir;
+  // ENFORCE LOW (cost-safe): refuse an explicit HIGH, then pin the normal book path to 'low' (audition OFF
+  // → resolveGPTBookQuality reads GPT_IMAGE_QUALITY). Production HIGH must never leak into the proof.
+  if ((process.env.GPT_IMAGE_QUALITY ?? '').trim().toLowerCase() === 'high') {
+    throw new Error('GPT_IMAGE_QUALITY=high is set — the T16 proof is LOW-only. Unset it and re-run.');
+  }
+  process.env.GPT_IMAGE_QUALITY = 'low';
+  process.env.STYLE_01_AUDITION_MODE = 'false';
 
   const { prisma } = await import('@/lib/prisma');
   const { ensureBookVisualContract, getCachedVisualContract } = await import(
     '@/lib/generation-pipeline/visual-contract-stage'
   );
+  const { isVisualContractEnforcementEnabled } = await import('@/lib/visual-contract-compiler');
   const { resolveCompanionForOrder } = await import('@/lib/generation-pipeline/anchor-registry');
   const { selectCalibrationPages } = await import('@/lib/visual-contract-compiler/selectCalibrationPages');
   const { clearOrderPageImages } = await import('@/lib/generation-chunked/clear-page-images-for-regen');
   const { runGenerationWorkerInvocation } = await import('@/lib/generation-chunked/process-worker');
+
+  // FAIL-CLOSED isolation — the proof CLEARS page images (destructive). Refuse unless this is clearly a
+  // non-prod, panda_anat (MVP QA companion) order AND the operator explicitly confirmed the clear.
+  const order = await prisma.order.findUnique({ where: { id: ORDER_ID } });
+  if (!order) throw new Error(`order ${ORDER_ID} not found`);
+  const resolvedCompanion = resolveCompanionForOrder(order);
+  const companionId = resolvedCompanion?.id ?? null;
+  if (!isVisualContractEnforcementEnabled()) {
+    throw new Error('VISUAL_CONTRACT_ENFORCEMENT/non-prod gate is OFF — refusing (prod-safety): the proof clears images.');
+  }
+  if (companionId !== 'panda_anat') {
+    throw new Error(`order companion is "${companionId ?? 'none'}", not the panda_anat MVP QA companion — refusing to clear images.`);
+  }
+  if (process.env.VCC_PROOF_ALLOW_CLEAR !== '1') {
+    throw new Error('destructive image-clear guard: set VCC_PROOF_ALLOW_CLEAR=1 to confirm this QA-isolated panda_anat order.');
+  }
 
   const job = await prisma.generationJob.findUnique({ where: { orderId: ORDER_ID } });
   const cache = (job?.pipelineCache ?? {}) as Record<string, unknown>;
   let contract = getCachedVisualContract(cache as never);
 
   // SELF-COMPILE if the order has no cached contract → T16 is one reproducible command. Mirrors the live
-  // chunk-runner call EXACTLY (same inputs: order page text + childName/gender + resolved companion), so
-  // ensureBookVisualContract compiles+validates fail-closed (one LLM text call), and we persist it back
-  // onto the GenerationJob so the worker run below reuses it (never recompiles per page).
+  // chunk-runner inputs (childName/gender + resolved companion), compiles+validates fail-closed, persists.
   if (!contract) {
-    const order = await prisma.order.findUnique({ where: { id: ORDER_ID } });
-    if (!order) throw new Error(`order ${ORDER_ID} not found`);
     const pageRows = await prisma.bookPage.findMany({
       where: { book: { orderId: ORDER_ID } },
       select: { pageNumber: true, text: true },
       orderBy: { pageNumber: 'asc' },
     });
     if (pageRows.length === 0) throw new Error(`no book pages for order ${ORDER_ID}`);
-    const resolvedCompanion = resolveCompanionForOrder(order);
     console.log(
       `[vcc-proof] no cached contract — compiling from ${pageRows.length} pages ` +
-        `(child=${order.childName ?? '?'}, companion=${resolvedCompanion?.id ?? 'none'})`
+        `(child=${order.childName ?? '?'}, companion=${companionId})`
     );
     const vcc = await ensureBookVisualContract({
       cache: cache as never,
@@ -122,11 +153,14 @@ async function main() {
     );
   }
 
-  // 5 DISTINCT measurable face pages (no cover) — the live page set under test.
+  // 5 DISTINCT measurable face pages (no cover). FAIL-CLOSED when fewer than 5 — the proof is invalid.
   const selection = selectCalibrationPages(contract);
   const PAGES = selection.pageNumbers;
   if (PAGES.length < 5) {
-    console.warn(`[vcc-proof] only ${PAGES.length} face page(s) available: ${PAGES.join(',')}`);
+    throw new Error(
+      `selectCalibrationPages yielded only ${PAGES.length} face page(s) (${PAGES.join(',') || 'none'}) — ` +
+        'the proof needs 5 distinct measurable face pages; refusing.'
+    );
   }
   process.env.CHUNKED_IMAGE_PAGE_FILTER = PAGES.join(',');
   console.log(
@@ -143,8 +177,26 @@ async function main() {
     data: { status: 'pending', currentStage: 'page_images', lastError: null, retryable: true, imagesDone: false },
   });
 
-  const report: Record<string, unknown> = { orderId: ORDER_ID, pages: PAGES, enforced: true, results: {} };
+  const report: Record<string, unknown> = {
+    orderId: ORDER_ID,
+    companion: companionId,
+    quality: 'low',
+    enforced: true,
+    pages: PAGES,
+    results: {},
+  };
   const results = report.results as Record<string, unknown>;
+  const collect = (pn: number, base: Record<string, unknown>) => {
+    const refManifest = readFreshJson(path.join(manifestDir, `page-${pn}.json`), runStart);
+    const gateProof = readFreshJson(path.join(proofDir, `page-${pn}.json`), runStart);
+    results[String(pn)] = {
+      ...base,
+      refManifest,
+      gateProof,
+      // A page is a COMPLETE proof data point only with BOTH a fresh gate-proof AND a fresh manifest.
+      artifactsComplete: Boolean(refManifest && gateProof),
+    };
+  };
 
   // Drive the SAME worker prod runs; the filter parks it before audio/package. Bounded poll loop.
   for (let invocation = 1; invocation <= 80; invocation += 1) {
@@ -159,27 +211,36 @@ async function main() {
       if (!row.imageAsset?.url || (results[String(pn)] as { imageUrl?: string })?.imageUrl) continue;
       const dest = path.join(root, `page-${pn}.png`);
       await download(row.imageAsset.url, dest);
-      results[String(pn)] = {
-        imageUrl: row.imageAsset.url,
-        localPath: dest,
-        provider: row.imageAsset.provider,
-        refManifest: readJsonIfExists(path.join(manifestDir, `page-${pn}.json`)),
-        gateProof: readJsonIfExists(path.join(proofDir, `page-${pn}.json`)),
-      };
+      collect(pn, { imageUrl: row.imageAsset.url, localPath: dest, provider: row.imageAsset.provider });
     }
-    // Done when every page either rendered or was BLOCKED by the gate (proof written, no image).
+    // Settled when each page either rendered (image) OR was blocked (a FRESH gate-proof exists).
     const settled = PAGES.every(
-      (p) => results[String(p)] || readJsonIfExists(path.join(proofDir, `page-${p}.json`))
+      (p) =>
+        (results[String(p)] as { imageUrl?: string })?.imageUrl ||
+        readFreshJson(path.join(proofDir, `page-${p}.json`), runStart)
     );
     if (settled) break;
     await new Promise((r) => setTimeout(r, 2000));
   }
 
-  // Fold in proofs for pages the gate BLOCKED (no image row, but a proof file exists).
+  // Fold in pages the gate BLOCKED (a fresh proof exists, no promoted image).
   for (const p of PAGES) {
     if (results[String(p)]) continue;
-    const gateProof = readJsonIfExists(path.join(proofDir, `page-${p}.json`));
-    if (gateProof) results[String(p)] = { imageUrl: null, blocked: true, gateProof };
+    if (readFreshJson(path.join(proofDir, `page-${p}.json`), runStart)) collect(p, { imageUrl: null, blocked: true });
+  }
+
+  const incomplete = PAGES.filter(
+    (p) => !(results[String(p)] as { artifactsComplete?: boolean } | undefined)?.artifactsComplete
+  );
+  report.summary = {
+    total: PAGES.length,
+    artifactsComplete: PAGES.length - incomplete.length,
+    incompletePages: incomplete,
+  };
+  if (incomplete.length) {
+    console.warn(
+      `[vcc-proof] ${incomplete.length} page(s) INCOMPLETE — missing a fresh gate-proof or manifest: ${incomplete.join(',')}`
+    );
   }
 
   fs.writeFileSync(path.join(root, 'proof-report.json'), JSON.stringify(report, null, 2));
