@@ -21,6 +21,14 @@ export type ChildIdentityVision = (
   candidateImageUrl: string
 ) => Promise<ChildIdentityVerdict>;
 
+/**
+ * Gate the (paid) vision identity check. OFF by default — Fix B must be CALIBRATED on labelled
+ * positive/negative pairs and Codex-approved before this is turned on in any real render.
+ */
+export function isChildIdentityVisionEnabled(): boolean {
+  return process.env.VISUAL_CONTRACT_IDENTITY_VISION === 'true';
+}
+
 const INSTRUCTION = [
   'You verify child-character identity across two illustrations from the SAME picture book.',
   'IMAGE 1 is the CANONICAL reference of the child. IMAGE 2 is a new page.',

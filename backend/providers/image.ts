@@ -66,6 +66,10 @@ import {
   gatePageWithResemblance,
 } from '../../lib/generation-pipeline/visual-contract-gate';
 import { callVisualContractVision } from '../../lib/generation-pipeline/visual-contract-vision';
+import {
+  checkChildIdentityViaVision,
+  isChildIdentityVisionEnabled,
+} from '../../lib/generation-pipeline/child-identity-vision';
 import type { Companion } from '../../lib/companions';
 import path from 'path';
 import { generateGPTImage, generateReplicateImage, resolveGPTImageEditMaxReferences } from '../../lib/generate-image';
@@ -5273,11 +5277,22 @@ export async function generateAllPageImages(
                   rerollScore.sanityFlags.geometryWeird,
                 source: 'page_monitor',
               });
+              // Fix B (flag-gated, OFF by default): real vision-LLM identity overrides the histogram.
+              const visionVerdict = isChildIdentityVisionEnabled()
+                ? await checkChildIdentityViaVision(recheckChildRef, rerollUrl).catch((err) => {
+                    console.warn(
+                      `[visual-contract] page ${page.pageNumber} child-identity vision failed ` +
+                        `(${(err as Error)?.message ?? 'error'}) — falling back to palette histogram`
+                    );
+                    return null;
+                  })
+                : null;
               const verdict = evaluateRerollIdentity({
                 score: rerollScore.resemblanceScore,
                 geometryWeird: rerollScore.sanityFlags.geometryWeird,
                 faceDetectConfidence: rerollScore.faceDetectConfidence,
                 clearMismatch: rerollScore.sanityFlags.embeddingMismatch,
+                vision: visionVerdict,
               });
               console.log(
                 `[visual-contract] page ${page.pageNumber} reroll (attempt ${passedAttempt}) identity=${verdict.status} — ${verdict.reason}`

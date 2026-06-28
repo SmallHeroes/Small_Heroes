@@ -24,6 +24,7 @@ import {
   type ResolvedPageContract,
   type ContractQaVerdict,
 } from '@/lib/visual-contract-compiler';
+import type { ChildIdentityVerdict } from './child-identity-vision';
 
 export class VisualContractQaBlockError extends Error {
   readonly code = 'VISUAL_CONTRACT_QA_BLOCK' as const;
@@ -144,22 +145,47 @@ export interface RerollIdentityVerdict {
 
 /** Face must be at least this confidently detected for the histogram to be trusted enough to HARD-FAIL. */
 export const IDENTITY_MIN_FACE_DETECT_CONFIDENCE = 0.6;
+/**
+ * Min vision-LLM confidence to act on a same/different judgment. PROVISIONAL — Fix B must recalibrate
+ * this on labelled positive/negative pairs before the vision path is trusted in production (do NOT ship
+ * the vision gate on this placeholder).
+ */
+export const IDENTITY_VISION_MIN_CONFIDENCE = 0.6;
 
 /**
- * Classify a promoted reroll's identity from the (weak) palette-histogram signals. NEVER hard-blocks on
- * an unmeasurable face — that is `not_measurable` (→ human review), not `fail`. Hard `fail` requires a
- * reliably measured single, prominent face AND a CLEAR mismatch (drastic palette divergence). The old
- * `score < 0.70` whole-image hard-block is removed — it false-dropped busy/multi-face scenes.
+ * Classify a promoted reroll's identity → 3-state.
+ *  - When a vision verdict is supplied (Fix B), it is the AUTHORITATIVE identity signal (real face
+ *    recognition robust to watercolor): confident `different` → fail, confident `same` → pass, anything
+ *    uncertain / low-confidence → not_measurable.
+ *  - Otherwise (no vision) fall back to the weak palette-histogram: NEVER hard-block on an unmeasurable
+ *    face (→ not_measurable / human review); hard `fail` only on a reliably measured single, prominent
+ *    face with a CLEAR mismatch. The old `score < 0.70` whole-image hard-block is gone.
  */
 export function evaluateRerollIdentity(input: {
   score: number | null | undefined;
   /** geometryWeird = faceCount !== 1 || faceAreaRatio < 0.05 (from scoreResemblanceAgainstReference). */
   geometryWeird?: boolean | null;
   faceDetectConfidence?: number | null;
-  /** Drastic palette divergence (clear mismatch) — the ONLY basis for a histogram hard-fail. */
+  /** Drastic palette divergence (clear mismatch) — the ONLY basis for a histogram-only hard-fail. */
   clearMismatch?: boolean | null;
+  /** Real identity (vision-LLM). When present, it OVERRIDES the histogram as the primary signal. */
+  vision?: ChildIdentityVerdict | null;
 }): RerollIdentityVerdict {
   const score = typeof input.score === 'number' ? input.score : null;
+
+  // 1) Vision (Fix B) is the authoritative identity signal when available.
+  if (input.vision) {
+    const { sameChild, confidence, reason } = input.vision;
+    if (sameChild === 'different' && confidence >= IDENTITY_VISION_MIN_CONFIDENCE) {
+      return { status: 'fail', score, reason: `vision: DIFFERENT child (conf ${confidence.toFixed(2)}) — ${reason}` };
+    }
+    if (sameChild === 'same' && confidence >= IDENTITY_VISION_MIN_CONFIDENCE) {
+      return { status: 'pass', score, reason: `vision: same child (conf ${confidence.toFixed(2)})` };
+    }
+    return { status: 'not_measurable', score, reason: `vision: uncertain/low-confidence (${sameChild} @ ${confidence.toFixed(2)}) — ${reason}` };
+  }
+
+  // 2) No vision → weak palette-histogram fallback (the immediate un-break).
   const reliablyMeasured =
     !input.geometryWeird &&
     (input.faceDetectConfidence ?? 0) >= IDENTITY_MIN_FACE_DETECT_CONFIDENCE &&

@@ -158,3 +158,35 @@ describe('evaluateRerollIdentity — 3-state, un-broken (no whole-image hard-blo
     expect(v.status).toBe('pass');
   });
 });
+
+describe('evaluateRerollIdentity — vision (Fix B) is authoritative when present', () => {
+  it('confident vision "different" → fail, OVERRIDING the histogram (even if unmeasurable)', () => {
+    const v = evaluateRerollIdentity({
+      score: 0.9, // histogram looks fine...
+      geometryWeird: true, // ...and would say not_measurable
+      faceDetectConfidence: 0.1,
+      vision: { sameChild: 'different', confidence: 0.9, reason: 'different hair/age' },
+    });
+    expect(v.status).toBe('fail');
+  });
+
+  it('confident vision "same" → pass on a multi-face scene (the page-3 case, now correctly kept)', () => {
+    const v = evaluateRerollIdentity({
+      score: 0.252,
+      geometryWeird: true,
+      faceDetectConfidence: 0.9,
+      vision: { sameChild: 'same', confidence: 0.85, reason: 'same child' },
+    });
+    expect(v.status).toBe('pass');
+  });
+
+  it('vision "uncertain" → not_measurable (human review)', () => {
+    const v = evaluateRerollIdentity({ score: 0.5, vision: { sameChild: 'uncertain', confidence: 0.3, reason: 'turned away' } });
+    expect(v.status).toBe('not_measurable');
+  });
+
+  it('LOW-confidence vision "different" → not_measurable (below the min, never a hard fail)', () => {
+    const v = evaluateRerollIdentity({ score: 0.5, vision: { sameChild: 'different', confidence: 0.4, reason: 'maybe' } });
+    expect(v.status).toBe('not_measurable');
+  });
+});
