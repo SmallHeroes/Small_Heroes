@@ -4905,7 +4905,7 @@ export async function generateAllPageImages(
           faceDetectConfidence: scored.faceDetectConfidence,
           faceAreaRatio: scored.faceAreaRatio,
           sanityFlags: scored.sanityFlags,
-          candidateEmbedding: scored.candidateEmbedding,
+          candidatePaletteHistogram: scored.candidatePaletteHistogram,
         });
         await emitResemblanceAudit({
           orderId: config.orderId,

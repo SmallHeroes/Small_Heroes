@@ -30,7 +30,7 @@ export type ResemblanceCandidate = {
   faceDetectConfidence: number;
   faceAreaRatio: number;
   sanityFlags: ResemblanceSanityFlags;
-  candidateEmbedding?: number[];
+  candidatePaletteHistogram?: number[];
 };
 
 export type AnchorSelectionResult = {
@@ -47,7 +47,7 @@ export type AnchorSelectionResult = {
 };
 
 type ImageStats = {
-  embedding: number[];
+  paletteHistogram: number[];
   brightness: number;
   sharpness: number;
   normalizedSharpness: number;
@@ -354,7 +354,7 @@ function detectFaceLikeBlobRatios(rgb: Buffer, width: number, height: number): n
   return ratios.sort((a, b) => b - a);
 }
 
-function buildEmbedding(rgb: Buffer): number[] {
+function buildPaletteHistogram(rgb: Buffer): number[] {
   const bins = 16;
   const histR = new Array<number>(bins).fill(0);
   const histG = new Array<number>(bins).fill(0);
@@ -464,7 +464,7 @@ async function computeImageStats(url: string): Promise<ImageStats> {
   const faceBlobs = detectFaceLikeBlobs(rgb, width, height);
   const faceDetectConfidence = clamp(faceBlobs.largestRatio * 6, 0, 1);
   return {
-    embedding: buildEmbedding(rgb),
+    paletteHistogram: buildPaletteHistogram(rgb),
     brightness,
     sharpness,
     normalizedSharpness,
@@ -596,13 +596,13 @@ export async function scoreResemblanceAgainstReference(params: {
   faceDetectConfidence: number;
   faceAreaRatio: number;
   sanityFlags: ResemblanceSanityFlags;
-  candidateEmbedding: number[];
+  candidatePaletteHistogram: number[];
 }> {
   const [ref, cand] = await Promise.all([
     computeImageStats(params.referenceImageUrl),
     computeImageStats(params.candidateImageUrl),
   ]);
-  const resemblanceScore = cosineSimilarity(ref.embedding, cand.embedding);
+  const resemblanceScore = cosineSimilarity(ref.paletteHistogram, cand.paletteHistogram);
   const colorMismatch = Math.abs(ref.brightness - cand.brightness) > 55;
   const geometryWeird = cand.faceCount !== 1 || cand.faceAreaRatio < 0.05;
   const embeddingMismatch = resemblanceScore < Math.max(0.25, params.minAcceptableScore - 0.12);
@@ -615,7 +615,7 @@ export async function scoreResemblanceAgainstReference(params: {
       colorMismatch,
       geometryWeird,
     },
-    candidateEmbedding: cand.embedding,
+    candidatePaletteHistogram: cand.paletteHistogram,
   };
 }
 
@@ -669,8 +669,8 @@ export function selectResemblanceAnchor(params: {
   let lowDiversity = false;
   const closeByScore = scoreSpread < 0.02 && (selectionGap ?? 0) < 0.012;
   if (closeByScore) lowDiversity = true;
-  if (!lowDiversity && sorted.length > 1 && top.candidateEmbedding && second?.candidateEmbedding) {
-    const sim = cosineSimilarity(top.candidateEmbedding, second.candidateEmbedding);
+  if (!lowDiversity && sorted.length > 1 && top.candidatePaletteHistogram && second?.candidatePaletteHistogram) {
+    const sim = cosineSimilarity(top.candidatePaletteHistogram, second.candidatePaletteHistogram);
     if (sim > 0.995) lowDiversity = true;
   }
   if (lowDiversity) reasonCodes.push('low_diversity');
