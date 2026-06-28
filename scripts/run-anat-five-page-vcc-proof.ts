@@ -22,9 +22,10 @@
  *   - Refuses fewer than 5 distinct face pages; a page is "complete" only with BOTH gate-proof + manifest.
  *   - Wipes the proof dir each run and rejects any artifact older than run start (no stale pollution).
  *
- * The contract is compiled on demand: if the order has no cached BookVisualContract this script compiles
- * + persists one (ensureBookVisualContract, same inputs as the live pipeline) so T16 is ONE reproducible
- * command — no separate "compile first" step.
+ * The contract is compiled on demand from the SAME story-bank source the live pipeline uses: if the order
+ * has no cached BookVisualContract this script loads story.pages via loadStoryFromBank + compiles/persists
+ * via ensureBookVisualContract — so the proof's contract is IDENTICAL to live and T16 is ONE reproducible
+ * command (no separate "compile first" step). If the cache lacks the story path it refuses (can't reproduce).
  *
  * Usage:  VCC_PROOF_ORDER_ID=<anat order id> VCC_PROOF_ALLOW_CLEAR=1 npx tsx scripts/run-anat-five-page-vcc-proof.ts
  * COST:   this RENDERS (paid, LOW) + one contract-compile LLM call if none is cached. Do NOT run until
@@ -93,6 +94,8 @@ async function main() {
   );
   const { isVisualContractEnforcementEnabled } = await import('@/lib/visual-contract-compiler');
   const { resolveCompanionForOrder } = await import('@/lib/generation-pipeline/anchor-registry');
+  const { loadStoryFromBank } = await import('@/backend/providers/story-bank-loader');
+  const { resolveCachedStoryFilePath } = await import('@/lib/generation-pipeline/story-path');
   const { selectCalibrationPages } = await import('@/lib/visual-contract-compiler/selectCalibrationPages');
   const { clearOrderPageImages } = await import('@/lib/generation-chunked/clear-page-images-for-regen');
   const { runGenerationWorkerInvocation } = await import('@/lib/generation-chunked/process-worker');
@@ -117,22 +120,34 @@ async function main() {
   const cache = (job?.pipelineCache ?? {}) as Record<string, unknown>;
   let contract = getCachedVisualContract(cache as never);
 
-  // SELF-COMPILE if the order has no cached contract → T16 is one reproducible command. Mirrors the live
-  // chunk-runner inputs (childName/gender + resolved companion), compiles+validates fail-closed, persists.
+  // SELF-COMPILE if the order has no cached contract → T16 is one reproducible command. FIDELITY: compile
+  // from the IDENTICAL source the live chunk-runner feeds ensureBookVisualContract — loadStoryFromBank
+  // (story bank, same args, skipLlmPersonalization) → story.pages + storyKey — so the proof's contract is
+  // byte-for-byte the live contract, NOT a re-derivation from persisted page text. If the cache has no
+  // story path we CANNOT reproduce the live source → refuse (run the order through the live contract stage).
   if (!contract) {
-    const pageRows = await prisma.bookPage.findMany({
-      where: { book: { orderId: ORDER_ID } },
-      select: { pageNumber: true, text: true },
-      orderBy: { pageNumber: 'asc' },
-    });
-    if (pageRows.length === 0) throw new Error(`no book pages for order ${ORDER_ID}`);
+    const storyFilePath = resolveCachedStoryFilePath(cache as never);
+    if (!storyFilePath) {
+      throw new Error(
+        'no cached story file path on this order — cannot faithfully reproduce the live contract source. ' +
+          'Run the order through the live contract stage first (so pipelineCache has the story path), then re-run.'
+      );
+    }
+    const story = await loadStoryFromBank(
+      storyFilePath,
+      order.childName || '',
+      resolvedCompanion?.name ?? 'צפרדע',
+      order.childGender || undefined,
+      { skipLlmPersonalization: true }
+    );
     console.log(
-      `[vcc-proof] no cached contract — compiling from ${pageRows.length} pages ` +
-        `(child=${order.childName ?? '?'}, companion=${companionId})`
+      `[vcc-proof] no cached contract — compiling from story bank ${path.basename(storyFilePath)} ` +
+        `(${story.pages.length} pages, child=${order.childName ?? '?'}, companion=${companionId})`
     );
     const vcc = await ensureBookVisualContract({
       cache: cache as never,
-      pages: pageRows.map((p) => ({ pageNumber: p.pageNumber, text: p.text })),
+      storyKey: path.basename(storyFilePath, '.md'),
+      pages: story.pages,
       childName: order.childName,
       childGender: order.childGender,
       companion: resolvedCompanion ? { id: resolvedCompanion.id, name: resolvedCompanion.name } : null,
