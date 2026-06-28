@@ -128,6 +128,46 @@ and proceed to holdout; if NO judge config catches distinct-but-similar children
 discrimination floor and the similar-child case needs a different mechanism (mandatory human-review when the
 anchor reads generic, or a dedicated model). Thresholds still must stay fixed across any such comparison.
 
+## Judge experiment — 3 configs on DEV (2026-06-28) — NO auto-gate; gpt-5.5 is a strong human-review TRIAGE
+
+P1 fix applied first (Codex caught it): the cached crops were 512px / pad 1.5 so `detail:'high'` had nothing to
+recover. **Recropped from SOURCE at 1024 / pad 1.2 reusing the cached bbox (NO detector re-run).** gpt-5.5 smoke:
+chat-completions rejected `temperature:0` ("only default 1") — image support is fine, so it ran on `/v1/responses`
+(model `gpt-5.5-2026-04-23` confirmed). **FIXED** thresholds (same ≥ 0.95, different ≥ 0.90). NO image renders.
+Artifact: `outputs/diverse-calibration/dev/judge-experiment-result.json`.
+
+| config | clear (8) | stress (8) | easy (6) | hard-neg (4 dir × 3 = 12) | stop-rule |
+|---|---|---|---|---|---|
+| 1 · gpt-4o + high + EXISTING prompt | 8 pass | 6 pass + 2 nm | 6 fail | 0 fail / **12 FALSE-PASS** | FAIL |
+| 2 · gpt-4o + high + DISCRIM prompt | 8 pass | 6 pass + 2 nm | 6 fail | 0 fail / 9 false-pass / 3 nm | FAIL |
+| 3 · gpt-5.5 + high + DISCRIM prompt | 5 pass / 3 nm | 8 nm | 6 fail | **0 false-pass** / 12 nm | FAIL |
+
+**Stop-rule (auto-gate; ALL required): NONE of the 3 met it → per Codex: STOP. No holdout unlock, no threshold
+change, no further prompt-tuning. Auto-gating similar-child identity is below the discrimination floor.**
+
+Gradient (informative, NOT a pass):
+- **Config 1** — resolution alone changed nothing: gpt-4o still flat `same@0.95` on every lookalike (= baseline).
+- **Config 2** — the discrimination prompt got gpt-4o to catch pB's eye-colour difference in ONE direction
+  (`c03→c04` → `uncertain@0.70` ×3) but not the reverse or pA → still 9 false-pass.
+- **Config 3 (gpt-5.5)** — **zero hard-neg false-pass (0/12 vs 12/12).** Correctly leaned *different* on pB
+  (`c03/c04`, blue vs green eyes) at 0.78–0.86 and *unsure-same* on pA near-twins (`c01/c02`) at 0.86–0.92 — all
+  land in `not_measurable` under the FIXED gpt-4o-tuned thresholds. It also dipped 3 true positives to 0.93–0.94.
+  The hardest pair pA still defeats it: it never caught c02's freckles vs c01 ("matching skin tone, face shape"),
+  so auto-FAIL is unreliable — but it correctly REFUSES to auto-pass (0.86–0.92 < 0.95 → human).
+
+### Conclusion + recommendation
+- **AUTO-gating identity for similar children is below the floor** — even gpt-5.5 can't reliably auto-FAIL the
+  hardest lookalikes (pA). **Launch stays human-in-the-loop for the identity dimension.**
+- **Config-3 (gpt-5.5 + discrimination prompt + 1024 recrop + detail:high) is an excellent human-review-ASSIST
+  triage** and matches Codex's pre-approved fallback: never false-passes a hard negative; routes every lookalike +
+  real-difference (+ a few borderline positives) to `not_measurable` → human; auto-passes clear matches; auto-fails
+  easy negatives. Use as a QA-assist signal, NOT an auto-release gate. Cost: high human-review volume (all stress +
+  ~3/8 positives + all lookalikes route to human) — the safe trade (over-review beats shipping a wrong child).
+- A future, properly **held-out** gpt-5.5 threshold calibration could be a SEPARATE milestone IF auto-gating is ever
+  revisited — NOT a post-hoc tune on this DEV set (would overfit + violate the protocol).
+
+Holdout LOCKED (not opened — no config passed). Flag OFF. Nothing frozen.
+
 ## Pre-prod-flag-on requirements (tracked; do NOT block the crop work)
 - **P1-b durability** (code-verified `chunk-runner.ts:1599`): `identityVisionHold = isChildIdentityVisionEnabled()`
   reads the env flag at PACKAGING time, not a persisted fact that the book was RENDERED with identity-vision. If

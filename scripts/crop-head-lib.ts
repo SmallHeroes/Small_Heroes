@@ -120,8 +120,18 @@ export interface CropResult {
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 
-/** Square head crop (+ optional eye-leveling). Returns null when not measurable (low conf / no bbox). */
-export async function cropToHead(imageBuffer: Buffer, det: HeadDetection): Promise<CropResult | null> {
+/**
+ * Square head crop (+ optional eye-leveling). Returns null when not measurable (low conf / no bbox).
+ * opts.size = output px (default 512); opts.pad = box pad factor (default CROP_PAD=1.5). For the high-res
+ * recrop pass use {size:1024, pad:1.2} so detail:'high' has real pixels and the face fills the frame.
+ */
+export async function cropToHead(
+  imageBuffer: Buffer,
+  det: HeadDetection,
+  opts: { size?: number; pad?: number } = {},
+): Promise<CropResult | null> {
+  const size = opts.size ?? 512;
+  const pad = opts.pad ?? CROP_PAD;
   if (!det.detected || !det.bbox || det.confidence < DETECT_CONFIDENCE_FLOOR) return null;
   const meta = await sharp(imageBuffer).metadata();
   const W = meta.width ?? 0;
@@ -130,7 +140,7 @@ export async function cropToHead(imageBuffer: Buffer, det: HeadDetection): Promi
 
   const bw = det.bbox.w * W;
   const bh = det.bbox.h * H;
-  const side = Math.min(Math.max(bw, bh) * CROP_PAD, W, H);
+  const side = Math.min(Math.max(bw, bh) * pad, W, H);
 
   // Decide alignment + crop center. Align ONLY for a frontal pose with both eyes in a trustworthy roll band.
   let aligned = false;
@@ -164,6 +174,6 @@ export async function cropToHead(imageBuffer: Buffer, det: HeadDetection): Promi
     img = sharp(rotated).extract({ left: rl, top: rt, width: rs, height: rs });
   }
 
-  const buffer = await img.resize(512, 512, { fit: 'cover' }).png().toBuffer();
+  const buffer = await img.resize(size, size, { fit: 'cover' }).png().toBuffer();
   return { buffer, aligned, pose: det.pose, confidence: det.confidence };
 }

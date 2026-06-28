@@ -29,7 +29,7 @@ export function isChildIdentityVisionEnabled(): boolean {
   return process.env.VISUAL_CONTRACT_IDENTITY_VISION === 'true';
 }
 
-const INSTRUCTION = [
+export const CHILD_IDENTITY_INSTRUCTION = [
   'You verify child-character identity across two illustrations from the SAME picture book.',
   'IMAGE 1 is the CANONICAL reference of the child. IMAGE 2 is a new page.',
   'Decide whether the child in IMAGE 2 is the SAME child as IMAGE 1. Judge ONLY: face shape/features,',
@@ -82,7 +82,7 @@ export const checkChildIdentityViaVision: ChildIdentityVision = async (anchorIma
         {
           role: 'user',
           content: [
-            { type: 'text', text: INSTRUCTION },
+            { type: 'text', text: CHILD_IDENTITY_INSTRUCTION },
             { type: 'text', text: 'IMAGE 1 (canonical child reference):' },
             { type: 'image_url', image_url: { url: anchorImageUrl, detail: 'low' } },
             { type: 'text', text: 'IMAGE 2 (new page to verify):' },
