@@ -146,11 +146,15 @@ export interface RerollIdentityVerdict {
 /** Face must be at least this confidently detected for the histogram to be trusted enough to HARD-FAIL. */
 export const IDENTITY_MIN_FACE_DETECT_CONFIDENCE = 0.6;
 /**
- * Min vision-LLM confidence to act on a same/different judgment. PROVISIONAL — Fix B must recalibrate
- * this on labelled positive/negative pairs before the vision path is trusted in production (do NOT ship
- * the vision gate on this placeholder).
+ * ASYMMETRIC vision-confidence thresholds, CALIBRATED on 30 same-child + 30 different-child REAL pairs
+ * (scripts/run-identity-calibration.ts, Phase 1, no render). A `same` verdict must be VERY confident to
+ * PASS — the 4 different-child false-passes all sat at conf 0.90 while clean same-child positives reached
+ * 0.95, so the only separation is an asymmetric PASS bar. A `different` verdict fails at a lower bar.
+ * On the calibration set this yields 0 false-fails AND 0 false-passes (borderline → not_measurable /
+ * human review). Still gated OFF (VISUAL_CONTRACT_IDENTITY_VISION) pending Codex review + Phase 2.
  */
-export const IDENTITY_VISION_MIN_CONFIDENCE = 0.6;
+export const IDENTITY_VISION_SAME_MIN_CONFIDENCE = 0.95;
+export const IDENTITY_VISION_DIFFERENT_MIN_CONFIDENCE = 0.9;
 
 /**
  * Classify a promoted reroll's identity → 3-state.
@@ -176,13 +180,13 @@ export function evaluateRerollIdentity(input: {
   // 1) Vision (Fix B) is the authoritative identity signal when available.
   if (input.vision) {
     const { sameChild, confidence, reason } = input.vision;
-    if (sameChild === 'different' && confidence >= IDENTITY_VISION_MIN_CONFIDENCE) {
+    if (sameChild === 'different' && confidence >= IDENTITY_VISION_DIFFERENT_MIN_CONFIDENCE) {
       return { status: 'fail', score, reason: `vision: DIFFERENT child (conf ${confidence.toFixed(2)}) — ${reason}` };
     }
-    if (sameChild === 'same' && confidence >= IDENTITY_VISION_MIN_CONFIDENCE) {
+    if (sameChild === 'same' && confidence >= IDENTITY_VISION_SAME_MIN_CONFIDENCE) {
       return { status: 'pass', score, reason: `vision: same child (conf ${confidence.toFixed(2)})` };
     }
-    return { status: 'not_measurable', score, reason: `vision: uncertain/low-confidence (${sameChild} @ ${confidence.toFixed(2)}) — ${reason}` };
+    return { status: 'not_measurable', score, reason: `vision: not confident enough (${sameChild} @ ${confidence.toFixed(2)}) — ${reason}` };
   }
 
   // 2) No vision → weak palette-histogram fallback (the immediate un-break).

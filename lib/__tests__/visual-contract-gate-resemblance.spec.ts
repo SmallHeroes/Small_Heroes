@@ -170,14 +170,25 @@ describe('evaluateRerollIdentity — vision (Fix B) is authoritative when presen
     expect(v.status).toBe('fail');
   });
 
-  it('confident vision "same" → pass on a multi-face scene (the page-3 case, now correctly kept)', () => {
+  it('confident vision "same" @ 0.95 → pass on a multi-face scene (the page-3 case, now correctly kept)', () => {
     const v = evaluateRerollIdentity({
       score: 0.252,
       geometryWeird: true,
       faceDetectConfidence: 0.9,
-      vision: { sameChild: 'same', confidence: 0.85, reason: 'same child' },
+      vision: { sameChild: 'same', confidence: 0.95, reason: 'same child' },
     });
     expect(v.status).toBe('pass');
+  });
+
+  it('ASYMMETRIC: vision "same" @ 0.90 → not_measurable (below the 0.95 PASS bar — false-pass guard)', () => {
+    // Calibration: the 4 different-child false-passes all sat at conf 0.90; the 0.95 same-bar routes them to review.
+    const v = evaluateRerollIdentity({ score: 0.5, vision: { sameChild: 'same', confidence: 0.9, reason: 'looks same' } });
+    expect(v.status).toBe('not_measurable');
+  });
+
+  it('ASYMMETRIC: vision "different" @ 0.90 → fail (at the lower 0.90 fail bar)', () => {
+    const v = evaluateRerollIdentity({ score: 0.5, vision: { sameChild: 'different', confidence: 0.9, reason: 'different child' } });
+    expect(v.status).toBe('fail');
   });
 
   it('vision "uncertain" → not_measurable (human review)', () => {
