@@ -19,9 +19,15 @@
  *   - VISUAL_CONTRACT_ENFORCEMENT = true → the gate + bounded reroll actually run (non-prod only).
  *   - LOW tier comes from the ORDER (set the order to LOW before running); this script does not upgrade it.
  *
+ * The contract is compiled on demand: if the order has no cached BookVisualContract this script compiles
+ * + persists one (ensureBookVisualContract, same inputs as the live pipeline) so T16 is ONE reproducible
+ * command — no separate "compile first" step.
+ *
  * Usage:  VCC_PROOF_ORDER_ID=<anat order id> npx tsx scripts/run-anat-five-page-vcc-proof.ts
- * COST:   this RENDERS (paid). Do NOT run until Codex signs off on the T16 render.
+ * COST:   this RENDERS (paid) + one contract-compile LLM call if none is cached. Do NOT run until Codex
+ *         signs off on the T16 render.
  */
+import type { Prisma } from '@prisma/client';
 import { config as loadEnv } from 'dotenv';
 import fs from 'fs';
 import path from 'path';
@@ -34,7 +40,7 @@ import './shims/register-server-only.cjs';
 function requireOrderId(): string {
   const id = process.env.VCC_PROOF_ORDER_ID?.trim();
   if (!id) {
-    throw new Error('Set VCC_PROOF_ORDER_ID=<order id> (a LOW ענת order with a compiled BookVisualContract).');
+    throw new Error('Set VCC_PROOF_ORDER_ID=<order id> (a LOW ענת order; its contract is compiled on demand if missing).');
   }
   return id;
 }
@@ -63,18 +69,56 @@ async function main() {
   process.env.VISUAL_CONTRACT_PROOF_DIR = proofDir;
 
   const { prisma } = await import('@/lib/prisma');
-  const { getCachedVisualContract } = await import('@/lib/generation-pipeline/visual-contract-stage');
+  const { ensureBookVisualContract, getCachedVisualContract } = await import(
+    '@/lib/generation-pipeline/visual-contract-stage'
+  );
+  const { resolveCompanionForOrder } = await import('@/lib/generation-pipeline/anchor-registry');
   const { selectCalibrationPages } = await import('@/lib/visual-contract-compiler/selectCalibrationPages');
   const { clearOrderPageImages } = await import('@/lib/generation-chunked/clear-page-images-for-regen');
   const { runGenerationWorkerInvocation } = await import('@/lib/generation-chunked/process-worker');
 
   const job = await prisma.generationJob.findUnique({ where: { orderId: ORDER_ID } });
   const cache = (job?.pipelineCache ?? {}) as Record<string, unknown>;
-  const contract = getCachedVisualContract(cache as never);
+  let contract = getCachedVisualContract(cache as never);
+
+  // SELF-COMPILE if the order has no cached contract → T16 is one reproducible command. Mirrors the live
+  // chunk-runner call EXACTLY (same inputs: order page text + childName/gender + resolved companion), so
+  // ensureBookVisualContract compiles+validates fail-closed (one LLM text call), and we persist it back
+  // onto the GenerationJob so the worker run below reuses it (never recompiles per page).
+  if (!contract) {
+    const order = await prisma.order.findUnique({ where: { id: ORDER_ID } });
+    if (!order) throw new Error(`order ${ORDER_ID} not found`);
+    const pageRows = await prisma.bookPage.findMany({
+      where: { book: { orderId: ORDER_ID } },
+      select: { pageNumber: true, text: true },
+      orderBy: { pageNumber: 'asc' },
+    });
+    if (pageRows.length === 0) throw new Error(`no book pages for order ${ORDER_ID}`);
+    const resolvedCompanion = resolveCompanionForOrder(order);
+    console.log(
+      `[vcc-proof] no cached contract — compiling from ${pageRows.length} pages ` +
+        `(child=${order.childName ?? '?'}, companion=${resolvedCompanion?.id ?? 'none'})`
+    );
+    const vcc = await ensureBookVisualContract({
+      cache: cache as never,
+      pages: pageRows.map((p) => ({ pageNumber: p.pageNumber, text: p.text })),
+      childName: order.childName,
+      childGender: order.childGender,
+      companion: resolvedCompanion ? { id: resolvedCompanion.id, name: resolvedCompanion.name } : null,
+    });
+    if (vcc.compiled) {
+      await prisma.generationJob.update({
+        where: { orderId: ORDER_ID },
+        data: { pipelineCache: vcc.cache as unknown as Prisma.InputJsonValue },
+      });
+      console.log('[vcc-proof] compiled + persisted a fresh BookVisualContract');
+    }
+    contract = vcc.contract;
+  }
   if (!contract) {
     throw new Error(
-      'No compiled BookVisualContract in this order\'s cache. Run the order through the contract stage ' +
-        'with VISUAL_CONTRACT_ENFORCEMENT=true first (ensureBookVisualContract), then re-run this proof.'
+      'Contract is still null after compile — VISUAL_CONTRACT_ENFORCEMENT must be on AND non-prod ' +
+        '(isVisualContractEnforcementEnabled). Check the runtime / env.'
     );
   }
 
