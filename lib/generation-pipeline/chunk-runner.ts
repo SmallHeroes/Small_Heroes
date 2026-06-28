@@ -27,6 +27,7 @@ import {
 import { generateAllPageImages, generateBookCover } from '@/backend/providers/image';
 import { ensureBookVisualContract, getCachedVisualContract } from './visual-contract-stage';
 import { isVisualContractEnforcementEnabled } from '@/lib/visual-contract-compiler';
+import { isChildIdentityVisionEnabled } from './child-identity-vision';
 import { generatePageAudio } from '@/backend/providers/audio';
 import {
   assertCacheHasNoLocalArtifactPaths,
@@ -1591,13 +1592,21 @@ async function runPackageStage(order: Order, cache: PipelineCache): Promise<void
   // releases it. This is the consumer of childAnchorLowConfidence (set in Stage 0); without
   // it a held anchor would ship silently. A clear anchor delivers normally.
   const deliveryGate = resolveAnchorDeliveryGate(cache.childAnchorLowConfidence);
+  // P1-b: while the EXPERIMENTAL identity-vision gate is ON, the whole order is QA-ONLY — force the held
+  // state (needs_human_qa + no book-ready email), reusing the anchor delivery-hold consumer, so a book
+  // rendered with the experimental identity gate can NEVER reach a customer. No migration. Production never
+  // sets the flag → normal anchor-gated delivery. (Per-page hold is the production follow-up.)
+  const identityVisionHold = isChildIdentityVisionEnabled();
+  const finalHeld = deliveryGate.held || identityVisionHold;
+  const finalReason = identityVisionHold ? (deliveryGate.reason ?? 'identity_vision_qa_only') : deliveryGate.reason;
+  const finalSendBookReadyEmail = deliveryGate.sendBookReadyEmail && !identityVisionHold;
 
   await prisma.order.update({
     where: { id: order.id },
     data: {
-      status: deliveryGate.orderStatus,
+      status: identityVisionHold ? 'needs_human_qa' : deliveryGate.orderStatus,
       packageStatus: 'done',
-      deliveryHoldReason: deliveryGate.reason,
+      deliveryHoldReason: finalReason,
     },
   });
   await prisma.generationJob.update({
@@ -1616,13 +1625,13 @@ async function runPackageStage(order: Order, cache: PipelineCache): Promise<void
     // Telemetry for anchor recalibration: score + band + delivery outcome per order.
     anchorScore: cache.childAnchorLowConfidence?.score,
     anchorBand: cache.childAnchorLowConfidence?.reason ?? 'auto_accept',
-    deliveryHeld: deliveryGate.held,
+    deliveryHeld: finalHeld,
   });
 
-  if (!deliveryGate.sendBookReadyEmail) {
+  if (!finalSendBookReadyEmail) {
     log.warn('Book-ready email withheld — order held for human QA', {
       orderId: order.id,
-      reason: deliveryGate.reason,
+      reason: finalReason,
     });
   } else {
     try {
