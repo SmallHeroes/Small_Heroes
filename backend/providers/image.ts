@@ -5194,6 +5194,46 @@ export async function generateAllPageImages(
           console.log(
             `[visual-contract] page ${page.pageNumber} cleared the gate on reroll ${gated.passedAttempt} (renders=${gated.renderCalls})`
           );
+          // G2: a reroll on an anchor-election page must STILL pass resemblance — the VCC correction
+          // must not silently lose child identity (the resemblance gate stays in force). Re-run it on the
+          // PROMOTED reroll; below the acceptable floor → drop the page (no-leak), never ship it.
+          if (shouldRunAnchorElection && baseReferenceImage) {
+            const rerollThreshold = resolveEffectiveThreshold(normalizedStyle.toLowerCase(), thresholdConfig);
+            const rerollScore = await scoreResemblanceAgainstReference({
+              referenceImageUrl: baseReferenceImage,
+              candidateImageUrl: image.url,
+              effectiveThreshold: rerollThreshold,
+              minAcceptableScore: thresholdConfig.minAcceptableScore,
+            });
+            await emitResemblanceAudit({
+              orderId: config.orderId,
+              pageNumber: page.pageNumber,
+              selected: true,
+              model: image.provider,
+              styleId: normalizedStyle,
+              resemblanceScore: rerollScore.resemblanceScore,
+              threshold: rerollThreshold,
+              minAcceptableScore: thresholdConfig.minAcceptableScore,
+              softFailBand: thresholdConfig.softFailBand,
+              extremeMargin: thresholdConfig.extremeMargin,
+              faceDetectConfidence: rerollScore.faceDetectConfidence,
+              faceAreaRatio: rerollScore.faceAreaRatio,
+              sanityDisagreement:
+                rerollScore.sanityFlags.embeddingMismatch ||
+                rerollScore.sanityFlags.colorMismatch ||
+                rerollScore.sanityFlags.geometryWeird,
+              source: 'page_monitor',
+            });
+            const rerollResScore = rerollScore.resemblanceScore ?? 0;
+            if (rerollResScore < thresholdConfig.minAcceptableScore) {
+              console.error(
+                `[visual-contract] page ${page.pageNumber} reroll cleared the contract gate but resemblance ` +
+                  `${rerollResScore.toFixed(3)} < min ${thresholdConfig.minAcceptableScore} — dropping (no-leak)`
+              );
+              failedPages.push(page.pageNumber);
+              continue;
+            }
+          }
         }
       } catch (vccErr) {
         if (isVisualContractQaBlockError(vccErr)) {
