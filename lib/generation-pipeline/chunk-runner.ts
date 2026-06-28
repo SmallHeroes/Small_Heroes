@@ -913,8 +913,21 @@ async function runPageImagesChunk(
   });
   if (!book) throw new Error('Book missing');
 
+  // Proof-only (production stays terminal-on-block): when VCC_PROOF_CONTINUE_ON_BLOCK is set, a VCC-blocked
+  // page is recorded but does NOT fail the job — exclude already-exhausted pages here so the run CONTINUES
+  // to the remaining filtered pages (a full 5-page proof instead of stopping at the first block).
+  const proofContinueOnBlock = process.env.VCC_PROOF_CONTINUE_ON_BLOCK === 'true';
+  const proofPriorAttempts: Record<string, number> = proofContinueOnBlock
+    ? (((await prisma.generationJob.findUnique({ where: { orderId: order.id } }))?.pageAttempts as
+        | Record<string, number>
+        | null) ?? {})
+    : {};
   const existingPageNumbers = collectExistingImagePageNumbers(book.pages);
-  const pendingPagesAll = book.pages.filter((p) => !shouldSkipPaidPageImageRegen(p.imageAsset));
+  const pendingPagesAll = book.pages.filter(
+    (p) =>
+      !shouldSkipPaidPageImageRegen(p.imageAsset) &&
+      !(proofContinueOnBlock && (proofPriorAttempts[String(p.pageNumber)] ?? 0) >= MAX_PAGE_GENERATION_ATTEMPTS)
+  );
   const imagePageFilter = parseImagePageFilter();
   const pendingPages = imagePageFilter
     ? pendingPagesAll.filter((p) => imagePageFilter.has(p.pageNumber))
@@ -1407,6 +1420,15 @@ async function runPageImagesChunk(
       ? MAX_PAGE_GENERATION_ATTEMPTS
       : (pageAttempts[key] ?? 0) + 1;
     if (pageAttempts[key] >= MAX_PAGE_GENERATION_ATTEMPTS) {
+      if (proofContinueOnBlock) {
+        // PROOF-ONLY: record the exhausted page but do NOT fail the job — the next chunk renders the rest
+        // (the page is excluded from pending above). Production never sets this flag → terminal-on-block.
+        log.info('VCC proof-continue: page exhausted, recorded but job NOT failed — continuing', {
+          orderId: order.id,
+          page: pn,
+        });
+        continue;
+      }
       await prisma.generationJob.update({
         where: { orderId: order.id },
         data: {
