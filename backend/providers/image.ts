@@ -3056,6 +3056,48 @@ async function patchPageRefManifestQa(input: {
   }
 }
 
+/**
+ * VCC proof sink (env VISUAL_CONTRACT_PROOF_DIR): persist the contract gate's decision for one page —
+ * prompt block + every attempt's verdict + PASS/BLOCK + render count — so a T16 proof run is fully
+ * auditable on disk (alongside the page ref manifest). Best-effort, debug-only; never fails a render.
+ */
+async function writeVisualContractProof(input: {
+  orderId?: string;
+  pageNumber: number;
+  proof: Record<string, unknown>;
+}): Promise<void> {
+  const proofDir = process.env.VISUAL_CONTRACT_PROOF_DIR?.trim();
+  if (!proofDir) return;
+  const { isServerlessRuntime, persistJson } = await import(
+    '../../lib/generation-pipeline/runtime-artifact-store'
+  );
+  if (isServerlessRuntime()) {
+    if (!input.orderId) return;
+    try {
+      await persistJson(
+        input.orderId,
+        'debug/visual-contract-proof',
+        `page-${input.pageNumber}.json`,
+        input.proof
+      );
+    } catch {
+      /* debug-only — never fail a render over a proof write */
+    }
+    return;
+  }
+  try {
+    const fs = await import('fs');
+    const pathMod = await import('path');
+    fs.mkdirSync(proofDir, { recursive: true });
+    fs.writeFileSync(
+      pathMod.join(proofDir, `page-${input.pageNumber}.json`),
+      JSON.stringify(input.proof, null, 2)
+    );
+  } catch {
+    /* ignore proof write errors */
+  }
+}
+
 async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<GeneratedImage> {
   // Gap 2: hard fail if this Style 01 branch runs for a non-Style-01 order.
   assertPipelineStyleBranchMatchesOrder({
@@ -5229,6 +5271,20 @@ export async function generateAllPageImages(
                 return true;
               }
             : null,
+      });
+      // Proof sink (T16): persist prompt + per-attempt verdicts + PASS/BLOCK for this page (env-gated).
+      await writeVisualContractProof({
+        orderId: config.orderId,
+        pageNumber: page.pageNumber,
+        proof: {
+          pageNumber: page.pageNumber,
+          promptBlock: vccPageBlock,
+          passed: gateOutcome.kept,
+          passedAttempt: gateOutcome.kept ? gateOutcome.passedAttempt : null,
+          renderCalls: gateOutcome.renderCalls,
+          reason: gateOutcome.kept ? null : gateOutcome.reason,
+          verdicts: gateOutcome.verdicts,
+        },
       });
       if (!gateOutcome.kept) {
         // BLOCK or lost-identity reroll → drop the page; promote NOTHING (no-leak).

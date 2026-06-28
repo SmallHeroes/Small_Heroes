@@ -28,16 +28,20 @@ import {
 export class VisualContractQaBlockError extends Error {
   readonly code = 'VISUAL_CONTRACT_QA_BLOCK' as const;
   readonly isVisualContractQaBlock = true as const;
+  /** The full per-attempt verdict trace (for the proof sink), not just the last one. */
+  readonly verdicts: ContractQaVerdict[];
   constructor(
     readonly pageNumber: number,
     readonly attempts: number,
-    readonly lastVerdict: ContractQaVerdict
+    readonly lastVerdict: ContractQaVerdict,
+    verdicts?: ContractQaVerdict[]
   ) {
     super(
       `VISUAL_CONTRACT_QA_BLOCK: page ${pageNumber} failed the visual contract gate after ${attempts} attempt(s)` +
         `${lastVerdict.failures.length ? ` — ${lastVerdict.failures.map((f) => f.check).join(', ')}` : ''}`
     );
     this.name = 'VisualContractQaBlockError';
+    this.verdicts = verdicts ?? [lastVerdict];
   }
 }
 
@@ -113,7 +117,8 @@ export async function runPageContractGate<TImage>(
   throw new VisualContractQaBlockError(
     page.pageNumber,
     totalAttempts,
-    verdicts[verdicts.length - 1] ?? { pass: false, failures: [] }
+    verdicts[verdicts.length - 1] ?? { pass: false, failures: [] },
+    verdicts
   );
 }
 
@@ -128,8 +133,8 @@ export type ResemblanceRecheck<TImage> = (
 ) => Promise<boolean>;
 
 export type PageGateOutcome<TImage> =
-  | { kept: true; image: TImage; renderCalls: number; passedAttempt: number }
-  | { kept: false; reason: string };
+  | { kept: true; image: TImage; renderCalls: number; passedAttempt: number; verdicts: ContractQaVerdict[] }
+  | { kept: false; reason: string; renderCalls: number; verdicts: ContractQaVerdict[] };
 
 /**
  * The full live decision for one page: run the contract gate (bounded feedback reroll), and — when a
@@ -146,14 +151,27 @@ export async function gatePageWithResemblance<TImage>(
   try {
     result = await runPageContractGate(input);
   } catch (e) {
-    if (isVisualContractQaBlockError(e)) return { kept: false, reason: e.message };
+    if (isVisualContractQaBlockError(e)) {
+      return { kept: false, reason: e.message, renderCalls: e.attempts, verdicts: e.verdicts };
+    }
     throw e;
   }
   if (input.resemblanceRecheck && result.passedAttempt > 0) {
     const ok = await input.resemblanceRecheck(result.image, result.url, result.passedAttempt);
     if (!ok) {
-      return { kept: false, reason: `reroll (attempt ${result.passedAttempt}) failed the resemblance re-check` };
+      return {
+        kept: false,
+        reason: `reroll (attempt ${result.passedAttempt}) failed the resemblance re-check`,
+        renderCalls: result.renderCalls,
+        verdicts: result.verdicts,
+      };
     }
   }
-  return { kept: true, image: result.image, renderCalls: result.renderCalls, passedAttempt: result.passedAttempt };
+  return {
+    kept: true,
+    image: result.image,
+    renderCalls: result.renderCalls,
+    passedAttempt: result.passedAttempt,
+    verdicts: result.verdicts,
+  };
 }
