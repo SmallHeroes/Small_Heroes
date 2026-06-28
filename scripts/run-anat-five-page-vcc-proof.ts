@@ -247,14 +247,26 @@ async function main() {
   const incomplete = PAGES.filter(
     (p) => !(results[String(p)] as { artifactsComplete?: boolean } | undefined)?.artifactsComplete
   );
+  // Identity not_measurable → page KEPT but routed to HUMAN review (eyeball these).
+  const humanReviewPages = PAGES.filter(
+    (p) =>
+      (results[String(p)] as { gateProof?: { identityStatus?: string } } | undefined)?.gateProof
+        ?.identityStatus === 'not_measurable'
+  );
   report.summary = {
     total: PAGES.length,
     artifactsComplete: PAGES.length - incomplete.length,
     incompletePages: incomplete,
+    humanReviewPages,
   };
   if (incomplete.length) {
     console.warn(
       `[vcc-proof] ${incomplete.length} page(s) INCOMPLETE — missing a fresh gate-proof or manifest: ${incomplete.join(',')}`
+    );
+  }
+  if (humanReviewPages.length) {
+    console.warn(
+      `[vcc-proof] ${humanReviewPages.length} page(s) need HUMAN REVIEW (identity not_measurable, kept): ${humanReviewPages.join(',')}`
     );
   }
 

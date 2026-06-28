@@ -62,8 +62,8 @@ import {
 } from '../../lib/visual-contract-compiler/contractRenderGuards';
 import type { BookVisualContract } from '../../lib/visual-contract-compiler/types';
 import {
+  evaluateRerollIdentity,
   gatePageWithResemblance,
-  rerollKeepsResemblance,
 } from '../../lib/generation-pipeline/visual-contract-gate';
 import { callVisualContractVision } from '../../lib/generation-pipeline/visual-contract-vision';
 import type { Companion } from '../../lib/companions';
@@ -5235,11 +5235,15 @@ export async function generateAllPageImages(
           );
           return { image: rerolled, url: rerolled.url };
         },
-        // P1-1: a PROMOTED reroll must still meet the EFFECTIVE resemblance threshold (~0.70), NOT just
-        // the 0.55 floor — below it → DROP (no-leak). Applies to every child page, not only election.
+        // Identity recheck on a PROMOTED reroll → 3-STATE (pass | fail | not_measurable). The palette-
+        // histogram cannot gauge identity on a multi-face / busy scene → not_measurable (human review),
+        // NEVER a silent keep and NEVER a hard drop; only a CLEAR mismatch on a measurable, prominent
+        // single face → fail (drop, no-leak). Real face identity replaces this in Fix B.
         resemblanceRecheck: recheckChildRef
           ? async (rerollImage, rerollUrl, passedAttempt) => {
-              if (!recheckChildRef) return true; // narrows for TS; unreachable under the ternary guard
+              if (!recheckChildRef) {
+                return { status: 'not_measurable' as const, score: null, reason: 'no child reference available' };
+              }
               const rerollThreshold = resolveEffectiveThreshold(
                 normalizedStyle.toLowerCase(),
                 thresholdConfig
@@ -5269,16 +5273,16 @@ export async function generateAllPageImages(
                   rerollScore.sanityFlags.geometryWeird,
                 source: 'page_monitor',
               });
-              // Real enforcement: meet the effective threshold or drop (the 0.55 floor is NOT enough).
-              if (!rerollKeepsResemblance(rerollScore.resemblanceScore, rerollThreshold)) {
-                console.error(
-                  `[visual-contract] page ${page.pageNumber} reroll (attempt ${passedAttempt}) cleared the contract ` +
-                    `gate but resemblance ${(rerollScore.resemblanceScore ?? 0).toFixed(3)} < threshold ` +
-                    `${rerollThreshold.toFixed(3)} — dropping (no-leak)`
-                );
-                return false;
-              }
-              return true;
+              const verdict = evaluateRerollIdentity({
+                score: rerollScore.resemblanceScore,
+                geometryWeird: rerollScore.sanityFlags.geometryWeird,
+                faceDetectConfidence: rerollScore.faceDetectConfidence,
+                clearMismatch: rerollScore.sanityFlags.embeddingMismatch,
+              });
+              console.log(
+                `[visual-contract] page ${page.pageNumber} reroll (attempt ${passedAttempt}) identity=${verdict.status} — ${verdict.reason}`
+              );
+              return verdict;
             }
           : null,
       });
@@ -5293,11 +5297,12 @@ export async function generateAllPageImages(
           passedAttempt: gateOutcome.kept ? gateOutcome.passedAttempt : null,
           renderCalls: gateOutcome.renderCalls,
           reason: gateOutcome.kept ? null : gateOutcome.reason,
+          identityStatus: gateOutcome.identityStatus ?? null,
           verdicts: gateOutcome.verdicts,
         },
       });
       if (!gateOutcome.kept) {
-        // BLOCK or lost-identity reroll → drop the page; promote NOTHING (no-leak).
+        // Contract BLOCK or a real identity FAIL → drop the page; promote NOTHING (no-leak).
         console.error(
           `[visual-contract] page ${page.pageNumber} dropped by the contract gate (no-leak): ${gateOutcome.reason}`
         );
@@ -5305,6 +5310,15 @@ export async function generateAllPageImages(
         continue;
       }
       image = gateOutcome.image;
+      if (gateOutcome.identityStatus === 'not_measurable') {
+        // Identity could not be reliably measured (multi-face / busy scene / low-confidence face). KEEP the
+        // image but flag it for HUMAN review (same needsHumanReview path the internal QA uses) — never
+        // silently ship it, never false-drop it.
+        if (image.style01Meta) image.style01Meta.needsHumanReview = true;
+        console.warn(
+          `[visual-contract] page ${page.pageNumber} reroll identity NOT MEASURABLE — kept + flagged for human review`
+        );
+      }
       if (gateOutcome.passedAttempt > 0) {
         console.log(
           `[visual-contract] page ${page.pageNumber} cleared the gate on reroll ${gateOutcome.passedAttempt} (renders=${gateOutcome.renderCalls})`

@@ -123,36 +123,98 @@ export async function runPageContractGate<TImage>(
 }
 
 /**
- * Re-score resemblance on a PROMOTED reroll (election pages only): return false to DROP the page
- * because the contract correction lost child identity. Not called on attempt 0 or non-election pages.
+ * 3-STATE identity verdict for a PROMOTED reroll. The reroll re-score is a WEAK whole-image palette-
+ * histogram (NOT real face identity), so it must NEVER silently keep and NEVER hard-drop on an
+ * unmeasurable face:
+ *   - not_measurable → multi-face / tiny / low-confidence face → the score can't gauge identity → the
+ *                      caller routes to HUMAN REVIEW (the page is kept, flagged, recorded — not silently kept).
+ *   - fail           → a RELIABLY measured face (single, prominent, confident) with a CLEAR palette
+ *                      mismatch → drop (no-leak); the only case a weak histogram plausibly = different child.
+ *   - pass           → reliably measured face with no clear mismatch.
+ * Real face identity replaces this weak signal in Fix B; until then `fail` is intentionally rare.
+ */
+export type IdentityStatus = 'pass' | 'fail' | 'not_measurable';
+
+export interface RerollIdentityVerdict {
+  status: IdentityStatus;
+  /** The raw palette-histogram score (diagnostic only), or null when unscored. */
+  score: number | null;
+  reason: string;
+}
+
+/** Face must be at least this confidently detected for the histogram to be trusted enough to HARD-FAIL. */
+export const IDENTITY_MIN_FACE_DETECT_CONFIDENCE = 0.6;
+
+/**
+ * Classify a promoted reroll's identity from the (weak) palette-histogram signals. NEVER hard-blocks on
+ * an unmeasurable face — that is `not_measurable` (→ human review), not `fail`. Hard `fail` requires a
+ * reliably measured single, prominent face AND a CLEAR mismatch (drastic palette divergence). The old
+ * `score < 0.70` whole-image hard-block is removed — it false-dropped busy/multi-face scenes.
+ */
+export function evaluateRerollIdentity(input: {
+  score: number | null | undefined;
+  /** geometryWeird = faceCount !== 1 || faceAreaRatio < 0.05 (from scoreResemblanceAgainstReference). */
+  geometryWeird?: boolean | null;
+  faceDetectConfidence?: number | null;
+  /** Drastic palette divergence (clear mismatch) — the ONLY basis for a histogram hard-fail. */
+  clearMismatch?: boolean | null;
+}): RerollIdentityVerdict {
+  const score = typeof input.score === 'number' ? input.score : null;
+  const reliablyMeasured =
+    !input.geometryWeird &&
+    (input.faceDetectConfidence ?? 0) >= IDENTITY_MIN_FACE_DETECT_CONFIDENCE &&
+    score !== null;
+  if (!reliablyMeasured) {
+    return {
+      status: 'not_measurable',
+      score,
+      reason:
+        'face not reliably measurable (multi-face / tiny / low-confidence) — palette-histogram cannot gauge identity',
+    };
+  }
+  if (input.clearMismatch) {
+    return {
+      status: 'fail',
+      score,
+      reason: `clear palette mismatch (score ${score.toFixed(3)}) on a measurable, prominent single face`,
+    };
+  }
+  return { status: 'pass', score, reason: `measurable face, no clear palette mismatch (score ${score.toFixed(3)})` };
+}
+
+/**
+ * Re-score identity on a PROMOTED reroll: returns the 3-STATE verdict. `fail` DROPS the page (no-leak);
+ * `not_measurable` keeps it but flags human review; `pass` keeps it. Not called on attempt 0.
  */
 export type ResemblanceRecheck<TImage> = (
   image: TImage,
   url: string,
   passedAttempt: number
-) => Promise<boolean>;
+) => Promise<RerollIdentityVerdict>;
 
 export type PageGateOutcome<TImage> =
-  | { kept: true; image: TImage; renderCalls: number; passedAttempt: number; verdicts: ContractQaVerdict[] }
-  | { kept: false; reason: string; renderCalls: number; verdicts: ContractQaVerdict[] };
-
-/**
- * A promoted reroll preserves child identity iff its resemblance meets the EFFECTIVE threshold (~0.70) —
- * NOT merely the lower "minimum acceptable" floor (~0.55). A null/absent score fails closed (drop).
- * Used by the live resemblanceRecheck so a contract fix can never ship a low-identity reroll.
- */
-export function rerollKeepsResemblance(
-  score: number | null | undefined,
-  effectiveThreshold: number
-): boolean {
-  return typeof score === 'number' && score >= effectiveThreshold;
-}
+  | {
+      kept: true;
+      image: TImage;
+      renderCalls: number;
+      passedAttempt: number;
+      verdicts: ContractQaVerdict[];
+      /** undefined when no reroll recheck ran (attempt-0 pass); else the reroll identity verdict status. */
+      identityStatus?: IdentityStatus;
+    }
+  | {
+      kept: false;
+      reason: string;
+      renderCalls: number;
+      verdicts: ContractQaVerdict[];
+      identityStatus?: IdentityStatus;
+    };
 
 /**
  * The full live decision for one page: run the contract gate (bounded feedback reroll), and — when a
- * REROLL is promoted on an election page — re-run resemblance so a contract fix can't silently lose
- * child identity. Returns kept:false on a contract block OR a failed resemblance re-check; the caller
- * drops the page (failedPages) and promotes NOTHING (no-leak). This is the unit the live loop runs.
+ * REROLL is promoted — re-check identity (3-state). A real CONTRACT block OR an identity `fail` returns
+ * kept:false (drop, no-leak). `not_measurable` and `pass` keep the image, carrying identityStatus so the
+ * caller routes `not_measurable` to human review. This is the unit the live loop runs.
  */
 export async function gatePageWithResemblance<TImage>(
   input: RunPageContractGateInput<TImage> & {
@@ -169,15 +231,24 @@ export async function gatePageWithResemblance<TImage>(
     throw e;
   }
   if (input.resemblanceRecheck && result.passedAttempt > 0) {
-    const ok = await input.resemblanceRecheck(result.image, result.url, result.passedAttempt);
-    if (!ok) {
+    const verdict = await input.resemblanceRecheck(result.image, result.url, result.passedAttempt);
+    if (verdict.status === 'fail') {
       return {
         kept: false,
-        reason: `reroll (attempt ${result.passedAttempt}) failed the resemblance re-check`,
+        reason: `reroll (attempt ${result.passedAttempt}) identity FAIL — ${verdict.reason}`,
         renderCalls: result.renderCalls,
         verdicts: result.verdicts,
+        identityStatus: 'fail',
       };
     }
+    return {
+      kept: true,
+      image: result.image,
+      renderCalls: result.renderCalls,
+      passedAttempt: result.passedAttempt,
+      verdicts: result.verdicts,
+      identityStatus: verdict.status,
+    };
   }
   return {
     kept: true,
