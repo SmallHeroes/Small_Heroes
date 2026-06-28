@@ -39,7 +39,16 @@ The `0.16–0.41` resemblance numbers are the palette-histogram, **NOT an identi
 | phase | calls | cumulative | note |
 |---|---|---|---|
 | hard-pair front-load (c01–c08 photos + anchors) | 16 | **16 / 72** | DONE — verdict above |
-| DEV half (c09–c12 photo+anchor, c01+c09 expression anchors, 16 DEV pages) | ≤26 | 42 / 72 (planned) | pending Guy spend approval |
-| HOLDOUT half (c13–c16 photo+anchor, c05+c13 expression anchors, 16 holdout pages) | ≤26 | 68 / 72 (planned) | locked until DEV frozen + separate approval |
+| DEV half (c09–c12 photo+anchor, c01+c09 expression anchors, 16 DEV pages) | 26 | **42 / 72** | DONE — 16 pages + 6 anchors, no errors; c01/c09 page-2 used the expression anchor; spot-checked c01 (canonical + expression) + c09 (fresh) hold identity |
+| HOLDOUT half (c13–c16 photo+anchor, c05+c13 expression anchors, 16 holdout pages) | ≤26 | 68 / 72 (planned) | LOCKED until DEV blind-GT + baseline + crop frozen + separate approval |
+
+## DEV render DONE (2026-06-28) — next: blind GT → baseline → crop (DEV only)
+
+DEV assets in `outputs/diverse-calibration/dev/assets/` (16 pages + anchors) + `render-ledger.json`
+(per-page model/quality/prompt/refs+order). Next phase (no holdout):
+1. Per-page BLIND ground-truth (eyeball 16 pages IDs-hidden; reject/replace drift from the 4-call reserve).
+2. Sentinel regression (3 real children).
+3. Whole-scene baseline on DEV (vision scoring → the 4 report buckets).
+4. Build + decide crop on DEV; freeze crop/thresholds/model/prompt. THEN unlock holdout (separate approval).
 
 Hard-pair anchors (c01–c08) are REUSED (front-load) — never re-rendered.
