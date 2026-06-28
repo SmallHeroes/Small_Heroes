@@ -23,6 +23,13 @@ enum OrderStatus {
   needs_human_qa // book rendered but held from customer delivery pending human QA (e.g. low-confidence anchor)
 }
 
+// Per-page / per-cover human review state for the launch manual-review release gate (#43).
+enum ReviewStatus {
+  pending
+  approved
+  rejected
+}
+
 enum GenerationStatus {
   pending
   running
@@ -159,6 +166,11 @@ model Order {
   // Delivery hold: when status == needs_human_qa, why it was held (e.g.
   // "anchor_low_confidence:soft_band"). Cleared/ignored once QA releases to ready.
   deliveryHoldReason String?
+
+  // #43 manual-review release gate: durable, launch-wide hold set at RENDER time (independent of the
+  // identity-vision flag). When true the order is held (needs_human_qa) and the release endpoint +
+  // distribution surfaces fail CLOSED until the cover and every CURRENT page are human-approved.
+  manualReviewRequired Boolean @default(false)
 
   // Error tracking
   lastError          String?
@@ -308,6 +320,15 @@ model GeneratedBook {
   readUrl     String?   // public read link
   expiresAt   DateTime? // if links expire
 
+  // #43 manual-review gate — COVER review state, bound to the rendered cover VERSION (coverImageVersion
+  // bumps on every cover write; an approval is valid only while approvedCoverImageVersion == coverImageVersion).
+  coverReviewStatus         ReviewStatus @default(pending)
+  coverImageVersion         Int          @default(0)
+  approvedCoverImageVersion Int?
+  coverReviewedBy           String?
+  coverReviewedAt           DateTime?
+  coverReviewDecisionReason String?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -331,6 +352,16 @@ model BookPage {
 
   /// Per-page narration MP3 (ElevenLabs). Legacy books use AudioAsset on GeneratedBook only.
   audioUrl    String?
+
+  // #43 manual-review gate — PER-PAGE review state, bound to the rendered image VERSION (imageVersion bumps
+  // on every page-image write; an approval is valid only while approvedImageVersion == imageVersion, so any
+  // re-render invalidates it). reviewedBy/At/reason are the audit trail.
+  reviewStatus         ReviewStatus @default(pending)
+  imageVersion         Int          @default(0)
+  approvedImageVersion Int?
+  reviewedBy           String?
+  reviewedAt           DateTime?
+  reviewDecisionReason String?
 
   createdAt   DateTime @default(now())
 }

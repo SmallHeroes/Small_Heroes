@@ -28,6 +28,7 @@ import { generateAllPageImages, generateBookCover } from '@/backend/providers/im
 import { ensureBookVisualContract, getCachedVisualContract } from './visual-contract-stage';
 import { isVisualContractEnforcementEnabled } from '@/lib/visual-contract-compiler';
 import { isChildIdentityVisionEnabled } from './child-identity-vision';
+import { isLaunchManualReviewEnabled, markPageImageRewritten, markCoverRewritten } from '@/lib/manual-review-gate';
 import { generatePageAudio } from '@/backend/providers/audio';
 import {
   assertCacheHasNoLocalArtifactPaths,
@@ -891,6 +892,9 @@ async function runCoverStage(
     where: { id: order.id },
     data: { coverImageUrl: coverImage.url },
   });
+  // #43: cover write bumps the cover version + resets cover review to pending (mirrors page invalidation).
+  // The valid-cover SKIP earlier (return true) never reaches here, so an unchanged cover keeps its approval.
+  await markCoverRewritten(prisma, book.id);
   return true;
 }
 
@@ -1376,6 +1380,11 @@ async function runPageImagesChunk(
       });
     }
 
+    // #43: any page-image write (initial render OR re-render) bumps the version + resets review to pending,
+    // so a human approval can never outlive the exact asset that was reviewed. The idempotency SKIP above
+    // (continue) never reaches here, so an unchanged asset keeps its approval.
+    await markPageImageRewritten(prisma, dbPage.id);
+
     const textZone = imageOutcome.textZones.get(dbPage.pageNumber) ?? 'bottom_clear';
     try {
       const { analyzeTextZoneLuminance } = await import('@/backend/providers/image-analysis');
@@ -1592,21 +1601,26 @@ async function runPackageStage(order: Order, cache: PipelineCache): Promise<void
   // releases it. This is the consumer of childAnchorLowConfidence (set in Stage 0); without
   // it a held anchor would ship silently. A clear anchor delivers normally.
   const deliveryGate = resolveAnchorDeliveryGate(cache.childAnchorLowConfidence);
-  // P1-b: while the EXPERIMENTAL identity-vision gate is ON, the whole order is QA-ONLY — force the held
-  // state (needs_human_qa + no book-ready email), reusing the anchor delivery-hold consumer, so a book
-  // rendered with the experimental identity gate can NEVER reach a customer. No migration. Production never
-  // sets the flag → normal anchor-gated delivery. (Per-page hold is the production follow-up.)
-  const identityVisionHold = isChildIdentityVisionEnabled();
-  const finalHeld = deliveryGate.held || identityVisionHold;
-  const finalReason = identityVisionHold ? (deliveryGate.reason ?? 'identity_vision_qa_only') : deliveryGate.reason;
-  const finalSendBookReadyEmail = deliveryGate.sendBookReadyEmail && !identityVisionHold;
+  // #43: DURABLE, launch-wide manual-review hold. Set at RENDER time and PERSISTED to Order.manualReviewRequired,
+  // so the release endpoint + distribution surfaces decide from this stored fact — never a live env flag that
+  // could flip between render and packaging (the old P1-b gap). Launch-wide (every order) OR the experimental
+  // identity-vision QA path; both keep the book held (needs_human_qa, no book-ready email) until the cover and
+  // every CURRENT page are human-approved. Default off → normal anchor-gated delivery.
+  const launchManualReview = isLaunchManualReviewEnabled();
+  const manualReviewRequired = launchManualReview || isChildIdentityVisionEnabled();
+  const finalHeld = deliveryGate.held || manualReviewRequired;
+  const finalReason = manualReviewRequired
+    ? (deliveryGate.reason ?? (launchManualReview ? 'manual_review_required' : 'identity_vision_qa_only'))
+    : deliveryGate.reason;
+  const finalSendBookReadyEmail = deliveryGate.sendBookReadyEmail && !manualReviewRequired;
 
   await prisma.order.update({
     where: { id: order.id },
     data: {
-      status: identityVisionHold ? 'needs_human_qa' : deliveryGate.orderStatus,
+      status: finalHeld ? 'needs_human_qa' : deliveryGate.orderStatus,
       packageStatus: 'done',
       deliveryHoldReason: finalReason,
+      manualReviewRequired,
     },
   });
   await prisma.generationJob.update({

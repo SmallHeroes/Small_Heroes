@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { generateBookVideo, storeVideo, type VideoPageInput } from '@/backend/providers/video';
 import { createLogger } from '@/lib/logger';
+import { evaluateReviewApproval } from '@/lib/manual-review-gate';
 
 export const runtime = 'nodejs';
 
@@ -41,18 +42,25 @@ export async function POST(
         paymeTransactionId: true,
         stripeSessionId: true,
         status: true,
+        manualReviewRequired: true, // #43
         book: {
           select: {
             id: true,
             title: true,
             coverImageUrl: true,
             videoUrl: true,
+            coverReviewStatus: true, // #43
+            coverImageVersion: true,
+            approvedCoverImageVersion: true,
             pages: {
               orderBy: { pageNumber: 'asc' },
               select: {
                 pageNumber: true,
                 text: true,
                 audioUrl: true,
+                reviewStatus: true, // #43
+                imageVersion: true,
+                approvedImageVersion: true,
                 imageAsset: {
                   select: {
                     url: true,
@@ -73,6 +81,27 @@ export async function POST(
     const expectedAccessKey = order.paymentId || order.paymeTransactionId || order.stripeSessionId;
     if (!expectedAccessKey || accessKey !== expectedAccessKey) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
+    // #43: block video (even a cached one) while manual review is incomplete. No-op when manualReviewRequired
+    // is false (every non-launch order).
+    const reviewGate = evaluateReviewApproval({
+      manualReviewRequired: order.manualReviewRequired,
+      cover: {
+        hasCover: !!order.book.coverImageUrl,
+        coverReviewStatus: order.book.coverReviewStatus,
+        coverImageVersion: order.book.coverImageVersion,
+        approvedCoverImageVersion: order.book.approvedCoverImageVersion,
+      },
+      pages: order.book.pages.map((p) => ({
+        pageNumber: p.pageNumber,
+        reviewStatus: p.reviewStatus,
+        imageVersion: p.imageVersion,
+        approvedImageVersion: p.approvedImageVersion,
+      })),
+    });
+    if (!reviewGate.fullyApproved) {
+      return NextResponse.json({ error: 'Book pending manual review', blockers: reviewGate.blockers }, { status: 409 });
     }
 
     if (order.book.videoUrl?.trim() && !forceRegenerate) {

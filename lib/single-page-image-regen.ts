@@ -36,6 +36,7 @@ import { createLogger } from '@/lib/logger';
 import { companionAnchorKey, getWizardMeta } from '@/lib/orderMeta';
 import { buildLetterContextFromOrder, buildPatchContextFromOrder } from '@/backend/providers/personalization';
 import { prisma } from '@/lib/prisma';
+import { markPageImageRewritten } from '@/lib/manual-review-gate';
 import { evaluatePhotoGate, resolveResemblanceThresholdConfig } from '@/lib/resemblance-core';
 
 const regenLogger = createLogger({ subsystem: 'regen-page', route: '/api/debug/regen-page' });
@@ -858,6 +859,9 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
       },
     });
   }
+
+  // #43: a single-page re-render invalidates any prior human approval for this page (version bump → pending).
+  await markPageImageRewritten(prisma, dbPage.id);
 
   try {
     const imageUrlForAnalysis = presentationUrl || image.url;

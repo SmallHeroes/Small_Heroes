@@ -9,6 +9,7 @@ import { deriveLayout, countHebrewWords } from '../../../../backend/providers/im
 import { prisma } from '@/lib/prisma';
 import { createLogger } from '@/lib/logger';
 import { resolvePowerCardRenderInputForOrder } from '@/lib/power-cards/resolve-from-order';
+import { evaluateReviewApproval } from '@/lib/manual-review-gate';
 
 const logger = createLogger({ subsystem: 'orders', route: '/api/orders/[orderId]' });
 const DEV_FIXTURE_ORDER_ID = 'dev-completed-book';
@@ -118,6 +119,7 @@ export async function GET(
         imageStatus: true,
         audioStatus: true,
         packageStatus: true,
+        manualReviewRequired: true, // #43: gate delivery on full approval when set
         paymentId: true,
         paymeTransactionId: true,
         stripeSessionId: true,
@@ -131,6 +133,10 @@ export async function GET(
             pdfUrl: true,
             videoUrl: true,
             readUrl: true,
+            // #43 cover review state (bound to coverImageVersion)
+            coverReviewStatus: true,
+            coverImageVersion: true,
+            approvedCoverImageVersion: true,
             pages: {
               orderBy: { pageNumber: 'asc' },
               select: {
@@ -142,6 +148,10 @@ export async function GET(
                 textZone: true,
                 lighting: true,
                 textColorScheme: true,
+                // #43 per-page review state (bound to imageVersion)
+                reviewStatus: true,
+                imageVersion: true,
+                approvedImageVersion: true,
                 imageAsset: {
                   select: {
                     url: true,
@@ -168,8 +178,29 @@ export async function GET(
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
+    // #43 defense-in-depth: a manual-review order is deliverable ONLY once the cover and every CURRENT page
+    // are approved at their version. manualReviewRequired defaults false → no-op for all non-launch orders.
+    // Behind the existing status gate (held orders are already needs_human_qa); this also catches a
+    // post-release re-render that flips a page back to pending while status is still 'ready'.
+    const reviewGate = evaluateReviewApproval({
+      manualReviewRequired: order.manualReviewRequired,
+      cover: {
+        hasCover: !!order.book?.coverImageUrl,
+        coverReviewStatus: order.book?.coverReviewStatus ?? 'pending',
+        coverImageVersion: order.book?.coverImageVersion ?? 0,
+        approvedCoverImageVersion: order.book?.approvedCoverImageVersion ?? null,
+      },
+      pages: (order.book?.pages ?? []).map((p) => ({
+        pageNumber: p.pageNumber,
+        reviewStatus: p.reviewStatus,
+        imageVersion: p.imageVersion,
+        approvedImageVersion: p.approvedImageVersion,
+      })),
+    });
+    const deliverable = ['ready', 'partial'].includes(order.status) && reviewGate.fullyApproved;
+
     const powerCard =
-      ['ready', 'partial'].includes(order.status)
+      deliverable
         ? await resolvePowerCardRenderInputForOrder({
             id: order.id,
             childName: order.childName,
@@ -197,8 +228,8 @@ export async function GET(
 
       powerCard,
 
-      // Book data if ready
-      book: ['ready', 'partial'].includes(order.status) ? (() => {
+      // Book data if ready AND (when manual review is required) fully approved.
+      book: deliverable ? (() => {
         const pageRows = order.book?.pages ?? [];
         const templateInputs = pageRows.map((p) => ({
           pageNumber: p.pageNumber,

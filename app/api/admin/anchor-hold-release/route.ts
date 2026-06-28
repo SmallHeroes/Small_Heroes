@@ -22,6 +22,7 @@ import { prisma } from '@/lib/prisma';
 import { sendBookReadyEmail } from '@/backend/lib/email';
 import { ROUTES } from '@/lib/routes';
 import { createLogger } from '@/lib/logger';
+import { evaluateReviewApproval } from '@/lib/manual-review-gate';
 
 const log = createLogger({ subsystem: 'anchor-hold', route: '/api/admin/anchor-hold-release' });
 
@@ -51,10 +52,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       book: {
         include: {
           audioAsset: true,
+          // #43: load EVERY page with its review state (the manual-review release gate must check them all);
+          // audioUrl is still used to choose the narration link for the book-ready email.
           pages: {
-            where: { audioUrl: { not: null } },
             orderBy: { pageNumber: 'asc' },
-            take: 1,
+            select: { pageNumber: true, audioUrl: true, reviewStatus: true, imageVersion: true, approvedImageVersion: true },
           },
         },
       },
@@ -76,6 +78,34 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
   if (!order.book) {
     return NextResponse.json({ error: 'No rendered book to release' }, { status: 409 });
+  }
+
+  // #43: fail CLOSED. A manual-review order may only be released once the cover AND every CURRENT page are
+  // human-approved at their current rendered version. Any pending / rejected / version-mismatch (a re-render
+  // since the approval) blocks the release with 409 — we never auto-deliver an unreviewed asset.
+  if (order.manualReviewRequired) {
+    const gate = evaluateReviewApproval({
+      manualReviewRequired: true,
+      cover: {
+        hasCover: !!order.book.coverImageUrl,
+        coverReviewStatus: order.book.coverReviewStatus,
+        coverImageVersion: order.book.coverImageVersion,
+        approvedCoverImageVersion: order.book.approvedCoverImageVersion,
+      },
+      pages: order.book.pages.map((p) => ({
+        pageNumber: p.pageNumber,
+        reviewStatus: p.reviewStatus,
+        imageVersion: p.imageVersion,
+        approvedImageVersion: p.approvedImageVersion,
+      })),
+    });
+    if (!gate.fullyApproved) {
+      log.warn('Release blocked — manual review incomplete', { orderId, blockers: gate.blockers });
+      return NextResponse.json(
+        { error: 'Manual review incomplete — cannot release', blockers: gate.blockers },
+        { status: 409 }
+      );
+    }
   }
 
   // Flip to deliverable FIRST so the book is customer-viewable, THEN send the withheld email.
@@ -100,7 +130,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       customerName: order.customerName ?? order.childName,
       childName: order.childName,
       readUrl,
-      audioUrl: order.book.pages[0]?.audioUrl ?? order.book.audioAsset?.url ?? undefined,
+      audioUrl: order.book.pages.find((p) => p.audioUrl)?.audioUrl ?? order.book.audioAsset?.url ?? undefined,
       pdfUrl: order.book.pdfUrl ?? undefined,
     });
     emailSent = true;
