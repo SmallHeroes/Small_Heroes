@@ -56,7 +56,10 @@ import {
   derivePageVisualContracts,
   type ResolvedPageContract,
 } from '../../lib/visual-contract-compiler/derivePageVisualContracts';
-import { isVisualContractEnforcementEnabled } from '../../lib/visual-contract-compiler/contractRenderGuards';
+import {
+  isVisualContractEnforcementEnabled,
+  requireValidContractForRender,
+} from '../../lib/visual-contract-compiler/contractRenderGuards';
 import type { BookVisualContract } from '../../lib/visual-contract-compiler/types';
 import {
   runPageContractGate,
@@ -4480,6 +4483,11 @@ export async function generateAllPageImages(
   };
 
   let newPagesGenerated = 0;
+
+  // Fail-CLOSED: when VISUAL_CONTRACT_ENFORCEMENT is ON, a VALID BookVisualContract must exist BEFORE
+  // any paid render — a missing/invalid contract throws here (MissingVisualContract / InvalidVisual-
+  // Contract), never silently skips the gate. No-op when enforcement is off → legacy path unchanged.
+  requireValidContractForRender(config.visualContract ?? null, 'production');
 
   // Visual Contract (flag-gated, non-prod): pre-derive the authoritative per-page block + page contract
   // once per book. Empty maps when enforcement is off or no contract → undefined block + gate skipped →
