@@ -18,7 +18,8 @@ export interface AssetInspection {
   error?: string;
 }
 
-const MAX_BYTES = 25 * 1024 * 1024; // 25 MB hard cap
+const MAX_BYTES = 25 * 1024 * 1024; // 25 MB hard cap (enforced WHILE streaming, not after)
+const MAX_PIXELS = 30 * 1024 * 1024; // ~30 MP decompression-bomb guard (book pages are ~1.5 MP)
 const TIMEOUT_MS = 15_000;
 const RASTER_FORMATS = new Set(['png', 'jpeg', 'jpg', 'webp', 'avif', 'gif', 'tiff']);
 
@@ -57,11 +58,39 @@ function mimeForFormat(format: string | null | undefined): string | null {
   return RASTER_FORMATS.has(format) ? `image/${f}` : null;
 }
 
+/** Read a fetch body stream, aborting as soon as it exceeds the byte cap (never buffer-all-then-check). */
+async function readCapped(res: Response, controller: AbortController, maxBytes: number): Promise<Buffer | 'too_large'> {
+  if (!res.body) return Buffer.from(await res.arrayBuffer()); // fallback for runtimes without a stream body
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      controller.abort();
+      try { await reader.cancel(); } catch { /* ignore */ }
+      return 'too_large';
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks.map((c) => Buffer.from(c)), total);
+}
+
 /**
- * Download + decode + hash a stored asset. Never throws — failures return ok:false with a reason. The
- * SHA is over the EXACT bytes fetched, so any re-render that changes the asset changes the hash.
+ * Download + FULLY DECODE + hash a stored asset. Never throws — failures return ok:false with a reason.
+ * Hardened (B7): the byte cap is enforced WHILE streaming (mid-transfer abort), the image is fully decoded
+ * (sharp().stats() touches every pixel — a header-valid-but-corrupt file fails), and a pixel cap guards
+ * against decompression bombs. The SHA is over the EXACT bytes, so any re-render changes the hash.
  */
-export async function inspectAsset(url: string | null | undefined): Promise<AssetInspection> {
+export async function inspectAsset(
+  url: string | null | undefined,
+  opts: { maxBytes?: number; maxPixels?: number } = {},
+): Promise<AssetInspection> {
+  const maxBytes = opts.maxBytes ?? MAX_BYTES;
+  const maxPixels = opts.maxPixels ?? MAX_PIXELS;
   const empty: AssetInspection = { ok: false, bytes: 0, format: null, mime: null, width: null, height: null, sha256: null };
   if (!isAllowedAssetUrl(url)) return { ...empty, error: 'url_not_allowlisted' };
 
@@ -71,18 +100,23 @@ export async function inspectAsset(url: string | null | undefined): Promise<Asse
     const res = await fetch(url as string, { redirect: 'error', signal: controller.signal });
     if (!res.ok) return { ...empty, error: `http_${res.status}` };
     const contentLength = Number(res.headers.get('content-length') ?? '0');
-    if (contentLength && contentLength > MAX_BYTES) return { ...empty, error: 'too_large' };
+    if (contentLength && contentLength > maxBytes) return { ...empty, error: 'too_large' };
 
-    const buf = Buffer.from(await res.arrayBuffer());
+    const read = await readCapped(res, controller, maxBytes);
+    if (read === 'too_large') return { ...empty, error: 'too_large' };
+    const buf = read;
     if (buf.byteLength === 0) return { ...empty, error: 'empty_body' };
-    if (buf.byteLength > MAX_BYTES) return { ...empty, bytes: buf.byteLength, error: 'too_large' };
 
     const sha256 = createHash('sha256').update(buf).digest('hex');
     let meta: sharp.Metadata;
     try {
-      meta = await sharp(buf, { failOn: 'error' }).metadata();
-    } catch {
-      return { ok: false, bytes: buf.byteLength, format: null, mime: null, width: null, height: null, sha256, error: 'not_decodable' };
+      meta = await sharp(buf, { limitInputPixels: maxPixels, failOn: 'error' }).metadata();
+      // FULL decode proof: stats() reads every pixel, so corrupt pixel data fails even when the header parsed.
+      await sharp(buf, { limitInputPixels: maxPixels, failOn: 'error' }).stats();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      const error = /limitInputPixels|pixel|exceeds/i.test(msg) ? 'pixel_limit' : 'not_decodable';
+      return { ok: false, bytes: buf.byteLength, format: null, mime: null, width: null, height: null, sha256, error };
     }
     const mime = mimeForFormat(meta.format);
     const ok = !!mime && (meta.width ?? 0) > 0 && (meta.height ?? 0) > 0;
