@@ -8,7 +8,7 @@
  * readiness pointer, Outbox enqueue, Order.ready, GenerationJob done — commits in ONE transaction; the
  * email is sent later by the Outbox worker (so `ready` never depends on the mail provider being up).
  */
-import type { Prisma, PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient, DeliveryOutbox } from '@prisma/client';
 import { createHash } from 'crypto';
 import { evaluateBaseBookIntegrity, BASE_BOOK_SCOPE, type IntegrityInput, type IntegrityResult } from './integrity-gate';
 import { inspectAsset, type AssetInspection } from './asset-integrity';
@@ -249,31 +249,40 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
 }
 
 /**
- * Send-time drift (B2): mark readiness `stale` and take the order OFF `ready`. Two guards so this can never
- * undo good state:
- *  - the readiness→stale write is CONDITIONAL on `currentManifestId === expectedManifestId`, so an old recheck
- *    can never stomp a NEWER manifest that a concurrent re-evaluation already committed (count 0 → no-op);
- *  - the order is un-readied only when the stale write actually applied AND the email has not already gone out
- *    (no Outbox row is `sent`).
- * The Outbox row itself is separately suppressed by the worker (fenced). Called by the cron when the pre-send
- * recheck reports real drift (inputs_changed_since_manifest OR integrity_now_* — a now-corrupt/deleted asset).
+ * Send-time drift (B-r3-2): atomic, fence-gated suppression + invalidation. In ONE transaction:
+ *  1. FENCE this Outbox row → terminal `suppressed` (id + status 'processing' + attempts === token);
+ *  2. ONLY if the fence held → invalidate the EXACT manifest the recheck saw (currentManifestId ===
+ *     expectedManifestId) and drop the order from `ready`.
+ * A worker that lost its lease matches 0 rows at step 1 → returns false and changes NOTHING, so it can never
+ * invalidate readiness (the old code invalidated BEFORE the fenced suppress write, so a lost-lease worker
+ * could still mutate readiness). Everything is bound to THIS row + the current manifest — a historical v1
+ * `sent` row can no longer block invalidation of a drifted v2 (the old global `alreadySent` count is gone:
+ * the row we are suppressing is, by construction, `processing`/not-sent, so un-readying is always correct when
+ * the manifest still matches). Returns whether the fence held. Called by the Outbox worker's `suppress` dep.
  */
-export async function markBaseBookStale(
+export async function suppressAndInvalidateDelivery(
   prisma: PrismaClient,
-  orderId: string,
-  scope: string,
-  expectedManifestId: string,
-  reason = 'inputs_changed_since_manifest',
-): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    const invalidated = await tx.bookReadiness.updateMany({
-      where: { orderId, scope, currentManifestId: expectedManifestId },
-      data: { status: 'stale', reason },
+  args: { row: Pick<DeliveryOutbox, 'id' | 'orderId' | 'scope'>; token: number; disposition: Disposition },
+): Promise<boolean> {
+  const { row, token, disposition } = args;
+  return prisma.$transaction(async (tx) => {
+    const fence = await tx.deliveryOutbox.updateMany({
+      where: { id: row.id, status: 'processing', attempts: token },
+      data: { status: 'suppressed', leaseExpiresAt: null, lastError: disposition.reason ?? 'suppressed' },
     });
-    if (invalidated.count === 0) return; // a newer manifest replaced the one we rechecked — leave it alone
-    const alreadySent = await tx.deliveryOutbox.count({ where: { orderId, scope, status: 'sent' } });
-    if (alreadySent > 0) return; // the email already shipped — don't retroactively un-ready a delivered book
-    await tx.order.updateMany({ where: { id: orderId, status: 'ready' }, data: { status: 'needs_human_qa', deliveryHoldReason: 'base_book_readiness_stale' } });
+    if (fence.count === 0) return false; // lost lease — invalidate NOTHING
+
+    if (disposition.invalidateReadiness && disposition.expectedManifestId) {
+      const invalidated = await tx.bookReadiness.updateMany({
+        where: { orderId: row.orderId, scope: row.scope, currentManifestId: disposition.expectedManifestId },
+        data: { status: 'stale', reason: disposition.reason ?? 'inputs_changed_since_manifest' },
+      });
+      // Only un-ready when the stale write actually applied (a newer re-commit owns a different manifest id).
+      if (invalidated.count > 0) {
+        await tx.order.updateMany({ where: { id: row.orderId, status: 'ready' }, data: { status: 'needs_human_qa', deliveryHoldReason: 'base_book_readiness_stale' } });
+      }
+    }
+    return true;
   });
 }
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createHash } from 'crypto';
-import { commitBaseBookReadiness, recheckBaseBookDelivery, markBaseBookStale, isReadinessManifestEnabled, type CommitArgs } from '@/lib/generation-pipeline/readiness-manifest';
+import { commitBaseBookReadiness, recheckBaseBookDelivery, suppressAndInvalidateDelivery, isReadinessManifestEnabled, type CommitArgs } from '@/lib/generation-pipeline/readiness-manifest';
 import { evaluateBaseBookIntegrity, BASE_BOOK_SCOPE } from '@/lib/generation-pipeline/integrity-gate';
 import { hashPayload } from '@/lib/generation-chunked/delivery-outbox';
 import type { AssetInspection } from '@/lib/generation-pipeline/asset-integrity';
@@ -126,32 +126,55 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
   });
 });
 
-describe('markBaseBookStale — send-time drift (B2)', () => {
-  const mk = (invalidatedCount: number, sentCount: number) => {
+describe('suppressAndInvalidateDelivery — atomic fenced suppress + invalidation (B-r3-2)', () => {
+  const mk = (fenceCount: number, invalidatedCount: number) => {
+    const obxUpdateMany = vi.fn(async () => ({ count: fenceCount }));
     const brUpdateMany = vi.fn(async () => ({ count: invalidatedCount }));
     const orderUpdateMany = vi.fn(async () => ({ count: 1 }));
-    const obxCount = vi.fn(async () => sentCount);
-    const tx = { bookReadiness: { updateMany: brUpdateMany }, order: { updateMany: orderUpdateMany }, deliveryOutbox: { count: obxCount } };
+    const tx = { deliveryOutbox: { updateMany: obxUpdateMany }, bookReadiness: { updateMany: brUpdateMany }, order: { updateMany: orderUpdateMany } };
     const prisma = { $transaction: vi.fn(async (cb: (t: unknown) => unknown) => cb(tx)) };
-    return { prisma, brUpdateMany, orderUpdateMany, obxCount };
+    return { prisma, obxUpdateMany, brUpdateMany, orderUpdateMany };
   };
+  const driftArg = { row: { id: 'ob1', orderId: 'o1', scope: BASE_BOOK_SCOPE }, token: 3, disposition: { outcome: 'suppress' as const, reason: 'integrity_now_page2_image_invalid', invalidateReadiness: true, expectedManifestId: 'm1' } };
 
-  it('marks readiness stale (guarded to the rechecked manifest) + un-readies the order', async () => {
-    const { prisma, brUpdateMany, orderUpdateMany } = mk(1, 0);
-    await markBaseBookStale(prisma as never, 'o1', BASE_BOOK_SCOPE, 'm1', 'integrity_now_page2_image_invalid');
+  it('fences the row by id+attempts, then invalidates the exact manifest + un-readies the order', async () => {
+    const { prisma, obxUpdateMany, brUpdateMany, orderUpdateMany } = mk(1, 1);
+    const held = await suppressAndInvalidateDelivery(prisma as never, driftArg);
+    expect(held).toBe(true);
+    expect(obxUpdateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'ob1', status: 'processing', attempts: 3 }, data: expect.objectContaining({ status: 'suppressed' }) }));
     expect(brUpdateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { orderId: 'o1', scope: BASE_BOOK_SCOPE, currentManifestId: 'm1' }, data: expect.objectContaining({ status: 'stale', reason: 'integrity_now_page2_image_invalid' }) }));
     expect(orderUpdateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'o1', status: 'ready' }, data: expect.objectContaining({ status: 'needs_human_qa', deliveryHoldReason: 'base_book_readiness_stale' }) }));
   });
 
-  it('does NOT stomp a NEWER manifest: when the guarded update matches 0, the order is left alone', async () => {
-    const { prisma, orderUpdateMany } = mk(0, 0); // a newer manifest already replaced m1
-    await markBaseBookStale(prisma as never, 'o1', BASE_BOOK_SCOPE, 'm1');
+  it('LOST LEASE: fence matches 0 → returns false and invalidates NOTHING (a stale worker cannot touch readiness)', async () => {
+    const { prisma, brUpdateMany, orderUpdateMany } = mk(0, 1);
+    const held = await suppressAndInvalidateDelivery(prisma as never, driftArg);
+    expect(held).toBe(false);
+    expect(brUpdateMany).not.toHaveBeenCalled();
     expect(orderUpdateMany).not.toHaveBeenCalled();
   });
 
-  it('does NOT un-ready an order whose email already shipped (an outbox row is already `sent`)', async () => {
-    const { prisma, orderUpdateMany } = mk(1, 1); // readiness invalidated, but delivery already sent
-    await markBaseBookStale(prisma as never, 'o1', BASE_BOOK_SCOPE, 'm1');
+  it('does NOT stomp a NEWER manifest: invalidation matches 0 → order left alone (fence still held → true)', async () => {
+    const { prisma, orderUpdateMany } = mk(1, 0);
+    const held = await suppressAndInvalidateDelivery(prisma as never, driftArg);
+    expect(held).toBe(true);
+    expect(orderUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('v1-sent does NOT block invalidation of a drifted v2: no historical alreadySent check — un-ready proceeds', async () => {
+    // The function never queries historical `sent` rows (tx has no deliveryOutbox.count); with the fence held +
+    // the current manifest matched, the order is un-readied regardless of any older fulfillment having sent.
+    const { prisma, orderUpdateMany } = mk(1, 1);
+    const held = await suppressAndInvalidateDelivery(prisma as never, driftArg);
+    expect(held).toBe(true);
+    expect(orderUpdateMany).toHaveBeenCalled();
+  });
+
+  it('suppress WITHOUT invalidateReadiness (e.g. order_not_ready) just suppresses — no readiness/order writes', async () => {
+    const { prisma, brUpdateMany, orderUpdateMany } = mk(1, 1);
+    const held = await suppressAndInvalidateDelivery(prisma as never, { ...driftArg, disposition: { outcome: 'suppress', reason: 'order_not_ready:generating' } });
+    expect(held).toBe(true);
+    expect(brUpdateMany).not.toHaveBeenCalled();
     expect(orderUpdateMany).not.toHaveBeenCalled();
   });
 });
@@ -199,7 +222,7 @@ describe('recheckBaseBookDelivery — send-time guard', () => {
     expect(r.outcome).toBe('suppress');
     expect(r.reason).toBe('inputs_changed_since_manifest');
     expect(r.invalidateReadiness).toBe(true);
-    expect(r.expectedManifestId).toBe('m1'); // guards markBaseBookStale to exactly this manifest
+    expect(r.expectedManifestId).toBe('m1'); // guards suppressAndInvalidateDelivery to exactly this manifest
   });
 
   it('SUPPRESS + invalidateReadiness when a page asset is now corrupt/deleted (integrity_now_*) — B2', async () => {

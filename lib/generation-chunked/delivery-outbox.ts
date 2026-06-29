@@ -130,11 +130,25 @@ export type Disposition = {
 };
 export type DeliveryOutcome = 'sent' | 'suppressed' | 'failed' | 'retry' | 'lost_lease';
 
+export interface SuppressArgs {
+  row: DeliveryOutbox;
+  /** Fencing token captured at claim (= attempts). */
+  token: number;
+  disposition: Disposition;
+}
+
 export interface OutboxDeps {
   /** Pre-send recheck. Receives the claimed row so it can bind the enqueued payloadHash (B4). */
   recheck: (row: DeliveryOutbox) => Promise<Disposition>;
   /** Provider send; idempotencyKey = dedupeKey. Returns the provider message id when available. */
   send: (payload: BookReadyPayload, idempotencyKey: string) => Promise<{ providerMessageId?: string }>;
+  /**
+   * (B-r3-2) Atomically, in ONE transaction: fence this row → terminal `suppressed` (by id + status
+   * 'processing' + attempts === token), and ONLY if the fence held, invalidate the exact manifest + drop the
+   * order from `ready`. Returns true iff the fence held. When omitted, processDelivery falls back to a plain
+   * fenced suppress (no readiness invalidation) — used by unit tests; the cron injects the readiness-aware impl.
+   */
+  suppress?: (args: SuppressArgs) => Promise<boolean>;
   now?: () => Date;
 }
 
@@ -170,8 +184,13 @@ export async function processDelivery(prisma: PrismaClient, row: DeliveryOutbox,
   }
 
   if (disp.outcome === 'suppress') {
-    const ok = await fenced(prisma, row.id, token, { status: 'suppressed', leaseExpiresAt: null, lastError: disp.reason ?? 'suppressed' });
-    if (!ok) return 'lost_lease';
+    // (B-r3-2) the fenced transition + readiness invalidation are ONE atomic, fence-gated step (injected by the
+    // cron). A worker that lost its lease can neither suppress nor invalidate. Unit tests omit the dep → plain
+    // fenced suppress.
+    const held = deps.suppress
+      ? await deps.suppress({ row, token, disposition: disp })
+      : await fenced(prisma, row.id, token, { status: 'suppressed', leaseExpiresAt: null, lastError: disp.reason ?? 'suppressed' });
+    if (!held) return 'lost_lease';
     log.warn('Delivery suppressed at recheck', { dedupeKey: row.dedupeKey, reason: disp.reason });
     return 'suppressed';
   }

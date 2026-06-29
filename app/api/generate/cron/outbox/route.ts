@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { prisma } from '@/lib/prisma';
 import { drainOutbox } from '@/lib/generation-chunked/delivery-outbox';
-import { recheckBaseBookDelivery, markBaseBookStale, isReadinessManifestEnabled } from '@/lib/generation-pipeline/readiness-manifest';
+import { recheckBaseBookDelivery, suppressAndInvalidateDelivery, isReadinessManifestEnabled } from '@/lib/generation-pipeline/readiness-manifest';
 import { sendBookReadyEmail } from '@/backend/lib/email';
 
 export const runtime = 'nodejs';
@@ -32,16 +32,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     prisma,
     { limit: 1 }, // simplification A: single-claim per tick
     {
-      recheck: async (row) => {
-        // B4: bind the enqueued payloadHash so a payload that drifted since enqueue is suppressed, not sent.
-        const d = await recheckBaseBookDelivery(prisma, row.orderId, row.scope, {}, row.payloadHash);
-        // B2: real drift at send time (assets/inputVersion changed, an asset is now corrupt/deleted, or the
-        // payload drifted) => invalidate the readiness pointer (guarded to the exact manifest) + un-ready.
-        if (d.outcome === 'suppress' && d.invalidateReadiness && d.expectedManifestId) {
-          await markBaseBookStale(prisma, row.orderId, row.scope, d.expectedManifestId, d.reason ?? 'inputs_changed_since_manifest');
-        }
-        return d;
-      },
+      // Read-only recheck. B4: bind the enqueued payloadHash so a payload that drifted since enqueue is caught.
+      recheck: (row) => recheckBaseBookDelivery(prisma, row.orderId, row.scope, {}, row.payloadHash),
+      // B-r3-2: the fenced `suppressed` transition + readiness invalidation happen in ONE atomic, fence-gated tx
+      // (a lost-lease worker can neither suppress nor invalidate).
+      suppress: ({ row, token, disposition }) => suppressAndInvalidateDelivery(prisma, { row, token, disposition }),
       send: (payload, idempotencyKey) => sendBookReadyEmail({ ...payload, idempotencyKey }),
     },
   );
