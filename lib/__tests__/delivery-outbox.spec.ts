@@ -10,7 +10,9 @@ const row = (over: Record<string, unknown> = {}) => ({
   payload, payloadHash: hashPayload(payload), attempts: 1, createdAt: new Date('2026-06-29T10:00:00Z'),
   nextAttemptAt: null, leaseExpiresAt: new Date(), lastError: null, providerMessageId: null, sentAt: null, ...over,
 });
-const okDeps = (send: ReturnType<typeof vi.fn>) => ({ recheck: async () => ({ ok: true }), send, now: () => NOW });
+const okDeps = (send: ReturnType<typeof vi.fn>) => ({ recheck: async () => ({ outcome: 'allow' as const }), send, now: () => NOW });
+// Typed accessor for a mock's first-call `data` arg (the inferred arg tuple is empty).
+const firstData = (fn: ReturnType<typeof vi.fn>): Record<string, unknown> => ((fn.mock.calls[0] as unknown[])[0] as { data: Record<string, unknown> }).data;
 
 describe('dedupeKey + payloadHash', () => {
   it('dedupeKey = logical fulfillment event (orderId + scope + fulfillmentVersion)', () => {
@@ -44,43 +46,68 @@ describe('enqueueDelivery — idempotent on dedupeKey', () => {
   });
 });
 
-describe('processDelivery', () => {
-  it('suppresses when the pre-send recheck fails — no send', async () => {
-    const update = vi.fn();
+describe('processDelivery — fenced terminal writes (B1) + disposition (B2)', () => {
+  const fencedOk = () => vi.fn(async () => ({ count: 1 }));   // this worker still holds the current claim
+  const fencedLost = () => vi.fn(async () => ({ count: 0 })); // another worker reclaimed (token no longer current)
+
+  it('suppress disposition → no send, fenced suppressed write', async () => {
+    const updateMany = fencedOk();
     const send = vi.fn();
-    const out = await processDelivery({ deliveryOutbox: { update } } as never, row() as never, { recheck: async () => ({ ok: false, reason: 'asset_changed' }), send, now: () => NOW });
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, { recheck: async () => ({ outcome: 'suppress', reason: 'asset_changed' }), send, now: () => NOW });
     expect(out).toBe('suppressed');
     expect(send).not.toHaveBeenCalled();
-    expect(update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'suppressed' }) }));
+    expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id: 'ob1', status: 'processing', attempts: 1 }), data: expect.objectContaining({ status: 'suppressed' }) }));
   });
-  it('sends once + marks sent, with Idempotency-Key = dedupeKey', async () => {
-    const update = vi.fn();
+  it('retry disposition (transient infra) → reschedule, NO send', async () => {
+    const updateMany = fencedOk();
+    const send = vi.fn();
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, { recheck: async () => ({ outcome: 'retry', reason: 'transient_asset' }), send, now: () => NOW });
+    expect(out).toBe('retry');
+    expect(send).not.toHaveBeenCalled();
+    expect(firstData(updateMany)).toMatchObject({ status: 'scheduled' });
+    expect(firstData(updateMany).nextAttemptAt).toBeInstanceOf(Date);
+  });
+  it('a thrown recheck (infra error) is treated as retry, not suppress', async () => {
+    const updateMany = fencedOk();
+    const send = vi.fn();
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, { recheck: async () => { throw new Error('db down'); }, send, now: () => NOW });
+    expect(out).toBe('retry');
+    expect(send).not.toHaveBeenCalled();
+  });
+  it('allow → send once + marks sent, Idempotency-Key = dedupeKey', async () => {
+    const updateMany = fencedOk();
     const send = vi.fn(async () => ({ providerMessageId: 'rs_1' }));
-    const out = await processDelivery({ deliveryOutbox: { update } } as never, row() as never, okDeps(send));
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, okDeps(send));
     expect(out).toBe('sent');
     expect(send).toHaveBeenCalledWith(payload, 'book-ready/o1/base-book/1');
-    expect(update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'sent', providerMessageId: 'rs_1' }) }));
+    expect(firstData(updateMany)).toMatchObject({ status: 'sent', providerMessageId: 'rs_1' });
   });
-  it('retries (backoff, SAME key) on send failure with attempts remaining — covers provider-response-lost', async () => {
-    const update = vi.fn();
+  it('LOST LEASE: a stale worker writes NO terminal status (fencing blocks the overwrite)', async () => {
+    const updateMany = fencedLost();
+    const send = vi.fn(async () => ({ providerMessageId: 'rs_1' }));
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, okDeps(send));
+    expect(out).toBe('lost_lease');
+    expect(updateMany).toHaveBeenCalledTimes(1); // attempted the fenced write, matched 0 rows, then STOPPED
+  });
+  it('retries (backoff, SAME key) on send failure with attempts remaining — provider-response-lost', async () => {
+    const updateMany = fencedOk();
     const send = vi.fn(async () => { throw new Error('network'); });
-    const out = await processDelivery({ deliveryOutbox: { update } } as never, row({ attempts: 2 }) as never, okDeps(send));
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ attempts: 2 }) as never, okDeps(send));
     expect(out).toBe('retry');
-    const data = update.mock.calls[0][0].data;
-    expect(data.status).toBe('failed');
-    expect(data.nextAttemptAt).toBeInstanceOf(Date);
+    expect(firstData(updateMany)).toMatchObject({ status: 'scheduled' });
+    expect(firstData(updateMany).nextAttemptAt).toBeInstanceOf(Date);
   });
   it('gives up after max attempts — never blind-resend', async () => {
-    const update = vi.fn();
+    const updateMany = fencedOk();
     const send = vi.fn(async () => { throw new Error('network'); });
-    const out = await processDelivery({ deliveryOutbox: { update } } as never, row({ attempts: OUTBOX_MAX_ATTEMPTS }) as never, okDeps(send));
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ attempts: OUTBOX_MAX_ATTEMPTS }) as never, okDeps(send));
     expect(out).toBe('failed');
-    expect(update.mock.calls[0][0].data.nextAttemptAt).toBeNull();
+    expect(firstData(updateMany).nextAttemptAt).toBeNull();
   });
   it('gives up when beyond the 24h provider idempotency window', async () => {
-    const update = vi.fn();
+    const updateMany = fencedOk();
     const send = vi.fn(async () => { throw new Error('network'); });
-    const out = await processDelivery({ deliveryOutbox: { update } } as never, row({ attempts: 1, createdAt: new Date('2026-06-27T09:00:00Z') }) as never, okDeps(send));
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ attempts: 1, createdAt: new Date('2026-06-27T09:00:00Z') }) as never, okDeps(send));
     expect(out).toBe('failed');
   });
 });
@@ -98,9 +125,9 @@ describe('claimDueDeliveries — atomic claim', () => {
 describe('drainOutbox', () => {
   it('claims a batch and processes each row', async () => {
     const $queryRaw = vi.fn(async () => [row(), row({ id: 'ob2', dedupeKey: 'book-ready/o2/base-book/1', orderId: 'o2' })]);
-    const update = vi.fn();
+    const updateMany = vi.fn(async () => ({ count: 1 }));
     const send = vi.fn(async () => ({ providerMessageId: 'x' }));
-    const summary = await drainOutbox({ $queryRaw, deliveryOutbox: { update } } as never, { limit: 10 }, okDeps(send));
+    const summary = await drainOutbox({ $queryRaw, deliveryOutbox: { updateMany } } as never, { limit: 10 }, okDeps(send));
     expect(summary).toMatchObject({ claimed: 2, sent: 2 });
     expect(send).toHaveBeenCalledTimes(2);
   });

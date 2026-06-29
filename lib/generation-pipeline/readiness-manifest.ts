@@ -183,17 +183,26 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
   throw new Error('readiness_revision_allocation_failed');
 }
 
+// Asset error codes that are TRANSIENT infra (→ retry), not a real drift / persistent failure (→ suppress).
+const TRANSIENT_ASSET_RE = /^(timeout|fetch_failed|http_(429|5\d\d))$/;
+function hasTransientAssetError(evidence: Record<string, unknown>): boolean {
+  const cover = (evidence.cover as { error?: string } | undefined)?.error;
+  const pages = ((evidence.pages as Array<{ error?: string }> | undefined) ?? []).map((p) => p.error);
+  return [cover, ...pages].some((e) => typeof e === 'string' && TRANSIENT_ASSET_RE.test(e));
+}
+
 /**
- * Send-time recheck for the Outbox worker: re-evaluate integrity NOW and confirm nothing changed since the
- * manifest was written — readiness still `passed`, the current manifest's inputsHash still matches the live
- * assets, and the order is not re-held. Any drift => the worker suppresses (no stale delivery).
+ * Send-time recheck for the Outbox worker (B2 disposition). Re-evaluate integrity NOW and return:
+ *  - allow:    readiness still passed, manifest inputsHash still matches the live assets, order not re-held.
+ *  - retry:    a TRANSIENT asset error (timeout / 5xx / 429 / network) — try later, do NOT give up.
+ *  - suppress: real drift (assets/text/frozen changed, readiness blocked, order re-held) — never ship stale.
  */
 export async function recheckBaseBookDelivery(
   prisma: PrismaClient,
   orderId: string,
   scope: string,
   deps: CommitDeps = {},
-): Promise<{ ok: boolean; reason?: string }> {
+): Promise<{ outcome: 'allow' | 'retry' | 'suppress'; reason?: string }> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     select: {
@@ -207,13 +216,13 @@ export async function recheckBaseBookDelivery(
       },
     },
   });
-  if (!order || !order.book) return { ok: false, reason: 'order_or_book_missing' };
-  if (order.status === 'needs_human_qa' || order.status === 'failed') return { ok: false, reason: `order_re_held:${order.status}` };
+  if (!order || !order.book) return { outcome: 'suppress', reason: 'order_or_book_missing' };
+  if (order.status === 'needs_human_qa' || order.status === 'failed') return { outcome: 'suppress', reason: `order_re_held:${order.status}` };
 
   const readiness = await prisma.bookReadiness.findUnique({ where: { orderId_scope: { orderId, scope } }, select: { status: true, currentManifestId: true } });
-  if (!readiness || readiness.status !== 'passed' || !readiness.currentManifestId) return { ok: false, reason: 'readiness_not_passed' };
+  if (!readiness || readiness.status !== 'passed' || !readiness.currentManifestId) return { outcome: 'suppress', reason: 'readiness_not_passed' };
   const manifest = await prisma.bookReadinessManifest.findUnique({ where: { id: readiness.currentManifestId }, select: { inputsHash: true } });
-  if (!manifest) return { ok: false, reason: 'manifest_missing' };
+  if (!manifest) return { outcome: 'suppress', reason: 'manifest_missing' };
 
   const fresh = await evaluateBaseBookIntegrity(
     {
@@ -231,7 +240,11 @@ export async function recheckBaseBookDelivery(
     },
     deps.inspect ?? inspectAsset,
   );
-  if (fresh.status !== 'passed') return { ok: false, reason: `integrity_now_${fresh.reason ?? 'blocked'}` };
-  if (fresh.inputsHash !== manifest.inputsHash) return { ok: false, reason: 'inputs_changed_since_manifest' };
-  return { ok: true };
+  if (fresh.status !== 'passed') {
+    // Transient infra (timeout/5xx/network) => retry later; a real persistent failure => suppress.
+    if (hasTransientAssetError(fresh.evidence)) return { outcome: 'retry', reason: `transient_asset:${fresh.reason ?? 'blocked'}` };
+    return { outcome: 'suppress', reason: `integrity_now_${fresh.reason ?? 'blocked'}` };
+  }
+  if (fresh.inputsHash !== manifest.inputsHash) return { outcome: 'suppress', reason: 'inputs_changed_since_manifest' };
+  return { outcome: 'allow' };
 }

@@ -14,7 +14,7 @@ const log = createLogger({ subsystem: 'delivery-outbox' });
 type Db = PrismaClient | Prisma.TransactionClient;
 
 export const OUTBOX_MAX_ATTEMPTS = 6;
-const LEASE_MS = 2 * 60 * 1000; // 2 min processing lease
+const LEASE_MS = 4 * 60 * 1000; // processing lease > worst-case single-row recheck (downloads); fencing covers overruns
 const IDEMPOTENCY_WINDOW_MS = 24 * 60 * 60 * 1000; // Resend keeps Idempotency-Key 24h — no blind resend after.
 
 export function deliveryDedupeKey(orderId: string, scope: string, fulfillmentVersion: number): string {
@@ -94,9 +94,12 @@ export async function claimDueDeliveries(prisma: PrismaClient, now: Date, limit:
   return rows;
 }
 
+/** Recheck verdict (B2): allow (deliverable now), retry (transient infra — try later), suppress (drift/held). */
+export type Disposition = { outcome: 'allow' | 'retry' | 'suppress'; reason?: string };
+export type DeliveryOutcome = 'sent' | 'suppressed' | 'failed' | 'retry' | 'lost_lease';
+
 export interface OutboxDeps {
-  /** Pre-send recheck: the manifest must still be passed+current AND the anchor gate must still allow. */
-  recheck: (orderId: string, scope: string) => Promise<{ ok: boolean; reason?: string }>;
+  recheck: (orderId: string, scope: string) => Promise<Disposition>;
   /** Provider send; idempotencyKey = dedupeKey. Returns the provider message id when available. */
   send: (payload: BookReadyPayload, idempotencyKey: string) => Promise<{ providerMessageId?: string }>;
   now?: () => Date;
@@ -106,39 +109,72 @@ function backoffMs(attempts: number): number {
   return Math.min(60_000 * Math.pow(2, Math.max(0, attempts - 1)), 6 * 60 * 60 * 1000); // 1m,2m,4m… cap 6h
 }
 
-/** Process one already-claimed row: recheck → send (idempotent) → mark sent; on failure retry within the window. */
-export async function processDelivery(prisma: PrismaClient, row: DeliveryOutbox, deps: OutboxDeps): Promise<'sent' | 'suppressed' | 'failed' | 'retry'> {
+/**
+ * FENCED terminal write (B1): only the worker holding the CURRENT claim (status 'processing' AND
+ * attempts === the token captured at claim) may write. If another worker reclaimed the row (incrementing
+ * attempts), this matches 0 rows → the stale worker STOPS and writes nothing — it can never overwrite the
+ * new worker's terminal status.
+ */
+async function fenced(prisma: PrismaClient, rowId: string, token: number, data: Prisma.DeliveryOutboxUpdateManyMutationInput): Promise<boolean> {
+  const r = await prisma.deliveryOutbox.updateMany({ where: { id: rowId, status: 'processing', attempts: token }, data });
+  return r.count > 0;
+}
+
+/**
+ * Process one already-claimed row under its fencing token (= attempts at claim). recheck → allow ? send
+ * (idempotent) : retry|suppress. Every terminal write is fenced; a lost lease returns 'lost_lease' and
+ * writes nothing further.
+ */
+export async function processDelivery(prisma: PrismaClient, row: DeliveryOutbox, deps: OutboxDeps): Promise<DeliveryOutcome> {
   const now = deps.now?.() ?? new Date();
-  const check = await deps.recheck(row.orderId, row.scope).catch((e) => ({ ok: false, reason: `recheck_error:${(e as Error).message}` }));
-  if (!check.ok) {
-    await prisma.deliveryOutbox.update({ where: { id: row.id }, data: { status: 'suppressed', leaseExpiresAt: null, lastError: check.reason ?? 'suppressed' } });
-    log.warn('Delivery suppressed at recheck', { dedupeKey: row.dedupeKey, reason: check.reason });
+  const token = row.attempts; // claim version — the fencing token
+
+  let disp: Disposition;
+  try {
+    disp = await deps.recheck(row.orderId, row.scope);
+  } catch (e) {
+    disp = { outcome: 'retry', reason: `recheck_error:${(e as Error).message?.slice(0, 120)}` }; // transient infra → retry
+  }
+
+  if (disp.outcome === 'suppress') {
+    const ok = await fenced(prisma, row.id, token, { status: 'suppressed', leaseExpiresAt: null, lastError: disp.reason ?? 'suppressed' });
+    if (!ok) return 'lost_lease';
+    log.warn('Delivery suppressed at recheck', { dedupeKey: row.dedupeKey, reason: disp.reason });
     return 'suppressed';
   }
+  if (disp.outcome === 'retry') {
+    const ok = await fenced(prisma, row.id, token, { status: 'scheduled', nextAttemptAt: new Date(now.getTime() + backoffMs(row.attempts)), leaseExpiresAt: null, lastError: disp.reason ?? 'recheck_retry' });
+    return ok ? 'retry' : 'lost_lease';
+  }
+
+  // allow → send
   try {
     const res = await deps.send(row.payload as unknown as BookReadyPayload, row.dedupeKey);
-    await prisma.deliveryOutbox.update({ where: { id: row.id }, data: { status: 'sent', sentAt: now, providerMessageId: res.providerMessageId ?? null, leaseExpiresAt: null, lastError: null } });
-    return 'sent';
+    const ok = await fenced(prisma, row.id, token, { status: 'sent', sentAt: now, providerMessageId: res.providerMessageId ?? null, leaseExpiresAt: null, lastError: null });
+    return ok ? 'sent' : 'lost_lease';
   } catch (e) {
     const err = (e as Error).message?.slice(0, 300) ?? 'send_failed';
     // Past the provider's idempotency window OR out of attempts => give up (never blind-resend after 24h).
     const beyondWindow = now.getTime() - row.createdAt.getTime() > IDEMPOTENCY_WINDOW_MS;
     if (row.attempts >= OUTBOX_MAX_ATTEMPTS || beyondWindow) {
-      await prisma.deliveryOutbox.update({ where: { id: row.id }, data: { status: 'failed', nextAttemptAt: null, leaseExpiresAt: null, lastError: err } });
+      const ok = await fenced(prisma, row.id, token, { status: 'failed', nextAttemptAt: null, leaseExpiresAt: null, lastError: err });
+      if (!ok) return 'lost_lease';
       log.error('Delivery permanently failed', e, { dedupeKey: row.dedupeKey, attempts: row.attempts });
       return 'failed';
     }
-    // Retry: same dedupeKey => Resend dedups if the provider had actually accepted (response-lost case).
-    await prisma.deliveryOutbox.update({ where: { id: row.id }, data: { status: 'failed', nextAttemptAt: new Date(now.getTime() + backoffMs(row.attempts)), leaseExpiresAt: null, lastError: err } });
-    return 'retry';
+    // Retry the SAME dedupeKey (Resend dedups if the provider had actually accepted — response-lost case).
+    const ok = await fenced(prisma, row.id, token, { status: 'scheduled', nextAttemptAt: new Date(now.getTime() + backoffMs(row.attempts)), leaseExpiresAt: null, lastError: err });
+    return ok ? 'retry' : 'lost_lease';
   }
 }
 
-/** Drain a batch: claim atomically, then process each. Returns a summary. */
-export async function drainOutbox(prisma: PrismaClient, opts: { limit?: number }, deps: OutboxDeps): Promise<{ claimed: number; sent: number; suppressed: number; failed: number; retry: number }> {
+export type DrainSummary = { claimed: number; sent: number; suppressed: number; failed: number; retry: number; lost_lease: number };
+
+/** Drain a SMALL batch (recheck downloads assets): claim atomically, then process each. */
+export async function drainOutbox(prisma: PrismaClient, opts: { limit?: number }, deps: OutboxDeps): Promise<DrainSummary> {
   const now = deps.now?.() ?? new Date();
-  const rows = await claimDueDeliveries(prisma, now, opts.limit ?? 20);
-  const summary = { claimed: rows.length, sent: 0, suppressed: 0, failed: 0, retry: 0 };
+  const rows = await claimDueDeliveries(prisma, now, opts.limit ?? 5);
+  const summary: DrainSummary = { claimed: rows.length, sent: 0, suppressed: 0, failed: 0, retry: 0, lost_lease: 0 };
   for (const row of rows) {
     const outcome = await processDelivery(prisma, row, deps);
     summary[outcome] += 1;

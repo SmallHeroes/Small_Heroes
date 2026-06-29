@@ -116,7 +116,7 @@ describe('recheckBaseBookDelivery — send-time guard', () => {
     ] },
   };
 
-  it('ok when integrity still passes and inputsHash matches the current manifest', async () => {
+  it('allow when integrity still passes and inputsHash matches the current manifest', async () => {
     const fresh = await evaluateBaseBookIntegrity(passedInput, stubInspect);
     const prisma = {
       order: { findUnique: vi.fn(async () => orderRow) },
@@ -124,39 +124,53 @@ describe('recheckBaseBookDelivery — send-time guard', () => {
       bookReadinessManifest: { findUnique: vi.fn(async () => ({ inputsHash: fresh.inputsHash })) },
     };
     const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect });
-    expect(r.ok).toBe(true);
+    expect(r.outcome).toBe('allow');
   });
 
-  it('suppresses when the assets changed since the manifest (inputsHash mismatch)', async () => {
+  it('SUPPRESS when the assets changed since the manifest (inputsHash mismatch — real drift)', async () => {
     const prisma = {
       order: { findUnique: vi.fn(async () => orderRow) },
       bookReadiness: { findUnique: vi.fn(async () => ({ status: 'passed', currentManifestId: 'm1' })) },
       bookReadinessManifest: { findUnique: vi.fn(async () => ({ inputsHash: 'stale-hash' })) },
     };
     const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect });
-    expect(r.ok).toBe(false);
+    expect(r.outcome).toBe('suppress');
     expect(r.reason).toBe('inputs_changed_since_manifest');
   });
 
-  it('suppresses when the order was re-held', async () => {
+  it('RETRY (not suppress) on a TRANSIENT asset error (timeout/5xx) — B2', async () => {
+    const transientInspect = async (url: string | null | undefined) => {
+      if ((url ?? '').includes('p2')) return { ok: false, bytes: 0, format: null, mime: null, width: null, height: null, sha256: null, error: 'timeout' as const };
+      return stubInspect(url);
+    };
+    const prisma = {
+      order: { findUnique: vi.fn(async () => orderRow) },
+      bookReadiness: { findUnique: vi.fn(async () => ({ status: 'passed', currentManifestId: 'm1' })) },
+      bookReadinessManifest: { findUnique: vi.fn(async () => ({ inputsHash: 'whatever' })) },
+    };
+    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: transientInspect });
+    expect(r.outcome).toBe('retry');
+  });
+
+  it('SUPPRESS when the order was re-held', async () => {
     const prisma = {
       order: { findUnique: vi.fn(async () => ({ ...orderRow, status: 'needs_human_qa' })) },
       bookReadiness: { findUnique: vi.fn() },
       bookReadinessManifest: { findUnique: vi.fn() },
     };
     const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect });
-    expect(r.ok).toBe(false);
+    expect(r.outcome).toBe('suppress');
     expect(r.reason).toContain('order_re_held');
   });
 
-  it('suppresses when readiness is not passed', async () => {
+  it('SUPPRESS when readiness is not passed', async () => {
     const prisma = {
       order: { findUnique: vi.fn(async () => orderRow) },
       bookReadiness: { findUnique: vi.fn(async () => ({ status: 'blocked', currentManifestId: null })) },
       bookReadinessManifest: { findUnique: vi.fn() },
     };
     const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect });
-    expect(r.ok).toBe(false);
+    expect(r.outcome).toBe('suppress');
     expect(r.reason).toBe('readiness_not_passed');
   });
 });
