@@ -23,6 +23,18 @@ export function isReadinessManifestEnabled(): boolean {
 
 type Tx = Prisma.TransactionClient;
 
+/**
+ * (P1-f contract) The SINGLE place a writer bumps Order.inputVersion — centralized here so no writer is
+ * forgotten. EVERY writer of a delivery input (anything in Order/GeneratedBook/BookPage/ImageAsset that the
+ * integrity gate or the delivery payload reads: page text, frozen product-truth, asset/cover URLs, readUrl,
+ * customerEmail/pdfUrl/audio) MUST call this in the SAME transaction as its write, so the manifest's
+ * optimistic-concurrency token (B4) actually moves and the send-time recheck can detect the drift. Wired into
+ * the producers in P1-f — NOT before; chunk-runner stays untouched until then.
+ */
+export async function bumpOrderInputVersion(db: PrismaClient | Tx, orderId: string): Promise<void> {
+  await db.order.update({ where: { id: orderId }, data: { inputVersion: { increment: 1 } } });
+}
+
 export interface OrderTruth {
   id: string;
   fulfillmentVersion: number;

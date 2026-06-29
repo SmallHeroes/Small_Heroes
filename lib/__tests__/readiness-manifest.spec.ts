@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createHash } from 'crypto';
-import { commitBaseBookReadiness, recheckBaseBookDelivery, suppressAndInvalidateDelivery, isReadinessManifestEnabled, type CommitArgs } from '@/lib/generation-pipeline/readiness-manifest';
+import { commitBaseBookReadiness, recheckBaseBookDelivery, suppressAndInvalidateDelivery, bumpOrderInputVersion, isReadinessManifestEnabled, type CommitArgs } from '@/lib/generation-pipeline/readiness-manifest';
 import { evaluateBaseBookIntegrity, BASE_BOOK_SCOPE } from '@/lib/generation-pipeline/integrity-gate';
 import { hashPayload } from '@/lib/generation-chunked/delivery-outbox';
 import type { AssetInspection } from '@/lib/generation-pipeline/asset-integrity';
@@ -47,6 +47,14 @@ describe('isReadinessManifestEnabled', () => {
     expect(isReadinessManifestEnabled()).toBe(false);
     process.env.READINESS_MANIFEST_ENABLED = 'true';
     expect(isReadinessManifestEnabled()).toBe(true);
+  });
+});
+
+describe('bumpOrderInputVersion — single writer-side bump (P1-f contract)', () => {
+  it('atomically increments Order.inputVersion', async () => {
+    const update = vi.fn(async () => ({}));
+    await bumpOrderInputVersion({ order: { update } } as never, 'o1');
+    expect(update).toHaveBeenCalledWith({ where: { id: 'o1' }, data: { inputVersion: { increment: 1 } } });
   });
 });
 
