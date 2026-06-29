@@ -61,6 +61,22 @@ enum IllustrationStyle {
   realistic_cartoon
 }
 
+// Phase-1 base_book_integrity — readiness/fulfillment lifecycles (flag READINESS_MANIFEST_ENABLED, default OFF).
+enum ReadinessStatus {
+  pending
+  passed
+  blocked
+  stale
+}
+
+enum DeliveryOutboxStatus {
+  scheduled
+  processing
+  sent
+  failed
+  suppressed
+}
+
 // ─── Customer ─────────────────────────────────────────
 model Customer {
   id        String   @id @default(cuid())
@@ -159,6 +175,15 @@ model Order {
   // Delivery hold: when status == needs_human_qa, why it was held (e.g.
   // "anchor_low_confidence:soft_band"). Cleared/ignored once QA releases to ready.
   deliveryHoldReason String?
+
+  // Phase-1 base_book_integrity — FROZEN product-truth. Set once at order-creation + text-finalization;
+  // the integrity gate reads ONLY these (never a live resolver in the package stage). An existing value
+  // that differs from a fresh computation => fail loudly (a deploy changed the story under a live order).
+  expectedPageCount    Int?
+  storySourceHash      String?
+  selectionFilename    String?
+  frozenProductVersion String?
+  fulfillmentVersion   Int      @default(1)  // logical delivery-event version; part of the Outbox dedupe key
 
   // Error tracking
   lastError          String?
@@ -455,4 +480,58 @@ model GenerationJob {
 
   @@index([status, leaseExpiresAt])
   @@index([currentStage])
+}
+
+// ─── Phase-1 base_book_integrity ──────────────────────
+// IMMUTABLE per-evaluation record: one terminal INSERT with passed|blocked. evidence + status are NEVER
+// mutated. The "current" readiness for an (order, scope) is the latest revision whose inputsHash still
+// matches the current assets; an older passed Manifest stays passed but is no longer current (=> stale).
+model BookReadinessManifest {
+  id         String          @id @default(cuid())
+  orderId    String
+  scope      String          // e.g. "base_book"
+  revision   Int             // atomically allocated; (orderId, scope, revision) is unique
+  status     ReadinessStatus // only `passed` or `blocked` are ever written here
+  inputsHash String          // hash of the inputs (assets + frozen text) this evaluation observed
+  evidence   Json            // per-check evidence (decode/bytes/mime/sha per asset, page list, frozen truth…)
+  reason     String?         // block reason (null when passed)
+  createdAt  DateTime        @default(now())
+
+  @@unique([orderId, scope, revision])
+  @@index([orderId, scope])
+}
+
+// MUTABLE pointer to the current readiness state per (order, scope).
+model BookReadiness {
+  id                String          @id @default(cuid())
+  orderId           String
+  scope             String
+  status            ReadinessStatus @default(pending)
+  currentManifestId String?
+  reason            String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@unique([orderId, scope])
+}
+
+// Transactional outbox for customer deliveries (effectively-once). enqueue != send; a worker/cron drains
+// it with an atomic lease and idempotent provider send. dedupeKey = a logical fulfillment event.
+model DeliveryOutbox {
+  id                String               @id @default(cuid())
+  dedupeKey         String               @unique // book-ready/{orderId}/base-book/{fulfillmentVersion}
+  orderId           String
+  scope             String
+  status            DeliveryOutboxStatus @default(scheduled)
+  payload           Json
+  payloadHash       String               // same dedupeKey + a different payloadHash => error, never send
+  attempts          Int                  @default(0)
+  nextAttemptAt     DateTime?
+  leaseExpiresAt    DateTime?
+  lastError         String?
+  providerMessageId String?
+  createdAt         DateTime             @default(now())
+  sentAt            DateTime?
+
+  @@index([status, nextAttemptAt])
 }
