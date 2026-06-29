@@ -12,7 +12,7 @@ import type { Prisma, PrismaClient } from '@prisma/client';
 import { createHash } from 'crypto';
 import { evaluateBaseBookIntegrity, BASE_BOOK_SCOPE, type IntegrityInput, type IntegrityResult } from './integrity-gate';
 import { inspectAsset, type AssetInspection } from './asset-integrity';
-import { enqueueDelivery, type BookReadyPayload } from '@/lib/generation-chunked/delivery-outbox';
+import { enqueueDelivery, type BookReadyPayload, type Disposition } from '@/lib/generation-chunked/delivery-outbox';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger({ subsystem: 'readiness-manifest' });
@@ -213,13 +213,30 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
 }
 
 /**
- * Send-time drift (B3): mark readiness `stale` and take the order OFF `ready` (atomically, only when it is
- * currently `ready`). The Outbox row itself is suppressed by the worker (fenced). Called by the cron when the
- * pre-send recheck reports inputs_changed_since_manifest — the book must not remain customer-visible.
+ * Send-time drift (B2): mark readiness `stale` and take the order OFF `ready`. Two guards so this can never
+ * undo good state:
+ *  - the readiness→stale write is CONDITIONAL on `currentManifestId === expectedManifestId`, so an old recheck
+ *    can never stomp a NEWER manifest that a concurrent re-evaluation already committed (count 0 → no-op);
+ *  - the order is un-readied only when the stale write actually applied AND the email has not already gone out
+ *    (no Outbox row is `sent`).
+ * The Outbox row itself is separately suppressed by the worker (fenced). Called by the cron when the pre-send
+ * recheck reports real drift (inputs_changed_since_manifest OR integrity_now_* — a now-corrupt/deleted asset).
  */
-export async function markBaseBookStale(prisma: PrismaClient, orderId: string, scope: string): Promise<void> {
+export async function markBaseBookStale(
+  prisma: PrismaClient,
+  orderId: string,
+  scope: string,
+  expectedManifestId: string,
+  reason = 'inputs_changed_since_manifest',
+): Promise<void> {
   await prisma.$transaction(async (tx) => {
-    await tx.bookReadiness.updateMany({ where: { orderId, scope }, data: { status: 'stale', reason: 'inputs_changed_since_manifest' } });
+    const invalidated = await tx.bookReadiness.updateMany({
+      where: { orderId, scope, currentManifestId: expectedManifestId },
+      data: { status: 'stale', reason },
+    });
+    if (invalidated.count === 0) return; // a newer manifest replaced the one we rechecked — leave it alone
+    const alreadySent = await tx.deliveryOutbox.count({ where: { orderId, scope, status: 'sent' } });
+    if (alreadySent > 0) return; // the email already shipped — don't retroactively un-ready a delivered book
     await tx.order.updateMany({ where: { id: orderId, status: 'ready' }, data: { status: 'needs_human_qa', deliveryHoldReason: 'base_book_readiness_stale' } });
   });
 }
@@ -243,7 +260,7 @@ export async function recheckBaseBookDelivery(
   orderId: string,
   scope: string,
   deps: CommitDeps = {},
-): Promise<{ outcome: 'allow' | 'retry' | 'suppress'; reason?: string }> {
+): Promise<Disposition> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     select: {
@@ -258,11 +275,14 @@ export async function recheckBaseBookDelivery(
     },
   });
   if (!order || !order.book) return { outcome: 'suppress', reason: 'order_or_book_missing' };
-  if (order.status === 'needs_human_qa' || order.status === 'failed') return { outcome: 'suppress', reason: `order_re_held:${order.status}` };
+  // (B3) Allowlist — ONLY a `ready` order may send. paid/draft/generating/needs_human_qa/failed all suppress
+  // (fail-closed; the old blacklist let non-terminal states like `generating` through).
+  if (order.status !== 'ready') return { outcome: 'suppress', reason: `order_not_ready:${order.status}` };
 
   const readiness = await prisma.bookReadiness.findUnique({ where: { orderId_scope: { orderId, scope } }, select: { status: true, currentManifestId: true } });
   if (!readiness || readiness.status !== 'passed' || !readiness.currentManifestId) return { outcome: 'suppress', reason: 'readiness_not_passed' };
-  const manifest = await prisma.bookReadinessManifest.findUnique({ where: { id: readiness.currentManifestId }, select: { inputsHash: true } });
+  const expectedManifestId = readiness.currentManifestId;
+  const manifest = await prisma.bookReadinessManifest.findUnique({ where: { id: expectedManifestId }, select: { inputsHash: true } });
   if (!manifest) return { outcome: 'suppress', reason: 'manifest_missing' };
 
   const fresh = await evaluateBaseBookIntegrity(
@@ -283,10 +303,11 @@ export async function recheckBaseBookDelivery(
     deps.inspect ?? inspectAsset,
   );
   if (fresh.status !== 'passed') {
-    // Transient infra (timeout/5xx/network) => retry later; a real persistent failure => suppress.
+    // Transient infra (timeout/5xx/network) => retry later, do NOT invalidate readiness.
     if (hasTransientAssetError(fresh.evidence)) return { outcome: 'retry', reason: `transient_asset:${fresh.reason ?? 'blocked'}` };
-    return { outcome: 'suppress', reason: `integrity_now_${fresh.reason ?? 'blocked'}` };
+    // (B2) A now-corrupt/deleted asset is REAL drift — invalidate readiness + drop from `ready`, not just suppress.
+    return { outcome: 'suppress', reason: `integrity_now_${fresh.reason ?? 'blocked'}`, invalidateReadiness: true, expectedManifestId };
   }
-  if (fresh.inputsHash !== manifest.inputsHash) return { outcome: 'suppress', reason: 'inputs_changed_since_manifest' };
+  if (fresh.inputsHash !== manifest.inputsHash) return { outcome: 'suppress', reason: 'inputs_changed_since_manifest', invalidateReadiness: true, expectedManifestId };
   return { outcome: 'allow' };
 }

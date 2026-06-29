@@ -30,13 +30,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const summary = await drainOutbox(
     prisma,
-    { limit: 5 },
+    { limit: 1 }, // simplification A: single-claim per tick
     {
       recheck: async (orderId, scope) => {
         const d = await recheckBaseBookDelivery(prisma, orderId, scope);
-        // B3: real drift at send time => mark readiness stale + take the order off `ready` (book no longer visible).
-        if (d.outcome === 'suppress' && d.reason === 'inputs_changed_since_manifest') {
-          await markBaseBookStale(prisma, orderId, scope);
+        // B2: real drift at send time (assets changed OR an asset is now corrupt/deleted) => invalidate the
+        // readiness pointer (guarded to the exact manifest we rechecked) + take the order off `ready`.
+        if (d.outcome === 'suppress' && d.invalidateReadiness && d.expectedManifestId) {
+          await markBaseBookStale(prisma, orderId, scope, d.expectedManifestId, d.reason ?? 'inputs_changed_since_manifest');
         }
         return d;
       },

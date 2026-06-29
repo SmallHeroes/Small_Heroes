@@ -103,15 +103,33 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
   });
 });
 
-describe('markBaseBookStale — send-time drift (B3)', () => {
-  it('marks readiness stale + un-readies the order (only when currently ready)', async () => {
-    const brUpdateMany = vi.fn();
-    const orderUpdateMany = vi.fn();
-    const tx = { bookReadiness: { updateMany: brUpdateMany }, order: { updateMany: orderUpdateMany } };
+describe('markBaseBookStale — send-time drift (B2)', () => {
+  const mk = (invalidatedCount: number, sentCount: number) => {
+    const brUpdateMany = vi.fn(async () => ({ count: invalidatedCount }));
+    const orderUpdateMany = vi.fn(async () => ({ count: 1 }));
+    const obxCount = vi.fn(async () => sentCount);
+    const tx = { bookReadiness: { updateMany: brUpdateMany }, order: { updateMany: orderUpdateMany }, deliveryOutbox: { count: obxCount } };
     const prisma = { $transaction: vi.fn(async (cb: (t: unknown) => unknown) => cb(tx)) };
-    await markBaseBookStale(prisma as never, 'o1', BASE_BOOK_SCOPE);
-    expect(brUpdateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'stale' }) }));
+    return { prisma, brUpdateMany, orderUpdateMany, obxCount };
+  };
+
+  it('marks readiness stale (guarded to the rechecked manifest) + un-readies the order', async () => {
+    const { prisma, brUpdateMany, orderUpdateMany } = mk(1, 0);
+    await markBaseBookStale(prisma as never, 'o1', BASE_BOOK_SCOPE, 'm1', 'integrity_now_page2_image_invalid');
+    expect(brUpdateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { orderId: 'o1', scope: BASE_BOOK_SCOPE, currentManifestId: 'm1' }, data: expect.objectContaining({ status: 'stale', reason: 'integrity_now_page2_image_invalid' }) }));
     expect(orderUpdateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'o1', status: 'ready' }, data: expect.objectContaining({ status: 'needs_human_qa', deliveryHoldReason: 'base_book_readiness_stale' }) }));
+  });
+
+  it('does NOT stomp a NEWER manifest: when the guarded update matches 0, the order is left alone', async () => {
+    const { prisma, orderUpdateMany } = mk(0, 0); // a newer manifest already replaced m1
+    await markBaseBookStale(prisma as never, 'o1', BASE_BOOK_SCOPE, 'm1');
+    expect(orderUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('does NOT un-ready an order whose email already shipped (an outbox row is already `sent`)', async () => {
+    const { prisma, orderUpdateMany } = mk(1, 1); // readiness invalidated, but delivery already sent
+    await markBaseBookStale(prisma as never, 'o1', BASE_BOOK_SCOPE, 'm1');
+    expect(orderUpdateMany).not.toHaveBeenCalled();
   });
 });
 
@@ -145,7 +163,7 @@ describe('recheckBaseBookDelivery — send-time guard', () => {
     expect(r.outcome).toBe('allow');
   });
 
-  it('SUPPRESS when the assets changed since the manifest (inputsHash mismatch — real drift)', async () => {
+  it('SUPPRESS + invalidateReadiness when the assets changed since the manifest (inputsHash mismatch — real drift)', async () => {
     const prisma = {
       order: { findUnique: vi.fn(async () => orderRow) },
       bookReadiness: { findUnique: vi.fn(async () => ({ status: 'passed', currentManifestId: 'm1' })) },
@@ -154,6 +172,25 @@ describe('recheckBaseBookDelivery — send-time guard', () => {
     const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect, appBaseUrl: 'https://app.example.com' });
     expect(r.outcome).toBe('suppress');
     expect(r.reason).toBe('inputs_changed_since_manifest');
+    expect(r.invalidateReadiness).toBe(true);
+    expect(r.expectedManifestId).toBe('m1'); // guards markBaseBookStale to exactly this manifest
+  });
+
+  it('SUPPRESS + invalidateReadiness when a page asset is now corrupt/deleted (integrity_now_*) — B2', async () => {
+    const corruptInspect = async (url: string | null | undefined) => {
+      if ((url ?? '').includes('p2')) return { ok: false, bytes: 5, format: null, mime: null, width: null, height: null, sha256: null, error: 'not_decodable' as const };
+      return stubInspect(url);
+    };
+    const prisma = {
+      order: { findUnique: vi.fn(async () => orderRow) },
+      bookReadiness: { findUnique: vi.fn(async () => ({ status: 'passed', currentManifestId: 'm1' })) },
+      bookReadinessManifest: { findUnique: vi.fn(async () => ({ inputsHash: 'whatever' })) },
+    };
+    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: corruptInspect, appBaseUrl: 'https://app.example.com' });
+    expect(r.outcome).toBe('suppress');
+    expect(r.reason).toMatch(/^integrity_now_/);
+    expect(r.invalidateReadiness).toBe(true); // a now-broken asset must drop the order from `ready`, not just suppress
+    expect(r.expectedManifestId).toBe('m1');
   });
 
   it('RETRY (not suppress) on a TRANSIENT asset error (timeout/5xx) — B2', async () => {
@@ -170,7 +207,7 @@ describe('recheckBaseBookDelivery — send-time guard', () => {
     expect(r.outcome).toBe('retry');
   });
 
-  it('SUPPRESS when the order was re-held', async () => {
+  it('SUPPRESS (allowlist) when the order is re-held — only `ready` may send', async () => {
     const prisma = {
       order: { findUnique: vi.fn(async () => ({ ...orderRow, status: 'needs_human_qa' })) },
       bookReadiness: { findUnique: vi.fn() },
@@ -178,7 +215,18 @@ describe('recheckBaseBookDelivery — send-time guard', () => {
     };
     const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect, appBaseUrl: 'https://app.example.com' });
     expect(r.outcome).toBe('suppress');
-    expect(r.reason).toContain('order_re_held');
+    expect(r.reason).toBe('order_not_ready:needs_human_qa');
+  });
+
+  it('SUPPRESS (allowlist, fail-closed) when the order is still `generating` (not a held status) — B3', async () => {
+    const prisma = {
+      order: { findUnique: vi.fn(async () => ({ ...orderRow, status: 'generating' })) },
+      bookReadiness: { findUnique: vi.fn() },
+      bookReadinessManifest: { findUnique: vi.fn() },
+    };
+    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect, appBaseUrl: 'https://app.example.com' });
+    expect(r.outcome).toBe('suppress');
+    expect(r.reason).toBe('order_not_ready:generating'); // the blacklist would have let this through
   });
 
   it('SUPPRESS when readiness is not passed', async () => {

@@ -94,8 +94,17 @@ export async function claimDueDeliveries(prisma: PrismaClient, now: Date, limit:
   return rows;
 }
 
-/** Recheck verdict (B2): allow (deliverable now), retry (transient infra — try later), suppress (drift/held). */
-export type Disposition = { outcome: 'allow' | 'retry' | 'suppress'; reason?: string };
+/**
+ * Recheck verdict (B2): allow (deliverable now), retry (transient infra — try later), suppress (drift/held).
+ * On a suppress that represents real drift, `invalidateReadiness` asks the caller to mark readiness stale +
+ * take the order off `ready`, guarded by `expectedManifestId` (only stomp the manifest we actually rechecked).
+ */
+export type Disposition = {
+  outcome: 'allow' | 'retry' | 'suppress';
+  reason?: string;
+  invalidateReadiness?: boolean;
+  expectedManifestId?: string;
+};
 export type DeliveryOutcome = 'sent' | 'suppressed' | 'failed' | 'retry' | 'lost_lease';
 
 export interface OutboxDeps {
@@ -143,9 +152,24 @@ export async function processDelivery(prisma: PrismaClient, row: DeliveryOutbox,
     return 'suppressed';
   }
   if (disp.outcome === 'retry') {
+    // B3: a recheck that keeps returning `retry` (e.g. an asset that times out forever) must NOT reschedule
+    // indefinitely — cap by OUTBOX_MAX_ATTEMPTS, then terminal-fail (never `scheduled` forever).
+    if (row.attempts >= OUTBOX_MAX_ATTEMPTS) {
+      const lastError = `recheck_retry_exhausted:${disp.reason ?? ''}`.slice(0, 300);
+      const ok = await fenced(prisma, row.id, token, { status: 'failed', nextAttemptAt: null, leaseExpiresAt: null, lastError });
+      if (!ok) return 'lost_lease';
+      log.error('Delivery recheck retries exhausted', new Error(lastError), { dedupeKey: row.dedupeKey, attempts: row.attempts });
+      return 'failed';
+    }
     const ok = await fenced(prisma, row.id, token, { status: 'scheduled', nextAttemptAt: new Date(now.getTime() + backoffMs(row.attempts)), leaseExpiresAt: null, lastError: disp.reason ?? 'recheck_retry' });
     return ok ? 'retry' : 'lost_lease';
   }
+
+  // allow → (B1) renew the lease + RE-CONFIRM ownership atomically, immediately before send. If another
+  // worker reclaimed the row during a long recheck (attempts !== token), this matches 0 rows and we STOP —
+  // `send` is never called, so a worker that lost its lease can never emit a duplicate delivery.
+  const stillOwned = await fenced(prisma, row.id, token, { leaseExpiresAt: new Date(now.getTime() + LEASE_MS) });
+  if (!stillOwned) return 'lost_lease';
 
   // allow → send
   try {
@@ -170,10 +194,14 @@ export async function processDelivery(prisma: PrismaClient, row: DeliveryOutbox,
 
 export type DrainSummary = { claimed: number; sent: number; suppressed: number; failed: number; retry: number; lost_lease: number };
 
-/** Drain a SMALL batch (recheck downloads assets): claim atomically, then process each. */
+/**
+ * Drain the Outbox. Simplification A: claim ONE row per tick by default (the recheck downloads assets, so a
+ * single-row claim shrinks the lease/fencing race surface to one row — a failure is one row, not a batch).
+ * A larger limit is still supported (the SKIP-LOCKED proof seeds many), but production runs single-claim.
+ */
 export async function drainOutbox(prisma: PrismaClient, opts: { limit?: number }, deps: OutboxDeps): Promise<DrainSummary> {
   const now = deps.now?.() ?? new Date();
-  const rows = await claimDueDeliveries(prisma, now, opts.limit ?? 5);
+  const rows = await claimDueDeliveries(prisma, now, opts.limit ?? 1);
   const summary: DrainSummary = { claimed: rows.length, sent: 0, suppressed: 0, failed: 0, retry: 0, lost_lease: 0 };
   for (const row of rows) {
     const outcome = await processDelivery(prisma, row, deps);
