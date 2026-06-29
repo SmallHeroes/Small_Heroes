@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createHash } from 'crypto';
-import { commitBaseBookReadiness, recheckBaseBookDelivery, isReadinessManifestEnabled, type CommitArgs } from '@/lib/generation-pipeline/readiness-manifest';
+import { commitBaseBookReadiness, recheckBaseBookDelivery, markBaseBookStale, isReadinessManifestEnabled, type CommitArgs } from '@/lib/generation-pipeline/readiness-manifest';
 import { evaluateBaseBookIntegrity, BASE_BOOK_SCOPE } from '@/lib/generation-pipeline/integrity-gate';
 import type { AssetInspection } from '@/lib/generation-pipeline/asset-integrity';
 
@@ -12,31 +12,30 @@ const stubInspect = async (url: string | null | undefined): Promise<AssetInspect
   return { ok: true, bytes: 2048, format: 'png', mime: 'image/png', width: 800, height: 1200, sha256: createHash('sha256').update(u).digest('hex') };
 };
 
-const args = (over: Partial<CommitArgs> = {}): CommitArgs => ({
-  order: { id: 'o1', fulfillmentVersion: 1, expectedPageCount: 2, storySourceHash: 'src', selectionFilename: 'bedtime/foo.md', frozenProductVersion: 'v3', customerEmail: 'c@e.com', customerName: 'Cust', childName: 'Kid' },
-  book: {
-    coverImageUrl: 'https://h/cover.png', readUrl: 'https://app.example.com/book/o1/read', pdfUrl: null, firstAudioUrl: null,
-    pages: [
-      { pageNumber: 1, imageUrl: 'https://h/p1.png', text: 'עמוד אחד' },
-      { pageNumber: 2, imageUrl: 'https://h/p2.png', text: 'עמוד שתיים' },
-    ],
-  },
-  anchorAllowsDelivery: true,
-  anchorOrderStatus: 'ready',
-  anchorReason: null,
-  ...over,
-});
+// COMMIT_SELECT-shaped order row (loadCommitInputs reads it both out-of-tx and in-tx).
+const orderRowFull = {
+  id: 'o1', fulfillmentVersion: 1, expectedPageCount: 2, storySourceHash: 'src', selectionFilename: 'bedtime/foo.md', frozenProductVersion: 'v3',
+  customerEmail: 'c@e.com', customerName: 'Cust', childName: 'Kid',
+  book: { coverImageUrl: 'https://h/cover.png', readUrl: 'https://app.example.com/book/o1/read', pdfUrl: null, pages: [
+    { pageNumber: 1, text: 'עמוד אחד', audioUrl: null, imageAsset: { url: 'https://h/p1.png', presentationUrl: null } },
+    { pageNumber: 2, text: 'עמוד שתיים', audioUrl: null, imageAsset: { url: 'https://h/p2.png', presentationUrl: null } },
+  ] },
+};
+const badPageRow = { ...orderRowFull, book: { ...orderRowFull.book, pages: [orderRowFull.book.pages[0], { ...orderRowFull.book.pages[1], imageAsset: { url: 'https://h/p2-bad.png', presentationUrl: null } }] } };
 
-function mockTx() {
+const args = (over: Partial<CommitArgs> = {}): CommitArgs => ({ orderId: 'o1', anchorAllowsDelivery: true, anchorOrderStatus: 'ready', anchorReason: null, ...over });
+
+function mockTx(orderRow: unknown = orderRowFull) {
   return {
+    order: { findUnique: vi.fn(async () => orderRow), update: vi.fn() },
     bookReadinessManifest: { findFirst: vi.fn(async () => ({ revision: 4 })), create: vi.fn(async (a: { data: Record<string, unknown> }) => ({ id: 'm1', ...a.data })) },
     bookReadiness: { upsert: vi.fn() },
     deliveryOutbox: { findUnique: vi.fn(async () => null), create: vi.fn() },
-    order: { update: vi.fn() },
     generationJob: { update: vi.fn() },
   };
 }
-const txRunner = (tx: ReturnType<typeof mockTx>) => vi.fn(async (cb: (t: unknown) => unknown) => cb(tx));
+const mockPrisma = (tx: ReturnType<typeof mockTx>, orderRow: unknown = orderRowFull) =>
+  ({ order: { findUnique: vi.fn(async () => orderRow) }, $transaction: vi.fn(async (cb: (t: unknown) => unknown) => cb(tx)) });
 
 describe('isReadinessManifestEnabled', () => {
   let prev: string | undefined;
@@ -50,11 +49,10 @@ describe('isReadinessManifestEnabled', () => {
   });
 });
 
-describe('commitBaseBookReadiness — single transaction, PASS/BLOCK/anchor branches', () => {
+describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches', () => {
   it('PASS + anchor allows: one immutable manifest INSERT, enqueue, order ready, job done', async () => {
     const tx = mockTx();
-    const prisma = { $transaction: txRunner(tx) };
-    const r = await commitBaseBookReadiness(prisma as never, args(), { inspect: stubInspect, now: () => NOW });
+    const r = await commitBaseBookReadiness(mockPrisma(tx) as never, args(), { inspect: stubInspect, now: () => NOW });
     expect(r).toMatchObject({ manifestStatus: 'passed', enqueued: true, orderStatus: 'ready', revision: 5 });
     expect(tx.bookReadinessManifest.create).toHaveBeenCalledTimes(1); // single terminal INSERT
     expect(tx.bookReadinessManifest.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'passed', revision: 5 }) }));
@@ -65,11 +63,8 @@ describe('commitBaseBookReadiness — single transaction, PASS/BLOCK/anchor bran
   });
 
   it('BLOCK (bad page): manifest blocked, NO enqueue, order held + reason', async () => {
-    const tx = mockTx();
-    const prisma = { $transaction: txRunner(tx) };
-    const a = args();
-    a.book.pages[1].imageUrl = 'https://h/p2-bad.png';
-    const r = await commitBaseBookReadiness(prisma as never, a, { inspect: stubInspect, now: () => NOW });
+    const tx = mockTx(badPageRow);
+    const r = await commitBaseBookReadiness(mockPrisma(tx, badPageRow) as never, args(), { inspect: stubInspect, now: () => NOW });
     expect(r.manifestStatus).toBe('blocked');
     expect(r.enqueued).toBe(false);
     expect(tx.bookReadinessManifest.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'blocked' }) }));
@@ -79,12 +74,21 @@ describe('commitBaseBookReadiness — single transaction, PASS/BLOCK/anchor bran
 
   it('PASS but anchor holds: manifest passed, NO enqueue, anchor hold preserved', async () => {
     const tx = mockTx();
-    const prisma = { $transaction: txRunner(tx) };
-    const r = await commitBaseBookReadiness(prisma as never, args({ anchorAllowsDelivery: false, anchorOrderStatus: 'needs_human_qa', anchorReason: 'anchor_low_confidence:soft_band' }), { inspect: stubInspect, now: () => NOW });
+    const r = await commitBaseBookReadiness(mockPrisma(tx) as never, args({ anchorAllowsDelivery: false, anchorOrderStatus: 'needs_human_qa', anchorReason: 'anchor_low_confidence:soft_band' }), { inspect: stubInspect, now: () => NOW });
     expect(r.manifestStatus).toBe('passed');
     expect(r.enqueued).toBe(false);
     expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
     expect(tx.order.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'needs_human_qa', deliveryHoldReason: 'anchor_low_confidence:soft_band' }) }));
+  });
+
+  it('aborts + retries on in-tx fingerprint drift (TOCTOU), then commits on fresh re-eval', async () => {
+    const drifted = { ...orderRowFull, book: { ...orderRowFull.book, coverImageUrl: 'https://h/cover-CHANGED.png' } };
+    const tx = mockTx();
+    tx.order.findUnique = vi.fn().mockResolvedValueOnce(drifted).mockResolvedValue(orderRowFull); // drift on the first tx, stable after
+    const prisma = { order: { findUnique: vi.fn(async () => orderRowFull) }, $transaction: vi.fn(async (cb: (t: unknown) => unknown) => cb(tx)) };
+    const r = await commitBaseBookReadiness(prisma as never, args(), { inspect: stubInspect, now: () => NOW });
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2); // aborted on drift, re-evaluated fresh, then committed
+    expect(r.manifestStatus).toBe('passed');
   });
 
   it('retries the whole transaction on a revision collision (P2002)', async () => {
@@ -92,9 +96,22 @@ describe('commitBaseBookReadiness — single transaction, PASS/BLOCK/anchor bran
     const $transaction = vi.fn()
       .mockRejectedValueOnce(Object.assign(new Error('unique'), { code: 'P2002' }))
       .mockImplementation(async (cb: (t: unknown) => unknown) => cb(tx));
-    const r = await commitBaseBookReadiness({ $transaction } as never, args(), { inspect: stubInspect, now: () => NOW });
+    const prisma = { order: { findUnique: vi.fn(async () => orderRowFull) }, $transaction };
+    const r = await commitBaseBookReadiness(prisma as never, args(), { inspect: stubInspect, now: () => NOW });
     expect($transaction).toHaveBeenCalledTimes(2);
     expect(r.manifestStatus).toBe('passed');
+  });
+});
+
+describe('markBaseBookStale — send-time drift (B3)', () => {
+  it('marks readiness stale + un-readies the order (only when currently ready)', async () => {
+    const brUpdateMany = vi.fn();
+    const orderUpdateMany = vi.fn();
+    const tx = { bookReadiness: { updateMany: brUpdateMany }, order: { updateMany: orderUpdateMany } };
+    const prisma = { $transaction: vi.fn(async (cb: (t: unknown) => unknown) => cb(tx)) };
+    await markBaseBookStale(prisma as never, 'o1', BASE_BOOK_SCOPE);
+    expect(brUpdateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'stale' }) }));
+    expect(orderUpdateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'o1', status: 'ready' }, data: expect.objectContaining({ status: 'needs_human_qa', deliveryHoldReason: 'base_book_readiness_stale' }) }));
   });
 });
 
