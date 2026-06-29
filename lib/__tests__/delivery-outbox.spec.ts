@@ -97,6 +97,29 @@ describe('processDelivery — fenced terminal writes (B1) + disposition (B2)', (
     const out = await processDelivery({ deliveryOutbox: { updateMany: vi.fn() } } as never, row() as never, { recheck: async () => ({ outcome: 'suppress', reason: 'integrity_now_x', invalidateReadiness: true, expectedManifestId: 'm1' }), send: vi.fn(), suppress, now: () => NOW });
     expect(out).toBe('lost_lease');
   });
+  it('B-r3-2: WITHOUT the suppress dep, the fallback is a plain fenced suppress and performs NO readiness invalidation (the injected dep is the ONLY path to invalidation)', async () => {
+    // Documents the seam contract: even a drift disposition (invalidateReadiness:true) does NOT invalidate
+    // readiness when no suppress dep is wired — so the cron MUST inject it (covered by the route spec). A
+    // regression that drops the dep would otherwise leave the order `ready` behind a suppressed row, silently.
+    const updateMany = fencedOk();
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, { recheck: async () => ({ outcome: 'suppress', reason: 'integrity_now_x', invalidateReadiness: true, expectedManifestId: 'm1' }), send: vi.fn(), now: () => NOW });
+    expect(out).toBe('suppressed');
+    expect(updateMany).toHaveBeenCalledTimes(1); // ONLY the plain fenced suppress — no readiness/order writes
+    expect(firstData(updateMany)).toMatchObject({ status: 'suppressed' });
+  });
+  it('B-r3-3: on send FAILURE, the backoff nextAttemptAt is computed from a now taken FRESH after the failed send', async () => {
+    const T_afterRecheck = new Date('2026-06-29T10:00:00Z');
+    const T_afterFail = new Date('2026-06-29T10:05:00Z'); // the send attempt itself took time
+    const times = [T_afterRecheck, T_afterFail];
+    let i = 0;
+    const now = () => times[Math.min(i++, times.length - 1)];
+    const updateMany = fencedOk();
+    const send = vi.fn(async () => { throw new Error('network'); });
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ attempts: 2 }) as never, { recheck: async () => ({ outcome: 'allow' }), send, now });
+    expect(out).toBe('retry');
+    // [0] = pre-send renewal (post-recheck), [1] = reschedule with backoff(2)=2m from the post-FAILURE now
+    expect((dataOf(updateMany, 1).nextAttemptAt as Date).getTime()).toBe(T_afterFail.getTime() + 2 * 60 * 1000);
+  });
   it('retry disposition (transient infra) → reschedule, NO send', async () => {
     const updateMany = fencedOk();
     const send = vi.fn();
