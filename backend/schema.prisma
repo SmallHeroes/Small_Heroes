@@ -184,6 +184,11 @@ model Order {
   selectionFilename    String?
   frozenProductVersion String?
   fulfillmentVersion   Int      @default(1)  // logical delivery-event version; part of the Outbox dedupe key
+  // Monotonic optimistic-concurrency token (P1-e2 B4). Bumped by any writer of delivery inputs
+  // (text/frozen/assets/payload fields). The readiness manifest records the value it evaluated; the
+  // Order→ready commit and the pre-send recheck are conditional on it being unchanged. Writer-side
+  // bumps are wired in P1-f; until then it stays 0 (the guard is inert, never falsely suppresses).
+  inputVersion         Int      @default(0)
 
   // Error tracking
   lastError          String?
@@ -493,6 +498,7 @@ model BookReadinessManifest {
   revision   Int             // atomically allocated; (orderId, scope, revision) is unique
   status     ReadinessStatus // only `passed` or `blocked` are ever written here
   inputsHash String          // hash of the inputs (assets + frozen text) this evaluation observed
+  inputVersion Int           @default(0) // Order.inputVersion observed at evaluation time (P1-e2 B4 optimistic-concurrency)
   evidence   Json            // per-check evidence (decode/bytes/mime/sha per asset, page list, frozen truth…)
   reason     String?         // block reason (null when passed)
   createdAt  DateTime        @default(now())

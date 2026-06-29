@@ -12,7 +12,7 @@ import type { Prisma, PrismaClient } from '@prisma/client';
 import { createHash } from 'crypto';
 import { evaluateBaseBookIntegrity, BASE_BOOK_SCOPE, type IntegrityInput, type IntegrityResult } from './integrity-gate';
 import { inspectAsset, type AssetInspection } from './asset-integrity';
-import { enqueueDelivery, type BookReadyPayload, type Disposition } from '@/lib/generation-chunked/delivery-outbox';
+import { enqueueDelivery, hashPayload, type BookReadyPayload, type Disposition } from '@/lib/generation-chunked/delivery-outbox';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger({ subsystem: 'readiness-manifest' });
@@ -26,6 +26,8 @@ type Tx = Prisma.TransactionClient;
 export interface OrderTruth {
   id: string;
   fulfillmentVersion: number;
+  /** Optimistic-concurrency token (B4): commit + send are conditional on this being unchanged. */
+  inputVersion: number;
   expectedPageCount: number | null;
   storySourceHash: string | null;
   selectionFilename: string | null;
@@ -77,16 +79,26 @@ function isToctou(e: unknown): boolean {
   return e instanceof Error && e.message === TOCTOU;
 }
 
-/** Cheap DB-visible fingerprint (frozen-truth + readUrl + cover + page [num,text,url]); NO asset bytes. */
-function fingerprintOf(f: { expectedPageCount: number | null; storySourceHash: string | null; selectionFilename: string | null; frozenProductVersion: string | null; fulfillmentVersion: number; readUrl: string | null; cover: string | null; pages: Array<[number, string, string | null]> }): string {
+/**
+ * Cheap DB-visible fingerprint — the TOCTOU guard. Covers frozen-truth + inputVersion + ALL delivery-payload
+ * fields (email/name/child/readUrl/pdf/firstAudio) + cover + page [num,text,url]; NO asset bytes. (B4) Binding
+ * the payload fields here means a payload change between eval and commit aborts the commit (no stale enqueue).
+ */
+function fingerprintOf(f: {
+  expectedPageCount: number | null; storySourceHash: string | null; selectionFilename: string | null; frozenProductVersion: string | null;
+  fulfillmentVersion: number; inputVersion: number;
+  customerEmail: string; customerName: string | null; childName: string; readUrl: string | null; pdfUrl: string | null; firstAudioUrl: string | null;
+  cover: string | null; pages: Array<[number, string, string | null]>;
+}): string {
   return createHash('sha256').update(JSON.stringify({
-    frozen: [f.expectedPageCount, f.storySourceHash, f.selectionFilename, f.frozenProductVersion, f.fulfillmentVersion],
-    readUrl: f.readUrl, cover: f.cover, pages: f.pages,
+    frozen: [f.expectedPageCount, f.storySourceHash, f.selectionFilename, f.frozenProductVersion, f.fulfillmentVersion, f.inputVersion],
+    payload: [f.customerEmail, f.customerName, f.childName, f.readUrl, f.pdfUrl, f.firstAudioUrl],
+    cover: f.cover, pages: f.pages,
   })).digest('hex');
 }
 
 const COMMIT_SELECT = {
-  id: true, fulfillmentVersion: true, expectedPageCount: true, storySourceHash: true, selectionFilename: true, frozenProductVersion: true,
+  id: true, fulfillmentVersion: true, inputVersion: true, expectedPageCount: true, storySourceHash: true, selectionFilename: true, frozenProductVersion: true,
   customerEmail: true, customerName: true, childName: true,
   book: { select: { coverImageUrl: true, readUrl: true, pdfUrl: true, pages: { orderBy: { pageNumber: 'asc' as const }, select: { pageNumber: true, text: true, audioUrl: true, imageAsset: { select: { url: true, presentationUrl: true } } } } } },
 } as const;
@@ -97,9 +109,12 @@ async function loadCommitInputs(db: PrismaClient | Tx, orderId: string): Promise
   if (!o || !o.book) return null;
   const pages = o.book.pages.map((p) => ({ pageNumber: p.pageNumber, imageUrl: p.imageAsset?.presentationUrl ?? p.imageAsset?.url ?? null, text: p.text }));
   const firstAudioUrl = o.book.pages.find((p) => p.audioUrl?.trim())?.audioUrl ?? null;
-  const order: OrderTruth = { id: o.id, fulfillmentVersion: o.fulfillmentVersion, expectedPageCount: o.expectedPageCount, storySourceHash: o.storySourceHash, selectionFilename: o.selectionFilename, frozenProductVersion: o.frozenProductVersion, customerEmail: o.customerEmail, customerName: o.customerName, childName: o.childName };
+  const order: OrderTruth = { id: o.id, fulfillmentVersion: o.fulfillmentVersion, inputVersion: o.inputVersion, expectedPageCount: o.expectedPageCount, storySourceHash: o.storySourceHash, selectionFilename: o.selectionFilename, frozenProductVersion: o.frozenProductVersion, customerEmail: o.customerEmail, customerName: o.customerName, childName: o.childName };
   const book: BookData = { coverImageUrl: o.book.coverImageUrl, readUrl: o.book.readUrl, pdfUrl: o.book.pdfUrl, firstAudioUrl, pages };
-  const fingerprint = fingerprintOf({ ...order, readUrl: book.readUrl, cover: book.coverImageUrl, pages: pages.map((p) => [p.pageNumber, p.text, p.imageUrl] as [number, string, string | null]) });
+  const fingerprint = fingerprintOf({
+    ...order, readUrl: book.readUrl, pdfUrl: book.pdfUrl, firstAudioUrl: book.firstAudioUrl,
+    cover: book.coverImageUrl, pages: pages.map((p) => [p.pageNumber, p.text, p.imageUrl] as [number, string, string | null]),
+  });
   return { order, book, fingerprint };
 }
 
@@ -120,15 +135,23 @@ function buildIntegrityInput(order: OrderTruth, book: BookData, appBaseUrl: stri
   };
 }
 
-function buildPayload(order: OrderTruth, book: BookData): BookReadyPayload {
+/**
+ * Build the delivery payload from the exact fields that determine it. The SAME function is used at enqueue
+ * time (commit) and at send time (recheck) so the payloadHash comparison is apples-to-apples. (B4)
+ */
+interface PayloadSource { customerEmail: string; customerName: string | null; childName: string; readUrl: string | null; pdfUrl: string | null; firstAudioUrl: string | null }
+function buildPayload(p: PayloadSource): BookReadyPayload {
   return {
-    to: order.customerEmail,
-    customerName: order.customerName ?? order.childName,
-    childName: order.childName,
-    readUrl: book.readUrl ?? '',
-    audioUrl: book.firstAudioUrl ?? undefined,
-    pdfUrl: book.pdfUrl ?? undefined,
+    to: p.customerEmail,
+    customerName: p.customerName ?? p.childName,
+    childName: p.childName,
+    readUrl: p.readUrl ?? '',
+    audioUrl: p.firstAudioUrl ?? undefined,
+    pdfUrl: p.pdfUrl ?? undefined,
   };
+}
+function payloadSourceOf(order: OrderTruth, book: BookData): PayloadSource {
+  return { customerEmail: order.customerEmail, customerName: order.customerName, childName: order.childName, readUrl: book.readUrl, pdfUrl: book.pdfUrl, firstAudioUrl: book.firstAudioUrl };
 }
 
 async function nextRevision(tx: Tx, orderId: string, scope: string): Promise<number> {
@@ -154,9 +177,10 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, r
   const scope = BASE_BOOK_SCOPE;
   const revision = await nextRevision(tx, order.id, scope);
 
-  // (1) IMMUTABLE manifest — terminal INSERT (throws P2002 on a concurrent same-revision insert).
+  // (1) IMMUTABLE manifest — terminal INSERT (throws P2002 on a concurrent same-revision insert). Records the
+  // Order.inputVersion this evaluation observed, so the send-time recheck can detect a later writer bump.
   const manifest = await tx.bookReadinessManifest.create({
-    data: { orderId: order.id, scope, revision, status: result.status, inputsHash: result.inputsHash, evidence: result.evidence as unknown as Prisma.InputJsonValue, reason: result.reason },
+    data: { orderId: order.id, scope, revision, status: result.status, inputsHash: result.inputsHash, inputVersion: order.inputVersion, evidence: result.evidence as unknown as Prisma.InputJsonValue, reason: result.reason },
   });
 
   // (2) MUTABLE readiness pointer → current manifest.
@@ -171,7 +195,7 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, r
   let deliveryHoldReason: string | null;
   if (result.status === 'passed' && args.anchorAllowsDelivery) {
     // (3) enqueue the delivery IN the same transaction (enqueue != send), then (4) mark the order ready.
-    await enqueueDelivery(tx, { orderId: order.id, scope, fulfillmentVersion: order.fulfillmentVersion, payload: buildPayload(order, book), now });
+    await enqueueDelivery(tx, { orderId: order.id, scope, fulfillmentVersion: order.fulfillmentVersion, payload: buildPayload(payloadSourceOf(order, book)), now });
     enqueued = true; orderStatus = 'ready'; deliveryHoldReason = null;
   } else if (result.status === 'passed') {
     // Integrity passed but the ANCHOR still holds delivery (Phase-1 keeps the anchor hold — fix #4). No enqueue.
@@ -181,7 +205,14 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, r
     orderStatus = 'needs_human_qa'; deliveryHoldReason = `base_book_integrity:${result.reason ?? 'blocked'}`;
   }
 
-  await tx.order.update({ where: { id: order.id }, data: { status: orderStatus as never, packageStatus: 'done', deliveryHoldReason } });
+  // (4) Order write is CONDITIONAL on inputVersion being unchanged (B4 optimistic concurrency): if any writer
+  // bumped Order.inputVersion since the evaluation, this matches 0 rows → abort the whole tx as a TOCTOU drift
+  // (reload FRESH + re-evaluate). Stronger than the early fingerprint read: it makes the final write itself atomic.
+  const written = await tx.order.updateMany({
+    where: { id: order.id, inputVersion: order.inputVersion },
+    data: { status: orderStatus as never, packageStatus: 'done', deliveryHoldReason },
+  });
+  if (written.count === 0) throw new Error(TOCTOU);
   // (5) GenerationJob terminal — the package stage ran.
   await tx.generationJob.update({ where: { orderId: order.id }, data: { status: 'done', currentStage: 'done', completedAt: now, packaged: true } });
   return { manifestStatus: result.status, enqueued, orderStatus, reason: deliveryHoldReason, revision };
@@ -260,16 +291,19 @@ export async function recheckBaseBookDelivery(
   orderId: string,
   scope: string,
   deps: CommitDeps = {},
+  expectedPayloadHash?: string | null,
 ): Promise<Disposition> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     select: {
-      id: true, status: true, expectedPageCount: true, storySourceHash: true, selectionFilename: true, frozenProductVersion: true,
+      id: true, status: true, inputVersion: true, expectedPageCount: true, storySourceHash: true, selectionFilename: true, frozenProductVersion: true,
+      customerEmail: true, customerName: true, childName: true,
       book: {
         select: {
           coverImageUrl: true,
           readUrl: true,
-          pages: { orderBy: { pageNumber: 'asc' }, select: { pageNumber: true, text: true, imageAsset: { select: { url: true, presentationUrl: true } } } },
+          pdfUrl: true,
+          pages: { orderBy: { pageNumber: 'asc' }, select: { pageNumber: true, text: true, audioUrl: true, imageAsset: { select: { url: true, presentationUrl: true } } } },
         },
       },
     },
@@ -282,8 +316,11 @@ export async function recheckBaseBookDelivery(
   const readiness = await prisma.bookReadiness.findUnique({ where: { orderId_scope: { orderId, scope } }, select: { status: true, currentManifestId: true } });
   if (!readiness || readiness.status !== 'passed' || !readiness.currentManifestId) return { outcome: 'suppress', reason: 'readiness_not_passed' };
   const expectedManifestId = readiness.currentManifestId;
-  const manifest = await prisma.bookReadinessManifest.findUnique({ where: { id: expectedManifestId }, select: { inputsHash: true } });
+  const manifest = await prisma.bookReadinessManifest.findUnique({ where: { id: expectedManifestId }, select: { inputsHash: true, inputVersion: true } });
   if (!manifest) return { outcome: 'suppress', reason: 'manifest_missing' };
+  // (B4) Optimistic-concurrency short-circuit: any writer that bumped Order.inputVersion since the manifest
+  // means the inputs moved — suppress + invalidate, before paying for the asset re-inspection.
+  if (order.inputVersion !== manifest.inputVersion) return { outcome: 'suppress', reason: 'inputs_changed_since_manifest', invalidateReadiness: true, expectedManifestId };
 
   const fresh = await evaluateBaseBookIntegrity(
     {
@@ -309,5 +346,14 @@ export async function recheckBaseBookDelivery(
     return { outcome: 'suppress', reason: `integrity_now_${fresh.reason ?? 'blocked'}`, invalidateReadiness: true, expectedManifestId };
   }
   if (fresh.inputsHash !== manifest.inputsHash) return { outcome: 'suppress', reason: 'inputs_changed_since_manifest', invalidateReadiness: true, expectedManifestId };
+
+  // (B4) Payload binding: never send a STALE payload. Rebuild the delivery payload from the live order with
+  // the SAME builder used at enqueue; if it no longer hashes to what was enqueued (email/name/link/pdf/audio
+  // changed since), suppress + invalidate rather than emailing an out-of-date book.
+  if (expectedPayloadHash != null) {
+    const firstAudioUrl = order.book.pages.find((p) => p.audioUrl?.trim())?.audioUrl ?? null;
+    const payloadNow = buildPayload({ customerEmail: order.customerEmail, customerName: order.customerName, childName: order.childName, readUrl: order.book.readUrl, pdfUrl: order.book.pdfUrl, firstAudioUrl });
+    if (hashPayload(payloadNow) !== expectedPayloadHash) return { outcome: 'suppress', reason: 'payload_changed_since_enqueue', invalidateReadiness: true, expectedManifestId };
+  }
   return { outcome: 'allow' };
 }

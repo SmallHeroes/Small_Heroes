@@ -32,12 +32,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     prisma,
     { limit: 1 }, // simplification A: single-claim per tick
     {
-      recheck: async (orderId, scope) => {
-        const d = await recheckBaseBookDelivery(prisma, orderId, scope);
-        // B2: real drift at send time (assets changed OR an asset is now corrupt/deleted) => invalidate the
-        // readiness pointer (guarded to the exact manifest we rechecked) + take the order off `ready`.
+      recheck: async (row) => {
+        // B4: bind the enqueued payloadHash so a payload that drifted since enqueue is suppressed, not sent.
+        const d = await recheckBaseBookDelivery(prisma, row.orderId, row.scope, {}, row.payloadHash);
+        // B2: real drift at send time (assets/inputVersion changed, an asset is now corrupt/deleted, or the
+        // payload drifted) => invalidate the readiness pointer (guarded to the exact manifest) + un-ready.
         if (d.outcome === 'suppress' && d.invalidateReadiness && d.expectedManifestId) {
-          await markBaseBookStale(prisma, orderId, scope, d.expectedManifestId, d.reason ?? 'inputs_changed_since_manifest');
+          await markBaseBookStale(prisma, row.orderId, row.scope, d.expectedManifestId, d.reason ?? 'inputs_changed_since_manifest');
         }
         return d;
       },

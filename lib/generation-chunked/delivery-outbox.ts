@@ -108,7 +108,8 @@ export type Disposition = {
 export type DeliveryOutcome = 'sent' | 'suppressed' | 'failed' | 'retry' | 'lost_lease';
 
 export interface OutboxDeps {
-  recheck: (orderId: string, scope: string) => Promise<Disposition>;
+  /** Pre-send recheck. Receives the claimed row so it can bind the enqueued payloadHash (B4). */
+  recheck: (row: DeliveryOutbox) => Promise<Disposition>;
   /** Provider send; idempotencyKey = dedupeKey. Returns the provider message id when available. */
   send: (payload: BookReadyPayload, idempotencyKey: string) => Promise<{ providerMessageId?: string }>;
   now?: () => Date;
@@ -140,7 +141,7 @@ export async function processDelivery(prisma: PrismaClient, row: DeliveryOutbox,
 
   let disp: Disposition;
   try {
-    disp = await deps.recheck(row.orderId, row.scope);
+    disp = await deps.recheck(row);
   } catch (e) {
     disp = { outcome: 'retry', reason: `recheck_error:${(e as Error).message?.slice(0, 120)}` }; // transient infra → retry
   }
