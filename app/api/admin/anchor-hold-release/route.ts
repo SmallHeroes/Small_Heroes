@@ -22,6 +22,7 @@ import { prisma } from '@/lib/prisma';
 import { sendBookReadyEmail } from '@/backend/lib/email';
 import { ROUTES } from '@/lib/routes';
 import { createLogger } from '@/lib/logger';
+import { isReadinessManifestEnabled, commitBaseBookReadiness } from '@/lib/generation-pipeline/readiness-manifest';
 
 const log = createLogger({ subsystem: 'anchor-hold', route: '/api/admin/anchor-hold-release' });
 
@@ -76,6 +77,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
   if (!order.book) {
     return NextResponse.json({ error: 'No rendered book to release' }, { status: 409 });
+  }
+
+  // B6: under the readiness flag this break-glass may ONLY release a genuine ANCHOR hold (never an integrity /
+  // readiness-stale hold), and it routes through the readiness path (re-evaluate + Outbox enqueue) instead of a
+  // direct send — so a stale book can never be force-shipped past the Manifest.
+  if (isReadinessManifestEnabled()) {
+    const reason = order.deliveryHoldReason ?? '';
+    if (!reason.startsWith('anchor_low_confidence:')) {
+      return NextResponse.json({ error: `Not releasable via anchor endpoint (reason=${reason || 'none'})` }, { status: 409 });
+    }
+    const result = await commitBaseBookReadiness(prisma, { orderId: order.id, anchorAllowsDelivery: true, anchorOrderStatus: 'ready', anchorReason: null });
+    log.info('Anchor hold released via readiness/Outbox path', { orderId, manifestStatus: result.manifestStatus, enqueued: result.enqueued });
+    return NextResponse.json({ released: result.enqueued, viaOutbox: true, manifestStatus: result.manifestStatus, orderStatus: result.orderStatus, reason: result.reason });
   }
 
   // Flip to deliverable FIRST so the book is customer-viewable, THEN send the withheld email.
