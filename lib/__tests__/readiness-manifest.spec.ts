@@ -16,7 +16,7 @@ const stubInspect = async (url: string | null | undefined): Promise<AssetInspect
 const orderRowFull = {
   id: 'o1', fulfillmentVersion: 1, expectedPageCount: 2, storySourceHash: 'src', selectionFilename: 'bedtime/foo.md', frozenProductVersion: 'v3',
   customerEmail: 'c@e.com', customerName: 'Cust', childName: 'Kid',
-  book: { coverImageUrl: 'https://h/cover.png', readUrl: 'https://app.example.com/book/o1/read', pdfUrl: null, pages: [
+  book: { coverImageUrl: 'https://h/cover.png', readUrl: 'https://app.example.com/ready?orderId=o1', pdfUrl: null, pages: [
     { pageNumber: 1, text: 'עמוד אחד', audioUrl: null, imageAsset: { url: 'https://h/p1.png', presentationUrl: null } },
     { pageNumber: 2, text: 'עמוד שתיים', audioUrl: null, imageAsset: { url: 'https://h/p2.png', presentationUrl: null } },
   ] },
@@ -52,7 +52,7 @@ describe('isReadinessManifestEnabled', () => {
 describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches', () => {
   it('PASS + anchor allows: one immutable manifest INSERT, enqueue, order ready, job done', async () => {
     const tx = mockTx();
-    const r = await commitBaseBookReadiness(mockPrisma(tx) as never, args(), { inspect: stubInspect, now: () => NOW });
+    const r = await commitBaseBookReadiness(mockPrisma(tx) as never, args(), { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' });
     expect(r).toMatchObject({ manifestStatus: 'passed', enqueued: true, orderStatus: 'ready', revision: 5 });
     expect(tx.bookReadinessManifest.create).toHaveBeenCalledTimes(1); // single terminal INSERT
     expect(tx.bookReadinessManifest.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'passed', revision: 5 }) }));
@@ -64,7 +64,7 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
 
   it('BLOCK (bad page): manifest blocked, NO enqueue, order held + reason', async () => {
     const tx = mockTx(badPageRow);
-    const r = await commitBaseBookReadiness(mockPrisma(tx, badPageRow) as never, args(), { inspect: stubInspect, now: () => NOW });
+    const r = await commitBaseBookReadiness(mockPrisma(tx, badPageRow) as never, args(), { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' });
     expect(r.manifestStatus).toBe('blocked');
     expect(r.enqueued).toBe(false);
     expect(tx.bookReadinessManifest.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'blocked' }) }));
@@ -74,7 +74,7 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
 
   it('PASS but anchor holds: manifest passed, NO enqueue, anchor hold preserved', async () => {
     const tx = mockTx();
-    const r = await commitBaseBookReadiness(mockPrisma(tx) as never, args({ anchorAllowsDelivery: false, anchorOrderStatus: 'needs_human_qa', anchorReason: 'anchor_low_confidence:soft_band' }), { inspect: stubInspect, now: () => NOW });
+    const r = await commitBaseBookReadiness(mockPrisma(tx) as never, args({ anchorAllowsDelivery: false, anchorOrderStatus: 'needs_human_qa', anchorReason: 'anchor_low_confidence:soft_band' }), { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' });
     expect(r.manifestStatus).toBe('passed');
     expect(r.enqueued).toBe(false);
     expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
@@ -86,7 +86,7 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
     const tx = mockTx();
     tx.order.findUnique = vi.fn().mockResolvedValueOnce(drifted).mockResolvedValue(orderRowFull); // drift on the first tx, stable after
     const prisma = { order: { findUnique: vi.fn(async () => orderRowFull) }, $transaction: vi.fn(async (cb: (t: unknown) => unknown) => cb(tx)) };
-    const r = await commitBaseBookReadiness(prisma as never, args(), { inspect: stubInspect, now: () => NOW });
+    const r = await commitBaseBookReadiness(prisma as never, args(), { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' });
     expect(prisma.$transaction).toHaveBeenCalledTimes(2); // aborted on drift, re-evaluated fresh, then committed
     expect(r.manifestStatus).toBe('passed');
   });
@@ -97,7 +97,7 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
       .mockRejectedValueOnce(Object.assign(new Error('unique'), { code: 'P2002' }))
       .mockImplementation(async (cb: (t: unknown) => unknown) => cb(tx));
     const prisma = { order: { findUnique: vi.fn(async () => orderRowFull) }, $transaction };
-    const r = await commitBaseBookReadiness(prisma as never, args(), { inspect: stubInspect, now: () => NOW });
+    const r = await commitBaseBookReadiness(prisma as never, args(), { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' });
     expect($transaction).toHaveBeenCalledTimes(2);
     expect(r.manifestStatus).toBe('passed');
   });
@@ -116,11 +116,12 @@ describe('markBaseBookStale — send-time drift (B3)', () => {
 });
 
 describe('recheckBaseBookDelivery — send-time guard', () => {
-  const READ_URL = 'https://app.example.com/book/o1/read';
+  const READ_URL = 'https://app.example.com/ready?orderId=o1';
   const passedInput = {
     scope: BASE_BOOK_SCOPE,
     orderId: 'o1',
     readUrl: READ_URL,
+    appBaseUrl: 'https://app.example.com',
     frozen: { expectedPageCount: 2, storySourceHash: 'src', selectionFilename: 'bedtime/foo.md', frozenProductVersion: 'v3' },
     cover: { imageUrl: 'https://h/cover.png' },
     pages: [ { pageNumber: 1, imageUrl: 'https://h/p1.png', text: 'עמוד אחד' }, { pageNumber: 2, imageUrl: 'https://h/p2.png', text: 'עמוד שתיים' } ],
@@ -140,7 +141,7 @@ describe('recheckBaseBookDelivery — send-time guard', () => {
       bookReadiness: { findUnique: vi.fn(async () => ({ status: 'passed', currentManifestId: 'm1' })) },
       bookReadinessManifest: { findUnique: vi.fn(async () => ({ inputsHash: fresh.inputsHash })) },
     };
-    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect });
+    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect, appBaseUrl: 'https://app.example.com' });
     expect(r.outcome).toBe('allow');
   });
 
@@ -150,7 +151,7 @@ describe('recheckBaseBookDelivery — send-time guard', () => {
       bookReadiness: { findUnique: vi.fn(async () => ({ status: 'passed', currentManifestId: 'm1' })) },
       bookReadinessManifest: { findUnique: vi.fn(async () => ({ inputsHash: 'stale-hash' })) },
     };
-    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect });
+    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect, appBaseUrl: 'https://app.example.com' });
     expect(r.outcome).toBe('suppress');
     expect(r.reason).toBe('inputs_changed_since_manifest');
   });
@@ -175,7 +176,7 @@ describe('recheckBaseBookDelivery — send-time guard', () => {
       bookReadiness: { findUnique: vi.fn() },
       bookReadinessManifest: { findUnique: vi.fn() },
     };
-    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect });
+    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect, appBaseUrl: 'https://app.example.com' });
     expect(r.outcome).toBe('suppress');
     expect(r.reason).toContain('order_re_held');
   });
@@ -186,7 +187,7 @@ describe('recheckBaseBookDelivery — send-time guard', () => {
       bookReadiness: { findUnique: vi.fn(async () => ({ status: 'blocked', currentManifestId: null })) },
       bookReadinessManifest: { findUnique: vi.fn() },
     };
-    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect });
+    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect, appBaseUrl: 'https://app.example.com' });
     expect(r.outcome).toBe('suppress');
     expect(r.reason).toBe('readiness_not_passed');
   });

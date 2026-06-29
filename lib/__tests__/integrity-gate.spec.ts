@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'crypto';
-import { evaluateBaseBookIntegrity, BASE_BOOK_SCOPE, type IntegrityInput } from '@/lib/generation-pipeline/integrity-gate';
+import { evaluateBaseBookIntegrity, isCanonicalReadUrl, BASE_BOOK_SCOPE, type IntegrityInput } from '@/lib/generation-pipeline/integrity-gate';
 import type { AssetInspection } from '@/lib/generation-pipeline/asset-integrity';
 
 // Deterministic stub: any url containing "bad" is undecodable; null/"" is invalid; else a valid image whose
@@ -15,7 +15,8 @@ const stubInspect = async (url: string | null | undefined): Promise<AssetInspect
 const good = (over: Partial<IntegrityInput> = {}): IntegrityInput => ({
   scope: BASE_BOOK_SCOPE,
   orderId: 'o1',
-  readUrl: 'https://app.example.com/book/o1/read-v2?accessKey=k',
+  readUrl: 'https://app.example.com/ready?orderId=o1&accessKey=k',
+  appBaseUrl: 'https://app.example.com',
   frozen: { expectedPageCount: 3, storySourceHash: 'src-hash', selectionFilename: 'bedtime/foo.md', frozenProductVersion: 'v3_approved_binding' },
   cover: { imageUrl: 'https://h/storage/v1/object/public/book-images/o/cover.png' },
   pages: [
@@ -132,7 +133,7 @@ describe('B4/B5 — frozen-truth binding + readUrl', () => {
     expect(r.blockers).toContain('read_url_missing_or_mismatched');
   });
   it('blocks when readUrl does not reference this order', async () => {
-    const r = await evaluateBaseBookIntegrity(good({ readUrl: 'https://app.example.com/book/OTHER/read' }), stubInspect);
+    const r = await evaluateBaseBookIntegrity(good({ readUrl: 'https://app.example.com/ready?orderId=OTHER' }), stubInspect);
     expect(r.blockers).toContain('read_url_missing_or_mismatched');
   });
   it('inputsHash changes when any frozen value or readUrl changes', async () => {
@@ -141,7 +142,38 @@ describe('B4/B5 — frozen-truth binding + readUrl', () => {
     const v = await hashOf({ frozen: { expectedPageCount: 3, storySourceHash: 'CHANGED', selectionFilename: 'bedtime/foo.md', frozenProductVersion: 'v3_approved_binding' } });
     const sel = await hashOf({ frozen: { expectedPageCount: 3, storySourceHash: 'src-hash', selectionFilename: 'CHANGED.md', frozenProductVersion: 'v3_approved_binding' } });
     const pv = await hashOf({ frozen: { expectedPageCount: 3, storySourceHash: 'src-hash', selectionFilename: 'bedtime/foo.md', frozenProductVersion: 'v4' } });
-    const ru = await hashOf({ readUrl: 'https://app.example.com/book/o1/read-v2?accessKey=DIFFERENT' });
+    const ru = await hashOf({ readUrl: 'https://app.example.com/ready?orderId=o1&accessKey=DIFFERENT' });
     expect(new Set([base, v, sel, pv, ru]).size).toBe(5); // all distinct → manifest invalidates on any change
+  });
+});
+
+describe('B5 — readUrl is validated by EXACT canonical match, not substring', () => {
+  const APP = 'https://app.example.com';
+  it('accepts the canonical reader link for THIS order (with or without accessKey)', () => {
+    expect(isCanonicalReadUrl('https://app.example.com/ready?orderId=o1', 'o1', APP)).toBe(true);
+    expect(isCanonicalReadUrl('https://app.example.com/ready?orderId=o1&accessKey=k', 'o1', APP)).toBe(true);
+  });
+  it('rejects an off-origin URL that merely CONTAINS the orderId (the old substring bug)', () => {
+    expect(isCanonicalReadUrl('https://evil.example/steal?x=o1', 'o1', APP)).toBe(false);
+    expect(isCanonicalReadUrl('https://evil.example/ready?orderId=o1', 'o1', APP)).toBe(false);
+  });
+  it('rejects the right origin but the wrong path', () => {
+    expect(isCanonicalReadUrl('https://app.example.com/steal?orderId=o1', 'o1', APP)).toBe(false);
+    expect(isCanonicalReadUrl('https://app.example.com/book/o1/read-v2', 'o1', APP)).toBe(false);
+  });
+  it('requires the orderId param to match EXACTLY (no prefix/suffix smuggling)', () => {
+    expect(isCanonicalReadUrl('https://app.example.com/ready?orderId=o1-evil', 'o1', APP)).toBe(false);
+    expect(isCanonicalReadUrl('https://app.example.com/ready?orderId=xo1', 'o1', APP)).toBe(false);
+    expect(isCanonicalReadUrl('https://app.example.com/ready?orderId=o1', 'o1-evil', APP)).toBe(false);
+  });
+  it('fails closed when there is no app origin to bind against, or the input is junk', () => {
+    expect(isCanonicalReadUrl('https://app.example.com/ready?orderId=o1', 'o1', null)).toBe(false);
+    expect(isCanonicalReadUrl('not-a-url', 'o1', APP)).toBe(false);
+    expect(isCanonicalReadUrl('', 'o1', APP)).toBe(false);
+  });
+  it('the gate blocks an order whose readUrl points at another origin even though it embeds the orderId', async () => {
+    const r = await evaluateBaseBookIntegrity(good({ readUrl: 'https://evil.example/ready?orderId=o1&x=o1' }), stubInspect);
+    expect(r.status).toBe('blocked');
+    expect(r.blockers).toContain('read_url_missing_or_mismatched');
   });
 });

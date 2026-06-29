@@ -51,6 +51,14 @@ export interface CommitArgs {
 export interface CommitDeps {
   inspect?: (url: string | null | undefined) => Promise<AssetInspection>;
   now?: () => Date;
+  /** App origin the readUrl is validated against (B5). Defaults to NEXT_PUBLIC_APP_URL/APP_URL. */
+  appBaseUrl?: string | null;
+}
+
+/** The configured app origin (trailing slash stripped) the canonical readUrl must belong to. (B5) */
+function readAppBaseUrl(): string | null {
+  const raw = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || '').trim().replace(/\/$/, '');
+  return raw || null;
 }
 export interface CommitResult {
   manifestStatus: 'passed' | 'blocked';
@@ -95,11 +103,12 @@ async function loadCommitInputs(db: PrismaClient | Tx, orderId: string): Promise
   return { order, book, fingerprint };
 }
 
-function buildIntegrityInput(order: OrderTruth, book: BookData): IntegrityInput {
+function buildIntegrityInput(order: OrderTruth, book: BookData, appBaseUrl: string | null): IntegrityInput {
   return {
     scope: BASE_BOOK_SCOPE,
     orderId: order.id,
     readUrl: book.readUrl,
+    appBaseUrl,
     frozen: {
       expectedPageCount: order.expectedPageCount,
       storySourceHash: order.storySourceHash,
@@ -188,7 +197,8 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
   for (let attempt = 0; attempt < 6; attempt++) {
     const loaded = await loadCommitInputs(prisma, args.orderId);
     if (!loaded) throw new Error('readiness_inputs_missing');
-    const result = await evaluateBaseBookIntegrity(buildIntegrityInput(loaded.order, loaded.book), deps.inspect ?? inspectAsset);
+    const appBaseUrl = deps.appBaseUrl ?? readAppBaseUrl();
+    const result = await evaluateBaseBookIntegrity(buildIntegrityInput(loaded.order, loaded.book, appBaseUrl), deps.inspect ?? inspectAsset);
     try {
       return await prisma.$transaction((tx) => runReadinessTxn(tx, args, loaded, result, now));
     } catch (e) {
@@ -260,6 +270,7 @@ export async function recheckBaseBookDelivery(
       scope: BASE_BOOK_SCOPE,
       orderId: order.id,
       readUrl: order.book.readUrl,
+      appBaseUrl: deps.appBaseUrl ?? readAppBaseUrl(),
       frozen: {
         expectedPageCount: order.expectedPageCount,
         storySourceHash: order.storySourceHash,

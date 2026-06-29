@@ -8,8 +8,37 @@
  */
 import { createHash } from 'crypto';
 import { inspectAsset, type AssetInspection } from './asset-integrity';
+import { ROUTES } from '@/lib/routes';
 
 export const BASE_BOOK_SCOPE = 'base_book';
+
+/**
+ * Exact canonical reader-link check (B5). The delivered readUrl is built as
+ * `${appBaseUrl}${ROUTES.ready}?orderId=${orderId}[&accessKey=…]` (chunk-runner). Validate it by
+ * EXACT match — origin === the configured app origin, path === ROUTES.ready, and the `orderId` query
+ * param === this order — never a substring `includes(orderId)` (which let `https://evil.example/steal?x=<id>`
+ * through). Fail-closed when there is no app origin to bind against.
+ */
+export function isCanonicalReadUrl(readUrl: string | null | undefined, orderId: string, appBaseUrl: string | null | undefined): boolean {
+  const raw = (readUrl ?? '').trim();
+  if (!raw || !appBaseUrl) return false;
+  let expectedOrigin: string;
+  try {
+    expectedOrigin = new URL(appBaseUrl).origin;
+  } catch {
+    return false;
+  }
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== 'https:' && u.protocol !== 'http:') return false;
+  if (u.origin !== expectedOrigin) return false;
+  if (u.pathname !== ROUTES.ready) return false;
+  return u.searchParams.get('orderId') === orderId;
+}
 
 export interface IntegrityFrozenTruth {
   expectedPageCount: number | null;
@@ -26,6 +55,8 @@ export interface IntegrityInput {
   scope: string; // BASE_BOOK_SCOPE
   orderId: string;
   readUrl: string | null;
+  /** Configured app origin the readUrl must belong to (NEXT_PUBLIC_APP_URL/APP_URL). Null => readUrl fails closed. (B5) */
+  appBaseUrl: string | null;
   frozen: IntegrityFrozenTruth;
   cover: { imageUrl: string | null };
   pages: IntegrityPageInput[];
@@ -82,15 +113,9 @@ export async function evaluateBaseBookIntegrity(
     .update(JSON.stringify(sortedPages.map((p) => [p.pageNumber, p.text])))
     .digest('hex');
 
-  // (6) readUrl present, well-formed, and pointing at THIS order's reader route (never ship a broken link). (B5)
+  // (6) readUrl must be the EXACT canonical reader link for THIS order — never ship a broken/forged link. (B5)
   const readUrl = (input.readUrl ?? '').trim();
-  let readUrlOk = false;
-  try {
-    const u = new URL(readUrl);
-    readUrlOk = (u.protocol === 'https:' || u.protocol === 'http:') && readUrl.includes(input.orderId);
-  } catch {
-    readUrlOk = false;
-  }
+  const readUrlOk = isCanonicalReadUrl(readUrl, input.orderId, input.appBaseUrl);
   if (!readUrlOk) blockers.push('read_url_missing_or_mismatched');
 
   // inputsHash — the exact FROZEN-truth + readUrl + assets + text observed; the manifest is "current" only
