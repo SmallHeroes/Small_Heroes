@@ -15,8 +15,9 @@ describe('sendBookReadyEmail reachability', () => {
 
   // The ONLY allowed call sites (repo-relative, posix).
   const ALLOWED_CALL_SITES = new Set([
-    'lib/generation-pipeline/chunk-runner.ts', // gated package stage
-    'app/api/admin/anchor-hold-release/route.ts', // human-QA release of a delivery hold
+    'lib/generation-pipeline/chunk-runner.ts', // gated package stage (flag-off path)
+    'app/api/admin/anchor-hold-release/route.ts', // human-QA release of a delivery hold (break-glass)
+    'app/api/generate/cron/outbox/route.ts', // Phase-1 Outbox worker (effectively-once delivery)
   ]);
 
   function walk(dir: string, acc: string[] = []): string[] {

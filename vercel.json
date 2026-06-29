@@ -12,12 +12,19 @@
     },
     "app/api/generate/cron/sweep/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/generate/cron/outbox/route.ts": {
+      "maxDuration": 60
     }
   },
   "crons": [
     {
       "path": "/api/generate/cron/sweep",
       "schedule": "*/3 * * * *"
+    },
+    {
+      "path": "/api/generate/cron/outbox",
+      "schedule": "*/2 * * * *"
     }
   ]
 }
