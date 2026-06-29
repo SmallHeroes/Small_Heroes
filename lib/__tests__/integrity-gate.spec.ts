@@ -14,7 +14,9 @@ const stubInspect = async (url: string | null | undefined): Promise<AssetInspect
 
 const good = (over: Partial<IntegrityInput> = {}): IntegrityInput => ({
   scope: BASE_BOOK_SCOPE,
-  frozen: { expectedPageCount: 3, storySourceHash: 'src-hash' },
+  orderId: 'o1',
+  readUrl: 'https://app.example.com/book/o1/read-v2?accessKey=k',
+  frozen: { expectedPageCount: 3, storySourceHash: 'src-hash', selectionFilename: 'bedtime/foo.md', frozenProductVersion: 'v3_approved_binding' },
   cover: { imageUrl: 'https://h/storage/v1/object/public/book-images/o/cover.png' },
   pages: [
     { pageNumber: 1, imageUrl: 'https://h/.../p1.png', text: 'עמוד ראשון' },
@@ -33,13 +35,13 @@ describe('evaluateBaseBookIntegrity — 6 checks', () => {
   });
 
   it('blocks when frozen expectedPageCount is missing (no live fallback)', async () => {
-    const r = await evaluateBaseBookIntegrity(good({ frozen: { expectedPageCount: null, storySourceHash: null } }), stubInspect);
+    const r = await evaluateBaseBookIntegrity(good({ frozen: { expectedPageCount: null, storySourceHash: null, selectionFilename: null, frozenProductVersion: null } }), stubInspect);
     expect(r.status).toBe('blocked');
     expect(r.blockers).toContain('frozen_expected_page_count_missing');
   });
 
   it('blocks on rendered/expected page-count mismatch', async () => {
-    const r = await evaluateBaseBookIntegrity(good({ frozen: { expectedPageCount: 5, storySourceHash: 's' } }), stubInspect);
+    const r = await evaluateBaseBookIntegrity(good({ frozen: { expectedPageCount: 5, storySourceHash: 's', selectionFilename: 'f.md', frozenProductVersion: 'v3' } }), stubInspect);
     expect(r.status).toBe('blocked');
     expect(r.blockers.some((b) => b.startsWith('page_count_mismatch'))).toBe(true);
   });
@@ -107,5 +109,39 @@ describe('evaluateBaseBookIntegrity — 6 checks', () => {
     expect(pages).toHaveLength(3);
     expect(pages[0]).toMatchObject({ pageNumber: 1, mime: 'image/png', ok: true });
     expect(pages[0].sha256).toMatch(/^[0-9a-f]{64}$/);
+  });
+});
+
+describe('B4/B5 — frozen-truth binding + readUrl', () => {
+  it('blocks when storySourceHash is missing', async () => {
+    const r = await evaluateBaseBookIntegrity(good({ frozen: { expectedPageCount: 3, storySourceHash: null, selectionFilename: 'f.md', frozenProductVersion: 'v3' } }), stubInspect);
+    expect(r.status).toBe('blocked');
+    expect(r.blockers).toContain('frozen_story_source_hash_missing');
+  });
+  it('blocks when selectionFilename is missing', async () => {
+    const r = await evaluateBaseBookIntegrity(good({ frozen: { expectedPageCount: 3, storySourceHash: 's', selectionFilename: null, frozenProductVersion: 'v3' } }), stubInspect);
+    expect(r.blockers).toContain('frozen_selection_filename_missing');
+  });
+  it('blocks when frozenProductVersion is missing', async () => {
+    const r = await evaluateBaseBookIntegrity(good({ frozen: { expectedPageCount: 3, storySourceHash: 's', selectionFilename: 'f.md', frozenProductVersion: null } }), stubInspect);
+    expect(r.blockers).toContain('frozen_product_version_missing');
+  });
+  it('blocks when readUrl is empty', async () => {
+    const r = await evaluateBaseBookIntegrity(good({ readUrl: '' }), stubInspect);
+    expect(r.status).toBe('blocked');
+    expect(r.blockers).toContain('read_url_missing_or_mismatched');
+  });
+  it('blocks when readUrl does not reference this order', async () => {
+    const r = await evaluateBaseBookIntegrity(good({ readUrl: 'https://app.example.com/book/OTHER/read' }), stubInspect);
+    expect(r.blockers).toContain('read_url_missing_or_mismatched');
+  });
+  it('inputsHash changes when any frozen value or readUrl changes', async () => {
+    const base = (await evaluateBaseBookIntegrity(good(), stubInspect)).inputsHash;
+    const hashOf = (over: Parameters<typeof good>[0]) => evaluateBaseBookIntegrity(good(over), stubInspect).then((r) => r.inputsHash);
+    const v = await hashOf({ frozen: { expectedPageCount: 3, storySourceHash: 'CHANGED', selectionFilename: 'bedtime/foo.md', frozenProductVersion: 'v3_approved_binding' } });
+    const sel = await hashOf({ frozen: { expectedPageCount: 3, storySourceHash: 'src-hash', selectionFilename: 'CHANGED.md', frozenProductVersion: 'v3_approved_binding' } });
+    const pv = await hashOf({ frozen: { expectedPageCount: 3, storySourceHash: 'src-hash', selectionFilename: 'bedtime/foo.md', frozenProductVersion: 'v4' } });
+    const ru = await hashOf({ readUrl: 'https://app.example.com/book/o1/read-v2?accessKey=DIFFERENT' });
+    expect(new Set([base, v, sel, pv, ru]).size).toBe(5); // all distinct → manifest invalidates on any change
   });
 });

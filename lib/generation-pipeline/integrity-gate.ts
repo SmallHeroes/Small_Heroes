@@ -14,6 +14,8 @@ export const BASE_BOOK_SCOPE = 'base_book';
 export interface IntegrityFrozenTruth {
   expectedPageCount: number | null;
   storySourceHash: string | null;
+  selectionFilename: string | null;
+  frozenProductVersion: string | null;
 }
 export interface IntegrityPageInput {
   pageNumber: number;
@@ -22,6 +24,8 @@ export interface IntegrityPageInput {
 }
 export interface IntegrityInput {
   scope: string; // BASE_BOOK_SCOPE
+  orderId: string;
+  readUrl: string | null;
   frozen: IntegrityFrozenTruth;
   cover: { imageUrl: string | null };
   pages: IntegrityPageInput[];
@@ -44,9 +48,12 @@ export async function evaluateBaseBookIntegrity(
   const blockers: string[] = [];
   const sortedPages = [...input.pages].sort((a, b) => a.pageNumber - b.pageNumber);
 
-  // (1) expected page count from FROZEN truth ONLY (no DB count, no live resolve). flag-on + missing => block.
+  // (1) ALL required frozen product-truth must be present (fail-closed; no live fallback). (B4)
   const expected = input.frozen.expectedPageCount;
   if (expected == null || expected <= 0) blockers.push('frozen_expected_page_count_missing');
+  if (!input.frozen.storySourceHash) blockers.push('frozen_story_source_hash_missing');
+  if (!input.frozen.selectionFilename) blockers.push('frozen_selection_filename_missing');
+  if (!input.frozen.frozenProductVersion) blockers.push('frozen_product_version_missing');
 
   // (2) pages contiguous 1..N + unique.
   const nums = sortedPages.map((p) => p.pageNumber);
@@ -75,11 +82,29 @@ export async function evaluateBaseBookIntegrity(
     .update(JSON.stringify(sortedPages.map((p) => [p.pageNumber, p.text])))
     .digest('hex');
 
-  // inputsHash — the exact assets + text this evaluation observed; the manifest is "current" only while it matches.
+  // (6) readUrl present, well-formed, and pointing at THIS order's reader route (never ship a broken link). (B5)
+  const readUrl = (input.readUrl ?? '').trim();
+  let readUrlOk = false;
+  try {
+    const u = new URL(readUrl);
+    readUrlOk = (u.protocol === 'https:' || u.protocol === 'http:') && readUrl.includes(input.orderId);
+  } catch {
+    readUrlOk = false;
+  }
+  if (!readUrlOk) blockers.push('read_url_missing_or_mismatched');
+
+  // inputsHash — the exact FROZEN-truth + readUrl + assets + text observed; the manifest is "current" only
+  // while it matches, so a story-version / asset / link change invalidates the old manifest. (B4)
   const inputsHash = createHash('sha256')
     .update(JSON.stringify({
       scope: input.scope,
-      expected: expected ?? null,
+      frozen: {
+        expected: expected ?? null,
+        storySourceHash: input.frozen.storySourceHash,
+        selectionFilename: input.frozen.selectionFilename,
+        frozenProductVersion: input.frozen.frozenProductVersion,
+      },
+      readUrl: readUrl || null,
       cover: coverInspect.sha256,
       pages: pageEvidence.map((e) => [e.pageNumber, e.sha256]),
       textHash,
@@ -100,6 +125,8 @@ export async function evaluateBaseBookIntegrity(
       cover: { url: input.cover.imageUrl, ...coverInspect },
       pages: pageEvidence,
       textHash,
+      readUrl: readUrl || null,
+      readUrlOk,
       unresolvedMarkerPages: unresolved,
     },
   };

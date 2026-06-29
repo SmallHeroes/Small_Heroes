@@ -27,6 +27,8 @@ export interface OrderTruth {
   fulfillmentVersion: number;
   expectedPageCount: number | null;
   storySourceHash: string | null;
+  selectionFilename: string | null;
+  frozenProductVersion: string | null;
   customerEmail: string;
   customerName: string | null;
   childName: string;
@@ -65,7 +67,14 @@ function isRevisionCollision(e: unknown): boolean {
 function buildIntegrityInput(order: OrderTruth, book: BookData): IntegrityInput {
   return {
     scope: BASE_BOOK_SCOPE,
-    frozen: { expectedPageCount: order.expectedPageCount, storySourceHash: order.storySourceHash },
+    orderId: order.id,
+    readUrl: book.readUrl,
+    frozen: {
+      expectedPageCount: order.expectedPageCount,
+      storySourceHash: order.storySourceHash,
+      selectionFilename: order.selectionFilename,
+      frozenProductVersion: order.frozenProductVersion,
+    },
     cover: { imageUrl: book.coverImageUrl },
     pages: book.pages.map((p) => ({ pageNumber: p.pageNumber, imageUrl: p.imageUrl, text: p.text })),
   };
@@ -188,10 +197,11 @@ export async function recheckBaseBookDelivery(
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     select: {
-      id: true, status: true, expectedPageCount: true, storySourceHash: true,
+      id: true, status: true, expectedPageCount: true, storySourceHash: true, selectionFilename: true, frozenProductVersion: true,
       book: {
         select: {
           coverImageUrl: true,
+          readUrl: true,
           pages: { orderBy: { pageNumber: 'asc' }, select: { pageNumber: true, text: true, imageAsset: { select: { url: true, presentationUrl: true } } } },
         },
       },
@@ -208,7 +218,14 @@ export async function recheckBaseBookDelivery(
   const fresh = await evaluateBaseBookIntegrity(
     {
       scope: BASE_BOOK_SCOPE,
-      frozen: { expectedPageCount: order.expectedPageCount, storySourceHash: order.storySourceHash },
+      orderId: order.id,
+      readUrl: order.book.readUrl,
+      frozen: {
+        expectedPageCount: order.expectedPageCount,
+        storySourceHash: order.storySourceHash,
+        selectionFilename: order.selectionFilename,
+        frozenProductVersion: order.frozenProductVersion,
+      },
       cover: { imageUrl: order.book.coverImageUrl },
       pages: order.book.pages.map((p) => ({ pageNumber: p.pageNumber, imageUrl: p.imageAsset?.presentationUrl ?? p.imageAsset?.url ?? null, text: p.text })),
     },

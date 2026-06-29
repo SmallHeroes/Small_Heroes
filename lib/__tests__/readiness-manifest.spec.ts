@@ -13,9 +13,9 @@ const stubInspect = async (url: string | null | undefined): Promise<AssetInspect
 };
 
 const args = (over: Partial<CommitArgs> = {}): CommitArgs => ({
-  order: { id: 'o1', fulfillmentVersion: 1, expectedPageCount: 2, storySourceHash: 'src', customerEmail: 'c@e.com', customerName: 'Cust', childName: 'Kid' },
+  order: { id: 'o1', fulfillmentVersion: 1, expectedPageCount: 2, storySourceHash: 'src', selectionFilename: 'bedtime/foo.md', frozenProductVersion: 'v3', customerEmail: 'c@e.com', customerName: 'Cust', childName: 'Kid' },
   book: {
-    coverImageUrl: 'https://h/cover.png', readUrl: 'https://app/read', pdfUrl: null, firstAudioUrl: null,
+    coverImageUrl: 'https://h/cover.png', readUrl: 'https://app.example.com/book/o1/read', pdfUrl: null, firstAudioUrl: null,
     pages: [
       { pageNumber: 1, imageUrl: 'https://h/p1.png', text: 'עמוד אחד' },
       { pageNumber: 2, imageUrl: 'https://h/p2.png', text: 'עמוד שתיים' },
@@ -99,15 +99,18 @@ describe('commitBaseBookReadiness — single transaction, PASS/BLOCK/anchor bran
 });
 
 describe('recheckBaseBookDelivery — send-time guard', () => {
+  const READ_URL = 'https://app.example.com/book/o1/read';
   const passedInput = {
     scope: BASE_BOOK_SCOPE,
-    frozen: { expectedPageCount: 2, storySourceHash: 'src' },
+    orderId: 'o1',
+    readUrl: READ_URL,
+    frozen: { expectedPageCount: 2, storySourceHash: 'src', selectionFilename: 'bedtime/foo.md', frozenProductVersion: 'v3' },
     cover: { imageUrl: 'https://h/cover.png' },
     pages: [ { pageNumber: 1, imageUrl: 'https://h/p1.png', text: 'עמוד אחד' }, { pageNumber: 2, imageUrl: 'https://h/p2.png', text: 'עמוד שתיים' } ],
   };
   const orderRow = {
-    id: 'o1', status: 'ready', expectedPageCount: 2, storySourceHash: 'src',
-    book: { coverImageUrl: 'https://h/cover.png', pages: [
+    id: 'o1', status: 'ready', expectedPageCount: 2, storySourceHash: 'src', selectionFilename: 'bedtime/foo.md', frozenProductVersion: 'v3',
+    book: { coverImageUrl: 'https://h/cover.png', readUrl: READ_URL, pages: [
       { pageNumber: 1, text: 'עמוד אחד', imageAsset: { url: 'https://h/p1.png', presentationUrl: null } },
       { pageNumber: 2, text: 'עמוד שתיים', imageAsset: { url: 'https://h/p2.png', presentationUrl: null } },
     ] },
