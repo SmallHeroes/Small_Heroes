@@ -455,6 +455,18 @@
   #step-3 .s3-card {
     flex-direction: row;
     align-items: flex-start;
+    gap: 24px;
+  }
+
+  #step-3 .form-side {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  #step-3 .photo-side {
+    flex: 0 0 clamp(280px, 36%, 340px);
+    width: auto;
+    max-width: none;
   }
 }
 
