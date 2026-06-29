@@ -13,6 +13,8 @@ export interface BookReadyEmailData {
   readUrl: string;
   audioUrl?: string;
   pdfUrl?: string;
+  /** Phase-1 Outbox: effectively-once delivery. Sent as the Resend Idempotency-Key (dedups identical for 24h). */
+  idempotencyKey?: string;
 }
 
 export interface OtpEmailData {
@@ -21,7 +23,7 @@ export interface OtpEmailData {
 }
 
 // ─── Provider: Resend (recommended) ──────────────────
-async function sendWithResend(data: BookReadyEmailData): Promise<void> {
+async function sendWithResend(data: BookReadyEmailData): Promise<{ providerMessageId?: string }> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error('RESEND_API_KEY not set');
 
@@ -32,6 +34,8 @@ async function sendWithResend(data: BookReadyEmailData): Promise<void> {
     headers: {
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
+      // Phase-1 Outbox: Resend dedups an identical Idempotency-Key for 24h → effectively-once delivery.
+      ...(data.idempotencyKey ? { 'Idempotency-Key': data.idempotencyKey } : {}),
     },
     body: JSON.stringify({
       from:    EMAIL.from,
@@ -42,6 +46,8 @@ async function sendWithResend(data: BookReadyEmailData): Promise<void> {
   });
 
   if (!res.ok) throw new Error(`Resend email error: ${res.status}`);
+  const body = (await res.json().catch(() => ({}))) as { id?: string };
+  return { providerMessageId: body.id };
 }
 
 async function sendOtpWithResend(data: OtpEmailData): Promise<void> {
@@ -112,7 +118,7 @@ function buildEmailHtml(data: BookReadyEmailData): string {
 }
 
 // ─── Main Export ──────────────────────────────────────
-export async function sendBookReadyEmail(data: BookReadyEmailData): Promise<void> {
+export async function sendBookReadyEmail(data: BookReadyEmailData): Promise<{ providerMessageId?: string }> {
   const provider = process.env.EMAIL_PROVIDER || 'resend';
 
   switch (provider) {
@@ -120,6 +126,7 @@ export async function sendBookReadyEmail(data: BookReadyEmailData): Promise<void
       return sendWithResend(data);
     default:
       console.log('[Email STUB] Would send email to:', data.to, 'readUrl:', data.readUrl);
+      return {};
   }
 }
 
