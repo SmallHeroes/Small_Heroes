@@ -122,6 +122,22 @@ describe('processDelivery — fenced terminal writes (B1) + disposition (B2)', (
     expect(firstData(updateMany)).toMatchObject({ leaseExpiresAt: expect.any(Date) }); // (B1) pre-send ownership renew
     expect(dataOf(updateMany, 1)).toMatchObject({ status: 'sent', providerMessageId: 'rs_1' });
   });
+  it('B-r3-3: lease renewal + sentAt use a now computed FRESH after recheck/send (expiry is future, not stale)', async () => {
+    const LEASE = 4 * 60 * 1000; // mirrors LEASE_MS
+    const T_afterRecheck = new Date('2026-06-29T10:10:00Z'); // recheck took longer than one lease window
+    const T_afterSend = new Date('2026-06-29T10:12:00Z');
+    const times = [T_afterRecheck, T_afterSend];
+    let i = 0;
+    const now = () => times[Math.min(i++, times.length - 1)];
+    const updateMany = vi.fn(async () => ({ count: 1 }));
+    const send = vi.fn(async () => ({ providerMessageId: 'rs' }));
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, { recheck: async () => ({ outcome: 'allow' }), send, now });
+    expect(out).toBe('sent');
+    const renewalExpiry = firstData(updateMany).leaseExpiresAt as Date; // [0] = pre-send renewal
+    expect(renewalExpiry.getTime()).toBe(T_afterRecheck.getTime() + LEASE); // computed from the fresh post-recheck now
+    expect(renewalExpiry.getTime()).toBeGreaterThan(T_afterRecheck.getTime()); // strictly in the future
+    expect(dataOf(updateMany, 1).sentAt).toEqual(T_afterSend); // [1] = sent write, fresh post-send time
+  });
   it('B1: a worker that lost its lease during recheck NEVER calls send (ownership re-checked first)', async () => {
     const updateMany = fencedLost(); // the pre-send fenced renew matches 0 rows → reclaimed by another worker
     const send = vi.fn(async () => ({ providerMessageId: 'rs_1' }));

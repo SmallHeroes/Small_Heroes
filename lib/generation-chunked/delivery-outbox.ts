@@ -173,7 +173,6 @@ async function fenced(prisma: PrismaClient, rowId: string, token: number, data: 
  * writes nothing further.
  */
 export async function processDelivery(prisma: PrismaClient, row: DeliveryOutbox, deps: OutboxDeps): Promise<DeliveryOutcome> {
-  const now = deps.now?.() ?? new Date();
   const token = row.attempts; // claim version — the fencing token
 
   let disp: Disposition;
@@ -182,6 +181,10 @@ export async function processDelivery(prisma: PrismaClient, row: DeliveryOutbox,
   } catch (e) {
     disp = { outcome: 'retry', reason: `recheck_error:${(e as Error).message?.slice(0, 120)}` }; // transient infra → retry
   }
+
+  // (B-r3-3) capture `now` FRESH, AFTER the (possibly long) recheck — a `now` snapped before the recheck could
+  // write a lease renewal / backoff that is already in the past by the time we write it.
+  const now = deps.now?.() ?? new Date();
 
   if (disp.outcome === 'suppress') {
     // (B-r3-2) the fenced transition + readiness invalidation are ONE atomic, fence-gated step (injected by the
@@ -217,12 +220,14 @@ export async function processDelivery(prisma: PrismaClient, row: DeliveryOutbox,
   // allow → send
   try {
     const res = await deps.send(row.payload as unknown as BookReadyPayload, row.dedupeKey);
-    const ok = await fenced(prisma, row.id, token, { status: 'sent', sentAt: now, providerMessageId: res.providerMessageId ?? null, leaseExpiresAt: null, lastError: null });
+    const sentNow = deps.now?.() ?? new Date(); // (B-r3-3) sentAt = a FRESH timestamp once the send completes
+    const ok = await fenced(prisma, row.id, token, { status: 'sent', sentAt: sentNow, providerMessageId: res.providerMessageId ?? null, leaseExpiresAt: null, lastError: null });
     return ok ? 'sent' : 'lost_lease';
   } catch (e) {
     const err = (e as Error).message?.slice(0, 300) ?? 'send_failed';
+    const failNow = deps.now?.() ?? new Date(); // (B-r3-3) fresh after the failed send for window + backoff math
     // Past the provider's idempotency window OR out of attempts => give up (never blind-resend after 24h).
-    const beyondWindow = now.getTime() - row.createdAt.getTime() > IDEMPOTENCY_WINDOW_MS;
+    const beyondWindow = failNow.getTime() - row.createdAt.getTime() > IDEMPOTENCY_WINDOW_MS;
     if (row.attempts >= OUTBOX_MAX_ATTEMPTS || beyondWindow) {
       const ok = await fenced(prisma, row.id, token, { status: 'failed', nextAttemptAt: null, leaseExpiresAt: null, lastError: err });
       if (!ok) return 'lost_lease';
@@ -230,7 +235,7 @@ export async function processDelivery(prisma: PrismaClient, row: DeliveryOutbox,
       return 'failed';
     }
     // Retry the SAME dedupeKey (Resend dedups if the provider had actually accepted — response-lost case).
-    const ok = await fenced(prisma, row.id, token, { status: 'scheduled', nextAttemptAt: new Date(now.getTime() + backoffMs(row.attempts)), leaseExpiresAt: null, lastError: err });
+    const ok = await fenced(prisma, row.id, token, { status: 'scheduled', nextAttemptAt: new Date(failNow.getTime() + backoffMs(row.attempts)), leaseExpiresAt: null, lastError: err });
     return ok ? 'retry' : 'lost_lease';
   }
 }
