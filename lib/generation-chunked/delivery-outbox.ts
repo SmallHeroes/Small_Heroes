@@ -35,36 +35,59 @@ export interface BookReadyPayload {
   pdfUrl?: string;
 }
 
+export interface EnqueueResult {
+  created: boolean;
+  dedupeKey: string;
+  /** The fulfillmentVersion the live/created row actually uses — may have rolled forward (B-r3-1). */
+  fulfillmentVersion: number;
+}
+
+// Safety bound on consecutive terminal-dead fulfillments before we refuse to roll forward (B-r3-1).
+const MAX_FULFILLMENT_ROLL = 50;
+
 /**
- * Enqueue a delivery (idempotent on dedupeKey). Same key + same payload => no-op (returns existing). Same
- * key + DIFFERENT payload => throws (a logic bug — never silently send a different payload under one event).
- * Pass a transaction client to enqueue atomically with the manifest PASS.
+ * Enqueue a delivery, with an explicit recovery contract by the existing row's status (B-r3-1) — so the
+ * commit can never mark an Order `ready` behind an Outbox row that is terminal-dead and will never be claimed:
+ *   - no row                         → create a fresh `scheduled` row (created).
+ *   - scheduled | processing | sent  → a LIVE or already-delivered row backs `ready`:
+ *        same payloadHash → idempotent success; DIFFERENT payloadHash → throw (never change a live payload).
+ *   - suppressed | failed (terminal) → this fulfillment is dead; ROLL to fulfillmentVersion+1 (new dedupeKey →
+ *        a fresh `scheduled` row), so `ready` is always backed by a claimable row. The caller persists the
+ *        returned fulfillmentVersion on the Order in the same transaction.
+ * If every rolled fulfillment is also terminal-dead, throw `outbox_terminal_recovery_exhausted` (explicit,
+ * never a silent `ready`). Pass a transaction client to enqueue atomically with the manifest PASS.
  */
 export async function enqueueDelivery(
   db: Db,
   args: { orderId: string; scope: string; fulfillmentVersion: number; payload: BookReadyPayload; now: Date },
-): Promise<{ created: boolean; dedupeKey: string }> {
-  const dedupeKey = deliveryDedupeKey(args.orderId, args.scope, args.fulfillmentVersion);
+): Promise<EnqueueResult> {
   const payloadHash = hashPayload(args.payload);
-  const existing = await db.deliveryOutbox.findUnique({ where: { dedupeKey } });
-  if (existing) {
-    if (existing.payloadHash !== payloadHash) {
-      throw new Error(`outbox_payload_mismatch:${dedupeKey}`);
+  let fulfillmentVersion = args.fulfillmentVersion;
+  for (let roll = 0; roll <= MAX_FULFILLMENT_ROLL; roll++) {
+    const dedupeKey = deliveryDedupeKey(args.orderId, args.scope, fulfillmentVersion);
+    const existing = await db.deliveryOutbox.findUnique({ where: { dedupeKey } });
+    if (!existing) {
+      await db.deliveryOutbox.create({
+        data: {
+          dedupeKey,
+          orderId: args.orderId,
+          scope: args.scope,
+          status: 'scheduled',
+          payload: args.payload as unknown as Prisma.InputJsonValue,
+          payloadHash,
+          nextAttemptAt: args.now,
+        },
+      });
+      return { created: true, dedupeKey, fulfillmentVersion };
     }
-    return { created: false, dedupeKey };
+    if (existing.status === 'scheduled' || existing.status === 'processing' || existing.status === 'sent') {
+      if (existing.payloadHash !== payloadHash) throw new Error(`outbox_payload_mismatch:${dedupeKey}`);
+      return { created: false, dedupeKey, fulfillmentVersion }; // live/delivered + same payload → idempotent success
+    }
+    // suppressed | failed → terminal-dead; never report as live. Roll to the next fulfillment.
+    fulfillmentVersion += 1;
   }
-  await db.deliveryOutbox.create({
-    data: {
-      dedupeKey,
-      orderId: args.orderId,
-      scope: args.scope,
-      status: 'scheduled',
-      payload: args.payload as unknown as Prisma.InputJsonValue,
-      payloadHash,
-      nextAttemptAt: args.now,
-    },
-  });
-  return { created: true, dedupeKey };
+  throw new Error(`outbox_terminal_recovery_exhausted:${args.orderId}:${args.scope}`);
 }
 
 /**

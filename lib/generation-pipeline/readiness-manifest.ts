@@ -193,10 +193,13 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, r
   let enqueued = false;
   let orderStatus: string;
   let deliveryHoldReason: string | null;
+  let fulfillmentVersion: number | undefined;
   if (result.status === 'passed' && args.anchorAllowsDelivery) {
     // (3) enqueue the delivery IN the same transaction (enqueue != send), then (4) mark the order ready.
-    await enqueueDelivery(tx, { orderId: order.id, scope, fulfillmentVersion: order.fulfillmentVersion, payload: buildPayload(payloadSourceOf(order, book)), now });
-    enqueued = true; orderStatus = 'ready'; deliveryHoldReason = null;
+    // B-r3-1: enqueue may roll fulfillmentVersion forward past a terminal-dead row — persist the value it used
+    // so `ready` is always backed by the live/claimable Outbox row (never a suppressed/failed one).
+    const enq = await enqueueDelivery(tx, { orderId: order.id, scope, fulfillmentVersion: order.fulfillmentVersion, payload: buildPayload(payloadSourceOf(order, book)), now });
+    enqueued = true; orderStatus = 'ready'; deliveryHoldReason = null; fulfillmentVersion = enq.fulfillmentVersion;
   } else if (result.status === 'passed') {
     // Integrity passed but the ANCHOR still holds delivery (Phase-1 keeps the anchor hold — fix #4). No enqueue.
     orderStatus = args.anchorOrderStatus; deliveryHoldReason = args.anchorReason;
@@ -208,9 +211,11 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, r
   // (4) Order write is CONDITIONAL on inputVersion being unchanged (B4 optimistic concurrency): if any writer
   // bumped Order.inputVersion since the evaluation, this matches 0 rows → abort the whole tx as a TOCTOU drift
   // (reload FRESH + re-evaluate). Stronger than the early fingerprint read: it makes the final write itself atomic.
+  const orderData: Prisma.OrderUpdateManyMutationInput = { status: orderStatus as never, packageStatus: 'done', deliveryHoldReason };
+  if (fulfillmentVersion !== undefined && fulfillmentVersion !== order.fulfillmentVersion) orderData.fulfillmentVersion = fulfillmentVersion;
   const written = await tx.order.updateMany({
     where: { id: order.id, inputVersion: order.inputVersion },
-    data: { status: orderStatus as never, packageStatus: 'done', deliveryHoldReason },
+    data: orderData,
   });
   if (written.count === 0) throw new Error(TOCTOU);
   // (5) GenerationJob terminal — the package stage ran.

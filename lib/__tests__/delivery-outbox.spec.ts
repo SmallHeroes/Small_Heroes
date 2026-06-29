@@ -33,17 +33,42 @@ describe('enqueueDelivery — idempotent on dedupeKey', () => {
     expect(r.created).toBe(true);
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ dedupeKey: 'book-ready/o1/base-book/1', status: 'scheduled' }) }));
   });
-  it('same key + same payload => no-op (no second send enqueued)', async () => {
+  it('LIVE row (scheduled) + same payload => idempotent no-op (no second send enqueued)', async () => {
     const create = vi.fn();
-    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ payloadHash: hashPayload(payload) })), create } };
+    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ status: 'scheduled', payloadHash: hashPayload(payload) })), create } };
     const r = await enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, payload, now: NOW });
     expect(r.created).toBe(false);
+    expect(r.fulfillmentVersion).toBe(1);
     expect(create).not.toHaveBeenCalled();
   });
-  it('same key + DIFFERENT payload => throws (never send a different payload under one event)', async () => {
-    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ payloadHash: 'different' })), create: vi.fn() } };
+  it('LIVE row (scheduled) + DIFFERENT payload => throws (never change a live payload under one event)', async () => {
+    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ status: 'scheduled', payloadHash: 'different' })), create: vi.fn() } };
     await expect(enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, payload, now: NOW }))
       .rejects.toThrow(/outbox_payload_mismatch/);
+  });
+  it('B-r3-1: terminal-dead row (suppressed) => rolls to fulfillmentVersion+1 and creates a FRESH scheduled row', async () => {
+    const create = vi.fn(async () => ({}));
+    const findUnique = vi.fn(async ({ where }: { where: { dedupeKey: string } }) =>
+      where.dedupeKey === 'book-ready/o1/base-book/1' ? { status: 'suppressed', payloadHash: 'whatever' } : null);
+    const db = { deliveryOutbox: { findUnique, create } };
+    const r = await enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, payload, now: NOW });
+    expect(r.created).toBe(true);
+    expect(r.fulfillmentVersion).toBe(2); // rolled past the dead v1
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ dedupeKey: 'book-ready/o1/base-book/2', status: 'scheduled' }) }));
+  });
+  it('B-r3-1: a terminal-dead row never reports as live, even with the SAME payload (no ready behind a dead row)', async () => {
+    const create = vi.fn(async () => ({}));
+    const findUnique = vi.fn(async ({ where }: { where: { dedupeKey: string } }) =>
+      where.dedupeKey === 'book-ready/o1/base-book/1' ? { status: 'failed', payloadHash: hashPayload(payload) } : null);
+    const db = { deliveryOutbox: { findUnique, create } };
+    const r = await enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, payload, now: NOW });
+    expect(r.created).toBe(true); // NOT a no-op success on the dead row
+    expect(r.fulfillmentVersion).toBe(2);
+  });
+  it('B-r3-1: every rolled fulfillment terminal-dead => explicit exception (never silent ready)', async () => {
+    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ status: 'failed', payloadHash: 'x' })), create: vi.fn() } };
+    await expect(enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, payload, now: NOW }))
+      .rejects.toThrow(/outbox_terminal_recovery_exhausted/);
   });
 });
 

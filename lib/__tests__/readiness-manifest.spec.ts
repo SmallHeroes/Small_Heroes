@@ -113,6 +113,17 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
     expect(r.manifestStatus).toBe('passed');
     expect(r.enqueued).toBe(true);
   });
+
+  it('B-r3-1: a terminal-dead Outbox (suppressed v1) → rolls to a fresh scheduled v2 + persists fulfillmentVersion (never ready behind a dead row)', async () => {
+    const tx = mockTx();
+    tx.deliveryOutbox.findUnique = vi.fn(async ({ where }: { where: { dedupeKey: string } }) =>
+      where.dedupeKey === 'book-ready/o1/base-book/1' ? { status: 'suppressed', payloadHash: 'stale' } : null);
+    const r = await commitBaseBookReadiness(mockPrisma(tx) as never, args(), { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' });
+    expect(r.enqueued).toBe(true);
+    expect(r.orderStatus).toBe('ready');
+    expect(tx.deliveryOutbox.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ dedupeKey: 'book-ready/o1/base-book/2', status: 'scheduled' }) }));
+    expect(tx.order.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'ready', fulfillmentVersion: 2 }) }));
+  });
 });
 
 describe('markBaseBookStale — send-time drift (B2)', () => {
