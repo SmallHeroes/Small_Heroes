@@ -64,7 +64,7 @@ const MAX_FULFILLMENT_ROLL = 50;
  */
 export async function enqueueDelivery(
   db: Db,
-  args: { orderId: string; scope: string; fulfillmentVersion: number; payload: BookReadyPayload; now: Date },
+  args: { orderId: string; scope: string; fulfillmentVersion: number; manifestId: string; inputVersion: number; payload: BookReadyPayload; now: Date },
 ): Promise<EnqueueResult> {
   const payloadHash = hashPayload(args.payload);
   let fulfillmentVersion = args.fulfillmentVersion;
@@ -80,19 +80,28 @@ export async function enqueueDelivery(
           status: 'scheduled',
           payload: args.payload as unknown as Prisma.InputJsonValue,
           payloadHash,
+          manifestId: args.manifestId,
+          inputVersion: args.inputVersion,
           nextAttemptAt: args.now,
         },
       });
       return { created: true, dedupeKey, fulfillmentVersion };
     }
+    // (P1-f #2) A NEW manifest NEVER adopts an existing row — each manifest gets its OWN Outbox bound to it.
+    // If the row at this key belongs to a different manifest, roll to a fresh key (a distinct delivery event).
+    if (existing.manifestId !== args.manifestId) {
+      fulfillmentVersion += 1;
+      continue;
+    }
+    // SAME manifest: a live/delivered row + same payload is an idempotent no-op; a different payload is a bug.
     if (existing.status === 'scheduled' || existing.status === 'processing' || existing.status === 'sent') {
       if (existing.payloadHash !== payloadHash) throw new Error(`outbox_payload_mismatch:${dedupeKey}`);
-      return { created: false, dedupeKey, fulfillmentVersion }; // live/delivered + same payload → idempotent success
+      return { created: false, dedupeKey, fulfillmentVersion };
     }
-    // Terminal-dead (suppressed | failed). Roll to a fresh fulfillment ONLY when we can prove NO provider send
-    // was EVER attempted on this row (P1-f #1): `sendAttempted === false` is the single durable source of truth.
-    // ANY terminal row with sendAttempted === true may have reached the provider → rolling would mint a new
-    // idempotency key and bypass Resend's 24h dedup → duplicate email. Refuse — explicit reconciliation required.
+    // SAME manifest, terminal-dead. Roll ONLY when we can prove NO provider send was EVER attempted (P1-f #1):
+    // `sendAttempted === false` is the single durable source of truth. Any sendAttempted === true → a provider
+    // send may have reached Resend → rolling would mint a new idempotency key and bypass the 24h dedup →
+    // duplicate email. Refuse — explicit reconciliation required.
     if (!existing.sendAttempted) {
       fulfillmentVersion += 1;
       continue;

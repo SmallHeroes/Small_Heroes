@@ -26,32 +26,42 @@ describe('dedupeKey + payloadHash', () => {
 });
 
 describe('enqueueDelivery — idempotent on dedupeKey', () => {
-  it('creates a new scheduled row', async () => {
+  it('creates a new scheduled row bound to the manifest + inputVersion (P1-f #2)', async () => {
     const create = vi.fn(async () => ({}));
     const db = { deliveryOutbox: { findUnique: vi.fn(async () => null), create } };
-    const r = await enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, payload, now: NOW });
+    const r = await enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, manifestId: 'M1', inputVersion: 7, payload, now: NOW });
     expect(r.created).toBe(true);
-    expect(create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ dedupeKey: 'book-ready/o1/base-book/1', status: 'scheduled' }) }));
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ dedupeKey: 'book-ready/o1/base-book/1', status: 'scheduled', manifestId: 'M1', inputVersion: 7 }) }));
+  });
+  it('P1-f #2: an existing LIVE row bound to a DIFFERENT manifest is NEVER adopted — rolls to a fresh key bound to THIS manifest', async () => {
+    const create = vi.fn(async () => ({}));
+    const findUnique = vi.fn(async ({ where }: { where: { dedupeKey: string } }) =>
+      where.dedupeKey === 'book-ready/o1/base-book/1' ? { manifestId: 'M_OLD', status: 'scheduled', payloadHash: hashPayload(payload) } : null);
+    const db = { deliveryOutbox: { findUnique, create } };
+    const r = await enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, manifestId: 'M1', inputVersion: 0, payload, now: NOW });
+    expect(r.created).toBe(true);
+    expect(r.fulfillmentVersion).toBe(2); // did NOT adopt M_OLD's row
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ dedupeKey: 'book-ready/o1/base-book/2', manifestId: 'M1' }) }));
   });
   it('LIVE row (scheduled) + same payload => idempotent no-op (no second send enqueued)', async () => {
     const create = vi.fn();
-    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ status: 'scheduled', payloadHash: hashPayload(payload) })), create } };
-    const r = await enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, payload, now: NOW });
+    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ manifestId: 'M1', status: 'scheduled', payloadHash: hashPayload(payload) })), create } };
+    const r = await enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, manifestId: 'M1', inputVersion: 0, payload, now: NOW });
     expect(r.created).toBe(false);
     expect(r.fulfillmentVersion).toBe(1);
     expect(create).not.toHaveBeenCalled();
   });
   it('LIVE row (scheduled) + DIFFERENT payload => throws (never change a live payload under one event)', async () => {
-    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ status: 'scheduled', payloadHash: 'different' })), create: vi.fn() } };
-    await expect(enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, payload, now: NOW }))
+    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ manifestId: 'M1', status: 'scheduled', payloadHash: 'different' })), create: vi.fn() } };
+    await expect(enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, manifestId: 'M1', inputVersion: 0, payload, now: NOW }))
       .rejects.toThrow(/outbox_payload_mismatch/);
   });
   it('B-r3-1: terminal-dead row (suppressed) => rolls to fulfillmentVersion+1 and creates a FRESH scheduled row', async () => {
     const create = vi.fn(async () => ({}));
     const findUnique = vi.fn(async ({ where }: { where: { dedupeKey: string } }) =>
-      where.dedupeKey === 'book-ready/o1/base-book/1' ? { status: 'suppressed', payloadHash: 'whatever' } : null);
+      where.dedupeKey === 'book-ready/o1/base-book/1' ? { manifestId: 'M1', status: 'suppressed', payloadHash: 'whatever' } : null);
     const db = { deliveryOutbox: { findUnique, create } };
-    const r = await enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, payload, now: NOW });
+    const r = await enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, manifestId: 'M1', inputVersion: 0, payload, now: NOW });
     expect(r.created).toBe(true);
     expect(r.fulfillmentVersion).toBe(2); // rolled past the dead v1
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ dedupeKey: 'book-ready/o1/base-book/2', status: 'scheduled' }) }));
@@ -59,28 +69,28 @@ describe('enqueueDelivery — idempotent on dedupeKey', () => {
   it('P1-f #1: a terminal-dead row with sendAttempted=false rolls (proven no send), even with the SAME payload', async () => {
     const create = vi.fn(async () => ({}));
     const findUnique = vi.fn(async ({ where }: { where: { dedupeKey: string } }) =>
-      where.dedupeKey === 'book-ready/o1/base-book/1' ? { status: 'failed', sendAttempted: false, payloadHash: hashPayload(payload) } : null);
+      where.dedupeKey === 'book-ready/o1/base-book/1' ? { manifestId: 'M1', status: 'failed', sendAttempted: false, payloadHash: hashPayload(payload) } : null);
     const db = { deliveryOutbox: { findUnique, create } };
-    const r = await enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, payload, now: NOW });
+    const r = await enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, manifestId: 'M1', inputVersion: 0, payload, now: NOW });
     expect(r.created).toBe(true); // NOT a no-op success on the dead row
     expect(r.fulfillmentVersion).toBe(2);
   });
   it('B-r3-1: every rolled fulfillment terminal-dead (suppressed) => explicit exception (never silent ready)', async () => {
-    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ status: 'suppressed', payloadHash: 'x' })), create: vi.fn() } };
-    await expect(enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, payload, now: NOW }))
+    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ manifestId: 'M1', status: 'suppressed', payloadHash: 'x' })), create: vi.fn() } };
+    await expect(enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, manifestId: 'M1', inputVersion: 0, payload, now: NOW }))
       .rejects.toThrow(/outbox_terminal_recovery_exhausted/);
   });
   it('P1-f #1: a terminal row with sendAttempted=true => THROWS reconciliation (never auto-rolls into a new idempotency key)', async () => {
     const create = vi.fn();
-    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ status: 'failed', failureClass: 'send_ambiguous', sendAttempted: true, payloadHash: 'x' })), create } };
-    await expect(enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, payload, now: NOW }))
+    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ manifestId: 'M1', status: 'failed', failureClass: 'send_ambiguous', sendAttempted: true, payloadHash: 'x' })), create } };
+    await expect(enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, manifestId: 'M1', inputVersion: 0, payload, now: NOW }))
       .rejects.toThrow(/outbox_send_ambiguous_needs_reconciliation/);
     expect(create).not.toHaveBeenCalled(); // no new fulfillment created → no duplicate email path
   });
   it('P1-f #1: a `suppressed` row with sendAttempted=true also refuses to roll (sendAttempted is the only signal)', async () => {
     const create = vi.fn();
-    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ status: 'suppressed', sendAttempted: true, payloadHash: 'x' })), create } };
-    await expect(enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, payload, now: NOW }))
+    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ manifestId: 'M1', status: 'suppressed', sendAttempted: true, payloadHash: 'x' })), create } };
+    await expect(enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, manifestId: 'M1', inputVersion: 0, payload, now: NOW }))
       .rejects.toThrow(/outbox_send_ambiguous_needs_reconciliation/);
     expect(create).not.toHaveBeenCalled();
   });

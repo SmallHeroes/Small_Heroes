@@ -49,7 +49,7 @@ describe.skipIf(!RUN)('delivery-outbox SKIP LOCKED — staging real DB (Supaviso
     try {
       const now = new Date();
       for (let i = 0; i < 4; i++) {
-        await enqueueDelivery(prisma, { orderId: `${marker}-${i}`, scope: 'base_book', fulfillmentVersion: 1, payload, now });
+        await enqueueDelivery(prisma, { orderId: `${marker}-${i}`, scope: 'base_book', fulfillmentVersion: 1, manifestId: `${marker}-m`, inputVersion: 0, payload, now });
       }
       const seeded = await prisma.deliveryOutbox.findMany({ where: { orderId: { startsWith: marker } }, select: { id: true } });
       const seededIds = new Set(seeded.map((r) => r.id));

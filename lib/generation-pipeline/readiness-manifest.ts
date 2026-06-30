@@ -210,7 +210,7 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, r
     // (3) enqueue the delivery IN the same transaction (enqueue != send), then (4) mark the order ready.
     // B-r3-1: enqueue may roll fulfillmentVersion forward past a terminal-dead row — persist the value it used
     // so `ready` is always backed by the live/claimable Outbox row (never a suppressed/failed one).
-    const enq = await enqueueDelivery(tx, { orderId: order.id, scope, fulfillmentVersion: order.fulfillmentVersion, payload: buildPayload(payloadSourceOf(order, book)), now });
+    const enq = await enqueueDelivery(tx, { orderId: order.id, scope, fulfillmentVersion: order.fulfillmentVersion, manifestId: manifest.id, inputVersion: order.inputVersion, payload: buildPayload(payloadSourceOf(order, book)), now });
     enqueued = true; orderStatus = 'ready'; deliveryHoldReason = null; fulfillmentVersion = enq.fulfillmentVersion;
   } else if (result.status === 'passed') {
     // Integrity passed but the ANCHOR still holds delivery (Phase-1 keeps the anchor hold — fix #4). No enqueue.
