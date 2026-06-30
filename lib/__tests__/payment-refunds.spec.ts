@@ -12,11 +12,16 @@ function fakeFence(seed: Record<string, RefundFenceRecord> = {}) {
     records.set(refundKey, { status: 'requested', providerActionId: null });
     return { heldFresh: true, record: null };
   });
+  const dispatch = vi.fn(async (refundKey: string) => {
+    const r = records.get(refundKey);
+    if (r?.status === 'requested') { records.set(refundKey, { ...r, status: 'dispatched' }); return true; }
+    return false; // single-flight: only the 'requested'→'dispatched' winner may call refund-sale
+  });
   const settle = vi.fn(async ({ refundKey, status, providerActionId }: { refundKey: string; status: 'pending' | 'confirmed'; providerActionId: string | null }) => {
     records.set(refundKey, { status, providerActionId });
   });
-  const fence: RefundFence = { lookup, begin, settle };
-  return { fence, records, lookup, begin, settle };
+  const fence: RefundFence = { lookup, begin, dispatch, settle };
+  return { fence, records, lookup, begin, dispatch, settle };
 }
 
 function order(overrides: Partial<RefundableOrder> = {}): RefundableOrder {
@@ -121,7 +126,8 @@ describe('refundOrderPayment', () => {
       refundFence: f.fence,
     });
     expect(result).toMatchObject({ state: 'confirmed', provider: 'payme', providerActionId: 'pa_1' });
-    expect(f.begin).toHaveBeenCalledTimes(1); // fence created before the call
+    expect(f.begin).toHaveBeenCalledTimes(1); // fence created ('requested') before the call
+    expect(f.dispatch).toHaveBeenCalledTimes(1); // (#6 FIX-5) flipped 'requested'→'dispatched' BEFORE refund-sale
     expect(refundSale).toHaveBeenCalledTimes(1); // exactly once
     expect(f.records.get('refund/case_1')).toEqual({ status: 'confirmed', providerActionId: 'pa_1' });
   });
@@ -191,5 +197,57 @@ describe('refundOrderPayment', () => {
     });
     expect(result.state).toBe('pending'); // not terminal-stuck — never double-refunds either
     expect(refundSale).not.toHaveBeenCalled();
+  });
+
+  it('#6 FIX-5: a PENDING fence whose sale STILL READS PAID (get-sales lag) → stays pending, NEVER re-issues (the eventual-consistency double-refund window)', async () => {
+    // A 'pending' fence means PayMe already ACCEPTED a refund (settling async). A lagging get-sales read of 'paid'
+    // must NOT trigger a second refund-sale — this is exactly the double-refund the re-verify proved.
+    const refundSale = vi.fn();
+    const f = fakeFence({ 'refund/case_1': { status: 'pending', providerActionId: 'pa_p' } });
+    const result = await refundOrderPayment(paymeOrder(), 'refund/case_1', null, {
+      queryPaymeSale: vi.fn(async () => ({ state: 'paid' as const, rawStatus: 'approved' })),
+      refundPaymeSale: refundSale,
+      refundFence: f.fence,
+    });
+    expect(refundSale).not.toHaveBeenCalled(); // the whole point of FIX-5
+    expect(result.state).toBe('pending');
+  });
+
+  it('#6 FIX-5: a DISPATCHED fence (refund-sale was sent, response lost) whose sale reads paid → stays pending, NEVER re-issues (lease-race / restart safe)', async () => {
+    const refundSale = vi.fn();
+    const f = fakeFence({ 'refund/case_1': { status: 'dispatched', providerActionId: null } });
+    const result = await refundOrderPayment(paymeOrder(), 'refund/case_1', null, {
+      queryPaymeSale: vi.fn(async () => ({ state: 'paid' as const, rawStatus: 'approved' })),
+      refundPaymeSale: refundSale,
+      refundFence: f.fence,
+    });
+    expect(refundSale).not.toHaveBeenCalled();
+    expect(result.state).toBe('pending');
+  });
+
+  it('#6 FIX-5: a DISPATCHED fence whose sale is now refunded → confirm (the lost response is reconciled)', async () => {
+    const refundSale = vi.fn();
+    const f = fakeFence({ 'refund/case_1': { status: 'dispatched', providerActionId: 'pa_d' } });
+    const result = await refundOrderPayment(paymeOrder(), 'refund/case_1', null, {
+      queryPaymeSale: vi.fn(async () => ({ state: 'refunded' as const, rawStatus: 'refunded' })),
+      refundPaymeSale: refundSale,
+      refundFence: f.fence,
+    });
+    expect(refundSale).not.toHaveBeenCalled();
+    expect(result.state).toBe('confirmed');
+    expect(f.records.get('refund/case_1')?.status).toBe('confirmed');
+  });
+
+  it('#6 FIX-5: a fresh PARTIAL_REFUND sale (a refund already exists) → stays pending, never blind-issues a second FULL refund', async () => {
+    const refundSale = vi.fn();
+    const f = fakeFence();
+    const result = await refundOrderPayment(paymeOrder(), 'refund/case_1', null, {
+      queryPaymeSale: vi.fn(async () => ({ state: 'partial_refund' as const, rawStatus: 'partial-refund' })),
+      refundPaymeSale: refundSale,
+      refundFence: f.fence,
+    });
+    expect(refundSale).not.toHaveBeenCalled();
+    expect(result.state).toBe('pending');
+    expect(f.begin).not.toHaveBeenCalled(); // no fence created — nothing dispatched
   });
 });

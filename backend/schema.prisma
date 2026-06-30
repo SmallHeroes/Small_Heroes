@@ -667,7 +667,7 @@ model RefundAttempt {
   refundKey        String   @unique
   provider         String
   providerSaleId   String
-  status           String // 'requested' | 'pending' | 'confirmed'
+  status           String // (#6 FIX-5) 'requested' (refund-sale NOT sent) | 'dispatched' (sent) | 'pending' | 'confirmed'
   providerActionId String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

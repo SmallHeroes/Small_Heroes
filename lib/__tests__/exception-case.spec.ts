@@ -5,6 +5,7 @@ import {
   fencedOutboxTerminalWithException,
   openExceptionCase,
   reissueConfirmedFailedDelivery,
+  ReissueBudgetExhaustedError,
   resolveAmbiguousDelivery,
   transitionExceptionCase,
 } from '@/lib/generation-chunked/exception-case';
@@ -572,5 +573,51 @@ describe('ExceptionCase producer + lifecycle', () => {
     expect(budgetCreate).not.toHaveBeenCalled();
     expect(budgetUpdateMany).not.toHaveBeenCalled();
     expect(reissueCreate).not.toHaveBeenCalled();
+  });
+
+  it('#6 FIX-4b: an exhausted budget at in-tx consume (after the claim succeeds) THROWS so the whole tx rolls back', async () => {
+    const previousAppUrl = process.env.APP_URL;
+    const previousPublicAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+    process.env.APP_URL = 'https://app.example.com';
+    process.env.NEXT_PUBLIC_APP_URL = 'https://app.example.com';
+    const oldOutbox = { id: 'ob1', status: 'failed', failureClass: 'send_ambiguous', firstSendAttemptAt: new Date('2026-06-30T11:00:00.000Z') };
+    const reissueCreate = vi.fn();
+    const tx = {
+      // the claim/transition SUCCEEDS (count 1) — so the consume runs next…
+      exceptionCase: { updateMany: vi.fn(async () => ({ count: 1 })) },
+      exceptionCaseAudit: { create: vi.fn(async () => ({})) },
+      // …but the budget is already exhausted (a concurrent reissue won it): existing count == REISSUE_BUDGET,
+      // updateMany WHERE count<BUDGET matches 0 → consume returns 'exhausted' → THROW → whole tx rolls back.
+      reissueBudget: {
+        findUnique: vi.fn(async () => ({ count: 1, windowStartAt: new Date('2026-06-30T11:00:00.000Z') })),
+        create: vi.fn(),
+        updateMany: vi.fn(async () => ({ count: 0 })),
+      },
+      deliveryOutbox: {
+        findUnique: vi.fn(async ({ where }: { where: { id: string } }) => (where.id === 'ob1' ? oldOutbox : null)),
+        create: reissueCreate,
+        updateMany: vi.fn(async () => ({ count: 1 })),
+      },
+      order: {
+        findUnique: vi.fn(async () => ({
+          status: 'ready', fulfillmentVersion: 1, inputVersion: 3,
+          customerEmail: 'parent@example.com', customerName: 'Parent', childName: 'Child',
+          book: { readUrl: 'https://app.example.com/ready?orderId=o1', pdfUrl: null, pages: [] },
+        })),
+        updateMany: vi.fn(async () => ({ count: 1 })),
+      },
+      bookReadiness: { findUnique: vi.fn(async () => ({ status: 'passed', currentManifestId: 'm1' })) },
+    };
+    const db = { $transaction: vi.fn(async (cb: (inner: typeof tx) => unknown) => cb(tx)) };
+    try {
+      await expect(reissueConfirmedFailedDelivery(db as never, {
+        exceptionCase: { id: 'ec1', orderId: 'o1', status: 'open', claimVersion: 4 },
+        outboxId: 'ob1', providerMessageId: 'email_1', providerEvent: 'bounced', now: NOW,
+      })).rejects.toThrow(ReissueBudgetExhaustedError);
+    } finally {
+      if (previousAppUrl === undefined) delete process.env.APP_URL; else process.env.APP_URL = previousAppUrl;
+      if (previousPublicAppUrl === undefined) delete process.env.NEXT_PUBLIC_APP_URL; else process.env.NEXT_PUBLIC_APP_URL = previousPublicAppUrl;
+    }
+    expect(reissueCreate).not.toHaveBeenCalled(); // no fulfillment enqueued; the throw rolls back the transition too
   });
 });
