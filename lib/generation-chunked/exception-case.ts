@@ -23,6 +23,16 @@ export const EXCEPTION_MAX_RECOVERY_ATTEMPTS = 3;
 export const REISSUE_BUDGET = 1;
 export const REISSUE_WINDOW_MS = 48 * 60 * 60 * 1000;
 
+// (#6 FIX-4b) Thrown from inside the reissue tx when the budget is exhausted at consume-time — AFTER the case
+// claim — so the whole tx (incl. the transition) rolls back, leaving the case un-resolved and the budget
+// unconsumed. The caller maps it to a refund. (Returning instead would commit a resolved-without-delivery case.)
+export class ReissueBudgetExhaustedError extends Error {
+  constructor() {
+    super('reissue_budget_exhausted');
+    this.name = 'ReissueBudgetExhaustedError';
+  }
+}
+
 export type ReissueBudgetOutcome = 'consumed' | 'exhausted' | 'window_expired';
 
 /**
@@ -339,7 +349,7 @@ export async function reissueConfirmedFailedDelivery(
     providerEvent: string | null;
     now: Date;
   },
-): Promise<'reissued' | 'not_ready' | 'lost_lease' | 'budget_exhausted'> {
+): Promise<'reissued' | 'not_ready' | 'lost_lease'> {
   return prisma.$transaction(async (tx) => {
     const [oldOutbox, order, readiness] = await Promise.all([
       tx.deliveryOutbox.findUnique({ where: { id: args.outboxId } }),
@@ -395,16 +405,8 @@ export async function reissueConfirmedFailedDelivery(
       return 'not_ready';
     }
 
-    // (#6-FIX-2) Consume the durable order:scope reissue budget atomically with the reissue. An exhausted budget
-    // or an expired GLOBAL 48h window (anchored on the original first send attempt) → refund, never another reissue.
-    const budget = await consumeReissueBudget(tx, {
-      orderId: args.exceptionCase.orderId,
-      scope: EXCEPTION_SCOPE_BASE_BOOK,
-      firstSendAttemptAt: oldOutbox.firstSendAttemptAt,
-      now: args.now,
-    });
-    if (budget !== 'consumed') return 'budget_exhausted';
-
+    // (#6 FIX-4b) Claim the case FIRST. If we lost the lease, return WITHOUT touching the budget — a lost lease
+    // must never burn the single reissue. The tx commits with no transition and no budget change.
     const moved = await transitionExceptionCaseInTx(tx, {
       caseId: args.exceptionCase.id,
       claimVersion: args.exceptionCase.claimVersion,
@@ -422,6 +424,18 @@ export async function reissueConfirmedFailedDelivery(
       now: args.now,
     }, args.now);
     if (!moved) return 'lost_lease';
+
+    // (#6-FIX-2) We hold the claim → consume the durable order:scope reissue budget atomically with the reissue.
+    // An exhausted budget or an expired GLOBAL 48h window (anchored on the original first send attempt) → THROW so
+    // the whole tx (incl. the transition above) rolls back and the caller refunds (#6 FIX-4b: throwing, not
+    // returning, keeps the case un-resolved + the budget unconsumed on the rare pre-check/consume TOCTOU race).
+    const budget = await consumeReissueBudget(tx, {
+      orderId: args.exceptionCase.orderId,
+      scope: EXCEPTION_SCOPE_BASE_BOOK,
+      firstSendAttemptAt: oldOutbox.firstSendAttemptAt,
+      now: args.now,
+    });
+    if (budget !== 'consumed') throw new ReissueBudgetExhaustedError();
 
     const version = order.fulfillmentVersion + 1;
     const rolled = await tx.order.updateMany({

@@ -527,4 +527,50 @@ describe('ExceptionCase producer + lifecycle', () => {
       data: expect.objectContaining({ failureClass: 'provider_confirmed_failed' }),
     }));
   });
+
+  it('#6 FIX-4b: a lost lease during reissue does NOT consume the budget (count untouched, no reissue)', async () => {
+    const previousAppUrl = process.env.APP_URL;
+    const previousPublicAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+    process.env.APP_URL = 'https://app.example.com';
+    process.env.NEXT_PUBLIC_APP_URL = 'https://app.example.com';
+    const oldOutbox = { id: 'ob1', status: 'failed', failureClass: 'send_ambiguous', firstSendAttemptAt: new Date('2026-06-30T11:00:00.000Z') };
+    const budgetCreate = vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id: 'rb1', ...data }));
+    const budgetUpdateMany = vi.fn(async () => ({ count: 1 }));
+    const reissueCreate = vi.fn();
+    const tx = {
+      // (#6 FIX-4b) the case transition LOSES the lease (count 0) → reissue returns lost_lease BEFORE the consume.
+      exceptionCase: { updateMany: vi.fn(async () => ({ count: 0 })) },
+      exceptionCaseAudit: { create: vi.fn(async () => ({})) },
+      reissueBudget: { findUnique: vi.fn(async () => null), create: budgetCreate, updateMany: budgetUpdateMany },
+      deliveryOutbox: {
+        findUnique: vi.fn(async ({ where }: { where: { id: string } }) => (where.id === 'ob1' ? oldOutbox : null)),
+        create: reissueCreate,
+        updateMany: vi.fn(async () => ({ count: 1 })),
+      },
+      order: {
+        findUnique: vi.fn(async () => ({
+          status: 'ready', fulfillmentVersion: 1, inputVersion: 3,
+          customerEmail: 'parent@example.com', customerName: 'Parent', childName: 'Child',
+          book: { readUrl: 'https://app.example.com/ready?orderId=o1', pdfUrl: null, pages: [] },
+        })),
+        updateMany: vi.fn(async () => ({ count: 1 })),
+      },
+      bookReadiness: { findUnique: vi.fn(async () => ({ status: 'passed', currentManifestId: 'm1' })) },
+    };
+    const db = { $transaction: vi.fn(async (cb: (inner: typeof tx) => unknown) => cb(tx)) };
+    try {
+      const r = await reissueConfirmedFailedDelivery(db as never, {
+        exceptionCase: { id: 'ec1', orderId: 'o1', status: 'open', claimVersion: 4 },
+        outboxId: 'ob1', providerMessageId: 'email_1', providerEvent: 'bounced', now: NOW,
+      });
+      expect(r).toBe('lost_lease');
+    } finally {
+      if (previousAppUrl === undefined) delete process.env.APP_URL; else process.env.APP_URL = previousAppUrl;
+      if (previousPublicAppUrl === undefined) delete process.env.NEXT_PUBLIC_APP_URL; else process.env.NEXT_PUBLIC_APP_URL = previousPublicAppUrl;
+    }
+    // budget intact — neither created nor incremented; and no new fulfillment enqueued.
+    expect(budgetCreate).not.toHaveBeenCalled();
+    expect(budgetUpdateMany).not.toHaveBeenCalled();
+    expect(reissueCreate).not.toHaveBeenCalled();
+  });
 });

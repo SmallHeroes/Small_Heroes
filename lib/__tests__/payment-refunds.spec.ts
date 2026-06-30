@@ -153,15 +153,43 @@ describe('refundOrderPayment', () => {
     expect(f.records.get('refund/case_1')?.status).toBe('confirmed');
   });
 
-  it('#6-FIX-3: a REQUESTED fence whose sale is still paid → stays pending, never re-issues (residual window)', async () => {
-    const refundSale = vi.fn();
+  it('#6 FIX-4a: a REQUESTED fence whose sale is still PAID → RE-ATTEMPTS refund-sale (closes the at-most-once miss)', async () => {
+    // Crash between the fence write and refund-sale: the prior attempt never executed (query proves un-refunded),
+    // so we MUST re-attempt — otherwise the refund is permanently missed.
+    const refundSale = vi.fn(async () => ({ state: 'refunded' as const, providerActionId: 'pa_retry' }));
     const f = fakeFence({ 'refund/case_1': { status: 'requested', providerActionId: null } });
     const result = await refundOrderPayment(paymeOrder(), 'refund/case_1', null, {
       queryPaymeSale: vi.fn(async () => ({ state: 'paid' as const, rawStatus: 'paid' })),
       refundPaymeSale: refundSale,
       refundFence: f.fence,
     });
-    expect(result.state).toBe('pending');
+    expect(refundSale).toHaveBeenCalledTimes(1);
+    expect(result.state).toBe('confirmed');
+    expect(f.records.get('refund/case_1')).toEqual({ status: 'confirmed', providerActionId: 'pa_retry' });
+  });
+
+  it('#6 FIX-4a: a PENDING fence ALWAYS re-queries — refunded → confirmed (never terminal-stuck on pending)', async () => {
+    const refundSale = vi.fn();
+    const f = fakeFence({ 'refund/case_1': { status: 'pending', providerActionId: 'pa_p' } });
+    const result = await refundOrderPayment(paymeOrder(), 'refund/case_1', null, {
+      queryPaymeSale: vi.fn(async () => ({ state: 'refunded' as const, rawStatus: 'refunded' })),
+      refundPaymeSale: refundSale,
+      refundFence: f.fence,
+    });
+    expect(result.state).toBe('confirmed');
+    expect(refundSale).not.toHaveBeenCalled();
+    expect(f.records.get('refund/case_1')?.status).toBe('confirmed');
+  });
+
+  it('#6 FIX-4a: a PENDING fence whose refund is still in-flight stays pending — reconcilable, re-queried next tick', async () => {
+    const refundSale = vi.fn();
+    const f = fakeFence({ 'refund/case_1': { status: 'pending', providerActionId: 'pa_p' } });
+    const result = await refundOrderPayment(paymeOrder(), 'refund/case_1', null, {
+      queryPaymeSale: vi.fn(async () => ({ state: 'unknown' as const, rawStatus: 'processing' })),
+      refundPaymeSale: refundSale,
+      refundFence: f.fence,
+    });
+    expect(result.state).toBe('pending'); // not terminal-stuck — never double-refunds either
     expect(refundSale).not.toHaveBeenCalled();
   });
 });

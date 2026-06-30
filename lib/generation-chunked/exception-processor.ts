@@ -19,6 +19,7 @@ import {
   transitionExceptionCase,
   REISSUE_BUDGET,
   REISSUE_WINDOW_MS,
+  ReissueBudgetExhaustedError,
 } from './exception-case';
 import {
   hashPayload,
@@ -307,17 +308,25 @@ async function handleSendAmbiguous(
       if (!(await reissueBudgetAllows(prisma, exceptionCase.orderId, firstAttemptAt, now))) {
         return moveToRefund(prisma, exceptionCase, 'reissue_budget_or_window_exhausted', now);
       }
-      const reissued = await reissueConfirmedFailedDelivery(prisma, {
-        exceptionCase,
-        outboxId: row.id,
-        providerMessageId,
-        providerEvent: state.event,
-        now,
-      });
+      let reissued: 'reissued' | 'not_ready' | 'lost_lease';
+      try {
+        reissued = await reissueConfirmedFailedDelivery(prisma, {
+          exceptionCase,
+          outboxId: row.id,
+          providerMessageId,
+          providerEvent: state.event,
+          now,
+        });
+      } catch (error) {
+        // (#6 FIX-4b) The in-tx consume is authoritative: if a concurrent reissue won the budget after our
+        // pre-check, the reissue tx rolls back (case un-resolved, budget unconsumed) and we refund instead.
+        if (error instanceof ReissueBudgetExhaustedError) {
+          return moveToRefund(prisma, exceptionCase, 'reissue_budget_exhausted', now);
+        }
+        throw error;
+      }
       if (reissued === 'reissued') return 'resolved';
       if (reissued === 'lost_lease') return 'lost_lease';
-      // The atomic in-tx consume is authoritative: if a concurrent reissue won the budget, refund (never a 2nd reissue).
-      if (reissued === 'budget_exhausted') return moveToRefund(prisma, exceptionCase, 'reissue_budget_exhausted', now);
       return moveToRefund(prisma, exceptionCase, 'confirmed_failed_redelivery_not_safe', now);
     }
     if (ageMs >= RECONCILIATION_MAX_AGE_MS) {

@@ -12,3 +12,7 @@ CREATE TABLE "ReissueBudget" (
 );
 
 CREATE UNIQUE INDEX "ReissueBudget_orderId_scope_key" ON "ReissueBudget" ("orderId", "scope");
+
+-- (#6 FIX-4c) Internal server-side table. No anon/authenticated policy is created (service-role only) — mirrors
+-- ExceptionCase. Supabase requires RLS on exposed public tables; without it the table is open to client CRUD.
+ALTER TABLE "ReissueBudget" ENABLE ROW LEVEL SECURITY;

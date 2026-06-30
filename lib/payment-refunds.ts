@@ -127,22 +127,41 @@ export async function refundOrderPayment(
     const saleId = (order.paymeTransactionId || order.paymentId || '').trim();
     if (!saleId) throw new Error('PayMe sale id missing for refund');
 
-    // (#6-FIX-3) A prior fence record means refund-sale was ALREADY attempted for this refundKey → NEVER call it
-    // again. Reconcile via the persisted record + a sale-state query.
+    // We hold the fence → call refund-sale, settle the durable record from its result, return.
+    const issue = async (prevActionId: string | null): Promise<RefundResult> => {
+      const requested = await refundSale(saleId);
+      const status: 'pending' | 'confirmed' = requested.state === 'refunded' ? 'confirmed' : 'pending';
+      const actionId = requested.providerActionId ?? prevActionId ?? saleId;
+      await fence.settle({ refundKey, status, providerActionId: actionId });
+      return { state: status, provider, providerActionId: actionId };
+    };
+
+    // (#6 FIX-4a) Reconcile a prior attempt (record 'requested' or 'pending') in BOTH directions — ALWAYS re-query
+    // the sale first, never just trust the stored status:
+    //   - refunded                  → settle 'confirmed' (idempotent success).
+    //   - paid / partial_refund     → the prior attempt did NOT execute → RE-ATTEMPT refund-sale. Closes the
+    //                                 at-most-once gap (a crash between fence-write and refund-sale would otherwise
+    //                                 miss the refund forever). Safe: the query proves the sale is un-refunded and
+    //                                 PayMe serializes the balance, so this never double-refunds.
+    //   - in-flight / ambiguous     → stay 'pending' but RECONCILABLE — re-queried every tick, never terminal-stuck.
+    const reconcile = async (prevActionId: string | null): Promise<RefundResult> => {
+      const cur = await querySale(saleId);
+      if (cur.state === 'refunded') {
+        await fence.settle({ refundKey, status: 'confirmed', providerActionId: prevActionId ?? saleId });
+        return { state: 'confirmed', provider, providerActionId: prevActionId ?? saleId };
+      }
+      if (cur.state === 'paid' || cur.state === 'partial_refund') {
+        return issue(prevActionId);
+      }
+      return { state: 'pending', provider, providerActionId: prevActionId ?? saleId };
+    };
+
+    // A prior fence record means refund-sale was ALREADY persisted for this refundKey → never blindly re-call.
+    // 'confirmed' is terminal; 'requested'/'pending' both reconcile (re-query → confirm / re-attempt / stay pending).
     const prior = await fence.lookup(refundKey);
     if (prior) {
       if (prior.status === 'confirmed') return { state: 'confirmed', provider, providerActionId: prior.providerActionId ?? saleId };
-      if (prior.status === 'pending') return { state: 'pending', provider, providerActionId: prior.providerActionId ?? saleId };
-      // 'requested' = a response was lost before settle. Query the sale; if PayMe shows it refunded, confirm. If
-      // not yet visible, stay 'pending' — never re-issue (PayMe balance serialization + this fence keep it
-      // exactly-once). Residual window: a refund-sale that genuinely failed stays pending until the sale-state
-      // query (or #7 reconciliation) can prove it; we never risk a double refund to close it faster.
-      const cur = await querySale(saleId);
-      if (cur.state === 'refunded') {
-        await fence.settle({ refundKey, status: 'confirmed', providerActionId: prior.providerActionId ?? saleId });
-        return { state: 'confirmed', provider, providerActionId: prior.providerActionId ?? saleId };
-      }
-      return { state: 'pending', provider, providerActionId: prior.providerActionId ?? saleId };
+      return reconcile(prior.providerActionId);
     }
 
     // No prior attempt. Already-refunded short-circuit needs no fence (nothing to issue).
@@ -154,27 +173,12 @@ export async function refundOrderPayment(
       throw new Error(`PayMe sale is not safely refundable:${before.state}`);
     }
 
-    // Persist the fence (status 'requested') BEFORE the call. If a concurrent attempt won the create, do NOT
-    // double-issue — reconcile like a prior record.
+    // Persist the fence (status 'requested') BEFORE the call. If a concurrent attempt won the create, reconcile
+    // (re-query → confirm / re-attempt / pending) instead of double-issuing.
     const begun = await fence.begin({ refundKey, provider, providerSaleId: saleId });
-    if (!begun.heldFresh) {
-      const cur = await querySale(saleId);
-      if (cur.state === 'refunded') {
-        await fence.settle({ refundKey, status: 'confirmed', providerActionId: begun.record?.providerActionId ?? saleId });
-        return { state: 'confirmed', provider, providerActionId: begun.record?.providerActionId ?? saleId };
-      }
-      return { state: 'pending', provider, providerActionId: begun.record?.providerActionId ?? saleId };
-    }
+    if (!begun.heldFresh) return reconcile(begun.record?.providerActionId ?? null);
 
-    // We hold the fence → call refund-sale EXACTLY once, then settle the durable record.
-    const requested = await refundSale(saleId);
-    const status: 'pending' | 'confirmed' = requested.state === 'refunded' ? 'confirmed' : 'pending';
-    await fence.settle({ refundKey, status, providerActionId: requested.providerActionId ?? saleId });
-    return {
-      state: status,
-      provider,
-      providerActionId: requested.providerActionId ?? previousProviderActionId ?? saleId,
-    };
+    return issue(previousProviderActionId ?? null);
   }
 
   if (provider === 'fake' && !isVercelProductionRuntime()) {
