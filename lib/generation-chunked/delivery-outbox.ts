@@ -223,8 +223,9 @@ export async function processDelivery(prisma: PrismaClient, row: DeliveryOutbox,
     if (res === 'lost_lease') return 'lost_lease';
     if (res === 'manifest_superseded') {
       // (P1-e4-1) a newer manifest now backs this row — it must NOT be suppressed (the suppress was rolled back
-      // atomically). Reschedule so a future tick re-checks it against the CURRENT manifest.
-      const ok = await fenced(prisma, row.id, token, { status: 'scheduled', nextAttemptAt: new Date(now.getTime() + backoffMs(row.attempts)), leaseExpiresAt: null, lastError: 'manifest_superseded' });
+      // atomically). Reschedule so a future tick re-checks it against the CURRENT manifest. This is BENIGN, so
+      // undo the claim's attempt increment — a re-commit storm must not consume the failure budget.
+      const ok = await fenced(prisma, row.id, token, { status: 'scheduled', nextAttemptAt: new Date(now.getTime() + backoffMs(row.attempts)), leaseExpiresAt: null, lastError: 'manifest_superseded', attempts: Math.max(0, row.attempts - 1) });
       return ok ? 'retry' : 'lost_lease';
     }
     log.warn('Delivery suppressed at recheck', { dedupeKey: row.dedupeKey, reason: disp.reason });
@@ -232,23 +233,32 @@ export async function processDelivery(prisma: PrismaClient, row: DeliveryOutbox,
   }
   if (disp.outcome === 'retry') {
     // B3: a recheck that keeps returning `retry` (e.g. an asset that times out forever) must NOT reschedule
-    // indefinitely — cap by OUTBOX_MAX_ATTEMPTS, then terminal-fail (never `scheduled` forever).
-    if (row.attempts >= OUTBOX_MAX_ATTEMPTS) {
+    // indefinitely — cap by OUTBOX_MAX_ATTEMPTS, then terminal-fail (never `scheduled` forever). EXCEPT a
+    // `manifest_superseded` retry, which is BENIGN (a valid newer manifest owns the row) — it must not count
+    // toward the cap, or a re-commit storm could terminal-fail a healthy delivery.
+    const superseded = disp.reason === 'manifest_superseded';
+    if (!superseded && row.attempts >= OUTBOX_MAX_ATTEMPTS) {
       const lastError = `recheck_retry_exhausted:${disp.reason ?? ''}`.slice(0, 300);
-      // (P1-e4-2) gave up at the recheck — NO provider send was attempted → safe to roll on a future re-eval.
-      const ok = await fenced(prisma, row.id, token, { status: 'failed', failureClass: FAILURE_RECHECK_EXHAUSTED, nextAttemptAt: null, leaseExpiresAt: null, lastError });
+      // (P1-e4-2 + review C) classify by whether a provider send was EVER attempted on this row (durable flag),
+      // not by the current attempt — a prior ambiguous send must not be mis-tagged roll-safe.
+      const failureClass = row.sendAttempted ? FAILURE_SEND_AMBIGUOUS : FAILURE_RECHECK_EXHAUSTED;
+      const ok = await fenced(prisma, row.id, token, { status: 'failed', failureClass, nextAttemptAt: null, leaseExpiresAt: null, lastError });
       if (!ok) return 'lost_lease';
-      log.error('Delivery recheck retries exhausted', new Error(lastError), { dedupeKey: row.dedupeKey, attempts: row.attempts });
+      log.error('Delivery recheck retries exhausted', new Error(lastError), { dedupeKey: row.dedupeKey, attempts: row.attempts, failureClass });
       return 'failed';
     }
-    const ok = await fenced(prisma, row.id, token, { status: 'scheduled', nextAttemptAt: new Date(now.getTime() + backoffMs(row.attempts)), leaseExpiresAt: null, lastError: disp.reason ?? 'recheck_retry' });
+    const data: Prisma.DeliveryOutboxUpdateManyMutationInput = { status: 'scheduled', nextAttemptAt: new Date(now.getTime() + backoffMs(row.attempts)), leaseExpiresAt: null, lastError: disp.reason ?? 'recheck_retry' };
+    if (superseded) data.attempts = Math.max(0, row.attempts - 1); // undo the claim increment — benign retry
+    const ok = await fenced(prisma, row.id, token, data);
     return ok ? 'retry' : 'lost_lease';
   }
 
   // allow → (B1) renew the lease + RE-CONFIRM ownership atomically, immediately before send. If another
   // worker reclaimed the row during a long recheck (attempts !== token), this matches 0 rows and we STOP —
   // `send` is never called, so a worker that lost its lease can never emit a duplicate delivery.
-  const stillOwned = await fenced(prisma, row.id, token, { leaseExpiresAt: new Date(now.getTime() + LEASE_MS) });
+  // (review C) durably record that a provider send is about to be attempted on this row, so a later
+  // recheck-exhaustion on a re-claim classifies as `send_ambiguous`, never roll-safe `recheck_exhausted`.
+  const stillOwned = await fenced(prisma, row.id, token, { leaseExpiresAt: new Date(now.getTime() + LEASE_MS), sendAttempted: true });
   if (!stillOwned) return 'lost_lease';
 
   // allow → send

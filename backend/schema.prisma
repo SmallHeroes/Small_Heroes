@@ -540,6 +540,10 @@ model DeliveryOutbox {
   //   'send_ambiguous'    — a provider send was attempted and the result is unknown (Resend may have accepted);
   //                          NEVER auto-roll (a new fulfillment = new idempotency key = bypasses the 24h dedup).
   failureClass      String?
+  // Durable "a provider send was EVER attempted on this row" (P1-e4 review C). Set just before send; a row lives
+  // across attempts, so a prior ambiguous send must classify a later recheck-exhaustion as `send_ambiguous`,
+  // never `recheck_exhausted` (which would let enqueue roll into a new idempotency key → duplicate email).
+  sendAttempted     Boolean              @default(false)
   providerMessageId String?
   createdAt         DateTime             @default(now())
   sentAt            DateTime?

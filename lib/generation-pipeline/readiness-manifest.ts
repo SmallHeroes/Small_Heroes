@@ -294,18 +294,26 @@ export async function suppressAndInvalidateDelivery(
       if (fence.count === 0) return 'lost_lease'; // lost lease — invalidate NOTHING
 
       if (disposition.invalidateReadiness && disposition.expectedManifestId) {
+        // Drift suppress: invalidate the EXACT manifest we rechecked + un-ready. If it matches 0 rows, a newer
+        // manifest replaced ours → this `processing` row now backs IT. Suppressing it would orphan the new
+        // delivery → ROLL BACK the whole tx (incl. the fenced suppress) so the worker reschedules, not kills it.
         const invalidated = await tx.bookReadiness.updateMany({
           where: { orderId: row.orderId, scope: row.scope, currentManifestId: disposition.expectedManifestId },
           data: { status: 'stale', reason: disposition.reason ?? 'inputs_changed_since_manifest' },
         });
-        if (invalidated.count === 0) {
-          // A newer manifest replaced the one we rechecked → this `processing` row now backs it. Suppressing it
-          // would orphan the new delivery → ROLL BACK the whole tx (incl. the suppress) and tell the worker to
-          // reschedule, not kill it.
-          throw new ManifestSupersededError();
-        }
+        if (invalidated.count === 0) throw new ManifestSupersededError();
         await tx.order.updateMany({ where: { id: row.orderId, status: 'ready' }, data: { status: 'needs_human_qa', deliveryHoldReason: 'base_book_readiness_stale' } });
+        return 'suppressed';
       }
+
+      // No-invalidate suppress (order_not_ready / readiness_not_passed / manifest_missing / order_or_book_missing):
+      // these carry no manifest guard, but the SAME orphan race applies — a newer manifest may have adopted this
+      // still-`processing` row while we were rechecking. It is safe to suppress ONLY if the order is not currently
+      // deliverable behind a passed manifest; if it is now `ready` + readiness `passed`, suppressing would orphan
+      // that delivery → ROLL BACK so the worker reschedules and re-checks against the current manifest.
+      const liveReadiness = await tx.bookReadiness.findUnique({ where: { orderId_scope: { orderId: row.orderId, scope: row.scope } }, select: { status: true } });
+      const liveOrder = await tx.order.findUnique({ where: { id: row.orderId }, select: { status: true } });
+      if (liveReadiness?.status === 'passed' && liveOrder?.status === 'ready') throw new ManifestSupersededError();
       return 'suppressed';
     });
   } catch (e) {

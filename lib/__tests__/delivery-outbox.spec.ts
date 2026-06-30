@@ -111,14 +111,34 @@ describe('processDelivery — fenced terminal writes (B1) + disposition (B2)', (
     const out = await processDelivery({ deliveryOutbox: { updateMany: vi.fn() } } as never, row() as never, { recheck: async () => ({ outcome: 'suppress', reason: 'integrity_now_x', invalidateReadiness: true, expectedManifestId: 'm1' }), send: vi.fn(), suppress, now: () => NOW });
     expect(out).toBe('lost_lease');
   });
-  it('P1-e4-1: suppress dep returns manifest_superseded → worker RESCHEDULES (retry), never suppresses, never sends', async () => {
+  it('P1-e4-1: suppress dep returns manifest_superseded → worker RESCHEDULES (retry), never suppresses, never sends; attempts decremented (review B)', async () => {
     const suppress = vi.fn(async () => 'manifest_superseded' as const);
     const updateMany = fencedOk(); // the reschedule fenced write
     const send = vi.fn();
-    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, { recheck: async () => ({ outcome: 'suppress', reason: 'integrity_now_x', invalidateReadiness: true, expectedManifestId: 'm1' }), send, suppress, now: () => NOW });
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ attempts: 3 }) as never, { recheck: async () => ({ outcome: 'suppress', reason: 'integrity_now_x', invalidateReadiness: true, expectedManifestId: 'm1' }), send, suppress, now: () => NOW });
     expect(out).toBe('retry'); // re-checked against the CURRENT manifest on a later tick — not suppressed
     expect(send).not.toHaveBeenCalled();
-    expect(firstData(updateMany)).toMatchObject({ status: 'scheduled', lastError: 'manifest_superseded' });
+    expect(firstData(updateMany)).toMatchObject({ status: 'scheduled', lastError: 'manifest_superseded', attempts: 2 }); // benign: undo the claim increment
+  });
+  it('P1-e4-1: manifest_superseded reschedule that LOSES the lease (reschedule fence matches 0) → lost_lease, no send', async () => {
+    const suppress = vi.fn(async () => 'manifest_superseded' as const);
+    const updateMany = fencedLost(); // another worker reclaimed between the rolled-back suppress and the reschedule
+    const send = vi.fn();
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, { recheck: async () => ({ outcome: 'suppress', reason: 'integrity_now_x', invalidateReadiness: true, expectedManifestId: 'm1' }), send, suppress, now: () => NOW });
+    expect(out).toBe('lost_lease');
+    expect(send).not.toHaveBeenCalled();
+  });
+  it('review B: a manifest_superseded RETRY does NOT terminal-fail even at attempts >= cap (benign, exempt from OUTBOX_MAX_ATTEMPTS)', async () => {
+    const updateMany = fencedOk();
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ attempts: OUTBOX_MAX_ATTEMPTS }) as never, { recheck: async () => ({ outcome: 'retry', reason: 'manifest_superseded' }), send: vi.fn(), now: () => NOW });
+    expect(out).toBe('retry'); // NOT 'failed' — a re-commit storm can't terminal-fail a healthy delivery
+    expect(firstData(updateMany)).toMatchObject({ status: 'scheduled', attempts: OUTBOX_MAX_ATTEMPTS - 1 });
+  });
+  it('review C: recheck-exhaustion on a row that ALREADY attempted a send → failureClass send_ambiguous (not roll-safe)', async () => {
+    const updateMany = fencedOk();
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ attempts: OUTBOX_MAX_ATTEMPTS, sendAttempted: true }) as never, { recheck: async () => ({ outcome: 'retry', reason: 'transient_asset:timeout' }), send: vi.fn(), now: () => NOW });
+    expect(out).toBe('failed');
+    expect(firstData(updateMany)).toMatchObject({ status: 'failed', failureClass: 'send_ambiguous' }); // a prior send happened → never roll-safe
   });
   it('B-r3-2: WITHOUT the suppress dep, the fallback is a plain fenced suppress and performs NO readiness invalidation (the injected dep is the ONLY path to invalidation)', async () => {
     // Documents the seam contract: even a drift disposition (invalidateReadiness:true) does NOT invalidate

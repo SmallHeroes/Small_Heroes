@@ -14,7 +14,7 @@ describe('cron/outbox route — worker wiring (B-r3-2 + B4)', () => {
 
   const loadRoute = async (readinessOver: Record<string, unknown> = {}) => {
     const recheckBaseBookDelivery = vi.fn(async () => ({ outcome: 'allow' }));
-    const suppressAndInvalidateDelivery = vi.fn(async () => true);
+    const suppressAndInvalidateDelivery = vi.fn(async () => 'manifest_superseded'); // a real SuppressOutcome
     const isReadinessManifestEnabled = vi.fn(() => true);
     let capturedDeps: { recheck: (r: unknown) => unknown; suppress: (a: unknown) => unknown } | undefined;
     const drainOutbox = vi.fn(async (_p: unknown, _o: unknown, deps: typeof capturedDeps) => { capturedDeps = deps; return { claimed: 0, sent: 0, suppressed: 0, failed: 0, retry: 0, lost_lease: 0 }; });
@@ -38,8 +38,9 @@ describe('cron/outbox route — worker wiring (B-r3-2 + B4)', () => {
     expect(t.recheckBaseBookDelivery).toHaveBeenCalledWith(expect.anything(), 'o1', 'base_book', {}, 'ph');
     expect(typeof deps.suppress).toBe('function');
     const sArgs = { row: { id: 'ob1', orderId: 'o1', scope: 'base_book' }, token: 2, disposition: { outcome: 'suppress' } };
-    await deps.suppress(sArgs);
+    const sres = await deps.suppress(sArgs);
     expect(t.suppressAndInvalidateDelivery).toHaveBeenCalledWith(expect.anything(), sArgs);
+    expect(sres).toBe('manifest_superseded'); // the route closure passes the SuppressOutcome straight through to the worker
   });
 
   it('short-circuits (no drain) when READINESS_MANIFEST_ENABLED is off', async () => {
