@@ -134,12 +134,13 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
   });
 });
 
-describe('suppressAndInvalidateDelivery — atomic fenced suppress + invalidation (B-r3-2)', () => {
+describe('suppressAndInvalidateDelivery — atomic fenced suppress + invalidation (B-r3-2 + P1-e4-1)', () => {
   const mk = (fenceCount: number, invalidatedCount: number) => {
     const obxUpdateMany = vi.fn(async () => ({ count: fenceCount }));
     const brUpdateMany = vi.fn(async () => ({ count: invalidatedCount }));
     const orderUpdateMany = vi.fn(async () => ({ count: 1 }));
     const tx = { deliveryOutbox: { updateMany: obxUpdateMany }, bookReadiness: { updateMany: brUpdateMany }, order: { updateMany: orderUpdateMany } };
+    // mock $transaction propagates a thrown error (so the rollback path surfaces as a rejection, like a real DB).
     const prisma = { $transaction: vi.fn(async (cb: (t: unknown) => unknown) => cb(tx)) };
     return { prisma, obxUpdateMany, brUpdateMany, orderUpdateMany };
   };
@@ -147,25 +148,27 @@ describe('suppressAndInvalidateDelivery — atomic fenced suppress + invalidatio
 
   it('fences the row by id+attempts, then invalidates the exact manifest + un-readies the order', async () => {
     const { prisma, obxUpdateMany, brUpdateMany, orderUpdateMany } = mk(1, 1);
-    const held = await suppressAndInvalidateDelivery(prisma as never, driftArg);
-    expect(held).toBe(true);
+    const res = await suppressAndInvalidateDelivery(prisma as never, driftArg);
+    expect(res).toBe('suppressed');
     expect(obxUpdateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'ob1', status: 'processing', attempts: 3 }, data: expect.objectContaining({ status: 'suppressed' }) }));
     expect(brUpdateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { orderId: 'o1', scope: BASE_BOOK_SCOPE, currentManifestId: 'm1' }, data: expect.objectContaining({ status: 'stale', reason: 'integrity_now_page2_image_invalid' }) }));
     expect(orderUpdateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'o1', status: 'ready' }, data: expect.objectContaining({ status: 'needs_human_qa', deliveryHoldReason: 'base_book_readiness_stale' }) }));
   });
 
-  it('LOST LEASE: fence matches 0 → returns false and invalidates NOTHING (a stale worker cannot touch readiness)', async () => {
+  it('LOST LEASE: fence matches 0 → returns lost_lease and invalidates NOTHING (a stale worker cannot touch readiness)', async () => {
     const { prisma, brUpdateMany, orderUpdateMany } = mk(0, 1);
-    const held = await suppressAndInvalidateDelivery(prisma as never, driftArg);
-    expect(held).toBe(false);
+    const res = await suppressAndInvalidateDelivery(prisma as never, driftArg);
+    expect(res).toBe('lost_lease');
     expect(brUpdateMany).not.toHaveBeenCalled();
     expect(orderUpdateMany).not.toHaveBeenCalled();
   });
 
-  it('does NOT stomp a NEWER manifest: invalidation matches 0 → order left alone (fence still held → true)', async () => {
+  it('P1-e4-1: a NEWER manifest superseded ours (invalidation matches 0) → ROLLBACK (manifest_superseded), the row is NOT suppressed and the order is NOT un-readied', async () => {
+    // The old "count=0 → fence held=true (benign)" behavior was the bug: it left the order `ready` behind a
+    // suppressed row that now backs M2. Now the whole tx rolls back (throw) and we signal manifest_superseded.
     const { prisma, orderUpdateMany } = mk(1, 0);
-    const held = await suppressAndInvalidateDelivery(prisma as never, driftArg);
-    expect(held).toBe(true);
+    const res = await suppressAndInvalidateDelivery(prisma as never, driftArg);
+    expect(res).toBe('manifest_superseded'); // rolled back → in a real DB the fenced suppress is undone
     expect(orderUpdateMany).not.toHaveBeenCalled();
   });
 
@@ -173,15 +176,15 @@ describe('suppressAndInvalidateDelivery — atomic fenced suppress + invalidatio
     // The function never queries historical `sent` rows (tx has no deliveryOutbox.count); with the fence held +
     // the current manifest matched, the order is un-readied regardless of any older fulfillment having sent.
     const { prisma, orderUpdateMany } = mk(1, 1);
-    const held = await suppressAndInvalidateDelivery(prisma as never, driftArg);
-    expect(held).toBe(true);
+    const res = await suppressAndInvalidateDelivery(prisma as never, driftArg);
+    expect(res).toBe('suppressed');
     expect(orderUpdateMany).toHaveBeenCalled();
   });
 
-  it('suppress WITHOUT invalidateReadiness (e.g. order_not_ready) just suppresses — no readiness/order writes', async () => {
-    const { prisma, brUpdateMany, orderUpdateMany } = mk(1, 1);
-    const held = await suppressAndInvalidateDelivery(prisma as never, { ...driftArg, disposition: { outcome: 'suppress', reason: 'order_not_ready:generating' } });
-    expect(held).toBe(true);
+  it('suppress WITHOUT invalidateReadiness (e.g. order_not_ready) just suppresses — no readiness/order writes, never superseded', async () => {
+    const { prisma, brUpdateMany, orderUpdateMany } = mk(1, 0); // invalidation count irrelevant — block is skipped
+    const res = await suppressAndInvalidateDelivery(prisma as never, { ...driftArg, disposition: { outcome: 'suppress', reason: 'order_not_ready:generating' } });
+    expect(res).toBe('suppressed');
     expect(brUpdateMany).not.toHaveBeenCalled();
     expect(orderUpdateMany).not.toHaveBeenCalled();
   });

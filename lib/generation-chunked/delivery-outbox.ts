@@ -130,6 +130,16 @@ export type Disposition = {
 };
 export type DeliveryOutcome = 'sent' | 'suppressed' | 'failed' | 'retry' | 'lost_lease';
 
+/**
+ * Outcome of the atomic suppress dep (B-r3-2 + P1-e4-1):
+ *  - 'suppressed'          — fence held; row is terminal `suppressed` (+ invalidation if it was real drift);
+ *  - 'lost_lease'          — fence matched 0 rows (another worker reclaimed); nothing changed;
+ *  - 'manifest_superseded' — fence held BUT a newer manifest already replaced the one we rechecked, so this
+ *                            `processing` row now backs the NEW manifest; the suppress was ROLLED BACK (the
+ *                            whole tx), and the worker must reschedule the row, not kill it.
+ */
+export type SuppressOutcome = 'suppressed' | 'lost_lease' | 'manifest_superseded';
+
 export interface SuppressArgs {
   row: DeliveryOutbox;
   /** Fencing token captured at claim (= attempts). */
@@ -143,12 +153,13 @@ export interface OutboxDeps {
   /** Provider send; idempotencyKey = dedupeKey. Returns the provider message id when available. */
   send: (payload: BookReadyPayload, idempotencyKey: string) => Promise<{ providerMessageId?: string }>;
   /**
-   * (B-r3-2) Atomically, in ONE transaction: fence this row → terminal `suppressed` (by id + status
+   * (B-r3-2 + P1-e4-1) Atomically, in ONE transaction: fence this row → terminal `suppressed` (by id + status
    * 'processing' + attempts === token), and ONLY if the fence held, invalidate the exact manifest + drop the
-   * order from `ready`. Returns true iff the fence held. When omitted, processDelivery falls back to a plain
-   * fenced suppress (no readiness invalidation) — used by unit tests; the cron injects the readiness-aware impl.
+   * order from `ready`. If the manifest was superseded mid-flight (invalidation matches 0), the whole tx ROLLS
+   * BACK and it returns 'manifest_superseded'. When omitted, processDelivery falls back to a plain fenced
+   * suppress (no readiness invalidation) — used by unit tests; the cron injects the readiness-aware impl.
    */
-  suppress?: (args: SuppressArgs) => Promise<boolean>;
+  suppress?: (args: SuppressArgs) => Promise<SuppressOutcome>;
   now?: () => Date;
 }
 
@@ -190,10 +201,20 @@ export async function processDelivery(prisma: PrismaClient, row: DeliveryOutbox,
     // (B-r3-2) the fenced transition + readiness invalidation are ONE atomic, fence-gated step (injected by the
     // cron). A worker that lost its lease can neither suppress nor invalidate. Unit tests omit the dep → plain
     // fenced suppress.
-    const held = deps.suppress
-      ? await deps.suppress({ row, token, disposition: disp })
-      : await fenced(prisma, row.id, token, { status: 'suppressed', leaseExpiresAt: null, lastError: disp.reason ?? 'suppressed' });
-    if (!held) return 'lost_lease';
+    let res: SuppressOutcome;
+    if (deps.suppress) {
+      res = await deps.suppress({ row, token, disposition: disp });
+    } else {
+      const held = await fenced(prisma, row.id, token, { status: 'suppressed', leaseExpiresAt: null, lastError: disp.reason ?? 'suppressed' });
+      res = held ? 'suppressed' : 'lost_lease';
+    }
+    if (res === 'lost_lease') return 'lost_lease';
+    if (res === 'manifest_superseded') {
+      // (P1-e4-1) a newer manifest now backs this row — it must NOT be suppressed (the suppress was rolled back
+      // atomically). Reschedule so a future tick re-checks it against the CURRENT manifest.
+      const ok = await fenced(prisma, row.id, token, { status: 'scheduled', nextAttemptAt: new Date(now.getTime() + backoffMs(row.attempts)), leaseExpiresAt: null, lastError: 'manifest_superseded' });
+      return ok ? 'retry' : 'lost_lease';
+    }
     log.warn('Delivery suppressed at recheck', { dedupeKey: row.dedupeKey, reason: disp.reason });
     return 'suppressed';
   }

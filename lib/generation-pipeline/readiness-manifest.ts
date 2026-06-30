@@ -12,7 +12,7 @@ import type { Prisma, PrismaClient, DeliveryOutbox } from '@prisma/client';
 import { createHash } from 'crypto';
 import { evaluateBaseBookIntegrity, BASE_BOOK_SCOPE, type IntegrityInput, type IntegrityResult } from './integrity-gate';
 import { inspectAsset, type AssetInspection } from './asset-integrity';
-import { enqueueDelivery, hashPayload, type BookReadyPayload, type Disposition } from '@/lib/generation-chunked/delivery-outbox';
+import { enqueueDelivery, hashPayload, type BookReadyPayload, type Disposition, type SuppressOutcome } from '@/lib/generation-chunked/delivery-outbox';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger({ subsystem: 'readiness-manifest' });
@@ -260,42 +260,58 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
   throw new Error('readiness_commit_exhausted');
 }
 
+/** Internal signal: a newer manifest replaced the one we rechecked → roll back the suppress tx (P1-e4-1). */
+class ManifestSupersededError extends Error {
+  constructor() { super('manifest_superseded'); this.name = 'ManifestSupersededError'; }
+}
+
 /**
- * Send-time drift (B-r3-2): atomic, fence-gated suppression + invalidation. In ONE transaction:
+ * Send-time drift (B-r3-2 + P1-e4-1): atomic, fence-gated suppression + invalidation. In ONE transaction:
  *  1. FENCE this Outbox row → terminal `suppressed` (id + status 'processing' + attempts === token);
  *  2. ONLY if the fence held → invalidate the EXACT manifest the recheck saw (currentManifestId ===
  *     expectedManifestId) and drop the order from `ready`.
- * A worker that lost its lease matches 0 rows at step 1 → returns false and changes NOTHING, so it can never
- * invalidate readiness (the old code invalidated BEFORE the fenced suppress write, so a lost-lease worker
- * could still mutate readiness). Everything is bound to THIS row + the current manifest — a historical v1
- * `sent` row can no longer block invalidation of a drifted v2 (the old global `alreadySent` count is gone:
- * the row we are suppressing is, by construction, `processing`/not-sent, so un-readying is always correct when
- * the manifest still matches). Returns whether the fence held. Called by the Outbox worker's `suppress` dep.
+ * A worker that lost its lease matches 0 rows at step 1 → returns 'lost_lease' and changes NOTHING.
+ *
+ * (P1-e4-1) The dangerous race: an old worker claimed this row under manifest M1; concurrently an asset-fix
+ * re-committed M2, whose enqueue saw this `processing` row and adopted it as M2's live delivery. If the old
+ * worker now suppresses the row, M2 is left `ready` behind a dead Outbox. So when `invalidateReadiness` is set
+ * and the manifest-guarded readiness update matches 0 rows (M2 is current, not M1), we THROW to ROLL BACK the
+ * WHOLE transaction — including the fenced suppress — and return 'manifest_superseded'. An old worker can never
+ * kill a row that already backs a newer manifest. The global `alreadySent` count is gone — the suppressed row
+ * is, by construction, `processing`/not-sent, so un-readying is correct exactly when the manifest still matches.
  */
 export async function suppressAndInvalidateDelivery(
   prisma: PrismaClient,
   args: { row: Pick<DeliveryOutbox, 'id' | 'orderId' | 'scope'>; token: number; disposition: Disposition },
-): Promise<boolean> {
+): Promise<SuppressOutcome> {
   const { row, token, disposition } = args;
-  return prisma.$transaction(async (tx) => {
-    const fence = await tx.deliveryOutbox.updateMany({
-      where: { id: row.id, status: 'processing', attempts: token },
-      data: { status: 'suppressed', leaseExpiresAt: null, lastError: disposition.reason ?? 'suppressed' },
-    });
-    if (fence.count === 0) return false; // lost lease — invalidate NOTHING
-
-    if (disposition.invalidateReadiness && disposition.expectedManifestId) {
-      const invalidated = await tx.bookReadiness.updateMany({
-        where: { orderId: row.orderId, scope: row.scope, currentManifestId: disposition.expectedManifestId },
-        data: { status: 'stale', reason: disposition.reason ?? 'inputs_changed_since_manifest' },
+  try {
+    return await prisma.$transaction(async (tx): Promise<SuppressOutcome> => {
+      const fence = await tx.deliveryOutbox.updateMany({
+        where: { id: row.id, status: 'processing', attempts: token },
+        data: { status: 'suppressed', leaseExpiresAt: null, lastError: disposition.reason ?? 'suppressed' },
       });
-      // Only un-ready when the stale write actually applied (a newer re-commit owns a different manifest id).
-      if (invalidated.count > 0) {
+      if (fence.count === 0) return 'lost_lease'; // lost lease — invalidate NOTHING
+
+      if (disposition.invalidateReadiness && disposition.expectedManifestId) {
+        const invalidated = await tx.bookReadiness.updateMany({
+          where: { orderId: row.orderId, scope: row.scope, currentManifestId: disposition.expectedManifestId },
+          data: { status: 'stale', reason: disposition.reason ?? 'inputs_changed_since_manifest' },
+        });
+        if (invalidated.count === 0) {
+          // A newer manifest replaced the one we rechecked → this `processing` row now backs it. Suppressing it
+          // would orphan the new delivery → ROLL BACK the whole tx (incl. the suppress) and tell the worker to
+          // reschedule, not kill it.
+          throw new ManifestSupersededError();
+        }
         await tx.order.updateMany({ where: { id: row.orderId, status: 'ready' }, data: { status: 'needs_human_qa', deliveryHoldReason: 'base_book_readiness_stale' } });
       }
-    }
-    return true;
-  });
+      return 'suppressed';
+    });
+  } catch (e) {
+    if (e instanceof ManifestSupersededError) return 'manifest_superseded';
+    throw e;
+  }
 }
 
 // Asset error codes that are TRANSIENT infra (→ retry), not a real drift / persistent failure (→ suppress).

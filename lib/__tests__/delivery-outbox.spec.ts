@@ -85,17 +85,26 @@ describe('processDelivery — fenced terminal writes (B1) + disposition (B2)', (
     expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id: 'ob1', status: 'processing', attempts: 1 }), data: expect.objectContaining({ status: 'suppressed' }) }));
   });
   it('B-r3-2: suppress delegates to the atomic suppress dep when provided (fence + invalidation in one tx)', async () => {
-    const suppress = vi.fn(async () => true);
+    const suppress = vi.fn(async () => 'suppressed' as const);
     const send = vi.fn();
     const out = await processDelivery({ deliveryOutbox: { updateMany: vi.fn() } } as never, row() as never, { recheck: async () => ({ outcome: 'suppress', reason: 'integrity_now_x', invalidateReadiness: true, expectedManifestId: 'm1' }), send, suppress, now: () => NOW });
     expect(out).toBe('suppressed');
     expect(suppress).toHaveBeenCalledWith(expect.objectContaining({ row: expect.objectContaining({ id: 'ob1' }), token: 1, disposition: expect.objectContaining({ invalidateReadiness: true, expectedManifestId: 'm1' }) }));
     expect(send).not.toHaveBeenCalled();
   });
-  it('B-r3-2: a lost-lease worker (suppress dep returns false) reports lost_lease and changes nothing', async () => {
-    const suppress = vi.fn(async () => false);
+  it('B-r3-2: a lost-lease worker (suppress dep returns lost_lease) reports lost_lease and changes nothing', async () => {
+    const suppress = vi.fn(async () => 'lost_lease' as const);
     const out = await processDelivery({ deliveryOutbox: { updateMany: vi.fn() } } as never, row() as never, { recheck: async () => ({ outcome: 'suppress', reason: 'integrity_now_x', invalidateReadiness: true, expectedManifestId: 'm1' }), send: vi.fn(), suppress, now: () => NOW });
     expect(out).toBe('lost_lease');
+  });
+  it('P1-e4-1: suppress dep returns manifest_superseded → worker RESCHEDULES (retry), never suppresses, never sends', async () => {
+    const suppress = vi.fn(async () => 'manifest_superseded' as const);
+    const updateMany = fencedOk(); // the reschedule fenced write
+    const send = vi.fn();
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, { recheck: async () => ({ outcome: 'suppress', reason: 'integrity_now_x', invalidateReadiness: true, expectedManifestId: 'm1' }), send, suppress, now: () => NOW });
+    expect(out).toBe('retry'); // re-checked against the CURRENT manifest on a later tick — not suppressed
+    expect(send).not.toHaveBeenCalled();
+    expect(firstData(updateMany)).toMatchObject({ status: 'scheduled', lastError: 'manifest_superseded' });
   });
   it('B-r3-2: WITHOUT the suppress dep, the fallback is a plain fenced suppress and performs NO readiness invalidation (the injected dep is the ONLY path to invalidation)', async () => {
     // Documents the seam contract: even a drift disposition (invalidateReadiness:true) does NOT invalidate
