@@ -538,11 +538,11 @@ model DeliveryOutbox {
   payload           Json
   payloadHash       String               // same dedupeKey + a different payloadHash => error, never send
   // (P1-f) Unambiguous binding of this delivery to the manifest + inputVersion it was enqueued under. The
-  // send-time CAS verifies BookReadiness.currentManifestId === manifestId AND Order.inputVersion === inputVersion
-  // (a null binding fails the CAS → superseded). A NEW manifest never adopts an existing row — it gets its own.
-  // Nullable only for additive migration safety; enqueueDelivery ALWAYS sets them.
-  manifestId        String?
-  inputVersion      Int?
+  // send-time CAS verifies BookReadiness.currentManifestId === manifestId AND Order.inputVersion === inputVersion.
+  // A re-commit REBINDS this row to the new manifest in place (same dedupeKey); enqueueDelivery ALWAYS sets both
+  // on create and on rebind, so they are NOT NULL (#3h #6 — preflight: the table is empty everywhere).
+  manifestId        String
+  inputVersion      Int
   attempts          Int                  @default(0)
   nextAttemptAt     DateTime?
   leaseExpiresAt    DateTime?

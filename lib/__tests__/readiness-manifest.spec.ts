@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createHash } from 'crypto';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { commitBaseBookReadiness, casClaimSendSlot, bumpOrderInputVersion, isReadinessManifestEnabled, type CommitArgs } from '@/lib/generation-pipeline/readiness-manifest';
 import { BASE_BOOK_SCOPE } from '@/lib/generation-pipeline/integrity-gate';
 import type { AssetInspection } from '@/lib/generation-pipeline/asset-integrity';
@@ -197,5 +199,17 @@ describe('casClaimSendSlot — single atomic send-time CAS (P1-f #3h)', () => {
     const db = diagDb({ cur: null });
     const r = await casClaimSendSlot(db as never, casRow, 1, lease, NOW_CAS);
     expect(r).toBe('lost_lease');
+  });
+});
+
+describe('#3h #7 — flag-on gating tripwire: the inputVersion drift guard is dormant until the #5 writer-audit', () => {
+  // The send-time CAS requires Order.inputVersion === row.inputVersion. That only catches payload/gate drift once
+  // EVERY writer that mutates a gate/payload input bumps Order.inputVersion in the SAME tx (the #5 writer
+  // contract). Pre-#5 nothing calls bumpOrderInputVersion, so the binding is always N===N — flipping
+  // READINESS_MANIFEST_ENABLED on now would ship with an UNGUARDED drift surface. This tripwire FAILS the moment
+  // #5 wires the writer, forcing a conscious gate flip (update this test + the launch checklist together).
+  it('chunk-runner.ts does NOT yet call bumpOrderInputVersion (drift guard unwired → flag MUST stay OFF)', () => {
+    const src = readFileSync(join(process.cwd(), 'lib/generation-pipeline/chunk-runner.ts'), 'utf8');
+    expect(src.includes('bumpOrderInputVersion')).toBe(false);
   });
 });

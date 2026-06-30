@@ -35,8 +35,10 @@ describe('anchor-hold-release isolation (B6)', () => {
     expect(email).not.toHaveBeenCalled();
   });
 
-  it('flag-on: refuses to release a readiness-stale hold (409)', async () => {
-    const { POST, commit } = await loadRoute({ flagOn: true, order: heldOrder('base_book_readiness_stale') });
+  it('flag-on: refuses to release ANY non-anchor hold (409) — break-glass is an anchor-only allowlist', async () => {
+    // (#3h #6) `base_book_readiness_stale` is no longer produced (the recheck/suppress path was removed); use a
+    // generic non-anchor reason to pin the real contract: only `anchor_*` holds are releasable here.
+    const { POST, commit } = await loadRoute({ flagOn: true, order: heldOrder('manual_finance_hold') });
     const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
     expect(res.status).toBe(409);
     expect(commit).not.toHaveBeenCalled();
