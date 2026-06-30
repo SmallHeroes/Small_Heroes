@@ -187,19 +187,28 @@ describe('suppressAndInvalidateDelivery — atomic fenced suppress + invalidatio
 
   it('suppress WITHOUT invalidateReadiness (order genuinely not deliverable) just suppresses — no readiness/order writes', async () => {
     const { prisma, brUpdateMany, orderUpdateMany } = mk(1, 0); // live default = blocked/needs_human_qa (not deliverable)
-    const res = await suppressAndInvalidateDelivery(prisma as never, { ...driftArg, disposition: { outcome: 'suppress', reason: 'order_not_ready:generating' } });
+    const res = await suppressAndInvalidateDelivery(prisma as never, { ...driftArg, disposition: { outcome: 'suppress', reason: 'order_not_ready:generating', supersedable: true } });
     expect(res).toBe('suppressed');
     expect(brUpdateMany).not.toHaveBeenCalled();
     expect(orderUpdateMany).not.toHaveBeenCalled();
   });
 
-  it('P1-e4 review: a NO-invalidate suppress when a newer manifest made the order ready+passed → ROLLBACK (manifest_superseded), not suppressed', async () => {
+  it('P1-e4 review: a SUPERSEDABLE no-invalidate suppress when a newer manifest made the order ready+passed → ROLLBACK (manifest_superseded), not suppressed', async () => {
     // The orphan the e4-1 fix missed: order_not_ready was returned by the recheck, but by suppress time a newer
     // manifest adopted this `processing` row (order now ready + readiness passed). Suppressing would orphan it.
     const { prisma, orderUpdateMany } = mk(1, 0, { readiness: 'passed', order: 'ready' });
-    const res = await suppressAndInvalidateDelivery(prisma as never, { ...driftArg, disposition: { outcome: 'suppress', reason: 'order_not_ready:needs_human_qa' } });
+    const res = await suppressAndInvalidateDelivery(prisma as never, { ...driftArg, disposition: { outcome: 'suppress', reason: 'order_not_ready:needs_human_qa', supersedable: true } });
     expect(res).toBe('manifest_superseded');
     expect(orderUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('P1-e4 hardening: a STRUCTURALLY-DEAD reason (order_or_book_missing, not supersedable) ALWAYS suppresses even when ready+passed (no livelock)', async () => {
+    // A reschedule can never bring back a deleted book → rolling back would hot-loop. Not supersedable → suppress.
+    const { prisma, brFindUnique, orderFindUnique } = mk(1, 0, { readiness: 'passed', order: 'ready' });
+    const res = await suppressAndInvalidateDelivery(prisma as never, { ...driftArg, disposition: { outcome: 'suppress', reason: 'order_or_book_missing' } });
+    expect(res).toBe('suppressed');
+    expect(brFindUnique).not.toHaveBeenCalled(); // guard skipped entirely for a non-supersedable reason
+    expect(orderFindUnique).not.toHaveBeenCalled();
   });
 });
 
@@ -289,6 +298,19 @@ describe('recheckBaseBookDelivery — send-time guard', () => {
     const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect, appBaseUrl: 'https://app.example.com' });
     expect(r.outcome).toBe('suppress');
     expect(r.reason).toBe('order_not_ready:needs_human_qa');
+    expect(r.supersedable).toBe(true); // a re-commit could make it ready+passed → eligible for supersede-rollback
+  });
+
+  it('P1-e4 hardening: order_or_book_missing is NOT supersedable (a reschedule can never un-delete the book)', async () => {
+    const prisma = {
+      order: { findUnique: vi.fn(async () => null) }, // order/book gone
+      bookReadiness: { findUnique: vi.fn(async () => ({ status: 'passed', currentManifestId: 'm1' })) },
+      bookReadinessManifest: { findUnique: vi.fn(async () => ({ inputVersion: 0, inputsHash: 'whatever' })) },
+    };
+    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect, appBaseUrl: 'https://app.example.com' });
+    expect(r.outcome).toBe('suppress');
+    expect(r.reason).toBe('order_or_book_missing');
+    expect(r.supersedable).toBeUndefined();
   });
 
   it('SUPPRESS (allowlist, fail-closed) when the order is still `generating` (not a held status) — B3', async () => {

@@ -139,6 +139,13 @@ export type Disposition = {
   reason?: string;
   invalidateReadiness?: boolean;
   expectedManifestId?: string;
+  /**
+   * (P1-e4 hardening) For a NON-invalidating suppress: true iff the reason is a transient deliverability state a
+   * later reschedule could resolve (order not yet ready, readiness not yet passed) — i.e. a newer manifest could
+   * have adopted this row. The suppress path rolls back (manifest_superseded) only for these; structurally-dead
+   * reasons (book/manifest gone) a reschedule can never clear are always suppressed, never rolled back (no livelock).
+   */
+  supersedable?: boolean;
 };
 export type DeliveryOutcome = 'sent' | 'suppressed' | 'failed' | 'retry' | 'lost_lease';
 

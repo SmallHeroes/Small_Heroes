@@ -306,14 +306,17 @@ export async function suppressAndInvalidateDelivery(
         return 'suppressed';
       }
 
-      // No-invalidate suppress (order_not_ready / readiness_not_passed / manifest_missing / order_or_book_missing):
-      // these carry no manifest guard, but the SAME orphan race applies — a newer manifest may have adopted this
-      // still-`processing` row while we were rechecking. It is safe to suppress ONLY if the order is not currently
-      // deliverable behind a passed manifest; if it is now `ready` + readiness `passed`, suppressing would orphan
-      // that delivery → ROLL BACK so the worker reschedules and re-checks against the current manifest.
-      const liveReadiness = await tx.bookReadiness.findUnique({ where: { orderId_scope: { orderId: row.orderId, scope: row.scope } }, select: { status: true } });
-      const liveOrder = await tx.order.findUnique({ where: { id: row.orderId }, select: { status: true } });
-      if (liveReadiness?.status === 'passed' && liveOrder?.status === 'ready') throw new ManifestSupersededError();
+      // No-invalidate suppress: the SAME orphan race can apply — a newer manifest may have adopted this still-
+      // `processing` row while we were rechecking. But ONLY a SUPERSEDABLE reason (a transient not-deliverable
+      // state a reschedule could resolve: order_not_ready / readiness_not_passed) can be a manifest race. A
+      // structurally-dead reason (order_or_book_missing / manifest_missing) a reschedule can NEVER clear is always
+      // suppressed — rolling it back would livelock. For a supersedable reason, roll back only if the order is now
+      // deliverable behind a passed manifest (ready + passed) — i.e. a newer manifest adopted this row.
+      if (disposition.supersedable) {
+        const liveReadiness = await tx.bookReadiness.findUnique({ where: { orderId_scope: { orderId: row.orderId, scope: row.scope } }, select: { status: true } });
+        const liveOrder = await tx.order.findUnique({ where: { id: row.orderId }, select: { status: true } });
+        if (liveReadiness?.status === 'passed' && liveOrder?.status === 'ready') throw new ManifestSupersededError();
+      }
       return 'suppressed';
     });
   } catch (e) {
@@ -353,7 +356,7 @@ export async function recheckBaseBookDelivery(
 ): Promise<Disposition> {
   // (P1-e4-3) Read the EXPECTED manifest FIRST — it is the snapshot the evaluation runs against.
   const readiness = await prisma.bookReadiness.findUnique({ where: { orderId_scope: { orderId, scope } }, select: { status: true, currentManifestId: true } });
-  if (!readiness || readiness.status !== 'passed' || !readiness.currentManifestId) return { outcome: 'suppress', reason: 'readiness_not_passed' };
+  if (!readiness || readiness.status !== 'passed' || !readiness.currentManifestId) return { outcome: 'suppress', reason: 'readiness_not_passed', supersedable: true };
   const expectedManifestId = readiness.currentManifestId;
   const manifest = await prisma.bookReadinessManifest.findUnique({ where: { id: expectedManifestId }, select: { inputsHash: true, inputVersion: true } });
   if (!manifest) return { outcome: 'suppress', reason: 'manifest_missing' };
@@ -373,9 +376,9 @@ export async function recheckBaseBookDelivery(
       },
     },
   });
-  if (!order || !order.book) return { outcome: 'suppress', reason: 'order_or_book_missing' };
+  if (!order || !order.book) return { outcome: 'suppress', reason: 'order_or_book_missing' }; // structurally dead — never supersedable
   // (B3) Allowlist — ONLY a `ready` order may send (fail-closed; the old blacklist let `generating` through).
-  if (order.status !== 'ready') return { outcome: 'suppress', reason: `order_not_ready:${order.status}` };
+  if (order.status !== 'ready') return { outcome: 'suppress', reason: `order_not_ready:${order.status}`, supersedable: true };
 
   const fresh = await evaluateBaseBookIntegrity(
     {
@@ -403,7 +406,7 @@ export async function recheckBaseBookDelivery(
     // A newer manifest replaced the one we evaluated → re-evaluate against IT; do NOT false-suppress a valid book.
     return { outcome: 'retry', reason: 'manifest_superseded' };
   }
-  if (cas.status !== 'ready') return { outcome: 'suppress', reason: `order_not_ready:${cas.status}` };
+  if (cas.status !== 'ready') return { outcome: 'suppress', reason: `order_not_ready:${cas.status}`, supersedable: true };
   if (cas.inputVersion !== manifest.inputVersion) {
     // inputVersion moved but the manifest did NOT — a writer changed inputs without a re-commit → real drift.
     return { outcome: 'suppress', reason: 'inputs_changed_since_manifest', invalidateReadiness: true, expectedManifestId };
