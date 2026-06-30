@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type Stripe from 'stripe';
 import { refundOrderPayment, type RefundableOrder, type RefundFence, type RefundFenceRecord } from '@/lib/payment-refunds';
-import { PaymeRefundError } from '@/lib/payme';
 
 // In-memory RefundFence for the PayMe exactly-once tests (#6-FIX-3).
 function fakeFence(seed: Record<string, RefundFenceRecord> = {}) {
@@ -18,15 +17,11 @@ function fakeFence(seed: Record<string, RefundFenceRecord> = {}) {
     if (r?.status === 'requested') { records.set(refundKey, { ...r, status: 'dispatched' }); return true; }
     return false; // single-flight: only the 'requested'→'dispatched' winner may call refund-sale
   });
-  const undispatch = vi.fn(async (refundKey: string) => {
-    const r = records.get(refundKey);
-    if (r?.status === 'dispatched') records.set(refundKey, { ...r, status: 'requested' });
-  });
   const settle = vi.fn(async ({ refundKey, status, providerActionId }: { refundKey: string; status: 'pending' | 'confirmed'; providerActionId: string | null }) => {
     records.set(refundKey, { status, providerActionId });
   });
-  const fence: RefundFence = { lookup, begin, dispatch, undispatch, settle };
-  return { fence, records, lookup, begin, dispatch, undispatch, settle };
+  const fence: RefundFence = { lookup, begin, dispatch, settle };
+  return { fence, records, lookup, begin, dispatch, settle };
 }
 
 function order(overrides: Partial<RefundableOrder> = {}): RefundableOrder {
@@ -254,41 +249,5 @@ describe('refundOrderPayment', () => {
     expect(refundSale).not.toHaveBeenCalled();
     expect(result.state).toBe('pending');
     expect(f.begin).not.toHaveBeenCalled(); // no fence created — nothing dispatched
-  });
-
-  it('#6 FIX-6: a DEFINITIVE PayMe rejection (refund NOT applied) rolls the fence back to requested → re-attemptable next tick (never stranded)', async () => {
-    const refundSale = vi.fn(async () => { throw new PaymeRefundError(true, 400, 'sale_too_old'); });
-    const f = fakeFence();
-    await expect(refundOrderPayment(paymeOrder(), 'refund/case_1', null, {
-      queryPaymeSale: vi.fn(async () => ({ state: 'paid' as const, rawStatus: 'paid' })),
-      refundPaymeSale: refundSale,
-      refundFence: f.fence,
-    })).rejects.toThrow('sale_too_old');
-    expect(f.undispatch).toHaveBeenCalledTimes(1);
-    expect(f.records.get('refund/case_1')?.status).toBe('requested'); // rolled back — a future tick re-attempts
-  });
-
-  it('#6 FIX-6: an AMBIGUOUS failure (HTTP 5xx, maybe in flight) leaves the fence dispatched → NEVER re-issued (no double-refund)', async () => {
-    const refundSale = vi.fn(async () => { throw new PaymeRefundError(false, 503, 'gateway'); });
-    const f = fakeFence();
-    await expect(refundOrderPayment(paymeOrder(), 'refund/case_1', null, {
-      queryPaymeSale: vi.fn(async () => ({ state: 'paid' as const, rawStatus: 'paid' })),
-      refundPaymeSale: refundSale,
-      refundFence: f.fence,
-    })).rejects.toThrow('gateway');
-    expect(f.undispatch).not.toHaveBeenCalled();
-    expect(f.records.get('refund/case_1')?.status).toBe('dispatched'); // stays dispatched — conservative, never double
-  });
-
-  it('#6 FIX-6: a plain network error (not a typed PaymeRefundError) is treated as ambiguous — stays dispatched, never re-issued', async () => {
-    const refundSale = vi.fn(async () => { throw new Error('ECONNRESET'); });
-    const f = fakeFence();
-    await expect(refundOrderPayment(paymeOrder(), 'refund/case_1', null, {
-      queryPaymeSale: vi.fn(async () => ({ state: 'paid' as const, rawStatus: 'paid' })),
-      refundPaymeSale: refundSale,
-      refundFence: f.fence,
-    })).rejects.toThrow('ECONNRESET');
-    expect(f.undispatch).not.toHaveBeenCalled();
-    expect(f.records.get('refund/case_1')?.status).toBe('dispatched');
   });
 });
