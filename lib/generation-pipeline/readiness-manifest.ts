@@ -323,10 +323,18 @@ function hasTransientAssetError(evidence: Record<string, unknown>): boolean {
 }
 
 /**
- * Send-time recheck for the Outbox worker (B2 disposition). Re-evaluate integrity NOW and return:
- *  - allow:    readiness still passed, manifest inputsHash still matches the live assets, order not re-held.
- *  - retry:    a TRANSIENT asset error (timeout / 5xx / 429 / network) — try later, do NOT give up.
- *  - suppress: real drift (assets/text/frozen changed, readiness blocked, order re-held) — never ship stale.
+ * Send-time recheck for the Outbox worker (B2 disposition + P1-e4-3 CAS). Re-evaluate integrity NOW and return:
+ *  - allow:    readiness still passed, manifest inputsHash still matches the live assets, snapshot still holds.
+ *  - retry:    a TRANSIENT asset error, OR a concurrent re-commit replaced the manifest we evaluated
+ *              (`manifest_superseded`) — try again against the CURRENT manifest; never false-hold a valid book.
+ *  - suppress: real drift (assets/text/frozen/inputVersion changed under the SAME manifest, readiness blocked,
+ *              order re-held) — never ship stale.
+ *
+ * (P1-e4-3) The manifest is read FIRST (it is the snapshot the eval runs against), and a light CAS re-read of
+ * (status, inputVersion, currentManifestId) AFTER the (slow) eval disambiguates a concurrent re-commit
+ * (currentManifestId moved → retry, NOT a false suppress) from real drift (inputVersion moved under the same
+ * manifest → suppress). The old code compared a torn `order` read against a separately-read manifest, so an
+ * Order-old + Manifest-new pair was mis-flagged as drift → a false hold (bad in a no-human-QA system).
  */
 export async function recheckBaseBookDelivery(
   prisma: PrismaClient,
@@ -335,6 +343,13 @@ export async function recheckBaseBookDelivery(
   deps: CommitDeps = {},
   expectedPayloadHash?: string | null,
 ): Promise<Disposition> {
+  // (P1-e4-3) Read the EXPECTED manifest FIRST — it is the snapshot the evaluation runs against.
+  const readiness = await prisma.bookReadiness.findUnique({ where: { orderId_scope: { orderId, scope } }, select: { status: true, currentManifestId: true } });
+  if (!readiness || readiness.status !== 'passed' || !readiness.currentManifestId) return { outcome: 'suppress', reason: 'readiness_not_passed' };
+  const expectedManifestId = readiness.currentManifestId;
+  const manifest = await prisma.bookReadinessManifest.findUnique({ where: { id: expectedManifestId }, select: { inputsHash: true, inputVersion: true } });
+  if (!manifest) return { outcome: 'suppress', reason: 'manifest_missing' };
+
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     select: {
@@ -351,18 +366,8 @@ export async function recheckBaseBookDelivery(
     },
   });
   if (!order || !order.book) return { outcome: 'suppress', reason: 'order_or_book_missing' };
-  // (B3) Allowlist — ONLY a `ready` order may send. paid/draft/generating/needs_human_qa/failed all suppress
-  // (fail-closed; the old blacklist let non-terminal states like `generating` through).
+  // (B3) Allowlist — ONLY a `ready` order may send (fail-closed; the old blacklist let `generating` through).
   if (order.status !== 'ready') return { outcome: 'suppress', reason: `order_not_ready:${order.status}` };
-
-  const readiness = await prisma.bookReadiness.findUnique({ where: { orderId_scope: { orderId, scope } }, select: { status: true, currentManifestId: true } });
-  if (!readiness || readiness.status !== 'passed' || !readiness.currentManifestId) return { outcome: 'suppress', reason: 'readiness_not_passed' };
-  const expectedManifestId = readiness.currentManifestId;
-  const manifest = await prisma.bookReadinessManifest.findUnique({ where: { id: expectedManifestId }, select: { inputsHash: true, inputVersion: true } });
-  if (!manifest) return { outcome: 'suppress', reason: 'manifest_missing' };
-  // (B4) Optimistic-concurrency short-circuit: any writer that bumped Order.inputVersion since the manifest
-  // means the inputs moved — suppress + invalidate, before paying for the asset re-inspection.
-  if (order.inputVersion !== manifest.inputVersion) return { outcome: 'suppress', reason: 'inputs_changed_since_manifest', invalidateReadiness: true, expectedManifestId };
 
   const fresh = await evaluateBaseBookIntegrity(
     {
@@ -381,6 +386,22 @@ export async function recheckBaseBookDelivery(
     },
     deps.inspect ?? inspectAsset,
   );
+
+  // (P1-e4-3) CAS: re-read (status, inputVersion, currentManifestId) AFTER the eval, immediately before the
+  // worker acts, and disambiguate a concurrent re-commit from real drift.
+  const cas = await prisma.order.findUnique({ where: { id: orderId }, select: { status: true, inputVersion: true } });
+  const casReadiness = await prisma.bookReadiness.findUnique({ where: { orderId_scope: { orderId, scope } }, select: { currentManifestId: true } });
+  if (!cas || !casReadiness || casReadiness.currentManifestId !== expectedManifestId) {
+    // A newer manifest replaced the one we evaluated → re-evaluate against IT; do NOT false-suppress a valid book.
+    return { outcome: 'retry', reason: 'manifest_superseded' };
+  }
+  if (cas.status !== 'ready') return { outcome: 'suppress', reason: `order_not_ready:${cas.status}` };
+  if (cas.inputVersion !== manifest.inputVersion) {
+    // inputVersion moved but the manifest did NOT — a writer changed inputs without a re-commit → real drift.
+    return { outcome: 'suppress', reason: 'inputs_changed_since_manifest', invalidateReadiness: true, expectedManifestId };
+  }
+
+  // Snapshot holds → the eval verdict stands.
   if (fresh.status !== 'passed') {
     // Transient infra (timeout/5xx/network) => retry later, do NOT invalidate readiness.
     if (hasTransientAssetError(fresh.evidence)) return { outcome: 'retry', reason: `transient_asset:${fresh.reason ?? 'blocked'}` };
