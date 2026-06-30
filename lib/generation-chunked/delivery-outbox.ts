@@ -1,9 +1,12 @@
 /**
  * Phase-1 base_book_integrity — transactional delivery Outbox (effectively-once). enqueue != send:
- * a manifest PASS enqueues a row inside the same DB transaction; a separate worker/cron drains it with
- * an atomic lease (FOR UPDATE SKIP LOCKED), a pre-send recheck (suppress if anything changed), and an
- * idempotent provider send (Idempotency-Key = dedupeKey). No import cycle: the worker takes `recheck`
- * and `send` as injected deps (the cron route wires the real ones).
+ * a manifest PASS enqueues a row (bound to its manifestId + inputVersion) inside the same DB transaction; a
+ * separate worker/cron drains it with an atomic lease (FOR UPDATE SKIP LOCKED) and then a SINGLE atomic
+ * send-time CAS (P1-f) — renew lease + set sendAttempted IFF the row is still ours AND the live truth still
+ * matches the row's binding (Order.ready + inputVersion, BookReadiness.passed + currentManifestId, payloadHash)
+ * — only then an idempotent provider send (Idempotency-Key = dedupeKey). The old live re-evaluation
+ * (asset download + integrity re-eval) is GONE; a CAS mismatch makes the row terminal `superseded` (the new
+ * manifest has its own Outbox). No import cycle: the worker takes `cas` and `send` as injected deps.
  */
 import type { Prisma, PrismaClient, DeliveryOutbox } from '@prisma/client';
 import { createHash } from 'crypto';
@@ -15,9 +18,9 @@ type Db = PrismaClient | Prisma.TransactionClient;
 
 export const OUTBOX_MAX_ATTEMPTS = 6;
 
-// Durable failure classes (P1-e4-2). Only `recheck_exhausted` is provably send-free → safe to roll forward.
-// `send_ambiguous` means a provider send was attempted with an unknown result → must NOT auto-roll.
-export const FAILURE_RECHECK_EXHAUSTED = 'recheck_exhausted';
+// Durable failure class (P1-e4-2). `send_ambiguous` = a provider send was attempted with an unknown result →
+// must NOT auto-roll (enqueue refuses to mint a new idempotency key). With the P1-f pure-CAS path the only
+// non-send terminal is `superseded` (CAS mismatch; sendAttempted stays false → roll-safe), so this is the only class.
 export const FAILURE_SEND_AMBIGUOUS = 'send_ambiguous';
 const LEASE_MS = 4 * 60 * 1000; // processing lease > worst-case single-row recheck (downloads); fencing covers overruns
 const IDEMPOTENCY_WINDOW_MS = 24 * 60 * 60 * 1000; // Resend keeps Idempotency-Key 24h — no blind resend after.
@@ -138,56 +141,28 @@ export async function claimDueDeliveries(prisma: PrismaClient, now: Date, limit:
   return rows;
 }
 
-/**
- * Recheck verdict (B2): allow (deliverable now), retry (transient infra — try later), suppress (drift/held).
- * On a suppress that represents real drift, `invalidateReadiness` asks the caller to mark readiness stale +
- * take the order off `ready`, guarded by `expectedManifestId` (only stomp the manifest we actually rechecked).
- */
-export type Disposition = {
-  outcome: 'allow' | 'retry' | 'suppress';
-  reason?: string;
-  invalidateReadiness?: boolean;
-  expectedManifestId?: string;
-  /**
-   * (P1-e4 hardening) For a NON-invalidating suppress: true iff the reason is a transient deliverability state a
-   * later reschedule could resolve (order not yet ready, readiness not yet passed) — i.e. a newer manifest could
-   * have adopted this row. The suppress path rolls back (manifest_superseded) only for these; structurally-dead
-   * reasons (book/manifest gone) a reschedule can never clear are always suppressed, never rolled back (no livelock).
-   */
-  supersedable?: boolean;
-};
-export type DeliveryOutcome = 'sent' | 'suppressed' | 'failed' | 'retry' | 'lost_lease';
+export type DeliveryOutcome = 'sent' | 'superseded' | 'failed' | 'retry' | 'lost_lease';
 
 /**
- * Outcome of the atomic suppress dep (B-r3-2 + P1-e4-1):
- *  - 'suppressed'          — fence held; row is terminal `suppressed` (+ invalidation if it was real drift);
- *  - 'lost_lease'          — fence matched 0 rows (another worker reclaimed); nothing changed;
- *  - 'manifest_superseded' — fence held BUT a newer manifest already replaced the one we rechecked, so this
- *                            `processing` row now backs the NEW manifest; the suppress was ROLLED BACK (the
- *                            whole tx), and the worker must reschedule the row, not kill it.
+ * Result of the single atomic send-time CAS (P1-f):
+ *  - 'ok'         — the row is still ours AND the live truth matches its binding; sendAttempted is now durably
+ *                   set and the lease renewed → we hold the send slot, proceed to send.
+ *  - 'superseded' — we still own the row but the binding no longer holds (a newer manifest owns the order, or
+ *                   the order is no longer ready/passed) → terminal `superseded`. sendAttempted was NOT set.
+ *  - 'lost_lease' — another worker reclaimed the row (status/token moved) → do nothing.
  */
-export type SuppressOutcome = 'suppressed' | 'lost_lease' | 'manifest_superseded';
-
-export interface SuppressArgs {
-  row: DeliveryOutbox;
-  /** Fencing token captured at claim (= attempts). */
-  token: number;
-  disposition: Disposition;
-}
+export type CasResult = 'ok' | 'superseded' | 'lost_lease';
 
 export interface OutboxDeps {
-  /** Pre-send recheck. Receives the claimed row so it can bind the enqueued payloadHash (B4). */
-  recheck: (row: DeliveryOutbox) => Promise<Disposition>;
+  /**
+   * (P1-f) The single atomic send-time CAS. In ONE statement: renew the lease + set sendAttempted IFF the row is
+   * still `processing` with this fencing token AND Order.status='ready' AND Order.inputVersion=row.inputVersion
+   * AND BookReadiness.status='passed' AND BookReadiness.currentManifestId=row.manifestId AND the stored
+   * payloadHash is unchanged. This REPLACES the old live re-evaluation (asset download + integrity re-eval).
+   */
+  cas: (row: DeliveryOutbox, token: number, leaseExpiresAt: Date) => Promise<CasResult>;
   /** Provider send; idempotencyKey = dedupeKey. Returns the provider message id when available. */
   send: (payload: BookReadyPayload, idempotencyKey: string) => Promise<{ providerMessageId?: string }>;
-  /**
-   * (B-r3-2 + P1-e4-1) Atomically, in ONE transaction: fence this row → terminal `suppressed` (by id + status
-   * 'processing' + attempts === token), and ONLY if the fence held, invalidate the exact manifest + drop the
-   * order from `ready`. If the manifest was superseded mid-flight (invalidation matches 0), the whole tx ROLLS
-   * BACK and it returns 'manifest_superseded'. When omitted, processDelivery falls back to a plain fenced
-   * suppress (no readiness invalidation) — used by unit tests; the cron injects the readiness-aware impl.
-   */
-  suppress?: (args: SuppressArgs) => Promise<SuppressOutcome>;
   now?: () => Date;
 }
 
@@ -207,77 +182,31 @@ async function fenced(prisma: PrismaClient, rowId: string, token: number, data: 
 }
 
 /**
- * Process one already-claimed row under its fencing token (= attempts at claim). recheck → allow ? send
- * (idempotent) : retry|suppress. Every terminal write is fenced; a lost lease returns 'lost_lease' and
- * writes nothing further.
+ * Process one already-claimed row under its fencing token (= attempts at claim). P1-f: a SINGLE atomic
+ * send-time CAS (renew lease + set sendAttempted iff the binding still holds) replaces the old live re-eval.
+ * 'ok' → send (idempotent); 'superseded' → terminal `superseded`; 'lost_lease' → stop. A send that fails
+ * reschedules (within window) or terminal-fails `send_ambiguous`. Every terminal write is fenced.
  */
 export async function processDelivery(prisma: PrismaClient, row: DeliveryOutbox, deps: OutboxDeps): Promise<DeliveryOutcome> {
   const token = row.attempts; // claim version — the fencing token
-
-  let disp: Disposition;
-  try {
-    disp = await deps.recheck(row);
-  } catch (e) {
-    disp = { outcome: 'retry', reason: `recheck_error:${(e as Error).message?.slice(0, 120)}` }; // transient infra → retry
-  }
-
-  // (B-r3-3) capture `now` FRESH, AFTER the (possibly long) recheck — a `now` snapped before the recheck could
-  // write a lease renewal / backoff that is already in the past by the time we write it.
   const now = deps.now?.() ?? new Date();
 
-  if (disp.outcome === 'suppress') {
-    // (B-r3-2) the fenced transition + readiness invalidation are ONE atomic, fence-gated step (injected by the
-    // cron). A worker that lost its lease can neither suppress nor invalidate. Unit tests omit the dep → plain
-    // fenced suppress.
-    let res: SuppressOutcome;
-    if (deps.suppress) {
-      res = await deps.suppress({ row, token, disposition: disp });
-    } else {
-      const held = await fenced(prisma, row.id, token, { status: 'suppressed', leaseExpiresAt: null, lastError: disp.reason ?? 'suppressed' });
-      res = held ? 'suppressed' : 'lost_lease';
-    }
-    if (res === 'lost_lease') return 'lost_lease';
-    if (res === 'manifest_superseded') {
-      // (P1-e4-1) a newer manifest now backs this row — it must NOT be suppressed (the suppress was rolled back
-      // atomically). Reschedule so a future tick re-checks it against the CURRENT manifest. This is BENIGN, so
-      // undo the claim's attempt increment — a re-commit storm must not consume the failure budget.
-      const ok = await fenced(prisma, row.id, token, { status: 'scheduled', nextAttemptAt: new Date(now.getTime() + backoffMs(row.attempts)), leaseExpiresAt: null, lastError: 'manifest_superseded', attempts: Math.max(0, row.attempts - 1) });
-      return ok ? 'retry' : 'lost_lease';
-    }
-    log.warn('Delivery suppressed at recheck', { dedupeKey: row.dedupeKey, reason: disp.reason });
-    return 'suppressed';
-  }
-  if (disp.outcome === 'retry') {
-    // B3: a recheck that keeps returning `retry` (e.g. an asset that times out forever) must NOT reschedule
-    // indefinitely — cap by OUTBOX_MAX_ATTEMPTS, then terminal-fail (never `scheduled` forever). EXCEPT a
-    // `manifest_superseded` retry, which is BENIGN (a valid newer manifest owns the row) — it must not count
-    // toward the cap, or a re-commit storm could terminal-fail a healthy delivery.
-    const superseded = disp.reason === 'manifest_superseded';
-    if (!superseded && row.attempts >= OUTBOX_MAX_ATTEMPTS) {
-      const lastError = `recheck_retry_exhausted:${disp.reason ?? ''}`.slice(0, 300);
-      // (P1-e4-2 + review C) classify by whether a provider send was EVER attempted on this row (durable flag),
-      // not by the current attempt — a prior ambiguous send must not be mis-tagged roll-safe.
-      const failureClass = row.sendAttempted ? FAILURE_SEND_AMBIGUOUS : FAILURE_RECHECK_EXHAUSTED;
-      const ok = await fenced(prisma, row.id, token, { status: 'failed', failureClass, nextAttemptAt: null, leaseExpiresAt: null, lastError });
-      if (!ok) return 'lost_lease';
-      log.error('Delivery recheck retries exhausted', new Error(lastError), { dedupeKey: row.dedupeKey, attempts: row.attempts, failureClass });
-      return 'failed';
-    }
-    const data: Prisma.DeliveryOutboxUpdateManyMutationInput = { status: 'scheduled', nextAttemptAt: new Date(now.getTime() + backoffMs(row.attempts)), leaseExpiresAt: null, lastError: disp.reason ?? 'recheck_retry' };
-    if (superseded) data.attempts = Math.max(0, row.attempts - 1); // undo the claim increment — benign retry
-    const ok = await fenced(prisma, row.id, token, data);
-    return ok ? 'retry' : 'lost_lease';
+  // (P1-f) The single atomic send-time CAS. Renews the lease + sets sendAttempted IFF the row is still ours AND
+  // the live truth matches its binding. No live re-evaluation, no asset download.
+  const cas = await deps.cas(row, token, new Date(now.getTime() + LEASE_MS));
+  if (cas === 'lost_lease') return 'lost_lease';
+  if (cas === 'superseded') {
+    // The binding no longer holds — a newer manifest owns this order (it has its OWN Outbox row), or the order
+    // is no longer ready/passed. This row is TERMINAL: no re-eval, no readiness invalidation (readiness is
+    // correct), no retry loop. The CAS did NOT set sendAttempted, so a future enqueue may roll this fulfillment.
+    const ok = await fenced(prisma, row.id, token, { status: 'superseded', leaseExpiresAt: null, lastError: 'cas_mismatch' });
+    if (!ok) return 'lost_lease';
+    log.warn('Delivery superseded at send-time CAS', { dedupeKey: row.dedupeKey });
+    return 'superseded';
   }
 
-  // allow → (B1) renew the lease + RE-CONFIRM ownership atomically, immediately before send. If another
-  // worker reclaimed the row during a long recheck (attempts !== token), this matches 0 rows and we STOP —
-  // `send` is never called, so a worker that lost its lease can never emit a duplicate delivery.
-  // (review C) durably record that a provider send is about to be attempted on this row, so a later
-  // recheck-exhaustion on a re-claim classifies as `send_ambiguous`, never roll-safe `recheck_exhausted`.
-  const stillOwned = await fenced(prisma, row.id, token, { leaseExpiresAt: new Date(now.getTime() + LEASE_MS), sendAttempted: true });
-  if (!stillOwned) return 'lost_lease';
-
-  // allow → send
+  // cas === 'ok' → we hold the send slot (sendAttempted is durably set). Send the STORED payload (frozen at
+  // enqueue; its validity is guaranteed by the inputVersion match the CAS just verified).
   try {
     const res = await deps.send(row.payload as unknown as BookReadyPayload, row.dedupeKey);
     const sentNow = deps.now?.() ?? new Date(); // (B-r3-3) sentAt = a FRESH timestamp once the send completes
@@ -302,17 +231,17 @@ export async function processDelivery(prisma: PrismaClient, row: DeliveryOutbox,
   }
 }
 
-export type DrainSummary = { claimed: number; sent: number; suppressed: number; failed: number; retry: number; lost_lease: number };
+export type DrainSummary = { claimed: number; sent: number; superseded: number; failed: number; retry: number; lost_lease: number };
 
 /**
- * Drain the Outbox. Simplification A: claim ONE row per tick by default (the recheck downloads assets, so a
- * single-row claim shrinks the lease/fencing race surface to one row — a failure is one row, not a batch).
- * A larger limit is still supported (the SKIP-LOCKED proof seeds many), but production runs single-claim.
+ * Drain the Outbox. Simplification A: claim ONE row per tick by default — the single-row claim shrinks the
+ * lease/fencing race surface to one row (a failure is one row, not a batch). A larger limit is still supported
+ * (the SKIP-LOCKED proof seeds many), but production runs single-claim.
  */
 export async function drainOutbox(prisma: PrismaClient, opts: { limit?: number }, deps: OutboxDeps): Promise<DrainSummary> {
   const now = deps.now?.() ?? new Date();
   const rows = await claimDueDeliveries(prisma, now, opts.limit ?? 1);
-  const summary: DrainSummary = { claimed: rows.length, sent: 0, suppressed: 0, failed: 0, retry: 0, lost_lease: 0 };
+  const summary: DrainSummary = { claimed: rows.length, sent: 0, superseded: 0, failed: 0, retry: 0, lost_lease: 0 };
   for (const row of rows) {
     const outcome = await processDelivery(prisma, row, deps);
     summary[outcome] += 1;

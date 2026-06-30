@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { prisma } from '@/lib/prisma';
 import { drainOutbox } from '@/lib/generation-chunked/delivery-outbox';
-import { recheckBaseBookDelivery, suppressAndInvalidateDelivery, isReadinessManifestEnabled } from '@/lib/generation-pipeline/readiness-manifest';
+import { casClaimSendSlot, isReadinessManifestEnabled } from '@/lib/generation-pipeline/readiness-manifest';
 import { sendBookReadyEmail } from '@/backend/lib/email';
 
 export const runtime = 'nodejs';
@@ -13,7 +13,7 @@ export const maxDuration = 60;
  * Drain the delivery Outbox (Phase-1 base_book_integrity). Hit by the Vercel cron (prod; injects
  * `Authorization: Bearer $CRON_SECRET`) AND an external scheduler on preview/staging (see the sweep route).
  * The PASS transaction only ENQUEUED a row — THIS worker is the single place a base-book ready email is
- * actually sent, with a pre-send recheck (suppress on drift) + idempotency-key = dedupeKey (effectively-once).
+ * actually sent, gated by ONE atomic send-time CAS (P1-f) + idempotency-key = dedupeKey (effectively-once).
  * No-op when READINESS_MANIFEST_ENABLED is off, so it is inert until the flag is turned on for staging.
  */
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -32,11 +32,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     prisma,
     { limit: 1 }, // simplification A: single-claim per tick
     {
-      // Read-only recheck. B4: bind the enqueued payloadHash so a payload that drifted since enqueue is caught.
-      recheck: (row) => recheckBaseBookDelivery(prisma, row.orderId, row.scope, {}, row.payloadHash),
-      // B-r3-2: the fenced `suppressed` transition + readiness invalidation happen in ONE atomic, fence-gated tx
-      // (a lost-lease worker can neither suppress nor invalidate).
-      suppress: ({ row, token, disposition }) => suppressAndInvalidateDelivery(prisma, { row, token, disposition }),
+      // (P1-f) the single atomic send-time CAS: renew lease + set sendAttempted IFF the row's binding still holds.
+      cas: (row, token, leaseExpiresAt) => casClaimSendSlot(prisma, row, token, leaseExpiresAt),
       send: (payload, idempotencyKey) => sendBookReadyEmail({ ...payload, idempotencyKey }),
     },
   );

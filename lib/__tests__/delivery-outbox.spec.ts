@@ -10,7 +10,7 @@ const row = (over: Record<string, unknown> = {}) => ({
   payload, payloadHash: hashPayload(payload), attempts: 1, createdAt: new Date('2026-06-29T10:00:00Z'),
   nextAttemptAt: null, leaseExpiresAt: new Date(), lastError: null, providerMessageId: null, sentAt: null, ...over,
 });
-const okDeps = (send: ReturnType<typeof vi.fn>) => ({ recheck: async () => ({ outcome: 'allow' as const }), send, now: () => NOW });
+const okDeps = (send: ReturnType<typeof vi.fn>) => ({ cas: async () => 'ok' as const, send, now: () => NOW });
 // Typed accessor for a mock's nth-call `data` arg (the inferred arg tuple is empty).
 const dataOf = (fn: ReturnType<typeof vi.fn>, n: number): Record<string, unknown> => ((fn.mock.calls[n] as unknown[])[0] as { data: Record<string, unknown> }).data;
 const firstData = (fn: ReturnType<typeof vi.fn>): Record<string, unknown> => dataOf(fn, 0);
@@ -96,162 +96,93 @@ describe('enqueueDelivery — idempotent on dedupeKey', () => {
   });
 });
 
-describe('processDelivery — fenced terminal writes (B1) + disposition (B2)', () => {
+describe('processDelivery — send-time CAS (P1-f)', () => {
   const fencedOk = () => vi.fn(async () => ({ count: 1 }));   // this worker still holds the current claim
   const fencedLost = () => vi.fn(async () => ({ count: 0 })); // another worker reclaimed (token no longer current)
 
-  it('suppress disposition → no send, fenced suppressed write', async () => {
-    const updateMany = fencedOk();
-    const send = vi.fn();
-    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, { recheck: async () => ({ outcome: 'suppress', reason: 'asset_changed' }), send, now: () => NOW });
-    expect(out).toBe('suppressed');
-    expect(send).not.toHaveBeenCalled();
-    expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id: 'ob1', status: 'processing', attempts: 1 }), data: expect.objectContaining({ status: 'suppressed' }) }));
-  });
-  it('B-r3-2: suppress delegates to the atomic suppress dep when provided (fence + invalidation in one tx)', async () => {
-    const suppress = vi.fn(async () => 'suppressed' as const);
-    const send = vi.fn();
-    const out = await processDelivery({ deliveryOutbox: { updateMany: vi.fn() } } as never, row() as never, { recheck: async () => ({ outcome: 'suppress', reason: 'integrity_now_x', invalidateReadiness: true, expectedManifestId: 'm1' }), send, suppress, now: () => NOW });
-    expect(out).toBe('suppressed');
-    expect(suppress).toHaveBeenCalledWith(expect.objectContaining({ row: expect.objectContaining({ id: 'ob1' }), token: 1, disposition: expect.objectContaining({ invalidateReadiness: true, expectedManifestId: 'm1' }) }));
-    expect(send).not.toHaveBeenCalled();
-  });
-  it('B-r3-2: a lost-lease worker (suppress dep returns lost_lease) reports lost_lease and changes nothing', async () => {
-    const suppress = vi.fn(async () => 'lost_lease' as const);
-    const out = await processDelivery({ deliveryOutbox: { updateMany: vi.fn() } } as never, row() as never, { recheck: async () => ({ outcome: 'suppress', reason: 'integrity_now_x', invalidateReadiness: true, expectedManifestId: 'm1' }), send: vi.fn(), suppress, now: () => NOW });
-    expect(out).toBe('lost_lease');
-  });
-  it('P1-e4-1: suppress dep returns manifest_superseded → worker RESCHEDULES (retry), never suppresses, never sends; attempts decremented (review B)', async () => {
-    const suppress = vi.fn(async () => 'manifest_superseded' as const);
-    const updateMany = fencedOk(); // the reschedule fenced write
-    const send = vi.fn();
-    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ attempts: 3 }) as never, { recheck: async () => ({ outcome: 'suppress', reason: 'integrity_now_x', invalidateReadiness: true, expectedManifestId: 'm1' }), send, suppress, now: () => NOW });
-    expect(out).toBe('retry'); // re-checked against the CURRENT manifest on a later tick — not suppressed
-    expect(send).not.toHaveBeenCalled();
-    expect(firstData(updateMany)).toMatchObject({ status: 'scheduled', lastError: 'manifest_superseded', attempts: 2 }); // benign: undo the claim increment
-  });
-  it('P1-e4-1: manifest_superseded reschedule that LOSES the lease (reschedule fence matches 0) → lost_lease, no send', async () => {
-    const suppress = vi.fn(async () => 'manifest_superseded' as const);
-    const updateMany = fencedLost(); // another worker reclaimed between the rolled-back suppress and the reschedule
-    const send = vi.fn();
-    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, { recheck: async () => ({ outcome: 'suppress', reason: 'integrity_now_x', invalidateReadiness: true, expectedManifestId: 'm1' }), send, suppress, now: () => NOW });
-    expect(out).toBe('lost_lease');
-    expect(send).not.toHaveBeenCalled();
-  });
-  it('review B: a manifest_superseded RETRY does NOT terminal-fail even at attempts >= cap (benign, exempt from OUTBOX_MAX_ATTEMPTS)', async () => {
-    const updateMany = fencedOk();
-    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ attempts: OUTBOX_MAX_ATTEMPTS }) as never, { recheck: async () => ({ outcome: 'retry', reason: 'manifest_superseded' }), send: vi.fn(), now: () => NOW });
-    expect(out).toBe('retry'); // NOT 'failed' — a re-commit storm can't terminal-fail a healthy delivery
-    expect(firstData(updateMany)).toMatchObject({ status: 'scheduled', attempts: OUTBOX_MAX_ATTEMPTS - 1 });
-  });
-  it('review C: recheck-exhaustion on a row that ALREADY attempted a send → failureClass send_ambiguous (not roll-safe)', async () => {
-    const updateMany = fencedOk();
-    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ attempts: OUTBOX_MAX_ATTEMPTS, sendAttempted: true }) as never, { recheck: async () => ({ outcome: 'retry', reason: 'transient_asset:timeout' }), send: vi.fn(), now: () => NOW });
-    expect(out).toBe('failed');
-    expect(firstData(updateMany)).toMatchObject({ status: 'failed', failureClass: 'send_ambiguous' }); // a prior send happened → never roll-safe
-  });
-  it('B-r3-2: WITHOUT the suppress dep, the fallback is a plain fenced suppress and performs NO readiness invalidation (the injected dep is the ONLY path to invalidation)', async () => {
-    // Documents the seam contract: even a drift disposition (invalidateReadiness:true) does NOT invalidate
-    // readiness when no suppress dep is wired — so the cron MUST inject it (covered by the route spec). A
-    // regression that drops the dep would otherwise leave the order `ready` behind a suppressed row, silently.
-    const updateMany = fencedOk();
-    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, { recheck: async () => ({ outcome: 'suppress', reason: 'integrity_now_x', invalidateReadiness: true, expectedManifestId: 'm1' }), send: vi.fn(), now: () => NOW });
-    expect(out).toBe('suppressed');
-    expect(updateMany).toHaveBeenCalledTimes(1); // ONLY the plain fenced suppress — no readiness/order writes
-    expect(firstData(updateMany)).toMatchObject({ status: 'suppressed' });
-  });
-  it('B-r3-3: on send FAILURE, the backoff nextAttemptAt is computed from a now taken FRESH after the failed send', async () => {
-    const T_afterRecheck = new Date('2026-06-29T10:00:00Z');
-    const T_afterFail = new Date('2026-06-29T10:05:00Z'); // the send attempt itself took time
-    const times = [T_afterRecheck, T_afterFail];
-    let i = 0;
-    const now = () => times[Math.min(i++, times.length - 1)];
-    const updateMany = fencedOk();
-    const send = vi.fn(async () => { throw new Error('network'); });
-    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ attempts: 2 }) as never, { recheck: async () => ({ outcome: 'allow' }), send, now });
-    expect(out).toBe('retry');
-    // [0] = pre-send renewal (post-recheck), [1] = reschedule with backoff(2)=2m from the post-FAILURE now
-    expect((dataOf(updateMany, 1).nextAttemptAt as Date).getTime()).toBe(T_afterFail.getTime() + 2 * 60 * 1000);
-  });
-  it('retry disposition (transient infra) → reschedule, NO send', async () => {
-    const updateMany = fencedOk();
-    const send = vi.fn();
-    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, { recheck: async () => ({ outcome: 'retry', reason: 'transient_asset' }), send, now: () => NOW });
-    expect(out).toBe('retry');
-    expect(send).not.toHaveBeenCalled();
-    expect(firstData(updateMany)).toMatchObject({ status: 'scheduled' });
-    expect(firstData(updateMany).nextAttemptAt).toBeInstanceOf(Date);
-  });
-  it('a thrown recheck (infra error) is treated as retry, not suppress', async () => {
-    const updateMany = fencedOk();
-    const send = vi.fn();
-    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, { recheck: async () => { throw new Error('db down'); }, send, now: () => NOW });
-    expect(out).toBe('retry');
-    expect(send).not.toHaveBeenCalled();
-  });
-  it('allow → renew-lease then send once + marks sent, Idempotency-Key = dedupeKey', async () => {
+  it('CAS ok → send once + marks sent (Idempotency-Key = dedupeKey); the CAS already renewed the lease', async () => {
     const updateMany = fencedOk();
     const send = vi.fn(async () => ({ providerMessageId: 'rs_1' }));
     const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, okDeps(send));
     expect(out).toBe('sent');
     expect(send).toHaveBeenCalledWith(payload, 'book-ready/o1/base-book/1');
-    expect(firstData(updateMany)).toMatchObject({ leaseExpiresAt: expect.any(Date) }); // (B1) pre-send ownership renew
-    expect(dataOf(updateMany, 1)).toMatchObject({ status: 'sent', providerMessageId: 'rs_1' });
+    expect(updateMany).toHaveBeenCalledTimes(1); // ONLY the terminal sent write — the renew+sendAttempted is in the CAS
+    expect(firstData(updateMany)).toMatchObject({ status: 'sent', providerMessageId: 'rs_1' });
   });
-  it('B-r3-3: lease renewal + sentAt use a now computed FRESH after recheck/send (expiry is future, not stale)', async () => {
-    const LEASE = 4 * 60 * 1000; // mirrors LEASE_MS
-    const T_afterRecheck = new Date('2026-06-29T10:10:00Z'); // recheck took longer than one lease window
-    const T_afterSend = new Date('2026-06-29T10:12:00Z');
-    const times = [T_afterRecheck, T_afterSend];
-    let i = 0;
-    const now = () => times[Math.min(i++, times.length - 1)];
-    const updateMany = vi.fn(async () => ({ count: 1 }));
-    const send = vi.fn(async () => ({ providerMessageId: 'rs' }));
-    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, { recheck: async () => ({ outcome: 'allow' }), send, now });
-    expect(out).toBe('sent');
-    const renewalExpiry = firstData(updateMany).leaseExpiresAt as Date; // [0] = pre-send renewal
-    expect(renewalExpiry.getTime()).toBe(T_afterRecheck.getTime() + LEASE); // computed from the fresh post-recheck now
-    expect(renewalExpiry.getTime()).toBeGreaterThan(T_afterRecheck.getTime()); // strictly in the future
-    expect(dataOf(updateMany, 1).sentAt).toEqual(T_afterSend); // [1] = sent write, fresh post-send time
+  it('CAS is called with (row, fencing token = attempts at claim, a future lease expiry)', async () => {
+    const cas = vi.fn(async () => 'ok' as const);
+    await processDelivery({ deliveryOutbox: { updateMany: fencedOk() } } as never, row({ attempts: 4 }) as never, { cas, send: vi.fn(async () => ({})), now: () => NOW });
+    expect(cas).toHaveBeenCalledWith(expect.objectContaining({ id: 'ob1' }), 4, expect.any(Date));
   });
-  it('B1: a worker that lost its lease during recheck NEVER calls send (ownership re-checked first)', async () => {
-    const updateMany = fencedLost(); // the pre-send fenced renew matches 0 rows → reclaimed by another worker
-    const send = vi.fn(async () => ({ providerMessageId: 'rs_1' }));
-    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, okDeps(send));
+  it('CAS superseded → fenced terminal `superseded`, NEVER sends (no re-eval, no readiness invalidation)', async () => {
+    const updateMany = fencedOk();
+    const send = vi.fn();
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, { cas: async () => 'superseded' as const, send, now: () => NOW });
+    expect(out).toBe('superseded');
+    expect(send).not.toHaveBeenCalled();
+    expect(updateMany).toHaveBeenCalledTimes(1);
+    expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id: 'ob1', status: 'processing', attempts: 1 }), data: expect.objectContaining({ status: 'superseded' }) }));
+  });
+  it('CAS superseded but the fenced terminal write loses the lease → lost_lease', async () => {
+    const out = await processDelivery({ deliveryOutbox: { updateMany: fencedLost() } } as never, row() as never, { cas: async () => 'superseded' as const, send: vi.fn(), now: () => NOW });
     expect(out).toBe('lost_lease');
-    expect(send).not.toHaveBeenCalled(); // real call-order: send is gated BEHIND the ownership check, not after
-    expect(updateMany).toHaveBeenCalledTimes(1); // only the pre-send ownership check, then STOPPED
   });
-  it('retries (backoff, SAME key) on send failure with attempts remaining — provider-response-lost', async () => {
+  it('CAS lost_lease → lost_lease, NEVER sends, writes NOTHING', async () => {
+    const updateMany = vi.fn();
+    const send = vi.fn();
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, { cas: async () => 'lost_lease' as const, send, now: () => NOW });
+    expect(out).toBe('lost_lease');
+    expect(send).not.toHaveBeenCalled();
+    expect(updateMany).not.toHaveBeenCalled();
+  });
+  it('CAS ok but send fails with attempts remaining → reschedule (retry, SAME dedupeKey — Resend dedups)', async () => {
     const updateMany = fencedOk();
     const send = vi.fn(async () => { throw new Error('network'); });
     const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ attempts: 2 }) as never, okDeps(send));
     expect(out).toBe('retry');
-    expect(dataOf(updateMany, 1)).toMatchObject({ status: 'scheduled' }); // [0] = pre-send renew, [1] = reschedule
-    expect(dataOf(updateMany, 1).nextAttemptAt).toBeInstanceOf(Date);
+    expect(firstData(updateMany)).toMatchObject({ status: 'scheduled' });
+    expect(firstData(updateMany).nextAttemptAt).toBeInstanceOf(Date);
   });
-  it('gives up after max attempts — never blind-resend', async () => {
+  it('CAS ok but send fails at max attempts → terminal failed + send_ambiguous (never roll-safe)', async () => {
     const updateMany = fencedOk();
     const send = vi.fn(async () => { throw new Error('network'); });
     const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ attempts: OUTBOX_MAX_ATTEMPTS }) as never, okDeps(send));
     expect(out).toBe('failed');
-    expect(dataOf(updateMany, 1)).toMatchObject({ status: 'failed', failureClass: 'send_ambiguous' }); // P1-e4-2: send attempted → ambiguous
-    expect(dataOf(updateMany, 1).nextAttemptAt).toBeNull();
-  });
-  it('B3: a recheck stuck on `retry` is capped at OUTBOX_MAX_ATTEMPTS → terminal failed (not scheduled forever)', async () => {
-    const updateMany = fencedOk();
-    const send = vi.fn();
-    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ attempts: OUTBOX_MAX_ATTEMPTS }) as never, { recheck: async () => ({ outcome: 'retry', reason: 'transient_asset:timeout' }), send, now: () => NOW });
-    expect(out).toBe('failed');
-    expect(send).not.toHaveBeenCalled();
-    expect(firstData(updateMany)).toMatchObject({ status: 'failed', failureClass: 'recheck_exhausted' }); // P1-e4-2: no send attempted → roll-safe
+    expect(firstData(updateMany)).toMatchObject({ status: 'failed', failureClass: 'send_ambiguous' });
     expect(firstData(updateMany).nextAttemptAt).toBeNull();
   });
-  it('gives up when beyond the 24h provider idempotency window', async () => {
+  it('CAS ok but send fails beyond the 24h idempotency window → terminal failed', async () => {
     const updateMany = fencedOk();
     const send = vi.fn(async () => { throw new Error('network'); });
     const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ attempts: 1, createdAt: new Date('2026-06-27T09:00:00Z') }) as never, okDeps(send));
     expect(out).toBe('failed');
+  });
+  it('a send-failure terminal write that loses the lease → lost_lease', async () => {
+    const send = vi.fn(async () => { throw new Error('network'); });
+    const out = await processDelivery({ deliveryOutbox: { updateMany: fencedLost() } } as never, row({ attempts: OUTBOX_MAX_ATTEMPTS }) as never, okDeps(send));
+    expect(out).toBe('lost_lease');
+  });
+  it('B-r3-3: sentAt uses a now computed FRESH after the send completes (not the top-of-function now)', async () => {
+    const T_afterSend = new Date('2026-06-29T10:12:00Z');
+    const times = [NOW, T_afterSend];
+    let i = 0;
+    const now = () => times[Math.min(i++, times.length - 1)];
+    const updateMany = fencedOk();
+    const send = vi.fn(async () => ({ providerMessageId: 'rs' }));
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, { cas: async () => 'ok' as const, send, now });
+    expect(out).toBe('sent');
+    expect(firstData(updateMany).sentAt).toEqual(T_afterSend);
+  });
+  it('B-r3-3: on send FAILURE, the backoff nextAttemptAt is computed from a now taken FRESH after the failed send', async () => {
+    const T_afterFail = new Date('2026-06-29T10:05:00Z');
+    const times = [NOW, T_afterFail];
+    let i = 0;
+    const now = () => times[Math.min(i++, times.length - 1)];
+    const updateMany = fencedOk();
+    const send = vi.fn(async () => { throw new Error('network'); });
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ attempts: 2 }) as never, { cas: async () => 'ok' as const, send, now });
+    expect(out).toBe('retry');
+    expect((firstData(updateMany).nextAttemptAt as Date).getTime()).toBe(T_afterFail.getTime() + 2 * 60 * 1000); // backoff(2)=2m from the post-FAILURE now
   });
 });
 

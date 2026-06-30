@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createHash } from 'crypto';
-import { commitBaseBookReadiness, recheckBaseBookDelivery, suppressAndInvalidateDelivery, bumpOrderInputVersion, isReadinessManifestEnabled, type CommitArgs } from '@/lib/generation-pipeline/readiness-manifest';
-import { evaluateBaseBookIntegrity, BASE_BOOK_SCOPE } from '@/lib/generation-pipeline/integrity-gate';
-import { hashPayload } from '@/lib/generation-chunked/delivery-outbox';
+import { commitBaseBookReadiness, casClaimSendSlot, bumpOrderInputVersion, isReadinessManifestEnabled, type CommitArgs } from '@/lib/generation-pipeline/readiness-manifest';
+import { BASE_BOOK_SCOPE } from '@/lib/generation-pipeline/integrity-gate';
 import type { AssetInspection } from '@/lib/generation-pipeline/asset-integrity';
 
 const NOW = new Date('2026-06-29T12:00:00Z');
@@ -134,308 +133,45 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
   });
 });
 
-describe('suppressAndInvalidateDelivery — atomic fenced suppress + invalidation (B-r3-2 + P1-e4-1)', () => {
-  const mk = (fenceCount: number, invalidatedCount: number, live: { readiness?: string; order?: string } = {}) => {
-    const obxUpdateMany = vi.fn(async () => ({ count: fenceCount }));
-    const brUpdateMany = vi.fn(async () => ({ count: invalidatedCount }));
-    const orderUpdateMany = vi.fn(async () => ({ count: 1 }));
-    // The no-invalidate suppress path re-reads the LIVE readiness/order status to detect a newer manifest that
-    // adopted this row. Default = not deliverable (so a no-invalidate suppress proceeds).
-    const brFindUnique = vi.fn(async () => ({ status: live.readiness ?? 'blocked' }));
-    const orderFindUnique = vi.fn(async () => ({ status: live.order ?? 'needs_human_qa' }));
-    const tx = { deliveryOutbox: { updateMany: obxUpdateMany }, bookReadiness: { updateMany: brUpdateMany, findUnique: brFindUnique }, order: { updateMany: orderUpdateMany, findUnique: orderFindUnique } };
-    // mock $transaction propagates a thrown error (so the rollback path surfaces as a rejection, like a real DB).
-    const prisma = { $transaction: vi.fn(async (cb: (t: unknown) => unknown) => cb(tx)) };
-    return { prisma, obxUpdateMany, brUpdateMany, orderUpdateMany, brFindUnique, orderFindUnique };
-  };
-  const driftArg = { row: { id: 'ob1', orderId: 'o1', scope: BASE_BOOK_SCOPE }, token: 3, disposition: { outcome: 'suppress' as const, reason: 'integrity_now_page2_image_invalid', invalidateReadiness: true, expectedManifestId: 'm1' } };
+describe('casClaimSendSlot — single atomic send-time CAS (P1-f)', () => {
+  const casRow = { id: 'ob1', orderId: 'o1', scope: BASE_BOOK_SCOPE, manifestId: 'm1', inputVersion: 0, payloadHash: 'ph' };
+  const lease = new Date('2026-06-29T10:10:00Z');
 
-  it('fences the row by id+attempts, then invalidates the exact manifest + un-readies the order', async () => {
-    const { prisma, obxUpdateMany, brUpdateMany, orderUpdateMany } = mk(1, 1);
-    const res = await suppressAndInvalidateDelivery(prisma as never, driftArg);
-    expect(res).toBe('suppressed');
-    expect(obxUpdateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'ob1', status: 'processing', attempts: 3 }, data: expect.objectContaining({ status: 'suppressed' }) }));
-    expect(brUpdateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { orderId: 'o1', scope: BASE_BOOK_SCOPE, currentManifestId: 'm1' }, data: expect.objectContaining({ status: 'stale', reason: 'integrity_now_page2_image_invalid' }) }));
-    expect(orderUpdateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'o1', status: 'ready' }, data: expect.objectContaining({ status: 'needs_human_qa', deliveryHoldReason: 'base_book_readiness_stale' }) }));
+  it('binding holds → updates exactly 1 row → ok (one statement renews lease + sets sendAttempted + verifies the full binding)', async () => {
+    const $executeRaw = vi.fn(async () => 1);
+    const findUnique = vi.fn();
+    const r = await casClaimSendSlot({ $executeRaw, deliveryOutbox: { findUnique } } as never, casRow, 1, lease);
+    expect(r).toBe('ok');
+    const sql = (($executeRaw.mock.calls[0] as unknown[])[0] as string[]).join(' ');
+    expect(sql).toMatch(/"sendAttempted" = true/);
+    expect(sql).toMatch(/"status" = 'processing'/);
+    expect(sql).toMatch(/"Order"[\s\S]*'ready'/);
+    expect(sql).toMatch(/"BookReadiness"[\s\S]*'passed'/);
+    expect(sql).toMatch(/"currentManifestId"/);
+    expect(findUnique).not.toHaveBeenCalled(); // a hit needs no re-read
   });
-
-  it('LOST LEASE: fence matches 0 → returns lost_lease and invalidates NOTHING (a stale worker cannot touch readiness)', async () => {
-    const { prisma, brUpdateMany, orderUpdateMany } = mk(0, 1);
-    const res = await suppressAndInvalidateDelivery(prisma as never, driftArg);
-    expect(res).toBe('lost_lease');
-    expect(brUpdateMany).not.toHaveBeenCalled();
-    expect(orderUpdateMany).not.toHaveBeenCalled();
+  it('0 rows + we STILL own the row (processing + token) → superseded (a binding moved; sendAttempted was NOT set)', async () => {
+    const $executeRaw = vi.fn(async () => 0);
+    const findUnique = vi.fn(async () => ({ status: 'processing', attempts: 1 }));
+    const r = await casClaimSendSlot({ $executeRaw, deliveryOutbox: { findUnique } } as never, casRow, 1, lease);
+    expect(r).toBe('superseded');
   });
-
-  it('P1-e4-1: a NEWER manifest superseded ours (invalidation matches 0) → ROLLBACK (manifest_superseded), the row is NOT suppressed and the order is NOT un-readied', async () => {
-    // The old "count=0 → fence held=true (benign)" behavior was the bug: it left the order `ready` behind a
-    // suppressed row that now backs M2. Now the whole tx rolls back (throw) and we signal manifest_superseded.
-    const { prisma, orderUpdateMany } = mk(1, 0);
-    const res = await suppressAndInvalidateDelivery(prisma as never, driftArg);
-    expect(res).toBe('manifest_superseded'); // rolled back → in a real DB the fenced suppress is undone
-    expect(orderUpdateMany).not.toHaveBeenCalled();
+  it('0 rows + the row is no longer ours (status moved off processing) → lost_lease', async () => {
+    const $executeRaw = vi.fn(async () => 0);
+    const findUnique = vi.fn(async () => ({ status: 'scheduled', attempts: 2 }));
+    const r = await casClaimSendSlot({ $executeRaw, deliveryOutbox: { findUnique } } as never, casRow, 1, lease);
+    expect(r).toBe('lost_lease');
   });
-
-  it('v1-sent does NOT block invalidation of a drifted v2: no historical alreadySent check — un-ready proceeds', async () => {
-    // The function never queries historical `sent` rows (tx has no deliveryOutbox.count); with the fence held +
-    // the current manifest matched, the order is un-readied regardless of any older fulfillment having sent.
-    const { prisma, orderUpdateMany } = mk(1, 1);
-    const res = await suppressAndInvalidateDelivery(prisma as never, driftArg);
-    expect(res).toBe('suppressed');
-    expect(orderUpdateMany).toHaveBeenCalled();
+  it('0 rows + the token advanced (reclaimed) → lost_lease', async () => {
+    const $executeRaw = vi.fn(async () => 0);
+    const findUnique = vi.fn(async () => ({ status: 'processing', attempts: 2 }));
+    const r = await casClaimSendSlot({ $executeRaw, deliveryOutbox: { findUnique } } as never, casRow, 1, lease);
+    expect(r).toBe('lost_lease');
   });
-
-  it('suppress WITHOUT invalidateReadiness (order genuinely not deliverable) just suppresses — no readiness/order writes', async () => {
-    const { prisma, brUpdateMany, orderUpdateMany } = mk(1, 0); // live default = blocked/needs_human_qa (not deliverable)
-    const res = await suppressAndInvalidateDelivery(prisma as never, { ...driftArg, disposition: { outcome: 'suppress', reason: 'order_not_ready:generating', supersedable: true } });
-    expect(res).toBe('suppressed');
-    expect(brUpdateMany).not.toHaveBeenCalled();
-    expect(orderUpdateMany).not.toHaveBeenCalled();
-  });
-
-  it('P1-e4 review: a SUPERSEDABLE no-invalidate suppress when a newer manifest made the order ready+passed → ROLLBACK (manifest_superseded), not suppressed', async () => {
-    // The orphan the e4-1 fix missed: order_not_ready was returned by the recheck, but by suppress time a newer
-    // manifest adopted this `processing` row (order now ready + readiness passed). Suppressing would orphan it.
-    const { prisma, orderUpdateMany } = mk(1, 0, { readiness: 'passed', order: 'ready' });
-    const res = await suppressAndInvalidateDelivery(prisma as never, { ...driftArg, disposition: { outcome: 'suppress', reason: 'order_not_ready:needs_human_qa', supersedable: true } });
-    expect(res).toBe('manifest_superseded');
-    expect(orderUpdateMany).not.toHaveBeenCalled();
-  });
-
-  it('P1-e4 hardening: a STRUCTURALLY-DEAD reason (order_or_book_missing, not supersedable) ALWAYS suppresses even when ready+passed (no livelock)', async () => {
-    // A reschedule can never bring back a deleted book → rolling back would hot-loop. Not supersedable → suppress.
-    const { prisma, brFindUnique, orderFindUnique } = mk(1, 0, { readiness: 'passed', order: 'ready' });
-    const res = await suppressAndInvalidateDelivery(prisma as never, { ...driftArg, disposition: { outcome: 'suppress', reason: 'order_or_book_missing' } });
-    expect(res).toBe('suppressed');
-    expect(brFindUnique).not.toHaveBeenCalled(); // guard skipped entirely for a non-supersedable reason
-    expect(orderFindUnique).not.toHaveBeenCalled();
-  });
-});
-
-describe('recheckBaseBookDelivery — send-time guard', () => {
-  const READ_URL = 'https://app.example.com/ready?orderId=o1';
-  const passedInput = {
-    scope: BASE_BOOK_SCOPE,
-    orderId: 'o1',
-    readUrl: READ_URL,
-    appBaseUrl: 'https://app.example.com',
-    frozen: { expectedPageCount: 2, storySourceHash: 'src', selectionFilename: 'bedtime/foo.md', frozenProductVersion: 'v3' },
-    cover: { imageUrl: 'https://h/cover.png' },
-    pages: [ { pageNumber: 1, imageUrl: 'https://h/p1.png', text: 'עמוד אחד' }, { pageNumber: 2, imageUrl: 'https://h/p2.png', text: 'עמוד שתיים' } ],
-  };
-  const orderRow = {
-    id: 'o1', status: 'ready', inputVersion: 0, expectedPageCount: 2, storySourceHash: 'src', selectionFilename: 'bedtime/foo.md', frozenProductVersion: 'v3',
-    customerEmail: 'c@e.com', customerName: 'Cust', childName: 'Kid',
-    book: { coverImageUrl: 'https://h/cover.png', readUrl: READ_URL, pdfUrl: null, pages: [
-      { pageNumber: 1, text: 'עמוד אחד', audioUrl: null, imageAsset: { url: 'https://h/p1.png', presentationUrl: null } },
-      { pageNumber: 2, text: 'עמוד שתיים', audioUrl: null, imageAsset: { url: 'https://h/p2.png', presentationUrl: null } },
-    ] },
-  };
-  // The payload the worker enqueued for this order (recompute with the SAME builder the commit uses).
-  const ENQUEUED_PAYLOAD_HASH = hashPayload({ to: 'c@e.com', customerName: 'Cust', childName: 'Kid', readUrl: READ_URL, audioUrl: undefined, pdfUrl: undefined });
-
-  it('allow when integrity still passes and inputsHash matches the current manifest', async () => {
-    const fresh = await evaluateBaseBookIntegrity(passedInput, stubInspect);
-    const prisma = {
-      order: { findUnique: vi.fn(async () => orderRow) },
-      bookReadiness: { findUnique: vi.fn(async () => ({ status: 'passed', currentManifestId: 'm1' })) },
-      bookReadinessManifest: { findUnique: vi.fn(async () => ({ inputVersion: 0, inputsHash: fresh.inputsHash })) },
-    };
-    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect, appBaseUrl: 'https://app.example.com' });
-    expect(r.outcome).toBe('allow');
-  });
-
-  it('SUPPRESS + invalidateReadiness when the assets changed since the manifest (inputsHash mismatch — real drift)', async () => {
-    const prisma = {
-      order: { findUnique: vi.fn(async () => orderRow) },
-      bookReadiness: { findUnique: vi.fn(async () => ({ status: 'passed', currentManifestId: 'm1' })) },
-      bookReadinessManifest: { findUnique: vi.fn(async () => ({ inputVersion: 0, inputsHash: 'stale-hash' })) },
-    };
-    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect, appBaseUrl: 'https://app.example.com' });
-    expect(r.outcome).toBe('suppress');
-    expect(r.reason).toBe('inputs_changed_since_manifest');
-    expect(r.invalidateReadiness).toBe(true);
-    expect(r.expectedManifestId).toBe('m1'); // guards suppressAndInvalidateDelivery to exactly this manifest
-  });
-
-  it('SUPPRESS + invalidateReadiness when a page asset is now corrupt/deleted (integrity_now_*) — B2', async () => {
-    const corruptInspect = async (url: string | null | undefined) => {
-      if ((url ?? '').includes('p2')) return { ok: false, bytes: 5, format: null, mime: null, width: null, height: null, sha256: null, error: 'not_decodable' as const };
-      return stubInspect(url);
-    };
-    const prisma = {
-      order: { findUnique: vi.fn(async () => orderRow) },
-      bookReadiness: { findUnique: vi.fn(async () => ({ status: 'passed', currentManifestId: 'm1' })) },
-      bookReadinessManifest: { findUnique: vi.fn(async () => ({ inputVersion: 0, inputsHash: 'whatever' })) },
-    };
-    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: corruptInspect, appBaseUrl: 'https://app.example.com' });
-    expect(r.outcome).toBe('suppress');
-    expect(r.reason).toMatch(/^integrity_now_/);
-    expect(r.invalidateReadiness).toBe(true); // a now-broken asset must drop the order from `ready`, not just suppress
-    expect(r.expectedManifestId).toBe('m1');
-  });
-
-  it('RETRY (not suppress) on a TRANSIENT asset error (timeout/5xx) — B2', async () => {
-    const transientInspect = async (url: string | null | undefined) => {
-      if ((url ?? '').includes('p2')) return { ok: false, bytes: 0, format: null, mime: null, width: null, height: null, sha256: null, error: 'timeout' as const };
-      return stubInspect(url);
-    };
-    const prisma = {
-      order: { findUnique: vi.fn(async () => orderRow) },
-      bookReadiness: { findUnique: vi.fn(async () => ({ status: 'passed', currentManifestId: 'm1' })) },
-      bookReadinessManifest: { findUnique: vi.fn(async () => ({ inputVersion: 0, inputsHash: 'whatever' })) },
-    };
-    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: transientInspect });
-    expect(r.outcome).toBe('retry');
-  });
-
-  it('SUPPRESS (allowlist) when the order is re-held — only `ready` may send', async () => {
-    const prisma = {
-      order: { findUnique: vi.fn(async () => ({ ...orderRow, status: 'needs_human_qa' })) },
-      bookReadiness: { findUnique: vi.fn(async () => ({ status: 'passed', currentManifestId: 'm1' })) },
-      bookReadinessManifest: { findUnique: vi.fn(async () => ({ inputVersion: 0, inputsHash: 'whatever' })) },
-    };
-    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect, appBaseUrl: 'https://app.example.com' });
-    expect(r.outcome).toBe('suppress');
-    expect(r.reason).toBe('order_not_ready:needs_human_qa');
-    expect(r.supersedable).toBe(true); // a re-commit could make it ready+passed → eligible for supersede-rollback
-  });
-
-  it('P1-e4 hardening: order_or_book_missing is NOT supersedable (a reschedule can never un-delete the book)', async () => {
-    const prisma = {
-      order: { findUnique: vi.fn(async () => null) }, // order/book gone
-      bookReadiness: { findUnique: vi.fn(async () => ({ status: 'passed', currentManifestId: 'm1' })) },
-      bookReadinessManifest: { findUnique: vi.fn(async () => ({ inputVersion: 0, inputsHash: 'whatever' })) },
-    };
-    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect, appBaseUrl: 'https://app.example.com' });
-    expect(r.outcome).toBe('suppress');
-    expect(r.reason).toBe('order_or_book_missing');
-    expect(r.supersedable).toBeUndefined();
-  });
-
-  it('SUPPRESS (allowlist, fail-closed) when the order is still `generating` (not a held status) — B3', async () => {
-    const prisma = {
-      order: { findUnique: vi.fn(async () => ({ ...orderRow, status: 'generating' })) },
-      bookReadiness: { findUnique: vi.fn(async () => ({ status: 'passed', currentManifestId: 'm1' })) },
-      bookReadinessManifest: { findUnique: vi.fn(async () => ({ inputVersion: 0, inputsHash: 'whatever' })) },
-    };
-    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect, appBaseUrl: 'https://app.example.com' });
-    expect(r.outcome).toBe('suppress');
-    expect(r.reason).toBe('order_not_ready:generating'); // the blacklist would have let this through
-  });
-
-  it('P1-e4-3: a concurrent re-commit (currentManifestId moves between read and CAS) => RETRY (manifest_superseded), NOT a false suppress', async () => {
-    // readiness is read twice: the initial snapshot sees M1, the post-eval CAS sees M2 (a re-commit landed).
-    const bookReadiness = { findUnique: vi.fn().mockResolvedValueOnce({ status: 'passed', currentManifestId: 'm1' }).mockResolvedValue({ currentManifestId: 'm2' }) };
-    const prisma = {
-      order: { findUnique: vi.fn(async () => orderRow) },
-      bookReadiness,
-      bookReadinessManifest: { findUnique: vi.fn(async () => ({ inputVersion: 0, inputsHash: 'whatever' })) },
-    };
-    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect, appBaseUrl: 'https://app.example.com' }, ENQUEUED_PAYLOAD_HASH);
-    expect(r.outcome).toBe('retry'); // re-evaluate against M2 — must NOT suppress/invalidate a valid new manifest
-    expect(r.reason).toBe('manifest_superseded');
-    expect(r.invalidateReadiness).toBeUndefined();
-  });
-
-  it('P1-e4-3: a CAS showing the order off `ready` (re-held after eval) suppresses by the FRESH status', async () => {
-    const order = { findUnique: vi.fn().mockResolvedValueOnce(orderRow).mockResolvedValue({ status: 'needs_human_qa', inputVersion: 0 }) };
-    const prisma = {
-      order,
-      bookReadiness: { findUnique: vi.fn(async () => ({ status: 'passed', currentManifestId: 'm1' })) },
-      bookReadinessManifest: { findUnique: vi.fn(async () => ({ inputVersion: 0, inputsHash: 'whatever' })) },
-    };
-    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect, appBaseUrl: 'https://app.example.com' });
-    expect(r.outcome).toBe('suppress');
-    expect(r.reason).toBe('order_not_ready:needs_human_qa');
-  });
-
-  it('P1-e4-3: CAS — order row vanished on the re-read (!cas) => RETRY (manifest_superseded), never a false suppress', async () => {
-    const order = { findUnique: vi.fn().mockResolvedValueOnce(orderRow).mockResolvedValue(null) };
-    const prisma = {
-      order,
-      bookReadiness: { findUnique: vi.fn(async () => ({ status: 'passed', currentManifestId: 'm1' })) },
-      bookReadinessManifest: { findUnique: vi.fn(async () => ({ inputVersion: 0, inputsHash: 'whatever' })) },
-    };
-    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect, appBaseUrl: 'https://app.example.com' });
-    expect(r.outcome).toBe('retry');
-    expect(r.reason).toBe('manifest_superseded');
-    expect(r.invalidateReadiness).toBeUndefined();
-  });
-
-  it('P1-e4-3: CAS — readiness row vanished on the re-read (!casReadiness) => RETRY, never a false suppress', async () => {
-    const bookReadiness = { findUnique: vi.fn().mockResolvedValueOnce({ status: 'passed', currentManifestId: 'm1' }).mockResolvedValue(null) };
-    const prisma = {
-      order: { findUnique: vi.fn(async () => orderRow) },
-      bookReadiness,
-      bookReadinessManifest: { findUnique: vi.fn(async () => ({ inputVersion: 0, inputsHash: 'whatever' })) },
-    };
-    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect, appBaseUrl: 'https://app.example.com' });
-    expect(r.outcome).toBe('retry');
-    expect(r.reason).toBe('manifest_superseded');
-  });
-
-  it('P1-e4-3: CAS catches inputVersion drift on the RE-READ even when the INITIAL read was clean => suppress + invalidate', async () => {
-    // initial order read inputVersion 0 (== manifest); the post-eval CAS re-read shows inputVersion 1 (a writer
-    // bumped it during the eval), manifestId stable on m1 → real drift caught specifically by the CAS.
-    const order = { findUnique: vi.fn().mockResolvedValueOnce(orderRow).mockResolvedValue({ status: 'ready', inputVersion: 1 }) };
-    const prisma = {
-      order,
-      bookReadiness: { findUnique: vi.fn(async () => ({ status: 'passed', currentManifestId: 'm1' })) },
-      bookReadinessManifest: { findUnique: vi.fn(async () => ({ inputVersion: 0, inputsHash: 'whatever' })) },
-    };
-    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect, appBaseUrl: 'https://app.example.com' }, ENQUEUED_PAYLOAD_HASH);
-    expect(r.outcome).toBe('suppress');
-    expect(r.reason).toBe('inputs_changed_since_manifest');
-    expect(r.invalidateReadiness).toBe(true);
-    expect(r.expectedManifestId).toBe('m1');
-  });
-
-  it('SUPPRESS when readiness is not passed', async () => {
-    const prisma = {
-      order: { findUnique: vi.fn(async () => orderRow) },
-      bookReadiness: { findUnique: vi.fn(async () => ({ status: 'blocked', currentManifestId: null })) },
-      bookReadinessManifest: { findUnique: vi.fn() },
-    };
-    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect, appBaseUrl: 'https://app.example.com' });
-    expect(r.outcome).toBe('suppress');
-    expect(r.reason).toBe('readiness_not_passed');
-  });
-
-  it('SUPPRESS + invalidateReadiness when Order.inputVersion moved past the manifest (B4 optimistic concurrency)', async () => {
-    const prisma = {
-      order: { findUnique: vi.fn(async () => ({ ...orderRow, inputVersion: 1 })) }, // a writer bumped it
-      bookReadiness: { findUnique: vi.fn(async () => ({ status: 'passed', currentManifestId: 'm1' })) },
-      bookReadinessManifest: { findUnique: vi.fn(async () => ({ inputVersion: 0, inputsHash: 'whatever' })) },
-    };
-    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect, appBaseUrl: 'https://app.example.com' }, ENQUEUED_PAYLOAD_HASH);
-    expect(r.outcome).toBe('suppress');
-    expect(r.reason).toBe('inputs_changed_since_manifest');
-    expect(r.invalidateReadiness).toBe(true);
-    expect(r.expectedManifestId).toBe('m1');
-  });
-
-  it('ALLOW when the live payload still hashes to what was enqueued (B4 payload binding)', async () => {
-    const fresh = await evaluateBaseBookIntegrity(passedInput, stubInspect);
-    const prisma = {
-      order: { findUnique: vi.fn(async () => orderRow) },
-      bookReadiness: { findUnique: vi.fn(async () => ({ status: 'passed', currentManifestId: 'm1' })) },
-      bookReadinessManifest: { findUnique: vi.fn(async () => ({ inputVersion: 0, inputsHash: fresh.inputsHash })) },
-    };
-    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect, appBaseUrl: 'https://app.example.com' }, ENQUEUED_PAYLOAD_HASH);
-    expect(r.outcome).toBe('allow');
-  });
-
-  it('SUPPRESS (payload_changed_since_enqueue) when a payload field drifted since enqueue — B4', async () => {
-    const fresh = await evaluateBaseBookIntegrity(passedInput, stubInspect);
-    const prisma = {
-      order: { findUnique: vi.fn(async () => ({ ...orderRow, customerEmail: 'CHANGED@e.com' })) }, // email changed after enqueue
-      bookReadiness: { findUnique: vi.fn(async () => ({ status: 'passed', currentManifestId: 'm1' })) },
-      bookReadinessManifest: { findUnique: vi.fn(async () => ({ inputVersion: 0, inputsHash: fresh.inputsHash })) },
-    };
-    const r = await recheckBaseBookDelivery(prisma as never, 'o1', BASE_BOOK_SCOPE, { inspect: stubInspect, appBaseUrl: 'https://app.example.com' }, ENQUEUED_PAYLOAD_HASH);
-    expect(r.outcome).toBe('suppress');
-    expect(r.reason).toBe('payload_changed_since_enqueue');
-    expect(r.invalidateReadiness).toBe(true);
+  it('0 rows + the row vanished → lost_lease', async () => {
+    const $executeRaw = vi.fn(async () => 0);
+    const findUnique = vi.fn(async () => null);
+    const r = await casClaimSendSlot({ $executeRaw, deliveryOutbox: { findUnique } } as never, casRow, 1, lease);
+    expect(r).toBe('lost_lease');
   });
 });

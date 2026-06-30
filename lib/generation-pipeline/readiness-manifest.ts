@@ -12,7 +12,7 @@ import type { Prisma, PrismaClient, DeliveryOutbox } from '@prisma/client';
 import { createHash } from 'crypto';
 import { evaluateBaseBookIntegrity, BASE_BOOK_SCOPE, type IntegrityInput, type IntegrityResult } from './integrity-gate';
 import { inspectAsset, type AssetInspection } from './asset-integrity';
-import { enqueueDelivery, hashPayload, type BookReadyPayload, type Disposition, type SuppressOutcome } from '@/lib/generation-chunked/delivery-outbox';
+import { enqueueDelivery, type BookReadyPayload, type CasResult } from '@/lib/generation-chunked/delivery-outbox';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger({ subsystem: 'readiness-manifest' });
@@ -260,174 +260,47 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
   throw new Error('readiness_commit_exhausted');
 }
 
-/** Internal signal: a newer manifest replaced the one we rechecked → roll back the suppress tx (P1-e4-1). */
-class ManifestSupersededError extends Error {
-  constructor() { super('manifest_superseded'); this.name = 'ManifestSupersededError'; }
-}
-
 /**
- * Send-time drift (B-r3-2 + P1-e4-1): atomic, fence-gated suppression + invalidation. In ONE transaction:
- *  1. FENCE this Outbox row → terminal `suppressed` (id + status 'processing' + attempts === token);
- *  2. ONLY if the fence held → invalidate the EXACT manifest the recheck saw (currentManifestId ===
- *     expectedManifestId) and drop the order from `ready`.
- * A worker that lost its lease matches 0 rows at step 1 → returns 'lost_lease' and changes NOTHING.
- *
- * (P1-e4-1) The dangerous race: an old worker claimed this row under manifest M1; concurrently an asset-fix
- * re-committed M2, whose enqueue saw this `processing` row and adopted it as M2's live delivery. If the old
- * worker now suppresses the row, M2 is left `ready` behind a dead Outbox. So when `invalidateReadiness` is set
- * and the manifest-guarded readiness update matches 0 rows (M2 is current, not M1), we THROW to ROLL BACK the
- * WHOLE transaction — including the fenced suppress — and return 'manifest_superseded'. An old worker can never
- * kill a row that already backs a newer manifest. The global `alreadySent` count is gone — the suppressed row
- * is, by construction, `processing`/not-sent, so un-readying is correct exactly when the manifest still matches.
+ * (P1-f) The single atomic send-time CAS. In ONE SQL statement: renew the lease + set sendAttempted IFF the row
+ * is still ours (status 'processing' + this fencing token) AND the live truth still matches the row's binding:
+ *   - Order.status = 'ready' AND Order.inputVersion = row.inputVersion (the inputVersion match also covers
+ *     payload-field drift, because every writer of a gate/payload input bumps inputVersion in the SAME tx — the
+ *     P1-f #5 writer contract);
+ *   - BookReadiness.status = 'passed' AND BookReadiness.currentManifestId = row.manifestId;
+ *   - the stored payloadHash is unchanged.
+ * This REPLACES the old live re-evaluation (asset download + integrity re-eval) and its race-prone suppress
+ * path: there is no re-eval, no readiness invalidation here, no manifest_superseded retry loop. The orphan and
+ * livelock races vanish with that removal. Returns 'ok' (the send slot is ours — sendAttempted is durably set),
+ * 'superseded' (we still own the row but the binding moved → caller marks it terminal), or 'lost_lease'.
  */
-export async function suppressAndInvalidateDelivery(
+export async function casClaimSendSlot(
   prisma: PrismaClient,
-  args: { row: Pick<DeliveryOutbox, 'id' | 'orderId' | 'scope'>; token: number; disposition: Disposition },
-): Promise<SuppressOutcome> {
-  const { row, token, disposition } = args;
-  try {
-    return await prisma.$transaction(async (tx): Promise<SuppressOutcome> => {
-      const fence = await tx.deliveryOutbox.updateMany({
-        where: { id: row.id, status: 'processing', attempts: token },
-        data: { status: 'suppressed', leaseExpiresAt: null, lastError: disposition.reason ?? 'suppressed' },
-      });
-      if (fence.count === 0) return 'lost_lease'; // lost lease — invalidate NOTHING
-
-      if (disposition.invalidateReadiness && disposition.expectedManifestId) {
-        // Drift suppress: invalidate the EXACT manifest we rechecked + un-ready. If it matches 0 rows, a newer
-        // manifest replaced ours → this `processing` row now backs IT. Suppressing it would orphan the new
-        // delivery → ROLL BACK the whole tx (incl. the fenced suppress) so the worker reschedules, not kills it.
-        const invalidated = await tx.bookReadiness.updateMany({
-          where: { orderId: row.orderId, scope: row.scope, currentManifestId: disposition.expectedManifestId },
-          data: { status: 'stale', reason: disposition.reason ?? 'inputs_changed_since_manifest' },
-        });
-        if (invalidated.count === 0) throw new ManifestSupersededError();
-        await tx.order.updateMany({ where: { id: row.orderId, status: 'ready' }, data: { status: 'needs_human_qa', deliveryHoldReason: 'base_book_readiness_stale' } });
-        return 'suppressed';
-      }
-
-      // No-invalidate suppress: the SAME orphan race can apply — a newer manifest may have adopted this still-
-      // `processing` row while we were rechecking. But ONLY a SUPERSEDABLE reason (a transient not-deliverable
-      // state a reschedule could resolve: order_not_ready / readiness_not_passed) can be a manifest race. A
-      // structurally-dead reason (order_or_book_missing / manifest_missing) a reschedule can NEVER clear is always
-      // suppressed — rolling it back would livelock. For a supersedable reason, roll back only if the order is now
-      // deliverable behind a passed manifest (ready + passed) — i.e. a newer manifest adopted this row.
-      if (disposition.supersedable) {
-        const liveReadiness = await tx.bookReadiness.findUnique({ where: { orderId_scope: { orderId: row.orderId, scope: row.scope } }, select: { status: true } });
-        const liveOrder = await tx.order.findUnique({ where: { id: row.orderId }, select: { status: true } });
-        if (liveReadiness?.status === 'passed' && liveOrder?.status === 'ready') throw new ManifestSupersededError();
-      }
-      return 'suppressed';
-    });
-  } catch (e) {
-    if (e instanceof ManifestSupersededError) return 'manifest_superseded';
-    throw e;
-  }
-}
-
-// Asset error codes that are TRANSIENT infra (→ retry), not a real drift / persistent failure (→ suppress).
-const TRANSIENT_ASSET_RE = /^(timeout|fetch_failed|http_(429|5\d\d))$/;
-function hasTransientAssetError(evidence: Record<string, unknown>): boolean {
-  const cover = (evidence.cover as { error?: string } | undefined)?.error;
-  const pages = ((evidence.pages as Array<{ error?: string }> | undefined) ?? []).map((p) => p.error);
-  return [cover, ...pages].some((e) => typeof e === 'string' && TRANSIENT_ASSET_RE.test(e));
-}
-
-/**
- * Send-time recheck for the Outbox worker (B2 disposition + P1-e4-3 CAS). Re-evaluate integrity NOW and return:
- *  - allow:    readiness still passed, manifest inputsHash still matches the live assets, snapshot still holds.
- *  - retry:    a TRANSIENT asset error, OR a concurrent re-commit replaced the manifest we evaluated
- *              (`manifest_superseded`) — try again against the CURRENT manifest; never false-hold a valid book.
- *  - suppress: real drift (assets/text/frozen/inputVersion changed under the SAME manifest, readiness blocked,
- *              order re-held) — never ship stale.
- *
- * (P1-e4-3) The manifest is read FIRST (it is the snapshot the eval runs against), and a light CAS re-read of
- * (status, inputVersion, currentManifestId) AFTER the (slow) eval disambiguates a concurrent re-commit
- * (currentManifestId moved → retry, NOT a false suppress) from real drift (inputVersion moved under the same
- * manifest → suppress). The old code compared a torn `order` read against a separately-read manifest, so an
- * Order-old + Manifest-new pair was mis-flagged as drift → a false hold (bad in a no-human-QA system).
- */
-export async function recheckBaseBookDelivery(
-  prisma: PrismaClient,
-  orderId: string,
-  scope: string,
-  deps: CommitDeps = {},
-  expectedPayloadHash?: string | null,
-): Promise<Disposition> {
-  // (P1-e4-3) Read the EXPECTED manifest FIRST — it is the snapshot the evaluation runs against.
-  const readiness = await prisma.bookReadiness.findUnique({ where: { orderId_scope: { orderId, scope } }, select: { status: true, currentManifestId: true } });
-  if (!readiness || readiness.status !== 'passed' || !readiness.currentManifestId) return { outcome: 'suppress', reason: 'readiness_not_passed', supersedable: true };
-  const expectedManifestId = readiness.currentManifestId;
-  const manifest = await prisma.bookReadinessManifest.findUnique({ where: { id: expectedManifestId }, select: { inputsHash: true, inputVersion: true } });
-  if (!manifest) return { outcome: 'suppress', reason: 'manifest_missing' };
-
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    select: {
-      id: true, status: true, inputVersion: true, expectedPageCount: true, storySourceHash: true, selectionFilename: true, frozenProductVersion: true,
-      customerEmail: true, customerName: true, childName: true,
-      book: {
-        select: {
-          coverImageUrl: true,
-          readUrl: true,
-          pdfUrl: true,
-          pages: { orderBy: { pageNumber: 'asc' }, select: { pageNumber: true, text: true, audioUrl: true, imageAsset: { select: { url: true, presentationUrl: true } } } },
-        },
-      },
-    },
-  });
-  if (!order || !order.book) return { outcome: 'suppress', reason: 'order_or_book_missing' }; // structurally dead — never supersedable
-  // (B3) Allowlist — ONLY a `ready` order may send (fail-closed; the old blacklist let `generating` through).
-  if (order.status !== 'ready') return { outcome: 'suppress', reason: `order_not_ready:${order.status}`, supersedable: true };
-
-  const fresh = await evaluateBaseBookIntegrity(
-    {
-      scope: BASE_BOOK_SCOPE,
-      orderId: order.id,
-      readUrl: order.book.readUrl,
-      appBaseUrl: deps.appBaseUrl ?? readAppBaseUrl(),
-      frozen: {
-        expectedPageCount: order.expectedPageCount,
-        storySourceHash: order.storySourceHash,
-        selectionFilename: order.selectionFilename,
-        frozenProductVersion: order.frozenProductVersion,
-      },
-      cover: { imageUrl: order.book.coverImageUrl },
-      pages: order.book.pages.map((p) => ({ pageNumber: p.pageNumber, imageUrl: p.imageAsset?.presentationUrl ?? p.imageAsset?.url ?? null, text: p.text })),
-    },
-    deps.inspect ?? inspectAsset,
-  );
-
-  // (P1-e4-3) CAS: re-read (status, inputVersion, currentManifestId) AFTER the eval, immediately before the
-  // worker acts, and disambiguate a concurrent re-commit from real drift.
-  const cas = await prisma.order.findUnique({ where: { id: orderId }, select: { status: true, inputVersion: true } });
-  const casReadiness = await prisma.bookReadiness.findUnique({ where: { orderId_scope: { orderId, scope } }, select: { currentManifestId: true } });
-  if (!cas || !casReadiness || casReadiness.currentManifestId !== expectedManifestId) {
-    // A newer manifest replaced the one we evaluated → re-evaluate against IT; do NOT false-suppress a valid book.
-    return { outcome: 'retry', reason: 'manifest_superseded' };
-  }
-  if (cas.status !== 'ready') return { outcome: 'suppress', reason: `order_not_ready:${cas.status}`, supersedable: true };
-  if (cas.inputVersion !== manifest.inputVersion) {
-    // inputVersion moved but the manifest did NOT — a writer changed inputs without a re-commit → real drift.
-    return { outcome: 'suppress', reason: 'inputs_changed_since_manifest', invalidateReadiness: true, expectedManifestId };
-  }
-
-  // Snapshot holds → the eval verdict stands.
-  if (fresh.status !== 'passed') {
-    // Transient infra (timeout/5xx/network) => retry later, do NOT invalidate readiness.
-    if (hasTransientAssetError(fresh.evidence)) return { outcome: 'retry', reason: `transient_asset:${fresh.reason ?? 'blocked'}` };
-    // (B2) A now-corrupt/deleted asset is REAL drift — invalidate readiness + drop from `ready`, not just suppress.
-    return { outcome: 'suppress', reason: `integrity_now_${fresh.reason ?? 'blocked'}`, invalidateReadiness: true, expectedManifestId };
-  }
-  if (fresh.inputsHash !== manifest.inputsHash) return { outcome: 'suppress', reason: 'inputs_changed_since_manifest', invalidateReadiness: true, expectedManifestId };
-
-  // (B4) Payload binding: never send a STALE payload. Rebuild the delivery payload from the live order with
-  // the SAME builder used at enqueue; if it no longer hashes to what was enqueued (email/name/link/pdf/audio
-  // changed since), suppress + invalidate rather than emailing an out-of-date book.
-  if (expectedPayloadHash != null) {
-    const firstAudioUrl = order.book.pages.find((p) => p.audioUrl?.trim())?.audioUrl ?? null;
-    const payloadNow = buildPayload({ customerEmail: order.customerEmail, customerName: order.customerName, childName: order.childName, readUrl: order.book.readUrl, pdfUrl: order.book.pdfUrl, firstAudioUrl });
-    if (hashPayload(payloadNow) !== expectedPayloadHash) return { outcome: 'suppress', reason: 'payload_changed_since_enqueue', invalidateReadiness: true, expectedManifestId };
-  }
-  return { outcome: 'allow' };
+  row: Pick<DeliveryOutbox, 'id' | 'orderId' | 'scope' | 'manifestId' | 'inputVersion' | 'payloadHash'>,
+  token: number,
+  leaseExpiresAt: Date,
+): Promise<CasResult> {
+  const updated = await prisma.$executeRaw`
+    UPDATE "DeliveryOutbox" AS o
+       SET "sendAttempted" = true, "leaseExpiresAt" = ${leaseExpiresAt}
+     WHERE o."id" = ${row.id}
+       AND o."status" = 'processing'
+       AND o."attempts" = ${token}
+       AND o."payloadHash" = ${row.payloadHash}
+       AND o."manifestId" = ${row.manifestId}
+       AND o."inputVersion" = ${row.inputVersion}
+       AND EXISTS (
+         SELECT 1 FROM "Order" ord
+          WHERE ord."id" = o."orderId" AND ord."status" = 'ready' AND ord."inputVersion" = o."inputVersion"
+       )
+       AND EXISTS (
+         SELECT 1 FROM "BookReadiness" br
+          WHERE br."orderId" = o."orderId" AND br."scope" = o."scope"
+            AND br."status" = 'passed' AND br."currentManifestId" = o."manifestId"
+       )`;
+  if (updated === 1) return 'ok';
+  // 0 rows: either we lost the lease (status/token moved) OR the binding no longer holds. Re-read to
+  // distinguish — only if we STILL own the row (processing + this token) is it a true CAS mismatch (superseded).
+  const cur = await prisma.deliveryOutbox.findUnique({ where: { id: row.id }, select: { status: true, attempts: true } });
+  if (!cur || cur.status !== 'processing' || cur.attempts !== token) return 'lost_lease';
+  return 'superseded';
 }

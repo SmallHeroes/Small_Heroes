@@ -74,7 +74,8 @@ enum DeliveryOutboxStatus {
   processing
   sent
   failed
-  suppressed
+  suppressed // legacy (pre-P1-f live-recheck path); no longer produced
+  superseded // (P1-f) send-time CAS mismatch: a newer manifest owns the order — terminal, roll-safe
 }
 
 // ─── Customer ─────────────────────────────────────────
