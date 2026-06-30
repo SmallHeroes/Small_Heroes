@@ -26,7 +26,7 @@ import {
   repairInvalidPayloadDelivery,
   type BookReadyPayload,
 } from './delivery-outbox';
-import { refundOrderPayment, type RefundableOrder, type RefundResult } from '@/lib/payment-refunds';
+import { refundOrderPayment, prismaRefundFence, type RefundableOrder, type RefundResult, type RefundProviderDeps } from '@/lib/payment-refunds';
 import { startChunkedGeneration } from './start';
 import { commitBaseBookReadiness, type CommitResult } from '@/lib/generation-pipeline/readiness-manifest';
 import { parsePipelineCache } from '@/lib/generation-pipeline/helpers';
@@ -74,6 +74,7 @@ export interface ExceptionProcessorDeps {
     order: RefundableOrder,
     refundKey: string,
     previousProviderActionId?: string | null,
+    overrides?: RefundProviderDeps,
   ) => Promise<RefundResult>;
   refundNotice: (data: {
     to: string;
@@ -380,6 +381,8 @@ async function handleRefund(
         order,
         exceptionCase.refundKey ?? `refund/${exceptionCase.id}`,
         providerActionId,
+        // (#6-FIX-3) the durable exactly-once refund fence (PayMe) — prisma is only in scope here, not in defaultDeps.
+        { refundFence: prismaRefundFence(prisma) },
       );
       providerActionId = refund.providerActionId;
       if (refund.state === 'pending') {

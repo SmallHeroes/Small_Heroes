@@ -658,3 +658,17 @@ model ReissueBudget {
 
   @@unique([orderId, scope])
 }
+
+// (#6-FIX-3) Durable exactly-once fence for provider refunds (PayMe). `actionAttemptedAt` on the case is only a
+// reservation marker; this record is the effect-once fence. It is created (status 'requested') BEFORE refund-sale
+// is called, keyed on the stable refundKey, so a response-loss + restart never issues a second provider refund.
+model RefundAttempt {
+  id               String   @id @default(cuid())
+  refundKey        String   @unique
+  provider         String
+  providerSaleId   String
+  status           String // 'requested' | 'pending' | 'confirmed'
+  providerActionId String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}

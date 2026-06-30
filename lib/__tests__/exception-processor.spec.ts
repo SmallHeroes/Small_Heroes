@@ -430,6 +430,7 @@ describe('ExceptionCase autonomous processor', () => {
       expect.objectContaining({ id: 'order_1' }),
       'refund/case_1',
       null,
+      expect.objectContaining({ refundFence: expect.anything() }), // (#6-FIX-3) durable exactly-once fence is wired in
     );
     expect(db.currentCase().actionAttemptedAt).toEqual(NOW);
     expect(db.currentCase().notificationAttemptedAt).toEqual(NOW);
