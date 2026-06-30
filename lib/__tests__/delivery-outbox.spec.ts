@@ -120,6 +120,13 @@ describe('enqueueDelivery — delivery-intent rebind contract (P1-f #3h)', () =>
     expect(updateMany).not.toHaveBeenCalled();
   });
 
+  it('#3h-D #1: a delivery_blocked row that ALREADY attempted a send (sendAttempted=true) → reconciliation, NOT rebind (the sendAttempted guard precedes the recoverable-status allowlist)', async () => {
+    const updateMany = okMany();
+    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ manifestId: 'M_OLD', status: 'delivery_blocked', sendAttempted: true, payloadHash: 'x' })), create: vi.fn(), updateMany } };
+    await expect(enq(db, { manifestId: 'M2' })).rejects.toThrow(OutboxReconciliationError);
+    expect(updateMany).not.toHaveBeenCalled(); // sendAttempted=true short-circuits before the rebind, even though the status is recoverable
+  });
+
   it('same manifest + live + same payload → idempotent no-op (no rebind, no create)', async () => {
     const create = vi.fn();
     const updateMany = okMany();

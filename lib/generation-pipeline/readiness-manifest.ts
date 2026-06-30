@@ -274,7 +274,8 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
  *                              passed, different currentManifestId). Recoverable via the re-commit rebind.
  *   - delivery_blocked       — STILL ours, but the order is not-yet-deliverable for a TRANSIENT reason (order not
  *                              ready — paid/generating/needs_human_qa/partial — or readiness not passed /
- *                              inputs_stale). RECOVERABLE: a re-commit rebinds this row when it returns to ready.
+ *                              inputs_stale). RECOVERABLE: a re-commit rebinds it on return to ready — but only
+ *                              while sendAttempted=false (a post-send blocked row goes to reconciliation instead).
  */
 export async function casClaimSendSlot(
   prisma: PrismaClient,

@@ -79,7 +79,8 @@ enum DeliveryOutboxStatus {
   // (P1-f #3h-D) Recovery taxonomy. A CAS mismatch is NEVER a business revocation — it is a recoverable
   // not-yet-deliverable state. The worker (CAS) may only ever write the two RECOVERABLE terminals below.
   delivery_blocked       // CAS mismatch: order not ready (paid/generating/needs_human_qa/partial are all TRANSIENT),
-  //                        readiness not passed, or inputs_stale. RECOVERABLE → a re-commit rebinds this row.
+  //                        readiness not passed, or inputs_stale. RECOVERABLE → a re-commit rebinds this row,
+  //                        but ONLY while sendAttempted=false (a post-send blocked row needs reconciliation).
   superseded_by_manifest // defense-in-depth / protocol-drift: a newer VALID manifest owns the order (ready+passed,
   //                        different manifestId). RECOVERABLE via the re-commit rebind. Not a normal-flow path.
   invalid_payload        // payload-integrity recompute mismatch (corrupt/tampered row). NOT a business revocation;

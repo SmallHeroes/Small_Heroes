@@ -7,8 +7,9 @@
  * — only then an idempotent provider send (Idempotency-Key = dedupeKey). The old live re-evaluation
  * (asset download + integrity re-eval) is GONE. A CAS mismatch is NEVER a business revocation — it makes the row
  * a RECOVERABLE terminal: `delivery_blocked` (order not-yet-deliverable / inputs_stale) or `superseded_by_manifest`
- * (defense-in-depth) — both rebind-eligible on a re-commit. (`delivery_revoked` is reserved for a future explicit
- * cancellation/refund domain action; the CAS never writes it.) No import cycle: the worker takes `cas`/`send` as deps.
+ * (defense-in-depth) — both rebind-eligible on a re-commit WHILE sendAttempted=false (a row whose send was already
+ * attempted needs explicit reconciliation, never an auto-rebind). (`delivery_revoked` is reserved for a future
+ * explicit cancellation/refund domain action; the CAS never writes it.) No import cycle: `cas`/`send` are deps.
  */
 import type { Prisma, PrismaClient, DeliveryOutbox } from '@prisma/client';
 import { createHash } from 'crypto';
@@ -190,7 +191,8 @@ export type DeliveryOutcome = 'sent' | 'superseded_by_manifest' | 'delivery_bloc
  *                              (ready + passed, different currentManifestId). Recoverable via the re-commit rebind.
  *  - 'delivery_blocked'       — we still own the row but the order is not-yet-deliverable for a TRANSIENT reason
  *                              (order not ready — paid/generating/needs_human_qa/partial — or readiness not passed
- *                              / inputs_stale). RECOVERABLE: a re-commit rebinds this row when it returns to ready.
+ *                              / inputs_stale). RECOVERABLE: a re-commit rebinds it when it returns to ready —
+ *                              but ONLY while sendAttempted=false (else reconciliation, like any post-send row).
  *  - 'lost_lease'             — another worker reclaimed the row (status/token moved) → do nothing.
  */
 export type CasResult = 'ok' | 'superseded_by_manifest' | 'delivery_blocked' | 'lost_lease';
@@ -270,7 +272,8 @@ export async function processDelivery(prisma: PrismaClient, row: DeliveryOutbox,
   if (cas === 'delivery_blocked') {
     // The order is not-yet-deliverable for a TRANSIENT reason (order not ready — paid/generating/needs_human_qa/
     // partial — or readiness not passed / inputs_stale). NOT a business revocation. RECOVERABLE: a re-commit
-    // rebinds this row when the order returns to ready+passed. Terminal-for-this-worker only; no send.
+    // rebinds this row when the order returns to ready+passed — but only while sendAttempted=false (a row whose
+    // send was already attempted goes to reconciliation instead). Terminal-for-this-worker only; no send.
     const ok = await fenced(prisma, row.id, token, { status: 'delivery_blocked', leaseExpiresAt: null, lastError: 'cas_delivery_blocked' });
     if (!ok) return 'lost_lease';
     log.warn('Delivery blocked at send-time CAS (recoverable, awaiting re-commit)', { dedupeKey: row.dedupeKey });
