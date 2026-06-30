@@ -14,6 +14,11 @@ const log = createLogger({ subsystem: 'delivery-outbox' });
 type Db = PrismaClient | Prisma.TransactionClient;
 
 export const OUTBOX_MAX_ATTEMPTS = 6;
+
+// Durable failure classes (P1-e4-2). Only `recheck_exhausted` is provably send-free → safe to roll forward.
+// `send_ambiguous` means a provider send was attempted with an unknown result → must NOT auto-roll.
+export const FAILURE_RECHECK_EXHAUSTED = 'recheck_exhausted';
+export const FAILURE_SEND_AMBIGUOUS = 'send_ambiguous';
 const LEASE_MS = 4 * 60 * 1000; // processing lease > worst-case single-row recheck (downloads); fencing covers overruns
 const IDEMPOTENCY_WINDOW_MS = 24 * 60 * 60 * 1000; // Resend keeps Idempotency-Key 24h — no blind resend after.
 
@@ -84,8 +89,15 @@ export async function enqueueDelivery(
       if (existing.payloadHash !== payloadHash) throw new Error(`outbox_payload_mismatch:${dedupeKey}`);
       return { created: false, dedupeKey, fulfillmentVersion }; // live/delivered + same payload → idempotent success
     }
-    // suppressed | failed → terminal-dead; never report as live. Roll to the next fulfillment.
-    fulfillmentVersion += 1;
+    // Terminal-dead. Roll to a fresh fulfillment ONLY when we can prove no provider send occurred (P1-e4-2):
+    //   suppressed (never sent) OR failed+recheck_exhausted (gave up before any send).
+    if (existing.status === 'suppressed' || (existing.status === 'failed' && existing.failureClass === FAILURE_RECHECK_EXHAUSTED)) {
+      fulfillmentVersion += 1;
+      continue;
+    }
+    // failed + send_ambiguous (or unknown class): a provider send MAY have succeeded. Rolling would mint a new
+    // idempotency key and bypass Resend's 24h dedup → duplicate email. Refuse — explicit reconciliation required.
+    throw new Error(`outbox_send_ambiguous_needs_reconciliation:${dedupeKey}`);
   }
   throw new Error(`outbox_terminal_recovery_exhausted:${args.orderId}:${args.scope}`);
 }
@@ -223,7 +235,8 @@ export async function processDelivery(prisma: PrismaClient, row: DeliveryOutbox,
     // indefinitely — cap by OUTBOX_MAX_ATTEMPTS, then terminal-fail (never `scheduled` forever).
     if (row.attempts >= OUTBOX_MAX_ATTEMPTS) {
       const lastError = `recheck_retry_exhausted:${disp.reason ?? ''}`.slice(0, 300);
-      const ok = await fenced(prisma, row.id, token, { status: 'failed', nextAttemptAt: null, leaseExpiresAt: null, lastError });
+      // (P1-e4-2) gave up at the recheck — NO provider send was attempted → safe to roll on a future re-eval.
+      const ok = await fenced(prisma, row.id, token, { status: 'failed', failureClass: FAILURE_RECHECK_EXHAUSTED, nextAttemptAt: null, leaseExpiresAt: null, lastError });
       if (!ok) return 'lost_lease';
       log.error('Delivery recheck retries exhausted', new Error(lastError), { dedupeKey: row.dedupeKey, attempts: row.attempts });
       return 'failed';
@@ -250,7 +263,9 @@ export async function processDelivery(prisma: PrismaClient, row: DeliveryOutbox,
     // Past the provider's idempotency window OR out of attempts => give up (never blind-resend after 24h).
     const beyondWindow = failNow.getTime() - row.createdAt.getTime() > IDEMPOTENCY_WINDOW_MS;
     if (row.attempts >= OUTBOX_MAX_ATTEMPTS || beyondWindow) {
-      const ok = await fenced(prisma, row.id, token, { status: 'failed', nextAttemptAt: null, leaseExpiresAt: null, lastError: err });
+      // (P1-e4-2) a provider send WAS attempted and the result is unknown (Resend may have accepted) → mark
+      // ambiguous so enqueue never auto-rolls this into a new idempotency key (which would risk a duplicate email).
+      const ok = await fenced(prisma, row.id, token, { status: 'failed', failureClass: FAILURE_SEND_AMBIGUOUS, nextAttemptAt: null, leaseExpiresAt: null, lastError: err });
       if (!ok) return 'lost_lease';
       log.error('Delivery permanently failed', e, { dedupeKey: row.dedupeKey, attempts: row.attempts });
       return 'failed';

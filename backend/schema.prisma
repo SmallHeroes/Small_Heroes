@@ -535,6 +535,11 @@ model DeliveryOutbox {
   nextAttemptAt     DateTime?
   leaseExpiresAt    DateTime?
   lastError         String?
+  // Durable failure classification (P1-e4-2). Set when status becomes `failed`:
+  //   'recheck_exhausted' — gave up at the pre-send recheck; NO provider send was ever attempted (safe to roll).
+  //   'send_ambiguous'    — a provider send was attempted and the result is unknown (Resend may have accepted);
+  //                          NEVER auto-roll (a new fulfillment = new idempotency key = bypasses the 24h dedup).
+  failureClass      String?
   providerMessageId String?
   createdAt         DateTime             @default(now())
   sentAt            DateTime?

@@ -56,19 +56,33 @@ describe('enqueueDelivery — idempotent on dedupeKey', () => {
     expect(r.fulfillmentVersion).toBe(2); // rolled past the dead v1
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ dedupeKey: 'book-ready/o1/base-book/2', status: 'scheduled' }) }));
   });
-  it('B-r3-1: a terminal-dead row never reports as live, even with the SAME payload (no ready behind a dead row)', async () => {
+  it('B-r3-1: a failed+recheck_exhausted row never reports as live, even with the SAME payload (rolls — no send happened)', async () => {
     const create = vi.fn(async () => ({}));
     const findUnique = vi.fn(async ({ where }: { where: { dedupeKey: string } }) =>
-      where.dedupeKey === 'book-ready/o1/base-book/1' ? { status: 'failed', payloadHash: hashPayload(payload) } : null);
+      where.dedupeKey === 'book-ready/o1/base-book/1' ? { status: 'failed', failureClass: 'recheck_exhausted', payloadHash: hashPayload(payload) } : null);
     const db = { deliveryOutbox: { findUnique, create } };
     const r = await enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, payload, now: NOW });
     expect(r.created).toBe(true); // NOT a no-op success on the dead row
     expect(r.fulfillmentVersion).toBe(2);
   });
-  it('B-r3-1: every rolled fulfillment terminal-dead => explicit exception (never silent ready)', async () => {
-    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ status: 'failed', payloadHash: 'x' })), create: vi.fn() } };
+  it('B-r3-1: every rolled fulfillment terminal-dead (suppressed) => explicit exception (never silent ready)', async () => {
+    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ status: 'suppressed', payloadHash: 'x' })), create: vi.fn() } };
     await expect(enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, payload, now: NOW }))
       .rejects.toThrow(/outbox_terminal_recovery_exhausted/);
+  });
+  it('P1-e4-2: a failed+send_ambiguous row => THROWS reconciliation (never auto-rolls into a new idempotency key)', async () => {
+    const create = vi.fn();
+    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ status: 'failed', failureClass: 'send_ambiguous', payloadHash: 'x' })), create } };
+    await expect(enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, payload, now: NOW }))
+      .rejects.toThrow(/outbox_send_ambiguous_needs_reconciliation/);
+    expect(create).not.toHaveBeenCalled(); // no new fulfillment created → no duplicate email path
+  });
+  it('P1-e4-2: a failed row with an UNKNOWN/legacy class => fail-safe throw (treated as ambiguous, never rolled)', async () => {
+    const create = vi.fn();
+    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ status: 'failed', failureClass: null, payloadHash: 'x' })), create } };
+    await expect(enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, payload, now: NOW }))
+      .rejects.toThrow(/outbox_send_ambiguous_needs_reconciliation/);
+    expect(create).not.toHaveBeenCalled();
   });
 });
 
@@ -191,6 +205,7 @@ describe('processDelivery — fenced terminal writes (B1) + disposition (B2)', (
     const send = vi.fn(async () => { throw new Error('network'); });
     const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ attempts: OUTBOX_MAX_ATTEMPTS }) as never, okDeps(send));
     expect(out).toBe('failed');
+    expect(dataOf(updateMany, 1)).toMatchObject({ status: 'failed', failureClass: 'send_ambiguous' }); // P1-e4-2: send attempted → ambiguous
     expect(dataOf(updateMany, 1).nextAttemptAt).toBeNull();
   });
   it('B3: a recheck stuck on `retry` is capped at OUTBOX_MAX_ATTEMPTS → terminal failed (not scheduled forever)', async () => {
@@ -199,7 +214,7 @@ describe('processDelivery — fenced terminal writes (B1) + disposition (B2)', (
     const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ attempts: OUTBOX_MAX_ATTEMPTS }) as never, { recheck: async () => ({ outcome: 'retry', reason: 'transient_asset:timeout' }), send, now: () => NOW });
     expect(out).toBe('failed');
     expect(send).not.toHaveBeenCalled();
-    expect(firstData(updateMany)).toMatchObject({ status: 'failed' }); // retry branch fences terminal directly (no pre-send renew)
+    expect(firstData(updateMany)).toMatchObject({ status: 'failed', failureClass: 'recheck_exhausted' }); // P1-e4-2: no send attempted → roll-safe
     expect(firstData(updateMany).nextAttemptAt).toBeNull();
   });
   it('gives up when beyond the 24h provider idempotency window', async () => {
