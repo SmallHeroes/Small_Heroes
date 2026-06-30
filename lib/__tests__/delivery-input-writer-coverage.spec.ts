@@ -330,6 +330,34 @@ describe('P1-f #5 delivery-input writer coverage', () => {
     ]);
   });
 
+  it('covers Order-table frozen delivery inputs (storySourceHash/selectionFilename/frozenProductVersion/expectedPageCount) — set + classifier, regression-proof', () => {
+    // The frozen product-truth fields ARE delivery inputs: any post-creation writer of them must be
+    // barrier-protected (order creation is the sole exemption). Pin both the coverage SET and the classifier so a
+    // dropped field can't silently narrow Order coverage (the comprehensive scan above already enforces it, but
+    // nothing tested that Order + these fields are in scope until now).
+    for (const field of ['storySourceHash', 'selectionFilename', 'frozenProductVersion', 'expectedPageCount']) {
+      expect(DELIVERY_ORDER_FIELDS.has(field), `${field} must be a tracked Order delivery input`).toBe(true);
+    }
+    const fixture = `
+      async function w(tx: any) {
+        await tx.order.update({ data: { storySourceHash: 'x' } });
+        await tx.order.update({ data: { selectionFilename: 'x' } });
+        await tx.order.update({ data: { frozenProductVersion: 'x' } });
+        await tx.order.update({ data: { expectedPageCount: 5 } });
+        await tx.order.update({ data: { status: 'ready', packageStatus: 'done' } });
+      }
+    `;
+    const sites = writerSitesFromSource('fixture.ts', fixture);
+    // each frozen-field Order write is classified as a delivery-input writer (→ must be barrier-protected)…
+    const flaggedFields = sites.filter(isDeliveryInputWriter).flatMap((site) => site.dataFields ?? []);
+    expect(flaggedFields).toEqual(
+      expect.arrayContaining(['storySourceHash', 'selectionFilename', 'frozenProductVersion', 'expectedPageCount']),
+    );
+    // …while a pure order-STATE write (no delivery input) is NOT flagged, so the classifier stays discriminating.
+    const stateSite = sites.find((site) => site.dataFields?.includes('status'));
+    expect(stateSite && isDeliveryInputWriter(stateSite)).toBe(false);
+  });
+
   it('only treats the barrier callback transaction client as atomically protected', () => {
     const fixture = `
       async function sample(prisma: any) {
