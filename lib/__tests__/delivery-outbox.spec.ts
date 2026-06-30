@@ -56,10 +56,10 @@ describe('enqueueDelivery — idempotent on dedupeKey', () => {
     expect(r.fulfillmentVersion).toBe(2); // rolled past the dead v1
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ dedupeKey: 'book-ready/o1/base-book/2', status: 'scheduled' }) }));
   });
-  it('B-r3-1: a failed+recheck_exhausted row never reports as live, even with the SAME payload (rolls — no send happened)', async () => {
+  it('P1-f #1: a terminal-dead row with sendAttempted=false rolls (proven no send), even with the SAME payload', async () => {
     const create = vi.fn(async () => ({}));
     const findUnique = vi.fn(async ({ where }: { where: { dedupeKey: string } }) =>
-      where.dedupeKey === 'book-ready/o1/base-book/1' ? { status: 'failed', failureClass: 'recheck_exhausted', payloadHash: hashPayload(payload) } : null);
+      where.dedupeKey === 'book-ready/o1/base-book/1' ? { status: 'failed', sendAttempted: false, payloadHash: hashPayload(payload) } : null);
     const db = { deliveryOutbox: { findUnique, create } };
     const r = await enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, payload, now: NOW });
     expect(r.created).toBe(true); // NOT a no-op success on the dead row
@@ -70,16 +70,16 @@ describe('enqueueDelivery — idempotent on dedupeKey', () => {
     await expect(enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, payload, now: NOW }))
       .rejects.toThrow(/outbox_terminal_recovery_exhausted/);
   });
-  it('P1-e4-2: a failed+send_ambiguous row => THROWS reconciliation (never auto-rolls into a new idempotency key)', async () => {
+  it('P1-f #1: a terminal row with sendAttempted=true => THROWS reconciliation (never auto-rolls into a new idempotency key)', async () => {
     const create = vi.fn();
-    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ status: 'failed', failureClass: 'send_ambiguous', payloadHash: 'x' })), create } };
+    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ status: 'failed', failureClass: 'send_ambiguous', sendAttempted: true, payloadHash: 'x' })), create } };
     await expect(enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, payload, now: NOW }))
       .rejects.toThrow(/outbox_send_ambiguous_needs_reconciliation/);
     expect(create).not.toHaveBeenCalled(); // no new fulfillment created → no duplicate email path
   });
-  it('P1-e4-2: a failed row with an UNKNOWN/legacy class => fail-safe throw (treated as ambiguous, never rolled)', async () => {
+  it('P1-f #1: a `suppressed` row with sendAttempted=true also refuses to roll (sendAttempted is the only signal)', async () => {
     const create = vi.fn();
-    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ status: 'failed', failureClass: null, payloadHash: 'x' })), create } };
+    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ status: 'suppressed', sendAttempted: true, payloadHash: 'x' })), create } };
     await expect(enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, payload, now: NOW }))
       .rejects.toThrow(/outbox_send_ambiguous_needs_reconciliation/);
     expect(create).not.toHaveBeenCalled();

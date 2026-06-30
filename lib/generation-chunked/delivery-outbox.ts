@@ -89,14 +89,14 @@ export async function enqueueDelivery(
       if (existing.payloadHash !== payloadHash) throw new Error(`outbox_payload_mismatch:${dedupeKey}`);
       return { created: false, dedupeKey, fulfillmentVersion }; // live/delivered + same payload → idempotent success
     }
-    // Terminal-dead. Roll to a fresh fulfillment ONLY when we can prove no provider send occurred (P1-e4-2):
-    //   suppressed (never sent) OR failed+recheck_exhausted (gave up before any send).
-    if (existing.status === 'suppressed' || (existing.status === 'failed' && existing.failureClass === FAILURE_RECHECK_EXHAUSTED)) {
+    // Terminal-dead (suppressed | failed). Roll to a fresh fulfillment ONLY when we can prove NO provider send
+    // was EVER attempted on this row (P1-f #1): `sendAttempted === false` is the single durable source of truth.
+    // ANY terminal row with sendAttempted === true may have reached the provider → rolling would mint a new
+    // idempotency key and bypass Resend's 24h dedup → duplicate email. Refuse — explicit reconciliation required.
+    if (!existing.sendAttempted) {
       fulfillmentVersion += 1;
       continue;
     }
-    // failed + send_ambiguous (or unknown class): a provider send MAY have succeeded. Rolling would mint a new
-    // idempotency key and bypass Resend's 24h dedup → duplicate email. Refuse — explicit reconciliation required.
     throw new Error(`outbox_send_ambiguous_needs_reconciliation:${dedupeKey}`);
   }
   throw new Error(`outbox_terminal_recovery_exhausted:${args.orderId}:${args.scope}`);
