@@ -55,6 +55,31 @@ function initialDisposition(kind: ExceptionCaseKind): {
   }
 }
 
+// (#6-FIX-1) Kind precedence — higher = more severe. A pre-external case may be UPGRADED to a strictly
+// higher-priority kind; it may never be downgraded or sideways-replaced.
+const KIND_PRECEDENCE: Record<ExceptionCaseKind, number> = {
+  infra_transient: 1,
+  text_personalization: 2,
+  integrity_blocked: 3,
+  delivery_revoked: 4,
+  unusable_photo: 5,
+  quality_failed: 6,
+  safety_failed: 7,
+  // Delivery-reconciliation kinds are PROTECTED (never auto-replaced); precedence is unused for them.
+  send_ambiguous: 0,
+  invalid_payload: 0,
+};
+
+// A case is PROTECTED — its kind/status/sourceRef must NOT be overwritten by a later producer — once it is in or
+// past an external action (refund/customer notice), or is a delivery-reconciliation case. Overwriting it (e.g. a
+// later generation/readiness failure clobbering `send_ambiguous`) would bypass provider reconciliation and could
+// refund an email that may already have delivered. (#6-FIX-1)
+const PROTECTED_STATUSES = new Set<ExceptionCaseStatus>(['refund_pending', 'customer_action']);
+const PROTECTED_KINDS = new Set<ExceptionCaseKind>(['send_ambiguous', 'invalid_payload']);
+function isProtectedCase(c: Pick<ExceptionCase, 'status' | 'kind' | 'actionAttemptedAt'>): boolean {
+  return PROTECTED_STATUSES.has(c.status) || PROTECTED_KINDS.has(c.kind) || c.actionAttemptedAt != null;
+}
+
 export interface OpenExceptionCaseArgs {
   orderId: string;
   scope?: string;
@@ -91,6 +116,12 @@ export async function openExceptionCase(
       ? new Date(now.getTime() + disposition.delayMs)
       : args.nextActionAt;
 
+  // (#6-FIX-1) Reconciliation-priority. The atomic upsert still collapses concurrent/replayed producers to one
+  // row, but its `update` clause NO LONGER rewrites kind/status/sourceRef — so a later producer (e.g. a generation
+  // or readiness failure) can never clobber a PROTECTED case (external action in flight, or a delivery-recon kind
+  // like send_ambiguous) and bypass provider reconciliation / refund an email that may have delivered. The ONLY
+  // permitted kind change is an explicit UPGRADE of a still-pre-external case to a strictly higher-priority kind,
+  // applied below as a fenced guarded update.
   const exceptionCase = await db.exceptionCase.upsert({
     where: { activeKey },
     create: {
@@ -104,36 +135,76 @@ export async function openExceptionCase(
       nextActionAt,
     },
     update: {
-      // Do not rewind lifecycle progress (for example refund_pending → open) on a replayed producer.
-      kind: args.kind,
-      reason: args.reason,
-      sourceRef: args.sourceRef ?? undefined,
+      // Never rewind lifecycle or rewrite kind/status/sourceRef. Only clear lastError and (on a superseding
+      // signal) fence any stale processor claim on the previous failure class.
       lastError: null,
       claimVersion: args.fenceExisting ? { increment: 1 } : undefined,
       leaseExpiresAt: args.fenceExisting ? null : undefined,
     },
   });
 
+  // A freshly-created row has kind === args.kind (no upgrade). A pre-existing row keeps its own kind through the
+  // upsert; if it is still pre-external (open/retry_scheduled, no send attempted) and the incoming kind is
+  // strictly higher-priority, promote it — fenced on the observed state so a concurrent change is never clobbered.
+  let applied: 'created' | 'upgraded' | 'recorded' =
+    exceptionCase.kind === args.kind ? 'created' : 'recorded';
+  let result = exceptionCase;
+  if (
+    exceptionCase.kind !== args.kind &&
+    !isProtectedCase(exceptionCase) &&
+    (exceptionCase.status === 'open' || exceptionCase.status === 'retry_scheduled') &&
+    KIND_PRECEDENCE[args.kind] > KIND_PRECEDENCE[exceptionCase.kind]
+  ) {
+    const upgraded = await db.exceptionCase.updateMany({
+      where: {
+        activeKey,
+        claimVersion: exceptionCase.claimVersion,
+        status: exceptionCase.status,
+        kind: exceptionCase.kind,
+        actionAttemptedAt: null,
+      },
+      data: {
+        kind: args.kind,
+        status,
+        reason: args.reason,
+        sourceRef: args.sourceRef ?? undefined,
+        nextActionAt,
+        lastError: null,
+      },
+    });
+    if (upgraded.count === 1) {
+      result = (await db.exceptionCase.findUnique({ where: { activeKey } })) ?? exceptionCase;
+      applied = 'upgraded';
+    }
+  }
+
   await db.exceptionCaseAudit.createMany({
     data: [{
       eventKey: stableEventKey([
         'producer',
-        exceptionCase.id,
+        result.id,
         args.kind,
         args.reason,
         args.sourceRef ?? null,
       ]),
-      caseId: exceptionCase.id,
+      caseId: result.id,
       fromStatus: null,
-      toStatus: exceptionCase.status,
+      toStatus: result.status,
       actor: 'system',
-      reason: `producer:${args.reason}`,
+      // `producer_recorded:` marks a signal logged but NOT applied (protected / not-higher-priority) — the
+      // reconciliation path on the existing kind is preserved. `producer_upgraded:` marks an applied promotion.
+      reason:
+        applied === 'upgraded'
+          ? `producer_upgraded:${args.reason}`
+          : applied === 'recorded'
+            ? `producer_recorded:${args.reason}`
+            : `producer:${args.reason}`,
       metadata: args.metadata,
       createdAt: now,
     }],
     skipDuplicates: true,
   });
-  return exceptionCase;
+  return result;
 }
 
 export interface TransitionExceptionArgs {

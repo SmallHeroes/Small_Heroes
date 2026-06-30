@@ -11,6 +11,12 @@ import {
 
 const NOW = new Date('2026-06-30T12:00:00.000Z');
 
+// Typed accessors for mock-call args (the inferred arg tuple is empty for argless vi.fn()).
+const upsertUpdate = (fn: ReturnType<typeof vi.fn>): Record<string, unknown> =>
+  ((fn.mock.calls[0] as unknown[])[0] as { update: Record<string, unknown> }).update;
+const auditReason = (fn: ReturnType<typeof vi.fn>): string =>
+  ((fn.mock.calls[0] as unknown[])[0] as { data: Array<{ reason: string }> }).data[0].reason;
+
 function caseRow(over: Record<string, unknown> = {}) {
   return {
     id: 'ec1',
@@ -298,11 +304,68 @@ describe('ExceptionCase producer + lifecycle', () => {
     expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
       where: { activeKey: 'o1:base_book' },
       update: expect.objectContaining({
-        kind: 'send_ambiguous',
         claimVersion: { increment: 1 },
         leaseExpiresAt: null,
       }),
     }));
+    // (#6-FIX-1) the fence update must NOT rewrite kind/status/sourceRef — clobbering them could bypass
+    // reconciliation. Only the claim fence (+ lastError reset) is applied.
+    const update = upsertUpdate(upsert);
+    expect(update).not.toHaveProperty('kind');
+    expect(update).not.toHaveProperty('status');
+    expect(update).not.toHaveProperty('sourceRef');
+  });
+
+  it('#6-FIX-1: a later generation/readiness failure does NOT clobber a send_ambiguous case (reconciliation preserved, no refund-before-reconciliation)', async () => {
+    const existing = caseRow({ kind: 'send_ambiguous', status: 'open', reason: 'idempotency_window_expired' });
+    const upsert = vi.fn(async () => existing); // the upsert update clause never rewrites kind/status (FIX-1)
+    const updateMany = vi.fn(async () => ({ count: 1 })); // the upgrade path — must NOT be taken for a protected case
+    const createMany = vi.fn(async () => ({ count: 1 }));
+    const db = {
+      exceptionCase: { upsert, updateMany, findUnique: vi.fn(async () => existing) },
+      exceptionCaseAudit: { createMany },
+    };
+    const result = await openExceptionCase(db as never, {
+      orderId: 'o1',
+      kind: 'quality_failed', // a generation/readiness failure that would normally route straight to refund_pending
+      reason: 'integrity_blocked_after_send',
+      now: NOW,
+    });
+    // kind + status are PRESERVED → the processor still reconciles the ambiguous send; no premature refund.
+    expect(result.kind).toBe('send_ambiguous');
+    expect(result.status).toBe('open');
+    expect(updateMany).not.toHaveBeenCalled(); // send_ambiguous is protected → never upgraded/clobbered
+    expect(upsertUpdate(upsert)).not.toHaveProperty('kind');
+    expect(auditReason(createMany)).toMatch(/^producer_recorded:/);
+  });
+
+  it('#6-FIX-1: a pre-external retry case IS upgraded to a strictly higher-priority kind (infra_transient → safety_failed)', async () => {
+    const existing = caseRow({ kind: 'infra_transient', status: 'retry_scheduled', claimVersion: 2, actionAttemptedAt: null });
+    const upgraded = caseRow({ kind: 'safety_failed', status: 'refund_pending', claimVersion: 2 });
+    const upsert = vi.fn(async () => existing);
+    const updateMany = vi.fn(async () => ({ count: 1 }));
+    const findUnique = vi.fn(async () => upgraded);
+    const createMany = vi.fn(async () => ({ count: 1 }));
+    const db = { exceptionCase: { upsert, updateMany, findUnique }, exceptionCaseAudit: { createMany } };
+    const result = await openExceptionCase(db as never, { orderId: 'o1', kind: 'safety_failed', reason: 'budget_exhausted', now: NOW });
+    expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ kind: 'infra_transient', claimVersion: 2, actionAttemptedAt: null }),
+      data: expect.objectContaining({ kind: 'safety_failed', status: 'refund_pending' }),
+    }));
+    expect(result.kind).toBe('safety_failed');
+    expect(auditReason(createMany)).toMatch(/^producer_upgraded:/);
+  });
+
+  it('#6-FIX-1: a lower-priority signal never downgrades a pre-external case (recorded only)', async () => {
+    const existing = caseRow({ kind: 'integrity_blocked', status: 'retry_scheduled' });
+    const upsert = vi.fn(async () => existing);
+    const updateMany = vi.fn();
+    const createMany = vi.fn(async () => ({ count: 1 }));
+    const db = { exceptionCase: { upsert, updateMany, findUnique: vi.fn(async () => existing) }, exceptionCaseAudit: { createMany } };
+    const result = await openExceptionCase(db as never, { orderId: 'o1', kind: 'infra_transient', reason: 'transient', now: NOW });
+    expect(updateMany).not.toHaveBeenCalled();
+    expect(result.kind).toBe('integrity_blocked');
+    expect(auditReason(createMany)).toMatch(/^producer_recorded:/);
   });
 
   it('atomically marks the Outbox sent and resolves its ambiguous case', async () => {
