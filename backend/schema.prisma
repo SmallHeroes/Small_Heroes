@@ -89,6 +89,27 @@ enum DeliveryOutboxStatus {
   //                        no writer exists yet. NOT auto-recoverable → explicit reconciliation/redelivery.
 }
 
+enum ExceptionCaseKind {
+  infra_transient
+  unusable_photo
+  text_personalization
+  safety_failed
+  quality_failed
+  send_ambiguous
+  delivery_revoked
+  invalid_payload
+  integrity_blocked
+}
+
+enum ExceptionCaseStatus {
+  open
+  retry_scheduled
+  customer_action
+  refund_pending
+  resolved
+  cancelled
+}
+
 // ─── Customer ─────────────────────────────────────────
 model Customer {
   id        String   @id @default(cuid())
@@ -213,6 +234,7 @@ model Order {
   generationJob      GenerationJob?
   storyDirectionSet  StoryDirectionSet?
   resemblanceAudits  ResemblanceAudit[]
+  exceptionCases     ExceptionCase[]
 
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
@@ -572,4 +594,50 @@ model DeliveryOutbox {
   sentAt            DateTime?
 
   @@index([status, nextAttemptAt])
+}
+
+// Autonomous fail-closed recovery. `activeKey` is `${orderId}:${scope}` while the case is active and NULL
+// after a terminal transition. The migration adds a CHECK that binds this invariant to status, so the unique
+// key enforces exactly one active case per order/scope even under concurrent producers.
+model ExceptionCase {
+  id                  String              @id @default(cuid())
+  activeKey           String?             @unique
+  orderId             String
+  order               Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  scope               String
+  kind                ExceptionCaseKind
+  status              ExceptionCaseStatus @default(open)
+  reason              String
+  attempts            Int                 @default(0)
+  nextActionAt        DateTime?
+  resolution          Json?
+  sourceRef           String?
+  claimVersion        Int                 @default(0)
+  leaseExpiresAt      DateTime?
+  lastError           String?
+  refundKey           String?             @unique
+  providerActionId    String?
+  actionAttemptedAt   DateTime?
+  notificationMessageId String?
+  audits              ExceptionCaseAudit[]
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@index([status, nextActionAt])
+  @@index([orderId, scope])
+}
+
+model ExceptionCaseAudit {
+  id          String               @id @default(cuid())
+  eventKey    String               @unique
+  caseId      String
+  case        ExceptionCase        @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  fromStatus  ExceptionCaseStatus?
+  toStatus    ExceptionCaseStatus
+  actor       String               @default("system")
+  reason      String
+  metadata    Json?
+  createdAt   DateTime             @default(now())
+
+  @@index([caseId, createdAt])
 }
