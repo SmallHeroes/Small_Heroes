@@ -256,7 +256,11 @@ describe('ExceptionCase autonomous processor', () => {
 
   it('creates a new fulfillment only after the provider proves the prior email failed', async () => {
     const previousAppUrl = process.env.APP_URL;
+    const previousPublicAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+    // isCanonicalReadUrl reads NEXT_PUBLIC_APP_URL || APP_URL — set BOTH so the test holds regardless of a
+    // loaded .env.local (which pins NEXT_PUBLIC_APP_URL=localhost:3000 and would win the ||).
     process.env.APP_URL = 'https://app.example.com';
+    process.env.NEXT_PUBLIC_APP_URL = 'https://app.example.com';
     const state = exceptionCase();
     const db = fakePrisma(state, outbox());
     try {
@@ -269,6 +273,8 @@ describe('ExceptionCase autonomous processor', () => {
     } finally {
       if (previousAppUrl === undefined) delete process.env.APP_URL;
       else process.env.APP_URL = previousAppUrl;
+      if (previousPublicAppUrl === undefined) delete process.env.NEXT_PUBLIC_APP_URL;
+      else process.env.NEXT_PUBLIC_APP_URL = previousPublicAppUrl;
     }
 
     expect(db.createdDeliveries).toHaveLength(1);

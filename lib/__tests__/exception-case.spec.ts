@@ -374,7 +374,11 @@ describe('ExceptionCase producer + lifecycle', () => {
 
   it('reissues a provider-confirmed failure as one new fulfillment intent', async () => {
     const previousAppUrl = process.env.APP_URL;
+    const previousPublicAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+    // isCanonicalReadUrl reads NEXT_PUBLIC_APP_URL || APP_URL — set BOTH so the test holds regardless of a
+    // loaded .env.local (which pins NEXT_PUBLIC_APP_URL=localhost:3000 and would win the ||).
     process.env.APP_URL = 'https://app.example.com';
+    process.env.NEXT_PUBLIC_APP_URL = 'https://app.example.com';
     const oldOutbox = {
       id: 'ob1',
       status: 'failed',
@@ -435,6 +439,8 @@ describe('ExceptionCase producer + lifecycle', () => {
     } finally {
       if (previousAppUrl === undefined) delete process.env.APP_URL;
       else process.env.APP_URL = previousAppUrl;
+      if (previousPublicAppUrl === undefined) delete process.env.NEXT_PUBLIC_APP_URL;
+      else process.env.NEXT_PUBLIC_APP_URL = previousPublicAppUrl;
     }
 
     expect(create).toHaveBeenCalledWith({
