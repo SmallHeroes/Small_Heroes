@@ -267,12 +267,14 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
  *     P1-f #5 writer contract; pre-#5 nothing bumps it, so this is dormant by design);
  *   - BookReadiness.status = 'passed' AND BookReadiness.currentManifestId = row.manifestId;
  *   - the stored payloadHash is unchanged (a row-integrity binding; the real payload recompute is in processDelivery).
- * No re-eval, no readiness invalidation here, no retry loop. On a 0-row miss it diagnoses (#3h split):
+ * No re-eval, no readiness invalidation here, no retry loop. A CAS mismatch is NEVER a business revocation — on
+ * a 0-row miss it diagnoses (#3h-D), and both non-ok terminals are RECOVERABLE (rebind-eligible on a re-commit):
  *   - lost_lease             — status/token moved (another worker reclaimed).
- *   - superseded_by_manifest — STILL ours, and a newer VALID manifest owns the order (ready + passed, different
- *                              currentManifestId). Recoverable: a re-commit rebinds this row in place.
- *   - delivery_revoked       — STILL ours, but the order/readiness is not deliverable for ANOTHER reason
- *                              (held / cancelled / inputs_stale). NOT auto-recoverable → explicit reconciliation.
+ *   - superseded_by_manifest — defense-in-depth: STILL ours, and a newer VALID manifest owns the order (ready +
+ *                              passed, different currentManifestId). Recoverable via the re-commit rebind.
+ *   - delivery_blocked       — STILL ours, but the order is not-yet-deliverable for a TRANSIENT reason (order not
+ *                              ready — paid/generating/needs_human_qa/partial — or readiness not passed /
+ *                              inputs_stale). RECOVERABLE: a re-commit rebinds this row when it returns to ready.
  */
 export async function casClaimSendSlot(
   prisma: PrismaClient,
@@ -303,17 +305,18 @@ export async function casClaimSendSlot(
        )`;
   if (updated === 1) return 'ok';
   // 0 rows: lost the lease, or the binding moved. Re-read; only if we STILL own the row (processing + this
-  // token) is it a true CAS mismatch — then classify supersession-by-manifest vs revocation (#3h #5).
+  // token) is it a true CAS mismatch — then classify supersession-by-manifest vs a (recoverable) block (#3h-D).
   const cur = await prisma.deliveryOutbox.findUnique({ where: { id: row.id }, select: { status: true, attempts: true } });
   if (!cur || cur.status !== 'processing' || cur.attempts !== token) return 'lost_lease';
   const [order, readiness] = await Promise.all([
     prisma.order.findUnique({ where: { id: row.orderId }, select: { status: true } }),
     prisma.bookReadiness.findUnique({ where: { orderId_scope: { orderId: row.orderId, scope: row.scope } }, select: { status: true, currentManifestId: true } }),
   ]);
-  // A newer VALID manifest genuinely owns the order → recoverable via a re-commit's rebind.
+  // Defense-in-depth: a newer VALID manifest genuinely owns the order → recoverable via a re-commit's rebind.
   if (order?.status === 'ready' && readiness?.status === 'passed' && readiness.currentManifestId !== row.manifestId) {
     return 'superseded_by_manifest';
   }
-  // Otherwise the order/readiness is not deliverable for a non-manifest reason → not auto-recoverable.
-  return 'delivery_revoked';
+  // Otherwise the order is not-yet-deliverable for a TRANSIENT reason (not ready, or readiness not passed). This
+  // is NEVER a business revocation — the CAS cannot infer a cancellation from a generic status. RECOVERABLE.
+  return 'delivery_blocked';
 }

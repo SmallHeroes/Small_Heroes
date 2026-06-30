@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   deliveryDedupeKey, hashPayload, enqueueDelivery, processDelivery, drainOutbox, claimDueDeliveries, OUTBOX_MAX_ATTEMPTS,
+  OutboxReconciliationError, idempotencyWindowMs,
 } from '@/lib/generation-chunked/delivery-outbox';
 
 const payload = { to: 'c@e.com', customerName: 'C', childName: 'K', readUrl: 'r' };
@@ -28,6 +29,30 @@ describe('dedupeKey + payloadHash', () => {
     // a full reversed-key copy (a stand-in for JSONB's length-then-bytewise reordering) hashes identically:
     expect(hashPayload(payload)).toBe(hashPayload(Object.fromEntries(Object.entries(payload).reverse())));
   });
+  it('#3h-D: payloadHash is NFC-normalized - the same name in NFD vs NFC composition hashes equal', () => {
+    const nfc = 'Andr\u00e9'.normalize('NFC'); // precomposed e-acute (U+00E9)
+    const nfd = 'Andr\u00e9'.normalize('NFD'); // decomposed: e + combining acute (U+0065 U+0301)
+    expect(nfc).not.toBe(nfd); // distinct JS strings (different byte sequences)
+    expect(hashPayload({ ...payload, childName: nfc })).toBe(hashPayload({ ...payload, childName: nfd }));
+  });
+});
+
+describe('idempotencyWindowMs — configurable, safety margin < 24h (#3h-D)', () => {
+  const prev = process.env.OUTBOX_IDEMPOTENCY_WINDOW_MS;
+  afterEach(() => { if (prev === undefined) delete process.env.OUTBOX_IDEMPOTENCY_WINDOW_MS; else process.env.OUTBOX_IDEMPOTENCY_WINDOW_MS = prev; });
+  it('defaults to 23h (a 1h margin below Resend\'s 24h key retention), never the exact boundary', () => {
+    delete process.env.OUTBOX_IDEMPOTENCY_WINDOW_MS;
+    expect(idempotencyWindowMs()).toBe(23 * 60 * 60 * 1000);
+    expect(idempotencyWindowMs()).toBeLessThan(24 * 60 * 60 * 1000);
+  });
+  it('honors a valid env override, ignores junk/non-positive', () => {
+    process.env.OUTBOX_IDEMPOTENCY_WINDOW_MS = String(60 * 60 * 1000);
+    expect(idempotencyWindowMs()).toBe(60 * 60 * 1000);
+    process.env.OUTBOX_IDEMPOTENCY_WINDOW_MS = 'nonsense';
+    expect(idempotencyWindowMs()).toBe(23 * 60 * 60 * 1000);
+    process.env.OUTBOX_IDEMPOTENCY_WINDOW_MS = '0';
+    expect(idempotencyWindowMs()).toBe(23 * 60 * 60 * 1000);
+  });
 });
 
 describe('enqueueDelivery — delivery-intent rebind contract (P1-f #3h)', () => {
@@ -53,18 +78,31 @@ describe('enqueueDelivery — delivery-intent rebind contract (P1-f #3h)', () =>
     const r = await enq(db, { manifestId: 'M2', inputVersion: 9 });
     expect(r).toMatchObject({ created: false, rebound: true, dedupeKey: 'book-ready/o1/base-book/1' });
     expect(create).not.toHaveBeenCalled();
-    // ATOMIC: the write is guarded on sendAttempted=false (so a worker that won the slot is not clobbered).
-    expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { dedupeKey: 'book-ready/o1/base-book/1', sendAttempted: false } }));
+    // ATOMIC (#3h-D): the write is guarded on sendAttempted=false AND a RECOVERABLE-status allowlist, so a row
+    // that turned terminal (sent/invalid_payload/delivery_revoked) between read and write matches 0 rows.
+    const whereArg = ((updateMany.mock.calls[0] as unknown[])[0] as { where: { dedupeKey: string; sendAttempted: boolean; status: { in: string[] } } }).where;
+    expect(whereArg).toMatchObject({ dedupeKey: 'book-ready/o1/base-book/1', sendAttempted: false });
+    expect(whereArg.status.in).toEqual(expect.arrayContaining(['scheduled', 'processing', 'delivery_blocked', 'superseded_by_manifest']));
+    expect(whereArg.status.in).not.toContain('invalid_payload');
+    expect(whereArg.status.in).not.toContain('delivery_revoked');
     expect(updateData(updateMany)).toMatchObject({ manifestId: 'M2', inputVersion: 9, status: 'scheduled', payloadHash: hashPayload(payload) });
     expect(updateData(updateMany).attempts).toEqual({ increment: 1 }); // FENCES any in-flight worker on the old binding
   });
 
-  it('#3h #1: the rebind LOST the race (a worker flipped sendAttempted=true between read and write → 0 rows) → reconciliation, never clobber an in-flight row', async () => {
+  it('#3h-D #1: the rebind LOST the race (the row turned terminal — e.g. invalid_payload/sent — between read and write → allowlist matches 0 rows) → typed reconciliation, never revive', async () => {
     const updateMany = lostMany();
     const findUnique = vi.fn(async () => ({ manifestId: 'M_OLD', status: 'processing', sendAttempted: false, payloadHash: 'old' }));
     const db = { deliveryOutbox: { findUnique, create: vi.fn(), updateMany } };
-    await expect(enq(db, { manifestId: 'M2' })).rejects.toThrow(/outbox_delivery_in_flight_needs_reconciliation/);
+    await expect(enq(db, { manifestId: 'M2' })).rejects.toThrow(OutboxReconciliationError);
     expect(updateMany).toHaveBeenCalledTimes(1); // it attempted the guarded write, which matched 0 rows
+  });
+
+  it('#3h-D #1: a delivery_blocked row (recoverable CAS terminal, sendAttempted=false) IS recovered by the in-place REBIND', async () => {
+    const updateMany = okMany();
+    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ manifestId: 'M_OLD', status: 'delivery_blocked', sendAttempted: false, payloadHash: 'old' })), create: vi.fn(), updateMany } };
+    const r = await enq(db, { manifestId: 'M2' });
+    expect(r.rebound).toBe(true);
+    expect(updateData(updateMany)).toMatchObject({ manifestId: 'M2', status: 'scheduled' });
   });
 
   it('#3h #5: a superseded_by_manifest row (sendAttempted=false) is recovered by the same in-place REBIND', async () => {
@@ -73,6 +111,13 @@ describe('enqueueDelivery — delivery-intent rebind contract (P1-f #3h)', () =>
     const r = await enq(db, { manifestId: 'M2' });
     expect(r.rebound).toBe(true);
     expect(updateData(updateMany)).toMatchObject({ manifestId: 'M2', status: 'scheduled' });
+  });
+
+  it('#3h-D #1: an invalid_payload row (corrupt, sendAttempted=false) → typed reconciliation, NOT rebind (never auto-revive a corrupt row)', async () => {
+    const updateMany = okMany();
+    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ manifestId: 'M_OLD', status: 'invalid_payload', sendAttempted: false, payloadHash: 'x' })), create: vi.fn(), updateMany } };
+    await expect(enq(db, { manifestId: 'M2' })).rejects.toThrow(OutboxReconciliationError);
+    expect(updateMany).not.toHaveBeenCalled();
   });
 
   it('same manifest + live + same payload → idempotent no-op (no rebind, no create)', async () => {
@@ -135,15 +180,15 @@ describe('processDelivery — send-time CAS (P1-f)', () => {
     await processDelivery({ deliveryOutbox: { updateMany: fencedOk() } } as never, row({ attempts: 4 }) as never, { cas, send: vi.fn(async () => ({})), now: () => NOW });
     expect(cas).toHaveBeenCalledWith(expect.objectContaining({ id: 'ob1' }), 4, expect.any(Date), NOW);
   });
-  it('#3h #4: payloadHash recompute mismatch → terminal delivery_revoked, NEVER reaches the CAS or sends', async () => {
+  it('#3h-D #4: payloadHash recompute mismatch → terminal invalid_payload (a SEPARATE corrupt-row state, not a revocation), NEVER reaches the CAS or sends', async () => {
     const updateMany = fencedOk();
     const cas = vi.fn(async () => 'ok' as const);
     const send = vi.fn();
     const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ payloadHash: 'tampered-hash' }) as never, { cas, send, now: () => NOW });
-    expect(out).toBe('delivery_revoked');
+    expect(out).toBe('invalid_payload');
     expect(cas).not.toHaveBeenCalled();
     expect(send).not.toHaveBeenCalled();
-    expect(firstData(updateMany)).toMatchObject({ status: 'delivery_revoked', lastError: 'payload_integrity_mismatch' });
+    expect(firstData(updateMany)).toMatchObject({ status: 'invalid_payload', lastError: 'payload_integrity_mismatch' });
   });
   it('#3h #4: a JSONB key-REORDER of the SAME payload still hashes equal (canonical) → NOT revoked, proceeds to CAS + sends', async () => {
     // Postgres JSONB does not preserve key order; row.payload comes back reordered. With a non-canonical hash this
@@ -186,13 +231,13 @@ describe('processDelivery — send-time CAS (P1-f)', () => {
     expect(updateMany).toHaveBeenCalledTimes(1);
     expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id: 'ob1', status: 'processing', attempts: 1 }), data: expect.objectContaining({ status: 'superseded_by_manifest' }) }));
   });
-  it('#3h #5: CAS delivery_revoked → fenced terminal `delivery_revoked`, NEVER sends (not auto-recoverable)', async () => {
+  it('#3h-D #5: CAS delivery_blocked → fenced terminal `delivery_blocked` (RECOVERABLE), NEVER sends — the CAS never writes a business revocation', async () => {
     const updateMany = fencedOk();
     const send = vi.fn();
-    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, { cas: async () => 'delivery_revoked' as const, send, now: () => NOW });
-    expect(out).toBe('delivery_revoked');
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, { cas: async () => 'delivery_blocked' as const, send, now: () => NOW });
+    expect(out).toBe('delivery_blocked');
     expect(send).not.toHaveBeenCalled();
-    expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'delivery_revoked' }) }));
+    expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'delivery_blocked' }) }));
   });
   it('CAS superseded_by_manifest but the fenced terminal write loses the lease → lost_lease', async () => {
     const out = await processDelivery({ deliveryOutbox: { updateMany: fencedLost() } } as never, row() as never, { cas: async () => 'superseded_by_manifest' as const, send: vi.fn(), now: () => NOW });

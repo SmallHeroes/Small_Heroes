@@ -5,9 +5,10 @@
  * send-time CAS (P1-f) — renew lease + set sendAttempted IFF the row is still ours AND the live truth still
  * matches the row's binding (Order.ready + inputVersion, BookReadiness.passed + currentManifestId, payloadHash)
  * — only then an idempotent provider send (Idempotency-Key = dedupeKey). The old live re-evaluation
- * (asset download + integrity re-eval) is GONE; a CAS mismatch makes the row terminal — `superseded_by_manifest`
- * (a newer valid manifest owns the order; recoverable via the re-commit rebind) or `delivery_revoked` (held/
- * cancelled/inputs_stale; explicit reconciliation only). No import cycle: the worker takes `cas`/`send` as deps.
+ * (asset download + integrity re-eval) is GONE. A CAS mismatch is NEVER a business revocation — it makes the row
+ * a RECOVERABLE terminal: `delivery_blocked` (order not-yet-deliverable / inputs_stale) or `superseded_by_manifest`
+ * (defense-in-depth) — both rebind-eligible on a re-commit. (`delivery_revoked` is reserved for a future explicit
+ * cancellation/refund domain action; the CAS never writes it.) No import cycle: the worker takes `cas`/`send` as deps.
  */
 import type { Prisma, PrismaClient, DeliveryOutbox } from '@prisma/client';
 import { createHash } from 'crypto';
@@ -21,23 +22,43 @@ export const OUTBOX_MAX_ATTEMPTS = 6;
 
 // Durable failure class (P1-e4-2). `send_ambiguous` = a provider send was attempted with an unknown result →
 // the row must NOT be auto-rebound (enqueue refuses, requiring explicit reconciliation, so no new idempotency
-// key bypasses Resend's dedup). The non-send CAS terminals (superseded_by_manifest / delivery_revoked) leave
+// key bypasses Resend's dedup). The recoverable CAS terminals (delivery_blocked / superseded_by_manifest) leave
 // sendAttempted=false and carry their own lastError, so `send_ambiguous` is the only post-send failure class.
 export const FAILURE_SEND_AMBIGUOUS = 'send_ambiguous';
 const LEASE_MS = 4 * 60 * 1000; // processing lease > worst-case single-row recheck (downloads); fencing covers overruns
-const IDEMPOTENCY_WINDOW_MS = 24 * 60 * 60 * 1000; // Resend keeps Idempotency-Key 24h — no blind resend after.
+
+// (#3h-D) Resend retains an Idempotency-Key for 24h. The window after which we refuse to RE-attempt a send (a
+// blind resend past the key's lifetime could double-deliver) is configurable, with a safety margin BELOW 24h so
+// we never rely on the exact boundary. Default 23h. Read per-call so tests/ops can tune it without a re-import.
+const DEFAULT_IDEMPOTENCY_WINDOW_MS = 23 * 60 * 60 * 1000;
+export function idempotencyWindowMs(): number {
+  const raw = Number(process.env.OUTBOX_IDEMPOTENCY_WINDOW_MS);
+  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_IDEMPOTENCY_WINDOW_MS;
+}
+
+// (#3h-D) The reconciliation signal: enqueue refuses to auto-revive an in-flight / delivered / revoked / corrupt
+// intent — reviving it is a deliberate redelivery, never automatic. A TYPED error so callers (e.g. an admin
+// route) can map it to a 409 WITHOUT a blanket catch that would also swallow a genuine 500.
+export class OutboxReconciliationError extends Error {
+  constructor(public readonly dedupeKey: string, public readonly reason: string) {
+    super(`outbox_delivery_in_flight_needs_reconciliation:${dedupeKey}:${reason}`);
+    this.name = 'OutboxReconciliationError';
+  }
+}
 
 export function deliveryDedupeKey(orderId: string, scope: string, fulfillmentVersion: number): string {
   const s = scope === 'base_book' ? 'base-book' : scope;
   return `book-ready/${orderId}/${s}/${fulfillmentVersion}`;
 }
 
-// Recursively sort object keys so the serialization is invariant to key ORDER. This is REQUIRED for the #3h #4
-// integrity recompute: the payload is stored as Postgres JSONB, which physically reorders object keys (by key
-// length, then bytewise) and does NOT preserve insertion order. Hashing JSON.stringify(payload) directly would
-// make hashPayload(enqueue-time in-memory object) !== hashPayload(row.payload read back from JSONB) for every
-// real payload → every row would false-revoke. Canonicalizing first makes the hash stable across the round-trip.
+// Recursively sort object keys AND NFC-normalize strings so the serialization is invariant to (a) key ORDER and
+// (b) Unicode composition. This is REQUIRED for the #3h #4 integrity recompute: the payload is stored as Postgres
+// JSONB, which physically reorders object keys (by key length, then bytewise) and does NOT preserve insertion
+// order — and a name/string could round-trip in a different Unicode normal form. Hashing JSON.stringify(payload)
+// directly would make hashPayload(enqueue-time object) !== hashPayload(row.payload read back from JSONB) → every
+// row would false-mismatch. Canonicalizing first makes the hash stable across the round-trip.
 function canonicalize(v: unknown): unknown {
+  if (typeof v === 'string') return v.normalize('NFC');
   if (Array.isArray(v)) return v.map(canonicalize);
   if (v && typeof v === 'object') {
     return Object.keys(v as Record<string, unknown>)
@@ -73,14 +94,15 @@ export interface EnqueueResult {
  * new intent: a re-commit re-binds the SAME row rather than minting a new key (which is what caused duplicate
  * emails). Contract by the existing row's state:
  *   - no row → create a fresh `scheduled` row bound to (manifestId, inputVersion).
- *   - sendAttempted=true OR status in {sent, failed, delivery_revoked} → in-flight / delivered / revoked: NEVER
- *     auto-recover. Throw `outbox_delivery_in_flight_needs_reconciliation` — a second email, or reviving a
- *     revoked delivery-intent, is a DELIBERATE product action (explicit redelivery), never automatic.
+ *   - sendAttempted=true OR status in {sent, failed, delivery_revoked, invalid_payload} → in-flight / delivered /
+ *     domain-revoked / corrupt: NEVER auto-recover. Throw `OutboxReconciliationError` — a second email, or reviving
+ *     a revoked/corrupt intent, is a DELIBERATE product action (explicit redelivery), never automatic.
  *   - same manifest, live (scheduled/processing): same payload → idempotent no-op; different payload → throw
  *     (a same-manifest payload change is a bug).
- *   - otherwise (sendAttempted=false; a re-commit by a NEW manifest, or recovering a superseded_by_manifest row):
- *     REBIND this same row IN PLACE — new manifestId/inputVersion/payload, reset to `scheduled`, and bump
- *     attempts to FENCE any in-flight worker — keeping the SAME dedupeKey → SAME idempotency key → NO dup email.
+ *   - otherwise (sendAttempted=false; a NEW manifest, or a RECOVERABLE terminal — delivery_blocked /
+ *     superseded_by_manifest): REBIND this same row IN PLACE via an atomic recoverable-status-allowlist updateMany
+ *     — new manifestId/inputVersion/payload, reset to `scheduled`, bump attempts to FENCE any in-flight worker —
+ *     keeping the SAME dedupeKey → SAME idempotency key → NO dup email.
  * Pass a transaction client to enqueue atomically with the manifest PASS.
  */
 export async function enqueueDelivery(
@@ -100,30 +122,33 @@ export async function enqueueDelivery(
     });
     return { created: true, rebound: false, dedupeKey };
   }
-  // In-flight / delivered / revoked → never auto-rebind. Any sendAttempted=true row may have reached Resend, and
-  // `delivery_revoked` is a deliberately-killed intent → reviving either requires an explicit redelivery.
-  if (existing.sendAttempted || existing.status === 'sent' || existing.status === 'failed' || existing.status === 'delivery_revoked') {
-    throw new Error(`outbox_delivery_in_flight_needs_reconciliation:${dedupeKey}`);
+  // In-flight / delivered / corrupt / domain-revoked → never auto-rebind. sendAttempted=true may have reached
+  // Resend; `delivery_revoked` is a deliberately-killed intent; `invalid_payload` is a corrupt row → reviving any
+  // of them is a deliberate redelivery (reconciliation), never automatic.
+  if (existing.sendAttempted || existing.status === 'sent' || existing.status === 'failed'
+      || existing.status === 'delivery_revoked' || existing.status === 'invalid_payload') {
+    throw new OutboxReconciliationError(dedupeKey, `existing_status:${existing.status}`);
   }
   // Same manifest + live → idempotent (a retried commit of the SAME manifest); a different payload is a bug.
   if (existing.manifestId === args.manifestId && (existing.status === 'scheduled' || existing.status === 'processing')) {
     if (existing.payloadHash !== payloadHash) throw new Error(`outbox_payload_mismatch:${dedupeKey}`);
     return { created: false, rebound: false, dedupeKey };
   }
-  // sendAttempted=false, a NEW manifest (or a superseded_by_manifest row) → REBIND in place, same dedupeKey.
-  // ATOMIC: the findUnique above is a stale snapshot, so guard the write itself on `sendAttempted: false` — a
-  // worker CAS that won the send slot between our read and this write (flipping sendAttempted=true) makes this
-  // match 0 rows → we reconcile instead of clobbering an in-flight/sent row. attempts:{increment:1} is a DB-side
-  // bump (not based on the stale read), so it fences whatever worker currently holds the row regardless of token.
+  // sendAttempted=false, a NEW manifest (or a recoverable terminal: delivery_blocked / superseded_by_manifest) →
+  // REBIND in place, same dedupeKey. ATOMIC (#3h-D HIGH): the findUnique above is a stale snapshot, so guard the
+  // write on an ALLOWLIST of RECOVERABLE statuses + sendAttempted=false. A row that turned terminal between our
+  // read and this write — sent (sendAttempted=true), or invalid_payload / delivery_revoked (NOT in the allowlist)
+  // — matches 0 rows → we reconcile instead of REVIVING it. attempts:{increment:1} is a DB-side bump (not the
+  // stale read), so it fences whatever worker currently holds the row regardless of token.
   const rebound = await db.deliveryOutbox.updateMany({
-    where: { dedupeKey, sendAttempted: false },
+    where: { dedupeKey, sendAttempted: false, status: { in: ['scheduled', 'processing', 'delivery_blocked', 'superseded_by_manifest'] } },
     data: {
       manifestId: args.manifestId, inputVersion: args.inputVersion,
       payload: args.payload as unknown as Prisma.InputJsonValue, payloadHash,
       status: 'scheduled', attempts: { increment: 1 }, leaseExpiresAt: null, nextAttemptAt: args.now, lastError: 'rebound',
     },
   });
-  if (rebound.count === 0) throw new Error(`outbox_delivery_in_flight_needs_reconciliation:${dedupeKey}`);
+  if (rebound.count === 0) throw new OutboxReconciliationError(dedupeKey, 'rebind_lost_race');
   return { created: false, rebound: true, dedupeKey };
 }
 
@@ -154,19 +179,21 @@ export async function claimDueDeliveries(prisma: PrismaClient, now: Date, limit:
   return rows;
 }
 
-export type DeliveryOutcome = 'sent' | 'superseded_by_manifest' | 'delivery_revoked' | 'failed' | 'retry' | 'lost_lease';
+export type DeliveryOutcome = 'sent' | 'superseded_by_manifest' | 'delivery_blocked' | 'invalid_payload' | 'failed' | 'retry' | 'lost_lease';
 
 /**
- * Result of the single atomic send-time CAS (P1-f #3h):
+ * Result of the single atomic send-time CAS (P1-f #3h-D). A CAS mismatch is NEVER a business revocation — both
+ * non-ok terminals below are RECOVERABLE (rebind-eligible on a re-commit). The CAS never writes delivery_revoked.
  *  - 'ok'                     — the row is still ours AND the live truth matches its binding; sendAttempted +
  *                              firstSendAttemptAt are now durably set and the lease renewed → hold the send slot.
- *  - 'superseded_by_manifest' — we still own the row but a newer VALID manifest owns the order (ready + passed,
- *                              different currentManifestId). Recoverable: a re-commit rebinds this row in place.
- *  - 'delivery_revoked'       — we still own the row but the order/readiness is not deliverable for ANOTHER reason
- *                              (held / cancelled / inputs_stale). NOT auto-recoverable → explicit reconciliation.
+ *  - 'superseded_by_manifest' — defense-in-depth: we still own the row but a newer VALID manifest owns the order
+ *                              (ready + passed, different currentManifestId). Recoverable via the re-commit rebind.
+ *  - 'delivery_blocked'       — we still own the row but the order is not-yet-deliverable for a TRANSIENT reason
+ *                              (order not ready — paid/generating/needs_human_qa/partial — or readiness not passed
+ *                              / inputs_stale). RECOVERABLE: a re-commit rebinds this row when it returns to ready.
  *  - 'lost_lease'             — another worker reclaimed the row (status/token moved) → do nothing.
  */
-export type CasResult = 'ok' | 'superseded_by_manifest' | 'delivery_revoked' | 'lost_lease';
+export type CasResult = 'ok' | 'superseded_by_manifest' | 'delivery_blocked' | 'lost_lease';
 
 export interface OutboxDeps {
   /**
@@ -174,7 +201,7 @@ export interface OutboxDeps {
    * firstSendAttemptAt (COALESCE — first attempt only) IFF the row is still `processing` with this fencing token
    * AND Order.status='ready' AND Order.inputVersion=row.inputVersion AND BookReadiness.status='passed' AND
    * BookReadiness.currentManifestId=row.manifestId AND the stored payloadHash is unchanged. On a 0-row miss it
-   * diagnoses superseded_by_manifest vs delivery_revoked vs lost_lease.
+   * diagnoses superseded_by_manifest vs delivery_blocked vs lost_lease (never a business revocation).
    */
   cas: (row: DeliveryOutbox, token: number, leaseExpiresAt: Date, now: Date) => Promise<CasResult>;
   /** Provider send; idempotencyKey = dedupeKey. Returns the provider message id when available. */
@@ -200,7 +227,8 @@ async function fenced(prisma: PrismaClient, rowId: string, token: number, data: 
 /**
  * Process one already-claimed row under its fencing token (= attempts at claim). P1-f: a SINGLE atomic
  * send-time CAS (renew lease + set sendAttempted iff the binding still holds) replaces the old live re-eval.
- * 'ok' → send (idempotent); 'superseded' → terminal `superseded`; 'lost_lease' → stop. A send that fails
+ * 'ok' → send (idempotent); recoverable CAS mismatch → terminal `delivery_blocked` / `superseded_by_manifest`
+ * (never a business revocation); corrupt payload → `invalid_payload`; 'lost_lease' → stop. A send that fails
  * reschedules (within window) or terminal-fails `send_ambiguous`. Every terminal write is fenced.
  */
 export async function processDelivery(prisma: PrismaClient, row: DeliveryOutbox, deps: OutboxDeps): Promise<DeliveryOutcome> {
@@ -208,18 +236,19 @@ export async function processDelivery(prisma: PrismaClient, row: DeliveryOutbox,
   const now = deps.now?.() ?? new Date();
 
   // (#4) Payload integrity: the stored payload must still hash to its stored payloadHash (a REAL recompute, not a
-  // self-comparison). A mismatch means the row was corrupted/tampered → never send; terminal for investigation.
+  // self-comparison). A mismatch means the row was corrupted/tampered → never send; terminal `invalid_payload`
+  // (a SEPARATE corrupt-row state — NOT a business revocation), for investigation.
   if (hashPayload(row.payload) !== row.payloadHash) {
-    const ok = await fenced(prisma, row.id, token, { status: 'delivery_revoked', leaseExpiresAt: null, lastError: 'payload_integrity_mismatch' });
+    const ok = await fenced(prisma, row.id, token, { status: 'invalid_payload', leaseExpiresAt: null, nextAttemptAt: null, lastError: 'payload_integrity_mismatch' });
     if (!ok) return 'lost_lease';
     log.error('Delivery payload integrity mismatch', new Error('payload_integrity_mismatch'), { dedupeKey: row.dedupeKey });
-    return 'delivery_revoked';
+    return 'invalid_payload';
   }
 
-  // (#3) Idempotency window from firstSendAttemptAt: a RE-attempt > 24h after the FIRST send attempt must not
-  // blind-resend (Resend's dedup key has expired → a resend could double-deliver). The first attempt
-  // (firstSendAttemptAt null) always proceeds — an order that sat 25h in the queue still gets its first attempt.
-  if (row.firstSendAttemptAt && now.getTime() - row.firstSendAttemptAt.getTime() > IDEMPOTENCY_WINDOW_MS) {
+  // (#3) Idempotency window from firstSendAttemptAt: a RE-attempt past the (configurable, <24h) window after the
+  // FIRST send attempt must not blind-resend (Resend's dedup key has expired → a resend could double-deliver).
+  // The first attempt (firstSendAttemptAt null) always proceeds — a 25h-queued order still gets its first attempt.
+  if (row.firstSendAttemptAt && now.getTime() - row.firstSendAttemptAt.getTime() > idempotencyWindowMs()) {
     const ok = await fenced(prisma, row.id, token, { status: 'failed', failureClass: FAILURE_SEND_AMBIGUOUS, leaseExpiresAt: null, nextAttemptAt: null, lastError: 'idempotency_window_expired' });
     if (!ok) return 'lost_lease';
     log.error('Delivery idempotency window expired since first attempt', new Error('idempotency_window_expired'), { dedupeKey: row.dedupeKey });
@@ -238,13 +267,14 @@ export async function processDelivery(prisma: PrismaClient, row: DeliveryOutbox,
     log.warn('Delivery superseded by a newer manifest at send-time CAS', { dedupeKey: row.dedupeKey });
     return 'superseded_by_manifest';
   }
-  if (cas === 'delivery_revoked') {
-    // The order/readiness is NOT deliverable for a non-manifest reason (held/cancelled/inputs_stale). NOT
-    // auto-recoverable → terminal; an explicit redelivery is required to ever deliver this intent.
-    const ok = await fenced(prisma, row.id, token, { status: 'delivery_revoked', leaseExpiresAt: null, lastError: 'cas_delivery_revoked' });
+  if (cas === 'delivery_blocked') {
+    // The order is not-yet-deliverable for a TRANSIENT reason (order not ready — paid/generating/needs_human_qa/
+    // partial — or readiness not passed / inputs_stale). NOT a business revocation. RECOVERABLE: a re-commit
+    // rebinds this row when the order returns to ready+passed. Terminal-for-this-worker only; no send.
+    const ok = await fenced(prisma, row.id, token, { status: 'delivery_blocked', leaseExpiresAt: null, lastError: 'cas_delivery_blocked' });
     if (!ok) return 'lost_lease';
-    log.warn('Delivery revoked at send-time CAS', { dedupeKey: row.dedupeKey });
-    return 'delivery_revoked';
+    log.warn('Delivery blocked at send-time CAS (recoverable, awaiting re-commit)', { dedupeKey: row.dedupeKey });
+    return 'delivery_blocked';
   }
 
   // cas === 'ok' → we hold the send slot (sendAttempted + firstSendAttemptAt are durably set). Send the STORED
@@ -272,7 +302,7 @@ export async function processDelivery(prisma: PrismaClient, row: DeliveryOutbox,
   }
 }
 
-export type DrainSummary = { claimed: number; sent: number; superseded_by_manifest: number; delivery_revoked: number; failed: number; retry: number; lost_lease: number };
+export type DrainSummary = { claimed: number; sent: number; superseded_by_manifest: number; delivery_blocked: number; invalid_payload: number; failed: number; retry: number; lost_lease: number };
 
 /**
  * Drain the Outbox. Simplification A: claim ONE row per tick by default — the single-row claim shrinks the
@@ -282,7 +312,7 @@ export type DrainSummary = { claimed: number; sent: number; superseded_by_manife
 export async function drainOutbox(prisma: PrismaClient, opts: { limit?: number }, deps: OutboxDeps): Promise<DrainSummary> {
   const now = deps.now?.() ?? new Date();
   const rows = await claimDueDeliveries(prisma, now, opts.limit ?? 1);
-  const summary: DrainSummary = { claimed: rows.length, sent: 0, superseded_by_manifest: 0, delivery_revoked: 0, failed: 0, retry: 0, lost_lease: 0 };
+  const summary: DrainSummary = { claimed: rows.length, sent: 0, superseded_by_manifest: 0, delivery_blocked: 0, invalid_payload: 0, failed: 0, retry: 0, lost_lease: 0 };
   for (const row of rows) {
     const outcome = await processDelivery(prisma, row, deps);
     summary[outcome] += 1;

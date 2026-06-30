@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { OutboxReconciliationError } from '@/lib/generation-chunked/delivery-outbox';
 
 /** B6: under the readiness flag, the anchor break-glass releases ONLY anchor holds and routes through the
  * Outbox (never a direct send / Manifest bypass). Flag-off behavior is unchanged. */
@@ -42,6 +43,20 @@ describe('anchor-hold-release isolation (B6)', () => {
     const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
     expect(res.status).toBe(409);
     expect(commit).not.toHaveBeenCalled();
+  });
+
+  it('#3h-D: flag-on, an anchor hold whose delivery needs reconciliation (commit throws OutboxReconciliationError) → typed 409, not a 500', async () => {
+    const commit = vi.fn(async () => { throw new OutboxReconciliationError('book-ready/o1/base-book/1', 'existing_status:sent'); });
+    const { POST, email } = await loadRoute({ flagOn: true, order: heldOrder('anchor_low_confidence:soft_band'), commit });
+    const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
+    expect(res.status).toBe(409);
+    expect(email).not.toHaveBeenCalled();
+  });
+
+  it('#3h-D: flag-on, a NON-reconciliation error from commit still propagates (not swallowed as 409)', async () => {
+    const commit = vi.fn(async () => { throw new Error('readiness_inputs_missing'); });
+    const { POST } = await loadRoute({ flagOn: true, order: heldOrder('anchor_low_confidence:soft_band'), commit });
+    await expect(POST(req({ secret: 'sek', orderId: 'o1' }))).rejects.toThrow(/readiness_inputs_missing/);
   });
 
   it('flag-on: an anchor hold routes through readiness/Outbox (no direct send)', async () => {

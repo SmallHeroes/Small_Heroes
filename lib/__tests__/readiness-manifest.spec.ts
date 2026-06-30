@@ -131,7 +131,7 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
     expect(r.enqueued).toBe(true);
     expect(r.orderStatus).toBe('ready');
     expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
-    expect(tx.deliveryOutbox.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { dedupeKey: 'book-ready/o1/base-book/1', sendAttempted: false }, data: expect.objectContaining({ manifestId: 'm1', status: 'scheduled' }) }));
+    expect(tx.deliveryOutbox.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ dedupeKey: 'book-ready/o1/base-book/1', sendAttempted: false }), data: expect.objectContaining({ manifestId: 'm1', status: 'scheduled' }) }));
     const orderData = ((tx.order.updateMany.mock.calls[0] as unknown[])[0] as { data: Record<string, unknown> }).data;
     expect(orderData).toMatchObject({ status: 'ready' });
     expect(orderData.fulfillmentVersion).toBeUndefined(); // delivery-intent stable → no roll persisted
@@ -174,25 +174,30 @@ describe('casClaimSendSlot — single atomic send-time CAS (P1-f #3h)', () => {
     const r = await casClaimSendSlot(db as never, casRow, 1, lease, NOW_CAS);
     expect(r).toBe('superseded_by_manifest');
   });
-  it('#3h #5: 0 rows + STILL ours but the order is NOT ready (held) → delivery_revoked (not a manifest supersession)', async () => {
+  it('#3h-D: 0 rows + STILL ours but the order is NOT ready (a TRANSIENT held state) → delivery_blocked (recoverable, NEVER a business revocation)', async () => {
     const db = diagDb({ order: { status: 'needs_human_qa' }, readiness: { status: 'passed', currentManifestId: 'm1' } });
     const r = await casClaimSendSlot(db as never, casRow, 1, lease, NOW_CAS);
-    expect(r).toBe('delivery_revoked');
+    expect(r).toBe('delivery_blocked');
   });
-  it('#3h #5: 0 rows + STILL ours, order ready + readiness passed but currentManifestId UNCHANGED (inputs_stale, not supersession) → delivery_revoked', async () => {
+  it('#3h-D: 0 rows + STILL ours, a `partial` order (customer-visible elsewhere) is still TRANSIENT → delivery_blocked, not revoked', async () => {
+    const db = diagDb({ order: { status: 'partial' }, readiness: { status: 'passed', currentManifestId: 'm1' } });
+    const r = await casClaimSendSlot(db as never, casRow, 1, lease, NOW_CAS);
+    expect(r).toBe('delivery_blocked');
+  });
+  it('#3h-D: 0 rows + STILL ours, order ready + readiness passed but currentManifestId UNCHANGED (inputs_stale, not supersession) → delivery_blocked', async () => {
     const db = diagDb({ order: { status: 'ready' }, readiness: { status: 'passed', currentManifestId: 'm1' } });
     const r = await casClaimSendSlot(db as never, casRow, 1, lease, NOW_CAS);
-    expect(r).toBe('delivery_revoked');
+    expect(r).toBe('delivery_blocked');
   });
-  it('#3h #5: 0 rows + STILL ours, order ready + DIFFERENT currentManifestId but readiness NOT passed (blocked) → delivery_revoked (the `passed` conjunct is load-bearing)', async () => {
+  it('#3h-D: 0 rows + STILL ours, order ready + DIFFERENT currentManifestId but readiness NOT passed (blocked) → delivery_blocked (the `passed` conjunct is load-bearing)', async () => {
     const db = diagDb({ order: { status: 'ready' }, readiness: { status: 'blocked', currentManifestId: 'm2' } });
     const r = await casClaimSendSlot(db as never, casRow, 1, lease, NOW_CAS);
-    expect(r).toBe('delivery_revoked');
+    expect(r).toBe('delivery_blocked');
   });
-  it('#3h #5: 0 rows + STILL ours, order ready but the BookReadiness row is missing (null) → delivery_revoked (not superseded)', async () => {
+  it('#3h-D: 0 rows + STILL ours, order ready but the BookReadiness row is missing (null) → delivery_blocked (not superseded)', async () => {
     const db = diagDb({ order: { status: 'ready' }, readiness: null });
     const r = await casClaimSendSlot(db as never, casRow, 1, lease, NOW_CAS);
-    expect(r).toBe('delivery_revoked');
+    expect(r).toBe('delivery_blocked');
   });
   it('0 rows + the row is no longer ours (status moved off processing) → lost_lease (no order/readiness read)', async () => {
     const db = diagDb({ cur: { status: 'scheduled', attempts: 2 } });

@@ -23,6 +23,7 @@ import { sendBookReadyEmail } from '@/backend/lib/email';
 import { ROUTES } from '@/lib/routes';
 import { createLogger } from '@/lib/logger';
 import { isReadinessManifestEnabled, commitBaseBookReadiness } from '@/lib/generation-pipeline/readiness-manifest';
+import { OutboxReconciliationError } from '@/lib/generation-chunked/delivery-outbox';
 
 const log = createLogger({ subsystem: 'anchor-hold', route: '/api/admin/anchor-hold-release' });
 
@@ -87,9 +88,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     if (!reason.startsWith('anchor_low_confidence:')) {
       return NextResponse.json({ error: `Not releasable via anchor endpoint (reason=${reason || 'none'})` }, { status: 409 });
     }
-    const result = await commitBaseBookReadiness(prisma, { orderId: order.id, anchorAllowsDelivery: true, anchorOrderStatus: 'ready', anchorReason: null });
-    log.info('Anchor hold released via readiness/Outbox path', { orderId, manifestStatus: result.manifestStatus, enqueued: result.enqueued });
-    return NextResponse.json({ released: result.enqueued, viaOutbox: true, manifestStatus: result.manifestStatus, orderStatus: result.orderStatus, reason: result.reason });
+    try {
+      const result = await commitBaseBookReadiness(prisma, { orderId: order.id, anchorAllowsDelivery: true, anchorOrderStatus: 'ready', anchorReason: null });
+      log.info('Anchor hold released via readiness/Outbox path', { orderId, manifestStatus: result.manifestStatus, enqueued: result.enqueued });
+      return NextResponse.json({ released: result.enqueued, viaOutbox: true, manifestStatus: result.manifestStatus, orderStatus: result.orderStatus, reason: result.reason });
+    } catch (e) {
+      // (#3h-D) A delivery already in flight / delivered / revoked / corrupt needs an EXPLICIT redelivery — surface
+      // it as a typed 409, not a blanket catch (any OTHER error still propagates as a real 500). Match by class OR
+      // name (name survives a module-registry duplication — e.g. bundling, or a test's resetModules).
+      const recon = e instanceof OutboxReconciliationError
+        ? e
+        : ((e as { name?: string })?.name === 'OutboxReconciliationError' ? (e as OutboxReconciliationError) : null);
+      if (recon) {
+        log.warn('Anchor release blocked — delivery needs reconciliation', { orderId, dedupeKey: recon.dedupeKey, reason: recon.reason });
+        return NextResponse.json({ error: 'Delivery needs explicit reconciliation (already in flight, delivered, revoked, or corrupt)', dedupeKey: recon.dedupeKey, reason: recon.reason }, { status: 409 });
+      }
+      throw e;
+    }
   }
 
   // Flip to deliverable FIRST so the book is customer-viewable, THEN send the withheld email.

@@ -76,11 +76,16 @@ enum DeliveryOutboxStatus {
   failed
   suppressed             // legacy (pre-P1-f live-recheck path); no longer produced
   superseded             // legacy (P1-f #3, pre-split); no longer produced
-  // (P1-f #3h) CAS-mismatch split:
-  superseded_by_manifest // a newer VALID manifest genuinely owns the order (ready+passed, different manifestId).
-  //                        Recoverable: a re-commit rebinds this row in place (same dedupeKey) while sendAttempted=false.
-  delivery_revoked       // the order/readiness is NOT deliverable for another reason (held/cancelled/inputs_stale).
-  //                        NOT auto-recoverable → explicit reconciliation/redelivery.
+  // (P1-f #3h-D) Recovery taxonomy. A CAS mismatch is NEVER a business revocation — it is a recoverable
+  // not-yet-deliverable state. The worker (CAS) may only ever write the two RECOVERABLE terminals below.
+  delivery_blocked       // CAS mismatch: order not ready (paid/generating/needs_human_qa/partial are all TRANSIENT),
+  //                        readiness not passed, or inputs_stale. RECOVERABLE → a re-commit rebinds this row.
+  superseded_by_manifest // defense-in-depth / protocol-drift: a newer VALID manifest owns the order (ready+passed,
+  //                        different manifestId). RECOVERABLE via the re-commit rebind. Not a normal-flow path.
+  invalid_payload        // payload-integrity recompute mismatch (corrupt/tampered row). NOT a business revocation;
+  //                        needs investigation → reconciliation, never auto-revived.
+  delivery_revoked       // RESERVED for an explicit domain action (cancellation/refund). The CAS NEVER writes this;
+  //                        no writer exists yet. NOT auto-recoverable → explicit reconciliation/redelivery.
 }
 
 // ─── Customer ─────────────────────────────────────────
