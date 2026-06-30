@@ -25,6 +25,7 @@ import { generatePageAudio } from '@/backend/providers/audio';
 import { startChunkedGeneration } from '@/lib/generation-chunked/start';
 import type { PipelineCache } from '@/lib/generation-pipeline/types';
 import { isDevEnvironment } from '@/lib/dev-only-guard';
+import { isReadinessManifestEnabled } from '@/lib/generation-pipeline/readiness-manifest';
 
 function useChunkedGeneration(): boolean {
   return process.env.GENERATION_MONOLITH !== 'true';
@@ -171,6 +172,16 @@ export async function POST(req: NextRequest) {
     skipWorkerChain = false,
     bankDir = undefined,
   } = body;
+
+  // This legacy dev generator writes delivery inputs directly in several stages. Until it is migrated
+  // to the central writer barrier, never let it create or mutate orders under Manifest enforcement.
+  // The no-write package dry-run remains useful for validating story-bank source files.
+  if (isReadinessManifestEnabled() && !packageDryRun) {
+    return NextResponse.json(
+      { error: 'Story-bank generation is unavailable while readiness enforcement is enabled' },
+      { status: 409 },
+    );
+  }
 
   const childImageUrl =
     childImageUrlRaw?.trim() ||

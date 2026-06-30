@@ -114,6 +114,18 @@ describe('evaluateBaseBookIntegrity — 6 checks', () => {
 });
 
 describe('B4/B5 — frozen-truth binding + readUrl', () => {
+  it.each([
+    ['expectedPageCount', 'frozen_expected_page_count_missing'],
+    ['storySourceHash', 'frozen_story_source_hash_missing'],
+    ['selectionFilename', 'frozen_selection_filename_missing'],
+    ['frozenProductVersion', 'frozen_product_version_missing'],
+  ] as const)('fails closed when frozen.%s is null', async (field, blocker) => {
+    const frozen = { ...good().frozen, [field]: null };
+    const r = await evaluateBaseBookIntegrity(good({ frozen }), stubInspect);
+    expect(r.status).toBe('blocked');
+    expect(r.blockers).toContain(blocker);
+  });
+
   it('blocks when storySourceHash is missing', async () => {
     const r = await evaluateBaseBookIntegrity(good({ frozen: { expectedPageCount: 3, storySourceHash: null, selectionFilename: 'f.md', frozenProductVersion: 'v3' } }), stubInspect);
     expect(r.status).toBe('blocked');

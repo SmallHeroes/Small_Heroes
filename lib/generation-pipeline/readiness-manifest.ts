@@ -41,14 +41,23 @@ export interface DeliveryInputMutationResult<T> {
   readinessInvalidated: boolean;
 }
 
-type VersionRow = { inputVersion: number; status: string };
+type VersionRow = { inputVersion: number; status: string; previousStatus: string };
+
+function recoveryStageFor(reason: DeliveryInputMutationReason): 'page_images' | 'package' {
+  // A cleared image is not yet a stable delivery input: it must be regenerated before packaging.
+  // Every other writer in this contract persists its replacement value before entering the barrier,
+  // so package + readiness re-evaluation is the correct crash-recovery boundary.
+  return reason === 'page_assets_cleared' ? 'page_images' : 'package';
+}
 
 /**
  * The single writer-side barrier for every field read by the base-book gate or delivery payload.
  * The callback MUST contain DB work only. Its mutation, readiness invalidation, ready→generating transition,
  * optional frozen-truth compare/fill, and inputVersion bump commit or roll back together.
  *
- * Lock order intentionally ends with BookReadiness → Order, matching the readiness commit's terminal writes.
+ * Lock order intentionally ends with BookReadiness → Order → GenerationJob, matching the readiness
+ * commit's terminal writes. When flag-on removes a previously-ready order from delivery, this transaction
+ * also makes its job reclaimable; callers must never have to repair a terminal job afterward.
  * Evaluation/download/decode happens only after this transaction at a logical stabilization boundary.
  */
 export async function withDeliveryInputMutation<T>(
@@ -80,7 +89,13 @@ export async function withDeliveryInputMutation<T>(
     if (args.frozenTruth) {
       const frozen = args.frozenTruth;
       rows = await tx.$queryRaw<VersionRow[]>`
-        UPDATE "Order"
+        WITH prior AS MATERIALIZED (
+          SELECT "id", "status"::text AS "previousStatus"
+            FROM "Order"
+           WHERE "id" = ${args.orderId}
+           FOR UPDATE
+        )
+        UPDATE "Order" AS target
            SET "inputVersion" = "inputVersion" + 1,
                "expectedPageCount" = COALESCE("expectedPageCount", ${frozen.expectedPageCount}),
                "storySourceHash" = COALESCE("storySourceHash", ${frozen.storySourceHash}),
@@ -91,37 +106,100 @@ export async function withDeliveryInputMutation<T>(
                    THEN 'generating'::"OrderStatus"
                  ELSE "status"
                END,
-               "deliveryHoldReason" = CASE
+               "packageStatus" = CASE
                  WHEN ${readinessEnabled} AND "status" = 'ready'::"OrderStatus"
-                   THEN ${`base_book_integrity:${staleReason}`}
-                 ELSE "deliveryHoldReason"
-               END
-         WHERE "id" = ${args.orderId}
-           AND ("expectedPageCount" IS NULL OR "expectedPageCount" = ${frozen.expectedPageCount})
-           AND ("storySourceHash" IS NULL OR "storySourceHash" = ${frozen.storySourceHash})
-           AND ("selectionFilename" IS NULL OR "selectionFilename" = ${frozen.selectionFilename})
-           AND ("frozenProductVersion" IS NULL OR "frozenProductVersion" = ${frozen.frozenProductVersion})
-         RETURNING "inputVersion", "status"::text`;
-    } else {
-      rows = await tx.$queryRaw<VersionRow[]>`
-        UPDATE "Order"
-           SET "inputVersion" = "inputVersion" + 1,
-               "status" = CASE
-                 WHEN ${readinessEnabled} AND "status" = 'ready'::"OrderStatus"
-                   THEN 'generating'::"OrderStatus"
-                 ELSE "status"
+                   THEN 'pending'::"GenerationStatus"
+                 ELSE "packageStatus"
+               END,
+               "imageStatus" = CASE
+                 WHEN ${readinessEnabled} AND ${args.reason === 'page_assets_cleared'} AND "status" = 'ready'::"OrderStatus"
+                   THEN 'pending'::"GenerationStatus"
+                 ELSE "imageStatus"
                END,
                "deliveryHoldReason" = CASE
                  WHEN ${readinessEnabled} AND "status" = 'ready'::"OrderStatus"
                    THEN ${`base_book_integrity:${staleReason}`}
                  ELSE "deliveryHoldReason"
                END
-         WHERE "id" = ${args.orderId}
-         RETURNING "inputVersion", "status"::text`;
+          FROM prior
+         WHERE target."id" = prior."id"
+           AND (target."expectedPageCount" IS NULL OR target."expectedPageCount" = ${frozen.expectedPageCount})
+           AND (target."storySourceHash" IS NULL OR target."storySourceHash" = ${frozen.storySourceHash})
+           AND (target."selectionFilename" IS NULL OR target."selectionFilename" = ${frozen.selectionFilename})
+           AND (target."frozenProductVersion" IS NULL OR target."frozenProductVersion" = ${frozen.frozenProductVersion})
+         RETURNING target."inputVersion", target."status"::text, prior."previousStatus"`;
+    } else {
+      rows = await tx.$queryRaw<VersionRow[]>`
+        WITH prior AS MATERIALIZED (
+          SELECT "id", "status"::text AS "previousStatus"
+            FROM "Order"
+           WHERE "id" = ${args.orderId}
+           FOR UPDATE
+        )
+        UPDATE "Order" AS target
+           SET "inputVersion" = "inputVersion" + 1,
+               "status" = CASE
+                 WHEN ${readinessEnabled} AND "status" = 'ready'::"OrderStatus"
+                   THEN 'generating'::"OrderStatus"
+                 ELSE "status"
+               END,
+               "packageStatus" = CASE
+                 WHEN ${readinessEnabled} AND "status" = 'ready'::"OrderStatus"
+                   THEN 'pending'::"GenerationStatus"
+                 ELSE "packageStatus"
+               END,
+               "imageStatus" = CASE
+                 WHEN ${readinessEnabled} AND ${args.reason === 'page_assets_cleared'} AND "status" = 'ready'::"OrderStatus"
+                   THEN 'pending'::"GenerationStatus"
+                 ELSE "imageStatus"
+               END,
+               "deliveryHoldReason" = CASE
+                 WHEN ${readinessEnabled} AND "status" = 'ready'::"OrderStatus"
+                   THEN ${`base_book_integrity:${staleReason}`}
+                 ELSE "deliveryHoldReason"
+               END
+          FROM prior
+         WHERE target."id" = prior."id"
+         RETURNING target."inputVersion", target."status"::text, prior."previousStatus"`;
     }
 
     if (rows.length !== 1) {
       throw new Error(args.frozenTruth ? 'frozen_product_truth_mismatch' : 'delivery_input_order_missing');
+    }
+    const removedFromReady =
+      readinessEnabled &&
+      rows[0].previousStatus === 'ready' &&
+      rows[0].status === 'generating';
+    if (removedFromReady) {
+      const recoveryStage = recoveryStageFor(args.reason);
+      await tx.generationJob.update({
+        where: { orderId: args.orderId },
+        data: {
+          status: 'pending',
+          currentStage: recoveryStage,
+          packaged: false,
+          completedAt: null,
+          failedAt: null,
+          lastError: null,
+          retryable: false,
+          lockedBy: null,
+          leaseExpiresAt: null,
+          staleReclaimCount: 0,
+          lastReclaimStage: null,
+          lastChainStatus: null,
+          lastChainError: null,
+          lastWorkerKickAt: null,
+          triggerReason: `delivery_input_changed:${args.reason}`,
+          ...(recoveryStage === 'page_images'
+            ? {
+                imagesDone: false,
+                completedPageNumbers: [] as Prisma.InputJsonValue,
+                failedPageNumbers: [] as Prisma.InputJsonValue,
+                pageAttempts: {} as Prisma.InputJsonValue,
+              }
+            : {}),
+        },
+      });
     }
     return {
       value,

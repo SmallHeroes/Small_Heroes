@@ -65,9 +65,14 @@ describe('withDeliveryInputMutation — atomic writer barrier (P1-f #5)', () => 
     else process.env.READINESS_MANIFEST_ENABLED = previousFlag;
   });
 
-  function barrierDb(rows: Array<{ inputVersion: number; status: string }> = [{ inputVersion: 8, status: 'generating' }]) {
+  function barrierDb(
+    rows: Array<{ inputVersion: number; status: string; previousStatus: string }> = [
+      { inputVersion: 8, status: 'generating', previousStatus: 'ready' },
+    ],
+  ) {
     const tx = {
       bookReadiness: { updateMany: vi.fn(async () => ({ count: 1 })) },
+      generationJob: { update: vi.fn(async () => ({ orderId: 'o1' })) },
       $queryRaw: vi.fn(async () => rows),
       imageAsset: { update: vi.fn(async () => ({ id: 'asset-1' })) },
     };
@@ -95,19 +100,66 @@ describe('withDeliveryInputMutation — atomic writer barrier (P1-f #5)', () => 
     expect(sql).toMatch(/"inputVersion" = "inputVersion" \+ 1/);
     expect(sql).toMatch(/'ready'::"OrderStatus"/);
     expect(sql).toMatch(/'generating'::"OrderStatus"/);
+    expect(sql).toMatch(/"packageStatus"[\s\S]*'pending'::"GenerationStatus"/);
+    expect(sql).toMatch(/FOR UPDATE/);
+    expect(tx.generationJob.update).toHaveBeenCalledWith({
+      where: { orderId: 'o1' },
+      data: expect.objectContaining({
+        status: 'pending',
+        currentStage: 'package',
+        packaged: false,
+        triggerReason: 'delivery_input_changed:page_asset_changed',
+      }),
+    });
     expect(result).toMatchObject({ inputVersion: 8, orderStatus: 'generating', readinessInvalidated: true });
   });
 
   it('flag-off still versions the mutation but preserves legacy readiness/status behavior', async () => {
     delete process.env.READINESS_MANIFEST_ENABLED;
-    const { db, tx } = barrierDb([{ inputVersion: 3, status: 'ready' }]);
+    const { db, tx } = barrierDb([{ inputVersion: 3, status: 'ready', previousStatus: 'ready' }]);
     const result = await withDeliveryInputMutation(
       db as never,
       { orderId: 'o1', reason: 'page_asset_changed' },
       (transaction) => transaction.imageAsset.update({ where: { id: 'asset-1' }, data: { url: 'new' } }),
     );
     expect(tx.bookReadiness.updateMany).not.toHaveBeenCalled();
+    expect(tx.generationJob.update).not.toHaveBeenCalled();
     expect(result).toMatchObject({ inputVersion: 3, orderStatus: 'ready', readinessInvalidated: false });
+  });
+
+  it('atomically re-drives cleared page assets from page_images, not package', async () => {
+    process.env.READINESS_MANIFEST_ENABLED = 'true';
+    const { db, tx } = barrierDb();
+    await withDeliveryInputMutation(
+      db as never,
+      { orderId: 'o1', reason: 'page_assets_cleared' },
+      (transaction) => transaction.imageAsset.update({ where: { id: 'asset-1' }, data: { url: 'new' } }),
+    );
+    expect(tx.generationJob.update).toHaveBeenCalledWith({
+      where: { orderId: 'o1' },
+      data: expect.objectContaining({
+        status: 'pending',
+        currentStage: 'page_images',
+        imagesDone: false,
+        packaged: false,
+        completedPageNumbers: [],
+        failedPageNumbers: [],
+        pageAttempts: {},
+      }),
+    });
+  });
+
+  it('does not reset the job when the order was already generating', async () => {
+    process.env.READINESS_MANIFEST_ENABLED = 'true';
+    const { db, tx } = barrierDb([
+      { inputVersion: 8, status: 'generating', previousStatus: 'generating' },
+    ]);
+    await withDeliveryInputMutation(
+      db as never,
+      { orderId: 'o1', reason: 'page_asset_changed' },
+      (transaction) => transaction.imageAsset.update({ where: { id: 'asset-1' }, data: { url: 'new' } }),
+    );
+    expect(tx.generationJob.update).not.toHaveBeenCalled();
   });
 
   it('frozen-truth mismatch aborts the writer transaction instead of accepting a changed story', async () => {

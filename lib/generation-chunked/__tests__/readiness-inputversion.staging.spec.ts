@@ -90,6 +90,18 @@ describe.skipIf(!RUN)('Order.inputVersion optimistic concurrency — staging rea
       await prisma.bookReadiness.create({
         data: { orderId: id, scope: 'base_book', status: 'passed' },
       });
+      await prisma.generationJob.create({
+        data: {
+          orderId: id,
+          status: 'done',
+          currentStage: 'done',
+          textDone: true,
+          imagesDone: true,
+          audioDone: true,
+          packaged: true,
+          completedAt: new Date(),
+        },
+      });
 
       await withDeliveryInputMutation(
         prisma,
@@ -100,14 +112,22 @@ describe.skipIf(!RUN)('Order.inputVersion optimistic concurrency — staging rea
         }),
       );
 
-      const [order, readiness, book] = await Promise.all([
-        prisma.order.findUnique({ where: { id }, select: { status: true, inputVersion: true, deliveryHoldReason: true } }),
+      const [order, readiness, book, job] = await Promise.all([
+        prisma.order.findUnique({
+          where: { id },
+          select: { status: true, inputVersion: true, packageStatus: true, deliveryHoldReason: true },
+        }),
         prisma.bookReadiness.findUnique({ where: { orderId_scope: { orderId: id, scope: 'base_book' } } }),
         prisma.generatedBook.findUnique({ where: { orderId: id }, select: { readUrl: true } }),
+        prisma.generationJob.findUnique({
+          where: { orderId: id },
+          select: { status: true, currentStage: true, packaged: true, completedAt: true },
+        }),
       ]);
       expect(order).toMatchObject({
         status: 'generating',
         inputVersion: 1,
+        packageStatus: 'pending',
         deliveryHoldReason: 'base_book_integrity:inputs_changed:package_payload_changed',
       });
       expect(readiness).toMatchObject({
@@ -115,10 +135,17 @@ describe.skipIf(!RUN)('Order.inputVersion optimistic concurrency — staging rea
         reason: 'inputs_changed:package_payload_changed',
       });
       expect(book?.readUrl).toBe('https://new.invalid');
+      expect(job).toMatchObject({
+        status: 'pending',
+        currentStage: 'package',
+        packaged: false,
+        completedAt: null,
+      });
     } finally {
       if (previousFlag === undefined) delete process.env.READINESS_MANIFEST_ENABLED;
       else process.env.READINESS_MANIFEST_ENABLED = previousFlag;
       await prisma.bookReadiness.deleteMany({ where: { orderId: id } }).catch(() => { /* ignore */ });
+      await prisma.generationJob.deleteMany({ where: { orderId: id } }).catch(() => { /* ignore */ });
       await prisma.generatedBook.deleteMany({ where: { orderId: id } }).catch(() => { /* ignore */ });
       await prisma.order.delete({ where: { id } }).catch(() => { /* ignore */ });
     }
