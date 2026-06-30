@@ -153,6 +153,10 @@ export async function openExceptionCase(
       ? new Date(now.getTime() + disposition.delayMs)
       : args.nextActionAt;
 
+  // Existence at audit-label time: distinguishes a genuine creation (`producer:`) from a replay recorded against
+  // an existing case (`producer_recorded:`). Cosmetic-only — it never gates the atomic decision below.
+  const existedBefore = (await db.exceptionCase.findUnique({ where: { activeKey }, select: { id: true } })) != null;
+
   // (#6-FIX-1) Reconciliation-priority. The atomic upsert still collapses concurrent/replayed producers to one
   // row, but its `update` clause NO LONGER rewrites kind/status/sourceRef — so a later producer (e.g. a generation
   // or readiness failure) can never clobber a PROTECTED case (external action in flight, or a delivery-recon kind
@@ -180,11 +184,11 @@ export async function openExceptionCase(
     },
   });
 
-  // A freshly-created row has kind === args.kind (no upgrade). A pre-existing row keeps its own kind through the
-  // upsert; if it is still pre-external (open/retry_scheduled, no send attempted) and the incoming kind is
-  // strictly higher-priority, promote it — fenced on the observed state so a concurrent change is never clobbered.
-  let applied: 'created' | 'upgraded' | 'recorded' =
-    exceptionCase.kind === args.kind ? 'created' : 'recorded';
+  // A pre-existing row keeps its own kind through the upsert; if it is still pre-external (open/retry_scheduled,
+  // no send attempted) and the incoming kind is strictly higher-priority, promote it — fenced on the observed
+  // state so a concurrent change is never clobbered. The label reflects actual insertion, not kind equality, so a
+  // same-kind replay against an existing case is correctly logged as `producer_recorded:` (not `producer:`).
+  let applied: 'created' | 'upgraded' | 'recorded' = existedBefore ? 'recorded' : 'created';
   let result = exceptionCase;
   if (
     exceptionCase.kind !== args.kind &&

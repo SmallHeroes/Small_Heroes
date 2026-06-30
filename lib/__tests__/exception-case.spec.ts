@@ -56,7 +56,7 @@ describe('ExceptionCase producer + lifecycle', () => {
       skipDuplicates: boolean;
     }) => ({ count: 1 }));
     const db = {
-      exceptionCase: { upsert },
+      exceptionCase: { upsert, findUnique: vi.fn(async () => null) },
       exceptionCaseAudit: { createMany },
     };
 
@@ -101,7 +101,7 @@ describe('ExceptionCase producer + lifecycle', () => {
       reason: args.create.reason,
     }));
     const db = {
-      exceptionCase: { upsert },
+      exceptionCase: { upsert, findUnique: vi.fn(async () => null) },
       exceptionCaseAudit: { createMany: vi.fn(async () => ({ count: 1 })) },
     };
     await openExceptionCase(db as never, {
@@ -191,7 +191,7 @@ describe('ExceptionCase producer + lifecycle', () => {
     }));
     const tx = {
       deliveryOutbox: { updateMany },
-      exceptionCase: { upsert },
+      exceptionCase: { upsert, findUnique: vi.fn(async () => null) },
       exceptionCaseAudit: { createMany: vi.fn(async () => ({ count: 1 })) },
     };
     const db = {
@@ -219,7 +219,7 @@ describe('ExceptionCase producer + lifecycle', () => {
     const upsert = vi.fn();
     const tx = {
       deliveryOutbox: { updateMany: vi.fn(async () => ({ count: 0 })) },
-      exceptionCase: { upsert },
+      exceptionCase: { upsert, findUnique: vi.fn(async () => null) },
       exceptionCaseAudit: { createMany: vi.fn() },
     };
     const db = {
@@ -247,6 +247,7 @@ describe('ExceptionCase producer + lifecycle', () => {
         }),
       },
       exceptionCase: {
+        findUnique: vi.fn(async () => null),
         upsert: vi.fn(async () => {
           throw new Error('case_insert_failed');
         }),
@@ -287,6 +288,7 @@ describe('ExceptionCase producer + lifecycle', () => {
     const db = {
       exceptionCase: {
         upsert,
+        findUnique: vi.fn(async () => updated), // a superseding signal on an EXISTING case
       },
       exceptionCaseAudit: { createMany: vi.fn(async () => ({ count: 1 })) },
     };
