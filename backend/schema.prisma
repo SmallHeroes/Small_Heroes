@@ -549,7 +549,10 @@ model DeliveryOutbox {
   // on create and on rebind, so they are NOT NULL (#3h #6 — preflight: the table is empty everywhere).
   manifestId        String
   inputVersion      Int
+  // Monotonic claim/rebind version used only for lease fencing. It is deliberately NOT a send-retry counter.
   attempts          Int                  @default(0)
+  // Number of possible provider sends. Incremented by the send-time CAS immediately before each provider call.
+  sendAttempts      Int                  @default(0)
   nextAttemptAt     DateTime?
   leaseExpiresAt    DateTime?
   lastError         String?

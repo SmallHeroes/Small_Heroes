@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
-  deliveryDedupeKey, hashPayload, enqueueDelivery, processDelivery, drainOutbox, claimDueDeliveries, OUTBOX_MAX_ATTEMPTS,
+  deliveryDedupeKey, hashPayload, enqueueDelivery, processDelivery, drainOutbox, claimDueDeliveries, OUTBOX_MAX_SEND_ATTEMPTS,
   OutboxReconciliationError, idempotencyWindowMs,
 } from '@/lib/generation-chunked/delivery-outbox';
 
@@ -8,7 +8,7 @@ const payload = { to: 'c@e.com', customerName: 'C', childName: 'K', readUrl: 'r'
 const NOW = new Date('2026-06-29T10:05:00Z');
 const row = (over: Record<string, unknown> = {}) => ({
   id: 'ob1', dedupeKey: 'book-ready/o1/base-book/1', orderId: 'o1', scope: 'base_book', status: 'processing',
-  payload, payloadHash: hashPayload(payload), attempts: 1, createdAt: new Date('2026-06-29T10:00:00Z'),
+  payload, payloadHash: hashPayload(payload), attempts: 1, sendAttempts: 0, createdAt: new Date('2026-06-29T10:00:00Z'),
   nextAttemptAt: null, leaseExpiresAt: new Date(), lastError: null, providerMessageId: null, sentAt: null, ...over,
 });
 const okDeps = (send: ReturnType<typeof vi.fn>) => ({ cas: async () => 'ok' as const, send, now: () => NOW });
@@ -51,6 +51,12 @@ describe('idempotencyWindowMs — configurable, safety margin < 24h (#3h-D)', ()
     process.env.OUTBOX_IDEMPOTENCY_WINDOW_MS = 'nonsense';
     expect(idempotencyWindowMs()).toBe(23 * 60 * 60 * 1000);
     process.env.OUTBOX_IDEMPOTENCY_WINDOW_MS = '0';
+    expect(idempotencyWindowMs()).toBe(23 * 60 * 60 * 1000);
+  });
+  it('clamps overrides at 23h so configuration can never outlive the provider key TTL', () => {
+    process.env.OUTBOX_IDEMPOTENCY_WINDOW_MS = String(24 * 60 * 60 * 1000);
+    expect(idempotencyWindowMs()).toBe(23 * 60 * 60 * 1000);
+    process.env.OUTBOX_IDEMPOTENCY_WINDOW_MS = String(10 * 24 * 60 * 60 * 1000);
     expect(idempotencyWindowMs()).toBe(23 * 60 * 60 * 1000);
   });
 });
@@ -258,25 +264,36 @@ describe('processDelivery — send-time CAS (P1-f)', () => {
     expect(send).not.toHaveBeenCalled();
     expect(updateMany).not.toHaveBeenCalled();
   });
-  it('CAS ok but send fails with attempts remaining → reschedule (retry, SAME dedupeKey — Resend dedups)', async () => {
+  it('CAS ok but send fails with send attempts remaining → reschedule (retry, SAME dedupeKey — Resend dedups)', async () => {
     const updateMany = fencedOk();
     const send = vi.fn(async () => { throw new Error('network'); });
-    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ attempts: 2 }) as never, okDeps(send));
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ sendAttempts: 1 }) as never, okDeps(send));
     expect(out).toBe('retry');
     expect(firstData(updateMany)).toMatchObject({ status: 'scheduled' });
     expect(firstData(updateMany).nextAttemptAt).toBeInstanceOf(Date);
   });
-  it('CAS ok but send fails at max attempts → terminal failed + send_ambiguous (never roll-safe)', async () => {
+  it('high fencing attempts do not consume the provider-send retry budget', async () => {
     const updateMany = fencedOk();
     const send = vi.fn(async () => { throw new Error('network'); });
-    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ attempts: OUTBOX_MAX_ATTEMPTS }) as never, okDeps(send));
+    const out = await processDelivery(
+      { deliveryOutbox: { updateMany } } as never,
+      row({ attempts: 99, sendAttempts: 0 }) as never,
+      okDeps(send),
+    );
+    expect(out).toBe('retry');
+    expect(firstData(updateMany)).toMatchObject({ status: 'scheduled' });
+  });
+  it('CAS ok but send fails at max send attempts → terminal failed + send_ambiguous (never roll-safe)', async () => {
+    const updateMany = fencedOk();
+    const send = vi.fn(async () => { throw new Error('network'); });
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ sendAttempts: OUTBOX_MAX_SEND_ATTEMPTS - 1 }) as never, okDeps(send));
     expect(out).toBe('failed');
     expect(firstData(updateMany)).toMatchObject({ status: 'failed', failureClass: 'send_ambiguous' });
     expect(firstData(updateMany).nextAttemptAt).toBeNull();
   });
   it('a send-failure terminal write that loses the lease → lost_lease', async () => {
     const send = vi.fn(async () => { throw new Error('network'); });
-    const out = await processDelivery({ deliveryOutbox: { updateMany: fencedLost() } } as never, row({ attempts: OUTBOX_MAX_ATTEMPTS }) as never, okDeps(send));
+    const out = await processDelivery({ deliveryOutbox: { updateMany: fencedLost() } } as never, row({ sendAttempts: OUTBOX_MAX_SEND_ATTEMPTS - 1 }) as never, okDeps(send));
     expect(out).toBe('lost_lease');
   });
   it('B-r3-3: sentAt uses a now computed FRESH after the send completes (not the top-of-function now)', async () => {
@@ -297,7 +314,7 @@ describe('processDelivery — send-time CAS (P1-f)', () => {
     const now = () => times[Math.min(i++, times.length - 1)];
     const updateMany = fencedOk();
     const send = vi.fn(async () => { throw new Error('network'); });
-    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ attempts: 2 }) as never, { cas: async () => 'ok' as const, send, now });
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ sendAttempts: 1 }) as never, { cas: async () => 'ok' as const, send, now });
     expect(out).toBe('retry');
     expect((firstData(updateMany).nextAttemptAt as Date).getTime()).toBe(T_afterFail.getTime() + 2 * 60 * 1000); // backoff(2)=2m from the post-FAILURE now
   });

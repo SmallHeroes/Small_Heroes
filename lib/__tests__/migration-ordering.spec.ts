@@ -20,4 +20,12 @@ describe('migration ordering', () => {
     expect(add).toBeGreaterThanOrEqual(0); // add migration present
     expect(add).toBeGreaterThan(base); // and ordered after it
   });
+
+  it('outbox binding columns exist before their NOT NULL constraints are applied', () => {
+    const addBinding = migrations.indexOf('20260630_outbox_manifest_binding');
+    const enforceNotNull = migrations.indexOf('20260630_outbox_zz_binding_not_null');
+    expect(addBinding).toBeGreaterThanOrEqual(0);
+    expect(enforceNotNull).toBeGreaterThanOrEqual(0);
+    expect(enforceNotNull).toBeGreaterThan(addBinding);
+  });
 });

@@ -260,7 +260,7 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
 
 /**
  * (P1-f) The single atomic send-time CAS. In ONE SQL statement: renew the lease + set sendAttempted +
- * firstSendAttemptAt (COALESCE — set once, on the first attempt; #3h) IFF the row is still ours (status
+ * increment sendAttempts + set firstSendAttemptAt (COALESCE — set once, on the first attempt; #3h) IFF the row is still ours (status
  * 'processing' + this fencing token) AND the live truth still matches the row's binding:
  *   - Order.status = 'ready' AND Order.inputVersion = row.inputVersion (the inputVersion match also covers
  *     payload-field drift, because every writer of a gate/payload input bumps inputVersion in the SAME tx — the
@@ -287,6 +287,7 @@ export async function casClaimSendSlot(
   const updated = await prisma.$executeRaw`
     UPDATE "DeliveryOutbox" AS o
        SET "sendAttempted" = true,
+           "sendAttempts" = o."sendAttempts" + 1,
            "firstSendAttemptAt" = COALESCE(o."firstSendAttemptAt", ${now}),
            "leaseExpiresAt" = ${leaseExpiresAt}
      WHERE o."id" = ${row.id}

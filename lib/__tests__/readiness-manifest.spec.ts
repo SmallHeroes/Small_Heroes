@@ -150,13 +150,14 @@ describe('casClaimSendSlot — single atomic send-time CAS (P1-f #3h)', () => {
     bookReadiness: { findUnique: vi.fn(async () => over.readiness ?? null) },
   });
 
-  it('binding holds → updates exactly 1 row → ok (renews lease + sets sendAttempted + firstSendAttemptAt via COALESCE + verifies the full binding)', async () => {
+  it('binding holds → updates exactly 1 row → ok (renews lease + records the provider attempt + verifies the full binding)', async () => {
     const $executeRaw = vi.fn(async () => 1);
     const findUnique = vi.fn();
     const r = await casClaimSendSlot({ $executeRaw, deliveryOutbox: { findUnique } } as never, casRow, 1, lease, NOW_CAS);
     expect(r).toBe('ok');
     const sql = (($executeRaw.mock.calls[0] as unknown[])[0] as string[]).join(' ');
     expect(sql).toMatch(/"sendAttempted" = true/);
+    expect(sql).toMatch(/"sendAttempts" = o\."sendAttempts" \+ 1/);
     expect(sql).toMatch(/"firstSendAttemptAt" = COALESCE/); // set ONCE, on the first attempt (#3h)
     expect(sql).toMatch(/"status" = 'processing'/);
     // the four outer-WHERE bindings that guarantee fencing + drift safety (dropping any is a real regression)
