@@ -14,15 +14,26 @@ describe('cron/outbox route — worker wiring (P1-f CAS)', () => {
   const loadRoute = async (readinessOver: Record<string, unknown> = {}) => {
     const casClaimSendSlot = vi.fn(async () => 'ok'); // a real CasResult
     const isReadinessManifestEnabled = vi.fn(() => true);
-    let capturedDeps: { cas: (...a: unknown[]) => unknown } | undefined;
+    const fencedOutboxTerminalWithException = vi.fn(async () => true);
+    let capturedDeps: {
+      cas: (...a: unknown[]) => unknown;
+      terminal: (...a: unknown[]) => unknown;
+    } | undefined;
     const drainOutbox = vi.fn(async (_p: unknown, _o: unknown, deps: typeof capturedDeps) => { capturedDeps = deps; return { claimed: 0, sent: 0, superseded: 0, failed: 0, retry: 0, lost_lease: 0 }; });
     const sendBookReadyEmail = vi.fn(async () => ({}));
     vi.doMock('@/lib/prisma', () => ({ prisma: { __tag: 'prisma' } }));
     vi.doMock('@/lib/generation-pipeline/readiness-manifest', () => ({ casClaimSendSlot, isReadinessManifestEnabled, ...readinessOver }));
     vi.doMock('@/lib/generation-chunked/delivery-outbox', () => ({ drainOutbox }));
+    vi.doMock('@/lib/generation-chunked/exception-case', () => ({ fencedOutboxTerminalWithException }));
     vi.doMock('@/backend/lib/email', () => ({ sendBookReadyEmail }));
     const mod = await import('@/app/api/generate/cron/outbox/route');
-    return { GET: mod.GET, getDeps: () => capturedDeps, casClaimSendSlot, drainOutbox };
+    return {
+      GET: mod.GET,
+      getDeps: () => capturedDeps,
+      casClaimSendSlot,
+      fencedOutboxTerminalWithException,
+      drainOutbox,
+    };
   };
   const req = (auth: string | null) => ({ headers: { get: (h: string) => (h === 'authorization' ? auth : null) } }) as never;
 
@@ -39,6 +50,29 @@ describe('cron/outbox route — worker wiring (P1-f CAS)', () => {
     const cres = await deps.cas(rowArg, 3, lease, now);
     expect(t.casClaimSendSlot).toHaveBeenCalledWith(expect.anything(), rowArg, 3, lease, now);
     expect(cres).toBe('ok'); // the route closure passes the CasResult straight through to the worker
+
+    expect(typeof deps.terminal).toBe('function');
+    const outboxData = { status: 'invalid_payload' };
+    const terminalResult = await deps.terminal(
+      rowArg,
+      3,
+      outboxData,
+      'invalid_payload',
+      'payload_integrity_mismatch',
+      now,
+    );
+    expect(t.fencedOutboxTerminalWithException).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        row: rowArg,
+        token: 3,
+        outboxData,
+        kind: 'invalid_payload',
+        reason: 'payload_integrity_mismatch',
+        now,
+      },
+    );
+    expect(terminalResult).toBe(true);
   });
 
   it('short-circuits (no drain) when READINESS_MANIFEST_ENABLED is off', async () => {

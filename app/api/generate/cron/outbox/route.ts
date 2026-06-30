@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { drainOutbox } from '@/lib/generation-chunked/delivery-outbox';
 import { casClaimSendSlot, isReadinessManifestEnabled } from '@/lib/generation-pipeline/readiness-manifest';
 import { sendBookReadyEmail } from '@/backend/lib/email';
+import { fencedOutboxTerminalWithException } from '@/lib/generation-chunked/exception-case';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -35,6 +36,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       // (P1-f) the single atomic send-time CAS: renew lease + set sendAttempted/firstSendAttemptAt IFF the row's binding still holds.
       cas: (row, token, leaseExpiresAt, now) => casClaimSendSlot(prisma, row, token, leaseExpiresAt, now),
       send: (payload, idempotencyKey) => sendBookReadyEmail({ ...payload, idempotencyKey }),
+      terminal: (row, token, outboxData, kind, reason, now) =>
+        fencedOutboxTerminalWithException(prisma, {
+          row,
+          token,
+          outboxData,
+          kind,
+          reason,
+          now,
+        }),
     },
   );
   return NextResponse.json(summary);

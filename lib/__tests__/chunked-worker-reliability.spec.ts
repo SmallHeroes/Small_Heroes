@@ -236,11 +236,15 @@ describe('sweepStaleGenerationJobs — DISPATCHER boundary (kicks the worker rou
     vi.doUnmock('@/lib/generation-chunked/sweeper');
     const update = vi.fn(async () => ({}));
     const orderUpdate = vi.fn(async () => ({}));
+    const mockPrisma = {
+      generationJob: { findMany: vi.fn(async () => jobs), update },
+      order: { update: orderUpdate },
+    } as Record<string, unknown>;
+    mockPrisma.$transaction = vi.fn(async (callback: (tx: unknown) => unknown) =>
+      callback(mockPrisma),
+    );
     vi.doMock('@/lib/prisma', () => ({
-      prisma: {
-        generationJob: { findMany: vi.fn(async () => jobs), update },
-        order: { update: orderUpdate },
-      },
+      prisma: mockPrisma,
     }));
     // The sweeper must DISPATCH via the self-chain helper — never run the chunk in-process.
     const kick = vi.fn(() => {});

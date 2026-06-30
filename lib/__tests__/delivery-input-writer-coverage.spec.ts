@@ -4,7 +4,18 @@ import path from 'path';
 import * as ts from 'typescript';
 
 const ROOT = process.cwd();
-const MODEL_NAMES = new Set(['generatedBook', 'bookPage', 'imageAsset']);
+const MODEL_NAMES = new Set(['generatedBook', 'bookPage', 'imageAsset', 'order']);
+const DELIVERY_ORDER_FIELDS = new Set([
+  'customerEmail',
+  'customerName',
+  'childName',
+  'expectedPageCount',
+  'storySourceHash',
+  'selectionFilename',
+  'frozenProductVersion',
+  'fulfillmentVersion',
+  'inputVersion',
+]);
 const WRITE_METHODS = new Set([
   'create',
   'createMany',
@@ -185,6 +196,38 @@ function isDisplayOnlyException(site: WriterSite): boolean {
   return false;
 }
 
+function isDeliveryInputWriter(site: WriterSite): boolean {
+  if (site.model !== 'order') return true;
+  if (!site.dataFields) return true;
+  return site.dataFields.some((field) => DELIVERY_ORDER_FIELDS.has(field));
+}
+
+function isOrderCreationException(site: WriterSite): boolean {
+  return (
+    site.model === 'order' &&
+    site.method === 'create' &&
+    site.relative === 'app/api/orders/route.ts'
+  );
+}
+
+function isReadinessCommitOrderStateWrite(site: WriterSite): boolean {
+  return (
+    site.model === 'order' &&
+    site.method === 'updateMany' &&
+    site.relative === 'lib/generation-pipeline/readiness-manifest.ts'
+  );
+}
+
+function isExplicitReconciliationFulfillmentRoll(site: WriterSite): boolean {
+  return (
+    site.model === 'order' &&
+    site.method === 'updateMany' &&
+    site.relative === 'lib/generation-chunked/exception-case.ts' &&
+    site.dataFields?.length === 1 &&
+    site.dataFields[0] === 'fulfillmentVersion'
+  );
+}
+
 function hasFlagOnDevWriteGuard(relative: string): boolean {
   if (!relative.startsWith('app/api/dev/')) return false;
   const text = source(relative);
@@ -221,15 +264,21 @@ describe('P1-f #5 delivery-input writer coverage', () => {
 
     const unsafe = sites.filter(
       (site) =>
+        isDeliveryInputWriter(site) &&
         !site.protectedByBarrier &&
         !isDisplayOnlyException(site) &&
+        !isOrderCreationException(site) &&
+        !isReadinessCommitOrderStateWrite(site) &&
+        !isExplicitReconciliationFulfillmentRoll(site) &&
         !hasFlagOnDevWriteGuard(site.relative),
     );
     expect(
       unsafe.map((site) => `${site.relative}:${site.line} ${site.model}.${site.method}`),
     ).toEqual([]);
 
-    const devSites = sites.filter((site) => site.relative.startsWith('app/api/dev/'));
+    const devSites = sites.filter(
+      (site) => site.relative.startsWith('app/api/dev/') && site.model !== 'order',
+    );
     expect(devSites.length).toBeGreaterThan(0);
     expect([...new Set(devSites.map((site) => site.relative))]).toEqual([
       'app/api/dev/story-bank/route.ts',
@@ -239,13 +288,19 @@ describe('P1-f #5 delivery-input writer coverage', () => {
 
   it('has no raw SQL writer bypass for delivery-input tables', () => {
     const rawWrite =
-      /\b(?:UPDATE|INSERT\s+INTO|DELETE\s+FROM)\s+(?:public\.)?["']?(GeneratedBook|BookPage|ImageAsset)["']?/gi;
+      /\b(?:UPDATE|INSERT\s+INTO|DELETE\s+FROM)\s+(?:public\.)?["']?(GeneratedBook|BookPage|ImageAsset|Order)["']?/gi;
     const found: string[] = [];
     for (const dir of ['app', 'lib', 'backend']) {
       for (const file of walk(path.join(ROOT, dir))) {
         const relative = path.relative(ROOT, file).split(path.sep).join('/');
         const text = readFileSync(file, 'utf8');
         for (const match of text.matchAll(rawWrite)) {
+          if (
+            match[1] === 'Order' &&
+            relative === 'lib/generation-pipeline/readiness-manifest.ts'
+          ) {
+            continue;
+          }
           const line = text.slice(0, match.index).split('\n').length;
           found.push(`${relative}:${line} ${match[0]}`);
         }
@@ -262,6 +317,7 @@ describe('P1-f #5 delivery-input writer coverage', () => {
         await pages.deleteMany({});
         const { imageAsset: assets } = tx;
         await assets.upsert({ data: { url: 'x' } });
+        await tx.order.update({ data: { inputVersion: 4 } });
       }
     `;
     expect(
@@ -270,6 +326,7 @@ describe('P1-f #5 delivery-input writer coverage', () => {
       'generatedBook.update',
       'bookPage.deleteMany',
       'imageAsset.upsert',
+      'order.update',
     ]);
   });
 

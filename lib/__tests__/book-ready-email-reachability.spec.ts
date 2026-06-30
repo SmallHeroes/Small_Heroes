@@ -16,6 +16,9 @@ describe('sendBookReadyEmail reachability', () => {
   const ALLOWED_CALL_SITES = new Set([
     'app/api/admin/anchor-hold-release/route.ts', // human-QA release of a delivery hold (break-glass)
     'app/api/generate/cron/outbox/route.ts', // Phase-1 Outbox worker (effectively-once delivery)
+    // Exception reconciliation may replay only the exact payload + key inside Resend's dedupe window
+    // to recover a lost provider message id; its state-machine tests pin that it never blind-resends.
+    'lib/generation-chunked/exception-processor.ts',
   ]);
 
   function walk(dir: string, acc: string[] = []): string[] {

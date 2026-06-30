@@ -10,11 +10,21 @@
  */
 import type { Prisma, PrismaClient, DeliveryOutbox } from '@prisma/client';
 import { createHash } from 'crypto';
-import { evaluateBaseBookIntegrity, BASE_BOOK_SCOPE, type IntegrityInput, type IntegrityResult } from './integrity-gate';
+import {
+  evaluateBaseBookIntegrity,
+  isTransientIntegrityFailure,
+  BASE_BOOK_SCOPE,
+  type IntegrityInput,
+  type IntegrityResult,
+} from './integrity-gate';
 import { inspectAsset, type AssetInspection } from './asset-integrity';
 import { enqueueDelivery, type BookReadyPayload, type CasResult } from '@/lib/generation-chunked/delivery-outbox';
 import { createLogger } from '@/lib/logger';
 import type { FrozenStoryProductTruth } from './frozen-product-truth';
+import {
+  openExceptionCase,
+  resolveActiveRecoveryCaseInTx,
+} from '@/lib/generation-chunked/exception-case';
 
 const log = createLogger({ subsystem: 'readiness-manifest' });
 
@@ -32,7 +42,8 @@ export type DeliveryInputMutationReason =
   | 'package_payload_changed'
   | 'single_page_regenerated'
   | 'page_assets_cleared'
-  | 'debug_page_asset_changed';
+  | 'debug_page_asset_changed'
+  | 'character_anchors_changed';
 
 export interface DeliveryInputMutationResult<T> {
   value: T;
@@ -47,7 +58,9 @@ function recoveryStageFor(reason: DeliveryInputMutationReason): 'page_images' | 
   // A cleared image is not yet a stable delivery input: it must be regenerated before packaging.
   // Every other writer in this contract persists its replacement value before entering the barrier,
   // so package + readiness re-evaluation is the correct crash-recovery boundary.
-  return reason === 'page_assets_cleared' ? 'page_images' : 'package';
+  return reason === 'page_assets_cleared' || reason === 'character_anchors_changed'
+    ? 'page_images'
+    : 'package';
 }
 
 /**
@@ -377,10 +390,48 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, r
     update: { status: result.status, currentManifestId: manifest.id, reason: result.reason },
   });
 
+  if (result.status === 'blocked') {
+    const transient = isTransientIntegrityFailure(result);
+    await openExceptionCase(tx, {
+      orderId: order.id,
+      scope,
+      kind: transient ? 'infra_transient' : 'integrity_blocked',
+      reason: result.reason ?? 'integrity_blocked',
+      sourceRef: `readiness:${manifest.id}`,
+      now,
+      initialStatus: 'retry_scheduled',
+      nextActionAt: new Date(now.getTime() + 60_000),
+      metadata: {
+        manifestId: manifest.id,
+        revision,
+        classification: transient ? 'validator_transient' : 'deterministic_block',
+      },
+    });
+  } else {
+    await resolveActiveRecoveryCaseInTx(tx, {
+      orderId: order.id,
+      scope,
+      kinds: ['infra_transient', 'integrity_blocked'],
+      reason: `readiness_passed:${manifest.id}`,
+      now,
+    });
+  }
+
+  const activeException = result.status === 'passed'
+    ? await tx.exceptionCase.findUnique({
+        where: { activeKey: `${order.id}:${scope}` },
+        select: { kind: true, status: true },
+      })
+    : null;
+
   let enqueued = false;
   let orderStatus: string;
   let deliveryHoldReason: string | null;
-  if (result.status === 'passed' && args.anchorAllowsDelivery) {
+  if (result.status === 'passed' && activeException) {
+    // A refund/reconciliation/customer action is already authoritative. Do not deliver-and-refund.
+    orderStatus = 'failed';
+    deliveryHoldReason = `exception_case:${activeException.kind}:${activeException.status}`;
+  } else if (result.status === 'passed' && args.anchorAllowsDelivery) {
     // (3) enqueue the delivery IN the same transaction (enqueue != send), then (4) mark the order ready.
     // (P1-f #3h) A re-commit REBINDS the existing Outbox row in place (same dedupeKey → same idempotency key),
     // so fulfillmentVersion never rolls here — the delivery-intent is stable; the manifest is just its proof.

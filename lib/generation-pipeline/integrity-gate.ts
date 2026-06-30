@@ -69,6 +69,19 @@ export interface IntegrityResult {
   evidence: Record<string, unknown>;
 }
 
+const TRANSIENT_ASSET_FAILURE =
+  /^(?:cover_invalid|page\d+_image_invalid):(?:timeout|fetch_failed|http_429|http_5\d\d)$/;
+
+/**
+ * A validator transport/provider outage is retryable; missing/corrupt/wrong product truth is deterministic.
+ * Mixed results fail closed as persistent — a transient retry must never hide a simultaneous hard blocker.
+ */
+export function isTransientIntegrityFailure(result: Pick<IntegrityResult, 'blockers'>): boolean {
+  return result.blockers.length > 0 && result.blockers.every((blocker) =>
+    TRANSIENT_ASSET_FAILURE.test(blocker),
+  );
+}
+
 // Leftover template artifacts that should have been resolved before render: {{mustache}}, {chip|chip}, [[patch]].
 const UNRESOLVED_MARKER_RE = /\{\{|\}\}|\{[^}{]*\|[^}{]*\}|\[\[[^\]]*\]\]/;
 

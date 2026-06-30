@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS "ExceptionCase" (
   "refundKey"             TEXT,
   "providerActionId"      TEXT,
   "actionAttemptedAt"     TIMESTAMP(3),
+  "notificationAttemptedAt" TIMESTAMP(3),
   "notificationMessageId" TEXT,
   "createdAt"             TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt"             TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

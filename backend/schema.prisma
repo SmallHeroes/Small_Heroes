@@ -618,6 +618,7 @@ model ExceptionCase {
   refundKey           String?             @unique
   providerActionId    String?
   actionAttemptedAt   DateTime?
+  notificationAttemptedAt DateTime?
   notificationMessageId String?
   audits              ExceptionCaseAudit[]
   createdAt           DateTime            @default(now())

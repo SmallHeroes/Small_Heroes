@@ -38,6 +38,18 @@ function mockTx(orderRow: unknown = orderRowFull) {
     order: { findUnique: vi.fn(async () => orderRow), updateMany: vi.fn(async () => ({ count: 1 })) },
     bookReadinessManifest: { findFirst: vi.fn(async () => ({ revision: 4 })), create: vi.fn(async (a: { data: Record<string, unknown> }) => ({ id: 'm1', ...a.data })) },
     bookReadiness: { upsert: vi.fn() },
+    exceptionCase: {
+      upsert: vi.fn(async (a: { create: Record<string, unknown> }) => ({
+        id: 'ec1',
+        ...a.create,
+      })),
+      findUnique: vi.fn(async () => null),
+      updateMany: vi.fn(async () => ({ count: 1 })),
+    },
+    exceptionCaseAudit: {
+      createMany: vi.fn(async () => ({ count: 1 })),
+      create: vi.fn(async () => ({})),
+    },
     deliveryOutbox: { findUnique: vi.fn(async () => null), create: vi.fn(), updateMany: vi.fn(async () => ({ count: 1 })) },
     generationJob: { update: vi.fn() },
   };
@@ -216,6 +228,36 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
     expect(tx.bookReadinessManifest.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'blocked' }) }));
     expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
     expect(tx.order.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'needs_human_qa', deliveryHoldReason: expect.stringContaining('base_book_integrity:') }) }));
+    expect(tx.exceptionCase.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({
+        kind: 'integrity_blocked',
+        status: 'retry_scheduled',
+        sourceRef: 'readiness:m1',
+      }),
+    }));
+  });
+
+  it('validator-only timeout/5xx BLOCK opens infra_transient rather than a deterministic integrity case', async () => {
+    const tx = mockTx();
+    const transientInspect = vi.fn(async (): Promise<AssetInspection> => ({
+      ok: false,
+      bytes: 0,
+      format: null,
+      mime: null,
+      width: null,
+      height: null,
+      sha256: null,
+      error: 'timeout',
+    }));
+    const r = await commitBaseBookReadiness(
+      mockPrisma(tx) as never,
+      args(),
+      { inspect: transientInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' },
+    );
+    expect(r.manifestStatus).toBe('blocked');
+    expect(tx.exceptionCase.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({ kind: 'infra_transient' }),
+    }));
   });
 
   it('PASS but anchor holds: manifest passed, NO enqueue, anchor hold preserved', async () => {
@@ -225,6 +267,28 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
     expect(r.enqueued).toBe(false);
     expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
     expect(tx.order.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'needs_human_qa', deliveryHoldReason: 'anchor_low_confidence:soft_band' }) }));
+  });
+
+  it('never enqueues a newly-passing book while a refund obligation is active', async () => {
+    const tx = mockTx();
+    tx.exceptionCase.findUnique.mockResolvedValue({
+      id: 'ec_refund',
+      kind: 'integrity_blocked',
+      status: 'refund_pending',
+      actionAttemptedAt: NOW,
+      notificationAttemptedAt: null,
+    } as never);
+
+    const r = await commitBaseBookReadiness(
+      mockPrisma(tx) as never,
+      args(),
+      { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' },
+    );
+
+    expect(r.enqueued).toBe(false);
+    expect(r.orderStatus).toBe('failed');
+    expect(r.reason).toBe('exception_case:integrity_blocked:refund_pending');
+    expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
   });
 
   it('aborts + retries on in-tx fingerprint drift (TOCTOU), then commits on fresh re-eval', async () => {

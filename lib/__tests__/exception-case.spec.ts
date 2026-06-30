@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   claimDueExceptionCases,
   exceptionActiveKey,
+  fencedOutboxTerminalWithException,
   openExceptionCase,
+  reissueConfirmedFailedDelivery,
+  resolveAmbiguousDelivery,
   transitionExceptionCase,
 } from '@/lib/generation-chunked/exception-case';
 
@@ -27,6 +30,7 @@ function caseRow(over: Record<string, unknown> = {}) {
     refundKey: null,
     providerActionId: null,
     actionAttemptedAt: null,
+    notificationAttemptedAt: null,
     notificationMessageId: null,
     createdAt: NOW,
     updatedAt: NOW,
@@ -88,6 +92,7 @@ describe('ExceptionCase producer + lifecycle', () => {
     const upsert = vi.fn(async (args) => caseRow({
       kind: args.create.kind,
       status: args.create.status,
+      reason: args.create.reason,
     }));
     const db = {
       exceptionCase: { upsert },
@@ -170,5 +175,281 @@ describe('ExceptionCase producer + lifecycle', () => {
     expect(sql).toMatch(/FOR UPDATE SKIP LOCKED/);
     expect(sql).toMatch(/"claimVersion" = "claimVersion" \+ 1/);
     expect(sql).toMatch(/"attempts" = "attempts" \+ 1/);
+  });
+
+  it('atomically fences an Outbox terminal and opens its one active case', async () => {
+    const updateMany = vi.fn(async () => ({ count: 1 }));
+    const upsert = vi.fn(async () => caseRow({
+      kind: 'invalid_payload',
+      reason: 'payload_integrity_mismatch',
+    }));
+    const tx = {
+      deliveryOutbox: { updateMany },
+      exceptionCase: { upsert },
+      exceptionCaseAudit: { createMany: vi.fn(async () => ({ count: 1 })) },
+    };
+    const db = {
+      $transaction: vi.fn(async (fn: (inner: typeof tx) => unknown) => fn(tx)),
+    };
+    const ok = await fencedOutboxTerminalWithException(db as never, {
+      row: { id: 'ob1', orderId: 'o1', scope: 'base_book' },
+      token: 7,
+      outboxData: { status: 'invalid_payload' },
+      kind: 'invalid_payload',
+      reason: 'payload_integrity_mismatch',
+      now: NOW,
+    });
+    expect(ok).toBe(true);
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { id: 'ob1', status: 'processing', attempts: 7 },
+      data: { status: 'invalid_payload' },
+    });
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { activeKey: 'o1:base_book' },
+    }));
+  });
+
+  it('a stale Outbox worker opens no case', async () => {
+    const upsert = vi.fn();
+    const tx = {
+      deliveryOutbox: { updateMany: vi.fn(async () => ({ count: 0 })) },
+      exceptionCase: { upsert },
+      exceptionCaseAudit: { createMany: vi.fn() },
+    };
+    const db = {
+      $transaction: vi.fn(async (fn: (inner: typeof tx) => unknown) => fn(tx)),
+    };
+    const ok = await fencedOutboxTerminalWithException(db as never, {
+      row: { id: 'ob1', orderId: 'o1', scope: 'base_book' },
+      token: 6,
+      outboxData: { status: 'failed' },
+      kind: 'send_ambiguous',
+      reason: 'send_attempts_exhausted',
+      now: NOW,
+    });
+    expect(ok).toBe(false);
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it('rolls back the Outbox terminal if ExceptionCase creation fails', async () => {
+    let outboxStatus = 'processing';
+    const tx = {
+      deliveryOutbox: {
+        updateMany: vi.fn(async () => {
+          outboxStatus = 'failed';
+          return { count: 1 };
+        }),
+      },
+      exceptionCase: {
+        upsert: vi.fn(async () => {
+          throw new Error('case_insert_failed');
+        }),
+      },
+      exceptionCaseAudit: { createMany: vi.fn() },
+    };
+    const db = {
+      $transaction: vi.fn(async (callback: (inner: typeof tx) => unknown) => {
+        const before = outboxStatus;
+        try {
+          return await callback(tx);
+        } catch (error) {
+          outboxStatus = before;
+          throw error;
+        }
+      }),
+    };
+
+    await expect(fencedOutboxTerminalWithException(db as never, {
+      row: { id: 'ob1', orderId: 'o1', scope: 'base_book' },
+      token: 6,
+      outboxData: { status: 'failed' },
+      kind: 'send_ambiguous',
+      reason: 'send_attempts_exhausted',
+      now: NOW,
+    })).rejects.toThrow('case_insert_failed');
+    expect(outboxStatus).toBe('processing');
+  });
+
+  it('a superseding producer signal fences the processor that claimed the old failure class', async () => {
+    const updated = caseRow({
+      kind: 'send_ambiguous',
+      reason: 'send_attempts_exhausted',
+      claimVersion: 9,
+      leaseExpiresAt: null,
+    });
+    const upsert = vi.fn(async () => updated);
+    const db = {
+      exceptionCase: {
+        upsert,
+      },
+      exceptionCaseAudit: { createMany: vi.fn(async () => ({ count: 1 })) },
+    };
+
+    const result = await openExceptionCase(db as never, {
+      orderId: 'o1',
+      kind: 'send_ambiguous',
+      reason: 'send_attempts_exhausted',
+      sourceRef: 'ob1',
+      now: NOW,
+      fenceExisting: true,
+    });
+
+    expect(result.kind).toBe('send_ambiguous');
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { activeKey: 'o1:base_book' },
+      update: expect.objectContaining({
+        kind: 'send_ambiguous',
+        claimVersion: { increment: 1 },
+        leaseExpiresAt: null,
+      }),
+    }));
+  });
+
+  it('atomically marks the Outbox sent and resolves its ambiguous case', async () => {
+    const caseUpdate = vi.fn(async () => ({ count: 1 }));
+    const outboxUpdate = vi.fn(async () => ({ count: 1 }));
+    const tx = {
+      exceptionCase: { updateMany: caseUpdate },
+      exceptionCaseAudit: { create: vi.fn(async () => ({})) },
+      deliveryOutbox: { updateMany: outboxUpdate },
+    };
+    const db = {
+      $transaction: vi.fn(async (callback: (inner: typeof tx) => unknown) => callback(tx)),
+    };
+
+    await expect(resolveAmbiguousDelivery(db as never, {
+      exceptionCase: { id: 'ec1', status: 'open', claimVersion: 4 },
+      outboxId: 'ob1',
+      providerMessageId: 'email_1',
+      providerEvent: 'delivered',
+      now: NOW,
+    })).resolves.toBe(true);
+
+    expect(caseUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'ec1', status: 'open', claimVersion: 4 },
+    }));
+    expect(outboxUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      where: {
+        id: 'ob1',
+        status: 'failed',
+        failureClass: 'send_ambiguous',
+      },
+      data: expect.objectContaining({ status: 'sent', providerMessageId: 'email_1' }),
+    }));
+  });
+
+  it('rolls back case resolution if the ambiguous Outbox source changed', async () => {
+    let caseStatus = 'open';
+    const tx = {
+      exceptionCase: {
+        updateMany: vi.fn(async () => {
+          caseStatus = 'resolved';
+          return { count: 1 };
+        }),
+      },
+      exceptionCaseAudit: { create: vi.fn(async () => ({})) },
+      deliveryOutbox: { updateMany: vi.fn(async () => ({ count: 0 })) },
+    };
+    const db = {
+      $transaction: vi.fn(async (callback: (inner: typeof tx) => unknown) => {
+        const before = caseStatus;
+        try {
+          return await callback(tx);
+        } catch (error) {
+          caseStatus = before;
+          throw error;
+        }
+      }),
+    };
+
+    await expect(resolveAmbiguousDelivery(db as never, {
+      exceptionCase: { id: 'ec1', status: 'open', claimVersion: 4 },
+      outboxId: 'ob1',
+      providerMessageId: 'email_1',
+      providerEvent: 'delivered',
+      now: NOW,
+    })).rejects.toThrow('ambiguous_delivery_source_changed');
+    expect(caseStatus).toBe('open');
+  });
+
+  it('reissues a provider-confirmed failure as one new fulfillment intent', async () => {
+    const previousAppUrl = process.env.APP_URL;
+    process.env.APP_URL = 'https://app.example.com';
+    const oldOutbox = {
+      id: 'ob1',
+      status: 'failed',
+      failureClass: 'send_ambiguous',
+    };
+    const create = vi.fn(async ({ data }) => ({ id: 'ob2', ...data }));
+    const outboxUpdate = vi.fn(async () => ({ count: 1 }));
+    const tx = {
+      exceptionCase: { updateMany: vi.fn(async () => ({ count: 1 })) },
+      exceptionCaseAudit: { create: vi.fn(async () => ({})) },
+      deliveryOutbox: {
+        findUnique: vi.fn(async ({ where }) =>
+          where.id === 'ob1' ? oldOutbox : null,
+        ),
+        create,
+        updateMany: outboxUpdate,
+      },
+      order: {
+        findUnique: vi.fn(async () => ({
+          status: 'ready',
+          fulfillmentVersion: 1,
+          inputVersion: 3,
+          customerEmail: 'parent@example.com',
+          customerName: 'Parent',
+          childName: 'Child',
+          book: {
+            readUrl: 'https://app.example.com/ready?orderId=o1',
+            pdfUrl: null,
+            pages: [],
+          },
+        })),
+        updateMany: vi.fn(async () => ({ count: 1 })),
+      },
+      bookReadiness: {
+        findUnique: vi.fn(async () => ({
+          status: 'passed',
+          currentManifestId: 'm1',
+        })),
+      },
+    };
+    const db = {
+      $transaction: vi.fn(async (callback: (inner: typeof tx) => unknown) => callback(tx)),
+    };
+
+    try {
+      await expect(reissueConfirmedFailedDelivery(db as never, {
+        exceptionCase: {
+          id: 'ec1',
+          orderId: 'o1',
+          status: 'open',
+          claimVersion: 4,
+        },
+        outboxId: 'ob1',
+        providerMessageId: 'email_1',
+        providerEvent: 'bounced',
+        now: NOW,
+      })).resolves.toBe('reissued');
+    } finally {
+      if (previousAppUrl === undefined) delete process.env.APP_URL;
+      else process.env.APP_URL = previousAppUrl;
+    }
+
+    expect(create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        dedupeKey: 'book-ready/o1/base-book/2',
+        manifestId: 'm1',
+      }),
+    });
+    expect(outboxUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      where: {
+        id: 'ob1',
+        status: 'failed',
+        failureClass: 'send_ambiguous',
+      },
+      data: expect.objectContaining({ failureClass: 'provider_confirmed_failed' }),
+    }));
   });
 });

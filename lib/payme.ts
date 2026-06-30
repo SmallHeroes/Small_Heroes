@@ -342,3 +342,85 @@ export async function verifyPaymePayment(params: {
     return { verified: false, status: 'unknown', raw: null };
   }
 }
+
+export type PaymeSaleState =
+  | 'paid'
+  | 'refunded'
+  | 'partial_refund'
+  | 'failed'
+  | 'pending'
+  | 'unknown';
+
+export async function queryPaymeSale(
+  paymeSaleId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ state: PaymeSaleState; rawStatus: string | null }> {
+  const cfg = resolvePaymeConfig();
+  if (!cfg.apiBaseUrl || !cfg.apiKey || !paymeSaleId.trim()) {
+    return { state: 'unknown', rawStatus: null };
+  }
+  const res = await fetchImpl(`${cfg.apiBaseUrl}/get-sales`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({
+      seller_payme_id: cfg.apiKey,
+      // PayMe's current API blueprint names this query field sale_payme_id.
+      sale_payme_id: paymeSaleId.trim(),
+    }),
+  });
+  if (!res.ok) throw new Error(`PayMe get-sales failed (${res.status})`);
+  const raw = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!raw || Number(raw.status_code ?? 0) !== 0) {
+    throw new Error(`PayMe get-sales provider error:${String(raw?.status_error_code ?? 'unknown')}`);
+  }
+  const items = Array.isArray(raw.items) ? raw.items : [];
+  const sale = (items[0] && typeof items[0] === 'object')
+    ? items[0] as Record<string, unknown>
+    : raw;
+  const rawStatus = pickString(sale.sale_status)?.toLowerCase() ?? null;
+  if (rawStatus === 'refunded') return { state: 'refunded', rawStatus };
+  if (rawStatus === 'partial-refund') return { state: 'partial_refund', rawStatus };
+  if (rawStatus && ['completed', 'approved', 'success', 'paid'].includes(rawStatus)) {
+    return { state: 'paid', rawStatus };
+  }
+  if (rawStatus && ['failed', 'declined', 'canceled', 'cancelled', 'chargeback'].includes(rawStatus)) {
+    return { state: 'failed', rawStatus };
+  }
+  if (rawStatus && ['initial', 'pending', 'processing', 'authorized'].includes(rawStatus)) {
+    return { state: 'pending', rawStatus };
+  }
+  return { state: 'unknown', rawStatus };
+}
+
+/** Full refund. PayMe has no idempotency-key parameter; callers MUST query before retrying. */
+export async function refundPaymeSale(
+  paymeSaleId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ state: 'refunded' | 'pending'; providerActionId: string | null }> {
+  const cfg = resolvePaymeConfig();
+  if (!cfg.apiBaseUrl || !cfg.apiKey || !paymeSaleId.trim()) {
+    throw new Error('PayMe refund configuration is missing');
+  }
+  const res = await fetchImpl(`${cfg.apiBaseUrl}/refund-sale`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({
+      seller_payme_id: cfg.apiKey,
+      payme_sale_id: paymeSaleId.trim(),
+      // Full refund: current PayMe contract requires omitting sale_refund_amount.
+      language: 'en',
+    }),
+  });
+  const raw = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!res.ok || !raw || Number(raw.status_code ?? 1) !== 0) {
+    throw new Error(
+      `PayMe refund failed (${res.status}):${String(raw?.status_error_code ?? 'unknown')}`,
+    );
+  }
+  const status = pickString(raw.sale_status)?.toLowerCase();
+  const providerActionId = pickString(raw.payme_transaction_id);
+  return {
+    state: status === 'refunded' ? 'refunded' : 'pending',
+    providerActionId,
+  };
+}

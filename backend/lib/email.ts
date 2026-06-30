@@ -22,6 +22,25 @@ export interface OtpEmailData {
   code: string;
 }
 
+export type EmailDeliveryState = 'delivered' | 'pending' | 'failed' | 'unknown';
+
+export interface RefundNoticeEmailData {
+  to: string;
+  customerName: string;
+  childName: string;
+  idempotencyKey: string;
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[char] as string);
+}
+
 // ─── Provider: Resend (recommended) ──────────────────
 async function sendWithResend(data: BookReadyEmailData): Promise<{ providerMessageId?: string }> {
   const apiKey = process.env.RESEND_API_KEY;
@@ -82,6 +101,73 @@ async function sendOtpWithResend(data: OtpEmailData): Promise<void> {
     const reason = bodyText ? ` ${bodyText.slice(0, 200)}` : '';
     throw new Error(`Resend OTP email error: ${res.status}${reason}`);
   }
+}
+
+/** Provider reconciliation is possible only by Resend's message id (there is no lookup-by-idempotency API). */
+export async function getBookReadyEmailDeliveryState(
+  providerMessageId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ state: EmailDeliveryState; event: string | null }> {
+  const provider = process.env.EMAIL_PROVIDER || 'resend';
+  const apiKey = process.env.RESEND_API_KEY;
+  if (provider !== 'resend' || !apiKey || !providerMessageId.trim()) {
+    return { state: 'unknown', event: null };
+  }
+  const res = await fetchImpl(
+    `https://api.resend.com/emails/${encodeURIComponent(providerMessageId.trim())}`,
+    { headers: { Authorization: `Bearer ${apiKey}` } },
+  );
+  if (res.status === 404) return { state: 'unknown', event: 'not_found' };
+  if (!res.ok) throw new Error(`Resend retrieve email error: ${res.status}`);
+  const body = (await res.json().catch(() => ({}))) as { last_event?: string };
+  const event = body.last_event?.trim().toLowerCase() || null;
+  if (event && ['delivered', 'opened', 'clicked', 'complained'].includes(event)) {
+    return { state: 'delivered', event };
+  }
+  if (event && ['sent', 'scheduled', 'delivery_delayed'].includes(event)) {
+    return { state: 'pending', event };
+  }
+  if (event && ['failed', 'bounced', 'suppressed'].includes(event)) {
+    return { state: 'failed', event };
+  }
+  return { state: 'unknown', event };
+}
+
+export async function sendRefundNoticeEmail(
+  data: RefundNoticeEmailData,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ providerMessageId?: string }> {
+  const provider = process.env.EMAIL_PROVIDER || 'resend';
+  if (provider !== 'resend') {
+    throw new Error(`Unsupported refund-notice email provider:${provider}`);
+  }
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error('RESEND_API_KEY not set');
+  const res = await fetchImpl('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'Idempotency-Key': data.idempotencyKey,
+    },
+    body: JSON.stringify({
+      from: EMAIL.from,
+      to: [data.to],
+      subject: 'עדכון לגבי ההזמנה שלך מגיבורים קטנים',
+      html: `
+        <html dir="rtl" lang="he">
+          <body style="font-family:Arial,sans-serif;line-height:1.6">
+            <p>שלום ${escapeHtml(data.customerName)},</p>
+            <p>לא הצלחנו להשלים את הספר של ${escapeHtml(data.childName)} ברמת האיכות שהבטחנו.</p>
+            <p>הזיכוי עבור ההזמנה אושר ונשלח לאמצעי התשלום המקורי.</p>
+            <p>גיבורים קטנים</p>
+          </body>
+        </html>`,
+    }),
+  });
+  if (!res.ok) throw new Error(`Resend refund notice error: ${res.status}`);
+  const body = (await res.json().catch(() => ({}))) as { id?: string };
+  return { providerMessageId: body.id };
 }
 
 // ─── Email HTML Template ──────────────────────────────

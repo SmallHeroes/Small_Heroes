@@ -68,7 +68,8 @@ import {
 } from '@/lib/generation-chunked/paid-artifact-guard';
 import { heartbeatLease } from '@/lib/generation-chunked/lease';
 import { finalizeAndPersistStoryText } from './text-finalization';
-import { withDeliveryInputMutation } from './readiness-manifest';
+import { isReadinessManifestEnabled, withDeliveryInputMutation } from './readiness-manifest';
+import { openExceptionCase } from '@/lib/generation-chunked/exception-case';
 import { finalizePackageDelivery } from './package-delivery';
 import {
   buildImagePipelineAnchors,
@@ -1228,17 +1229,21 @@ async function runPageImagesChunk(
         if (!anchorRegistry[characterId]) continue;
         anchorRegistry[characterId].anchorImageUrl = url;
       }
-      await prisma.order.update({
-        where: { id: order.id },
-        data: {
-          characterAnchors: buildPersistedCharacterAnchorsJson(
-            anchorRegistry,
-            wizardMeta,
-            order.characterAnchors
-          ) as Prisma.InputJsonValue,
-          ...(resolvedAnchors.child ? { childImageUrl: resolvedAnchors.child } : {}),
-        },
-      });
+      await withDeliveryInputMutation(
+        prisma,
+        { orderId: order.id, reason: 'character_anchors_changed' },
+        (tx) => tx.order.update({
+          where: { id: order.id },
+          data: {
+            characterAnchors: buildPersistedCharacterAnchorsJson(
+              anchorRegistry,
+              wizardMeta,
+              order.characterAnchors
+            ) as Prisma.InputJsonValue,
+            ...(resolvedAnchors.child ? { childImageUrl: resolvedAnchors.child } : {}),
+          },
+        }),
+      );
     },
     storyRecurringEntityDeclarations: story.storyRecurringEntities,
     storyTimeOfDay: story.storyTimeOfDay,
@@ -1387,20 +1392,34 @@ async function runPageImagesChunk(
     const key = String(pn);
     pageAttempts[key] = (pageAttempts[key] ?? 0) + 1;
     if (pageAttempts[key] >= MAX_PAGE_GENERATION_ATTEMPTS) {
-      await prisma.generationJob.update({
-        where: { orderId: order.id },
-        data: {
-          status: 'failed',
-          currentStage: 'failed',
-          failedAt: new Date(),
-          retryable: true,
-          lastError: `Page ${pn} failed after ${MAX_PAGE_GENERATION_ATTEMPTS} attempts`,
-          pageAttempts: pageAttempts as Prisma.InputJsonValue,
-        },
-      });
-      await prisma.order.update({
-        where: { id: order.id },
-        data: { status: 'failed', imageStatus: 'failed', lastError: `Page ${pn} image failed` },
+      const failedAt = new Date();
+      const reason = `Page ${pn} failed after ${MAX_PAGE_GENERATION_ATTEMPTS} attempts`;
+      await prisma.$transaction(async (tx) => {
+        await tx.generationJob.update({
+          where: { orderId: order.id },
+          data: {
+            status: 'failed',
+            currentStage: 'failed',
+            failedAt,
+            retryable: true,
+            lastError: reason,
+            pageAttempts: pageAttempts as Prisma.InputJsonValue,
+          },
+        });
+        await tx.order.update({
+          where: { id: order.id },
+          data: { status: 'failed', imageStatus: 'failed', lastError: `Page ${pn} image failed` },
+        });
+        if (isReadinessManifestEnabled()) {
+          await openExceptionCase(tx, {
+            orderId: order.id,
+            kind: 'infra_transient',
+            reason,
+            sourceRef: `generation:${order.id}:${failedAt.toISOString()}`,
+            now: failedAt,
+            fenceExisting: true,
+          });
+        }
       });
       return { cache, stopChunk: true, failed: true };
     }
@@ -1724,19 +1743,32 @@ export async function processGenerationChunk(
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     log.error('Chunk failed', error, { orderId });
-    await prisma.generationJob.update({
-      where: { orderId },
-      data: {
-        status: 'failed',
-        currentStage: 'failed',
-        failedAt: new Date(),
-        lastError: msg,
-        retryable: true,
-      },
-    });
-    await prisma.order.update({
-      where: { id: orderId },
-      data: { status: 'failed', lastError: msg, errorAt: new Date() },
+    const failedAt = new Date();
+    await prisma.$transaction(async (tx) => {
+      await tx.generationJob.update({
+        where: { orderId },
+        data: {
+          status: 'failed',
+          currentStage: 'failed',
+          failedAt,
+          lastError: msg,
+          retryable: true,
+        },
+      });
+      await tx.order.update({
+        where: { id: orderId },
+        data: { status: 'failed', lastError: msg, errorAt: failedAt },
+      });
+      if (isReadinessManifestEnabled()) {
+        await openExceptionCase(tx, {
+          orderId,
+          kind: 'infra_transient',
+          reason: msg,
+          sourceRef: `generation:${orderId}:${failedAt.toISOString()}`,
+          now: failedAt,
+          fenceExisting: true,
+        });
+      }
     });
     return { stage: 'failed', done: true, stopChunk: true, error: msg };
   }

@@ -14,6 +14,7 @@
 import type { Prisma, PrismaClient, DeliveryOutbox } from '@prisma/client';
 import { createHash } from 'crypto';
 import { createLogger } from '@/lib/logger';
+import { isCanonicalReadUrl } from '@/lib/generation-pipeline/integrity-gate';
 
 const log = createLogger({ subsystem: 'delivery-outbox' });
 
@@ -211,6 +212,19 @@ export interface OutboxDeps {
   cas: (row: DeliveryOutbox, token: number, leaseExpiresAt: Date, now: Date) => Promise<CasResult>;
   /** Provider send; idempotencyKey = dedupeKey. Returns the provider message id when available. */
   send: (payload: BookReadyPayload, idempotencyKey: string) => Promise<{ providerMessageId?: string }>;
+  /**
+   * Production terminal writer: fence the Outbox update and create its ExceptionCase in one transaction.
+   * Optional only so processDelivery's focused unit tests can keep using the minimal DB fake; the cron route
+   * is statically pinned to provide it.
+   */
+  terminal?: (
+    row: DeliveryOutbox,
+    token: number,
+    data: Prisma.DeliveryOutboxUpdateManyMutationInput,
+    kind: 'send_ambiguous' | 'invalid_payload' | 'delivery_revoked',
+    reason: string,
+    now: Date,
+  ) => Promise<boolean>;
   now?: () => Date;
 }
 
@@ -239,12 +253,25 @@ async function fenced(prisma: PrismaClient, rowId: string, token: number, data: 
 export async function processDelivery(prisma: PrismaClient, row: DeliveryOutbox, deps: OutboxDeps): Promise<DeliveryOutcome> {
   const token = row.attempts; // claim version — the fencing token
   const now = deps.now?.() ?? new Date();
+  const terminal = (
+    data: Prisma.DeliveryOutboxUpdateManyMutationInput,
+    kind: 'send_ambiguous' | 'invalid_payload' | 'delivery_revoked',
+    reason: string,
+    at: Date,
+  ) => deps.terminal
+    ? deps.terminal(row, token, data, kind, reason, at)
+    : fenced(prisma, row.id, token, data);
 
   // (#4) Payload integrity: the stored payload must still hash to its stored payloadHash (a REAL recompute, not a
   // self-comparison). A mismatch means the row was corrupted/tampered → never send; terminal `invalid_payload`
   // (a SEPARATE corrupt-row state — NOT a business revocation), for investigation.
   if (hashPayload(row.payload) !== row.payloadHash) {
-    const ok = await fenced(prisma, row.id, token, { status: 'invalid_payload', leaseExpiresAt: null, nextAttemptAt: null, lastError: 'payload_integrity_mismatch' });
+    const ok = await terminal(
+      { status: 'invalid_payload', leaseExpiresAt: null, nextAttemptAt: null, lastError: 'payload_integrity_mismatch' },
+      'invalid_payload',
+      'payload_integrity_mismatch',
+      now,
+    );
     if (!ok) return 'lost_lease';
     log.error('Delivery payload integrity mismatch', new Error('payload_integrity_mismatch'), { dedupeKey: row.dedupeKey });
     return 'invalid_payload';
@@ -254,7 +281,12 @@ export async function processDelivery(prisma: PrismaClient, row: DeliveryOutbox,
   // FIRST send attempt must not blind-resend (Resend's dedup key has expired → a resend could double-deliver).
   // The first attempt (firstSendAttemptAt null) always proceeds — a 25h-queued order still gets its first attempt.
   if (row.firstSendAttemptAt && now.getTime() - row.firstSendAttemptAt.getTime() > idempotencyWindowMs()) {
-    const ok = await fenced(prisma, row.id, token, { status: 'failed', failureClass: FAILURE_SEND_AMBIGUOUS, leaseExpiresAt: null, nextAttemptAt: null, lastError: 'idempotency_window_expired' });
+    const ok = await terminal(
+      { status: 'failed', failureClass: FAILURE_SEND_AMBIGUOUS, leaseExpiresAt: null, nextAttemptAt: null, lastError: 'idempotency_window_expired' },
+      'send_ambiguous',
+      'idempotency_window_expired',
+      now,
+    );
     if (!ok) return 'lost_lease';
     log.error('Delivery idempotency window expired since first attempt', new Error('idempotency_window_expired'), { dedupeKey: row.dedupeKey });
     return 'failed';
@@ -301,7 +333,12 @@ export async function processDelivery(prisma: PrismaClient, row: DeliveryOutbox,
     if (sendAttemptNumber >= OUTBOX_MAX_SEND_ATTEMPTS) {
       // A provider send WAS attempted and the result is unknown (Resend may have accepted) → mark ambiguous so
       // enqueue never auto-rebinds this into a delivery that bypasses the dedup (would risk a duplicate email).
-      const ok = await fenced(prisma, row.id, token, { status: 'failed', failureClass: FAILURE_SEND_AMBIGUOUS, nextAttemptAt: null, leaseExpiresAt: null, lastError: err });
+      const ok = await terminal(
+        { status: 'failed', failureClass: FAILURE_SEND_AMBIGUOUS, nextAttemptAt: null, leaseExpiresAt: null, lastError: err },
+        'send_ambiguous',
+        `send_attempts_exhausted:${err}`,
+        failNow,
+      );
       if (!ok) return 'lost_lease';
       log.error('Delivery permanently failed', e, { dedupeKey: row.dedupeKey, sendAttempts: sendAttemptNumber });
       return 'failed';
@@ -327,4 +364,99 @@ export async function drainOutbox(prisma: PrismaClient, opts: { limit?: number }
     summary[outcome] += 1;
   }
   return summary;
+}
+
+/**
+ * Explicit reconciliation for a pre-send corrupt payload. This is intentionally NOT part of enqueueDelivery:
+ * only the ExceptionCase processor may rebuild an `invalid_payload` row, and only while no provider send was
+ * ever attempted. The same delivery intent/dedupe key is retained.
+ */
+export async function repairInvalidPayloadDelivery(
+  prisma: PrismaClient,
+  outboxId: string,
+  now: Date,
+): Promise<'repaired' | 'already_repaired' | 'not_repairable'> {
+  return prisma.$transaction(async (tx) => {
+    const row = await tx.deliveryOutbox.findUnique({ where: { id: outboxId } });
+    if (!row) return 'not_repairable';
+    if (
+      row.status !== 'invalid_payload' &&
+      ['scheduled', 'processing', 'sent', 'delivery_blocked', 'superseded_by_manifest'].includes(row.status) &&
+      hashPayload(row.payload) === row.payloadHash
+    ) {
+      // Crash recovery: the prior repair committed but the ExceptionCase resolution did not.
+      return 'already_repaired';
+    }
+    if (row.status !== 'invalid_payload' || row.sendAttempted) return 'not_repairable';
+    const [order, readiness] = await Promise.all([
+      tx.order.findUnique({
+        where: { id: row.orderId },
+        select: {
+          status: true,
+          inputVersion: true,
+          fulfillmentVersion: true,
+          customerEmail: true,
+          customerName: true,
+          childName: true,
+          book: {
+            select: {
+              readUrl: true,
+              pdfUrl: true,
+              pages: {
+                orderBy: { pageNumber: 'asc' },
+                select: { audioUrl: true },
+              },
+            },
+          },
+        },
+      }),
+      tx.bookReadiness.findUnique({
+        where: { orderId_scope: { orderId: row.orderId, scope: row.scope } },
+        select: { status: true, currentManifestId: true },
+      }),
+    ]);
+    if (
+      !order?.book ||
+      order.status !== 'ready' ||
+      readiness?.status !== 'passed' ||
+      !readiness.currentManifestId ||
+      !isCanonicalReadUrl(
+        order.book.readUrl,
+        row.orderId,
+        process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL,
+      ) ||
+      deliveryDedupeKey(row.orderId, row.scope, order.fulfillmentVersion) !== row.dedupeKey
+    ) {
+      return 'not_repairable';
+    }
+    const firstAudio = order.book.pages.find((page) => page.audioUrl?.trim())?.audioUrl;
+    const payload: BookReadyPayload = {
+      to: order.customerEmail,
+      customerName: order.customerName || order.childName,
+      childName: order.childName,
+      readUrl: order.book.readUrl!,
+      audioUrl: firstAudio ?? undefined,
+      pdfUrl: order.book.pdfUrl ?? undefined,
+    };
+    const repaired = await tx.deliveryOutbox.updateMany({
+      where: {
+        id: row.id,
+        status: 'invalid_payload',
+        sendAttempted: false,
+        attempts: row.attempts,
+      },
+      data: {
+        status: 'scheduled',
+        payload: payload as unknown as Prisma.InputJsonValue,
+        payloadHash: hashPayload(payload),
+        manifestId: readiness.currentManifestId,
+        inputVersion: order.inputVersion,
+        attempts: { increment: 1 },
+        nextAttemptAt: now,
+        leaseExpiresAt: null,
+        lastError: 'exception_repaired_invalid_payload',
+      },
+    });
+    return repaired.count === 1 ? 'repaired' : 'not_repairable';
+  });
 }

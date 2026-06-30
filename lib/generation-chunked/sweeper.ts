@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { chainGenerationWorker } from './chain-worker';
 import { getMaxStaleReclaims } from './constants';
+import { isReadinessManifestEnabled } from '@/lib/generation-pipeline/readiness-manifest';
+import { openExceptionCase } from './exception-case';
 
 /** Progress fingerprint — changes when the job advances (stage or completed-page count). */
 function progressFingerprint(currentStage: string, completedPageNumbers: unknown): string {
@@ -55,24 +57,37 @@ export async function sweepStaleGenerationJobs(
 
     if (nextCount > maxReclaims) {
       // Stuck at the same stage with no progress across many reclaims → stop re-spending.
-      await prisma.generationJob.update({
-        where: { orderId: job.orderId },
-        data: {
-          status: 'failed',
-          currentStage: 'failed',
-          retryable: false,
-          failedAt: now,
-          lastError: `Stalled at stage ${job.currentStage} after ${nextCount - 1} no-progress reclaims`,
-          staleReclaimCount: nextCount,
-          lastReclaimStage: fingerprint,
-        },
-      });
-      await prisma.order
-        .update({
+      const reason = `Stalled at stage ${job.currentStage} after ${nextCount - 1} no-progress reclaims`;
+      await prisma.$transaction(async (tx) => {
+        await tx.generationJob.update({
+          where: { orderId: job.orderId },
+          data: {
+            status: 'failed',
+            currentStage: 'failed',
+            retryable: false,
+            failedAt: now,
+            lastError: reason,
+            staleReclaimCount: nextCount,
+            lastReclaimStage: fingerprint,
+          },
+        });
+        await tx.order.update({
           where: { id: job.orderId },
           data: { status: 'failed', lastError: `Generation stalled at ${job.currentStage}` },
-        })
-        .catch(() => {});
+        });
+        if (isReadinessManifestEnabled()) {
+          await openExceptionCase(tx, {
+            orderId: job.orderId,
+            kind: 'integrity_blocked',
+            reason,
+            sourceRef: `generation:${job.orderId}:${now.toISOString()}`,
+            now,
+            initialStatus: 'refund_pending',
+            nextActionAt: now,
+            fenceExisting: true,
+          });
+        }
+      });
       continue;
     }
 

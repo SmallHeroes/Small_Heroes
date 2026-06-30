@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'crypto';
-import { evaluateBaseBookIntegrity, isCanonicalReadUrl, BASE_BOOK_SCOPE, type IntegrityInput } from '@/lib/generation-pipeline/integrity-gate';
+import {
+  evaluateBaseBookIntegrity,
+  isCanonicalReadUrl,
+  isTransientIntegrityFailure,
+  BASE_BOOK_SCOPE,
+  type IntegrityInput,
+} from '@/lib/generation-pipeline/integrity-gate';
 import type { AssetInspection } from '@/lib/generation-pipeline/asset-integrity';
 
 // Deterministic stub: any url containing "bad" is undecodable; null/"" is invalid; else a valid image whose
@@ -187,5 +193,26 @@ describe('B5 — readUrl is validated by EXACT canonical match, not substring', 
     const r = await evaluateBaseBookIntegrity(good({ readUrl: 'https://evil.example/ready?orderId=o1&x=o1' }), stubInspect);
     expect(r.status).toBe('blocked');
     expect(r.blockers).toContain('read_url_missing_or_mismatched');
+  });
+});
+
+describe('ExceptionCase classification — transient validator failures', () => {
+  it('retries only pure transport/provider failures', () => {
+    expect(isTransientIntegrityFailure({
+      blockers: ['cover_invalid:timeout', 'page2_image_invalid:http_503'],
+    })).toBe(true);
+    expect(isTransientIntegrityFailure({
+      blockers: ['page1_image_invalid:fetch_failed'],
+    })).toBe(true);
+  });
+
+  it('fails closed as persistent for corruption or any mixed hard blocker', () => {
+    expect(isTransientIntegrityFailure({
+      blockers: ['page1_image_invalid:not_decodable'],
+    })).toBe(false);
+    expect(isTransientIntegrityFailure({
+      blockers: ['page1_image_invalid:http_503', 'read_url_missing_or_mismatched'],
+    })).toBe(false);
+    expect(isTransientIntegrityFailure({ blockers: [] })).toBe(false);
   });
 });

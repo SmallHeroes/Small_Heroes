@@ -15,7 +15,8 @@ Kinds, transitions, retry ceilings, and provider adapters are generic. No story,
 ## 5. Files likely affected
 - `backend/schema.prisma` + additive migration
 - `lib/generation-chunked/exception-case.ts`
-- `lib/generation-chunked/exception-providers.ts`
+- `lib/generation-chunked/exception-processor.ts`
+- `lib/payment-refunds.ts`, `lib/payme.ts`, `backend/lib/email.ts`
 - `lib/generation-chunked/delivery-outbox.ts`
 - `lib/generation-pipeline/readiness-manifest.ts`
 - generation failure writers
@@ -32,10 +33,15 @@ Kinds, transitions, retry ceilings, and provider adapters are generic. No story,
   - with `providerMessageId`, query the provider;
   - without it, replay the exact payload/key only while the provider's idempotency window is safely live, solely to recover the message ID;
   - after the window, never resend; route to refund.
+  - provider-confirmed failure may create exactly one explicit new fulfillment intent (new version/key), atomically with retiring the ambiguous source and resolving its case.
 - `invalid_payload` with `sendAttempted=false` is explicitly rebuilt/rebound under the same delivery intent. It is never blindly revived after a possible send.
 - Stripe refunds use provider idempotency keys.
 - PayMe exposes no idempotency-key field on `refund-sale`; use query-before/query-after and full-refund remaining-balance semantics. A real sandbox crash/retry proof is mandatory in #7 before flag-on.
 - `unusable_photo` customer-action is not reachable in Phase 1 and no secure same-order replacement-photo flow exists. If accidentally produced, fail closed to refund; Phase 3 owns the real replacement-photo workflow.
+- Provider-confirmed `send_ambiguous` resolution updates the Outbox and ExceptionCase in one transaction. A crash cannot leave a sent row whose still-open case later refunds it.
+- Pre-send payload repair is crash-idempotent: a committed repair is recognized on replay rather than misclassified as non-repairable.
+- Historical terminal sources are consumed once; the safety-net scanner cannot reopen a resolved case for the same incident.
+- A refund/reconciliation action outranks a later readiness PASS. Readiness never enqueues a book while an active external-action case exists, preventing deliver-and-refund races.
 
 ## 7. Validation plan
 Unit and concurrency tests for producer idempotency, audit atomicity, fencing, no-blind-resend, bounded retry, provider refund reconciliation, and flag-off no-op. Add opt-in real staging tests for Supavisor claims, Resend lookup/replay, Stripe test refunds, and PayMe sandbox query/refund/query. No provider call runs in the default suite.

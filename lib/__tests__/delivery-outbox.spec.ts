@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   deliveryDedupeKey, hashPayload, enqueueDelivery, processDelivery, drainOutbox, claimDueDeliveries, OUTBOX_MAX_SEND_ATTEMPTS,
-  OutboxReconciliationError, idempotencyWindowMs,
+  OutboxReconciliationError, idempotencyWindowMs, repairInvalidPayloadDelivery,
 } from '@/lib/generation-chunked/delivery-outbox';
 
 const payload = { to: 'c@e.com', customerName: 'C', childName: 'K', readUrl: 'r' };
@@ -327,6 +327,26 @@ describe('claimDueDeliveries — atomic claim', () => {
     const sql = (($queryRaw.mock.calls[0] as unknown[])[0] as string[]).join(' ');
     expect(sql).toMatch(/FOR UPDATE SKIP LOCKED/);
     expect(sql).toMatch(/processing/);
+  });
+});
+
+describe('invalid-payload repair crash recovery', () => {
+  it('recognizes a prior committed repair instead of escalating the case to refund', async () => {
+    const repairedRow = row({
+      status: 'scheduled',
+      sendAttempted: false,
+      payload,
+      payloadHash: hashPayload(payload),
+    });
+    const tx = {
+      deliveryOutbox: { findUnique: vi.fn(async () => repairedRow) },
+    };
+    const db = {
+      $transaction: vi.fn(async (callback: (inner: typeof tx) => unknown) => callback(tx)),
+    };
+
+    await expect(repairInvalidPayloadDelivery(db as never, 'ob1', NOW))
+      .resolves.toBe('already_repaired');
   });
 });
 
