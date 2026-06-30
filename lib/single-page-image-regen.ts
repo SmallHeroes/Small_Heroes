@@ -37,6 +37,13 @@ import { companionAnchorKey, getWizardMeta } from '@/lib/orderMeta';
 import { buildLetterContextFromOrder, buildPatchContextFromOrder } from '@/backend/providers/personalization';
 import { prisma } from '@/lib/prisma';
 import { evaluatePhotoGate, resolveResemblanceThresholdConfig } from '@/lib/resemblance-core';
+import {
+  commitBaseBookReadiness,
+  isReadinessManifestEnabled,
+  withDeliveryInputMutation,
+} from '@/lib/generation-pipeline/readiness-manifest';
+import { resolveAnchorDeliveryGate } from '@/lib/anchor-resemblance-gate';
+import { parsePipelineCache } from '@/lib/generation-pipeline/helpers';
 
 const regenLogger = createLogger({ subsystem: 'regen-page', route: '/api/debug/regen-page' });
 
@@ -287,6 +294,7 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
         },
       },
       storyDirectionSet: { include: { selectedDirection: true } },
+      generationJob: { select: { pipelineCache: true } },
     },
   });
 
@@ -781,17 +789,6 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
 
   const storyboardTextZone = imageOutcome.textZones.get(pageNumber) ?? null;
   const storyboardLighting = imageOutcome.lightingModes.get(pageNumber) ?? null;
-  if (
-    dbPage.textZone !== storyboardTextZone ||
-    dbPage.lighting !== storyboardLighting ||
-    dbPage.textColorScheme == null
-  ) {
-    await prisma.bookPage.update({
-      where: { id: dbPage.id },
-      data: { textZone: storyboardTextZone, lighting: storyboardLighting },
-    });
-  }
-
   const presentationPostprocessEnabled =
     process.env.ENABLE_PRESENTATION_POSTPROCESS !== 'false' &&
     process.env.SKIP_ILLUSTRATION_PRESENTATION !== 'true';
@@ -829,35 +826,52 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
     }
   }
 
-  if (dbPage.imageAsset) {
-    await prisma.imageAsset.update({
-      where: { id: dbPage.imageAsset.id },
-      data: {
-        provider: image.provider,
-        prompt: image.prompt,
-        url: image.url,
-        presentationUrl,
-        rawUrl: image.rawUrl ?? null,
-        width: image.width,
-        height: image.height,
-        style: order.illustrationStyle,
-      },
-    });
-  } else {
-    await prisma.imageAsset.create({
-      data: {
-        pageId: dbPage.id,
-        provider: image.provider,
-        prompt: image.prompt,
-        url: image.url,
-        presentationUrl,
-        rawUrl: image.rawUrl ?? null,
-        width: image.width,
-        height: image.height,
-        style: order.illustrationStyle,
-      },
-    });
-  }
+  await withDeliveryInputMutation(
+    prisma,
+    { orderId, reason: 'single_page_regenerated' },
+    async (tx) => {
+      if (
+        dbPage.textZone !== storyboardTextZone ||
+        dbPage.lighting !== storyboardLighting ||
+        dbPage.textColorScheme == null
+      ) {
+        await tx.bookPage.update({
+          where: { id: dbPage.id },
+          data: { textZone: storyboardTextZone, lighting: storyboardLighting },
+        });
+      }
+
+      if (dbPage.imageAsset) {
+        await tx.imageAsset.update({
+          where: { id: dbPage.imageAsset.id },
+          data: {
+            provider: image.provider,
+            prompt: image.prompt,
+            url: image.url,
+            presentationUrl,
+            rawUrl: image.rawUrl ?? null,
+            width: image.width,
+            height: image.height,
+            style: order.illustrationStyle,
+          },
+        });
+      } else {
+        await tx.imageAsset.create({
+          data: {
+            pageId: dbPage.id,
+            provider: image.provider,
+            prompt: image.prompt,
+            url: image.url,
+            presentationUrl,
+            rawUrl: image.rawUrl ?? null,
+            width: image.width,
+            height: image.height,
+            style: order.illustrationStyle,
+          },
+        });
+      }
+    },
+  );
 
   try {
     const imageUrlForAnalysis = presentationUrl || image.url;
@@ -870,6 +884,17 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
     });
   } catch (analysisErr) {
     regenLogger.warn('Text color analysis failed', { orderId, pageNumber, err: String(analysisErr) });
+  }
+
+  if (isReadinessManifestEnabled()) {
+    const cache = parsePipelineCache(order.generationJob?.pipelineCache);
+    const deliveryGate = resolveAnchorDeliveryGate(cache.childAnchorLowConfidence);
+    await commitBaseBookReadiness(prisma, {
+      orderId,
+      anchorAllowsDelivery: deliveryGate.sendBookReadyEmail,
+      anchorOrderStatus: deliveryGate.orderStatus,
+      anchorReason: deliveryGate.reason,
+    });
   }
 
   return {

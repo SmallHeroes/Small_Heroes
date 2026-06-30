@@ -14,6 +14,7 @@ import { evaluateBaseBookIntegrity, BASE_BOOK_SCOPE, type IntegrityInput, type I
 import { inspectAsset, type AssetInspection } from './asset-integrity';
 import { enqueueDelivery, type BookReadyPayload, type CasResult } from '@/lib/generation-chunked/delivery-outbox';
 import { createLogger } from '@/lib/logger';
+import type { FrozenStoryProductTruth } from './frozen-product-truth';
 
 const log = createLogger({ subsystem: 'readiness-manifest' });
 
@@ -23,16 +24,112 @@ export function isReadinessManifestEnabled(): boolean {
 
 type Tx = Prisma.TransactionClient;
 
+export type DeliveryInputMutationReason =
+  | 'story_text_finalized'
+  | 'cover_asset_changed'
+  | 'page_asset_changed'
+  | 'page_audio_changed'
+  | 'package_payload_changed'
+  | 'single_page_regenerated'
+  | 'page_assets_cleared'
+  | 'debug_page_asset_changed';
+
+export interface DeliveryInputMutationResult<T> {
+  value: T;
+  inputVersion: number;
+  orderStatus: string;
+  readinessInvalidated: boolean;
+}
+
+type VersionRow = { inputVersion: number; status: string };
+
 /**
- * (P1-f contract) The SINGLE place a writer bumps Order.inputVersion — centralized here so no writer is
- * forgotten. EVERY writer of a delivery input (anything in Order/GeneratedBook/BookPage/ImageAsset that the
- * integrity gate or the delivery payload reads: page text, frozen product-truth, asset/cover URLs, readUrl,
- * customerEmail/pdfUrl/audio) MUST call this in the SAME transaction as its write, so the manifest's
- * optimistic-concurrency token (B4) actually moves and the send-time recheck can detect the drift. Wired into
- * the producers in P1-f — NOT before; chunk-runner stays untouched until then.
+ * The single writer-side barrier for every field read by the base-book gate or delivery payload.
+ * The callback MUST contain DB work only. Its mutation, readiness invalidation, ready→generating transition,
+ * optional frozen-truth compare/fill, and inputVersion bump commit or roll back together.
+ *
+ * Lock order intentionally ends with BookReadiness → Order, matching the readiness commit's terminal writes.
+ * Evaluation/download/decode happens only after this transaction at a logical stabilization boundary.
  */
-export async function bumpOrderInputVersion(db: PrismaClient | Tx, orderId: string): Promise<void> {
-  await db.order.update({ where: { id: orderId }, data: { inputVersion: { increment: 1 } } });
+export async function withDeliveryInputMutation<T>(
+  prisma: PrismaClient,
+  args: {
+    orderId: string;
+    reason: DeliveryInputMutationReason;
+    frozenTruth?: FrozenStoryProductTruth;
+  },
+  mutate: (tx: Tx) => Promise<T>,
+): Promise<DeliveryInputMutationResult<T>> {
+  const readinessEnabled = isReadinessManifestEnabled();
+  const staleReason = `inputs_changed:${args.reason}`;
+
+  return prisma.$transaction(async (tx) => {
+    const value = await mutate(tx);
+    const invalidated = readinessEnabled
+      ? await tx.bookReadiness.updateMany({
+          where: {
+            orderId: args.orderId,
+            scope: BASE_BOOK_SCOPE,
+            status: { in: ['passed', 'blocked'] },
+          },
+          data: { status: 'stale', reason: staleReason },
+        })
+      : { count: 0 };
+
+    let rows: VersionRow[];
+    if (args.frozenTruth) {
+      const frozen = args.frozenTruth;
+      rows = await tx.$queryRaw<VersionRow[]>`
+        UPDATE "Order"
+           SET "inputVersion" = "inputVersion" + 1,
+               "expectedPageCount" = COALESCE("expectedPageCount", ${frozen.expectedPageCount}),
+               "storySourceHash" = COALESCE("storySourceHash", ${frozen.storySourceHash}),
+               "selectionFilename" = COALESCE("selectionFilename", ${frozen.selectionFilename}),
+               "frozenProductVersion" = COALESCE("frozenProductVersion", ${frozen.frozenProductVersion}),
+               "status" = CASE
+                 WHEN ${readinessEnabled} AND "status" = 'ready'::"OrderStatus"
+                   THEN 'generating'::"OrderStatus"
+                 ELSE "status"
+               END,
+               "deliveryHoldReason" = CASE
+                 WHEN ${readinessEnabled} AND "status" = 'ready'::"OrderStatus"
+                   THEN ${`base_book_integrity:${staleReason}`}
+                 ELSE "deliveryHoldReason"
+               END
+         WHERE "id" = ${args.orderId}
+           AND ("expectedPageCount" IS NULL OR "expectedPageCount" = ${frozen.expectedPageCount})
+           AND ("storySourceHash" IS NULL OR "storySourceHash" = ${frozen.storySourceHash})
+           AND ("selectionFilename" IS NULL OR "selectionFilename" = ${frozen.selectionFilename})
+           AND ("frozenProductVersion" IS NULL OR "frozenProductVersion" = ${frozen.frozenProductVersion})
+         RETURNING "inputVersion", "status"::text`;
+    } else {
+      rows = await tx.$queryRaw<VersionRow[]>`
+        UPDATE "Order"
+           SET "inputVersion" = "inputVersion" + 1,
+               "status" = CASE
+                 WHEN ${readinessEnabled} AND "status" = 'ready'::"OrderStatus"
+                   THEN 'generating'::"OrderStatus"
+                 ELSE "status"
+               END,
+               "deliveryHoldReason" = CASE
+                 WHEN ${readinessEnabled} AND "status" = 'ready'::"OrderStatus"
+                   THEN ${`base_book_integrity:${staleReason}`}
+                 ELSE "deliveryHoldReason"
+               END
+         WHERE "id" = ${args.orderId}
+         RETURNING "inputVersion", "status"::text`;
+    }
+
+    if (rows.length !== 1) {
+      throw new Error(args.frozenTruth ? 'frozen_product_truth_mismatch' : 'delivery_input_order_missing');
+    }
+    return {
+      value,
+      inputVersion: rows[0].inputVersion,
+      orderStatus: rows[0].status,
+      readinessInvalidated: invalidated.count > 0,
+    };
+  });
 }
 
 export interface OrderTruth {
@@ -263,8 +360,8 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
  * increment sendAttempts + set firstSendAttemptAt (COALESCE — set once, on the first attempt; #3h) IFF the row is still ours (status
  * 'processing' + this fencing token) AND the live truth still matches the row's binding:
  *   - Order.status = 'ready' AND Order.inputVersion = row.inputVersion (the inputVersion match also covers
- *     payload-field drift, because every writer of a gate/payload input bumps inputVersion in the SAME tx — the
- *     P1-f #5 writer contract; pre-#5 nothing bumps it, so this is dormant by design);
+ *     payload-field drift, because every writer of a gate/payload input advances inputVersion in the SAME tx
+ *     through withDeliveryInputMutation);
  *   - BookReadiness.status = 'passed' AND BookReadiness.currentManifestId = row.manifestId;
  *   - the stored payloadHash is unchanged (a row-integrity binding; the real payload recompute is in processDelivery).
  * No re-eval, no readiness invalidation here, no retry loop. A CAS mismatch is NEVER a business revocation — on

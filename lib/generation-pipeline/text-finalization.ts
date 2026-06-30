@@ -19,6 +19,8 @@ import type { PipelineCache } from './types';
 import { resolveCachedStoryFilePath, toRepoRelativeStoryPath } from './story-path';
 import { resolveCompanionForOrder } from './anchor-registry';
 import { beatsFromStoryPages, resolveBookShotPlan } from '@/lib/book-shot-plan';
+import { buildFrozenStoryProductTruth } from './frozen-product-truth';
+import { withDeliveryInputMutation } from './readiness-manifest';
 
 /**
  * PRE-SPEND gate: load, personalize, validate, and persist final story text.
@@ -149,47 +151,59 @@ export async function finalizeAndPersistStoryText(
     story.pages.map((p, i) => [p.pageNumber, assignedTemplates[i] ?? 'art_top_text_bottom'])
   );
 
-  let book = await prisma.generatedBook.findUnique({ where: { orderId: order.id } });
-  if (!book) {
-    book = await prisma.generatedBook.create({
-      data: {
-        orderId: order.id,
-        title: order.bookName || story.title,
-        coverText: story.coverText,
-      },
-    });
-  }
-
-  const existingPages = await prisma.bookPage.findMany({
-    where: { bookId: book.id },
-    select: { id: true, pageNumber: true },
+  const frozenTruth = buildFrozenStoryProductTruth({
+    storyFilePath,
+    expectedPageCount: story.pages.length,
+    storyDirection: directionForV3,
   });
-  const byNumber = new Map(existingPages.map((p) => [p.pageNumber, p.id]));
 
-  for (const page of story.pages) {
-    const template = templateByPage.get(page.pageNumber);
-    const existingId = byNumber.get(page.pageNumber);
-    if (existingId) {
-      await prisma.bookPage.update({
-        where: { id: existingId },
-        data: {
-          text: page.text,
-          narrationText: page.narrationText,
-          pageTemplate: template,
-        },
+  await withDeliveryInputMutation(
+    prisma,
+    { orderId: order.id, reason: 'story_text_finalized', frozenTruth },
+    async (tx) => {
+      let book = await tx.generatedBook.findUnique({ where: { orderId: order.id } });
+      if (!book) {
+        book = await tx.generatedBook.create({
+          data: {
+            orderId: order.id,
+            title: order.bookName || story.title,
+            coverText: story.coverText,
+          },
+        });
+      }
+
+      const existingPages = await tx.bookPage.findMany({
+        where: { bookId: book.id },
+        select: { id: true, pageNumber: true },
       });
-    } else {
-      await prisma.bookPage.create({
-        data: {
-          bookId: book.id,
-          pageNumber: page.pageNumber,
-          text: page.text,
-          narrationText: page.narrationText,
-          pageTemplate: template,
-        },
-      });
-    }
-  }
+      const byNumber = new Map(existingPages.map((p) => [p.pageNumber, p.id]));
+
+      for (const page of story.pages) {
+        const template = templateByPage.get(page.pageNumber);
+        const existingId = byNumber.get(page.pageNumber);
+        if (existingId) {
+          await tx.bookPage.update({
+            where: { id: existingId },
+            data: {
+              text: page.text,
+              narrationText: page.narrationText,
+              pageTemplate: template,
+            },
+          });
+        } else {
+          await tx.bookPage.create({
+            data: {
+              bookId: book.id,
+              pageNumber: page.pageNumber,
+              text: page.text,
+              narrationText: page.narrationText,
+              pageTemplate: template,
+            },
+          });
+        }
+      }
+    },
+  );
 
   const bookShotPlan = resolveBookShotPlan({
     storyFilePath,

@@ -12,7 +12,6 @@ import {
 } from '@/lib/image-engine-guard';
 import { assignTemplatesForBook, type BookPageTemplate } from '@/lib/bookPageLayout';
 import { TOPICS } from '@/backend/config/wizard';
-import { sendBookReadyEmail } from '@/backend/lib/email';
 import { logServerEvent } from '@/lib/server-events';
 import {
   describeChildFromPhoto,
@@ -69,6 +68,8 @@ import {
 } from '@/lib/generation-chunked/paid-artifact-guard';
 import { heartbeatLease } from '@/lib/generation-chunked/lease';
 import { finalizeAndPersistStoryText } from './text-finalization';
+import { withDeliveryInputMutation } from './readiness-manifest';
+import { finalizePackageDelivery } from './package-delivery';
 import {
   buildImagePipelineAnchors,
   detectExpectedCharactersForPage,
@@ -880,10 +881,17 @@ async function runCoverStage(
     companionStructured: cache.dna?.companionStructured,
   });
 
-  await prisma.generatedBook.update({
-    where: { id: book.id },
-    data: { coverImageUrl: coverImage.url },
-  });
+  await withDeliveryInputMutation(
+    prisma,
+    { orderId: order.id, reason: 'cover_asset_changed' },
+    async (tx) => {
+      await tx.generatedBook.update({
+        where: { id: book.id },
+        data: { coverImageUrl: coverImage.url },
+      });
+    },
+  );
+  // Legacy mirror used by progress/status surfaces; readiness reads GeneratedBook.coverImageUrl.
   await prisma.order.update({
     where: { id: order.id },
     data: { coverImageUrl: coverImage.url },
@@ -1301,37 +1309,43 @@ async function runPageImagesChunk(
       }
     }
 
-    if (existing) {
-      await prisma.imageAsset.update({
-        where: { id: existing.id },
-        data: {
-          provider: image.provider,
-          prompt: image.prompt,
-          url: image.url,
-          presentationUrl,
-          rawUrl: image.rawUrl ?? null,
-          width: image.width,
-          height: image.height,
-          style: order.illustrationStyle,
-          idempotencyKey,
-        },
-      });
-    } else {
-      await prisma.imageAsset.create({
-        data: {
-          pageId: dbPage.id,
-          provider: image.provider,
-          prompt: image.prompt,
-          url: image.url,
-          presentationUrl,
-          rawUrl: image.rawUrl ?? null,
-          width: image.width,
-          height: image.height,
-          style: order.illustrationStyle,
-          idempotencyKey,
-        },
-      });
-    }
+    await withDeliveryInputMutation(
+      prisma,
+      { orderId: order.id, reason: 'page_asset_changed' },
+      async (tx) => {
+        if (existing) {
+          await tx.imageAsset.update({
+            where: { id: existing.id },
+            data: {
+              provider: image.provider,
+              prompt: image.prompt,
+              url: image.url,
+              presentationUrl,
+              rawUrl: image.rawUrl ?? null,
+              width: image.width,
+              height: image.height,
+              style: order.illustrationStyle,
+              idempotencyKey,
+            },
+          });
+        } else {
+          await tx.imageAsset.create({
+            data: {
+              pageId: dbPage.id,
+              provider: image.provider,
+              prompt: image.prompt,
+              url: image.url,
+              presentationUrl,
+              rawUrl: image.rawUrl ?? null,
+              width: image.width,
+              height: image.height,
+              style: order.illustrationStyle,
+              idempotencyKey,
+            },
+          });
+        }
+      },
+    );
 
     const textZone = imageOutcome.textZones.get(dbPage.pageNumber) ?? 'bottom_clear';
     try {
@@ -1442,10 +1456,14 @@ async function runAudioChunk(order: Order, startedAt: number, budgetMs: number):
         orderId: order.id,
         pageNumber: page.pageNumber,
       });
-      await prisma.bookPage.update({
-        where: { id: page.id },
-        data: { audioUrl: result.url },
-      });
+      await withDeliveryInputMutation(
+        prisma,
+        { orderId: order.id, reason: 'page_audio_changed' },
+        (tx) => tx.bookPage.update({
+          where: { id: page.id },
+          data: { audioUrl: result.url },
+        }),
+      );
     } catch (err) {
       log.warn('Audio page failed', { page: page.pageNumber, err: String(err) });
     }
@@ -1516,7 +1534,14 @@ async function runPackageStage(order: Order, cache: PipelineCache): Promise<void
         pages: pagesForPdf,
       });
       pdfUrl = await uploadPdfToStorage(order.id, pdfBuffer);
-      await prisma.generatedBook.update({ where: { id: book.id }, data: { pdfUrl } });
+      await withDeliveryInputMutation(
+        prisma,
+        { orderId: order.id, reason: 'package_payload_changed' },
+        (tx) => tx.generatedBook.update({
+          where: { id: book.id },
+          data: { pdfUrl },
+        }),
+      );
     } catch (e) {
       log.error('PDF failed (non-fatal)', e, { orderId: order.id });
     }
@@ -1528,30 +1553,27 @@ async function runPackageStage(order: Order, cache: PipelineCache): Promise<void
     ? `${appUrl}${ROUTES.ready}?orderId=${order.id}&accessKey=${encodeURIComponent(accessKey)}`
     : `${appUrl}${ROUTES.ready}?orderId=${order.id}`;
 
-  await prisma.generatedBook.update({ where: { id: book.id }, data: { readUrl } });
+  await withDeliveryInputMutation(
+    prisma,
+    { orderId: order.id, reason: 'package_payload_changed' },
+    (tx) => tx.generatedBook.update({
+      where: { id: book.id },
+      data: { readUrl },
+    }),
+  );
 
   // Delivery gate: a low-confidence anchor renders the book (for internal QA) but HOLDS it
   // from customer delivery — status needs_human_qa + no book-ready email — until a human
   // releases it. This is the consumer of childAnchorLowConfidence (set in Stage 0); without
   // it a held anchor would ship silently. A clear anchor delivers normally.
   const deliveryGate = resolveAnchorDeliveryGate(cache.childAnchorLowConfidence);
-
-  await prisma.order.update({
-    where: { id: order.id },
-    data: {
-      status: deliveryGate.orderStatus,
-      packageStatus: 'done',
-      deliveryHoldReason: deliveryGate.reason,
-    },
-  });
-  await prisma.generationJob.update({
-    where: { orderId: order.id },
-    data: {
-      status: 'done',
-      currentStage: 'done',
-      completedAt: new Date(),
-      packaged: true,
-    },
+  const firstAudio = book.pages.find((p) => p.audioUrl?.trim())?.audioUrl ?? null;
+  const deliveryResult = await finalizePackageDelivery(prisma, {
+    order,
+    deliveryGate,
+    readUrl,
+    pdfUrl,
+    firstAudioUrl: firstAudio,
   });
 
   logServerEvent('full_generation_completed', {
@@ -1560,29 +1582,10 @@ async function runPackageStage(order: Order, cache: PipelineCache): Promise<void
     // Telemetry for anchor recalibration: score + band + delivery outcome per order.
     anchorScore: cache.childAnchorLowConfidence?.score,
     anchorBand: cache.childAnchorLowConfidence?.reason ?? 'auto_accept',
-    deliveryHeld: deliveryGate.held,
+    deliveryHeld: deliveryResult.deliveryHeld,
+    readinessMode: deliveryResult.mode,
+    manifestStatus: deliveryResult.manifest?.manifestStatus,
   });
-
-  if (!deliveryGate.sendBookReadyEmail) {
-    log.warn('Book-ready email withheld — order held for human QA', {
-      orderId: order.id,
-      reason: deliveryGate.reason,
-    });
-  } else {
-    try {
-      const firstAudio = book.pages.find((p) => p.audioUrl?.trim());
-      await sendBookReadyEmail({
-        to: order.customerEmail,
-        customerName: order.customerName ?? order.childName,
-        childName: order.childName,
-        readUrl,
-        audioUrl: firstAudio?.audioUrl ?? undefined,
-        pdfUrl: pdfUrl ?? undefined,
-      });
-    } catch (e) {
-      log.error('Ready email failed (non-fatal)', e, { orderId: order.id });
-    }
-  }
 
   await tryDeleteOriginalChildPhotoAfterGeneration(order.id);
 }

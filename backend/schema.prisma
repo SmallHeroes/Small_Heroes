@@ -196,10 +196,9 @@ model Order {
   selectionFilename    String?
   frozenProductVersion String?
   fulfillmentVersion   Int      @default(1)  // logical delivery-event version; part of the Outbox dedupe key
-  // Monotonic optimistic-concurrency token (P1-e2 B4). Bumped by any writer of delivery inputs
-  // (text/frozen/assets/payload fields). The readiness manifest records the value it evaluated; the
-  // Order→ready commit and the pre-send recheck are conditional on it being unchanged. Writer-side
-  // bumps are wired in P1-f; until then it stays 0 (the guard is inert, never falsely suppresses).
+  // Monotonic optimistic-concurrency token (P1-f #5). Every writer of delivery inputs
+  // (text/frozen/assets/payload fields) advances it through withDeliveryInputMutation in the same transaction.
+  // The readiness manifest records the evaluated value; Order→ready and the send-time CAS require it unchanged.
   inputVersion         Int      @default(0)
 
   // Error tracking

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { generateImage } from '../../../../backend/providers/image';
 import { resolveImageModelMode, resolveReplicateImageModel } from '../../../../lib/replicate';
+import { withDeliveryInputMutation } from '../../../../lib/generation-pipeline/readiness-manifest';
 
 interface DebugImageRequest {
   orderId: string;
@@ -74,29 +75,33 @@ export async function POST(req: NextRequest) {
 
     let storedAssetId: string | null = null;
     if (body.persistToPage) {
-      const saved = await prisma.imageAsset.upsert({
-        where: { pageId: targetPage.id },
-        update: {
-          provider: generated.provider,
-          prompt: generated.prompt,
-          url: generated.url,
-          rawUrl: generated.rawUrl ?? null,
-          width: generated.width,
-          height: generated.height,
-          style: order.illustrationStyle,
-        },
-        create: {
-          pageId: targetPage.id,
-          provider: generated.provider,
-          prompt: generated.prompt,
-          url: generated.url,
-          rawUrl: generated.rawUrl ?? null,
-          width: generated.width,
-          height: generated.height,
-          style: order.illustrationStyle,
-        },
-      });
-      storedAssetId = saved.id;
+      const mutation = await withDeliveryInputMutation(
+        prisma,
+        { orderId: order.id, reason: 'debug_page_asset_changed' },
+        (tx) => tx.imageAsset.upsert({
+          where: { pageId: targetPage.id },
+          update: {
+            provider: generated.provider,
+            prompt: generated.prompt,
+            url: generated.url,
+            rawUrl: generated.rawUrl ?? null,
+            width: generated.width,
+            height: generated.height,
+            style: order.illustrationStyle,
+          },
+          create: {
+            pageId: targetPage.id,
+            provider: generated.provider,
+            prompt: generated.prompt,
+            url: generated.url,
+            rawUrl: generated.rawUrl ?? null,
+            width: generated.width,
+            height: generated.height,
+            style: order.illustrationStyle,
+          },
+        }),
+      );
+      storedAssetId = mutation.value.id;
     }
 
     return NextResponse.json({

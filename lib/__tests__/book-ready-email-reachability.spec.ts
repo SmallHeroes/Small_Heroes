@@ -3,10 +3,9 @@ import { readdirSync, readFileSync, statSync } from 'fs';
 import path from 'path';
 
 /**
- * GUARD (Codex P0): the customer "book ready" email must be reachable ONLY from the gated
- * chunked package stage (which applies resolveAnchorDeliveryGate and withholds the email for a
- * low-confidence anchor) and the deliberate human-QA release endpoint. No automatic/payment/
- * legacy path may call sendBookReadyEmail — that was the monolith-bypass Codex blocked.
+ * GUARD (Codex P0): direct provider-email calls are limited to the Outbox worker and the deliberate
+ * human-QA break-glass endpoint. The flag-off compatibility path lives in package-delivery behind the explicit
+ * readiness flag boundary and invokes an injected/local alias; chunk-runner itself can never send.
  */
 describe('sendBookReadyEmail reachability', () => {
   const ROOT = process.cwd();
@@ -15,7 +14,6 @@ describe('sendBookReadyEmail reachability', () => {
 
   // The ONLY allowed call sites (repo-relative, posix).
   const ALLOWED_CALL_SITES = new Set([
-    'lib/generation-pipeline/chunk-runner.ts', // gated package stage (flag-off path)
     'app/api/admin/anchor-hold-release/route.ts', // human-QA release of a delivery hold (break-glass)
     'app/api/generate/cron/outbox/route.ts', // Phase-1 Outbox worker (effectively-once delivery)
   ]);
@@ -54,6 +52,14 @@ describe('sendBookReadyEmail reachability', () => {
     for (const allowed of ALLOWED_CALL_SITES) {
       expect(callSites).toContain(allowed);
     }
+    const packageDelivery = readFileSync(
+      path.join(ROOT, 'lib', 'generation-pipeline', 'package-delivery.ts'),
+      'utf8',
+    );
+    expect(packageDelivery).toContain('deps.send ?? sendBookReadyEmail');
+    expect(packageDelivery.indexOf('if (readinessEnabled())')).toBeLessThan(
+      packageDelivery.indexOf('deps.send ?? sendBookReadyEmail'),
+    );
   });
 });
 

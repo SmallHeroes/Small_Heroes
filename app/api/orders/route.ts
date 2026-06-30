@@ -27,6 +27,7 @@ import {
   StoryProductResolutionError,
 } from '../../../backend/providers/story-product-resolver';
 import { mergeOriginalChildPhotoUrlIntoAnchors } from '../../../lib/child-photo-deletion';
+import { buildFrozenStoryProductTruth } from '../../../lib/generation-pipeline/frozen-product-truth';
 
 function toStringOrNull(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
@@ -158,6 +159,13 @@ export async function POST(req: NextRequest) {
       throw error;
     }
     const { storyLength, storyDirection, pages } = resolvedProduct;
+    const frozenProductTruth = resolvedProduct.storyFile
+      ? buildFrozenStoryProductTruth({
+          storyFilePath: resolvedProduct.storyFile,
+          expectedPageCount: pages,
+          storyDirection,
+        })
+      : null;
     if (
       typeof product?.direction === 'string' &&
       product.direction.trim() &&
@@ -301,6 +309,7 @@ export async function POST(req: NextRequest) {
         // Product
         storyLength,
         storyDirection,
+        ...(frozenProductTruth ?? {}),
         illustrationStyle: persistedIllustrationStyle,
         audioEnabled: product.audioEnabled,
         selectedVoice: product.selectedVoice || null,

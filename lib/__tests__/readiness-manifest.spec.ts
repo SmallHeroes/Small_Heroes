@@ -2,7 +2,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createHash } from 'crypto';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { commitBaseBookReadiness, casClaimSendSlot, bumpOrderInputVersion, isReadinessManifestEnabled, type CommitArgs } from '@/lib/generation-pipeline/readiness-manifest';
+import {
+  commitBaseBookReadiness,
+  casClaimSendSlot,
+  isReadinessManifestEnabled,
+  withDeliveryInputMutation,
+  type CommitArgs,
+} from '@/lib/generation-pipeline/readiness-manifest';
 import { BASE_BOOK_SCOPE } from '@/lib/generation-pipeline/integrity-gate';
 import type { AssetInspection } from '@/lib/generation-pipeline/asset-integrity';
 
@@ -51,11 +57,89 @@ describe('isReadinessManifestEnabled', () => {
   });
 });
 
-describe('bumpOrderInputVersion — single writer-side bump (P1-f contract)', () => {
-  it('atomically increments Order.inputVersion', async () => {
-    const update = vi.fn(async () => ({}));
-    await bumpOrderInputVersion({ order: { update } } as never, 'o1');
-    expect(update).toHaveBeenCalledWith({ where: { id: 'o1' }, data: { inputVersion: { increment: 1 } } });
+describe('withDeliveryInputMutation — atomic writer barrier (P1-f #5)', () => {
+  let previousFlag: string | undefined;
+  beforeEach(() => { previousFlag = process.env.READINESS_MANIFEST_ENABLED; });
+  afterEach(() => {
+    if (previousFlag === undefined) delete process.env.READINESS_MANIFEST_ENABLED;
+    else process.env.READINESS_MANIFEST_ENABLED = previousFlag;
+  });
+
+  function barrierDb(rows: Array<{ inputVersion: number; status: string }> = [{ inputVersion: 8, status: 'generating' }]) {
+    const tx = {
+      bookReadiness: { updateMany: vi.fn(async () => ({ count: 1 })) },
+      $queryRaw: vi.fn(async () => rows),
+      imageAsset: { update: vi.fn(async () => ({ id: 'asset-1' })) },
+    };
+    const db = {
+      $transaction: vi.fn(async (callback: (transaction: typeof tx) => unknown) => callback(tx)),
+    };
+    return { db, tx };
+  }
+
+  it('flag-on co-locates mutation + readiness stale + inputVersion/ready transition in one transaction', async () => {
+    process.env.READINESS_MANIFEST_ENABLED = 'true';
+    const { db, tx } = barrierDb();
+    const result = await withDeliveryInputMutation(
+      db as never,
+      { orderId: 'o1', reason: 'page_asset_changed' },
+      (transaction) => transaction.imageAsset.update({ where: { id: 'asset-1' }, data: { url: 'new' } }),
+    );
+    expect(db.$transaction).toHaveBeenCalledTimes(1);
+    expect(tx.imageAsset.update).toHaveBeenCalledTimes(1);
+    expect(tx.bookReadiness.updateMany).toHaveBeenCalledWith({
+      where: { orderId: 'o1', scope: BASE_BOOK_SCOPE, status: { in: ['passed', 'blocked'] } },
+      data: { status: 'stale', reason: 'inputs_changed:page_asset_changed' },
+    });
+    const sql = ((tx.$queryRaw.mock.calls[0] as unknown[])[0] as string[]).join(' ');
+    expect(sql).toMatch(/"inputVersion" = "inputVersion" \+ 1/);
+    expect(sql).toMatch(/'ready'::"OrderStatus"/);
+    expect(sql).toMatch(/'generating'::"OrderStatus"/);
+    expect(result).toMatchObject({ inputVersion: 8, orderStatus: 'generating', readinessInvalidated: true });
+  });
+
+  it('flag-off still versions the mutation but preserves legacy readiness/status behavior', async () => {
+    delete process.env.READINESS_MANIFEST_ENABLED;
+    const { db, tx } = barrierDb([{ inputVersion: 3, status: 'ready' }]);
+    const result = await withDeliveryInputMutation(
+      db as never,
+      { orderId: 'o1', reason: 'page_asset_changed' },
+      (transaction) => transaction.imageAsset.update({ where: { id: 'asset-1' }, data: { url: 'new' } }),
+    );
+    expect(tx.bookReadiness.updateMany).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ inputVersion: 3, orderStatus: 'ready', readinessInvalidated: false });
+  });
+
+  it('frozen-truth mismatch aborts the writer transaction instead of accepting a changed story', async () => {
+    process.env.READINESS_MANIFEST_ENABLED = 'true';
+    const { db, tx } = barrierDb([]);
+    await expect(withDeliveryInputMutation(
+      db as never,
+      {
+        orderId: 'o1',
+        reason: 'story_text_finalized',
+        frozenTruth: {
+          expectedPageCount: 12,
+          storySourceHash: 'hash',
+          selectionFilename: 'story-bank/v3-approved/story.md',
+          frozenProductVersion: 'story-product/v1:adventure',
+        },
+      },
+      (transaction) => transaction.imageAsset.update({ where: { id: 'asset-1' }, data: { url: 'new' } }),
+    )).rejects.toThrow('frozen_product_truth_mismatch');
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not advance version/readiness when the content mutation throws', async () => {
+    process.env.READINESS_MANIFEST_ENABLED = 'true';
+    const { db, tx } = barrierDb();
+    await expect(withDeliveryInputMutation(
+      db as never,
+      { orderId: 'o1', reason: 'page_asset_changed' },
+      async () => { throw new Error('write_failed'); },
+    )).rejects.toThrow('write_failed');
+    expect(tx.bookReadiness.updateMany).not.toHaveBeenCalled();
+    expect(tx.$queryRaw).not.toHaveBeenCalled();
   });
 });
 
@@ -218,14 +302,10 @@ describe('casClaimSendSlot — single atomic send-time CAS (P1-f #3h)', () => {
   });
 });
 
-describe('#3h #7 — flag-on gating tripwire: the inputVersion drift guard is dormant until the #5 writer-audit', () => {
-  // The send-time CAS requires Order.inputVersion === row.inputVersion. That only catches payload/gate drift once
-  // EVERY writer that mutates a gate/payload input bumps Order.inputVersion in the SAME tx (the #5 writer
-  // contract). Pre-#5 nothing calls bumpOrderInputVersion, so the binding is always N===N — flipping
-  // READINESS_MANIFEST_ENABLED on now would ship with an UNGUARDED drift surface. This tripwire FAILS the moment
-  // #5 wires the writer, forcing a conscious gate flip (update this test + the launch checklist together).
-  it('chunk-runner.ts does NOT yet call bumpOrderInputVersion (drift guard unwired → flag MUST stay OFF)', () => {
+describe('#5 writer wiring tripwire', () => {
+  it('chunk-runner routes delivery-input writes through the transactional barrier', () => {
     const src = readFileSync(join(process.cwd(), 'lib/generation-pipeline/chunk-runner.ts'), 'utf8');
-    expect(src.includes('bumpOrderInputVersion')).toBe(false);
+    expect(src.includes('withDeliveryInputMutation')).toBe(true);
+    expect(src.includes('finalizePackageDelivery')).toBe(true);
   });
 });

@@ -15,7 +15,7 @@ import { assertEnvSeparation } from '@/lib/generation-chunked/env-separation-gua
  *     matches 0 rows → abort (exactly runReadinessTxn's Order→ready write).
  *
  * A positive control then commits a conditional on the CURRENT version (matches 1 row). Runs ONLY on isolated
- * staging behind the env-separation guard + an explicit opt-in; seeds + deletes one throwaway Order. Skipped by
+ * staging behind the env-separation guard + an explicit opt-in; each test self-cleans its throwaway Order. Skipped by
  * default (and always in production) so `npm run check` stays green without a database.
  *
  *   VERCEL_ENV=preview ALLOW_STAGING_QA=true RUN_OUTBOX_DB_TEST=true \
@@ -60,6 +60,66 @@ describe.skipIf(!RUN)('Order.inputVersion optimistic concurrency — staging rea
       expect(Number(ok)).toBe(1);
     } finally {
       await writer.$disconnect().catch(() => { /* ignore */ });
+      await prisma.order.delete({ where: { id } }).catch(() => { /* ignore */ });
+    }
+  }, 30_000);
+
+  it('the real writer barrier atomically mutates content, stales readiness, bumps version, and removes ready', async () => {
+    assertEnvSeparation();
+    const { prisma } = await import('@/lib/prisma');
+    const { withDeliveryInputMutation } = await import('@/lib/generation-pipeline/readiness-manifest');
+    const id = `writer-barrier-test-${process.env.RUN_OUTBOX_DB_TEST_NONCE ?? 'a'}-${Date.now()}`;
+    const previousFlag = process.env.READINESS_MANIFEST_ENABLED;
+    process.env.READINESS_MANIFEST_ENABLED = 'true';
+    try {
+      await prisma.order.create({
+        data: {
+          id,
+          status: 'ready',
+          inputVersion: 0,
+          customerEmail: 'writer-test@example.invalid',
+          customerName: 'T',
+          childName: 'T',
+          topic: 'writer-test',
+          basePrice: 0,
+          addonsPrice: 0,
+          totalPrice: 0,
+          book: { create: { title: 'T', readUrl: 'https://old.invalid' } },
+        },
+      });
+      await prisma.bookReadiness.create({
+        data: { orderId: id, scope: 'base_book', status: 'passed' },
+      });
+
+      await withDeliveryInputMutation(
+        prisma,
+        { orderId: id, reason: 'package_payload_changed' },
+        (tx) => tx.generatedBook.update({
+          where: { orderId: id },
+          data: { readUrl: 'https://new.invalid' },
+        }),
+      );
+
+      const [order, readiness, book] = await Promise.all([
+        prisma.order.findUnique({ where: { id }, select: { status: true, inputVersion: true, deliveryHoldReason: true } }),
+        prisma.bookReadiness.findUnique({ where: { orderId_scope: { orderId: id, scope: 'base_book' } } }),
+        prisma.generatedBook.findUnique({ where: { orderId: id }, select: { readUrl: true } }),
+      ]);
+      expect(order).toMatchObject({
+        status: 'generating',
+        inputVersion: 1,
+        deliveryHoldReason: 'base_book_integrity:inputs_changed:package_payload_changed',
+      });
+      expect(readiness).toMatchObject({
+        status: 'stale',
+        reason: 'inputs_changed:package_payload_changed',
+      });
+      expect(book?.readUrl).toBe('https://new.invalid');
+    } finally {
+      if (previousFlag === undefined) delete process.env.READINESS_MANIFEST_ENABLED;
+      else process.env.READINESS_MANIFEST_ENABLED = previousFlag;
+      await prisma.bookReadiness.deleteMany({ where: { orderId: id } }).catch(() => { /* ignore */ });
+      await prisma.generatedBook.deleteMany({ where: { orderId: id } }).catch(() => { /* ignore */ });
       await prisma.order.delete({ where: { id } }).catch(() => { /* ignore */ });
     }
   }, 30_000);
