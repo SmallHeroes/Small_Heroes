@@ -542,10 +542,10 @@ model DeliveryOutbox {
   nextAttemptAt     DateTime?
   leaseExpiresAt    DateTime?
   lastError         String?
-  // Durable failure classification (P1-e4-2). Set when status becomes failed:
-  //   recheck_exhausted - gave up at the pre-send check; NO provider send was ever attempted (safe to roll).
-  //   send_ambiguous    - a provider send was attempted and the result is unknown (Resend may have accepted);
-  //                       NEVER auto-roll (a new fulfillment = new idempotency key = bypasses the 24h dedup).
+  // Durable failure classification. With the P1-f pure-CAS path the ONLY value produced is send_ambiguous:
+  //   a provider send was attempted and the result is unknown (Resend may have accepted) -> NEVER auto-roll
+  //   (a new fulfillment = new idempotency key = bypasses the 24h dedup). The roll decision keys off
+  //   sendAttempted, not this column. recheck_exhausted is LEGACY (the removed live-recheck path), no longer written.
   failureClass      String?
   // Durable "a provider send was EVER attempted on this row" (P1-e4 review C + P1-f). The single source of
   // truth for the enqueue roll decision: a row is roll-safe ONLY while sendAttempted is false.

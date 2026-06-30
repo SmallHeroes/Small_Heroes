@@ -145,6 +145,11 @@ describe('casClaimSendSlot — single atomic send-time CAS (P1-f)', () => {
     const sql = (($executeRaw.mock.calls[0] as unknown[])[0] as string[]).join(' ');
     expect(sql).toMatch(/"sendAttempted" = true/);
     expect(sql).toMatch(/"status" = 'processing'/);
+    // the four outer-WHERE bindings that guarantee fencing + drift safety (dropping any is a real regression)
+    expect(sql).toMatch(/"attempts" = /); // fencing token
+    expect(sql).toMatch(/"payloadHash" = /);
+    expect(sql).toMatch(/"manifestId" = /);
+    expect(sql).toMatch(/"inputVersion" = /);
     expect(sql).toMatch(/"Order"[\s\S]*'ready'/);
     expect(sql).toMatch(/"BookReadiness"[\s\S]*'passed'/);
     expect(sql).toMatch(/"currentManifestId"/);
