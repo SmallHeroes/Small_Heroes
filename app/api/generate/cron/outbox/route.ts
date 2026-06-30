@@ -32,8 +32,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     prisma,
     { limit: 1 }, // simplification A: single-claim per tick
     {
-      // (P1-f) the single atomic send-time CAS: renew lease + set sendAttempted IFF the row's binding still holds.
-      cas: (row, token, leaseExpiresAt) => casClaimSendSlot(prisma, row, token, leaseExpiresAt),
+      // (P1-f) the single atomic send-time CAS: renew lease + set sendAttempted/firstSendAttemptAt IFF the row's binding still holds.
+      cas: (row, token, leaseExpiresAt, now) => casClaimSendSlot(prisma, row, token, leaseExpiresAt, now),
       send: (payload, idempotencyKey) => sendBookReadyEmail({ ...payload, idempotencyKey }),
     },
   );

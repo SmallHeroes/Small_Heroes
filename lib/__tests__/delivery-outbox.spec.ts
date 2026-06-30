@@ -25,74 +25,79 @@ describe('dedupeKey + payloadHash', () => {
   });
 });
 
-describe('enqueueDelivery — idempotent on dedupeKey', () => {
-  it('creates a new scheduled row bound to the manifest + inputVersion (P1-f #2)', async () => {
+describe('enqueueDelivery — delivery-intent rebind contract (P1-f #3h)', () => {
+  const enq = (db: unknown, over: Record<string, unknown> = {}) =>
+    enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, manifestId: 'M1', inputVersion: 7, payload, now: NOW, ...over });
+  const updateData = (update: ReturnType<typeof vi.fn>): Record<string, unknown> => ((update.mock.calls[0] as unknown[])[0] as { data: Record<string, unknown> }).data;
+
+  it('no row → creates a fresh scheduled row bound to the manifest + inputVersion', async () => {
     const create = vi.fn(async () => ({}));
-    const db = { deliveryOutbox: { findUnique: vi.fn(async () => null), create } };
-    const r = await enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, manifestId: 'M1', inputVersion: 7, payload, now: NOW });
-    expect(r.created).toBe(true);
+    const db = { deliveryOutbox: { findUnique: vi.fn(async () => null), create, update: vi.fn() } };
+    const r = await enq(db);
+    expect(r).toMatchObject({ created: true, rebound: false });
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ dedupeKey: 'book-ready/o1/base-book/1', status: 'scheduled', manifestId: 'M1', inputVersion: 7 }) }));
   });
-  it('P1-f #2: an existing LIVE row bound to a DIFFERENT manifest is NEVER adopted — rolls to a fresh key bound to THIS manifest', async () => {
-    const create = vi.fn(async () => ({}));
-    const findUnique = vi.fn(async ({ where }: { where: { dedupeKey: string } }) =>
-      where.dedupeKey === 'book-ready/o1/base-book/1' ? { manifestId: 'M_OLD', status: 'scheduled', payloadHash: hashPayload(payload) } : null);
-    const db = { deliveryOutbox: { findUnique, create } };
-    const r = await enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, manifestId: 'M1', inputVersion: 0, payload, now: NOW });
-    expect(r.created).toBe(true);
-    expect(r.fulfillmentVersion).toBe(2); // did NOT adopt M_OLD's row
-    expect(create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ dedupeKey: 'book-ready/o1/base-book/2', manifestId: 'M1' }) }));
-  });
-  it('LIVE row (scheduled) + same payload => idempotent no-op (no second send enqueued)', async () => {
+
+  it('#3h #1: a re-commit by a NEW manifest while sendAttempted=false REBINDS the same row in place (same dedupeKey → same idempotency key) — never rolls/creates', async () => {
     const create = vi.fn();
-    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ manifestId: 'M1', status: 'scheduled', payloadHash: hashPayload(payload) })), create } };
-    const r = await enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, manifestId: 'M1', inputVersion: 0, payload, now: NOW });
-    expect(r.created).toBe(false);
-    expect(r.fulfillmentVersion).toBe(1);
+    const update = vi.fn(async () => ({}));
+    const findUnique = vi.fn(async () => ({ manifestId: 'M_OLD', status: 'scheduled', sendAttempted: false, payloadHash: hashPayload({ ...payload, readUrl: 'old' }) }));
+    const db = { deliveryOutbox: { findUnique, create, update } };
+    const r = await enq(db, { manifestId: 'M2', inputVersion: 9 });
+    expect(r).toMatchObject({ created: false, rebound: true, dedupeKey: 'book-ready/o1/base-book/1' });
     expect(create).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ where: { dedupeKey: 'book-ready/o1/base-book/1' } }));
+    expect(updateData(update)).toMatchObject({ manifestId: 'M2', inputVersion: 9, status: 'scheduled', payloadHash: hashPayload(payload) });
+    expect(updateData(update).attempts).toEqual({ increment: 1 }); // FENCES any in-flight worker on the old binding
   });
-  it('LIVE row (scheduled) + DIFFERENT payload => throws (never change a live payload under one event)', async () => {
-    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ manifestId: 'M1', status: 'scheduled', payloadHash: 'different' })), create: vi.fn() } };
-    await expect(enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, manifestId: 'M1', inputVersion: 0, payload, now: NOW }))
-      .rejects.toThrow(/outbox_payload_mismatch/);
+
+  it('#3h #5: a superseded_by_manifest row (sendAttempted=false) is recovered by the same in-place REBIND', async () => {
+    const update = vi.fn(async () => ({}));
+    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ manifestId: 'M_OLD', status: 'superseded_by_manifest', sendAttempted: false, payloadHash: 'old' })), create: vi.fn(), update } };
+    const r = await enq(db, { manifestId: 'M2' });
+    expect(r.rebound).toBe(true);
+    expect(updateData(update)).toMatchObject({ manifestId: 'M2', status: 'scheduled' });
   });
-  it('B-r3-1: terminal-dead row (suppressed) => rolls to fulfillmentVersion+1 and creates a FRESH scheduled row', async () => {
-    const create = vi.fn(async () => ({}));
-    const findUnique = vi.fn(async ({ where }: { where: { dedupeKey: string } }) =>
-      where.dedupeKey === 'book-ready/o1/base-book/1' ? { manifestId: 'M1', status: 'suppressed', payloadHash: 'whatever' } : null);
-    const db = { deliveryOutbox: { findUnique, create } };
-    const r = await enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, manifestId: 'M1', inputVersion: 0, payload, now: NOW });
-    expect(r.created).toBe(true);
-    expect(r.fulfillmentVersion).toBe(2); // rolled past the dead v1
-    expect(create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ dedupeKey: 'book-ready/o1/base-book/2', status: 'scheduled' }) }));
-  });
-  it('P1-f #1: a terminal-dead row with sendAttempted=false rolls (proven no send), even with the SAME payload', async () => {
-    const create = vi.fn(async () => ({}));
-    const findUnique = vi.fn(async ({ where }: { where: { dedupeKey: string } }) =>
-      where.dedupeKey === 'book-ready/o1/base-book/1' ? { manifestId: 'M1', status: 'failed', sendAttempted: false, payloadHash: hashPayload(payload) } : null);
-    const db = { deliveryOutbox: { findUnique, create } };
-    const r = await enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, manifestId: 'M1', inputVersion: 0, payload, now: NOW });
-    expect(r.created).toBe(true); // NOT a no-op success on the dead row
-    expect(r.fulfillmentVersion).toBe(2);
-  });
-  it('B-r3-1: every rolled fulfillment terminal-dead (suppressed) => explicit exception (never silent ready)', async () => {
-    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ manifestId: 'M1', status: 'suppressed', payloadHash: 'x' })), create: vi.fn() } };
-    await expect(enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, manifestId: 'M1', inputVersion: 0, payload, now: NOW }))
-      .rejects.toThrow(/outbox_terminal_recovery_exhausted/);
-  });
-  it('P1-f #1: a terminal row with sendAttempted=true => THROWS reconciliation (never auto-rolls into a new idempotency key)', async () => {
+
+  it('same manifest + live + same payload → idempotent no-op (no rebind, no create)', async () => {
     const create = vi.fn();
-    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ manifestId: 'M1', status: 'failed', failureClass: 'send_ambiguous', sendAttempted: true, payloadHash: 'x' })), create } };
-    await expect(enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, manifestId: 'M1', inputVersion: 0, payload, now: NOW }))
-      .rejects.toThrow(/outbox_send_ambiguous_needs_reconciliation/);
-    expect(create).not.toHaveBeenCalled(); // no new fulfillment created → no duplicate email path
-  });
-  it('P1-f #1: a `suppressed` row with sendAttempted=true also refuses to roll (sendAttempted is the only signal)', async () => {
-    const create = vi.fn();
-    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ manifestId: 'M1', status: 'suppressed', sendAttempted: true, payloadHash: 'x' })), create } };
-    await expect(enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, manifestId: 'M1', inputVersion: 0, payload, now: NOW }))
-      .rejects.toThrow(/outbox_send_ambiguous_needs_reconciliation/);
+    const update = vi.fn();
+    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ manifestId: 'M1', status: 'scheduled', sendAttempted: false, payloadHash: hashPayload(payload) })), create, update } };
+    const r = await enq(db);
+    expect(r).toMatchObject({ created: false, rebound: false });
     expect(create).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('same manifest + live + DIFFERENT payload → throws (a same-manifest payload change is a bug)', async () => {
+    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ manifestId: 'M1', status: 'scheduled', sendAttempted: false, payloadHash: 'different' })), create: vi.fn(), update: vi.fn() } };
+    await expect(enq(db)).rejects.toThrow(/outbox_payload_mismatch/);
+  });
+
+  it('#3h #2: sendAttempted=true → THROWS reconciliation (never auto-rebind into a duplicate email); no create, no rebind', async () => {
+    const create = vi.fn();
+    const update = vi.fn();
+    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ manifestId: 'M_OLD', status: 'processing', sendAttempted: true, payloadHash: 'x' })), create, update } };
+    await expect(enq(db, { manifestId: 'M2' })).rejects.toThrow(/outbox_delivery_in_flight_needs_reconciliation/);
+    expect(create).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('#3h #2: status=sent → reconciliation (a delivered intent needs explicit redelivery)', async () => {
+    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ manifestId: 'M_OLD', status: 'sent', sendAttempted: true, payloadHash: 'x' })), create: vi.fn(), update: vi.fn() } };
+    await expect(enq(db, { manifestId: 'M2' })).rejects.toThrow(/outbox_delivery_in_flight_needs_reconciliation/);
+  });
+
+  it('#3h #5: status=delivery_revoked (sendAttempted=false) → reconciliation, NOT rebind (a deliberately-killed intent is never auto-revived)', async () => {
+    const update = vi.fn();
+    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ manifestId: 'M_OLD', status: 'delivery_revoked', sendAttempted: false, payloadHash: 'x' })), create: vi.fn(), update } };
+    await expect(enq(db, { manifestId: 'M2' })).rejects.toThrow(/outbox_delivery_in_flight_needs_reconciliation/);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('#3h #2: status=failed → reconciliation', async () => {
+    const db = { deliveryOutbox: { findUnique: vi.fn(async () => ({ manifestId: 'M_OLD', status: 'failed', sendAttempted: true, payloadHash: 'x' })), create: vi.fn(), update: vi.fn() } };
+    await expect(enq(db, { manifestId: 'M2' })).rejects.toThrow(/outbox_delivery_in_flight_needs_reconciliation/);
   });
 });
 
@@ -109,22 +114,59 @@ describe('processDelivery — send-time CAS (P1-f)', () => {
     expect(updateMany).toHaveBeenCalledTimes(1); // ONLY the terminal sent write — the renew+sendAttempted is in the CAS
     expect(firstData(updateMany)).toMatchObject({ status: 'sent', providerMessageId: 'rs_1' });
   });
-  it('CAS is called with (row, fencing token = attempts at claim, a future lease expiry)', async () => {
+  it('CAS is called with (row, fencing token = attempts at claim, a future lease expiry, now)', async () => {
     const cas = vi.fn(async () => 'ok' as const);
     await processDelivery({ deliveryOutbox: { updateMany: fencedOk() } } as never, row({ attempts: 4 }) as never, { cas, send: vi.fn(async () => ({})), now: () => NOW });
-    expect(cas).toHaveBeenCalledWith(expect.objectContaining({ id: 'ob1' }), 4, expect.any(Date));
+    expect(cas).toHaveBeenCalledWith(expect.objectContaining({ id: 'ob1' }), 4, expect.any(Date), NOW);
   });
-  it('CAS superseded → fenced terminal `superseded`, NEVER sends (no re-eval, no readiness invalidation)', async () => {
+  it('#3h #4: payloadHash recompute mismatch → terminal delivery_revoked, NEVER reaches the CAS or sends', async () => {
+    const updateMany = fencedOk();
+    const cas = vi.fn(async () => 'ok' as const);
+    const send = vi.fn();
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ payloadHash: 'tampered-hash' }) as never, { cas, send, now: () => NOW });
+    expect(out).toBe('delivery_revoked');
+    expect(cas).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+    expect(firstData(updateMany)).toMatchObject({ status: 'delivery_revoked', lastError: 'payload_integrity_mismatch' });
+  });
+  it('#3h #3: a RE-attempt > 24h after firstSendAttemptAt → terminal failed + send_ambiguous, no CAS, no send', async () => {
+    const updateMany = fencedOk();
+    const cas = vi.fn(async () => 'ok' as const);
+    const send = vi.fn();
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ firstSendAttemptAt: new Date('2026-06-28T09:00:00Z') }) as never, { cas, send, now: () => NOW });
+    expect(out).toBe('failed');
+    expect(cas).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+    expect(firstData(updateMany)).toMatchObject({ status: 'failed', failureClass: 'send_ambiguous', lastError: 'idempotency_window_expired' });
+  });
+  it('#3h #3: a FIRST attempt (firstSendAttemptAt null) on a row that sat 25h in the queue still proceeds to the CAS + sends', async () => {
+    const updateMany = fencedOk();
+    const send = vi.fn(async () => ({ providerMessageId: 'rs' }));
+    const cas = vi.fn(async () => 'ok' as const);
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ firstSendAttemptAt: null, createdAt: new Date('2026-06-28T09:00:00Z') }) as never, { cas, send, now: () => NOW });
+    expect(out).toBe('sent');
+    expect(cas).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+  it('#3h #5: CAS superseded_by_manifest → fenced terminal `superseded_by_manifest`, NEVER sends (recovery is the re-commit rebind)', async () => {
     const updateMany = fencedOk();
     const send = vi.fn();
-    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, { cas: async () => 'superseded' as const, send, now: () => NOW });
-    expect(out).toBe('superseded');
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, { cas: async () => 'superseded_by_manifest' as const, send, now: () => NOW });
+    expect(out).toBe('superseded_by_manifest');
     expect(send).not.toHaveBeenCalled();
     expect(updateMany).toHaveBeenCalledTimes(1);
-    expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id: 'ob1', status: 'processing', attempts: 1 }), data: expect.objectContaining({ status: 'superseded' }) }));
+    expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id: 'ob1', status: 'processing', attempts: 1 }), data: expect.objectContaining({ status: 'superseded_by_manifest' }) }));
   });
-  it('CAS superseded but the fenced terminal write loses the lease → lost_lease', async () => {
-    const out = await processDelivery({ deliveryOutbox: { updateMany: fencedLost() } } as never, row() as never, { cas: async () => 'superseded' as const, send: vi.fn(), now: () => NOW });
+  it('#3h #5: CAS delivery_revoked → fenced terminal `delivery_revoked`, NEVER sends (not auto-recoverable)', async () => {
+    const updateMany = fencedOk();
+    const send = vi.fn();
+    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row() as never, { cas: async () => 'delivery_revoked' as const, send, now: () => NOW });
+    expect(out).toBe('delivery_revoked');
+    expect(send).not.toHaveBeenCalled();
+    expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'delivery_revoked' }) }));
+  });
+  it('CAS superseded_by_manifest but the fenced terminal write loses the lease → lost_lease', async () => {
+    const out = await processDelivery({ deliveryOutbox: { updateMany: fencedLost() } } as never, row() as never, { cas: async () => 'superseded_by_manifest' as const, send: vi.fn(), now: () => NOW });
     expect(out).toBe('lost_lease');
   });
   it('CAS lost_lease → lost_lease, NEVER sends, writes NOTHING', async () => {
@@ -150,12 +192,6 @@ describe('processDelivery — send-time CAS (P1-f)', () => {
     expect(out).toBe('failed');
     expect(firstData(updateMany)).toMatchObject({ status: 'failed', failureClass: 'send_ambiguous' });
     expect(firstData(updateMany).nextAttemptAt).toBeNull();
-  });
-  it('CAS ok but send fails beyond the 24h idempotency window → terminal failed', async () => {
-    const updateMany = fencedOk();
-    const send = vi.fn(async () => { throw new Error('network'); });
-    const out = await processDelivery({ deliveryOutbox: { updateMany } } as never, row({ attempts: 1, createdAt: new Date('2026-06-27T09:00:00Z') }) as never, okDeps(send));
-    expect(out).toBe('failed');
   });
   it('a send-failure terminal write that loses the lease → lost_lease', async () => {
     const send = vi.fn(async () => { throw new Error('network'); });

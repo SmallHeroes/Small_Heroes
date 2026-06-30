@@ -74,8 +74,13 @@ enum DeliveryOutboxStatus {
   processing
   sent
   failed
-  suppressed // legacy (pre-P1-f live-recheck path); no longer produced
-  superseded // (P1-f) send-time CAS mismatch: a newer manifest owns the order — terminal, roll-safe
+  suppressed             // legacy (pre-P1-f live-recheck path); no longer produced
+  superseded             // legacy (P1-f #3, pre-split); no longer produced
+  // (P1-f #3h) CAS-mismatch split:
+  superseded_by_manifest // a newer VALID manifest genuinely owns the order (ready+passed, different manifestId).
+  //                        Recoverable: a re-commit rebinds this row in place (same dedupeKey) while sendAttempted=false.
+  delivery_revoked       // the order/readiness is NOT deliverable for another reason (held/cancelled/inputs_stale).
+  //                        NOT auto-recoverable → explicit reconciliation/redelivery.
 }
 
 // ─── Customer ─────────────────────────────────────────
@@ -548,8 +553,12 @@ model DeliveryOutbox {
   //   sendAttempted, not this column. recheck_exhausted is LEGACY (the removed live-recheck path), no longer written.
   failureClass      String?
   // Durable "a provider send was EVER attempted on this row" (P1-e4 review C + P1-f). The single source of
-  // truth for the enqueue roll decision: a row is roll-safe ONLY while sendAttempted is false.
+  // truth for the rebind/reconciliation decision: a row is rebindable ONLY while sendAttempted is false.
   sendAttempted     Boolean              @default(false)
+  // (P1-f #3h) Timestamp of the FIRST send attempt (set once, by the CAS, via COALESCE). Resend's 24h
+  // idempotency window is measured from HERE, not createdAt: an order that sat 25h in the queue still gets its
+  // first attempt; a re-attempt > 24h after the first becomes send_ambiguous (no blind resend).
+  firstSendAttemptAt DateTime?
   providerMessageId String?
   createdAt         DateTime             @default(now())
   sentAt            DateTime?

@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 /**
  * Wiring test for the Outbox cron (P1-f). The route is where the worker deps compose for real, and a regression
  * here would pass every lib-level unit test. It pins: (1) the `cas` dep is present and delegates to
- * casClaimSendSlot forwarding (row, token, leaseExpiresAt) — the single atomic send-time CAS; (2) the flag-OFF
+ * casClaimSendSlot forwarding (row, token, leaseExpiresAt, now) — the single atomic send-time CAS; (2) the flag-OFF
  * and auth short-circuits. prisma + the readiness/outbox/email modules are mocked so no env validation runs.
  */
 describe('cron/outbox route — worker wiring (P1-f CAS)', () => {
@@ -26,7 +26,7 @@ describe('cron/outbox route — worker wiring (P1-f CAS)', () => {
   };
   const req = (auth: string | null) => ({ headers: { get: (h: string) => (h === 'authorization' ? auth : null) } }) as never;
 
-  it('the `cas` dep is present and delegates to casClaimSendSlot, forwarding (row, token, leaseExpiresAt)', async () => {
+  it('the `cas` dep is present and delegates to casClaimSendSlot, forwarding (row, token, leaseExpiresAt, now)', async () => {
     process.env.CRON_SECRET = 'secret';
     const t = await loadRoute();
     await t.GET(req('Bearer secret'));
@@ -35,8 +35,9 @@ describe('cron/outbox route — worker wiring (P1-f CAS)', () => {
     expect(typeof deps.cas).toBe('function');
     const rowArg = { id: 'ob1', orderId: 'o1', scope: 'base_book', manifestId: 'm1', inputVersion: 0, payloadHash: 'ph' };
     const lease = new Date('2026-06-29T10:10:00Z');
-    const cres = await deps.cas(rowArg, 3, lease);
-    expect(t.casClaimSendSlot).toHaveBeenCalledWith(expect.anything(), rowArg, 3, lease);
+    const now = new Date('2026-06-29T10:05:00Z');
+    const cres = await deps.cas(rowArg, 3, lease, now);
+    expect(t.casClaimSendSlot).toHaveBeenCalledWith(expect.anything(), rowArg, 3, lease, now);
     expect(cres).toBe('ok'); // the route closure passes the CasResult straight through to the worker
   });
 

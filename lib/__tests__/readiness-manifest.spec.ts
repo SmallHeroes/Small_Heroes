@@ -30,7 +30,7 @@ function mockTx(orderRow: unknown = orderRowFull) {
     order: { findUnique: vi.fn(async () => orderRow), updateMany: vi.fn(async () => ({ count: 1 })) },
     bookReadinessManifest: { findFirst: vi.fn(async () => ({ revision: 4 })), create: vi.fn(async (a: { data: Record<string, unknown> }) => ({ id: 'm1', ...a.data })) },
     bookReadiness: { upsert: vi.fn() },
-    deliveryOutbox: { findUnique: vi.fn(async () => null), create: vi.fn() },
+    deliveryOutbox: { findUnique: vi.fn(async () => null), create: vi.fn(), update: vi.fn() },
     generationJob: { update: vi.fn() },
   };
 }
@@ -121,29 +121,41 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
     expect(r.enqueued).toBe(true);
   });
 
-  it('B-r3-1: a terminal-dead Outbox (suppressed v1) → rolls to a fresh scheduled v2 + persists fulfillmentVersion (never ready behind a dead row)', async () => {
+  it('#3h #1: a re-commit over a recoverable Outbox row (sendAttempted=false, old manifest) REBINDS it in place — same dedupeKey, no roll, no fulfillmentVersion change', async () => {
     const tx = mockTx();
     tx.deliveryOutbox.findUnique = vi.fn(async ({ where }: { where: { dedupeKey: string } }) =>
-      where.dedupeKey === 'book-ready/o1/base-book/1' ? { status: 'suppressed', payloadHash: 'stale' } : null);
+      where.dedupeKey === 'book-ready/o1/base-book/1' ? { manifestId: 'm_old', status: 'scheduled', sendAttempted: false, payloadHash: 'stale' } : null);
     const r = await commitBaseBookReadiness(mockPrisma(tx) as never, args(), { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' });
     expect(r.enqueued).toBe(true);
     expect(r.orderStatus).toBe('ready');
-    expect(tx.deliveryOutbox.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ dedupeKey: 'book-ready/o1/base-book/2', status: 'scheduled' }) }));
-    expect(tx.order.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'ready', fulfillmentVersion: 2 }) }));
+    expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
+    expect(tx.deliveryOutbox.update).toHaveBeenCalledWith(expect.objectContaining({ where: { dedupeKey: 'book-ready/o1/base-book/1' }, data: expect.objectContaining({ manifestId: 'm1', status: 'scheduled' }) }));
+    const orderData = ((tx.order.updateMany.mock.calls[0] as unknown[])[0] as { data: Record<string, unknown> }).data;
+    expect(orderData).toMatchObject({ status: 'ready' });
+    expect(orderData.fulfillmentVersion).toBeUndefined(); // delivery-intent stable → no roll persisted
   });
 });
 
-describe('casClaimSendSlot — single atomic send-time CAS (P1-f)', () => {
+describe('casClaimSendSlot — single atomic send-time CAS (P1-f #3h)', () => {
   const casRow = { id: 'ob1', orderId: 'o1', scope: BASE_BOOK_SCOPE, manifestId: 'm1', inputVersion: 0, payloadHash: 'ph' };
   const lease = new Date('2026-06-29T10:10:00Z');
+  const NOW_CAS = new Date('2026-06-29T10:05:00Z');
+  // db for the 0-row diagnostic path: own-row re-read + order + readiness (classify superseded_by_manifest vs revoked).
+  const diagDb = (over: { cur?: unknown; order?: unknown; readiness?: unknown }) => ({
+    $executeRaw: vi.fn(async () => 0),
+    deliveryOutbox: { findUnique: vi.fn(async () => ('cur' in over ? over.cur : { status: 'processing', attempts: 1 })) },
+    order: { findUnique: vi.fn(async () => over.order ?? null) },
+    bookReadiness: { findUnique: vi.fn(async () => over.readiness ?? null) },
+  });
 
-  it('binding holds → updates exactly 1 row → ok (one statement renews lease + sets sendAttempted + verifies the full binding)', async () => {
+  it('binding holds → updates exactly 1 row → ok (renews lease + sets sendAttempted + firstSendAttemptAt via COALESCE + verifies the full binding)', async () => {
     const $executeRaw = vi.fn(async () => 1);
     const findUnique = vi.fn();
-    const r = await casClaimSendSlot({ $executeRaw, deliveryOutbox: { findUnique } } as never, casRow, 1, lease);
+    const r = await casClaimSendSlot({ $executeRaw, deliveryOutbox: { findUnique } } as never, casRow, 1, lease, NOW_CAS);
     expect(r).toBe('ok');
     const sql = (($executeRaw.mock.calls[0] as unknown[])[0] as string[]).join(' ');
     expect(sql).toMatch(/"sendAttempted" = true/);
+    expect(sql).toMatch(/"firstSendAttemptAt" = COALESCE/); // set ONCE, on the first attempt (#3h)
     expect(sql).toMatch(/"status" = 'processing'/);
     // the four outer-WHERE bindings that guarantee fencing + drift safety (dropping any is a real regression)
     expect(sql).toMatch(/"attempts" = /); // fencing token
@@ -155,28 +167,35 @@ describe('casClaimSendSlot — single atomic send-time CAS (P1-f)', () => {
     expect(sql).toMatch(/"currentManifestId"/);
     expect(findUnique).not.toHaveBeenCalled(); // a hit needs no re-read
   });
-  it('0 rows + we STILL own the row (processing + token) → superseded (a binding moved; sendAttempted was NOT set)', async () => {
-    const $executeRaw = vi.fn(async () => 0);
-    const findUnique = vi.fn(async () => ({ status: 'processing', attempts: 1 }));
-    const r = await casClaimSendSlot({ $executeRaw, deliveryOutbox: { findUnique } } as never, casRow, 1, lease);
-    expect(r).toBe('superseded');
+  it('#3h #5: 0 rows + STILL ours + a newer VALID manifest owns the order (ready + passed, different currentManifestId) → superseded_by_manifest', async () => {
+    const db = diagDb({ order: { status: 'ready' }, readiness: { status: 'passed', currentManifestId: 'm2' } });
+    const r = await casClaimSendSlot(db as never, casRow, 1, lease, NOW_CAS);
+    expect(r).toBe('superseded_by_manifest');
   });
-  it('0 rows + the row is no longer ours (status moved off processing) → lost_lease', async () => {
-    const $executeRaw = vi.fn(async () => 0);
-    const findUnique = vi.fn(async () => ({ status: 'scheduled', attempts: 2 }));
-    const r = await casClaimSendSlot({ $executeRaw, deliveryOutbox: { findUnique } } as never, casRow, 1, lease);
+  it('#3h #5: 0 rows + STILL ours but the order is NOT ready (held) → delivery_revoked (not a manifest supersession)', async () => {
+    const db = diagDb({ order: { status: 'needs_human_qa' }, readiness: { status: 'passed', currentManifestId: 'm1' } });
+    const r = await casClaimSendSlot(db as never, casRow, 1, lease, NOW_CAS);
+    expect(r).toBe('delivery_revoked');
+  });
+  it('#3h #5: 0 rows + STILL ours, order ready + readiness passed but currentManifestId UNCHANGED (inputs_stale, not supersession) → delivery_revoked', async () => {
+    const db = diagDb({ order: { status: 'ready' }, readiness: { status: 'passed', currentManifestId: 'm1' } });
+    const r = await casClaimSendSlot(db as never, casRow, 1, lease, NOW_CAS);
+    expect(r).toBe('delivery_revoked');
+  });
+  it('0 rows + the row is no longer ours (status moved off processing) → lost_lease (no order/readiness read)', async () => {
+    const db = diagDb({ cur: { status: 'scheduled', attempts: 2 } });
+    const r = await casClaimSendSlot(db as never, casRow, 1, lease, NOW_CAS);
     expect(r).toBe('lost_lease');
+    expect(db.order.findUnique).not.toHaveBeenCalled();
   });
   it('0 rows + the token advanced (reclaimed) → lost_lease', async () => {
-    const $executeRaw = vi.fn(async () => 0);
-    const findUnique = vi.fn(async () => ({ status: 'processing', attempts: 2 }));
-    const r = await casClaimSendSlot({ $executeRaw, deliveryOutbox: { findUnique } } as never, casRow, 1, lease);
+    const db = diagDb({ cur: { status: 'processing', attempts: 2 } });
+    const r = await casClaimSendSlot(db as never, casRow, 1, lease, NOW_CAS);
     expect(r).toBe('lost_lease');
   });
   it('0 rows + the row vanished → lost_lease', async () => {
-    const $executeRaw = vi.fn(async () => 0);
-    const findUnique = vi.fn(async () => null);
-    const r = await casClaimSendSlot({ $executeRaw, deliveryOutbox: { findUnique } } as never, casRow, 1, lease);
+    const db = diagDb({ cur: null });
+    const r = await casClaimSendSlot(db as never, casRow, 1, lease, NOW_CAS);
     expect(r).toBe('lost_lease');
   });
 });

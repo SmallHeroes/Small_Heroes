@@ -205,13 +205,12 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, r
   let enqueued = false;
   let orderStatus: string;
   let deliveryHoldReason: string | null;
-  let fulfillmentVersion: number | undefined;
   if (result.status === 'passed' && args.anchorAllowsDelivery) {
     // (3) enqueue the delivery IN the same transaction (enqueue != send), then (4) mark the order ready.
-    // B-r3-1: enqueue may roll fulfillmentVersion forward past a terminal-dead row — persist the value it used
-    // so `ready` is always backed by the live/claimable Outbox row (never a suppressed/failed one).
-    const enq = await enqueueDelivery(tx, { orderId: order.id, scope, fulfillmentVersion: order.fulfillmentVersion, manifestId: manifest.id, inputVersion: order.inputVersion, payload: buildPayload(payloadSourceOf(order, book)), now });
-    enqueued = true; orderStatus = 'ready'; deliveryHoldReason = null; fulfillmentVersion = enq.fulfillmentVersion;
+    // (P1-f #3h) A re-commit REBINDS the existing Outbox row in place (same dedupeKey → same idempotency key),
+    // so fulfillmentVersion never rolls here — the delivery-intent is stable; the manifest is just its proof.
+    await enqueueDelivery(tx, { orderId: order.id, scope, fulfillmentVersion: order.fulfillmentVersion, manifestId: manifest.id, inputVersion: order.inputVersion, payload: buildPayload(payloadSourceOf(order, book)), now });
+    enqueued = true; orderStatus = 'ready'; deliveryHoldReason = null;
   } else if (result.status === 'passed') {
     // Integrity passed but the ANCHOR still holds delivery (Phase-1 keeps the anchor hold — fix #4). No enqueue.
     orderStatus = args.anchorOrderStatus; deliveryHoldReason = args.anchorReason;
@@ -224,7 +223,6 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, r
   // bumped Order.inputVersion since the evaluation, this matches 0 rows → abort the whole tx as a TOCTOU drift
   // (reload FRESH + re-evaluate). Stronger than the early fingerprint read: it makes the final write itself atomic.
   const orderData: Prisma.OrderUpdateManyMutationInput = { status: orderStatus as never, packageStatus: 'done', deliveryHoldReason };
-  if (fulfillmentVersion !== undefined && fulfillmentVersion !== order.fulfillmentVersion) orderData.fulfillmentVersion = fulfillmentVersion;
   const written = await tx.order.updateMany({
     where: { id: order.id, inputVersion: order.inputVersion },
     data: orderData,
@@ -261,27 +259,33 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
 }
 
 /**
- * (P1-f) The single atomic send-time CAS. In ONE SQL statement: renew the lease + set sendAttempted IFF the row
- * is still ours (status 'processing' + this fencing token) AND the live truth still matches the row's binding:
+ * (P1-f) The single atomic send-time CAS. In ONE SQL statement: renew the lease + set sendAttempted +
+ * firstSendAttemptAt (COALESCE — set once, on the first attempt; #3h) IFF the row is still ours (status
+ * 'processing' + this fencing token) AND the live truth still matches the row's binding:
  *   - Order.status = 'ready' AND Order.inputVersion = row.inputVersion (the inputVersion match also covers
  *     payload-field drift, because every writer of a gate/payload input bumps inputVersion in the SAME tx — the
- *     P1-f #5 writer contract);
+ *     P1-f #5 writer contract; pre-#5 nothing bumps it, so this is dormant by design);
  *   - BookReadiness.status = 'passed' AND BookReadiness.currentManifestId = row.manifestId;
- *   - the stored payloadHash is unchanged.
- * This REPLACES the old live re-evaluation (asset download + integrity re-eval) and its race-prone suppress
- * path: there is no re-eval, no readiness invalidation here, no manifest_superseded retry loop. The orphan and
- * livelock races vanish with that removal. Returns 'ok' (the send slot is ours — sendAttempted is durably set),
- * 'superseded' (we still own the row but the binding moved → caller marks it terminal), or 'lost_lease'.
+ *   - the stored payloadHash is unchanged (a row-integrity binding; the real payload recompute is in processDelivery).
+ * No re-eval, no readiness invalidation here, no retry loop. On a 0-row miss it diagnoses (#3h split):
+ *   - lost_lease             — status/token moved (another worker reclaimed).
+ *   - superseded_by_manifest — STILL ours, and a newer VALID manifest owns the order (ready + passed, different
+ *                              currentManifestId). Recoverable: a re-commit rebinds this row in place.
+ *   - delivery_revoked       — STILL ours, but the order/readiness is not deliverable for ANOTHER reason
+ *                              (held / cancelled / inputs_stale). NOT auto-recoverable → explicit reconciliation.
  */
 export async function casClaimSendSlot(
   prisma: PrismaClient,
   row: Pick<DeliveryOutbox, 'id' | 'orderId' | 'scope' | 'manifestId' | 'inputVersion' | 'payloadHash'>,
   token: number,
   leaseExpiresAt: Date,
+  now: Date,
 ): Promise<CasResult> {
   const updated = await prisma.$executeRaw`
     UPDATE "DeliveryOutbox" AS o
-       SET "sendAttempted" = true, "leaseExpiresAt" = ${leaseExpiresAt}
+       SET "sendAttempted" = true,
+           "firstSendAttemptAt" = COALESCE(o."firstSendAttemptAt", ${now}),
+           "leaseExpiresAt" = ${leaseExpiresAt}
      WHERE o."id" = ${row.id}
        AND o."status" = 'processing'
        AND o."attempts" = ${token}
@@ -298,9 +302,18 @@ export async function casClaimSendSlot(
             AND br."status" = 'passed' AND br."currentManifestId" = o."manifestId"
        )`;
   if (updated === 1) return 'ok';
-  // 0 rows: either we lost the lease (status/token moved) OR the binding no longer holds. Re-read to
-  // distinguish — only if we STILL own the row (processing + this token) is it a true CAS mismatch (superseded).
+  // 0 rows: lost the lease, or the binding moved. Re-read; only if we STILL own the row (processing + this
+  // token) is it a true CAS mismatch — then classify supersession-by-manifest vs revocation (#3h #5).
   const cur = await prisma.deliveryOutbox.findUnique({ where: { id: row.id }, select: { status: true, attempts: true } });
   if (!cur || cur.status !== 'processing' || cur.attempts !== token) return 'lost_lease';
-  return 'superseded';
+  const [order, readiness] = await Promise.all([
+    prisma.order.findUnique({ where: { id: row.orderId }, select: { status: true } }),
+    prisma.bookReadiness.findUnique({ where: { orderId_scope: { orderId: row.orderId, scope: row.scope } }, select: { status: true, currentManifestId: true } }),
+  ]);
+  // A newer VALID manifest genuinely owns the order → recoverable via a re-commit's rebind.
+  if (order?.status === 'ready' && readiness?.status === 'passed' && readiness.currentManifestId !== row.manifestId) {
+    return 'superseded_by_manifest';
+  }
+  // Otherwise the order/readiness is not deliverable for a non-manifest reason → not auto-recoverable.
+  return 'delivery_revoked';
 }
