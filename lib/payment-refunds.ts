@@ -2,7 +2,7 @@ import 'server-only';
 
 import Stripe from 'stripe';
 import type { PrismaClient } from '@prisma/client';
-import { queryPaymeSale, refundPaymeSale } from '@/lib/payme';
+import { queryPaymeSale, refundPaymeSale, PaymeRefundError } from '@/lib/payme';
 import { isVercelProductionRuntime } from '@/lib/runtime-env';
 
 export type RefundResult =
@@ -37,6 +37,9 @@ export interface RefundFence {
   begin(args: { refundKey: string; provider: string; providerSaleId: string }): Promise<{ heldFresh: boolean; record: RefundFenceRecord | null }>;
   /** Atomic 'requested' → 'dispatched'. Returns true ONLY for the single winner; the loser must NOT call refund-sale. */
   dispatch(refundKey: string): Promise<boolean>;
+  /** (#6 FIX-6) Atomic 'dispatched' → 'requested' — roll back ONLY when the refund-sale DEFINITIVELY did not apply,
+   * so a future tick may safely re-attempt. Never called for an ambiguous (maybe-in-flight) failure. */
+  undispatch(refundKey: string): Promise<void>;
   settle(args: { refundKey: string; status: 'pending' | 'confirmed'; providerActionId: string | null }): Promise<void>;
 }
 
@@ -65,6 +68,10 @@ export function prismaRefundFence(prisma: PrismaClient): RefundFence {
       // reclaimer (e.g. after a lease expiry) sees 'dispatched' and never issues a second physical refund.
       const moved = await prisma.refundAttempt.updateMany({ where: { refundKey, status: 'requested' }, data: { status: 'dispatched' } });
       return moved.count === 1;
+    },
+    async undispatch(refundKey) {
+      // Only rolls a still-'dispatched' row back to 'requested' (a settled pending/confirmed row is untouched).
+      await prisma.refundAttempt.updateMany({ where: { refundKey, status: 'dispatched' }, data: { status: 'requested' } });
     },
     async settle({ refundKey, status, providerActionId }) {
       await prisma.refundAttempt.update({ where: { refundKey }, data: { status, providerActionId } });
@@ -163,7 +170,20 @@ export async function refundOrderPayment(
     // refund-sale (exactly once). A concurrent/restarted worker that finds 'dispatched' reconciles instead.
     const dispatchAndIssue = async (prev: string | null): Promise<RefundResult> => {
       if (!(await fence.dispatch(refundKey))) return reconcileDispatched(prev);
-      const requested = await refundSale(saleId);
+      let requested: { state: 'refunded' | 'pending'; providerActionId: string | null };
+      try {
+        requested = await refundSale(saleId);
+      } catch (e) {
+        // (#6 FIX-6) A DEFINITIVE rejection (PayMe refused the request — refund provably NOT applied) must NOT
+        // leave the fence 'dispatched' (which means "maybe in flight, never re-issue"). Roll it back to 'requested'
+        // so a future tick re-attempts (restoring FIX-4a recovery for a transient/definitive rejection) — safe,
+        // because the refund definitively did not move money. An AMBIGUOUS failure (5xx / network — maybe in
+        // flight) stays 'dispatched' and is never re-issued, preserving the never-double-refund guarantee.
+        if (e instanceof PaymeRefundError && e.definitive) {
+          await fence.undispatch(refundKey);
+        }
+        throw e;
+      }
       const status: 'pending' | 'confirmed' = requested.state === 'refunded' ? 'confirmed' : 'pending';
       const actionId = requested.providerActionId ?? prev ?? saleId;
       await fence.settle({ refundKey, status, providerActionId: actionId });

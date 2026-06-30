@@ -392,6 +392,17 @@ export async function queryPaymeSale(
   return { state: 'unknown', rawStatus };
 }
 
+// (#6 FIX-6) A refund-sale failure carries whether it was DEFINITIVE (the refund provably did NOT apply — a PayMe
+// application-level rejection on HTTP 200, or an HTTP 4xx client error) vs AMBIGUOUS (HTTP 5xx / network — the
+// refund MAY be in flight). The caller uses this to decide whether re-attempting is safe (definitive) or would
+// risk a double refund (ambiguous → must not re-issue).
+export class PaymeRefundError extends Error {
+  constructor(public readonly definitive: boolean, public readonly httpStatus: number, message: string) {
+    super(message);
+    this.name = 'PaymeRefundError';
+  }
+}
+
 /** Full refund. PayMe has no idempotency-key parameter; callers MUST query before retrying. */
 export async function refundPaymeSale(
   paymeSaleId: string,
@@ -413,7 +424,12 @@ export async function refundPaymeSale(
   });
   const raw = (await res.json().catch(() => null)) as Record<string, unknown> | null;
   if (!res.ok || !raw || Number(raw.status_code ?? 1) !== 0) {
-    throw new Error(
+    // DEFINITIVE (refund not applied): an HTTP-200 PayMe rejection (status_code != 0), or an HTTP 4xx client
+    // error. AMBIGUOUS (maybe in flight): HTTP 5xx. A pre-`res` network failure rejects fetch itself (ambiguous).
+    const definitive = res.ok ? true : res.status >= 400 && res.status < 500;
+    throw new PaymeRefundError(
+      definitive,
+      res.status,
       `PayMe refund failed (${res.status}):${String(raw?.status_error_code ?? 'unknown')}`,
     );
   }
