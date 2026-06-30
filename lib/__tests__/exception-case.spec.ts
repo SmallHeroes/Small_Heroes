@@ -446,12 +446,16 @@ describe('ExceptionCase producer + lifecycle', () => {
       id: 'ob1',
       status: 'failed',
       failureClass: 'send_ambiguous',
+      firstSendAttemptAt: new Date('2026-06-30T11:00:00.000Z'), // 1h ago → within the 48h reissue window
     };
     const create = vi.fn(async ({ data }) => ({ id: 'ob2', ...data }));
     const outboxUpdate = vi.fn(async () => ({ count: 1 }));
+    const reissueBudgetCreate = vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id: 'rb1', ...data }));
     const tx = {
       exceptionCase: { updateMany: vi.fn(async () => ({ count: 1 })) },
       exceptionCaseAudit: { create: vi.fn(async () => ({})) },
+      // (#6-FIX-2) the reissue now consumes the durable budget atomically — no prior row → first reissue allowed.
+      reissueBudget: { findUnique: vi.fn(async () => null), create: reissueBudgetCreate, updateMany: vi.fn(async () => ({ count: 1 })) },
       deliveryOutbox: {
         findUnique: vi.fn(async ({ where }) =>
           where.id === 'ob1' ? oldOutbox : null,

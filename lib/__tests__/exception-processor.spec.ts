@@ -7,6 +7,7 @@ vi.mock('@/lib/generation-chunked/start', () => ({
 
 import {
   EXCEPTION_MAX_RECOVERY_ATTEMPTS,
+  REISSUE_BUDGET,
 } from '@/lib/generation-chunked/exception-case';
 import {
   processExceptionCase,
@@ -80,9 +81,15 @@ function outbox(overrides: Partial<DeliveryOutbox> = {}): DeliveryOutbox {
   } as DeliveryOutbox;
 }
 
-function fakePrisma(initialCase: ExceptionCase, initialOutbox?: DeliveryOutbox) {
+function fakePrisma(
+  initialCase: ExceptionCase,
+  initialOutbox?: DeliveryOutbox,
+  initialBudget?: { count: number; windowStartAt: Date } | null,
+) {
   let row = { ...initialCase };
   let delivery = initialOutbox ? { ...initialOutbox } : null;
+  let budget: { orderId: string; scope: string; count: number; windowStartAt: Date } | null =
+    initialBudget ? { orderId: initialCase.orderId, scope: initialCase.scope, ...initialBudget } : null;
   const audits: unknown[] = [];
   const createdDeliveries: any[] = [];
 
@@ -130,6 +137,19 @@ function fakePrisma(initialCase: ExceptionCase, initialOutbox?: DeliveryOutbox) 
       return { count: 1 };
     }),
   };
+  const reissueBudget = {
+    findUnique: vi.fn(async () => (budget ? { ...budget } : null)),
+    create: vi.fn(async ({ data }: any) => {
+      budget = { count: 0, ...data };
+      return { ...budget };
+    }),
+    updateMany: vi.fn(async ({ where, data }: any) => {
+      if (!budget) return { count: 0 };
+      if (where.count?.lt !== undefined && !(budget.count < where.count.lt)) return { count: 0 };
+      if (data.count?.increment) budget.count += Number(data.count.increment);
+      return { count: 1 };
+    }),
+  };
   const prisma = {
     exceptionCase: exceptionCaseModel,
     exceptionCaseAudit: {
@@ -139,6 +159,7 @@ function fakePrisma(initialCase: ExceptionCase, initialOutbox?: DeliveryOutbox) 
       }),
     },
     deliveryOutbox,
+    reissueBudget,
     order: {
       findUnique: vi.fn(async () => ({
         id: 'order_1',
@@ -174,6 +195,7 @@ function fakePrisma(initialCase: ExceptionCase, initialOutbox?: DeliveryOutbox) 
     prisma,
     currentCase: () => row,
     currentOutbox: () => delivery,
+    currentBudget: () => budget,
     createdDeliveries,
     audits,
     exceptionCaseModel,
@@ -281,6 +303,43 @@ describe('ExceptionCase autonomous processor', () => {
     expect(db.createdDeliveries[0].dedupeKey)
       .toBe('book-ready/order_1/base-book/2');
     expect(db.currentOutbox()?.failureClass).toBe('provider_confirmed_failed');
+    // (#6-FIX-2) the first reissue consumes one unit of the durable order:scope budget.
+    expect(db.currentBudget()?.count).toBe(1);
+  });
+
+  it('#6-FIX-2: a confirmed-failed delivery with the reissue budget already exhausted → refund, not a 2nd reissue', async () => {
+    const state = exceptionCase();
+    const previousAppUrl = process.env.APP_URL;
+    const previousPublicAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+    process.env.APP_URL = 'https://app.example.com';
+    process.env.NEXT_PUBLIC_APP_URL = 'https://app.example.com';
+    // Budget already consumed by a prior reissue (a different case + fulfillmentVersion), window still open.
+    const db = fakePrisma(state, outbox(), { count: REISSUE_BUDGET, windowStartAt: new Date(NOW.getTime() - 60_000) });
+    try {
+      await expect(processExceptionCase(db.prisma, state, deps({
+        emailState: vi.fn(async () => ({ state: 'failed' as const, event: 'bounced' })),
+      }))).resolves.toBe('refund_pending');
+    } finally {
+      if (previousAppUrl === undefined) delete process.env.APP_URL;
+      else process.env.APP_URL = previousAppUrl;
+      if (previousPublicAppUrl === undefined) delete process.env.NEXT_PUBLIC_APP_URL;
+      else process.env.NEXT_PUBLIC_APP_URL = previousPublicAppUrl;
+    }
+    expect(db.createdDeliveries).toHaveLength(0); // NO second reissue
+    expect(db.currentCase().status).toBe('refund_pending');
+  });
+
+  it('#6-FIX-2: a confirmed-failed delivery past the GLOBAL 48h window (from the first send) → refund, never reissue', async () => {
+    const state = exceptionCase();
+    const db = fakePrisma(
+      state,
+      outbox({ firstSendAttemptAt: new Date(NOW.getTime() - 49 * 60 * 60 * 1000) }),
+    );
+    await expect(processExceptionCase(db.prisma, state, deps({
+      emailState: vi.fn(async () => ({ state: 'failed' as const, event: 'bounced' })),
+    }))).resolves.toBe('refund_pending');
+    expect(db.createdDeliveries).toHaveLength(0);
+    expect(db.currentBudget()).toBeNull(); // window check fails before any consume — no budget row created
   });
 
   it('never blind-resends after the idempotency window and moves to refund', async () => {

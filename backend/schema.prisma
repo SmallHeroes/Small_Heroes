@@ -642,3 +642,19 @@ model ExceptionCaseAudit {
 
   @@index([caseId, createdAt])
 }
+
+// (#6-FIX-2) Durable, order:scope-level reissue budget. A per-CASE bound doesn't compose — each reissue spawns a
+// new case + fulfillmentVersion + clock, so it could reissue indefinitely. This row survives across cases and
+// fulfillmentVersions: `count` caps total reissues; `windowStartAt` is the FIRST send attempt of the original
+// delivery (the GLOBAL 48h window anchor, not a per-case clock).
+model ReissueBudget {
+  id            String   @id @default(cuid())
+  orderId       String
+  scope         String
+  count         Int      @default(0)
+  windowStartAt DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([orderId, scope])
+}

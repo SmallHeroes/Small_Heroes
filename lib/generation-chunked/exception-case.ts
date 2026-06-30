@@ -18,6 +18,43 @@ import { isCanonicalReadUrl } from '@/lib/generation-pipeline/integrity-gate';
 export const EXCEPTION_SCOPE_BASE_BOOK = 'base_book';
 export const EXCEPTION_LEASE_MS = 4 * 60 * 1000;
 export const EXCEPTION_MAX_RECOVERY_ATTEMPTS = 3;
+// (#6-FIX-2) Total reissues allowed per order:scope, and the GLOBAL window from the FIRST send attempt. Durable,
+// so a chain of ambiguous→failed successors (each a new case + fulfillmentVersion + clock) cannot reissue forever.
+export const REISSUE_BUDGET = 1;
+export const REISSUE_WINDOW_MS = 48 * 60 * 60 * 1000;
+
+export type ReissueBudgetOutcome = 'consumed' | 'exhausted' | 'window_expired';
+
+/**
+ * (#6-FIX-2) Atomically consume one unit of the durable order:scope reissue budget. The window anchor is the
+ * FIRST send attempt of the ORIGINAL delivery (persisted as `windowStartAt` on first consume), NOT a per-case
+ * clock, so it survives across cases + fulfillmentVersions. Runs INSIDE the reissue transaction so the budget can
+ * never be over-consumed by a concurrent reissue (the count<BUDGET guard is a conditional updateMany).
+ */
+export async function consumeReissueBudget(
+  tx: Tx,
+  args: { orderId: string; scope: string; firstSendAttemptAt: Date | null; now: Date },
+): Promise<ReissueBudgetOutcome> {
+  const cutoff = new Date(args.now.getTime() - REISSUE_WINDOW_MS);
+  const existing = await tx.reissueBudget.findUnique({
+    where: { orderId_scope: { orderId: args.orderId, scope: args.scope } },
+  });
+  if (!existing) {
+    // First reissue: anchor the global window on the original delivery's first send attempt.
+    if (!args.firstSendAttemptAt || args.firstSendAttemptAt <= cutoff) return 'window_expired';
+    if (REISSUE_BUDGET < 1) return 'exhausted';
+    await tx.reissueBudget.create({
+      data: { orderId: args.orderId, scope: args.scope, count: 1, windowStartAt: args.firstSendAttemptAt },
+    });
+    return 'consumed';
+  }
+  if (existing.windowStartAt <= cutoff) return 'window_expired';
+  const bumped = await tx.reissueBudget.updateMany({
+    where: { orderId: args.orderId, scope: args.scope, count: { lt: REISSUE_BUDGET } },
+    data: { count: { increment: 1 } },
+  });
+  return bumped.count === 1 ? 'consumed' : 'exhausted';
+}
 
 type Db = PrismaClient | Prisma.TransactionClient;
 type Tx = Prisma.TransactionClient;
@@ -298,7 +335,7 @@ export async function reissueConfirmedFailedDelivery(
     providerEvent: string | null;
     now: Date;
   },
-): Promise<'reissued' | 'not_ready' | 'lost_lease'> {
+): Promise<'reissued' | 'not_ready' | 'lost_lease' | 'budget_exhausted'> {
   return prisma.$transaction(async (tx) => {
     const [oldOutbox, order, readiness] = await Promise.all([
       tx.deliveryOutbox.findUnique({ where: { id: args.outboxId } }),
@@ -353,6 +390,16 @@ export async function reissueConfirmedFailedDelivery(
     ) {
       return 'not_ready';
     }
+
+    // (#6-FIX-2) Consume the durable order:scope reissue budget atomically with the reissue. An exhausted budget
+    // or an expired GLOBAL 48h window (anchored on the original first send attempt) → refund, never another reissue.
+    const budget = await consumeReissueBudget(tx, {
+      orderId: args.exceptionCase.orderId,
+      scope: EXCEPTION_SCOPE_BASE_BOOK,
+      firstSendAttemptAt: oldOutbox.firstSendAttemptAt,
+      now: args.now,
+    });
+    if (budget !== 'consumed') return 'budget_exhausted';
 
     const moved = await transitionExceptionCaseInTx(tx, {
       caseId: args.exceptionCase.id,

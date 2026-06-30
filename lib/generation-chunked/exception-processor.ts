@@ -10,12 +10,15 @@ import {
 import {
   claimDueExceptionCases,
   EXCEPTION_MAX_RECOVERY_ATTEMPTS,
+  EXCEPTION_SCOPE_BASE_BOOK,
   exceptionBackoffMs,
   openExceptionCase,
   reissueConfirmedFailedDelivery,
   reserveExceptionExternalAction,
   resolveAmbiguousDelivery,
   transitionExceptionCase,
+  REISSUE_BUDGET,
+  REISSUE_WINDOW_MS,
 } from './exception-case';
 import {
   hashPayload,
@@ -32,6 +35,23 @@ import { createLogger } from '@/lib/logger';
 
 const log = createLogger({ subsystem: 'exception-processor' });
 const RECONCILIATION_MAX_AGE_MS = 48 * 60 * 60 * 1000;
+
+// (#6-FIX-2) Read-only pre-check mirroring consumeReissueBudget: is a reissue allowed by the durable order:scope
+// budget AND the GLOBAL 48h window (anchored on the first send attempt)? The authoritative consume is atomic
+// inside the reissue tx; this gates BEFORE the reissue so an exhausted/expired intent routes straight to refund.
+async function reissueBudgetAllows(
+  prisma: PrismaClient,
+  orderId: string,
+  firstSendAttemptAt: Date | null,
+  now: Date,
+): Promise<boolean> {
+  const cutoff = new Date(now.getTime() - REISSUE_WINDOW_MS);
+  const budget = await prisma.reissueBudget.findUnique({
+    where: { orderId_scope: { orderId, scope: EXCEPTION_SCOPE_BASE_BOOK } },
+  });
+  if (!budget) return firstSendAttemptAt != null && firstSendAttemptAt > cutoff;
+  return budget.count < REISSUE_BUDGET && budget.windowStartAt > cutoff;
+}
 
 type Resolution = Record<string, unknown>;
 
@@ -280,6 +300,12 @@ async function handleSendAmbiguous(
       return resolved ? 'resolved' : 'lost_lease';
     }
     if (state.state === 'failed') {
+      // (#6-FIX-2) Durable order:scope reissue budget + GLOBAL 48h window (from the first send attempt), checked
+      // BEFORE the reissue. A per-case bound does not compose — each reissue spawns a new case + fulfillmentVersion
+      // + clock — so a budget exhausted here, or a window expired, routes to refund instead of another reissue.
+      if (!(await reissueBudgetAllows(prisma, exceptionCase.orderId, firstAttemptAt, now))) {
+        return moveToRefund(prisma, exceptionCase, 'reissue_budget_or_window_exhausted', now);
+      }
       const reissued = await reissueConfirmedFailedDelivery(prisma, {
         exceptionCase,
         outboxId: row.id,
@@ -289,6 +315,8 @@ async function handleSendAmbiguous(
       });
       if (reissued === 'reissued') return 'resolved';
       if (reissued === 'lost_lease') return 'lost_lease';
+      // The atomic in-tx consume is authoritative: if a concurrent reissue won the budget, refund (never a 2nd reissue).
+      if (reissued === 'budget_exhausted') return moveToRefund(prisma, exceptionCase, 'reissue_budget_exhausted', now);
       return moveToRefund(prisma, exceptionCase, 'confirmed_failed_redelivery_not_safe', now);
     }
     if (ageMs >= RECONCILIATION_MAX_AGE_MS) {
