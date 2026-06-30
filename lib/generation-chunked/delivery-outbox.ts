@@ -5,8 +5,9 @@
  * send-time CAS (P1-f) — renew lease + set sendAttempted IFF the row is still ours AND the live truth still
  * matches the row's binding (Order.ready + inputVersion, BookReadiness.passed + currentManifestId, payloadHash)
  * — only then an idempotent provider send (Idempotency-Key = dedupeKey). The old live re-evaluation
- * (asset download + integrity re-eval) is GONE; a CAS mismatch makes the row terminal `superseded` (the new
- * manifest has its own Outbox). No import cycle: the worker takes `cas` and `send` as injected deps.
+ * (asset download + integrity re-eval) is GONE; a CAS mismatch makes the row terminal — `superseded_by_manifest`
+ * (a newer valid manifest owns the order; recoverable via the re-commit rebind) or `delivery_revoked` (held/
+ * cancelled/inputs_stale; explicit reconciliation only). No import cycle: the worker takes `cas`/`send` as deps.
  */
 import type { Prisma, PrismaClient, DeliveryOutbox } from '@prisma/client';
 import { createHash } from 'crypto';
@@ -19,8 +20,9 @@ type Db = PrismaClient | Prisma.TransactionClient;
 export const OUTBOX_MAX_ATTEMPTS = 6;
 
 // Durable failure class (P1-e4-2). `send_ambiguous` = a provider send was attempted with an unknown result →
-// must NOT auto-roll (enqueue refuses to mint a new idempotency key). With the P1-f pure-CAS path the only
-// non-send terminal is `superseded` (CAS mismatch; sendAttempted stays false → roll-safe), so this is the only class.
+// the row must NOT be auto-rebound (enqueue refuses, requiring explicit reconciliation, so no new idempotency
+// key bypasses Resend's dedup). The non-send CAS terminals (superseded_by_manifest / delivery_revoked) leave
+// sendAttempted=false and carry their own lastError, so `send_ambiguous` is the only post-send failure class.
 export const FAILURE_SEND_AMBIGUOUS = 'send_ambiguous';
 const LEASE_MS = 4 * 60 * 1000; // processing lease > worst-case single-row recheck (downloads); fencing covers overruns
 const IDEMPOTENCY_WINDOW_MS = 24 * 60 * 60 * 1000; // Resend keeps Idempotency-Key 24h — no blind resend after.
@@ -30,8 +32,23 @@ export function deliveryDedupeKey(orderId: string, scope: string, fulfillmentVer
   return `book-ready/${orderId}/${s}/${fulfillmentVersion}`;
 }
 
+// Recursively sort object keys so the serialization is invariant to key ORDER. This is REQUIRED for the #3h #4
+// integrity recompute: the payload is stored as Postgres JSONB, which physically reorders object keys (by key
+// length, then bytewise) and does NOT preserve insertion order. Hashing JSON.stringify(payload) directly would
+// make hashPayload(enqueue-time in-memory object) !== hashPayload(row.payload read back from JSONB) for every
+// real payload → every row would false-revoke. Canonicalizing first makes the hash stable across the round-trip.
+function canonicalize(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(canonicalize);
+  if (v && typeof v === 'object') {
+    return Object.keys(v as Record<string, unknown>)
+      .sort()
+      .reduce((acc, k) => { acc[k] = canonicalize((v as Record<string, unknown>)[k]); return acc; }, {} as Record<string, unknown>);
+  }
+  return v;
+}
+
 export function hashPayload(payload: unknown): string {
-  return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
+  return createHash('sha256').update(JSON.stringify(canonicalize(payload))).digest('hex');
 }
 
 export interface BookReadyPayload {
@@ -94,14 +111,19 @@ export async function enqueueDelivery(
     return { created: false, rebound: false, dedupeKey };
   }
   // sendAttempted=false, a NEW manifest (or a superseded_by_manifest row) → REBIND in place, same dedupeKey.
-  await db.deliveryOutbox.update({
-    where: { dedupeKey },
+  // ATOMIC: the findUnique above is a stale snapshot, so guard the write itself on `sendAttempted: false` — a
+  // worker CAS that won the send slot between our read and this write (flipping sendAttempted=true) makes this
+  // match 0 rows → we reconcile instead of clobbering an in-flight/sent row. attempts:{increment:1} is a DB-side
+  // bump (not based on the stale read), so it fences whatever worker currently holds the row regardless of token.
+  const rebound = await db.deliveryOutbox.updateMany({
+    where: { dedupeKey, sendAttempted: false },
     data: {
       manifestId: args.manifestId, inputVersion: args.inputVersion,
       payload: args.payload as unknown as Prisma.InputJsonValue, payloadHash,
       status: 'scheduled', attempts: { increment: 1 }, leaseExpiresAt: null, nextAttemptAt: args.now, lastError: 'rebound',
     },
   });
+  if (rebound.count === 0) throw new Error(`outbox_delivery_in_flight_needs_reconciliation:${dedupeKey}`);
   return { created: false, rebound: true, dedupeKey };
 }
 

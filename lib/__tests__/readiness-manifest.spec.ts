@@ -32,7 +32,7 @@ function mockTx(orderRow: unknown = orderRowFull) {
     order: { findUnique: vi.fn(async () => orderRow), updateMany: vi.fn(async () => ({ count: 1 })) },
     bookReadinessManifest: { findFirst: vi.fn(async () => ({ revision: 4 })), create: vi.fn(async (a: { data: Record<string, unknown> }) => ({ id: 'm1', ...a.data })) },
     bookReadiness: { upsert: vi.fn() },
-    deliveryOutbox: { findUnique: vi.fn(async () => null), create: vi.fn(), update: vi.fn() },
+    deliveryOutbox: { findUnique: vi.fn(async () => null), create: vi.fn(), updateMany: vi.fn(async () => ({ count: 1 })) },
     generationJob: { update: vi.fn() },
   };
 }
@@ -131,7 +131,7 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
     expect(r.enqueued).toBe(true);
     expect(r.orderStatus).toBe('ready');
     expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
-    expect(tx.deliveryOutbox.update).toHaveBeenCalledWith(expect.objectContaining({ where: { dedupeKey: 'book-ready/o1/base-book/1' }, data: expect.objectContaining({ manifestId: 'm1', status: 'scheduled' }) }));
+    expect(tx.deliveryOutbox.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { dedupeKey: 'book-ready/o1/base-book/1', sendAttempted: false }, data: expect.objectContaining({ manifestId: 'm1', status: 'scheduled' }) }));
     const orderData = ((tx.order.updateMany.mock.calls[0] as unknown[])[0] as { data: Record<string, unknown> }).data;
     expect(orderData).toMatchObject({ status: 'ready' });
     expect(orderData.fulfillmentVersion).toBeUndefined(); // delivery-intent stable → no roll persisted
@@ -181,6 +181,16 @@ describe('casClaimSendSlot — single atomic send-time CAS (P1-f #3h)', () => {
   });
   it('#3h #5: 0 rows + STILL ours, order ready + readiness passed but currentManifestId UNCHANGED (inputs_stale, not supersession) → delivery_revoked', async () => {
     const db = diagDb({ order: { status: 'ready' }, readiness: { status: 'passed', currentManifestId: 'm1' } });
+    const r = await casClaimSendSlot(db as never, casRow, 1, lease, NOW_CAS);
+    expect(r).toBe('delivery_revoked');
+  });
+  it('#3h #5: 0 rows + STILL ours, order ready + DIFFERENT currentManifestId but readiness NOT passed (blocked) → delivery_revoked (the `passed` conjunct is load-bearing)', async () => {
+    const db = diagDb({ order: { status: 'ready' }, readiness: { status: 'blocked', currentManifestId: 'm2' } });
+    const r = await casClaimSendSlot(db as never, casRow, 1, lease, NOW_CAS);
+    expect(r).toBe('delivery_revoked');
+  });
+  it('#3h #5: 0 rows + STILL ours, order ready but the BookReadiness row is missing (null) → delivery_revoked (not superseded)', async () => {
+    const db = diagDb({ order: { status: 'ready' }, readiness: null });
     const r = await casClaimSendSlot(db as never, casRow, 1, lease, NOW_CAS);
     expect(r).toBe('delivery_revoked');
   });
