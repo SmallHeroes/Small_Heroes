@@ -521,11 +521,24 @@ export interface Style01PageMeta {
   effectivePageTimeOfDay?: import('../../lib/story-time-of-day').StoryTimeOfDay;
   pageVisualQa?: {
     passed: boolean;
+    // (#7-a) Durable QA verdict for the bytes the in-loop QA evaluated (the RAW render). The seam re-uses this
+    // ONLY when the delivered bytes == these bytes (no presentation transform); otherwise it re-QAs the
+    // delivered image. `qaInput` carries the context so that delivered-bytes re-QA runs the SAME checks.
+    verdict?: 'passed' | 'failed' | 'evidence_unknown';
     reason: string;
     details: string;
     regenAttempts: number;
     timeOfDayOk?: boolean;
     companionSilhouetteOk?: boolean;
+    qaInput?: {
+      expectsChild: boolean;
+      expectsCompanion: boolean;
+      expectedPageTimeOfDay: import('../../lib/story-time-of-day').StoryTimeOfDay | null;
+      isEmotionalClosing: boolean;
+      hasStructuredObjects: boolean;
+      hasRailedBedOrCrib: boolean;
+      hasHumanFamily: boolean;
+    };
   };
   needsHumanReview?: boolean;
   companionViewIntent?: import('../../lib/companion-view-intent').CompanionViewIntent;
@@ -3101,11 +3114,22 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
         ...last.style01Meta!,
         pageVisualQa: {
           passed: qa.passed,
+          verdict: qa.verdict,
           reason: qa.reason,
           details: qa.details,
           regenAttempts,
           timeOfDayOk: qa.flags.timeOfDayOk,
           companionSilhouetteOk: qa.flags.companionSilhouetteOk,
+          // (#7-a) The exact QA context, so a delivered-bytes re-QA at the persist seam applies the same checks.
+          qaInput: {
+            expectsChild,
+            expectsCompanion,
+            expectedPageTimeOfDay: effectivePageTimeOfDay,
+            isEmotionalClosing,
+            hasStructuredObjects,
+            hasRailedBedOrCrib,
+            hasHumanFamily,
+          },
         },
         needsHumanReview,
       },

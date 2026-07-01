@@ -69,6 +69,8 @@ import {
 import { heartbeatLease } from '@/lib/generation-chunked/lease';
 import { finalizeAndPersistStoryText } from './text-finalization';
 import { isReadinessManifestEnabled, withDeliveryInputMutation } from './readiness-manifest';
+import { persistDeliveredQualityEvidence } from './quality-evidence-producer';
+import { coverArtifactKey, pageArtifactKey } from './quality-evidence';
 import { openExceptionCase } from '@/lib/generation-chunked/exception-case';
 import { finalizePackageDelivery } from './package-delivery';
 import {
@@ -897,6 +899,19 @@ async function runCoverStage(
     where: { id: order.id },
     data: { coverImageUrl: coverImage.url },
   });
+  // (#7-a 5a) Durable Quality evidence for the cover's DELIVERED bytes. The cover has no presentation transform
+  // (delivered == coverImage.url), so the genuine in-loop verdict applies to these exact bytes (carry-in #2:
+  // never a synthesized PASS). Flag-gated — a no-op when readiness is OFF.
+  await persistDeliveredQualityEvidence(prisma, {
+    orderId: order.id,
+    artifactKey: coverArtifactKey(),
+    deliveredUrl: coverImage.url,
+    presentationApplied: false,
+    rawVerdict: coverImage.style01Meta?.pageVisualQa?.verdict,
+    qaContext: coverImage.style01Meta?.pageVisualQa?.qaInput,
+    providerModel: coverImage.provider,
+    regenAttempts: coverImage.style01Meta?.pageVisualQa?.regenAttempts,
+  });
   return true;
 }
 
@@ -1351,6 +1366,21 @@ async function runPageImagesChunk(
         }
       },
     );
+
+    // (#7-a 5a) Durable Quality evidence for the page's DELIVERED bytes (presentationUrl ?? url). When a
+    // presentation transform was applied, the producer RE-QAs the delivered image (carry-in #1); otherwise it
+    // reuses the genuine in-loop verdict for the same bytes. Runs OUTSIDE the persist tx (network I/O) and is
+    // flag-gated — a no-op when readiness is OFF.
+    await persistDeliveredQualityEvidence(prisma, {
+      orderId: order.id,
+      artifactKey: pageArtifactKey(dbPage.pageNumber),
+      deliveredUrl: presentationUrl ?? image.url,
+      presentationApplied: presentationUrl != null,
+      rawVerdict: image.style01Meta?.pageVisualQa?.verdict,
+      qaContext: image.style01Meta?.pageVisualQa?.qaInput,
+      providerModel: image.provider,
+      regenAttempts: image.style01Meta?.pageVisualQa?.regenAttempts,
+    });
 
     const textZone = imageOutcome.textZones.get(dbPage.pageNumber) ?? 'bottom_clear';
     try {
