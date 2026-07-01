@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, type OrderStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { createLogger } from '@/lib/logger';
 import { chainGenerationWorker } from './chain-worker';
@@ -9,6 +9,29 @@ import type { PipelineCache } from '@/lib/generation-pipeline/types';
 const log = createLogger({ subsystem: 'chunked-gen', route: 'start' });
 
 const RETRYABLE = ['paid', 'failed'] as const;
+/** Exception-processor regen-rescue redrives blocked orders (needs_human_qa + job done). */
+export const RECOVERY_REDRIVE_REASON = 'exception_case_recovery';
+
+async function computeRegenResumeJobPatch(orderId: string): Promise<{
+  imagesDone: boolean;
+  packaged: false;
+  completedAt: null;
+}> {
+  const book = await prisma.generatedBook.findUnique({
+    where: { orderId },
+    select: {
+      coverImageUrl: true,
+      pages: { select: { imageAsset: { select: { id: true } } } },
+    },
+  });
+  if (!book) {
+    return { imagesDone: false, packaged: false, completedAt: null };
+  }
+  const hasCover = Boolean(book.coverImageUrl?.trim());
+  const allPagesRendered =
+    book.pages.length > 0 && book.pages.every((page) => page.imageAsset != null);
+  return { imagesDone: hasCover && allPagesRendered, packaged: false, completedAt: null };
+}
 
 export async function startChunkedGeneration(
   orderId: string,
@@ -32,12 +55,22 @@ export async function startChunkedGeneration(
     return { started: false, orderId, message: 'Order not found' };
   }
 
-  if (order.status === 'ready' || order.status === 'partial' || order.status === 'needs_human_qa') {
-    // needs_human_qa: book already rendered, held for human QA — do NOT restart generation.
+  const recoveryRedrive = reason === RECOVERY_REDRIVE_REASON;
+
+  if (
+    order.status === 'ready' ||
+    order.status === 'partial' ||
+    (order.status === 'needs_human_qa' && !recoveryRedrive)
+  ) {
+    // needs_human_qa: rendered + held — terminal unless exception-processor regen-rescue is redriving.
     return { started: false, orderId, message: 'Already completed' };
   }
 
-  if (!RETRYABLE.includes(order.status as (typeof RETRYABLE)[number]) && order.status !== 'generating') {
+  const claimableStatuses: OrderStatus[] = recoveryRedrive
+    ? [...RETRYABLE, 'needs_human_qa']
+    : [...RETRYABLE];
+
+  if (!claimableStatuses.includes(order.status) && order.status !== 'generating') {
     return { started: false, orderId, message: `Order status ${order.status} not eligible` };
   }
 
@@ -63,6 +96,8 @@ export async function startChunkedGeneration(
     }
   }
 
+  const regenResumePatch = recoveryRedrive ? await computeRegenResumeJobPatch(orderId) : null;
+
   await prisma.generationJob.update({
     where: { orderId },
     data: {
@@ -72,6 +107,9 @@ export async function startChunkedGeneration(
       lastError: null,
       failedAt: null,
       retryable: false,
+      lockedBy: null,
+      leaseExpiresAt: null,
+      ...(regenResumePatch ?? {}),
       ...(options?.pipelineCache
         ? { pipelineCache: options.pipelineCache as Prisma.InputJsonValue }
         : {}),
@@ -80,7 +118,7 @@ export async function startChunkedGeneration(
 
   if (order.status !== 'generating') {
     const claimed = await prisma.order.updateMany({
-      where: { id: orderId, status: { in: [...RETRYABLE] } },
+      where: { id: orderId, status: { in: claimableStatuses } },
       data: { status: 'generating' },
     });
     if (claimed.count === 0) {

@@ -565,3 +565,50 @@ describe('#6-fix BLOCKER 2 — quality regen-rescue', () => {
     expect(recommitReadiness).toHaveBeenCalled();
   });
 });
+
+describe('#6-fix-2 — rescue redrive actually resumes (not a silent no-op)', () => {
+  const qCase = (over: Partial<ExceptionCase> = {}) =>
+    exceptionCase({ kind: 'infra_transient', status: 'retry_scheduled', reason: 'quality_evidence_unknown:page:2', sourceRef: 'readiness:m1', attempts: 1, ...over });
+  const recovery = (nowFailed: Array<{ artifactKey: string; regenCount: number }>) => ({ reQaCount: nowFailed.length, nowPassed: [], nowFailed, stillUnknown: [] });
+
+  it('FIX #2: a non-started redrive is surfaced distinctly (never mistaken for a regen)', async () => {
+    const state = qCase();
+    const db = fakePrisma(state);
+    await expect(processExceptionCase(db.prisma, state, deps({
+      reQaQualityEvidence: vi.fn(async () => recovery([{ artifactKey: 'page:2', regenCount: 0 }])),
+      clearPageAssets: vi.fn(async () => 1),
+      clearCoverAsset: vi.fn(async () => true),
+      redriveGeneration: vi.fn(async () => ({ started: false, message: 'Already completed' })),
+      recommitReadiness: vi.fn(),
+    }))).resolves.toBe('retry_scheduled');
+    // A non-started redrive surfaces the redrive failure as lastError (vs. a SUCCESSFUL rescue which clears it to
+    // null) — so a no-op is never mistaken for a real regen. The distinct reason is recorded in the audit trail.
+    expect(db.currentCase().lastError).toBe('Already completed');
+  });
+
+  it('FIX #3: rescue REALLY resumes — redrive STARTS + advances the durable 5b budget; stops at budget → recommit (BUDGET refund, not the attempts-cap no-op)', async () => {
+    let regenCount = 0;
+    // The carve-out makes needs_human_qa → generating, so the render runs and its 5b reserve increments the
+    // durable regenCount. Modeled here: each STARTED redrive consumes one unit of budget (a no-op leaves it 0).
+    const redriveGeneration = vi.fn(async () => { if (regenCount < 2) regenCount += 1; return { started: true }; });
+    const clearPageAssets = vi.fn(async () => 1);
+    const recommitReadiness = vi.fn(async () => ({ manifestId: 'm', revision: 2, manifestStatus: 'blocked' as const, orderStatus: 'needs_human_qa', deliveryHoldReason: 'x', enqueued: false, reason: 'x' }));
+    const reQaQualityEvidence = vi.fn(async () => recovery([{ artifactKey: 'page:2', regenCount }]));
+    const rescueDeps = () => deps({ reQaQualityEvidence, clearPageAssets, clearCoverAsset: vi.fn(async () => true), redriveGeneration, recommitReadiness });
+
+    // Tick 1 (regenCount 0): rescue → redrive STARTS → budget 0→1
+    const s1 = qCase({ attempts: 1 });
+    await processExceptionCase(fakePrisma(s1).prisma, s1, rescueDeps());
+    expect(regenCount).toBe(1); // budget consumed — a silent no-op would have left it at 0
+    // Tick 2 (regenCount 1): rescue → redrive STARTS → budget 1→2
+    const s2 = qCase({ attempts: 2 });
+    await processExceptionCase(fakePrisma(s2).prisma, s2, rescueDeps());
+    expect(regenCount).toBe(2);
+    expect(recommitReadiness).not.toHaveBeenCalled(); // still rescuing, not yet at budget
+    // Tick 3 (regenCount 2 = budget spent, attempts 2 < recovery cap): NO rescue → recommit → quality_failed refund
+    const s3 = qCase({ attempts: 2 });
+    await processExceptionCase(fakePrisma(s3).prisma, s3, rescueDeps());
+    expect(redriveGeneration).toHaveBeenCalledTimes(2); // NOT called a 3rd time — budget spent, no more replacements
+    expect(recommitReadiness).toHaveBeenCalledTimes(1); // budget-driven → recommit opens quality_failed → refund
+  });
+});

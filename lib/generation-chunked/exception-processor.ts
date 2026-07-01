@@ -572,12 +572,26 @@ async function handleRecoveryRetry(
         if (rescuePages.length > 0) await deps.clearPageAssets(prisma, exceptionCase.orderId, rescuePages);
         if (rescueCover) await deps.clearCoverAsset(prisma, exceptionCase.orderId);
         const started = await deps.redriveGeneration(exceptionCase.orderId);
+        // (#6-fix-2) A non-started redrive is NOT a regen — the render never ran, so the 5b budget was NOT
+        // consumed. Surface it distinctly instead of masquerading a no-op as a successful rescue (which was the
+        // bug: startChunkedGeneration rejected needs_human_qa → started:false → silent retry → attempts-cap
+        // "delete + refund"). The carve-out (reason exception_case_recovery) now claims needs_human_qa →
+        // generating so a real rescue starts; a persistent non-start still hits the recovery-attempts cap → refund.
+        if (!started.started) {
+          return retryLater(
+            prisma,
+            exceptionCase,
+            'quality_regen_rescue_redrive_not_started',
+            now,
+            started.message ?? 'redrive_not_started',
+          );
+        }
         return retryLater(
           prisma,
           exceptionCase,
           `quality_regen_rescue:pages=${rescuePages.length}${rescueCover ? '+cover' : ''}`,
           now,
-          started.started ? null : (started.message ?? 'redrive_not_started'),
+          null,
         );
       }
     }
