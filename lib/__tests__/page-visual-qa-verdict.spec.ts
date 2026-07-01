@@ -13,7 +13,7 @@ afterEach(() => {
   delete process.env.PAGE_VISUAL_QA_MAX_REGENS;
 });
 
-function mockVision(body: Record<string, unknown>) {
+function mockVision(body: unknown) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async () => ({
@@ -21,6 +21,15 @@ function mockVision(body: Record<string, unknown>) {
       json: async () => ({ choices: [{ message: { content: JSON.stringify(body) } }] }),
     }))
   );
+}
+
+// (#7-a-fix) A COMPLETE base verdict object (all 8 base fields present as booleans), good values by default.
+function goodBase(over: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    anatomyOk: true, identityOk: true, styleOk: true, singleChildOk: true,
+    objectGeometryOk: true, emotionalStagingOk: true, uncannyNeck: false, blanketThroughRails: false,
+    ...over,
+  };
 }
 
 describe('resolvePageVisualQaConfig — hard cap 5 → 2 (#7-a)', () => {
@@ -64,25 +73,17 @@ describe('evaluatePageVisualQa — durable verdict is fail-closed while `passed`
     expect(r.verdict).toBe('evidence_unknown');
   });
 
-  it('clean vision response → verdict passed', async () => {
+  it('complete clean vision response → verdict passed', async () => {
     process.env.OPENAI_API_KEY = 'k';
-    mockVision({
-      anatomyOk: true,
-      identityOk: true,
-      styleOk: true,
-      singleChildOk: true,
-      objectGeometryOk: true,
-      emotionalStagingOk: true,
-      notes: 'looks good',
-    });
+    mockVision(goodBase({ notes: 'looks good' }));
     const r = await evaluatePageVisualQa({ imageUrl: 'https://x/img.png' });
     expect(r.verdict).toBe('passed');
     expect(r.passed).toBe(true);
   });
 
-  it('failing vision response (bad anatomy) → verdict failed', async () => {
+  it('complete failing vision response (bad anatomy) → verdict failed', async () => {
     process.env.OPENAI_API_KEY = 'k';
-    mockVision({ anatomyOk: false, uncannyNeck: true, notes: 'twisted neck' });
+    mockVision(goodBase({ anatomyOk: false, uncannyNeck: true, notes: 'twisted neck' }));
     const r = await evaluatePageVisualQa({ imageUrl: 'https://x/img.png' });
     expect(r.verdict).toBe('failed');
     expect(r.passed).toBe(false);

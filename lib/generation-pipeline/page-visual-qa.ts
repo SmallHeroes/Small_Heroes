@@ -20,7 +20,8 @@ export type PageVisualQaReason =
   | 'family_coherence_failed'
   | 'emotional_staging_failed'
   | 'vision_skipped'
-  | 'vision_error';
+  | 'vision_error'
+  | 'vision_malformed';
 
 export type PageVisualQaResult = {
   passed: boolean;
@@ -136,6 +137,53 @@ function defaultQaFlags(): PageVisualQaResult['flags'] {
   };
 }
 
+// (#7-a-fix ITEM 1) The fields each active QA check REQUIRES present + boolean before a durable `passed` may
+// be trusted. Validating a single sentinel is NOT enough: an omitted check would still default to PASS
+// (`raw.X !== false` is true when X is absent) — that is the fail-open this closes. Reject anything else →
+// evidence_unknown (vision_malformed), while preserving the legacy accept (passed:true).
+const BASE_QA_FIELDS = [
+  'anatomyOk', 'identityOk', 'styleOk', 'singleChildOk',
+  'objectGeometryOk', 'emotionalStagingOk', 'uncannyNeck', 'blanketThroughRails',
+] as const;
+const CRIB_QA_FIELDS = [
+  'closedCribOk', 'nearRailPresent', 'childOutsideCrib', 'blanketInsideRails',
+  'babyInsideCrib', 'openFrontRail', 'childThroughRail', 'disconnectedRails',
+] as const;
+const TIME_QA_FIELDS = ['timeOfDayOk', 'readsAsDaylight', 'readsAsNight'] as const;
+const COMPANION_QA_FIELDS = ['companionSilhouetteOk'] as const;
+const FAMILY_QA_FIELDS = [
+  'familyCoherenceOk', 'newbornNotDefaultPink', 'recurringParentConsistent',
+  'noHeroFaceCloneOnParent', 'familyDefaultedWhite',
+] as const;
+const STRICT_CRIB_FIELDS = [
+  'pass', 'openFrontRail', 'childThroughRail', 'blanketThroughRail', 'missingNearTopRail', 'babyInsideCrib',
+] as const;
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+function allBooleansPresent(raw: Record<string, unknown>, fields: readonly string[]): boolean {
+  return fields.every((f) => f in raw && typeof raw[f] === 'boolean');
+}
+/**
+ * CONTEXT-AWARE positive validation of a primary vision response. A durable `passed` requires a non-array
+ * object with ALL base verdict fields present as booleans AND the conditional fields for every ACTIVE check
+ * (crib/time/companion/family) present as booleans. Empty {}, null, array, primitive, missing field, or a
+ * wrong-typed field → not valid.
+ */
+function qaResponseIsValid(
+  parsed: unknown,
+  ctx: { checkTimeOfDay: boolean; hasRailedBedOrCrib: boolean; expectsCompanion: boolean; hasHumanFamily: boolean },
+): parsed is Record<string, unknown> {
+  if (!isPlainObject(parsed)) return false;
+  if (!allBooleansPresent(parsed, BASE_QA_FIELDS)) return false;
+  if (ctx.hasRailedBedOrCrib && !allBooleansPresent(parsed, CRIB_QA_FIELDS)) return false;
+  if (ctx.checkTimeOfDay && !allBooleansPresent(parsed, TIME_QA_FIELDS)) return false;
+  if (ctx.expectsCompanion && !allBooleansPresent(parsed, COMPANION_QA_FIELDS)) return false;
+  if (ctx.hasHumanFamily && !allBooleansPresent(parsed, FAMILY_QA_FIELDS)) return false;
+  return true;
+}
+
 function evaluateClosedCribFlags(raw: Record<string, unknown>): boolean {
   const cribFieldsOk =
     raw.closedCribOk !== false &&
@@ -171,14 +219,17 @@ Return ONLY JSON:
 
 Be STRICT: if the near side looks like an open fence or the child reaches into the crib interior through the front, set pass=false.`;
 
+// (#7-a-fix ITEM 1b) The strict-crib check is REQUIRED (it runs after a primary PASS on crib pages). It must
+// return passed|failed|evidence_unknown — NOT a fail-open `pass:true` on HTTP error / malformed body / throw,
+// which would keep a durable PASS with the crib never actually validated. Uncertainty → evidence_unknown.
 async function evaluateClosedCribStrictQa(imageUrl: string): Promise<{
-  pass: boolean;
+  verdict: QualityVerdict;
   raw: Record<string, unknown>;
   details: string;
 }> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    return { pass: true, raw: {}, details: 'OPENAI_API_KEY missing — strict crib skipped' };
+    return { verdict: 'evidence_unknown', raw: {}, details: 'OPENAI_API_KEY missing — strict crib unvalidated' };
   }
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -201,12 +252,25 @@ async function evaluateClosedCribStrictQa(imageUrl: string): Promise<{
       }),
     });
     if (!res.ok) {
-      return { pass: true, raw: {}, details: `strict crib HTTP ${res.status}` };
+      return { verdict: 'evidence_unknown', raw: {}, details: `strict crib HTTP ${res.status}` };
     }
     const data = (await res.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
     };
-    const raw = JSON.parse(data.choices?.[0]?.message?.content ?? '{}') as Record<string, unknown>;
+    let parsed: unknown = null;
+    try {
+      parsed = JSON.parse(data.choices?.[0]?.message?.content ?? 'null');
+    } catch {
+      parsed = null;
+    }
+    if (!isPlainObject(parsed) || !allBooleansPresent(parsed, STRICT_CRIB_FIELDS)) {
+      return {
+        verdict: 'evidence_unknown',
+        raw: isPlainObject(parsed) ? parsed : {},
+        details: 'strict crib malformed or incomplete',
+      };
+    }
+    const raw = parsed;
     const hardFail =
       raw.openFrontRail === true ||
       raw.childThroughRail === true ||
@@ -216,10 +280,10 @@ async function evaluateClosedCribStrictQa(imageUrl: string): Promise<{
     const pass = raw.pass === true && !hardFail;
     const details =
       typeof raw.explanation === 'string' ? raw.explanation : pass ? 'strict crib ok' : 'strict crib fail';
-    return { pass, raw, details };
+    return { verdict: pass ? 'passed' : 'failed', raw, details };
   } catch (e) {
     return {
-      pass: true,
+      verdict: 'evidence_unknown',
       raw: {},
       details: e instanceof Error ? e.message : String(e),
     };
@@ -310,7 +374,31 @@ export async function evaluatePageVisualQa(input: {
     const data = (await res.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
     };
-    const raw = JSON.parse(data.choices?.[0]?.message?.content ?? '{}') as Record<string, unknown>;
+    let parsed: unknown = null;
+    try {
+      parsed = JSON.parse(data.choices?.[0]?.message?.content ?? 'null');
+    } catch {
+      parsed = null;
+    }
+    // (#7-a-fix ITEM 1) No durable `passed` on a malformed/incomplete response — even one that superficially
+    // looks like a fail. Preserve the legacy accept (passed:true) but mark the durable verdict evidence_unknown.
+    if (
+      !qaResponseIsValid(parsed, {
+        checkTimeOfDay,
+        hasRailedBedOrCrib: !!input.hasRailedBedOrCrib,
+        expectsCompanion: !!input.expectsCompanion,
+        hasHumanFamily: !!input.hasHumanFamily,
+      })
+    ) {
+      return {
+        passed: true,
+        verdict: 'evidence_unknown',
+        reason: 'vision_malformed',
+        details: 'malformed or incomplete vision response',
+        flags: defaultQaFlags(),
+      };
+    }
+    const raw: Record<string, unknown> = parsed;
 
     const closedCribOk = input.hasRailedBedOrCrib
       ? evaluateClosedCribFlags(raw)
@@ -369,20 +457,27 @@ export async function evaluatePageVisualQa(input: {
     }
 
     let strictCribRaw: Record<string, unknown> | undefined;
+    let strictCribUnknown = false;
     if (passed && input.hasRailedBedOrCrib) {
       const strict = await evaluateClosedCribStrictQa(input.imageUrl);
       strictCribRaw = strict.raw;
-      if (!strict.pass) {
+      if (strict.verdict === 'failed') {
         passed = false;
         reason = 'closed_crib_geometry_failed';
         details = `strict_crib: ${strict.details}`;
         flags.objectGeometryOk = false;
+      } else if (strict.verdict === 'evidence_unknown') {
+        // (#7-a-fix ITEM 1b) The required crib check could not be validated → never keep a durable `passed`.
+        // Preserve the legacy accept (passed stays true) but downgrade the durable verdict.
+        strictCribUnknown = true;
+        details = `${details}; strict_crib_unknown: ${strict.details}`;
       }
     }
 
+    const verdict: QualityVerdict = !passed ? 'failed' : strictCribUnknown ? 'evidence_unknown' : 'passed';
     return {
       passed,
-      verdict: passed ? 'passed' : 'failed',
+      verdict,
       reason,
       details,
       flags,
