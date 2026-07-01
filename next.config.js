@@ -28,12 +28,18 @@ const nextConfig = {
    */
   outputFileTracingIncludes: (() => {
     const STYLE01_REFS = ['./style-references/01/**/*', './style-references/01-child-template/**/*'];
+    // (#35) The Style01 multi-view companion sheets (public/companions/<id>/style01-sheets/**) have NO URL fallback:
+    // resolveStyle01CompanionReferencePaths() does existsSync()->readFileSync() on the FUNCTION disk. Bundle them
+    // into the render functions so the strong multi-view anchor is reachable in serverless (~49 files: 42 png + 7
+    // manifest.json). The exclude below is narrowed to public/companions/**/*.jpg so it can't strip these (Next 15
+    // applies excludes AFTER includes to the combined set — an exclude that matched these would delete them).
+    const STYLE01_COMPANION_SHEETS = ['./public/companions/*/style01-sheets/**/*'];
     const includes = {
-      '/api/generate': ['./backend/assets/fonts/**/*', './story-bank/**/*', ...STYLE01_REFS],
-      '/api/generate/worker': ['./story-bank/**/*', ...STYLE01_REFS],
-      '/api/generate/cron/sweep': ['./story-bank/**/*', ...STYLE01_REFS],
-      '/api/dev/generation/resume': ['./story-bank/**/*', ...STYLE01_REFS],
-      '/api/debug/regen-page': ['./story-bank/**/*', ...STYLE01_REFS],
+      '/api/generate': ['./backend/assets/fonts/**/*', './story-bank/**/*', ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
+      '/api/generate/worker': ['./story-bank/**/*', ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
+      '/api/generate/cron/sweep': ['./story-bank/**/*', ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
+      '/api/dev/generation/resume': ['./story-bank/**/*', ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
+      '/api/debug/regen-page': ['./story-bank/**/*', ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/orders/[orderId]/power-card': ['./story-bank/**/*', './node_modules/@sparticuz/chromium/**/*'],
     };
     return includes;
@@ -53,6 +59,11 @@ const nextConfig = {
     const MEDIA = ['node_modules/@ffmpeg-installer/**', 'node_modules/@ffprobe-installer/**'];
     const HEADLESS = ['node_modules/@sparticuz/chromium/**', 'node_modules/puppeteer-core/**'];
     const COMPANIONS = ['public/companions/**']; // CDN-served; companion refs fetched by URL in prod
+    // (#35) Render routes bundle the Style01 companion sheets on disk (see outputFileTracingIncludes) — those are
+    // .png + manifest.json with NO URL fallback. Exclude ONLY the raw .jpg source refs (CDN-served by URL) so the
+    // exclude can't strip the sheets (Next 15 applies excludes to the combined set AFTER includes). Every non-sheet
+    // companion file is a .jpg; the sheets are .png/.json, so this narrowing is exact.
+    const COMPANIONS_SOURCE_JPGS = ['public/companions/**/*.jpg'];
     const STYLE02 = ['style-references/02/**', 'style-references/style-02-locked-samples/**']; // not used by Style01
     const ALL_STYLE = ['style-references/**'];
     // Generation routes: keep Style01 refs (bundled via includes) + story-bank; drop media/headless +
@@ -74,7 +85,9 @@ const nextConfig = {
       '/api/dev/fake-payment/confirm',
     ];
     const excludes = {};
-    for (const r of GENERATION_ROUTES) excludes[r] = [...MEDIA, ...HEADLESS, ...COMPANIONS, ...STYLE02];
+    // Generation/render routes: keep the bundled Style01 companion sheets (.png/.json) but still drop the raw .jpg
+    // companion source refs (CDN-served) + media/headless + Style02.
+    for (const r of GENERATION_ROUTES) excludes[r] = [...MEDIA, ...HEADLESS, ...COMPANIONS_SOURCE_JPGS, ...STYLE02];
     for (const r of LEAN_ROUTES) excludes[r] = [...MEDIA, ...HEADLESS, ...COMPANIONS, ...ALL_STYLE, 'story-bank/**'];
     // dev story-bank browser lists the bank → keep story-bank, drop media/headless/companions/all-style.
     excludes['/api/dev/story-bank'] = [...MEDIA, ...HEADLESS, ...COMPANIONS, ...ALL_STYLE];
