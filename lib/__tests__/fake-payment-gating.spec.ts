@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
-import { isVercelProductionRuntime } from '@/lib/runtime-env';
+import { isVercelProductionRuntime, isProductionLikeRuntime } from '@/lib/runtime-env';
 
 /**
  * 0093 — fake-payment gating must key on VERCEL_ENV (real prod), never NODE_ENV (which is also
@@ -62,6 +62,13 @@ function setEnv(overrides: Record<string, string | undefined>) {
   }
 }
 
+// process.env.NODE_ENV is typed read-only; mutate it through a string-keyed record for runtime flips.
+function setNodeEnv(value: string | undefined) {
+  const e = process.env as Record<string, string | undefined>;
+  if (value === undefined) delete e.NODE_ENV;
+  else e.NODE_ENV = value;
+}
+
 let envSnapshot: NodeJS.ProcessEnv;
 beforeEach(() => {
   envSnapshot = { ...process.env };
@@ -86,6 +93,29 @@ describe('isVercelProductionRuntime', () => {
     expect(isVercelProductionRuntime()).toBe(false);
     delete process.env.VERCEL_ENV;
     expect(isVercelProductionRuntime()).toBe(false);
+  });
+});
+
+describe('isProductionLikeRuntime (fail-closed off-Vercel)', () => {
+  it('true for real Vercel prod', () => {
+    setNodeEnv('production');
+    process.env.VERCEL_ENV = 'production';
+    expect(isProductionLikeRuntime()).toBe(true);
+  });
+  it('true for NODE_ENV=production with VERCEL_ENV unset (non-Vercel/self-hosted prod)', () => {
+    setNodeEnv('production');
+    delete process.env.VERCEL_ENV;
+    expect(isProductionLikeRuntime()).toBe(true);
+  });
+  it('false for real staging (NODE_ENV=production + VERCEL_ENV=preview)', () => {
+    setNodeEnv('production');
+    process.env.VERCEL_ENV = 'preview';
+    expect(isProductionLikeRuntime()).toBe(false);
+  });
+  it('false for local dev (NODE_ENV!=production, VERCEL_ENV unset)', () => {
+    setNodeEnv('development');
+    delete process.env.VERCEL_ENV;
+    expect(isProductionLikeRuntime()).toBe(false);
   });
 });
 
@@ -136,6 +166,22 @@ describe('canUseFakePayments (single source of truth)', () => {
     expect(m.canUseFakePayments()).toBe(false);
   });
 
+  it('SAFETY: NODE_ENV=production with VERCEL_ENV unset at runtime → false (non-Vercel prod)', async () => {
+    setEnv({ PAYMENT_PROVIDER: 'fake', ENABLE_FAKE_PAYMENT: 'true', ALLOW_FAKE_PAYMENTS: 'true', VERCEL_ENV: 'preview' });
+    vi.resetModules();
+    const m = await import('@/lib/env');
+    setNodeEnv('production'); // production-like host...
+    delete process.env.VERCEL_ENV; // ...with no Vercel env tag → fail closed
+    expect(m.canUseFakePayments()).toBe(false);
+  });
+
+  it('real staging (NODE_ENV=production + VERCEL_ENV=preview) + both flags → true', async () => {
+    setEnv({ PAYMENT_PROVIDER: 'fake', ENABLE_FAKE_PAYMENT: 'true', ALLOW_FAKE_PAYMENTS: 'true', VERCEL_ENV: 'preview', NODE_ENV: 'production' });
+    vi.resetModules();
+    const m = await import('@/lib/env');
+    expect(m.canUseFakePayments()).toBe(true);
+  });
+
   it('preview + fake but ALLOW_FAKE_PAYMENTS missing → false', async () => {
     setEnv({ PAYMENT_PROVIDER: 'fake', ENABLE_FAKE_PAYMENT: 'true', ALLOW_FAKE_PAYMENTS: undefined, VERCEL_ENV: 'preview' });
     vi.resetModules();
@@ -156,6 +202,12 @@ describe('validateEnv fake-payment guards', () => {
     setEnv({ PAYMENT_PROVIDER: 'fake', ENABLE_FAKE_PAYMENT: 'true', ALLOW_FAKE_PAYMENTS: 'true', VERCEL_ENV: 'production' });
     vi.resetModules();
     await expect(import('@/lib/env')).rejects.toThrow(/forbidden on real production/);
+  });
+
+  it('SAFETY: fake with NODE_ENV=production and VERCEL_ENV unset throws at boot (non-Vercel prod)', async () => {
+    setEnv({ PAYMENT_PROVIDER: 'fake', ENABLE_FAKE_PAYMENT: 'true', ALLOW_FAKE_PAYMENTS: 'true', NODE_ENV: 'production', VERCEL_ENV: undefined });
+    vi.resetModules();
+    await expect(import('@/lib/env')).rejects.toThrow(/forbidden on a production runtime/);
   });
 
   it('fake without ENABLE_FAKE_PAYMENT throws', async () => {

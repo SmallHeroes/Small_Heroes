@@ -1,5 +1,5 @@
 import 'server-only';
-import { isVercelProductionRuntime } from './runtime-env';
+import { isVercelProductionRuntime, isProductionLikeRuntime } from './runtime-env';
 
 type StoryProvider = 'openai' | 'claude';
 type ImageProvider = 'replicate' | 'dall-e-3' | 'gpt-image';
@@ -182,6 +182,12 @@ export function validateEnv(): AppEnv {
     // Real prod (VERCEL_ENV=production) → fake is ALWAYS forbidden, even with flags.
     if (isVercelProductionRuntime()) {
       errors.push('PAYMENT_PROVIDER=fake is forbidden on real production (VERCEL_ENV=production)');
+    } else if (isProductionLikeRuntime()) {
+      // NODE_ENV=production but NOT a recognized Vercel Preview/Development (e.g. VERCEL_ENV unset on
+      // a self-hosted prod). Fail closed — fake must never boot on a production-like runtime.
+      errors.push(
+        'PAYMENT_PROVIDER=fake is forbidden on a production runtime without VERCEL_ENV=preview|development'
+      );
     }
     if (!ENABLE_FAKE_PAYMENT) {
       errors.push('ENABLE_FAKE_PAYMENT=true is required when PAYMENT_PROVIDER=fake');
@@ -246,15 +252,17 @@ export function isWaitlistMode(): boolean {
 
 /**
  * Single source of truth for whether the fake-payment flow may run in this runtime.
- * Real prod (VERCEL_ENV=production) → NEVER, even with flags. Preview/dev → only when
- * PAYMENT_PROVIDER=fake AND both flags are on.
+ * Any production-like runtime → NEVER, even with flags: real prod (VERCEL_ENV=production) AND a
+ * production NODE_ENV with no Vercel Preview/Development tag (fail-closed off-Vercel). Fake is
+ * permitted only on local dev or a recognized Vercel non-prod when PAYMENT_PROVIDER=fake AND both
+ * flags are on. Reads VERCEL_ENV/NODE_ENV live so a runtime flip is honored immediately.
  */
 export function canUseFakePayments(): boolean {
   return (
     env.PAYMENT_PROVIDER === 'fake' &&
     env.ENABLE_FAKE_PAYMENT &&
     env.ALLOW_FAKE_PAYMENTS &&
-    !isVercelProductionRuntime()
+    !isProductionLikeRuntime()
   );
 }
 
