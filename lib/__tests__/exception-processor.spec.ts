@@ -495,3 +495,73 @@ describe('ExceptionCase autonomous processor', () => {
     expect(upsert).not.toHaveBeenCalled();
   });
 });
+
+describe('#6-fix BLOCKER 2 — quality regen-rescue', () => {
+  const qCase = (over: Partial<ExceptionCase> = {}) =>
+    exceptionCase({ kind: 'infra_transient', status: 'retry_scheduled', reason: 'quality_evidence_unknown:page:2', sourceRef: 'readiness:m1', attempts: 1, ...over });
+  const recovery = (nowFailed: Array<{ artifactKey: string; regenCount: number }>) => ({ reQaCount: nowFailed.length, nowPassed: [], nowFailed, stillUnknown: [] });
+
+  it('failed page, regenCount 0 (budget remaining) → clears the page + redrives; NO recommit', async () => {
+    const state = qCase();
+    const db = fakePrisma(state);
+    const clearPageAssets = vi.fn(async () => 1);
+    const clearCoverAsset = vi.fn(async () => true);
+    const redriveGeneration = vi.fn(async () => ({ started: true }));
+    const recommitReadiness = vi.fn();
+    const reQaQualityEvidence = vi.fn(async () => recovery([{ artifactKey: 'page:2', regenCount: 0 }]));
+    await expect(processExceptionCase(db.prisma, state, deps({ reQaQualityEvidence, clearPageAssets, clearCoverAsset, redriveGeneration, recommitReadiness })))
+      .resolves.toBe('retry_scheduled');
+    expect(clearPageAssets).toHaveBeenCalledWith(db.prisma, 'order_1', [2]);
+    expect(clearCoverAsset).not.toHaveBeenCalled();
+    expect(redriveGeneration).toHaveBeenCalledWith('order_1');
+    expect(recommitReadiness).not.toHaveBeenCalled();
+  });
+
+  it('failed page, regenCount 1 (one replacement left) → still regens', async () => {
+    const state = qCase();
+    const db = fakePrisma(state);
+    const clearPageAssets = vi.fn(async () => 1);
+    const redriveGeneration = vi.fn(async () => ({ started: true }));
+    const reQaQualityEvidence = vi.fn(async () => recovery([{ artifactKey: 'page:2', regenCount: 1 }]));
+    await expect(processExceptionCase(db.prisma, state, deps({ reQaQualityEvidence, clearPageAssets, clearCoverAsset: vi.fn(async () => true), redriveGeneration, recommitReadiness: vi.fn() })))
+      .resolves.toBe('retry_scheduled');
+    expect(clearPageAssets).toHaveBeenCalledWith(db.prisma, 'order_1', [2]);
+    expect(redriveGeneration).toHaveBeenCalled();
+  });
+
+  it('failed page, regenCount 2 (budget spent) → NO regen; recommit runs (→ quality_failed/refund downstream)', async () => {
+    const state = qCase();
+    const db = fakePrisma(state);
+    const clearPageAssets = vi.fn(async () => 1);
+    const redriveGeneration = vi.fn(async () => ({ started: true }));
+    const recommitReadiness = vi.fn(async () => ({ manifestId: 'm', revision: 2, manifestStatus: 'blocked' as const, orderStatus: 'needs_human_qa', deliveryHoldReason: 'x', enqueued: false, reason: 'x' }));
+    const reQaQualityEvidence = vi.fn(async () => recovery([{ artifactKey: 'page:2', regenCount: 2 }]));
+    await processExceptionCase(db.prisma, state, deps({ reQaQualityEvidence, clearPageAssets, clearCoverAsset: vi.fn(async () => true), redriveGeneration, recommitReadiness }));
+    expect(clearPageAssets).not.toHaveBeenCalled();
+    expect(recommitReadiness).toHaveBeenCalled();
+  });
+
+  it('failed COVER, budget remaining → clears the cover + redrives', async () => {
+    const state = qCase({ reason: 'quality_evidence_unknown:cover' });
+    const db = fakePrisma(state);
+    const clearPageAssets = vi.fn(async () => 0);
+    const clearCoverAsset = vi.fn(async () => true);
+    const redriveGeneration = vi.fn(async () => ({ started: true }));
+    await expect(processExceptionCase(db.prisma, state, deps({ reQaQualityEvidence: vi.fn(async () => recovery([{ artifactKey: 'cover', regenCount: 0 }])), clearPageAssets, clearCoverAsset, redriveGeneration, recommitReadiness: vi.fn() })))
+      .resolves.toBe('retry_scheduled');
+    expect(clearCoverAsset).toHaveBeenCalledWith(db.prisma, 'order_1');
+    expect(clearPageAssets).not.toHaveBeenCalled();
+    expect(redriveGeneration).toHaveBeenCalled();
+  });
+
+  it('all passed after re-QA → no rescue; recommit runs and resolves', async () => {
+    const state = qCase();
+    const db = fakePrisma(state);
+    const clearPageAssets = vi.fn(async () => 0);
+    const recommitReadiness = vi.fn(async () => ({ manifestId: 'm', revision: 2, manifestStatus: 'passed' as const, orderStatus: 'ready', deliveryHoldReason: null, enqueued: true, reason: null }));
+    await expect(processExceptionCase(db.prisma, state, deps({ reQaQualityEvidence: vi.fn(async () => recovery([])), clearPageAssets, clearCoverAsset: vi.fn(async () => true), recommitReadiness })))
+      .resolves.toBe('resolved');
+    expect(clearPageAssets).not.toHaveBeenCalled();
+    expect(recommitReadiness).toHaveBeenCalled();
+  });
+});

@@ -31,6 +31,8 @@ import { refundOrderPayment, prismaRefundFence, type RefundableOrder, type Refun
 import { startChunkedGeneration } from './start';
 import { commitBaseBookReadiness, type CommitResult } from '@/lib/generation-pipeline/readiness-manifest';
 import { reQaUnknownQualityEvidence, type QualityRecoveryResult } from '@/lib/generation-pipeline/quality-recovery';
+import { coverArtifactKey, pageNumberFromArtifactKey, QUALITY_REGEN_BUDGET } from '@/lib/generation-pipeline/quality-evidence';
+import { clearOrderPageImages, clearOrderCover } from './clear-page-images-for-regen';
 import { parsePipelineCache } from '@/lib/generation-pipeline/helpers';
 import { resolveAnchorDeliveryGate } from '@/lib/anchor-resemblance-gate';
 import { createLogger } from '@/lib/logger';
@@ -91,8 +93,12 @@ export interface ExceptionProcessorDeps {
   ) => Promise<'repaired' | 'already_repaired' | 'not_repairable'>;
   redriveGeneration: (orderId: string) => Promise<{ started: boolean; message?: string }>;
   recommitReadiness: (prisma: PrismaClient, orderId: string) => Promise<CommitResult>;
-  /** (#7-a 6) Re-QA the order's evidence_unknown/stale QualityEvidence rows vs the SAME delivered bytes (0 renders). */
+  /** (#7-a 6) Re-QA the order's required artifacts vs their CURRENT delivered bytes (0 renders). */
   reQaQualityEvidence: (prisma: PrismaClient, orderId: string) => Promise<QualityRecoveryResult>;
+  /** (#7-a 6 regen-rescue) Delete the given pages' image assets so a redrive re-renders them. */
+  clearPageAssets: (prisma: PrismaClient, orderId: string, pageNumbers: number[]) => Promise<number>;
+  /** (#7-a 6 regen-rescue) Clear the cover so a redrive re-renders it. */
+  clearCoverAsset: (prisma: PrismaClient, orderId: string) => Promise<boolean>;
 }
 
 function defaultDeps(): ExceptionProcessorDeps {
@@ -107,6 +113,8 @@ function defaultDeps(): ExceptionProcessorDeps {
     redriveGeneration: (orderId) =>
       startChunkedGeneration(orderId, 'exception_case_recovery'),
     reQaQualityEvidence: (prisma, orderId) => reQaUnknownQualityEvidence(prisma, orderId),
+    clearPageAssets: (prisma, orderId, pageNumbers) => clearOrderPageImages(prisma, orderId, pageNumbers),
+    clearCoverAsset: (prisma, orderId) => clearOrderCover(prisma, orderId),
     recommitReadiness: async (prisma, orderId) => {
       const job = await prisma.generationJob.findUnique({
         where: { orderId },
@@ -542,15 +550,36 @@ async function handleRecoveryRetry(
       return retryLater(prisma, exceptionCase, 'generation_redriven', now);
     }
 
-    // (#7-a 6) Quality-evidence-unknown recovery: re-QA the SAME delivered bytes (ZERO renders) BEFORE the
-    // recommit, so a previously un-QA'd asset gets a real verdict. The recommit + decideReadiness then resolve
-    // (all passed) / open+UPGRADE to quality_failed (a failed-after-budget artifact → refund) / re-block (a
-    // persistent unknown → retry until the recovery budget is spent → refund).
-    // NOTE (#7-a 6, for the Codex gate): a `failed`-WITH-budget-remaining artifact currently re-blocks and
-    // retries→refunds; the targeted-page-regen rescue (clear the failed page + redrive, reusing the 5b reserve)
-    // is a documented enhancement — the recovery is fail-closed either way.
+    // (#7-a 6) Quality-evidence-unknown recovery: re-QA the REQUIRED artifacts vs their CURRENT delivered bytes
+    // (ZERO renders) BEFORE the recommit — recovering a missing/hash-mismatched/stale/un-QA'd asset.
     if (exceptionCase.reason?.startsWith('quality_evidence_unknown')) {
-      await deps.reQaQualityEvidence(prisma, exceptionCase.orderId);
+      const recovery = await deps.reQaQualityEvidence(prisma, exceptionCase.orderId);
+      // (#6-fix BLOCKER 2) Regen-rescue: a deterministic FAIL with budget remaining (regenCount < cap) gets a
+      // TARGETED regen — clear that page/cover asset + redrive its render (the 5b durable reserve honors the
+      // budget). The new bytes are re-QA'd on the next tick; regenCount reaches the cap → the recommit opens
+      // quality_failed → refund (the "up to two replacements, then refund" contract).
+      const rescuePages: number[] = [];
+      let rescueCover = false;
+      for (const f of recovery.nowFailed) {
+        if (f.regenCount >= QUALITY_REGEN_BUDGET) continue; // budget spent → terminal (recommit → quality_failed)
+        if (f.artifactKey === coverArtifactKey()) rescueCover = true;
+        else {
+          const pageNumber = pageNumberFromArtifactKey(f.artifactKey);
+          if (pageNumber != null) rescuePages.push(pageNumber);
+        }
+      }
+      if (rescuePages.length > 0 || rescueCover) {
+        if (rescuePages.length > 0) await deps.clearPageAssets(prisma, exceptionCase.orderId, rescuePages);
+        if (rescueCover) await deps.clearCoverAsset(prisma, exceptionCase.orderId);
+        const started = await deps.redriveGeneration(exceptionCase.orderId);
+        return retryLater(
+          prisma,
+          exceptionCase,
+          `quality_regen_rescue:pages=${rescuePages.length}${rescueCover ? '+cover' : ''}`,
+          now,
+          started.started ? null : (started.message ?? 'redrive_not_started'),
+        );
+      }
     }
 
     const result = await deps.recommitReadiness(prisma, exceptionCase.orderId);

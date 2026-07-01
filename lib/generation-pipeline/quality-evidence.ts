@@ -32,6 +32,11 @@ export function coverArtifactKey(): string {
 export function pageArtifactKey(pageNumber: number): string {
   return `page:${pageNumber}`;
 }
+/** Parse a page artifact key back to its page number (null for the cover or a malformed key). */
+export function pageNumberFromArtifactKey(artifactKey: string): number | null {
+  const m = /^page:(\d+)$/.exec(artifactKey);
+  return m ? Number(m[1]) : null;
+}
 
 /** The full required artifact set for a book: cover + page:1..expectedPageCount. */
 export function requiredArtifactKeys(expectedPageCount: number): string[] {

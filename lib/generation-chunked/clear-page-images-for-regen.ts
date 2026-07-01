@@ -29,3 +29,23 @@ export async function clearOrderPageImages(
   );
   return result.value;
 }
+
+/**
+ * (#7-a 6 regen-rescue) Clear the stored cover so chunked generation re-renders it. The cover-render gate
+ * (chunk-runner) skips when GeneratedBook.coverImageUrl is a valid URL, so nulling it (+ the Order legacy
+ * mirror) re-drives the cover render. Routed through the write barrier so readiness invalidates atomically.
+ */
+export async function clearOrderCover(prisma: PrismaClient, orderId: string): Promise<boolean> {
+  const result = await withDeliveryInputMutation(
+    prisma,
+    { orderId, reason: 'cover_asset_changed' },
+    async (tx) => {
+      const book = await tx.generatedBook.findUnique({ where: { orderId }, select: { id: true } });
+      if (!book) return false;
+      await tx.generatedBook.update({ where: { id: book.id }, data: { coverImageUrl: null } });
+      await tx.order.update({ where: { id: orderId }, data: { coverImageUrl: null } });
+      return true;
+    },
+  );
+  return result.value;
+}
