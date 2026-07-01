@@ -235,6 +235,7 @@ model Order {
   storyDirectionSet  StoryDirectionSet?
   resemblanceAudits  ResemblanceAudit[]
   exceptionCases     ExceptionCase[]
+  qualityEvidence    QualityEvidence[]
 
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
@@ -671,4 +672,32 @@ model RefundAttempt {
   providerActionId String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+}
+
+// (#7-a Quality gate fail-closed) Durable per-artifact visual-QA evidence. ONE row per REQUIRED delivered
+// artifact (cover + every page). The readiness commit reads these FAIL-CLOSED: a `failed` verdict (after the
+// regen budget is spent) BLOCKS delivery + opens a terminal quality_failed case (refund); an `evidence_unknown`
+// / missing / stale row BLOCKS + opens an infra_transient recovery case (retry QA vs the SAME asset). No path
+// delivers on absent or non-`passed` evidence. `assetSha256` binds the verdict to the EXACT delivered bytes
+// (presentationUrl ?? url) so a PASS can never authorize a different image; `evaluatorContractVersion`
+// invalidates evidence from an older evaluator. Internal server-side table (RLS enabled, no client policy —
+// service-role only, mirrors ExceptionCase/ReissueBudget).
+model QualityEvidence {
+  id                       String   @id @default(cuid())
+  orderId                  String
+  order                    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  artifactKey              String   // "cover" | "page:<n>"
+  assetSha256              String   // SHA-256 of the exact delivered bytes (presentationUrl ?? url)
+  verdict                  String   // "passed" | "failed" | "evidence_unknown" (CHECK-constrained in the migration)
+  evaluatorContractVersion String
+  reason                   String?
+  regenCount               Int      @default(0)
+  providerModel            String?
+  evidence                 Json?
+  evaluatedAt              DateTime @default(now())
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  @@unique([orderId, artifactKey])
+  @@index([orderId])
 }
