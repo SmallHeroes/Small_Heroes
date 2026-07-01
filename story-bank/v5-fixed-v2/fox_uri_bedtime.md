@@ -1,116 +1,105 @@
 # Story: fox_uri_bedtime — Story Bank v5 (Golden)
-Generated: 2026-06-03T12:00:00.000Z
-Source: Guy + ChatGPT + Claude QA (golden bedtime, 8 beats)
+Generated: 2026-07-01T00:00:00.000Z
+Source: Guy draft ("שומר הנשימות הקטנות") + Claude CTO adaptation (canon / bank-format / partial-niqqud). Replaces prior "מאירים טיפונת" golden per head-to-head 2026-07-01 (child-owned object + "enough light" wins).
 Prompt-version: v5-literary-golden
-Notes: partial nikud for TTS; reader/PDF strip niqqud at display; Uri MALE; childlike night-check voice (not official/bureaucrat).
+Notes: partial nikud for TTS; reader/PDF strip niqqud at display; Uri MALE; child-owned object = round pajama button. NIQQUD = first-pass partial — verify before production.
 
 ---
-title: "{{childName}} ואורי מאירים טיפונת"
+title: "{{childName}} ואוּרי: שומר הנשימות הקטנות"
 companionId: fox_uri
 direction: bedtime
 category: NIGHT_FEAR
 timeOfDay: night
-gender: male
+gender: female
 pages: 8
 endingType: residue
-worldRule: "לא חייבים להאיר את כל החושך — מספיק טיפונת אחת, ואז עוד צעד קטן."
+worldRule: "לא צריך אור גדול כדי להירדם — מספיק אור קטן שמגיע עד אליך, ותפקיד קטן שנותנים לו."
 powerCard:
-  title: "כרטיס הפנס של {{childName}}"
-  subtitle: "כשהחדר בלילה נראה גדול מדי"
-  coreTool: "מאירים טיפונת — לא חייבים להאיר את כל החושך"
+  title: "כרטיס האור הקטן של {{childName}}"
+  subtitle: "כשהלילה נראה גדול מדי"
+  coreTool: "לא צריך אור גדול — צריך אור שמספיק"
   steps:
-    - "אני נושם/ת ומקשיב/ת"
-    - "אני נותן/ת שם מצחיק לצל"
-    - "אני מאיר/ה טיפונת — לא את כל החושך"
-    - "אני עושה צעד קטן אחד"
-  companionReminder: "מאירים טיפונת — לא חייבים להאיר את כל החושך."
+    - "אני משחרר/ת את המאמץ ונושם/ת"
+    - "אני לא מנסה להחזיק את האור בכוח"
+    - "אני מוצא/ת אור קטן שמגיע עד אליי"
+    - "אני נותן/ת לו תפקיד קטן — לשמור על הנשימה הבאה"
+  companionReminder: "לא צריך אור גדול. צריך אור שמספיק."
   visualMotifs:
     - "neck lantern local glow"
-    - "chair shadow on wall"
-    - "shirt on chair-back revealed"
-    - "branch tapping window"
-    - "fox white tail-tip on sill"
+    - "thin hallway light strip under the door"
+    - "round pajama button catching a small beam"
+    - "child releasing stretched legs, sinking into mattress"
+    - "fox curled at blanket edge, lantern dim and downward"
 ---
 
-storyStyle: cozy bedtime night-check, childlike Uri voice, lantern-as-courage-meter
-metaphor: fear becomes checkable when you light just a little — not all the dark
-stakes: the child stays frozen under the blanket while the room grows scary shapes
+storyStyle: cozy bedtime night-check, childlike Uri voice, "enough light" not "all the light"; you can't hold light by force
+metaphor: the night eases when you stop forcing the light and let a small one reach you
+stakes: the child stiffens trying to hold the hallway light with stretched legs, to keep the night outside
 quietPagePosition: 7
-heartLine: עמוד 6 — {{childName}} מקשיב/ה לחלון; אורי מופתע והפנס מתחזק.
-emotionalMistake: עמוד 5 — אורי מדבר בקול אמיץ מדי, אבל הפנס מתכווץ כמו גחלילית ביישנית.
-uncomfortableTruth: עמוד 6 — {{childName}} מקשיב/ה לחלון יותר טוב מאורי.
-agencyTransfer: עמוד 6 — הילד מוביל; אורי מופתע ומאיר שוב.
+heartLine: עמוד 5 — אוּרי מודה שגם הוא ניסה פעם להחזיק אור שלא צריך להחזיק.
+emotionalMistake: עמוד 3 — {{childName}} {מותח|מותחת} את הרגליים אל פס האור, כאילו אפשר להחזיק אותו ולמנוע מהלילה להיכנס.
+uncomfortableTruth: עמוד 5 — אי אפשר להחזיק אור בכוח; הוא יושב איפה שהוא מצליח להגיע.
+agencyTransfer: עמוד 6–7 — {{childName}} {משחרר|משחררת} את המאמץ, מגלה קרן קטנה על הכפתור, ונותן/ת לו תפקיד מרגיע.
 
 --- Page 1 ---
-בלילה, כשהחדר התעטף בכחול שקט, הצֵל של הכיסא טיפס על הקיר.
-הוא היה ארוך מדי. ארוך כמו משהו שעומד על קצות האצבעות.
-{{childName}} {משך|משכה} את השמיכה עד האף.
-ואז הצֵל עשה… כמעט תנועה.
+החדר כְּבָר לבש לילה. הספרים נחו על המדף, השטיח על הרצפה, והשמיכה על {{childName}}.
+אבל העיניים של {{childName}} עוד לא הסכימו להיסגר.
+מתחת לדלת עמד פַּס דק של אור צהוב, שקט, מן המסדרון.
+{{childName}} {הביט|הביטה} בו, ולא {רצה|רצתה} שהאור ילך. {הוא רצה|היא רצתה} שהלילה יחכה בחוץ.
 
-imageDirection: The child lies in the same bedroom bed, blanket pulled up to the nose, eyes fixed on the tall chair-shadow climbing the wall. The chair and hanging clothes form a shape that almost looks alive. Uri is not present yet. companionPresence: absent; view: 3-4.
+imageDirection: cozy child bedroom at night, {{childName}} tucked in bed but awake, looking at a thin warm yellow strip of hallway light under the closed door. Familiar room: books on shelf, rug on floor, blanket. Uri absent. companionPresence: absent; view: 3-4.
 
 --- Page 2 ---
-ליד החלון נשמע רשרוש קטן.
-לא רשרוש גדול. רשרוש בגודל של סוד.
-על אֶדֶן החלון עמד שועל נחושת קטן, עם קצה זנב לבן ופנס זוהר על הצַוָּאר.
-"שלום," לחש. "אני אוּרי. אני לא מגרש חֹשֶךְ. אני מאיר אותו טיפונת."
+פִּתְאוֹם נשמע כִּחְכּוּחַ קטן מקצה המיטה.
+אוּרי השועל ישב שם זקוף מאוד, כמו שומר חשוב, ופנס הצַוָּאר שלו דלק.
+"אני כאן," לחש. "מומחה רשמי לענייני שמירת לילה."
+הוא ניסה להנהן בחשיבות, אבל הפנס הסתובב והאיר לו ישר על האף.
+"אוי," לחש. "האף שלי מבריק הלילה. זה קצת מסיח את הדעת."
 
-imageDirection: Uri appears for the first time on the windowsill, lifting his small lantern so a warm circle of light touches the sill and wall. The child watches from under the blanket, curious but still unsure. Same bedroom, same bed and window. companionPresence: present; view: front/3-4.
+imageDirection: Uri the small fox sits upright at the edge of the bed with a tiny warm neck-lantern. He tries to look official, but the lantern accidentally shines on his own nose. {{childName}} watches with a small almost-smile. companionPresence: present; view: close 3-4.
 
 --- Page 3 ---
-אוּרי הרים את הפנס אל הכיסא.
-האור שלו היה עגול ורך, כמו עוגיית ירח.
-"{עמוד|עמדי} מאחוריי," לחש. "יכול להיות שזו מפלצת-המעיל."
-הוא התקדם צעד אחד. ואז חזר חצי צעד.
-"אני מתקרב," אמר, "אבל לא בהגזמה."
+{{childName}} {רצה|רצתה} להיות {בטוח|בטוחה} שהאור לא יברח.
+{הוא מתח|היא מתחה} את הרגליים קדימה, חזק־חזק, עד קצה המיטה, ו{ניסה|ניסתה} להגיע אל פס האור שמתחת לדלת.
+אולי אם {יחזיק|תחזיק} אותו ברגליים, הלילה לא יוכל להיכנס.
 
-imageDirection: Uri stands near the bed, angling his lantern toward the same chair-shadow. He leans forward bravely while one paw pulls slightly back. The child stays just behind him, peeking toward the chair. The light reveals only part of the shadow. companionPresence: present; view: side/3-4.
+imageDirection: {{childName}} lies stretched in bed, legs reaching toward the thin strip of hallway light under the door, trying to touch it with toes. Blanket pulled tight. Uri watches nearby, gentle and concerned. companionPresence: present; view: side 3-4.
 
 --- Page 4 ---
-האור נגע בצֵל.
-זו הייתה רק חולצה על גב הכיסא. שרוול אחד נראה כמו צוואר ארוך, וכפתור אחד נראה כמו עין ישנונית.
-אוּרי הזדקף.
-"אה," אמר. "חולצה עם דמיון מפותח." הפנס שלו זהר קצת יותר. "ידעתי. כמעט."
+אבל זה היה קשה. השמיכה נמתחה, הרגליים התעייפו, והגוף נעשה יָשָׁר וקשה כמו מקל.
+החדר לא נעשה שקט יותר. הלב של {{childName}} דפק מהר־מהר.
+ופס האור נשאר שם, רחוק, דק, על הרצפה.
 
-imageDirection: The lantern light now clearly reveals the chair and hanging shirt that made the shadow. Uri stands taller with small proud posture, lantern brighter again. The child relaxes, noticing the sleeve and button that caused the funny monster shape. companionPresence: present; view: 3-4.
+imageDirection: child still stretched tensely in bed, blanket taut, toes not reaching the doorway light. The warm strip of light stays far away on the floor. Uri's lantern glows softly, not enough to light the whole room. companionPresence: present; view: medium 3-4.
 
 --- Page 5 ---
-ואז נשמע תַּק.
-ועוד תַּק.
-מתחת למיטה? מאחורי הארון? אולי בתוך החֹשֶךְ עצמו?
-אוּרי קפא. הפנס שלו נעשה קטן כמו גחלילית ביישנית.
-"הממ," אמר בקול אמיץ מדי. "זה כבר חֹשֶךְ מתקתק."
+אוּרי התקרב בצעדים רכים, וניסה להחביא את האף המבריק מאחורי קצה השמיכה.
+"גם אני ניסיתי פעם להחזיק אור," לחש. "מתחתי את הזנב שלי עד שכמעט נעשה חבל."
+הפנס הסתובב והאיר לו על הבטן. אוּרי נאנח.
+"אבל אור לא אוהב שמושכים אותו. הוא פשוט יושב איפה שהוא מצליח להגיע."
 
-imageDirection: The child and Uri both pause in the bedroom, listening. Uri is frozen with his lantern shrunk to a tiny glow, tail trying to hide behind one leg. The room points attention toward several possible sound sources: bed, closet, window. companionPresence: present; view: 3-4.
+imageDirection: Uri walks softly closer, trying to hide his shiny nose behind the blanket edge. His neck-lantern accidentally shines on his belly. {{childName}} listens, still a little tense but curious. Warm bedtime mood. companionPresence: present; view: close 3-4.
 
 --- Page 6 ---
-{{childName}} לא {קפץ|קפצה} מהמיטה.
-רק {הקשיב|הקשיבה}.
-תַּק. תַּק.
-"זה לא מתחת למיטה," {לחש|לחשה} {{childName}}. "זה ליד החלון."
-אוּרי מצמץ. הזנב שלו הפסיק להתחבא.
-"נכון," אמר. "האוזניים שלך בדקו מצוין."
+{{childName}} {שחרר|שחררה} את האצבעות. הרגליים נחו, והגוף שקע בחזרה אל המזרן. נשימה ארוכה יצאה.
+ואז, בשקט, {{childName}} {שם|שמה} לב: פס האור לא זז — אבל קרן קטנטנה ממנו נסעה על הרצפה, טיפסה על קצה המיטה, ונגעה בדיוק בכַּפְתּוֹר העגול של הפיג׳מה.
 
-imageDirection: The child sits still on the bed, listening carefully toward the window instead of jumping away. Uri looks up at the child with surprised admiration; his tail comes out from hiding and the lantern begins to strengthen. Same bedroom continuity. companionPresence: present; view: 3-4.
+imageDirection: {{childName}} relaxes back into the mattress, no longer reaching. A tiny warm beam from the hallway light traces across the floor and touches the round pajama button. Uri looks at the button, lantern dim. companionPresence: present; view: close 3-4.
 
 --- Page 7 ---
-הם האירו רק טיפונת.
-לא את כל החֹשֶךְ.
-ליד החלון התנדנד עָנָף קטן ונקש על הזכוכית: תַּק. תַּק.
-אוּרי נשם החוצה.
-"עָנָף," אמר. "עָנָף קטן עם קול של ענק."
-{{childName}} כמעט {צחק|צחקה}. החדר כבר לא נראה גדול כל כך.
+הכַּפְתּוֹר נצץ קצת. לא הרבה. בדיוק מספיק.
+{{childName}} {חייך|חייכה} בַּחֹשֶךְ. לא צריך להגיע עד הדלת.
+{הוא הניח|היא הניחה} יד רכה על הכפתור הקטן. "לא צריך אור גדול," {לחש|לחשה}. "צריך אור שמספיק."
+ואז {הוא נתן|היא נתנה} לכפתור תפקיד: לשמור על הנשימות הקטנות עד הבוקר.
 
-imageDirection: The child and Uri shine one small circle of lantern light toward the window, revealing a little branch tapping the glass. Uri visibly exhales with relief; the child almost laughs. Keep the room intimate, with the discovered branch as the clear focus. companionPresence: present; view: 3-4.
+imageDirection: agency moment, {{childName}} gently places one hand over the softly glowing pajama button. Uri sits nearby, proud and calm, neck-lantern low. The room stays dim and cozy. companionPresence: present; view: close.
 
 --- Page 8 ---
-{{childName}} {חזר|חזרה} אל הכרית.
-הצֵל של הכיסא נשאר על הקיר, אבל עכשיו הוא היה רק כיסא שעושה צורה.
-אוּרי ישב על אֶדֶן החלון, והפנס שלו זהר חם ורך.
-"אם החֹשֶךְ עושה פרצוף," לחש, "לא חייבים להאיר את כולו. רק טיפונת."
-קצה הזנב הלבן נעלם בחוץ.
-הלילה נשאר לילה. אבל עכשיו היה בו שביל קטן ומוכר.
+הלילה נשאר לילה. לא בחוץ, לא לגמרי בפנים — פשוט בחדר, במקום שלו.
+אוּרי סובב את הפנס כלפי מטה, החביא את האף בין הכפות, ונרדם בקצה השמיכה.
+{{childName}} {עצם|עצמה} עיניים. מתחת לכף היד, הכפתור היה חמים ושקט.
+הוא לא שמר על כל החדר. רק על הנשימה הבאה. ואז על עוד אחת. ועוד אחת — עד שהבוקר ידע לבוא לבד.
 
-imageDirection: The child rests back on the pillow, calm now, with the same chair-shadow still visible but no longer scary. Uri sits on the windowsill, lantern soft and warm, then begins to slip outside; only a grounded tail-tip hint remains near the window edge. companionPresence: partial; view: partial.
+imageDirection: final cozy wide bedroom shot. {{childName}} asleep or nearly asleep, one hand resting gently on the pajama button. Uri curled at the blanket edge with neck-lantern pointed downward and faint. The thin hallway light stays under the door. Calm night. companionPresence: present; view: wide front.
 
-WORD_COUNT: [33, 39, 36, 37, 31, 29, 39, 55] = [299]
+WORD_COUNT: [38, 42, 33, 34, 46, 40, 41, 52] = [326]

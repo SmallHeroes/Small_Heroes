@@ -1,170 +1,116 @@
 # Story: chameleon_koko_adventure — Story Bank v5 (Golden)
-Generated: 2026-06-03T16:00:00.000Z
-Source: Guy + ChatGPT + Claude QA (golden adventure, 12 beats)
+Generated: 2026-07-01T00:00:00.000Z
+Source: Guy draft ("השמש שעל הבקבוק") + Claude CTO adaptation (canon / bank-format / partial-niqqud; fixed off-palette blend). Replaces prior "בצבע החדש" golden per head-to-head 2026-07-01 (real peers + child-owned sun sticker wins). Kim display name = קִים (companionId chameleon_koko — intentional, see kim-canon-consistency.spec).
 Prompt-version: v5-literary-golden
-Notes: partial nikud for TTS; display/PDF strip niqqud; Kim female; timeOfDay=day new home.
+Notes: partial nikud for TTS; reader/PDF strip niqqud at display; Kim = ONE harmonious warm green→yellow tone (NOT patches/pink) — her orange nose + mustard shoulder satchel are the invariant identity anchors on every page; TRANSITION. NIQQUD = first-pass partial — verify before production.
 
 ---
-title: "{{childName}} וקִים בצבע החדש"
+title: "{{childName}} וקִים: השמש שעל הבקבוק"
 companionId: chameleon_koko
 direction: adventure
 category: TRANSITION
 timeOfDay: day
 gender: female
 pages: 12
-endingType: residue
-worldRule: "אפשר להיות קצת כמו המקום — אבל לא להפוך למקום."
+endingType: resolution
+worldRule: "אפשר להיכנס למקום חדש בלי להיעלם — משהו קטן משלך יכול לבוא איתך."
 powerCard:
-  title: "כרטיס הזנב של {{childName}}"
-  subtitle: "כשבית חדש מרגיש לבן מדי"
-  coreTool: "אפשר להיות קצת כמו המקום — אבל לא להפוך למקום"
+  title: "כרטיס השמש של {{childName}}"
+  subtitle: "כשנכנסים למקום חדש ומרגישים לבד"
+  coreTool: "משהו קטן משלי יכול לבוא עִמִּי — לא צריך להיעלם"
   steps:
-    - "זנב-עוגן — אני עדיין אני"
-    - "אני מתאים/ה קצת"
-    - "לא עד שנעלמים"
-    - "אני מביא/ה דבר אחד שלי"
-  companionReminder: "אפשר להיות קצת כמו המקום — אבל לא להפוך למקום."
+    - "אני לוקח/ת משהו קטן ומוכר מהבית"
+    - "אני לא חייב/ת להסתיר אותו"
+    - "אני מניח/ה אותו במקום שרואים"
+    - "וזה יכול לפתוח היכרות קטנה"
+  companionReminder: "השמש באה עִמִּי."
   visualMotifs:
-    - "moving boxes"
-    - "white walls"
-    - "tail-anchor color patch"
-    - "mustard satchel (never changes)"
-    - "orange nose (never changes)"
-    - "labeled child box"
-    - "old toy on new bed"
+    - "Kim the round chameleon, one harmonious warm green→yellow tone"
+    - "Kim's bright orange nose + mustard shoulder satchel — never change"
+    - "yellow sun sticker on the child's water bottle"
+    - "bottle placed on the shared table, sticker facing outward"
+    - "new courtyard/classroom with other children present"
 ---
 
-storyStyle: gentle daytime transition, new bedroom, tail-anchor identity
-metaphor: blending a little is okay — disappearing into the wall is not
-stakes: the new room stays white and empty until something of the child moves in
-quietPagePosition: 10
-heartLine: עמוד 9 — {{childName}} מוצא/ת את קִים ומזכיר/ה את זנב-העוגן.
-emotionalMistake: עמוד 8 — קִים נבלעת בקיר כשהקולות מהסלון בוערים.
-uncomfortableTruth: עמוד 8 — גם קִים מפחדת מהמהירות של המעבר.
-agencyTransfer: עמוד 9 — הילד מוביל; קִים חוזרת לעצמה.
+storyStyle: first-day-at-a-new-place transition, gentle Kim who over-blends, a child-owned keepsake
+metaphor: you can be a little like the new place without turning into the wall — bring one small piece of home
+stakes: arriving at a new courtyard full of children who all already seem to know each other
+quietPagePosition: 8
+heartLine: עמוד 7 — קִים: "אם אצבע גם את האף שלי בירוק, אף אחד לא ידע שאני קִים."
+emotionalMistake: עמוד 4 — {{childName}} {מסובב|מסובבת} את הבקבוק כך שהשמש פונה פנימה, ומנסה לחייך חיוך ישר ומתוח כמו כולם.
+uncomfortableTruth: עמוד 7 — אם מסתירים הכול כדי להתאים, נעלמים.
+agencyTransfer: עמוד 9–11 — {{childName}} {חושף|חושפת} את מדבקת השמש על השולחן המשותף, וזה פותח היכרות קטנה.
 
 --- Page 1 ---
-הבית החדש עמד פתוח.
-ארגזים היו בכל מקום. הקירות היו לבנים מדי. הרצפה השמיעה צעד אחר.
-כמו בית שעוד לא הכיר את הרגליים של {{childName}}.
-{{childName}} {עמד|עמדה} בפתח החדר החדש.
-"זה החדר שלי?" נשאל בשקט.
-אבל שום דבר עוד לא הרגיש שלי.
+השביל אל החצר החֲדָשָׁה היה עשוי אבנים קטנות ולבנות. הכול מסביב היה חדש ורענן, וקולות של ילדים לא מוכרים עלו מן המבנה.
+{{childName}} {החזיק|החזיקה} ביד את בקבוק המים {שלו|שלה}, ועליו מדבקה של שֶׁמֶשׁ קטנה וצהובה מהבית. אבל החצר נראתה גדולה מאוד.
 
-imageDirection: The child stands at the doorway of a new bedroom filled with moving boxes, looking unsure. The room is clean, unfamiliar, and not yet personal. Kim is not present yet. companionPresence: absent; view: 3-4.
+imageDirection: real-world path of small white stones leading to a new courtyard/childcare entrance. {{childName}} holds a water bottle with a small yellow sun sticker, looking cautious. Children's voices from inside. Kim absent. companionPresence: absent; view: 3-4.
 
 --- Page 2 ---
-על אחד הארגזים זזה נקודה ירוקה.
-ואז הנקודה נהייתה עין.
-ואז כל הארגז מצמץ.
-"שלום," אמרה זִיקִית קטנה. "אני קִים."
-היא הייתה חצי ירוקה, חצי קרטון.
-"סליחה," צחקקה. "התאמתי לארגז קצת יותר מדי."
+פתאום, מבין עלי השיח ליד השַׁעַר, הציץ זוג עיניים עגולות שמסתובבות לכל כיוון. קִים הזיקית זחלה החוצה על ענף דק.
+הגוף שלה ניסה להיעשות לבן כמו אבני השביל — אבל יצא לה גוון חול חמים, לא ממש לבן. התיק החַרְדָּלי נשאר תלוי על הצד, והאף נשאר כתום ובוהק כמו תפוז קטן.
 
-imageDirection: Kim appears on top of a moving box, half blending into the cardboard pattern and half showing her own green color. Her small mustard shoulder satchel and bright orange nose stay their own color and do not blend. The child looks startled, then curious. Keep the new bedroom and boxes visible. companionPresence: present; view: front/3-4.
+imageDirection: Kim the round chameleon emerges from a small bush near the gate, on a thin branch. Her body shifts to a warm sandy off-white (one harmonious tone), not quite matching the white stones; her bright orange nose and mustard satchel remain unchanged. {{childName}} notices. companionPresence: present; view: close 3-4.
 
 --- Page 3 ---
-קִים ירדה מהארגז לאט.
-"מקום חדש עושה לי חשק לצבע חדש," אמרה.
-היא נגעה בקיר הלבן. מיד הופיעו עליה פסים לבנים.
-היא נגעה בשטיח. נקודות שטיח קפצו לה על הבטן.
-{{childName}} כמעט {חייך|חייכה}.
+{{childName}} {הציץ|הציצה} דרך שער הברזל. על הספסלים ישבו ילדים אחרים, עם תיקים בצבעים שונים ובקבוקים חלקים ומבריקים.
+אף אחד לא בא עם מדבקת שֶׁמֶשׁ צהובה ומוכרת כמו {שלו|שלה}. המקום החדש הרגיש מלא בילדים שכבר מכירים הכול.
 
-imageDirection: Kim steps from the box to the floor, touching the white wall and then the rug as her body picks up small matching patterns — but her mustard satchel and orange nose stay unchanged. The child watches, amused but still hesitant. companionPresence: present; view: 3-4.
+imageDirection: {{childName}} peeks through an iron gate into a new courtyard with children on benches, colorful bags and plain shiny water bottles. The child's own bottle with the sun sticker is visible in hand. Kim nearby. companionPresence: present; view: over-the-shoulder.
 
 --- Page 4 ---
-"ככה מתרגלים?" {שאל|שאלה} {{childName}}.
-"קצת," אמרה קִים. "אבל לא עד שנעלמים."
-היא סִלְסְלָה את הזנב קדימה.
-בקצה שלו נשאר כתם קטן בצבע שלה.
-"זה זְנַב־עוגן," לחשה. "הוא מזכיר לי: אני עדיין קִים."
+{{childName}} {החליט|החליטה} להחביא את השמש. {הוא סובב|היא סובבה} את הבקבוק בתוך כף היד, לאט ובשקט, עד שהמדבקה פנתה פנימה, אל הבטן, מוסתרת מהעולם.
+ואז {ניסה|ניסתה} לצעוד בדיוק בקצב של כולם, ולחייך חיוך ישר ומתוח.
 
-imageDirection: Kim curls her tail forward and shows the child the small unchanged color patch at its tip. Her mustard satchel and orange nose are clearly visible and unchanged. The child leans closer, interested. The room remains unfamiliar around them. companionPresence: present; view: close/3-4.
+imageDirection: close view of {{childName}} rotating the water bottle so the yellow sun sticker faces inward toward the belly, hidden from others. The child tries to walk like everyone else with a small tense smile. Kim watches. companionPresence: present; view: close 3-4.
 
 --- Page 5 ---
-הם יצאו למסע בחדר החדש.
-קודם אל החלון.
-האור נפל על הרצפה בריבוע בהיר.
-קִים נכנסה לתוכו ונהייתה כמעט כולה זהב.
-"אוי," אמרה. "עכשיו אני נראית כמו בוקר."
-{{childName}} {צחק|צחקה}.
-"אבל הזנב שלך עדיין שלך."
+קִים קפצה מהשיח אל ספסל עץ ירוק וניסתה להתאים אליו מהר. הזנב שלה נעשה ירוק כהה, הגב ירוק בהיר —
+אבל התיק החַרְדָּלי נשאר במקומו, והאף הכתום זרח למרחוק. "אוי," לחשה וגירדה בראש. "ניסיתי להיות בדיוק כמו הספסל. יצא לי ספסל עם אף תפוז."
 
-imageDirection: The child and Kim explore the window area. Sunlight makes a bright square on the floor, and Kim partly blends into it, looking comically bright — yet her mustard satchel and orange nose keep their own color. The child points to Kim's unchanged tail tip. companionPresence: present; view: 3-4.
+imageDirection: Kim on a green wooden bench, her body harmoniously green in soft shades, but her orange nose and mustard satchel stay bright. Comical gentle moment. {{childName}} nearby with the hidden bottle. companionPresence: present; view: 3-4.
 
 --- Page 6 ---
-אחר כך הם מצאו מדף ריק.
-"פה יהיו הספרים שלי," {אמר|אמרה} {{childName}}.
-קִים טיפסה עליו. היא קיבלה צבע של עץ.
-"אם אשאר פה הרבה," אמרה, "אולי אצמיח עלים."
-היא בדקה את הזנב.
-"לא. עדיין קִים."
+הם נכנסו אל החדר החדש. הכול היה יפה, אבל הרגיש רחב מדי. {{childName}} {נעמד|נעמדה} בצד, ליד מדף הציורים הריק,
+{והחזיק|והחזיקה} את הבקבוק צמוד־צמוד לחולצה, {שומר|שומרת} שהילדים לא יראו את השֶׁמֶשׁ. {הוא עמד|היא עמדה} שם בשקט, עם חיוך קטן ומתוח שלא זז.
 
-imageDirection: Kim climbs onto an empty wooden shelf and changes partly to its wood color, but her mustard satchel and orange nose stay unchanged. The child imagines where books will go, beginning to claim the space. Kim checks her tail tip again. companionPresence: present; view: side/3-4.
+imageDirection: inside a new classroom/activity room, clean and bright. {{childName}} stands to the side near an empty drawing shelf, holding the water bottle tight against the shirt to hide the sun sticker, wearing a tense small smile. Kim beside a low shelf. companionPresence: present; view: 3-4.
 
 --- Page 7 ---
-ליד המיטה החדשה עמד ארגז סגור.
-עליו היה כתוב: דברים של {{childName}}.
-{{childName}} {פתח|פתחה} אותו.
-בפנים חיכו שמיכה, ספר, ובובה ישנה.
-החדר החדש נעשה קצת פחות חדש.
-קִים התקרבה.
-"הנה הצבעים שלך."
+קִים התיישבה על קצה המדף והביטה באף הכתום שלה בהשתקפות החלון. "להחליף צבעים זה נחמד," לחשה, וסידרה את רצועת התיק החַרְדָּלי.
+"אבל אם אצבע גם את האף שלי בירוק, אף אחד בחדר הזה לא ידע שאני קִים. אני פשוט אהיה... עוד קיר."
 
-imageDirection: The child opens a labeled box and finds familiar personal things inside: a blanket, book, and old toy. Kim watches warmly beside the box, her colors softening while her mustard satchel and orange nose stay constant. This is the first personal anchor moment. companionPresence: present; view: 3-4.
+imageDirection: Kim sitting on the edge of a shelf, looking at her orange nose reflected in a window. She adjusts her mustard satchel strap thoughtfully. {{childName}} listens while holding the bottle. companionPresence: present; view: close 3-4.
 
 --- Page 8 ---
-פתאום נשמעו קולות מהסלון.
-"איפה לשים את השולחן?" "מי ראה את הברגים?" "זהירות עם המנורה!"
-קִים נבהלה.
-פסים חדים עלו על הגב שלה.
-היא נצמדה לקיר.
-ועוד קצת.
-ועוד.
-עד שכמעט לא ראו אותה.
+{{childName}} {הסתכל|הסתכלה} למטה, אל כף היד. מתחת לאצבעות החמות, השֶׁמֶשׁ הצהובה הקטנה עדיין הייתה שם, מחכה בשקט.
+היא לא הייתה צריכה להאיר את כל הגן. היא לא הייתה צריכה לעשות רעש. "השמש באה עִמִּי," {חשב|חשבה} {{childName}}.
 
-imageDirection: Noisy moving voices come from outside the room. Kim becomes stressed: sharp stripes appear and she presses against the wall, blending too much — but her orange nose and mustard satchel still show, the one bit of her that cannot hide. The child notices her fading into the background. companionPresence: present; view: 3-4.
+imageDirection: quiet close-up of {{childName}} looking down at the hand and water bottle, fingers partly covering the yellow sun sticker. The sticker is still there, small and calm. Kim nearby, gentle. companionPresence: present; view: close.
 
 --- Page 9 ---
-{{childName}} {חיפש|חיפשה} את קִים.
-"קִים?"
-על הקיר נשאר רק האף הכתום.
-ולידו, פינה של תיק חרדלי.
-ואז קצה זנב קטן.
-{{childName}} {התקרב|התקרבה}.
-"את מתאימה יותר מדי," {אמר|אמרה} בשקט. "תסתכלי בזנב שלך."
-קִים מצמצה.
+{{childName}} לא {צעק|צעקה}, לא {הציג|הציגה} את הבקבוק לכולם. רק {סובב|סובבה} אותו בחזרה בתוך כף היד, בעדינות,
+ואז {הניח|הניחה} את בקבוק המים על השולחן המשותף. השֶׁמֶשׁ פנתה החוצה, אל מרכז החדר. היא כבר לא התחבאה.
 
-imageDirection: The child looks closely at the wall and finds Kim almost hidden — only her orange nose, the corner of her mustard satchel, and her tail tip still showing. The child gently points toward Kim's tail anchor. Kim is surprised and listening. companionPresence: partial; view: partial.
+imageDirection: agency moment — {{childName}} gently rotates the water bottle so the yellow sun sticker faces outward, then places it on a shared table in the classroom. The sun sticker is clearly visible but small. Kim watches proudly. companionPresence: present; view: close 3-4.
 
 --- Page 10 ---
-קִים הסתכלה בקצה הזנב.
-הכתם הקטן עוד היה שם.
-היא נשמה.
-הפסים החדים התרככו. הקיר הפסיק לבלוע אותה.
-"נכון," אמרה. "אפשר להיות קצת כמו המקום."
-היא חייכה.
-"אבל לא להפוך למקום."
+ילד עם חולצה של דינוזאור עבר ליד השולחן ונעצר. הוא הביט בבקבוק, ואז ב{{childName}}. "זו שֶׁמֶשׁ?" שאל בקול שקט.
+"כן," {ענה|ענתה} {{childName}}. "זאת שמש מהמקרר בבית שלי."
 
-imageDirection: Kim looks at her tail tip and slowly reappears from the wall; her sharp stripes soften into calmer colors, while her orange nose and mustard satchel were never lost. The child stands nearby with relief and pride. companionPresence: present; view: 3-4.
+imageDirection: a child with a dinosaur shirt stops by the shared table and notices the sun sticker on {{childName}}'s bottle. {{childName}} answers quietly. Kim nearby, orange nose visible. companionPresence: present; view: 3-4.
 
 --- Page 11 ---
-{{childName}} {הסתכל|הסתכלה} סביב החדר.
-קיר חדש. רצפה חדשה. חלון חדש.
-ואז על הארגז הפתוח.
-השמיכה. הספר. הבובה הישנה.
-{{childName}} {הניח|הניחה} את הבובה על המיטה.
-"את זה הבאתי," {אמר|אמרה}.
+"היא יפה," אמר הילד. "גם לי יש מדבקה של כוכב על קופסת האוכל." {{childName}} {חייך|חייכה}, והחיוך כבר לא היה מתוח — הוא היה החיוך הרגיל, המוכר, {שלו|שלה}.
+המקום החדש עדיין היה חדש. אבל עכשיו מישהו בו כבר ידע משהו אחד קטן על {{childName}}.
 
-imageDirection: The child chooses the old toy from the open box and places it on the new bed, marking the room as theirs. Kim watches with a happy, calm color pattern, her mustard satchel and orange nose visible. Keep the new room and boxes around them. companionPresence: present; view: 3-4.
+imageDirection: gentle connection moment between {{childName}} and the dinosaur-shirt child near the shared table. {{childName}} smiles naturally now. The water bottle with the sun sticker remains visible. Kim sits nearby, pleased. companionPresence: present; view: 3-4.
 
 --- Page 12 ---
-בערב, החדר עוד היה חדש.
-אבל כבר לא ריק.
-קִים ישבה על המדף, בצבע של עץ וקצת בצבע שלה.
-"מחר," אמרה, "נמצא עוד צבע שלנו."
-{{childName}} {נכנס|נכנסה} למיטה.
-הבית החדש נשאר חדש.
-אבל בתוך החדש היה כבר משהו שלי.
+הבקבוק עמד על המדף, השֶׁמֶשׁ הצהובה פונה קדימה אל החדר. קִים התיישבה על התיק של {{childName}} — האף שלה כתום לגמרי, התיק חַרְדָּלי לגמרי.
+{{childName}} {צעד|צעדה} אל שולחן הציור {והתיישב|והתיישבה} ליד הדפים החלקים. קִים חייכה. "האף שלי בא עִמִּי," לחשה. "והשמש שלך באה {אִתְּךָ|אִתָּךְ}."
 
-imageDirection: Closing scene in the new bedroom: the familiar toy rests on the bed, and Kim sits on the shelf partly matching the wood while keeping her own tail color, mustard satchel, and orange nose visible. The child settles into bed, calmer. companionPresence: present; view: 3-4.
+imageDirection: final real classroom scene. The water bottle sits on a shelf with the yellow sun sticker facing forward. Kim sits on the child's bag/cap with orange nose and mustard satchel visible. {{childName}} sits at the drawing table near blank papers, calmer. companionPresence: present; view: wide front.
+
+WORD_COUNT: [42, 47, 38, 36, 44, 45, 40, 40, 38, 30, 42, 41] = [483]

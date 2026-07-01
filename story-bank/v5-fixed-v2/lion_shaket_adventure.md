@@ -1,197 +1,118 @@
 # Story: lion_shaket_adventure — Story Bank v5 (Golden)
-Generated: 2026-06-03T18:00:00.000Z
-Source: Guy + ChatGPT + Claude QA (golden adventure, 12 beats)
+Generated: 2026-07-01T00:00:00.000Z
+Source: Guy draft ("רק מקום קטן לכעס") + Claude CTO adaptation (canon / bank-format / partial-niqqud; ending softened to residue). Replaces prior "נותנים לרעם מקום" golden per head-to-head 2026-07-01 (real-world playground + anger→clear-words wins).
 Prompt-version: v5-literary-golden
-Notes: partial nikud for TTS; display/PDF strip niqqud; Shaket MALE; timeOfDay=day golden sand kingdom + bedroom frames.
+Notes: partial nikud for TTS; reader/PDF strip niqqud at display; Leo has NO accessory (forbidden cape/scarf/held-prop) — the dry leaf is an environment object, not worn. NIQQUD = first-pass partial — verify before production.
 
 ---
-title: "{{childName}} וליאו נותנים לרעם מקום"
+title: "{{childName}} וליאו: רק מקום קטן לכעס"
 companionId: lion_shaket
 direction: adventure
 category: ANGER_FRUSTRATION
 timeOfDay: day
-gender: male
+gender: female
 pages: 12
 endingType: residue
-worldRule: "כפות. רעמה. מקום — לכוון את הכעס, לא לבלוע אותו."
+worldRule: "כעס לא צריך את כל הגינה — נותנים לו מקום קטן ובטוח, ואז אפשר למצוא מילים."
 powerCard:
-  title: "כרטיס הרעם של {{childName}}"
-  subtitle: "כשהכעס ממלא את כל הגוף"
-  coreTool: "כפות. רעמה. מקום — לכוון את הכעס, לא לבלוע אותו"
+  title: "כרטיס הכעס של {{childName}}"
+  subtitle: "כשמשהו לא הוגן והכעס גדול"
+  coreTool: "קודם נותנים לכעס מקום קטן, ואז מוצאים מילים"
   steps:
-    - "כעס אומר שזה היה חשוב"
-    - "כפות באדמה"
-    - "מכוונים למקום אחד"
-    - "ברור/ה יותר, לא גדול/ה יותר"
-  companionReminder: "כפות. רעמה. מקום — לכוון את הכעס, לא לבלוע אותו."
+    - "אני עוצר/ת ולא נותן/ת לכעס את הכול"
+    - "אני מוצא/ת מקום קטן לכעס — עלה, אבן, כף יד"
+    - "אני מוציא/ה נהימה קטנה אל המקום הזה"
+    - "ואז אני חוזר/ת ואומר/ת משפט ברור"
+  companionReminder: "קודם מקום לכעס, ואז מילים."
   visualMotifs:
-    - "fallen block castle"
-    - "golden sand portal"
-    - "stone gate circle mark"
-    - "paws planted ritual"
-    - "focused golden roar-line"
+    - "Leo the lion cub, soft fluffy mane, no accessory"
+    - "Leo's mane puffing up over his own eyes (gag)"
+    - "large dry brown leaf under a tree"
+    - "child's palms pressed flat on the leaf"
+    - "playground slide and waiting line in background"
 ---
 
-storyStyle: daytime magical anger adventure, aim-the-roar not suppress
-metaphor: anger has a roar that needs a place — not the whole world
-stakes: the castle fell and rage fills the chest until it finds direction
-quietPagePosition: 7
-heartLine: עמוד 11 — שאגה ממוקדת לעיגול; השער נפתח.
-emotionalMistake: עמוד 5 — ליאו שואג לפני שיש מקום; השער לא זז.
-uncomfortableTruth: עמוד 7 — גם ליאו מפחד שלא ישמעו שמשהו חשוב קרה.
-agencyTransfer: עמוד 10 — {{childName}} אומר/ת: לא גדולה יותר, ברורה יותר.
+storyStyle: real-world playground anger-regulation, gentle childlike Leo, "give anger a small place then find words"
+metaphor: anger shrinks to something usable when you give it one small place instead of the whole world
+stakes: a child cuts the slide line; the anger feels big enough to take over the whole playground
+quietPagePosition: 8
+heartLine: עמוד 5 — ליאו: "כעס אומר שמשהו היה חשוב."
+emotionalMistake: עמוד 4 — {{childName}} כמעט {נותן|נותנת} לכעס את כל הגינה: צעקה, אגרופים, רגל שרוצה לבעוט בחול.
+uncomfortableTruth: עמוד 9 — הכעס לא נעלם; הוא רק מקבל מקום קטן על העלה.
+agencyTransfer: עמוד 8–10 — {{childName}} {מניח|מניחה} כפות על העלה, {מוציא|מוציאה} נהימה קטנה, וחוזר/ת לומר משפט ברור.
 
 --- Page 1 ---
-{{childName}} {בנה|בנתה} ארמון.
-לא סתם מגדל. ארמון עם שער, צריחים, וחדר קטן לחיות.
-הקובייה האדומה הייתה האחרונה.
-ואז—
-קְלַק. טַאח!
-הארמון נפל.
-"לא!" יצא מ{{childName}} בקול גדול.
-בתוך החזה קם רעם חם.
+הגִּנָּה הייתה מלאה בצחוק ובחול נעים. {{childName}} {עמד|עמדה} בתור למגלשה הגבוהה, ממש מאחורי הילד בחולצת הפסים.
+שלב אחרי שלב התור התקדם, ועכשיו כמעט הגיע הרגע של {{childName}}.
 
-imageDirection: The child sits on the bedroom floor beside a collapsed wooden block castle, furious and hurt, hands clenched near the fallen blocks. Shaket is not present yet. companionPresence: absent; view: 3-4.
+imageDirection: sunny playground with slide, children in line, sand underfoot. {{childName}} waits patiently behind a child in a striped shirt, close to the ladder. Leo absent. companionPresence: absent; view: 3-4.
 
 --- Page 2 ---
-הקובייה האדומה רעדה.
-רְרְרְרְ.
-מתחתיה נפתח שער של חול זהוב.
-{{childName}} {הציץ|הציצה} פנימה.
-החול נשם כמו משהו חי.
-ואז הוא משך בעדינות.
-{{childName}} {החליק|החליקה} פנימה, אל ממלכת הרעמים הקטנים.
-שם אפילו האבנים נהמו בשקט.
+בדיוק כשסוליות הנעליים כבר נגעו בשלב הראשון, ילד עם כובע מצחייה רץ ונכנס לפני {{childName}}, וטיפס מהר בלי לשים לב בכלל.
+משהו חם ורועש התחיל לעלות ל{{childName}} מהבטן אל הגרון.
 
-imageDirection: A golden sand portal opens beneath the red block, gently pulling the child into a warm kingdom of round stones and soft golden sand. The fallen castle remains faintly visible behind the portal. Shaket is not present yet. companionPresence: absent; view: wide.
+imageDirection: a child with a cap accidentally cuts in front of {{childName}} at the slide ladder, climbing quickly without noticing. {{childName}} freezes at the first step, anger rising. Leo absent. companionPresence: absent; view: 3-4.
 
 --- Page 3 ---
-על סלע נמוך ישב גוּר אריות.
-הרעמה שלו הייתה קטנה, עקומה, ומלאה חול.
-"רְרְרוכים הבאים," הוא ניסה לומר בקול מלכותי.
-פּוּף.
-הרעמה התנפחה, הזנב קפץ, וארמון חול קטן נפל לידו.
-"אופס," אמר הגור. "אני ליאו. ואני עוד לומד לאן השאגה הולכת."
+מאחורי השיח נשמע כִּחְכּוּחַ קטן. ליאו גור האריה הציץ החוצה, והרעמה שלו קפצה לכל הכיוונים.
+הנחיריים שלו רעדו. "אני מריח רַעַם באוויר," לחש בקול חשוב. "רַעַם של מגלשות."
 
-imageDirection: Shaket the young lion cub sits on a low stone with a small messy sandy mane. As he tries to speak grandly, his mane puffs and his tail knocks over a tiny sand castle. The child watches, almost smiling. companionPresence: present; view: front/3-4.
+imageDirection: Leo, a small gentle lion cub with a soft slightly messy mane, peeks from behind a playground bush. His mane sticks out in all directions, nostrils trembling as he senses the child's anger. companionPresence: present; view: close 3-4.
 
 --- Page 4 ---
-"הארמון שלי נפל," {אמר|אמרה} {{childName}}. "והכול בפנים רותח."
-ליאו הנהן.
-"זה כַּעַס עם רעמה," אמר. "הוא לא סתם בא."
-הוא שם כפה על החזה.
-"כַּעַס אומר: זה היה חשוב לי."
-{{childName}} {הסתכל|הסתכלה} על הידיים.
-הן עדיין רצו לזרוק משהו.
+{{childName}} כמעט {נתן|נתנה} לכַּעַס את כל הגִּנָּה. הפה כבר נפתח לצעקה, הידיים התכווצו לאגרופים, ורגל אחת רצתה לבעוט בחול.
+הכַּעַס היה גדול כל כך, שהגינה הרגישה פתאום קטנה מדי.
 
-imageDirection: The child tells Shaket about the fallen castle. Shaket listens seriously, one paw on his chest, while the child looks down at tense hands. The golden kingdom surrounds them. companionPresence: present; view: medium/3-4.
+imageDirection: {{childName}} tense near the slide, mouth almost opening to shout, fists clenched, one foot pressing into the sand. The playground feels emotionally tight but realistic. Leo nearby, alert. companionPresence: present; view: 3-4.
 
 --- Page 5 ---
-מעבר לגבעה עמד שער אבן גדול.
-במרכזו היה עיגול חלק, כמו מקום שמחכה.
-מאחורי השער נשמעו כדורי חול קטנים.
-הם רצו להתגלגל הביתה.
-ליאו הזדקף.
-"אני אפתח אותו!"
-הזנב שלו הצליף.
-החזה שלו התמלא.
-והשאגה יצאה לפניו.
+ליאו נעמד על שתיים, פתח את הפה וכמעט שאג יחד עם {{childName}}. אבל אז עצר, סגר את הפה, והביט {בו|בה}.
+"כַּעַס אומר שמשהו היה חשוב," לחש. "התור שלך היה חשוב. אבל לא צריך לתת לכעס את כל הגינה."
 
-imageDirection: A heavy stone gate blocks a sandy path, with a clear circular mark in its center. Shaket stands ready, tail lashing and chest filling before he roars. The child watches tensely. companionPresence: present; view: wide.
+imageDirection: Leo standing on hind legs, almost roaring, then gently closing his mouth and looking at {{childName}}. His mane soft but alert. {{childName}} still tense, listening. companionPresence: present; view: close 3-4.
 
 --- Page 6 ---
-רררררר!
-השְׁאָגָה עפה לכל הכיוונים.
-היא העיפה חול. כופפה עשב. גלגלה שבלול מבולבל.
-אבל השער?
-השער לא זז.
-ליאו סגר את הפה.
-"אוי," אמר. "השאגה שלי נפלה על כולם."
-{{childName}} {ניגב|ניגבה} חול מהלחי.
-"חוץ מעל השער."
+"חוק האריות אומר," הכריז ליאו בטקסיות, "כפות. רעמה. מקום." הוא ניסה לעשות פרצוף של מומחה גדול —
+אבל הרעמה שלו עשתה פתאום פּוּף! והסתירה לו את העיניים. "אוי," אמר מתוך הפרווה. "הרעמה מצאה מקום לפניי."
 
-imageDirection: Shaket's roar bursts outward as a messy dusty cloud, bending grass and rolling a tiny snail while the stone gate remains closed. Shaket looks embarrassed; the child wipes sand from one cheek. companionPresence: present; view: wide/action.
+imageDirection: Leo announcing seriously with paws planted, then his fluffy mane puffs up and covers his eyes. Comical gentle beat. {{childName}} nearly smiles despite the anger. companionPresence: present; view: close 3-4.
 
 --- Page 7 ---
-ליאו התיישב.
-הרעמה שלו נפלה על העיניים.
-"אם אני לא שואג מיד," לחש, "אולי אף אחד לא ידע שמשהו חשוב קרה."
-{{childName}} {שתק|שתקה} רגע.
-זה הרגיש נכון.
-"גם הארמון שלי היה חשוב," {אמר|אמרה}.
-ליאו הרים את הראש.
-"אז לא נזרוק את השאגה," אמר. "ניתן לה מקום."
+{{childName}} {הביט|הביטה} מסביב. מתחת לעץ הגדול שכב עָלֶה יבש אחד — רחב, חום, שקט.
+לא כל הגינה. רק מקום קטן. מקום שאפשר לתת לו קצת כַּעַס בלי שיתפזר על כל הגינה.
 
-imageDirection: Shaket sits low beside the path, mane fallen over his eyes, suddenly vulnerable. The child sits near him, understanding the feeling. The stone gate waits in the background. companionPresence: present; view: medium/3-4.
+imageDirection: {{childName}} notices a large dry brown leaf under a nearby tree, quiet and flat on the ground. Slide and children remain in the background. Leo beside the child, mane settling. companionPresence: present; view: 3-4.
 
 --- Page 8 ---
-ליאו קם.
-"אצל אריות," אמר, "עושים ככה."
-שתי כפות באדמה.
-רעמה למעלה.
-עיניים על המקום.
-"כפות. רעמה. מקום."
-{{childName}} {עמד|עמדה} לידו.
-שתי רגליים באדמה.
-עיניים על העיגול שבשער.
-הכַּעַס עוד היה חם.
-אבל עכשיו הוא חיכה רגע.
+{{childName}} {הלך|הלכה} אל מתחת לעץ. לא מהר, לא בבריחה — רק עד העָלֶה.
+{הוא התכופף|היא התכופפה} {והניח|והניחה} את שתי כפות הידיים על העלה היבש.
+ליאו התיישב {לידו|לידה} והניח שתי כפות אריה ליד האצבעות של {{childName}}.
 
-imageDirection: Shaket demonstrates the lion ritual: paws planted, mane lifted, eyes focused on the circular mark on the gate. The child mirrors him with feet planted, learning the stance. companionPresence: present; view: side/3-4.
+imageDirection: agency preparation — {{childName}} crouches under the tree and places both hands flat on the large dry leaf. Leo sits beside and places his lion paws beside the child's fingers. Calm grounded playground scene. companionPresence: present; view: close 3-4.
 
 --- Page 9 ---
-קודם ניסו על אבן קטנה.
-"לא לכל העולם," {אמר|אמרה} {{childName}}. "רק לשם."
-ליאו הביט באבן.
-רְר קטן.
-האבן זזה בדיוק למקום.
-שום חול לא עף. שום שבלול לא התגלגל.
-ליאו פער עיניים.
-"השאגה ידעה איפה לנחות."
+"ררר..." {הוציא|הוציאה} {{childName}} קול קטן מהגרון. אמיתי, מחוספס, לא גדול מדי. העָלֶה רשרש מתחת לאצבעות.
+ליאו הוסיף נְהִימָה רכה: "רררר..." הכַּעַס לא נעלם. הוא רק קיבל מקום קטן על העלה.
 
-imageDirection: The child points to a small pebble as the safe target. Shaket plants his paws and releases a tiny focused roar that moves only the pebble. Both look surprised and pleased. companionPresence: present; view: close/3-4.
+imageDirection: close quiet moment — {{childName}} releases a small real growly sound toward the leaf, fingers pressing gently. Leo adds a soft tiny growl, mane relaxing. The dry leaf rustles, no magic. companionPresence: present; view: close.
 
 --- Page 10 ---
-עכשיו עמדו מול שער האבן.
-הוא היה גדול.
-והכַּעַס היה גדול.
-ליאו בלע רוק.
-"שאגת מלך?"
-{{childName}} {הסתכל|הסתכלה} על העיגול שבשער.
-"לא גדולה יותר," {אמר|אמרה}. "ברורה יותר."
-ליאו נשם.
-כפות. רעמה. מקום.
-"לשם," {אמר|אמרה} {{childName}}.
+{{childName}} {קם|קמה} {וחזר|וחזרה} אל המגלשה. הגוף כבר לא היה קשה כמו אבן.
+{הוא הביט|היא הביטה} בילד עם הכובע ו{אמר|אמרה} בקול ברור: "אני הייתי {הבא|הבאה} בתור. חיכיתי כאן."
 
-imageDirection: The child and Shaket face the large stone gate. The child points calmly to the circular mark in the gate's center while Shaket steadies himself, tail still and mane lifted. companionPresence: present; view: 3-4.
+imageDirection: {{childName}} returns to the slide, standing grounded and speaking clearly to the cap-wearing child. No shouting, no aggression. Leo stands nearby with a calm mane. companionPresence: present; view: 3-4.
 
 --- Page 11 ---
-ליאו שאג.
-{{childName}} {שאג|שאגה} איתו.
-לא על השמיים. לא על החול. לא על כל העולם.
-למקום אחד.
-קו של רעם זהוב יצא ישר אל העיגול.
-השער רעד.
-חרק.
-ונפתח.
-כדורי החול התגלגלו החוצה בשקט שמח.
-ליאו חייך.
-"השאגה נשארה שאגה," אמר. "רק מצאה בית."
+הילד עם הכובע עצר. הביט על {{childName}}, אחר כך על התור. "אה," אמר. "לא ראיתי."
+הוא זז הצידה, והתור התקדם. {{childName}} {חיכה|חיכתה} עוד רגע קטן — ואז הגיע התור {שלו|שלה}.
 
-imageDirection: The child and Shaket stand grounded together, sending one focused golden roar-line into the circle at the center of the gate. The gate opens, releasing small sand-balls that roll out gently. companionPresence: present; view: wide/action.
+imageDirection: the cap-wearing child pauses, realizes the line, and simply steps aside; the line moves forward. No dramatic gesture. {{childName}} waits a beat, then it is their turn. Leo watches from the side. companionPresence: present; view: 3-4.
 
 --- Page 12 ---
-החול הזהוב החזיר את {{childName}} אל החדר.
-הארמון עדיין היה מפוזר.
-הכַּעַס עוד היה שם.
-אבל עכשיו הוא לא בעט בכל הגוף.
-{{childName}} {לקח|לקחה} קובייה אחת.
-ואז עוד אחת.
-בסיס רחב. שער חדש. צריח קטן.
-"זה עדיין לא פייר," {אמר|אמרה}.
-ואז, בשקט חזק:
-"אבל הארמון היה חשוב. אז אני בונה אותו שוב."
+{{childName}} {טיפס|טיפסה} למעלה — שלב, ועוד שלב — ואז {גלש|גלשה} אל החול הנעים.
+מתחת לעץ, העָלֶה נשאר שקט, עם קמט קטן בדיוק במקום שבו הידיים נחו.
+ליאו ישב לידו, רעמה רכה ושמחה. "קודם מקום לכעס," לחש. "ואז מילים."
 
-imageDirection: Back in the bedroom, the child sits beside the fallen blocks and begins rebuilding with a wider, stronger base. The child looks determined and grounded, not magically calm. Shaket is absent. companionPresence: absent; view: 3-4.
+imageDirection: final playground scene — {{childName}} sliding down into soft sand. Under the nearby tree, the dry leaf remains with a small crease where the hands rested. Leo sits beside it with a relaxed happy mane. companionPresence: present; view: wide.
 
-WORD_COUNT: [32, 34, 39, 39, 37, 36, 46, 37, 36, 35, 44, 52] = [467]
+WORD_COUNT: [30, 30, 32, 33, 41, 40, 34, 40, 37, 33, 35, 40] = [425]
