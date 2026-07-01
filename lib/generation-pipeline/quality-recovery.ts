@@ -69,7 +69,7 @@ export async function reQaUnknownQualityEvidence(
   const required = await loadRequiredArtifacts(prisma, orderId);
   const rows = await prisma.qualityEvidence.findMany({
     where: { orderId },
-    select: { artifactKey: true, verdict: true, evaluatorContractVersion: true, assetSha256: true, evidence: true },
+    select: { artifactKey: true, verdict: true, evaluatorContractVersion: true, assetSha256: true, regenCount: true, evidence: true },
   });
   const byKey = new Map(rows.map((r) => [r.artifactKey, r]));
 
@@ -85,7 +85,17 @@ export async function reQaUnknownQualityEvidence(
       !!currentHash &&
       row.assetSha256 === currentHash &&
       (row.verdict === 'passed' || row.verdict === 'failed');
-    if (admissible) continue;
+    if (admissible) {
+      // (#6-fix-4 P1 #1) An admissible verdict is trusted as-is (no re-QA), but an admissible FAILED must STILL be
+      // rescued: a first-render QA fail (regenCount 0) whose durable 'failed' verdict already matches the current
+      // bytes at the current evaluator version would otherwise be skipped here → it never reaches nowFailed → the
+      // reserve/regen-rescue never runs → a genuinely failing page ships. Route it to the rescue with its durable
+      // regenCount (the processor reserves → clears → redrives, or refunds at budget). An admissible PASS is done.
+      if (row!.verdict === 'failed') {
+        result.nowFailed.push({ artifactKey: art.artifactKey, regenCount: row!.regenCount });
+      }
+      continue;
+    }
 
     const storedCtx = (row?.evidence as { qaContext?: QaContext | null } | null)?.qaContext ?? undefined;
     // (#6-fix-3 BLOCKER 1) No stored context → we CANNOT re-QA against the real requirements, and we must NEVER

@@ -121,7 +121,13 @@ export async function persistQualityContext(
       regenCount: 0,
       evidence,
     },
-    update: { evidence },
+    // (#6-fix-4 P1 #2) ATOMICALLY invalidate the old proof when binding a (possibly CHANGED) context: set
+    // verdict='evidence_unknown' and CLEAR assetSha256. Otherwise identical bytes carrying a stale PASS verdict +
+    // matching hash would stay admissible under the new context with NO re-QA — a page re-required to show a
+    // companion could ship on a pre-change PASS (fail-open). regenCount (column) is untouched and regenPending
+    // (inside evidence) is preserved by the `...base` spread, so the durable budget/marker survive. The
+    // delivered-evidence verdict (persistDeliveredQualityEvidence) re-establishes a fresh, hash-bound proof right after.
+    update: { evidence, verdict: 'evidence_unknown', assetSha256: '' },
   });
 }
 

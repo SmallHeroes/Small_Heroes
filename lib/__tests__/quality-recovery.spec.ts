@@ -85,6 +85,33 @@ describe('reQaUnknownQualityEvidence — enumerate REQUIRED artifacts (#6-fix BL
     const r = await reQaUnknownQualityEvidence(db as never, 'o1', { evaluate: evaluate as never, inspect: async () => okInspect('H') });
     expect(r.reQaCount).toBe(0);
     expect(evaluate).not.toHaveBeenCalled();
+    expect(r.nowFailed).toEqual([]); // a PASS is genuinely done — not routed anywhere
+  });
+
+  it('(#6-fix-4 P1 #1) ADMISSIBLE FAILED @regenCount=0 → routed to the rescue (nowFailed) WITHOUT re-QA — a first-render fail is never skipped', async () => {
+    // The durable 'failed' verdict already matches the CURRENT bytes at the current evaluator version (admissible),
+    // so it is trusted as-is (no re-QA). But it MUST still reach the rescue: pre-fix this row was `continue`d →
+    // nowFailed stayed empty → reserve never ran → the failing page shipped. Now it routes with regenCount 0 so the
+    // processor reserves → clears → redrives.
+    const rows: Row[] = [{ artifactKey: 'page:1', verdict: 'failed', evaluatorContractVersion: 'qa-v1', assetSha256: 'H', regenCount: 0, evidence: { qaContext: QA_CTX } }];
+    const { db } = makeDb({ coverImageUrl: null, pages: [page(1, 'https://h/p1.png')] }, rows);
+    const evaluate = vi.fn();
+    const r = await reQaUnknownQualityEvidence(db as never, 'o1', { evaluate: evaluate as never, inspect: async () => okInspect('H') });
+    expect(evaluate).not.toHaveBeenCalled(); // admissible → trusted, no re-QA
+    expect(r.reQaCount).toBe(0);
+    expect(r.nowFailed).toEqual([{ artifactKey: 'page:1', regenCount: 0 }]); // routed to the rescue → reserve will run
+    expect(r.nowPassed).toEqual([]);
+  });
+
+  it('(#6-fix-4 P1 #1) ADMISSIBLE FAILED @regenCount=2 (budget spent) → still routed to nowFailed, carrying regenCount 2 → the processor refunds (reserve declines)', async () => {
+    const rows: Row[] = [{ artifactKey: 'page:1', verdict: 'failed', evaluatorContractVersion: 'qa-v1', assetSha256: 'H', regenCount: 2, evidence: { qaContext: QA_CTX } }];
+    const { db } = makeDb({ coverImageUrl: null, pages: [page(1, 'https://h/p1.png')] }, rows);
+    const evaluate = vi.fn();
+    const r = await reQaUnknownQualityEvidence(db as never, 'o1', { evaluate: evaluate as never, inspect: async () => okInspect('H') });
+    expect(evaluate).not.toHaveBeenCalled();
+    // Routed with the durable regenCount at budget (2). The processor fast-skips the reserve (>= budget) → no clear →
+    // recommit → quality_failed → refund. The routing is what makes that path reachable at all.
+    expect(r.nowFailed).toEqual([{ artifactKey: 'page:1', regenCount: 2 }]);
   });
 
   it('STALE evaluatorContractVersion → re-QA even if verdict was passed', async () => {

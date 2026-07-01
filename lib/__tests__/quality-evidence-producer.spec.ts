@@ -71,14 +71,17 @@ describe('persistQualityContext (#6-fix-3 BLOCKER 1) — bind the exact context 
     expect((a.create.evidence as Record<string, unknown>).deliveredUrl).toBe('u1');
   });
 
-  it('existing row → MERGES context into evidence WITHOUT touching verdict / regenCount (preserves regenPending)', async () => {
+  it('(#6-fix-4 P1 #2) existing row → INVALIDATES the old proof: verdict→evidence_unknown + hash cleared, regenCount/regenPending PRESERVED', async () => {
     const db = ctxDb({ regenPending: true, stray: 1 });
     await persistQualityContext(db as never, { orderId: 'o1', artifactKey: 'page:1', deliveredUrl: 'u2', qaContext: QA_CTX });
     const a = arg(db);
-    expect(a.update).toEqual({ evidence: expect.objectContaining({ regenPending: true, stray: 1, deliveredUrl: 'u2', qaContext: QA_CTX }) });
-    expect(a.update).not.toHaveProperty('verdict'); // never rewrites the verdict
+    // Binding a (possibly CHANGED) context must force a re-QA: the old PASS + matching hash can no longer certify the
+    // bytes under the new requirements. So verdict is knocked to evidence_unknown and the hash is cleared — while
+    // regenPending (inside evidence) and regenCount (untouched column) survive so the durable budget/marker persist.
+    expect(a.update.verdict).toBe('evidence_unknown'); // old proof invalidated
+    expect(a.update.assetSha256).toBe(''); // hash cleared → cannot stay admissible on stale bytes
+    expect(a.update.evidence).toEqual(expect.objectContaining({ regenPending: true, stray: 1, deliveredUrl: 'u2', qaContext: QA_CTX }));
     expect(a.update).not.toHaveProperty('regenCount'); // never touches the durable budget (5b)
-    expect(a.update).not.toHaveProperty('assetSha256');
   });
 
   it('flag OFF → no-op (no findUnique, no upsert)', async () => {
