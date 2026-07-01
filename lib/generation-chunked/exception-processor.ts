@@ -30,6 +30,7 @@ import {
 import { refundOrderPayment, prismaRefundFence, type RefundableOrder, type RefundResult, type RefundProviderDeps } from '@/lib/payment-refunds';
 import { startChunkedGeneration } from './start';
 import { commitBaseBookReadiness, type CommitResult } from '@/lib/generation-pipeline/readiness-manifest';
+import { reQaUnknownQualityEvidence, type QualityRecoveryResult } from '@/lib/generation-pipeline/quality-recovery';
 import { parsePipelineCache } from '@/lib/generation-pipeline/helpers';
 import { resolveAnchorDeliveryGate } from '@/lib/anchor-resemblance-gate';
 import { createLogger } from '@/lib/logger';
@@ -90,6 +91,8 @@ export interface ExceptionProcessorDeps {
   ) => Promise<'repaired' | 'already_repaired' | 'not_repairable'>;
   redriveGeneration: (orderId: string) => Promise<{ started: boolean; message?: string }>;
   recommitReadiness: (prisma: PrismaClient, orderId: string) => Promise<CommitResult>;
+  /** (#7-a 6) Re-QA the order's evidence_unknown/stale QualityEvidence rows vs the SAME delivered bytes (0 renders). */
+  reQaQualityEvidence: (prisma: PrismaClient, orderId: string) => Promise<QualityRecoveryResult>;
 }
 
 function defaultDeps(): ExceptionProcessorDeps {
@@ -103,6 +106,7 @@ function defaultDeps(): ExceptionProcessorDeps {
     repairInvalidPayload: repairInvalidPayloadDelivery,
     redriveGeneration: (orderId) =>
       startChunkedGeneration(orderId, 'exception_case_recovery'),
+    reQaQualityEvidence: (prisma, orderId) => reQaUnknownQualityEvidence(prisma, orderId),
     recommitReadiness: async (prisma, orderId) => {
       const job = await prisma.generationJob.findUnique({
         where: { orderId },
@@ -536,6 +540,17 @@ async function handleRecoveryRetry(
       }
       if (!started.started) throw new Error(started.message ?? 'generation_redrive_not_started');
       return retryLater(prisma, exceptionCase, 'generation_redriven', now);
+    }
+
+    // (#7-a 6) Quality-evidence-unknown recovery: re-QA the SAME delivered bytes (ZERO renders) BEFORE the
+    // recommit, so a previously un-QA'd asset gets a real verdict. The recommit + decideReadiness then resolve
+    // (all passed) / open+UPGRADE to quality_failed (a failed-after-budget artifact → refund) / re-block (a
+    // persistent unknown → retry until the recovery budget is spent → refund).
+    // NOTE (#7-a 6, for the Codex gate): a `failed`-WITH-budget-remaining artifact currently re-blocks and
+    // retries→refunds; the targeted-page-regen rescue (clear the failed page + redrive, reusing the 5b reserve)
+    // is a documented enhancement — the recovery is fail-closed either way.
+    if (exceptionCase.reason?.startsWith('quality_evidence_unknown')) {
+      await deps.reQaQualityEvidence(prisma, exceptionCase.orderId);
     }
 
     const result = await deps.recommitReadiness(prisma, exceptionCase.orderId);

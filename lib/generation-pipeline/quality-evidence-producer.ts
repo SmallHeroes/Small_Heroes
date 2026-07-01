@@ -102,10 +102,13 @@ export async function persistDeliveredQualityEvidence(
     reason,
     providerModel: args.providerModel ?? null,
     // regenCount intentionally omitted — the DB-reserved budget (5b) is authoritative and preserved (carry-in #4).
+    // (#7-a 6) Persist the delivered URL + QA context so the exception-processor can RE-QA the SAME bytes
+    // (zero renders) with the same checks during recovery.
     evidence: {
       presentationApplied: args.presentationApplied,
       regenAttempts: args.regenAttempts ?? null,
       deliveredUrl: args.deliveredUrl,
-    } as Prisma.InputJsonValue,
+      qaContext: args.qaContext ?? null,
+    } as unknown as Prisma.InputJsonValue,
   });
 }
