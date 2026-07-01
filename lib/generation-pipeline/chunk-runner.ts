@@ -70,7 +70,7 @@ import { heartbeatLease } from '@/lib/generation-chunked/lease';
 import { finalizeAndPersistStoryText } from './text-finalization';
 import { isReadinessManifestEnabled, withDeliveryInputMutation } from './readiness-manifest';
 import { persistDeliveredQualityEvidence } from './quality-evidence-producer';
-import { coverArtifactKey, pageArtifactKey } from './quality-evidence';
+import { coverArtifactKey, pageArtifactKey, makeQualityRegenReserver } from './quality-evidence';
 import { openExceptionCase } from '@/lib/generation-chunked/exception-case';
 import { finalizePackageDelivery } from './package-delivery';
 import {
@@ -851,6 +851,10 @@ async function runCoverStage(
   const coverLocationPlan = resolvePageLocationPlan(storyLocationPlan, 0);
 
   const coverImage = await generateBookCover({
+    // (#7-a 5b) Durable regen reserver for the cover artifact — flag-on only.
+    reserveQualityRegen: isReadinessManifestEnabled()
+      ? makeQualityRegenReserver(prisma, { orderId: order.id, artifactKey: coverArtifactKey() })
+      : undefined,
     childName: order.childName,
     topicLabel,
     storyTitle: story.title,
@@ -1202,6 +1206,11 @@ async function runPageImagesChunk(
   const expressionSheetActive = isChildExpressionSheetActive(cache);
   const storyFileKey = storyFilePath ? path.basename(storyFilePath, '.md') : undefined;
   const imageOutcome = await generateAllPageImages(pagesForGen, {
+    // (#7-a 5b) Durable per-page regen reserver — flag-on only (flag-off → undefined → legacy in-memory budget).
+    makeReserveQualityRegen: isReadinessManifestEnabled()
+      ? (pageNumber: number) =>
+          makeQualityRegenReserver(prisma, { orderId: order.id, artifactKey: pageArtifactKey(pageNumber) })
+      : undefined,
     illustrationStyle: order.illustrationStyle,
     childName: order.childName,
     childAge: order.childAge,

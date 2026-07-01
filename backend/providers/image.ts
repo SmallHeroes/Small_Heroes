@@ -336,6 +336,13 @@ function buildMockImageResult(input: ImageInput): GeneratedImage {
 export interface ImageInput {
   pagePrompt: string;            // from story generator (LLM-produced, may already contain styleToken)
   /**
+   * (#7-a 5b) Durable, crash-safe visual-QA regen reserver bound to this artifact by the caller
+   * ({prisma, orderId, artifactKey}). Called BEFORE each regen: reserves one unit of the durable budget
+   * (regenCount < cap → +1) and returns false when spent → the loop stops and accepts-best. Bound ONLY when
+   * the readiness flag is on; absent → the loop uses the legacy in-memory budget (flag-off byte-identical).
+   */
+  reserveQualityRegen?: () => Promise<boolean>;
+  /**
    * Authoritative BookVisualContract prompt block for this page (from lib/visual-contract-compiler).
    * When present it is PREPENDED to the final GPT-Image prompt so the contract OUTRANKS imageDirection
    * (location/cast/wardrobe/forbidden). Only set when VISUAL_CONTRACT_ENFORCEMENT is on AND a valid
@@ -636,6 +643,8 @@ export interface CoverImageInput {
   topicLabel: string;
   storyTitle: string;
   coverText?: string;
+  /** (#7-a 5b) Durable regen reserver bound to the cover artifact (flag-on only). */
+  reserveQualityRegen?: () => Promise<boolean>;
   illustrationStyle: string;
   childDescription?: string;
   characterSheet?: CharacterSheet;
@@ -3113,7 +3122,17 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
       hasHumanFamily,
     });
 
-    const needsHumanReview = !qa.passed && regenAttempts >= qaConfig.maxRegens;
+    // (#7-a 5b) Budget decision. A regen is only for a DETERMINISTIC QA fail (qa.passed=false); an
+    // evidence_unknown (vision skipped/error/malformed) leaves qa.passed=true → accept, no budget consumed.
+    // When a durable reserver is bound (readiness flag ON), reserve one regen DURABLY BEFORE generating
+    // (crash-safe); otherwise the legacy in-memory budget governs (flag OFF → byte-identical).
+    let mayRegen = false;
+    if (!qa.passed) {
+      mayRegen = input.reserveQualityRegen
+        ? await input.reserveQualityRegen()
+        : regenAttempts < qaConfig.maxRegens;
+    }
+    const needsHumanReview = !qa.passed && !mayRegen;
     const enriched: GeneratedImage = {
       ...last,
       style01Meta: {
@@ -3141,7 +3160,7 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
       },
     };
 
-    if (qa.passed || regenAttempts >= qaConfig.maxRegens) {
+    if (!mayRegen) {
       if (needsHumanReview) {
         console.warn(
           `[page_visual_qa] FLAG_HUMAN_REVIEW orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} ` +
@@ -3873,6 +3892,7 @@ export async function generateBookCover(input: CoverImageInput): Promise<Generat
   const useStyle01 = shouldUseStyle01Phase2Path(input.illustrationStyle);
   const pagePrompt = useStyle01 ? '' : buildCoverPrompt(input);
   return generateImage({
+    reserveQualityRegen: input.reserveQualityRegen,
     pagePrompt,
     illustrationStyle: input.illustrationStyle,
     childDescription: input.childDescription,
@@ -4092,6 +4112,14 @@ export async function generateAllPageImages(
     workerDeadlineMs?: number;
     /** guarded-v2 — production recipe id for explicit page cards (e.g. bolly_bedtime_age_5). */
     guardedV2RecipeId?: string | null;
+    /**
+     * (#7-a 5b) Per-page durable regen-reserve factory. The caller binds a reserver to {prisma, orderId,
+     * page:N} ONLY when the readiness flag is on; the render loop calls it before each QA regen (crash-safe
+     * budget). NOTE: a page may render multiple candidates (anchor election) — they SHARE this page-level
+     * durable budget (fail-closed: an over-budget QA-failed final blocks at readiness). Undefined → flag-off,
+     * legacy in-memory budget.
+     */
+    makeReserveQualityRegen?: (pageNumber: number) => (() => Promise<boolean>) | undefined;
     /** When set, picks per-page child ref (expression mini-sheet) before style refs. */
     resolvePageChildExpressionRef?: (ctx: {
       pageNumber: number;
@@ -4729,6 +4757,9 @@ export async function generateAllPageImages(
 
     let image: GeneratedImage | null = null;
     let lastError: unknown = null;
+    // (#7-a 5b) The durable regen reserver for THIS page (flag-on only; undefined flag-off → in-memory budget).
+    // Shared across this page's candidate renders (see makeReserveQualityRegen note).
+    const reserveQualityRegen = config.makeReserveQualityRegen?.(page.pageNumber);
     const baseReferenceImage = pageReferenceImages?.[0];
     if (exprRef) {
       console.log(
@@ -4767,6 +4798,7 @@ export async function generateAllPageImages(
         const generated = await runImageWithThrottleAndRetry(
           () =>
             generateImage({
+              reserveQualityRegen,
               pagePrompt: storyboardPrompt,
               illustrationStyle: normalizedStyle,
               pageTemplate: effectivePageTemplate,
@@ -4916,6 +4948,7 @@ export async function generateAllPageImages(
           const generated = await runImageWithThrottleAndRetry(
             () =>
               generateImage({
+                reserveQualityRegen,
                 pagePrompt: storyboardPrompt,
                 illustrationStyle: normalizedStyle,
               pageTemplate: effectivePageTemplate,
@@ -5012,6 +5045,7 @@ export async function generateAllPageImages(
               )} skippedExistingImage=false`
             );
             return generateImage({
+              reserveQualityRegen,
               pagePrompt: `${storyboardPrompt}${retrySuffix}`,
               illustrationStyle: normalizedStyle,
               pageTemplate: effectivePageTemplate,

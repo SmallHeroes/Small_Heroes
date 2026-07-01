@@ -8,6 +8,8 @@ import {
   evaluateQualityGate,
   qualityEvidenceFingerprint,
   reserveQualityRegen,
+  ensureQualityEvidenceRow,
+  makeQualityRegenReserver,
   type QualityEvidenceRow,
   type ArtifactHashes,
 } from '@/lib/generation-pipeline/quality-evidence';
@@ -168,5 +170,33 @@ describe('reserveQualityRegen — durable, atomic, budget-bounded', () => {
   it('denies a regen (returns false) when the budget is exhausted (0 rows matched)', async () => {
     const db = { qualityEvidence: { updateMany: vi.fn(async () => ({ count: 0 })) } } as never;
     expect(await reserveQualityRegen(db, { orderId: 'o1', artifactKey: 'page:1' })).toBe(false);
+  });
+});
+
+describe('ensureQualityEvidenceRow + makeQualityRegenReserver (#7-a 5b)', () => {
+  type UpsertArg = { create: Record<string, unknown>; update: Record<string, unknown> };
+  it('ensureQualityEvidenceRow: create at regenCount 0 (evidence_unknown), update is a NO-OP (never resets)', async () => {
+    const upsert = vi.fn(async (_a: UpsertArg) => ({}));
+    const db = { qualityEvidence: { upsert } } as never;
+    await ensureQualityEvidenceRow(db, { orderId: 'o1', artifactKey: 'page:1' });
+    const arg = upsert.mock.calls[0]![0];
+    expect(arg.create).toMatchObject({ regenCount: 0, verdict: 'evidence_unknown', assetSha256: '' });
+    expect(arg.update).toEqual({});
+  });
+
+  it('makeQualityRegenReserver: ensures the row BEFORE the atomic increment, returns the reserve result', async () => {
+    const order: string[] = [];
+    const upsert = vi.fn(async (_a: UpsertArg) => { order.push('ensure'); return {}; });
+    const updateMany = vi.fn(async (_a: unknown) => { order.push('reserve'); return { count: 1 }; });
+    const db = { qualityEvidence: { upsert, updateMany } } as never;
+    const reserve = makeQualityRegenReserver(db, { orderId: 'o1', artifactKey: 'page:1' });
+    expect(await reserve()).toBe(true);
+    expect(order).toEqual(['ensure', 'reserve']); // crash-safe: row exists before the reserve increments it
+  });
+
+  it('makeQualityRegenReserver: false when the budget is spent (reserve matched 0 rows)', async () => {
+    const db = { qualityEvidence: { upsert: vi.fn(async (_a: UpsertArg) => ({})), updateMany: vi.fn(async (_a: unknown) => ({ count: 0 })) } } as never;
+    const reserve = makeQualityRegenReserver(db, { orderId: 'o1', artifactKey: 'page:1' });
+    expect(await reserve()).toBe(false);
   });
 });

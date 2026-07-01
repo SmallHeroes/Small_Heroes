@@ -240,3 +240,43 @@ export async function reserveQualityRegen(
   });
   return bumped.count === 1;
 }
+
+/**
+ * (#7-a 5b) Create the evidence row at regenCount 0 if it does not exist yet, so the atomic conditional-increment
+ * reserve has a row to bump. IDEMPOTENT: the update is a no-op, so it NEVER resets an existing row's regenCount
+ * or verdict (carry-in #4 — the DB-reserved budget is preserved). The placeholder verdict is evidence_unknown
+ * (fail-closed) until the seam persists the real verdict.
+ */
+export async function ensureQualityEvidenceRow(
+  db: Db,
+  args: { orderId: string; artifactKey: string },
+): Promise<void> {
+  await db.qualityEvidence.upsert({
+    where: { orderId_artifactKey: { orderId: args.orderId, artifactKey: args.artifactKey } },
+    create: {
+      orderId: args.orderId,
+      artifactKey: args.artifactKey,
+      assetSha256: '',
+      verdict: 'evidence_unknown',
+      evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION,
+      regenCount: 0,
+    },
+    update: {},
+  });
+}
+
+/**
+ * (#7-a 5b) A durable, crash-safe regen reserver bound to ONE artifact: ensure the row exists, then atomically
+ * reserve one regen (regenCount < budget → +1) BEFORE generating a replacement. Returns false when the budget is
+ * spent. The caller (chunk-runner) binds this to {prisma, orderId, artifactKey} ONLY when the readiness flag is
+ * on; flag-off passes no reserver, so the render loop keeps its legacy in-memory budget (byte-identical).
+ */
+export function makeQualityRegenReserver(
+  db: Db,
+  args: { orderId: string; artifactKey: string; budget?: number },
+): () => Promise<boolean> {
+  return async () => {
+    await ensureQualityEvidenceRow(db, args);
+    return reserveQualityRegen(db, args);
+  };
+}
