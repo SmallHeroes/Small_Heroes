@@ -11,6 +11,7 @@ import {
 } from '@/lib/generation-pipeline/readiness-manifest';
 import { BASE_BOOK_SCOPE } from '@/lib/generation-pipeline/integrity-gate';
 import type { AssetInspection } from '@/lib/generation-pipeline/asset-integrity';
+import { QUALITY_EVALUATOR_CONTRACT_VERSION, QUALITY_REGEN_BUDGET } from '@/lib/generation-pipeline/quality-evidence';
 
 const NOW = new Date('2026-06-29T12:00:00Z');
 const stubInspect = async (url: string | null | undefined): Promise<AssetInspection> => {
@@ -30,6 +31,22 @@ const orderRowFull = {
   ] },
 };
 const badPageRow = { ...orderRowFull, book: { ...orderRowFull.book, pages: [orderRowFull.book.pages[0], { ...orderRowFull.book.pages[1], imageAsset: { url: 'https://h/p2-bad.png', presentationUrl: null } }] } };
+
+// (#7-a) Passing durable Quality evidence for an order: the delivered-bytes hash (presentationUrl ?? url)
+// must equal what the integrity gate's inspect computes (stubInspect hashes the same url), else the gate
+// blocks on a hash mismatch — exactly the anti-bypass we want, so tests seed matching hashes.
+const shaOf = (u: string | null | undefined) => createHash('sha256').update((u ?? '').trim()).digest('hex');
+type QRow = { artifactKey: string; assetSha256: string; verdict: string; evaluatorContractVersion: string; reason: string | null; regenCount: number };
+function passingQualityRows(orderRow: typeof orderRowFull): QRow[] {
+  const rows: QRow[] = [
+    { artifactKey: 'cover', assetSha256: shaOf(orderRow.book.coverImageUrl), verdict: 'passed', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, reason: null, regenCount: 0 },
+  ];
+  for (const p of orderRow.book.pages) {
+    const delivered = p.imageAsset?.presentationUrl ?? p.imageAsset?.url ?? null;
+    rows.push({ artifactKey: `page:${p.pageNumber}`, assetSha256: shaOf(delivered), verdict: 'passed', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, reason: null, regenCount: 0 });
+  }
+  return rows;
+}
 
 const args = (over: Partial<CommitArgs> = {}): CommitArgs => ({ orderId: 'o1', anchorAllowsDelivery: true, anchorOrderStatus: 'ready', anchorReason: null, ...over });
 
@@ -52,10 +69,19 @@ function mockTx(orderRow: unknown = orderRowFull) {
     },
     deliveryOutbox: { findUnique: vi.fn(async () => null), create: vi.fn(), updateMany: vi.fn(async () => ({ count: 1 })) },
     generationJob: { update: vi.fn() },
+    qualityEvidence: { findMany: vi.fn(async () => passingQualityRows(orderRow as typeof orderRowFull)) },
   };
 }
 const mockPrisma = (tx: ReturnType<typeof mockTx>, orderRow: unknown = orderRowFull) =>
-  ({ order: { findUnique: vi.fn(async () => orderRow) }, $transaction: vi.fn(async (cb: (t: unknown) => unknown) => cb(tx)) });
+  ({ order: { findUnique: vi.fn(async () => orderRow) }, qualityEvidence: { findMany: vi.fn(async () => passingQualityRows(orderRow as typeof orderRowFull)) }, $transaction: vi.fn(async (cb: (t: unknown) => unknown) => cb(tx)) });
+
+// A commit harness with custom Quality evidence rows (same rows out-of-tx and in-tx so the TOCTOU fingerprint matches).
+function mockWithQuality(qualityRows: QRow[], orderRow: typeof orderRowFull = orderRowFull) {
+  const tx = mockTx(orderRow);
+  tx.qualityEvidence.findMany = vi.fn(async () => qualityRows);
+  const prisma = { order: { findUnique: vi.fn(async () => orderRow) }, qualityEvidence: { findMany: vi.fn(async () => qualityRows) }, $transaction: vi.fn(async (cb: (t: unknown) => unknown) => cb(tx)) };
+  return { tx, prisma };
+}
 
 describe('isReadinessManifestEnabled', () => {
   let prev: string | undefined;
@@ -237,6 +263,57 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
     }));
   });
 
+  it('#7-a: quality FAILED after budget → BLOCKED manifest + quality_failed(refund_pending), NO enqueue', async () => {
+    const rows = passingQualityRows(orderRowFull).map((r) =>
+      r.artifactKey === 'page:2' ? { ...r, verdict: 'failed', regenCount: QUALITY_REGEN_BUDGET, reason: 'anatomy_failed' } : r);
+    const { tx, prisma } = mockWithQuality(rows);
+    const r = await commitBaseBookReadiness(prisma as never, args(), { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' });
+    expect(r.manifestStatus).toBe('blocked');
+    expect(r.enqueued).toBe(false);
+    expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
+    expect(tx.bookReadinessManifest.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'blocked' }) }));
+    expect(tx.exceptionCase.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({ kind: 'quality_failed', status: 'refund_pending' }),
+    }));
+    expect(tx.order.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'needs_human_qa' }) }));
+  });
+
+  it('#7-a: quality evidence_unknown (a missing required artifact) → BLOCKED + infra_transient recovery, NO enqueue', async () => {
+    const rows = passingQualityRows(orderRowFull).filter((r) => r.artifactKey !== 'page:2');
+    const { tx, prisma } = mockWithQuality(rows);
+    const r = await commitBaseBookReadiness(prisma as never, args(), { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' });
+    expect(r.manifestStatus).toBe('blocked');
+    expect(r.enqueued).toBe(false);
+    expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
+    expect(tx.exceptionCase.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({ kind: 'infra_transient', status: 'retry_scheduled' }),
+    }));
+  });
+
+  it('#7-a anti-bypass: a passing row whose assetSha256 != the delivered bytes → BLOCKED (a swapped image never ships)', async () => {
+    const rows = passingQualityRows(orderRowFull).map((r) => (r.artifactKey === 'page:2' ? { ...r, assetSha256: 'STALE_HASH' } : r));
+    const { tx, prisma } = mockWithQuality(rows);
+    const r = await commitBaseBookReadiness(prisma as never, args(), { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' });
+    expect(r.manifestStatus).toBe('blocked');
+    expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
+    expect(tx.exceptionCase.upsert).toHaveBeenCalledWith(expect.objectContaining({ create: expect.objectContaining({ kind: 'infra_transient' }) }));
+  });
+
+  it('#7-a anti-bypass: an old evaluatorContractVersion is stale → BLOCKED even with verdict=passed', async () => {
+    const rows = passingQualityRows(orderRowFull).map((r) => (r.artifactKey === 'cover' ? { ...r, evaluatorContractVersion: 'qa-v0' } : r));
+    const { tx, prisma } = mockWithQuality(rows);
+    const r = await commitBaseBookReadiness(prisma as never, args(), { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' });
+    expect(r.manifestStatus).toBe('blocked');
+    expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
+  });
+
+  it('#7-a: with NO quality evidence at all → BLOCKED (no assume-passed default), NO enqueue', async () => {
+    const { tx, prisma } = mockWithQuality([]);
+    const r = await commitBaseBookReadiness(prisma as never, args(), { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' });
+    expect(r.manifestStatus).toBe('blocked');
+    expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
+  });
+
   it('validator-only timeout/5xx BLOCK opens infra_transient rather than a deterministic integrity case', async () => {
     const tx = mockTx();
     const transientInspect = vi.fn(async (): Promise<AssetInspection> => ({
@@ -295,7 +372,7 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
     const drifted = { ...orderRowFull, book: { ...orderRowFull.book, coverImageUrl: 'https://h/cover-CHANGED.png' } };
     const tx = mockTx();
     tx.order.findUnique = vi.fn().mockResolvedValueOnce(drifted).mockResolvedValue(orderRowFull); // drift on the first tx, stable after
-    const prisma = { order: { findUnique: vi.fn(async () => orderRowFull) }, $transaction: vi.fn(async (cb: (t: unknown) => unknown) => cb(tx)) };
+    const prisma = { order: { findUnique: vi.fn(async () => orderRowFull) }, qualityEvidence: { findMany: vi.fn(async () => passingQualityRows(orderRowFull)) }, $transaction: vi.fn(async (cb: (t: unknown) => unknown) => cb(tx)) };
     const r = await commitBaseBookReadiness(prisma as never, args(), { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' });
     expect(prisma.$transaction).toHaveBeenCalledTimes(2); // aborted on drift, re-evaluated fresh, then committed
     expect(r.manifestStatus).toBe('passed');
@@ -306,7 +383,7 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
     const $transaction = vi.fn()
       .mockRejectedValueOnce(Object.assign(new Error('unique'), { code: 'P2002' }))
       .mockImplementation(async (cb: (t: unknown) => unknown) => cb(tx));
-    const prisma = { order: { findUnique: vi.fn(async () => orderRowFull) }, $transaction };
+    const prisma = { order: { findUnique: vi.fn(async () => orderRowFull) }, qualityEvidence: { findMany: vi.fn(async () => passingQualityRows(orderRowFull)) }, $transaction };
     const r = await commitBaseBookReadiness(prisma as never, args(), { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' });
     expect($transaction).toHaveBeenCalledTimes(2);
     expect(r.manifestStatus).toBe('passed');

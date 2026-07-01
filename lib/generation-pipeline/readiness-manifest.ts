@@ -18,6 +18,16 @@ import {
   type IntegrityResult,
 } from './integrity-gate';
 import { inspectAsset, type AssetInspection } from './asset-integrity';
+import {
+  loadQualityEvidence,
+  evaluateQualityGate,
+  qualityEvidenceFingerprint,
+  coverArtifactKey,
+  pageArtifactKey,
+  type QualityEvidenceRow,
+  type QualityGateResult,
+  type ArtifactHashes,
+} from './quality-evidence';
 import { enqueueDelivery, type BookReadyPayload, type CasResult } from '@/lib/generation-chunked/delivery-outbox';
 import { createLogger } from '@/lib/logger';
 import type { FrozenStoryProductTruth } from './frozen-product-truth';
@@ -269,7 +279,7 @@ export interface CommitResult {
   reason: string | null;
   revision: number;
 }
-interface LoadedInputs { order: OrderTruth; book: BookData; fingerprint: string }
+interface LoadedInputs { order: OrderTruth; book: BookData; quality: QualityEvidenceRow[]; fingerprint: string }
 
 const TOCTOU = 'readiness_toctou_drift';
 function isRevisionCollision(e: unknown): boolean {
@@ -289,11 +299,15 @@ function fingerprintOf(f: {
   fulfillmentVersion: number; inputVersion: number;
   customerEmail: string; customerName: string | null; childName: string; readUrl: string | null; pdfUrl: string | null; firstAudioUrl: string | null;
   cover: string | null; pages: Array<[number, string, string | null]>;
+  quality: string;
 }): string {
   return createHash('sha256').update(JSON.stringify({
     frozen: [f.expectedPageCount, f.storySourceHash, f.selectionFilename, f.frozenProductVersion, f.fulfillmentVersion, f.inputVersion],
     payload: [f.customerEmail, f.customerName, f.childName, f.readUrl, f.pdfUrl, f.firstAudioUrl],
     cover: f.cover, pages: f.pages,
+    // (#7-a) Quality evidence participates in the TOCTOU fingerprint: an evidence mutation between eval and
+    // commit drifts this hash → the commit aborts + re-evaluates FRESH, so a stale quality verdict never ships.
+    quality: f.quality,
   })).digest('hex');
 }
 
@@ -311,11 +325,13 @@ async function loadCommitInputs(db: PrismaClient | Tx, orderId: string): Promise
   const firstAudioUrl = o.book.pages.find((p) => p.audioUrl?.trim())?.audioUrl ?? null;
   const order: OrderTruth = { id: o.id, fulfillmentVersion: o.fulfillmentVersion, inputVersion: o.inputVersion, expectedPageCount: o.expectedPageCount, storySourceHash: o.storySourceHash, selectionFilename: o.selectionFilename, frozenProductVersion: o.frozenProductVersion, customerEmail: o.customerEmail, customerName: o.customerName, childName: o.childName };
   const book: BookData = { coverImageUrl: o.book.coverImageUrl, readUrl: o.book.readUrl, pdfUrl: o.book.pdfUrl, firstAudioUrl, pages };
+  const quality = await loadQualityEvidence(db, orderId);
   const fingerprint = fingerprintOf({
     ...order, readUrl: book.readUrl, pdfUrl: book.pdfUrl, firstAudioUrl: book.firstAudioUrl,
     cover: book.coverImageUrl, pages: pages.map((p) => [p.pageNumber, p.text, p.imageUrl] as [number, string, string | null]),
+    quality: qualityEvidenceFingerprint(quality),
   });
-  return { order, book, fingerprint };
+  return { order, book, quality, fingerprint };
 }
 
 function buildIntegrityInput(order: OrderTruth, book: BookData, appBaseUrl: string | null): IntegrityInput {
@@ -354,6 +370,60 @@ function payloadSourceOf(order: OrderTruth, book: BookData): PayloadSource {
   return { customerEmail: order.customerEmail, customerName: order.customerName, childName: order.childName, readUrl: book.readUrl, pdfUrl: book.pdfUrl, firstAudioUrl: book.firstAudioUrl };
 }
 
+/** (#7-a) The combined integrity+quality decision the commit tx acts on. */
+interface ReadinessDecision {
+  status: 'passed' | 'blocked';
+  reason: string | null;
+  inputsHash: string;
+  evidence: Record<string, unknown>;
+  /** On block: which recovery case to open. quality_failed = terminal (refund); the other two = retry-scheduled. */
+  blockExceptionKind: 'quality_failed' | 'infra_transient' | 'integrity_blocked' | null;
+  blockClassification: string;
+}
+
+/** The current delivered-bytes hash per artifact, taken from the integrity gate's inspect evidence (the same
+ *  bytes — presentationUrl ?? url — the quality evidence was written against). The anti-bypass source of truth. */
+function currentArtifactHashes(integrity: IntegrityResult): ArtifactHashes {
+  const hashes: ArtifactHashes = new Map();
+  const cover = integrity.evidence.cover as { sha256?: string | null } | undefined;
+  hashes.set(coverArtifactKey(), cover?.sha256 ?? null);
+  const pages = (integrity.evidence.pages as Array<{ pageNumber?: number; sha256?: string | null }> | undefined) ?? [];
+  for (const p of pages) {
+    if (typeof p.pageNumber === 'number') hashes.set(pageArtifactKey(p.pageNumber), p.sha256 ?? null);
+  }
+  return hashes;
+}
+
+/**
+ * (#7-a) Combine the deterministic integrity gate with the durable Quality gate, FAIL-CLOSED.
+ * An integrity block wins (keeps the existing transient/deterministic routing). Otherwise the Quality gate
+ * decides: passed → PASS; failed-after-budget → BLOCK + terminal quality_failed (→ refund_pending);
+ * evidence_unknown/missing/stale/hash-mismatch → BLOCK + infra_transient (retry QA vs the SAME asset).
+ * There is NO path to PASS without a `passed` quality verdict for every required artifact. Quality evidence is
+ * folded into inputsHash so a later evidence change invalidates the manifest.
+ */
+function decideReadiness(integrity: IntegrityResult, quality: QualityGateResult): ReadinessDecision {
+  const inputsHash = createHash('sha256')
+    .update(JSON.stringify({ integrity: integrity.inputsHash, quality: quality.evidence, qualityStatus: quality.status }))
+    .digest('hex');
+  const evidence = { ...integrity.evidence, quality: quality.evidence, qualityStatus: quality.status };
+  if (integrity.status === 'blocked') {
+    const transient = isTransientIntegrityFailure(integrity);
+    return {
+      status: 'blocked', reason: integrity.reason, inputsHash, evidence,
+      blockExceptionKind: transient ? 'infra_transient' : 'integrity_blocked',
+      blockClassification: transient ? 'validator_transient' : 'deterministic_block',
+    };
+  }
+  if (quality.status === 'passed') {
+    return { status: 'passed', reason: null, inputsHash, evidence, blockExceptionKind: null, blockClassification: 'passed' };
+  }
+  if (quality.status === 'failed') {
+    return { status: 'blocked', reason: quality.reason, inputsHash, evidence, blockExceptionKind: 'quality_failed', blockClassification: 'quality_failed' };
+  }
+  return { status: 'blocked', reason: quality.reason, inputsHash, evidence, blockExceptionKind: 'infra_transient', blockClassification: 'quality_evidence_unknown' };
+}
+
 async function nextRevision(tx: Tx, orderId: string, scope: string): Promise<number> {
   const last = await tx.bookReadinessManifest.findFirst({
     where: { orderId, scope },
@@ -368,8 +438,9 @@ async function nextRevision(tx: Tx, orderId: string, scope: string): Promise<num
  * compare to the value the evaluation ran on); on drift it throws so the caller reloads FRESH + re-evaluates.
  * May also throw P2002 (revision collision). Both are retried by commitBaseBookReadiness.
  */
-async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, result: IntegrityResult, now: Date): Promise<CommitResult> {
-  // (0) TOCTOU guard — the assets/text/frozen must not have changed between the (out-of-tx) eval and now.
+async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, decision: ReadinessDecision, now: Date): Promise<CommitResult> {
+  // (0) TOCTOU guard — the assets/text/frozen/QUALITY-EVIDENCE must not have changed between the (out-of-tx)
+  // eval and now (the fingerprint folds in the quality evidence, so a re-QA between eval and commit drifts it).
   const inTx = await loadCommitInputs(tx, args.orderId);
   if (!inTx || inTx.fingerprint !== loaded.fingerprint) throw new Error(TOCTOU);
 
@@ -377,34 +448,38 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, r
   const scope = BASE_BOOK_SCOPE;
   const revision = await nextRevision(tx, order.id, scope);
 
-  // (1) IMMUTABLE manifest — terminal INSERT (throws P2002 on a concurrent same-revision insert). Records the
-  // Order.inputVersion this evaluation observed, so the send-time recheck can detect a later writer bump.
+  // (1) IMMUTABLE manifest — terminal INSERT (throws P2002 on a concurrent same-revision insert). A BLOCKED
+  // eval writes an immutable BLOCKED manifest too (durable evidence + reason); the pass/block state is never
+  // mutated. Records the Order.inputVersion this evaluation observed for the send-time recheck.
   const manifest = await tx.bookReadinessManifest.create({
-    data: { orderId: order.id, scope, revision, status: result.status, inputsHash: result.inputsHash, inputVersion: order.inputVersion, evidence: result.evidence as unknown as Prisma.InputJsonValue, reason: result.reason },
+    data: { orderId: order.id, scope, revision, status: decision.status, inputsHash: decision.inputsHash, inputVersion: order.inputVersion, evidence: decision.evidence as unknown as Prisma.InputJsonValue, reason: decision.reason },
   });
 
   // (2) MUTABLE readiness pointer → current manifest.
   await tx.bookReadiness.upsert({
     where: { orderId_scope: { orderId: order.id, scope } },
-    create: { orderId: order.id, scope, status: result.status, currentManifestId: manifest.id, reason: result.reason },
-    update: { status: result.status, currentManifestId: manifest.id, reason: result.reason },
+    create: { orderId: order.id, scope, status: decision.status, currentManifestId: manifest.id, reason: decision.reason },
+    update: { status: decision.status, currentManifestId: manifest.id, reason: decision.reason },
   });
 
-  if (result.status === 'blocked') {
-    const transient = isTransientIntegrityFailure(result);
+  if (decision.status === 'blocked') {
+    // (#7-a) BLOCKED manifest + readiness=blocked + order hold + ExceptionCase in ONE atomic tx; NO Outbox row on
+    // any blocked path. quality_failed is a deterministic TERMINAL (→ refund_pending via its disposition);
+    // infra_transient / integrity_blocked schedule a retry.
+    const kind = decision.blockExceptionKind ?? 'integrity_blocked';
+    const retryScheduled = kind === 'infra_transient' || kind === 'integrity_blocked';
     await openExceptionCase(tx, {
       orderId: order.id,
       scope,
-      kind: transient ? 'infra_transient' : 'integrity_blocked',
-      reason: result.reason ?? 'integrity_blocked',
+      kind,
+      reason: decision.reason ?? kind,
       sourceRef: `readiness:${manifest.id}`,
       now,
-      initialStatus: 'retry_scheduled',
-      nextActionAt: new Date(now.getTime() + 60_000),
+      ...(retryScheduled ? { initialStatus: 'retry_scheduled' as const, nextActionAt: new Date(now.getTime() + 60_000) } : {}),
       metadata: {
         manifestId: manifest.id,
         revision,
-        classification: transient ? 'validator_transient' : 'deterministic_block',
+        classification: decision.blockClassification,
       },
     });
   } else {
@@ -417,7 +492,7 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, r
     });
   }
 
-  const activeException = result.status === 'passed'
+  const activeException = decision.status === 'passed'
     ? await tx.exceptionCase.findUnique({
         where: { activeKey: `${order.id}:${scope}` },
         select: { kind: true, status: true },
@@ -427,22 +502,23 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, r
   let enqueued = false;
   let orderStatus: string;
   let deliveryHoldReason: string | null;
-  if (result.status === 'passed' && activeException) {
+  if (decision.status === 'passed' && activeException) {
     // A refund/reconciliation/customer action is already authoritative. Do not deliver-and-refund.
     orderStatus = 'failed';
     deliveryHoldReason = `exception_case:${activeException.kind}:${activeException.status}`;
-  } else if (result.status === 'passed' && args.anchorAllowsDelivery) {
+  } else if (decision.status === 'passed' && args.anchorAllowsDelivery) {
     // (3) enqueue the delivery IN the same transaction (enqueue != send), then (4) mark the order ready.
+    // Reached ONLY when integrity AND quality both passed for every required artifact (fail-closed).
     // (P1-f #3h) A re-commit REBINDS the existing Outbox row in place (same dedupeKey → same idempotency key),
     // so fulfillmentVersion never rolls here — the delivery-intent is stable; the manifest is just its proof.
     await enqueueDelivery(tx, { orderId: order.id, scope, fulfillmentVersion: order.fulfillmentVersion, manifestId: manifest.id, inputVersion: order.inputVersion, payload: buildPayload(payloadSourceOf(order, book)), now });
     enqueued = true; orderStatus = 'ready'; deliveryHoldReason = null;
-  } else if (result.status === 'passed') {
-    // Integrity passed but the ANCHOR still holds delivery (Phase-1 keeps the anchor hold — fix #4). No enqueue.
+  } else if (decision.status === 'passed') {
+    // Integrity + quality passed but the ANCHOR still holds delivery (Phase-1 keeps the anchor hold — fix #4). No enqueue.
     orderStatus = args.anchorOrderStatus; deliveryHoldReason = args.anchorReason;
   } else {
-    // Integrity BLOCKED → held, no enqueue, no email; re-evaluation is a dedicated path, not a worker loop.
-    orderStatus = 'needs_human_qa'; deliveryHoldReason = `base_book_integrity:${result.reason ?? 'blocked'}`;
+    // BLOCKED (integrity or quality) → held, NO enqueue, NO email; recovery is the ExceptionCase path above.
+    orderStatus = 'needs_human_qa'; deliveryHoldReason = `base_book_integrity:${decision.reason ?? 'blocked'}`;
   }
 
   // (4) Order write is CONDITIONAL on inputVersion being unchanged (B4 optimistic concurrency): if any writer
@@ -456,7 +532,7 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, r
   if (written.count === 0) throw new Error(TOCTOU);
   // (5) GenerationJob terminal — the package stage ran.
   await tx.generationJob.update({ where: { orderId: order.id }, data: { status: 'done', currentStage: 'done', completedAt: now, packaged: true } });
-  return { manifestStatus: result.status, enqueued, orderStatus, reason: deliveryHoldReason, revision };
+  return { manifestStatus: decision.status, enqueued, orderStatus, reason: deliveryHoldReason, revision };
 }
 
 /**
@@ -471,8 +547,14 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
     if (!loaded) throw new Error('readiness_inputs_missing');
     const appBaseUrl = deps.appBaseUrl ?? readAppBaseUrl();
     const result = await evaluateBaseBookIntegrity(buildIntegrityInput(loaded.order, loaded.book, appBaseUrl), deps.inspect ?? inspectAsset);
+    // (#7-a) FAIL-CLOSED Quality gate. Required artifacts = cover + every rendered page. The current
+    // delivered-bytes hash comes from the integrity gate's inspect (same presentationUrl ?? url bytes), so a
+    // PASS row for other bytes cannot authorize the delivered image. No `passed` for every artifact → BLOCK.
+    const requiredKeys = [coverArtifactKey(), ...loaded.book.pages.map((p) => pageArtifactKey(p.pageNumber))];
+    const quality = evaluateQualityGate(requiredKeys, loaded.quality, currentArtifactHashes(result));
+    const decision = decideReadiness(result, quality);
     try {
-      return await prisma.$transaction((tx) => runReadinessTxn(tx, args, loaded, result, now));
+      return await prisma.$transaction((tx) => runReadinessTxn(tx, args, loaded, decision, now));
     } catch (e) {
       if ((isToctou(e) || isRevisionCollision(e)) && attempt < 5) {
         log.warn('Readiness commit retry', { orderId: args.orderId, attempt, reason: isToctou(e) ? 'toctou_drift' : 'revision_collision' });
