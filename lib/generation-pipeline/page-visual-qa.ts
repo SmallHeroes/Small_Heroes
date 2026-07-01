@@ -21,7 +21,8 @@ export type PageVisualQaReason =
   | 'emotional_staging_failed'
   | 'vision_skipped'
   | 'vision_error'
-  | 'vision_malformed';
+  | 'vision_malformed'
+  | 'child_missing';
 
 export type PageVisualQaResult = {
   passed: boolean;
@@ -42,6 +43,7 @@ export type PageVisualQaResult = {
     emotionalStagingOk: boolean;
     timeOfDayOk: boolean;
     companionSilhouetteOk: boolean;
+    childPresenceOk: boolean;
   };
   raw?: Record<string, unknown>;
 };
@@ -124,6 +126,17 @@ Also return:
 }
 Track silhouette drift — do NOT fail overall pass solely for minor ear/tail drift unless extreme.`;
 
+// (#5a-fix ITEM 2) Positive child-presence proof — added when a child is expected (pages AND the cover, where
+// the assembler forces childPresence='present'). Absence of a child must FAIL, not silently pass.
+const QA_PROMPT_CHILD_PRESENCE = `
+
+CHILD PRESENCE (a child protagonist is expected in this image):
+Also return:
+{
+  "childPresent": true ONLY if a child protagonist is CLEARLY VISIBLE as a real depicted character (NOT merely implied, NOT off-page, NOT only a toy/silhouette/photo-on-a-wall)
+}
+A page or cover that should show the child but does NOT clearly depict one must FAIL — never pass on absence.`;
+
 function defaultQaFlags(): PageVisualQaResult['flags'] {
   return {
     anatomyOk: true,
@@ -134,6 +147,7 @@ function defaultQaFlags(): PageVisualQaResult['flags'] {
     emotionalStagingOk: true,
     timeOfDayOk: true,
     companionSilhouetteOk: true,
+    childPresenceOk: true,
   };
 }
 
@@ -151,6 +165,10 @@ const CRIB_QA_FIELDS = [
 ] as const;
 const TIME_QA_FIELDS = ['timeOfDayOk', 'readsAsDaylight', 'readsAsNight'] as const;
 const COMPANION_QA_FIELDS = ['companionSilhouetteOk'] as const;
+// (#5a-fix ITEM 2) POSITIVE child-presence proof. Required when a child is expected (incl. the cover). "at most
+// one child" (singleChildOk) is the ABSENCE of a negative — it does NOT prove a child EXISTS, so a childless
+// cover could pass. `childPresent` is the positive signal: missing → evidence_unknown; false → child_missing.
+const CHILD_PRESENCE_FIELDS = ['childPresent'] as const;
 const FAMILY_QA_FIELDS = [
   'familyCoherenceOk', 'newbornNotDefaultPink', 'recurringParentConsistent',
   'noHeroFaceCloneOnParent', 'familyDefaultedWhite',
@@ -173,7 +191,7 @@ function allBooleansPresent(raw: Record<string, unknown>, fields: readonly strin
  */
 function qaResponseIsValid(
   parsed: unknown,
-  ctx: { checkTimeOfDay: boolean; hasRailedBedOrCrib: boolean; expectsCompanion: boolean; hasHumanFamily: boolean },
+  ctx: { checkTimeOfDay: boolean; hasRailedBedOrCrib: boolean; expectsCompanion: boolean; hasHumanFamily: boolean; expectsChild: boolean },
 ): parsed is Record<string, unknown> {
   if (!isPlainObject(parsed)) return false;
   if (!allBooleansPresent(parsed, BASE_QA_FIELDS)) return false;
@@ -181,6 +199,8 @@ function qaResponseIsValid(
   if (ctx.checkTimeOfDay && !allBooleansPresent(parsed, TIME_QA_FIELDS)) return false;
   if (ctx.expectsCompanion && !allBooleansPresent(parsed, COMPANION_QA_FIELDS)) return false;
   if (ctx.hasHumanFamily && !allBooleansPresent(parsed, FAMILY_QA_FIELDS)) return false;
+  // (#5a-fix ITEM 2) a child is expected → the positive child-presence field must be present (missing → unknown).
+  if (ctx.expectsChild && !allBooleansPresent(parsed, CHILD_PRESENCE_FIELDS)) return false;
   return true;
 }
 
@@ -339,6 +359,7 @@ export async function evaluatePageVisualQa(input: {
     (input.hasRailedBedOrCrib ? QA_PROMPT_CLOSED_CRIB : '') +
     (checkTimeOfDay ? QA_PROMPT_TIME_OF_DAY : '') +
     (input.expectsCompanion ? QA_PROMPT_COMPANION_SILHOUETTE : '') +
+    (input.expectsChild ? QA_PROMPT_CHILD_PRESENCE : '') +
     (input.hasHumanFamily ? FAMILY_COHERENCE_QA_PROMPT : '');
 
   try {
@@ -388,6 +409,7 @@ export async function evaluatePageVisualQa(input: {
         hasRailedBedOrCrib: !!input.hasRailedBedOrCrib,
         expectsCompanion: !!input.expectsCompanion,
         hasHumanFamily: !!input.hasHumanFamily,
+        expectsChild: !!input.expectsChild,
       })
     ) {
       return {
@@ -422,10 +444,14 @@ export async function evaluatePageVisualQa(input: {
         !checkTimeOfDay ||
         (raw.timeOfDayOk !== false && raw.readsAsDaylight !== true),
       companionSilhouetteOk: !input.expectsCompanion || raw.companionSilhouetteOk !== false,
+      // (#5a-fix ITEM 2) POSITIVE requirement: when a child is expected, require childPresent === true. A
+      // missing/false positive signal fails the child check (missing is already evidence_unknown via validation).
+      childPresenceOk: !input.expectsChild || raw.childPresent === true,
     };
 
     let reason: PageVisualQaReason = 'ok';
     if (!flags.anatomyOk) reason = 'anatomy_failed';
+    else if (!flags.childPresenceOk) reason = 'child_missing';
     else if (input.hasHumanFamily && !familyCoherenceOk) {
       reason = 'family_coherence_failed';
     } else if (checkTimeOfDay && !flags.timeOfDayOk) {

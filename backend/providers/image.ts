@@ -3070,27 +3070,33 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
     });
     if (!qaConfig.enabled) return last;
 
-    const entityPresence = deriveImageInputEntityPresence(input);
+    // (#5a-fix ITEM 1) QA MUST bind to what was actually ASSEMBLED/forced, not the pre-assembly input. Covers
+    // have an empty pagePrompt but the assembler forces childPresence='present' (last.style01Meta.entityPresence)
+    // and carries the real scene in last.style01Meta.sceneText. Deriving from the raw input would QA a cover
+    // against expectsChild=false — a cover missing the child could pass. Prefer the assembled contract.
+    const entityPresence = last.style01Meta?.entityPresence ?? deriveImageInputEntityPresence(input);
     const expectsChild = entityPresence.childPresence === 'present';
     const expectsCompanion = entityPresence.companionPresence === 'present';
+    const assembledScene =
+      (last.style01Meta?.sceneText ?? '').trim() || (input.rawScenePrompt ?? input.pagePrompt ?? '').trim();
     const structuredCtx = {
-      imagePrompt: input.rawScenePrompt ?? input.pagePrompt ?? undefined,
+      imagePrompt: assembledScene || undefined,
       bookPageText: input.bookPageText ?? undefined,
-      rawScenePrompt: input.rawScenePrompt ?? undefined,
+      rawScenePrompt: assembledScene || undefined,
     };
     const hasStructuredObjects = sceneHasStructuredObjects(structuredCtx);
     const hasRailedBedOrCrib = sceneHasRailedBedOrCrib(structuredCtx);
     const isEmotionalClosing = isEmotionalClosingBeat({
       pageNumber: input.pageNumber,
       totalPages: input.totalPages,
-      imagePrompt: input.pagePrompt ?? undefined,
+      imagePrompt: assembledScene || input.pagePrompt || undefined,
       bookPageText: input.bookPageText ?? undefined,
     });
     const { pageHasHumanFamily } = await import('../../lib/family-coherence');
     const hasHumanFamily = pageHasHumanFamily({
       bookPageText: input.bookPageText,
-      imageDirection: input.rawScenePrompt ?? input.pagePrompt,
-      rawScenePrompt: input.rawScenePrompt,
+      imageDirection: assembledScene || input.rawScenePrompt || input.pagePrompt,
+      rawScenePrompt: assembledScene || input.rawScenePrompt,
       pagePrompt: input.pagePrompt,
       presentEntityIds: input.pageStoryState?.presentEntities,
     });

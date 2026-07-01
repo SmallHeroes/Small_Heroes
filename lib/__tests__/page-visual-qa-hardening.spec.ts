@@ -111,6 +111,56 @@ describe('ITEM 1 — primary Vision positive validation (no durable passed on ma
   });
 });
 
+describe('#5a-fix ITEM 2 — positive child-presence requirement (a childless cover cannot pass)', () => {
+  it('child expected + childPresent:true (complete base) → passed', async () => {
+    mockPrimary(goodBase({ childPresent: true }));
+    const r = await evaluatePageVisualQa({ imageUrl: 'https://x/cover.png', expectsChild: true });
+    expect(r.verdict).toBe('passed');
+    expect(r.passed).toBe(true);
+  });
+
+  it('child expected + childPresent:false → child_missing / failed (never passes on absence)', async () => {
+    mockPrimary(goodBase({ childPresent: false }));
+    const r = await evaluatePageVisualQa({ imageUrl: 'https://x/cover.png', expectsChild: true });
+    expect(r.verdict).toBe('failed');
+    expect(r.reason).toBe('child_missing');
+    expect(r.passed).toBe(false);
+  });
+
+  it('KEY: singleChildOk:true ("at most one") does NOT prove a child exists → a childless cover still fails', async () => {
+    mockPrimary(goodBase({ singleChildOk: true, childPresent: false }));
+    const r = await evaluatePageVisualQa({ imageUrl: 'https://x/cover.png', expectsChild: true });
+    expect(r.verdict).toBe('failed');
+    expect(r.reason).toBe('child_missing');
+  });
+
+  it('child expected but childPresent MISSING → evidence_unknown (missing positive proof, not a defaulted pass)', async () => {
+    mockPrimary(goodBase()); // no childPresent field
+    const r = await evaluatePageVisualQa({ imageUrl: 'https://x/cover.png', expectsChild: true });
+    expect(r.verdict).toBe('evidence_unknown');
+    expect(r.reason).toBe('vision_malformed');
+  });
+
+  it('no child expected → childPresent not required; a complete base passes', async () => {
+    mockPrimary(goodBase());
+    const r = await evaluatePageVisualQa({ imageUrl: 'https://x/p1.png' }); // expectsChild undefined
+    expect(r.verdict).toBe('passed');
+  });
+
+  it('cover with structured crib + child expected: requires BOTH child and crib fields; both good → passed', async () => {
+    mockPrimaryThenStrict(goodBase({ ...CRIB_GOOD, childPresent: true }), STRICT_GOOD);
+    const r = await evaluatePageVisualQa({ imageUrl: 'https://x/cover.png', expectsChild: true, hasRailedBedOrCrib: true });
+    expect(r.verdict).toBe('passed');
+  });
+
+  it('cover with crib + child expected but child missing → child_missing (child check dominates the pass)', async () => {
+    mockPrimary(goodBase({ ...CRIB_GOOD, childPresent: false }));
+    const r = await evaluatePageVisualQa({ imageUrl: 'https://x/cover.png', expectsChild: true, hasRailedBedOrCrib: true });
+    expect(r.verdict).toBe('failed');
+    expect(r.reason).toBe('child_missing');
+  });
+});
+
 describe('ITEM 1b — strict-crib uncertainty can never keep a durable passed', () => {
   const cribInput = { imageUrl: 'https://x/crib.png', hasRailedBedOrCrib: true };
 
