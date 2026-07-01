@@ -5,6 +5,7 @@ import {
   evaluateFamilyCoherenceFlags,
   FAMILY_COHERENCE_QA_PROMPT,
 } from '../family-coherence/qa';
+import { QUALITY_REGEN_BUDGET, type QualityVerdict } from './quality-evidence';
 
 export type PageVisualQaReason =
   | 'ok'
@@ -23,6 +24,12 @@ export type PageVisualQaReason =
 
 export type PageVisualQaResult = {
   passed: boolean;
+  /**
+   * (#7-a) Durable-evidence verdict. Distinct from `passed`: when Vision is missing/errors the page is still
+   * ACCEPTED by the render loop (`passed:true`, legacy behavior preserved), but the durable verdict is
+   * `evidence_unknown` — a fail-closed signal so the readiness gate never delivers on un-QA'd bytes.
+   */
+  verdict: QualityVerdict;
   reason: PageVisualQaReason;
   details: string;
   flags: {
@@ -45,8 +52,10 @@ export type PageVisualQaConfig = {
 
 export function resolvePageVisualQaConfig(): PageVisualQaConfig {
   const enabled = process.env.PAGE_VISUAL_QA_ENABLED !== 'false';
+  // (#7-a) Hard cap 5 → QUALITY_REGEN_BUDGET (2): one candidate + at most two replacements. The env override
+  // can only lower the budget, never raise it above the durable regen budget the readiness gate enforces.
   const maxRegens = Math.min(
-    5,
+    QUALITY_REGEN_BUDGET,
     Math.max(0, Number.parseInt(process.env.PAGE_VISUAL_QA_MAX_REGENS ?? '2', 10) || 2)
   );
   return { enabled, maxRegens };
@@ -231,6 +240,7 @@ export async function evaluatePageVisualQa(input: {
   if (!apiKey) {
     return {
       passed: true,
+      verdict: 'evidence_unknown',
       reason: 'vision_skipped',
       details: 'OPENAI_API_KEY missing',
       flags: defaultQaFlags(),
@@ -290,6 +300,7 @@ export async function evaluatePageVisualQa(input: {
     if (!res.ok) {
       return {
         passed: true,
+        verdict: 'evidence_unknown',
         reason: 'vision_error',
         details: `HTTP ${res.status}`,
         flags: defaultQaFlags(),
@@ -371,6 +382,7 @@ export async function evaluatePageVisualQa(input: {
 
     return {
       passed,
+      verdict: passed ? 'passed' : 'failed',
       reason,
       details,
       flags,
@@ -379,6 +391,7 @@ export async function evaluatePageVisualQa(input: {
   } catch (e) {
     return {
       passed: true,
+      verdict: 'evidence_unknown',
       reason: 'vision_error',
       details: e instanceof Error ? e.message : String(e),
       flags: defaultQaFlags(),
