@@ -28,20 +28,6 @@ export interface QualityRecoveryResult {
   stillUnknown: string[];
 }
 
-// Fallback QA context for a required artifact with NO stored context (a crash-envelope missing row). Strict by
-// design — a personalized children's book expects the child on the cover AND every page — so it can NEVER
-// FABRICATE a pass (it only adds the positive child requirement); at worst it over-refunds a rare child-absent
-// crash-envelope page. Rows that exist (evidence_unknown/stale/hash-mismatch) carry their real stored context.
-const FALLBACK_QA_CONTEXT: QaContext = {
-  expectsChild: true,
-  expectsCompanion: false,
-  expectedPageTimeOfDay: null,
-  isEmotionalClosing: false,
-  hasStructuredObjects: false,
-  hasRailedBedOrCrib: false,
-  hasHumanFamily: false,
-};
-
 interface RequiredArtifact {
   artifactKey: string;
   deliveredUrl: string;
@@ -101,8 +87,18 @@ export async function reQaUnknownQualityEvidence(
       (row.verdict === 'passed' || row.verdict === 'failed');
     if (admissible) continue;
 
-    result.reQaCount += 1;
     const storedCtx = (row?.evidence as { qaContext?: QaContext | null } | null)?.qaContext ?? undefined;
+    // (#6-fix-3 BLOCKER 1) No stored context → we CANNOT re-QA against the real requirements, and we must NEVER
+    // fabricate a lenient context (that could PASS a page missing its required companion/crib/family). Leave it
+    // evidence_unknown (fail-closed) → the recommit blocks → recovery/refund. The producer now persists the exact
+    // context ATOMICALLY with the delivered asset, so a real delivered artifact always has its context and this
+    // branch is only hit for a genuinely context-less row (never auto-passed under weaker requirements).
+    if (!storedCtx) {
+      result.stillUnknown.push(art.artifactKey);
+      continue;
+    }
+
+    result.reQaCount += 1;
     await persistDeliveredQualityEvidence(
       prisma,
       {
@@ -111,7 +107,7 @@ export async function reQaUnknownQualityEvidence(
         deliveredUrl: art.deliveredUrl,
         presentationApplied: true, // force a fresh Vision pass on the CURRENT stored URL; never reuse a raw verdict
         rawVerdict: undefined,
-        qaContext: storedCtx ?? FALLBACK_QA_CONTEXT,
+        qaContext: storedCtx,
         regenAttempts: null,
       },
       deps,
@@ -126,4 +122,23 @@ export async function reQaUnknownQualityEvidence(
     else result.stillUnknown.push(art.artifactKey);
   }
   return result;
+}
+
+/**
+ * (#6-fix-3 BLOCKER 3) The artifact keys durably marked `regenPending` — cleared for a regen and awaiting a
+ * re-render. Set atomically with the clear by reserveMarkAndClearRegen; survives a redrive that never started, so
+ * the exception-processor re-dispatches from this marker on the next tick instead of refunding a destroyed asset.
+ * Cleared once the re-rendered bytes are re-QA'd (persistDeliveredQualityEvidence overwrites the evidence JSON).
+ */
+export async function loadRegenPendingArtifacts(prisma: PrismaClient, orderId: string): Promise<string[]> {
+  const rows = await prisma.qualityEvidence.findMany({
+    where: { orderId },
+    select: { artifactKey: true, evidence: true },
+  });
+  return rows
+    .filter((r) => {
+      const e = r.evidence;
+      return !!e && typeof e === 'object' && !Array.isArray(e) && (e as Record<string, unknown>).regenPending === true;
+    })
+    .map((r) => r.artifactKey);
 }

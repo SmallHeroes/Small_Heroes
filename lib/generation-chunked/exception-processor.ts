@@ -30,9 +30,13 @@ import {
 import { refundOrderPayment, prismaRefundFence, type RefundableOrder, type RefundResult, type RefundProviderDeps } from '@/lib/payment-refunds';
 import { startChunkedGeneration } from './start';
 import { commitBaseBookReadiness, type CommitResult } from '@/lib/generation-pipeline/readiness-manifest';
-import { reQaUnknownQualityEvidence, type QualityRecoveryResult } from '@/lib/generation-pipeline/quality-recovery';
-import { coverArtifactKey, pageNumberFromArtifactKey, QUALITY_REGEN_BUDGET } from '@/lib/generation-pipeline/quality-evidence';
-import { clearOrderPageImages, clearOrderCover } from './clear-page-images-for-regen';
+import {
+  reQaUnknownQualityEvidence,
+  loadRegenPendingArtifacts,
+  type QualityRecoveryResult,
+} from '@/lib/generation-pipeline/quality-recovery';
+import { QUALITY_REGEN_BUDGET } from '@/lib/generation-pipeline/quality-evidence';
+import { reserveMarkAndClearRegen } from './clear-page-images-for-regen';
 import { parsePipelineCache } from '@/lib/generation-pipeline/helpers';
 import { resolveAnchorDeliveryGate } from '@/lib/anchor-resemblance-gate';
 import { createLogger } from '@/lib/logger';
@@ -95,10 +99,11 @@ export interface ExceptionProcessorDeps {
   recommitReadiness: (prisma: PrismaClient, orderId: string) => Promise<CommitResult>;
   /** (#7-a 6) Re-QA the order's required artifacts vs their CURRENT delivered bytes (0 renders). */
   reQaQualityEvidence: (prisma: PrismaClient, orderId: string) => Promise<QualityRecoveryResult>;
-  /** (#7-a 6 regen-rescue) Delete the given pages' image assets so a redrive re-renders them. */
-  clearPageAssets: (prisma: PrismaClient, orderId: string, pageNumbers: number[]) => Promise<number>;
-  /** (#7-a 6 regen-rescue) Clear the cover so a redrive re-renders it. */
-  clearCoverAsset: (prisma: PrismaClient, orderId: string) => Promise<boolean>;
+  /** (#6-fix-3) ATOMICALLY reserve the durable regen budget → mark regen-pending → clear the artifact, as one tx.
+   *  `granted:false` = budget spent → NOT cleared (stays failed-terminal → the recommit refunds it). */
+  reserveMarkAndClearRegen: (prisma: PrismaClient, orderId: string, artifactKey: string) => Promise<{ granted: boolean }>;
+  /** (#6-fix-3) Artifact keys durably marked regen-pending — cleared, awaiting a re-render/redrive. */
+  loadRegenPending: (prisma: PrismaClient, orderId: string) => Promise<string[]>;
 }
 
 function defaultDeps(): ExceptionProcessorDeps {
@@ -113,8 +118,9 @@ function defaultDeps(): ExceptionProcessorDeps {
     redriveGeneration: (orderId) =>
       startChunkedGeneration(orderId, 'exception_case_recovery'),
     reQaQualityEvidence: (prisma, orderId) => reQaUnknownQualityEvidence(prisma, orderId),
-    clearPageAssets: (prisma, orderId, pageNumbers) => clearOrderPageImages(prisma, orderId, pageNumbers),
-    clearCoverAsset: (prisma, orderId) => clearOrderCover(prisma, orderId),
+    reserveMarkAndClearRegen: (prisma, orderId, artifactKey) =>
+      reserveMarkAndClearRegen(prisma, { orderId, artifactKey }),
+    loadRegenPending: (prisma, orderId) => loadRegenPendingArtifacts(prisma, orderId),
     recommitReadiness: async (prisma, orderId) => {
       const job = await prisma.generationJob.findUnique({
         where: { orderId },
@@ -554,29 +560,22 @@ async function handleRecoveryRetry(
     // (ZERO renders) BEFORE the recommit — recovering a missing/hash-mismatched/stale/un-QA'd asset.
     if (exceptionCase.reason?.startsWith('quality_evidence_unknown')) {
       const recovery = await deps.reQaQualityEvidence(prisma, exceptionCase.orderId);
-      // (#6-fix BLOCKER 2) Regen-rescue: a deterministic FAIL with budget remaining (regenCount < cap) gets a
-      // TARGETED regen — clear that page/cover asset + redrive its render (the 5b durable reserve honors the
-      // budget). The new bytes are re-QA'd on the next tick; regenCount reaches the cap → the recommit opens
-      // quality_failed → refund (the "up to two replacements, then refund" contract).
-      const rescuePages: number[] = [];
-      let rescueCover = false;
+      // (#6-fix-3, Codex-ratified) Regen-rescue order: ATOMICALLY reserve → mark regen-pending → clear → THEN
+      // dispatch. BLOCKER 2 — reserveMarkAndClearRegen reserves the durable budget ITSELF (a conditional
+      // regenCount++), so "≤ QUALITY_REGEN_BUDGET replacements then refund" is enforced at the rescue level
+      // regardless of whether an in-loop re-render happens to pass. A budget-spent artifact is granted:false →
+      // NOT cleared → it flows to the recommit → quality_failed → refund.
       for (const f of recovery.nowFailed) {
-        if (f.regenCount >= QUALITY_REGEN_BUDGET) continue; // budget spent → terminal (recommit → quality_failed)
-        if (f.artifactKey === coverArtifactKey()) rescueCover = true;
-        else {
-          const pageNumber = pageNumberFromArtifactKey(f.artifactKey);
-          if (pageNumber != null) rescuePages.push(pageNumber);
-        }
+        if (f.regenCount >= QUALITY_REGEN_BUDGET) continue; // fast skip; the atomic reserve is authoritative
+        await deps.reserveMarkAndClearRegen(prisma, exceptionCase.orderId, f.artifactKey);
       }
-      if (rescuePages.length > 0 || rescueCover) {
-        if (rescuePages.length > 0) await deps.clearPageAssets(prisma, exceptionCase.orderId, rescuePages);
-        if (rescueCover) await deps.clearCoverAsset(prisma, exceptionCase.orderId);
+      // BLOCKER 3 — re-dispatch every artifact left durably regen-pending: just-cleared this tick, OR cleared on a
+      // prior tick whose redrive never started. The clear + marker committed atomically, so a started:false never
+      // destroys an asset without a retry path — the marker survives and this tick redrives again. A persistent
+      // non-start is bounded by the recovery-attempts cap → refund (never a destroyed-asset dead end).
+      const pending = await deps.loadRegenPending(prisma, exceptionCase.orderId);
+      if (pending.length > 0) {
         const started = await deps.redriveGeneration(exceptionCase.orderId);
-        // (#6-fix-2) A non-started redrive is NOT a regen — the render never ran, so the 5b budget was NOT
-        // consumed. Surface it distinctly instead of masquerading a no-op as a successful rescue (which was the
-        // bug: startChunkedGeneration rejected needs_human_qa → started:false → silent retry → attempts-cap
-        // "delete + refund"). The carve-out (reason exception_case_recovery) now claims needs_human_qa →
-        // generating so a real rescue starts; a persistent non-start still hits the recovery-attempts cap → refund.
         if (!started.started) {
           return retryLater(
             prisma,
@@ -586,13 +585,7 @@ async function handleRecoveryRetry(
             started.message ?? 'redrive_not_started',
           );
         }
-        return retryLater(
-          prisma,
-          exceptionCase,
-          `quality_regen_rescue:pages=${rescuePages.length}${rescueCover ? '+cover' : ''}`,
-          now,
-          null,
-        );
+        return retryLater(prisma, exceptionCase, `quality_regen_rescue:${pending.join(',')}`, now, null);
       }
     }
 

@@ -69,7 +69,7 @@ import {
 import { heartbeatLease } from '@/lib/generation-chunked/lease';
 import { finalizeAndPersistStoryText } from './text-finalization';
 import { isReadinessManifestEnabled, withDeliveryInputMutation } from './readiness-manifest';
-import { persistDeliveredQualityEvidence } from './quality-evidence-producer';
+import { persistDeliveredQualityEvidence, persistQualityContext } from './quality-evidence-producer';
 import { coverArtifactKey, pageArtifactKey, makeQualityRegenReserver } from './quality-evidence';
 import { openExceptionCase } from '@/lib/generation-chunked/exception-case';
 import { finalizePackageDelivery } from './package-delivery';
@@ -896,6 +896,14 @@ async function runCoverStage(
         where: { id: book.id },
         data: { coverImageUrl: coverImage.url },
       });
+      // (#6-fix-3 BLOCKER 1) Bind the cover's exact QA context ATOMICALLY with the delivered bytes, so recovery
+      // re-QAs a crash-envelope cover against its REAL requirements (never a lenient fabricated fallback).
+      await persistQualityContext(tx, {
+        orderId: order.id,
+        artifactKey: coverArtifactKey(),
+        deliveredUrl: coverImage.url,
+        qaContext: coverImage.style01Meta?.pageVisualQa?.qaInput,
+      });
     },
   );
   // Legacy mirror used by progress/status surfaces; readiness reads GeneratedBook.coverImageUrl.
@@ -1373,6 +1381,15 @@ async function runPageImagesChunk(
             },
           });
         }
+        // (#6-fix-3 BLOCKER 1) Bind the page's exact QA context ATOMICALLY with the delivered bytes, so recovery
+        // re-QAs a crash-envelope page against its REAL requirements (companion/crib/family/time-of-day), never a
+        // lenient fabricated fallback that could pass a page missing its required companion.
+        await persistQualityContext(tx, {
+          orderId: order.id,
+          artifactKey: pageArtifactKey(dbPage.pageNumber),
+          deliveredUrl: presentationUrl ?? image.url,
+          qaContext: image.style01Meta?.pageVisualQa?.qaInput,
+        });
       },
     );
 

@@ -496,119 +496,171 @@ describe('ExceptionCase autonomous processor', () => {
   });
 });
 
-describe('#6-fix BLOCKER 2 — quality regen-rescue', () => {
+describe('#6-fix-3 — quality regen-rescue: reserve → mark → clear → dispatch (Codex-ratified)', () => {
   const qCase = (over: Partial<ExceptionCase> = {}) =>
     exceptionCase({ kind: 'infra_transient', status: 'retry_scheduled', reason: 'quality_evidence_unknown:page:2', sourceRef: 'readiness:m1', attempts: 1, ...over });
-  const recovery = (nowFailed: Array<{ artifactKey: string; regenCount: number }>) => ({ reQaCount: nowFailed.length, nowPassed: [], nowFailed, stillUnknown: [] });
 
-  it('failed page, regenCount 0 (budget remaining) → clears the page + redrives; NO recommit', async () => {
-    const state = qCase();
-    const db = fakePrisma(state);
-    const clearPageAssets = vi.fn(async () => 1);
-    const clearCoverAsset = vi.fn(async () => true);
+  // A faithful stand-in for the durable QualityEvidence budget: reserveMarkAndClearRegen performs the SAME
+  // conditional increment as the real function (regenCount++ while < budget) and marks the artifact regen-pending;
+  // reQa + loadRegenPending read the SAME store. The redrive is a plain mock that NEVER touches the counter — so
+  // every budget advance is attributable to the RESCUE's own reserve (BLOCKER 2), not a redrive-side counter (the
+  // #6-fix-2 mock pitfall). The REAL reserveMarkAndClearRegen against a DB is covered in reserve-mark-clear-regen.spec.ts.
+  const BUDGET = 2;
+  function store(rows: Record<string, number>) {
+    const regen: Record<string, number> = { ...rows };
+    const pending = new Set<string>();
+    const failedKeys = new Set(Object.keys(rows));
+    const reserveMarkAndClearRegen = vi.fn(async (_p: PrismaClient, _o: string, key: string) => {
+      if ((regen[key] ?? 0) >= BUDGET) return { granted: false }; // budget spent → NOT cleared
+      regen[key] = (regen[key] ?? 0) + 1;
+      pending.add(key);
+      return { granted: true };
+    });
+    const reQaQualityEvidence = vi.fn(async () => ({
+      reQaCount: failedKeys.size,
+      nowPassed: [] as string[],
+      stillUnknown: [] as string[],
+      nowFailed: [...failedKeys].map((k) => ({ artifactKey: k, regenCount: regen[k] ?? 0 })),
+    }));
+    const loadRegenPending = vi.fn(async () => [...pending]);
+    return { regen, pending, reserveMarkAndClearRegen, reQaQualityEvidence, loadRegenPending };
+  }
+
+  it('failed page, budget remaining → the RESCUE reserves (regenCount++), marks pending, and redrives; NO recommit', async () => {
+    const s = store({ 'page:2': 0 });
     const redriveGeneration = vi.fn(async () => ({ started: true }));
     const recommitReadiness = vi.fn();
-    const reQaQualityEvidence = vi.fn(async () => recovery([{ artifactKey: 'page:2', regenCount: 0 }]));
-    await expect(processExceptionCase(db.prisma, state, deps({ reQaQualityEvidence, clearPageAssets, clearCoverAsset, redriveGeneration, recommitReadiness })))
-      .resolves.toBe('retry_scheduled');
-    expect(clearPageAssets).toHaveBeenCalledWith(db.prisma, 'order_1', [2]);
-    expect(clearCoverAsset).not.toHaveBeenCalled();
+    const state = qCase();
+    await expect(processExceptionCase(fakePrisma(state).prisma, state, deps({
+      reQaQualityEvidence: s.reQaQualityEvidence, reserveMarkAndClearRegen: s.reserveMarkAndClearRegen,
+      loadRegenPending: s.loadRegenPending, redriveGeneration, recommitReadiness,
+    }))).resolves.toBe('retry_scheduled');
+    expect(s.regen['page:2']).toBe(1);               // the RESCUE reserved (not the redrive)
+    expect(s.pending.has('page:2')).toBe(true);      // durably marked regen-pending
     expect(redriveGeneration).toHaveBeenCalledWith('order_1');
     expect(recommitReadiness).not.toHaveBeenCalled();
   });
 
-  it('failed page, regenCount 1 (one replacement left) → still regens', async () => {
-    const state = qCase();
-    const db = fakePrisma(state);
-    const clearPageAssets = vi.fn(async () => 1);
-    const redriveGeneration = vi.fn(async () => ({ started: true }));
-    const reQaQualityEvidence = vi.fn(async () => recovery([{ artifactKey: 'page:2', regenCount: 1 }]));
-    await expect(processExceptionCase(db.prisma, state, deps({ reQaQualityEvidence, clearPageAssets, clearCoverAsset: vi.fn(async () => true), redriveGeneration, recommitReadiness: vi.fn() })))
-      .resolves.toBe('retry_scheduled');
-    expect(clearPageAssets).toHaveBeenCalledWith(db.prisma, 'order_1', [2]);
-    expect(redriveGeneration).toHaveBeenCalled();
-  });
-
-  it('failed page, regenCount 2 (budget spent) → NO regen; recommit runs (→ quality_failed/refund downstream)', async () => {
-    const state = qCase();
-    const db = fakePrisma(state);
-    const clearPageAssets = vi.fn(async () => 1);
+  it('failed page, budget spent (regenCount 2) → NOT reserved/cleared, no dispatch; recommit runs (→ quality_failed)', async () => {
+    const s = store({ 'page:2': 2 });
     const redriveGeneration = vi.fn(async () => ({ started: true }));
     const recommitReadiness = vi.fn(async () => ({ manifestId: 'm', revision: 2, manifestStatus: 'blocked' as const, orderStatus: 'needs_human_qa', deliveryHoldReason: 'x', enqueued: false, reason: 'x' }));
-    const reQaQualityEvidence = vi.fn(async () => recovery([{ artifactKey: 'page:2', regenCount: 2 }]));
-    await processExceptionCase(db.prisma, state, deps({ reQaQualityEvidence, clearPageAssets, clearCoverAsset: vi.fn(async () => true), redriveGeneration, recommitReadiness }));
-    expect(clearPageAssets).not.toHaveBeenCalled();
+    const state = qCase();
+    await processExceptionCase(fakePrisma(state).prisma, state, deps({
+      reQaQualityEvidence: s.reQaQualityEvidence, reserveMarkAndClearRegen: s.reserveMarkAndClearRegen,
+      loadRegenPending: s.loadRegenPending, redriveGeneration, recommitReadiness,
+    }));
+    expect(s.regen['page:2']).toBe(2);               // unchanged (fast-skip; the atomic reserve would also decline)
+    expect(s.pending.size).toBe(0);
+    expect(redriveGeneration).not.toHaveBeenCalled();
     expect(recommitReadiness).toHaveBeenCalled();
   });
 
-  it('failed COVER, budget remaining → clears the cover + redrives', async () => {
-    const state = qCase({ reason: 'quality_evidence_unknown:cover' });
-    const db = fakePrisma(state);
-    const clearPageAssets = vi.fn(async () => 0);
-    const clearCoverAsset = vi.fn(async () => true);
+  it('failed COVER, budget remaining → reserves + redrives', async () => {
+    const s = store({ cover: 0 });
     const redriveGeneration = vi.fn(async () => ({ started: true }));
-    await expect(processExceptionCase(db.prisma, state, deps({ reQaQualityEvidence: vi.fn(async () => recovery([{ artifactKey: 'cover', regenCount: 0 }])), clearPageAssets, clearCoverAsset, redriveGeneration, recommitReadiness: vi.fn() })))
-      .resolves.toBe('retry_scheduled');
-    expect(clearCoverAsset).toHaveBeenCalledWith(db.prisma, 'order_1');
-    expect(clearPageAssets).not.toHaveBeenCalled();
+    const state = qCase({ reason: 'quality_evidence_unknown:cover' });
+    await expect(processExceptionCase(fakePrisma(state).prisma, state, deps({
+      reQaQualityEvidence: s.reQaQualityEvidence, reserveMarkAndClearRegen: s.reserveMarkAndClearRegen,
+      loadRegenPending: s.loadRegenPending, redriveGeneration, recommitReadiness: vi.fn(),
+    }))).resolves.toBe('retry_scheduled');
+    expect(s.regen['cover']).toBe(1);
     expect(redriveGeneration).toHaveBeenCalled();
   });
 
   it('all passed after re-QA → no rescue; recommit runs and resolves', async () => {
-    const state = qCase();
-    const db = fakePrisma(state);
-    const clearPageAssets = vi.fn(async () => 0);
+    const s = store({}); // no failures
     const recommitReadiness = vi.fn(async () => ({ manifestId: 'm', revision: 2, manifestStatus: 'passed' as const, orderStatus: 'ready', deliveryHoldReason: null, enqueued: true, reason: null }));
-    await expect(processExceptionCase(db.prisma, state, deps({ reQaQualityEvidence: vi.fn(async () => recovery([])), clearPageAssets, clearCoverAsset: vi.fn(async () => true), recommitReadiness })))
-      .resolves.toBe('resolved');
-    expect(clearPageAssets).not.toHaveBeenCalled();
+    const state = qCase();
+    await expect(processExceptionCase(fakePrisma(state).prisma, state, deps({
+      reQaQualityEvidence: s.reQaQualityEvidence, reserveMarkAndClearRegen: s.reserveMarkAndClearRegen,
+      loadRegenPending: s.loadRegenPending, recommitReadiness,
+    }))).resolves.toBe('resolved');
     expect(recommitReadiness).toHaveBeenCalled();
+  });
+
+  it('BLOCKER 2 (real teeth): the RESCUE reserves at the rescue level → failed×2 advances the durable budget → recommit at budget (quality_failed, NOT the attempts-cap no-op)', async () => {
+    const s = store({ 'page:2': 0 });
+    // The redrive is a plain no-op mock (started:true) that NEVER touches regenCount — so the ONLY thing that can
+    // advance the durable budget is the RESCUE's own reserve. Before this fix a rescue whose redrive "passed
+    // in-loop" consumed 0 budget and looped until the attempts cap; now each rescue reserves itself.
+    const redriveGeneration = vi.fn(async () => ({ started: true }));
+    const recommitReadiness = vi.fn(async () => ({ manifestId: 'm', revision: 2, manifestStatus: 'blocked' as const, orderStatus: 'needs_human_qa', deliveryHoldReason: 'x', enqueued: false, reason: 'x' }));
+    const d = deps({
+      reQaQualityEvidence: s.reQaQualityEvidence, reserveMarkAndClearRegen: s.reserveMarkAndClearRegen,
+      loadRegenPending: s.loadRegenPending, redriveGeneration, recommitReadiness,
+    });
+
+    // Tick 1: reserve 0→1 → redrive → retry
+    const s1 = qCase({ attempts: 1 });
+    await processExceptionCase(fakePrisma(s1).prisma, s1, d);
+    expect(s.regen['page:2']).toBe(1);
+    s.pending.clear(); // a successful re-render clears the marker; the artifact still fails on re-QA (regenCount kept)
+    // Tick 2: reserve 1→2 → redrive → retry
+    const s2 = qCase({ attempts: 2 });
+    await processExceptionCase(fakePrisma(s2).prisma, s2, d);
+    expect(s.regen['page:2']).toBe(2);
+    expect(recommitReadiness).not.toHaveBeenCalled();
+    s.pending.clear();
+    // Tick 3: budget spent → reserve declines (granted:false), nothing pending → recommit → quality_failed refund
+    const s3 = qCase({ attempts: 2 });
+    await processExceptionCase(fakePrisma(s3).prisma, s3, d);
+    expect(s.regen['page:2']).toBe(2);                    // never exceeds budget
+    expect(redriveGeneration).toHaveBeenCalledTimes(2);   // no 3rd replacement
+    expect(recommitReadiness).toHaveBeenCalledTimes(1);   // budget-driven recommit (→ quality_failed), NOT attempts-cap
   });
 });
 
-describe('#6-fix-2 — rescue redrive actually resumes (not a silent no-op)', () => {
+describe('#6-fix-3 BLOCKER 3 — a non-started redrive stays RETRYABLE from the durable regen-pending marker', () => {
   const qCase = (over: Partial<ExceptionCase> = {}) =>
     exceptionCase({ kind: 'infra_transient', status: 'retry_scheduled', reason: 'quality_evidence_unknown:page:2', sourceRef: 'readiness:m1', attempts: 1, ...over });
-  const recovery = (nowFailed: Array<{ artifactKey: string; regenCount: number }>) => ({ reQaCount: nowFailed.length, nowPassed: [], nowFailed, stillUnknown: [] });
+  const failed = (key: string, regenCount: number) => ({ reQaCount: 1, nowPassed: [] as string[], stillUnknown: [] as string[], nowFailed: [{ artifactKey: key, regenCount }] });
+  const none = () => ({ reQaCount: 0, nowPassed: [] as string[], stillUnknown: [] as string[], nowFailed: [] as Array<{ artifactKey: string; regenCount: number }> });
 
-  it('FIX #2: a non-started redrive is surfaced distinctly (never mistaken for a regen)', async () => {
+  it('started:false → the asset was cleared + marked INSIDE the atomic reserve tx, so the marker persists; surfaced via lastError', async () => {
+    const pending = new Set<string>(['page:2']); // reserveMarkAndClearRegen already cleared + marked in-tx this tick
     const state = qCase();
     const db = fakePrisma(state);
     await expect(processExceptionCase(db.prisma, state, deps({
-      reQaQualityEvidence: vi.fn(async () => recovery([{ artifactKey: 'page:2', regenCount: 0 }])),
-      clearPageAssets: vi.fn(async () => 1),
-      clearCoverAsset: vi.fn(async () => true),
+      reQaQualityEvidence: vi.fn(async () => failed('page:2', 1)),
+      reserveMarkAndClearRegen: vi.fn(async () => { pending.add('page:2'); return { granted: true }; }),
+      loadRegenPending: vi.fn(async () => [...pending]),
       redriveGeneration: vi.fn(async () => ({ started: false, message: 'Already completed' })),
       recommitReadiness: vi.fn(),
     }))).resolves.toBe('retry_scheduled');
-    // A non-started redrive surfaces the redrive failure as lastError (vs. a SUCCESSFUL rescue which clears it to
-    // null) — so a no-op is never mistaken for a real regen. The distinct reason is recorded in the audit trail.
+    // A non-started redrive is surfaced (lastError) rather than masqueraded as a successful rescue (which sets it
+    // null). The clear + marker committed atomically, so no asset is destroyed without a retry path.
     expect(db.currentCase().lastError).toBe('Already completed');
+    expect(db.currentCase().status).toBe('retry_scheduled');
   });
 
-  it('FIX #3: rescue REALLY resumes — redrive STARTS + advances the durable 5b budget; stops at budget → recommit (BUDGET refund, not the attempts-cap no-op)', async () => {
-    let regenCount = 0;
-    // The carve-out makes needs_human_qa → generating, so the render runs and its 5b reserve increments the
-    // durable regenCount. Modeled here: each STARTED redrive consumes one unit of budget (a no-op leaves it 0).
-    const redriveGeneration = vi.fn(async () => { if (regenCount < 2) regenCount += 1; return { started: true }; });
-    const clearPageAssets = vi.fn(async () => 1);
-    const recommitReadiness = vi.fn(async () => ({ manifestId: 'm', revision: 2, manifestStatus: 'blocked' as const, orderStatus: 'needs_human_qa', deliveryHoldReason: 'x', enqueued: false, reason: 'x' }));
-    const reQaQualityEvidence = vi.fn(async () => recovery([{ artifactKey: 'page:2', regenCount }]));
-    const rescueDeps = () => deps({ reQaQualityEvidence, clearPageAssets, clearCoverAsset: vi.fn(async () => true), redriveGeneration, recommitReadiness });
+  it('next tick RE-DISPATCHES a still-regen-pending artifact WITHOUT re-reserving (no double-spend), redrive retries', async () => {
+    // No NEW failures this tick (the cleared page has no bytes to re-QA), but a prior tick left page:2 durably
+    // regen-pending; the processor must redrive it again rather than fall through to a refund.
+    const reserveMarkAndClearRegen = vi.fn(async () => ({ granted: true }));
+    const redriveGeneration = vi.fn(async () => ({ started: true }));
+    const recommitReadiness = vi.fn();
+    const state = qCase({ attempts: 2 });
+    await expect(processExceptionCase(fakePrisma(state).prisma, state, deps({
+      reQaQualityEvidence: vi.fn(async () => none()),
+      reserveMarkAndClearRegen,
+      loadRegenPending: vi.fn(async () => ['page:2']), // still pending from a prior non-start
+      redriveGeneration,
+      recommitReadiness,
+    }))).resolves.toBe('retry_scheduled');
+    expect(reserveMarkAndClearRegen).not.toHaveBeenCalled(); // no new failure → no re-reserve (budget not double-spent)
+    expect(redriveGeneration).toHaveBeenCalledWith('order_1'); // re-dispatched from the durable marker
+    expect(recommitReadiness).not.toHaveBeenCalled();
+  });
 
-    // Tick 1 (regenCount 0): rescue → redrive STARTS → budget 0→1
-    const s1 = qCase({ attempts: 1 });
-    await processExceptionCase(fakePrisma(s1).prisma, s1, rescueDeps());
-    expect(regenCount).toBe(1); // budget consumed — a silent no-op would have left it at 0
-    // Tick 2 (regenCount 1): rescue → redrive STARTS → budget 1→2
-    const s2 = qCase({ attempts: 2 });
-    await processExceptionCase(fakePrisma(s2).prisma, s2, rescueDeps());
-    expect(regenCount).toBe(2);
-    expect(recommitReadiness).not.toHaveBeenCalled(); // still rescuing, not yet at budget
-    // Tick 3 (regenCount 2 = budget spent, attempts 2 < recovery cap): NO rescue → recommit → quality_failed refund
-    const s3 = qCase({ attempts: 2 });
-    await processExceptionCase(fakePrisma(s3).prisma, s3, rescueDeps());
-    expect(redriveGeneration).toHaveBeenCalledTimes(2); // NOT called a 3rd time — budget spent, no more replacements
-    expect(recommitReadiness).toHaveBeenCalledTimes(1); // budget-driven → recommit opens quality_failed → refund
+  it('a persistent non-start is bounded by the recovery-attempts cap → refund (never a stuck destroyed asset)', async () => {
+    const state = qCase({ attempts: EXCEPTION_MAX_RECOVERY_ATTEMPTS + 1 });
+    const db = fakePrisma(state);
+    await expect(processExceptionCase(db.prisma, state, deps({
+      reQaQualityEvidence: vi.fn(async () => none()),
+      loadRegenPending: vi.fn(async () => ['page:2']),
+      redriveGeneration: vi.fn(async () => ({ started: false, message: 'Already completed' })),
+    }))).resolves.toBe('refund_pending');
+    expect(db.currentCase().status).toBe('refund_pending');
   });
 });

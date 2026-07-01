@@ -17,7 +17,11 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
 import { inspectAsset, type AssetInspection } from './asset-integrity';
 import { evaluatePageVisualQa, type PageVisualQaResult } from './page-visual-qa';
-import { persistQualityEvidence, type QualityVerdict } from './quality-evidence';
+import {
+  persistQualityEvidence,
+  QUALITY_EVALUATOR_CONTRACT_VERSION,
+  type QualityVerdict,
+} from './quality-evidence';
 import { isReadinessManifestEnabled } from './readiness-manifest';
 
 type Db = PrismaClient | Prisma.TransactionClient;
@@ -72,6 +76,53 @@ async function resolveDeliveredVerdict(
   }
   if (!args.rawVerdict) return { verdict: 'evidence_unknown', reason: 'raw_verdict_missing' };
   return { verdict: args.rawVerdict, reason: null };
+}
+
+/**
+ * (#6-fix-3 BLOCKER 1) Persist the EXACT QA context for an artifact ATOMICALLY WITH the delivered asset — call
+ * this INSIDE the asset's write-barrier tx, right after the ImageAsset / coverImageUrl write.
+ *
+ * This CLOSES the crash window between the asset write and the (post-tx, network-bound) verdict persist. Before
+ * this, a crash in that window left recovery with an asset but no evidence row → it re-QA'd against a LENIENT
+ * fabricated fallback (child-strict, but companion/crib/family/time-of-day OFF) that could PASS a page actually
+ * missing its required companion. Now, if the asset exists, its exact requirements exist too — recovery re-QAs
+ * against the REAL context. Writes ONLY the evidence JSON (merged), never verdict / assetSha256 / regenCount, so
+ * the DB-reserved budget (5b) and any prior verdict are preserved; the verdict is set later by
+ * persistDeliveredQualityEvidence. Flag-gated; a no-op when there is no context (the fail-closed gate still
+ * blocks a context-less artifact).
+ */
+export async function persistQualityContext(
+  db: Db,
+  args: { orderId: string; artifactKey: string; deliveredUrl: string | null; qaContext: QaContext | undefined },
+): Promise<void> {
+  if (!isReadinessManifestEnabled()) return; // flag OFF → legacy path unchanged
+  if (!args.qaContext) return; // nothing to bind — the fail-closed gate covers a context-less artifact
+  const existing = await db.qualityEvidence.findUnique({
+    where: { orderId_artifactKey: { orderId: args.orderId, artifactKey: args.artifactKey } },
+    select: { evidence: true },
+  });
+  const base =
+    existing?.evidence && typeof existing.evidence === 'object' && !Array.isArray(existing.evidence)
+      ? (existing.evidence as Record<string, unknown>)
+      : {};
+  const evidence = {
+    ...base,
+    deliveredUrl: args.deliveredUrl,
+    qaContext: args.qaContext,
+  } as unknown as Prisma.InputJsonValue;
+  await db.qualityEvidence.upsert({
+    where: { orderId_artifactKey: { orderId: args.orderId, artifactKey: args.artifactKey } },
+    create: {
+      orderId: args.orderId,
+      artifactKey: args.artifactKey,
+      assetSha256: '',
+      verdict: 'evidence_unknown',
+      evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION,
+      regenCount: 0,
+      evidence,
+    },
+    update: { evidence },
+  });
 }
 
 export async function persistDeliveredQualityEvidence(

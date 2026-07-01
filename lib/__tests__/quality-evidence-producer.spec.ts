@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   persistDeliveredQualityEvidence,
+  persistQualityContext,
   type QaContext,
 } from '@/lib/generation-pipeline/quality-evidence-producer';
 import type { AssetInspection } from '@/lib/generation-pipeline/asset-integrity';
@@ -47,6 +48,51 @@ describe('persistDeliveredQualityEvidence — flag gating', () => {
     expect(db.qualityEvidence.upsert).not.toHaveBeenCalled();
     expect(inspect).not.toHaveBeenCalled();
     expect(evaluate).not.toHaveBeenCalled();
+  });
+});
+
+describe('persistQualityContext (#6-fix-3 BLOCKER 1) — bind the exact context atomically with the asset', () => {
+  type CtxDb = { qualityEvidence: { findUnique: ReturnType<typeof vi.fn>; upsert: ReturnType<typeof vi.fn> } };
+  const ctxDb = (existingEvidence: Record<string, unknown> | null): CtxDb => ({
+    qualityEvidence: {
+      findUnique: vi.fn(async () => (existingEvidence === undefined ? null : { evidence: existingEvidence })),
+      upsert: vi.fn(async () => ({})),
+    },
+  });
+  const arg = (db: CtxDb) => db.qualityEvidence.upsert.mock.calls[0]?.[0] as { create: Record<string, unknown>; update: Record<string, unknown> };
+
+  it('no existing row → creates a fail-closed evidence_unknown row (regenCount 0) carrying the REAL qaContext', async () => {
+    const db = ctxDb(null);
+    await persistQualityContext(db as never, { orderId: 'o1', artifactKey: 'page:1', deliveredUrl: 'u1', qaContext: { ...QA_CTX, expectsCompanion: true } });
+    const a = arg(db);
+    expect(a.create.verdict).toBe('evidence_unknown');
+    expect(a.create.regenCount).toBe(0);
+    expect((a.create.evidence as Record<string, unknown>).qaContext).toEqual(expect.objectContaining({ expectsCompanion: true }));
+    expect((a.create.evidence as Record<string, unknown>).deliveredUrl).toBe('u1');
+  });
+
+  it('existing row → MERGES context into evidence WITHOUT touching verdict / regenCount (preserves regenPending)', async () => {
+    const db = ctxDb({ regenPending: true, stray: 1 });
+    await persistQualityContext(db as never, { orderId: 'o1', artifactKey: 'page:1', deliveredUrl: 'u2', qaContext: QA_CTX });
+    const a = arg(db);
+    expect(a.update).toEqual({ evidence: expect.objectContaining({ regenPending: true, stray: 1, deliveredUrl: 'u2', qaContext: QA_CTX }) });
+    expect(a.update).not.toHaveProperty('verdict'); // never rewrites the verdict
+    expect(a.update).not.toHaveProperty('regenCount'); // never touches the durable budget (5b)
+    expect(a.update).not.toHaveProperty('assetSha256');
+  });
+
+  it('flag OFF → no-op (no findUnique, no upsert)', async () => {
+    process.env.READINESS_MANIFEST_ENABLED = 'false';
+    const db = ctxDb(null);
+    await persistQualityContext(db as never, { orderId: 'o1', artifactKey: 'page:1', deliveredUrl: 'u', qaContext: QA_CTX });
+    expect(db.qualityEvidence.findUnique).not.toHaveBeenCalled();
+    expect(db.qualityEvidence.upsert).not.toHaveBeenCalled();
+  });
+
+  it('no qaContext → no-op (the fail-closed gate still covers a context-less artifact)', async () => {
+    const db = ctxDb(null);
+    await persistQualityContext(db as never, { orderId: 'o1', artifactKey: 'page:1', deliveredUrl: 'u', qaContext: undefined });
+    expect(db.qualityEvidence.upsert).not.toHaveBeenCalled();
   });
 });
 

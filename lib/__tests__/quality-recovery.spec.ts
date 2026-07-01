@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { reQaUnknownQualityEvidence } from '@/lib/generation-pipeline/quality-recovery';
+import { reQaUnknownQualityEvidence, loadRegenPendingArtifacts } from '@/lib/generation-pipeline/quality-recovery';
 import type { AssetInspection } from '@/lib/generation-pipeline/asset-integrity';
 
 const okInspect = (sha: string | null): AssetInspection => ({
@@ -41,13 +41,32 @@ beforeEach(() => { prev = process.env.READINESS_MANIFEST_ENABLED; process.env.RE
 afterEach(() => { if (prev === undefined) delete process.env.READINESS_MANIFEST_ENABLED; else process.env.READINESS_MANIFEST_ENABLED = prev; vi.restoreAllMocks(); });
 
 describe('reQaUnknownQualityEvidence — enumerate REQUIRED artifacts (#6-fix BLOCKER 1)', () => {
-  it('MISSING row (asset exists, no evidence — crash envelope) → re-QA current bytes → recover', async () => {
-    const { db } = makeDb({ coverImageUrl: null, pages: [page(1, 'https://h/p1.png')] }, []); // no rows
+  it('BLOCKER 1: a MISSING evidence row (no persisted context) is NEVER re-QA\'d under a lenient fabricated context → stays evidence_unknown (fail-closed)', async () => {
+    // Pre-#6-fix-3 this re-QA\'d under a lenient FALLBACK (companion/crib/family OFF) and could PASS a page missing
+    // its required companion. Now, with no stored context, we cannot verify against the REAL requirements → leave it
+    // unknown (→ the recommit blocks → recovery/refund). The producer persists the exact context atomically with the
+    // asset, so a real delivered artifact always has its context and never lands here.
+    const { db } = makeDb({ coverImageUrl: null, pages: [page(1, 'https://h/p1.png')] }, []); // asset exists, no row
     const evaluate = vi.fn(async () => ({ passed: true, verdict: 'passed', reason: 'ok', details: '', flags: {} } as never));
     const r = await reQaUnknownQualityEvidence(db as never, 'o1', { evaluate: evaluate as never, inspect: async () => okInspect('H') });
-    expect(r.reQaCount).toBe(1);
-    expect(evaluate).toHaveBeenCalledWith(expect.objectContaining({ imageUrl: 'https://h/p1.png' }));
-    expect(r.nowPassed).toEqual(['page:1']);
+    expect(evaluate).not.toHaveBeenCalled(); // never fabricates a lenient context
+    expect(r.reQaCount).toBe(0);
+    expect(r.stillUnknown).toEqual(['page:1']);
+    expect(r.nowPassed).toEqual([]);
+  });
+
+  it('BLOCKER 1: re-QA uses the REAL persisted context (companion REQUIRED) — a companion-missing image FAILS, never a lenient pass', async () => {
+    const rows: Row[] = [{ artifactKey: 'page:1', verdict: 'evidence_unknown', evaluatorContractVersion: 'qa-v1', assetSha256: 'H', regenCount: 0, evidence: { qaContext: { ...QA_CTX, expectsCompanion: true } } }];
+    const { db } = makeDb({ coverImageUrl: null, pages: [page(1, 'https://h/p1.png')] }, rows);
+    // The evaluator honors the passed context: with expectsCompanion it FAILS the companion-missing image.
+    const evaluate = vi.fn(async (input: { expectsCompanion?: boolean }) => ({
+      passed: !input.expectsCompanion, verdict: input.expectsCompanion ? 'failed' : 'passed',
+      reason: 'companion_missing', details: '', flags: {},
+    } as never));
+    const r = await reQaUnknownQualityEvidence(db as never, 'o1', { evaluate: evaluate as never, inspect: async () => okInspect('H') });
+    expect(evaluate).toHaveBeenCalledWith(expect.objectContaining({ expectsCompanion: true })); // REAL requirement used
+    expect(r.nowFailed).toEqual([{ artifactKey: 'page:1', regenCount: 0 }]); // correctly failed, not a lenient pass
+    expect(r.nowPassed).toEqual([]);
   });
 
   it('HASH_MISMATCH: a PASSED row for OLD bytes ≠ current delivered bytes → re-QA current → recover (not refunded)', async () => {
@@ -84,11 +103,32 @@ describe('reQaUnknownQualityEvidence — enumerate REQUIRED artifacts (#6-fix BL
     expect(r.nowFailed).toEqual([{ artifactKey: 'page:1', regenCount: 1 }]);
   });
 
-  it('the COVER is a required artifact and is re-QA\'d against its delivered bytes', async () => {
-    const { db } = makeDb({ coverImageUrl: 'https://h/cover.png', pages: [] }, []);
+  it('the COVER is a required artifact and is re-QA\'d against its delivered bytes (using its stored context)', async () => {
+    const rows: Row[] = [{ artifactKey: 'cover', verdict: 'evidence_unknown', evaluatorContractVersion: 'qa-v1', assetSha256: 'STALE', evidence: { qaContext: QA_CTX } }];
+    const { db } = makeDb({ coverImageUrl: 'https://h/cover.png', pages: [] }, rows);
     const evaluate = vi.fn(async () => ({ passed: true, verdict: 'passed', reason: 'ok', details: '', flags: {} } as never));
     const r = await reQaUnknownQualityEvidence(db as never, 'o1', { evaluate: evaluate as never, inspect: async () => okInspect('HC') });
     expect(evaluate).toHaveBeenCalledWith(expect.objectContaining({ imageUrl: 'https://h/cover.png' }));
     expect(r.nowPassed).toEqual(['cover']);
+  });
+});
+
+describe('loadRegenPendingArtifacts (#6-fix-3 BLOCKER 3)', () => {
+  it('returns only the artifacts durably marked regenPending in their evidence JSON', async () => {
+    const rows = [
+      { artifactKey: 'cover', evidence: { qaContext: QA_CTX, regenPending: true } },
+      { artifactKey: 'page:1', evidence: { qaContext: QA_CTX } }, // not pending
+      { artifactKey: 'page:2', evidence: { regenPending: true } },
+      { artifactKey: 'page:3', evidence: null }, // no evidence
+      { artifactKey: 'page:4', evidence: { regenPending: false } },
+    ];
+    const prisma = { qualityEvidence: { findMany: vi.fn(async () => rows) } };
+    const r = await loadRegenPendingArtifacts(prisma as never, 'o1');
+    expect(r.sort()).toEqual(['cover', 'page:2']);
+  });
+
+  it('no pending rows → empty (recovery falls through to the recommit)', async () => {
+    const prisma = { qualityEvidence: { findMany: vi.fn(async () => [{ artifactKey: 'page:1', evidence: { qaContext: QA_CTX } }]) } };
+    expect(await loadRegenPendingArtifacts(prisma as never, 'o1')).toEqual([]);
   });
 });
