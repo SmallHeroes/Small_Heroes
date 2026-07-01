@@ -236,6 +236,7 @@ model Order {
   resemblanceAudits  ResemblanceAudit[]
   exceptionCases     ExceptionCase[]
   qualityEvidence    QualityEvidence[]
+  atomicOperationReceipts AtomicOperationReceipt[]
 
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
@@ -699,5 +700,26 @@ model QualityEvidence {
   updatedAt                DateTime @updatedAt
 
   @@unique([orderId, artifactKey])
+  @@index([orderId])
+}
+
+// (pooler-fix / Codex B′) Durable idempotency receipt for the generation worker's post-render interactive
+// transactions. Under the Supavisor TRANSACTION pooler (6543) a barrier tx can commit yet the caller still
+// receives P2028 ("Transaction not found") after the long render gap. The receipt is written in the SAME tx as
+// the business mutation, keyed by a durable operationKey — so a retry re-enters through the fence: if the prior
+// attempt committed, the unique operationKey conflicts and the RECORDED result is returned (exactly-once, the
+// mutation is NEVER reapplied); if it did not commit, the receipt is absent and the mutation runs. A payloadHash
+// mismatch under the same key fails closed (same key + different payload = a defect). Service-role only (RLS
+// enabled, no client policy — mirrors ExceptionCase/QualityEvidence).
+model AtomicOperationReceipt {
+  id           String   @id @default(cuid())
+  operationKey String   @unique // durable, survives worker retries; the exactly-once fence key
+  orderId      String
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  kind         String   // which barrier: 'delivery_input' | 'regen_reserve' | 'readiness_commit'
+  payloadHash  String   // hash of the operation's inputs; a mismatch under the same key fails closed
+  result       Json     // the recorded return value (inputVersion, revision, granted, orderStatus, …) replayed on a fence hit
+  createdAt    DateTime @default(now())
+
   @@index([orderId])
 }
