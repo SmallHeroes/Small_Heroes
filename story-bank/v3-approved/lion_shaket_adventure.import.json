@@ -1,0 +1,12 @@
+{
+  "storyId": "golden-lion_shaket_adventure-2026-07-02",
+  "sourceRunDir": "story-bank/v5-fixed-v2/lion_shaket_adventure.md",
+  "companionId": "lion_shaket",
+  "direction": "adventure",
+  "pageCount": 12,
+  "approvedBy": "Guy",
+  "approvedAt": "2026-07-02T12:00:00+03:00",
+  "approvalNote": "Phase 1 reorg — v5 golden promote (CALIBRATION-aligned)",
+  "importedAt": "2026-07-02T08:08:22.542Z",
+  "servedOnlyWhen": "ENABLE_V3_APPROVED_BANK=true"
+}

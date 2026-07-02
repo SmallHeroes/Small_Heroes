@@ -42,7 +42,7 @@ describe('resolveStoryProductTruth', () => {
     else process.env.ENABLE_V3_APPROVED_BANK = originalFlag;
   });
 
-  it('client adventure + bunny (v3 bedtime only) → v5 adventure golden, NOT bedtime override', () => {
+  it('client adventure + bunny (v3 adventure binding) → v3 adventure, NOT bedtime override', () => {
     process.env.ENABLE_V3_APPROVED_BANK = 'true';
     if (createdFixture) writeBunnyFixture(8);
 
@@ -53,7 +53,7 @@ describe('resolveStoryProductTruth', () => {
     expect(resolved.storyDirection).toBe('adventure');
     expect(resolved.storyLength).toBe('medium');
     expect(resolved.priceILS).toBe(79);
-    expect(resolved.source).toBe('companion_golden');
+    expect(resolved.source).toBe('v3_approved_binding');
   });
 
   it('client bedtime + bunny → v3 bedtime binding preserved', () => {

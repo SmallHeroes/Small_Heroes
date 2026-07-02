@@ -1,0 +1,12 @@
+{
+  "storyId": "golden-panda_anat_adventure-2026-07-02",
+  "sourceRunDir": "story-bank/v5-fixed-v2/panda_anat_adventure.md",
+  "companionId": "panda_anat",
+  "direction": "adventure",
+  "pageCount": 12,
+  "approvedBy": "Guy",
+  "approvedAt": "2026-07-02T12:00:00+03:00",
+  "approvalNote": "Phase 1 reorg — v5 golden promote",
+  "importedAt": "2026-07-02T08:08:22.548Z",
+  "servedOnlyWhen": "ENABLE_V3_APPROVED_BANK=true"
+}

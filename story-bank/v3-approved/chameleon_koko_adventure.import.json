@@ -1,0 +1,12 @@
+{
+  "storyId": "golden-chameleon_koko_adventure-2026-07-02",
+  "sourceRunDir": "outputs/chameleon_koko_adventure.CALIBRATION.md",
+  "companionId": "chameleon_koko",
+  "direction": "adventure",
+  "pageCount": 12,
+  "approvedBy": "Guy",
+  "approvedAt": "2026-07-02T12:00:00+03:00",
+  "approvalNote": "Phase 1 reorg — CALIBRATION איתי version (Guy default)",
+  "importedAt": "2026-07-02T08:08:22.543Z",
+  "servedOnlyWhen": "ENABLE_V3_APPROVED_BANK=true"
+}
