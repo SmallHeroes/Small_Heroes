@@ -9,6 +9,7 @@ import { CategoryChallengeCard } from '@/app/category-challenge-card';
 import type { MvpMatrixCategoryPayload } from '@/lib/web/mvp-matrix-response';
 import { initLandingMotion } from './motion';
 import { SiteHeader } from '@/app/components/SiteHeader';
+import { AboutSection } from './about-section';
 
 /* Trust-band line icons (order matches L.trust.pillars: privacy · human review · Hebrew/age) */
 const TRUST_ICONS = [
@@ -92,6 +93,8 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
       <Script src="/JS/gate.js" strategy="beforeInteractive" />
 
       <div className="landing-body" data-motion="on">
+        {/* 2026: thin scroll-progress bar — pure CSS scroll-timeline, no JS (falls back to hidden) */}
+        <div className="scroll-progress" aria-hidden="true" />
         <SiteHeader variant="full" />
 
         <main>
@@ -126,15 +129,19 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
 
               <div className="hero-img-wrap" data-reveal="scale" data-reveal-delay="120">
                 <div className="hero-glow" aria-hidden="true" />
-                <img
-                  src="/Images/hero-child-fox.png"
-                  alt="ילד וחבר הסיפור"
-                  className="hero-img"
-                  data-parallax="hero-img"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
+                {/* .hero-float carries the ambient float animation; parallax stays on the img itself
+                    (inline transform) so the two never fight over the same transform. */}
+                <div className="hero-float">
+                  <img
+                    src="/Images/hero-child-fox.png"
+                    alt="ילד וחבר הסיפור"
+                    className="hero-img"
+                    data-parallax="hero-img"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                </div>
               </div>
             </div>
           </section>
@@ -314,6 +321,9 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               </div>
             </div>
           </section>
+
+          {/* מי מאחורי זה + הגישה שלנו — אחרי אמון-המוצר, לפני המחירים */}
+          <AboutSection about={L.about} />
 
           <section className="early-stage-band" aria-label="הודעת השקה">
             <div className="wrap early-stage-band__inner">

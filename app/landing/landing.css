@@ -1668,3 +1668,149 @@
     grid-column: auto;
   }
 }
+/* ═══════════════════════════════════════════════════════════
+   2026 REFRESH LAYER — appended override layer (design/landing-2026)
+   קצב צפוף יותר, אמביינס עדין בהירו, מיקרו-אינטראקציות בוגרות.
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── ריתמוס: סקשנים צפופים יותר → הדף מרגיש קצר ודינמי ── */
+.section { padding: 44px 0; }
+.section-sub { margin-bottom: 32px; }
+.hero { padding: 40px 0 0; }
+
+@media (max-width: 860px) {
+  .section { padding: 44px 0; }
+}
+
+/* ── פס התקדמות גלילה — CSS scroll-timeline בלבד, בלי JS ── */
+.scroll-progress { display: none; }
+
+@supports (animation-timeline: scroll()) {
+  .scroll-progress {
+    display: block;
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 3px;
+    width: 100%;
+    background: linear-gradient(270deg, var(--purple), #ffb46c, var(--yellow));
+    transform-origin: right; /* RTL: ממלא מימין לשמאל */
+    transform: scaleX(0);
+    z-index: 300;
+    animation: scroll-progress-fill linear both;
+    animation-timeline: scroll(root);
+    pointer-events: none;
+  }
+
+  @keyframes scroll-progress-fill {
+    to { transform: scaleX(1); }
+  }
+}
+
+/* ── הירו: אמביינס — בלוב רקע נושם + ריחוף איטי לאיור ── */
+.hero {
+  position: relative;
+  overflow: visible;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: -12% -8% auto auto;
+  width: 46%;
+  height: 120%;
+  background:
+    radial-gradient(42% 42% at 68% 32%, rgba(255, 238, 108, 0.30) 0%, transparent 70%),
+    radial-gradient(50% 50% at 30% 70%, rgba(136, 108, 255, 0.12) 0%, transparent 72%);
+  filter: blur(6px);
+  pointer-events: none;
+  z-index: 0;
+  animation: hero-ambient 14s ease-in-out infinite alternate;
+}
+
+.hero-wrap { position: relative; z-index: 1; }
+
+@keyframes hero-ambient {
+  from { transform: translate3d(0, 0, 0) scale(1); opacity: 0.85; }
+  to { transform: translate3d(-2%, 3%, 0) scale(1.06); opacity: 1; }
+}
+
+/* הריחוף על העטיפה (.hero-float) — הפרלקסה נשארת על ה-img עצמו, בלי התנגשות transform */
+.hero-float {
+  animation: hero-float 7s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@keyframes hero-float {
+  from { transform: translate3d(0, 0, 0) rotate(-0.2deg); }
+  to { transform: translate3d(0, -10px, 0) rotate(0.3deg); }
+}
+
+.hero-glow {
+  animation: hero-glow-breathe 6s ease-in-out infinite alternate;
+}
+
+@keyframes hero-glow-breathe {
+  from { opacity: 0.75; transform: translate(-50%, -50%) scale(0.97); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+}
+
+/* תג ההירו — מסגרת גרדיאנט עדינה, יוקרתי בלי להיות צעצוע */
+.hero-badge {
+  position: relative;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    linear-gradient(120deg, rgba(136, 108, 255, 0.45), rgba(255, 214, 108, 0.55)) border-box;
+}
+
+/* ── CTA ראשי: הילה בהובר + סוויפ ברק עדין ── */
+.btn-primary {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.35) 50%, transparent 70%);
+  transform: translateX(160%);
+  transition: transform 0.7s var(--motion-ease-out, ease-out);
+  pointer-events: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-motion='on'] .btn-primary {
+    transition: transform 0.2s var(--motion-ease-out), box-shadow 0.2s var(--motion-ease-out);
+  }
+
+  [data-motion='on'] .btn-primary:hover {
+    transform: translate3d(0, -2px, 0);
+    box-shadow: 0 14px 30px rgba(136, 108, 255, 0.30);
+  }
+
+  [data-motion='on'] .btn-primary:hover::after {
+    transform: translateX(-160%); /* RTL: הברק חולף לכיוון הקריאה */
+  }
+}
+
+/* ── כרטיס מחיר מומלץ — טבעת עדינה שמושכת עין בלי לצעוק ── */
+[data-motion='on'] .price-card--mid.is-visible {
+  box-shadow: 0 0 0 2px rgba(136, 108, 255, 0.22), var(--shadow-card);
+}
+
+/* ── reduced-motion: כל שכבת ה-2026 כבה לגמרי ── */
+@media (prefers-reduced-motion: reduce) {
+  .hero::before,
+  .hero-float,
+  .hero-glow,
+  .scroll-progress,
+  .btn-primary::after {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+
+  .scroll-progress { display: none !important; }
+}

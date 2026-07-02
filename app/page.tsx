@@ -11,6 +11,7 @@ import { buildMvpMatrixResponse } from '@/lib/web/mvp-matrix-response';
 import './landing/main.css';
 import './landing/landing.css';
 import './landing/motion.css';
+import './landing/about.css';
 import './category-challenge-card.css';
 
 export const metadata: Metadata = {

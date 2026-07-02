@@ -33,6 +33,23 @@ html.js-reveal [data-motion='on'].motion-ready [data-reveal]:not(.is-visible),
   transform: translateY(0);
 }
 
+/* ── 2026: differentiated reveal variants (were unified) ──────────────────
+   scale — settles from a gentle zoom (hero image, pricing); fade — pure fade, no travel. */
+
+html.js-reveal [data-motion='on'].motion-ready [data-reveal='scale']:not(.is-visible),
+[data-motion='on'].motion-ready [data-reveal='scale']:not(.is-visible) {
+  transform: translateY(12px) scale3d(0.955, 0.955, 1);
+}
+
+[data-motion='on'] [data-reveal='scale'].is-visible {
+  transform: translateY(0) scale3d(1, 1, 1);
+}
+
+html.js-reveal [data-motion='on'].motion-ready [data-reveal='fade']:not(.is-visible),
+[data-motion='on'].motion-ready [data-reveal='fade']:not(.is-visible) {
+  transform: none;
+}
+
 /* Stagger: delay set in JS from data-reveal-delay (capped at 320ms). */
 
 /* ── Tap feedback (all viewports) ─────────────────────────────────────── */
