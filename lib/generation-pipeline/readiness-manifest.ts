@@ -29,6 +29,14 @@ import {
   type ArtifactHashes,
 } from './quality-evidence';
 import { enqueueDelivery, type BookReadyPayload, type CasResult } from '@/lib/generation-chunked/delivery-outbox';
+import {
+  buildQaWarningsFromAnchorHold,
+  buildQaWarningsFromReadinessBlock,
+  canUseQaSoftDeliver,
+  mergeQaWarnings,
+  type QaWarnings,
+} from '@/lib/qa-soft-deliver';
+import type { AnchorLowConfidence } from '@/lib/anchor-resemblance-gate';
 import { runAtomicOperation, hashOperationPayload, type AtomicOperationDeps, type ReceiptSafeValue } from './atomic-operation';
 import { createLogger } from '@/lib/logger';
 import type { FrozenStoryProductTruth } from './frozen-product-truth';
@@ -306,6 +314,8 @@ export interface CommitArgs {
   anchorAllowsDelivery: boolean;
   anchorOrderStatus: string; // deliveryGate.orderStatus (e.g. 'ready' | 'needs_human_qa')
   anchorReason: string | null;
+  /** Anchor low-confidence telemetry for QA soft-deliver warnings (optional). */
+  anchorLowConfidence?: AnchorLowConfidence;
 }
 export interface CommitDeps {
   inspect?: (url: string | null | undefined) => Promise<AssetInspection>;
@@ -405,7 +415,7 @@ function buildIntegrityInput(order: OrderTruth, book: BookData, appBaseUrl: stri
  * time (commit) and at send time (recheck) so the payloadHash comparison is apples-to-apples. (B4)
  */
 interface PayloadSource { customerEmail: string; customerName: string | null; childName: string; readUrl: string | null; pdfUrl: string | null; firstAudioUrl: string | null }
-function buildPayload(p: PayloadSource): BookReadyPayload {
+function buildPayload(p: PayloadSource, qaWarnings?: QaWarnings): BookReadyPayload {
   return {
     to: p.customerEmail,
     customerName: p.customerName ?? p.childName,
@@ -413,6 +423,7 @@ function buildPayload(p: PayloadSource): BookReadyPayload {
     readUrl: p.readUrl ?? '',
     audioUrl: p.firstAudioUrl ?? undefined,
     pdfUrl: p.pdfUrl ?? undefined,
+    ...(qaWarnings ? { qaWarnings } : {}),
   };
 }
 function payloadSourceOf(order: OrderTruth, book: BookData): PayloadSource {
@@ -512,25 +523,28 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
   });
 
   if (decision.status === 'blocked') {
-    // (#7-a) BLOCKED manifest + readiness=blocked + order hold + ExceptionCase in ONE atomic tx; NO Outbox row on
-    // any blocked path. quality_failed is a deterministic TERMINAL (→ refund_pending via its disposition);
-    // infra_transient / integrity_blocked schedule a retry.
-    const kind = decision.blockExceptionKind ?? 'integrity_blocked';
-    const retryScheduled = kind === 'infra_transient' || kind === 'integrity_blocked';
-    await openExceptionCase(tx, {
-      orderId: order.id,
-      scope,
-      kind,
-      reason: decision.reason ?? kind,
-      sourceRef: `readiness:${manifest.id}`,
-      now,
-      ...(retryScheduled ? { initialStatus: 'retry_scheduled' as const, nextActionAt: new Date(now.getTime() + 60_000) } : {}),
-      metadata: {
-        manifestId: manifest.id,
-        revision,
-        classification: decision.blockClassification,
-      },
-    });
+    const softDeliver = canUseQaSoftDeliver();
+    if (!softDeliver) {
+      // (#7-a) BLOCKED manifest + readiness=blocked + order hold + ExceptionCase in ONE atomic tx; NO Outbox row on
+      // any blocked path. quality_failed is a deterministic TERMINAL (→ refund_pending via its disposition);
+      // infra_transient / integrity_blocked schedule a retry.
+      const kind = decision.blockExceptionKind ?? 'integrity_blocked';
+      const retryScheduled = kind === 'infra_transient' || kind === 'integrity_blocked';
+      await openExceptionCase(tx, {
+        orderId: order.id,
+        scope,
+        kind,
+        reason: decision.reason ?? kind,
+        sourceRef: `readiness:${manifest.id}`,
+        now,
+        ...(retryScheduled ? { initialStatus: 'retry_scheduled' as const, nextActionAt: new Date(now.getTime() + 60_000) } : {}),
+        metadata: {
+          manifestId: manifest.id,
+          revision,
+          classification: decision.blockClassification,
+        },
+      });
+    }
   } else {
     await resolveActiveRecoveryCaseInTx(tx, {
       orderId: order.id,
@@ -551,10 +565,38 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
   let enqueued = false;
   let orderStatus: string;
   let deliveryHoldReason: string | null;
+  const softDeliver = canUseQaSoftDeliver();
+  let qaWarnings: QaWarnings | undefined;
+
   if (decision.status === 'passed' && activeException) {
     // A refund/reconciliation/customer action is already authoritative. Do not deliver-and-refund.
     orderStatus = 'failed';
     deliveryHoldReason = `exception_case:${activeException.kind}:${activeException.status}`;
+  } else if (decision.status === 'blocked' && softDeliver) {
+    qaWarnings = buildQaWarningsFromReadinessBlock({
+      reason: decision.reason,
+      evidence: decision.evidence,
+    });
+    if (args.anchorLowConfidence) {
+      qaWarnings = mergeQaWarnings(qaWarnings, buildQaWarningsFromAnchorHold(args.anchorLowConfidence));
+    }
+    // Immutable manifest stays blocked for audit; mutable pointer passes for Outbox CAS send-time check.
+    await tx.bookReadiness.updateMany({
+      where: { orderId: order.id, scope, currentManifestId: manifest.id },
+      data: { status: 'passed', reason: `qa_soft_deliver:${decision.reason ?? 'blocked'}` },
+    });
+    await enqueueDelivery(tx, {
+      orderId: order.id,
+      scope,
+      fulfillmentVersion: order.fulfillmentVersion,
+      manifestId: manifest.id,
+      inputVersion: order.inputVersion,
+      payload: buildPayload(payloadSourceOf(order, book), qaWarnings),
+      now,
+    });
+    enqueued = true;
+    orderStatus = 'ready';
+    deliveryHoldReason = `qa_soft_deliver:${decision.reason ?? 'blocked'}`;
   } else if (decision.status === 'passed' && args.anchorAllowsDelivery) {
     // (3) enqueue the delivery IN the same transaction (enqueue != send), then (4) mark the order ready.
     // Reached ONLY when integrity AND quality both passed for every required artifact (fail-closed).
@@ -562,6 +604,20 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
     // so fulfillmentVersion never rolls here — the delivery-intent is stable; the manifest is just its proof.
     await enqueueDelivery(tx, { orderId: order.id, scope, fulfillmentVersion: order.fulfillmentVersion, manifestId: manifest.id, inputVersion: order.inputVersion, payload: buildPayload(payloadSourceOf(order, book)), now });
     enqueued = true; orderStatus = 'ready'; deliveryHoldReason = null;
+  } else if (decision.status === 'passed' && softDeliver && !args.anchorAllowsDelivery) {
+    qaWarnings = buildQaWarningsFromAnchorHold(args.anchorLowConfidence ?? null);
+    await enqueueDelivery(tx, {
+      orderId: order.id,
+      scope,
+      fulfillmentVersion: order.fulfillmentVersion,
+      manifestId: manifest.id,
+      inputVersion: order.inputVersion,
+      payload: buildPayload(payloadSourceOf(order, book), qaWarnings),
+      now,
+    });
+    enqueued = true;
+    orderStatus = 'ready';
+    deliveryHoldReason = `qa_soft_deliver:${args.anchorReason ?? 'anchor_hold'}`;
   } else if (decision.status === 'passed') {
     // Integrity + quality passed but the ANCHOR still holds delivery (Phase-1 keeps the anchor hold — fix #4). No enqueue.
     orderStatus = args.anchorOrderStatus; deliveryHoldReason = args.anchorReason;

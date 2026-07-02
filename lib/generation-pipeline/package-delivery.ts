@@ -1,6 +1,8 @@
 import type { Order, PrismaClient } from '@prisma/client';
 import { sendBookReadyEmail } from '@/backend/lib/email';
 import { createLogger } from '@/lib/logger';
+import type { AnchorLowConfidence } from '@/lib/anchor-resemblance-gate';
+import { buildQaWarningsFromAnchorHold, canUseQaSoftDeliver } from '@/lib/qa-soft-deliver';
 import {
   commitBaseBookReadiness,
   isReadinessManifestEnabled,
@@ -42,6 +44,7 @@ export async function finalizePackageDelivery(
     readUrl: string;
     pdfUrl: string | null;
     firstAudioUrl: string | null;
+    anchorLowConfidence?: AnchorLowConfidence;
   },
   deps: PackageDeliveryDeps = {},
 ): Promise<PackageDeliveryResult> {
@@ -53,6 +56,7 @@ export async function finalizePackageDelivery(
       anchorAllowsDelivery: args.deliveryGate.sendBookReadyEmail,
       anchorOrderStatus: args.deliveryGate.orderStatus,
       anchorReason: args.deliveryGate.reason,
+      anchorLowConfidence: args.anchorLowConfidence,
     });
     return {
       mode: 'manifest',
@@ -62,12 +66,18 @@ export async function finalizePackageDelivery(
   }
 
   const completedAt = deps.now?.() ?? new Date();
+  const softDeliver = canUseQaSoftDeliver();
+  const legacySoftDeliver = softDeliver && args.deliveryGate.held;
+  const legacyStatus = legacySoftDeliver ? 'ready' : args.deliveryGate.orderStatus;
+  const legacyHoldReason = legacySoftDeliver
+    ? `qa_soft_deliver:${args.deliveryGate.reason ?? 'held'}`
+    : args.deliveryGate.reason;
   await prisma.order.update({
     where: { id: args.order.id },
     data: {
-      status: args.deliveryGate.orderStatus,
+      status: legacyStatus,
       packageStatus: 'done',
-      deliveryHoldReason: args.deliveryGate.reason,
+      deliveryHoldReason: legacyHoldReason,
     },
   });
   await prisma.generationJob.update({
@@ -80,7 +90,7 @@ export async function finalizePackageDelivery(
     },
   });
 
-  if (!args.deliveryGate.sendBookReadyEmail) {
+  if (!args.deliveryGate.sendBookReadyEmail && !legacySoftDeliver) {
     log.warn('Book-ready email withheld — order held for human QA', {
       orderId: args.order.id,
       reason: args.deliveryGate.reason,
@@ -95,6 +105,14 @@ export async function finalizePackageDelivery(
         readUrl: args.readUrl,
         audioUrl: args.firstAudioUrl ?? undefined,
         pdfUrl: args.pdfUrl ?? undefined,
+        ...(legacySoftDeliver
+          ? {
+              qaWarnings: buildQaWarningsFromAnchorHold(
+                args.anchorLowConfidence,
+                args.deliveryGate.reason,
+              ),
+            }
+          : {}),
       });
     } catch (error) {
       log.error('Ready email failed (non-fatal)', error, { orderId: args.order.id });
@@ -103,7 +121,7 @@ export async function finalizePackageDelivery(
 
   return {
     mode: 'legacy',
-    deliveryHeld: args.deliveryGate.held,
+    deliveryHeld: legacySoftDeliver ? false : args.deliveryGate.held,
     manifest: null,
   };
 }

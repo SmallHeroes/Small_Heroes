@@ -1705,6 +1705,7 @@ async function runPackageStage(order: Order, cache: PipelineCache): Promise<void
     readUrl,
     pdfUrl,
     firstAudioUrl: firstAudio,
+    anchorLowConfidence: cache.childAnchorLowConfidence,
   });
 
   logServerEvent('full_generation_completed', {

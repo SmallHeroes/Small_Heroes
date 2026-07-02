@@ -5,6 +5,7 @@
  */
 import { EMAIL } from '@/content';
 import { buildOtpLoginEmail } from '@/backend/lib/otp-login-email';
+import type { QaWarnings } from '@/lib/qa-soft-deliver';
 
 export interface BookReadyEmailData {
   to: string;
@@ -15,6 +16,7 @@ export interface BookReadyEmailData {
   pdfUrl?: string;
   /** Phase-1 Outbox: effectively-once delivery. Sent as the Resend Idempotency-Key (dedups identical for 24h). */
   idempotencyKey?: string;
+  qaWarnings?: QaWarnings;
 }
 
 export interface OtpEmailData {
@@ -171,6 +173,28 @@ export async function sendRefundNoticeEmail(
 }
 
 // ─── Email HTML Template ──────────────────────────────
+function buildQaWarningsEmailSection(qaWarnings: QaWarnings): string {
+  const pageLines = qaWarnings.pageFlags.length
+    ? qaWarnings.pageFlags
+        .map((f) => {
+          const label = f.pageNumber != null ? `עמוד ${f.pageNumber}` : f.artifactKey;
+          return `<li><strong>${escapeHtml(label)}</strong>: ${escapeHtml(f.reason)}</li>`;
+        })
+        .join('')
+    : '<li>אין דגלים לפי עמוד</li>';
+  const anchorLine = qaWarnings.anchor
+    ? `<p><strong>עוגן (likeness):</strong> ${escapeHtml(qaWarnings.anchor.score.toFixed(3))} / ${escapeHtml(qaWarnings.anchor.band)}</p>`
+    : '';
+  return `
+    <div style="margin-top:24px;padding:16px;border:2px solid #F59E0B;border-radius:12px;background:#FFFBEB;">
+      <p style="margin:0 0 8px;color:#92400E;font-weight:bold;">⚠️ נמסר עם אזהרות QA (סביבת בדיקה)</p>
+      <p style="margin:0 0 8px;color:#78350F;"><strong>היה אמור להיחסם:</strong> ${escapeHtml(qaWarnings.wouldHaveReason)}</p>
+      ${anchorLine}
+      <p style="margin:8px 0 4px;color:#78350F;font-weight:bold;">דגלים לפי עמוד:</p>
+      <ul style="margin:0;padding-right:20px;color:#78350F;">${pageLines}</ul>
+    </div>`;
+}
+
 function buildEmailHtml(data: BookReadyEmailData): string {
   return `
 <!DOCTYPE html>
@@ -194,6 +218,7 @@ function buildEmailHtml(data: BookReadyEmailData): string {
     <a href="${data.readUrl}" class="btn">${EMAIL.body.btnRead}</a>
     ${data.audioUrl ? `<br><a href="${data.audioUrl}" class="btn" style="background:#6D28D9; margin-top:8px;">${EMAIL.body.btnAudio}</a>` : ''}
     ${data.pdfUrl ? `<br><a href="${data.pdfUrl}" class="btn" style="background:#5B21B6; margin-top:8px;">${EMAIL.body.btnPdf}</a>` : ''}
+    ${data.qaWarnings ? buildQaWarningsEmailSection(data.qaWarnings) : ''}
     <div class="footer">
       <p>${EMAIL.body.footer}</p>
     </div>

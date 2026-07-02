@@ -54,7 +54,7 @@ function mockTx(orderRow: unknown = orderRowFull) {
   return {
     order: { findUnique: vi.fn(async () => orderRow), updateMany: vi.fn(async () => ({ count: 1 })) },
     bookReadinessManifest: { findFirst: vi.fn(async () => ({ revision: 4 })), create: vi.fn(async (a: { data: Record<string, unknown> }) => ({ id: 'm1', ...a.data })) },
-    bookReadiness: { upsert: vi.fn() },
+    bookReadiness: { upsert: vi.fn(), updateMany: vi.fn(async () => ({ count: 1 })) },
     exceptionCase: {
       upsert: vi.fn(async (a: { create: Record<string, unknown> }) => ({
         id: 'ec1',
@@ -492,6 +492,70 @@ describe('casClaimSendSlot — single atomic send-time CAS (P1-f #3h)', () => {
     const db = diagDb({ cur: null });
     const r = await casClaimSendSlot(db as never, casRow, 1, lease, NOW_CAS);
     expect(r).toBe('lost_lease');
+  });
+});
+
+describe('QA soft-deliver (QA_SOFT_DELIVER=true, non-prod)', () => {
+  const envSaved: Record<string, string | undefined> = {};
+  beforeEach(() => {
+    for (const k of ['QA_SOFT_DELIVER', 'VERCEL_ENV'] as const) envSaved[k] = process.env[k];
+    process.env.QA_SOFT_DELIVER = 'true';
+    process.env.VERCEL_ENV = 'preview';
+  });
+  afterEach(() => {
+    for (const k of ['QA_SOFT_DELIVER', 'VERCEL_ENV'] as const) {
+      if (envSaved[k] === undefined) delete process.env[k];
+      else process.env[k] = envSaved[k];
+    }
+  });
+
+  it('quality_evidence_unknown → ready + enqueue with qaWarnings; blocked manifest audit; no exception case', async () => {
+    const rows = passingQualityRows(orderRowFull).filter((r) => r.artifactKey !== 'page:2');
+    const { tx, prisma } = mockWithQuality(rows);
+    const r = await commitBaseBookReadiness(prisma as never, args(), { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' });
+    expect(r.manifestStatus).toBe('blocked');
+    expect(r.enqueued).toBe(true);
+    expect(r.orderStatus).toBe('ready');
+    expect(tx.exceptionCase.upsert).not.toHaveBeenCalled();
+    expect(tx.bookReadinessManifest.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ status: 'blocked' }),
+    }));
+    expect(tx.bookReadiness.updateMany).toHaveBeenCalled();
+    expect(tx.deliveryOutbox.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        payload: expect.objectContaining({
+          qaWarnings: expect.objectContaining({
+            wouldHaveReason: expect.stringContaining('quality_evidence_unknown'),
+          }),
+        }),
+      }),
+    }));
+  });
+
+  it('anchor hold + passing readiness → ready + enqueue with anchor qaWarnings', async () => {
+    const tx = mockTx();
+    const r = await commitBaseBookReadiness(
+      mockPrisma(tx) as never,
+      args({
+        anchorAllowsDelivery: false,
+        anchorOrderStatus: 'needs_human_qa',
+        anchorReason: 'anchor_low_confidence:hard_band',
+        anchorLowConfidence: { reason: 'hard_band', score: 0.147 },
+      }),
+      { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' },
+    );
+    expect(r.manifestStatus).toBe('passed');
+    expect(r.enqueued).toBe(true);
+    expect(r.orderStatus).toBe('ready');
+    expect(tx.deliveryOutbox.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        payload: expect.objectContaining({
+          qaWarnings: expect.objectContaining({
+            anchor: expect.objectContaining({ score: 0.147, band: 'hard_band' }),
+          }),
+        }),
+      }),
+    }));
   });
 });
 

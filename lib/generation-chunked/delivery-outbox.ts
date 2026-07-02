@@ -70,6 +70,8 @@ export interface BookReadyPayload {
   readUrl: string;
   audioUrl?: string;
   pdfUrl?: string;
+  /** Present only on QA soft-deliver path (non-prod); rendered in book-ready email. */
+  qaWarnings?: import('@/lib/qa-soft-deliver').QaWarnings;
 }
 
 export interface EnqueueResult {

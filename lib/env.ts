@@ -197,6 +197,11 @@ export function validateEnv(): AppEnv {
     errors.push('PAYME_REDIRECT_TRUST_MODE=true is forbidden in production');
   }
 
+  const qaSoftDeliver = (process.env.QA_SOFT_DELIVER ?? '').trim().toLowerCase();
+  if ((qaSoftDeliver === 'true' || qaSoftDeliver === '1') && isProductionLikeRuntime() && !isBuild) {
+    console.warn('[env] QA_SOFT_DELIVER is set but IGNORED on production-like runtimes (fail-closed)');
+  }
+
   try {
     // Validate URL shape early so origin/security checks behave predictably.
     // eslint-disable-next-line no-new
@@ -270,5 +275,7 @@ export function canUseFakePayments(): boolean {
 export function isFakePaymentEnabled(): boolean {
   return canUseFakePayments();
 }
+
+export { canUseQaSoftDeliver } from './qa-soft-deliver';
 
 export const env = validateEnv();
