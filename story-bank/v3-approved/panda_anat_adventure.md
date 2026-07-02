@@ -2,7 +2,7 @@
 
 generator: "v3"
 storyId: "golden-panda_anat_adventure-2026-07-02"
-sourceRunDir: "story-bank/v5-fixed-v2/panda_anat_adventure.md"
+sourceRunDir: "outputs/story-pipeline-import-runs/golden-panda_anat_adventure-2026-07-02"
 approvedBy: "Guy"
 approvedAt: "2026-07-02T12:00:00+03:00"
 importedAt: "2026-07-02T08:08:22.548Z"

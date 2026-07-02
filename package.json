@@ -7,6 +7,7 @@
     "start": "next start",
     "lint": "node scripts/lint-honest-gate.mjs",
     "release-check": "tsx --require ./scripts/shims/register-server-only.cjs scripts/release-check.ts",
+    "verify-v3-bank-safeguards": "tsx --require ./scripts/shims/register-server-only.cjs scripts/verify-v3-bank-import-safeguards.ts",
     "check": "tsc --noEmit && vitest run",
     "test": "vitest run",
     "test:watch": "vitest"

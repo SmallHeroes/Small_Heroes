@@ -12,6 +12,7 @@ import {
   stripGoldenSourceHeader,
   validateStoryForV3Import,
 } from '../story-bank-v3-import';
+import { verifyV3BankImportSafeguards } from '../story-bank-v3-import-safeguards';
 
 const FOX_BEDTIME = path.join(
   process.cwd(),
@@ -133,5 +134,13 @@ describe('story-bank-v3-import', () => {
     );
     expect(readApprovalJson(runDir)).toMatchObject({ approvedBy: 'Guy', note: 'ok' });
     fs.rmSync(tmp, { recursive: true, force: true });
+  });
+
+  it('verifyV3BankImportSafeguards passes on repo (Codex stop-time audit)', () => {
+    const report = verifyV3BankImportSafeguards(process.cwd());
+    for (const check of report.checks) {
+      expect(check.pass, `${check.id}: ${check.detail}`).toBe(true);
+    }
+    expect(report.pass).toBe(true);
   });
 });

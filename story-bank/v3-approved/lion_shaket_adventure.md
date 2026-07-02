@@ -2,7 +2,7 @@
 
 generator: "v3"
 storyId: "golden-lion_shaket_adventure-2026-07-02"
-sourceRunDir: "story-bank/v5-fixed-v2/lion_shaket_adventure.md"
+sourceRunDir: "outputs/story-pipeline-import-runs/golden-lion_shaket_adventure-2026-07-02"
 approvedBy: "Guy"
 approvedAt: "2026-07-02T12:00:00+03:00"
 importedAt: "2026-07-02T08:08:22.541Z"

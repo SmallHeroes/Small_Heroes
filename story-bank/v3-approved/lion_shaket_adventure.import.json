@@ -1,6 +1,6 @@
 {
   "storyId": "golden-lion_shaket_adventure-2026-07-02",
-  "sourceRunDir": "story-bank/v5-fixed-v2/lion_shaket_adventure.md",
+  "sourceRunDir": "outputs/story-pipeline-import-runs/golden-lion_shaket_adventure-2026-07-02",
   "companionId": "lion_shaket",
   "direction": "adventure",
   "pageCount": 12,

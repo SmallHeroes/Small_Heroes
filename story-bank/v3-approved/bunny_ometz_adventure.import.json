@@ -1,6 +1,6 @@
 {
   "storyId": "golden-bunny_ometz_adventure-2026-07-02",
-  "sourceRunDir": "story-bank/v5-fixed-v2/bunny_ometz_adventure.md",
+  "sourceRunDir": "outputs/story-pipeline-import-runs/golden-bunny_ometz_adventure-2026-07-02",
   "companionId": "bunny_ometz",
   "direction": "adventure",
   "pageCount": 12,

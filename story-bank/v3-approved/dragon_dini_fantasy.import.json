@@ -1,6 +1,6 @@
 {
   "storyId": "golden-dragon_dini_fantasy-2026-07-02",
-  "sourceRunDir": "story-bank/v5-fixed-v2/dragon_dini_fantasy.md",
+  "sourceRunDir": "outputs/story-pipeline-import-runs/golden-dragon_dini_fantasy-2026-07-02",
   "companionId": "dragon_dini",
   "direction": "fantasy",
   "pageCount": 16,
