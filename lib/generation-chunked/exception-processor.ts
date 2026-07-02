@@ -541,6 +541,18 @@ async function handleRecoveryRetry(
           { outcome: 'ready' },
         );
       }
+      // Rendered + durably parked for human QA = terminal outcome for plain generation recovery.
+      // quality_evidence_unknown cases use sourceRef `readiness:*` (not `generation:*`), so they never
+      // enter this branch — the rescue path below may still redrive needs_human_qa when regen-pending.
+      if (order?.status === 'needs_human_qa') {
+        return resolveCase(
+          prisma,
+          exceptionCase,
+          'generation_parked_for_qa',
+          now,
+          { outcome: 'needs_human_qa' },
+        );
+      }
       if (order?.status === 'generating' && ['pending', 'running'].includes(order.generationJob?.status ?? '')) {
         return retryLater(prisma, exceptionCase, 'generation_in_progress', now);
       }

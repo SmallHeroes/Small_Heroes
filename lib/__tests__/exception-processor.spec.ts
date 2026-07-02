@@ -85,6 +85,7 @@ function fakePrisma(
   initialCase: ExceptionCase,
   initialOutbox?: DeliveryOutbox,
   initialBudget?: { count: number; windowStartAt: Date } | null,
+  orderOverrides?: { status?: string; generationJob?: { status: string } | null },
 ) {
   let row = { ...initialCase };
   let delivery = initialOutbox ? { ...initialOutbox } : null;
@@ -171,7 +172,8 @@ function fakePrisma(
         customerName: 'Parent',
         childName: 'Child',
         payment: null,
-        status: 'ready',
+        status: orderOverrides?.status ?? 'ready',
+        generationJob: orderOverrides?.generationJob ?? null,
         fulfillmentVersion: 1,
         inputVersion: 3,
         book: {
@@ -371,6 +373,63 @@ describe('ExceptionCase autonomous processor', () => {
       .resolves.toBe('refund_pending');
     expect(redriveGeneration).not.toHaveBeenCalled();
     expect(db.currentCase().refundKey).toBe('refund/case_1');
+  });
+
+  it('(P1 #2) committed needs_human_qa + Job.done + generation outcome_unknown → resolves parked, no redrive/refund', async () => {
+    const state = exceptionCase({
+      kind: 'infra_transient',
+      status: 'retry_scheduled',
+      reason: 'outcome_unknown',
+      sourceRef: 'generation:order_1:2026-07-02T10:00:00.000Z',
+      attempts: 1,
+    });
+    const db = fakePrisma(state, undefined, undefined, {
+      status: 'needs_human_qa',
+      generationJob: { status: 'done' },
+    });
+    const redriveGeneration = vi.fn();
+    const recommitReadiness = vi.fn();
+
+    await expect(processExceptionCase(db.prisma, state, deps({ redriveGeneration, recommitReadiness })))
+      .resolves.toBe('resolved');
+
+    expect(redriveGeneration).not.toHaveBeenCalled();
+    expect(recommitReadiness).not.toHaveBeenCalled();
+    expect(db.currentCase().status).toBe('resolved');
+    expect((db.currentCase().resolution as { outcome?: string } | null)?.outcome).toBe('needs_human_qa');
+  });
+
+  it('(P1 #2) quality_evidence_unknown with regen-pending still redrives needs_human_qa (rescue path preserved)', async () => {
+    const state = exceptionCase({
+      kind: 'infra_transient',
+      status: 'retry_scheduled',
+      reason: 'quality_evidence_unknown:page:2',
+      sourceRef: 'readiness:m1',
+      attempts: 1,
+    });
+    const db = fakePrisma(state, undefined, undefined, {
+      status: 'needs_human_qa',
+      generationJob: { status: 'done' },
+    });
+    const redriveGeneration = vi.fn(async () => ({ started: true }));
+    const recommitReadiness = vi.fn();
+
+    await expect(processExceptionCase(db.prisma, state, deps({
+      reQaQualityEvidence: vi.fn(async () => ({
+        reQaCount: 1,
+        nowPassed: [],
+        stillUnknown: [],
+        nowFailed: [{ artifactKey: 'page:2', regenCount: 0 }],
+      })),
+      reserveMarkAndClearRegen: vi.fn(async () => ({ granted: true })),
+      loadRegenPending: vi.fn(async () => ['page:2']),
+      redriveGeneration,
+      recommitReadiness,
+    }))).resolves.toBe('retry_scheduled');
+
+    expect(redriveGeneration).toHaveBeenCalledWith('order_1');
+    expect(recommitReadiness).not.toHaveBeenCalled();
+    expect(db.currentCase().status).toBe('retry_scheduled');
   });
 
   it('moves an expired customer-action SLA to refund instead of waiting forever', async () => {
