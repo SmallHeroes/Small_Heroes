@@ -13,6 +13,8 @@
  *   npx tsx --require ./scripts/shims/register-server-only.cjs scripts/import-v3-approved-story.ts \
  *     --run=outputs/story-gen-v3-runs/<run-dir> [--dry-run]
  *
+ * Staging (no bank write): scripts/stage-golden-v3-import-run.ts
+ *
  * approval.json contract (written BY GUY, by hand):
  *   { "approvedBy": "Guy", "approvedAt": "2026-06-09T21:00:00+03:00", "note": "optional" }
  */
@@ -23,28 +25,9 @@ loadEnv();
 import fs from 'fs';
 import path from 'path';
 
-import { getCompanionById } from '../lib/companions';
-import {
-  resolveStoryBankPlaceholders,
-  runStoryPersonalizationGate,
-  type WizardPersonalizationContext,
-} from '../lib/story-bank-personalization';
-import { parseStoryPages } from '../lib/story-gen/story-page-utils';
-import {
-  scanRawArtifactTokensInMarkdown,
-  scanSlashChipsInMarkdown,
-} from '../lib/story-gen-v3/artifact-token-scan';
-import { scanSuffixChipsInMarkdown } from '../lib/story-gen-v3/suffix-chip-scan';
+import { validateStoryForV3Import } from '../lib/story-bank-v3-import';
 
 const V3_APPROVED_DIR = path.join(process.cwd(), 'story-bank', 'v3-approved');
-
-// Canonical BEAT counts (2026-06-10, goldens-aligned). One beat = one image +
-// one text block; customers see beats × 2 physical pages (display only).
-const PAGES_BY_DIRECTION: Record<string, number> = {
-  bedtime: 8,
-  adventure: 12,
-  fantasy: 16,
-};
 
 interface Approval {
   approvedBy: string;
@@ -78,102 +61,10 @@ function readApprovalOrRefuse(runDir: string): Approval {
   return approval as Approval;
 }
 
-function frontmatterField(md: string, field: string): string | null {
-  const m = md.match(new RegExp(`^${field}:\\s*['"]?(.+?)['"]?\\s*$`, 'm'));
-  return m?.[1]?.trim() ?? null;
-}
-
-function validateStory(md: string): {
-  companionId: string;
-  direction: string;
-  pageCount: number;
-  errors: string[];
-} {
-  const errors: string[] = [];
-
-  const title = frontmatterField(md, 'title');
-  const companionId = frontmatterField(md, 'companionId') ?? '';
-  const direction = (frontmatterField(md, 'direction') ?? '').toLowerCase();
-  const category = frontmatterField(md, 'category');
-  const gender = frontmatterField(md, 'gender');
-  const declaredPages = parseInt(frontmatterField(md, 'pages') ?? '', 10);
-
-  if (!title) errors.push('frontmatter missing title');
-  if (!companionId) errors.push('frontmatter missing companionId');
-  if (!category) errors.push('frontmatter missing category');
-  if (!gender) errors.push('frontmatter missing gender');
-
-  const companion = getCompanionById(companionId);
-  if (!companion) errors.push(`companionId "${companionId}" not in companions registry`);
-
-  const expectedPages = PAGES_BY_DIRECTION[direction];
-  if (!expectedPages) {
-    errors.push(`direction "${direction}" must be bedtime|adventure|fantasy`);
-  }
-
-  const pages = parseStoryPages(md);
-  const pageCount = pages.length;
-  if (expectedPages && pageCount !== expectedPages) {
-    errors.push(`page count ${pageCount} != ${expectedPages} required for direction=${direction}`);
-  }
-  if (Number.isFinite(declaredPages) && declaredPages !== pageCount) {
-    errors.push(`frontmatter pages=${declaredPages} != parsed page count ${pageCount}`);
-  }
-  for (let n = 1; n <= (expectedPages || pageCount); n++) {
-    const page = pages.find((p) => p.page === n);
-    if (!page) {
-      errors.push(`missing page ${n}`);
-      continue;
-    }
-    if (!/imageDirection\s*:\s*\S/.test(page.body)) {
-      errors.push(`page ${n} missing imageDirection`);
-    }
-  }
-
-  if (!md.includes('{{childName}}')) errors.push('story has no {{childName}} placeholder');
-
-  const suffixScan = scanSuffixChipsInMarkdown(md);
-  if (!suffixScan.suffixChipPass) {
-    errors.push(
-      `suffix chips: ${suffixScan.hits.map((h) => `p${h.page} ${h.match}`).join(', ')}`
-    );
-  }
-  const artifactScan = scanRawArtifactTokensInMarkdown(md);
-  if (!artifactScan.pass) errors.push(`raw artifact tokens: ${artifactScan.tokens.join(', ')}`);
-  const slashScan = scanSlashChipsInMarkdown(md);
-  if (!slashScan.slashChipStylePass) {
-    errors.push(`slash chips: ${slashScan.hits.map((h) => `p${h.page} ${h.match}`).join(', ')}`);
-  }
-
-  // Personalization dry-run — both genders must resolve cleanly through the SAME
-  // deterministic resolver the wizard uses at serve time.
-  const companionName = companion?.name ?? companionId;
-  const dryRuns: Array<{ label: string; ctx: WizardPersonalizationContext }> = [
-    { label: 'girl', ctx: { childName: 'נועה', childGender: 'girl', companionName } },
-    { label: 'boy', ctx: { childName: 'יואב', childGender: 'boy', companionName } },
-  ];
-  for (const { label, ctx } of dryRuns) {
-    const resolvedPages = pages.map((p) => {
-      const imageDirection = p.body.match(/imageDirection:\s*(.+)/)?.[1] ?? '';
-      const text = p.body.replace(/imageDirection:.*/g, '').trim();
-      return {
-        pageNumber: p.page,
-        text: resolveStoryBankPlaceholders(text, ctx),
-        imagePrompt: resolveStoryBankPlaceholders(imageDirection, ctx),
-      };
-    });
-    const gateFailures = runStoryPersonalizationGate({ wizard: ctx, pages: resolvedPages });
-    for (const f of gateFailures) errors.push(`personalization gate (${label}): ${f}`);
-  }
-
-  return { companionId, direction, pageCount, errors };
-}
-
 function injectTraceabilityFrontmatter(
   md: string,
   fields: Record<string, string>
 ): string {
-  // Insert before the closing '---' of the YAML frontmatter block.
   const fmMatch = md.match(/^([\s\S]*?\n---\n[\s\S]*?)(\n---\n)/);
   if (!fmMatch) fail('story.md has no YAML frontmatter block to extend');
   const lines = Object.entries(fields)
@@ -201,7 +92,7 @@ function main(): void {
   }
 
   const md = fs.readFileSync(storyPath, 'utf8');
-  const { companionId, direction, pageCount, errors } = validateStory(md);
+  const { companionId, direction, pageCount, errors } = validateStoryForV3Import(md);
 
   if (errors.length) {
     console.error(`[v3-import] validation FAILED (${errors.length}):`);
@@ -217,7 +108,6 @@ function main(): void {
     return;
   }
 
-  // Owner approval is required ONLY for the actual import.
   const approval = readApprovalOrRefuse(runDir);
 
   const storyId = path.basename(runDir);
