@@ -338,6 +338,131 @@ export interface CommitResult {
   reason: string | null;
   revision: number;
 }
+
+/** Pure delivery plan for a readiness commit (no DB). Drives both runReadinessTxn and receipt keying. */
+export interface ReadinessDeliveryPlan {
+  enqueued: boolean;
+  orderStatus: string;
+  deliveryHoldReason: string | null;
+  skipExceptionCase: boolean;
+  usesSoftDeliver: boolean;
+}
+
+export function resolveReadinessDeliveryPlan(
+  args: CommitArgs,
+  decision: Pick<ReadinessDecision, 'status' | 'reason'>,
+  softDeliver: boolean,
+): ReadinessDeliveryPlan {
+  if (decision.status === 'blocked' && softDeliver) {
+    return {
+      enqueued: true,
+      orderStatus: 'ready',
+      deliveryHoldReason: `qa_soft_deliver:${decision.reason ?? 'blocked'}`,
+      skipExceptionCase: true,
+      usesSoftDeliver: true,
+    };
+  }
+  if (decision.status === 'passed' && args.anchorAllowsDelivery) {
+    return {
+      enqueued: true,
+      orderStatus: 'ready',
+      deliveryHoldReason: null,
+      skipExceptionCase: false,
+      usesSoftDeliver: false,
+    };
+  }
+  if (decision.status === 'passed' && softDeliver && !args.anchorAllowsDelivery) {
+    return {
+      enqueued: true,
+      orderStatus: 'ready',
+      deliveryHoldReason: `qa_soft_deliver:${args.anchorReason ?? 'anchor_hold'}`,
+      skipExceptionCase: false,
+      usesSoftDeliver: true,
+    };
+  }
+  if (decision.status === 'passed') {
+    return {
+      enqueued: false,
+      orderStatus: args.anchorOrderStatus,
+      deliveryHoldReason: args.anchorReason,
+      skipExceptionCase: false,
+      usesSoftDeliver: false,
+    };
+  }
+  return {
+    enqueued: false,
+    orderStatus: 'needs_human_qa',
+    deliveryHoldReason: `base_book_integrity:${decision.reason ?? 'blocked'}`,
+    skipExceptionCase: false,
+    usesSoftDeliver: false,
+  };
+}
+
+function buildReadinessCommitMutationPayload(
+  args: CommitArgs,
+  decision: ReadinessDecision,
+  inputVersion: number,
+  anchorDisposition: string,
+  plan: ReadinessDeliveryPlan,
+): Record<string, ReceiptSafeValue> {
+  let qaWarningsReason: string | null = null;
+  let anchorScore: number | null = null;
+  if (plan.usesSoftDeliver) {
+    if (decision.status === 'blocked') {
+      const warnings = mergeQaWarnings(
+        buildQaWarningsFromReadinessBlock({ reason: decision.reason, evidence: decision.evidence }),
+        args.anchorLowConfidence
+          ? buildQaWarningsFromAnchorHold(args.anchorLowConfidence)
+          : null,
+      );
+      qaWarningsReason = warnings.wouldHaveReason;
+      anchorScore = warnings.anchor?.score ?? args.anchorLowConfidence?.score ?? null;
+    } else {
+      const warnings = buildQaWarningsFromAnchorHold(
+        args.anchorLowConfidence,
+        args.anchorReason,
+      );
+      qaWarningsReason = warnings.wouldHaveReason;
+      anchorScore = warnings.anchor?.score ?? args.anchorLowConfidence?.score ?? null;
+    }
+  }
+  return {
+    inputVersion,
+    inputsHash: decision.inputsHash,
+    anchor: anchorDisposition,
+    status: decision.status,
+    enqueued: plan.enqueued,
+    orderStatus: plan.orderStatus,
+    deliveryHoldReason: plan.deliveryHoldReason,
+    qaWarningsReason,
+    anchorScore,
+  };
+}
+
+/** Receipt fence binding — keys the durable commit outcome, not the QA_SOFT_DELIVER env flag. */
+export function buildReadinessCommitReceiptBinding(
+  args: CommitArgs,
+  inputVersion: number,
+  decision: ReadinessDecision,
+  softDeliver: boolean = canUseQaSoftDeliver(),
+): { operationKey: string; payloadHash: string; plan: ReadinessDeliveryPlan } {
+  const anchorDisposition = `${args.anchorAllowsDelivery ? 1 : 0}:${args.anchorOrderStatus}:${args.anchorReason ?? ''}`;
+  const plan = resolveReadinessDeliveryPlan(args, decision, softDeliver);
+  const operationKey =
+    `readiness_commit:${args.orderId}:${BASE_BOOK_SCOPE}:${inputVersion}:${decision.inputsHash}:${anchorDisposition}`;
+  const mutationPayload = buildReadinessCommitMutationPayload(
+    args,
+    decision,
+    inputVersion,
+    anchorDisposition,
+    plan,
+  );
+  return {
+    operationKey,
+    payloadHash: hashOperationPayload({ key: operationKey, mutation: mutationPayload }),
+    plan,
+  };
+}
 interface LoadedInputs { order: OrderTruth; book: BookData; quality: QualityEvidenceRow[]; fingerprint: string }
 
 const TOCTOU = 'readiness_toctou_drift';
@@ -524,7 +649,8 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
 
   if (decision.status === 'blocked') {
     const softDeliver = canUseQaSoftDeliver();
-    if (!softDeliver) {
+    const plan = resolveReadinessDeliveryPlan(args, decision, softDeliver);
+    if (!plan.skipExceptionCase) {
       // (#7-a) BLOCKED manifest + readiness=blocked + order hold + ExceptionCase in ONE atomic tx; NO Outbox row on
       // any blocked path. quality_failed is a deterministic TERMINAL (→ refund_pending via its disposition);
       // infra_transient / integrity_blocked schedule a retry.
@@ -567,12 +693,13 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
   let deliveryHoldReason: string | null;
   const softDeliver = canUseQaSoftDeliver();
   let qaWarnings: QaWarnings | undefined;
+  const plan = resolveReadinessDeliveryPlan(args, decision, softDeliver);
 
   if (decision.status === 'passed' && activeException) {
     // A refund/reconciliation/customer action is already authoritative. Do not deliver-and-refund.
     orderStatus = 'failed';
     deliveryHoldReason = `exception_case:${activeException.kind}:${activeException.status}`;
-  } else if (decision.status === 'blocked' && softDeliver) {
+  } else if (plan.usesSoftDeliver && decision.status === 'blocked') {
     qaWarnings = buildQaWarningsFromReadinessBlock({
       reason: decision.reason,
       evidence: decision.evidence,
@@ -594,18 +721,15 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
       payload: buildPayload(payloadSourceOf(order, book), qaWarnings),
       now,
     });
-    enqueued = true;
-    orderStatus = 'ready';
-    deliveryHoldReason = `qa_soft_deliver:${decision.reason ?? 'blocked'}`;
-  } else if (decision.status === 'passed' && args.anchorAllowsDelivery) {
+    enqueued = plan.enqueued;
+    orderStatus = plan.orderStatus;
+    deliveryHoldReason = plan.deliveryHoldReason;
+  } else if (plan.enqueued && decision.status === 'passed' && args.anchorAllowsDelivery) {
     // (3) enqueue the delivery IN the same transaction (enqueue != send), then (4) mark the order ready.
-    // Reached ONLY when integrity AND quality both passed for every required artifact (fail-closed).
-    // (P1-f #3h) A re-commit REBINDS the existing Outbox row in place (same dedupeKey → same idempotency key),
-    // so fulfillmentVersion never rolls here — the delivery-intent is stable; the manifest is just its proof.
     await enqueueDelivery(tx, { orderId: order.id, scope, fulfillmentVersion: order.fulfillmentVersion, manifestId: manifest.id, inputVersion: order.inputVersion, payload: buildPayload(payloadSourceOf(order, book)), now });
     enqueued = true; orderStatus = 'ready'; deliveryHoldReason = null;
-  } else if (decision.status === 'passed' && softDeliver && !args.anchorAllowsDelivery) {
-    qaWarnings = buildQaWarningsFromAnchorHold(args.anchorLowConfidence ?? null);
+  } else if (plan.usesSoftDeliver && decision.status === 'passed' && !args.anchorAllowsDelivery) {
+    qaWarnings = buildQaWarningsFromAnchorHold(args.anchorLowConfidence ?? null, args.anchorReason);
     await enqueueDelivery(tx, {
       orderId: order.id,
       scope,
@@ -615,15 +739,12 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
       payload: buildPayload(payloadSourceOf(order, book), qaWarnings),
       now,
     });
-    enqueued = true;
-    orderStatus = 'ready';
-    deliveryHoldReason = `qa_soft_deliver:${args.anchorReason ?? 'anchor_hold'}`;
-  } else if (decision.status === 'passed') {
-    // Integrity + quality passed but the ANCHOR still holds delivery (Phase-1 keeps the anchor hold — fix #4). No enqueue.
-    orderStatus = args.anchorOrderStatus; deliveryHoldReason = args.anchorReason;
+    enqueued = plan.enqueued;
+    orderStatus = plan.orderStatus;
+    deliveryHoldReason = plan.deliveryHoldReason;
   } else {
-    // BLOCKED (integrity or quality) → held, NO enqueue, NO email; recovery is the ExceptionCase path above.
-    orderStatus = 'needs_human_qa'; deliveryHoldReason = `base_book_integrity:${decision.reason ?? 'blocked'}`;
+    orderStatus = plan.orderStatus;
+    deliveryHoldReason = plan.deliveryHoldReason;
   }
 
   // (4) Order write is CONDITIONAL on inputVersion being unchanged (B4 optimistic concurrency): if any writer
@@ -665,15 +786,20 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
       // an ambiguous commit (P2028 after the tx committed) replays the recorded CommitResult → EXACTLY ONE
       // Manifest + ONE Outbox binding, never a duplicate. The receipt commits atomically with the manifest/outbox.
       if (isReadinessManifestEnabled()) {
-        const anchorDisposition = `${args.anchorAllowsDelivery ? 1 : 0}:${args.anchorOrderStatus}:${args.anchorReason ?? ''}`;
-        const operationKey = `readiness_commit:${args.orderId}:${BASE_BOOK_SCOPE}:${loaded.order.inputVersion}:${decision.inputsHash}:${anchorDisposition}`;
+        const softDeliver = canUseQaSoftDeliver();
+        const receipt = buildReadinessCommitReceiptBinding(
+          args,
+          loaded.order.inputVersion,
+          decision,
+          softDeliver,
+        );
         return await runAtomicOperation(
           prisma,
           {
-            operationKey,
+            operationKey: receipt.operationKey,
             orderId: args.orderId,
             kind: 'readiness_commit',
-            payloadHash: hashOperationPayload({ inputVersion: loaded.order.inputVersion, inputsHash: decision.inputsHash, anchor: anchorDisposition, status: decision.status }),
+            payloadHash: receipt.payloadHash,
             run: (tx) => runReadinessTxn(tx, args, loaded, decision, now),
           },
           deps.atomic,

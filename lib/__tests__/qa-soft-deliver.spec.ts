@@ -5,6 +5,8 @@ import {
   buildQaWarningsFromReadinessBlock,
   canUseQaSoftDeliver,
 } from '@/lib/qa-soft-deliver';
+import { buildReadinessCommitReceiptBinding } from '@/lib/generation-pipeline/readiness-manifest';
+import { BASE_BOOK_SCOPE } from '@/lib/generation-pipeline/integrity-gate';
 import { isProductionLikeRuntime } from '@/lib/runtime-env';
 import { finalizePackageDelivery } from '@/lib/generation-pipeline/package-delivery';
 
@@ -63,6 +65,69 @@ describe('qaWarnings builders', () => {
     const warnings = buildQaWarningsFromAnchorHold({ reason: 'hard_band', score: 0.147 });
     expect(warnings.anchor).toMatchObject({ score: 0.147, band: 'hard_band' });
     expect(warnings.wouldHaveReason).toContain('hard_band');
+  });
+});
+
+describe('readiness commit receipt binding (soft-deliver keyed)', () => {
+  const baseArgs = {
+    orderId: 'o1',
+    anchorAllowsDelivery: false,
+    anchorOrderStatus: 'needs_human_qa',
+    anchorReason: 'anchor_low_confidence:hard_band',
+    anchorLowConfidence: { reason: 'hard_band' as const, score: 0.12 },
+  };
+  const blockedDecision = {
+    status: 'blocked' as const,
+    reason: 'quality_evidence_unknown:page:2',
+    inputsHash: 'hash-abc',
+    evidence: { quality: { perArtifact: { 'page:2': { state: 'missing' } } } },
+    blockExceptionKind: 'infra_transient' as const,
+    blockClassification: 'quality_evidence_unknown',
+  };
+  const passedDecision = {
+    status: 'passed' as const,
+    reason: null,
+    inputsHash: 'hash-pass',
+    evidence: {},
+    blockExceptionKind: null,
+    blockClassification: 'passed',
+  };
+
+  it('keys receipt on effective outcome, not the env flag — clean pass unchanged when flag toggles', () => {
+    const passArgs = {
+      orderId: 'o1',
+      anchorAllowsDelivery: true,
+      anchorOrderStatus: 'ready',
+      anchorReason: null,
+    };
+    const flagOff = buildReadinessCommitReceiptBinding(passArgs, 3, passedDecision, false);
+    const flagOn = buildReadinessCommitReceiptBinding(passArgs, 3, passedDecision, true);
+    expect(flagOff.operationKey).toBe(flagOn.operationKey);
+    expect(flagOff.payloadHash).toBe(flagOn.payloadHash);
+    expect(flagOff.operationKey).not.toContain(':sd');
+  });
+
+  it('same operationKey but different payloadHash when soft-deliver changes blocked disposition', () => {
+    const hold = buildReadinessCommitReceiptBinding(baseArgs, 3, blockedDecision, false);
+    const soft = buildReadinessCommitReceiptBinding(baseArgs, 3, blockedDecision, true);
+    expect(hold.operationKey).toBe(soft.operationKey);
+    expect(hold.payloadHash).not.toBe(soft.payloadHash);
+    expect(soft.plan).toMatchObject({ enqueued: true, orderStatus: 'ready', usesSoftDeliver: true });
+    expect(hold.plan).toMatchObject({ enqueued: false, orderStatus: 'needs_human_qa', usesSoftDeliver: false });
+  });
+
+  it('includes scope in operationKey', () => {
+    const binding = buildReadinessCommitReceiptBinding(baseArgs, 3, blockedDecision, true);
+    expect(binding.operationKey).toContain(`:${BASE_BOOK_SCOPE}:`);
+  });
+
+  it('anchor hold: same key, different payload when soft-deliver applies', () => {
+    const hold = buildReadinessCommitReceiptBinding(baseArgs, 2, passedDecision, false);
+    const soft = buildReadinessCommitReceiptBinding(baseArgs, 2, passedDecision, true);
+    expect(hold.operationKey).toBe(soft.operationKey);
+    expect(hold.plan.enqueued).toBe(false);
+    expect(soft.plan.enqueued).toBe(true);
+    expect(hold.payloadHash).not.toBe(soft.payloadHash);
   });
 });
 
