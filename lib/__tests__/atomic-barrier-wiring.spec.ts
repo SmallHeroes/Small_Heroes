@@ -157,6 +157,72 @@ describe('(Codex B′) receipt fence wired into withDeliveryInputMutation', () =
     expect(spies.mutate).not.toHaveBeenCalled();
   });
 
+  it('(P1 #1) page_asset payload must include provider+style — same key + different style FAILS CLOSED', async () => {
+    const key = 'delivery_input:o1:page:3:url';
+    const original = hashOperationPayload({
+      reason: 'page_asset_changed',
+      key,
+      mutation: { url: 'url', provider: 'openai', style: 'style01' },
+    });
+    const { prisma, spies } = makeFake({
+      seedReceipts: {
+        [key]: {
+          payloadHash: original,
+          result: { value: { value: {}, inputVersion: 1, orderStatus: 'ready', readinessInvalidated: false } },
+        },
+      },
+    });
+    await expect(withDeliveryInputMutation(
+      prisma as never,
+      {
+        orderId: 'o1',
+        reason: 'page_asset_changed',
+        operationKey: key,
+        mutationPayload: { url: 'url', provider: 'openai', style: 'style02' },
+        atomic: { sleep: async () => {} },
+      },
+      async (tx) => {
+        await (tx as { imageAsset: { update: (a: unknown) => Promise<unknown> } }).imageAsset.update({
+          where: { id: 'asset-1' },
+          data: { url: 'url', provider: 'openai', style: 'style02' },
+        });
+      },
+    )).rejects.toBeInstanceOf(ReceiptPayloadMismatchError);
+    expect(spies.mutate).not.toHaveBeenCalled();
+  });
+
+  it('(P1 #1) anchor payload must hash the merged registry — same key + different merged JSON FAILS CLOSED', async () => {
+    const key = 'delivery_input:o1:anchors:hashA';
+    const mergedA = { characterAnchors: { child: { anchorImageUrl: 'a' } }, childImageUrl: 'a' };
+    const original = hashOperationPayload({ reason: 'character_anchors_changed', key, mutation: mergedA });
+    const { prisma, spies } = makeFake({
+      seedReceipts: {
+        [key]: {
+          payloadHash: original,
+          result: { value: { value: {}, inputVersion: 1, orderStatus: 'ready', readinessInvalidated: false } },
+        },
+      },
+    });
+    const mergedB = { characterAnchors: { child: { anchorImageUrl: 'b' } }, childImageUrl: 'b' };
+    await expect(withDeliveryInputMutation(
+      prisma as never,
+      {
+        orderId: 'o1',
+        reason: 'character_anchors_changed',
+        operationKey: key,
+        mutationPayload: mergedB,
+        atomic: { sleep: async () => {} },
+      },
+      async (tx) => {
+        await (tx as { order: { update: (a: unknown) => Promise<unknown> } }).order.update({
+          where: { id: 'o1' },
+          data: { characterAnchors: mergedB.characterAnchors, childImageUrl: mergedB.childImageUrl },
+        });
+      },
+    )).rejects.toBeInstanceOf(ReceiptPayloadMismatchError);
+    expect(spies.mutate).not.toHaveBeenCalled();
+  });
+
   it('flag-on WITHOUT an operationKey stays on the legacy path (no receipt written)', async () => {
     const { prisma, spies } = makeFake();
     await withDeliveryInputMutation(

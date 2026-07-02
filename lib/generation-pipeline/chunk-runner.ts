@@ -69,7 +69,7 @@ import {
 import { heartbeatLease } from '@/lib/generation-chunked/lease';
 import { finalizeAndPersistStoryText } from './text-finalization';
 import { isReadinessManifestEnabled, withDeliveryInputMutation } from './readiness-manifest';
-import { hashOperationPayload, isOutcomeUnknown } from './atomic-operation';
+import { hashOperationPayload, isOutcomeUnknown, type ReceiptSafeValue } from './atomic-operation';
 import { persistDeliveredQualityEvidence, persistQualityContext } from './quality-evidence-producer';
 import { coverArtifactKey, pageArtifactKey, makeQualityRegenReserver } from './quality-evidence';
 import { openExceptionCase } from '@/lib/generation-chunked/exception-case';
@@ -1269,25 +1269,31 @@ async function runPageImagesChunk(
         if (!anchorRegistry[characterId]) continue;
         anchorRegistry[characterId].anchorImageUrl = url;
       }
+      const persistedCharacterAnchors = buildPersistedCharacterAnchorsJson(
+        anchorRegistry,
+        wizardMeta,
+        order.characterAnchors
+      ) as Prisma.InputJsonValue;
+      const childImageUrl = resolvedAnchors.child ?? null;
+      const anchorMutationPayload = {
+        characterAnchors: persistedCharacterAnchors,
+        childImageUrl,
+      } as ReceiptSafeValue;
       await withDeliveryInputMutation(
         prisma,
         {
           orderId: order.id,
           reason: 'character_anchors_changed',
-          // Durable write-attempt id: a hash of the resolved anchor URLs being persisted.
-          operationKey: `delivery_input:${order.id}:anchors:${hashOperationPayload(resolvedAnchors)}`,
-          mutationPayload: { anchors: resolvedAnchors },
+          // Durable write-attempt id: hash the merged registry + child URL (not just the delta).
+          operationKey: `delivery_input:${order.id}:anchors:${hashOperationPayload(anchorMutationPayload)}`,
+          mutationPayload: anchorMutationPayload,
         },
         async (tx) => {
           await tx.order.update({
             where: { id: order.id },
             data: {
-              characterAnchors: buildPersistedCharacterAnchorsJson(
-                anchorRegistry,
-                wizardMeta,
-                order.characterAnchors
-              ) as Prisma.InputJsonValue,
-              ...(resolvedAnchors.child ? { childImageUrl: resolvedAnchors.child } : {}),
+              characterAnchors: persistedCharacterAnchors,
+              ...(childImageUrl ? { childImageUrl } : {}),
             },
           });
         },
@@ -1372,7 +1378,8 @@ async function runPageImagesChunk(
         // REAL persisted content: prompt, delivered + raw URLs, dims, idempotencyKey, QA context.
         mutationPayload: {
           prompt: image.prompt, url: image.url, presentationUrl: presentationUrl ?? null, rawUrl: image.rawUrl ?? null,
-          width: image.width, height: image.height, idempotencyKey, qaContext: image.style01Meta?.pageVisualQa?.qaInput ?? null,
+          width: image.width, height: image.height, provider: image.provider, style: order.illustrationStyle,
+          idempotencyKey, qaContext: image.style01Meta?.pageVisualQa?.qaInput ?? null,
         },
       },
       async (tx) => {

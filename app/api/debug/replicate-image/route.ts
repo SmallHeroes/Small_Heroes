@@ -84,6 +84,7 @@ export async function POST(req: NextRequest) {
           mutationPayload: {
             prompt: generated.prompt, url: generated.url, rawUrl: generated.rawUrl ?? null,
             width: generated.width, height: generated.height,
+            provider: generated.provider, style: order.illustrationStyle,
           },
         },
         async (tx) => {
