@@ -83,6 +83,24 @@ export function initLandingMotion(root?: HTMLElement | null): void {
     });
   }, SAFETY_REVEAL_MS);
 
+  // Scroll rescue (all pointers): anything actually ON screen must never stay hidden. The IO trims the bottom
+  // 12% of the viewport, which can strand the LAST elements near the page end (e.g. the footer CTA — visible,
+  // clickable, but opacity:0 forever). rAF-throttled sweep of the remaining hidden nodes.
+  let rescueRaf = 0;
+  const rescueOnScreen = () => {
+    if (rescueRaf) return;
+    rescueRaf = requestAnimationFrame(() => {
+      rescueRaf = 0;
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      nodes.forEach((n) => {
+        if (n.classList.contains('is-visible')) return;
+        const r = n.getBoundingClientRect();
+        if (r.top < vh && r.bottom > 0) revealNode(n, io);
+      });
+    });
+  };
+  addEventListener('scroll', rescueOnScreen, { passive: true });
+
   if (!window.matchMedia('(pointer: fine)').matches) return;
   const img = el.querySelector<HTMLElement>(P);
   if (!img) return;

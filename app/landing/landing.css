@@ -1707,33 +1707,13 @@
   }
 }
 
-/* ── הירו: אמביינס — בלוב רקע נושם + ריחוף איטי לאיור ── */
+/* ── הירו: ריחוף איטי לאיור (בלוב הרקע הוסר — דימם ליד ההדר) ── */
 .hero {
   position: relative;
   overflow: visible;
 }
 
-.hero::before {
-  content: '';
-  position: absolute;
-  inset: -12% -8% auto auto;
-  width: 46%;
-  height: 120%;
-  background:
-    radial-gradient(42% 42% at 68% 32%, rgba(255, 238, 108, 0.30) 0%, transparent 70%),
-    radial-gradient(50% 50% at 30% 70%, rgba(136, 108, 255, 0.12) 0%, transparent 72%);
-  filter: blur(6px);
-  pointer-events: none;
-  z-index: 0;
-  animation: hero-ambient 14s ease-in-out infinite alternate;
-}
-
 .hero-wrap { position: relative; z-index: 1; }
-
-@keyframes hero-ambient {
-  from { transform: translate3d(0, 0, 0) scale(1); opacity: 0.85; }
-  to { transform: translate3d(-2%, 3%, 0) scale(1.06); opacity: 1; }
-}
 
 /* הריחוף על העטיפה (.hero-float) — הפרלקסה נשארת על ה-img עצמו, בלי התנגשות transform */
 .hero-float {
@@ -1802,7 +1782,6 @@
 
 /* ── reduced-motion: כל שכבת ה-2026 כבה לגמרי ── */
 @media (prefers-reduced-motion: reduce) {
-  .hero::before,
   .hero-float,
   .hero-glow,
   .scroll-progress,
@@ -1813,4 +1792,11 @@
   }
 
   .scroll-progress { display: none !important; }
+}
+
+/* ── פס ההשקה: מהצהוב־לימון אל משפחת הקרם (מתחבר לסקשן עלינו) ── */
+.early-stage-band {
+  background: #fdf6e2;
+  border-top: 1px solid #f4e8c8;
+  border-bottom: 1px solid #f4e8c8;
 }
