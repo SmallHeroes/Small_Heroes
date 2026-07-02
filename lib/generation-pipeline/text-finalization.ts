@@ -168,7 +168,7 @@ export async function finalizeAndPersistStoryText(
       operationKey: `delivery_input:${order.id}:story:${frozenTruth.storySourceHash}`,
       // REAL persisted content: the personalized page text/narration + assigned templates.
       mutationPayload: {
-        storySourceHash: frozenTruth.storySourceHash,
+        ...frozenTruth,
         title: order.bookName || story.title,
         coverText: story.coverText,
         pages: story.pages.map((p) => [p.pageNumber, p.text, p.narrationText, templateByPage.get(p.pageNumber) ?? null]),

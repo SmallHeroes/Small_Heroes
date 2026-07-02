@@ -517,6 +517,35 @@ async function handleRefund(
   }
 }
 
+async function runQualityEvidenceRescue(
+  prisma: PrismaClient,
+  exceptionCase: ExceptionCase,
+  deps: ExceptionProcessorDeps,
+  now: Date,
+): Promise<ExceptionProcessOutcome | 'continue'> {
+  const recovery = await deps.reQaQualityEvidence(prisma, exceptionCase.orderId);
+  for (const f of recovery.nowFailed) {
+    if (f.regenCount >= QUALITY_REGEN_BUDGET) continue;
+    const operationKey = `regen_reserve:${exceptionCase.id}:${exceptionCase.claimVersion}:${f.artifactKey}`;
+    await deps.reserveMarkAndClearRegen(prisma, exceptionCase.orderId, f.artifactKey, operationKey);
+  }
+  const pending = await deps.loadRegenPending(prisma, exceptionCase.orderId);
+  if (pending.length > 0) {
+    const started = await deps.redriveGeneration(exceptionCase.orderId);
+    if (!started.started) {
+      return retryLater(
+        prisma,
+        exceptionCase,
+        'quality_regen_rescue_redrive_not_started',
+        now,
+        started.message ?? 'redrive_not_started',
+      );
+    }
+    return retryLater(prisma, exceptionCase, `quality_regen_rescue:${pending.join(',')}`, now, null);
+  }
+  return 'continue';
+}
+
 async function handleRecoveryRetry(
   prisma: PrismaClient,
   exceptionCase: ExceptionCase,
@@ -527,11 +556,32 @@ async function handleRecoveryRetry(
     return moveToRefund(prisma, exceptionCase, 'recovery_attempts_exhausted', now);
   }
   try {
-    if (exceptionCase.sourceRef?.startsWith('generation:')) {
-      const order = await prisma.order.findUnique({
+    const [order, readiness, pending] = await Promise.all([
+      prisma.order.findUnique({
         where: { id: exceptionCase.orderId },
         select: { status: true, generationJob: { select: { status: true } } },
-      });
+      }),
+      prisma.bookReadiness.findUnique({
+        where: {
+          orderId_scope: { orderId: exceptionCase.orderId, scope: EXCEPTION_SCOPE_BASE_BOOK },
+        },
+        select: { status: true, reason: true },
+      }),
+      deps.loadRegenPending(prisma, exceptionCase.orderId),
+    ]);
+
+    const effectiveReason =
+      readiness?.status === 'blocked' && readiness.reason
+        ? readiness.reason
+        : exceptionCase.reason;
+
+    const parkForHumanQa =
+      order?.status === 'needs_human_qa' &&
+      order.generationJob?.status === 'done' &&
+      readiness?.status === 'passed' &&
+      pending.length === 0;
+
+    if (exceptionCase.sourceRef?.startsWith('generation:')) {
       if (order?.status === 'ready' || order?.status === 'partial') {
         return resolveCase(
           prisma,
@@ -541,21 +591,48 @@ async function handleRecoveryRetry(
           { outcome: 'ready' },
         );
       }
-      // Rendered + durably parked for human QA = terminal outcome for plain generation recovery.
-      // quality_evidence_unknown cases use sourceRef `readiness:*` (not `generation:*`), so they never
-      // enter this branch — the rescue path below may still redrive needs_human_qa when regen-pending.
-      if (order?.status === 'needs_human_qa') {
-        return resolveCase(
-          prisma,
-          exceptionCase,
-          'generation_parked_for_qa',
-          now,
-          { outcome: 'needs_human_qa' },
-        );
-      }
-      if (order?.status === 'generating' && ['pending', 'running'].includes(order.generationJob?.status ?? '')) {
+      if (
+        order?.status === 'generating' &&
+        ['pending', 'running'].includes(order.generationJob?.status ?? '')
+      ) {
         return retryLater(prisma, exceptionCase, 'generation_in_progress', now);
       }
+    }
+
+    if (effectiveReason?.startsWith('quality_evidence_unknown')) {
+      const rescue = await runQualityEvidenceRescue(prisma, exceptionCase, deps, now);
+      if (rescue !== 'continue') return rescue;
+    } else if (pending.length > 0) {
+      const started = await deps.redriveGeneration(exceptionCase.orderId);
+      if (!started.started) {
+        return retryLater(
+          prisma,
+          exceptionCase,
+          'regen_pending_redrive_not_started',
+          now,
+          started.message ?? 'redrive_not_started',
+        );
+      }
+      return retryLater(
+        prisma,
+        exceptionCase,
+        `regen_pending_redrive:${pending.join(',')}`,
+        now,
+        null,
+      );
+    }
+
+    if (parkForHumanQa) {
+      return resolveCase(
+        prisma,
+        exceptionCase,
+        'generation_parked_for_qa',
+        now,
+        { outcome: 'needs_human_qa' },
+      );
+    }
+
+    if (exceptionCase.sourceRef?.startsWith('generation:')) {
       const started = await deps.redriveGeneration(exceptionCase.orderId);
       if (!started.started && started.message === 'Already completed') {
         return resolveCase(
@@ -568,43 +645,6 @@ async function handleRecoveryRetry(
       }
       if (!started.started) throw new Error(started.message ?? 'generation_redrive_not_started');
       return retryLater(prisma, exceptionCase, 'generation_redriven', now);
-    }
-
-    // (#7-a 6) Quality-evidence-unknown recovery: re-QA the REQUIRED artifacts vs their CURRENT delivered bytes
-    // (ZERO renders) BEFORE the recommit — recovering a missing/hash-mismatched/stale/un-QA'd asset.
-    if (exceptionCase.reason?.startsWith('quality_evidence_unknown')) {
-      const recovery = await deps.reQaQualityEvidence(prisma, exceptionCase.orderId);
-      // (#6-fix-3, Codex-ratified) Regen-rescue order: ATOMICALLY reserve → mark regen-pending → clear → THEN
-      // dispatch. BLOCKER 2 — reserveMarkAndClearRegen reserves the durable budget ITSELF (a conditional
-      // regenCount++), so "≤ QUALITY_REGEN_BUDGET replacements then refund" is enforced at the rescue level
-      // regardless of whether an in-loop re-render happens to pass. A budget-spent artifact is granted:false →
-      // NOT cleared → it flows to the recommit → quality_failed → refund.
-      for (const f of recovery.nowFailed) {
-        if (f.regenCount >= QUALITY_REGEN_BUDGET) continue; // fast skip; the atomic reserve is authoritative
-        // (Codex B′) Receipt fence key = this claimed case + its claimVersion + the artifact. A worker restart
-        // under the SAME claim re-enters with the same key → EXACTLY ONE regenCount++ (no double budget burn);
-        // a fresh claim next tick bumps claimVersion → a new key → a legitimately new reservation.
-        const operationKey = `regen_reserve:${exceptionCase.id}:${exceptionCase.claimVersion}:${f.artifactKey}`;
-        await deps.reserveMarkAndClearRegen(prisma, exceptionCase.orderId, f.artifactKey, operationKey);
-      }
-      // BLOCKER 3 — re-dispatch every artifact left durably regen-pending: just-cleared this tick, OR cleared on a
-      // prior tick whose redrive never started. The clear + marker committed atomically, so a started:false never
-      // destroys an asset without a retry path — the marker survives and this tick redrives again. A persistent
-      // non-start is bounded by the recovery-attempts cap → refund (never a destroyed-asset dead end).
-      const pending = await deps.loadRegenPending(prisma, exceptionCase.orderId);
-      if (pending.length > 0) {
-        const started = await deps.redriveGeneration(exceptionCase.orderId);
-        if (!started.started) {
-          return retryLater(
-            prisma,
-            exceptionCase,
-            'quality_regen_rescue_redrive_not_started',
-            now,
-            started.message ?? 'redrive_not_started',
-          );
-        }
-        return retryLater(prisma, exceptionCase, `quality_regen_rescue:${pending.join(',')}`, now, null);
-      }
     }
 
     const result = await deps.recommitReadiness(prisma, exceptionCase.orderId);

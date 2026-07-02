@@ -86,6 +86,7 @@ function fakePrisma(
   initialOutbox?: DeliveryOutbox,
   initialBudget?: { count: number; windowStartAt: Date } | null,
   orderOverrides?: { status?: string; generationJob?: { status: string } | null },
+  bookReadinessOverrides?: { status?: string; reason?: string | null },
 ) {
   let row = { ...initialCase };
   let delivery = initialOutbox ? { ...initialOutbox } : null;
@@ -186,7 +187,8 @@ function fakePrisma(
     },
     bookReadiness: {
       findUnique: vi.fn(async () => ({
-        status: 'passed',
+        status: bookReadinessOverrides?.status ?? 'passed',
+        reason: bookReadinessOverrides?.reason ?? null,
         currentManifestId: 'manifest_1',
       })),
     },
@@ -375,7 +377,7 @@ describe('ExceptionCase autonomous processor', () => {
     expect(db.currentCase().refundKey).toBe('refund/case_1');
   });
 
-  it('(P1 #2) committed needs_human_qa + Job.done + generation outcome_unknown → resolves parked, no redrive/refund', async () => {
+  it('(P1 #2) committed needs_human_qa + Job.done + readiness.passed + no pending → parks, no redrive/refund', async () => {
     const state = exceptionCase({
       kind: 'infra_transient',
       status: 'retry_scheduled',
@@ -386,11 +388,15 @@ describe('ExceptionCase autonomous processor', () => {
     const db = fakePrisma(state, undefined, undefined, {
       status: 'needs_human_qa',
       generationJob: { status: 'done' },
-    });
+    }, { status: 'passed', reason: null });
     const redriveGeneration = vi.fn();
     const recommitReadiness = vi.fn();
 
-    await expect(processExceptionCase(db.prisma, state, deps({ redriveGeneration, recommitReadiness })))
+    await expect(processExceptionCase(db.prisma, state, deps({
+      redriveGeneration,
+      recommitReadiness,
+      loadRegenPending: vi.fn(async () => []),
+    })))
       .resolves.toBe('resolved');
 
     expect(redriveGeneration).not.toHaveBeenCalled();
@@ -430,6 +436,76 @@ describe('ExceptionCase autonomous processor', () => {
     expect(redriveGeneration).toHaveBeenCalledWith('order_1');
     expect(recommitReadiness).not.toHaveBeenCalled();
     expect(db.currentCase().status).toBe('retry_scheduled');
+  });
+
+  it('(P1 #2 round-2) generation:* + stale sourceRef + blocked readiness quality_evidence_unknown → rescue, not park', async () => {
+    const state = exceptionCase({
+      kind: 'infra_transient',
+      status: 'retry_scheduled',
+      reason: 'outcome_unknown',
+      sourceRef: 'generation:order_1:2026-07-02T10:00:00.000Z',
+      attempts: 1,
+    });
+    const db = fakePrisma(
+      state,
+      undefined,
+      undefined,
+      { status: 'needs_human_qa', generationJob: { status: 'done' } },
+      { status: 'blocked', reason: 'quality_evidence_unknown:page:2' },
+    );
+    const redriveGeneration = vi.fn(async () => ({ started: true }));
+    const recommitReadiness = vi.fn();
+    const reserveMarkAndClearRegen = vi.fn(async () => ({ granted: true }));
+
+    await expect(processExceptionCase(db.prisma, state, deps({
+      reQaQualityEvidence: vi.fn(async () => ({
+        reQaCount: 1,
+        nowPassed: [],
+        stillUnknown: [],
+        nowFailed: [{ artifactKey: 'page:2', regenCount: 0 }],
+      })),
+      reserveMarkAndClearRegen,
+      loadRegenPending: vi.fn(async () => ['page:2']),
+      redriveGeneration,
+      recommitReadiness,
+    }))).resolves.toBe('retry_scheduled');
+
+    expect(redriveGeneration).toHaveBeenCalledWith('order_1');
+    expect(reserveMarkAndClearRegen).toHaveBeenCalled();
+    expect(recommitReadiness).not.toHaveBeenCalled();
+    expect(db.currentCase().status).toBe('retry_scheduled');
+    expect(db.currentCase().status).not.toBe('resolved');
+  });
+
+  it('(P1 #2 round-2) pending regen marker redrives without reserving again', async () => {
+    const state = exceptionCase({
+      kind: 'infra_transient',
+      status: 'retry_scheduled',
+      reason: 'integrity_blocked:anchor',
+      sourceRef: 'readiness:manifest_1',
+      attempts: 1,
+    });
+    const db = fakePrisma(
+      state,
+      undefined,
+      undefined,
+      { status: 'needs_human_qa', generationJob: { status: 'done' } },
+      { status: 'blocked', reason: 'integrity_blocked:anchor' },
+    );
+    const redriveGeneration = vi.fn(async () => ({ started: true }));
+    const reserveMarkAndClearRegen = vi.fn();
+    const recommitReadiness = vi.fn();
+
+    await expect(processExceptionCase(db.prisma, state, deps({
+      loadRegenPending: vi.fn(async () => ['page:3']),
+      redriveGeneration,
+      reserveMarkAndClearRegen,
+      recommitReadiness,
+    }))).resolves.toBe('retry_scheduled');
+
+    expect(redriveGeneration).toHaveBeenCalledWith('order_1');
+    expect(reserveMarkAndClearRegen).not.toHaveBeenCalled();
+    expect(recommitReadiness).not.toHaveBeenCalled();
   });
 
   it('moves an expired customer-action SLA to refund instead of waiting forever', async () => {

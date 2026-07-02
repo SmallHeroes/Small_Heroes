@@ -223,6 +223,102 @@ describe('(Codex B′) receipt fence wired into withDeliveryInputMutation', () =
     expect(spies.mutate).not.toHaveBeenCalled();
   });
 
+  it('(P1 #1 round-2) story frozenTruth in mutationPayload — same key + different selectionFilename FAILS CLOSED', async () => {
+    const storyHash = 'deadbeef'.repeat(8);
+    const key = `delivery_input:o1:story:${storyHash}`;
+    const frozenA = {
+      expectedPageCount: 8,
+      storySourceHash: storyHash,
+      selectionFilename: 'story-bank/v3-approved/fox_uri_bedtime.md',
+      frozenProductVersion: 'story-product/v1:bedtime',
+      title: 'T',
+      coverText: 'C',
+      pages: [[1, 'a', 'b', 'art_top_text_bottom']],
+    };
+    const original = hashOperationPayload({
+      reason: 'story_text_finalized',
+      key,
+      mutation: frozenA,
+    });
+    const { prisma, spies } = makeFake({
+      seedReceipts: {
+        [key]: {
+          payloadHash: original,
+          result: { value: { value: {}, inputVersion: 1, orderStatus: 'ready', readinessInvalidated: false } },
+        },
+      },
+    });
+    const frozenB = { ...frozenA, selectionFilename: 'story-bank/v5-fixed-v2/fox_uri_bedtime.md' };
+    await expect(withDeliveryInputMutation(
+      prisma as never,
+      {
+        orderId: 'o1',
+        reason: 'story_text_finalized',
+        operationKey: key,
+        frozenTruth: {
+          expectedPageCount: frozenB.expectedPageCount,
+          storySourceHash: frozenB.storySourceHash,
+          selectionFilename: frozenB.selectionFilename,
+          frozenProductVersion: frozenB.frozenProductVersion,
+        },
+        mutationPayload: frozenB,
+        atomic: { sleep: async () => {} },
+      },
+      async (tx) => {
+        await (tx as { generatedBook: { create: (a: unknown) => Promise<unknown> } }).generatedBook.create({ data: {} });
+      },
+    )).rejects.toBeInstanceOf(ReceiptPayloadMismatchError);
+    expect(spies.mutate).not.toHaveBeenCalled();
+  });
+
+  it('(P1 #1 round-2) story frozenTruth in mutationPayload — same key + different frozenProductVersion FAILS CLOSED', async () => {
+    const storyHash = 'cafebabe'.repeat(8);
+    const key = `delivery_input:o1:story:${storyHash}`;
+    const frozenA = {
+      expectedPageCount: 12,
+      storySourceHash: storyHash,
+      selectionFilename: 'story-bank/v3-approved/lion_shaket_adventure.md',
+      frozenProductVersion: 'story-product/v1:adventure',
+      title: 'T',
+      coverText: 'C',
+      pages: [[1, 'a', 'b', null]],
+    };
+    const original = hashOperationPayload({
+      reason: 'story_text_finalized',
+      key,
+      mutation: frozenA,
+    });
+    const { prisma, spies } = makeFake({
+      seedReceipts: {
+        [key]: {
+          payloadHash: original,
+          result: { value: { value: {}, inputVersion: 1, orderStatus: 'ready', readinessInvalidated: false } },
+        },
+      },
+    });
+    const frozenB = { ...frozenA, frozenProductVersion: 'story-product/v2:adventure' };
+    await expect(withDeliveryInputMutation(
+      prisma as never,
+      {
+        orderId: 'o1',
+        reason: 'story_text_finalized',
+        operationKey: key,
+        frozenTruth: {
+          expectedPageCount: frozenB.expectedPageCount,
+          storySourceHash: frozenB.storySourceHash,
+          selectionFilename: frozenB.selectionFilename,
+          frozenProductVersion: frozenB.frozenProductVersion,
+        },
+        mutationPayload: frozenB,
+        atomic: { sleep: async () => {} },
+      },
+      async (tx) => {
+        await (tx as { generatedBook: { create: (a: unknown) => Promise<unknown> } }).generatedBook.create({ data: {} });
+      },
+    )).rejects.toBeInstanceOf(ReceiptPayloadMismatchError);
+    expect(spies.mutate).not.toHaveBeenCalled();
+  });
+
   it('flag-on WITHOUT an operationKey stays on the legacy path (no receipt written)', async () => {
     const { prisma, spies } = makeFake();
     await withDeliveryInputMutation(
