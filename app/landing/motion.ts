@@ -71,9 +71,15 @@ export function initLandingMotion(root?: HTMLElement | null): void {
     if (!n.classList.contains('is-visible')) io.observe(n);
   });
 
+  // Fail-safe, NEAR-VIEWPORT ONLY (2026 fix): the old timer revealed EVERYTHING after 1.2s, so by the time the
+  // user scrolled, every section below the fold was already visible — scroll reveals never played. Now the timer
+  // only rescues nodes within ~1.5 screens (nothing near the fold can ever stay stuck hidden); distant sections
+  // keep their IntersectionObserver-driven reveal, so scrolling actually animates.
   window.setTimeout(() => {
+    const vh = window.innerHeight || document.documentElement.clientHeight;
     nodes.forEach((n) => {
-      if (!n.classList.contains('is-visible')) revealNode(n, io);
+      if (n.classList.contains('is-visible')) return;
+      if (n.getBoundingClientRect().top < vh * 1.5) revealNode(n, io);
     });
   }, SAFETY_REVEAL_MS);
 

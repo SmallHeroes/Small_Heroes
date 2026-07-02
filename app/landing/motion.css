@@ -4,9 +4,9 @@
 [data-motion='on'] {
   --motion-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --motion-ease-soft: cubic-bezier(0.33, 1, 0.68, 1);
-  --motion-duration-reveal: 600ms;
+  --motion-duration-reveal: 750ms;
   --motion-duration-tap: 0.14s;
-  --motion-reveal-travel-y: 20px;
+  --motion-reveal-travel-y: 26px;
   --motion-stagger-step: 80ms;
 }
 

@@ -1673,13 +1673,13 @@
    קצב צפוף יותר, אמביינס עדין בהירו, מיקרו-אינטראקציות בוגרות.
    ═══════════════════════════════════════════════════════════ */
 
-/* ── ריתמוס: סקשנים צפופים יותר → הדף מרגיש קצר ודינמי ── */
-.section { padding: 44px 0; }
-.section-sub { margin-bottom: 32px; }
-.hero { padding: 40px 0 0; }
+/* ── ריתמוס: נשימה בין סקשנים, בלי למרוח ── */
+.section { padding: 72px 0; }
+.section-sub { margin-bottom: 38px; }
+.hero { padding: 48px 0 0; }
 
 @media (max-width: 860px) {
-  .section { padding: 44px 0; }
+  .section { padding: 56px 0; }
 }
 
 /* ── פס התקדמות גלילה — CSS scroll-timeline בלבד, בלי JS ── */
