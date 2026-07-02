@@ -2,7 +2,7 @@
 
 generator: "v3"
 storyId: "golden-chameleon_koko_adventure-2026-07-02"
-sourceRunDir: "outputs/chameleon_koko_adventure.CALIBRATION.md"
+sourceRunDir: "story-bank/calibration-sources/chameleon_koko_adventure.md"
 approvedBy: "Guy"
 approvedAt: "2026-07-02T12:00:00+03:00"
 importedAt: "2026-07-02T08:08:22.543Z"

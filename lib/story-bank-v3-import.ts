@@ -1,8 +1,11 @@
 /**
  * Shared validation + golden-source prep for v3-approved bank imports.
  * Write path: scripts/import-v3-approved-story.ts (requires Guy's approval.json).
- * Staging-only: scripts/stage-golden-v3-import-run.ts (never writes v3-approved/).
+ * Staging-only: stageGoldenImportRun() / scripts/stage-golden-v3-import-run.ts (never v3-approved/).
  */
+import fs from 'fs';
+import path from 'path';
+
 import { getCompanionById } from './companions';
 import {
   resolveStoryBankPlaceholders,
@@ -31,6 +34,149 @@ export interface V3ImportValidation {
 }
 
 export type V3ImportGateMode = 'strict' | 'warn';
+
+export const V3_APPROVED_REL = 'story-bank/v3-approved';
+
+export interface V3ImportSelfCheck {
+  gatePassAutomated?: boolean;
+  personalizationGateWarnings?: string[];
+}
+
+export interface V3ImportApproval {
+  approvedBy: string;
+  approvedAt: string;
+  note?: string;
+}
+
+export interface StageGoldenImportResult {
+  runId: string;
+  runDir: string;
+  relRunDir: string;
+  validation: V3ImportValidation;
+}
+
+export function resolveImportGateModeFromSelfCheck(selfCheck: V3ImportSelfCheck): V3ImportGateMode {
+  return Array.isArray(selfCheck.personalizationGateWarnings) &&
+    selfCheck.personalizationGateWarnings.length > 0
+    ? 'warn'
+    : 'strict';
+}
+
+export function resolveRepoRelativePath(repoRoot: string, rel: string): string {
+  const resolved = path.resolve(repoRoot, rel);
+  const rootNorm = path.resolve(repoRoot);
+  if (!resolved.toLowerCase().startsWith(rootNorm.toLowerCase())) {
+    throw new Error(`source escapes repo: ${rel}`);
+  }
+  return resolved;
+}
+
+export function assertNotV3ApprovedWrite(repoRoot: string, targetPath: string): void {
+  const rel = path
+    .relative(repoRoot, path.resolve(targetPath))
+    .split(path.sep)
+    .join('/');
+  if (rel === V3_APPROVED_REL || rel.startsWith(`${V3_APPROVED_REL}/`)) {
+    throw new Error(`refusing to write under ${V3_APPROVED_REL}: ${rel}`);
+  }
+}
+
+export function readApprovalJson(runDir: string): V3ImportApproval | null {
+  const approvalPath = path.join(runDir, 'approval.json');
+  if (!fs.existsSync(approvalPath)) return null;
+  const approval = JSON.parse(fs.readFileSync(approvalPath, 'utf8')) as Partial<V3ImportApproval>;
+  if (!approval.approvedBy?.trim()) {
+    throw new Error('approval.json missing non-empty approvedBy');
+  }
+  if (!approval.approvedAt || Number.isNaN(Date.parse(approval.approvedAt))) {
+    throw new Error('approval.json approvedAt is not a valid ISO timestamp');
+  }
+  return approval as V3ImportApproval;
+}
+
+/** Enforce owner approval + document gate exceptions recorded at staging time. */
+export function assertApprovalReadyForImport(
+  approval: V3ImportApproval | null,
+  selfCheck: V3ImportSelfCheck,
+): asserts approval is V3ImportApproval {
+  if (!approval) {
+    throw new Error(
+      'no approval.json in run dir — import REFUSED (Guy must write approval.json by hand)'
+    );
+  }
+  if (
+    resolveImportGateModeFromSelfCheck(selfCheck) === 'warn' &&
+    !approval.note?.trim()
+  ) {
+    throw new Error(
+      'approval.json note required when self-check recorded personalizationGateWarnings'
+    );
+  }
+}
+
+export function stageGoldenImportRun(opts: {
+  repoRoot: string;
+  runsRoot: string;
+  sourceRel: string;
+  runIdOverride?: string;
+  personalizationGate?: V3ImportGateMode;
+}): StageGoldenImportResult {
+  const sourcePath = resolveRepoRelativePath(opts.repoRoot, opts.sourceRel);
+  if (!fs.existsSync(sourcePath)) {
+    throw new Error(`missing source: ${opts.sourceRel}`);
+  }
+
+  const storyMd = stripGoldenSourceHeader(fs.readFileSync(sourcePath, 'utf8'));
+  const validation = validateStoryForV3Import(storyMd, {
+    personalizationGate: opts.personalizationGate ?? 'strict',
+  });
+  if (validation.errors.length) {
+    throw new Error(
+      `staging validation failed (${opts.sourceRel}): ${validation.errors.join('; ')}`
+    );
+  }
+
+  const runId =
+    opts.runIdOverride ?? goldenRunId(validation.companionId, validation.direction);
+  const runDir = path.join(opts.runsRoot, runId);
+  assertNotV3ApprovedWrite(opts.repoRoot, runDir);
+
+  if (fs.existsSync(path.join(runDir, 'approval.json'))) {
+    throw new Error(
+      `run dir already has approval.json — refusing to overwrite staged content: ${runDir}`
+    );
+  }
+
+  fs.mkdirSync(runDir, { recursive: true });
+  const storyPath = path.join(runDir, 'story.md');
+  const selfCheckPath = path.join(runDir, 'self-check.json');
+  assertNotV3ApprovedWrite(opts.repoRoot, storyPath);
+  assertNotV3ApprovedWrite(opts.repoRoot, selfCheckPath);
+
+  fs.writeFileSync(storyPath, storyMd, 'utf8');
+  fs.writeFileSync(
+    selfCheckPath,
+    JSON.stringify(
+      {
+        gatePassAutomated: true,
+        stagedFrom: opts.sourceRel.split(path.sep).join('/'),
+        stagedAt: new Date().toISOString(),
+        companionId: validation.companionId,
+        direction: validation.direction,
+        pageCount: validation.pageCount,
+        ...(validation.personalizationWarnings.length
+          ? { personalizationGateWarnings: validation.personalizationWarnings }
+          : {}),
+      },
+      null,
+      2
+    ),
+    'utf8'
+  );
+
+  const relRunDir = path.relative(opts.repoRoot, runDir).split(path.sep).join('/');
+  return { runId, runDir, relRunDir, validation };
+}
 
 export function frontmatterField(md: string, field: string): string | null {
   const m = md.match(new RegExp(`^${field}:\\s*['"]?(.+?)['"]?\\s*$`, 'm'));

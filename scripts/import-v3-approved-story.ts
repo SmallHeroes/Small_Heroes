@@ -25,15 +25,15 @@ loadEnv();
 import fs from 'fs';
 import path from 'path';
 
-import { validateStoryForV3Import } from '../lib/story-bank-v3-import';
+import {
+  assertApprovalReadyForImport,
+  readApprovalJson,
+  resolveImportGateModeFromSelfCheck,
+  type V3ImportSelfCheck,
+  validateStoryForV3Import,
+} from '../lib/story-bank-v3-import';
 
 const V3_APPROVED_DIR = path.join(process.cwd(), 'story-bank', 'v3-approved');
-
-interface Approval {
-  approvedBy: string;
-  approvedAt: string;
-  note?: string;
-}
 
 function fail(msg: string): never {
   console.error(`[v3-import] FAIL: ${msg}`);
@@ -42,23 +42,6 @@ function fail(msg: string): never {
 
 function arg(name: string): string | undefined {
   return process.argv.find((a) => a.startsWith(`--${name}=`))?.split('=').slice(1).join('=');
-}
-
-function readApprovalOrRefuse(runDir: string): Approval {
-  const approvalPath = path.join(runDir, 'approval.json');
-  if (!fs.existsSync(approvalPath)) {
-    fail(
-      `no approval.json in run dir — import REFUSED.\n` +
-        `  This tool never self-approves. Guy must write ${approvalPath} by hand:\n` +
-        `  { "approvedBy": "Guy", "approvedAt": "<ISO timestamp>" }`
-    );
-  }
-  const approval = JSON.parse(fs.readFileSync(approvalPath, 'utf8')) as Partial<Approval>;
-  if (!approval.approvedBy?.trim()) fail('approval.json missing non-empty approvedBy');
-  if (!approval.approvedAt || Number.isNaN(Date.parse(approval.approvedAt))) {
-    fail('approval.json approvedAt is not a valid ISO timestamp');
-  }
-  return approval as Approval;
 }
 
 function injectTraceabilityFrontmatter(
@@ -84,20 +67,24 @@ function main(): void {
 
   const selfCheckPath = path.join(runDir, 'self-check.json');
   if (!fs.existsSync(selfCheckPath)) fail(`no self-check.json in ${runDir}`);
-  const selfCheck = JSON.parse(fs.readFileSync(selfCheckPath, 'utf8')) as {
-    gatePassAutomated?: boolean;
-  };
+  const selfCheck = JSON.parse(fs.readFileSync(selfCheckPath, 'utf8')) as V3ImportSelfCheck;
   if (selfCheck.gatePassAutomated !== true) {
     fail('self-check.json gatePassAutomated !== true — fix gates before import');
   }
 
   const md = fs.readFileSync(storyPath, 'utf8');
-  const { companionId, direction, pageCount, errors } = validateStoryForV3Import(md);
+  const gateMode = resolveImportGateModeFromSelfCheck(selfCheck);
+  const { companionId, direction, pageCount, errors, personalizationWarnings } =
+    validateStoryForV3Import(md, { personalizationGate: gateMode });
 
   if (errors.length) {
     console.error(`[v3-import] validation FAILED (${errors.length}):`);
     for (const e of errors) console.error(`  - ${e}`);
     process.exit(2);
+  }
+  if (personalizationWarnings.length) {
+    console.warn(`[v3-import] personalization gate WARN (${personalizationWarnings.length}):`);
+    for (const w of personalizationWarnings) console.warn(`  - ${w}`);
   }
   console.log(
     `[v3-import] validation PASS — ${companionId}_${direction}, ${pageCount} pages`
@@ -108,7 +95,13 @@ function main(): void {
     return;
   }
 
-  const approval = readApprovalOrRefuse(runDir);
+  let approval: ReturnType<typeof readApprovalJson>;
+  try {
+    approval = readApprovalJson(runDir);
+    assertApprovalReadyForImport(approval, selfCheck);
+  } catch (error) {
+    fail(error instanceof Error ? error.message : String(error));
+  }
 
   const storyId = path.basename(runDir);
   const importedAt = new Date().toISOString();
