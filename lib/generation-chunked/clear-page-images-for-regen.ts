@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { withDeliveryInputMutation, isReadinessManifestEnabled } from '@/lib/generation-pipeline/readiness-manifest';
+import type { AtomicOperationDeps } from '@/lib/generation-pipeline/atomic-operation';
 import {
   QUALITY_REGEN_BUDGET,
   coverArtifactKey,
@@ -78,7 +79,20 @@ export async function clearOrderCover(prisma: PrismaClient, orderId: string): Pr
  */
 export async function reserveMarkAndClearRegen(
   prisma: PrismaClient,
-  args: { orderId: string; artifactKey: string; budget?: number },
+  args: {
+    orderId: string;
+    artifactKey: string;
+    budget?: number;
+    /**
+     * (Codex B′) Durable regen-reservation fence key = ExceptionCase.id + claimVersion + artifactKey. A restart
+     * mid-rescue re-invokes this with the SAME claimed case → the receipt fences it → EXACTLY ONE regenCount++
+     * (never double-spends the budget under an ambiguous commit). A fresh claim (next tick) bumps claimVersion →
+     * a new key → a legitimately new reservation. The processor supplies it; absent → legacy (no fence).
+     */
+    operationKey?: string;
+    /** Test/proof injection for the receipt fence. */
+    atomic?: AtomicOperationDeps;
+  },
 ): Promise<{ granted: boolean }> {
   if (!isReadinessManifestEnabled()) return { granted: false }; // flag OFF → no rescue (legacy path)
   const budget = args.budget ?? QUALITY_REGEN_BUDGET;
@@ -87,7 +101,13 @@ export async function reserveMarkAndClearRegen(
   if (!isCover && pageNumber == null) return { granted: false }; // malformed artifact key
   const result = await withDeliveryInputMutation(
     prisma,
-    { orderId: args.orderId, reason: isCover ? 'cover_asset_changed' : 'page_assets_cleared' },
+    {
+      orderId: args.orderId,
+      reason: isCover ? 'cover_asset_changed' : 'page_assets_cleared',
+      operationKey: args.operationKey,
+      kind: 'regen_reserve',
+      atomic: args.atomic,
+    },
     async (tx) => {
       // 1) Ensure a row, then atomically reserve one regen. BEFORE any destructive clear, so a spent budget can
       //    never destroy the delivered asset (it stays failed-terminal → the recommit refunds it).

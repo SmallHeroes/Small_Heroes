@@ -77,7 +77,11 @@ export async function POST(req: NextRequest) {
     if (body.persistToPage) {
       const mutation = await withDeliveryInputMutation(
         prisma,
-        { orderId: order.id, reason: 'debug_page_asset_changed' },
+        {
+          orderId: order.id,
+          reason: 'debug_page_asset_changed',
+          operationKey: `delivery_input:${order.id}:page:${requestedPageNumber}:${generated.url}`,
+        },
         (tx) => tx.imageAsset.upsert({
           where: { pageId: targetPage.id },
           update: {

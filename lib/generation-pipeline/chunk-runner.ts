@@ -69,6 +69,7 @@ import {
 import { heartbeatLease } from '@/lib/generation-chunked/lease';
 import { finalizeAndPersistStoryText } from './text-finalization';
 import { isReadinessManifestEnabled, withDeliveryInputMutation } from './readiness-manifest';
+import { hashOperationPayload } from './atomic-operation';
 import { persistDeliveredQualityEvidence, persistQualityContext } from './quality-evidence-producer';
 import { coverArtifactKey, pageArtifactKey, makeQualityRegenReserver } from './quality-evidence';
 import { openExceptionCase } from '@/lib/generation-chunked/exception-case';
@@ -890,7 +891,13 @@ async function runCoverStage(
 
   await withDeliveryInputMutation(
     prisma,
-    { orderId: order.id, reason: 'cover_asset_changed' },
+    {
+      orderId: order.id,
+      reason: 'cover_asset_changed',
+      // Durable write-attempt id: the cover's content-addressed URL (cover-<hash>.png). An identical replay is
+      // fenced; a genuine re-render (new bytes → new url) is a new operation.
+      operationKey: `delivery_input:${order.id}:cover:${coverImage.url}`,
+    },
     async (tx) => {
       await tx.generatedBook.update({
         where: { id: book.id },
@@ -1263,7 +1270,12 @@ async function runPageImagesChunk(
       }
       await withDeliveryInputMutation(
         prisma,
-        { orderId: order.id, reason: 'character_anchors_changed' },
+        {
+          orderId: order.id,
+          reason: 'character_anchors_changed',
+          // Durable write-attempt id: a hash of the resolved anchor URLs being persisted.
+          operationKey: `delivery_input:${order.id}:anchors:${hashOperationPayload(resolvedAnchors)}`,
+        },
         (tx) => tx.order.update({
           where: { id: order.id },
           data: {
@@ -1348,7 +1360,12 @@ async function runPageImagesChunk(
 
     await withDeliveryInputMutation(
       prisma,
-      { orderId: order.id, reason: 'page_asset_changed' },
+      {
+        orderId: order.id,
+        reason: 'page_asset_changed',
+        // Durable write-attempt id: the page slot + the delivered content-addressed URL (presentation ?? raw).
+        operationKey: `delivery_input:${order.id}:page:${dbPage.pageNumber}:${presentationUrl ?? image.url}`,
+      },
       async (tx) => {
         if (existing) {
           await tx.imageAsset.update({
@@ -1533,7 +1550,12 @@ async function runAudioChunk(order: Order, startedAt: number, budgetMs: number):
       });
       await withDeliveryInputMutation(
         prisma,
-        { orderId: order.id, reason: 'page_audio_changed' },
+        {
+          orderId: order.id,
+          reason: 'page_audio_changed',
+          // Durable write-attempt id: the audio page slot + its stored URL (re-applying the same URL is a no-op).
+          operationKey: `delivery_input:${order.id}:audio:${page.pageNumber}:${result.url}`,
+        },
         (tx) => tx.bookPage.update({
           where: { id: page.id },
           data: { audioUrl: result.url },
@@ -1611,7 +1633,11 @@ async function runPackageStage(order: Order, cache: PipelineCache): Promise<void
       pdfUrl = await uploadPdfToStorage(order.id, pdfBuffer);
       await withDeliveryInputMutation(
         prisma,
-        { orderId: order.id, reason: 'package_payload_changed' },
+        {
+          orderId: order.id,
+          reason: 'package_payload_changed',
+          operationKey: `delivery_input:${order.id}:pdf:${pdfUrl}`,
+        },
         (tx) => tx.generatedBook.update({
           where: { id: book.id },
           data: { pdfUrl },
@@ -1630,7 +1656,12 @@ async function runPackageStage(order: Order, cache: PipelineCache): Promise<void
 
   await withDeliveryInputMutation(
     prisma,
-    { orderId: order.id, reason: 'package_payload_changed' },
+    {
+      orderId: order.id,
+      reason: 'package_payload_changed',
+      // readUrl is deterministic (order id + access key) → durable + stable across retries.
+      operationKey: `delivery_input:${order.id}:readurl:${readUrl}`,
+    },
     (tx) => tx.generatedBook.update({
       where: { id: book.id },
       data: { readUrl },

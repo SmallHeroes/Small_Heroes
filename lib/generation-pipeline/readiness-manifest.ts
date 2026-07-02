@@ -29,6 +29,7 @@ import {
   type ArtifactHashes,
 } from './quality-evidence';
 import { enqueueDelivery, type BookReadyPayload, type CasResult } from '@/lib/generation-chunked/delivery-outbox';
+import { runAtomicOperation, hashOperationPayload, type AtomicOperationDeps } from './atomic-operation';
 import { createLogger } from '@/lib/logger';
 import type { FrozenStoryProductTruth } from './frozen-product-truth';
 import {
@@ -89,13 +90,26 @@ export async function withDeliveryInputMutation<T>(
     orderId: string;
     reason: DeliveryInputMutationReason;
     frozenTruth?: FrozenStoryProductTruth;
+    /**
+     * (pooler-fix / Codex B′) Durable render/write-attempt id — the exactly-once fence key. Survives worker
+     * retries and is stable across the internal P2028 retry, so an ambiguous commit (tx committed, caller saw
+     * P2028) replays the recorded result instead of double-applying the mutation / double-bumping inputVersion.
+     * NOT merely a content hash — each call site builds `delivery_input:<order>:<slot>:<content-addressed-url>`
+     * so a genuine re-render (new bytes → new url) is a NEW operation, while an identical replay is fenced.
+     * When absent (or flag-off), the legacy direct transaction runs — byte-identical to pre-B′ behavior.
+     */
+    operationKey?: string;
+    /** Receipt `kind` label (observability only; the operationKey is the fence). Defaults to 'delivery_input'. */
+    kind?: string;
+    /** Test/proof injection (afterCommit ambiguous-commit hook, sleep, maxAttempts). */
+    atomic?: AtomicOperationDeps;
   },
   mutate: (tx: Tx) => Promise<T>,
 ): Promise<DeliveryInputMutationResult<T>> {
   const readinessEnabled = isReadinessManifestEnabled();
   const staleReason = `inputs_changed:${args.reason}`;
 
-  return prisma.$transaction(async (tx) => {
+  const runBody = async (tx: Tx): Promise<DeliveryInputMutationResult<T>> => {
     const value = await mutate(tx);
     const invalidated = readinessEnabled
       ? await tx.bookReadiness.updateMany({
@@ -230,7 +244,26 @@ export async function withDeliveryInputMutation<T>(
       orderStatus: rows[0].status,
       readinessInvalidated: invalidated.count > 0,
     };
-  });
+  };
+
+  // (Codex B′) Flag-on + a durable key → receipt-fenced exactly-once tx (survives the 6543 pooler recycling the
+  // connection across the render gap: an ambiguous commit replays the recorded result, never re-bumps inputVersion).
+  // The receipt row is written IN THE SAME tx as the mutation + inputVersion++ (all-or-nothing). Flag-off, or no
+  // key supplied, keeps the legacy direct transaction unchanged.
+  if (readinessEnabled && args.operationKey) {
+    return runAtomicOperation(
+      prisma,
+      {
+        operationKey: args.operationKey,
+        orderId: args.orderId,
+        kind: args.kind ?? 'delivery_input',
+        payloadHash: hashOperationPayload({ reason: args.reason, key: args.operationKey }),
+        run: runBody,
+      },
+      args.atomic,
+    );
+  }
+  return prisma.$transaction(runBody);
 }
 
 export interface OrderTruth {
@@ -265,6 +298,8 @@ export interface CommitDeps {
   now?: () => Date;
   /** App origin the readUrl is validated against (B5). Defaults to NEXT_PUBLIC_APP_URL/APP_URL. */
   appBaseUrl?: string | null;
+  /** (Codex B′) Test/proof injection for the receipt fence (afterCommit ambiguous-commit hook, sleep, maxAttempts). */
+  atomic?: AtomicOperationDeps;
 }
 
 /** The configured app origin (trailing slash stripped) the canonical readUrl must belong to. (B5) */
@@ -554,6 +589,26 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
     const quality = evaluateQualityGate(requiredKeys, loaded.quality, currentArtifactHashes(result));
     const decision = decideReadiness(result, quality);
     try {
+      // (Codex B′) Receipt-fence the commit tx (flag-on). operationKey = order + scope + the inputVersion this
+      // attempt evaluated + the combined integrity+quality inputsHash + the anchor disposition. A TOCTOU/revision
+      // retry reloads FRESH → different inputVersion/inputsHash → a NEW key (correct: genuinely different inputs);
+      // an ambiguous commit (P2028 after the tx committed) replays the recorded CommitResult → EXACTLY ONE
+      // Manifest + ONE Outbox binding, never a duplicate. The receipt commits atomically with the manifest/outbox.
+      if (isReadinessManifestEnabled()) {
+        const anchorDisposition = `${args.anchorAllowsDelivery ? 1 : 0}:${args.anchorOrderStatus}:${args.anchorReason ?? ''}`;
+        const operationKey = `readiness_commit:${args.orderId}:${BASE_BOOK_SCOPE}:${loaded.order.inputVersion}:${decision.inputsHash}:${anchorDisposition}`;
+        return await runAtomicOperation(
+          prisma,
+          {
+            operationKey,
+            orderId: args.orderId,
+            kind: 'readiness_commit',
+            payloadHash: hashOperationPayload({ inputVersion: loaded.order.inputVersion, inputsHash: decision.inputsHash, anchor: anchorDisposition, status: decision.status }),
+            run: (tx) => runReadinessTxn(tx, args, loaded, decision, now),
+          },
+          deps.atomic,
+        );
+      }
       return await prisma.$transaction((tx) => runReadinessTxn(tx, args, loaded, decision, now));
     } catch (e) {
       if ((isToctou(e) || isRevisionCollision(e)) && attempt < 5) {

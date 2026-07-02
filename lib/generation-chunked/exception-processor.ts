@@ -100,8 +100,10 @@ export interface ExceptionProcessorDeps {
   /** (#7-a 6) Re-QA the order's required artifacts vs their CURRENT delivered bytes (0 renders). */
   reQaQualityEvidence: (prisma: PrismaClient, orderId: string) => Promise<QualityRecoveryResult>;
   /** (#6-fix-3) ATOMICALLY reserve the durable regen budget → mark regen-pending → clear the artifact, as one tx.
-   *  `granted:false` = budget spent → NOT cleared (stays failed-terminal → the recommit refunds it). */
-  reserveMarkAndClearRegen: (prisma: PrismaClient, orderId: string, artifactKey: string) => Promise<{ granted: boolean }>;
+   *  `granted:false` = budget spent → NOT cleared (stays failed-terminal → the recommit refunds it).
+   *  (Codex B′) `operationKey` = the receipt fence: caseId + claimVersion + artifactKey → EXACTLY ONE regenCount++
+   *  even if the reservation tx commits ambiguously (P2028) and the worker restarts under the same claim. */
+  reserveMarkAndClearRegen: (prisma: PrismaClient, orderId: string, artifactKey: string, operationKey: string) => Promise<{ granted: boolean }>;
   /** (#6-fix-3) Artifact keys durably marked regen-pending — cleared, awaiting a re-render/redrive. */
   loadRegenPending: (prisma: PrismaClient, orderId: string) => Promise<string[]>;
 }
@@ -118,8 +120,8 @@ function defaultDeps(): ExceptionProcessorDeps {
     redriveGeneration: (orderId) =>
       startChunkedGeneration(orderId, 'exception_case_recovery'),
     reQaQualityEvidence: (prisma, orderId) => reQaUnknownQualityEvidence(prisma, orderId),
-    reserveMarkAndClearRegen: (prisma, orderId, artifactKey) =>
-      reserveMarkAndClearRegen(prisma, { orderId, artifactKey }),
+    reserveMarkAndClearRegen: (prisma, orderId, artifactKey, operationKey) =>
+      reserveMarkAndClearRegen(prisma, { orderId, artifactKey, operationKey }),
     loadRegenPending: (prisma, orderId) => loadRegenPendingArtifacts(prisma, orderId),
     recommitReadiness: async (prisma, orderId) => {
       const job = await prisma.generationJob.findUnique({
@@ -567,7 +569,11 @@ async function handleRecoveryRetry(
       // NOT cleared → it flows to the recommit → quality_failed → refund.
       for (const f of recovery.nowFailed) {
         if (f.regenCount >= QUALITY_REGEN_BUDGET) continue; // fast skip; the atomic reserve is authoritative
-        await deps.reserveMarkAndClearRegen(prisma, exceptionCase.orderId, f.artifactKey);
+        // (Codex B′) Receipt fence key = this claimed case + its claimVersion + the artifact. A worker restart
+        // under the SAME claim re-enters with the same key → EXACTLY ONE regenCount++ (no double budget burn);
+        // a fresh claim next tick bumps claimVersion → a new key → a legitimately new reservation.
+        const operationKey = `regen_reserve:${exceptionCase.id}:${exceptionCase.claimVersion}:${f.artifactKey}`;
+        await deps.reserveMarkAndClearRegen(prisma, exceptionCase.orderId, f.artifactKey, operationKey);
       }
       // BLOCKER 3 — re-dispatch every artifact left durably regen-pending: just-cleared this tick, OR cleared on a
       // prior tick whose redrive never started. The clear + marker committed atomically, so a started:false never

@@ -159,7 +159,14 @@ export async function finalizeAndPersistStoryText(
 
   await withDeliveryInputMutation(
     prisma,
-    { orderId: order.id, reason: 'story_text_finalized', frozenTruth },
+    {
+      orderId: order.id,
+      reason: 'story_text_finalized',
+      frozenTruth,
+      // Durable write-attempt id: the frozen story-source hash addresses the finalized text; re-finalizing the
+      // same story is idempotent, so an ambiguous-commit replay is fenced without a second inputVersion++.
+      operationKey: `delivery_input:${order.id}:story:${frozenTruth.storySourceHash}`,
+    },
     async (tx) => {
       let book = await tx.generatedBook.findUnique({ where: { orderId: order.id } });
       if (!book) {

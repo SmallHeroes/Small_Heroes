@@ -828,7 +828,12 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
 
   await withDeliveryInputMutation(
     prisma,
-    { orderId, reason: 'single_page_regenerated' },
+    {
+      orderId,
+      reason: 'single_page_regenerated',
+      // Durable write-attempt id: the page slot + the delivered content-addressed URL (presentation ?? raw).
+      operationKey: `delivery_input:${orderId}:page:${pageNumber}:${presentationUrl ?? image.url}`,
+    },
     async (tx) => {
       if (
         dbPage.textZone !== storyboardTextZone ||
