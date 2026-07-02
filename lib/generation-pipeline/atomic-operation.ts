@@ -14,10 +14,27 @@
  * Runtime stays on the 6543 pooler (serverless-correct). No session-pinning, no $connect/$disconnect, no blind
  * rerun — the receipt is the only source of idempotency.
  */
-import { randomUUID, createHash } from 'crypto';
+import { randomUUID } from 'crypto';
 import type { Prisma, PrismaClient } from '@prisma/client';
+import { canonicalHash } from '@/lib/canonical-json';
 
 type Tx = Prisma.TransactionClient;
+
+/**
+ * (P2 #4) The receipt result is JSON-serialized into AtomicOperationReceipt.result and REPLAYED verbatim on a
+ * fence hit — so it must be a JSON value / small plain object. A `Date` or a Prisma record would round-trip
+ * through JSONB corrupted (Date → ISO string; the object identity is lost). `ReceiptSafeValue` types a plain
+ * JSON VALUE (e.g. the `mutationPayload` a caller passes).
+ */
+export type ReceiptSafeValue =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | void // a callback that persists but returns nothing (the common case) — nothing is stored/replayed
+  | ReceiptSafeValue[]
+  | { [key: string]: ReceiptSafeValue };
 
 // Prisma/pooler errors that make the commit outcome AMBIGUOUS (connection/transaction lost). Safe to retry
 // THROUGH the receipt fence — the receipt, not the retry, decides exactly-once.
@@ -50,9 +67,42 @@ export class ReceiptPayloadMismatchError extends Error {
   }
 }
 
-/** Stable hash of an operation's inputs — folded into the receipt so a same-key/different-payload retry fails closed. */
+/**
+ * (P1 #2) Retries were EXHAUSTED on a retryable (ambiguous-commit) error, so whether the tx committed is UNKNOWN
+ * — the receipt read/replay itself kept failing on the recycled connection. CRITICAL: the caller must NOT treat
+ * this as a definite failure and overwrite a possibly-committed Order.ready / Job.done → failed. The safe
+ * response is to leave the durable state intact and let a redrive/sweep re-enter the fence (a committed op
+ * replays exactly-once; an uncommitted op runs). Carries the operationKey + kind + the last underlying error.
+ */
+export class AtomicOperationOutcomeUnknownError extends Error {
+  readonly code = 'atomic_operation_outcome_unknown';
+  constructor(
+    public readonly operationKey: string,
+    public readonly kind: string,
+    public readonly lastError: unknown,
+  ) {
+    const detail = lastError instanceof Error ? lastError.message : String(lastError);
+    super(
+      `[atomic-op] outcome UNKNOWN after exhausting retries for operationKey=${operationKey} kind=${kind} ` +
+        `— the tx MAY have committed; do NOT mark the order/job failed (last error: ${detail})`,
+    );
+    this.name = 'AtomicOperationOutcomeUnknownError';
+  }
+}
+
+/** True when an error means the barrier's commit outcome is UNKNOWN (retries exhausted) — never mark failed. */
+export function isOutcomeUnknown(e: unknown): e is AtomicOperationOutcomeUnknownError {
+  return e instanceof AtomicOperationOutcomeUnknownError;
+}
+
+/**
+ * Stable hash of an operation's inputs — folded into the receipt so a same-key/different-payload retry FAILS
+ * CLOSED. (P1 #3) Uses the shared CANONICAL serializer (key-order- + NFC-invariant): the incoming payloadHash is
+ * compared against the value recorded in JSONB, which reorders keys and may re-normalize strings — a raw
+ * JSON.stringify would false-mismatch on a benign key reorder. Canonicalizing makes the compare meaningful.
+ */
 export function hashOperationPayload(value: unknown): string {
-  return createHash('sha256').update(JSON.stringify(value ?? null)).digest('hex');
+  return canonicalHash(value ?? null);
 }
 
 export interface AtomicOperationArgs<T> {
@@ -65,7 +115,9 @@ export interface AtomicOperationArgs<T> {
   payloadHash: string;
   /**
    * The business mutation + invalidation + counters. Runs ONLY when the receipt is newly inserted (never on a
-   * fence hit). MUST return a JSON-round-trippable value — it is recorded and replayed verbatim on a fence hit.
+   * fence hit). MUST return a JSON-safe value (P2 #4) — it is recorded in JSONB and replayed verbatim on a fence
+   * hit, so a Date or Prisma record would be corrupted on round-trip. The JSON-safety is enforced at the caller
+   * boundary (withDeliveryInputMutation constrains T to ReceiptSafeValue; commit returns the plain CommitResult).
    */
   run: (tx: Tx) => Promise<T>;
 }
@@ -104,13 +156,19 @@ export async function runAtomicOperation<T>(
     } catch (e) {
       if (e instanceof ReceiptPayloadMismatchError) throw e; // defect → fail closed, never retry
       lastErr = e;
-      if (!isRetryablePoolerError(e) || attempt === maxAttempts - 1) throw e;
+      if (!isRetryablePoolerError(e)) throw e; // non-retryable → propagate the real error unchanged
+      if (attempt === maxAttempts - 1) {
+        // (P1 #2) Retryable, but retries EXHAUSTED — the tx may have committed on the recycled connection, so the
+        // outcome is UNKNOWN. Throw a TYPED error so the caller does NOT overwrite a possibly-committed
+        // Order.ready/Job.done → failed; a redrive/sweep re-enters the fence and reconciles exactly-once.
+        throw new AtomicOperationOutcomeUnknownError(args.operationKey, args.kind, e);
+      }
       // bounded jittered backoff; the SAME operationKey re-enters through the fence next iteration
       const base = 150 * Math.pow(2, attempt);
       await sleep(Math.round(base * (1 + Math.random() * 0.5)));
     }
   }
-  throw lastErr;
+  throw new AtomicOperationOutcomeUnknownError(args.operationKey, args.kind, lastErr); // unreachable; keep typed
 }
 
 /** The in-tx protocol (steps a–e). Kept separate so tests can drive it against a stateful fake. */

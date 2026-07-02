@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { withDeliveryInputMutation } from '@/lib/generation-pipeline/readiness-manifest';
 import { reserveMarkAndClearRegen } from '@/lib/generation-chunked/clear-page-images-for-regen';
-import { ReceiptPayloadMismatchError } from '@/lib/generation-pipeline/atomic-operation';
+import {
+  ReceiptPayloadMismatchError,
+  AtomicOperationOutcomeUnknownError,
+  isOutcomeUnknown,
+  hashOperationPayload,
+  runAtomicOperation,
+} from '@/lib/generation-pipeline/atomic-operation';
 
 /**
  * (Codex B′) Integration coverage of the receipt fence WIRED into the three barrier entry points. The wrapper's
@@ -106,8 +112,8 @@ describe('(Codex B′) receipt fence wired into withDeliveryInputMutation', () =
 
     const out = await withDeliveryInputMutation(
       prisma as never,
-      { orderId: 'o1', reason: 'page_asset_changed', operationKey: 'delivery_input:o1:page:3:url', atomic: { sleep: async () => {}, afterCommit } },
-      (tx) => (tx as { imageAsset: { update: (a: unknown) => Promise<unknown> } }).imageAsset.update({ where: { id: 'asset-1' }, data: { url: 'url' } }),
+      { orderId: 'o1', reason: 'page_asset_changed', operationKey: 'delivery_input:o1:page:3:url', mutationPayload: { url: 'url' }, atomic: { sleep: async () => {}, afterCommit } },
+      async (tx) => { await (tx as { imageAsset: { update: (a: unknown) => Promise<unknown> } }).imageAsset.update({ where: { id: 'asset-1' }, data: { url: 'url' } }); },
     );
 
     expect(spies.mutate).toHaveBeenCalledTimes(1);              // mutation applied once
@@ -122,9 +128,32 @@ describe('(Codex B′) receipt fence wired into withDeliveryInputMutation', () =
     const { prisma, spies } = makeFake({ seedReceipts: { 'delivery_input:o1:page:3:url': { payloadHash: 'OTHER', result: { value: { value: {}, inputVersion: 1, orderStatus: 'ready', readinessInvalidated: false } } } } });
     await expect(withDeliveryInputMutation(
       prisma as never,
-      { orderId: 'o1', reason: 'page_asset_changed', operationKey: 'delivery_input:o1:page:3:url', atomic: { sleep: async () => {} } },
-      (tx) => (tx as { imageAsset: { update: (a: unknown) => Promise<unknown> } }).imageAsset.update({ where: { id: 'asset-1' }, data: { url: 'url' } }),
+      { orderId: 'o1', reason: 'page_asset_changed', operationKey: 'delivery_input:o1:page:3:url', mutationPayload: { url: 'url' }, atomic: { sleep: async () => {} } },
+      async (tx) => { await (tx as { imageAsset: { update: (a: unknown) => Promise<unknown> } }).imageAsset.update({ where: { id: 'asset-1' }, data: { url: 'url' } }); },
     )).rejects.toBeInstanceOf(ReceiptPayloadMismatchError);
+    expect(spies.mutate).not.toHaveBeenCalled();
+  });
+
+  it('(P1 #1) the REAL mutationPayload is folded into the fence — same key + DIFFERENT content FAILS CLOSED', async () => {
+    // A committed receipt whose payloadHash was computed from the ORIGINAL content; a retry under the SAME key but
+    // with different mutationPayload recomputes a different hash → mismatch → fail closed (no silent stale replay).
+    const original = hashOperationPayload({ reason: 'page_asset_changed', key: 'delivery_input:o1:page:3:url', mutation: { url: 'A' } });
+    const { prisma, spies } = makeFake({ seedReceipts: { 'delivery_input:o1:page:3:url': { payloadHash: original, result: { value: { value: {}, inputVersion: 1, orderStatus: 'ready', readinessInvalidated: false } } } } });
+    await expect(withDeliveryInputMutation(
+      prisma as never,
+      { orderId: 'o1', reason: 'page_asset_changed', operationKey: 'delivery_input:o1:page:3:url', mutationPayload: { url: 'B' }, atomic: { sleep: async () => {} } },
+      async (tx) => { await (tx as { imageAsset: { update: (a: unknown) => Promise<unknown> } }).imageAsset.update({ where: { id: 'asset-1' }, data: { url: 'B' } }); },
+    )).rejects.toBeInstanceOf(ReceiptPayloadMismatchError);
+    expect(spies.mutate).not.toHaveBeenCalled();
+  });
+
+  it('(P1 #1) the fenced path REQUIRES mutationPayload — throws if a caller forgets it', async () => {
+    const { prisma, spies } = makeFake();
+    await expect(withDeliveryInputMutation(
+      prisma as never,
+      { orderId: 'o1', reason: 'page_asset_changed', operationKey: 'delivery_input:o1:page:3:url', atomic: { sleep: async () => {} } },
+      async (tx) => { await (tx as { imageAsset: { update: (a: unknown) => Promise<unknown> } }).imageAsset.update({ where: { id: 'asset-1' }, data: { url: 'url' } }); },
+    )).rejects.toThrow(/delivery_input_mutation_payload_required/);
     expect(spies.mutate).not.toHaveBeenCalled();
   });
 
@@ -133,7 +162,7 @@ describe('(Codex B′) receipt fence wired into withDeliveryInputMutation', () =
     await withDeliveryInputMutation(
       prisma as never,
       { orderId: 'o1', reason: 'page_asset_changed' },
-      (tx) => (tx as { imageAsset: { update: (a: unknown) => Promise<unknown> } }).imageAsset.update({ where: { id: 'asset-1' }, data: { url: 'url' } }),
+      async (tx) => { await (tx as { imageAsset: { update: (a: unknown) => Promise<unknown> } }).imageAsset.update({ where: { id: 'asset-1' }, data: { url: 'url' } }); },
     );
     expect(spies.mutate).toHaveBeenCalledTimes(1);
     expect(prisma._receipts.size).toBe(0); // no fence engaged
@@ -161,5 +190,77 @@ describe('(Codex B′) receipt fence wired into reserveMarkAndClearRegen — one
     expect(regen.count).toBe(1);                        // reserved once despite the ambiguous-commit retry
     expect(spies.regenUpdateMany).toHaveBeenCalledTimes(1); // the conditional increment ran once (attempt 0 only)
     expect(afterCommit).toHaveBeenCalledTimes(2);       // attempt 0 threw, attempt 1 replayed granted
+  });
+});
+
+/**
+ * (P1 #2) commit succeeds → ALL acks fail (exhaustion) → outcome_unknown → redrive → exactly one manifest/outbox
+ * AND final Order.ready + Job.done. Models a readiness-commit `run` that writes a manifest+outbox and flips
+ * order/job to ready/done inside the committed tx; the ack throws P2028 on EVERY attempt so retries exhaust.
+ */
+describe('(Codex B′ P1 #2) exhaustion → outcome_unknown, then a redrive reconciles exactly-once', () => {
+  function makeCommitFake() {
+    const receipts = new Map<string, { payloadHash: string; result: unknown }>();
+    const state = { manifests: 0, outbox: 0, orderStatus: 'generating', jobStatus: 'running' };
+    const prisma = {
+      state,
+      async $transaction(cb: (tx: unknown) => Promise<unknown>) {
+        const staged = new Map(receipts);
+        const s = { ...state };
+        const tx = {
+          async $queryRaw(_strings: TemplateStringsArray, ...values: unknown[]) {
+            const key = values[1] as string; const payloadHash = values[4] as string;
+            if (staged.has(key)) return [];
+            staged.set(key, { payloadHash, result: {} });
+            return [{ id: values[0] }];
+          },
+          atomicOperationReceipt: {
+            findUnique: async ({ where }: { where: { operationKey: string } }) => {
+              const r = staged.get(where.operationKey); return r ? { payloadHash: r.payloadHash, result: r.result } : null;
+            },
+            update: async ({ where, data }: { where: { operationKey: string }; data: { result: unknown } }) => {
+              const r = staged.get(where.operationKey); if (r) r.result = data.result; return {};
+            },
+          },
+          // the "readiness commit" body: one manifest + one outbox + order ready + job done
+          commit: async () => { s.manifests += 1; s.outbox = 1; s.orderStatus = 'ready'; s.jobStatus = 'done'; },
+        };
+        const value = await cb(tx);
+        for (const [k, v] of staged) receipts.set(k, v);
+        Object.assign(state, s); // commit the business state
+        return value;
+      },
+    };
+    const run = async (tx: unknown) => {
+      await (tx as { commit: () => Promise<void> }).commit();
+      return { manifestStatus: 'passed', enqueued: true, orderStatus: 'ready', revision: 1 } as const;
+    };
+    return { prisma, state, run };
+  }
+
+  it('commit lands but all 3 acks fail → AtomicOperationOutcomeUnknownError (state already consistent: 1 manifest/outbox, ready/done)', async () => {
+    const { prisma, state, run } = makeCommitFake();
+    const afterCommit = vi.fn(async () => { throw new PrismaErr('P2028', 'Transaction not found'); }); // EVERY attempt
+    let thrown: unknown;
+    try {
+      await runAtomicOperation(prisma as never, { operationKey: 'readiness_commit:o1', orderId: 'o1', kind: 'readiness_commit', payloadHash: 'ph', run }, { sleep: async () => {}, afterCommit });
+    } catch (e) { thrown = e; }
+    expect(isOutcomeUnknown(thrown)).toBe(true);
+    expect(thrown).toBeInstanceOf(AtomicOperationOutcomeUnknownError);
+    expect(afterCommit).toHaveBeenCalledTimes(3);       // exhausted all attempts
+    // The tx committed on attempt 0; attempts 1-2 fence-hit (no re-run) → state is consistent, NOT doubled.
+    expect(state).toMatchObject({ manifests: 1, outbox: 1, orderStatus: 'ready', jobStatus: 'done' });
+  });
+
+  it('the redrive re-enters the fence → replays the recorded result, NO duplicate manifest/outbox, stays ready/done', async () => {
+    const { prisma, state, run } = makeCommitFake();
+    // First: exhaust (commit + all acks fail).
+    await runAtomicOperation(prisma as never, { operationKey: 'readiness_commit:o1', orderId: 'o1', kind: 'readiness_commit', payloadHash: 'ph', run }, { sleep: async () => {}, afterCommit: async () => { throw new PrismaErr('P2028'); } }).catch(() => {});
+    const runSpy = vi.fn(run);
+    // Redrive: same key, now the ack succeeds → fence-hit replays the recorded result; run NEVER called again.
+    const out = await runAtomicOperation(prisma as never, { operationKey: 'readiness_commit:o1', orderId: 'o1', kind: 'readiness_commit', payloadHash: 'ph', run: runSpy }, { sleep: async () => {} });
+    expect(runSpy).not.toHaveBeenCalled();              // replayed, not re-run
+    expect(out).toMatchObject({ manifestStatus: 'passed', enqueued: true, orderStatus: 'ready', revision: 1 });
+    expect(state).toMatchObject({ manifests: 1, outbox: 1, orderStatus: 'ready', jobStatus: 'done' }); // exactly once
   });
 });

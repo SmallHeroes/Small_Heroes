@@ -69,7 +69,7 @@ import {
 import { heartbeatLease } from '@/lib/generation-chunked/lease';
 import { finalizeAndPersistStoryText } from './text-finalization';
 import { isReadinessManifestEnabled, withDeliveryInputMutation } from './readiness-manifest';
-import { hashOperationPayload } from './atomic-operation';
+import { hashOperationPayload, isOutcomeUnknown } from './atomic-operation';
 import { persistDeliveredQualityEvidence, persistQualityContext } from './quality-evidence-producer';
 import { coverArtifactKey, pageArtifactKey, makeQualityRegenReserver } from './quality-evidence';
 import { openExceptionCase } from '@/lib/generation-chunked/exception-case';
@@ -897,6 +897,7 @@ async function runCoverStage(
       // Durable write-attempt id: the cover's content-addressed URL (cover-<hash>.png). An identical replay is
       // fenced; a genuine re-render (new bytes → new url) is a new operation.
       operationKey: `delivery_input:${order.id}:cover:${coverImage.url}`,
+      mutationPayload: { coverUrl: coverImage.url, qaContext: coverImage.style01Meta?.pageVisualQa?.qaInput ?? null },
     },
     async (tx) => {
       await tx.generatedBook.update({
@@ -1275,18 +1276,21 @@ async function runPageImagesChunk(
           reason: 'character_anchors_changed',
           // Durable write-attempt id: a hash of the resolved anchor URLs being persisted.
           operationKey: `delivery_input:${order.id}:anchors:${hashOperationPayload(resolvedAnchors)}`,
+          mutationPayload: { anchors: resolvedAnchors },
         },
-        (tx) => tx.order.update({
-          where: { id: order.id },
-          data: {
-            characterAnchors: buildPersistedCharacterAnchorsJson(
-              anchorRegistry,
-              wizardMeta,
-              order.characterAnchors
-            ) as Prisma.InputJsonValue,
-            ...(resolvedAnchors.child ? { childImageUrl: resolvedAnchors.child } : {}),
-          },
-        }),
+        async (tx) => {
+          await tx.order.update({
+            where: { id: order.id },
+            data: {
+              characterAnchors: buildPersistedCharacterAnchorsJson(
+                anchorRegistry,
+                wizardMeta,
+                order.characterAnchors
+              ) as Prisma.InputJsonValue,
+              ...(resolvedAnchors.child ? { childImageUrl: resolvedAnchors.child } : {}),
+            },
+          });
+        },
       );
     },
     storyRecurringEntityDeclarations: story.storyRecurringEntities,
@@ -1365,6 +1369,11 @@ async function runPageImagesChunk(
         reason: 'page_asset_changed',
         // Durable write-attempt id: the page slot + the delivered content-addressed URL (presentation ?? raw).
         operationKey: `delivery_input:${order.id}:page:${dbPage.pageNumber}:${presentationUrl ?? image.url}`,
+        // REAL persisted content: prompt, delivered + raw URLs, dims, idempotencyKey, QA context.
+        mutationPayload: {
+          prompt: image.prompt, url: image.url, presentationUrl: presentationUrl ?? null, rawUrl: image.rawUrl ?? null,
+          width: image.width, height: image.height, idempotencyKey, qaContext: image.style01Meta?.pageVisualQa?.qaInput ?? null,
+        },
       },
       async (tx) => {
         if (existing) {
@@ -1555,11 +1564,14 @@ async function runAudioChunk(order: Order, startedAt: number, budgetMs: number):
           reason: 'page_audio_changed',
           // Durable write-attempt id: the audio page slot + its stored URL (re-applying the same URL is a no-op).
           operationKey: `delivery_input:${order.id}:audio:${page.pageNumber}:${result.url}`,
+          mutationPayload: { pageNumber: page.pageNumber, audioUrl: result.url },
         },
-        (tx) => tx.bookPage.update({
-          where: { id: page.id },
-          data: { audioUrl: result.url },
-        }),
+        async (tx) => {
+          await tx.bookPage.update({
+            where: { id: page.id },
+            data: { audioUrl: result.url },
+          });
+        },
       );
     } catch (err) {
       log.warn('Audio page failed', { page: page.pageNumber, err: String(err) });
@@ -1637,11 +1649,14 @@ async function runPackageStage(order: Order, cache: PipelineCache): Promise<void
           orderId: order.id,
           reason: 'package_payload_changed',
           operationKey: `delivery_input:${order.id}:pdf:${pdfUrl}`,
+          mutationPayload: { pdfUrl },
         },
-        (tx) => tx.generatedBook.update({
-          where: { id: book.id },
-          data: { pdfUrl },
-        }),
+        async (tx) => {
+          await tx.generatedBook.update({
+            where: { id: book.id },
+            data: { pdfUrl },
+          });
+        },
       );
     } catch (e) {
       log.error('PDF failed (non-fatal)', e, { orderId: order.id });
@@ -1661,11 +1676,14 @@ async function runPackageStage(order: Order, cache: PipelineCache): Promise<void
       reason: 'package_payload_changed',
       // readUrl is deterministic (order id + access key) → durable + stable across retries.
       operationKey: `delivery_input:${order.id}:readurl:${readUrl}`,
+      mutationPayload: { readUrl },
     },
-    (tx) => tx.generatedBook.update({
-      where: { id: book.id },
-      data: { readUrl },
-    }),
+    async (tx) => {
+      await tx.generatedBook.update({
+        where: { id: book.id },
+        data: { readUrl },
+      });
+    },
   );
 
   // Delivery gate: a low-confidence anchor renders the book (for internal QA) but HOLDS it
@@ -1829,8 +1847,32 @@ export async function processGenerationChunk(
     return { stage, done: false, stopChunk: true };
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    log.error('Chunk failed', error, { orderId });
     const failedAt = new Date();
+    // (Codex B′ P1 #2) A barrier whose retries were EXHAUSTED throws AtomicOperationOutcomeUnknownError: the tx
+    // MAY have committed (e.g. the readiness commit set Order.ready + Job.done + manifest + outbox, then the ack
+    // failed on the recycled 6543 connection). Overwriting Order/Job → failed here would DESTROY a good delivery.
+    // So do NOT touch Order/Job status. Open an infra_transient recovery case (flag-on) so a redrive re-enters the
+    // fence: a committed op replays exactly-once (order stays ready, no duplicate manifest/outbox); an uncommitted
+    // op runs fresh. A stale lease is reclaimed by the sweeper regardless. This is a reconcilable non-terminal.
+    if (isOutcomeUnknown(error)) {
+      log.warn('Chunk outcome UNKNOWN — leaving Order/Job intact for fence reconciliation', {
+        orderId, operationKey: error.operationKey, kind: error.kind, lastError: msg,
+      });
+      if (isReadinessManifestEnabled()) {
+        await prisma.$transaction((tx) =>
+          openExceptionCase(tx, {
+            orderId,
+            kind: 'infra_transient',
+            reason: `atomic_outcome_unknown:${error.kind}`,
+            sourceRef: `generation:${orderId}:${failedAt.toISOString()}`,
+            now: failedAt,
+            fenceExisting: true,
+          }),
+        );
+      }
+      return { stage: 'outcome_unknown', done: true, stopChunk: true, error: msg };
+    }
+    log.error('Chunk failed', error, { orderId });
     await prisma.$transaction(async (tx) => {
       await tx.generationJob.update({
         where: { orderId },

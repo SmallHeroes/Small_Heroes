@@ -12,7 +12,7 @@
  * explicit cancellation/refund domain action; the CAS never writes it.) No import cycle: `cas`/`send` are deps.
  */
 import type { Prisma, PrismaClient, DeliveryOutbox } from '@prisma/client';
-import { createHash } from 'crypto';
+import { canonicalHash } from '@/lib/canonical-json';
 import { createLogger } from '@/lib/logger';
 import { isCanonicalReadUrl } from '@/lib/generation-pipeline/integrity-gate';
 
@@ -56,25 +56,11 @@ export function deliveryDedupeKey(orderId: string, scope: string, fulfillmentVer
   return `book-ready/${orderId}/${s}/${fulfillmentVersion}`;
 }
 
-// Recursively sort object keys AND NFC-normalize strings so the serialization is invariant to (a) key ORDER and
-// (b) Unicode composition. This is REQUIRED for the #3h #4 integrity recompute: the payload is stored as Postgres
-// JSONB, which physically reorders object keys (by key length, then bytewise) and does NOT preserve insertion
-// order — and a name/string could round-trip in a different Unicode normal form. Hashing JSON.stringify(payload)
-// directly would make hashPayload(enqueue-time object) !== hashPayload(row.payload read back from JSONB) → every
-// row would false-mismatch. Canonicalizing first makes the hash stable across the round-trip.
-function canonicalize(v: unknown): unknown {
-  if (typeof v === 'string') return v.normalize('NFC');
-  if (Array.isArray(v)) return v.map(canonicalize);
-  if (v && typeof v === 'object') {
-    return Object.keys(v as Record<string, unknown>)
-      .sort()
-      .reduce((acc, k) => { acc[k] = canonicalize((v as Record<string, unknown>)[k]); return acc; }, {} as Record<string, unknown>);
-  }
-  return v;
-}
-
+// The canonical serializer (key-order- + NFC-invariant) lives in lib/canonical-json.ts — REQUIRED for the #3h #4
+// integrity recompute (JSONB reorders object keys and does not preserve insertion order, and a string could
+// round-trip in a different Unicode normal form), and shared with the AtomicOperationReceipt payloadHash fence.
 export function hashPayload(payload: unknown): string {
-  return createHash('sha256').update(JSON.stringify(canonicalize(payload))).digest('hex');
+  return canonicalHash(payload);
 }
 
 export interface BookReadyPayload {

@@ -126,7 +126,7 @@ describe('withDeliveryInputMutation — atomic writer barrier (P1-f #5)', () => 
     const result = await withDeliveryInputMutation(
       db as never,
       { orderId: 'o1', reason: 'page_asset_changed' },
-      (transaction) => transaction.imageAsset.update({ where: { id: 'asset-1' }, data: { url: 'new' } }),
+      async (transaction) => { await transaction.imageAsset.update({ where: { id: 'asset-1' }, data: { url: 'new' } }); },
     );
     expect(db.$transaction).toHaveBeenCalledTimes(1);
     expect(tx.imageAsset.update).toHaveBeenCalledTimes(1);
@@ -158,7 +158,7 @@ describe('withDeliveryInputMutation — atomic writer barrier (P1-f #5)', () => 
     const result = await withDeliveryInputMutation(
       db as never,
       { orderId: 'o1', reason: 'page_asset_changed' },
-      (transaction) => transaction.imageAsset.update({ where: { id: 'asset-1' }, data: { url: 'new' } }),
+      async (transaction) => { await transaction.imageAsset.update({ where: { id: 'asset-1' }, data: { url: 'new' } }); },
     );
     expect(tx.bookReadiness.updateMany).not.toHaveBeenCalled();
     expect(tx.generationJob.update).not.toHaveBeenCalled();
@@ -171,7 +171,7 @@ describe('withDeliveryInputMutation — atomic writer barrier (P1-f #5)', () => 
     await withDeliveryInputMutation(
       db as never,
       { orderId: 'o1', reason: 'page_assets_cleared' },
-      (transaction) => transaction.imageAsset.update({ where: { id: 'asset-1' }, data: { url: 'new' } }),
+      async (transaction) => { await transaction.imageAsset.update({ where: { id: 'asset-1' }, data: { url: 'new' } }); },
     );
     expect(tx.generationJob.update).toHaveBeenCalledWith({
       where: { orderId: 'o1' },
@@ -195,7 +195,7 @@ describe('withDeliveryInputMutation — atomic writer barrier (P1-f #5)', () => 
     await withDeliveryInputMutation(
       db as never,
       { orderId: 'o1', reason: 'page_asset_changed' },
-      (transaction) => transaction.imageAsset.update({ where: { id: 'asset-1' }, data: { url: 'new' } }),
+      async (transaction) => { await transaction.imageAsset.update({ where: { id: 'asset-1' }, data: { url: 'new' } }); },
     );
     expect(tx.generationJob.update).not.toHaveBeenCalled();
   });
@@ -215,7 +215,7 @@ describe('withDeliveryInputMutation — atomic writer barrier (P1-f #5)', () => 
           frozenProductVersion: 'story-product/v1:adventure',
         },
       },
-      (transaction) => transaction.imageAsset.update({ where: { id: 'asset-1' }, data: { url: 'new' } }),
+      async (transaction) => { await transaction.imageAsset.update({ where: { id: 'asset-1' }, data: { url: 'new' } }); },
     )).rejects.toThrow('frozen_product_truth_mismatch');
     expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
   });

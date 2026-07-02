@@ -833,6 +833,11 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
       reason: 'single_page_regenerated',
       // Durable write-attempt id: the page slot + the delivered content-addressed URL (presentation ?? raw).
       operationKey: `delivery_input:${orderId}:page:${pageNumber}:${presentationUrl ?? image.url}`,
+      // REAL persisted content: prompt, delivered + raw URLs, dims, storyboard text-zone/lighting.
+      mutationPayload: {
+        prompt: image.prompt, url: image.url, presentationUrl: presentationUrl ?? null, rawUrl: image.rawUrl ?? null,
+        width: image.width, height: image.height, textZone: storyboardTextZone, lighting: storyboardLighting,
+      },
     },
     async (tx) => {
       if (

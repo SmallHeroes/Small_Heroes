@@ -166,6 +166,11 @@ export async function finalizeAndPersistStoryText(
       // Durable write-attempt id: the frozen story-source hash addresses the finalized text; re-finalizing the
       // same story is idempotent, so an ambiguous-commit replay is fenced without a second inputVersion++.
       operationKey: `delivery_input:${order.id}:story:${frozenTruth.storySourceHash}`,
+      // REAL persisted content: the personalized page text/narration + assigned templates.
+      mutationPayload: {
+        storySourceHash: frozenTruth.storySourceHash,
+        pages: story.pages.map((p) => [p.pageNumber, p.text, p.narrationText, templateByPage.get(p.pageNumber) ?? null]),
+      },
     },
     async (tx) => {
       let book = await tx.generatedBook.findUnique({ where: { orderId: order.id } });

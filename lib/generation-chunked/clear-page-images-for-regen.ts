@@ -105,6 +105,8 @@ export async function reserveMarkAndClearRegen(
       orderId: args.orderId,
       reason: isCover ? 'cover_asset_changed' : 'page_assets_cleared',
       operationKey: args.operationKey,
+      // REAL operation intent: the artifact being reserved + the budget it is charged against.
+      mutationPayload: { intent: 'reserve_mark_clear', artifactKey: args.artifactKey, budget },
       kind: 'regen_reserve',
       atomic: args.atomic,
     },

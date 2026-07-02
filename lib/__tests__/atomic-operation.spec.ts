@@ -3,6 +3,8 @@ import {
   runAtomicOperation,
   isRetryablePoolerError,
   ReceiptPayloadMismatchError,
+  AtomicOperationOutcomeUnknownError,
+  isOutcomeUnknown,
   hashOperationPayload,
 } from '@/lib/generation-pipeline/atomic-operation';
 
@@ -117,12 +119,19 @@ describe('atomic-operation — receipt-fenced exactly-once (Codex B′)', () => 
     expect(run).toHaveBeenCalledTimes(1);
   });
 
-  it('exhausts maxAttempts on a persistent ambiguous error and throws', async () => {
+  it('exhausts maxAttempts on a persistent ambiguous error and throws a TYPED outcome_unknown (P1 #2)', async () => {
     const prisma = makeFakePrisma();
     const run = vi.fn(async () => { throw new PrismaErr('P1017', 'connection lost'); });
-    await expect(runAtomicOperation(prisma as never, {
-      operationKey: 'k7', orderId: 'o1', kind: 'delivery_input', payloadHash: 'p', run,
-    }, noSleep)).rejects.toBeInstanceOf(PrismaErr);
+    let thrown: unknown;
+    try {
+      await runAtomicOperation(prisma as never, {
+        operationKey: 'k7', orderId: 'o1', kind: 'delivery_input', payloadHash: 'p', run,
+      }, noSleep);
+    } catch (e) { thrown = e; }
+    // On exhaustion the tx MAY have committed → a TYPED outcome_unknown (NOT the raw error) so the caller does
+    // not overwrite a possibly-committed Order.ready/Job.done → failed. The underlying error is preserved.
+    expect(isOutcomeUnknown(thrown)).toBe(true);
+    expect((thrown as AtomicOperationOutcomeUnknownError).lastError).toBeInstanceOf(PrismaErr);
     expect(run).toHaveBeenCalledTimes(3); // maxAttempts
   });
 });

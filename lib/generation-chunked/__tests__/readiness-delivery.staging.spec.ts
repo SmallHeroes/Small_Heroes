@@ -161,7 +161,7 @@ describe.skipIf(!RUN)('#7-b delivery decision — staging real DB (flag on)', ()
       const mutated = await withDeliveryInputMutation(
         prisma,
         { orderId, reason: 'package_payload_changed' },
-        (tx) => tx.generatedBook.update({ where: { orderId }, data: { pdfUrl: 'https://changed.invalid/x.pdf' } }),
+        async (tx) => { await tx.generatedBook.update({ where: { orderId }, data: { pdfUrl: 'https://changed.invalid/x.pdf' } }); },
       );
       expect(mutated.inputVersion).toBe(1);
 

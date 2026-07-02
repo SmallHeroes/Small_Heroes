@@ -104,8 +104,8 @@ describe.skipIf(!RUN)('(Codex B′) receipt fence — 17-cycle live 6543-pooler 
           const before = (await prisma.order.findUnique({ where: { id: idA }, select: { inputVersion: true } }))!.inputVersion;
           await withDeliveryInputMutation(
             prisma,
-            { orderId: idA, reason: 'package_payload_changed', operationKey: `delivery_input:${idA}:readurl:cycle${i}`, atomic: { afterCommit: ambiguousCommit(i, 'delivery_input') } },
-            (tx) => tx.generatedBook.update({ where: { orderId: idA }, data: { readUrl: `${APP}/c${i}` } }),
+            { orderId: idA, reason: 'package_payload_changed', operationKey: `delivery_input:${idA}:readurl:cycle${i}`, mutationPayload: { readUrl: `${APP}/c${i}` }, atomic: { afterCommit: ambiguousCommit(i, 'delivery_input') } },
+            async (tx) => { await tx.generatedBook.update({ where: { orderId: idA }, data: { readUrl: `${APP}/c${i}` } }); },
           );
           const after = (await prisma.order.findUnique({ where: { id: idA }, select: { inputVersion: true } }))!.inputVersion;
           expect(after - before, `cycle ${i}: inputVersion advanced by exactly 1`).toBe(1);

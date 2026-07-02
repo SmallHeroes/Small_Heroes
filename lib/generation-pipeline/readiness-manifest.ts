@@ -29,7 +29,7 @@ import {
   type ArtifactHashes,
 } from './quality-evidence';
 import { enqueueDelivery, type BookReadyPayload, type CasResult } from '@/lib/generation-chunked/delivery-outbox';
-import { runAtomicOperation, hashOperationPayload, type AtomicOperationDeps } from './atomic-operation';
+import { runAtomicOperation, hashOperationPayload, type AtomicOperationDeps, type ReceiptSafeValue } from './atomic-operation';
 import { createLogger } from '@/lib/logger';
 import type { FrozenStoryProductTruth } from './frozen-product-truth';
 import {
@@ -56,7 +56,7 @@ export type DeliveryInputMutationReason =
   | 'debug_page_asset_changed'
   | 'character_anchors_changed';
 
-export interface DeliveryInputMutationResult<T> {
+export interface DeliveryInputMutationResult<T extends ReceiptSafeValue> {
   value: T;
   inputVersion: number;
   orderStatus: string;
@@ -84,7 +84,7 @@ function recoveryStageFor(reason: DeliveryInputMutationReason): 'page_images' | 
  * also makes its job reclaimable; callers must never have to repair a terminal job afterward.
  * Evaluation/download/decode happens only after this transaction at a logical stabilization boundary.
  */
-export async function withDeliveryInputMutation<T>(
+export async function withDeliveryInputMutation<T extends ReceiptSafeValue>(
   prisma: PrismaClient,
   args: {
     orderId: string;
@@ -99,6 +99,14 @@ export async function withDeliveryInputMutation<T>(
      * When absent (or flag-off), the legacy direct transaction runs — byte-identical to pre-B′ behavior.
      */
     operationKey?: string;
+    /**
+     * (Codex B′ P1 #1) The REAL mutation payload — the actual content this barrier persists (prompt, delivered
+     * URL, dims, idempotencyKey, QA context, personalized text, …). Folded into the receipt payloadHash so a
+     * same-operationKey retry that carries genuinely DIFFERENT content FAILS CLOSED instead of silently replaying
+     * a stale result. REQUIRED on the fenced path (flag-on + an operationKey); a bare `{reason, key}` hash is
+     * insufficient because the key alone cannot detect a content drift under a colliding key.
+     */
+    mutationPayload?: ReceiptSafeValue;
     /** Receipt `kind` label (observability only; the operationKey is the fence). Defaults to 'delivery_input'. */
     kind?: string;
     /** Test/proof injection (afterCommit ambiguous-commit hook, sleep, maxAttempts). */
@@ -251,13 +259,19 @@ export async function withDeliveryInputMutation<T>(
   // The receipt row is written IN THE SAME tx as the mutation + inputVersion++ (all-or-nothing). Flag-off, or no
   // key supplied, keeps the legacy direct transaction unchanged.
   if (readinessEnabled && args.operationKey) {
+    // (P1 #1) The REAL mutation payload is REQUIRED on the fenced path — fail closed on a caller that forgot it,
+    // rather than fence on a weak {reason, key} hash that cannot detect a content drift under a colliding key.
+    if (args.mutationPayload === undefined) {
+      throw new Error(`delivery_input_mutation_payload_required:${args.reason}:${args.operationKey}`);
+    }
     return runAtomicOperation(
       prisma,
       {
         operationKey: args.operationKey,
         orderId: args.orderId,
         kind: args.kind ?? 'delivery_input',
-        payloadHash: hashOperationPayload({ reason: args.reason, key: args.operationKey }),
+        // Fold the actual persisted content into the fence hash → a same-key/different-content retry fails closed.
+        payloadHash: hashOperationPayload({ reason: args.reason, key: args.operationKey, mutation: args.mutationPayload }),
         run: runBody,
       },
       args.atomic,

@@ -106,10 +106,10 @@ describe.skipIf(!RUN)('Order.inputVersion optimistic concurrency — staging rea
       await withDeliveryInputMutation(
         prisma,
         { orderId: id, reason: 'package_payload_changed' },
-        (tx) => tx.generatedBook.update({
+        async (tx) => { await tx.generatedBook.update({
           where: { orderId: id },
           data: { readUrl: 'https://new.invalid' },
-        }),
+        }); },
       );
 
       const [order, readiness, book, job] = await Promise.all([

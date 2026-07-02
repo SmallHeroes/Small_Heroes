@@ -81,29 +81,37 @@ export async function POST(req: NextRequest) {
           orderId: order.id,
           reason: 'debug_page_asset_changed',
           operationKey: `delivery_input:${order.id}:page:${requestedPageNumber}:${generated.url}`,
+          mutationPayload: {
+            prompt: generated.prompt, url: generated.url, rawUrl: generated.rawUrl ?? null,
+            width: generated.width, height: generated.height,
+          },
         },
-        (tx) => tx.imageAsset.upsert({
-          where: { pageId: targetPage.id },
-          update: {
-            provider: generated.provider,
-            prompt: generated.prompt,
-            url: generated.url,
-            rawUrl: generated.rawUrl ?? null,
-            width: generated.width,
-            height: generated.height,
-            style: order.illustrationStyle,
-          },
-          create: {
-            pageId: targetPage.id,
-            provider: generated.provider,
-            prompt: generated.prompt,
-            url: generated.url,
-            rawUrl: generated.rawUrl ?? null,
-            width: generated.width,
-            height: generated.height,
-            style: order.illustrationStyle,
-          },
-        }),
+        async (tx) => {
+          // Return a JSON-safe projection (P2 #4) — the receipt stores/replays this, so never a Prisma record.
+          const asset = await tx.imageAsset.upsert({
+            where: { pageId: targetPage.id },
+            update: {
+              provider: generated.provider,
+              prompt: generated.prompt,
+              url: generated.url,
+              rawUrl: generated.rawUrl ?? null,
+              width: generated.width,
+              height: generated.height,
+              style: order.illustrationStyle,
+            },
+            create: {
+              pageId: targetPage.id,
+              provider: generated.provider,
+              prompt: generated.prompt,
+              url: generated.url,
+              rawUrl: generated.rawUrl ?? null,
+              width: generated.width,
+              height: generated.height,
+              style: order.illustrationStyle,
+            },
+          });
+          return { id: asset.id };
+        },
       );
       storedAssetId = mutation.value.id;
     }
