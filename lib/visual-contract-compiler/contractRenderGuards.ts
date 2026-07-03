@@ -49,6 +49,18 @@ export function isVisualContractFreezeEnabled(): boolean {
   return process.env.VISUAL_CONTRACT_FREEZE === 'true';
 }
 
+/**
+ * (WS0b) Whether the contract STEERS live render output — prompt threading, scene-class routing, and style-ref
+ * routing fed by the contract's projections. Default OFF, hard-off on prod. This is the flag Codex insisted on:
+ * steering must NOT ship without the blocking location/cast QA gate (WS1). WS0b only BUILDS the projection
+ * adapters; with this flag OFF they are available but do NOT drive the prompt/scene/style path, so render output
+ * is byte-identical to today. WS1 turns this ON together with the gate.
+ */
+export function isVisualContractSteeringEnabled(): boolean {
+  if (isVercelProductionRuntime()) return false;
+  return process.env.VISUAL_CONTRACT_STEERING === 'true';
+}
+
 export class MissingVisualContractError extends Error {
   readonly isMissingVisualContract = true as const;
   constructor(message: string, readonly context: RenderContext, readonly errors?: string[]) {
