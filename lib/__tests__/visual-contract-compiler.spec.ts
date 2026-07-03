@@ -6,6 +6,7 @@ import {
   compileBookVisualContract,
   derivePageVisualContracts,
   isInvalidVisualContractError,
+  isInvalidVNextVisualContractError,
   resolveAuthoritativePageLocation,
   validateBookVisualContract,
   type BookVisualContract,
@@ -19,8 +20,8 @@ function validContract(): BookVisualContract {
     storyKey: 'demo_playground',
     worldType: 'sunny outdoor playground',
     locations: [
-      { id: 'playground_main', name: 'The Playground', description: 'a sunny neighborhood playground', timeOfDay: 'day' },
-      { id: 'home_living_room', name: 'Living Room', description: 'a cozy living room', timeOfDay: 'day' },
+      { id: 'playground_main', name: 'The Playground', description: 'a sunny neighborhood playground', timeOfDay: 'day', environmentClass: 'outdoor' },
+      { id: 'home_living_room', name: 'Living Room', description: 'a cozy living room', timeOfDay: 'day', environmentClass: 'indoor' },
     ],
     zones: [
       { id: 'gate', locationId: 'playground_main', name: 'Playground Gate', description: 'the painted entrance gate' },
@@ -50,6 +51,8 @@ function validContract(): BookVisualContract {
         characterPresence: { child: true, companion: false },
         propState: [{ propId: 'stone_gate', state: 'closed' }],
         camera: 'wide establishing shot',
+        castIds: ['child'],
+        transition: { kind: 'steady' },
       },
       {
         pageNumber: 2,
@@ -61,6 +64,8 @@ function validContract(): BookVisualContract {
         characterPresence: { child: true, companion: true },
         propState: [{ propId: 'stone_gate', state: 'open' }],
         camera: 'low angle, child reaching toward the gate',
+        castIds: ['child', 'fox_koko'],
+        transition: { kind: 'steady' },
       },
     ],
   };
@@ -198,6 +203,23 @@ describe('compileBookVisualContract (fail-closed parse + validate)', () => {
     const bad = { ...validContract(), pageContracts: [{ pageNumber: 1, locationId: 'nope', camera: 'x', mustShow: [], mustNotShow: [], characterPresence: { child: true, companion: false }, propState: [] }] };
     await expect(
       compileBookVisualContract(input, { callLLM: async () => JSON.stringify(bad) })
-    ).rejects.toSatisfy(isInvalidVisualContractError);
+    ).rejects.toSatisfy(isInvalidVNextVisualContractError);
+  });
+
+  it('runs the vNext validator (rejects a base-valid contract that omits per-page castIds)', async () => {
+    const c = validContract();
+    delete (c.pageContracts[0] as { castIds?: string[] }).castIds; // base-valid, vNext-invalid
+    await expect(
+      compileBookVisualContract(input, { callLLM: async () => JSON.stringify(c) })
+    ).rejects.toSatisfy(isInvalidVNextVisualContractError);
+  });
+
+  it('protects trusted provenance — the model cannot overwrite source/compiledFromPages', async () => {
+    // The model claims a bogus page count; ours (from input.pageCount) must win, and coverage must be
+    // validated against OUR count (2), not the model's 999 — otherwise this would fail coverage.
+    const poisoned = { ...validContract(), provenance: { source: 'model-lies', compiledFromPages: 999 } };
+    const contract = await compileBookVisualContract(input, { callLLM: async () => JSON.stringify(poisoned) });
+    expect(contract.provenance?.source).toBe('llm');
+    expect(contract.provenance?.compiledFromPages).toBe(2);
   });
 });

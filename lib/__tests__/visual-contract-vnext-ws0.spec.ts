@@ -175,6 +175,29 @@ const FIXTURES: Array<[string, BookVisualContract]> = [
   ['legitOutdoor', legitOutdoor],
 ];
 
+/** A minimal two-zone/one-location contract for the cross-page SEQUENCE tests: the child starts in the
+ *  hall and legitimately moves up into the attic via an after_transition (the attic's only entry). */
+function seqBase(): BookVisualContract {
+  return {
+    version: 1,
+    storyKey: 'seq_house',
+    worldType: 'realistic_daily_life',
+    locations: [{ id: 'house', name: 'House', description: 'a family house', environmentClass: 'indoor', lighting: 'warm_lamps' }],
+    zones: [
+      { id: 'house.hall', locationId: 'house', name: 'Hall', description: 'the entry hall' },
+      { id: 'house.attic', locationId: 'house', name: 'Attic', description: 'a dusty attic up the stairs' },
+    ],
+    cast: { child, companion },
+    recurringProps: [],
+    forbiddenGlobalElements: globalForbidden,
+    coverContract: { worldType: 'realistic_daily_life', locationId: 'house', timeOfDay: 'day', mustShow: ['child'], mustNotShow: [] },
+    pageContracts: [
+      { pageNumber: 1, locationId: 'house', zoneId: 'house.hall', mustShow: ['the child in the hall'], mustNotShow: [], characterPresence: { child: true, companion: false }, propState: [], camera: 'wide', castIds: ['child:hero'], transition: { kind: 'steady' } },
+      { pageNumber: 2, locationId: 'house', zoneId: 'house.attic', mustShow: ['the child in the attic'], mustNotShow: [], characterPresence: { child: true, companion: false }, propState: [], camera: 'wide', castIds: ['child:hero'], transition: { kind: 'after_transition', fromZoneId: 'house.hall', toZoneId: 'house.attic', cue: 'up the stairs' } },
+    ],
+  };
+}
+
 describe('WS0 vNext — golden fixtures validate (100% coverage, valid transitions, castIds resolve)', () => {
   it.each(FIXTURES)('%s passes the vNext validator', (_name, contract) => {
     const result = validateVNextVisualContract(contract);
@@ -186,6 +209,12 @@ describe('WS0 vNext — golden fixtures validate (100% coverage, valid transitio
       expect(typeof p.locationId).toBe('string');
       expect(typeof p.zoneId).toBe('string');
     }
+  });
+
+  it.each(FIXTURES)('%s covers EXACTLY pages 1..N (no gaps, no duplicates)', (_name, contract) => {
+    const nums = contract.pageContracts.map((p) => p.pageNumber).sort((a, b) => a - b);
+    const expected = Array.from({ length: nums.length }, (_, i) => i + 1);
+    expect(nums).toEqual(expected);
   });
 
   it.each(FIXTURES)('%s golden structural snapshot', (name, contract) => {
@@ -293,6 +322,84 @@ describe('WS0 vNext — fail-closed on malformed / rule violations', () => {
 
   it('assertValidVNextVisualContract throws InvalidVNextVisualContractError on a malformed contract', () => {
     expect(() => assertValidVNextVisualContract({ not: 'a contract' })).toThrow(InvalidVNextVisualContractError);
+  });
+
+  // ── P1 #1: EXACT page coverage (1..N once) ──────────────────────────────────────────────────────
+  it('a GAP in the page sequence is rejected (coverage requires exactly 1..N)', () => {
+    const bad = clone(clinic);
+    bad.pageContracts.splice(1, 1); // drop page 2 → [1,3,4]
+    const r = validateVNextVisualContract(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/missing pageContract for page 2/);
+  });
+
+  it('a DUPLICATE page number is rejected (coverage requires each page once)', () => {
+    const bad = clone(bedroom);
+    bad.pageContracts.push(clone(bad.pageContracts[0])); // second page 1 → [1,2,1]
+    const r = validateVNextVisualContract(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/duplicate pageContract for page 1/);
+  });
+
+  it('a page number beyond the authoritative compiled count is rejected', () => {
+    const bad = clone(bedroom);
+    bad.provenance = { source: 'llm', compiledFromPages: 2 };
+    bad.pageContracts[1].pageNumber = 5; // [1,5] against N=2
+    const r = validateVNextVisualContract(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/out of range|missing pageContract for page 2/);
+  });
+
+  // ── P1 #2: cross-page transition SEQUENCE ───────────────────────────────────────────────────────
+  it('the seqBase fixture (legit after_transition arrival) passes', () => {
+    expect(validateVNextVisualContract(seqBase()).ok).toBe(true);
+  });
+
+  it('a steady page sitting in destination B, with a later before_transition A→B, is rejected (Codex sequence case)', () => {
+    const bad = seqBase();
+    bad.pageContracts = [
+      bad.pageContracts[0], // page 1: steady in the hall (A)
+      // page 2: already in the attic (B) with NO transition bringing the story there — per-page legal, globally impossible
+      { pageNumber: 2, locationId: 'house', zoneId: 'house.attic', mustShow: ['x'], mustNotShow: [], characterPresence: { child: true, companion: false }, propState: [], camera: 'wide', castIds: ['child:hero'], transition: { kind: 'steady' } },
+      // page 3: still in A, only NOW heading toward B
+      { pageNumber: 3, locationId: 'house', zoneId: 'house.hall', mustShow: ['x'], mustNotShow: [], characterPresence: { child: true, companion: false }, propState: [], camera: 'wide', castIds: ['child:hero'], transition: { kind: 'before_transition', fromZoneId: 'house.hall', toZoneId: 'house.attic', cue: 'about to head up' } },
+    ];
+    const r = validateVNextVisualContract(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/occupies gated zone/);
+  });
+
+  it('a transition departing from a zone the story never established is rejected', () => {
+    const bad = seqBase();
+    bad.pageContracts[0].zoneId = 'house.attic'; // start in the attic, but page 2 claims to arrive FROM the hall
+    const r = validateVNextVisualContract(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/has not established/);
+  });
+
+  // ── P1 #5: remaining structural locks ───────────────────────────────────────────────────────────
+  it('a human cast member missing coarseAppearance is rejected', () => {
+    const bad = clone(clinic);
+    delete (bad.humanCast![0] as { coarseAppearance?: string }).coarseAppearance;
+    const r = validateVNextVisualContract(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/coarseAppearance missing/);
+  });
+
+  it('a location with an unknown environmentClass is rejected (runtime, not just the TS type)', () => {
+    const bad = clone(bedroom);
+    (bad.locations[0] as { environmentClass: string }).environmentClass = 'underwater';
+    const r = validateVNextVisualContract(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/unknown environmentClass/);
+  });
+
+  it('a location missing environmentClass is rejected (the style-ref lock is required)', () => {
+    const bad = clone(bedroom);
+    delete (bad.locations[0] as { environmentClass?: string }).environmentClass;
+    const r = validateVNextVisualContract(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/missing environmentClass/);
   });
 });
 

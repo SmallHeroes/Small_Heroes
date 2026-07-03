@@ -5,14 +5,21 @@
  * cast, cover, page location/zone references). vNext adds the WS0 authority rules ON TOP, without changing
  * base behavior (so every existing contract/consumer/test stays green):
  *
- *   1. EXACT per-page coverage — every page resolves to BOTH a location AND a zone (zoneId required).
+ *   1. EXACT page coverage — the page set is exactly pages 1..N (N = the authoritative compiled page count),
+ *      each present ONCE. Gaps, duplicates, and out-of-range page numbers fail closed. Every page also
+ *      resolves to BOTH a location AND a zone (zoneId required).
  *   2. Cast resolution — every per-page `castIds[]` entry resolves to a defined cast member
- *      (cast.child.id | cast.companion?.id | humanCast[].id).
- *   3. Transitions well-formed — for a non-`steady` transition, from/to zones exist and differ, and the
- *      page's own zone aligns with the kind (before → origin, after → destination, threshold → either).
+ *      (cast.child.id | cast.companion?.id | humanCast[].id), and castIds is REQUIRED per page.
+ *   3. Transitions well-formed (per-page) — for a non-`steady` transition, from/to zones exist and differ, and
+ *      the page's own zone aligns with the kind (before → origin, after → destination, threshold → either).
  *      A `before_transition`/`steady` page can therefore NEVER sit in the destination zone.
- *   4. Human cast well-formed — stable id, coarse gender bound to text evidence, pagesPresent reference
- *      real pages.
+ *   3b. Transition SEQUENCE (cross-page) — a gated zone (any transition destination) may only be occupied at
+ *      or after the threshold/after_transition that introduces it, and a transition may only depart from a zone
+ *      the story has already established. Catches the per-page-legal-but-globally-impossible case (a `steady`
+ *      page sitting in a destination before any transition brings the story there).
+ *   4. Human cast well-formed — stable id, coarse gender bound to text evidence, coarseAppearance lock,
+ *      pagesPresent reference real pages (+ bidirectional castIds binding).
+ *   5. environmentClass validated against the allowed set at runtime (unknown value → fail closed).
  *
  * Enforcement of the *content* checks (does the render actually match?) lands in WS1/WS2; this validator is
  * the STRUCTURAL gate only. Malformed → fail closed (never silently pass).
@@ -20,6 +27,7 @@
 import { validateBookVisualContract } from './validateBookVisualContract';
 import type {
   BookVisualContract,
+  EnvironmentClass,
   PageTransition,
   PageVisualContract,
   RecurringHumanCastMember,
@@ -57,6 +65,7 @@ const HUMAN_GENDERS = new Set<RecurringHumanCastMember['gender']>([
   'female',
   'unspecified',
 ]);
+const ENVIRONMENT_CLASSES = new Set<EnvironmentClass>(['indoor', 'outdoor', 'neutral']);
 
 function isStr(v: unknown): v is string {
   return typeof v === 'string' && v.trim().length > 0;
@@ -144,6 +153,7 @@ function validateHumanCast(
     seen.add(m.id);
     if (!isStr(m.role)) errors.push(`${label}.role missing`);
     if (!HUMAN_GENDERS.has(m.gender)) errors.push(`${label}.gender invalid ("${String(m.gender)}")`);
+    if (!isStr(m.coarseAppearance)) errors.push(`${label}.coarseAppearance missing (the stable appearance lock)`);
     if (!isStr(m.textEvidence)) errors.push(`${label}.textEvidence missing (identity must bind to a story phrase)`);
     if (!m.wardrobe || !isStr(m.wardrobe.description)) errors.push(`${label}.wardrobe.description missing`);
     if (!Array.isArray(m.aliases)) errors.push(`${label}.aliases must be an array`);
@@ -197,6 +207,43 @@ export function validateVNextVisualContract(input: unknown): VNextContractValida
       .filter((n): n is number => typeof n === 'number'),
   );
   const castIdsByPage = new Map<number, Set<string>>();
+
+  // (5) environmentClass — validate at RUNTIME against the allowed set (the TS type is not enforced on JSON
+  // parsed from an artifact). It is REQUIRED (it is the style-ref lock); an unknown/absent value fails closed.
+  for (const loc of contract.locations ?? []) {
+    if (!isStr(loc?.id)) continue; // base validator already reported a missing location id
+    if (loc.environmentClass === undefined) {
+      errors.push(`location "${loc.id}" is missing environmentClass (the style-ref lock)`);
+    } else if (!ENVIRONMENT_CLASSES.has(loc.environmentClass)) {
+      errors.push(`location "${loc.id}" has unknown environmentClass "${String(loc.environmentClass)}"`);
+    }
+  }
+
+  // (1) EXACT page coverage — pages must be exactly 1..N, each present once (N = the authoritative compiled
+  // count when available, else the max declared page). Gaps, duplicates, and out-of-range numbers fail closed.
+  {
+    const rawPageNumbers = (contract.pageContracts ?? []).map((p) => p.pageNumber);
+    const provenanceCount = contract.provenance?.compiledFromPages;
+    const expectedCount =
+      typeof provenanceCount === 'number' && Number.isInteger(provenanceCount) && provenanceCount > 0
+        ? provenanceCount
+        : rawPageNumbers.reduce((max, n) => (typeof n === 'number' && n > max ? n : max), 0);
+    const seen = new Set<number>();
+    for (const n of rawPageNumbers) {
+      if (typeof n !== 'number' || !Number.isInteger(n)) {
+        errors.push(`pageContracts has a non-integer pageNumber (${String(n)})`);
+        continue;
+      }
+      if (n < 1 || n > expectedCount) {
+        errors.push(`page ${n} is out of range (expected pages 1..${expectedCount})`);
+      }
+      if (seen.has(n)) errors.push(`duplicate pageContract for page ${n}`);
+      seen.add(n);
+    }
+    for (let i = 1; i <= expectedCount; i++) {
+      if (!seen.has(i)) errors.push(`missing pageContract for page ${i} (expected exactly pages 1..${expectedCount})`);
+    }
+  }
 
   for (const page of contract.pageContracts ?? []) {
     const label = typeof page.pageNumber === 'number' ? `page ${page.pageNumber}` : 'page (?)';
@@ -261,6 +308,42 @@ export function validateVNextVisualContract(input: unknown): VNextContractValida
     } else {
       validateHumanCast(contract.humanCast, pageNumbers, castIdsByPage, errors);
     }
+  }
+
+  // (3b) cross-page transition SEQUENCE — a forward state machine over pages in ascending order. Per-page
+  // alignment is necessary but not sufficient: a `steady` page can be legal on its own yet sit in a zone the
+  // story has not transitioned into (Codex's case). A "gated" zone is any transition destination; it may only
+  // be occupied at/after the threshold/after_transition that introduces it, and a transition may only depart
+  // from a zone already established. Non-gated zones support free movement (no threshold needed).
+  {
+    const pagesSorted = [...(contract.pageContracts ?? [])]
+      .filter((p) => typeof p.pageNumber === 'number')
+      .sort((a, b) => a.pageNumber - b.pageNumber);
+    const gatedZones = new Set<string>();
+    for (const p of pagesSorted) {
+      const t = p.transition;
+      if (t && t.kind !== 'steady' && isStr(t.toZoneId)) gatedZones.add(t.toZoneId);
+    }
+    const available = new Set<string>();
+    pagesSorted.forEach((p, idx) => {
+      const t = p.transition;
+      // The first page establishes its zone — you must start somewhere.
+      if (idx === 0 && isStr(p.zoneId)) available.add(p.zoneId);
+      // A transition can only depart from a zone the story has already established.
+      if (t && t.kind !== 'steady' && isStr(t.fromZoneId) && idx > 0 && !available.has(t.fromZoneId)) {
+        errors.push(`page ${p.pageNumber} transitions from zone "${t.fromZoneId}" the story has not established yet`);
+      }
+      // A threshold/after_transition INTRODUCES its destination (available from here on).
+      if (t && (t.kind === 'threshold' || t.kind === 'after_transition') && isStr(t.toZoneId)) {
+        available.add(t.toZoneId);
+      }
+      // Occupancy: a gated zone must have been introduced before it can be occupied.
+      if (isStr(p.zoneId) && gatedZones.has(p.zoneId) && !available.has(p.zoneId)) {
+        errors.push(`page ${p.pageNumber} occupies gated zone "${p.zoneId}" before the story transitions into it`);
+      }
+      // A non-gated zone is freely established by occupancy (open movement between zones of a place).
+      if (isStr(p.zoneId) && !gatedZones.has(p.zoneId)) available.add(p.zoneId);
+    });
   }
 
   if (errors.length > 0) return { ok: false, errors };

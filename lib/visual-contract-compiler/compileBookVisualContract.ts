@@ -10,10 +10,8 @@ import {
   BOOK_VISUAL_CONTRACT_VERSION,
   type BookVisualContract,
 } from './types';
-import {
-  assertValidBookVisualContract,
-  InvalidVisualContractError,
-} from './validateBookVisualContract';
+import { InvalidVisualContractError } from './validateBookVisualContract';
+import { assertValidVNextVisualContract } from './validateVNextVisualContract';
 import { normalizeRawBookVisualContract } from './normalizeRawContract';
 
 /** Minimal LLM seam: system+user prompt in, raw model text (expected JSON) out. */
@@ -52,16 +50,20 @@ const defaultContractLlmCaller: ContractLlmCaller = async (system, user) => {
 export function buildCompileSystemPrompt(): string {
   return [
     'You are a visual continuity compiler for a children\'s picture book.',
-    'Read the FULL story and output ONE structured JSON BookVisualContract — the single source of truth for the book\'s visuals.',
+    'Read the FULL story (and the per-page image directions when provided) and output ONE structured JSON BookVisualContract — the single source of truth for the book\'s visuals.',
     '',
     'Hard rules:',
-    '- LOCATIONS are real places (e.g. "playground_main", "home_living_room"). A sub-area like a gate or a corner is a ZONE INSIDE a location, NEVER a new location.',
+    '- LOCATIONS are real places (e.g. "playground_main", "home_living_room"). A sub-area like a gate, a corner, a waiting room or an exam room is a ZONE INSIDE a location, NEVER a new location.',
+    '- Every location declares environmentClass ("indoor" | "outdoor" | "neutral"), lighting, anchors[] (stable set anchors), and topology (how its zones connect).',
     '- Every zone has a locationId pointing at its parent location.',
-    '- The LOCATION stays the same across pages unless the story explicitly moves the scene; same place from a new camera angle is correct.',
+    '- The LOCATION/zone stays the same across pages unless the story explicitly moves the scene; same place from a new camera angle is correct.',
     '- cast.child is mandatory with a locked wardrobe; add cast.companion only if the story has one.',
+    '- humanCast[] lists recurring HUMAN characters (doctor/mother/teacher/…) with a stable namespaced id (e.g. "human:doctor"), role, aliases, a gender bound to a story phrase via textEvidence, coarseAppearance, wardrobe, forbiddenAppearance, and pagesPresent.',
+    '- Every page sets locationId + zoneId (both required), castIds[] (the stable cast ids present on that page), and a transition.',
+    '- transition.kind is "steady" | "before_transition" | "threshold" | "after_transition"; a non-steady transition names fromZoneId + toZoneId (+ an optional cue). A before_transition page is still in the ORIGIN (the destination zone and its unique cast are NOT shown yet); the "door opens" page is the threshold; after_transition is in the destination. A page may only be in a zone once the story has transitioned into it.',
     '- forbiddenGlobalElements lists things that must NEVER appear in ANY page (e.g. animals/creatures not in the cast).',
-    '- Every page in pageContracts must set locationId to a declared location id; zoneId (optional) must be a zone of that same location.',
-    '- camera describes the shot/action only; it must not change location, cast, or wardrobe.',
+    '',
+    'AUTHORITY (important): the per-page image directions are INPUTS you use NOW, at COMPILE time, to DERIVE the zones, cast presence, and transitions. Once compiled, the FROZEN contract is authoritative at RENDER time and OUTRANKS the image direction — at render a direction may inform camera/action only and must NEVER change location identity, cast, wardrobe, or forbidden elements. So: derive from directions here; do not let camera phrasing dictate location/cast identity.',
     '',
     'Output ONLY the JSON object, no prose, no markdown fences.',
   ].join('\n');
@@ -95,11 +97,16 @@ export function buildCompileUserPrompt(input: CompileBookVisualContractInput): s
     companion,
     '',
     'Produce a JSON object with exactly these keys:',
-    'version (number = 1), storyKey, worldType, locations[], zones[], cast{child,companion?}, recurringProps[], forbiddenGlobalElements[], coverContract{worldType,locationId,timeOfDay?,mustShow[],mustNotShow[]}, pageContracts[].',
-    'Each pageContract: pageNumber, locationId, zoneId?, sameLocationAs?, mustShow[], mustNotShow[], characterPresence{child,companion}, propState[{propId,state}], camera.',
+    'version (number = 1), storyKey, worldType, locations[], zones[], cast{child,companion?}, humanCast[], recurringProps[], forbiddenGlobalElements[], coverContract{worldType,locationId,timeOfDay?,mustShow[],mustNotShow[]}, pageContracts[].',
+    'Each pageContract: pageNumber, locationId, zoneId, castIds[], transition{kind,fromZoneId?,toZoneId?,cue?}, sameLocationAs?, mustShow[], mustNotShow[], characterPresence{child,companion}, propState[{propId,state}], camera.',
     '',
     'EXACT SHAPE (match these key names precisely):',
+    '- locations[]: {"id","name","description","environmentClass":"indoor|outdoor|neutral","lighting":"...","anchors":[{"id","description"}],"topology":"..."}.',
+    '- zones[]: {"id","locationId","name","description"} — id is namespaced by its location (e.g. "clinic.exam_room").',
     '- cast.child and cast.companion: {"id","role","name","wardrobe":{"description":"...","forbidden":["..."]}} — wardrobe is an OBJECT with a "description" string, NOT a bare string.',
+    '- humanCast[]: {"id":"human:role","role":"...","aliases":["..."],"gender":"male|female|unspecified","coarseAppearance":"...","wardrobe":{"description":"...","forbidden":["..."]},"forbiddenAppearance":["..."],"pagesPresent":[1,2],"textEvidence":"the exact story phrase the gender/identity is bound to"}.',
+    '- pageContracts[].castIds: the stable ids present on the page (cast.child.id, cast.companion.id, humanCast ids). Must agree with characterPresence and with each humanCast member\'s pagesPresent.',
+    '- pageContracts[].transition: {"kind":"steady|before_transition|threshold|after_transition","fromZoneId":"...","toZoneId":"...","cue":"..."} — omit fromZoneId/toZoneId for "steady".',
     '- recurringProps: [{"id":"snake_case_id","name":"...","description":"..."}] — every prop MUST have an "id".',
     '- propState[].propId MUST equal one of recurringProps[].id (use the id, not the name).',
     '- forbiddenGlobalElements is a JSON array of strings.',
@@ -136,8 +143,9 @@ export function parseContractJson(raw: string): unknown {
 }
 
 /**
- * Compile + validate. Throws InvalidVisualContractError on bad JSON or an invalid contract (fail
- * closed — the caller must not proceed to render without a valid contract).
+ * Compile + validate. Throws InvalidVisualContractError on bad/unparseable JSON, or
+ * InvalidVNextVisualContractError on a contract that fails the vNext structural rules (fail closed — the
+ * caller must not proceed to render without a valid contract).
  */
 export async function compileBookVisualContract(
   input: CompileBookVisualContractInput,
@@ -163,15 +171,19 @@ export async function compileBookVisualContract(
     parsed.forbiddenGlobalElements = forbidden;
   }
 
-  // Default the version + stamp provenance/storyKey before validating.
+  // Default the version + stamp provenance/storyKey before validating. TRUSTED provenance is applied LAST so a
+  // model-supplied `provenance` block can never overwrite our `source`/`compiledFromPages` (the authoritative
+  // page count the coverage check validates against).
   if (parsed.version === undefined) parsed.version = BOOK_VISUAL_CONTRACT_VERSION;
   if (input.storyKey && parsed.storyKey === undefined) parsed.storyKey = input.storyKey;
   parsed.provenance = {
+    ...(typeof parsed.provenance === 'object' && parsed.provenance ? parsed.provenance : {}),
     source: 'llm',
     compiledFromPages: input.pageCount,
-    ...(typeof parsed.provenance === 'object' && parsed.provenance ? parsed.provenance : {}),
   };
 
-  assertValidBookVisualContract(parsed);
+  // Fail-closed on the FULL vNext shape (coverage / transitions / cast resolution / human cast / env class),
+  // not just the base structure — the compiler must not emit a contract the runtime loader would later reject.
+  assertValidVNextVisualContract(parsed);
   return parsed;
 }
