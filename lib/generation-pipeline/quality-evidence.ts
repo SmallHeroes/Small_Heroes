@@ -167,6 +167,16 @@ export function qualityEvidenceFingerprint(rows: QualityEvidenceRow[]): string {
   return JSON.stringify(canonical);
 }
 
+/**
+ * (WS0b) The Order's active frozen visual-contract hash, or null when none is frozen (legacy). Bound onto each
+ * QualityEvidence row at write time so a later slice (WS0b commit d) can treat a row produced against a superseded
+ * contract as stale (`isQualityEvidenceContractStale`). Read-only here; NO consumer reads the column yet in (b).
+ */
+export async function readActiveVisualContractHash(db: Db, orderId: string): Promise<string | null> {
+  const order = await db.order.findUnique({ where: { id: orderId }, select: { visualContractHash: true } });
+  return order?.visualContractHash ?? null;
+}
+
 export interface PersistQualityEvidenceArgs {
   orderId: string;
   artifactKey: string;
@@ -177,6 +187,8 @@ export interface PersistQualityEvidenceArgs {
   providerModel?: string | null;
   evidence?: Prisma.InputJsonValue | null;
   evaluatorContractVersion?: string;
+  /** (WS0b) Active visual-contract hash to BIND this row to. Written verbatim (null = unbound/legacy). */
+  contractHash?: string | null;
   now?: Date;
 }
 
@@ -197,6 +209,8 @@ export async function persistQualityEvidence(db: Db, args: PersistQualityEvidenc
       regenCount: args.regenCount ?? 0,
       providerModel: args.providerModel ?? null,
       evidence,
+      // (WS0b) Bind the row to the active contract (null = legacy/unbound). No reader yet; not in the fingerprint.
+      ...(args.contractHash === undefined ? {} : { contractHash: args.contractHash }),
       evaluatedAt: now,
     },
     update: {
@@ -207,6 +221,7 @@ export async function persistQualityEvidence(db: Db, args: PersistQualityEvidenc
       ...(args.regenCount === undefined ? {} : { regenCount: args.regenCount }),
       providerModel: args.providerModel ?? null,
       evidence,
+      ...(args.contractHash === undefined ? {} : { contractHash: args.contractHash }),
       evaluatedAt: now,
     },
   });

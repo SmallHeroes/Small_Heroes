@@ -19,6 +19,7 @@ import { inspectAsset, type AssetInspection } from './asset-integrity';
 import { evaluatePageVisualQa, type PageVisualQaResult } from './page-visual-qa';
 import {
   persistQualityEvidence,
+  readActiveVisualContractHash,
   QUALITY_EVALUATOR_CONTRACT_VERSION,
   type QualityVerdict,
 } from './quality-evidence';
@@ -110,6 +111,9 @@ export async function persistQualityContext(
     deliveredUrl: args.deliveredUrl,
     qaContext: args.qaContext,
   } as unknown as Prisma.InputJsonValue;
+  // (WS0b) Bind the row to the Order's active frozen contract (null = legacy/unbound). No reader yet — this only
+  // fills the column so a later slice can invalidate evidence produced against a superseded contract.
+  const contractHash = await readActiveVisualContractHash(db, args.orderId);
   await db.qualityEvidence.upsert({
     where: { orderId_artifactKey: { orderId: args.orderId, artifactKey: args.artifactKey } },
     create: {
@@ -120,6 +124,7 @@ export async function persistQualityContext(
       evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION,
       regenCount: 0,
       evidence,
+      contractHash,
     },
     // (#6-fix-4 P1 #2) ATOMICALLY invalidate the old proof when binding a (possibly CHANGED) context: set
     // verdict='evidence_unknown' and CLEAR assetSha256. Otherwise identical bytes carrying a stale PASS verdict +
@@ -127,7 +132,7 @@ export async function persistQualityContext(
     // companion could ship on a pre-change PASS (fail-open). regenCount (column) is untouched and regenPending
     // (inside evidence) is preserved by the `...base` spread, so the durable budget/marker survive. The
     // delivered-evidence verdict (persistDeliveredQualityEvidence) re-establishes a fresh, hash-bound proof right after.
-    update: { evidence, verdict: 'evidence_unknown', assetSha256: '' },
+    update: { evidence, verdict: 'evidence_unknown', assetSha256: '', contractHash },
   });
 }
 
@@ -158,6 +163,8 @@ export async function persistDeliveredQualityEvidence(
     verdict,
     reason,
     providerModel: args.providerModel ?? null,
+    // (WS0b) Bind the delivered-evidence row to the Order's active frozen contract (null = legacy). Inert in (b).
+    contractHash: await readActiveVisualContractHash(db, args.orderId),
     // regenCount intentionally omitted — the DB-reserved budget (5b) is authoritative and preserved (carry-in #4).
     // (#7-a 6) Persist the delivered URL + QA context so the exception-processor can RE-QA the SAME bytes
     // (zero renders) with the same checks during recovery.

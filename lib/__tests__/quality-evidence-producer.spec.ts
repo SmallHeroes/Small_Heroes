@@ -17,8 +17,11 @@ const QA_CTX: QaContext = {
 };
 
 type UpsertArg = { create: Record<string, unknown>; update: Record<string, unknown> };
-function makeDb() {
-  return { qualityEvidence: { upsert: vi.fn(async (_arg: UpsertArg) => ({})) } };
+function makeDb(visualContractHash: string | null = null) {
+  return {
+    order: { findUnique: vi.fn(async () => ({ visualContractHash })) },
+    qualityEvidence: { upsert: vi.fn(async (_arg: UpsertArg) => ({})) },
+  };
 }
 function upsertArg(db: ReturnType<typeof makeDb>): UpsertArg {
   return (db.qualityEvidence.upsert.mock.calls[0]?.[0] ?? { create: {}, update: {} }) as UpsertArg;
@@ -52,8 +55,12 @@ describe('persistDeliveredQualityEvidence — flag gating', () => {
 });
 
 describe('persistQualityContext (#6-fix-3 BLOCKER 1) — bind the exact context atomically with the asset', () => {
-  type CtxDb = { qualityEvidence: { findUnique: ReturnType<typeof vi.fn>; upsert: ReturnType<typeof vi.fn> } };
-  const ctxDb = (existingEvidence: Record<string, unknown> | null): CtxDb => ({
+  type CtxDb = {
+    order: { findUnique: ReturnType<typeof vi.fn> };
+    qualityEvidence: { findUnique: ReturnType<typeof vi.fn>; upsert: ReturnType<typeof vi.fn> };
+  };
+  const ctxDb = (existingEvidence: Record<string, unknown> | null, visualContractHash: string | null = null): CtxDb => ({
+    order: { findUnique: vi.fn(async () => ({ visualContractHash })) },
     qualityEvidence: {
       findUnique: vi.fn(async () => (existingEvidence === undefined ? null : { evidence: existingEvidence })),
       upsert: vi.fn(async () => ({})),
@@ -171,5 +178,49 @@ describe('persistDeliveredQualityEvidence — hash binding + budget preservation
     }, { inspect: async () => okInspect('sha') });
     const a = upsertArg(db);
     expect('regenCount' in a.update).toBe(false); // re-persist preserves the reserved value
+  });
+});
+
+describe('(WS0b) QualityEvidence.contractHash binding — reads Order.visualContractHash, no staleness reader yet', () => {
+  type CtxDb = {
+    order: { findUnique: ReturnType<typeof vi.fn> };
+    qualityEvidence: { findUnique: ReturnType<typeof vi.fn>; upsert: ReturnType<typeof vi.fn> };
+  };
+  const ctxDb = (visualContractHash: string | null): CtxDb => ({
+    order: { findUnique: vi.fn(async () => ({ visualContractHash })) },
+    qualityEvidence: { findUnique: vi.fn(async () => null), upsert: vi.fn(async () => ({})) },
+  });
+  const arg = (db: { qualityEvidence: { upsert: ReturnType<typeof vi.fn> } }) =>
+    db.qualityEvidence.upsert.mock.calls[0]?.[0] as UpsertArg;
+
+  it('persistQualityContext BINDS the active contract hash on BOTH create and update', async () => {
+    const db = ctxDb('hash-v1');
+    await persistQualityContext(db as never, { orderId: 'o1', artifactKey: 'cover', deliveredUrl: 'u', qaContext: QA_CTX });
+    expect(db.order.findUnique).toHaveBeenCalledWith({ where: { id: 'o1' }, select: { visualContractHash: true } });
+    const a = arg(db);
+    expect(a.create.contractHash).toBe('hash-v1');
+    expect(a.update.contractHash).toBe('hash-v1');
+  });
+
+  it('persistDeliveredQualityEvidence BINDS the active contract hash on the delivered-evidence row', async () => {
+    const db = makeDb('hash-v1');
+    await persistDeliveredQualityEvidence(db as never, {
+      orderId: 'o1', artifactKey: 'page:3', deliveredUrl: 'https://h/p3.webp',
+      presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX,
+    }, { inspect: async () => okInspect('sha-3') });
+    const a = upsertArg(db);
+    expect(a.create.contractHash).toBe('hash-v1');
+    expect(a.update.contractHash).toBe('hash-v1');
+  });
+
+  it('no frozen contract (Order.visualContractHash null) → binds null (legacy/unbound, byte-unchanged)', async () => {
+    const db = makeDb(null);
+    await persistDeliveredQualityEvidence(db as never, {
+      orderId: 'o1', artifactKey: 'page:3', deliveredUrl: 'https://h/p3.webp',
+      presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX,
+    }, { inspect: async () => okInspect('sha-3') });
+    const a = upsertArg(db);
+    expect(a.create.contractHash).toBeNull();
+    expect(a.update.contractHash).toBeNull();
   });
 });
