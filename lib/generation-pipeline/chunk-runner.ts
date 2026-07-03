@@ -73,6 +73,7 @@ import {
   isVisualContractSteeringEnabled,
   readFrozenVisualContract,
   contractToLocationPlanBundle,
+  contractToHumanCastDetectionEntries,
 } from '@/lib/visual-contract-compiler';
 import { isReadinessManifestEnabled, withDeliveryInputMutation } from './readiness-manifest';
 import { hashOperationPayload, isOutcomeUnknown, type ReceiptSafeValue } from './atomic-operation';
@@ -1122,10 +1123,23 @@ async function runPageImagesChunk(
       aliases: ['baby dragon', 'hatchling', 'דרקון תינוק'],
     };
   }
+  // (WS0b e2) Contract steering — flag-gated, default OFF. When ON with a VALID frozen contract, per-page
+  // expectedCharacterIds are detected against an AUGMENTED, EPHEMERAL registry copy that adds the contract's
+  // recurring human cast (stable ids + aliases). The persisted `anchorRegistry` (→ Order.characterAnchors / the
+  // character_anchors_changed delivery barrier) is NEVER mutated, so nothing leaks on a flag flip. Descriptions
+  // for the human cast are threaded in a later slice (e4). Flag OFF → detectionRegistry === anchorRegistry →
+  // byte-identical.
+  let detectionRegistry = anchorRegistry;
+  if (isVisualContractSteeringEnabled()) {
+    const contract = readFrozenVisualContract(cache.visualContract);
+    if (contract) {
+      detectionRegistry = { ...anchorRegistry, ...contractToHumanCastDetectionEntries(contract) };
+    }
+  }
   const pagesWithDetectedCharacters = story.pages.map((p) => {
     const baseIds = detectExpectedCharactersForPage(
       { text: p.text, imagePrompt: p.imagePrompt, imageSubject: p.imageSubject ?? '' },
-      anchorRegistry
+      detectionRegistry
     );
     const hasBabyDragon = p.pageNumber >= 16 && p.pageNumber <= 19 && Boolean(babyAnchorUrl);
     if (hasBabyDragon) {

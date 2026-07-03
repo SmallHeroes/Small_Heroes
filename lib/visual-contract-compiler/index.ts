@@ -101,10 +101,12 @@ export { readFrozenVisualContract } from './readFrozenVisualContract';
 export {
   contractToLocationPlanBundle,
   contractToCastRegistry,
+  contractToHumanCastDetectionEntries,
   expectedCastIdsForPage,
   contractToQaObservability,
   type ContractCastKind,
   type ContractCastRegistryEntry,
+  type HumanCastDetectionEntry,
   type ContractQaObservability,
   type FrozenCastExpectation,
 } from './adapters';

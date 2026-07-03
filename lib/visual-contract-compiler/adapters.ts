@@ -121,6 +121,8 @@ export interface ContractCastRegistryEntry {
   wardrobe: string;
   forbiddenAppearance: string[];
   gender?: 'male' | 'female' | 'unspecified';
+  /** Other phrases the story uses for this member — the detection tokens (humanCast aliases; else the name). */
+  aliases: string[];
   /** Page numbers this member appears on (derived from characterPresence / humanCast.pagesPresent). */
   pagesPresent: number[];
 }
@@ -146,6 +148,7 @@ export function contractToCastRegistry(contract: BookVisualContract): ContractCa
     description: child.wardrobe.description,
     wardrobe: child.wardrobe.description,
     forbiddenAppearance: child.wardrobe.forbidden ?? [],
+    aliases: child.name ? [child.name] : [],
     pagesPresent: pagesWithPresence(contract, 'child'),
   });
   const companion = contract.cast.companion;
@@ -158,6 +161,7 @@ export function contractToCastRegistry(contract: BookVisualContract): ContractCa
       description: companion.wardrobe.description,
       wardrobe: companion.wardrobe.description,
       forbiddenAppearance: companion.wardrobe.forbidden ?? [],
+      aliases: companion.name ? [companion.name] : [],
       pagesPresent: pagesWithPresence(contract, 'companion'),
     });
   }
@@ -170,10 +174,42 @@ export function contractToCastRegistry(contract: BookVisualContract): ContractCa
       wardrobe: human.wardrobe.description,
       forbiddenAppearance: human.forbiddenAppearance ?? [],
       gender: human.gender,
+      // The story's phrases for this person are the detection tokens (e.g. "הרופא", "the doctor").
+      aliases: [...human.aliases],
       pagesPresent: [...human.pagesPresent],
     });
   }
   return entries;
+}
+
+/** A detection-registry entry (CharacterAnchorRecord-shaped subset) — text lock only, no anchor image. */
+export interface HumanCastDetectionEntry {
+  name: string;
+  description: string;
+  relationship: string;
+  aliases: string[];
+}
+
+/**
+ * The recurring HUMAN cast as detection-registry entries keyed by stable id (e.g. `human:doctor`). Consumed as an
+ * EPHEMERAL augment `{ ...anchorRegistry, ...entries }` for per-page character detection ONLY — never merged into
+ * the persisted anchorRegistry (which flows to Order.characterAnchors). Child/companion are omitted (the pipeline
+ * already registers them). Detection matches on `[name, ...aliases]`, so both carry the story's phrases.
+ */
+export function contractToHumanCastDetectionEntries(
+  contract: BookVisualContract,
+): Record<string, HumanCastDetectionEntry> {
+  const out: Record<string, HumanCastDetectionEntry> = {};
+  for (const e of contractToCastRegistry(contract)) {
+    if (e.kind !== 'human') continue;
+    out[e.id] = {
+      name: e.name ?? e.role,
+      description: e.description,
+      relationship: e.role,
+      aliases: e.aliases,
+    };
+  }
+  return out;
 }
 
 /** The stable cast ids expected present on a page — the contract's per-page castIds, else child/companion presence. */

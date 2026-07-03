@@ -4,12 +4,14 @@ import {
   readFrozenVisualContract,
   contractToLocationPlanBundle,
   contractToCastRegistry,
+  contractToHumanCastDetectionEntries,
   expectedCastIdsForPage,
   contractToQaObservability,
   isVisualContractSteeringEnabled,
   type BookVisualContract,
 } from '@/lib/visual-contract-compiler';
 import { buildLocationContinuityPromptBlock } from '@/lib/story-location-bible';
+import { detectExpectedCharactersForPage } from '@/lib/generation-pipeline/anchor-registry';
 
 /**
  * WS0b(c): the projection adapters are BUILT + unit-tested here but wired NOWHERE (steering is (e)). These
@@ -130,9 +132,26 @@ describe('contractToCastRegistry + expectedCastIdsForPage', () => {
     expect(doctor.wardrobe).toBe('white coat over blue scrubs');
     expect(doctor.forbiddenAppearance).toEqual(['clown attire', 'sunglasses']);
     expect(doctor.pagesPresent).toEqual([3, 4]);
+    expect(doctor.aliases).toEqual(['הרופא', 'the doctor']); // detection tokens from humanCast.aliases
     const kid = reg.find((e) => e.id === 'child:hero')!;
     expect(kid.forbiddenAppearance).toEqual(['dress']);
+    expect(kid.aliases).toEqual(['Dana']); // child name is its detection token
     expect(kid.pagesPresent).toEqual([1, 2, 3, 4]); // characterPresence.child on all pages
+  });
+
+  it('(e2 validation) detection augment → detectExpectedCharactersForPage picks up the human cast by alias', () => {
+    const humanEntries = contractToHumanCastDetectionEntries(clinic);
+    expect(Object.keys(humanEntries)).toEqual(['human:doctor']); // human cast only (child/companion excluded)
+    expect(humanEntries['human:doctor'].aliases).toContain('the doctor');
+    // The EPHEMERAL augmented registry (base has child; we never mutate the persisted anchorRegistry).
+    const base = { child: { name: 'child', description: 'the hero', aliases: ['child'] } };
+    const detectionRegistry = { ...base, ...humanEntries };
+    const detected = detectExpectedCharactersForPage(
+      { text: 'The doctor greeted the child warmly.', imagePrompt: '', imageSubject: '' },
+      detectionRegistry as never,
+    );
+    expect(detected).toContain('human:doctor'); // matched by alias "the doctor"
+    expect(detected).toContain('child');
   });
 
   it('no humanCast → just child (+ companion)', () => {
