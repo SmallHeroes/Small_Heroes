@@ -304,6 +304,9 @@ export interface OrderTruth {
   customerEmail: string;
   customerName: string | null;
   childName: string;
+  /** (WS0b) Active frozen visual-contract hash (null = none). Folded into the TOCTOU fingerprint + threaded to
+   *  the quality gate so a row bound to a superseded contract is re-QA'd. */
+  visualContractHash: string | null;
 }
 export interface BookData {
   coverImageUrl: string | null;
@@ -487,7 +490,7 @@ function fingerprintOf(f: {
   fulfillmentVersion: number; inputVersion: number;
   customerEmail: string; customerName: string | null; childName: string; readUrl: string | null; pdfUrl: string | null; firstAudioUrl: string | null;
   cover: string | null; pages: Array<[number, string, string | null]>;
-  quality: string;
+  quality: string; visualContractHash: string | null;
 }): string {
   return createHash('sha256').update(JSON.stringify({
     frozen: [f.expectedPageCount, f.storySourceHash, f.selectionFilename, f.frozenProductVersion, f.fulfillmentVersion, f.inputVersion],
@@ -496,12 +499,15 @@ function fingerprintOf(f: {
     // (#7-a) Quality evidence participates in the TOCTOU fingerprint: an evidence mutation between eval and
     // commit drifts this hash → the commit aborts + re-evaluates FRESH, so a stale quality verdict never ships.
     quality: f.quality,
+    // (WS0b) The active visual-contract hash participates too: a re-freeze between eval and commit drifts this →
+    // TOCTOU abort + re-eval against the new contract. null (no contract frozen — today) is a constant → no effect.
+    contract: f.visualContractHash,
   })).digest('hex');
 }
 
 const COMMIT_SELECT = {
   id: true, fulfillmentVersion: true, inputVersion: true, expectedPageCount: true, storySourceHash: true, selectionFilename: true, frozenProductVersion: true,
-  customerEmail: true, customerName: true, childName: true,
+  customerEmail: true, customerName: true, childName: true, visualContractHash: true,
   book: { select: { coverImageUrl: true, readUrl: true, pdfUrl: true, pages: { orderBy: { pageNumber: 'asc' as const }, select: { pageNumber: true, text: true, audioUrl: true, imageAsset: { select: { url: true, presentationUrl: true } } } } } },
 } as const;
 
@@ -511,7 +517,7 @@ async function loadCommitInputs(db: PrismaClient | Tx, orderId: string): Promise
   if (!o || !o.book) return null;
   const pages = o.book.pages.map((p) => ({ pageNumber: p.pageNumber, imageUrl: p.imageAsset?.presentationUrl ?? p.imageAsset?.url ?? null, text: p.text }));
   const firstAudioUrl = o.book.pages.find((p) => p.audioUrl?.trim())?.audioUrl ?? null;
-  const order: OrderTruth = { id: o.id, fulfillmentVersion: o.fulfillmentVersion, inputVersion: o.inputVersion, expectedPageCount: o.expectedPageCount, storySourceHash: o.storySourceHash, selectionFilename: o.selectionFilename, frozenProductVersion: o.frozenProductVersion, customerEmail: o.customerEmail, customerName: o.customerName, childName: o.childName };
+  const order: OrderTruth = { id: o.id, fulfillmentVersion: o.fulfillmentVersion, inputVersion: o.inputVersion, expectedPageCount: o.expectedPageCount, storySourceHash: o.storySourceHash, selectionFilename: o.selectionFilename, frozenProductVersion: o.frozenProductVersion, customerEmail: o.customerEmail, customerName: o.customerName, childName: o.childName, visualContractHash: o.visualContractHash };
   const book: BookData = { coverImageUrl: o.book.coverImageUrl, readUrl: o.book.readUrl, pdfUrl: o.book.pdfUrl, firstAudioUrl, pages };
   const quality = await loadQualityEvidence(db, orderId);
   const fingerprint = fingerprintOf({
@@ -781,7 +787,12 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
     // delivered-bytes hash comes from the integrity gate's inspect (same presentationUrl ?? url bytes), so a
     // PASS row for other bytes cannot authorize the delivered image. No `passed` for every artifact → BLOCK.
     const requiredKeys = [coverArtifactKey(), ...loaded.book.pages.map((p) => pageArtifactKey(p.pageNumber))];
-    const quality = evaluateQualityGate(requiredKeys, loaded.quality, currentArtifactHashes(result));
+    // (WS0b) Thread the Order's active contract so a QualityEvidence row bound to a superseded contract is re-QA'd
+    // (contract_stale → evidence_unknown). null (no contract frozen) → isQualityEvidenceContractStale(null,null) is
+    // false → byte-identical to today. This is the ONLY caller that threads activeContractHash.
+    const quality = evaluateQualityGate(requiredKeys, loaded.quality, currentArtifactHashes(result), {
+      activeContractHash: loaded.order.visualContractHash,
+    });
     const decision = decideReadiness(result, quality);
     try {
       // (Codex B′) Receipt-fence the commit tx (flag-on). operationKey = order + scope + the inputVersion this

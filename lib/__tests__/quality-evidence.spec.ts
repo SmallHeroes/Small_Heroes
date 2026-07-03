@@ -23,6 +23,7 @@ function row(overrides: Partial<QualityEvidenceRow> & { artifactKey: string }): 
     evaluatorContractVersion: V,
     reason: null,
     regenCount: 0,
+    contractHash: null,
     ...overrides,
   };
 }
@@ -142,6 +143,57 @@ describe('evaluateQualityGate — EVIDENCE_UNKNOWN (recovery) path, fail-closed'
 
   it('empty evidence (nothing rendered yet) → evidence_unknown, never passed', () => {
     expect(evaluateQualityGate(REQUIRED, [], CURRENT).status).toBe('evidence_unknown');
+  });
+});
+
+describe('(WS0b) evaluateQualityGate — contract staleness (contract_stale → evidence_unknown → re-QA)', () => {
+  const passingRows = (contractHash: string | null) => [
+    row({ artifactKey: 'cover', assetSha256: 'hcover', verdict: 'passed', contractHash }),
+    row({ artifactKey: 'page:1', assetSha256: 'hp1', verdict: 'passed', contractHash }),
+  ];
+
+  it('null/null (no contract frozen — today) → NOT stale → passes exactly as before (byte-identical)', () => {
+    // No activeContractHash threaded AND rows carry no contractHash → the WS0b check is a no-op.
+    expect(evaluateQualityGate(REQUIRED, passingRows(null), CURRENT).status).toBe('passed');
+    expect(evaluateQualityGate(REQUIRED, passingRows(null), CURRENT, { activeContractHash: null }).status).toBe('passed');
+  });
+
+  it('evidence bound to a superseded contract (row v1, active v2) → evidence_unknown, state contract_stale', () => {
+    const r = evaluateQualityGate(REQUIRED, passingRows('v1'), CURRENT, { activeContractHash: 'v2' });
+    expect(r.status).toBe('evidence_unknown');
+    expect(r.failedArtifacts).toEqual([]); // re-QA, NEVER failed/refund-terminal
+    const per = (r.evidence as { perArtifact: Record<string, { state?: string }> }).perArtifact;
+    expect(per.cover.state).toBe('contract_stale');
+    expect(per['page:1'].state).toBe('contract_stale');
+  });
+
+  it('evidence bound to the active contract (row v1, active v1) → decides on the real verdict (passed)', () => {
+    expect(evaluateQualityGate(REQUIRED, passingRows('v1'), CURRENT, { activeContractHash: 'v1' }).status).toBe('passed');
+  });
+
+  it('FAIL-CLOSED default: hash-bound evidence with NO active contract threaded → stale (phantom contract)', () => {
+    // Absent activeContractHash + a row that claims a contract → treated as stale (safe re-QA), per the helper.
+    const r = evaluateQualityGate(REQUIRED, passingRows('v1'), CURRENT);
+    expect(r.status).toBe('evidence_unknown');
+  });
+
+  it('CONVERGES: a stale row, after re-QA re-binds it to the stable active contract, is no longer stale (terminates)', () => {
+    const active = 'v2';
+    // Round 1 — evidence still bound to the OLD contract → contract_stale → evidence_unknown (triggers re-QA).
+    expect(evaluateQualityGate(REQUIRED, passingRows('v1'), CURRENT, { activeContractHash: active }).status)
+      .toBe('evidence_unknown');
+    // Re-QA re-binds each row's contractHash to the current (frozen, STABLE) active hash (WS0b(b) producer reads
+    // Order.visualContractHash). The next read matches → NOT stale → the gate decides on the verdict → PASS.
+    // Because the active contract is stable, this converges in ONE re-QA; the regen budget (QUALITY_REGEN_BUDGET)
+    // bounds any actual re-renders in the existing recovery path — contract_stale itself consumes zero budget.
+    expect(evaluateQualityGate(REQUIRED, passingRows(active), CURRENT, { activeContractHash: active }).status)
+      .toBe('passed');
+  });
+
+  it('contractHash is NOT in the row fingerprint (staleness is a decision-time check, not a TOCTOU row hash)', () => {
+    const a = [row({ artifactKey: 'cover', assetSha256: 'h1', contractHash: 'v1' })];
+    const b = [row({ artifactKey: 'cover', assetSha256: 'h1', contractHash: 'v2' })];
+    expect(qualityEvidenceFingerprint(a)).toBe(qualityEvidenceFingerprint(b));
   });
 });
 

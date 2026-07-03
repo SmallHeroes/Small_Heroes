@@ -10,6 +10,7 @@
  * helpers take an injected client/tx.
  */
 import type { Prisma, PrismaClient } from '@prisma/client';
+import { isQualityEvidenceContractStale } from './quality-check-result';
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -53,6 +54,8 @@ export interface QualityEvidenceRow {
   evaluatorContractVersion: string;
   reason: string | null;
   regenCount: number;
+  /** (WS0b) The contract this row was produced against; a mismatch vs the Order's active contract → stale. */
+  contractHash: string | null;
 }
 
 /** Current delivered-bytes hash per artifact, from the integrity gate's `inspect` (the source of truth). */
@@ -90,7 +93,7 @@ export function evaluateQualityGate(
   requiredKeys: string[],
   rows: QualityEvidenceRow[],
   currentHashes: ArtifactHashes,
-  opts: { budget?: number; contractVersion?: string } = {},
+  opts: { budget?: number; contractVersion?: string; activeContractHash?: string | null } = {},
 ): QualityGateResult {
   const budget = opts.budget ?? QUALITY_REGEN_BUDGET;
   const contractVersion = opts.contractVersion ?? QUALITY_EVALUATOR_CONTRACT_VERSION;
@@ -117,6 +120,18 @@ export function evaluateQualityGate(
     if (!currentHash || row.assetSha256 !== currentHash) {
       unknownArtifacts.push(key);
       perArtifact[key] = { state: 'hash_mismatch', evidenceHash: row.assetSha256, currentHash };
+      continue;
+    }
+    // (WS0b) A row produced against a superseded contract is inadmissible → re-QA (never a stale PASS). Fail-closed
+    // by default: an absent `activeContractHash` treats any hash-bound row as stale (phantom contract). null/null
+    // (no contract frozen — today) → NOT stale → behavior byte-identical.
+    if (isQualityEvidenceContractStale(row.contractHash, opts.activeContractHash)) {
+      unknownArtifacts.push(key);
+      perArtifact[key] = {
+        state: 'contract_stale',
+        evidenceContractHash: row.contractHash,
+        activeContractHash: opts.activeContractHash ?? null,
+      };
       continue;
     }
     if (row.verdict === 'passed') {
@@ -238,6 +253,7 @@ export async function loadQualityEvidence(db: Db, orderId: string): Promise<Qual
       evaluatorContractVersion: true,
       reason: true,
       regenCount: true,
+      contractHash: true,
     },
   });
   return rows;
