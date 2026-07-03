@@ -69,6 +69,11 @@ import {
 import { heartbeatLease } from '@/lib/generation-chunked/lease';
 import { finalizeAndPersistStoryText } from './text-finalization';
 import { ensureFrozenVisualContract } from './ensure-frozen-visual-contract';
+import {
+  isVisualContractSteeringEnabled,
+  readFrozenVisualContract,
+  contractToLocationPlanBundle,
+} from '@/lib/visual-contract-compiler';
 import { isReadinessManifestEnabled, withDeliveryInputMutation } from './readiness-manifest';
 import { hashOperationPayload, isOutcomeUnknown, type ReceiptSafeValue } from './atomic-operation';
 import { persistDeliveredQualityEvidence, persistQualityContext } from './quality-evidence-producer';
@@ -754,6 +759,22 @@ async function ensureStoryLocationPlan(
   story: Awaited<ReturnType<typeof loadStoryFromBank>>,
   challengeCategory: string | null | undefined
 ): Promise<{ cache: PipelineCache; storyLocationPlan: import('@/lib/story-location-bible').StoryLocationPlanBundle }> {
+  // (WS0b e1) Contract steering — flag-gated, default OFF. When ON and a VALID frozen contract is present, the
+  // contract's projection is the authoritative location bundle for THIS render. It is returned EPHEMERALLY (cache
+  // is left UNCHANGED — never written to cache.storyLocationPlan, never persisted), so a flag flip back to OFF is
+  // byte-identical: the legacy resolution below runs exactly as today. Flag OFF → this branch is skipped entirely.
+  if (isVisualContractSteeringEnabled()) {
+    const contract = readFrozenVisualContract(cache.visualContract);
+    if (contract) {
+      const { enrichStoryLocationPlanWithReferenceSheets } = await import('@/lib/story-location-bible/zone-sheets');
+      const storyLocationPlan = enrichStoryLocationPlanWithReferenceSheets(
+        contractToLocationPlanBundle(contract),
+        storyFilePath
+      );
+      return { cache, storyLocationPlan };
+    }
+  }
+
   const cached = cache.storyLocationPlan as
     | import('@/lib/story-location-bible').StoryLocationPlanBundle
     | undefined;

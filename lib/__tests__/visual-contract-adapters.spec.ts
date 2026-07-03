@@ -9,6 +9,7 @@ import {
   isVisualContractSteeringEnabled,
   type BookVisualContract,
 } from '@/lib/visual-contract-compiler';
+import { buildLocationContinuityPromptBlock } from '@/lib/story-location-bible';
 
 /**
  * WS0b(c): the projection adapters are BUILT + unit-tested here but wired NOWHERE (steering is (e)). These
@@ -102,6 +103,19 @@ describe('contractToLocationPlanBundle', () => {
     expect(p1.visibleAnchors).toEqual(['waiting room chairs']); // mustShow
     expect(p1.forbiddenDrift).toEqual(['exam table']); // mustNotShow
     expect(p1.cameraPositionHint).toBe('wide establishing'); // camera
+  });
+
+  it('(e1 validation) the projected bundle feeds the REAL consumer (buildLocationContinuityPromptBlock) coherently', () => {
+    // Proves the projection FITS the consumer: zone resolves by id, world/anchors/forbidden-drift/camera all flow.
+    const bundle = contractToLocationPlanBundle(clinic);
+    const plan = bundle.pagePlans.find((p) => p.page === 1)!;
+    const block = buildLocationContinuityPromptBlock(bundle.bible, plan);
+    expect(block).toContain('STORY WORLD: Village clinic'); // primarySetting
+    expect(block).toContain('zone: clinic.waiting_room'); // pagePlan.zoneId
+    expect(block).toContain('chairs, a low table, picture books'); // zone resolved by id → description
+    expect(block).toContain('waiting room chairs'); // visibleAnchors (mustShow)
+    expect(block).toContain('camera position hint: wide establishing'); // cameraPositionHint (camera)
+    expect(block).toContain('exam table'); // forbidden drift (mustNotShow)
   });
 });
 
