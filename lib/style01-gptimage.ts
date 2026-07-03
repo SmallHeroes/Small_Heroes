@@ -21,6 +21,7 @@ import { resolveCompanionLockSource } from './companion-lock-source';
 import {
   classifyStyle01SceneClass,
   resolveStyle01SceneRefSubset,
+  contractEnvironmentToStyle01Subset,
   type Style01SceneClass,
   type Style01SceneSubsetKey,
 } from './style-scene-class';
@@ -421,6 +422,22 @@ export function resolveStyle01StyleReferencePaths(
   maxCount: number
 ): string[] {
   const subsetKey = resolveStyle01SceneRefSubset(sceneClass);
+  const subset = STYLE_01_REF_SUBSETS[subsetKey];
+  return subset.filenames.slice(0, maxCount).map((f) => path.join(STYLE_01_REF_DIR, f));
+}
+
+/**
+ * (WS0b e4a) Style-ref paths for the contract's coarse environment lock ("locks-first"): indoor → interior
+ * subset, outdoor → outdoor subset, neutral → ZERO refs. Same subset→filenames selection as the regex path
+ * above, so an indoor/outdoor lock yields the SAME refs the regex would for that subset; only `neutral` differs
+ * (empty). Used only when the contract provides a per-page environment; otherwise the regex path is used.
+ */
+export function resolveStyle01RefPathsForEnvironmentLock(
+  environmentClass: 'indoor' | 'outdoor' | 'neutral',
+  maxCount: number
+): string[] {
+  const subsetKey = contractEnvironmentToStyle01Subset(environmentClass);
+  if (subsetKey === 'none') return []; // neutral → ZERO style refs (never a nature default)
   const subset = STYLE_01_REF_SUBSETS[subsetKey];
   return subset.filenames.slice(0, maxCount).map((f) => path.join(STYLE_01_REF_DIR, f));
 }

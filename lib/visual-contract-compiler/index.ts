@@ -100,6 +100,7 @@ export {
 export { readFrozenVisualContract } from './readFrozenVisualContract';
 export {
   contractToLocationPlanBundle,
+  contractPageEnvironmentClass,
   contractToCastRegistry,
   contractToHumanCastDetectionEntries,
   expectedCastIdsForPage,

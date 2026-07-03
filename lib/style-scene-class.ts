@@ -137,6 +137,23 @@ export function resolveStyle01SceneRefSubset(sceneClass: Style01SceneClass): Sty
   return 'outdoor-magical';
 }
 
+/**
+ * (WS0b e4a) Map the contract's coarse environment lock to a Style 01 style-ref subset — "locks-first":
+ *   - `indoor`   → the interior technique subset (`cozy-interior`)
+ *   - `outdoor`  → the outdoor technique subset (`outdoor-magical`)
+ *   - `neutral`  → `'none'` = ZERO style refs (never a nature default)
+ * Deterministic + pure. Used ONLY to route style refs (never the sceneClass itself), so scene-memory / night /
+ * telemetry keep their regex-derived sceneClass. `null` env (page not in the contract) is handled by the caller,
+ * which falls back to the regex `resolveStyle01SceneRefSubset`.
+ */
+export function contractEnvironmentToStyle01Subset(
+  environmentClass: 'indoor' | 'outdoor' | 'neutral',
+): Style01SceneSubsetKey | 'none' {
+  if (environmentClass === 'indoor') return 'cozy-interior';
+  if (environmentClass === 'outdoor') return 'outdoor-magical';
+  return 'none';
+}
+
 export function sceneClassIsNight(sceneClass: Style01SceneClass): boolean {
   return sceneClass.endsWith('-night') || sceneClass.includes('night');
 }

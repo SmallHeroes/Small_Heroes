@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   readFrozenVisualContract,
   contractToLocationPlanBundle,
+  contractPageEnvironmentClass,
   contractToCastRegistry,
   contractToHumanCastDetectionEntries,
   expectedCastIdsForPage,
@@ -105,6 +106,15 @@ describe('contractToLocationPlanBundle', () => {
     expect(p1.visibleAnchors).toEqual(['waiting room chairs']); // mustShow
     expect(p1.forbiddenDrift).toEqual(['exam table']); // mustNotShow
     expect(p1.cameraPositionHint).toBe('wide establishing'); // camera
+  });
+
+  it('(e4a) contractPageEnvironmentClass → the page location environmentClass; null when absent', () => {
+    expect(contractPageEnvironmentClass(clinic, 1)).toBe('indoor'); // clinic location is indoor
+    expect(contractPageEnvironmentClass(clinic, 99)).toBeNull(); // page not in contract
+    const outdoor: BookVisualContract = { ...clinic, locations: [{ ...clinic.locations[0], environmentClass: 'outdoor' }] };
+    expect(contractPageEnvironmentClass(outdoor, 1)).toBe('outdoor');
+    const noEnv: BookVisualContract = { ...clinic, locations: [{ ...clinic.locations[0], environmentClass: undefined }] };
+    expect(contractPageEnvironmentClass(noEnv, 1)).toBeNull(); // location without environmentClass → legacy fallback
   });
 
   it('(e1 validation) the projected bundle feeds the REAL consumer (buildLocationContinuityPromptBlock) coherently', () => {

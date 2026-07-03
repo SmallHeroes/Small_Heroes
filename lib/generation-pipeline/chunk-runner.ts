@@ -74,6 +74,7 @@ import {
   readFrozenVisualContract,
   contractToLocationPlanBundle,
   contractToHumanCastDetectionEntries,
+  contractPageEnvironmentClass,
   contractToQaObservability,
   computeVisualContractHash,
 } from '@/lib/visual-contract-compiler';
@@ -1184,10 +1185,18 @@ async function runPageImagesChunk(
       .map(([characterId]) => characterId)
   );
 
+  // (WS0b e4a) Read the frozen contract ONCE for style-ref environment routing — flag-gated, default OFF.
+  // null → the legacy regex style-ref selection (byte-identical). Ephemeral (per-render; never persisted).
+  const steeringContract = isVisualContractSteeringEnabled()
+    ? readFrozenVisualContract(cache.visualContract)
+    : null;
   const pagesForGen = pagesWithDetectedCharacters
     .filter((p) => pageNumbersThisChunk.has(p.pageNumber))
     .map((p) => {
       const template = templateByPage.get(p.pageNumber) ?? 'art_top_text_bottom';
+      const contractStyleRefEnvironment = steeringContract
+        ? contractPageEnvironmentClass(steeringContract, p.pageNumber) ?? undefined
+        : undefined;
       const comp = compositionByPage.get(p.pageNumber);
       const pageLayout = deriveLayout({
         pageNumber: p.pageNumber,
@@ -1239,6 +1248,7 @@ async function runPageImagesChunk(
         expectedCharacterIds: (p.expectedCharacterIds ?? ['child']).filter((id) =>
           recurringCharacterIds.has(id)
         ),
+        contractStyleRefEnvironment,
       };
     });
 

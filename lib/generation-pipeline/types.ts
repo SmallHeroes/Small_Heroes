@@ -203,6 +203,9 @@ export type PageForGeneration = {
     relationship?: string;
   }>;
   visualDirection?: unknown;
+  /** (WS0b e4a) Contract environment lock (indoor|outdoor|neutral) → Style 01 style-ref routing. Ephemeral;
+   *  set only when VISUAL_CONTRACT_STEERING is on. Absent → regex style-ref selection (byte-identical). */
+  contractStyleRefEnvironment?: 'indoor' | 'outdoor' | 'neutral';
 };
 
 export type ResolvedCompanionRef = Companion | null;

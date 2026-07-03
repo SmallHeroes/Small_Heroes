@@ -14,6 +14,7 @@ import type {
   BookVisualContract,
   PageVisualContract,
   VisualLocation,
+  EnvironmentClass,
 } from './types';
 import type {
   StoryLocationPlanBundle,
@@ -102,6 +103,22 @@ export function contractToLocationPlanBundle(contract: BookVisualContract): Stor
   };
   const pagePlans = contract.pageContracts.map(toPageLocationPlan);
   return { bible, pagePlans };
+}
+
+/**
+ * (WS0b e4a) The coarse environment class (`indoor|outdoor|neutral`) the contract LOCKS for a page — from the
+ * page's location. Drives style-ref routing "locks-first, regex-last": when present it overrides the regex
+ * scene-class, and `neutral` means ZERO style refs (never a nature default). Returns null when the page (or its
+ * location's environmentClass) is not in the contract → the caller falls back to the legacy regex classifier.
+ */
+export function contractPageEnvironmentClass(
+  contract: BookVisualContract,
+  pageNumber: number,
+): EnvironmentClass | null {
+  const pc = contract.pageContracts.find((p) => p.pageNumber === pageNumber);
+  if (!pc) return null;
+  const loc = contract.locations.find((l) => l.id === pc.locationId);
+  return loc?.environmentClass ?? null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

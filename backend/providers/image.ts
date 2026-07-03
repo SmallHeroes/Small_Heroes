@@ -93,6 +93,7 @@ import {
   resolveStyle01GptModel,
   resolveStyle01StoryLocks,
   resolveStyle01StyleReferencePaths,
+  resolveStyle01RefPathsForEnvironmentLock,
   shouldUseStyle01Phase2Path,
   STYLE_01_AVOIDANCE_NEGATIVE,
   type Style01SceneClass,
@@ -342,6 +343,14 @@ export interface ImageInput {
    * the readiness flag is on; absent → the loop uses the legacy in-memory budget (flag-off byte-identical).
    */
   reserveQualityRegen?: () => Promise<boolean>;
+  /**
+   * (WS0b e4a) The contract's coarse environment lock for this page (indoor|outdoor|neutral). When present it
+   * routes Style 01 STYLE REFS "locks-first" (indoor→interior subset, outdoor→outdoor subset, neutral→ZERO refs),
+   * overriding the regex scene-class classifier for ref selection ONLY — the sceneClass itself (scene-memory,
+   * night, telemetry) is untouched. Set by the chunked pipeline only when VISUAL_CONTRACT_STEERING is on; absent
+   * (null/undefined) → the legacy regex `resolveStyle01StyleReferencePaths(sceneClass)` runs → byte-identical.
+   */
+  contractStyleRefEnvironment?: 'indoor' | 'outdoor' | 'neutral' | null;
   /**
    * Authoritative BookVisualContract prompt block for this page (from lib/visual-contract-compiler).
    * When present it is PREPENDED to the final GPT-Image prompt so the contract OUTRANKS imageDirection
@@ -3327,7 +3336,11 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     setRefSelection,
     styleRefCount,
   } = refBudget;
-  const styleRefPaths = resolveStyle01StyleReferencePaths(sceneClass, styleRefCount);
+  // (WS0b e4a) Locks-first, regex-last: the contract's per-page environment lock (when present) routes the STYLE
+  // REFS; otherwise the regex sceneClass does. Scoped to ref selection only — sceneClass above is unchanged.
+  const styleRefPaths = input.contractStyleRefEnvironment
+    ? resolveStyle01RefPathsForEnvironmentLock(input.contractStyleRefEnvironment, styleRefCount)
+    : resolveStyle01StyleReferencePaths(sceneClass, styleRefCount);
   const { paths: referenceImages, breakdown } = assembleStyle01BookReferencesWithZoneSheets({
     styleRefPaths,
     childPhotoPath: refConfig === 'C' ? undefined : childPhotoPath,
@@ -4058,6 +4071,8 @@ export async function generateAllPageImages(
     };
     compositionRules?: string;
     environmentContinuity?: string;
+    /** (WS0b e4a) Contract environment lock (indoor|outdoor|neutral) → Style 01 style-ref routing; absent → regex. */
+    contractStyleRefEnvironment?: 'indoor' | 'outdoor' | 'neutral';
     supportingCharacters?: Array<{
       name: string;
       description: string;
@@ -4698,8 +4713,10 @@ export async function generateAllPageImages(
       | 'pageStoryboard'
       | 'expectedCharacterIds'
       | 'guardedV2RecipeId'
+      | 'contractStyleRefEnvironment'
     > = {
       bookPageText: page.bookPageText ?? null,
+      contractStyleRefEnvironment: page.contractStyleRefEnvironment ?? null,
       guardedV2RecipeId:
         config.guardedV2RecipeId ??
         (config.companion?.id === 'bolly_armadillo' ? 'bolly_bedtime_age_5' : null),
