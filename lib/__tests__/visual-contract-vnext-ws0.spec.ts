@@ -147,7 +147,8 @@ const fantasy: BookVisualContract = {
   ],
 };
 
-// ── Fixture 5: legit outdoor (playground) — outdoor refs are legitimate BECAUSE the contract says so ──
+// ── Fixture 5: legit outdoor (playground) — a same-LOCATION zone move (swings → gate) declared by a
+//    transition (an undeclared steady jump between the two zones would now fail closed) ──
 const legitOutdoor: BookVisualContract = {
   version: 1,
   storyKey: 'playground_day',
@@ -163,7 +164,7 @@ const legitOutdoor: BookVisualContract = {
   coverContract: { worldType: 'realistic_outdoor', locationId: 'playground_main', timeOfDay: 'day', mustShow: ['child', 'playground'], mustNotShow: ['cave', 'mountains'] },
   pageContracts: [
     { pageNumber: 1, locationId: 'playground_main', zoneId: 'playground_main.swings', mustShow: ['the child on a swing'], mustNotShow: ['cave'], characterPresence: { child: true, companion: true }, propState: [], camera: 'wide', castIds: ['child:hero', 'companion:fox'], transition: { kind: 'steady' } },
-    { pageNumber: 2, locationId: 'playground_main', zoneId: 'playground_main.gate', mustShow: ['the child at the gate'], mustNotShow: ['cave'], characterPresence: { child: true, companion: true }, propState: [], camera: 'medium', castIds: ['child:hero', 'companion:fox'], transition: { kind: 'steady' } },
+    { pageNumber: 2, locationId: 'playground_main', zoneId: 'playground_main.gate', mustShow: ['the child at the gate'], mustNotShow: ['cave'], characterPresence: { child: true, companion: true }, propState: [], camera: 'medium', castIds: ['child:hero', 'companion:fox'], transition: { kind: 'after_transition', fromZoneId: 'playground_main.swings', toZoneId: 'playground_main.gate', cue: 'the child skips over to the gate' } },
   ],
 };
 
@@ -355,6 +356,27 @@ describe('WS0 vNext — fail-closed on malformed / rule violations', () => {
     expect(validateVNextVisualContract(seqBase()).ok).toBe(true);
   });
 
+  it('allows a threshold page rendered in destination B, followed by matching after_transition A→B', () => {
+    const good = seqBase();
+    good.pageContracts = [
+      good.pageContracts[0], // page 1: steady in the hall (A)
+      { pageNumber: 2, locationId: 'house', zoneId: 'house.attic', mustShow: ['at the stair top'], mustNotShow: [], characterPresence: { child: true, companion: false }, propState: [], camera: 'threshold from stairs into attic', castIds: ['child:hero'], transition: { kind: 'threshold', fromZoneId: 'house.hall', toZoneId: 'house.attic', cue: 'the attic door opens' } },
+      { pageNumber: 3, locationId: 'house', zoneId: 'house.attic', mustShow: ['inside the attic'], mustNotShow: [], characterPresence: { child: true, companion: false }, propState: [], camera: 'wide attic interior', castIds: ['child:hero'], transition: { kind: 'after_transition', fromZoneId: 'house.hall', toZoneId: 'house.attic', cue: 'stepping fully inside' } },
+    ];
+    expect(validateVNextVisualContract(good).ok).toBe(true);
+  });
+
+  it('a steady page silently changing zone/location (no transition) is rejected (undeclared scene move)', () => {
+    const bad = clone(classroomHome);
+    // Strip the declared move: page 3 now claims to be "steady" in the living room after a steady classroom
+    // page — a cross-location teleport with no transition. Previously fail-open (livingroom was non-gated).
+    bad.pageContracts[1].transition = { kind: 'steady' }; // page 2 no longer heads home
+    bad.pageContracts[2].transition = { kind: 'steady' }; // page 3 just "is" at home
+    const r = validateVNextVisualContract(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/undeclared scene move/);
+  });
+
   it('a steady page sitting in destination B, with a later before_transition A→B, is rejected (Codex sequence case)', () => {
     const bad = seqBase();
     bad.pageContracts = [
@@ -366,7 +388,7 @@ describe('WS0 vNext — fail-closed on malformed / rule violations', () => {
     ];
     const r = validateVNextVisualContract(bad);
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.errors.join(' ')).toMatch(/occupies gated zone/);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/undeclared scene move/);
   });
 
   it('a transition departing from a zone the story never established is rejected', () => {
@@ -374,7 +396,7 @@ describe('WS0 vNext — fail-closed on malformed / rule violations', () => {
     bad.pageContracts[0].zoneId = 'house.attic'; // start in the attic, but page 2 claims to arrive FROM the hall
     const r = validateVNextVisualContract(bad);
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.errors.join(' ')).toMatch(/has not established/);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/undeclared scene move|not continuous/);
   });
 
   // ── P1 #5: remaining structural locks ───────────────────────────────────────────────────────────

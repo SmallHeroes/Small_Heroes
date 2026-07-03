@@ -65,7 +65,7 @@ function validContract(): BookVisualContract {
         propState: [{ propId: 'stone_gate', state: 'open' }],
         camera: 'low angle, child reaching toward the gate',
         castIds: ['child', 'fox_koko'],
-        transition: { kind: 'steady' },
+        transition: { kind: 'after_transition', fromZoneId: 'sandbox', toZoneId: 'gate', cue: 'child walks from the sandbox to the gate' },
       },
     ],
   };

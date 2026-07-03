@@ -13,10 +13,11 @@
  *   3. Transitions well-formed (per-page) — for a non-`steady` transition, from/to zones exist and differ, and
  *      the page's own zone aligns with the kind (before → origin, after → destination, threshold → either).
  *      A `before_transition`/`steady` page can therefore NEVER sit in the destination zone.
- *   3b. Transition SEQUENCE (cross-page) — a gated zone (any transition destination) may only be occupied at
- *      or after the threshold/after_transition that introduces it, and a transition may only depart from a zone
- *      the story has already established. Catches the per-page-legal-but-globally-impossible case (a `steady`
- *      page sitting in a destination before any transition brings the story there).
+ *   3b. CONTINUITY (cross-page) — every scene move must be DECLARED by a transition. A `steady`/`before_transition`
+ *      page must stay in the previous page's zone (no move); a `threshold`/`after_transition` page must depart
+ *      from an established zone, with a matching after_transition allowed to follow a threshold rendered at the
+ *      destination. Catches undeclared scene moves (a `steady` page silently teleporting to a different
+ *      zone/location) and, by induction, any page sitting in a zone the story never transitioned into.
  *   4. Human cast well-formed — stable id, coarse gender bound to text evidence, coarseAppearance lock,
  *      pagesPresent reference real pages (+ bidirectional castIds binding).
  *   5. environmentClass validated against the allowed set at runtime (unknown value → fail closed).
@@ -310,40 +311,69 @@ export function validateVNextVisualContract(input: unknown): VNextContractValida
     }
   }
 
-  // (3b) cross-page transition SEQUENCE — a forward state machine over pages in ascending order. Per-page
-  // alignment is necessary but not sufficient: a `steady` page can be legal on its own yet sit in a zone the
-  // story has not transitioned into (Codex's case). A "gated" zone is any transition destination; it may only
-  // be occupied at/after the threshold/after_transition that introduces it, and a transition may only depart
-  // from a zone already established. Non-gated zones support free movement (no threshold needed).
+  // (3b) cross-page CONTINUITY — consecutive pages must be connected by a DECLARED move (a forward state
+  // machine over pages in ascending order). Per-page alignment alone is insufficient: a `steady` page can be
+  // legal on its own yet silently change zone/location from the page before it. So every scene move MUST be
+  // carried by a transition:
+  //   • `steady` / `before_transition` declare NO move — the page's zone must EQUAL the previous page's zone
+  //     (a before_transition is still standing in the ORIGIN, about to leave).
+  //   • `threshold` / `after_transition` declare a move — they must depart from an established zone. A
+  //     threshold may be rendered at the origin OR destination, so the matching after_transition may follow
+  //     even when the immediately previous visible zone is already the destination.
+  // This closes the "undeclared scene move" hole (a steady page teleporting to another zone/location without a
+  // transition) and, by induction from the first page, guarantees a page can never sit in a zone the story has
+  // not transitioned into. The first page establishes the opening zone (nothing precedes it).
   {
     const pagesSorted = [...(contract.pageContracts ?? [])]
       .filter((p) => typeof p.pageNumber === 'number')
       .sort((a, b) => a.pageNumber - b.pageNumber);
-    const gatedZones = new Set<string>();
+    const establishedZones = new Set<string>();
+    let previousZone: string | undefined;
+    let previousPage: number | undefined;
+    let lastThresholdEdge: { fromZoneId: string; toZoneId: string } | undefined;
     for (const p of pagesSorted) {
-      const t = p.transition;
-      if (t && t.kind !== 'steady' && isStr(t.toZoneId)) gatedZones.add(t.toZoneId);
+      const kind: PageTransition['kind'] = p.transition?.kind ?? 'steady';
+      if (previousZone !== undefined && isStr(p.zoneId)) {
+        if (kind === 'steady' || kind === 'before_transition') {
+          if (p.zoneId !== previousZone) {
+            errors.push(
+              `page ${p.pageNumber} moves to zone "${p.zoneId}" from "${previousZone}" (page ${previousPage}) without a transition — a ${kind} page declares no move (undeclared scene move)`,
+            );
+          }
+          lastThresholdEdge = undefined;
+        } else {
+          const from = p.transition?.fromZoneId;
+          const to = p.transition?.toZoneId;
+          if (isStr(from) && !establishedZones.has(from)) {
+            errors.push(
+              `page ${p.pageNumber} (${kind}) departs from "${from}" but that zone has not been established yet`,
+            );
+          }
+          const continuesThreshold =
+            kind === 'after_transition' &&
+            isStr(from) &&
+            isStr(to) &&
+            lastThresholdEdge?.fromZoneId === from &&
+            lastThresholdEdge.toZoneId === to;
+          if (isStr(from) && from !== previousZone && !continuesThreshold) {
+            errors.push(
+              `page ${p.pageNumber} (${kind}) departs from "${from}" but the previous page (${previousPage}) was in "${previousZone}" — the move is not continuous (undeclared scene move)`,
+            );
+          }
+          if (kind === 'threshold' && isStr(from) && isStr(to)) {
+            lastThresholdEdge = { fromZoneId: from, toZoneId: to };
+          } else {
+            lastThresholdEdge = undefined;
+          }
+          if (isStr(to)) establishedZones.add(to);
+        }
+      }
+      if (isStr(p.zoneId)) {
+        establishedZones.add(p.zoneId);
+        previousZone = p.zoneId;
+        previousPage = p.pageNumber;
+      }
     }
-    const available = new Set<string>();
-    pagesSorted.forEach((p, idx) => {
-      const t = p.transition;
-      // The first page establishes its zone — you must start somewhere.
-      if (idx === 0 && isStr(p.zoneId)) available.add(p.zoneId);
-      // A transition can only depart from a zone the story has already established.
-      if (t && t.kind !== 'steady' && isStr(t.fromZoneId) && idx > 0 && !available.has(t.fromZoneId)) {
-        errors.push(`page ${p.pageNumber} transitions from zone "${t.fromZoneId}" the story has not established yet`);
-      }
-      // A threshold/after_transition INTRODUCES its destination (available from here on).
-      if (t && (t.kind === 'threshold' || t.kind === 'after_transition') && isStr(t.toZoneId)) {
-        available.add(t.toZoneId);
-      }
-      // Occupancy: a gated zone must have been introduced before it can be occupied.
-      if (isStr(p.zoneId) && gatedZones.has(p.zoneId) && !available.has(p.zoneId)) {
-        errors.push(`page ${p.pageNumber} occupies gated zone "${p.zoneId}" before the story transitions into it`);
-      }
-      // A non-gated zone is freely established by occupancy (open movement between zones of a place).
-      if (isStr(p.zoneId) && !gatedZones.has(p.zoneId)) available.add(p.zoneId);
-    });
   }
 
   if (errors.length > 0) return { ok: false, errors };

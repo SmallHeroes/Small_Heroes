@@ -654,7 +654,10 @@ exports[`WS0 vNext — golden fixtures validate (100% coverage, valid transition
       "pageNumber": 2,
       "propState": [],
       "transition": {
-        "kind": "steady",
+        "cue": "the child skips over to the gate",
+        "fromZoneId": "playground_main.swings",
+        "kind": "after_transition",
+        "toZoneId": "playground_main.gate",
       },
       "zoneId": "playground_main.gate",
     },
