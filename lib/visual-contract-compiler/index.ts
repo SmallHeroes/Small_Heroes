@@ -91,6 +91,7 @@ export {
   requireValidContractForRender,
   isVisualContractEnforcementEnabled,
   isVisualContractDevOverrideEnabled,
+  isVisualContractFreezeEnabled,
   MissingVisualContractError,
   isMissingVisualContractError,
   type RenderContext,

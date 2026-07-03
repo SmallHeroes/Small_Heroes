@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import type { Companion } from '@/lib/companions';
 import type { BookPageTemplate } from '@/lib/bookPageLayout';
 
@@ -75,6 +76,15 @@ export type PipelineCache = {
     }>;
   };
   textFinalized?: boolean;
+  /**
+   * (WS0b) The frozen `BookVisualContract` for this book — produced once (bank artifact load or dynamic compile)
+   * and persisted here by `ensureFrozenVisualContract` before the cover, atomically with `Order.visualContractHash`
+   * (= its canonical hash). Typed as opaque JSON (the contract is a deep interface tree that isn't structurally a
+   * `Prisma.InputJsonObject`, so a typed field would break every `PipelineCache → InputJsonValue` write); consumers
+   * cast/parse it back to `BookVisualContract`. Present only when the freeze ran (flag on + a contract available);
+   * absent = legacy behavior. No consumer reads it yet in WS0b — adapters/steering land in later slices.
+   */
+  visualContract?: Prisma.InputJsonValue;
   characterAnchorStore?: Record<
     string,
     {

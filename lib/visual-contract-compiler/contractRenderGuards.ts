@@ -35,6 +35,20 @@ export function isVisualContractDevOverrideEnabled(): boolean {
   return process.env.VISUAL_CONTRACT_DEV_OVERRIDE === 'true';
 }
 
+/**
+ * (WS0b) Whether the contract is PRODUCED, FROZEN, and BOUND on the live generation path — i.e. whether
+ * `ensureFrozenVisualContract` compiles/loads the contract, stamps `Order.visualContractHash`, and persists
+ * it into `pipelineCache` before the cover. Default OFF: with the flag off the freeze is a no-op and render
+ * output is byte-identical to today (no stamp, no cache write, no `inputVersion` bump). This gates ONLY the
+ * freeze/binding plumbing — it changes NOTHING that gets rendered (steering is a separate flag) and enables
+ * NO blocking check. Hard-gated to NON-PRODUCTION (mirrors enforcement + the prod-generation kill-switch):
+ * even if the var leaks onto Vercel Production the freeze stays OFF there until prod is deliberately cut over.
+ */
+export function isVisualContractFreezeEnabled(): boolean {
+  if (isVercelProductionRuntime()) return false;
+  return process.env.VISUAL_CONTRACT_FREEZE === 'true';
+}
+
 export class MissingVisualContractError extends Error {
   readonly isMissingVisualContract = true as const;
   constructor(message: string, readonly context: RenderContext, readonly errors?: string[]) {

@@ -62,7 +62,11 @@ export type DeliveryInputMutationReason =
   | 'single_page_regenerated'
   | 'page_assets_cleared'
   | 'debug_page_asset_changed'
-  | 'character_anchors_changed';
+  | 'character_anchors_changed'
+  // (WS0b) Freeze the BookVisualContract before the cover: stamps Order.visualContractHash + persists the
+  // contract into pipelineCache. Runs on 'generating' orders (before any paid image), so it never triggers the
+  // ready→generating recovery branch; recoveryStageFor's default ('package') is inert for it.
+  | 'visual_contract_frozen';
 
 export interface DeliveryInputMutationResult<T extends ReceiptSafeValue> {
   value: T;

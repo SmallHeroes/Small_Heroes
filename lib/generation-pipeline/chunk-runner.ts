@@ -68,6 +68,7 @@ import {
 } from '@/lib/generation-chunked/paid-artifact-guard';
 import { heartbeatLease } from '@/lib/generation-chunked/lease';
 import { finalizeAndPersistStoryText } from './text-finalization';
+import { ensureFrozenVisualContract } from './ensure-frozen-visual-contract';
 import { isReadinessManifestEnabled, withDeliveryInputMutation } from './readiness-manifest';
 import { hashOperationPayload, isOutcomeUnknown, type ReceiptSafeValue } from './atomic-operation';
 import { persistDeliveredQualityEvidence, persistQualityContext } from './quality-evidence-producer';
@@ -1786,6 +1787,13 @@ export async function processGenerationChunk(
       : (job.currentStage as ChunkStage);
   if (stage === 'failed') stage = await deriveStartingStage(orderId, job, cache);
 
+  // (WS0b) Resume path: text + DNA are already done, so a resume can enter directly at cover/page_images/audio/
+  // package — freeze the visual contract BEFORE any paid image here too (idempotent; a no-op when the flag is off
+  // or the contract is already frozen). The fresh path freezes at the dna→cover transition below.
+  if (stage !== 'text' && stage !== 'dna') {
+    cache = await ensureFrozenVisualContract(order, cache);
+  }
+
   try {
     while (!overBudget(startedAt, budgetMs)) {
       await heartbeatLease(orderId, workerId);
@@ -1804,6 +1812,9 @@ export async function processGenerationChunk(
         if (process.env.GENERATION_ANCHOR_ONLY === 'true') {
           return { stage: 'dna', done: true, stopChunk: true };
         }
+        // (WS0b) Fresh path: text + DNA are finalized — freeze the visual contract BEFORE the cover (the first
+        // paid image). Idempotent + non-blocking; a no-op when the flag is off or no contract is available.
+        cache = await ensureFrozenVisualContract(order, cache);
         stage = 'cover';
         continue;
       }
