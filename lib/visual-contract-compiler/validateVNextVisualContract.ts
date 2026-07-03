@@ -130,6 +130,7 @@ function validateTransition(
 function validateHumanCast(
   members: RecurringHumanCastMember[],
   pageNumbers: Set<number>,
+  castIdsByPage: Map<number, Set<string>>,
   errors: string[],
 ): void {
   const seen = new Set<string>();
@@ -153,6 +154,12 @@ function validateHumanCast(
       for (const pn of m.pagesPresent) {
         if (typeof pn !== 'number' || !pageNumbers.has(pn)) {
           errors.push(`${label}.pagesPresent references unknown page ${String(pn)}`);
+          continue;
+        }
+        // Bidirectional binding (fail-closed): a page this person is "present" on MUST declare the person in
+        // its castIds — otherwise a recurring human could be silently dropped from a page it belongs on.
+        if (!castIdsByPage.get(pn)?.has(m.id)) {
+          errors.push(`${label} claims page ${pn} but ${m.id} is not in that page's castIds`);
         }
       }
     }
@@ -171,11 +178,25 @@ export function validateVNextVisualContract(input: unknown): VNextContractValida
 
   const zoneIds = new Set<string>((contract.zones ?? []).map((z) => z.id).filter(isStr));
   const castIds = collectCastIds(contract);
+  const childId = isStr(contract.cast?.child?.id) ? contract.cast.child.id : undefined;
+  const companionId = isStr(contract.cast?.companion?.id) ? contract.cast.companion!.id : undefined;
+  const humanIds = new Set<string>(
+    (contract.humanCast ?? []).map((m) => m?.id).filter(isStr),
+  );
+  const humanPagesById = new Map<string, Set<number>>();
+  for (const m of contract.humanCast ?? []) {
+    if (!isStr(m?.id)) continue;
+    humanPagesById.set(
+      m.id,
+      new Set<number>((Array.isArray(m.pagesPresent) ? m.pagesPresent : []).filter((n): n is number => typeof n === 'number')),
+    );
+  }
   const pageNumbers = new Set<number>(
     (contract.pageContracts ?? [])
       .map((p) => p.pageNumber)
       .filter((n): n is number => typeof n === 'number'),
   );
+  const castIdsByPage = new Map<number, Set<string>>();
 
   for (const page of contract.pageContracts ?? []) {
     const label = typeof page.pageNumber === 'number' ? `page ${page.pageNumber}` : 'page (?)';
@@ -186,15 +207,45 @@ export function validateVNextVisualContract(input: unknown): VNextContractValida
       errors.push(`${label} has no zoneId (vNext requires every page to resolve to a location + zone)`);
     }
 
-    // (2) cast resolution — every declared per-page castId must resolve to a defined member.
-    if (page.castIds !== undefined) {
-      if (!Array.isArray(page.castIds)) {
-        errors.push(`${label}.castIds must be an array`);
-      } else {
-        for (const id of page.castIds) {
-          if (!isStr(id) || !castIds.has(id)) {
-            errors.push(`${label}.castIds entry "${String(id)}" does not resolve to a defined cast member`);
-          }
+    // (2) cast resolution — castIds is REQUIRED (fail-closed): every page must declare its cast, and every
+    // entry must resolve to a defined member. A missing/omitted castIds is a hole, not a pass.
+    const pageCastIds = new Set<string>();
+    if (!Array.isArray(page.castIds)) {
+      errors.push(`${label}.castIds must be an array (vNext requires every page to declare its cast)`);
+    } else {
+      for (const id of page.castIds) {
+        if (!isStr(id) || !castIds.has(id)) {
+          errors.push(`${label}.castIds entry "${String(id)}" does not resolve to a defined cast member`);
+        } else {
+          pageCastIds.add(id);
+        }
+      }
+    }
+    if (typeof page.pageNumber === 'number') castIdsByPage.set(page.pageNumber, pageCastIds);
+
+    // (2b) characterPresence MUST be backed by castIds, both directions (fail-closed): a page cannot claim a
+    // character is present without declaring it, nor list one it claims is absent.
+    const presence = page.characterPresence;
+    if (presence?.child === true) {
+      if (!childId) errors.push(`${label} marks the child present but cast.child.id is missing`);
+      else if (!pageCastIds.has(childId)) errors.push(`${label} marks the child present but "${childId}" is not in castIds`);
+    }
+    if (childId && pageCastIds.has(childId) && presence?.child !== true) {
+      errors.push(`${label} lists the child "${childId}" in castIds but characterPresence.child is not true`);
+    }
+    if (presence?.companion === true) {
+      if (!companionId) errors.push(`${label} marks the companion present but no companion is defined`);
+      else if (!pageCastIds.has(companionId)) errors.push(`${label} marks the companion present but "${companionId}" is not in castIds`);
+    }
+    if (companionId && pageCastIds.has(companionId) && presence?.companion !== true) {
+      errors.push(`${label} lists the companion "${companionId}" in castIds but characterPresence.companion is not true`);
+    }
+
+    // (2c) a recurring human listed on a page MUST record that page in its pagesPresent (reverse binding).
+    if (typeof page.pageNumber === 'number') {
+      for (const id of pageCastIds) {
+        if (humanIds.has(id) && !humanPagesById.get(id)?.has(page.pageNumber)) {
+          errors.push(`${label} lists human "${id}" in castIds but page ${page.pageNumber} is not in its pagesPresent`);
         }
       }
     }
@@ -203,12 +254,12 @@ export function validateVNextVisualContract(input: unknown): VNextContractValida
     validateTransition(label, page, zoneIds, errors);
   }
 
-  // (4) recurring human cast well-formed.
+  // (4) recurring human cast well-formed (+ forward castIds binding).
   if (contract.humanCast !== undefined) {
     if (!Array.isArray(contract.humanCast)) {
       errors.push('humanCast must be an array');
     } else {
-      validateHumanCast(contract.humanCast, pageNumbers, errors);
+      validateHumanCast(contract.humanCast, pageNumbers, castIdsByPage, errors);
     }
   }
 

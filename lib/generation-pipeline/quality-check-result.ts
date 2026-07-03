@@ -43,10 +43,15 @@ export interface QualityCheckAggregate {
 /**
  * PURE fail-closed aggregation of per-check results.
  *
- *   1. ANY `fail` (required or not)               → `failed`.
- *   2. else ANY required check missing or `unknown` → `evidence_unknown`.
- *   3. else                                          → `passed`  (all required checks positive; a required
- *                                                       `not_applicable` is a legitimate non-block).
+ *   1. ANY `fail` (required or not)                        → `failed`.
+ *   2. else ANY required check not POSITIVELY satisfied     → `evidence_unknown`.
+ *   3. else                                                 → `passed`.
+ *
+ * A required check is satisfied ONLY when it has at least one result AND EVERY result for it is `pass`.
+ * Missing, `unknown`, or `not_applicable` on a REQUIRED check → `evidence_unknown` (fail-closed): a required
+ * gate cannot be bypassed by marking it N/A or by omitting its observation. `not_applicable` is meaningful for
+ * NON-required (telemetry) checks and for a check that legitimately does not apply — in which case it must not
+ * be in `requiredCheckIds` for that artifact.
  *
  * `requiredCheckIds` defaults to [] — so in WS0 (no required checks yet, enforcement OFF) a result set with
  * no `fail` aggregates to `passed` and nothing is blocked.
@@ -55,20 +60,22 @@ export function aggregateQualityChecks(
   results: QualityCheckResult[],
   requiredCheckIds: string[] = [],
 ): QualityCheckAggregate {
-  const byId = new Map<string, QualityCheckResult>();
+  const resultsById = new Map<string, QualityCheckResult[]>();
   for (const r of results) {
-    // Last writer wins for a duplicated checkId; a `fail`/`unknown` is never silently overwritten by a later
-    // `pass` unless that later result is genuinely for the same check — callers should not emit duplicates.
-    byId.set(r.checkId, r);
+    const arr = resultsById.get(r.checkId);
+    if (arr) arr.push(r);
+    else resultsById.set(r.checkId, [r]);
   }
 
-  const failedCheckIds = results.filter((r) => r.status === 'fail').map((r) => r.checkId);
-  const uniqueFailed = Array.from(new Set(failedCheckIds));
+  const uniqueFailed = Array.from(new Set(results.filter((r) => r.status === 'fail').map((r) => r.checkId)));
+  const failedSet = new Set(uniqueFailed);
 
   const unknownCheckIds: string[] = [];
   for (const id of requiredCheckIds) {
-    const r = byId.get(id);
-    if (!r || r.status === 'unknown') unknownCheckIds.push(id);
+    if (failedSet.has(id)) continue; // a failed required check is already accounted for by the `failed` verdict
+    const rs = resultsById.get(id);
+    const satisfied = !!rs && rs.length > 0 && rs.every((r) => r.status === 'pass');
+    if (!satisfied) unknownCheckIds.push(id);
   }
 
   if (uniqueFailed.length > 0) {
@@ -95,15 +102,19 @@ export function aggregateQualityChecks(
  * matches the Order's active `visualContractHash`. A mismatch means the row was produced against a DIFFERENT
  * (superseded) contract → treat it as STALE and force a re-QA.
  *
- * Enforcement-OFF safety: when the Order has NO active contract hash (the vNext contract layer is not frozen
- * for this order — the WS0 default), there is nothing to bind against, so a row is NOT considered stale on
- * this axis. Existing evidence/readiness behavior is therefore unchanged until an order actually carries a
- * `visualContractHash`.
+ * Fail-closed rules:
+ *  - Order HAS an active contract hash → a row is fresh ONLY when its `contractHash` matches exactly.
+ *  - Order has NO active contract hash but the EVIDENCE carries one → the row was produced against a contract
+ *    the order does not (or no longer) advertise → STALE (never admit evidence bound to a phantom contract).
+ *  - NEITHER side carries a hash → the contract layer is genuinely inactive (the WS0 default: the producer
+ *    does not stamp `contractHash` yet), so there is nothing to bind → NOT stale. Existing evidence/readiness
+ *    behavior is unchanged until an order actually carries a `visualContractHash`.
  */
 export function isQualityEvidenceContractStale(
   evidenceContractHash: string | null | undefined,
   orderContractHash: string | null | undefined,
 ): boolean {
-  if (!orderContractHash) return false; // contract layer not active for this order → nothing to bind
-  return evidenceContractHash !== orderContractHash;
+  if (orderContractHash) return evidenceContractHash !== orderContractHash;
+  // Order has no active contract hash: stale iff the evidence nonetheless claims one (phantom contract).
+  return !!evidenceContractHash;
 }

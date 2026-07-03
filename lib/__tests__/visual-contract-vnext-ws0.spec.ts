@@ -250,6 +250,39 @@ describe('WS0 vNext — fail-closed on malformed / rule violations', () => {
     if (!r.ok) expect(r.errors.join(' ')).toMatch(/unknown page/);
   });
 
+  it('a page missing castIds entirely is rejected (fail-closed coverage)', () => {
+    const bad = clone(bedroom);
+    delete (bad.pageContracts[0] as { castIds?: string[] }).castIds;
+    const r = validateVNextVisualContract(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/castIds must be an array/);
+  });
+
+  it('a page that marks the child present but omits it from castIds is rejected', () => {
+    const bad = clone(bedroom);
+    bad.pageContracts[0].castIds = ['companion:fox']; // child present but not declared
+    const r = validateVNextVisualContract(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/child present but/);
+  });
+
+  it('a page that lists the companion in castIds but marks it absent is rejected', () => {
+    const bad = clone(classroomHome);
+    // page 1 has companion:false; inject the companion id into castIds without flipping presence.
+    bad.pageContracts[0].castIds = ['child:hero', 'companion:fox'];
+    const r = validateVNextVisualContract(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/lists the companion/);
+  });
+
+  it('a human listed on a page whose pagesPresent omits that page is rejected (bidirectional)', () => {
+    const bad = clone(clinic);
+    bad.humanCast![0].pagesPresent = [4]; // doctor still in page 3 castIds, but 3 dropped from pagesPresent
+    const r = validateVNextVisualContract(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/pagesPresent/);
+  });
+
   it('an invalid human cast gender is rejected', () => {
     const bad = clone(clinic);
     (bad.humanCast![0] as { gender: string }).gender = 'robot';
@@ -359,8 +392,19 @@ describe('WS0 step 8 — QualityCheckResult aggregation truth table (enforcement
     expect(aggregateQualityChecks([pass('location'), pass('cast')], ['location', 'cast']).verdict).toBe('passed');
   });
 
-  it('a required check that is not_applicable is a legitimate non-block → passed', () => {
-    expect(aggregateQualityChecks([pass('location'), na('cast')], ['location', 'cast']).verdict).toBe('passed');
+  it('a required check that is not_applicable is NOT positive → evidence_unknown (fail-closed)', () => {
+    const agg = aggregateQualityChecks([pass('location'), na('cast')], ['location', 'cast']);
+    expect(agg.verdict).toBe('evidence_unknown');
+    expect(agg.unknownCheckIds).toEqual(['cast']);
+  });
+
+  it('not_applicable on a NON-required (telemetry) check does not block', () => {
+    expect(aggregateQualityChecks([pass('location'), na('telemetry')], ['location']).verdict).toBe('passed');
+  });
+
+  it('a required check with mixed pass + unknown results → evidence_unknown (any non-pass blocks)', () => {
+    const agg = aggregateQualityChecks([pass('cast'), unknown('cast')], ['cast']);
+    expect(agg.verdict).toBe('evidence_unknown');
   });
 
   it('fail beats unknown (deterministic negative wins)', () => {
@@ -381,8 +425,12 @@ describe('WS0 step 8 — contract-hash validity (mismatch → stale, layer-off �
     expect(isQualityEvidenceContractStale(null, 'new')).toBe(true);
   });
 
-  it('no active order contract hash (layer off) → never stale on this axis', () => {
-    expect(isQualityEvidenceContractStale('anything', null)).toBe(false);
+  it('evidence carries a hash but the order has none → stale (phantom contract, fail-closed)', () => {
+    expect(isQualityEvidenceContractStale('anything', null)).toBe(true);
+  });
+
+  it('neither side carries a hash (layer genuinely off) → not stale', () => {
     expect(isQualityEvidenceContractStale(null, undefined)).toBe(false);
+    expect(isQualityEvidenceContractStale(undefined, null)).toBe(false);
   });
 });
