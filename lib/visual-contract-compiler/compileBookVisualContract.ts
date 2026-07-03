@@ -19,6 +19,12 @@ import { normalizeRawBookVisualContract } from './normalizeRawContract';
 /** Minimal LLM seam: system+user prompt in, raw model text (expected JSON) out. */
 export type ContractLlmCaller = (system: string, user: string) => Promise<string>;
 
+/** One page's authored image direction (camera/action/staging), fed alongside the text (vNext). */
+export interface PageImageDirection {
+  pageNumber: number;
+  imageDirection: string;
+}
+
 export interface CompileBookVisualContractInput {
   storyKey?: string;
   /** The full story text (all pages concatenated) — the contract is derived from ALL of it. */
@@ -27,6 +33,13 @@ export interface CompileBookVisualContractInput {
   childName?: string;
   childGender?: string;
   companion?: { id: string; name?: string } | null;
+  /**
+   * vNext: per-page image directions. When present, the contract derives zones/transitions/cast from BOTH
+   * the text's spatial cues AND these directions (a page's imageDirection may influence camera/action —
+   * never location identity, cast, wardrobe, or forbidden elements). Optional + additive: when omitted the
+   * compiler prompt is byte-identical to the text-only (1A) behavior.
+   */
+  pageImageDirections?: PageImageDirection[];
 }
 
 /** Default caller — lazily pulls the shared pipeline LLM so the VCC module graph stays light. */
@@ -58,6 +71,23 @@ export function buildCompileUserPrompt(input: CompileBookVisualContractInput): s
   const companion = input.companion
     ? `Companion: ${input.companion.name ?? input.companion.id} (id=${input.companion.id}).`
     : 'No companion in this story.';
+  // vNext: only append the image-direction section when directions are supplied, so text-only (1A) callers
+  // get a byte-identical prompt (no behavior change for the existing compile path).
+  const directions = (input.pageImageDirections ?? []).filter(
+    (d) => d && typeof d.pageNumber === 'number' && typeof d.imageDirection === 'string' && d.imageDirection.trim().length > 0,
+  );
+  const imageDirectionSection =
+    directions.length > 0
+      ? [
+          '',
+          'PER-PAGE IMAGE DIRECTIONS (derive zones/transitions/cast from BOTH the story text AND these;',
+          'a direction may inform camera/action/staging only — NEVER location identity, cast, wardrobe, or forbidden elements):',
+          ...directions
+            .slice()
+            .sort((a, b) => a.pageNumber - b.pageNumber)
+            .map((d) => `- page ${d.pageNumber}: ${d.imageDirection.trim()}`),
+        ]
+      : [];
   return [
     `storyKey: ${input.storyKey ?? '(unknown)'}`,
     `pageCount: ${input.pageCount}`,
@@ -73,6 +103,7 @@ export function buildCompileUserPrompt(input: CompileBookVisualContractInput): s
     '- recurringProps: [{"id":"snake_case_id","name":"...","description":"..."}] — every prop MUST have an "id".',
     '- propState[].propId MUST equal one of recurringProps[].id (use the id, not the name).',
     '- forbiddenGlobalElements is a JSON array of strings.',
+    ...imageDirectionSection,
     '',
     'FULL STORY TEXT:',
     input.fullStoryText,

@@ -1,0 +1,681 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`WS0 vNext — golden fixtures validate (100% coverage, valid transitions, castIds resolve) > bedroom golden structural snapshot > bedroom 1`] = `
+{
+  "cast": {
+    "child": {
+      "id": "child:hero",
+      "name": "Dana",
+      "role": "child",
+      "wardrobe": {
+        "description": "red raincoat + yellow boots",
+      },
+    },
+    "companion": {
+      "id": "companion:fox",
+      "name": "Fox",
+      "role": "companion",
+      "wardrobe": {
+        "description": "green scarf",
+      },
+    },
+  },
+  "coverContract": {
+    "locationId": "bedroom",
+    "mustNotShow": [
+      "daylight",
+    ],
+    "mustShow": [
+      "child",
+      "bed",
+    ],
+    "timeOfDay": "night",
+    "worldType": "bedtime",
+  },
+  "forbiddenGlobalElements": [
+    "any animal, creature, or pet that is not the story's declared companion",
+  ],
+  "locations": [
+    {
+      "description": "the child's bedroom at night",
+      "environmentClass": "indoor",
+      "id": "bedroom",
+      "lighting": "night_nightlight",
+      "name": "Bedroom",
+    },
+  ],
+  "pageContracts": [
+    {
+      "camera": "wide",
+      "castIds": [
+        "child:hero",
+        "companion:fox",
+      ],
+      "characterPresence": {
+        "child": true,
+        "companion": true,
+      },
+      "locationId": "bedroom",
+      "mustNotShow": [
+        "daylight",
+      ],
+      "mustShow": [
+        "the child in bed",
+      ],
+      "pageNumber": 1,
+      "propState": [
+        {
+          "propId": "nightlight",
+          "state": "on",
+        },
+      ],
+      "transition": {
+        "kind": "steady",
+      },
+      "zoneId": "bedroom.main",
+    },
+    {
+      "camera": "close",
+      "castIds": [
+        "child:hero",
+        "companion:fox",
+      ],
+      "characterPresence": {
+        "child": true,
+        "companion": true,
+      },
+      "locationId": "bedroom",
+      "mustNotShow": [
+        "daylight",
+      ],
+      "mustShow": [
+        "the child asleep",
+      ],
+      "pageNumber": 2,
+      "propState": [
+        {
+          "propId": "nightlight",
+          "state": "on",
+        },
+      ],
+      "transition": {
+        "kind": "steady",
+      },
+      "zoneId": "bedroom.main",
+    },
+  ],
+  "recurringProps": [
+    {
+      "description": "a warm star-shaped night light",
+      "id": "nightlight",
+      "name": "Night light",
+    },
+  ],
+  "storyKey": "bedroom_bedtime",
+  "version": 1,
+  "worldType": "bedtime",
+  "zones": [
+    {
+      "description": "a railed bed, a window with stars",
+      "id": "bedroom.main",
+      "locationId": "bedroom",
+      "name": "Bedroom",
+    },
+  ],
+}
+`;
+
+exports[`WS0 vNext — golden fixtures validate (100% coverage, valid transitions, castIds resolve) > classroomHome golden structural snapshot > classroomHome 1`] = `
+{
+  "cast": {
+    "child": {
+      "id": "child:hero",
+      "name": "Dana",
+      "role": "child",
+      "wardrobe": {
+        "description": "red raincoat + yellow boots",
+      },
+    },
+    "companion": {
+      "id": "companion:fox",
+      "name": "Fox",
+      "role": "companion",
+      "wardrobe": {
+        "description": "green scarf",
+      },
+    },
+  },
+  "coverContract": {
+    "locationId": "school",
+    "mustNotShow": [],
+    "mustShow": [
+      "child",
+    ],
+    "timeOfDay": "day",
+    "worldType": "realistic_daily_life",
+  },
+  "forbiddenGlobalElements": [
+    "any animal, creature, or pet that is not the story's declared companion",
+  ],
+  "locations": [
+    {
+      "description": "a bright primary school",
+      "environmentClass": "indoor",
+      "id": "school",
+      "lighting": "daylight_windows",
+      "name": "School",
+    },
+    {
+      "description": "a cozy family home",
+      "environmentClass": "indoor",
+      "id": "home",
+      "lighting": "warm_lamps",
+      "name": "Home",
+    },
+  ],
+  "pageContracts": [
+    {
+      "camera": "wide",
+      "castIds": [
+        "child:hero",
+      ],
+      "characterPresence": {
+        "child": true,
+        "companion": false,
+      },
+      "locationId": "school",
+      "mustNotShow": [],
+      "mustShow": [
+        "the child at a desk",
+      ],
+      "pageNumber": 1,
+      "propState": [],
+      "transition": {
+        "kind": "steady",
+      },
+      "zoneId": "school.classroom",
+    },
+    {
+      "camera": "medium",
+      "castIds": [
+        "child:hero",
+      ],
+      "characterPresence": {
+        "child": true,
+        "companion": false,
+      },
+      "locationId": "school",
+      "mustNotShow": [],
+      "mustShow": [
+        "packing a backpack",
+      ],
+      "pageNumber": 2,
+      "propState": [],
+      "transition": {
+        "cue": "the bell rings, time to go home",
+        "fromZoneId": "school.classroom",
+        "kind": "before_transition",
+        "toZoneId": "home.livingroom",
+      },
+      "zoneId": "school.classroom",
+    },
+    {
+      "camera": "wide",
+      "castIds": [
+        "child:hero",
+        "companion:fox",
+      ],
+      "characterPresence": {
+        "child": true,
+        "companion": true,
+      },
+      "locationId": "home",
+      "mustNotShow": [],
+      "mustShow": [
+        "the child home on the sofa",
+      ],
+      "pageNumber": 3,
+      "propState": [],
+      "transition": {
+        "cue": "arriving home",
+        "fromZoneId": "school.classroom",
+        "kind": "after_transition",
+        "toZoneId": "home.livingroom",
+      },
+      "zoneId": "home.livingroom",
+    },
+  ],
+  "recurringProps": [],
+  "storyKey": "classroom_home",
+  "version": 1,
+  "worldType": "realistic_daily_life",
+  "zones": [
+    {
+      "description": "desks, a whiteboard",
+      "id": "school.classroom",
+      "locationId": "school",
+      "name": "Classroom",
+    },
+    {
+      "description": "a sofa, a bookshelf",
+      "id": "home.livingroom",
+      "locationId": "home",
+      "name": "Living room",
+    },
+  ],
+}
+`;
+
+exports[`WS0 vNext — golden fixtures validate (100% coverage, valid transitions, castIds resolve) > clinic golden structural snapshot > clinic 1`] = `
+{
+  "cast": {
+    "child": {
+      "id": "child:hero",
+      "name": "Dana",
+      "role": "child",
+      "wardrobe": {
+        "description": "red raincoat + yellow boots",
+      },
+    },
+    "companion": {
+      "id": "companion:fox",
+      "name": "Fox",
+      "role": "companion",
+      "wardrobe": {
+        "description": "green scarf",
+      },
+    },
+  },
+  "coverContract": {
+    "locationId": "clinic",
+    "mustNotShow": [
+      "exam instruments",
+    ],
+    "mustShow": [
+      "child",
+      "clinic entrance",
+    ],
+    "timeOfDay": "day",
+    "worldType": "realistic_clinic",
+  },
+  "forbiddenGlobalElements": [
+    "any animal, creature, or pet that is not the story's declared companion",
+  ],
+  "humanCast": [
+    {
+      "aliases": [
+        "הרופא",
+        "the doctor",
+      ],
+      "coarseAppearance": "tall adult, short dark hair, medium skin tone",
+      "forbiddenAppearance": [
+        "clown attire",
+        "sunglasses",
+      ],
+      "gender": "male",
+      "id": "human:doctor",
+      "pagesPresent": [
+        3,
+        4,
+      ],
+      "role": "doctor",
+      "textEvidence": ""הרופא" (masculine Hebrew article) → male",
+      "wardrobe": {
+        "description": "white coat over blue scrubs",
+        "forbidden": [
+          "surgical mask covering the face",
+        ],
+      },
+    },
+  ],
+  "locations": [
+    {
+      "anchors": [
+        {
+          "description": "wooden reception desk near the entrance",
+          "id": "reception_desk",
+        },
+      ],
+      "description": "A small friendly village clinic.",
+      "environmentClass": "indoor",
+      "id": "clinic",
+      "lighting": "clinic_fluorescent",
+      "name": "Village clinic",
+      "topology": "waiting room adjoins the exam room through a single door",
+    },
+  ],
+  "pageContracts": [
+    {
+      "camera": "wide establishing",
+      "castIds": [
+        "child:hero",
+        "companion:fox",
+      ],
+      "characterPresence": {
+        "child": true,
+        "companion": true,
+      },
+      "locationId": "clinic",
+      "mustNotShow": [],
+      "mustShow": [
+        "waiting room chairs",
+      ],
+      "pageNumber": 1,
+      "propState": [
+        {
+          "propId": "teddy",
+          "state": "held",
+        },
+      ],
+      "transition": {
+        "kind": "steady",
+      },
+      "zoneId": "clinic.waiting_room",
+    },
+    {
+      "camera": "medium",
+      "castIds": [
+        "child:hero",
+        "companion:fox",
+      ],
+      "characterPresence": {
+        "child": true,
+        "companion": true,
+      },
+      "locationId": "clinic",
+      "mustNotShow": [],
+      "mustShow": [
+        "a nurse at the door",
+      ],
+      "pageNumber": 2,
+      "propState": [],
+      "transition": {
+        "cue": "the nurse calls their name",
+        "fromZoneId": "clinic.waiting_room",
+        "kind": "before_transition",
+        "toZoneId": "clinic.exam_room",
+      },
+      "zoneId": "clinic.waiting_room",
+    },
+    {
+      "camera": "over-the-shoulder toward the doorway",
+      "castIds": [
+        "child:hero",
+        "companion:fox",
+        "human:doctor",
+      ],
+      "characterPresence": {
+        "child": true,
+        "companion": true,
+      },
+      "locationId": "clinic",
+      "mustNotShow": [],
+      "mustShow": [
+        "the exam-room door opening",
+      ],
+      "pageNumber": 3,
+      "propState": [],
+      "transition": {
+        "cue": "the exam-room door opens",
+        "fromZoneId": "clinic.waiting_room",
+        "kind": "threshold",
+        "toZoneId": "clinic.exam_room",
+      },
+      "zoneId": "clinic.waiting_room",
+    },
+    {
+      "camera": "medium two-shot",
+      "castIds": [
+        "child:hero",
+        "companion:fox",
+        "human:doctor",
+      ],
+      "characterPresence": {
+        "child": true,
+        "companion": true,
+      },
+      "locationId": "clinic",
+      "mustNotShow": [],
+      "mustShow": [
+        "the doctor greeting the child",
+      ],
+      "pageNumber": 4,
+      "propState": [],
+      "transition": {
+        "cue": "they step inside",
+        "fromZoneId": "clinic.waiting_room",
+        "kind": "after_transition",
+        "toZoneId": "clinic.exam_room",
+      },
+      "zoneId": "clinic.exam_room",
+    },
+  ],
+  "recurringProps": [
+    {
+      "description": "the child's brown teddy bear",
+      "id": "teddy",
+      "name": "Teddy bear",
+    },
+  ],
+  "storyKey": "clinic_visit",
+  "version": 1,
+  "worldType": "realistic_clinic",
+  "zones": [
+    {
+      "description": "chairs, a low table, picture books",
+      "id": "clinic.waiting_room",
+      "locationId": "clinic",
+      "name": "Waiting room",
+    },
+    {
+      "description": "exam table, a small sink, a growth chart",
+      "id": "clinic.exam_room",
+      "locationId": "clinic",
+      "name": "Exam room",
+    },
+  ],
+}
+`;
+
+exports[`WS0 vNext — golden fixtures validate (100% coverage, valid transitions, castIds resolve) > fantasy golden structural snapshot > fantasy 1`] = `
+{
+  "cast": {
+    "child": {
+      "id": "child:hero",
+      "name": "Dana",
+      "role": "child",
+      "wardrobe": {
+        "description": "red raincoat + yellow boots",
+      },
+    },
+    "companion": {
+      "id": "companion:fox",
+      "name": "Fox",
+      "role": "companion",
+      "wardrobe": {
+        "description": "green scarf",
+      },
+    },
+  },
+  "coverContract": {
+    "locationId": "enchanted_forest",
+    "mustNotShow": [],
+    "mustShow": [
+      "child",
+      "glowing forest",
+    ],
+    "timeOfDay": "dusk",
+    "worldType": "fantasy",
+  },
+  "forbiddenGlobalElements": [
+    "any animal, creature, or pet that is not the story's declared companion",
+  ],
+  "locations": [
+    {
+      "anchors": [
+        {
+          "description": "a giant ancient oak with a lantern",
+          "id": "great_oak",
+        },
+      ],
+      "description": "a glowing storybook forest",
+      "environmentClass": "outdoor",
+      "id": "enchanted_forest",
+      "lighting": "magical_dusk",
+      "name": "Enchanted forest",
+    },
+  ],
+  "pageContracts": [
+    {
+      "camera": "wide",
+      "castIds": [
+        "child:hero",
+        "companion:fox",
+      ],
+      "characterPresence": {
+        "child": true,
+        "companion": true,
+      },
+      "locationId": "enchanted_forest",
+      "mustNotShow": [],
+      "mustShow": [
+        "the child in the clearing",
+      ],
+      "pageNumber": 1,
+      "propState": [],
+      "transition": {
+        "kind": "steady",
+      },
+      "zoneId": "enchanted_forest.clearing",
+    },
+  ],
+  "recurringProps": [],
+  "storyKey": "fantasy_forest",
+  "version": 1,
+  "worldType": "fantasy",
+  "zones": [
+    {
+      "description": "a mossy clearing ringed by tall trees",
+      "id": "enchanted_forest.clearing",
+      "locationId": "enchanted_forest",
+      "name": "Clearing",
+    },
+  ],
+}
+`;
+
+exports[`WS0 vNext — golden fixtures validate (100% coverage, valid transitions, castIds resolve) > legitOutdoor golden structural snapshot > legitOutdoor 1`] = `
+{
+  "cast": {
+    "child": {
+      "id": "child:hero",
+      "name": "Dana",
+      "role": "child",
+      "wardrobe": {
+        "description": "red raincoat + yellow boots",
+      },
+    },
+    "companion": {
+      "id": "companion:fox",
+      "name": "Fox",
+      "role": "companion",
+      "wardrobe": {
+        "description": "green scarf",
+      },
+    },
+  },
+  "coverContract": {
+    "locationId": "playground_main",
+    "mustNotShow": [
+      "cave",
+      "mountains",
+    ],
+    "mustShow": [
+      "child",
+      "playground",
+    ],
+    "timeOfDay": "day",
+    "worldType": "realistic_outdoor",
+  },
+  "forbiddenGlobalElements": [
+    "any animal, creature, or pet that is not the story's declared companion",
+  ],
+  "locations": [
+    {
+      "description": "a neighborhood playground",
+      "environmentClass": "outdoor",
+      "id": "playground_main",
+      "lighting": "bright_day",
+      "name": "Playground",
+    },
+  ],
+  "pageContracts": [
+    {
+      "camera": "wide",
+      "castIds": [
+        "child:hero",
+        "companion:fox",
+      ],
+      "characterPresence": {
+        "child": true,
+        "companion": true,
+      },
+      "locationId": "playground_main",
+      "mustNotShow": [
+        "cave",
+      ],
+      "mustShow": [
+        "the child on a swing",
+      ],
+      "pageNumber": 1,
+      "propState": [],
+      "transition": {
+        "kind": "steady",
+      },
+      "zoneId": "playground_main.swings",
+    },
+    {
+      "camera": "medium",
+      "castIds": [
+        "child:hero",
+        "companion:fox",
+      ],
+      "characterPresence": {
+        "child": true,
+        "companion": true,
+      },
+      "locationId": "playground_main",
+      "mustNotShow": [
+        "cave",
+      ],
+      "mustShow": [
+        "the child at the gate",
+      ],
+      "pageNumber": 2,
+      "propState": [],
+      "transition": {
+        "kind": "steady",
+      },
+      "zoneId": "playground_main.gate",
+    },
+  ],
+  "recurringProps": [],
+  "storyKey": "playground_day",
+  "version": 1,
+  "worldType": "realistic_outdoor",
+  "zones": [
+    {
+      "description": "a set of swings",
+      "id": "playground_main.swings",
+      "locationId": "playground_main",
+      "name": "Swings",
+    },
+    {
+      "description": "the playground gate (a ZONE, not a new world)",
+      "id": "playground_main.gate",
+      "locationId": "playground_main",
+      "name": "Gate",
+    },
+  ],
+}
+`;

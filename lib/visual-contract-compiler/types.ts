@@ -23,6 +23,20 @@ export interface SetReferenceDescriptor {
   prompt?: string;
 }
 
+/**
+ * Coarse environment classification for a location. vNext (WS0): drives style-ref selection
+ * "locks-first, regex-last" — the contract's `environmentClass` decides which style-ref subset applies;
+ * regex is telemetry-fallback only. `neutral` (or an unknown/unmatched class) → ZERO style refs
+ * (never mountains/stream-by-default). Additive + optional so 1A/1B contracts are unaffected.
+ */
+export type EnvironmentClass = 'indoor' | 'outdoor' | 'neutral';
+
+/** A stable, reusable spatial/set anchor within a location (vNext). Data, never book-specific code. */
+export interface LocationAnchor {
+  id: string;
+  description: string;
+}
+
 /** A real place in the book (e.g. `playground_main`, `home_living_room`). */
 export interface VisualLocation {
   id: string;
@@ -32,6 +46,14 @@ export interface VisualLocation {
   timeOfDay?: string;
   /** ONE canonical set ref per location, reused across that location's pages (filled in 1B). */
   setReference?: SetReferenceDescriptor;
+  /** vNext: coarse indoor/outdoor/neutral class — the style-ref lock (locks-first). Optional; additive. */
+  environmentClass?: EnvironmentClass;
+  /** vNext: lighting descriptor for the location (e.g. `clinic_fluorescent`, `warm_dusk`). Optional. */
+  lighting?: string;
+  /** vNext: stable spatial/set anchors reused across this location's pages. Optional; additive. */
+  anchors?: LocationAnchor[];
+  /** vNext: freeform spatial-layout / set-topology description for the location. Optional; additive. */
+  topology?: string;
 }
 
 /**
@@ -90,6 +112,27 @@ export interface PageCharacterPresence {
   companion: boolean;
 }
 
+/**
+ * vNext transition state for a page.
+ *  - `steady`            — the scene is settled inside one zone; no destination is shown.
+ *  - `before_transition` — a page LEADING UP to a move; the destination zone (and its unique cast) must NOT
+ *                          appear yet (the door is still closed).
+ *  - `threshold`         — the "door opens" page; both origin and destination may be visible at the doorway.
+ *  - `after_transition`  — the scene has moved into the destination zone.
+ */
+export type PageTransitionKind = 'steady' | 'before_transition' | 'threshold' | 'after_transition';
+
+/**
+ * A per-page zone transition (vNext). For a non-`steady` kind, `fromZoneId`/`toZoneId` reference declared
+ * zones; `cue` is the story/image cue that motivates the move (e.g. "the exam-room door opens").
+ */
+export interface PageTransition {
+  kind: PageTransitionKind;
+  fromZoneId?: string;
+  toZoneId?: string;
+  cue?: string;
+}
+
 /** Per-page visual contract — every page gets all of these. */
 export interface PageVisualContract {
   pageNumber: number;
@@ -108,6 +151,14 @@ export interface PageVisualContract {
   /** The ONLY dimension `imageDirection` may influence — camera/shot/action. */
   camera: string;
   shot?: string;
+  /**
+   * vNext: the stable cast-member ids present on this page (child / companion / recurring human cast).
+   * Each id MUST resolve to a defined cast member (cast.child.id, cast.companion?.id, or a humanCast[].id).
+   * Optional + additive so 1A/1B contracts validate unchanged; the vNext validator enforces resolution.
+   */
+  castIds?: string[];
+  /** vNext: this page's zone-transition state (defaults to `steady` when absent). Additive. */
+  transition?: PageTransition;
 }
 
 /** The cover is the book's promise — its own contract (QA enforced in 1B). */
@@ -118,6 +169,35 @@ export interface CoverContract {
   timeOfDay?: string;
   mustShow: string[];
   mustNotShow: string[];
+}
+
+/** Coarse, text-evidenced gender for a recurring human cast member (vNext). */
+export type HumanCastGender = 'male' | 'female' | 'unspecified';
+
+/**
+ * A recurring HUMAN cast member whose identity must stay stable across the book (vNext) — e.g. the doctor,
+ * the mother, the teacher. General (never book-specific): compiled from the story text's cues into DATA.
+ *
+ *  - `id`               stable, namespaced (e.g. `human:doctor`) so it never collides with positional ids.
+ *  - `role`             the narrative role (`doctor`, `mother`, `teacher`, …).
+ *  - `aliases`          other phrases the story uses for this person.
+ *  - `gender`           text-evidenced coarse gender; `textEvidence` binds the decision to a story phrase.
+ *  - `coarseAppearance` stable, low-resolution appearance lock (build/hair/skin — NOT a likeness identity).
+ *  - `wardrobe`         locked outfit (reuses the shared WardrobeLock).
+ *  - `forbiddenAppearance` appearance elements that must NEVER be rendered for this person (drift guards).
+ *  - `pagesPresent`     the page numbers this person appears on.
+ *  - `textEvidence`     the exact story phrase the identity decision is bound to (e.g. "הרופא" → male).
+ */
+export interface RecurringHumanCastMember {
+  id: string;
+  role: string;
+  aliases: string[];
+  gender: HumanCastGender;
+  coarseAppearance: string;
+  wardrobe: WardrobeLock;
+  forbiddenAppearance: string[];
+  pagesPresent: number[];
+  textEvidence: string;
 }
 
 export interface VisualContractProvenance {
@@ -133,6 +213,11 @@ export interface BookVisualContract {
   locations: VisualLocation[];
   zones: VisualZone[];
   cast: VisualCast;
+  /**
+   * vNext: recurring HUMAN cast (doctor/mother/teacher/…), with stable namespaced ids. Optional + additive
+   * so existing contracts validate unchanged; the vNext validator resolves per-page castIds against these.
+   */
+  humanCast?: RecurringHumanCastMember[];
   recurringProps: RecurringProp[];
   /** Global "never render" list — kills stray entities (e.g. an uninvited dragon) on every page. */
   forbiddenGlobalElements: string[];

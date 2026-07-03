@@ -15,14 +15,30 @@ export {
   type ContractValidationResult,
 } from './validateBookVisualContract';
 export {
+  validateVNextVisualContract,
+  assertValidVNextVisualContract,
+  InvalidVNextVisualContractError,
+  isInvalidVNextVisualContractError,
+  type VNextContractValidationResult,
+} from './validateVNextVisualContract';
+export {
   compileBookVisualContract,
   buildCompileSystemPrompt,
   buildCompileUserPrompt,
   parseContractJson,
   type ContractLlmCaller,
   type CompileBookVisualContractInput,
+  type PageImageDirection,
 } from './compileBookVisualContract';
 export { normalizeRawBookVisualContract } from './normalizeRawContract';
+export { computeVisualContractHash } from './contractHash';
+export {
+  CONTRACT_ARTIFACT_SUFFIX,
+  MissingContractArtifactError,
+  contractArtifactPath,
+  parseVisualContractArtifact,
+  loadVisualContractArtifact,
+} from './contractArtifact';
 export {
   derivePageVisualContracts,
   type ResolvedPageContract,

@@ -222,6 +222,13 @@ model Order {
   // The readiness manifest records the evaluated value; Order→ready and the send-time CAS require it unchanged.
   inputVersion         Int      @default(0)
 
+  // WS0 BookVisualContract vNext (enforcement OFF). Additive. The contract is frozen before any paid image
+  // (step 4) and its canonical hash is stamped here; QualityEvidence.contractHash is validated against it so a
+  // row produced under a superseded contract is treated as stale. `manualReviewRequired` backs the FALLBACK
+  // manual-review path (Decision Gate clarification 1: auto-repair/regeneration is the primary path).
+  visualContractHash   String?
+  manualReviewRequired Boolean  @default(false)
+
   // Error tracking
   lastError          String?
   errorAt            DateTime?
@@ -698,6 +705,18 @@ model QualityEvidence {
   evaluatedAt              DateTime @default(now())
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
+
+  // WS0 BookVisualContract vNext (enforcement OFF). Additive. A row is admissible only while contractHash
+  // matches the Order's active visualContractHash (a mismatch → stale → re-QA). The reviewed* fields back the
+  // FALLBACK manual-review path (a decision recorded against the exact asset SHA + contract hash); the endpoint
+  // that writes them is wired in a later slice — WS0 only lays the columns.
+  contractHash             String?
+  reviewStatus             String?
+  reviewedAssetSha256      String?
+  reviewedContractHash     String?
+  reviewedBy               String?
+  reviewedAt               DateTime?
+  reviewReason             String?
 
   @@unique([orderId, artifactKey])
   @@index([orderId])
