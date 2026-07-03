@@ -74,6 +74,8 @@ import {
   readFrozenVisualContract,
   contractToLocationPlanBundle,
   contractToHumanCastDetectionEntries,
+  contractToQaObservability,
+  computeVisualContractHash,
 } from '@/lib/visual-contract-compiler';
 import { isReadinessManifestEnabled, withDeliveryInputMutation } from './readiness-manifest';
 import { hashOperationPayload, isOutcomeUnknown, type ReceiptSafeValue } from './atomic-operation';
@@ -175,6 +177,23 @@ async function saveCache(orderId: string, cache: PipelineCache) {
     where: { orderId },
     data: { pipelineCache: cache as Prisma.InputJsonValue },
   });
+}
+
+/**
+ * (WS0b e3) OBSERVABILITY-ONLY per-artifact contract projection, or null. Flag-gated (VISUAL_CONTRACT_STEERING,
+ * default OFF) → null → the evidence blob is byte-identical. It is persisted as a SIBLING of qaContext (never
+ * merged into it), so it can never change a gate decision or a re-QA. contractHash is recomputed from the frozen
+ * contract (deterministically equals Order.visualContractHash), read via readFrozenVisualContract (never blind-cast).
+ */
+function buildContractObservability(cache: PipelineCache, pageNumber: number): Prisma.InputJsonValue | null {
+  if (!isVisualContractSteeringEnabled()) return null;
+  const contract = readFrozenVisualContract(cache.visualContract);
+  if (!contract) return null;
+  return contractToQaObservability(
+    contract,
+    pageNumber,
+    computeVisualContractHash(contract)
+  ) as unknown as Prisma.InputJsonValue;
 }
 
 function persistChildAnchorOnOrder(
@@ -954,6 +973,7 @@ async function runCoverStage(
     qaContext: coverImage.style01Meta?.pageVisualQa?.qaInput,
     providerModel: coverImage.provider,
     regenAttempts: coverImage.style01Meta?.pageVisualQa?.regenAttempts,
+    contractObservability: buildContractObservability(cache, 0),
   });
   return true;
 }
@@ -1475,6 +1495,7 @@ async function runPageImagesChunk(
       qaContext: image.style01Meta?.pageVisualQa?.qaInput,
       providerModel: image.provider,
       regenAttempts: image.style01Meta?.pageVisualQa?.regenAttempts,
+      contractObservability: buildContractObservability(cache, dbPage.pageNumber),
     });
 
     const textZone = imageOutcome.textZones.get(dbPage.pageNumber) ?? 'bottom_clear';

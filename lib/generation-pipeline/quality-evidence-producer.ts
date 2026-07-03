@@ -52,6 +52,13 @@ export interface DeliveredEvidenceArgs {
   providerModel?: string | null;
   /** In-memory attempt count for observability only — NOT the durable regen budget (carry-in #4). */
   regenAttempts?: number | null;
+  /**
+   * (WS0b e3) OBSERVABILITY-ONLY contract projection for this artifact (contractHash + pageContract +
+   * requiredCheckIds + frozen cast expectations). Persisted as a SIBLING of `qaContext` in the evidence JSON —
+   * NEVER merged into `qaContext`, so it cannot change a gate decision or a re-QA (both read `qaContext`, and the
+   * gate/TOCTOU fingerprint read verdict/hash/contractHash/regenCount, never the evidence blob). null = absent.
+   */
+  contractObservability?: Prisma.InputJsonValue | null;
 }
 
 export interface ProducerDeps {
@@ -173,6 +180,8 @@ export async function persistDeliveredQualityEvidence(
       regenAttempts: args.regenAttempts ?? null,
       deliveredUrl: args.deliveredUrl,
       qaContext: args.qaContext ?? null,
+      // (WS0b e3) SIBLING of qaContext — observability only; omitted when absent (flag off) → evidence byte-identical.
+      ...(args.contractObservability != null ? { contractObservability: args.contractObservability } : {}),
     } as unknown as Prisma.InputJsonValue,
   });
 }

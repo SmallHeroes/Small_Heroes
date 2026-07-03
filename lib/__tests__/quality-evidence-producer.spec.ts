@@ -224,3 +224,31 @@ describe('(WS0b) QualityEvidence.contractHash binding — reads Order.visualCont
     expect(a.update.contractHash).toBeNull();
   });
 });
+
+describe('(WS0b e3) contractObservability — carried ALONGSIDE qaContext, never merged; absent → byte-identical', () => {
+  const OBS = { contractHash: 'h1', pageContract: null, requiredCheckIds: ['location:clinic'], frozenCastExpectations: [] };
+
+  it('present → evidence carries contractObservability as a SIBLING; qaContext is unchanged (never merged into)', async () => {
+    const db = makeDb();
+    await persistDeliveredQualityEvidence(db as never, {
+      orderId: 'o1', artifactKey: 'page:1', deliveredUrl: 'https://h/p1.webp',
+      presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX,
+      contractObservability: OBS as never,
+    }, { inspect: async () => okInspect('sha') });
+    const ev = upsertArg(db).create.evidence as Record<string, unknown>;
+    expect(ev.contractObservability).toEqual(OBS); // sibling present
+    expect(ev.qaContext).toEqual(QA_CTX); // the gate/re-QA input is UNCHANGED — observability never merged in
+    expect((ev.qaContext as Record<string, unknown>).contractHash).toBeUndefined();
+  });
+
+  it('absent (default, flag off) → NO contractObservability key → evidence blob byte-identical', async () => {
+    const db = makeDb();
+    await persistDeliveredQualityEvidence(db as never, {
+      orderId: 'o1', artifactKey: 'page:1', deliveredUrl: 'https://h/p1.webp',
+      presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX,
+    }, { inspect: async () => okInspect('sha') });
+    const ev = upsertArg(db).create.evidence as Record<string, unknown>;
+    expect('contractObservability' in ev).toBe(false);
+    expect(ev.qaContext).toEqual(QA_CTX);
+  });
+});
