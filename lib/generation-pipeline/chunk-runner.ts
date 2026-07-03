@@ -75,6 +75,7 @@ import {
   contractToLocationPlanBundle,
   contractToHumanCastDetectionEntries,
   contractPageEnvironmentClass,
+  contractPageSupportingCharacters,
   contractToQaObservability,
   computeVisualContractHash,
 } from '@/lib/visual-contract-compiler';
@@ -1197,6 +1198,12 @@ async function runPageImagesChunk(
       const contractStyleRefEnvironment = steeringContract
         ? contractPageEnvironmentClass(steeringContract, p.pageNumber) ?? undefined
         : undefined;
+      // (WS0b e4b) Recurring human cast descriptions (gender/appearance/wardrobe/forbidden) for THIS page — the
+      // doctor-flip / mom-wardrobe fix. Ephemeral (PageForGeneration.supportingCharacters; image.ts already reads
+      // it, chunked path leaves it empty today). Set only under steering → flag OFF keeps it empty (byte-identical).
+      const contractSupportingCharacters = steeringContract
+        ? contractPageSupportingCharacters(steeringContract, p.pageNumber)
+        : undefined;
       const comp = compositionByPage.get(p.pageNumber);
       const pageLayout = deriveLayout({
         pageNumber: p.pageNumber,
@@ -1249,6 +1256,7 @@ async function runPageImagesChunk(
           recurringCharacterIds.has(id)
         ),
         contractStyleRefEnvironment,
+        ...(contractSupportingCharacters ? { supportingCharacters: contractSupportingCharacters } : {}),
       };
     });
 

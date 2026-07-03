@@ -6,6 +6,7 @@ import {
   contractPageEnvironmentClass,
   contractToCastRegistry,
   contractToHumanCastDetectionEntries,
+  contractPageSupportingCharacters,
   expectedCastIdsForPage,
   contractToQaObservability,
   isVisualContractSteeringEnabled,
@@ -13,6 +14,7 @@ import {
 } from '@/lib/visual-contract-compiler';
 import { buildLocationContinuityPromptBlock } from '@/lib/story-location-bible';
 import { detectExpectedCharactersForPage } from '@/lib/generation-pipeline/anchor-registry';
+import { buildCharacterConsistencyBlock } from '@/lib/character-lock';
 
 /**
  * WS0b(c): the projection adapters are BUILT + unit-tested here but wired NOWHERE (steering is (e)). These
@@ -172,6 +174,32 @@ describe('contractToCastRegistry + expectedCastIdsForPage', () => {
   it('expectedCastIdsForPage → the page castIds; unknown page → []', () => {
     expect(expectedCastIdsForPage(clinic, 3)).toEqual(['child:hero', 'companion:fox', 'human:doctor']);
     expect(expectedCastIdsForPage(clinic, 99)).toEqual([]);
+  });
+
+  it('(e4b validation) supportingCharacters feed the character-lock consumer with gender/appearance/wardrobe', () => {
+    const sc = contractPageSupportingCharacters(clinic, 3); // doctor is present on page 3
+    expect(sc).toHaveLength(1);
+    const doctor = sc[0];
+    expect(doctor.name).toBe('doctor');
+    expect(doctor.relationship).toBe('doctor');
+    // description carries the FROZEN gender + appearance + wardrobe + drift guards (the doctor-flip fix)
+    expect(doctor.description).toContain('male'); // gender — NOT flipped
+    expect(doctor.description).toContain('short dark hair'); // coarse appearance
+    expect(doctor.description).toContain('white coat'); // wardrobe
+    expect(doctor.description).toContain('must never appear'); // forbidden drift guards
+    // feed the REAL consumer (buildCharacterConsistencyBlock, character-lock.ts:65)
+    const block = buildCharacterConsistencyBlock({
+      child: { name: 'Dana', description: 'the hero' },
+      supportingCharacters: sc.map((s) => ({ name: s.name, description: s.description })),
+    });
+    expect(block).toContain('SUPPORTING_CHARACTER_GUIDELINES:');
+    expect(block).toContain('doctor');
+    expect(block).toContain('male');
+    expect(block).toContain('white coat');
+  });
+
+  it('(e4b) no human on a page → empty (byte-identical: the chunked supportingCharacters stays empty)', () => {
+    expect(contractPageSupportingCharacters(clinic, 1)).toEqual([]); // doctor only on pages 3,4
   });
 });
 

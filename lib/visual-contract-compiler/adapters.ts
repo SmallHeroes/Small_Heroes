@@ -229,6 +229,43 @@ export function contractToHumanCastDetectionEntries(
   return out;
 }
 
+/** A supporting-character descriptor for the render's page.supportingCharacters channel (image.ts consumer). */
+export interface ContractSupportingCharacter {
+  name: string;
+  relationship: string;
+  description: string;
+}
+
+/** Compose a single prompt description from a human cast entry — gender + role + appearance + wardrobe + drift guards. */
+function composeHumanDescription(e: ContractCastRegistryEntry): string {
+  const parts: string[] = [];
+  const genderPrefix = e.gender && e.gender !== 'unspecified' ? `${e.gender} ` : '';
+  parts.push(`${genderPrefix}${e.role}`.trim());
+  if (e.description) parts.push(e.description); // coarse appearance lock
+  if (e.wardrobe) parts.push(`wearing ${e.wardrobe}`);
+  if (e.forbiddenAppearance.length > 0) parts.push(`must never appear: ${e.forbiddenAppearance.join(', ')}`);
+  return parts.join('; ');
+}
+
+/**
+ * (WS0b e4b) The recurring HUMAN cast PRESENT on a page, as render `supportingCharacters` — the doctor-flip /
+ * mom-wardrobe fix. Each entry's `description` carries the FROZEN gender + coarse appearance + wardrobe + drift
+ * guards, so the contract OUTRANKS a vague imageDirection at render. Child/companion are excluded (the pipeline
+ * already handles them). Empty when no human is on the page. Order-stable.
+ */
+export function contractPageSupportingCharacters(
+  contract: BookVisualContract,
+  pageNumber: number,
+): ContractSupportingCharacter[] {
+  return contractToCastRegistry(contract)
+    .filter((e) => e.kind === 'human' && e.pagesPresent.includes(pageNumber))
+    .map((e) => ({
+      name: e.name ?? e.role,
+      relationship: e.role,
+      description: composeHumanDescription(e),
+    }));
+}
+
 /** The stable cast ids expected present on a page — the contract's per-page castIds, else child/companion presence. */
 export function expectedCastIdsForPage(contract: BookVisualContract, pageNumber: number): string[] {
   const pc = contract.pageContracts.find((p) => p.pageNumber === pageNumber);
