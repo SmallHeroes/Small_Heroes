@@ -55,9 +55,14 @@ export function isVisualContractFreezeEnabled(): boolean {
  * steering must NOT ship without the blocking location/cast QA gate (WS1). WS0b only BUILDS the projection
  * adapters; with this flag OFF they are available but do NOT drive the prompt/scene/style path, so render output
  * is byte-identical to today. WS1 turns this ON together with the gate.
+ *
+ * (B3) The "flip both together" rule is now a CODE invariant, not just operational intent: steering returns false
+ * unless enforcement (the gate) is ALSO on, so steering can never drive live render output by misconfiguration
+ * without a gate to catch a wrong contract. (Enforcement is itself hard-off on prod, so steering stays hard-off there.)
  */
 export function isVisualContractSteeringEnabled(): boolean {
   if (isVercelProductionRuntime()) return false;
+  if (!isVisualContractEnforcementEnabled()) return false; // fail-closed: steering NEVER without the gate
   return process.env.VISUAL_CONTRACT_STEERING === 'true';
 }
 

@@ -348,16 +348,26 @@ describe('contractToQaObservability (observability only)', () => {
   });
 });
 
-describe('VISUAL_CONTRACT_STEERING flag', () => {
-  const saved = process.env.VISUAL_CONTRACT_STEERING;
-  beforeEach(() => { delete process.env.VISUAL_CONTRACT_STEERING; });
-  afterEach(() => { if (saved === undefined) delete process.env.VISUAL_CONTRACT_STEERING; else process.env.VISUAL_CONTRACT_STEERING = saved; });
+describe('VISUAL_CONTRACT_STEERING flag (B3: fail-closed-coupled to enforcement)', () => {
+  const savedS = process.env.VISUAL_CONTRACT_STEERING;
+  const savedE = process.env.VISUAL_CONTRACT_ENFORCEMENT;
+  beforeEach(() => { delete process.env.VISUAL_CONTRACT_STEERING; delete process.env.VISUAL_CONTRACT_ENFORCEMENT; });
+  afterEach(() => {
+    if (savedS === undefined) delete process.env.VISUAL_CONTRACT_STEERING; else process.env.VISUAL_CONTRACT_STEERING = savedS;
+    if (savedE === undefined) delete process.env.VISUAL_CONTRACT_ENFORCEMENT; else process.env.VISUAL_CONTRACT_ENFORCEMENT = savedE;
+  });
 
   it('defaults OFF (adapters never drive render until WS1 turns it on with the gate)', () => {
     expect(isVisualContractSteeringEnabled()).toBe(false);
   });
-  it('reads the env var when set (non-prod)', () => {
+  it('(B3) steering ON but enforcement OFF → STILL false (steering can never ship without the gate)', () => {
     process.env.VISUAL_CONTRACT_STEERING = 'true';
+    // enforcement unset → the gate is off → steering must stay off (code invariant, not just operational intent)
+    expect(isVisualContractSteeringEnabled()).toBe(false);
+  });
+  it('reads the env var when set AND enforcement is also on (non-prod)', () => {
+    process.env.VISUAL_CONTRACT_STEERING = 'true';
+    process.env.VISUAL_CONTRACT_ENFORCEMENT = 'true';
     expect(isVisualContractSteeringEnabled()).toBe(true);
   });
 });
