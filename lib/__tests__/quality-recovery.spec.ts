@@ -9,10 +9,10 @@ const okInspect = (sha: string | null): AssetInspection => ({
 const QA_CTX = { expectsChild: true, expectsCompanion: false, expectedPageTimeOfDay: null, isEmotionalClosing: false, hasStructuredObjects: false, hasRailedBedOrCrib: false, hasHumanFamily: false };
 
 type Book = { coverImageUrl: string | null; pages: Array<{ pageNumber: number; imageAsset: { url: string | null; presentationUrl: string | null } | null }> };
-type Row = { artifactKey: string; verdict: string; evaluatorContractVersion: string; assetSha256: string; regenCount?: number; evidence?: unknown };
+type Row = { artifactKey: string; verdict: string; evaluatorContractVersion: string; assetSha256: string; regenCount?: number; evidence?: unknown; contractHash?: string | null };
 
 // Stateful mock: upsert records the persisted verdict; findUnique reads it back (regenCount preserved).
-function makeDb(book: Book, rows: Row[]) {
+function makeDb(book: Book, rows: Row[], visualContractHash: string | null = null) {
   const verdicts = new Map(rows.map((r) => [r.artifactKey, r.verdict]));
   const regens = new Map(rows.map((r) => [r.artifactKey, r.regenCount ?? 0]));
   const upsert = vi.fn(async (a: { where: { orderId_artifactKey: { artifactKey: string } }; create: { verdict: string } }) => {
@@ -22,7 +22,7 @@ function makeDb(book: Book, rows: Row[]) {
   return {
     upsert,
     db: {
-      order: { findUnique: vi.fn(async () => ({ book })) },
+      order: { findUnique: vi.fn(async () => ({ book, visualContractHash })) },
       qualityEvidence: {
         findMany: vi.fn(async () => rows),
         upsert,
@@ -137,6 +137,41 @@ describe('reQaUnknownQualityEvidence — enumerate REQUIRED artifacts (#6-fix BL
     const r = await reQaUnknownQualityEvidence(db as never, 'o1', { evaluate: evaluate as never, inspect: async () => okInspect('HC') });
     expect(evaluate).toHaveBeenCalledWith(expect.objectContaining({ imageUrl: 'https://h/cover.png' }));
     expect(r.nowPassed).toEqual(['cover']);
+  });
+
+  // (P1-3) contract-stale recovery must CONVERGE — exercised via the PRODUCTION reQaUnknownQualityEvidence end to end,
+  // NOT a hand-simulated already-rebound row (that was the test that hid the bug).
+  it('(P1-3) a v1-passed row on CURRENT bytes but order now at v2 → re-QA rebinds to v2 → converges (not skipped as admissible)', async () => {
+    // By the OLD criteria this row is "admissible" (passed, current bytes 'H', current evaluator) — but it is bound to
+    // a SUPERSEDED contract (v1) while the order is v2. It MUST be re-QA'd + rebound, else readiness loops on
+    // contract_stale until the budget refunds.
+    const rows: Row[] = [{
+      artifactKey: 'page:1', verdict: 'passed', evaluatorContractVersion: 'qa-v1',
+      assetSha256: 'H', contractHash: 'v1', evidence: { qaContext: QA_CTX },
+    }];
+    const { db, upsert } = makeDb({ coverImageUrl: null, pages: [page(1, 'https://h/p1.png')] }, rows, 'v2');
+    const evaluate = vi.fn(async () => ({ passed: true, verdict: 'passed', reason: 'ok', details: '', flags: {} } as never));
+    const r = await reQaUnknownQualityEvidence(db as never, 'o1', { evaluate: evaluate as never, inspect: async () => okInspect('H') });
+    expect(evaluate).toHaveBeenCalled(); // re-QA'd (NOT trusted as admissible)
+    expect(r.reQaCount).toBe(1);
+    // rebound to the CURRENT active contract (v2) by persistDeliveredQualityEvidence
+    const upsertArg = upsert.mock.calls[upsert.mock.calls.length - 1][0] as unknown as { create: Record<string, unknown>; update: Record<string, unknown> };
+    expect(upsertArg.create.contractHash).toBe('v2');
+    expect(upsertArg.update.contractHash).toBe('v2');
+    expect(r.nowPassed).toEqual(['page:1']); // re-QA passed on current bytes → now admissible → converges
+  });
+
+  it('(P1-3) a v1-passed row when the order is ALSO v1 (matching) stays admissible → no re-QA (existing criteria intact)', async () => {
+    const rows: Row[] = [{
+      artifactKey: 'page:1', verdict: 'passed', evaluatorContractVersion: 'qa-v1',
+      assetSha256: 'H', contractHash: 'v1', evidence: { qaContext: QA_CTX },
+    }];
+    const { db } = makeDb({ coverImageUrl: null, pages: [page(1, 'https://h/p1.png')] }, rows, 'v1');
+    const evaluate = vi.fn();
+    const r = await reQaUnknownQualityEvidence(db as never, 'o1', { evaluate: evaluate as never, inspect: async () => okInspect('H') });
+    expect(evaluate).not.toHaveBeenCalled(); // matching contract → admissible → trusted, no needless re-QA
+    expect(r.reQaCount).toBe(0);
+    expect(r.nowPassed).toEqual([]); // an admissible PASS is "done" (only failed routes to nowFailed)
   });
 });
 

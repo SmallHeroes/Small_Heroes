@@ -24,6 +24,7 @@ import {
   pageArtifactKey,
   readActiveVisualContractHash,
 } from './quality-evidence';
+import { isQualityEvidenceContractStale } from './quality-check-result';
 
 export interface QualityRecoveryResult {
   reQaCount: number;
@@ -74,7 +75,7 @@ export async function reQaUnknownQualityEvidence(
   const required = await loadRequiredArtifacts(prisma, orderId);
   const rows = await prisma.qualityEvidence.findMany({
     where: { orderId },
-    select: { artifactKey: true, verdict: true, evaluatorContractVersion: true, assetSha256: true, regenCount: true, evidence: true },
+    select: { artifactKey: true, verdict: true, evaluatorContractVersion: true, assetSha256: true, regenCount: true, evidence: true, contractHash: true },
   });
   const byKey = new Map(rows.map((r) => [r.artifactKey, r]));
   // (WS0b B1) Recovery re-QAs STORED bytes and re-binds evidence to the Order's CURRENT active contract, so a
@@ -93,6 +94,12 @@ export async function reQaUnknownQualityEvidence(
       row.evaluatorContractVersion === QUALITY_EVALUATOR_CONTRACT_VERSION &&
       !!currentHash &&
       row.assetSha256 === currentHash &&
+      // (WS0b P1-3) A row bound to a SUPERSEDED contract is INADMISSIBLE → it falls through to re-QA, which rebinds
+      // it to the CURRENT active contract (persistDeliveredQualityEvidence below passes contractHash: activeContractHash)
+      // → convergence. Without this, a v1-`passed` row on the current bytes stays admissible while the order is now v2
+      // → never re-QA'd → never rebound → readiness loops on contract_stale → QUALITY_REGEN_BUDGET exhaust → refund.
+      // (null/null — no frozen contract — is NOT stale, so legacy/flag-off recovery is unchanged.)
+      !isQualityEvidenceContractStale(row.contractHash, activeContractHash) &&
       (row.verdict === 'passed' || row.verdict === 'failed');
     if (admissible) {
       // (#6-fix-4 P1 #1) An admissible verdict is trusted as-is (no re-QA), but an admissible FAILED must STILL be
