@@ -907,6 +907,8 @@ export function buildStyle01BookPagePrompt(input: {
   wardrobeLock?: string;
   childAnatomicalLock?: string;
   companionTextLock?: string;
+  /** (WS0b e4b) Recurring human supporting-cast lock — placed with the companion identity locks. */
+  supportingCharacterLock?: string;
   recurringObjectLocks?: string;
   recurringEntityLocks?: string;
   environmentLock?: string;
@@ -933,6 +935,7 @@ export function buildStyle01BookPagePrompt(input: {
     input.recurringObjectLocks ?? '',
     input.recurringEntityLocks ?? '',
     input.companionTextLock ?? '',
+    input.supportingCharacterLock ?? '',
     input.childVisualLock ?? '',
     input.wardrobeLock ?? '',
     input.childAnatomicalLock ?? '',

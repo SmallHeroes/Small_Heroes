@@ -97,6 +97,9 @@ export type Style01PromptAssemblyInput = {
   totalPages?: number;
   /** Once per order — human family visual coherence (parents, newborn sibling). */
   familyCoherence?: FamilyCoherenceBundle | null;
+  /** (WS0b e4b) Recurring HUMAN supporting cast present on this page — frozen gender/appearance/wardrobe/drift
+   *  guards from the visual contract. Populated only under VISUAL_CONTRACT_STEERING; absent → no block (byte-identical). */
+  supportingCharacters?: Array<{ name: string; relationship?: string; description: string }>;
   storyTimeOfDay?: import('./story-time-of-day').StoryTimeOfDay;
   pageTimeOfDayOverrides?: Partial<Record<number, import('./story-time-of-day').StoryTimeOfDay>>;
   timeOfDayStrictRetry?: boolean;
@@ -388,6 +391,19 @@ export function assembleStyle01Phase2Prompt(
         ? accessoryLock
         : undefined;
 
+  // (WS0b e4b) Recurring HUMAN supporting-cast lock — frozen gender/appearance/wardrobe from the visual contract,
+  // so the contract OUTRANKS a vague imageDirection at render. Populated only under steering (the caller sets the
+  // field only when steering is on); absent/empty → no block, so the prompt is byte-identical when off.
+  const supportingCharacterLock = input.supportingCharacters?.length
+    ? input.supportingCharacters
+        .map((sc) =>
+          `SUPPORTING CHARACTER LOCK — ${sc.name}${sc.relationship ? ` (${sc.relationship})` : ''}: ${sc.description}. ` +
+          `Render this recurring character with protagonist-level consistency: keep gender, facial features, and ` +
+          `wardrobe exactly as specified on every page; do not restyle or re-gender.`,
+        )
+        .join('\n\n')
+    : undefined;
+
   const timeOfDayLock = buildStoryTimeOfDayLockBlock({
     effectiveTimeOfDay: effectivePageTimeOfDay,
     imageDirection,
@@ -522,6 +538,7 @@ export function assembleStyle01Phase2Prompt(
     wardrobeLock,
     childAnatomicalLock,
     companionTextLock,
+    supportingCharacterLock,
     recurringObjectLocks: objectLocks || undefined,
     recurringEntityLocks: entityLocks || undefined,
     environmentLock:

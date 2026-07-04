@@ -3237,6 +3237,7 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     childStructured: input.childStructured,
     companion: input.companion,
     companionStructured: input.companionStructured,
+    supportingCharacters: input.supportingCharacters,
     pageStoryState: input.pageStoryState,
     useCanonicalChildAnchorRef,
     storyRecurringEntityDeclarations: input.storyRecurringEntityDeclarations,

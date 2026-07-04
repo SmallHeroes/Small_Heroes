@@ -14,7 +14,7 @@ import {
 } from '@/lib/visual-contract-compiler';
 import { buildLocationContinuityPromptBlock } from '@/lib/story-location-bible';
 import { detectExpectedCharactersForPage } from '@/lib/generation-pipeline/anchor-registry';
-import { buildCharacterConsistencyBlock } from '@/lib/character-lock';
+import { assembleStyle01Phase2Prompt } from '@/lib/style01-prompt-assembly';
 
 /**
  * WS0b(c): the projection adapters are BUILT + unit-tested here but wired NOWHERE (steering is (e)). These
@@ -176,7 +176,7 @@ describe('contractToCastRegistry + expectedCastIdsForPage', () => {
     expect(expectedCastIdsForPage(clinic, 99)).toEqual([]);
   });
 
-  it('(e4b validation) supportingCharacters feed the character-lock consumer with gender/appearance/wardrobe', () => {
+  it('(e4b validation) supportingCharacters reach the ACTIVE Style-01 Phase-2 prompt with gender/appearance/wardrobe', () => {
     const sc = contractPageSupportingCharacters(clinic, 3); // doctor is present on page 3
     expect(sc).toHaveLength(1);
     const doctor = sc[0];
@@ -187,15 +187,33 @@ describe('contractToCastRegistry + expectedCastIdsForPage', () => {
     expect(doctor.description).toContain('short dark hair'); // coarse appearance
     expect(doctor.description).toContain('white coat'); // wardrobe
     expect(doctor.description).toContain('must never appear'); // forbidden drift guards
-    // feed the REAL consumer (buildCharacterConsistencyBlock, character-lock.ts:65)
-    const block = buildCharacterConsistencyBlock({
-      child: { name: 'Dana', description: 'the hero' },
-      supportingCharacters: sc.map((s) => ({ name: s.name, description: s.description })),
+    // The LOAD-BEARING assertion: the human-cast reaches the OUTPUT of the ACTIVE assembler — the prompt string
+    // that becomes finalPrompt → the model — via assembleStyle01Phase2Prompt → buildStyle01BookPagePrompt. This is
+    // the LIVE Style-01 Phase-2 path (image.ts:generateWithGPTImageStyle01Phase2Once), NOT the fallback block.
+    const { prompt } = assembleStyle01Phase2Prompt({
+      pageNumber: 3,
+      rawScenePrompt: 'the exam-room door opens as the child and the doctor meet',
+      bookPageText: 'הרופא חייך אל הילד.',
+      childFirstName: 'Dana',
+      childDescription: 'the hero',
+      supportingCharacters: sc,
     });
-    expect(block).toContain('SUPPORTING_CHARACTER_GUIDELINES:');
-    expect(block).toContain('doctor');
-    expect(block).toContain('male');
-    expect(block).toContain('white coat');
+    expect(prompt).toContain('SUPPORTING CHARACTER'); // the block reached the live prompt
+    expect(prompt).toContain('male'); // the doctor's frozen gender survives (doctor-flip fix)
+    expect(prompt).toContain('white coat'); // wardrobe lock reaches the prompt (mom-wardrobe class of drift)
+    expect(prompt).toContain('must never appear'); // frozen drift guards reach the prompt
+  });
+
+  it('(e4b) flag-off byte-identity: no supportingCharacters → no SUPPORTING CHARACTER block in the live prompt', () => {
+    const { prompt } = assembleStyle01Phase2Prompt({
+      pageNumber: 3,
+      rawScenePrompt: 'the exam-room door opens as the child and the doctor meet',
+      bookPageText: 'הרופא חייך אל הילד.',
+      childFirstName: 'Dana',
+      childDescription: 'the hero',
+      // supportingCharacters omitted (steering OFF / no human cast) → no block, prompt unchanged vs today
+    });
+    expect(prompt).not.toContain('SUPPORTING CHARACTER');
   });
 
   it('(e4b) no human on a page → empty (byte-identical: the chunked supportingCharacters stays empty)', () => {
