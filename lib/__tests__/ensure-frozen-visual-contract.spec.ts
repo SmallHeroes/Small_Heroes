@@ -156,6 +156,18 @@ describe('ensureFrozenVisualContract (WS0b freeze)', () => {
     expect(fn).not.toHaveBeenCalled();
   });
 
+  it('(C1) dynamic (non-bank, no selectionFilename) → DEFAULT producer returns null (dormant) → freeze no-ops, stays legacy', async () => {
+    process.env.VISUAL_CONTRACT_FREEZE = 'true';
+    const { fn } = makeWithMutation();
+    // NO `produce` injected → uses the real defaultProduceContract. No selectionFilename → non-bank → the dynamic
+    // compiler is dormant (C1) → returns null before touching the (unused) injected db → ensureFrozenVisualContract
+    // no-ops. A future safe dynamic design re-enables it; until then dynamic stories are legacy (byte-identical).
+    const cache: PipelineCache = { textFinalized: true };
+    const out = await ensureFrozenVisualContract(fakeOrder(), cache, { withMutation: fn, db: {} as never });
+    expect(out).toBe(cache);
+    expect(fn).not.toHaveBeenCalled();
+  });
+
   it('flag ON + produce throws → NON-BLOCKING skip (no throw, cache unchanged, no fence)', async () => {
     process.env.VISUAL_CONTRACT_FREEZE = 'true';
     const produce = vi.fn(async () => {

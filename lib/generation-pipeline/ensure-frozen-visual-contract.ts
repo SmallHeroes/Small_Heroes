@@ -90,7 +90,16 @@ async function loadFinalizedStoryText(
   return { text, pageCount: book.pages.length };
 }
 
-/** Default producer: bank artifact (no LLM) → else dynamic compile from the finalized text. */
+/**
+ * (C1) Whether the DEFAULT producer compiles a contract for DYNAMIC (non-bank) stories on the live freeze path.
+ * DORMANT (false) for launch: the dynamic compiler supplies no companion / no per-page image directions and isn't
+ * crash-safe compile-once, so dynamic stories stay on the legacy path. Retained (not deleted, and kept reachable +
+ * type-checked) so a future SAFE design — or a precompiled dynamic artifact — flips this ONE gate; the compiler
+ * module itself is untouched. `as boolean` keeps the dormant branch reachable so it type-checks.
+ */
+const ENABLE_DYNAMIC_CONTRACT_COMPILE = false as boolean;
+
+/** Default producer: bank artifact (no LLM). Dynamic (non-bank) stories are DORMANT (C1) → null (legacy path). */
 async function defaultProduceContract(
   order: Order,
   cache: PipelineCache,
@@ -102,7 +111,10 @@ async function defaultProduceContract(
     // authors the 18 artifacts; until then the freeze is a no-op and behavior is legacy).
     return loadVisualContractArtifact(bankArtifactDir(cache), bankKey);
   }
-  // Dynamic story: compile once from the finalized text (fail-closed validation is inside the compiler).
+  // (C1) Non-bank/dynamic → stay on the LEGACY path (no runtime freeze) for launch. Returning null →
+  // ensureFrozenVisualContract no-ops → byte-identical. The dynamic compile below is retained but DORMANT behind
+  // this gate: kept reachable + type-checked so a future SAFE design flips the one gate above.
+  if (!ENABLE_DYNAMIC_CONTRACT_COMPILE) return null;
   const finalized = await loadFinalizedStoryText(db, order.id);
   if (!finalized) return null;
   const contract = await compileBookVisualContract({
