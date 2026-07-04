@@ -57,7 +57,9 @@ function toLocationZone(
   return {
     id: zone.id,
     description: zone.description,
-    // A zone's fixed geometry is its parent location's topology (shared by every zone of that location).
+    // (WS0b P1-2) DORMANT re-leak trap — this is the LOCATION adjacency, NOT per-zone geometry; currently UNCONSUMED.
+    // Do NOT emit per-zone stableGeometry into the prompt until this is corrected to hold only the zone's OWN
+    // geometry, or the waiting page re-leaks the destination (see P1-2). Per-zone geometry rides on `description`.
     stableGeometry: topology ? [topology] : [],
     visualAnchors: anchorsFor.get(zone.locationId) ?? [],
     allowedCameraAccess: zone.shot ? [zone.shot] : [],
