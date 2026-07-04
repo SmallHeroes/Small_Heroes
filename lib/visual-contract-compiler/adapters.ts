@@ -150,9 +150,10 @@ function primarySettingOf(contract: BookVisualContract, mode: LocationContinuity
 
 /**
  * Project the contract into a StoryLocationPlanBundle (the shape buildLocationContinuityPromptBlock / scene-memory
- * consume). Core continuity fields PLUS the contract's full spatial authority: per-page transition rules, per-zone
- * stableGeometry + a single-room SET TOPOLOGY LOCK (both from location topology), a multi-location STORY WORLD
- * header, and an explicit page-0 cover plan from coverContract. Unknown → neutral (never fabricated). `source` is
+ * consume). Core continuity fields PLUS the contract's full spatial authority: per-page transition rules, a
+ * single-room SET TOPOLOGY LOCK derived from location topology (the ONLY topology-derived spatial lock; per-zone
+ * `stableGeometry` is intentionally empty per P1-2c — zone geometry rides on `zone.description`), a multi-location
+ * STORY WORLD header, and an explicit page-0 cover plan from coverContract. Unknown → neutral (never fabricated). `source` is
  * `derived`. (Consumed only under VISUAL_CONTRACT_STEERING — inert/byte-identical when off.)
  */
 export function contractToLocationPlanBundle(contract: BookVisualContract): StoryLocationPlanBundle {
