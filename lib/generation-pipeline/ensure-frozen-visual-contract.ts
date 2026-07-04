@@ -34,6 +34,7 @@ import {
   loadVisualContractArtifact,
   MissingContractArtifactError,
   isVisualContractFreezeEnabled,
+  readFrozenVisualContract,
   type BookVisualContract,
 } from '@/lib/visual-contract-compiler';
 import type { ReceiptSafeValue } from './atomic-operation';
@@ -124,8 +125,15 @@ export async function ensureFrozenVisualContract(
   deps: EnsureFrozenVisualContractDeps = {},
 ): Promise<PipelineCache> {
   if (!isVisualContractFreezeEnabled()) return cache; // flag OFF → byte-identical no-op
-  // Already produced + bound + cached → nothing to do (cheap resume fast-path: no LLM, no write, no fence).
-  if (order.visualContractHash && cache.visualContract) return cache;
+  // Already produced + bound + cached → nothing to do (cheap resume fast-path: no LLM, no write, no fence). But ONLY
+  // when the cached contract's hash MATCHES the Order stamp — a mismatched pair (a partial/failed prior freeze that
+  // stamped the Order but left a stale/absent cache contract, or vice versa) must NOT be accepted as done; fall
+  // through and re-freeze to reconcile. (B2: verify the pair, don't trust mere presence.)
+  if (order.visualContractHash && cache.visualContract) {
+    const cached = readFrozenVisualContract(cache.visualContract);
+    if (cached && computeVisualContractHash(cached) === order.visualContractHash) return cache;
+    // mismatch or invalid cached contract → re-freeze (fall through, do not return)
+  }
 
   const db = deps.db ?? (await import('@/lib/prisma')).prisma;
   const produce = deps.produce ?? ((o, c) => defaultProduceContract(o, c, db));
@@ -167,10 +175,17 @@ export async function ensureFrozenVisualContract(
     },
     async (tx) => {
       await tx.order.update({ where: { id: order.id }, data: { visualContractHash: contractHash } });
-      await tx.generationJob.update({
-        where: { orderId: order.id },
-        data: { pipelineCache: nextCache as Prisma.InputJsonValue },
-      });
+      // (B2) Write ONLY the `visualContract` key, atomically, via jsonb_set — NEVER the whole in-memory pipelineCache
+      // snapshot. The receipt fence guards the operationKey, not the GenerationJob row (runFenced locks only
+      // AtomicOperationReceipt), and a plain findUnique here would NOT emit FOR UPDATE — so a read-merge would race a
+      // concurrent (non-freeze) pipelineCache writer. A single-key jsonb_set has NO read-window: it reads + sets the
+      // one key inside one row-locked UPDATE, so a lost-lease late freeze can never clobber newer unrelated fields.
+      // The write now covers EXACTLY the mutationPayload ({ visualContractHash, visualContract }).
+      await tx.$executeRaw`
+        UPDATE "GenerationJob"
+        SET "pipelineCache" = jsonb_set(COALESCE("pipelineCache", '{}'::jsonb), '{visualContract}', ${JSON.stringify(contract)}::jsonb, true)
+        WHERE "orderId" = ${order.id}
+      `;
     },
   );
 
