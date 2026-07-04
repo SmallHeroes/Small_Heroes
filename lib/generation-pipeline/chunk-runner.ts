@@ -1889,14 +1889,15 @@ export async function processGenerationChunk(
       : (job.currentStage as ChunkStage);
   if (stage === 'failed') stage = await deriveStartingStage(orderId, job, cache);
 
-  // (WS0b) Resume path: text + DNA are already done, so a resume can enter directly at cover/page_images/audio/
-  // package — freeze the visual contract BEFORE any paid image here too (idempotent; a no-op when the flag is off
-  // or the contract is already frozen). The fresh path freezes at the dna→cover transition below.
-  if (stage !== 'text' && stage !== 'dna') {
-    cache = await ensureFrozenVisualContract(order, cache);
-  }
-
   try {
+    // (WS0b/C3) Resume path: text + DNA are already done, so a resume can enter directly at cover/page_images/
+    // audio/package — freeze the visual contract BEFORE any paid image here too (idempotent; a no-op when the flag
+    // is off or the contract is already frozen). RELOCATED inside the try (C3) so a freeze-time
+    // AtomicOperationOutcomeUnknownError is reconciled by the isOutcomeUnknown handler below (never leaked). It runs
+    // before the loop, so ordering on the normal path is unchanged. The fresh path freezes at the dna→cover transition.
+    if (stage !== 'text' && stage !== 'dna') {
+      cache = await ensureFrozenVisualContract(order, cache);
+    }
     while (!overBudget(startedAt, budgetMs)) {
       await heartbeatLease(orderId, workerId);
 
