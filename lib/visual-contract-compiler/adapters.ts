@@ -51,16 +51,19 @@ function anchorsByLocation(contract: BookVisualContract): Map<string, string[]> 
 function toLocationZone(
   zone: BookVisualContract['zones'][number],
   anchorsFor: Map<string, string[]>,
-  topologyFor: Map<string, string>,
 ): LocationZone {
-  const topology = topologyFor.get(zone.locationId);
   return {
     id: zone.id,
     description: zone.description,
-    // (WS0b P1-2) DORMANT re-leak trap — this is the LOCATION adjacency, NOT per-zone geometry; currently UNCONSUMED.
-    // Do NOT emit per-zone stableGeometry into the prompt until this is corrected to hold only the zone's OWN
-    // geometry, or the waiting page re-leaks the destination (see P1-2). Per-zone geometry rides on `description`.
-    stableGeometry: topology ? [topology] : [],
+    // (WS0b P1-2c) EMPTY, unconditionally. The location `topology` is the inter-zone ADJACENCY ("waiting room adjoins
+    // the exam room"), NOT the zone's OWN geometry — and it IS consumed (my earlier "UNCONSUMED" note was WRONG):
+    // scene-memory's stableFactsFromZoneGeometry (seed.ts) reads zone.stableGeometry when a MULTI-zone book has no
+    // setTopology and emits it as a SCENE MEMORY LOCK on EVERY page (the P1-2 leak — via a path the direct block-level
+    // test bypassed). Other readers: zone-object-reference-sheet.ts (STABLE GEOMETRY line) + style02-gptimage.ts
+    // (classifier haystack). A genuine 1-loc/1-zone story still gets its geometry via the SET TOPOLOGY LOCK
+    // (bible.setTopology, independent of this). Leave empty until real PER-ZONE geometry authoring exists (the contract
+    // has none today; zone geometry rides on `description`).
+    stableGeometry: [],
     visualAnchors: anchorsFor.get(zone.locationId) ?? [],
     allowedCameraAccess: zone.shot ? [zone.shot] : [],
   };
@@ -91,15 +94,6 @@ function toPageLocationPlan(pc: PageVisualContract): PageLocationPlan {
     // future-transition list on every page. Absent → no per-page transition line.
     ...(pc.transition ? { transition: pc.transition } : {}),
   };
-}
-
-/** locationId → freeform topology/geometry description (drives per-zone stableGeometry + the single-room SET TOPOLOGY LOCK). */
-function topologyByLocation(contract: BookVisualContract): Map<string, string> {
-  const m = new Map<string, string>();
-  for (const loc of contract.locations) {
-    if (loc.topology?.trim()) m.set(loc.id, loc.topology.trim());
-  }
-  return m;
 }
 
 /**
@@ -163,13 +157,12 @@ function primarySettingOf(contract: BookVisualContract, mode: LocationContinuity
  */
 export function contractToLocationPlanBundle(contract: BookVisualContract): StoryLocationPlanBundle {
   const anchorsFor = anchorsByLocation(contract);
-  const topologyFor = topologyByLocation(contract);
   const mode = continuityModeOf(contract);
   const setTopology = setTopologyOf(contract);
   const bible: BookLocationBible = {
     continuityMode: mode,
     primarySetting: primarySettingOf(contract, mode),
-    allowedZones: contract.zones.map((z) => toLocationZone(z, anchorsFor, topologyFor)),
+    allowedZones: contract.zones.map((z) => toLocationZone(z, anchorsFor)),
     fixedAnchors: toFixedAnchors(contract.locations),
     forbiddenDrift: contract.forbiddenGlobalElements ?? [],
     // (WS0b P1-1) Contract books drive continuity PER-PAGE (PageLocationPlan.transition) — no global future-transition

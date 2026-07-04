@@ -18,6 +18,7 @@ import {
   isStoryLocationPlanValid,
 } from '@/lib/story-location-bible';
 import { buildSetTopologyLockBlock, promptContainsSetTopologyLock } from '@/lib/story-location-bible/set-topology';
+import { resolveSceneMemoryPlan } from '@/lib/scene-memory';
 import type { PageLocationPlan } from '@/lib/story-location-bible/types';
 import { detectExpectedCharactersForPage } from '@/lib/generation-pipeline/anchor-registry';
 import { assembleStyle01Phase2Prompt } from '@/lib/style01-prompt-assembly';
@@ -163,7 +164,8 @@ describe('contractToLocationPlanBundle', () => {
     expect(block).not.toContain('exam table, a small sink, a growth chart'); // destination CONTENTS are NOT shown
     expect(block).not.toContain('the exam-room door opens');                 // p3 cue does not leak
     // The PAGE TRANSITION line itself signals ONLY the pending move — it reveals NO destination (name or contents).
-    // (The residual "exam room" in the SET TOPOLOGY LOCK adjacency is the separate P1-2 defect, fixed next.)
+    // (P1-2c has since dropped the per-zone stableGeometry adjacency entirely, so the whole block is exam-free too —
+    // proven via the FULL scene-memory path below.)
     const transitionLine = block.split('\n').find((l) => l.startsWith('PAGE TRANSITION'))!;
     expect(transitionLine).toContain('PAGE TRANSITION — pending');
     expect(transitionLine).not.toContain('exam');
@@ -187,13 +189,13 @@ describe('contractToLocationPlanBundle', () => {
     expect(block).toContain('clinic.exam_room');
   });
 
-  it('(A2a/P1-2) projects per-zone stableGeometry from the location topology, but a MULTI-zone one-location story gets NO single-room lock', () => {
+  it('(A2a/P1-2c) a MULTI-zone one-location story emits EMPTY per-zone stableGeometry and NO single-room lock', () => {
     const b = contractToLocationPlanBundle(clinic);
-    // per-zone stableGeometry is still seeded from the location topology, but it is UNCONSUMED by the prompt — it IS
-    // the leaky adjacency, so P1-2 relies on zone.description for geometry rather than emitting this.
-    expect(b.bible.allowedZones[0].stableGeometry).toEqual([
-      'waiting room adjoins the exam room through a single door',
-    ]);
+    // (P1-2c) per-zone stableGeometry is EMPTY, unconditionally. The location `topology` is the inter-zone ADJACENCY,
+    // which IS consumed (scene-memory's stableFactsFromZoneGeometry → SCENE MEMORY LOCK on every page — my earlier
+    // "UNCONSUMED" claim was WRONG). Emitting it re-leaked the destination; geometry rides on zone.description now.
+    expect(b.bible.allowedZones[0].stableGeometry).toEqual([]); // waiting_room
+    expect(b.bible.allowedZones[1].stableGeometry).toEqual([]); // exam_room
     // (P1-2) the clinic is ONE location but MULTI-zone (waiting/exam) → NO "same room every page" lock.
     expect(b.bible.setTopology).toBeUndefined();
     expect(buildSetTopologyLockBlock(b.bible)).toBeNull();
@@ -201,7 +203,7 @@ describe('contractToLocationPlanBundle', () => {
 
   // (P1-2) The single-room lock fires ONLY for a genuine one-room story; multi-zone stories are free of the
   // "adjoins the exam room" adjacency + "no unlisted props" ban. Validated on the multi-zone clinic + a 1-loc/1-zone story.
-  it('(P1-2) multi-zone: the waiting page ENTIRE block is free of exam-room adjacency/contents (P1-1+P1-2 close the leak)', () => {
+  it('(P1-2) multi-zone (block-level, no scene-memory): the waiting page block is free of exam-room adjacency/contents', () => {
     const b = contractToLocationPlanBundle(clinic);
     const waiting = buildLocationContinuityPromptBlock(b.bible, resolvePageLocationPlan(b, 1)!);
     expect(waiting).not.toContain('SET TOPOLOGY LOCK');
@@ -221,7 +223,21 @@ describe('contractToLocationPlanBundle', () => {
     expect(exam).not.toContain('SET TOPOLOGY LOCK');
   });
 
-  it('(P1-2) a true one-location/one-zone story STILL gets the SET TOPOLOGY LOCK (no regression)', () => {
+  // (P1-2c) THE FULL PATH the block-level tests missed: contractToLocationPlanBundle → resolveSceneMemoryPlan →
+  // buildLocationContinuityPromptBlock. stableFactsFromZoneGeometry reads zone.stableGeometry when a multi-zone book has
+  // no setTopology and emits a SCENE MEMORY LOCK on EVERY page. With P1-2c (stableGeometry: []) the waiting page —
+  // even THROUGH scene-memory — carries NEITHER the exam-room adjacency NOR a cross-zone SCENE MEMORY LOCK.
+  it('(P1-2c) FULL PATH: contract → resolveSceneMemoryPlan → block — waiting page has NO exam-room adjacency / SCENE MEMORY LOCK', () => {
+    const b = contractToLocationPlanBundle(clinic);
+    const sceneMemory = resolveSceneMemoryPlan({ storyLocationPlan: b })?.memory ?? null;
+    const waiting = buildLocationContinuityPromptBlock(b.bible, resolvePageLocationPlan(b, 1)!, { sceneMemory });
+    expect(waiting).not.toContain('SCENE MEMORY LOCK');       // the specific full-path leak vector — closed
+    expect(waiting).not.toContain('adjoins the exam room');   // the exact adjacency fact — gone from the full path
+    expect(waiting).not.toMatch(/exam[_ ]?room/i);            // FULL-PATH end-state: no exam-room text anywhere
+    expect(waiting).toContain('chairs, a low table, picture books'); // real waiting geometry survives (zone.description)
+  });
+
+  it('(P1-2/P1-2c) a true one-location/one-zone story STILL gets its geometry — SET TOPOLOGY LOCK AND the full scene-memory path (no regression)', () => {
     const oneRoom = {
       version: 1,
       storyKey: 'one_room',
@@ -237,10 +253,18 @@ describe('contractToLocationPlanBundle', () => {
       ],
     } as unknown as BookVisualContract;
     const b = contractToLocationPlanBundle(oneRoom);
+    // per-zone stableGeometry is empty here too — a 1-loc/1-zone story's geometry rides on setTopology, not this
+    expect(b.bible.allowedZones[0].stableGeometry).toEqual([]);
+    // (a) the single-room SET TOPOLOGY LOCK still fires (its geometry comes from setTopology, NOT zone.stableGeometry)
     const topoBlock = buildSetTopologyLockBlock(b.bible);
     expect(topoBlock).not.toBeNull();
     expect(promptContainsSetTopologyLock(topoBlock!)).toBe(true);
     expect(topoBlock!).toContain('bed under the window'); // location topology → layout element
+    // (b) FULL PATH: geometry still reaches the page THROUGH scene-memory (stableFactsFromTopology reads setTopology,
+    // independent of the now-empty zone.stableGeometry) — P1-2c dropped ONLY the leaky adjacency, not real geometry.
+    const sceneMemory = resolveSceneMemoryPlan({ storyLocationPlan: b })?.memory ?? null;
+    const page = buildLocationContinuityPromptBlock(b.bible, resolvePageLocationPlan(b, 1)!, { sceneMemory });
+    expect(page).toContain('bed under the window');
   });
 
   it('(A2a) emits a page-0 cover plan from coverContract → resolvePageLocationPlan(0) has NO home-night leak', () => {
