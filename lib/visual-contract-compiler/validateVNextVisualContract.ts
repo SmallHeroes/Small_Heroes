@@ -333,6 +333,15 @@ export function validateVNextVisualContract(input: unknown): VNextContractValida
     let lastThresholdEdge: { fromZoneId: string; toZoneId: string } | undefined;
     for (const p of pagesSorted) {
       const kind: PageTransition['kind'] = p.transition?.kind ?? 'steady';
+      // (C2) The opening page establishes the origin — nothing precedes it — so it CANNOT declare a DEPARTING move.
+      // A threshold/after_transition first page would depart from an origin no prior page established (the per-page
+      // "departs from an established zone" check below is SKIPPED while previousZone is undefined). steady and
+      // before_transition (which declare no move and stand in the origin) remain valid on page 1.
+      if (previousZone === undefined && (kind === 'threshold' || kind === 'after_transition')) {
+        errors.push(
+          `page ${p.pageNumber} declares a ${kind} transition with no established origin — the opening page must be steady or before_transition (nothing precedes it to depart from)`,
+        );
+      }
       if (previousZone !== undefined && isStr(p.zoneId)) {
         if (kind === 'steady' || kind === 'before_transition') {
           if (p.zoneId !== previousZone) {

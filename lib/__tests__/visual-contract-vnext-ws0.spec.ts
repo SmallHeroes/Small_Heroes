@@ -399,6 +399,45 @@ describe('WS0 vNext — fail-closed on malformed / rule violations', () => {
     if (!r.ok) expect(r.errors.join(' ')).toMatch(/undeclared scene move|not continuous/);
   });
 
+  // ── C2: opening-page continuity guard (a non-steady FIRST page has no origin to depart from) ──────
+  // Single-page fixtures so ONLY the first-page rule decides pass/fail (no page-2 interaction).
+  const firstPageContract = (transition: unknown, zoneId: string): BookVisualContract =>
+    ({
+      version: 1,
+      storyKey: 'first_page',
+      worldType: 'house',
+      locations: [{ id: 'house', name: 'House', description: 'a house', environmentClass: 'indoor' }],
+      zones: [
+        { id: 'house.hall', locationId: 'house', name: 'Hall', description: 'the hall' },
+        { id: 'house.attic', locationId: 'house', name: 'Attic', description: 'the attic' },
+      ],
+      cast: { child: { id: 'child:hero', role: 'child', name: 'Dana', wardrobe: { description: 'red coat' } } },
+      recurringProps: [],
+      forbiddenGlobalElements: [],
+      coverContract: { worldType: 'house', locationId: 'house', mustShow: [], mustNotShow: [] },
+      pageContracts: [
+        { pageNumber: 1, locationId: 'house', zoneId, mustShow: ['the child'], mustNotShow: [], characterPresence: { child: true, companion: false }, propState: [], camera: 'wide', castIds: ['child:hero'], transition },
+      ],
+    }) as unknown as BookVisualContract;
+
+  it('(C2) opening page STEADY → valid', () => {
+    expect(validateVNextVisualContract(firstPageContract({ kind: 'steady' }, 'house.hall')).ok).toBe(true);
+  });
+  it('(C2) opening page BEFORE_TRANSITION → valid (declares no move; stands in the origin)', () => {
+    const c = firstPageContract({ kind: 'before_transition', fromZoneId: 'house.hall', toZoneId: 'house.attic', cue: 'about to leave' }, 'house.hall');
+    expect(validateVNextVisualContract(c).ok).toBe(true);
+  });
+  it('(C2) opening page THRESHOLD → REJECTED (no origin can be established before the first page)', () => {
+    const r = validateVNextVisualContract(firstPageContract({ kind: 'threshold', fromZoneId: 'house.hall', toZoneId: 'house.attic', cue: 'the door opens' }, 'house.hall'));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/opening page must be steady or before_transition/);
+  });
+  it('(C2) opening page AFTER_TRANSITION → REJECTED (no origin can be established before the first page)', () => {
+    const r = validateVNextVisualContract(firstPageContract({ kind: 'after_transition', fromZoneId: 'house.hall', toZoneId: 'house.attic', cue: 'stepping inside' }, 'house.attic'));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/opening page must be steady or before_transition/);
+  });
+
   // ── P1 #5: remaining structural locks ───────────────────────────────────────────────────────────
   it('a human cast member missing coarseAppearance is rejected', () => {
     const bad = clone(clinic);
