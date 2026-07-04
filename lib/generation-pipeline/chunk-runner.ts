@@ -916,6 +916,12 @@ async function runCoverStage(
   const { resolvePageLocationPlan } = await import('@/lib/story-location-bible');
   const coverLocationPlan = resolvePageLocationPlan(storyLocationPlan, 0);
 
+  // (WS0b B1/P2) Capture the frozen contract hash from the LOCAL cache ONCE, BEFORE the paid cover render — so "the
+  // contract that rendered these bytes" is structural, not incidental (immune to a concurrent re-freeze of
+  // Order.visualContractHash; the local cache is not mutated by render). Threaded into the operationKey + payload,
+  // the atomic context write, the post-tx delivered-evidence write, and the observability payload — never re-read.
+  const renderedContractHash = renderedContractHashOf(cache);
+
   const coverImage = await generateBookCover({
     // (#7-a 5b) Durable regen reserver for the cover artifact — flag-on only.
     reserveQualityRegen: isReadinessManifestEnabled()
@@ -954,10 +960,6 @@ async function runCoverStage(
     companionStructured: cache.dna?.companionStructured,
   });
 
-  // (WS0b B1) Capture the frozen contract hash from the LOCAL cache ONCE (the contract that rendered these bytes),
-  // immune to a concurrent re-freeze of Order.visualContractHash. Thread the SAME value into the atomic context
-  // write, the post-tx delivered-evidence write, and the observability payload — never re-read it post-render.
-  const renderedContractHash = renderedContractHashOf(cache);
   await withDeliveryInputMutation(
     prisma,
     {
@@ -1323,6 +1325,10 @@ async function runPageImagesChunk(
   );
   const expressionSheetActive = isChildExpressionSheetActive(cache);
   const storyFileKey = storyFilePath ? path.basename(storyFilePath, '.md') : undefined;
+  // (WS0b B1/P2) Capture the frozen contract hash from the LOCAL cache ONCE, BEFORE the paid page render — structural,
+  // not incidental (book-level; the local cache is not mutated by render). Threaded into each page's operationKey +
+  // payload, the atomic context write, the delivered-evidence write, and the observability payload — never re-read.
+  const renderedContractHash = renderedContractHashOf(cache);
   const imageOutcome = await generateAllPageImages(pagesForGen, {
     // (#7-a 5b) Durable per-page regen reserver — flag-on only (flag-off → undefined → legacy in-memory budget).
     makeReserveQualityRegen: isReadinessManifestEnabled()
@@ -1470,10 +1476,6 @@ async function runPageImagesChunk(
       }
     }
 
-    // (WS0b B1) Capture the frozen contract hash from the LOCAL cache ONCE (the contract that rendered this page),
-    // immune to a concurrent re-freeze of Order.visualContractHash. Threaded into the atomic context write, the
-    // post-tx delivered-evidence write, and the observability payload — never re-read post-render.
-    const renderedContractHash = renderedContractHashOf(cache);
     await withDeliveryInputMutation(
       prisma,
       {
