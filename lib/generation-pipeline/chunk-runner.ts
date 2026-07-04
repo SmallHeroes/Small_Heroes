@@ -81,6 +81,11 @@ import {
 } from '@/lib/visual-contract-compiler';
 import { isReadinessManifestEnabled, withDeliveryInputMutation } from './readiness-manifest';
 import { hashOperationPayload, isOutcomeUnknown, type ReceiptSafeValue } from './atomic-operation';
+import {
+  coverAssetOperationKey,
+  pageAssetOperationKey,
+  contractHashPayloadFragment,
+} from './contract-hash-binding';
 import { persistDeliveredQualityEvidence, persistQualityContext } from './quality-evidence-producer';
 import { coverArtifactKey, pageArtifactKey, makeQualityRegenReserver } from './quality-evidence';
 import { openExceptionCase } from '@/lib/generation-chunked/exception-case';
@@ -958,10 +963,11 @@ async function runCoverStage(
     {
       orderId: order.id,
       reason: 'cover_asset_changed',
-      // Durable write-attempt id: the cover's content-addressed URL (cover-<hash>.png). An identical replay is
-      // fenced; a genuine re-render (new bytes → new url) is a new operation.
-      operationKey: `delivery_input:${order.id}:cover:${coverImage.url}`,
-      mutationPayload: { coverUrl: coverImage.url, qaContext: coverImage.style01Meta?.pageVisualQa?.qaInput ?? null },
+      // Durable write-attempt id: the cover's content-addressed URL (cover-<hash>.png) + the render-time contract
+      // hash (P1-4). An identical replay is fenced; a new render (new url) OR a new frozen contract (new hash) is a
+      // new operation that re-runs the idempotent asset write + the fresh binding. Freeze-off → suffix omitted.
+      operationKey: coverAssetOperationKey(order.id, coverImage.url, renderedContractHash),
+      mutationPayload: { coverUrl: coverImage.url, qaContext: coverImage.style01Meta?.pageVisualQa?.qaInput ?? null, ...contractHashPayloadFragment(renderedContractHash) },
     },
     async (tx) => {
       await tx.generatedBook.update({
@@ -1473,13 +1479,15 @@ async function runPageImagesChunk(
       {
         orderId: order.id,
         reason: 'page_asset_changed',
-        // Durable write-attempt id: the page slot + the delivered content-addressed URL (presentation ?? raw).
-        operationKey: `delivery_input:${order.id}:page:${dbPage.pageNumber}:${presentationUrl ?? image.url}`,
-        // REAL persisted content: prompt, delivered + raw URLs, dims, idempotencyKey, QA context.
+        // Durable write-attempt id: the page slot + the delivered content-addressed URL (presentation ?? raw) + the
+        // render-time contract hash (P1-4) — a new url OR a new frozen contract is a new op. Freeze-off → suffix omitted.
+        operationKey: pageAssetOperationKey(order.id, dbPage.pageNumber, presentationUrl ?? image.url, renderedContractHash),
+        // REAL persisted content: prompt, delivered + raw URLs, dims, idempotencyKey, QA context, contract hash (P1-4).
         mutationPayload: {
           prompt: image.prompt, url: image.url, presentationUrl: presentationUrl ?? null, rawUrl: image.rawUrl ?? null,
           width: image.width, height: image.height, provider: image.provider, style: order.illustrationStyle,
           idempotencyKey, qaContext: image.style01Meta?.pageVisualQa?.qaInput ?? null,
+          ...contractHashPayloadFragment(renderedContractHash),
         },
       },
       async (tx) => {
