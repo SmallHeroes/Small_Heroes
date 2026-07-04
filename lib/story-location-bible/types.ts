@@ -208,6 +208,12 @@ export interface PageLocationPlan {
   cameraPositionHint?: string;
   allowedVariation: string;
   forbiddenDrift: string[];
+  /**
+   * (WS0b A2b) True when this is a page-0 plan projected from the contract's coverContract — the cover's
+   * no-spoiler / forbidden-reveal intent is carried by `forbiddenDrift` (from coverContract.mustNotShow), so the
+   * legacy hardcoded COVER_MYSTERY_LOCK is redundant and is suppressed for this cover. Absent on legacy covers.
+   */
+  contractCover?: boolean;
   /** Mandatory single action line — wins over location continuity in prompt. */
   pageAction?: string;
   /** Overrides inferred floor/bed staging surface for STAGING LOCK. */

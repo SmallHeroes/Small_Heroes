@@ -134,6 +134,9 @@ function setTopologyOf(contract: BookVisualContract): SetTopology | undefined {
  * The page-0 (cover) location plan, projected from the contract's coverContract, so resolvePageLocationPlan(bundle,
  * 0) returns THIS directly instead of synthesizing a legacy page-1-derived cover (which appended a story-specific
  * "home-night" anchor). zoneId is the cover location's first declared zone so the plan stays inside allowedZones.
+ * `contractCover: true` (WS0b A2b) marks this as the contract's cover authority — its forbiddenDrift (from
+ * coverContract.mustNotShow) carries the cover's no-spoiler intent, so the consumer suppresses the legacy
+ * hardcoded COVER_MYSTERY_LOCK for it.
  */
 function coverPageLocationPlan(contract: BookVisualContract): PageLocationPlan {
   const cover = contract.coverContract;
@@ -144,6 +147,7 @@ function coverPageLocationPlan(contract: BookVisualContract): PageLocationPlan {
     visibleAnchors: cover.mustShow ?? [],
     allowedVariation: '',
     forbiddenDrift: cover.mustNotShow ?? [],
+    contractCover: true,
   };
 }
 

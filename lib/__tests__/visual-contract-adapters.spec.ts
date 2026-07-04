@@ -18,6 +18,7 @@ import {
   isStoryLocationPlanValid,
 } from '@/lib/story-location-bible';
 import { buildSetTopologyLockBlock, promptContainsSetTopologyLock } from '@/lib/story-location-bible/set-topology';
+import type { PageLocationPlan } from '@/lib/story-location-bible/types';
 import { detectExpectedCharactersForPage } from '@/lib/generation-pipeline/anchor-registry';
 import { assembleStyle01Phase2Prompt } from '@/lib/style01-prompt-assembly';
 
@@ -206,6 +207,33 @@ describe('contractToLocationPlanBundle', () => {
     const cover = resolvePageLocationPlan(b, 0)!;
     expect(cover.visibleAnchors).toEqual([]); // empty coverContract → empty, never a home-night default
     expect(cover.visibleAnchors.join(' ')).not.toContain('home-night');
+  });
+
+  it('(A2b) a contract cover plan SUPPRESSES the legacy COVER_MYSTERY_LOCK; forbiddenDrift carries the no-spoiler intent', () => {
+    const b = contractToLocationPlanBundle(clinic);
+    const coverPlan = resolvePageLocationPlan(b, 0)!;
+    expect(coverPlan.contractCover).toBe(true);
+    const block = buildLocationContinuityPromptBlock(b.bible, coverPlan, { isCover: true });
+    // the hardcoded bedtime mystery-lock is gone from a (non-bedtime) clinic cover
+    expect(block).not.toContain('NO bucket');
+    expect(block).not.toContain("child's room near the night window");
+    // the cover's OWN no-spoiler intent (coverContract.mustNotShow) survives via forbidden drift
+    expect(block).toContain('exam instruments');
+  });
+
+  it('(A2b) flag-off byte-identity: a legacy cover plan (no contractCover) still emits COVER_MYSTERY_LOCK as today', () => {
+    // A non-contract / steering-off cover plan has no contractCover marker → the cover lock is unchanged.
+    const legacyCover: PageLocationPlan = {
+      page: 0,
+      zoneId: 'clinic.waiting_room',
+      visibleAnchors: ['child', 'clinic entrance'],
+      allowedVariation: '',
+      forbiddenDrift: [],
+    };
+    const b = contractToLocationPlanBundle(clinic);
+    const block = buildLocationContinuityPromptBlock(b.bible, legacyCover, { isCover: true });
+    expect(block).toContain('NO bucket'); // COVER_MYSTERY_LOCK still emitted verbatim
+    expect(block).toContain("child's room near the night window");
   });
 });
 

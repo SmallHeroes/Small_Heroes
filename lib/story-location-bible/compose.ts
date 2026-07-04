@@ -184,7 +184,10 @@ export function buildLocationContinuityPromptBlock(
     lines.push('', recurringBlock);
   }
 
-  if (options?.isCover) {
+  // (WS0b A2b) A contract-driven cover carries its own no-spoiler intent via forbiddenDrift (coverContract
+  // .mustNotShow), so the legacy hardcoded COVER_MYSTERY_LOCK is suppressed for it. Legacy / steering-off covers
+  // (no contractCover marker) are unchanged — they still emit COVER_MYSTERY_LOCK exactly as today.
+  if (options?.isCover && !pagePlan.contractCover) {
     lines.push('', 'COVER:', COVER_MYSTERY_LOCK);
   }
 
