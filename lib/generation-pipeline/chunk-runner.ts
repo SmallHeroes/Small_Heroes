@@ -187,15 +187,31 @@ async function saveCache(orderId: string, cache: PipelineCache) {
  * merged into it), so it can never change a gate decision or a re-QA. contractHash is recomputed from the frozen
  * contract (deterministically equals Order.visualContractHash), read via readFrozenVisualContract (never blind-cast).
  */
-function buildContractObservability(cache: PipelineCache, pageNumber: number): Prisma.InputJsonValue | null {
+function buildContractObservability(
+  cache: PipelineCache,
+  pageNumber: number,
+  contractHash: string | null,
+): Prisma.InputJsonValue | null {
   if (!isVisualContractSteeringEnabled()) return null;
   const contract = readFrozenVisualContract(cache.visualContract);
   if (!contract) return null;
   return contractToQaObservability(
     contract,
     pageNumber,
-    computeVisualContractHash(contract)
+    contractHash ?? computeVisualContractHash(contract)
   ) as unknown as Prisma.InputJsonValue;
+}
+
+/**
+ * (WS0b B1) The hash of the frozen visual contract IN FORCE at render time, from the LOCAL pipeline cache — immune
+ * to a concurrent re-freeze of Order.visualContractHash (the TOCTOU race the delivered-evidence producer used to
+ * hit by re-reading the Order post-render). null when no contract is frozen (freeze flag off). Captured ONCE per
+ * artifact and threaded into the context write, the delivered-evidence write, and the observability payload so all
+ * three bind the SAME pre-render hash.
+ */
+function renderedContractHashOf(cache: PipelineCache): string | null {
+  const contract = readFrozenVisualContract(cache.visualContract);
+  return contract ? computeVisualContractHash(contract) : null;
 }
 
 function persistChildAnchorOnOrder(
@@ -933,6 +949,10 @@ async function runCoverStage(
     companionStructured: cache.dna?.companionStructured,
   });
 
+  // (WS0b B1) Capture the frozen contract hash from the LOCAL cache ONCE (the contract that rendered these bytes),
+  // immune to a concurrent re-freeze of Order.visualContractHash. Thread the SAME value into the atomic context
+  // write, the post-tx delivered-evidence write, and the observability payload — never re-read it post-render.
+  const renderedContractHash = renderedContractHashOf(cache);
   await withDeliveryInputMutation(
     prisma,
     {
@@ -955,6 +975,7 @@ async function runCoverStage(
         artifactKey: coverArtifactKey(),
         deliveredUrl: coverImage.url,
         qaContext: coverImage.style01Meta?.pageVisualQa?.qaInput,
+        contractHash: renderedContractHash,
       });
     },
   );
@@ -975,7 +996,8 @@ async function runCoverStage(
     qaContext: coverImage.style01Meta?.pageVisualQa?.qaInput,
     providerModel: coverImage.provider,
     regenAttempts: coverImage.style01Meta?.pageVisualQa?.regenAttempts,
-    contractObservability: buildContractObservability(cache, 0),
+    contractHash: renderedContractHash,
+    contractObservability: buildContractObservability(cache, 0, renderedContractHash),
   });
   return true;
 }
@@ -1442,6 +1464,10 @@ async function runPageImagesChunk(
       }
     }
 
+    // (WS0b B1) Capture the frozen contract hash from the LOCAL cache ONCE (the contract that rendered this page),
+    // immune to a concurrent re-freeze of Order.visualContractHash. Threaded into the atomic context write, the
+    // post-tx delivered-evidence write, and the observability payload — never re-read post-render.
+    const renderedContractHash = renderedContractHashOf(cache);
     await withDeliveryInputMutation(
       prisma,
       {
@@ -1496,6 +1522,7 @@ async function runPageImagesChunk(
           artifactKey: pageArtifactKey(dbPage.pageNumber),
           deliveredUrl: presentationUrl ?? image.url,
           qaContext: image.style01Meta?.pageVisualQa?.qaInput,
+          contractHash: renderedContractHash,
         });
       },
     );
@@ -1513,7 +1540,8 @@ async function runPageImagesChunk(
       qaContext: image.style01Meta?.pageVisualQa?.qaInput,
       providerModel: image.provider,
       regenAttempts: image.style01Meta?.pageVisualQa?.regenAttempts,
-      contractObservability: buildContractObservability(cache, dbPage.pageNumber),
+      contractHash: renderedContractHash,
+      contractObservability: buildContractObservability(cache, dbPage.pageNumber, renderedContractHash),
     });
 
     const textZone = imageOutcome.textZones.get(dbPage.pageNumber) ?? 'bottom_clear';

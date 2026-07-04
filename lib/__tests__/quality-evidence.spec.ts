@@ -182,18 +182,33 @@ describe('(WS0b) evaluateQualityGate — contract staleness (contract_stale → 
     // Round 1 — evidence still bound to the OLD contract → contract_stale → evidence_unknown (triggers re-QA).
     expect(evaluateQualityGate(REQUIRED, passingRows('v1'), CURRENT, { activeContractHash: active }).status)
       .toBe('evidence_unknown');
-    // Re-QA re-binds each row's contractHash to the current (frozen, STABLE) active hash (WS0b(b) producer reads
-    // Order.visualContractHash). The next read matches → NOT stale → the gate decides on the verdict → PASS.
+    // Re-QA (recovery) re-binds each row's contractHash to the current (frozen, STABLE) active hash (WS0b B1:
+    // recovery reads Order.visualContractHash to re-bind; the render seam threads the render-time hash instead).
+    // The next read matches → NOT stale → the gate decides on the verdict → PASS.
     // Because the active contract is stable, this converges in ONE re-QA; the regen budget (QUALITY_REGEN_BUDGET)
     // bounds any actual re-renders in the existing recovery path — contract_stale itself consumes zero budget.
     expect(evaluateQualityGate(REQUIRED, passingRows(active), CURRENT, { activeContractHash: active }).status)
       .toBe('passed');
   });
 
-  it('contractHash is NOT in the row fingerprint (staleness is a decision-time check, not a TOCTOU row hash)', () => {
+  it('(WS0b B1) contractHash IS in the row fingerprint — a superseded-contract restamp drifts the TOCTOU hash', () => {
     const a = [row({ artifactKey: 'cover', assetSha256: 'h1', contractHash: 'v1' })];
     const b = [row({ artifactKey: 'cover', assetSha256: 'h1', contractHash: 'v2' })];
-    expect(qualityEvidenceFingerprint(a)).toBe(qualityEvidenceFingerprint(b));
+    // Same bytes/verdict/version/regenCount — only the bound contract differs → the fingerprint MUST differ.
+    expect(qualityEvidenceFingerprint(a)).not.toBe(qualityEvidenceFingerprint(b));
+    // null everywhere (freeze off) → the added element is a constant → still byte-identical eval-vs-commit.
+    expect(qualityEvidenceFingerprint([row({ artifactKey: 'cover', assetSha256: 'h1', contractHash: null })]))
+      .toBe(qualityEvidenceFingerprint([row({ artifactKey: 'cover', assetSha256: 'h1', contractHash: null })]));
+  });
+
+  it('(WS0b B1) stale-v1-row race: a late producer restamping a superseded contract drifts the fingerprint → TOCTOU abort', () => {
+    // Eval time: the row is bound to the active contract v1 and would pass.
+    const atEval = [row({ artifactKey: 'cover', assetSha256: 'h1', verdict: 'passed', contractHash: 'v1' })];
+    // A late producer (post-eval, pre-commit) restamps the SAME row to a SUPERSEDED contract v2 — every other field
+    // identical. The readiness TOCTOU fingerprint (folded into inputsHash) drifts, so the commit aborts + re-evaluates
+    // instead of committing the stale-contract row as PASS.
+    const atCommit = [row({ artifactKey: 'cover', assetSha256: 'h1', verdict: 'passed', contractHash: 'v2' })];
+    expect(qualityEvidenceFingerprint(atEval)).not.toBe(qualityEvidenceFingerprint(atCommit));
   });
 });
 

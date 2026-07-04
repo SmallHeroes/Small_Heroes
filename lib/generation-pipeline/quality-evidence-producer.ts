@@ -19,7 +19,6 @@ import { inspectAsset, type AssetInspection } from './asset-integrity';
 import { evaluatePageVisualQa, type PageVisualQaResult } from './page-visual-qa';
 import {
   persistQualityEvidence,
-  readActiveVisualContractHash,
   QUALITY_EVALUATOR_CONTRACT_VERSION,
   type QualityVerdict,
 } from './quality-evidence';
@@ -52,6 +51,13 @@ export interface DeliveredEvidenceArgs {
   providerModel?: string | null;
   /** In-memory attempt count for observability only — NOT the durable regen budget (carry-in #4). */
   regenAttempts?: number | null;
+  /**
+   * (WS0b B1) The contract hash to bind this row to — captured by the CALLER before render (render seam: the local
+   * pre-render pipeline-cache hash; recovery: the current active hash). NEVER re-read from Order.visualContractHash
+   * inside the producer (that read races a concurrent re-freeze → v2 stamped onto v1 bytes → a stale PASS). null =
+   * legacy/unbound (freeze off).
+   */
+  contractHash: string | null;
   /**
    * (WS0b e3) OBSERVABILITY-ONLY contract projection for this artifact (contractHash + pageContract +
    * requiredCheckIds + frozen cast expectations). Persisted as a SIBLING of `qaContext` in the evidence JSON —
@@ -101,7 +107,15 @@ async function resolveDeliveredVerdict(
  */
 export async function persistQualityContext(
   db: Db,
-  args: { orderId: string; artifactKey: string; deliveredUrl: string | null; qaContext: QaContext | undefined },
+  args: {
+    orderId: string;
+    artifactKey: string;
+    deliveredUrl: string | null;
+    qaContext: QaContext | undefined;
+    /** (WS0b B1) The contract hash to bind — captured by the CALLER before render (never re-read from
+     *  Order.visualContractHash here; that read races a concurrent re-freeze). null = legacy/unbound. */
+    contractHash: string | null;
+  },
 ): Promise<void> {
   if (!isReadinessManifestEnabled()) return; // flag OFF → legacy path unchanged
   if (!args.qaContext) return; // nothing to bind — the fail-closed gate covers a context-less artifact
@@ -118,9 +132,10 @@ export async function persistQualityContext(
     deliveredUrl: args.deliveredUrl,
     qaContext: args.qaContext,
   } as unknown as Prisma.InputJsonValue;
-  // (WS0b) Bind the row to the Order's active frozen contract (null = legacy/unbound). No reader yet — this only
-  // fills the column so a later slice can invalidate evidence produced against a superseded contract.
-  const contractHash = await readActiveVisualContractHash(db, args.orderId);
+  // (WS0b B1) Bind the row to the contract captured by the caller BEFORE render (render seam: local pre-render
+  // cache hash; recovery: current active hash). NEVER re-read Order.visualContractHash here — a concurrent
+  // re-freeze between render and this write would stamp v2 onto v1-rendered bytes (a stale PASS).
+  const contractHash = args.contractHash;
   await db.qualityEvidence.upsert({
     where: { orderId_artifactKey: { orderId: args.orderId, artifactKey: args.artifactKey } },
     create: {
@@ -170,8 +185,8 @@ export async function persistDeliveredQualityEvidence(
     verdict,
     reason,
     providerModel: args.providerModel ?? null,
-    // (WS0b) Bind the delivered-evidence row to the Order's active frozen contract (null = legacy). Inert in (b).
-    contractHash: await readActiveVisualContractHash(db, args.orderId),
+    // (WS0b B1) Bind to the contract the caller captured before render (never a post-render re-read).
+    contractHash: args.contractHash,
     // regenCount intentionally omitted — the DB-reserved budget (5b) is authoritative and preserved (carry-in #4).
     // (#7-a 6) Persist the delivered URL + QA context so the exception-processor can RE-QA the SAME bytes
     // (zero renders) with the same checks during recovery.

@@ -18,7 +18,12 @@ import {
   type QaContext,
   type ProducerDeps,
 } from './quality-evidence-producer';
-import { QUALITY_EVALUATOR_CONTRACT_VERSION, coverArtifactKey, pageArtifactKey } from './quality-evidence';
+import {
+  QUALITY_EVALUATOR_CONTRACT_VERSION,
+  coverArtifactKey,
+  pageArtifactKey,
+  readActiveVisualContractHash,
+} from './quality-evidence';
 
 export interface QualityRecoveryResult {
   reQaCount: number;
@@ -72,6 +77,10 @@ export async function reQaUnknownQualityEvidence(
     select: { artifactKey: true, verdict: true, evaluatorContractVersion: true, assetSha256: true, regenCount: true, evidence: true },
   });
   const byKey = new Map(rows.map((r) => [r.artifactKey, r]));
+  // (WS0b B1) Recovery re-QAs STORED bytes and re-binds evidence to the Order's CURRENT active contract, so a
+  // contract_stale row becomes admissible again. This is the deliberate recovery re-bind (not a render-time
+  // capture) — the render-seam producer threads its render-time hash instead; only THAT post-render read raced.
+  const activeContractHash = await readActiveVisualContractHash(prisma, orderId);
 
   const result: QualityRecoveryResult = { reQaCount: 0, nowPassed: [], nowFailed: [], stillUnknown: [] };
   for (const art of required) {
@@ -119,6 +128,8 @@ export async function reQaUnknownQualityEvidence(
         rawVerdict: undefined,
         qaContext: storedCtx,
         regenAttempts: null,
+        // (WS0b B1) Re-bind the re-QA'd evidence to the Order's CURRENT active contract (deliberate recovery re-bind).
+        contractHash: activeContractHash,
       },
       deps,
     );

@@ -178,6 +178,10 @@ export function qualityEvidenceFingerprint(rows: QualityEvidenceRow[]): string {
     r.verdict,
     r.evaluatorContractVersion,
     r.regenCount,
+    // (WS0b B1) contractHash IS part of the fingerprint: a late producer stamping a superseded contract onto an
+    // otherwise-identical row must DRIFT the TOCTOU fingerprint → readiness aborts + re-evaluates, never commits a
+    // stale-contract row as PASS. null everywhere (freeze off) → a constant → byte-identical eval-vs-commit.
+    r.contractHash,
   ]);
   return JSON.stringify(canonical);
 }

@@ -19,6 +19,8 @@ const QA_CTX: QaContext = {
 type UpsertArg = { create: Record<string, unknown>; update: Record<string, unknown> };
 function makeDb(visualContractHash: string | null = null) {
   return {
+    // (WS0b B1) order.findUnique is mocked but the render-seam producer MUST NOT call it (the contract hash is
+    // threaded in). Kept so tests can assert it is never called.
     order: { findUnique: vi.fn(async () => ({ visualContractHash })) },
     qualityEvidence: { upsert: vi.fn(async (_arg: UpsertArg) => ({})) },
   };
@@ -46,7 +48,7 @@ describe('persistDeliveredQualityEvidence — flag gating', () => {
     const inspect = vi.fn();
     await persistDeliveredQualityEvidence(db as never, {
       orderId: 'o1', artifactKey: 'page:1', deliveredUrl: 'https://h/p1.webp',
-      presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX,
+      presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX, contractHash: null,
     }, { evaluate: evaluate as never, inspect: inspect as never });
     expect(db.qualityEvidence.upsert).not.toHaveBeenCalled();
     expect(inspect).not.toHaveBeenCalled();
@@ -70,7 +72,7 @@ describe('persistQualityContext (#6-fix-3 BLOCKER 1) — bind the exact context 
 
   it('no existing row → creates a fail-closed evidence_unknown row (regenCount 0) carrying the REAL qaContext', async () => {
     const db = ctxDb(null);
-    await persistQualityContext(db as never, { orderId: 'o1', artifactKey: 'page:1', deliveredUrl: 'u1', qaContext: { ...QA_CTX, expectsCompanion: true } });
+    await persistQualityContext(db as never, { orderId: 'o1', artifactKey: 'page:1', deliveredUrl: 'u1', qaContext: { ...QA_CTX, expectsCompanion: true }, contractHash: null });
     const a = arg(db);
     expect(a.create.verdict).toBe('evidence_unknown');
     expect(a.create.regenCount).toBe(0);
@@ -80,7 +82,7 @@ describe('persistQualityContext (#6-fix-3 BLOCKER 1) — bind the exact context 
 
   it('(#6-fix-4 P1 #2) existing row → INVALIDATES the old proof: verdict→evidence_unknown + hash cleared, regenCount/regenPending PRESERVED', async () => {
     const db = ctxDb({ regenPending: true, stray: 1 });
-    await persistQualityContext(db as never, { orderId: 'o1', artifactKey: 'page:1', deliveredUrl: 'u2', qaContext: QA_CTX });
+    await persistQualityContext(db as never, { orderId: 'o1', artifactKey: 'page:1', deliveredUrl: 'u2', qaContext: QA_CTX, contractHash: null });
     const a = arg(db);
     // Binding a (possibly CHANGED) context must force a re-QA: the old PASS + matching hash can no longer certify the
     // bytes under the new requirements. So verdict is knocked to evidence_unknown and the hash is cleared — while
@@ -94,14 +96,14 @@ describe('persistQualityContext (#6-fix-3 BLOCKER 1) — bind the exact context 
   it('flag OFF → no-op (no findUnique, no upsert)', async () => {
     process.env.READINESS_MANIFEST_ENABLED = 'false';
     const db = ctxDb(null);
-    await persistQualityContext(db as never, { orderId: 'o1', artifactKey: 'page:1', deliveredUrl: 'u', qaContext: QA_CTX });
+    await persistQualityContext(db as never, { orderId: 'o1', artifactKey: 'page:1', deliveredUrl: 'u', qaContext: QA_CTX, contractHash: null });
     expect(db.qualityEvidence.findUnique).not.toHaveBeenCalled();
     expect(db.qualityEvidence.upsert).not.toHaveBeenCalled();
   });
 
   it('no qaContext → no-op (the fail-closed gate still covers a context-less artifact)', async () => {
     const db = ctxDb(null);
-    await persistQualityContext(db as never, { orderId: 'o1', artifactKey: 'page:1', deliveredUrl: 'u', qaContext: undefined });
+    await persistQualityContext(db as never, { orderId: 'o1', artifactKey: 'page:1', deliveredUrl: 'u', qaContext: undefined, contractHash: null });
     expect(db.qualityEvidence.upsert).not.toHaveBeenCalled();
   });
 });
@@ -113,7 +115,7 @@ describe('persistDeliveredQualityEvidence — semantic byte binding (carry-in #1
     const inspect = vi.fn(async () => okInspect('sha_raw'));
     await persistDeliveredQualityEvidence(db as never, {
       orderId: 'o1', artifactKey: 'page:1', deliveredUrl: 'https://h/p1.png',
-      presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX,
+      presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX, contractHash: null,
     }, { evaluate: evaluate as never, inspect });
     expect(evaluate).not.toHaveBeenCalled();
     const a = upsertArg(db);
@@ -127,7 +129,7 @@ describe('persistDeliveredQualityEvidence — semantic byte binding (carry-in #1
     const inspect = vi.fn(async () => okInspect('sha_presentation'));
     await persistDeliveredQualityEvidence(db as never, {
       orderId: 'o1', artifactKey: 'page:1', deliveredUrl: 'https://h/p1.webp',
-      presentationApplied: true, rawVerdict: 'passed', qaContext: QA_CTX,
+      presentationApplied: true, rawVerdict: 'passed', qaContext: QA_CTX, contractHash: null,
     }, { evaluate: evaluate as never, inspect });
     expect(evaluate).toHaveBeenCalledWith(expect.objectContaining({ imageUrl: 'https://h/p1.webp', expectsChild: true }));
     const a = upsertArg(db);
@@ -141,7 +143,7 @@ describe('persistDeliveredQualityEvidence — genuine cover verdict + fail-close
     const db = makeDb();
     await persistDeliveredQualityEvidence(db as never, {
       orderId: 'o1', artifactKey: 'cover', deliveredUrl: 'https://h/cover.png',
-      presentationApplied: false, rawVerdict: undefined, qaContext: undefined,
+      presentationApplied: false, rawVerdict: undefined, qaContext: undefined, contractHash: null,
     }, { inspect: async () => okInspect('sha_cover') });
     expect(upsertArg(db).create.verdict).toBe('evidence_unknown');
   });
@@ -151,7 +153,7 @@ describe('persistDeliveredQualityEvidence — genuine cover verdict + fail-close
     const evaluate = vi.fn();
     await persistDeliveredQualityEvidence(db as never, {
       orderId: 'o1', artifactKey: 'page:1', deliveredUrl: 'https://h/p1.webp',
-      presentationApplied: true, rawVerdict: 'passed', qaContext: undefined,
+      presentationApplied: true, rawVerdict: 'passed', qaContext: undefined, contractHash: null,
     }, { evaluate: evaluate as never, inspect: async () => okInspect('sha') });
     expect(evaluate).not.toHaveBeenCalled();
     expect(upsertArg(db).create.verdict).toBe('evidence_unknown');
@@ -163,7 +165,7 @@ describe('persistDeliveredQualityEvidence — hash binding + budget preservation
     const db = makeDb();
     await persistDeliveredQualityEvidence(db as never, {
       orderId: 'o1', artifactKey: 'page:1', deliveredUrl: 'https://h/p1.png',
-      presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX,
+      presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX, contractHash: null,
     }, { inspect: async () => okInspect(null) });
     const a = upsertArg(db);
     expect(a.create.verdict).toBe('evidence_unknown');
@@ -174,50 +176,51 @@ describe('persistDeliveredQualityEvidence — hash binding + budget preservation
     const db = makeDb();
     await persistDeliveredQualityEvidence(db as never, {
       orderId: 'o1', artifactKey: 'page:1', deliveredUrl: 'https://h/p1.png',
-      presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX, regenAttempts: 2,
+      presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX, regenAttempts: 2, contractHash: null,
     }, { inspect: async () => okInspect('sha') });
     const a = upsertArg(db);
     expect('regenCount' in a.update).toBe(false); // re-persist preserves the reserved value
   });
 });
 
-describe('(WS0b) QualityEvidence.contractHash binding — reads Order.visualContractHash, no staleness reader yet', () => {
+describe('(WS0b B1) QualityEvidence.contractHash binding — binds the THREADED hash, NEVER re-reads Order', () => {
   type CtxDb = {
     order: { findUnique: ReturnType<typeof vi.fn> };
     qualityEvidence: { findUnique: ReturnType<typeof vi.fn>; upsert: ReturnType<typeof vi.fn> };
   };
-  const ctxDb = (visualContractHash: string | null): CtxDb => ({
-    order: { findUnique: vi.fn(async () => ({ visualContractHash })) },
+  const ctxDb = (): CtxDb => ({
+    order: { findUnique: vi.fn(async () => ({})) }, // present, but must NOT be called (B1: no post-render re-read)
     qualityEvidence: { findUnique: vi.fn(async () => null), upsert: vi.fn(async () => ({})) },
   });
   const arg = (db: { qualityEvidence: { upsert: ReturnType<typeof vi.fn> } }) =>
     db.qualityEvidence.upsert.mock.calls[0]?.[0] as UpsertArg;
 
-  it('persistQualityContext BINDS the active contract hash on BOTH create and update', async () => {
-    const db = ctxDb('hash-v1');
-    await persistQualityContext(db as never, { orderId: 'o1', artifactKey: 'cover', deliveredUrl: 'u', qaContext: QA_CTX });
-    expect(db.order.findUnique).toHaveBeenCalledWith({ where: { id: 'o1' }, select: { visualContractHash: true } });
+  it('persistQualityContext binds the THREADED contractHash on create+update and NEVER re-reads Order', async () => {
+    const db = ctxDb();
+    await persistQualityContext(db as never, { orderId: 'o1', artifactKey: 'cover', deliveredUrl: 'u', qaContext: QA_CTX, contractHash: 'hash-v1' });
+    expect(db.order.findUnique).not.toHaveBeenCalled(); // B1: the render-seam producer never re-reads Order.visualContractHash
     const a = arg(db);
     expect(a.create.contractHash).toBe('hash-v1');
     expect(a.update.contractHash).toBe('hash-v1');
   });
 
-  it('persistDeliveredQualityEvidence BINDS the active contract hash on the delivered-evidence row', async () => {
-    const db = makeDb('hash-v1');
+  it('persistDeliveredQualityEvidence binds the THREADED contractHash (not the Order value) and NEVER re-reads Order', async () => {
+    const db = makeDb('hash-v2'); // the mocked Order carries a DIFFERENT hash; it must be ignored (and never read)
     await persistDeliveredQualityEvidence(db as never, {
       orderId: 'o1', artifactKey: 'page:3', deliveredUrl: 'https://h/p3.webp',
-      presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX,
+      presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX, contractHash: 'hash-v1',
     }, { inspect: async () => okInspect('sha-3') });
+    expect(db.order.findUnique).not.toHaveBeenCalled(); // B1: no post-render re-read → immune to a concurrent re-freeze
     const a = upsertArg(db);
-    expect(a.create.contractHash).toBe('hash-v1');
+    expect(a.create.contractHash).toBe('hash-v1'); // the THREADED render-time hash, NOT the mocked Order 'hash-v2'
     expect(a.update.contractHash).toBe('hash-v1');
   });
 
-  it('no frozen contract (Order.visualContractHash null) → binds null (legacy/unbound, byte-unchanged)', async () => {
+  it('contractHash null → binds null (legacy/unbound; byte-unchanged when the freeze flag is off)', async () => {
     const db = makeDb(null);
     await persistDeliveredQualityEvidence(db as never, {
       orderId: 'o1', artifactKey: 'page:3', deliveredUrl: 'https://h/p3.webp',
-      presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX,
+      presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX, contractHash: null,
     }, { inspect: async () => okInspect('sha-3') });
     const a = upsertArg(db);
     expect(a.create.contractHash).toBeNull();
@@ -232,7 +235,7 @@ describe('(WS0b e3) contractObservability — carried ALONGSIDE qaContext, never
     const db = makeDb();
     await persistDeliveredQualityEvidence(db as never, {
       orderId: 'o1', artifactKey: 'page:1', deliveredUrl: 'https://h/p1.webp',
-      presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX,
+      presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX, contractHash: null,
       contractObservability: OBS as never,
     }, { inspect: async () => okInspect('sha') });
     const ev = upsertArg(db).create.evidence as Record<string, unknown>;
@@ -245,7 +248,7 @@ describe('(WS0b e3) contractObservability — carried ALONGSIDE qaContext, never
     const db = makeDb();
     await persistDeliveredQualityEvidence(db as never, {
       orderId: 'o1', artifactKey: 'page:1', deliveredUrl: 'https://h/p1.webp',
-      presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX,
+      presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX, contractHash: null,
     }, { inspect: async () => okInspect('sha') });
     const ev = upsertArg(db).create.evidence as Record<string, unknown>;
     expect('contractObservability' in ev).toBe(false);
