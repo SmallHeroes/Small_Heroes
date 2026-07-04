@@ -138,18 +138,53 @@ describe('contractToLocationPlanBundle', () => {
     expect(block).toContain('exam table'); // forbidden drift (mustNotShow)
   });
 
-  it('(A2a) projects transitionRules from non-steady page transitions → reaches the live TRANSITION RULES block', () => {
+  // (P1-1) Per-page transitions — validated against the MULTI-ZONE clinic (waiting_room → exam_room), not a toy.
+  it('(P1-1) contract books carry NO global transitionRules block — continuity is per-page', () => {
+    expect(contractToLocationPlanBundle(clinic).bible.transitionRules).toEqual([]);
+  });
+
+  it('(P1-1) page 1 (waiting, steady) block is free of any future-transition cue (no global leak)', () => {
     const b = contractToLocationPlanBundle(clinic);
-    expect(b.bible.transitionRules).toEqual([
-      'p2: before_transition clinic.waiting_room → clinic.exam_room (the nurse calls their name)',
-      'p3: threshold clinic.waiting_room → clinic.exam_room (the exam-room door opens)',
-      'p4: after_transition clinic.waiting_room → clinic.exam_room (they step inside)',
-    ]);
-    // reaches the LIVE prompt builder (buildLocationContinuityPromptBlock via buildResolvedLocationEnvironmentBlock)
-    const plan = resolvePageLocationPlan(b, 3)!;
-    const promptBlock = buildLocationContinuityPromptBlock(b.bible, plan);
-    expect(promptBlock).toContain('TRANSITION RULES:');
-    expect(promptBlock).toContain('the exam-room door opens');
+    const block = buildLocationContinuityPromptBlock(b.bible, resolvePageLocationPlan(b, 1)!);
+    expect(block).toContain('chairs, a low table, picture books'); // waiting-room (origin) geometry
+    expect(block).not.toContain('TRANSITION RULES:');              // the global future list is gone for contract books
+    expect(block).not.toContain('PAGE TRANSITION');                // a steady page emits no transition line
+    // none of the LATER pages' cues leak onto page 1 (the original defect)
+    expect(block).not.toContain('the nurse calls their name');     // p2 cue
+    expect(block).not.toContain('the exam-room door opens');       // p3 cue
+    expect(block).not.toContain('they step inside');               // p4 cue
+  });
+
+  it('(P1-1) page 2 (before_transition) signals the PENDING move but keeps ORIGIN geometry — no destination contents', () => {
+    const b = contractToLocationPlanBundle(clinic);
+    const block = buildLocationContinuityPromptBlock(b.bible, resolvePageLocationPlan(b, 2)!);
+    expect(block).toContain('chairs, a low table, picture books');           // still in the waiting room (origin)
+    expect(block).toContain('the nurse calls their name');                   // its own cue
+    expect(block).not.toContain('exam table, a small sink, a growth chart'); // destination CONTENTS are NOT shown
+    expect(block).not.toContain('the exam-room door opens');                 // p3 cue does not leak
+    // The PAGE TRANSITION line itself signals ONLY the pending move — it reveals NO destination (name or contents).
+    // (The residual "exam room" in the SET TOPOLOGY LOCK adjacency is the separate P1-2 defect, fixed next.)
+    const transitionLine = block.split('\n').find((l) => l.startsWith('PAGE TRANSITION'))!;
+    expect(transitionLine).toContain('PAGE TRANSITION — pending');
+    expect(transitionLine).not.toContain('exam');
+  });
+
+  it('(P1-1) page 3 (threshold) carries its OWN move (doorway, both spaces named)', () => {
+    const b = contractToLocationPlanBundle(clinic);
+    const block = buildLocationContinuityPromptBlock(b.bible, resolvePageLocationPlan(b, 3)!);
+    expect(block).toContain('PAGE TRANSITION — threshold');
+    expect(block).toContain('clinic.exam_room');               // threshold legitimately names the destination doorway
+    expect(block).toContain('the exam-room door opens');       // its own cue
+    expect(block).not.toContain('the nurse calls their name'); // p2 cue does not leak
+    expect(block).not.toContain('they step inside');           // p4 cue does not leak
+  });
+
+  it('(P1-1) page 4 (after_transition) has moved INTO the exam room (destination geometry)', () => {
+    const b = contractToLocationPlanBundle(clinic);
+    const block = buildLocationContinuityPromptBlock(b.bible, resolvePageLocationPlan(b, 4)!);
+    expect(block).toContain('PAGE TRANSITION — arrived');
+    expect(block).toContain('exam table, a small sink, a growth chart'); // exam-room (destination) geometry
+    expect(block).toContain('clinic.exam_room');
   });
 
   it('(A2a) projects stableGeometry + a SET TOPOLOGY LOCK the REAL consumer re-emits (buildSetTopologyLockBlock)', () => {

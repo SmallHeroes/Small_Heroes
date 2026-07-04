@@ -201,6 +201,18 @@ export interface PageStagingOverride {
   anchorHint?: string;
 }
 
+/**
+ * (WS0b P1-1) The page's OWN zone transition, projected from the contract. Drives the per-page continuity line so a
+ * page sees only ITS transition — never the whole book's future-transition list. Structurally matches the contract's
+ * PageTransition (kept local to avoid a story-location-bible → visual-contract-compiler dependency).
+ */
+export interface PageLocationTransition {
+  kind: 'steady' | 'before_transition' | 'threshold' | 'after_transition';
+  fromZoneId?: string;
+  toZoneId?: string;
+  cue?: string;
+}
+
 export interface PageLocationPlan {
   page: number;
   zoneId: string;
@@ -214,6 +226,12 @@ export interface PageLocationPlan {
    * legacy hardcoded COVER_MYSTERY_LOCK is redundant and is suppressed for this cover. Absent on legacy covers.
    */
   contractCover?: boolean;
+  /**
+   * (WS0b P1-1) This page's OWN transition (per-page continuity), projected from the contract. The consumer emits
+   * ONLY this page's transition — a `steady` page emits none; a `before_transition` page signals the pending move
+   * WITHOUT showing the destination. Absent on legacy plans (they use the bible-level transitionRules block).
+   */
+  transition?: PageLocationTransition;
   /** Mandatory single action line — wins over location continuity in prompt. */
   pageAction?: string;
   /** Overrides inferred floor/bed staging surface for STAGING LOCK. */

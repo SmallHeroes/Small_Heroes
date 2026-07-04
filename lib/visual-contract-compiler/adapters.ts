@@ -85,6 +85,9 @@ function toPageLocationPlan(pc: PageVisualContract): PageLocationPlan {
     forbiddenDrift: pc.mustNotShow ?? [],
     // A page's camera is the ONLY dimension imageDirection may influence — carried as the position hint.
     ...(pc.camera ? { cameraPositionHint: pc.camera } : {}),
+    // (WS0b P1-1) Project the page's OWN transition so the consumer emits per-page continuity — NOT the whole book's
+    // future-transition list on every page. Absent → no per-page transition line.
+    ...(pc.transition ? { transition: pc.transition } : {}),
   };
 }
 
@@ -95,19 +98,6 @@ function topologyByLocation(contract: BookVisualContract): Map<string, string> {
     if (loc.topology?.trim()) m.set(loc.id, loc.topology.trim());
   }
   return m;
-}
-
-/** Human-readable cross-page transition rules from the contract's non-steady page transitions (empty when all steady). */
-function transitionRulesOf(contract: BookVisualContract): string[] {
-  return contract.pageContracts
-    .filter((p) => p.transition && p.transition.kind !== 'steady')
-    .map((p) => {
-      const t = p.transition!;
-      const move =
-        t.fromZoneId && t.toZoneId ? `${t.fromZoneId} → ${t.toZoneId}` : t.toZoneId ?? t.fromZoneId ?? '';
-      const cue = t.cue ? ` (${t.cue})` : '';
-      return `p${p.pageNumber}: ${t.kind}${move ? ` ${move}` : ''}${cue}`;
-    });
 }
 
 /**
@@ -177,7 +167,9 @@ export function contractToLocationPlanBundle(contract: BookVisualContract): Stor
     allowedZones: contract.zones.map((z) => toLocationZone(z, anchorsFor, topologyFor)),
     fixedAnchors: toFixedAnchors(contract.locations),
     forbiddenDrift: contract.forbiddenGlobalElements ?? [],
-    transitionRules: transitionRulesOf(contract),
+    // (WS0b P1-1) Contract books drive continuity PER-PAGE (PageLocationPlan.transition) — no global future-transition
+    // list leaks onto every page. Legacy books still populate + emit their own bible.transitionRules.
+    transitionRules: [],
     source: 'derived',
     pageCount: contract.pageContracts.length,
     ...(setTopology ? { setTopology } : {}),

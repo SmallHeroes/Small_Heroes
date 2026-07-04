@@ -144,6 +144,26 @@ export const WINDOW_LEDGE_DRIP_LOCK =
 export const COVER_MYSTERY_LOCK =
   'Cover takes place inside the child\'s room near the night window. It suggests a mysterious sound outside but does NOT reveal the bucket or drip source. NO bucket. NO drip. NO falling water. NO water-catching object.';
 
+/**
+ * (WS0b P1-1) The CURRENT page's OWN transition line — never the book's global future-transition list. A `steady`
+ * page emits none; a `before_transition` page signals only the PENDING move (the destination must NOT be shown yet —
+ * the scene stays in the origin zone); `threshold`/`after_transition` name the destination legitimately.
+ */
+function describePageTransition(t: PageLocationPlan['transition']): string | null {
+  if (!t || t.kind === 'steady') return null;
+  const cue = t.cue ? ` (${t.cue})` : '';
+  if (t.kind === 'before_transition') {
+    return `PAGE TRANSITION — pending: the scene is about to move on${cue}. Do NOT show the destination location yet; the scene stays in the current zone.`;
+  }
+  if (t.kind === 'threshold') {
+    const edge = t.fromZoneId && t.toZoneId ? ` between ${t.fromZoneId} and ${t.toZoneId}` : '';
+    return `PAGE TRANSITION — threshold: at the doorway${edge}${cue}. Both the current space and the doorway to the next may be partly visible.`;
+  }
+  // after_transition
+  const dest = t.toZoneId ? ` into ${t.toZoneId}` : '';
+  return `PAGE TRANSITION — arrived: the scene has moved${dest}${cue}.`;
+}
+
 /** Story-level + page-level location block — replaces SCENARIO SETTING LOCK when present. */
 export function buildLocationContinuityPromptBlock(
   bible: BookLocationBible,
@@ -178,6 +198,13 @@ export function buildLocationContinuityPromptBlock(
     '',
     shotNote,
   ];
+
+  // (WS0b P1-1) Emit ONLY this page's transition (per-page continuity) — the global future-transition list no longer
+  // leaks onto every page (contract books set bible.transitionRules = []). Null for a steady page.
+  const pageTransitionLine = describePageTransition(pagePlan.transition);
+  if (pageTransitionLine) {
+    lines.push('', pageTransitionLine);
+  }
 
   const recurringBlock = buildRecurringObjectLockBlock(bible, pagePlan);
   if (recurringBlock) {
