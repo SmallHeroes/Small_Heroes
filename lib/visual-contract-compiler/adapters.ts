@@ -23,6 +23,8 @@ import type {
   FixedAnchor,
   PageLocationPlan,
   LocationContinuityMode,
+  SetTopology,
+  SetTopologyElement,
 } from '@/lib/story-location-bible/types';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -49,11 +51,14 @@ function anchorsByLocation(contract: BookVisualContract): Map<string, string[]> 
 function toLocationZone(
   zone: BookVisualContract['zones'][number],
   anchorsFor: Map<string, string[]>,
+  topologyFor: Map<string, string>,
 ): LocationZone {
+  const topology = topologyFor.get(zone.locationId);
   return {
     id: zone.id,
     description: zone.description,
-    stableGeometry: [],
+    // A zone's fixed geometry is its parent location's topology (shared by every zone of that location).
+    stableGeometry: topology ? [topology] : [],
     visualAnchors: anchorsFor.get(zone.locationId) ?? [],
     allowedCameraAccess: zone.shot ? [zone.shot] : [],
   };
@@ -83,25 +88,99 @@ function toPageLocationPlan(pc: PageVisualContract): PageLocationPlan {
   };
 }
 
+/** locationId → freeform topology/geometry description (drives per-zone stableGeometry + the single-room SET TOPOLOGY LOCK). */
+function topologyByLocation(contract: BookVisualContract): Map<string, string> {
+  const m = new Map<string, string>();
+  for (const loc of contract.locations) {
+    if (loc.topology?.trim()) m.set(loc.id, loc.topology.trim());
+  }
+  return m;
+}
+
+/** Human-readable cross-page transition rules from the contract's non-steady page transitions (empty when all steady). */
+function transitionRulesOf(contract: BookVisualContract): string[] {
+  return contract.pageContracts
+    .filter((p) => p.transition && p.transition.kind !== 'steady')
+    .map((p) => {
+      const t = p.transition!;
+      const move =
+        t.fromZoneId && t.toZoneId ? `${t.fromZoneId} → ${t.toZoneId}` : t.toZoneId ?? t.fromZoneId ?? '';
+      const cue = t.cue ? ` (${t.cue})` : '';
+      return `p${p.pageNumber}: ${t.kind}${move ? ` ${move}` : ''}${cue}`;
+    });
+}
+
+/**
+ * Project the single-room SET TOPOLOGY LOCK geometry — ONLY for a one-location book (the lock means "same room
+ * every page"). Elements come from the location's anchors, plus its freeform topology as a `layout` element.
+ * Neutral (undefined) when the location has neither → fabricate nothing (matches the adapter's unknown→neutral rule).
+ */
+function setTopologyOf(contract: BookVisualContract): SetTopology | undefined {
+  if (contract.locations.length !== 1) return undefined;
+  const loc = contract.locations[0];
+  const elements: SetTopologyElement[] = (loc.anchors ?? []).map((a) => ({ id: a.id, placement: a.description }));
+  if (loc.topology?.trim()) elements.push({ id: 'layout', placement: loc.topology.trim() });
+  if (!elements.length) return undefined;
+  const timeOfDay = loc.timeOfDay ?? contract.coverContract.timeOfDay;
+  const forbidden = contract.forbiddenGlobalElements ?? [];
+  return {
+    elements,
+    ...(timeOfDay ? { timeOfDay } : {}),
+    ...(forbidden.length ? { forbidden } : {}),
+  };
+}
+
+/**
+ * The page-0 (cover) location plan, projected from the contract's coverContract, so resolvePageLocationPlan(bundle,
+ * 0) returns THIS directly instead of synthesizing a legacy page-1-derived cover (which appended a story-specific
+ * "home-night" anchor). zoneId is the cover location's first declared zone so the plan stays inside allowedZones.
+ */
+function coverPageLocationPlan(contract: BookVisualContract): PageLocationPlan {
+  const cover = contract.coverContract;
+  const coverZone = contract.zones.find((z) => z.locationId === cover.locationId) ?? contract.zones[0];
+  return {
+    page: 0,
+    zoneId: coverZone?.id ?? '',
+    visibleAnchors: cover.mustShow ?? [],
+    allowedVariation: '',
+    forbiddenDrift: cover.mustNotShow ?? [],
+  };
+}
+
+/** The STORY WORLD header — one location's name, or all names spanned (journey → arrows, cluster → commas). */
+function primarySettingOf(contract: BookVisualContract, mode: LocationContinuityMode): string {
+  const names = contract.locations.map((l) => l.name).filter((n) => n && n.trim());
+  if (names.length === 0) return contract.worldType;
+  if (names.length === 1) return names[0];
+  return names.join(mode === 'journey' ? ' → ' : ', ');
+}
+
 /**
  * Project the contract into a StoryLocationPlanBundle (the shape buildLocationContinuityPromptBlock / scene-memory
- * consume). Conservative: core continuity fields are mapped faithfully; advanced optional layers (sceneGraph,
- * setTopology composition, reference sheets) are intentionally left unset for WS0b(e) to fill against the real
- * consumers. `source` is `derived` (the bible-source union has no contract-specific value in WS0b).
+ * consume). Core continuity fields PLUS the contract's full spatial authority: per-page transition rules, per-zone
+ * stableGeometry + a single-room SET TOPOLOGY LOCK (both from location topology), a multi-location STORY WORLD
+ * header, and an explicit page-0 cover plan from coverContract. Unknown → neutral (never fabricated). `source` is
+ * `derived`. (Consumed only under VISUAL_CONTRACT_STEERING — inert/byte-identical when off.)
  */
 export function contractToLocationPlanBundle(contract: BookVisualContract): StoryLocationPlanBundle {
   const anchorsFor = anchorsByLocation(contract);
+  const topologyFor = topologyByLocation(contract);
+  const mode = continuityModeOf(contract);
+  const setTopology = setTopologyOf(contract);
   const bible: BookLocationBible = {
-    continuityMode: continuityModeOf(contract),
-    primarySetting: contract.locations[0]?.name || contract.worldType,
-    allowedZones: contract.zones.map((z) => toLocationZone(z, anchorsFor)),
+    continuityMode: mode,
+    primarySetting: primarySettingOf(contract, mode),
+    allowedZones: contract.zones.map((z) => toLocationZone(z, anchorsFor, topologyFor)),
     fixedAnchors: toFixedAnchors(contract.locations),
     forbiddenDrift: contract.forbiddenGlobalElements ?? [],
-    transitionRules: [],
+    transitionRules: transitionRulesOf(contract),
     source: 'derived',
     pageCount: contract.pageContracts.length,
+    ...(setTopology ? { setTopology } : {}),
   };
-  const pagePlans = contract.pageContracts.map(toPageLocationPlan);
+  // Page 0 (cover) FIRST → resolvePageLocationPlan(bundle, 0) returns the contract's cover authority instead of the
+  // legacy "home-night" synthesis. Real pages follow, unchanged.
+  const pagePlans = [coverPageLocationPlan(contract), ...contract.pageContracts.map(toPageLocationPlan)];
   return { bible, pagePlans };
 }
 

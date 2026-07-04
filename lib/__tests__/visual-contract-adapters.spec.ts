@@ -12,7 +12,12 @@ import {
   isVisualContractSteeringEnabled,
   type BookVisualContract,
 } from '@/lib/visual-contract-compiler';
-import { buildLocationContinuityPromptBlock } from '@/lib/story-location-bible';
+import {
+  buildLocationContinuityPromptBlock,
+  resolvePageLocationPlan,
+  isStoryLocationPlanValid,
+} from '@/lib/story-location-bible';
+import { buildSetTopologyLockBlock, promptContainsSetTopologyLock } from '@/lib/story-location-bible/set-topology';
 import { detectExpectedCharactersForPage } from '@/lib/generation-pipeline/anchor-registry';
 import { assembleStyle01Phase2Prompt } from '@/lib/style01-prompt-assembly';
 
@@ -101,9 +106,9 @@ describe('contractToLocationPlanBundle', () => {
     expect(b.bible.allowedZones[0].allowedCameraAccess).toEqual(['wide']); // from zone.shot
     expect(b.bible.fixedAnchors.map((a) => a.id)).toEqual(['reception_desk']);
     expect(b.bible.fixedAnchors[0].mustRemainSameAcrossPages).toBe(true);
-    // pagePlans
-    expect(b.pagePlans.map((p) => p.page)).toEqual([1, 2, 3, 4]);
-    const p1 = b.pagePlans[0];
+    // pagePlans — page 0 (cover) is projected first, then the real pages
+    expect(b.pagePlans.map((p) => p.page)).toEqual([0, 1, 2, 3, 4]);
+    const p1 = b.pagePlans.find((p) => p.page === 1)!;
     expect(p1.zoneId).toBe('clinic.waiting_room');
     expect(p1.visibleAnchors).toEqual(['waiting room chairs']); // mustShow
     expect(p1.forbiddenDrift).toEqual(['exam table']); // mustNotShow
@@ -130,6 +135,77 @@ describe('contractToLocationPlanBundle', () => {
     expect(block).toContain('waiting room chairs'); // visibleAnchors (mustShow)
     expect(block).toContain('camera position hint: wide establishing'); // cameraPositionHint (camera)
     expect(block).toContain('exam table'); // forbidden drift (mustNotShow)
+  });
+
+  it('(A2a) projects transitionRules from non-steady page transitions → reaches the live TRANSITION RULES block', () => {
+    const b = contractToLocationPlanBundle(clinic);
+    expect(b.bible.transitionRules).toEqual([
+      'p2: before_transition clinic.waiting_room → clinic.exam_room (the nurse calls their name)',
+      'p3: threshold clinic.waiting_room → clinic.exam_room (the exam-room door opens)',
+      'p4: after_transition clinic.waiting_room → clinic.exam_room (they step inside)',
+    ]);
+    // reaches the LIVE prompt builder (buildLocationContinuityPromptBlock via buildResolvedLocationEnvironmentBlock)
+    const plan = resolvePageLocationPlan(b, 3)!;
+    const promptBlock = buildLocationContinuityPromptBlock(b.bible, plan);
+    expect(promptBlock).toContain('TRANSITION RULES:');
+    expect(promptBlock).toContain('the exam-room door opens');
+  });
+
+  it('(A2a) projects stableGeometry + a SET TOPOLOGY LOCK the REAL consumer re-emits (buildSetTopologyLockBlock)', () => {
+    const b = contractToLocationPlanBundle(clinic);
+    // per-zone stableGeometry seeded from the single location's topology
+    expect(b.bible.allowedZones[0].stableGeometry).toEqual([
+      'waiting room adjoins the exam room through a single door',
+    ]);
+    // the direct consumer now re-emits the lock (was lost entirely when the adapter left setTopology unset)
+    const topoBlock = buildSetTopologyLockBlock(b.bible);
+    expect(topoBlock).not.toBeNull();
+    expect(promptContainsSetTopologyLock(topoBlock!)).toBe(true);
+    expect(topoBlock!).toContain('reception_desk'); // location anchor → element
+    expect(topoBlock!).toContain('waiting room adjoins the exam room'); // topology → layout element
+  });
+
+  it('(A2a) emits a page-0 cover plan from coverContract → resolvePageLocationPlan(0) has NO home-night leak', () => {
+    const b = contractToLocationPlanBundle(clinic);
+    const cover = resolvePageLocationPlan(b, 0)!;
+    expect(cover.page).toBe(0);
+    expect(cover.zoneId).toBe('clinic.waiting_room'); // first zone of the cover location → stays in allowedZones
+    expect(cover.visibleAnchors).toEqual(['child', 'clinic entrance']); // coverContract.mustShow
+    expect(cover.forbiddenDrift).toEqual(['exam instruments']); // coverContract.mustNotShow
+    expect(cover.visibleAnchors.join(' ')).not.toContain('home-night'); // legacy synthesis bypassed
+    expect(isStoryLocationPlanValid(b)).toBe(true); // the added page-0 plan keeps the bundle valid
+  });
+
+  it('(A2a) multi-location primarySetting spans all locations (journey → arrows), not just the first', () => {
+    const twoLoc: BookVisualContract = {
+      ...clinic,
+      locations: [
+        clinic.locations[0],
+        { id: 'home', name: 'Home', description: 'the family home', environmentClass: 'indoor' },
+      ],
+    };
+    const b = contractToLocationPlanBundle(twoLoc);
+    expect(b.bible.primarySetting).toBe('Village clinic → Home'); // was 'Village clinic' (dropped the rest)
+  });
+
+  it('(A2a) neutral fallback: single-location, no topology/anchors, all-steady → all empty, fabricates nothing', () => {
+    const bare: BookVisualContract = {
+      ...clinic,
+      locations: [{ id: 'room', name: 'Room', description: 'a plain room' }], // no anchors, no topology
+      zones: [{ id: 'room.main', locationId: 'room', name: 'Main', description: 'the room' }],
+      coverContract: { worldType: 'realistic', locationId: 'room', mustShow: [], mustNotShow: [] },
+      pageContracts: [
+        { pageNumber: 1, locationId: 'room', zoneId: 'room.main', mustShow: [], mustNotShow: [], characterPresence: { child: true, companion: false }, propState: [], camera: 'wide', castIds: ['child:hero'], transition: { kind: 'steady' } },
+      ],
+    };
+    const b = contractToLocationPlanBundle(bare);
+    expect(b.bible.transitionRules).toEqual([]); // all steady
+    expect(b.bible.allowedZones[0].stableGeometry).toEqual([]); // no topology
+    expect(b.bible.setTopology).toBeUndefined(); // no anchors/topology → no fabricated lock
+    expect(buildSetTopologyLockBlock(b.bible)).toBeNull();
+    const cover = resolvePageLocationPlan(b, 0)!;
+    expect(cover.visibleAnchors).toEqual([]); // empty coverContract → empty, never a home-night default
+    expect(cover.visibleAnchors.join(' ')).not.toContain('home-night');
   });
 });
 
