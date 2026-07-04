@@ -187,18 +187,60 @@ describe('contractToLocationPlanBundle', () => {
     expect(block).toContain('clinic.exam_room');
   });
 
-  it('(A2a) projects stableGeometry + a SET TOPOLOGY LOCK the REAL consumer re-emits (buildSetTopologyLockBlock)', () => {
+  it('(A2a/P1-2) projects per-zone stableGeometry from the location topology, but a MULTI-zone one-location story gets NO single-room lock', () => {
     const b = contractToLocationPlanBundle(clinic);
-    // per-zone stableGeometry seeded from the single location's topology
+    // per-zone stableGeometry is still seeded from the location topology, but it is UNCONSUMED by the prompt — it IS
+    // the leaky adjacency, so P1-2 relies on zone.description for geometry rather than emitting this.
     expect(b.bible.allowedZones[0].stableGeometry).toEqual([
       'waiting room adjoins the exam room through a single door',
     ]);
-    // the direct consumer now re-emits the lock (was lost entirely when the adapter left setTopology unset)
+    // (P1-2) the clinic is ONE location but MULTI-zone (waiting/exam) → NO "same room every page" lock.
+    expect(b.bible.setTopology).toBeUndefined();
+    expect(buildSetTopologyLockBlock(b.bible)).toBeNull();
+  });
+
+  // (P1-2) The single-room lock fires ONLY for a genuine one-room story; multi-zone stories are free of the
+  // "adjoins the exam room" adjacency + "no unlisted props" ban. Validated on the multi-zone clinic + a 1-loc/1-zone story.
+  it('(P1-2) multi-zone: the waiting page ENTIRE block is free of exam-room adjacency/contents (P1-1+P1-2 close the leak)', () => {
+    const b = contractToLocationPlanBundle(clinic);
+    const waiting = buildLocationContinuityPromptBlock(b.bible, resolvePageLocationPlan(b, 1)!);
+    expect(waiting).not.toContain('SET TOPOLOGY LOCK');
+    expect(waiting).not.toContain('same room every page');
+    expect(waiting).not.toContain('Do not add furniture or props not listed here');
+    expect(waiting).not.toContain('adjoins the exam room');                    // the exact adjacency leak — gone
+    expect(waiting).not.toMatch(/exam[_ ]?room/i);                             // block-level end-state: NO exam-room text
+    expect(waiting).not.toContain('exam table, a small sink, a growth chart'); // no destination contents shown
+    expect(waiting).toContain('chairs, a low table, picture books');           // waiting geometry (zone.description)
+  });
+
+  it('(P1-2) multi-zone: the exam page carries its OWN geometry and does NOT forbid exam furniture', () => {
+    const b = contractToLocationPlanBundle(clinic);
+    const exam = buildLocationContinuityPromptBlock(b.bible, resolvePageLocationPlan(b, 4)!);
+    expect(exam).toContain('exam table, a small sink, a growth chart');          // exam-zone geometry (zone.description)
+    expect(exam).not.toContain('Do not add furniture or props not listed here'); // no props ban
+    expect(exam).not.toContain('SET TOPOLOGY LOCK');
+  });
+
+  it('(P1-2) a true one-location/one-zone story STILL gets the SET TOPOLOGY LOCK (no regression)', () => {
+    const oneRoom = {
+      version: 1,
+      storyKey: 'one_room',
+      worldType: 'bedroom',
+      locations: [{ id: 'room', name: 'Bedroom', description: 'a cozy bedroom', environmentClass: 'indoor', anchors: [{ id: 'bed', description: 'a small wooden bed by the window' }], topology: 'bed under the window, toy chest by the door' }],
+      zones: [{ id: 'room.main', locationId: 'room', name: 'Main', description: 'the bedroom' }],
+      cast: { child: { id: 'child:hero', role: 'child', name: 'Dana', wardrobe: { description: 'pajamas' } } },
+      recurringProps: [],
+      forbiddenGlobalElements: [],
+      coverContract: { worldType: 'bedroom', locationId: 'room', mustShow: [], mustNotShow: [] },
+      pageContracts: [
+        { pageNumber: 1, locationId: 'room', zoneId: 'room.main', mustShow: ['the child'], mustNotShow: [], characterPresence: { child: true, companion: false }, propState: [], camera: 'wide', castIds: ['child:hero'], transition: { kind: 'steady' } },
+      ],
+    } as unknown as BookVisualContract;
+    const b = contractToLocationPlanBundle(oneRoom);
     const topoBlock = buildSetTopologyLockBlock(b.bible);
     expect(topoBlock).not.toBeNull();
     expect(promptContainsSetTopologyLock(topoBlock!)).toBe(true);
-    expect(topoBlock!).toContain('reception_desk'); // location anchor → element
-    expect(topoBlock!).toContain('waiting room adjoins the exam room'); // topology → layout element
+    expect(topoBlock!).toContain('bed under the window'); // location topology → layout element
   });
 
   it('(A2a) emits a page-0 cover plan from coverContract → resolvePageLocationPlan(0) has NO home-night leak', () => {

@@ -101,12 +101,15 @@ function topologyByLocation(contract: BookVisualContract): Map<string, string> {
 }
 
 /**
- * Project the single-room SET TOPOLOGY LOCK geometry — ONLY for a one-location book (the lock means "same room
- * every page"). Elements come from the location's anchors, plus its freeform topology as a `layout` element.
- * Neutral (undefined) when the location has neither → fabricate nothing (matches the adapter's unknown→neutral rule).
+ * Project the single-room SET TOPOLOGY LOCK geometry — ONLY for a genuine ONE-ROOM book: exactly one location AND
+ * exactly one zone (the lock means "same room every page" + "no unlisted props"). (WS0b P1-2) A one-location but
+ * MULTI-zone story (e.g. waiting_room → exam_room) must NOT get it: "same room" contradicts the zone change and "no
+ * unlisted props" would ban the destination zone's furniture. Multi-zone per-page geometry rides on the zone's own
+ * `description` instead. Elements come from the location's anchors + its freeform topology as a `layout` element.
+ * Neutral (undefined) when the room has neither → fabricate nothing (matches the adapter's unknown→neutral rule).
  */
 function setTopologyOf(contract: BookVisualContract): SetTopology | undefined {
-  if (contract.locations.length !== 1) return undefined;
+  if (contract.locations.length !== 1 || contract.zones.length !== 1) return undefined;
   const loc = contract.locations[0];
   const elements: SetTopologyElement[] = (loc.anchors ?? []).map((a) => ({ id: a.id, placement: a.description }));
   if (loc.topology?.trim()) elements.push({ id: 'layout', placement: loc.topology.trim() });
