@@ -30,7 +30,7 @@ import {
 import { deriveResolvedFamilyAppearanceProfile } from '@/lib/generation-pipeline/resolve-family-appearance';
 import type { PipelineCache } from '@/lib/generation-pipeline/types';
 
-const FAMILY: ResolvedFamilyAppearanceProfile = { skinTone: 'warm medium-brown', hairColour: 'wavy dark brown' };
+const FAMILY: ResolvedFamilyAppearanceProfile = { skinTone: 'warm medium-brown', hairColour: 'dark brown', hairTexture: 'wavy' };
 
 function template(): BookVisualContractTemplate {
   return JSON.parse(JSON.stringify({
@@ -53,8 +53,8 @@ function template(): BookVisualContractTemplate {
       { pageNumber: 2, locationId: 'clinic', zoneId: 'clinic.exam', mustShow: ['x'], mustNotShow: [], characterPresence: { child: true, companion: false }, propState: [], camera: 'wide', castIds: ['child:hero', 'human:doctor'], transition: { kind: 'after_transition', fromZoneId: 'clinic.waiting', toZoneId: 'clinic.exam', cue: 'in' } },
     ],
     humanCast: [
-      { id: 'human:mother', role: 'mother', gender: 'female', aliases: ['אמא'], textEvidence: 'p1 אמא', pagesPresent: [1], forbiddenAppearance: [], appearance: { skinTone: { mode: 'family_profile', origin: { kind: 'family_profile' } }, hairColour: { mode: 'family_profile', origin: { kind: 'family_profile' } }, hairStyle: { mode: 'explicit', value: 'medium-length wavy, loose, side part', origin: { kind: 'story_evidence', page: 1, phrase: 'p1' } } }, garments: [{ id: 'cardigan', colour: { mode: 'explicit', value: 'sage-green', origin: { kind: 'story_evidence', page: 1, phrase: 'p1' } } }] },
-      { id: 'human:doctor', role: 'doctor', gender: 'male', aliases: ['הרופא'], textEvidence: 'p2 הרופא', pagesPresent: [2], forbiddenAppearance: [], appearance: { skinTone: { mode: 'deterministic_palette', origin: { kind: 'deterministic_palette', paletteId: 'd', version: PALETTE_VERSION } }, hairColour: { mode: 'deterministic_palette', origin: { kind: 'deterministic_palette', paletteId: 'd', version: PALETTE_VERSION } }, hairStyle: { mode: 'explicit', value: 'short combed, side part', origin: { kind: 'policy_default', policyId: 'h', version: 'v1' } } }, garments: [{ id: 'coat', colour: { mode: 'explicit', value: 'white', origin: { kind: 'policy_default', policyId: 'c', version: 'v1' } } }] },
+      { id: 'human:mother', role: 'mother', gender: 'female', aliases: ['אמא'], textEvidence: 'p1 אמא', pagesPresent: [1], forbiddenAppearance: [], appearance: { skinTone: { mode: 'family_profile', origin: { kind: 'family_profile' } }, hairColour: { mode: 'family_profile', origin: { kind: 'family_profile' } }, hairTexture: { mode: 'family_profile', origin: { kind: 'family_profile' } }, hairStyle: { mode: 'explicit', value: 'medium-length, loose, side part', origin: { kind: 'story_evidence', page: 1, phrase: 'p1' } } }, garments: [{ id: 'cardigan', colour: { mode: 'explicit', value: 'sage-green', origin: { kind: 'story_evidence', page: 1, phrase: 'p1' } } }] },
+      { id: 'human:doctor', role: 'doctor', gender: 'male', aliases: ['הרופא'], textEvidence: 'p2 הרופא', pagesPresent: [2], forbiddenAppearance: [], appearance: { skinTone: { mode: 'deterministic_palette', origin: { kind: 'deterministic_palette', paletteId: 'd', version: PALETTE_VERSION } }, hairColour: { mode: 'deterministic_palette', origin: { kind: 'deterministic_palette', paletteId: 'd', version: PALETTE_VERSION } }, hairTexture: { mode: 'deterministic_palette', origin: { kind: 'deterministic_palette', paletteId: 'd', version: PALETTE_VERSION } }, hairStyle: { mode: 'explicit', value: 'short combed, side part', origin: { kind: 'policy_default', policyId: 'h', version: 'v1' } } }, garments: [{ id: 'coat', colour: { mode: 'explicit', value: 'white', origin: { kind: 'policy_default', policyId: 'c', version: 'v1' } } }] },
     ],
   })) as BookVisualContractTemplate;
 }
@@ -91,20 +91,43 @@ describe('P0 commit 3 — Template loader (fail-closed)', () => {
   });
 });
 
-describe('P0 commit 3 — family adapter (wrap; exclude derivedAt; fail-closed on missing input)', () => {
+describe('P0 commit 3 + Fix 2 — family adapter (wrap; positive evidence; exclude derivedAt; fail-closed)', () => {
   const order = { characterAnchors: null, familyContext: null } as Pick<Order, 'characterAnchors' | 'familyContext'>;
 
-  it('derives concrete skin/hair from the child DNA — with NO derivedAt/metadata', () => {
+  it('derives concrete skin + hair colour + hair TEXTURE from the child DNA — with NO derivedAt/metadata', () => {
     const cache = { childPhotoDescription: null, dna: { childStructured: { face: 'deep brown skin', hair: 'dark brown curly hair' } } } as unknown as Pick<PipelineCache, 'childPhotoDescription' | 'dna'>;
     const profile = deriveResolvedFamilyAppearanceProfile(order, cache);
     expect(profile.skinTone.trim().length).toBeGreaterThan(0);
     expect(profile.hairColour.trim().length).toBeGreaterThan(0);
-    expect(Object.keys(profile).sort()).toEqual(['hairColour', 'skinTone']); // no derivedAt / extra metadata
+    expect(profile.hairTexture.trim().length).toBeGreaterThan(0);
+    // colour and texture are ORTHOGONAL now (Fix 2) + no derivedAt / extra metadata
+    expect(Object.keys(profile).sort()).toEqual(['hairColour', 'hairTexture', 'skinTone']);
   });
 
-  it('FAILS closed when there is no family appearance input (no silent light-neutral default)', () => {
+  it('(Fix 2) FAILS closed when there is no family appearance input at all (no silent light-neutral default)', () => {
     const empty = { childPhotoDescription: null, dna: null } as unknown as Pick<PipelineCache, 'childPhotoDescription' | 'dna'>;
-    expect(() => deriveResolvedFamilyAppearanceProfile(order, empty)).toThrow(/no family appearance input/);
+    expect(() => deriveResolvedFamilyAppearanceProfile(order, empty)).toThrow(/DEFAULTED|no positive evidence/);
+  });
+
+  it('(Fix 2) {face:"round face"} has structure but NO skin/hair evidence → FAILS (the silent-default back door is shut)', () => {
+    const cache = { childPhotoDescription: null, dna: { childStructured: { face: 'round face' } } } as unknown as Pick<PipelineCache, 'childPhotoDescription' | 'dna'>;
+    expect(() => deriveResolvedFamilyAppearanceProfile(order, cache)).toThrow(/DEFAULTED|no positive evidence/);
+  });
+
+  it('(Fix 2) explicit skin + hair (colour + texture) evidence → resolves concretely', () => {
+    const cache = { childPhotoDescription: null, dna: { childStructured: { face: 'warm tan skin', hair: 'black hair, straight' } } } as unknown as Pick<PipelineCache, 'childPhotoDescription' | 'dna'>;
+    const profile = deriveResolvedFamilyAppearanceProfile(order, cache);
+    expect(profile.skinTone.trim().length).toBeGreaterThan(0);
+    expect(profile.hairColour.trim().length).toBeGreaterThan(0);
+    expect(profile.hairTexture.trim().length).toBeGreaterThan(0);
+  });
+
+  it('(Fix 2) a legit LIGHT child WITH explicit evidence → resolves (NOT falsely rejected)', () => {
+    const cache = { childPhotoDescription: 'light skin, blonde straight hair', dna: null } as unknown as Pick<PipelineCache, 'childPhotoDescription' | 'dna'>;
+    const profile = deriveResolvedFamilyAppearanceProfile(order, cache);
+    expect(profile.skinTone.trim().length).toBeGreaterThan(0);
+    expect(profile.hairColour.trim().length).toBeGreaterThan(0);
+    expect(profile.hairTexture.trim().length).toBeGreaterThan(0);
   });
 });
 

@@ -21,7 +21,7 @@ import {
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
-const FAMILY: ResolvedFamilyAppearanceProfile = { skinTone: 'warm medium-brown', hairColour: 'dark brown', hairStyle: 'medium-length wavy' };
+const FAMILY: ResolvedFamilyAppearanceProfile = { skinTone: 'warm medium-brown', hairColour: 'dark brown', hairTexture: 'wavy' };
 
 function template(): BookVisualContractTemplate {
   return clone({
@@ -49,7 +49,8 @@ function template(): BookVisualContractTemplate {
         appearance: {
           skinTone: { mode: 'family_profile', origin: { kind: 'family_profile' } },
           hairColour: { mode: 'family_profile', origin: { kind: 'family_profile' } },
-          hairStyle: { mode: 'explicit', value: 'medium-length softly wavy, loose, side part', origin: { kind: 'story_evidence', page: 1, phrase: 'p1 hair' } },
+          hairTexture: { mode: 'family_profile', origin: { kind: 'family_profile' } },
+          hairStyle: { mode: 'explicit', value: 'medium-length, loose, side part', origin: { kind: 'story_evidence', page: 1, phrase: 'p1 hair' } },
         },
         garments: [{ id: 'cardigan', colour: { mode: 'explicit', value: 'sage-green', origin: { kind: 'story_evidence', page: 1, phrase: 'sage-green cardigan' } } }],
       },
@@ -58,6 +59,7 @@ function template(): BookVisualContractTemplate {
         appearance: {
           skinTone: { mode: 'deterministic_palette', origin: { kind: 'deterministic_palette', paletteId: 'doctor', version: PALETTE_VERSION } },
           hairColour: { mode: 'deterministic_palette', origin: { kind: 'deterministic_palette', paletteId: 'doctor', version: PALETTE_VERSION } },
+          hairTexture: { mode: 'deterministic_palette', origin: { kind: 'deterministic_palette', paletteId: 'doctor', version: PALETTE_VERSION } },
           hairStyle: { mode: 'explicit', value: 'short neatly combed, side part', origin: { kind: 'policy_default', policyId: 'doctor-hair', version: 'v1' } },
         },
         garments: [
@@ -78,12 +80,15 @@ describe('P0 materialize — resolution', () => {
     expect(mother.appearance.skinTone.value).toBe('warm medium-brown');
     expect(mother.appearance.hairColour.value).toBe('dark brown');
     // explicit → verbatim
-    expect(mother.appearance.hairStyle.value).toBe('medium-length softly wavy, loose, side part');
+    expect(mother.appearance.hairStyle.value).toBe('medium-length, loose, side part');
+    // family_profile → hair texture is now an orthogonal trait (split from colour)
+    expect(mother.appearance.hairTexture.value).toBe('wavy');
     expect(mother.garments[0].colour.value).toBe('sage-green');
-    // deterministic_palette → a coherent palette entry (skin + hair together)
+    // deterministic_palette → a coherent palette entry (skin + hair colour + hair texture together)
     const entry = paletteEntryFor(DEFAULT_APPEARANCE_PALETTE, 'clinic_visit', 'human:doctor');
     expect(doctor.appearance.skinTone.value).toBe(entry.skin);
-    expect(doctor.appearance.hairColour.value).toBe(entry.hair);
+    expect(doctor.appearance.hairColour.value).toBe(entry.hairColour);
+    expect(doctor.appearance.hairTexture.value).toBe(entry.hairTexture);
     // prose is a PROJECTION generated from the structured traits (no deferral text)
     expect(mother.coarseAppearance).toContain('warm medium-brown');
     expect(mother.coarseAppearance).not.toMatch(/deferred|family lock/i);

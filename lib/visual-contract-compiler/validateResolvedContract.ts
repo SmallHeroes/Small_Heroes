@@ -65,7 +65,7 @@ export function validateResolvedBookVisualContract(input: unknown): ResolvedVali
     if (!appearance) {
       errors.push(`${label}.appearance missing concrete skin/hair/style traits`);
     } else {
-      for (const trait of ['skinTone', 'hairColour', 'hairStyle'] as const) {
+      for (const trait of ['skinTone', 'hairColour', 'hairTexture', 'hairStyle'] as const) {
         if (!isConcreteTrait(appearance[trait])) {
           errors.push(`${label}.appearance.${trait} is not a concrete resolved value (still deferred/unresolved)`);
         }

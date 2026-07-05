@@ -33,7 +33,7 @@ export class MaterializationError extends Error {
   }
 }
 
-type HumanTrait = 'skinTone' | 'hairColour' | 'hairStyle';
+type HumanTrait = 'skinTone' | 'hairColour' | 'hairTexture' | 'hairStyle';
 
 function isStr(v: unknown): v is string {
   return typeof v === 'string' && v.trim().length > 0;
@@ -54,14 +54,23 @@ function resolveTrait(
       if (!isStr(binding.value)) throw new MaterializationError(`${label} explicit binding has no value`);
       return { value: binding.value, mode: 'explicit', origin: binding.origin };
     case 'family_profile': {
-      const v = trait === 'skinTone' ? family.skinTone : trait === 'hairColour' ? family.hairColour : family.hairStyle;
+      // Family provides skin tone + hair COLOUR + hair TEXTURE (ethnicity band); hair STYLE is a styling choice → explicit.
+      const v =
+        trait === 'skinTone' ? family.skinTone
+        : trait === 'hairColour' ? family.hairColour
+        : trait === 'hairTexture' ? family.hairTexture
+        : undefined;
       if (!isStr(v)) throw new MaterializationError(`${label} family_profile: the family profile provides no ${trait} (no silent default)`);
       return { value: v, mode: 'family_profile', origin: binding.origin };
     }
     case 'deterministic_palette': {
       const entry = paletteEntryFor(palette, storyKey, member.id);
-      const v = trait === 'skinTone' ? entry.skin : trait === 'hairColour' ? entry.hair : undefined;
-      if (!isStr(v)) throw new MaterializationError(`${label} deterministic_palette: the palette provides skin+hair only, not ${trait} (author hair style as explicit)`);
+      const v =
+        trait === 'skinTone' ? entry.skin
+        : trait === 'hairColour' ? entry.hairColour
+        : trait === 'hairTexture' ? entry.hairTexture
+        : undefined;
+      if (!isStr(v)) throw new MaterializationError(`${label} deterministic_palette: the palette provides skin + hair colour + hair texture only, not ${trait} (author hair style as explicit)`);
       return { value: v, mode: 'deterministic_palette', origin: binding.origin };
     }
     default:
@@ -96,7 +105,7 @@ function projectCoarseAppearance(m: ResolvedHumanCastMember): string {
   const a = m.appearance;
   return (
     `${genderPrefix(m.gender)}${m.role}; ${a.skinTone.value} skin tone; ` +
-    `${a.hairStyle.value}, ${a.hairColour.value} hair — the SAME appearance on every page`
+    `${a.hairStyle.value}, ${a.hairTexture.value} ${a.hairColour.value} hair — the SAME appearance on every page`
   );
 }
 
@@ -116,6 +125,7 @@ function resolveMember(
   const appearance = {
     skinTone: resolveTrait(m, 'skinTone', m.appearance.skinTone, storyKey, family, palette),
     hairColour: resolveTrait(m, 'hairColour', m.appearance.hairColour, storyKey, family, palette),
+    hairTexture: resolveTrait(m, 'hairTexture', m.appearance.hairTexture, storyKey, family, palette),
     hairStyle: resolveTrait(m, 'hairStyle', m.appearance.hairStyle, storyKey, family, palette),
   };
   const garments = m.garments.map((g, i) => resolveGarment(m, g, i));

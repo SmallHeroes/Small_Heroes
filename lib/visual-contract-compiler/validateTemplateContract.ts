@@ -157,7 +157,7 @@ export function validateBookVisualContractTemplate(input: unknown): TemplateVali
     if (!appearance) {
       errors.push(`${label}.appearance missing (structured skinTone/hairColour/hairStyle bindings)`);
     } else {
-      for (const trait of ['skinTone', 'hairColour', 'hairStyle'] as const) {
+      for (const trait of ['skinTone', 'hairColour', 'hairTexture', 'hairStyle'] as const) {
         if (appearance[trait] === undefined) errors.push(`${label}.appearance.${trait} missing`);
         else validateBinding(`${label}.appearance.${trait}`, role, appearance[trait], errors);
       }

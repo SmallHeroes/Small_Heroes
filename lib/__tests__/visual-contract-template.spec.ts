@@ -66,7 +66,8 @@ function templateFixture(): Obj {
         appearance: {
           skinTone: { mode: 'family_profile', origin: { kind: 'family_profile' } },
           hairColour: { mode: 'family_profile', origin: { kind: 'family_profile' } },
-          hairStyle: { mode: 'explicit', value: 'medium-length softly wavy, loose, side part', origin: { kind: 'story_evidence', page: 1, phrase: 'page-1 canonical hair' } },
+          hairTexture: { mode: 'family_profile', origin: { kind: 'family_profile' } },
+          hairStyle: { mode: 'explicit', value: 'medium-length, loose, side part', origin: { kind: 'story_evidence', page: 1, phrase: 'page-1 canonical hair' } },
         },
         garments: [
           { id: 'cardigan', label: 'cardigan', colour: { mode: 'explicit', value: 'sage-green', origin: { kind: 'story_evidence', page: 1, phrase: 'sage-green cardigan on page 1' } } },
@@ -77,6 +78,7 @@ function templateFixture(): Obj {
         appearance: {
           skinTone: { mode: 'deterministic_palette', origin: { kind: 'deterministic_palette', paletteId: 'clinic-doctor', version: PALETTE_VERSION } },
           hairColour: { mode: 'deterministic_palette', origin: { kind: 'deterministic_palette', paletteId: 'clinic-doctor', version: PALETTE_VERSION } },
+          hairTexture: { mode: 'deterministic_palette', origin: { kind: 'deterministic_palette', paletteId: 'clinic-doctor', version: PALETTE_VERSION } },
           hairStyle: { mode: 'explicit', value: 'short neatly combed, side part', origin: { kind: 'policy_default', policyId: 'doctor-hair', version: 'v1' } },
         },
         garments: [
@@ -106,7 +108,8 @@ function resolvedFixture(): Obj {
         appearance: {
           skinTone: { value: 'warm medium-brown', mode: 'family_profile', origin: { kind: 'family_profile' } },
           hairColour: { value: 'dark brown', mode: 'family_profile', origin: { kind: 'family_profile' } },
-          hairStyle: { value: 'medium-length softly wavy, loose, side part', mode: 'explicit', origin: { kind: 'story_evidence', page: 1, phrase: 'page-1 canonical hair' } },
+          hairTexture: { value: 'wavy', mode: 'family_profile', origin: { kind: 'family_profile' } },
+          hairStyle: { value: 'medium-length, loose, side part', mode: 'explicit', origin: { kind: 'story_evidence', page: 1, phrase: 'page-1 canonical hair' } },
         },
         garments: [{ id: 'cardigan', colour: { value: 'sage-green', mode: 'explicit', origin: { kind: 'story_evidence', page: 1, phrase: 'sage-green cardigan on page 1' } } }],
       },
@@ -119,6 +122,7 @@ function resolvedFixture(): Obj {
         appearance: {
           skinTone: { value: 'light-tan', mode: 'deterministic_palette', origin: { kind: 'deterministic_palette', paletteId: 'clinic-doctor', version: PALETTE_VERSION } },
           hairColour: { value: 'black', mode: 'deterministic_palette', origin: { kind: 'deterministic_palette', paletteId: 'clinic-doctor', version: PALETTE_VERSION } },
+          hairTexture: { value: 'straight', mode: 'deterministic_palette', origin: { kind: 'deterministic_palette', paletteId: 'clinic-doctor', version: PALETTE_VERSION } },
           hairStyle: { value: 'short neatly combed, side part', mode: 'explicit', origin: { kind: 'policy_default', policyId: 'doctor-hair', version: 'v1' } },
         },
         garments: [

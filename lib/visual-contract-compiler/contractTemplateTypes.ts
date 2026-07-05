@@ -73,7 +73,11 @@ export interface Garment<B> {
 
 export interface HumanAppearanceTraits<B> {
   skinTone: B;
+  /** Hair COLOUR only (orthogonal to texture + style, so the deterministic prose projection is checkable). */
   hairColour: B;
+  /** Hair TEXTURE only (curly/wavy/straight/coily…) — ethnicity-adjacent, so typically `family_profile`/palette. */
+  hairTexture: B;
+  /** Hair STYLE only (length/parting/how it's worn) — a styling choice, typically `explicit`. */
   hairStyle: B;
 }
 
@@ -99,7 +103,7 @@ export interface TemplateHumanCastMember {
 export interface ResolvedFamilyAppearanceProfile {
   skinTone: string;
   hairColour: string;
-  hairStyle?: string;
+  hairTexture: string;
 }
 
 /** A recurring human in a RESOLVED contract — concrete structured traits (authoritative) + projected vNext prose. */

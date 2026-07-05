@@ -15,8 +15,10 @@ import { PALETTE_VERSION, VISUAL_CONTRACT_SCHEMA_VERSION } from './contractTempl
 export interface PaletteEntry {
   /** Concrete skin-tone descriptor. */
   skin: string;
-  /** Concrete hair descriptor (colour + natural texture) — style (length/parting) stays an `explicit` trait. */
-  hair: string;
+  /** Concrete hair COLOUR only (orthogonal from texture/style so projection-equality is checkable). */
+  hairColour: string;
+  /** Concrete hair TEXTURE only. */
+  hairTexture: string;
 }
 
 export interface AppearancePalette {
@@ -24,20 +26,20 @@ export interface AppearancePalette {
   entries: readonly PaletteEntry[];
 }
 
-/** Curated coherent {skin, hair} pairs spanning a fair range (mixed pairings allowed — coherence, not typecasting). */
+/** Curated coherent {skin, hairColour, hairTexture} entries spanning a fair range (mixed pairings allowed). */
 export const DEFAULT_APPEARANCE_PALETTE: AppearancePalette = {
   version: PALETTE_VERSION,
   entries: [
-    { skin: 'fair rosy', hair: 'light golden-blonde, straight' },
-    { skin: 'light warm', hair: 'light brown, wavy' },
-    { skin: 'light olive', hair: 'dark brown, straight' },
-    { skin: 'warm beige', hair: 'medium brown, wavy' },
-    { skin: 'warm tan', hair: 'dark brown, curly' },
-    { skin: 'golden tan', hair: 'black, straight' },
-    { skin: 'warm medium-brown', hair: 'dark brown, coily' },
-    { skin: 'rich brown', hair: 'black, curly' },
-    { skin: 'deep brown', hair: 'black, coily' },
-    { skin: 'deep espresso', hair: 'black, tight coils' },
+    { skin: 'fair rosy', hairColour: 'light golden-blonde', hairTexture: 'straight' },
+    { skin: 'light warm', hairColour: 'light brown', hairTexture: 'wavy' },
+    { skin: 'light olive', hairColour: 'dark brown', hairTexture: 'straight' },
+    { skin: 'warm beige', hairColour: 'medium brown', hairTexture: 'wavy' },
+    { skin: 'warm tan', hairColour: 'dark brown', hairTexture: 'curly' },
+    { skin: 'golden tan', hairColour: 'black', hairTexture: 'straight' },
+    { skin: 'warm medium-brown', hairColour: 'dark brown', hairTexture: 'coily' },
+    { skin: 'rich brown', hairColour: 'black', hairTexture: 'curly' },
+    { skin: 'deep brown', hairColour: 'black', hairTexture: 'coily' },
+    { skin: 'deep espresso', hairColour: 'black', hairTexture: 'tight coils' },
   ],
 } as const;
 
