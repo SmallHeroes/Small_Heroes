@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { canAccessStagingQa } from '@/lib/runtime-env';
 import { assertEnvSeparation } from '@/lib/generation-chunked/env-separation-guard';
+import {
+  isVisualContractFreezeEnabled,
+  isVisualContractSteeringEnabled,
+} from '@/lib/visual-contract-compiler';
 
 /**
  * #7-b step 3 — HASH-PROOF (LOAD-BEARING). Proves the durable quality evidence binds the verdict to the EXACT
@@ -43,6 +47,9 @@ const MAX_DRIVE_INVOCATIONS = Number(process.env.HASH_PROOF_MAX_INVOCATIONS ?? '
 //     contract actually freezes; the fixture must be a bunny_ometz_adventure bank order so its artifact exists).
 const RUN_RECEIPT = process.env.RUN_CONTRACT_RECEIPT_PROOF === 'true' && canAccessStagingQa();
 const RUN_B1 = RUN && process.env.VISUAL_CONTRACT_FREEZE === 'true';
+// (WS1) Steering calibration — render cover + pages 1-5 with freeze+enforcement+steering ON and confirm the
+// contract steers (non-nature styleRefs, contract cover plan, male doctor). See the describe at the bottom.
+const RUN_CALIBRATION = process.env.RUN_STEERING_CALIBRATION === 'true' && canAccessStagingQa();
 
 /**
  * Reset the seeded fixture order so a render proof is idempotently RE-RUNNABLE without re-seeding. A prior drive
@@ -361,4 +368,167 @@ describe.skipIf(!RUN_B1)('(WS0c) B1 — a real render binds delivered bytes + QA
       else process.env.GENERATION_DISABLE_SELF_CHAIN = prevNoChain;
     }
   }, 1_800_000); // same budget as the bytes proof: a cold bunny fixture renders ~2 LOW images; a pre-rendered one is instant
+});
+
+/**
+ * (WS1) STEERING CALIBRATION — the activation checkpoint. Renders the bunny fixture's cover + pages 1-5
+ * (waiting→exam, so the leak/doctor/mom/bunny are all in-frame) at LOW with FREEZE + ENFORCEMENT + STEERING all ON,
+ * PRINTS the delivered image URLs for Guy to eyeball, and CONFIRMS the frozen contract actually steers the render:
+ *   - structural (persisted QualityEvidence.evidence.contractObservability): every page routed the clinic location;
+ *     page 4 casts the contract's human:doctor + human:mother; page 1 casts human:mother.
+ *   - leak fix (captured [style01_refs] logs, pages 1-5): NO nature styleRefs (indoor→cozy-interior, not the
+ *     outdoor-magical night-mountains/stream-rocks the steering-OFF regex baseline produced).
+ *   - cover plan (captured cover prompt): no legacy COVER_MYSTERY_LOCK (the contract cover plan drives it).
+ *   - doctor (captured page-4 prompt): a SUPPORTING CHARACTER LOCK for the male doctor.
+ *
+ * NOTE: with steering ON the LOGGED `sceneClass` stays regex-derived (`outdoor-nature`) — only the styleRef SELECTION
+ * is contract-routed ("locks-first, regex-last"). ENFORCEMENT here is only the B3 unlock for steering (the blocking
+ * gate isn't wired yet). Staging-only (RUN gate + assertEnvSeparation + flags hard-off on prod). Never touches prod.
+ *
+ *   VERCEL_ENV=preview ALLOW_STAGING_QA=true RUN_STEERING_CALIBRATION=true \
+ *     VISUAL_CONTRACT_FREEZE=true VISUAL_CONTRACT_ENFORCEMENT=true VISUAL_CONTRACT_STEERING=true \
+ *     READINESS_MANIFEST_ENABLED=true IMAGE_PROVIDER=gpt-image GPT_IMAGE_QUALITY=low \
+ *     ALLOW_SINGLE_IMAGE_COMPANION_REF=true HASH_PROOF_ORDER_ID=<bunny order> \
+ *     DATABASE_URL='postgresql://...pooler...:6543/postgres?pgbouncer=true' OPENAI_API_KEY=sk-... \
+ *     SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
+ *     npx vitest run lib/generation-chunked/__tests__/quality-hash-proof.staging.spec.ts
+ */
+describe.skipIf(!RUN_CALIBRATION)('(WS1) steering calibration — cover + pages 1-5 with the contract driving the render', () => {
+  it('renders cover+pages 1-5 with steering ON; confirms non-nature styleRefs / contract cover / male doctor', async () => {
+    assertEnvSeparation();
+    expect(ORDER_ID, 'set HASH_PROOF_ORDER_ID to the seeded bunny_ometz_adventure fixture').not.toBe('');
+    // Hard-assert the activation flags are ON — NEVER run this steering-OFF (would reproduce the leak baseline).
+    expect(isVisualContractFreezeEnabled(), 'set VISUAL_CONTRACT_FREEZE=true').toBe(true);
+    expect(
+      isVisualContractSteeringEnabled(),
+      'set VISUAL_CONTRACT_ENFORCEMENT=true AND VISUAL_CONTRACT_STEERING=true (B3-coupled)',
+    ).toBe(true);
+
+    const PAGES = [1, 2, 3, 4, 5] as const;
+    const prevPageFilter = process.env.CHUNKED_IMAGE_PAGE_FILTER;
+    const prevNoChain = process.env.GENERATION_DISABLE_SELF_CHAIN;
+    process.env.CHUNKED_IMAGE_PAGE_FILTER = PAGES.join(',');
+    process.env.GENERATION_DISABLE_SELF_CHAIN = 'true';
+
+    // Capture the render's steering logs (record + pass through to stdout so Guy still sees them live).
+    const logs: string[] = [];
+    const originalLog = console.log;
+    console.log = ((...args: unknown[]) => {
+      logs.push(args.map((a) => (typeof a === 'string' ? a : String(a))).join(' '));
+      (originalLog as (...a: unknown[]) => void)(...args);
+    }) as typeof console.log;
+
+    try {
+      const { prisma } = await import('@/lib/prisma');
+      const { runGenerationWorkerInvocation } = await import('@/lib/generation-chunked/process-worker');
+      const { coverArtifactKey, pageArtifactKey } = await import('@/lib/generation-pipeline/quality-evidence');
+
+      // Fresh clean state so the render steers from scratch (the flags are read per worker invocation).
+      await resetFixtureForRerun(ORDER_ID);
+
+      const readDelivered = async () => {
+        const row = await prisma.order.findUnique({
+          where: { id: ORDER_ID },
+          select: {
+            visualContractHash: true,
+            book: {
+              select: {
+                coverImageUrl: true,
+                pages: {
+                  where: { pageNumber: { in: [...PAGES] } },
+                  orderBy: { pageNumber: 'asc' },
+                  select: { pageNumber: true, imageAsset: { select: { url: true, presentationUrl: true } } },
+                },
+              },
+            },
+          },
+        });
+        const cover = row?.book?.coverImageUrl?.trim() || null;
+        const pageUrls = new Map<number, string | null>();
+        for (const p of row?.book?.pages ?? []) {
+          pageUrls.set(p.pageNumber, (p.imageAsset?.presentationUrl ?? p.imageAsset?.url)?.trim() || null);
+        }
+        const done = Boolean(cover) && PAGES.every((n) => pageUrls.get(n));
+        return { orderHash: row?.visualContractHash ?? null, cover, pageUrls, done };
+      };
+
+      // Drive until cover + all target pages have delivered images (or the bound trips).
+      let st = await readDelivered();
+      for (let i = 0; i < MAX_DRIVE_INVOCATIONS && !st.done; i++) {
+        const res = await runGenerationWorkerInvocation(ORDER_ID);
+        if (res.error) throw new Error(`worker failed at stage=${res.stage ?? '?'}: ${res.error}`);
+        st = await readDelivered();
+      }
+
+      // ── PRINT the delivered URLs for Guy to eyeball ──
+      originalLog(`\n[WS1-CALIBRATION] order=${ORDER_ID} frozen=${st.orderHash ?? 'NONE'}`);
+      originalLog(`[WS1-CALIBRATION] cover: ${st.cover ?? '(missing)'}`);
+      for (const n of PAGES) originalLog(`[WS1-CALIBRATION] page ${n}: ${st.pageUrls.get(n) ?? '(missing)'}`);
+
+      // The contract must have frozen + all target images rendered.
+      expect(st.orderHash, 'Order.visualContractHash must be frozen (freeze flag ON + bank artifact)').toBeTruthy();
+      expect(st.cover, 'cover rendered').toBeTruthy();
+      for (const n of PAGES) expect(st.pageUrls.get(n), `page ${n} rendered`).toBeTruthy();
+
+      // ── Structural confirmation from persisted observability (the contract routed per page) ──
+      const evRows = await prisma.qualityEvidence.findMany({
+        where: { orderId: ORDER_ID, artifactKey: { in: [coverArtifactKey(), ...PAGES.map((n) => pageArtifactKey(n))] } },
+        select: { artifactKey: true, evidence: true },
+      });
+      const checkIdsByArtifact = new Map<string, string[]>();
+      for (const r of evRows) {
+        const obs = (r.evidence as unknown as { contractObservability?: { requiredCheckIds?: string[] } } | null)
+          ?.contractObservability;
+        const ids = obs?.requiredCheckIds ?? [];
+        checkIdsByArtifact.set(r.artifactKey, ids);
+        originalLog(`[WS1-CALIBRATION] ${r.artifactKey} requiredCheckIds=${JSON.stringify(ids)}`);
+      }
+      // Every rendered page projected the contract (observability present) + routed the clinic location.
+      for (const n of PAGES) {
+        const ids = checkIdsByArtifact.get(pageArtifactKey(n)) ?? [];
+        expect(ids.length, `page ${n} contractObservability present (steering projected the contract)`).toBeGreaterThan(0);
+        expect(
+          ids.some((id) => id.startsWith('location:clinic')),
+          `page ${n} routed the clinic location from the contract`,
+        ).toBe(true);
+      }
+      // Page 4 = the threshold: the contract's male doctor + mom are in-frame; page 1 has mom.
+      expect(checkIdsByArtifact.get(pageArtifactKey(4)) ?? [], 'page 4 casts the contract male doctor').toContain('cast:human:doctor');
+      expect(checkIdsByArtifact.get(pageArtifactKey(4)) ?? [], 'page 4 casts the contract mother').toContain('cast:human:mother');
+      expect(checkIdsByArtifact.get(pageArtifactKey(1)) ?? [], 'page 1 casts the contract mother').toContain('cast:human:mother');
+
+      // ── Leak-fix + cover + doctor confirmation from the captured render logs ──
+      // Scope the styleRef leak check to pages 1-5 (the cover is page 0 — its env-lock isn't contract-mapped).
+      const styleRefLines = logs.filter((l) => l.includes('[style01_refs]') && /\bpage=[1-5]\b/.test(l));
+      const natureLeak = styleRefLines.filter((l) => /style01-texture-(night-mountains|stream-rocks)/.test(l));
+      originalLog(`[WS1-CALIBRATION] page style-ref lines=${styleRefLines.length} nature-leak lines=${natureLeak.length}`);
+      for (const l of styleRefLines) originalLog(`  ${l.slice(l.indexOf('[style01_refs]'))}`);
+      expect(styleRefLines.length, 'saw [style01_refs] logs for pages 1-5').toBeGreaterThan(0);
+      expect(natureLeak.length, 'NO nature styleRefs with steering ON (indoor→cozy-interior, not outdoor-magical)').toBe(0);
+
+      const coverPromptLine = logs.find((l) => l.includes('[style01_phase2_prompt]') && /\bpage=0\b/.test(l));
+      const coverLockSuppressed = coverPromptLine
+        ? !coverPromptLine.includes('COVER_MYSTERY_LOCK') && !/inside the child.?s room near the night window/i.test(coverPromptLine)
+        : null;
+      if (coverPromptLine) {
+        expect(coverLockSuppressed, 'cover uses the contract cover plan (no legacy COVER_MYSTERY_LOCK)').toBe(true);
+      }
+      const p4PromptLine = logs.find((l) => l.includes('[style01_phase2_prompt]') && /\bpage=4\b/.test(l));
+      if (p4PromptLine) {
+        expect(/SUPPORTING CHARACTER LOCK/.test(p4PromptLine), 'page 4 injects the contract doctor supporting-character lock').toBe(true);
+        expect(/male doctor/i.test(p4PromptLine), 'page 4 doctor is male (the contract gender)').toBe(true);
+      }
+      originalLog(
+        `[WS1-CALIBRATION] cover-lock-suppressed=${coverLockSuppressed ?? 'no-cover-prompt-log'} ` +
+          `p4-doctor-lock=${p4PromptLine ? /SUPPORTING CHARACTER LOCK/.test(p4PromptLine) : 'no-p4-prompt-log'}`,
+      );
+      originalLog('[WS1-CALIBRATION] DONE — eyeball the URLs above for identity/leak/doctor/mom/bunny.\n');
+    } finally {
+      console.log = originalLog;
+      if (prevPageFilter === undefined) delete process.env.CHUNKED_IMAGE_PAGE_FILTER;
+      else process.env.CHUNKED_IMAGE_PAGE_FILTER = prevPageFilter;
+      if (prevNoChain === undefined) delete process.env.GENERATION_DISABLE_SELF_CHAIN;
+      else process.env.GENERATION_DISABLE_SELF_CHAIN = prevNoChain;
+    }
+  }, 2_400_000); // up to ~40 min: cover + 5 LOW pages across worker chunks
 });
