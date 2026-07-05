@@ -85,7 +85,7 @@
       "gender": "male",
       "coarseAppearance": "Adult man of average-to-tall build with short, neatly combed hair (hair length and STYLE locked); clean-shaven, warm and friendly. Skin tone and hair COLOUR are deliberately NOT fixed here — they are deferred to the per-order Family Appearance Lock and must match the child's family lock so the rendered cast stays coherent; do not hardcode a skin-tone or hair-colour value.",
       "wardrobe": {
-        "description": "a white medical coat over plain scrubs, with a stethoscope around the neck; worn consistently across the book",
+        "description": "The SAME outfit and colours on EVERY page: a WHITE medical coat over BLUE scrubs, with a stethoscope around the neck. NEVER change the coat or scrub colour, or swap the uniform. (Skin tone and hair COLOUR deferred to the Family Appearance Lock.)",
         "forbidden": [
           "a face-covering surgical mask (his friendly face must be visible)",
           "sunglasses",
@@ -108,8 +108,10 @@
       "gender": "female",
       "coarseAppearance": "Adult woman of average build and height with medium-length hair worn in a simple everyday STYLE (hair length and style locked); calm and reassuring. Skin tone and hair COLOUR are deliberately NOT fixed here — they are deferred to the per-order Family Appearance Lock and must match the child's family lock (she is the child's parent); do not hardcode a skin-tone or hair-colour value.",
       "wardrobe": {
-        "description": "casual everyday parent clothes — a plain long-sleeve top and trousers with a soft cardigan; worn consistently across the book",
+        "description": "The SAME outfit and the SAME colours on EVERY page: a soft SAGE-GREEN open cardigan (the same green every page — NEVER cream, beige, grey, white, or any other colour) over a plain cream/off-white long-sleeve top, blue denim jeans (same wash every page), and tan flat loafers. NEVER change, recolour, swap, or simplify any garment. (Skin tone and hair COLOUR are NOT set here — deferred to the per-order Family Appearance Lock.)",
         "forbidden": [
+          "a cardigan in ANY colour other than sage-green (page-1 green is canonical)",
+          "a different top/trouser/shoe colour than locked",
           "a white medical coat, scrubs, or any clinic-staff uniform (she is the parent, not staff)",
           "a hospital visitor badge",
           "a nurse outfit"
@@ -139,7 +141,9 @@
     "any outdoor nature scenery (forest, meadow, garden, flowers, mountains, or open water)",
     "magical, fantasy, or dream elements (glow, sparkles, floating objects, talking scenery)",
     "frightening or graphic medical imagery (blood, large or menacing needles, restraints, IV poles)",
-    "a star-shaped chest badge on Buni (his badge is a heart, never a star)"
+    "a star-shaped chest badge on Buni (his badge is a heart, never a star)",
+    "a night sky, moon, or stars through any window or door",
+    "any window or opening showing outdoor nature (trees, forest, meadow) — clinic windows show only soft neutral daytime light"
   ],
   "coverContract": {
     "worldType": "realistic_clinic",
