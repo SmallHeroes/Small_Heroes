@@ -12,11 +12,75 @@
 import { readFileSync } from 'fs';
 import path from 'path';
 import { assertValidVNextVisualContract } from './validateVNextVisualContract';
+import { assertValidBookVisualContractTemplate } from './validateTemplateContract';
 import { computeVisualContractHash } from './contractHash';
 import type { BookVisualContract } from './types';
+import type { BookVisualContractTemplate } from './contractTemplateTypes';
 
 /** File suffix for a compiled, reviewable contract artifact (e.g. `bunny_bedtime.visual-contract.json`). */
 export const CONTRACT_ARTIFACT_SUFFIX = '.visual-contract.json';
+
+/** File suffix for a story-level TEMPLATE artifact (typed bindings; materialized per order — NEVER frozen directly). */
+export const CONTRACT_TEMPLATE_ARTIFACT_SUFFIX = '.visual-contract-template.json';
+
+/** The path a TEMPLATE artifact for `storyKey` lives at within `dir`. */
+export function contractTemplateArtifactPath(dir: string, storyKey: string): string {
+  return path.join(dir, `${storyKey}${CONTRACT_TEMPLATE_ARTIFACT_SUFFIX}`);
+}
+
+/**
+ * Load + fail-closed validate a story's Template artifact. FAIL-CLOSED: throws MissingContractArtifactError when the
+ * file is absent/unreadable/unparseable, or InvalidTemplateContractError when it is structurally invalid. This is a
+ * DISTINCT loader — a Template is NEVER read via `loadVisualContractArtifact`/`readFrozenVisualContract` (a Template
+ * holds unresolved bindings and must never be frozen/rendered). No LLM, no network.
+ */
+export function loadVisualContractTemplateArtifact(
+  dir: string,
+  storyKey: string,
+): { template: BookVisualContractTemplate } {
+  const artifactPath = contractTemplateArtifactPath(dir, storyKey);
+  let text: string;
+  try {
+    text = readFileSync(artifactPath, 'utf8');
+  } catch (err) {
+    throw new MissingContractArtifactError(storyKey, artifactPath, (err as Error).message);
+  }
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch (err) {
+    throw new MissingContractArtifactError(storyKey, artifactPath, `invalid JSON: ${(err as Error).message}`);
+  }
+  assertValidBookVisualContractTemplate(raw);
+  return { template: raw as BookVisualContractTemplate };
+}
+
+/**
+ * Load a Template if one exists. Returns `null` ONLY when the file is genuinely ABSENT (so a story without a Template
+ * cleanly falls back to the legacy vNext artifact); a present-but-INVALID Template THROWS (fail-closed — never
+ * silently skipped). No LLM, no network.
+ */
+export function tryLoadVisualContractTemplateArtifact(
+  dir: string,
+  storyKey: string,
+): { template: BookVisualContractTemplate } | null {
+  const artifactPath = contractTemplateArtifactPath(dir, storyKey);
+  let text: string;
+  try {
+    text = readFileSync(artifactPath, 'utf8');
+  } catch (err) {
+    if ((err as { code?: string }).code === 'ENOENT') return null; // absent → legacy fallback
+    throw new MissingContractArtifactError(storyKey, artifactPath, (err as Error).message);
+  }
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch (err) {
+    throw new MissingContractArtifactError(storyKey, artifactPath, `invalid JSON: ${(err as Error).message}`);
+  }
+  assertValidBookVisualContractTemplate(raw);
+  return { template: raw as BookVisualContractTemplate };
+}
 
 export class MissingContractArtifactError extends Error {
   readonly isMissingContractArtifact = true as const;

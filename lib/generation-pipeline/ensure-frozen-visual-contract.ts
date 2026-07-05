@@ -32,6 +32,8 @@ import {
   compileBookVisualContract,
   computeVisualContractHash,
   loadVisualContractArtifact,
+  tryLoadVisualContractTemplateArtifact,
+  materialize,
   MissingContractArtifactError,
   isVisualContractFreezeEnabled,
   readFrozenVisualContract,
@@ -107,9 +109,20 @@ async function defaultProduceContract(
 ): Promise<ProducedContract | null> {
   const bankKey = bankStoryKey(cache);
   if (bankKey) {
-    // Bank story: load the approved artifact — NO LLM on the customer path. Missing artifact → skip (WS0c
-    // authors the 18 artifacts; until then the freeze is a no-op and behavior is legacy).
-    return loadVisualContractArtifact(bankArtifactDir(cache), bankKey);
+    const dir = bankArtifactDir(cache);
+    // (P0) PREFER a story TEMPLATE → materialize a per-order RESOLVED contract (concrete human skin/hair/style). A
+    // MISSING template cleanly falls back to the legacy vNext artifact; a present-but-INVALID template, a missing
+    // family input, or any resolution gap THROWS (fail-closed — never a silent partial). The RESOLVED (not the
+    // Template) is what the caller freezes/hashes.
+    const templateLoaded = tryLoadVisualContractTemplateArtifact(dir, bankKey);
+    if (templateLoaded) {
+      const { deriveResolvedFamilyAppearanceProfile } = await import('./resolve-family-appearance');
+      const family = deriveResolvedFamilyAppearanceProfile(order, cache); // fail-closed on missing family input
+      const resolved = materialize(templateLoaded.template, family); // fail-closed on any resolution gap
+      return { contract: resolved, contractHash: computeVisualContractHash(resolved) };
+    }
+    // No template yet: load the approved legacy artifact — NO LLM on the customer path. Missing artifact → skip.
+    return loadVisualContractArtifact(dir, bankKey);
   }
   // (C1) Non-bank/dynamic → stay on the LEGACY path (no runtime freeze) for launch. Returning null →
   // ensureFrozenVisualContract no-ops → byte-identical. The dynamic compile below is retained but DORMANT behind

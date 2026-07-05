@@ -154,3 +154,12 @@ export function lockTextForRole(
 ): string {
   return locks[role]?.trim() ?? locks.mother?.trim() ?? '';
 }
+
+/**
+ * (P0 adapter helper) The concrete hair descriptor (texture + colour) for a derived family profile, reusing the SAME
+ * word maps the member locks use — so the visual-contract materializer can read a coherent hair colour without
+ * re-deriving or duplicating the mapping. Additive read accessor: no change to existing derivation/lock behaviour.
+ */
+export function familyProfileHairDescriptor(profile: FamilyCoherenceProfile): string {
+  return `${HAIR_TEXTURE_WORD[profile.hairTextureFamily]} ${HAIR_COLOR_WORD[profile.hairColorFamily]}`;
+}

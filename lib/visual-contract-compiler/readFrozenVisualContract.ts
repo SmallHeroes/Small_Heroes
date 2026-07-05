@@ -17,6 +17,9 @@ import type { BookVisualContract } from './types';
  */
 export function readFrozenVisualContract(raw: unknown): BookVisualContract | null {
   if (raw == null) return null;
+  // A Template is NEVER a frozen/renderable contract (it holds unresolved bindings) — reject it explicitly on the
+  // discriminant. Only a Resolved contract (or a legacy vNext contract) is ever frozen into pipelineCache.
+  if (typeof raw === 'object' && (raw as { contractKind?: unknown }).contractKind === 'template') return null;
   try {
     assertValidVNextVisualContract(raw); // fail-closed re-validate; NEVER a blind cast
     return raw as BookVisualContract;
