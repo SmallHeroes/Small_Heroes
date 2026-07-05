@@ -44,6 +44,43 @@ const MAX_DRIVE_INVOCATIONS = Number(process.env.HASH_PROOF_MAX_INVOCATIONS ?? '
 const RUN_RECEIPT = process.env.RUN_CONTRACT_RECEIPT_PROOF === 'true' && canAccessStagingQa();
 const RUN_B1 = RUN && process.env.VISUAL_CONTRACT_FREEZE === 'true';
 
+/**
+ * Reset the seeded fixture order so a render proof is idempotently RE-RUNNABLE without re-seeding. A prior drive
+ * leaves the job TERMINAL (failed/done) → `runGenerationWorkerInvocation` then yields endless "No lease acquired
+ * — job complete". This clears the derived render/quality/delivery state (durable evidence, receipt fences,
+ * readiness, rendered images, the frozen contract) and DELETES the job so the REAL `startChunkedGeneration`
+ * entrypoint recreates a fresh `pending` job with an EMPTY pipelineCache — dropping the child anchor + all
+ * cross-chunk state so the drive re-runs the full text→dna→anchor→cover→page path from scratch. The book + pages'
+ * text are kept (text-finalization upserts them). STAGING-ONLY: gated by the RUN describe + assertEnvSeparation.
+ */
+async function resetFixtureForRerun(orderId: string): Promise<void> {
+  assertEnvSeparation(); // refuse if any prod resource is configured — never reset a prod order
+  const { prisma } = await import('@/lib/prisma');
+  const { startChunkedGeneration } = await import('@/lib/generation-chunked/start');
+  // Derived quality / delivery / fence state → gone (the fresh drive re-derives it; text/asset fences re-run).
+  for (const del of [
+    () => prisma.qualityEvidence.deleteMany({ where: { orderId } }),
+    () => prisma.deliveryOutbox.deleteMany({ where: { orderId } }),
+    () => prisma.bookReadinessManifest.deleteMany({ where: { orderId } }),
+    () => prisma.bookReadiness.deleteMany({ where: { orderId } }),
+    () => prisma.exceptionCase.deleteMany({ where: { orderId } }),
+    () => prisma.atomicOperationReceipt.deleteMany({ where: { orderId } }),
+    () => prisma.imageAsset.deleteMany({ where: { page: { book: { orderId } } } }), // rendered images
+    () => prisma.generatedBook.updateMany({ where: { orderId }, data: { coverImageUrl: null } }),
+    () => prisma.generationJob.deleteMany({ where: { orderId } }), // drop the terminal job (+ its pipelineCache)
+  ]) {
+    await del().catch(() => {});
+  }
+  // Back to a claimable state (payment is the only short-circuit); clear the freeze stamp + prior error/cover.
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { status: 'paid', visualContractHash: null, coverImageUrl: null, lastError: null, errorAt: null },
+  });
+  // Real entrypoint: creates a fresh pending job (empty cache) + claims order → generating; skipWorkerChain = we drive.
+  const started = await startChunkedGeneration(orderId, 'hash-proof-rerun-reset', { skipWorkerChain: true });
+  if (!started.started) throw new Error(`reset: startChunkedGeneration did not start: ${started.message ?? 'unknown'}`);
+}
+
 describe.skipIf(!RUN)('#7-b HASH-PROOF — delivered-bytes hash binding (staging real render, page-only LOW)', () => {
   it('QualityEvidence.assetSha256 === inspectAsset(delivered).sha256 for cover + page:1 (happy path)', async () => {
     assertEnvSeparation(); // refuses to proceed if any prod resource is configured
@@ -73,6 +110,10 @@ describe.skipIf(!RUN)('#7-b HASH-PROOF — delivered-bytes hash binding (staging
           page1: rows.find((r) => r.artifactKey === pageArtifactKey(1)),
         };
       };
+
+      // Reset the fixture to a clean generating state so this proof is idempotently re-runnable (a prior drive
+      // leaves a terminal job → endless "No lease acquired").
+      await resetFixtureForRerun(ORDER_ID);
 
       // Drive the chunk worker until BOTH artifacts have a durable PASS verdict (or the fixture is already rendered).
       let ev = await readEvidence();
@@ -268,6 +309,10 @@ describe.skipIf(!RUN_B1)('(WS0c) B1 — a real render binds delivered bytes + QA
           orderHash: order?.visualContractHash ?? null,
         };
       };
+
+      // Reset the fixture to a clean generating state so this proof is idempotently re-runnable (a prior drive
+      // leaves a terminal job → endless "No lease acquired").
+      await resetFixtureForRerun(ORDER_ID);
 
       // Drive until BOTH artifacts are present AND the contract has frozen (freeze flag ON via the gate).
       let st = await read();
