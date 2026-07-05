@@ -150,6 +150,7 @@ export function validateBookVisualContractTemplate(input: unknown): TemplateVali
   humanCast.forEach((m, i) => {
     const label = isStr(m?.id) ? `humanCast "${m.id}"` : `humanCast[${i}]`;
     const role = isStr(m?.role) ? m.role : '';
+    if (!isStr(m?.textEvidence)) errors.push(`${label}.textEvidence missing (identity must bind to a story phrase)`);
     const appearance = isObj((m as unknown as Record<string, unknown>)?.appearance)
       ? ((m as unknown as Record<string, unknown>).appearance as Record<string, unknown>)
       : null;
@@ -167,8 +168,16 @@ export function validateBookVisualContractTemplate(input: unknown): TemplateVali
       m.garments.forEach((g, gi) => {
         const glabel = `${label}.garments[${isStr(g?.id) ? g.id : gi}]`;
         if (!isStr(g?.id)) errors.push(`${glabel}.id missing`);
-        if ((g as { colour?: unknown })?.colour === undefined) errors.push(`${glabel}.colour missing`);
-        else validateBinding(`${glabel}.colour`, role, g.colour, errors);
+        const colour = (g as { colour?: unknown })?.colour;
+        if (colour === undefined) {
+          errors.push(`${glabel}.colour missing`);
+        } else {
+          validateBinding(`${glabel}.colour`, role, colour, errors);
+          // Garment colours are AUTHORED — never family/palette (a garment colour is not ethnicity).
+          if (isObj(colour) && colour.mode !== 'explicit') {
+            errors.push(`${glabel}.colour must be an explicit binding (garment colours are authored, not family/palette)`);
+          }
+        }
       });
     }
   });

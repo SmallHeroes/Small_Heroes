@@ -62,7 +62,7 @@ function templateFixture(): Obj {
     ...SHARED,
     humanCast: [
       {
-        id: 'human:mother', role: 'mother', gender: 'female', aliases: ['אמא'], pagesPresent: [1], forbiddenAppearance: [],
+        id: 'human:mother', role: 'mother', gender: 'female', aliases: ['אמא'], textEvidence: 'page 1: אמא', pagesPresent: [1], forbiddenAppearance: [],
         appearance: {
           skinTone: { mode: 'family_profile', origin: { kind: 'family_profile' } },
           hairColour: { mode: 'family_profile', origin: { kind: 'family_profile' } },
@@ -73,7 +73,7 @@ function templateFixture(): Obj {
         ],
       },
       {
-        id: 'human:doctor', role: 'doctor', gender: 'male', aliases: ['הרופא'], pagesPresent: [2], forbiddenAppearance: [],
+        id: 'human:doctor', role: 'doctor', gender: 'male', aliases: ['הרופא'], textEvidence: 'page 2: הרופא', pagesPresent: [2], forbiddenAppearance: [],
         appearance: {
           skinTone: { mode: 'deterministic_palette', origin: { kind: 'deterministic_palette', paletteId: 'clinic-doctor', version: PALETTE_VERSION } },
           hairColour: { mode: 'deterministic_palette', origin: { kind: 'deterministic_palette', paletteId: 'clinic-doctor', version: PALETTE_VERSION } },

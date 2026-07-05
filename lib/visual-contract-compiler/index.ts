@@ -129,6 +129,7 @@ export {
   type HumanAppearanceTraits,
   type TemplateHumanCastMember,
   type ResolvedHumanCastMember,
+  type ResolvedFamilyAppearanceProfile,
   type BookVisualContractTemplate,
   type ResolvedBookVisualContract,
 } from './contractTemplateTypes';
@@ -144,3 +145,12 @@ export {
   InvalidResolvedContractError,
   type ResolvedValidationResult,
 } from './validateResolvedContract';
+export {
+  DEFAULT_APPEARANCE_PALETTE,
+  normalizeStoryKey,
+  paletteIndexFor,
+  paletteEntryFor,
+  type PaletteEntry,
+  type AppearancePalette,
+} from './appearancePalette';
+export { materialize, MaterializationError } from './materializeContract';

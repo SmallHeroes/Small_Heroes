@@ -83,10 +83,23 @@ export interface TemplateHumanCastMember {
   role: string;
   gender: HumanCastGender;
   aliases: string[];
+  /** The story phrase that fixes this person's identity/role/gender (e.g. "הרופא" → doctor). Carried to the Resolved. */
+  textEvidence: string;
   pagesPresent: number[];
   appearance: HumanAppearanceTraits<TemplateTraitBinding>;
   garments: Garment<TemplateTraitBinding>[];
   forbiddenAppearance: string[];
+}
+
+/**
+ * The concrete family appearance a `family_profile` trait resolves FROM (a strict adapter TYPE — commit 3 wraps the
+ * legacy `lib/family-coherence` into this; the materializer never imports family-coherence). A missing field for a
+ * requested trait FAILS materialization (no silent neutral default).
+ */
+export interface ResolvedFamilyAppearanceProfile {
+  skinTone: string;
+  hairColour: string;
+  hairStyle?: string;
 }
 
 /** A recurring human in a RESOLVED contract — concrete structured traits (authoritative) + projected vNext prose. */
@@ -120,8 +133,10 @@ export interface BookVisualContractTemplate {
  */
 export interface ResolvedBookVisualContract extends BookVisualContract {
   contractKind: 'resolved';
-  schemaVersion: typeof VISUAL_CONTRACT_SCHEMA_VERSION;
-  materializerVersion: typeof MATERIALIZER_VERSION;
-  paletteVersion: typeof PALETTE_VERSION;
+  /** Version provenance (auditable; part of the hashed content so a bump safely re-hashes). Strings — an injected
+   * palette may carry its own version. */
+  schemaVersion: string;
+  materializerVersion: string;
+  paletteVersion: string;
   humanCast: ResolvedHumanCastMember[];
 }
