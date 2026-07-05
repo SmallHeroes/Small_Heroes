@@ -23,6 +23,7 @@
  * If a future edit weakens any lock, this spec (and therefore `npm run check`) fails.
  */
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
 import path from 'path';
 import {
   loadVisualContractArtifact,
@@ -42,6 +43,20 @@ const STORY_KEY = 'bunny_ometz_adventure';
 /** JSON deep clone (the artifact is JSON-safe) — for tamper/mutation guard tests. */
 function clone(c: BookVisualContract): BookVisualContract {
   return JSON.parse(JSON.stringify(c)) as BookVisualContract;
+}
+
+/**
+ * Return a self-consistent truncation keeping only pages 1..lastPage (and trimming humanCast.pagesPresent to
+ * match) — i.e. simulate an author who declared FEWER pages than the story really has. Used to prove the coverage
+ * guard only bites once compiledFromPages binds it to the authoritative count.
+ */
+function truncateToFirst(c: BookVisualContract, lastPage: number): BookVisualContract {
+  const t = clone(c);
+  t.pageContracts = t.pageContracts.filter((p) => p.pageNumber <= lastPage);
+  for (const m of t.humanCast ?? []) {
+    m.pagesPresent = m.pagesPresent.filter((n) => n <= lastPage);
+  }
+  return t;
 }
 
 // Load ONCE through the real production loader (fail-closed: a missing/invalid artifact throws here).
@@ -255,5 +270,53 @@ describe('criterion 6 — Rule 3b sequencing + the C2 first-page guard are REAL 
     const bad = clone(contract);
     delete (bad.pageContracts[7] as { castIds?: string[] }).castIds; // page 8 loses its cast declaration
     expect(() => assertValidVNextVisualContract(bad)).toThrow(InvalidVNextVisualContractError);
+  });
+});
+
+describe('SHA 2b — coverage binds to the AUTHORITATIVE page count (not max-declared)', () => {
+  it('declares an authoritative compiledFromPages that MATCHES the story .md (non-circular)', () => {
+    // Derive the authoritative count from the STORY SOURCE, not from the contract's own array (which would be
+    // circular). The .md must agree three ways: frontmatter `pages:`, the `--- Page N ---` markers count.
+    const md = readFileSync(path.join(ARTIFACT_DIR, `${STORY_KEY}.md`), 'utf8');
+    const markerCount = (md.match(/^--- Page \d+ ---$/gm) ?? []).length;
+    const frontmatterPages = Number((md.match(/^pages:\s*(\d+)/m) ?? [])[1]);
+    expect(markerCount).toBe(12);
+    expect(frontmatterPages).toBe(12);
+
+    // The artifact's provenance binds coverage to THAT count — not to whatever the author happened to declare.
+    expect(contract.provenance).toBeTruthy();
+    expect(contract.provenance!.source).toMatch(/llm|fallback/);
+    expect(contract.provenance!.compiledFromPages).toBe(markerCount);
+    expect(contract.pageContracts.length).toBe(markerCount);
+  });
+
+  it('a truncated authoring is REJECTED (drop page 12 → "missing pageContract" in authoritative mode)', () => {
+    const truncated = truncateToFirst(contract, 11); // keeps provenance.compiledFromPages = 12
+    const r = validateVNextVisualContract(truncated);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/missing pageContract for page 12/);
+    expect(() => assertValidVNextVisualContract(truncated)).toThrow(InvalidVNextVisualContractError);
+  });
+
+  it('...and the SAME truncation would FALSELY PASS without the authoritative count (why compiledFromPages is required)', () => {
+    const weak = truncateToFirst(contract, 11);
+    delete weak.provenance; // fall back to max-declared mode (N = 11) — the hole this SHA closes
+    expect(validateVNextVisualContract(weak).ok).toBe(true);
+  });
+
+  it('a DUPLICATE page number is rejected', () => {
+    const bad = clone(contract);
+    bad.pageContracts.push(clone(contract).pageContracts[0]); // a second page 1
+    const r = validateVNextVisualContract(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/duplicate pageContract for page 1/);
+  });
+
+  it('an OUT-OF-RANGE page number is rejected (beyond the authoritative count)', () => {
+    const bad = clone(contract);
+    bad.pageContracts[11].pageNumber = 13; // page 12 → 13, past compiledFromPages = 12
+    const r = validateVNextVisualContract(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/out of range/);
   });
 });

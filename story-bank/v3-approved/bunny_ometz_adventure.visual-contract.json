@@ -2,6 +2,7 @@
   "version": 1,
   "storyKey": "bunny_ometz_adventure",
   "worldType": "realistic_clinic",
+  "provenance": { "source": "llm", "compiledFromPages": 12 },
   "locations": [
     {
       "id": "clinic",
