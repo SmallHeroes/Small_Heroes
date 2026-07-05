@@ -226,6 +226,44 @@ describe('pipelineCache local-path invariant (0094 M3b)', () => {
   it('still flags a non-committed absolute /var/task path', () => {
     expect(findEphemeralLocalArtifactPaths({ x: '/var/task/something/else.png' })).toHaveLength(1);
   });
+
+  // Local render (Guy's machine): Stage-0 records STYLE_01_REF_DIR = cwd/style-references/01 as an ABSOLUTE
+  // path (a Windows `C:\...` one). Prod records the identical refs as /var/task/... (exempt above); this was
+  // the LOCAL-only gap that failed the first full local render at runDnaStage → saveCache.
+  it('does NOT flag committed bundle assets by LOCAL absolute path (under the repo root)', () => {
+    const cache = {
+      storyFilePath: path.join(process.cwd(), 'story-bank', 'v3-approved', 'bunny_ometz_adventure.md'),
+      characterAnchorStore: {
+        child: {
+          referenceOrderUsed: [
+            'https://qvksgpzzosotubcbizay.supabase.co/storage/v1/object/public/book-images/orders/o1/references/main-child.jpg',
+            path.join(process.cwd(), 'style-references', '01', 'style01-texture-night-window.png'),
+            path.join(process.cwd(), 'style-references', '01', 'style01-texture-porch-lavender.png'),
+          ],
+        },
+      },
+      sheet: path.join(process.cwd(), 'public', 'companions', 'bunny_ometz', 'style01-sheets', 'happy.png'),
+    };
+    expect(findEphemeralLocalArtifactPaths(cache)).toEqual([]);
+    expect(() => assertCacheHasNoLocalArtifactPaths(cache)).not.toThrow();
+  });
+
+  it('still flags a genuinely ephemeral absolute path under the repo root (outputs), not a committed tree', () => {
+    const cache = {
+      characterAnchorStore: {
+        child: {
+          referenceOrderUsed: [
+            path.join(process.cwd(), 'style-references', '01', 'style01-texture-night-window.png'), // committed → ok
+            path.join(process.cwd(), 'outputs', 'anchors', 'o1', 'candidate-1.png'), // generated → flagged
+          ],
+        },
+      },
+    };
+    const found = findEphemeralLocalArtifactPaths(cache);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toContain(path.join('outputs', 'anchors'));
+    expect(() => assertCacheHasNoLocalArtifactPaths(cache)).toThrow(/ephemeral local artifact path/);
+  });
 });
 
 describe('canon generation load-only guard (0094 M4)', () => {

@@ -180,18 +180,35 @@ const EPHEMERAL_PATH_PATTERNS: RegExp[] = [
 
 /**
  * Committed, read-only bundle assets (the deployment's `story-bank/`, `public/`, and `style-references/`
- * trees) DO exist in every serverless invocation, so referencing them across chunks is legitimate — they
- * are not ephemeral artifacts. Only generated WRITES outside `/tmp` are forbidden. This carve-out covers
- * in-flight caches that still hold an absolute committed path (e.g. a legacy `/var/task/story-bank/...`
- * storyFilePath, or the Style-01 anchor `referenceOrderUsed` paths under `/var/task/style-references/...`).
+ * trees) DO exist in every invocation, so referencing them across chunks is legitimate — they are not
+ * ephemeral artifacts. Only generated WRITES outside `/tmp` are forbidden. This carve-out covers in-flight
+ * caches that hold an absolute committed path in EITHER form:
+ *   - the serverless bundle root `/var/task/{story-bank|public|style-references}/...` — matched as a STRING
+ *     (OS-independent; the deploy FS is Linux, so this stays byte-identical whatever OS evaluates the guard), AND
+ *   - a LOCAL absolute path physically under the repo/bundle root's committed trees — e.g. the Windows
+ *     `C:\...\style-references\01\...` paths Stage-0 anchor refs record (`STYLE_01_REF_DIR = cwd/style-references/01`)
+ *     when the render runs on a local FS. Prod records the identical refs as `/var/task/...`, so this was a
+ *     LOCAL-only gap (a generic Linux abs path isn't in EPHEMERAL_PATH_PATTERNS; a Windows `C:\` one is → flagged).
+ * Anchored to the ACTUAL root (`process.cwd()`), so an ephemeral copy under `outputs/…/style-references/…` is
+ * NOT exempt (it lives under `root/outputs`, not `root/style-references`).
  */
-const COMMITTED_BUNDLE_READ = /^\/var\/task\/(?:story-bank|public|style-references)\//i;
+const COMMITTED_BUNDLE_DIRS = ['story-bank', 'public', 'style-references'] as const;
+const COMMITTED_BUNDLE_VAR_TASK = /^\/var\/task\/(?:story-bank|public|style-references)\//i;
+
+function isCommittedBundleRead(value: string): boolean {
+  if (COMMITTED_BUNDLE_VAR_TASK.test(value)) return true; // serverless bundle (Linux /var/task) — string match
+  const resolved = path.resolve(value);
+  const root = path.resolve(process.cwd());
+  return COMMITTED_BUNDLE_DIRS.some(
+    (d) => resolved === path.join(root, d) || resolved.startsWith(path.join(root, d) + path.sep),
+  );
+}
 
 function looksLikeEphemeralLocalPath(value: string): boolean {
   const v = value.trim();
   if (!v) return false;
   if (/^https?:\/\//i.test(v) || /^data:/i.test(v)) return false; // URLs/data are the durable form
-  if (COMMITTED_BUNDLE_READ.test(v)) return false; // committed read-only bundle, not a generated artifact
+  if (isCommittedBundleRead(v)) return false; // committed read-only bundle, not a generated artifact
   return EPHEMERAL_PATH_PATTERNS.some((re) => re.test(v));
 }
 
