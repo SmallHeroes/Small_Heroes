@@ -113,3 +113,34 @@ export {
   type ContractQaObservability,
   type FrozenCastExpectation,
 } from './adapters';
+
+// ── P0 — Contract Template + Resolved (structured appearance foundation; pure — no live-path wiring yet) ──
+export {
+  VISUAL_CONTRACT_SCHEMA_VERSION,
+  MATERIALIZER_VERSION,
+  PALETTE_VERSION,
+  RELATIVE_ROLES,
+  type RelativeRole,
+  type AppearanceBindingMode,
+  type AppearanceEvidenceOrigin,
+  type TemplateTraitBinding,
+  type ResolvedTrait,
+  type Garment,
+  type HumanAppearanceTraits,
+  type TemplateHumanCastMember,
+  type ResolvedHumanCastMember,
+  type BookVisualContractTemplate,
+  type ResolvedBookVisualContract,
+} from './contractTemplateTypes';
+export {
+  validateBookVisualContractTemplate,
+  assertValidBookVisualContractTemplate,
+  InvalidTemplateContractError,
+  type TemplateValidationResult,
+} from './validateTemplateContract';
+export {
+  validateResolvedBookVisualContract,
+  assertValidResolvedBookVisualContract,
+  InvalidResolvedContractError,
+  type ResolvedValidationResult,
+} from './validateResolvedContract';
