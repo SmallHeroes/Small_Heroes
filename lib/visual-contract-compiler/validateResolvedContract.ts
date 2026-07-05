@@ -11,7 +11,18 @@
  * This is what P1's render guard will call before spend.
  */
 import { validateVNextVisualContract } from './validateVNextVisualContract';
-import type { ResolvedBookVisualContract, ResolvedHumanCastMember } from './contractTemplateTypes';
+import { bindingCoherenceError } from './appearanceBindingCoherence';
+import {
+  projectResolvedCoarseAppearance,
+  projectResolvedWardrobeDescription,
+} from './projectResolvedHumanProse';
+import {
+  MATERIALIZER_VERSION,
+  PALETTE_VERSION,
+  VISUAL_CONTRACT_SCHEMA_VERSION,
+  type ResolvedBookVisualContract,
+  type ResolvedHumanCastMember,
+} from './contractTemplateTypes';
 
 function isObj(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -25,6 +36,14 @@ const DEFERRAL_MARKERS = /deferred|not\s+(?:set|fixed)\s+here|per-order\s+family
 
 function isConcreteTrait(t: unknown): boolean {
   return isObj(t) && isStr((t as { value?: unknown }).value) && !DEFERRAL_MARKERS.test((t as { value: string }).value);
+}
+
+/** The typed evidence origin.kind of a resolved binding, or `undefined` when absent/malformed. */
+function originKindOf(binding: unknown): string | undefined {
+  const origin = isObj(binding) ? (binding as { origin?: unknown }).origin : undefined;
+  return isObj(origin) && typeof (origin as { kind?: unknown }).kind === 'string'
+    ? (origin as { kind: string }).kind
+    : undefined;
 }
 
 export type ResolvedValidationResult =
@@ -50,6 +69,17 @@ export function validateResolvedBookVisualContract(input: unknown): ResolvedVali
     errors.push('contractKind must be "resolved"');
   }
 
+  // (Fix 3a) Supported versions — the frozen hash is only meaningful under the versions this build materializes/renders.
+  if (input.schemaVersion !== VISUAL_CONTRACT_SCHEMA_VERSION) {
+    errors.push(`schemaVersion must equal the supported "${VISUAL_CONTRACT_SCHEMA_VERSION}" (got ${JSON.stringify(input.schemaVersion)})`);
+  }
+  if (input.materializerVersion !== MATERIALIZER_VERSION) {
+    errors.push(`materializerVersion must equal the supported "${MATERIALIZER_VERSION}" (got ${JSON.stringify(input.materializerVersion)})`);
+  }
+  if (input.paletteVersion !== PALETTE_VERSION) {
+    errors.push(`paletteVersion must equal the supported "${PALETTE_VERSION}" (got ${JSON.stringify(input.paletteVersion)})`);
+  }
+
   // Superset of vNext: it must be structurally renderable (locations/zones/cast/cover/coverage/transitions/castIds).
   const base = validateVNextVisualContract(input);
   if (!base.ok) errors.push(...base.errors.map((e) => `structure: ${e}`));
@@ -62,28 +92,69 @@ export function validateResolvedBookVisualContract(input: unknown): ResolvedVali
     const appearance = isObj((m as unknown as Record<string, unknown>)?.appearance)
       ? ((m as unknown as Record<string, unknown>).appearance as Record<string, unknown>)
       : null;
+    let appearanceConcrete = true;
     if (!appearance) {
       errors.push(`${label}.appearance missing concrete skin/hair/style traits`);
+      appearanceConcrete = false;
     } else {
       for (const trait of ['skinTone', 'hairColour', 'hairTexture', 'hairStyle'] as const) {
-        if (!isConcreteTrait(appearance[trait])) {
+        const binding = appearance[trait];
+        if (!isConcreteTrait(binding)) {
           errors.push(`${label}.appearance.${trait} is not a concrete resolved value (still deferred/unresolved)`);
+          appearanceConcrete = false;
+          continue;
+        }
+        // (Fix 3b) mode/origin coherence — a resolved trait carries its typed audit origin, coherent with its mode.
+        const originKind = originKindOf(binding);
+        if (originKind === undefined) {
+          errors.push(`${label}.appearance.${trait}.origin missing/invalid (a resolved trait must carry its typed evidence origin)`);
+        } else {
+          const co = bindingCoherenceError(`${label}.appearance.${trait}`, (binding as { mode?: unknown }).mode, originKind);
+          if (co) errors.push(co);
         }
       }
     }
+    let garmentsConcrete = true;
     if (!Array.isArray(m?.garments)) {
       errors.push(`${label}.garments must be an array of concrete-coloured garments`);
+      garmentsConcrete = false;
     } else {
       m.garments.forEach((g, gi) => {
         const glabel = `${label}.garments[${isStr(g?.id) ? g.id : gi}]`;
-        if (!isConcreteTrait((g as { colour?: unknown })?.colour)) {
+        const colour = (g as { colour?: unknown })?.colour;
+        if (!isConcreteTrait(colour)) {
           errors.push(`${glabel}.colour is not a concrete resolved colour`);
+          garmentsConcrete = false;
+          return;
+        }
+        const originKind = originKindOf(colour);
+        if (originKind === undefined) {
+          errors.push(`${glabel}.colour.origin missing/invalid (a resolved garment colour must carry its typed evidence origin)`);
+        } else {
+          const co = bindingCoherenceError(`${glabel}.colour`, (colour as { mode?: unknown }).mode, originKind);
+          if (co) errors.push(co);
         }
       });
     }
     // The projected prose must not smuggle deferral text back in.
     if (isStr(m?.coarseAppearance) && DEFERRAL_MARKERS.test(m.coarseAppearance)) {
       errors.push(`${label}.coarseAppearance still contains deferral/placeholder prose`);
+    }
+    // (Fix 3c) Deterministic projection EQUALITY — the stored prose must EQUAL the shared projection of the structured
+    // traits, so the human-readable prose can never diverge from the authoritative source. Only when fully concrete
+    // (otherwise the concreteness errors above already fired and the projection inputs are unsafe to read).
+    if (appearanceConcrete && garmentsConcrete) {
+      const expectedCoarse = projectResolvedCoarseAppearance(m);
+      if (m.coarseAppearance !== expectedCoarse) {
+        errors.push(`${label}.coarseAppearance does not EQUAL the deterministic projection of its structured traits`);
+      }
+      const wardrobe = isObj((m as unknown as Record<string, unknown>)?.wardrobe)
+        ? ((m as unknown as Record<string, unknown>).wardrobe as { description?: unknown })
+        : null;
+      const expectedWardrobe = projectResolvedWardrobeDescription(m.garments);
+      if (!wardrobe || wardrobe.description !== expectedWardrobe) {
+        errors.push(`${label}.wardrobe.description does not EQUAL the deterministic projection of its garments`);
+      }
     }
   });
 

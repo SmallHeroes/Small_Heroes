@@ -11,9 +11,11 @@
  * This REPLACES the vNext humanCast prose checks (validateVNextVisualContract.ts:157-159) for templates.
  */
 import { validateVNextVisualContract } from './validateVNextVisualContract';
+import { bindingCoherenceError } from './appearanceBindingCoherence';
 import type { BookVisualContract, RecurringHumanCastMember } from './types';
 import {
   RELATIVE_ROLES,
+  VISUAL_CONTRACT_SCHEMA_VERSION,
   type AppearanceBindingMode,
   type BookVisualContractTemplate,
   type TemplateHumanCastMember,
@@ -84,17 +86,10 @@ function validateBinding(label: string, role: string, binding: unknown, errors: 
     );
   }
   const originKind = validateEvidenceOrigin(label, binding.origin, errors);
-  // The origin must be COHERENT with the mode — never a fabricated story phrase for a compiler pick.
-  if (mode === 'family_profile' && originKind && originKind !== 'family_profile') {
-    errors.push(`${label} family_profile mode requires a family_profile origin (got ${originKind})`);
-  }
-  if (mode === 'deterministic_palette' && originKind && originKind !== 'deterministic_palette') {
-    errors.push(`${label} deterministic_palette mode requires a deterministic_palette origin (got ${originKind})`);
-  }
+  // The origin must be COHERENT with the mode — never a fabricated story phrase for a compiler pick (shared rule).
+  const coherenceError = bindingCoherenceError(label, mode, originKind);
+  if (coherenceError) errors.push(coherenceError);
   if (mode === 'explicit') {
-    if (originKind && originKind !== 'story_evidence' && originKind !== 'policy_default') {
-      errors.push(`${label} explicit mode requires a story_evidence or policy_default origin (got ${originKind})`);
-    }
     if (!isStr(binding.value)) errors.push(`${label} explicit binding must carry a concrete value`);
   } else if (binding.value !== undefined) {
     errors.push(`${label} ${mode} binding must NOT carry a value in a Template (it is resolved per order)`);
@@ -121,7 +116,11 @@ export function validateBookVisualContractTemplate(input: unknown): TemplateVali
   if (!isObj(input)) return { ok: false, errors: ['template is not an object'] };
 
   if (input.contractKind !== 'template') errors.push('contractKind must be "template"');
-  if (!isStr(input.schemaVersion)) errors.push('schemaVersion missing');
+  if (input.schemaVersion !== VISUAL_CONTRACT_SCHEMA_VERSION) {
+    errors.push(`schemaVersion must equal the supported "${VISUAL_CONTRACT_SCHEMA_VERSION}" (got ${JSON.stringify(input.schemaVersion)})`);
+  }
+  // storyKey is REQUIRED + non-empty: it seeds the deterministic palette; an empty key collapses the seed across stories.
+  if (!isStr(input.storyKey)) errors.push('storyKey missing (required — it seeds the deterministic appearance palette)');
 
   const humanCast: TemplateHumanCastMember[] = Array.isArray(input.humanCast)
     ? (input.humanCast as TemplateHumanCastMember[])

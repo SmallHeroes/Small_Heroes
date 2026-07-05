@@ -158,3 +158,13 @@ export {
   type AppearancePalette,
 } from './appearancePalette';
 export { materialize, MaterializationError } from './materializeContract';
+export {
+  projectResolvedCoarseAppearance,
+  projectResolvedWardrobeDescription,
+  type ResolvedHumanProseSource,
+} from './projectResolvedHumanProse';
+export {
+  bindingCoherenceError,
+  coherentOriginKindsFor,
+  type OriginKind,
+} from './appearanceBindingCoherence';

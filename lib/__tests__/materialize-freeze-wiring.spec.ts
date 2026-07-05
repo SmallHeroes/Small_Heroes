@@ -89,6 +89,13 @@ describe('P0 commit 3 — Template loader (fail-closed)', () => {
     writeFileSync(contractTemplateArtifactPath(dir, 'broken'), JSON.stringify({ contractKind: 'template' }), 'utf8');
     expect(() => tryLoadVisualContractTemplateArtifact(dir, 'broken')).toThrow(InvalidTemplateContractError);
   });
+
+  it('(Fix 3) storyKey mismatch — artifact declares a different storyKey than the bank key it loads under → throws', () => {
+    dir = mkdtempSync(path.join(os.tmpdir(), 'vc-tmpl-'));
+    // template()'s own storyKey is 'clinic_visit'; write it under a DIFFERENT bank key and load under that key.
+    writeFileSync(contractTemplateArtifactPath(dir, 'other_story'), JSON.stringify(template()), 'utf8');
+    expect(() => tryLoadVisualContractTemplateArtifact(dir, 'other_story')).toThrow(InvalidTemplateContractError);
+  });
 });
 
 describe('P0 commit 3 + Fix 2 — family adapter (wrap; positive evidence; exclude derivedAt; fail-closed)', () => {

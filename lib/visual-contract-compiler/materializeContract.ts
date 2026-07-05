@@ -24,6 +24,10 @@ import {
   type TemplateTraitBinding,
 } from './contractTemplateTypes';
 import { DEFAULT_APPEARANCE_PALETTE, paletteEntryFor, type AppearancePalette } from './appearancePalette';
+import {
+  projectResolvedCoarseAppearance,
+  projectResolvedWardrobeDescription,
+} from './projectResolvedHumanProse';
 
 export class MaterializationError extends Error {
   readonly isMaterializationError = true as const;
@@ -96,26 +100,6 @@ function resolveGarment(
   };
 }
 
-function genderPrefix(gender: string): string {
-  return gender && gender !== 'unspecified' ? `${gender} ` : '';
-}
-
-/** Deterministic prose PROJECTION of the resolved structured traits (never a parallel editable source). */
-function projectCoarseAppearance(m: ResolvedHumanCastMember): string {
-  const a = m.appearance;
-  return (
-    `${genderPrefix(m.gender)}${m.role}; ${a.skinTone.value} skin tone; ` +
-    `${a.hairStyle.value}, ${a.hairTexture.value} ${a.hairColour.value} hair — the SAME appearance on every page`
-  );
-}
-
-function projectWardrobe(garments: Garment<ResolvedTrait>[]): string {
-  const parts = garments.map((g) => `${g.colour.value} ${g.label ?? g.id}`);
-  return parts.length
-    ? `${parts.join(', ')} — the SAME garments and colours on every page`
-    : 'no fixed garments';
-}
-
 function resolveMember(
   m: TemplateHumanCastMember,
   storyKey: string,
@@ -143,8 +127,8 @@ function resolveMember(
     coarseAppearance: '',
     wardrobe: { description: '' },
   };
-  resolved.coarseAppearance = projectCoarseAppearance(resolved);
-  resolved.wardrobe = { description: projectWardrobe(garments) };
+  resolved.coarseAppearance = projectResolvedCoarseAppearance(resolved);
+  resolved.wardrobe = { description: projectResolvedWardrobeDescription(garments) };
   return resolved;
 }
 

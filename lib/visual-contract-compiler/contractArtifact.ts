@@ -12,7 +12,7 @@
 import { readFileSync } from 'fs';
 import path from 'path';
 import { assertValidVNextVisualContract } from './validateVNextVisualContract';
-import { assertValidBookVisualContractTemplate } from './validateTemplateContract';
+import { assertValidBookVisualContractTemplate, InvalidTemplateContractError } from './validateTemplateContract';
 import { computeVisualContractHash } from './contractHash';
 import type { BookVisualContract } from './types';
 import type { BookVisualContractTemplate } from './contractTemplateTypes';
@@ -26,6 +26,19 @@ export const CONTRACT_TEMPLATE_ARTIFACT_SUFFIX = '.visual-contract-template.json
 /** The path a TEMPLATE artifact for `storyKey` lives at within `dir`. */
 export function contractTemplateArtifactPath(dir: string, storyKey: string): string {
   return path.join(dir, `${storyKey}${CONTRACT_TEMPLATE_ARTIFACT_SUFFIX}`);
+}
+
+/**
+ * FAIL-CLOSED artifact-key/storyKey agreement (Fix 3): the loaded template's own `storyKey` must EQUAL the bank key
+ * it was loaded under. A mismatch means the palette seed (`hash(… | storyKey | castId)`) would be driven by the wrong
+ * story — throw rather than silently seed the deterministic appearance from a different story's key.
+ */
+function assertTemplateStoryKeyAgrees(template: BookVisualContractTemplate, storyKey: string, artifactPath: string): void {
+  if (template.storyKey !== storyKey) {
+    throw new InvalidTemplateContractError([
+      `storyKey mismatch: artifact at ${artifactPath} declares storyKey ${JSON.stringify(template.storyKey)} but was loaded as "${storyKey}" (artifact-key/storyKey must agree so the deterministic palette seed is stable)`,
+    ]);
+  }
 }
 
 /**
@@ -52,7 +65,9 @@ export function loadVisualContractTemplateArtifact(
     throw new MissingContractArtifactError(storyKey, artifactPath, `invalid JSON: ${(err as Error).message}`);
   }
   assertValidBookVisualContractTemplate(raw);
-  return { template: raw as BookVisualContractTemplate };
+  const template = raw as BookVisualContractTemplate;
+  assertTemplateStoryKeyAgrees(template, storyKey, artifactPath);
+  return { template };
 }
 
 /**
@@ -79,7 +94,9 @@ export function tryLoadVisualContractTemplateArtifact(
     throw new MissingContractArtifactError(storyKey, artifactPath, `invalid JSON: ${(err as Error).message}`);
   }
   assertValidBookVisualContractTemplate(raw);
-  return { template: raw as BookVisualContractTemplate };
+  const template = raw as BookVisualContractTemplate;
+  assertTemplateStoryKeyAgrees(template, storyKey, artifactPath);
+  return { template };
 }
 
 export class MissingContractArtifactError extends Error {

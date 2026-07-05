@@ -27,6 +27,7 @@ const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 // ── Shared minimal clinic structure (satisfies the vNext structural checks) ──────────────────────
 const SHARED = {
   version: 1,
+  storyKey: 'clinic_visit',
   worldType: 'realistic_clinic',
   locations: [
     { id: 'clinic', name: 'Clinic', description: 'a small friendly clinic', environmentClass: 'indoor' },
@@ -102,8 +103,9 @@ function resolvedFixture(): Obj {
       {
         id: 'human:mother', role: 'mother', gender: 'female', aliases: ['אמא', 'mom'], pagesPresent: [1],
         textEvidence: 'page 1: אמא',
-        coarseAppearance: 'female mother; warm medium-brown skin; wavy dark-brown hair, medium-length loose side part',
-        wardrobe: { description: 'sage-green cardigan over a cream top, blue denim jeans, tan loafers' },
+        // coarseAppearance + wardrobe.description are the EXACT deterministic projections of the structured traits below.
+        coarseAppearance: 'female mother; warm medium-brown skin tone; medium-length, loose, side part, wavy dark brown hair — the SAME appearance on every page',
+        wardrobe: { description: 'sage-green cardigan — the SAME garments and colours on every page' },
         forbiddenAppearance: [],
         appearance: {
           skinTone: { value: 'warm medium-brown', mode: 'family_profile', origin: { kind: 'family_profile' } },
@@ -116,8 +118,8 @@ function resolvedFixture(): Obj {
       {
         id: 'human:doctor', role: 'doctor', gender: 'male', aliases: ['הרופא', 'the doctor'], pagesPresent: [2],
         textEvidence: 'page 2: הרופא',
-        coarseAppearance: 'male doctor; light-tan skin; short black neatly-combed hair with a side part',
-        wardrobe: { description: 'white medical coat over blue scrubs, stethoscope' },
+        coarseAppearance: 'male doctor; light-tan skin tone; short neatly combed, side part, straight black hair — the SAME appearance on every page',
+        wardrobe: { description: 'white coat, blue scrubs — the SAME garments and colours on every page' },
         forbiddenAppearance: [],
         appearance: {
           skinTone: { value: 'light-tan', mode: 'deterministic_palette', origin: { kind: 'deterministic_palette', paletteId: 'clinic-doctor', version: PALETTE_VERSION } },
@@ -172,6 +174,33 @@ describe('P0 — Template validator', () => {
     if (!r.ok) expect(r.errors.join(' ')).toMatch(/explicit binding must carry a concrete value/);
   });
 
+  it('(Fix 3) REJECTS a schemaVersion that is not the EXACT supported version', () => {
+    const bad = templateFixture();
+    bad.schemaVersion = 'vc-schema/v0';
+    const r = validateBookVisualContractTemplate(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/schemaVersion must equal the supported/);
+  });
+
+  it('(Fix 3) REJECTS a missing storyKey (the deterministic palette seed must not degenerate to empty)', () => {
+    const bad = templateFixture();
+    delete bad.storyKey;
+    const r = validateBookVisualContractTemplate(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/storyKey missing/);
+  });
+
+  it('(Fix 3) REJECTS an incoherent mode/origin (family_profile trait carrying a story_evidence origin)', () => {
+    const bad = templateFixture();
+    (((bad.humanCast as Obj[])[0].appearance as Obj).skinTone as Obj) = {
+      mode: 'family_profile',
+      origin: { kind: 'story_evidence', page: 1, phrase: 'fabricated phrase' },
+    };
+    const r = validateBookVisualContractTemplate(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/family_profile mode requires a family_profile origin/);
+  });
+
   it('assertValidBookVisualContractTemplate throws on a malformed template', () => {
     expect(() => assertValidBookVisualContractTemplate({ contractKind: 'template' })).toThrow(InvalidTemplateContractError);
   });
@@ -203,6 +232,40 @@ describe('P0 — Resolved validator', () => {
     const r = validateResolvedBookVisualContract(templateFixture());
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.errors.join(' ')).toMatch(/Template .* must not be validated\/frozen as a Resolved/);
+  });
+
+  it('(Fix 3) REJECTS an unsupported schema/materializer/palette version', () => {
+    const bad = resolvedFixture();
+    bad.materializerVersion = 'materializer/v0';
+    const r = validateResolvedBookVisualContract(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/materializerVersion must equal the supported/);
+  });
+
+  it('(Fix 3) REJECTS an incoherent mode/origin on a resolved trait (palette trait with a family_profile origin)', () => {
+    const bad = resolvedFixture();
+    // doctor.skinTone stays mode=deterministic_palette but its origin is swapped to family_profile → incoherent.
+    (((bad.humanCast as Obj[])[1].appearance as Obj).skinTone as Obj).origin = { kind: 'family_profile' };
+    const r = validateResolvedBookVisualContract(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/deterministic_palette mode requires a deterministic_palette origin/);
+  });
+
+  it('(Fix 3) REJECTS prose that does not EQUAL the deterministic projection of the structured traits', () => {
+    const bad = resolvedFixture();
+    (bad.humanCast as Obj[])[0].coarseAppearance =
+      'female mother; warm medium-brown skin tone; a completely different hair description — the SAME appearance on every page';
+    const r = validateResolvedBookVisualContract(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/coarseAppearance does not EQUAL the deterministic projection/);
+  });
+
+  it('(Fix 3) REJECTS wardrobe.description that does not EQUAL the deterministic projection of the garments', () => {
+    const bad = resolvedFixture();
+    ((bad.humanCast as Obj[])[0].wardrobe as Obj).description = 'sage-green cardigan over a cream top, blue jeans, tan loafers';
+    const r = validateResolvedBookVisualContract(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/wardrobe\.description does not EQUAL the deterministic projection/);
   });
 
   it('assertValidResolvedBookVisualContract throws on a malformed resolved contract', () => {
