@@ -8,6 +8,7 @@
  * i.e. the legacy path). Pure — no I/O, no clock.
  */
 import { assertValidVNextVisualContract } from './validateVNextVisualContract';
+import { assertValidResolvedBookVisualContract } from './validateResolvedContract';
 import type { BookVisualContract } from './types';
 
 /**
@@ -17,11 +18,15 @@ import type { BookVisualContract } from './types';
  */
 export function readFrozenVisualContract(raw: unknown): BookVisualContract | null {
   if (raw == null) return null;
-  // A Template is NEVER a frozen/renderable contract (it holds unresolved bindings) — reject it explicitly on the
-  // discriminant. Only a Resolved contract (or a legacy vNext contract) is ever frozen into pipelineCache.
-  if (typeof raw === 'object' && (raw as { contractKind?: unknown }).contractKind === 'template') return null;
+  const kind = typeof raw === 'object' ? (raw as { contractKind?: unknown }).contractKind : undefined;
+  // A Template is NEVER a frozen/renderable contract (it holds unresolved bindings) — reject it on the discriminant.
+  if (kind === 'template') return null;
   try {
-    assertValidVNextVisualContract(raw); // fail-closed re-validate; NEVER a blind cast
+    // DISPATCH on the discriminant: a Resolved must pass the FULL concreteness validator (not merely the vNext
+    // structure) before the resume fast-path can reuse it — a Resolved with a missing/deferred structured trait can
+    // pass vNext but must NOT be reused. A legacy vNext contract (no `resolved` kind) keeps vNext validation.
+    if (kind === 'resolved') assertValidResolvedBookVisualContract(raw);
+    else assertValidVNextVisualContract(raw); // fail-closed re-validate; NEVER a blind cast
     return raw as BookVisualContract;
   } catch {
     return null;

@@ -65,6 +65,16 @@ describe('P0 commit 3 — readFrozenVisualContract guard', () => {
     const resolved = materialize(template(), FAMILY);
     expect(readFrozenVisualContract(resolved)).toBeTruthy();
   });
+
+  it('(Fix 1) DISPATCHES: a Resolved with a deferred structured trait → null; a legacy vNext → passes', () => {
+    const resolved = materialize(template(), FAMILY);
+    const deferred = JSON.parse(JSON.stringify(resolved));
+    deferred.humanCast[0].appearance.skinTone.value = 'deferred to the family lock'; // passes vNext, fails Resolved
+    expect(readFrozenVisualContract(deferred)).toBeNull();
+    const legacy = JSON.parse(JSON.stringify(resolved));
+    delete legacy.contractKind; // no "resolved" kind → the vNext validation path
+    expect(readFrozenVisualContract(legacy)).toBeTruthy();
+  });
 });
 
 describe('P0 commit 3 — Template loader (fail-closed)', () => {
@@ -134,5 +144,20 @@ describe('P0 commit 3 — freeze wiring (money-adjacent invariants)', () => {
     });
     expect(produceCalled).toBe(false);
     expect(out).toBe(cache);
+  });
+
+  it('(Fix 1) RESUME with a CORRUPT frozen Resolved is NOT reused — fast-path skipped, produce IS called', async () => {
+    process.env.VISUAL_CONTRACT_FREEZE = 'true';
+    const bad = JSON.parse(JSON.stringify(materialize(template(), FAMILY)));
+    bad.humanCast[0].appearance.hairColour.value = 'deferred to the family lock'; // corrupt Resolved
+    // Order hash MATCHES the corrupt contract's hash: only readFrozen's Resolved-validation can prevent reuse.
+    const order = { id: 'o1', visualContractHash: computeVisualContractHash(bad) } as unknown as Order;
+    const cache = { visualContract: bad } as unknown as PipelineCache;
+    let produceCalled = false;
+    await ensureFrozenVisualContract(order, cache, {
+      db: {} as EnsureFrozenVisualContractDeps['db'],
+      produce: async () => { produceCalled = true; return null; },
+    });
+    expect(produceCalled).toBe(true);
   });
 });
