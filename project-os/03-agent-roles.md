@@ -1,7 +1,7 @@
 # 03 — Agent Roles
 
 **Last updated:** 2026-07-06
-**Status:** proposed operating model (see DEC-008). ⚠️ Reconcile with repo `AGENTS.md` / `docs/ai-workflow/AI_ROLES_AND_PROTOCOL.md`, which currently give conflicting CTO assignments (OQ-T1).
+**Status:** accepted operating model (DEC-008, Guy 2026-07-06). ⚠️ Repo `CLAUDE.md` / `AGENTS.md` / `AI_ROLES_AND_PROTOCOL.md` still give conflicting CTO assignments — reconciliation routed to Cursor (doc-only), see `project-os/briefs/BRIEF-cursor-role-doc-reconcile.md` (OQ-T1).
 
 **Master rule of thumb:** Operator maps & routes → specialist/executor proposes → Codex gatekeeps (technical) → ChatGPT challenges (product/creative) → **Guy approves** → Cursor/Claude Code execute. No agent works without a clear brief. No agent approves its own major recommendation.
 

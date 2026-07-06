@@ -11,7 +11,7 @@ Grouped by area. Each needs an owner decision or a routed brief. Resolved questi
 - **OQ-P3:** Final honest-copy pass — confirm no "in minutes", no likeness-without-photo promise, clear no-photo limitation.
 
 ## Technical
-- **OQ-T1:** Repo role docs conflict — `AGENTS.md` names **Codex** as CTO; `CLAUDE.md` + `AI_ROLES_AND_PROTOCOL.md` name **Claude** as CTO. Reconcile to the new operator model (DEC-008). ⚠️ agents currently read contradictory instructions.
+- **OQ-T1:** [ROUTED → Cursor, doc-only brief] Repo role docs conflict — `AGENTS.md` names **Codex** as CTO; `CLAUDE.md` + `AI_ROLES_AND_PROTOCOL.md` name **Claude** as CTO. DEC-008 accepted 2026-07-06; reconciliation brief at `project-os/briefs/BRIEF-cursor-role-doc-reconcile.md`. Close when merged.
 - **OQ-T2:** Codex round-2 verdict on the P0 visual-contract slice — PASS to unblock P1, or more HOLD fixes? (blocks push)
 - **OQ-T3:** vNext reconciliation strategy — how to reconcile the ~45 stranded commits on `fix/visual-contract-live-wiring` without blind rebase. (Codex)
 - **OQ-T4:** When/how does `feat/chunked-generation` cut over to PROD, and is env parity confirmed?

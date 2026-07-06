@@ -100,8 +100,9 @@ Needs Codex review: no
 
 DEC-008: Operating model — Claude Cowork as Project Operator/Chief of Staff
 Date: 2026-07-06
-Status: proposed
+Status: accepted (Guy, 2026-07-06)
 Owner: Guy
+Follow-up: Repo role docs (CLAUDE.md, AGENTS.md, AI_ROLES_AND_PROTOCOL.md) to be reconciled to this model via a doc-only Cursor brief (see project-os/briefs/BRIEF-cursor-role-doc-reconcile.md). Closes OQ-T1.
 Context: Repo docs are inconsistent (`AGENTS.md` names Codex as CTO; `CLAUDE.md`/`AI_ROLES_AND_PROTOCOL.md` name Claude as CTO). Guy has defined a new operator model.
 Decision: Claude Cowork = operator/orchestrator/chief-of-staff (this Project OS); Codex = technical gatekeeper; Claude Code = deep specialist; Cursor = frontend executor; ChatGPT = external advisor; Guy = owner/final approver.
 Why: Single coordination layer + clear gatekeeping prevents agent sprawl and self-approval.
