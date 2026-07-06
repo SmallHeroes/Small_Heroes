@@ -19,6 +19,7 @@ import {
   validateResolvedBookVisualContract,
   InvalidResolvedContractError,
 } from './validateResolvedContract';
+import { classifyFrozenContract } from './readFrozenVisualContract';
 import { isVercelProductionRuntime } from '@/lib/runtime-env';
 import type { BookVisualContract } from './types';
 
@@ -118,25 +119,29 @@ export function requireValidContractForRender(
     throw new MissingVisualContractError(msg, context);
   }
 
-  // A present contract is ALWAYS validated with the RIGHT validator before it steers a render (even with
-  // enforcement off) — never render against a broken source of truth. DISPATCH on the discriminant: a resolved-kind
-  // contract must pass the FULL Resolved concreteness validator (the base validator is too weak — it accepts a
-  // deferred/incoherent Resolved that would then render as a broken book). A genuine legacy contract (no `resolved`
-  // kind) keeps the base validator. There is NO legacy fall-through for a bad Resolved — an invalid Resolved throws.
-  if (
-    typeof contract === 'object' &&
-    contract !== null &&
-    (contract as { contractKind?: unknown }).contractKind === 'resolved'
-  ) {
+  // A present contract is ALWAYS validated before it steers a render (even with enforcement off) — never render
+  // against a broken source of truth. Use the ONE shared classifier (identical to readFrozenVisualContract) so the
+  // gate can never diverge on classification. There is NO base-validator fall-through for any Resolved-shaped or
+  // unknown input — the P1 laundering class (stripped discriminant / unknown kind / Template) is a HARD block here.
+  const cls = classifyFrozenContract(contract);
+  if (cls === 'resolved') {
+    // Exact contractKind==="resolved" → the FULL Resolved concreteness validator (the base validator is too weak).
     const resolved = validateResolvedBookVisualContract(contract);
     if (!resolved.ok) throw new InvalidResolvedContractError(resolved.errors);
     return resolved.contract as unknown as BookVisualContract;
   }
+  if (cls === 'reject') {
+    // A Template, an unknown/garbage kind, a discriminant-stripped Resolved, or a non-object → NEVER renderable.
+    const kind = (contract as { contractKind?: unknown }).contractKind;
+    throw new InvalidVisualContractError([
+      `contract is not a renderable frozen contract (contractKind=${JSON.stringify(kind)}) — a Template, an unknown kind, or a discriminant-stripped Resolved must never render (fail-closed)`,
+    ]);
+  }
 
+  // 'legacy' → a genuine legacy contract (no Resolved fingerprints) keeps the base validator (backward-compatible).
   const result = validateBookVisualContract(contract);
   if (!result.ok) {
-    // A present-but-invalid contract is always a hard stop (even with enforcement off) — never render
-    // against a broken source of truth.
+    // A present-but-invalid legacy contract is always a hard stop (even with enforcement off).
     throw new InvalidVisualContractError(result.errors);
   }
   return result.contract;

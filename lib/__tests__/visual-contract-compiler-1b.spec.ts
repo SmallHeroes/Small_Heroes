@@ -331,4 +331,21 @@ describe('P1/OQ-T5 — requireValidContractForRender hard-blocks an invalid Reso
   it('a genuine LEGACY contract (no resolved discriminant) is still allowed (base validator)', () => {
     expect(requireValidContractForRender(contract(), 'production')).toBeTruthy();
   });
+
+  // ── re-gate: no non-exact-"resolved" discriminant may launder through the base validator ──
+  it('(re-gate) a discriminant-STRIPPED Resolved is BLOCKED (carries Resolved fingerprints → not laundered as legacy)', () => {
+    const bad = JSON.parse(JSON.stringify(materialize(p1ResolvedTemplate(), P1_FAMILY)));
+    delete bad.contractKind; // still carries materializerVersion/paletteVersion → resolved-shaped, must NOT render
+    expect(() => requireValidContractForRender(bad, 'production')).toThrow(/not a renderable frozen contract/);
+  });
+
+  it('(re-gate) an UNKNOWN contractKind is BLOCKED (no base-validator fall-through)', () => {
+    const bad = JSON.parse(JSON.stringify(materialize(p1ResolvedTemplate(), P1_FAMILY)));
+    bad.contractKind = 'resolvedx';
+    expect(() => requireValidContractForRender(bad, 'production')).toThrow(/not a renderable frozen contract/);
+  });
+
+  it('(re-gate) a Template (contractKind="template") is BLOCKED (a Template is never renderable)', () => {
+    expect(() => requireValidContractForRender(p1ResolvedTemplate(), 'production')).toThrow(/not a renderable frozen contract/);
+  });
 });
