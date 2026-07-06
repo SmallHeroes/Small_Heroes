@@ -1735,15 +1735,6 @@
   to { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
 }
 
-/* תג ההירו — מסגרת גרדיאנט עדינה, יוקרתי בלי להיות צעצוע */
-.hero-badge {
-  position: relative;
-  border: 1px solid transparent;
-  background:
-    linear-gradient(#fff, #fff) padding-box,
-    linear-gradient(120deg, rgba(136, 108, 255, 0.45), rgba(255, 214, 108, 0.55)) border-box;
-}
-
 /* ── CTA ראשי: הילה בהובר + סוויפ ברק עדין ── */
 .btn-primary {
   position: relative;
