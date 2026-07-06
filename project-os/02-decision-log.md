@@ -36,7 +36,7 @@ Revisit after: P0 slice pushed + Codex round-2 pass
 
 DEC-002: P0 visual-contract = one authoritative structured source per human trait (fail-closed)
 Date: 2026-07-06
-Status: proposed — Codex round-2 = **FAIL (2026-07-06), no-go for P1**
+Status: accepted (Codex round-3 PASS, 2026-07-06) — P1 authorized
 Owner: Guy
 Codex verdict (2026-07-06): atomic/hash mechanics PASS; slice NOT fail-closed. 3 blocking gaps: (1) live freeze seam does not call `validateResolvedBookVisualContract` before hashing → can persist an invalid Resolved contract (`ensure-frozen-visual-contract.ts:117/190`); (2) frozen-contract dispatch falls to legacy validator on missing/unknown discriminant → accepts damaged Resolved shape + resume can reuse it (`readFrozenVisualContract.ts:21`); (3) Resolved validator drops Template invariants (accepts doctor `family_profile`, garment `family_profile`, malformed origins, palette version mismatch) (`validateResolvedContract.ts:41/107`). Fix = narrow corrective commits (Claude Code) + negative tests → re-gate. No revert/render. Slice already pushed to `origin/feat/chunked-generation` @ `d3c0d0c8` (feat only, not prod).
 Follow-on (P1, do NOT touch now): `requireValidContractForRender` uses the weaker base validator (`contractRenderGuards.ts:117`) and accepts a deferred Resolved contract — P1 must MODIFY it, not merely wire it.

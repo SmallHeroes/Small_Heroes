@@ -10,7 +10,7 @@
 Pre-launch, engine-hardening phase. **Not yet sellable at target quality.** Launch target **2026-07-15** (soft launch, Cursor + Guy only, real payment, ~50% launch discount). Binding constraint = story throughput × Guy's manual QA gate. Current focus is closing the **visual-contract engine** so full-book renders are consistent enough to sell.
 
 ## Current sprint focus
-- **P0 visual-contract slice — round-2 fixes IMPLEMENTED + pushed (`32dcfe3a`, 2026-07-06).** Claude Code closed the 3 Codex fail-open seams (validate-before-freeze + belt at the fence; hardened discriminant dispatch; Resolved validator now enforces Template invariants independently). `materializeContract.ts` untouched → payload/hash byte-identical (validation gates only). `npm run check` green **1333 pass / 15 skip** (+6 negative tests). **Now: awaiting Codex round-3 re-gate.** DEC-002 stays `proposed` until Codex PASS. Fail mode = degrade-to-legacy (hard render block is P1/OQ-T5, untouched).
+- **P0 visual-contract slice — round-2 fixes IMPLEMENTED + pushed (`32dcfe3a`, 2026-07-06).** Claude Code closed the 3 Codex fail-open seams (validate-before-freeze + belt at the fence; hardened discriminant dispatch; Resolved validator now enforces Template invariants independently). `materializeContract.ts` untouched → payload/hash byte-identical (validation gates only). `npm run check` green **1333 pass / 15 skip** (+6 negative tests). **Codex round-3 = PASS (2026-07-06)** — all 3 seams confirmed closed, no hash regression. **DEC-002 accepted; P1 authorized.** Fail mode = degrade-to-legacy (hard render block is P1/OQ-T5, untouched).
 - Slice is pushed on `origin/feat/chunked-generation` (@ `32dcfe3a`) — feat branch only, **not main/prod**, no customer impact.
 - Reconcile toward **BookVisualContract vNext** as single source of truth (LocationBible/registry/QA become projections). ~70% built but stranded across branches — reconcile+complete, do **not** blind-rebase.
 
@@ -48,7 +48,7 @@ Staging env built: separate staging Supabase + Vercel Preview env scoped per-env
 
 ## Current blockers (see 06-risk-register)
 1. Visual consistency across a full book (location leak, size drift, family/child likeness) — **the #1 sellability blocker.**
-2. P0 slice: round-2 fail-open seams FIXED (`32dcfe3a`, green 1333/15) → **awaiting Codex round-3 re-gate** before P1.
+2. P0 slice: **Codex round-3 PASS (`32dcfe3a`)** — fail-closed at freeze. **P1/OQ-T5 (hard render block) is now the launch-gating engine work** (brief sent to Claude Code; enforcement flag-gated, default OFF prod).
 3. PayMe refund exactly-once robustness.
 4. Throughput × Guy-QA is the launch rate-limiter.
 
