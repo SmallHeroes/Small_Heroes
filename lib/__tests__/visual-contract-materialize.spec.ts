@@ -152,4 +152,26 @@ describe('P0 materialize — (d) fail-closed on a family gap', () => {
   it('a non-template input is rejected', () => {
     expect(() => materialize({ contractKind: 'resolved' } as unknown as BookVisualContractTemplate, FAMILY)).toThrow(MaterializationError);
   });
+
+  it('the seed-collapse case FAILS: a deterministic_palette human with an empty/missing storyKey throws', () => {
+    // Missing storyKey → the palette seed would collapse to `hash(… | "" | castId)`, identical across ALL such stories.
+    const missing = clone(template());
+    delete (missing as { storyKey?: string }).storyKey;
+    expect(() => materialize(missing, FAMILY)).toThrow(MaterializationError);
+    // A storyKey that NORMALIZES to empty (bare ".md" / dir-only) collapses just as hard → also fail-closed.
+    const normalizesEmpty = clone(template());
+    (normalizesEmpty as { storyKey?: string }).storyKey = 'v3-approved/.md';
+    expect(() => materialize(normalizesEmpty, FAMILY)).toThrow(MaterializationError);
+  });
+
+  it('an empty storyKey is allowed when NO human is palette-seeded (guard fires only at the seam that consumes it)', () => {
+    // Drop the palette-seeded doctor; the family-only mother needs no seed, so an absent storyKey must NOT block.
+    const noPalette = clone(template());
+    noPalette.humanCast = noPalette.humanCast.filter((m) => m.id !== 'human:doctor');
+    noPalette.pageContracts = noPalette.pageContracts.map((p) =>
+      p.pageNumber === 2 ? { ...p, castIds: (p.castIds ?? []).filter((id) => id !== 'human:doctor') } : p,
+    );
+    delete (noPalette as { storyKey?: string }).storyKey;
+    expect(() => materialize(noPalette, FAMILY)).not.toThrow();
+  });
 });

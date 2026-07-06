@@ -23,7 +23,7 @@ import {
   type TemplateHumanCastMember,
   type TemplateTraitBinding,
 } from './contractTemplateTypes';
-import { DEFAULT_APPEARANCE_PALETTE, paletteEntryFor, type AppearancePalette } from './appearancePalette';
+import { DEFAULT_APPEARANCE_PALETTE, normalizeStoryKey, paletteEntryFor, type AppearancePalette } from './appearancePalette';
 import {
   projectResolvedCoarseAppearance,
   projectResolvedWardrobeDescription,
@@ -68,6 +68,13 @@ function resolveTrait(
       return { value: v, mode: 'family_profile', origin: binding.origin };
     }
     case 'deterministic_palette': {
+      // Fail-CLOSED on the seed-collapse case: the palette seed is `hash(… | normalizedStoryKey | castId)`, so an
+      // empty/missing storyKey (or one that normalizes to empty, e.g. a bare ".md"/dir) would collapse the seed across
+      // ALL such stories — every palette-seeded human would get the SAME appearance. Throw rather than silently pick a
+      // story-agnostic default (mirrors validateTemplateContract's non-empty storyKey requirement at the seam that uses it).
+      if (normalizeStoryKey(storyKey) === '') {
+        throw new MaterializationError(`${label} deterministic_palette needs a non-empty storyKey to seed the appearance (an empty key collapses the palette seed across stories)`);
+      }
       const entry = paletteEntryFor(palette, storyKey, member.id);
       const v =
         trait === 'skinTone' ? entry.skin
