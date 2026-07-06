@@ -12,7 +12,8 @@ Grouped by area. Each needs an owner decision or a routed brief. Resolved questi
 
 ## Technical
 - **OQ-T1:** [ROUTED → Cursor, doc-only brief] Repo role docs conflict — `AGENTS.md` names **Codex** as CTO; `CLAUDE.md` + `AI_ROLES_AND_PROTOCOL.md` name **Claude** as CTO. DEC-008 accepted 2026-07-06; reconciliation brief at `project-os/briefs/BRIEF-cursor-role-doc-reconcile.md`. Close when merged.
-- **OQ-T2:** [RESOLVED 2026-07-06 → see DEC-002] Codex round-2 = **FAIL** (3 fail-open seams). Routed to Claude Code for corrective commits → Codex re-gate. New follow-on **OQ-T5** below.
+- **OQ-T2:** Codex round-2 = FAIL → Claude Code fixed all 3 seams, pushed `32dcfe3a` (green 1333/15). **Now awaiting Codex round-3 re-gate.** CC's verify-list for Codex: no hash regression (materializeContract untouched); Fix-2 resolved-shape detection keys on materializerVersion/paletteVersion; the one retargeted dispatch test (tightening not weakening); Fix-3 mirrors Template invariants. Close when Codex verdict in.
+- **OQ-T6:** Push governance — Claude Code pushed `32dcfe3a` itself (clean fast-forward, DoD required it), which conflicts with `03-agent-roles` "only Guy pushes". **Guy to decide:** push stays Guy-only, OR executors may fast-forward-push feature branches (never main/prod). Recommendation: allow FF-push on feat, Guy-only for main/prod.
 - **OQ-T5:** P1 must MODIFY `requireValidContractForRender` (`contractRenderGuards.ts:117`), not just wire it — it currently accepts a deferred Resolved contract. Do NOT start until P0 re-gate passes.
 - **OQ-T3:** vNext reconciliation strategy — how to reconcile the ~45 stranded commits on `fix/visual-contract-live-wiring` without blind rebase. (Codex)
 - **OQ-T4:** When/how does `feat/chunked-generation` cut over to PROD, and is env parity confirmed?
