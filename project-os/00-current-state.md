@@ -10,7 +10,8 @@
 Pre-launch, engine-hardening phase. **Not yet sellable at target quality.** Launch target **2026-07-15** (soft launch, Cursor + Guy only, real payment, ~50% launch discount). Binding constraint = story throughput × Guy's manual QA gate. Current focus is closing the **visual-contract engine** so full-book renders are consistent enough to sell.
 
 ## Current sprint focus
-- Land + push the **P0 visual-contract slice** (money-adjacent: Template + deterministic materializer + resolved validator, fail-closed). Currently implementation-complete, `npm run check` green (1321 pass / 15 skip), **UNPUSHED on `feat/chunked-generation`**, held for **Codex round-2 re-review before ANY P1**.
+- **P0 visual-contract slice — Codex round-2 = FAIL (2026-07-06).** Atomic/hash mechanics PASS, but slice is **not fail-closed**: 3 reproducible validator/seam gaps (validator not invoked before freeze; dispatch bypassed on missing/unknown discriminant; Resolved validator drops Template invariants). **No-go for P1.** Correction: narrow corrective commits by **Claude Code** → `npm run check` → Codex re-gate. No revert, no render.
+- Slice is **already pushed** to `origin/feat/chunked-generation` (@ `d3c0d0c8`, contains `c5f28b20` + `e90e7078`) — feat branch only, **not main/prod**, no customer impact. (Prior "UNPUSHED" note was stale — corrected.)
 - Reconcile toward **BookVisualContract vNext** as single source of truth (LocationBible/registry/QA become projections). ~70% built but stranded across branches — reconcile+complete, do **not** blind-rebase.
 
 ## Product status
@@ -47,7 +48,7 @@ Staging env built: separate staging Supabase + Vercel Preview env scoped per-env
 
 ## Current blockers (see 06-risk-register)
 1. Visual consistency across a full book (location leak, size drift, family/child likeness) — **the #1 sellability blocker.**
-2. P0 visual-contract slice pending Codex re-review + push.
+2. P0 visual-contract slice **FAILED** Codex round-2 (3 fail-open seams) → Claude Code corrective commits → Codex re-gate before P1.
 3. PayMe refund exactly-once robustness.
 4. Throughput × Guy-QA is the launch rate-limiter.
 

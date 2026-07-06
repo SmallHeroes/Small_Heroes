@@ -12,7 +12,8 @@ Grouped by area. Each needs an owner decision or a routed brief. Resolved questi
 
 ## Technical
 - **OQ-T1:** [ROUTED → Cursor, doc-only brief] Repo role docs conflict — `AGENTS.md` names **Codex** as CTO; `CLAUDE.md` + `AI_ROLES_AND_PROTOCOL.md` name **Claude** as CTO. DEC-008 accepted 2026-07-06; reconciliation brief at `project-os/briefs/BRIEF-cursor-role-doc-reconcile.md`. Close when merged.
-- **OQ-T2:** Codex round-2 verdict on the P0 visual-contract slice — PASS to unblock P1, or more HOLD fixes? (blocks push)
+- **OQ-T2:** [RESOLVED 2026-07-06 → see DEC-002] Codex round-2 = **FAIL** (3 fail-open seams). Routed to Claude Code for corrective commits → Codex re-gate. New follow-on **OQ-T5** below.
+- **OQ-T5:** P1 must MODIFY `requireValidContractForRender` (`contractRenderGuards.ts:117`), not just wire it — it currently accepts a deferred Resolved contract. Do NOT start until P0 re-gate passes.
 - **OQ-T3:** vNext reconciliation strategy — how to reconcile the ~45 stranded commits on `fix/visual-contract-live-wiring` without blind rebase. (Codex)
 - **OQ-T4:** When/how does `feat/chunked-generation` cut over to PROD, and is env parity confirmed?
 
