@@ -4,16 +4,16 @@
  * previewUrl: hosted preview audio file (optional).
  *
  * UI COPY SYNC:
- * The `label` and `description` fields here are user-facing strings.
- * They MUST stay in sync with WIZARD.voices in content/ui/he/wizard.ts
- * (the typed content layer) and the voices array in JS/content.js
- * (the static frontend).
+ * The `label` and `description` fields here are user-facing strings. They MUST stay in sync with the voices array in
+ * public/JS/content.js → window.CONTENT.he.wizard.voices (the ONLY frontend list; there is no content/ui/he/wizard.ts).
  *
  * When adding or renaming a voice:
  *   1. Update this file (service config + ElevenLabs IDs)
- *   2. Update content/ui/he/wizard.ts → WIZARD.voices
- *   3. Update JS/content.js → window.CONTENT.he.wizard.voices
+ *   2. Update public/JS/content.js → window.CONTENT.he.wizard.voices
  */
+import { createLogger } from '../../lib/logger';
+
+const log = createLogger({ subsystem: 'voices-config' });
 
 export interface VoiceConfig {
   id: string;              // our internal ID
@@ -38,7 +38,7 @@ export const VOICES: VoiceConfig[] = [
     emoji: '👩',
     provider: 'elevenlabs',
     elevenlabsVoiceId: '4RZ84U1b4WCqpu57LvIq',
-    previewUrl: null,
+    previewUrl: '/voice-samples/4RZ84U1b4WCqpu57LvIq.mp3',
     stability: 0.55,
     similarityBoost: 0.78,
     style: 0.20,
@@ -50,56 +50,9 @@ export const VOICES: VoiceConfig[] = [
     emoji: '👨',
     provider: 'elevenlabs',
     elevenlabsVoiceId: 'V4aTMuwwYUtBD7ZqVvZs',
-    previewUrl: null,
+    previewUrl: '/voice-samples/V4aTMuwwYUtBD7ZqVvZs.mp3',
     stability: 0.70,
     similarityBoost: 0.80,
-  },
-  {
-    id: 'grandma',
-    label: 'סבתא',
-    description: 'קול סבתא חם ועדין',
-    emoji: '👵',
-    provider: 'elevenlabs',
-    elevenlabsVoiceId: '7NsaqHdLuKNFvEfjpUno',
-    previewUrl: null,
-    stability: 0.75,
-    similarityBoost: 0.80,
-    style: 0.10,
-  },
-  {
-    id: 'dad_thick',
-    label: 'אבא עם קול עבה',
-    description: 'קול אבא עבה ומחבק',
-    emoji: '👨',
-    provider: 'elevenlabs',
-    elevenlabsVoiceId: 'cPoqAvGWCPfCfyPMwe4z',
-    previewUrl: null,
-    stability: 0.70,
-    similarityBoost: 0.78,
-  },
-  {
-    id: 'big_sister',
-    label: 'אחות גדולה',
-    description: 'קול אחות גדולה, רגוע ומחבק',
-    emoji: '👧',
-    provider: 'elevenlabs',
-    elevenlabsVoiceId: 'qBDvhofpxp92JgXJxDjB',
-    previewUrl: null,
-    stability: 0.65,
-    similarityBoost: 0.78,
-    style: 0.15,
-  },
-  {
-    id: 'big_brother',
-    label: 'אח גדול',
-    description: 'קול אח גדול, חברותי וחם',
-    emoji: '🧒',
-    provider: 'elevenlabs',
-    elevenlabsVoiceId: 'chcMmmtY1cmQh2ye1oXi',
-    previewUrl: null,
-    stability: 0.65,
-    similarityBoost: 0.78,
-    style: 0.15,
   },
   {
     id: 'fairy',
@@ -108,7 +61,7 @@ export const VOICES: VoiceConfig[] = [
     emoji: '🧚',
     provider: 'elevenlabs',
     elevenlabsVoiceId: 'piI8Kku0DcvcL6TTSeQt',
-    previewUrl: null,
+    previewUrl: '/voice-samples/piI8Kku0DcvcL6TTSeQt.mp3',
     stability: 0.60,
     similarityBoost: 0.75,
     style: 0.3,
@@ -122,6 +75,26 @@ export const SLEEP_MODE_OVERRIDES: Partial<VoiceConfig> = {
   style: 0,
 };
 
-export function getVoiceById(id: string): VoiceConfig | undefined {
+/** Strict registry lookup for intake validation. Never use the fallback here. */
+export function findVoiceById(id: string): VoiceConfig | undefined {
   return VOICES.find(v => v.id === id);
+}
+
+/**
+ * Runtime narration lookup. Old/test orders can retain a voice id that was removed
+ * from the sellable roster; narration must not fail an otherwise deliverable book.
+ */
+export function getVoiceById(id: string): VoiceConfig {
+  const voice = findVoiceById(id);
+  if (voice) return voice;
+
+  const fallback = VOICES.find(v => v.id === 'mom');
+  if (!fallback) {
+    throw new Error('Default narration voice "mom" is missing from the voice registry');
+  }
+  log.warn('unknown narration voice; using default', {
+    requestedVoiceId: id,
+    fallbackVoiceId: fallback.id,
+  });
+  return fallback;
 }

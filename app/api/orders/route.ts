@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { Prisma } from '@prisma/client';
 import { computePricing } from '../../../backend/config/wizard';
+import { findVoiceById } from '../../../backend/config/voices';
 import { mapStyleToDatabaseValue } from '../../../lib/styles';
 import { assertOrderStyleSellable } from '../../../lib/image-engine-guard';
 import { enforceRateLimit, enforceSameOrigin } from '../../../lib/request-security';
@@ -197,6 +198,29 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    // Fail-CLOSED narration-voice gate: `selectedVoice` MUST exist in the backend registry
+    // (backend/config/voices.ts → findVoiceById is the strict source of truth for producible voices). A stale/removed id
+    // (e.g. a returning user whose persisted wizard state still holds a voice we later dropped) or any client-supplied
+    // value must NOT enter a paid order — otherwise audio generation throws "Unknown voice" AFTER payment. Reject here.
+    const requestedVoice = toStringOrNull(product?.selectedVoice);
+    const audioWillGenerate = Boolean(
+      product?.audioEnabled || product?.videoEnabled || product?.bundleEnabled
+    );
+    if (requestedVoice && !findVoiceById(requestedVoice)) {
+      console.warn(`[POST /api/orders] rejected invalid/stale voice "${requestedVoice}"`);
+      return NextResponse.json(
+        { error: 'invalid_voice', message: 'הקול שנבחר אינו זמין. אנא בחרו קול מהרשימה.' },
+        { status: 400 }
+      );
+    }
+    if (audioWillGenerate && !requestedVoice) {
+      console.warn('[POST /api/orders] rejected audio order with no narration voice selected');
+      return NextResponse.json(
+        { error: 'voice_required', message: 'יש לבחור קול לקריינות.' },
+        { status: 400 }
+      );
+    }
+
     const uploadScopeId = `draft-${randomUUID()}`;
 
     const rawChildImage = toStringOrNull(child?.imageUrl);
@@ -312,7 +336,7 @@ export async function POST(req: NextRequest) {
         ...(frozenProductTruth ?? {}),
         illustrationStyle: persistedIllustrationStyle,
         audioEnabled: product.audioEnabled,
-        selectedVoice: product.selectedVoice || null,
+        selectedVoice: requestedVoice,
         sleepMode: product.sleepMode || false,
         pdfEnabled: product.pdfEnabled,
         bundleEnabled: product.bundleEnabled || false,

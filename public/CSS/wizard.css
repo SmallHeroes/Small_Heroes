@@ -2976,16 +2976,28 @@
   line-height: 1.25;
 }
 
+.voice-final-note {
+  max-width: 520px;
+  margin: 0 auto 16px;
+  text-align: center;
+  font-family: var(--fb);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--purple);
+}
+
 .voice-step-card .voice-play-btn {
-  width: 30px;
-  height: 30px;
-  margin-top: 4px;
-  font-size: 11px;
+  width: 44px;
+  height: 44px;
+  margin-top: 8px;
+  font-size: 15px;
+  box-shadow: 0 6px 16px rgba(132, 103, 255, 0.28);
 }
 
 .voice-step-card .voice-play-btn.is-loading,
 .voice-step-card .voice-play-btn.is-playing {
-  margin-top: 4px;
+  margin-top: 8px;
 }
 
 .voice-step-card .sleep-row {

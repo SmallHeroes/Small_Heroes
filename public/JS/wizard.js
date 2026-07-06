@@ -1251,6 +1251,10 @@ function initWizardContent() {
   // Step 6 — voice
   const voiceCopy = WIZ.steps.voice || {};
   setText('voiceTitle', WIZ.steps.voice?.title || '');
+  // Only promise "listen before choosing" when a real preview clip exists; otherwise state the final-choice note plainly.
+  const anyVoicePreview = Array.isArray(VOICES)
+    && VOICES.some((v) => v && typeof v.sampleUrl === 'string' && v.sampleUrl.trim().length > 0);
+  setText('voiceFinalNote', (anyVoicePreview ? voiceCopy.finalNote : voiceCopy.finalNoteNoPreview) || voiceCopy.finalNote || '');
   setText('voiceSleepName', voiceCopy.sleep?.name || '');
   setText('voiceSleepDesc', voiceCopy.sleep?.desc || '');
 
@@ -2405,6 +2409,13 @@ function renderVoiceBtns() {
   stopVoicePreview();
   wrap.innerHTML = '';
 
+  // Coerce a stale/removed persisted selection (e.g. a voice we later dropped) back to a valid one, so it can't ride
+  // silently into checkout. The backend rejects unknown voices fail-closed; this keeps the UI honest too.
+  if (state.voice && !VOICES.some((v) => v.id === state.voice)) {
+    state.voice = VOICES[0]?.id || 'mom';
+    queueWizardSave();
+  }
+
   const previewLabel = WIZ.steps.voice?.voicePreview || 'האזינו לדוגמה';
 
   VOICES.forEach((v) => {
@@ -2414,18 +2425,24 @@ function renderVoiceBtns() {
     card.setAttribute('role', 'button');
     card.tabIndex = 0;
 
-    const playBtn = document.createElement('button');
-    playBtn.type = 'button';
-    playBtn.className = 'voice-play-btn';
-    playBtn.title = previewLabel;
-    playBtn.setAttribute('aria-label', `${previewLabel} — ${v.label}`);
-    playBtn.textContent = '▶';
+    // Only offer a preview when a REAL clip URL is configured. Until CC hosts the previews (sampleUrl null/empty),
+    // render NO play button — a prominent affordance that 404s is worse than none.
+    const hasPreview = typeof v.sampleUrl === 'string' && v.sampleUrl.trim().length > 0;
+    let playBtn = null;
+    if (hasPreview) {
+      playBtn = document.createElement('button');
+      playBtn.type = 'button';
+      playBtn.className = 'voice-play-btn';
+      playBtn.title = previewLabel;
+      playBtn.setAttribute('aria-label', `${previewLabel} — ${v.label}`);
+      playBtn.textContent = '▶';
+    }
 
     card.innerHTML = `
       <span class="voice-btn-emoji">${v.emoji}</span>
       <span class="voice-btn-label">${v.label}</span>
     `;
-    card.appendChild(playBtn);
+    if (playBtn) card.appendChild(playBtn);
 
     const selectVoice = () => {
       document.querySelectorAll('.voice-btn').forEach((b) => b.classList.remove('selected'));
@@ -2442,10 +2459,12 @@ function renderVoiceBtns() {
       }
     });
 
-    playBtn.addEventListener('click', (event) => {
-      event.stopPropagation();
-      playVoicePreview(v.id);
-    });
+    if (playBtn) {
+      playBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        playVoicePreview(v.id);
+      });
+    }
 
     wrap.appendChild(card);
   });

@@ -291,6 +291,10 @@ const CONTENT = {
           subTemplate: 'הקריינות כלולה בכל ספר — בחרו מי יספר ל{name}.',
           subFallback: 'הקריינות כלולה בכל ספר — בחרו מי יספר.',
           voicePreview: 'האזינו לדוגמה',
+          // Shown when voice previews ARE available (a real sampleUrl exists) — invites listening before the final choice.
+          finalNote: 'האזינו לפני הבחירה — לא ניתן לשנות את הקול לאחר מכן.',
+          // Shown when NO preview is available yet — states the choice is final without promising a clip to hear.
+          finalNoteNoPreview: 'שימו לב: לא ניתן לשנות את הקול לאחר הבחירה.',
           sleep: { name: 'מותאם לשינה 🌙', desc: 'טון רגוע יותר, הפסקות ארוכות יותר' },
         },
 
@@ -497,14 +501,12 @@ const CONTENT = {
         },
       ],
 
+      /* voices[]: MUST stay in sync with backend/config/voices.ts → VOICES.
+         `sampleUrl` is the stable, pre-rendered clip played by the wizard. */
       voices: [
-        { id: 'mom',         label: 'אמא',         emoji: '👩', sampleUrl: '/voice-samples/mom.mp3' },
-        { id: 'dad',         label: 'אבא',         emoji: '👨', sampleUrl: '/voice-samples/dad.mp3' },
-        { id: 'grandma',     label: 'סבתא',        emoji: '👵', sampleUrl: '/voice-samples/grandma.mp3' },
-        { id: 'dad_thick',   label: 'אבא עם קול עבה',  emoji: '👨', sampleUrl: '/voice-samples/dad_thick.mp3' },
-        { id: 'big_sister',  label: 'אחות גדולה',      emoji: '👧', sampleUrl: '/voice-samples/big_sister.mp3' },
-        { id: 'big_brother', label: 'אח גדול',     emoji: '🧒', sampleUrl: '/voice-samples/big_brother.mp3' },
-        { id: 'fairy',       label: 'פייה קסומה',  emoji: '🧚', sampleUrl: '/voice-samples/fairy.mp3' },
+        { id: 'mom',   label: 'אמא',        emoji: '👩', sampleUrl: '/voice-samples/4RZ84U1b4WCqpu57LvIq.mp3' },
+        { id: 'dad',   label: 'אבא',        emoji: '👨', sampleUrl: '/voice-samples/V4aTMuwwYUtBD7ZqVvZs.mp3' },
+        { id: 'fairy', label: 'פייה קסומה', emoji: '🧚', sampleUrl: '/voice-samples/piI8Kku0DcvcL6TTSeQt.mp3' },
       ],
 
       summary: {
