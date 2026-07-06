@@ -31,6 +31,14 @@ function isStr(v: unknown): v is string {
   return typeof v === 'string' && v.trim().length > 0;
 }
 
+/**
+ * Placeholder / deferral text that must NOT survive into a concrete `explicit` value (Template) or a Resolved
+ * contract's concrete values / projected prose (Resolved). The AUTHORITATIVE single source — imported by
+ * `validateResolvedContract.ts` so the two validators can't drift (dependency direction: resolved → template).
+ */
+export const DEFERRAL_MARKERS =
+  /deferred|not\s+(?:set|fixed)\s+here|per-order\s+family|family\s+(?:appearance\s+)?lock|free-pick|unresolved|template-unresolved/i;
+
 export type TemplateValidationResult =
   | { ok: true; template: BookVisualContractTemplate }
   | { ok: false; errors: string[] };
@@ -43,7 +51,12 @@ export class InvalidTemplateContractError extends Error {
   }
 }
 
-function validateEvidenceOrigin(label: string, origin: unknown, errors: string[]): string | undefined {
+/**
+ * Validate a typed evidence origin's PAYLOAD (not just its kind) and return the kind, or `undefined` when it is
+ * missing/malformed. EXPORTED as the single source of origin-payload validation — `validateResolvedContract.ts`
+ * reuses it so Template and Resolved can't drift on what a complete origin looks like.
+ */
+export function validateEvidenceOrigin(label: string, origin: unknown, errors: string[]): string | undefined {
   if (!isObj(origin) || !isStr(origin.kind)) {
     errors.push(`${label}.origin missing/invalid (a typed evidence origin is required)`);
     return undefined;
@@ -90,7 +103,13 @@ function validateBinding(label: string, role: string, binding: unknown, errors: 
   const coherenceError = bindingCoherenceError(label, mode, originKind);
   if (coherenceError) errors.push(coherenceError);
   if (mode === 'explicit') {
-    if (!isStr(binding.value)) errors.push(`${label} explicit binding must carry a concrete value`);
+    if (!isStr(binding.value)) {
+      errors.push(`${label} explicit binding must carry a concrete value`);
+    } else if (DEFERRAL_MARKERS.test(binding.value)) {
+      // An `explicit` value is authored + concrete; deferral/placeholder prose smuggled in here would materialize
+      // verbatim into the Resolved. Reject it at authoring time (belt; the Resolved validator is the money-path gate).
+      errors.push(`${label} explicit binding value looks like deferral/placeholder text (${JSON.stringify(binding.value)}) — author a concrete value`);
+    }
   } else if (binding.value !== undefined) {
     errors.push(`${label} ${mode} binding must NOT carry a value in a Template (it is resolved per order)`);
   }

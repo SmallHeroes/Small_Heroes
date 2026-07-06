@@ -201,6 +201,18 @@ describe('P0 — Template validator', () => {
     if (!r.ok) expect(r.errors.join(' ')).toMatch(/family_profile mode requires a family_profile origin/);
   });
 
+  it('(round-2 Fix 1) REJECTS an explicit binding whose value is deferral/placeholder text', () => {
+    const bad = templateFixture();
+    (((bad.humanCast as Obj[])[0].appearance as Obj).hairStyle as Obj) = {
+      mode: 'explicit',
+      value: 'deferred to the family lock',
+      origin: { kind: 'story_evidence', page: 1, phrase: 'x' },
+    };
+    const r = validateBookVisualContractTemplate(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/looks like deferral\/placeholder text/);
+  });
+
   it('assertValidBookVisualContractTemplate throws on a malformed template', () => {
     expect(() => assertValidBookVisualContractTemplate({ contractKind: 'template' })).toThrow(InvalidTemplateContractError);
   });
@@ -266,6 +278,44 @@ describe('P0 — Resolved validator', () => {
     const r = validateResolvedBookVisualContract(bad);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.errors.join(' ')).toMatch(/wardrobe\.description does not EQUAL the deterministic projection/);
+  });
+
+  it('(round-2 Fix 3) REJECTS family_profile on a non-relative (doctor) in a Resolved contract', () => {
+    const bad = resolvedFixture();
+    (((bad.humanCast as Obj[])[1].appearance as Obj).skinTone as Obj) = {
+      value: 'warm medium-brown', mode: 'family_profile', origin: { kind: 'family_profile' },
+    };
+    const r = validateResolvedBookVisualContract(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/family_profile is illegal for non-relative role "doctor"/);
+  });
+
+  it('(round-2 Fix 3) REJECTS a garment colour bound to family_profile (garment colours must be explicit)', () => {
+    const bad = resolvedFixture();
+    (((bad.humanCast as Obj[])[0].garments as Obj[])[0].colour as Obj) = {
+      value: 'sage-green', mode: 'family_profile', origin: { kind: 'family_profile' },
+    };
+    const r = validateResolvedBookVisualContract(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/must be an explicit binding/);
+  });
+
+  it('(round-2 Fix 3) REJECTS an incomplete typed origin payload (policy_default missing version)', () => {
+    const bad = resolvedFixture();
+    (((bad.humanCast as Obj[])[1].appearance as Obj).hairStyle as Obj).origin = { kind: 'policy_default', policyId: 'doctor-hair' };
+    const r = validateResolvedBookVisualContract(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/policy_default\)\.version missing/);
+  });
+
+  it('(round-2 Fix 3) REJECTS a deterministic_palette origin whose version != the contract paletteVersion', () => {
+    const bad = resolvedFixture();
+    (((bad.humanCast as Obj[])[1].appearance as Obj).skinTone as Obj).origin = {
+      kind: 'deterministic_palette', paletteId: 'clinic-doctor', version: 'palette/v0',
+    };
+    const r = validateResolvedBookVisualContract(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/deterministic_palette\)\.version .* != contract paletteVersion/);
   });
 
   it('assertValidResolvedBookVisualContract throws on a malformed resolved contract', () => {

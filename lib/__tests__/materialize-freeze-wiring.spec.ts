@@ -66,14 +66,32 @@ describe('P0 commit 3 — readFrozenVisualContract guard', () => {
     expect(readFrozenVisualContract(resolved)).toBeTruthy();
   });
 
-  it('(Fix 1) DISPATCHES: a Resolved with a deferred structured trait → null; a legacy vNext → passes', () => {
+  it('(round-2 Fix 2) DISPATCHES fail-closed on the discriminant', () => {
     const resolved = materialize(template(), FAMILY);
+
+    // A Resolved with a deferred structured trait (keeps contractKind:'resolved') → fails the FULL validator → null.
     const deferred = JSON.parse(JSON.stringify(resolved));
-    deferred.humanCast[0].appearance.skinTone.value = 'deferred to the family lock'; // passes vNext, fails Resolved
+    deferred.humanCast[0].appearance.skinTone.value = 'deferred to the family lock';
     expect(readFrozenVisualContract(deferred)).toBeNull();
+
+    // A GENUINE legacy vNext contract (no discriminant AND none of the Resolved-only provenance markers) → passes.
     const legacy = JSON.parse(JSON.stringify(resolved));
-    delete legacy.contractKind; // no "resolved" kind → the vNext validation path
+    delete legacy.contractKind;
+    delete legacy.materializerVersion;
+    delete legacy.paletteVersion;
+    delete legacy.schemaVersion;
     expect(readFrozenVisualContract(legacy)).toBeTruthy();
+
+    // A damaged Resolved that LOST only its discriminant (still carries the Resolved provenance markers) must NOT be
+    // laundered through the weaker vNext validator — it is resolved-shaped, so → null.
+    const strippedKind = JSON.parse(JSON.stringify(resolved));
+    delete strippedKind.contractKind;
+    expect(readFrozenVisualContract(strippedKind)).toBeNull();
+
+    // An unknown/garbage discriminant is not a renderable frozen contract → null.
+    const unknownKind = JSON.parse(JSON.stringify(resolved));
+    unknownKind.contractKind = 'resolvedx';
+    expect(readFrozenVisualContract(unknownKind)).toBeNull();
   });
 });
 
@@ -189,5 +207,21 @@ describe('P0 commit 3 — freeze wiring (money-adjacent invariants)', () => {
       produce: async () => { produceCalled = true; return null; },
     });
     expect(produceCalled).toBe(true);
+  });
+
+  it('(round-2 Fix 1) an INVALID Resolved from produce is NEVER frozen — withMutation is not called (legacy path)', async () => {
+    process.env.VISUAL_CONTRACT_FREEZE = 'true';
+    // resolved-shaped (contractKind:'resolved') but INVALID — a deferred trait the Resolved validator rejects.
+    const invalid = JSON.parse(JSON.stringify(materialize(template(), FAMILY)));
+    invalid.humanCast[0].appearance.hairColour.value = 'deferred to the family lock';
+    const order = { id: 'o1', visualContractHash: null } as unknown as Order;
+    let mutated = false;
+    const withMutation = (async () => { mutated = true; }) as unknown as NonNullable<EnsureFrozenVisualContractDeps['withMutation']>;
+    await ensureFrozenVisualContract(order, {} as PipelineCache, {
+      db: {} as EnsureFrozenVisualContractDeps['db'],
+      produce: async () => ({ contract: invalid, contractHash: computeVisualContractHash(invalid) }),
+      withMutation,
+    });
+    expect(mutated).toBe(false); // the belt refused to persist an invalid Resolved
   });
 });

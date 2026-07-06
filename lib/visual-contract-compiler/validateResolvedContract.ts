@@ -12,6 +12,7 @@
  */
 import { validateVNextVisualContract } from './validateVNextVisualContract';
 import { bindingCoherenceError } from './appearanceBindingCoherence';
+import { DEFERRAL_MARKERS, validateEvidenceOrigin } from './validateTemplateContract';
 import {
   projectResolvedCoarseAppearance,
   projectResolvedWardrobeDescription,
@@ -19,10 +20,14 @@ import {
 import {
   MATERIALIZER_VERSION,
   PALETTE_VERSION,
+  RELATIVE_ROLES,
   VISUAL_CONTRACT_SCHEMA_VERSION,
   type ResolvedBookVisualContract,
   type ResolvedHumanCastMember,
 } from './contractTemplateTypes';
+
+/** Roles for which a `family_profile` binding is legal (relatives share the hero's appearance band; a doctor is NOT). */
+const RELATIVE = new Set<string>(RELATIVE_ROLES);
 
 function isObj(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -31,19 +36,43 @@ function isStr(v: unknown): v is string {
   return typeof v === 'string' && v.trim().length > 0;
 }
 
-/** Placeholder / deferral text that must NOT survive into a Resolved contract's concrete values or projected prose. */
-const DEFERRAL_MARKERS = /deferred|not\s+(?:set|fixed)\s+here|per-order\s+family|family\s+(?:appearance\s+)?lock|free-pick|unresolved|template-unresolved/i;
-
 function isConcreteTrait(t: unknown): boolean {
   return isObj(t) && isStr((t as { value?: unknown }).value) && !DEFERRAL_MARKERS.test((t as { value: string }).value);
 }
 
-/** The typed evidence origin.kind of a resolved binding, or `undefined` when absent/malformed. */
-function originKindOf(binding: unknown): string | undefined {
+/**
+ * FULL typed-binding validation for a resolved appearance/garment binding (Fix 3): validates the origin PAYLOAD (via
+ * the shared Template checker), mode↔origin coherence, `family_profile` relatives-only, and — for a
+ * `deterministic_palette` origin — that its recorded `version` matches the actual palette version the contract was
+ * materialized under. Preserves, on the RESOLVED, the same invariants the Template validator enforces at authoring.
+ */
+function validateResolvedBinding(
+  label: string,
+  role: string,
+  binding: unknown,
+  paletteVersion: unknown,
+  errors: string[],
+): void {
   const origin = isObj(binding) ? (binding as { origin?: unknown }).origin : undefined;
-  return isObj(origin) && typeof (origin as { kind?: unknown }).kind === 'string'
-    ? (origin as { kind: string }).kind
-    : undefined;
+  const mode = isObj(binding) ? (binding as { mode?: unknown }).mode : undefined;
+  const originKind = validateEvidenceOrigin(label, origin, errors);
+  const coherenceError = bindingCoherenceError(label, mode, originKind);
+  if (coherenceError) errors.push(coherenceError);
+  if (mode === 'family_profile' && !RELATIVE.has(role)) {
+    errors.push(
+      `${label}.mode=family_profile is illegal for non-relative role "${role}" (relatives only: ${[...RELATIVE].join('|')})`,
+    );
+  }
+  // A deterministic_palette pick must have been drawn from the SAME palette version the Resolved records at top level
+  // — otherwise the recorded provenance does not match the appearance that was actually frozen (a stale-version drift).
+  if (originKind === 'deterministic_palette') {
+    const version = isObj(origin) ? (origin as { version?: unknown }).version : undefined;
+    if (version !== paletteVersion) {
+      errors.push(
+        `${label}.origin(deterministic_palette).version ${JSON.stringify(version)} != contract paletteVersion ${JSON.stringify(paletteVersion)}`,
+      );
+    }
+  }
 }
 
 export type ResolvedValidationResult =
@@ -89,6 +118,7 @@ export function validateResolvedBookVisualContract(input: unknown): ResolvedVali
     : [];
   humanCast.forEach((m, i) => {
     const label = isStr(m?.id) ? `humanCast "${m.id}"` : `humanCast[${i}]`;
+    const role = isStr(m?.role) ? m.role : '';
     const appearance = isObj((m as unknown as Record<string, unknown>)?.appearance)
       ? ((m as unknown as Record<string, unknown>).appearance as Record<string, unknown>)
       : null;
@@ -104,14 +134,10 @@ export function validateResolvedBookVisualContract(input: unknown): ResolvedVali
           appearanceConcrete = false;
           continue;
         }
-        // (Fix 3b) mode/origin coherence — a resolved trait carries its typed audit origin, coherent with its mode.
-        const originKind = originKindOf(binding);
-        if (originKind === undefined) {
-          errors.push(`${label}.appearance.${trait}.origin missing/invalid (a resolved trait must carry its typed evidence origin)`);
-        } else {
-          const co = bindingCoherenceError(`${label}.appearance.${trait}`, (binding as { mode?: unknown }).mode, originKind);
-          if (co) errors.push(co);
-        }
+        // (Fix 3) FULL typed-binding validation — origin payload completeness, mode/origin coherence,
+        // family_profile relatives-only, and palette-version provenance. Preserves the Template invariants here so a
+        // Resolved that never round-tripped through the Template validator (resume cache, alt producer) is still gated.
+        validateResolvedBinding(`${label}.appearance.${trait}`, role, binding, input.paletteVersion, errors);
       }
     }
     let garmentsConcrete = true;
@@ -127,13 +153,12 @@ export function validateResolvedBookVisualContract(input: unknown): ResolvedVali
           garmentsConcrete = false;
           return;
         }
-        const originKind = originKindOf(colour);
-        if (originKind === undefined) {
-          errors.push(`${glabel}.colour.origin missing/invalid (a resolved garment colour must carry its typed evidence origin)`);
-        } else {
-          const co = bindingCoherenceError(`${glabel}.colour`, (colour as { mode?: unknown }).mode, originKind);
-          if (co) errors.push(co);
+        // (Fix 3) A garment colour is AUTHORED — it must be an `explicit` binding, never family/palette (a garment
+        // colour is not ethnicity). This preserves, on the Resolved, the Template's garment-explicit rule.
+        if (isObj(colour) && (colour as { mode?: unknown }).mode !== 'explicit') {
+          errors.push(`${glabel}.colour must be an explicit binding (garment colours are authored, not family/palette)`);
         }
+        validateResolvedBinding(glabel + '.colour', role, colour, input.paletteVersion, errors);
       });
     }
     // The projected prose must not smuggle deferral text back in.

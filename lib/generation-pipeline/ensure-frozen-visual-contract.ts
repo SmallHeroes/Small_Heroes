@@ -34,6 +34,8 @@ import {
   loadVisualContractArtifact,
   tryLoadVisualContractTemplateArtifact,
   materialize,
+  assertValidResolvedBookVisualContract,
+  validateResolvedBookVisualContract,
   MissingContractArtifactError,
   isVisualContractFreezeEnabled,
   readFrozenVisualContract,
@@ -119,6 +121,12 @@ async function defaultProduceContract(
       const { deriveResolvedFamilyAppearanceProfile } = await import('./resolve-family-appearance');
       const family = deriveResolvedFamilyAppearanceProfile(order, cache); // fail-closed on missing family input
       const resolved = materialize(templateLoaded.template, family); // fail-closed on any resolution gap
+      // (Fix 1) Validate the materialized Resolved BEFORE it is hashed/frozen/persisted. The materializer is fail-closed
+      // on resolution GAPS, but the Resolved validator is the authoritative gate (origin-payload completeness,
+      // mode/origin coherence, family_profile relatives-only, garment-explicit, palette-version + projection equality).
+      // A throw here is caught by ensureFrozenVisualContract's WS0b guard → the freeze is skipped (legacy path); an
+      // invalid Resolved is NEVER hashed or persisted.
+      assertValidResolvedBookVisualContract(resolved);
       return { contract: resolved, contractHash: computeVisualContractHash(resolved) };
     }
     // No template yet: load the approved legacy artifact — NO LLM on the customer path. Missing artifact → skip.
@@ -181,6 +189,20 @@ export async function ensureFrozenVisualContract(
   if (!produced) return cache; // no contract available → skip (legacy)
 
   const { contract, contractHash } = produced;
+  // (Fix 1 — belt, before :persist) Defense-in-depth on the money fence: never hash/persist a resolved-shaped contract
+  // that fails validation, whatever producer yielded it. Non-throwing (WS0b must NEVER throw into the pipeline) — an
+  // invalid Resolved is logged and degrades to the legacy path rather than being frozen. Legacy vNext contracts (no
+  // `contractKind: 'resolved'`) are unaffected; they were already fail-closed validated on their own load path.
+  if ((contract as { contractKind?: unknown }).contractKind === 'resolved') {
+    const check = validateResolvedBookVisualContract(contract);
+    if (!check.ok) {
+      log.warn('Refusing to freeze an invalid Resolved contract — skipping freeze (legacy path)', {
+        orderId: order.id,
+        errors: check.errors,
+      });
+      return cache;
+    }
+  }
   const nextCache: PipelineCache = {
     ...cache,
     // Stored as opaque JSON on PipelineCache (see the field's note); the value IS this BookVisualContract.
