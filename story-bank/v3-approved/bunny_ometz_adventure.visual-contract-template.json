@@ -1,0 +1,408 @@
+{
+  "contractKind": "template",
+  "schemaVersion": "vc-schema/v1",
+  "version": 1,
+  "storyKey": "bunny_ometz_adventure",
+  "worldType": "realistic_clinic",
+  "provenance": { "source": "llm", "compiledFromPages": 12 },
+  "locations": [
+    {
+      "id": "clinic",
+      "name": "Village clinic",
+      "description": "A bright, clean, friendly children's clinic that smells of clean soap and white light. It has a waiting area and, through a single door, the doctor's exam room. Warm and reassuring, never scary or hospital-cold.",
+      "timeOfDay": "day",
+      "environmentClass": "indoor",
+      "lighting": "clinic_fluorescent_soft_daylight",
+      "anchors": [
+        { "id": "sticker_wall", "description": "a waiting-room wall covered in colourful animal stickers" },
+        { "id": "exam_chair", "description": "the tall examination chair the child calls the 'sitting mountain' (הר הישיבה)" }
+      ],
+      "topology": "the waiting area adjoins the exam room through a single door"
+    },
+    {
+      "id": "clinic_exterior",
+      "name": "Outside the clinic",
+      "description": "Just outside the clinic entrance in bright, warm daylight: a clean, simple building frontage and pavement. An everyday urban clinic doorway — NOT a nature scene (no trees, grass, park, creek, or bridge).",
+      "timeOfDay": "day",
+      "environmentClass": "neutral",
+      "lighting": "bright_warm_daylight"
+    }
+  ],
+  "zones": [
+    {
+      "id": "clinic.waiting_room",
+      "locationId": "clinic",
+      "name": "Waiting room",
+      "description": "the clinic waiting area: chairs (one too tall for the child), the colourful animal-sticker wall, and the doctor's closed door"
+    },
+    {
+      "id": "clinic.exam_room",
+      "locationId": "clinic",
+      "name": "Exam room",
+      "description": "the doctor's exam room: the tall examination chair ('sitting mountain'), an exam-table ledge, a small drawer, clean and friendly"
+    },
+    {
+      "id": "clinic_exterior.entrance",
+      "locationId": "clinic_exterior",
+      "name": "Clinic entrance (outside)",
+      "description": "the sunny pavement just outside the clinic door — clean, simple, warm daylight, no nature scenery"
+    }
+  ],
+  "cast": {
+    "child": {
+      "id": "child:hero",
+      "role": "child",
+      "wardrobe": {
+        "description": "the child's own everyday daytime outfit, worn consistently on EVERY page for continuity — a comfortable short-sleeve shirt, trousers, and closed shoes (the exact colours and the child's likeness come from the per-order child anchor, not fixed here)",
+        "forbidden": [
+          "pyjamas or any sleepwear",
+          "a hospital gown or patient johnny (this is a routine visit — the child stays in their own clothes)",
+          "a winter coat, hat, or a costume / dress-up outfit",
+          "the outfit changing from page to page"
+        ]
+      }
+    },
+    "companion": {
+      "id": "companion:bunny_ometz",
+      "role": "companion",
+      "name": "בּוּנִי",
+      "wardrobe": {
+        "description": "Buni the bunny's LOCKED identity, identical on every page he appears: a small soft bunny with long floppy ears and cream-white fur with a light blush on the cheeks, and ONE tiny heart-shaped badge pinned to the chest. Size is anchored to the child — roughly 25–35% of the child's standing height (about knee to mid-thigh beside the child); never waist-high, never toddler-sized.",
+        "forbidden": [
+          "a star-shaped chest badge (the badge is a HEART, never a star)",
+          "any second accessory — scarf, cape, bow, hat, necklace, glasses, backpack, or a held toy",
+          "human clothing of any kind",
+          "fur that is not cream-white (no brown, grey, or spotted bunny)",
+          "short, upright, rigid ears (his ears are long and floppy)",
+          "sized waist-high or toddler-sized (he stays roughly 25–35% of the child's height)"
+        ]
+      }
+    }
+  },
+  "humanCast": [
+    {
+      "id": "human:doctor",
+      "role": "doctor",
+      "gender": "male",
+      "aliases": ["הָרוֹפֵא", "הרופא", "the doctor"],
+      "textEvidence": "עמוד 4: \"הַדֶּלֶת נִפְתְּחָה. הָרוֹפֵא קָרָא\" — the masculine noun הָרוֹפֵא with the masculine verb קָרָא fixes the doctor as male.",
+      "pagesPresent": [4, 6, 7, 9, 10, 11],
+      "appearance": {
+        "skinTone": { "mode": "deterministic_palette", "origin": { "kind": "deterministic_palette", "paletteId": "clinic-doctor", "version": "palette/v1" } },
+        "hairColour": { "mode": "deterministic_palette", "origin": { "kind": "deterministic_palette", "paletteId": "clinic-doctor", "version": "palette/v1" } },
+        "hairTexture": { "mode": "deterministic_palette", "origin": { "kind": "deterministic_palette", "paletteId": "clinic-doctor", "version": "palette/v1" } },
+        "hairStyle": { "mode": "explicit", "value": "short, neatly combed, side part", "origin": { "kind": "policy_default", "policyId": "doctor-hair-style", "version": "v1" } }
+      },
+      "garments": [
+        { "id": "coat", "label": "medical coat", "colour": { "mode": "explicit", "value": "white", "origin": { "kind": "policy_default", "policyId": "doctor-coat", "version": "v1" } } },
+        { "id": "scrubs", "label": "scrubs", "colour": { "mode": "explicit", "value": "blue", "origin": { "kind": "policy_default", "policyId": "doctor-scrubs", "version": "v1" } } }
+      ],
+      "forbiddenAppearance": [
+        "depicted as a woman or given female features (contradicts the masculine text evidence \"הָרוֹפֵא\" → male)",
+        "rendered as a nurse, receptionist, parent, or any role other than the doctor",
+        "a child or child-sized figure standing in for the doctor",
+        "a cold, menacing, or clinical-horror demeanour (must read as gentle and friendly)"
+      ]
+    },
+    {
+      "id": "human:mother",
+      "role": "mother",
+      "gender": "female",
+      "aliases": ["אִמָּא", "אמא", "the parent", "mom"],
+      "textEvidence": "עמוד 4: \"אִמָּא הוֹשִׁיטָה יָד חַמָּה\" (וגם עמוד 2: \"לַכִּסֵּא שֶׁל אִמָּא\") — the noun אִמָּא fixes this parent as the mother (female).",
+      "pagesPresent": [1, 4, 9, 10, 12],
+      "appearance": {
+        "skinTone": { "mode": "family_profile", "origin": { "kind": "family_profile" } },
+        "hairColour": { "mode": "family_profile", "origin": { "kind": "family_profile" } },
+        "hairTexture": { "mode": "family_profile", "origin": { "kind": "family_profile" } },
+        "hairStyle": { "mode": "explicit", "value": "medium-length, worn loose in a simple everyday style", "origin": { "kind": "policy_default", "policyId": "mother-hair-style", "version": "v1" } }
+      },
+      "garments": [
+        { "id": "cardigan", "label": "open cardigan", "colour": { "mode": "explicit", "value": "sage-green", "origin": { "kind": "policy_default", "policyId": "mother-cardigan", "version": "v1" } } },
+        { "id": "top", "label": "long-sleeve top", "colour": { "mode": "explicit", "value": "cream", "origin": { "kind": "policy_default", "policyId": "mother-top", "version": "v1" } } },
+        { "id": "jeans", "label": "denim jeans", "colour": { "mode": "explicit", "value": "blue", "origin": { "kind": "policy_default", "policyId": "mother-jeans", "version": "v1" } } },
+        { "id": "loafers", "label": "flat loafers", "colour": { "mode": "explicit", "value": "tan", "origin": { "kind": "policy_default", "policyId": "mother-loafers", "version": "v1" } } }
+      ],
+      "forbiddenAppearance": [
+        "depicted as medical staff — a doctor, nurse, or receptionist",
+        "depicted as a man or a father figure (the text evidence \"אִמָּא\" is the mother → female)",
+        "a different adult swapped in from page to page (it is the same mother throughout)"
+      ]
+    }
+  ],
+  "recurringProps": [
+    { "id": "wall_stickers", "name": "Animal stickers", "description": "colourful animal stickers on the waiting-room wall" },
+    { "id": "exam_chair", "name": "Examination chair", "description": "the tall examination chair the child calls the 'sitting mountain'" },
+    { "id": "colorful_bandage", "name": "Colourful bandage", "description": "a bright, patterned adhesive bandage — the 'I stayed' flag (נִשְׁאַרְתִּי)" }
+  ],
+  "forbiddenGlobalElements": [
+    "any additional animal, creature, or pet that is not Buni the declared companion",
+    "trees",
+    "grass",
+    "a park",
+    "a creek or stream",
+    "a bridge",
+    "any outdoor nature scenery (forest, meadow, garden, flowers, mountains, or open water)",
+    "magical, fantasy, or dream elements (glow, sparkles, floating objects, talking scenery)",
+    "frightening or graphic medical imagery (blood, large or menacing needles, restraints, IV poles)",
+    "a star-shaped chest badge on Buni (his badge is a heart, never a star)",
+    "a night sky, moon, or stars through any window or door",
+    "any window or opening showing outdoor nature (trees, forest, meadow) — clinic windows show only soft neutral daytime light"
+  ],
+  "coverContract": {
+    "worldType": "realistic_clinic",
+    "locationId": "clinic",
+    "timeOfDay": "day",
+    "mustShow": [
+      "the child together with Buni — the small cream-white bunny with long floppy ears and one tiny heart-shaped chest badge",
+      "a warm, friendly, brightly-lit clinic setting (the waiting-room world the story opens in)",
+      "the child looking a little nervous but brave — the courage theme, before anything has happened"
+    ],
+    "mustNotShow": [
+      "the injection, syringe, or needle (the page-10 moment — no spoiler)",
+      "the colourful bandage on the child's arm (the page-11 payoff — no spoiler)",
+      "the quiet trembling-and-brave, paws-pressed-down moment (the page-8 heart beat — no spoiler)",
+      "the sunny walk outside the clinic after the visit (the page-12 ending — no spoiler)",
+      "the exam room, the examination chair, or any exam instruments (keep the cover to the entrance / waiting world)",
+      "any outdoor nature scenery — trees, grass, a park, a creek, or a bridge"
+    ]
+  },
+  "pageContracts": [
+    {
+      "pageNumber": 1,
+      "locationId": "clinic",
+      "zoneId": "clinic.waiting_room",
+      "sameLocationAs": null,
+      "mustShow": [
+        "the child sitting beside the parent in a bright, clean clinic waiting room, looking a little anxious and pulling at the collar",
+        "colourful animal stickers on the wall",
+        "the doctor's closed door in the background"
+      ],
+      "mustNotShow": [
+        "Buni the bunny (he has not appeared yet on page 1)",
+        "the exam-room interior"
+      ],
+      "characterPresence": { "child": true, "companion": false },
+      "propState": [{ "propId": "wall_stickers", "state": "on the waiting-room wall" }],
+      "camera": "wide establishing shot of the waiting room, 3/4 view",
+      "castIds": ["child:hero", "human:mother"],
+      "transition": { "kind": "steady" }
+    },
+    {
+      "pageNumber": 2,
+      "locationId": "clinic",
+      "zoneId": "clinic.waiting_room",
+      "sameLocationAs": 1,
+      "mustShow": [
+        "Buni, a small cream-white bunny with long ears and a twitching pink nose, peeking out from under a waiting-room chair",
+        "the child looking down from the chair with surprised curiosity"
+      ],
+      "mustNotShow": ["the exam-room interior"],
+      "characterPresence": { "child": true, "companion": true },
+      "propState": [{ "propId": "wall_stickers", "state": "on the waiting-room wall" }],
+      "camera": "medium, low angle toward the floor under the chairs",
+      "castIds": ["child:hero", "companion:bunny_ometz"],
+      "transition": { "kind": "steady" }
+    },
+    {
+      "pageNumber": 3,
+      "locationId": "clinic",
+      "zoneId": "clinic.waiting_room",
+      "sameLocationAs": 2,
+      "mustShow": [
+        "Buni standing on his hind legs, which bounce comically as if warming up to sprint, his long ears draped over his shoulders",
+        "the child looking amused and leaning down toward him"
+      ],
+      "mustNotShow": ["the exam-room interior"],
+      "characterPresence": { "child": true, "companion": true },
+      "propState": [],
+      "camera": "medium side / 3-4, Buni upright",
+      "castIds": ["child:hero", "companion:bunny_ometz"],
+      "transition": { "kind": "steady" }
+    },
+    {
+      "pageNumber": 4,
+      "locationId": "clinic",
+      "zoneId": "clinic.waiting_room",
+      "sameLocationAs": 3,
+      "mustShow": [
+        "the friendly doctor standing at the open exam-room door, calling the child in",
+        "the child hesitating, clutching the parent's warm hand",
+        "Buni with his long ears pulled completely over his face to hide"
+      ],
+      "mustNotShow": [
+        "the exam-room interior fully revealed (from the waiting room only the doorway is seen)"
+      ],
+      "characterPresence": { "child": true, "companion": true },
+      "propState": [],
+      "camera": "wide two-shot at the open doorway",
+      "castIds": ["child:hero", "companion:bunny_ometz", "human:doctor", "human:mother"],
+      "transition": {
+        "kind": "threshold",
+        "fromZoneId": "clinic.waiting_room",
+        "toZoneId": "clinic.exam_room",
+        "cue": "the exam-room door opens and the doctor calls the child in"
+      }
+    },
+    {
+      "pageNumber": 5,
+      "locationId": "clinic",
+      "zoneId": "clinic.exam_room",
+      "sameLocationAs": 4,
+      "mustShow": [
+        "the child climbing onto the tall examination chair (the 'sitting mountain')",
+        "Buni on the exam-table ledge, pressing his small paws flat against the clean surface to steady himself"
+      ],
+      "mustNotShow": ["the waiting room"],
+      "characterPresence": { "child": true, "companion": true },
+      "propState": [{ "propId": "exam_chair", "state": "the child climbing onto it" }],
+      "camera": "medium 3/4 as the child climbs the exam chair",
+      "castIds": ["child:hero", "companion:bunny_ometz"],
+      "transition": {
+        "kind": "after_transition",
+        "fromZoneId": "clinic.waiting_room",
+        "toZoneId": "clinic.exam_room",
+        "cue": "they step inside the exam room"
+      }
+    },
+    {
+      "pageNumber": 6,
+      "locationId": "clinic",
+      "zoneId": "clinic.exam_room",
+      "sameLocationAs": 5,
+      "mustShow": [
+        "the doctor gently placing a stethoscope on the child's chest",
+        "the child staying seated, uneasy but steady",
+        "Buni counting softly nearby, paws planted flat and nose twitching"
+      ],
+      "mustNotShow": [],
+      "characterPresence": { "child": true, "companion": true },
+      "propState": [{ "propId": "exam_chair", "state": "the child seated on it" }],
+      "camera": "close / 3-4 on the stethoscope moment",
+      "castIds": ["child:hero", "companion:bunny_ometz", "human:doctor"],
+      "transition": { "kind": "steady" }
+    },
+    {
+      "pageNumber": 7,
+      "locationId": "clinic",
+      "zoneId": "clinic.exam_room",
+      "sameLocationAs": 6,
+      "mustShow": [
+        "the doctor taking a small syringe and a colourful bandage from a small drawer",
+        "Buni's ears flattened against his back in honest panic, his back paws twitching with the urge to run",
+        "the child looking worried but staying seated"
+      ],
+      "mustNotShow": [],
+      "characterPresence": { "child": true, "companion": true },
+      "propState": [
+        { "propId": "exam_chair", "state": "the child seated on it" },
+        { "propId": "colorful_bandage", "state": "still inside the doctor's drawer, not yet used" }
+      ],
+      "camera": "wide, the drawer opening",
+      "castIds": ["child:hero", "companion:bunny_ometz", "human:doctor"],
+      "transition": { "kind": "steady" }
+    },
+    {
+      "pageNumber": 8,
+      "locationId": "clinic",
+      "zoneId": "clinic.exam_room",
+      "sameLocationAs": 7,
+      "mustShow": [
+        "the child and Buni sharing a close, quiet look",
+        "Buni placing both paws down on the seat — they tremble but stay planted (the 'trembling and staying' beat: רוֹעֵד וְנִשְׁאָר)",
+        "the clinic background softened around their small brave moment"
+      ],
+      "mustNotShow": [],
+      "characterPresence": { "child": true, "companion": true },
+      "propState": [{ "propId": "exam_chair", "state": "the child seated on it" }],
+      "camera": "close / 3-4, intimate two-shot with a softened background",
+      "castIds": ["child:hero", "companion:bunny_ometz"],
+      "transition": { "kind": "steady" }
+    },
+    {
+      "pageNumber": 9,
+      "locationId": "clinic",
+      "zoneId": "clinic.exam_room",
+      "sameLocationAs": 8,
+      "mustShow": [
+        "the child choosing which arm to offer while holding the parent's hand tightly with the other hand",
+        "Buni standing beside the chair, trembling but planted",
+        "the doctor waiting gently"
+      ],
+      "mustNotShow": [],
+      "characterPresence": { "child": true, "companion": true },
+      "propState": [{ "propId": "exam_chair", "state": "the child seated on it" }],
+      "camera": "medium 3/4",
+      "castIds": ["child:hero", "companion:bunny_ometz", "human:doctor", "human:mother"],
+      "transition": { "kind": "steady" }
+    },
+    {
+      "pageNumber": 10,
+      "locationId": "clinic",
+      "zoneId": "clinic.exam_room",
+      "sameLocationAs": 9,
+      "mustShow": [
+        "the doctor giving the injection gently while the child counts and holds still",
+        "the parent holding the child's other hand",
+        "Buni watching with ears high and paws pressed firmly down"
+      ],
+      "mustNotShow": [
+        "a graphic or frightening depiction of the needle (keep it small and gentle)"
+      ],
+      "characterPresence": { "child": true, "companion": true },
+      "propState": [
+        { "propId": "exam_chair", "state": "the child seated on it" },
+        { "propId": "colorful_bandage", "state": "not yet applied" }
+      ],
+      "camera": "close-up on the counting-and-injection moment",
+      "castIds": ["child:hero", "companion:bunny_ometz", "human:doctor", "human:mother"],
+      "transition": { "kind": "steady" }
+    },
+    {
+      "pageNumber": 11,
+      "locationId": "clinic",
+      "zoneId": "clinic.exam_room",
+      "sameLocationAs": 10,
+      "mustShow": [
+        "the doctor placing a bright, patterned bandage on the child's arm (the 'I stayed' flag)",
+        "Buni making a funny wrinkled face of relief, then his ears springing upward",
+        "the child looking proud and a little surprised"
+      ],
+      "mustNotShow": [],
+      "characterPresence": { "child": true, "companion": true },
+      "propState": [
+        { "propId": "exam_chair", "state": "the child seated on it" },
+        { "propId": "colorful_bandage", "state": "applied to the child's arm" }
+      ],
+      "camera": "medium / 3-4, the relief beat",
+      "castIds": ["child:hero", "companion:bunny_ometz", "human:doctor"],
+      "transition": { "kind": "steady" }
+    },
+    {
+      "pageNumber": 12,
+      "locationId": "clinic_exterior",
+      "zoneId": "clinic_exterior.entrance",
+      "sameLocationAs": null,
+      "mustShow": [
+        "the child OUTSIDE the clinic in bright sunshine, proudly showing the colourful bandage on the arm",
+        "Buni giving a small happy hop beside them, relieved",
+        "the parent walking nearby",
+        "a clean, simple clinic-entrance / street backdrop in warm daylight"
+      ],
+      "mustNotShow": [
+        "the clinic interior, exam room, or examination chair",
+        "any outdoor nature scenery — trees, grass, a park, a creek, or a bridge (the 'outside' here is the sunny clinic entrance, not a nature scene)"
+      ],
+      "characterPresence": { "child": true, "companion": true },
+      "propState": [{ "propId": "colorful_bandage", "state": "on the child's arm, shown proudly" }],
+      "camera": "medium 3/4, the child proudly showing the bandage",
+      "castIds": ["child:hero", "companion:bunny_ometz", "human:mother"],
+      "transition": {
+        "kind": "after_transition",
+        "fromZoneId": "clinic.exam_room",
+        "toZoneId": "clinic_exterior.entrance",
+        "cue": "they leave the clinic and step outside into the sunshine"
+      }
+    }
+  ]
+}
