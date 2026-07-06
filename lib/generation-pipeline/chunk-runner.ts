@@ -71,7 +71,9 @@ import { finalizeAndPersistStoryText } from './text-finalization';
 import { ensureFrozenVisualContract } from './ensure-frozen-visual-contract';
 import {
   isVisualContractSteeringEnabled,
+  isVisualContractEnforcementEnabled,
   readFrozenVisualContract,
+  requireValidContractForRender,
   contractToLocationPlanBundle,
   contractToHumanCastDetectionEntries,
   contractPageEnvironmentClass,
@@ -166,6 +168,20 @@ function deadlineMs(startedAt: number, budgetMs: number): number {
 
 function overBudget(startedAt: number, budgetMs: number): boolean {
   return Date.now() >= deadlineMs(startedAt, budgetMs);
+}
+
+/**
+ * (P1/OQ-T5) Fail-closed render gate — call right after the (best-effort) visual-contract freeze and BEFORE any paid
+ * image. A NO-OP unless enforcement is ON (staging; hard-off on Vercel prod → byte-identical to today). When
+ * enforcement is on it BLOCKS render if the frozen contract is absent or invalid: a resolved-kind contract must pass
+ * the FULL Resolved validator (no legacy fall-through for a bad Resolved), a genuine legacy contract passes the base
+ * validator, and no contract at all throws MissingVisualContractError. This closes the WS0b degrade-to-legacy gap — an
+ * invalid Resolved that the freeze declined to persist no longer silently renders on the legacy path. The raw stored
+ * value is handed to the guard so IT runs the right validator (never a blind cast).
+ */
+function requireRenderableFrozenContract(cache: PipelineCache): void {
+  if (!isVisualContractEnforcementEnabled()) return; // default off; hard-off on prod → byte-identical no-op
+  requireValidContractForRender(cache.visualContract ?? null, 'production');
 }
 
 async function updateStage(orderId: string, stage: ChunkStage, extra?: Prisma.GenerationJobUpdateInput) {
@@ -1907,6 +1923,7 @@ export async function processGenerationChunk(
     // before the loop, so ordering on the normal path is unchanged. The fresh path freezes at the dna→cover transition.
     if (stage !== 'text' && stage !== 'dna') {
       cache = await ensureFrozenVisualContract(order, cache);
+      requireRenderableFrozenContract(cache); // (P1/OQ-T5) block render on an absent/invalid contract (enforcement on)
     }
     while (!overBudget(startedAt, budgetMs)) {
       await heartbeatLease(orderId, workerId);
@@ -1928,6 +1945,7 @@ export async function processGenerationChunk(
         // (WS0b) Fresh path: text + DNA are finalized — freeze the visual contract BEFORE the cover (the first
         // paid image). Idempotent + non-blocking; a no-op when the flag is off or no contract is available.
         cache = await ensureFrozenVisualContract(order, cache);
+        requireRenderableFrozenContract(cache); // (P1/OQ-T5) block render on an absent/invalid contract (enforcement on)
         stage = 'cover';
         continue;
       }

@@ -15,6 +15,10 @@ import {
   validateBookVisualContract,
   InvalidVisualContractError,
 } from './validateBookVisualContract';
+import {
+  validateResolvedBookVisualContract,
+  InvalidResolvedContractError,
+} from './validateResolvedContract';
 import { isVercelProductionRuntime } from '@/lib/runtime-env';
 import type { BookVisualContract } from './types';
 
@@ -112,6 +116,21 @@ export function requireValidContractForRender(
         ? 'QA audition blocked: no BookVisualContract for this story. Compile + validate the contract before auditioning.'
         : 'Full render blocked: no valid BookVisualContract. The contract is required before rendering (fail-closed).';
     throw new MissingVisualContractError(msg, context);
+  }
+
+  // A present contract is ALWAYS validated with the RIGHT validator before it steers a render (even with
+  // enforcement off) — never render against a broken source of truth. DISPATCH on the discriminant: a resolved-kind
+  // contract must pass the FULL Resolved concreteness validator (the base validator is too weak — it accepts a
+  // deferred/incoherent Resolved that would then render as a broken book). A genuine legacy contract (no `resolved`
+  // kind) keeps the base validator. There is NO legacy fall-through for a bad Resolved — an invalid Resolved throws.
+  if (
+    typeof contract === 'object' &&
+    contract !== null &&
+    (contract as { contractKind?: unknown }).contractKind === 'resolved'
+  ) {
+    const resolved = validateResolvedBookVisualContract(contract);
+    if (!resolved.ok) throw new InvalidResolvedContractError(resolved.errors);
+    return resolved.contract as unknown as BookVisualContract;
   }
 
   const result = validateBookVisualContract(contract);

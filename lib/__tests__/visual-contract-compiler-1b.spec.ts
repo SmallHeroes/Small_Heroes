@@ -11,7 +11,13 @@ import {
   isVisualContractEnforcementEnabled,
   isMissingVisualContractError,
   isInvalidVisualContractError,
+  materialize,
+  InvalidResolvedContractError,
+  VISUAL_CONTRACT_SCHEMA_VERSION,
+  PALETTE_VERSION,
   type BookVisualContract,
+  type BookVisualContractTemplate,
+  type ResolvedFamilyAppearanceProfile,
   type PageVisionObservation,
 } from '@/lib/visual-contract-compiler';
 
@@ -277,5 +283,52 @@ describe('isVisualContractEnforcementEnabled — flag + non-production hard gate
     process.env.VISUAL_CONTRACT_ENFORCEMENT = 'true';
     process.env.VERCEL_ENV = 'production';
     expect(requireValidContractForRender(null, 'production')).toBeNull();
+  });
+});
+
+// ── P1/OQ-T5 — the render guard must hard-block an INVALID Resolved (the base validator was too weak) ──
+const P1_FAMILY: ResolvedFamilyAppearanceProfile = { skinTone: 'warm medium-brown', hairColour: 'dark brown', hairTexture: 'wavy' };
+
+function p1ResolvedTemplate(): BookVisualContractTemplate {
+  return JSON.parse(JSON.stringify({
+    contractKind: 'template',
+    schemaVersion: VISUAL_CONTRACT_SCHEMA_VERSION,
+    version: 1,
+    storyKey: 'clinic_visit',
+    worldType: 'realistic_clinic',
+    locations: [{ id: 'clinic', name: 'Clinic', description: 'a clinic', environmentClass: 'indoor' }],
+    zones: [
+      { id: 'clinic.waiting', locationId: 'clinic', name: 'Waiting', description: 'waiting' },
+      { id: 'clinic.exam', locationId: 'clinic', name: 'Exam', description: 'exam' },
+    ],
+    cast: { child: { id: 'child:hero', role: 'child', wardrobe: { description: 'outfit' } } },
+    recurringProps: [],
+    forbiddenGlobalElements: [],
+    coverContract: { worldType: 'realistic_clinic', locationId: 'clinic', mustShow: [], mustNotShow: [] },
+    pageContracts: [
+      { pageNumber: 1, locationId: 'clinic', zoneId: 'clinic.waiting', mustShow: ['x'], mustNotShow: [], characterPresence: { child: true, companion: false }, propState: [], camera: 'wide', castIds: ['child:hero', 'human:mother'], transition: { kind: 'steady' } },
+      { pageNumber: 2, locationId: 'clinic', zoneId: 'clinic.exam', mustShow: ['x'], mustNotShow: [], characterPresence: { child: true, companion: false }, propState: [], camera: 'wide', castIds: ['child:hero', 'human:doctor'], transition: { kind: 'after_transition', fromZoneId: 'clinic.waiting', toZoneId: 'clinic.exam', cue: 'in' } },
+    ],
+    humanCast: [
+      { id: 'human:mother', role: 'mother', gender: 'female', aliases: ['אמא'], textEvidence: 'p1 אמא', pagesPresent: [1], forbiddenAppearance: [], appearance: { skinTone: { mode: 'family_profile', origin: { kind: 'family_profile' } }, hairColour: { mode: 'family_profile', origin: { kind: 'family_profile' } }, hairTexture: { mode: 'family_profile', origin: { kind: 'family_profile' } }, hairStyle: { mode: 'explicit', value: 'medium-length, loose, side part', origin: { kind: 'story_evidence', page: 1, phrase: 'p1' } } }, garments: [{ id: 'cardigan', colour: { mode: 'explicit', value: 'sage-green', origin: { kind: 'story_evidence', page: 1, phrase: 'p1' } } }] },
+      { id: 'human:doctor', role: 'doctor', gender: 'male', aliases: ['הרופא'], textEvidence: 'p2 הרופא', pagesPresent: [2], forbiddenAppearance: [], appearance: { skinTone: { mode: 'deterministic_palette', origin: { kind: 'deterministic_palette', paletteId: 'd', version: PALETTE_VERSION } }, hairColour: { mode: 'deterministic_palette', origin: { kind: 'deterministic_palette', paletteId: 'd', version: PALETTE_VERSION } }, hairTexture: { mode: 'deterministic_palette', origin: { kind: 'deterministic_palette', paletteId: 'd', version: PALETTE_VERSION } }, hairStyle: { mode: 'explicit', value: 'short combed, side part', origin: { kind: 'policy_default', policyId: 'h', version: 'v1' } } }, garments: [{ id: 'coat', colour: { mode: 'explicit', value: 'white', origin: { kind: 'policy_default', policyId: 'c', version: 'v1' } } }] },
+    ],
+  })) as BookVisualContractTemplate;
+}
+
+describe('P1/OQ-T5 — requireValidContractForRender hard-blocks an invalid Resolved before render', () => {
+  it('a VALID Resolved is allowed (dispatches to the FULL Resolved validator, which passes)', () => {
+    const resolved = materialize(p1ResolvedTemplate(), P1_FAMILY);
+    expect(requireValidContractForRender(resolved, 'production')).toBeTruthy();
+  });
+
+  it('an INVALID Resolved is BLOCKED — full validator, NO legacy fall-through to the weaker base validator', () => {
+    const bad = JSON.parse(JSON.stringify(materialize(p1ResolvedTemplate(), P1_FAMILY)));
+    bad.humanCast[0].appearance.skinTone.value = 'deferred to the family lock'; // passes the base validator, fails Resolved
+    expect(() => requireValidContractForRender(bad, 'production')).toThrow(InvalidResolvedContractError);
+  });
+
+  it('a genuine LEGACY contract (no resolved discriminant) is still allowed (base validator)', () => {
+    expect(requireValidContractForRender(contract(), 'production')).toBeTruthy();
   });
 });
