@@ -1332,6 +1332,70 @@
   color: #8467ff;
 }
 
+/* ── Coupon code (pre-payment step) ─────────────────────────── */
+.coupon-group {
+  gap: 6px;
+}
+.coupon-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.coupon-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.coupon-input::placeholder {
+  text-transform: none;
+  letter-spacing: normal;
+}
+.coupon-apply-btn {
+  flex: 0 0 auto;
+  padding: 0 18px;
+  min-height: 48px;
+  border-radius: 12px;
+  border: 1.5px solid var(--purple, #7c5cfc);
+  background: #fff;
+  color: var(--purple, #7c5cfc);
+  font-family: 'Heebo', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+.coupon-apply-btn:hover { background: #f1ecff; }
+.coupon-apply-btn:disabled { opacity: 0.5; cursor: default; }
+.coupon-status {
+  font-family: 'Heebo', sans-serif;
+  font-size: 13px;
+  min-height: 18px;
+  line-height: 1.4;
+}
+.coupon-status--pending { color: #8b83a6; }
+.coupon-status--ok { color: #2e9e5b; font-weight: 700; }
+.coupon-status--err { color: #d1495b; font-weight: 600; }
+
+/* Coupon-applied price rows: struck full price + a discount line above the total. */
+.price-row--was .val--was {
+  color: #8b83a6;
+  text-decoration: line-through;
+  text-decoration-color: #b7afcd;
+  font-family: 'Heebo', sans-serif;
+  font-feature-settings: "tnum";
+}
+.price-row--discount .label {
+  color: var(--purple, #7c5cfc);
+  font-weight: 700;
+}
+.price-row--discount .val--discount {
+  color: var(--purple, #7c5cfc);
+  font-weight: 800;
+  font-family: 'Heebo', sans-serif;
+  font-feature-settings: "tnum";
+}
+
 .contact-form {
   display: flex;
   flex-direction: column;
