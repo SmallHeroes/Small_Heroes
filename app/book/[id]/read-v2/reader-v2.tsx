@@ -675,30 +675,6 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
     };
   }, [status]);
 
-  /** Mobile full-bleed: hide app header while actively reading (not end/power-card screens). */
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mq = window.matchMedia('(max-width: 1023px)');
-    const syncImmersive = () => {
-      const immersive =
-        mq.matches &&
-        status === 'ready' &&
-        !showEndScreen &&
-        !showPowerCardScreen;
-      if (immersive) {
-        document.documentElement.setAttribute('data-reader-immersive', '');
-      } else {
-        document.documentElement.removeAttribute('data-reader-immersive');
-      }
-    };
-    syncImmersive();
-    mq.addEventListener('change', syncImmersive);
-    return () => {
-      document.documentElement.removeAttribute('data-reader-immersive');
-      mq.removeEventListener('change', syncImmersive);
-    };
-  }, [showEndScreen, showPowerCardScreen, status]);
-
   useEffect(() => {
     if (process.env.NODE_ENV !== 'development') return;
     console.log('[read-v2] book-layout reader', {

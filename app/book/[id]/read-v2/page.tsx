@@ -37,7 +37,7 @@ export default async function BookReadV2Page({ params, searchParams }: PageProps
 
   return (
     <div className={shellStyles.shell}>
-      <div className={`${shellStyles.headerSlot} readV2HeaderSlot`}>
+      <div className={shellStyles.headerSlot}>
         <SiteHeader variant="compact" />
       </div>
       <ReaderV2 bookId={id} accessKey={accessKey} devLayoutFlags={devLayoutFlags} />

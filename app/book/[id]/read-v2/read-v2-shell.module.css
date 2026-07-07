@@ -1,4 +1,4 @@
-/* Reader page shell — hide app header on mobile when immersive reading is active. */
+/* Reader page shell — mobile read-v2 is always full-bleed (no app header). */
 
 .shell {
   display: contents;
@@ -9,7 +9,7 @@
 }
 
 @media (max-width: 1023px) {
-  :global(html[data-reader-immersive]) .readV2HeaderSlot {
+  .headerSlot {
     display: none;
   }
 }
