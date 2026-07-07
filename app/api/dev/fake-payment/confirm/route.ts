@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
       select: { id: true, status: true, totalPrice: true },
     });
     if (!fresh) return false;
-    if (['generating', 'ready', 'partial'].includes(fresh.status)) return false;
+    if (['generating', 'ready', 'partial', 'needs_human_qa'].includes(fresh.status)) return false;
 
     await tx.order.update({
       where: { id: fresh.id },
@@ -116,10 +116,11 @@ export async function POST(req: NextRequest) {
     });
     const couponOutcome = await confirmCouponForOrder(tx, fresh.id);
     if (couponOutcome === 'paid_late_over_cap') {
-      // Cap-safe: discount NOT granted (would exceed the cap). Hold for out-of-band resolution.
+      // Cap-safe: discount NOT granted (would exceed the cap). FENCE via needs_human_qa (stops
+      // generation/delivery; start.ts treats it as terminal) for out-of-band resolution.
       await tx.order.update({
         where: { id: fresh.id },
-        data: { manualReviewRequired: true, deliveryHoldReason: 'coupon_paid_late_over_cap' },
+        data: { status: 'needs_human_qa', manualReviewRequired: true, deliveryHoldReason: 'coupon_paid_late_over_cap' },
       });
       logger.error('coupon paid-after-expiry over cap — discount NOT granted; order held for refund/charge-full', { orderId: fresh.id });
     }

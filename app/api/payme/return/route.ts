@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(redirectUrl);
     }
 
-    if (order.status === 'paid' || order.status === 'generating' || order.status === 'ready' || order.status === 'partial') {
+    if (order.status === 'paid' || order.status === 'generating' || order.status === 'ready' || order.status === 'partial' || order.status === 'needs_human_qa') {
       if (order.status === 'paid') {
         // AWAIT durable job-creation before the redirect; the local catch isolates a generation-start
         // failure so it never breaks the redirect (start errors must not surface as a payment failure).
@@ -110,10 +110,11 @@ export async function GET(req: NextRequest) {
         // Confirm any reserved coupon redemption in the same tx that marks the order paid.
         const couponOutcome = await confirmCouponForOrder(tx, order.id);
         if (couponOutcome === 'paid_late_over_cap') {
-          // Cap-safe: discount NOT granted (would exceed the cap). Hold for out-of-band resolution.
+          // Cap-safe: discount NOT granted (would exceed the cap). FENCE via needs_human_qa (stops
+          // generation/delivery; start.ts treats it as terminal) for out-of-band resolution.
           await tx.order.update({
             where: { id: order.id },
-            data: { manualReviewRequired: true, deliveryHoldReason: 'coupon_paid_late_over_cap' },
+            data: { status: 'needs_human_qa', manualReviewRequired: true, deliveryHoldReason: 'coupon_paid_late_over_cap' },
           });
           logger.error('coupon paid-after-expiry over cap — discount NOT granted; order held for refund/charge-full', { orderId: order.id });
         }
