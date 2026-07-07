@@ -3313,11 +3313,14 @@
 
 /* Launch discount: struck-through "original" price above the current price. */
 .product-card-price-was {
-  font-size: 15px;
+  font-family: 'Heebo', sans-serif; /* override --fd — Abraham digits render incorrectly, so the struck price was illegible */
+  font-size: 16px;
   font-weight: 700;
-  color: #a49dbe;
+  color: #8b83a6; /* muted (secondary) but legible */
   text-decoration: line-through;
   text-decoration-thickness: 2px;
+  text-decoration-color: #b7afcd;
+  font-feature-settings: "tnum";
 }
 
 .product-card-price-now {
@@ -3331,8 +3334,9 @@
 }
 
 .product-card-launch-flag {
-  font-size: 11px;
-  font-weight: 700;
+  font-family: 'Heebo', sans-serif; /* running font — legible at small pill size, unlike --fd */
+  font-size: 12px;
+  font-weight: 800;
   color: #8467ff;
   background: #f1ecff;
   border-radius: 999px;
