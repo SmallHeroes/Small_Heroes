@@ -79,6 +79,7 @@ import {
   contractPageEnvironmentClass,
   contractPageSupportingCharacters,
   derivePageVisualContracts,
+  deriveCoverVisualContract,
   buildVisualContractPromptBlock,
   contractToQaObservability,
   computeVisualContractHash,
@@ -949,6 +950,15 @@ async function runCoverStage(
   const coverContractStyleRefEnvironment = coverSteeringContract
     ? contractPageEnvironmentClass(coverSteeringContract, 0) ?? undefined
     : undefined;
+  // (WS0b location authority, round-2) The cover's AUTHORITATIVE block (parity with pages) — built from the
+  // cover-as-page projection of the frozen contract and prepended to the cover's Style 01 prompt in image.ts.
+  // Steering-gated; flag OFF → undefined → composeContractAuthoritativePrompt leaves the prompt unchanged.
+  const coverVisualContractPromptBlock = coverSteeringContract
+    ? buildVisualContractPromptBlock(
+        deriveCoverVisualContract(coverSteeringContract),
+        coverSteeringContract,
+      )
+    : undefined;
 
   const coverImage = await generateBookCover({
     // (#7-a 5b) Durable regen reserver for the cover artifact — flag-on only.
@@ -986,6 +996,8 @@ async function runCoverStage(
     pageLocationPlan: coverLocationPlan,
     // (WS0b location authority) Route the cover's Style 01 refs + sceneClass by the contract's cover env lock.
     contractStyleRefEnvironment: coverContractStyleRefEnvironment,
+    // (WS0b location authority, round-2) Cover authoritative block — parity with the per-page projection.
+    visualContractPromptBlock: coverVisualContractPromptBlock,
     childStructured: cache.dna?.childStructured,
     companionStructured: cache.dna?.companionStructured,
   });

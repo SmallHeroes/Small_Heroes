@@ -45,6 +45,7 @@ export {
 } from './contractArtifact';
 export {
   derivePageVisualContracts,
+  deriveCoverVisualContract,
   type ResolvedPageContract,
 } from './derivePageVisualContracts';
 export {

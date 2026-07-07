@@ -13,7 +13,11 @@ import type { BookVisualContract } from './types';
 import {
   assertValidBookVisualContract,
 } from './validateBookVisualContract';
-import { derivePageVisualContracts, type ResolvedPageContract } from './derivePageVisualContracts';
+import {
+  derivePageVisualContracts,
+  deriveCoverVisualContract,
+  type ResolvedPageContract,
+} from './derivePageVisualContracts';
 import { selectCalibrationPages } from './selectCalibrationPages';
 import {
   evaluatePageContractQa,
@@ -99,8 +103,9 @@ export async function runVisualContractCalibration(input: {
       lastUrl = imageUrl;
       const observation = await input.vision.observe({ imageUrl, target, contract: input.contract });
       lastVerdict = evaluatePageContractQa({
-        // For the cover we still evaluate via a synthetic page-like contract derived from coverContract.
-        page: page ?? coverAsPage(input.contract),
+        // For the cover we still evaluate via a synthetic page-like contract derived from coverContract
+        // (the shared compiler projection — same one that drives the cover's authoritative prompt block).
+        page: page ?? deriveCoverVisualContract(input.contract),
         observation,
         isCover,
       });
@@ -121,22 +126,3 @@ export async function runVisualContractCalibration(input: {
   return { allPass: failedPages.length === 0, results, failedPages };
 }
 
-/** Represent the cover contract as a page-shaped object so the same gate logic applies to it. */
-function coverAsPage(contract: BookVisualContract): ResolvedPageContract {
-  const cover = contract.coverContract;
-  return {
-    pageNumber: 0,
-    locationId: cover.locationId,
-    zoneId: undefined,
-    sameLocationAs: null,
-    mustShow: cover.mustShow ?? [],
-    mustNotShow: [...(cover.mustNotShow ?? []), ...(contract.forbiddenGlobalElements ?? [])],
-    characterPresence: { child: true, companion: false },
-    propState: [],
-    camera: 'cover composition',
-    childWardrobeLock: contract.cast.child.wardrobe.description,
-    companionWardrobeLock: undefined,
-    locationName: contract.locations.find((l) => l.id === cover.locationId)?.name ?? cover.locationId,
-    zoneName: undefined,
-  };
-}

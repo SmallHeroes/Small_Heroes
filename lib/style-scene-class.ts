@@ -18,8 +18,6 @@ export type Style01SceneClass =
   | 'outdoor-night'
   | 'cozy-interior'
   | 'cozy-interior-night'
-  | 'clinic-interior'
-  | 'clinic-interior-night'
   | 'outdoor-magical'
   | 'outdoor-magical-night';
 
@@ -37,16 +35,8 @@ const YARD_GARDEN_RE =
 const BEDROOM_RE = /\b(bedroom|nightstand|bedside|warm bedroom|indoors? inside|חדר(?: שינה)?)\b/iu;
 const COZY_INTERIOR_RE = /\b(bedroom|bedside|windowsill|indoor room|חדר|מיטה)\b/iu;
 const OUTDOOR_MAGICAL_RE = /\b(sky|clouds|mountain peak|above the clouds|starlit|starry|moon|stars|שמיים|עננים|כוכב)\b/iu;
-// (WS0b location authority) Clinic / doctor / exam interior — DEFENSIVE: a clinic scene must never fall through to
-// outdoor-nature on the legacy regex path when the contract is absent. The resolved contract stays the PRIMARY
-// authority (see contractEnvironmentToSceneClass); this only rescues the regex fallback.
-// English tokens use \b boundaries; the Hebrew alternation is matched as a substring because \b (an ASCII
-// \w boundary) never fires around Hebrew letters — with \b, מרפאה / חדר המתנה would silently never match.
-const CLINIC_RE =
-  /\b(?:clinic|doctor'?s?|pediatric(?:ian)?|exam(?:ination)? room|waiting room|nurse|stethoscope|check-?up|infirmary)\b|(?:מרפאה|רופא|חדר המתנה|חדר בדיקה|בדיקה רפואית)/iu;
 
 type BaseEnvironment =
-  | 'clinic'
   | 'cave'
   | 'forest-path'
   | 'forest-clearing'
@@ -59,7 +49,6 @@ type BaseEnvironment =
   | 'outdoor-nature';
 
 function classifyBaseEnvironment(hay: string): BaseEnvironment {
-  if (CLINIC_RE.test(hay)) return 'clinic';
   if (FANTASY_CAVE_RE.test(hay)) return 'cave';
   if (FOREST_PATH_RE.test(hay)) return 'forest-path';
   if (FOREST_CLEARING_RE.test(hay)) return 'forest-clearing';
@@ -74,8 +63,6 @@ function classifyBaseEnvironment(hay: string): BaseEnvironment {
 
 function toNightClass(base: BaseEnvironment): Style01SceneClass {
   switch (base) {
-    case 'clinic':
-      return 'clinic-interior-night';
     case 'cave':
       return 'fantasy-cave-night';
     case 'forest-path':
@@ -101,8 +88,6 @@ function toNightClass(base: BaseEnvironment): Style01SceneClass {
 
 function toDayClass(base: BaseEnvironment): Style01SceneClass {
   switch (base) {
-    case 'clinic':
-      return 'clinic-interior';
     case 'cave':
       return 'fantasy-cave';
     case 'forest-path':
@@ -148,11 +133,7 @@ export type Style01SceneSubsetKey = 'fantasy-cave' | 'cozy-interior' | 'outdoor-
 
 export function resolveStyle01SceneRefSubset(sceneClass: Style01SceneClass): Style01SceneSubsetKey {
   if (sceneClass.startsWith('fantasy-cave')) return 'fantasy-cave';
-  if (
-    sceneClass.startsWith('bedroom') ||
-    sceneClass.startsWith('cozy-interior') ||
-    sceneClass.startsWith('clinic')
-  )
+  if (sceneClass.startsWith('bedroom') || sceneClass.startsWith('cozy-interior'))
     return 'cozy-interior';
   return 'outdoor-magical';
 }

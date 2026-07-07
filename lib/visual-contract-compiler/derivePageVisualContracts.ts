@@ -51,3 +51,32 @@ export function derivePageVisualContracts(contract: BookVisualContract): Resolve
     })
     .sort((a, b) => a.pageNumber - b.pageNumber);
 }
+
+/**
+ * Derive the COVER (page 0) as a page-shaped ResolvedPageContract. Page 0 is absent from `pageContracts`, but its
+ * location / cast / forbidden authority lives in `coverContract` — projecting it here lets the cover flow through
+ * the SAME per-page consumers as real pages (the authoritative prompt block via buildVisualContractPromptBlock,
+ * and the calibration QA gate). Deterministic, general, never book-specific: the global forbiddens fold into the
+ * cover's mustNotShow (deduped, matching the page projection); companion presence is conservatively `false` (the
+ * cover's `mustShow` carries any companion requirement) so the block never over-asserts cast; camera is the fixed
+ * cover-composition hint. A location the cover names but the contract does not declare falls back to the raw id.
+ */
+export function deriveCoverVisualContract(contract: BookVisualContract): ResolvedPageContract {
+  const cover = contract.coverContract;
+  const location = contract.locations.find((l) => l.id === cover.locationId);
+  return {
+    pageNumber: 0,
+    locationId: cover.locationId,
+    zoneId: undefined,
+    sameLocationAs: null,
+    mustShow: cover.mustShow ?? [],
+    mustNotShow: uniq([...(cover.mustNotShow ?? []), ...(contract.forbiddenGlobalElements ?? [])]),
+    characterPresence: { child: true, companion: false },
+    propState: [],
+    camera: 'cover composition',
+    childWardrobeLock: contract.cast.child.wardrobe.description,
+    companionWardrobeLock: undefined,
+    locationName: location?.name ?? cover.locationId,
+    zoneName: undefined,
+  };
+}
