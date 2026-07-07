@@ -4,7 +4,8 @@
  * Supports voice selection + sleep mode pacing.
  */
 
-import { getVoiceById, SLEEP_MODE_OVERRIDES } from '../config/voices';
+import { getVoiceById, SLEEP_MODE_OVERRIDES, type VoiceConfig } from '../config/voices';
+import { applyTtsAmbiguityNiqqudToText } from '../../lib/story-gen-v2/tts-ambiguity-niqqud';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { uploadToSupabaseWithRetry } from '../../lib/image-storage';
 
@@ -169,23 +170,55 @@ export async function storeAudio(buffer: Buffer, filename: string): Promise<stri
   return publicUrl;
 }
 
+// ─── Shared narration seams (full-book + per-page) ────
+/**
+ * Effective ElevenLabs `voice_settings` for a voice + sleepMode — the voices.ts tuning (stability / similarity /
+ * style) with the sleep-mode overrides layered on. SHARED by the full-book (`generateAudio`) and per-page
+ * (`generatePageAudio`) paths so mom/dad/fairy tuning actually applies per page in prod (the per-page path previously
+ * sent NO settings → ElevenLabs voice defaults, making the registry tuning dead).
+ */
+export function resolveVoiceSettings(
+  voice: VoiceConfig,
+  sleepMode: boolean,
+): { stability: number; similarity_boost: number; style: number; use_speaker_boost: boolean } {
+  return {
+    stability: sleepMode
+      ? (SLEEP_MODE_OVERRIDES.stability ?? voice.stability ?? 0.75)
+      : (voice.stability ?? 0.75),
+    similarity_boost: sleepMode
+      ? (SLEEP_MODE_OVERRIDES.similarityBoost ?? voice.similarityBoost ?? 0.80)
+      : (voice.similarityBoost ?? 0.80),
+    style: sleepMode
+      ? (SLEEP_MODE_OVERRIDES.style ?? 0)
+      : (voice.style ?? 0),
+    use_speaker_boost: voice.useSpeakerBoost ?? true,
+  };
+}
+
+/**
+ * Build the TTS input for a SINGLE narration page: (1) vocalize ambiguous Hebrew homographs for the vocalizer ONLY
+ * (the displayed text is untouched — the reader strips niqqud), THEN (2) add gentle child-pacing pause punctuation.
+ * The niqqud pass MUST run BEFORE the pause punctuation. Shared by `generatePageAudio` and the A/B audition so both
+ * exercise the identical pipeline. Throws on empty text.
+ */
+export function buildPageNarrationTtsText(narrationText: string, sleepMode: boolean): string {
+  let text = narrationText.trim();
+  if (!text) throw new Error('Empty narration text');
+  text = applyTtsAmbiguityNiqqudToText(text).text; // (Fix 1) homograph disambiguation — TTS input only
+  if (sleepMode) {
+    text = text.replace(/\./g, '......... ').replace(/,/g, ',...  ');
+  } else {
+    text = text.replace(/\./g, '... ').replace(/,/g, ',  ');
+  }
+  return text;
+}
+
 // ─── Main Entry Point ─────────────────────────────────
 export async function generateAudio(input: AudioInput): Promise<GeneratedAudio> {
   const voice = getVoiceById(input.voiceId);
   if (!voice) throw new Error(`Unknown voice: ${input.voiceId}`);
 
-  const settings = {
-    stability: input.sleepMode
-      ? (SLEEP_MODE_OVERRIDES.stability ?? voice.stability ?? 0.75)
-      : (voice.stability ?? 0.75),
-    similarity_boost: input.sleepMode
-      ? (SLEEP_MODE_OVERRIDES.similarityBoost ?? voice.similarityBoost ?? 0.80)
-      : (voice.similarityBoost ?? 0.80),
-    style: input.sleepMode
-      ? (SLEEP_MODE_OVERRIDES.style ?? 0)
-      : (voice.style ?? 0),
-    use_speaker_boost: voice.useSpeakerBoost ?? true,
-  };
+  const settings = resolveVoiceSettings(voice, input.sleepMode);
 
   console.log(`[Audio] Generating with voice=${voice.label}, sleepMode=${input.sleepMode}`);
 
@@ -207,7 +240,8 @@ export async function generateAudio(input: AudioInput): Promise<GeneratedAudio> 
 }
 
 /**
- * Single-page narration (per-page MP3). Uses voice defaults from ElevenLabs (no custom voice_settings).
+ * Single-page narration (per-page MP3). Vocalizes ambiguous Hebrew homographs for the TTS input (display text is
+ * untouched) AND applies the voice's registry `voice_settings` (mom/dad/fairy tuning), matching the full-book path.
  */
 export async function generatePageAudio(input: {
   narrationText: string;
@@ -219,16 +253,13 @@ export async function generatePageAudio(input: {
   const voice = getVoiceById(input.voiceId);
   if (!voice) throw new Error(`Unknown voice: ${input.voiceId}`);
 
-  let text = input.narrationText.trim();
-  if (!text) throw new Error('Empty narration text');
-
-  if (input.sleepMode) {
-    text = text.replace(/\./g, '......... ').replace(/,/g, ',...  ');
-  } else {
-    text = text.replace(/\./g, '... ').replace(/,/g, ',  ');
-  }
-
-  const audioBuffer = await callElevenLabs(text, voice.elevenlabsVoiceId);
+  // (Fix 1) niqqud disambiguation → pause punctuation, all TTS-input only. (Fix 2) send the voice's voice_settings.
+  const text = buildPageNarrationTtsText(input.narrationText, input.sleepMode);
+  const audioBuffer = await callElevenLabs(
+    text,
+    voice.elevenlabsVoiceId,
+    resolveVoiceSettings(voice, input.sleepMode),
+  );
 
   const filename = `${input.orderId}-page${input.pageNumber}${input.sleepMode ? '-sleep' : ''}.mp3`;
   const url = await storeAudio(audioBuffer, filename);
