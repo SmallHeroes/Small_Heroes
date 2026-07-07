@@ -71,9 +71,11 @@ export async function GET(req: NextRequest) {
 
     if (verification.verified && verification.status === 'paid') {
       const resolvedPaymentId = transactionIdFromQuery || paymentIdFromQuery || order.paymentId || `payme_verified_${order.id}`;
-      await prisma.$transaction(async (tx) => {
-        await tx.order.update({
-          where: { id: order.id },
+      const claimed = await prisma.$transaction(async (tx) => {
+        // Paid transition — CONDITIONAL so an overlapping success path (e.g. the webhook) that has
+        // already advanced or FENCED (needs_human_qa) this order is NEVER demoted back to 'paid'.
+        const paidTransition = await tx.order.updateMany({
+          where: { id: order.id, status: { in: ['draft', 'pending_payment', 'failed'] } },
           data: {
             status: 'paid',
             paymentProvider: 'payme',
@@ -83,6 +85,7 @@ export async function GET(req: NextRequest) {
             stripePaid: false,
           },
         });
+        if (paidTransition.count === 0) return false; // another path already advanced/fenced this order
         await tx.paymentRecord.upsert({
           where: { orderId: order.id },
           update: {
@@ -114,10 +117,13 @@ export async function GET(req: NextRequest) {
           });
           logger.error('coupon paid-after-expiry over cap — discount NOT granted; order held for refund/charge-full', { orderId: order.id });
         }
+        return true;
       });
-      triggerGeneration(order.id, 'payme_redirect_verified_paid').catch((error) => {
-        logger.error('Generation trigger failed after verified redirect', error, { orderId: order.id });
-      });
+      if (claimed) {
+        triggerGeneration(order.id, 'payme_redirect_verified_paid').catch((error) => {
+          logger.error('Generation trigger failed after verified redirect', error, { orderId: order.id });
+        });
+      }
     } else if (allowUnsafePaidMark) {
       logger.warn('UNSAFE redirect trust mode accepted paid state (dev only)', {
         orderId: order.id,

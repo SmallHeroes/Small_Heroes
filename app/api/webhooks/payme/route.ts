@@ -160,8 +160,12 @@ export async function POST(req: NextRequest) {
         return false;
       }
 
-      await tx.order.update({
-        where: { id: order.id },
+      // Paid transition — CONDITIONAL so an overlapping payment-success path (e.g. the redirect
+      // return) that has already advanced or FENCED (needs_human_qa) this order is NEVER demoted
+      // back to 'paid'. The WHERE is re-checked atomically at write time (Postgres READ COMMITTED
+      // re-evaluates it after a concurrent commit), so only a pre-paid order transitions.
+      const paidTransition = await tx.order.updateMany({
+        where: { id: order.id, status: { in: ['draft', 'pending_payment', 'failed'] } },
         data: {
           status: 'paid',
           paymentProvider: 'payme',
@@ -171,6 +175,16 @@ export async function POST(req: NextRequest) {
           stripePaid: false,
         },
       });
+      if (paidTransition.count === 0) {
+        // Another success path already advanced/fenced this order → do NOT re-process or demote it.
+        // Recovery: if it is merely 'paid' (not fenced/generating/ready/partial), STILL (re)trigger
+        // generation. The durable, retried webhook is the recovery path if that other path's
+        // fire-and-forget triggerGeneration rejected before a generationJob row existed (the sweeper
+        // only recovers orders that already have a job). Re-triggering is idempotent — start.ts
+        // no-ops generating/ready/partial/needs_human_qa and claims a plain 'paid' order.
+        const current = await tx.order.findUnique({ where: { id: order.id }, select: { status: true } });
+        return current?.status === 'paid';
+      }
 
       await tx.paymentRecord.upsert({
         where: { orderId: order.id },
