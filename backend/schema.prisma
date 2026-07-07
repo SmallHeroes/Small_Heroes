@@ -185,7 +185,14 @@ model Order {
   // Pricing
   basePrice          Int   // in agorot (ILS cents)
   addonsPrice        Int
-  totalPrice         Int
+  totalPrice         Int   // in agorot; reflects the coupon discount once one is applied
+
+  // Coupon / launch discount (nullable — most orders carry none). basePrice+addonsPrice keep
+  // the PRE-discount components for the receipt; totalPrice is the discounted amount charged.
+  // These snapshot which code was applied and how much it took off (audit / summary display).
+  couponCode            String?
+  couponDiscountPercent Int?
+  couponDiscountAgorot  Int?
 
   // Stripe
   stripeSessionId    String?  @unique
@@ -238,6 +245,7 @@ model Order {
   wizardSession      WizardSession? @relation(fields: [wizardSessionId], references: [id])
   book               GeneratedBook?
   payment            PaymentRecord?
+  couponRedemption   CouponRedemption?
   generationJob      GenerationJob?
   storyDirectionSet  StoryDirectionSet?
   resemblanceAudits  ResemblanceAudit[]
@@ -741,4 +749,55 @@ model AtomicOperationReceipt {
   createdAt    DateTime @default(now())
 
   @@index([orderId])
+}
+
+// ─── Coupon / launch promo code ───────────────────────
+// One shared launch code (e.g. FIRST100) giving an extra % off, hard-capped at
+// maxRedemptions. RESERVE-AT-CHECKOUT (lease) model:
+//   • A redemption row is RESERVED when the discounted sale is created (holds a
+//     slot with a TTL via expiresAt).
+//   • It is CONFIRMED inside the exactly-once payment-success transaction.
+//   • Expired 'reserved' rows do NOT count toward the cap, so abandoned carts
+//     never burn a slot; a stale hold self-frees.
+// confirmedCount is monotonic and only advances on payment success. The cap
+// invariant, enforced under a Coupon-row FOR UPDATE lock at reserve time, is:
+//   confirmedCount + (# reserved & not expired) <= maxRedemptions
+// so confirmedCount can never exceed maxRedemptions even under concurrency.
+enum CouponRedemptionStatus {
+  reserved
+  confirmed
+  released
+}
+
+model Coupon {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  discountPercent Int      // whole percent off, e.g. 25
+  maxRedemptions  Int      // hard cap on confirmed redemptions
+  confirmedCount  Int      @default(0) // monotonic; ++ only on payment success
+  active          Boolean  @default(false) // off until the owner enables it live
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  redemptions     CouponRedemption[]
+}
+
+model CouponRedemption {
+  id              String                 @id @default(cuid())
+  couponId        String
+  coupon          Coupon                 @relation(fields: [couponId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  code            String                 // denormalized coupon code (audit / query convenience)
+  orderId         String                 @unique // one redemption per order → idempotent reserve/confirm
+  order           Order                  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status          CouponRedemptionStatus @default(reserved)
+  discountPercent Int                    // snapshot at reserve time
+  discountAgorot  Int                    // actual discount applied, in agorot (audit)
+  reservedAt      DateTime               @default(now())
+  expiresAt       DateTime               // reserve + TTL; expired 'reserved' rows are free capacity
+  confirmedAt     DateTime?
+  releasedAt      DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@index([couponId, status, expiresAt])
 }

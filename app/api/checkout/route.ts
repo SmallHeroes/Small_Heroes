@@ -13,6 +13,7 @@ import { createPaymeCheckout } from '@/lib/payme';
 import { env, isFakePaymentEnabled, canUseFakePayments, isWaitlistMode } from '@/lib/env';
 import { ROUTES } from '@/lib/routes';
 import { evaluatePhotoGate } from '@/lib/resemblance-core';
+import { reserveCoupon, releaseCouponForOrder } from '@/lib/coupon/coupon-service';
 
 const logger = createLogger({ subsystem: 'checkout', route: '/api/checkout' });
 
@@ -21,6 +22,7 @@ async function createFakeCheckoutResponse(params: {
   basePriceAgorot: number;
   addonsPriceAgorot: number;
   totalPriceAgorot: number;
+  coupon?: { code: string; discountPercent: number; discountAgorot: number } | null;
 }) {
   const paymentId = `fake_${params.orderId}_${Date.now()}`;
   await prisma.order.update({
@@ -32,6 +34,9 @@ async function createFakeCheckoutResponse(params: {
       basePrice: params.basePriceAgorot,
       addonsPrice: params.addonsPriceAgorot,
       totalPrice: params.totalPriceAgorot,
+      couponCode: params.coupon?.code ?? null,
+      couponDiscountPercent: params.coupon?.discountPercent ?? null,
+      couponDiscountAgorot: params.coupon?.discountAgorot ?? null,
     },
   });
   logger.info('Fake checkout created', { orderId: params.orderId, paymentId });
@@ -55,6 +60,9 @@ function resolveAppUrl(req: NextRequest): string {
 }
 
 export async function POST(req: NextRequest) {
+  // Tracks a coupon slot reserved during this checkout so the outer catch can release it if the
+  // checkout aborts after reserving (the hold's TTL is the ultimate backstop).
+  let reservedCouponOrderId: string | null = null;
   try {
     const sameOriginError = enforceSameOrigin(req);
     if (sameOriginError) return sameOriginError;
@@ -139,7 +147,7 @@ export async function POST(req: NextRequest) {
     }
 
     const appUrl = resolveAppUrl(req);
-    const { orderId, sessionId } = await req.json();
+    const { orderId, sessionId, couponCode: bodyCouponCode } = await req.json();
     if (!orderId) return NextResponse.json({ error: 'orderId required' }, { status: 400 });
     logger.info('Checkout request received', { orderId });
 
@@ -165,7 +173,43 @@ export async function POST(req: NextRequest) {
     });
     const basePriceAgorot = Math.round(pricing.basePrice * 100);
     const addonsPriceAgorot = Math.round(pricing.addonsPrice * 100);
-    const totalPriceAgorot = Math.round(pricing.totalPrice * 100);
+    let totalPriceAgorot = Math.round(pricing.totalPrice * 100);
+
+    // ── Coupon (server-side) ─────────────────────────────────────────────────────────────
+    // Reserve a redemption slot ATOMICALLY at checkout, then discount the charge. The client
+    // only supplies a CODE (or it was persisted on the order at "Apply"); the price is never
+    // client-supplied. Any coupon failure (missing / inactive / cap full) fails cleanly — the
+    // discount is dropped and the caller is told, so no one is charged then refunded.
+    let couponApplied: { code: string; discountPercent: number; discountAgorot: number } | null = null;
+    const couponCodeToApply =
+      typeof bodyCouponCode === 'string' && bodyCouponCode.trim()
+        ? bodyCouponCode.trim()
+        : order.couponCode ?? '';
+    if (couponCodeToApply) {
+      const reservation = await reserveCoupon({
+        rawCode: couponCodeToApply,
+        orderId: order.id,
+        originalAgorot: totalPriceAgorot,
+      });
+      if (reservation.ok) {
+        totalPriceAgorot = reservation.discountedAgorot;
+        reservedCouponOrderId = order.id;
+        couponApplied = {
+          code: reservation.code,
+          discountPercent: reservation.discountPercent,
+          discountAgorot: reservation.discountAgorot,
+        };
+        logger.info('Coupon reserved at checkout', {
+          orderId,
+          code: reservation.code,
+          discountPercent: reservation.discountPercent,
+          reused: reservation.reused,
+        });
+      } else {
+        logger.info('Coupon rejected at checkout', { orderId, reason: reservation.reason });
+        return NextResponse.json({ error: 'coupon_rejected', reason: reservation.reason }, { status: 409 });
+      }
+    }
 
     const addonLabels: string[] = [];
     if (order.bundleEnabled) addonLabels.push(CHECKOUT_ADDONS.bundle);
@@ -213,6 +257,7 @@ export async function POST(req: NextRequest) {
         basePriceAgorot,
         addonsPriceAgorot,
         totalPriceAgorot,
+        coupon: couponApplied,
       });
     }
 
@@ -264,6 +309,7 @@ export async function POST(req: NextRequest) {
           orderId,
           checkoutUrl,
         });
+        if (couponApplied) await releaseCouponForOrder(prisma, order.id).catch(() => {});
         return NextResponse.json(
           {
             error: 'Payment provider returned an invalid redirect URL',
@@ -276,6 +322,7 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       if (e instanceof TypeError || (e instanceof Error && e.message === 'bad_protocol')) {
         logger.error('Checkout blocked: invalid checkout URL from provider', { orderId, checkoutUrl, err: e });
+        if (couponApplied) await releaseCouponForOrder(prisma, order.id).catch(() => {});
         return NextResponse.json(
           { error: 'Payment provider returned an invalid redirect URL', reason: 'checkout_url_parse_failed' },
           { status: 502 }
@@ -294,6 +341,9 @@ export async function POST(req: NextRequest) {
         basePrice: basePriceAgorot,
         addonsPrice: addonsPriceAgorot,
         totalPrice: totalPriceAgorot,
+        couponCode: couponApplied?.code ?? null,
+        couponDiscountPercent: couponApplied?.discountPercent ?? null,
+        couponDiscountAgorot: couponApplied?.discountAgorot ?? null,
       },
     });
     logger.info('PayMe checkout created', {
@@ -312,6 +362,9 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error) {
+    if (reservedCouponOrderId) {
+      await releaseCouponForOrder(prisma, reservedCouponOrderId).catch(() => {});
+    }
     logger.error('PayMe checkout creation failed', error);
     return NextResponse.json({ error: 'Failed to create checkout session' }, { status: 500 });
   }

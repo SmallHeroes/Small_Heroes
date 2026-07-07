@@ -5,6 +5,7 @@ import { enforceRateLimit, enforceSameOrigin } from '@/lib/request-security';
 import { canUseFakePayments } from '@/lib/env';
 import { ROUTES } from '@/lib/routes';
 import { triggerGeneration } from '../../../generate/route';
+import { confirmCouponForOrder, releaseCouponForOrder } from '@/lib/coupon/coupon-service';
 
 const logger = createLogger({ subsystem: 'fake-payment', route: '/api/dev/fake-payment/confirm' });
 
@@ -66,6 +67,8 @@ export async function POST(req: NextRequest) {
           raw: { mode: 'fake', result: 'failed', paymentId },
         },
       });
+      // Explicit failure → free the reserved coupon slot now (don't wait out the TTL).
+      await releaseCouponForOrder(tx, order.id);
     });
     return NextResponse.json({
       ok: true,
@@ -111,6 +114,7 @@ export async function POST(req: NextRequest) {
         raw: { mode: 'fake', result: 'success', paymentId },
       },
     });
+    await confirmCouponForOrder(tx, fresh.id);
     return fresh.status !== 'paid';
   });
 
