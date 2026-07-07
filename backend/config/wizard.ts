@@ -403,6 +403,9 @@ export const STORY_LENGTHS = [
   { id: 'long',   label: 'מסע פלאי',        pages: 20, priceILS: 99 },
 ] as const;
 
+// LEGACY / reference only — NOTHING is charged as an add-on anymore. Everything (narration, PDF,
+// video) is included in the flat launch price; computePricing ignores these values. Kept for
+// reference in case a genuine paid add-on is reintroduced. (OQ-PA4: removed the leftover over-charge.)
 export const ADDON_PRICES = {
   audio:  19, // ILS — narration
   pdf:    19, // ILS — print-ready PDF
@@ -424,20 +427,14 @@ export function computePricing(config: {
   bundleEnabled: boolean;
   videoEnabled?: boolean;
 }) {
-  // New path: derive price from direction
+  // Everything — narration, PDF, video — is INCLUDED in the flat launch price (OQ-PA4): there are
+  // NO paid add-ons. The audio/pdf/video/bundle flags still drive which FEATURES are generated, but
+  // they never change the price, so the charged total always equals the displayed base price
+  // (₪59/79/99) and matches the client's computeTotal(). ADDON_PRICES is legacy/reference only.
   const dirMap = config.direction ? DIRECTION_PAGE_MAP[config.direction] : null;
   const base = dirMap
     ? dirMap.priceILS
     : (STORY_LENGTHS.find(l => l.id === config.length) ?? STORY_LENGTHS[1]).priceILS;
 
-  let addons = 0;
-  const videoEnabled = Boolean(config.videoEnabled);
-  if (config.bundleEnabled) {
-    addons += ADDON_PRICES.bundle; // video+pdf combo = ₪39
-  } else {
-    if (config.audioEnabled) addons += ADDON_PRICES.audio;   // ₪19
-    if (config.pdfEnabled)   addons += ADDON_PRICES.pdf;     // ₪19
-    if (videoEnabled)        addons += ADDON_PRICES.video;   // ₪29 (includes narration)
-  }
-  return { basePrice: base, addonsPrice: addons, totalPrice: base + addons };
+  return { basePrice: base, addonsPrice: 0, totalPrice: base };
 }
