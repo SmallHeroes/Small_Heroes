@@ -85,8 +85,10 @@ export async function POST(req: NextRequest) {
     if (!fresh) return false;
     if (['generating', 'ready', 'partial', 'needs_human_qa'].includes(fresh.status)) return false;
 
-    await tx.order.update({
-      where: { id: fresh.id },
+    // Paid transition — CONDITIONAL so an overlapping success path that has already advanced or
+    // FENCED (needs_human_qa) this order is NEVER demoted back to 'paid'.
+    const paidTransition = await tx.order.updateMany({
+      where: { id: fresh.id, status: { in: ['draft', 'pending_payment', 'failed'] } },
       data: {
         status: 'paid',
         paymentProvider: 'fake',
@@ -94,6 +96,7 @@ export async function POST(req: NextRequest) {
         stripePaid: false,
       },
     });
+    if (paidTransition.count === 0) return false; // another path already advanced/fenced this order
     await tx.paymentRecord.upsert({
       where: { orderId: fresh.id },
       update: {
@@ -124,7 +127,7 @@ export async function POST(req: NextRequest) {
       });
       logger.error('coupon paid-after-expiry over cap — discount NOT granted; order held for refund/charge-full', { orderId: fresh.id });
     }
-    return fresh.status !== 'paid';
+    return true; // the conditional above claimed the paid transition exactly once
   });
 
   if (shouldTriggerGeneration) {

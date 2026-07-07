@@ -16,6 +16,8 @@ import { assertEnvSeparation } from '@/lib/generation-chunked/env-separation-gua
  *   F. An expired hold whose slot is still free is re-acquired and confirmed ('reacquired').
  *   G. An expired hold canNOT steal a NEWER active (in-lease) holder's slot when it pays late —
  *      the lease guarantee holds (the active holder keeps its slot).
+ *   H. Overlapping payment-success paths canNOT demote a paid_late_over_cap fence (needs_human_qa)
+ *      back to 'paid' — the conditional paid-transition matches 0 rows once the order is fenced.
  *
  * Skipped by default (and always in prod) so `npm run check` stays green without a DB. Run it
  * against a staging/preview DB:
@@ -272,6 +274,60 @@ describe.skipIf(!RUN)('coupon cap — real-Postgres concurrency + exactly-once p
       expect(after.confirmedCount).toBe(1);
       expect(after.confirmedCount).toBeLessThanOrEqual(1);
       expect((await prisma.couponRedemption.findUniqueOrThrow({ where: { orderId: oB } })).status).toBe('confirmed');
+    } finally {
+      await prisma.couponRedemption.deleteMany({ where: { code } });
+      await prisma.order.deleteMany({ where: { id: { in: [oA, oB] } } });
+      await prisma.coupon.delete({ where: { id: coupon.id } }).catch(() => {});
+    }
+  });
+
+  it('H. overlapping success paths cannot demote a paid_late_over_cap fence back to paid (Codex re-gate)', async () => {
+    assertEnvSeparation();
+    const { prisma } = await import('@/lib/prisma');
+    const { reserveCoupon, confirmCouponForOrder } = await import('@/lib/coupon/coupon-service');
+
+    const PRE_PAID = ['draft', 'pending_payment', 'failed'] as const;
+    const code = `CAPH_${Date.now()}`.toUpperCase();
+    const coupon = await prisma.coupon.create({
+      data: { code, discountPercent: 25, maxRedemptions: 1, active: true },
+      select: { id: true },
+    });
+    const oA = await makeOrder(prisma, `h-a-${code}`); // late-paying expired holder
+    const oB = await makeOrder(prisma, `h-b-${code}`); // in-window holder that fills the single slot
+    try {
+      // A reserves + expires; B reserves + confirms → cap is FULL. A's late payment is paid_late_over_cap.
+      expect((await reserveCoupon({ rawCode: code, orderId: oA, originalAgorot: 5900 })).ok).toBe(true);
+      await prisma.couponRedemption.update({ where: { orderId: oA }, data: { expiresAt: new Date(Date.now() - 60_000) } });
+      expect((await reserveCoupon({ rawCode: code, orderId: oB, originalAgorot: 5900 })).ok).toBe(true);
+      expect(await prisma.$transaction((tx) => confirmCouponForOrder(tx, oB))).toBe('confirmed');
+      await prisma.order.update({ where: { id: oA }, data: { status: 'pending_payment' } }); // awaiting late payment
+
+      // Two OVERLAPPING payment-success paths for A's late payment, concurrently. Each mimics a route
+      // handler: CONDITIONAL paid-transition → confirm → (paid_late_over_cap ⇒ fence needs_human_qa).
+      // The Order row lock serializes them; whichever wins fences A, and the other's conditional matches
+      // 0 rows (READ COMMITTED re-checks the WHERE). The fence MUST survive either interleaving.
+      const successPath = () =>
+        prisma.$transaction(async (tx) => {
+          const t = await tx.order.updateMany({
+            where: { id: oA, status: { in: [...PRE_PAID] } },
+            data: { status: 'paid', paymentProvider: 'payme', paymentId: 'late', stripePaid: false },
+          });
+          if (t.count === 0) return 'skipped';
+          const outcome = await confirmCouponForOrder(tx, oA);
+          if (outcome === 'paid_late_over_cap') {
+            await tx.order.update({
+              where: { id: oA },
+              data: { status: 'needs_human_qa', manualReviewRequired: true, deliveryHoldReason: 'coupon_paid_late_over_cap' },
+            });
+          }
+          return outcome;
+        });
+
+      const results = (await Promise.all([successPath(), successPath()])).sort();
+      // Exactly one path claimed + fenced; the other's conditional matched 0 rows (no demotion).
+      expect(results).toEqual(['paid_late_over_cap', 'skipped']);
+      expect((await prisma.order.findUniqueOrThrow({ where: { id: oA } })).status).toBe('needs_human_qa'); // never demoted
+      expect((await prisma.coupon.findUniqueOrThrow({ where: { id: coupon.id } })).confirmedCount).toBe(1); // B only
     } finally {
       await prisma.couponRedemption.deleteMany({ where: { code } });
       await prisma.order.deleteMany({ where: { id: { in: [oA, oB] } } });

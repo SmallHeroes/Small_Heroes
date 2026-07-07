@@ -75,9 +75,11 @@ export async function GET(req: NextRequest) {
 
     if (verification.verified && verification.status === 'paid') {
       const resolvedPaymentId = transactionIdFromQuery || paymentIdFromQuery || order.paymentId || `payme_verified_${order.id}`;
-      await prisma.$transaction(async (tx) => {
-        await tx.order.update({
-          where: { id: order.id },
+      const claimed = await prisma.$transaction(async (tx) => {
+        // Paid transition — CONDITIONAL so an overlapping success path (e.g. the webhook) that has
+        // already advanced or FENCED (needs_human_qa) this order is NEVER demoted back to 'paid'.
+        const paidTransition = await tx.order.updateMany({
+          where: { id: order.id, status: { in: ['draft', 'pending_payment', 'failed'] } },
           data: {
             status: 'paid',
             paymentProvider: 'payme',
@@ -87,6 +89,7 @@ export async function GET(req: NextRequest) {
             stripePaid: false,
           },
         });
+        if (paidTransition.count === 0) return false; // another path already advanced/fenced this order
         await tx.paymentRecord.upsert({
           where: { orderId: order.id },
           update: {
@@ -118,12 +121,19 @@ export async function GET(req: NextRequest) {
           });
           logger.error('coupon paid-after-expiry over cap — discount NOT granted; order held for refund/charge-full', { orderId: order.id });
         }
+        return true;
       });
-      // AWAIT durable job-creation before the redirect; local catch isolates start errors from the ack.
-      try {
-        await triggerGeneration(order.id, 'payme_redirect_verified_paid');
-      } catch (error) {
-        logger.error('Generation trigger failed after verified redirect', error, { orderId: order.id });
+      // CONCURRENCY FENCE (coupon re-gate 3): ONLY the request that actually CLAIMED the paid
+      // transition may trigger generation — `claimed` is false when an overlapping success path (the
+      // webhook) already advanced or FENCED this order, and that path must never double-trigger.
+      // Inside the fence, feat's durability is preserved: AWAIT job-creation before the redirect, with
+      // a local catch so a start failure can never break the ack.
+      if (claimed) {
+        try {
+          await triggerGeneration(order.id, 'payme_redirect_verified_paid');
+        } catch (error) {
+          logger.error('Generation trigger failed after verified redirect', error, { orderId: order.id });
+        }
       }
     } else if (allowUnsafePaidMark) {
       logger.warn('UNSAFE redirect trust mode accepted paid state (dev only)', {
