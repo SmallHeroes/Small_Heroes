@@ -14,6 +14,8 @@ import { assertEnvSeparation } from '@/lib/generation-chunked/env-separation-gua
  *   E. A payment that lands AFTER the lease expired (slot already reused) can NEVER push
  *      confirmedCount past maxRedemptions — it is released + reported 'paid_late_over_cap'.
  *   F. An expired hold whose slot is still free is re-acquired and confirmed ('reacquired').
+ *   G. An expired hold canNOT steal a NEWER active (in-lease) holder's slot when it pays late —
+ *      the lease guarantee holds (the active holder keeps its slot).
  *
  * Skipped by default (and always in prod) so `npm run check` stays green without a DB. Run it
  * against a staging/preview DB:
@@ -234,6 +236,45 @@ describe.skipIf(!RUN)('coupon cap — real-Postgres concurrency + exactly-once p
     } finally {
       await prisma.couponRedemption.deleteMany({ where: { code } });
       await prisma.order.deleteMany({ where: { id: { in: [oA] } } });
+      await prisma.coupon.delete({ where: { id: coupon.id } }).catch(() => {});
+    }
+  });
+
+  it('G. an expired hold cannot steal a newer active holder\'s slot when it pays late (Codex re-gate)', async () => {
+    assertEnvSeparation();
+    const { prisma } = await import('@/lib/prisma');
+    const { reserveCoupon, confirmCouponForOrder } = await import('@/lib/coupon/coupon-service');
+
+    const code = `CAPG_${Date.now()}`.toUpperCase();
+    const coupon = await prisma.coupon.create({
+      data: { code, discountPercent: 25, maxRedemptions: 1, active: true },
+      select: { id: true },
+    });
+    const oA = await makeOrder(prisma, `g-a-${code}`); // old holder
+    const oB = await makeOrder(prisma, `g-b-${code}`); // newer, in-lease holder
+    try {
+      // A reserves the single slot, then A's lease EXPIRES (its slot is freed).
+      expect((await reserveCoupon({ rawCode: code, orderId: oA, originalAgorot: 5900 })).ok).toBe(true);
+      await prisma.couponRedemption.update({ where: { orderId: oA }, data: { expiresAt: new Date(Date.now() - 60_000) } });
+      // B reserves the freed slot and is ACTIVE (unexpired, in-lease).
+      expect((await reserveCoupon({ rawCode: code, orderId: oB, originalAgorot: 5900 })).ok).toBe(true);
+
+      // A pays LATE. Its expired hold must NOT steal B's active slot → paid_late_over_cap.
+      const aOutcome = await prisma.$transaction((tx) => confirmCouponForOrder(tx, oA));
+      expect(aOutcome).toBe('paid_late_over_cap');
+      expect((await prisma.couponRedemption.findUniqueOrThrow({ where: { orderId: oA } })).status).toBe('released');
+      expect((await prisma.coupon.findUniqueOrThrow({ where: { id: coupon.id } })).confirmedCount).toBe(0);
+
+      // B pays in-window → B KEEPS its slot and is confirmed (the lease guarantee held).
+      const bOutcome = await prisma.$transaction((tx) => confirmCouponForOrder(tx, oB));
+      expect(bOutcome).toBe('confirmed');
+      const after = await prisma.coupon.findUniqueOrThrow({ where: { id: coupon.id } });
+      expect(after.confirmedCount).toBe(1);
+      expect(after.confirmedCount).toBeLessThanOrEqual(1);
+      expect((await prisma.couponRedemption.findUniqueOrThrow({ where: { orderId: oB } })).status).toBe('confirmed');
+    } finally {
+      await prisma.couponRedemption.deleteMany({ where: { code } });
+      await prisma.order.deleteMany({ where: { id: { in: [oA, oB] } } });
       await prisma.coupon.delete({ where: { id: coupon.id } }).catch(() => {});
     }
   });

@@ -177,11 +177,13 @@ export function couponConfirmGranted(outcome: CouponConfirmOutcome): boolean {
  * payment-success transaction (the caller's `tx`). Safe to call for every paid order — 'noop' when
  * there is no reserved redemption. Idempotent: a replay matches zero rows and does not double-count.
  *
- * CAP-SAFE: under the Coupon FOR UPDATE lock it re-checks BOTH the hold's expiry AND capacity
- * (confirmedCount < maxRedemptions) BEFORE incrementing, so confirmedCount can NEVER exceed
- * maxRedemptions — even for a payment that lands after the lease expired and the freed slot was
- * already reused. An expired hold that still has capacity is re-acquired ('reacquired'); an expired
- * hold with no capacity left is released and reported as 'paid_late_over_cap'.
+ * CAP-SAFE: under the Coupon FOR UPDATE lock it re-checks the hold's expiry AND the SAME invariant
+ * reserveCoupon enforces — confirmedCount + (active, unexpired reservations of OTHER orders) <
+ * maxRedemptions — BEFORE incrementing. So confirmedCount can NEVER exceed maxRedemptions, and an
+ * EXPIRED hold paying late can NEVER steal a slot that a confirmed redemption or a legit active
+ * (in-lease) reservation of another order already occupies. An expired hold whose freed slot is
+ * genuinely free is re-acquired ('reacquired'); otherwise the hold is released and reported as
+ * 'paid_late_over_cap'.
  */
 export async function confirmCouponForOrder(
   tx: Prisma.TransactionClient,
@@ -211,11 +213,23 @@ export async function confirmCouponForOrder(
   if (!held || held.status !== 'reserved') return 'noop';
   const expired = held.expiresAt <= now;
 
-  // CAP-SAFE GUARD: never let confirmedCount exceed maxRedemptions. A NOT-expired hold always holds
-  // a slot within the cap (reserve counts it), so a full cap at confirm time means the hold expired
-  // and its slot was reused (paid-after-expiry). Do NOT grant the over-cap discount — release the
-  // hold and signal the paid-late exception for the caller to route (hold + refund / charge-full).
-  if (coupon.confirmedCount >= coupon.maxRedemptions) {
+  // CAP-SAFE GUARD — apply the SAME invariant reserveCoupon enforces:
+  //   confirmedCount + (active, unexpired reservations of OTHER orders) < maxRedemptions.
+  // A NOT-expired hold always passes (it is itself counted in that invariant). An EXPIRED hold
+  // passes ONLY if its freed slot is genuinely free — not already taken by a confirmed redemption
+  // or a legit active (unexpired) reservation of another order. This stops an expired hold from
+  // STEALING an in-lease holder's slot when it pays late (preserves the lease guarantee).
+  const activeReservedExclSelf = await tx.couponRedemption.count({
+    where: {
+      couponId: redemption.couponId,
+      status: 'reserved',
+      expiresAt: { gt: now },
+      orderId: { not: orderId },
+    },
+  });
+  if (coupon.confirmedCount + activeReservedExclSelf >= coupon.maxRedemptions) {
+    // No free slot (cap full, or an active holder occupies the freed slot) → do NOT grant / steal.
+    // Release the hold and signal the paid-late exception; the caller fences the order (needs_human_qa).
     await tx.couponRedemption.updateMany({
       where: { orderId, status: 'reserved' },
       data: { status: 'released', releasedAt: now },

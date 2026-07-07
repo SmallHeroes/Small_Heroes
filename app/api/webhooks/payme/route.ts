@@ -156,7 +156,7 @@ export async function POST(req: NextRequest) {
         return false;
       }
 
-      if (order.status === 'generating' || order.status === 'ready' || order.status === 'partial') {
+      if (order.status === 'generating' || order.status === 'ready' || order.status === 'partial' || order.status === 'needs_human_qa') {
         return false;
       }
 
@@ -197,12 +197,12 @@ export async function POST(req: NextRequest) {
       // cap advances atomically with the paid transition (and a webhook replay never double-counts).
       const couponOutcome = await confirmCouponForOrder(tx, order.id);
       if (couponOutcome === 'paid_late_over_cap') {
-        // Cap-safe: the discount was NOT granted (it would exceed maxRedemptions). Flag the order so
-        // the discounted book is held from auto-delivery and resolved out of band (refund via the
-        // exactly-once fence / charge full). See confirmCouponForOrder in coupon-service.
+        // Cap-safe: the discount was NOT granted (it would exceed maxRedemptions). FENCE the order
+        // via needs_human_qa — a REAL hold that stops generation/ready/outbox/email (start.ts treats
+        // needs_human_qa as terminal) — for out-of-band refund/charge-full resolution.
         await tx.order.update({
           where: { id: order.id },
-          data: { manualReviewRequired: true, deliveryHoldReason: 'coupon_paid_late_over_cap' },
+          data: { status: 'needs_human_qa', manualReviewRequired: true, deliveryHoldReason: 'coupon_paid_late_over_cap' },
         });
         logger.error('[PayMeWebhook] coupon paid-after-expiry over cap — discount NOT granted; order held for refund/charge-full', {
           orderId: order.id,
