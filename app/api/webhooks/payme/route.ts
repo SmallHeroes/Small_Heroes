@@ -195,7 +195,20 @@ export async function POST(req: NextRequest) {
 
       // Confirm any reserved coupon redemption inside this same exactly-once transaction, so the
       // cap advances atomically with the paid transition (and a webhook replay never double-counts).
-      await confirmCouponForOrder(tx, order.id);
+      const couponOutcome = await confirmCouponForOrder(tx, order.id);
+      if (couponOutcome === 'paid_late_over_cap') {
+        // Cap-safe: the discount was NOT granted (it would exceed maxRedemptions). Flag the order so
+        // the discounted book is held from auto-delivery and resolved out of band (refund via the
+        // exactly-once fence / charge full). See confirmCouponForOrder in coupon-service.
+        await tx.order.update({
+          where: { id: order.id },
+          data: { manualReviewRequired: true, deliveryHoldReason: 'coupon_paid_late_over_cap' },
+        });
+        logger.error('[PayMeWebhook] coupon paid-after-expiry over cap — discount NOT granted; order held for refund/charge-full', {
+          orderId: order.id,
+          transactionId: parsed.transactionId,
+        });
+      }
 
       return true;
     });

@@ -209,6 +209,41 @@ export function isPaymeStatusPaid(status: string | null): boolean {
   return ['paid', 'success', 'succeeded', 'completed', 'approved'].includes(status.toLowerCase());
 }
 
+/**
+ * A checkout sale must expire no later than the coupon lease (COUPON_HOLD_TTL_MS = 45m in
+ * lib/coupon/coupon-service.ts) so a DISCOUNTED payment cannot normally succeed after the hold
+ * expired. This is DEFENSE-IN-DEPTH — the cap-safe confirmCouponForOrder() is the hard guarantee.
+ * Kept as a literal here (not imported) to avoid a payme ↔ coupon-service import cycle; keep it
+ * ≤ the coupon lease TTL.
+ */
+const PAYME_SALE_TTL_MS = 45 * 60_000; // 45 minutes (== coupon lease)
+
+/**
+ * Format a sale-expiration timestamp for PayMe generate-sale.
+ * ⚠️ VERIFY BEFORE GO-LIVE: the field name (`sale_expiration`), the "YYYY-MM-DD HH:MM:SS" format,
+ * and the Asia/Jerusalem timezone are inferred from PayMe's generate-sale API and must be confirmed
+ * against the live PayMe account. If PayMe ignores an unknown field the sale simply carries no
+ * expiry (the coupon cap-safe confirm still holds); do NOT rely on this alone for cap safety.
+ */
+function formatPaymeSaleExpiration(at: Date): string {
+  const p = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jerusalem',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  })
+    .formatToParts(at)
+    .reduce<Record<string, string>>((acc, part) => {
+      acc[part.type] = part.value;
+      return acc;
+    }, {});
+  return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second}`;
+}
+
 export async function createPaymeCheckout(request: PaymeCheckoutRequest): Promise<PaymeCheckoutResponse> {
   const cfg = resolvePaymeConfig();
   if (!cfg.apiBaseUrl || !cfg.apiKey) {
@@ -227,6 +262,9 @@ export async function createPaymeCheckout(request: PaymeCheckoutRequest): Promis
     sale_type: 'sale',
     sale_payment_method: 'credit-card',
     language: 'he',
+    // Defense-in-depth: expire the sale ≤ the coupon lease so a DISCOUNTED payment cannot normally
+    // succeed after the hold expired (cap-safe confirm in coupon-service is the hard guarantee).
+    sale_expiration: formatPaymeSaleExpiration(new Date(Date.now() + PAYME_SALE_TTL_MS)),
   };
   if (request.customerEmail) {
     body.buyer_email = request.customerEmail;

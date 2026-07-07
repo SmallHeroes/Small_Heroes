@@ -108,7 +108,15 @@ export async function GET(req: NextRequest) {
           },
         });
         // Confirm any reserved coupon redemption in the same tx that marks the order paid.
-        await confirmCouponForOrder(tx, order.id);
+        const couponOutcome = await confirmCouponForOrder(tx, order.id);
+        if (couponOutcome === 'paid_late_over_cap') {
+          // Cap-safe: discount NOT granted (would exceed the cap). Hold for out-of-band resolution.
+          await tx.order.update({
+            where: { id: order.id },
+            data: { manualReviewRequired: true, deliveryHoldReason: 'coupon_paid_late_over_cap' },
+          });
+          logger.error('coupon paid-after-expiry over cap — discount NOT granted; order held for refund/charge-full', { orderId: order.id });
+        }
       });
       // AWAIT durable job-creation before the redirect; local catch isolates start errors from the ack.
       try {

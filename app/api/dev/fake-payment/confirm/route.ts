@@ -114,7 +114,15 @@ export async function POST(req: NextRequest) {
         raw: { mode: 'fake', result: 'success', paymentId },
       },
     });
-    await confirmCouponForOrder(tx, fresh.id);
+    const couponOutcome = await confirmCouponForOrder(tx, fresh.id);
+    if (couponOutcome === 'paid_late_over_cap') {
+      // Cap-safe: discount NOT granted (would exceed the cap). Hold for out-of-band resolution.
+      await tx.order.update({
+        where: { id: fresh.id },
+        data: { manualReviewRequired: true, deliveryHoldReason: 'coupon_paid_late_over_cap' },
+      });
+      logger.error('coupon paid-after-expiry over cap — discount NOT granted; order held for refund/charge-full', { orderId: fresh.id });
+    }
     return fresh.status !== 'paid';
   });
 
