@@ -49,6 +49,34 @@ export class StoryBankPersonalizationError extends Error {
 
 const PERSONALIZATION_MAX_ATTEMPTS = 3;
 
+/**
+ * (reliability) Timeout for the PRE-IMAGE LLM/vision provider fetches below. These run SYNCHRONOUSLY in the text
+ * stage of the 300s generation worker, and the worker's budget guard is only checked BETWEEN stages — so an
+ * UNBOUNDED provider hang runs straight to the 300s hard kill (FUNCTION_INVOCATION_TIMEOUT) before the child anchor.
+ * 30s: generous for a healthy vision/support/DNA call (typically 3–20s), while the worst-case all-hang path
+ * (swapGender 3× + personalizeChildName + Claude→OpenAI vision + childStructured DNA = 7 calls ≈ 210s) stays
+ * comfortably under the 300s worker cap — so a hung provider ABORTS and its existing fallback fires, never eating the
+ * whole budget. Read at CALL time (like getWorkerBudgetMs) so tests can shrink it. NOT a substitute for maxDuration.
+ */
+function preImageLlmTimeoutMs(): number {
+  const raw = process.env.PRE_IMAGE_LLM_TIMEOUT_MS?.trim();
+  if (raw) {
+    const n = Number.parseInt(raw, 10);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return 30_000;
+}
+
+/**
+ * `fetch` bounded by an `AbortSignal.timeout`. On timeout the fetch rejects with a `TimeoutError` that the caller's
+ * EXISTING try/catch already handles (vision → Claude→OpenAI→null→fallback DNA; childStructured DNA → hardcoded
+ * fallback; swapGender/personalizeChildName → bounded retry/throw). Happy-path (fast providers) is byte-unchanged —
+ * the signal only fires on a hang. Every pre-image provider call in this module goes through this helper.
+ */
+function preImageLlmFetch(url: string, init: RequestInit): Promise<Response> {
+  return fetch(url, { ...init, signal: AbortSignal.timeout(preImageLlmTimeoutMs()) });
+}
+
 function escapeRegexLiteral(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -630,7 +658,7 @@ ${pagesBlock}`;
       if (provider === 'anthropic') {
         const apiKey = process.env.ANTHROPIC_API_KEY;
         if (!apiKey) throw new Error('ANTHROPIC_API_KEY not set');
-        const res = await fetch('https://api.anthropic.com/v1/messages', {
+        const res = await preImageLlmFetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
             'x-api-key': apiKey,
@@ -663,7 +691,7 @@ ${pagesBlock}`;
             ],
             text: { format: { type: 'json_object' } },
           };
-          const res = await fetch('https://api.openai.com/v1/responses', {
+          const res = await preImageLlmFetch('https://api.openai.com/v1/responses', {
             method: 'POST',
             headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
@@ -686,7 +714,7 @@ ${pagesBlock}`;
             temperature: 0.1,
             max_tokens: 4000,
           };
-          const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          const res = await preImageLlmFetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
@@ -789,7 +817,7 @@ ${pagesBlock}`;
     if (provider === 'anthropic') {
       const apiKey = process.env.ANTHROPIC_API_KEY;
       if (!apiKey) throw new Error('ANTHROPIC_API_KEY not set');
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
+      const res = await preImageLlmFetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -815,7 +843,7 @@ ${pagesBlock}`;
           ],
           text: { format: { type: 'json_object' } },
         };
-        const res = await fetch('https://api.openai.com/v1/responses', {
+        const res = await preImageLlmFetch('https://api.openai.com/v1/responses', {
           method: 'POST',
           headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
@@ -837,7 +865,7 @@ ${pagesBlock}`;
           temperature: 0.45,
           max_tokens: 4000,
         };
-        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        const res = await preImageLlmFetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
@@ -911,7 +939,7 @@ async function describeChildFromPhotoOpenAI(photoUrl: string): Promise<string | 
   if (!apiKey) return null;
   const model = process.env.CHILD_PHOTO_VISION_MODEL?.trim() || 'gpt-4o';
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await preImageLlmFetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -981,7 +1009,7 @@ export async function describeChildFromPhoto(photoUrl: string): Promise<string |
   const userPrompt = CHILD_PHOTO_VISION_USER_PROMPT;
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await preImageLlmFetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1232,7 +1260,7 @@ Return JSON:
       body.max_tokens = 1500;
       body.temperature = 0.2;
     }
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await preImageLlmFetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
