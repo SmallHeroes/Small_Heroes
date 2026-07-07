@@ -2639,12 +2639,36 @@ function buildSummary() {
   // ── Price breakdown ─────────────────────────────────────────
   const priceEl = document.getElementById("price-breakdown");
   if (priceEl) {
-    priceEl.innerHTML = `
-      <div class="price-row price-row--summary-total">
-        <span class="label">${WIZ.summary.totalLabel || 'סה"כ לתשלום:'}</span>
-        <span class="val">₪${total}</span>
-      </div>
-    `;
+    const totalLabel = WIZ.summary.totalLabel || 'סה"כ לתשלום:';
+    const fmtIls = (agorot) => {
+      const ils = agorot / 100;
+      return Number.isInteger(ils) ? `${ils}` : ils.toFixed(2);
+    };
+    if (state.coupon) {
+      // Server-computed discount only — these amounts come from /api/coupon/apply and equal
+      // what /api/checkout will charge. The client never computes the discounted price.
+      priceEl.innerHTML = `
+        <div class="price-row price-row--was">
+          <span class="label">מחיר מלא</span>
+          <span class="val val--was">₪${fmtIls(state.coupon.originalAgorot)}</span>
+        </div>
+        <div class="price-row price-row--discount">
+          <span class="label">קוד ${state.coupon.code} · ${state.coupon.discountPercent}%−</span>
+          <span class="val val--discount">−₪${fmtIls(state.coupon.discountAgorot)}</span>
+        </div>
+        <div class="price-row price-row--summary-total">
+          <span class="label">${totalLabel}</span>
+          <span class="val">₪${fmtIls(state.coupon.discountedAgorot)}</span>
+        </div>
+      `;
+    } else {
+      priceEl.innerHTML = `
+        <div class="price-row price-row--summary-total">
+          <span class="label">${totalLabel}</span>
+          <span class="val">₪${total}</span>
+        </div>
+      `;
+    }
   }
 
   // ── Dynamic footer line based on whether photo was uploaded ─────
@@ -2843,8 +2867,69 @@ function resolveCheckoutPaymentUrl(url, orderId) {
   }
 }
 
+/**
+ * applyCoupon() — validate the entered code at the pre-payment step and preview the
+ * SERVER-computed discounted total. Stores state.coupon (code + server amounts only); the
+ * authoritative capacity check + reservation + discount happen at /api/checkout, which
+ * re-validates. An empty input clears any applied coupon.
+ */
+async function applyCoupon() {
+  const input = document.getElementById('coupon-input');
+  const statusEl = document.getElementById('coupon-status');
+  const btn = document.getElementById('coupon-apply');
+  if (!input) return;
+  const setStatus = (text, cls) => {
+    if (statusEl) { statusEl.textContent = text; statusEl.className = 'coupon-status' + (cls ? ' ' + cls : ''); }
+  };
+  const code = (input.value || '').trim();
+  if (!code) {
+    state.coupon = null;
+    setStatus('', '');
+    buildSummary();
+    return;
+  }
+  if (btn) btn.disabled = true;
+  setStatus('בודק…', 'coupon-status--pending');
+  try {
+    const product = buildWizardPayload().product;
+    const res = await fetch('/api/coupon/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, product }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (data && data.ok) {
+      state.coupon = {
+        code: data.code,
+        discountPercent: data.discountPercent,
+        originalAgorot: data.originalAgorot,
+        discountAgorot: data.discountAgorot,
+        discountedAgorot: data.discountedAgorot,
+      };
+      input.value = data.code;
+      setStatus(`הקוד הופעל — ${data.discountPercent}% הנחה 🎉`, 'coupon-status--ok');
+    } else {
+      state.coupon = null;
+      const reason = data && data.reason;
+      setStatus(
+        reason === 'maxed_out' ? 'הקוד נוצל במלואו' :
+        reason === 'inactive' ? 'הקוד אינו פעיל כרגע' :
+        'קוד לא תקף',
+        'coupon-status--err'
+      );
+    }
+  } catch (_) {
+    state.coupon = null;
+    setStatus('לא הצלחנו לבדוק את הקוד, נסו שוב', 'coupon-status--err');
+  } finally {
+    if (btn) btn.disabled = false;
+    buildSummary();
+  }
+}
+
 async function startCheckout(orderId, sessionId) {
-  const checkoutBody = { orderId, ...(sessionId ? { sessionId } : {}) };
+  const couponCode = state.coupon && state.coupon.code ? state.coupon.code : null;
+  const checkoutBody = { orderId, ...(sessionId ? { sessionId } : {}), ...(couponCode ? { couponCode } : {}) };
   if (clientApi && typeof clientApi.requestJson === 'function') {
     return clientApi.requestJson('/api/checkout', {
       fetch: {
@@ -2865,7 +2950,7 @@ async function startCheckout(orderId, sessionId) {
   const data = await checkoutRes.json().catch(() => ({}));
   return checkoutRes.ok
     ? { ok: true, data }
-    : { ok: false, reason: 'http_error', message: data.error || 'checkout_failed' };
+    : { ok: false, reason: 'http_error', message: data.error || 'checkout_failed', data };
 }
 
 async function handleSubmit() {
@@ -2958,6 +3043,16 @@ async function handleSubmit() {
 
     const checkoutResponse = await startCheckout(orderId, payload.sessionId);
     if (!checkoutResponse.ok) {
+      // Coupon filled up (or became invalid) between "Apply" and pay → drop it and let the user
+      // retry at full price. The cap is enforced server-side; no charge happened.
+      const couponRejected =
+        checkoutResponse.reason === 'coupon_rejected' ||
+        (checkoutResponse.data && checkoutResponse.data.error === 'coupon_rejected');
+      if (couponRejected) {
+        state.coupon = null;
+        buildSummary();
+        throw new Error('הקוד כבר נוצל במלואו. אפשר להמשיך במחיר מלא — לחצו שוב על "תשלום".');
+      }
       reportClientIssue('checkout_failed', {
         reason: checkoutResponse.reason || 'request_failed',
         orderId,

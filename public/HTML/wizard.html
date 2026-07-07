@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap"
     rel="stylesheet" />
   <link rel="stylesheet" href="/CSS/main.css" />
-  <link rel="stylesheet" href="/CSS/wizard.css?v=wizard-ux-fixes" />
+  <link rel="stylesheet" href="/CSS/wizard.css?v=coupon-code" />
 </head>
 
 <body class="wizard-body wizard-booting">
@@ -224,6 +224,15 @@
               <label class="form-label" id="s9EmailLabel"></label>
               <input class="form-input" id="contact-email" type="email" placeholder="" autocomplete="email" />
             </div>
+            <div class="form-group coupon-group">
+              <label class="form-label" for="coupon-input">קוד קופון</label>
+              <div class="coupon-row">
+                <input class="form-input coupon-input" id="coupon-input" type="text" inputmode="latin"
+                  autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="יש לך קוד?" />
+                <button type="button" class="coupon-apply-btn" id="coupon-apply" onclick="applyCoupon()">החל</button>
+              </div>
+              <div class="coupon-status" id="coupon-status" role="status" aria-live="polite"></div>
+            </div>
             <button class="contact-btn" id="btn-pay" onclick="goNext()"></button>
             <div class="payment-logos" id="s9PaymentLogos"></div>
           </div>
@@ -255,7 +264,7 @@
   <script src="/JS/analytics.js"></script>
   <script src="/JS/client-api.js"></script>
   <script src="/JS/child-photo-client.js"></script>
-  <script src="/JS/wizard.js?v=wizard-ux-fixes"></script>
+  <script src="/JS/wizard.js?v=coupon-code"></script>
 </body>
 
 </html>
