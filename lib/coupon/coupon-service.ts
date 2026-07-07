@@ -155,39 +155,87 @@ export async function reserveCoupon(params: {
 }
 
 /**
- * Confirm an order's reserved redemption on payment success. MUST be called inside the
- * exactly-once payment-success transaction (the caller's `tx`). Safe to call for every paid
- * order — a no-op when there is no reserved redemption. Idempotent: a second call (webhook
- * replay / redirect + webhook) matches zero rows and does not double-count.
+ * Outcome of a payment-success confirm:
+ *   'confirmed'          — an in-window hold was granted; confirmedCount incremented.
+ *   'reacquired'         — an EXPIRED hold whose freed slot was still available was re-acquired and
+ *                          granted; confirmedCount incremented.
+ *   'noop'               — nothing to do (already confirmed/released/absent). Idempotent.
+ *   'paid_late_over_cap' — the hold had EXPIRED and the cap was already FULL, so granting it would
+ *                          exceed maxRedemptions. The discount is NOT granted (cap-safe); the hold
+ *                          is released and the caller MUST route the paid order to the paid-late
+ *                          exception (hold + refund / charge-full).
+ */
+export type CouponConfirmOutcome = 'confirmed' | 'reacquired' | 'noop' | 'paid_late_over_cap';
+
+/** True iff the confirm granted a redemption (incremented confirmedCount). */
+export function couponConfirmGranted(outcome: CouponConfirmOutcome): boolean {
+  return outcome === 'confirmed' || outcome === 'reacquired';
+}
+
+/**
+ * Confirm an order's reserved redemption on payment success. MUST be called inside the exactly-once
+ * payment-success transaction (the caller's `tx`). Safe to call for every paid order — 'noop' when
+ * there is no reserved redemption. Idempotent: a replay matches zero rows and does not double-count.
  *
- * Returns true iff this call performed the RESERVED → CONFIRMED transition.
+ * CAP-SAFE: under the Coupon FOR UPDATE lock it re-checks BOTH the hold's expiry AND capacity
+ * (confirmedCount < maxRedemptions) BEFORE incrementing, so confirmedCount can NEVER exceed
+ * maxRedemptions — even for a payment that lands after the lease expired and the freed slot was
+ * already reused. An expired hold that still has capacity is re-acquired ('reacquired'); an expired
+ * hold with no capacity left is released and reported as 'paid_late_over_cap'.
  */
 export async function confirmCouponForOrder(
   tx: Prisma.TransactionClient,
   orderId: string,
   now: Date = new Date()
-): Promise<boolean> {
+): Promise<CouponConfirmOutcome> {
   const redemption = await tx.couponRedemption.findUnique({
     where: { orderId },
     select: { couponId: true, status: true },
   });
-  if (!redemption || redemption.status !== 'reserved') return false;
+  if (!redemption || redemption.status !== 'reserved') return 'noop';
 
-  // Lock the Coupon row FIRST — same lock order as reserveCoupon (Coupon → redemption) — so a
-  // concurrent reserve and confirm can never deadlock, and confirmedCount stays consistent.
-  await tx.$queryRaw`SELECT "id" FROM "Coupon" WHERE "id" = ${redemption.couponId} FOR UPDATE`;
+  // Lock the Coupon row FIRST (same lock order as reserveCoupon: Coupon → redemption) and read the
+  // authoritative counters under the lock. Reserves + confirms for this coupon serialize on it, so
+  // the capacity check and this hold's status/expiry stay stable for the rest of the transaction.
+  const locked = await tx.$queryRaw<Array<{ maxRedemptions: number; confirmedCount: number }>>(
+    Prisma.sql`SELECT "maxRedemptions", "confirmedCount" FROM "Coupon" WHERE "id" = ${redemption.couponId} FOR UPDATE`
+  );
+  const coupon = locked[0];
+  if (!coupon) return 'noop';
 
+  // Re-read the hold under the lock (authoritative) and re-check its expiry.
+  const held = await tx.couponRedemption.findUnique({
+    where: { orderId },
+    select: { status: true, expiresAt: true },
+  });
+  if (!held || held.status !== 'reserved') return 'noop';
+  const expired = held.expiresAt <= now;
+
+  // CAP-SAFE GUARD: never let confirmedCount exceed maxRedemptions. A NOT-expired hold always holds
+  // a slot within the cap (reserve counts it), so a full cap at confirm time means the hold expired
+  // and its slot was reused (paid-after-expiry). Do NOT grant the over-cap discount — release the
+  // hold and signal the paid-late exception for the caller to route (hold + refund / charge-full).
+  if (coupon.confirmedCount >= coupon.maxRedemptions) {
+    await tx.couponRedemption.updateMany({
+      where: { orderId, status: 'reserved' },
+      data: { status: 'released', releasedAt: now },
+    });
+    return 'paid_late_over_cap';
+  }
+
+  // Capacity is available → grant. Covers an in-window hold and an EXPIRED hold whose freed slot is
+  // still free (re-acquire it). The updateMany count===1 keeps confirm idempotent under the lock.
   const moved = await tx.couponRedemption.updateMany({
     where: { orderId, status: 'reserved' },
     data: { status: 'confirmed', confirmedAt: now },
   });
-  if (moved.count !== 1) return false; // lost the race to another confirm — do not double-count
+  if (moved.count !== 1) return 'noop'; // lost the race to another confirm — do not double-count
 
   await tx.coupon.update({
     where: { id: redemption.couponId },
     data: { confirmedCount: { increment: 1 } },
   });
-  return true;
+  return expired ? 'reacquired' : 'confirmed';
 }
 
 /**
