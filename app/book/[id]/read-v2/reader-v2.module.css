@@ -1856,3 +1856,118 @@
     display: none;
   }
 }
+
+/* ══ Micro-interaction polish (2026-07) ══════════════════════════════════
+   Page-turn crossfade + control feedback. Transform/opacity only, RTL-safe
+   (translateY/scale only). Looping/moving effects are disabled under
+   prefers-reduced-motion; pure opacity fades are kept (no vestibular motion). */
+
+/* Page turn — the remounting scene wrapper (key={transitionKey}) settles in
+   with a soft crossfade. Opacity only: no transform, so position:fixed
+   children (edge nav, controls) keep their containing block. */
+.sceneTransition {
+  animation: sceneFadeIn 0.35s ease;
+}
+
+@keyframes sceneFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Bottom controls (desktop) */
+.controlBtn {
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.controlBtn:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+/* Spread arrows — keep the translateY(-50%) centering in every state */
+.spreadNavBtn {
+  transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.spreadNavBtn:not(:disabled):active {
+  transform: translateY(-50%) scale(0.9);
+}
+
+.mobileEdgeBtn:not(:disabled):active {
+  transform: scale(0.9);
+}
+
+.mobileEdgeBtn {
+  transition: background 0.18s ease, color 0.18s ease, opacity 0.18s ease, transform 0.18s ease;
+}
+
+.closeBtn {
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.closeBtn:active {
+  transform: scale(0.92);
+}
+
+/* Hands-free start pill — invites the tap */
+.handsFreeStartLabel {
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease;
+}
+
+.handsFreeStartOverlay {
+  animation: sceneFadeIn 0.3s ease;
+}
+
+.handsFreeStartOverlay:active .handsFreeStartLabel {
+  transform: scale(0.97);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .controlBtn:not(:disabled):hover {
+    background: #ffffff;
+    border-color: rgba(180, 160, 130, 0.55);
+    transform: translateY(-1px);
+  }
+
+  .spreadNavBtn:not(:disabled):hover {
+    transform: translateY(-50%) scale(1.08);
+  }
+
+  .handsFreeStartOverlay:hover .handsFreeStartLabel {
+    transform: scale(1.03);
+    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.32);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sceneTransition,
+  .handsFreeStartOverlay,
+  .illustrationShimmer {
+    animation: none;
+  }
+
+  .controlBtn,
+  .spreadNavBtn,
+  .mobileEdgeBtn,
+  .closeBtn,
+  .handsFreeStartLabel {
+    transition: none;
+  }
+
+  .controlBtn:not(:disabled):hover,
+  .controlBtn:not(:disabled):active,
+  .closeBtn:active,
+  .mobileEdgeBtn:not(:disabled):active {
+    transform: none;
+  }
+
+  .spreadNavBtn:not(:disabled):hover,
+  .spreadNavBtn:not(:disabled):active {
+    transform: translateY(-50%);
+  }
+
+  .handsFreeStartOverlay:hover .handsFreeStartLabel,
+  .handsFreeStartOverlay:active .handsFreeStartLabel {
+    transform: none;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+  }
+}

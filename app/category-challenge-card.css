@@ -61,6 +61,21 @@ button.mvp-challenge-card {
   transform: translateY(-2px);
 }
 
+button.mvp-challenge-card:not(:disabled):active {
+  transform: translateY(0) scale(0.985);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mvp-challenge-card {
+    transition: none;
+  }
+
+  .mvp-challenge-card:hover:not(:disabled),
+  button.mvp-challenge-card:not(:disabled):active {
+    transform: none;
+  }
+}
+
 .mvp-challenge-card.selected {
   border-color: rgba(136, 108, 255, 0.65);
   box-shadow: 0 0 0 3px rgba(136, 108, 255, 0.18);

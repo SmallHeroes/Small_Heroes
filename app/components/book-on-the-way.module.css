@@ -10,6 +10,18 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
+  animation: botwEnter 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes botwEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .scene {
@@ -214,20 +226,39 @@
   font-weight: 700;
   text-decoration: none;
   box-shadow: 0 8px 24px rgba(136, 108, 255, 0.28);
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .readyBtn:hover {
   background: #6b4eff;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(136, 108, 255, 0.36);
+}
+
+.readyBtn:active {
+  transform: translateY(0) scale(0.97);
+  box-shadow: 0 6px 18px rgba(136, 108, 255, 0.26);
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .wrap,
   .book,
   .glow,
   .bloom,
+  .badge,
   .spark,
   .rise,
   .pdot {
     animation: none;
+  }
+
+  .readyBtn {
+    transition: none;
+  }
+
+  .readyBtn:hover,
+  .readyBtn:active {
+    transform: none;
   }
 }
 

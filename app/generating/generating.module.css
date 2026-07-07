@@ -44,4 +44,25 @@
   color: #fff;
   font-weight: 700;
   text-decoration: none;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.errorBack:hover {
+  background: #6b4eff;
+  transform: translateY(-1px);
+}
+
+.errorBack:active {
+  transform: translateY(0) scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .errorBack {
+    transition: none;
+  }
+
+  .errorBack:hover,
+  .errorBack:active {
+    transform: none;
+  }
 }

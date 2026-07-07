@@ -88,6 +88,24 @@ html.js-reveal [data-motion='on'].motion-ready [data-reveal='fade']:not(.is-visi
   }
 }
 
+/* ── 2026-07 polish: hover shadow deepens with the existing lift; trust
+   icons lean in when their card is hovered (fine pointer only) ─────────── */
+
+@media (hover: hover) and (pointer: fine) {
+  [data-motion='on'] .btn-primary:hover,
+  [data-motion='on'] .nav-cta:hover {
+    box-shadow: 0 14px 28px rgba(136, 108, 255, 0.3);
+  }
+
+  [data-motion='on'] .trust-point__icon {
+    transition: transform 0.22s var(--motion-ease-out);
+  }
+
+  [data-motion='on'] .trust-point.is-visible:hover .trust-point__icon {
+    transform: translateY(-2px) scale(1.06);
+  }
+}
+
 /* ── Hero parallax (fine pointer only; JS also gates init) ───────────── */
 
 @media (pointer: fine) {
@@ -117,6 +135,7 @@ html.js-reveal [data-motion='on'].motion-ready [data-reveal='fade']:not(.is-visi
   [data-motion='on'] .why-card,
   [data-motion='on'] .how-card,
   [data-motion='on'] .trust-point,
+  [data-motion='on'] .trust-point__icon,
   [data-motion='on'] .price-card,
   [data-motion='on'] .gallery-card {
     opacity: 1 !important;

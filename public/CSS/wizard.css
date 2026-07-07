@@ -89,7 +89,7 @@
   max-width: 840px;
   padding-top: 24px;
   padding-bottom: 24px;
-  animation: fadeUp .32s ease;
+  animation: fadeUp .38s cubic-bezier(.22, 1, .36, 1);
   box-sizing: border-box;
   overflow-x: hidden;
 }
@@ -3535,4 +3535,132 @@
 .wizard-main svg {
   max-width: 100%;
   height: auto;
+}
+/* ══ Micro-interaction polish (2026-07) ══════════════════════════════════
+   Press feedback, selection pops, hover refinements. Transform/opacity only
+   (no layout properties), translateY/scale only (RTL-safe). Hover effects
+   are gated to hover-capable pointers; everything is disabled under
+   prefers-reduced-motion at the bottom of this block. */
+
+/* Press acknowledgment — every tappable choice responds to the tap */
+.chip:active,
+.trait-chip:active {
+  transform: scale(0.96);
+}
+
+.companion-card:active,
+.style-card:not(.style-card-coming-soon):active,
+.direction-card:active,
+.product-card:active,
+.mvp-challenge-card:not(:disabled):active,
+.length-btn:active,
+.style-btn:active,
+.voice-btn:active,
+.addon-row:active {
+  transform: translateY(0) scale(0.985);
+}
+
+.btn-continue:active,
+.btn-back:active,
+.hero-notes-skip:active,
+.photo-replace-btn:active {
+  transform: scale(0.97);
+}
+
+/* Companion card: add transform to its transition so hover/press ease smoothly */
+.companion-card {
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+
+/* Selection pop — a gentle settle when a chip becomes the chosen one */
+@keyframes wizSelectPop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.035); }
+  100% { transform: scale(1); }
+}
+
+.chip.selected,
+.trait-chip.selected {
+  animation: wizSelectPop .28s cubic-bezier(.34, 1.3, .64, 1);
+}
+
+/* Photo upload — the plus badge leans in when invited */
+.photo-plus {
+  transition: transform .22s cubic-bezier(.22, 1, .36, 1);
+}
+
+.photo-upload-area {
+  transition: background .18s ease, border-color .18s ease, transform .18s ease;
+}
+
+.photo-upload-area:active {
+  transform: scale(0.99);
+}
+
+/* Continue button — shadow deepens with the existing hover lift */
+.btn-continue:hover {
+  box-shadow: 0 14px 28px rgba(132, 103, 255, 0.3);
+}
+
+/* Hover-capable pointers only (never hover-locked states on touch) */
+@media (hover: hover) and (pointer: fine) {
+  .chip:hover,
+  .trait-chip:hover {
+    transform: translateY(-1px);
+  }
+
+  .companion-card:hover {
+    transform: translateY(-3px);
+  }
+
+  .photo-upload-area:hover .photo-plus {
+    transform: scale(1.08);
+  }
+}
+
+/* Reduced motion: freeze all wizard animation/transitions, keep end states.
+   Near-zero durations (not `none`) so any JS listening for animation events
+   still fires and `both`-filled keyframes keep their final frame. */
+@media (prefers-reduced-motion: reduce) {
+  .wizard-body *,
+  .wizard-body *::before,
+  .wizard-body *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .chip:hover,
+  .trait-chip:hover,
+  .chip:active,
+  .trait-chip:active,
+  .companion-card:hover,
+  .companion-card:active,
+  .style-card:hover,
+  .direction-card:hover,
+  .product-card:hover,
+  .mvp-challenge-card:hover:not(:disabled),
+  .length-btn:hover,
+  .style-btn:hover,
+  .voice-btn:hover,
+  .addon-row:hover,
+  .btn-continue:hover,
+  .btn-back:hover,
+  .style-card:active,
+  .direction-card:active,
+  .product-card:active,
+  .mvp-challenge-card:active,
+  .length-btn:active,
+  .style-btn:active,
+  .voice-btn:active,
+  .addon-row:active,
+  .btn-continue:active,
+  .btn-back:active,
+  .hero-notes-skip:active,
+  .photo-replace-btn:active,
+  .photo-upload-area:active,
+  .photo-upload-area:hover .photo-plus {
+    transform: none;
+  }
 }
