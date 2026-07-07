@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { illustrationLoadingAttr } from '@/lib/book-layout';
+import { getReaderImageCacheState } from '../useAdjacentImagePreload';
 import styles from '../reader-v2.module.css';
 
 type Props = {
@@ -12,11 +13,37 @@ type Props = {
   wide?: boolean;
 };
 
+function initialIllustrationStatus(url: string | null): 'idle' | 'loading' | 'loaded' | 'error' {
+  if (!url) return 'error';
+  return getReaderImageCacheState(url) === 'loaded' ? 'loaded' : 'loading';
+}
+
 export function SceneIllustration({ url, alt, isCurrent, className, wide }: Props) {
-  const [status, setStatus] = useState<'idle' | 'loading' | 'loaded' | 'error'>(
-    url ? 'loading' : 'error'
+  const imgRef = useRef<HTMLImageElement>(null);
+  const [status, setStatus] = useState<'idle' | 'loading' | 'loaded' | 'error'>(() =>
+    initialIllustrationStatus(url)
   );
   const [retryNonce, setRetryNonce] = useState(0);
+
+  useEffect(() => {
+    if (!url) {
+      setStatus('error');
+      return;
+    }
+    if (getReaderImageCacheState(url) === 'loaded') {
+      setStatus('loaded');
+      return;
+    }
+    setStatus('loading');
+  }, [url, retryNonce]);
+
+  useLayoutEffect(() => {
+    const img = imgRef.current;
+    if (!img || !url) return;
+    if (img.complete && img.naturalWidth > 0) {
+      setStatus('loaded');
+    }
+  }, [url, retryNonce]);
 
   const retry = useCallback(() => {
     if (!url) return;
@@ -37,10 +64,13 @@ export function SceneIllustration({ url, alt, isCurrent, className, wide }: Prop
     );
   }
 
+  const showShimmer = status === 'loading';
+
   return (
     <div className={`${styles.illustrationFrame} ${wide ? styles.illustrationWide : ''} ${className ?? ''}`}>
-      {status === 'loading' ? <div className={styles.illustrationShimmer} aria-hidden /> : null}
+      {showShimmer ? <div className={styles.illustrationShimmer} aria-hidden /> : null}
       <img
+        ref={imgRef}
         key={`${url}-${retryNonce}`}
         src={url}
         alt={alt}

@@ -1,0 +1,15 @@
+/* Reader page shell — hide app header on mobile when immersive reading is active. */
+
+.shell {
+  display: contents;
+}
+
+.headerSlot {
+  display: block;
+}
+
+@media (max-width: 1023px) {
+  :global(html[data-reader-immersive]) .readV2HeaderSlot {
+    display: none;
+  }
+}
