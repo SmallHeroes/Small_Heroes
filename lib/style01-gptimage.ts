@@ -22,6 +22,8 @@ import {
   classifyStyle01SceneClass,
   resolveStyle01SceneRefSubset,
   contractEnvironmentToStyle01Subset,
+  contractEnvironmentToSceneClass,
+  isNightEffectiveTime,
   type Style01SceneClass,
   type Style01SceneSubsetKey,
 } from './style-scene-class';
@@ -29,6 +31,8 @@ import {
 export {
   classifyStyle01SceneClass,
   resolveStyle01SceneRefSubset,
+  contractEnvironmentToSceneClass,
+  isNightEffectiveTime,
   type Style01SceneClass,
   type Style01SceneSubsetKey,
 };

@@ -681,6 +681,14 @@ export interface CoverImageInput {
   /** Location continuity for cover (page 0). */
   locationBible?: import('../../lib/story-location-bible').BookLocationBible | null;
   pageLocationPlan?: import('../../lib/story-location-bible').PageLocationPlan | null;
+  /** (WS0b location authority) The contract's coarse env lock for the COVER (page 0), resolved from
+   *  coverContract.locationId. Routes the cover's Style 01 style refs + sceneClass "locks-first", closing the
+   *  pageContracts-only gap (the cover is not in pageContracts). Set by the pipeline only under
+   *  VISUAL_CONTRACT_STEERING; absent → the legacy regex classifier runs → byte-identical. */
+  contractStyleRefEnvironment?: 'indoor' | 'outdoor' | 'neutral' | null;
+  /** (WS0b location authority) Authoritative contract prompt block for the cover; PREPENDED to the Style 01
+   *  prompt so the frozen cover contract outranks direction. Absent → legacy prompt unchanged. */
+  visualContractPromptBlock?: string;
   /** Larger square GPT renders for קובץ מוכן להדפסה. */
   printPdfOptimized?: boolean;
 }
@@ -3262,6 +3270,9 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     coverSceneHint: input.coverSceneHint,
     storyFile: input.storyFile,
     direction: input.direction,
+    // (WS0b location authority) The contract's coarse env lock is the PRIMARY sceneClass authority — an
+    // indoor/clinic page must never fall through to the regex's outdoor-nature default. Absent → regex path.
+    contractEnvironmentClass: input.contractStyleRefEnvironment ?? null,
   });
 
   const {
@@ -3354,7 +3365,13 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     setAppearanceBoardPath: appearanceBoardPath,
   });
 
-  const prompt = sanitizePromptForSafety(finalPrompt);
+  // (WS0b location authority) Prepend the AUTHORITATIVE contract block (when present) so the frozen contract
+  // OUTRANKS imageDirection for location/cast/wardrobe/forbidden — same treatment as the non-Style01 path
+  // (generateWithGPTImage). Absent block → composeContractAuthoritativePrompt returns the prompt unchanged.
+  const prompt = composeContractAuthoritativePrompt(
+    input.visualContractPromptBlock,
+    sanitizePromptForSafety(finalPrompt)
+  );
 
   console.log(
     `[style01_phase2] orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} ` +
@@ -3932,6 +3949,10 @@ export async function generateBookCover(input: CoverImageInput): Promise<Generat
     challengeCategory: input.challengeCategory ?? null,
     locationBible: input.locationBible ?? null,
     pageLocationPlan: input.pageLocationPlan ?? null,
+    // (WS0b location authority) Route the COVER's Style 01 style refs + sceneClass by the contract's cover env
+    // lock (page 0, resolved from coverContract) instead of the regex classifier, and prepend the cover block.
+    contractStyleRefEnvironment: input.contractStyleRefEnvironment ?? null,
+    visualContractPromptBlock: input.visualContractPromptBlock,
     heroVisualLock: input.heroVisualLock,
     styleLock: input.styleLock,
     entityVisualLock: input.entityVisualLock,
@@ -4074,6 +4095,9 @@ export async function generateAllPageImages(
     environmentContinuity?: string;
     /** (WS0b e4a) Contract environment lock (indoor|outdoor|neutral) → Style 01 style-ref routing; absent → regex. */
     contractStyleRefEnvironment?: 'indoor' | 'outdoor' | 'neutral';
+    /** (WS0b location authority) Authoritative contract prompt block → PREPENDED to the Style 01 prompt so the
+     *  frozen contract outranks imageDirection for location/cast/wardrobe/forbidden. Absent → legacy prompt. */
+    visualContractPromptBlock?: string;
     supportingCharacters?: Array<{
       name: string;
       description: string;
@@ -4715,9 +4739,11 @@ export async function generateAllPageImages(
       | 'expectedCharacterIds'
       | 'guardedV2RecipeId'
       | 'contractStyleRefEnvironment'
+      | 'visualContractPromptBlock'
     > = {
       bookPageText: page.bookPageText ?? null,
       contractStyleRefEnvironment: page.contractStyleRefEnvironment ?? null,
+      visualContractPromptBlock: page.visualContractPromptBlock ?? undefined,
       guardedV2RecipeId:
         config.guardedV2RecipeId ??
         (config.companion?.id === 'bolly_armadillo' ? 'bolly_bedtime_age_5' : null),

@@ -78,6 +78,8 @@ import {
   contractToHumanCastDetectionEntries,
   contractPageEnvironmentClass,
   contractPageSupportingCharacters,
+  derivePageVisualContracts,
+  buildVisualContractPromptBlock,
   contractToQaObservability,
   computeVisualContractHash,
 } from '@/lib/visual-contract-compiler';
@@ -938,6 +940,16 @@ async function runCoverStage(
   // the atomic context write, the post-tx delivered-evidence write, and the observability payload — never re-read.
   const renderedContractHash = renderedContractHashOf(cache);
 
+  // (WS0b location authority) The cover's contract env lock (page 0, resolved from coverContract) → routes the
+  // cover's Style 01 style refs + sceneClass "locks-first", closing the pageContracts-only gap (the cover is not
+  // in pageContracts). Steering-gated; flag OFF → undefined → the legacy regex classifier (byte-identical).
+  const coverSteeringContract = isVisualContractSteeringEnabled()
+    ? readFrozenVisualContract(cache.visualContract)
+    : null;
+  const coverContractStyleRefEnvironment = coverSteeringContract
+    ? contractPageEnvironmentClass(coverSteeringContract, 0) ?? undefined
+    : undefined;
+
   const coverImage = await generateBookCover({
     // (#7-a 5b) Durable regen reserver for the cover artifact — flag-on only.
     reserveQualityRegen: isReadinessManifestEnabled()
@@ -972,6 +984,8 @@ async function runCoverStage(
     challengeCategory: cacheWithLocation.challengeCategory ?? wizardMeta.challengeCategory ?? null,
     locationBible: storyLocationPlan.bible,
     pageLocationPlan: coverLocationPlan,
+    // (WS0b location authority) Route the cover's Style 01 refs + sceneClass by the contract's cover env lock.
+    contractStyleRefEnvironment: coverContractStyleRefEnvironment,
     childStructured: cache.dna?.childStructured,
     companionStructured: cache.dna?.companionStructured,
   });
@@ -1237,6 +1251,13 @@ async function runPageImagesChunk(
   const steeringContract = isVisualContractSteeringEnabled()
     ? readFrozenVisualContract(cache.visualContract)
     : null;
+  // (WS0b location authority) Authoritative per-page contract blocks (LOCATION/ZONE/CAST/WARDROBE/MUST-SHOW/
+  // MUST-NOT-SHOW/CAMERA) that OUTRANK imageDirection — derived ONCE from the frozen contract, keyed by page
+  // number. Threaded into PageForGeneration.visualContractPromptBlock below, then prepended to the Style 01
+  // prompt in image.ts. Steering-gated: flag OFF → null map → no block set → byte-identical legacy prompt.
+  const resolvedPageContractsByNumber = steeringContract
+    ? new Map(derivePageVisualContracts(steeringContract).map((rp) => [rp.pageNumber, rp]))
+    : null;
   const pagesForGen = pagesWithDetectedCharacters
     .filter((p) => pageNumbersThisChunk.has(p.pageNumber))
     .map((p) => {
@@ -1250,6 +1271,13 @@ async function runPageImagesChunk(
       const contractSupportingCharacters = steeringContract
         ? contractPageSupportingCharacters(steeringContract, p.pageNumber)
         : undefined;
+      // (WS0b location authority) The authoritative contract block for THIS page (undefined when steering is off
+      // or the page is not in the contract) → prepended to the Style 01 prompt in image.ts.
+      const resolvedPageContract = resolvedPageContractsByNumber?.get(p.pageNumber) ?? null;
+      const visualContractPromptBlock =
+        steeringContract && resolvedPageContract
+          ? buildVisualContractPromptBlock(resolvedPageContract, steeringContract)
+          : undefined;
       const comp = compositionByPage.get(p.pageNumber);
       const pageLayout = deriveLayout({
         pageNumber: p.pageNumber,
@@ -1302,6 +1330,7 @@ async function runPageImagesChunk(
           recurringCharacterIds.has(id)
         ),
         contractStyleRefEnvironment,
+        ...(visualContractPromptBlock ? { visualContractPromptBlock } : {}),
         ...(contractSupportingCharacters ? { supportingCharacters: contractSupportingCharacters } : {}),
       };
     });

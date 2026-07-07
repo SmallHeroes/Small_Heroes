@@ -206,6 +206,10 @@ export type PageForGeneration = {
   /** (WS0b e4a) Contract environment lock (indoor|outdoor|neutral) → Style 01 style-ref routing. Ephemeral;
    *  set only when VISUAL_CONTRACT_STEERING is on. Absent → regex style-ref selection (byte-identical). */
   contractStyleRefEnvironment?: 'indoor' | 'outdoor' | 'neutral';
+  /** (WS0b location authority) Authoritative per-page contract prompt block (LOCATION/CAST/WARDROBE/MUST-SHOW/
+   *  MUST-NOT-SHOW/CAMERA) → PREPENDED to the Style 01 prompt so the frozen contract outranks imageDirection.
+   *  Ephemeral; set only when VISUAL_CONTRACT_STEERING is on. Absent → legacy prompt unchanged (byte-identical). */
+  visualContractPromptBlock?: string;
 };
 
 export type ResolvedCompanionRef = Companion | null;

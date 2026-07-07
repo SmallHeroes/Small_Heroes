@@ -61,6 +61,8 @@ import {
   buildStyle01RecurringObjectLocks,
   buildStyle01WardrobeLock,
   classifyStyle01SceneClass,
+  contractEnvironmentToSceneClass,
+  isNightEffectiveTime,
   resolveStyle01StoryLocks,
   STYLE_01_FRAMING_RULE,
   type Style01SceneClass,
@@ -103,6 +105,11 @@ export type Style01PromptAssemblyInput = {
   storyTimeOfDay?: import('./story-time-of-day').StoryTimeOfDay;
   pageTimeOfDayOverrides?: Partial<Record<number, import('./story-time-of-day').StoryTimeOfDay>>;
   timeOfDayStrictRetry?: boolean;
+  /** (WS0b location authority) The resolved contract's coarse per-page environment lock (indoor|outdoor|neutral).
+   *  PRIMARY authority for sceneClass — preferred over the regex classifier so an indoor/clinic page can NEVER
+   *  fall through to the outdoor-nature default. neutral / absent (null/undefined) keeps the regex sceneClass.
+   *  Populated only under VISUAL_CONTRACT_STEERING; absent → byte-identical legacy behavior. */
+  contractEnvironmentClass?: 'indoor' | 'outdoor' | 'neutral' | null;
   /** Wizard challenge category — drives the story-level SCENARIO SETTING LOCK. */
   challengeCategory?: string | null;
   /** True ONLY when the storyboard explicitly chose a close_up shot; otherwise close-up wording is sanitized out of the scene. */
@@ -570,12 +577,24 @@ export function assembleStyle01Phase2Prompt(
     companionSizeLock,
   });
 
-  const sceneClass = classifyStyle01SceneClass({
+  const regexSceneClass = classifyStyle01SceneClass({
     imagePrompt: input.pagePrompt ?? undefined,
     bookPageText: input.bookPageText ?? undefined,
     rawScenePrompt: imageDirection,
     effectivePageTimeOfDay,
   });
+  // (WS0b location authority) The resolved contract's environment lock is the PRIMARY authority for sceneClass —
+  // an indoor/clinic page must NEVER fall through to the regex's outdoor-nature default. When the contract locks
+  // indoor/outdoor we take its (night-aware) class; neutral / absent (null) keeps the regex class (neutral refs
+  // are separately zeroed downstream). Flag-gated upstream: without a contract this is null → regex path unchanged.
+  const contractSceneClass =
+    input.contractEnvironmentClass != null
+      ? contractEnvironmentToSceneClass(
+          input.contractEnvironmentClass,
+          isNightEffectiveTime(effectivePageTimeOfDay),
+        )
+      : null;
+  const sceneClass = contractSceneClass ?? regexSceneClass;
 
   return {
     prompt,

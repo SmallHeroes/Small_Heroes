@@ -184,14 +184,21 @@ export function contractToLocationPlanBundle(contract: BookVisualContract): Stor
  * page's location. Drives style-ref routing "locks-first, regex-last": when present it overrides the regex
  * scene-class, and `neutral` means ZERO style refs (never a nature default). Returns null when the page (or its
  * location's environmentClass) is not in the contract → the caller falls back to the legacy regex classifier.
+ *
+ * (WS0b location authority) Page 0 = the COVER, which has NO entry in pageContracts (those are the story pages
+ * 1..N); its location authority lives in coverContract. Resolving page 0 from coverContract.locationId closes the
+ * pageContracts-only gap that otherwise leaked the cover to the regex classifier (→ outdoor-nature for a clinic book).
  */
 export function contractPageEnvironmentClass(
   contract: BookVisualContract,
   pageNumber: number,
 ): EnvironmentClass | null {
-  const pc = contract.pageContracts.find((p) => p.pageNumber === pageNumber);
-  if (!pc) return null;
-  const loc = contract.locations.find((l) => l.id === pc.locationId);
+  const locationId =
+    pageNumber === 0
+      ? contract.coverContract.locationId
+      : contract.pageContracts.find((p) => p.pageNumber === pageNumber)?.locationId;
+  if (!locationId) return null;
+  const loc = contract.locations.find((l) => l.id === locationId);
   return loc?.environmentClass ?? null;
 }
 

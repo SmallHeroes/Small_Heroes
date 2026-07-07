@@ -18,6 +18,8 @@ export type Style01SceneClass =
   | 'outdoor-night'
   | 'cozy-interior'
   | 'cozy-interior-night'
+  | 'clinic-interior'
+  | 'clinic-interior-night'
   | 'outdoor-magical'
   | 'outdoor-magical-night';
 
@@ -35,8 +37,16 @@ const YARD_GARDEN_RE =
 const BEDROOM_RE = /\b(bedroom|nightstand|bedside|warm bedroom|indoors? inside|חדר(?: שינה)?)\b/iu;
 const COZY_INTERIOR_RE = /\b(bedroom|bedside|windowsill|indoor room|חדר|מיטה)\b/iu;
 const OUTDOOR_MAGICAL_RE = /\b(sky|clouds|mountain peak|above the clouds|starlit|starry|moon|stars|שמיים|עננים|כוכב)\b/iu;
+// (WS0b location authority) Clinic / doctor / exam interior — DEFENSIVE: a clinic scene must never fall through to
+// outdoor-nature on the legacy regex path when the contract is absent. The resolved contract stays the PRIMARY
+// authority (see contractEnvironmentToSceneClass); this only rescues the regex fallback.
+// English tokens use \b boundaries; the Hebrew alternation is matched as a substring because \b (an ASCII
+// \w boundary) never fires around Hebrew letters — with \b, מרפאה / חדר המתנה would silently never match.
+const CLINIC_RE =
+  /\b(?:clinic|doctor'?s?|pediatric(?:ian)?|exam(?:ination)? room|waiting room|nurse|stethoscope|check-?up|infirmary)\b|(?:מרפאה|רופא|חדר המתנה|חדר בדיקה|בדיקה רפואית)/iu;
 
 type BaseEnvironment =
+  | 'clinic'
   | 'cave'
   | 'forest-path'
   | 'forest-clearing'
@@ -49,6 +59,7 @@ type BaseEnvironment =
   | 'outdoor-nature';
 
 function classifyBaseEnvironment(hay: string): BaseEnvironment {
+  if (CLINIC_RE.test(hay)) return 'clinic';
   if (FANTASY_CAVE_RE.test(hay)) return 'cave';
   if (FOREST_PATH_RE.test(hay)) return 'forest-path';
   if (FOREST_CLEARING_RE.test(hay)) return 'forest-clearing';
@@ -63,6 +74,8 @@ function classifyBaseEnvironment(hay: string): BaseEnvironment {
 
 function toNightClass(base: BaseEnvironment): Style01SceneClass {
   switch (base) {
+    case 'clinic':
+      return 'clinic-interior-night';
     case 'cave':
       return 'fantasy-cave-night';
     case 'forest-path':
@@ -88,6 +101,8 @@ function toNightClass(base: BaseEnvironment): Style01SceneClass {
 
 function toDayClass(base: BaseEnvironment): Style01SceneClass {
   switch (base) {
+    case 'clinic':
+      return 'clinic-interior';
     case 'cave':
       return 'fantasy-cave';
     case 'forest-path':
@@ -133,7 +148,12 @@ export type Style01SceneSubsetKey = 'fantasy-cave' | 'cozy-interior' | 'outdoor-
 
 export function resolveStyle01SceneRefSubset(sceneClass: Style01SceneClass): Style01SceneSubsetKey {
   if (sceneClass.startsWith('fantasy-cave')) return 'fantasy-cave';
-  if (sceneClass.startsWith('bedroom') || sceneClass.startsWith('cozy-interior')) return 'cozy-interior';
+  if (
+    sceneClass.startsWith('bedroom') ||
+    sceneClass.startsWith('cozy-interior') ||
+    sceneClass.startsWith('clinic')
+  )
+    return 'cozy-interior';
   return 'outdoor-magical';
 }
 
@@ -152,6 +172,22 @@ export function contractEnvironmentToStyle01Subset(
   if (environmentClass === 'indoor') return 'cozy-interior';
   if (environmentClass === 'outdoor') return 'outdoor-magical';
   return 'none';
+}
+
+/**
+ * (WS0b location authority) Map the resolved contract's coarse per-page environment lock to a Style 01
+ * sceneClass — the PRIMARY authority for sceneClass, preferred over the regex `classifyStyle01SceneClass` so an
+ * indoor/clinic location can NEVER fall through to `outdoor-nature`. `indoor` → the interior class (cozy-interior),
+ * `outdoor` → the outdoor class, `neutral` → null (no strong env lock → the caller keeps the regex sceneClass;
+ * neutral refs are separately zeroed via `contractEnvironmentToStyle01Subset`). Night-aware. Deterministic + pure.
+ */
+export function contractEnvironmentToSceneClass(
+  environmentClass: 'indoor' | 'outdoor' | 'neutral',
+  isNight: boolean,
+): Style01SceneClass | null {
+  if (environmentClass === 'indoor') return isNight ? 'cozy-interior-night' : 'cozy-interior';
+  if (environmentClass === 'outdoor') return isNight ? 'outdoor-night' : 'outdoor-nature';
+  return null; // neutral → keep the regex sceneClass (refs are zeroed separately)
 }
 
 export function sceneClassIsNight(sceneClass: Style01SceneClass): boolean {
