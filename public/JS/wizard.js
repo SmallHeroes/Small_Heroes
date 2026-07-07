@@ -144,6 +144,8 @@ const COMMON = HE_CONTENT.common || { brand: '', tagline: '', navCta: '' };
 const PRODUCT_PACKAGES = WIZ.productPackages;
 // Must match backend/config/wizard.ts DIRECTION_PAGE_MAP — server is the source of truth.
 const PRODUCT_PRICES = { bedtime: 59, adventure: 79, fantasy: 99 };
+// Launch-discount anchors (struck-through "original" above the launch price). PLACEHOLDER — Guy to confirm numbers.
+const PRODUCT_ORIGINAL_PRICES = { bedtime: 89, adventure: 119, fantasy: 149 };
 const PRODUCT_ICON_EMOJI = {
   book: '📖',
   audio: '🎧',
@@ -548,23 +550,10 @@ function queueWizardSave() {
 }
 
 function applyInitialDirectionFromContext() {
-  const params = new URLSearchParams(window.location.search);
-  const directionParam = params.get('direction');
-  if (VALID_STORY_DIRECTIONS.includes(directionParam)) {
-    state.storyDirection = directionParam;
-    state.productId = directionParam;
-    return;
-  }
-  try {
-    const stored = localStorage.getItem(PREFERRED_DIRECTION_STORAGE_KEY);
-    if (VALID_STORY_DIRECTIONS.includes(stored)) {
-      state.storyDirection = stored;
-      state.productId = stored;
-      return;
-    }
-  } catch (_) {
-    /* localStorage unavailable */
-  }
+  // (UX) The experience/product is chosen ACTIVELY in step 8 — NEVER pre-selected on load. A URL `?direction=` or a
+  // remembered localStorage `preferredDirection` used to pre-pick "ליל טוב" (+ show a price + enable Continue) before
+  // the user chose anything. Leaving it null means no card is selected, no price/total shows, and Continue stays
+  // disabled until an explicit pick. The selection + productTruth/matrix mechanism (applyProductSelection) is unchanged.
   state.storyDirection = null;
   state.productId = null;
 }
@@ -596,22 +585,12 @@ function tryApplyWizardHandoffFromUrl() {
   applyMatrixCompanionForCategory(slot.category);
   state.directionLockedFromStart = false;
 
-  if (directionParam && VALID_STORY_DIRECTIONS.includes(directionParam)) {
-    const dirMeta = slot.directions?.[directionParam];
-    if (dirMeta?.sellable) {
-      applyProductSelection(directionParam, { revealTotal: false });
-    } else {
-      state.storyDirection = null;
-      state.productId = null;
-      state.priceILS = null;
-      state.productTruth = null;
-    }
-  } else {
-    state.storyDirection = null;
-    state.productId = null;
-    state.priceILS = null;
-    state.productTruth = null;
-  }
+  // (UX) Direction/experience is chosen ACTIVELY in step 8 — never pre-applied from the URL (the category handoff
+  // above still applies). Nothing is pre-selected, so no price/total shows and Continue stays disabled until a pick.
+  state.storyDirection = null;
+  state.productId = null;
+  state.priceILS = null;
+  state.productTruth = null;
 
   if (categoryChanged || directionChanged || state.currentStep <= 2) {
     state.currentStep = 3;
@@ -961,8 +940,10 @@ async function syncProductTruthFromServer() {
     if (seq !== productTruthFetchSeq) return;
     if (!truth || !VALID_STORY_DIRECTIONS.includes(truth.direction)) return;
     state.productTruth = truth;
-    if (truth.direction !== state.storyDirection) {
-      // Story binding overrides the local choice (summary == served book).
+    // Only let a server story-binding OVERRIDE an EXISTING user choice (summary == served book). Never AUTO-select a
+    // direction the user hasn't picked — the experience is chosen actively in step 8, so step-8 entry pre-selects
+    // nothing (the server resolves boundDirections[0] as a default, which we must not silently apply).
+    if (state.storyDirection && truth.direction !== state.storyDirection) {
       applyProductSelection(truth.direction, { revealTotal: false });
     }
     state.priceILS = truth.priceILS;
@@ -1207,7 +1188,7 @@ function initWizardContent() {
   // Nav
   setText('wizNavBrand',   COMMON.brand);
   setText('wizNavTagline', COMMON.tagline);
-  setText('wizNavCta',     COMMON.navCta);
+  setText('wizNavCta',     'יציאה'); // in-wizard: a subtle EXIT, not the "create book" CTA (already creating)
 
   // Step 1 — topic
   setText('s2Title', WIZ.steps.s2.title);
@@ -2303,7 +2284,10 @@ function renderProductCards() {
       <span class="product-card-pages">${pkg.pages} עמודים</span>
       <p class="product-card-desc">${pkg.tagline || ''}</p>
       <ul class="product-card-includes" aria-label="מה כלול בחבילה">${includesHtml}</ul>
-      <span class="product-card-price">₪<span class="product-card-price-digits">${pkg.priceILS}</span></span>
+      <span class="product-card-price">
+        ${PRODUCT_ORIGINAL_PRICES[pkg.id] ? `<span class="product-card-price-was">₪${PRODUCT_ORIGINAL_PRICES[pkg.id]}</span>` : ''}
+        <span class="product-card-price-now">₪<span class="product-card-price-digits">${pkg.priceILS}</span>${PRODUCT_ORIGINAL_PRICES[pkg.id] ? '<span class="product-card-launch-flag">מחיר השקה</span>' : ''}</span>
+      </span>
       <span class="product-card-cta">${ctaLabel}</span>
     `;
 

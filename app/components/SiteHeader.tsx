@@ -80,8 +80,6 @@ export function SiteHeader({ variant = 'full', confirmLeave = false }: SiteHeade
 
   const logoClass = [styles.logo, scrolled ? styles.logoScaled : ''].filter(Boolean).join(' ');
 
-  const showMyBooksNav = Boolean(user?.hasBooks);
-
   return (
     <header className={headerClass}>
       <div className={styles.inner}>
@@ -105,11 +103,10 @@ export function SiteHeader({ variant = 'full', confirmLeave = false }: SiteHeade
               <a href="/#pricing" className={styles.navLinkDesktop}>
                 מחירים
               </a>
-              {showMyBooksNav ? (
-                <Link href={ROUTES.myBooks} className={styles.navLinkMyBooks}>
-                  הספרים שלי
-                </Link>
-              ) : null}
+              {/* "הספרים שלי" moved into the account dropdown (AccountControl); "קצת עלינו" → the About section. */}
+              <a href="/#about" className={styles.navLinkDesktop}>
+                קצת עלינו
+              </a>
             </nav>
           ) : null}
         </div>

@@ -171,6 +171,8 @@ export const LANDING_COPY = {
         name: 'ספר לילה טוב אישי',
         pages: '16 עמודים',
         price: '59',
+        // Launch-discount anchor (struck-through). PLACEHOLDER — Guy to confirm the "original" numbers.
+        originalPrice: '89',
         desc: 'לילד שצריך רגיעה לפני שינה — סיפור שקט, מסר ברור, ואווירה מרגיעה.',
         features: [
           'ספר דיגיטלי מאויר',
@@ -187,6 +189,7 @@ export const LANDING_COPY = {
         name: 'הרפתקה אישית',
         pages: '24 עמודים',
         price: '79',
+        originalPrice: '119', // PLACEHOLDER launch-discount anchor
         badge: 'בחירת ההשקה',
         desc: 'לילד שצריך אומץ מול משהו חדש או מפחיד — הרפתקה עם התפתחות רגשית.',
         features: [
@@ -204,6 +207,7 @@ export const LANDING_COPY = {
         name: 'ספר פנטזיה אישי',
         pages: '32 עמודים',
         price: '99',
+        originalPrice: '149', // PLACEHOLDER launch-discount anchor
         desc: 'לילד עם דמיון עשיר — עולם פנטזיה מלא, עומק ורגעים שנבנים לאט.',
         features: [
           'ספר דיגיטלי מאויר',

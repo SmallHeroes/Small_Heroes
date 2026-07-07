@@ -937,9 +937,10 @@
 
 .price-num {
   display: flex;
+  flex-direction: column; /* struck launch-original stacks ABOVE the current (launch) price */
   align-items: flex-start;
   justify-content: flex-start;
-  gap: 2px;
+  gap: 4px;
   font-family: var(--fd);
   font-size: 28px;
   font-weight: 800;
@@ -948,12 +949,40 @@
   margin: auto 0 18px;
 }
 
-.price-num span {
+/* Launch discount: struck-through "original" price shown above the current price. */
+.price-was {
+  font-size: 20px;
+  font-weight: 700;
+  color: #a49dbe;
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  font-feature-settings: "tnum";
+}
+
+.price-now {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.price-now-digits {
   font-family: 'Heebo', sans-serif; /* override --fd — Abraham digits render incorrectly */
   font-size: 62px;
   font-weight: 900;
   line-height: 0.95;
   font-feature-settings: "tnum"; /* tabular numerals for clean alignment */
+}
+
+.price-launch-flag {
+  align-self: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--purple, #7c5cfc);
+  background: #f1ecff;
+  border-radius: 999px;
+  padding: 3px 10px;
+  white-space: nowrap;
+  line-height: 1.4;
 }
 
 .price-btn {
@@ -998,7 +1027,7 @@
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-.faq-item.open {
+.faq-item[data-open] {
   border-color: #d8cdfd;
   box-shadow: 0 10px 26px rgba(132, 103, 255, 0.06);
 }
@@ -1032,7 +1061,7 @@
   flex-shrink: 0;
 }
 
-.faq-item.open .faq-arrow {
+.faq-item[data-open] .faq-arrow {
   transform: rotate(180deg);
 }
 
@@ -1043,7 +1072,7 @@
   transition: max-height 0.28s ease, padding 0.28s ease;
 }
 
-.faq-item.open .faq-a {
+.faq-item[data-open] .faq-a {
   max-height: 220px;
   padding: 0 24px 18px;
 }
@@ -1620,10 +1649,8 @@
     font-size: 16px;
   }
 
-  .price-num span {
-    font-family: 'Heebo', sans-serif;
+  .price-now-digits {
     font-size: 52px;
-    font-feature-settings: "tnum";
   }
 
   .price-features li {
@@ -1635,7 +1662,7 @@
     padding: 16px;
   }
 
-  .faq-item.open .faq-a {
+  .faq-item[data-open] .faq-a {
     padding: 0 16px 16px;
   }
 
