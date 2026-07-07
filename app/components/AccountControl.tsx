@@ -124,7 +124,8 @@ export function AccountControl({ user, onAuthChange }: AccountControlProps) {
 
   const menuItems = (
     <>
-      {user?.hasBooks && isMobile ? (
+      {/* "הספרים שלי" now lives in the account dropdown on BOTH desktop and mobile (removed from the header nav). */}
+      {user?.hasBooks ? (
         <Link href={ROUTES.myBooks} className={styles.menuItem} onClick={close}>
           הספרים שלי
         </Link>

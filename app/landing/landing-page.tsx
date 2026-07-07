@@ -357,7 +357,13 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                       ))}
                     </ul>
                     <div className="price-num">
-                      ₪<span>{card.price}</span>
+                      {card.originalPrice ? (
+                        <span className="price-was" aria-hidden="true">₪{card.originalPrice}</span>
+                      ) : null}
+                      <span className="price-now">
+                        ₪<span className="price-now-digits">{card.price}</span>
+                        {card.originalPrice ? <span className="price-launch-flag">מחיר השקה</span> : null}
+                      </span>
                     </div>
                     <a
                       href={startHref}
@@ -387,7 +393,11 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                   return (
                     <div
                       key={item.q}
-                      className={'faq-item' + (isOpen ? ' open' : '')}
+                      // className stays CONSTANT so React never overwrites the imperatively-added `.is-visible`
+                      // reveal class (motion.ts) on the open-toggle re-render — that overwrite made the answer open
+                      // then vanish. Open state rides on a data attribute React can toggle without touching className.
+                      className="faq-item"
+                      data-open={isOpen ? '' : undefined}
                       data-reveal="up"
                       data-reveal-delay={String(60 + index * 40)}
                     >

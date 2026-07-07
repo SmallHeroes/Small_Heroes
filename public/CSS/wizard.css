@@ -49,6 +49,30 @@
   font-weight: 500;
 }
 
+/* (UX) In-wizard top-left button: a SUBTLE exit (the user is already creating a book — not the primary
+   "create book" CTA). White background, purple text + border, low emphasis — easy to leave, doesn't grab the eye.
+   Overrides the shared main.css .nav-cta / .btn-primary gradient (the button now carries the .nav-exit class). */
+.nav-exit {
+  height: 40px;
+  padding: 0 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  color: var(--purple, #7c5cfc);
+  border: 1.5px solid var(--purple, #7c5cfc);
+  border-radius: 999px;
+  font-family: var(--fb);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .18s ease, color .18s ease, border-color .18s ease;
+}
+
+.nav-exit:hover {
+  background: #f4f0ff;
+}
+
 .progress-pills {
   display: flex;
   gap: 6px;
@@ -153,8 +177,10 @@
   margin-bottom: 26px;
 }
 
-/* Micro-copy — warm acknowledgment line shown at top of each step */
+/* Micro-copy — the small purple acknowledgment line under the progress bar. Removed on EVERY step (redundant with
+   each step's title + subtitle). Hidden via CSS so the per-step content in HTML/JS stays untouched. */
 .step-microcopy {
+  display: none;
   font-size: 13px;
   font-weight: 500;
   color: #886cff;
@@ -1323,6 +1349,15 @@
   font-weight: 800;
   cursor: pointer;
   box-shadow: 0 10px 24px rgba(122, 101, 230, .18);
+}
+
+/* (UX) Continue is disabled until the step's required pick is made (e.g. no experience chosen on step 8) —
+   greyed + low-emphasis so it clearly reads as "not yet". */
+.btn-continue:disabled {
+  opacity: 0.45;
+  filter: grayscale(0.4);
+  box-shadow: none;
+  cursor: not-allowed;
 }
 
 .contact-btn {
@@ -3265,6 +3300,10 @@
 
 .product-card-price {
   margin-top: auto;
+  display: flex;
+  flex-direction: column; /* struck launch-original stacks ABOVE the current (launch) price */
+  align-items: flex-start;
+  gap: 3px;
   font-family: var(--fd);
   font-size: 34px;
   font-weight: 900;
@@ -3272,8 +3311,33 @@
   line-height: 1;
 }
 
+/* Launch discount: struck-through "original" price above the current price. */
+.product-card-price-was {
+  font-size: 15px;
+  font-weight: 700;
+  color: #a49dbe;
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+
+.product-card-price-now {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .product-card-price-digits {
   font-family: 'Heebo', sans-serif;
+}
+
+.product-card-launch-flag {
+  font-size: 11px;
+  font-weight: 700;
+  color: #8467ff;
+  background: #f1ecff;
+  border-radius: 999px;
+  padding: 3px 9px;
+  white-space: nowrap;
 }
 
 .product-card-cta {
