@@ -11,6 +11,7 @@ import {
   verifyPaymeSignature,
 } from '@/lib/payme';
 import { env } from '@/lib/env';
+import { confirmCouponForOrder } from '@/lib/coupon/coupon-service';
 
 const logger = createLogger({ subsystem: 'payme-webhook', route: '/api/webhooks/payme' });
 
@@ -191,6 +192,10 @@ export async function POST(req: NextRequest) {
           raw: parsed.raw as object,
         },
       });
+
+      // Confirm any reserved coupon redemption inside this same exactly-once transaction, so the
+      // cap advances atomically with the paid transition (and a webhook replay never double-counts).
+      await confirmCouponForOrder(tx, order.id);
 
       return true;
     });

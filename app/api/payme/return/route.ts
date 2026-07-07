@@ -5,6 +5,7 @@ import { env } from '@/lib/env';
 import { ROUTES } from '@/lib/routes';
 import { triggerGeneration } from '../../generate/route';
 import { verifyPaymePayment } from '@/lib/payme';
+import { confirmCouponForOrder } from '@/lib/coupon/coupon-service';
 
 const logger = createLogger({ subsystem: 'payme-return', route: '/api/payme/return' });
 
@@ -106,6 +107,8 @@ export async function GET(req: NextRequest) {
             raw: verification.raw as object,
           },
         });
+        // Confirm any reserved coupon redemption in the same tx that marks the order paid.
+        await confirmCouponForOrder(tx, order.id);
       });
       // AWAIT durable job-creation before the redirect; local catch isolates start errors from the ack.
       try {
