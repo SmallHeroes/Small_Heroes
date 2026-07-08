@@ -5,8 +5,28 @@
  * diagnostic so the stall is not silent, and the sweeper (cron / external scheduler) reclaims
  * the expired lease and continues. See sweeper.ts.
  */
+import { after } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { assertEnvSeparation } from './env-separation-guard';
+
+/**
+ * Run best-effort background work DURABLY from a serverless request. Inside a request scope (Vercel /
+ * `next dev`) register it with `after()` so the platform keeps the function alive until the promise
+ * settles (waitUntil under the hood) even after the HTTP response is sent — this is what makes the
+ * worker self-call actually fire. A bare `void fetch(...)` is NOT guaranteed to run once the route
+ * returns (the function can freeze), which is exactly why full-book renders stranded at dispatch.
+ * Outside a request scope (scripts / tests / non-Vercel node) `after` throws — there is no freeze there,
+ * so we run the work detached instead. Never throws to the caller.
+ */
+export function runAfterResponse(work: () => Promise<void>): void {
+  try {
+    after(work);
+    return;
+  } catch {
+    // Not in a request scope (`after` throws) — the process stays alive, so run it detached.
+  }
+  void work().catch(() => {});
+}
 
 async function failGenerationChain(orderId: string, message: string): Promise<void> {
   console.error(`[chunked-gen] ${message}`, { orderId });
@@ -93,9 +113,6 @@ export function chainGenerationWorker(orderId: string): void {
     /* keep target.url */
   }
 
-  // Stamp the kick attempt durably (so a hung/failed chain is visible even before the response).
-  void recordChainDiagnostic(orderId, { lastWorkerKickAt: new Date(), lastChainError: null });
-
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     // Internal auth: Bearer is primary; x-generation-secret for compat; body secret too.
@@ -111,13 +128,19 @@ export function chainGenerationWorker(orderId: string): void {
     headers['x-vercel-set-bypass-cookie'] = 'false';
   }
 
-  void fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ orderId, secret }),
-    keepalive: true,
-  })
-    .then(async (res) => {
+  // Durable dispatch: the diagnostic stamp + the self-call + the outcome record ALL run inside the
+  // extended (post-response) window via runAfterResponse — so the kick actually fires in serverless
+  // instead of being dropped when the route returns (the dispatch-stranding root cause).
+  runAfterResponse(async () => {
+    // Stamp the kick attempt (so a hung/failed chain is visible) — awaited, inside the durable window.
+    await recordChainDiagnostic(orderId, { lastWorkerKickAt: new Date(), lastChainError: null });
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ orderId, secret }),
+        keepalive: true,
+      });
       if (!res.ok) {
         const snippet = await res
           .text()
@@ -135,13 +158,13 @@ export function chainGenerationWorker(orderId: string): void {
       } else {
         await recordChainDiagnostic(orderId, { lastChainStatus: res.status, lastChainError: null });
       }
-    })
-    .catch(async (err) => {
+    } catch (err) {
       const msg = (err as Error)?.message ?? 'unknown';
       console.warn(`[chunked-gen] chain worker failed (non-fatal) orderId=${orderId} host=${host} err=${msg}`);
       await recordChainDiagnostic(orderId, {
         lastChainStatus: null,
         lastChainError: `chain fetch failed @ ${host}: ${msg}`,
       });
-    });
+    }
+  });
 }
