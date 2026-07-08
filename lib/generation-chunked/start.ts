@@ -57,6 +57,16 @@ export async function startChunkedGeneration(
 
   const recoveryRedrive = reason === RECOVERY_REDRIVE_REASON;
 
+  // (Slice A) A contract-world drift is PARKED for human QA (the contract_world_hold marker) — TERMINAL even under
+  // the recovery redrive. Never re-render it: mirror the atomic-receipt parked-not-redriven guarantee, so a held
+  // book can neither be auto-redriven nor (downstream) auto-refunded.
+  if (
+    order.status === 'needs_human_qa' &&
+    (order.deliveryHoldReason ?? '').startsWith('contract_world_hold:')
+  ) {
+    return { started: false, orderId, message: 'Parked for human QA (contract-world drift) — not redriven' };
+  }
+
   if (
     order.status === 'ready' ||
     order.status === 'partial' ||

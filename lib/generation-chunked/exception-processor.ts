@@ -106,6 +106,9 @@ export interface ExceptionProcessorDeps {
   reserveMarkAndClearRegen: (prisma: PrismaClient, orderId: string, artifactKey: string, operationKey: string) => Promise<{ granted: boolean }>;
   /** (#6-fix-3) Artifact keys durably marked regen-pending — cleared, awaiting a re-render/redrive. */
   loadRegenPending: (prisma: PrismaClient, orderId: string) => Promise<string[]>;
+  /** (Slice A) Terminal human-QA PARK for a deterministic contract-world drift: hold the order at needs_human_qa
+   *  with the contract_world_hold marker (never redrive/refund; never retract an already-delivered book). */
+  parkForContractWorldQa: (prisma: PrismaClient, orderId: string, artifactKeys: string[]) => Promise<void>;
 }
 
 function defaultDeps(): ExceptionProcessorDeps {
@@ -123,6 +126,8 @@ function defaultDeps(): ExceptionProcessorDeps {
     reserveMarkAndClearRegen: (prisma, orderId, artifactKey, operationKey) =>
       reserveMarkAndClearRegen(prisma, { orderId, artifactKey, operationKey }),
     loadRegenPending: (prisma, orderId) => loadRegenPendingArtifacts(prisma, orderId),
+    parkForContractWorldQa: (prisma, orderId, artifactKeys) =>
+      parkOrderForContractWorldQa(prisma, orderId, artifactKeys),
     recommitReadiness: async (prisma, orderId) => {
       const job = await prisma.generationJob.findUnique({
         where: { orderId },
@@ -138,6 +143,22 @@ function defaultDeps(): ExceptionProcessorDeps {
       });
     },
   };
+}
+
+/**
+ * (Slice A) Terminal human-QA PARK for a deterministic contract-world drift. Holds the order at needs_human_qa
+ * with the `contract_world_hold:` marker (which start.ts refuses to redrive). NEVER retracts an already-delivered
+ * book (ready/partial) — a delivered-book revoke is a separate, out-of-scope decision.
+ */
+async function parkOrderForContractWorldQa(
+  prisma: PrismaClient,
+  orderId: string,
+  artifactKeys: string[],
+): Promise<void> {
+  await prisma.order.updateMany({
+    where: { id: orderId, status: { notIn: ['ready', 'partial'] } },
+    data: { status: 'needs_human_qa', deliveryHoldReason: `contract_world_hold:${artifactKeys.join(',')}` },
+  });
 }
 
 async function moveToRefund(
@@ -524,6 +545,19 @@ async function runQualityEvidenceRescue(
   now: Date,
 ): Promise<ExceptionProcessOutcome | 'continue'> {
   const recovery = await deps.reQaQualityEvidence(prisma, exceptionCase.orderId);
+  // (Slice A) A deterministic contract-world drift is a TERMINAL human-QA PARK — resolve the case and hold the
+  // order at needs_human_qa, BEFORE the regen-rescue. This is the guarantee: no reserve/clear/redrive (budget
+  // remaining) AND no fall-through to moveToRefund (budget exhausted). It clears only via a human re-render.
+  if (recovery.nowParked.length > 0) {
+    await deps.parkForContractWorldQa(prisma, exceptionCase.orderId, recovery.nowParked);
+    return resolveCase(
+      prisma,
+      exceptionCase,
+      `contract_world_parked:${recovery.nowParked.join(',')}`,
+      now,
+      { outcome: 'needs_human_qa', parked: recovery.nowParked },
+    );
+  }
   for (const f of recovery.nowFailed) {
     if (f.regenCount >= QUALITY_REGEN_BUDGET) continue;
     const operationKey = `regen_reserve:${exceptionCase.id}:${exceptionCase.claimVersion}:${f.artifactKey}`;

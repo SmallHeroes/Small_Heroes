@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { reQaUnknownQualityEvidence, loadRegenPendingArtifacts } from '@/lib/generation-pipeline/quality-recovery';
+import { QUALITY_EVALUATOR_CONTRACT_VERSION } from '@/lib/generation-pipeline/quality-evidence';
 import type { AssetInspection } from '@/lib/generation-pipeline/asset-integrity';
 
 const okInspect = (sha: string | null): AssetInspection => ({
@@ -9,7 +10,7 @@ const okInspect = (sha: string | null): AssetInspection => ({
 const QA_CTX = { expectsChild: true, expectsCompanion: false, expectedPageTimeOfDay: null, isEmotionalClosing: false, hasStructuredObjects: false, hasRailedBedOrCrib: false, hasHumanFamily: false };
 
 type Book = { coverImageUrl: string | null; pages: Array<{ pageNumber: number; imageAsset: { url: string | null; presentationUrl: string | null } | null }> };
-type Row = { artifactKey: string; verdict: string; evaluatorContractVersion: string; assetSha256: string; regenCount?: number; evidence?: unknown; contractHash?: string | null };
+type Row = { artifactKey: string; verdict: string; evaluatorContractVersion: string; assetSha256: string; regenCount?: number; evidence?: unknown; contractHash?: string | null; reason?: string | null };
 
 // Stateful mock: upsert records the persisted verdict; findUnique reads it back (regenCount preserved).
 function makeDb(book: Book, rows: Row[], visualContractHash: string | null = null) {
@@ -56,7 +57,7 @@ describe('reQaUnknownQualityEvidence — enumerate REQUIRED artifacts (#6-fix BL
   });
 
   it('BLOCKER 1: re-QA uses the REAL persisted context (companion REQUIRED) — a companion-missing image FAILS, never a lenient pass', async () => {
-    const rows: Row[] = [{ artifactKey: 'page:1', verdict: 'evidence_unknown', evaluatorContractVersion: 'qa-v1', assetSha256: 'H', regenCount: 0, evidence: { qaContext: { ...QA_CTX, expectsCompanion: true } } }];
+    const rows: Row[] = [{ artifactKey: 'page:1', verdict: 'evidence_unknown', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, assetSha256: 'H', regenCount: 0, evidence: { qaContext: { ...QA_CTX, expectsCompanion: true } } }];
     const { db } = makeDb({ coverImageUrl: null, pages: [page(1, 'https://h/p1.png')] }, rows);
     // The evaluator honors the passed context: with expectsCompanion it FAILS the companion-missing image.
     const evaluate = vi.fn(async (input: { expectsCompanion?: boolean }) => ({
@@ -70,7 +71,7 @@ describe('reQaUnknownQualityEvidence — enumerate REQUIRED artifacts (#6-fix BL
   });
 
   it('HASH_MISMATCH: a PASSED row for OLD bytes ≠ current delivered bytes → re-QA current → recover (not refunded)', async () => {
-    const rows: Row[] = [{ artifactKey: 'page:1', verdict: 'passed', evaluatorContractVersion: 'qa-v1', assetSha256: 'H_OLD', evidence: { qaContext: QA_CTX } }];
+    const rows: Row[] = [{ artifactKey: 'page:1', verdict: 'passed', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, assetSha256: 'H_OLD', evidence: { qaContext: QA_CTX } }];
     const { db } = makeDb({ coverImageUrl: null, pages: [page(1, 'https://h/p1.png')] }, rows);
     const evaluate = vi.fn(async () => ({ passed: true, verdict: 'passed', reason: 'ok', details: '', flags: {} } as never));
     const r = await reQaUnknownQualityEvidence(db as never, 'o1', { evaluate: evaluate as never, inspect: async () => okInspect('H_CURRENT') });
@@ -79,7 +80,7 @@ describe('reQaUnknownQualityEvidence — enumerate REQUIRED artifacts (#6-fix BL
   });
 
   it('ADMISSIBLE: a PASSED row matching the current hash + evaluator version is NOT re-QA\'d', async () => {
-    const rows: Row[] = [{ artifactKey: 'page:1', verdict: 'passed', evaluatorContractVersion: 'qa-v1', assetSha256: 'H' }];
+    const rows: Row[] = [{ artifactKey: 'page:1', verdict: 'passed', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, assetSha256: 'H' }];
     const { db } = makeDb({ coverImageUrl: null, pages: [page(1, 'https://h/p1.png')] }, rows);
     const evaluate = vi.fn();
     const r = await reQaUnknownQualityEvidence(db as never, 'o1', { evaluate: evaluate as never, inspect: async () => okInspect('H') });
@@ -93,7 +94,7 @@ describe('reQaUnknownQualityEvidence — enumerate REQUIRED artifacts (#6-fix BL
     // so it is trusted as-is (no re-QA). But it MUST still reach the rescue: pre-fix this row was `continue`d →
     // nowFailed stayed empty → reserve never ran → the failing page shipped. Now it routes with regenCount 0 so the
     // processor reserves → clears → redrives.
-    const rows: Row[] = [{ artifactKey: 'page:1', verdict: 'failed', evaluatorContractVersion: 'qa-v1', assetSha256: 'H', regenCount: 0, evidence: { qaContext: QA_CTX } }];
+    const rows: Row[] = [{ artifactKey: 'page:1', verdict: 'failed', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, assetSha256: 'H', regenCount: 0, evidence: { qaContext: QA_CTX } }];
     const { db } = makeDb({ coverImageUrl: null, pages: [page(1, 'https://h/p1.png')] }, rows);
     const evaluate = vi.fn();
     const r = await reQaUnknownQualityEvidence(db as never, 'o1', { evaluate: evaluate as never, inspect: async () => okInspect('H') });
@@ -104,7 +105,7 @@ describe('reQaUnknownQualityEvidence — enumerate REQUIRED artifacts (#6-fix BL
   });
 
   it('(#6-fix-4 P1 #1) ADMISSIBLE FAILED @regenCount=2 (budget spent) → still routed to nowFailed, carrying regenCount 2 → the processor refunds (reserve declines)', async () => {
-    const rows: Row[] = [{ artifactKey: 'page:1', verdict: 'failed', evaluatorContractVersion: 'qa-v1', assetSha256: 'H', regenCount: 2, evidence: { qaContext: QA_CTX } }];
+    const rows: Row[] = [{ artifactKey: 'page:1', verdict: 'failed', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, assetSha256: 'H', regenCount: 2, evidence: { qaContext: QA_CTX } }];
     const { db } = makeDb({ coverImageUrl: null, pages: [page(1, 'https://h/p1.png')] }, rows);
     const evaluate = vi.fn();
     const r = await reQaUnknownQualityEvidence(db as never, 'o1', { evaluate: evaluate as never, inspect: async () => okInspect('H') });
@@ -123,15 +124,33 @@ describe('reQaUnknownQualityEvidence — enumerate REQUIRED artifacts (#6-fix BL
   });
 
   it('re-QA to FAILED carries the durable regenCount (drives the rescue)', async () => {
-    const rows: Row[] = [{ artifactKey: 'page:1', verdict: 'evidence_unknown', evaluatorContractVersion: 'qa-v1', assetSha256: 'H', regenCount: 1, evidence: { qaContext: QA_CTX } }];
+    const rows: Row[] = [{ artifactKey: 'page:1', verdict: 'evidence_unknown', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, assetSha256: 'H', regenCount: 1, evidence: { qaContext: QA_CTX } }];
     const { db } = makeDb({ coverImageUrl: null, pages: [page(1, 'https://h/p1.png')] }, rows);
     const evaluate = vi.fn(async () => ({ passed: false, verdict: 'failed', reason: 'child_missing', details: '', flags: {} } as never));
     const r = await reQaUnknownQualityEvidence(db as never, 'o1', { evaluate: evaluate as never, inspect: async () => okInspect('H') });
     expect(r.nowFailed).toEqual([{ artifactKey: 'page:1', regenCount: 1 }]);
   });
 
+  it('(Slice A) an admissible FAILED row tagged contract_world → nowParked (terminal human-QA hold), never nowFailed', async () => {
+    const rows: Row[] = [{ artifactKey: 'page:1', verdict: 'failed', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, assetSha256: 'H', regenCount: 0, reason: 'contract_world:wrong_zone', evidence: { qaContext: QA_CTX } }];
+    const { db } = makeDb({ coverImageUrl: null, pages: [page(1, 'https://h/p1.png')] }, rows);
+    const evaluate = vi.fn();
+    const r = await reQaUnknownQualityEvidence(db as never, 'o1', { evaluate: evaluate as never, inspect: async () => okInspect('H') });
+    expect(evaluate).not.toHaveBeenCalled(); // admissible → trusted, no re-QA
+    expect(r.nowParked).toEqual(['page:1']); // → the processor parks it (no reserve/clear/redrive, no refund)
+    expect(r.nowFailed).toEqual([]);         // NEVER routed to the regen-rescue
+  });
+
+  it('(Slice A) qa-v2 bump: a prior-evaluator (qa-v1) PASSED row is stale → re-QA\'d (never delivered un-world-QA\'d)', async () => {
+    const rows: Row[] = [{ artifactKey: 'page:1', verdict: 'passed', evaluatorContractVersion: 'qa-v1', assetSha256: 'H', evidence: { qaContext: QA_CTX } }];
+    const { db } = makeDb({ coverImageUrl: null, pages: [page(1, 'https://h/p1.png')] }, rows);
+    const evaluate = vi.fn(async () => ({ passed: true, verdict: 'passed', reason: 'ok', details: '', flags: {} } as never));
+    const r = await reQaUnknownQualityEvidence(db as never, 'o1', { evaluate: evaluate as never, inspect: async () => okInspect('H') });
+    expect(r.reQaCount).toBe(1); // qa-v1 no longer admissible under qa-v2 → forced re-QA
+  });
+
   it('the COVER is a required artifact and is re-QA\'d against its delivered bytes (using its stored context)', async () => {
-    const rows: Row[] = [{ artifactKey: 'cover', verdict: 'evidence_unknown', evaluatorContractVersion: 'qa-v1', assetSha256: 'STALE', evidence: { qaContext: QA_CTX } }];
+    const rows: Row[] = [{ artifactKey: 'cover', verdict: 'evidence_unknown', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, assetSha256: 'STALE', evidence: { qaContext: QA_CTX } }];
     const { db } = makeDb({ coverImageUrl: 'https://h/cover.png', pages: [] }, rows);
     const evaluate = vi.fn(async () => ({ passed: true, verdict: 'passed', reason: 'ok', details: '', flags: {} } as never));
     const r = await reQaUnknownQualityEvidence(db as never, 'o1', { evaluate: evaluate as never, inspect: async () => okInspect('HC') });
@@ -146,7 +165,7 @@ describe('reQaUnknownQualityEvidence — enumerate REQUIRED artifacts (#6-fix BL
     // a SUPERSEDED contract (v1) while the order is v2. It MUST be re-QA'd + rebound, else readiness loops on
     // contract_stale until the budget refunds.
     const rows: Row[] = [{
-      artifactKey: 'page:1', verdict: 'passed', evaluatorContractVersion: 'qa-v1',
+      artifactKey: 'page:1', verdict: 'passed', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION,
       assetSha256: 'H', contractHash: 'v1', evidence: { qaContext: QA_CTX },
     }];
     const { db, upsert } = makeDb({ coverImageUrl: null, pages: [page(1, 'https://h/p1.png')] }, rows, 'v2');
@@ -163,7 +182,7 @@ describe('reQaUnknownQualityEvidence — enumerate REQUIRED artifacts (#6-fix BL
 
   it('(P1-3) a v1-passed row when the order is ALSO v1 (matching) stays admissible → no re-QA (existing criteria intact)', async () => {
     const rows: Row[] = [{
-      artifactKey: 'page:1', verdict: 'passed', evaluatorContractVersion: 'qa-v1',
+      artifactKey: 'page:1', verdict: 'passed', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION,
       assetSha256: 'H', contractHash: 'v1', evidence: { qaContext: QA_CTX },
     }];
     const { db } = makeDb({ coverImageUrl: null, pages: [page(1, 'https://h/p1.png')] }, rows, 'v1');

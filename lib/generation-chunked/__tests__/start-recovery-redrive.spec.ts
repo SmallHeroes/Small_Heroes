@@ -104,6 +104,24 @@ describe('startChunkedGeneration — exception recovery redrive', () => {
     expect(chainGenerationWorker).not.toHaveBeenCalled();
   });
 
+  it('(Slice A) refuses to redrive a contract_world_hold order even under recovery redrive (parked for human QA)', async () => {
+    const { startChunkedGeneration } = await loadStart();
+    orderFindUnique.mockResolvedValue({
+      id: 'order_1',
+      status: 'needs_human_qa',
+      deliveryHoldReason: 'contract_world_hold:quality_failed:page:2',
+      storyDirectionSet: null,
+      generationJob: { status: 'done' },
+    });
+    const result = await startChunkedGeneration('order_1', 'exception_case_recovery', {
+      skipWorkerChain: true,
+    });
+    expect(result.started).toBe(false);
+    expect(result.message).toMatch(/contract-world drift/);
+    expect(orderUpdateMany).not.toHaveBeenCalled(); // never claims the order for a re-render
+    expect(jobUpdate).not.toHaveBeenCalled();
+  });
+
   it('resumes to cover stage when cover was cleared but pages remain', async () => {
     const { startChunkedGeneration } = await loadStart();
     orderFindUnique.mockResolvedValue({

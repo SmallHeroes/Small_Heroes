@@ -22,15 +22,29 @@ import {
   QUALITY_EVALUATOR_CONTRACT_VERSION,
   coverArtifactKey,
   pageArtifactKey,
+  pageNumberFromArtifactKey,
   readActiveVisualContractHash,
 } from './quality-evidence';
 import { isQualityEvidenceContractStale } from './quality-check-result';
+import {
+  readFrozenVisualContract,
+  contractPageWorldExpectation,
+  isVisualContractSteeringEnabled,
+  type ContractPageWorldExpectation,
+} from '@/lib/visual-contract-compiler';
+import type { PipelineCache } from './types';
 
 export interface QualityRecoveryResult {
   reQaCount: number;
   nowPassed: string[];
   /** artifacts that re-QA'd to a deterministic FAIL, with their durable regenCount (drives the regen-rescue). */
   nowFailed: Array<{ artifactKey: string; regenCount: number }>;
+  /**
+   * (Slice A) artifacts that re-QA'd to a deterministic CONTRACT-WORLD drift (`contract_world:` reason). These are
+   * a TERMINAL human-QA hold — they must NEVER be reserved/cleared/redriven or refunded; the processor resolves
+   * the case as parked. Kept OUT of nowFailed for exactly that reason.
+   */
+  nowParked: string[];
   stillUnknown: string[];
 }
 
@@ -66,6 +80,34 @@ async function loadRequiredArtifacts(prisma: PrismaClient, orderId: string): Pro
   return out;
 }
 
+/** True when a durable QA reason carries a deterministic contract-world drift tag (the parked-hold signal). */
+function isContractWorldReason(reason: string | null | undefined): boolean {
+  return typeof reason === 'string' && reason.includes('contract_world:');
+}
+
+/**
+ * (Slice A) The per-page WORLD expectation from the order's FROZEN contract, keyed by artifactKey — so a recovery
+ * re-QA runs world QA too (a pre-change steered `passed` row, re-QA'd under qa-v2, is judged against its contract
+ * setting + recurring-object identities, not just visually). Gated on VISUAL_CONTRACT_STEERING + a frozen contract
+ * (mirrors the render seam); empty otherwise → recovery re-QA is visual-only (legacy/steering-off parity).
+ */
+async function loadPageWorldExpectations(
+  prisma: PrismaClient,
+  orderId: string,
+): Promise<Map<string, ContractPageWorldExpectation>> {
+  const out = new Map<string, ContractPageWorldExpectation>();
+  if (!isVisualContractSteeringEnabled()) return out;
+  const job = await prisma.generationJob.findUnique({ where: { orderId }, select: { pipelineCache: true } });
+  const cache = (job?.pipelineCache ?? null) as PipelineCache | null;
+  const contract = cache ? readFrozenVisualContract(cache.visualContract) : null;
+  if (!contract) return out;
+  for (const pc of contract.pageContracts) {
+    const world = contractPageWorldExpectation(contract, pc.pageNumber);
+    if (world) out.set(pageArtifactKey(pc.pageNumber), world);
+  }
+  return out;
+}
+
 export async function reQaUnknownQualityEvidence(
   prisma: PrismaClient,
   orderId: string,
@@ -75,15 +117,18 @@ export async function reQaUnknownQualityEvidence(
   const required = await loadRequiredArtifacts(prisma, orderId);
   const rows = await prisma.qualityEvidence.findMany({
     where: { orderId },
-    select: { artifactKey: true, verdict: true, evaluatorContractVersion: true, assetSha256: true, regenCount: true, evidence: true, contractHash: true },
+    select: { artifactKey: true, verdict: true, evaluatorContractVersion: true, assetSha256: true, regenCount: true, evidence: true, contractHash: true, reason: true },
   });
   const byKey = new Map(rows.map((r) => [r.artifactKey, r]));
   // (WS0b B1) Recovery re-QAs STORED bytes and re-binds evidence to the Order's CURRENT active contract, so a
   // contract_stale row becomes admissible again. This is the deliberate recovery re-bind (not a render-time
   // capture) — the render-seam producer threads its render-time hash instead; only THAT post-render read raced.
   const activeContractHash = await readActiveVisualContractHash(prisma, orderId);
+  // (Slice A) Per-page world expectation so the recovery re-QA runs world QA (a pre-change steered `passed` row is
+  // judged against its contract setting/objects under qa-v2, not just visually). Empty when steering off / no contract.
+  const worldByArt = await loadPageWorldExpectations(prisma, orderId);
 
-  const result: QualityRecoveryResult = { reQaCount: 0, nowPassed: [], nowFailed: [], stillUnknown: [] };
+  const result: QualityRecoveryResult = { reQaCount: 0, nowPassed: [], nowFailed: [], nowParked: [], stillUnknown: [] };
   for (const art of required) {
     const currentHash = (await inspect(art.deliveredUrl)).sha256;
     const row = byKey.get(art.artifactKey);
@@ -108,7 +153,10 @@ export async function reQaUnknownQualityEvidence(
       // reserve/regen-rescue never runs → a genuinely failing page ships. Route it to the rescue with its durable
       // regenCount (the processor reserves → clears → redrives, or refunds at budget). An admissible PASS is done.
       if (row!.verdict === 'failed') {
-        result.nowFailed.push({ artifactKey: art.artifactKey, regenCount: row!.regenCount });
+        // (Slice A) A deterministic contract-world drift is a TERMINAL human-QA PARK — never route it to the
+        // regen-rescue (no reserve/clear/redrive, no refund). It converges to needs_human_qa in the processor.
+        if (isContractWorldReason(row!.reason)) result.nowParked.push(art.artifactKey);
+        else result.nowFailed.push({ artifactKey: art.artifactKey, regenCount: row!.regenCount });
       }
       continue;
     }
@@ -124,6 +172,11 @@ export async function reQaUnknownQualityEvidence(
       continue;
     }
 
+    // (Slice A) Merge the page's current world expectation so the re-QA runs world QA (else an old row's stored
+    // context lacks it → re-QA passes visually → ships un-world-QA'd, defeating the qa-v2 bump).
+    const world = worldByArt.get(art.artifactKey);
+    const reQaCtx: QaContext = world ? { ...storedCtx, worldExpectation: world } : storedCtx;
+
     result.reQaCount += 1;
     await persistDeliveredQualityEvidence(
       prisma,
@@ -133,7 +186,7 @@ export async function reQaUnknownQualityEvidence(
         deliveredUrl: art.deliveredUrl,
         presentationApplied: true, // force a fresh Vision pass on the CURRENT stored URL; never reuse a raw verdict
         rawVerdict: undefined,
-        qaContext: storedCtx,
+        qaContext: reQaCtx,
         regenAttempts: null,
         // (WS0b B1) Re-bind the re-QA'd evidence to the Order's CURRENT active contract (deliberate recovery re-bind).
         contractHash: activeContractHash,
@@ -143,9 +196,11 @@ export async function reQaUnknownQualityEvidence(
 
     const fresh = await prisma.qualityEvidence.findUnique({
       where: { orderId_artifactKey: { orderId, artifactKey: art.artifactKey } },
-      select: { verdict: true, regenCount: true },
+      select: { verdict: true, regenCount: true, reason: true },
     });
     if (fresh?.verdict === 'passed') result.nowPassed.push(art.artifactKey);
+    // (Slice A) A contract-world drift → PARK (terminal human QA), never the regen-rescue.
+    else if (fresh?.verdict === 'failed' && isContractWorldReason(fresh.reason)) result.nowParked.push(art.artifactKey);
     else if (fresh?.verdict === 'failed') result.nowFailed.push({ artifactKey: art.artifactKey, regenCount: fresh.regenCount });
     else result.stillUnknown.push(art.artifactKey);
   }

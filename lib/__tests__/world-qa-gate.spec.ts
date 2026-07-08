@@ -199,11 +199,14 @@ describe('evaluateQualityGate — contractHardHold', () => {
 describe('resolveReadinessDeliveryPlan — soft-deliver exemption for contract-world hard-holds', () => {
   const args = {} as never; // the blocked paths under test never read args
 
-  it('blocked + soft-deliver ON + contractHardHold → NOT soft-delivered → needs_human_qa', () => {
+  it('blocked + contractHardHold → PARKED (no exception case, no soft-deliver) → needs_human_qa', () => {
     const plan = resolveReadinessDeliveryPlan(args, { status: 'blocked', reason: 'quality_failed:page:5', contractHardHold: true }, true);
     expect(plan.usesSoftDeliver).toBe(false);
     expect(plan.orderStatus).toBe('needs_human_qa');
     expect(plan.enqueued).toBe(false);
+    // The parked disposition: skipExceptionCase (no case → no redrive/refund) + the contract_world_hold marker.
+    expect(plan.skipExceptionCase).toBe(true);
+    expect(plan.deliveryHoldReason).toMatch(/^contract_world_hold:/);
   });
 
   it('blocked + soft-deliver ON + NO hard-hold → soft-delivered as before (ready + qaWarnings)', () => {

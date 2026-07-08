@@ -17,8 +17,13 @@ type Db = PrismaClient | Prisma.TransactionClient;
 /**
  * Bump when the evaluator's semantics change. Evidence carrying an older version is treated as stale (→ BLOCK,
  * re-evaluate) so a semantics change can never deliver on evidence produced by the previous evaluator.
+ *
+ * qa-v2 (Slice A): the delivered-verdict evaluator now folds in contract WORLD QA (wrong_zone / recurring-object
+ * identity / forbidden_scene) on steered pages. Bumping invalidates any prior `passed` row produced WITHOUT world
+ * QA — most importantly a pre-change steered+passed row — so it is re-QA'd under the world-QA-aware rule (recovery
+ * reconstructs the page's worldExpectation) rather than delivered on stale, un-world-QA'd evidence.
  */
-export const QUALITY_EVALUATOR_CONTRACT_VERSION = 'qa-v1';
+export const QUALITY_EVALUATOR_CONTRACT_VERSION = 'qa-v2';
 
 /** Durable regen budget per artifact: one candidate + at most two replacements is 2 regens (#7-a: 5→2). */
 export const QUALITY_REGEN_BUDGET = 2;

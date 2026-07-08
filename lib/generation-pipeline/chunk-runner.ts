@@ -1592,7 +1592,11 @@ async function runPageImagesChunk(
         mutationPayload: {
           prompt: image.prompt, url: image.url, presentationUrl: presentationUrl ?? null, rawUrl: image.rawUrl ?? null,
           width: image.width, height: image.height, provider: image.provider, style: order.illustrationStyle,
-          idempotencyKey, qaContext: image.style01Meta?.pageVisualQa?.qaInput ?? null,
+          idempotencyKey,
+          // (Slice A) Receipt must hash ACTUALLY-persisted content: the txn writes withWorldExpectation(...), so the
+          // payload does too. QaContext is a named interface (no implicit index signature) → cast to the receipt-safe
+          // JSON it structurally is.
+          qaContext: (withWorldExpectation(image.style01Meta?.pageVisualQa?.qaInput, pageWorldExpectation) ?? null) as unknown as ReceiptSafeValue,
           ...contractHashPayloadFragment(renderedContractHash),
         },
       },

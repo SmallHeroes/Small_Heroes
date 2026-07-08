@@ -361,9 +361,21 @@ export function resolveReadinessDeliveryPlan(
   decision: Pick<ReadinessDecision, 'status' | 'reason' | 'contractHardHold'>,
   softDeliver: boolean,
 ): ReadinessDeliveryPlan {
-  // (Slice A) A deterministic contract-world drift can NEVER be soft-delivered — it HARD-holds for human QA, so it
-  // falls through the soft-deliver branch to the blocked default (needs_human_qa) even when QA_SOFT_DELIVER is on.
-  if (decision.status === 'blocked' && softDeliver && !decision.contractHardHold) {
+  // (Slice A) A deterministic contract-world drift is a TERMINAL human-QA PARK: held at needs_human_qa with NO
+  // exception case (skipExceptionCase) → no regen-rescue redrive, no auto-refund, in BOTH budget states (mirrors the
+  // atomic-receipt parked-not-redriven guarantee). Never soft-delivered. Checked FIRST so neither the soft-deliver
+  // nor the exception-case path can act on it. The hold clears only when a human re-renders the drifted page (a
+  // fresh commit re-evaluates). The `contract_world_hold:` reason is the marker start.ts + the processor key off.
+  if (decision.status === 'blocked' && decision.contractHardHold) {
+    return {
+      enqueued: false,
+      orderStatus: 'needs_human_qa',
+      deliveryHoldReason: `contract_world_hold:${decision.reason ?? 'blocked'}`,
+      skipExceptionCase: true,
+      usesSoftDeliver: false,
+    };
+  }
+  if (decision.status === 'blocked' && softDeliver) {
     return {
       enqueued: true,
       orderStatus: 'ready',
@@ -613,11 +625,14 @@ function decideReadiness(integrity: IntegrityResult, quality: QualityGateResult)
   const evidence = { ...integrity.evidence, quality: quality.evidence, qualityStatus: quality.status };
   if (integrity.status === 'blocked') {
     const transient = isTransientIntegrityFailure(integrity);
+    // Integrity supersedes: a broken/missing asset must run its OWN recovery (retry), not be parked for world-QA —
+    // so contractHardHold is NOT propagated here. Once integrity clears, a re-eval re-runs the quality gate and a
+    // genuine contract-world drift parks then.
     return {
       status: 'blocked', reason: integrity.reason, inputsHash, evidence,
       blockExceptionKind: transient ? 'infra_transient' : 'integrity_blocked',
       blockClassification: transient ? 'validator_transient' : 'deterministic_block',
-      contractHardHold: quality.contractHardHold,
+      contractHardHold: false,
     };
   }
   if (quality.status === 'passed') {
@@ -689,6 +704,17 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
           revision,
           classification: decision.blockClassification,
         },
+      });
+    } else if (decision.contractHardHold) {
+      // (Slice A) Parked for human QA — no NEW case is opened (skipExceptionCase), and any ACTIVE recoverable case
+      // is RESOLVED so a stale infra_transient/integrity case can never redrive or refund a contract-world-held
+      // book. (The soft-deliver blocked path also skips the case but is contractHardHold=false, so it is unaffected.)
+      await resolveActiveRecoveryCaseInTx(tx, {
+        orderId: order.id,
+        scope,
+        kinds: ['infra_transient', 'integrity_blocked'],
+        reason: `contract_world_parked:${manifest.id}`,
+        now,
       });
     }
   } else {
