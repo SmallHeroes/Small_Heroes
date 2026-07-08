@@ -70,7 +70,8 @@ export function CreatorPanel() {
   const [quality, setQuality] = useState<'low' | 'medium'>('low');
   const [generateAudio, setGenerateAudio] = useState(true);
   const [skipCover, setSkipCover] = useState(false);
-  const [fullBookMaxPages, setFullBookMaxPages] = useState(3);
+  // 0 = All pages (full book). N = audition: render images for the first N pages only (full story kept).
+  const [fullBookMaxPages, setFullBookMaxPages] = useState(0);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState('');
@@ -108,9 +109,6 @@ export function CreatorPanel() {
               ? prev
               : data.illustrationStyles[0].id
           );
-        }
-        if (data.fullBookPageOptions?.length) {
-          setFullBookMaxPages(data.fullBookPageOptions[0] ?? 3);
         }
       })
       .catch(() => setError('Failed to load CREATOR metadata'));
@@ -434,7 +432,7 @@ export function CreatorPanel() {
                 disabled={running}
               />
               <span className={styles.modeCardTitle}>Full book</span>
-              <span className={styles.modeCardDesc}>Real order · cover + reader + audio</span>
+              <span className={styles.modeCardDesc}>Chunked render · all or first-N page images · reader</span>
             </label>
           </div>
         </section>
@@ -522,7 +520,7 @@ export function CreatorPanel() {
               ) : (
                 <>
                   <label className={styles.fieldLabel} htmlFor="creator-pages-count">
-                    Pages to render
+                    Page images to render
                   </label>
                   <select
                     id="creator-pages-count"
@@ -531,9 +529,12 @@ export function CreatorPanel() {
                     onChange={(e) => setFullBookMaxPages(Number(e.target.value))}
                     disabled={running}
                   >
+                    {/* 0 = the whole authored book. A smaller N = a cost-controlled audition that keeps
+                        the FULL story + visual contract and renders images for the first N pages only. */}
+                    <option value={0}>All pages (full book)</option>
                     {(meta?.fullBookPageOptions ?? [3, 5, 10]).map((n) => (
                       <option key={n} value={n}>
-                        {n} pages
+                        First {n} pages (audition)
                       </option>
                     ))}
                   </select>

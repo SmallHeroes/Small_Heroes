@@ -61,6 +61,7 @@ import {
   MAX_PAGE_GENERATION_ATTEMPTS,
   type ChunkStage,
 } from '@/lib/generation-chunked/constants';
+import { selectAuditionPageNumbers } from '@/lib/generation-chunked/audition-limit';
 import { buildArtifactIdempotencyKey, isValidImageAssetUrl } from '@/lib/generation-chunked/artifact-keys';
 import {
   findExistingPageImageAsset,
@@ -1072,8 +1073,22 @@ async function runPageImagesChunk(
   });
   if (!book) throw new Error('Book missing');
 
+  // (dev Creator audition) Cap image rendering to the FIRST N pages when cache.renderImagePageLimit is
+  // set — the full story + visual contract stay loaded/finalized (location/continuity stay real); only
+  // the paid image set shrinks. book.pages is ordered by pageNumber asc, so the first N entries are the
+  // audition set. null => render every page (full book / prod path — byte-identical to before).
+  // book.pages is ordered by pageNumber asc (query orderBy), so this resolves the first-N set.
+  const auditionPageNumbers = selectAuditionPageNumbers(
+    book.pages.map((p) => p.pageNumber),
+    cache.renderImagePageLimit
+  );
+  const withinAuditionLimit = (pageNumber: number) =>
+    auditionPageNumbers == null || auditionPageNumbers.has(pageNumber);
+
   const existingPageNumbers = collectExistingImagePageNumbers(book.pages);
-  const pendingPagesAll = book.pages.filter((p) => !shouldSkipPaidPageImageRegen(p.imageAsset));
+  const pendingPagesAll = book.pages.filter(
+    (p) => !shouldSkipPaidPageImageRegen(p.imageAsset) && withinAuditionLimit(p.pageNumber)
+  );
   const imagePageFilter = parseImagePageFilter();
   const pendingPages = imagePageFilter
     ? pendingPagesAll.filter((p) => imagePageFilter.has(p.pageNumber))
@@ -1689,7 +1704,13 @@ async function runPageImagesChunk(
   });
 
   const stillPending = await prisma.bookPage.count({
-    where: { bookId: book.id, imageAsset: null },
+    where: {
+      bookId: book.id,
+      imageAsset: null,
+      // (dev Creator audition) only the first-N pages count toward "images done" — the remaining pages
+      // are intentionally text-only. Full book / prod (auditionPageNumbers == null) counts every page.
+      ...(auditionPageNumbers ? { pageNumber: { in: [...auditionPageNumbers] } } : {}),
+    },
   });
   const allDone = stillPending === 0 && imageOutcome.failedPages.length === 0;
   if (allDone && !imagePageFilter) {

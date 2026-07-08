@@ -9,7 +9,6 @@ import { getCompanionById, type Companion } from '@/lib/companions';
 import { mergeGptImageReferenceSources } from '@/lib/image-reference-utils';
 import { prisma } from '@/lib/prisma';
 import { buildPersistedCharacterAnchorsJson } from '@/lib/orderMeta';
-import { GOLDEN_SHELF_PAGE_OPTIONS, type GoldenShelfPageOption } from '@/lib/power-cards/golden-shelf-catalog';
 import { V3_COMPANION_BANK_CATEGORY } from '@/backend/providers/story-bank-index';
 import { toRepoRelativeStoryPath } from '@/lib/generation-pipeline/story-path';
 import { assignTemplatesForBook, type BookPageTemplate } from '@/lib/bookPageLayout';
@@ -23,6 +22,7 @@ import { storePresentationBuffer } from '@/lib/image-storage';
 import { ROUTES } from '@/lib/routes';
 import { generatePageAudio } from '@/backend/providers/audio';
 import { startChunkedGeneration } from '@/lib/generation-chunked/start';
+import { resolveRenderImagePageLimit } from '@/lib/generation-chunked/audition-limit';
 import type { PipelineCache } from '@/lib/generation-pipeline/types';
 import { isDevEnvironment } from '@/lib/dev-only-guard';
 import { isReadinessManifestEnabled } from '@/lib/generation-pipeline/readiness-manifest';
@@ -40,13 +40,15 @@ const STORY_BANK_RAW = path.join(
   (process.env.STORY_BANK_V3_DIR || 'v5-fixed-v2').trim()
 );
 
-const ALLOWED_PAGE_COUNTS = new Set<number>(GOLDEN_SHELF_PAGE_OPTIONS);
-
-function normalizeMaxPages(value: unknown): GoldenShelfPageOption {
+/**
+ * Parse the request's "page images to render" (audition cost control). The FULL authored story is
+ * ALWAYS loaded + finalized — this only caps how many page IMAGES are generated (via
+ * cache.renderImagePageLimit). A non-positive / invalid value means "render the whole book" (0). The
+ * route later treats a value >= the authored page count as "render all" too.
+ */
+function parseRequestedRenderPages(value: unknown): number {
   const n = typeof value === 'number' ? value : parseInt(String(value ?? ''), 10);
-  if (ALLOWED_PAGE_COUNTS.has(n)) return n as GoldenShelfPageOption;
-  if (n === 15 || n === 20) return n as GoldenShelfPageOption;
-  return 3;
+  return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
 function inferStoryDirectionFromFile(
@@ -192,7 +194,7 @@ export async function POST(req: NextRequest) {
       : null);
   const voiceId = voiceIdRaw?.trim() || 'mom';
 
-  const maxPages = normalizeMaxPages(maxPagesRaw);
+  const requestedRenderPages = parseRequestedRenderPages(maxPagesRaw);
 
   if (!storyFile || typeof storyFile !== 'string') {
     return NextResponse.json({ error: 'storyFile is required' }, { status: 400 });
@@ -254,11 +256,23 @@ export async function POST(req: NextRequest) {
       effectiveCompanionName,
       childGender,
       {
-        maxPages: packageDryRun ? 20 : maxPages,
+        // Load the FULL authored story (no narrative truncation) so expectedPageCount == the finalized
+        // count and the worker's finalization guard is satisfied truthfully. "Audition" limits only the
+        // number of IMAGES rendered (renderImagePageLimit below), never the story/contract.
+        maxPages: undefined,
         skipLlmPersonalization: skipPersonalization || packageDryRun,
       }
     );
-    console.log(`[StoryBank] Loaded "${storyFull.title}" — ${storyFull.pages.length} pages (maxPages=${packageDryRun ? 20 : maxPages})`);
+    // Pages to render images for: the requested N, unless it's >= the authored count (then render the
+    // whole book). undefined => full book. Propagated via pipelineCache so the worker renders the same N.
+    const renderImagePageLimit = resolveRenderImagePageLimit(
+      requestedRenderPages,
+      storyFull.pages.length
+    );
+    console.log(
+      `[StoryBank] Loaded "${storyFull.title}" — ${storyFull.pages.length} pages (full story); ` +
+        `rendering images for ${renderImagePageLimit ?? storyFull.pages.length} page(s)`
+    );
 
     if (packageDryRun) {
       const markdown = await fs.readFile(filePath, 'utf-8');
@@ -381,6 +395,9 @@ export async function POST(req: NextRequest) {
       challengeCategory,
       directionForV3: storyDirection ?? undefined,
       expectedPageCount: story.pages.length,
+      // Audition image cap survives into the worker so it renders the SAME first-N pages (no count
+      // mismatch). Absent => render the whole book.
+      ...(renderImagePageLimit != null ? { renderImagePageLimit } : {}),
       ...(skipPersonalization || packageDryRun ? { textFinalized: true } : {}),
     };
 
@@ -411,7 +428,8 @@ export async function POST(req: NextRequest) {
         accessKey,
         bookUrl,
         viewerUrl,
-        maxPages,
+        pagesTotal: storyFull.pages.length,
+        pagesRendered: renderImagePageLimit ?? storyFull.pages.length,
         mode: 'chunked',
         polling: true,
         orderStatus,
@@ -696,7 +714,7 @@ export async function POST(req: NextRequest) {
       viewerUrl,
       pagesRendered: imageOutcome.results.size,
       pagesFailed: imageOutcome.failedPages,
-      maxPages,
+      pagesTotal: storyFull.pages.length,
       orderStatus,
       storyDirection,
       challengeCategory,

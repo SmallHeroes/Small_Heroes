@@ -61,9 +61,6 @@ export async function finalizeAndPersistStoryText(
     };
   }
 
-  const maxPages =
-    storyLength === 'long' ? 20 : storyLength === 'short' ? 10 : 15;
-
   let story;
   try {
     story = await loadStoryFromBank(
@@ -72,7 +69,12 @@ export async function finalizeAndPersistStoryText(
       resolvedCompanion?.name ?? 'צפרדע',
       order.childGender || undefined,
       {
-        maxPages: cache.devStoryBankFile ? maxPages : undefined,
+        // Load the FULL authored story — dev and prod alike — so the finalized page count is
+        // deterministic and equals expectedPageCount. The route and worker must never re-derive
+        // DIFFERENT page counts (the "Story page count N !== expected M" failure class): the route
+        // used to truncate to a request maxPages while this loader capped by storyLength. Audition
+        // renders fewer IMAGES via cache.renderImagePageLimit; the narrative is never truncated.
+        maxPages: undefined,
         skipLlmPersonalization: cache.skipLlmPersonalization === true,
         patchContext: buildPatchContextFromOrder(order, wizardMeta),
         letterContext:

@@ -44,6 +44,14 @@ export type PipelineCache = {
     worldDNA?: string;
   };
   expectedPageCount?: number;
+  /**
+   * (dev Creator audition) Cap the number of PAGE IMAGES rendered to the first N pages — the full
+   * authored story + visual contract are still loaded and finalized (so `expectedPageCount` == the
+   * full count and the finalization guard is satisfied truthfully; location/continuity stay real).
+   * Only image generation is limited, for cost control. Undefined / >= full count => render the whole
+   * book. Set by the dev story-bank route; absent on the prod path (renders all pages, unchanged).
+   */
+  renderImagePageLimit?: number;
   /** Per-book cinematography plan (derived at render or story override). JSON-serializable for pipelineCache. */
   bookShotPlan?: {
     pageCount: number;
