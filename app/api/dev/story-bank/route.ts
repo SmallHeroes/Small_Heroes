@@ -385,11 +385,21 @@ export async function POST(req: NextRequest) {
     };
 
     if (chunkedGen) {
-      await startChunkedGeneration(order.id, 'creator_story_bank', {
+      const startResult = await startChunkedGeneration(order.id, 'creator_story_bank', {
         pipelineCache,
         skipWorkerChain:
           skipWorkerChain || process.env.STORY_BANK_SKIP_WORKER_CHAIN === 'true',
       });
+
+      // Return the authoritative status the pipeline just set — a successful start claims the order
+      // to 'generating'. CreatorPanel only enters status-polling when orderStatus is 'generating' |
+      // 'paid'; without it the full-book run never polls, so the ONLY Preview recovery trigger (the
+      // status poll's sweep) never fires and the render strands. (dispatch-reliability fix #1)
+      const claimed = await prisma.order.findUnique({
+        where: { id: order.id },
+        select: { status: true },
+      });
+      const orderStatus = claimed?.status ?? (startResult.started ? 'generating' : 'paid');
 
       const bookUrl = ROUTES.readerV2(order.id, accessKey);
       const viewerUrl = `/dev/viewer?orderId=${encodeURIComponent(order.id)}&accessKey=${encodeURIComponent(accessKey)}`;
@@ -404,6 +414,7 @@ export async function POST(req: NextRequest) {
         maxPages,
         mode: 'chunked',
         polling: true,
+        orderStatus,
         statusUrl: `/api/generate/status?orderId=${encodeURIComponent(order.id)}`,
         hint: 'Full book uses chunked /api/generate/worker — poll statusUrl until ready.',
       });
