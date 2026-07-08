@@ -115,9 +115,13 @@ export async function POST(req: NextRequest) {
   });
 
   if (shouldTriggerGeneration) {
-    triggerGeneration(order.id, 'fake_payment_confirm_success').catch((error) => {
+    // AWAIT durable job-creation + after() dispatch before returning; local catch isolates a
+    // generation-start failure from the payment ack (parity with the prod payment routes).
+    try {
+      await triggerGeneration(order.id, 'fake_payment_confirm_success');
+    } catch (error) {
       logger.error('Fake payment generation trigger failed', error, { orderId: order.id, paymentId });
-    });
+    }
   }
 
   return NextResponse.json({

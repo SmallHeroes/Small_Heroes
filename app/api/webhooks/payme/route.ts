@@ -212,12 +212,20 @@ export async function POST(req: NextRequest) {
       transactionId: parsed.transactionId,
     });
 
-    triggerGeneration(parsed.orderId as string, 'payme_webhook_payment_paid').catch((error) => {
+    // AWAIT the start so job-creation + the durable after() dispatch registration complete BEFORE the
+    // webhook returns — an unawaited trigger can be dropped by a post-response serverless freeze (the
+    // same stranding class chainGenerationWorker just fixed one layer down). The try/catch keeps a
+    // generation-start failure from failing the payment ack: a non-2xx would trigger a PayMe retry
+    // (double-processing/charge risk); the job row is durably created on success so the sweeper can
+    // recover a stranded start. (Same swallow as the prior fire-and-forget .catch, but now awaited.)
+    try {
+      await triggerGeneration(parsed.orderId as string, 'payme_webhook_payment_paid');
+    } catch (error) {
       logger.error('[PayMeWebhook] Generation trigger failed', error, {
         orderId: parsed.orderId as string,
         transactionId: parsed.transactionId as string,
       });
-    });
+    }
 
     return NextResponse.json({ received: true, processed: true });
   } catch (error) {

@@ -38,9 +38,13 @@ export async function GET(req: NextRequest) {
 
     if (order.status === 'paid' || order.status === 'generating' || order.status === 'ready' || order.status === 'partial') {
       if (order.status === 'paid') {
-        triggerGeneration(order.id, 'payme_redirect_seen_paid_state').catch((error) => {
+        // AWAIT durable job-creation before the redirect; the local catch isolates a generation-start
+        // failure so it never breaks the redirect (start errors must not surface as a payment failure).
+        try {
+          await triggerGeneration(order.id, 'payme_redirect_seen_paid_state');
+        } catch (error) {
           logger.error('Generation trigger failed for paid order on redirect', error, { orderId: order.id });
-        });
+        }
       }
       const redirectUrl = new URL(`${ROUTES.generating}?orderId=${encodeURIComponent(order.id)}`, req.nextUrl.origin);
       const accessKey = order.paymentId || paymentIdFromQuery || transactionIdFromQuery;
@@ -103,9 +107,12 @@ export async function GET(req: NextRequest) {
           },
         });
       });
-      triggerGeneration(order.id, 'payme_redirect_verified_paid').catch((error) => {
+      // AWAIT durable job-creation before the redirect; local catch isolates start errors from the ack.
+      try {
+        await triggerGeneration(order.id, 'payme_redirect_verified_paid');
+      } catch (error) {
         logger.error('Generation trigger failed after verified redirect', error, { orderId: order.id });
-      });
+      }
     } else if (allowUnsafePaidMark) {
       logger.warn('UNSAFE redirect trust mode accepted paid state (dev only)', {
         orderId: order.id,
@@ -127,9 +134,12 @@ export async function GET(req: NextRequest) {
           stripePaid: false,
         },
       });
-      triggerGeneration(order.id, 'payme_redirect_unverified_trust_mode').catch((error) => {
+      // AWAIT durable job-creation before the redirect; local catch isolates start errors from the ack.
+      try {
+        await triggerGeneration(order.id, 'payme_redirect_unverified_trust_mode');
+      } catch (error) {
         logger.error('Generation trigger failed after unsafe redirect trust', error, { orderId: order.id });
-      });
+      }
     }
   } catch (error) {
     logger.error('PayMe redirect processing failed', error, { orderId });

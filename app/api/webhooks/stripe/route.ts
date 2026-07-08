@@ -156,9 +156,15 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session, eventId:
       archetype: directionSet?.selectedDirection?.archetype ?? null,
     });
 
-    triggerGeneration(orderId, 'stripe_webhook_checkout_completed').catch((err) =>
-      logger.error('Generation trigger failed after webhook', err, { orderId, eventId })
-    );
+    // AWAIT so job-creation + the durable after() dispatch complete before the handler returns. The
+    // try/catch MUST isolate a generation-start failure from the webhook ack: it must not reach the
+    // outer catch (which rethrows non-P2002 -> non-2xx -> Stripe retry -> double-processing). Job row
+    // is durably created on success so the sweeper can recover a stranded start.
+    try {
+      await triggerGeneration(orderId, 'stripe_webhook_checkout_completed');
+    } catch (err) {
+      logger.error('Generation trigger failed after webhook', err, { orderId, eventId });
+    }
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
