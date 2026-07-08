@@ -59,7 +59,10 @@ type VariantId =
 // converges on the niqqud form already tested by 2/3. The distinct alias MECHANISM is tested via the
 // pronunciation-dictionary alias rule (pron-dict-alias), which substitutes the word with its vocalized form.
 const WORD_VARIANTS: VariantId[] = ['raw', 'niqqud-selective', 'niqqud-full', 'ipa-inline', 'pron-dict-ipa', 'pron-dict-alias'];
-const SENTENCE_VARIANTS: VariantId[] = ['raw', 'niqqud-full', 'pause-punct', 'pause-tags'];
+// 0b (2026-07-08): sentences now also carry the WINNERS in context — 'niqqud-selective' (only the risk
+// words pointed) and 'pron-dict-alias' (raw text + the alias dict substitutes the risk words). 0a only
+// tested sentences on raw/full/pauses; these two close that gap. See buildInputText + the alias dict below.
+const SENTENCE_VARIANTS: VariantId[] = ['raw', 'niqqud-selective', 'niqqud-full', 'pron-dict-alias', 'pause-punct', 'pause-tags'];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Items. Linguistics are DATA — edit freely before the live run; the player shows the exact inputText
@@ -85,6 +88,7 @@ type SentenceItem = {
   category: 'sentence';
   source: string;           // provenance (real bank file / constructed)
   raw: string;              // bare (or original) surface with prod-style ellipsis stripped
+  niqqudSelective: string;  // ONLY the risk words pointed (rest bare) — the 0a "safe" winner, in context
   niqqudFull: string;       // fully vocalized version
   expectedReading: string;
   gloss: string;
@@ -121,6 +125,7 @@ const SENTENCES: SentenceItem[] = [
   {
     kind: 'sentence', id: 'sent-medical', category: 'sentence', source: 'bunny_ometz_adventure (v3-approved) p1 — REAL',
     raw: 'דלת הרופא עמדה סגורה, ומאחוריה חיכה הלא-נודע.',
+    niqqudSelective: 'דלת הרופא עָמְדָה סגורה, ומאחוריה חיכה הלא-נודע.', // only עמדה (amdá, stood) pointed
     niqqudFull: 'דֶּלֶת הָרוֹפֵא עָמְדָה סְגוּרָה, וּמֵאֲחוֹרֶיהָ חִכָּה הַלֹּא-נוֹדָע.',
     expectedReading: '…amdá segurá… (the door stood closed)',
     gloss: 'homograph in context: עמדה = amdá (stood)',
@@ -130,6 +135,7 @@ const SENTENCES: SentenceItem[] = [
   {
     kind: 'sentence', id: 'sent-bedtime', category: 'sentence', source: 'bunny_ometz_bedtime (v3-approved) p1 — REAL (bare)',
     raw: 'נועם שכב מתחת לשמיכה. החדר היה שקט.',
+    niqqudSelective: 'נֹעם שָׁכַב מתחת לשמיכה. החדר היה שָׁקֵט.', // only נועם (Nóam), שכב (lay), שקט (quiet) pointed
     niqqudFull: 'נֹעַם שָׁכַב מִתַּחַת לַשְּׂמִיכָה. הַחֶדֶר הָיָה שָׁקֵט.',
     expectedReading: 'Nóam shakháv… (Noam lay under the blanket. The room was quiet.)',
     gloss: 'homographs in context: שכב (lay), שקט (quiet)',
@@ -139,6 +145,7 @@ const SENTENCES: SentenceItem[] = [
   {
     kind: 'sentence', id: 'sent-homographs', category: 'sentence', source: 'CONSTRUCTED — homograph-dense',
     raw: 'בערב דוד קרא לנו ספר על ארנב שאכל גזר.',
+    niqqudSelective: 'בּעֶרב דּוֹד קרא לנו סֵפר על ארנב שאכל גֶּזר.', // only the 4 homographs pointed (word-level selective spellings)
     niqqudFull: 'בָּעֶרֶב דּוֹד קָרָא לָנוּ סֵפֶר עַל אַרְנָב שֶׁאָכַל גֶּזֶר.',
     expectedReading: 'ba-érev dod kará lánu séfer al arnáv she-akhál gézer',
     gloss: 'four target homographs in one sentence: ערב, דוד, ספר, גזר',
@@ -147,6 +154,15 @@ const SENTENCES: SentenceItem[] = [
 
 const WORD_ITEMS: WordItem[] = [...HOMOGRAPHS, ...NAMES, ...COMPANIONS];
 const ALL_ITEMS: Item[] = [...WORD_ITEMS, ...SENTENCES];
+
+// Risk words that appear ONLY inside the real sentences (not as standalone WordItems). Added to the alias
+// dictionary so the sentence 'pron-dict-alias' variant substitutes them in context (0b gap). The homograph/
+// name risk words already covered by WORD_ITEMS (בערב, דוד, ספר, גזר, נועם) need no extra rule.
+const SENTENCE_RISK_ALIASES: Array<{ raw: string; alias: string }> = [
+  { raw: 'עמדה', alias: 'עָמְדָה' }, // amdá (stood) — sent-medical
+  { raw: 'שכב', alias: 'שָׁכַב' }, // shakháv (lay) — sent-bedtime
+  { raw: 'שקט', alias: 'שָׁקֵט' }, // shakét (quiet) — sent-bedtime
+];
 
 // Representative subset for the voice_settings WITH-vs-WITHOUT add-on (keeps it tiny).
 const VOICE_SETTINGS_ITEM_IDS = new Set(['baerev', 'sefer', 'yuval', 'sent-homographs']);
@@ -195,7 +211,9 @@ function buildInputText(item: Item, variant: VariantId): string | null {
   // sentence
   switch (variant) {
     case 'raw': return item.raw;
+    case 'niqqud-selective': return item.niqqudSelective; // only the risk words pointed (in context)
     case 'niqqud-full': return item.niqqudFull;
+    case 'pron-dict-alias': return item.raw; // raw text + alias dict substitutes the risk words (see dict build below)
     case 'pause-punct': return ellipsisPauseHack(item.raw);
     case 'pause-tags': return item.raw.replace(/\. /g, '. [pause] ').replace(/, /g, ', [short pause] ').replace(/\.$/, '. [pause]');
     default: return null;
@@ -295,6 +313,22 @@ function flag(name: string): boolean {
   return process.argv.includes(`--${name}`);
 }
 
+// Build the self-contained player: inline every successfully-generated clip as a base64 data: URI so the
+// single HTML file plays offline with no ./clips/ folder (this is what Guy listens to). Skips error clips.
+function writeEmbeddedPlayer(runDir: string, runId: string, stage: string, manifest: ManifestEntry[]): number {
+  const audioMap: Record<string, string> = {};
+  let embedded = 0;
+  for (const m of manifest) {
+    if (m.error) continue;
+    const abs = path.join(runDir, m.mp3Path);
+    if (!fs.existsSync(abs)) continue;
+    audioMap[m.mp3Path] = `data:audio/mpeg;base64,${fs.readFileSync(abs).toString('base64')}`;
+    embedded++;
+  }
+  fs.writeFileSync(path.join(runDir, 'player-embedded.html'), buildPlayerHtml(runId, stage, manifest, audioMap));
+  return embedded;
+}
+
 async function main() {
   const stage = (arg('stage') ?? '0a') as '0a' | '0b';
   const live = flag('live');
@@ -307,6 +341,16 @@ async function main() {
   const runDir = path.join(process.cwd(), 'outputs', 'tts-preflight', runId);
   const clipsDir = path.join(runDir, 'clips');
   fs.mkdirSync(clipsDir, { recursive: true });
+
+  // --embed-only: (re)generate the self-contained player from an existing run's clips + manifest. No API calls.
+  if (flag('embed-only')) {
+    const mp = path.join(runDir, 'manifest.json');
+    if (!fs.existsSync(mp)) throw new Error(`--embed-only needs an existing run: no manifest at ${path.relative(process.cwd(), mp)} (pass --run-id <id>)`);
+    const existing = JSON.parse(fs.readFileSync(mp, 'utf8')) as ManifestEntry[];
+    const n = writeEmbeddedPlayer(runDir, runId, stage, existing);
+    console.log(`[tts-preflight] embed-only: wrote player-embedded.html with ${n} inlined clips (no API calls).`);
+    return;
+  }
 
   // Build the cell list (item × variant × voice × sample × voiceSettings) — skip inapplicable cells.
   type Cell = { item: Item; variant: VariantId; voice: VoiceKey; sampleIdx: number; voiceSettings: 'off' | 'on'; inputText: string };
@@ -362,7 +406,10 @@ async function main() {
       console.warn(`[tts-preflight] IPA dictionary creation FAILED (recorded per-clip): ${(e as Error).message}`);
     }
     try {
-      const aliasRules = WORD_ITEMS.filter((w) => w.niqqudFull).map((w) => ({ string_to_replace: w.raw, type: 'alias' as const, alias: w.niqqudFull! }));
+      const aliasRules = [
+        ...WORD_ITEMS.filter((w) => w.niqqudFull).map((w) => ({ string_to_replace: w.raw, type: 'alias' as const, alias: w.niqqudFull! })),
+        ...SENTENCE_RISK_ALIASES.map((r) => ({ string_to_replace: r.raw, type: 'alias' as const, alias: r.alias })),
+      ];
       aliasLocator = await createPronunciationDictionary(`phase0-alias-${runId}`, aliasRules);
       console.log(`[tts-preflight] created alias pronunciation dictionary (${aliasRules.length} rules)`);
     } catch (e) {
@@ -447,8 +494,10 @@ async function main() {
   const errors = manifest.filter((m) => m.error).length;
   console.log(`\n[tts-preflight] wrote manifest.json (${manifest.length} entries) + player.html`);
   if (live) {
+    const embedded = writeEmbeddedPlayer(runDir, runId, stage, finalManifest);
+    console.log(`[tts-preflight] wrote player-embedded.html (${embedded} inlined clips — self-contained, plays offline).`);
     console.log(`[tts-preflight] LIVE run complete: ${manifest.length - errors} MP3s, ${errors} errors, ${totalChars} characters billed.`);
-    console.log(`[tts-preflight] open ${path.relative(process.cwd(), path.join(runDir, 'player.html'))} to listen + mark.`);
+    console.log(`[tts-preflight] open ${path.relative(process.cwd(), path.join(runDir, 'player-embedded.html'))} to listen + mark.`);
   } else {
     console.log(`[tts-preflight] DRY RUN — no API calls, no cost. Re-run with --live (and approved staging key) to generate audio.`);
   }
@@ -457,10 +506,12 @@ async function main() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Self-contained HTML listening player (no server): grid of item × variant × voice, play buttons,
 // correct|wrong|unnatural|unclear radios + notes per cell, localStorage persistence, and a JSON export
-// of Guy's judgments. Plays clips/*.mp3 by relative path.
+// of Guy's judgments. Plays clips/*.mp3 by relative path — OR, when `audioMap` is supplied (the embedded
+// player), from inline base64 data: URIs so the single HTML file plays offline with no ./clips/ folder.
 // ─────────────────────────────────────────────────────────────────────────────
-function buildPlayerHtml(runId: string, stage: string, manifest: ManifestEntry[]): string {
+function buildPlayerHtml(runId: string, stage: string, manifest: ManifestEntry[], audioMap?: Record<string, string>): string {
   const data = JSON.stringify(manifest);
+  const audio = JSON.stringify(audioMap ?? {});
   return `<!doctype html>
 <html lang="he" dir="rtl"><head><meta charset="utf-8"><title>TTS Preflight Phase 0 — ${runId}</title>
 <style>
@@ -489,6 +540,7 @@ function buildPlayerHtml(runId: string, stage: string, manifest: ManifestEntry[]
 <div id="root"></div>
 <script>
 const MANIFEST = ${data};
+const AUDIO = ${audio}; // clipId path -> base64 data: URI (embedded player only; {} for the light player)
 const KEY = 'tts-preflight-${runId}';
 const RESULTS = ['correct','wrong','unnatural','unclear'];
 let state = JSON.parse(localStorage.getItem(KEY) || '{}'); // clipId -> {resultByHuman, notes}
@@ -536,7 +588,7 @@ function render(){
   }
   updateProgress();
 }
-function playClip(btn, src){ const a = new Audio(src); a.play().catch(err => { btn.textContent='⚠ '+err.message; }); }
+function playClip(btn, src){ const a = new Audio(AUDIO[src] || src); a.play().catch(err => { btn.textContent='⚠ '+err.message; }); }
 function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 render();
 </script></body></html>`;

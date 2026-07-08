@@ -34,16 +34,24 @@ ElevenLabs **pronunciation dictionaries** on that account (for the dict variants
 ### Stages (staged to keep Guy's listening tractable)
 - **`--stage 0a`** — voice = **fairy** only, all applicable variants × all items × 2 samples, plus a tiny
   `voice_settings` WITH-vs-WITHOUT add-on. **212 clips / ~3,409 characters.** Find which controls v3 respects.
-- **`--stage 0b`** — voices = **mom + dad**. Re-run only the **winning** controls from 0a and focus on the
-  real sentences: `--stage 0b --live --variants raw,niqqud-full` (pick the winners). Full 0b (all variants) is
-  408 clips / ~6,560 chars — the winners subset is much smaller.
+- **`--stage 0b`** — voices = **mom + dad**. Re-run only the **winning** controls from 0a on the real
+  sentences + the word set (so the hard names דוד/בוני/נועם are carried onto mom/dad):
+  `--stage 0b --live --variants raw,niqqud-selective,pron-dict-alias`. **216 clips / ~2,176 chars.**
+  0b closes the gap 0a left: sentences now also render **`niqqud-selective`** (only the risk words pointed —
+  `SentenceItem.niqqudSelective`) and **`pron-dict-alias`** (raw text; the alias dict substitutes the risk
+  words, incl. the in-sentence-only words עמדה/שכב/שקט added via `SENTENCE_RISK_ALIASES`). 0a had tested
+  sentences on raw/full/pauses only.
 
-Other flags: `--variants a,b,c` (restrict variants), `--voice-settings` (force the add-on), `--run-id <id>`.
+Other flags: `--variants a,b,c` (restrict variants), `--voice-settings` (force the add-on), `--run-id <id>`,
+`--items a,b` (re-run a subset), `--embed-only` ((re)build `player-embedded.html` from an existing run's
+clips — no API calls).
 
 ## Record judgments
-1. Open `outputs/tts-preflight/{runId}/player.html` in a browser.
-   - Clips play from `./clips/` by relative path. If the browser blocks `file://` media, run
-     `python -m http.server` **inside the run dir** and open `http://localhost:8000/player.html`.
+1. Open the player in a browser. A LIVE run writes **two**:
+   - **`player-embedded.html`** — self-contained (every clip inlined as a base64 `data:` URI). Open it
+     directly from anywhere, plays offline, no `./clips/` folder needed. **This is the one to listen to.**
+   - `player.html` — light; plays clips from `./clips/` by relative path (if the browser blocks `file://`
+     media, run `python -m http.server` **inside the run dir** and open `http://localhost:8000/player.html`).
 2. For each cell: press ▶ (two samples per cell), pick **correct / wrong / unnatural / unclear**, add notes.
    Marks autosave to `localStorage`.
 3. Click **⬇ Export judgments (JSON)** → downloads `judgments-{runId}.json` (the manifest with your
