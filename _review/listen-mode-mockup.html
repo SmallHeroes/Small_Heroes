@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<!-- MOCKUP — listen mode (audio-only auto-player), mobile. Static replica of app/book/[id]/listen for
+     design approval. Shows the "playing" state; the initial one-tap start overlay is shown to the right. -->
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Listen mode — mockup</title>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { margin:0; background:#E7E2F5; font-family:'Heebo',Arial,sans-serif; padding:28px 12px; }
+    .row { display:flex; gap:28px; flex-wrap:wrap; justify-content:center; align-items:flex-start; }
+    .cap { text-align:center; color:#6B5E8C; font-size:13px; margin-top:10px; }
+    /* phone frame */
+    .phone { width:360px; height:740px; border-radius:42px; background:#111; padding:12px; box-shadow:0 24px 60px rgba(60,30,120,0.35); }
+    .screen {
+      width:100%; height:100%; border-radius:32px; overflow:hidden; position:relative; box-sizing:border-box;
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; padding:28px 22px;
+      text-align:center; background:linear-gradient(180deg,#F5F2FF 0%,#EDE7FF 55%,#F7EFEA 100%);
+    }
+    .brand { position:absolute; top:20px; inset-inline:0; font-size:14px; font-weight:700; letter-spacing:0.4px; color:#7C3AED; }
+    .cover { width:216px; height:270px; object-fit:cover; border-radius:22px; box-shadow:0 20px 44px rgba(76,29,149,0.28); }
+    .title { margin:8px 0 0; font-size:24px; line-height:1.25; font-weight:800; color:#4C1D95; }
+    .counter { margin:0; font-size:14px; color:#8B7EA8; }
+    .timeline { width:100%; max-width:300px; }
+    .bar { width:100%; height:6px; border-radius:999px; background:#DDD3F5; position:relative; }
+    .fill { position:absolute; inset-inline-start:0; top:0; height:6px; width:42%; border-radius:999px; background:#7C3AED; }
+    .thumb { position:absolute; inset-inline-start:calc(42% - 10px); top:-7px; width:20px; height:20px; border-radius:50%; background:#7C3AED; box-shadow:0 2px 8px rgba(124,58,237,0.45); }
+    .times { display:flex; justify-content:space-between; margin-top:10px; font-size:13px; color:#8B7EA8; font-variant-numeric:tabular-nums; }
+    .transport { display:flex; align-items:center; justify-content:center; gap:22px; margin-top:8px; }
+    .playPause { width:74px; height:74px; border-radius:50%; border:none; background:#7C3AED; color:#fff; font-size:30px; box-shadow:0 10px 24px rgba(124,58,237,0.4); padding-inline-start:0; }
+    .skip { width:56px; height:56px; border-radius:50%; border:2px solid #C9B8F5; background:#fff; color:#7C3AED; display:inline-flex; flex-direction:column; align-items:center; justify-content:center; line-height:1; }
+    .skip .i { font-size:23px; } .skip .n { font-size:10px; font-weight:700; margin-top:-1px; }
+    .footer { position:absolute; bottom:18px; inset-inline:0; font-size:12px; color:#A99EC4; }
+    /* start overlay variant */
+    .overlay { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; background:rgba(245,242,255,0.82); backdrop-filter:blur(3px); }
+    .startCircle { width:96px; height:96px; border-radius:50%; background:#7C3AED; color:#fff; font-size:40px; display:flex; align-items:center; justify-content:center; box-shadow:0 14px 34px rgba(124,58,237,0.45); }
+    .startLabel { font-size:20px; font-weight:800; color:#4C1D95; }
+    .startHint { font-size:14px; color:#7C6BA0; }
+  </style>
+</head>
+<body>
+  <div class="row">
+
+    <!-- PLAYING state -->
+    <div>
+      <div class="phone"><div class="screen">
+        <div class="brand">✨ גיבורים קטנים</div>
+        <img class="cover" src="mock-cover.svg" alt="">
+        <h1 class="title">הספר של נועם</h1>
+        <p class="counter">עמוד 3 מתוך 12</p>
+        <div class="timeline">
+          <div class="bar"><div class="fill"></div><div class="thumb"></div></div>
+          <div class="times"><span>2:14</span><span>7:38</span></div>
+        </div>
+        <div class="transport">
+          <button class="skip"><span class="i">⟲</span><span class="n">15</span></button>
+          <button class="playPause">⏸</button>
+          <button class="skip"><span class="n">15</span><span class="i">⟳</span></button>
+        </div>
+        <div class="footer">גיבורים קטנים — סיפורי חוסן לילדים</div>
+      </div></div>
+      <div class="cap">מצב האזנה — מתנגן, מתקדם לבד מעמוד לעמוד</div>
+    </div>
+
+    <!-- START overlay (the single tap that unlocks hands-free) -->
+    <div>
+      <div class="phone"><div class="screen">
+        <div class="brand">✨ גיבורים קטנים</div>
+        <img class="cover" src="mock-cover.svg" alt="" style="filter:blur(1px); opacity:0.5;">
+        <h1 class="title" style="opacity:0.4;">הספר של נועם</h1>
+        <div class="overlay">
+          <span class="startCircle">▶</span>
+          <span class="startLabel">התחילו להאזין</span>
+          <span class="startHint">הספר יתנגן מעצמו מתחילתו ועד סופו</span>
+        </div>
+        <div class="footer">גיבורים קטנים — סיפורי חוסן לילדים</div>
+      </div></div>
+      <div class="cap">מסך פתיחה — לחיצה אחת מפעילה ואז זה אוטומטי</div>
+    </div>
+
+  </div>
+</body>
+</html>

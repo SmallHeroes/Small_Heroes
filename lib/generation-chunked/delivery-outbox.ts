@@ -68,6 +68,10 @@ export interface BookReadyPayload {
   customerName: string;
   childName: string;
   readUrl: string;
+  /** Audio-only listen-mode URL (secondary email CTA). Derived from readUrl at enqueue. */
+  listenUrl?: string;
+  /** Book cover image (prominent email hero). Absent → graceful no-cover email. */
+  coverImageUrl?: string;
   audioUrl?: string;
   pdfUrl?: string;
   /** Present only on QA soft-deliver path (non-prod); rendered in book-ready email. */

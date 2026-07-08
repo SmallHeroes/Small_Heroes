@@ -20,7 +20,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { prisma } from '@/lib/prisma';
 import { sendBookReadyEmail } from '@/backend/lib/email';
-import { ROUTES } from '@/lib/routes';
+import { ROUTES, listenUrlFromReadUrl } from '@/lib/routes';
 import { createLogger } from '@/lib/logger';
 import { isReadinessManifestEnabled, commitBaseBookReadiness } from '@/lib/generation-pipeline/readiness-manifest';
 import { OutboxReconciliationError } from '@/lib/generation-chunked/delivery-outbox';
@@ -129,6 +129,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       customerName: order.customerName ?? order.childName,
       childName: order.childName,
       readUrl,
+      ...(listenUrlFromReadUrl(readUrl, order.id) ? { listenUrl: listenUrlFromReadUrl(readUrl, order.id) } : {}),
+      ...(order.book.coverImageUrl ? { coverImageUrl: order.book.coverImageUrl } : {}),
       audioUrl: order.book.pages[0]?.audioUrl ?? order.book.audioAsset?.url ?? undefined,
       pdfUrl: order.book.pdfUrl ?? undefined,
     });

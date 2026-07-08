@@ -42,8 +42,10 @@ export const EMAIL = {
   body: {
     greeting:  (name: string)      => `שלום ${name},`,
     headline:  (childName: string) => `הספר של ${childName} מוכן!`,
+    subtitle:  (childName: string) => `ההרפתקה האישית של ${childName} מחכה — לקריאה או להאזנה, מתי שתרצו.`,
     intro:     (childName: string) => `הספר האישי של ${childName} מוכן לצפייה. לחצו על הכפתור כדי לפתוח אותו:`,
     btnRead:   'פתחו את הספר',
+    btnListen: 'השמע את הספר',
     btnAudio:  'האזנה לקריינות',
     btnPdf:    'הורדת PDF להדפסה',
     footer:    'גיבורים קטנים — סיפורי חוסן לילדים',

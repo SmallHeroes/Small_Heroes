@@ -868,6 +868,16 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
               {isLastPage ? 'סיום' : 'הבא'}
             </button>
           </div>
+          {resolvedAccessKey && (hasPerPageAudio || fallbackBookAudioUrl) ? (
+            <div style={{ textAlign: 'center', marginTop: '10px' }}>
+              <a
+                href={`/book/${encodeURIComponent(bookId)}/listen?accessKey=${encodeURIComponent(resolvedAccessKey)}`}
+                style={{ color: '#7C3AED', fontSize: '14px', fontWeight: 600, textDecoration: 'none' }}
+              >
+                🎧 האזנה לספר כולו
+              </a>
+            </div>
+          ) : null}
           {generationSecret && currentScene && currentScene.kind === 'story' ? (
             <div className={styles.devRegenBar}>
               <button

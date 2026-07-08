@@ -1,0 +1,67 @@
+<svg viewBox="0 0 300 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="כריכת הספר">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8B5CF6"/>
+      <stop offset="0.5" stop-color="#A78BFA"/>
+      <stop offset="1" stop-color="#FCE7D6"/>
+    </linearGradient>
+    <radialGradient id="moonGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFF9E8"/>
+      <stop offset="1" stop-color="#FFE9B8"/>
+    </radialGradient>
+    <linearGradient id="hill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F6B98A"/>
+      <stop offset="1" stop-color="#EFA06B"/>
+    </linearGradient>
+  </defs>
+
+  <!-- cover -->
+  <rect x="0" y="0" width="300" height="380" rx="18" fill="url(#sky)"/>
+
+  <!-- stars -->
+  <g fill="#FFFFFF" opacity="0.9">
+    <circle cx="40" cy="48" r="2.2"/>
+    <circle cx="90" cy="30" r="1.6"/>
+    <circle cx="150" cy="55" r="1.8"/>
+    <circle cx="70" cy="95" r="1.5"/>
+    <circle cx="200" cy="120" r="1.6"/>
+    <circle cx="255" cy="150" r="2"/>
+    <circle cx="120" cy="110" r="1.4"/>
+    <circle cx="30" cy="140" r="1.6"/>
+  </g>
+
+  <!-- moon -->
+  <circle cx="228" cy="72" r="40" fill="url(#moonGlow)" opacity="0.35"/>
+  <circle cx="228" cy="72" r="30" fill="url(#moonGlow)"/>
+
+  <!-- warm hill / ground -->
+  <path d="M0 288 Q150 240 300 288 L300 380 L0 380 Z" fill="url(#hill)"/>
+  <path d="M0 300 Q150 262 300 300 L300 380 L0 380 Z" fill="#F7C79A" opacity="0.6"/>
+
+  <!-- child (simple, warm silhouette) -->
+  <g transform="translate(120 196)">
+    <!-- body -->
+    <path d="M-22 70 Q-22 24 0 24 Q22 24 22 70 Z" fill="#6D28D9"/>
+    <!-- head -->
+    <circle cx="0" cy="8" r="17" fill="#F7C6A6"/>
+    <!-- hair -->
+    <path d="M-17 4 Q-14 -12 0 -12 Q14 -12 17 4 Q8 -3 0 -3 Q-8 -3 -17 4 Z" fill="#4B2E1E"/>
+    <!-- little smile -->
+    <path d="M-6 12 Q0 17 6 12" stroke="#B5715A" stroke-width="2" fill="none" stroke-linecap="round"/>
+  </g>
+
+  <!-- companion: a glowing star friend -->
+  <g transform="translate(176 210)">
+    <circle cx="0" cy="0" r="20" fill="#FFF3C4" opacity="0.5"/>
+    <path d="M0 -15 L4.5 -4.5 L16 -4.5 L6.5 2.5 L10 13 L0 6 L-10 13 L-6.5 2.5 L-16 -4.5 L-4.5 -4.5 Z" fill="#FFD65C" stroke="#F5B72E" stroke-width="1.4"/>
+    <circle cx="-3.5" cy="-1" r="1.6" fill="#5B3A00"/>
+    <circle cx="3.5" cy="-1" r="1.6" fill="#5B3A00"/>
+    <path d="M-3 4 Q0 7 3 4" stroke="#5B3A00" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+  </g>
+
+  <!-- title -->
+  <text x="150" y="342" text-anchor="middle" direction="rtl"
+        font-family="Heebo, Arial, sans-serif" font-size="23" font-weight="800" fill="#4C1D95">הספר של נועם</text>
+  <text x="150" y="366" text-anchor="middle" direction="rtl"
+        font-family="Heebo, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#6D28D9" opacity="0.9">הרפתקה של אומץ</text>
+</svg>

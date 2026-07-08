@@ -1,0 +1,204 @@
+.screen {
+  min-height: 100vh;
+  min-height: 100dvh;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 28px 20px 20px;
+  text-align: center;
+  background: linear-gradient(180deg, #F5F2FF 0%, #EDE7FF 55%, #F7EFEA 100%);
+  font-family: 'Heebo', Arial, sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+
+.brand {
+  position: absolute;
+  top: 18px;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: #7C3AED;
+  opacity: 0.9;
+}
+
+.player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 440px;
+}
+
+.cover {
+  width: 216px;
+  height: 270px;
+  object-fit: cover;
+  border-radius: 22px;
+  box-shadow: 0 20px 44px rgba(76, 29, 149, 0.28);
+  background: #EDE7FF;
+}
+
+.coverFallback {
+  width: 216px;
+  height: 270px;
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 76px;
+  background: linear-gradient(160deg, #A78BFA, #7C3AED);
+  box-shadow: 0 20px 44px rgba(76, 29, 149, 0.28);
+}
+
+.title {
+  margin: 8px 0 0;
+  font-size: 24px;
+  line-height: 1.25;
+  font-weight: 800;
+  color: #4C1D95;
+}
+
+.counter {
+  margin: 0;
+  font-size: 14px;
+  color: #8B7EA8;
+}
+
+.timeline {
+  width: 100%;
+  margin-top: 6px;
+}
+
+/* one continuous whole-book scrubber */
+.scrubber {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: #DDD3F5;
+  outline: none;
+  cursor: pointer;
+  margin: 0;
+}
+.scrubber:disabled { opacity: 0.6; cursor: default; }
+.scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #7C3AED;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.45);
+  cursor: pointer;
+}
+.scrubber::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  background: #7C3AED;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.45);
+  cursor: pointer;
+}
+
+.times {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 13px;
+  color: #8B7EA8;
+  font-variant-numeric: tabular-nums;
+}
+
+.transport {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  margin-top: 10px;
+}
+
+.playPause {
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  border: none;
+  background: #7C3AED;
+  color: #FFFFFF;
+  font-size: 30px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(124, 58, 237, 0.4);
+  padding-inline-start: 4px; /* optical centering of the ▶ glyph */
+}
+.playPause:active { transform: scale(0.96); }
+
+.skip {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px solid #C9B8F5;
+  background: #FFFFFF;
+  color: #7C3AED;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.skip:disabled { opacity: 0.4; cursor: default; }
+.skip:active { transform: scale(0.96); }
+.skipIcon { font-size: 23px; }
+.skipNum { font-size: 10px; font-weight: 700; margin-top: -1px; }
+
+/* one-tap start overlay */
+.startOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  border: none;
+  cursor: pointer;
+  background: rgba(245, 242, 255, 0.82);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  font-family: inherit;
+}
+.startCircle {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: #7C3AED;
+  color: #FFFFFF;
+  font-size: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline-start: 5px;
+  box-shadow: 0 14px 34px rgba(124, 58, 237, 0.45);
+}
+.startLabel { font-size: 20px; font-weight: 800; color: #4C1D95; }
+.startHint { font-size: 14px; color: #7C6BA0; }
+
+.footer {
+  position: absolute;
+  bottom: 16px;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
+  font-size: 12px;
+  color: #A99EC4;
+}
+
+.dim { color: #7C6BA0; font-size: 16px; }

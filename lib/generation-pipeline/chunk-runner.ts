@@ -1894,6 +1894,7 @@ async function runPackageStage(order: Order, cache: PipelineCache): Promise<void
     order,
     deliveryGate,
     readUrl,
+    coverImageUrl: book.coverImageUrl ?? order.coverImageUrl,
     pdfUrl,
     firstAudioUrl: firstAudio,
     anchorLowConfidence: cache.childAnchorLowConfidence,

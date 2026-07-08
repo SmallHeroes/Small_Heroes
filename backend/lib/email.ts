@@ -12,6 +12,10 @@ export interface BookReadyEmailData {
   customerName: string;
   childName: string;
   readUrl: string;
+  /** Audio-only "listen mode" URL (/book/[id]/listen?accessKey=…) — the secondary CTA. */
+  listenUrl?: string;
+  /** Book cover image (prominent hero). Absent → graceful no-cover layout. */
+  coverImageUrl?: string;
   audioUrl?: string;
   pdfUrl?: string;
   /** Phase-1 Outbox: effectively-once delivery. Sent as the Resend Idempotency-Key (dedups identical for 24h). */
@@ -195,34 +199,83 @@ function buildQaWarningsEmailSection(qaWarnings: QaWarnings): string {
     </div>`;
 }
 
-function buildEmailHtml(data: BookReadyEmailData): string {
+export function buildEmailHtml(data: BookReadyEmailData): string {
+  // Escape user-supplied names before interpolation; URLs are our-constructed (readUrl/listenUrl).
+  const customer = escapeHtml(data.customerName);
+  const name = escapeHtml(data.childName);
+  const cover = data.coverImageUrl?.trim();
+
+  // Prominent cover (the "WOW"). Graceful no-cover fallback = a little breathing space instead.
+  const coverBlock = cover
+    ? `<img src="${escapeHtml(cover)}" alt="כריכת הספר" width="280" class="sh-cover" style="width:280px; max-width:80%; height:auto; border-radius:18px; box-shadow:0 16px 38px rgba(76,29,149,0.28); display:block; margin:0 auto 32px;">`
+    : `<div style="height:8px; line-height:8px; font-size:8px;">&nbsp;</div>`;
+
+  // Secondary CTA → listen mode. Rendered only when a listen URL is present (graceful).
+  const listenBlock = data.listenUrl?.trim()
+    ? `
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+                <tr>
+                  <td align="center" bgcolor="#FFFFFF" style="border-radius:999px; border:2px solid #7C3AED;">
+                    <a href="${data.listenUrl}" style="display:inline-block; padding:13px 46px; font-family:Heebo,Arial,sans-serif; font-size:15px; font-weight:600; color:#7C3AED; border-radius:999px; text-decoration:none;">${EMAIL.body.btnListen}</a>
+                  </td>
+                </tr>
+              </table>`
+    : '';
+
   return `
 <!DOCTYPE html>
 <html dir="rtl" lang="he">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: 'Heebo', Arial, sans-serif; background: #F9F7FF; margin: 0; padding: 20px; }
-    .card { background: white; border-radius: 20px; padding: 40px; max-width: 500px; margin: 0 auto; box-shadow: 0 4px 20px rgba(124,58,237,0.1); }
-    h1 { color: #7C3AED; font-size: 28px; margin-bottom: 8px; }
-    p { color: #4B5563; line-height: 1.6; }
-    .btn { display: inline-block; background: #7C3AED; color: white; padding: 14px 28px; border-radius: 999px; text-decoration: none; font-weight: bold; font-size: 16px; margin-top: 16px; }
-    .footer { text-align: center; color: #9CA3AF; font-size: 12px; margin-top: 24px; }
+    @media only screen and (max-width:620px){ .sh-card{padding:28px 20px !important;} .sh-cover{width:72% !important;} .sh-h1{font-size:26px !important;} }
+    a { text-decoration:none; }
   </style>
 </head>
-<body>
-  <div class="card">
-    <p>${EMAIL.body.greeting(data.customerName)}</p>
-    <h1>${EMAIL.body.headline(data.childName)}</h1>
-    <p>${EMAIL.body.intro(data.childName)}</p>
-    <a href="${data.readUrl}" class="btn">${EMAIL.body.btnRead}</a>
-    ${data.audioUrl ? `<br><a href="${data.audioUrl}" class="btn" style="background:#6D28D9; margin-top:8px;">${EMAIL.body.btnAudio}</a>` : ''}
-    ${data.pdfUrl ? `<br><a href="${data.pdfUrl}" class="btn" style="background:#5B21B6; margin-top:8px;">${EMAIL.body.btnPdf}</a>` : ''}
-    ${data.qaWarnings ? buildQaWarningsEmailSection(data.qaWarnings) : ''}
-    <div class="footer">
-      <p>${EMAIL.body.footer}</p>
-    </div>
-  </div>
+<body style="margin:0; padding:0; background-color:#F5F2FF; direction:rtl;">
+  <div style="display:none; max-height:0; overflow:hidden; opacity:0;">${EMAIL.body.subtitle(name)}</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F5F2FF; direction:rtl;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px; width:100%;">
+          <tr><td align="center" style="padding-bottom:16px;">
+            <span style="font-family:Heebo,Arial,sans-serif; font-size:15px; font-weight:700; letter-spacing:0.5px; color:#7C3AED;">✨ גיבורים קטנים</span>
+          </td></tr>
+        </table>
+
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" class="sh-card" style="max-width:600px; width:100%; background-color:#FFFFFF; border-radius:24px; box-shadow:0 12px 44px rgba(124,58,237,0.14); padding:44px 40px;">
+          <tr>
+            <td align="center" style="direction:rtl; text-align:center;">
+              <p style="margin:0 0 6px; font-family:Heebo,Arial,sans-serif; font-size:15px; color:#9CA3AF;">${EMAIL.body.greeting(customer)}</p>
+              <h1 class="sh-h1" style="margin:0 0 10px; font-family:Heebo,Arial,sans-serif; font-size:31px; line-height:1.2; font-weight:800; color:#6D28D9;">${EMAIL.body.headline(name)}</h1>
+              <p style="margin:0 0 28px; font-family:Heebo,Arial,sans-serif; font-size:16.5px; line-height:1.55; color:#6B7280;">${EMAIL.body.subtitle(name)}</p>
+
+              ${coverBlock}
+
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 14px;">
+                <tr>
+                  <td align="center" bgcolor="#7C3AED" style="border-radius:999px; box-shadow:0 8px 20px rgba(124,58,237,0.35);">
+                    <a href="${data.readUrl}" style="display:inline-block; padding:16px 54px; font-family:Heebo,Arial,sans-serif; font-size:17px; font-weight:700; color:#FFFFFF; border-radius:999px; text-decoration:none;">${EMAIL.body.btnRead}</a>
+                  </td>
+                </tr>
+              </table>
+              ${listenBlock}
+              ${data.qaWarnings ? buildQaWarningsEmailSection(data.qaWarnings) : ''}
+            </td>
+          </tr>
+        </table>
+
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px; width:100%;">
+          <tr><td align="center" style="padding:22px 16px 8px;">
+            <p style="margin:0; font-family:Heebo,Arial,sans-serif; font-size:12.5px; color:#9CA3AF;">${EMAIL.body.footer}</p>
+          </td></tr>
+        </table>
+
+      </td>
+    </tr>
+  </table>
 </body>
 </html>
 `;

@@ -1,5 +1,6 @@
 import type { Order, PrismaClient } from '@prisma/client';
 import { sendBookReadyEmail } from '@/backend/lib/email';
+import { listenUrlFromReadUrl } from '@/lib/routes';
 import { createLogger } from '@/lib/logger';
 import type { AnchorLowConfidence } from '@/lib/anchor-resemblance-gate';
 import { buildQaWarningsFromAnchorHold, canUseQaSoftDeliver } from '@/lib/qa-soft-deliver';
@@ -42,6 +43,8 @@ export async function finalizePackageDelivery(
     order: Pick<Order, 'id' | 'customerEmail' | 'customerName' | 'childName'>;
     deliveryGate: PackageDeliveryGate;
     readUrl: string;
+    /** Book cover for the email hero (from the caller's book scope). Optional → graceful no-cover. */
+    coverImageUrl?: string | null;
     pdfUrl: string | null;
     firstAudioUrl: string | null;
     anchorLowConfidence?: AnchorLowConfidence;
@@ -103,6 +106,8 @@ export async function finalizePackageDelivery(
         customerName: args.order.customerName ?? args.order.childName,
         childName: args.order.childName,
         readUrl: args.readUrl,
+        ...(listenUrlFromReadUrl(args.readUrl, args.order.id) ? { listenUrl: listenUrlFromReadUrl(args.readUrl, args.order.id) } : {}),
+        ...(args.coverImageUrl ? { coverImageUrl: args.coverImageUrl } : {}),
         audioUrl: args.firstAudioUrl ?? undefined,
         pdfUrl: args.pdfUrl ?? undefined,
         ...(legacySoftDeliver

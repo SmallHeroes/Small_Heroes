@@ -29,6 +29,7 @@ import {
   type ArtifactHashes,
 } from './quality-evidence';
 import { enqueueDelivery, type BookReadyPayload, type CasResult } from '@/lib/generation-chunked/delivery-outbox';
+import { listenUrlFromReadUrl } from '@/lib/routes';
 import {
   buildQaWarningsFromAnchorHold,
   buildQaWarningsFromReadinessBlock,
@@ -549,20 +550,24 @@ function buildIntegrityInput(order: OrderTruth, book: BookData, appBaseUrl: stri
  * Build the delivery payload from the exact fields that determine it. The SAME function is used at enqueue
  * time (commit) and at send time (recheck) so the payloadHash comparison is apples-to-apples. (B4)
  */
-interface PayloadSource { customerEmail: string; customerName: string | null; childName: string; readUrl: string | null; pdfUrl: string | null; firstAudioUrl: string | null }
+interface PayloadSource { customerEmail: string; customerName: string | null; childName: string; readUrl: string | null; pdfUrl: string | null; firstAudioUrl: string | null; coverImageUrl: string | null; orderId: string }
 function buildPayload(p: PayloadSource, qaWarnings?: QaWarnings): BookReadyPayload {
   return {
     to: p.customerEmail,
     customerName: p.customerName ?? p.childName,
     childName: p.childName,
     readUrl: p.readUrl ?? '',
+    // Secondary CTA (audio-only listen mode) + cover hero — derived from the same canonical readUrl/book the
+    // commit already fingerprints, so the payloadHash stays self-consistent. Absent fields → graceful email.
+    ...(listenUrlFromReadUrl(p.readUrl, p.orderId) ? { listenUrl: listenUrlFromReadUrl(p.readUrl, p.orderId) } : {}),
+    ...(p.coverImageUrl ? { coverImageUrl: p.coverImageUrl } : {}),
     audioUrl: p.firstAudioUrl ?? undefined,
     pdfUrl: p.pdfUrl ?? undefined,
     ...(qaWarnings ? { qaWarnings } : {}),
   };
 }
 function payloadSourceOf(order: OrderTruth, book: BookData): PayloadSource {
-  return { customerEmail: order.customerEmail, customerName: order.customerName, childName: order.childName, readUrl: book.readUrl, pdfUrl: book.pdfUrl, firstAudioUrl: book.firstAudioUrl };
+  return { customerEmail: order.customerEmail, customerName: order.customerName, childName: order.childName, readUrl: book.readUrl, pdfUrl: book.pdfUrl, firstAudioUrl: book.firstAudioUrl, coverImageUrl: book.coverImageUrl, orderId: order.id };
 }
 
 /** (#7-a) The combined integrity+quality decision the commit tx acts on. */
