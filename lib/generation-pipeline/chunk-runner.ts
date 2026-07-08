@@ -83,7 +83,9 @@ import {
   deriveCoverVisualContract,
   buildVisualContractPromptBlock,
   contractToQaObservability,
+  contractPageWorldExpectation,
   computeVisualContractHash,
+  type ContractPageWorldExpectation,
 } from '@/lib/visual-contract-compiler';
 import { isReadinessManifestEnabled, withDeliveryInputMutation } from './readiness-manifest';
 import { hashOperationPayload, isOutcomeUnknown, type ReceiptSafeValue } from './atomic-operation';
@@ -92,7 +94,7 @@ import {
   pageAssetOperationKey,
   contractHashPayloadFragment,
 } from './contract-hash-binding';
-import { persistDeliveredQualityEvidence, persistQualityContext } from './quality-evidence-producer';
+import { persistDeliveredQualityEvidence, persistQualityContext, type QaContext } from './quality-evidence-producer';
 import { coverArtifactKey, pageArtifactKey, makeQualityRegenReserver } from './quality-evidence';
 import { openExceptionCase } from '@/lib/generation-chunked/exception-case';
 import { finalizePackageDelivery } from './package-delivery';
@@ -225,6 +227,32 @@ function buildContractObservability(
     pageNumber,
     contractHash ?? computeVisualContractHash(contract)
   ) as unknown as Prisma.InputJsonValue;
+}
+
+/**
+ * (Slice A) The page's frozen WORLD expectation (setting + recurring-object identities + forbidden scenes) for the
+ * GATE-DRIVING delivered-bytes world QA, or null. Gated on VISUAL_CONTRACT_STEERING (like buildContractObservability
+ * above) AND a frozen contract, so with steering off the qaContext is byte-identical and no world QA runs. UNLIKE
+ * buildContractObservability (a sibling of qaContext, never gating), this is MERGED into qaContext (withWorldExpectation
+ * below) so the delivered-verdict producer runs page-world-qa against it and a hard drift fails the durable verdict.
+ */
+function buildPageWorldExpectation(
+  cache: PipelineCache,
+  pageNumber: number,
+): ContractPageWorldExpectation | null {
+  if (!isVisualContractSteeringEnabled()) return null;
+  const contract = readFrozenVisualContract(cache.visualContract);
+  if (!contract) return null;
+  return contractPageWorldExpectation(contract, pageNumber);
+}
+
+/** Merge the frozen world expectation into a page's QA context (no-op when either is absent → byte-identical). */
+function withWorldExpectation(
+  qaContext: QaContext | undefined,
+  world: ContractPageWorldExpectation | null,
+): QaContext | undefined {
+  if (!qaContext || !world) return qaContext;
+  return { ...qaContext, worldExpectation: world };
 }
 
 /**
@@ -1548,6 +1576,10 @@ async function runPageImagesChunk(
       }
     }
 
+    // (Slice A) The page's frozen WORLD expectation, merged into the QA context both writes forward so the
+    // delivered-verdict producer world-QAs the delivered bytes. null (steering off / no contract) → no-op parity.
+    const pageWorldExpectation = buildPageWorldExpectation(cache, dbPage.pageNumber);
+
     await withDeliveryInputMutation(
       prisma,
       {
@@ -1603,7 +1635,7 @@ async function runPageImagesChunk(
           orderId: order.id,
           artifactKey: pageArtifactKey(dbPage.pageNumber),
           deliveredUrl: presentationUrl ?? image.url,
-          qaContext: image.style01Meta?.pageVisualQa?.qaInput,
+          qaContext: withWorldExpectation(image.style01Meta?.pageVisualQa?.qaInput, pageWorldExpectation),
           contractHash: renderedContractHash,
         });
       },
@@ -1619,7 +1651,7 @@ async function runPageImagesChunk(
       deliveredUrl: presentationUrl ?? image.url,
       presentationApplied: presentationUrl != null,
       rawVerdict: image.style01Meta?.pageVisualQa?.verdict,
-      qaContext: image.style01Meta?.pageVisualQa?.qaInput,
+      qaContext: withWorldExpectation(image.style01Meta?.pageVisualQa?.qaInput, pageWorldExpectation),
       providerModel: image.provider,
       regenAttempts: image.style01Meta?.pageVisualQa?.regenAttempts,
       contractHash: renderedContractHash,

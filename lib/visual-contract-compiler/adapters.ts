@@ -410,3 +410,47 @@ export function contractToQaObservability(
     frozenCastExpectations,
   };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. contract → per-page WORLD-QA expectation (GATE-DRIVING — Slice A)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** The frozen setting + recurring-object identities a page must honor, for the delivered-bytes WORLD QA. */
+export interface ContractPageWorldExpectation {
+  /** The page's expected setting — the zone's description (else its location's). */
+  zoneDescription: string;
+  /** Every recurring prop with its LOCKED identity (label + design). */
+  objects: Array<{ label: string; identity: string }>;
+  /** Settings/scenes the page must NOT be (the contract's forbidden global elements). */
+  forbiddenScenes: string[];
+}
+
+/**
+ * (Slice A) Project the page's frozen WORLD expectation for the post-render gate (lib/generation-pipeline/
+ * page-world-qa). UNLIKE contractToQaObservability above — which is carried ALONGSIDE the gate and can never
+ * change a decision — THIS is gate-driving: the delivered-verdict producer runs page-world-qa against it and a
+ * hard drift (wrong_zone / recurring-object identity redesign / forbidden_scene) fails the durable verdict.
+ *
+ * General, never book-specific. `objects` is the FULL recurring-prop set with each prop's locked identity: an
+ * out-of-frame prop is not a failure (page-world-qa fails only a VISIBLE, redesigned prop), so passing them all
+ * is safe and catches an exam-chair-style identity drift regardless of per-page propState. `forbiddenScenes` are
+ * the contract's forbidden global elements — page-world-qa fails only if the page's SETTING matches one, so
+ * element-level entries stay inert.
+ *
+ * Returns null (→ no world QA, neutral) when the page is absent from the contract or has no describable setting —
+ * the same unknown→neutral rule as the other adapters, so a contract-less / steering-off render is byte-identical.
+ */
+export function contractPageWorldExpectation(
+  contract: BookVisualContract,
+  pageNumber: number,
+): ContractPageWorldExpectation | null {
+  const pc = contract.pageContracts.find((p) => p.pageNumber === pageNumber);
+  if (!pc) return null;
+  const loc = contract.locations.find((l) => l.id === pc.locationId);
+  const zone = pc.zoneId ? contract.zones.find((z) => z.id === pc.zoneId) : undefined;
+  const zoneDescription = (zone?.description ?? loc?.description ?? loc?.name ?? '').trim();
+  if (!zoneDescription) return null; // no describable setting → no world QA (neutral)
+  const objects = (contract.recurringProps ?? []).map((p) => ({ label: p.name, identity: p.description }));
+  const forbiddenScenes = contract.forbiddenGlobalElements ?? [];
+  return { zoneDescription, objects, forbiddenScenes };
+}

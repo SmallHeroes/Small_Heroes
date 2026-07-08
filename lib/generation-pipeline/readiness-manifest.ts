@@ -358,10 +358,12 @@ export interface ReadinessDeliveryPlan {
 
 export function resolveReadinessDeliveryPlan(
   args: CommitArgs,
-  decision: Pick<ReadinessDecision, 'status' | 'reason'>,
+  decision: Pick<ReadinessDecision, 'status' | 'reason' | 'contractHardHold'>,
   softDeliver: boolean,
 ): ReadinessDeliveryPlan {
-  if (decision.status === 'blocked' && softDeliver) {
+  // (Slice A) A deterministic contract-world drift can NEVER be soft-delivered — it HARD-holds for human QA, so it
+  // falls through the soft-deliver branch to the blocked default (needs_human_qa) even when QA_SOFT_DELIVER is on.
+  if (decision.status === 'blocked' && softDeliver && !decision.contractHardHold) {
     return {
       enqueued: true,
       orderStatus: 'ready',
@@ -579,6 +581,8 @@ interface ReadinessDecision {
   /** On block: which recovery case to open. quality_failed = terminal (refund); the other two = retry-scheduled. */
   blockExceptionKind: 'quality_failed' | 'infra_transient' | 'integrity_blocked' | null;
   blockClassification: string;
+  /** (Slice A) A deterministic contract-world drift is blocking → must HARD-hold; never QA_SOFT_DELIVER-eligible. */
+  contractHardHold: boolean;
 }
 
 /** The current delivered-bytes hash per artifact, taken from the integrity gate's inspect evidence (the same
@@ -613,15 +617,16 @@ function decideReadiness(integrity: IntegrityResult, quality: QualityGateResult)
       status: 'blocked', reason: integrity.reason, inputsHash, evidence,
       blockExceptionKind: transient ? 'infra_transient' : 'integrity_blocked',
       blockClassification: transient ? 'validator_transient' : 'deterministic_block',
+      contractHardHold: quality.contractHardHold,
     };
   }
   if (quality.status === 'passed') {
-    return { status: 'passed', reason: null, inputsHash, evidence, blockExceptionKind: null, blockClassification: 'passed' };
+    return { status: 'passed', reason: null, inputsHash, evidence, blockExceptionKind: null, blockClassification: 'passed', contractHardHold: quality.contractHardHold };
   }
   if (quality.status === 'failed') {
-    return { status: 'blocked', reason: quality.reason, inputsHash, evidence, blockExceptionKind: 'quality_failed', blockClassification: 'quality_failed' };
+    return { status: 'blocked', reason: quality.reason, inputsHash, evidence, blockExceptionKind: 'quality_failed', blockClassification: 'quality_failed', contractHardHold: quality.contractHardHold };
   }
-  return { status: 'blocked', reason: quality.reason, inputsHash, evidence, blockExceptionKind: 'infra_transient', blockClassification: 'quality_evidence_unknown' };
+  return { status: 'blocked', reason: quality.reason, inputsHash, evidence, blockExceptionKind: 'infra_transient', blockClassification: 'quality_evidence_unknown', contractHardHold: quality.contractHardHold };
 }
 
 async function nextRevision(tx: Tx, orderId: string, scope: string): Promise<number> {

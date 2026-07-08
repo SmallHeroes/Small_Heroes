@@ -71,6 +71,14 @@ export interface QualityGateResult {
   failedArtifacts: string[];
   /** Artifacts that are missing / stale / hash-mismatched / unknown / failed-with-budget-remaining (→ recovery). */
   unknownArtifacts: string[];
+  /**
+   * (Slice A) True when any blocking artifact FAILED on a deterministic CONTRACT-WORLD drift (reason carries a
+   * `contract_world:` tag — wrong_zone / recurring-object identity redesign / forbidden_scene). Such a block must
+   * HARD-hold for human QA and can NEVER be QA_SOFT_DELIVER-downgraded to `ready`+qaWarnings (readiness gates its
+   * soft-deliver branch on `!contractHardHold`). An UNVERIFIED world (evidence_unknown) is recoverable and does
+   * NOT set this.
+   */
+  contractHardHold: boolean;
   evidence: Record<string, unknown>;
 }
 
@@ -102,6 +110,7 @@ export function evaluateQualityGate(
   const failedArtifacts: string[] = [];
   const unknownArtifacts: string[] = [];
   const perArtifact: Record<string, unknown> = {};
+  let contractHardHold = false;
 
   for (const key of requiredKeys) {
     const row = byKey.get(key);
@@ -139,6 +148,9 @@ export function evaluateQualityGate(
       continue;
     }
     if (row.verdict === 'failed') {
+      // (Slice A) A deterministic contract-world drift must HARD-hold regardless of budget state (soft-deliver
+      // exemption) — the tag is written by the delivered-verdict producer's world overlay.
+      if (row.reason?.includes('contract_world:')) contractHardHold = true;
       if (row.regenCount >= budget) {
         failedArtifacts.push(key);
         perArtifact[key] = { state: 'failed_terminal', reason: row.reason, regenCount: row.regenCount };
@@ -165,7 +177,7 @@ export function evaluateQualityGate(
     status = 'passed';
     reason = null;
   }
-  return { status, reason, failedArtifacts, unknownArtifacts, evidence: { perArtifact, contractVersion, budget } };
+  return { status, reason, failedArtifacts, unknownArtifacts, contractHardHold, evidence: { perArtifact, contractVersion, budget } };
 }
 
 /** A stable, order-independent hash of the quality evidence — folded into the readiness inputsHash + TOCTOU

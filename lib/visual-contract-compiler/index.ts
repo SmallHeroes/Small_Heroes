@@ -111,12 +111,14 @@ export {
   contractPageSupportingCharacters,
   expectedCastIdsForPage,
   contractToQaObservability,
+  contractPageWorldExpectation,
   type ContractCastKind,
   type ContractCastRegistryEntry,
   type ContractSupportingCharacter,
   type HumanCastDetectionEntry,
   type ContractQaObservability,
   type FrozenCastExpectation,
+  type ContractPageWorldExpectation,
 } from './adapters';
 
 // ── P0 — Contract Template + Resolved (structured appearance foundation; pure — no live-path wiring yet) ──

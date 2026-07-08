@@ -17,6 +17,7 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
 import { inspectAsset, type AssetInspection } from './asset-integrity';
 import { evaluatePageVisualQa, type PageVisualQaResult } from './page-visual-qa';
+import { evaluatePageWorldQa, type PageWorldQaResult } from './page-world-qa';
 import {
   persistQualityEvidence,
   QUALITY_EVALUATOR_CONTRACT_VERSION,
@@ -34,6 +35,19 @@ export interface QaContext {
   hasStructuredObjects: boolean;
   hasRailedBedOrCrib: boolean;
   hasHumanFamily: boolean;
+  /**
+   * (Slice A) The frozen WORLD expectation for this page — its setting + recurring-object identities + forbidden
+   * scenes — present ONLY under contract steering (chunk-runner attaches it from the frozen contract). When set,
+   * the delivered-verdict producer runs page-world-qa on the delivered bytes and folds a hard drift (wrong_zone /
+   * recurring-object identity redesign / forbidden_scene) into the durable verdict. Absent → no world QA runs and
+   * the evidence blob is byte-identical (legacy / steering-off parity). Structurally matches
+   * ContractPageWorldExpectation (lib/visual-contract-compiler/adapters) — kept inline to avoid a cross-layer type dep.
+   */
+  worldExpectation?: {
+    zoneDescription: string;
+    objects: Array<{ label: string; identity: string }>;
+    forbiddenScenes: string[];
+  } | null;
 }
 
 export interface DeliveredEvidenceArgs {
@@ -69,7 +83,18 @@ export interface DeliveredEvidenceArgs {
 
 export interface ProducerDeps {
   evaluate?: (input: Parameters<typeof evaluatePageVisualQa>[0]) => Promise<PageVisualQaResult>;
+  /** (Slice A) The delivered-bytes WORLD QA — injected in tests; defaults to evaluatePageWorldQa. */
+  evaluateWorld?: (input: Parameters<typeof evaluatePageWorldQa>[0]) => Promise<PageWorldQaResult>;
   inspect?: (url: string | null | undefined) => Promise<AssetInspection>;
+}
+
+/** Severity ordering for the durable verdict — a combined verdict is the MOST severe of its inputs. */
+const VERDICT_SEVERITY: Record<QualityVerdict, number> = { passed: 0, evidence_unknown: 1, failed: 2 };
+function mostSevereVerdict(a: QualityVerdict, b: QualityVerdict): QualityVerdict {
+  return VERDICT_SEVERITY[a] >= VERDICT_SEVERITY[b] ? a : b;
+}
+function joinReasons(a: string | null, b: string): string {
+  return a && a.trim() ? `${a}+${b}` : b;
 }
 
 /**
@@ -77,19 +102,61 @@ export interface ProducerDeps {
  *  - presentation transform applied → RE-QA the delivered image (never reuse the raw verdict). Carry-in #1.
  *  - no transform (delivered == raw) → reuse the genuine in-loop verdict for the same bytes.
  * Missing url / missing context / missing raw verdict → evidence_unknown (fail-closed, never a synthesized PASS).
+ *
+ * (Slice A) WORLD overlay: when the page carries a frozen worldExpectation (contract steering only), the delivered
+ * bytes are additionally judged by page-world-qa. A hard drift (wrong_zone / recurring-object identity redesign /
+ * forbidden_scene) fails the durable verdict (reason `contract_world:<failures>`), and an UNVERIFIED world (vision
+ * error) downgrades to evidence_unknown — fail-closed, never a silent PASS. The combined verdict is the most severe
+ * of the visual and world verdicts. No worldExpectation → base verdict unchanged (legacy / steering-off parity).
  */
 async function resolveDeliveredVerdict(
   args: DeliveredEvidenceArgs,
   evaluate: NonNullable<ProducerDeps['evaluate']>,
+  evaluateWorld: NonNullable<ProducerDeps['evaluateWorld']>,
 ): Promise<{ verdict: QualityVerdict; reason: string | null }> {
   if (!args.deliveredUrl) return { verdict: 'evidence_unknown', reason: 'no_delivered_url' };
+
+  // 1. Base (visual) verdict.
+  let base: { verdict: QualityVerdict; reason: string | null };
   if (args.presentationApplied) {
     if (!args.qaContext) return { verdict: 'evidence_unknown', reason: 'qa_context_missing' };
-    const qa = await evaluate({ imageUrl: args.deliveredUrl, ...args.qaContext });
-    return { verdict: qa.verdict, reason: qa.reason };
+    // The visual evaluator does not take the world expectation — strip it before the call.
+    const { worldExpectation: _world, ...visualCtx } = args.qaContext;
+    const qa = await evaluate({ imageUrl: args.deliveredUrl, ...visualCtx });
+    base = { verdict: qa.verdict, reason: qa.reason };
+  } else {
+    if (!args.rawVerdict) return { verdict: 'evidence_unknown', reason: 'raw_verdict_missing' };
+    base = { verdict: args.rawVerdict, reason: null };
   }
-  if (!args.rawVerdict) return { verdict: 'evidence_unknown', reason: 'raw_verdict_missing' };
-  return { verdict: args.rawVerdict, reason: null };
+
+  // 2. (Slice A) World overlay — only under contract steering (a real setting to judge against). Runs on the
+  //    delivered bytes in BOTH branches so a transform-less page cannot escape the world gate.
+  const world = args.qaContext?.worldExpectation;
+  if (!world || !world.zoneDescription.trim()) return base;
+  const w = await evaluateWorld({
+    imageUrl: args.deliveredUrl,
+    zoneDescription: world.zoneDescription,
+    objects: world.objects,
+    forbiddenScenes: world.forbiddenScenes,
+  });
+  if (w.status === 'pass') return base;
+  // A PASSED base has no meaningful reason ('ok') — drop it so the composed reason stays clean.
+  const baseReason = base.verdict === 'passed' ? null : base.reason;
+  if (w.status === 'fail') {
+    const drift = [
+      ...w.hardFailures,
+      ...(w.driftObjects.length ? [`objects=${w.driftObjects.join('/')}`] : []),
+    ].join(',');
+    return {
+      verdict: mostSevereVerdict(base.verdict, 'failed'),
+      reason: joinReasons(baseReason, `contract_world:${drift}`),
+    };
+  }
+  // status === 'error' → the world could not be verified: fail-closed to evidence_unknown (never a silent PASS).
+  return {
+    verdict: mostSevereVerdict(base.verdict, 'evidence_unknown'),
+    reason: joinReasons(baseReason, 'contract_world_unverified'),
+  };
 }
 
 /**
@@ -166,8 +233,9 @@ export async function persistDeliveredQualityEvidence(
   if (!isReadinessManifestEnabled()) return; // flag OFF → legacy path unchanged
   const inspect = deps.inspect ?? inspectAsset;
   const evaluate = deps.evaluate ?? evaluatePageVisualQa;
+  const evaluateWorld = deps.evaluateWorld ?? evaluatePageWorldQa;
 
-  let { verdict, reason } = await resolveDeliveredVerdict(args, evaluate);
+  let { verdict, reason } = await resolveDeliveredVerdict(args, evaluate, evaluateWorld);
 
   // Carry-in #3: bind the verdict to the EXACT delivered bytes. If the bytes can't be hashed, the verdict can't
   // be trusted → evidence_unknown, and the empty hash guarantees a mismatch at readiness (fail-closed).

@@ -83,6 +83,7 @@ describe('readiness commit receipt binding (soft-deliver keyed)', () => {
     evidence: { quality: { perArtifact: { 'page:2': { state: 'missing' } } } },
     blockExceptionKind: 'infra_transient' as const,
     blockClassification: 'quality_evidence_unknown',
+    contractHardHold: false,
   };
   const passedDecision = {
     status: 'passed' as const,
@@ -91,6 +92,7 @@ describe('readiness commit receipt binding (soft-deliver keyed)', () => {
     evidence: {},
     blockExceptionKind: null,
     blockClassification: 'passed',
+    contractHardHold: false,
   };
 
   it('keys receipt on effective outcome, not the env flag — clean pass unchanged when flag toggles', () => {
@@ -119,6 +121,12 @@ describe('readiness commit receipt binding (soft-deliver keyed)', () => {
   it('includes scope in operationKey', () => {
     const binding = buildReadinessCommitReceiptBinding(baseArgs, 3, blockedDecision, true);
     expect(binding.operationKey).toContain(`:${BASE_BOOK_SCOPE}:`);
+  });
+
+  it('(Slice A) a contract-world hard-hold is NEVER soft-delivered — holds even with QA_SOFT_DELIVER on', () => {
+    const hardHold = { ...blockedDecision, reason: 'quality_failed:page:2', blockExceptionKind: 'quality_failed' as const, contractHardHold: true };
+    const soft = buildReadinessCommitReceiptBinding(baseArgs, 3, hardHold, true);
+    expect(soft.plan).toMatchObject({ enqueued: false, orderStatus: 'needs_human_qa', usesSoftDeliver: false });
   });
 
   it('anchor hold: same key, different payload when soft-deliver applies', () => {
