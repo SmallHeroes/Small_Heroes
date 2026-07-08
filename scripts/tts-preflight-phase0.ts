@@ -151,6 +151,12 @@ const ALL_ITEMS: Item[] = [...WORD_ITEMS, ...SENTENCES];
 // Representative subset for the voice_settings WITH-vs-WITHOUT add-on (keeps it tiny).
 const VOICE_SETTINGS_ITEM_IDS = new Set(['baerev', 'sefer', 'yuval', 'sent-homographs']);
 
+// PHASE 0 FINDING (2026-07-08): eleven_v3 REJECTS previous_text/next_text — the TTS API returns
+// 400 { code:"unsupported_model", message:"Providing previous_text or next_text is not yet supported
+// with the 'eleven_v3' model." }. So the continuity/context control is NOT AVAILABLE on v3: we do not
+// send those params (sentences render plain). Flip this to true only if a future v3 revision supports it.
+const V3_SUPPORTS_CONTEXT = false;
+
 // Fixed per-item seed so a given item uses the SAME seed across ALL its variants (differences are then
 // attributable to the input, not to v3 nondeterminism). Sample 1 reuses the seed; sample 2 shifts it to
 // expose variance. (If v3 ignores `seed`, the two samples are just independent draws — still informative.)
@@ -294,6 +300,7 @@ async function main() {
   const live = flag('live');
   const includeVoiceSettings = flag('voice-settings') || stage === '0a';
   const variantFilter = arg('variants')?.split(',').map((s) => s.trim()).filter(Boolean) as VariantId[] | undefined;
+  const itemFilter = arg('items')?.split(',').map((s) => s.trim()).filter(Boolean);
   const runId = arg('run-id') ?? new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
 
   const voices: VoiceKey[] = stage === '0a' ? ['fairy'] : ['mom', 'dad'];
@@ -303,8 +310,9 @@ async function main() {
 
   // Build the cell list (item × variant × voice × sample × voiceSettings) — skip inapplicable cells.
   type Cell = { item: Item; variant: VariantId; voice: VoiceKey; sampleIdx: number; voiceSettings: 'off' | 'on'; inputText: string };
+  const items = ALL_ITEMS.filter((i) => !itemFilter || itemFilter.includes(i.id)); // --items re-runs a subset
   const cells: Cell[] = [];
-  for (const item of ALL_ITEMS) {
+  for (const item of items) {
     const applicable = (item.kind === 'word' ? WORD_VARIANTS : SENTENCE_VARIANTS).filter(
       (v) => !variantFilter || variantFilter.includes(v)
     );
@@ -321,7 +329,7 @@ async function main() {
   }
   // Voice-settings ADD-ON (0a): a tiny WITH-vs-WITHOUT comparison on representative items (1 sample).
   if (includeVoiceSettings) {
-    for (const item of ALL_ITEMS) {
+    for (const item of items) {
       if (!VOICE_SETTINGS_ITEM_IDS.has(item.id)) continue;
       for (const variant of ['raw', 'niqqud-full'] as VariantId[]) {
         const inputText = buildInputText(item, variant);
@@ -370,7 +378,7 @@ async function main() {
     const settingsLabel = c.voiceSettings;
     const clipId = `${c.item.id}__${c.variant}__${c.voice}__vs-${settingsLabel}__s${c.sampleIdx}`;
     const mp3Rel = path.join('clips', `${clipId}.mp3`);
-    const usesContext = c.item.kind === 'sentence' && (!!c.item.prevText || !!c.item.nextText);
+    const usesContext = V3_SUPPORTS_CONTEXT && c.item.kind === 'sentence' && (!!c.item.prevText || !!c.item.nextText);
 
     const entry: ManifestEntry = {
       clipId,
@@ -422,8 +430,19 @@ async function main() {
     manifest.push(entry);
   }
 
-  fs.writeFileSync(path.join(runDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
-  fs.writeFileSync(path.join(runDir, 'player.html'), buildPlayerHtml(runId, stage, manifest));
+  // Merge into any existing manifest (so a `--items` re-run replaces just those clips and keeps the rest).
+  let finalManifest = manifest;
+  const manifestPath = path.join(runDir, 'manifest.json');
+  if (fs.existsSync(manifestPath)) {
+    try {
+      const prev = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as ManifestEntry[];
+      const byId = new Map(prev.map((e) => [e.clipId, e]));
+      for (const e of manifest) byId.set(e.clipId, e); // new entries overlay old (e.g. a fixed re-run)
+      finalManifest = [...byId.values()];
+    } catch { /* keep the fresh manifest if the old one is unreadable */ }
+  }
+  fs.writeFileSync(manifestPath, JSON.stringify(finalManifest, null, 2));
+  fs.writeFileSync(path.join(runDir, 'player.html'), buildPlayerHtml(runId, stage, finalManifest));
 
   const errors = manifest.filter((m) => m.error).length;
   console.log(`\n[tts-preflight] wrote manifest.json (${manifest.length} entries) + player.html`);

@@ -74,6 +74,16 @@ inputText, expectedReading, gloss, usesContext, mp3Path, chars, error?, resultBy
 - Linguistics (niqqud / IPA / vocalized forms) are **editable data** at the top of the script and are shown
   verbatim as `inputText` in the player, so any authoring error is visible while judging and easy to fix.
 
+## Findings so far (0a live run — 2026-07-08)
+- **`eleven_v3` does NOT support `previous_text` / `next_text`.** The TTS API returns
+  `400 { code:"unsupported_model" }`. So the continuity/context control is unavailable on v3 — the
+  harness no longer sends those params (`V3_SUPPORTS_CONTEXT = false`). (This is why the first 0a run had
+  16 errors on the two real sentences; re-rendered without context → 212/212 clean.)
+- **v3 accepts pronunciation-dictionary creation with IPA (phoneme) rules** (no error at
+  `add-from-rules`). Whether it *respects* them in `he` is Guy's ear on the `pron-dict-ipa` cells.
+- Everything else (raw, niqqud, inline `<phoneme>`, dict-alias, pause tags, voice_settings on/off)
+  generated audio — the *quality* verdict is the listening pass.
+
 ## Safety / scope
 Standalone throwaway. No prod Supabase, no order/receipt/refund/readiness, no narration-pipeline change,
 no `lib/tts-preflight/` package (that's Phase 1). Only ElevenLabs TTS calls + local file writes.
