@@ -25,6 +25,7 @@ function resolveExpectedBeatCount(order: {
   return DIRECTION_PAGE_MAP.adventure.pages;
 }
 import { sweepStaleGenerationJobs } from '@/lib/generation-chunked/sweeper';
+import { runAfterResponse } from '@/lib/generation-chunked/chain-worker';
 
 /** Prisma `@default(cuid())` — reject garbage before DB to avoid Prisma/driver 500s. */
 const ORDER_ID_RE = /^c[a-z0-9]{24}$/i;
@@ -117,7 +118,14 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    void sweepStaleGenerationJobs(3);
+    // In-deployment recovery backstop for Preview (where Vercel crons don't run): reclaim expired
+    // leases + durably re-dispatch. Run it in the SAME durable post-response window as the worker
+    // self-chain (after()) — NOT as `void` (the non-durable background-work anti-pattern that caused
+    // the stall) and NOT as a blocking `await` on this hot polling path. Fires reliably after the
+    // response is sent, with no added poll latency.
+    runAfterResponse(async () => {
+      await sweepStaleGenerationJobs(3);
+    });
 
     const order = await prisma.order.findUnique({
       where: { id: orderId },
