@@ -33,3 +33,4 @@ export {
 } from './parse';
 export { personalizePowerCardCopy } from './personalize';
 export type { PersonalizedPowerCardCopy } from './personalize';
+export { resolveCompanionHeroUrl } from './hero';

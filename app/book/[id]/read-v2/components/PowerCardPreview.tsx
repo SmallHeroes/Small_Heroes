@@ -22,45 +22,42 @@ export default function PowerCardPreview({ input, className }: Props) {
       aria-label={`כרטיס כוח: ${copy.title}`}
     >
       <div className={styles.inner}>
-        <header className={styles.header}>
+        <header className={styles.brand}>
           <span className={styles.brandMark}>גיבורים קטנים</span>
-          {input.bookTitle ? (
-            <>
-              <span aria-hidden="true">·</span>
-              <span>{input.bookTitle}</span>
-            </>
-          ) : null}
+          {input.bookTitle ? <span> · {input.bookTitle}</span> : null}
         </header>
 
-        <section className={styles.titleSection}>
-          <div className={styles.avatarWrap}>
-            <img
-              src={input.companionAvatarUrl}
-              alt=""
-              className={styles.avatar}
-              width={70}
-              height={70}
-            />
+        <section className={styles.hero}>
+          <div className={styles.heroGlow} aria-hidden="true" />
+          <div className={styles.heroFrame}>
+            {/* Full-body companion hero — the child's ACTUAL companion, per order. */}
+            <img src={input.companionHeroUrl} alt="" className={styles.heroImg} />
           </div>
+          <span className={styles.nameplate}>{input.companionName}</span>
+        </section>
+
+        <section className={styles.titles}>
           <h2 className={styles.cardTitle}>{copy.title}</h2>
           <p className={styles.cardSubtitle}>{copy.subtitle}</p>
         </section>
 
-        <ol className={styles.steps} aria-label="ארבעה צעדים">
-          {copy.steps.map((step, index) => (
-            <li key={step} className={styles.stepRow}>
-              <span className={styles.stepNumber} aria-hidden="true">
-                {index + 1}.
-              </span>
-              <span className={styles.stepText}>{step}</span>
-            </li>
-          ))}
-        </ol>
+        <section className={styles.ritual}>
+          <div className={styles.ritualLabel}>הריטואל · ארבעה צעדים</div>
+          <ol className={styles.steps} aria-label="ארבעה צעדים">
+            {copy.steps.map((step, index) => (
+              <li key={step} className={styles.stepRow}>
+                <span className={styles.stepNum} aria-hidden="true">
+                  {index + 1}
+                </span>
+                <span className={styles.stepText}>{step}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
 
-        <section className={styles.reminderSection}>
+        <section className={styles.reminder}>
           <p className={styles.reminderQuote}>&ldquo;{copy.companionReminder}&rdquo;</p>
-          <p className={styles.companionAttribution}>— {input.companionName}</p>
-          <div className={styles.bottomDivider} aria-hidden="true" />
+          <p className={styles.reminderBy}>— {input.companionName}</p>
         </section>
       </div>
     </article>

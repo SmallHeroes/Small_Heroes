@@ -8,6 +8,7 @@ import {
   GOLDEN_SHELF_STORY_DIR,
   paletteForDirection,
   parseAndValidateStoryPowerCard,
+  resolveCompanionHeroUrl,
   resolvePowerCard,
   type PowerCardRenderInput,
 } from '@/lib/power-cards';
@@ -65,13 +66,14 @@ async function loadSampleInput(config: SampleConfig): Promise<PowerCardRenderInp
   const directionMatch = config.slug.match(/_(bedtime|adventure|fantasy)$/);
   const direction = (directionMatch?.[1] ?? 'bedtime') as 'bedtime' | 'adventure' | 'fantasy';
   const companion = getCompanionById(companionId);
+  if (!companion) throw new Error(`dev sample: unknown companion "${companionId}"`);
 
   return {
     spec: resolved,
     childName: config.childName,
     childGender: config.childGender,
-    companionName: COMPANION_SHORT_NAMES[companionId] ?? companion?.name ?? companionId,
-    companionAvatarUrl: companion?.image ?? '/companions/bolly_armadillo/reference.jpg',
+    companionName: COMPANION_SHORT_NAMES[companionId] ?? companion.name,
+    companionHeroUrl: resolveCompanionHeroUrl(companion),
     palette: paletteForDirection(direction),
     bookTitle: config.bookTitle,
   };

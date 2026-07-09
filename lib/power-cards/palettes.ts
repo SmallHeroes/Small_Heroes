@@ -7,6 +7,8 @@ export type PowerCardPaletteTokens = {
   textSecondary: string;
   accent: string;
   borderGlow: string;
+  /** Hero art-window background — a warm cream on every palette so the companion's cream-ground art always reads. */
+  frame: string;
 };
 
 export const POWER_CARD_PALETTES: Record<PowerCardPalette, PowerCardPaletteTokens> = {
@@ -17,6 +19,7 @@ export const POWER_CARD_PALETTES: Record<PowerCardPalette, PowerCardPaletteToken
     textSecondary: '#5f5a70',
     accent: '#886cff',
     borderGlow: 'rgba(255, 238, 108, 0.55)',
+    frame: '#FFFCF1',
   },
   'earth-warm': {
     bg: '#FFFCF1',
@@ -25,6 +28,7 @@ export const POWER_CARD_PALETTES: Record<PowerCardPalette, PowerCardPaletteToken
     textSecondary: '#5f5a70',
     accent: '#886cff',
     borderGlow: 'rgba(255, 238, 108, 0.5)',
+    frame: '#FFFCF1',
   },
   'magical-cool': {
     bg: '#1e1b4b',
@@ -33,6 +37,7 @@ export const POWER_CARD_PALETTES: Record<PowerCardPalette, PowerCardPaletteToken
     textSecondary: '#c4b5fd',
     accent: '#a78bfa',
     borderGlow: 'rgba(167, 139, 250, 0.4)',
+    frame: '#FBF7EE',
   },
 } as const;
 
@@ -53,5 +58,6 @@ export function paletteCssVars(palette: PowerCardPalette): Record<string, string
     '--pc-text-secondary': tokens.textSecondary,
     '--pc-accent': tokens.accent,
     '--pc-border-glow': tokens.borderGlow,
+    '--pc-frame': tokens.frame,
   };
 }

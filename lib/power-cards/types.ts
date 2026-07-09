@@ -26,7 +26,8 @@ export interface PowerCardRenderInput {
   childName: string;
   childGender: 'male' | 'female';
   companionName: string;
-  companionAvatarUrl: string;
+  /** Full-body companion hero image (hi-res cardImage sheet, else the full-body reference) — per-order, never a shared default. */
+  companionHeroUrl: string;
   palette: PowerCardPalette;
   bookTitle?: string;
 }

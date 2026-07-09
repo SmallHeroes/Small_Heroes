@@ -1,167 +1,206 @@
+/*
+ * Power Card — redesigned (full-body companion hero, premium 3:5 keepsake).
+ * All inner sizes are in `cqw` (1cqw = 1% of the card's own width) so the SAME rules render identically in the
+ * responsive reader preview (fluid width) and the fixed 1500px export (buildPowerCardHtml) — that is the PNG/PDF
+ * parity contract. Palette + hero come in as inline CSS vars (paletteCssVars → --pc-*; the hero via <img>).
+ */
 .card {
-  --pc-bg: #FFFCF1;
-  --pc-bg-gradient: linear-gradient(180deg, #fffbe8 0%, #ffffff 92%);
-  --pc-text-primary: #18171a;
-  --pc-text-secondary: #5f5a70;
-  --pc-accent: #886cff;
-  --pc-border-glow: rgba(255, 238, 108, 0.55);
-
+  container-type: inline-size;
   position: relative;
   box-sizing: border-box;
   width: 100%;
-  max-width: 360px;
-  border-radius: 20px;
+  max-width: 384px;
+  aspect-ratio: 3 / 5;            /* taller-than-A5 keepsake so the full-body hero seats without crowding */
+  border-radius: 7.8cqw;
   overflow: hidden;
   background: var(--pc-bg-gradient);
   color: var(--pc-text-primary);
   font-family: var(--font-heebo), Heebo, sans-serif;
   direction: rtl;
-  text-align: center;
   box-shadow:
-    0 0 0 1px var(--pc-border-glow),
-    0 12px 32px rgba(136, 108, 255, 0.1);
+    0 0 0 0.27cqw var(--pc-border-glow),
+    0 7.3cqw 15.6cqw -5.2cqw rgba(60, 40, 110, 0.35),
+    0 2.1cqw 5.2cqw -3.1cqw rgba(60, 40, 110, 0.25);
   display: flex;
-  flex-direction: column;
+}
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(120% 55% at 50% 0%, rgba(255, 255, 255, 0.5), transparent 55%);
 }
 
 .inner {
   position: relative;
   z-index: 1;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  padding: 16px 14px 18px;
+  padding: 4.7cqw 5.7cqw 4.2cqw;
 }
 
-.header {
+.brand {
   flex: 0 0 auto;
-  min-height: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35em;
-  font-size: clamp(9px, 2.4vw, 11px);
+  text-align: center;
+  font-size: 2.86cqw;
   font-weight: 500;
-  color: var(--pc-text-secondary);
   letter-spacing: 0.04em;
+  color: var(--pc-text-secondary);
 }
-
 .brandMark {
   color: var(--pc-accent);
-  font-weight: 600;
+  font-weight: 700;
 }
 
-.titleSection {
-  flex: 0 1 auto;
+/* HERO — the companion is the hero; flex-grow fills the space the fixed rows leave. */
+.hero {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 2.6cqw 0 1.6cqw;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.45em;
-  padding: 8px 0 10px;
+  justify-content: center;
 }
-
-.avatarWrap {
-  width: clamp(84px, 22vw, 104px);
-  height: clamp(84px, 22vw, 104px);
-  border-radius: 50%;
-  padding: 3px;
-  background: linear-gradient(145deg, #ffee6c, rgba(136, 108, 255, 0.35) 70%);
-  box-shadow: 0 10px 24px rgba(136, 108, 255, 0.14);
+.heroGlow {
+  position: absolute;
+  inset: 3% 12%;
+  z-index: 0;
+  background: radial-gradient(50% 46% at 50% 46%, color-mix(in srgb, var(--pc-accent) 30%, transparent), transparent 72%);
+  filter: blur(1.6cqw);
 }
-
-.avatar {
+.heroFrame {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  aspect-ratio: 1024 / 1536;      /* portrait window matching the companion art — object-fit: contain fills it */
+  max-width: 100%;
+  border-radius: 5.7cqw;
+  background: var(--pc-frame);
+  box-shadow: inset 0 0 0 0.27cqw rgba(136, 108, 255, 0.14), 0 2.6cqw 6.8cqw -3.1cqw rgba(60, 40, 110, 0.4);
+  overflow: hidden;
+}
+.heroImg {
   width: 100%;
   height: 100%;
-  border-radius: 50%;
-  object-fit: cover;
+  object-fit: contain;            /* FULL companion — body + markings, nothing cropped */
   display: block;
-  background: var(--pc-bg);
+}
+.heroFrame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.26), transparent 28%);
+}
+.nameplate {
+  position: absolute;
+  z-index: 2;
+  bottom: -2.9cqw;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--pc-accent);
+  color: #fff;
+  font-size: 3.1cqw;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 1.3cqw 3.9cqw;
+  border-radius: 999px;
+  box-shadow: 0 2.1cqw 4.7cqw -1.6cqw color-mix(in srgb, var(--pc-accent) 60%, transparent);
+  white-space: nowrap;
 }
 
+.titles {
+  flex: 0 0 auto;
+  text-align: center;
+  margin-top: 3.9cqw;
+}
 .cardTitle {
   margin: 0;
-  font-size: clamp(13px, 3.6vw, 16px);
-  font-weight: 600;
-  line-height: 1.2;
+  font-size: 5.7cqw;
+  font-weight: 700;
+  line-height: 1.16;
+  letter-spacing: -0.01em;
   color: var(--pc-text-primary);
+  text-wrap: balance;
 }
-
 .cardSubtitle {
-  margin: 0;
-  font-size: clamp(10px, 2.6vw, 11px);
+  margin: 1.3cqw 0 0;
+  font-size: 3.5cqw;
   font-weight: 400;
-  line-height: 1.28;
   color: var(--pc-text-secondary);
 }
 
-.steps {
-  flex: 1 1 auto;
+.ritual {
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
-  gap: 0.45rem;
-  padding: 4px 0 8px;
-  margin: 0;
-  min-height: 0;
-  list-style: none;
-  text-align: right;
+  gap: 1.8cqw;
+  margin-top: 3.7cqw;
 }
-
+.ritualLabel {
+  font-size: 2.6cqw;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--pc-accent);
+  text-align: center;
+  text-transform: uppercase;
+}
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.6cqw;
+}
 .stepRow {
   display: flex;
-  align-items: flex-start;
-  gap: 0.45rem;
-  font-size: clamp(10px, 2.9vw, 12px);
-  line-height: 1.4;
+  align-items: center;
+  gap: 2.9cqw;
+  text-align: right;
+}
+.stepNum {
+  flex: 0 0 auto;
+  width: 6cqw;
+  height: 6cqw;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--pc-accent) 13%, transparent);
+  color: var(--pc-accent);
+  font-size: 3.26cqw;
+  font-weight: 700;
+}
+.stepText {
+  flex: 1 1 auto;
+  font-size: 3.5cqw;
+  font-weight: 500;
+  line-height: 1.25;
   color: var(--pc-text-primary);
 }
 
-.stepNumber {
+.reminder {
   flex: 0 0 auto;
-  width: 1.25rem;
-  font-weight: 600;
-  color: var(--pc-accent);
+  margin-top: 3.1cqw;
   text-align: center;
+  background: color-mix(in srgb, var(--pc-accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--pc-accent) 18%, transparent);
+  border-radius: 3.9cqw;
+  padding: 2.3cqw 3.7cqw;
 }
-
-.stepText {
-  flex: 1 1 auto;
-}
-
-.reminderSection {
-  flex: 0 0 auto;
-  padding: 8px 0 0;
-  font-size: clamp(9px, 2.5vw, 11px);
-  line-height: 1.4;
-  color: var(--pc-text-secondary);
-}
-
 .reminderQuote {
   margin: 0;
-  font-style: italic;
-}
-
-.companionAttribution {
-  margin: 0.25rem 0 0;
-  font-size: clamp(9px, 2.4vw, 10px);
-  font-style: normal;
+  font-size: 3.4cqw;
   font-weight: 500;
-  color: var(--pc-accent);
+  font-style: italic;
+  line-height: 1.35;
+  color: var(--pc-text-primary);
 }
-
-.bottomDivider {
-  width: 36%;
-  max-width: 96px;
-  height: 1px;
-  margin: 0.45rem auto 0;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    var(--pc-border-glow) 20%,
-    var(--pc-accent) 50%,
-    var(--pc-border-glow) 80%,
-    transparent
-  );
-  opacity: 0.65;
+.reminderBy {
+  margin: 1cqw 0 0;
+  font-size: 2.86cqw;
+  font-weight: 700;
+  color: var(--pc-accent);
 }

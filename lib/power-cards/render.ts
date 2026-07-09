@@ -4,10 +4,18 @@ import chromium from '@sparticuz/chromium';
 import puppeteer, { type Browser } from 'puppeteer-core';
 import {
   buildPowerCardHtml,
-  POWER_CARD_EXPORT_HEIGHT_PX,
-  POWER_CARD_EXPORT_WIDTH_PX,
+  POWER_CARD_CARD_HEIGHT_PX,
+  POWER_CARD_CARD_WIDTH_PX,
+  POWER_CARD_EXPORT_SCALE,
 } from './template';
 import type { PowerCardRenderInput } from './types';
+
+// Lay the card out small (paints reliably) and rasterize up via deviceScaleFactor → a crisp 1500×2500 PNG.
+const EXPORT_VIEWPORT = {
+  width: POWER_CARD_CARD_WIDTH_PX,
+  height: POWER_CARD_CARD_HEIGHT_PX,
+  deviceScaleFactor: POWER_CARD_EXPORT_SCALE,
+} as const;
 
 function resolveAppBaseUrl(): string {
   const raw =
@@ -23,11 +31,7 @@ async function launchBrowser(): Promise<Browser> {
   if (isServerless) {
     return puppeteer.launch({
       args: chromium.args,
-      defaultViewport: {
-        width: POWER_CARD_EXPORT_WIDTH_PX,
-        height: POWER_CARD_EXPORT_HEIGHT_PX,
-        deviceScaleFactor: 1,
-      },
+      defaultViewport: EXPORT_VIEWPORT,
       executablePath: await chromium.executablePath(),
       headless: true,
     });
@@ -45,11 +49,7 @@ async function launchBrowser(): Promise<Browser> {
   return puppeteer.launch({
     headless: true,
     executablePath,
-    defaultViewport: {
-      width: POWER_CARD_EXPORT_WIDTH_PX,
-      height: POWER_CARD_EXPORT_HEIGHT_PX,
-      deviceScaleFactor: 1,
-    },
+    defaultViewport: EXPORT_VIEWPORT,
   });
 }
 
@@ -61,27 +61,25 @@ export async function renderPowerCard(
 
   try {
     const page = await browser.newPage();
-    await page.setViewport({
-      width: POWER_CARD_EXPORT_WIDTH_PX,
-      height: POWER_CARD_EXPORT_HEIGHT_PX,
-      deviceScaleFactor: 1,
-    });
+    await page.setViewport(EXPORT_VIEWPORT);
     await page.setContent(html, { waitUntil: 'load' });
     await page.evaluate(() => document.fonts.ready);
 
     const [pngRaw, pdfRaw] = await Promise.all([
       page.screenshot({
+        // clip is in CSS px; deviceScaleFactor (EXPORT_VIEWPORT) rasterizes it up to 1500×2500.
         type: 'png',
         clip: {
           x: 0,
           y: 0,
-          width: POWER_CARD_EXPORT_WIDTH_PX,
-          height: POWER_CARD_EXPORT_HEIGHT_PX,
+          width: POWER_CARD_CARD_WIDTH_PX,
+          height: POWER_CARD_CARD_HEIGHT_PX,
         },
       }),
       page.pdf({
-        width: '148mm',
-        height: '210mm',
+        // 3:5 keepsake at 300 DPI (1500×2500px = 5in × 8.333in) — matches the PNG canvas + the reader preview.
+        width: '5in',
+        height: '8.3333in',
         printBackground: true,
         preferCSSPageSize: true,
         margin: { top: 0, right: 0, bottom: 0, left: 0 },
