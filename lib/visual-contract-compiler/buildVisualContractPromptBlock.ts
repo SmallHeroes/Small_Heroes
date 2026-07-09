@@ -32,6 +32,41 @@ export function buildVisualContractPromptBlock(
     .filter(Boolean)
     .join('; ');
 
+  // (Slice B) resolve a castId → display name (child/companion name, else the human's role) for BODY STATE/LATERALITY.
+  const castName = (id: string): string => {
+    if (id === contract.cast.child.id) return contract.cast.child.name ?? 'the child';
+    if (id === contract.cast.companion?.id) return contract.cast.companion.name ?? 'the companion';
+    return contract.humanCast?.find((h) => h.id === id)?.role ?? id;
+  };
+
+  // (Slice B) PERSISTENT PROP identity (material / scale-to-child / persistence) for the page's recurring props.
+  const persistentProp = (page.propState ?? [])
+    .map((p) => {
+      const rp = contract.recurringProps.find((x) => x.id === p.propId);
+      const bits = [rp?.material, rp?.scale, rp?.persistence].filter((b): b is string => !!b && !!b.trim());
+      return bits.length ? `${rp?.name ?? p.propId} = ${bits.join('; ')}` : null;
+    })
+    .filter((s): s is string => s != null)
+    .join(' | ');
+
+  // (Slice B) per-(page,castId) BODY STATE (e.g. "seated on the exam chair") and LATERALITY (injection/bandage arm).
+  const bodyState = (page.castStates ?? [])
+    .filter((s) => s.bodyState?.trim())
+    .map((s) => `${castName(s.castId)} ${s.bodyState!.trim()}`)
+    .join('; ');
+  const laterality = (page.castStates ?? [])
+    .map((s) => {
+      const bits: string[] = [];
+      if (s.injectionArm) bits.push(`injection on the ${s.injectionArm} arm`);
+      if (s.bandageArm) bits.push(`bandage on the ${s.bandageArm} arm`);
+      if (s.freeHand) bits.push(`holds the parent's hand with the ${s.freeHand} hand`);
+      return bits.length ? `${castName(s.castId)}: ${bits.join(', ')}` : null;
+    })
+    .filter((s): s is string => s != null)
+    .join('; ');
+
+  const zoneGeometry = (page.zoneStableGeometry ?? []).join('; ');
+
   const sameLocationNote =
     page.sameLocationAs != null
       ? `This is the SAME place as page ${page.sameLocationAs}; only the camera angle/action changes — do NOT change the setting.`
@@ -53,6 +88,12 @@ export function buildVisualContractPromptBlock(
     line('MUST SHOW', (page.mustShow ?? []).join('; ') || undefined),
     line('MUST NOT SHOW (never render)', (page.mustNotShow ?? []).join('; ') || undefined),
     line('CAMERA / ACTION', page.camera),
+    // (Slice B) Authored steering fields — each omitted (line() → null) when unauthored, so the block is byte-identical
+    // for contracts that do not use them. They are contract statements → protected by the AUTHORITY closer below.
+    line('STABLE GEOMETRY', zoneGeometry || undefined),
+    line('PERSISTENT PROP', persistentProp || undefined),
+    line('BODY STATE', bodyState || undefined),
+    line('LATERALITY', laterality || undefined),
     'AUTHORITY: imageDirection may influence camera angle and action ONLY. It may NEVER change the location, zone, cast, wardrobe, or introduce any MUST-NOT-SHOW element. Where they conflict, THIS contract wins.',
   ];
 

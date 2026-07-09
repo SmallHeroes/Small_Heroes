@@ -69,6 +69,13 @@ export interface VisualZone {
   description: string;
   /** Optional default shot/framing hint for the zone. */
   shot?: string;
+  /**
+   * vNext (Slice B): stable per-zone SET GEOMETRY — the parts of this zone's set that must stay put across every
+   * page in the zone (door type/placement, wall/decal layout, cabinets/furniture, floor cues). Additive + OPTIONAL:
+   * OMIT the key entirely when unauthored (NEVER `[]` or `null`) so a contract without it hashes byte-identical.
+   * Emitted per-page via the authoritative contract prompt block (page → its own zone → geometry) — no cross-zone leak.
+   */
+  stableGeometry?: string[];
 }
 
 /** A locked outfit for a cast member — the contract's wardrobe authority. */
@@ -98,12 +105,47 @@ export interface RecurringProp {
   id: string;
   name: string;
   description: string;
+  /**
+   * vNext (Slice B): stable MATERIAL / finish of this prop (e.g. "padded medical vinyl seat, metal base"). Additive +
+   * OPTIONAL — OMIT when unauthored (never `null`) so the contract hash stays byte-identical.
+   */
+  material?: string;
+  /**
+   * vNext (Slice B): stable SCALE, expressed relative to the child where possible (e.g. "the seat reaches the child's
+   * chest — the 'sitting mountain'"). Additive + OPTIONAL; omit when unauthored.
+   */
+  scale?: string;
+  /**
+   * vNext (Slice B): identity-PERSISTENCE note — the SAME object wherever it appears (e.g. "the identical chair on
+   * every exam-room page; never redesigned or re-materialed"). Additive + OPTIONAL; omit when unauthored.
+   */
+  persistence?: string;
 }
 
 /** Per-page state of a recurring prop (e.g. the gate `closed` → `open`). */
 export interface PagePropState {
   propId: string;
   state: string;
+}
+
+/** vNext (Slice B): left/right laterality — a closed enum so it can be checked for cross-page consistency. */
+export type Laterality = 'left' | 'right';
+
+/**
+ * vNext (Slice B): per-(page, castId) BODY STATE + LATERALITY. `castId` shares the `castIds` id space (it MUST
+ * resolve to `cast.child.id`, `cast.companion?.id`, or a `humanCast[].id`). All fields additive + OPTIONAL — omit a
+ * field (or the whole entry / the whole `castStates` key) when unauthored so the contract hash stays byte-identical.
+ */
+export interface PageCastState {
+  castId: string;
+  /** e.g. "seated on the examination chair (not on the floor)". */
+  bodyState?: string;
+  /** The arm receiving the injection. */
+  injectionArm?: Laterality;
+  /** The arm the bandage is on — MUST equal `injectionArm` across the procedure pages (the laterality continuity). */
+  bandageArm?: Laterality;
+  /** The hand holding the parent's hand — the OTHER arm from the injection/bandage. */
+  freeHand?: Laterality;
 }
 
 /** Which declared cast members appear on a page. */
@@ -159,6 +201,12 @@ export interface PageVisualContract {
   castIds?: string[];
   /** vNext: this page's zone-transition state (defaults to `steady` when absent). Additive. */
   transition?: PageTransition;
+  /**
+   * vNext (Slice B): per-(page, castId) BODY STATE + LATERALITY (see PageCastState). Steers "child seated on the
+   * exam chair, not on the floor" and the injection↔bandage same-arm continuity. Additive + OPTIONAL — omit the key
+   * when unauthored so the contract hash stays byte-identical.
+   */
+  castStates?: PageCastState[];
 }
 
 /** The cover is the book's promise — its own contract (QA enforced in 1B). */

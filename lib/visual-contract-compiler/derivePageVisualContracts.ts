@@ -22,6 +22,8 @@ export interface ResolvedPageContract extends PageVisualContract {
   childWardrobeLock: string;
   locationName: string;
   zoneName?: string;
+  /** (Slice B) The page's own zone stableGeometry, resolved for the authoritative prompt block (per-page → no leak). */
+  zoneStableGeometry?: string[];
 }
 
 function uniq(values: string[]): string[] {
@@ -47,6 +49,8 @@ export function derivePageVisualContracts(contract: BookVisualContract): Resolve
         companionWardrobeLock: page.characterPresence.companion ? companionWardrobeLock : undefined,
         locationName: location?.name ?? page.locationId,
         zoneName: zone?.name,
+        // (Slice B) each page carries ONLY its own zone's geometry → the prompt block emits per-page, no cross-zone leak.
+        zoneStableGeometry: zone?.stableGeometry,
       };
     })
     .sort((a, b) => a.pageNumber - b.pageNumber);

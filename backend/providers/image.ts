@@ -3353,6 +3353,10 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
   const styleRefPaths = input.contractStyleRefEnvironment
     ? resolveStyle01RefPathsForEnvironmentLock(input.contractStyleRefEnvironment, styleRefCount)
     : resolveStyle01StyleReferencePaths(sceneClass, styleRefCount);
+  // (Slice B) PROTECT tier seam — approved contract zone/prop set reference sheets. EMPTY here; Slice C (render-gated)
+  // fills it from the approved set/prop sheets. An empty array is a pure no-op: refs, breakdown, budget, manifest, and
+  // the persisted style01Meta.referenceBreakdown stay byte/behavior-identical to today.
+  const protectedSetSheetPaths: string[] = [];
   const { paths: referenceImages, breakdown } = assembleStyle01BookReferencesWithZoneSheets({
     styleRefPaths,
     childPhotoPath: refConfig === 'C' ? undefined : childPhotoPath,
@@ -3363,6 +3367,7 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     useMultiCompanionSheets,
     isolatedObjectRefPaths: appearanceBoardPath ? [] : setRefSelection.selected,
     setAppearanceBoardPath: appearanceBoardPath,
+    protectedSetRefPaths: protectedSetSheetPaths,
   });
 
   // (WS0b location authority) Prepend the AUTHORITATIVE contract block (when present) so the frozen contract

@@ -83,6 +83,11 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
     }
     if (!zoneByLocation.has(z.locationId)) zoneByLocation.set(z.locationId, new Set());
     zoneByLocation.get(z.locationId)!.add(z.id);
+    // (Slice B) optional per-zone stableGeometry — OMIT when unauthored; if present it must be a NON-EMPTY string[] of
+    // non-empty strings (an authored `[]`/`null` is rejected so the omit-when-unauthored hash invariant is enforced).
+    if (z.stableGeometry !== undefined && !(Array.isArray(z.stableGeometry) && z.stableGeometry.length > 0 && z.stableGeometry.every(isStr))) {
+      errors.push(`zone "${z.id}" stableGeometry must be a non-empty string[] of non-empty strings when present`);
+    }
   });
 
   // Cast — child mandatory with a wardrobe.
@@ -102,6 +107,18 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
     }
   }
 
+  // (Slice B) The valid cast-id space (child + companion + recurring humans) — used to resolve castStates below.
+  const castIdSet = new Set<string>();
+  if (cast) {
+    const childC = isObj(cast.child) ? cast.child : undefined;
+    if (childC && isStr(childC.id)) castIdSet.add(childC.id);
+    const compC = isObj(cast.companion) ? cast.companion : undefined;
+    if (compC && isStr(compC.id)) castIdSet.add(compC.id);
+  }
+  (Array.isArray(c.humanCast) ? c.humanCast : []).forEach((h) => {
+    if (isObj(h) && isStr(h.id)) castIdSet.add(h.id);
+  });
+
   // Recurring props — collect ids for propState validation.
   const propIds = new Set<string>();
   const props = Array.isArray(c.recurringProps) ? c.recurringProps : [];
@@ -111,6 +128,12 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
       return;
     }
     propIds.add(p.id);
+    // (Slice B) optional identity fields — OMIT when unauthored; each must be a non-empty string when present.
+    for (const k of ['material', 'scale', 'persistence'] as const) {
+      if (p[k] !== undefined && !isStr(p[k])) {
+        errors.push(`recurringProps[${i}] (${p.id}) ${k} must be a non-empty string when present`);
+      }
+    }
   });
 
   // Cover contract — must point at a real location.
@@ -156,6 +179,32 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
           errors.push(`${label} propState references unknown propId "${ps.propId}"`);
         }
       });
+    }
+    // (Slice B) optional per-(page,castId) body-state / laterality — OMIT the key when unauthored. When present:
+    // an array whose entries have a castId resolving to a declared cast member, a string bodyState, and 'left'/'right'
+    // laterality (injectionArm/bandageArm/freeHand). A malformed value fails closed at load AND at freeze.
+    if (pc.castStates !== undefined) {
+      if (!Array.isArray(pc.castStates)) {
+        errors.push(`${label}.castStates must be an array when present`);
+      } else {
+        (pc.castStates as unknown[]).forEach((cs, j) => {
+          if (!isObj(cs) || !isStr(cs.castId)) {
+            errors.push(`${label}.castStates[${j}].castId missing`);
+            return;
+          }
+          if (castIdSet.size > 0 && !castIdSet.has(cs.castId)) {
+            errors.push(`${label}.castStates[${j}] references unknown castId "${cs.castId}"`);
+          }
+          if (cs.bodyState !== undefined && !isStr(cs.bodyState)) {
+            errors.push(`${label}.castStates[${j}].bodyState must be a non-empty string when present`);
+          }
+          for (const k of ['injectionArm', 'bandageArm', 'freeHand'] as const) {
+            if (cs[k] !== undefined && cs[k] !== 'left' && cs[k] !== 'right') {
+              errors.push(`${label}.castStates[${j}].${k} must be 'left' or 'right' when present`);
+            }
+          }
+        });
+      }
     }
   });
 

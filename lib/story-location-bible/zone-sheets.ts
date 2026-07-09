@@ -275,9 +275,17 @@ export function assembleStyle01BookReferencesWithZoneSheets(input: {
   isolatedObjectRefPaths?: string[];
   /** J2.5 — single set-appearance board replaces per-object refs when present */
   setAppearanceBoardPath?: string | null;
+  /**
+   * (Slice B) PROTECT tier — approved contract zone/prop SET reference sheets. Sits ABOVE style in ref priority so
+   * style refs can never evict it. EMPTY this slice (the sheets are a render-gated Slice C step); an empty/absent
+   * array is a pure no-op — paths, breakdown, and eviction stay byte/behavior-identical to today.
+   */
+  protectedSetRefPaths?: string[];
 }): { paths: string[]; breakdown: Record<string, string[]> } {
   const base = assembleStyle01BookReferences(input);
   const boardPath = input.setAppearanceBoardPath?.trim();
+  // (Slice B) the PROTECT bucket (Slice C fills it). Empty here → spreads to nothing below.
+  const protectedSetRefs = (input.protectedSetRefPaths ?? []).filter(Boolean);
   const objectPaths = boardPath
     ? [boardPath]
     : (
@@ -293,6 +301,10 @@ export function assembleStyle01BookReferencesWithZoneSheets(input: {
     isolatedObjects: objectPaths,
     setAppearanceBoard: boardPath ? [boardPath] : [],
   };
+  // (Slice B) Add the PROTECT bucket to the breakdown ONLY when non-empty, so JSON.stringify(breakdown) — the manifest
+  // log + the persisted style01Meta.referenceBreakdown — stays byte-identical while the slot is empty; the key first
+  // appears once Slice C populates the sheets.
+  if (protectedSetRefs.length) breakdown.contractSetSheets = protectedSetRefs;
 
   // Single source of truth for ref ordering AND priority. Protected tier (never trimmed): child
   // anchor + companion lock + the set-appearance board (the room anchor). Only style refs drop under
@@ -303,6 +315,7 @@ export function assembleStyle01BookReferencesWithZoneSheets(input: {
     ...breakdown.child,
     ...breakdown.companion,
     ...breakdown.setAppearanceBoard, // PROTECTED — same tier as child/companion identity refs
+    ...protectedSetRefs, // (Slice B) PROTECTED contract set/prop sheets — never trimmed (empty this slice → no-op)
     ...breakdown.objectAnchors,
     ...breakdown.otherCharacters,
     ...breakdown.style, // first (and only) tier to drop under budget pressure

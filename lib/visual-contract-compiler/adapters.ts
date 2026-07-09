@@ -13,6 +13,7 @@
 import type {
   BookVisualContract,
   PageVisualContract,
+  PageCastState,
   VisualLocation,
   EnvironmentClass,
 } from './types';
@@ -55,14 +56,14 @@ function toLocationZone(
   return {
     id: zone.id,
     description: zone.description,
-    // (WS0b P1-2c) EMPTY, unconditionally. The location `topology` is the inter-zone ADJACENCY ("waiting room adjoins
-    // the exam room"), NOT the zone's OWN geometry — and it IS consumed (my earlier "UNCONSUMED" note was WRONG):
-    // scene-memory's stableFactsFromZoneGeometry (seed.ts) reads zone.stableGeometry when a MULTI-zone book has no
-    // setTopology and emits it as a SCENE MEMORY LOCK on EVERY page (the P1-2 leak — via a path the direct block-level
-    // test bypassed). Other readers: zone-object-reference-sheet.ts (STABLE GEOMETRY line) + style02-gptimage.ts
-    // (classifier haystack). A genuine 1-loc/1-zone story still gets its geometry via the SET TOPOLOGY LOCK
-    // (bible.setTopology, independent of this). Leave empty until real PER-ZONE geometry authoring exists (the contract
-    // has none today; zone geometry rides on `description`).
+    // (WS0b P1-2c / Slice B) STILL EMPTY here. VisualZone.stableGeometry authoring now exists (Slice B), but this
+    // adapter output feeds scene-memory's stableFactsFromZoneGeometry (seed.ts), which FLATTENS every zone's geometry
+    // into ONE book-wide SCENE MEMORY LOCK emitted on EVERY page (the P1-2 leak). Its per-page fix lives in
+    // lib/scene-memory/* + lib/story-location-bible/compose.ts — OUTSIDE Slice B's allowed files. So authored zone
+    // geometry is instead steered PER-PAGE through the authoritative CONTRACT PROMPT BLOCK
+    // (buildVisualContractPromptBlock → each page emits only its OWN resolved zone's geometry — no cross-zone leak),
+    // and this projection stays [] so the scene-memory path is byte/behavior-identical. Un-emptying it belongs with the
+    // scene-memory per-page fix (a follow-up once that file set is in scope).
     stableGeometry: [],
     visualAnchors: anchorsFor.get(zone.locationId) ?? [],
     allowedCameraAccess: zone.shot ? [zone.shot] : [],
@@ -80,7 +81,47 @@ function toFixedAnchors(locations: VisualLocation[]): FixedAnchor[] {
   );
 }
 
-function toPageLocationPlan(pc: PageVisualContract): PageLocationPlan {
+/** (Slice B) The laterality clause for a cast member — injection/bandage arm + which hand holds the parent's hand. */
+function lateralityPhrase(cs: PageCastState): string | null {
+  const bits: string[] = [];
+  if (cs.injectionArm) bits.push(`the injection is on the ${cs.injectionArm} arm`);
+  if (cs.bandageArm) bits.push(`the bandage is on the ${cs.bandageArm} arm`);
+  if (cs.freeHand) bits.push(`holding the parent's hand with the ${cs.freeHand} hand`);
+  return bits.length ? bits.join(', ') : null;
+}
+
+/**
+ * (Slice B) Compose the MANDATORY page-action line from the page's per-(page,castId) body-state + laterality and its
+ * prop-state transitions. General (never book-specific): a page with none of these yields '' → the caller omits the
+ * pageAction key → buildPageActionPromptBlock returns null → byte-identical off-path.
+ */
+function composePageAction(
+  pc: PageVisualContract,
+  propNameById?: Map<string, string>,
+  castLabelById?: Map<string, string>,
+): string {
+  const parts: string[] = [];
+  for (const cs of pc.castStates ?? []) {
+    const label = castLabelById?.get(cs.castId) ?? cs.castId;
+    if (cs.bodyState?.trim()) parts.push(`${label} ${cs.bodyState.trim()}`);
+    const lat = lateralityPhrase(cs);
+    if (lat) parts.push(`${label} — ${lat}`);
+  }
+  for (const ps of pc.propState ?? []) {
+    const name = propNameById?.get(ps.propId) ?? ps.propId;
+    if (ps.state?.trim()) parts.push(`${name}: ${ps.state.trim()}`);
+  }
+  return parts.join('; ');
+}
+
+function toPageLocationPlan(
+  pc: PageVisualContract,
+  propNameById?: Map<string, string>,
+  castLabelById?: Map<string, string>,
+): PageLocationPlan {
+  // (Slice B) Promote per-(page,castId) body-state/laterality + prop-state transitions into the MANDATORY page action.
+  // Empty → the pageAction key is omitted → buildPageActionPromptBlock returns null → byte-identical off-path.
+  const pageAction = composePageAction(pc, propNameById, castLabelById);
   return {
     page: pc.pageNumber,
     zoneId: pc.zoneId ?? '',
@@ -93,6 +134,7 @@ function toPageLocationPlan(pc: PageVisualContract): PageLocationPlan {
     // (WS0b P1-1) Project the page's OWN transition so the consumer emits per-page continuity — NOT the whole book's
     // future-transition list on every page. Absent → no per-page transition line.
     ...(pc.transition ? { transition: pc.transition } : {}),
+    ...(pageAction ? { pageAction } : {}),
   };
 }
 
@@ -173,9 +215,15 @@ export function contractToLocationPlanBundle(contract: BookVisualContract): Stor
     pageCount: contract.pageContracts.length,
     ...(setTopology ? { setTopology } : {}),
   };
+  // (Slice B) Prop NAME + cast LABEL lookups so the composed pageAction reads naturally (not raw ids).
+  const propNameById = new Map(contract.recurringProps.map((p) => [p.id, p.name]));
+  const castLabelById = new Map(contractToCastRegistry(contract).map((e) => [e.id, e.name ?? e.role]));
   // Page 0 (cover) FIRST → resolvePageLocationPlan(bundle, 0) returns the contract's cover authority instead of the
   // legacy "home-night" synthesis. Real pages follow, unchanged.
-  const pagePlans = [coverPageLocationPlan(contract), ...contract.pageContracts.map(toPageLocationPlan)];
+  const pagePlans = [
+    coverPageLocationPlan(contract),
+    ...contract.pageContracts.map((pc) => toPageLocationPlan(pc, propNameById, castLabelById)),
+  ];
   return { bible, pagePlans };
 }
 
