@@ -133,8 +133,10 @@ export type Laterality = 'left' | 'right';
 
 /**
  * vNext (Slice B): per-(page, castId) BODY STATE + LATERALITY. `castId` shares the `castIds` id space (it MUST
- * resolve to `cast.child.id`, `cast.companion?.id`, or a `humanCast[].id`). All fields additive + OPTIONAL — omit a
- * field (or the whole entry / the whole `castStates` key) when unauthored so the contract hash stays byte-identical.
+ * resolve to `cast.child.id`, `cast.companion?.id`, or a `humanCast[].id`). The individual fields are additive +
+ * OPTIONAL, but an entry is NOT a no-op holder: every entry MUST carry ≥1 authored field (bodyState OR a laterality
+ * field). A castId-only entry changes the frozen hash while emitting no steering, so it is rejected at validation —
+ * omit the entry (or the whole `castStates` key) instead, so the contract hash stays byte-identical.
  */
 export interface PageCastState {
   castId: string;
@@ -203,8 +205,9 @@ export interface PageVisualContract {
   transition?: PageTransition;
   /**
    * vNext (Slice B): per-(page, castId) BODY STATE + LATERALITY (see PageCastState). Steers "child seated on the
-   * exam chair, not on the floor" and the injection↔bandage same-arm continuity. Additive + OPTIONAL — omit the key
-   * when unauthored so the contract hash stays byte-identical.
+   * exam chair, not on the floor" and the injection↔bandage same-arm continuity. Additive + OPTIONAL — OMIT the key
+   * when unauthored (NEVER `[]`) so the contract hash stays byte-identical. When present it MUST be a NON-EMPTY array
+   * whose entries each carry ≥1 authored field; an authored `[]` or a castId-only entry is rejected at validation.
    */
   castStates?: PageCastState[];
 }

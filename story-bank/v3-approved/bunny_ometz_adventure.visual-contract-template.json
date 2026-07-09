@@ -440,7 +440,7 @@
       "camera": "medium / 3-4, the relief beat",
       "castIds": ["child:hero", "companion:bunny_ometz", "human:doctor", "human:mother"],
       "castStates": [
-        { "castId": "child:hero", "bodyState": "seated on the examination chair, the bandage now on the left arm", "bandageArm": "left" }
+        { "castId": "child:hero", "bodyState": "seated on the examination chair, the bandage now on the left arm, still holding the parent's hand with the right hand", "bandageArm": "left", "freeHand": "right" }
       ],
       "transition": { "kind": "steady" }
     },
@@ -465,7 +465,7 @@
       "camera": "medium 3/4, the child proudly showing the bandage",
       "castIds": ["child:hero", "companion:bunny_ometz", "human:mother"],
       "castStates": [
-        { "castId": "child:hero", "bodyState": "outside the clinic, proudly showing the bandage on the left arm", "bandageArm": "left" }
+        { "castId": "child:hero", "bodyState": "outside the clinic, proudly showing the bandage on the left arm and holding the parent's hand with the right hand", "bandageArm": "left", "freeHand": "right" }
       ],
       "transition": {
         "kind": "after_transition",

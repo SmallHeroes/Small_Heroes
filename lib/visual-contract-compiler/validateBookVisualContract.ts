@@ -180,12 +180,16 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
         }
       });
     }
-    // (Slice B) optional per-(page,castId) body-state / laterality — OMIT the key when unauthored. When present:
-    // an array whose entries have a castId resolving to a declared cast member, a string bodyState, and 'left'/'right'
-    // laterality (injectionArm/bandageArm/freeHand). A malformed value fails closed at load AND at freeze.
+    // (Slice B) optional per-(page,castId) body-state / laterality — OMIT the key when unauthored. To keep the
+    // omit-when-unauthored HASH invariant fail-closed: if the key is present it MUST be a NON-EMPTY array (an authored
+    // `[]` changes the frozen hash while emitting no steering → rejected), and every entry MUST carry ≥1 meaningful
+    // authored field (bodyState OR a laterality field). A castId-only no-op entry likewise changes the hash while
+    // emitting nothing → rejected. Malformed values fail closed at load AND at freeze.
     if (pc.castStates !== undefined) {
       if (!Array.isArray(pc.castStates)) {
         errors.push(`${label}.castStates must be an array when present`);
+      } else if (pc.castStates.length === 0) {
+        errors.push(`${label}.castStates must be a NON-EMPTY array when present — omit the key instead of []`);
       } else {
         (pc.castStates as unknown[]).forEach((cs, j) => {
           if (!isObj(cs) || !isStr(cs.castId)) {
@@ -202,6 +206,17 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
             if (cs[k] !== undefined && cs[k] !== 'left' && cs[k] !== 'right') {
               errors.push(`${label}.castStates[${j}].${k} must be 'left' or 'right' when present`);
             }
+          }
+          // Reject a no-op entry (only castId, no authored state/laterality): it changes the hash but steers nothing.
+          const hasAuthoredField =
+            cs.bodyState !== undefined ||
+            cs.injectionArm !== undefined ||
+            cs.bandageArm !== undefined ||
+            cs.freeHand !== undefined;
+          if (!hasAuthoredField) {
+            errors.push(
+              `${label}.castStates[${j}] (castId "${cs.castId}") must carry at least one authored field (bodyState / injectionArm / bandageArm / freeHand) — a castId-only entry emits no steering and must be omitted`
+            );
           }
         });
       }

@@ -95,6 +95,28 @@ describe('Slice B — validator accepts well-formed, fails closed on malformed (
     expect(bad({ pageContracts: [{ ...c.pageContracts[0], castStates: [{ castId: 'child:hero', injectionArm: 'up' }] }] } as never)).toBe(false);
     expect(bad({ pageContracts: [{ ...c.pageContracts[0], castStates: [{ castId: 'nobody', bodyState: 'x' }] }] } as never)).toBe(false);
   });
+
+  it('(Codex #3) the omit-rule is FAIL-CLOSED: castStates:[] and a castId-only no-op entry are rejected (both change the hash but steer nothing)', () => {
+    const c = baseContract();
+    const h = computeVisualContractHash(c);
+    const ok = (castStates: unknown) =>
+      validateBookVisualContract({ ...c, pageContracts: [{ ...c.pageContracts[0], castStates }] } as never).ok;
+    const hashWith = (castStates: unknown) =>
+      computeVisualContractHash({ ...c, pageContracts: [{ ...c.pageContracts[0], castStates }] } as never);
+
+    // An authored `[]` is NOT the same as omitting the key — it changes the frozen hash...
+    expect(hashWith([])).not.toBe(h);
+    // ...so it must be REJECTED (author must omit the key instead of []).
+    expect(ok([])).toBe(false);
+
+    // A no-op entry (only castId, no bodyState/laterality) also changes the hash while emitting no steering → rejected.
+    expect(hashWith([{ castId: 'child:hero' }])).not.toBe(h);
+    expect(ok([{ castId: 'child:hero' }])).toBe(false);
+
+    // A genuinely OMITTED key stays valid AND byte-identical — the invariant still holds.
+    expect(ok(undefined)).toBe(true);
+    expect(hashWith(undefined)).toBe(h);
+  });
 });
 
 describe('Slice B — authoritative prompt block emits the 4 new lines only when authored', () => {
@@ -164,13 +186,15 @@ describe('Slice B — the authored bunny template is the first valid instance', 
     // carries the authored steering fields
     expect(template.zones.find((z: { id: string }) => z.id === 'clinic.exam_room').stableGeometry.length).toBeGreaterThan(0);
     expect(template.recurringProps.find((p: { id: string }) => p.id === 'exam_chair').scale).toContain('child');
-    // laterality continuity: the bandage arm equals the injection arm across the procedure.
-    const arm = (n: number, k: 'injectionArm' | 'bandageArm') =>
+    // laterality continuity: injection LEFT / bandage LEFT (same arm) and free hand RIGHT — consistent across 9-12.
+    const arm = (n: number, k: 'injectionArm' | 'bandageArm' | 'freeHand') =>
       template.pageContracts.find((p: { pageNumber: number }) => p.pageNumber === n)
         .castStates.find((s: { castId: string }) => s.castId === 'child:hero')[k];
     expect(arm(9, 'injectionArm')).toBe('left');
+    expect(arm(10, 'injectionArm')).toBe('left');
     expect(arm(11, 'bandageArm')).toBe('left');
     expect(arm(12, 'bandageArm')).toBe('left');
+    for (const n of [9, 10, 11, 12]) expect(arm(n, 'freeHand')).toBe('right');
     // mom is continuous through the exam procedure.
     expect(template.humanCast.find((h: { id: string }) => h.id === 'human:mother').pagesPresent)
       .toEqual([1, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
