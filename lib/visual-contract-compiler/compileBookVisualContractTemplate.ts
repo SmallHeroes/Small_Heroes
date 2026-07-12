@@ -142,18 +142,22 @@ function overlayPage(
   const castIds: string[] = [childId];
   if (companionPresent && companionId) castIds.push(companionId);
   for (const h of facts.humans) if (h.pagesPresent.includes(page)) castIds.push(h.id);
+  const castIdSet = new Set(castIds);
 
-  // castStates: keep ONLY the draft's descriptive bodyState. ALL laterality (injectionArm/bandageArm/freeHand)
-  // is DISCARDED and NEVER re-injected — attributing a side to the child's injection/bandage arm is a human
-  // authoring choice the tool defers (extractDeterministicFacts pushes a laterality deferral). Drop no-op
-  // entries; omit castStates entirely if empty (Slice B fail-closed rule).
+  // castStates: keep ONLY the draft's descriptive bodyState, and ONLY for a cast member PRESENT on this page
+  // (castId ∈ the recomputed castIds). This is the presence overlay: a draft cannot smuggle a bodyState for an
+  // ABSENT character (facts overlaid LAST). ALL laterality (injectionArm/bandageArm/freeHand) is DISCARDED and
+  // NEVER re-injected — attributing a side to the child's injection/bandage arm is a human authoring choice the
+  // tool defers. Drop no-op / absent entries; omit castStates entirely if empty (Slice B fail-closed rule).
   const rebuilt: Array<Record<string, unknown>> = [];
   for (const raw of asArr(pc.castStates)) {
     const cs = asObj(raw);
     const entry: Record<string, unknown> = {};
     if (typeof cs.castId === 'string') entry.castId = cs.castId;
     if (typeof cs.bodyState === 'string') entry.bodyState = cs.bodyState; // descriptive — kept
-    if (typeof entry.castId === 'string' && 'bodyState' in entry) rebuilt.push(entry);
+    if (typeof entry.castId === 'string' && castIdSet.has(entry.castId) && 'bodyState' in entry) {
+      rebuilt.push(entry);
+    }
   }
 
   const out: Record<string, unknown> = {

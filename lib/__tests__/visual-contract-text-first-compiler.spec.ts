@@ -16,7 +16,10 @@ import {
   type TemplateCompileInput,
 } from '../visual-contract-compiler/compileBookVisualContractTemplate';
 import { renderVisualContractReview } from '../visual-contract-compiler/writeVisualContractReview';
-import { InvalidTemplateContractError } from '../visual-contract-compiler/validateTemplateContract';
+import {
+  InvalidTemplateContractError,
+  validateBookVisualContractTemplate,
+} from '../visual-contract-compiler/validateTemplateContract';
 import type { BookVisualContractTemplate } from '../visual-contract-compiler/contractTemplateTypes';
 import type { ContractLlmCaller } from '../visual-contract-compiler/compileBookVisualContract';
 
@@ -166,6 +169,34 @@ describe('gate remediation — laterality is NEVER auto-bound; aliases come from
     const factDoctor = facts.humans.find((h) => h.id === 'human:doctor')!;
     expect(doctor.aliases).toEqual(factDoctor.aliasesFound);
     expect(doctor.aliases).not.toContain('evil-alias');
+  });
+});
+
+describe('castStates presence leak (Codex FAIL #2) — bodyState cannot smuggle an absent cast member', () => {
+  it('overlay DROPS a draft castStates bodyState for a cast member ABSENT on that page', async () => {
+    const draft = bunnyTemplate() as unknown as Record<string, unknown>;
+    const p6 = (draft.pageContracts as Array<Record<string, unknown>>).find((p) => p.pageNumber === 6)!;
+    // facts: mother present [1,4,9,10,12] → ABSENT on p6. Smuggle a bodyState for her via the draft.
+    p6.castStates = [
+      ...((p6.castStates as unknown[]) ?? []),
+      { castId: 'human:mother', bodyState: 'standing by the wall' },
+    ];
+    const { template } = await compileBookVisualContractTemplate(bunnySource(), { callLLM: stubFrom(draft) });
+    const out6 = template.pageContracts.find((p) => p.pageNumber === 6)!;
+    expect(out6.castIds).not.toContain('human:mother'); // mother absent per facts
+    expect((out6.castStates ?? []).some((cs) => cs.castId === 'human:mother')).toBe(false); // dropped
+    // every surviving castStates entry is a cast member PRESENT on the page
+    for (const cs of out6.castStates ?? []) expect(out6.castIds).toContain(cs.castId);
+  });
+
+  it('validator REJECTS castStates for a cast member not in the page castIds (fail-closed belt)', () => {
+    const bad = bunnyTemplate();
+    // p2 castIds = [child, companion] — no mother. A globally-valid human, absent on this page.
+    const p2 = bad.pageContracts.find((p) => p.pageNumber === 2)!;
+    (p2 as unknown as Record<string, unknown>).castStates = [{ castId: 'human:mother', bodyState: 'standing' }];
+    const res = validateBookVisualContractTemplate(bad);
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.errors.some((e) => /NOT present on this page/.test(e))).toBe(true);
   });
 });
 

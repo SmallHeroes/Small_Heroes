@@ -191,6 +191,10 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
       } else if (pc.castStates.length === 0) {
         errors.push(`${label}.castStates must be a NON-EMPTY array when present — omit the key instead of []`);
       } else {
+        // Presence rule: a body-state / laterality is only meaningful for a cast member PRESENT on THIS page.
+        // Its castId MUST be in this page's castIds — not merely globally valid — so a draft cannot emit a
+        // BODY STATE (or laterality) for an ABSENT character (facts overlaid LAST; fail-closed belt).
+        const pageCastIds = new Set(Array.isArray(pc.castIds) ? (pc.castIds as unknown[]).filter(isStr) : []);
         (pc.castStates as unknown[]).forEach((cs, j) => {
           if (!isObj(cs) || !isStr(cs.castId)) {
             errors.push(`${label}.castStates[${j}].castId missing`);
@@ -198,6 +202,10 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
           }
           if (castIdSet.size > 0 && !castIdSet.has(cs.castId)) {
             errors.push(`${label}.castStates[${j}] references unknown castId "${cs.castId}"`);
+          } else if (!pageCastIds.has(cs.castId)) {
+            errors.push(
+              `${label}.castStates[${j}] castId "${cs.castId}" is NOT present on this page (must be in castIds) — no body-state/laterality for an absent cast member`
+            );
           }
           if (cs.bodyState !== undefined && !isStr(cs.bodyState)) {
             errors.push(`${label}.castStates[${j}].bodyState must be a non-empty string when present`);
