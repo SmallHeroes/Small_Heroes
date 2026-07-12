@@ -72,20 +72,24 @@ function escapeRegexLiteral(s: string): string {
 }
 
 /**
+ * The canonical Hebrew/ASCII standalone-token boundary as a regex SOURCE string. Word chars = Hebrew
+ * block + ASCII alphanumerics; anything else (whitespace, punctuation, line breaks, start/end of string)
+ * is a boundary. NEVER `\b` — V8 `\b` keys off ASCII `\w` and matches no Hebrew boundary. Exported so the
+ * visual-contract fact extractor derives positions from the SAME boundary this gate matches on.
+ */
+export function standaloneTokenPattern(name: string): string {
+  const escaped = escapeRegexLiteral(name);
+  return `(?<![\\u0590-\\u05FFa-zA-Z0-9])${escaped}(?![\\u0590-\\u05FFa-zA-Z0-9])`;
+}
+
+/**
  * Test whether `name` appears in `text` as a standalone token — i.e. not
  * surrounded by other Hebrew letters, ASCII letters, or digits. Prevents the
  * substring false positive where the denied "דני" would otherwise flag a
  * legitimate customer name like "דניאל" or "תומר" → "תום".
  */
-function containsAsStandaloneToken(text: string, name: string): boolean {
-  const escaped = escapeRegexLiteral(name);
-  // Word chars = Hebrew block + ASCII alphanumerics. Anything else (whitespace,
-  // punctuation, line breaks, start/end of string) counts as a boundary.
-  const re = new RegExp(
-    `(?<![\\u0590-\\u05FFa-zA-Z0-9])${escaped}(?![\\u0590-\\u05FFa-zA-Z0-9])`,
-    'u'
-  );
-  return re.test(text);
+export function containsAsStandaloneToken(text: string, name: string): boolean {
+  return new RegExp(standaloneTokenPattern(name), 'u').test(text);
 }
 
 /**
