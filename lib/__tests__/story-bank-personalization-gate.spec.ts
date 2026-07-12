@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import {
   assertStoryPersonalizationGate,
+  normalizeWizardChildGender,
   resolveGenderAlternationChips,
   resolveStoryBankPlaceholders,
   runStoryPersonalizationGate,
@@ -92,6 +93,74 @@ describe('story-bank personalization gate', () => {
       const leftover = failures.filter((f) => f.includes(expected));
       expect(leftover.length, `expected denylist hit for "${expected}"`).toBeGreaterThan(0);
     }
+  });
+
+  // (Codex) The Hebrew gender-marker gate: V8 `\b` never matched Hebrew, so wrong-gender Hebrew passed the pre-spend
+  // gate. These prove the fix DIRECTLY (not via a stale bank name), and that it does not false-block real books.
+  const gate = (childGender: 'boy' | 'girl' | 'other', text: string, childName = 'איתן') =>
+    runStoryPersonalizationGate({
+      wizard: { childName, childGender, companionName: 'בולי' },
+      pages: [{ pageNumber: 1, text, imagePrompt: '' }],
+    });
+  const markerFailures = (fs: string[]) => fs.filter((f) => f.includes('gendered marker'));
+
+  it('boy story: the CHILD in female Hebrew forms FAILS directly via markers (not a denylist name)', () => {
+    const fs = gate('boy', 'איתן היא מחזיקה את הדובי.');
+    expect(markerFailures(fs).length).toBeGreaterThan(0);
+    expect(fs.some((f) => f.includes('leftover bank protagonist'))).toBe(false);
+  });
+
+  it('girl story: the CHILD in male Hebrew forms FAILS', () => {
+    expect(markerFailures(gate('girl', 'לאה הוא מחזיק את הדובי.', 'לאה')).length).toBeGreaterThan(0);
+  });
+
+  it('the V8 \\b bug itself: /\\bהיא\\b/u never matches Hebrew — but the gate now catches it', () => {
+    expect(/\bהיא\b/u.test('היא מחזיקה')).toBe(false); // the bug Codex found
+    expect(markerFailures(gate('boy', 'איתן היא מחזיקה.')).length).toBeGreaterThan(0);
+  });
+
+  it("does NOT false-block a legit multi-character book: a mother's female forms in a boy story PASS", () => {
+    // the mother's female forms follow "אמא", not the child name → not attributed to the child → no failure.
+    expect(markerFailures(gate('boy', 'איתן מחזיק את הדובי. אמא היא מחזיקה את התיק שלה.'))).toEqual([]);
+  });
+
+  it('regression (koko_fantasy shape): "{child} התכופף אליה" — אליה = toward a female friend, not the boy → PASS', () => {
+    // the exact false positive that same-sentence matching hit: the female marker אליה is NOT adjacent to the name.
+    expect(markerFailures(gate('boy', 'נועם התכופף אליה. "את באה לגן החדש?" שאל.', 'נועם'))).toEqual([]);
+  });
+
+  it('regression (fox_uri shape): a male companion/light "הוא" not adjacent to a GIRL child name → PASS', () => {
+    expect(markerFailures(gate('girl', 'לאה הביטה בו. הוא ניסה להנהן בחשיבות.', 'לאה'))).toEqual([]);
+  });
+
+  it('genitive guard: "אמא של {child} מחזיקה" — the mother is the subject (child is the possessor) → PASS', () => {
+    expect(markerFailures(gate('boy', 'אמא של איתן מחזיקה את התיק.'))).toEqual([]);
+  });
+
+  it('regression (dragon_dini shape): a male baby-dragon "הוא" in its own sentence of a GIRL story does NOT fire', () => {
+    expect(
+      markerFailures(gate('girl', 'נועה נותנת מקום. מתוך הביצה הציץ דרקון תינוק. הוא היה קטן.', 'נועה'))
+    ).toEqual([]);
+  });
+
+  it('standalone boundary distinguishes מחזיקה (female) from מחזיק (male) — no substring false-positive', () => {
+    expect(markerFailures(gate('girl', 'לאה מחזיקה את הדובי.', 'לאה'))).toEqual([]);
+  });
+
+  it("gender 'other' applies NEITHER marker check (explicit)", () => {
+    expect(markerFailures(gate('other', 'עדן היא מחזיקה, והוא מחזיק.', 'עדן'))).toEqual([]);
+  });
+
+  it('normalizeWizardChildGender: Hebrew נקבה/זכר + בת/בן consistently; unknown → other', () => {
+    expect(normalizeWizardChildGender('נקבה')).toBe('girl');
+    expect(normalizeWizardChildGender('זכר')).toBe('boy');
+    expect(normalizeWizardChildGender('בת')).toBe('girl');
+    expect(normalizeWizardChildGender('בן')).toBe('boy');
+    expect(normalizeWizardChildGender('female')).toBe('girl');
+    expect(normalizeWizardChildGender('BOY')).toBe('boy');
+    expect(normalizeWizardChildGender('robot')).toBe('other');
+    expect(normalizeWizardChildGender('')).toBe('other');
+    expect(normalizeWizardChildGender(null)).toBe('other');
   });
 
   it('passes dragon_dini_fantasy offline (chips only, no LLM swap)', () => {

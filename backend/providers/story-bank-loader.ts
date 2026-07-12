@@ -211,7 +211,8 @@ export async function loadStoryFromBank(
   // Chip-resolved v5 stories are correct by construction; LLM swap is belt-and-suspenders only.
   if (childGender && !options?.skipLlmPersonalization) {
     const allText = pages.map((p) => p.text).join('\n');
-    const targetGender = childGender === 'girl' ? 'female' : 'male';
+    // Consistent normalization (handles 'female' / Hebrew נקבה / etc.), not a raw `=== 'girl'` that misses them.
+    const targetGender = wizardGender === 'girl' ? 'female' : 'male';
     const genderAfterChips = detectStoryGender(allText);
     console.log(
       `[StoryBank] Gender: yamlExplicit=${normalizedExplicitGender}, afterChips=${genderAfterChips}, target=${targetGender}`
@@ -275,8 +276,8 @@ export async function loadStoryFromBank(
         `[StoryBank] Name personalization skipped — '${childName}' already appears ${nameCountBefore} times`
       );
     } else {
-    const targetGenderForName: 'female' | 'male' =
-      childGender && /female|girl|f|בת|ילדה|נקבה|she|her/i.test(String(childGender)) ? 'female' : 'male';
+    // Same consistent normalization as the gender-swap above (was a divergent local Hebrew regex).
+    const targetGenderForName: 'female' | 'male' = wizardGender === 'girl' ? 'female' : 'male';
     try {
       const personalizedPages = await personalizeChildName(pages, childName, targetGenderForName);
       for (let i = 0; i < pages.length; i++) {

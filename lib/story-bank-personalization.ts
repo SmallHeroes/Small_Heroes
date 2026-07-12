@@ -48,42 +48,21 @@ const UNRESOLVED_SLASH_GENDER_RE =
 const UNRESOLVED_PATCH_RE = /\{\{patch:/i;
 const UNRESOLVED_AGE_BLOCK_RE = /\{\{#age\}\}/;
 
-/** Female-only child markers (Hebrew) — fail when wizard gender is boy. */
-const FEMALE_CHILD_MARKERS_BOY_FAIL: readonly RegExp[] = [
-  /\bהיא\b/u,
-  /\bעיניה\b/u,
-  /\bכתפיה\b/u,
-  /\bידיה\b/u,
-  /\bרגליה\b/u,
-  /\bבטנה\b/u,
-  /\bשלה\b/u,
-  /\bאליה\b/u,
-  /\bשוכבת\b/u,
-  /\bמחזיקה\b/u,
-  /\bמסיטה\b/u,
-  /\bמסתכלת\b/u,
-  /\bמושכת\b/u,
-  /\bמושיטה\b/u,
-  /\bמחייכת\b/u,
-  /\bישנה\b/u,
-  /\bנפתחת\b/u,
+// Gendered Hebrew marker WORDS, matched via containsAsStandaloneToken (the working Hebrew boundary) — NEVER `\b`
+// (V8 `\b` keys off ASCII `\w`, so `/\bהיא\b/u` matches NO Hebrew — it silently made this whole net dead). They are
+// applied ONLY in a sentence that also contains the CHILD's name (see the gate), because a bare gendered word is just
+// as likely another character (a mother = היא, a male baby dragon = הוא, a doctor) as a wrong-gender child.
+
+/** Female child markers — a wrong-gender leak when the wizard gender is boy. */
+const FEMALE_CHILD_MARKERS_BOY_FAIL: readonly string[] = [
+  'היא', 'עיניה', 'כתפיה', 'ידיה', 'רגליה', 'בטנה', 'שלה', 'אליה',
+  'שוכבת', 'מחזיקה', 'מסיטה', 'מסתכלת', 'מושכת', 'מושיטה', 'מחייכת', 'ישנה', 'נפתחת',
 ];
 
-/** Male-only child markers — fail when wizard gender is girl. */
-const MALE_CHILD_MARKERS_GIRL_FAIL: readonly RegExp[] = [
-  /\bהוא\b/u,
-  /\bעיניו\b/u,
-  /\bכתפיו\b/u,
-  /\bשלו\b/u,
-  /\bאליו\b/u,
-  /\bשוכב\b/u,
-  /\bמחזיק\b/u,
-  /\bמסיט\b/u,
-  /\bמסתכל\b/u,
-  /\bמושך\b/u,
-  /\bמושיט\b/u,
-  /\bמחייך\b/u,
-  /\bישן\b/u,
+/** Male child markers — a wrong-gender leak when the wizard gender is girl. */
+const MALE_CHILD_MARKERS_GIRL_FAIL: readonly string[] = [
+  'הוא', 'עיניו', 'כתפיו', 'שלו', 'אליו',
+  'שוכב', 'מחזיק', 'מסיט', 'מסתכל', 'מושך', 'מושיט', 'מחייך', 'ישן',
 ];
 
 
@@ -109,6 +88,31 @@ function containsAsStandaloneToken(text: string, name: string): boolean {
   return re.test(text);
 }
 
+/**
+ * Whether a wrong-gender marker is attributed to the CHILD — the child's name (a standalone token, and NOT the
+ * possessor in a "של <name>" genitive) IMMEDIATELY followed by the marker (a standalone token). This attributes the
+ * gendered form to the child AS THE SUBJECT, so another character elsewhere in the same sentence (a mother = היא, the
+ * male fox = הוא, a female friend = אליה, a masculine noun like אור = הוא) does not false-trip this pre-spend gate.
+ * The child's OWN gender-varying pronouns/verbs are handled by the chips/slashes (+ the unresolved-chip gate); this is
+ * a narrow backstop for a HARDCODED wrong-gender child form. Returns the first marker that hits, or null.
+ */
+function childHasAdjacentWrongGenderMarker(
+  text: string,
+  name: string,
+  markers: readonly string[]
+): string | null {
+  const n = escapeRegexLiteral(name);
+  for (const marker of markers) {
+    const m = escapeRegexLiteral(marker);
+    const re = new RegExp(
+      `(?<![\\u0590-\\u05FFa-zA-Z0-9])(?<!של )${n}\\s+${m}(?![\\u0590-\\u05FFa-zA-Z0-9])`,
+      'u'
+    );
+    if (re.test(text)) return marker;
+  }
+  return null;
+}
+
 export class StoryPersonalizationGateError extends Error {
   readonly failures: string[];
 
@@ -119,12 +123,25 @@ export class StoryPersonalizationGateError extends Error {
   }
 }
 
+/**
+ * Normalize a raw wizard gender value to boy | girl | other. Handles English + transliteration AND Hebrew script
+ * (נקבה/בת/ילדה → girl; זכר/בן/ילד → boy) so every consumer normalizes IDENTICALLY (the loader used to have its own
+ * inconsistent local Hebrew regex). `toLowerCase()` is a no-op on Hebrew, so exact-set membership is correct there.
+ * Unknown / empty → 'other' (explicit: the personalization gate applies NEITHER gender-marker check for 'other').
+ */
+const GIRL_GENDER_TOKENS: ReadonlySet<string> = new Set([
+  'girl', 'female', 'f', 'bat', 'she', 'her', 'בת', 'ילדה', 'נקבה',
+]);
+const BOY_GENDER_TOKENS: ReadonlySet<string> = new Set([
+  'boy', 'male', 'm', 'ben', 'he', 'his', 'him', 'בן', 'ילד', 'זכר',
+]);
+
 export function normalizeWizardChildGender(
   raw: string | null | undefined
 ): 'boy' | 'girl' | 'other' {
   const v = (raw ?? '').trim().toLowerCase();
-  if (v === 'girl' || v === 'female' || v === 'bat' || v === 'f') return 'girl';
-  if (v === 'boy' || v === 'male' || v === 'ben' || v === 'm') return 'boy';
+  if (GIRL_GENDER_TOKENS.has(v)) return 'girl';
+  if (BOY_GENDER_TOKENS.has(v)) return 'boy';
   return 'other';
 }
 
@@ -268,19 +285,21 @@ export function runStoryPersonalizationGate(input: PersonalizationGateInput): st
     failures.push('unresolved {{#age}} block');
   }
 
-  if (wizard.childGender === 'boy') {
-    for (const re of FEMALE_CHILD_MARKERS_BOY_FAIL) {
-      if (re.test(fullText)) {
-        failures.push(`female-gendered child marker matches ${re.source} but wizard.childGender=boy`);
-        break;
-      }
-    }
-  } else if (wizard.childGender === 'girl') {
-    for (const re of MALE_CHILD_MARKERS_GIRL_FAIL) {
-      if (re.test(fullText)) {
-        failures.push(`male-gendered child marker matches ${re.source} but wizard.childGender=girl`);
-        break;
-      }
+  // Wrong-gender CHILD detection (Hebrew). The old `\bmarker\b` regexes NEVER matched Hebrew (V8 `\b` keys off ASCII
+  // `\w`), so this pre-spend net was silently dead — wrong-gender Hebrew sailed through. It now uses the working
+  // Hebrew boundary AND is attributed to the CHILD: a gendered marker fails only when it DIRECTLY FOLLOWS the child's
+  // NAME (the child as subject). A bare marker elsewhere is another character (a mother = היא, the male fox/light = הוא,
+  // a female friend = אליה), which is why bare or even same-sentence matching false-blocks legitimate multi-character
+  // books. The child's OWN gender-varying forms are handled by the chips/slashes (+ the unresolved-chip gate above);
+  // this is a narrow backstop for a hardcoded wrong-gender child form. 'other' gender applies NEITHER check.
+  if (name && (wizard.childGender === 'boy' || wizard.childGender === 'girl')) {
+    const markers = wizard.childGender === 'boy' ? FEMALE_CHILD_MARKERS_BOY_FAIL : MALE_CHILD_MARKERS_GIRL_FAIL;
+    const wrongLabel = wizard.childGender === 'boy' ? 'female' : 'male';
+    const hit = childHasAdjacentWrongGenderMarker(fullText, name, markers);
+    if (hit) {
+      failures.push(
+        `${wrongLabel}-gendered marker "${hit}" directly follows the child name "${name}" but wizard.childGender=${wizard.childGender}`
+      );
     }
   }
 
