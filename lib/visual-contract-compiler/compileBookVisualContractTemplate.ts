@@ -1,0 +1,233 @@
+/**
+ * Brief 1, Component 3 — text-first TEMPLATE compiler (offline, human-in-the-loop).
+ *
+ * Flow (deterministic facts BEFORE the LLM; facts overlaid LAST so a draft can never overwrite them):
+ *   1. extractDeterministicFacts(input)         — gender / evidence / presence / laterality (pure, no LLM)
+ *   2. LLM drafts ONLY descriptive fields        — locations/zones/cast/props/cover + humanCast appearance
+ *   3. assemble: draft scaffold + facts overlaid — identity + presence + laterality come from (1), never (2)
+ *   4. assertValidBookVisualContractTemplate     — FAIL-CLOSED; an invalid candidate is never returned
+ *
+ * This NEVER runs on the paid/frozen path: it emits a `.visual-contract-template.json` CANDIDATE for human
+ * review. Only a human-approved template is ever materialized/frozen/hashed. The LLM caller is injected, so the
+ * compiler is verifiable with a stub (no live model, no cost) — the deterministic overlay is what's under test.
+ *
+ * Kept in a SEPARATE module from the dormant vNext `compileBookVisualContract` so that path stays untouched.
+ */
+import type {
+  BookVisualContractTemplate,
+  TemplateHumanCastMember,
+} from './contractTemplateTypes';
+import { VISUAL_CONTRACT_SCHEMA_VERSION } from './contractTemplateTypes';
+import { assertValidBookVisualContractTemplate } from './validateTemplateContract';
+import { parseContractJson } from './compileBookVisualContract';
+import type { ContractLlmCaller } from './compileBookVisualContract';
+import {
+  extractDeterministicFacts,
+  type DeterministicFacts,
+  type DeterministicFactsInput,
+  type HumanFact,
+} from './extractDeterministicFacts';
+
+export interface TemplateCompileInput extends DeterministicFactsInput {
+  /** Full story text (page-marked) — the LLM's descriptive input. */
+  fullStoryText: string;
+  childName?: string;
+  /** Optional hint; the LLM may set worldType from the text when omitted. */
+  worldType?: string;
+}
+
+export interface TemplateCompileResult {
+  template: BookVisualContractTemplate;
+  facts: DeterministicFacts;
+  /** Non-fatal notes: e.g. a draft human the extractor did not detect (dropped as non-text-verified). */
+  notes: string[];
+}
+
+// ── LLM prompt (real path; the pilot injects a stub) ─────────────────────────
+
+export function buildTemplateCompileSystemPrompt(): string {
+  return [
+    "You are a visual-continuity compiler for a children's picture book, producing a DRAFT for human review.",
+    'You are given DETERMINISTIC FACTS already extracted from the story text (recurring humans, their gender, the',
+    'pages they appear on, and any laterality). Those facts are AUTHORITATIVE and will be overlaid onto your output —',
+    'you MUST NOT restate or contradict them.',
+    '',
+    'Draft ONLY the DESCRIPTIVE fields:',
+    '- worldType, locations[], zones[] (with stableGeometry), cast.child + cast.companion wardrobe,',
+    '  recurringProps[] (material/scale/persistence), forbiddenGlobalElements[], coverContract, and per-page',
+    '  mustShow/mustNotShow/propState/camera/transition/zoneId/locationId.',
+    '- For each given human, draft ONLY appearance (skinTone/hairColour/hairTexture/hairStyle bindings), garments,',
+    '  and forbiddenAppearance. Relatives (mother/father/sibling/grandparent) use family_profile for skin/hair;',
+    '  a non-relative (doctor/nurse/teacher) uses deterministic_palette; every garment colour is an explicit value.',
+    '',
+    'You MUST NOT output: a human\'s gender, pagesPresent, textEvidence, or aliases; page castIds or characterPresence;',
+    'or any laterality (injectionArm/bandageArm/freeHand). Those are supplied by the deterministic extractor. Do not',
+    'invent a human who is not in the given facts.',
+    '',
+    'Output ONLY the JSON object, no prose, no markdown fences.',
+  ].join('\n');
+}
+
+export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, facts: DeterministicFacts): string {
+  const humanLines = facts.humans.map(
+    (h) =>
+      `- ${h.id} (role=${h.role}, gender=${h.gender}); present on pages [${h.pagesPresent.join(', ')}]; draft ONLY appearance/garments/forbiddenAppearance for this person.`,
+  );
+  return [
+    `storyKey: ${input.storyKey}`,
+    `pageCount: ${input.pageCount}`,
+    `child: ${input.childName ?? '(child)'}${input.childGender ? ` (${input.childGender})` : ''}`,
+    input.companion ? `Companion: ${input.companion.name ?? input.companion.id} (id=${input.companion.id}).` : 'No companion.',
+    '',
+    'DETERMINISTIC FACTS (authoritative — do NOT restate gender/presence/laterality; draft descriptive fields only):',
+    ...humanLines,
+    facts.laterality.length
+      ? `Laterality (from the text): ${facts.laterality.map((l) => `p${l.page}:${l.side}`).join(', ')}`
+      : 'Laterality: none stated in the text (do NOT invent left/right).',
+    '',
+    'Produce a JSON BookVisualContractTemplate DRAFT (descriptive fields only) with keys: worldType, locations[],',
+    'zones[], cast{child,companion?}, humanCast[{id, appearance, garments, forbiddenAppearance}], recurringProps[],',
+    'forbiddenGlobalElements[], coverContract, pageContracts[{pageNumber, locationId, zoneId, sameLocationAs?,',
+    'mustShow[], mustNotShow[], propState[], camera, transition}].',
+    '',
+    'FULL STORY TEXT:',
+    input.fullStoryText,
+  ].join('\n');
+}
+
+// ── Assembly ─────────────────────────────────────────────────────────────────
+
+function asObj(v: unknown): Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+}
+function asArr(v: unknown): unknown[] {
+  return Array.isArray(v) ? v : [];
+}
+
+/** Format a real evidence phrase into the textEvidence string (never fabricated — a real page + phrase). */
+function formatEvidence(h: HumanFact): string {
+  if (!h.genderEvidence) return `role ${h.role} (gender ${h.gender}; evidence not localized)`;
+  return `עמוד ${h.genderEvidence.page}: "${h.genderEvidence.phrase}"`;
+}
+
+/** Merge the deterministic identity facts (win) with the draft's descriptive appearance for one human. */
+function mergeHuman(fact: HumanFact, draftHuman: Record<string, unknown>): TemplateHumanCastMember {
+  const draftAliases = asArr(draftHuman.aliases).filter((a): a is string => typeof a === 'string');
+  return {
+    id: fact.id,
+    role: fact.role,
+    gender: fact.gender,
+    aliases: draftAliases.length ? draftAliases : fact.aliasesFound,
+    textEvidence: formatEvidence(fact),
+    pagesPresent: fact.pagesPresent,
+    appearance: draftHuman.appearance as TemplateHumanCastMember['appearance'],
+    garments: (draftHuman.garments as TemplateHumanCastMember['garments']) ?? [],
+    forbiddenAppearance: asArr(draftHuman.forbiddenAppearance).filter((a): a is string => typeof a === 'string'),
+  };
+}
+
+/** Recompute one page's castIds + characterPresence + laterality castStates from the deterministic facts. */
+function overlayPage(
+  pc: Record<string, unknown>,
+  facts: DeterministicFacts,
+  childId: string,
+  companionId: string | null,
+): Record<string, unknown> {
+  const page = typeof pc.pageNumber === 'number' ? pc.pageNumber : -1;
+  const companionPresent = companionId != null && facts.companionPresentPages.includes(page);
+
+  // castIds: child (always — the protagonist), companion (from companionPresence), each human by pagesPresent.
+  const castIds: string[] = [childId];
+  if (companionPresent && companionId) castIds.push(companionId);
+  for (const h of facts.humans) if (h.pagesPresent.includes(page)) castIds.push(h.id);
+
+  // castStates: keep the draft's descriptive bodyState, but STRIP any draft laterality; re-inject ONLY the
+  // laterality the extractor derived from the text (none → bodyState-only). Drop no-op entries; omit if empty.
+  const derivedLat = facts.laterality.find((l) => l.page === page);
+  const rebuilt: Array<Record<string, unknown>> = [];
+  for (const raw of asArr(pc.castStates)) {
+    const cs = asObj(raw);
+    const entry: Record<string, unknown> = {};
+    if (typeof cs.castId === 'string') entry.castId = cs.castId;
+    if (typeof cs.bodyState === 'string') entry.bodyState = cs.bodyState; // descriptive — kept
+    // injectionArm/bandageArm/freeHand from the draft are DISCARDED here (not text-verified).
+    if (derivedLat && entry.castId === childId) {
+      // Only when the text actually stated a side (never for bunny) do we bind it.
+      entry.injectionArm = derivedLat.side;
+    }
+    const meaningful = 'bodyState' in entry || 'injectionArm' in entry || 'bandageArm' in entry || 'freeHand' in entry;
+    if (typeof entry.castId === 'string' && meaningful) rebuilt.push(entry);
+  }
+
+  const out: Record<string, unknown> = {
+    ...pc,
+    castIds,
+    characterPresence: { child: true, companion: companionPresent },
+  };
+  if (rebuilt.length > 0) out.castStates = rebuilt;
+  else delete out.castStates; // omit rather than emit [] (Slice B fail-closed rule)
+  return out;
+}
+
+/**
+ * Compile a template CANDIDATE from a story source. Deterministic facts are extracted first and overlaid last;
+ * the LLM (injected) drafts descriptive fields only. Fail-closed: throws if the assembled candidate is invalid.
+ */
+export async function compileBookVisualContractTemplate(
+  input: TemplateCompileInput,
+  deps: { callLLM: ContractLlmCaller },
+): Promise<TemplateCompileResult> {
+  const facts = extractDeterministicFacts(input);
+  const notes: string[] = [];
+
+  const raw = await deps.callLLM(buildTemplateCompileSystemPrompt(), buildTemplateCompileUserPrompt(input, facts));
+  const draft = asObj(parseContractJson(raw));
+
+  const cast = asObj(draft.cast);
+  const childId = typeof asObj(cast.child).id === 'string' ? (asObj(cast.child).id as string) : 'child:hero';
+  const companionId = input.companion
+    ? typeof asObj(cast.companion).id === 'string'
+      ? (asObj(cast.companion).id as string)
+      : null
+    : null;
+
+  // humanCast is AUTHORITATIVE from the extractor: every detected human, merged with its drafted appearance.
+  const draftHumans = asArr(draft.humanCast).map(asObj);
+  const humanCast: TemplateHumanCastMember[] = facts.humans.map((h) => {
+    const match = draftHumans.find((d) => d.id === h.id || d.role === h.role) ?? {};
+    if (!match.appearance) {
+      notes.push(`draft did not provide appearance for ${h.id} — candidate will fail validation (needs human authoring)`);
+    }
+    return mergeHuman(h, match);
+  });
+  // Flag any drafted human the extractor did NOT detect (dropped — the LLM cannot add cast the text doesn't support).
+  for (const d of draftHumans) {
+    const id = typeof d.id === 'string' ? d.id : '';
+    if (id && !facts.humans.some((h) => h.id === id)) {
+      notes.push(`draft human "${id}" not detected in the text — dropped (extractor is authoritative for cast)`);
+    }
+  }
+
+  const pageContracts = asArr(draft.pageContracts).map((pc) => overlayPage(asObj(pc), facts, childId, companionId));
+
+  const template: BookVisualContractTemplate = {
+    contractKind: 'template',
+    schemaVersion: VISUAL_CONTRACT_SCHEMA_VERSION,
+    version: 1,
+    storyKey: input.storyKey,
+    worldType: (typeof draft.worldType === 'string' ? draft.worldType : input.worldType) ?? 'unspecified',
+    locations: draft.locations as BookVisualContractTemplate['locations'],
+    zones: draft.zones as BookVisualContractTemplate['zones'],
+    cast: draft.cast as BookVisualContractTemplate['cast'],
+    humanCast,
+    recurringProps: (draft.recurringProps as BookVisualContractTemplate['recurringProps']) ?? [],
+    forbiddenGlobalElements: asArr(draft.forbiddenGlobalElements).filter((x): x is string => typeof x === 'string'),
+    coverContract: draft.coverContract as BookVisualContractTemplate['coverContract'],
+    pageContracts: pageContracts as unknown as BookVisualContractTemplate['pageContracts'],
+    provenance: { source: 'llm', model: 'text-first-compiler', compiledFromPages: input.pageCount },
+  };
+
+  // FAIL-CLOSED — never return an invalid candidate.
+  assertValidBookVisualContractTemplate(template);
+  return { template, facts, notes };
+}
