@@ -270,14 +270,6 @@ function sentenceAround(clean: string, at: number): string {
   return clean.slice(start, end + 1).trim();
 }
 
-/** First sentence-ish window containing the bare alias (evidence phrase — kept short, real text). */
-function firstSentenceWith(text: string, bareAlias: string): string {
-  const clean = stripNiqqud(text);
-  const idxs = standaloneMatchIndices(clean, bareAlias);
-  if (idxs.length === 0) return text.trim().slice(0, 120);
-  return sentenceAround(clean, idxs[0]);
-}
-
 /**
  * Best gender evidence for a set of bare aliases: the EARLIEST actor/object mention (e.g. "הרופא קרא")
  * if any, else the earliest mention of any kind (a construct/genitive still fixes the noun's gender).
@@ -303,31 +295,21 @@ function bestHebrewEvidence(
 }
 
 // ── Laterality ────────────────────────────────────────────────────────────────
+// The tool NEVER auto-binds laterality. A side word may describe another character (e.g. "the nurse's RIGHT
+// hand") or camera framing, and attributing a side to the CHILD's injection/bandage arm is not reliable from
+// text — so laterality is ALWAYS a human authoring choice (deferred + flagged), never fabricated. We only
+// detect explicit HEBREW side words (never English framing text) to make the deferral note more useful.
 const LEFT_TOKENS = ['שמאל', 'שמאלית', 'השמאלית', 'שמאלה'];
 const RIGHT_TOKENS = ['ימין', 'ימנית', 'הימנית', 'ימינה'];
-const BODY_PART_TOKENS = ['יד', 'היד', 'זרוע', 'הזרוע', 'כף'];
 
-function extractLaterality(pages: DeterministicFactsInputPage[], directions: Map<number, string>): LateralityFact[] {
-  const facts: LateralityFact[] = [];
+function detectHebrewSideTokenPages(pages: DeterministicFactsInputPage[]): number[] {
+  const sideTokens = [...LEFT_TOKENS, ...RIGHT_TOKENS].map(stripNiqqud);
+  const out: number[] = [];
   for (const p of pages) {
     const clean = stripNiqqud(p.text);
-    const dir = (directions.get(p.pageNumber) ?? '').toLowerCase();
-    const bodyPart =
-      BODY_PART_TOKENS.map(stripNiqqud).find((b) => standaloneMatchIndices(clean, b).length > 0) ??
-      (/\b(arm|hand)\b/i.test(dir) ? 'arm' : '');
-    const hasLeft =
-      LEFT_TOKENS.map(stripNiqqud).some((t) => standaloneMatchIndices(clean, t).length > 0) ||
-      /\bleft\b/i.test(dir);
-    const hasRight =
-      RIGHT_TOKENS.map(stripNiqqud).some((t) => standaloneMatchIndices(clean, t).length > 0) ||
-      /\bright\b/i.test(dir);
-    if (hasLeft && !hasRight) {
-      facts.push({ page: p.pageNumber, side: 'left', bodyPart: bodyPart || 'unspecified', evidence: { page: p.pageNumber, phrase: firstSentenceWith(p.text, stripNiqqud('שמאל')) } });
-    } else if (hasRight && !hasLeft) {
-      facts.push({ page: p.pageNumber, side: 'right', bodyPart: bodyPart || 'unspecified', evidence: { page: p.pageNumber, phrase: firstSentenceWith(p.text, stripNiqqud('ימין')) } });
-    }
+    if (sideTokens.some((t) => standaloneMatchIndices(clean, t).length > 0)) out.push(p.pageNumber);
   }
-  return facts;
+  return out;
 }
 
 // Pages that plausibly need a laterality binding (injection / bandage arc) — for the DEFERRAL note only.
@@ -421,19 +403,22 @@ export function extractDeterministicFacts(input: DeterministicFactsInput): Deter
     }
   }
 
-  // Laterality — only what the text explicitly states.
-  const laterality = extractLaterality(pages, directions);
-  if (laterality.length === 0) {
-    const relevantPages = pages
-      .filter((p) => LATERALITY_RELEVANT_HE.map(stripNiqqud).some((t) => standaloneMatchIndices(stripNiqqud(p.text), t).length > 0))
-      .map((p) => p.pageNumber);
-    deferrals.push({
-      field: 'castStates.laterality (injectionArm / bandageArm / freeHand)',
-      reason:
-        'The source text never states which side (no שמאל/ימין). Any left/right binding is a human authoring choice — the extractor declines to invent it.',
-      ...(relevantPages.length ? { pages: relevantPages } : {}),
-    });
-  }
+  // Laterality — ALWAYS deferred, NEVER auto-bound (a side word may refer to another character or camera
+  // framing; attributing a side to the child's injection/bandage arm is a human authoring choice). We only
+  // surface where side words appear (Hebrew only) vs the injection/bandage pages, to guide the human author.
+  const laterality: LateralityFact[] = []; // the tool never derives a binding — see detectHebrewSideTokenPages
+  const sideTokenPages = detectHebrewSideTokenPages(pages);
+  const injectionPages = pages
+    .filter((p) => LATERALITY_RELEVANT_HE.map(stripNiqqud).some((t) => standaloneMatchIndices(stripNiqqud(p.text), t).length > 0))
+    .map((p) => p.pageNumber);
+  const flagPages = sideTokenPages.length ? sideTokenPages : injectionPages;
+  deferrals.push({
+    field: 'castStates.laterality (injectionArm / bandageArm / freeHand)',
+    reason: sideTokenPages.length
+      ? `Side words (שמאל/ימין) appear on pages [${sideTokenPages.join(', ')}], but the tool does NOT auto-bind laterality — a side word may refer to another character or camera framing, and attributing a side to the child's injection/bandage arm is a human authoring choice. Author it during review.`
+      : 'The source text never states which side (no שמאל/ימין). Any left/right binding is a human authoring choice — the extractor declines to invent it.',
+    ...(flagPages.length ? { pages: flagPages } : {}),
+  });
 
   return {
     storyKey: input.storyKey,

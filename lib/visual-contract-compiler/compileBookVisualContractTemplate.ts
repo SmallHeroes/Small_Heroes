@@ -112,12 +112,14 @@ function formatEvidence(h: HumanFact): string {
 
 /** Merge the deterministic identity facts (win) with the draft's descriptive appearance for one human. */
 function mergeHuman(fact: HumanFact, draftHuman: Record<string, unknown>): TemplateHumanCastMember {
-  const draftAliases = asArr(draftHuman.aliases).filter((a): a is string => typeof a === 'string');
   return {
     id: fact.id,
     role: fact.role,
     gender: fact.gender,
-    aliases: draftAliases.length ? draftAliases : fact.aliasesFound,
+    // Identity is DETERMINISTIC: aliases come from the extractor, NEVER the draft (the LLM is told not to
+    // output aliases; a draft can neither overwrite nor drop a text-found alias). Only appearance/garments/
+    // forbiddenAppearance below are descriptive draft fields.
+    aliases: fact.aliasesFound,
     textEvidence: formatEvidence(fact),
     pagesPresent: fact.pagesPresent,
     appearance: draftHuman.appearance as TemplateHumanCastMember['appearance'],
@@ -141,22 +143,17 @@ function overlayPage(
   if (companionPresent && companionId) castIds.push(companionId);
   for (const h of facts.humans) if (h.pagesPresent.includes(page)) castIds.push(h.id);
 
-  // castStates: keep the draft's descriptive bodyState, but STRIP any draft laterality; re-inject ONLY the
-  // laterality the extractor derived from the text (none → bodyState-only). Drop no-op entries; omit if empty.
-  const derivedLat = facts.laterality.find((l) => l.page === page);
+  // castStates: keep ONLY the draft's descriptive bodyState. ALL laterality (injectionArm/bandageArm/freeHand)
+  // is DISCARDED and NEVER re-injected — attributing a side to the child's injection/bandage arm is a human
+  // authoring choice the tool defers (extractDeterministicFacts pushes a laterality deferral). Drop no-op
+  // entries; omit castStates entirely if empty (Slice B fail-closed rule).
   const rebuilt: Array<Record<string, unknown>> = [];
   for (const raw of asArr(pc.castStates)) {
     const cs = asObj(raw);
     const entry: Record<string, unknown> = {};
     if (typeof cs.castId === 'string') entry.castId = cs.castId;
     if (typeof cs.bodyState === 'string') entry.bodyState = cs.bodyState; // descriptive — kept
-    // injectionArm/bandageArm/freeHand from the draft are DISCARDED here (not text-verified).
-    if (derivedLat && entry.castId === childId) {
-      // Only when the text actually stated a side (never for bunny) do we bind it.
-      entry.injectionArm = derivedLat.side;
-    }
-    const meaningful = 'bodyState' in entry || 'injectionArm' in entry || 'bandageArm' in entry || 'freeHand' in entry;
-    if (typeof entry.castId === 'string' && meaningful) rebuilt.push(entry);
+    if (typeof entry.castId === 'string' && 'bodyState' in entry) rebuilt.push(entry);
   }
 
   const out: Record<string, unknown> = {

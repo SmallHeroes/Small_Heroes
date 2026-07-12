@@ -137,6 +137,38 @@ describe('text-first compiler — C3 assembly (facts overlaid LAST) + fail-close
   });
 });
 
+describe('gate remediation — laterality is NEVER auto-bound; aliases come from facts', () => {
+  it('never binds laterality even when the source has an explicit Hebrew side word + a child castState', async () => {
+    const src = bunnySource();
+    // Inject an explicit Hebrew side word (הימנית = right) on page 9, where the draft has a child castState.
+    // This is the exact hole the gate found: a side word (possibly about another character/framing) must NOT
+    // become the child's injectionArm.
+    const p9 = src.pages.find((p) => p.pageNumber === 9)!;
+    p9.text += ' הָרוֹפֵא הֵרִים אֶת הַיָּד הַיְמָנִית.'; // "the doctor raised his right hand" — NOT the child's arm
+    const facts = extractDeterministicFacts(src);
+    expect(facts.laterality).toEqual([]); // the tool never derives a laterality binding
+    const lat = facts.deferrals.find((d) => d.field.startsWith('castStates.laterality'))!;
+    expect(lat.reason).toContain('Side words');
+    expect(lat.pages).toContain(9); // surfaced for the human, not bound
+    // And the compiled candidate carries NO laterality anywhere (facts-overlay strips the draft's too).
+    const { template } = await compileBookVisualContractTemplate(src, { callLLM: stubFrom(bunnyTemplate()) });
+    const anyLat = template.pageContracts.some((pc) =>
+      (pc.castStates ?? []).some((cs) => cs.injectionArm || cs.bandageArm || cs.freeHand),
+    );
+    expect(anyLat).toBe(false);
+  });
+
+  it('aliases come from the extractor facts, never the LLM draft', async () => {
+    const lying = bunnyTemplate() as unknown as Record<string, unknown>;
+    (lying.humanCast as Array<Record<string, unknown>>)[0].aliases = ['evil-alias', 'totally-wrong'];
+    const { template, facts } = await compileBookVisualContractTemplate(bunnySource(), { callLLM: stubFrom(lying) });
+    const doctor = template.humanCast.find((h) => h.id === 'human:doctor')!;
+    const factDoctor = facts.humans.find((h) => h.id === 'human:doctor')!;
+    expect(doctor.aliases).toEqual(factDoctor.aliasesFound);
+    expect(doctor.aliases).not.toContain('evil-alias');
+  });
+});
+
 describe('text-first compiler — C4 review + bunny re-derivation DIFF', () => {
   it('the candidate diff vs the hand-authored template is exactly the deferred human-authored fields', async () => {
     const { template, facts, notes } = await compileBookVisualContractTemplate(bunnySource(), {
