@@ -51,15 +51,34 @@ interface ProseAbsenceFlag {
 }
 
 /**
- * Residual leak-class flag (companion to the STRUCTURED castStates hard-block): free prose — mustShow / mustNotShow
- * / camera — can NAME a recurring human the facts say is ABSENT on that page. Prose can't be deterministically
- * REJECTED, so the tool FLAGS it here for the human. Hebrew-safe matching: aliases come from the facts, niqqud is
- * stripped, and matching uses the shared standaloneTokenPattern boundary — NEVER `\b` (dead for Hebrew).
+ * Residual leak-class flag (companion to the STRUCTURED cast-authority invariant): free prose — mustShow /
+ * mustNotShow / camera — can NAME a cast member the facts say is ABSENT on that page. Prose can't be
+ * deterministically REJECTED, so the tool FLAGS it here for the human. Covers EVERY named cast type — recurring
+ * humans (aliases from the extractor) AND the companion (name from the authoritative cast). Hebrew-safe matching:
+ * niqqud is stripped and matching uses the shared standaloneTokenPattern boundary — NEVER `\b` (dead for Hebrew).
+ * Note: matching is per-script — a Hebrew companion name won't match an English prose spelling and vice versa.
  */
 function proseAbsencePresenceFlags(
   facts: DeterministicFacts,
   template: BookVisualContractTemplate,
 ): ProseAbsenceFlag[] {
+  // Every named cast member whose PRESENCE is fact-governed: recurring humans + the companion. A member is
+  // "present" on a page iff its cast id is in that page's (fact-recomputed) castIds.
+  const targets: Array<{ id: string; role: string; aliases: string[] }> = facts.humans.map((h) => ({
+    id: h.id,
+    role: h.role,
+    aliases: h.aliasesFound,
+  }));
+  const companion = template.cast?.companion;
+  if (companion?.id && companion.name) {
+    // Aliases = the authoritative companion name + its individual words (so a short story form like "בּוּנִי"
+    // inside a full registry name "הארנבון בּוּנִי" still matches). Drop 1-char tokens.
+    const words = [companion.name, ...companion.name.split(/\s+/)]
+      .map((a) => a.trim())
+      .filter((a) => stripNiqqud(a).length >= 2);
+    targets.push({ id: companion.id, role: 'companion', aliases: [...new Set(words)] });
+  }
+
   const flags: ProseAbsenceFlag[] = [];
   for (const pc of template.pageContracts) {
     const pageCastIds = new Set(pc.castIds ?? []);
@@ -68,14 +87,14 @@ function proseAbsencePresenceFlags(
       ['mustNotShow', (Array.isArray(pc.mustNotShow) ? pc.mustNotShow : []).join('\n')],
       ['camera', typeof pc.camera === 'string' ? pc.camera : ''],
     ];
-    for (const h of facts.humans) {
-      if (pageCastIds.has(h.id)) continue; // present per facts → not this check
+    for (const t of targets) {
+      if (pageCastIds.has(t.id)) continue; // present per facts → not this check
       const matchedAliases = new Set<string>();
       const fields = new Set<string>();
       for (const [field, text] of fieldTexts) {
         if (!text) continue;
         const clean = stripNiqqud(text);
-        for (const alias of h.aliasesFound) {
+        for (const alias of t.aliases) {
           if (alias && containsAsStandaloneToken(clean, stripNiqqud(alias))) {
             matchedAliases.add(alias);
             fields.add(field);
@@ -83,7 +102,7 @@ function proseAbsencePresenceFlags(
         }
       }
       if (fields.size > 0) {
-        flags.push({ page: pc.pageNumber, role: h.role, matchedAliases: [...matchedAliases], fields: [...fields] });
+        flags.push({ page: pc.pageNumber, role: t.role, matchedAliases: [...matchedAliases], fields: [...fields] });
       }
     }
   }

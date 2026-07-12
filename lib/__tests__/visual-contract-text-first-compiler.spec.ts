@@ -268,6 +268,20 @@ describe('leak-class closure — a character named in prose but ABSENT per facts
     const review = renderVisualContractReview({ storyKey: BUNNY_KEY, facts, template, notes, valid: true });
     expect(review).toMatch(/p2: \*\*doctor\*\*[^\n]*mustShow/);
   });
+
+  it('extends the flag to the COMPANION named in prose on a companion-ABSENT page (Codex FAIL #4)', async () => {
+    const { template, facts, notes } = await compileBookVisualContractTemplate(bunnySource(), {
+      callLLM: stubFrom(bunnyTemplate()),
+    });
+    const companionName = (template.cast.companion as { name: string }).name; // authoritative (from input.companion)
+    // p1: companion is ABSENT per facts (companionPresentPages = [2..12]). Name it in the mustShow prose.
+    const p1 = template.pageContracts.find((pc) => pc.pageNumber === 1)!;
+    (p1 as unknown as { mustShow: string[] }).mustShow = [...(p1.mustShow ?? []), `${companionName} עומד ברקע`];
+    const review = renderVisualContractReview({ storyKey: BUNNY_KEY, facts, template, notes, valid: true });
+    expect(review).toMatch(/p1: \*\*companion\*\*[^\n]*mustShow/);
+    // a companion-PRESENT page (p2) is NOT flagged as absent
+    expect(review).not.toMatch(/p2: \*\*companion\*\*/);
+  });
 });
 
 describe('text-first compiler — C4 review + bunny re-derivation DIFF', () => {
