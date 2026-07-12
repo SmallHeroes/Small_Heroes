@@ -89,6 +89,15 @@ export type LoadStoryFromBankOptions = {
   maxPages?: number;
   /** Skip LLM gender/name passes (use after text is finalized — image/cover loads only). */
   skipLlmPersonalization?: boolean;
+  /**
+   * Allow the NON-DETERMINISTIC free-form LLM rewrite (gender swap / name weave) on the correction path.
+   * DEFAULT false: the PAID v3-approved path resolves gender/name DETERMINISTICALLY (placeholders + gender
+   * chips/slashes + a deterministic name top-up) and FAILS CLOSED if that leaves a residual mismatch — it never
+   * runs a free LLM rewrite of approved text (which could change plot/tone, desync text↔image, or drift across
+   * retry → payloadHash strand). Set true ONLY for dev/experiment callers that explicitly want the legacy LLM
+   * passes. (Fork B — constrain live LLM story-correction on paid generation.)
+   */
+  allowLlmRewrite?: boolean;
 };
 
 export { truncateStoryMarkdownToPages } from '../../lib/story-bank-truncate';
@@ -110,10 +119,125 @@ export function parseCompanionLetterMeta(
   return { insertAfterPage, imageDirection: img[1].trim() };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Fork B — deterministic name personalization + fail-closed correction guards.
+// (Constrain live LLM story-correction on paid v3-approved generation.)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Deterministic name top-up aims for this many occurrences; below it we substitute generic child-word slots. */
+export const NAME_PERSONALIZATION_TARGET = 3;
+/** Hard floor: fewer than this after deterministic resolution FAILS CLOSED (a wrong-personalization book). */
+export const NAME_PERSONALIZATION_MIN = 1;
+/** Per-page correction edit-distance budget (abs, chars) — a few name substitutions, not a rewrite. */
+export const CORRECTION_DIFF_ABS_BUDGET = 24;
+/** Per-page correction edit-distance budget as a fraction of page length (scales the abs floor up on long pages). */
+export const CORRECTION_DIFF_RATIO = 0.12;
+
+/** Count child-name occurrences (substring, matching the historical count — errs toward NOT false-failing). */
+export function countNameOccurrences(pages: Pick<StoryPage, 'text'>[], name: string): number {
+  if (!name) return 0;
+  const re = new RegExp(escapeRegexLiteral(name), 'g');
+  return pages.reduce((acc, p) => acc + ((p.text ?? '').match(re) || []).length, 0);
+}
+
+/**
+ * Deterministically weave the child's name into leading GENERIC child-word slots (הילד/הילדה, ילד/ילדה) up to
+ * `target`. Pure string substitution (no LLM): same inputs → same output → stable payloadHash on retry. Only the
+ * definite/bare noun tokens are replaced (prefixed forms like לילד stay, to avoid ungrammatical bare-name splices).
+ * v3-approved stories use {{childName}} placeholders and have no generic slots, so this is usually a no-op.
+ * Returns the number of substitutions made.
+ */
+export function deterministicNameTopUp(
+  pages: Pick<StoryPage, 'text' | 'narrationText'>[],
+  name: string,
+  gender: 'boy' | 'girl' | 'other',
+  target: number
+): number {
+  let need = target - countNameOccurrences(pages, name);
+  if (need <= 0 || !name) return 0;
+  const tokens = gender === 'girl' ? ['הילדה', 'ילדה'] : ['הילד', 'ילד'];
+  let added = 0;
+  for (const page of pages) {
+    if (need <= 0) break;
+    let text = page.text ?? '';
+    for (const tok of tokens) {
+      if (need <= 0) break;
+      // Standalone token only: non-Hebrew-letter (or edge) on both sides — never a partial match inside a word.
+      const re = new RegExp(`(?<=[^א-ת]|^)${escapeRegexLiteral(tok)}(?=[^א-ת]|$)`, 'g');
+      text = text.replace(re, (m) => {
+        if (need <= 0) return m;
+        need--;
+        added++;
+        return name;
+      });
+    }
+    page.text = text;
+    page.narrationText = text;
+  }
+  return added;
+}
+
+/** Fail CLOSED when the child's name is not present at the required minimum after deterministic resolution. */
+export function assertNameFloor(name: string, count: number, min: number): void {
+  if (count < min) {
+    throw new StoryBankPersonalizationError(
+      `Name '${name}' appears ${count}x after deterministic resolution (min ${min}) — the story's {{childName}} ` +
+        `placeholders resolved too few times and there were no generic child-word slots to top up. Fix the story authoring.`
+    );
+  }
+}
+
+/** Edit distance with an early-exit ceiling (returns >max once the whole row exceeds the budget). */
+export function boundedLevenshtein(a: string, b: string, max: number): number {
+  if (a === b) return 0;
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  const prev = new Array<number>(b.length + 1);
+  const cur = new Array<number>(b.length + 1);
+  for (let j = 0; j <= b.length; j++) prev[j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    cur[0] = i;
+    let rowMin = cur[0];
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+      if (cur[j] < rowMin) rowMin = cur[j];
+    }
+    if (rowMin > max) return max + 1; // even the best cell this row exceeds the budget → bail
+    for (let j = 0; j <= b.length; j++) prev[j] = cur[j];
+  }
+  return prev[b.length];
+}
+
+/**
+ * Fail CLOSED if the correction changed the approved text beyond a small, localized per-page name-substitution
+ * budget — i.e. a free-form rewrite that could alter plot/tone or desync text↔image. On the deterministic path
+ * the diff is zero (name-dense stories) or a handful of name substitutions; a meaning rewrite blows the budget.
+ */
+export function assertCorrectionWithinDiffBudget(baseline: string[], finalized: string[]): void {
+  if (baseline.length !== finalized.length) {
+    throw new StoryBankPersonalizationError(
+      `Correction changed the page count (${baseline.length} → ${finalized.length}) — refusing to ship.`
+    );
+  }
+  for (let i = 0; i < baseline.length; i++) {
+    const a = baseline[i] ?? '';
+    const b = finalized[i] ?? '';
+    const budget = Math.max(CORRECTION_DIFF_ABS_BUDGET, Math.ceil(a.length * CORRECTION_DIFF_RATIO));
+    const dist = boundedLevenshtein(a, b, budget);
+    if (dist > budget) {
+      throw new StoryBankPersonalizationError(
+        `Correction rewrote page ${i + 1} beyond the name-substitution budget (edit distance >${budget}) — a ` +
+          `free-form rewrite that could change meaning/tone or desync text↔image. Refusing to ship approved paid text.`
+      );
+    }
+  }
+}
+
 /**
  * Parse a story-bank markdown file into a GeneratedStory object.
  * Skips all LLM stages — uses imageDirection fields as rawScenePrompt.
- * If childGender doesn't match the story's written gender, runs LLM gender swap.
+ * On the paid path gender/name are resolved DETERMINISTICALLY (placeholders + chips/slashes + a deterministic
+ * name top-up) and FAIL CLOSED on a residual mismatch; a free-form LLM rewrite runs only under allowLlmRewrite (dev).
  */
 export async function loadStoryFromBank(
   filePath: string,
@@ -207,6 +331,11 @@ export async function loadStoryFromBank(
     );
   }
 
+  // Fork B: snapshot the DETERMINISTIC resolution (placeholders + gender chips/slashes) as the baseline that the
+  // finalized correction text is diff-budget-checked against — any change beyond small, localized name
+  // substitutions (i.e. a free-form rewrite that shifted meaning/tone) FAILS CLOSED (assertCorrectionWithinDiffBudget).
+  const deterministicBaseline = pages.map((p) => p.text);
+
   // ── Gender adaptation ──────────────────────────────────────────────
   // Chip-resolved v5 stories are correct by construction; LLM swap is belt-and-suspenders only.
   if (childGender && !options?.skipLlmPersonalization) {
@@ -243,17 +372,31 @@ export async function loadStoryFromBank(
 
     if (needsSwap) {
       const fromGender = (genderAfterChips ?? normalizedExplicitGender)!;
-      console.log(
-        `[StoryBank] Gender mismatch after chips: from=${fromGender}, target=${targetGender}. Running LLM swap...`
-      );
-      const swappedPages = await swapGender(pages, fromGender, targetGender, childName);
-      for (let i = 0; i < pages.length; i++) {
-        if (swappedPages[i]) {
-          pages[i].text = swappedPages[i];
-          pages[i].narrationText = swappedPages[i];
+      if (!options?.allowLlmRewrite) {
+        // Fork B: the coarse GLOBAL gender heuristic (detectStoryGender counts every gendered marker, incl.
+        // secondary characters like a mother/companion, so it can skew) disagrees with the target. We do NOT run
+        // a non-deterministic LLM rewrite of approved text on the paid path. The deterministic chip/slash
+        // resolution stands, and the PRECISE, name-adjacent gender gate (assertStoryPersonalizationGate — the
+        // FIXED Hebrew boundary, called below + in text-finalization) is the fail-closed re-check: it blocks a
+        // genuine wrong-gender CHILD leak while not over-blocking a correctly-authored story the global heuristic
+        // misreads. (A story that legitimately trips the gate is a chip-coverage authoring bug to fix at source.)
+        console.warn(
+          `[StoryBank] Gender heuristic mismatch (global detect=${fromGender}, target=${targetGender}); LLM rewrite OFF (paid path). ` +
+            `Relying on deterministic chips/slashes + the name-adjacent gender gate to fail closed on any real leak.`
+        );
+      } else {
+        console.log(
+          `[StoryBank] Gender mismatch after chips: from=${fromGender}, target=${targetGender}. Running LLM swap (allowLlmRewrite=on)...`
+        );
+        const swappedPages = await swapGender(pages, fromGender, targetGender, childName);
+        for (let i = 0; i < pages.length; i++) {
+          if (swappedPages[i]) {
+            pages[i].text = swappedPages[i];
+            pages[i].narrationText = swappedPages[i];
+          }
         }
+        console.log(`[StoryBank] Gender swap complete (${pages.length} pages).`);
       }
-      console.log(`[StoryBank] Gender swap complete (${pages.length} pages).`);
     } else {
       console.log(
         `[StoryBank] Gender OK after chips (afterChips=${genderAfterChips}, gateClean=${genderGateClean}). No swap needed.`
@@ -261,49 +404,52 @@ export async function loadStoryFromBank(
     }
   }
 
-  // ── Child name personalization ─────────────────────────────────────
-  if (
-    childName &&
-    childName.trim().length > 0 &&
-    !options?.skipLlmPersonalization
-  ) {
-    const nameCountBefore = pages.reduce(
-      (acc, p) => acc + ((p.text ?? '').match(new RegExp(escapeRegexLiteral(childName.trim()), 'g')) || []).length,
-      0
-    );
-    if (nameCountBefore >= 4) {
-      console.log(
-        `[StoryBank] Name personalization skipped — '${childName}' already appears ${nameCountBefore} times`
-      );
-    } else {
-    // Same consistent normalization as the gender-swap above (was a divergent local Hebrew regex).
-    const targetGenderForName: 'female' | 'male' = wizardGender === 'girl' ? 'female' : 'male';
-    try {
-      const personalizedPages = await personalizeChildName(pages, childName, targetGenderForName);
-      for (let i = 0; i < pages.length; i++) {
-        if (personalizedPages[i]) {
-          pages[i].text = personalizedPages[i];
-          pages[i].narrationText = personalizedPages[i];
+  // ── Child name personalization (Fork B: DETERMINISTIC — no free-form LLM weave on the paid path) ──────
+  if (childName && childName.trim().length > 0 && !options?.skipLlmPersonalization) {
+    const trimmedName = childName.trim();
+    const nameCount = countNameOccurrences(pages, trimmedName);
+
+    if (nameCount >= NAME_PERSONALIZATION_TARGET) {
+      // v3-approved / v5 stories carry {{childName}} placeholders → the name is already dense after the
+      // deterministic resolution above. Nothing to add, and nothing a free LLM rewrite should touch.
+      console.log(`[StoryBank] Name already dense — '${trimmedName}' appears ${nameCount}x (deterministic placeholders).`);
+    } else if (options?.allowLlmRewrite) {
+      // Legacy DEV opt-in ONLY: the non-deterministic LLM name weave. Never runs on the paid v3-approved path.
+      const targetGenderForName: 'female' | 'male' = wizardGender === 'girl' ? 'female' : 'male';
+      try {
+        const personalizedPages = await personalizeChildName(pages, trimmedName, targetGenderForName);
+        for (let i = 0; i < pages.length; i++) {
+          if (personalizedPages[i]) {
+            pages[i].text = personalizedPages[i];
+            pages[i].narrationText = personalizedPages[i];
+          }
         }
+      } catch (err) {
+        throw err instanceof StoryBankPersonalizationError
+          ? err
+          : new StoryBankPersonalizationError(
+              `Name personalization failed: ${err instanceof Error ? err.message : String(err)}`
+            );
       }
-      // Count how many times the child's name actually appears in the rewritten pages —
-    // surfaces it in logs so we know whether the LLM was conservative or generous.
-    const totalNameCount = personalizedPages.reduce(
-      (acc, p) => acc + ((p ?? '').match(new RegExp(childName, 'g')) || []).length,
-      0
-    );
-    console.log(`[StoryBank] Name personalization complete — '${childName}' appears ${totalNameCount} times across ${pages.length} pages.`);
-    if (totalNameCount < 4) {
-      console.warn(`[StoryBank] WARNING: name appears only ${totalNameCount}x — model was too conservative.`);
+    } else {
+      // Fork B default: DETERMINISTIC top-up — substitute the child's name into leading generic child-word
+      // slots (הילד/הילדה) up to the target. Pure string substitution: same inputs → same output → stable
+      // payloadHash on retry. (v3 stories have no generic slots and are already dense, so this is usually a no-op.)
+      const added = deterministicNameTopUp(pages, trimmedName, wizardGender, NAME_PERSONALIZATION_TARGET);
+      if (added > 0) console.log(`[StoryBank] Deterministic name top-up: +${added} '${trimmedName}' into generic child-word slots.`);
     }
-    } catch (err) {
-      throw err instanceof StoryBankPersonalizationError
-        ? err
-        : new StoryBankPersonalizationError(
-            `Name personalization failed: ${err instanceof Error ? err.message : String(err)}`
-          );
-    }
-    }
+
+    // Fail CLOSED if the name isn't present at the required minimum after deterministic resolution (a broken
+    // placeholder, or an LLM that stripped personalization) — never ship a wrong-personalization book.
+    const finalNameCount = countNameOccurrences(pages, trimmedName);
+    assertNameFloor(trimmedName, finalNameCount, NAME_PERSONALIZATION_MIN);
+    console.log(`[StoryBank] Name check OK — '${trimmedName}' appears ${finalNameCount}x (min ${NAME_PERSONALIZATION_MIN}).`);
+  }
+
+  // Fork B: fail CLOSED if the correction changed the approved text beyond a small, localized name-substitution
+  // budget (a free-form rewrite that altered plot/tone → text↔image desync). Deterministic path diff ≈ 0.
+  if (!options?.skipLlmPersonalization && !options?.allowLlmRewrite) {
+    assertCorrectionWithinDiffBudget(deterministicBaseline, pages.map((p) => p.text));
   }
 
   const opts = options ?? undefined;

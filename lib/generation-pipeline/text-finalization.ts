@@ -115,6 +115,41 @@ export async function finalizeAndPersistStoryText(
     );
   }
 
+  // ── Retry determinism (Fork B) ──────────────────────────────────────────────────────────────────────
+  // Fork B makes gender/name personalization deterministic, but a story with a companion-letter page still has
+  // one LLM-generated page. If a PRIOR finalization already committed this order's book (an ambiguous-commit
+  // redrive, or a crash between the receipt commit and cache.textFinalized persisting), reuse that EXACT
+  // persisted text so THIS attempt rebuilds an IDENTICAL delivery-input payload → the receipt fence replays
+  // exactly-once instead of failing closed (ReceiptPayloadMismatchError) on a benign re-derivation drift. The
+  // reuse touches text/narration only (deterministic page structure is unchanged); it is a no-op on the first
+  // finalization and whenever the persisted page count doesn't match (a genuinely different derivation).
+  const persistedBook = await prisma.generatedBook.findUnique({
+    where: { orderId: order.id },
+    select: {
+      pages: {
+        orderBy: { pageNumber: 'asc' },
+        select: { pageNumber: true, text: true, narrationText: true },
+      },
+    },
+  });
+  if (persistedBook && persistedBook.pages.length === story.pages.length) {
+    const priorByNumber = new Map(persistedBook.pages.map((p) => [p.pageNumber, p]));
+    let reused = 0;
+    for (const page of story.pages) {
+      const prior = priorByNumber.get(page.pageNumber);
+      if (prior) {
+        page.text = prior.text;
+        page.narrationText = prior.narrationText ?? prior.text;
+        reused++;
+      }
+    }
+    if (reused === story.pages.length) {
+      console.log(
+        `[text-finalization] Reused ${reused} persisted page(s) for deterministic retry (order=${order.id}).`
+      );
+    }
+  }
+
   try {
     assertStoryPersonalizationGate({
       pages: story.pages.map((p) => ({
