@@ -282,6 +282,21 @@ describe('leak-class closure — a character named in prose but ABSENT per facts
     // a companion-PRESENT page (p2) is NOT flagged as absent
     expect(review).not.toMatch(/p2: \*\*companion\*\*/);
   });
+
+  it('catches an ENGLISH companion mention ("Buni"/"bunny") via the deterministic tokens (Codex FAIL #5)', async () => {
+    const { template, facts, notes } = await compileBookVisualContractTemplate(bunnySource(), {
+      callLLM: stubFrom(bunnyTemplate()),
+    });
+    // Real bunny p1: companion ABSENT (facts.companionPresentPages = [2..12]). The hand-authored ENGLISH prose
+    // names "Buni the bunny" in mustNotShow — now caught via companionPresenceTokens (buni/bunny), case-insensitively.
+    const review = renderVisualContractReview({ storyKey: BUNNY_KEY, facts, template, notes, valid: true });
+    expect(review).toMatch(/p1: \*\*companion\*\*[^\n]*mustNotShow/);
+    // capitalized "Buni" in a fresh English mustShow line is also caught (case-insensitive)
+    const p1 = template.pageContracts.find((pc) => pc.pageNumber === 1)!;
+    (p1 as unknown as { mustShow: string[] }).mustShow = [...(p1.mustShow ?? []), 'Buni peeks out from behind a chair'];
+    const review2 = renderVisualContractReview({ storyKey: BUNNY_KEY, facts, template, notes, valid: true });
+    expect(review2).toMatch(/p1: \*\*companion\*\*[^\n]*mustShow/);
+  });
 });
 
 describe('text-first compiler — C4 review + bunny re-derivation DIFF', () => {

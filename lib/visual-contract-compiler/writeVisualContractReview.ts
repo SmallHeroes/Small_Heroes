@@ -9,6 +9,7 @@
 import type { BookVisualContractTemplate, TemplateHumanCastMember } from './contractTemplateTypes';
 import { stripNiqqud, type DeterministicFacts } from './extractDeterministicFacts';
 import { containsAsStandaloneToken } from '../story-bank-personalization';
+import { companionPresenceTokens } from '../companion-presence-aliases';
 
 export interface ReviewReportArgs {
   storyKey: string;
@@ -54,9 +55,10 @@ interface ProseAbsenceFlag {
  * Residual leak-class flag (companion to the STRUCTURED cast-authority invariant): free prose — mustShow /
  * mustNotShow / camera — can NAME a cast member the facts say is ABSENT on that page. Prose can't be
  * deterministically REJECTED, so the tool FLAGS it here for the human. Covers EVERY named cast type — recurring
- * humans (aliases from the extractor) AND the companion (name from the authoritative cast). Hebrew-safe matching:
- * niqqud is stripped and matching uses the shared standaloneTokenPattern boundary — NEVER `\b` (dead for Hebrew).
- * Note: matching is per-script — a Hebrew companion name won't match an English prose spelling and vice versa.
+ * humans (aliases from the extractor) AND the companion (the deterministic presence tokens: name parts + registry
+ * + manual English/Hebrew aliases, e.g. buni/bunny/rabbit). Matching is niqqud-stripped, CASE-INSENSITIVE (so an
+ * English prose spelling like "Buni" is caught as well as a Hebrew one), and uses the shared standaloneTokenPattern
+ * boundary — NEVER `\b` (dead for Hebrew).
  */
 function proseAbsencePresenceFlags(
   facts: DeterministicFacts,
@@ -71,12 +73,10 @@ function proseAbsencePresenceFlags(
   }));
   const companion = template.cast?.companion;
   if (companion?.id && companion.name) {
-    // Aliases = the authoritative companion name + its individual words (so a short story form like "בּוּנִי"
-    // inside a full registry name "הארנבון בּוּנִי" still matches). Drop 1-char tokens.
-    const words = [companion.name, ...companion.name.split(/\s+/)]
-      .map((a) => a.trim())
-      .filter((a) => stripNiqqud(a).length >= 2);
-    targets.push({ id: companion.id, role: 'companion', aliases: [...new Set(words)] });
+    // Deterministic presence tokens (name parts + registry + manual English/Hebrew aliases, e.g. buni/bunny/rabbit),
+    // keyed from the AUTHORITATIVE companion id — the raw registry id, sans the "companion:" cast-namespace prefix.
+    const registryId = companion.id.replace(/^companion:/, '');
+    targets.push({ id: companion.id, role: 'companion', aliases: companionPresenceTokens(companion.name, registryId) });
   }
 
   const flags: ProseAbsenceFlag[] = [];
@@ -93,9 +93,10 @@ function proseAbsencePresenceFlags(
       const fields = new Set<string>();
       for (const [field, text] of fieldTexts) {
         if (!text) continue;
-        const clean = stripNiqqud(text);
+        // Case-insensitive: lowercase both sides (a no-op for Hebrew; catches "Buni" vs the "buni" token).
+        const clean = stripNiqqud(text).toLowerCase();
         for (const alias of t.aliases) {
-          if (alias && containsAsStandaloneToken(clean, stripNiqqud(alias))) {
+          if (alias && containsAsStandaloneToken(clean, stripNiqqud(alias).toLowerCase())) {
             matchedAliases.add(alias);
             fields.add(field);
           }
