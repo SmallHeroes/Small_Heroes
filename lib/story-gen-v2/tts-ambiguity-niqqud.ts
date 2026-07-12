@@ -55,6 +55,16 @@ function applyRulesToText(text: string): { text: string; applied: string[] } {
   return { text: out, applied };
 }
 
+/**
+ * Page-level TTS niqqud pass: vocalize ambiguous Hebrew homographs in a SINGLE narration/prose string (no markdown /
+ * `--- Page N ---` splitting) — the seam the per-page TTS input uses. Words that already carry niqqud are left
+ * untouched. Shares the SAME `RULES` as the markdown-level `applyTtsAmbiguityNiqqudPass`, so the two can't drift. This
+ * vocalizes for the vocalizer ONLY: the DISPLAYED text is stripped of niqqud downstream (hebrew-text.stripNikud).
+ */
+export function applyTtsAmbiguityNiqqudToText(text: string): { text: string; applied: string[] } {
+  return applyRulesToText(text);
+}
+
 export function applyTtsAmbiguityNiqqudPass(storyMarkdown: string): {
   markdown: string;
   applied: string[];
