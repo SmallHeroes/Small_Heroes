@@ -7,7 +7,8 @@
  * candidate DIFFERS from it. Pure string builder; no I/O.
  */
 import type { BookVisualContractTemplate, TemplateHumanCastMember } from './contractTemplateTypes';
-import type { DeterministicFacts } from './extractDeterministicFacts';
+import { stripNiqqud, type DeterministicFacts } from './extractDeterministicFacts';
+import { containsAsStandaloneToken } from '../story-bank-personalization';
 
 export interface ReviewReportArgs {
   storyKey: string;
@@ -40,6 +41,53 @@ function lateralityPages(t: BookVisualContractTemplate): number[] {
 
 function eq(a: number[], b: number[]): boolean {
   return a.length === b.length && a.every((x, i) => x === b[i]);
+}
+
+interface ProseAbsenceFlag {
+  page: number;
+  role: string;
+  matchedAliases: string[];
+  fields: string[];
+}
+
+/**
+ * Residual leak-class flag (companion to the STRUCTURED castStates hard-block): free prose — mustShow / mustNotShow
+ * / camera — can NAME a recurring human the facts say is ABSENT on that page. Prose can't be deterministically
+ * REJECTED, so the tool FLAGS it here for the human. Hebrew-safe matching: aliases come from the facts, niqqud is
+ * stripped, and matching uses the shared standaloneTokenPattern boundary — NEVER `\b` (dead for Hebrew).
+ */
+function proseAbsencePresenceFlags(
+  facts: DeterministicFacts,
+  template: BookVisualContractTemplate,
+): ProseAbsenceFlag[] {
+  const flags: ProseAbsenceFlag[] = [];
+  for (const pc of template.pageContracts) {
+    const pageCastIds = new Set(pc.castIds ?? []);
+    const fieldTexts: Array<[string, string]> = [
+      ['mustShow', (Array.isArray(pc.mustShow) ? pc.mustShow : []).join('\n')],
+      ['mustNotShow', (Array.isArray(pc.mustNotShow) ? pc.mustNotShow : []).join('\n')],
+      ['camera', typeof pc.camera === 'string' ? pc.camera : ''],
+    ];
+    for (const h of facts.humans) {
+      if (pageCastIds.has(h.id)) continue; // present per facts → not this check
+      const matchedAliases = new Set<string>();
+      const fields = new Set<string>();
+      for (const [field, text] of fieldTexts) {
+        if (!text) continue;
+        const clean = stripNiqqud(text);
+        for (const alias of h.aliasesFound) {
+          if (alias && containsAsStandaloneToken(clean, stripNiqqud(alias))) {
+            matchedAliases.add(alias);
+            fields.add(field);
+          }
+        }
+      }
+      if (fields.size > 0) {
+        flags.push({ page: pc.pageNumber, role: h.role, matchedAliases: [...matchedAliases], fields: [...fields] });
+      }
+    }
+  }
+  return flags;
 }
 
 export function renderVisualContractReview(args: ReviewReportArgs): string {
@@ -82,6 +130,21 @@ export function renderVisualContractReview(args: ReviewReportArgs): string {
     for (const d of facts.deferrals) {
       push(`- **${d.field}**${d.pages?.length ? ` — pages [${d.pages.join(', ')}]` : ''}`);
       push(`  - ${d.reason}`);
+    }
+  }
+
+  // Residual leak-class flag: a recurring human NAMED in free prose (mustShow/mustNotShow/camera) on a page where
+  // the facts say that human is ABSENT. Structured presence (castIds / castStates) is hard-blocked; prose can only
+  // be FLAGGED (it is not a machine-readable cast reference the tool can safely reject).
+  const proseFlags = proseAbsencePresenceFlags(facts, template);
+  push();
+  push('## ⚠️ Named in prose but ABSENT per the facts (verify — free prose is flagged, not blocked)');
+  if (proseFlags.length === 0) {
+    push('- none.');
+  } else {
+    push('> If it would be DRAWN (mustShow/camera), confirm presence or remove. A mustNotShow / possessive mention that only reinforces absence is fine.');
+    for (const f of proseFlags) {
+      push(`- p${f.page}: **${f.role}** ('${f.matchedAliases.join("', '")}') named in ${f.fields.join(' + ')} — facts say ABSENT here.`);
     }
   }
 
@@ -141,6 +204,7 @@ export function renderVisualContractReview(args: ReviewReportArgs): string {
   const review = new Set<number>();
   for (const h of facts.humans) for (const p of h.lowConfidencePages) review.add(p);
   for (const d of facts.deferrals) for (const p of d.pages ?? []) review.add(p);
+  for (const f of proseFlags) review.add(f.page);
   const sorted = [...review].sort((a, b) => a - b);
   push(sorted.length ? `- pages [${sorted.join(', ')}] (low-confidence presence or a deferred field).` : '- none flagged.');
   push();

@@ -200,6 +200,31 @@ describe('castStates presence leak (Codex FAIL #2) — bodyState cannot smuggle 
   });
 });
 
+describe('leak-class closure — a character named in prose but ABSENT per facts is FLAGGED (not blocked)', () => {
+  it('flags a recurring human named in mustShow on a page where the facts say ABSENT', async () => {
+    const { template, facts, notes } = await compileBookVisualContractTemplate(bunnySource(), {
+      callLLM: stubFrom(bunnyTemplate()),
+    });
+    const review = renderVisualContractReview({ storyKey: BUNNY_KEY, facts, template, notes, valid: true });
+    // The mother is absent per facts on pp.5-8,11, but the hand-authored mustShow names "the parent" there.
+    expect(review).toContain('Named in prose but ABSENT');
+    expect(review).toMatch(/p5: \*\*mother\*\*[^\n]*mustShow/);
+    // A page where the mother IS present (p4) is NOT flagged as absent.
+    expect(review).not.toMatch(/p4: \*\*mother\*\*/);
+  });
+
+  it('Hebrew-safe: matches niqqud-vowelized prose via the shared boundary (never \\b)', async () => {
+    const { template, facts, notes } = await compileBookVisualContractTemplate(bunnySource(), {
+      callLLM: stubFrom(bunnyTemplate()),
+    });
+    // Inject a vowelized Hebrew alias of the doctor into a mustShow on p2 (doctor absent there).
+    const p2 = template.pageContracts.find((pc) => pc.pageNumber === 2)!;
+    (p2 as unknown as { mustShow: string[] }).mustShow = [...(p2.mustShow ?? []), 'הָרוֹפֵא עומד ברקע'];
+    const review = renderVisualContractReview({ storyKey: BUNNY_KEY, facts, template, notes, valid: true });
+    expect(review).toMatch(/p2: \*\*doctor\*\*[^\n]*mustShow/);
+  });
+});
+
 describe('text-first compiler — C4 review + bunny re-derivation DIFF', () => {
   it('the candidate diff vs the hand-authored template is exactly the deferred human-authored fields', async () => {
     const { template, facts, notes } = await compileBookVisualContractTemplate(bunnySource(), {
