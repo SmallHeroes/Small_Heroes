@@ -13,6 +13,7 @@ import {
 } from '../visual-contract-compiler/extractDeterministicFacts';
 import {
   compileBookVisualContractTemplate,
+  assertCastIsFactAuthoritative,
   type TemplateCompileInput,
 } from '../visual-contract-compiler/compileBookVisualContractTemplate';
 import { renderVisualContractReview } from '../visual-contract-compiler/writeVisualContractReview';
@@ -197,6 +198,50 @@ describe('castStates presence leak (Codex FAIL #2) — bodyState cannot smuggle 
     const res = validateBookVisualContractTemplate(bad);
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.errors.some((e) => /NOT present on this page/.test(e))).toBe(true);
+  });
+});
+
+describe('cast identity + presence is fact-authoritative (Codex FAIL #3 — companion + class-closure)', () => {
+  it('a draft that OMITS cast.companion.id gets the AUTHORITATIVE id (from input.companion), not suppressed', async () => {
+    const draft = bunnyTemplate() as unknown as Record<string, unknown>;
+    delete (draft.cast as Record<string, Record<string, unknown>>).companion.id; // omit id, keep wardrobe (descriptive)
+    const { template } = await compileBookVisualContractTemplate(bunnySource(), { callLLM: stubFrom(draft) });
+    expect((template.cast.companion as { id?: string } | undefined)?.id).toBe('companion:bunny_ometz');
+    const p2 = template.pageContracts.find((pc) => pc.pageNumber === 2)!; // companion present p2 per facts
+    expect(p2.castIds).toContain('companion:bunny_ometz');
+    expect(p2.characterPresence.companion).toBe(true);
+  });
+
+  it('a draft that CHANGES cast.companion.id cannot mis-id the companion — authoritative wins + noted', async () => {
+    const draft = bunnyTemplate() as unknown as Record<string, unknown>;
+    (draft.cast as Record<string, Record<string, unknown>>).companion.id = 'companion:EVIL';
+    const { template, notes } = await compileBookVisualContractTemplate(bunnySource(), { callLLM: stubFrom(draft) });
+    expect((template.cast.companion as { id?: string }).id).toBe('companion:bunny_ometz');
+    for (const pc of template.pageContracts) expect(pc.castIds).not.toContain('companion:EVIL');
+    expect(notes.some((n) => n.includes('EVIL'))).toBe(true);
+  });
+
+  it('a draft cannot INJECT a companion when the order has none', async () => {
+    const src: TemplateCompileInput = { ...bunnySource(), companion: null };
+    const draft = bunnyTemplate(); // still has cast.companion + companion in every castIds
+    const { template, notes } = await compileBookVisualContractTemplate(src, { callLLM: stubFrom(draft) });
+    expect(template.cast.companion).toBeUndefined();
+    for (const pc of template.pageContracts) {
+      expect((pc.castIds ?? []).some((id) => id.startsWith('companion:'))).toBe(false);
+      expect(pc.characterPresence.companion).toBe(false);
+    }
+    expect(notes.some((n) => n.includes('dropped'))).toBe(true);
+  });
+
+  it('the cast-authority invariant THROWS when a page injects a cast member absent per facts (structural guard)', async () => {
+    const { template, facts } = await compileBookVisualContractTemplate(bunnySource(), { callLLM: stubFrom(bunnyTemplate()) });
+    // a correctly-compiled candidate is authoritative → the guard passes
+    expect(() => assertCastIsFactAuthoritative(template, facts, bunnySource())).not.toThrow();
+    // inject the companion on p1 (facts: companion ABSENT on p1) → the structural guard rejects it
+    const bad = JSON.parse(JSON.stringify(template)) as typeof template;
+    const p1 = bad.pageContracts.find((pc) => pc.pageNumber === 1)!;
+    p1.castIds = [...(p1.castIds ?? []), 'companion:bunny_ometz'];
+    expect(() => assertCastIsFactAuthoritative(bad, facts, bunnySource())).toThrow(InvalidTemplateContractError);
   });
 });
 

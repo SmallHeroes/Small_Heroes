@@ -18,7 +18,7 @@ import type {
   TemplateHumanCastMember,
 } from './contractTemplateTypes';
 import { VISUAL_CONTRACT_SCHEMA_VERSION } from './contractTemplateTypes';
-import { assertValidBookVisualContractTemplate } from './validateTemplateContract';
+import { assertValidBookVisualContractTemplate, InvalidTemplateContractError } from './validateTemplateContract';
 import { parseContractJson } from './compileBookVisualContract';
 import type { ContractLlmCaller } from './compileBookVisualContract';
 import {
@@ -27,6 +27,17 @@ import {
   type DeterministicFactsInput,
   type HumanFact,
 } from './extractDeterministicFacts';
+
+/** The child's cast id is a fixed constant — the hero anchor. NEVER taken from the LLM draft. */
+const CHILD_ID = 'child:hero';
+
+/**
+ * The AUTHORITATIVE companion CAST id, derived from the order's companion (input.companion) — namespaced the same
+ * way as child:hero / human:role. Never from the draft. Returns null when the order has no companion.
+ */
+function authoritativeCompanionCastId(input: { companion?: { id: string; name?: string } | null }): string | null {
+  return input.companion ? `companion:${input.companion.id}` : null;
+}
 
 export interface TemplateCompileInput extends DeterministicFactsInput {
   /** Full story text (page-marked) — the LLM's descriptive input. */
@@ -184,13 +195,38 @@ export async function compileBookVisualContractTemplate(
   const raw = await deps.callLLM(buildTemplateCompileSystemPrompt(), buildTemplateCompileUserPrompt(input, facts));
   const draft = asObj(parseContractJson(raw));
 
-  const cast = asObj(draft.cast);
-  const childId = typeof asObj(cast.child).id === 'string' ? (asObj(cast.child).id as string) : 'child:hero';
-  const companionId = input.companion
-    ? typeof asObj(cast.companion).id === 'string'
-      ? (asObj(cast.companion).id as string)
-      : null
-    : null;
+  // Cast IDENTITY + PRESENCE are AUTHORITATIVE from the input/facts — NEVER the draft. The child id is a fixed
+  // constant; the companion id comes from input.companion (the order); humans come from the extractor. The draft
+  // contributes ONLY descriptive fields (wardrobe / appearance prose). This is the class fix: draft.cast can
+  // neither inject nor suppress a cast member's identity or presence.
+  const draftCast = asObj(draft.cast);
+  const draftChild = asObj(draftCast.child);
+  const draftCompanion = asObj(draftCast.companion);
+  const childId = CHILD_ID;
+  const companionId = authoritativeCompanionCastId(input);
+
+  // Surface (don't silently swallow) a draft that tried to mis-id or inject a companion — identity is input-authoritative.
+  const draftCompanionId = typeof draftCompanion.id === 'string' ? (draftCompanion.id as string) : undefined;
+  if (input.companion && draftCompanionId && draftCompanionId !== companionId) {
+    notes.push(`draft cast.companion.id "${draftCompanionId}" != authoritative companion id "${companionId}" (from input.companion) — draft identity ignored`);
+  }
+  if (!input.companion && draftCompanionId) {
+    notes.push(`draft cast.companion "${draftCompanionId}" dropped — the order has no companion (identity is input-authoritative)`);
+  }
+
+  // Build cast from authoritative id/role (+ authoritative companion name), keeping ONLY the draft's descriptive
+  // subfields (wardrobe). Spread-then-override so a draft id/role/name can never win.
+  const authoritativeCast: Record<string, unknown> = {
+    child: { ...draftChild, id: childId, role: 'child' },
+  };
+  if (input.companion) {
+    authoritativeCast.companion = {
+      ...draftCompanion,
+      id: companionId,
+      role: 'companion',
+      ...(input.companion.name ? { name: input.companion.name } : {}),
+    };
+  }
 
   // humanCast is AUTHORITATIVE from the extractor: every detected human, merged with its drafted appearance.
   const draftHumans = asArr(draft.humanCast).map(asObj);
@@ -219,7 +255,7 @@ export async function compileBookVisualContractTemplate(
     worldType: (typeof draft.worldType === 'string' ? draft.worldType : input.worldType) ?? 'unspecified',
     locations: draft.locations as BookVisualContractTemplate['locations'],
     zones: draft.zones as BookVisualContractTemplate['zones'],
-    cast: draft.cast as BookVisualContractTemplate['cast'],
+    cast: authoritativeCast as unknown as BookVisualContractTemplate['cast'],
     humanCast,
     recurringProps: (draft.recurringProps as BookVisualContractTemplate['recurringProps']) ?? [],
     forbiddenGlobalElements: asArr(draft.forbiddenGlobalElements).filter((x): x is string => typeof x === 'string'),
@@ -228,7 +264,64 @@ export async function compileBookVisualContractTemplate(
     provenance: { source: 'llm', model: 'text-first-compiler', compiledFromPages: input.pageCount },
   };
 
+  // STRUCTURAL INVARIANT (fail-closed): every cast identity + presence must match the input/facts EXACTLY, so a
+  // future refactor that lets draft.cast leak into identity/presence throws here instead of shipping — a 4th
+  // instance of the "draft governs a fact" class is structurally impossible, not merely patched.
+  assertCastIsFactAuthoritative(template, facts, input);
+
   // FAIL-CLOSED — never return an invalid candidate.
   assertValidBookVisualContractTemplate(template);
   return { template, facts, notes };
+}
+
+/**
+ * Assert that NO cast identity or presence came from the LLM draft: the child id is the fixed constant, the
+ * companion id ⟺ input.companion, the humanCast set == the extractor's, and every page's castIds +
+ * characterPresence.companion equal EXACTLY the fact-derived present set (no injected or suppressed member).
+ * Exported so the guarantee is directly testable. Throws InvalidTemplateContractError on any divergence.
+ */
+export function assertCastIsFactAuthoritative(
+  template: BookVisualContractTemplate,
+  facts: DeterministicFacts,
+  input: { companion?: { id: string; name?: string } | null },
+): void {
+  const errs: string[] = [];
+  const cast = asObj(template.cast);
+  const childId = typeof asObj(cast.child).id === 'string' ? (asObj(cast.child).id as string) : '';
+  if (childId !== CHILD_ID) errs.push(`cast.child.id "${childId}" != authoritative "${CHILD_ID}"`);
+
+  const companionId = authoritativeCompanionCastId(input);
+  const companion = cast.companion;
+  if (companionId) {
+    const cid = typeof asObj(companion).id === 'string' ? (asObj(companion).id as string) : undefined;
+    if (!companion || cid !== companionId) errs.push(`cast.companion.id "${cid ?? '(none)'}" != authoritative "${companionId}"`);
+  } else if (companion) {
+    errs.push('cast.companion present but the order has no companion');
+  }
+
+  const factHumanIds = new Set(facts.humans.map((h) => h.id));
+  const tmplHumanIds = new Set(template.humanCast.map((h) => h.id));
+  if (factHumanIds.size !== tmplHumanIds.size || [...factHumanIds].some((id) => !tmplHumanIds.has(id))) {
+    errs.push(`humanCast ids [${[...tmplHumanIds].join(', ')}] != facts [${[...factHumanIds].join(', ')}]`);
+  }
+
+  for (const pc of template.pageContracts) {
+    const expected = new Set<string>([CHILD_ID]);
+    if (companionId && facts.companionPresentPages.includes(pc.pageNumber)) expected.add(companionId);
+    for (const h of facts.humans) if (h.pagesPresent.includes(pc.pageNumber)) expected.add(h.id);
+    const actual = new Set(pc.castIds ?? []);
+    const missing = [...expected].filter((id) => !actual.has(id));
+    const extra = [...actual].filter((id) => !expected.has(id));
+    if (missing.length || extra.length) {
+      errs.push(`p${pc.pageNumber} castIds not fact-authoritative — missing [${missing.join(', ')}], extra [${extra.join(', ')}]`);
+    }
+    const shouldCompanion = !!companionId && facts.companionPresentPages.includes(pc.pageNumber);
+    if (asObj(pc.characterPresence).companion !== shouldCompanion) {
+      errs.push(`p${pc.pageNumber} characterPresence.companion ${String(asObj(pc.characterPresence).companion)} != facts ${shouldCompanion}`);
+    }
+  }
+
+  if (errs.length) {
+    throw new InvalidTemplateContractError([`cast/presence not fact-authoritative (draft leak): ${errs.join('; ')}`]);
+  }
 }
