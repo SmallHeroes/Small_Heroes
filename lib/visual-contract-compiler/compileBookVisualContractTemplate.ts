@@ -49,10 +49,15 @@ export function resolveAuthoringModel(): string {
   return process.env.VISUAL_CONTRACT_AUTHOR_MODEL || DEFAULT_AUTHOR_MODEL;
 }
 
-/** Output token budget: ~1000 tokens/page for the relational doc; floored at 12000, capped at 20000 (12 pages → 12000). */
+/**
+ * Output token budget for the authoring call. On the Responses API `max_output_tokens` INCLUDES reasoning tokens —
+ * reasoning='medium' can burn ~10k — so the budget must cover reasoning headroom AND the full JSON (a valid
+ * template ≈ 6.3k). ~3000 tokens/page, floored at 32000, capped at 64000 (12 pages → 36000). Cost is irrelevant
+ * here (offline, one call, human-approved).
+ */
 export function authoringMaxOutputTokens(pageCount: number): number {
   const pages = Number.isFinite(pageCount) && pageCount > 0 ? pageCount : 12;
-  return Math.min(20000, Math.max(12000, Math.round(pages * 1000)));
+  return Math.min(64000, Math.max(32000, Math.round(pages * 3000)));
 }
 
 /** Provenance for the authoring call (recorded beside the candidate; NOT part of the frozen hash). */

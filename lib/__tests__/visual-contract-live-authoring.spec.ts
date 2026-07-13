@@ -63,13 +63,13 @@ describe('Stage 1 — draft json_schema is strict-mode compliant', () => {
   });
 });
 
-describe('Stage 1 — authoring token budget scales by page count', () => {
-  it('~1000/page, floor 12000, cap 20000', () => {
-    expect(authoringMaxOutputTokens(12)).toBe(12000);
-    expect(authoringMaxOutputTokens(16)).toBe(16000);
-    expect(authoringMaxOutputTokens(25)).toBe(20000); // cap
-    expect(authoringMaxOutputTokens(8)).toBe(12000); // floor
-    expect(authoringMaxOutputTokens(0)).toBe(12000); // invalid → default
+describe('Stage 1 — authoring token budget scales by page count (Responses budget INCLUDES reasoning)', () => {
+  it('~3000/page, floor 32000, cap 64000', () => {
+    expect(authoringMaxOutputTokens(12)).toBe(36000);
+    expect(authoringMaxOutputTokens(16)).toBe(48000);
+    expect(authoringMaxOutputTokens(25)).toBe(64000); // cap (75000)
+    expect(authoringMaxOutputTokens(8)).toBe(32000); // floor (24000)
+    expect(authoringMaxOutputTokens(0)).toBe(36000); // invalid → default 12 pages
   });
 });
 
@@ -87,11 +87,11 @@ describe('Stage 1 — compiler requests the dedicated authoring call + records p
     expect(captured?.reasoningEffort).toBe('medium');
     expect(captured?.noFallback).toBe(true);
     expect(captured?.jsonSchema?.name).toBe(TEMPLATE_DRAFT_SCHEMA_NAME);
-    expect(captured?.maxOutputTokens).toBe(12000);
+    expect(captured?.maxOutputTokens).toBe(36000);
     // Provenance records the resolved model.
     expect(provenance.authoringModel).toBe('gpt-5.5-pro');
     expect(provenance.reasoningEffort).toBe('medium');
-    expect(provenance.maxOutputTokens).toBe(12000);
+    expect(provenance.maxOutputTokens).toBe(36000);
     expect(provenance.schemaVersion).toBe('vc-draft-schema/v1');
     expect(provenance.attempt).toBe(1);
   });
@@ -145,6 +145,45 @@ describe('Stage 1 — pipeline json_schema + no silent fallback', () => {
   it('VISUAL_CONTRACT_AUTHOR_MODEL overrides the resolved authoring model', () => {
     vi.stubEnv('VISUAL_CONTRACT_AUTHOR_MODEL', 'gpt-5.5-pro-alt');
     expect(resolveAuthoringModel()).toBe('gpt-5.5-pro-alt');
+  });
+
+  it('captures Responses usage (output / reasoning / total tokens) + finish status', async () => {
+    const { callLLM } = await import('@/backend/providers/pipeline');
+    vi.stubEnv('OPENAI_API_KEY', 'test-key');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          status: 'completed',
+          output_text: '{}',
+          usage: { output_tokens: 6300, total_tokens: 16300, output_tokens_details: { reasoning_tokens: 10000 } },
+        }),
+      })),
+    );
+    const res = await callLLM('s', 'u', 36000, 0.4, 'VisualContractTemplate', true, { modelOverride: 'gpt-5.5-pro' });
+    expect(res.usage).toEqual({ outputTokens: 6300, reasoningTokens: 10000, totalTokens: 16300 });
+    expect(res.finishReason).toBe('completed');
+  });
+
+  it('throws EXPLICITLY on a truncated (incomplete) Responses output — with reason + usage (never a mystery)', async () => {
+    const { callLLM } = await import('@/backend/providers/pipeline');
+    vi.stubEnv('OPENAI_API_KEY', 'test-key');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          status: 'incomplete',
+          incomplete_details: { reason: 'max_output_tokens' },
+          output_text: '{"worldType":"cli',
+          usage: { output_tokens: 1900, total_tokens: 12000, output_tokens_details: { reasoning_tokens: 10000 } },
+        }),
+      })),
+    );
+    await expect(
+      callLLM('s', 'u', 12000, 0.4, 'VisualContractTemplate', true, { modelOverride: 'gpt-5.5-pro' }),
+    ).rejects.toThrow(/INCOMPLETE.*max_output_tokens.*reasoning=10000/s);
   });
 
   it('noFallback → throws (never silently falls back) when the model is unavailable', async () => {

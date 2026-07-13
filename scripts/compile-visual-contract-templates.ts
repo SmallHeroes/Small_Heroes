@@ -60,6 +60,10 @@ async function main(): Promise<void> {
   mkdirSync(out, { recursive: true });
 
   // Resolve the LLM caller. Offline (fixture) by default; a live model requires the explicit --live opt-in.
+  // The --live caller captures the authoring response's token usage + status so the provenance sidecar records it
+  // (so a truncation is never a mystery — see the pipeline's INCOMPLETE guard).
+  let lastAuthoringUsage: { outputTokens: number; reasoningTokens: number; totalTokens: number } | null = null;
+  let lastFinishReason: string | null = null;
   let callLLM: ContractLlmCaller;
   if (fixtureDraft) {
     const draftText = readFileSync(fixtureDraft, 'utf8');
@@ -67,15 +71,17 @@ async function main(): Promise<void> {
   } else if (live) {
     const { callLLM: pipelineCall } = await import('@/backend/providers/pipeline');
     // Forward the compiler's authoring overrides (model / reasoning / json_schema / budget / no-fallback).
-    callLLM = async (system, user, opts) =>
-      (
-        await pipelineCall(system, user, opts?.maxOutputTokens ?? 4000, 0.4, 'VisualContractTemplate', true, {
-          modelOverride: opts?.model,
-          reasoningEffort: opts?.reasoningEffort,
-          jsonSchema: opts?.jsonSchema,
-          noFallback: opts?.noFallback,
-        })
-      ).text;
+    callLLM = async (system, user, opts) => {
+      const res = await pipelineCall(system, user, opts?.maxOutputTokens ?? 4000, 0.4, 'VisualContractTemplate', true, {
+        modelOverride: opts?.model,
+        reasoningEffort: opts?.reasoningEffort,
+        jsonSchema: opts?.jsonSchema,
+        noFallback: opts?.noFallback,
+      });
+      lastAuthoringUsage = res.usage ?? null;
+      lastFinishReason = res.finishReason ?? null;
+      return res.text;
+    };
   } else {
     throw new Error('refusing to call a live model: pass --fixture-draft <file.json> (offline) or --live to opt in');
   }
@@ -89,10 +95,13 @@ async function main(): Promise<void> {
     const storyKey = raw.storyKey ?? file.replace(SOURCE_SUFFIX, '');
     if (only && storyKey !== only) continue;
     try {
+      lastAuthoringUsage = null;
+      lastFinishReason = null;
       const { template, facts, notes, provenance } = await compileBookVisualContractTemplate({ ...raw, storyKey }, { callLLM });
       const templatePath = path.join(out, `${storyKey}${TEMPLATE_SUFFIX}`);
       writeFileSync(templatePath, `${JSON.stringify(template, null, 2)}\n`, 'utf8');
-      writeFileSync(path.join(out, `${storyKey}${PROVENANCE_SUFFIX}`), `${JSON.stringify(provenance, null, 2)}\n`, 'utf8');
+      const provenanceOut = { ...provenance, usage: lastAuthoringUsage, finishReason: lastFinishReason };
+      writeFileSync(path.join(out, `${storyKey}${PROVENANCE_SUFFIX}`), `${JSON.stringify(provenanceOut, null, 2)}\n`, 'utf8');
 
       const previous = loadPrevTemplate(prevBank, storyKey);
       const review = renderVisualContractReview({ storyKey, facts, template, notes, valid: true, previous });

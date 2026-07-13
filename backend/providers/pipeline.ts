@@ -544,7 +544,14 @@ export const STYLE_TOKENS: Record<string, string> = {
 // LLM primitive
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface LLMResult { text: string; tokens: number }
+interface LLMResult {
+  text: string;
+  tokens: number;
+  /** Responses-API usage detail (present on the OpenAI Responses path) — reasoning tokens count toward max_output_tokens. */
+  usage?: { outputTokens: number; reasoningTokens: number; totalTokens: number };
+  /** Responses-API completion status ('completed' | 'incomplete'). */
+  finishReason?: string;
+}
 
 /**
  * Optional per-call overrides (additive — omit for identical prior behavior). Used by the offline visual-contract
@@ -734,8 +741,24 @@ async function callLLMOnce(
           ?.content?.find((contentItem: { type?: string; text?: string }) => contentItem.type === 'output_text')
           ?.text ??
         '';
-      const tokens = data.usage?.total_tokens ?? 0;
-      return { text: outputText, tokens };
+      const u = data.usage ?? {};
+      const outputTokens = u.output_tokens ?? 0;
+      const reasoningTokens = u.output_tokens_details?.reasoning_tokens ?? 0;
+      const totalTokens = u.total_tokens ?? 0;
+      // Responses `max_output_tokens` INCLUDES reasoning tokens — surface truncation EXPLICITLY (with usage) so a
+      // downstream "unterminated JSON" parse error never masks a too-small budget. Not transient (won't retry).
+      if (data.status === 'incomplete') {
+        const reason = data.incomplete_details?.reason ?? 'unknown';
+        throw new Error(
+          `[${stage}] Responses output INCOMPLETE (reason=${reason}); usage output=${outputTokens} reasoning=${reasoningTokens} total=${totalTokens}, max_output_tokens=${maxTokens} (INCLUDES reasoning) — raise the budget.`
+        );
+      }
+      return {
+        text: outputText,
+        tokens: totalTokens,
+        usage: { outputTokens, reasoningTokens, totalTokens },
+        finishReason: data.status,
+      };
     }
 
     const body: Record<string, unknown> = {
