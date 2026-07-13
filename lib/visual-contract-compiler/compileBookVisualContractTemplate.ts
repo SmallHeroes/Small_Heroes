@@ -115,6 +115,11 @@ export function buildTemplateCompileSystemPrompt(): string {
     '- For each given human, draft ONLY garments (each colour an explicit value) and forbiddenAppearance. Do NOT',
     '  output appearance (skinTone/hairColour/hairTexture/hairStyle) — the compiler injects those from a role policy.',
     '',
+    'Topology: describe ONE location/zone graph in zones[] (each zone has a parent locationId). Every per-page',
+    'zoneId and every transition fromZoneId/toZoneId MUST be an EXACT id from that zones[] list. A zone change',
+    'between consecutive pages must be carried by a transition; before_transition renders in the ORIGIN zone,',
+    'after_transition in the DESTINATION, threshold at either endpoint. Do not restate zones with new ids.',
+    '',
     'You MUST NOT output: a human\'s gender, pagesPresent, textEvidence, or aliases; page castIds or characterPresence;',
     'or any laterality (injectionArm/bandageArm/freeHand). Those are supplied by the deterministic extractor. Do not',
     'invent a human who is not in the given facts.',
@@ -157,6 +162,9 @@ function asObj(v: unknown): Record<string, unknown> {
 }
 function asArr(v: unknown): unknown[] {
   return Array.isArray(v) ? v : [];
+}
+function isStr(v: unknown): v is string {
+  return typeof v === 'string';
 }
 
 /** Format a real evidence phrase into the textEvidence string (never fabricated — a real page + phrase). */
@@ -263,6 +271,121 @@ function overlayPage(
   return out;
 }
 
+// ── Topology canonicalization (S2b) ───────────────────────────────────────────
+// The compiler OWNS location/zone IDs + all page/transition references. The LLM describes ONE semantic
+// location/zone graph (zones[] each with a parent locationId); the compiler then rewrites every page's
+// zoneId + locationId + each transition's from/to against THAT graph. A reference resolves to EXACTLY one
+// canonical zone (exact id, else a single normalized match) or the compile FAILS CLOSED (→ Stage-3 repair) —
+// it NEVER guesses a page's location. Deriving each page's locationId from its resolved zone makes zone-
+// membership hold by construction (kills the "per-page zoneId ∉ its location's zones" fox failure). The
+// transition KIND/cue stays LLM-authored (narrative); a genuine continuity violation is left for the
+// fail-closed validator to reject → repair (canonicalization fixes IDENTIFIERS, never invents intent).
+
+interface CanonicalZone {
+  id: string;
+  locationId: string;
+}
+
+/** Casefold + collapse non-alphanumeric runs, so separator/case drift ("Clinic.ExamRoom" ~ "clinic_exam_room")
+ *  still resolves — WITHOUT guessing across genuinely-distinct ids (two ids sharing a normalized form resolve to
+ *  >1 candidate → ambiguous → repair, never a coin-flip). */
+function normalizeTopoId(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '.')
+    .replace(/^\.+|\.+$/g, '');
+}
+
+interface ZoneGraph {
+  exact: Map<string, CanonicalZone>;
+  byNorm: Map<string, CanonicalZone[]>;
+}
+
+/** Build the canonical zone graph from the drafted locations[] + zones[]. The graph is the SINGLE source of
+ *  truth for where a page sits; a malformed graph (zone with no/unknown parent location, duplicate zone id)
+ *  FAILS CLOSED here (→ repair) so downstream derivation can never produce an invalid location. */
+function buildZoneGraph(draft: Record<string, unknown>): ZoneGraph {
+  const locationIds = new Set(
+    asArr(draft.locations)
+      .map((l) => asObj(l).id)
+      .filter(isStr),
+  );
+  const exact = new Map<string, CanonicalZone>();
+  const byNorm = new Map<string, CanonicalZone[]>();
+  for (const raw of asArr(draft.zones)) {
+    const z = asObj(raw);
+    if (!isStr(z.id) || !isStr(z.locationId)) {
+      throw new InvalidTemplateContractError(['a zone is missing id/locationId — the semantic zone graph is malformed (repair).']);
+    }
+    if (!locationIds.has(z.locationId)) {
+      throw new InvalidTemplateContractError([`zone "${z.id}" references unknown locationId "${z.locationId}" — the semantic zone graph is malformed (repair).`]);
+    }
+    if (exact.has(z.id)) {
+      throw new InvalidTemplateContractError([`duplicate zone id "${z.id}" in the graph (repair).`]);
+    }
+    const cz: CanonicalZone = { id: z.id, locationId: z.locationId };
+    exact.set(cz.id, cz);
+    const norm = normalizeTopoId(cz.id);
+    const bucket = byNorm.get(norm);
+    if (bucket) bucket.push(cz);
+    else byNorm.set(norm, [cz]);
+  }
+  if (exact.size === 0) {
+    throw new InvalidTemplateContractError(['the zone graph is empty — the LLM must describe at least one zone (repair).']);
+  }
+  return { exact, byNorm };
+}
+
+/** Resolve a page/transition zone REFERENCE to exactly one canonical zone, or throw (→ repair). Exact id wins;
+ *  otherwise a single normalized match; 0 or >1 candidates is unresolved/ambiguous — never guessed. */
+function resolveZoneRef(ref: string, graph: ZoneGraph, label: string): CanonicalZone {
+  const exact = graph.exact.get(ref);
+  if (exact) return exact;
+  const candidates = graph.byNorm.get(normalizeTopoId(ref)) ?? [];
+  if (candidates.length === 1) return candidates[0];
+  if (candidates.length === 0) {
+    throw new InvalidTemplateContractError([`${label} references zone "${ref}" which is not a declared zone — canonicalize the id or repair (no guess).`]);
+  }
+  throw new InvalidTemplateContractError([
+    `${label} reference "${ref}" is ambiguous — it matches ${candidates.length} declared zones (${candidates.map((c) => c.id).join(', ')}); repair (no guess).`,
+  ]);
+}
+
+/**
+ * Canonicalize the draft's page topology against the zone graph. For each page: resolve zoneId → canonical zone,
+ * DERIVE locationId from that zone (membership holds by construction), and rewrite any present transition
+ * from/to reference. Absent transition refs are left for the validator (its message is precise). Returns the
+ * rewritten page objects + review notes for every id the compiler had to canonicalize/override.
+ */
+function canonicalizeTopology(draft: Record<string, unknown>): { pages: Record<string, unknown>[]; notes: string[] } {
+  const graph = buildZoneGraph(draft);
+  const notes: string[] = [];
+  const pages = asArr(draft.pageContracts).map((raw) => {
+    const pc: Record<string, unknown> = { ...asObj(raw) };
+    const label = typeof pc.pageNumber === 'number' ? `page ${pc.pageNumber}` : 'a page';
+    if (!isStr(pc.zoneId) || !pc.zoneId.trim()) {
+      throw new InvalidTemplateContractError([`${label} has no zoneId — it cannot be placed in the zone graph (repair).`]);
+    }
+    const zone = resolveZoneRef(pc.zoneId, graph, label);
+    if (pc.zoneId !== zone.id) notes.push(`${label} zoneId "${pc.zoneId}" canonicalized to "${zone.id}"`);
+    if (isStr(pc.locationId) && pc.locationId !== zone.locationId) {
+      notes.push(`${label} locationId "${pc.locationId}" overridden to "${zone.locationId}" (derived from zone "${zone.id}")`);
+    }
+    pc.zoneId = zone.id;
+    pc.locationId = zone.locationId; // location is DERIVED from the zone graph — never guessed.
+
+    const t = asObj(pc.transition);
+    if (Object.keys(t).length > 0) {
+      const t2: Record<string, unknown> = { ...t };
+      if (isStr(t.fromZoneId)) t2.fromZoneId = resolveZoneRef(t.fromZoneId, graph, `${label}.transition.fromZoneId`).id;
+      if (isStr(t.toZoneId)) t2.toZoneId = resolveZoneRef(t.toZoneId, graph, `${label}.transition.toZoneId`).id;
+      pc.transition = t2;
+    }
+    return pc;
+  });
+  return { pages, notes };
+}
+
 /**
  * Compile a template CANDIDATE from a story source. Deterministic facts are extracted first and overlaid last;
  * the LLM (injected) drafts descriptive fields only. Fail-closed: throws if the assembled candidate is invalid.
@@ -343,7 +466,11 @@ export async function compileBookVisualContractTemplate(
     }
   }
 
-  const pageContracts = asArr(draft.pageContracts).map((pc) => overlayPage(asObj(pc), facts, childId, companionId));
+  // Topology: canonicalize IDs + rewrite page/transition refs against the ONE zone graph (compiler-owned),
+  // then overlay the fact-derived cast/presence LAST. Ambiguity/unresolved refs throw → Stage-3 repair.
+  const { pages: canonicalPages, notes: topoNotes } = canonicalizeTopology(draft);
+  notes.push(...topoNotes);
+  const pageContracts = canonicalPages.map((pc) => overlayPage(pc, facts, childId, companionId));
 
   // worldType is LLM+human (semantic) — NO silent 'unspecified' default; a missing value fails the validator
   // (fail-closed). coverContract.worldType is COMPILER-owned: copied from the finalized top-level worldType.
