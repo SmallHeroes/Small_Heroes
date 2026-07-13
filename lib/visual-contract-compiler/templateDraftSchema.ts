@@ -64,13 +64,12 @@ const binding = obj({
   origin,
   value: nullableString,
 });
-const appearance = obj({ skinTone: binding, hairColour: binding, hairTexture: binding, hairStyle: binding });
 const garment = obj({ id: { type: 'string' }, label: nullableString, colour: binding });
 
-// The LLM drafts ONLY id + descriptive appearance for each human (identity/gender/presence are overlaid from facts).
+// The LLM drafts ONLY id + garments + forbiddenAppearance per human — appearance (skin/hair) is COMPILER-injected
+// from a role policy (S2a), and identity/gender/presence are overlaid from facts.
 const humanDraft = obj({
   id: { type: 'string' },
-  appearance,
   garments: { type: 'array', items: garment },
   forbiddenAppearance: stringArray,
 });

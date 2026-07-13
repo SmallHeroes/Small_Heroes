@@ -15,9 +15,11 @@
  */
 import type {
   BookVisualContractTemplate,
+  HumanAppearanceTraits,
   TemplateHumanCastMember,
+  TemplateTraitBinding,
 } from './contractTemplateTypes';
-import { VISUAL_CONTRACT_SCHEMA_VERSION } from './contractTemplateTypes';
+import { PALETTE_VERSION, VISUAL_CONTRACT_SCHEMA_VERSION } from './contractTemplateTypes';
 import { assertValidBookVisualContractTemplate, InvalidTemplateContractError } from './validateTemplateContract';
 import { parseContractJson } from './compileBookVisualContract';
 import type { ContractLlmCaller } from './compileBookVisualContract';
@@ -67,6 +69,8 @@ export interface TemplateAuthoringProvenance {
   maxOutputTokens: number;
   schemaVersion: string;
   promptVersion: string;
+  /** The compiler-owned appearance role-policy version (S2a). */
+  policyVersion: string;
   attempt: number;
 }
 
@@ -108,9 +112,8 @@ export function buildTemplateCompileSystemPrompt(): string {
     '- worldType, locations[], zones[] (with stableGeometry), cast.child + cast.companion wardrobe,',
     '  recurringProps[] (material/scale/persistence), forbiddenGlobalElements[], coverContract, and per-page',
     '  mustShow/mustNotShow/propState/camera/transition/zoneId/locationId.',
-    '- For each given human, draft ONLY appearance (skinTone/hairColour/hairTexture/hairStyle bindings), garments,',
-    '  and forbiddenAppearance. Relatives (mother/father/sibling/grandparent) use family_profile for skin/hair;',
-    '  a non-relative (doctor/nurse/teacher) uses deterministic_palette; every garment colour is an explicit value.',
+    '- For each given human, draft ONLY garments (each colour an explicit value) and forbiddenAppearance. Do NOT',
+    '  output appearance (skinTone/hairColour/hairTexture/hairStyle) — the compiler injects those from a role policy.',
     '',
     'You MUST NOT output: a human\'s gender, pagesPresent, textEvidence, or aliases; page castIds or characterPresence;',
     'or any laterality (injectionArm/bandageArm/freeHand). Those are supplied by the deterministic extractor. Do not',
@@ -123,7 +126,7 @@ export function buildTemplateCompileSystemPrompt(): string {
 export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, facts: DeterministicFacts): string {
   const humanLines = facts.humans.map(
     (h) =>
-      `- ${h.id} (role=${h.role}, gender=${h.gender}); present on pages [${h.pagesPresent.join(', ')}]; draft ONLY appearance/garments/forbiddenAppearance for this person.`,
+      `- ${h.id} (role=${h.role}, gender=${h.gender}); present on pages [${h.pagesPresent.join(', ')}]; draft ONLY garments/forbiddenAppearance for this person.`,
   );
   return [
     `storyKey: ${input.storyKey}`,
@@ -138,7 +141,7 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
       : 'Laterality: none stated in the text (do NOT invent left/right).',
     '',
     'Produce a JSON BookVisualContractTemplate DRAFT (descriptive fields only) with keys: worldType, locations[],',
-    'zones[], cast{child,companion?}, humanCast[{id, appearance, garments, forbiddenAppearance}], recurringProps[],',
+    'zones[], cast{child,companion?}, humanCast[{id, garments, forbiddenAppearance}], recurringProps[],',
     'forbiddenGlobalElements[], coverContract, pageContracts[{pageNumber, locationId, zoneId, sameLocationAs?,',
     'mustShow[], mustNotShow[], propState[], camera, transition}].',
     '',
@@ -162,19 +165,57 @@ function formatEvidence(h: HumanFact): string {
   return `עמוד ${h.genderEvidence.page}: "${h.genderEvidence.phrase}"`;
 }
 
-/** Merge the deterministic identity facts (win) with the draft's descriptive appearance for one human. */
+// ── S2a: compiler-owned appearance injection (closed, versioned role policy) ──
+// The LLM no longer authors appearance modes/origins/values. The compiler injects the binding SKELETON by role:
+// relatives → family_profile (UNRESOLVED, no value); known non-relatives → deterministic_palette (UNRESOLVED,
+// canonical paletteId = the cast id, which is also the palette selection key — never a fabricated string);
+// hairStyle → an explicit policy value + policy_default origin. An UNKNOWN role FAILS (never auto-classified).
+const FAMILY_PROFILE_ROLES = new Set(['mother', 'father', 'parent', 'sibling', 'grandparent']);
+const APPEARANCE_POLICY_VERSION = 'role-policy/v1';
+const HAIR_STYLE_POLICY: Record<string, { value: string; policyId: string }> = {
+  mother: { value: 'medium-length, worn loose in a simple everyday style', policyId: 'mother-hair-style' },
+  father: { value: 'short, tidy everyday cut', policyId: 'father-hair-style' },
+  parent: { value: 'medium-length, worn in a simple everyday style', policyId: 'parent-hair-style' },
+  sibling: { value: 'a simple age-appropriate everyday style', policyId: 'sibling-hair-style' },
+  grandparent: { value: 'short, neatly kept', policyId: 'grandparent-hair-style' },
+  doctor: { value: 'short, neatly combed, side part', policyId: 'doctor-hair-style' },
+  nurse: { value: 'neat, tied back for work', policyId: 'nurse-hair-style' },
+  teacher: { value: 'neat, simple everyday style', policyId: 'teacher-hair-style' },
+};
+
+/** Inject the appearance binding skeleton for a human's role. Throws (fail-closed) for an unknown role. */
+export function injectAppearance(role: string, humanId: string): HumanAppearanceTraits<TemplateTraitBinding> {
+  const hair = HAIR_STYLE_POLICY[role];
+  if (!hair) {
+    throw new InvalidTemplateContractError([
+      `humanCast "${humanId}" role "${role}" has no appearance policy — a role that is neither a known relative nor a known non-relative must be authored by a human (never auto-classified).`,
+    ]);
+  }
+  const skinHair = (): TemplateTraitBinding =>
+    FAMILY_PROFILE_ROLES.has(role)
+      ? { mode: 'family_profile', origin: { kind: 'family_profile' } }
+      : { mode: 'deterministic_palette', origin: { kind: 'deterministic_palette', paletteId: humanId, version: PALETTE_VERSION } };
+  return {
+    skinTone: skinHair(),
+    hairColour: skinHair(),
+    hairTexture: skinHair(),
+    hairStyle: { mode: 'explicit', value: hair.value, origin: { kind: 'policy_default', policyId: hair.policyId, version: 'v1' } },
+  };
+}
+
+/** Merge the deterministic identity facts (win) with the compiler-injected appearance + the draft's garments. */
 function mergeHuman(fact: HumanFact, draftHuman: Record<string, unknown>): TemplateHumanCastMember {
   return {
     id: fact.id,
     role: fact.role,
     gender: fact.gender,
-    // Identity is DETERMINISTIC: aliases come from the extractor, NEVER the draft (the LLM is told not to
-    // output aliases; a draft can neither overwrite nor drop a text-found alias). Only appearance/garments/
-    // forbiddenAppearance below are descriptive draft fields.
+    // Identity is DETERMINISTIC: aliases come from the extractor, NEVER the draft. Appearance modes/origins are
+    // COMPILER-owned (injected by role from the closed policy — the LLM does not author them). Only garments and
+    // forbiddenAppearance are descriptive draft fields.
     aliases: fact.aliasesFound,
     textEvidence: formatEvidence(fact),
     pagesPresent: fact.pagesPresent,
-    appearance: draftHuman.appearance as TemplateHumanCastMember['appearance'],
+    appearance: injectAppearance(fact.role, fact.id),
     garments: (draftHuman.garments as TemplateHumanCastMember['garments']) ?? [],
     forbiddenAppearance: asArr(draftHuman.forbiddenAppearance).filter((a): a is string => typeof a === 'string'),
   };
@@ -243,6 +284,7 @@ export async function compileBookVisualContractTemplate(
     maxOutputTokens,
     schemaVersion: TEMPLATE_DRAFT_SCHEMA_VERSION,
     promptVersion: TEMPLATE_PROMPT_VERSION,
+    policyVersion: APPEARANCE_POLICY_VERSION,
     attempt: 1,
   };
   const raw = await deps.callLLM(buildTemplateCompileSystemPrompt(), buildTemplateCompileUserPrompt(input, facts), {
@@ -291,9 +333,6 @@ export async function compileBookVisualContractTemplate(
   const draftHumans = asArr(draft.humanCast).map(asObj);
   const humanCast: TemplateHumanCastMember[] = facts.humans.map((h) => {
     const match = draftHumans.find((d) => d.id === h.id || d.role === h.role) ?? {};
-    if (!match.appearance) {
-      notes.push(`draft did not provide appearance for ${h.id} — candidate will fail validation (needs human authoring)`);
-    }
     return mergeHuman(h, match);
   });
   // Flag any drafted human the extractor did NOT detect (dropped — the LLM cannot add cast the text doesn't support).
@@ -306,22 +345,38 @@ export async function compileBookVisualContractTemplate(
 
   const pageContracts = asArr(draft.pageContracts).map((pc) => overlayPage(asObj(pc), facts, childId, companionId));
 
+  // worldType is LLM+human (semantic) — NO silent 'unspecified' default; a missing value fails the validator
+  // (fail-closed). coverContract.worldType is COMPILER-owned: copied from the finalized top-level worldType.
+  const worldType =
+    (typeof draft.worldType === 'string' && draft.worldType.trim() ? draft.worldType.trim() : input.worldType?.trim()) ?? '';
+  if (!worldType) {
+    // No silent 'unspecified' — the semantic world type must be set (Stage 3 routes this to a repair).
+    throw new InvalidTemplateContractError(['worldType is missing — the semantic world type must be set (no silent default); author or repair it.']);
+  }
+
   const template: BookVisualContractTemplate = {
     contractKind: 'template',
     schemaVersion: VISUAL_CONTRACT_SCHEMA_VERSION,
     version: 1,
     storyKey: input.storyKey,
-    worldType: (typeof draft.worldType === 'string' ? draft.worldType : input.worldType) ?? 'unspecified',
+    worldType,
     locations: draft.locations as BookVisualContractTemplate['locations'],
     zones: draft.zones as BookVisualContractTemplate['zones'],
     cast: authoritativeCast as unknown as BookVisualContractTemplate['cast'],
     humanCast,
     recurringProps: (draft.recurringProps as BookVisualContractTemplate['recurringProps']) ?? [],
     forbiddenGlobalElements: asArr(draft.forbiddenGlobalElements).filter((x): x is string => typeof x === 'string'),
-    coverContract: draft.coverContract as BookVisualContractTemplate['coverContract'],
+    coverContract: { ...asObj(draft.coverContract), worldType } as unknown as BookVisualContractTemplate['coverContract'],
     pageContracts: pageContracts as unknown as BookVisualContractTemplate['pageContracts'],
     provenance: { source: 'llm', model: authoringModel, compiledFromPages: input.pageCount },
   };
+
+  // coverContract.worldType is a COMPILER-owned copy of the top-level worldType — enforce the equality invariant.
+  if ((template.coverContract as { worldType?: unknown }).worldType !== template.worldType) {
+    throw new InvalidTemplateContractError([
+      `coverContract.worldType "${String((template.coverContract as { worldType?: unknown }).worldType)}" != top-level worldType "${template.worldType}"`,
+    ]);
+  }
 
   // STRUCTURAL INVARIANT (fail-closed): every cast identity + presence must match the input/facts EXACTLY, so a
   // future refactor that lets draft.cast leak into identity/presence throws here instead of shipping — a 4th
