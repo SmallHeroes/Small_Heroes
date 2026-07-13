@@ -16,6 +16,7 @@ import path from 'path';
 
 import {
   compileBookVisualContractTemplate,
+  TemplateRepairExhaustedError,
   type TemplateCompileInput,
 } from '@/lib/visual-contract-compiler/compileBookVisualContractTemplate';
 import { validateBookVisualContractTemplate } from '@/lib/visual-contract-compiler/validateTemplateContract';
@@ -27,6 +28,7 @@ const SOURCE_SUFFIX = '.source.json';
 const TEMPLATE_SUFFIX = '.visual-contract-template.json';
 const REVIEW_SUFFIX = '.visual-contract-review.md';
 const PROVENANCE_SUFFIX = '.visual-contract-provenance.json';
+const REPAIR_ATTEMPTS_SUFFIX = '.visual-contract-repair-attempts.json';
 
 function parseArgs(argv: string[]) {
   const get = (flag: string): string | undefined => {
@@ -97,7 +99,7 @@ async function main(): Promise<void> {
     try {
       lastAuthoringUsage = null;
       lastFinishReason = null;
-      const { template, facts, notes, provenance } = await compileBookVisualContractTemplate({ ...raw, storyKey }, { callLLM });
+      const { template, facts, notes, provenance, repairAttempts } = await compileBookVisualContractTemplate({ ...raw, storyKey }, { callLLM });
       const templatePath = path.join(out, `${storyKey}${TEMPLATE_SUFFIX}`);
       writeFileSync(templatePath, `${JSON.stringify(template, null, 2)}\n`, 'utf8');
       const provenanceOut = { ...provenance, usage: lastAuthoringUsage, finishReason: lastFinishReason };
@@ -107,9 +109,20 @@ async function main(): Promise<void> {
       const review = renderVisualContractReview({ storyKey, facts, template, notes, valid: true, previous });
       writeFileSync(path.join(out, `${storyKey}${REVIEW_SUFFIX}`), review, 'utf8');
 
+      // Persist the repair trail beside the review when Stage-3 repairs were needed (reviewability).
+      if (repairAttempts.length > 0) {
+        writeFileSync(path.join(out, `${storyKey}${REPAIR_ATTEMPTS_SUFFIX}`), `${JSON.stringify(repairAttempts, null, 2)}\n`, 'utf8');
+        console.log(`[compile-vc-template] ${storyKey} needed ${repairAttempts.length} repair attempt(s) → passed on attempt ${provenance.attempt}`);
+      }
+
       ok += 1;
       console.log(`[compile-vc-template] ${storyKey} → ${templatePath} (${notes.length} note(s))`);
     } catch (err) {
+      // On repair-loop exhaustion, persist the raw attempts + errors beside the review even though no template was
+      // written (fail-closed: write nothing valid, but keep the trail for a human).
+      if (err instanceof TemplateRepairExhaustedError) {
+        writeFileSync(path.join(out, `${storyKey}${REPAIR_ATTEMPTS_SUFFIX}`), `${JSON.stringify(err.attempts, null, 2)}\n`, 'utf8');
+      }
       failures.push({ storyKey, error: (err as Error).message });
       console.error(`[compile-vc-template] FAILED ${storyKey}: ${(err as Error).message}`);
     }

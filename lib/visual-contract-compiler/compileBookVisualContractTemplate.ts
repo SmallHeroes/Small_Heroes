@@ -46,6 +46,9 @@ const CHILD_ID = 'child:hero';
 const DEFAULT_AUTHOR_MODEL = 'gpt-5.5-pro';
 const AUTHORING_REASONING_EFFORT = 'medium';
 const TEMPLATE_PROMPT_VERSION = 'vc-template-prompt/v1';
+/** Stage 3 — at most this many SEMANTIC repair attempts AFTER the initial authoring call (bounded safety net). */
+const MAX_REPAIR_ATTEMPTS = 2;
+const REPAIR_PROMPT_VERSION = 'vc-repair-prompt/v1';
 
 /** Resolve the authoring model at CALL time (env-configurable, so a project can point at an accessible model). */
 export function resolveAuthoringModel(): string {
@@ -72,7 +75,38 @@ export interface TemplateAuthoringProvenance {
   promptVersion: string;
   /** The compiler-owned appearance role-policy version (S2a). */
   policyVersion: string;
+  /** The attempt the candidate passed on: 1 = initial authoring call, 2 = after repair #1, 3 = after repair #2. */
   attempt: number;
+  /** The repair-prompt version — set only when the candidate needed ≥1 repair (attempt > 1). */
+  repairPromptVersion?: string;
+}
+
+/** A recorded repair attempt — persisted beside the review for human reviewability (Stage 3). */
+export interface TemplateRepairAttempt {
+  /** 1 = the initial authoring call; 2 = repair #1; 3 = repair #2. */
+  attempt: number;
+  /** The exact validator/assembly errors this attempt failed with. */
+  errors: string[];
+  /** The descriptive draft object this attempt failed with (nested in the reviewability sidecar). */
+  draft: unknown;
+}
+
+/**
+ * Thrown when the bounded repair loop is exhausted (the initial call + MAX_REPAIR_ATTEMPTS repairs were ALL invalid).
+ * Extends the fail-closed error so existing `instanceof InvalidTemplateContractError` handlers still catch it, and
+ * carries the attempt trail so the driver can persist it beside the review even though NO template was produced
+ * (the Stage-3 contract: write nothing unless an attempt fully passes).
+ */
+export class TemplateRepairExhaustedError extends InvalidTemplateContractError {
+  constructor(
+    readonly attempts: TemplateRepairAttempt[],
+    lastErrors: string[],
+  ) {
+    super([
+      `template repair loop exhausted after ${attempts.length} attempt(s) — wrote nothing; last errors: ${lastErrors.join('; ')}`,
+    ]);
+    this.name = 'TemplateRepairExhaustedError';
+  }
 }
 
 /**
@@ -98,6 +132,9 @@ export interface TemplateCompileResult {
   notes: string[];
   /** The authoring call's provenance (model / reasoning / budget / schema+prompt version / attempt). */
   provenance: TemplateAuthoringProvenance;
+  /** The FAILED repair attempts before the passing one (empty when the initial draft was valid). Persist beside
+   *  the review for reviewability (Stage 3). */
+  repairAttempts: TemplateRepairAttempt[];
 }
 
 // ── LLM prompt (real path; the pilot injects a stub) ─────────────────────────
@@ -160,6 +197,55 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
       .sort((a, b) => a.pageNumber - b.pageNumber)
       .map((p) => `--- Page ${p.pageNumber} ---\n${p.text}`)
       .join('\n\n'),
+  ].join('\n');
+}
+
+// ── Repair prompt (Stage 3 — bounded semantic repair of the DESCRIPTIVE draft) ─
+
+export function buildTemplateRepairSystemPrompt(): string {
+  return [
+    "You are REPAIRING an INVALID descriptive draft for a children's-book visual-continuity contract.",
+    'You will be given the previous draft, the EXACT validator errors it failed, and the authoritative facts.',
+    'Return the COMPLETE corrected JSON draft (SAME schema as before) — fix ONLY what the errors require; keep',
+    'everything else identical.',
+    '',
+    'You MAY edit ONLY these DESCRIPTIVE fields:',
+    '- worldType (the semantic world type)',
+    '- locations[] (name/description/lighting/timeOfDay/environmentClass/anchors/topology)',
+    '- zones[] (name/description/stableGeometry — a present stableGeometry must be a NON-EMPTY string[])',
+    '- cast.child/cast.companion wardrobe; each human\'s garments (each colour an explicit value) + forbiddenAppearance',
+    '- recurringProps[] (name/description and material/scale/persistence — NO empty string in a field you include)',
+    '- forbiddenGlobalElements[]; coverContract mustShow/mustNotShow/locationId/timeOfDay',
+    '- pageContracts[] mustShow/mustNotShow/propState/camera and the transition kind/cue',
+    '',
+    'You MUST NOT change these (they are COMPILER-owned or FACT-derived; your edits to them are IGNORED and',
+    'overwritten, so changing them only wastes the repair):',
+    '- any human appearance (skinTone/hairColour/hairTexture/hairStyle) — injected from a role policy',
+    '- any human gender/pagesPresent/textEvidence/aliases; page castIds/characterPresence; any laterality',
+    '- cast identity/ids; location + zone IDs and their references (the compiler canonicalizes them)',
+    '- coverContract.worldType (the compiler copies it from the top-level worldType)',
+    '',
+    'Output ONLY the corrected JSON object, no prose, no markdown fences.',
+  ].join('\n');
+}
+
+export function buildTemplateRepairUserPrompt(
+  previousDraft: Record<string, unknown>,
+  errors: string[],
+  facts: DeterministicFacts,
+  input: TemplateCompileInput,
+): string {
+  return [
+    `storyKey: ${input.storyKey}  pageCount: ${input.pageCount}`,
+    '',
+    'The previous draft FAILED validation with these EXACT errors — fix EACH one (and change nothing else):',
+    ...errors.map((e, i) => `${i + 1}. ${e}`),
+    '',
+    'AUTHORITATIVE FACTS (do NOT restate gender/presence/laterality — they are overlaid after you):',
+    ...facts.humans.map((h) => `- ${h.id} (role=${h.role}, gender=${h.gender}); present on pages [${h.pagesPresent.join(', ')}]`),
+    '',
+    'PREVIOUS (INVALID) DRAFT — return a corrected COMPLETE version of this exact JSON object:',
+    JSON.stringify(previousDraft),
   ].join('\n');
 }
 
@@ -395,42 +481,18 @@ function canonicalizeTopology(draft: Record<string, unknown>): { pages: Record<s
 }
 
 /**
- * Compile a template CANDIDATE from a story source. Deterministic facts are extracted first and overlaid last;
- * the LLM (injected) drafts descriptive fields only. Fail-closed: throws if the assembled candidate is invalid.
+ * Assemble ONE template CANDIDATE from a single descriptive draft: authoritative cast + compiler-owned
+ * appearance/topology/worldType, the fact overlay LAST, then the structural cast invariant + the full fail-closed
+ * validator. PURE (no LLM). Throws InvalidTemplateContractError on ANY problem — the caller's bounded repair loop
+ * catches that and re-drafts. Returns the valid template + review notes.
  */
-export async function compileBookVisualContractTemplate(
+function assembleTemplateFromDraft(
+  draft: Record<string, unknown>,
+  facts: DeterministicFacts,
   input: TemplateCompileInput,
-  deps: { callLLM: ContractLlmCaller },
-): Promise<TemplateCompileResult> {
-  // FAIL-CLOSED belt-and-suspenders: NEVER author a contract from empty/thin source. Even if a bad source somehow
-  // reaches the compiler (the extractor guard is the first line), refuse before the LLM call so it cannot hallucinate
-  // a fully-valid contract out of nothing.
-  assertSourceHasRealProse(input.storyKey, input.pages, 'compile-vc-template');
-
-  const facts = extractDeterministicFacts(input);
+  authoringModel: string,
+): { template: BookVisualContractTemplate; notes: string[] } {
   const notes: string[] = [];
-
-  // Dedicated authoring call: real reasoning model + strict structured output + a budget scaled to the page count,
-  // with NO silent model fallback. The injected caller executes what the compiler requests.
-  const authoringModel = resolveAuthoringModel();
-  const maxOutputTokens = authoringMaxOutputTokens(input.pageCount);
-  const provenance: TemplateAuthoringProvenance = {
-    authoringModel,
-    reasoningEffort: AUTHORING_REASONING_EFFORT,
-    maxOutputTokens,
-    schemaVersion: TEMPLATE_DRAFT_SCHEMA_VERSION,
-    promptVersion: TEMPLATE_PROMPT_VERSION,
-    policyVersion: APPEARANCE_POLICY_VERSION,
-    attempt: 1,
-  };
-  const raw = await deps.callLLM(buildTemplateCompileSystemPrompt(), buildTemplateCompileUserPrompt(input, facts), {
-    maxOutputTokens,
-    model: authoringModel,
-    reasoningEffort: AUTHORING_REASONING_EFFORT,
-    jsonSchema: { name: TEMPLATE_DRAFT_SCHEMA_NAME, schema: TEMPLATE_DRAFT_JSON_SCHEMA },
-    noFallback: true,
-  });
-  const draft = asObj(parseContractJson(raw));
 
   // Cast IDENTITY + PRESENCE are AUTHORITATIVE from the input/facts — NEVER the draft. The child id is a fixed
   // constant; the companion id comes from input.companion (the order); humans come from the extractor. The draft
@@ -480,17 +542,16 @@ export async function compileBookVisualContractTemplate(
   }
 
   // Topology: canonicalize IDs + rewrite page/transition refs against the ONE zone graph (compiler-owned),
-  // then overlay the fact-derived cast/presence LAST. Ambiguity/unresolved refs throw → Stage-3 repair.
+  // then overlay the fact-derived cast/presence LAST. Ambiguity/unresolved refs throw → repair.
   const { pages: canonicalPages, notes: topoNotes } = canonicalizeTopology(draft);
   notes.push(...topoNotes);
   const pageContracts = canonicalPages.map((pc) => overlayPage(pc, facts, childId, companionId));
 
-  // worldType is LLM+human (semantic) — NO silent 'unspecified' default; a missing value fails the validator
-  // (fail-closed). coverContract.worldType is COMPILER-owned: copied from the finalized top-level worldType.
+  // worldType is LLM+human (semantic) — NO silent 'unspecified' default; a missing value fails (fail-closed →
+  // repair). coverContract.worldType is COMPILER-owned: copied from the finalized top-level worldType.
   const worldType =
     (typeof draft.worldType === 'string' && draft.worldType.trim() ? draft.worldType.trim() : input.worldType?.trim()) ?? '';
   if (!worldType) {
-    // No silent 'unspecified' — the semantic world type must be set (Stage 3 routes this to a repair).
     throw new InvalidTemplateContractError(['worldType is missing — the semantic world type must be set (no silent default); author or repair it.']);
   }
 
@@ -519,13 +580,102 @@ export async function compileBookVisualContractTemplate(
   }
 
   // STRUCTURAL INVARIANT (fail-closed): every cast identity + presence must match the input/facts EXACTLY, so a
-  // future refactor that lets draft.cast leak into identity/presence throws here instead of shipping — a 4th
-  // instance of the "draft governs a fact" class is structurally impossible, not merely patched.
+  // future refactor that lets draft.cast leak into identity/presence throws here instead of shipping.
   assertCastIsFactAuthoritative(template, facts, input);
 
   // FAIL-CLOSED — never return an invalid candidate.
   assertValidBookVisualContractTemplate(template);
-  return { template, facts, notes, provenance };
+  return { template, notes };
+}
+
+/**
+ * Compile a template CANDIDATE from a story source. Deterministic facts are extracted first and overlaid last; the
+ * LLM (injected) drafts descriptive fields only.
+ *
+ * Stage 3 — BOUNDED REPAIR LOOP: at most MAX_REPAIR_ATTEMPTS semantic repairs AFTER the initial authoring call.
+ * Each attempt (re)assembles from the current draft → reapplies compiler policy → overlays facts LAST →
+ * assertCastIsFactAuthoritative → the full validator; on any failure it hands the LLM the invalid DESCRIPTIVE
+ * draft + the EXACT errors + the authoritative facts and asks for a corrected draft (compiler-owned + fact fields
+ * are re-derived, so LLM edits to them are ignored). Fail-closed: returns NOTHING unless an attempt fully passes;
+ * on exhaustion it throws TemplateRepairExhaustedError carrying the whole attempt trail (write nothing).
+ */
+export async function compileBookVisualContractTemplate(
+  input: TemplateCompileInput,
+  deps: { callLLM: ContractLlmCaller },
+): Promise<TemplateCompileResult> {
+  // FAIL-CLOSED belt-and-suspenders: NEVER author a contract from empty/thin source. Even if a bad source somehow
+  // reaches the compiler (the extractor guard is the first line), refuse before the LLM call so it cannot hallucinate
+  // a fully-valid contract out of nothing.
+  assertSourceHasRealProse(input.storyKey, input.pages, 'compile-vc-template');
+
+  const facts = extractDeterministicFacts(input);
+
+  // Dedicated authoring call: real reasoning model + strict structured output + a budget scaled to the page count,
+  // with NO silent model fallback. The SAME options are reused for every repair call.
+  const authoringModel = resolveAuthoringModel();
+  const maxOutputTokens = authoringMaxOutputTokens(input.pageCount);
+  const llmOpts = {
+    maxOutputTokens,
+    model: authoringModel,
+    reasoningEffort: AUTHORING_REASONING_EFFORT,
+    jsonSchema: { name: TEMPLATE_DRAFT_SCHEMA_NAME, schema: TEMPLATE_DRAFT_JSON_SCHEMA },
+    noFallback: true,
+  };
+
+  let draft = asObj(
+    parseContractJson(await deps.callLLM(buildTemplateCompileSystemPrompt(), buildTemplateCompileUserPrompt(input, facts), llmOpts)),
+  );
+
+  const repairAttempts: TemplateRepairAttempt[] = [];
+  for (let attempt = 1; ; attempt++) {
+    let assembled: { template: BookVisualContractTemplate; notes: string[] } | null = null;
+    let attemptErrors: string[] = [];
+    try {
+      assembled = assembleTemplateFromDraft(draft, facts, input, authoringModel);
+    } catch (err) {
+      if (!(err instanceof InvalidTemplateContractError)) throw err; // a non-validation failure is not repairable
+      attemptErrors = err.errors;
+    }
+
+    if (assembled) {
+      const provenance: TemplateAuthoringProvenance = {
+        authoringModel,
+        reasoningEffort: AUTHORING_REASONING_EFFORT,
+        maxOutputTokens,
+        schemaVersion: TEMPLATE_DRAFT_SCHEMA_VERSION,
+        promptVersion: TEMPLATE_PROMPT_VERSION,
+        policyVersion: APPEARANCE_POLICY_VERSION,
+        attempt,
+        ...(attempt > 1 ? { repairPromptVersion: REPAIR_PROMPT_VERSION } : {}),
+      };
+      return { template: assembled.template, facts, notes: assembled.notes, provenance, repairAttempts };
+    }
+
+    // This attempt's draft was invalid — record it (raw draft + exact errors) for reviewability.
+    repairAttempts.push({ attempt, errors: attemptErrors, draft });
+
+    if (attempt > MAX_REPAIR_ATTEMPTS) {
+      // Initial + MAX_REPAIR_ATTEMPTS repairs all failed — fail closed, write nothing, carry the trail.
+      throw new TemplateRepairExhaustedError(repairAttempts, attemptErrors);
+    }
+
+    // Request a bounded SEMANTIC repair: fix ONLY the descriptive draft against the exact errors (same model, no
+    // fallback). Compiler-owned + fact fields are re-derived on the next assemble, so LLM edits to them are ignored.
+    // If the repair call itself can't be turned into a usable draft (model error, or truncated/unparseable JSON),
+    // we cannot continue — surface it as an exhaustion so the accumulated attempt trail is STILL persisted (never
+    // silently lost), rather than letting the raw parse/model error escape and drop the trail.
+    try {
+      draft = asObj(
+        parseContractJson(
+          await deps.callLLM(buildTemplateRepairSystemPrompt(), buildTemplateRepairUserPrompt(draft, attemptErrors, facts, input), llmOpts),
+        ),
+      );
+    } catch (err) {
+      throw new TemplateRepairExhaustedError(repairAttempts, [
+        `repair #${attempt} could not be produced (model error or unparseable/truncated JSON): ${(err as Error).message}`,
+      ]);
+    }
+  }
 }
 
 /**
