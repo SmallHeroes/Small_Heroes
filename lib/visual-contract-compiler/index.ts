@@ -171,3 +171,10 @@ export {
   coherentOriginKindsFor,
   type OriginKind,
 } from './appearanceBindingCoherence';
+export {
+  assertSourceHasRealProse,
+  countProseLetters,
+  MIN_PAGE_PROSE_LETTERS,
+  MIN_AVG_PROSE_LETTERS_PER_PAGE,
+  type SourceProsePage,
+} from './assertSourceProse';

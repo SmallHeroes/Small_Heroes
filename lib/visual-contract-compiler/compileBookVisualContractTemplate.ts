@@ -34,6 +34,7 @@ import {
   TEMPLATE_DRAFT_SCHEMA_NAME,
   TEMPLATE_DRAFT_SCHEMA_VERSION,
 } from './templateDraftSchema';
+import { assertSourceHasRealProse } from './assertSourceProse';
 
 /** The child's cast id is a fixed constant — the hero anchor. NEVER taken from the LLM draft. */
 const CHILD_ID = 'child:hero';
@@ -151,7 +152,14 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
     'mustShow[], mustNotShow[], propState[], camera, transition}].',
     '',
     'FULL STORY TEXT:',
-    input.fullStoryText,
+    // Build the page-marked story text from input.pages — the SAME field assertSourceHasRealProse validated — so
+    // the LLM reads exactly the guarded prose. A source whose independent fullStoryText was empty/markers-only can
+    // therefore never smuggle emptiness past the pages guard into the authoring call.
+    input.pages
+      .slice()
+      .sort((a, b) => a.pageNumber - b.pageNumber)
+      .map((p) => `--- Page ${p.pageNumber} ---\n${p.text}`)
+      .join('\n\n'),
   ].join('\n');
 }
 
@@ -394,6 +402,11 @@ export async function compileBookVisualContractTemplate(
   input: TemplateCompileInput,
   deps: { callLLM: ContractLlmCaller },
 ): Promise<TemplateCompileResult> {
+  // FAIL-CLOSED belt-and-suspenders: NEVER author a contract from empty/thin source. Even if a bad source somehow
+  // reaches the compiler (the extractor guard is the first line), refuse before the LLM call so it cannot hallucinate
+  // a fully-valid contract out of nothing.
+  assertSourceHasRealProse(input.storyKey, input.pages, 'compile-vc-template');
+
   const facts = extractDeterministicFacts(input);
   const notes: string[] = [];
 

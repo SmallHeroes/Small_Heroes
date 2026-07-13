@@ -25,6 +25,7 @@ import {
   stripGoldenSourceHeader,
 } from '@/lib/story-bank-v3-import';
 import type { CompileBookVisualContractInput } from '@/lib/visual-contract-compiler';
+import { assertSourceHasRealProse } from '@/lib/visual-contract-compiler';
 
 /** Default child gender when the bank frontmatter omits it (Phase-B default). */
 const DEFAULT_CHILD_GENDER = 'female';
@@ -49,8 +50,12 @@ export interface ContractSourceFile extends CompileBookVisualContractInput {
  */
 export function toFrontmatterMarkdown(raw: string): string {
   const normalized = raw.replace(/^﻿/, '').replace(/\r\n/g, '\n');
-  if (/^---\ntitle:/.test(normalized)) return normalized;
-  return stripGoldenSourceHeader(normalized);
+  const body = /^---\ntitle:/.test(normalized) ? normalized : stripGoldenSourceHeader(normalized);
+  // Drop the bank's trailing WORD_COUNT metadata line (a document trailer, NOT page prose — e.g.
+  // "WORD_COUNT: [36, 41, ...] = 467" or "= [363]"). The parser now keeps prose on BOTH sides of the
+  // imageDirection line, so without this the FINAL page's .text would fold the trailer into pages[] +
+  // fullStoryText and hand it to the authoring LLM as story content. Anchored to end-of-document.
+  return body.replace(/\n+WORD_COUNT:[^\n]*\s*$/i, '\n');
 }
 
 /** Extract a source object from one story .md. Pure — no LLM, no filesystem writes. */
@@ -69,6 +74,11 @@ export function extractSourceFromMarkdown(storyKey: string, rawMarkdown: string)
     pageNumber: p.pageNumber,
     text: p.text.trim(),
   }));
+
+  // FAIL-CLOSED: never emit a source with empty/negligible prose. A story that parses N page markers but whose
+  // per-page prose is empty (e.g. a parser drop) would otherwise flow to the compiler, which HALLUCINATES a fully-
+  // valid contract from nothing. Refuse here so the empty source never reaches the LLM.
+  assertSourceHasRealProse(storyKey, pages, 'extract-vc-source');
   const pageImageDirections = orderedPages
     .filter((p) => p.imageDirection.trim().length > 0)
     .map((p) => ({ pageNumber: p.pageNumber, imageDirection: p.imageDirection.trim() }));
