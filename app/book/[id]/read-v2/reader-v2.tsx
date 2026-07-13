@@ -15,6 +15,12 @@ import {
 import { DesktopBookSpread } from './components/DesktopBookSpread';
 import { MobileBookPage } from './components/MobileBookPage';
 import { PowerCardEndScreen } from './components/PowerCardEndScreen';
+import {
+  readerNavForward,
+  readerNavBackward,
+  type ReaderNavState,
+  type ReaderNavContext,
+} from './reader-nav';
 import styles from './reader-v2.module.css';
 import type { PowerCardRenderInput } from '@/lib/power-cards/types';
 
@@ -154,6 +160,17 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
   const showAudioButton = sceneAllowsAudio(currentScene, fallbackBookAudioUrl);
   const isFirstPage = currentSceneIndex === 0;
   const isLastPage = currentSceneIndex >= storyScenes.length - 1 && storyScenes.length > 0;
+
+  // Dedication placement: the API appends the creator's dedication as the FINAL `dedication` scene. Guy wants it
+  // shown AFTER the power card (book pages → power card → dedication → end). So the power card triggers from the
+  // LAST STORY page (the scene just before the dedication), and advancing past the power card lands on the
+  // dedication page. Empty dedication → no dedication scene → lastStoryIndex = last scene → today's behavior.
+  const dedicationIndex = useMemo(
+    () => storyScenes.findIndex((s) => s.kind === 'dedication'),
+    [storyScenes]
+  );
+  const hasDedication = dedicationIndex >= 0;
+  const lastStoryIndex = hasDedication ? dedicationIndex - 1 : storyScenes.length - 1;
 
   const clearAutoPlayTimer = useCallback(() => {
     if (autoPlayTimerRef.current != null) {
@@ -329,33 +346,47 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
 
   advancePageAutoRef.current = advancePageAuto;
 
+  const navContext = useMemo<ReaderNavContext>(
+    () => ({
+      lastStoryIndex,
+      dedicationIndex,
+      hasDedication,
+      hasPowerCard: Boolean(powerCardInput),
+      sceneCount: storyScenes.length,
+    }),
+    [lastStoryIndex, dedicationIndex, hasDedication, powerCardInput, storyScenes.length]
+  );
+
+  /** Apply a computed nav state: animate on a page change, then set the overlay flags. */
+  const applyNav = useCallback(
+    (next: ReaderNavState) => {
+      if (next.index !== currentSceneIndex) {
+        bumpTransition();
+        setCurrentSceneIndex(next.index);
+      }
+      setShowPowerCardScreen(next.powerCard);
+      setShowEndScreen(next.end);
+    },
+    [bumpTransition, currentSceneIndex]
+  );
+
   const nextManual = useCallback(() => {
     disableSessionAutoAdvance();
     stopLeavingPageAudio();
     userPausedSceneIdRef.current = null;
     if (!storyScenes.length) return;
-    if (showPowerCardScreen) {
-      setShowPowerCardScreen(false);
-      setShowEndScreen(true);
-      return;
-    }
-    if (isLastPage) {
-      if (powerCardInput) {
-        setShowPowerCardScreen(true);
-      } else {
-        setShowEndScreen(true);
-      }
-      return;
-    }
-    setShowEndScreen(false);
-    setShowPowerCardScreen(false);
-    bumpTransition();
-    setCurrentSceneIndex((prev) => Math.min(prev + 1, storyScenes.length - 1));
+    applyNav(
+      readerNavForward(
+        { index: currentSceneIndex, powerCard: showPowerCardScreen, end: showEndScreen },
+        navContext
+      )
+    );
   }, [
-    bumpTransition,
+    applyNav,
+    currentSceneIndex,
     disableSessionAutoAdvance,
-    isLastPage,
-    powerCardInput,
+    navContext,
+    showEndScreen,
     showPowerCardScreen,
     stopLeavingPageAudio,
     storyScenes.length,
@@ -365,26 +396,22 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
     disableSessionAutoAdvance();
     stopLeavingPageAudio();
     userPausedSceneIdRef.current = null;
-    if (showEndScreen) {
-      setShowEndScreen(false);
-      if (powerCardInput) {
-        setShowPowerCardScreen(true);
-      }
-      return;
-    }
-    if (showPowerCardScreen) {
-      setShowPowerCardScreen(false);
-      return;
-    }
-    bumpTransition();
-    setCurrentSceneIndex((prev) => Math.max(prev - 1, 0));
+    if (!storyScenes.length) return;
+    applyNav(
+      readerNavBackward(
+        { index: currentSceneIndex, powerCard: showPowerCardScreen, end: showEndScreen },
+        navContext
+      )
+    );
   }, [
-    bumpTransition,
+    applyNav,
+    currentSceneIndex,
     disableSessionAutoAdvance,
-    powerCardInput,
+    navContext,
     showEndScreen,
     showPowerCardScreen,
     stopLeavingPageAudio,
+    storyScenes.length,
   ]);
 
   useEffect(() => {
@@ -920,10 +947,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
           accessKey={resolvedAccessKey}
           childName={childName || powerCardInput.childName}
           powerCard={powerCardInput}
-          onContinue={() => {
-            setShowPowerCardScreen(false);
-            setShowEndScreen(true);
-          }}
+          onContinue={nextManual}
         />
       )}
 
