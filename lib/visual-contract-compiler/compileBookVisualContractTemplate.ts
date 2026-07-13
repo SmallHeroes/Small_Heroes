@@ -39,9 +39,15 @@ const CHILD_ID = 'child:hero';
 // ── Dedicated authoring call (Stage 1 of the live-authoring fix) ─────────────
 // The template draft is a large relational doc; it needs a real reasoning model + budget + strict structured
 // output, not the support default. These are REQUESTED by the compiler; the injected caller executes them.
-const AUTHORING_MODEL = 'gpt-5.3-pro';
+/** Default authoring model — a strong, accessible reasoning model. Override with VISUAL_CONTRACT_AUTHOR_MODEL. */
+const DEFAULT_AUTHOR_MODEL = 'gpt-5.5-pro';
 const AUTHORING_REASONING_EFFORT = 'medium';
 const TEMPLATE_PROMPT_VERSION = 'vc-template-prompt/v1';
+
+/** Resolve the authoring model at CALL time (env-configurable, so a project can point at an accessible model). */
+export function resolveAuthoringModel(): string {
+  return process.env.VISUAL_CONTRACT_AUTHOR_MODEL || DEFAULT_AUTHOR_MODEL;
+}
 
 /** Output token budget: ~1000 tokens/page for the relational doc; floored at 12000, capped at 20000 (12 pages → 12000). */
 export function authoringMaxOutputTokens(pageCount: number): number {
@@ -224,9 +230,10 @@ export async function compileBookVisualContractTemplate(
 
   // Dedicated authoring call: real reasoning model + strict structured output + a budget scaled to the page count,
   // with NO silent model fallback. The injected caller executes what the compiler requests.
+  const authoringModel = resolveAuthoringModel();
   const maxOutputTokens = authoringMaxOutputTokens(input.pageCount);
   const provenance: TemplateAuthoringProvenance = {
-    authoringModel: AUTHORING_MODEL,
+    authoringModel,
     reasoningEffort: AUTHORING_REASONING_EFFORT,
     maxOutputTokens,
     schemaVersion: TEMPLATE_DRAFT_SCHEMA_VERSION,
@@ -235,7 +242,7 @@ export async function compileBookVisualContractTemplate(
   };
   const raw = await deps.callLLM(buildTemplateCompileSystemPrompt(), buildTemplateCompileUserPrompt(input, facts), {
     maxOutputTokens,
-    model: AUTHORING_MODEL,
+    model: authoringModel,
     reasoningEffort: AUTHORING_REASONING_EFFORT,
     jsonSchema: { name: TEMPLATE_DRAFT_SCHEMA_NAME, schema: TEMPLATE_DRAFT_JSON_SCHEMA },
     noFallback: true,
@@ -308,7 +315,7 @@ export async function compileBookVisualContractTemplate(
     forbiddenGlobalElements: asArr(draft.forbiddenGlobalElements).filter((x): x is string => typeof x === 'string'),
     coverContract: draft.coverContract as BookVisualContractTemplate['coverContract'],
     pageContracts: pageContracts as unknown as BookVisualContractTemplate['pageContracts'],
-    provenance: { source: 'llm', model: AUTHORING_MODEL, compiledFromPages: input.pageCount },
+    provenance: { source: 'llm', model: authoringModel, compiledFromPages: input.pageCount },
   };
 
   // STRUCTURAL INVARIANT (fail-closed): every cast identity + presence must match the input/facts EXACTLY, so a

@@ -10,6 +10,7 @@ import { extractSourceFromMarkdown } from '../../scripts/extract-visual-contract
 import {
   compileBookVisualContractTemplate,
   authoringMaxOutputTokens,
+  resolveAuthoringModel,
   type TemplateCompileInput,
 } from '../visual-contract-compiler/compileBookVisualContractTemplate';
 import {
@@ -73,24 +74,38 @@ describe('Stage 1 — authoring token budget scales by page count', () => {
 });
 
 describe('Stage 1 — compiler requests the dedicated authoring call + records provenance', () => {
-  it('requests gpt-5.3-pro + medium + json_schema + a 12000-token budget (12 pages), no fallback', async () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('requests the resolved authoring model (default gpt-5.5-pro) + medium + json_schema + 12000 budget, no fallback', async () => {
     let captured: ContractLlmCallOptions | undefined;
     const spy: ContractLlmCaller = async (_s, _u, opts) => {
       captured = opts;
       return JSON.stringify(bunnyTemplate());
     };
     const { provenance } = await compileBookVisualContractTemplate(bunnySource(), { callLLM: spy });
-    expect(captured?.model).toBe('gpt-5.3-pro');
+    expect(captured?.model).toBe('gpt-5.5-pro');
     expect(captured?.reasoningEffort).toBe('medium');
     expect(captured?.noFallback).toBe(true);
     expect(captured?.jsonSchema?.name).toBe(TEMPLATE_DRAFT_SCHEMA_NAME);
     expect(captured?.maxOutputTokens).toBe(12000);
-    // Provenance recorded on the result.
-    expect(provenance.authoringModel).toBe('gpt-5.3-pro');
+    // Provenance records the resolved model.
+    expect(provenance.authoringModel).toBe('gpt-5.5-pro');
     expect(provenance.reasoningEffort).toBe('medium');
     expect(provenance.maxOutputTokens).toBe(12000);
     expect(provenance.schemaVersion).toBe('vc-draft-schema/v1');
     expect(provenance.attempt).toBe(1);
+  });
+
+  it('the authoring model is overridable via VISUAL_CONTRACT_AUTHOR_MODEL', async () => {
+    vi.stubEnv('VISUAL_CONTRACT_AUTHOR_MODEL', 'gpt-custom-authoring');
+    let captured: ContractLlmCallOptions | undefined;
+    const spy: ContractLlmCaller = async (_s, _u, opts) => {
+      captured = opts;
+      return JSON.stringify(bunnyTemplate());
+    };
+    const { provenance } = await compileBookVisualContractTemplate(bunnySource(), { callLLM: spy });
+    expect(captured?.model).toBe('gpt-custom-authoring');
+    expect(provenance.authoringModel).toBe('gpt-custom-authoring');
   });
 });
 
@@ -100,7 +115,7 @@ describe('Stage 1 — pipeline json_schema + no silent fallback', () => {
     vi.unstubAllEnvs();
   });
 
-  it('sends json_schema (strict) + model override + reasoning on the Responses path', async () => {
+  it('sends json_schema (strict) + the resolved authoring model + reasoning on the Responses path', async () => {
     const { callLLM } = await import('@/backend/providers/pipeline');
     const calls: Array<{ body: Record<string, unknown> }> = [];
     vi.stubEnv('OPENAI_API_KEY', 'test-key');
@@ -111,19 +126,25 @@ describe('Stage 1 — pipeline json_schema + no silent fallback', () => {
         return { ok: true, json: async () => ({ output_text: '{}', usage: { total_tokens: 5 } }) };
       }),
     );
+    expect(resolveAuthoringModel()).toBe('gpt-5.5-pro'); // default
     await callLLM('sys', 'usr', 12000, 0.4, 'VisualContractTemplate', true, {
-      modelOverride: 'gpt-5.3-pro',
+      modelOverride: resolveAuthoringModel(),
       reasoningEffort: 'medium',
       jsonSchema: { name: 'X', schema: { type: 'object', additionalProperties: false, properties: {}, required: [] } },
       noFallback: true,
     });
     const body = calls[0].body as Record<string, any>;
-    expect(body.model).toBe('gpt-5.3-pro');
+    expect(body.model).toBe('gpt-5.5-pro');
     expect(body.reasoning).toEqual({ effort: 'medium' });
     expect(body.max_output_tokens).toBe(12000);
     expect(body.text.format.type).toBe('json_schema');
     expect(body.text.format.strict).toBe(true);
     expect(body.text.format.name).toBe('X');
+  });
+
+  it('VISUAL_CONTRACT_AUTHOR_MODEL overrides the resolved authoring model', () => {
+    vi.stubEnv('VISUAL_CONTRACT_AUTHOR_MODEL', 'gpt-5.5-pro-alt');
+    expect(resolveAuthoringModel()).toBe('gpt-5.5-pro-alt');
   });
 
   it('noFallback → throws (never silently falls back) when the model is unavailable', async () => {
@@ -135,7 +156,7 @@ describe('Stage 1 — pipeline json_schema + no silent fallback', () => {
       vi.fn(async () => ({ ok: false, status: 404, text: async () => 'model_not_found' })),
     );
     await expect(
-      callLLM('s', 'u', 100, 0.4, 'VisualContractTemplate', true, { modelOverride: 'gpt-5.3-pro', noFallback: true }),
+      callLLM('s', 'u', 100, 0.4, 'VisualContractTemplate', true, { modelOverride: resolveAuthoringModel(), noFallback: true }),
     ).rejects.toThrow(/not available/i);
   });
 });
