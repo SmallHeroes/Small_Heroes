@@ -27,9 +27,37 @@ import {
   type DeterministicFactsInput,
   type HumanFact,
 } from './extractDeterministicFacts';
+import {
+  TEMPLATE_DRAFT_JSON_SCHEMA,
+  TEMPLATE_DRAFT_SCHEMA_NAME,
+  TEMPLATE_DRAFT_SCHEMA_VERSION,
+} from './templateDraftSchema';
 
 /** The child's cast id is a fixed constant — the hero anchor. NEVER taken from the LLM draft. */
 const CHILD_ID = 'child:hero';
+
+// ── Dedicated authoring call (Stage 1 of the live-authoring fix) ─────────────
+// The template draft is a large relational doc; it needs a real reasoning model + budget + strict structured
+// output, not the support default. These are REQUESTED by the compiler; the injected caller executes them.
+const AUTHORING_MODEL = 'gpt-5.3-pro';
+const AUTHORING_REASONING_EFFORT = 'medium';
+const TEMPLATE_PROMPT_VERSION = 'vc-template-prompt/v1';
+
+/** Output token budget: ~1000 tokens/page for the relational doc; floored at 12000, capped at 20000 (12 pages → 12000). */
+export function authoringMaxOutputTokens(pageCount: number): number {
+  const pages = Number.isFinite(pageCount) && pageCount > 0 ? pageCount : 12;
+  return Math.min(20000, Math.max(12000, Math.round(pages * 1000)));
+}
+
+/** Provenance for the authoring call (recorded beside the candidate; NOT part of the frozen hash). */
+export interface TemplateAuthoringProvenance {
+  authoringModel: string;
+  reasoningEffort: string;
+  maxOutputTokens: number;
+  schemaVersion: string;
+  promptVersion: string;
+  attempt: number;
+}
 
 /**
  * The AUTHORITATIVE companion CAST id, derived from the order's companion (input.companion) — namespaced the same
@@ -52,6 +80,8 @@ export interface TemplateCompileResult {
   facts: DeterministicFacts;
   /** Non-fatal notes: e.g. a draft human the extractor did not detect (dropped as non-text-verified). */
   notes: string[];
+  /** The authoring call's provenance (model / reasoning / budget / schema+prompt version / attempt). */
+  provenance: TemplateAuthoringProvenance;
 }
 
 // ── LLM prompt (real path; the pilot injects a stub) ─────────────────────────
@@ -192,7 +222,24 @@ export async function compileBookVisualContractTemplate(
   const facts = extractDeterministicFacts(input);
   const notes: string[] = [];
 
-  const raw = await deps.callLLM(buildTemplateCompileSystemPrompt(), buildTemplateCompileUserPrompt(input, facts));
+  // Dedicated authoring call: real reasoning model + strict structured output + a budget scaled to the page count,
+  // with NO silent model fallback. The injected caller executes what the compiler requests.
+  const maxOutputTokens = authoringMaxOutputTokens(input.pageCount);
+  const provenance: TemplateAuthoringProvenance = {
+    authoringModel: AUTHORING_MODEL,
+    reasoningEffort: AUTHORING_REASONING_EFFORT,
+    maxOutputTokens,
+    schemaVersion: TEMPLATE_DRAFT_SCHEMA_VERSION,
+    promptVersion: TEMPLATE_PROMPT_VERSION,
+    attempt: 1,
+  };
+  const raw = await deps.callLLM(buildTemplateCompileSystemPrompt(), buildTemplateCompileUserPrompt(input, facts), {
+    maxOutputTokens,
+    model: AUTHORING_MODEL,
+    reasoningEffort: AUTHORING_REASONING_EFFORT,
+    jsonSchema: { name: TEMPLATE_DRAFT_SCHEMA_NAME, schema: TEMPLATE_DRAFT_JSON_SCHEMA },
+    noFallback: true,
+  });
   const draft = asObj(parseContractJson(raw));
 
   // Cast IDENTITY + PRESENCE are AUTHORITATIVE from the input/facts — NEVER the draft. The child id is a fixed
@@ -261,7 +308,7 @@ export async function compileBookVisualContractTemplate(
     forbiddenGlobalElements: asArr(draft.forbiddenGlobalElements).filter((x): x is string => typeof x === 'string'),
     coverContract: draft.coverContract as BookVisualContractTemplate['coverContract'],
     pageContracts: pageContracts as unknown as BookVisualContractTemplate['pageContracts'],
-    provenance: { source: 'llm', model: 'text-first-compiler', compiledFromPages: input.pageCount },
+    provenance: { source: 'llm', model: AUTHORING_MODEL, compiledFromPages: input.pageCount },
   };
 
   // STRUCTURAL INVARIANT (fail-closed): every cast identity + presence must match the input/facts EXACTLY, so a
@@ -271,7 +318,7 @@ export async function compileBookVisualContractTemplate(
 
   // FAIL-CLOSED — never return an invalid candidate.
   assertValidBookVisualContractTemplate(template);
-  return { template, facts, notes };
+  return { template, facts, notes, provenance };
 }
 
 /**

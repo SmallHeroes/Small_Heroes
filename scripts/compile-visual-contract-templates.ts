@@ -26,6 +26,7 @@ import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler/
 const SOURCE_SUFFIX = '.source.json';
 const TEMPLATE_SUFFIX = '.visual-contract-template.json';
 const REVIEW_SUFFIX = '.visual-contract-review.md';
+const PROVENANCE_SUFFIX = '.visual-contract-provenance.json';
 
 function parseArgs(argv: string[]) {
   const get = (flag: string): string | undefined => {
@@ -65,7 +66,16 @@ async function main(): Promise<void> {
     callLLM = async () => draftText;
   } else if (live) {
     const { callLLM: pipelineCall } = await import('@/backend/providers/pipeline');
-    callLLM = async (system, user) => (await pipelineCall(system, user, 4000, 0.4, 'VisualContractTemplate', true)).text;
+    // Forward the compiler's authoring overrides (model / reasoning / json_schema / budget / no-fallback).
+    callLLM = async (system, user, opts) =>
+      (
+        await pipelineCall(system, user, opts?.maxOutputTokens ?? 4000, 0.4, 'VisualContractTemplate', true, {
+          modelOverride: opts?.model,
+          reasoningEffort: opts?.reasoningEffort,
+          jsonSchema: opts?.jsonSchema,
+          noFallback: opts?.noFallback,
+        })
+      ).text;
   } else {
     throw new Error('refusing to call a live model: pass --fixture-draft <file.json> (offline) or --live to opt in');
   }
@@ -79,9 +89,10 @@ async function main(): Promise<void> {
     const storyKey = raw.storyKey ?? file.replace(SOURCE_SUFFIX, '');
     if (only && storyKey !== only) continue;
     try {
-      const { template, facts, notes } = await compileBookVisualContractTemplate({ ...raw, storyKey }, { callLLM });
+      const { template, facts, notes, provenance } = await compileBookVisualContractTemplate({ ...raw, storyKey }, { callLLM });
       const templatePath = path.join(out, `${storyKey}${TEMPLATE_SUFFIX}`);
       writeFileSync(templatePath, `${JSON.stringify(template, null, 2)}\n`, 'utf8');
+      writeFileSync(path.join(out, `${storyKey}${PROVENANCE_SUFFIX}`), `${JSON.stringify(provenance, null, 2)}\n`, 'utf8');
 
       const previous = loadPrevTemplate(prevBank, storyKey);
       const review = renderVisualContractReview({ storyKey, facts, template, notes, valid: true, previous });

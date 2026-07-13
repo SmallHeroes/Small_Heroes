@@ -546,6 +546,21 @@ export const STYLE_TOKENS: Record<string, string> = {
 
 interface LLMResult { text: string; tokens: number }
 
+/**
+ * Optional per-call overrides (additive — omit for identical prior behavior). Used by the offline visual-contract
+ * authoring call to force a dedicated model + reasoning + strict structured output, with no silent model fallback.
+ */
+export interface LLMCallOptions {
+  /** Force a specific model (bypasses the stage default) — e.g. a dedicated authoring model. */
+  modelOverride?: string;
+  /** Reasoning effort ('low' | 'medium' | 'high'), applied even for non-story stages. */
+  reasoningEffort?: string;
+  /** Strict structured-output JSON Schema (OpenAI `json_schema`). When set, overrides `json_object`. */
+  jsonSchema?: { name: string; schema: Record<string, unknown> };
+  /** Never silently fall back to FALLBACK_STORY_MODEL if the requested model is unavailable — throw instead. */
+  noFallback?: boolean;
+}
+
 const STORY_STAGE_PREFIXES = ['Brain', 'Outline', 'Prose-3A', 'Prose-3B', 'Prose-3C', 'Prose-3D'] as const;
 
 function isStoryStage(stage: string): boolean {
@@ -619,11 +634,12 @@ async function callLLMOnce(
   temperature:  number,
   stage:        string,
   jsonMode:     boolean = true,   // false → plain text (Stage 3A)
+  opts:         LLMCallOptions = {},
 ): Promise<LLMResult> {
   const provider = process.env.STORY_PROVIDER || 'openai';
-  const model = getModelForStage(stage, provider);
+  const model = opts.modelOverride || getModelForStage(stage, provider);
   const storyStage = isStoryStage(stage);
-  const reasoningEffort = storyStage ? (process.env.STORY_REASONING_EFFORT || '') : '';
+  const reasoningEffort = opts.reasoningEffort || (storyStage ? (process.env.STORY_REASONING_EFFORT || '') : '');
   const verbosity = storyStage ? (process.env.STORY_VERBOSITY || '') : '';
 
   if (provider === 'anthropic') {
@@ -672,7 +688,14 @@ async function callLLMOnce(
       if (selectedVerbosity) {
         body.text = { verbosity: selectedVerbosity };
       }
-      if (jsonMode) {
+      if (opts.jsonSchema) {
+        // Strict structured output — the schema constrains the shape so a large relational doc is returned
+        // completely, not truncated. Overrides json_object.
+        body.text = {
+          ...((body.text as Record<string, unknown>) || {}),
+          format: { type: 'json_schema', name: opts.jsonSchema.name, schema: opts.jsonSchema.schema, strict: true },
+        };
+      } else if (jsonMode) {
         body.text = { ...((body.text as Record<string, unknown>) || {}), format: { type: 'json_object' } };
       }
 
@@ -691,7 +714,7 @@ async function callLLMOnce(
           errText.includes('model_not_found');
         if (modelMissing) {
           const fallback = process.env.FALLBACK_STORY_MODEL?.trim() || '';
-          if (!fallback) {
+          if (opts.noFallback || !fallback) {
             throw new Error(
               `[${stage}] STORY_MODEL=${modelName} is not available for this API key/project. ` +
               `Do not fallback silently. Either request access to ${modelName} or set FALLBACK_STORY_MODEL. ` +
@@ -725,7 +748,14 @@ async function callLLMOnce(
       body.max_tokens = maxTokens;
       body.temperature = temperature;
     }
-    if (jsonMode) body.response_format = { type: 'json_object' };
+    if (opts.jsonSchema) {
+      body.response_format = {
+        type: 'json_schema',
+        json_schema: { name: opts.jsonSchema.name, schema: opts.jsonSchema.schema, strict: true },
+      };
+    } else if (jsonMode) {
+      body.response_format = { type: 'json_object' };
+    }
 
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -747,13 +777,14 @@ export async function callLLM(
   temperature: number,
   stage: string,
   jsonMode: boolean = true,
+  opts: LLMCallOptions = {},
 ): Promise<LLMResult> {
   const MAX_RETRIES = 3;
   const RETRY_DELAYS = [2000, 4000, 8000];
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      return await callLLMOnce(systemPrompt, userPrompt, maxTokens, temperature, stage, jsonMode);
+      return await callLLMOnce(systemPrompt, userPrompt, maxTokens, temperature, stage, jsonMode, opts);
     } catch (error) {
       const retryable = isTransientError(error);
       if (!retryable || attempt === MAX_RETRIES) {
