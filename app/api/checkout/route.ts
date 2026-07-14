@@ -94,6 +94,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // SITE-PASSWORD GATE (soft-launch): browsing is open everywhere, but the moment money is about to
+    // be taken requires the site password. Mirrors the middleware /dev gate — only enforced when
+    // SITE_PASSWORD is configured (local dev + tests without it are unaffected). Defense-in-depth: the
+    // wizard prompts on-demand (gate.js), but THIS is the real gate, so skipping the UI can't bypass.
+    const sitePassword = process.env.SITE_PASSWORD || '';
+    if (sitePassword.length > 0 && req.cookies.get('sh_access')?.value !== sitePassword) {
+      logger.warn('Checkout blocked: site-password gate (missing/invalid sh_access cookie)');
+      return NextResponse.json({ error: 'site_gate_required' }, { status: 401 });
+    }
+
     // PAYMENTS DISABLED (gated/waitlist prod with no payment backend). Reached only past the waitlist
     // short-circuit above; hard-stop here so we never create or fulfill an order with no provider.
     if (env.PAYMENT_PROVIDER === 'none') {

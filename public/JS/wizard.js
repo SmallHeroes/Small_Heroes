@@ -2859,10 +2859,40 @@ function resolveCheckoutPaymentUrl(url, orderId) {
   }
 }
 
+// The site-password gate (gate.js) is loaded ON DEMAND — never at page load — so browsing stays
+// popup-free. Cached after the first successful load; resolves with window.ShGate.
+let shGateLoaderPromise = null;
+function loadShGate() {
+  if (window.ShGate && typeof window.ShGate.ensureAccess === 'function') {
+    return Promise.resolve(window.ShGate);
+  }
+  if (shGateLoaderPromise) return shGateLoaderPromise;
+  shGateLoaderPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = '/JS/gate.js';
+    s.async = true;
+    s.onload = () => {
+      if (window.ShGate && typeof window.ShGate.ensureAccess === 'function') resolve(window.ShGate);
+      else reject(new Error('gate_unavailable'));
+    };
+    s.onerror = () => {
+      shGateLoaderPromise = null; // allow a later retry
+      reject(new Error('gate_load_failed'));
+    };
+    document.head.appendChild(s);
+  });
+  return shGateLoaderPromise;
+}
+
+// A 401 { error: 'site_gate_required' } from /api/checkout means the site-password cookie is missing.
+function isSiteGate(status, data) {
+  return status === 401 && data && data.error === 'site_gate_required';
+}
+
 async function startCheckout(orderId, sessionId) {
   const checkoutBody = { orderId, ...(sessionId ? { sessionId } : {}) };
   if (clientApi && typeof clientApi.requestJson === 'function') {
-    return clientApi.requestJson('/api/checkout', {
+    const r = await clientApi.requestJson('/api/checkout', {
       fetch: {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2871,6 +2901,8 @@ async function startCheckout(orderId, sessionId) {
       timeoutMs: 15000,
       fallbackMessage: 'לא הצלחנו לפתוח את התשלום כרגע.',
     });
+    if (!r.ok && isSiteGate(r.status, r.data)) return { ok: false, reason: 'site_gate_required' };
+    return r;
   }
 
   const checkoutRes = await fetch('/api/checkout', {
@@ -2879,9 +2911,9 @@ async function startCheckout(orderId, sessionId) {
     body: JSON.stringify(checkoutBody),
   });
   const data = await checkoutRes.json().catch(() => ({}));
-  return checkoutRes.ok
-    ? { ok: true, data }
-    : { ok: false, reason: 'http_error', message: data.error || 'checkout_failed' };
+  if (checkoutRes.ok) return { ok: true, data };
+  if (isSiteGate(checkoutRes.status, data)) return { ok: false, reason: 'site_gate_required' };
+  return { ok: false, reason: 'http_error', message: data.error || 'checkout_failed' };
 }
 
 async function handleSubmit() {
@@ -2972,7 +3004,30 @@ async function handleSubmit() {
       throw new Error('יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏');
     }
 
-    const checkoutResponse = await startCheckout(orderId, payload.sessionId);
+    let checkoutResponse = await startCheckout(orderId, payload.sessionId);
+
+    // Payment gate (soft-launch): /api/checkout requires the site-password cookie. If it's missing we
+    // prompt ON DEMAND here — never on page load — then retry the SAME order once. Dismiss → abort.
+    if (!checkoutResponse.ok && checkoutResponse.reason === 'site_gate_required') {
+      let gate = null;
+      try {
+        gate = await loadShGate();
+      } catch (_) {
+        gate = null;
+      }
+      if (!gate) {
+        throw new Error('לא הצלחנו לטעון את שער הגישה. רעננו את הדף ונסו שוב.');
+      }
+      const passed = await gate.ensureAccess();
+      if (!passed) {
+        const payBtnEl = document.getElementById('btn-pay');
+        if (payBtnEl) payBtnEl.classList.remove('is-pressed');
+        setPayBtnState(false);
+        return; // user dismissed the gate — the `finally` block resets the submitting flag
+      }
+      checkoutResponse = await startCheckout(orderId, payload.sessionId);
+    }
+
     if (!checkoutResponse.ok) {
       reportClientIssue('checkout_failed', {
         reason: checkoutResponse.reason || 'request_failed',

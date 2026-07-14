@@ -224,13 +224,22 @@ describe('validateEnv fake-payment guards', () => {
 });
 
 describe('checkout route fake gate', () => {
-  function makeReq() {
+  function makeReq(cookie: string | null = 'sh_access=site-secret') {
     return new NextRequest('https://preview.example.com/api/checkout', {
       method: 'POST',
       body: JSON.stringify({ orderId: 'o1' }),
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
     });
   }
+
+  it('SAFETY: 401 site_gate_required when SITE_PASSWORD is set and no sh_access cookie', async () => {
+    setEnv({ PAYMENT_PROVIDER: 'fake', ENABLE_FAKE_PAYMENT: 'true', ALLOW_FAKE_PAYMENTS: 'true', VERCEL_ENV: 'preview' });
+    vi.resetModules();
+    const { POST } = await import('@/app/api/checkout/route');
+    const res = await POST(makeReq(null));
+    expect(res.status).toBe(401);
+    expect((await res.json()).error).toBe('site_gate_required');
+  });
 
   it('SAFETY: returns 503 when fake not permitted (real prod)', async () => {
     setEnv({ PAYMENT_PROVIDER: 'fake', ENABLE_FAKE_PAYMENT: 'true', ALLOW_FAKE_PAYMENTS: 'true', VERCEL_ENV: 'preview' });

@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Script from 'next/script';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { COMMON } from '@/content';
 import type { LandingContent } from '@/content/landing';
@@ -90,8 +89,6 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
 
   return (
     <>
-      <Script src="/JS/gate.js" strategy="beforeInteractive" />
-
       <div className="landing-body" data-motion="on">
         {/* 2026: thin scroll-progress bar — pure CSS scroll-timeline, no JS (falls back to hidden) */}
         <div className="scroll-progress" aria-hidden="true" />
