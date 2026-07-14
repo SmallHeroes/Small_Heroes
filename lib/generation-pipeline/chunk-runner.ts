@@ -1072,6 +1072,8 @@ async function runCoverStage(
     deliveredUrl: coverImage.url,
     presentationApplied: false,
     rawVerdict: coverImage.style01Meta?.pageVisualQa?.verdict,
+    // (Stage 1) The cover has no presentation transform → reuse the in-loop safety result for these exact bytes.
+    rawSafety: { hazards: coverImage.style01Meta?.pageVisualQa?.safetyHazards ?? [] },
     qaContext: coverImage.style01Meta?.pageVisualQa?.qaInput,
     providerModel: coverImage.provider,
     regenAttempts: coverImage.style01Meta?.pageVisualQa?.regenAttempts,
@@ -1655,6 +1657,8 @@ async function runPageImagesChunk(
       deliveredUrl: presentationUrl ?? image.url,
       presentationApplied: presentationUrl != null,
       rawVerdict: image.style01Meta?.pageVisualQa?.verdict,
+      // (Stage 1) Used only when no presentation transform ran (delivered == raw bytes); ignored on the re-QA path.
+      rawSafety: { hazards: image.style01Meta?.pageVisualQa?.safetyHazards ?? [] },
       qaContext: withWorldExpectation(image.style01Meta?.pageVisualQa?.qaInput, pageWorldExpectation),
       providerModel: image.provider,
       regenAttempts: image.style01Meta?.pageVisualQa?.regenAttempts,

@@ -60,6 +60,12 @@ export interface DeliveredEvidenceArgs {
   presentationApplied: boolean;
   /** The in-loop verdict for the RAW render — reused ONLY when the delivered bytes equal the raw bytes. */
   rawVerdict: QualityVerdict | undefined;
+  /**
+   * (Stage 1) The in-loop physical-safety hazards for the RAW render — reused ONLY in the no-transform branch
+   * (delivered bytes == raw bytes), exactly like `rawVerdict`. In the presentation-transform branch the safety
+   * verdict comes from the delivered-bytes re-QA instead. Absent → no safety hazards carried on the reuse path.
+   */
+  rawSafety?: { hazards: string[] } | undefined;
   /** QA context captured at render time, so a delivered-bytes re-QA runs the same checks. */
   qaContext: QaContext | undefined;
   providerModel?: string | null;
@@ -108,55 +114,91 @@ function joinReasons(a: string | null, b: string): string {
  * forbidden_scene) fails the durable verdict (reason `contract_world:<failures>`), and an UNVERIFIED world (vision
  * error) downgrades to evidence_unknown — fail-closed, never a silent PASS. The combined verdict is the most severe
  * of the visual and world verdicts. No worldExpectation → base verdict unchanged (legacy / steering-off parity).
+ *
+ * (Stage 1) SAFETY overlay: UNIVERSAL (every page/cover, contract or not). Physical-safety hazards come from the
+ * SAME single vision call (no extra call) as the UNION of the in-loop `rawSafety` (the transform can't remove a pose
+ * hazard) and any the delivered-bytes re-QA adds — a flaky/false-negative re-QA can never SUBTRACT a known hazard.
+ * Any hazard composes a durable `safety:<hazards>` reason and forces `failed`, so evaluateQualityGate hard-holds the
+ * book (never soft-delivered), on every exit incl. the evidence_unknown early-outs. No hazards → verdict unchanged.
  */
 async function resolveDeliveredVerdict(
   args: DeliveredEvidenceArgs,
   evaluate: NonNullable<ProducerDeps['evaluate']>,
   evaluateWorld: NonNullable<ProducerDeps['evaluateWorld']>,
 ): Promise<{ verdict: QualityVerdict; reason: string | null }> {
+  // (Stage 1) The in-loop safety hazards ALWAYS count. The presentation transform (color-normalize / WebP) cannot
+  // remove a pose/composition hazard, so a hazard the in-loop QA flagged on the RAW bytes is still present on the
+  // delivered bytes. The transform-branch re-QA may ADD hazards but MUST NOT SUBTRACT a known one — a flaky or
+  // false-negative re-QA (HTTP error → evidence_unknown, malformed JSON, or a non-deterministic "safe") can never
+  // erase a known hazard. So we UNION rawSafety with the re-QA hazards and fold the `safety:` tag in on EVERY exit.
+  const safetySet = new Set<string>(args.rawSafety?.hazards ?? []);
+  const applySafety = (
+    r: { verdict: QualityVerdict; reason: string | null },
+  ): { verdict: QualityVerdict; reason: string | null } => {
+    if (safetySet.size === 0) return r;
+    const prior = r.verdict === 'passed' ? null : r.reason;
+    return {
+      verdict: mostSevereVerdict(r.verdict, 'failed'),
+      reason: joinReasons(prior, `safety:${[...safetySet].join('|')}`),
+    };
+  };
+
   if (!args.deliveredUrl) return { verdict: 'evidence_unknown', reason: 'no_delivered_url' };
 
-  // 1. Base (visual) verdict.
+  // 1. Base (visual) verdict. The transform branch re-QAs the delivered image and ADDS any hazards it sees; the
+  //    no-transform branch reuses the genuine in-loop verdict for the same bytes (its safety came via rawSafety).
   let base: { verdict: QualityVerdict; reason: string | null };
   if (args.presentationApplied) {
-    if (!args.qaContext) return { verdict: 'evidence_unknown', reason: 'qa_context_missing' };
+    if (!args.qaContext) return applySafety({ verdict: 'evidence_unknown', reason: 'qa_context_missing' });
     // The visual evaluator does not take the world expectation — strip it before the call.
     const { worldExpectation: _world, ...visualCtx } = args.qaContext;
     const qa = await evaluate({ imageUrl: args.deliveredUrl, ...visualCtx });
-    base = { verdict: qa.verdict, reason: qa.reason };
+    for (const h of qa.safetyHazards ?? []) safetySet.add(h);
+    // The bare `safety_failed` enum is re-expressed as the durable `safety:<hazards>` tag by applySafety — drop it
+    // from the base reason so the composed reason isn't doubled.
+    base = { verdict: qa.verdict, reason: qa.reason === 'safety_failed' ? null : qa.reason };
   } else {
-    if (!args.rawVerdict) return { verdict: 'evidence_unknown', reason: 'raw_verdict_missing' };
+    if (!args.rawVerdict) return applySafety({ verdict: 'evidence_unknown', reason: 'raw_verdict_missing' });
     base = { verdict: args.rawVerdict, reason: null };
   }
 
   // 2. (Slice A) World overlay — only under contract steering (a real setting to judge against). Runs on the
   //    delivered bytes in BOTH branches so a transform-less page cannot escape the world gate.
+  let result: { verdict: QualityVerdict; reason: string | null } = base;
   const world = args.qaContext?.worldExpectation;
-  if (!world || !world.zoneDescription.trim()) return base;
-  const w = await evaluateWorld({
-    imageUrl: args.deliveredUrl,
-    zoneDescription: world.zoneDescription,
-    objects: world.objects,
-    forbiddenScenes: world.forbiddenScenes,
-  });
-  if (w.status === 'pass') return base;
-  // A PASSED base has no meaningful reason ('ok') — drop it so the composed reason stays clean.
-  const baseReason = base.verdict === 'passed' ? null : base.reason;
-  if (w.status === 'fail') {
-    const drift = [
-      ...w.hardFailures,
-      ...(w.driftObjects.length ? [`objects=${w.driftObjects.join('/')}`] : []),
-    ].join(',');
-    return {
-      verdict: mostSevereVerdict(base.verdict, 'failed'),
-      reason: joinReasons(baseReason, `contract_world:${drift}`),
-    };
+  if (world && world.zoneDescription.trim()) {
+    const w = await evaluateWorld({
+      imageUrl: args.deliveredUrl,
+      zoneDescription: world.zoneDescription,
+      objects: world.objects,
+      forbiddenScenes: world.forbiddenScenes,
+    });
+    if (w.status !== 'pass') {
+      // A PASSED base has no meaningful reason ('ok') — drop it so the composed reason stays clean.
+      const baseReason = base.verdict === 'passed' ? null : base.reason;
+      if (w.status === 'fail') {
+        const drift = [
+          ...w.hardFailures,
+          ...(w.driftObjects.length ? [`objects=${w.driftObjects.join('/')}`] : []),
+        ].join(',');
+        result = {
+          verdict: mostSevereVerdict(base.verdict, 'failed'),
+          reason: joinReasons(baseReason, `contract_world:${drift}`),
+        };
+      } else {
+        // status === 'error' → the world could not be verified: fail-closed to evidence_unknown (never a silent PASS).
+        result = {
+          verdict: mostSevereVerdict(base.verdict, 'evidence_unknown'),
+          reason: joinReasons(baseReason, 'contract_world_unverified'),
+        };
+      }
+    }
   }
-  // status === 'error' → the world could not be verified: fail-closed to evidence_unknown (never a silent PASS).
-  return {
-    verdict: mostSevereVerdict(base.verdict, 'evidence_unknown'),
-    reason: joinReasons(baseReason, 'contract_world_unverified'),
-  };
+
+  // 3. (Stage 1) SAFETY overlay — a physical-safety hazard on the delivered bytes is a non-soft-deliver HARD HOLD,
+  //    composed from the SAME vision call (no extra call). rawSafety ∪ re-QA hazards; the `safety:` tag makes
+  //    evaluateQualityGate hard-hold it.
+  return applySafety(result);
 }
 
 /**

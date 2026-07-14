@@ -22,8 +22,13 @@ type Db = PrismaClient | Prisma.TransactionClient;
  * identity / forbidden_scene) on steered pages. Bumping invalidates any prior `passed` row produced WITHOUT world
  * QA — most importantly a pre-change steered+passed row — so it is re-QA'd under the world-QA-aware rule (recovery
  * reconstructs the page's worldExpectation) rather than delivered on stale, un-world-QA'd evidence.
+ *
+ * qa-v3 (Stage 1 — universal safety): the per-page visual QA now carries a UNIVERSAL physical-safety gate (child on
+ * a railing / unsupported at height / dangerous proximity) folded into the durable verdict as a `safety:` reason,
+ * classified as a non-soft-deliver HARD HOLD. Bumping invalidates any prior `passed` row produced WITHOUT the safety
+ * gate so every artifact is re-QA'd under the safety-aware rule rather than delivered on stale, un-safety-QA'd evidence.
  */
-export const QUALITY_EVALUATOR_CONTRACT_VERSION = 'qa-v2';
+export const QUALITY_EVALUATOR_CONTRACT_VERSION = 'qa-v3';
 
 /** Durable regen budget per artifact: one candidate + at most two replacements is 2 regens (#7-a: 5→2). */
 export const QUALITY_REGEN_BUDGET = 2;
@@ -77,11 +82,14 @@ export interface QualityGateResult {
   /** Artifacts that are missing / stale / hash-mismatched / unknown / failed-with-budget-remaining (→ recovery). */
   unknownArtifacts: string[];
   /**
-   * (Slice A) True when any blocking artifact FAILED on a deterministic CONTRACT-WORLD drift (reason carries a
-   * `contract_world:` tag — wrong_zone / recurring-object identity redesign / forbidden_scene). Such a block must
-   * HARD-hold for human QA and can NEVER be QA_SOFT_DELIVER-downgraded to `ready`+qaWarnings (readiness gates its
-   * soft-deliver branch on `!contractHardHold`). An UNVERIFIED world (evidence_unknown) is recoverable and does
-   * NOT set this.
+   * (Slice A) True when any blocking artifact FAILED on a deterministic drift that must HARD-hold for human QA and
+   * can NEVER be QA_SOFT_DELIVER-downgraded to `ready`+qaWarnings (readiness gates its soft-deliver branch on
+   * `!contractHardHold`). Two reason classes set it:
+   *   - `contract_world:` — a contract-world drift (wrong_zone / recurring-object identity redesign / forbidden_scene).
+   *   - `safety:`         — (Stage 1) a UNIVERSAL physical-safety hazard (child on a railing / unsupported at height /
+   *                         dangerous proximity). Rides the SAME park path (name kept for back-compat) so a safety
+   *                         failure is never soft-delivered, in both budget states.
+   * An UNVERIFIED world (evidence_unknown) is recoverable and does NOT set this.
    */
   contractHardHold: boolean;
   evidence: Record<string, unknown>;
@@ -153,9 +161,10 @@ export function evaluateQualityGate(
       continue;
     }
     if (row.verdict === 'failed') {
-      // (Slice A) A deterministic contract-world drift must HARD-hold regardless of budget state (soft-deliver
-      // exemption) — the tag is written by the delivered-verdict producer's world overlay.
-      if (row.reason?.includes('contract_world:')) contractHardHold = true;
+      // (Slice A / Stage 1) A deterministic contract-world drift OR a physical-safety hazard must HARD-hold
+      // regardless of budget state (soft-deliver exemption). Both tags are written by the delivered-verdict
+      // producer (world overlay → `contract_world:`; safety overlay → `safety:`).
+      if (row.reason?.includes('contract_world:') || row.reason?.includes('safety:')) contractHardHold = true;
       if (row.regenCount >= budget) {
         failedArtifacts.push(key);
         perArtifact[key] = { state: 'failed_terminal', reason: row.reason, regenCount: row.regenCount };

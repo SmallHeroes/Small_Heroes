@@ -157,6 +157,81 @@ describe('persistDeliveredQualityEvidence — world overlay on the delivered byt
     expect(evaluateWorld).not.toHaveBeenCalled();
     expect(created(db).verdict).toBe('passed');
   });
+
+  // ── (Stage 1) SAFETY overlay — a physical-safety hazard is a non-soft-deliver HARD HOLD, contract or not.
+  const visualSafetyFail = () =>
+    ({ passed: false, verdict: 'failed', reason: 'safety_failed', details: '', flags: {}, safetyHazards: ['child_on_railing'] } as never);
+
+  it('transform re-QA reports a safety hazard (no world) → durable FAILED tagged safety:<hazard>', async () => {
+    const evaluateWorld = vi.fn();
+    const db = await run(baseArgs({ qaContext: QA_CTX }), { evaluate: vi.fn(visualSafetyFail), evaluateWorld });
+    expect(evaluateWorld).not.toHaveBeenCalled();
+    const c = created(db);
+    expect(c.verdict).toBe('failed');
+    expect(c.reason).toBe('safety:child_on_railing'); // the bare enum is not doubled
+  });
+
+  it('NO transform + rawSafety hazard (cover/transform-less) → durable FAILED tagged safety: — evaluate NOT called', async () => {
+    const evaluate = vi.fn(); // no re-QA on unchanged bytes
+    const db = await run(
+      baseArgs({ presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX, rawSafety: { hazards: ['unsupported_at_height'] } }),
+      { evaluate, evaluateWorld: vi.fn() },
+    );
+    expect(evaluate).not.toHaveBeenCalled();
+    const c = created(db);
+    expect(c.verdict).toBe('failed');
+    expect(c.reason).toContain('safety:unsupported_at_height');
+  });
+
+  it('safety hazard + world FAIL → FAILED carrying BOTH tags', async () => {
+    const db = await run(baseArgs({}), { evaluate: vi.fn(visualSafetyFail), evaluateWorld: vi.fn(worldFail) });
+    const c = created(db);
+    expect(c.verdict).toBe('failed');
+    expect(c.reason).toContain('contract_world:');
+    expect(c.reason).toContain('safety:child_on_railing');
+  });
+
+  it('no safety hazard + no world → base verdict unchanged (byte-identical to pre-Stage-1)', async () => {
+    const db = await run(baseArgs({ presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX }), { evaluate: vi.fn(), evaluateWorld: vi.fn() });
+    expect(created(db).verdict).toBe('passed');
+  });
+
+  // ── (Stage 1 HARDENING) a known in-loop hazard (rawSafety) must survive the transform-branch re-QA — a flaky /
+  //    false-negative re-QA can never ERASE it (the transform is color/format only; it can't remove a pose).
+  const visualEvidenceUnknown = () =>
+    ({ passed: true, verdict: 'evidence_unknown', reason: 'vision_error', details: '', flags: {}, safetyHazards: [] } as never);
+
+  it('transform re-QA returns a false-negative "safe" but rawSafety had a hazard → STILL hard-held failed', async () => {
+    const db = await run(
+      baseArgs({ qaContext: QA_CTX, rawSafety: { hazards: ['child_on_railing'] } }),
+      { evaluate: vi.fn(visualPass), evaluateWorld: vi.fn() },
+    );
+    const c = created(db);
+    expect(c.verdict).toBe('failed');
+    expect(c.reason).toContain('safety:child_on_railing');
+  });
+
+  it('transform re-QA errors (evidence_unknown) but rawSafety had a hazard → hard-held failed (not soft-deliverable)', async () => {
+    const db = await run(
+      baseArgs({ qaContext: QA_CTX, rawSafety: { hazards: ['unsupported_at_height'] } }),
+      { evaluate: vi.fn(visualEvidenceUnknown), evaluateWorld: vi.fn() },
+    );
+    const c = created(db);
+    expect(c.verdict).toBe('failed'); // mostSevere(evidence_unknown, failed) = failed
+    expect(c.reason).toContain('safety:unsupported_at_height');
+  });
+
+  it('re-QA ADDS a hazard the raw QA missed → the union carries BOTH', async () => {
+    const reQaAddsHazard = () =>
+      ({ passed: false, verdict: 'failed', reason: 'safety_failed', details: '', flags: {}, safetyHazards: ['dangerous_proximity'] } as never);
+    const db = await run(
+      baseArgs({ qaContext: QA_CTX, rawSafety: { hazards: ['child_on_railing'] } }),
+      { evaluate: vi.fn(reQaAddsHazard), evaluateWorld: vi.fn() },
+    );
+    const c = created(db);
+    expect(c.reason).toContain('child_on_railing');
+    expect(c.reason).toContain('dangerous_proximity');
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -185,6 +260,20 @@ describe('evaluateQualityGate — contractHardHold', () => {
   it('an ordinary visual FAIL (anatomy) → contractHardHold false (soft-deliver policy unchanged)', () => {
     const res = evaluateQualityGate(['page:5'], [row({ reason: 'anatomy_failed' })], hashes);
     expect(res.contractHardHold).toBe(false);
+  });
+
+  it('(Stage 1) a physical-safety FAIL (safety: reason) → hard-hold, in BOTH budget states', () => {
+    const spent = evaluateQualityGate(['page:5'], [row({ reason: 'safety:child_on_railing', regenCount: 2 })], hashes);
+    expect(spent.status).toBe('failed');
+    expect(spent.contractHardHold).toBe(true);
+    const remaining = evaluateQualityGate(['page:5'], [row({ reason: 'safety:child_on_railing', regenCount: 0 })], hashes);
+    expect(remaining.status).toBe('evidence_unknown'); // recoverable state...
+    expect(remaining.contractHardHold).toBe(true); // ...but STILL never soft-deliverable
+  });
+
+  it('(Stage 1) a combined safety+base reason still hard-holds (substring match)', () => {
+    const res = evaluateQualityGate(['page:5'], [row({ reason: 'anatomy_failed+safety:unsupported_at_height' })], hashes);
+    expect(res.contractHardHold).toBe(true);
   });
 
   it('an UNVERIFIED world (evidence_unknown verdict) is recoverable, NOT a hard-hold', () => {

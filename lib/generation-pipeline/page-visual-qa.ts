@@ -9,6 +9,9 @@ import { QUALITY_REGEN_BUDGET, type QualityVerdict } from './quality-evidence';
 
 export type PageVisualQaReason =
   | 'ok'
+  // (Stage 1) UNIVERSAL physical-safety failure — child-endangerment pose (on a railing, unsupported at height,
+  // dangerous proximity). Highest priority; classified as a non-soft-deliver HARD HOLD downstream.
+  | 'safety_failed'
   | 'anatomy_failed'
   | 'identity_drift'
   | 'style_realism_drift'
@@ -44,7 +47,15 @@ export type PageVisualQaResult = {
     timeOfDayOk: boolean;
     companionSilhouetteOk: boolean;
     childPresenceOk: boolean;
+    /** (Stage 1) UNIVERSAL physical-safety: false when a child-endangerment hazard is detected on this image. */
+    safetyOk: boolean;
   };
+  /**
+   * (Stage 1) The specific physical-safety hazards tripped on this image (e.g. 'child_on_railing',
+   * 'unsupported_at_height'). Empty when safe. Threaded to the durable evidence producer so a safety failure
+   * carries a `safety:<hazards>` reason → the readiness gate hard-holds it (never soft-delivered).
+   */
+  safetyHazards: string[];
   raw?: Record<string, unknown>;
 };
 
@@ -82,6 +93,25 @@ Return ONLY JSON:
 FAIL anatomy if anatomyOk is false OR uncannyNeck is true.
 FAIL emotional_staging if emotionalStagingOk is false on emotional closing pages.
 FAIL object_geometry if objectGeometryOk is false OR blanketThroughRails is true.`;
+
+// (Stage 1) UNIVERSAL physical-safety gate — appended to EVERY page/cover QA call (contract or not; NO extra
+// vision call). Real-world child-endangerment poses (a child on a railing, unsupported at a height, dangerous
+// proximity) are the P0 launch blocker: they MUST fail here so the readiness gate hard-holds the book before
+// delivery. This protects contract-less stories too.
+const QA_PROMPT_SAFETY = `
+
+CHILD PHYSICAL SAFETY — ALWAYS CHECK (this is a young child; reject real-world-dangerous poses):
+Also return:
+{
+  "physicallySafe": true ONLY if the child is NOT depicted in a real-world-dangerous position,
+  "childOnRailing": true if the child sits, stands, leans, or climbs ON a railing, banister, balustrade, guardrail, or the edge/ledge of a balcony, roof, or high wall,
+  "childUnsupportedAtHeight": true if the child is at a height (open window/sill, rooftop, high balcony or platform edge, tall ledge) WITHOUT clear support (not held by an adult, not safely behind a barrier, not seated well inside),
+  "dangerousProximity": true if the child is unsafely close to an open flame/fire, a deep-water edge, a road with traffic, or a similarly hazardous element,
+  "safetyNotes": "one short sentence naming the hazard, or 'safe'"
+}
+
+FAIL safety if physicallySafe is false OR any of childOnRailing / childUnsupportedAtHeight / dangerousProximity is true.
+A child cozy in bed, seated, held/carried by an adult, or standing on the floor is SAFE — do NOT flag ordinary safe scenes.`;
 
 const QA_PROMPT_CLOSED_CRIB = `
 
@@ -148,6 +178,7 @@ function defaultQaFlags(): PageVisualQaResult['flags'] {
     timeOfDayOk: true,
     companionSilhouetteOk: true,
     childPresenceOk: true,
+    safetyOk: true,
   };
 }
 
@@ -158,6 +189,12 @@ function defaultQaFlags(): PageVisualQaResult['flags'] {
 const BASE_QA_FIELDS = [
   'anatomyOk', 'identityOk', 'styleOk', 'singleChildOk',
   'objectGeometryOk', 'emotionalStagingOk', 'uncannyNeck', 'blanketThroughRails',
+] as const;
+// (Stage 1) UNIVERSAL safety booleans — required on EVERY response (every page + cover), independent of any
+// contract/context. A response that omits them cannot yield a durable `passed` (→ evidence_unknown), so a QA
+// model that ignored the safety prompt fails closed rather than silently skipping the safety gate.
+const SAFETY_QA_FIELDS = [
+  'physicallySafe', 'childOnRailing', 'childUnsupportedAtHeight', 'dangerousProximity',
 ] as const;
 const CRIB_QA_FIELDS = [
   'closedCribOk', 'nearRailPresent', 'childOutsideCrib', 'blanketInsideRails',
@@ -195,6 +232,8 @@ function qaResponseIsValid(
 ): parsed is Record<string, unknown> {
   if (!isPlainObject(parsed)) return false;
   if (!allBooleansPresent(parsed, BASE_QA_FIELDS)) return false;
+  // (Stage 1) Safety booleans are ALWAYS required — never conditional on a check being active.
+  if (!allBooleansPresent(parsed, SAFETY_QA_FIELDS)) return false;
   if (ctx.hasRailedBedOrCrib && !allBooleansPresent(parsed, CRIB_QA_FIELDS)) return false;
   if (ctx.checkTimeOfDay && !allBooleansPresent(parsed, TIME_QA_FIELDS)) return false;
   if (ctx.expectsCompanion && !allBooleansPresent(parsed, COMPANION_QA_FIELDS)) return false;
@@ -328,6 +367,7 @@ export async function evaluatePageVisualQa(input: {
       reason: 'vision_skipped',
       details: 'OPENAI_API_KEY missing',
       flags: defaultQaFlags(),
+      safetyHazards: [],
     };
   }
 
@@ -356,6 +396,7 @@ export async function evaluatePageVisualQa(input: {
 
   const qaPrompt =
     QA_PROMPT_BASE +
+    QA_PROMPT_SAFETY + // (Stage 1) UNIVERSAL — always appended, contract or not.
     (input.hasRailedBedOrCrib ? QA_PROMPT_CLOSED_CRIB : '') +
     (checkTimeOfDay ? QA_PROMPT_TIME_OF_DAY : '') +
     (input.expectsCompanion ? QA_PROMPT_COMPANION_SILHOUETTE : '') +
@@ -368,7 +409,9 @@ export async function evaluatePageVisualQa(input: {
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: process.env.CHILD_PHOTO_VISION_MODEL?.trim() || 'gpt-4o',
-        max_tokens: 350,
+        // (Stage 1) 350 → 500: the always-on safety fields (+ crib/time/family on some pages) can exceed 350 and
+        // truncate the JSON → malformed → evidence_unknown. A larger budget keeps the response complete.
+        max_tokens: 500,
         temperature: 0,
         response_format: { type: 'json_object' },
         messages: [
@@ -389,6 +432,7 @@ export async function evaluatePageVisualQa(input: {
         reason: 'vision_error',
         details: `HTTP ${res.status}`,
         flags: defaultQaFlags(),
+        safetyHazards: [],
       };
     }
 
@@ -418,9 +462,19 @@ export async function evaluatePageVisualQa(input: {
         reason: 'vision_malformed',
         details: 'malformed or incomplete vision response',
         flags: defaultQaFlags(),
+        safetyHazards: [],
       };
     }
     const raw: Record<string, unknown> = parsed;
+
+    // (Stage 1) UNIVERSAL physical-safety hazards from THIS image. Computed for every page/cover (the fields are
+    // always required + validated above). A tripped hazard fails the page as a HARD safety hold downstream.
+    const safetyHazards: string[] = [];
+    if (raw.childOnRailing === true) safetyHazards.push('child_on_railing');
+    if (raw.childUnsupportedAtHeight === true) safetyHazards.push('unsupported_at_height');
+    if (raw.dangerousProximity === true) safetyHazards.push('dangerous_proximity');
+    if (raw.physicallySafe === false) safetyHazards.push('unsafe_pose');
+    const safetyOk = safetyHazards.length === 0;
 
     const closedCribOk = input.hasRailedBedOrCrib
       ? evaluateClosedCribFlags(raw)
@@ -447,10 +501,14 @@ export async function evaluatePageVisualQa(input: {
       // (#5a-fix ITEM 2) POSITIVE requirement: when a child is expected, require childPresent === true. A
       // missing/false positive signal fails the child check (missing is already evidence_unknown via validation).
       childPresenceOk: !input.expectsChild || raw.childPresent === true,
+      // (Stage 1) UNIVERSAL physical safety — never gated on a context flag.
+      safetyOk,
     };
 
     let reason: PageVisualQaReason = 'ok';
-    if (!flags.anatomyOk) reason = 'anatomy_failed';
+    // (Stage 1) Safety FIRST — a physical-safety hazard dominates every other reason (it's the hard-hold class).
+    if (!flags.safetyOk) reason = 'safety_failed';
+    else if (!flags.anatomyOk) reason = 'anatomy_failed';
     else if (!flags.childPresenceOk) reason = 'child_missing';
     else if (input.hasHumanFamily && !familyCoherenceOk) {
       reason = 'family_coherence_failed';
@@ -481,6 +539,10 @@ export async function evaluatePageVisualQa(input: {
     if (checkTimeOfDay && !flags.timeOfDayOk && typeof raw.timeOfDayNotes === 'string') {
       details = `${details}; timeOfDay: ${raw.timeOfDayNotes}`;
     }
+    if (!flags.safetyOk) {
+      const note = typeof raw.safetyNotes === 'string' ? raw.safetyNotes : '';
+      details = `${details}; safety: ${safetyHazards.join('|')}${note ? ` (${note})` : ''}`;
+    }
 
     let strictCribRaw: Record<string, unknown> | undefined;
     let strictCribUnknown = false;
@@ -507,6 +569,7 @@ export async function evaluatePageVisualQa(input: {
       reason,
       details,
       flags,
+      safetyHazards,
       raw: strictCribRaw ? { ...raw, strictCrib: strictCribRaw } : raw,
     };
   } catch (e) {
@@ -516,6 +579,7 @@ export async function evaluatePageVisualQa(input: {
       reason: 'vision_error',
       details: e instanceof Error ? e.message : String(e),
       flags: defaultQaFlags(),
+      safetyHazards: [],
     };
   }
 }

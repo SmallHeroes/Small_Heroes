@@ -40,9 +40,9 @@ export interface QualityRecoveryResult {
   /** artifacts that re-QA'd to a deterministic FAIL, with their durable regenCount (drives the regen-rescue). */
   nowFailed: Array<{ artifactKey: string; regenCount: number }>;
   /**
-   * (Slice A) artifacts that re-QA'd to a deterministic CONTRACT-WORLD drift (`contract_world:` reason). These are
-   * a TERMINAL human-QA hold — they must NEVER be reserved/cleared/redriven or refunded; the processor resolves
-   * the case as parked. Kept OUT of nowFailed for exactly that reason.
+   * (Slice A / Stage 1) artifacts that re-QA'd to a HARD-HOLD reason — a contract-world drift (`contract_world:`) or
+   * a physical-safety hazard (`safety:`). These are a TERMINAL human-QA hold — they must NEVER be
+   * reserved/cleared/redriven or refunded; the processor resolves the case as parked. Kept OUT of nowFailed.
    */
   nowParked: string[];
   stillUnknown: string[];
@@ -80,9 +80,14 @@ async function loadRequiredArtifacts(prisma: PrismaClient, orderId: string): Pro
   return out;
 }
 
-/** True when a durable QA reason carries a deterministic contract-world drift tag (the parked-hold signal). */
-function isContractWorldReason(reason: string | null | undefined): boolean {
-  return typeof reason === 'string' && reason.includes('contract_world:');
+/**
+ * True when a durable QA reason carries a HARD-HOLD tag → the artifact is PARKED for human QA (never regen-rescued
+ * or refunded), in both budget states. Two classes: `contract_world:` (a deterministic contract-world drift) and
+ * (Stage 1) `safety:` (a physical-safety hazard). Mirrors evaluateQualityGate's dual-tag hard-hold trigger
+ * (quality-evidence.ts) so recovery routes both to the SAME needs_human_qa park the readiness gate does.
+ */
+function isHardHoldParkReason(reason: string | null | undefined): boolean {
+  return typeof reason === 'string' && (reason.includes('contract_world:') || reason.includes('safety:'));
 }
 
 /**
@@ -153,9 +158,9 @@ export async function reQaUnknownQualityEvidence(
       // reserve/regen-rescue never runs → a genuinely failing page ships. Route it to the rescue with its durable
       // regenCount (the processor reserves → clears → redrives, or refunds at budget). An admissible PASS is done.
       if (row!.verdict === 'failed') {
-        // (Slice A) A deterministic contract-world drift is a TERMINAL human-QA PARK — never route it to the
-        // regen-rescue (no reserve/clear/redrive, no refund). It converges to needs_human_qa in the processor.
-        if (isContractWorldReason(row!.reason)) result.nowParked.push(art.artifactKey);
+        // (Slice A / Stage 1) A contract-world drift OR a physical-safety hazard is a TERMINAL human-QA PARK — never
+        // route it to the regen-rescue (no reserve/clear/redrive, no refund). It converges to needs_human_qa.
+        if (isHardHoldParkReason(row!.reason)) result.nowParked.push(art.artifactKey);
         else result.nowFailed.push({ artifactKey: art.artifactKey, regenCount: row!.regenCount });
       }
       continue;
@@ -199,8 +204,8 @@ export async function reQaUnknownQualityEvidence(
       select: { verdict: true, regenCount: true, reason: true },
     });
     if (fresh?.verdict === 'passed') result.nowPassed.push(art.artifactKey);
-    // (Slice A) A contract-world drift → PARK (terminal human QA), never the regen-rescue.
-    else if (fresh?.verdict === 'failed' && isContractWorldReason(fresh.reason)) result.nowParked.push(art.artifactKey);
+    // (Slice A / Stage 1) A contract-world drift OR a physical-safety hazard → PARK (terminal human QA), not rescue.
+    else if (fresh?.verdict === 'failed' && isHardHoldParkReason(fresh.reason)) result.nowParked.push(art.artifactKey);
     else if (fresh?.verdict === 'failed') result.nowFailed.push({ artifactKey: art.artifactKey, regenCount: fresh.regenCount });
     else result.stillUnknown.push(art.artifactKey);
   }

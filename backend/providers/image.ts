@@ -546,6 +546,9 @@ export interface Style01PageMeta {
     regenAttempts: number;
     timeOfDayOk?: boolean;
     companionSilhouetteOk?: boolean;
+    // (Stage 1) The physical-safety hazards for the RAW render — threaded so the delivered-evidence producer can
+    // carry the safety hard-hold on the no-transform reuse path (cover + transform-less pages).
+    safetyHazards?: string[];
     qaInput?: {
       expectsChild: boolean;
       expectsCompanion: boolean;
@@ -3162,6 +3165,8 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
           regenAttempts,
           timeOfDayOk: qa.flags.timeOfDayOk,
           companionSilhouetteOk: qa.flags.companionSilhouetteOk,
+          // (Stage 1) Physical-safety hazards for these RAW bytes — reused by the producer on the no-transform path.
+          safetyHazards: qa.safetyHazards,
           // (#7-a) The exact QA context, so a delivered-bytes re-QA at the persist seam applies the same checks.
           qaInput: {
             expectsChild,

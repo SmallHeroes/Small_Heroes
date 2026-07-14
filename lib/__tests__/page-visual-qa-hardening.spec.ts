@@ -34,6 +34,8 @@ function goodBase(over: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     anatomyOk: true, identityOk: true, styleOk: true, singleChildOk: true,
     objectGeometryOk: true, emotionalStagingOk: true, uncannyNeck: false, blanketThroughRails: false,
+    // (Stage 1) The 4 UNIVERSAL safety booleans are now always required + safe by default.
+    physicallySafe: true, childOnRailing: false, childUnsupportedAtHeight: false, dangerousProximity: false,
     ...over,
   };
 }
@@ -93,6 +95,17 @@ describe('ITEM 1 — primary Vision positive validation (no durable passed on ma
     // companion check active but companionSilhouetteOk omitted
     mockPrimary(goodBase());
     const r = await evaluatePageVisualQa({ imageUrl: 'https://x/img.png', expectsCompanion: true });
+    expect(r.verdict).toBe('evidence_unknown');
+    expect(r.reason).toBe('vision_malformed');
+  });
+
+  it('(Stage 1) a missing UNIVERSAL safety field → evidence_unknown even with no context active (never a defaulted safe pass)', async () => {
+    // A base-complete response that omits the always-required safety booleans.
+    mockPrimary({
+      anatomyOk: true, identityOk: true, styleOk: true, singleChildOk: true,
+      objectGeometryOk: true, emotionalStagingOk: true, uncannyNeck: false, blanketThroughRails: false,
+    });
+    const r = await evaluatePageVisualQa({ imageUrl: 'https://x/img.png' });
     expect(r.verdict).toBe('evidence_unknown');
     expect(r.reason).toBe('vision_malformed');
   });

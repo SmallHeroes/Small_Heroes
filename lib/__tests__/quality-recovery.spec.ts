@@ -141,6 +141,16 @@ describe('reQaUnknownQualityEvidence — enumerate REQUIRED artifacts (#6-fix BL
     expect(r.nowFailed).toEqual([]);         // NEVER routed to the regen-rescue
   });
 
+  it('(Stage 1) an admissible FAILED row tagged safety → nowParked too (rides the SAME park path, never regen/refund)', async () => {
+    const rows: Row[] = [{ artifactKey: 'page:1', verdict: 'failed', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, assetSha256: 'H', regenCount: 0, reason: 'safety:child_on_railing', evidence: { qaContext: QA_CTX } }];
+    const { db } = makeDb({ coverImageUrl: null, pages: [page(1, 'https://h/p1.png')] }, rows);
+    const evaluate = vi.fn();
+    const r = await reQaUnknownQualityEvidence(db as never, 'o1', { evaluate: evaluate as never, inspect: async () => okInspect('H') });
+    expect(evaluate).not.toHaveBeenCalled();
+    expect(r.nowParked).toEqual(['page:1']); // parked for human QA, NOT the regen-rescue that would wipe the evidence
+    expect(r.nowFailed).toEqual([]);
+  });
+
   it('(Slice A) qa-v2 bump: a prior-evaluator (qa-v1) PASSED row is stale → re-QA\'d (never delivered un-world-QA\'d)', async () => {
     const rows: Row[] = [{ artifactKey: 'page:1', verdict: 'passed', evaluatorContractVersion: 'qa-v1', assetSha256: 'H', evidence: { qaContext: QA_CTX } }];
     const { db } = makeDb({ coverImageUrl: null, pages: [page(1, 'https://h/p1.png')] }, rows);
