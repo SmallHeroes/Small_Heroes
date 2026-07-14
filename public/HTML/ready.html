@@ -66,6 +66,8 @@
       </section>
 
       <!-- ── Actions ───────────────────────────────────────── -->
+      <!-- Two-button model (unified with the ready email + reader): primary "פתח את הספר" → reader,
+           secondary "השמע עכשיו" → /book/[id]/listen (ListenMode), shown only when the book has audio. -->
       <div class="ready-actions">
         <a id="readyBtnRead" href="#" class="btn-primary ready-btn-read"></a>
         <a id="readyBtnAudio" href="#" class="btn-outline ready-btn-audio" hidden></a>
@@ -80,9 +82,6 @@
           <span id="readyCopyLabel"></span>
         </button>
       </div>
-
-      <!-- Hidden audio player, revealed when audio button is clicked -->
-      <audio id="readyAudioPlayer" controls hidden class="ready-audio-player"></audio>
 
     </div><!-- /readyBook -->
 

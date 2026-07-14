@@ -9,9 +9,9 @@ import {
   storySceneToDesktopSpread,
   type DevLayoutQueryFlags,
   storySceneToMobilePage,
-  useSceneImageQueue,
   type StoryScene,
 } from '@/lib/book-layout';
+import { useAdjacentImagePreload } from './useAdjacentImagePreload';
 import { DesktopBookSpread } from './components/DesktopBookSpread';
 import { MobileBookPage } from './components/MobileBookPage';
 import { PowerCardEndScreen } from './components/PowerCardEndScreen';
@@ -150,7 +150,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
     () => storyScenes.map((s) => s.illustration.imageUrl),
     [storyScenes]
   );
-  useSceneImageQueue(imageUrls, currentSceneIndex, status === 'ready');
+  useAdjacentImagePreload(imageUrls, currentSceneIndex, status === 'ready');
 
   const hasPerPageAudio = useMemo(() => storyScenes.some((s) => Boolean(s.audioUrl)), [storyScenes]);
   const audioSrcForCurrentScene = useMemo(
@@ -783,8 +783,16 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
       data-dev-wide-spread={devLayoutFlags.forceWideSpreadScene ?? ''}
       data-dev-wide-portrait={devLayoutFlags.forceWideSpreadPortrait ?? ''}
     >
-      <a href={readyHref} className={styles.closeBtn} aria-label="סגירה" onClick={() => stopNarration()}>
-        ×
+      <a href={readyHref} className={styles.closeBtn} aria-label="יציאה מהספר" onClick={() => stopNarration()}>
+        <span className={styles.closeBtnDesktop} aria-hidden>
+          ×
+        </span>
+        <span className={styles.closeBtnMobile}>
+          <span className={styles.closeBtnGlyph} aria-hidden>
+            ›
+          </span>
+          <span className={styles.closeBtnLabel}>יציאה</span>
+        </span>
       </a>
 
       {status === 'ready' && !handsFreeUnlocked && !showEndScreen && !showPowerCardScreen && (

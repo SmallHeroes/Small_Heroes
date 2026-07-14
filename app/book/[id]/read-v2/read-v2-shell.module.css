@@ -1,0 +1,15 @@
+/* Reader page shell — mobile read-v2 is always full-bleed (no app header). */
+
+.shell {
+  display: contents;
+}
+
+.headerSlot {
+  display: block;
+}
+
+@media (max-width: 1023px) {
+  .headerSlot {
+    display: none;
+  }
+}

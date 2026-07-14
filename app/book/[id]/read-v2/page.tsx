@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { SiteHeader } from '@/app/components/SiteHeader';
 import ReaderV2 from './reader-v2';
+import shellStyles from './read-v2-shell.module.css';
 import { ROUTES } from '@/lib/routes';
 import '../../../landing/main.css';
 
@@ -35,10 +36,12 @@ export default async function BookReadV2Page({ params, searchParams }: PageProps
       : {};
 
   return (
-    <>
-      <SiteHeader variant="compact" />
+    <div className={shellStyles.shell}>
+      <div className={shellStyles.headerSlot}>
+        <SiteHeader variant="compact" />
+      </div>
       <ReaderV2 bookId={id} accessKey={accessKey} devLayoutFlags={devLayoutFlags} />
-    </>
+    </div>
   );
 }
 

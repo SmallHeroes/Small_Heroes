@@ -15,8 +15,8 @@ const RDY_DEFAULTS = {
   headline: 'הספר שלכם מוכן',
   errorTitle: 'משהו השתבש בדרך',
   errorBack: 'חזרה לדף הבית',
-  btnRead: 'לקרוא את הספר',
-  btnAudio: 'להאזין לסיפור',
+  btnRead: 'פתח את הספר',
+  btnAudio: 'השמע עכשיו',
   btnPdf: 'קובץ מוכן להדפסה',
   btnVideo: 'סרטון MP4 של הספר',
   videoPreparing: 'מכינים את הסרטון...',
@@ -59,7 +59,6 @@ const btnReadEl        = document.getElementById('readyBtnRead');
 const btnAudioEl       = document.getElementById('readyBtnAudio');
 const btnPdfEl         = document.getElementById('readyBtnPdf');
 const btnVideoEl       = document.getElementById('readyBtnVideo');
-const audioPlayerEl    = document.getElementById('readyAudioPlayer');
 const btnCopyEl        = document.getElementById('readyBtnCopy');
 const copyLabelEl      = document.getElementById('readyCopyLabel');
 
@@ -162,23 +161,24 @@ function renderBook(data) {
     }
   }
 
-  // Audio button — show only if URL exists
-  if (btnAudioEl && audioPlayerEl) {
-    if (book.audioUrl) {
-      audioPlayerEl.src = book.audioUrl;
-      btnAudioEl.hidden = false;
+  // "השמע עכשיו" — audio-only listen mode (reuses ListenMode at /book/[id]/listen). Show ONLY when the book
+  // actually has playable narration: the chunked pipeline stores per-page clips (book.pages[].audioUrl); fall
+  // back to the legacy whole-book field. Predicate mirrors ListenMode (skip cover pages, require a non-empty
+  // url) so we never offer "listen" for a book that would land on ListenMode's empty state.
+  if (btnAudioEl) {
+    const hasPerPageAudio = Array.isArray(book.pages) && book.pages.some(
+      (p) => p && !p.isCover && typeof p.audioUrl === 'string' && p.audioUrl.trim().length > 0
+    );
+    const hasLegacyAudio = typeof book.audioUrl === 'string' && book.audioUrl.trim().length > 0;
 
-      // Toggle player on click instead of navigating
-      btnAudioEl.addEventListener('click', (e) => {
-        e.preventDefault();
-        const isVisible = !audioPlayerEl.hidden;
-        audioPlayerEl.hidden = isVisible;
-        if (!isVisible) {
-          audioPlayerEl.play().catch(() => {});
-        } else {
-          audioPlayerEl.pause();
-        }
-      });
+    if (hasPerPageAudio || hasLegacyAudio) {
+      if (ROUTES && typeof ROUTES.listen === 'function') {
+        btnAudioEl.href = ROUTES.listen(orderId, accessKey || undefined);
+      } else {
+        const keyPart = accessKey ? `?accessKey=${encodeURIComponent(accessKey)}` : '';
+        btnAudioEl.href = `/book/${encodeURIComponent(orderId)}/listen${keyPart}`;
+      }
+      btnAudioEl.hidden = false;
     } else {
       btnAudioEl.hidden = true;
     }

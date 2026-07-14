@@ -11,4 +11,9 @@ window.SH_ROUTES = Object.freeze({
     if (accessKey) params.set('accessKey', accessKey);
     return '/book/' + encodeURIComponent(orderId) + '/read-v2?' + params.toString();
   },
+  // Audio-only listen mode (ListenMode). accessKey auth like the reader. Mirrors lib/routes.ts `listen`.
+  listen: function listen(orderId, accessKey) {
+    var qs = accessKey ? '?accessKey=' + encodeURIComponent(accessKey) : '';
+    return '/book/' + encodeURIComponent(orderId) + '/listen' + qs;
+  },
 });

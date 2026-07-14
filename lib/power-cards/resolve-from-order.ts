@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { selectCompanionStory, STORY_BANK_V3_DIR_NAME } from '@/backend/providers/story-bank-index';
 import { getCompanionById } from '@/lib/companions';
+import { resolveCompanionHeroUrl } from './hero';
 import { getWizardMeta } from '@/lib/orderMeta';
 import { normalizeWizardChildGender } from '@/lib/story-bank-personalization';
 import {
@@ -67,8 +68,16 @@ export async function resolvePowerCardRenderInputForOrder(
 
   const spec = resolvePowerCard({ powerCard: parsed.spec });
   const companion = getCompanionById(companionId);
-  const companionName =
-    parseCompanionCanonicalName(markdown) ?? companion?.name ?? companionId;
+  // The avatar is the child's ACTUAL companion, full-body — never a shared default. If the companion can't be
+  // resolved to its own definition, refuse to render rather than ship someone else's picture (the old bolly bug
+  // where any unresolved companion silently became bolly — "everyone gets the same card").
+  if (!companion) {
+    console.error(
+      `[power-card] companion "${companionId}" did not resolve to a definition — refusing the shared default; no card rendered for order ${order.id}.`,
+    );
+    return null;
+  }
+  const companionName = parseCompanionCanonicalName(markdown) ?? companion.name;
 
   const palette: PowerCardPalette = paletteForDirection(direction);
 
@@ -77,7 +86,8 @@ export async function resolvePowerCardRenderInputForOrder(
     childName: order.childName.trim(),
     childGender: orderGenderToRenderGender(order.childGender),
     companionName,
-    companionAvatarUrl: companion?.image ?? '/companions/bolly_armadillo/reference.jpg',
+    // The companion's OWN art, best quality first (hi-res card sheet → full-body reference); NO shared fallback.
+    companionAvatarUrl: resolveCompanionHeroUrl(companion),
     palette,
     bookTitle: order.book?.title?.trim() || undefined,
   };
