@@ -10,7 +10,8 @@
  * NEVER `\b` for Hebrew (V8 `\b` keys off ASCII `\w`). All Hebrew matching uses the exported
  * `standaloneTokenPattern` boundary against niqqud-STRIPPED text (the bank source is fully vowelized).
  */
-import { standaloneTokenPattern } from '@/lib/story-bank-personalization';
+import { standaloneTokenPattern, containsAsStandaloneToken, escapeRegexLiteral } from '@/lib/story-bank-personalization';
+import { companionPresenceTokens } from '@/lib/companion-presence-aliases';
 
 export type HumanGender = 'male' | 'female' | 'unspecified';
 export type Confidence = 'high' | 'low';
@@ -121,7 +122,7 @@ function classifyHebrewMention(before: string): MentionKind {
 }
 
 /** A page-level Hebrew mention that establishes presence (actor or object; not genitive/construct). */
-function hasPresentHebrewMention(prose: string, aliases: string[]): boolean {
+export function hasPresentHebrewMention(prose: string, aliases: string[]): boolean {
   const clean = stripNiqqud(prose);
   for (const alias of aliases) {
     for (const idx of standaloneMatchIndices(clean, alias)) {
@@ -132,18 +133,18 @@ function hasPresentHebrewMention(prose: string, aliases: string[]): boolean {
   return false;
 }
 
-/** True if `alias` appears in an English image direction NOT as a possessive ("doctor's …"). */
-function hasCleanEnglishMention(direction: string, aliases: string[]): boolean {
+/** True if `alias` appears in an English image direction as a real mention — NOT (only) a possessive ("doctor's …").
+ *  The `\b…\b(?!['’]s)` lookahead already excludes the possessive form PER OCCURRENCE, so a single non-possessive
+ *  occurrence anywhere is a clean mention. (The old code additionally suppressed the whole match when ANY possessive
+ *  appeared — so "Uri points … Uri's lantern" wrongly read as absent even though "Uri points" is a real mention.) */
+export function hasCleanEnglishMention(direction: string, aliases: string[]): boolean {
   const low = direction.toLowerCase();
   for (const alias of aliases) {
     const a = alias.toLowerCase();
-    // word-boundary is fine here — English is ASCII, so \b works.
-    const re = new RegExp(`\\b${a.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}\\b(?!['’]s)`, 'i');
-    if (re.test(low)) {
-      // Also reject the "the doctor's" possessive form explicitly.
-      const poss = new RegExp(`\\b${a}['’]s\\b`, 'i');
-      if (!poss.test(low)) return true;
-    }
+    // word-boundary is fine here — English is ASCII, so \b works. escapeRegexLiteral (shared, correct) escapes any
+    // metacharacter in the alias so an alias like "Dr. (Sam)" can't over-match or throw a SyntaxError from RegExp.
+    const re = new RegExp(`\\b${escapeRegexLiteral(a)}\\b(?!['’]s)`, 'i');
+    if (re.test(low)) return true;
   }
   return false;
 }
@@ -332,7 +333,28 @@ export function extractDeterministicFacts(input: DeterministicFactsInput): Deter
     .filter((p) => /\{\{childName\}\}/.test(p.text))
     .map((p) => p.pageNumber);
 
-  // Companion presence — the image direction carries an explicit "companionPresence: absent|present".
+  // Companion presence. The explicit "companionPresence: absent|present" directive is authoritative (an override).
+  // Otherwise, detect the companion by ANY of its ALIASES / short names — not only the full roster display name.
+  // The old code matched only input.companion.name, so a prose short-name ("אוּרי" / "Uri" / "fox") went undetected
+  // → companion forced ABSENT while the LLM's mustShow (which read the same prose) still required it → a cross-field
+  // contradiction. companionPresenceTokens is the same alias source used by the review flag + Fix 2.
+  //
+  // The companion is matched as a plain STANDALONE TOKEN (niqqud-stripped, case-insensitive, across prose AND the
+  // image direction) — INTENTIONALLY more permissive than the recurring-human detector, which excludes genitive /
+  // construct / possessive mentions. For a HUMAN ROLE, "the doctor's door" is scenery (the doctor is not on-scene);
+  // but the companion is a NAMED character whose every mention — as a speaker ("הכריז אוּרי"), a genitive
+  // ("הפנס של אוּרי"), or a possessive ("Uri's neck-lantern") — means it IS in the scene. Using the SAME
+  // standalone-token primitive as Fix 2 keeps detection and the cross-field check consistent. NOTE (flag): this is
+  // a deliberate companion-vs-human semantic split — see the brief follow-up.
+  const companionNeedles = input.companion?.name
+    ? [
+        ...new Set(
+          companionPresenceTokens(input.companion.name, input.companion.id?.replace(/^companion:/, '') ?? input.companion.id)
+            .map((t) => stripNiqqud(t).toLowerCase())
+            .filter((t) => t.length >= 2),
+        ),
+      ]
+    : [];
   const companionPresentPages: number[] = [];
   const companionAbsentPages: number[] = [];
   for (const p of pages) {
@@ -341,8 +363,9 @@ export function extractDeterministicFacts(input: DeterministicFactsInput): Deter
     if (m) {
       if (m[1].toLowerCase() === 'present') companionPresentPages.push(p.pageNumber);
       else companionAbsentPages.push(p.pageNumber);
-    } else if (input.companion?.name && hasPresentHebrewMention(p.text, [stripNiqqud(input.companion.name)])) {
-      companionPresentPages.push(p.pageNumber);
+    } else if (companionNeedles.length > 0) {
+      const haystack = `${stripNiqqud(p.text)}\n${stripNiqqud(dir)}`.toLowerCase();
+      if (companionNeedles.some((n) => containsAsStandaloneToken(haystack, n))) companionPresentPages.push(p.pageNumber);
     }
   }
 

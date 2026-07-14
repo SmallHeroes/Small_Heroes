@@ -14,8 +14,26 @@ import { InvalidVisualContractError } from './validateBookVisualContract';
 import { assertValidVNextVisualContract } from './validateVNextVisualContract';
 import { normalizeRawBookVisualContract } from './normalizeRawContract';
 
-/** Minimal LLM seam: system+user prompt in, raw model text (expected JSON) out. */
-export type ContractLlmCaller = (system: string, user: string) => Promise<string>;
+/** Per-call authoring overrides (all optional — omit for the prior support-default behavior). */
+export interface ContractLlmCallOptions {
+  /** Output token budget for this call (the template compiler scales it by page count). */
+  maxOutputTokens?: number;
+  /** Force a dedicated authoring model (bypasses the stage default). */
+  model?: string;
+  /** Reasoning effort ('low' | 'medium' | 'high'). */
+  reasoningEffort?: string;
+  /** Strict structured-output JSON Schema for the response. */
+  jsonSchema?: { name: string; schema: Record<string, unknown> };
+  /** Never silently fall back to another model if the requested one is unavailable — throw instead. */
+  noFallback?: boolean;
+}
+
+/** Minimal LLM seam: system+user prompt (+ optional per-call overrides) in, raw model text (expected JSON) out. */
+export type ContractLlmCaller = (
+  system: string,
+  user: string,
+  opts?: ContractLlmCallOptions,
+) => Promise<string>;
 
 /** One page's authored image direction (camera/action/staging), fed alongside the text (vNext). */
 export interface PageImageDirection {
@@ -41,9 +59,14 @@ export interface CompileBookVisualContractInput {
 }
 
 /** Default caller — lazily pulls the shared pipeline LLM so the VCC module graph stays light. */
-const defaultContractLlmCaller: ContractLlmCaller = async (system, user) => {
+const defaultContractLlmCaller: ContractLlmCaller = async (system, user, opts) => {
   const { callLLM } = await import('@/backend/providers/pipeline');
-  const res = await callLLM(system, user, 4000, 0.4, 'VisualContract', true);
+  const res = await callLLM(system, user, opts?.maxOutputTokens ?? 4000, 0.4, 'VisualContract', true, {
+    modelOverride: opts?.model,
+    reasoningEffort: opts?.reasoningEffort,
+    jsonSchema: opts?.jsonSchema,
+    noFallback: opts?.noFallback,
+  });
   return res.text;
 };
 

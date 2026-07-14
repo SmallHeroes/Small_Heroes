@@ -132,12 +132,15 @@ describe('text-first compiler — C3 assembly (facts overlaid LAST) + fail-close
     expect(notes.some((n) => n.includes('human:phantom'))).toBe(true);
   });
 
-  it('is FAIL-CLOSED: a draft missing a detected human\'s appearance is rejected', async () => {
-    const broken = bunnyTemplate() as unknown as Record<string, unknown>;
-    broken.humanCast = []; // no draft appearance for the doctor/mother the extractor detects
-    await expect(
-      compileBookVisualContractTemplate(bunnySource(), { callLLM: stubFrom(broken) }),
-    ).rejects.toBeInstanceOf(InvalidTemplateContractError);
+  it('injects appearance from the role policy even when the draft omits humanCast (compiler owns appearance)', async () => {
+    const draft = bunnyTemplate() as unknown as Record<string, unknown>;
+    draft.humanCast = []; // draft provides NO appearance — the compiler injects it by role
+    const { template } = await compileBookVisualContractTemplate(bunnySource(), { callLLM: stubFrom(draft) });
+    const doctor = template.humanCast.find((h) => h.id === 'human:doctor')!;
+    expect(doctor.appearance.skinTone.mode).toBe('deterministic_palette'); // non-relative → palette (injected)
+    expect(doctor.appearance.skinTone.value).toBeUndefined(); // UNRESOLVED — no value in a Template
+    const mother = template.humanCast.find((h) => h.id === 'human:mother')!;
+    expect(mother.appearance.skinTone.mode).toBe('family_profile'); // relative → family_profile (injected)
   });
 });
 

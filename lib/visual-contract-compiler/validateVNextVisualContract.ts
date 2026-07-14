@@ -26,6 +26,7 @@
  * the STRUCTURAL gate only. Malformed → fail closed (never silently pass).
  */
 import { validateBookVisualContract } from './validateBookVisualContract';
+import { mustShowAbsenceContradictions } from './castPresenceContradiction';
 import type {
   BookVisualContract,
   EnvironmentClass,
@@ -300,6 +301,17 @@ export function validateVNextVisualContract(input: unknown): VNextContractValida
 
     // (3) transitions well-formed.
     validateTransition(label, page, zoneIds, errors);
+  }
+
+  // (2d) CROSS-FIELD fail-closed: a page whose `mustShow` POSITIVELY references a cast member declared ABSENT (its
+  // id is NOT in that page's castIds) is a semantic contradiction that survives every structural check and would
+  // reach the image prompt (the fox_uri "MUST SHOW: Uri…" while castIds:[child] bug). Reject it. Only `mustShow`
+  // (positive) is checked — `mustNotShow`/camera negative references are legitimate — and possessive/genitive
+  // references ("the doctor's door", "דלת הרופא") are excluded by the present-mention matcher.
+  for (const c of mustShowAbsenceContradictions(contract)) {
+    errors.push(
+      `page ${c.page}.mustShow positively references ${c.role} "${c.id}" but that cast member is ABSENT on this page (not in castIds) — cross-field contradiction`,
+    );
   }
 
   // (4) recurring human cast well-formed (+ forward castIds binding).

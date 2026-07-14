@@ -2,7 +2,12 @@ import type { ParsedStory } from './types';
 import { parseSimpleYaml } from './utils';
 
 const PAGE_MARKER_RE = /^---\s*Page\s+(\d+)\s*---\s*$/im;
-const IMAGE_DIRECTION_RE = /^imageDirection:\s*(.*)$/im;
+// Capture the (first) imageDirection VALUE. `[^\S\n]*` = horizontal whitespace only, so an EMPTY value
+// (`imageDirection:` then a line break) does NOT let `.*` swallow the next physical (prose) line.
+const IMAGE_DIRECTION_RE = /^imageDirection:[^\S\n]*(.*)$/im;
+// Strip EVERY imageDirection line out of a page block's prose (a block may carry more than one; the line may
+// sit before or after the prose).
+const IMAGE_DIRECTION_LINE_RE = /^imageDirection:.*$/gim;
 
 /**
  * Parses markdown story files into typed zones.
@@ -39,8 +44,11 @@ export function parseStoryMarkdown(markdown: string): ParsedStory {
 
     if (directionMatch) {
       imageDirection = directionMatch[1]?.trim() ?? '';
-      const dirIndex = chunk.search(IMAGE_DIRECTION_RE);
-      text = chunk.slice(0, dirIndex).trim();
+      // The imageDirection line may sit AFTER the prose (v5/bank format) or BEFORE it (Generator-v3, e.g.
+      // fox_uri_adventure), and a block may carry more than one. Strip EVERY imageDirection line and keep the
+      // prose on either side. The old `slice(0, dirIndex)` silently dropped all prose when the direction came
+      // first (→ an empty page); removing only the first line would leak a second directive into the prose.
+      text = chunk.replace(IMAGE_DIRECTION_LINE_RE, '').trim();
     }
 
     pages.push({ pageNumber, imageDirection, text });
