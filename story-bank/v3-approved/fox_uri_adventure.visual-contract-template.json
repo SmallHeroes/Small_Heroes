@@ -1,0 +1,901 @@
+{
+  "contractKind": "template",
+  "schemaVersion": "vc-schema/v1",
+  "version": 1,
+  "storyKey": "fox_uri_adventure",
+  "worldType": "cozy realistic nighttime home adventure with gentle picture-book whimsy; sounds may be visualized as small friendly rhythm marks, but the world remains non-magical",
+  "locations": [
+    {
+      "id": "loc_child_room",
+      "name": "Child's room by the window",
+      "description": "A quiet, cozy bedroom at night, close to an open window that overlooks a small balcony. The room feels safe and dim rather than scary.",
+      "environmentClass": "indoor",
+      "lighting": "Very low blue nighttime light from outside, with small warm highlights from Uri's neck flashlight when it turns on.",
+      "timeOfDay": "night",
+      "anchors": [
+        {
+          "id": "anchor_window",
+          "description": "Low child-height window with sill, curtain edges, and a view toward the balcony."
+        },
+        {
+          "id": "anchor_wall_below_window",
+          "description": "Wall area beneath and beside the window where faint ticking sounds seem to come from."
+        },
+        {
+          "id": "anchor_room_floor",
+          "description": "Soft, uncluttered floor near the window for cautious crouching and stepping."
+        }
+      ],
+      "topology": "Connects directly to the balcony through the window/door threshold; the window view frames the balcony railing and the bucket area beyond."
+    },
+    {
+      "id": "loc_balcony",
+      "name": "Small balcony under the window",
+      "description": "A compact nighttime balcony with a dry metal railing, a simple chair, one loose slipper on the floor, and an old tin bucket near the outer edge where water drips make rhythms.",
+      "environmentClass": "outdoor",
+      "lighting": "Dark blue night ambience with a tiny warm, shaky flashlight beam creating bright spots on metal, floor, chair leg, slipper, and bucket.",
+      "timeOfDay": "night",
+      "anchors": [
+        {
+          "id": "anchor_balcony_railing",
+          "description": "Dry metal railing that can echo small taps."
+        },
+        {
+          "id": "anchor_balcony_floor",
+          "description": "Flat balcony floor where the flashlight beam can hop from place to place."
+        },
+        {
+          "id": "anchor_chair_leg",
+          "description": "One visible chair leg close to the path of the flashlight beam."
+        },
+        {
+          "id": "anchor_single_slipper",
+          "description": "One simple slipper lying on the balcony floor."
+        },
+        {
+          "id": "anchor_bucket_edge",
+          "description": "Outer balcony edge where the small old tin bucket waits under a gentle drip."
+        }
+      ],
+      "topology": "From the threshold, the balcony opens first to the railing area, then to the bucket corner at the edge; the chair leg and slipper sit along the floor path between them."
+    }
+  ],
+  "zones": [
+    {
+      "id": "z_room_window",
+      "locationId": "loc_child_room",
+      "name": "Inside window listening spot",
+      "description": "Interior space directly beside the window where the first strange ticking sound is heard from below or outside.",
+      "stableGeometry": [
+        "open window at child height",
+        "curtain edges framing the night",
+        "wall below the window",
+        "small clear floor area for crouching",
+        "view line toward balcony darkness"
+      ]
+    },
+    {
+      "id": "z_window_threshold",
+      "locationId": "loc_child_room",
+      "name": "Window-to-balcony threshold",
+      "description": "The liminal spot where the characters move quietly from the bedroom toward the balcony, with the flashlight beginning to reveal the way.",
+      "stableGeometry": [
+        "window or balcony-door frame",
+        "narrow threshold ledge",
+        "dark exterior just beyond",
+        "interior floor behind",
+        "first sliver of balcony railing visible ahead"
+      ]
+    },
+    {
+      "id": "z_balcony_railing",
+      "locationId": "loc_balcony",
+      "name": "Dry railing listening and tapping area",
+      "description": "Balcony area beside the dry metal railing where tapping echoes make the strange sound feel playful.",
+      "stableGeometry": [
+        "dry metal railing running horizontally",
+        "balcony floor beneath",
+        "open night beyond railing",
+        "clear standing space beside rail",
+        "bucket corner visible farther along the balcony but not yet reached"
+      ]
+    },
+    {
+      "id": "z_balcony_bucket_corner",
+      "locationId": "loc_balcony",
+      "name": "Bucket corner under the drip",
+      "description": "Outer balcony corner with the small tin bucket, soft falling droplets, nearby chair leg and single slipper, where the mystery resolves into rhythm.",
+      "stableGeometry": [
+        "old small tin bucket near balcony edge",
+        "vertical drip path above bucket",
+        "chair leg nearby",
+        "single slipper on floor nearby",
+        "railing continuing along the edge",
+        "enough floor space to sit at a comfortable listening distance"
+      ]
+    }
+  ],
+  "cast": {
+    "child": {
+      "id": "child:hero",
+      "role": "child",
+      "wardrobe": {
+        "description": "Cozy nighttime sleepwear: deep teal long-sleeved pajama top and matching pajama pants with tiny pale-yellow moon-and-dot pattern, plus warm cream socks; practical and soft for a quiet night investigation.",
+        "forbidden": [
+          "daytime school outfit",
+          "outdoor coat",
+          "heavy boots",
+          "superhero costume",
+          "jewelry or accessories that distract from the quiet nighttime scene"
+        ]
+      }
+    },
+    "companion": {
+      "id": "companion:fox_uri",
+      "role": "companion",
+      "name": "השועל אוּרי",
+      "wardrobe": {
+        "description": "A simple soft collar or tiny chest harness holding a small round flashlight at the front of the neck; otherwise no clothing, keeping the fox natural and expressive.",
+        "forbidden": [
+          "hat",
+          "cape",
+          "boots",
+          "human-style full outfit",
+          "large tactical gear",
+          "weapon-like accessories"
+        ]
+      }
+    }
+  },
+  "humanCast": [],
+  "recurringProps": [
+    {
+      "id": "prop_uri_flashlight",
+      "name": "Uri's neck flashlight",
+      "description": "Tiny round flashlight attached to Uri's collar or harness; its beam is small, warm, slightly shaky, and often points comically at the wrong thing, including Uri's nose.",
+      "material": "matte plastic or painted metal flashlight on a soft fabric collar/harness",
+      "scale": "small enough to sit comfortably at the front of a small fox's neck",
+      "persistence": "appears from page 2 onward; remains the same object through the final page, glowing small and warm"
+    },
+    {
+      "id": "prop_tin_bucket",
+      "name": "old tin bucket",
+      "description": "Small old bucket at the balcony edge; initially mysterious and too quiet, then revealed as the source of metallic and soft water-drop rhythms.",
+      "material": "slightly shiny galvanized tin with soft worn edges, not sharp or rusty-dangerous",
+      "scale": "small child-manageable bucket, about knee height to the child when standing",
+      "persistence": "first clearly revealed on page 5; remains in the bucket corner through page 12; shifts slightly on page 9"
+    },
+    {
+      "id": "prop_water_drops",
+      "name": "falling water drops",
+      "description": "Gentle individual droplets falling into or near the bucket, making tick, tack, and soft plup sounds; may be shown with tiny friendly ripple and rhythm marks.",
+      "material": "clear water with small highlights",
+      "scale": "single small droplets, never a stream or flood",
+      "persistence": "heard from page 1; visually emphasized from page 7 onward; slows to a last soft drop on page 12"
+    },
+    {
+      "id": "prop_window",
+      "name": "bedroom window",
+      "description": "The safe opening from the bedroom toward the balcony, where the mystery begins under the quiet night.",
+      "material": "painted wood or simple metal frame with glass and soft curtains",
+      "scale": "low enough for the child to look out and crouch near",
+      "persistence": "main anchor on pages 1-2 and implied as the balcony access afterward"
+    },
+    {
+      "id": "prop_metal_railing",
+      "name": "dry metal railing",
+      "description": "Balcony railing that makes a clear echo when tapped, turning the unknown sound into a game.",
+      "material": "painted metal, dry and smooth",
+      "scale": "child-height balcony safety railing",
+      "persistence": "important on pages 3-4 and remains part of the balcony background afterward"
+    },
+    {
+      "id": "prop_chair_leg",
+      "name": "chair leg",
+      "description": "One simple chair leg that catches Uri's wandering flashlight beam on the way to the bucket.",
+      "material": "painted wood or metal",
+      "scale": "normal small balcony chair leg",
+      "persistence": "visible in the bucket-corner environment from page 5 onward as background continuity"
+    },
+    {
+      "id": "prop_single_slipper",
+      "name": "single balcony slipper",
+      "description": "One loose slipper on the balcony floor, briefly lit by the flashlight beam.",
+      "material": "soft fabric or rubber house slipper",
+      "scale": "adult or household slipper, clearly separate from the child's socks",
+      "persistence": "appears on page 5 and may remain near the bucket corner as a background object"
+    },
+    {
+      "id": "prop_sound_marks",
+      "name": "gentle rhythm marks",
+      "description": "Small hand-lettered visual sound cues such as טיק, טאק, פלופ, and soft dotted beats, used sparingly to make listening visible.",
+      "material": "drawn graphic marks integrated into the illustration",
+      "scale": "small, airy marks that do not dominate the scene",
+      "persistence": "may appear wherever the sound is central, especially pages 3-12"
+    }
+  ],
+  "forbiddenGlobalElements": [
+    "literal monster or creature inside the bucket",
+    "scary horror shadows with teeth or claws",
+    "large flood, storm, lightning, or dangerous weather",
+    "broken glass, sharp rusty metal, or unsafe balcony hazards",
+    "extra human characters",
+    "wall clock, alarm clock, or visible ticking clock as the source of the sound",
+    "weapons, tools, or repair equipment",
+    "bright daytime sunlight",
+    "messy clutter that obscures the bucket, flashlight, railing, or droplets"
+  ],
+  "coverContract": {
+    "worldType": "cozy realistic nighttime home adventure with gentle picture-book whimsy; sounds may be visualized as small friendly rhythm marks, but the world remains non-magical",
+    "locationId": "loc_balcony",
+    "timeOfDay": "night",
+    "mustShow": [
+      "child in deep teal pajamas listening calmly beside Uri",
+      "Uri the fox with tiny warm neck flashlight",
+      "small old tin bucket near balcony edge",
+      "one or two gentle water droplets and tiny friendly rhythm marks",
+      "soft blue night balcony atmosphere with railing visible"
+    ],
+    "mustNotShow": [
+      "monster",
+      "clock as sound source",
+      "extra people",
+      "storm or flood",
+      "frightening horror mood",
+      "large dramatic spotlight"
+    ]
+  },
+  "pageContracts": [
+    {
+      "pageNumber": 1,
+      "locationId": "loc_child_room",
+      "zoneId": "z_room_window",
+      "sameLocationAs": null,
+      "mustShow": [
+        "quiet dark bedroom by open window",
+        "child crouching or leaning toward the window with wide curious attention",
+        "Uri alert beside the wall/window like a brave guard",
+        "subtle טיק־טאק sound marks coming from below or outside the window",
+        "safe cozy nighttime mood"
+      ],
+      "mustNotShow": [
+        "bucket fully revealed",
+        "water drops visibly identified",
+        "flashlight beam turned on",
+        "literal monster",
+        "clock"
+      ],
+      "propState": [
+        {
+          "propId": "prop_window",
+          "state": "primary visual anchor; open or partly open toward the dark balcony"
+        },
+        {
+          "propId": "prop_uri_flashlight",
+          "state": "present on Uri but not yet lit"
+        },
+        {
+          "propId": "prop_water_drops",
+          "state": "heard only as mysterious offscreen טיק־טאק"
+        },
+        {
+          "propId": "prop_tin_bucket",
+          "state": "not visible or hidden in darkness"
+        }
+      ],
+      "camera": "Interior medium shot from inside the room toward the window, low enough to feel child-height and close to the listening action.",
+      "transition": {
+        "kind": "steady",
+        "fromZoneId": null,
+        "toZoneId": null,
+        "cue": null
+      },
+      "castIds": [
+        "child:hero",
+        "companion:fox_uri"
+      ],
+      "characterPresence": {
+        "child": true,
+        "companion": true
+      }
+    },
+    {
+      "pageNumber": 2,
+      "locationId": "loc_child_room",
+      "zoneId": "z_window_threshold",
+      "sameLocationAs": 1,
+      "mustShow": [
+        "movement from room toward balcony threshold",
+        "Uri's neck flashlight switching on with a small trembling warm beam",
+        "beam comically lighting Uri's shiny nose",
+        "child and Uri moving very quietly toward the source",
+        "dark threshold ahead"
+      ],
+      "mustNotShow": [
+        "bucket clearly found",
+        "large confident searchlight",
+        "extra lamps turned on",
+        "monster silhouette",
+        "clock"
+      ],
+      "propState": [
+        {
+          "propId": "prop_uri_flashlight",
+          "state": "on for the first time; beam small and shaky, aimed partly at Uri's nose"
+        },
+        {
+          "propId": "prop_window",
+          "state": "used as passage/view toward balcony"
+        },
+        {
+          "propId": "prop_water_drops",
+          "state": "sound feels closer but source remains unseen"
+        },
+        {
+          "propId": "prop_tin_bucket",
+          "state": "still hidden beyond the threshold"
+        }
+      ],
+      "camera": "Close threshold view, focusing on the tiny flashlight glow and Uri's nose, with the dark balcony beyond.",
+      "transition": {
+        "kind": "threshold",
+        "fromZoneId": "z_room_window",
+        "toZoneId": "z_window_threshold",
+        "cue": "They decide to check the sound and approach quietly."
+      },
+      "castIds": [
+        "child:hero",
+        "companion:fox_uri"
+      ],
+      "characterPresence": {
+        "child": true,
+        "companion": true
+      }
+    },
+    {
+      "pageNumber": 3,
+      "locationId": "loc_balcony",
+      "zoneId": "z_balcony_railing",
+      "sameLocationAs": null,
+      "mustShow": [
+        "balcony railing area at night",
+        "child counting the steady rhythm in a whisper",
+        "Uri pretending to write in an imaginary notebook; if shown, it should feel like a playful thought doodle, not a real prop",
+        "regular טיק־טאק beat marks becoming less frightening and more curious",
+        "small flashlight glow keeping the scene gentle"
+      ],
+      "mustNotShow": [
+        "real physical notebook required in Uri's paws",
+        "bucket revealed as source",
+        "water drop touching finger",
+        "monster",
+        "clock"
+      ],
+      "propState": [
+        {
+          "propId": "prop_metal_railing",
+          "state": "visible as nearby balcony anchor, not yet tapped"
+        },
+        {
+          "propId": "prop_uri_flashlight",
+          "state": "on, providing small warm highlights"
+        },
+        {
+          "propId": "prop_sound_marks",
+          "state": "orderly repeated טיק־טאק marks"
+        },
+        {
+          "propId": "prop_tin_bucket",
+          "state": "not yet the focus; may be distant and obscured"
+        }
+      ],
+      "camera": "Medium-wide balcony shot showing the transition from threshold to railing, with sound marks floating lightly in the night air.",
+      "transition": {
+        "kind": "after_transition",
+        "fromZoneId": "z_window_threshold",
+        "toZoneId": "z_balcony_railing",
+        "cue": "They reach the balcony listening area and begin counting the rhythm."
+      },
+      "castIds": [
+        "child:hero",
+        "companion:fox_uri"
+      ],
+      "characterPresence": {
+        "child": true,
+        "companion": true
+      }
+    },
+    {
+      "pageNumber": 4,
+      "locationId": "loc_balcony",
+      "zoneId": "z_balcony_railing",
+      "sameLocationAs": 3,
+      "mustShow": [
+        "child tapping one finger on the dry metal railing",
+        "clear echo marks טָאק־טָאק־טָאק returning from the railing",
+        "Uri counting down dramatically and then freezing in comic caution",
+        "the railing as a dry, safe metal surface",
+        "quiet shared laughter"
+      ],
+      "mustNotShow": [
+        "wet railing",
+        "bucket already centered",
+        "water source explanation",
+        "scary echo creature",
+        "any left/right emphasis"
+      ],
+      "propState": [
+        {
+          "propId": "prop_metal_railing",
+          "state": "dry and tapped lightly by the child, producing playful echo"
+        },
+        {
+          "propId": "prop_sound_marks",
+          "state": "echoing טאק marks near railing"
+        },
+        {
+          "propId": "prop_uri_flashlight",
+          "state": "on, steady enough to catch the rail edge"
+        },
+        {
+          "propId": "prop_tin_bucket",
+          "state": "still secondary or off to the side"
+        }
+      ],
+      "camera": "Close-medium shot at railing height, emphasizing fingertip tap, echo marks, and Uri's comic reaction.",
+      "transition": {
+        "kind": "steady",
+        "fromZoneId": null,
+        "toZoneId": null,
+        "cue": null
+      },
+      "castIds": [
+        "child:hero",
+        "companion:fox_uri"
+      ],
+      "characterPresence": {
+        "child": true,
+        "companion": true
+      }
+    },
+    {
+      "pageNumber": 5,
+      "locationId": "loc_balcony",
+      "zoneId": "z_balcony_railing",
+      "sameLocationAs": 4,
+      "mustShow": [
+        "Uri waving importantly as if everything is under control",
+        "flashlight beam swinging sideways across the balcony floor",
+        "beam landing in sequence on floor, chair leg, one slipper, then toward the balcony edge",
+        "small shiny old tin bucket discovered at the edge",
+        "child beginning to approach the bucket slowly",
+        "single isolated טיק from the bucket"
+      ],
+      "mustNotShow": [
+        "bucket moving by itself",
+        "real monster features on bucket",
+        "many slippers",
+        "flooding water",
+        "bright overhead light"
+      ],
+      "propState": [
+        {
+          "propId": "prop_uri_flashlight",
+          "state": "on and turned sideways, making a jumping path of light spots"
+        },
+        {
+          "propId": "prop_chair_leg",
+          "state": "briefly lit by flashlight beam"
+        },
+        {
+          "propId": "prop_single_slipper",
+          "state": "briefly lit by flashlight beam; one slipper only"
+        },
+        {
+          "propId": "prop_tin_bucket",
+          "state": "first clear reveal; small, shiny, very still at balcony edge"
+        },
+        {
+          "propId": "prop_water_drops",
+          "state": "one mysterious tick from inside or near bucket"
+        }
+      ],
+      "camera": "Tracking-style composition following the flashlight beam from Uri across floor details to the bucket, ending in a suspenseful but gentle reveal.",
+      "transition": {
+        "kind": "before_transition",
+        "fromZoneId": "z_balcony_railing",
+        "toZoneId": "z_balcony_bucket_corner",
+        "cue": "The light discovers the bucket and the child starts moving toward it."
+      },
+      "castIds": [
+        "child:hero",
+        "companion:fox_uri"
+      ],
+      "characterPresence": {
+        "child": true,
+        "companion": true
+      }
+    },
+    {
+      "pageNumber": 6,
+      "locationId": "loc_balcony",
+      "zoneId": "z_balcony_bucket_corner",
+      "sameLocationAs": 5,
+      "mustShow": [
+        "child bent close to the cool rim of the tin bucket to listen",
+        "Uri approaching carefully with the neck flashlight trembling like a tiny moon",
+        "bucket rim catching cool highlights",
+        "comic sneeze moment from Uri",
+        "bucket echoing the sneeze with צ׳י־צ׳י־צ׳י sound marks",
+        "sense that something inside or above the bucket is making music"
+      ],
+      "mustNotShow": [
+        "child putting head inside bucket",
+        "dangerous sharp bucket edge",
+        "large splash",
+        "monster face inside bucket",
+        "left/right arm detail"
+      ],
+      "propState": [
+        {
+          "propId": "prop_tin_bucket",
+          "state": "central object; cool rim, safe rounded edge, not moving"
+        },
+        {
+          "propId": "prop_uri_flashlight",
+          "state": "on and visibly trembling"
+        },
+        {
+          "propId": "prop_water_drops",
+          "state": "audible from bucket area but not fully explained yet"
+        },
+        {
+          "propId": "prop_sound_marks",
+          "state": "sneeze echo marks צ׳י־צ׳י־צ׳י near bucket"
+        }
+      ],
+      "camera": "Low close shot at bucket-rim height, intimate and humorous, with Uri and child leaning in safely.",
+      "transition": {
+        "kind": "after_transition",
+        "fromZoneId": "z_balcony_railing",
+        "toZoneId": "z_balcony_bucket_corner",
+        "cue": "They arrive at the bucket corner to inspect the source."
+      },
+      "castIds": [
+        "child:hero",
+        "companion:fox_uri"
+      ],
+      "characterPresence": {
+        "child": true,
+        "companion": true
+      }
+    },
+    {
+      "pageNumber": 7,
+      "locationId": "loc_balcony",
+      "zoneId": "z_balcony_bucket_corner",
+      "sameLocationAs": 6,
+      "mustShow": [
+        "single water droplet falling with טיק",
+        "another droplet falling with טאק",
+        "child extending one small finger for a cool droplet to touch",
+        "Uri visibly relieved beside the bucket",
+        "bucket now understood as wet and harmless",
+        "Uri apologizing gently to the bucket"
+      ],
+      "mustNotShow": [
+        "bucket as a creature with eyes or mouth",
+        "stream of water",
+        "wet slippery danger",
+        "finger submerged in bucket",
+        "monster"
+      ],
+      "propState": [
+        {
+          "propId": "prop_water_drops",
+          "state": "visually identified as clear water droplets; one touches the child's fingertip"
+        },
+        {
+          "propId": "prop_tin_bucket",
+          "state": "harmless small tin bucket receiving or resonating drops"
+        },
+        {
+          "propId": "prop_uri_flashlight",
+          "state": "on, warm light reflecting in water and metal"
+        },
+        {
+          "propId": "prop_sound_marks",
+          "state": "simple טיק and טאק marks paired with droplets"
+        }
+      ],
+      "camera": "Gentle close-up of droplet, fingertip, and bucket, with Uri's relieved expression included at the edge of the composition.",
+      "transition": {
+        "kind": "steady",
+        "fromZoneId": null,
+        "toZoneId": null,
+        "cue": null
+      },
+      "castIds": [
+        "child:hero",
+        "companion:fox_uri"
+      ],
+      "characterPresence": {
+        "child": true,
+        "companion": true
+      }
+    },
+    {
+      "pageNumber": 8,
+      "locationId": "loc_balcony",
+      "zoneId": "z_balcony_bucket_corner",
+      "sameLocationAs": 7,
+      "mustShow": [
+        "child pausing and listening carefully",
+        "pattern of three drops, a small silence, then two more drops",
+        "Uri trying to repeat the pattern incorrectly in a playful way",
+        "bucket as the center of a small ordered rhythm",
+        "friendly visual spacing between sound marks to show the pattern"
+      ],
+      "mustNotShow": [
+        "explosion or real boom effect",
+        "chaotic rainstorm",
+        "bucket overflowing",
+        "new musical instruments",
+        "clock"
+      ],
+      "propState": [
+        {
+          "propId": "prop_water_drops",
+          "state": "falling in a recognizable pattern: three drops, pause, two drops"
+        },
+        {
+          "propId": "prop_sound_marks",
+          "state": "arranged with clear spacing: טיק־טיק־טיק, small silence, טאק־טאק; no actual boom impact"
+        },
+        {
+          "propId": "prop_tin_bucket",
+          "state": "stationary source of rhythm"
+        },
+        {
+          "propId": "prop_uri_flashlight",
+          "state": "on, calm and small"
+        }
+      ],
+      "camera": "Quiet medium shot with enough negative space for rhythm marks, emphasizing listening more than action.",
+      "transition": {
+        "kind": "steady",
+        "fromZoneId": null,
+        "toZoneId": null,
+        "cue": null
+      },
+      "castIds": [
+        "child:hero",
+        "companion:fox_uri"
+      ],
+      "characterPresence": {
+        "child": true,
+        "companion": true
+      }
+    },
+    {
+      "pageNumber": 9,
+      "locationId": "loc_balcony",
+      "zoneId": "z_balcony_bucket_corner",
+      "sameLocationAs": 8,
+      "mustShow": [
+        "child holding the bucket handle carefully and gently",
+        "bucket moved only a little to the side",
+        "next droplet landing in a different spot with a soft פְּלוּפּ",
+        "Uri surprised by the changed sound",
+        "child pleased that listening can turn noise into rhythm",
+        "before-and-after sound contrast visible: not טיק, not טאק, but פלופ"
+      ],
+      "mustNotShow": [
+        "rough grabbing or swinging bucket",
+        "spilled puddle hazard",
+        "large bucket relocation",
+        "left/right hand detail",
+        "monster"
+      ],
+      "propState": [
+        {
+          "propId": "prop_tin_bucket",
+          "state": "shifted slightly to one side by the handle; remains near bucket corner"
+        },
+        {
+          "propId": "prop_water_drops",
+          "state": "next drop lands in a softer spot, changing sound to פלופ"
+        },
+        {
+          "propId": "prop_sound_marks",
+          "state": "contrast marks show טיק/טאק crossed or faded compared with soft פלופ"
+        },
+        {
+          "propId": "prop_uri_flashlight",
+          "state": "on, reflecting off bucket handle and Uri's surprised face"
+        }
+      ],
+      "camera": "Medium close shot focused on the careful handle movement and the droplet landing point.",
+      "transition": {
+        "kind": "steady",
+        "fromZoneId": null,
+        "toZoneId": null,
+        "cue": null
+      },
+      "castIds": [
+        "child:hero",
+        "companion:fox_uri"
+      ],
+      "characterPresence": {
+        "child": true,
+        "companion": true
+      }
+    },
+    {
+      "pageNumber": 10,
+      "locationId": "loc_balcony",
+      "zoneId": "z_balcony_bucket_corner",
+      "sameLocationAs": 9,
+      "mustShow": [
+        "child lightly tapping the rim of the bucket",
+        "bucket answering with טאק־פלופ rhythm",
+        "water droplets answering in time",
+        "Uri making playful mouth rhythm פּוּם־פָּאם",
+        "Uri's nose catching a small rhythmic glint from the flashlight",
+        "the mood now clearly playful and calm"
+      ],
+      "mustNotShow": [
+        "hard banging on bucket",
+        "large musical stage setup",
+        "extra instruments",
+        "bucket damage",
+        "scary sound marks"
+      ],
+      "propState": [
+        {
+          "propId": "prop_tin_bucket",
+          "state": "played very lightly at the rim; safe and undamaged"
+        },
+        {
+          "propId": "prop_water_drops",
+          "state": "responding rhythmically with soft drops"
+        },
+        {
+          "propId": "prop_sound_marks",
+          "state": "mixed friendly marks: טאק, פלופ, פום־פאם arranged like a small song"
+        },
+        {
+          "propId": "prop_uri_flashlight",
+          "state": "on; creates a tiny glint on Uri's nose in rhythm"
+        }
+      ],
+      "camera": "Lively close-medium composition around bucket rim, droplet path, and Uri's face, with rhythmic sound marks dancing gently.",
+      "transition": {
+        "kind": "steady",
+        "fromZoneId": null,
+        "toZoneId": null,
+        "cue": null
+      },
+      "castIds": [
+        "child:hero",
+        "companion:fox_uri"
+      ],
+      "characterPresence": {
+        "child": true,
+        "companion": true
+      }
+    },
+    {
+      "pageNumber": 11,
+      "locationId": "loc_balcony",
+      "zoneId": "z_balcony_bucket_corner",
+      "sameLocationAs": 10,
+      "mustShow": [
+        "child and Uri sitting beside the bucket at a comfortable listening distance",
+        "bucket close enough to hear but not crowding them",
+        "one soft פלופ droplet",
+        "both characters calm and not startled",
+        "tiny warm flashlight glow illuminating just a little",
+        "night still present but friendly"
+      ],
+      "mustNotShow": [
+        "jump-scare pose",
+        "characters pressed too close to bucket",
+        "complete darkness",
+        "new source of noise",
+        "monster"
+      ],
+      "propState": [
+        {
+          "propId": "prop_tin_bucket",
+          "state": "stationary between/near them, respected as the source of the rhythm"
+        },
+        {
+          "propId": "prop_water_drops",
+          "state": "occasional soft פלופ drop"
+        },
+        {
+          "propId": "prop_uri_flashlight",
+          "state": "on, small warm glow used gently rather than dramatically"
+        },
+        {
+          "propId": "prop_sound_marks",
+          "state": "minimal soft פלופ mark, calm and sparse"
+        }
+      ],
+      "camera": "Quiet wide-medium shot showing comfortable spacing: close enough to listen, far enough to feel safe.",
+      "transition": {
+        "kind": "steady",
+        "fromZoneId": null,
+        "toZoneId": null,
+        "cue": null
+      },
+      "castIds": [
+        "child:hero",
+        "companion:fox_uri"
+      ],
+      "characterPresence": {
+        "child": true,
+        "companion": true
+      }
+    },
+    {
+      "pageNumber": 12,
+      "locationId": "loc_balcony",
+      "zoneId": "z_balcony_bucket_corner",
+      "sameLocationAs": 11,
+      "mustShow": [
+        "final soft droplet falling with one gentle פלופ",
+        "Uri's neck flashlight remaining small and warm",
+        "child listening for one more calm moment",
+        "tin bucket, droplets, and the little named song as the final emotional focus",
+        "balcony night ending peacefully without mystery or fear"
+      ],
+      "mustNotShow": [
+        "monster reveal",
+        "clock reveal",
+        "dramatic sunrise if it contradicts night mood",
+        "bucket removed from scene",
+        "extra characters"
+      ],
+      "propState": [
+        {
+          "propId": "prop_water_drops",
+          "state": "one last soft drop, like the end of a song"
+        },
+        {
+          "propId": "prop_tin_bucket",
+          "state": "plain harmless bucket under the window, now familiar and friendly"
+        },
+        {
+          "propId": "prop_uri_flashlight",
+          "state": "still on, small and warm; used to illuminate just a little"
+        },
+        {
+          "propId": "prop_sound_marks",
+          "state": "single soft פלופ and optional tiny closing song-like marks"
+        }
+      ],
+      "camera": "Tender final close-wide shot of child, Uri, bucket, and last droplet, with calm negative space around the small pool of warm light.",
+      "transition": {
+        "kind": "steady",
+        "fromZoneId": null,
+        "toZoneId": null,
+        "cue": null
+      },
+      "castIds": [
+        "child:hero",
+        "companion:fox_uri"
+      ],
+      "characterPresence": {
+        "child": true,
+        "companion": true
+      }
+    }
+  ],
+  "provenance": {
+    "source": "llm",
+    "model": "gpt-5.5",
+    "compiledFromPages": 12
+  }
+}
