@@ -41,6 +41,12 @@ const ROUTES = globalThis.SH_ROUTES || {
 };
 const accessKey = new URLSearchParams(window.location.search).get('accessKey');
 
+// ─── MVP feature flags ─────────────────────────────────────────────────────────
+// Print (PDF) and video (MP4) are planned fast-follows, not live for MVP. The markup (public/HTML/ready.html)
+// and handlers below stay intact behind these flags — flip to true to bring the button back, no re-implement.
+const SHOW_PRINT = false; // "קובץ מוכן להדפסה" — print-ready file (fast-follow)
+const SHOW_VIDEO = false; // "סרטון MP4 של הספר" — MP4 video (post-MVP)
+
 // ─── DOM refs ─────────────────────────────────────────────────────────────────
 const loadingEl        = document.getElementById('readyLoading');
 const loadingTextEl    = document.getElementById('readyLoadingText');
@@ -81,8 +87,8 @@ function wireStaticUI() {
   if (errorBackEl)       errorBackEl.textContent       = RDY.errorBack;
   if (btnReadEl)         btnReadEl.textContent         = RDY.btnRead;
   if (btnAudioEl)        btnAudioEl.textContent        = RDY.btnAudio;
-  if (btnPdfEl)          btnPdfEl.textContent          = RDY.btnPdf;
-  if (btnVideoEl)        btnVideoEl.textContent       = RDY.btnVideo;
+  if (btnPdfEl && SHOW_PRINT)   btnPdfEl.textContent   = RDY.btnPdf;
+  if (btnVideoEl && SHOW_VIDEO) btnVideoEl.textContent = RDY.btnVideo;
   if (saveHintEl)        saveHintEl.textContent        = RDY.saveHint;
   if (copyLabelEl)       copyLabelEl.textContent       = RDY.copyLabel;
   if (btnCopyEl)         btnCopyEl.setAttribute('aria-label', RDY.copyBtnAriaLabel);
@@ -184,9 +190,9 @@ function renderBook(data) {
     }
   }
 
-  // PDF button — show only if URL exists
+  // PDF button — print-ready file. Post-MVP (SHOW_PRINT); kept hidden until the fast-follow ships.
   if (btnPdfEl) {
-    if (book.pdfUrl) {
+    if (SHOW_PRINT && book.pdfUrl) {
       btnPdfEl.href   = book.pdfUrl;
       btnPdfEl.hidden = false;
     } else {
@@ -194,8 +200,8 @@ function renderBook(data) {
     }
   }
 
-  // Video (MP4) — on-demand export; show whenever the book is viewable
-  if (btnVideoEl) {
+  // Video (MP4) — on-demand export. Post-MVP (SHOW_VIDEO); kept hidden (no onclick attached) until it ships.
+  if (btnVideoEl && SHOW_VIDEO) {
     btnVideoEl.hidden = false;
     btnVideoEl.disabled = false;
     btnVideoEl.textContent = RDY.btnVideo;
@@ -246,6 +252,8 @@ function renderBook(data) {
         btnVideoEl.textContent = RDY.btnVideo;
       }
     };
+  } else if (btnVideoEl) {
+    btnVideoEl.hidden = true;
   }
 
   // Save to local history so the parent can return from this browser later
