@@ -34,8 +34,10 @@ export const MATERIALIZER_VERSION = 'materializer/v1' as const;
 /** Bump when the deterministic palette table changes (recorded on the Resolved → auditable, safely re-hashes). */
 export const PALETTE_VERSION = 'palette/v1' as const;
 
-/** Closed set of roles for which a `family_profile` binding is legal (relatives share the hero's appearance band). */
-export const RELATIVE_ROLES = ['child', 'mother', 'father', 'sibling', 'grandparent'] as const;
+/** Closed set of roles for which a `family_profile` binding is legal (relatives share the hero's appearance band).
+ *  `parent` is included: the extractor emits it when a parent's gender is unspecified, and a parent IS a relative.
+ *  Kept in sync with the engine branch so a `parent + family_profile` template that passes there is not rejected here. */
+export const RELATIVE_ROLES = ['child', 'mother', 'father', 'parent', 'sibling', 'grandparent'] as const;
 export type RelativeRole = (typeof RELATIVE_ROLES)[number];
 
 /** How a human appearance trait is bound. `family_profile` is relatives-ONLY (a doctor is NOT family). */
