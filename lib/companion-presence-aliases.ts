@@ -28,7 +28,15 @@ function addToken(tokens: Set<string>, raw: string): void {
   }
 }
 
-/** Lowercase presence-match tokens for a companion (name parts + species aliases). */
+/** Species common-nouns (both languages) that are NOT identity: matching one is too ambiguous to hard-block on (a
+ *  simile "like a frightened rabbit" or scenery "bunny stickers" is not the companion being present). Kept for
+ *  PRESENCE detection (over-adding is harmless) but excluded from the fail-closed cross-field REJECT. */
+const SPECIES_WORDS = new Set(
+  ['fox', 'bunny', 'rabbit', 'lion', 'panda', 'chameleon', 'octopus', 'dragon', 'bear', 'cub',
+    'שועל', 'ארנב', 'ארנבון', 'אריה', 'פנדה', 'זיקית', 'תמנון', 'דרקון', 'דוב', 'דובון', 'גור'].map((w) => w.toLowerCase()),
+);
+
+/** Presence-match tokens for a companion (name parts + species aliases). */
 export function companionPresenceTokens(
   companionName: string,
   companionId?: string | null
@@ -59,4 +67,18 @@ export function companionPresenceTokens(
   }
 
   return [...tokens];
+}
+
+/**
+ * IDENTITY-only tokens for a companion — the proper name / short name (buni, uri, dini, kim…), with SPECIES
+ * common-nouns (bunny/rabbit/fox/שועל…) removed. Use this where a match must be UNAMBIGUOUS — e.g. the fail-closed
+ * cross-field validator that rejects a mustShow reference to an absent companion: a name reference ("MUST SHOW:
+ * Buni") is a real contradiction, but a species simile/scenery ("bunny stickers") must NOT hard-block.
+ */
+export function companionNameTokens(companionName: string, companionId?: string | null): string[] {
+  const isSpecies = (t: string): boolean => {
+    const n = stripNikud(t).toLowerCase();
+    return SPECIES_WORDS.has(n) || SPECIES_WORDS.has(n.replace(/^ה/, ''));
+  };
+  return companionPresenceTokens(companionName, companionId).filter((t) => !isSpecies(t));
 }

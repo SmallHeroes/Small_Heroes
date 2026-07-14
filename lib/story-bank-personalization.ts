@@ -67,7 +67,7 @@ const MALE_CHILD_MARKERS_GIRL_FAIL: readonly string[] = [
 
 
 /** Escape regex metacharacters in literal strings. */
-function escapeRegexLiteral(s: string): string {
+export function escapeRegexLiteral(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
