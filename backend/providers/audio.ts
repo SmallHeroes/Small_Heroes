@@ -5,7 +5,11 @@
  */
 
 import { getVoiceById, SLEEP_MODE_OVERRIDES, type VoiceConfig } from '../config/voices';
-import { applyTtsAmbiguityNiqqudToText } from '../../lib/story-gen-v2/tts-ambiguity-niqqud';
+import {
+  applyTtsAmbiguityNiqqudToText,
+  criticalTtsNiqqudGaps,
+  checkTtsNiqqudCoverage,
+} from '../../lib/story-gen-v2/tts-ambiguity-niqqud';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { uploadToSupabaseWithRetry } from '../../lib/image-storage';
 
@@ -205,6 +209,26 @@ export function buildPageNarrationTtsText(narrationText: string, sleepMode: bool
   let text = narrationText.trim();
   if (!text) throw new Error('Empty narration text');
   text = applyTtsAmbiguityNiqqudToText(text).text; // (Fix 1) homograph disambiguation — TTS input only
+
+  // (Coverage preflight, fail-closed) A CRITICAL ambiguous lemma (ספר / בקצב / הקצב) left UNNIQQUD after the pass is
+  // a known mispronunciation — refuse to synthesize (surfaced, never silent). Non-critical gaps (שם, whose isolated
+  // "שם." answer cannot be context-gated) soft-warn to the log / QA. Runs on the TTS text ONLY — the display path
+  // (hebrew-text.stripNikud) is untouched and stays unniqqud.
+  const criticalGaps = criticalTtsNiqqudGaps(text);
+  if (criticalGaps.length > 0) {
+    throw new Error(
+      `TTS niqqud coverage gap — refusing to synthesize audio with an unniqqud CRITICAL homograph: ` +
+        criticalGaps.map((g) => `"${g.lemma}" (…${g.context}…)`).join('; '),
+    );
+  }
+  const softGaps = checkTtsNiqqudCoverage(text).filter((g) => !g.critical);
+  if (softGaps.length > 0) {
+    console.warn(
+      `[TTS niqqud] soft coverage warning — unniqqud ambiguous lemma(s) reached narration (non-critical): ` +
+        softGaps.map((g) => `"${g.lemma}" (…${g.context}…)`).join('; '),
+    );
+  }
+
   if (sleepMode) {
     text = text.replace(/\./g, '......... ').replace(/,/g, ',...  ');
   } else {

@@ -96,4 +96,29 @@ describe('narration TTS seams', () => {
       expect(sentBody!.language_code).toBe('he');
     });
   });
+
+  describe('niqqud coverage preflight (wired into buildPageNarrationTtsText — fail-closed)', () => {
+    it('HARD-BLOCKS synthesis when a CRITICAL homograph reaches TTS still unniqqud', () => {
+      // "זה ספר." — ספר with no count/book context stays bare after the pass → critical gap → refuse to synthesize.
+      expect(() => buildPageNarrationTtsText('זה ספר.', false)).toThrow(/coverage gap/i);
+      expect(() => buildPageNarrationTtsText('זה ספר.', false)).toThrow(/ספר/);
+    });
+
+    it('does NOT block a COVERED critical homograph (the rule fires → niqqud → no gap)', () => {
+      expect(() => buildPageNarrationTtsText('ספר עם פינה מקופלת.', false)).not.toThrow(); // → סֵפֶר
+      expect(() => buildPageNarrationTtsText('לצעוד בקצב של כולם.', false)).not.toThrow(); // → בְּקֶצֶב
+    });
+
+    it('SOFT-WARNS (does NOT block) on a non-critical שם gap', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        const out = buildPageNarrationTtsText('הוא הצביע. "שם."', false); // isolated "שם." — un-gateable there-answer
+        expect(out).toContain('שם'); // returned (not thrown)
+        expect(warn).toHaveBeenCalled();
+        expect(String(warn.mock.calls[0]?.[0])).toMatch(/שם/);
+      } finally {
+        warn.mockRestore();
+      }
+    });
+  });
 });
