@@ -166,6 +166,19 @@ export {
   projectResolvedWardrobeDescription,
   type ResolvedHumanProseSource,
 } from './projectResolvedHumanProse';
+/**
+ * (Stage 3 / Contract v2) Deterministic prose PROJECTIONS of the structured schema. Tier A is wired both sides —
+ * the validator enforces `stableGeometry` equality once a zone authors `spatialNodes`. Tier B ships pure + unwired,
+ * for Stage 4's containment check. Tier C is wired straight to the prompt block (never stored, never hashed).
+ */
+export {
+  projectZoneStableGeometry,
+  projectPageMustShow,
+  projectPageMustNotShow,
+  projectCoverMustNotShow,
+  projectPageActionProse,
+  projectPageSafetyProse,
+} from './projectContractProse';
 export {
   bindingCoherenceError,
   coherentOriginKindsFor,

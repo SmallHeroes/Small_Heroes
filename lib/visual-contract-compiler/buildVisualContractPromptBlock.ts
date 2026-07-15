@@ -7,6 +7,7 @@
  * Pure string assembly — no I/O. The contract content here is the source of truth; the renderer must
  * treat this block as overriding any conflicting direction.
  */
+import { projectPageActionProse, projectPageSafetyProse } from './projectContractProse';
 import type { BookVisualContract } from './types';
 import type { ResolvedPageContract } from './derivePageVisualContracts';
 
@@ -67,6 +68,12 @@ export function buildVisualContractPromptBlock(
 
   const zoneGeometry = (page.zoneStableGeometry ?? []).join('; ');
 
+  // (Stage 3) Deterministic PROJECTIONS of the page's structured action beats + hazard prohibitions. Computed here
+  // and never stored/hashed, so no v1 prose field competes with them and they need no migration. A page that
+  // authors no structure projects to '' → line() → null → the block stays byte-identical.
+  const actionProse = projectPageActionProse(page, contract);
+  const safetyProse = projectPageSafetyProse(page, contract);
+
   const sameLocationNote =
     page.sameLocationAs != null
       ? `This is the SAME place as page ${page.sameLocationAs}; only the camera angle/action changes — do NOT change the setting.`
@@ -94,6 +101,10 @@ export function buildVisualContractPromptBlock(
     line('PERSISTENT PROP', persistentProp || undefined),
     line('BODY STATE', bodyState || undefined),
     line('LATERALITY', laterality || undefined),
+    // (Stage 3) Projected from the page's structure — placed BEFORE the AUTHORITY closer so "THIS contract wins"
+    // covers them too.
+    line('ACTION BEATS', actionProse || undefined),
+    line('SAFETY (never render)', safetyProse || undefined),
     'AUTHORITY: imageDirection may influence camera angle and action ONLY. It may NEVER change the location, zone, cast, wardrobe, or introduce any MUST-NOT-SHOW element. Where they conflict, THIS contract wins.',
   ];
 
