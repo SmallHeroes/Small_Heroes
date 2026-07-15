@@ -11,7 +11,7 @@ import {
   verifyPaymeSignature,
 } from '@/lib/payme';
 import { env } from '@/lib/env';
-import { confirmCouponForOrder } from '@/lib/coupon/coupon-service';
+import { confirmCouponForOrder, couponConfirmFenceReason } from '@/lib/coupon/coupon-service';
 
 const logger = createLogger({ subsystem: 'payme-webhook', route: '/api/webhooks/payme' });
 
@@ -210,17 +210,21 @@ export async function POST(req: NextRequest) {
       // Confirm any reserved coupon redemption inside this same exactly-once transaction, so the
       // cap advances atomically with the paid transition (and a webhook replay never double-counts).
       const couponOutcome = await confirmCouponForOrder(tx, order.id);
-      if (couponOutcome === 'paid_late_over_cap') {
-        // Cap-safe: the discount was NOT granted (it would exceed maxRedemptions). FENCE the order
-        // via needs_human_qa — a REAL hold that stops generation/ready/outbox/email (start.ts treats
-        // needs_human_qa as terminal) — for out-of-band refund/charge-full resolution.
+      // FAIL-CLOSED (LB#1b): fence when the discount was not granted (cap-safe paid-late) OR when a
+      // COUPONED order confirmed to 'noop' — charged a discounted amount yet occupying no slot, which is
+      // exactly how "≤ N discounted PAID sales" breaks while confirmedCount still reads ≤ max. The fence is
+      // a REAL hold: needs_human_qa stops generation/ready/outbox/email (start.ts treats it as terminal).
+      const couponFence = await couponConfirmFenceReason(tx, order.id, couponOutcome);
+      if (couponFence) {
         await tx.order.update({
           where: { id: order.id },
-          data: { status: 'needs_human_qa', manualReviewRequired: true, deliveryHoldReason: 'coupon_paid_late_over_cap' },
+          data: { status: 'needs_human_qa', manualReviewRequired: true, deliveryHoldReason: couponFence },
         });
-        logger.error('[PayMeWebhook] coupon paid-after-expiry over cap — discount NOT granted; order held for refund/charge-full', {
+        logger.error('[PayMeWebhook] coupon confirm did not grant a slot for a paid order — held for refund/charge-full', {
           orderId: order.id,
           transactionId: parsed.transactionId,
+          outcome: couponOutcome,
+          reason: couponFence,
         });
       }
 

@@ -81,6 +81,12 @@ export async function reserveCoupon(params: {
   rawCode: string;
   orderId: string;
   originalAgorot: number;
+  /**
+   * (LB#1b) The checkout ATTEMPT that will own this hold. Stored on the reservation so a release can be
+   * token-bound — a failed attempt then releases only ITS OWN hold, never a sibling's live one. The caller
+   * must hold the per-order checkout lease (the CAS in /api/checkout) before calling this.
+   */
+  attemptToken?: string;
   now?: Date;
 }): Promise<CouponReservation> {
   const code = normalizeCouponCode(params.rawCode);
@@ -105,6 +111,16 @@ export async function reserveCoupon(params: {
       return { ok: true as const, code, reused: true, ...pricing };
     }
     if (existing && existing.status === 'reserved' && existing.expiresAt > now) {
+      // (LB#1b) Transfer ownership of the hold to the CURRENT attempt. Safe because the per-order checkout
+      // lease guarantees only ONE attempt owns this order at a time: a live sibling could not have reached
+      // here, so this can only be a legitimate retry after the previous attempt's lease expired. Without the
+      // transfer, the retry could never token-release its own hold (it would sit out the TTL).
+      if (params.attemptToken && existing.attemptToken !== params.attemptToken) {
+        await tx.couponRedemption.update({
+          where: { orderId: params.orderId },
+          data: { attemptToken: params.attemptToken },
+        });
+      }
       const pricing = computeCouponDiscount(params.originalAgorot, existing.discountPercent);
       return { ok: true as const, code, reused: true, ...pricing };
     }
@@ -136,6 +152,7 @@ export async function reserveCoupon(params: {
         discountAgorot: pricing.discountAgorot,
         reservedAt: now,
         expiresAt,
+        attemptToken: params.attemptToken ?? null,
       },
       update: {
         // re-reserve a previously expired/released hold for this same order
@@ -148,6 +165,7 @@ export async function reserveCoupon(params: {
         expiresAt,
         confirmedAt: null,
         releasedAt: null,
+        attemptToken: params.attemptToken ?? null,
       },
     });
     return { ok: true as const, code, reused: false, ...pricing };
@@ -256,8 +274,37 @@ export async function confirmCouponForOrder(
  * Best-effort release of an order's reserved hold on an explicit checkout/payment failure, so
  * the slot frees immediately instead of waiting out the TTL. Never touches confirmedCount (the
  * hold was never confirmed). No-op for confirmed/released/absent redemptions.
+ *
+ * (LB#1b) TOKEN-BOUND. `attemptToken` is REQUIRED to release: the release only matches the hold this
+ * attempt actually owns. Previously the release matched on `orderId` alone, so a failed attempt freed a
+ * SIBLING attempt's live hold — and the sibling's payment-success confirm then saw 'released' → 'noop',
+ * leaving a genuinely paid discounted order uncounted (the cap could then be exceeded in reality while
+ * confirmedCount still read ≤ max). Passing a token that does not own the hold releases NOTHING, which is
+ * the safe direction: the slot simply sits out its TTL.
  */
 export async function releaseCouponForOrder(
+  client: Prisma.TransactionClient | typeof prisma,
+  orderId: string,
+  attemptToken: string,
+  now: Date = new Date()
+): Promise<void> {
+  if (!attemptToken) return; // never fall back to an orderId-wide release — that is the bug this closes
+  await client.couponRedemption.updateMany({
+    where: { orderId, status: 'reserved', attemptToken },
+    data: { status: 'released', releasedAt: now },
+  });
+}
+
+/**
+ * (LB#1b) Release an order's hold because the PAYMENT for that order definitively FAILED.
+ *
+ * A DIFFERENT actor from the checkout-attempt release above, and deliberately ORDER-scoped rather than
+ * token-bound: a payment outcome is a property of the ORDER, not of any one checkout attempt, so whichever
+ * attempt's hold is live must be freed. It is safe exactly where the attempt release was not — there is no
+ * concurrent sibling whose live hold could be stolen, because the sale this slot was held for has failed.
+ * Kept as its own named function so no future caller can reach for the order-wide release by accident.
+ */
+export async function releaseCouponForFailedPayment(
   client: Prisma.TransactionClient | typeof prisma,
   orderId: string,
   now: Date = new Date()
@@ -266,4 +313,28 @@ export async function releaseCouponForOrder(
     where: { orderId, status: 'reserved' },
     data: { status: 'released', releasedAt: now },
   });
+}
+
+/**
+ * (LB#1b) FAIL-CLOSED post-confirm fence. Returns the `deliveryHoldReason` an order must be fenced with
+ * after a payment-success confirm, or `null` when the order may proceed. Shared by all three
+ * payment-success seams (payme return / payme webhook / dev fake-payment) so the rule cannot drift.
+ *
+ *  - 'paid_late_over_cap'          — the hold expired and the cap was full: the discount was NOT granted.
+ *  - 'coupon_confirm_noop_uncounted' — the order carries a coupon SNAPSHOT (it WAS charged a discounted
+ *    amount) yet the confirm granted nothing. That means a discounted paid order would proceed WITHOUT
+ *    occupying a slot, which is exactly how the global "≤ N discounted PAID sales" guarantee breaks. Never
+ *    let it continue silently — fence it for out-of-band resolution.
+ *
+ * An order with NO coupon snapshot legitimately no-ops (nothing was discounted) → null.
+ */
+export async function couponConfirmFenceReason(
+  tx: Prisma.TransactionClient,
+  orderId: string,
+  outcome: CouponConfirmOutcome
+): Promise<string | null> {
+  if (outcome === 'paid_late_over_cap') return 'coupon_paid_late_over_cap';
+  if (outcome !== 'noop') return null; // confirmed / reacquired → a slot was granted
+  const order = await tx.order.findUnique({ where: { id: orderId }, select: { couponCode: true } });
+  return order?.couponCode ? 'coupon_confirm_noop_uncounted' : null;
 }

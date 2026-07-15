@@ -5,7 +5,11 @@ import { enforceRateLimit, enforceSameOrigin } from '@/lib/request-security';
 import { canUseFakePayments } from '@/lib/env';
 import { ROUTES } from '@/lib/routes';
 import { triggerGeneration } from '../../../generate/route';
-import { confirmCouponForOrder, releaseCouponForOrder } from '@/lib/coupon/coupon-service';
+import {
+  confirmCouponForOrder,
+  couponConfirmFenceReason,
+  releaseCouponForFailedPayment,
+} from '@/lib/coupon/coupon-service';
 
 const logger = createLogger({ subsystem: 'fake-payment', route: '/api/dev/fake-payment/confirm' });
 
@@ -67,8 +71,10 @@ export async function POST(req: NextRequest) {
           raw: { mode: 'fake', result: 'failed', paymentId },
         },
       });
-      // Explicit failure → free the reserved coupon slot now (don't wait out the TTL).
-      await releaseCouponForOrder(tx, order.id);
+      // Explicit PAYMENT failure → free this order's reserved slot now (don't wait out the TTL). Order-scoped
+      // by design: the payment failed for the ORDER, so whichever attempt's hold is live must go. This is not
+      // the checkout-attempt release (that one is token-bound so a failed attempt can't free a sibling's hold).
+      await releaseCouponForFailedPayment(tx, order.id);
     });
     return NextResponse.json({
       ok: true,
@@ -118,14 +124,20 @@ export async function POST(req: NextRequest) {
       },
     });
     const couponOutcome = await confirmCouponForOrder(tx, fresh.id);
-    if (couponOutcome === 'paid_late_over_cap') {
-      // Cap-safe: discount NOT granted (would exceed the cap). FENCE via needs_human_qa (stops
-      // generation/delivery; start.ts treats it as terminal) for out-of-band resolution.
+    // FAIL-CLOSED (LB#1b): fence when the discount was not granted (cap-safe paid-late) OR when a COUPONED
+    // order confirmed to 'noop' — charged a discounted amount yet occupying no slot, which is exactly how
+    // "≤ N discounted PAID sales" breaks while confirmedCount still reads ≤ max.
+    const couponFence = await couponConfirmFenceReason(tx, fresh.id, couponOutcome);
+    if (couponFence) {
       await tx.order.update({
         where: { id: fresh.id },
-        data: { status: 'needs_human_qa', manualReviewRequired: true, deliveryHoldReason: 'coupon_paid_late_over_cap' },
+        data: { status: 'needs_human_qa', manualReviewRequired: true, deliveryHoldReason: couponFence },
       });
-      logger.error('coupon paid-after-expiry over cap — discount NOT granted; order held for refund/charge-full', { orderId: fresh.id });
+      logger.error('coupon confirm did not grant a slot for a paid order — held for refund/charge-full', {
+        orderId: fresh.id,
+        outcome: couponOutcome,
+        reason: couponFence,
+      });
     }
     return true; // the conditional above claimed the paid transition exactly once
   });

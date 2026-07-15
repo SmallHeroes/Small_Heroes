@@ -19,7 +19,10 @@ import { NextRequest } from 'next/server';
  */
 
 vi.mock('@/lib/prisma', () => ({
-  prisma: { order: { findUnique: vi.fn(), update: vi.fn() } },
+  // updateMany is the LB#1b checkout-attempt CAS (the atomic per-order owner claim); these pricing tests
+  // assume the claim is won — the CAS's own concurrency behaviour is proven on real Postgres in
+  // coupon-cap.staging.spec.ts, since a mock cannot prove a race.
+  prisma: { order: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() } },
 }));
 vi.mock('@/lib/payme', () => ({ createPaymeCheckout: vi.fn() }));
 vi.mock('@/lib/request-security', () => ({
@@ -104,6 +107,7 @@ async function runCheckout(direction: keyof typeof DISPLAYED, body: Record<strin
   const { createPaymeCheckout } = await import('@/lib/payme');
   vi.mocked(prisma.order.findUnique).mockResolvedValue(orderFor(direction) as never);
   vi.mocked(prisma.order.update).mockResolvedValue({} as never);
+  vi.mocked(prisma.order.updateMany).mockResolvedValue({ count: 1 } as never); // this attempt claims the order
   vi.mocked(createPaymeCheckout).mockResolvedValue({
     checkoutUrl: 'https://pay.payme.example/abc',
     checkoutId: 'chk_1',
@@ -183,6 +187,46 @@ describe('MONEY: the coupon discounts the CHARGED amount (50% off, first 100)', 
     const { chargedAgorot } = await runCheckout('adventure');
     expect(chargedAgorot).toBe(7900);
     expect(vi.mocked(reserveCoupon)).not.toHaveBeenCalled();
+  });
+});
+
+describe('MONEY: the checkout-attempt CAS (LB#1b) — one order, one in-flight attempt', () => {
+  it('an attempt that LOSES the claim → 409 checkout_in_progress, reserving nothing and charging nothing', async () => {
+    const { reserveCoupon } = await import('@/lib/coupon/coupon-service');
+    const { createPaymeCheckout } = await import('@/lib/payme');
+    const { prisma } = await import('@/lib/prisma');
+    const { POST } = await import('@/app/api/checkout/route');
+    vi.mocked(prisma.order.findUnique).mockResolvedValue(orderFor('fantasy') as never);
+    vi.mocked(prisma.order.updateMany).mockResolvedValue({ count: 0 } as never); // a sibling owns the lease
+
+    const res = await POST(makeReq({ couponCode: 'FIRST100' }));
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: 'checkout_in_progress' });
+    // The whole point: the loser never reaches the reservation or the sale.
+    expect(vi.mocked(reserveCoupon)).not.toHaveBeenCalled();
+    expect(vi.mocked(createPaymeCheckout)).not.toHaveBeenCalled();
+  });
+
+  it('the claim gates on status AND a stale lease, and binds the reservation to THIS attempt', async () => {
+    const { reserveCoupon } = await import('@/lib/coupon/coupon-service');
+    vi.mocked(reserveCoupon).mockResolvedValue({
+      ok: true, code: 'FIRST100', discountPercent: 50, originalAgorot: 9900, discountAgorot: 4950, discountedAgorot: 4950,
+    } as never);
+    const { prisma } = await import('@/lib/prisma');
+    await runCheckout('fantasy', { couponCode: 'FIRST100' });
+
+    // The CAS re-checks the status ATOMICALLY with the claim — the read at :164 alone was the TOCTOU.
+    const cas = vi.mocked(prisma.order.updateMany).mock.calls[0][0] as {
+      where: { status?: unknown; OR?: unknown[] };
+      data: { checkoutAttemptToken?: string };
+    };
+    expect(cas.where.status).toEqual({ in: ['draft', 'pending_payment'] });
+    expect(cas.where.OR).toHaveLength(3); // unclaimed (null token / null clock) or a STALE lease
+    const token = cas.data.checkoutAttemptToken;
+    expect(token).toBeTruthy();
+    // …and the hold is bound to that same attempt, so only it can release it.
+    expect(vi.mocked(reserveCoupon).mock.calls[0][0]).toMatchObject({ attemptToken: token });
   });
 });
 

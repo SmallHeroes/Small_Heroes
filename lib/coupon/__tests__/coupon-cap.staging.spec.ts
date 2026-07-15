@@ -18,6 +18,11 @@ import { assertEnvSeparation } from '@/lib/generation-chunked/env-separation-gua
  *      the lease guarantee holds (the active holder keeps its slot).
  *   H. Overlapping payment-success paths canNOT demote a paid_late_over_cap fence (needs_human_qa)
  *      back to 'paid' — the conditional paid-transition matches 0 rows once the order is fenced.
+ *   I. (LB#1b) SAME-ORDER concurrent checkout: exactly ONE attempt claims the order (the CAS), and a losing
+ *      attempt's release can NEVER free the winner's hold (token-bound) — so the winner's payment still
+ *      confirms and the counter matches REALITY, not just its own bound.
+ *   J. (LB#1b) A couponed PAID order whose confirm no-ops is FENCED (needs_human_qa) — a discounted paid
+ *      order may never proceed while occupying no slot. An uncouponed order still no-ops cleanly.
  *
  * Skipped by default (and always in prod) so `npm run check` stays green without a DB. Run it
  * against a staging/preview DB:
@@ -332,6 +337,143 @@ describe.skipIf(!RUN)('coupon cap — real-Postgres concurrency + exactly-once p
       await prisma.couponRedemption.deleteMany({ where: { code } });
       await prisma.order.deleteMany({ where: { id: { in: [oA, oB] } } });
       await prisma.coupon.delete({ where: { id: coupon.id } }).catch(() => {});
+    }
+  });
+
+  /**
+   * I. (LB#1b) THE SAME-ORDER CHECKOUT RACE — the Codex NO-GO on 02074a23.
+   *
+   * Two concurrent /api/checkout on ONE order both read draft/pending_payment before either claimed it, so
+   * both proceeded: the second REUSED the first's order-keyed hold (one slot, but TWO discounted PayMe sales),
+   * and when either attempt failed it released that SHARED hold by orderId — so the other's payment-success
+   * confirm saw 'released' → 'noop' and a genuinely PAID discounted order never incremented confirmedCount.
+   * The global guarantee is "≤ N discounted PAID sales", which is NOT the same statement as
+   * "confirmedCount ≤ N" — the old code could satisfy the second while violating the first.
+   *
+   * Only real Postgres can prove the fix: the CAS relies on row-level locking + READ COMMITTED re-evaluation
+   * (the loser re-reads the winner's committed row and matches 0). A mock cannot prove that.
+   */
+  it('I. same-order concurrent checkout: exactly ONE attempt claims; a loser can never release the winner’s hold', async () => {
+    assertEnvSeparation();
+    const { prisma } = await import('@/lib/prisma');
+    const { reserveCoupon, releaseCouponForOrder, confirmCouponForOrder, couponConfirmGranted } =
+      await import('@/lib/coupon/coupon-service');
+
+    const code = `CAPI_${Date.now()}`.toUpperCase();
+    const coupon = await prisma.coupon.create({
+      data: { code, discountPercent: 50, maxRedemptions: 1, active: true },
+      select: { id: true },
+    });
+    const orderId = await makeOrder(prisma, `i-${code}`);
+    const TTL_MS = 2 * 60_000; // must mirror CHECKOUT_ATTEMPT_TTL_MS in /api/checkout
+
+    /** The checkout-attempt CAS, exactly as /api/checkout runs it. */
+    const claim = (token: string) =>
+      prisma.order.updateMany({
+        where: {
+          id: orderId,
+          status: { in: ['draft', 'pending_payment'] },
+          OR: [
+            { checkoutAttemptToken: null },
+            { checkoutAttemptAt: null },
+            { checkoutAttemptAt: { lt: new Date(Date.now() - TTL_MS) } },
+          ],
+        },
+        data: { checkoutAttemptToken: token, checkoutAttemptAt: new Date() },
+      });
+
+    try {
+      // ── 1. TWO CONCURRENT ATTEMPTS ON ONE ORDER → exactly one may proceed ──────────────────────
+      const [a, b] = await Promise.all([claim('attempt-A'), claim('attempt-B')]);
+      const winners = [a, b].filter((r) => r.count === 1);
+      const losers = [a, b].filter((r) => r.count === 0);
+      expect(winners).toHaveLength(1); // ← the fix: the second attempt CANNOT proceed to reserve/charge
+      expect(losers).toHaveLength(1);
+
+      const owner = (await prisma.order.findUniqueOrThrow({
+        where: { id: orderId },
+        select: { checkoutAttemptToken: true },
+      })).checkoutAttemptToken!;
+      const loserToken = owner === 'attempt-A' ? 'attempt-B' : 'attempt-A';
+
+      // ── 2. Only the WINNER reserves (the loser was rejected before reserving) ─────────────────
+      const reservation = await reserveCoupon({
+        rawCode: code,
+        orderId,
+        originalAgorot: 5900,
+        attemptToken: owner,
+      });
+      expect(reservation.ok).toBe(true);
+      if (reservation.ok) expect(reservation.discountedAgorot).toBe(2950); // 50% of ₪59
+
+      // ── 3. TOKEN-BOUND RELEASE: the loser's failure path must NOT free the winner's hold ──────
+      await releaseCouponForOrder(prisma, orderId, loserToken);
+      const afterLoserRelease = await prisma.couponRedemption.findUniqueOrThrow({ where: { orderId } });
+      expect(afterLoserRelease.status).toBe('reserved'); // ← the old orderId-wide release freed this
+      expect(afterLoserRelease.attemptToken).toBe(owner);
+
+      // ── 4. The winner pays → the confirm GRANTS (it would have no-op'd if the loser had freed it) ──
+      const outcome = await prisma.$transaction((tx) => confirmCouponForOrder(tx, orderId));
+      expect(couponConfirmGranted(outcome)).toBe(true);
+      expect(outcome).toBe('confirmed');
+
+      const fresh = await prisma.coupon.findUniqueOrThrow({ where: { id: coupon.id } });
+      expect(fresh.confirmedCount).toBe(1);
+      expect(fresh.confirmedCount).toBeLessThanOrEqual(1);
+
+      // ── 5. THE REAL INVARIANT: every PAID + couponed order either holds a confirmed slot or is FENCED.
+      // "≤ N discounted PAID sales" — not merely "confirmedCount ≤ N".
+      const confirmedSlots = await prisma.couponRedemption.count({ where: { code, status: 'confirmed' } });
+      expect(confirmedSlots).toBeLessThanOrEqual(1);
+      expect(confirmedSlots).toBe(fresh.confirmedCount); // the counter matches reality, not just its own bound
+
+      // ── 6. And the winner's own release still works (it owns the hold) — but only pre-confirm.
+      await releaseCouponForOrder(prisma, orderId, owner);
+      expect((await prisma.couponRedemption.findUniqueOrThrow({ where: { orderId } })).status).toBe('confirmed');
+    } finally {
+      await prisma.couponRedemption.deleteMany({ where: { code } });
+      await prisma.order.deleteMany({ where: { id: orderId } });
+      await prisma.coupon.delete({ where: { id: coupon.id } }).catch(() => {});
+    }
+  });
+
+  /**
+   * J. (LB#1b) FAIL-CLOSED: a PAID order carrying a coupon SNAPSHOT whose confirm returns 'noop' was charged a
+   * discounted amount while occupying NO slot — exactly the state the race used to produce. It must be fenced,
+   * never allowed to continue silently. An order with no snapshot legitimately no-ops.
+   */
+  it('J. a couponed PAID order whose confirm no-ops is FENCED (needs_human_qa); an uncouponed one is not', async () => {
+    assertEnvSeparation();
+    const { prisma } = await import('@/lib/prisma');
+    const { confirmCouponForOrder, couponConfirmFenceReason } = await import('@/lib/coupon/coupon-service');
+
+    const code = `CAPJ_${Date.now()}`.toUpperCase();
+    const couponed = await makeOrder(prisma, `j-couponed-${code}`);
+    const plain = await makeOrder(prisma, `j-plain-${code}`);
+
+    try {
+      // A discounted PAID order with NO live reservation (its hold was released out from under it).
+      await prisma.order.update({
+        where: { id: couponed },
+        data: { status: 'paid', couponCode: code, couponDiscountPercent: 50, couponDiscountAgorot: 2950, totalPrice: 2950 },
+      });
+      const couponedResult = await prisma.$transaction(async (tx) => {
+        const outcome = await confirmCouponForOrder(tx, couponed);
+        return { outcome, reason: await couponConfirmFenceReason(tx, couponed, outcome) };
+      });
+      expect(couponedResult.outcome).toBe('noop');
+      expect(couponedResult.reason).toBe('coupon_confirm_noop_uncounted'); // ← fenced, not silently continued
+
+      // A normal full-price order legitimately no-ops — nothing was discounted, so nothing to count.
+      await prisma.order.update({ where: { id: plain }, data: { status: 'paid' } });
+      const plainResult = await prisma.$transaction(async (tx) => {
+        const outcome = await confirmCouponForOrder(tx, plain);
+        return { outcome, reason: await couponConfirmFenceReason(tx, plain, outcome) };
+      });
+      expect(plainResult.outcome).toBe('noop');
+      expect(plainResult.reason).toBeNull(); // ← no false fence on the ordinary path
+    } finally {
+      await prisma.order.deleteMany({ where: { id: { in: [couponed, plain] } } });
     }
   });
 });

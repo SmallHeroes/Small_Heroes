@@ -5,7 +5,7 @@ import { env } from '@/lib/env';
 import { ROUTES } from '@/lib/routes';
 import { triggerGeneration } from '../../generate/route';
 import { verifyPaymePayment } from '@/lib/payme';
-import { confirmCouponForOrder } from '@/lib/coupon/coupon-service';
+import { confirmCouponForOrder, couponConfirmFenceReason } from '@/lib/coupon/coupon-service';
 
 const logger = createLogger({ subsystem: 'payme-return', route: '/api/payme/return' });
 
@@ -112,14 +112,20 @@ export async function GET(req: NextRequest) {
         });
         // Confirm any reserved coupon redemption in the same tx that marks the order paid.
         const couponOutcome = await confirmCouponForOrder(tx, order.id);
-        if (couponOutcome === 'paid_late_over_cap') {
-          // Cap-safe: discount NOT granted (would exceed the cap). FENCE via needs_human_qa (stops
-          // generation/delivery; start.ts treats it as terminal) for out-of-band resolution.
+        // FAIL-CLOSED (LB#1b): fence when the discount was not granted (cap-safe paid-late) OR when a
+        // COUPONED order confirmed to 'noop' — i.e. it was charged a discounted amount but occupies no
+        // slot, which is precisely how "≤ N discounted PAID sales" breaks while confirmedCount looks fine.
+        const couponFence = await couponConfirmFenceReason(tx, order.id, couponOutcome);
+        if (couponFence) {
           await tx.order.update({
             where: { id: order.id },
-            data: { status: 'needs_human_qa', manualReviewRequired: true, deliveryHoldReason: 'coupon_paid_late_over_cap' },
+            data: { status: 'needs_human_qa', manualReviewRequired: true, deliveryHoldReason: couponFence },
           });
-          logger.error('coupon paid-after-expiry over cap — discount NOT granted; order held for refund/charge-full', { orderId: order.id });
+          logger.error('coupon confirm did not grant a slot for a paid order — held for refund/charge-full', {
+            orderId: order.id,
+            outcome: couponOutcome,
+            reason: couponFence,
+          });
         }
         return true;
       });

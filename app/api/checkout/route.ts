@@ -3,6 +3,7 @@
  * POST /api/checkout — Create PayMe checkout request
  */
 
+import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { checkoutProductName, checkoutProductDescription, CHECKOUT_ADDONS } from '@/content';
 import { computePricing } from '../../../backend/config/wizard';
@@ -16,6 +17,13 @@ import { evaluatePhotoGate } from '@/lib/resemblance-core';
 import { reserveCoupon, releaseCouponForOrder } from '@/lib/coupon/coupon-service';
 
 const logger = createLogger({ subsystem: 'checkout', route: '/api/checkout' });
+
+/**
+ * (LB#1b) How long one checkout attempt may own an order before its lease is re-claimable. Comfortably
+ * longer than a checkout request (the PayMe call is seconds), and short enough that a crashed/abandoned
+ * attempt never wedges the order — the customer can simply try again.
+ */
+const CHECKOUT_ATTEMPT_TTL_MS = 2 * 60_000;
 
 async function createFakeCheckoutResponse(params: {
   orderId: string;
@@ -63,6 +71,9 @@ export async function POST(req: NextRequest) {
   // Tracks a coupon slot reserved during this checkout so the outer catch can release it if the
   // checkout aborts after reserving (the hold's TTL is the ultimate backstop).
   let reservedCouponOrderId: string | null = null;
+  // (LB#1b) This attempt's identity, minted BEFORE the try so every release path — including the outer
+  // catch — can release ONLY the hold this attempt owns, never a concurrent sibling's.
+  const attemptToken = randomUUID();
   try {
     const sameOriginError = enforceSameOrigin(req);
     if (sameOriginError) return sameOriginError;
@@ -173,6 +184,36 @@ export async function POST(req: NextRequest) {
       });
       return NextResponse.json({ error: 'Order already has payment' }, { status: 409 });
     }
+
+    // ── (LB#1b) CHECKOUT-ATTEMPT CAS — the atomic owner claim ────────────────────────────────────────
+    // The status read above is a point-in-time snapshot: two concurrent checkouts on ONE order both saw
+    // draft/pending_payment and both proceeded — the second REUSING the first's order-keyed coupon hold —
+    // so one order could reserve once but create TWO discounted PayMe sales, and either attempt's failure
+    // released the shared hold out from under the other (whose confirm then no-op'd → a paid discounted
+    // order left uncounted). This CAS is the fix: it re-checks the status AND claims the order in ONE
+    // atomic updateMany, BEFORE the coupon reservation and BEFORE the PayMe sale is created. Exactly one
+    // concurrent attempt can win; the loser is rejected cleanly, having reserved nothing and charged nothing.
+    //
+    // The claim is a TTL-bounded LEASE, not a permanent flag: a crashed/abandoned attempt must not wedge the
+    // order forever, so a stale lease is re-claimable and a legitimate retry proceeds.
+    const leaseStaleBefore = new Date(Date.now() - CHECKOUT_ATTEMPT_TTL_MS);
+    const claimed = await prisma.order.updateMany({
+      where: {
+        id: order.id,
+        status: { in: ['draft', 'pending_payment'] },
+        OR: [
+          { checkoutAttemptToken: null },
+          { checkoutAttemptAt: null },
+          { checkoutAttemptAt: { lt: leaseStaleBefore } },
+        ],
+      },
+      data: { checkoutAttemptToken: attemptToken, checkoutAttemptAt: new Date() },
+    });
+    if (claimed.count !== 1) {
+      logger.warn('Checkout rejected: another checkout attempt for this order is in flight', { orderId });
+      return NextResponse.json({ error: 'checkout_in_progress' }, { status: 409 });
+    }
+
     const pricing = computePricing({
       length: order.storyLength,
       direction: order.storyDirection ?? undefined,
@@ -200,6 +241,7 @@ export async function POST(req: NextRequest) {
         rawCode: couponCodeToApply,
         orderId: order.id,
         originalAgorot: totalPriceAgorot,
+        attemptToken, // binds the hold to THIS attempt, so only this attempt can release it
       });
       if (reservation.ok) {
         totalPriceAgorot = reservation.discountedAgorot;
@@ -319,7 +361,7 @@ export async function POST(req: NextRequest) {
           orderId,
           checkoutUrl,
         });
-        if (couponApplied) await releaseCouponForOrder(prisma, order.id).catch(() => {});
+        if (couponApplied) await releaseCouponForOrder(prisma, order.id, attemptToken).catch(() => {});
         return NextResponse.json(
           {
             error: 'Payment provider returned an invalid redirect URL',
@@ -332,7 +374,7 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       if (e instanceof TypeError || (e instanceof Error && e.message === 'bad_protocol')) {
         logger.error('Checkout blocked: invalid checkout URL from provider', { orderId, checkoutUrl, err: e });
-        if (couponApplied) await releaseCouponForOrder(prisma, order.id).catch(() => {});
+        if (couponApplied) await releaseCouponForOrder(prisma, order.id, attemptToken).catch(() => {});
         return NextResponse.json(
           { error: 'Payment provider returned an invalid redirect URL', reason: 'checkout_url_parse_failed' },
           { status: 502 }
@@ -373,7 +415,9 @@ export async function POST(req: NextRequest) {
 
   } catch (error) {
     if (reservedCouponOrderId) {
-      await releaseCouponForOrder(prisma, reservedCouponOrderId).catch(() => {});
+      // Token-bound: releases ONLY the hold this attempt created. A sibling attempt's live hold is never
+      // touched (that release-by-orderId was the bug that left paid discounted orders uncounted).
+      await releaseCouponForOrder(prisma, reservedCouponOrderId, attemptToken).catch(() => {});
     }
     logger.error('PayMe checkout creation failed', error);
     return NextResponse.json({ error: 'Failed to create checkout session' }, { status: 500 });

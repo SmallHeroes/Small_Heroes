@@ -11,7 +11,10 @@ import { isVercelProductionRuntime, isProductionLikeRuntime } from '@/lib/runtim
 // Mocks for the checkout-route integration cases. (Harmless for the env/middleware unit cases —
 // those modules don't import these.)
 vi.mock('@/lib/prisma', () => ({
-  prisma: { order: { findUnique: vi.fn(), update: vi.fn() } },
+  // updateMany is the LB#1b checkout-attempt CAS (the per-order owner claim that runs before the coupon
+  // reservation and the sale). These cases are about the fake-payment gate, so the claim always wins here;
+  // the CAS's concurrency behaviour is proven on real Postgres in coupon-cap.staging.spec.ts.
+  prisma: { order: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn(async () => ({ count: 1 })) } },
 }));
 vi.mock('@/lib/payme', () => ({ createPaymeCheckout: vi.fn() }));
 vi.mock('@/lib/request-security', () => ({

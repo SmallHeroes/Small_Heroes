@@ -194,6 +194,14 @@ model Order {
   couponDiscountPercent Int?
   couponDiscountAgorot  Int?
 
+  // (LB#1b) CHECKOUT-ATTEMPT LEASE — the atomic owner of an in-flight checkout for THIS order.
+  // Claimed by a CAS (updateMany) BEFORE the coupon reservation and BEFORE the PayMe sale is created,
+  // so two concurrent /api/checkout on one order can never both reserve a slot and charge: the loser is
+  // rejected. TTL-bounded (checkoutAttemptAt + CHECKOUT_ATTEMPT_TTL_MS), so an abandoned/crashed attempt
+  // frees the order for a legitimate retry instead of wedging it forever.
+  checkoutAttemptToken  String?
+  checkoutAttemptAt     DateTime?
+
   // Stripe
   stripeSessionId    String?  @unique
   stripePaymentId    String?
@@ -803,6 +811,10 @@ model CouponRedemption {
   status          CouponRedemptionStatus @default(reserved)
   discountPercent Int                    // snapshot at reserve time
   discountAgorot  Int                    // actual discount applied, in agorot (audit)
+  // (LB#1b) The checkout ATTEMPT that owns this hold. Release is TOKEN-BOUND: a failed attempt may only
+  // release the reservation it created, never a sibling attempt's live hold (which previously let one
+  // attempt's failure free another's slot, so the paid order's confirm then no-op'd and went uncounted).
+  attemptToken    String?
   reservedAt      DateTime               @default(now())
   expiresAt       DateTime               // reserve + TTL; expired 'reserved' rows are free capacity
   confirmedAt     DateTime?
