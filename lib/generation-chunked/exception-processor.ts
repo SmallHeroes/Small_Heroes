@@ -35,7 +35,7 @@ import {
   loadRegenPendingArtifacts,
   type QualityRecoveryResult,
 } from '@/lib/generation-pipeline/quality-recovery';
-import { QUALITY_REGEN_BUDGET } from '@/lib/generation-pipeline/quality-evidence';
+import { QUALITY_REGEN_BUDGET, type HardHoldKind } from '@/lib/generation-pipeline/quality-evidence';
 import { reserveMarkAndClearRegen } from './clear-page-images-for-regen';
 import { parsePipelineCache } from '@/lib/generation-pipeline/helpers';
 import { resolveAnchorDeliveryGate } from '@/lib/anchor-resemblance-gate';
@@ -106,9 +106,9 @@ export interface ExceptionProcessorDeps {
   reserveMarkAndClearRegen: (prisma: PrismaClient, orderId: string, artifactKey: string, operationKey: string) => Promise<{ granted: boolean }>;
   /** (#6-fix-3) Artifact keys durably marked regen-pending — cleared, awaiting a re-render/redrive. */
   loadRegenPending: (prisma: PrismaClient, orderId: string) => Promise<string[]>;
-  /** (Slice A) Terminal human-QA PARK for a deterministic contract-world drift: hold the order at needs_human_qa
-   *  with the contract_world_hold marker (never redrive/refund; never retract an already-delivered book). */
-  parkForContractWorldQa: (prisma: PrismaClient, orderId: string, artifactKeys: string[]) => Promise<void>;
+  /** (Slice A / Fix 5) Terminal human-QA PARK for a hard hold: hold the order at needs_human_qa with a distinct
+   *  marker per kind (safety_hold / contract_world_hold); never redrive/refund; never retract a delivered book. */
+  parkForHardHoldQa: (prisma: PrismaClient, orderId: string, artifactKeys: string[], kind: HardHoldKind) => Promise<void>;
 }
 
 function defaultDeps(): ExceptionProcessorDeps {
@@ -126,8 +126,8 @@ function defaultDeps(): ExceptionProcessorDeps {
     reserveMarkAndClearRegen: (prisma, orderId, artifactKey, operationKey) =>
       reserveMarkAndClearRegen(prisma, { orderId, artifactKey, operationKey }),
     loadRegenPending: (prisma, orderId) => loadRegenPendingArtifacts(prisma, orderId),
-    parkForContractWorldQa: (prisma, orderId, artifactKeys) =>
-      parkOrderForContractWorldQa(prisma, orderId, artifactKeys),
+    parkForHardHoldQa: (prisma, orderId, artifactKeys, kind) =>
+      parkOrderForHardHoldQa(prisma, orderId, artifactKeys, kind),
     recommitReadiness: async (prisma, orderId) => {
       const job = await prisma.generationJob.findUnique({
         where: { orderId },
@@ -146,18 +146,21 @@ function defaultDeps(): ExceptionProcessorDeps {
 }
 
 /**
- * (Slice A) Terminal human-QA PARK for a deterministic contract-world drift. Holds the order at needs_human_qa
- * with the `contract_world_hold:` marker (which start.ts refuses to redrive). NEVER retracts an already-delivered
- * book (ready/partial) — a delivered-book revoke is a separate, out-of-scope decision.
+ * (Slice A / Fix 5) Terminal human-QA PARK for a hard hold. Holds the order at needs_human_qa with a DISTINCT marker
+ * per kind — `safety_hold:` (physical safety) or `contract_world_hold:` (contract-world drift), both of which
+ * start.ts refuses to redrive. NEVER retracts an already-delivered book (ready/partial) — a delivered-book revoke
+ * is a separate, out-of-scope decision.
  */
-async function parkOrderForContractWorldQa(
+async function parkOrderForHardHoldQa(
   prisma: PrismaClient,
   orderId: string,
   artifactKeys: string[],
+  kind: HardHoldKind,
 ): Promise<void> {
+  const marker = kind === 'safety' ? 'safety_hold' : 'contract_world_hold';
   await prisma.order.updateMany({
     where: { id: orderId, status: { notIn: ['ready', 'partial'] } },
-    data: { status: 'needs_human_qa', deliveryHoldReason: `contract_world_hold:${artifactKeys.join(',')}` },
+    data: { status: 'needs_human_qa', deliveryHoldReason: `${marker}:${artifactKeys.join(',')}` },
   });
 }
 
@@ -549,11 +552,12 @@ async function runQualityEvidenceRescue(
   // order at needs_human_qa, BEFORE the regen-rescue. This is the guarantee: no reserve/clear/redrive (budget
   // remaining) AND no fall-through to moveToRefund (budget exhausted). It clears only via a human re-render.
   if (recovery.nowParked.length > 0) {
-    await deps.parkForContractWorldQa(prisma, exceptionCase.orderId, recovery.nowParked);
+    const parkKind: HardHoldKind = recovery.nowParkedKind ?? 'contract_world';
+    await deps.parkForHardHoldQa(prisma, exceptionCase.orderId, recovery.nowParked, parkKind);
     return resolveCase(
       prisma,
       exceptionCase,
-      `contract_world_parked:${recovery.nowParked.join(',')}`,
+      `${parkKind === 'safety' ? 'safety' : 'contract_world'}_parked:${recovery.nowParked.join(',')}`,
       now,
       { outcome: 'needs_human_qa', parked: recovery.nowParked },
     );

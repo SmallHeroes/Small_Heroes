@@ -418,23 +418,39 @@ describe('ExceptionCase autonomous processor', () => {
       { status: 'blocked', reason: 'quality_evidence_unknown:page:2' });
     const redriveGeneration = vi.fn(async () => ({ started: true }));
     const reserveMarkAndClearRegen = vi.fn(async () => ({ granted: true }));
-    const parkForContractWorldQa = vi.fn(async () => {});
+    const parkForHardHoldQa = vi.fn(async () => {});
 
     // recovery surfaces the drift as nowParked (reason-tagged) — the guarantee holds regardless of budget.
     await expect(processExceptionCase(db.prisma, state, deps({
-      reQaQualityEvidence: vi.fn(async () => ({ reQaCount: 1, nowPassed: [], stillUnknown: [], nowParked: ['page:2'], nowFailed: [] })),
+      reQaQualityEvidence: vi.fn(async () => ({ reQaCount: 1, nowPassed: [], stillUnknown: [], nowParked: ['page:2'], nowParkedKind: 'contract_world' as const, nowFailed: [] })),
       reserveMarkAndClearRegen,
       redriveGeneration,
-      parkForContractWorldQa,
+      parkForHardHoldQa,
       loadRegenPending: vi.fn(async () => []),
     }))).resolves.toBe('resolved');
 
-    expect(parkForContractWorldQa).toHaveBeenCalledWith(expect.anything(), expect.any(String), ['page:2']);
+    expect(parkForHardHoldQa).toHaveBeenCalledWith(expect.anything(), expect.any(String), ['page:2'], 'contract_world');
     expect(reserveMarkAndClearRegen).not.toHaveBeenCalled(); // never clears the rendered artifact
     expect(redriveGeneration).not.toHaveBeenCalled();        // never redrives generation
     expect(db.currentCase().status).toBe('resolved');        // resolved-parked, NOT refund_pending
     expect(db.currentCase().refundKey ?? null).toBeNull();   // no refund liability
     expect((db.currentCase().resolution as { outcome?: string } | null)?.outcome).toBe('needs_human_qa');
+  });
+
+  it('(Fix 5) recovery surfaces a SAFETY park → parks with the safety kind (distinct safety_hold marker downstream)', async () => {
+    const state = exceptionCase({ kind: 'infra_transient', status: 'retry_scheduled', reason: 'quality_evidence_unknown:page:2', sourceRef: 'readiness:m1', attempts: 1 });
+    const db = fakePrisma(state, undefined, undefined,
+      { status: 'needs_human_qa', generationJob: { status: 'done' } },
+      { status: 'blocked', reason: 'quality_evidence_unknown:page:2' });
+    const parkForHardHoldQa = vi.fn(async () => {});
+    await expect(processExceptionCase(db.prisma, state, deps({
+      reQaQualityEvidence: vi.fn(async () => ({ reQaCount: 1, nowPassed: [], stillUnknown: [], nowParked: ['page:2'], nowParkedKind: 'safety' as const, nowFailed: [] })),
+      reserveMarkAndClearRegen: vi.fn(async () => ({ granted: true })),
+      redriveGeneration: vi.fn(async () => ({ started: true })),
+      parkForHardHoldQa,
+      loadRegenPending: vi.fn(async () => []),
+    }))).resolves.toBe('resolved');
+    expect(parkForHardHoldQa).toHaveBeenCalledWith(expect.anything(), expect.any(String), ['page:2'], 'safety');
   });
 
   it('(P1 #2) quality_evidence_unknown with regen-pending still redrives needs_human_qa (rescue path preserved)', async () => {
@@ -458,6 +474,7 @@ describe('ExceptionCase autonomous processor', () => {
         nowPassed: [],
         stillUnknown: [],
         nowParked: [],
+        nowParkedKind: null,
         nowFailed: [{ artifactKey: 'page:2', regenCount: 0 }],
       })),
       reserveMarkAndClearRegen: vi.fn(async () => ({ granted: true })),
@@ -496,6 +513,7 @@ describe('ExceptionCase autonomous processor', () => {
         nowPassed: [],
         stillUnknown: [],
         nowParked: [],
+        nowParkedKind: null,
         nowFailed: [{ artifactKey: 'page:2', regenCount: 0 }],
       })),
       reserveMarkAndClearRegen,
@@ -690,6 +708,7 @@ describe('#6-fix-3 — quality regen-rescue: reserve → mark → clear → disp
       nowPassed: [] as string[],
       stillUnknown: [] as string[],
       nowParked: [] as string[],
+      nowParkedKind: null,
       nowFailed: [...failedKeys].map((k) => ({ artifactKey: k, regenCount: regen[k] ?? 0 })),
     }));
     const loadRegenPending = vi.fn(async () => [...pending]);
@@ -784,8 +803,8 @@ describe('#6-fix-3 — quality regen-rescue: reserve → mark → clear → disp
 describe('#6-fix-3 BLOCKER 3 — a non-started redrive stays RETRYABLE from the durable regen-pending marker', () => {
   const qCase = (over: Partial<ExceptionCase> = {}) =>
     exceptionCase({ kind: 'infra_transient', status: 'retry_scheduled', reason: 'quality_evidence_unknown:page:2', sourceRef: 'readiness:m1', attempts: 1, ...over });
-  const failed = (key: string, regenCount: number) => ({ reQaCount: 1, nowPassed: [] as string[], stillUnknown: [] as string[], nowParked: [] as string[], nowFailed: [{ artifactKey: key, regenCount }] });
-  const none = () => ({ reQaCount: 0, nowPassed: [] as string[], stillUnknown: [] as string[], nowParked: [] as string[], nowFailed: [] as Array<{ artifactKey: string; regenCount: number }> });
+  const failed = (key: string, regenCount: number) => ({ reQaCount: 1, nowPassed: [] as string[], stillUnknown: [] as string[], nowParked: [] as string[], nowParkedKind: null, nowFailed: [{ artifactKey: key, regenCount }] });
+  const none = () => ({ reQaCount: 0, nowPassed: [] as string[], stillUnknown: [] as string[], nowParked: [] as string[], nowParkedKind: null, nowFailed: [] as Array<{ artifactKey: string; regenCount: number }> });
 
   it('started:false → the asset was cleared + marked INSIDE the atomic reserve tx, so the marker persists; surfaced via lastError', async () => {
     const pending = new Set<string>(['page:2']); // reserveMarkAndClearRegen already cleared + marked in-tx this tick

@@ -122,6 +122,22 @@ describe('startChunkedGeneration — exception recovery redrive', () => {
     expect(jobUpdate).not.toHaveBeenCalled();
   });
 
+  it('(Fix 5) refuses to redrive a safety_hold order even under recovery redrive (parked for human QA)', async () => {
+    const { startChunkedGeneration } = await loadStart();
+    orderFindUnique.mockResolvedValue({
+      id: 'order_1',
+      status: 'needs_human_qa',
+      deliveryHoldReason: 'safety_hold:hazard:page:2:child_on_railing',
+      storyDirectionSet: null,
+      generationJob: { status: 'done' },
+    });
+    const result = await startChunkedGeneration('order_1', 'exception_case_recovery', { skipWorkerChain: true });
+    expect(result.started).toBe(false);
+    expect(result.message).toMatch(/physical-safety hold/);
+    expect(orderUpdateMany).not.toHaveBeenCalled(); // never re-renders a safety-parked book
+    expect(jobUpdate).not.toHaveBeenCalled();
+  });
+
   it('resumes to cover stage when cover was cleared but pages remain', async () => {
     const { startChunkedGeneration } = await loadStart();
     orderFindUnique.mockResolvedValue({

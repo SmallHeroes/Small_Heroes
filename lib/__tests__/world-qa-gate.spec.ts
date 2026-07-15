@@ -232,6 +232,43 @@ describe('persistDeliveredQualityEvidence — world overlay on the delivered byt
     expect(c.reason).toContain('child_on_railing');
     expect(c.reason).toContain('dangerous_proximity');
   });
+
+  // ── (Fix 2) 'unverified' safety (can't confirm safe) is non-soft-deliverable — carries a distinct safety: tag.
+  const visualUnverified = () =>
+    ({ passed: true, verdict: 'evidence_unknown', reason: 'vision_error', details: '', flags: {}, safetyHazards: [], safetyStatus: 'unverified' } as never);
+
+  it('(Fix 2) transform re-QA can\'t confirm safe (safetyStatus unverified) → durable safety:unverified', async () => {
+    const db = await run(baseArgs({ qaContext: QA_CTX }), { evaluate: vi.fn(visualUnverified), evaluateWorld: vi.fn() });
+    const c = created(db);
+    expect(c.verdict).toBe('evidence_unknown'); // recoverable (a regen may confirm)...
+    expect(c.reason).toContain('safety:unverified'); // ...but hard-held by the gate (never soft-delivered)
+  });
+
+  it('(Fix 2) no-transform rawSafety.status unverified → safety:unverified', async () => {
+    const db = await run(
+      baseArgs({ presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX, rawSafety: { hazards: [], status: 'unverified' } }),
+      { evaluate: vi.fn(), evaluateWorld: vi.fn() },
+    );
+    expect(created(db).reason).toContain('safety:unverified');
+  });
+
+  it('(Fix 2) a transform re-QA that CONFIRMS safe clears a raw-unverified (positive confirmation on delivered bytes)', async () => {
+    const db = await run(
+      baseArgs({ qaContext: QA_CTX, rawSafety: { hazards: [], status: 'unverified' } }),
+      { evaluate: vi.fn(visualPass), evaluateWorld: vi.fn() }, // visualPass has no safetyStatus → treated as confirmed
+    );
+    // visualPass returns safetyStatus undefined; the delivered re-QA didn't say 'unverified' → raw-unverified persists.
+    // (fail-closed: only an explicit delivered 'safe' clears it — visualPass is silent, so it stays unverified)
+    expect(created(db).reason).toContain('safety:unverified');
+  });
+
+  it('(Fix 4b) applySafety runs on the no_delivered_url early exit → a known hazard still tags the row', async () => {
+    const db = await run(
+      baseArgs({ deliveredUrl: null, rawSafety: { hazards: ['child_on_railing'] } }),
+      { evaluate: vi.fn(), evaluateWorld: vi.fn() },
+    );
+    expect(created(db).reason).toContain('safety:child_on_railing');
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -274,6 +311,39 @@ describe('evaluateQualityGate — contractHardHold', () => {
   it('(Stage 1) a combined safety+base reason still hard-holds (substring match)', () => {
     const res = evaluateQualityGate(['page:5'], [row({ reason: 'anatomy_failed+safety:unsupported_at_height' })], hashes);
     expect(res.contractHardHold).toBe(true);
+    expect(res.hardHoldKind).toBe('safety');
+  });
+
+  it('(Fix 3) a safety row DOWNGRADED to evidence_unknown by a HASH MISMATCH still hard-holds (safety survives)', () => {
+    // A hash mismatch normally routes to evidence_unknown (recoverable, soft-deliverable). Safety must survive it.
+    const res = evaluateQualityGate(['page:5'], [row({ verdict: 'evidence_unknown', reason: 'safety:child_on_railing' })], new Map([['page:5', 'DIFFERENT']]));
+    expect(res.status).toBe('evidence_unknown');
+    expect(res.contractHardHold).toBe(true);
+    expect(res.hardHoldKind).toBe('safety');
+  });
+
+  it('(Fix 3) a safety row on a STALE evaluator version still hard-holds', () => {
+    const res = evaluateQualityGate(['page:5'], [row({ evaluatorContractVersion: 'qa-OLD', reason: 'safety:unsafe_pose' })], hashes);
+    expect(res.contractHardHold).toBe(true);
+    expect(res.hardHoldKind).toBe('safety');
+  });
+
+  it('(Fix 2) a safety_unverified (evidence_unknown) row hard-holds — "can\'t confirm safe" never soft-delivers', () => {
+    const res = evaluateQualityGate(['page:5'], [row({ verdict: 'evidence_unknown', reason: 'safety:unverified' })], hashes);
+    expect(res.contractHardHold).toBe(true);
+    expect(res.hardHoldKind).toBe('safety');
+  });
+
+  it('(Fix 5) safety DOMINATES a contract_world hold when both are present', () => {
+    const res = evaluateQualityGate(
+      ['page:5', 'page:6'],
+      [
+        row({ artifactKey: 'page:5', reason: 'contract_world:wrong_zone' }),
+        row({ artifactKey: 'page:6', reason: 'safety:child_on_railing' }),
+      ],
+      new Map([['page:5', 'sha5'], ['page:6', 'sha5']]),
+    );
+    expect(res.hardHoldKind).toBe('safety');
   });
 
   it('an UNVERIFIED world (evidence_unknown verdict) is recoverable, NOT a hard-hold', () => {
@@ -289,7 +359,7 @@ describe('resolveReadinessDeliveryPlan — soft-deliver exemption for contract-w
   const args = {} as never; // the blocked paths under test never read args
 
   it('blocked + contractHardHold → PARKED (no exception case, no soft-deliver) → needs_human_qa', () => {
-    const plan = resolveReadinessDeliveryPlan(args, { status: 'blocked', reason: 'quality_failed:page:5', contractHardHold: true }, true);
+    const plan = resolveReadinessDeliveryPlan(args, { status: 'blocked', reason: 'quality_failed:page:5', contractHardHold: true, hardHoldKind: 'contract_world' }, true);
     expect(plan.usesSoftDeliver).toBe(false);
     expect(plan.orderStatus).toBe('needs_human_qa');
     expect(plan.enqueued).toBe(false);
@@ -298,8 +368,16 @@ describe('resolveReadinessDeliveryPlan — soft-deliver exemption for contract-w
     expect(plan.deliveryHoldReason).toMatch(/^contract_world_hold:/);
   });
 
+  it('(Fix 5) blocked + hardHoldKind=safety → PARKED with the DISTINCT safety_hold: marker (never contract_world_hold)', () => {
+    const plan = resolveReadinessDeliveryPlan(args, { status: 'blocked', reason: 'quality_failed:page:5', contractHardHold: true, hardHoldKind: 'safety' }, true);
+    expect(plan.usesSoftDeliver).toBe(false);
+    expect(plan.orderStatus).toBe('needs_human_qa');
+    expect(plan.skipExceptionCase).toBe(true);
+    expect(plan.deliveryHoldReason).toMatch(/^safety_hold:/);
+  });
+
   it('blocked + soft-deliver ON + NO hard-hold → soft-delivered as before (ready + qaWarnings)', () => {
-    const plan = resolveReadinessDeliveryPlan(args, { status: 'blocked', reason: 'quality_failed:page:5', contractHardHold: false }, true);
+    const plan = resolveReadinessDeliveryPlan(args, { status: 'blocked', reason: 'quality_failed:page:5', contractHardHold: false, hardHoldKind: null }, true);
     expect(plan.usesSoftDeliver).toBe(true);
     expect(plan.orderStatus).toBe('ready');
   });

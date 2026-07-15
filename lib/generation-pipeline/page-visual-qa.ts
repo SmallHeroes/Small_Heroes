@@ -56,6 +56,14 @@ export type PageVisualQaResult = {
    * carries a `safety:<hazards>` reason → the readiness gate hard-holds it (never soft-delivered).
    */
   safetyHazards: string[];
+  /**
+   * (Stage 1 FIX) The physical-safety determination for this image:
+   *   'safe'       — the safety check ran and found NO hazard.
+   *   'hazard'     — a confirmed hazard (safetyHazards non-empty).
+   *   'unverified' — safety could NOT be confirmed (no key / HTTP error / malformed / skipped). "Can't confirm
+   *                  safe" is fail-closed: non-soft-deliverable (regen within budget, else hard-hold), NEVER safe.
+   */
+  safetyStatus: 'safe' | 'hazard' | 'unverified';
   raw?: Record<string, unknown>;
 };
 
@@ -368,6 +376,7 @@ export async function evaluatePageVisualQa(input: {
       details: 'OPENAI_API_KEY missing',
       flags: defaultQaFlags(),
       safetyHazards: [],
+      safetyStatus: 'unverified',
     };
   }
 
@@ -433,6 +442,7 @@ export async function evaluatePageVisualQa(input: {
         details: `HTTP ${res.status}`,
         flags: defaultQaFlags(),
         safetyHazards: [],
+        safetyStatus: 'unverified',
       };
     }
 
@@ -463,6 +473,7 @@ export async function evaluatePageVisualQa(input: {
         details: 'malformed or incomplete vision response',
         flags: defaultQaFlags(),
         safetyHazards: [],
+        safetyStatus: 'unverified',
       };
     }
     const raw: Record<string, unknown> = parsed;
@@ -475,6 +486,8 @@ export async function evaluatePageVisualQa(input: {
     if (raw.dangerousProximity === true) safetyHazards.push('dangerous_proximity');
     if (raw.physicallySafe === false) safetyHazards.push('unsafe_pose');
     const safetyOk = safetyHazards.length === 0;
+    // The safety check RAN and validated (a well-formed response reached here) → 'safe' or 'hazard', never 'unverified'.
+    const safetyStatus: PageVisualQaResult['safetyStatus'] = safetyOk ? 'safe' : 'hazard';
 
     const closedCribOk = input.hasRailedBedOrCrib
       ? evaluateClosedCribFlags(raw)
@@ -570,6 +583,7 @@ export async function evaluatePageVisualQa(input: {
       details,
       flags,
       safetyHazards,
+      safetyStatus,
       raw: strictCribRaw ? { ...raw, strictCrib: strictCribRaw } : raw,
     };
   } catch (e) {
@@ -580,6 +594,7 @@ export async function evaluatePageVisualQa(input: {
       details: e instanceof Error ? e.message : String(e),
       flags: defaultQaFlags(),
       safetyHazards: [],
+      safetyStatus: 'unverified',
     };
   }
 }

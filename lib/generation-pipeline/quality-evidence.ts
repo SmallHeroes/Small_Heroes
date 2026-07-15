@@ -37,6 +37,13 @@ export const QUALITY_SCOPE = 'base_book';
 
 export type QualityVerdict = 'passed' | 'failed' | 'evidence_unknown';
 
+/**
+ * (Stage 1 FIX / Fix 5) The KIND of hard hold, so downstream can emit a distinct, accurate top-level marker
+ * (`safety_hold:` vs `contract_world_hold:`) and park each correctly. `safety` is the universal child-safety
+ * invariant (a hazard OR an unconfirmed-safe image); it takes PRECEDENCE over a `contract_world` drift.
+ */
+export type HardHoldKind = 'safety' | 'contract_world';
+
 export function coverArtifactKey(): string {
   return 'cover';
 }
@@ -90,8 +97,13 @@ export interface QualityGateResult {
    *                         dangerous proximity). Rides the SAME park path (name kept for back-compat) so a safety
    *                         failure is never soft-delivered, in both budget states.
    * An UNVERIFIED world (evidence_unknown) is recoverable and does NOT set this.
+   *
+   * (Fix 3) A `safety:` tag sets this on ANY row REGARDLESS of verdict/hash/version — so a hash/integrity downgrade
+   * of a safety `failed` row to evidence_unknown, or a stale-version safety row, still hard-holds (never softens).
    */
   contractHardHold: boolean;
+  /** (Fix 5) Which kind of hard hold drove `contractHardHold` (null when no hard hold). Safety takes precedence. */
+  hardHoldKind: HardHoldKind | null;
   evidence: Record<string, unknown>;
 }
 
@@ -124,10 +136,21 @@ export function evaluateQualityGate(
   const unknownArtifacts: string[] = [];
   const perArtifact: Record<string, unknown> = {};
   let contractHardHold = false;
+  let hardHoldKind: HardHoldKind | null = null;
+  // Safety DOMINATES a contract-world hold (the universal child-safety invariant wins). Idempotent.
+  const noteHardHold = (kind: HardHoldKind) => {
+    contractHardHold = true;
+    if (kind === 'safety' || hardHoldKind === null) hardHoldKind = kind;
+  };
 
   for (const key of requiredKeys) {
     const row = byKey.get(key);
     const currentHash = currentHashes.get(key) ?? null;
+
+    // (Fix 3) A `safety:` tag hard-holds on ANY row REGARDLESS of verdict / hash / version — a known hazard or an
+    // unconfirmed-safe image survives every downgrade (failed→evidence_unknown on a hash miss, a stale-version row)
+    // and can NEVER be soft-delivered. Checked BEFORE the admissibility `continue`s below.
+    if (row?.reason?.includes('safety:')) noteHardHold('safety');
 
     if (!row) {
       unknownArtifacts.push(key);
@@ -161,10 +184,9 @@ export function evaluateQualityGate(
       continue;
     }
     if (row.verdict === 'failed') {
-      // (Slice A / Stage 1) A deterministic contract-world drift OR a physical-safety hazard must HARD-hold
-      // regardless of budget state (soft-deliver exemption). Both tags are written by the delivered-verdict
-      // producer (world overlay → `contract_world:`; safety overlay → `safety:`).
-      if (row.reason?.includes('contract_world:') || row.reason?.includes('safety:')) contractHardHold = true;
+      // (Slice A) A deterministic contract-world drift must HARD-hold regardless of budget state (soft-deliver
+      // exemption). Safety is already handled ABOVE for every verdict (Fix 3), so only contract_world here.
+      if (row.reason?.includes('contract_world:')) noteHardHold('contract_world');
       if (row.regenCount >= budget) {
         failedArtifacts.push(key);
         perArtifact[key] = { state: 'failed_terminal', reason: row.reason, regenCount: row.regenCount };
@@ -191,7 +213,7 @@ export function evaluateQualityGate(
     status = 'passed';
     reason = null;
   }
-  return { status, reason, failedArtifacts, unknownArtifacts, contractHardHold, evidence: { perArtifact, contractVersion, budget } };
+  return { status, reason, failedArtifacts, unknownArtifacts, contractHardHold, hardHoldKind, evidence: { perArtifact, contractVersion, budget } };
 }
 
 /** A stable, order-independent hash of the quality evidence — folded into the readiness inputsHash + TOCTOU

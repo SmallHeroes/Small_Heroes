@@ -61,11 +61,12 @@ export interface DeliveredEvidenceArgs {
   /** The in-loop verdict for the RAW render — reused ONLY when the delivered bytes equal the raw bytes. */
   rawVerdict: QualityVerdict | undefined;
   /**
-   * (Stage 1) The in-loop physical-safety hazards for the RAW render — reused ONLY in the no-transform branch
-   * (delivered bytes == raw bytes), exactly like `rawVerdict`. In the presentation-transform branch the safety
-   * verdict comes from the delivered-bytes re-QA instead. Absent → no safety hazards carried on the reuse path.
+   * (Stage 1) The in-loop physical-safety result for the RAW render. `hazards` are UNIONed with any the
+   * delivered-bytes re-QA finds (a known hazard is never erased). `status` distinguishes 'unverified' (the safety
+   * check could not confirm safe → non-soft-deliverable, fail-closed) from a confirmed 'safe'/'hazard'. Omitting
+   * `status` derives it from hazards (legacy callers: treated as verified). Absent entirely → no safety carried.
    */
-  rawSafety?: { hazards: string[] } | undefined;
+  rawSafety?: { hazards: string[]; status?: 'safe' | 'hazard' | 'unverified' } | undefined;
   /** QA context captured at render time, so a delivered-bytes re-QA runs the same checks. */
   qaContext: QaContext | undefined;
   providerModel?: string | null;
@@ -126,24 +127,39 @@ async function resolveDeliveredVerdict(
   evaluate: NonNullable<ProducerDeps['evaluate']>,
   evaluateWorld: NonNullable<ProducerDeps['evaluateWorld']>,
 ): Promise<{ verdict: QualityVerdict; reason: string | null }> {
-  // (Stage 1) The in-loop safety hazards ALWAYS count. The presentation transform (color-normalize / WebP) cannot
-  // remove a pose/composition hazard, so a hazard the in-loop QA flagged on the RAW bytes is still present on the
-  // delivered bytes. The transform-branch re-QA may ADD hazards but MUST NOT SUBTRACT a known one — a flaky or
-  // false-negative re-QA (HTTP error → evidence_unknown, malformed JSON, or a non-deterministic "safe") can never
-  // erase a known hazard. So we UNION rawSafety with the re-QA hazards and fold the `safety:` tag in on EVERY exit.
+  // (Stage 1 + FIX) Safety hazards ALWAYS count — the presentation transform (color-normalize / WebP) cannot remove
+  // a pose hazard, so a hazard the in-loop QA flagged on the RAW bytes persists on the delivered bytes. The
+  // transform re-QA may ADD hazards but never SUBTRACT a known one (a flaky/false-negative re-QA can't erase it). And
+  // (Fix 2) 'unverified' — safety could NOT be confirmed — is fail-closed: non-soft-deliverable, never treated as
+  // safe. Both compose a `safety:` reason (→ evaluateQualityGate hard-holds it) folded in on EVERY exit.
   const safetySet = new Set<string>(args.rawSafety?.hazards ?? []);
+  // Raw status: explicit, else derived from hazards (legacy callers without `status` are treated as verified).
+  const rawStatus =
+    args.rawSafety?.status ??
+    (args.rawSafety ? (args.rawSafety.hazards.length ? 'hazard' : 'safe') : undefined);
+  let deliveredUnverified = rawStatus === 'unverified';
   const applySafety = (
     r: { verdict: QualityVerdict; reason: string | null },
   ): { verdict: QualityVerdict; reason: string | null } => {
-    if (safetySet.size === 0) return r;
     const prior = r.verdict === 'passed' ? null : r.reason;
-    return {
-      verdict: mostSevereVerdict(r.verdict, 'failed'),
-      reason: joinReasons(prior, `safety:${[...safetySet].join('|')}`),
-    };
+    if (safetySet.size > 0) {
+      return {
+        verdict: mostSevereVerdict(r.verdict, 'failed'),
+        reason: joinReasons(prior, `safety:${[...safetySet].join('|')}`),
+      };
+    }
+    if (deliveredUnverified) {
+      // Can't confirm safe → recoverable (evidence_unknown, a regen may confirm) but NON-soft-deliverable (the gate
+      // hard-holds on the `safety:` tag). Never delivered as safe.
+      return {
+        verdict: mostSevereVerdict(r.verdict, 'evidence_unknown'),
+        reason: joinReasons(prior, 'safety:unverified'),
+      };
+    }
+    return r;
   };
 
-  if (!args.deliveredUrl) return { verdict: 'evidence_unknown', reason: 'no_delivered_url' };
+  if (!args.deliveredUrl) return applySafety({ verdict: 'evidence_unknown', reason: 'no_delivered_url' });
 
   // 1. Base (visual) verdict. The transform branch re-QAs the delivered image and ADDS any hazards it sees; the
   //    no-transform branch reuses the genuine in-loop verdict for the same bytes (its safety came via rawSafety).
@@ -154,6 +170,10 @@ async function resolveDeliveredVerdict(
     const { worldExpectation: _world, ...visualCtx } = args.qaContext;
     const qa = await evaluate({ imageUrl: args.deliveredUrl, ...visualCtx });
     for (const h of qa.safetyHazards ?? []) safetySet.add(h);
+    // The delivered-bytes re-QA is authoritative for 'unverified': a positive 'safe' on the actual delivered bytes
+    // clears a raw-unverified; an 'unverified' re-QA keeps it unverified (fail-closed).
+    if (qa.safetyStatus === 'unverified') deliveredUnverified = true;
+    else if (qa.safetyStatus === 'safe') deliveredUnverified = false;
     // The bare `safety_failed` enum is re-expressed as the durable `safety:<hazards>` tag by applySafety — drop it
     // from the base reason so the composed reason isn't doubled.
     base = { verdict: qa.verdict, reason: qa.reason === 'safety_failed' ? null : qa.reason };

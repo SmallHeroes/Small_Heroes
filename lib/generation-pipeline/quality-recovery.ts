@@ -24,6 +24,7 @@ import {
   pageArtifactKey,
   pageNumberFromArtifactKey,
   readActiveVisualContractHash,
+  type HardHoldKind,
 } from './quality-evidence';
 import { isQualityEvidenceContractStale } from './quality-check-result';
 import {
@@ -45,6 +46,8 @@ export interface QualityRecoveryResult {
    * reserved/cleared/redriven or refunded; the processor resolves the case as parked. Kept OUT of nowFailed.
    */
   nowParked: string[];
+  /** (Fix 5) The KIND of the parked hold, driving a distinct marker downstream. Safety DOMINATES contract_world. */
+  nowParkedKind: HardHoldKind | null;
   stillUnknown: string[];
 }
 
@@ -88,6 +91,10 @@ async function loadRequiredArtifacts(prisma: PrismaClient, orderId: string): Pro
  */
 function isHardHoldParkReason(reason: string | null | undefined): boolean {
   return typeof reason === 'string' && (reason.includes('contract_world:') || reason.includes('safety:'));
+}
+/** (Fix 5) The park KIND from a reason — safety (universal child-safety) dominates a contract-world drift. */
+function hardHoldKindOf(reason: string | null | undefined): HardHoldKind {
+  return typeof reason === 'string' && reason.includes('safety:') ? 'safety' : 'contract_world';
 }
 
 /**
@@ -133,7 +140,12 @@ export async function reQaUnknownQualityEvidence(
   // judged against its contract setting/objects under qa-v2, not just visually). Empty when steering off / no contract.
   const worldByArt = await loadPageWorldExpectations(prisma, orderId);
 
-  const result: QualityRecoveryResult = { reQaCount: 0, nowPassed: [], nowFailed: [], nowParked: [], stillUnknown: [] };
+  const result: QualityRecoveryResult = { reQaCount: 0, nowPassed: [], nowFailed: [], nowParked: [], nowParkedKind: null, stillUnknown: [] };
+  // Record a park + fold its kind in (safety dominates), so the processor emits a distinct, accurate marker.
+  const notePark = (artifactKey: string, reason: string | null | undefined) => {
+    result.nowParked.push(artifactKey);
+    if (result.nowParkedKind !== 'safety') result.nowParkedKind = hardHoldKindOf(reason);
+  };
   for (const art of required) {
     const currentHash = (await inspect(art.deliveredUrl)).sha256;
     const row = byKey.get(art.artifactKey);
@@ -160,7 +172,7 @@ export async function reQaUnknownQualityEvidence(
       if (row!.verdict === 'failed') {
         // (Slice A / Stage 1) A contract-world drift OR a physical-safety hazard is a TERMINAL human-QA PARK — never
         // route it to the regen-rescue (no reserve/clear/redrive, no refund). It converges to needs_human_qa.
-        if (isHardHoldParkReason(row!.reason)) result.nowParked.push(art.artifactKey);
+        if (isHardHoldParkReason(row!.reason)) notePark(art.artifactKey, row!.reason);
         else result.nowFailed.push({ artifactKey: art.artifactKey, regenCount: row!.regenCount });
       }
       continue;
@@ -205,7 +217,7 @@ export async function reQaUnknownQualityEvidence(
     });
     if (fresh?.verdict === 'passed') result.nowPassed.push(art.artifactKey);
     // (Slice A / Stage 1) A contract-world drift OR a physical-safety hazard → PARK (terminal human QA), not rescue.
-    else if (fresh?.verdict === 'failed' && isHardHoldParkReason(fresh.reason)) result.nowParked.push(art.artifactKey);
+    else if (fresh?.verdict === 'failed' && isHardHoldParkReason(fresh.reason)) notePark(art.artifactKey, fresh.reason);
     else if (fresh?.verdict === 'failed') result.nowFailed.push({ artifactKey: art.artifactKey, regenCount: fresh.regenCount });
     else result.stillUnknown.push(art.artifactKey);
   }

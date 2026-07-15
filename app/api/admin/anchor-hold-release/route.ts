@@ -80,14 +80,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'No rendered book to release' }, { status: 409 });
   }
 
-  // B6: under the readiness flag this break-glass may ONLY release a genuine ANCHOR hold (never an integrity /
-  // readiness-stale hold), and it routes through the readiness path (re-evaluate + Outbox enqueue) instead of a
-  // direct send — so a stale book can never be force-shipped past the Manifest.
+  // (Stage 1 safety FIX) This break-glass endpoint may release ONLY a low-confidence ANCHOR hold — NEVER a
+  // physical-safety hold (`safety_hold:`) or a contract-world drift (`contract_world_hold:`). Those are terminal
+  // human-QA parks whose already-rendered assets are unsafe/unverified/drifted; force-shipping them would deliver
+  // an unsafe image. Enforced on BOTH paths (the readiness branch had this guard; the legacy readiness-OFF/prod
+  // branch below did NOT — Fix 1 now routes safety holds through the same needs_human_qa status, so it must too).
+  const holdReason = order.deliveryHoldReason ?? '';
+  if (!holdReason.startsWith('anchor_low_confidence:')) {
+    return NextResponse.json({ error: `Not releasable via anchor endpoint (reason=${holdReason || 'none'})` }, { status: 409 });
+  }
+
+  // B6: under the readiness flag this break-glass routes through the readiness path (re-evaluate + Outbox enqueue)
+  // instead of a direct send — so a stale book can never be force-shipped past the Manifest.
   if (isReadinessManifestEnabled()) {
-    const reason = order.deliveryHoldReason ?? '';
-    if (!reason.startsWith('anchor_low_confidence:')) {
-      return NextResponse.json({ error: `Not releasable via anchor endpoint (reason=${reason || 'none'})` }, { status: 409 });
-    }
     try {
       const result = await commitBaseBookReadiness(prisma, { orderId: order.id, anchorAllowsDelivery: true, anchorOrderStatus: 'ready', anchorReason: null });
       log.info('Anchor hold released via readiness/Outbox path', { orderId, manifestStatus: result.manifestStatus, enqueued: result.enqueued });

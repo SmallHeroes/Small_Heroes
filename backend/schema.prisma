@@ -371,6 +371,10 @@ model GeneratedBook {
   title       String
   coverText   String?
   coverImageUrl String?
+  /// (Stage 1 safety FIX) The cover's readiness-independent physical-safety signal (the cover is not an ImageAsset).
+  /// Written atomically with coverImageUrl; the delivery boundary blocks unless verified AND hazard-free.
+  coverSafetyVerified Boolean  @default(false)
+  coverSafetyHazards  String[] @default([])
   pages       BookPage[]
 
   audioAsset  AudioAsset?
@@ -424,6 +428,13 @@ model ImageAsset {
   style       String?
   /// orderId + artifactType + page + model + quality + generationVersion — skip duplicate paid gen
   idempotencyKey String? @unique
+
+  /// (Stage 1 safety FIX) Readiness-INDEPENDENT physical-safety signal, written ATOMICALLY with the asset so a
+  /// crash can't lose a known hazard and the delivery boundary enforces it even when the readiness manifest is OFF.
+  /// safetyVerified=false (default) means the safety check has NOT confirmed this image safe → fail-closed (blocked).
+  safetyVerified Boolean  @default(false)
+  /// The confirmed physical-safety hazards on this image (empty when safe). Deliver only when verified AND empty.
+  safetyHazards  String[] @default([])
 
   createdAt   DateTime @default(now())
 }

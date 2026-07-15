@@ -140,4 +140,18 @@ describe('evaluatePageVisualQa — UNIVERSAL physical-safety gate (Stage 1)', ()
     expect(r.verdict).toBe('evidence_unknown');
     expect(r.reason).toBe('vision_malformed');
   });
+
+  it('(Fix 2) a safe scene → safetyStatus "safe"; a hazard → "hazard"', async () => {
+    mockVision(goodBase());
+    expect((await evaluatePageVisualQa({ imageUrl: 'https://x/p.png' })).safetyStatus).toBe('safe');
+    mockVision(goodBase({ childOnRailing: true }));
+    expect((await evaluatePageVisualQa({ imageUrl: 'https://x/p.png' })).safetyStatus).toBe('hazard');
+  });
+
+  it('(Fix 2) a vision error/skip/malformed → safetyStatus "unverified" (never silently "safe")', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) })));
+    expect((await evaluatePageVisualQa({ imageUrl: 'https://x/p.png' })).safetyStatus).toBe('unverified');
+    delete process.env.OPENAI_API_KEY;
+    expect((await evaluatePageVisualQa({ imageUrl: 'https://x/p.png' })).safetyStatus).toBe('unverified');
+  });
 });

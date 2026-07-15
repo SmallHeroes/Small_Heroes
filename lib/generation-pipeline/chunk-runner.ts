@@ -97,7 +97,7 @@ import {
 import { persistDeliveredQualityEvidence, persistQualityContext, type QaContext } from './quality-evidence-producer';
 import { coverArtifactKey, pageArtifactKey, makeQualityRegenReserver } from './quality-evidence';
 import { openExceptionCase } from '@/lib/generation-chunked/exception-case';
-import { finalizePackageDelivery } from './package-delivery';
+import { finalizePackageDelivery, resolveSafetyDeliveryGate, isSafetyVerified } from './package-delivery';
 import {
   buildImagePipelineAnchors,
   detectExpectedCharactersForPage,
@@ -1045,7 +1045,13 @@ async function runCoverStage(
     async (tx) => {
       await tx.generatedBook.update({
         where: { id: book.id },
-        data: { coverImageUrl: coverImage.url },
+        data: {
+          coverImageUrl: coverImage.url,
+          // (Stage 1 FIX) Persist the readiness-INDEPENDENT safety signal ATOMICALLY with the cover bytes.
+          // verified = the safety check reached a determination (safe/hazard); unverified/absent → false (fail-closed).
+          coverSafetyVerified: isSafetyVerified(coverImage.style01Meta?.pageVisualQa?.safetyStatus),
+          coverSafetyHazards: coverImage.style01Meta?.pageVisualQa?.safetyHazards ?? [],
+        },
       });
       // (#6-fix-3 BLOCKER 1) Bind the cover's exact QA context ATOMICALLY with the delivered bytes, so recovery
       // re-QAs a crash-envelope cover against its REAL requirements (never a lenient fabricated fallback).
@@ -1073,7 +1079,8 @@ async function runCoverStage(
     presentationApplied: false,
     rawVerdict: coverImage.style01Meta?.pageVisualQa?.verdict,
     // (Stage 1) The cover has no presentation transform → reuse the in-loop safety result for these exact bytes.
-    rawSafety: { hazards: coverImage.style01Meta?.pageVisualQa?.safetyHazards ?? [] },
+    // status threads 'unverified' so the producer composes safety:unverified (not silently 'safe' from empty hazards).
+    rawSafety: { hazards: coverImage.style01Meta?.pageVisualQa?.safetyHazards ?? [], status: coverImage.style01Meta?.pageVisualQa?.safetyStatus },
     qaContext: coverImage.style01Meta?.pageVisualQa?.qaInput,
     providerModel: coverImage.provider,
     regenAttempts: coverImage.style01Meta?.pageVisualQa?.regenAttempts,
@@ -1616,6 +1623,9 @@ async function runPageImagesChunk(
               height: image.height,
               style: order.illustrationStyle,
               idempotencyKey,
+              // (Stage 1 FIX) Readiness-independent safety signal, atomic with the delivered bytes (fail-closed default).
+              safetyVerified: isSafetyVerified(image.style01Meta?.pageVisualQa?.safetyStatus),
+              safetyHazards: image.style01Meta?.pageVisualQa?.safetyHazards ?? [],
             },
           });
         } else {
@@ -1631,6 +1641,8 @@ async function runPageImagesChunk(
               height: image.height,
               style: order.illustrationStyle,
               idempotencyKey,
+              safetyVerified: isSafetyVerified(image.style01Meta?.pageVisualQa?.safetyStatus),
+              safetyHazards: image.style01Meta?.pageVisualQa?.safetyHazards ?? [],
             },
           });
         }
@@ -1658,7 +1670,8 @@ async function runPageImagesChunk(
       presentationApplied: presentationUrl != null,
       rawVerdict: image.style01Meta?.pageVisualQa?.verdict,
       // (Stage 1) Used only when no presentation transform ran (delivered == raw bytes); ignored on the re-QA path.
-      rawSafety: { hazards: image.style01Meta?.pageVisualQa?.safetyHazards ?? [] },
+      // status threads 'unverified' so the producer composes safety:unverified when the in-loop check couldn't confirm.
+      rawSafety: { hazards: image.style01Meta?.pageVisualQa?.safetyHazards ?? [], status: image.style01Meta?.pageVisualQa?.safetyStatus },
       qaContext: withWorldExpectation(image.style01Meta?.pageVisualQa?.qaInput, pageWorldExpectation),
       providerModel: image.provider,
       regenAttempts: image.style01Meta?.pageVisualQa?.regenAttempts,
@@ -1929,10 +1942,14 @@ async function runPackageStage(order: Order, cache: PipelineCache): Promise<void
   // releases it. This is the consumer of childAnchorLowConfidence (set in Stage 0); without
   // it a held anchor would ship silently. A clear anchor delivers normally.
   const deliveryGate = resolveAnchorDeliveryGate(cache.childAnchorLowConfidence);
+  // (Fix 1) Recompute the safety gate from the PERSISTED per-asset signal (crash-safe: a recovery run that resumes
+  // at the package stage without re-rendering still reads the durable hazard). Readiness-independent.
+  const safetyGate = await resolveSafetyDeliveryGate(prisma, order.id);
   const firstAudio = book.pages.find((p) => p.audioUrl?.trim())?.audioUrl ?? null;
   const deliveryResult = await finalizePackageDelivery(prisma, {
     order,
     deliveryGate,
+    safetyGate,
     readUrl,
     coverImageUrl: book.coverImageUrl ?? order.coverImageUrl,
     pdfUrl,

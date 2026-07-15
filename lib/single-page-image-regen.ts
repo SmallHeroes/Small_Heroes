@@ -852,6 +852,10 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
         });
       }
 
+      // (Stage 1 safety FIX) This (debug) single-page regen does NOT run the safety QA / evidence pipeline, so the
+      // NEW bytes are NOT safety-confirmed. Fail-close the durable safety signal (verified=false) — never leave the
+      // prior render's stale safetyVerified=true on unchecked bytes. resolveSafetyDeliveryGate then holds the book
+      // until the page is re-QA'd through the normal package stage. (Full re-QA-on-regen here is a follow-up.)
       if (dbPage.imageAsset) {
         await tx.imageAsset.update({
           where: { id: dbPage.imageAsset.id },
@@ -864,6 +868,8 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
             width: image.width,
             height: image.height,
             style: order.illustrationStyle,
+            safetyVerified: false,
+            safetyHazards: [],
           },
         });
       } else {
@@ -878,6 +884,8 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
             width: image.width,
             height: image.height,
             style: order.illustrationStyle,
+            safetyVerified: false,
+            safetyHazards: [],
           },
         });
       }

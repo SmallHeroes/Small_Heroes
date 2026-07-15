@@ -84,6 +84,7 @@ describe('readiness commit receipt binding (soft-deliver keyed)', () => {
     blockExceptionKind: 'infra_transient' as const,
     blockClassification: 'quality_evidence_unknown',
     contractHardHold: false,
+    hardHoldKind: null,
   };
   const passedDecision = {
     status: 'passed' as const,
@@ -93,6 +94,7 @@ describe('readiness commit receipt binding (soft-deliver keyed)', () => {
     blockExceptionKind: null,
     blockClassification: 'passed',
     contractHardHold: false,
+    hardHoldKind: null,
   };
 
   it('keys receipt on effective outcome, not the env flag — clean pass unchanged when flag toggles', () => {
@@ -124,7 +126,7 @@ describe('readiness commit receipt binding (soft-deliver keyed)', () => {
   });
 
   it('(Slice A) a contract-world hard-hold is NEVER soft-delivered — holds even with QA_SOFT_DELIVER on', () => {
-    const hardHold = { ...blockedDecision, reason: 'quality_failed:page:2', blockExceptionKind: 'quality_failed' as const, contractHardHold: true };
+    const hardHold = { ...blockedDecision, reason: 'quality_failed:page:2', blockExceptionKind: 'quality_failed' as const, contractHardHold: true, hardHoldKind: 'contract_world' as const };
     const soft = buildReadinessCommitReceiptBinding(baseArgs, 3, hardHold, true);
     expect(soft.plan).toMatchObject({ enqueued: false, orderStatus: 'needs_human_qa', usesSoftDeliver: false });
   });
@@ -174,6 +176,7 @@ describe('QA soft-deliver integration', () => {
       {
         order,
         deliveryGate: heldGate,
+        safetyGate: { held: false, reason: null },
         readUrl: 'https://app/ready?orderId=o1',
         pdfUrl: null,
         firstAudioUrl: null,
@@ -205,6 +208,7 @@ describe('QA soft-deliver integration', () => {
       {
         order,
         deliveryGate: heldGate,
+        safetyGate: { held: false, reason: null },
         readUrl: 'https://app/ready?orderId=o1',
         pdfUrl: null,
         firstAudioUrl: null,
@@ -237,6 +241,7 @@ describe('QA soft-deliver integration', () => {
       {
         order,
         deliveryGate: { held: false, orderStatus: 'ready', reason: null, sendBookReadyEmail: true },
+        safetyGate: { held: false, reason: null },
         readUrl: 'https://app/ready?orderId=o1',
         pdfUrl: null,
         firstAudioUrl: null,

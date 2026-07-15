@@ -27,6 +27,7 @@ import {
   type QualityEvidenceRow,
   type QualityGateResult,
   type ArtifactHashes,
+  type HardHoldKind,
 } from './quality-evidence';
 import { enqueueDelivery, type BookReadyPayload, type CasResult } from '@/lib/generation-chunked/delivery-outbox';
 import { listenUrlFromReadUrl } from '@/lib/routes';
@@ -358,19 +359,21 @@ export interface ReadinessDeliveryPlan {
 
 export function resolveReadinessDeliveryPlan(
   args: CommitArgs,
-  decision: Pick<ReadinessDecision, 'status' | 'reason' | 'contractHardHold'>,
+  decision: Pick<ReadinessDecision, 'status' | 'reason' | 'contractHardHold' | 'hardHoldKind'>,
   softDeliver: boolean,
 ): ReadinessDeliveryPlan {
-  // (Slice A) A deterministic contract-world drift is a TERMINAL human-QA PARK: held at needs_human_qa with NO
-  // exception case (skipExceptionCase) → no regen-rescue redrive, no auto-refund, in BOTH budget states (mirrors the
-  // atomic-receipt parked-not-redriven guarantee). Never soft-delivered. Checked FIRST so neither the soft-deliver
-  // nor the exception-case path can act on it. The hold clears only when a human re-renders the drifted page (a
-  // fresh commit re-evaluates). The `contract_world_hold:` reason is the marker start.ts + the processor key off.
+  // (Slice A) A hard hold — a deterministic contract-world drift OR (Fix 5) a physical-safety hold — is a TERMINAL
+  // human-QA PARK: held at needs_human_qa with NO exception case (skipExceptionCase) → no regen-rescue redrive, no
+  // auto-refund, in BOTH budget states. Never soft-delivered. Checked FIRST so neither the soft-deliver nor the
+  // exception-case path can act on it. The hold clears only when a human re-renders (a fresh commit re-evaluates).
+  // A DISTINCT top-level marker per kind (`safety_hold:` vs `contract_world_hold:`) is what start.ts + the
+  // exception-processor key off — a universal child-safety hold must NOT be misreported as a contract-world drift.
   if (decision.status === 'blocked' && decision.contractHardHold) {
+    const marker = decision.hardHoldKind === 'safety' ? 'safety_hold' : 'contract_world_hold';
     return {
       enqueued: false,
       orderStatus: 'needs_human_qa',
-      deliveryHoldReason: `contract_world_hold:${decision.reason ?? 'blocked'}`,
+      deliveryHoldReason: `${marker}:${decision.reason ?? 'blocked'}`,
       skipExceptionCase: true,
       usesSoftDeliver: false,
     };
@@ -593,8 +596,11 @@ interface ReadinessDecision {
   /** On block: which recovery case to open. quality_failed = terminal (refund); the other two = retry-scheduled. */
   blockExceptionKind: 'quality_failed' | 'infra_transient' | 'integrity_blocked' | null;
   blockClassification: string;
-  /** (Slice A) A deterministic contract-world drift is blocking → must HARD-hold; never QA_SOFT_DELIVER-eligible. */
+  /** (Slice A) A deterministic contract-world drift OR a physical-safety hold is blocking → must HARD-hold; never
+   *  QA_SOFT_DELIVER-eligible. */
   contractHardHold: boolean;
+  /** (Fix 5) The kind of hard hold, driving a distinct top-level marker (`safety_hold:` vs `contract_world_hold:`). */
+  hardHoldKind: HardHoldKind | null;
 }
 
 /** The current delivered-bytes hash per artifact, taken from the integrity gate's inspect evidence (the same
@@ -625,23 +631,26 @@ function decideReadiness(integrity: IntegrityResult, quality: QualityGateResult)
   const evidence = { ...integrity.evidence, quality: quality.evidence, qualityStatus: quality.status };
   if (integrity.status === 'blocked') {
     const transient = isTransientIntegrityFailure(integrity);
-    // Integrity supersedes: a broken/missing asset must run its OWN recovery (retry), not be parked for world-QA —
-    // so contractHardHold is NOT propagated here. Once integrity clears, a re-eval re-runs the quality gate and a
-    // genuine contract-world drift parks then.
+    // Integrity supersedes for a contract-world drift: a broken/missing asset runs its OWN recovery (retry), not a
+    // world-QA park — so contract_world is NOT propagated here. (Fix 3) SAFETY is the exception: a physical-safety
+    // hold survives the integrity path and STILL hard-holds (never downgraded to soft-deliverable), because a
+    // known-unsafe image must never ship regardless of an unrelated integrity failure on another artifact.
+    const safetyHold = quality.hardHoldKind === 'safety';
     return {
       status: 'blocked', reason: integrity.reason, inputsHash, evidence,
       blockExceptionKind: transient ? 'infra_transient' : 'integrity_blocked',
       blockClassification: transient ? 'validator_transient' : 'deterministic_block',
-      contractHardHold: false,
+      contractHardHold: safetyHold,
+      hardHoldKind: safetyHold ? 'safety' : null,
     };
   }
   if (quality.status === 'passed') {
-    return { status: 'passed', reason: null, inputsHash, evidence, blockExceptionKind: null, blockClassification: 'passed', contractHardHold: quality.contractHardHold };
+    return { status: 'passed', reason: null, inputsHash, evidence, blockExceptionKind: null, blockClassification: 'passed', contractHardHold: quality.contractHardHold, hardHoldKind: quality.hardHoldKind };
   }
   if (quality.status === 'failed') {
-    return { status: 'blocked', reason: quality.reason, inputsHash, evidence, blockExceptionKind: 'quality_failed', blockClassification: 'quality_failed', contractHardHold: quality.contractHardHold };
+    return { status: 'blocked', reason: quality.reason, inputsHash, evidence, blockExceptionKind: 'quality_failed', blockClassification: 'quality_failed', contractHardHold: quality.contractHardHold, hardHoldKind: quality.hardHoldKind };
   }
-  return { status: 'blocked', reason: quality.reason, inputsHash, evidence, blockExceptionKind: 'infra_transient', blockClassification: 'quality_evidence_unknown', contractHardHold: quality.contractHardHold };
+  return { status: 'blocked', reason: quality.reason, inputsHash, evidence, blockExceptionKind: 'infra_transient', blockClassification: 'quality_evidence_unknown', contractHardHold: quality.contractHardHold, hardHoldKind: quality.hardHoldKind };
 }
 
 async function nextRevision(tx: Tx, orderId: string, scope: string): Promise<number> {

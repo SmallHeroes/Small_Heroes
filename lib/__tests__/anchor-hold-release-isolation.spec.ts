@@ -76,6 +76,22 @@ describe('anchor-hold-release isolation (B6)', () => {
     expect(email).toHaveBeenCalledTimes(1);
   });
 
+  it('(Stage 1 safety FIX) flag-OFF (prod): REFUSES to release a safety_hold order — never force-ships unsafe assets', async () => {
+    const { POST, email, orderUpdate } = await loadRoute({ flagOn: false, order: heldOrder('safety_hold:hazard:page:2:child_on_railing') });
+    const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
+    expect(res.status).toBe(409);
+    expect(orderUpdate).not.toHaveBeenCalled(); // never flips a safety-parked book to ready
+    expect(email).not.toHaveBeenCalled();
+  });
+
+  it('(Stage 1 safety FIX) flag-OFF: REFUSES a contract_world_hold order too (anchor-only allowlist on both paths)', async () => {
+    const { POST, email, orderUpdate } = await loadRoute({ flagOn: false, order: heldOrder('contract_world_hold:quality_failed:page:3') });
+    const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
+    expect(res.status).toBe(409);
+    expect(orderUpdate).not.toHaveBeenCalled();
+    expect(email).not.toHaveBeenCalled();
+  });
+
   it('rejects a bad secret (401)', async () => {
     const { POST, commit } = await loadRoute({ flagOn: true, order: heldOrder('anchor_low_confidence:soft_band') });
     const res = await POST(req({ secret: 'nope', orderId: 'o1' }));

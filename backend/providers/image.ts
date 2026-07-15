@@ -549,6 +549,8 @@ export interface Style01PageMeta {
     // (Stage 1) The physical-safety hazards for the RAW render — threaded so the delivered-evidence producer can
     // carry the safety hard-hold on the no-transform reuse path (cover + transform-less pages).
     safetyHazards?: string[];
+    // (Stage 1 FIX) 'safe' | 'hazard' | 'unverified' — 'unverified' (can't confirm safe) is non-soft-deliverable.
+    safetyStatus?: 'safe' | 'hazard' | 'unverified';
     qaInput?: {
       expectsChild: boolean;
       expectsCompanion: boolean;
@@ -3142,17 +3144,19 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
       hasHumanFamily,
     });
 
-    // (#7-a 5b) Budget decision. A regen is only for a DETERMINISTIC QA fail (qa.passed=false); an
-    // evidence_unknown (vision skipped/error/malformed) leaves qa.passed=true → accept, no budget consumed.
-    // When a durable reserver is bound (readiness flag ON), reserve one regen DURABLY BEFORE generating
-    // (crash-safe); otherwise the legacy in-memory budget governs (flag OFF → byte-identical).
+    // (#7-a 5b) Budget decision. A regen is for a DETERMINISTIC QA fail (qa.passed=false) OR (Fix 2) an UNVERIFIED
+    // safety result (can't confirm the child is safe) — "can't confirm safe" is fail-closed, so try a regen within
+    // budget to obtain a confirmed-safe image; when budget is spent the delivered signal keeps safetyVerified=false
+    // and the delivery boundary hard-holds it (never delivered as safe). A non-safety evidence_unknown still
+    // accepts (legacy). When a durable reserver is bound (readiness ON) reserve one regen DURABLY BEFORE generating.
+    const safetyUnverified = qa.safetyStatus === 'unverified';
     let mayRegen = false;
-    if (!qa.passed) {
+    if (!qa.passed || safetyUnverified) {
       mayRegen = input.reserveQualityRegen
         ? await input.reserveQualityRegen()
         : regenAttempts < qaConfig.maxRegens;
     }
-    const needsHumanReview = !qa.passed && !mayRegen;
+    const needsHumanReview = (!qa.passed || safetyUnverified) && !mayRegen;
     const enriched: GeneratedImage = {
       ...last,
       style01Meta: {
@@ -3167,6 +3171,7 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
           companionSilhouetteOk: qa.flags.companionSilhouetteOk,
           // (Stage 1) Physical-safety hazards for these RAW bytes — reused by the producer on the no-transform path.
           safetyHazards: qa.safetyHazards,
+          safetyStatus: qa.safetyStatus,
           // (#7-a) The exact QA context, so a delivered-bytes re-QA at the persist seam applies the same checks.
           qaInput: {
             expectsChild,
