@@ -67,11 +67,56 @@
       "name": "Inside window listening spot",
       "description": "Interior space directly beside the window where the first strange ticking sound is heard from below or outside.",
       "stableGeometry": [
-        "open window at child height",
-        "curtain edges framing the night",
-        "wall below the window",
-        "small clear floor area for crouching",
-        "view line toward balcony darkness"
+        "window \"window\": the bedroom window the strange ticking is heard through — an ordinary casement window whose sill sits at the crouching child's chest height, looking out onto the dark balcony beyond",
+        "furniture \"curtain\": curtain edges framing the night on either side of the window",
+        "wall \"wall_below_window\": the plain wall below the window that Uri presses his ear against",
+        "floor \"room_floor\": a small clear area of bedroom floor in front of the window, low enough to crouch on",
+        "\"window\" is above \"wall_below_window\"",
+        "\"wall_below_window\" is above \"room_floor\"",
+        "\"curtain\" is adjacent to \"window\""
+      ],
+      "spatialNodes": [
+        {
+          "id": "window",
+          "kind": "window",
+          "description": "the bedroom window the strange ticking is heard through — an ordinary casement window whose sill sits at the crouching child's chest height, looking out onto the dark balcony beyond",
+          "bindsTo": {
+            "kind": "prop",
+            "id": "prop_window"
+          }
+        },
+        {
+          "id": "curtain",
+          "kind": "furniture",
+          "description": "curtain edges framing the night on either side of the window"
+        },
+        {
+          "id": "wall_below_window",
+          "kind": "wall",
+          "description": "the plain wall below the window that Uri presses his ear against"
+        },
+        {
+          "id": "room_floor",
+          "kind": "floor",
+          "description": "a small clear area of bedroom floor in front of the window, low enough to crouch on"
+        }
+      ],
+      "spatialRelations": [
+        {
+          "subjectId": "window",
+          "relation": "above",
+          "objectId": "wall_below_window"
+        },
+        {
+          "subjectId": "wall_below_window",
+          "relation": "above",
+          "objectId": "room_floor"
+        },
+        {
+          "subjectId": "curtain",
+          "relation": "adjacent_to",
+          "objectId": "window"
+        }
       ]
     },
     {
@@ -80,11 +125,40 @@
       "name": "Window-to-balcony threshold",
       "description": "The liminal spot where the characters move quietly from the bedroom toward the balcony, with the flashlight beginning to reveal the way.",
       "stableGeometry": [
-        "window or balcony-door frame",
-        "narrow threshold ledge",
-        "dark exterior just beyond",
-        "interior floor behind",
-        "first sliver of balcony railing visible ahead"
+        "balcony door \"balcony_door\": the glazed balcony door (vitrine) standing open — the ONE way out to the balcony and the opening the child and Uri step through; it is NOT the listening window, which stays behind them in the room",
+        "ledge \"threshold_ledge\": the narrow threshold ledge underfoot in the door opening",
+        "floor \"interior_floor\": the bedroom floor behind them, with the dark balcony just beyond the opening",
+        "\"balcony_door\" is above \"threshold_ledge\"",
+        "\"threshold_ledge\" is adjacent to \"interior_floor\""
+      ],
+      "spatialNodes": [
+        {
+          "id": "balcony_door",
+          "kind": "balcony_door",
+          "description": "the glazed balcony door (vitrine) standing open — the ONE way out to the balcony and the opening the child and Uri step through; it is NOT the listening window, which stays behind them in the room"
+        },
+        {
+          "id": "threshold_ledge",
+          "kind": "ledge",
+          "description": "the narrow threshold ledge underfoot in the door opening"
+        },
+        {
+          "id": "interior_floor",
+          "kind": "floor",
+          "description": "the bedroom floor behind them, with the dark balcony just beyond the opening"
+        }
+      ],
+      "spatialRelations": [
+        {
+          "subjectId": "balcony_door",
+          "relation": "above",
+          "objectId": "threshold_ledge"
+        },
+        {
+          "subjectId": "threshold_ledge",
+          "relation": "adjacent_to",
+          "objectId": "interior_floor"
+        }
       ]
     },
     {
@@ -93,11 +167,32 @@
       "name": "Dry railing listening and tapping area",
       "description": "Balcony area beside the dry metal railing where tapping echoes make the strange sound feel playful.",
       "stableGeometry": [
-        "dry metal railing running horizontally",
-        "balcony floor beneath",
-        "open night beyond railing",
-        "clear standing space beside rail",
-        "bucket corner visible farther along the balcony but not yet reached"
+        "railing \"railing\": the dry metal balcony railing running horizontally along the balcony edge at adult-waist height, with the open night beyond it",
+        "floor \"balcony_floor\": the balcony floor beneath the railing, with clear standing space beside the rail",
+        "\"railing\" is above \"balcony_floor\""
+      ],
+      "spatialNodes": [
+        {
+          "id": "railing",
+          "kind": "railing",
+          "description": "the dry metal balcony railing running horizontally along the balcony edge at adult-waist height, with the open night beyond it",
+          "bindsTo": {
+            "kind": "prop",
+            "id": "prop_metal_railing"
+          }
+        },
+        {
+          "id": "balcony_floor",
+          "kind": "floor",
+          "description": "the balcony floor beneath the railing, with clear standing space beside the rail"
+        }
+      ],
+      "spatialRelations": [
+        {
+          "subjectId": "railing",
+          "relation": "above",
+          "objectId": "balcony_floor"
+        }
       ]
     },
     {
@@ -106,12 +201,86 @@
       "name": "Bucket corner under the drip",
       "description": "Outer balcony corner with the small tin bucket, soft falling droplets, nearby chair leg and single slipper, where the mystery resolves into rhythm.",
       "stableGeometry": [
-        "old small tin bucket near balcony edge",
-        "vertical drip path above bucket",
-        "chair leg nearby",
-        "single slipper on floor nearby",
-        "railing continuing along the edge",
-        "enough floor space to sit at a comfortable listening distance"
+        "ledge \"drip_ledge\": the small fixed ledge overhead that the droplets fall from — the drip source, in the SAME place on every bucket-corner page",
+        "furniture \"bucket\": the old small tin bucket, standing still on the balcony floor directly beneath the drip",
+        "floor \"corner_floor\": the balcony corner floor, with enough space to sit at a comfortable listening distance",
+        "furniture \"chair_leg\": one simple chair leg standing nearby on the same floor",
+        "furniture \"slipper\": a single loose slipper lying on the floor nearby",
+        "railing \"corner_railing\": the same metal railing continuing along the balcony edge past the corner",
+        "\"bucket\" is below \"drip_ledge\"",
+        "\"bucket\" is adjacent to \"corner_railing\"",
+        "\"chair_leg\" is adjacent to \"bucket\"",
+        "\"slipper\" is adjacent to \"bucket\""
+      ],
+      "spatialNodes": [
+        {
+          "id": "drip_ledge",
+          "kind": "ledge",
+          "description": "the small fixed ledge overhead that the droplets fall from — the drip source, in the SAME place on every bucket-corner page"
+        },
+        {
+          "id": "bucket",
+          "kind": "furniture",
+          "description": "the old small tin bucket, standing still on the balcony floor directly beneath the drip",
+          "bindsTo": {
+            "kind": "prop",
+            "id": "prop_tin_bucket"
+          }
+        },
+        {
+          "id": "corner_floor",
+          "kind": "floor",
+          "description": "the balcony corner floor, with enough space to sit at a comfortable listening distance"
+        },
+        {
+          "id": "chair_leg",
+          "kind": "furniture",
+          "description": "one simple chair leg standing nearby on the same floor",
+          "bindsTo": {
+            "kind": "prop",
+            "id": "prop_chair_leg"
+          }
+        },
+        {
+          "id": "slipper",
+          "kind": "furniture",
+          "description": "a single loose slipper lying on the floor nearby",
+          "bindsTo": {
+            "kind": "prop",
+            "id": "prop_single_slipper"
+          }
+        },
+        {
+          "id": "corner_railing",
+          "kind": "railing",
+          "description": "the same metal railing continuing along the balcony edge past the corner",
+          "bindsTo": {
+            "kind": "prop",
+            "id": "prop_metal_railing"
+          }
+        }
+      ],
+      "spatialRelations": [
+        {
+          "subjectId": "bucket",
+          "relation": "below",
+          "objectId": "drip_ledge"
+        },
+        {
+          "subjectId": "bucket",
+          "relation": "adjacent_to",
+          "objectId": "corner_railing"
+        },
+        {
+          "subjectId": "chair_leg",
+          "relation": "adjacent_to",
+          "objectId": "bucket"
+        },
+        {
+          "subjectId": "slipper",
+          "relation": "adjacent_to",
+          "objectId": "bucket"
+        }
       ]
     }
   ],
@@ -176,10 +345,10 @@
     {
       "id": "prop_window",
       "name": "bedroom window",
-      "description": "The safe opening from the bedroom toward the balcony, where the mystery begins under the quiet night.",
+      "description": "The bedroom window the ticking is heard through — the page-1 listening spot. It is a WINDOW, not the way out: the balcony is reached through the balcony door at the threshold.",
       "material": "painted wood or simple metal frame with glass and soft curtains",
       "scale": "low enough for the child to look out and crouch near",
-      "persistence": "main anchor on pages 1-2 and implied as the balcony access afterward"
+      "persistence": "the SAME bedroom window wherever it appears (pages 1-2); never redrawn as, or merged with, the balcony door"
     },
     {
       "id": "prop_metal_railing",
@@ -212,6 +381,12 @@
       "material": "drawn graphic marks integrated into the illustration",
       "scale": "small, airy marks that do not dominate the scene",
       "persistence": "may appear wherever the sound is central, especially pages 3-12"
+    },
+    {
+      "id": "prop_imaginary_notebook",
+      "name": "imaginary notebook",
+      "description": "Uri's pretend notebook on page 3 — a playful thought-doodle he mimes writing in, never a real physical prop and never in the child's hands.",
+      "persistence": "only ever Uri's, and only on page 3; if drawn at all it stays a light doodle, not a solid object"
     }
   ],
   "forbiddenGlobalElements": [
@@ -263,7 +438,8 @@
         "water drops visibly identified",
         "flashlight beam turned on",
         "literal monster",
-        "clock"
+        "clock",
+        "old tin bucket"
       ],
       "propState": [
         {
@@ -280,7 +456,7 @@
         },
         {
           "propId": "prop_tin_bucket",
-          "state": "not visible or hidden in darkness"
+          "state": "not visible on this page — the bucket is first revealed on page 5"
         }
       ],
       "camera": "Interior medium shot from inside the room toward the window, low enough to feel child-height and close to the listening action.",
@@ -297,7 +473,13 @@
       "characterPresence": {
         "child": true,
         "companion": true
-      }
+      },
+      "propConstraints": [
+        {
+          "propId": "prop_tin_bucket",
+          "visibility": "forbidden"
+        }
+      ]
     },
     {
       "pageNumber": 2,
@@ -316,7 +498,8 @@
         "large confident searchlight",
         "extra lamps turned on",
         "monster silhouette",
-        "clock"
+        "clock",
+        "old tin bucket"
       ],
       "propState": [
         {
@@ -333,7 +516,7 @@
         },
         {
           "propId": "prop_tin_bucket",
-          "state": "still hidden beyond the threshold"
+          "state": "not visible on this page — the bucket is first revealed on page 5"
         }
       ],
       "camera": "Close threshold view, focusing on the tiny flashlight glow and Uri's nose, with the dark balcony beyond.",
@@ -350,7 +533,13 @@
       "characterPresence": {
         "child": true,
         "companion": true
-      }
+      },
+      "propConstraints": [
+        {
+          "propId": "prop_tin_bucket",
+          "visibility": "forbidden"
+        }
+      ]
     },
     {
       "pageNumber": 3,
@@ -362,14 +551,18 @@
         "child counting the steady rhythm in a whisper",
         "Uri pretending to write in an imaginary notebook; if shown, it should feel like a playful thought doodle, not a real prop",
         "regular טיק־טאק beat marks becoming less frightening and more curious",
-        "small flashlight glow keeping the scene gentle"
+        "small flashlight glow keeping the scene gentle",
+        "imaginary notebook",
+        "השועל אוּרי holds imaginary notebook"
       ],
       "mustNotShow": [
         "real physical notebook required in Uri's paws",
         "bucket revealed as source",
         "water drop touching finger",
         "monster",
-        "clock"
+        "clock",
+        "old tin bucket",
+        "the child must NOT holds imaginary notebook"
       ],
       "propState": [
         {
@@ -386,7 +579,7 @@
         },
         {
           "propId": "prop_tin_bucket",
-          "state": "not yet the focus; may be distant and obscured"
+          "state": "not visible on this page — the bucket is first revealed on page 5"
         }
       ],
       "camera": "Medium-wide balcony shot showing the transition from threshold to railing, with sound marks floating lightly in the night air.",
@@ -403,7 +596,39 @@
       "characterPresence": {
         "child": true,
         "companion": true
-      }
+      },
+      "propConstraints": [
+        {
+          "propId": "prop_tin_bucket",
+          "visibility": "forbidden"
+        },
+        {
+          "propId": "prop_imaginary_notebook",
+          "visibility": "required"
+        }
+      ],
+      "actionRequirements": [
+        {
+          "checkId": "action:uri_holds_notebook",
+          "actorId": "companion:fox_uri",
+          "predicate": "holds",
+          "object": {
+            "kind": "prop",
+            "id": "prop_imaginary_notebook"
+          },
+          "polarity": "must"
+        },
+        {
+          "checkId": "action:child_holds_no_notebook",
+          "actorId": "child:hero",
+          "predicate": "holds",
+          "object": {
+            "kind": "prop",
+            "id": "prop_imaginary_notebook"
+          },
+          "polarity": "must_not"
+        }
+      ]
     },
     {
       "pageNumber": 4,
@@ -415,14 +640,18 @@
         "clear echo marks טָאק־טָאק־טָאק returning from the railing",
         "Uri counting down dramatically and then freezing in comic caution",
         "the railing as a dry, safe metal surface",
-        "quiet shared laughter"
+        "quiet shared laughter",
+        "dry metal railing"
       ],
       "mustNotShow": [
         "wet railing",
         "bucket already centered",
         "water source explanation",
         "scary echo creature",
-        "any left/right emphasis"
+        "any left/right emphasis",
+        "old tin bucket",
+        "the child must NOT sit on the railing",
+        "the child must NOT pass beyond the railing"
       ],
       "propState": [
         {
@@ -439,7 +668,7 @@
         },
         {
           "propId": "prop_tin_bucket",
-          "state": "still secondary or off to the side"
+          "state": "not visible on this page — the bucket is first revealed on page 5"
         }
       ],
       "camera": "Close-medium shot at railing height, emphasizing fingertip tap, echo marks, and Uri's comic reaction.",
@@ -456,7 +685,45 @@
       "characterPresence": {
         "child": true,
         "companion": true
-      }
+      },
+      "propConstraints": [
+        {
+          "propId": "prop_tin_bucket",
+          "visibility": "forbidden"
+        },
+        {
+          "propId": "prop_metal_railing",
+          "visibility": "required"
+        }
+      ],
+      "safetyConstraints": [
+        {
+          "subjectId": "child:hero",
+          "relation": "must_not_sit_on",
+          "target": {
+            "kind": "spatial",
+            "id": "railing"
+          },
+          "origin": {
+            "kind": "policy_default",
+            "policyId": "child-safety.no-perch-on-railing",
+            "version": "1"
+          }
+        },
+        {
+          "subjectId": "child:hero",
+          "relation": "must_not_pass_beyond",
+          "target": {
+            "kind": "spatial",
+            "id": "railing"
+          },
+          "origin": {
+            "kind": "policy_default",
+            "policyId": "child-safety.stay-behind-railing",
+            "version": "1"
+          }
+        }
+      ]
     },
     {
       "pageNumber": 5,
@@ -469,14 +736,16 @@
         "beam landing in sequence on floor, chair leg, one slipper, then toward the balcony edge",
         "small shiny old tin bucket discovered at the edge",
         "child beginning to approach the bucket slowly",
-        "single isolated טיק from the bucket"
+        "single isolated טיק from the bucket",
+        "old tin bucket"
       ],
       "mustNotShow": [
         "bucket moving by itself",
         "real monster features on bucket",
         "many slippers",
         "flooding water",
-        "bright overhead light"
+        "bright overhead light",
+        "the child must NOT sit on the railing"
       ],
       "propState": [
         {
@@ -514,7 +783,28 @@
       "characterPresence": {
         "child": true,
         "companion": true
-      }
+      },
+      "propConstraints": [
+        {
+          "propId": "prop_tin_bucket",
+          "visibility": "required"
+        }
+      ],
+      "safetyConstraints": [
+        {
+          "subjectId": "child:hero",
+          "relation": "must_not_sit_on",
+          "target": {
+            "kind": "spatial",
+            "id": "railing"
+          },
+          "origin": {
+            "kind": "policy_default",
+            "policyId": "child-safety.no-perch-on-railing",
+            "version": "1"
+          }
+        }
+      ]
     },
     {
       "pageNumber": 6,
@@ -527,14 +817,16 @@
         "bucket rim catching cool highlights",
         "comic sneeze moment from Uri",
         "bucket echoing the sneeze with צ׳י־צ׳י־צ׳י sound marks",
-        "sense that something inside or above the bucket is making music"
+        "sense that something inside or above the bucket is making music",
+        "old tin bucket"
       ],
       "mustNotShow": [
         "child putting head inside bucket",
         "dangerous sharp bucket edge",
         "large splash",
         "monster face inside bucket",
-        "left/right arm detail"
+        "left/right arm detail",
+        "the child must NOT be inside old tin bucket"
       ],
       "propState": [
         {
@@ -568,7 +860,28 @@
       "characterPresence": {
         "child": true,
         "companion": true
-      }
+      },
+      "propConstraints": [
+        {
+          "propId": "prop_tin_bucket",
+          "visibility": "required"
+        }
+      ],
+      "safetyConstraints": [
+        {
+          "subjectId": "child:hero",
+          "relation": "must_not_be_inside",
+          "target": {
+            "kind": "prop",
+            "id": "prop_tin_bucket"
+          },
+          "origin": {
+            "kind": "story_evidence",
+            "page": 6,
+            "phrase": "אוזן לשפת הדלי"
+          }
+        }
+      ]
     },
     {
       "pageNumber": 7,
@@ -581,7 +894,8 @@
         "child extending one small finger for a cool droplet to touch",
         "Uri visibly relieved beside the bucket",
         "bucket now understood as wet and harmless",
-        "Uri apologizing gently to the bucket"
+        "Uri apologizing gently to the bucket",
+        "old tin bucket"
       ],
       "mustNotShow": [
         "bucket as a creature with eyes or mouth",
@@ -622,7 +936,13 @@
       "characterPresence": {
         "child": true,
         "companion": true
-      }
+      },
+      "propConstraints": [
+        {
+          "propId": "prop_tin_bucket",
+          "visibility": "required"
+        }
+      ]
     },
     {
       "pageNumber": 8,
@@ -634,7 +954,8 @@
         "pattern of three drops, a small silence, then two more drops",
         "Uri trying to repeat the pattern incorrectly in a playful way",
         "bucket as the center of a small ordered rhythm",
-        "friendly visual spacing between sound marks to show the pattern"
+        "friendly visual spacing between sound marks to show the pattern",
+        "old tin bucket"
       ],
       "mustNotShow": [
         "explosion or real boom effect",
@@ -675,7 +996,13 @@
       "characterPresence": {
         "child": true,
         "companion": true
-      }
+      },
+      "propConstraints": [
+        {
+          "propId": "prop_tin_bucket",
+          "visibility": "required"
+        }
+      ]
     },
     {
       "pageNumber": 9,
@@ -688,7 +1015,8 @@
         "next droplet landing in a different spot with a soft פְּלוּפּ",
         "Uri surprised by the changed sound",
         "child pleased that listening can turn noise into rhythm",
-        "before-and-after sound contrast visible: not טיק, not טאק, but פלופ"
+        "before-and-after sound contrast visible: not טיק, not טאק, but פלופ",
+        "old tin bucket"
       ],
       "mustNotShow": [
         "rough grabbing or swinging bucket",
@@ -729,7 +1057,13 @@
       "characterPresence": {
         "child": true,
         "companion": true
-      }
+      },
+      "propConstraints": [
+        {
+          "propId": "prop_tin_bucket",
+          "visibility": "required"
+        }
+      ]
     },
     {
       "pageNumber": 10,
@@ -742,7 +1076,8 @@
         "water droplets answering in time",
         "Uri making playful mouth rhythm פּוּם־פָּאם",
         "Uri's nose catching a small rhythmic glint from the flashlight",
-        "the mood now clearly playful and calm"
+        "the mood now clearly playful and calm",
+        "old tin bucket"
       ],
       "mustNotShow": [
         "hard banging on bucket",
@@ -783,7 +1118,13 @@
       "characterPresence": {
         "child": true,
         "companion": true
-      }
+      },
+      "propConstraints": [
+        {
+          "propId": "prop_tin_bucket",
+          "visibility": "required"
+        }
+      ]
     },
     {
       "pageNumber": 11,
@@ -796,7 +1137,8 @@
         "one soft פלופ droplet",
         "both characters calm and not startled",
         "tiny warm flashlight glow illuminating just a little",
-        "night still present but friendly"
+        "night still present but friendly",
+        "old tin bucket"
       ],
       "mustNotShow": [
         "jump-scare pose",
@@ -837,7 +1179,13 @@
       "characterPresence": {
         "child": true,
         "companion": true
-      }
+      },
+      "propConstraints": [
+        {
+          "propId": "prop_tin_bucket",
+          "visibility": "required"
+        }
+      ]
     },
     {
       "pageNumber": 12,
@@ -849,7 +1197,8 @@
         "Uri's neck flashlight remaining small and warm",
         "child listening for one more calm moment",
         "tin bucket, droplets, and the little named song as the final emotional focus",
-        "balcony night ending peacefully without mystery or fear"
+        "balcony night ending peacefully without mystery or fear",
+        "old tin bucket"
       ],
       "mustNotShow": [
         "monster reveal",
@@ -890,7 +1239,13 @@
       "characterPresence": {
         "child": true,
         "companion": true
-      }
+      },
+      "propConstraints": [
+        {
+          "propId": "prop_tin_bucket",
+          "visibility": "required"
+        }
+      ]
     }
   ],
   "provenance": {

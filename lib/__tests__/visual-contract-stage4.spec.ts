@@ -123,7 +123,7 @@ describe('Stage 4 — the baseline still holds (additive proof)', () => {
     expect(validateBookVisualContract(artifact).ok).toBe(true);
   });
 
-  it('both shipped TEMPLATES still validate — every Stage-4 rule is gated on structure they do not author', () => {
+  it('both shipped TEMPLATES still validate (bunny authors no structure; fox is the hand-authored proof slot)', () => {
     for (const key of ['bunny_ometz_adventure', 'fox_uri_adventure']) {
       const template = JSON.parse(readFileSync(`story-bank/v3-approved/${key}.visual-contract-template.json`, 'utf8'));
       expect(() => assertValidBookVisualContractTemplate(template)).not.toThrow();

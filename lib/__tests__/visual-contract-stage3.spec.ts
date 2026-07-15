@@ -149,14 +149,25 @@ describe('Stage 3 — THE CANARY: the shipped artifacts still load, validate and
     expect(validateBookVisualContract(artifact).ok).toBe(true);
   });
 
-  it('both shipped TEMPLATES still validate end-to-end (they author stableGeometry prose and NO structure)', () => {
+  it('both shipped TEMPLATES still validate end-to-end', () => {
     for (const key of ['bunny_ometz_adventure', 'fox_uri_adventure']) {
       const template = JSON.parse(
         readFileSync(`story-bank/v3-approved/${key}.visual-contract-template.json`, 'utf8')
       );
       expect(() => assertValidBookVisualContractTemplate(template)).not.toThrow();
-      // The v1 compat proof: hand-authored geometry prose with no `spatialNodes` → the Tier-A switch stays OFF.
-      for (const z of template.zones) expect(z.spatialNodes).toBeUndefined();
+    }
+  });
+
+  it('bunny is still pure-v1 — no zone authors structure, so the Tier-A switch stays OFF and its prose is untouched', () => {
+    // The v1 compatibility proof. (fox is deliberately NOT here: it is the Contract-v2 PROOF slot and now
+    // hand-authors structure — see fox-uri-adventure-structured-contract.spec.ts. That is exactly the per-ZONE,
+    // per-artifact switch this schema was designed for: one artifact migrates without touching the others.)
+    const bunny = JSON.parse(
+      readFileSync('story-bank/v3-approved/bunny_ometz_adventure.visual-contract-template.json', 'utf8')
+    );
+    for (const z of bunny.zones) {
+      expect(z.spatialNodes).toBeUndefined();
+      expect(Array.isArray(z.stableGeometry)).toBe(true); // hand-authored prose, still authoritative for bunny
     }
   });
 });
