@@ -6,7 +6,13 @@
  * A malformed contract (bad LLM JSON, dangling locationId, zone in the wrong location — the exact
  * gate→cave class of bug) must FAIL CLOSED, never silently pass.
  */
-import { projectZoneStableGeometry } from './projectContractProse';
+import { resolvePageCheckIds } from './pageCheckIds';
+import {
+  projectCoverMustNotShow,
+  projectPageMustNotShow,
+  projectPageMustShow,
+  projectZoneStableGeometry,
+} from './projectContractProse';
 import {
   BOOK_VISUAL_CONTRACT_VERSION,
   type BookVisualContract,
@@ -49,7 +55,22 @@ function isStrArr(v: unknown): v is string[] {
  */
 const SPATIAL_NODE_KINDS = new Set(['doorway', 'window', 'balcony_door', 'railing', 'ledge', 'wall', 'floor', 'furniture']);
 const SPATIAL_RELATION_KINDS = new Set(['on_same_wall_as', 'adjacent_to', 'opposite_to', 'above', 'below', 'centered_in']);
-const PROP_VISIBILITIES = new Set(['required', 'forbidden', 'optional']);
+// Stage-4 decision: 'optional' is DROPPED — it emitted no steering yet moved the frozen hash (the no-op class this
+// layer rejects). The absence of a constraint already means "optional"; omit the entry instead.
+const PROP_VISIBILITIES = new Set(['required', 'forbidden']);
+
+/* ── Stage 4 — relation coherence tables ────────────────────────────────────────────────────────── */
+/** Order-independent relations: `adjacent_to(a,b)` states the SAME fact as `adjacent_to(b,a)`. */
+const SYMMETRIC_RELATIONS = new Set(['on_same_wall_as', 'adjacent_to', 'opposite_to']);
+/** Directed relations that are each other's inverse — `above(a,b)` states the SAME fact as `below(b,a)`. */
+const INVERSE_RELATIONS: Record<string, string> = { above: 'below', below: 'above' };
+/** Relation pairs that cannot both hold between the same two nodes. */
+const MUTUALLY_EXCLUSIVE_RELATIONS: Array<[string, string]> = [['on_same_wall_as', 'opposite_to']];
+/** Positive predicates whose REQUIRED form is directly contradicted by a hazard on the same subject + target. */
+const ACTION_SAFETY_CONFLICT: Record<string, string> = {
+  sits_on: 'must_not_sit_on',
+  stands_on: 'must_not_stand_on',
+};
 const ACTION_PREDICATES = new Set(['holds', 'offers', 'touches', 'looks_at', 'reaches_toward', 'climbs_onto', 'sits_on', 'stands_on', 'points_at']);
 const ACTION_POLARITIES = new Set(['must', 'must_not']);
 const SAFETY_RELATIONS = new Set([
@@ -312,6 +333,78 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
           errors.push(`${rLabel} references unknown spatialNode objectId "${r.objectId}" — relations are INTRA-ZONE only`);
         }
       });
+
+      // ── Stage 4: relation COHERENCE — self-reference, exact duplication, and contradiction. All three are
+      // decidable from the zone alone. Facts are canonicalized first so the SAME statement written two ways is
+      // recognized as one: a symmetric relation is order-independent, and `below(a,b)` IS `above(b,a)`.
+      const canonicalFacts = new Map<string, string>(); // canonical key → the source label that declared it
+      const pairRelations = new Map<string, Set<string>>(); // unordered node pair → the relations asserted on it
+      relations.forEach((r, j) => {
+        if (!isObj(r) || !isStr(r.subjectId) || !isStr(r.relation)) return;
+        if (!SPATIAL_RELATION_KINDS.has(r.relation)) return; // enum already reported
+        const rLabel = `${zLabel}.spatialRelations[${j}]`;
+
+        if (r.relation === 'centered_in') {
+          const key = `centered_in|${r.subjectId}`;
+          if (canonicalFacts.has(key)) errors.push(`${rLabel} duplicates the relation already declared by ${canonicalFacts.get(key)}`);
+          else canonicalFacts.set(key, rLabel);
+          return;
+        }
+        if (!isStr(r.objectId)) return; // missing objectId already reported
+
+        // A node cannot be spatially related to ITSELF — no such geometry fact exists.
+        if (r.objectId === r.subjectId) {
+          errors.push(`${rLabel} relates spatialNode "${r.subjectId}" to itself ("${r.relation}") — a node has no spatial relation to itself`);
+          return;
+        }
+
+        // Canonicalize: symmetric → sorted pair; below(a,b) → above(b,a). One fact, one key.
+        let key: string;
+        if (SYMMETRIC_RELATIONS.has(r.relation)) {
+          key = `${r.relation}|${[r.subjectId, r.objectId].sort().join('~')}`;
+        } else if (r.relation === 'below') {
+          key = `above|${r.objectId}>${r.subjectId}`;
+        } else {
+          key = `${r.relation}|${r.subjectId}>${r.objectId}`;
+        }
+        const prior = canonicalFacts.get(key);
+        if (prior) {
+          errors.push(
+            `${rLabel} duplicates the relation already declared by ${prior} (the same fact stated twice — it moves the frozen hash and steers nothing)`
+          );
+          return;
+        }
+        canonicalFacts.set(key, rLabel);
+
+        // Contradiction A — the inverse of a declared directed fact: above(a,b) AND above(b,a) cannot both hold.
+        if (INVERSE_RELATIONS[r.relation]) {
+          const inverseKey =
+            r.relation === 'below'
+              ? `above|${r.subjectId}>${r.objectId}`
+              : `above|${r.objectId}>${r.subjectId}`;
+          const clash = canonicalFacts.get(inverseKey);
+          if (clash && clash !== rLabel) {
+            errors.push(
+              `${rLabel} contradicts ${clash}: "${r.subjectId}" and "${r.objectId}" cannot each be above the other`
+            );
+          }
+        }
+
+        const pairKey = [r.subjectId, r.objectId].sort().join('~');
+        if (!pairRelations.has(pairKey)) pairRelations.set(pairKey, new Set());
+        pairRelations.get(pairKey)!.add(r.relation);
+      });
+
+      // Contradiction B — mutually exclusive relations asserted on the same pair of nodes.
+      for (const [pairKey, rels] of pairRelations) {
+        for (const [a, b] of MUTUALLY_EXCLUSIVE_RELATIONS) {
+          if (rels.has(a) && rels.has(b)) {
+            errors.push(
+              `${zLabel}.spatialRelations declares both "${a}" and "${b}" between the same nodes (${pairKey.replace('~', ' / ')}) — they cannot both hold`
+            );
+          }
+        }
+      }
     }
 
     // TIER A — THE AUTHORITY SWITCH. The moment a zone authors `spatialNodes`, its `stableGeometry` prose stops
@@ -348,6 +441,20 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
     if (!isStr(cover.locationId) || !locationIds.has(cover.locationId)) {
       errors.push(`coverContract.locationId "${String(cover.locationId)}" not a declared location`);
     }
+    // (Stage 4) The cover's steering arrays were validated NOWHERE — yet the cover is the book's promise, and for a
+    // contract-driven cover its `mustNotShow` is the SOLE no-spoiler authority. Require the shape.
+    //
+    // `[]` STAYS LEGAL, deliberately: 2 of the 3 shipped artifacts author `mustNotShow: []` on real pages, and a
+    // contract-load throw is CAUGHT by the freeze path and degrades silently to legacy — so rejecting `[]` would buy
+    // a SILENT loss of steering, not a loud failure. Only the shape and blank entries are tightened.
+    if (!isStrArr(cover.mustShow)) errors.push('coverContract.mustShow must be a string[]');
+    else if (cover.mustShow.some((s) => !isStr(s))) {
+      errors.push('coverContract.mustShow contains a blank entry — omit it instead of authoring ""');
+    }
+    if (!isStrArr(cover.mustNotShow)) errors.push('coverContract.mustNotShow must be a string[]');
+    else if (cover.mustNotShow.some((s) => !isStr(s))) {
+      errors.push('coverContract.mustNotShow contains a blank entry — omit it instead of authoring ""');
+    }
   }
 
   // Page contracts — the core authority checks.
@@ -371,8 +478,16 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
       }
     }
     if (!isStr(pc.camera)) errors.push(`${label}.camera missing`);
+    // (Stage 4) `[]` stays legal here too (shipped artifacts author `mustNotShow: []`) — but a BLANK entry is
+    // always an authoring bug: it steers nothing and `isStrArr` used to wave `['']` straight through.
     if (!isStrArr(pc.mustShow)) errors.push(`${label}.mustShow must be a string[]`);
+    else if (pc.mustShow.some((s) => !isStr(s))) {
+      errors.push(`${label}.mustShow contains a blank entry — omit it instead of authoring ""`);
+    }
     if (!isStrArr(pc.mustNotShow)) errors.push(`${label}.mustNotShow must be a string[]`);
+    else if (pc.mustNotShow.some((s) => !isStr(s))) {
+      errors.push(`${label}.mustNotShow contains a blank entry — omit it instead of authoring ""`);
+    }
     if (!isObj(pc.characterPresence) || typeof (pc.characterPresence as Record<string, unknown>).child !== 'boolean') {
       errors.push(`${label}.characterPresence.child must be boolean`);
     }
@@ -434,6 +549,9 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
     }
 
     // ── Contract v2 (Stage 3): structured per-page PROPS / ACTIONS / HAZARDS. Present-only, like every rule above.
+    const errorsBeforePageV2 = errors.length;
+    /** propId → visibility on THIS page. Stage 4 reads it to detect action↔visibility conflicts. */
+    const visibilityByProp = new Map<string, string>();
     const pageCastIdSet = new Set(Array.isArray(pc.castIds) ? (pc.castIds as unknown[]).filter(isStr) : []);
     const pageZone = isStr(pc.zoneId) ? zoneById.get(pc.zoneId) : undefined;
     const zoneNodeIds = new Set<string>(
@@ -448,7 +566,6 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
 
     const propConstraints = nonEmptyArrayOrNull(pc.propConstraints, `${label}.propConstraints`, errors);
     if (propConstraints) {
-      const visibilityByProp = new Map<string, string>();
       propConstraints.forEach((raw, j) => {
         const cLabel = `${label}.propConstraints[${j}]`;
         if (!isObj(raw) || !isStr(raw.propId)) {
@@ -563,7 +680,141 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
         }
       });
     }
+
+    // ── Stage 4: cross-field conflicts, check-id resolution, TIER-B containment. Gated on THIS page's v2 structure
+    // being sound — deriving from entries we already rejected would pile confusing errors onto the real ones and
+    // hand malformed input to the projections.
+    if (errors.length === errorsBeforePageV2) {
+      const pcTyped = pc as unknown as PageVisualContract;
+      const contractView = c as unknown as BookVisualContract;
+
+      // (a) A REQUIRED action must not contradict a visibility or safety constraint on the same page.
+      const beats = new Map<string, Set<string>>(); // actor|predicate|object → the polarities asserted for it
+      (Array.isArray(pc.actionRequirements) ? (pc.actionRequirements as unknown[]) : []).forEach((raw, j) => {
+        if (!isObj(raw)) return;
+        const aLabel = `${label}.actionRequirements[${j}]`;
+        const objRef = isObj(raw.object) ? (raw.object as { kind?: unknown; id?: unknown }) : null;
+        const beatKey = `${String(raw.actorId)}|${String(raw.predicate)}|${objRef ? `${String(objRef.kind)}:${String(objRef.id)}` : '-'}`;
+        if (!beats.has(beatKey)) beats.set(beatKey, new Set());
+        beats.get(beatKey)!.add(String(raw.polarity));
+
+        if (raw.polarity !== 'must') return;
+
+        // vs a FORBIDDEN prop — the page requires the actor to act on something it also says must not be visible.
+        if (objRef && objRef.kind === 'prop' && isStr(objRef.id) && visibilityByProp.get(objRef.id) === 'forbidden') {
+          errors.push(
+            `${aLabel} requires "${String(raw.actorId)}" to ${String(raw.predicate)} prop "${objRef.id}", but propConstraints FORBIDS that prop on this page — a required action cannot act on a forbidden prop`
+          );
+        }
+
+        // vs a HAZARD — the page requires exactly what a safetyConstraint prohibits, for the same subject+target.
+        const banned = ACTION_SAFETY_CONFLICT[String(raw.predicate)];
+        if (banned && objRef && isStr(objRef.id)) {
+          for (const rawS of Array.isArray(pc.safetyConstraints) ? (pc.safetyConstraints as unknown[]) : []) {
+            if (!isObj(rawS) || !isObj(rawS.target)) continue;
+            const t = rawS.target as { kind?: unknown; id?: unknown };
+            if (rawS.relation === banned && rawS.subjectId === raw.actorId && t.kind === objRef.kind && t.id === objRef.id) {
+              errors.push(
+                `${aLabel} requires "${String(raw.actorId)}" to ${String(raw.predicate)} ${String(objRef.kind)}:"${String(objRef.id)}", but a safetyConstraint on this page declares "${banned}" for the same subject and target — the page requires the hazard it forbids`
+              );
+            }
+          }
+        }
+      });
+      for (const [beatKey, polarities] of beats) {
+        if (polarities.has('must') && polarities.has('must_not')) {
+          errors.push(
+            `${label}.actionRequirements declares the same beat (${beatKey}) as BOTH must and must_not — self-contradictory`
+          );
+        }
+      }
+
+      // (b) Every enforcement-relevant claim must resolve to a UNIQUE check id. Stage 5 binds exactly one QA result
+      // per required id, so two claims sharing an id is an ambiguity it could not resolve.
+      const idCounts = new Map<string, number>();
+      for (const chk of resolvePageCheckIds(pcTyped)) {
+        idCounts.set(chk.checkId, (idCounts.get(chk.checkId) ?? 0) + 1);
+      }
+      for (const [checkId, n] of idCounts) {
+        if (n > 1) {
+          errors.push(
+            `${label} resolves ${n} enforcement checks to the same checkId "${checkId}" — every enforcement-relevant claim needs a UNIQUE resolved id (Stage 5 binds exactly one QA result per id)`
+          );
+        }
+      }
+
+      // (c) TIER-B CONTAINMENT — the stored prose must CONTAIN the structure's projection. NOT equality:
+      // mustShow/mustNotShow are multi-source (zone exclusions, style guards, spoiler prose), so extra stored
+      // steering is legitimate and must survive. A v1 page projects nothing → vacuously contained.
+      const missingFrom = (projected: string[], stored: unknown): string[] => {
+        const have = isStrArr(stored) ? stored : [];
+        return projected.filter((p) => !have.includes(p));
+      };
+      const missShow = missingFrom(projectPageMustShow(pcTyped, contractView), pc.mustShow);
+      if (missShow.length > 0) {
+        errors.push(
+          `${label}.mustShow does not CONTAIN its structure's projection — missing ${JSON.stringify(missShow)}. Every projected requirement must appear in mustShow (extra hand-authored steering is allowed; a projected one may not be dropped)`
+        );
+      }
+      const missNot = missingFrom(projectPageMustNotShow(pcTyped, contractView), pc.mustNotShow);
+      if (missNot.length > 0) {
+        errors.push(
+          `${label}.mustNotShow does not CONTAIN its structure's projection — missing ${JSON.stringify(missNot)}`
+        );
+      }
+    }
   });
+
+  // ── Stage 4: PROP LIFECYCLE (cross-page). `firstRevealPage` lives on the PROP precisely so ONE book-level fact
+  // governs every page — this is where that fact is enforced against them. Gated on the key being authored, so a
+  // contract with no lifecycle is untouched.
+  {
+    const firstReveal = new Map<string, number>();
+    props.forEach((p) => {
+      if (isObj(p) && isStr(p.id) && typeof p.firstRevealPage === 'number' && Number.isInteger(p.firstRevealPage)) {
+        firstReveal.set(p.id, p.firstRevealPage);
+      }
+    });
+    if (firstReveal.size > 0) {
+      const maxPage = pages.reduce(
+        (max: number, p) => (isObj(p) && typeof p.pageNumber === 'number' && p.pageNumber > max ? p.pageNumber : max),
+        0
+      );
+      for (const [propId, reveal] of firstReveal) {
+        if (maxPage > 0 && reveal > maxPage) {
+          errors.push(
+            `recurringProp "${propId}" firstRevealPage ${reveal} is beyond the book's last page (${maxPage}) — the lifecycle must reference a page that exists`
+          );
+        }
+      }
+      pages.forEach((p) => {
+        if (!isObj(p) || typeof p.pageNumber !== 'number' || !Array.isArray(p.propConstraints)) return;
+        const pageNumber = p.pageNumber; // narrowed here; the nested closure would lose it
+        (p.propConstraints as unknown[]).forEach((raw, j) => {
+          if (!isObj(raw) || !isStr(raw.propId) || raw.visibility !== 'required') return;
+          const reveal = firstReveal.get(raw.propId);
+          if (reveal !== undefined && pageNumber < reveal) {
+            errors.push(
+              `page ${pageNumber}.propConstraints[${j}] REQUIRES prop "${raw.propId}" on a page BEFORE its firstRevealPage (${reveal}) — a prop cannot be required before it is revealed (lifecycle violation / spoiler)`
+            );
+          }
+        });
+      });
+
+      // The cover's no-spoiler line is a pure lifecycle read (the cover has no page contract), so it is the one
+      // containment rule that lives at book level. A prop with a firstRevealPage is BY DEFINITION a cover spoiler.
+      if (cover) {
+        const coverProjection = projectCoverMustNotShow(c as unknown as BookVisualContract);
+        const storedCover = isStrArr(cover.mustNotShow) ? cover.mustNotShow : [];
+        const missingCover = coverProjection.filter((p) => !storedCover.includes(p));
+        if (missingCover.length > 0) {
+          errors.push(
+            `coverContract.mustNotShow does not CONTAIN the prop-lifecycle projection — missing ${JSON.stringify(missingCover)}. A prop carrying a firstRevealPage is by definition a cover spoiler`
+          );
+        }
+      }
+    }
+  }
 
   if (errors.length > 0) return { ok: false, errors };
   return { ok: true, contract: input as unknown as BookVisualContract };

@@ -179,6 +179,13 @@ export {
   projectPageActionProse,
   projectPageSafetyProse,
 } from './projectContractProse';
+/**
+ * (Stage 4) Deterministic check-id resolution for a page's enforcement-relevant claims — Stage 5 binds exactly one
+ * QA result per id, and the validator rejects a page whose claims collide on one.
+ */
+export { resolvePageCheckIds, type PageCheck, type PageCheckKind } from './pageCheckIds';
+/** (Stage 4) A hazard citing a story quote must be quoting that page — needs the SOURCE, so the compiler calls it. */
+export { sourceEvidenceErrors, type SourceEvidencePage } from './validateSourceEvidence';
 export {
   bindingCoherenceError,
   coherentOriginKindsFor,

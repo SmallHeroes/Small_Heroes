@@ -301,12 +301,14 @@ export interface PageTransition {
  *
  *  - `required`  the prop MUST be visible on this page.
  *  - `forbidden` the prop MUST NOT be visible on this page.
- *  - `optional`  the prop MAY be visible — an EXPLICIT permission, distinct from silence, for stating a deliberate
- *                exception to the `RecurringProp.firstRevealPage` lifecycle default. It emits no steering of its own;
- *                Stage 4 decides whether to reject it as a no-op (an entry that moves the frozen hash while emitting
- *                nothing is the class this layer normally rejects — cf. the castId-only rule).
+ *
+ * STAGE-4 DECISION — `'optional'` is DROPPED (it existed in the Stage-3 draft and in the original brief). It emitted
+ * no steering whatsoever (neither projector reads it, so it reached neither the prompt nor any gate) yet it MOVED the
+ * frozen contract hash — precisely the no-op class this layer already rejects (cf. the castId-only rule). The ABSENCE
+ * of a constraint already MEANS "optional": the value was pure redundancy with a real cost. Omit the entry instead.
+ * A deliberate lifecycle exception is expressed by the prop's `firstRevealPage`, not by a per-page no-op.
  */
-export type PropVisibility = 'required' | 'forbidden' | 'optional';
+export type PropVisibility = 'required' | 'forbidden';
 
 export interface PagePropConstraint {
   /** MUST resolve to a `recurringProps[].id`. */

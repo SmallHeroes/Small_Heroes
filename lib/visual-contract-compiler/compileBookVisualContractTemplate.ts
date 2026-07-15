@@ -20,7 +20,9 @@ import type {
   TemplateTraitBinding,
 } from './contractTemplateTypes';
 import { PALETTE_VERSION, VISUAL_CONTRACT_SCHEMA_VERSION } from './contractTemplateTypes';
+import type { BookVisualContract } from './types';
 import { assertValidBookVisualContractTemplate, InvalidTemplateContractError } from './validateTemplateContract';
+import { sourceEvidenceErrors } from './validateSourceEvidence';
 import { parseContractJson } from './compileBookVisualContract';
 import type { ContractLlmCaller } from './compileBookVisualContract';
 import {
@@ -582,6 +584,14 @@ function assembleTemplateFromDraft(
   // STRUCTURAL INVARIANT (fail-closed): every cast identity + presence must match the input/facts EXACTLY, so a
   // future refactor that lets draft.cast leak into identity/presence throws here instead of shipping.
   assertCastIsFactAuthoritative(template, facts, input);
+
+  // (Stage 4) FAIL-CLOSED source-evidence check: a hazard that CITES a story quote must actually be quoting that
+  // page. Only the compiler holds the source pages, so this cannot live in the validators. An unchecked citation is
+  // the same hallucination surface assertSourceHasRealProse closes — an invented-but-consistent claim passes every
+  // structural check. Errors are thrown as InvalidTemplateContractError so the bounded repair loop consumes them
+  // exactly like validator errors.
+  const evidenceErrors = sourceEvidenceErrors(template as unknown as BookVisualContract, input.pages);
+  if (evidenceErrors.length > 0) throw new InvalidTemplateContractError(evidenceErrors);
 
   // FAIL-CLOSED — never return an invalid candidate.
   assertValidBookVisualContractTemplate(template);

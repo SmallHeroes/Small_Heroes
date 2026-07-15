@@ -103,10 +103,35 @@ function structuredPage(c: BookVisualContract) {
   };
 }
 
-/** A fully structured contract (structured zone + structured page). */
+/**
+ * Attach the prose each page's own structure projects, so Stage-4 TIER-B CONTAINMENT is satisfied.
+ *
+ * Stage 4 wired the rule that the stored prose must CONTAIN the structure's projection (extra hand-authored steering
+ * is still allowed). These Stage-3 fixtures author structure, so they must now carry its projection too — which is
+ * exactly the authoring contract Stage 9's mint script will satisfy by construction. Projections are computed
+ * against the FINAL contract, since a spatial ref's label resolves through the page's own zone.
+ */
+function withProjectedProse(contract: BookVisualContract): BookVisualContract {
+  const pageContracts = contract.pageContracts.map((p) => ({
+    ...p,
+    mustShow: [...(p.mustShow ?? []), ...projectPageMustShow(p, contract)],
+    mustNotShow: [...(p.mustNotShow ?? []), ...projectPageMustNotShow(p, contract)],
+  }));
+  const coverContract = {
+    ...contract.coverContract,
+    mustNotShow: [...(contract.coverContract?.mustNotShow ?? []), ...projectCoverMustNotShow(contract)],
+  };
+  return { ...contract, pageContracts, coverContract } as unknown as BookVisualContract;
+}
+
+/** A fully structured contract (structured zone + structured page), prose-complete per TIER-B containment. */
 function structuredContract(): BookVisualContract {
   const c = baseContract();
-  return { ...c, zones: [structuredZone(c)], pageContracts: [structuredPage(c)] } as unknown as BookVisualContract;
+  return withProjectedProse({
+    ...c,
+    zones: [structuredZone(c)],
+    pageContracts: [structuredPage(c)],
+  } as unknown as BookVisualContract);
 }
 
 const V2_PAGE_KEYS = ['propConstraints', 'actionRequirements', 'safetyConstraints'] as const;
@@ -252,8 +277,11 @@ describe('Stage 3 — closed enums are enforced at RUNTIME, not just by the TS t
 
 describe('Stage 3 — single-hop id resolution + intra-page self-contradiction', () => {
   const c = baseContract();
+  // Prose-complete (Stage-4 containment) so each assertion below fails for ITS OWN reason, never for missing prose.
   const pageWith = (patch: Record<string, unknown>) =>
-    validateBookVisualContract({ ...c, pageContracts: [{ ...c.pageContracts[0], ...patch }] } as never).ok;
+    validateBookVisualContract(
+      withProjectedProse({ ...c, pageContracts: [{ ...c.pageContracts[0], ...patch }] } as never)
+    ).ok;
 
   it('rejects a dangling propId and an unknown anchorId', () => {
     expect(pageWith({ propConstraints: [{ propId: 'nope', visibility: 'required' }] })).toBe(false);
@@ -359,11 +387,15 @@ describe('Stage 3 — single-hop id resolution + intra-page self-contradiction',
 
   it('firstRevealPage must be an integer >= 1 when present (page 0 is the cover → omit instead)', () => {
     const propWith = (firstRevealPage: unknown) =>
-      validateBookVisualContract({
-        ...c,
-        recurringProps: [{ ...c.recurringProps[0], firstRevealPage }],
-      } as never).ok;
-    expect(propWith(10)).toBe(true);
+      validateBookVisualContract(
+        withProjectedProse({
+          ...c,
+          recurringProps: [{ ...c.recurringProps[0], firstRevealPage }],
+        } as never)
+      ).ok;
+    // 1 (not 10): this fixture is a ONE-page book, and Stage 4 additionally rejects a lifecycle that points past
+    // the last page. That cross-page rule has its own coverage in visual-contract-stage4.spec.ts.
+    expect(propWith(1)).toBe(true);
     expect(propWith(0)).toBe(false);
     expect(propWith(-1)).toBe(false);
     expect(propWith(1.5)).toBe(false);
