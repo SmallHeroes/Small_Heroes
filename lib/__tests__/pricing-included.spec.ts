@@ -58,9 +58,9 @@ describe('computePricing — everything included, no add-on charges (OQ-PA4)', (
   });
 });
 
-describe('coupon composes with the flat price — 25% off the shown base', () => {
+describe('coupon composes with the flat price — 50% off the shown base', () => {
   for (const { direction, length, base } of PRODUCTS) {
-    it(`${direction}: coupon → 25% off ₪${base} (== shown price)`, () => {
+    it(`${direction}: coupon → 50% off ₪${base} (== shown price)`, () => {
       const totalAgorot =
         computePricing({
           length,
@@ -70,8 +70,8 @@ describe('coupon composes with the flat price — 25% off the shown base', () =>
           bundleEnabled: false,
           videoEnabled: true,
         }).totalPrice * 100;
-      const discounted = computeCouponDiscount(totalAgorot, 25).discountedAgorot;
-      expect(discounted).toBe(Math.round(base * 100 * 0.75));
+      const discounted = computeCouponDiscount(totalAgorot, 50).discountedAgorot;
+      expect(discounted).toBe(Math.round(base * 100 * 0.5));
     });
   }
 });

@@ -6,16 +6,17 @@ import { computeCouponDiscount, normalizeCouponCode } from '@/lib/coupon/coupon-
  * exactly-once behavior is proven against a real Postgres in coupon-cap.staging.spec.ts.
  */
 describe('computeCouponDiscount', () => {
-  it('applies exactly 25% off each launch price (agorot)', () => {
-    // 59 / 79 / 99 ILS = 5900 / 7900 / 9900 agorot
-    expect(computeCouponDiscount(5900, 25)).toMatchObject({ discountedAgorot: 4425, discountAgorot: 1475, discountPercent: 25 });
-    expect(computeCouponDiscount(7900, 25)).toMatchObject({ discountedAgorot: 5925, discountAgorot: 1975 });
-    expect(computeCouponDiscount(9900, 25)).toMatchObject({ discountedAgorot: 7425, discountAgorot: 2475 });
+  it('applies exactly 50% off each launch price (agorot) — the launch discount Guy confirmed 2026-07-15', () => {
+    // 59 / 79 / 99 ILS = 5900 / 7900 / 9900 agorot → half
+    expect(computeCouponDiscount(5900, 50)).toMatchObject({ discountedAgorot: 2950, discountAgorot: 2950, discountPercent: 50 });
+    expect(computeCouponDiscount(7900, 50)).toMatchObject({ discountedAgorot: 3950, discountAgorot: 3950 });
+    expect(computeCouponDiscount(9900, 50)).toMatchObject({ discountedAgorot: 4950, discountAgorot: 4950 });
   });
 
-  it('discounts the FULL total including add-ons (not just the base)', () => {
-    // fantasy 99 + audio 19 = 118 ILS = 11800 agorot → 25% off → 8850
-    expect(computeCouponDiscount(11800, 25).discountedAgorot).toBe(8850);
+  it('discounts whatever total it is given (the percent is data — the math is generic)', () => {
+    // The seeded launch code is 50%, but the owner can retune discountPercent without a deploy.
+    expect(computeCouponDiscount(9900, 25).discountedAgorot).toBe(7425);
+    expect(computeCouponDiscount(11800, 50).discountedAgorot).toBe(5900);
   });
 
   it('rounds to the nearest agora', () => {

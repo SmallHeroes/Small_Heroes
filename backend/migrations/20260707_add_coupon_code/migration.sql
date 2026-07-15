@@ -71,6 +71,14 @@ ALTER TABLE "CouponRedemption" ENABLE ROW LEVEL SECURITY;
 
 -- Seed the launch code, INACTIVE. The owner flips `active` = true (and can adjust
 -- discountPercent / maxRedemptions) to enable it live. ON CONFLICT keeps re-application safe.
+--
+-- 50% off the first 100 orders — the launch discount Guy confirmed 2026-07-15 (the branch this was
+-- ported from seeded 25%). maxRedemptions=100 is the GLOBAL cap the reserve→confirm lease enforces
+-- atomically; both are DATA, so the owner can retune them without a deploy.
+--
+-- OPERATOR NOTE: `ON CONFLICT DO NOTHING` does NOT update an existing row. If 'FIRST100' was already
+-- inserted in an environment by the pre-port branch (at 25%), this migration will NOT correct it —
+-- update it in place:  UPDATE "Coupon" SET "discountPercent" = 50 WHERE "code" = 'FIRST100';
 INSERT INTO "Coupon" ("id", "code", "discountPercent", "maxRedemptions", "confirmedCount", "active", "updatedAt")
-VALUES ('coupon_first100', 'FIRST100', 25, 100, 0, false, CURRENT_TIMESTAMP)
+VALUES ('coupon_first100', 'FIRST100', 50, 100, 0, false, CURRENT_TIMESTAMP)
 ON CONFLICT ("code") DO NOTHING;
