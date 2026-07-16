@@ -13,13 +13,22 @@
 
 export const BOOK_VISUAL_CONTRACT_VERSION = 1 as const;
 
-/** A set reference for a location. 1A: schema-only — `status: 'none'` until 1B generates/stores it. */
+/**
+ * A set reference for a location — the Set Identity Board REFERENCE POLICY (SET-CONSISTENCY step 2).
+ *
+ * The three statuses are the location's board policy; they do NOT hold the board bytes (an approved board lives in
+ * the global registry, keyed by `setDefinitionHash`, and is bound per-order into `pipelineCache` at freeze time):
+ *  - absent / `status:'none'` — LEGACY: this location does not require a board (current render path unchanged).
+ *  - `status:'pending'`       — an approved board is REQUIRED from the registry before render (fail-closed if missing).
+ *  - `status:'ready'`         — required AND must still pass registry / hash / human-approval validation at bind time.
+ * `url`/`storageKey`/`prompt` remain advisory hints only; they are NEVER the render authority (the per-order binding is).
+ */
 export interface SetReferenceDescriptor {
   status: 'none' | 'pending' | 'ready';
-  /** Present only when status === 'ready' (1B). */
+  /** Advisory hint only — the render authority is the per-order board binding, never this url. */
   url?: string;
   storageKey?: string;
-  /** How the canonical set ref would be generated (1B); recorded now so 1A stays text-only. */
+  /** How the canonical set ref would be generated (offline); recorded for provenance. */
   prompt?: string;
 }
 
@@ -46,6 +55,14 @@ export interface VisualLocation {
   timeOfDay?: string;
   /** ONE canonical set ref per location, reused across that location's pages (filled in 1B). */
   setReference?: SetReferenceDescriptor;
+  /**
+   * SET-CONSISTENCY step 2 (additive, optional): the SHARED physical-set identity. Locations that are different
+   * viewpoints/zones of ONE physical set (e.g. a bedroom-window room and the balcony it opens onto) carry the SAME
+   * `setIdentityId` so they resolve to ONE reusable Set Identity Board. Default authoring is one identity per
+   * location (omit the field). No paid-runtime heuristic may GUESS grouping — it is authored. Locations sharing an
+   * identity MUST agree on their `setReference` requiredness (validated), so a set is never half board-required.
+   */
+  setIdentityId?: string;
   /** vNext: coarse indoor/outdoor/neutral class — the style-ref lock (locks-first). Optional; additive. */
   environmentClass?: EnvironmentClass;
   /** vNext: lighting descriptor for the location (e.g. `clinic_fluorescent`, `warm_dusk`). Optional. */

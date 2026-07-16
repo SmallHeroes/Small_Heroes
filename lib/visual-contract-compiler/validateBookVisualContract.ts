@@ -58,6 +58,8 @@ const SPATIAL_RELATION_KINDS = new Set(['on_same_wall_as', 'adjacent_to', 'oppos
 // Stage-4 decision: 'optional' is DROPPED — it emitted no steering yet moved the frozen hash (the no-op class this
 // layer rejects). The absence of a constraint already means "optional"; omit the entry instead.
 const PROP_VISIBILITIES = new Set(['required', 'forbidden']);
+/** (SET-CONSISTENCY step 2) the closed setReference status vocabulary — a location's Set Identity Board policy. */
+const SET_REFERENCE_STATUSES = new Set(['none', 'pending', 'ready']);
 
 /* ── Stage 4 — relation coherence tables ────────────────────────────────────────────────────────── */
 /** Order-independent relations: `adjacent_to(a,b)` states the SAME fact as `adjacent_to(b,a)`. */
@@ -163,6 +165,10 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
   const locationIds = new Set<string>();
   /** (Stage 3) per-location anchor ids — the id space an `{ kind:'anchor' }` EntityRef resolves against. */
   const anchorsByLocation = new Map<string, Set<string>>();
+  /** (SET-CONSISTENCY step 2) setIdentityId → its board REQUIREDNESS + the first location that declared it. Locations
+   *  sharing an identity must agree, so a physical set is never HALF board-required (a mixed set would render one
+   *  chunk board-bound and another legacy — the half-legacy book the freeze snapshot exists to prevent). */
+  const setIdentityRequiredness = new Map<string, { required: boolean; locId: string }>();
   locations.forEach((loc, i) => {
     if (!isObj(loc) || !isStr(loc.id)) {
       errors.push(`locations[${i}].id missing`);
@@ -176,6 +182,39 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
       if (isObj(a) && isStr(a.id)) anchorIds.add(a.id);
     });
     anchorsByLocation.set(loc.id, anchorIds);
+
+    // (SET-CONSISTENCY step 2) optional setIdentityId + setReference policy — additive, so a contract that authors
+    // neither is untouched (both absent → no-op). Present-only checks; fail closed on ambiguous/contradictory data.
+    if (loc.setIdentityId !== undefined && !isStr(loc.setIdentityId)) {
+      errors.push(`location "${loc.id}" setIdentityId must be a non-empty string when present`);
+    }
+    let boardRequired = false;
+    if (loc.setReference !== undefined) {
+      const ref = loc.setReference;
+      if (!isObj(ref) || !isStr(ref.status) || !SET_REFERENCE_STATUSES.has(ref.status)) {
+        errors.push(
+          `location "${loc.id}" setReference.status must be one of ${[...SET_REFERENCE_STATUSES].join(' | ')} when present`,
+        );
+      } else {
+        boardRequired = ref.status === 'pending' || ref.status === 'ready';
+        // A required board must have an identity to bind to — nothing keys the registry lookup otherwise.
+        if (boardRequired && !isStr(loc.setIdentityId)) {
+          errors.push(
+            `location "${loc.id}" declares a required setReference ("${ref.status}") but no setIdentityId — a required board needs a set identity to bind to`,
+          );
+        }
+      }
+    }
+    if (isStr(loc.setIdentityId)) {
+      const prior = setIdentityRequiredness.get(loc.setIdentityId);
+      if (prior === undefined) {
+        setIdentityRequiredness.set(loc.setIdentityId, { required: boardRequired, locId: loc.id });
+      } else if (prior.required !== boardRequired) {
+        errors.push(
+          `setIdentityId "${loc.setIdentityId}" has contradictory reference policies: location "${prior.locId}" is ${prior.required ? 'board-required' : 'legacy'} but location "${loc.id}" is ${boardRequired ? 'board-required' : 'legacy'} — locations sharing a set identity must agree on whether a board is required`,
+        );
+      }
+    }
   });
 
   // Zones — every zone must belong to a declared location (the gate→cave guard).
