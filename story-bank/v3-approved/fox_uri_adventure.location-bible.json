@@ -58,19 +58,19 @@
     },
     {
       "id": "balcony_threshold",
-      "description": "Transition between bedroom window/door and the small safe balcony. Same window/curtain/door relationship. No high-balcony drama.",
+      "description": "Transition between the bedroom window and the small safe balcony: the child steps out through the same open low window onto the balcony. Same window/curtain/railing relationship, with no glazed balcony door. No high-balcony drama.",
       "stableGeometry": [
-        "window/door opens to small safe balcony",
-        "low safe railing or wall edge",
+        "same open low window onto the small safe balcony (no glazed door)",
+        "low safe balcony railing",
         "same floor transition from bedroom to balcony"
       ],
       "visualAnchors": [
         "same window frame",
         "same curtains",
-        "safe low railing",
+        "safe low balcony railing",
         "home-like balcony corner"
       ],
-      "allowedCameraAccess": ["threshold medium", "eye level at doorway"]
+      "allowedCameraAccess": ["threshold medium", "eye level at open window"]
     },
     {
       "id": "balcony_drip_area",
@@ -236,7 +236,7 @@
     {
       "page": 4,
       "zoneId": "balcony_threshold",
-      "visibleAnchors": ["same dry metal railing", "same window/door relationship", "same home balcony edge"],
+      "visibleAnchors": ["same dry metal railing", "same open window/railing relationship", "same home balcony edge"],
       "allowedVariation": "Finger tap on same railing; threshold beat",
       "forbiddenDrift": ["stone cliff railing", "rooftop", "bridge", "visible bucket", "metal bucket", "wet railing", "drip source"],
       "pageAction": "Noa taps a DRY balcony metal-bar railing; Uri's tail betrays his fear. NO bucket, NO water on railing.",

@@ -18,7 +18,8 @@ import {
  * STRUCTURE rather than prose.
  *
  * It pins the 4 defects observed in the first fox render:
- *   1. window↔door — the opening was authored as "window or balcony-door frame", so the renderer picked either.
+ *   1. window↔door — the opening was authored ambiguously as a window/door; RESOLVED (set-consistency): the balcony is
+ *      OPEN, reached through the SAME window, with no glazed balcony door / vitrine anywhere (Guy's story decision).
  *   2. bucket drift — the bucket wandered, and appeared on pages whose direction says "No bucket visible yet".
  *   3. wrong-actor notebook — page 3's notebook is URI's, and it drifted to the child.
  *   4. railing safety — nothing forbade the child sitting on / going past the balcony railing.
@@ -73,13 +74,16 @@ describe('fox — the hand-authored structured contract validates end-to-end', (
   });
 });
 
-describe('fox — DEFECT 1: window↔door is a per-node kind, never "window or door"', () => {
-  it('the page-1 listening opening is a WINDOW; the page-2 passage is a BALCONY DOOR', () => {
+describe('fox — DEFECT 1: the opening is a WINDOW onto an OPEN balcony — never a glazed door', () => {
+  it('the page-1 listening opening is a WINDOW; the page-2 threshold is window + railing with NO balcony door', () => {
     const t = foxTemplate();
     const win = zone(t, 'z_room_window').spatialNodes?.find((n) => n.id === 'window');
-    const door = zone(t, 'z_window_threshold').spatialNodes?.find((n) => n.id === 'balcony_door');
     expect(win?.kind).toBe('window');
-    expect(door?.kind).toBe('balcony_door');
+    // set-consistency: the invented glazed balcony door is GONE — the balcony is reached through the same open window.
+    const threshold = zone(t, 'z_window_threshold');
+    expect(threshold.spatialNodes?.some((n) => n.kind === 'balcony_door') ?? false).toBe(false);
+    expect(threshold.spatialNodes?.find((n) => n.id === 'window')?.kind).toBe('window');
+    expect(threshold.spatialNodes?.find((n) => n.id === 'railing')?.kind).toBe('railing');
     // …and each page resolves to the zone that owns its opening.
     expect(page(t, 1).zoneId).toBe('z_room_window');
     expect(page(t, 2).zoneId).toBe('z_window_threshold');
@@ -186,6 +190,33 @@ describe('fox — TIER A / TIER B: the prose IS the structure’s projection', (
       for (const line of projectPageMustNotShow(p, t)) expect(p.mustNotShow).toContain(line);
       // containment, NOT equality — fox's authored zone/style/spoiler prose is still there.
       expect(p.mustShow.length).toBeGreaterThan(projectPageMustShow(p, t).length);
+    }
+  });
+});
+
+describe('fox — SET CONSISTENCY: the balcony is open (window + railing), never a glazed door', () => {
+  it('NO zone anywhere declares a balcony_door node', () => {
+    for (const z of foxTemplate().zones) {
+      expect(z.spatialNodes?.some((n) => n.kind === 'balcony_door') ?? false).toBe(false);
+    }
+  });
+
+  it('the raw template JSON carries no "balcony_door" token at all', () => {
+    expect(readFileSync(TEMPLATE_PATH, 'utf8')).not.toMatch(/balcony_door/);
+  });
+
+  it('the opening set is window + balcony railing (the threshold zone carries both, no door)', () => {
+    const z = zone(foxTemplate(), 'z_window_threshold');
+    const kinds = (z.spatialNodes ?? []).map((n) => n.kind);
+    expect(kinds).toContain('window');
+    expect(kinds).toContain('railing');
+    expect(kinds).not.toContain('balcony_door');
+  });
+
+  it('the opening pages (1-2) forbid a glass exit-door / vitrine in mustNotShow', () => {
+    const t = foxTemplate();
+    for (const n of [1, 2]) {
+      expect(page(t, n).mustNotShow.some((s) => /\bdoor\b|vitrine/i.test(s))).toBe(true);
     }
   });
 });

@@ -26,7 +26,7 @@
           "description": "Soft, uncluttered floor near the window for cautious crouching and stepping."
         }
       ],
-      "topology": "Connects directly to the balcony through the window/door threshold; the window view frames the balcony railing and the bucket area beyond."
+      "topology": "Connects directly to the balcony through the same open low window — there is no separate glazed balcony door; the window view frames the balcony railing and the bucket area beyond."
     },
     {
       "id": "loc_balcony",
@@ -122,35 +122,49 @@
     {
       "id": "z_window_threshold",
       "locationId": "loc_child_room",
-      "name": "Window-to-balcony threshold",
-      "description": "The liminal spot where the characters move quietly from the bedroom toward the balcony, with the flashlight beginning to reveal the way.",
+      "name": "Open-window threshold onto the balcony",
+      "description": "The liminal spot where the child and Uri step quietly out through the same open low window onto the balcony — there is no glazed balcony door; the flashlight begins to reveal the way.",
       "stableGeometry": [
-        "balcony door \"balcony_door\": the glazed balcony door (vitrine) standing open — the ONE way out to the balcony and the opening the child and Uri step through; it is NOT the listening window, which stays behind them in the room",
-        "ledge \"threshold_ledge\": the narrow threshold ledge underfoot in the door opening",
-        "floor \"interior_floor\": the bedroom floor behind them, with the dark balcony just beyond the opening",
-        "\"balcony_door\" is above \"threshold_ledge\"",
+        "window \"window\": the same low bedroom window, now open as the way out — the child and Uri step over its low sill onto the balcony; the SAME window they listened at on page 1, never a separate glazed balcony door",
+        "ledge \"threshold_ledge\": the low window sill and threshold underfoot in the open window opening the child steps over onto the balcony",
+        "floor \"interior_floor\": the bedroom floor behind them, with the dark open balcony just beyond the open window",
+        "railing \"railing\": the balcony's dry metal railing seen just beyond the open window — the balcony is reached by stepping out through the open window, with no glazed balcony door and no glass vitrine between room and balcony",
+        "\"window\" is above \"threshold_ledge\"",
         "\"threshold_ledge\" is adjacent to \"interior_floor\""
       ],
       "spatialNodes": [
         {
-          "id": "balcony_door",
-          "kind": "balcony_door",
-          "description": "the glazed balcony door (vitrine) standing open — the ONE way out to the balcony and the opening the child and Uri step through; it is NOT the listening window, which stays behind them in the room"
+          "id": "window",
+          "kind": "window",
+          "description": "the same low bedroom window, now open as the way out — the child and Uri step over its low sill onto the balcony; the SAME window they listened at on page 1, never a separate glazed balcony door",
+          "bindsTo": {
+            "kind": "prop",
+            "id": "prop_window"
+          }
         },
         {
           "id": "threshold_ledge",
           "kind": "ledge",
-          "description": "the narrow threshold ledge underfoot in the door opening"
+          "description": "the low window sill and threshold underfoot in the open window opening the child steps over onto the balcony"
         },
         {
           "id": "interior_floor",
           "kind": "floor",
-          "description": "the bedroom floor behind them, with the dark balcony just beyond the opening"
+          "description": "the bedroom floor behind them, with the dark open balcony just beyond the open window"
+        },
+        {
+          "id": "railing",
+          "kind": "railing",
+          "description": "the balcony's dry metal railing seen just beyond the open window — the balcony is reached by stepping out through the open window, with no glazed balcony door and no glass vitrine between room and balcony",
+          "bindsTo": {
+            "kind": "prop",
+            "id": "prop_metal_railing"
+          }
         }
       ],
       "spatialRelations": [
         {
-          "subjectId": "balcony_door",
+          "subjectId": "window",
           "relation": "above",
           "objectId": "threshold_ledge"
         },
@@ -345,10 +359,10 @@
     {
       "id": "prop_window",
       "name": "bedroom window",
-      "description": "The bedroom window the ticking is heard through — the page-1 listening spot. It is a WINDOW, not the way out: the balcony is reached through the balcony door at the threshold.",
+      "description": "The bedroom window the ticking is heard through — the page-1 listening spot, kept low and open so the child and Uri simply step out through it onto the balcony. It is a WINDOW; there is no separate glazed balcony door or vitrine — the balcony is reached through this same open window.",
       "material": "painted wood or simple metal frame with glass and soft curtains",
-      "scale": "low enough for the child to look out and crouch near",
-      "persistence": "the SAME bedroom window wherever it appears (pages 1-2); never redrawn as, or merged with, the balcony door"
+      "scale": "low enough for the child to look out, crouch near, and step over onto the balcony",
+      "persistence": "the SAME bedroom window wherever it appears (pages 1-2); never redrawn as, or merged into, a glazed balcony door or vitrine — this story has no glass exit-door"
     },
     {
       "id": "prop_metal_railing",
@@ -398,7 +412,8 @@
     "wall clock, alarm clock, or visible ticking clock as the source of the sound",
     "weapons, tools, or repair equipment",
     "bright daytime sunlight",
-    "messy clutter that obscures the bucket, flashlight, railing, or droplets"
+    "messy clutter that obscures the bucket, flashlight, railing, or droplets",
+    "glazed balcony exit-door or glass vitrine — the balcony is open and reached through the same window, with no glass door anywhere"
   ],
   "coverContract": {
     "worldType": "cozy realistic nighttime home adventure with gentle picture-book whimsy; sounds may be visualized as small friendly rhythm marks, but the world remains non-magical",
@@ -439,7 +454,8 @@
         "flashlight beam turned on",
         "literal monster",
         "clock",
-        "old tin bucket"
+        "old tin bucket",
+        "glazed balcony exit-door or glass vitrine (the balcony is open — there is no glass door)"
       ],
       "propState": [
         {
@@ -499,7 +515,8 @@
         "extra lamps turned on",
         "monster silhouette",
         "clock",
-        "old tin bucket"
+        "old tin bucket",
+        "glazed balcony exit-door or glass vitrine (they step out through the open window — there is no glass door)"
       ],
       "propState": [
         {
