@@ -1,0 +1,17 @@
+{
+  "registryVersion": "set-registry/v1",
+  "boardVersion": "set-board/v1",
+  "storyKey": "fox_uri_adventure",
+  "setIdentityId": "set_room_balcony_night",
+  "styleId": "soft_hand_drawn_storybook",
+  "setDefinitionHash": "aaa469afd9c6b0b15fa06d44d64045ba26787988fd2f58740527c2512c1f1f05",
+  "storageKey": "set-identity-boards/fox_uri_adventure/soft_hand_drawn_storybook/set_room_balcony_night/aaa469afd9c6b0b15fa06d44d64045ba26787988fd2f58740527c2512c1f1f05.30392c033bba385738ba7399efa78135f869d2b222b3e86ff7a42f8ed0c75083.png",
+  "assetSha256": "30392c033bba385738ba7399efa78135f869d2b222b3e86ff7a42f8ed0c75083",
+  "promptHash": "deb30e6eb4334185a92026eaa2aa9f4498fbc5983fd5de53b8a03400758ba120",
+  "model": "gpt-image-2",
+  "quality": "medium",
+  "qaStatus": "passed",
+  "qaCheckedAt": "2026-07-17T10:32:42.112Z",
+  "approvedBy": "Guy",
+  "approvedAt": "2026-07-17T10:34:57.360Z"
+}
