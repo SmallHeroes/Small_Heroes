@@ -4183,6 +4183,9 @@ export async function generateAllPageImages(
     /** (WS0b location authority) Authoritative contract prompt block → PREPENDED to the Style 01 prompt so the
      *  frozen contract outranks imageDirection for location/cast/wardrobe/forbidden. Absent → legacy prompt. */
     visualContractPromptBlock?: string;
+    /** (Milestone C) This page's approved set board as a TAGGED ref. Absent → the Milestone B transport stays a
+     *  no-op (no protected ref, no role map, no set-copy instruction) → byte-identical. */
+    setIdentityBoardRefs?: ReferenceAsset[];
     supportingCharacters?: Array<{
       name: string;
       description: string;
@@ -4825,10 +4828,14 @@ export async function generateAllPageImages(
       | 'guardedV2RecipeId'
       | 'contractStyleRefEnvironment'
       | 'visualContractPromptBlock'
+      | 'setIdentityBoardRefs'
     > = {
       bookPageText: page.bookPageText ?? null,
       contractStyleRefEnvironment: page.contractStyleRefEnvironment ?? null,
       visualContractPromptBlock: page.visualContractPromptBlock ?? undefined,
+      // (Milestone C) Forwarded verbatim into the SAME Style01 assembly the cover uses. Absent → undefined →
+      // `taggedRefPlan` stays null → byte-identical.
+      setIdentityBoardRefs: page.setIdentityBoardRefs ?? undefined,
       guardedV2RecipeId:
         config.guardedV2RecipeId ??
         (config.companion?.id === 'bolly_armadillo' ? 'bolly_bedtime_age_5' : null),

@@ -455,6 +455,30 @@ export function orderArtifactStorageKey(orderId: string, kind: string, filename:
 }
 
 /**
+ * (Set Identity Board, Milestone C) The public url for an ARBITRARY durable storage key — i.e. for an object this
+ * process did not upload and therefore has no `{url, storageKey}` descriptor for. Purely additive read helper:
+ * it wraps the same private `buildPublicUrl` every uploader already returns, so a resolved board url can never
+ * drift from an uploaded one. Throws only when the storage env is missing (the caller fails closed on that).
+ */
+export function resolveStoragePublicUrl(storageKey: string): string {
+  const { url, bucket } = getSupabaseEnv();
+  return buildPublicUrl(url, bucket, storageKey);
+}
+
+/**
+ * (Set Identity Board, Milestone C) Download the raw bytes at a durable storage key, or null when the object is
+ * absent/unreadable. Additive counterpart to `downloadOrderArtifactJson` for non-JSON, non-order-scoped objects
+ * (an approved board is GLOBAL — shared across orders — so it has no orderId to key on).
+ */
+export async function downloadStorageObjectBytes(storageKey: string): Promise<Buffer | null> {
+  const { bucket } = getSupabaseEnv();
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.storage.from(bucket).download(storageKey);
+  if (error || !data) return null;
+  return Buffer.from(await data.arrayBuffer());
+}
+
+/**
  * Download + parse a durable JSON artifact previously written via `uploadOrderArtifact`/`persistJson`
  * (same `{orderId, kind, filename}` key). Returns null if absent or unparseable. Used by the dev
  * QA flow to read state that must survive across serverless invocations (0096 M5a).

@@ -95,8 +95,13 @@ export interface SetIdentityBoardRegistryEntry {
 /**
  * A per-order binding of an approved board into a frozen render context. Carries the durable `storageKey`
  * (authority) and an optional resolved URL (advisory) plus the fences needed to re-verify at bind time.
+ *
+ * (Milestone C) A `type` alias, NOT an `interface`, and it must stay one: from Milestone C this shape is a field of
+ * `PipelineCache`, which has to remain structurally assignable to `Prisma.InputJsonValue`. TypeScript gives type
+ * aliases an implicit index signature and interfaces none, so `interface` here breaks every
+ * `pipelineCache: cache` write in the repo. Same reason `PipelineCache.visualContract` is stored as opaque JSON.
  */
-export interface SetIdentityBoardBinding {
+export type SetIdentityBoardBinding = {
   setIdentityId: string;
   setDefinitionHash: string;
   styleId: string;
@@ -105,17 +110,21 @@ export interface SetIdentityBoardBinding {
   assetSha256: string;
   boardVersion: string;
   approvedAt: string;
-}
+};
 
 /**
  * The set of board bindings for one order, pinned to the order's frozen contract hash. `mode:'required-v1'` marks
- * that every board-required set identity MUST have a binding (fail-closed) — enforcement is a later milestone.
+ * that every board-required set identity MUST have a binding (fail-closed) — enforced from Milestone C by
+ * `assertBoardsBoundForRender` before any paid image.
+ *
+ * (Milestone C) A `type` alias, not an `interface` — see `SetIdentityBoardBinding` above; this shape is persisted
+ * in `PipelineCache` and must stay assignable to `Prisma.InputJsonValue`.
  */
-export interface SetIdentityBoardBindingContext {
+export type SetIdentityBoardBindingContext = {
   mode: 'required-v1';
   frozenContractHash: string;
   bindings: Record<string, SetIdentityBoardBinding>;
-}
+};
 
 /** Result of the character-free QA pass over a rendered board image. */
 export interface BoardQaResult {

@@ -70,6 +70,16 @@ import {
 import { heartbeatLease } from '@/lib/generation-chunked/lease';
 import { finalizeAndPersistStoryText } from './text-finalization';
 import { ensureFrozenVisualContract } from './ensure-frozen-visual-contract';
+// (Set Identity Board, Milestone C) ACTIVATE → BIND → ASSERT. Every one of these is a no-op for an order without a
+// `pipelineCache.setIdentityBoards` snapshot, and only `ensureSetIdentityBoardSnapshot` can create one (flag-gated,
+// hard-off on prod) — so with the flag off this import adds no DB call, no write, and no prompt byte.
+import {
+  ensureSetIdentityBoardSnapshot,
+  requireSetIdentityBoardsBoundForRender,
+  runSetIdentityBoardBindStage,
+  setIdentityBoardRefsForPage,
+  shouldEnterSetRefsStage,
+} from './set-identity-board-stage';
 import {
   isVisualContractSteeringEnabled,
   isVisualContractEnforcementEnabled,
@@ -1027,6 +1037,10 @@ async function runCoverStage(
     contractStyleRefEnvironment: coverContractStyleRefEnvironment,
     // (WS0b location authority, round-2) Cover authoritative block — parity with the per-page projection.
     visualContractPromptBlock: coverVisualContractPromptBlock,
+    // (Milestone C) The cover's OWN set board — page 0's location, resolved from coverContract.locationId (the
+    // same resolution that routes the cover's style refs), never another location's. LEGACY order (no board
+    // snapshot) → undefined → the Milestone B transport stays inert and the refs/prompt are byte-identical.
+    setIdentityBoardRefs: setIdentityBoardRefsForPage(cache, 0),
     childStructured: cache.dna?.childStructured,
     companionStructured: cache.dna?.companionStructured,
   });
@@ -1342,6 +1356,11 @@ async function runPageImagesChunk(
         steeringContract && resolvedPageContract
           ? buildVisualContractPromptBlock(resolvedPageContract, steeringContract)
           : undefined;
+      // (Milestone C) THIS page's own set board, keyed off THIS page's contract locationId — a page can never
+      // receive another location's board. LEGACY order → undefined → byte-identical (no protected ref, no role
+      // map, no set-copy instruction). Not steering-gated: an activated order's board is bound and asserted, so
+      // it must reach the render regardless of the steering flag.
+      const setIdentityBoardRefs = setIdentityBoardRefsForPage(cache, p.pageNumber);
       const comp = compositionByPage.get(p.pageNumber);
       const pageLayout = deriveLayout({
         pageNumber: p.pageNumber,
@@ -1395,6 +1414,7 @@ async function runPageImagesChunk(
         ),
         contractStyleRefEnvironment,
         ...(visualContractPromptBlock ? { visualContractPromptBlock } : {}),
+        ...(setIdentityBoardRefs ? { setIdentityBoardRefs } : {}),
         ...(contractSupportingCharacters ? { supportingCharacters: contractSupportingCharacters } : {}),
       };
     });
@@ -1983,6 +2003,10 @@ export async function deriveStartingStage(
     select: { coverImageUrl: true },
   });
   const hasCover = Boolean(book?.coverImageUrl?.trim() || cache.devSkipCover);
+  // (Set Identity Board, Milestone C) A board-activated order with unbound boards and no cover yet resumes at
+  // set_refs. shouldEnterSetRefsStage checks the flag FIRST and the snapshot SECOND, so a flag-off runtime — and
+  // any order without a snapshot — never reaches this and falls through to 'cover' exactly as today.
+  if (!hasCover && shouldEnterSetRefsStage(cache)) return 'set_refs';
   if (!hasCover) return 'cover';
   if (!job.imagesDone) return 'page_images';
   if (!job.audioDone) return 'audio';
@@ -2044,6 +2068,15 @@ export async function processGenerationChunk(
     if (stage !== 'text' && stage !== 'dna') {
       cache = await ensureFrozenVisualContract(order, cache);
       requireRenderableFrozenContract(cache); // (P1/OQ-T5) block render on an absent/invalid contract (enforcement on)
+      // (Milestone C) A resume can enter DIRECTLY at cover/page_images — assert the boards here too, so a
+      // missing/stale binding can never reach a paid image. NOTE: no snapshot is written on the resume path; an
+      // order that got here without one is legacy and stays legacy (this call is then a pure no-op).
+      //
+      // EXCEPT at 'set_refs': that stage is what CREATES the bindings, so a worker that crashed between
+      // updateStage('set_refs') and the bind would be asserted-to-death here and could never resume. set_refs runs
+      // its own assert immediately AFTER binding, which is the gate that actually matters (it is still before the
+      // cover — the first paid image).
+      if (stage !== 'set_refs') requireSetIdentityBoardsBoundForRender(order, cache);
     }
     while (!overBudget(startedAt, budgetMs)) {
       await heartbeatLease(orderId, workerId);
@@ -2066,6 +2099,25 @@ export async function processGenerationChunk(
         // paid image). Idempotent + non-blocking; a no-op when the flag is off or no contract is available.
         cache = await ensureFrozenVisualContract(order, cache);
         requireRenderableFrozenContract(cache); // (P1/OQ-T5) block render on an absent/invalid contract (enforcement on)
+        // (Milestone C) The ONE activation point: a NEWLY frozen contract, before any paid image. Flag off / no
+        // frozen contract / a book that already has a paid image → returns `cache` untouched and no snapshot is
+        // ever written, so `shouldEnterSetRefsStage` is false and the next line is `stage = 'cover'` — identical
+        // to today. The assert runs before it (a no-op here on a fresh order) to keep the guard chain uniform.
+        requireSetIdentityBoardsBoundForRender(order, cache);
+        cache = await ensureSetIdentityBoardSnapshot(order, cache);
+        stage = shouldEnterSetRefsStage(cache) ? 'set_refs' : 'cover';
+        continue;
+      }
+
+      if (stage === 'set_refs') {
+        // (Milestone C) BIND the approved boards. Gated on the SNAPSHOT, not the flag: a legacy order that somehow
+        // lands here binds nothing and falls straight through to the cover. Fail-closed — an unavailable/unapproved
+        // board throws SetIdentityBoardUnavailableError rather than degrading the render.
+        await updateStage(orderId, 'set_refs');
+        cache = await runSetIdentityBoardBindStage(order, cache);
+        // Post-bind proof: whatever the bind stage did (bound fresh, reused verbatim, or no-op'd on a legacy
+        // order), the boards are provably right for THIS frozen contract before the first paid image.
+        requireSetIdentityBoardsBoundForRender(order, cache);
         stage = 'cover';
         continue;
       }

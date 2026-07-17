@@ -1,0 +1,356 @@
+import { describe, expect, it, vi } from 'vitest';
+
+import { computeSetDefinitionHash } from '../setDefinition';
+import {
+  assertBoardsBoundForRender,
+  hasUnboundRequiredSetIdentity,
+  resolveBoardBindings,
+  snapshotBoardMode,
+  SetIdentityBoardUnavailableError,
+  type BoardResolverDeps,
+} from '../resolveBoards';
+import type { SetIdentityBoardBindingContext, SetIdentityBoardRegistryEntry } from '../types';
+import { clone, makeApprovedEntry, makeContract, STYLE } from './board-fixtures';
+
+const FROZEN_HASH = 'frozen-contract-hash-1';
+
+/** The set identity the fixture requires a board for (`meadow` is setReference:'none' → not required). */
+const REQUIRED_ID = 'set_alpha';
+
+function hashFor(contract = makeContract(), id = REQUIRED_ID): string {
+  return computeSetDefinitionHash(contract, id, STYLE);
+}
+
+/**
+ * Fully-working injected deps: an approved entry, readable bytes whose sha matches, a resolvable url. Each spec
+ * breaks exactly ONE of these to prove that failure alone stops the render.
+ */
+function makeDeps(overrides: Partial<BoardResolverDeps> = {}, entry?: SetIdentityBoardRegistryEntry | null) {
+  const resolved = entry === undefined ? makeApprovedEntry(hashFor()) : entry;
+  return {
+    loadRegistryEntry: vi.fn(() => resolved),
+    fetchAssetSha256: vi.fn(async () => resolved?.assetSha256 ?? 'sha-approved-bytes'),
+    resolveDurableUrl: vi.fn(async (key: string) => `https://cdn.example/${key}`),
+    ...overrides,
+  } as BoardResolverDeps & Record<string, ReturnType<typeof vi.fn>>;
+}
+
+async function bindFresh(deps: BoardResolverDeps = makeDeps()): Promise<SetIdentityBoardBindingContext> {
+  return resolveBoardBindings(
+    { contract: makeContract(), styleId: STYLE, frozenContractHash: FROZEN_HASH, existing: snapshotBoardMode({ frozenContractHash: FROZEN_HASH }) },
+    deps
+  );
+}
+
+describe('resolveBoardBindings — LOOK UP → VERIFY → BIND', () => {
+  it('binds every REQUIRED set identity and ignores identities that need no board', async () => {
+    const ctx = await bindFresh();
+    expect(Object.keys(ctx.bindings)).toEqual([REQUIRED_ID]); // 'meadow' is setReference:'none'
+    const binding = ctx.bindings[REQUIRED_ID];
+    expect(binding.setIdentityId).toBe(REQUIRED_ID);
+    expect(binding.setDefinitionHash).toBe(hashFor());
+    expect(binding.styleId).toBe(STYLE);
+    expect(ctx.mode).toBe('required-v1');
+    expect(ctx.frozenContractHash).toBe(FROZEN_HASH);
+  });
+
+  it('carries a DURABLE descriptor — storageKey plus a resolved url, never a local path', async () => {
+    const ctx = await bindFresh();
+    const binding = ctx.bindings[REQUIRED_ID];
+    expect(binding.storageKey).toBe('set-identity-boards/synthetic/set_alpha/board.png');
+    expect(binding.resolvedUrl).toBe('https://cdn.example/set-identity-boards/synthetic/set_alpha/board.png');
+    expect(binding.assetSha256).toBe('sha-approved-bytes');
+    expect(JSON.stringify(binding)).not.toMatch(/\/tmp|\/var\/task|[A-Z]:\\/);
+  });
+
+  it('NEVER mints, renders, or waits — it only reads through the injected deps', async () => {
+    const deps = makeDeps();
+    await bindFresh(deps);
+    // Exactly one read per door, and no other door exists on the interface.
+    expect(deps.loadRegistryEntry).toHaveBeenCalledTimes(1);
+    expect(deps.fetchAssetSha256).toHaveBeenCalledTimes(1);
+    expect(deps.resolveDurableUrl).toHaveBeenCalledTimes(1);
+  });
+
+  it('does NOT mutate the frozen contract', async () => {
+    const contract = makeContract();
+    const before = clone(contract);
+    await resolveBoardBindings(
+      { contract, styleId: STYLE, frozenContractHash: FROZEN_HASH },
+      makeDeps()
+    );
+    expect(contract).toEqual(before);
+  });
+});
+
+describe('resolveBoardBindings — IDEMPOTENCY (a crash after bind must never re-choose)', () => {
+  it('reuses an existing valid binding VERBATIM without touching the registry or storage', async () => {
+    const first = await bindFresh();
+    const deps = makeDeps();
+    const second = await resolveBoardBindings(
+      { contract: makeContract(), styleId: STYLE, frozenContractHash: FROZEN_HASH, existing: first },
+      deps
+    );
+    expect(second.bindings[REQUIRED_ID]).toEqual(first.bindings[REQUIRED_ID]);
+    expect(second).toEqual(first);
+    // The whole point: a resume does not re-read the registry, so it cannot pick a different board.
+    expect(deps.loadRegistryEntry).not.toHaveBeenCalled();
+    expect(deps.fetchAssetSha256).not.toHaveBeenCalled();
+    expect(deps.resolveDurableUrl).not.toHaveBeenCalled();
+  });
+
+  it('re-resolving repeatedly (retry storm) converges on the SAME binding', async () => {
+    let ctx = await bindFresh();
+    const original = clone(ctx);
+    for (let i = 0; i < 5; i++) {
+      ctx = await resolveBoardBindings(
+        { contract: makeContract(), styleId: STYLE, frozenContractHash: FROZEN_HASH, existing: ctx },
+        makeDeps()
+      );
+    }
+    expect(ctx).toEqual(original);
+  });
+
+  it('reuses the prior binding even if the registry has since been re-pointed at a DIFFERENT board', async () => {
+    const first = await bindFresh();
+    // Someone re-approves a different board for the same set. The bound order must NOT drift onto it.
+    const rival = makeApprovedEntry(hashFor(), {
+      storageKey: 'set-identity-boards/synthetic/set_alpha/rival.png',
+      assetSha256: 'sha-rival-bytes',
+    });
+    const second = await resolveBoardBindings(
+      { contract: makeContract(), styleId: STYLE, frozenContractHash: FROZEN_HASH, existing: first },
+      makeDeps({}, rival)
+    );
+    expect(second.bindings[REQUIRED_ID]).toEqual(first.bindings[REQUIRED_ID]);
+    expect(second.bindings[REQUIRED_ID].storageKey).not.toContain('rival');
+  });
+
+  it('re-binds when the prior binding is STALE (the set itself changed)', async () => {
+    const stale = await bindFresh();
+    stale.bindings[REQUIRED_ID].setDefinitionHash = 'hash-from-an-older-set';
+    const deps = makeDeps();
+    const next = await resolveBoardBindings(
+      { contract: makeContract(), styleId: STYLE, frozenContractHash: FROZEN_HASH, existing: stale },
+      deps
+    );
+    expect(deps.loadRegistryEntry).toHaveBeenCalledTimes(1);
+    expect(next.bindings[REQUIRED_ID].setDefinitionHash).toBe(hashFor());
+  });
+});
+
+describe('resolveBoardBindings — FAIL-CLOSED (§6), never a downgrade', () => {
+  /** Every row must THROW. A returned context — of any shape — would be a silent downgrade. */
+  const cases: Array<[string, () => BoardResolverDeps]> = [
+    ['no registry entry at all', () => makeDeps({}, null)],
+    [
+      'a candidate that no human approved (approvedBy/approvedAt null)',
+      () => makeDeps({}, makeApprovedEntry(hashFor(), { approvedBy: null, approvedAt: null, qaStatus: 'pending' })),
+    ],
+    [
+      'approved by a human but vision QA did not pass',
+      () => makeDeps({}, makeApprovedEntry(hashFor(), { qaStatus: 'failed' })),
+    ],
+    [
+      'vision QA still pending',
+      () => makeDeps({}, makeApprovedEntry(hashFor(), { qaStatus: 'pending' })),
+    ],
+    [
+      'a board approved for a DIFFERENT style',
+      () => makeDeps({}, makeApprovedEntry(hashFor(), { styleId: 'some_other_style' })),
+    ],
+    [
+      'a stale boardVersion',
+      () => makeDeps({}, makeApprovedEntry(hashFor(), { boardVersion: 'set-board/v0' })),
+    ],
+    [
+      'a stale registryVersion',
+      () => makeDeps({}, makeApprovedEntry(hashFor(), { registryVersion: 'set-registry/v0' })),
+    ],
+    [
+      'a setDefinitionHash mismatch (the set changed under an approved board)',
+      () => makeDeps({}, makeApprovedEntry('hash-of-a-different-set')),
+    ],
+    [
+      'a board filed under a different story',
+      () => makeDeps({}, makeApprovedEntry(hashFor(), { storyKey: 'another_story' })),
+    ],
+    [
+      'the object is missing/unreadable',
+      () => makeDeps({ fetchAssetSha256: vi.fn(async () => null) }),
+    ],
+    [
+      'the bytes changed since approval (SHA mismatch)',
+      () => makeDeps({ fetchAssetSha256: vi.fn(async () => 'sha-of-some-other-bytes') }),
+    ],
+    ['the url is unresolvable', () => makeDeps({ resolveDurableUrl: vi.fn(async () => null) })],
+    ['the url resolves blank', () => makeDeps({ resolveDurableUrl: vi.fn(async () => '   ') })],
+  ];
+
+  for (const [label, mkDeps] of cases) {
+    it(`throws SetIdentityBoardUnavailableError: ${label}`, async () => {
+      await expect(bindFresh(mkDeps())).rejects.toThrow(SetIdentityBoardUnavailableError);
+    });
+  }
+
+  it('the error names the set identity and carries every reason (no silent note, no fallback board)', async () => {
+    const err = await bindFresh(makeDeps({}, null)).catch((e) => e);
+    expect(err).toBeInstanceOf(SetIdentityBoardUnavailableError);
+    expect(err.setIdentityId).toBe(REQUIRED_ID);
+    expect(err.reasons.length).toBeGreaterThan(0);
+    expect(err.message).toContain('set_alpha');
+  });
+
+  it('a missing identity mapping (the required set has no locations to project) still fails closed', async () => {
+    // The location group is gone but a page still requires the identity → nothing to hash against → no entry.
+    const contract = makeContract();
+    contract.locations = contract.locations.filter((l) => l.setIdentityId !== REQUIRED_ID);
+    contract.locations.push({
+      id: 'phantom',
+      name: 'Phantom',
+      description: 'a location whose set identity has no registry mapping',
+      setIdentityId: REQUIRED_ID,
+      setReference: { status: 'pending' },
+      anchors: [],
+    });
+    await expect(
+      resolveBoardBindings(
+        { contract, styleId: STYLE, frozenContractHash: FROZEN_HASH },
+        makeDeps({}, null)
+      )
+    ).rejects.toThrow(SetIdentityBoardUnavailableError);
+  });
+});
+
+describe('assertBoardsBoundForRender — the pre-image gate', () => {
+  it('is a NO-OP for a LEGACY order (no snapshot) — this is the flag-off path', () => {
+    expect(() =>
+      assertBoardsBoundForRender({
+        contract: makeContract(),
+        cache: {},
+        styleId: STYLE,
+        activeFrozenContractHash: FROZEN_HASH,
+      })
+    ).not.toThrow();
+  });
+
+  it('passes for a correctly bound order', async () => {
+    const ctx = await bindFresh();
+    expect(() =>
+      assertBoardsBoundForRender({
+        contract: makeContract(),
+        cache: { setIdentityBoards: ctx },
+        styleId: STYLE,
+        activeFrozenContractHash: FROZEN_HASH,
+      })
+    ).not.toThrow();
+  });
+
+  it('THROWS when a required identity has no binding (the activation snapshot was never bound)', () => {
+    expect(() =>
+      assertBoardsBoundForRender({
+        contract: makeContract(),
+        cache: { setIdentityBoards: snapshotBoardMode({ frozenContractHash: FROZEN_HASH }) },
+        styleId: STYLE,
+        activeFrozenContractHash: FROZEN_HASH,
+      })
+    ).toThrow(SetIdentityBoardUnavailableError);
+  });
+
+  it('THROWS when the per-order snapshot is pinned to a contract that is not the active frozen one', async () => {
+    const ctx = await bindFresh();
+    expect(() =>
+      assertBoardsBoundForRender({
+        contract: makeContract(),
+        cache: { setIdentityBoards: ctx },
+        styleId: STYLE,
+        activeFrozenContractHash: 'a-different-frozen-contract',
+      })
+    ).toThrow(/pinned to frozen contract/);
+  });
+
+  it('THROWS when there is no active frozen contract hash at all', async () => {
+    const ctx = await bindFresh();
+    expect(() =>
+      assertBoardsBoundForRender({
+        contract: makeContract(),
+        cache: { setIdentityBoards: ctx },
+        styleId: STYLE,
+        activeFrozenContractHash: null,
+      })
+    ).toThrow(SetIdentityBoardUnavailableError);
+  });
+
+  it('THROWS when the set changed after binding (recomputed setDefinitionHash no longer matches)', async () => {
+    const ctx = await bindFresh();
+    const edited = makeContract();
+    edited.locations[0].description = 'the north room, now with a completely different floor';
+    expect(() =>
+      assertBoardsBoundForRender({
+        contract: edited,
+        cache: { setIdentityBoards: ctx },
+        styleId: STYLE,
+        activeFrozenContractHash: FROZEN_HASH,
+      })
+    ).toThrow(/stale/);
+  });
+
+  it('THROWS when the order style no longer matches the bound board (never self-validates off the binding)', async () => {
+    const ctx = await bindFresh();
+    expect(() =>
+      assertBoardsBoundForRender({
+        contract: makeContract(),
+        cache: { setIdentityBoards: ctx },
+        styleId: 'some_other_style',
+        activeFrozenContractHash: FROZEN_HASH,
+      })
+    ).toThrow(SetIdentityBoardUnavailableError);
+  });
+
+  it('THROWS when a bound board lost its url or its approval stamp', async () => {
+    for (const mutate of [
+      (c: SetIdentityBoardBindingContext) => { c.bindings[REQUIRED_ID].resolvedUrl = ''; },
+      (c: SetIdentityBoardBindingContext) => { c.bindings[REQUIRED_ID].approvedAt = ''; },
+      (c: SetIdentityBoardBindingContext) => { c.bindings[REQUIRED_ID].boardVersion = 'set-board/v0'; },
+    ]) {
+      const ctx = await bindFresh();
+      mutate(ctx);
+      expect(() =>
+        assertBoardsBoundForRender({
+          contract: makeContract(),
+          cache: { setIdentityBoards: ctx },
+          styleId: STYLE,
+          activeFrozenContractHash: FROZEN_HASH,
+        })
+      ).toThrow(SetIdentityBoardUnavailableError);
+    }
+  });
+
+  it('does NOT mutate the frozen contract', async () => {
+    const ctx = await bindFresh();
+    const contract = makeContract();
+    const before = clone(contract);
+    assertBoardsBoundForRender({
+      contract,
+      cache: { setIdentityBoards: ctx },
+      styleId: STYLE,
+      activeFrozenContractHash: FROZEN_HASH,
+    });
+    expect(contract).toEqual(before);
+  });
+});
+
+describe('hasUnboundRequiredSetIdentity — the stage-work probe', () => {
+  it('is true for a fresh activation snapshot and false once bound', async () => {
+    expect(
+      hasUnboundRequiredSetIdentity(makeContract(), snapshotBoardMode({ frozenContractHash: FROZEN_HASH }))
+    ).toBe(true);
+    expect(hasUnboundRequiredSetIdentity(makeContract(), await bindFresh())).toBe(false);
+  });
+
+  it('is true when a binding exists but carries no usable url', async () => {
+    const ctx = await bindFresh();
+    ctx.bindings[REQUIRED_ID].resolvedUrl = '';
+    expect(hasUnboundRequiredSetIdentity(makeContract(), ctx)).toBe(true);
+  });
+});

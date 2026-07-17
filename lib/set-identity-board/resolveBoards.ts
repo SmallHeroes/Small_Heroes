@@ -1,0 +1,277 @@
+/**
+ * Set Identity Board — Milestone C: the PAID-PATH RESOLVER / BINDER. PURE-ish: every side effect is an INJECTED dep,
+ * so the whole module is unit-testable with no DB, no network, and no fs.
+ *
+ * What the paid worker is allowed to do with a board is deliberately tiny: LOOK UP an already-approved board,
+ * VERIFY it, and BIND it. It NEVER mints, NEVER renders a board, and NEVER waits for a human review. If an approved
+ * board is not sitting in the registry, already vision-passed and human-signed-off, the render STOPS.
+ *
+ * FAIL-CLOSED, and specifically never DEGRADED. Every failure below throws `SetIdentityBoardUnavailableError`:
+ *   - no set-identity → registry mapping, or no registry entry for the current `setDefinitionHash`
+ *   - the entry is not `qaStatus:'passed'`, or carries no explicit human approval
+ *   - style / boardVersion / setDefinitionHash / storyKey mismatch (i.e. the set CHANGED — an old board is wrong)
+ *   - the object is missing/unreadable, or its bytes no longer hash to the approved sha256
+ *   - the durable url cannot be resolved
+ * There is deliberately NO downgrade path: not `setReference:'none'`, not topology-only, not "use a different
+ * board", not a soft prompt note. A wrong-but-plausible set on a paid page is worse than a failed order, because
+ * nobody catches it before the customer does.
+ *
+ * IDEMPOTENT BY CONSTRUCTION. A binding that is already present AND still valid for the current set definition is
+ * REUSED VERBATIM — no registry re-read, no re-fetch, no re-choice. This is what makes a crash after the bind safe:
+ * a resumed worker re-derives the SAME board, never a different one, and never a second candidate.
+ */
+import type { BookVisualContract } from '@/lib/visual-contract-compiler';
+
+import {
+  SET_IDENTITY_BOARD_VERSION,
+  SET_IDENTITY_REGISTRY_VERSION,
+  type SetIdentityBoardBinding,
+  type SetIdentityBoardBindingContext,
+  type SetIdentityBoardRegistryEntry,
+} from './types';
+import { computeSetDefinitionHash, listRequiredSetIdentityIds } from './setDefinition';
+import {
+  validateSetIdentityBoardRegistryEntry,
+  verifyBoardAssetBytes,
+  type ExpectedRegistryIdentity,
+} from './registry';
+
+/**
+ * The single fail-closed error for "this order cannot be rendered with a trustworthy set board". Carries the set
+ * identity at fault (`'*'` for an order-level fault, e.g. a snapshot pinned to the wrong frozen contract) and the
+ * FULL reason list, so an operator sees every problem at once rather than one-per-retry.
+ */
+export class SetIdentityBoardUnavailableError extends Error {
+  /** The set identity that could not be bound, or `'*'` when the fault is order-level. */
+  readonly setIdentityId: string;
+  /** Every reason the bind/assert failed (never truncated to the first). */
+  readonly reasons: string[];
+
+  constructor(setIdentityId: string, reasons: string[]) {
+    super(
+      `[set_identity_board] no approved board usable for set identity "${setIdentityId}": ${reasons.join('; ')}`
+    );
+    this.name = 'SetIdentityBoardUnavailableError';
+    this.setIdentityId = setIdentityId;
+    this.reasons = reasons;
+    // Restore the prototype chain so `instanceof` survives the ES5 `extends Error` downlevel.
+    Object.setPrototypeOf(this, SetIdentityBoardUnavailableError.prototype);
+  }
+}
+
+/**
+ * The injected I/O seam. The resolver itself does NO I/O — these three are the only doors to the outside world, and
+ * each one is allowed to return "not there" (null) rather than throw; the resolver converts a null into the
+ * fail-closed error with the right reason attached.
+ */
+export interface BoardResolverDeps {
+  /** The registry entry filed under this exact identity key, or null when there is none. */
+  loadRegistryEntry(key: ExpectedRegistryIdentity): SetIdentityBoardRegistryEntry | null;
+  /** The environment-specific url for the durable `storageKey`, or null when it cannot be resolved. */
+  resolveDurableUrl(storageKey: string): Promise<string | null>;
+  /** The sha256 of the bytes actually stored at `storageKey`, or null when missing/unreadable. */
+  fetchAssetSha256(storageKey: string): Promise<string | null>;
+}
+
+/** The registry identity a given (contract, set, style) triple expects. Recomputed — never read off the binding. */
+function expectedIdentityFor(
+  contract: BookVisualContract,
+  setIdentityId: string,
+  styleId: string
+): ExpectedRegistryIdentity {
+  return {
+    registryVersion: SET_IDENTITY_REGISTRY_VERSION,
+    boardVersion: SET_IDENTITY_BOARD_VERSION,
+    storyKey: contract.storyKey ?? '',
+    setIdentityId,
+    styleId,
+    setDefinitionHash: computeSetDefinitionHash(contract, setIdentityId, styleId),
+  };
+}
+
+function isNonEmptyString(v: unknown): v is string {
+  return typeof v === 'string' && v.trim().length > 0;
+}
+
+/**
+ * Whether an EXISTING binding still describes the board this contract+style currently requires. Compared against a
+ * FRESHLY RECOMPUTED expectation (never against the binding's own claims), so a set edit, a style change, or a
+ * board-version bump all invalidate it. A binding that passes here is reused verbatim.
+ */
+function isBindingStillValid(
+  binding: SetIdentityBoardBinding | undefined,
+  expected: ExpectedRegistryIdentity
+): boolean {
+  if (!binding) return false;
+  if (binding.setIdentityId !== expected.setIdentityId) return false;
+  if (binding.setDefinitionHash !== expected.setDefinitionHash) return false;
+  if (binding.styleId !== expected.styleId) return false;
+  if (binding.boardVersion !== expected.boardVersion) return false;
+  if (!isNonEmptyString(binding.storageKey)) return false;
+  if (!isNonEmptyString(binding.resolvedUrl)) return false;
+  if (!isNonEmptyString(binding.assetSha256)) return false;
+  // A binding without an approval stamp is not a binding — it is a candidate that leaked.
+  if (!isNonEmptyString(binding.approvedAt)) return false;
+  return true;
+}
+
+/**
+ * The ACTIVATION snapshot for a newly frozen contract: `required-v1` with ZERO bindings yet. Writing this is what
+ * opts ONE order onto the board path, permanently. Called ONLY when the flag is on and only at the moment the
+ * contract freezes — an order that never gets this stays legacy for life (see `set-identity-board-stage.ts`).
+ */
+export function snapshotBoardMode(args: { frozenContractHash: string }): SetIdentityBoardBindingContext {
+  return { mode: 'required-v1', frozenContractHash: args.frozenContractHash, bindings: {} };
+}
+
+/** LOOK UP → VERIFY → BIND exactly one set identity. Every failure path throws; there is no degraded return. */
+async function bindOneBoard(
+  setIdentityId: string,
+  expected: ExpectedRegistryIdentity,
+  deps: BoardResolverDeps
+): Promise<SetIdentityBoardBinding> {
+  const entry = deps.loadRegistryEntry(expected);
+  if (!entry) {
+    throw new SetIdentityBoardUnavailableError(setIdentityId, [
+      `no registry entry for setDefinitionHash "${expected.setDefinitionHash}" ` +
+        `(story "${expected.storyKey}", style "${expected.styleId}", ${expected.boardVersion}) — ` +
+        `an approved board must be minted + human-approved OFFLINE before this order can render`,
+    ]);
+  }
+
+  // Fail-closed identity + QA + human-approval gate (Milestone A). Rejects a candidate (qaStatus:'pending',
+  // approvedBy:null), a failed QA, a foreign style, a stale boardVersion, and any setDefinitionHash drift.
+  const validation = validateSetIdentityBoardRegistryEntry(entry, expected);
+  if (!validation.ok) {
+    throw new SetIdentityBoardUnavailableError(setIdentityId, validation.errors);
+  }
+
+  // Byte fence BEFORE the url: an approval covers specific BYTES, not a storage location. A re-render at the same
+  // key voids the approval.
+  const actualSha256 = await deps.fetchAssetSha256(entry.storageKey);
+  if (!isNonEmptyString(actualSha256)) {
+    throw new SetIdentityBoardUnavailableError(setIdentityId, [
+      `board object "${entry.storageKey}" is missing or unreadable — cannot verify the approved bytes`,
+    ]);
+  }
+  const bytes = verifyBoardAssetBytes(entry, actualSha256);
+  if (!bytes.ok) {
+    throw new SetIdentityBoardUnavailableError(setIdentityId, bytes.errors);
+  }
+
+  const resolvedUrl = await deps.resolveDurableUrl(entry.storageKey);
+  if (!isNonEmptyString(resolvedUrl)) {
+    throw new SetIdentityBoardUnavailableError(setIdentityId, [
+      `board url unresolvable for storageKey "${entry.storageKey}"`,
+    ]);
+  }
+
+  return {
+    setIdentityId,
+    setDefinitionHash: entry.setDefinitionHash,
+    styleId: entry.styleId,
+    // storageKey is the DURABLE authority; resolvedUrl is the env-specific locator handed to the provider. Both are
+    // durable descriptors — NEVER a local /tmp path (assertCacheHasNoLocalArtifactPaths would reject the cache).
+    storageKey: entry.storageKey,
+    resolvedUrl,
+    assetSha256: entry.assetSha256,
+    boardVersion: entry.boardVersion,
+    // Non-empty by the validator above (human approval is explicit or the entry was rejected).
+    approvedAt: entry.approvedAt as string,
+  };
+}
+
+/**
+ * Resolve the FULL binding set for one order's frozen contract. Rebuilt from `listRequiredSetIdentityIds` every
+ * call, so an identity that stopped requiring a board drops out and a new one is bound — but any binding that is
+ * still valid is carried over VERBATIM (idempotency: a retry/crash-resume never re-chooses a different board).
+ *
+ * The frozen contract is READ ONLY — nothing here mutates it.
+ */
+export async function resolveBoardBindings(
+  args: {
+    contract: BookVisualContract;
+    styleId: string;
+    frozenContractHash: string;
+    existing?: SetIdentityBoardBindingContext;
+  },
+  deps: BoardResolverDeps
+): Promise<SetIdentityBoardBindingContext> {
+  const { contract, styleId, frozenContractHash, existing } = args;
+
+  const bindings: Record<string, SetIdentityBoardBinding> = {};
+  for (const setIdentityId of listRequiredSetIdentityIds(contract)) {
+    const expected = expectedIdentityFor(contract, setIdentityId, styleId);
+    const prior = existing?.bindings?.[setIdentityId];
+    if (isBindingStillValid(prior, expected)) {
+      bindings[setIdentityId] = prior as SetIdentityBoardBinding; // REUSE VERBATIM — never re-choose.
+      continue;
+    }
+    bindings[setIdentityId] = await bindOneBoard(setIdentityId, expected, deps);
+  }
+
+  return { mode: 'required-v1', frozenContractHash, bindings };
+}
+
+/**
+ * Cheap PRESENCE probe used only to decide whether the `set_refs` STAGE has work left. Deliberately does NOT hash
+ * anything: staleness is the pre-render assertion's job, and the stage decision must stay cheap on every resume.
+ */
+export function hasUnboundRequiredSetIdentity(
+  contract: BookVisualContract,
+  snapshot: SetIdentityBoardBindingContext
+): boolean {
+  return listRequiredSetIdentityIds(contract).some((id) => {
+    const binding = snapshot.bindings?.[id];
+    return !binding || !isNonEmptyString(binding.resolvedUrl);
+  });
+}
+
+/**
+ * THE PRE-IMAGE ASSERTION — the last thing between a board-activated order and a paid render.
+ *
+ * A NO-OP for a LEGACY order (no `required-v1` snapshot) — which is every order today and every order while the
+ * flag is off. That is the whole OFF-inertness argument in one line.
+ *
+ * For an ACTIVATED order it is fail-closed on two axes:
+ *   1. The snapshot must be pinned to the ACTIVE frozen contract. A snapshot from a different contract means the
+ *      set may have changed under the bindings — the boards are not provably right, so we stop.
+ *   2. Every currently-required set identity must have a binding that STILL matches a freshly recomputed
+ *      `setDefinitionHash` (plus style/version/url/approval). A missing OR stale binding stops the render.
+ *
+ * `styleId` is passed in rather than read off the binding on purpose: recomputing the expectation from the
+ * binding's own `styleId` would let a wrong-style binding validate itself.
+ */
+export function assertBoardsBoundForRender(args: {
+  contract: BookVisualContract;
+  cache: { setIdentityBoards?: SetIdentityBoardBindingContext };
+  styleId: string;
+  activeFrozenContractHash: string | null;
+}): void {
+  const snapshot = args.cache.setIdentityBoards;
+  if (snapshot?.mode !== 'required-v1') return; // LEGACY order → no-op → byte-identical.
+
+  if (!isNonEmptyString(args.activeFrozenContractHash) || snapshot.frozenContractHash !== args.activeFrozenContractHash) {
+    throw new SetIdentityBoardUnavailableError('*', [
+      `board snapshot is pinned to frozen contract "${snapshot.frozenContractHash}" but the active frozen ` +
+        `contract is "${args.activeFrozenContractHash ?? '(none)'}" — the set may have changed under the bindings`,
+    ]);
+  }
+
+  for (const setIdentityId of listRequiredSetIdentityIds(args.contract)) {
+    const binding = snapshot.bindings?.[setIdentityId];
+    if (!binding) {
+      throw new SetIdentityBoardUnavailableError(setIdentityId, [
+        'required set identity has no board binding — refusing to render a paid image without its approved set board',
+      ]);
+    }
+    const expected = expectedIdentityFor(args.contract, setIdentityId, args.styleId);
+    if (!isBindingStillValid(binding, expected)) {
+      throw new SetIdentityBoardUnavailableError(setIdentityId, [
+        `board binding is stale — expected setDefinitionHash "${expected.setDefinitionHash}" / style ` +
+          `"${expected.styleId}" / ${expected.boardVersion}, got "${binding.setDefinitionHash}" / ` +
+          `"${binding.styleId}" / ${binding.boardVersion}`,
+      ]);
+    }
+  }
+}

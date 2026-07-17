@@ -42,3 +42,29 @@ export {
   boardContaminationFlags,
   buildBoardQaInstruction,
 } from './boardQa';
+
+export {
+  orderReferenceAssets,
+  planReferenceAssets,
+  selectBoardRefForLocation,
+  ReferenceBudgetExceededError,
+  type ReferenceAsset,
+  type ReferenceRole,
+} from './referenceTransport';
+
+export { isSetIdentityBoardEnabled } from './flags';
+
+export {
+  snapshotBoardMode,
+  resolveBoardBindings,
+  assertBoardsBoundForRender,
+  hasUnboundRequiredSetIdentity,
+  SetIdentityBoardUnavailableError,
+  type BoardResolverDeps,
+} from './resolveBoards';
+
+export {
+  createLiveBoardResolverDeps,
+  setIdentityBoardRegistryPath,
+  SET_IDENTITY_BOARD_REGISTRY_DIR,
+} from './liveResolverDeps';

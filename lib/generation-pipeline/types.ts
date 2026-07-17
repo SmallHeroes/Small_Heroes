@@ -93,6 +93,21 @@ export type PipelineCache = {
    * absent = legacy behavior. No consumer reads it yet in WS0b — adapters/steering land in later slices.
    */
   visualContract?: Prisma.InputJsonValue;
+  /**
+   * (Set Identity Board, Milestone C) This order's per-order board ACTIVATION + BINDINGS, pinned to the frozen
+   * contract hash. Written ONLY by `set-identity-board-stage.ts`, ONLY at the fresh dna→cover transition, and ONLY
+   * when `isSetIdentityBoardEnabled()` (hard-off on Vercel Production) — via a single-key `jsonb_set`, never
+   * `saveCache`.
+   *
+   * ABSENT = LEGACY ORDER, and permanently so: every board branch (bind stage, pre-render assertion, tagged refs,
+   * the `set_refs` stage decision) gates on this field being `mode:'required-v1'`, so an order that never got a
+   * snapshot renders byte-identically to today FOREVER — including an order already in flight when the flag is
+   * switched on. Boards are never introduced mid-book.
+   *
+   * Carries only DURABLE descriptors (`storageKey` + a resolved url), never a local /tmp path —
+   * `assertCacheHasNoLocalArtifactPaths` would reject the cache on serverless.
+   */
+  setIdentityBoards?: import('@/lib/set-identity-board').SetIdentityBoardBindingContext;
   characterAnchorStore?: Record<
     string,
     {
@@ -218,6 +233,10 @@ export type PageForGeneration = {
    *  MUST-NOT-SHOW/CAMERA) → PREPENDED to the Style 01 prompt so the frozen contract outranks imageDirection.
    *  Ephemeral; set only when VISUAL_CONTRACT_STEERING is on. Absent → legacy prompt unchanged (byte-identical). */
   visualContractPromptBlock?: string;
+  /** (Set Identity Board, Milestone C) This page's approved set board as a TAGGED ref (Milestone B transport).
+   *  Ephemeral; set only for an order carrying a `required-v1` board snapshot. Absent → no protected ref, no role
+   *  map, no set-copy instruction → byte-identical. */
+  setIdentityBoardRefs?: import('@/lib/set-identity-board').ReferenceAsset[];
 };
 
 export type ResolvedCompanionRef = Companion | null;

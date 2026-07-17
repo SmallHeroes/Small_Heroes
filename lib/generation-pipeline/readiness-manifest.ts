@@ -68,7 +68,12 @@ export type DeliveryInputMutationReason =
   // (WS0b) Freeze the BookVisualContract before the cover: stamps Order.visualContractHash + persists the
   // contract into pipelineCache. Runs on 'generating' orders (before any paid image), so it never triggers the
   // ready→generating recovery branch; recoveryStageFor's default ('package') is inert for it.
-  | 'visual_contract_frozen';
+  | 'visual_contract_frozen'
+  // (Set Identity Board, Milestone C) Activate/bind the per-order approved set boards into
+  // pipelineCache.setIdentityBoards, between the contract freeze and the first paid image. Like
+  // 'visual_contract_frozen' it runs on 'generating' orders only (never on a ready order), so it never triggers
+  // the ready→generating recovery branch; recoveryStageFor's default ('package') is inert for it.
+  | 'set_identity_board_bound';
 
 export interface DeliveryInputMutationResult<T extends ReceiptSafeValue> {
   value: T;
