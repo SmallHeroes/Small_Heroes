@@ -52,6 +52,16 @@ import { composeContractAuthoritativePrompt } from '../../lib/visual-contract-co
 import type { Companion } from '../../lib/companions';
 import path from 'path';
 import { generateGPTImage, generateReplicateImage, resolveGPTImageEditMaxReferences } from '../../lib/generate-image';
+// (Milestone B) Typed tagged-reference transport. PURE + additive: with no tagged set refs supplied every helper
+// below is a no-op (empty plan → empty paths, '' role map, no manifest), so the paid path stays byte-identical.
+import {
+  buildImageRoleMapFromAssembly,
+  buildReferenceAssetManifest,
+  planReferenceAssets,
+  SET_REFERENCE_COPY_INSTRUCTION,
+  type ReferenceAsset,
+  type ReferenceRole,
+} from '@/lib/set-identity-board/referenceTransport';
 import {
   buildStyle02BookPagePrompt,
   buildStyle02ChildVisualLock,
@@ -483,6 +493,12 @@ export interface ImageInput {
   sceneAppearance?: import('../../lib/set-appearance/types').SceneAppearanceMemory | null;
   /** J2.5 approved set-appearance board — replaces per-object isolated refs */
   setAppearanceBoardPath?: string | null;
+  /**
+   * (Milestone B) Tagged set refs for the PROTECT tier. EMPTY/absent today → byte-identical no-op: no protected
+   * paths, no role-map/set-instruction prompt prefix, no `referenceAssets` meta. Milestone C populates it from the
+   * per-order Set Identity Board binding (see `lib/set-identity-board/referenceTransport`).
+   */
+  setIdentityBoardRefs?: ReferenceAsset[];
   /** Pipeline character ids for this page (e.g. child, companion:bolly_armadillo). */
   expectedCharacterIds?: string[];
   /** guarded-v2 recipe id when using production recipe page cards. */
@@ -529,6 +545,19 @@ export interface Style01PageMeta {
   sceneClass: Style01SceneClass;
   entityPresence: PageEntityPresenceContract;
   referenceBreakdown: Record<string, string[]>;
+  /**
+   * (Milestone B) Role/order/hash proof for TAGGED refs. A deliberate OPTIONAL SIBLING of `referenceBreakdown`
+   * rather than an extension of it: `referenceBreakdown` is `Record<string,string[]>` and is persisted/snapshotted,
+   * so widening it would break byte-identity. Present ONLY when tagged set refs were supplied (absent → the meta
+   * serializes exactly as today).
+   */
+  referenceAssets?: Array<{
+    order: number;
+    role: ReferenceRole;
+    url: string;
+    assetSha256?: string;
+    identityId?: string;
+  }>;
   model: string;
   refConfig: string;
   usage?: Record<string, unknown> | null;
@@ -694,6 +723,11 @@ export interface CoverImageInput {
   /** (WS0b location authority) Authoritative contract prompt block for the cover; PREPENDED to the Style 01
    *  prompt so the frozen cover contract outranks direction. Absent → legacy prompt unchanged. */
   visualContractPromptBlock?: string;
+  /**
+   * (Milestone B) Tagged set refs for the COVER. EMPTY/absent today → byte-identical no-op; forwarded verbatim into
+   * the SAME Style01 assembly the pages use, so cover parity is automatic. Milestone C populates it.
+   */
+  setIdentityBoardRefs?: ReferenceAsset[];
   /** Larger square GPT renders for קובץ מוכן להדפסה. */
   printPdfOptimized?: boolean;
 }
@@ -3363,10 +3397,22 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
   const styleRefPaths = input.contractStyleRefEnvironment
     ? resolveStyle01RefPathsForEnvironmentLock(input.contractStyleRefEnvironment, styleRefCount)
     : resolveStyle01StyleReferencePaths(sceneClass, styleRefCount);
-  // (Slice B) PROTECT tier seam — approved contract zone/prop set reference sheets. EMPTY here; Slice C (render-gated)
-  // fills it from the approved set/prop sheets. An empty array is a pure no-op: refs, breakdown, budget, manifest, and
-  // the persisted style01Meta.referenceBreakdown stay byte/behavior-identical to today.
-  const protectedSetSheetPaths: string[] = [];
+  // (Slice B) PROTECT tier seam — approved contract zone/prop set reference sheets. Fed from the TAGGED refs on
+  // `input.setIdentityBoardRefs` (Milestone B transport); Milestone C is what actually populates that field from the
+  // per-order board binding. ABSENT/EMPTY today → `taggedRefPlan` stays null and this array stays `[]`, which is a
+  // pure no-op: refs, breakdown, budget, manifest, prompt bytes, and the persisted style01Meta.referenceBreakdown all
+  // stay byte/behavior-identical to today. The plan is skipped entirely when there are no tagged refs so no cap is
+  // even resolved on the untagged path.
+  //
+  // planReferenceAssets is a PRE-flight: it fixes role priority and fails LOUD (ReferenceBudgetExceededError) before
+  // any provider call if the required refs cannot fit. The authoritative cap/eviction/throw over the FULL assembled
+  // list still lives in assembleStyle01BookReferencesWithZoneSheets (zone-sheets.ts) — unchanged.
+  const taggedRefPlan = input.setIdentityBoardRefs?.length
+    ? planReferenceAssets(input.setIdentityBoardRefs, resolveGPTImageEditMaxReferences())
+    : null;
+  const protectedSetSheetPaths: string[] = taggedRefPlan
+    ? taggedRefPlan.ordered.filter((a) => a.kind === 'set' || a.kind === 'prop').map((a) => a.url)
+    : [];
   const { paths: referenceImages, breakdown } = assembleStyle01BookReferencesWithZoneSheets({
     styleRefPaths,
     childPhotoPath: refConfig === 'C' ? undefined : childPhotoPath,
@@ -3383,10 +3429,26 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
   // (WS0b location authority) Prepend the AUTHORITATIVE contract block (when present) so the frozen contract
   // OUTRANKS imageDirection for location/cast/wardrobe/forbidden — same treatment as the non-Style01 path
   // (generateWithGPTImage). Absent block → composeContractAuthoritativePrompt returns the prompt unchanged.
-  const prompt = composeContractAuthoritativePrompt(
+  const contractAuthoritativePrompt = composeContractAuthoritativePrompt(
     input.visualContractPromptBlock,
     sanitizePromptForSafety(finalPrompt)
   );
+  // (Milestone B) With TAGGED refs the provider is told which image is which, and that a set board contributes
+  // geometry ONLY — never its camera/framing. NO tagged refs → `prompt` is exactly `contractAuthoritativePrompt`,
+  // i.e. byte-identical to today (this is the flag-OFF path everything ships on right now).
+  //
+  // The role map is derived from the ASSEMBLED array (`referenceImages` + `breakdown`), NOT from the tagged subset:
+  // the tagged refs are only the PROTECT slice of a list that also carries child/companion/style, so a subset-derived
+  // map would mislabel `Image 1` (claiming the set board while image 1 is the child anchor). A confidently wrong map
+  // steers worse than none — see buildImageRoleMapFromAssembly.
+  const prompt =
+    taggedRefPlan && taggedRefPlan.ordered.length > 0
+      ? [
+          buildImageRoleMapFromAssembly(referenceImages, breakdown),
+          SET_REFERENCE_COPY_INSTRUCTION,
+          contractAuthoritativePrompt,
+        ].join('\n\n')
+      : contractAuthoritativePrompt;
 
   console.log(
     `[style01_phase2] orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} ` +
@@ -3582,6 +3644,11 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
       sceneClass,
       entityPresence,
       referenceBreakdown: breakdown,
+      // (Milestone B) Role/order/hash proof — spread in ONLY when tagged refs were supplied, so with none the meta
+      // object has exactly the same keys/values it has today (an absent optional key serializes to nothing).
+      ...(taggedRefPlan && taggedRefPlan.ordered.length > 0
+        ? { referenceAssets: buildReferenceAssetManifest(taggedRefPlan.ordered) }
+        : {}),
       model: result.model,
       refConfig,
       usage: result.usage ?? null,
@@ -3968,6 +4035,9 @@ export async function generateBookCover(input: CoverImageInput): Promise<Generat
     // lock (page 0, resolved from coverContract) instead of the regex classifier, and prepend the cover block.
     contractStyleRefEnvironment: input.contractStyleRefEnvironment ?? null,
     visualContractPromptBlock: input.visualContractPromptBlock,
+    // (Milestone B) Forward the cover's tagged set refs into the SAME Style01 assembly the pages use — absent today,
+    // so this stays a no-op and cover parity comes for free from the shared seam.
+    setIdentityBoardRefs: input.setIdentityBoardRefs,
     heroVisualLock: input.heroVisualLock,
     styleLock: input.styleLock,
     entityVisualLock: input.entityVisualLock,
