@@ -1,10 +1,17 @@
 /**
  * Set Identity Board — the PURE board-prompt builder. NO I/O, NO clock, NO randomness.
  *
- * Turns a `SetDefinition` (the SET-only projection) into the text used to render ONE character-free, multi-view
- * SET reference sheet. Composed from the projection ONLY plus the order's style blocks (`@/lib/styles`). It never
- * imports the image provider or any env-coupled module, so it is fully testable and deterministic: same def → same
- * prompt → same `promptHash`.
+ * Turns a `SetDefinition` (the SET-only projection) into the text used to render ONE character-free establishing
+ * view of the set. Composed from the projection ONLY plus the order's style blocks (`@/lib/styles`). It never
+ * imports the image provider or any env-coupled module, so it is fully testable and deterministic: same def →
+ * same prompt → same `promptHash`.
+ *
+ * WHY A SINGLE VIEW (learned from the first real mint): this asked for a "multi-view reference sheet" with a
+ * numbered VIEW PLAN, and the model did exactly that — it returned a 3-panel sheet with cream gutters. Board QA
+ * correctly failed it on `panels`. Enumerating views IS what draws panels, and panel borders are precisely what
+ * must never leak into a page. The set content was already right; only the layout was. So: ONE continuous
+ * establishing view of the whole connected set. A single wide shot already captures it (the rejected board's own
+ * top panel proved that), and it cannot grow a gutter.
  *
  * Two hard rules make this reusable and safe:
  *  1. ZERO story-specific literals. Every set-specific word comes from the projection; the scaffolding is generic.
@@ -30,7 +37,10 @@ const BOARD_FORBIDS: readonly string[] = [
   'NO action, NO pose, NO gesture, NO narrative moment — the set is empty and still, nothing is happening',
   'NO labels, NO text, NO letters, NO numbers, NO captions, NO watermarks, NO signage',
   'NO page composition, NO story panel, NO book-page layout, NO comic layout, NO speech bubbles',
-  'NO panel borders, NO gutters, NO frames or dividing lines splitting the sheet',
+  'NO panel borders, NO gutters, NO frames or dividing lines splitting the image',
+  // The failure mode the first real mint actually produced: a 3-panel sheet with cream gutters. Named explicitly
+  // and positively resolved ("ONE single continuous illustration") — a forbid the model can obey by doing one thing.
+  'NO multiple views, NO second angle, NO inset, NO detail study, NO grid, NO contact sheet, NO collage — ONE single continuous illustration of ONE view, edge to edge',
 ];
 
 function humanizeKind(kind: string): string {
@@ -72,10 +82,13 @@ function zoneGeometryLines(zone: SetDefinitionZone): string[] {
 /**
  * Build the board prompt, its negative prompt, and their joint hash.
  *
- * The positive prompt: announces a multi-view SET reference sheet (one canonical empty establishing view + 1–2
- * neutral alternate views/details of the SAME set), states the set's locations / geometry / materials / lighting
- * from the projection, declares ONLY the openings present, forbids all inhabitants/action/text/paneling, and applies
- * the order's positive style block. The negative prompt fuses the style's negatives with the board forbids.
+ * The positive prompt: asks for ONE single continuous establishing view of the whole empty set, states the set's
+ * locations / geometry / materials / lighting from the projection, declares ONLY the openings present, forbids all
+ * inhabitants/action/text/paneling, and applies the order's positive style block. The negative prompt fuses the
+ * style's negatives with the board forbids.
+ *
+ * Deliberately NO view plan and no "reference sheet" framing: enumerating views is what made the model draw a
+ * panelled sheet (see the module header).
  */
 export function buildSetIdentityBoardPrompt(def: SetDefinition): {
   prompt: string;
@@ -93,18 +106,19 @@ export function buildSetIdentityBoardPrompt(def: SetDefinition): {
   });
 
   const sections: string[] = [
-    'SET IDENTITY BOARD — CHARACTER-FREE MULTI-VIEW SET REFERENCE SHEET',
-    'Render the SET ONLY, empty of all inhabitants: one canonical establishing view of the whole set plus 1–2 neutral alternate views or fixed-detail studies of the EXACT SAME physical set, arranged as a clean reference sheet.',
+    'SET IDENTITY BOARD — CHARACTER-FREE SINGLE ESTABLISHING VIEW OF ONE SET',
+    'Render ONE single canonical establishing view of this whole set, empty of all inhabitants: a SINGLE CONTINUOUS ILLUSTRATION filling the frame edge to edge, from one natural establishing angle wide enough to take in the entire connected space at once.',
+    'This is ONE picture — NOT a sheet, NOT multiple views, NOT panels, NOT a grid, NOT a collage. There are no dividing lines anywhere in the image.',
     '',
     `SET IDENTITY: ${def.setIdentityId}  (board ${def.boardVersion})`,
     '',
-    'LOCATIONS / VIEWPOINTS OF THIS ONE PHYSICAL SET:',
+    'THE ONE PHYSICAL SET (all of the areas below are ONE continuous connected space, shown together in the single view):',
     ...def.locations.map(locationLine),
     '',
-    'SET GEOMETRY (fixed architecture — must be identical across every view):',
+    'SET GEOMETRY (the fixed architecture of this set):',
     ...(geometryLines.length ? geometryLines : ['- (no structured geometry authored for this set)']),
     '',
-    'FIXED SET OBJECTS (stable materials + scale — the same object, never redesigned, in every view):',
+    'FIXED SET OBJECTS (stable materials + scale — the same object, never redesigned):',
     ...(materialLines.length ? materialLines : ['- (no fixed set objects bound into this set)']),
     '',
     'WALL OPENINGS:',
@@ -113,11 +127,6 @@ export function buildSetIdentityBoardPrompt(def: SetDefinition): {
           `Render ONLY these opening types, exactly as authored — invent no other opening: ${openings.join(', ')}.`,
         ]
       : ['No wall openings belong to this set — render solid, unbroken walls only.']),
-    '',
-    'VIEW PLAN:',
-    '1. Primary establishing view — the whole empty set from a natural establishing angle.',
-    '2. Secondary view — a neutral alternate angle of the same set, empty.',
-    '3. Optional detail study — a close look at a fixed surface, material, or opening of the same set.',
     '',
     'STRICT FORBIDS (this is a SET PLATE, not a story page):',
     ...BOARD_FORBIDS.map((f) => `- ${f}`),

@@ -124,3 +124,73 @@ describe('buildSetIdentityBoardPrompt', () => {
     expect(a.negativePrompt).toBe(b.negativePrompt);
   });
 });
+
+/**
+ * SINGLE ESTABLISHING VIEW — the shape the first real mint taught us.
+ *
+ * The original prompt asked for a "multi-view reference sheet" and enumerated a numbered VIEW PLAN. The model did
+ * exactly as told: it returned a 3-panel sheet with cream gutters, and board QA correctly failed it on `panels`.
+ * The set CONTENT was already right — only the layout was. Enumerating views is what draws panels, and a panel
+ * border is precisely the thing that must never leak into a page. So the prompt must ask for ONE continuous view,
+ * and this spec is what stops "1. Primary view / 2. Secondary view" ever creeping back in.
+ */
+describe('buildSetIdentityBoardPrompt — ONE continuous establishing view, never a panelled sheet', () => {
+  const def = () => projectSetDefinition(makeContract(), 'set_hall', 'detailed_whimsical_world');
+  const prompt = () => buildSetIdentityBoardPrompt(def()).prompt;
+
+  it('asks for a SINGLE continuous establishing view', () => {
+    const p = prompt();
+    expect(p).toMatch(/SINGLE ESTABLISHING VIEW/i);
+    expect(p).toMatch(/SINGLE CONTINUOUS ILLUSTRATION/i);
+    expect(p).toMatch(/ONE picture/i);
+  });
+
+  it('has NO numbered VIEW PLAN — the block that enumerated panels is gone', () => {
+    const p = prompt();
+    expect(p).not.toMatch(/VIEW PLAN/i);
+    expect(p).not.toMatch(/^\s*1\.\s+Primary/im);
+    expect(p).not.toMatch(/Secondary view/i);
+    // Matched on the old plan's EXACT line rather than on "detail study": the FORBIDS legitimately say
+    // "NO detail study", and a negative mention is exactly what we want — a broad match would fail on the fix.
+    expect(p).not.toMatch(/Optional detail study/i);
+  });
+
+  it('never frames the board as a multi-view "reference sheet"', () => {
+    const p = prompt();
+    expect(p).not.toMatch(/MULTI-VIEW/i);
+    expect(p).not.toMatch(/reference sheet/i);
+    expect(p).not.toMatch(/alternate (view|angle)/i);
+    // "1–2 neutral alternate views ... arranged as a clean reference sheet" — the exact old framing.
+    expect(p).not.toMatch(/arranged as a/i);
+  });
+
+  it('still FORBIDS panels/gutters/grids — belt and suspenders alongside the positive single-view ask', () => {
+    const { prompt: p, negativePrompt } = buildSetIdentityBoardPrompt(def());
+    for (const text of [p, negativePrompt]) {
+      expect(text).toMatch(/NO panel borders|panel/i);
+      expect(text).toMatch(/gutter/i);
+    }
+    expect(p).toMatch(/NO multiple views/i);
+    expect(p).toMatch(/NO grid/i);
+    expect(p).toMatch(/NO collage/i);
+  });
+
+  it('still carries the set geometry, fixed objects, authored openings and the order style', () => {
+    const p = prompt();
+    expect(p).toMatch(/SET GEOMETRY/);
+    expect(p).toMatch(/a plain stone hall with a flat floor/); // from the projection
+    expect(p).toMatch(/FIXED SET OBJECTS/);
+    expect(p).toMatch(/WALL OPENINGS/);
+    expect(p).toMatch(/doorway/); // the ONLY authored opening
+    expect(p).not.toMatch(/balcony door/i); // never invents an opening the structure lacks
+    expect(p).toMatch(/STYLE \(from the order style/);
+  });
+
+  it('stays deterministic and still character-free', () => {
+    const a = buildSetIdentityBoardPrompt(def());
+    const b = buildSetIdentityBoardPrompt(def());
+    expect(a.promptHash).toBe(b.promptHash);
+    expect(a.prompt).toMatch(/NO people/i);
+    expect(a.prompt).toMatch(/NO animals/i);
+  });
+});
