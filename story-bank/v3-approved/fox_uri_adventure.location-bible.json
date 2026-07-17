@@ -58,19 +58,21 @@
     },
     {
       "id": "balcony_threshold",
-      "description": "Transition between the bedroom window and the small safe balcony: the child steps out through the same open low window onto the balcony. Same window/curtain/railing relationship, with no glazed balcony door. No high-balcony drama.",
+      "description": "Transition between the bedroom and the small safe balcony: the child opens the full-height glazed balcony door and steps through onto the balcony. The small listening window is a SEPARATE opening further along the same wall and stays behind them. Two clearly distinct openings — small window for listening, full-height door for going out — never merged into one. No high-balcony drama.",
       "stableGeometry": [
-        "same open low window onto the small safe balcony (no glazed door)",
+        "small chest-height listening window in the room wall",
+        "a SEPARATE full-height glazed balcony door beside it — the way out onto the small safe balcony",
         "low safe balcony railing",
         "same floor transition from bedroom to balcony"
       ],
       "visualAnchors": [
-        "same window frame",
+        "same small listening window frame",
+        "same separate full-height glazed balcony door",
         "same curtains",
         "safe low balcony railing",
         "home-like balcony corner"
       ],
-      "allowedCameraAccess": ["threshold medium", "eye level at open window"]
+      "allowedCameraAccess": ["threshold medium", "eye level at the balcony door"]
     },
     {
       "id": "balcony_drip_area",
@@ -148,7 +150,11 @@
     "wall pipe",
     "roof pipe",
     "tap",
-    "plumbing pipe"
+    "plumbing pipe",
+    "window-door hybrid opening",
+    "the small listening window drawn as a full-height door",
+    "the balcony door drawn as a small window",
+    "the window and the balcony door merged into a single opening"
   ],
   "transitionRules": [
     "Move only between zones of the same home-night cluster — bedroom, window, small safe balcony, bucket area.",
@@ -236,7 +242,7 @@
     {
       "page": 4,
       "zoneId": "balcony_threshold",
-      "visibleAnchors": ["same dry metal railing", "same open window/railing relationship", "same home balcony edge"],
+      "visibleAnchors": ["same dry metal railing", "same balcony edge with the glazed balcony door behind", "same home balcony edge"],
       "allowedVariation": "Finger tap on same railing; threshold beat",
       "forbiddenDrift": ["stone cliff railing", "rooftop", "bridge", "visible bucket", "metal bucket", "wet railing", "drip source"],
       "pageAction": "Noa taps a DRY balcony metal-bar railing; Uri's tail betrays his fear. NO bucket, NO water on railing.",

@@ -8,7 +8,7 @@
     {
       "id": "loc_child_room",
       "name": "Child's room by the window",
-      "description": "A quiet, cozy bedroom at night, close to an open window that overlooks a small balcony. The room feels safe and dim rather than scary.",
+      "description": "A quiet, cozy bedroom at night whose outer wall has two separate openings onto a small balcony: a small listening window at child chest height, and a full-height glazed balcony door beside it. The room feels safe and dim rather than scary.",
       "environmentClass": "indoor",
       "lighting": "Very low blue nighttime light from outside, with small warm highlights from Uri's neck flashlight when it turns on.",
       "timeOfDay": "night",
@@ -30,7 +30,7 @@
           "description": "Soft, uncluttered floor near the window for cautious crouching and stepping."
         }
       ],
-      "topology": "Connects directly to the balcony through the same open low window — there is no separate glazed balcony door; the window view frames the balcony railing and the bucket area beyond."
+      "topology": "The room's outer wall carries TWO separate, differently-sized openings onto the SAME balcony: a small chest-height listening window, and further along the same wall a full-height glazed balcony door that is the way out. The child listens at the window (pages 1-3) and steps through the door onto the balcony; the window view frames the balcony railing and the bucket area beyond."
     },
     {
       "id": "loc_balcony",
@@ -75,7 +75,7 @@
       "name": "Inside window listening spot",
       "description": "Interior space directly beside the window where the first strange ticking sound is heard from below or outside.",
       "stableGeometry": [
-        "window \"window\": the bedroom window the strange ticking is heard through — an ordinary casement window whose sill sits at the crouching child's chest height, looking out onto the dark balcony beyond",
+        "window \"window\": the SMALL listening window the strange ticking is heard through — an ordinary casement window about the width of the child's shoulders, its sill at the crouching child's chest height, looking out onto the dark balcony; it is the LISTENING spot and NOT the way out, and is never drawn as the tall glazed balcony door",
         "furniture \"curtain\": curtain edges framing the night on either side of the window",
         "wall \"wall_below_window\": the plain wall below the window that Uri presses his ear against",
         "floor \"room_floor\": a small clear area of bedroom floor in front of the window, low enough to crouch on",
@@ -87,7 +87,7 @@
         {
           "id": "window",
           "kind": "window",
-          "description": "the bedroom window the strange ticking is heard through — an ordinary casement window whose sill sits at the crouching child's chest height, looking out onto the dark balcony beyond",
+          "description": "the SMALL listening window the strange ticking is heard through — an ordinary casement window about the width of the child's shoulders, its sill at the crouching child's chest height, looking out onto the dark balcony; it is the LISTENING spot and NOT the way out, and is never drawn as the tall glazed balcony door",
           "bindsTo": {
             "kind": "prop",
             "id": "prop_window"
@@ -130,40 +130,36 @@
     {
       "id": "z_window_threshold",
       "locationId": "loc_child_room",
-      "name": "Open-window threshold onto the balcony",
-      "description": "The liminal spot where the child and Uri step quietly out through the same open low window onto the balcony — there is no glazed balcony door; the flashlight begins to reveal the way.",
+      "name": "Balcony-door threshold onto the balcony",
+      "description": "The liminal spot where the child opens the full-height glazed balcony door and steps through onto the balcony. The small listening window is a SEPARATE opening that stays behind them in the room — the door is the way out, the window is only for listening. The flashlight begins to reveal the way.",
       "stableGeometry": [
-        "window \"window\": the same low bedroom window, now open as the way out — the child and Uri step over its low sill onto the balcony; the SAME window they listened at on page 1, never a separate glazed balcony door",
-        "ledge \"threshold_ledge\": the low window sill and threshold underfoot in the open window opening the child steps over onto the balcony",
-        "floor \"interior_floor\": the bedroom floor behind them, with the dark open balcony just beyond the open window",
-        "railing \"railing\": the balcony's dry metal railing seen just beyond the open window — the balcony is reached by stepping out through the open window, with no glazed balcony door and no glass vitrine between room and balcony",
-        "\"window\" is above \"threshold_ledge\"",
+        "balcony door \"balcony_door\": the full-height glazed balcony door — the way OUT onto the balcony, standing open as the child steps through; a tall door running from the floor to above adult head height, clearly a DOOR and clearly NOT the small chest-height listening window, which is a separate opening further along the same wall",
+        "ledge \"threshold_ledge\": the flat door threshold underfoot in the open balcony-door opening the child steps over onto the balcony",
+        "floor \"interior_floor\": the bedroom floor behind them, with the dark balcony just beyond the open balcony door",
+        "railing \"railing\": the balcony's dry metal railing seen through the open balcony door — the same balcony that the small listening window overlooks from further along the room wall",
+        "\"balcony_door\" is above \"threshold_ledge\"",
         "\"threshold_ledge\" is adjacent to \"interior_floor\""
       ],
       "spatialNodes": [
         {
-          "id": "window",
-          "kind": "window",
-          "description": "the same low bedroom window, now open as the way out — the child and Uri step over its low sill onto the balcony; the SAME window they listened at on page 1, never a separate glazed balcony door",
-          "bindsTo": {
-            "kind": "prop",
-            "id": "prop_window"
-          }
+          "id": "balcony_door",
+          "kind": "balcony_door",
+          "description": "the full-height glazed balcony door — the way OUT onto the balcony, standing open as the child steps through; a tall door running from the floor to above adult head height, clearly a DOOR and clearly NOT the small chest-height listening window, which is a separate opening further along the same wall"
         },
         {
           "id": "threshold_ledge",
           "kind": "ledge",
-          "description": "the low window sill and threshold underfoot in the open window opening the child steps over onto the balcony"
+          "description": "the flat door threshold underfoot in the open balcony-door opening the child steps over onto the balcony"
         },
         {
           "id": "interior_floor",
           "kind": "floor",
-          "description": "the bedroom floor behind them, with the dark open balcony just beyond the open window"
+          "description": "the bedroom floor behind them, with the dark balcony just beyond the open balcony door"
         },
         {
           "id": "railing",
           "kind": "railing",
-          "description": "the balcony's dry metal railing seen just beyond the open window — the balcony is reached by stepping out through the open window, with no glazed balcony door and no glass vitrine between room and balcony",
+          "description": "the balcony's dry metal railing seen through the open balcony door — the same balcony that the small listening window overlooks from further along the room wall",
           "bindsTo": {
             "kind": "prop",
             "id": "prop_metal_railing"
@@ -172,7 +168,7 @@
       ],
       "spatialRelations": [
         {
-          "subjectId": "window",
+          "subjectId": "balcony_door",
           "relation": "above",
           "objectId": "threshold_ledge"
         },
@@ -367,10 +363,10 @@
     {
       "id": "prop_window",
       "name": "bedroom window",
-      "description": "The bedroom window the ticking is heard through — the page-1 listening spot, kept low and open so the child and Uri simply step out through it onto the balcony. It is a WINDOW; there is no separate glazed balcony door or vitrine — the balcony is reached through this same open window.",
+      "description": "The SMALL bedroom window the ticking is heard through — the page-1 listening spot. It is a WINDOW and NOT the way out: the balcony is reached through the separate full-height glazed balcony door at the threshold. Two distinct openings on the same wall, never one.",
       "material": "painted wood or simple metal frame with glass and soft curtains",
-      "scale": "low enough for the child to look out, crouch near, and step over onto the balcony",
-      "persistence": "the SAME bedroom window wherever it appears (pages 1-2); never redrawn as, or merged into, a glazed balcony door or vitrine — this story has no glass exit-door"
+      "scale": "small — about the width of the child's shoulders, sill at the crouching child's chest height; visibly SMALLER and higher than the full-height balcony door",
+      "persistence": "the SAME small bedroom window wherever it appears; never enlarged into, merged with, swapped for, or drawn as the full-height glazed balcony door — the window and the door stay two visibly different openings on every page"
     },
     {
       "id": "prop_metal_railing",
@@ -421,7 +417,7 @@
     "weapons, tools, or repair equipment",
     "bright daytime sunlight",
     "messy clutter that obscures the bucket, flashlight, railing, or droplets",
-    "glazed balcony exit-door or glass vitrine — the balcony is open and reached through the same window, with no glass door anywhere"
+    "a window-door hybrid: the small chest-height listening window and the full-height glazed balcony door are TWO separate, differently-sized openings and must never be merged, swapped, or drawn as one element"
   ],
   "coverContract": {
     "worldType": "cozy realistic nighttime home adventure with gentle picture-book whimsy; sounds may be visualized as small friendly rhythm marks, but the world remains non-magical",
@@ -463,7 +459,7 @@
         "literal monster",
         "clock",
         "old tin bucket",
-        "glazed balcony exit-door or glass vitrine (the balcony is open — there is no glass door)"
+        "the small listening window drawn as, merged with, or replaced by the full-height balcony door — on this page the listening spot is the SMALL window"
       ],
       "propState": [
         {
@@ -524,7 +520,7 @@
         "monster silhouette",
         "clock",
         "old tin bucket",
-        "glazed balcony exit-door or glass vitrine (they step out through the open window — there is no glass door)"
+        "the balcony door drawn as, merged with, or replaced by the small listening window — on this page the way out is the FULL-HEIGHT glazed door"
       ],
       "propState": [
         {

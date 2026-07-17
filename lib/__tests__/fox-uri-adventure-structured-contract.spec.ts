@@ -14,7 +14,9 @@ import {
 import {
   groupLocationsBySetIdentity,
   listRequiredSetIdentityIds,
+  projectSetDefinition,
 } from '@/lib/set-identity-board/setDefinition';
+import { buildSetIdentityBoardPrompt } from '@/lib/set-identity-board/boardPrompt';
 
 /**
  * The Contract-v2 PROOF slot: fox is the FIRST story whose structured fields are hand-authored, so it is the first
@@ -22,8 +24,12 @@ import {
  * STRUCTURE rather than prose.
  *
  * It pins the 4 defects observed in the first fox render:
- *   1. window↔door — the opening was authored ambiguously as a window/door; RESOLVED (set-consistency): the balcony is
- *      OPEN, reached through the SAME window, with no glazed balcony door / vitrine anywhere (Guy's story decision).
+ *   1. window↔door — the opening was authored ambiguously as one "window/door". RESOLVED, in two steps and on
+ *      render evidence: first as a door-less set (window only), which the board mint disproved — the story moves the
+ *      child from inside to outside, that transition IS a door, and gpt-image answered the impossible ask with a
+ *      window/door HYBRID. Now: TWO explicitly DISTINCT openings — a small chest-height listening window and a
+ *      separate full-height glazed balcony door — with the hybrid forbidden. Ambiguity was never the door's fault;
+ *      it was the two openings never being told to look different.
  *   2. bucket drift — the bucket wandered, and appeared on pages whose direction says "No bucket visible yet".
  *   3. wrong-actor notebook — page 3's notebook is URI's, and it drifted to the child.
  *   4. railing safety — nothing forbade the child sitting on / going past the balcony railing.
@@ -78,19 +84,17 @@ describe('fox — the hand-authored structured contract validates end-to-end', (
   });
 });
 
-describe('fox — DEFECT 1: the opening is a WINDOW onto an OPEN balcony — never a glazed door', () => {
-  it('the page-1 listening opening is a WINDOW; the page-2 threshold is window + railing with NO balcony door', () => {
+describe('fox — DEFECT 1: window↔door is a per-node KIND, never one ambiguous "window/door"', () => {
+  it('each opening is its OWN typed node — the set holds a window AND a door without collapsing them', () => {
     const t = foxTemplate();
-    const win = zone(t, 'z_room_window').spatialNodes?.find((n) => n.id === 'window');
-    expect(win?.kind).toBe('window');
-    // set-consistency: the invented glazed balcony door is GONE — the balcony is reached through the same open window.
-    const threshold = zone(t, 'z_window_threshold');
-    expect(threshold.spatialNodes?.some((n) => n.kind === 'balcony_door') ?? false).toBe(false);
-    expect(threshold.spatialNodes?.find((n) => n.id === 'window')?.kind).toBe('window');
-    expect(threshold.spatialNodes?.find((n) => n.id === 'railing')?.kind).toBe('railing');
-    // …and each page resolves to the zone that owns its opening.
-    expect(page(t, 1).zoneId).toBe('z_room_window');
-    expect(page(t, 2).zoneId).toBe('z_window_threshold');
+    // The schema's whole point (SpatialNodeKind): an opening is declared PER NODE, so a set may hold a window AND a
+    // balcony door AND a doorway without fusing them into one ambiguous "openingType". The fox now exercises it.
+    const openings = t.zones.flatMap((z) =>
+      (z.spatialNodes ?? []).filter((n) => ['window', 'doorway', 'balcony_door'].includes(n.kind))
+    );
+    expect(openings.map((n) => n.kind).sort()).toEqual(['balcony_door', 'window']);
+    // Distinct nodes → neither can BE the other by construction; the render can only conflate them by disobeying.
+    expect(new Set(openings.map((n) => n.id)).size).toBe(openings.length);
   });
 
   it('the ambiguous "window or ... door" prose is GONE from every zone geometry', () => {
@@ -198,38 +202,84 @@ describe('fox — TIER A / TIER B: the prose IS the structure’s projection', (
   });
 });
 
-describe('fox — SET CONSISTENCY: the balcony is open (window + railing), never a glazed door', () => {
-  it('NO zone anywhere declares a balcony_door node', () => {
-    for (const z of foxTemplate().zones) {
-      expect(z.spatialNodes?.some((n) => n.kind === 'balcony_door') ?? false).toBe(false);
-    }
-  });
-
-  it('the raw template JSON carries no "balcony_door" token at all', () => {
-    expect(readFileSync(TEMPLATE_PATH, 'utf8')).not.toMatch(/balcony_door/);
-  });
-
-  it('the opening set is window + balcony railing (the threshold zone carries both, no door)', () => {
-    const z = zone(foxTemplate(), 'z_window_threshold');
-    const kinds = (z.spatialNodes ?? []).map((n) => n.kind);
-    expect(kinds).toContain('window');
-    expect(kinds).toContain('railing');
-    expect(kinds).not.toContain('balcony_door');
-  });
-
-  it('the opening pages (1-2) forbid a glass exit-door / vitrine in mustNotShow', () => {
+/**
+ * SET CONSISTENCY — TWO distinct openings, reversing the door-less authoring on RENDER EVIDENCE.
+ *
+ * The door-less set ("the balcony is reached through the same open window") fought physics: the story moves the
+ * child from INSIDE (window, room, p1-3) to OUTSIDE (מרפסת, railing, p4+), and that transition IS a door. Asked for
+ * a window doing a door's job, gpt-image split the difference and rendered a window/door HYBRID — which board QA
+ * correctly failed as `opening-kind-not-in-contract`, because the contract authorized only `window`.
+ *
+ * So the set carries BOTH openings again — but with the fix the first authoring lacked: they are explicitly
+ * DIFFERENT elements (small chest-height casement ≠ full-height glazed door), each with its own job, and the
+ * steering forbids merging them. Distinctness is what stops the hybrid; the earlier version had both openings but
+ * never said they must look different.
+ */
+describe('fox — SET CONSISTENCY: TWO distinct openings (small listening window + full-height balcony door)', () => {
+  it('the page-1 listening opening is a small WINDOW and the page-2 way out is a BALCONY DOOR', () => {
     const t = foxTemplate();
-    for (const n of [1, 2]) {
-      expect(page(t, n).mustNotShow.some((s) => /\bdoor\b|vitrine/i.test(s))).toBe(true);
+    const win = zone(t, 'z_room_window').spatialNodes?.find((n) => n.id === 'window');
+    const door = zone(t, 'z_window_threshold').spatialNodes?.find((n) => n.id === 'balcony_door');
+    expect(win?.kind).toBe('window');
+    expect(door?.kind).toBe('balcony_door');
+    // …and each page resolves to the zone that owns its opening.
+    expect(page(t, 1).zoneId).toBe('z_room_window');
+    expect(page(t, 2).zoneId).toBe('z_window_threshold');
+  });
+
+  it('the two openings are DISTINCT elements — different node, different kind, different zone', () => {
+    const t = foxTemplate();
+    const win = zone(t, 'z_room_window').spatialNodes?.find((n) => n.id === 'window');
+    const door = zone(t, 'z_window_threshold').spatialNodes?.find((n) => n.id === 'balcony_door');
+    expect(win?.id).not.toBe(door?.id);
+    expect(win?.kind).not.toBe(door?.kind);
+    // The distinctness is AUTHORED, not implied: each description contrasts itself against the other opening.
+    expect(win?.description).toMatch(/small/i);
+    expect(win?.description).toMatch(/not the way out|never drawn as/i);
+    expect(door?.description).toMatch(/full-height/i);
+    expect(door?.description).toMatch(/NOT the small/i);
+  });
+
+  it('the threshold zone carries the DOOR (not the window) — the way out is the door', () => {
+    const kinds = (zone(foxTemplate(), 'z_window_threshold').spatialNodes ?? []).map((n) => n.kind);
+    expect(kinds).toContain('balcony_door');
+    expect(kinds).not.toContain('window');
+  });
+
+  it('NO mustNotShow forbids a door anymore — the door is now WANTED', () => {
+    const t = foxTemplate();
+    for (const p of t.pageContracts) {
+      for (const s of p.mustNotShow) {
+        expect(s).not.toMatch(/glazed balcony exit-door|glass vitrine|there is no glass door/i);
+      }
     }
+    for (const s of t.forbiddenGlobalElements) {
+      expect(s).not.toMatch(/glazed balcony exit-door or glass vitrine —/i);
+    }
+  });
+
+  it('instead, the HYBRID is forbidden — globally and on both opening pages', () => {
+    const t = foxTemplate();
+    expect(t.forbiddenGlobalElements.some((s) => /hybrid/i.test(s))).toBe(true);
+    // page 1 protects the small window; page 2 protects the full-height door.
+    expect(page(t, 1).mustNotShow.some((s) => /listening window .*(merged|replaced)/i.test(s))).toBe(true);
+    expect(page(t, 2).mustNotShow.some((s) => /balcony door .*(merged|replaced)/i.test(s))).toBe(true);
+  });
+
+  it('the board WALL OPENINGS authorizes BOTH openings — the QA failure this reversal exists to fix', () => {
+    const def = projectSetDefinition(foxTemplate(), 'set_room_balcony_night', 'soft_hand_drawn_storybook');
+    const { prompt } = buildSetIdentityBoardPrompt(def);
+    const openings = prompt.split('WALL OPENINGS:')[1]?.split('\n\n')[0] ?? '';
+    expect(openings).toMatch(/window/i);
+    expect(openings).toMatch(/balcony door/i);
   });
 });
 
 /**
  * [P0-3a] SET IDENTITY BOARD opt-in. Codex NO-GO: with no `setIdentityId`/`setReference` on either location the
  * required-identity list is EMPTY, so a board-activated render "succeeds" having attached no board at all — a FALSE
- * proof. The room and the balcony are ONE physical set (the room opens straight onto the balcony through the same
- * open window — see DEFECT 1), so they share ONE identity and resolve to ONE board.
+ * proof. The room and the balcony are ONE physical set (the room's wall carries both the listening window and the
+ * balcony door onto that same balcony — see DEFECT 1), so they share ONE identity and resolve to ONE board.
  */
 describe('fox — SET IDENTITY BOARD opt-in: room + balcony are ONE physical set', () => {
   it('both locations share exactly ONE setIdentityId (one board, never two)', () => {
