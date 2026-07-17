@@ -260,6 +260,7 @@ model Order {
   exceptionCases     ExceptionCase[]
   qualityEvidence    QualityEvidence[]
   atomicOperationReceipts AtomicOperationReceipt[]
+  humanQaReviewCases HumanQaReviewCase[]
 
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
@@ -788,6 +789,31 @@ enum CouponRedemptionStatus {
   released
 }
 
+// ─── Human-QA hold lifecycle (Slice 1, Unit 1) ────────
+// Additive + inert; no pipeline seam writes these tables yet. Mirrors ExceptionCase/DeliveryOutbox.
+enum HumanQaHoldKind {
+  safety
+  contract_world
+  anchor
+  payment_integrity
+  legacy_unknown
+}
+
+enum HumanQaReviewCaseStatus {
+  open                   // the ONLY active status
+  superseded             // terminal
+  resolved               // terminal
+  cancelled              // terminal
+}
+
+enum OperatorNotificationOutboxStatus {
+  scheduled
+  processing
+  sent
+  failed
+  suppressed
+}
+
 model Coupon {
   id              String   @id @default(cuid())
   code            String   @unique
@@ -823,4 +849,71 @@ model CouponRedemption {
   updatedAt       DateTime               @updatedAt
 
   @@index([couponId, status, expiresAt])
+}
+
+// (Human-QA Slice 1, Unit 1) Durable, superseding review case for a delivery HOLD. `activeKey` is
+// `${orderId}:${scope}` while the case is `open` and NULL after any terminal transition; the migration adds a
+// CHECK binding that invariant to `status` (open ⇒ activeKey set; superseded/resolved/cancelled ⇒ NULL), so the
+// nullable unique key enforces exactly one active case per order/scope even under concurrent producers.
+// The evidence snapshot (holdFingerprint/rawReason/inputVersion/contractHash/sourceManifestId/artifactRefs) is
+// IMMUTABLE once written — a supersede opens a NEW revision, it never rewrites the old case's evidence.
+model HumanQaReviewCase {
+  id                 String                  @id @default(cuid())
+  activeKey          String?                 @unique // `${orderId}:${scope}` while open, NULL when terminal
+  orderId            String
+  order              Order                   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  scope              String                  // base_book for safety/contract_world/anchor; payment for payment_integrity
+  revision           Int                     // 1-based; increments on supersede
+  kind               HumanQaHoldKind
+  status             HumanQaReviewCaseStatus @default(open)
+  holdFingerprint    String                  // immutable hold identity (see computeHoldFingerprint)
+  rawReason          String                  // the deliveryHoldReason marker verbatim
+  humanReason        String                  // readable
+  sourceManifestId   String?
+  inputVersion       Int
+  contractHash       String?
+  artifactRefs       Json?                   // URLs/SHAs evidence snapshot (immutable)
+  heldAt             DateTime                @default(now())
+  supersededByCaseId String?
+  resolvedActor      String?
+  resolvedAt         DateTime?
+  decisionNote       String?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  notifications OperatorNotificationOutbox[]
+
+  @@unique([orderId, scope, revision])
+  @@index([status])
+  @@index([orderId, scope])
+}
+
+// (Human-QA Slice 1, Unit 1) SEPARATE operator-notification outbox — NOT DeliveryOutbox. Mirrors its lease/fencing
+// shape: `claimVersion` is the lease-fencing token (mirrors DeliveryOutbox.attempts, NOT a send-retry counter),
+// `sendAttempts` is bumped by a send-time CAS immediately before each provider call, `sendAttempted` is the durable
+// "a send was EVER attempted" flag (a row is rebindable/suppressible only while it is false). The ONLY failureClass
+// value is `send_ambiguous`.
+model OperatorNotificationOutbox {
+  id                 String                           @id @default(cuid())
+  dedupeKey          String                           @unique // human-qa/${orderId}/${scope}/${revision}
+  caseId             String
+  case               HumanQaReviewCase                @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  orderId            String
+  scope              String
+  status             OperatorNotificationOutboxStatus @default(scheduled)
+  payload            Json
+  payloadHash        String
+  claimVersion       Int                              @default(0)
+  sendAttempts       Int                              @default(0)
+  nextAttemptAt      DateTime?
+  leaseExpiresAt     DateTime?
+  lastError          String?
+  failureClass       String?                          // only `send_ambiguous`
+  sendAttempted      Boolean                          @default(false)
+  firstSendAttemptAt DateTime?
+  providerMessageId  String?
+  createdAt          DateTime                         @default(now())
+  sentAt             DateTime?
+
+  @@index([status, nextAttemptAt])
 }
