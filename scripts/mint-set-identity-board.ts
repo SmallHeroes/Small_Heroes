@@ -165,8 +165,18 @@ const liveRunBoardQa: BoardQaRunner = async ({ imageUrl, def }) =>
         });
         if (!res.ok) throw new Error(`board_qa_vision_http_${res.status}: ${(await res.text()).slice(0, 200)}`);
         const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-        const parsed = JSON.parse(data.choices?.[0]?.message?.content ?? '{}') as { flags?: unknown };
-        return { flags: Array.isArray(parsed.flags) ? parsed.flags.map(String) : [] };
+        // (P1-6) Return the RAW parsed response. `callVision` is typed `Promise<unknown>` precisely so the
+        // fail-closed core (`parseVisionFlags`) is the ONE judge of the shape — this adapter must not pre-judge it.
+        //
+        // The previous `Array.isArray(parsed.flags) ? parsed.flags.map(String) : []` ERASED THE EVIDENCE before the
+        // core ever saw it: `{"result":"clean"}` / `{"flags":"none"}` / `{}` all collapsed to `{flags:[]}`, which
+        // reads as "no contamination" → passed → written to the registry → approvable by `--approve`. And
+        // `.map(String)` laundered `{flags:[1,2]}` into a well-formed string list, defeating the core's
+        // non-string-entry check. A malformed verdict means "we could not tell", which must land on the same side
+        // as "we found contamination" — this board becomes the reference every page of the set is rendered against.
+        //
+        // A non-JSON body throws out of here; the core `await`s inside its try, so that lands as `qa-call-failed`.
+        return JSON.parse(data.choices?.[0]?.message?.content ?? '{}') as unknown;
       },
     }
   );

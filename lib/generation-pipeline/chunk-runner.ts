@@ -2020,8 +2020,11 @@ export async function deriveStartingStage(
   });
   const hasCover = Boolean(book?.coverImageUrl?.trim() || cache.devSkipCover);
   // (Set Identity Board, Milestone C) A board-activated order with unbound boards and no cover yet resumes at
-  // set_refs. shouldEnterSetRefsStage checks the flag FIRST and the snapshot SECOND, so a flag-off runtime — and
-  // any order without a snapshot — never reaches this and falls through to 'cover' exactly as today.
+  // set_refs. (P0-1) THE SNAPSHOT IS THE AUTHORITY — shouldEnterSetRefsStage does NOT read the env flag: an order
+  // activated at dna must still be able to bind if the flag later goes down, otherwise an env var could brick it
+  // (it would fall through to cover and then throw on the snapshot-gated assert, forever). An order WITHOUT a
+  // required-v1 snapshot — which is every order while the flag is off, since snapshot CREATION is the flag's one
+  // and only reader — returns false here and falls through to 'cover' exactly as today.
   if (!hasCover && shouldEnterSetRefsStage(cache)) return 'set_refs';
   if (!hasCover) return 'cover';
   if (!job.imagesDone) return 'page_images';

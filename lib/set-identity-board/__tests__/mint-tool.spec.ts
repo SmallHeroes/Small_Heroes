@@ -5,6 +5,7 @@ import path from 'path';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  liveMintDeps,
   parseArgs,
   runApprove,
   runCli,
@@ -16,7 +17,7 @@ import { setIdentityBoardStorageKey } from '../liveResolverDeps';
 import { validateSetIdentityBoardRegistryEntry } from '../registry';
 import { computeSetDefinitionHash } from '../setDefinition';
 import { SET_IDENTITY_BOARD_VERSION, SET_IDENTITY_REGISTRY_VERSION } from '../types';
-import type { SetIdentityBoardRegistryEntry } from '../types';
+import type { SetDefinition, SetIdentityBoardRegistryEntry } from '../types';
 import { makeContract } from './board-fixtures';
 
 /**
@@ -311,5 +312,98 @@ describe('--approve — the only path to an approved board, and only over a QA p
     expect(deps.renderBoard).not.toHaveBeenCalled();
     expect(deps.uploadBoard).not.toHaveBeenCalled();
     expect(readEntry(out).approvedBy).toBe('guy');
+  });
+});
+
+/**
+ * (P1-6) THE ADAPTER SEAM — the bypass the core's own tests cannot see.
+ *
+ * `qaSetIdentityBoardImage` is correctly fail-closed, and board-qa.spec.ts proves it. But those specs inject their
+ * own `callVision`, so they exercise the CORE and never touch the LIVE adapter that ships. The adapter used to
+ * coerce `parsed.flags` to `[]` when it was not an array — erasing the evidence BEFORE the fail-closed core could
+ * judge it. `{"result":"clean"}` became `{flags:[]}` → "no contamination" → passed → written to the registry →
+ * approvable by `--approve`. The core was never wrong; it was never shown the truth.
+ *
+ * These tests therefore go THROUGH `liveMintDeps.runBoardQa` (real adapter, mocked HTTP) — the only place the
+ * coercion could hide. No network, no spend.
+ */
+describe('mint — the LIVE vision adapter is fail-closed (P1-6 seam)', () => {
+  const DEF: SetDefinition = {
+    boardVersion: SET_IDENTITY_BOARD_VERSION,
+    storyKey: 'synthetic_story',
+    styleId: 'detailed_whimsical_world',
+    setIdentityId: 'set_alpha',
+    locations: [],
+    zones: [],
+    fixedSetFacts: [],
+  };
+
+  /** Mock the chat-completions call so the adapter parses `content` exactly as it would in production. */
+  function stubVisionContent(content: string): void {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ choices: [{ message: { content } }] }),
+      }))
+    );
+  }
+
+  beforeEach(() => {
+    process.env.OPENAI_API_KEY = 'test-key-not-used-no-network';
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env.OPENAI_API_KEY;
+  });
+
+  const MALFORMED: Array<[string, string]> = [
+    ['a verdict with no flags key at all', '{"result":"clean"}'],
+    ['flags as a string', '{"flags":"none"}'],
+    ['an empty object', '{}'],
+    ['flags with non-string entries', '{"flags":[1,2]}'],
+    ['flags as null', '{"flags":null}'],
+    ['a bare array', '[]'],
+  ];
+
+  for (const [label, content] of MALFORMED) {
+    it(`FAILS closed on ${label} — never "passed"`, async () => {
+      stubVisionContent(content);
+      const result = await liveMintDeps.runBoardQa({ imageUrl: 'https://example.test/board.png', def: DEF });
+      expect(result.qaStatus).toBe('failed');
+      expect(result.qaStatus).not.toBe('passed');
+      expect(result.qaFlags.join(' ')).toMatch(/qa-response-malformed/);
+    });
+  }
+
+  it('FAILS closed when the model returns non-JSON (the parse throws → qa-call-failed)', async () => {
+    stubVisionContent('I could not analyse this image.');
+    const result = await liveMintDeps.runBoardQa({ imageUrl: 'https://example.test/board.png', def: DEF });
+    expect(result.qaStatus).toBe('failed');
+    expect(result.qaFlags.join(' ')).toMatch(/qa-call-failed/);
+  });
+
+  it('FAILS closed on an HTTP error (no verdict was ever obtained)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, status: 500, text: async () => 'upstream exploded' }))
+    );
+    const result = await liveMintDeps.runBoardQa({ imageUrl: 'https://example.test/board.png', def: DEF });
+    expect(result.qaStatus).toBe('failed');
+    expect(result.qaFlags.join(' ')).toMatch(/qa-call-failed/);
+  });
+
+  it('a WELL-FORMED contaminated verdict still fails, carrying the real flags (unchanged)', async () => {
+    stubVisionContent('{"flags":["people","panel-borders"]}');
+    const result = await liveMintDeps.runBoardQa({ imageUrl: 'https://example.test/board.png', def: DEF });
+    expect(result.qaStatus).toBe('failed');
+    expect(result.qaFlags).toEqual(['people', 'panel-borders']);
+  });
+
+  it('a GENUINELY clean verdict still passes (the fix must not break the happy path)', async () => {
+    stubVisionContent('{"flags":[]}');
+    const result = await liveMintDeps.runBoardQa({ imageUrl: 'https://example.test/board.png', def: DEF });
+    expect(result.qaStatus).toBe('passed');
+    expect(result.qaFlags).toEqual([]);
   });
 });
