@@ -61,10 +61,20 @@ export {
   hasUnboundRequiredSetIdentity,
   SetIdentityBoardUnavailableError,
   type BoardResolverDeps,
+  /** (P0-4b) Byte-re-verification deps for the pre-render assert — a swapped object must fail closed. */
+  type BoardByteVerifierDeps,
 } from './resolveBoards';
 
 export {
   createLiveBoardResolverDeps,
   setIdentityBoardRegistryPath,
   SET_IDENTITY_BOARD_REGISTRY_DIR,
+  /**
+   * (P0-4a) The ONE content-addressed key builder — public API deliberately. The offline mint and the live binder
+   * MUST derive the SAME key or an approved board can never be found, so this stays a single shared contract
+   * instead of two copies that can drift. `assetSha256` is a PATH COMPONENT: different bytes are physically a
+   * different object, which is what makes an approved board unswappable.
+   */
+  setIdentityBoardStorageKey,
+  type BoardStorageIdentity,
 } from './liveResolverDeps';

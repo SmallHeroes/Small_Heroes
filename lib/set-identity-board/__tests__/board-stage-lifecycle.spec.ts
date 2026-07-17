@@ -68,6 +68,15 @@ function makeResolverDeps(overrides: Partial<BoardResolverDeps> = {}): BoardReso
   };
 }
 
+/**
+ * (P0-4b) The pre-render assert re-reads the board's bytes, so it needs the resolver seam too. This wrapper is the
+ * shipped `requireSetIdentityBoardsBoundForRender` with the storage door faked to "the approved bytes are still
+ * there" — i.e. the byte check passes and the spec is testing whatever else it means to test.
+ */
+async function assertBound(order: Order, cache: PipelineCache, resolver: BoardResolverDeps = makeResolverDeps()) {
+  return requireSetIdentityBoardsBoundForRender(order, cache, { resolver });
+}
+
 /** A fake Prisma + barrier that record what the lifecycle wrote, with no database anywhere. */
 function makeDb(opts: { hasCover?: boolean; hasPageImage?: boolean } = {}) {
   return {
@@ -199,18 +208,19 @@ describe('stage order — dna → cover (NO set_refs) when the flag is off', () 
     expect(deriveStartingStageReplica(JOB, cache, false)).toBe('cover');
   });
 
-  it('shouldEnterSetRefsStage is false on Vercel Production even with the var set', async () => {
-    // Activate on staging first…
+  it('Vercel Production can never ACTIVATE an order, even with the var leaked on', async () => {
+    process.env.VERCEL_ENV = 'production';
     enableFlag();
     const barrier = makeBarrier();
     const cache = await ensureSetIdentityBoardSnapshot(makeOrder(), makeCache(), {
       db: asPrisma(makeDb()),
       withMutation: barrier.withMutation,
     });
-    expect(shouldEnterSetRefsStage(cache)).toBe(true);
-    // …then pretend the same code runs on prod with the var leaked on.
-    process.env.VERCEL_ENV = 'production';
+    // The flag is the gate on ACTIVATION, and prod is hard-off → no snapshot → set_refs unreachable → legacy.
+    expect(cache.setIdentityBoards).toBeUndefined();
+    expect(barrier.withMutation).not.toHaveBeenCalled();
     expect(shouldEnterSetRefsStage(cache)).toBe(false);
+    expect(deriveStartingStageReplica(JOB, cache, false)).toBe('cover');
   });
 
   it('the whole legacy stage sequence is unchanged with the flag off', () => {
@@ -224,6 +234,152 @@ describe('stage order — dna → cover (NO set_refs) when the flag is off', () 
     expect(
       deriveStartingStageReplica({ textDone: true, imagesDone: true, audioDone: true, packaged: true }, cache, true)
     ).toBe('done');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// P0-1 — the SNAPSHOT is the authority for entering set_refs, never the env flag
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * THE BUG THIS FIXES, concretely: an order activates at `dna` (snapshot written, boards NOT yet bound), the worker
+ * dies, and the flag goes DOWN before the resume — a config rollback, a redeploy, a worker on a differently
+ * configured runtime. `shouldEnterSetRefsStage` used to read the flag, so it returned false, `deriveStartingStage`
+ * fell through to `cover`, and the pre-render assert (correctly snapshot-gated) threw. The order could never bind
+ * and never render: bricked by an env var, forever.
+ *
+ * The rule now: the flag governs snapshot CREATION and nothing else. Past activation, the snapshot decides.
+ */
+describe('P0-1 — an ACTIVATED order still enters set_refs after the flag goes down', () => {
+  async function activatedButUnbound(): Promise<PipelineCache> {
+    enableFlag();
+    return ensureSetIdentityBoardSnapshot(makeOrder(), makeCache(), {
+      db: asPrisma(makeDb()),
+      withMutation: makeBarrier().withMutation,
+    });
+  }
+
+  it('snapshot exists + flag OFF → shouldEnterSetRefsStage is STILL true', async () => {
+    const cache = await activatedButUnbound();
+    expect(shouldEnterSetRefsStage(cache)).toBe(true);
+
+    delete process.env.SET_IDENTITY_BOARD; // the flag goes down mid-book
+    expect(shouldEnterSetRefsStage(cache)).toBe(true);
+  });
+
+  it('snapshot exists + flag OFF → resume ENTERS set_refs and BINDS (not bricked at cover)', async () => {
+    const cache = await activatedButUnbound();
+    delete process.env.SET_IDENTITY_BOARD;
+
+    expect(deriveStartingStageReplica(JOB, cache, false)).toBe('set_refs'); // not 'cover'
+
+    const bound = await runSetIdentityBoardBindStage(makeOrder(), cache, {
+      db: asPrisma(makeDb()),
+      withMutation: makeBarrier().withMutation,
+      resolver: makeResolverDeps(),
+    });
+    expect(bound.setIdentityBoards!.bindings[REQUIRED_ID].setDefinitionHash).toBe(setHash());
+    await expect(assertBound(makeOrder(), bound)).resolves.toBeUndefined();
+    // And once bound there is no work left, so the flag-off resume proceeds to the cover normally.
+    expect(shouldEnterSetRefsStage(bound)).toBe(false);
+    expect(deriveStartingStageReplica(JOB, bound, false)).toBe('cover');
+  });
+
+  it('snapshot exists + flag OFF on PROD → still enters set_refs (an activated order is never abandoned)', async () => {
+    const cache = await activatedButUnbound();
+    delete process.env.SET_IDENTITY_BOARD;
+    process.env.VERCEL_ENV = 'production';
+    expect(shouldEnterSetRefsStage(cache)).toBe(true);
+    expect(deriveStartingStageReplica(JOB, cache, false)).toBe('set_refs');
+  });
+
+  it('LEGACY order (no snapshot) + flag OFF → NEVER enters set_refs (byte-identical)', () => {
+    const legacy = makeCache(); // frozen contract present, never activated
+    delete process.env.SET_IDENTITY_BOARD;
+    expect(shouldEnterSetRefsStage(legacy)).toBe(false);
+    expect(deriveStartingStageReplica(JOB, legacy, false)).toBe('cover');
+    // …and the same holds on prod, and with no contract at all.
+    process.env.VERCEL_ENV = 'production';
+    expect(shouldEnterSetRefsStage(legacy)).toBe(false);
+    expect(shouldEnterSetRefsStage(makeCache({ visualContract: undefined }))).toBe(false);
+  });
+
+  it('LEGACY order (no snapshot) + flag ON → still never enters set_refs (only activation opts an order in)', () => {
+    enableFlag();
+    expect(shouldEnterSetRefsStage(makeCache())).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// P0-2 — styleId namespace: mint and live must key a board by the SAME id
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * THE BUG THIS FIXES: `Order.illustrationStyle` holds a DB enum value (`pencil_watercolor`), while the mint tool —
+ * and `buildSetIdentityBoardPrompt`, i.e. the thing that actually renders the board — key by the NORMALIZED
+ * `StyleId` (`soft_hand_drawn_storybook`). The binder passed the raw column through, so a minted, QA'd,
+ * human-approved board could never validate against a real order: `styleId mismatch`, fail-closed, forever. The
+ * epic's own fixtures hid it because `detailed_whimsical_world` normalizes to itself — the one style where the two
+ * namespaces coincide.
+ */
+describe('P0-2 — styleId is NORMALIZED once, and bind + assert agree by construction', () => {
+  /** A board minted under the NORMALIZED id — exactly what `scripts/mint-set-identity-board.ts` writes. */
+  const MINTED_STYLE_ID = 'soft_hand_drawn_storybook';
+  /** …and a real order whose column holds the RAW DB value that normalizes to it. */
+  const RAW_DB_STYLE = 'pencil_watercolor';
+
+  function mintedBoardResolver(): BoardResolverDeps {
+    const hash = computeSetDefinitionHash(makeContract(), REQUIRED_ID, MINTED_STYLE_ID);
+    const entry = makeApprovedEntry(hash, { styleId: MINTED_STYLE_ID });
+    return {
+      loadRegistryEntry: vi.fn(() => entry),
+      fetchAssetSha256: vi.fn(async () => entry.assetSha256),
+      resolveDurableUrl: vi.fn(async (key: string) => `https://cdn.example/${key}`),
+    };
+  }
+
+  async function bindRawDbStyleOrder(): Promise<PipelineCache> {
+    enableFlag();
+    const order = makeOrder({ illustrationStyle: RAW_DB_STYLE });
+    const activated = await ensureSetIdentityBoardSnapshot(order, makeCache(), {
+      db: asPrisma(makeDb()),
+      withMutation: makeBarrier().withMutation,
+    });
+    return runSetIdentityBoardBindStage(order, activated, {
+      db: asPrisma(makeDb()),
+      withMutation: makeBarrier().withMutation,
+      resolver: mintedBoardResolver(),
+    });
+  }
+
+  it('round-trip: a board minted under the normalized id VALIDATES against a raw-DB-value order', async () => {
+    const bound = await bindRawDbStyleOrder();
+    const binding = bound.setIdentityBoards!.bindings[REQUIRED_ID];
+    // The binding is keyed by the NORMALIZED id — never the raw column value.
+    expect(binding.styleId).toBe(MINTED_STYLE_ID);
+    expect(binding.styleId).not.toBe(RAW_DB_STYLE);
+    expect(binding.setDefinitionHash).toBe(computeSetDefinitionHash(makeContract(), REQUIRED_ID, MINTED_STYLE_ID));
+  });
+
+  it('the ASSERT normalizes identically — it passes for the same order it bound', async () => {
+    const bound = await bindRawDbStyleOrder();
+    await expect(
+      assertBound(makeOrder({ illustrationStyle: RAW_DB_STYLE }), bound, mintedBoardResolver())
+    ).resolves.toBeUndefined();
+  });
+
+  it('two DB values that normalize to the SAME id share one board (realistic_illustrated ≡ pencil_watercolor)', async () => {
+    const bound = await bindRawDbStyleOrder();
+    await expect(
+      assertBound(makeOrder({ illustrationStyle: 'realistic_illustrated' }), bound, mintedBoardResolver())
+    ).resolves.toBeUndefined();
+  });
+
+  it('a genuinely DIFFERENT style still fails closed (normalization widens nothing)', async () => {
+    const bound = await bindRawDbStyleOrder();
+    await expect(
+      assertBound(makeOrder({ illustrationStyle: 'detailed_whimsical_world' }), bound, mintedBoardResolver())
+    ).rejects.toThrow(SetIdentityBoardUnavailableError);
   });
 });
 
@@ -317,7 +473,11 @@ describe('an in-flight order with NO activation snapshot stays entirely legacy �
     expect(afterBind).toBe(legacy); // untouched
     expect(barrier.withMutation).not.toHaveBeenCalled();
 
-    expect(() => requireSetIdentityBoardsBoundForRender(makeOrder(), legacy)).not.toThrow();
+    // The assert is a no-op AND does no I/O — a legacy order never touches registry or storage.
+    const resolver = makeResolverDeps();
+    await expect(assertBound(makeOrder(), legacy, resolver)).resolves.toBeUndefined();
+    expect(resolver.fetchAssetSha256).not.toHaveBeenCalled();
+    expect(resolver.loadRegistryEntry).not.toHaveBeenCalled();
     expect(setIdentityBoardRefsForPage(legacy, 0)).toBeUndefined();
     expect(setIdentityBoardRefsForPage(legacy, 1)).toBeUndefined();
   });
@@ -364,7 +524,7 @@ describe('runSetIdentityBoardBindStage — fresh / retry / crash-after-bind all 
 
   it('a resume entering DIRECTLY at cover sees the same binding and passes the assertion', async () => {
     const bound = await activateAndBind();
-    expect(() => requireSetIdentityBoardsBoundForRender(makeOrder(), bound)).not.toThrow();
+    await expect(assertBound(makeOrder(), bound)).resolves.toBeUndefined();
     expect(setIdentityBoardRefsForPage(bound, 0)?.[0].url).toBe(
       bound.setIdentityBoards!.bindings[REQUIRED_ID].resolvedUrl
     );
@@ -372,7 +532,7 @@ describe('runSetIdentityBoardBindStage — fresh / retry / crash-after-bind all 
 
   it('a resume entering DIRECTLY at page_images sees the same binding and passes the assertion', async () => {
     const bound = await activateAndBind();
-    expect(() => requireSetIdentityBoardsBoundForRender(makeOrder(), bound)).not.toThrow();
+    await expect(assertBound(makeOrder(), bound)).resolves.toBeUndefined();
     expect(setIdentityBoardRefsForPage(bound, 1)?.[0].url).toBe(
       bound.setIdentityBoards!.bindings[REQUIRED_ID].resolvedUrl
     );
@@ -388,16 +548,14 @@ describe('runSetIdentityBoardBindStage — fresh / retry / crash-after-bind all 
       withMutation: makeBarrier().withMutation,
     });
     // Proof of the hazard: the assert WOULD throw in this state…
-    expect(() => requireSetIdentityBoardsBoundForRender(makeOrder(), activatedUnbound)).toThrow(
-      SetIdentityBoardUnavailableError
-    );
+    await expect(assertBound(makeOrder(), activatedUnbound)).rejects.toThrow(SetIdentityBoardUnavailableError);
     // …yet the bind stage recovers it, and the post-bind assert then passes.
     const bound = await runSetIdentityBoardBindStage(makeOrder(), activatedUnbound, {
       db: asPrisma(makeDb()),
       withMutation: makeBarrier().withMutation,
       resolver: makeResolverDeps(),
     });
-    expect(() => requireSetIdentityBoardsBoundForRender(makeOrder(), bound)).not.toThrow();
+    await expect(assertBound(makeOrder(), bound)).resolves.toBeUndefined();
     expect(bound.setIdentityBoards!.bindings[REQUIRED_ID].setDefinitionHash).toBe(setHash());
   });
 
@@ -434,7 +592,7 @@ describe('runSetIdentityBoardBindStage — fresh / retry / crash-after-bind all 
     const bound = await activateAndBind();
     delete process.env.SET_IDENTITY_BOARD;
     // The snapshot — not the flag — is the gate from activation onward.
-    expect(() => requireSetIdentityBoardsBoundForRender(makeOrder(), bound)).not.toThrow();
+    await expect(assertBound(makeOrder(), bound)).resolves.toBeUndefined();
     expect(setIdentityBoardRefsForPage(bound, 1)).toBeDefined();
   });
 });
@@ -450,16 +608,17 @@ describe('required mode CANNOT render with a missing or stale binding', () => {
       db: asPrisma(makeDb()),
       withMutation: makeBarrier().withMutation,
     });
-    expect(() => requireSetIdentityBoardsBoundForRender(makeOrder(), cache)).toThrow(
-      SetIdentityBoardUnavailableError
-    );
+    await expect(assertBound(makeOrder(), cache)).rejects.toThrow(SetIdentityBoardUnavailableError);
   });
 
   it('THROWS when the order style changed under a bound board', async () => {
     const bound = await activateAndBind();
-    expect(() =>
-      requireSetIdentityBoardsBoundForRender(makeOrder({ illustrationStyle: 'whimsical_comic_fantasy' }), bound)
-    ).toThrow(SetIdentityBoardUnavailableError);
+    // NB: a DB value that normalizes to a genuinely different StyleId (P0-2). `whimsical_comic_fantasy` would NOT
+    // work here — it normalizes to `detailed_whimsical_world`, the same id the fixture bound under, so it is
+    // correctly the SAME board.
+    await expect(assertBound(makeOrder({ illustrationStyle: 'pencil_watercolor' }), bound)).rejects.toThrow(
+      SetIdentityBoardUnavailableError
+    );
   });
 
   it('THROWS when the frozen contract in the cache no longer matches the snapshot pin', async () => {
@@ -470,9 +629,14 @@ describe('required mode CANNOT render with a missing or stale binding', () => {
       ...bound,
       visualContract: edited as unknown as PipelineCache['visualContract'],
     };
-    expect(() => requireSetIdentityBoardsBoundForRender(makeOrder(), drifted)).toThrow(
-      SetIdentityBoardUnavailableError
-    );
+    await expect(assertBound(makeOrder(), drifted)).rejects.toThrow(SetIdentityBoardUnavailableError);
+  });
+
+  it('THROWS when the board BYTES were swapped under a perfectly-bound order (P0-4b, through the stage)', async () => {
+    const bound = await activateAndBind();
+    await expect(
+      assertBound(makeOrder(), bound, makeResolverDeps({ fetchAssetSha256: vi.fn(async () => 'sha-SWAPPED') }))
+    ).rejects.toThrow(/bytes changed since binding/);
   });
 
   const brokenEntries: Array<[string, () => BoardResolverDeps]> = [

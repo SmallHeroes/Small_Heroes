@@ -56,11 +56,11 @@ import { generateGPTImage, generateReplicateImage, resolveGPTImageEditMaxReferen
 // below is a no-op (empty plan → empty paths, '' role map, no manifest), so the paid path stays byte-identical.
 import {
   buildImageRoleMapFromAssembly,
-  buildReferenceAssetManifest,
+  buildReferenceAssetManifestFromAssembly,
   planReferenceAssets,
   SET_REFERENCE_COPY_INSTRUCTION,
   type ReferenceAsset,
-  type ReferenceRole,
+  type ReferenceAssetManifestEntry,
 } from '@/lib/set-identity-board/referenceTransport';
 import {
   buildStyle02BookPagePrompt,
@@ -546,18 +546,15 @@ export interface Style01PageMeta {
   entityPresence: PageEntityPresenceContract;
   referenceBreakdown: Record<string, string[]>;
   /**
-   * (Milestone B) Role/order/hash proof for TAGGED refs. A deliberate OPTIONAL SIBLING of `referenceBreakdown`
-   * rather than an extension of it: `referenceBreakdown` is `Record<string,string[]>` and is persisted/snapshotted,
-   * so widening it would break byte-identity. Present ONLY when tagged set refs were supplied (absent → the meta
-   * serializes exactly as today).
+   * (Milestone B) Role/order/hash proof for the refs actually sent. A deliberate OPTIONAL SIBLING of
+   * `referenceBreakdown` rather than an extension of it: `referenceBreakdown` is `Record<string,string[]>` and is
+   * persisted/snapshotted, so widening it would break byte-identity. Present ONLY when tagged set refs were supplied
+   * (absent → the meta serializes exactly as today).
+   *
+   * `order` indexes the ASSEMBLED provider array (NOT the tagged subset), so it agrees index-for-index with the
+   * `Image N` lines of the prompt's role map — see `buildReferenceAssetManifestFromAssembly`.
    */
-  referenceAssets?: Array<{
-    order: number;
-    role: ReferenceRole;
-    url: string;
-    assetSha256?: string;
-    identityId?: string;
-  }>;
+  referenceAssets?: ReferenceAssetManifestEntry[];
   model: string;
   refConfig: string;
   usage?: Record<string, unknown> | null;
@@ -3646,8 +3643,20 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
       referenceBreakdown: breakdown,
       // (Milestone B) Role/order/hash proof — spread in ONLY when tagged refs were supplied, so with none the meta
       // object has exactly the same keys/values it has today (an absent optional key serializes to nothing).
+      //
+      // Built from the ASSEMBLED array (`referenceImages` + `breakdown`) for the SAME reason the role map above is:
+      // the tagged refs are a SUBSET of the list the provider receives, so a subset-derived manifest renumbers from 1
+      // and records a board that occupied slot 3 as order 1 — a proof record that lies about the slot it is proving.
+      // Assembled-derived, it agrees index-for-index with the role map; the tagged sha/identityId fences are carried
+      // over by url match.
       ...(taggedRefPlan && taggedRefPlan.ordered.length > 0
-        ? { referenceAssets: buildReferenceAssetManifest(taggedRefPlan.ordered) }
+        ? {
+            referenceAssets: buildReferenceAssetManifestFromAssembly(
+              referenceImages,
+              breakdown,
+              taggedRefPlan.ordered
+            ),
+          }
         : {}),
       model: result.model,
       refConfig,

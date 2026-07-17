@@ -6,6 +6,9 @@
  * opening kind that is NOT part of this set. A board is failed if the checker returns ANY contamination flag —
  * fail-closed, because a contaminated board must never become an approved reference.
  *
+ * FAIL-CLOSED covers UNCERTAINTY, not just contamination: a malformed response or a thrown vision call also FAILS
+ * (with a diagnostic flag). Only an affirmative, well-formed, empty flag list passes — see `qaSetIdentityBoardImage`.
+ *
  * `boardContaminationFlags` is a PURE classifier (no network): given a list of OBSERVED terms it returns the subset
  * that are contamination. A real vision adapter can use it to turn free observations into flags; the tests use it to
  * verify the forbidden vocabulary without a network.
@@ -100,16 +103,82 @@ export function buildBoardQaInstruction(def: SetDefinition): string {
   ].join('\n');
 }
 
+/** Diagnostic flag: the vision call returned something that is not a well-formed `{flags: string[]}`. */
+export const QA_RESPONSE_MALFORMED_FLAG = 'qa-response-malformed';
+
+/** Diagnostic flag: the vision call itself threw or rejected — we never got a verdict at all. */
+export const QA_CALL_FAILED_FLAG = 'qa-call-failed';
+
+/**
+ * PURE. Parse a vision response fail-closed. `ok:false` carries a diagnostic saying WHY it was rejected.
+ *
+ * Deliberately strict: `flags` must be an ARRAY OF STRINGS, nothing else. The previous version coerced anything
+ * non-array to `[]`, which then read as "no contamination found" and PASSED the board — so a vision adapter that
+ * changed its shape, returned an error envelope, or emitted a single string silently minted approved references from
+ * unchecked images. An absent verdict is not a clean verdict. A non-string entry is rejected rather than filtered out
+ * for the same reason: a partially-parsed flag list means the response is not the shape we think it is, and the flags
+ * we CAN read may not be all of them.
+ */
+function parseVisionFlags(
+  response: unknown
+): { ok: true; flags: string[] } | { ok: false; diagnostic: string } {
+  if (response === null || typeof response !== 'object' || Array.isArray(response)) {
+    return {
+      ok: false,
+      diagnostic: `${QA_RESPONSE_MALFORMED_FLAG}: expected an object with a "flags" array, got ${
+        response === null ? 'null' : Array.isArray(response) ? 'an array' : typeof response
+      }`,
+    };
+  }
+
+  const flags = (response as { flags?: unknown }).flags;
+  if (!Array.isArray(flags)) {
+    return {
+      ok: false,
+      diagnostic: `${QA_RESPONSE_MALFORMED_FLAG}: "flags" is not an array (got ${
+        flags === null ? 'null' : typeof flags
+      })`,
+    };
+  }
+  if (!flags.every((f) => typeof f === 'string')) {
+    return {
+      ok: false,
+      diagnostic: `${QA_RESPONSE_MALFORMED_FLAG}: "flags" contains a non-string entry`,
+    };
+  }
+
+  return { ok: true, flags: flags as string[] };
+}
+
 /**
  * Run the character-free QA pass. Builds the instruction from `def`, calls the injected vision fn, and fails the board
- * if it returns ANY flag (fail-closed). Returns the flags verbatim for reporting.
+ * if it returns ANY flag.
+ *
+ * FAIL-CLOSED, on every axis: a thrown/rejected call, or a response that is not a well-formed `{flags: string[]}`,
+ * yields `'failed'` with a diagnostic flag naming the reason — NEVER `'passed'`. Only an affirmative, well-formed,
+ * empty flag list passes. This function gates whether an image may become an APPROVED reference that every page of a
+ * set is then rendered against, so "we could not tell" must land on the same side as "we found contamination".
+ *
+ * `deps.callVision` is typed `Promise<unknown>` on purpose: the adapter's declared return type is a claim, not a
+ * guarantee, and this is exactly the seam where an untrusted shape arrives. Validation happens at runtime.
  */
 export async function qaSetIdentityBoardImage(
   input: { imageUrl: string; def: SetDefinition },
-  deps: { callVision: (args: { imageUrl: string; instruction: string }) => Promise<{ flags: string[] }> }
+  deps: { callVision: (args: { imageUrl: string; instruction: string }) => Promise<unknown> }
 ): Promise<BoardQaResult> {
   const instruction = buildBoardQaInstruction(input.def);
-  const { flags } = await deps.callVision({ imageUrl: input.imageUrl, instruction });
-  const qaFlags = Array.isArray(flags) ? flags.filter((f) => typeof f === 'string') : [];
-  return { qaStatus: qaFlags.length > 0 ? 'failed' : 'passed', qaFlags };
+
+  let response: unknown;
+  try {
+    // `await` inside the try so a synchronous throw and a rejected promise both land here.
+    response = await deps.callVision({ imageUrl: input.imageUrl, instruction });
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    return { qaStatus: 'failed', qaFlags: [`${QA_CALL_FAILED_FLAG}: ${reason}`] };
+  }
+
+  const parsed = parseVisionFlags(response);
+  if (!parsed.ok) return { qaStatus: 'failed', qaFlags: [parsed.diagnostic] };
+
+  return { qaStatus: parsed.flags.length > 0 ? 'failed' : 'passed', qaFlags: parsed.flags };
 }

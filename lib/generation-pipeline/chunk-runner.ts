@@ -999,6 +999,14 @@ async function runCoverStage(
       )
     : undefined;
 
+  // (Milestone C / P0-1) THE LAST GATE before the cover — the FIRST PAID IMAGE of the book. The pre-loop and
+  // post-bind asserts both run earlier, but neither is adjacent to the spend: everything between them and this
+  // line (story load, location plan, anchor gates, contract reads) is a place a future edit could route around
+  // them. This one cannot be routed around — it is the statement immediately before the provider call, and it
+  // re-verifies the board BYTES (P0-4b), not just the metadata. A LEGACY order (no snapshot) → no-op, no I/O →
+  // byte-identical.
+  await requireSetIdentityBoardsBoundForRender(order, cache);
+
   const coverImage = await generateBookCover({
     // (#7-a 5b) Durable regen reserver for the cover artifact — flag-on only.
     reserveQualityRegen: isReadinessManifestEnabled()
@@ -1458,6 +1466,14 @@ async function runPageImagesChunk(
   // not incidental (book-level; the local cache is not mutated by render). Threaded into each page's operationKey +
   // payload, the atomic context write, the delivered-evidence write, and the observability payload — never re-read.
   const renderedContractHash = renderedContractHashOf(cache);
+
+  // (Milestone C / P0-1) THE LAST GATE before this chunk's paid pages — same argument as the cover's, and the
+  // reason it is here rather than only at the top of the chunk: a resume enters `page_images` directly, and the
+  // pages this chunk renders consume `setIdentityBoardRefs` built ABOVE from `cache`. Asserting adjacent to the
+  // provider call means those exact refs are proven current (bytes included, P0-4b) at the moment they are spent.
+  // Per-CHUNK, not per-page: one verification covers every page in this chunk. LEGACY order → no-op, no I/O.
+  await requireSetIdentityBoardsBoundForRender(order, cache);
+
   const imageOutcome = await generateAllPageImages(pagesForGen, {
     // (#7-a 5b) Durable per-page regen reserver — flag-on only (flag-off → undefined → legacy in-memory budget).
     makeReserveQualityRegen: isReadinessManifestEnabled()
@@ -2076,7 +2092,7 @@ export async function processGenerationChunk(
       // updateStage('set_refs') and the bind would be asserted-to-death here and could never resume. set_refs runs
       // its own assert immediately AFTER binding, which is the gate that actually matters (it is still before the
       // cover — the first paid image).
-      if (stage !== 'set_refs') requireSetIdentityBoardsBoundForRender(order, cache);
+      if (stage !== 'set_refs') await requireSetIdentityBoardsBoundForRender(order, cache);
     }
     while (!overBudget(startedAt, budgetMs)) {
       await heartbeatLease(orderId, workerId);
@@ -2103,7 +2119,7 @@ export async function processGenerationChunk(
         // frozen contract / a book that already has a paid image → returns `cache` untouched and no snapshot is
         // ever written, so `shouldEnterSetRefsStage` is false and the next line is `stage = 'cover'` — identical
         // to today. The assert runs before it (a no-op here on a fresh order) to keep the guard chain uniform.
-        requireSetIdentityBoardsBoundForRender(order, cache);
+        await requireSetIdentityBoardsBoundForRender(order, cache);
         cache = await ensureSetIdentityBoardSnapshot(order, cache);
         stage = shouldEnterSetRefsStage(cache) ? 'set_refs' : 'cover';
         continue;
@@ -2117,7 +2133,7 @@ export async function processGenerationChunk(
         cache = await runSetIdentityBoardBindStage(order, cache);
         // Post-bind proof: whatever the bind stage did (bound fresh, reused verbatim, or no-op'd on a legacy
         // order), the boards are provably right for THIS frozen contract before the first paid image.
-        requireSetIdentityBoardsBoundForRender(order, cache);
+        await requireSetIdentityBoardsBoundForRender(order, cache);
         stage = 'cover';
         continue;
       }

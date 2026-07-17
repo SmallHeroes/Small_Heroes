@@ -14,7 +14,7 @@
  *   - `ensureSetIdentityBoardSnapshot` is the ONLY writer of `cache.setIdentityBoards`, and its FIRST line is the
  *     flag check. Flag off → no snapshot is ever written → no order ever becomes board-activated.
  *   - Every OTHER function here gates on the SNAPSHOT being `required-v1`, not on the flag. With no snapshot they
- *     return `cache` / `undefined` / do nothing, before reading the contract, before any DB call.
+ *     return `cache` / `undefined` / do nothing, before reading the contract, before any DB call, before any I/O.
  *   - Therefore, flag off (or an order that predates activation): zero extra DB reads, zero writes, zero prompt
  *     bytes, and `deriveStartingStage` can never yield `'set_refs'`. The pipeline is byte/behaviour-identical.
  *
@@ -22,9 +22,15 @@
  * both directions: an activated order can never silently drop its board because someone flipped the env var off
  * mid-book (it fails closed instead), and a legacy order can never acquire a board mid-book because someone
  * flipped it on.
+ *
+ * (P0-1) `shouldEnterSetRefsStage` used to read the flag too, which broke that fence in the first direction: an
+ * activated-but-unbound order whose flag went down would skip `set_refs` entirely and then be asserted-to-death at
+ * the cover, unable to ever bind. The flag now governs snapshot CREATION and NOTHING else — the single sentence
+ * this module's design rests on.
  */
 import { type Order, type PrismaClient } from '@prisma/client';
 import { canonicalHash } from '@/lib/canonical-json';
+import { styleIdFromDatabaseValue } from '@/lib/styles';
 import {
   computeVisualContractHash,
   readFrozenVisualContract,
@@ -68,6 +74,24 @@ function activeFrozenContract(
   const contract = readFrozenVisualContract(cache.visualContract);
   if (!contract) return null;
   return { contract, hash: computeVisualContractHash(contract) };
+}
+
+/**
+ * (P0-2) THE style id a board is keyed by — the NORMALIZED one, never the raw `Order.illustrationStyle`.
+ *
+ * `Order.illustrationStyle` holds a DATABASE enum value (`pencil_watercolor`, `whimsical_comic_fantasy`, …), while
+ * every style AUTHORITY in the repo — including `buildSetIdentityBoardPrompt`, which is what actually renders a
+ * board — is keyed by a normalized `StyleId` (`soft_hand_drawn_storybook`, …). Feeding the raw DB value into the
+ * bind/assert put them in a DIFFERENT NAMESPACE from the mint tool: a board minted for `soft_hand_drawn_storybook`
+ * could never validate against an order whose column says `pencil_watercolor`, so every such order failed closed
+ * forever. It is also not a 1:1 rename — `pencil_watercolor` and `realistic_illustrated` BOTH normalize to
+ * `soft_hand_drawn_storybook` and legitimately share one board.
+ *
+ * Called from the bind AND the assert AND the ref selection, so all of them agree by construction. This is the one
+ * place the conversion happens; nothing downstream may re-derive it.
+ */
+function boardStyleIdOf(order: Order): string {
+  return styleIdFromDatabaseValue(order.illustrationStyle);
 }
 
 /** A book with ANY paid image already on it. Such a book was rendered WITHOUT a board and must stay that way. */
@@ -196,7 +220,8 @@ export async function runSetIdentityBoardBindStage(
   const resolved = await resolveBoardBindings(
     {
       contract: active.contract,
-      styleId: order.illustrationStyle,
+      // (P0-2) NORMALIZED — the same id the mint tool keys a board by. Must match the assert's, below.
+      styleId: boardStyleIdOf(order),
       frozenContractHash: active.hash,
       existing: snapshot,
     },
@@ -212,12 +237,20 @@ export async function runSetIdentityBoardBindStage(
 
 /**
  * ASSERT: the pre-image gate. Called immediately after `requireRenderableFrozenContract` on BOTH the resume and
- * fresh paths, so a worker that resumes DIRECTLY at `cover` or `page_images` cannot render with a missing or stale
- * binding. A NO-OP for a legacy order (no snapshot) — i.e. for everything today.
+ * fresh paths, AND immediately before every cover/page provider call, so no route to a paid image can render with
+ * a missing, stale, or byte-swapped binding. A NO-OP for a legacy order (no snapshot) — i.e. for everything today.
+ *
+ * (P0-4b) ASYNC because the assertion now RE-READS the board object's sha256 (see `assertBoardsBoundForRender`):
+ * checking metadata alone let a swapped object through. The legacy short-circuit is above the dep construction, so
+ * a legacy order still does zero I/O and constructs no live resolver.
  */
-export function requireSetIdentityBoardsBoundForRender(order: Order, cache: PipelineCache): void {
+export async function requireSetIdentityBoardsBoundForRender(
+  order: Order,
+  cache: PipelineCache,
+  deps: SetIdentityBoardStageDeps = {}
+): Promise<void> {
   const snapshot = cache.setIdentityBoards;
-  if (snapshot?.mode !== 'required-v1') return; // LEGACY → no-op → byte-identical.
+  if (snapshot?.mode !== 'required-v1') return; // LEGACY → no-op, no I/O, no deps → byte-identical.
 
   const active = activeFrozenContract(cache);
   if (!active) {
@@ -225,19 +258,43 @@ export function requireSetIdentityBoardsBoundForRender(order: Order, cache: Pipe
       'the order carries a required-v1 board snapshot but no readable frozen visual contract',
     ]);
   }
-  assertBoardsBoundForRender({
-    contract: active.contract,
-    cache,
-    styleId: order.illustrationStyle,
-    activeFrozenContractHash: active.hash,
-  });
+  await assertBoardsBoundForRender(
+    {
+      contract: active.contract,
+      cache,
+      // (P0-2) The SAME normalized id `runSetIdentityBoardBindStage` binds with — bind and assert cannot disagree.
+      styleId: boardStyleIdOf(order),
+      activeFrozenContractHash: active.hash,
+    },
+    deps.resolver ?? createLiveBoardResolverDeps()
+  );
 }
 
-/** Whether the `set_refs` STAGE has work to do. Flag-gated FIRST → flag off does zero work and never enters. */
+/**
+ * Whether the `set_refs` STAGE has work to do.
+ *
+ * (P0-1) THE SNAPSHOT IS THE AUTHORITY HERE — NOT THE ENV FLAG. `isSetIdentityBoardEnabled()` is deliberately NOT
+ * read: it governs exactly one thing, snapshot CREATION in `ensureSetIdentityBoardSnapshot`, and nothing else.
+ *
+ * Why the flag read was a P0: it made the flag a live gate on a stage that an ALREADY-ACTIVATED order must pass
+ * through. An order activated at `dna` (snapshot written, boards unbound) whose flag then went DOWN — a config
+ * rollback, a redeploy, a worker on a differently-configured runtime — would see `shouldEnterSetRefsStage` return
+ * false, fall through to `cover`, and the order could NEVER bind: the pre-render assert (correctly gated on the
+ * snapshot) then throws forever. The order is bricked by an env var, which is precisely the "flipping it off
+ * mid-book silently drops the board" failure the snapshot/flag split exists to prevent.
+ *
+ * With the flag gone, the decision is purely structural: a `required-v1` snapshot + a readable frozen contract +
+ * any required identity still unbound (the required list derived from the contract via `listRequiredSetIdentityIds`
+ * inside `hasUnboundRequiredSetIdentity`). OFF-inertness is UNCHANGED and now rests on one fact instead of two: a
+ * legacy order has no snapshot, so this returns false at the first line, before it reads the contract — and with
+ * the flag off no order can ever acquire a snapshot. Byte-identical.
+ *
+ * An activated order with an UNREADABLE contract returns false (→ `cover`) rather than entering a stage that cannot
+ * bind; the pre-render assert then fails it closed with the precise reason. It is never silently rendered.
+ */
 export function shouldEnterSetRefsStage(cache: PipelineCache): boolean {
-  if (!isSetIdentityBoardEnabled()) return false;
   const snapshot = cache.setIdentityBoards;
-  if (snapshot?.mode !== 'required-v1') return false;
+  if (snapshot?.mode !== 'required-v1') return false; // LEGACY → never → byte-identical.
   const active = activeFrozenContract(cache);
   if (!active) return false;
   return hasUnboundRequiredSetIdentity(active.contract, snapshot);

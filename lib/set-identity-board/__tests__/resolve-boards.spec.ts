@@ -223,88 +223,112 @@ describe('resolveBoardBindings — FAIL-CLOSED (§6), never a downgrade', () => 
 });
 
 describe('assertBoardsBoundForRender — the pre-image gate', () => {
-  it('is a NO-OP for a LEGACY order (no snapshot) — this is the flag-off path', () => {
-    expect(() =>
-      assertBoardsBoundForRender({
-        contract: makeContract(),
-        cache: {},
-        styleId: STYLE,
-        activeFrozenContractHash: FROZEN_HASH,
-      })
-    ).not.toThrow();
+  /** The byte-verifier door. Default: the object still holds the approved bytes. */
+  function verifier(sha: string | null = 'sha-approved-bytes') {
+    return { fetchAssetSha256: vi.fn(async () => sha) };
+  }
+
+  it('is a NO-OP for a LEGACY order (no snapshot) — this is the flag-off path', async () => {
+    const deps = verifier();
+    await expect(
+      assertBoardsBoundForRender(
+        { contract: makeContract(), cache: {}, styleId: STYLE, activeFrozenContractHash: FROZEN_HASH },
+        deps
+      )
+    ).resolves.toBeUndefined();
+    // OFF-inertness is not just "does not throw" — it is "does not touch storage at all".
+    expect(deps.fetchAssetSha256).not.toHaveBeenCalled();
   });
 
   it('passes for a correctly bound order', async () => {
     const ctx = await bindFresh();
-    expect(() =>
-      assertBoardsBoundForRender({
-        contract: makeContract(),
-        cache: { setIdentityBoards: ctx },
-        styleId: STYLE,
-        activeFrozenContractHash: FROZEN_HASH,
-      })
-    ).not.toThrow();
+    await expect(
+      assertBoardsBoundForRender(
+        {
+          contract: makeContract(),
+          cache: { setIdentityBoards: ctx },
+          styleId: STYLE,
+          activeFrozenContractHash: FROZEN_HASH,
+        },
+        verifier()
+      )
+    ).resolves.toBeUndefined();
   });
 
-  it('THROWS when a required identity has no binding (the activation snapshot was never bound)', () => {
-    expect(() =>
-      assertBoardsBoundForRender({
-        contract: makeContract(),
-        cache: { setIdentityBoards: snapshotBoardMode({ frozenContractHash: FROZEN_HASH }) },
-        styleId: STYLE,
-        activeFrozenContractHash: FROZEN_HASH,
-      })
-    ).toThrow(SetIdentityBoardUnavailableError);
+  it('THROWS when a required identity has no binding (the activation snapshot was never bound)', async () => {
+    await expect(
+      assertBoardsBoundForRender(
+        {
+          contract: makeContract(),
+          cache: { setIdentityBoards: snapshotBoardMode({ frozenContractHash: FROZEN_HASH }) },
+          styleId: STYLE,
+          activeFrozenContractHash: FROZEN_HASH,
+        },
+        verifier()
+      )
+    ).rejects.toThrow(SetIdentityBoardUnavailableError);
   });
 
   it('THROWS when the per-order snapshot is pinned to a contract that is not the active frozen one', async () => {
     const ctx = await bindFresh();
-    expect(() =>
-      assertBoardsBoundForRender({
-        contract: makeContract(),
-        cache: { setIdentityBoards: ctx },
-        styleId: STYLE,
-        activeFrozenContractHash: 'a-different-frozen-contract',
-      })
-    ).toThrow(/pinned to frozen contract/);
+    await expect(
+      assertBoardsBoundForRender(
+        {
+          contract: makeContract(),
+          cache: { setIdentityBoards: ctx },
+          styleId: STYLE,
+          activeFrozenContractHash: 'a-different-frozen-contract',
+        },
+        verifier()
+      )
+    ).rejects.toThrow(/pinned to frozen contract/);
   });
 
   it('THROWS when there is no active frozen contract hash at all', async () => {
     const ctx = await bindFresh();
-    expect(() =>
-      assertBoardsBoundForRender({
-        contract: makeContract(),
-        cache: { setIdentityBoards: ctx },
-        styleId: STYLE,
-        activeFrozenContractHash: null,
-      })
-    ).toThrow(SetIdentityBoardUnavailableError);
+    await expect(
+      assertBoardsBoundForRender(
+        {
+          contract: makeContract(),
+          cache: { setIdentityBoards: ctx },
+          styleId: STYLE,
+          activeFrozenContractHash: null,
+        },
+        verifier()
+      )
+    ).rejects.toThrow(SetIdentityBoardUnavailableError);
   });
 
   it('THROWS when the set changed after binding (recomputed setDefinitionHash no longer matches)', async () => {
     const ctx = await bindFresh();
     const edited = makeContract();
     edited.locations[0].description = 'the north room, now with a completely different floor';
-    expect(() =>
-      assertBoardsBoundForRender({
-        contract: edited,
-        cache: { setIdentityBoards: ctx },
-        styleId: STYLE,
-        activeFrozenContractHash: FROZEN_HASH,
-      })
-    ).toThrow(/stale/);
+    await expect(
+      assertBoardsBoundForRender(
+        {
+          contract: edited,
+          cache: { setIdentityBoards: ctx },
+          styleId: STYLE,
+          activeFrozenContractHash: FROZEN_HASH,
+        },
+        verifier()
+      )
+    ).rejects.toThrow(/stale/);
   });
 
   it('THROWS when the order style no longer matches the bound board (never self-validates off the binding)', async () => {
     const ctx = await bindFresh();
-    expect(() =>
-      assertBoardsBoundForRender({
-        contract: makeContract(),
-        cache: { setIdentityBoards: ctx },
-        styleId: 'some_other_style',
-        activeFrozenContractHash: FROZEN_HASH,
-      })
-    ).toThrow(SetIdentityBoardUnavailableError);
+    await expect(
+      assertBoardsBoundForRender(
+        {
+          contract: makeContract(),
+          cache: { setIdentityBoards: ctx },
+          styleId: 'some_other_style',
+          activeFrozenContractHash: FROZEN_HASH,
+        },
+        verifier()
+      )
+    ).rejects.toThrow(SetIdentityBoardUnavailableError);
   });
 
   it('THROWS when a bound board lost its url or its approval stamp', async () => {
@@ -315,14 +339,17 @@ describe('assertBoardsBoundForRender — the pre-image gate', () => {
     ]) {
       const ctx = await bindFresh();
       mutate(ctx);
-      expect(() =>
-        assertBoardsBoundForRender({
-          contract: makeContract(),
-          cache: { setIdentityBoards: ctx },
-          styleId: STYLE,
-          activeFrozenContractHash: FROZEN_HASH,
-        })
-      ).toThrow(SetIdentityBoardUnavailableError);
+      await expect(
+        assertBoardsBoundForRender(
+          {
+            contract: makeContract(),
+            cache: { setIdentityBoards: ctx },
+            styleId: STYLE,
+            activeFrozenContractHash: FROZEN_HASH,
+          },
+          verifier()
+        )
+      ).rejects.toThrow(SetIdentityBoardUnavailableError);
     }
   });
 
@@ -330,13 +357,107 @@ describe('assertBoardsBoundForRender — the pre-image gate', () => {
     const ctx = await bindFresh();
     const contract = makeContract();
     const before = clone(contract);
-    assertBoardsBoundForRender({
-      contract,
-      cache: { setIdentityBoards: ctx },
-      styleId: STYLE,
-      activeFrozenContractHash: FROZEN_HASH,
-    });
+    await assertBoardsBoundForRender(
+      {
+        contract,
+        cache: { setIdentityBoards: ctx },
+        styleId: STYLE,
+        activeFrozenContractHash: FROZEN_HASH,
+      },
+      verifier()
+    );
     expect(contract).toEqual(before);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// P0-4b — the pre-render assert re-verifies BYTES, not just metadata
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('assertBoardsBoundForRender — SHA re-verification (P0-4b: bytes are not swappable)', () => {
+  /**
+   * THE HAZARD, spelled out: the binding below is PERFECT. Right set hash, right style, right version, right url,
+   * a real human approval stamp. Every metadata check passes. The only thing wrong is that the OBJECT at the
+   * storage key now holds different bytes than the human approved — the exact state an overwrite produces. Before
+   * P0-4b this rendered a paid page against an unapproved, unreviewed set image and nothing noticed.
+   */
+  it('detects a SWAPPED object — same key, different bytes → fails closed', async () => {
+    const ctx = await bindFresh();
+    expect(ctx.bindings[REQUIRED_ID].assetSha256).toBe('sha-approved-bytes'); // the bind verified these bytes…
+
+    const err = await assertBoardsBoundForRender(
+      {
+        contract: makeContract(),
+        cache: { setIdentityBoards: ctx },
+        styleId: STYLE,
+        activeFrozenContractHash: FROZEN_HASH,
+      },
+      // …and someone replaced the object under that key since.
+      { fetchAssetSha256: vi.fn(async () => 'sha-of-SWAPPED-bytes') }
+    ).catch((e) => e);
+
+    expect(err).toBeInstanceOf(SetIdentityBoardUnavailableError);
+    expect(err.setIdentityId).toBe(REQUIRED_ID);
+    expect(err.reasons.join(' ')).toMatch(/bytes changed since binding/);
+    expect(err.reasons.join(' ')).toMatch(/approval is void/);
+  });
+
+  it('fails closed when the object has become missing/unreadable since the bind', async () => {
+    const ctx = await bindFresh();
+    const err = await assertBoardsBoundForRender(
+      {
+        contract: makeContract(),
+        cache: { setIdentityBoards: ctx },
+        styleId: STYLE,
+        activeFrozenContractHash: FROZEN_HASH,
+      },
+      { fetchAssetSha256: vi.fn(async () => null) }
+    ).catch((e) => e);
+    expect(err).toBeInstanceOf(SetIdentityBoardUnavailableError);
+    expect(err.reasons.join(' ')).toMatch(/missing or unreadable at render time/);
+  });
+
+  it('re-reads the sha from the BINDING\'s storageKey — not from anything the caller supplies', async () => {
+    const ctx = await bindFresh();
+    const fetchAssetSha256 = vi.fn(async () => 'sha-approved-bytes');
+    await assertBoardsBoundForRender(
+      {
+        contract: makeContract(),
+        cache: { setIdentityBoards: ctx },
+        styleId: STYLE,
+        activeFrozenContractHash: FROZEN_HASH,
+      },
+      { fetchAssetSha256 }
+    );
+    expect(fetchAssetSha256).toHaveBeenCalledTimes(1);
+    expect(fetchAssetSha256).toHaveBeenCalledWith(ctx.bindings[REQUIRED_ID].storageKey);
+  });
+
+  /**
+   * The end-to-end shape of the P0-4 hazard through the REAL resolver: bind once, then resume. The resume path
+   * reuses the binding VERBATIM and performs no I/O by design (see resolveBoardBindings) — so if the assert did
+   * not re-read the bytes, a swap between the two would be completely invisible. It is not.
+   */
+  it('a resume that reuses a binding verbatim STILL catches a swap that happened in between', async () => {
+    const first = await bindFresh();
+    const deps = makeDeps();
+    const resumed = await resolveBoardBindings(
+      { contract: makeContract(), styleId: STYLE, frozenContractHash: FROZEN_HASH, existing: first },
+      deps
+    );
+    expect(deps.fetchAssetSha256).not.toHaveBeenCalled(); // the reuse path is deliberately blind…
+
+    await expect(
+      assertBoardsBoundForRender(
+        {
+          contract: makeContract(),
+          cache: { setIdentityBoards: resumed },
+          styleId: STYLE,
+          activeFrozenContractHash: FROZEN_HASH,
+        },
+        { fetchAssetSha256: vi.fn(async () => 'sha-of-SWAPPED-bytes') }
+      )
+    ).rejects.toThrow(SetIdentityBoardUnavailableError); // …so THIS is the only thing that catches it.
   });
 });
 

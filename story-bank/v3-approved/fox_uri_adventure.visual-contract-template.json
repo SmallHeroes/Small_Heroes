@@ -12,6 +12,10 @@
       "environmentClass": "indoor",
       "lighting": "Very low blue nighttime light from outside, with small warm highlights from Uri's neck flashlight when it turns on.",
       "timeOfDay": "night",
+      "setIdentityId": "set_room_balcony_night",
+      "setReference": {
+        "status": "pending"
+      },
       "anchors": [
         {
           "id": "anchor_window",
@@ -35,6 +39,10 @@
       "environmentClass": "outdoor",
       "lighting": "Dark blue night ambience with a tiny warm, shaky flashlight beam creating bright spots on metal, floor, chair leg, slipper, and bucket.",
       "timeOfDay": "night",
+      "setIdentityId": "set_room_balcony_night",
+      "setReference": {
+        "status": "pending"
+      },
       "anchors": [
         {
           "id": "anchor_balcony_railing",

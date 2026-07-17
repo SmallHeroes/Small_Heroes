@@ -32,9 +32,20 @@ export const SET_IDENTITY_BOARD_REGISTRY_DIR = 'set-identity-boards';
  * One path segment, made filesystem-safe without collapsing distinct ids together: anything outside
  * `[a-z0-9._-]` becomes `-`. Ids in this codebase are already snake/kebab-cased (`home_living_room`, `style01`),
  * so this is a no-op in practice; it exists so a hostile/unusual id can never escape the registry dir.
+ *
+ * Dot-runs are collapsed (`..` → `.`) and an all-dots/empty result becomes `_`, mirroring
+ * `sanitizeAssetPathSegment` in image-storage.ts. Without that, an id of exactly `..` survives as a segment and
+ * `path.join` / storage-key normalization walks it UP a level — escaping the very directory this function exists
+ * to contain it in. Both the fs registry path and the durable storage key are built from this, so the fence has to
+ * live here rather than at either call site.
  */
 function safeSegment(value: string): string {
-  return value.trim().toLowerCase().replace(/[^a-z0-9._-]+/g, '-');
+  const cleaned = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/\.{2,}/g, '.'); // no parent-dir traversal ("..")
+  return cleaned.length === 0 || /^\.+$/.test(cleaned) ? '_' : cleaned;
 }
 
 /**
@@ -49,6 +60,41 @@ export function setIdentityBoardRegistryPath(key: ExpectedRegistryIdentity, root
     safeSegment(key.setIdentityId),
     `${safeSegment(key.setDefinitionHash)}.json`
   );
+}
+
+/** The identity a board's STORAGE key is addressed by: the registry identity PLUS the bytes' own sha256. */
+export interface BoardStorageIdentity {
+  storyKey: string;
+  setIdentityId: string;
+  styleId: string;
+  setDefinitionHash: string;
+  /** sha256 (hex) of the board bytes. Part of the key — this is what makes the object immutable-by-address. */
+  assetSha256: string;
+}
+
+/**
+ * (P0-4a) THE single definition of a board's durable storage key — CONTENT-ADDRESSED: the asset sha256 is a path
+ * component, so DIFFERENT BYTES ARE A DIFFERENT OBJECT, always. Mint writes here and the live binder verifies
+ * here, from this one function, so the two agree by construction rather than by convention.
+ *
+ * Why the sha is in the key and not just in the registry entry: a key that identifies only "the board for this
+ * set/style" is a mutable location — re-render at that key and every approved entry silently points at new bytes.
+ * With the sha in the key, an approved entry's `storageKey` can only ever address the exact bytes a human signed
+ * off on; new bytes are unreachable from it. Paired with `uploadContentAddressedObjectNoOverwrite`
+ * (`x-upsert:false`), a board object is write-once.
+ *
+ * Mirrors `setIdentityBoardRegistryPath`'s tuple + `safeSegment` sanitation, one segment per key component, so the
+ * storage tree and the committed sidecar tree are browsable side by side.
+ */
+export function setIdentityBoardStorageKey(key: BoardStorageIdentity, opts?: { ext?: string }): string {
+  const ext = safeSegment(opts?.ext ?? 'png').replace(/^\.+/, '');
+  return [
+    SET_IDENTITY_BOARD_REGISTRY_DIR,
+    safeSegment(key.storyKey),
+    safeSegment(key.styleId),
+    safeSegment(key.setIdentityId),
+    `${safeSegment(key.setDefinitionHash)}.${safeSegment(key.assetSha256)}.${ext}`,
+  ].join('/');
 }
 
 /**

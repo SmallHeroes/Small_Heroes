@@ -11,6 +11,10 @@ import {
   type BookVisualContract,
   type VisualZone,
 } from '@/lib/visual-contract-compiler';
+import {
+  groupLocationsBySetIdentity,
+  listRequiredSetIdentityIds,
+} from '@/lib/set-identity-board/setDefinition';
 
 /**
  * The Contract-v2 PROOF slot: fox is the FIRST story whose structured fields are hand-authored, so it is the first
@@ -217,6 +221,39 @@ describe('fox — SET CONSISTENCY: the balcony is open (window + railing), never
     const t = foxTemplate();
     for (const n of [1, 2]) {
       expect(page(t, n).mustNotShow.some((s) => /\bdoor\b|vitrine/i.test(s))).toBe(true);
+    }
+  });
+});
+
+/**
+ * [P0-3a] SET IDENTITY BOARD opt-in. Codex NO-GO: with no `setIdentityId`/`setReference` on either location the
+ * required-identity list is EMPTY, so a board-activated render "succeeds" having attached no board at all — a FALSE
+ * proof. The room and the balcony are ONE physical set (the room opens straight onto the balcony through the same
+ * open window — see DEFECT 1), so they share ONE identity and resolve to ONE board.
+ */
+describe('fox — SET IDENTITY BOARD opt-in: room + balcony are ONE physical set', () => {
+  it('both locations share exactly ONE setIdentityId (one board, never two)', () => {
+    const ids = foxTemplate().locations.map((l) => l.setIdentityId);
+    expect(ids.every((id) => typeof id === 'string' && id.length > 0)).toBe(true);
+    expect(new Set(ids).size).toBe(1);
+  });
+
+  it('required set identities is NON-EMPTY — a render without an approved board cannot silently pass', () => {
+    const t = foxTemplate();
+    const required = listRequiredSetIdentityIds(t);
+    expect(required).toHaveLength(1);
+    expect(required[0]).toBe(t.locations[0].setIdentityId);
+  });
+
+  it('groups BOTH locations into ONE board group', () => {
+    const groups = groupLocationsBySetIdentity(foxTemplate());
+    expect(groups.size).toBe(1);
+    expect([...groups.values()][0].map((l) => l.id).sort()).toEqual(['loc_balcony', 'loc_child_room']);
+  });
+
+  it('both locations agree on board-requiredness — never a half-required set', () => {
+    for (const loc of foxTemplate().locations) {
+      expect(loc.setReference?.status).toBe('pending');
     }
   });
 });

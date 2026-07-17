@@ -128,6 +128,16 @@ export async function uploadToSupabaseWithRetry(params: {
   /** Override the retry budget (render-path persistence uses a longer one). */
   attempts?: number;
   timeoutMs?: number;
+  /**
+   * (Set Identity Board, P0-4a) Send `x-upsert:false` so the storage gateway REFUSES to replace an existing
+   * object at this key (409 Duplicate) instead of silently swapping its bytes. ADDITIVE + opt-in: omitted /
+   * false → `x-upsert:true` exactly as before, so every pre-existing caller is byte-identical.
+   *
+   * Safe to combine with the HEAD-recovery net below ONLY for CONTENT-ADDRESSED keys: there, "the object is
+   * already present at this key" means "the same bytes are already stored", so recovering a hung-but-stored
+   * POST is still correct. Do NOT set this on a mutable key.
+   */
+  noOverwrite?: boolean;
 }): Promise<void> {
   const { url, serviceRoleKey } = getSupabaseEnv();
   const attempts =
@@ -162,7 +172,8 @@ export async function uploadToSupabaseWithRetry(params: {
           'Content-Type': params.contentType,
           'Content-Length': String(bodyBytes.byteLength),
           'cache-control': 'max-age=31536000',
-          'x-upsert': 'true',
+          // Default 'true' (unchanged for every legacy caller); board uploads opt into no-overwrite.
+          'x-upsert': params.noOverwrite ? 'false' : 'true',
         },
         body: bodyBlob,
         signal: controller.signal,
@@ -476,6 +487,75 @@ export async function downloadStorageObjectBytes(storageKey: string): Promise<Bu
   const { data, error } = await supabase.storage.from(bucket).download(storageKey);
   if (error || !data) return null;
   return Buffer.from(await data.arrayBuffer());
+}
+
+/**
+ * (Set Identity Board, P0-4a) The ONLY sanctioned way to persist board bytes: a CONTENT-ADDRESSED key uploaded
+ * with NO-OVERWRITE semantics.
+ *
+ * WHY THIS EXISTS (the P0-4a hole): every other uploader here sends `x-upsert:true`, so an object can be REPLACED
+ * under a URL that an approved registry entry already points at — swapping the bytes behind a human approval
+ * without changing anything the binder checks. Two properties close that:
+ *   (a) the key EMBEDS the asset sha256 (asserted below), so different bytes are physically a different object at
+ *       a different key — a swap cannot be addressed by the approved key at all; and
+ *   (b) the write is `x-upsert:false`, so even a same-key write cannot clobber.
+ *
+ * Idempotent on purpose: a re-run of the mint tool with the SAME bytes finds the object already present, verifies
+ * its sha, and returns `alreadyPresent:true` rather than failing. A key that exists with DIFFERENT bytes is a
+ * sha256 collision or a corrupted object — it throws rather than proceed.
+ *
+ * ADDITIVE: no existing caller of this module is touched; nothing here changes upsert behaviour for page/cover/
+ * reference uploads.
+ */
+export async function uploadContentAddressedObjectNoOverwrite(input: {
+  /** Must already embed `expectedSha256` — build it with `setIdentityBoardStorageKey`, never by hand. */
+  key: string;
+  buffer: Buffer;
+  contentType: string;
+  /** sha256 (hex) of `buffer` as computed by the caller — re-derived and cross-checked here. */
+  expectedSha256: string;
+}): Promise<{ url: string; storageKey: string; alreadyPresent: boolean }> {
+  const { url, bucket } = getSupabaseEnv();
+
+  const actualSha256 = createHash('sha256').update(input.buffer).digest('hex');
+  if (actualSha256 !== input.expectedSha256) {
+    throw new Error(
+      `uploadContentAddressedObjectNoOverwrite: buffer sha256 "${actualSha256}" does not match ` +
+        `expectedSha256 "${input.expectedSha256}"`
+    );
+  }
+  // The content-addressing invariant, enforced rather than trusted: if the sha is not in the key, the key is
+  // mutable and every guarantee above evaporates.
+  if (!input.key.includes(input.expectedSha256)) {
+    throw new Error(
+      `uploadContentAddressedObjectNoOverwrite: key "${input.key}" is not content-addressed ` +
+        `(it does not embed sha256 "${input.expectedSha256}")`
+    );
+  }
+
+  const existing = await downloadStorageObjectBytes(input.key);
+  if (existing) {
+    const existingSha256 = createHash('sha256').update(existing).digest('hex');
+    if (existingSha256 !== input.expectedSha256) {
+      throw new Error(
+        `uploadContentAddressedObjectNoOverwrite: refusing to overwrite "${input.key}" — it already holds ` +
+          `different bytes (stored sha256 "${existingSha256}", incoming "${input.expectedSha256}")`
+      );
+    }
+    storageEvent('content_addressed_upload_noop', { key: input.key, reason: 'identical_bytes_present' });
+    return { url: buildPublicUrl(url, bucket, input.key), storageKey: input.key, alreadyPresent: true };
+  }
+
+  await uploadToSupabaseWithRetry({
+    bucket,
+    key: input.key,
+    body: input.buffer,
+    contentType: input.contentType,
+    errorPrefix: `Supabase content-addressed upload failed (${input.key})`,
+    noOverwrite: true,
+  });
+
+  return { url: buildPublicUrl(url, bucket, input.key), storageKey: input.key, alreadyPresent: false };
 }
 
 /**

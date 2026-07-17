@@ -17,6 +17,8 @@ import {
   buildImageRoleMapBlock,
   buildImageRoleMapFromAssembly,
   buildReferenceAssetManifest,
+  buildReferenceAssetManifestFromAssembly,
+  describeAssembledReferences,
   orderReferenceAssets,
   planReferenceAssets,
   ReferenceBudgetExceededError,
@@ -433,5 +435,89 @@ describe('buildImageRoleMapFromAssembly — index-aligned with the ACTUAL provid
   it('is a no-op on an empty array and neutral-labels an unknown path', () => {
     expect(buildImageRoleMapFromAssembly([], {})).toBe('');
     expect(buildImageRoleMapFromAssembly(['mystery.png'], {})).toContain('Image 1 -> reference');
+  });
+});
+
+/**
+ * (P1-5) The MANIFEST must index the same array the ROLE MAP indexes: the ACTUAL assembled provider array.
+ *
+ * A manifest built from the tagged SUBSET renumbers from 1, so a board the provider received as Image 3 gets recorded
+ * as `order: 1` — the proof record lies about the slot it exists to prove, and any later "which ref was in slot N"
+ * forensics reads the wrong ref. These lock the manifest to the assembled array and to the role map, index-for-index.
+ */
+describe('buildReferenceAssetManifestFromAssembly — index-safe proof record', () => {
+  // child=1, companion=2, set=3, style=4 — the set board is NOT in slot 1.
+  const ASSEMBLED = ['child.png', 'comp.png', 'board.png', 'style1.png'];
+  const BREAKDOWN: Record<string, string[]> = {
+    style: ['style1.png'],
+    child: ['child.png'],
+    companion: ['comp.png'],
+    otherCharacters: [],
+    contractSetSheets: ['board.png'],
+  };
+  const TAGGED: ReferenceAsset[] = [
+    asset('set', 'board.png', { identityId: 'kitchen', assetSha256: 'sha-kitchen' }),
+  ];
+
+  it('records the SET at its assembled order 3 — not renumbered to 1', () => {
+    const manifest = buildReferenceAssetManifestFromAssembly(ASSEMBLED, BREAKDOWN, TAGGED);
+    const setEntry = manifest.find((e) => e.role === 'set');
+
+    expect(setEntry?.order).toBe(3);
+    expect(setEntry?.url).toBe('board.png');
+  });
+
+  it('is the bug the subset-derived manifest has (that is why this builder exists)', () => {
+    const subset = buildReferenceAssetManifest(TAGGED);
+    expect(subset[0].order).toBe(1); // WRONG for the live array — the provider put the board in slot 3
+    expect(subset[0].role).toBe('set');
+
+    const assembled = buildReferenceAssetManifestFromAssembly(ASSEMBLED, BREAKDOWN, TAGGED);
+    expect(assembled.find((e) => e.role === 'set')?.order).toBe(3);
+  });
+
+  it('derives every role from the assembled breakdown bucket', () => {
+    expect(buildReferenceAssetManifestFromAssembly(ASSEMBLED, BREAKDOWN, TAGGED)).toEqual([
+      { order: 1, role: 'child', url: 'child.png' },
+      { order: 2, role: 'companion', url: 'comp.png' },
+      { order: 3, role: 'set', url: 'board.png', assetSha256: 'sha-kitchen', identityId: 'kitchen' },
+      { order: 4, role: 'style', url: 'style1.png' },
+    ]);
+  });
+
+  it('carries assetSha256/identityId over from the matching TAGGED asset, and omits them otherwise', () => {
+    const manifest = buildReferenceAssetManifestFromAssembly(ASSEMBLED, BREAKDOWN, TAGGED);
+    const setEntry = manifest.find((e) => e.url === 'board.png');
+    const childEntry = manifest.find((e) => e.url === 'child.png');
+
+    expect(setEntry).toMatchObject({ assetSha256: 'sha-kitchen', identityId: 'kitchen' });
+    // An UNTAGGED slot has no sha to prove — the fences must be absent, never invented.
+    expect(childEntry).not.toHaveProperty('assetSha256');
+    expect(childEntry).not.toHaveProperty('identityId');
+  });
+
+  it('agrees with buildImageRoleMapFromAssembly index-for-index', () => {
+    const manifest = buildReferenceAssetManifestFromAssembly(ASSEMBLED, BREAKDOWN, TAGGED);
+    const mapLines = buildImageRoleMapFromAssembly(ASSEMBLED, BREAKDOWN).split('\n').slice(1);
+    const slots = describeAssembledReferences(ASSEMBLED, BREAKDOWN);
+
+    expect(manifest).toHaveLength(mapLines.length);
+    manifest.forEach((entry, i) => {
+      // Same slot number, same url, and the map line at that slot describes the same ref.
+      expect(entry.order).toBe(i + 1);
+      expect(entry.url).toBe(ASSEMBLED[i]);
+      expect(entry.role).toBe(slots[i].role);
+      expect(mapLines[i]).toBe(`Image ${entry.order} -> ${slots[i].label}`);
+    });
+  });
+
+  it('records an unrecognised slot as unknown rather than guessing a role', () => {
+    expect(buildReferenceAssetManifestFromAssembly(['mystery.png'], {}, [])).toEqual([
+      { order: 1, role: 'unknown', url: 'mystery.png' },
+    ]);
+  });
+
+  it('is empty on an empty assembled array (the flag-OFF no-op)', () => {
+    expect(buildReferenceAssetManifestFromAssembly([], {}, [])).toEqual([]);
   });
 });

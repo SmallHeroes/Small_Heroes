@@ -10,7 +10,7 @@
  *  - `planReferenceAssets` evicts ONLY style, and THROWS rather than silently drop an identity/prop/set ref.
  *  - `buildImageRoleMapBlock` tells the model which image is which, by index.
  *  - `SET_REFERENCE_COPY_INSTRUCTION` fences what a set ref may contribute (geometry — never camera/layout).
- *  - `buildReferenceAssetManifest` is the role/order/hash proof for the render record.
+ *  - `buildReferenceAssetManifestFromAssembly` is the role/order/hash proof for the render record.
  *
  * NOTE ON THE LIVE SEAM: the authoritative cap/eviction/throw for the FULL assembled ref list already lives in
  * `assembleStyle01BookReferencesWithZoneSheets` (lib/story-location-bible/zone-sheets.ts). This module does not
@@ -144,17 +144,72 @@ export function buildImageRoleMapBlock(ordered: ReferenceAsset[]): string {
   return ['IMAGE ROLE MAP:', ...lines].join('\n');
 }
 
-/** Breakdown-bucket key → role label. The buckets ARE the roles on the assembled Style-01 path. */
-const BREAKDOWN_ROLE_LABEL: Readonly<Record<string, string>> = {
-  child: ROLE_LABEL.child,
-  companion: ROLE_LABEL.companion,
-  otherCharacters: ROLE_LABEL.other_character,
-  setAppearanceBoard: 'set appearance board',
-  contractSetSheets: ROLE_LABEL.set,
-  objectAnchors: ROLE_LABEL.prop,
-  isolatedObjects: ROLE_LABEL.prop,
-  style: ROLE_LABEL.style,
+/**
+ * Breakdown-bucket key → the ROLE that bucket carries AND the LABEL the role map prints for it. The buckets ARE the
+ * roles on the assembled Style-01 path.
+ *
+ * ONE SOURCE OF TRUTH, deliberately: the prompt's role map (`buildImageRoleMapFromAssembly`) and the proof manifest
+ * (`buildReferenceAssetManifestFromAssembly`) both derive from this via `describeAssembledReferences`, so a slot can
+ * never be labelled one thing to the model and recorded as another in the render record.
+ *
+ * `label` is NOT always `ROLE_LABEL[role]`: `setAppearanceBoard` and `contractSetSheets` are both the `set` ROLE but
+ * are different BOARDS, and the prompt says which one it is handing over. The manifest only needs the role.
+ */
+const BREAKDOWN_BUCKET: Readonly<Record<string, { role: ReferenceRole; label: string }>> = {
+  child: { role: 'child', label: ROLE_LABEL.child },
+  companion: { role: 'companion', label: ROLE_LABEL.companion },
+  otherCharacters: { role: 'other_character', label: ROLE_LABEL.other_character },
+  setAppearanceBoard: { role: 'set', label: 'set appearance board' },
+  contractSetSheets: { role: 'set', label: ROLE_LABEL.set },
+  objectAnchors: { role: 'prop', label: ROLE_LABEL.prop },
+  isolatedObjects: { role: 'prop', label: ROLE_LABEL.prop },
+  style: { role: 'style', label: ROLE_LABEL.style },
 };
+
+/**
+ * The role recorded in the manifest. `'unknown'` is REACHABLE ONLY off the live path (every assembled path comes out
+ * of a breakdown bucket by construction — see `rebuildPaths` in zone-sheets.ts) and exists so an unrecognised slot is
+ * recorded as unknown rather than GUESSED. This is a proof record: an honest 'unknown' beats a confident lie.
+ */
+export type ManifestRole = ReferenceRole | 'unknown';
+
+/** One slot of the ACTUAL assembled provider array: its 1-indexed position, its url, its role, and its prompt label. */
+export interface AssembledReferenceSlot {
+  /** 1-indexed position in the ASSEMBLED array — matches the `Image N` line of the role map. */
+  order: number;
+  url: string;
+  role: ManifestRole;
+  label: string;
+}
+
+/**
+ * Walk the ACTUAL assembled provider array and describe each slot from the `breakdown` bucket that contains it.
+ *
+ * The ONLY index-safe derivation, and the shared base of both the role map and the manifest. First bucket to claim a
+ * path wins (`objectAnchors` and `isolatedObjects` legitimately overlap — both are `prop`, so the winner is moot).
+ * A path in an unrecognised bucket keeps the bucket key as its label; a path in NO bucket is `'reference'`/`'unknown'`.
+ */
+export function describeAssembledReferences(
+  orderedPaths: readonly string[],
+  breakdown: Readonly<Record<string, string[]>>
+): AssembledReferenceSlot[] {
+  const bucketOf = new Map<string, { role: ManifestRole; label: string }>();
+  for (const [key, paths] of Object.entries(breakdown ?? {})) {
+    const claim = BREAKDOWN_BUCKET[key] ?? { role: 'unknown' as const, label: key };
+    for (const p of paths ?? []) {
+      if (p && !bucketOf.has(p)) bucketOf.set(p, claim);
+    }
+  }
+  return orderedPaths.map((p, i) => {
+    const claim = bucketOf.get(p);
+    return {
+      order: i + 1,
+      url: p,
+      role: claim?.role ?? 'unknown',
+      label: claim?.label ?? 'reference',
+    };
+  });
+}
 
 /**
  * The image→role map derived from the ACTUAL assembled provider array — the only INDEX-SAFE source.
@@ -172,14 +227,9 @@ export function buildImageRoleMapFromAssembly(
   breakdown: Readonly<Record<string, string[]>>
 ): string {
   if (orderedPaths.length === 0) return '';
-  const roleOf = new Map<string, string>();
-  for (const [key, paths] of Object.entries(breakdown ?? {})) {
-    const label = BREAKDOWN_ROLE_LABEL[key] ?? key;
-    for (const p of paths ?? []) {
-      if (p && !roleOf.has(p)) roleOf.set(p, label);
-    }
-  }
-  const lines = orderedPaths.map((p, i) => `Image ${i + 1} -> ${roleOf.get(p) ?? 'reference'}`);
+  const lines = describeAssembledReferences(orderedPaths, breakdown).map(
+    (slot) => `Image ${slot.order} -> ${slot.label}`
+  );
   return ['IMAGE ROLE MAP:', ...lines].join('\n');
 }
 
@@ -198,15 +248,20 @@ export const SET_REFERENCE_COPY_INSTRUCTION = [
 /** One manifest row: the durable role/order/hash proof for a single reference image. */
 export interface ReferenceAssetManifestEntry {
   order: number;
-  role: ReferenceRole;
+  role: ManifestRole;
   url: string;
   assetSha256?: string;
   identityId?: string;
 }
 
 /**
- * The role/order/hash proof for the render record: what was sent, in what slot, as what role, with which bytes.
- * `order` is 1-indexed to match the `Image N` lines in the role map.
+ * The role/order/hash proof for a TAGGED SUBSET, 1-indexed in the given (already-ordered) array order.
+ *
+ * ⚠ INDEX SAFETY: same caveat as `buildImageRoleMapBlock` — this is only correct when the tagged array IS the whole
+ * provider array. On the live Style-01 path it is NOT, so `order` here would renumber the tagged refs from 1 and the
+ * record would claim the set board sat in slot 1 while the provider put it in slot 3. A proof record that lies about
+ * which slot a ref occupied is worse than no record. Use `buildReferenceAssetManifestFromAssembly` there. Kept for
+ * callers whose tagged set is the complete array.
  */
 export function buildReferenceAssetManifest(ordered: ReferenceAsset[]): ReferenceAssetManifestEntry[] {
   return ordered.map((asset, i) => ({
@@ -216,6 +271,37 @@ export function buildReferenceAssetManifest(ordered: ReferenceAsset[]): Referenc
     assetSha256: asset.assetSha256,
     identityId: asset.identityId,
   }));
+}
+
+/**
+ * The role/order/hash proof derived from the ACTUAL assembled provider array — the only INDEX-SAFE source, and the
+ * INDEX-FOR-INDEX twin of `buildImageRoleMapFromAssembly` (both walk `describeAssembledReferences`, so what the prompt
+ * tells the model and what the record proves can never diverge).
+ *
+ * `order`/`role`/`url` come from the ASSEMBLED array: a board the provider received as Image 3 is recorded as order 3,
+ * NOT renumbered to 1 as a subset-derived manifest would. `assetSha256`/`identityId` are the fences that only the
+ * TAGGED asset knows, carried over by url match and OMITTED when the slot has no tagged twin (an untagged child/style
+ * ref has no sha to prove) — never invented.
+ */
+export function buildReferenceAssetManifestFromAssembly(
+  orderedPaths: readonly string[],
+  breakdown: Readonly<Record<string, string[]>>,
+  tagged: readonly ReferenceAsset[]
+): ReferenceAssetManifestEntry[] {
+  const taggedByUrl = new Map<string, ReferenceAsset>();
+  for (const asset of tagged ?? []) {
+    if (asset && typeof asset.url === 'string' && !taggedByUrl.has(asset.url)) {
+      taggedByUrl.set(asset.url, asset);
+    }
+  }
+
+  return describeAssembledReferences(orderedPaths, breakdown).map((slot) => {
+    const twin = taggedByUrl.get(slot.url);
+    const entry: ReferenceAssetManifestEntry = { order: slot.order, role: slot.role, url: slot.url };
+    if (twin?.assetSha256 !== undefined) entry.assetSha256 = twin.assetSha256;
+    if (twin?.identityId !== undefined) entry.identityId = twin.identityId;
+    return entry;
+  });
 }
 
 /**

@@ -19,6 +19,10 @@
  * IDEMPOTENT BY CONSTRUCTION. A binding that is already present AND still valid for the current set definition is
  * REUSED VERBATIM — no registry re-read, no re-fetch, no re-choice. This is what makes a crash after the bind safe:
  * a resumed worker re-derives the SAME board, never a different one, and never a second candidate.
+ *
+ * (P0-4b) That verbatim reuse is exactly why `assertBoardsBoundForRender` RE-READS the object's sha256 rather than
+ * trusting the binding's metadata: the reuse path deliberately performs no I/O, so the ONLY thing standing between
+ * a swapped object and a paid page is the byte re-verification in the pre-render assert.
  */
 import type { BookVisualContract } from '@/lib/visual-contract-compiler';
 
@@ -227,29 +231,47 @@ export function hasUnboundRequiredSetIdentity(
   });
 }
 
+/** The ONE door `assertBoardsBoundForRender` needs: the sha256 of the bytes ACTUALLY stored at a storage key. */
+export type BoardByteVerifierDeps = Pick<BoardResolverDeps, 'fetchAssetSha256'>;
+
 /**
  * THE PRE-IMAGE ASSERTION — the last thing between a board-activated order and a paid render.
  *
  * A NO-OP for a LEGACY order (no `required-v1` snapshot) — which is every order today and every order while the
- * flag is off. That is the whole OFF-inertness argument in one line.
+ * flag is off. It returns BEFORE it touches `deps`, so an OFF/legacy order performs zero I/O and stays
+ * byte-identical. That is the whole OFF-inertness argument in one line.
  *
- * For an ACTIVATED order it is fail-closed on two axes:
+ * For an ACTIVATED order it is fail-closed on THREE axes:
  *   1. The snapshot must be pinned to the ACTIVE frozen contract. A snapshot from a different contract means the
  *      set may have changed under the bindings — the boards are not provably right, so we stop.
  *   2. Every currently-required set identity must have a binding that STILL matches a freshly recomputed
  *      `setDefinitionHash` (plus style/version/url/approval). A missing OR stale binding stops the render.
+ *   3. (P0-4b) The BYTES at the binding's `storageKey` must STILL hash to the binding's `assetSha256`.
+ *
+ * Why (3) — the hole this closes: metadata is not evidence about bytes. The sha was verified once, at bind time;
+ * `resolveBoardBindings` then REUSES a valid binding verbatim on every resume without re-reading storage. So
+ * between the bind and the render (or across a resume days later) the object could be replaced and every check
+ * above would still pass — a swapped, never-approved set on a paid page. Re-reading the sha here means an
+ * approval covers BYTES, continuously, right up to the provider call. Content-addressed keys
+ * (`setIdentityBoardStorageKey`) make this belt-and-braces rather than the only defence; this is the braces.
+ *
+ * COST SHAPE: this is the PER-CHUNK pre-render gate — one read per required identity per chunk, never per page.
  *
  * `styleId` is passed in rather than read off the binding on purpose: recomputing the expectation from the
- * binding's own `styleId` would let a wrong-style binding validate itself.
+ * binding's own `styleId` would let a wrong-style binding validate itself. It must be the SAME normalized id the
+ * bind used (see `set-identity-board-stage.ts`) or bind and assert cannot agree.
  */
-export function assertBoardsBoundForRender(args: {
-  contract: BookVisualContract;
-  cache: { setIdentityBoards?: SetIdentityBoardBindingContext };
-  styleId: string;
-  activeFrozenContractHash: string | null;
-}): void {
+export async function assertBoardsBoundForRender(
+  args: {
+    contract: BookVisualContract;
+    cache: { setIdentityBoards?: SetIdentityBoardBindingContext };
+    styleId: string;
+    activeFrozenContractHash: string | null;
+  },
+  deps: BoardByteVerifierDeps
+): Promise<void> {
   const snapshot = args.cache.setIdentityBoards;
-  if (snapshot?.mode !== 'required-v1') return; // LEGACY order → no-op → byte-identical.
+  if (snapshot?.mode !== 'required-v1') return; // LEGACY order → no-op, no I/O → byte-identical.
 
   if (!isNonEmptyString(args.activeFrozenContractHash) || snapshot.frozenContractHash !== args.activeFrozenContractHash) {
     throw new SetIdentityBoardUnavailableError('*', [
@@ -271,6 +293,21 @@ export function assertBoardsBoundForRender(args: {
         `board binding is stale — expected setDefinitionHash "${expected.setDefinitionHash}" / style ` +
           `"${expected.styleId}" / ${expected.boardVersion}, got "${binding.setDefinitionHash}" / ` +
           `"${binding.styleId}" / ${binding.boardVersion}`,
+      ]);
+    }
+
+    // (P0-4b) The byte fence, re-run. Metadata said the right board; this says the right BYTES are still there.
+    const actualSha256 = await deps.fetchAssetSha256(binding.storageKey);
+    if (!isNonEmptyString(actualSha256)) {
+      throw new SetIdentityBoardUnavailableError(setIdentityId, [
+        `board object "${binding.storageKey}" is missing or unreadable at render time — cannot re-verify the ` +
+          'approved bytes',
+      ]);
+    }
+    if (actualSha256 !== binding.assetSha256) {
+      throw new SetIdentityBoardUnavailableError(setIdentityId, [
+        `board bytes changed since binding (bound sha256 "${binding.assetSha256}", stored "${actualSha256}") — ` +
+          'the human approval covers the bound bytes only; approval is void',
       ]);
     }
   }
