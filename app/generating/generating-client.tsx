@@ -22,6 +22,7 @@ export function GeneratingClient() {
   const [ready, setReady] = useState(false);
   const [readerHref, setReaderHref] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [heldReview, setHeldReview] = useState(false);
   const redirectingRef = useRef(false);
 
   const fallbackReadyHref = useMemo(() => {
@@ -37,15 +38,31 @@ export function GeneratingClient() {
     }
 
     let cancelled = false;
-    let timer: ReturnType<typeof setInterval> | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let inFlight = false;
+    const NORMAL_MS = 2500;
+    const HELD_MS = 15000; // human-QA hold: poll slowly, no overlap
+
+    const schedule = (delay: number) => {
+      if (cancelled) return;
+      timer = setTimeout(poll, delay);
+    };
 
     const poll = async () => {
+      // In-flight guard: a slow response never overlaps the next tick.
+      if (inFlight) {
+        schedule(NORMAL_MS);
+        return;
+      }
+      inFlight = true;
       try {
-        const res = await fetch(`/api/generate/status?orderId=${encodeURIComponent(orderId)}`, {
-          credentials: 'include',
-        });
+        const res = await fetch(
+          `/api/generate/status?orderId=${encodeURIComponent(orderId)}&accessKey=${encodeURIComponent(accessKey)}`,
+          { credentials: 'include' },
+        );
         if (!res.ok) {
           if (res.status === 404 && !cancelled) setError('לא מצאנו את ההזמנה שלכם.');
+          schedule(NORMAL_MS);
           return;
         }
         const data = (await res.json()) as StatusResponse;
@@ -56,8 +73,8 @@ export function GeneratingClient() {
         if (data.status === 'ready' || data.status === 'partial') {
           const href = data.readUrl || fallbackReadyHref;
           if (href) setReaderHref(href);
+          setHeldReview(false);
           setReady(true);
-          if (timer) clearInterval(timer);
 
           if (!redirectingRef.current && href && !href.includes('/read-v2')) {
             redirectingRef.current = true;
@@ -65,26 +82,36 @@ export function GeneratingClient() {
               window.location.href = href;
             }, 1200);
           }
+          return; // stop polling — book is ready
+        }
+
+        if (data.status === 'under_review') {
+          // Human-QA hold: calm held message, keep polling slowly in case it releases to ready.
+          setHeldReview(true);
+          schedule(HELD_MS);
           return;
         }
 
         if (data.status === 'failed') {
           setError('לא הצלחנו לסיים את הספר.');
-          if (timer) clearInterval(timer);
+          return; // stop polling
         }
+
+        schedule(NORMAL_MS);
       } catch {
-        /* retry on next tick */
+        schedule(NORMAL_MS); // retry on next tick
+      } finally {
+        inFlight = false;
       }
     };
 
     poll();
-    timer = setInterval(poll, 2500);
 
     return () => {
       cancelled = true;
-      if (timer) clearInterval(timer);
+      if (timer) clearTimeout(timer);
     };
-  }, [orderId, fallbackReadyHref]);
+  }, [orderId, accessKey, fallbackReadyHref]);
 
   if (error) {
     return (
@@ -97,6 +124,18 @@ export function GeneratingClient() {
         <a href={ROUTES.home} className={styles.errorBack}>
           חזרה לדף הבית
         </a>
+      </div>
+    );
+  }
+
+  if (heldReview && !ready) {
+    return (
+      <div className={styles.errorWrap} dir="rtl">
+        <div className={styles.errorIcon} aria-hidden="true">
+          💛
+        </div>
+        <h1 className={styles.errorTitle}>הספר שלך בבדיקה אישית</h1>
+        <p className={styles.errorMsg}>הספר שלך בבדיקה אישית — נעדכן במייל בקרוב</p>
       </div>
     );
   }

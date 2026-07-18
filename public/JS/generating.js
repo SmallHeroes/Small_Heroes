@@ -40,6 +40,8 @@ const GEN_DEFAULTS = {
   errorNotFound: 'לא מצאנו את ההזמנה שלכם.',
   errorFailed: 'לא הצלחנו לסיים את הספר.',
   errorMissingOrder: 'פרטי ההזמנה חסרים.',
+  reviewTitle: 'הספר שלך בבדיקה אישית',
+  reviewBody: 'הספר שלך בבדיקה אישית — נעדכן במייל בקרוב',
 };
 const HE_CONTENT = globalThis.CONTENT?.he || {};
 const GEN = { ...GEN_DEFAULTS, ...(HE_CONTENT.generating || {}) };
@@ -49,8 +51,12 @@ const CMN = HE_CONTENT.common || {};
 let redirecting    = false;
 let pendingReadUrl = null;
 let headlineSet    = false;
+let heldShown      = false;
+let inFlight       = false; // guards against overlapping status requests
 
 let pollTimer      = null;
+const POLL_NORMAL_MS = 2500;
+const POLL_HELD_MS   = 15000; // human-QA hold: poll slowly, no overlap
 
 function renderTemplate(template, vars) {
   return template.replace(/\{(\w+)\}/g, (_, key) => (
@@ -84,7 +90,7 @@ function wireStaticUI() {
 
 // ─── Stop everything ──────────────────────────────────────────────────────────
 function stopAll() {
-  clearInterval(pollTimer);
+  clearTimeout(pollTimer);
 }
 
 // ─── Error state ──────────────────────────────────────────────────────────────
@@ -93,6 +99,20 @@ function showError(message) {
   if (genProgressEl) genProgressEl.hidden = true;
   if (errorMsgEl)    errorMsgEl.textContent = message;
   if (errorStateEl)  errorStateEl.hidden    = false;
+}
+
+// ─── Human-QA hold (under_review) ──────────────────────────────────────────────
+// Calm held message instead of the infinite spinner. Keeps polling slowly in case
+// the book releases to ready — does NOT stop polling and is NOT an error.
+function showHeldReview() {
+  if (heldShown) return;
+  heldShown = true;
+  if (genProgressEl) {
+    const hero = genProgressEl.querySelector('.gen-hero');
+    if (hero) hero.hidden = true;
+  }
+  if (headlineTextEl) headlineTextEl.textContent = GEN.reviewTitle;
+  if (bodyTextEl)     bodyTextEl.textContent      = GEN.reviewBody;
 }
 
 // ─── Completion + redirect ────────────────────────────────────────────────────
@@ -110,15 +130,28 @@ function handleReady() {
 }
 
 // ─── API polling ──────────────────────────────────────────────────────────────
+function scheduleNextPoll(delay) {
+  pollTimer = setTimeout(fetchStatus, delay);
+}
+
 async function fetchStatus() {
+  // In-flight guard: never let a slow response overlap the next tick.
+  if (inFlight) {
+    scheduleNextPoll(POLL_NORMAL_MS);
+    return;
+  }
+  inFlight = true;
   try {
-    const res = await fetch('/api/generate/status?orderId=' + encodeURIComponent(orderId));
+    const keyPart = accessKey ? '&accessKey=' + encodeURIComponent(accessKey) : '';
+    const res = await fetch('/api/generate/status?orderId=' + encodeURIComponent(orderId) + keyPart);
 
     if (!res.ok) {
       if (res.status === 404) {
-        showError(GEN.errorNotFound);
+        showError(GEN.errorNotFound); // stops polling
+        return;
       }
       console.warn('[generating] Status request failed:', res.status);
+      scheduleNextPoll(POLL_NORMAL_MS);
       return;
     }
 
@@ -138,19 +171,29 @@ async function fetchStatus() {
       return;
     }
 
-    if (data.status === 'failed') {
-      track('generation_failed', { orderId, failedStage: data.failedStage || null });
-      showError(GEN.errorFailed);
+    if (data.status === 'under_review') {
+      showHeldReview();
+      scheduleNextPoll(POLL_HELD_MS); // slow poll, no overlap
+      return;
     }
 
+    if (data.status === 'failed') {
+      track('generation_failed', { orderId, failedStage: data.failedStage || null });
+      showError(GEN.errorFailed); // stops polling
+      return;
+    }
+
+    scheduleNextPoll(POLL_NORMAL_MS);
   } catch (err) {
     console.warn('[generating] Poll error (will retry):', err);
+    scheduleNextPoll(POLL_NORMAL_MS);
+  } finally {
+    inFlight = false;
   }
 }
 
 function startPolling() {
   fetchStatus();
-  pollTimer = setInterval(fetchStatus, 2500);
 }
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────

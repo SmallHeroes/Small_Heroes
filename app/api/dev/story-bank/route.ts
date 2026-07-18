@@ -433,7 +433,7 @@ export async function POST(req: NextRequest) {
         mode: 'chunked',
         polling: true,
         orderStatus,
-        statusUrl: `/api/generate/status?orderId=${encodeURIComponent(order.id)}`,
+        statusUrl: `/api/generate/status?orderId=${encodeURIComponent(order.id)}&accessKey=${encodeURIComponent(accessKey)}`,
         hint: 'Full book uses chunked /api/generate/worker — poll statusUrl until ready.',
       });
     }

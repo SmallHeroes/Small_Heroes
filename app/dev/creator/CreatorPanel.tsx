@@ -82,7 +82,7 @@ export function CreatorPanel() {
     previewUrl: string;
     resemblanceScore: number;
   } | null>(null);
-  const [bookWait, setBookWait] = useState<{ orderId: string; childName: string } | null>(null);
+  const [bookWait, setBookWait] = useState<{ orderId: string; childName: string; accessKey: string } | null>(null);
   const [bookWaitReady, setBookWaitReady] = useState(false);
   const [bookWaitReaderHref, setBookWaitReaderHref] = useState<string | undefined>(undefined);
 
@@ -298,13 +298,14 @@ export function CreatorPanel() {
           error?: string;
           viewerUrl?: string;
           orderId?: string;
+          accessKey?: string;
           pagesRendered?: number;
           orderStatus?: string;
         }>(res);
         if (!res.ok) throw new Error(data.error || 'Full book failed');
 
         if (data.orderId && (data.orderStatus === 'generating' || data.orderStatus === 'paid')) {
-          setBookWait({ orderId: data.orderId, childName: resolvedName });
+          setBookWait({ orderId: data.orderId, childName: resolvedName, accessKey: data.accessKey ?? '' });
           setLastRunInfo('');
           setViewerLink('');
         } else {
@@ -367,9 +368,14 @@ export function CreatorPanel() {
   useEffect(() => {
     if (!bookWait || bookWaitReady) return;
     let cancelled = false;
+    let inFlight = false; // guard: never overlap status requests
     const poll = async () => {
+      if (inFlight) return;
+      inFlight = true;
       try {
-        const res = await fetch(`/api/generate/status?orderId=${encodeURIComponent(bookWait.orderId)}`);
+        const res = await fetch(
+          `/api/generate/status?orderId=${encodeURIComponent(bookWait.orderId)}&accessKey=${encodeURIComponent(bookWait.accessKey)}`,
+        );
         if (!res.ok || cancelled) return;
         const data = await res.json();
         if (data.status === 'ready' || data.status === 'partial') {
@@ -378,8 +384,11 @@ export function CreatorPanel() {
             data.readUrl ?? `/dev/viewer?orderId=${encodeURIComponent(bookWait.orderId)}`,
           );
         }
+        // under_review / generating / paid → keep polling; do not crash.
       } catch {
         /* retry */
+      } finally {
+        inFlight = false;
       }
     };
     poll();

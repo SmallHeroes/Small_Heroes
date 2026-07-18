@@ -49,10 +49,20 @@ export async function POST(req: NextRequest) {
     workerResult = await runGenerationWorkerInvocation(orderId);
   }
 
+  // Derive the status-poll access key (same convention as the reader / status route): there is no
+  // Order.accessKey column — it is paymentId || paymeTransactionId || stripeSessionId. Append it so the
+  // downstream poller inherits a key that passes the now key-gated status endpoint.
+  const orderKey = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: { paymentId: true, paymeTransactionId: true, stripeSessionId: true },
+  });
+  const accessKey =
+    orderKey?.paymentId || orderKey?.paymeTransactionId || orderKey?.stripeSessionId || '';
+
   return NextResponse.json({
     ok: true,
     orderId,
     workerResult,
-    statusUrl: `/api/generate/status?orderId=${encodeURIComponent(orderId)}`,
+    statusUrl: `/api/generate/status?orderId=${encodeURIComponent(orderId)}&accessKey=${encodeURIComponent(accessKey)}`,
   });
 }

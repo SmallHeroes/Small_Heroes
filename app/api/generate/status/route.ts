@@ -116,6 +116,7 @@ export async function GET(req: NextRequest) {
   if (!orderId) {
     return NextResponse.json({ error: 'invalid_order_id' }, { status: 400 });
   }
+  const accessKey = req.nextUrl.searchParams.get('accessKey');
 
   try {
     // In-deployment recovery backstop for Preview (where Vercel crons don't run): reclaim expired
@@ -142,6 +143,9 @@ export async function GET(req: NextRequest) {
         audioStatus:   true,
         packageStatus: true,
         lastError:     true,
+        paymentId:          true,
+        paymeTransactionId: true,
+        stripeSessionId:    true,
         generationJob: {
           select: {
             currentStage: true,
@@ -171,6 +175,20 @@ export async function GET(req: NextRequest) {
 
     if (!order) {
       return NextResponse.json({ error: 'order_not_found' }, { status: 404 });
+    }
+
+    // Access-key gate (mirrors the reader app/api/orders/[orderId]/route.ts): the key is DERIVED from
+    // the order's payment identifiers — there is no Order.accessKey column. On any mismatch return the
+    // SAME body as the missing-row 404 so we never leak whether a given order id exists.
+    const expectedAccessKey = order.paymentId || order.paymeTransactionId || order.stripeSessionId;
+    if (!expectedAccessKey || !accessKey || accessKey !== expectedAccessKey) {
+      return NextResponse.json({ error: 'order_not_found' }, { status: 404 });
+    }
+
+    // Human-QA hold: the book is parked for a human decision. Return an ALLOWLISTED body only — no
+    // progress, stage, error, readUrl, deliveryHoldReason, hazard, or artifact may leak to the customer.
+    if (order.status === 'needs_human_qa') {
+      return NextResponse.json({ status: 'under_review', childName: order.childName });
     }
 
     const ts = order.textStatus    as StageStatus;
@@ -213,7 +231,6 @@ export async function GET(req: NextRequest) {
     };
 
     if (failedStage !== null) body.failedStage = failedStage;
-    if (order.lastError)      body.error = order.lastError;
 
     if (order.status === 'ready' && order.book?.readUrl) {
       body.readUrl = order.book.readUrl;
