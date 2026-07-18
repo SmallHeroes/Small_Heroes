@@ -160,10 +160,21 @@ describe('QA soft-deliver integration', () => {
 
   it('flag-off legacy path still holds weak anchor', async () => {
     setEnv('QA_SOFT_DELIVER', 'false');
+    // (Human-QA Slice 1) the legacy path now wraps its two writes in prisma.$transaction; pass `prisma` as its own
+    // tx so `prisma.order.update` (the asserted mock) is still what the legacy path calls, plus no-op stubs for the
+    // additive review-case writes. Decision assertions are unchanged.
     const prisma = {
-      order: { update: vi.fn(async () => ({})) },
+      order: {
+        update: vi.fn(async () => ({})),
+        findUnique: vi.fn(async () => ({ childName: 'K', inputVersion: 0, visualContractHash: null })),
+      },
       generationJob: { update: vi.fn(async () => ({})) },
+      humanQaReviewCase: { findUnique: vi.fn(async () => null), findFirst: vi.fn(async () => null), update: vi.fn(async () => ({})) },
+      operatorNotificationOutbox: { findFirst: vi.fn(async () => null), update: vi.fn(async () => ({})) },
+      $queryRaw: vi.fn(async () => [{ id: 'hqc-test' }]),
+      $transaction: vi.fn(),
     };
+    prisma.$transaction.mockImplementation(async (cb: (t: unknown) => unknown) => cb(prisma));
     const send = vi.fn(async () => ({}));
     const heldGate = {
       held: true,
@@ -192,10 +203,21 @@ describe('QA soft-deliver integration', () => {
   });
 
   it('flag-on non-prod legacy path delivers weak anchor with qaWarnings email', async () => {
+    // (Human-QA Slice 1) the legacy path now wraps its two writes in prisma.$transaction; pass `prisma` as its own
+    // tx so `prisma.order.update` (the asserted mock) is still what the legacy path calls, plus no-op stubs for the
+    // additive review-case writes. Decision assertions are unchanged.
     const prisma = {
-      order: { update: vi.fn(async () => ({})) },
+      order: {
+        update: vi.fn(async () => ({})),
+        findUnique: vi.fn(async () => ({ childName: 'K', inputVersion: 0, visualContractHash: null })),
+      },
       generationJob: { update: vi.fn(async () => ({})) },
+      humanQaReviewCase: { findUnique: vi.fn(async () => null), findFirst: vi.fn(async () => null), update: vi.fn(async () => ({})) },
+      operatorNotificationOutbox: { findFirst: vi.fn(async () => null), update: vi.fn(async () => ({})) },
+      $queryRaw: vi.fn(async () => [{ id: 'hqc-test' }]),
+      $transaction: vi.fn(),
     };
+    prisma.$transaction.mockImplementation(async (cb: (t: unknown) => unknown) => cb(prisma));
     const send = vi.fn(async () => ({}));
     const heldGate = {
       held: true,

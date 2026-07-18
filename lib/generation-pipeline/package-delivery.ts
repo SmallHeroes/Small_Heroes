@@ -10,6 +10,8 @@ import {
   type CommitResult,
 } from './readiness-manifest';
 import { resolveActiveRecoveryCaseInTx } from '@/lib/generation-chunked/exception-case';
+import { recordHumanQaHoldInTx } from '@/lib/human-qa/record-hold';
+import { humanReasonForHoldKind, loadHoldEvidence } from '@/lib/human-qa/hold-kind';
 
 const log = createLogger({ subsystem: 'package-delivery' });
 
@@ -143,6 +145,23 @@ export async function finalizePackageDelivery(
         reason: `safety_parked:${args.safetyGate.reason ?? 'held'}`,
         now: completedAt,
       });
+      // (Human-QA Slice 1) ADDITIVE: open a safety review case in this SAME safety-park tx. The Order/Job writes
+      // above are byte-unchanged; non-aborting ON CONFLICT DO NOTHING can never roll them back.
+      const safetyRaw = args.safetyGate.reason ?? 'safety_hold:held';
+      const ev = await loadHoldEvidence(tx, args.order.id);
+      await recordHumanQaHoldInTx(tx, {
+        orderId: args.order.id,
+        scope: 'base_book',
+        kind: 'safety',
+        rawReason: safetyRaw,
+        humanReason: humanReasonForHoldKind('safety', safetyRaw),
+        childName: ev.childName || args.order.childName,
+        inputVersion: ev.inputVersion,
+        contractHash: ev.visualContractHash,
+        sourceManifestId: null,
+        artifactRefs: null,
+        now: completedAt,
+      });
     });
     log.warn('Book-ready email withheld — physical-safety hard hold (readiness-independent)', {
       orderId: args.order.id,
@@ -175,22 +194,45 @@ export async function finalizePackageDelivery(
   const legacyHoldReason = legacySoftDeliver
     ? `qa_soft_deliver:${args.deliveryGate.reason ?? 'held'}`
     : args.deliveryGate.reason;
-  await prisma.order.update({
-    where: { id: args.order.id },
-    data: {
-      status: legacyStatus,
-      packageStatus: 'done',
-      deliveryHoldReason: legacyHoldReason,
-    },
-  });
-  await prisma.generationJob.update({
-    where: { orderId: args.order.id },
-    data: {
-      status: 'done',
-      currentStage: 'done',
-      completedAt,
-      packaged: true,
-    },
+  // (Human-QA Slice 1) The two legacy writes were bare (separate autocommits); wrap them in ONE tx so an anchor
+  // review case commits atomically with the park. Both Order + Job write DATA are byte-identical to before — only
+  // the transactional grouping is added. A case opens ONLY when this legacy path actually parks for anchor QA
+  // (legacyStatus === 'needs_human_qa'); a soft-deliver/ready outcome opens nothing.
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: args.order.id },
+      data: {
+        status: legacyStatus,
+        packageStatus: 'done',
+        deliveryHoldReason: legacyHoldReason,
+      },
+    });
+    await tx.generationJob.update({
+      where: { orderId: args.order.id },
+      data: {
+        status: 'done',
+        currentStage: 'done',
+        completedAt,
+        packaged: true,
+      },
+    });
+    if (legacyStatus === 'needs_human_qa') {
+      const anchorRaw = legacyHoldReason ?? 'anchor_low_confidence:held';
+      const ev = await loadHoldEvidence(tx, args.order.id);
+      await recordHumanQaHoldInTx(tx, {
+        orderId: args.order.id,
+        scope: 'base_book',
+        kind: 'anchor',
+        rawReason: anchorRaw,
+        humanReason: humanReasonForHoldKind('anchor', anchorRaw),
+        childName: ev.childName || args.order.childName,
+        inputVersion: ev.inputVersion,
+        contractHash: ev.visualContractHash,
+        sourceManifestId: null,
+        artifactRefs: null,
+        now: completedAt,
+      });
+    }
   });
 
   if (!args.deliveryGate.sendBookReadyEmail && !legacySoftDeliver) {

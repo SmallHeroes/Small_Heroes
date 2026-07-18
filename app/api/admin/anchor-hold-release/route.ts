@@ -23,6 +23,7 @@ import { sendBookReadyEmail } from '@/backend/lib/email';
 import { ROUTES, listenUrlFromReadUrl } from '@/lib/routes';
 import { createLogger } from '@/lib/logger';
 import { isReadinessManifestEnabled, commitBaseBookReadiness } from '@/lib/generation-pipeline/readiness-manifest';
+import { resolveHumanQaCaseOnReleaseInTx } from '@/lib/human-qa/record-hold';
 import { OutboxReconciliationError } from '@/lib/generation-chunked/delivery-outbox';
 
 const log = createLogger({ subsystem: 'anchor-hold', route: '/api/admin/anchor-hold-release' });
@@ -114,9 +115,21 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   // Flip to deliverable FIRST so the book is customer-viewable, THEN send the withheld email.
   // No regeneration — we reuse the already-rendered assets.
-  await prisma.order.update({
-    where: { id: order.id },
-    data: { status: 'ready', deliveryHoldReason: null },
+  // (Human-QA Slice 1) Close the active ANCHOR review case + suppress its unsent operator notification in the SAME
+  // tx that releases the Order — otherwise the Order goes ready but the case stays open forever. kinds:['anchor']
+  // means this can NEVER release a safety/contract_world case; it does not broaden what this endpoint may release
+  // (the `anchor_low_confidence:` guard above already gates that). The Order-write data is byte-identical.
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: order.id },
+      data: { status: 'ready', deliveryHoldReason: null },
+    });
+    await resolveHumanQaCaseOnReleaseInTx(tx, {
+      orderId: order.id,
+      scope: 'base_book',
+      kinds: ['anchor'],
+      actor: 'admin:anchor_release',
+    });
   });
 
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '');

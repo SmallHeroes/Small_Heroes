@@ -70,6 +70,13 @@ function mockTx(orderRow: unknown = orderRowFull) {
     deliveryOutbox: { findUnique: vi.fn(async () => null), create: vi.fn(), updateMany: vi.fn(async () => ({ count: 1 })) },
     generationJob: { update: vi.fn() },
     qualityEvidence: { findMany: vi.fn(async () => passingQualityRows(orderRow as typeof orderRowFull)) },
+    // (Human-QA Slice 1) no-op stubs for the ADDITIVE review-case writes recordHumanQaHoldInTx /
+    // resolveHumanQaCaseOnReleaseInTx make in-tx. No active case (findUnique→null), first revision (findFirst→null),
+    // and the raw ON CONFLICT inserts return one row (created). The DECISION assertions on tx.order.updateMany are
+    // unchanged — these stubs only let the additive path run; they assert nothing about the hold decision.
+    humanQaReviewCase: { findUnique: vi.fn(async () => null), findFirst: vi.fn(async () => null), update: vi.fn(async () => ({})) },
+    operatorNotificationOutbox: { findFirst: vi.fn(async () => null), update: vi.fn(async () => ({})) },
+    $queryRaw: vi.fn(async () => [{ id: 'hqc-test' }]),
   };
 }
 const mockPrisma = (tx: ReturnType<typeof mockTx>, orderRow: unknown = orderRowFull) =>

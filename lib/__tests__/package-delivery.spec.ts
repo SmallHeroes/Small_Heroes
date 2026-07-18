@@ -17,10 +17,16 @@ const allowGate = {
 
 function db() {
   const client = {
-    order: { update: vi.fn(async () => ({})) },
+    order: { update: vi.fn(async () => ({})), findUnique: vi.fn(async () => ({ childName: 'Test', inputVersion: 0, visualContractHash: null })) },
     generationJob: { update: vi.fn(async () => ({})) },
     // (Fix 5) the safety pre-gate parks in a tx and resolves any active recovery case (findUnique → null = no-op).
     exceptionCase: { findUnique: vi.fn(async () => null), updateMany: vi.fn(async () => ({ count: 0 })) },
+    // (Human-QA Slice 1) no-op stubs for the ADDITIVE review-case writes (safety park + legacy anchor park). No
+    // active case, first revision, raw ON CONFLICT insert returns a row. Decision assertions on order.update are
+    // unchanged — these only let the additive path run.
+    humanQaReviewCase: { findUnique: vi.fn(async () => null), findFirst: vi.fn(async () => null), update: vi.fn(async () => ({})) },
+    operatorNotificationOutbox: { findFirst: vi.fn(async () => null), update: vi.fn(async () => ({})) },
+    $queryRaw: vi.fn(async () => [{ id: 'hqc-test' }]),
     $transaction: vi.fn(),
   };
   client.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => fn(client));

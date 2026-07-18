@@ -1,6 +1,6 @@
 import 'server-only';
 
-import type { ExceptionCase, Prisma, PrismaClient } from '@prisma/client';
+import type { ExceptionCase, HumanQaHoldKind, Prisma, PrismaClient } from '@prisma/client';
 import {
   getBookReadyEmailDeliveryState,
   sendBookReadyEmail,
@@ -37,6 +37,8 @@ import {
 } from '@/lib/generation-pipeline/quality-recovery';
 import { QUALITY_REGEN_BUDGET, type HardHoldKind } from '@/lib/generation-pipeline/quality-evidence';
 import { reserveMarkAndClearRegen } from './clear-page-images-for-regen';
+import { recordHumanQaHoldInTx } from '@/lib/human-qa/record-hold';
+import { humanReasonForHoldKind, loadHoldEvidence } from '@/lib/human-qa/hold-kind';
 import { parsePipelineCache } from '@/lib/generation-pipeline/helpers';
 import { resolveAnchorDeliveryGate } from '@/lib/anchor-resemblance-gate';
 import { createLogger } from '@/lib/logger';
@@ -158,9 +160,31 @@ async function parkOrderForHardHoldQa(
   kind: HardHoldKind,
 ): Promise<void> {
   const marker = kind === 'safety' ? 'safety_hold' : 'contract_world_hold';
-  await prisma.order.updateMany({
-    where: { id: orderId, status: { notIn: ['ready', 'partial'] } },
-    data: { status: 'needs_human_qa', deliveryHoldReason: `${marker}:${artifactKeys.join(',')}` },
+  const rawReason = `${marker}:${artifactKeys.join(',')}`;
+  const humanKind: HumanQaHoldKind = kind === 'safety' ? 'safety' : 'contract_world';
+  // (Human-QA Slice 1) Wrap the single park write in a tx so the review case commits atomically with it. The Order
+  // write DATA is byte-identical to before — only the transactional grouping is added, and the case is recorded
+  // ONLY when this call actually parked the order (updateMany matched a not-already-delivered row).
+  await prisma.$transaction(async (tx) => {
+    const written = await tx.order.updateMany({
+      where: { id: orderId, status: { notIn: ['ready', 'partial'] } },
+      data: { status: 'needs_human_qa', deliveryHoldReason: rawReason },
+    });
+    if (written.count > 0) {
+      const ev = await loadHoldEvidence(tx, orderId);
+      await recordHumanQaHoldInTx(tx, {
+        orderId,
+        scope: 'base_book',
+        kind: humanKind,
+        rawReason,
+        humanReason: humanReasonForHoldKind(humanKind, rawReason),
+        childName: ev.childName,
+        inputVersion: ev.inputVersion,
+        contractHash: ev.visualContractHash,
+        sourceManifestId: null,
+        artifactRefs: null,
+      });
+    }
   });
 }
 

@@ -16,7 +16,20 @@ async function loadRoute(opts: { flagOn: boolean; order: unknown; commit?: Retur
   const commit = opts.commit ?? vi.fn(async () => ({ enqueued: true, manifestStatus: 'passed', orderStatus: 'ready', reason: null, revision: 1 }));
   const email = opts.email ?? vi.fn(async () => ({}));
   const orderUpdate = opts.orderUpdate ?? vi.fn();
-  vi.doMock('@/lib/prisma', () => ({ prisma: { order: { findUnique: vi.fn(async () => opts.order), update: orderUpdate } } }));
+  // (Human-QA Slice 1) the flag-off release now wraps the Order→ready write + the anchor case-resolve in one tx.
+  // tx.order.update routes to the SAME orderUpdate mock (so the status:'ready' assertion is unchanged); the
+  // review-case delegate is a no-op stub (no active case → resolve is a no-op).
+  const txClient = {
+    order: { update: orderUpdate },
+    humanQaReviewCase: { findUnique: vi.fn(async () => null), update: vi.fn() },
+    operatorNotificationOutbox: { findFirst: vi.fn(async () => null), update: vi.fn() },
+  };
+  vi.doMock('@/lib/prisma', () => ({
+    prisma: {
+      order: { findUnique: vi.fn(async () => opts.order), update: orderUpdate },
+      $transaction: vi.fn(async (cb: (t: unknown) => unknown) => cb(txClient)),
+    },
+  }));
   vi.doMock('@/backend/lib/email', () => ({ sendBookReadyEmail: email }));
   vi.doMock('@/lib/logger', () => SILENT);
   vi.doMock('@/lib/generation-pipeline/readiness-manifest', () => ({ isReadinessManifestEnabled: () => opts.flagOn, commitBaseBookReadiness: commit }));

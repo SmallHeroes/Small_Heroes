@@ -10,6 +10,8 @@ import {
   couponConfirmFenceReason,
   releaseCouponForFailedPayment,
 } from '@/lib/coupon/coupon-service';
+import { recordHumanQaHoldInTx } from '@/lib/human-qa/record-hold';
+import { humanReasonForHoldKind, loadHoldEvidence } from '@/lib/human-qa/hold-kind';
 
 const logger = createLogger({ subsystem: 'fake-payment', route: '/api/dev/fake-payment/confirm' });
 
@@ -132,6 +134,21 @@ export async function POST(req: NextRequest) {
       await tx.order.update({
         where: { id: fresh.id },
         data: { status: 'needs_human_qa', manualReviewRequired: true, deliveryHoldReason: couponFence },
+      });
+      // (Human-QA Slice 1) ADDITIVE: payment_integrity review case in the SAME tx, ALONGSIDE the money writes.
+      // Non-aborting ON CONFLICT DO NOTHING → can never roll back the paid transition / coupon confirm above.
+      const ev = await loadHoldEvidence(tx, fresh.id);
+      await recordHumanQaHoldInTx(tx, {
+        orderId: fresh.id,
+        scope: 'payment',
+        kind: 'payment_integrity',
+        rawReason: couponFence,
+        humanReason: humanReasonForHoldKind('payment_integrity', couponFence),
+        childName: ev.childName,
+        inputVersion: ev.inputVersion,
+        contractHash: ev.visualContractHash,
+        sourceManifestId: null,
+        artifactRefs: null,
       });
       logger.error('coupon confirm did not grant a slot for a paid order — held for refund/charge-full', {
         orderId: fresh.id,
