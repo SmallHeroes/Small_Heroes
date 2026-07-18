@@ -12,8 +12,7 @@ import {
 } from '@/lib/payme';
 import { env } from '@/lib/env';
 import { confirmCouponForOrder, couponConfirmFenceReason } from '@/lib/coupon/coupon-service';
-import { recordHumanQaHoldInTx } from '@/lib/human-qa/record-hold';
-import { humanReasonForHoldKind, loadHoldEvidence } from '@/lib/human-qa/hold-kind';
+import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 
 const logger = createLogger({ subsystem: 'payme-webhook', route: '/api/webhooks/payme' });
 
@@ -222,22 +221,8 @@ export async function POST(req: NextRequest) {
           where: { id: order.id },
           data: { status: 'needs_human_qa', manualReviewRequired: true, deliveryHoldReason: couponFence },
         });
-        // (Human-QA Slice 1) ADDITIVE: open a payment_integrity review case in the SAME tx, ALONGSIDE the money
-        // writes. recordHumanQaHoldInTx uses non-aborting ON CONFLICT DO NOTHING, so it can never roll back the
-        // paid transition / payment record / coupon confirmation above — money outcome is byte-unchanged.
-        const ev = await loadHoldEvidence(tx, order.id);
-        await recordHumanQaHoldInTx(tx, {
-          orderId: order.id,
-          scope: 'payment',
-          kind: 'payment_integrity',
-          rawReason: couponFence,
-          humanReason: humanReasonForHoldKind('payment_integrity', couponFence),
-          childName: ev.childName,
-          inputVersion: ev.inputVersion,
-          contractHash: ev.visualContractHash,
-          sourceManifestId: null,
-          artifactRefs: null,
-        });
+        // (Human-QA Slice 1, re-gate P0-1) The payment_integrity review case is NOT written here — a case-write
+        // rejection must never roll back this money transaction. The case is opened POST-COMMIT below.
         logger.error('[PayMeWebhook] coupon confirm did not grant a slot for a paid order — held for refund/charge-full', {
           orderId: order.id,
           transactionId: parsed.transactionId,
@@ -248,6 +233,11 @@ export async function POST(req: NextRequest) {
 
       return true;
     });
+
+    // (Human-QA Slice 1, re-gate P0-1) POST-COMMIT: the money tx is durably committed. Open the payment_integrity
+    // review case in its OWN tx, best-effort — a failure here can never affect the payment, and the reconciler is
+    // the guaranteed repair. A no-op unless the fence actually parked the order (syncHumanQaHoldCase re-reads it).
+    await syncHumanQaHoldCasePostCommit(prisma, parsed.orderId);
 
     if (!shouldTriggerGeneration) {
       logger.info('[PayMeWebhook] No generation trigger needed', {

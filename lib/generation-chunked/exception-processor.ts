@@ -1,6 +1,6 @@
 import 'server-only';
 
-import type { ExceptionCase, HumanQaHoldKind, Prisma, PrismaClient } from '@prisma/client';
+import type { ExceptionCase, Prisma, PrismaClient } from '@prisma/client';
 import {
   getBookReadyEmailDeliveryState,
   sendBookReadyEmail,
@@ -37,8 +37,7 @@ import {
 } from '@/lib/generation-pipeline/quality-recovery';
 import { QUALITY_REGEN_BUDGET, type HardHoldKind } from '@/lib/generation-pipeline/quality-evidence';
 import { reserveMarkAndClearRegen } from './clear-page-images-for-regen';
-import { recordHumanQaHoldInTx } from '@/lib/human-qa/record-hold';
-import { humanReasonForHoldKind, loadHoldEvidence } from '@/lib/human-qa/hold-kind';
+import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 import { parsePipelineCache } from '@/lib/generation-pipeline/helpers';
 import { resolveAnchorDeliveryGate } from '@/lib/anchor-resemblance-gate';
 import { createLogger } from '@/lib/logger';
@@ -137,12 +136,16 @@ function defaultDeps(): ExceptionProcessorDeps {
       });
       const cache = parsePipelineCache(job?.pipelineCache);
       const gate = resolveAnchorDeliveryGate(cache.childAnchorLowConfidence);
-      return commitBaseBookReadiness(prisma, {
+      const result = await commitBaseBookReadiness(prisma, {
         orderId,
         anchorAllowsDelivery: gate.sendBookReadyEmail,
         anchorOrderStatus: gate.orderStatus,
         anchorReason: gate.reason,
       });
+      // (Human-QA Slice 1, re-gate P0-1) POST-COMMIT: reconcile the review case after the readiness tx commits
+      // (opens an anchor case if it re-parked; resolves it on a ready recommit). Best-effort in its own tx.
+      await syncHumanQaHoldCasePostCommit(prisma, orderId);
+      return result;
     },
   };
 }
@@ -161,31 +164,16 @@ async function parkOrderForHardHoldQa(
 ): Promise<void> {
   const marker = kind === 'safety' ? 'safety_hold' : 'contract_world_hold';
   const rawReason = `${marker}:${artifactKeys.join(',')}`;
-  const humanKind: HumanQaHoldKind = kind === 'safety' ? 'safety' : 'contract_world';
-  // (Human-QA Slice 1) Wrap the single park write in a tx so the review case commits atomically with it. The Order
-  // write DATA is byte-identical to before — only the transactional grouping is added, and the case is recorded
-  // ONLY when this call actually parked the order (updateMany matched a not-already-delivered row).
-  await prisma.$transaction(async (tx) => {
-    const written = await tx.order.updateMany({
-      where: { id: orderId, status: { notIn: ['ready', 'partial'] } },
-      data: { status: 'needs_human_qa', deliveryHoldReason: rawReason },
-    });
-    if (written.count > 0) {
-      const ev = await loadHoldEvidence(tx, orderId);
-      await recordHumanQaHoldInTx(tx, {
-        orderId,
-        scope: 'base_book',
-        kind: humanKind,
-        rawReason,
-        humanReason: humanReasonForHoldKind(humanKind, rawReason),
-        childName: ev.childName,
-        inputVersion: ev.inputVersion,
-        contractHash: ev.visualContractHash,
-        sourceManifestId: null,
-        artifactRefs: null,
-      });
-    }
+  // (Human-QA Slice 1, re-gate P0-1) The park write stays a single bare updateMany (byte-unchanged). The review case
+  // is NEVER opened inside this park tx — a case-write rejection must not roll back the hold itself (an unheld hard
+  // hold = a safety regression). It is opened POST-COMMIT below, and the reconciler is the guaranteed repair.
+  await prisma.order.updateMany({
+    where: { id: orderId, status: { notIn: ['ready', 'partial'] } },
+    data: { status: 'needs_human_qa', deliveryHoldReason: rawReason },
   });
+  // POST-COMMIT: reconcile the safety/contract_world review case from the committed Order state (a no-op if the
+  // order was already delivered and the park matched no row). Best-effort in its own tx.
+  await syncHumanQaHoldCasePostCommit(prisma, orderId);
 }
 
 async function moveToRefund(

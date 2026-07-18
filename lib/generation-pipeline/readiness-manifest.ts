@@ -39,8 +39,6 @@ import {
   type QaWarnings,
 } from '@/lib/qa-soft-deliver';
 import type { AnchorLowConfidence } from '@/lib/anchor-resemblance-gate';
-import { recordHumanQaHoldInTx, resolveHumanQaCaseOnReleaseInTx } from '@/lib/human-qa/record-hold';
-import { humanQaKindFromMarker, humanReasonForHoldKind, loadHoldEvidence } from '@/lib/human-qa/hold-kind';
 import { runAtomicOperation, hashOperationPayload, type AtomicOperationDeps, type ReceiptSafeValue } from './atomic-operation';
 import { createLogger } from '@/lib/logger';
 import type { FrozenStoryProductTruth } from './frozen-product-truth';
@@ -818,40 +816,11 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
     data: orderData,
   });
   if (written.count === 0) throw new Error(TOCTOU);
-  // (Human-QA Slice 1) ADDITIVE, in the SAME tx as the Order write above (which is byte-unchanged):
-  //  - a terminal manual hold (safety/contract_world/anchor MARKER) → open/refresh the review case. Guarded on the
-  //    MARKER, not just `needs_human_qa`, so a recoverable `base_book_integrity:` park (which the ExceptionCase path
-  //    owns) maps to kind=null and opens NO case.
-  //  - a transition to `ready` (a normal delivery OR an anchor-hold release/clear that reaches ready) → resolve any
-  //    active ANCHOR case so it can never linger open after the book is delivered. kinds:['anchor'] can NEVER
-  //    release a safety/contract_world case (they are not releasable this way).
-  if (orderStatus === 'needs_human_qa') {
-    const hqKind = humanQaKindFromMarker(deliveryHoldReason);
-    if (hqKind) {
-      const ev = await loadHoldEvidence(tx, order.id);
-      await recordHumanQaHoldInTx(tx, {
-        orderId: order.id,
-        scope: 'base_book',
-        kind: hqKind,
-        rawReason: deliveryHoldReason ?? '',
-        humanReason: humanReasonForHoldKind(hqKind, deliveryHoldReason ?? ''),
-        childName: ev.childName,
-        inputVersion: ev.inputVersion,
-        contractHash: ev.visualContractHash,
-        sourceManifestId: manifest.id,
-        artifactRefs: null,
-        now,
-      });
-    }
-  } else if (orderStatus === 'ready') {
-    await resolveHumanQaCaseOnReleaseInTx(tx, {
-      orderId: order.id,
-      scope: 'base_book',
-      kinds: ['anchor'],
-      actor: 'system:ready_transition',
-      now,
-    });
-  }
+  // (Human-QA Slice 1, re-gate P0-1) The review-case lifecycle is NOT written here. A `recordHumanQaHoldInTx`
+  // read/update/throw inside THIS readiness-commit tx could roll back the hold itself (an unheld order = a safety
+  // regression), and `resolveHumanQaCaseOnReleaseInTx` inside it could roll back a delivery. Both are reconciled
+  // POST-COMMIT by `syncHumanQaHoldCasePostCommit` at every consumer of commitBaseBookReadiness (which re-reads the
+  // committed Order status: opens the case for a terminal marker hold, resolves an anchor case on a ready outcome).
   // (5) GenerationJob terminal — the package stage ran.
   await tx.generationJob.update({ where: { orderId: order.id }, data: { status: 'done', currentStage: 'done', completedAt: now, packaged: true } });
   return { manifestStatus: decision.status, enqueued, orderStatus, reason: deliveryHoldReason, revision };

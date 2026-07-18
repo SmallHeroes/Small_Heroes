@@ -10,8 +10,7 @@ import {
   type CommitResult,
 } from './readiness-manifest';
 import { resolveActiveRecoveryCaseInTx } from '@/lib/generation-chunked/exception-case';
-import { recordHumanQaHoldInTx } from '@/lib/human-qa/record-hold';
-import { humanReasonForHoldKind, loadHoldEvidence } from '@/lib/human-qa/hold-kind';
+import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 
 const log = createLogger({ subsystem: 'package-delivery' });
 
@@ -145,24 +144,11 @@ export async function finalizePackageDelivery(
         reason: `safety_parked:${args.safetyGate.reason ?? 'held'}`,
         now: completedAt,
       });
-      // (Human-QA Slice 1) ADDITIVE: open a safety review case in this SAME safety-park tx. The Order/Job writes
-      // above are byte-unchanged; non-aborting ON CONFLICT DO NOTHING can never roll them back.
-      const safetyRaw = args.safetyGate.reason ?? 'safety_hold:held';
-      const ev = await loadHoldEvidence(tx, args.order.id);
-      await recordHumanQaHoldInTx(tx, {
-        orderId: args.order.id,
-        scope: 'base_book',
-        kind: 'safety',
-        rawReason: safetyRaw,
-        humanReason: humanReasonForHoldKind('safety', safetyRaw),
-        childName: ev.childName || args.order.childName,
-        inputVersion: ev.inputVersion,
-        contractHash: ev.visualContractHash,
-        sourceManifestId: null,
-        artifactRefs: null,
-        now: completedAt,
-      });
     });
+    // (Human-QA Slice 1, re-gate P0-1) POST-COMMIT: open the safety review case in its OWN tx. NEVER inside the
+    // safety-park tx — a case-write rejection there would roll back the park itself (an unheld unsafe book = a
+    // safety regression). Best-effort; the reconciler is the guaranteed repair for a missed write.
+    await syncHumanQaHoldCasePostCommit(prisma, args.order.id);
     log.warn('Book-ready email withheld — physical-safety hard hold (readiness-independent)', {
       orderId: args.order.id,
       reason: args.safetyGate.reason,
@@ -180,6 +166,10 @@ export async function finalizePackageDelivery(
       anchorReason: args.deliveryGate.reason,
       anchorLowConfidence: args.anchorLowConfidence,
     });
+    // (Human-QA Slice 1, re-gate P0-1) POST-COMMIT: reconcile the review case AFTER commitBaseBookReadiness commits
+    // its readiness tx. Opens an anchor case when the manifest parked for anchor QA; resolves it on a ready outcome.
+    // Best-effort in its own tx — the reconciler repairs a missed write.
+    await syncHumanQaHoldCasePostCommit(prisma, args.order.id);
     return {
       mode: 'manifest',
       deliveryHeld: manifest.orderStatus !== 'ready',
@@ -194,46 +184,29 @@ export async function finalizePackageDelivery(
   const legacyHoldReason = legacySoftDeliver
     ? `qa_soft_deliver:${args.deliveryGate.reason ?? 'held'}`
     : args.deliveryGate.reason;
-  // (Human-QA Slice 1) The two legacy writes were bare (separate autocommits); wrap them in ONE tx so an anchor
-  // review case commits atomically with the park. Both Order + Job write DATA are byte-identical to before — only
-  // the transactional grouping is added. A case opens ONLY when this legacy path actually parks for anchor QA
-  // (legacyStatus === 'needs_human_qa'); a soft-deliver/ready outcome opens nothing.
-  await prisma.$transaction(async (tx) => {
-    await tx.order.update({
-      where: { id: args.order.id },
-      data: {
-        status: legacyStatus,
-        packageStatus: 'done',
-        deliveryHoldReason: legacyHoldReason,
-      },
-    });
-    await tx.generationJob.update({
-      where: { orderId: args.order.id },
-      data: {
-        status: 'done',
-        currentStage: 'done',
-        completedAt,
-        packaged: true,
-      },
-    });
-    if (legacyStatus === 'needs_human_qa') {
-      const anchorRaw = legacyHoldReason ?? 'anchor_low_confidence:held';
-      const ev = await loadHoldEvidence(tx, args.order.id);
-      await recordHumanQaHoldInTx(tx, {
-        orderId: args.order.id,
-        scope: 'base_book',
-        kind: 'anchor',
-        rawReason: anchorRaw,
-        humanReason: humanReasonForHoldKind('anchor', anchorRaw),
-        childName: ev.childName || args.order.childName,
-        inputVersion: ev.inputVersion,
-        contractHash: ev.visualContractHash,
-        sourceManifestId: null,
-        artifactRefs: null,
-        now: completedAt,
-      });
-    }
+  // (Human-QA Slice 1, re-gate P0-1) The two legacy writes stay bare (separate autocommits, byte-unchanged). The
+  // case is NEVER written inside the park — a case-write rejection must not roll back the anchor park. It is opened
+  // POST-COMMIT below, and the reconciler is the guaranteed repair for a missed write.
+  await prisma.order.update({
+    where: { id: args.order.id },
+    data: {
+      status: legacyStatus,
+      packageStatus: 'done',
+      deliveryHoldReason: legacyHoldReason,
+    },
   });
+  await prisma.generationJob.update({
+    where: { orderId: args.order.id },
+    data: {
+      status: 'done',
+      currentStage: 'done',
+      completedAt,
+      packaged: true,
+    },
+  });
+  // POST-COMMIT: open the anchor review case in its own tx when this legacy path parked for anchor QA. A
+  // soft-deliver/ready outcome is not held, so syncHumanQaHoldCase re-reads and no-ops.
+  await syncHumanQaHoldCasePostCommit(prisma, args.order.id);
 
   if (!args.deliveryGate.sendBookReadyEmail && !legacySoftDeliver) {
     log.warn('Book-ready email withheld — order held for human QA', {

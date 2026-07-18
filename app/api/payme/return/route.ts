@@ -6,8 +6,7 @@ import { ROUTES } from '@/lib/routes';
 import { triggerGeneration } from '../../generate/route';
 import { verifyPaymePayment } from '@/lib/payme';
 import { confirmCouponForOrder, couponConfirmFenceReason } from '@/lib/coupon/coupon-service';
-import { recordHumanQaHoldInTx } from '@/lib/human-qa/record-hold';
-import { humanReasonForHoldKind, loadHoldEvidence } from '@/lib/human-qa/hold-kind';
+import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 
 const logger = createLogger({ subsystem: 'payme-return', route: '/api/payme/return' });
 
@@ -123,21 +122,8 @@ export async function GET(req: NextRequest) {
             where: { id: order.id },
             data: { status: 'needs_human_qa', manualReviewRequired: true, deliveryHoldReason: couponFence },
           });
-          // (Human-QA Slice 1) ADDITIVE: payment_integrity review case in the SAME tx, ALONGSIDE the money writes.
-          // Non-aborting ON CONFLICT DO NOTHING → can never roll back the paid transition / coupon confirm above.
-          const ev = await loadHoldEvidence(tx, order.id);
-          await recordHumanQaHoldInTx(tx, {
-            orderId: order.id,
-            scope: 'payment',
-            kind: 'payment_integrity',
-            rawReason: couponFence,
-            humanReason: humanReasonForHoldKind('payment_integrity', couponFence),
-            childName: ev.childName,
-            inputVersion: ev.inputVersion,
-            contractHash: ev.visualContractHash,
-            sourceManifestId: null,
-            artifactRefs: null,
-          });
+          // (Human-QA Slice 1, re-gate P0-1) The payment_integrity case is written POST-COMMIT, not here — a
+          // case-write rejection must never roll back this money transaction.
           logger.error('coupon confirm did not grant a slot for a paid order — held for refund/charge-full', {
             orderId: order.id,
             outcome: couponOutcome,
@@ -146,6 +132,10 @@ export async function GET(req: NextRequest) {
         }
         return true;
       });
+      // (Human-QA Slice 1, re-gate P0-1) POST-COMMIT: open the payment_integrity review case in its own tx,
+      // best-effort. The money tx is durably committed; a failure here can never affect it, and the reconciler
+      // repairs a missed write. A no-op unless the fence parked the order.
+      await syncHumanQaHoldCasePostCommit(prisma, order.id);
       // CONCURRENCY FENCE (coupon re-gate 3): ONLY the request that actually CLAIMED the paid
       // transition may trigger generation — `claimed` is false when an overlapping success path (the
       // webhook) already advanced or FENCED this order, and that path must never double-trigger.

@@ -10,8 +10,7 @@ import {
   couponConfirmFenceReason,
   releaseCouponForFailedPayment,
 } from '@/lib/coupon/coupon-service';
-import { recordHumanQaHoldInTx } from '@/lib/human-qa/record-hold';
-import { humanReasonForHoldKind, loadHoldEvidence } from '@/lib/human-qa/hold-kind';
+import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 
 const logger = createLogger({ subsystem: 'fake-payment', route: '/api/dev/fake-payment/confirm' });
 
@@ -135,21 +134,8 @@ export async function POST(req: NextRequest) {
         where: { id: fresh.id },
         data: { status: 'needs_human_qa', manualReviewRequired: true, deliveryHoldReason: couponFence },
       });
-      // (Human-QA Slice 1) ADDITIVE: payment_integrity review case in the SAME tx, ALONGSIDE the money writes.
-      // Non-aborting ON CONFLICT DO NOTHING → can never roll back the paid transition / coupon confirm above.
-      const ev = await loadHoldEvidence(tx, fresh.id);
-      await recordHumanQaHoldInTx(tx, {
-        orderId: fresh.id,
-        scope: 'payment',
-        kind: 'payment_integrity',
-        rawReason: couponFence,
-        humanReason: humanReasonForHoldKind('payment_integrity', couponFence),
-        childName: ev.childName,
-        inputVersion: ev.inputVersion,
-        contractHash: ev.visualContractHash,
-        sourceManifestId: null,
-        artifactRefs: null,
-      });
+      // (Human-QA Slice 1, re-gate P0-1) The payment_integrity case is written POST-COMMIT, not here — a
+      // case-write rejection must never roll back this money transaction.
       logger.error('coupon confirm did not grant a slot for a paid order — held for refund/charge-full', {
         orderId: fresh.id,
         outcome: couponOutcome,
@@ -158,6 +144,10 @@ export async function POST(req: NextRequest) {
     }
     return true; // the conditional above claimed the paid transition exactly once
   });
+
+  // (Human-QA Slice 1, re-gate P0-1) POST-COMMIT: open the payment_integrity review case in its own tx,
+  // best-effort — never affects the committed money tx; the reconciler repairs a missed write. No-op unless fenced.
+  await syncHumanQaHoldCasePostCommit(prisma, order.id);
 
   if (shouldTriggerGeneration) {
     // AWAIT durable job-creation + after() dispatch before returning; local catch isolates a

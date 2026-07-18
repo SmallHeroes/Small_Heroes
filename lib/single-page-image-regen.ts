@@ -44,6 +44,7 @@ import {
 } from '@/lib/generation-pipeline/readiness-manifest';
 import { resolveAnchorDeliveryGate } from '@/lib/anchor-resemblance-gate';
 import { parsePipelineCache } from '@/lib/generation-pipeline/helpers';
+import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 
 const regenLogger = createLogger({ subsystem: 'regen-page', route: '/api/debug/regen-page' });
 
@@ -914,6 +915,9 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
       anchorOrderStatus: deliveryGate.orderStatus,
       anchorReason: deliveryGate.reason,
     });
+    // (Human-QA Slice 1, re-gate P0-1) POST-COMMIT: reconcile the review case after the readiness recommit — a
+    // page regen that lifts the anchor hold to ready resolves the anchor case; a re-park opens it. Own tx, best-effort.
+    await syncHumanQaHoldCasePostCommit(prisma, orderId);
   }
 
   return {
