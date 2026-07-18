@@ -1,0 +1,13 @@
+-- (cutover Track 1.2 — the coupon checksum landmine) Corrective migration for the launch-code discount.
+--
+-- 20260707_add_coupon_code was APPLIED IN PRODUCTION seeding FIRST100 at discountPercent = 25. Its migration.sql was
+-- later edited in place to 50 — a REWRITE OF AN APPLIED MIGRATION, which desyncs the recorded checksum in
+-- _prisma_migrations and can make `prisma migrate deploy` refuse the migration. That file has now been RESTORED to its
+-- exact as-applied (25%) bytes, so its checksum matches production again. Guy confirmed the launch discount is 50%
+-- (2026-07-15), so this NEW, never-before-applied migration carries the 25 -> 50 change forward the correct way.
+--
+-- Idempotent + environment-agnostic: sets discountPercent = 50 for FIRST100 wherever the row exists. In production it
+-- exists (seeded at 25); on a fresh DB, 20260707 seeds it at 25 first (migrations run in lexicographic order, and
+-- 20260721 > 20260707), then this sets 50. Touches ONLY discountPercent (and updatedAt) — active / maxRedemptions /
+-- confirmedCount are owner-controlled DATA and are left untouched. If the row is absent it is a safe 0-row no-op.
+UPDATE "Coupon" SET "discountPercent" = 50, "updatedAt" = CURRENT_TIMESTAMP WHERE "code" = 'FIRST100';

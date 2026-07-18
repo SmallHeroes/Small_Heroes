@@ -38,4 +38,15 @@ describe('migration ordering', () => {
     expect(reconcile).toBeGreaterThanOrEqual(0);
     expect(reconcile).toBeGreaterThan(addColumn);
   });
+
+  it('the coupon 50% correction (cutover 1.2) sorts AFTER the migration that creates the Coupon table', () => {
+    // 20260721 UPDATEs "Coupon"; it MUST run after 20260707 CREATEs it, else a fresh `migrate deploy` fails on
+    // "relation does not exist". Restoring 20260707 to its as-applied 25% bytes + this corrective is the checksum-safe
+    // way to reach 50% without rewriting an applied migration.
+    const createCoupon = migrations.indexOf('20260707_add_coupon_code');
+    const correct50 = migrations.indexOf('20260721_coupon_first100_50pct');
+    expect(createCoupon).toBeGreaterThanOrEqual(0);
+    expect(correct50).toBeGreaterThanOrEqual(0);
+    expect(correct50).toBeGreaterThan(createCoupon);
+  });
 });
