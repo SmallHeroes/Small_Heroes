@@ -12,8 +12,9 @@ import type { OperatorNotificationPayload } from '@/lib/human-qa/record-hold';
  * THIS worker is the single place the operator-review email is actually sent. It mirrors `delivery-outbox.ts` EXACTLY:
  * an atomic lease claim (FOR UPDATE SKIP LOCKED, `claimVersion+1` as the fencing token — the analogue of
  * DeliveryOutbox.attempts, NOT a send-retry counter), then a SINGLE atomic send-time CAS that renews the lease +
- * records the provider attempt IFF the row is still ours AND the case is STILL ACTIVE (open, activeKey not null) AND
- * the Order still `needs_human_qa`, then an idempotent provider send (Idempotency-Key = dedupeKey). Every terminal
+ * records the provider attempt IFF the row is still ours AND the case is STILL THE ACTIVE HOLD for its scope
+ * (activeKey = `${orderId}:${scope}`) AND the Order still `needs_human_qa`, then an idempotent provider send
+ * (Idempotency-Key = dedupeKey). Every terminal
  * write is FENCED on `status='processing' AND claimVersion=token`, so a stale worker can never overwrite a newer one.
  *
  * A CAS 0-row miss on a still-owned row is NEVER a send: the case was released / superseded (or the Order left
@@ -61,6 +62,16 @@ export class NoOperatorRecipientError extends Error {
   }
 }
 
+/**
+ * Is an operator recipient configured? Reads the SAME `HUMAN_QA_OPERATOR_EMAIL` that `defaultOperatorSend` sends to,
+ * so the worker's pre-CAS config gate matches exactly what a real send would resolve. Used to detect a pure config
+ * gap BEFORE the send-time CAS — so a missing recipient never sets firstSendAttemptAt / counts an attempt / consumes
+ * the idempotency window.
+ */
+export function hasOperatorRecipientConfigured(): boolean {
+  return Boolean(process.env.HUMAN_QA_OPERATOR_EMAIL?.trim());
+}
+
 export function canonicalHashPayload(payload: unknown): string {
   return canonicalHash(payload);
 }
@@ -102,10 +113,11 @@ export async function claimDueOperatorNotifications(
 
 /**
  * Result of the single atomic send-time CAS.
- *  - 'ok'         — the row is still ours AND the case is STILL ACTIVE (open, activeKey not null) AND the Order
- *                   still needs_human_qa; sendAttempted/sendAttempts/firstSendAttemptAt are durably updated + lease renewed.
- *  - 'suppressed' — still ours, but the case is no longer active (resolved / superseded / cancelled) or the Order
- *                   left needs_human_qa → NEVER send; the notification is obsolete.
+ *  - 'ok'         — the row is still ours AND the bound case is STILL THE ACTIVE HOLD for its scope
+ *                   (activeKey = `${orderId}:${scope}`) AND the Order still needs_human_qa;
+ *                   sendAttempted/sendAttempts/firstSendAttemptAt are durably updated + lease renewed.
+ *  - 'suppressed' — still ours, but the bound case is no longer the active hold (superseded ⇒ activeKey NULLed, or
+ *                   resolved / cancelled) or the Order left needs_human_qa → NEVER send; the notification is obsolete.
  *  - 'lost_lease' — another worker reclaimed the row (status/token moved) → do nothing.
  */
 export type OperatorCasResult = 'ok' | 'suppressed' | 'lost_lease';
@@ -113,10 +125,12 @@ export type OperatorCasResult = 'ok' | 'suppressed' | 'lost_lease';
 /**
  * (Slice 1, Unit 3) The single atomic send-time CAS. In ONE statement: renew the lease + set sendAttempted +
  * increment sendAttempts + set firstSendAttemptAt (COALESCE — first attempt only) IFF the row is still ours
- * (status 'processing' + this claimVersion token), its stored payloadHash is unchanged, the review case is STILL
- * ACTIVE (open AND activeKey IS NOT NULL ⇒ not superseded/resolved/cancelled), AND the Order still `needs_human_qa`.
- * A 0-row miss is diagnosed by a re-read: only if we STILL own the row (processing + this token) is it a real
- * suppression (the case was released/superseded) — otherwise the lease was lost.
+ * (status 'processing' + this claimVersion token), its stored payloadHash is unchanged, the bound review case is
+ * STILL THE ACTIVE HOLD for this scope — literally `c."activeKey" = o."orderId" || ':' || o."scope"`, the
+ * active-hold identity `${orderId}:${scope}` that a supersede NULLs (minting a new case+outbox) — AND the Order
+ * still `needs_human_qa`. A 0-row miss is diagnosed by a re-read: only if we STILL own the row (processing + this
+ * token) is it a real suppression (the case was superseded ⇒ its activeKey no longer matches) — otherwise the lease
+ * was lost.
  */
 export async function casClaimOperatorSendSlot(
   prisma: PrismaClient,
@@ -136,8 +150,15 @@ export async function casClaimOperatorSendSlot(
        AND o."claimVersion" = ${token}
        AND o."payloadHash" = ${row.payloadHash}
        AND EXISTS (
+         -- The bound case must STILL be THE ACTIVE HOLD for THIS outbox's (orderId, scope). "activeKey" is the
+         -- active-hold identity <orderId>:<scope> while the case is open, and is NULLed the instant the hold is
+         -- superseded/resolved/cancelled (a supersede mints a NEW case + outbox). So a stale outbox whose case was
+         -- superseded has a bound case with activeKey IS NULL (≠ this scope's identity) → this equality fails → the
+         -- CAS matches 0 rows → the row is classified 'suppressed' and NEVER sent. (activeKey has a partial-unique
+         -- index, so exactly one case per (orderId, scope) can hold this identity at a time.)
          SELECT 1 FROM "HumanQaReviewCase" c
           WHERE c."id" = o."caseId" AND c."status" = 'open' AND c."activeKey" IS NOT NULL
+            AND c."activeKey" = o."orderId" || ':' || o."scope"
        )
        AND EXISTS (
          SELECT 1 FROM "Order" ord
@@ -170,6 +191,13 @@ export interface OperatorOutboxDeps {
   cas: (row: OperatorNotificationOutbox, token: number, leaseExpiresAt: Date, now: Date) => Promise<OperatorCasResult>;
   /** Provider send; idempotencyKey = dedupeKey. Throws NoOperatorRecipientError when no recipient is configured. */
   send: (payload: OperatorNotificationPayload, idempotencyKey: string) => Promise<{ providerMessageId?: string }>;
+  /**
+   * CONFIG pre-check evaluated BEFORE the send-time CAS: is an operator recipient configured? A pure config gap (no
+   * recipient) must be INFINITELY reschedulable — it must NOT run the CAS, MUST NOT set firstSendAttemptAt / count a
+   * send attempt, and MUST NOT consume the idempotency window. Defaults to `hasOperatorRecipientConfigured()` (reads
+   * HUMAN_QA_OPERATOR_EMAIL — the same source `defaultOperatorSend` sends to), so the gate matches the real send.
+   */
+  hasOperatorRecipient?: () => boolean;
   now?: () => Date;
 }
 
@@ -195,6 +223,10 @@ async function fenced(
  * Process one already-claimed row under its fencing token (= claimVersion at claim). Mirrors processDelivery:
  *  (a) payloadHash recompute mismatch → terminal `failed` + failureClass `invalid_payload` (never send);
  *  (b) idempotency-window guard on firstSendAttemptAt → terminal `failed` + `send_ambiguous`;
+ *  (b′) NO operator recipient configured → RESCHEDULABLE `failed` + `no_operator_recipient` with a backoff
+ *      nextAttemptAt, decided BEFORE the CAS: a pure config gap never runs the CAS, never sets firstSendAttemptAt /
+ *      counts an attempt, never consumes the idempotency window, and NEVER goes terminal (it fires unchanged once
+ *      the env is fixed);
  *  (c) the send-time CAS: 'ok' → send; 'suppressed' → terminal `suppressed` (case no longer active, never send);
  *      'lost_lease' → stop;
  *  (d) send success → fenced `sent`; a send throw → NoOperatorRecipientError ⇒ fail-closed reschedulable
@@ -237,6 +269,27 @@ export async function processOperatorNotification(
     if (!ok) return 'lost_lease';
     log.error('Operator notification idempotency window expired since first attempt', new Error('idempotency_window_expired'), { dedupeKey: row.dedupeKey });
     return 'failed';
+  }
+
+  // (b′) CONFIG PRE-CHECK — fail-closed on a MISSING operator recipient BEFORE the send-time CAS. A pure config gap
+  // (HUMAN_QA_OPERATOR_EMAIL unset) is NOT an ambiguous send: it must be infinitely reschedulable. Detect it HERE —
+  // before the CAS sets firstSendAttemptAt / bumps sendAttempts — and reschedule with backoff as a distinct,
+  // NON-terminal `failed` + `no_operator_recipient` with a future nextAttemptAt. We do NOT run the CAS, do NOT touch
+  // firstSendAttemptAt/sendAttempts, do NOT consume the idempotency window, and NEVER go terminal: the notification
+  // simply fires unchanged once the env is fixed. (A genuine provider throw at max attempts is the separate
+  // send_ambiguous path in (d).)
+  const hasRecipient = deps.hasOperatorRecipient?.() ?? hasOperatorRecipientConfigured();
+  if (!hasRecipient) {
+    const ok = await fenced(prisma, row.id, token, {
+      status: 'failed',
+      failureClass: FAILURE_NO_OPERATOR_RECIPIENT,
+      leaseExpiresAt: null,
+      nextAttemptAt: new Date(now.getTime() + operatorBackoffMs(row.sendAttempts + 1)),
+      lastError: 'no_operator_recipient',
+    });
+    if (!ok) return 'lost_lease';
+    log.error('Operator notification fail-closed (pre-CAS): HUMAN_QA_OPERATOR_EMAIL not configured', new Error('no_operator_recipient'), { dedupeKey: row.dedupeKey });
+    return 'no_recipient';
   }
 
   // (c) The single atomic send-time CAS. Renews the lease + records the provider attempt IFF the row is ours AND

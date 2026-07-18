@@ -15,10 +15,12 @@ import {
 /**
  * (Human-QA Slice 1, Unit 3) Synthetic unit tests for the operator-notification SEND worker. A fake prisma
  * (raw-query fns + operatorNotificationOutbox.updateMany/findUnique) and a fake `send` are injected — NO network,
- * NO DB. Proves: claim fences by claimVersion; the send-time CAS suppresses on a released/superseded case or an
- * Order that left needs_human_qa (never sending); ambiguous send handling (max ⇒ terminal send_ambiguous, within
- * window ⇒ backoff reschedule same dedupeKey); a corrupt payload never sends; and a missing operator recipient
- * fails closed (no send, Order/case untouched, hold never released).
+ * NO DB. Proves: claim fences by claimVersion; the send-time CAS suppresses on a released/superseded case (P2-3: the
+ * bound case's activeKey must still equal `${orderId}:${scope}`, the active-hold identity) or an Order that left
+ * needs_human_qa (never sending); ambiguous send handling (max ⇒ terminal send_ambiguous, within window ⇒ backoff
+ * reschedule same dedupeKey); a corrupt payload never sends; and a missing operator recipient fails closed (P2-2:
+ * detected BEFORE the CAS ⇒ reschedulable no_operator_recipient that never consumes the idempotency window / counts
+ * an attempt / goes terminal, and sends normally once the recipient is set — Order/case untouched, hold never released).
  */
 
 const NOW = new Date('2026-06-29T10:05:00Z');
@@ -40,7 +42,7 @@ const row = (over: Record<string, unknown> = {}) => ({
   providerMessageId: null, createdAt: new Date('2026-06-29T10:00:00Z'), sentAt: null, ...over,
 });
 
-const okDeps = (send: ReturnType<typeof vi.fn>) => ({ cas: async () => 'ok' as const, send, now: () => NOW });
+const okDeps = (send: ReturnType<typeof vi.fn>) => ({ cas: async () => 'ok' as const, send, hasOperatorRecipient: () => true, now: () => NOW });
 const firstData = (fn: ReturnType<typeof vi.fn>): Record<string, unknown> =>
   ((fn.mock.calls[0] as unknown[])[0] as { data: Record<string, unknown> }).data;
 const firstWhere = (fn: ReturnType<typeof vi.fn>): Record<string, unknown> =>
@@ -74,6 +76,9 @@ describe('casClaimOperatorSendSlot — send-time CAS (case still ACTIVE + Order 
     expect(sql).toMatch(/HumanQaReviewCase/);
     expect(sql).toMatch(/"status" = 'open'/);
     expect(sql).toMatch(/"activeKey" IS NOT NULL/);
+    // P2-3: the bound case must STILL be THE ACTIVE case for this (orderId, scope) — activeKey is the active-hold
+    // identity, so a superseded case (activeKey NULLed) fails this equality and the CAS matches 0 rows.
+    expect(sql).toMatch(/"activeKey" = o\."orderId" \|\| ':' \|\| o\."scope"/);
     expect(sql).toMatch(/needs_human_qa/);
     expect(sql).toMatch(/"sendAttempted" = true/);
     expect(sql).toMatch(/COALESCE\(o\."firstSendAttemptAt"/);
@@ -99,6 +104,16 @@ describe('casClaimOperatorSendSlot — send-time CAS (case still ACTIVE + Order 
     const res = await casClaimOperatorSendSlot(casPrisma($executeRaw, findUnique), row(), 1, new Date(), NOW);
     expect(res).toBe('lost_lease');
   });
+
+  it('P2-3 superseded hold: the bound case is no longer THE active case for its (orderId, scope) — activeKey was NULLed → EXISTS fails → 0-row CAS, still ours → suppressed (never sent)', async () => {
+    // A supersede NULLs the old case's activeKey and mints a new case+outbox, so the SQL guard
+    // `c."activeKey" = o."orderId" || ':' || o."scope"` no longer matches for this stale outbox → 0 rows. We still
+    // own the row (processing + this token), so it is a TRUE suppression, not a lost lease.
+    const $executeRaw = vi.fn(async () => 0);
+    const findUnique = vi.fn(async () => ({ status: 'processing', claimVersion: 1 }));
+    const res = await casClaimOperatorSendSlot(casPrisma($executeRaw, findUnique), row(), 1, new Date(), NOW);
+    expect(res).toBe('suppressed');
+  });
 });
 
 describe('processOperatorNotification — send-time lifecycle (mirrors processDelivery)', () => {
@@ -119,7 +134,7 @@ describe('processOperatorNotification — send-time lifecycle (mirrors processDe
     await processOperatorNotification(
       { operatorNotificationOutbox: { updateMany: fencedOk() } } as never,
       row({ claimVersion: 4 }) as never,
-      { cas, send: vi.fn(async () => ({})), now: () => NOW },
+      { cas, send: vi.fn(async () => ({})), hasOperatorRecipient: () => true, now: () => NOW },
     );
     expect(cas).toHaveBeenCalledWith(expect.objectContaining({ id: 'on1' }), 4, expect.any(Date), NOW);
   });
@@ -127,7 +142,7 @@ describe('processOperatorNotification — send-time lifecycle (mirrors processDe
   it('CAS suppressed (case resolved/superseded OR Order left needs_human_qa) → terminal suppressed, NEVER sends', async () => {
     const updateMany = fencedOk();
     const send = vi.fn();
-    const out = await processOperatorNotification({ operatorNotificationOutbox: { updateMany } } as never, row() as never, { cas: async () => 'suppressed' as const, send, now: () => NOW });
+    const out = await processOperatorNotification({ operatorNotificationOutbox: { updateMany } } as never, row() as never, { cas: async () => 'suppressed' as const, send, hasOperatorRecipient: () => true, now: () => NOW });
     expect(out).toBe('suppressed');
     expect(send).not.toHaveBeenCalled();
     expect(firstData(updateMany)).toMatchObject({ status: 'suppressed' });
@@ -138,7 +153,7 @@ describe('processOperatorNotification — send-time lifecycle (mirrors processDe
   it('CAS lost_lease → lost_lease, NEVER sends, writes NOTHING', async () => {
     const updateMany = vi.fn();
     const send = vi.fn();
-    const out = await processOperatorNotification({ operatorNotificationOutbox: { updateMany } } as never, row() as never, { cas: async () => 'lost_lease' as const, send, now: () => NOW });
+    const out = await processOperatorNotification({ operatorNotificationOutbox: { updateMany } } as never, row() as never, { cas: async () => 'lost_lease' as const, send, hasOperatorRecipient: () => true, now: () => NOW });
     expect(out).toBe('lost_lease');
     expect(send).not.toHaveBeenCalled();
     expect(updateMany).not.toHaveBeenCalled();
@@ -159,7 +174,7 @@ describe('processOperatorNotification — send-time lifecycle (mirrors processDe
     const reordered = Object.fromEntries(Object.entries(payload).reverse());
     const updateMany = fencedOk();
     const send = vi.fn(async () => ({ providerMessageId: 'rs' }));
-    const out = await processOperatorNotification({ operatorNotificationOutbox: { updateMany } } as never, row({ payload: reordered, payloadHash: canonicalHash(payload) }) as never, { cas: async () => 'ok' as const, send, now: () => NOW });
+    const out = await processOperatorNotification({ operatorNotificationOutbox: { updateMany } } as never, row({ payload: reordered, payloadHash: canonicalHash(payload) }) as never, { cas: async () => 'ok' as const, send, hasOperatorRecipient: () => true, now: () => NOW });
     expect(out).toBe('sent');
     expect(send).toHaveBeenCalledTimes(1);
   });
@@ -200,6 +215,45 @@ describe('processOperatorNotification — send-time lifecycle (mirrors processDe
     const out = await processOperatorNotification({ operatorNotificationOutbox: { updateMany } } as never, row() as never, okDeps(send));
     expect(out).toBe('lost_lease');
     expect(firstWhere(updateMany)).toMatchObject({ status: 'processing', claimVersion: 1 });
+  });
+
+  it('P2-2 config gap: a MISSING recipient is caught BEFORE the CAS → reschedulable no_operator_recipient; the CAS never runs (firstSendAttemptAt/sendAttempts untouched), nothing is sent, and the row NEVER goes terminal', async () => {
+    const updateMany = fencedOk();
+    const cas = vi.fn(async () => 'ok' as const);
+    const send = vi.fn(async () => ({ providerMessageId: 'rs' }));
+    const out = await processOperatorNotification(
+      { operatorNotificationOutbox: { updateMany } } as never,
+      row() as never, // sendAttempts: 0, firstSendAttemptAt: null
+      { cas, send, hasOperatorRecipient: () => false, now: () => NOW },
+    );
+    expect(out).toBe('no_recipient');
+    // The send-time CAS NEVER ran, so firstSendAttemptAt / sendAttempts were never touched, and nothing was sent →
+    // the 23h idempotency window is NOT consumed.
+    expect(cas).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+    // NON-terminal: `failed` + no_operator_recipient + a FUTURE nextAttemptAt. The worker never writes
+    // firstSendAttemptAt or sendAttempts (those live only inside the CAS SQL).
+    const data = firstData(updateMany);
+    expect(data).toMatchObject({ status: 'failed', failureClass: 'no_operator_recipient', lastError: 'no_operator_recipient' });
+    expect(data.nextAttemptAt).toBeInstanceOf(Date);
+    expect((data.nextAttemptAt as Date).getTime()).toBeGreaterThan(NOW.getTime());
+    expect(data).not.toHaveProperty('firstSendAttemptAt');
+    expect(data).not.toHaveProperty('sendAttempts');
+    // fenced on the current claim
+    expect(firstWhere(updateMany)).toMatchObject({ id: 'on1', status: 'processing', claimVersion: 1 });
+  });
+
+  it('P2-2 window not consumed: after a config-gap reschedule, a subsequent run WITH the recipient set sends normally on the SAME row (firstSendAttemptAt was never started)', async () => {
+    const updateMany = fencedOk();
+    const send = vi.fn(async () => ({ providerMessageId: 'rs_2' }));
+    const out = await processOperatorNotification(
+      { operatorNotificationOutbox: { updateMany } } as never,
+      row() as never, // still firstSendAttemptAt: null, sendAttempts: 0 — the window never started
+      { cas: async () => 'ok' as const, send, hasOperatorRecipient: () => true, now: () => NOW },
+    );
+    expect(out).toBe('sent');
+    expect(send).toHaveBeenCalledWith(payload, DEDUPE);
+    expect(firstData(updateMany)).toMatchObject({ status: 'sent', providerMessageId: 'rs_2' });
   });
 });
 
