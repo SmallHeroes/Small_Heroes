@@ -29,11 +29,15 @@ import { runAfterResponse } from '@/lib/generation-chunked/chain-worker';
 
 /** Prisma `@default(cuid())` — reject garbage before DB to avoid Prisma/driver 500s. */
 const ORDER_ID_RE = /^c[a-z0-9]{24}$/i;
+/** Story Bank creates Orders with UUID ids (app/api/dev/story-bank/route.ts) — accept those too. */
+const ORDER_ID_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function parseOrderIdParam(req: NextRequest): string | null {
   const raw = req.nextUrl.searchParams.get('orderId');
   const orderId = raw?.trim() ?? '';
-  if (!orderId || !ORDER_ID_RE.test(orderId)) return null;
+  if (!orderId) return null;
+  // Shape guard against garbage before the DB — accept EITHER a cuid or a UUID.
+  if (!ORDER_ID_RE.test(orderId) && !ORDER_ID_UUID_RE.test(orderId)) return null;
   return orderId;
 }
 
@@ -119,15 +123,6 @@ export async function GET(req: NextRequest) {
   const accessKey = req.nextUrl.searchParams.get('accessKey');
 
   try {
-    // In-deployment recovery backstop for Preview (where Vercel crons don't run): reclaim expired
-    // leases + durably re-dispatch. Run it in the SAME durable post-response window as the worker
-    // self-chain (after()) — NOT as `void` (the non-durable background-work anti-pattern that caused
-    // the stall) and NOT as a blocking `await` on this hot polling path. Fires reliably after the
-    // response is sent, with no added poll latency.
-    runAfterResponse(async () => {
-      await sweepStaleGenerationJobs(3);
-    });
-
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       select: {
@@ -184,6 +179,16 @@ export async function GET(req: NextRequest) {
     if (!expectedAccessKey || !accessKey || accessKey !== expectedAccessKey) {
       return NextResponse.json({ error: 'order_not_found' }, { status: 404 });
     }
+
+    // In-deployment recovery backstop for Preview (where Vercel crons don't run): reclaim expired
+    // leases + durably re-dispatch. Run it in the SAME durable post-response window as the worker
+    // self-chain (after()) — NOT as `void` (the non-durable background-work anti-pattern that caused
+    // the stall) and NOT as a blocking `await` on this hot polling path. Fires reliably after the
+    // response is sent, with no added poll latency. Gated BEHIND the access-key auth above: an
+    // unauthenticated request must never trigger this expensive side effect.
+    runAfterResponse(async () => {
+      await sweepStaleGenerationJobs(3);
+    });
 
     // Human-QA hold: the book is parked for a human decision. Return an ALLOWLISTED body only — no
     // progress, stage, error, readUrl, deliveryHoldReason, hazard, or artifact may leak to the customer.

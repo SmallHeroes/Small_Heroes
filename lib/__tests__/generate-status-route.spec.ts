@@ -10,9 +10,17 @@ vi.mock('@/lib/prisma', () => ({
 vi.mock('@/lib/generation-chunked/sweeper', () => ({
   sweepStaleGenerationJobs,
 }));
+// Run the post-response work synchronously so the sweep call is observable within the request under
+// test (the real runAfterResponse defers via next/server after()). The route only imports this symbol.
+vi.mock('@/lib/generation-chunked/chain-worker', () => ({
+  runAfterResponse: (work: () => Promise<void>) => {
+    void work();
+  },
+}));
 
 const VALID_CUID = 'cmo8qpmdg00004w9k7d1zrf50';
 const MISSING_CUID = 'clzzzzzzzzzzzzzzzzzzzzzzz';
+const VALID_UUID = '11111111-2222-4333-8444-555555555555';
 const VALID_KEY = 'pay_valid_access_key_123';
 
 function statusRequest(orderId?: string | null, accessKey?: string): NextRequest {
@@ -103,6 +111,43 @@ describe('GET /api/generate/status', () => {
     expect(body.currentStage).toBe('page_images');
     expect(body.progress).toBeTypeOf('number');
     expect('error' in body).toBe(false); // lastError is never surfaced
+  });
+
+  it('accepts a UUID order id (Story Bank orders) with a valid accessKey — 200 not 400', async () => {
+    findUnique.mockResolvedValueOnce({ ...mockOrder, id: VALID_UUID });
+    const { GET } = await import('../../app/api/generate/status/route');
+    const res = await GET(statusRequest(VALID_UUID, VALID_KEY));
+    // The UUID clears the shape guard and reaches the DB (no 400 before auth).
+    expect(res.status).toBe(200);
+    expect(findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { id: VALID_UUID } }));
+    const body = await res.json();
+    expect(body.status).toBe('generating');
+  });
+
+  it('does NOT run the stale-job sweep for an unauthenticated request (invalid key)', async () => {
+    findUnique.mockResolvedValueOnce(mockOrder);
+    const { GET } = await import('../../app/api/generate/status/route');
+    const res = await GET(statusRequest(VALID_CUID, 'wrong-key'));
+    expect(res.status).toBe(404);
+    // The expensive sweep must be gated BEHIND the access-key auth — never on the unauth path.
+    expect(sweepStaleGenerationJobs).not.toHaveBeenCalled();
+  });
+
+  it('does NOT run the stale-job sweep when the accessKey is missing', async () => {
+    findUnique.mockResolvedValueOnce(mockOrder);
+    const { GET } = await import('../../app/api/generate/status/route');
+    const res = await GET(statusRequest(VALID_CUID));
+    expect(res.status).toBe(404);
+    expect(sweepStaleGenerationJobs).not.toHaveBeenCalled();
+  });
+
+  it('runs the stale-job sweep only AFTER the access-key auth passes (authenticated request)', async () => {
+    findUnique.mockResolvedValueOnce(mockOrder);
+    const { GET } = await import('../../app/api/generate/status/route');
+    const res = await GET(statusRequest(VALID_CUID, VALID_KEY));
+    expect(res.status).toBe(200);
+    // Auth precedes the sweep: it only fires once the request is authenticated.
+    expect(sweepStaleGenerationJobs).toHaveBeenCalled();
   });
 
   it('returns 404 order_not_found when accessKey is missing', async () => {
