@@ -41,6 +41,7 @@ import {
 } from '@/lib/qa-soft-deliver';
 import type { AnchorLowConfidence } from '@/lib/anchor-resemblance-gate';
 import { runAtomicOperation, hashOperationPayload, type AtomicOperationDeps, type ReceiptSafeValue } from './atomic-operation';
+import { writeOrderHoldFenced } from './order-authority';
 import { createLogger } from '@/lib/logger';
 import type { FrozenStoryProductTruth } from './frozen-product-truth';
 import {
@@ -946,12 +947,25 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
       throw new DeliveryFenceError(order.id, actual);
     }
   } else {
-    // HOLD / FAIL outcome — readiness itself parks. Standard inputVersion CAS; BUMP the shared fence (a hold write).
-    const written = await tx.order.updateMany({
-      where: { id: order.id, inputVersion: order.inputVersion },
-      data: { status: orderStatus as never, packageStatus: 'done', deliveryHoldReason, deliveryFenceVersion: { increment: 1 } },
+    // (Codex round-5 P0-1) HOLD / FAIL outcome — readiness itself parks. This must BIND the fence + BUMP it + refuse
+    // to OVERWRITE a stronger marker (a safety park may have landed after readiness read a clean order; readiness's
+    // weaker anchor/integrity marker must NEVER clobber it — that clobber is what let a later ship see no terminal
+    // marker and ship). `writeOrderHoldFenced` enforces bind+bump+precedence; the deliveryHoldReason CANNOT be null
+    // on a hold outcome (orderStatus !== 'ready').
+    const held = await writeOrderHoldFenced(tx, {
+      orderId: order.id,
+      inputVersion: order.inputVersion,
+      newStatus: orderStatus,
+      newHoldReason: deliveryHoldReason ?? `${orderStatus}:unspecified`,
+      setPackageDone: true,
     });
-    if (written.count === 0) throw new Error(TOCTOU);
+    if (held === 'input_drift') throw new Error(TOCTOU); // inputs changed → reload FRESH + re-evaluate
+    if (held === 'superseded') {
+      // A STRONGER hold is already present — do NOT overwrite it. Roll back this readiness tx and surface a HELD
+      // result (the stronger hold stands; the case sync then always sees the strongest marker). Never a ship.
+      throw new DeliveryFenceError(order.id, null);
+    }
+    if (held === 'lost') throw new Error(TOCTOU); // order vanished / fence churned past the retry budget → re-eval
   }
   // (Human-QA Slice 1, re-gate P0-1) The review-case lifecycle is NOT written here. A `recordHumanQaHoldInTx`
   // read/update/throw inside THIS readiness-commit tx could roll back the hold itself (an unheld order = a safety

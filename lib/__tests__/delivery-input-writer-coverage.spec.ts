@@ -297,12 +297,15 @@ describe('P1-f #5 delivery-input writer coverage', () => {
         for (const match of text.matchAll(rawWrite)) {
           if (
             match[1] === 'Order' &&
-            // (delivery fence — Codex round-4) The readiness ship-CAS and the anchor-release CAS use raw `UPDATE
-            // "Order"` because their WHERE needs a NOT EXISTS subquery over HumanQaReviewCase (delivery-AUTHORITY
-            // guards). They write only status/packageStatus/deliveryHoldReason — NEVER a delivery-INPUT field — so
-            // they are not a barrier bypass. Both files are the exhaustive allowlist for authority-only raw writes.
+            // (delivery fence — Codex round-4/5) The readiness ship-CAS, the anchor-release CAS, and the shared
+            // order-authority funnel use raw `UPDATE "Order"` because their WHERE needs a NOT EXISTS subquery / a
+            // fence+precedence CAS (delivery-AUTHORITY guards). They write only status/packageStatus/
+            // deliveryHoldReason/manualReviewRequired/deliveryFenceVersion — NEVER a delivery-INPUT field — so they
+            // are not a barrier bypass. This is the exhaustive allowlist for authority-only raw writes. (The
+            // dedicated bind+bump structural guard is order-authority-writer-guard.spec.ts.)
             (relative === 'lib/generation-pipeline/readiness-manifest.ts' ||
-              relative === 'app/api/admin/anchor-hold-release/route.ts')
+              relative === 'app/api/admin/anchor-hold-release/route.ts' ||
+              relative === 'lib/generation-pipeline/order-authority.ts')
           ) {
             continue;
           }

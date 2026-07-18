@@ -76,10 +76,12 @@ function mockTx(orderRow: unknown = orderRowFull) {
     // unchanged — these stubs only let the additive path run; they assert nothing about the hold decision.
     humanQaReviewCase: { findUnique: vi.fn(async () => null), findFirst: vi.fn(async () => null), update: vi.fn(async () => ({})) },
     operatorNotificationOutbox: { findFirst: vi.fn(async () => null), update: vi.fn(async () => ({})) },
-    $queryRaw: vi.fn(async () => [{ id: 'hqc-test' }]),
-    // (delivery fence — Codex round-4 P0) the `ready` ship CAS is now a raw $executeRaw; default = 1 row shipped.
-    // A test simulating a competing hold overrides this to 0. (Mocked SQL cannot express the WHERE — the real
-    // fence/CAS interleave semantics are proven by the real-PG harness in delivery-fence.pg.spec.ts.)
+    // $queryRaw serves the atomic-receipt INSERT…RETURNING id AND writeOrderHoldFenced's SELECT (fence/rank/status/
+    // inputVersion) — one shape carrying every key each reader needs. (delivery fence round-5)
+    $queryRaw: vi.fn(async () => [{ id: 'hqc-test', fence: 0, rank: 1, status: 'generating', inputVersion: 0 }]),
+    // (delivery fence — Codex round-4/5) both the `ready` ship CAS and the HOLD write (via writeOrderHoldFenced) are
+    // raw $executeRaw; default = 1 row applied. A test simulating a competing hold overrides this to 0. (Mocked SQL
+    // cannot express the WHERE — the real fence/CAS/precedence semantics are proven by delivery-fence.pg.spec.ts.)
     $executeRaw: vi.fn(async () => 1),
   };
 }
@@ -339,7 +341,9 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
     expect(r.enqueued).toBe(false);
     expect(tx.bookReadinessManifest.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'blocked' }) }));
     expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
-    expect(tx.order.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'needs_human_qa', deliveryHoldReason: expect.stringContaining('base_book_integrity:') }) }));
+    // (delivery fence round-5) the HOLD write is now writeOrderHoldFenced ($executeRaw + precedence), not updateMany.
+    expect(r.orderStatus).toBe('needs_human_qa');
+    expect(r.reason).toContain('base_book_integrity:');
     expect(tx.exceptionCase.upsert).toHaveBeenCalledWith(expect.objectContaining({
       create: expect.objectContaining({
         kind: 'integrity_blocked',
@@ -361,7 +365,7 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
     expect(tx.exceptionCase.upsert).toHaveBeenCalledWith(expect.objectContaining({
       create: expect.objectContaining({ kind: 'quality_failed', status: 'refund_pending' }),
     }));
-    expect(tx.order.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'needs_human_qa' }) }));
+    expect(r.orderStatus).toBe('needs_human_qa'); // held via writeOrderHoldFenced (round-5)
   });
 
   it('#7-a: quality evidence_unknown (a missing required artifact) → BLOCKED + infra_transient recovery, NO enqueue', async () => {
@@ -429,7 +433,8 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
     expect(r.manifestStatus).toBe('passed');
     expect(r.enqueued).toBe(false);
     expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
-    expect(tx.order.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'needs_human_qa', deliveryHoldReason: 'anchor_low_confidence:soft_band' }) }));
+    expect(r.orderStatus).toBe('needs_human_qa'); // anchor hold preserved via writeOrderHoldFenced (round-5)
+    expect(r.reason).toBe('anchor_low_confidence:soft_band');
   });
 
   it('never enqueues a newly-passing book while a refund obligation is active', async () => {
