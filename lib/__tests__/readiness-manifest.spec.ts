@@ -90,6 +90,72 @@ function mockWithQuality(qualityRows: QRow[], orderRow: typeof orderRowFull = or
   return { tx, prisma };
 }
 
+describe('commitBaseBookReadiness — authorized-release precondition (re-gate round-3 P0)', () => {
+  const inspectOk = { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' };
+
+  it('NO requireHold (normal post-generation caller) → final Order CAS is byte-unchanged: WHERE = {id,inputVersion} only', async () => {
+    const tx = mockTx();
+    await commitBaseBookReadiness(mockPrisma(tx) as never, args(), inspectOk);
+    const arg = (tx.order.updateMany.mock.calls[0] as unknown[])[0] as { where: Record<string, unknown> };
+    expect(arg.where).toEqual({ id: 'o1', inputVersion: 0 }); // no status / deliveryHoldReason / manualReviewRequired
+  });
+
+  it('requireHold set → final Order CAS ALSO requires needs_human_qa + the exact marker + no payment fence', async () => {
+    const tx = mockTx();
+    const r = await commitBaseBookReadiness(
+      mockPrisma(tx) as never,
+      args({ requireHold: { deliveryHoldReason: 'anchor_low_confidence:soft_band' } }),
+      inspectOk,
+    );
+    expect(r.orderStatus).toBe('ready');
+    expect(tx.order.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: 'o1',
+          inputVersion: 0,
+          status: 'needs_human_qa',
+          deliveryHoldReason: 'anchor_low_confidence:soft_band',
+          manualReviewRequired: false,
+        },
+        data: expect.objectContaining({ status: 'ready', deliveryHoldReason: null }),
+      }),
+    );
+  });
+
+  it('requireHold set + row no longer at the marker (CAS 0 rows, inputVersion UNCHANGED) → ReleasePreconditionError, NOT retried, NOT shipped', async () => {
+    const tx = mockTx();
+    tx.order.updateMany = vi.fn(async () => ({ count: 0 })); // a safety hold landed → CAS matches nothing
+    // Distinguishing read: inputVersion still 0 (not a TOCTOU) but the committed marker moved to safety.
+    tx.order.findUnique = vi.fn(async () => ({
+      ...orderRowFull, inputVersion: 0, status: 'needs_human_qa', deliveryHoldReason: 'safety_hold:hazard:page:2', manualReviewRequired: false,
+    }));
+    await expect(
+      commitBaseBookReadiness(
+        mockPrisma(tx) as never,
+        args({ requireHold: { deliveryHoldReason: 'anchor_low_confidence:soft_band' } }),
+        inspectOk,
+      ),
+    ).rejects.toMatchObject({ name: 'ReleasePreconditionError', expectedHoldReason: 'anchor_low_confidence:soft_band' });
+    // Never re-attempted the write (no retry loop for a precondition failure).
+    expect(tx.order.updateMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('requireHold set + payment fence landed (manualReviewRequired now true) → ReleasePreconditionError', async () => {
+    const tx = mockTx();
+    tx.order.updateMany = vi.fn(async () => ({ count: 0 }));
+    tx.order.findUnique = vi.fn(async () => ({
+      ...orderRowFull, inputVersion: 0, status: 'needs_human_qa', deliveryHoldReason: 'anchor_low_confidence:soft_band', manualReviewRequired: true,
+    }));
+    await expect(
+      commitBaseBookReadiness(
+        mockPrisma(tx) as never,
+        args({ requireHold: { deliveryHoldReason: 'anchor_low_confidence:soft_band' } }),
+        inspectOk,
+      ),
+    ).rejects.toMatchObject({ name: 'ReleasePreconditionError' });
+  });
+});
+
 describe('isReadinessManifestEnabled', () => {
   let prev: string | undefined;
   beforeEach(() => { prev = process.env.READINESS_MANIFEST_ENABLED; });

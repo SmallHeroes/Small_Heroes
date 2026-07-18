@@ -330,6 +330,38 @@ export interface CommitArgs {
   anchorReason: string | null;
   /** Anchor low-confidence telemetry for QA soft-deliver warnings (optional). */
   anchorLowConfidence?: AnchorLowConfidence;
+  /**
+   * (re-gate round-3 P0) OPT-IN authorized-release precondition. Supplied ONLY by the flag-ON anchor-release
+   * break-glass (app/api/admin/anchor-hold-release), NEVER by the normal post-generation delivery path. When set,
+   * the final Order write additionally requires the row to STILL be held at EXACTLY this marker with no payment
+   * fence (`status='needs_human_qa'` AND `deliveryHoldReason=<this>` AND `manualReviewRequired=false`), making the
+   * guard ATOMIC with the flip. The anchor-release authorization runs in a SEPARATE, already-committed tx and
+   * releases its lock before this commit; a stronger hold (safety_hold / payment fence) that lands in that window
+   * does NOT bump `inputVersion`, so the plain `id+inputVersion` CAS would clobber it to `ready` + enqueue Outbox =
+   * ship an unsafe book. Comparing against the authorized marker makes the CAS match 0 rows → `ReleasePreconditionError`
+   * → the caller returns a typed 409, nothing ships. Callers that OMIT this are byte-unchanged.
+   */
+  requireHold?: { deliveryHoldReason: string };
+}
+
+/**
+ * (re-gate round-3 P0) Thrown by the readiness commit when a supplied `requireHold` precondition no longer holds —
+ * the row is no longer `needs_human_qa` at exactly the authorized marker (a stronger hold landed, or it was already
+ * released). Distinct from a TOCTOU (which retries) and from `OutboxReconciliationError`: it is NEVER retried and
+ * the anchor-release route maps it to a typed 409 with no delivery of any kind.
+ */
+export class ReleasePreconditionError extends Error {
+  readonly expectedHoldReason: string;
+  readonly actual: { status: string; deliveryHoldReason: string | null; manualReviewRequired: boolean } | null;
+  constructor(
+    expectedHoldReason: string,
+    actual: { status: string; deliveryHoldReason: string | null; manualReviewRequired: boolean } | null,
+  ) {
+    super('readiness_release_precondition_failed');
+    this.name = 'ReleasePreconditionError';
+    this.expectedHoldReason = expectedHoldReason;
+    this.actual = actual;
+  }
 }
 export interface CommitDeps {
   inspect?: (url: string | null | undefined) => Promise<AssetInspection>;
@@ -811,11 +843,41 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
   // bumped Order.inputVersion since the evaluation, this matches 0 rows → abort the whole tx as a TOCTOU drift
   // (reload FRESH + re-evaluate). Stronger than the early fingerprint read: it makes the final write itself atomic.
   const orderData: Prisma.OrderUpdateManyMutationInput = { status: orderStatus as never, packageStatus: 'done', deliveryHoldReason };
-  const written = await tx.order.updateMany({
-    where: { id: order.id, inputVersion: order.inputVersion },
-    data: orderData,
-  });
-  if (written.count === 0) throw new Error(TOCTOU);
+  // (re-gate round-3 P0) When an AUTHORIZED-RELEASE precondition is supplied (flag-ON anchor-release ONLY), the CAS
+  // ALSO requires the row to STILL be held at exactly the authorized marker with no payment fence. This makes the
+  // hold-guard atomic with the flip: a safety/payment park that landed after authorization (neither bumps
+  // inputVersion) changed `deliveryHoldReason`/`manualReviewRequired`, so the WHERE matches 0 rows here instead of
+  // clobbering an unsafe book to `ready`. Callers that OMIT `requireHold` get the byte-identical `id+inputVersion` CAS.
+  const orderWhere = args.requireHold
+    ? ({
+        id: order.id,
+        inputVersion: order.inputVersion,
+        status: 'needs_human_qa',
+        deliveryHoldReason: args.requireHold.deliveryHoldReason,
+        manualReviewRequired: false,
+      } as Prisma.OrderWhereInput)
+    : ({ id: order.id, inputVersion: order.inputVersion } as Prisma.OrderWhereInput);
+  const written = await tx.order.updateMany({ where: orderWhere, data: orderData });
+  if (written.count === 0) {
+    // Distinguish an inputVersion TOCTOU (→ retry) from an authorized-release precondition failure (→ abort, no
+    // retry, typed 409). Only relevant when requireHold is set; the plain path keeps the exact prior TOCTOU throw.
+    if (args.requireHold) {
+      const cur = await tx.order.findUnique({
+        where: { id: order.id },
+        select: { inputVersion: true, status: true, deliveryHoldReason: true, manualReviewRequired: true },
+      });
+      // inputVersion unchanged but 0 rows ⇒ the hold precondition itself no longer holds (a stronger hold landed in
+      // the cross-tx window, or the order was already released) → NEVER retry; the caller returns a 409 and ships nothing.
+      if (cur && cur.inputVersion === order.inputVersion) {
+        throw new ReleasePreconditionError(args.requireHold.deliveryHoldReason, {
+          status: cur.status,
+          deliveryHoldReason: cur.deliveryHoldReason,
+          manualReviewRequired: cur.manualReviewRequired,
+        });
+      }
+    }
+    throw new Error(TOCTOU);
+  }
   // (Human-QA Slice 1, re-gate P0-1) The review-case lifecycle is NOT written here. A `recordHumanQaHoldInTx`
   // read/update/throw inside THIS readiness-commit tx could roll back the hold itself (an unheld order = a safety
   // regression), and `resolveHumanQaCaseOnReleaseInTx` inside it could roll back a delivery. Both are reconciled

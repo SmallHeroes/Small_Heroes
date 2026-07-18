@@ -1,6 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { OutboxReconciliationError } from '@/lib/generation-chunked/delivery-outbox';
 
+/** Mirrors readiness-manifest's ReleasePreconditionError (the readiness module is doMock'd, so the route needs the
+ *  class provided by the mock; the route also matches by `name`, so this shape is what it catches). */
+class ReleasePreconditionError extends Error {
+  expectedHoldReason: string;
+  actual: unknown;
+  constructor(expectedHoldReason: string, actual: unknown) {
+    super('readiness_release_precondition_failed');
+    this.name = 'ReleasePreconditionError';
+    this.expectedHoldReason = expectedHoldReason;
+    this.actual = actual;
+  }
+}
+
 /**
  * (Human-QA Slice 1, re-gate forward fix) Anchor break-glass release = flag-independent AUTHORIZATION +
  * flag-dispatched DELIVERY.
@@ -60,6 +73,7 @@ async function loadRoute(opts: {
   vi.doMock('@/lib/generation-pipeline/readiness-manifest', () => ({
     isReadinessManifestEnabled: () => opts.flagOn,
     commitBaseBookReadiness: commit,
+    ReleasePreconditionError,
   }));
   const mod = await import('@/app/api/admin/anchor-hold-release/route');
   return { POST: mod.POST, email, orderUpdateMany, postCommit, commit, caseUpdate: humanQaReviewCase.update };
@@ -196,19 +210,50 @@ describe('anchor-hold-release DELIVERY (flag-ON: Manifest/Outbox)', () => {
   beforeEach(() => { vi.resetModules(); process.env.GENERATION_SECRET = 'sek'; });
   afterEach(() => { vi.restoreAllMocks(); });
 
-  it('authorized release → enqueues via commitBaseBookReadiness, NO direct email, NO in-tx status flip, viaOutbox', async () => {
+  it('authorized release → enqueues via commitBaseBookReadiness with requireHold, NO direct email, NO in-tx flip, viaOutbox', async () => {
     const { POST, email, orderUpdateMany, commit, postCommit } = await loadRoute({
       flagOn: true, order: heldOrder('anchor_low_confidence:soft_band'),
       baseCase: { id: 'c_anchor', status: 'open', kind: 'anchor' },
     });
     const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
     expect(res.status).toBe(200);
-    expect(commit).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ orderId: 'o1', anchorAllowsDelivery: true }));
+    // (re-gate round-3 P0) the authorized marker is threaded into the readiness commit as the release precondition.
+    expect(commit).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ orderId: 'o1', anchorAllowsDelivery: true, requireHold: { deliveryHoldReason: 'anchor_low_confidence:soft_band' } }),
+    );
     expect(email).not.toHaveBeenCalled(); // package-delivery.ts:104 invariant — flag-on never direct-sends
     expect(orderUpdateMany).not.toHaveBeenCalled(); // authorization did NOT flip status; commit owns the transition
     expect(postCommit).toHaveBeenCalledTimes(1);
     const body = await res.json();
     expect(body).toMatchObject({ released: true, viaOutbox: true });
+  });
+
+  it('(re-gate round-3 P0) a SAFETY hold lands mid-window → readiness precondition fails (ReleasePreconditionError) → 409, no Outbox, no email', async () => {
+    // commitBaseBookReadiness's final CAS finds the row is no longer held at the authorized anchor marker → throws.
+    const commit = vi.fn(async () => {
+      throw new ReleasePreconditionError('anchor_low_confidence:soft_band', {
+        status: 'needs_human_qa', deliveryHoldReason: 'safety_hold:hazard:page:2', manualReviewRequired: false,
+      });
+    });
+    const { POST, email, postCommit } = await loadRoute({ flagOn: true, order: heldOrder('anchor_low_confidence:soft_band'), commit });
+    const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
+    expect(res.status).toBe(409);
+    expect(email).not.toHaveBeenCalled();
+    expect(postCommit).not.toHaveBeenCalled(); // never reached — nothing shipped, case left as-is
+    const body = await res.json();
+    expect(body).toMatchObject({ expected: 'anchor_low_confidence:soft_band' });
+  });
+
+  it('(re-gate round-3 P0) a PAYMENT fence lands mid-window → precondition fails → 409, no Outbox, no email', async () => {
+    const commit = vi.fn(async () => {
+      throw new ReleasePreconditionError('anchor_low_confidence:soft_band', {
+        status: 'needs_human_qa', deliveryHoldReason: 'anchor_low_confidence:soft_band', manualReviewRequired: true,
+      });
+    });
+    const { POST, email } = await loadRoute({ flagOn: true, order: heldOrder('anchor_low_confidence:soft_band'), commit });
+    expect((await POST(req({ secret: 'sek', orderId: 'o1' }))).status).toBe(409);
+    expect(email).not.toHaveBeenCalled();
   });
 
   it('a delivery already in flight (OutboxReconciliationError) → 409, no send', async () => {

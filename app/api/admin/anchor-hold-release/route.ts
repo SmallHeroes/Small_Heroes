@@ -22,7 +22,7 @@ import { prisma } from '@/lib/prisma';
 import { sendBookReadyEmail } from '@/backend/lib/email';
 import { ROUTES, listenUrlFromReadUrl } from '@/lib/routes';
 import { createLogger } from '@/lib/logger';
-import { isReadinessManifestEnabled, commitBaseBookReadiness } from '@/lib/generation-pipeline/readiness-manifest';
+import { isReadinessManifestEnabled, commitBaseBookReadiness, ReleasePreconditionError } from '@/lib/generation-pipeline/readiness-manifest';
 import { resolveHumanQaCaseOnReleaseInTx } from '@/lib/human-qa/record-hold';
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 import { OutboxReconciliationError } from '@/lib/generation-chunked/delivery-outbox';
@@ -183,12 +183,38 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // never be emailed the book twice. commitBaseBookReadiness OWNS the ready transition (no double-transition — the
     // authorization tx above deliberately left status untouched on flag-on).
     try {
-      const result = await commitBaseBookReadiness(prisma, { orderId: order.id, anchorAllowsDelivery: true, anchorOrderStatus: 'ready', anchorReason: null });
+      // (re-gate round-3 P0) Thread the AUTHORIZED-RELEASE precondition into the readiness commit: its final Order
+      // write must STILL find the row held at exactly this anchor marker with no payment fence. A safety/payment hold
+      // that landed in the cross-tx window (after the authorization tx released its lock, before this commit) does
+      // NOT bump inputVersion, so without this it would be clobbered to `ready` + Outbox-enqueued = ship an unsafe
+      // book. On mismatch commitBaseBookReadiness throws ReleasePreconditionError → typed 409 below, nothing ships.
+      const result = await commitBaseBookReadiness(prisma, {
+        orderId: order.id,
+        anchorAllowsDelivery: true,
+        anchorOrderStatus: 'ready',
+        anchorReason: null,
+        requireHold: { deliveryHoldReason: holdReason },
+      });
       // Reconcile the anchor case with the committed outcome (resolved once `ready`; left open if it re-parked stale).
       await syncHumanQaHoldCasePostCommit(prisma, order.id);
       log.info('Anchor hold released via readiness/Outbox path', { orderId, manifestStatus: result.manifestStatus, enqueued: result.enqueued });
       return NextResponse.json({ released: result.enqueued, viaOutbox: true, manifestStatus: result.manifestStatus, orderStatus: result.orderStatus, reason: result.reason });
     } catch (e) {
+      // (re-gate round-3 P0) The authorized-release precondition no longer holds — a stronger hold landed in the
+      // cross-tx window (or the order was already released). NEVER shipped: typed 409, no Outbox. Match by class OR
+      // name (name survives a module-registry duplication — bundling, or a test's resetModules).
+      const precond = e instanceof ReleasePreconditionError
+        ? e
+        : ((e as { name?: string })?.name === 'ReleasePreconditionError' ? (e as ReleasePreconditionError) : null);
+      if (precond) {
+        log.warn('Anchor release aborted — hold changed under readiness commit (stronger hold landed / already released)', {
+          orderId, expected: precond.expectedHoldReason, actual: precond.actual,
+        });
+        return NextResponse.json(
+          { error: 'Hold changed before delivery — not released (a stronger hold landed, or it was already released)', expected: precond.expectedHoldReason, actual: precond.actual },
+          { status: 409 },
+        );
+      }
       // (#3h-D) A delivery already in flight / delivered / revoked / corrupt needs an EXPLICIT redelivery — surface
       // it as a typed 409, not a blanket catch (any OTHER error still propagates as a real 500). Match by class OR
       // name (name survives a module-registry duplication — e.g. bundling, or a test's resetModules).
