@@ -41,7 +41,7 @@ import {
 } from '@/lib/qa-soft-deliver';
 import type { AnchorLowConfidence } from '@/lib/anchor-resemblance-gate';
 import { runAtomicOperation, hashOperationPayload, type AtomicOperationDeps, type ReceiptSafeValue } from './atomic-operation';
-import { writeOrderHoldFenced } from './order-authority';
+import { writeOrderHoldFenced, executeReadinessShipCas } from './order-authority';
 import { createLogger } from '@/lib/logger';
 import type { FrozenStoryProductTruth } from './frozen-product-truth';
 import {
@@ -747,45 +747,10 @@ async function nextRevision(tx: Tx, orderId: string, scope: string): Promise<num
  * compare to the value the evaluation ran on); on drift it throws so the caller reloads FRESH + re-evaluates.
  * May also throw P2002 (revision collision). Both are retried by commitBaseBookReadiness.
  */
-/**
- * (delivery fence — Codex round-4 P0) THE shared ready-transition CAS. Exported so the real-PG harness
- * (delivery-fence.pg.spec.ts) exercises the EXACT SQL production runs — no drift between the guard and its proof.
- *
- * Flips the order to `ready` ONLY IF, atomically at write time: inputVersion unchanged (B4) AND the SHARED delivery
- * fence unchanged since load (every hold write bumps it) AND no payment fence (manualReviewRequired=false) AND no
- * terminal safety_/contract_world_ marker AND no active strong Human-QA case. `requireHoldReason` (flag-ON
- * anchor-release ONLY) additionally pins status=needs_human_qa + the exact authorized marker. Returns the number of
- * rows updated: 1 = shipped; 0 = a competing hold (or an input drift) blocked it.
- */
-export async function executeReadinessShipCas(
-  db: PrismaClient | Tx,
-  p: {
-    orderId: string;
-    inputVersion: number;
-    deliveryFenceVersion: number;
-    deliveryHoldReason: string | null;
-    requireHoldReason?: string | null;
-  },
-): Promise<number> {
-  const requireHoldClause = p.requireHoldReason
-    ? Prisma.sql` AND "status" = 'needs_human_qa' AND "deliveryHoldReason" = ${p.requireHoldReason}`
-    : Prisma.empty;
-  return db.$executeRaw`
-    UPDATE "Order"
-       SET "status" = 'ready'::"OrderStatus", "packageStatus" = 'done'::"GenerationStatus", "deliveryHoldReason" = ${p.deliveryHoldReason}
-     WHERE "id" = ${p.orderId}
-       AND "inputVersion" = ${p.inputVersion}
-       AND "deliveryFenceVersion" = ${p.deliveryFenceVersion}
-       AND "manualReviewRequired" = false
-       AND ("deliveryHoldReason" IS NULL
-            OR ("deliveryHoldReason" NOT LIKE 'safety_hold:%' AND "deliveryHoldReason" NOT LIKE 'contract_world_hold:%'))
-       AND NOT EXISTS (
-         SELECT 1 FROM "HumanQaReviewCase" c
-          WHERE c."activeKey" IN (${p.orderId + ':base_book'}, ${p.orderId + ':payment'})
-            AND c."status" = 'open'
-            AND c."kind" IN ('safety', 'contract_world', 'payment_integrity')
-       )${requireHoldClause}`;
-}
+// (Codex round-5 Unit 4) The ready-transition SHIP CAS now lives in the shared authority funnel (order-authority.ts)
+// so the structural guard can require ALL authority-field writes to originate there. Imported above for internal use
+// (runReadinessTxn) and re-exported here for existing importers (package-delivery, the PG harness, tests).
+export { executeReadinessShipCas };
 
 async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, decision: ReadinessDecision, now: Date): Promise<CommitResult> {
   // (0) TOCTOU guard — the assets/text/frozen/QUALITY-EVIDENCE must not have changed between the (out-of-tx)

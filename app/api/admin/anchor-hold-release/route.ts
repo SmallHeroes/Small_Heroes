@@ -25,6 +25,7 @@ import { createLogger } from '@/lib/logger';
 import { isReadinessManifestEnabled, commitBaseBookReadiness, ReleasePreconditionError } from '@/lib/generation-pipeline/readiness-manifest';
 import { resolveHumanQaCaseOnReleaseInTx } from '@/lib/human-qa/record-hold';
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
+import { executeAnchorReleaseCas } from '@/lib/generation-pipeline/order-authority';
 import { OutboxReconciliationError } from '@/lib/generation-chunked/delivery-outbox';
 
 const log = createLogger({ subsystem: 'anchor-hold', route: '/api/admin/anchor-hold-release' });
@@ -152,24 +153,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       // rejected any stronger PRE-EXISTING hold, so a stale re-park (not a hole) is the only thing readiness can do.
       return { ok: true };
     }
-    // flag-OFF: authorize AND release atomically — then direct-send. (delivery fence — Codex round-4 P0-2) The CAS
-    // ITSELF rejects an active strong Human-QA case (not just the findUnique guard above): status+marker + no
-    // payment fence + NOT EXISTS an open safety/contract_world/payment_integrity case, all in one atomic write. This
-    // closes the `skip_weaker` combination where a normal path rewrote a safety_hold marker back to anchor while the
-    // safety CASE stayed active — the marker matches but the active strong case blocks the release.
-    const released = await tx.$executeRaw`
-      UPDATE "Order"
-         SET "status" = 'ready'::"OrderStatus", "deliveryHoldReason" = NULL
-       WHERE "id" = ${order.id}
-         AND "status" = 'needs_human_qa'
-         AND "deliveryHoldReason" = ${holdReason}
-         AND "manualReviewRequired" = false
-         AND NOT EXISTS (
-           SELECT 1 FROM "HumanQaReviewCase" c
-            WHERE c."activeKey" IN (${order.id + ':base_book'}, ${order.id + ':payment'})
-              AND c."status" = 'open'
-              AND c."kind" IN ('safety', 'contract_world', 'payment_integrity')
-         )`;
+    // flag-OFF: authorize AND release atomically — then direct-send. (Codex round-5 Unit 4) The release CAS lives in
+    // the shared authority funnel (order-authority.ts): status+marker + no payment fence + NOT EXISTS an open
+    // safety/contract_world/payment_integrity case, all in one atomic write that also bumps the fence. Closes the
+    // `skip_weaker` combination where a normal path rewrote a safety_hold marker back to anchor while the safety
+    // CASE stayed active — the marker matches but the active strong case blocks the release.
+    const released = await executeAnchorReleaseCas(tx, { orderId: order.id, expectedHoldReason: holdReason });
     if (released === 0) return { ok: false, status: 409, error: 'Release lost a concurrency race or a stronger hold is active' };
     // Close the active ANCHOR case + suppress its unsent operator notification in the SAME release tx.
     await resolveHumanQaCaseOnReleaseInTx(tx, {

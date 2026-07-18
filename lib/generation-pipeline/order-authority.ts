@@ -82,3 +82,66 @@ export async function writeOrderHoldFenced(db: Db, p: HoldWriteArgs, maxRetries 
   }
   return 'lost';
 }
+
+/**
+ * THE shared ready-transition (SHIP) CAS. Flips the order to `ready` ONLY IF, atomically at write time: inputVersion
+ * unchanged (B4) AND the SHARED fence unchanged since load AND no payment fence AND no terminal safety_/contract_world_
+ * marker AND no active strong Human-QA case. `requireHoldReason` (flag-ON anchor-release ONLY) additionally pins
+ * status=needs_human_qa + the exact authorized marker. Returns rows updated: 1 = shipped; 0 = a competing hold (or an
+ * input drift) blocked it. Exported so the real-PG harness exercises the EXACT production SQL (no drift).
+ */
+export async function executeReadinessShipCas(
+  db: Db,
+  p: {
+    orderId: string;
+    inputVersion: number;
+    deliveryFenceVersion: number;
+    deliveryHoldReason: string | null;
+    requireHoldReason?: string | null;
+  },
+): Promise<number> {
+  const requireHoldClause = p.requireHoldReason
+    ? Prisma.sql` AND "status" = 'needs_human_qa' AND "deliveryHoldReason" = ${p.requireHoldReason}`
+    : Prisma.empty;
+  return db.$executeRaw`
+    UPDATE "Order"
+       SET "status" = 'ready'::"OrderStatus", "packageStatus" = 'done'::"GenerationStatus", "deliveryHoldReason" = ${p.deliveryHoldReason}
+     WHERE "id" = ${p.orderId}
+       AND "inputVersion" = ${p.inputVersion}
+       AND "deliveryFenceVersion" = ${p.deliveryFenceVersion}
+       AND "manualReviewRequired" = false
+       AND ("deliveryHoldReason" IS NULL
+            OR ("deliveryHoldReason" NOT LIKE 'safety_hold:%' AND "deliveryHoldReason" NOT LIKE 'contract_world_hold:%'))
+       AND NOT EXISTS (
+         SELECT 1 FROM "HumanQaReviewCase" c
+          WHERE c."activeKey" IN (${p.orderId + ':base_book'}, ${p.orderId + ':payment'})
+            AND c."status" = 'open'
+            AND c."kind" IN ('safety', 'contract_world', 'payment_integrity')
+       )${requireHoldClause}`;
+}
+
+/**
+ * THE anchor-release (RELEASE) CAS (flag-OFF path). Flips needs_human_qa → ready ONLY IF the row is STILL held at
+ * exactly the authorized anchor marker, with no payment fence and NO active strong Human-QA case (the skip_weaker
+ * guard). The exact-marker match is the bind-equivalent — any competing hold that landed changed the marker (or set
+ * manualReviewRequired / opened a strong case) → 0 rows. Bumps the fence so the release participates in the monotonic
+ * sequence. Returns rows updated: 1 = released; 0 = a stronger hold is active or the marker moved.
+ */
+export async function executeAnchorReleaseCas(
+  db: Db,
+  p: { orderId: string; expectedHoldReason: string },
+): Promise<number> {
+  return db.$executeRaw`
+    UPDATE "Order"
+       SET "status" = 'ready'::"OrderStatus", "deliveryHoldReason" = NULL, "deliveryFenceVersion" = "deliveryFenceVersion" + 1
+     WHERE "id" = ${p.orderId}
+       AND "status" = 'needs_human_qa'
+       AND "deliveryHoldReason" = ${p.expectedHoldReason}
+       AND "manualReviewRequired" = false
+       AND NOT EXISTS (
+         SELECT 1 FROM "HumanQaReviewCase" c
+          WHERE c."activeKey" IN (${p.orderId + ':base_book'}, ${p.orderId + ':payment'})
+            AND c."status" = 'open'
+            AND c."kind" IN ('safety', 'contract_world', 'payment_integrity')
+       )`;
+}
