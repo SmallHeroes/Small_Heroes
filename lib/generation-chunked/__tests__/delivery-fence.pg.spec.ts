@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import { executeReadinessShipCas } from '@/lib/generation-pipeline/readiness-manifest';
+import { writeOrderHoldFenced, executeAnchorReleaseCas } from '@/lib/generation-pipeline/order-authority';
 
 /**
  * (delivery fence — Codex round-4 P0) REAL-POSTGRES interleaving harness.
@@ -182,5 +183,55 @@ describe.skipIf(!RUN)('delivery fence — real Postgres READ COMMITTED interleav
     await seedOrder({ status: 'needs_human_qa', deliveryHoldReason: 'anchor_low_confidence:soft_band', inputVersion: 0 });
     await other.$executeRaw`UPDATE "Order" SET "inputVersion"=1 WHERE "id"='o1'`;
     expect(await ship({ inputVersion: 0, requireHoldReason: 'anchor_low_confidence:soft_band' })).toBe(0);
+  });
+
+  // ── (Unit 5) HOLD vs HOLD — a weak marker can NEVER clobber a stronger one (marker precedence, real SQL) ───────
+  it('writeOrderHoldFenced: a WEAK anchor/integrity hold over an existing SAFETY marker → superseded, safety survives', async () => {
+    await seedOrder({ status: 'needs_human_qa', deliveryHoldReason: 'safety_hold:hazard' });
+    const r = await writeOrderHoldFenced(db, { orderId: 'o1', newStatus: 'needs_human_qa', newHoldReason: 'base_book_integrity:missing_page' });
+    expect(r).toBe('superseded');
+    const row = await db.$queryRaw<Array<{ reason: string }>>`SELECT "deliveryHoldReason" AS reason FROM "Order" WHERE "id"='o1'`;
+    expect(row[0].reason).toBe('safety_hold:hazard'); // the safety marker is intact → the case sync will see safety
+  });
+  it('writeOrderHoldFenced: a SAFETY hold over a weaker anchor marker → applied, fence bumped', async () => {
+    await seedOrder({ status: 'needs_human_qa', deliveryHoldReason: 'anchor_low_confidence:soft_band', deliveryFenceVersion: 2 });
+    const r = await writeOrderHoldFenced(db, { orderId: 'o1', newStatus: 'needs_human_qa', newHoldReason: 'safety_hold:hazard' });
+    expect(r).toBe('applied');
+    const row = await db.$queryRaw<Array<{ reason: string; fence: number }>>`SELECT "deliveryHoldReason" AS reason, "deliveryFenceVersion" AS fence FROM "Order" WHERE "id"='o1'`;
+    expect(row[0].reason).toBe('safety_hold:hazard');
+    expect(Number(row[0].fence)).toBe(3); // bumped 2 -> 3
+  });
+  it('writeOrderHoldFenced: requireNotDelivered refuses to retract a delivered book → superseded', async () => {
+    await seedOrder({ status: 'ready', deliveryHoldReason: null });
+    const r = await writeOrderHoldFenced(db, { orderId: 'o1', newStatus: 'needs_human_qa', newHoldReason: 'safety_hold:late', requireNotDelivered: true });
+    expect(r).toBe('superseded');
+    expect(await statusOf()).toBe('ready'); // a delivered book is never retracted here
+  });
+
+  // ── (Unit 5) anchor RELEASE CAS, real SQL ─────────────────────────────────────────────────────────────────────
+  it('executeAnchorReleaseCas: releases a still-anchor-held order (1 row → ready, fence bumped)', async () => {
+    await seedOrder({ status: 'needs_human_qa', deliveryHoldReason: 'anchor_low_confidence:soft_band', deliveryFenceVersion: 5 });
+    expect(await executeAnchorReleaseCas(db, { orderId: 'o1', expectedHoldReason: 'anchor_low_confidence:soft_band' })).toBe(1);
+    const row = await db.$queryRaw<Array<{ status: string; fence: number }>>`SELECT "status"::text AS status, "deliveryFenceVersion" AS fence FROM "Order" WHERE "id"='o1'`;
+    expect(row[0].status).toBe('ready');
+    expect(Number(row[0].fence)).toBe(6);
+  });
+  it('executeAnchorReleaseCas: blocked by an active SAFETY case even though the marker reads anchor (skip_weaker) → 0', async () => {
+    await seedOrder({ status: 'needs_human_qa', deliveryHoldReason: 'anchor_low_confidence:soft_band' });
+    await seedCase('safety');
+    expect(await executeAnchorReleaseCas(db, { orderId: 'o1', expectedHoldReason: 'anchor_low_confidence:soft_band' })).toBe(0);
+    expect(await statusOf()).toBe('needs_human_qa'); // never released while a strong case is active
+  });
+
+  // ── (Unit 5) Outbox → fence link: the send-time Order EXISTS clause requires the exact deliveryFenceVersion ─────
+  it('the send-time Order EXISTS predicate matches only at the exact enqueued fence', async () => {
+    await seedOrder({ status: 'ready', deliveryFenceVersion: 7, inputVersion: 3 });
+    const check = (fence: number, iv: number) =>
+      db.$queryRaw<Array<{ ok: boolean }>>`SELECT EXISTS (
+        SELECT 1 FROM "Order" ord WHERE ord."id"='o1' AND ord."status"='ready'
+          AND ord."inputVersion" = ${iv} AND ord."deliveryFenceVersion" = ${fence}
+      ) AS ok`;
+    expect((await check(7, 3))[0].ok).toBe(true); // enqueued fence + inputVersion → sendable
+    expect((await check(6, 3))[0].ok).toBe(false); // a stale (pre-bump) fence → NOT sendable
   });
 });
