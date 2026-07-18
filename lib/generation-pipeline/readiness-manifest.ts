@@ -534,6 +534,7 @@ export function buildReadinessCommitReceiptBinding(
   inputVersion: number,
   decision: ReadinessDecision,
   softDeliver: boolean = canUseQaSoftDeliver(),
+  deliveryFenceVersion: number = 0,
 ): { operationKey: string; payloadHash: string; plan: ReadinessDeliveryPlan } {
   const anchorDisposition = `${args.anchorAllowsDelivery ? 1 : 0}:${args.anchorOrderStatus}:${args.anchorReason ?? ''}`;
   // (delivery fence — Codex round-4 P1) The authorized-release CAPABILITY (requireHold + its exact marker) is part
@@ -542,9 +543,15 @@ export function buildReadinessCommitReceiptBinding(
   // short-circuit and the precondition CAS never runs. Folding it into the key (and, via the key, the payloadHash)
   // means a guarded call can never be satisfied by an unguarded receipt.
   const releaseCapability = args.requireHold ? `rh:${args.requireHold.deliveryHoldReason}` : 'norh';
+  // (delivery fence — Codex round-5 P1) The LOAD-TIME deliveryFenceVersion is part of the receipt IDENTITY. A hold
+  // bumps the fence WITHOUT bumping inputVersion, so without this a SHIP retry after a mid-flight hold would share
+  // an operationKey with the earlier (pre-hold) ship and REPLAY its recorded `ready` at the atomic short-circuit —
+  // never re-running the CAS. Keying on the fence READ AT LOAD (not the post-mutation value) also PRESERVES HOLD
+  // idempotency: a HOLD that bumps its own fence still records + replays under this same load-time key on a P2028
+  // retry (runAtomicOperation reuses the pre-computed key), while a FRESH call reads the new fence → a new key.
   const plan = resolveReadinessDeliveryPlan(args, decision, softDeliver);
   const operationKey =
-    `readiness_commit:${args.orderId}:${BASE_BOOK_SCOPE}:${inputVersion}:${decision.inputsHash}:${anchorDisposition}:${releaseCapability}`;
+    `readiness_commit:${args.orderId}:${BASE_BOOK_SCOPE}:${inputVersion}:${decision.inputsHash}:${anchorDisposition}:${releaseCapability}:fence${deliveryFenceVersion}`;
   const mutationPayload = buildReadinessCommitMutationPayload(
     args,
     decision,
@@ -886,6 +893,7 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
       fulfillmentVersion: order.fulfillmentVersion,
       manifestId: manifest.id,
       inputVersion: order.inputVersion,
+      deliveryFenceVersion: order.deliveryFenceVersion,
       payload: buildPayload(payloadSourceOf(order, book), qaWarnings),
       now,
     });
@@ -894,7 +902,7 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
     deliveryHoldReason = plan.deliveryHoldReason;
   } else if (plan.enqueued && decision.status === 'passed' && args.anchorAllowsDelivery) {
     // (3) enqueue the delivery IN the same transaction (enqueue != send), then (4) mark the order ready.
-    await enqueueDelivery(tx, { orderId: order.id, scope, fulfillmentVersion: order.fulfillmentVersion, manifestId: manifest.id, inputVersion: order.inputVersion, payload: buildPayload(payloadSourceOf(order, book)), now });
+    await enqueueDelivery(tx, { orderId: order.id, scope, fulfillmentVersion: order.fulfillmentVersion, manifestId: manifest.id, inputVersion: order.inputVersion, deliveryFenceVersion: order.deliveryFenceVersion, payload: buildPayload(payloadSourceOf(order, book)), now });
     enqueued = true; orderStatus = 'ready'; deliveryHoldReason = null;
   } else if (plan.usesSoftDeliver && decision.status === 'passed' && !args.anchorAllowsDelivery) {
     qaWarnings = buildQaWarningsFromAnchorHold(args.anchorLowConfidence ?? null, args.anchorReason);
@@ -904,6 +912,7 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
       fulfillmentVersion: order.fulfillmentVersion,
       manifestId: manifest.id,
       inputVersion: order.inputVersion,
+      deliveryFenceVersion: order.deliveryFenceVersion,
       payload: buildPayload(payloadSourceOf(order, book), qaWarnings),
       now,
     });
@@ -1013,6 +1022,7 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
           loaded.order.inputVersion,
           decision,
           softDeliver,
+          loaded.order.deliveryFenceVersion, // (round-5 P1) load-time fence → receipt identity (see the binding)
         );
         return await runAtomicOperation(
           prisma,
@@ -1096,8 +1106,13 @@ export async function casClaimSendSlot(
        AND o."manifestId" = ${row.manifestId}
        AND o."inputVersion" = ${row.inputVersion}
        AND EXISTS (
+         -- (delivery fence — Codex round-5 P1) The order must STILL be ready at the exact inputVersion AND the exact
+         -- deliveryFenceVersion this delivery was enqueued under — the Outbox->fence link is now EXPLICIT here, not
+         -- merely incidental to the enqueue+ready flip sharing a transaction.
          SELECT 1 FROM "Order" ord
-          WHERE ord."id" = o."orderId" AND ord."status" = 'ready' AND ord."inputVersion" = o."inputVersion"
+          WHERE ord."id" = o."orderId" AND ord."status" = 'ready'
+            AND ord."inputVersion" = o."inputVersion"
+            AND ord."deliveryFenceVersion" = o."deliveryFenceVersion"
        )
        AND EXISTS (
          SELECT 1 FROM "BookReadiness" br

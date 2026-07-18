@@ -615,6 +615,10 @@ model DeliveryOutbox {
   // on create and on rebind, so they are NOT NULL (#3h #6 — preflight: the table is empty everywhere).
   manifestId        String
   inputVersion      Int
+  // (delivery fence — Codex round-5 P1) The shared Order.deliveryFenceVersion this delivery was enqueued under.
+  // The send-time CAS re-verifies Order.deliveryFenceVersion === this, making the Outbox->fence link EXPLICIT rather
+  // than incidental (it was previously only guaranteed by enqueue + ready flip committing in the same tx).
+  deliveryFenceVersion Int               @default(0)
   // Monotonic claim/rebind version used only for lease fencing. It is deliberately NOT a send-retry counter.
   attempts          Int                  @default(0)
   // Number of possible provider sends. Incremented by the send-time CAS immediately before each provider call.

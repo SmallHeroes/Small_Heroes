@@ -104,17 +104,18 @@ export interface EnqueueResult {
  */
 export async function enqueueDelivery(
   db: Db,
-  args: { orderId: string; scope: string; fulfillmentVersion: number; manifestId: string; inputVersion: number; payload: BookReadyPayload; now: Date },
+  args: { orderId: string; scope: string; fulfillmentVersion: number; manifestId: string; inputVersion: number; deliveryFenceVersion?: number; payload: BookReadyPayload; now: Date },
 ): Promise<EnqueueResult> {
   const payloadHash = hashPayload(args.payload);
   const dedupeKey = deliveryDedupeKey(args.orderId, args.scope, args.fulfillmentVersion);
+  const deliveryFenceVersion = args.deliveryFenceVersion ?? 0; // (round-5 P1) the fence this delivery is bound to
   const existing = await db.deliveryOutbox.findUnique({ where: { dedupeKey } });
   if (!existing) {
     await db.deliveryOutbox.create({
       data: {
         dedupeKey, orderId: args.orderId, scope: args.scope, status: 'scheduled',
         payload: args.payload as unknown as Prisma.InputJsonValue, payloadHash,
-        manifestId: args.manifestId, inputVersion: args.inputVersion, nextAttemptAt: args.now,
+        manifestId: args.manifestId, inputVersion: args.inputVersion, deliveryFenceVersion, nextAttemptAt: args.now,
       },
     });
     return { created: true, rebound: false, dedupeKey };
@@ -140,7 +141,7 @@ export async function enqueueDelivery(
   const rebound = await db.deliveryOutbox.updateMany({
     where: { dedupeKey, sendAttempted: false, status: { in: ['scheduled', 'processing', 'delivery_blocked', 'superseded_by_manifest'] } },
     data: {
-      manifestId: args.manifestId, inputVersion: args.inputVersion,
+      manifestId: args.manifestId, inputVersion: args.inputVersion, deliveryFenceVersion,
       payload: args.payload as unknown as Prisma.InputJsonValue, payloadHash,
       status: 'scheduled', attempts: { increment: 1 }, leaseExpiresAt: null, nextAttemptAt: args.now, lastError: 'rebound',
     },
