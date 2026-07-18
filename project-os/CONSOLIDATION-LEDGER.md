@@ -39,3 +39,30 @@ Pre-Phase-1 target tip: `7093f890` (narration niqqud coverage).
 ## Consolidated target tip after Phase 1: `592ea826`
 
 Not pushed — **Guy pushes**. Phase 2 (reader/narration) + Contract v2 proceed on this consolidated target.
+
+## Phase 2 — fold `feat/otp-email-redesign` into the pipeline (target `feat/chunked-generation`)
+
+Goal: one current branch. Mapped the divergence (merge-base `94a709a0`); `feat/otp-email-redesign` had exactly
+**2 unique commits**, `feat/chunked-generation` was **61 commits ahead** (all board/contract/money/safety/human-qa).
+
+| source (otp branch) | disposition on target |
+|---|---|
+| `5edf9654` — feat(generating): redesign "book on the way" screen (magical twilight storybook) | **Cherry-picked → `194babea`** (`-x`, provenance recorded). Touches ONLY `app/components/BookOnTheWay.tsx` + `app/components/book-on-the-way.module.css`. feat never modified these since the merge-base (HEAD == merge-base version), so it applied with **zero conflict**. |
+| `5f0ea81e` — docs: human-QA slice 1 regate round 3 brief | **SKIPPED — duplicate.** Both files (`BRIEF-cc-human-qa-slice1-regate-round3.md`, `REGATE-codex-human-qa-slice1-round2.md`) already on target via `037a1e8c` (identical message + 82 insertions). Guy had committed the same brief on both branches. |
+| "OTP-email" code (the branch's namesake) | **No unique commit exists** — already represented on target. The OTP email template (`origin/main@fdfd2469` "Fix/otp email template (#20)") landed via the Phase-1 Step-2 main reconcile (`dbb1f9e8`); `backend/lib/email.ts` on target already carries it. Nothing to port. |
+
+**Regression check (zero to board/contract/money/safety):** the port changed ONLY the 2 cosmetic front-end files —
+no money/coupon/safety/readiness/board file is in the diff. `BookOnTheWay`'s props interface is unchanged
+(`{ childName, ready?, readerHref? }`), exactly what `app/generating/generating-client.tsx` passes; the
+`under_review` / `needs_human_qa` state is handled upstream in generating-client (untouched), so the dark-storybook
+redesign does not regress the pipeline states.
+
+`npm run check` after the port: **green** — tsc clean (via node); **2029 passed / 25 skipped** (208 files, identical
+count to pre-port — the 2 files have no tests).
+
+## Consolidated target tip after Phase 2: `194babea`
+
+Not pushed — **Guy pushes**. `feat/chunked-generation` is now THE single current pipeline (board + contract +
+money + safety + generating-screen redesign + OTP email). **A clean fast-forward `origin/main` → `feat/chunked-generation`
+is available** (`origin/main` is a strict ancestor; main is 299 commits behind, zero divergence) — that FF/merge is the
+post-launch-blockers step.
