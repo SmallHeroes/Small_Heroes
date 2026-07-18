@@ -23,7 +23,7 @@ const stubInspect = async (url: string | null | undefined): Promise<AssetInspect
 
 // COMMIT_SELECT-shaped order row (loadCommitInputs reads it both out-of-tx and in-tx).
 const orderRowFull = {
-  id: 'o1', fulfillmentVersion: 1, inputVersion: 0, expectedPageCount: 2, storySourceHash: 'src', selectionFilename: 'bedtime/foo.md', frozenProductVersion: 'v3',
+  id: 'o1', fulfillmentVersion: 1, inputVersion: 0, deliveryFenceVersion: 0, expectedPageCount: 2, storySourceHash: 'src', selectionFilename: 'bedtime/foo.md', frozenProductVersion: 'v3',
   customerEmail: 'c@e.com', customerName: 'Cust', childName: 'Kid',
   book: { coverImageUrl: 'https://h/cover.png', readUrl: 'https://app.example.com/ready?orderId=o1', pdfUrl: null, pages: [
     { pageNumber: 1, text: 'עמוד אחד', audioUrl: null, imageAsset: { url: 'https://h/p1.png', presentationUrl: null } },
@@ -77,6 +77,10 @@ function mockTx(orderRow: unknown = orderRowFull) {
     humanQaReviewCase: { findUnique: vi.fn(async () => null), findFirst: vi.fn(async () => null), update: vi.fn(async () => ({})) },
     operatorNotificationOutbox: { findFirst: vi.fn(async () => null), update: vi.fn(async () => ({})) },
     $queryRaw: vi.fn(async () => [{ id: 'hqc-test' }]),
+    // (delivery fence — Codex round-4 P0) the `ready` ship CAS is now a raw $executeRaw; default = 1 row shipped.
+    // A test simulating a competing hold overrides this to 0. (Mocked SQL cannot express the WHERE — the real
+    // fence/CAS interleave semantics are proven by the real-PG harness in delivery-fence.pg.spec.ts.)
+    $executeRaw: vi.fn(async () => 1),
   };
 }
 const mockPrisma = (tx: ReturnType<typeof mockTx>, orderRow: unknown = orderRowFull) =>
@@ -93,14 +97,20 @@ function mockWithQuality(qualityRows: QRow[], orderRow: typeof orderRowFull = or
 describe('commitBaseBookReadiness — authorized-release precondition (re-gate round-3 P0)', () => {
   const inspectOk = { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' };
 
-  it('NO requireHold (normal post-generation caller) → final Order CAS is byte-unchanged: WHERE = {id,inputVersion} only', async () => {
+  // NOTE (delivery fence — Codex round-4): the ship CAS is now a raw $executeRaw whose WHERE (fence + marker +
+  // manualReviewRequired + active-strong-case + requireHold) cannot be asserted through a mock. These tests pin the
+  // ORCHESTRATION (which branch runs, retry vs abort, error type); the actual CAS/interleave semantics are proven by
+  // the real-PG harness (lib/__tests__/delivery-fence.pg.spec.ts).
+
+  it('normal ship (no requireHold) → runs the raw ship CAS ($executeRaw), NOT the hold updateMany, → ready', async () => {
     const tx = mockTx();
-    await commitBaseBookReadiness(mockPrisma(tx) as never, args(), inspectOk);
-    const arg = (tx.order.updateMany.mock.calls[0] as unknown[])[0] as { where: Record<string, unknown> };
-    expect(arg.where).toEqual({ id: 'o1', inputVersion: 0 }); // no status / deliveryHoldReason / manualReviewRequired
+    const r = await commitBaseBookReadiness(mockPrisma(tx) as never, args(), inspectOk);
+    expect(r.orderStatus).toBe('ready');
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(1); // the guarded ship CAS
+    expect(tx.order.updateMany).not.toHaveBeenCalled(); // ready path never uses the plain updateMany
   });
 
-  it('requireHold set → final Order CAS ALSO requires needs_human_qa + the exact marker + no payment fence', async () => {
+  it('requireHold set → still ships via the raw CAS → ready', async () => {
     const tx = mockTx();
     const r = await commitBaseBookReadiness(
       mockPrisma(tx) as never,
@@ -108,27 +118,17 @@ describe('commitBaseBookReadiness — authorized-release precondition (re-gate r
       inspectOk,
     );
     expect(r.orderStatus).toBe('ready');
-    expect(tx.order.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          id: 'o1',
-          inputVersion: 0,
-          status: 'needs_human_qa',
-          deliveryHoldReason: 'anchor_low_confidence:soft_band',
-          manualReviewRequired: false,
-        },
-        data: expect.objectContaining({ status: 'ready', deliveryHoldReason: null }),
-      }),
-    );
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
   });
 
-  it('requireHold set + row no longer at the marker (CAS 0 rows, inputVersion UNCHANGED) → ReleasePreconditionError, NOT retried, NOT shipped', async () => {
+  it('requireHold + ship CAS matches 0 rows, inputVersion UNCHANGED (a hold landed) → ReleasePreconditionError, NOT retried', async () => {
     const tx = mockTx();
-    tx.order.updateMany = vi.fn(async () => ({ count: 0 })); // a safety hold landed → CAS matches nothing
-    // Distinguishing read: inputVersion still 0 (not a TOCTOU) but the committed marker moved to safety.
-    tx.order.findUnique = vi.fn(async () => ({
-      ...orderRowFull, inputVersion: 0, status: 'needs_human_qa', deliveryHoldReason: 'safety_hold:hazard:page:2', manualReviewRequired: false,
-    }));
+    tx.$executeRaw = vi.fn(async () => 0); // the fence/marker guard rejected the ship
+    // findUnique serves the in-tx fingerprint load (1st, must match out-of-tx → no TOCTOU) THEN the distinguishing
+    // read (2nd, inputVersion still 0 → precondition failure, not a drift).
+    tx.order.findUnique = vi.fn()
+      .mockResolvedValueOnce(orderRowFull)
+      .mockResolvedValueOnce({ inputVersion: 0, deliveryFenceVersion: 1, status: 'needs_human_qa', deliveryHoldReason: 'safety_hold:hazard:page:2', manualReviewRequired: false });
     await expect(
       commitBaseBookReadiness(
         mockPrisma(tx) as never,
@@ -136,23 +136,33 @@ describe('commitBaseBookReadiness — authorized-release precondition (re-gate r
         inspectOk,
       ),
     ).rejects.toMatchObject({ name: 'ReleasePreconditionError', expectedHoldReason: 'anchor_low_confidence:soft_band' });
-    // Never re-attempted the write (no retry loop for a precondition failure).
-    expect(tx.order.updateMany).toHaveBeenCalledTimes(1);
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(1); // no retry for a precondition failure
   });
 
-  it('requireHold set + payment fence landed (manualReviewRequired now true) → ReleasePreconditionError', async () => {
+  it('NORMAL ship CAS matches 0 rows, inputVersion UNCHANGED (a competing hold landed) → HELD CommitResult, not shipped, NOT retried', async () => {
     const tx = mockTx();
-    tx.order.updateMany = vi.fn(async () => ({ count: 0 }));
-    tx.order.findUnique = vi.fn(async () => ({
-      ...orderRowFull, inputVersion: 0, status: 'needs_human_qa', deliveryHoldReason: 'anchor_low_confidence:soft_band', manualReviewRequired: true,
-    }));
-    await expect(
-      commitBaseBookReadiness(
-        mockPrisma(tx) as never,
-        args({ requireHold: { deliveryHoldReason: 'anchor_low_confidence:soft_band' } }),
-        inspectOk,
-      ),
-    ).rejects.toMatchObject({ name: 'ReleasePreconditionError' });
+    tx.$executeRaw = vi.fn(async () => 0);
+    tx.order.findUnique = vi.fn()
+      .mockResolvedValueOnce(orderRowFull)
+      .mockResolvedValueOnce({ inputVersion: 0, deliveryFenceVersion: 1, status: 'needs_human_qa', deliveryHoldReason: 'safety_hold:hazard', manualReviewRequired: false });
+    const r = await commitBaseBookReadiness(mockPrisma(tx) as never, args(), inspectOk);
+    expect(r).toMatchObject({ enqueued: false, manifestStatus: 'blocked', orderStatus: 'needs_human_qa' });
+    expect(r.reason).toContain('safety_hold'); // reflects the hold that won
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(1); // never retried into a ship
+  });
+
+  it('ship CAS 0 rows with inputVersion CHANGED → TOCTOU retry (reload + re-eval), then ships', async () => {
+    const tx = mockTx();
+    tx.$executeRaw = vi.fn().mockResolvedValueOnce(0).mockResolvedValue(1); // attempt 1 blocked, attempt 2 ships
+    // 1st findUnique = in-tx load (matches, no fingerprint drift); 2nd = distinguishing read with a CHANGED
+    // inputVersion → genuine input drift → retry; 3rd+ = the attempt-2 in-tx load.
+    tx.order.findUnique = vi.fn()
+      .mockResolvedValueOnce(orderRowFull)
+      .mockResolvedValueOnce({ ...orderRowFull, inputVersion: 99 })
+      .mockResolvedValue(orderRowFull);
+    const r = await commitBaseBookReadiness(mockPrisma(tx) as never, args(), inspectOk);
+    expect(r.orderStatus).toBe('ready');
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(2); // aborted once (TOCTOU), committed on retry
   });
 });
 
@@ -315,7 +325,10 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
     expect(tx.bookReadinessManifest.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'passed', revision: 5 }) }));
     expect(tx.bookReadiness.upsert).toHaveBeenCalledWith(expect.objectContaining({ update: expect.objectContaining({ status: 'passed', currentManifestId: 'm1' }) }));
     expect(tx.deliveryOutbox.create).toHaveBeenCalledTimes(1); // enqueue inside the same tx
-    expect(tx.order.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'o1', inputVersion: 0 }, data: expect.objectContaining({ status: 'ready', packageStatus: 'done', deliveryHoldReason: null }) }));
+    // (delivery fence — Codex round-4) the `ready` transition is now the guarded raw ship CAS ($executeRaw), never
+    // the plain updateMany. The CAS WHERE (fence + marker + case guards) is proven in the real-PG harness.
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(tx.order.updateMany).not.toHaveBeenCalled();
     expect(tx.generationJob.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ packaged: true, status: 'done' }) }));
   });
 
@@ -462,13 +475,14 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
     expect(r.manifestStatus).toBe('passed');
   });
 
-  it('B4: aborts the commit when a writer bumped inputVersion (conditional write matches 0), then retries fresh', async () => {
+  it('B4: aborts the ship when a writer bumped inputVersion (ship CAS matches 0), then retries fresh', async () => {
     const tx = mockTx();
-    // The Order→ready write is `updateMany where inputVersion = evaluated`. A concurrent bump makes it match 0
-    // → the tx aborts as a TOCTOU drift; the next attempt finds it clear and commits.
-    tx.order.updateMany = vi.fn().mockResolvedValueOnce({ count: 0 }).mockResolvedValue({ count: 1 });
+    // The ready ship CAS ($executeRaw) binds inputVersion = evaluated. A concurrent bump makes it match 0; the
+    // distinguishing read shows a CHANGED inputVersion → genuine input drift → TOCTOU retry; the next attempt commits.
+    tx.$executeRaw = vi.fn().mockResolvedValueOnce(0).mockResolvedValue(1);
+    tx.order.findUnique = vi.fn().mockResolvedValueOnce(orderRowFull).mockResolvedValueOnce({ ...orderRowFull, inputVersion: 7 }).mockResolvedValue(orderRowFull);
     const r = await commitBaseBookReadiness(mockPrisma(tx) as never, args(), { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' });
-    expect(tx.order.updateMany).toHaveBeenCalledTimes(2); // attempt 1 aborted on count 0, attempt 2 committed
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(2); // attempt 1 aborted on count 0 (drift), attempt 2 committed
     expect(r.manifestStatus).toBe('passed');
     expect(r.enqueued).toBe(true);
   });
@@ -482,9 +496,10 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
     expect(r.orderStatus).toBe('ready');
     expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
     expect(tx.deliveryOutbox.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ dedupeKey: 'book-ready/o1/base-book/1', sendAttempted: false }), data: expect.objectContaining({ manifestId: 'm1', status: 'scheduled' }) }));
-    const orderData = ((tx.order.updateMany.mock.calls[0] as unknown[])[0] as { data: Record<string, unknown> }).data;
-    expect(orderData).toMatchObject({ status: 'ready' });
-    expect(orderData.fulfillmentVersion).toBeUndefined(); // delivery-intent stable → no roll persisted
+    // (delivery fence — Codex round-4) the ready transition is the raw ship CAS ($executeRaw); its SET touches only
+    // status/packageStatus/deliveryHoldReason — never fulfillmentVersion — so the delivery intent is inherently stable.
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(tx.order.updateMany).not.toHaveBeenCalled();
   });
 });
 

@@ -169,7 +169,10 @@ async function parkOrderForHardHoldQa(
   // hold = a safety regression). It is opened POST-COMMIT below, and the reconciler is the guaranteed repair.
   await prisma.order.updateMany({
     where: { id: orderId, status: { notIn: ['ready', 'partial'] } },
-    data: { status: 'needs_human_qa', deliveryHoldReason: rawReason },
+    // (delivery fence — Codex round-4 P0) Bump the shared fence ATOMICALLY with the safety/contract_world park.
+    // A readiness commit that read this order before the park binds the OLD fence; this increment makes its
+    // `ready` CAS match 0 rows → it aborts instead of clobbering this hold and shipping an unsafe book.
+    data: { status: 'needs_human_qa', deliveryHoldReason: rawReason, deliveryFenceVersion: { increment: 1 } },
   });
   // POST-COMMIT: reconcile the safety/contract_world review case from the committed Order state (a no-op if the
   // order was already delivered and the park matched no row). Best-effort in its own tx.

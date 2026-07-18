@@ -38,6 +38,8 @@ async function loadRoute(opts: {
   order: unknown;
   email?: ReturnType<typeof vi.fn>;
   orderUpdateMany?: ReturnType<typeof vi.fn>;
+  /** (delivery fence — Codex round-4) the flag-off release CAS is now a raw $executeRaw; this is its row count. */
+  releaseCount?: number;
   commit?: ReturnType<typeof vi.fn>;
   baseCase?: unknown;
   paymentCase?: unknown;
@@ -46,6 +48,7 @@ async function loadRoute(opts: {
 }) {
   const email = opts.email ?? vi.fn(async () => ({}));
   const orderUpdateMany = opts.orderUpdateMany ?? vi.fn(async () => ({ count: 1 }));
+  const releaseExec = vi.fn(async () => opts.releaseCount ?? 1); // the flag-off release CAS ($executeRaw) row count
   const postCommit = vi.fn(async () => {});
   const commit = opts.commit ?? vi.fn(async () => ({ enqueued: true, manifestStatus: 'passed', orderStatus: 'ready', reason: null, revision: 1 }));
   const lockedRow = opts.lockedRow ?? (opts.order as { status: string; deliveryHoldReason: string | null });
@@ -57,6 +60,7 @@ async function loadRoute(opts: {
   };
   const txClient = {
     $queryRaw: vi.fn(async () => [{ status: lockedRow.status, deliveryHoldReason: lockedRow.deliveryHoldReason }]),
+    $executeRaw: releaseExec,
     order: { updateMany: orderUpdateMany },
     humanQaReviewCase,
     operatorNotificationOutbox: { findFirst: vi.fn(async () => null), update: vi.fn() },
@@ -76,7 +80,7 @@ async function loadRoute(opts: {
     ReleasePreconditionError,
   }));
   const mod = await import('@/app/api/admin/anchor-hold-release/route');
-  return { POST: mod.POST, email, orderUpdateMany, postCommit, commit, caseUpdate: humanQaReviewCase.update };
+  return { POST: mod.POST, email, orderUpdateMany, releaseExec, postCommit, commit, caseUpdate: humanQaReviewCase.update };
 }
 
 // ── AUTHORIZATION: identical across both flag states — no path may depend on the flag for its safety ────────────
@@ -175,29 +179,37 @@ describe('anchor-hold-release DELIVERY (flag-OFF: direct send)', () => {
   beforeEach(() => { vi.resetModules(); process.env.GENERATION_SECRET = 'sek'; });
   afterEach(() => { vi.restoreAllMocks(); });
 
-  it('authorized release → status CAS to ready, anchor case CLOSED in-tx, direct email sent ONCE, no Outbox', async () => {
-    const { POST, email, orderUpdateMany, commit, caseUpdate, postCommit } = await loadRoute({
+  it('authorized release → release CAS ($executeRaw) to ready, anchor case CLOSED in-tx, direct email sent ONCE, no Outbox', async () => {
+    const { POST, email, releaseExec, commit, caseUpdate, postCommit } = await loadRoute({
       flagOn: false, order: heldOrder('anchor_low_confidence:soft_band'),
       baseCase: { id: 'c_anchor', status: 'open', kind: 'anchor' },
     });
     const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
     expect(res.status).toBe(200);
-    expect(orderUpdateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ status: 'needs_human_qa', deliveryHoldReason: 'anchor_low_confidence:soft_band' }),
-        data: expect.objectContaining({ status: 'ready', deliveryHoldReason: null }),
-      }),
-    );
+    // (delivery fence — Codex round-4 P0-2) the release is a raw CAS that itself rejects an active strong case; the
+    // exact SQL WHERE (marker + no payment fence + NOT EXISTS strong case) is proven in the real-PG harness.
+    expect(releaseExec).toHaveBeenCalledTimes(1);
     expect(caseUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'resolved' }) }));
     expect(email).toHaveBeenCalledTimes(1); // exactly once
     expect(commit).not.toHaveBeenCalled(); // never routes through the Manifest/Outbox on flag-off
     expect(postCommit).toHaveBeenCalledTimes(1);
   });
 
-  it('a concurrent caller that loses the status CAS (count 0) → 409, no send (exactly-once)', async () => {
+  it('a concurrent caller that loses the release CAS (0 rows) → 409, no send (exactly-once)', async () => {
     const { POST, email } = await loadRoute({
       flagOn: false, order: heldOrder('anchor_low_confidence:soft_band'),
-      orderUpdateMany: vi.fn(async () => ({ count: 0 })),
+      releaseCount: 0,
+    });
+    const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
+    expect(res.status).toBe(409);
+    expect(email).not.toHaveBeenCalled();
+  });
+
+  it('(delivery fence — Codex round-4 P0-2) release CAS returns 0 because a strong case is active → 409, no send', async () => {
+    // With an active safety case the raw CAS matches 0 rows even though the marker reads anchor (skip_weaker).
+    const { POST, email } = await loadRoute({
+      flagOn: false, order: heldOrder('anchor_low_confidence:soft_band'),
+      releaseCount: 0,
     });
     const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
     expect(res.status).toBe(409);

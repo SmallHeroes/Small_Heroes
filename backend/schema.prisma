@@ -237,6 +237,14 @@ model Order {
   // The readiness manifest records the evaluated value; Order→ready and the send-time CAS require it unchanged.
   inputVersion         Int      @default(0)
 
+  // (delivery fence — Codex round-4 P0) Monotonic SHARED delivery-authority token, orthogonal to inputVersion.
+  // EVERY hold write (safety/contract_world park, payment fence, readiness hard-hold) atomically increments it
+  // in the SAME write as the hold. The readiness commit reads it and binds the `ready` transition + Outbox enqueue
+  // to the observed value, so a hold landing at ANY point during a commit aborts the ship (0-row CAS) instead of
+  // clobbering the hold. Kept separate from inputVersion, which already drives readiness invalidation, receipt
+  // identity and the TOCTOU retry — bumping THAT on every park would fire all three side effects; this does not.
+  deliveryFenceVersion Int      @default(0)
+
   // WS0 BookVisualContract vNext (enforcement OFF). Additive. The contract is frozen before any paid image
   // (step 4) and its canonical hash is stamped here; QualityEvidence.contractHash is validated against it so a
   // row produced under a superseded contract is treated as stale. `manualReviewRequired` backs the FALLBACK

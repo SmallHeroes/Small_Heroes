@@ -129,7 +129,8 @@ export async function finalizePackageDelivery(
     await prisma.$transaction(async (tx) => {
       await tx.order.update({
         where: { id: args.order.id },
-        data: { status: 'needs_human_qa', packageStatus: 'done', deliveryHoldReason: args.safetyGate.reason },
+        // (delivery fence — Codex round-4 P0) bump the shared fence atomically with the safety hard-hold.
+        data: { status: 'needs_human_qa', packageStatus: 'done', deliveryHoldReason: args.safetyGate.reason, deliveryFenceVersion: { increment: 1 } },
       });
       await tx.generationJob.update({
         where: { orderId: args.order.id },
@@ -193,6 +194,10 @@ export async function finalizePackageDelivery(
       status: legacyStatus,
       packageStatus: 'done',
       deliveryHoldReason: legacyHoldReason,
+      // (delivery fence — Codex round-4 P0) bump the shared fence ONLY when this legacy path actually parks a hold
+      // (never on a soft-deliver `ready` outcome). `undefined` = Prisma no-op (not a spread — keeps the delivery-input
+      // writer analyzer able to read this write's fields).
+      deliveryFenceVersion: legacyStatus === 'needs_human_qa' ? { increment: 1 } : undefined,
     },
   });
   await prisma.generationJob.update({

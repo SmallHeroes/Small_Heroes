@@ -132,7 +132,8 @@ export async function POST(req: NextRequest) {
     if (couponFence) {
       await tx.order.update({
         where: { id: fresh.id },
-        data: { status: 'needs_human_qa', manualReviewRequired: true, deliveryHoldReason: couponFence },
+        // (delivery fence — Codex round-4 P0) bump the shared fence atomically with the payment-fence hold.
+        data: { status: 'needs_human_qa', manualReviewRequired: true, deliveryHoldReason: couponFence, deliveryFenceVersion: { increment: 1 } },
       });
       // (Human-QA Slice 1, re-gate P0-1) The payment_integrity case is written POST-COMMIT, not here — a
       // case-write rejection must never roll back this money transaction.

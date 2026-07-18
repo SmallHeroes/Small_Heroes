@@ -8,7 +8,8 @@
  * readiness pointer, Outbox enqueue, Order.ready, GenerationJob done — commits in ONE transaction; the
  * email is sent later by the Outbox worker (so `ready` never depends on the mail provider being up).
  */
-import type { Prisma, PrismaClient, DeliveryOutbox } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import type { PrismaClient, DeliveryOutbox } from '@prisma/client';
 import { createHash } from 'crypto';
 import {
   evaluateBaseBookIntegrity,
@@ -304,6 +305,9 @@ export interface OrderTruth {
   fulfillmentVersion: number;
   /** Optimistic-concurrency token (B4): commit + send are conditional on this being unchanged. */
   inputVersion: number;
+  /** (delivery fence — Codex round-4 P0) Monotonic SHARED delivery-authority token. Every hold write bumps it; the
+   *  `ready` transition binds to the observed value so a hold landing during the commit aborts the ship. */
+  deliveryFenceVersion: number;
   expectedPageCount: number | null;
   storySourceHash: string | null;
   selectionFilename: string | null;
@@ -362,6 +366,28 @@ export class ReleasePreconditionError extends Error {
     this.expectedHoldReason = expectedHoldReason;
     this.actual = actual;
   }
+}
+
+/**
+ * (delivery fence — Codex round-4 P0) Thrown by runReadinessTxn's ready-CAS when the SHARED delivery fence detects
+ * a competing hold at ship time — the fence moved, a terminal marker / payment fence is present, or an active
+ * strong Human-QA case exists — on a NORMAL (non-requireHold) commit. It rolls back the whole readiness tx (no
+ * `ready`, no Outbox row survives). commitBaseBookReadiness catches it and returns a HELD CommitResult (enqueued
+ * false, not shipped) — the order stays held; the reconciler/recovery owns it. Never retried into a ship.
+ */
+export class DeliveryFenceError extends Error {
+  readonly actual: { status: string; deliveryHoldReason: string | null; manualReviewRequired: boolean; deliveryFenceVersion: number } | null;
+  constructor(
+    public readonly orderId: string,
+    actual: { status: string; deliveryHoldReason: string | null; manualReviewRequired: boolean; deliveryFenceVersion: number } | null,
+  ) {
+    super('readiness_delivery_fence_blocked');
+    this.name = 'DeliveryFenceError';
+    this.actual = actual;
+  }
+}
+function isDeliveryFenceBlocked(e: unknown): e is DeliveryFenceError {
+  return e instanceof DeliveryFenceError || (!!e && typeof e === 'object' && (e as { name?: string }).name === 'DeliveryFenceError');
 }
 export interface CommitDeps {
   inspect?: (url: string | null | undefined) => Promise<AssetInspection>;
@@ -509,9 +535,15 @@ export function buildReadinessCommitReceiptBinding(
   softDeliver: boolean = canUseQaSoftDeliver(),
 ): { operationKey: string; payloadHash: string; plan: ReadinessDeliveryPlan } {
   const anchorDisposition = `${args.anchorAllowsDelivery ? 1 : 0}:${args.anchorOrderStatus}:${args.anchorReason ?? ''}`;
+  // (delivery fence — Codex round-4 P1) The authorized-release CAPABILITY (requireHold + its exact marker) is part
+  // of the receipt IDENTITY. Without it, a GUARDED anchor-release call (requireHold set) shares an operationKey with
+  // an earlier UNGUARDED commit of the same payload → the fence replays the recorded result at atomic-operation.ts's
+  // short-circuit and the precondition CAS never runs. Folding it into the key (and, via the key, the payloadHash)
+  // means a guarded call can never be satisfied by an unguarded receipt.
+  const releaseCapability = args.requireHold ? `rh:${args.requireHold.deliveryHoldReason}` : 'norh';
   const plan = resolveReadinessDeliveryPlan(args, decision, softDeliver);
   const operationKey =
-    `readiness_commit:${args.orderId}:${BASE_BOOK_SCOPE}:${inputVersion}:${decision.inputsHash}:${anchorDisposition}`;
+    `readiness_commit:${args.orderId}:${BASE_BOOK_SCOPE}:${inputVersion}:${decision.inputsHash}:${anchorDisposition}:${releaseCapability}`;
   const mutationPayload = buildReadinessCommitMutationPayload(
     args,
     decision,
@@ -542,13 +574,16 @@ function isToctou(e: unknown): boolean {
  */
 function fingerprintOf(f: {
   expectedPageCount: number | null; storySourceHash: string | null; selectionFilename: string | null; frozenProductVersion: string | null;
-  fulfillmentVersion: number; inputVersion: number;
+  fulfillmentVersion: number; inputVersion: number; deliveryFenceVersion: number;
   customerEmail: string; customerName: string | null; childName: string; readUrl: string | null; pdfUrl: string | null; firstAudioUrl: string | null;
   cover: string | null; pages: Array<[number, string, string | null]>;
   quality: string; visualContractHash: string | null;
 }): string {
   return createHash('sha256').update(JSON.stringify({
-    frozen: [f.expectedPageCount, f.storySourceHash, f.selectionFilename, f.frozenProductVersion, f.fulfillmentVersion, f.inputVersion],
+    // (delivery fence — Codex round-4 P0) deliveryFenceVersion joins the fingerprint: a hold write that bumps it
+    // between the out-of-tx eval and the in-tx commit drifts this hash → early TOCTOU abort (before the manifest),
+    // in addition to the final ready-CAS fence binding. Defense-in-depth against the READ COMMITTED interleave.
+    frozen: [f.expectedPageCount, f.storySourceHash, f.selectionFilename, f.frozenProductVersion, f.fulfillmentVersion, f.inputVersion, f.deliveryFenceVersion],
     payload: [f.customerEmail, f.customerName, f.childName, f.readUrl, f.pdfUrl, f.firstAudioUrl],
     cover: f.cover, pages: f.pages,
     // (#7-a) Quality evidence participates in the TOCTOU fingerprint: an evidence mutation between eval and
@@ -561,7 +596,7 @@ function fingerprintOf(f: {
 }
 
 const COMMIT_SELECT = {
-  id: true, fulfillmentVersion: true, inputVersion: true, expectedPageCount: true, storySourceHash: true, selectionFilename: true, frozenProductVersion: true,
+  id: true, fulfillmentVersion: true, inputVersion: true, deliveryFenceVersion: true, expectedPageCount: true, storySourceHash: true, selectionFilename: true, frozenProductVersion: true,
   customerEmail: true, customerName: true, childName: true, visualContractHash: true,
   book: { select: { coverImageUrl: true, readUrl: true, pdfUrl: true, pages: { orderBy: { pageNumber: 'asc' as const }, select: { pageNumber: true, text: true, audioUrl: true, imageAsset: { select: { url: true, presentationUrl: true } } } } } },
 } as const;
@@ -572,7 +607,7 @@ async function loadCommitInputs(db: PrismaClient | Tx, orderId: string): Promise
   if (!o || !o.book) return null;
   const pages = o.book.pages.map((p) => ({ pageNumber: p.pageNumber, imageUrl: p.imageAsset?.presentationUrl ?? p.imageAsset?.url ?? null, text: p.text }));
   const firstAudioUrl = o.book.pages.find((p) => p.audioUrl?.trim())?.audioUrl ?? null;
-  const order: OrderTruth = { id: o.id, fulfillmentVersion: o.fulfillmentVersion, inputVersion: o.inputVersion, expectedPageCount: o.expectedPageCount, storySourceHash: o.storySourceHash, selectionFilename: o.selectionFilename, frozenProductVersion: o.frozenProductVersion, customerEmail: o.customerEmail, customerName: o.customerName, childName: o.childName, visualContractHash: o.visualContractHash };
+  const order: OrderTruth = { id: o.id, fulfillmentVersion: o.fulfillmentVersion, inputVersion: o.inputVersion, deliveryFenceVersion: o.deliveryFenceVersion, expectedPageCount: o.expectedPageCount, storySourceHash: o.storySourceHash, selectionFilename: o.selectionFilename, frozenProductVersion: o.frozenProductVersion, customerEmail: o.customerEmail, customerName: o.customerName, childName: o.childName, visualContractHash: o.visualContractHash };
   const book: BookData = { coverImageUrl: o.book.coverImageUrl, readUrl: o.book.readUrl, pdfUrl: o.book.pdfUrl, firstAudioUrl, pages };
   const quality = await loadQualityEvidence(db, orderId);
   const fingerprint = fingerprintOf({
@@ -839,44 +874,57 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
     deliveryHoldReason = plan.deliveryHoldReason;
   }
 
-  // (4) Order write is CONDITIONAL on inputVersion being unchanged (B4 optimistic concurrency): if any writer
-  // bumped Order.inputVersion since the evaluation, this matches 0 rows → abort the whole tx as a TOCTOU drift
-  // (reload FRESH + re-evaluate). Stronger than the early fingerprint read: it makes the final write itself atomic.
-  const orderData: Prisma.OrderUpdateManyMutationInput = { status: orderStatus as never, packageStatus: 'done', deliveryHoldReason };
-  // (re-gate round-3 P0) When an AUTHORIZED-RELEASE precondition is supplied (flag-ON anchor-release ONLY), the CAS
-  // ALSO requires the row to STILL be held at exactly the authorized marker with no payment fence. This makes the
-  // hold-guard atomic with the flip: a safety/payment park that landed after authorization (neither bumps
-  // inputVersion) changed `deliveryHoldReason`/`manualReviewRequired`, so the WHERE matches 0 rows here instead of
-  // clobbering an unsafe book to `ready`. Callers that OMIT `requireHold` get the byte-identical `id+inputVersion` CAS.
-  const orderWhere = args.requireHold
-    ? ({
-        id: order.id,
-        inputVersion: order.inputVersion,
-        status: 'needs_human_qa',
-        deliveryHoldReason: args.requireHold.deliveryHoldReason,
-        manualReviewRequired: false,
-      } as Prisma.OrderWhereInput)
-    : ({ id: order.id, inputVersion: order.inputVersion } as Prisma.OrderWhereInput);
-  const written = await tx.order.updateMany({ where: orderWhere, data: orderData });
-  if (written.count === 0) {
-    // Distinguish an inputVersion TOCTOU (→ retry) from an authorized-release precondition failure (→ abort, no
-    // retry, typed 409). Only relevant when requireHold is set; the plain path keeps the exact prior TOCTOU throw.
-    if (args.requireHold) {
+  // (4) Final Order write — SHARED DELIVERY FENCE (Codex round-4 P0). The write is polymorphic on the outcome:
+  //   • SHIP (orderStatus === 'ready', incl. soft-deliver): a single atomic CAS that flips to `ready` ONLY IF the
+  //     order still carries NO competing hold — the shared fence is unchanged since load, no payment fence, no
+  //     terminal (safety_/contract_world_) marker, and no active strong Human-QA case. Any hold that landed at ANY
+  //     point during this commit moved the fence (every hold write bumps it) → 0 rows → abort, never clobber+ship.
+  //     Delivery authority is thus SHARED: no caller opts in; every hold write participates via the fence.
+  //   • HOLD/FAIL (readiness parks): the standard inputVersion CAS, and it BUMPS the fence (a hold write).
+  if (orderStatus === 'ready') {
+    // (delivery fence) `requireHold` (flag-ON anchor-release ONLY) is a precise ADMIN capability layered on top of
+    // the shared guard: it additionally pins status=needs_human_qa + the EXACT authorized marker.
+    const requireHoldClause = args.requireHold
+      ? Prisma.sql` AND "status" = 'needs_human_qa' AND "deliveryHoldReason" = ${args.requireHold.deliveryHoldReason}`
+      : Prisma.empty;
+    const shipped = await tx.$executeRaw`
+      UPDATE "Order"
+         SET "status" = 'ready'::"OrderStatus", "packageStatus" = 'done'::"GenerationStatus", "deliveryHoldReason" = ${deliveryHoldReason}
+       WHERE "id" = ${order.id}
+         AND "inputVersion" = ${order.inputVersion}
+         AND "deliveryFenceVersion" = ${order.deliveryFenceVersion}
+         AND "manualReviewRequired" = false
+         AND ("deliveryHoldReason" IS NULL
+              OR ("deliveryHoldReason" NOT LIKE 'safety_hold:%' AND "deliveryHoldReason" NOT LIKE 'contract_world_hold:%'))
+         AND NOT EXISTS (
+           SELECT 1 FROM "HumanQaReviewCase" c
+            WHERE c."activeKey" IN (${order.id + ':base_book'}, ${order.id + ':payment'})
+              AND c."status" = 'open'
+              AND c."kind" IN ('safety', 'contract_world', 'payment_integrity')
+         )${requireHoldClause}`;
+    if (shipped === 0) {
+      // Distinguish a genuine inputVersion drift (→ retry FRESH) from a competing hold (→ NEVER retry into a ship).
       const cur = await tx.order.findUnique({
         where: { id: order.id },
-        select: { inputVersion: true, status: true, deliveryHoldReason: true, manualReviewRequired: true },
+        select: { inputVersion: true, deliveryFenceVersion: true, status: true, deliveryHoldReason: true, manualReviewRequired: true },
       });
-      // inputVersion unchanged but 0 rows ⇒ the hold precondition itself no longer holds (a stronger hold landed in
-      // the cross-tx window, or the order was already released) → NEVER retry; the caller returns a 409 and ships nothing.
-      if (cur && cur.inputVersion === order.inputVersion) {
-        throw new ReleasePreconditionError(args.requireHold.deliveryHoldReason, {
-          status: cur.status,
-          deliveryHoldReason: cur.deliveryHoldReason,
-          manualReviewRequired: cur.manualReviewRequired,
-        });
+      if (cur && cur.inputVersion !== order.inputVersion) throw new Error(TOCTOU); // inputs changed → reload + re-eval
+      const actual = cur
+        ? { status: cur.status, deliveryHoldReason: cur.deliveryHoldReason, manualReviewRequired: cur.manualReviewRequired, deliveryFenceVersion: cur.deliveryFenceVersion }
+        : null;
+      // A competing hold blocked the ship. requireHold (admin) → typed 409; normal path → held CommitResult (below).
+      if (args.requireHold) {
+        throw new ReleasePreconditionError(args.requireHold.deliveryHoldReason, actual);
       }
+      throw new DeliveryFenceError(order.id, actual);
     }
-    throw new Error(TOCTOU);
+  } else {
+    // HOLD / FAIL outcome — readiness itself parks. Standard inputVersion CAS; BUMP the shared fence (a hold write).
+    const written = await tx.order.updateMany({
+      where: { id: order.id, inputVersion: order.inputVersion },
+      data: { status: orderStatus as never, packageStatus: 'done', deliveryHoldReason, deliveryFenceVersion: { increment: 1 } },
+    });
+    if (written.count === 0) throw new Error(TOCTOU);
   }
   // (Human-QA Slice 1, re-gate P0-1) The review-case lifecycle is NOT written here. A `recordHumanQaHoldInTx`
   // read/update/throw inside THIS readiness-commit tx could roll back the hold itself (an unheld order = a safety
@@ -942,6 +990,25 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
       if ((isToctou(e) || isRevisionCollision(e)) && attempt < 5) {
         log.warn('Readiness commit retry', { orderId: args.orderId, attempt, reason: isToctou(e) ? 'toctou_drift' : 'revision_collision' });
         continue; // reload FRESH + re-evaluate
+      }
+      // (delivery fence — Codex round-4 P0) A competing hold blocked the SHIP on a NORMAL commit; the tx rolled back
+      // (no `ready`, no Outbox row). Do NOT retry into a ship — return a HELD, not-shipped CommitResult. The order
+      // stays held by whatever landed; the reconciler/recovery owns it. (A requireHold admin call is NOT caught here
+      // — it surfaces ReleasePreconditionError to the anchor-release route, which maps it to a 409.)
+      if (isDeliveryFenceBlocked(e)) {
+        const held = e.actual;
+        log.warn('Readiness ship aborted — competing hold landed (delivery fence)', {
+          orderId: args.orderId,
+          fenceObserved: loaded.order.deliveryFenceVersion,
+          actual: held,
+        });
+        return {
+          manifestStatus: 'blocked',
+          enqueued: false,
+          orderStatus: held?.status ?? 'needs_human_qa',
+          reason: held?.deliveryHoldReason ?? 'delivery_fence_blocked',
+          revision: 0,
+        };
       }
       throw e;
     }

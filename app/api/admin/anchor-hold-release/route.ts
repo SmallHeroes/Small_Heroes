@@ -152,12 +152,25 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       // rejected any stronger PRE-EXISTING hold, so a stale re-park (not a hole) is the only thing readiness can do.
       return { ok: true };
     }
-    // flag-OFF: authorize AND release atomically — status+marker CAS + close the anchor case — then direct-send.
-    const released = await tx.order.updateMany({
-      where: { id: order.id, status: 'needs_human_qa', deliveryHoldReason: holdReason },
-      data: { status: 'ready', deliveryHoldReason: null },
-    });
-    if (released.count === 0) return { ok: false, status: 409, error: 'Release lost a concurrency race' };
+    // flag-OFF: authorize AND release atomically — then direct-send. (delivery fence — Codex round-4 P0-2) The CAS
+    // ITSELF rejects an active strong Human-QA case (not just the findUnique guard above): status+marker + no
+    // payment fence + NOT EXISTS an open safety/contract_world/payment_integrity case, all in one atomic write. This
+    // closes the `skip_weaker` combination where a normal path rewrote a safety_hold marker back to anchor while the
+    // safety CASE stayed active — the marker matches but the active strong case blocks the release.
+    const released = await tx.$executeRaw`
+      UPDATE "Order"
+         SET "status" = 'ready'::"OrderStatus", "deliveryHoldReason" = NULL
+       WHERE "id" = ${order.id}
+         AND "status" = 'needs_human_qa'
+         AND "deliveryHoldReason" = ${holdReason}
+         AND "manualReviewRequired" = false
+         AND NOT EXISTS (
+           SELECT 1 FROM "HumanQaReviewCase" c
+            WHERE c."activeKey" IN (${order.id + ':base_book'}, ${order.id + ':payment'})
+              AND c."status" = 'open'
+              AND c."kind" IN ('safety', 'contract_world', 'payment_integrity')
+         )`;
+    if (released === 0) return { ok: false, status: 409, error: 'Release lost a concurrency race or a stronger hold is active' };
     // Close the active ANCHOR case + suppress its unsent operator notification in the SAME release tx.
     await resolveHumanQaCaseOnReleaseInTx(tx, {
       orderId: order.id,
