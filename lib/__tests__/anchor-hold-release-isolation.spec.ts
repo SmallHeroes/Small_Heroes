@@ -1,8 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { OutboxReconciliationError } from '@/lib/generation-chunked/delivery-outbox';
 
-/** B6: under the readiness flag, the anchor break-glass releases ONLY anchor holds and routes through the
- * Outbox (never a direct send / Manifest bypass). Flag-off behavior is unchanged. */
+/**
+ * (Human-QA Slice 1, re-gate P0-A) The anchor break-glass release now runs ONE flag-INDEPENDENT authorization
+ * routine — lock the Order (FOR UPDATE) + require the exact unchanged anchor marker + reject any active
+ * non-anchor base / any payment review case + release via a status+marker CAS + close the anchor case + post-commit
+ * sync — whether READINESS_MANIFEST_ENABLED is on or off. Round 2 had hardened ONLY the readiness-OFF path; with the
+ * flag ON the handler called commitBaseBookReadiness and returned, skipping every guard. These tests MIRROR the full
+ * adversarial matrix across BOTH flag states with IDENTICAL assertions — that is the proof no path depends on the
+ * flag for its safety.
+ */
 
 const SILENT = { createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }) };
 const req = (body: unknown) => ({ json: async () => body }) as never;
@@ -13,9 +19,7 @@ const heldOrder = (reason: string) => ({
 });
 
 async function loadRoute(opts: {
-  flagOn: boolean;
   order: unknown;
-  commit?: ReturnType<typeof vi.fn>;
   email?: ReturnType<typeof vi.fn>;
   orderUpdateMany?: ReturnType<typeof vi.fn>;
   baseCase?: unknown;
@@ -23,13 +27,13 @@ async function loadRoute(opts: {
   /** Overrides the row tx.$queryRaw returns under lock (defaults to echoing opts.order) — for marker-drift tests. */
   lockedRow?: { status: string; deliveryHoldReason: string | null };
 }) {
-  const commit = opts.commit ?? vi.fn(async () => ({ enqueued: true, manifestStatus: 'passed', orderStatus: 'ready', reason: null, revision: 1 }));
   const email = opts.email ?? vi.fn(async () => ({}));
   const orderUpdateMany = opts.orderUpdateMany ?? vi.fn(async () => ({ count: 1 }));
+  const postCommit = vi.fn(async () => {});
   const lockedRow = opts.lockedRow ?? (opts.order as { status: string; deliveryHoldReason: string | null });
-  // (Human-QA Slice 1, re-gate P0-2) the flag-off release now LOCKS + re-reads the Order (tx.$queryRaw FOR UPDATE),
-  // guards on the active base/payment review cases, and releases via a status+marker CAS (tx.order.updateMany).
-  // $queryRaw echoes the fixture's committed row; findUnique for both scopes' activeKeys resolves the case guards.
+  // The release LOCKS + re-reads the Order (tx.$queryRaw FOR UPDATE), guards on the active base/payment review
+  // cases, and releases via a status+marker CAS (tx.order.updateMany). $queryRaw echoes the committed row;
+  // findUnique for both scopes' activeKeys resolves the case guards AND the in-tx anchor-case close.
   const humanQaReviewCase = {
     findUnique: vi.fn(async ({ where }: { where: { activeKey: string } }) =>
       where.activeKey.endsWith(':payment') ? (opts.paymentCase ?? null) : (opts.baseCase ?? null),
@@ -50,73 +54,62 @@ async function loadRoute(opts: {
   }));
   vi.doMock('@/backend/lib/email', () => ({ sendBookReadyEmail: email }));
   vi.doMock('@/lib/logger', () => SILENT);
-  vi.doMock('@/lib/generation-pipeline/readiness-manifest', () => ({ isReadinessManifestEnabled: () => opts.flagOn, commitBaseBookReadiness: commit }));
+  vi.doMock('@/lib/human-qa/sync-hold-case', () => ({ syncHumanQaHoldCasePostCommit: postCommit }));
   const mod = await import('@/app/api/admin/anchor-hold-release/route');
-  return { POST: mod.POST, commit, email, orderUpdateMany };
+  return { POST: mod.POST, email, orderUpdateMany, postCommit, caseUpdate: humanQaReviewCase.update };
 }
 
-describe('anchor-hold-release isolation (B6)', () => {
-  beforeEach(() => { vi.resetModules(); process.env.GENERATION_SECRET = 'sek'; });
-  afterEach(() => { vi.restoreAllMocks(); });
-
-  it('flag-on: refuses to release an integrity hold (409) — no commit, no email', async () => {
-    const { POST, commit, email } = await loadRoute({ flagOn: true, order: heldOrder('base_book_integrity:cover_invalid') });
-    const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
-    expect(res.status).toBe(409);
-    expect(commit).not.toHaveBeenCalled();
-    expect(email).not.toHaveBeenCalled();
+// The route no longer READS the flag — so setting it must NOT change behavior. Running the whole matrix under both
+// values is the flag-independence proof.
+describe.each([
+  { label: 'READINESS_MANIFEST_ENABLED=true', flag: 'true' as string | undefined },
+  { label: 'READINESS_MANIFEST_ENABLED unset', flag: undefined as string | undefined },
+])('anchor-hold-release — flag-independent authorization ($label)', ({ flag }) => {
+  beforeEach(() => {
+    vi.resetModules();
+    process.env.GENERATION_SECRET = 'sek';
+    if (flag === undefined) delete process.env.READINESS_MANIFEST_ENABLED;
+    else process.env.READINESS_MANIFEST_ENABLED = flag;
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete process.env.READINESS_MANIFEST_ENABLED;
   });
 
-  it('flag-on: refuses to release ANY non-anchor hold (409) — break-glass is an anchor-only allowlist', async () => {
-    // (#3h #6) `base_book_readiness_stale` is no longer produced (the recheck/suppress path was removed); use a
-    // generic non-anchor reason to pin the real contract: only `anchor_*` holds are releasable here.
-    const { POST, commit } = await loadRoute({ flagOn: true, order: heldOrder('manual_finance_hold') });
-    const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
-    expect(res.status).toBe(409);
-    expect(commit).not.toHaveBeenCalled();
-  });
-
-  it('#3h-D: flag-on, an anchor hold whose delivery needs reconciliation (commit throws OutboxReconciliationError) → typed 409, not a 500', async () => {
-    const commit = vi.fn(async () => { throw new OutboxReconciliationError('book-ready/o1/base-book/1', 'existing_status:sent'); });
-    const { POST, email } = await loadRoute({ flagOn: true, order: heldOrder('anchor_low_confidence:soft_band'), commit });
-    const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
-    expect(res.status).toBe(409);
-    expect(email).not.toHaveBeenCalled();
-  });
-
-  it('#3h-D: flag-on, a NON-reconciliation error from commit still propagates (not swallowed as 409)', async () => {
-    const commit = vi.fn(async () => { throw new Error('readiness_inputs_missing'); });
-    const { POST } = await loadRoute({ flagOn: true, order: heldOrder('anchor_low_confidence:soft_band'), commit });
-    await expect(POST(req({ secret: 'sek', orderId: 'o1' }))).rejects.toThrow(/readiness_inputs_missing/);
-  });
-
-  it('flag-on: an anchor hold routes through readiness/Outbox (no direct send)', async () => {
-    const { POST, commit, email } = await loadRoute({ flagOn: true, order: heldOrder('anchor_low_confidence:soft_band') });
+  it('legitimate anchor release → 200 released, email sent, anchor case CLOSED, post-commit sync run', async () => {
+    const { POST, email, orderUpdateMany, postCommit, caseUpdate } = await loadRoute({
+      order: heldOrder('anchor_low_confidence:soft_band'),
+      baseCase: { id: 'c_anchor', status: 'open', kind: 'anchor' },
+    });
     const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
     expect(res.status).toBe(200);
-    expect(commit).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ orderId: 'o1', anchorAllowsDelivery: true }));
-    expect(email).not.toHaveBeenCalled(); // routed through the Outbox, not a direct send
-  });
-
-  it('flag-off: unchanged direct-send behavior', async () => {
-    const { POST, commit, email, orderUpdateMany } = await loadRoute({ flagOn: false, order: heldOrder('anchor_low_confidence:soft_band') });
-    const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
-    expect(res.status).toBe(200);
-    expect(commit).not.toHaveBeenCalled();
-    // Released via the status+marker CAS (updateMany), not a bare update.
+    // Released via the status+marker CAS (not a bare update).
     expect(orderUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ status: 'needs_human_qa', deliveryHoldReason: 'anchor_low_confidence:soft_band' }),
         data: expect.objectContaining({ status: 'ready', deliveryHoldReason: null }),
       }),
     );
+    // Case CLOSED in the same tx (resolveHumanQaCaseOnReleaseInTx → update status:resolved).
+    expect(caseUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'resolved' }) }));
     expect(email).toHaveBeenCalledTimes(1);
+    expect(postCommit).toHaveBeenCalledTimes(1); // belt-and-suspenders case sync
   });
 
-  it('(re-gate P0-2) flag-off: REFUSES to release when an active SAFETY case is present though the marker says anchor (409, no CAS, no email)', async () => {
-    // skip_weaker leaves a safety case open while the marker was rewritten to anchor — the case guard must catch it.
+  it('stronger hold mid-flight (marker drifted to safety under lock) → 409, no release, no email', async () => {
+    const { POST, email, orderUpdateMany, postCommit } = await loadRoute({
+      order: heldOrder('anchor_low_confidence:soft_band'),
+      lockedRow: { status: 'needs_human_qa', deliveryHoldReason: 'safety_hold:hazard:page:2' },
+    });
+    const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
+    expect(res.status).toBe(409);
+    expect(orderUpdateMany).not.toHaveBeenCalled();
+    expect(email).not.toHaveBeenCalled();
+    expect(postCommit).not.toHaveBeenCalled();
+  });
+
+  it('safety case active while the marker reads anchor (skip_weaker) → 409, no release', async () => {
     const { POST, email, orderUpdateMany } = await loadRoute({
-      flagOn: false,
       order: heldOrder('anchor_low_confidence:soft_band'),
       baseCase: { id: 'c_safety', status: 'open', kind: 'safety' },
     });
@@ -126,9 +119,8 @@ describe('anchor-hold-release isolation (B6)', () => {
     expect(email).not.toHaveBeenCalled();
   });
 
-  it('(re-gate P0-2) flag-off: REFUSES when an active PAYMENT_INTEGRITY case is present (409, no release)', async () => {
+  it('active PAYMENT_INTEGRITY case → 409, no release', async () => {
     const { POST, email, orderUpdateMany } = await loadRoute({
-      flagOn: false,
       order: heldOrder('anchor_low_confidence:soft_band'),
       paymentCase: { id: 'c_pay', status: 'open', kind: 'payment_integrity' },
     });
@@ -138,23 +130,32 @@ describe('anchor-hold-release isolation (B6)', () => {
     expect(email).not.toHaveBeenCalled();
   });
 
-  it('(re-gate P0-2) flag-off: REFUSES when the marker changed under lock to a stronger hold (409, no release)', async () => {
-    // The pre-tx read saw an anchor marker; under FOR UPDATE the committed marker is now a safety hold — the
-    // marker CAS must catch the drift and refuse (never release / send).
-    const { POST, email, orderUpdateMany } = await loadRoute({
-      flagOn: false,
-      order: heldOrder('anchor_low_confidence:soft_band'),
-      lockedRow: { status: 'needs_human_qa', deliveryHoldReason: 'safety_hold:hazard:page:2' },
-    });
+  it('a safety_hold marker → 409 (break-glass is an anchor-only allowlist)', async () => {
+    const { POST, email, orderUpdateMany } = await loadRoute({ order: heldOrder('safety_hold:hazard:page:2:child_on_railing') });
     const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
     expect(res.status).toBe(409);
     expect(orderUpdateMany).not.toHaveBeenCalled();
     expect(email).not.toHaveBeenCalled();
   });
 
-  it('(re-gate P0-2) flag-off: idempotent — a concurrent release seen under lock (status=ready) is a no-op, no re-send', async () => {
+  it('a contract_world_hold marker → 409 (anchor-only allowlist)', async () => {
+    const { POST, email, orderUpdateMany } = await loadRoute({ order: heldOrder('contract_world_hold:quality_failed:page:3') });
+    const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
+    expect(res.status).toBe(409);
+    expect(orderUpdateMany).not.toHaveBeenCalled();
+    expect(email).not.toHaveBeenCalled();
+  });
+
+  it('a base_book_integrity marker → 409 (not releasable via the anchor endpoint)', async () => {
+    const { POST, email, orderUpdateMany } = await loadRoute({ order: heldOrder('base_book_integrity:cover_invalid') });
+    const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
+    expect(res.status).toBe(409);
+    expect(orderUpdateMany).not.toHaveBeenCalled();
+    expect(email).not.toHaveBeenCalled();
+  });
+
+  it('idempotent — a concurrent release seen under lock (status=ready) → no-op, no re-send', async () => {
     const { POST, email, orderUpdateMany } = await loadRoute({
-      flagOn: false,
       order: heldOrder('anchor_low_confidence:soft_band'),
       lockedRow: { status: 'ready', deliveryHoldReason: null },
     });
@@ -164,26 +165,10 @@ describe('anchor-hold-release isolation (B6)', () => {
     expect(email).not.toHaveBeenCalled();
   });
 
-  it('(Stage 1 safety FIX) flag-OFF (prod): REFUSES to release a safety_hold order — never force-ships unsafe assets', async () => {
-    const { POST, email, orderUpdateMany } = await loadRoute({ flagOn: false, order: heldOrder('safety_hold:hazard:page:2:child_on_railing') });
-    const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
-    expect(res.status).toBe(409);
-    expect(orderUpdateMany).not.toHaveBeenCalled(); // never flips a safety-parked book to ready
-    expect(email).not.toHaveBeenCalled();
-  });
-
-  it('(Stage 1 safety FIX) flag-OFF: REFUSES a contract_world_hold order too (anchor-only allowlist on both paths)', async () => {
-    const { POST, email, orderUpdateMany } = await loadRoute({ flagOn: false, order: heldOrder('contract_world_hold:quality_failed:page:3') });
-    const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
-    expect(res.status).toBe(409);
-    expect(orderUpdateMany).not.toHaveBeenCalled();
-    expect(email).not.toHaveBeenCalled();
-  });
-
   it('rejects a bad secret (401)', async () => {
-    const { POST, commit } = await loadRoute({ flagOn: true, order: heldOrder('anchor_low_confidence:soft_band') });
+    const { POST, orderUpdateMany } = await loadRoute({ order: heldOrder('anchor_low_confidence:soft_band') });
     const res = await POST(req({ secret: 'nope', orderId: 'o1' }));
     expect(res.status).toBe(401);
-    expect(commit).not.toHaveBeenCalled();
+    expect(orderUpdateMany).not.toHaveBeenCalled();
   });
 });

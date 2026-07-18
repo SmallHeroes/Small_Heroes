@@ -22,9 +22,8 @@ import { prisma } from '@/lib/prisma';
 import { sendBookReadyEmail } from '@/backend/lib/email';
 import { ROUTES, listenUrlFromReadUrl } from '@/lib/routes';
 import { createLogger } from '@/lib/logger';
-import { isReadinessManifestEnabled, commitBaseBookReadiness } from '@/lib/generation-pipeline/readiness-manifest';
 import { resolveHumanQaCaseOnReleaseInTx } from '@/lib/human-qa/record-hold';
-import { OutboxReconciliationError } from '@/lib/generation-chunked/delivery-outbox';
+import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 
 const log = createLogger({ subsystem: 'anchor-hold', route: '/api/admin/anchor-hold-release' });
 
@@ -91,31 +90,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: `Not releasable via anchor endpoint (reason=${holdReason || 'none'})` }, { status: 409 });
   }
 
-  // B6: under the readiness flag this break-glass routes through the readiness path (re-evaluate + Outbox enqueue)
-  // instead of a direct send — so a stale book can never be force-shipped past the Manifest.
-  if (isReadinessManifestEnabled()) {
-    try {
-      const result = await commitBaseBookReadiness(prisma, { orderId: order.id, anchorAllowsDelivery: true, anchorOrderStatus: 'ready', anchorReason: null });
-      log.info('Anchor hold released via readiness/Outbox path', { orderId, manifestStatus: result.manifestStatus, enqueued: result.enqueued });
-      return NextResponse.json({ released: result.enqueued, viaOutbox: true, manifestStatus: result.manifestStatus, orderStatus: result.orderStatus, reason: result.reason });
-    } catch (e) {
-      // (#3h-D) A delivery already in flight / delivered / revoked / corrupt needs an EXPLICIT redelivery — surface
-      // it as a typed 409, not a blanket catch (any OTHER error still propagates as a real 500). Match by class OR
-      // name (name survives a module-registry duplication — e.g. bundling, or a test's resetModules).
-      const recon = e instanceof OutboxReconciliationError
-        ? e
-        : ((e as { name?: string })?.name === 'OutboxReconciliationError' ? (e as OutboxReconciliationError) : null);
-      if (recon) {
-        log.warn('Anchor release blocked — delivery needs reconciliation', { orderId, dedupeKey: recon.dedupeKey, reason: recon.reason });
-        return NextResponse.json({ error: 'Delivery needs explicit reconciliation (already in flight, delivered, revoked, or corrupt)', dedupeKey: recon.dedupeKey, reason: recon.reason }, { status: 409 });
-      }
-      throw e;
-    }
-  }
-
-  // Flip to deliverable FIRST so the book is customer-viewable, THEN send the withheld email.
-  // No regeneration — we reuse the already-rendered assets.
-  // (Human-QA Slice 1, re-gate P0-2) The pre-tx marker read (holdReason) is a TOCTOU: a stronger hold could have
+  // (re-gate P0-A) ONE flag-INDEPENDENT release-authorization routine — used identically whether
+  // READINESS_MANIFEST_ENABLED is on or off. Round 2 hardened ONLY the readiness-OFF path: with the flag ON the
+  // handler used to call commitBaseBookReadiness and RETURN, skipping the lock, the active-case guards, and the CAS
+  // — so on readiness-ON the exact `skip_weaker` divergence (a safety/payment case ACTIVE while the marker still
+  // reads `anchor_low_confidence:`) still released, and commitBaseBookReadiness's CAS (id + inputVersion only, which
+  // safety/payment updates do NOT bump) could not protect against it. Neither path may depend on the flag for its
+  // safety, so BOTH now run this single routine. (Trade-off surfaced for the re-gate: the readiness-ON path no
+  // longer routes anchor-release through the Manifest/Outbox re-eval — the anchor hold's assets already passed
+  // integrity; the human has eyeballed the book — it uses the same atomic direct release as the OFF path, matching
+  // the flag-OFF production default.)
+  //
+  // Flip to deliverable FIRST so the book is customer-viewable, THEN send the withheld email. No regeneration — we
+  // reuse the already-rendered assets. The pre-tx marker read (holdReason) is a TOCTOU: a stronger hold could have
   // rewritten deliveryHoldReason, or a `skip_weaker` supersede could have left a stronger CASE active while the
   // marker was rewritten to anchor. So the release runs under a row LOCK: re-read the Order FOR UPDATE, require the
   // marker to be UNCHANGED (still this exact anchor marker), require NO active safety/contract_world/payment case,
@@ -171,9 +158,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     if (outcome.alreadyReleased) {
       return NextResponse.json({ released: true, alreadyReleased: true, orderId, status: 'ready' });
     }
-    log.warn('Anchor release refused (legacy path guard)', { orderId, status: outcome.status, reason: outcome.error });
+    log.warn('Anchor release refused (release-authorization guard)', { orderId, status: outcome.status, reason: outcome.error });
     return NextResponse.json({ error: outcome.error }, { status: outcome.status });
   }
+
+  // (re-gate P0-A/P0-1) POST-COMMIT case sync — belt-and-suspenders behind the in-tx `resolveHumanQaCaseOnReleaseInTx`
+  // above (which already closed the anchor case atomically with the release). Re-reads the now-`ready` Order and
+  // resolves any lingering anchor case; never throws into this handler. Guarantees the case is closed on BOTH flag
+  // states — the missing sync on the old readiness-ON path is exactly what left cases open forever.
+  await syncHumanQaHoldCasePostCommit(prisma, order.id);
 
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '');
   const accessKey = order.paymentId ?? order.paymeTransactionId ?? order.stripeSessionId;
