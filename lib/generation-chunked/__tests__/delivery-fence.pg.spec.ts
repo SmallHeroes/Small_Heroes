@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { PrismaClient } from '@prisma/client';
-import { executeReadinessShipCas } from '@/lib/generation-pipeline/readiness-manifest';
+import { executeReadinessShipCas, casClaimSendSlot } from '@/lib/generation-pipeline/readiness-manifest';
 import { writeOrderHoldFenced, executeAnchorReleaseCas } from '@/lib/generation-pipeline/order-authority';
 
 /**
@@ -87,6 +87,35 @@ describe.skipIf(!RUN)('delivery fence — real Postgres READ COMMITTED interleav
         "status" "HumanQaReviewCaseStatus" NOT NULL DEFAULT 'open',
         "kind" "HumanQaHoldKind" NOT NULL
       )`);
+    // (round-6 Unit A) DeliveryOutbox + BookReadiness — so the REAL casClaimSendSlot runs (not a replicated EXISTS).
+    await db.$executeRawUnsafe(`DO $$ BEGIN CREATE TYPE "DeliveryOutboxStatus" AS ENUM ('scheduled','processing','sent','failed','delivery_blocked','superseded_by_manifest','invalid_payload','delivery_revoked'); EXCEPTION WHEN duplicate_object THEN null; END $$;`);
+    await db.$executeRawUnsafe(`DO $$ BEGIN CREATE TYPE "ReadinessStatus" AS ENUM ('pending','passed','blocked','stale'); EXCEPTION WHEN duplicate_object THEN null; END $$;`);
+    await db.$executeRawUnsafe(`
+      CREATE TABLE "DeliveryOutbox" (
+        "id" TEXT PRIMARY KEY,
+        "dedupeKey" TEXT UNIQUE,
+        "orderId" TEXT NOT NULL,
+        "scope" TEXT NOT NULL,
+        "status" "DeliveryOutboxStatus" NOT NULL DEFAULT 'scheduled',
+        "payloadHash" TEXT,
+        "manifestId" TEXT,
+        "inputVersion" INTEGER NOT NULL DEFAULT 0,
+        "deliveryFenceVersion" INTEGER NOT NULL DEFAULT 0,
+        "attempts" INTEGER NOT NULL DEFAULT 0,
+        "sendAttempted" BOOLEAN NOT NULL DEFAULT false,
+        "sendAttempts" INTEGER NOT NULL DEFAULT 0,
+        "firstSendAttemptAt" TIMESTAMPTZ,
+        "leaseExpiresAt" TIMESTAMPTZ
+      )`);
+    await db.$executeRawUnsafe(`
+      CREATE TABLE "BookReadiness" (
+        "id" TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        "orderId" TEXT NOT NULL,
+        "scope" TEXT NOT NULL,
+        "status" "ReadinessStatus" NOT NULL DEFAULT 'passed',
+        "currentManifestId" TEXT,
+        UNIQUE ("orderId","scope")
+      )`);
   });
 
   afterAll(async () => {
@@ -97,7 +126,7 @@ describe.skipIf(!RUN)('delivery fence — real Postgres READ COMMITTED interleav
   });
 
   beforeEach(async () => {
-    await db.$executeRawUnsafe(`TRUNCATE "HumanQaReviewCase", "Order"`);
+    await db.$executeRawUnsafe(`TRUNCATE "HumanQaReviewCase", "Order", "DeliveryOutbox", "BookReadiness"`);
   });
 
   async function seedOrder(over: Partial<{ status: string; deliveryHoldReason: string | null; inputVersion: number; deliveryFenceVersion: number; manualReviewRequired: boolean }> = {}): Promise<void> {
@@ -115,6 +144,18 @@ describe.skipIf(!RUN)('delivery fence — real Postgres READ COMMITTED interleav
   }
   const ship = (over: Partial<Parameters<typeof executeReadinessShipCas>[1]> = {}) =>
     executeReadinessShipCas(db, { orderId: 'o1', inputVersion: 0, deliveryFenceVersion: 0, deliveryHoldReason: null, ...over });
+  async function seedReadiness(over: Partial<{ status: string; currentManifestId: string | null }> = {}): Promise<void> {
+    const r = { status: 'passed', currentManifestId: 'm1' as string | null, ...over };
+    await db.$executeRaw`INSERT INTO "BookReadiness" ("orderId","scope","status","currentManifestId") VALUES ('o1','base_book', ${r.status}::"ReadinessStatus", ${r.currentManifestId})`;
+  }
+  async function seedOutbox(over: Partial<{ status: string; attempts: number; payloadHash: string; manifestId: string; inputVersion: number; deliveryFenceVersion: number; sendAttempted: boolean }> = {}): Promise<void> {
+    const o = { status: 'processing', attempts: 1, payloadHash: 'ph', manifestId: 'm1', inputVersion: 0, deliveryFenceVersion: 0, sendAttempted: false, ...over };
+    await db.$executeRaw`
+      INSERT INTO "DeliveryOutbox" ("id","dedupeKey","orderId","scope","status","payloadHash","manifestId","inputVersion","deliveryFenceVersion","attempts","sendAttempted","sendAttempts")
+      VALUES ('ob1','book-ready/o1/base-book/1','o1','base_book', ${o.status}::"DeliveryOutboxStatus", ${o.payloadHash}, ${o.manifestId}, ${o.inputVersion}, ${o.deliveryFenceVersion}, ${o.attempts}, ${o.sendAttempted}, 0)`;
+  }
+  const casRow = (over: Partial<{ inputVersion: number; payloadHash: string; manifestId: string }> = {}) =>
+    ({ id: 'ob1', orderId: 'o1', scope: 'base_book', manifestId: 'm1', inputVersion: 0, payloadHash: 'ph', ...over });
 
   // ── the ship CAS ships a clean order ────────────────────────────────────────────────────────────────────────
   it('a clean order (no hold, fence unchanged) → SHIPS (1 row, status→ready)', async () => {
@@ -223,15 +264,23 @@ describe.skipIf(!RUN)('delivery fence — real Postgres READ COMMITTED interleav
     expect(await statusOf()).toBe('needs_human_qa'); // never released while a strong case is active
   });
 
-  // ── (Unit 5) Outbox → fence link: the send-time Order EXISTS clause requires the exact deliveryFenceVersion ─────
-  it('the send-time Order EXISTS predicate matches only at the exact enqueued fence', async () => {
-    await seedOrder({ status: 'ready', deliveryFenceVersion: 7, inputVersion: 3 });
-    const check = (fence: number, iv: number) =>
-      db.$queryRaw<Array<{ ok: boolean }>>`SELECT EXISTS (
-        SELECT 1 FROM "Order" ord WHERE ord."id"='o1' AND ord."status"='ready'
-          AND ord."inputVersion" = ${iv} AND ord."deliveryFenceVersion" = ${fence}
-      ) AS ok`;
-    expect((await check(7, 3))[0].ok).toBe(true); // enqueued fence + inputVersion → sendable
-    expect((await check(6, 3))[0].ok).toBe(false); // a stale (pre-bump) fence → NOT sendable
+  // ── (Unit A / Codex round-6) the REAL send-time CAS (casClaimSendSlot) — not a replicated SELECT EXISTS ────────
+  it('casClaimSendSlot: an Outbox row bound to the ORDER current fence CLAIMS the slot → ok', async () => {
+    await seedOrder({ status: 'ready', inputVersion: 3, deliveryFenceVersion: 7 });
+    await seedReadiness({ status: 'passed', currentManifestId: 'm1' });
+    await seedOutbox({ status: 'processing', attempts: 2, payloadHash: 'ph', manifestId: 'm1', inputVersion: 3, deliveryFenceVersion: 7 });
+    const now = new Date();
+    const r = await casClaimSendSlot(db, casRow({ inputVersion: 3 }), 2, new Date(now.getTime() + 60_000), now);
+    expect(r).toBe('ok'); // correctly threaded fence → claimable → sends
+  });
+  it('casClaimSendSlot: an Outbox row carrying a STALE fence (row=6, order=7) is BLOCKED, never sent (the Unit A stranding)', async () => {
+    await seedOrder({ status: 'ready', inputVersion: 3, deliveryFenceVersion: 7 }); // fence advanced (a hold/release happened)
+    await seedReadiness({ status: 'passed', currentManifestId: 'm1' });
+    await seedOutbox({ status: 'processing', attempts: 2, payloadHash: 'ph', manifestId: 'm1', inputVersion: 3, deliveryFenceVersion: 6 }); // stale / defaulted fence
+    const now = new Date();
+    const r = await casClaimSendSlot(db, casRow({ inputVersion: 3 }), 2, new Date(now.getTime() + 60_000), now);
+    expect(r).toBe('delivery_blocked'); // fence mismatch → 0-row CAS; a defaulted/un-threaded fence strands the book
+    const sent = await db.$queryRaw<Array<{ n: number }>>`SELECT COUNT(*)::int AS n FROM "DeliveryOutbox" WHERE "id"='ob1' AND "sendAttempted"=true`;
+    expect(sent[0].n).toBe(0); // never marked sendAttempted → the email cannot go out
   });
 });

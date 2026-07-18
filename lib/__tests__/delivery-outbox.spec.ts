@@ -63,7 +63,7 @@ describe('idempotencyWindowMs — configurable, safety margin < 24h (#3h-D)', ()
 
 describe('enqueueDelivery — delivery-intent rebind contract (P1-f #3h)', () => {
   const enq = (db: unknown, over: Record<string, unknown> = {}) =>
-    enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, manifestId: 'M1', inputVersion: 7, payload, now: NOW, ...over });
+    enqueueDelivery(db as never, { orderId: 'o1', scope: 'base_book', fulfillmentVersion: 1, manifestId: 'M1', inputVersion: 7, deliveryFenceVersion: 0, payload, now: NOW, ...over });
   const updateData = (fn: ReturnType<typeof vi.fn>): Record<string, unknown> => ((fn.mock.calls[0] as unknown[])[0] as { data: Record<string, unknown> }).data;
   const okMany = () => vi.fn(async () => ({ count: 1 }));   // rebind landed (row was still sendAttempted=false)
   const lostMany = () => vi.fn(async () => ({ count: 0 })); // a worker won the send slot between read and write

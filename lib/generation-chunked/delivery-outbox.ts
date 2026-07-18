@@ -104,11 +104,14 @@ export interface EnqueueResult {
  */
 export async function enqueueDelivery(
   db: Db,
-  args: { orderId: string; scope: string; fulfillmentVersion: number; manifestId: string; inputVersion: number; deliveryFenceVersion?: number; payload: BookReadyPayload; now: Date },
+  // (Codex round-6 Unit A) deliveryFenceVersion is MANDATORY — never defaulted. A defaulted 0 on an Order whose fence
+  // has advanced (a hold/release happened) would be permanently blocked by the send CAS = a silently stranded book.
+  // Every enqueue/reissue/repair MUST thread the Order's CURRENT fence.
+  args: { orderId: string; scope: string; fulfillmentVersion: number; manifestId: string; inputVersion: number; deliveryFenceVersion: number; payload: BookReadyPayload; now: Date },
 ): Promise<EnqueueResult> {
   const payloadHash = hashPayload(args.payload);
   const dedupeKey = deliveryDedupeKey(args.orderId, args.scope, args.fulfillmentVersion);
-  const deliveryFenceVersion = args.deliveryFenceVersion ?? 0; // (round-5 P1) the fence this delivery is bound to
+  const deliveryFenceVersion = args.deliveryFenceVersion; // the Order fence this delivery is bound to (mandatory)
   const existing = await db.deliveryOutbox.findUnique({ where: { dedupeKey } });
   if (!existing) {
     await db.deliveryOutbox.create({
@@ -387,6 +390,7 @@ export async function repairInvalidPayloadDelivery(
         select: {
           status: true,
           inputVersion: true,
+          deliveryFenceVersion: true,
           fulfillmentVersion: true,
           customerEmail: true,
           customerName: true,
@@ -444,6 +448,10 @@ export async function repairInvalidPayloadDelivery(
         payloadHash: hashPayload(payload),
         manifestId: readiness.currentManifestId,
         inputVersion: order.inputVersion,
+        // (Codex round-6 Unit A) refresh the fence to the Order's CURRENT value on repair — the row's stored fence
+        // may be stale (a hold/release happened after the original enqueue), which would leave the repaired row
+        // permanently blocked by the send CAS. Re-derived alongside inputVersion/manifestId.
+        deliveryFenceVersion: order.deliveryFenceVersion,
         attempts: { increment: 1 },
         nextAttemptAt: now,
         leaseExpiresAt: null,

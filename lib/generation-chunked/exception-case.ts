@@ -359,6 +359,7 @@ export async function reissueConfirmedFailedDelivery(
           status: true,
           fulfillmentVersion: true,
           inputVersion: true,
+          deliveryFenceVersion: true,
           customerEmail: true,
           customerName: true,
           childName: true,
@@ -464,6 +465,9 @@ export async function reissueConfirmedFailedDelivery(
       fulfillmentVersion: version,
       manifestId: readiness.currentManifestId,
       inputVersion: order.inputVersion,
+      // (Codex round-6 Unit A) thread the Order's CURRENT fence into the reissue — a fulfillmentVersion roll does not
+      // change the fence, and a defaulted 0 would leave the reissued row blocked by the send CAS = a stranded book.
+      deliveryFenceVersion: order.deliveryFenceVersion,
       payload,
       now: args.now,
     });
