@@ -111,10 +111,15 @@ describe('readiness commit receipt binding (soft-deliver keyed)', () => {
     expect(flagOff.operationKey).not.toContain(':sd');
   });
 
-  it('same operationKey but different payloadHash when soft-deliver changes blocked disposition', () => {
+  it('(round-6 Unit C) a plain HOLD and its soft-deliver SHIP key DIFFERENTLY — hold fence-independent, ship fence-bound', () => {
     const hold = buildReadinessCommitReceiptBinding(baseArgs, 3, blockedDecision, false);
     const soft = buildReadinessCommitReceiptBinding(baseArgs, 3, blockedDecision, true);
-    expect(hold.operationKey).toBe(soft.operationKey);
+    // The soft-deliver flag flips the SAME blocked decision from a hold (needs_human_qa) to a soft SHIP (ready). Under
+    // Unit C the plain hold is fence-INDEPENDENT (holdfenceNA) while the ship keeps its load-time fence (round-5 P1),
+    // so they are now distinct operations. (Round-5 keyed BOTH on the same load-time fence → identical key.)
+    expect(hold.operationKey).not.toBe(soft.operationKey);
+    expect(hold.operationKey).toContain(':holdfenceNA');
+    expect(soft.operationKey).toContain(':fence0');
     expect(hold.payloadHash).not.toBe(soft.payloadHash);
     expect(soft.plan).toMatchObject({ enqueued: true, orderStatus: 'ready', usesSoftDeliver: true });
     expect(hold.plan).toMatchObject({ enqueued: false, orderStatus: 'needs_human_qa', usesSoftDeliver: false });
@@ -131,13 +136,46 @@ describe('readiness commit receipt binding (soft-deliver keyed)', () => {
     expect(soft.plan).toMatchObject({ enqueued: false, orderStatus: 'needs_human_qa', usesSoftDeliver: false });
   });
 
-  it('anchor hold: same key, different payload when soft-deliver applies', () => {
+  it('(round-6 Unit C) anchor hold vs its soft-deliver ship: hold fence-independent, ship fence-bound (distinct keys)', () => {
     const hold = buildReadinessCommitReceiptBinding(baseArgs, 2, passedDecision, false);
     const soft = buildReadinessCommitReceiptBinding(baseArgs, 2, passedDecision, true);
-    expect(hold.operationKey).toBe(soft.operationKey);
+    expect(hold.operationKey).not.toBe(soft.operationKey);
+    expect(hold.operationKey).toContain(':holdfenceNA'); // anchor hold → needs_human_qa → fence-independent
+    expect(soft.operationKey).toContain(':fence0');       // soft-deliver ships → fence-bound
     expect(hold.plan.enqueued).toBe(false);
     expect(soft.plan.enqueued).toBe(true);
     expect(hold.payloadHash).not.toBe(soft.payloadHash);
+  });
+
+  // ── (round-6 Unit C) the load-time fence belongs to SHIP/release identity ONLY — a plain HOLD is fence-independent ─
+  it('(Unit C) a plain HOLD keys fence-INDEPENDENTLY: a redrive at a bumped fence derives the SAME key → replays, never double-applies', () => {
+    // A hold BUMPS its own fence, so a fresh cross-worker redrive loads N+1. If the fence were in the key the redrive
+    // would derive a NEW key and APPLY THE HOLD AGAIN (a second bump). Fence-independent → same key → the redrive
+    // replays the recorded hold at the atomic short-circuit (exactly-once). This is the Codex round-6 Unit C fix.
+    const firstAtFence5 = buildReadinessCommitReceiptBinding(baseArgs, 3, blockedDecision, false, 5);
+    const redriveAtFence6 = buildReadinessCommitReceiptBinding(baseArgs, 3, blockedDecision, false, 6);
+    expect(firstAtFence5.plan).toMatchObject({ enqueued: false, orderStatus: 'needs_human_qa' }); // it IS a plain hold
+    expect(firstAtFence5.operationKey).toBe(redriveAtFence6.operationKey); // fence moved 5→6; key unchanged → replay
+    expect(firstAtFence5.operationKey).toContain(':holdfenceNA');
+    expect(firstAtFence5.operationKey).not.toContain(':fence5');
+    expect(firstAtFence5.operationKey).not.toContain(':fence6');
+  });
+
+  it('(round-5 P1, preserved) a SHIP keys ON the load-time fence: a redrive at a moved fence derives a DIFFERENT key → re-CAS, no stale ready replay', () => {
+    const passArgs = { orderId: 'o1', anchorAllowsDelivery: true, anchorOrderStatus: 'ready', anchorReason: null };
+    const shipAt7 = buildReadinessCommitReceiptBinding(passArgs, 3, passedDecision, false, 7);
+    const shipAt8 = buildReadinessCommitReceiptBinding(passArgs, 3, passedDecision, false, 8); // a competing hold moved 7→8
+    expect(shipAt7.plan).toMatchObject({ enqueued: true, orderStatus: 'ready' });
+    expect(shipAt7.operationKey).toContain(':fence7');
+    expect(shipAt7.operationKey).not.toBe(shipAt8.operationKey); // a stale ship cannot replay at a moved fence
+  });
+
+  it('(Unit C) an authorized RELEASE (requireHold → ship) carries the fence in its identity', () => {
+    const relArgs = { ...baseArgs, anchorAllowsDelivery: true, anchorOrderStatus: 'ready', anchorReason: null, requireHold: { deliveryHoldReason: 'anchor_low_confidence:soft_band' } };
+    const rel = buildReadinessCommitReceiptBinding(relArgs, 3, passedDecision, false, 4);
+    expect(rel.plan).toMatchObject({ orderStatus: 'ready' });
+    expect(rel.operationKey).toContain(':rh:anchor_low_confidence:soft_band:');
+    expect(rel.operationKey).toContain(':fence4'); // a release is a delivery-authorizing commit → fence-bound
   });
 });
 

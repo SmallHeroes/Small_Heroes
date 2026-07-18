@@ -543,15 +543,23 @@ export function buildReadinessCommitReceiptBinding(
   // short-circuit and the precondition CAS never runs. Folding it into the key (and, via the key, the payloadHash)
   // means a guarded call can never be satisfied by an unguarded receipt.
   const releaseCapability = args.requireHold ? `rh:${args.requireHold.deliveryHoldReason}` : 'norh';
-  // (delivery fence — Codex round-5 P1) The LOAD-TIME deliveryFenceVersion is part of the receipt IDENTITY. A hold
-  // bumps the fence WITHOUT bumping inputVersion, so without this a SHIP retry after a mid-flight hold would share
-  // an operationKey with the earlier (pre-hold) ship and REPLAY its recorded `ready` at the atomic short-circuit —
-  // never re-running the CAS. Keying on the fence READ AT LOAD (not the post-mutation value) also PRESERVES HOLD
-  // idempotency: a HOLD that bumps its own fence still records + replays under this same load-time key on a P2028
-  // retry (runAtomicOperation reuses the pre-computed key), while a FRESH call reads the new fence → a new key.
   const plan = resolveReadinessDeliveryPlan(args, decision, softDeliver);
+  // (delivery fence — Codex round-6 Unit C) The LOAD-TIME deliveryFenceVersion belongs in the receipt IDENTITY ONLY
+  // for a commit that AUTHORIZES DELIVERY — a ship or an authorized release (⇔ plan.orderStatus === 'ready', the sole
+  // deliverable outcome). Splitting by outcome:
+  //   • SHIP/RELEASE need it (round-5 P1): a ship computed at fence N must NOT replay its recorded `ready` once a hold
+  //     has moved the world to N+1. Folding the load-time fence into the key forces a FRESH CAS at the new fence — the
+  //     stale ship can never short-circuit through the receipt.
+  //   • A plain HOLD must NOT carry it (this round): a hold BUMPS its own fence, so a fresh CROSS-WORKER redrive would
+  //     read N+1, derive a DIFFERENT key, and APPLY THE HOLD AGAIN (a second bump) — idempotent only within one
+  //     in-call P2028 retry, not across redrives. A hold's identity is (order, inputVersion, inputsHash, anchor,
+  //     releaseCapability); keeping it fence-INDEPENDENT makes any redrive REPLAY the recorded hold at the atomic
+  //     short-circuit (exactly-once — no double bump). Within-retry idempotency is unchanged for both — runAtomicOperation
+  //     reuses the one pre-computed key.
+  const authorizesDelivery = plan.orderStatus === 'ready'; // the only delivery-authorizing outcome (⇔ plan.enqueued)
+  const fenceIdentity = authorizesDelivery ? `fence${deliveryFenceVersion}` : 'holdfenceNA';
   const operationKey =
-    `readiness_commit:${args.orderId}:${BASE_BOOK_SCOPE}:${inputVersion}:${decision.inputsHash}:${anchorDisposition}:${releaseCapability}:fence${deliveryFenceVersion}`;
+    `readiness_commit:${args.orderId}:${BASE_BOOK_SCOPE}:${inputVersion}:${decision.inputsHash}:${anchorDisposition}:${releaseCapability}:${fenceIdentity}`;
   const mutationPayload = buildReadinessCommitMutationPayload(
     args,
     decision,
