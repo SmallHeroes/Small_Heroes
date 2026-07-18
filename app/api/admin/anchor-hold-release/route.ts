@@ -115,22 +115,65 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   // Flip to deliverable FIRST so the book is customer-viewable, THEN send the withheld email.
   // No regeneration — we reuse the already-rendered assets.
-  // (Human-QA Slice 1) Close the active ANCHOR review case + suppress its unsent operator notification in the SAME
-  // tx that releases the Order — otherwise the Order goes ready but the case stays open forever. kinds:['anchor']
-  // means this can NEVER release a safety/contract_world case; it does not broaden what this endpoint may release
-  // (the `anchor_low_confidence:` guard above already gates that). The Order-write data is byte-identical.
-  await prisma.$transaction(async (tx) => {
-    await tx.order.update({
-      where: { id: order.id },
+  // (Human-QA Slice 1, re-gate P0-2) The pre-tx marker read (holdReason) is a TOCTOU: a stronger hold could have
+  // rewritten deliveryHoldReason, or a `skip_weaker` supersede could have left a stronger CASE active while the
+  // marker was rewritten to anchor. So the release runs under a row LOCK: re-read the Order FOR UPDATE, require the
+  // marker to be UNCHANGED (still this exact anchor marker), require NO active safety/contract_world/payment case,
+  // and release via a status+marker CAS. Any stronger hold → 409, never released, email never sent.
+  type ReleaseOutcome =
+    | { ok: true }
+    | { ok: false; alreadyReleased: true }
+    | { ok: false; alreadyReleased?: false; status: number; error: string };
+  const outcome = await prisma.$transaction(async (tx): Promise<ReleaseOutcome> => {
+    const locked = await tx.$queryRaw<Array<{ status: string; deliveryHoldReason: string | null }>>`
+      SELECT "status", "deliveryHoldReason" FROM "Order" WHERE "id" = ${order.id} FOR UPDATE`;
+    const row = locked[0];
+    if (!row) return { ok: false, status: 404, error: 'Order not found' };
+    // Concurrent release won the race → idempotent no-op (do NOT re-send).
+    if (row.status === 'ready' || row.status === 'partial') return { ok: false, alreadyReleased: true };
+    if (row.status !== 'needs_human_qa') {
+      return { ok: false, status: 409, error: `Order is not on delivery hold (status=${row.status})` };
+    }
+    const lockedReason = row.deliveryHoldReason ?? '';
+    // The marker must STILL be the identical anchor marker we validated pre-tx — a supersede to a stronger hold
+    // rewrote it, and THAT is never releasable here.
+    if (lockedReason !== holdReason || !lockedReason.startsWith('anchor_low_confidence:')) {
+      return { ok: false, status: 409, error: `Hold changed under lock (reason=${lockedReason || 'none'})` };
+    }
+    // Case guard: even with an anchor marker, a stronger case may still be active (skip_weaker leaves a safety case
+    // open while the marker was rewritten to anchor). Any active base case that is NOT anchor, or any active payment
+    // case, blocks the release. activeKey format mirrors record-hold's activeKeyFor: `${orderId}:${scope}`.
+    const baseCase = await tx.humanQaReviewCase.findUnique({ where: { activeKey: `${order.id}:base_book` } });
+    if (baseCase && baseCase.status === 'open' && baseCase.kind !== 'anchor') {
+      return { ok: false, status: 409, error: `A stronger ${baseCase.kind} review case is active — not releasable` };
+    }
+    const paymentCase = await tx.humanQaReviewCase.findUnique({ where: { activeKey: `${order.id}:payment` } });
+    if (paymentCase && paymentCase.status === 'open') {
+      return { ok: false, status: 409, error: 'A payment_integrity review case is active — not releasable' };
+    }
+    // Release as a CAS bound to the exact status + marker validated under lock (belt-and-suspenders behind FOR UPDATE).
+    const released = await tx.order.updateMany({
+      where: { id: order.id, status: 'needs_human_qa', deliveryHoldReason: holdReason },
       data: { status: 'ready', deliveryHoldReason: null },
     });
+    if (released.count === 0) return { ok: false, status: 409, error: 'Release lost a concurrency race' };
+    // Close the active ANCHOR case + suppress its unsent operator notification in the SAME release tx.
     await resolveHumanQaCaseOnReleaseInTx(tx, {
       orderId: order.id,
       scope: 'base_book',
       kinds: ['anchor'],
       actor: 'admin:anchor_release',
     });
+    return { ok: true };
   });
+
+  if (!outcome.ok) {
+    if (outcome.alreadyReleased) {
+      return NextResponse.json({ released: true, alreadyReleased: true, orderId, status: 'ready' });
+    }
+    log.warn('Anchor release refused (legacy path guard)', { orderId, status: outcome.status, reason: outcome.error });
+    return NextResponse.json({ error: outcome.error }, { status: outcome.status });
+  }
 
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '');
   const accessKey = order.paymentId ?? order.paymeTransactionId ?? order.stripeSessionId;

@@ -12,21 +12,39 @@ const heldOrder = (reason: string) => ({
   book: { readUrl: 'https://app/book/o1/read', pdfUrl: null, audioAsset: null, pages: [] },
 });
 
-async function loadRoute(opts: { flagOn: boolean; order: unknown; commit?: ReturnType<typeof vi.fn>; email?: ReturnType<typeof vi.fn>; orderUpdate?: ReturnType<typeof vi.fn> }) {
+async function loadRoute(opts: {
+  flagOn: boolean;
+  order: unknown;
+  commit?: ReturnType<typeof vi.fn>;
+  email?: ReturnType<typeof vi.fn>;
+  orderUpdateMany?: ReturnType<typeof vi.fn>;
+  baseCase?: unknown;
+  paymentCase?: unknown;
+  /** Overrides the row tx.$queryRaw returns under lock (defaults to echoing opts.order) — for marker-drift tests. */
+  lockedRow?: { status: string; deliveryHoldReason: string | null };
+}) {
   const commit = opts.commit ?? vi.fn(async () => ({ enqueued: true, manifestStatus: 'passed', orderStatus: 'ready', reason: null, revision: 1 }));
   const email = opts.email ?? vi.fn(async () => ({}));
-  const orderUpdate = opts.orderUpdate ?? vi.fn();
-  // (Human-QA Slice 1) the flag-off release now wraps the Order→ready write + the anchor case-resolve in one tx.
-  // tx.order.update routes to the SAME orderUpdate mock (so the status:'ready' assertion is unchanged); the
-  // review-case delegate is a no-op stub (no active case → resolve is a no-op).
+  const orderUpdateMany = opts.orderUpdateMany ?? vi.fn(async () => ({ count: 1 }));
+  const lockedRow = opts.lockedRow ?? (opts.order as { status: string; deliveryHoldReason: string | null });
+  // (Human-QA Slice 1, re-gate P0-2) the flag-off release now LOCKS + re-reads the Order (tx.$queryRaw FOR UPDATE),
+  // guards on the active base/payment review cases, and releases via a status+marker CAS (tx.order.updateMany).
+  // $queryRaw echoes the fixture's committed row; findUnique for both scopes' activeKeys resolves the case guards.
+  const humanQaReviewCase = {
+    findUnique: vi.fn(async ({ where }: { where: { activeKey: string } }) =>
+      where.activeKey.endsWith(':payment') ? (opts.paymentCase ?? null) : (opts.baseCase ?? null),
+    ),
+    update: vi.fn(),
+  };
   const txClient = {
-    order: { update: orderUpdate },
-    humanQaReviewCase: { findUnique: vi.fn(async () => null), update: vi.fn() },
+    $queryRaw: vi.fn(async () => [{ status: lockedRow.status, deliveryHoldReason: lockedRow.deliveryHoldReason }]),
+    order: { updateMany: orderUpdateMany },
+    humanQaReviewCase,
     operatorNotificationOutbox: { findFirst: vi.fn(async () => null), update: vi.fn() },
   };
   vi.doMock('@/lib/prisma', () => ({
     prisma: {
-      order: { findUnique: vi.fn(async () => opts.order), update: orderUpdate },
+      order: { findUnique: vi.fn(async () => opts.order) },
       $transaction: vi.fn(async (cb: (t: unknown) => unknown) => cb(txClient)),
     },
   }));
@@ -34,7 +52,7 @@ async function loadRoute(opts: { flagOn: boolean; order: unknown; commit?: Retur
   vi.doMock('@/lib/logger', () => SILENT);
   vi.doMock('@/lib/generation-pipeline/readiness-manifest', () => ({ isReadinessManifestEnabled: () => opts.flagOn, commitBaseBookReadiness: commit }));
   const mod = await import('@/app/api/admin/anchor-hold-release/route');
-  return { POST: mod.POST, commit, email, orderUpdate };
+  return { POST: mod.POST, commit, email, orderUpdateMany };
 }
 
 describe('anchor-hold-release isolation (B6)', () => {
@@ -81,27 +99,84 @@ describe('anchor-hold-release isolation (B6)', () => {
   });
 
   it('flag-off: unchanged direct-send behavior', async () => {
-    const { POST, commit, email, orderUpdate } = await loadRoute({ flagOn: false, order: heldOrder('anchor_low_confidence:soft_band') });
+    const { POST, commit, email, orderUpdateMany } = await loadRoute({ flagOn: false, order: heldOrder('anchor_low_confidence:soft_band') });
     const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
     expect(res.status).toBe(200);
     expect(commit).not.toHaveBeenCalled();
-    expect(orderUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'ready' }) }));
+    // Released via the status+marker CAS (updateMany), not a bare update.
+    expect(orderUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: 'needs_human_qa', deliveryHoldReason: 'anchor_low_confidence:soft_band' }),
+        data: expect.objectContaining({ status: 'ready', deliveryHoldReason: null }),
+      }),
+    );
     expect(email).toHaveBeenCalledTimes(1);
   });
 
-  it('(Stage 1 safety FIX) flag-OFF (prod): REFUSES to release a safety_hold order — never force-ships unsafe assets', async () => {
-    const { POST, email, orderUpdate } = await loadRoute({ flagOn: false, order: heldOrder('safety_hold:hazard:page:2:child_on_railing') });
+  it('(re-gate P0-2) flag-off: REFUSES to release when an active SAFETY case is present though the marker says anchor (409, no CAS, no email)', async () => {
+    // skip_weaker leaves a safety case open while the marker was rewritten to anchor — the case guard must catch it.
+    const { POST, email, orderUpdateMany } = await loadRoute({
+      flagOn: false,
+      order: heldOrder('anchor_low_confidence:soft_band'),
+      baseCase: { id: 'c_safety', status: 'open', kind: 'safety' },
+    });
     const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
     expect(res.status).toBe(409);
-    expect(orderUpdate).not.toHaveBeenCalled(); // never flips a safety-parked book to ready
+    expect(orderUpdateMany).not.toHaveBeenCalled();
+    expect(email).not.toHaveBeenCalled();
+  });
+
+  it('(re-gate P0-2) flag-off: REFUSES when an active PAYMENT_INTEGRITY case is present (409, no release)', async () => {
+    const { POST, email, orderUpdateMany } = await loadRoute({
+      flagOn: false,
+      order: heldOrder('anchor_low_confidence:soft_band'),
+      paymentCase: { id: 'c_pay', status: 'open', kind: 'payment_integrity' },
+    });
+    const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
+    expect(res.status).toBe(409);
+    expect(orderUpdateMany).not.toHaveBeenCalled();
+    expect(email).not.toHaveBeenCalled();
+  });
+
+  it('(re-gate P0-2) flag-off: REFUSES when the marker changed under lock to a stronger hold (409, no release)', async () => {
+    // The pre-tx read saw an anchor marker; under FOR UPDATE the committed marker is now a safety hold — the
+    // marker CAS must catch the drift and refuse (never release / send).
+    const { POST, email, orderUpdateMany } = await loadRoute({
+      flagOn: false,
+      order: heldOrder('anchor_low_confidence:soft_band'),
+      lockedRow: { status: 'needs_human_qa', deliveryHoldReason: 'safety_hold:hazard:page:2' },
+    });
+    const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
+    expect(res.status).toBe(409);
+    expect(orderUpdateMany).not.toHaveBeenCalled();
+    expect(email).not.toHaveBeenCalled();
+  });
+
+  it('(re-gate P0-2) flag-off: idempotent — a concurrent release seen under lock (status=ready) is a no-op, no re-send', async () => {
+    const { POST, email, orderUpdateMany } = await loadRoute({
+      flagOn: false,
+      order: heldOrder('anchor_low_confidence:soft_band'),
+      lockedRow: { status: 'ready', deliveryHoldReason: null },
+    });
+    const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
+    expect(res.status).toBe(200);
+    expect(orderUpdateMany).not.toHaveBeenCalled();
+    expect(email).not.toHaveBeenCalled();
+  });
+
+  it('(Stage 1 safety FIX) flag-OFF (prod): REFUSES to release a safety_hold order — never force-ships unsafe assets', async () => {
+    const { POST, email, orderUpdateMany } = await loadRoute({ flagOn: false, order: heldOrder('safety_hold:hazard:page:2:child_on_railing') });
+    const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
+    expect(res.status).toBe(409);
+    expect(orderUpdateMany).not.toHaveBeenCalled(); // never flips a safety-parked book to ready
     expect(email).not.toHaveBeenCalled();
   });
 
   it('(Stage 1 safety FIX) flag-OFF: REFUSES a contract_world_hold order too (anchor-only allowlist on both paths)', async () => {
-    const { POST, email, orderUpdate } = await loadRoute({ flagOn: false, order: heldOrder('contract_world_hold:quality_failed:page:3') });
+    const { POST, email, orderUpdateMany } = await loadRoute({ flagOn: false, order: heldOrder('contract_world_hold:quality_failed:page:3') });
     const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
     expect(res.status).toBe(409);
-    expect(orderUpdate).not.toHaveBeenCalled();
+    expect(orderUpdateMany).not.toHaveBeenCalled();
     expect(email).not.toHaveBeenCalled();
   });
 
