@@ -1,21 +1,21 @@
 /**
- * (Human-QA Slice 1, Unit 5) Idempotent RECONCILER / backfill for orders ALREADY sitting in terminal
- * `needs_human_qa`. The Unit-1 migration created HumanQaReviewCase / OperatorNotificationOutbox, but a migration
- * NEVER opens a case for an order that was held BEFORE those tables existed (or while `recordHumanQaHoldInTx` was
- * still inert). Those orders are silently held with NO case + NO operator notification — the gap that `cmrnuhsva`
- * proved. This script opens exactly one case (+ its scheduled operator notification) for every terminal
- * `needs_human_qa` order that has no active case.
+ * (Human-QA Slice 1, re-gate P1-3) Idempotent RECONCILER for orders sitting in terminal `needs_human_qa`. It is the
+ * guaranteed REPAIR for a review case whose POST-COMMIT write failed at a seam (the design deliberately moves case
+ * creation out of every hold/money transaction — see lib/human-qa/sync-hold-case.ts). It is ALSO the backfill for
+ * orders held before the case tables existed (the `cmrnuhsva` gap).
  *
- * IDEMPOTENT: a re-run creates nothing new. Each order is pre-checked for an active case (`activeKey =
- * orderId:scope`) and skipped if one exists; even without that pre-check, `recordHumanQaHoldInTx` is idempotent (its
- * `ON CONFLICT DO NOTHING` inserts re-select the winning row), and each order runs in its OWN transaction so a
- * concurrent-reconcile conflict (P2002) rolls back only that one order.
+ * It delegates EVERY classification decision to `syncHumanQaHoldCase` → `classifyHoldForCase`, the SAME function the
+ * seams call post-commit, so the reconciler and the live path can never diverge. That classifier:
+ *   - opens a case ONLY for a terminal MANUAL hold (safety / contract_world / anchor marker, or the payment fence);
+ *   - SKIPS a recoverable `base_book_integrity:` park (owned by the ExceptionCase auto-recovery loop);
+ *   - SKIPS any order with an active recovery ExceptionCase;
+ *   - NEVER auto-backfills an unknown/null marker — that requires explicit `--include-unknown`.
+ * This closes the "total classifier" NO-GO: a recoverable hold no longer gets a spurious case + operator email.
  *
- * `legacy_unknown` orders (in needs_human_qa with no recognizable hold marker) ARE backfilled — a case is created —
- * AND listed in the summary for explicit operator attention.
+ * IDEMPOTENT: a re-run creates nothing new — `recordHumanQaHoldInTx` (inside `syncHumanQaHoldCase`) is idempotent and
+ * each order runs in its OWN transaction, so a concurrent-reconcile conflict rolls back only that one order.
  *
- * Runs on Guy's machine against the STAGING DB. `assertEnvSeparation()` HARD-REFUSES if any resource points at prod
- * (the `.env.local`→prod-DB trap). NEVER run against prod implicitly.
+ * Runs on Guy's machine against the STAGING DB. `assertEnvSeparation()` HARD-REFUSES if any resource points at prod.
  *
  *   # dry-run everything (reports what it WOULD create, writes nothing):
  *   SH_ENV_FILE=.env.local npx tsx --require ./scripts/shims/register-server-only.cjs \
@@ -25,9 +25,9 @@
  *   SH_ENV_FILE=.env.local npx tsx --require ./scripts/shims/register-server-only.cjs \
  *     scripts/reconcile-human-qa-holds.ts --only cmrnuhsva
  *
- *   # reconcile all held orders:
+ *   # ALSO backfill historical unknown/null markers (explicit opt-in — off by default):
  *   SH_ENV_FILE=.env.local npx tsx --require ./scripts/shims/register-server-only.cjs \
- *     scripts/reconcile-human-qa-holds.ts
+ *     scripts/reconcile-human-qa-holds.ts --include-unknown
  */
 import { config as loadEnv } from 'dotenv';
 loadEnv({ path: process.env.SH_ENV_FILE || '.env.local' });
@@ -35,17 +35,20 @@ loadEnv({ path: process.env.SH_ENV_FILE || '.env.local' });
 interface Cli {
   help: boolean;
   dryRun: boolean;
+  includeUnknown: boolean;
   onlyOrderId: string | null;
 }
 
 function parseCli(argv: string[]): Cli {
-  const cli: Cli = { help: false, dryRun: false, onlyOrderId: null };
+  const cli: Cli = { help: false, dryRun: false, includeUnknown: false, onlyOrderId: null };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--help' || arg === '-h') {
       cli.help = true;
     } else if (arg === '--dry-run') {
       cli.dryRun = true;
+    } else if (arg === '--include-unknown') {
+      cli.includeUnknown = true;
     } else if (arg === '--only') {
       const next = argv[i + 1];
       if (!next || next.startsWith('-')) throw new Error('--only requires an <orderId> argument');
@@ -60,16 +63,20 @@ function parseCli(argv: string[]): Cli {
   return cli;
 }
 
-const USAGE = `reconcile-human-qa-holds — idempotent backfill of Human-QA review cases for already-held orders.
+const USAGE = `reconcile-human-qa-holds — idempotent repair/backfill of Human-QA review cases for held orders.
 
-Opens one HumanQaReviewCase (+ its scheduled OperatorNotificationOutbox) for every order in terminal
-'needs_human_qa' that has no active case. Safe to re-run — nothing new is created on a second pass.
+Opens exactly one HumanQaReviewCase (+ its scheduled OperatorNotificationOutbox) for every order in terminal
+'needs_human_qa' whose TERMINAL MANUAL hold has no active case. Delegates classification to the same function the
+live seams use, so recoverable holds (base_book_integrity), orders owned by the ExceptionCase recovery loop, and
+unrecognized markers are SKIPPED — never given a spurious case. Safe to re-run — nothing new on a second pass.
 
 Usage:
   tsx --require ./scripts/shims/register-server-only.cjs scripts/reconcile-human-qa-holds.ts [options]
 
 Options:
   --dry-run            Report what WOULD be created; write nothing.
+  --include-unknown    ALSO backfill orders with an unknown/null hold marker (kind=legacy_unknown). Off by default —
+                       an unrecognized park is never auto-backfilled without this explicit opt-in.
   --only <orderId>     Reconcile a single order only (e.g. --only cmrnuhsva).
   -h, --help           Show this help and exit (no DB access).
 
@@ -87,8 +94,7 @@ async function main(): Promise<void> {
   // Dynamic-import server modules AFTER loadEnv so validateEnv() sees the loaded env.
   const { prisma } = await import('@/lib/prisma');
   const { assertEnvSeparation } = await import('@/lib/generation-chunked/env-separation-guard');
-  const { recordHumanQaHoldInTx } = await import('@/lib/human-qa/record-hold');
-  const { planReconcileOrder } = await import('@/lib/human-qa/reconcile-plan');
+  const { syncHumanQaHoldCase } = await import('@/lib/human-qa/sync-hold-case');
 
   // Refuse to touch prod (guards the .env.local → prod-DB trap) BEFORE any read/write.
   assertEnvSeparation();
@@ -98,14 +104,7 @@ async function main(): Promise<void> {
       status: 'needs_human_qa',
       ...(cli.onlyOrderId ? { id: cli.onlyOrderId } : {}),
     },
-    select: {
-      id: true,
-      deliveryHoldReason: true,
-      manualReviewRequired: true,
-      childName: true,
-      inputVersion: true,
-      visualContractHash: true,
-    },
+    select: { id: true },
     orderBy: { createdAt: 'asc' },
   });
 
@@ -129,79 +128,74 @@ async function main(): Promise<void> {
 
   let created = 0;
   let wouldCreate = 0;
-  let skippedExisting = 0;
-  const unknownKind: string[] = [];
+  let idempotent = 0;
+  const skipped: Record<string, number> = {};
+  const legacyUnknown: string[] = [];
   const errors: Array<{ orderId: string; message: string }> = [];
 
   for (const order of orders) {
-    const plan = planReconcileOrder(order);
-    if (plan.needsOperatorAttention) unknownKind.push(plan.orderId);
-
-    // An active case already covers this (orderId, scope) → nothing to do (idempotent skip).
-    const active = await prisma.humanQaReviewCase.findUnique({ where: { activeKey: plan.activeKey } });
-    if (active) {
-      skippedExisting++;
-      continue;
-    }
-
-    if (cli.dryRun) {
-      wouldCreate++;
-      console.log(
-        `[reconcile] WOULD create ${plan.kind} case for order ${plan.orderId} ` +
-          `(scope=${plan.scope}, rawReason=${plan.recordArgs.rawReason})`,
-      );
-      continue;
-    }
-
     try {
-      // Per-order transaction: a P2002 (a concurrent reconcile already opened the case) rolls back ONLY this order
-      // and is a no-op on re-run. recordHumanQaHoldInTx is itself idempotent — a lost race re-selects the winning
-      // case, so no duplicate case/outbox is ever created.
-      const result = await prisma.$transaction((tx) => recordHumanQaHoldInTx(tx, plan.recordArgs));
-      if (result.action === 'create') {
-        created++;
-        console.log(
-          `[reconcile] created ${plan.kind} case ${result.caseId} (rev ${result.revision}) for order ${plan.orderId}`,
-        );
-      } else {
-        // idempotent / supersede / skip_weaker: an active case already existed (raced). Count as skipped-existing.
-        skippedExisting++;
-        console.log(`[reconcile] order ${plan.orderId} already reconciled concurrently (${result.action}); skipped.`);
+      const res = await syncHumanQaHoldCase(prisma, order.id, {
+        includeUnknown: cli.includeUnknown,
+        dryRun: cli.dryRun,
+      });
+      if (res.kind === 'legacy_unknown' && (res.action === 'created' || res.action === 'would_create')) {
+        legacyUnknown.push(order.id);
+      }
+      switch (res.action) {
+        case 'created':
+          created++;
+          console.log(
+            `[reconcile] created ${res.kind} case${res.caseId ? ` ${res.caseId}` : ''} for order ${order.id} (scope=${res.scope})`,
+          );
+          break;
+        case 'would_create':
+          wouldCreate++;
+          console.log(`[reconcile] WOULD create ${res.kind} case for order ${order.id} (scope=${res.scope})`);
+          break;
+        case 'idempotent':
+          idempotent++;
+          break;
+        case 'skipped': {
+          const reason = res.reason ?? 'unknown';
+          skipped[reason] = (skipped[reason] ?? 0) + 1;
+          break;
+        }
+        default:
+          // 'resolved'/'error' cannot occur for a needs_human_qa order via this path; count defensively.
+          skipped[res.action] = (skipped[res.action] ?? 0) + 1;
       }
     } catch (err) {
-      const code = (err as { code?: string }).code;
-      if (code === 'P2002') {
-        skippedExisting++;
-        console.log(`[reconcile] order ${plan.orderId} reconciled concurrently (P2002); skipped.`);
-      } else {
-        errors.push({ orderId: plan.orderId, message: err instanceof Error ? err.message : String(err) });
-        console.error(`[reconcile] ERROR reconciling order ${plan.orderId}:`, err);
-      }
+      errors.push({ orderId: order.id, message: err instanceof Error ? err.message : String(err) });
+      console.error(`[reconcile] ERROR reconciling order ${order.id}:`, err);
     }
   }
 
   console.log('');
   console.log('── reconcile summary ─────────────────────────────');
   console.log(`  mode:             ${cli.dryRun ? 'DRY-RUN (no writes)' : 'apply'}`);
+  console.log(`  include-unknown:  ${cli.includeUnknown ? 'yes' : 'no'}`);
   console.log(`  scanned:          ${orders.length}`);
   if (cli.dryRun) {
     console.log(`  would-create:     ${wouldCreate}`);
   } else {
     console.log(`  created:          ${created}`);
   }
-  console.log(`  skipped-existing: ${skippedExisting}`);
+  console.log(`  idempotent:       ${idempotent}`);
+  const skippedKeys = Object.keys(skipped).sort();
+  const skippedTotal = skippedKeys.reduce((n, k) => n + skipped[k], 0);
   console.log(
-    `  unknown-kind:     ${unknownKind.length}${unknownKind.length ? ` → ${unknownKind.join(', ')}` : ''}`,
+    `  skipped:          ${skippedTotal}${skippedKeys.length ? ` → ${skippedKeys.map((k) => `${k}:${skipped[k]}`).join(', ')}` : ''}`,
   );
   if (errors.length) {
     console.log(`  errors:           ${errors.length}`);
     for (const e of errors) console.log(`    - ${e.orderId}: ${e.message}`);
   }
   console.log('──────────────────────────────────────────────────');
-  if (unknownKind.length) {
+  if (legacyUnknown.length) {
     console.log(
-      `[reconcile] NOTE: ${unknownKind.length} legacy_unknown order(s) were ` +
-        `${cli.dryRun ? 'would-be ' : ''}backfilled AND need explicit operator attention: ${unknownKind.join(', ')}`,
+      `[reconcile] NOTE: ${legacyUnknown.length} legacy_unknown order(s) were ` +
+        `${cli.dryRun ? 'would-be ' : ''}backfilled (via --include-unknown) AND need explicit operator triage: ${legacyUnknown.join(', ')}`,
     );
   }
 

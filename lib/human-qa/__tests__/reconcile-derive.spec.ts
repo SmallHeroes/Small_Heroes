@@ -1,28 +1,20 @@
 import { describe, it, expect } from 'vitest';
-import type { HumanQaHoldKind } from '@prisma/client';
 import { deriveHumanQaHoldKindFromOrder, computeHoldFingerprint } from '@/lib/human-qa/record-hold';
-import {
-  planReconcileOrder,
-  deriveHumanReasonFromMarker,
-  RECONCILE_LEGACY_RAW_REASON,
-  type ReconcileOrderRow,
-} from '@/lib/human-qa/reconcile-plan';
+import { classifyHoldForCase, type HoldSignals } from '@/lib/human-qa/sync-hold-case';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-function orderRow(over: Partial<ReconcileOrderRow> = {}): ReconcileOrderRow {
+function signals(over: Partial<HoldSignals> = {}): HoldSignals {
   return {
-    id: 'ord_1',
+    status: 'needs_human_qa',
     deliveryHoldReason: null,
     manualReviewRequired: false,
-    childName: 'Noa',
-    inputVersion: 3,
-    visualContractHash: 'ch_abc',
+    hasActiveRecoveryCase: false,
     ...over,
   };
 }
 
-// ─── deriveHumanQaHoldKindFromOrder (pure classifier) ─────────────────────────────────────────────────────────
+// ─── deriveHumanQaHoldKindFromOrder (pure marker→kind classifier) ─────────────────────────────────────────────
 
 describe('deriveHumanQaHoldKindFromOrder', () => {
   it('maps a safety_hold: marker → safety', () => {
@@ -43,36 +35,26 @@ describe('deriveHumanQaHoldKindFromOrder', () => {
     );
   });
 
-  it('maps manualReviewRequired=true with a coupon-fence reason → payment_integrity', () => {
+  it('maps manualReviewRequired=true → payment_integrity', () => {
     expect(
-      deriveHumanQaHoldKindFromOrder({
-        deliveryHoldReason: 'coupon_paid_late_over_cap',
-        manualReviewRequired: true,
-      }),
+      deriveHumanQaHoldKindFromOrder({ deliveryHoldReason: 'coupon_paid_late_over_cap', manualReviewRequired: true }),
     ).toBe('payment_integrity');
-  });
-
-  it('maps manualReviewRequired=true with NO reason → payment_integrity', () => {
     expect(deriveHumanQaHoldKindFromOrder({ deliveryHoldReason: null, manualReviewRequired: true })).toBe(
       'payment_integrity',
     );
   });
 
-  it('falls back to legacy_unknown for a null marker and no manual-review flag', () => {
+  it('falls back to legacy_unknown for a null / unrecognized marker and no manual-review flag', () => {
     expect(deriveHumanQaHoldKindFromOrder({ deliveryHoldReason: null, manualReviewRequired: false })).toBe(
       'legacy_unknown',
     );
     expect(deriveHumanQaHoldKindFromOrder({})).toBe('legacy_unknown');
-  });
-
-  it('falls back to legacy_unknown for an unrecognized marker with no manual-review flag', () => {
     expect(deriveHumanQaHoldKindFromOrder({ deliveryHoldReason: 'some_future_hold:whatever' })).toBe(
       'legacy_unknown',
     );
   });
 
   it('the delivery marker wins over the manual-review flag (marker checked first)', () => {
-    // A base_book hold that ALSO carries manualReviewRequired is still classified by its marker, never payment.
     expect(
       deriveHumanQaHoldKindFromOrder({
         deliveryHoldReason: 'safety_hold:hazard:page:1',
@@ -82,101 +64,100 @@ describe('deriveHumanQaHoldKindFromOrder', () => {
   });
 });
 
-// ─── planReconcileOrder (pure plan) ───────────────────────────────────────────────────────────────────────────
+// ─── classifyHoldForCase (the reconcile + post-commit classifier — P1-3) ──────────────────────────────────────
+// This is THE decision the reconciler and every seam's post-commit hook share. Its job is to open a case ONLY for a
+// terminal MANUAL hold, and to SKIP recoverable / recovery-owned / unknown parks (the "total classifier" NO-GO fix).
 
-describe('planReconcileOrder', () => {
-  it('plans a base_book case for a safety hold with the exact recordHumanQaHoldInTx args', () => {
-    const plan = planReconcileOrder(
-      orderRow({ id: 'ord_safety', deliveryHoldReason: 'safety_hold:hazard:page:2:child_on_railing' }),
-    );
-    expect(plan.kind).toBe('safety');
-    expect(plan.scope).toBe('base_book');
-    expect(plan.activeKey).toBe('ord_safety:base_book');
-    expect(plan.needsOperatorAttention).toBe(false);
-    expect(plan.recordArgs).toEqual({
-      orderId: 'ord_safety',
-      scope: 'base_book',
+describe('classifyHoldForCase', () => {
+  it('a non-held order → not_held (no case)', () => {
+    expect(classifyHoldForCase(signals({ status: 'ready' }))).toEqual({ create: false, reason: 'not_held' });
+    expect(classifyHoldForCase(signals({ status: 'generating' }))).toEqual({ create: false, reason: 'not_held' });
+  });
+
+  it('opens a base_book case for each terminal manual marker', () => {
+    expect(classifyHoldForCase(signals({ deliveryHoldReason: 'safety_hold:hazard' }))).toEqual({
+      create: true,
       kind: 'safety',
-      rawReason: 'safety_hold:hazard:page:2:child_on_railing',
-      humanReason: deriveHumanReasonFromMarker('safety', 'safety_hold:hazard:page:2:child_on_railing'),
+      scope: 'base_book',
+    });
+    expect(classifyHoldForCase(signals({ deliveryHoldReason: 'contract_world_hold:drift' }))).toEqual({
+      create: true,
+      kind: 'contract_world',
+      scope: 'base_book',
+    });
+    expect(classifyHoldForCase(signals({ deliveryHoldReason: 'anchor_low_confidence:soft_band' }))).toEqual({
+      create: true,
+      kind: 'anchor',
+      scope: 'base_book',
+    });
+  });
+
+  it('opens a PAYMENT-scope case for the manual-review fence', () => {
+    expect(
+      classifyHoldForCase(signals({ deliveryHoldReason: 'coupon_paid_late_over_cap', manualReviewRequired: true })),
+    ).toEqual({ create: true, kind: 'payment_integrity', scope: 'payment' });
+  });
+
+  it('SKIPS a recoverable base_book_integrity park (owned by the recovery loop) — the total-classifier NO-GO fix', () => {
+    expect(classifyHoldForCase(signals({ deliveryHoldReason: 'base_book_integrity:missing_page:3' }))).toEqual({
+      create: false,
+      reason: 'recoverable',
+    });
+  });
+
+  it('SKIPS an order with an active recovery ExceptionCase (unknown/null marker)', () => {
+    expect(classifyHoldForCase(signals({ deliveryHoldReason: null, hasActiveRecoveryCase: true }))).toEqual({
+      create: false,
+      reason: 'exception_case',
+    });
+  });
+
+  it('NEVER auto-backfills an unknown/null marker without explicit opt-in', () => {
+    expect(classifyHoldForCase(signals({ deliveryHoldReason: null }))).toEqual({ create: false, reason: 'unknown' });
+    expect(classifyHoldForCase(signals({ deliveryHoldReason: 'some_future_hold:x' }))).toEqual({
+      create: false,
+      reason: 'unknown',
+    });
+  });
+
+  it('opens a legacy_unknown case for an unknown marker ONLY with includeUnknown', () => {
+    expect(classifyHoldForCase(signals({ deliveryHoldReason: null }), { includeUnknown: true })).toEqual({
+      create: true,
+      kind: 'legacy_unknown',
+      scope: 'base_book',
+    });
+  });
+
+  it('a terminal safety marker wins even over an active recovery case (marker checked first)', () => {
+    // A safety hold MUST get a case; an incidentally-active recovery case must not suppress it.
+    expect(
+      classifyHoldForCase(signals({ deliveryHoldReason: 'safety_hold:hazard', hasActiveRecoveryCase: true })),
+    ).toEqual({ create: true, kind: 'safety', scope: 'base_book' });
+  });
+
+  it('recoverable park is skipped even while includeUnknown is set (recoverable ≠ unknown)', () => {
+    expect(
+      classifyHoldForCase(signals({ deliveryHoldReason: 'base_book_integrity:x' }), { includeUnknown: true }),
+    ).toEqual({ create: false, reason: 'recoverable' });
+  });
+});
+
+// ─── Idempotency of the recorded args (determinism ⇒ stable fingerprint) ──────────────────────────────────────
+
+describe('reconcile mapping is idempotent', () => {
+  it('produces a STABLE hold fingerprint across re-runs, so recordHumanQaHoldInTx would go idempotent', () => {
+    const args = {
+      orderId: 'ord_fp',
+      scope: 'base_book' as const,
+      kind: 'contract_world' as const,
+      rawReason: 'contract_world_hold:quality_failed:page:2',
+      humanReason: 'x',
       childName: 'Noa',
       inputVersion: 3,
       contractHash: 'ch_abc',
       sourceManifestId: null,
       artifactRefs: null,
-    });
-  });
-
-  it('plans a payment scope + activeKey for a payment_integrity hold', () => {
-    const plan = planReconcileOrder(
-      orderRow({ id: 'ord_pay', deliveryHoldReason: 'coupon_paid_late_over_cap', manualReviewRequired: true }),
-    );
-    expect(plan.kind).toBe('payment_integrity');
-    expect(plan.scope).toBe('payment');
-    expect(plan.activeKey).toBe('ord_pay:payment');
-    expect(plan.recordArgs.rawReason).toBe('coupon_paid_late_over_cap');
-    expect(plan.needsOperatorAttention).toBe(false);
-  });
-
-  it('backfills a legacy_unknown order (cmrnuhsva) AND flags it for operator attention', () => {
-    // cmrnuhsva proved the silent-hold gap: held in needs_human_qa with no case + no recognizable marker.
-    const plan = planReconcileOrder(orderRow({ id: 'cmrnuhsva', deliveryHoldReason: null }));
-    expect(plan.kind).toBe('legacy_unknown');
-    expect(plan.scope).toBe('base_book');
-    expect(plan.activeKey).toBe('cmrnuhsva:base_book');
-    expect(plan.needsOperatorAttention).toBe(true);
-    // Missing marker → the stable fallback raw reason (so re-runs keep the same fingerprint).
-    expect(plan.recordArgs.rawReason).toBe(RECONCILE_LEGACY_RAW_REASON);
-  });
-
-  it('passes childName / inputVersion / visualContractHash through, with null manifest + artifacts', () => {
-    const plan = planReconcileOrder(
-      orderRow({ childName: 'דניאל', inputVersion: 7, visualContractHash: null }),
-    );
-    expect(plan.recordArgs.childName).toBe('דניאל');
-    expect(plan.recordArgs.inputVersion).toBe(7);
-    expect(plan.recordArgs.contractHash).toBeNull();
-    expect(plan.recordArgs.sourceManifestId).toBeNull();
-    expect(plan.recordArgs.artifactRefs).toBeNull();
-  });
-
-  it('derives base_book scope for every non-payment kind', () => {
-    const cases: Array<{ reason: string | null; kind: HumanQaHoldKind }> = [
-      { reason: 'safety_hold:x', kind: 'safety' },
-      { reason: 'contract_world_hold:x', kind: 'contract_world' },
-      { reason: 'anchor_low_confidence:soft_band', kind: 'anchor' },
-      { reason: null, kind: 'legacy_unknown' },
-    ];
-    for (const c of cases) {
-      const plan = planReconcileOrder(orderRow({ deliveryHoldReason: c.reason }));
-      expect(plan.kind).toBe(c.kind);
-      expect(plan.scope).toBe('base_book');
-    }
-  });
-});
-
-// ─── Idempotency of the reconcile mapping (determinism ⇒ stable fingerprint) ──────────────────────────────────
-
-describe('reconcile mapping is idempotent', () => {
-  it('planning the same order twice yields deeply-equal plans (no clock / randomness)', () => {
-    const order = orderRow({ id: 'ord_idem', deliveryHoldReason: 'anchor_low_confidence:soft_band' });
-    expect(planReconcileOrder(order)).toEqual(planReconcileOrder(order));
-  });
-
-  it('produces a STABLE hold fingerprint across re-runs, so recordHumanQaHoldInTx would go idempotent', () => {
-    // computeHoldFingerprint over the planned args is exactly what recordHumanQaHoldInTx hashes; equal fingerprints
-    // on a re-run mean the existing active case matches → the applier writes nothing new.
-    const order = orderRow({ id: 'ord_fp', deliveryHoldReason: 'contract_world_hold:quality_failed:page:2' });
-    const a = planReconcileOrder(order).recordArgs;
-    const b = planReconcileOrder(order).recordArgs;
-    expect(computeHoldFingerprint(a)).toBe(computeHoldFingerprint(b));
-  });
-
-  it('legacy_unknown re-runs are also fingerprint-stable (fixed fallback raw reason)', () => {
-    const order = orderRow({ id: 'cmrnuhsva', deliveryHoldReason: null });
-    const a = planReconcileOrder(order).recordArgs;
-    const b = planReconcileOrder(order).recordArgs;
-    expect(a.rawReason).toBe(RECONCILE_LEGACY_RAW_REASON);
-    expect(computeHoldFingerprint(a)).toBe(computeHoldFingerprint(b));
+    };
+    expect(computeHoldFingerprint(args)).toBe(computeHoldFingerprint({ ...args }));
   });
 });
