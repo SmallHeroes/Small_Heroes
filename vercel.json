@@ -18,6 +18,9 @@
     },
     "app/api/generate/cron/exceptions/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/generate/cron/operator-notifications/route.ts": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -31,6 +34,10 @@
     },
     {
       "path": "/api/generate/cron/exceptions",
+      "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/generate/cron/operator-notifications",
       "schedule": "*/2 * * * *"
     }
   ]

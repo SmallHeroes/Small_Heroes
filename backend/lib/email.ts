@@ -37,6 +37,22 @@ export interface RefundNoticeEmailData {
   idempotencyKey: string;
 }
 
+/**
+ * (Human-QA Slice 1, Unit 3) The INTERNAL operator-review notification. Carries the review facts (orderId,
+ * childName, kind, humanReason, pages) — and DELIBERATELY NO customer access key and NO deep link to a page:
+ * the admin console is Slice 2, so a link would point at a 404 (not visible lifecycle). The operator looks the
+ * order up by id. Sent with an `Idempotency-Key` so a re-attempt of the SAME notification never double-pings.
+ */
+export interface OperatorReviewEmailData {
+  to: string;
+  orderId: string;
+  childName: string;
+  kind: string;
+  humanReason: string;
+  pages?: number[];
+  idempotencyKey: string;
+}
+
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (char) => ({
     '&': '&amp;',
@@ -172,6 +188,70 @@ export async function sendRefundNoticeEmail(
     }),
   });
   if (!res.ok) throw new Error(`Resend refund notice error: ${res.status}`);
+  const body = (await res.json().catch(() => ({}))) as { id?: string };
+  return { providerMessageId: body.id };
+}
+
+/**
+ * (Human-QA Slice 1, Unit 3) Send the INTERNAL operator-review email. Mirrors sendRefundNoticeEmail EXACTLY:
+ * Resend `POST /emails`, `Idempotency-Key` from `data.idempotencyKey`, `providerMessageId = body.id`, throws on
+ * a non-ok response. Plain-text + simple-HTML body carrying orderId/childName/kind/humanReason/pages — and NO
+ * customer access key and NO deep link (the admin console is Slice 2; a link would 404).
+ */
+export async function sendOperatorReviewEmail(
+  data: OperatorReviewEmailData,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ providerMessageId?: string }> {
+  const provider = process.env.EMAIL_PROVIDER || 'resend';
+  if (provider !== 'resend') {
+    throw new Error(`Unsupported operator-review email provider:${provider}`);
+  }
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error('RESEND_API_KEY not set');
+
+  const pagesText = data.pages && data.pages.length > 0 ? data.pages.join(', ') : '—';
+  const lines = [
+    `Order: ${data.orderId}`,
+    `Child: ${data.childName}`,
+    `Hold kind: ${data.kind}`,
+    `Pages: ${pagesText}`,
+    ``,
+    `Reason:`,
+    data.humanReason,
+  ];
+  const text = lines.join('\n');
+  const html = `
+    <html lang="en">
+      <body style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
+        <p style="font-weight:bold;margin:0 0 12px">Human-QA review needed</p>
+        <table cellpadding="4" style="border-collapse:collapse">
+          <tr><td style="color:#666">Order</td><td><code>${escapeHtml(data.orderId)}</code></td></tr>
+          <tr><td style="color:#666">Child</td><td>${escapeHtml(data.childName)}</td></tr>
+          <tr><td style="color:#666">Hold kind</td><td>${escapeHtml(data.kind)}</td></tr>
+          <tr><td style="color:#666">Pages</td><td>${escapeHtml(pagesText)}</td></tr>
+        </table>
+        <p style="margin:12px 0 4px;color:#666">Reason</p>
+        <p style="margin:0">${escapeHtml(data.humanReason)}</p>
+      </body>
+    </html>`;
+
+  const res = await fetchImpl('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      // Re-attempts of the SAME operator notification dedup at the provider for 24h → effectively-once ping.
+      'Idempotency-Key': data.idempotencyKey,
+    },
+    body: JSON.stringify({
+      from: EMAIL.from,
+      to: [data.to],
+      subject: `[Human-QA] Review needed — ${data.childName} (${data.kind})`,
+      text,
+      html,
+    }),
+  });
+  if (!res.ok) throw new Error(`Resend operator review error: ${res.status}`);
   const body = (await res.json().catch(() => ({}))) as { id?: string };
   return { providerMessageId: body.id };
 }
