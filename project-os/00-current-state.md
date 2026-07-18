@@ -1,13 +1,13 @@
 # 00 — Current State
 
-**Last updated:** 2026-07-06
+**Last updated:** 2026-07-13
 **Maintained by:** Claude Cowork (Project Operator)
 **Source-of-truth note:** This file is the reasoning/state snapshot. ClickUp remains the task tracker. Repo landmarks: `SMALL_HEROES_PROJECT_BIBLE.md`, `docs/ai-workflow/`, latest `cc-checkpoint-*-for-codex.md`.
 
 ---
 
 ## MVP status (headline)
-Pre-launch, engine-hardening phase. **Not yet sellable at target quality.** Launch target **2026-07-15** (soft launch, Cursor + Guy only, real payment, ~50% launch discount). Binding constraint = story throughput × Guy's manual QA gate. Current focus is closing the **visual-contract engine** so full-book renders are consistent enough to sell.
+Pre-launch, engine-hardening phase. **Not yet sellable at target quality.** Launch target **2026-08-01** (moved from 07-15 per Guy 2026-07-02 — to build the visual-contract engine right; soft launch, Cursor + Guy only, real payment, ~50% launch discount). Binding constraint = story throughput × Guy's manual QA gate. Current focus is closing the **visual-contract engine** so full-book renders are consistent enough to sell.
 
 ## Current sprint focus
 - **P0 visual-contract slice — round-2 fixes IMPLEMENTED + pushed (`32dcfe3a`, 2026-07-06).** Claude Code closed the 3 Codex fail-open seams (validate-before-freeze + belt at the fence; hardened discriminant dispatch; Resolved validator now enforces Template invariants independently). `materializeContract.ts` untouched → payload/hash byte-identical (validation gates only). `npm run check` green **1333 pass / 15 skip** (+6 negative tests). **Codex round-3 = PASS (2026-07-06)** — all 3 seams confirmed closed, no hash regression. **DEC-002 accepted; P1 authorized.** Fail mode = degrade-to-legacy (hard render block is P1/OQ-T5, untouched).

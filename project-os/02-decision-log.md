@@ -60,11 +60,11 @@ Risks: PayMe has no idempotency key + uncertain read-after-write → refund exac
 Needs Codex review: yes (any refund/order-lifecycle change)
 Revisit after: International expansion
 
-DEC-004: Launch = soft launch 2026-07-15, human-supervised QA
-Date: 2026-06-15
+DEC-004: Launch = soft launch 2026-08-01, human-supervised QA
+Date: 2026-06-15 (revised 2026-07-02)
 Status: accepted
 Owner: Guy
-Context: Moved from 07-01 to add QA buffer. Reliability not yet proven for automation.
+Context: Date moved 07-01 → 07-15 → **08-01** (Guy 2026-07-02) to build the visual-contract quality engine properly rather than ship a half-built engine. Reliability not yet proven for automation.
 Decision: Soft/F&F launch, 8/18 slots, real payment, ~50% launch discount, Cursor + Guy only, manual QA gate on every book.
 Why: Prefer supervised reliability over full automation pre-proof.
 Rejected alternatives: Full public launch; full automation.
