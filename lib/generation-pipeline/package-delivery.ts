@@ -7,8 +7,10 @@ import { buildQaWarningsFromAnchorHold, canUseQaSoftDeliver } from '@/lib/qa-sof
 import {
   commitBaseBookReadiness,
   isReadinessManifestEnabled,
+  executeReadinessShipCas,
   type CommitResult,
 } from './readiness-manifest';
+import { writeOrderHoldFenced } from './order-authority';
 import { resolveActiveRecoveryCaseInTx } from '@/lib/generation-chunked/exception-case';
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 
@@ -185,21 +187,41 @@ export async function finalizePackageDelivery(
   const legacyHoldReason = legacySoftDeliver
     ? `qa_soft_deliver:${args.deliveryGate.reason ?? 'held'}`
     : args.deliveryGate.reason;
-  // (Human-QA Slice 1, re-gate P0-1) The two legacy writes stay bare (separate autocommits, byte-unchanged). The
-  // case is NEVER written inside the park — a case-write rejection must not roll back the anchor park. It is opened
-  // POST-COMMIT below, and the reconciler is the guaranteed repair for a missed write.
-  await prisma.order.update({
+  // (Codex round-5 P0-2) The legacy (readiness OFF) path is the LIVE customer delivery path in Production. Its
+  // writes are now fence-bound CAS writes — a hold that landed after safetyGate was read cannot be silently
+  // overwritten, and the email is gated on the ship CAS winning. Read fence + inputVersion to bind the CAS.
+  const cur = await prisma.order.findUnique({
     where: { id: args.order.id },
-    data: {
-      status: legacyStatus,
-      packageStatus: 'done',
-      deliveryHoldReason: legacyHoldReason,
-      // (delivery fence — Codex round-4 P0) bump the shared fence ONLY when this legacy path actually parks a hold
-      // (never on a soft-deliver `ready` outcome). `undefined` = Prisma no-op (not a spread — keeps the delivery-input
-      // writer analyzer able to read this write's fields).
-      deliveryFenceVersion: legacyStatus === 'needs_human_qa' ? { increment: 1 } : undefined,
-    },
+    select: { inputVersion: true, deliveryFenceVersion: true },
   });
+  let shipped = false;
+  if (!cur) {
+    log.error('Legacy delivery aborted — order vanished before the package write', { orderId: args.order.id });
+  } else if (legacyStatus === 'ready') {
+    // SHIP via the shared ready CAS: flips to ready ONLY IF no competing hold (fence unchanged, no terminal marker,
+    // no payment fence, no active strong case). 0 rows ⇒ a hold landed mid-flight ⇒ NOT shipped, NO email.
+    const rows = await executeReadinessShipCas(prisma, {
+      orderId: args.order.id,
+      inputVersion: cur.inputVersion,
+      deliveryFenceVersion: cur.deliveryFenceVersion,
+      deliveryHoldReason: legacyHoldReason,
+    });
+    shipped = rows === 1;
+    if (!shipped) {
+      log.warn('Legacy ship aborted — a hold landed mid-flight (fence/marker/case); not shipped, no email', {
+        orderId: args.order.id,
+      });
+    }
+  } else {
+    // PARK via the shared hold funnel (bind + bump + never overwrite a stronger marker).
+    await writeOrderHoldFenced(prisma, {
+      orderId: args.order.id,
+      inputVersion: cur.inputVersion,
+      newStatus: legacyStatus,
+      newHoldReason: legacyHoldReason ?? 'anchor_low_confidence:held',
+      setPackageDone: true,
+    });
+  }
   await prisma.generationJob.update({
     where: { orderId: args.order.id },
     data: {
@@ -213,8 +235,10 @@ export async function finalizePackageDelivery(
   // soft-deliver/ready outcome is not held, so syncHumanQaHoldCase re-reads and no-ops.
   await syncHumanQaHoldCasePostCommit(prisma, args.order.id);
 
-  if (!args.deliveryGate.sendBookReadyEmail && !legacySoftDeliver) {
-    log.warn('Book-ready email withheld — order held for human QA', {
+  // (Codex round-5 P0-2) The email is gated on the ship CAS having WON — never sent on a park, and never sent when
+  // the CAS lost to a mid-flight hold.
+  if (!shipped) {
+    log.warn('Book-ready email withheld — not shipped (held for human QA or a hold landed mid-flight)', {
       orderId: args.order.id,
       reason: args.deliveryGate.reason,
     });
@@ -246,7 +270,7 @@ export async function finalizePackageDelivery(
 
   return {
     mode: 'legacy',
-    deliveryHeld: legacySoftDeliver ? false : args.deliveryGate.held,
+    deliveryHeld: !shipped,
     manifest: null,
   };
 }

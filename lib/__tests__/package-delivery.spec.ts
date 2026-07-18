@@ -17,7 +17,7 @@ const allowGate = {
 
 function db() {
   const client = {
-    order: { update: vi.fn(async () => ({})), findUnique: vi.fn(async () => ({ childName: 'Test', inputVersion: 0, visualContractHash: null })) },
+    order: { update: vi.fn(async () => ({})), findUnique: vi.fn(async () => ({ childName: 'Test', inputVersion: 0, visualContractHash: null, deliveryFenceVersion: 0 })) },
     generationJob: { update: vi.fn(async () => ({})) },
     // (Fix 5) the safety pre-gate parks in a tx and resolves any active recovery case (findUnique → null = no-op).
     exceptionCase: { findUnique: vi.fn(async () => null), updateMany: vi.fn(async () => ({ count: 0 })) },
@@ -26,7 +26,10 @@ function db() {
     // unchanged — these only let the additive path run.
     humanQaReviewCase: { findUnique: vi.fn(async () => null), findFirst: vi.fn(async () => null), update: vi.fn(async () => ({})) },
     operatorNotificationOutbox: { findFirst: vi.fn(async () => null), update: vi.fn(async () => ({})) },
-    $queryRaw: vi.fn(async () => [{ id: 'hqc-test' }]),
+    // (delivery fence round-5) $queryRaw serves the receipt INSERT…RETURNING id AND writeOrderHoldFenced's SELECT;
+    // $executeRaw serves the ship CAS + the hold CAS (1 = applied/shipped by default). Real semantics: PG harness.
+    $queryRaw: vi.fn(async () => [{ id: 'hqc-test', fence: 0, rank: 1, status: 'generating', inputVersion: 0 }]),
+    $executeRaw: vi.fn(async () => 1),
     $transaction: vi.fn(),
   };
   client.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => fn(client));
@@ -134,10 +137,10 @@ describe('finalizePackageDelivery — flag boundary', () => {
     );
 
     expect(result).toEqual({ mode: 'legacy', deliveryHeld: false, manifest: null });
-    expect(prisma.order.update).toHaveBeenCalledWith({
-      where: { id: 'o1' },
-      data: { status: 'ready', packageStatus: 'done', deliveryHoldReason: null },
-    });
+    // (delivery fence round-5 P0-2) the legacy `ready` transition is now the guarded ship CAS ($executeRaw), not a
+    // bare order.update; the email is gated on it winning (1 row). Real CAS WHERE proven in the PG harness.
+    expect(prisma.$executeRaw).toHaveBeenCalled();
+    expect(prisma.order.update).not.toHaveBeenCalled();
     expect(prisma.generationJob.update).toHaveBeenCalledWith({
       where: { orderId: 'o1' },
       data: { status: 'done', currentStage: 'done', completedAt: now, packaged: true },
@@ -167,9 +170,9 @@ describe('finalizePackageDelivery — flag boundary', () => {
       { readinessEnabled: () => false, send },
     );
     expect(result).toMatchObject({ mode: 'legacy', deliveryHeld: true });
-    expect(prisma.order.update).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ status: 'needs_human_qa', deliveryHoldReason: heldGate.reason }),
-    }));
+    // (delivery fence round-5) the legacy park is now writeOrderHoldFenced ($executeRaw + precedence), not order.update.
+    expect(prisma.$executeRaw).toHaveBeenCalled();
+    expect(prisma.order.update).not.toHaveBeenCalled();
     expect(send).not.toHaveBeenCalled();
   });
 });

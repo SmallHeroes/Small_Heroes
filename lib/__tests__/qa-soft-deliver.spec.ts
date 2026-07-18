@@ -166,12 +166,14 @@ describe('QA soft-deliver integration', () => {
     const prisma = {
       order: {
         update: vi.fn(async () => ({})),
-        findUnique: vi.fn(async () => ({ childName: 'K', inputVersion: 0, visualContractHash: null })),
+        findUnique: vi.fn(async () => ({ childName: 'K', inputVersion: 0, visualContractHash: null, deliveryFenceVersion: 0 })),
       },
       generationJob: { update: vi.fn(async () => ({})) },
       humanQaReviewCase: { findUnique: vi.fn(async () => null), findFirst: vi.fn(async () => null), update: vi.fn(async () => ({})) },
       operatorNotificationOutbox: { findFirst: vi.fn(async () => null), update: vi.fn(async () => ({})) },
-      $queryRaw: vi.fn(async () => [{ id: 'hqc-test' }]),
+      // (delivery fence round-5) the legacy ship/park CAS is $executeRaw; $queryRaw carries writeOrderHoldFenced's read.
+      $queryRaw: vi.fn(async () => [{ id: 'hqc-test', fence: 0, rank: 1, status: 'generating', inputVersion: 0 }]),
+      $executeRaw: vi.fn(async () => 1),
       $transaction: vi.fn(),
     };
     prisma.$transaction.mockImplementation(async (cb: (t: unknown) => unknown) => cb(prisma));
@@ -197,9 +199,9 @@ describe('QA soft-deliver integration', () => {
     );
     expect(result.deliveryHeld).toBe(true);
     expect(send).not.toHaveBeenCalled();
-    expect(prisma.order.update).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ status: 'needs_human_qa' }),
-    }));
+    // (delivery fence round-5) the legacy park is now writeOrderHoldFenced ($executeRaw), not a bare order.update.
+    expect(prisma.$executeRaw).toHaveBeenCalled();
+    expect(prisma.order.update).not.toHaveBeenCalled();
   });
 
   it('flag-on non-prod legacy path delivers weak anchor with qaWarnings email', async () => {
@@ -209,12 +211,14 @@ describe('QA soft-deliver integration', () => {
     const prisma = {
       order: {
         update: vi.fn(async () => ({})),
-        findUnique: vi.fn(async () => ({ childName: 'K', inputVersion: 0, visualContractHash: null })),
+        findUnique: vi.fn(async () => ({ childName: 'K', inputVersion: 0, visualContractHash: null, deliveryFenceVersion: 0 })),
       },
       generationJob: { update: vi.fn(async () => ({})) },
       humanQaReviewCase: { findUnique: vi.fn(async () => null), findFirst: vi.fn(async () => null), update: vi.fn(async () => ({})) },
       operatorNotificationOutbox: { findFirst: vi.fn(async () => null), update: vi.fn(async () => ({})) },
-      $queryRaw: vi.fn(async () => [{ id: 'hqc-test' }]),
+      // (delivery fence round-5) the legacy ship/park CAS is $executeRaw; $queryRaw carries writeOrderHoldFenced's read.
+      $queryRaw: vi.fn(async () => [{ id: 'hqc-test', fence: 0, rank: 1, status: 'generating', inputVersion: 0 }]),
+      $executeRaw: vi.fn(async () => 1),
       $transaction: vi.fn(),
     };
     prisma.$transaction.mockImplementation(async (cb: (t: unknown) => unknown) => cb(prisma));
@@ -244,9 +248,9 @@ describe('QA soft-deliver integration', () => {
         anchor: expect.objectContaining({ score: 0.12, band: 'hard_band' }),
       }),
     }));
-    expect(prisma.order.update).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ status: 'ready' }),
-    }));
+    // (delivery fence round-5) the legacy soft-deliver `ready` is now the ship CAS ($executeRaw), gated on winning.
+    expect(prisma.$executeRaw).toHaveBeenCalled();
+    expect(prisma.order.update).not.toHaveBeenCalled();
   });
 
   it('flag-on prod-like runtime ignores soft-deliver in manifest commit (still holds)', async () => {
