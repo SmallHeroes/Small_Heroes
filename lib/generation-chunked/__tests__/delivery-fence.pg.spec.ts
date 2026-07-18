@@ -22,19 +22,49 @@ import { executeReadinessShipCas } from '@/lib/generation-pipeline/readiness-man
  * never runs in the normal unit suite. In CI: add a `postgres:16` service and set the two env vars for this file.
  */
 
-const URL = process.env.DELIVERY_FENCE_PG_URL;
-const RUN = process.env.RUN_DELIVERY_FENCE_PG === 'true' && !!URL;
+const PG_URL = process.env.DELIVERY_FENCE_PG_URL;
+const RUN = process.env.RUN_DELIVERY_FENCE_PG === 'true' && !!PG_URL;
+
+// (P0-tooling — Codex round-5) FAIL-CLOSED harness safety. The prior harness unconditionally DROPped `public."Order"`
+// — two wrong env vars would destroy staging. `assertEnvSeparation()` is NOT used (it self-disables on Vercel
+// Production). Instead we DEMAND, independently, all of:
+//   • a dedicated database NAME (allowlist: fence / delivery_fence / *_fence_test) — a staging/prod db name is refused;
+//   • a LOCAL host (localhost/127.0.0.1) unless DELIVERY_FENCE_PG_ALLOW_REMOTE=true is set explicitly;
+//   • all DDL confined to a DEDICATED SCHEMA (`delivery_fence_test`) that we CREATE and DROP — `public` is NEVER
+//     touched, so even a misconfigured URL cannot drop an application table.
+const SCHEMA = 'delivery_fence_test';
+const DB_NAME_ALLOW = /^(fence|delivery_fence|.*_fence_test)$/;
+function assertThrowawayTarget(rawUrl: string): void {
+  const u = new URL(rawUrl);
+  const dbName = decodeURIComponent(u.pathname.replace(/^\//, ''));
+  if (!DB_NAME_ALLOW.test(dbName)) {
+    throw new Error(`[delivery-fence harness] REFUSED: database "${dbName}" is not a dedicated throwaway name (allow: ${DB_NAME_ALLOW}). NEVER point this at a real DB.`);
+  }
+  const host = u.hostname;
+  const localOk = host === 'localhost' || host === '127.0.0.1' || host === '::1';
+  if (!localOk && process.env.DELIVERY_FENCE_PG_ALLOW_REMOTE !== 'true') {
+    throw new Error(`[delivery-fence harness] REFUSED: non-local host "${host}"; set DELIVERY_FENCE_PG_ALLOW_REMOTE=true only for a CI throwaway DB.`);
+  }
+}
 
 describe.skipIf(!RUN)('delivery fence — real Postgres READ COMMITTED interleave', () => {
   let db: PrismaClient;
   let other: PrismaClient; // a SECOND connection, for the concurrent-park interleave
 
   beforeAll(async () => {
-    db = new PrismaClient({ datasources: { db: { url: URL! } } });
-    other = new PrismaClient({ datasources: { db: { url: URL! } } });
-    // Minimal DDL — only what the ship CAS references. Idempotent so a re-run is clean.
-    await db.$executeRawUnsafe(`DROP TABLE IF EXISTS "HumanQaReviewCase" CASCADE`);
-    await db.$executeRawUnsafe(`DROP TABLE IF EXISTS "Order" CASCADE`);
+    assertThrowawayTarget(PG_URL!); // hard-refuse anything that is not a dedicated throwaway DB
+    // Pin the search_path to our dedicated schema for EVERY pooled connection via the URL, so unqualified table
+    // names resolve there — never to `public`.
+    const scoped = new URL(PG_URL!);
+    scoped.searchParams.set('schema', SCHEMA);
+    const url = scoped.toString();
+    db = new PrismaClient({ datasources: { db: { url } } });
+    other = new PrismaClient({ datasources: { db: { url } } });
+    // Create the dedicated schema fresh; all objects live inside it. DROP SCHEMA … CASCADE at teardown removes ONLY
+    // our schema — public is untouched.
+    await db.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${SCHEMA}" CASCADE`);
+    await db.$executeRawUnsafe(`CREATE SCHEMA "${SCHEMA}"`);
+    await db.$executeRawUnsafe(`SET search_path TO "${SCHEMA}"`);
     await db.$executeRawUnsafe(`DO $$ BEGIN CREATE TYPE "OrderStatus" AS ENUM ('draft','pending_payment','paid','generating','ready','partial','failed','needs_human_qa'); EXCEPTION WHEN duplicate_object THEN null; END $$;`);
     await db.$executeRawUnsafe(`DO $$ BEGIN CREATE TYPE "GenerationStatus" AS ENUM ('pending','running','done','failed'); EXCEPTION WHEN duplicate_object THEN null; END $$;`);
     await db.$executeRawUnsafe(`DO $$ BEGIN CREATE TYPE "HumanQaHoldKind" AS ENUM ('safety','contract_world','anchor','payment_integrity','legacy_unknown'); EXCEPTION WHEN duplicate_object THEN null; END $$;`);
@@ -59,6 +89,8 @@ describe.skipIf(!RUN)('delivery fence — real Postgres READ COMMITTED interleav
   });
 
   afterAll(async () => {
+    // Remove ONLY our dedicated schema — never public.
+    try { await db?.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${SCHEMA}" CASCADE`); } catch { /* teardown best-effort */ }
     await db?.$disconnect();
     await other?.$disconnect();
   });
