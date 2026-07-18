@@ -28,4 +28,14 @@ describe('migration ordering', () => {
     expect(enforceNotNull).toBeGreaterThanOrEqual(0);
     expect(enforceNotNull).toBeGreaterThan(addBinding);
   });
+
+  it('the delivery-fence Outbox reconcile (Unit D) sorts AFTER the column it re-derives', () => {
+    // The reconcile UPDATEs DeliveryOutbox."deliveryFenceVersion"; it MUST run after the ALTER that adds it, else a
+    // fresh `migrate deploy` fails on "column does not exist". Guards the cutover backfill order.
+    const addColumn = migrations.indexOf('20260719_zz_outbox_delivery_fence');
+    const reconcile = migrations.indexOf('20260720_outbox_fence_reconcile');
+    expect(addColumn).toBeGreaterThanOrEqual(0);
+    expect(reconcile).toBeGreaterThanOrEqual(0);
+    expect(reconcile).toBeGreaterThan(addColumn);
+  });
 });

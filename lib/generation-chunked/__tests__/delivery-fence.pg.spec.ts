@@ -1,7 +1,28 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { readFileSync } from 'fs';
+import path from 'path';
 import { PrismaClient } from '@prisma/client';
 import { executeReadinessShipCas, casClaimSendSlot } from '@/lib/generation-pipeline/readiness-manifest';
 import { writeOrderHoldFenced, executeAnchorReleaseCas } from '@/lib/generation-pipeline/order-authority';
+
+/**
+ * Split a raw migration.sql into executable statements, honoring `$$…$$` dollar-quoting (so the `DO $$ … END $$;`
+ * block is ONE statement, not split on its inner semicolons). Prisma's extended protocol rejects multi-statement
+ * strings, so we run each statement separately — but the statements are the REAL migration's, verbatim (no drift).
+ */
+function splitSqlStatements(sql: string): string[] {
+  const stripped = sql.replace(/^\s*--.*$/gm, ''); // drop line comments
+  const out: string[] = [];
+  let buf = '';
+  let inDollar = false;
+  for (let i = 0; i < stripped.length; i++) {
+    if (stripped[i] === '$' && stripped[i + 1] === '$') { inDollar = !inDollar; buf += '$$'; i++; continue; }
+    if (stripped[i] === ';' && !inDollar) { if (buf.trim()) out.push(buf.trim()); buf = ''; continue; }
+    buf += stripped[i];
+  }
+  if (buf.trim()) out.push(buf.trim());
+  return out;
+}
 
 /**
  * (delivery fence — Codex round-4 P0) REAL-POSTGRES interleaving harness.
@@ -282,5 +303,33 @@ describe.skipIf(!RUN)('delivery fence — real Postgres READ COMMITTED interleav
     expect(r).toBe('delivery_blocked'); // fence mismatch → 0-row CAS; a defaulted/un-threaded fence strands the book
     const sent = await db.$queryRaw<Array<{ n: number }>>`SELECT COUNT(*)::int AS n FROM "DeliveryOutbox" WHERE "id"='ob1' AND "sendAttempted"=true`;
     expect(sent[0].n).toBe(0); // never marked sendAttempted → the email cannot go out
+  });
+
+  // ── (Unit D / Codex round-6) the cutover reconciliation migration un-strands a defaulted-fence row ────────────
+  it('Unit D reconcile migration: a stale-fence unsent row (defaulted 0) is realigned to the Order fence, then SENDS', async () => {
+    await seedOrder({ status: 'ready', inputVersion: 3, deliveryFenceVersion: 7 }); // Order fence advanced past the DEFAULT-0 backfill
+    await seedReadiness({ status: 'passed', currentManifestId: 'm1' });
+    await seedOutbox({ status: 'scheduled', attempts: 0, sendAttempted: false, payloadHash: 'ph', manifestId: 'm1', inputVersion: 3, deliveryFenceVersion: 0 }); // enqueued before the column existed
+    // sanity: as-is this row would be stranded — its fence (0) can never match the Order's (7)
+    const before = await db.$queryRaw<Array<{ f: number }>>`SELECT "deliveryFenceVersion" AS f FROM "DeliveryOutbox" WHERE "id"='ob1'`;
+    expect(Number(before[0].f)).toBe(0);
+    // run the REAL migration SQL (reconcile UPDATE + fail-loud stranding check), verbatim from the migration file
+    const migSql = readFileSync(path.join(process.cwd(), 'backend/migrations/20260720_outbox_fence_reconcile/migration.sql'), 'utf8');
+    for (const stmt of splitSqlStatements(migSql)) await db.$executeRawUnsafe(stmt);
+    const after = await db.$queryRaw<Array<{ f: number }>>`SELECT "deliveryFenceVersion" AS f FROM "DeliveryOutbox" WHERE "id"='ob1'`;
+    expect(Number(after[0].f)).toBe(7); // realigned to the Order's current fence — no longer stranded
+    // and it is now genuinely deliverable: flip to processing (as the claimer would) → the send CAS claims it
+    await db.$executeRawUnsafe(`UPDATE "DeliveryOutbox" SET "status"='processing', "attempts"=1 WHERE "id"='ob1'`);
+    const now = new Date();
+    const r = await casClaimSendSlot(db, casRow({ inputVersion: 3 }), 1, new Date(now.getTime() + 60_000), now);
+    expect(r).toBe('ok'); // the reconciled row sends; the cutover stranding is closed
+  });
+  it('Unit D reconcile migration: leaves a SENT row untouched (historical fence is not rewritten)', async () => {
+    await seedOrder({ status: 'ready', inputVersion: 3, deliveryFenceVersion: 7 });
+    await seedOutbox({ status: 'sent', attempts: 1, sendAttempted: true, payloadHash: 'ph', manifestId: 'm1', inputVersion: 3, deliveryFenceVersion: 0 });
+    const migSql = readFileSync(path.join(process.cwd(), 'backend/migrations/20260720_outbox_fence_reconcile/migration.sql'), 'utf8');
+    for (const stmt of splitSqlStatements(migSql)) await db.$executeRawUnsafe(stmt);
+    const after = await db.$queryRaw<Array<{ f: number }>>`SELECT "deliveryFenceVersion" AS f FROM "DeliveryOutbox" WHERE "id"='ob1'`;
+    expect(Number(after[0].f)).toBe(0); // a delivered row's fence is history — reconcile must not rewrite it
   });
 });
