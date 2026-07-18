@@ -1,0 +1,154 @@
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { PrismaClient } from '@prisma/client';
+import { executeReadinessShipCas } from '@/lib/generation-pipeline/readiness-manifest';
+
+/**
+ * (delivery fence — Codex round-4 P0) REAL-POSTGRES interleaving harness.
+ *
+ * WHY real PG: mocked tests cannot express PostgreSQL READ COMMITTED interleavings — the exact class of bug Codex
+ * found (readiness reads clean → a park writes the hold WITHOUT bumping inputVersion → the old CAS still matched →
+ * ship). These tests exercise the SHARED, EXPORTED `executeReadinessShipCas` — the SAME SQL production runs, so
+ * there is NO drift between the guard and its proof — against a throwaway Postgres.
+ *
+ * HOW TO RUN (any throwaway PG — never staging/prod):
+ *   # 1. bring up an ephemeral PG (local, CI service container, or testcontainers):
+ *   docker run -d --name fence-pg -p 5433:5432 -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=fence postgres:16
+ *   # 2. point the harness at it and run ONLY this file:
+ *   RUN_DELIVERY_FENCE_PG=true DELIVERY_FENCE_PG_URL='postgresql://postgres:postgres@localhost:5433/fence' \
+ *     node node_modules/vitest/vitest.mjs run lib/generation-chunked/__tests__/delivery-fence.pg.spec.ts
+ *
+ * The harness creates its OWN minimal DDL (the columns/enums the ship CAS touches) so it needs only an EMPTY DB —
+ * no `prisma db push`, no app env. It is INERT (describe.skipIf) unless RUN_DELIVERY_FENCE_PG=true + a URL, so it
+ * never runs in the normal unit suite. In CI: add a `postgres:16` service and set the two env vars for this file.
+ */
+
+const URL = process.env.DELIVERY_FENCE_PG_URL;
+const RUN = process.env.RUN_DELIVERY_FENCE_PG === 'true' && !!URL;
+
+describe.skipIf(!RUN)('delivery fence — real Postgres READ COMMITTED interleave', () => {
+  let db: PrismaClient;
+  let other: PrismaClient; // a SECOND connection, for the concurrent-park interleave
+
+  beforeAll(async () => {
+    db = new PrismaClient({ datasources: { db: { url: URL! } } });
+    other = new PrismaClient({ datasources: { db: { url: URL! } } });
+    // Minimal DDL — only what the ship CAS references. Idempotent so a re-run is clean.
+    await db.$executeRawUnsafe(`DROP TABLE IF EXISTS "HumanQaReviewCase" CASCADE`);
+    await db.$executeRawUnsafe(`DROP TABLE IF EXISTS "Order" CASCADE`);
+    await db.$executeRawUnsafe(`DO $$ BEGIN CREATE TYPE "OrderStatus" AS ENUM ('draft','pending_payment','paid','generating','ready','partial','failed','needs_human_qa'); EXCEPTION WHEN duplicate_object THEN null; END $$;`);
+    await db.$executeRawUnsafe(`DO $$ BEGIN CREATE TYPE "GenerationStatus" AS ENUM ('pending','running','done','failed'); EXCEPTION WHEN duplicate_object THEN null; END $$;`);
+    await db.$executeRawUnsafe(`DO $$ BEGIN CREATE TYPE "HumanQaHoldKind" AS ENUM ('safety','contract_world','anchor','payment_integrity','legacy_unknown'); EXCEPTION WHEN duplicate_object THEN null; END $$;`);
+    await db.$executeRawUnsafe(`DO $$ BEGIN CREATE TYPE "HumanQaReviewCaseStatus" AS ENUM ('open','superseded','resolved','cancelled'); EXCEPTION WHEN duplicate_object THEN null; END $$;`);
+    await db.$executeRawUnsafe(`
+      CREATE TABLE "Order" (
+        "id" TEXT PRIMARY KEY,
+        "status" "OrderStatus" NOT NULL DEFAULT 'generating',
+        "packageStatus" "GenerationStatus" NOT NULL DEFAULT 'pending',
+        "deliveryHoldReason" TEXT,
+        "inputVersion" INTEGER NOT NULL DEFAULT 0,
+        "deliveryFenceVersion" INTEGER NOT NULL DEFAULT 0,
+        "manualReviewRequired" BOOLEAN NOT NULL DEFAULT false
+      )`);
+    await db.$executeRawUnsafe(`
+      CREATE TABLE "HumanQaReviewCase" (
+        "id" TEXT PRIMARY KEY,
+        "activeKey" TEXT,
+        "status" "HumanQaReviewCaseStatus" NOT NULL DEFAULT 'open',
+        "kind" "HumanQaHoldKind" NOT NULL
+      )`);
+  });
+
+  afterAll(async () => {
+    await db?.$disconnect();
+    await other?.$disconnect();
+  });
+
+  beforeEach(async () => {
+    await db.$executeRawUnsafe(`TRUNCATE "HumanQaReviewCase", "Order"`);
+  });
+
+  async function seedOrder(over: Partial<{ status: string; deliveryHoldReason: string | null; inputVersion: number; deliveryFenceVersion: number; manualReviewRequired: boolean }> = {}): Promise<void> {
+    const o = { status: 'generating', deliveryHoldReason: null as string | null, inputVersion: 0, deliveryFenceVersion: 0, manualReviewRequired: false, ...over };
+    await db.$executeRaw`
+      INSERT INTO "Order" ("id","status","packageStatus","deliveryHoldReason","inputVersion","deliveryFenceVersion","manualReviewRequired")
+      VALUES ('o1', ${o.status}::"OrderStatus", 'pending'::"GenerationStatus", ${o.deliveryHoldReason}, ${o.inputVersion}, ${o.deliveryFenceVersion}, ${o.manualReviewRequired})`;
+  }
+  async function seedCase(kind: string, scope = 'base_book', status = 'open'): Promise<void> {
+    await db.$executeRaw`INSERT INTO "HumanQaReviewCase" ("id","activeKey","status","kind") VALUES (${'c-' + kind}, ${'o1:' + scope}, ${status}::"HumanQaReviewCaseStatus", ${kind}::"HumanQaHoldKind")`;
+  }
+  async function statusOf(): Promise<string> {
+    const rows = await db.$queryRaw<Array<{ status: string }>>`SELECT "status" FROM "Order" WHERE "id" = 'o1'`;
+    return rows[0].status;
+  }
+  const ship = (over: Partial<Parameters<typeof executeReadinessShipCas>[1]> = {}) =>
+    executeReadinessShipCas(db, { orderId: 'o1', inputVersion: 0, deliveryFenceVersion: 0, deliveryHoldReason: null, ...over });
+
+  // ── the ship CAS ships a clean order ────────────────────────────────────────────────────────────────────────
+  it('a clean order (no hold, fence unchanged) → SHIPS (1 row, status→ready)', async () => {
+    await seedOrder();
+    expect(await ship()).toBe(1);
+    expect(await statusOf()).toBe('ready');
+  });
+
+  // ── every hold form blocks the ship (0 rows, order unchanged) ───────────────────────────────────────────────
+  it('a safety_hold marker present → 0 rows, NOT shipped', async () => {
+    await seedOrder({ status: 'needs_human_qa', deliveryHoldReason: 'safety_hold:hazard:page:2' });
+    expect(await ship()).toBe(0);
+    expect(await statusOf()).toBe('needs_human_qa');
+  });
+  it('a contract_world_hold marker present → 0 rows', async () => {
+    await seedOrder({ status: 'needs_human_qa', deliveryHoldReason: 'contract_world_hold:drift' });
+    expect(await ship()).toBe(0);
+  });
+  it('a payment fence (manualReviewRequired=true) → 0 rows', async () => {
+    await seedOrder({ status: 'needs_human_qa', deliveryHoldReason: 'coupon_over_cap', manualReviewRequired: true });
+    expect(await ship()).toBe(0);
+  });
+  it('an active strong Human-QA case (safety) present though marker reads anchor (skip_weaker) → 0 rows', async () => {
+    await seedOrder({ status: 'needs_human_qa', deliveryHoldReason: 'anchor_low_confidence:soft_band' });
+    await seedCase('safety');
+    expect(await ship()).toBe(0);
+    expect(await statusOf()).toBe('needs_human_qa');
+  });
+  it('an active PAYMENT_INTEGRITY case (payment scope) → 0 rows', async () => {
+    await seedOrder({ status: 'needs_human_qa', deliveryHoldReason: 'anchor_low_confidence:soft_band' });
+    await seedCase('payment_integrity', 'payment');
+    expect(await ship()).toBe(0);
+  });
+  it('an active ANCHOR case does NOT block (anchor is releasable) → SHIPS', async () => {
+    await seedOrder({ status: 'needs_human_qa', deliveryHoldReason: 'anchor_low_confidence:soft_band' });
+    await seedCase('anchor');
+    expect(await ship({ requireHoldReason: 'anchor_low_confidence:soft_band' })).toBe(1);
+  });
+
+  // ── the FENCE: the whole point — a hold that landed after readiness read its value blocks the ship ───────────
+  it('THE INTERLEAVE — readiness reads fence=0, a safety park bumps it, the ship CAS bound to 0 → 0 rows (no ship)', async () => {
+    await seedOrder({ status: 'generating', deliveryFenceVersion: 0 });
+    const observedFence = 0; // what readiness read at load
+    // a safety park lands (a SECOND connection commits it) — bumps the fence WITHOUT bumping inputVersion
+    await other.$executeRaw`UPDATE "Order" SET "status"='needs_human_qa'::"OrderStatus", "deliveryHoldReason"='safety_hold:hazard', "deliveryFenceVersion"="deliveryFenceVersion"+1 WHERE "id"='o1'`;
+    // readiness now runs the ship CAS bound to the fence it observed (0) → the moved fence (1) rejects the ship
+    expect(await ship({ deliveryFenceVersion: observedFence })).toBe(0);
+    expect(await statusOf()).toBe('needs_human_qa'); // the safety hold stands; nothing shipped
+  });
+
+  it('THE FENCE ISOLATED — a bare fence bump (no marker change) still blocks a ship bound to the old fence', async () => {
+    await seedOrder({ status: 'generating', deliveryFenceVersion: 4 });
+    await other.$executeRaw`UPDATE "Order" SET "deliveryFenceVersion"=5 WHERE "id"='o1'`; // fence moved, nothing else
+    expect(await ship({ deliveryFenceVersion: 4 })).toBe(0); // bound to the stale fence → rejected
+    expect(await ship({ deliveryFenceVersion: 5 })).toBe(1); // bound to the current fence → ships
+  });
+
+  // ── requireHold (admin) precondition, real SQL ──────────────────────────────────────────────────────────────
+  it('requireHold ships a still-anchor-held order, but a marker drift to safety → 0 rows', async () => {
+    await seedOrder({ status: 'needs_human_qa', deliveryHoldReason: 'anchor_low_confidence:soft_band' });
+    // a safety park drifts the marker + bumps the fence
+    await other.$executeRaw`UPDATE "Order" SET "deliveryHoldReason"='safety_hold:hazard', "deliveryFenceVersion"="deliveryFenceVersion"+1 WHERE "id"='o1'`;
+    expect(await ship({ deliveryFenceVersion: 0, requireHoldReason: 'anchor_low_confidence:soft_band' })).toBe(0);
+  });
+  it('requireHold + inputVersion drift → 0 rows (a genuine input change also blocks, never ships)', async () => {
+    await seedOrder({ status: 'needs_human_qa', deliveryHoldReason: 'anchor_low_confidence:soft_band', inputVersion: 0 });
+    await other.$executeRaw`UPDATE "Order" SET "inputVersion"=1 WHERE "id"='o1'`;
+    expect(await ship({ inputVersion: 0, requireHoldReason: 'anchor_low_confidence:soft_band' })).toBe(0);
+  });
+});

@@ -739,6 +739,46 @@ async function nextRevision(tx: Tx, orderId: string, scope: string): Promise<num
  * compare to the value the evaluation ran on); on drift it throws so the caller reloads FRESH + re-evaluates.
  * May also throw P2002 (revision collision). Both are retried by commitBaseBookReadiness.
  */
+/**
+ * (delivery fence — Codex round-4 P0) THE shared ready-transition CAS. Exported so the real-PG harness
+ * (delivery-fence.pg.spec.ts) exercises the EXACT SQL production runs — no drift between the guard and its proof.
+ *
+ * Flips the order to `ready` ONLY IF, atomically at write time: inputVersion unchanged (B4) AND the SHARED delivery
+ * fence unchanged since load (every hold write bumps it) AND no payment fence (manualReviewRequired=false) AND no
+ * terminal safety_/contract_world_ marker AND no active strong Human-QA case. `requireHoldReason` (flag-ON
+ * anchor-release ONLY) additionally pins status=needs_human_qa + the exact authorized marker. Returns the number of
+ * rows updated: 1 = shipped; 0 = a competing hold (or an input drift) blocked it.
+ */
+export async function executeReadinessShipCas(
+  db: PrismaClient | Tx,
+  p: {
+    orderId: string;
+    inputVersion: number;
+    deliveryFenceVersion: number;
+    deliveryHoldReason: string | null;
+    requireHoldReason?: string | null;
+  },
+): Promise<number> {
+  const requireHoldClause = p.requireHoldReason
+    ? Prisma.sql` AND "status" = 'needs_human_qa' AND "deliveryHoldReason" = ${p.requireHoldReason}`
+    : Prisma.empty;
+  return db.$executeRaw`
+    UPDATE "Order"
+       SET "status" = 'ready'::"OrderStatus", "packageStatus" = 'done'::"GenerationStatus", "deliveryHoldReason" = ${p.deliveryHoldReason}
+     WHERE "id" = ${p.orderId}
+       AND "inputVersion" = ${p.inputVersion}
+       AND "deliveryFenceVersion" = ${p.deliveryFenceVersion}
+       AND "manualReviewRequired" = false
+       AND ("deliveryHoldReason" IS NULL
+            OR ("deliveryHoldReason" NOT LIKE 'safety_hold:%' AND "deliveryHoldReason" NOT LIKE 'contract_world_hold:%'))
+       AND NOT EXISTS (
+         SELECT 1 FROM "HumanQaReviewCase" c
+          WHERE c."activeKey" IN (${p.orderId + ':base_book'}, ${p.orderId + ':payment'})
+            AND c."status" = 'open'
+            AND c."kind" IN ('safety', 'contract_world', 'payment_integrity')
+       )${requireHoldClause}`;
+}
+
 async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, decision: ReadinessDecision, now: Date): Promise<CommitResult> {
   // (0) TOCTOU guard — the assets/text/frozen/QUALITY-EVIDENCE must not have changed between the (out-of-tx)
   // eval and now (the fingerprint folds in the quality evidence, so a re-QA between eval and commit drifts it).
@@ -882,26 +922,13 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
   //     Delivery authority is thus SHARED: no caller opts in; every hold write participates via the fence.
   //   • HOLD/FAIL (readiness parks): the standard inputVersion CAS, and it BUMPS the fence (a hold write).
   if (orderStatus === 'ready') {
-    // (delivery fence) `requireHold` (flag-ON anchor-release ONLY) is a precise ADMIN capability layered on top of
-    // the shared guard: it additionally pins status=needs_human_qa + the EXACT authorized marker.
-    const requireHoldClause = args.requireHold
-      ? Prisma.sql` AND "status" = 'needs_human_qa' AND "deliveryHoldReason" = ${args.requireHold.deliveryHoldReason}`
-      : Prisma.empty;
-    const shipped = await tx.$executeRaw`
-      UPDATE "Order"
-         SET "status" = 'ready'::"OrderStatus", "packageStatus" = 'done'::"GenerationStatus", "deliveryHoldReason" = ${deliveryHoldReason}
-       WHERE "id" = ${order.id}
-         AND "inputVersion" = ${order.inputVersion}
-         AND "deliveryFenceVersion" = ${order.deliveryFenceVersion}
-         AND "manualReviewRequired" = false
-         AND ("deliveryHoldReason" IS NULL
-              OR ("deliveryHoldReason" NOT LIKE 'safety_hold:%' AND "deliveryHoldReason" NOT LIKE 'contract_world_hold:%'))
-         AND NOT EXISTS (
-           SELECT 1 FROM "HumanQaReviewCase" c
-            WHERE c."activeKey" IN (${order.id + ':base_book'}, ${order.id + ':payment'})
-              AND c."status" = 'open'
-              AND c."kind" IN ('safety', 'contract_world', 'payment_integrity')
-         )${requireHoldClause}`;
+    const shipped = await executeReadinessShipCas(tx, {
+      orderId: order.id,
+      inputVersion: order.inputVersion,
+      deliveryFenceVersion: order.deliveryFenceVersion,
+      deliveryHoldReason,
+      requireHoldReason: args.requireHold?.deliveryHoldReason ?? null,
+    });
     if (shipped === 0) {
       // Distinguish a genuine inputVersion drift (→ retry FRESH) from a competing hold (→ NEVER retry into a ship).
       const cur = await tx.order.findUnique({
