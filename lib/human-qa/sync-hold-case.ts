@@ -3,6 +3,9 @@ import 'server-only';
 import type { HumanQaHoldKind, Prisma, PrismaClient } from '@prisma/client';
 import { recordHumanQaHoldInTx, resolveHumanQaCaseOnReleaseInTx } from '@/lib/human-qa/record-hold';
 import { humanReasonForHoldKind } from '@/lib/human-qa/hold-kind';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger({ subsystem: 'human-qa-sync-hold-case' });
 
 /**
  * (Human-QA Slice 1, re-gate P0-1) The case/outbox lifecycle lives OUTSIDE every hold/money transaction.
@@ -90,85 +93,126 @@ export async function syncHumanQaHoldCase(
   orderId: string,
   opts: { includeUnknown?: boolean; dryRun?: boolean } = {},
 ): Promise<SyncHoldCaseResult> {
-  const order = await prisma.order.findUnique({
+  // Cheap UNLOCKED pre-read: short-circuit no_order, and serve dry-run WITHOUT taking a row lock or writing.
+  const pre = await prisma.order.findUnique({
     where: { id: orderId },
-    select: {
-      status: true,
-      deliveryHoldReason: true,
-      manualReviewRequired: true,
-      childName: true,
-      inputVersion: true,
-      visualContractHash: true,
-    },
+    select: { status: true, deliveryHoldReason: true, manualReviewRequired: true },
   });
-  if (!order) return { action: 'skipped', reason: 'no_order' };
+  if (!pre) return { action: 'skipped', reason: 'no_order' };
 
-  // A delivered (ready) order must not keep an anchor case open. Resolve is close-only (no create), safe anywhere.
-  if (order.status === 'ready') {
-    if (opts.dryRun) return { action: 'skipped', reason: 'ready_dry_run' };
-    const r = await prisma.$transaction((tx) =>
-      resolveHumanQaCaseOnReleaseInTx(tx, {
+  if (opts.dryRun) {
+    if (pre.status === 'ready') return { action: 'skipped', reason: 'ready_dry_run' };
+    if (pre.status !== 'needs_human_qa') return { action: 'skipped', reason: 'not_held' };
+    const activeRecovery = await prisma.exceptionCase.findFirst({
+      where: { orderId, status: { in: ACTIVE_RECOVERY_STATUSES as unknown as Prisma.Enumerable<never> } },
+      select: { id: true },
+    });
+    const cls = classifyHoldForCase(
+      {
+        status: pre.status,
+        deliveryHoldReason: pre.deliveryHoldReason,
+        manualReviewRequired: pre.manualReviewRequired,
+        hasActiveRecoveryCase: activeRecovery !== null,
+      },
+      { includeUnknown: opts.includeUnknown },
+    );
+    return cls.create
+      ? { action: 'would_create', kind: cls.kind, scope: cls.scope }
+      : { action: 'skipped', reason: cls.reason, scope: undefined };
+  }
+
+  // Only needs_human_qa (open a case) or ready (resolve a lingering anchor case) are actionable.
+  if (pre.status !== 'needs_human_qa' && pre.status !== 'ready') return { action: 'skipped', reason: 'not_held' };
+
+  // (re-gate P1 — TOCTOU) AUTHORITATIVE decision + write in ONE transaction that re-reads/LOCKS the Order (FOR
+  // UPDATE). The status the classification is made on is the status it is written against, so a concurrent release
+  // flipping the Order to `ready` between the pre-read and here can NEVER open a case on an already-released order —
+  // the locked re-read sees `ready` and resolves instead of creating.
+  return await prisma.$transaction(async (tx) => {
+    const locked = await tx.$queryRaw<
+      Array<{
+        status: string;
+        deliveryHoldReason: string | null;
+        manualReviewRequired: boolean;
+        childName: string;
+        inputVersion: number;
+        visualContractHash: string | null;
+      }>
+    >`
+      SELECT "status", "deliveryHoldReason", "manualReviewRequired", "childName", "inputVersion", "visualContractHash"
+      FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
+    const row = locked[0];
+    if (!row) return { action: 'skipped', reason: 'no_order' };
+
+    // A delivered/released order must NEVER get a case opened — resolve any lingering anchor case instead (close-only).
+    if (row.status === 'ready') {
+      const r = await resolveHumanQaCaseOnReleaseInTx(tx, {
         orderId,
         scope: 'base_book',
         kinds: ['anchor'],
         actor: 'system:ready_transition',
-      }),
+      });
+      return { action: r.resolvedCaseId ? 'resolved' : 'skipped', reason: r.resolvedCaseId ? undefined : 'no_anchor_case' };
+    }
+    if (row.status !== 'needs_human_qa') return { action: 'skipped', reason: 'not_held' };
+
+    const activeRecovery = await tx.exceptionCase.findFirst({
+      where: { orderId, status: { in: ACTIVE_RECOVERY_STATUSES as unknown as Prisma.Enumerable<never> } },
+      select: { id: true },
+    });
+    const cls = classifyHoldForCase(
+      {
+        status: row.status,
+        deliveryHoldReason: row.deliveryHoldReason,
+        manualReviewRequired: row.manualReviewRequired,
+        hasActiveRecoveryCase: activeRecovery !== null,
+      },
+      { includeUnknown: opts.includeUnknown },
     );
-    return { action: r.resolvedCaseId ? 'resolved' : 'skipped', reason: r.resolvedCaseId ? undefined : 'no_anchor_case' };
-  }
+    if (!cls.create) return { action: 'skipped', reason: cls.reason, scope: undefined };
 
-  if (order.status !== 'needs_human_qa') return { action: 'skipped', reason: 'not_held' };
-
-  const activeRecovery = await prisma.exceptionCase.findFirst({
-    where: { orderId, status: { in: ACTIVE_RECOVERY_STATUSES as unknown as Prisma.Enumerable<never> } },
-    select: { id: true },
-  });
-
-  const cls = classifyHoldForCase(
-    {
-      status: order.status,
-      deliveryHoldReason: order.deliveryHoldReason,
-      manualReviewRequired: order.manualReviewRequired,
-      hasActiveRecoveryCase: activeRecovery !== null,
-    },
-    { includeUnknown: opts.includeUnknown },
-  );
-  if (!cls.create) return { action: 'skipped', reason: cls.reason, scope: undefined };
-
-  if (opts.dryRun) return { action: 'would_create', kind: cls.kind, scope: cls.scope };
-
-  const rawReason = order.deliveryHoldReason ?? `${cls.kind}:reconciled`;
-  const res = await prisma.$transaction((tx) =>
-    recordHumanQaHoldInTx(tx, {
+    const rawReason = row.deliveryHoldReason ?? `${cls.kind}:reconciled`;
+    const res = await recordHumanQaHoldInTx(tx, {
       orderId,
       scope: cls.scope,
       kind: cls.kind,
       rawReason,
       humanReason: humanReasonForHoldKind(cls.kind, rawReason),
-      childName: order.childName,
-      inputVersion: order.inputVersion,
-      contractHash: order.visualContractHash,
+      childName: row.childName,
+      inputVersion: row.inputVersion,
+      contractHash: row.visualContractHash,
       sourceManifestId: null,
       artifactRefs: null,
-    }),
-  );
-  return {
-    action: res.action === 'create' || res.action === 'supersede' ? 'created' : 'idempotent',
-    kind: cls.kind,
-    scope: cls.scope,
-    caseId: res.caseId,
-  };
+    });
+    return {
+      action: res.action === 'create' || res.action === 'supersede' ? 'created' : 'idempotent',
+      kind: cls.kind,
+      scope: cls.scope,
+      caseId: res.caseId,
+    };
+  });
 }
 
 /**
  * The post-commit hook the seams call AFTER their hold/money tx commits. NEVER throws into the seam — a failed
- * case write is logged and left for the reconciler to repair. Fire-and-await so it is attempted immediately, but
- * a rejection is swallowed (the money/hold is already durably committed).
+ * case write is logged + COUNTED (re-gate P0-B) and left for the scheduled reconciler cron to repair. Fire-and-await
+ * so it is attempted immediately, but a rejection is swallowed (the money/hold is already durably committed).
+ *
+ * The failure is emitted as a structured metric event so it is alertable: a nonzero rate here means the reconciler
+ * cron (app/api/generate/cron/human-qa-reconcile) is now the load-bearing repair for those holds. The bare `catch {}`
+ * that hid this (round-2 P0-B NO-GO) is gone.
  */
 export async function syncHumanQaHoldCasePostCommit(prisma: PrismaLike, orderId: string): Promise<void> {
   try {
     await syncHumanQaHoldCase(prisma, orderId);
-  } catch {
-    // Swallowed by design: the hold/money is committed; the reconciler is the guaranteed repair for this write.
+  } catch (err) {
+    // Swallowed by design (never throw into the seam): the hold/money is committed. But it is LOGGED + COUNTED so a
+    // silent hold is observable — the scheduled reconciler cron is the guaranteed repair for this exact failure.
+    log.error('post-commit case sync failed — hold committed, case deferred to the reconciler cron', err, {
+      orderId,
+      event: 'human_qa_case_sync_post_commit_failed',
+      metric: 'human_qa.case_sync.post_commit_failure',
+      metricValue: 1,
+    });
   }
 }
