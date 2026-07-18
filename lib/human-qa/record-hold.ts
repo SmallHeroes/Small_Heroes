@@ -55,6 +55,35 @@ export function scopeForHoldKind(kind: HumanQaHoldKind): 'base_book' | 'payment'
   return kind === 'payment_integrity' ? 'payment' : 'base_book';
 }
 
+// ─── Order → hold-kind derivation (reconcile / backfill) ──────────────────────────────────────────────────────
+
+/** The minimal Order signals needed to classify why a terminal `needs_human_qa` order was held. */
+export interface HumanQaHoldSignals {
+  deliveryHoldReason?: string | null;
+  manualReviewRequired?: boolean | null;
+}
+
+/**
+ * PURE. Classify an already-held order into a HumanQaHoldKind from its terminal-hold markers. Mirrors how the live
+ * pipeline stamps `deliveryHoldReason` — `safety_hold:` (package-delivery / world-QA hard safety),
+ * `contract_world_hold:` (contract-world drift), `anchor_low_confidence:` (resemblance gate) — and how the payment
+ * fences park an order (`manualReviewRequired=true` + a coupon-fence reason such as `coupon_paid_late_over_cap`).
+ *
+ * Total by construction: every held order maps to a kind. The marker is checked BEFORE the manual-review flag, so a
+ * base_book hold that also happens to carry `manualReviewRequired` is still classified by its marker. An
+ * unrecognized marker with no manual-review flag falls to `legacy_unknown` — the reconciler still backfills it, but
+ * flags it for explicit operator attention. Precedence (holdKindRank) is intentionally NOT applied here: a single
+ * order carries a single marker; ranking only matters when two live holds race for the same active slot.
+ */
+export function deriveHumanQaHoldKindFromOrder(signals: HumanQaHoldSignals): HumanQaHoldKind {
+  const reason = signals.deliveryHoldReason ?? '';
+  if (reason.startsWith('safety_hold:')) return 'safety';
+  if (reason.startsWith('contract_world_hold:')) return 'contract_world';
+  if (reason.startsWith('anchor_low_confidence:')) return 'anchor';
+  if (signals.manualReviewRequired === true) return 'payment_integrity';
+  return 'legacy_unknown';
+}
+
 // ─── Fingerprint (deterministic hold identity) ────────────────────────────────────────────────────────────────
 
 export interface HumanQaFingerprintArgs {
