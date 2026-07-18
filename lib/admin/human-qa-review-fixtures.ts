@@ -1,0 +1,156 @@
+import type { OpenReviewCaseSummary, ReviewCaseDetail } from '@/lib/admin/human-qa-review-types';
+
+/**
+ * In-memory demo payloads for empty-DB eyeballing / screenshots.
+ * Used ONLY when `?demo=1` AND admin secret is valid AND not production.
+ * No DB writes. No customer access keys.
+ */
+export const DEMO_OPEN_CASES: OpenReviewCaseSummary[] = [
+  {
+    caseId: 'demo-case-safety-1',
+    orderId: 'demo-order-fox-001',
+    childName: 'אוּרי',
+    kind: 'safety',
+    humanReason: 'Child-safety hold — safety_hold:page:4:unsupported_at_height|unsafe_pose',
+    rawReason: 'safety_hold:page:4:unsupported_at_height|unsafe_pose',
+    heldAt: new Date(Date.now() - 42 * 60 * 1000).toISOString(),
+    pageNumbers: [4],
+    storyDirection: 'adventure',
+    orderStatus: 'needs_human_qa',
+  },
+  {
+    caseId: 'demo-case-anchor-2',
+    orderId: 'demo-order-bunny-002',
+    childName: 'נוֹעַם',
+    kind: 'anchor',
+    humanReason: 'Anchor likeness low-confidence — anchor_low_confidence:soft_band',
+    rawReason: 'anchor_low_confidence:soft_band',
+    heldAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+    pageNumbers: [],
+    storyDirection: 'bedtime',
+    orderStatus: 'needs_human_qa',
+  },
+];
+
+export const DEMO_CASE_DETAIL: ReviewCaseDetail = {
+  caseId: 'demo-case-safety-1',
+  orderId: 'demo-order-fox-001',
+  childName: 'אוּרי',
+  kind: 'safety',
+  status: 'open',
+  humanReason: 'Child-safety hold — safety_hold:page:4:unsupported_at_height|unsafe_pose',
+  rawReason: 'safety_hold:page:4:unsupported_at_height|unsafe_pose',
+  holdFingerprint: 'demo-fingerprint-abc123',
+  inputVersion: 3,
+  contractHash: 'demo-contract-hash-deadbeef',
+  heldAt: new Date(Date.now() - 42 * 60 * 1000).toISOString(),
+  storyDirection: 'adventure',
+  orderStatus: 'needs_human_qa',
+  deliveryHoldReason: 'safety_hold:page:4:unsupported_at_height|unsafe_pose',
+  flaggedPageNumbers: [4],
+  coverImageUrl: null,
+  coverSafetyHazards: [],
+  pages: [
+    {
+      pageNumber: 1,
+      text: 'אוּרי פתח את החלון וריח של בוקר נכנס לחדר.',
+      imageUrl: null,
+      safetyVerified: true,
+      safetyHazards: [],
+      flagged: false,
+      evidence: {
+        artifactKey: 'page:1',
+        pageNumber: 1,
+        verdict: 'passed',
+        reason: null,
+        contractHash: 'demo-contract-hash-deadbeef',
+        safetyHazards: [],
+        notes: ['עיבוד תצוגה הוחל'],
+        anchorConfidence: 0.86,
+        flagged: false,
+      },
+    },
+    {
+      pageNumber: 2,
+      text: 'מאחורי הדלת חיכה משהו קטן ולבן.',
+      imageUrl: null,
+      safetyVerified: true,
+      safetyHazards: [],
+      flagged: false,
+      evidence: {
+        artifactKey: 'page:2',
+        pageNumber: 2,
+        verdict: 'passed',
+        reason: null,
+        contractHash: 'demo-contract-hash-deadbeef',
+        safetyHazards: [],
+        notes: [],
+        anchorConfidence: 0.84,
+        flagged: false,
+      },
+    },
+    {
+      pageNumber: 3,
+      text: 'השועל הקטן הריח את הפנקס בפליאה.',
+      imageUrl: null,
+      safetyVerified: true,
+      safetyHazards: [],
+      flagged: false,
+      evidence: {
+        artifactKey: 'page:3',
+        pageNumber: 3,
+        verdict: 'passed',
+        reason: null,
+        contractHash: 'demo-contract-hash-deadbeef',
+        safetyHazards: [],
+        notes: ['צפוי מלווה בסצנה'],
+        anchorConfidence: 0.81,
+        flagged: false,
+      },
+    },
+    {
+      pageNumber: 4,
+      text: 'על המעקה, אוּרי נשען רחוק מדי — רגע מסוכן.',
+      imageUrl: null,
+      safetyVerified: false,
+      safetyHazards: ['unsupported_at_height', 'unsafe_pose'],
+      flagged: true,
+      evidence: {
+        artifactKey: 'page:4',
+        pageNumber: 4,
+        verdict: 'failed',
+        reason: 'safety:unsupported_at_height|unsafe_pose',
+        contractHash: 'demo-contract-hash-deadbeef',
+        safetyHazards: ['unsupported_at_height', 'unsafe_pose'],
+        notes: ['עיבוד תצוגה הוחל', 'הפרש חוזה: zone mismatch (demo)'],
+        anchorConfidence: 0.79,
+        flagged: true,
+      },
+    },
+    {
+      pageNumber: 5,
+      text: 'ואז הופיע הדלי, והכל נהיה מצחיק שוב.',
+      imageUrl: null,
+      safetyVerified: true,
+      safetyHazards: [],
+      flagged: false,
+      evidence: {
+        artifactKey: 'page:5',
+        pageNumber: 5,
+        verdict: 'passed',
+        reason: null,
+        contractHash: 'demo-contract-hash-deadbeef',
+        safetyHazards: [],
+        notes: [],
+        anchorConfidence: 0.88,
+        flagged: false,
+      },
+    },
+  ],
+  evidence: [],
+};
+
+// Fill evidence array from pages for demo consistency
+DEMO_CASE_DETAIL.evidence = DEMO_CASE_DETAIL.pages
+  .map((p) => p.evidence)
+  .filter((e): e is NonNullable<typeof e> => e != null);

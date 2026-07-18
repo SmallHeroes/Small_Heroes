@@ -1,0 +1,101 @@
+.gateShell {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #f7f6fb;
+  direction: rtl;
+  font-family: 'Heebo', 'Abraham', sans-serif;
+}
+
+.gateCard {
+  width: min(100%, 420px);
+  background: #fff;
+  border: 1px solid #ebe7f7;
+  border-radius: 16px;
+  padding: 28px 24px;
+  box-shadow: 0 10px 28px rgba(40, 33, 74, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gateTitle {
+  margin: 0;
+  font-size: 1.35rem;
+  color: #18171a;
+}
+
+.gateHint {
+  margin: 0;
+  font-size: 0.92rem;
+  color: #5f5a70;
+  line-height: 1.45;
+}
+
+.gateLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #18171a;
+}
+
+.gateInput {
+  border: 1px solid #ebe7f7;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+.gateBtn {
+  margin-top: 6px;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 18px;
+  background: #886cff;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.gateBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.authedShell {
+  min-height: 100dvh;
+  background: #f7f6fb;
+  direction: rtl;
+  font-family: 'Heebo', 'Abraham', sans-serif;
+  color: #18171a;
+}
+
+.authedBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #fff;
+  border-bottom: 1px solid #ebe7f7;
+}
+
+.authedLabel {
+  font-size: 0.85rem;
+  color: #5f5a70;
+}
+
+.logoutBtn {
+  border: 1px solid #ebe7f7;
+  background: #fff;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-family: inherit;
+  color: #5f5a70;
+}
