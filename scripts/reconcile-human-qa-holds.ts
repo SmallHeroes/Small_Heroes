@@ -6,16 +6,21 @@
  *
  * It delegates EVERY classification decision to `syncHumanQaHoldCase` → `classifyHoldForCase`, the SAME function the
  * seams call post-commit, so the reconciler and the live path can never diverge. That classifier:
- *   - opens a case ONLY for a terminal MANUAL hold (safety / contract_world / anchor marker, or the payment fence);
+ *   - opens a case for a terminal MANUAL hold (safety / contract_world / anchor marker, or the payment fence) — a
+ *     terminal marker WINS even over an active recovery case (a safety hold must get a case regardless);
  *   - SKIPS a recoverable `base_book_integrity:` park (owned by the ExceptionCase auto-recovery loop);
- *   - SKIPS any order with an active recovery ExceptionCase;
+ *   - SKIPS an order with an active recovery ExceptionCase ONLY when it has no terminal manual marker (P2 fix: the
+ *     header no longer claims active recovery is ALWAYS skipped — the marker is checked first);
  *   - NEVER auto-backfills an unknown/null marker — that requires explicit `--include-unknown`.
  * This closes the "total classifier" NO-GO: a recoverable hold no longer gets a spurious case + operator email.
  *
  * IDEMPOTENT: a re-run creates nothing new — `recordHumanQaHoldInTx` (inside `syncHumanQaHoldCase`) is idempotent and
  * each order runs in its OWN transaction, so a concurrent-reconcile conflict rolls back only that one order.
  *
- * Runs on Guy's machine against the STAGING DB. `assertEnvSeparation()` HARD-REFUSES if any resource points at prod.
+ * (re-gate P0-B) The reconcile LOOP itself now lives in the shared, prod-capable core `lib/human-qa/reconcile-core.ts`
+ * (also driven by the scheduled cron `app/api/generate/cron/human-qa-reconcile`). THIS script is the MANUAL,
+ * STAGING-ONLY wrapper: it keeps `assertEnvSeparation()`, which HARD-REFUSES if any resource points at prod. The cron
+ * deliberately does NOT inherit that guard so it can repair holds in production.
  *
  *   # dry-run everything (reports what it WOULD create, writes nothing):
  *   SH_ENV_FILE=.env.local npx tsx --require ./scripts/shims/register-server-only.cjs \
@@ -94,113 +99,76 @@ async function main(): Promise<void> {
   // Dynamic-import server modules AFTER loadEnv so validateEnv() sees the loaded env.
   const { prisma } = await import('@/lib/prisma');
   const { assertEnvSeparation } = await import('@/lib/generation-chunked/env-separation-guard');
-  const { syncHumanQaHoldCase } = await import('@/lib/human-qa/sync-hold-case');
+  const { reconcileHumanQaHolds } = await import('@/lib/human-qa/reconcile-core');
 
-  // Refuse to touch prod (guards the .env.local → prod-DB trap) BEFORE any read/write.
+  // Refuse to touch prod (guards the .env.local → prod-DB trap) BEFORE any read/write. THIS guard is the manual
+  // script's alone — the shared core + cron do NOT have it (the cron must repair holds in production).
   assertEnvSeparation();
-
-  const orders = await prisma.order.findMany({
-    where: {
-      status: 'needs_human_qa',
-      ...(cli.onlyOrderId ? { id: cli.onlyOrderId } : {}),
-    },
-    select: { id: true },
-    orderBy: { createdAt: 'asc' },
-  });
 
   // `--only` with no match: distinguish "no such order" from "order exists but isn't held" so the operator gets a
   // clear reason nothing happened (rather than a silent empty scan).
-  if (cli.onlyOrderId && orders.length === 0) {
-    const exists = await prisma.order.findUnique({
-      where: { id: cli.onlyOrderId },
-      select: { status: true },
-    });
+  if (cli.onlyOrderId) {
+    const exists = await prisma.order.findUnique({ where: { id: cli.onlyOrderId }, select: { status: true } });
     if (!exists) {
       console.log(`[reconcile] order ${cli.onlyOrderId} not found — nothing to reconcile.`);
-    } else {
+      await prisma.$disconnect();
+      return;
+    }
+    if (exists.status !== 'needs_human_qa') {
       console.log(
         `[reconcile] order ${cli.onlyOrderId} is status=${exists.status}, not needs_human_qa — nothing to reconcile.`,
       );
-    }
-    await prisma.$disconnect();
-    return;
-  }
-
-  let created = 0;
-  let wouldCreate = 0;
-  let idempotent = 0;
-  const skipped: Record<string, number> = {};
-  const legacyUnknown: string[] = [];
-  const errors: Array<{ orderId: string; message: string }> = [];
-
-  for (const order of orders) {
-    try {
-      const res = await syncHumanQaHoldCase(prisma, order.id, {
-        includeUnknown: cli.includeUnknown,
-        dryRun: cli.dryRun,
-      });
-      if (res.kind === 'legacy_unknown' && (res.action === 'created' || res.action === 'would_create')) {
-        legacyUnknown.push(order.id);
-      }
-      switch (res.action) {
-        case 'created':
-          created++;
-          console.log(
-            `[reconcile] created ${res.kind} case${res.caseId ? ` ${res.caseId}` : ''} for order ${order.id} (scope=${res.scope})`,
-          );
-          break;
-        case 'would_create':
-          wouldCreate++;
-          console.log(`[reconcile] WOULD create ${res.kind} case for order ${order.id} (scope=${res.scope})`);
-          break;
-        case 'idempotent':
-          idempotent++;
-          break;
-        case 'skipped': {
-          const reason = res.reason ?? 'unknown';
-          skipped[reason] = (skipped[reason] ?? 0) + 1;
-          break;
-        }
-        default:
-          // 'resolved'/'error' cannot occur for a needs_human_qa order via this path; count defensively.
-          skipped[res.action] = (skipped[res.action] ?? 0) + 1;
-      }
-    } catch (err) {
-      errors.push({ orderId: order.id, message: err instanceof Error ? err.message : String(err) });
-      console.error(`[reconcile] ERROR reconciling order ${order.id}:`, err);
+      await prisma.$disconnect();
+      return;
     }
   }
+
+  const summary = await reconcileHumanQaHolds(prisma, {
+    includeUnknown: cli.includeUnknown,
+    dryRun: cli.dryRun,
+    onlyOrderId: cli.onlyOrderId,
+    onResult: (orderId, action, detail) => {
+      if (action === 'created') {
+        console.log(`[reconcile] created ${detail.kind} case${detail.caseId ? ` ${detail.caseId}` : ''} for order ${orderId} (scope=${detail.scope})`);
+      } else if (action === 'would_create') {
+        console.log(`[reconcile] WOULD create ${detail.kind} case for order ${orderId} (scope=${detail.scope})`);
+      } else if (action === 'error') {
+        console.error(`[reconcile] ERROR reconciling order ${orderId}: ${detail.message}`);
+      }
+    },
+  });
 
   console.log('');
   console.log('── reconcile summary ─────────────────────────────');
   console.log(`  mode:             ${cli.dryRun ? 'DRY-RUN (no writes)' : 'apply'}`);
   console.log(`  include-unknown:  ${cli.includeUnknown ? 'yes' : 'no'}`);
-  console.log(`  scanned:          ${orders.length}`);
+  console.log(`  scanned:          ${summary.scanned}`);
   if (cli.dryRun) {
-    console.log(`  would-create:     ${wouldCreate}`);
+    console.log(`  would-create:     ${summary.wouldCreate}`);
   } else {
-    console.log(`  created:          ${created}`);
+    console.log(`  created:          ${summary.created}`);
   }
-  console.log(`  idempotent:       ${idempotent}`);
-  const skippedKeys = Object.keys(skipped).sort();
-  const skippedTotal = skippedKeys.reduce((n, k) => n + skipped[k], 0);
+  console.log(`  idempotent:       ${summary.idempotent}`);
+  const skippedKeys = Object.keys(summary.skipped).sort();
+  const skippedTotal = skippedKeys.reduce((n, k) => n + summary.skipped[k], 0);
   console.log(
-    `  skipped:          ${skippedTotal}${skippedKeys.length ? ` → ${skippedKeys.map((k) => `${k}:${skipped[k]}`).join(', ')}` : ''}`,
+    `  skipped:          ${skippedTotal}${skippedKeys.length ? ` → ${skippedKeys.map((k) => `${k}:${summary.skipped[k]}`).join(', ')}` : ''}`,
   );
-  if (errors.length) {
-    console.log(`  errors:           ${errors.length}`);
-    for (const e of errors) console.log(`    - ${e.orderId}: ${e.message}`);
+  console.log(`  oldest-missing:   ${Math.round(summary.oldestMissingCaseAgeMs / 1000)}s`);
+  if (summary.errors.length) {
+    console.log(`  errors:           ${summary.errors.length}`);
+    for (const e of summary.errors) console.log(`    - ${e.orderId}: ${e.message}`);
   }
   console.log('──────────────────────────────────────────────────');
-  if (legacyUnknown.length) {
+  if (summary.legacyUnknown.length) {
     console.log(
-      `[reconcile] NOTE: ${legacyUnknown.length} legacy_unknown order(s) were ` +
-        `${cli.dryRun ? 'would-be ' : ''}backfilled (via --include-unknown) AND need explicit operator triage: ${legacyUnknown.join(', ')}`,
+      `[reconcile] NOTE: ${summary.legacyUnknown.length} legacy_unknown order(s) were ` +
+        `${cli.dryRun ? 'would-be ' : ''}backfilled (via --include-unknown) AND need explicit operator triage: ${summary.legacyUnknown.join(', ')}`,
     );
   }
 
   await prisma.$disconnect();
-  if (errors.length) process.exitCode = 1;
+  if (summary.errors.length) process.exitCode = 1;
 }
 
 main().catch((err) => {
