@@ -30,6 +30,7 @@ import {
 import { refundOrderPayment, prismaRefundFence, type RefundableOrder, type RefundResult, type RefundProviderDeps } from '@/lib/payment-refunds';
 import { startChunkedGeneration } from './start';
 import { commitBaseBookReadiness, type CommitResult } from '@/lib/generation-pipeline/readiness-manifest';
+import { writeOrderHoldFenced } from '@/lib/generation-pipeline/order-authority';
 import {
   reQaUnknownQualityEvidence,
   loadRegenPendingArtifacts,
@@ -164,15 +165,15 @@ async function parkOrderForHardHoldQa(
 ): Promise<void> {
   const marker = kind === 'safety' ? 'safety_hold' : 'contract_world_hold';
   const rawReason = `${marker}:${artifactKeys.join(',')}`;
-  // (Human-QA Slice 1, re-gate P0-1) The park write stays a single bare updateMany (byte-unchanged). The review case
-  // is NEVER opened inside this park tx — a case-write rejection must not roll back the hold itself (an unheld hard
-  // hold = a safety regression). It is opened POST-COMMIT below, and the reconciler is the guaranteed repair.
-  await prisma.order.updateMany({
-    where: { id: orderId, status: { notIn: ['ready', 'partial'] } },
-    // (delivery fence — Codex round-4 P0) Bump the shared fence ATOMICALLY with the safety/contract_world park.
-    // A readiness commit that read this order before the park binds the OLD fence; this increment makes its
-    // `ready` CAS match 0 rows → it aborts instead of clobbering this hold and shipping an unsafe book.
-    data: { status: 'needs_human_qa', deliveryHoldReason: rawReason, deliveryFenceVersion: { increment: 1 } },
+  // (Codex round-5 Unit 2) The hard-hold park goes through the shared funnel: bind + bump + precedence, and
+  // requireNotDelivered preserves the "never retract a delivered book" guard (status NOT IN ready/partial). safety=3
+  // always wins; contract_world=2 wins over anchor/integrity but yields to an already-committed safety hold. The
+  // review case is opened POST-COMMIT (never inside this write) so a case-write rejection cannot roll back the hold.
+  await writeOrderHoldFenced(prisma, {
+    orderId,
+    newStatus: 'needs_human_qa',
+    newHoldReason: rawReason,
+    requireNotDelivered: true,
   });
   // POST-COMMIT: reconcile the safety/contract_world review case from the committed Order state (a no-op if the
   // order was already delivered and the park matched no row). Best-effort in its own tx.

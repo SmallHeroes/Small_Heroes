@@ -189,9 +189,10 @@ describe('finalizePackageDelivery — readiness-independent safety pre-gate (Fix
       { readinessEnabled: () => false, send },
     );
     expect(result).toMatchObject({ mode: 'safety_hold', deliveryHeld: true });
-    expect(prisma.order.update).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ status: 'needs_human_qa', deliveryHoldReason: heldSafety.reason }),
-    }));
+    // (delivery fence round-5 Unit 2) the safety park now goes through writeOrderHoldFenced ($executeRaw + rank-3
+    // precedence), not a bare tx.order.update. Real CAS/precedence proven in the PG harness.
+    expect(prisma.$executeRaw).toHaveBeenCalled();
+    expect(prisma.order.update).not.toHaveBeenCalled();
     expect(send).not.toHaveBeenCalled();
   });
 

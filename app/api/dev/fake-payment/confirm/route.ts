@@ -11,6 +11,7 @@ import {
   releaseCouponForFailedPayment,
 } from '@/lib/coupon/coupon-service';
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
+import { writeOrderHoldFenced } from '@/lib/generation-pipeline/order-authority';
 
 const logger = createLogger({ subsystem: 'fake-payment', route: '/api/dev/fake-payment/confirm' });
 
@@ -130,10 +131,12 @@ export async function POST(req: NextRequest) {
     // "≤ N discounted PAID sales" breaks while confirmedCount still reads ≤ max.
     const couponFence = await couponConfirmFenceReason(tx, fresh.id, couponOutcome);
     if (couponFence) {
-      await tx.order.update({
-        where: { id: fresh.id },
-        // (delivery fence — Codex round-4 P0) bump the shared fence atomically with the payment-fence hold.
-        data: { status: 'needs_human_qa', manualReviewRequired: true, deliveryHoldReason: couponFence, deliveryFenceVersion: { increment: 1 } },
+      // (Codex round-5 Unit 2) payment fence through the shared funnel: bind + bump + precedence.
+      await writeOrderHoldFenced(tx, {
+        orderId: fresh.id,
+        newStatus: 'needs_human_qa',
+        newHoldReason: couponFence,
+        manualReviewRequired: true,
       });
       // (Human-QA Slice 1, re-gate P0-1) The payment_integrity case is written POST-COMMIT, not here — a
       // case-write rejection must never roll back this money transaction.

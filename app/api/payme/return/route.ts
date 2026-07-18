@@ -7,6 +7,7 @@ import { triggerGeneration } from '../../generate/route';
 import { verifyPaymePayment } from '@/lib/payme';
 import { confirmCouponForOrder, couponConfirmFenceReason } from '@/lib/coupon/coupon-service';
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
+import { writeOrderHoldFenced } from '@/lib/generation-pipeline/order-authority';
 
 const logger = createLogger({ subsystem: 'payme-return', route: '/api/payme/return' });
 
@@ -118,10 +119,12 @@ export async function GET(req: NextRequest) {
         // slot, which is precisely how "≤ N discounted PAID sales" breaks while confirmedCount looks fine.
         const couponFence = await couponConfirmFenceReason(tx, order.id, couponOutcome);
         if (couponFence) {
-          await tx.order.update({
-            where: { id: order.id },
-            // (delivery fence — Codex round-4 P0) bump the shared fence atomically with the payment-fence hold.
-            data: { status: 'needs_human_qa', manualReviewRequired: true, deliveryHoldReason: couponFence, deliveryFenceVersion: { increment: 1 } },
+          // (Codex round-5 Unit 2) payment fence through the shared funnel: bind + bump + precedence.
+          await writeOrderHoldFenced(tx, {
+            orderId: order.id,
+            newStatus: 'needs_human_qa',
+            newHoldReason: couponFence,
+            manualReviewRequired: true,
           });
           // (Human-QA Slice 1, re-gate P0-1) The payment_integrity case is written POST-COMMIT, not here — a
           // case-write rejection must never roll back this money transaction.

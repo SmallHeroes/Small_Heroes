@@ -129,10 +129,13 @@ export async function finalizePackageDelivery(
   if (args.safetyGate.held) {
     const completedAt = deps.now?.() ?? new Date();
     await prisma.$transaction(async (tx) => {
-      await tx.order.update({
-        where: { id: args.order.id },
-        // (delivery fence — Codex round-4 P0) bump the shared fence atomically with the safety hard-hold.
-        data: { status: 'needs_human_qa', packageStatus: 'done', deliveryHoldReason: args.safetyGate.reason, deliveryFenceVersion: { increment: 1 } },
+      // (Codex round-5 Unit 2) The safety hard-hold goes through the shared funnel: bind + bump + precedence. Safety
+      // is rank 3 (top) so it always overwrites a weaker marker; the fence bump is atomic with the hold write.
+      await writeOrderHoldFenced(tx, {
+        orderId: args.order.id,
+        newStatus: 'needs_human_qa',
+        newHoldReason: args.safetyGate.reason ?? 'safety_hold:held',
+        setPackageDone: true,
       });
       await tx.generationJob.update({
         where: { orderId: args.order.id },
