@@ -1,5 +1,5 @@
 import 'server-only';
-import { parseSupabasePublicObjectKey } from '@/lib/child-photo-deletion-policy';
+import { parseSupabasePublicObjectKey, getChildPhotoPrivacyMeta } from '@/lib/child-photo-deletion-policy';
 
 /**
  * (Track-4 Unit 1a, item 4) Audit + remediation of already-exposed child SOURCE photos in the PUBLIC bucket.
@@ -151,4 +151,90 @@ export function summarizeExposure(objects: ExposedObject[], allKeys: string[]): 
 /** Residue objects — safe to remediate (delete/migrate + clear the owner's reference). Never a renderable order's photo. */
 export function residueObjects(objects: ExposedObject[]): ExposedObject[] {
   return objects.filter((o) => o.disposition === 'residue');
+}
+
+// ── (Finding 2) ORDER-DRIVEN reference remediation — independent of the storage listing ─────────────────────────────
+// The object-driven pass only visits orders whose object still EXISTS to enumerate. An order whose object was already
+// deleted (the dangling reference Finding 2 is about) is never visited, so its stale childImageUrl / characterAnchors
+// URL — a durable public handle to a child's photograph — is never cleared. This pass is driven by the ORDERS.
+
+export interface RemediationOrder {
+  id: string;
+  status: string;
+  retryable?: boolean;
+  updatedAt?: Date;
+  childImageUrl?: string | null;
+  characterAnchors?: unknown;
+}
+export interface RemediationDeps {
+  /** Delete the object at key. ok=false ABORTS clearing that order's reference (object-first — never leave an orphan). */
+  deleteObject: (key: string) => Promise<{ ok: boolean; error?: string }>;
+  /** Clear the persisted reference fields (childImageUrl + nested characterAnchors URLs) for the order. */
+  clearReference: (orderId: string) => Promise<void>;
+  /** Optional (migrate mode): copy the object to the private bucket before it is deleted. */
+  migrateObject?: (key: string) => Promise<void>;
+}
+export interface RemediationResult {
+  referencesCleared: number;
+  /** Of referencesCleared, those whose object no longer existed (pure dangling refs). */
+  danglingCleared: number;
+  objectsDeleted: number;
+  /** Order ids skipped because an object delete failed (reference left intact — object-first). */
+  aborted: string[];
+}
+
+/** True when the order still holds a child-photo reference worth clearing (childImageUrl, or the nested original URL). */
+export function orderHoldsChildPhotoReference(order: Pick<RemediationOrder, 'childImageUrl' | 'characterAnchors'>): boolean {
+  if (order.childImageUrl) return true;
+  return Boolean(getChildPhotoPrivacyMeta(order.characterAnchors as never).originalChildPhotoUrl);
+}
+
+/**
+ * For every RESIDUE order that still holds a child-photo reference, clear it — WHETHER OR NOT its object still exists.
+ * Object-first: any still-existing object it references is deleted (migrated) FIRST; a delete failure aborts that order
+ * (its reference is left intact, never orphaning a live object). KEEP orders are never touched. Pure of Supabase/DB —
+ * all I/O is injected, so the two-pass remediation is unit-tested. `alreadyCleared` lets the object pass hand off ids.
+ */
+export async function remediateResidueReferences(
+  orders: RemediationOrder[],
+  existingObjectKeys: Set<string>,
+  bucket: string,
+  deps: RemediationDeps,
+  opts: ClassifyOptions & { alreadyCleared?: Set<string> } = {},
+): Promise<RemediationResult> {
+  const cleared = opts.alreadyCleared ?? new Set<string>();
+  const res: RemediationResult = { referencesCleared: 0, danglingCleared: 0, objectsDeleted: 0, aborted: [] };
+  for (const o of orders) {
+    if (cleared.has(o.id)) continue; // already handled (e.g. by the object pass)
+    if (isKeepOwner({ orderId: o.id, status: o.status, retryable: o.retryable, updatedAt: o.updatedAt }, opts)) continue;
+    if (!orderHoldsChildPhotoReference(o)) continue;
+    let safe = true;
+    let hadExisting = false;
+    for (const key of orderReferencedChildPhotoKeys(o, bucket)) {
+      if (!existingObjectKeys.has(key)) continue; // object already gone → nothing to delete
+      hadExisting = true;
+      if (deps.migrateObject) await deps.migrateObject(key);
+      const del = await deps.deleteObject(key);
+      if (!del.ok) { res.aborted.push(o.id); safe = false; break; } // object-first: keep the reference, retry later
+      res.objectsDeleted += 1;
+    }
+    if (!safe) continue;
+    await deps.clearReference(o.id);
+    cleared.add(o.id);
+    res.referencesCleared += 1;
+    if (!hadExisting) res.danglingCleared += 1;
+  }
+  return res;
+}
+
+/** Resolve the CLI mode; a destructive flag WITHOUT the acknowledgement is a hard error, never a silent fallback. */
+export function resolveRemediationMode(flags: { deleteResidue: boolean; migrateResidue: boolean; ack: boolean }):
+  | { ok: true; mode: 'report' | 'delete' | 'migrate' }
+  | { ok: false; error: string } {
+  if ((flags.deleteResidue || flags.migrateResidue) && !flags.ack) {
+    return { ok: false, error: '--delete-residue/--migrate-residue requires --i-understand-this-deletes-objects. Nothing changed.' };
+  }
+  if (flags.migrateResidue) return { ok: true, mode: 'migrate' };
+  if (flags.deleteResidue) return { ok: true, mode: 'delete' };
+  return { ok: true, mode: 'report' };
 }

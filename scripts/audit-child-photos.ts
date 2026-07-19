@@ -8,27 +8,36 @@
  *
  *   # report (read-only): keep-vs-residue by status + anchor count
  *   npx tsx --require ./scripts/shims/register-server-only.cjs scripts/audit-child-photos.ts
- *   # remediate residue: delete object FIRST, then clear the order's persisted reference (childImageUrl + anchors);
- *   # also clears dangling references (residue order holds a stale URL but the object is already gone):
- *   npx tsx … scripts/audit-child-photos.ts --delete-residue  --i-understand-this-deletes-production-objects
- *   npx tsx … scripts/audit-child-photos.ts --migrate-residue --i-understand-this-deletes-production-objects   # copy→private, then delete+clear
+ *   # remediate residue (two passes): object-driven (delete object, then clear owner ref) + order-driven (clear a
+ *   # residue order's reference WHETHER OR NOT its object still exists — the dangling refs, incl. the 118 on prod):
+ *   npx tsx … scripts/audit-child-photos.ts --delete-residue  --i-understand-this-deletes-objects
+ *   npx tsx … scripts/audit-child-photos.ts --migrate-residue --i-understand-this-deletes-objects   # copy→private, then delete+clear
+ * A destructive flag WITHOUT --i-understand-this-deletes-objects EXITS NON-ZERO (never a silent report fallback).
  *
  * Run against staging AND production. NEVER touches character-anchors or a renderable order's photo.
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { buildCharacterAnchorsAfterPhotoDeletion } from '../lib/child-photo-deletion-policy';
 import {
-  buildKeyOwnerMap, classifyExposedChildPhotos, summarizeExposure, residueObjects, isKeepOwner,
-  isExposedChildSourcePhotoKey, isCharacterAnchorKey, orderReferencedChildPhotoKeys,
+  buildKeyOwnerMap, classifyExposedChildPhotos, summarizeExposure, residueObjects,
+  isExposedChildSourcePhotoKey, isCharacterAnchorKey, remediateResidueReferences, resolveRemediationMode,
 } from '../lib/child-photo-audit';
 import { downloadStorageObjectBytes, storeChildPhotoToPrivateBucket } from '../lib/image-storage';
 
 const argv = process.argv.slice(2);
-const ACK = argv.includes('--i-understand-this-deletes-production-objects');
-const DELETE = argv.includes('--delete-residue') && ACK;
-const MIGRATE = argv.includes('--migrate-residue') && ACK;
+// A destructive flag WITHOUT the acknowledgement is a HARD error, never a silent fallback to report (it trains the
+// wrong habit). The ack flag is env-agnostic ('objects', not 'production-objects') — the target host is printed below.
+const MODE_RESULT = resolveRemediationMode({
+  deleteResidue: argv.includes('--delete-residue'),
+  migrateResidue: argv.includes('--migrate-residue'),
+  ack: argv.includes('--i-understand-this-deletes-objects'),
+});
+if (!MODE_RESULT.ok) { console.error(`[audit] REFUSED: ${MODE_RESULT.error}`); process.exit(2); }
+const MODE = MODE_RESULT.mode;
+const DELETE = MODE !== 'report';
+const MIGRATE = MODE === 'migrate';
 const BUCKET = process.env.SUPABASE_STORAGE_BUCKET?.trim() || 'book-images';
 // (age-gated escape hatch) EXPLICITLY reclassify long-abandoned failed+retryable=true orders as residue.
 const INCLUDE_STALE = argv.includes('--include-stale-retryable-failed');
@@ -66,8 +75,9 @@ async function walk(sb: SupabaseClient, prefix: string, acc: string[]): Promise<
 
 type OrderRow = { id: string; status: string; retryable?: boolean; updatedAt: Date; childImageUrl: string | null; characterAnchors: Prisma.JsonValue };
 async function loadOrdersWithPhotoRefs(): Promise<OrderRow[]> {
+  // Catch a reference held in childImageUrl OR nested only in characterAnchors — the order-driven pass needs both.
   const rows = await prisma.order.findMany({
-    where: { childImageUrl: { not: null } },
+    where: { OR: [{ childImageUrl: { not: null } }, { characterAnchors: { not: Prisma.JsonNull } }] },
     select: { id: true, status: true, updatedAt: true, childImageUrl: true, characterAnchors: true, generationJob: { select: { retryable: true } } },
   });
   return rows.map((o) => ({ id: o.id, status: o.status, retryable: o.generationJob?.retryable ?? undefined, updatedAt: o.updatedAt, childImageUrl: o.childImageUrl, characterAnchors: o.characterAnchors as Prisma.JsonValue }));
@@ -119,36 +129,38 @@ async function main(): Promise<void> {
     return;
   }
 
-  // (item 2) Remediate residue: delete the OBJECT first, then clear the owning order's persisted reference — so a
-  // delete failure never leaves a field pointing at nothing it can recover.
+  const migrateObject = MIGRATE
+    ? async (key: string): Promise<void> => {
+        const bytes = await downloadStorageObjectBytes(key);
+        if (!bytes) { console.error(`[audit] migrate skip (unreadable): ${key}`); return; }
+        const ext = key.split('.').pop()?.toLowerCase();
+        await storeChildPhotoToPrivateBucket({ buffer: bytes, contentType: ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg', key });
+      }
+    : undefined;
+  const deleteObject = async (key: string): Promise<{ ok: boolean; error?: string }> => {
+    const { error } = await sb.storage.from(BUCKET).remove([key]);
+    return { ok: !error, error: error?.message };
+  };
+
+  // ── Pass 1 (OBJECT-DRIVEN, verified correct) — delete residue OBJECTS first, then clear each owner's reference ─────
   const residue = residueObjects(classified);
   const clearedOrders = new Set<string>();
-  let objDone = 0;
+  let p1Objects = 0;
   for (const obj of residue) {
-    if (MIGRATE) {
-      const bytes = await downloadStorageObjectBytes(obj.key);
-      if (!bytes) { console.error(`[audit] migrate skip (unreadable): ${obj.key}`); continue; }
-      const ext = obj.key.split('.').pop()?.toLowerCase();
-      await storeChildPhotoToPrivateBucket({ buffer: bytes, contentType: ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg', key: obj.key });
-    }
-    const { error } = await sb.storage.from(BUCKET).remove([obj.key]);
-    if (error) { console.error(`[audit] remove failed ${obj.key}: ${error.message} — NOT clearing its field`); continue; }
-    objDone += 1;
+    if (migrateObject) await migrateObject(obj.key);
+    const del = await deleteObject(obj.key);
+    if (!del.ok) { console.error(`[audit] remove failed ${obj.key}: ${del.error} — NOT clearing its field`); continue; }
+    p1Objects += 1;
     if (obj.orderId && !clearedOrders.has(obj.orderId)) { await clearOrderReference(obj.orderId); clearedOrders.add(obj.orderId); }
   }
+  const p1Refs = clearedOrders.size;
 
-  // (item 2, dangling) Clear the stale reference on residue orders whose object is already gone.
+  // ── Pass 2 (ORDER-DRIVEN, Finding 2) — clear residue orders' references whether or not the object still exists ─────
   const existing = new Set(realPhotoKeys);
-  let danglingCleared = 0;
-  for (const o of orders) {
-    if (clearedOrders.has(o.id)) continue;
-    // Only clear a dangling ref on a RESIDUE order (not a renderable or ambivalent-retryable-failed one).
-    if (isKeepOwner({ orderId: o.id, status: o.status, retryable: o.retryable, updatedAt: o.updatedAt }, { staleRetryableFailedCutoff: STALE_CUTOFF })) continue;
-    const keys = orderReferencedChildPhotoKeys(o, BUCKET);
-    if (keys.length > 0 && keys.every((k) => !existing.has(k))) { await clearOrderReference(o.id); danglingCleared += 1; }
-  }
+  const p2 = await remediateResidueReferences(orders, existing, BUCKET, { deleteObject, clearReference: clearOrderReference, migrateObject }, { staleRetryableFailedCutoff: STALE_CUTOFF, alreadyCleared: clearedOrders });
 
-  console.log(`\n[audit] remediation complete — ${objDone}/${residue.length} residue objects ${MIGRATE ? 'migrated+' : ''}deleted; ${clearedOrders.size} references cleared; ${danglingCleared} dangling references cleared.`);
+  console.log(`\n[audit] Pass 1 (object-driven): ${p1Objects}/${residue.length} residue objects ${MIGRATE ? 'migrated+' : ''}deleted; ${p1Refs} references cleared.`);
+  console.log(`[audit] Pass 2 (order-driven):  ${p2.referencesCleared} references cleared (of which ${p2.danglingCleared} DANGLING — object already gone); ${p2.objectsDeleted} objects deleted here; ${p2.aborted.length} aborted on delete-failure${p2.aborted.length ? ` (${p2.aborted.join(', ')})` : ''}.`);
 }
 
 main().then(() => prisma.$disconnect()).catch(async (e) => { console.error(e); await prisma.$disconnect(); process.exit(1); });
