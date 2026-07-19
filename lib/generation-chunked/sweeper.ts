@@ -3,6 +3,7 @@ import { chainGenerationWorker } from './chain-worker';
 import { getMaxStaleReclaims } from './constants';
 import { isReadinessManifestEnabled } from '@/lib/generation-pipeline/readiness-manifest';
 import { openExceptionCase } from './exception-case';
+import { tryDeleteOriginalChildPhotoAfterGeneration } from '@/lib/child-photo-deletion';
 
 /** Progress fingerprint — changes when the job advances (stage or completed-page count). */
 function progressFingerprint(currentStage: string, completedPageNumbers: unknown): string {
@@ -88,6 +89,10 @@ export async function sweepStaleGenerationJobs(
           });
         }
       });
+      // (Track-4 Unit 1a, Finding 3) TERMINAL failure (retryable=false, retries exhausted) — the order will never
+      // render, so its source photo is no longer needed. Clean it up on the failure path too (not only on success),
+      // observably (the hook emits child_photo_deletion_failed on failure). Non-throwing; must not break the sweep.
+      await tryDeleteOriginalChildPhotoAfterGeneration(job.orderId);
       continue;
     }
 

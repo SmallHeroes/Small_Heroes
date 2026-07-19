@@ -3,18 +3,21 @@ import { parseSupabasePublicObjectKey } from '@/lib/child-photo-deletion-policy'
 
 /**
  * (Track-4 Unit 1a, item 4) Audit + remediation of already-exposed child SOURCE photos in the PUBLIC bucket.
- * "Assume prior deletion failures left residue; prove otherwise rather than hoping." PURE classification (testable
- * without Supabase); scripts/audit-child-photos.ts wires the real storage list + DB read + optional cleanup.
+ * PURE classification (testable without Supabase); scripts/audit-child-photos.ts wires the real storage list + DB read
+ * + optional cleanup.
  *
- * IMPORTANT (verified against prod/staging 2026-07-19): real child photos sit at paths like
- * `orders/OLD/draft-<id>/references/main-child-<id>.jpg` — an EXTRA path segment that the shared
- * `isOriginalChildPhotoStorageKey` regex (^orders/[^/]+/references/) never matched, which is why the per-order
- * deletion left them as residue. The audit therefore uses a BROAD, LIKE-style matcher on `%/references/main-child-%`
- * (+ stage0-child-photo, + wizard/char-photos), independent of the (unchanged) deletion regex.
+ * CLASSIFY BY ORDER STATUS, never by "a record still references it" — 118 prod orders hold a dangling child-photo URL
+ * while only ~14 objects exist, so reference-existence marks almost everything KEEP and remediates nothing. An object
+ * is *needed* only if its owning order can STILL RENDER (draft / pending_payment / paid / generating / needs_human_qa).
+ * ready / partial / failed orders, and any object with no resolvable owning order (orphan), are RESIDUE.
  *
- * SEPARATE HANDLING: `%/character-anchors/%` objects are AI-GENERATED ILLUSTRATIONS, not photographs — the system
- * uses them for consistency. They are counted + reported but NEVER remediated by this tool.
+ * Real child photos match BROADLY at `%/references/main-child-%` (+ stage0-child-photo, + wizard/char-photos) — they
+ * sit at deep paths like orders/OLD/draft-<id>/references/main-child-<id>.jpg. Character-anchors (%/character-anchors/%)
+ * are AI ILLUSTRATIONS — counted separately and NEVER remediated.
  */
+
+/** An order in one of these statuses can still render, so its source photo must be KEPT. Everything else is residue. */
+export const RENDERABLE_STATUSES = new Set(['draft', 'pending_payment', 'paid', 'generating', 'needs_human_qa']);
 
 /** Broad match for a child SOURCE photograph object, wherever it sits in the tree. */
 export function isExposedChildSourcePhotoKey(key: string): boolean {
@@ -27,44 +30,19 @@ export function isCharacterAnchorKey(key: string): boolean {
   return /(?:^|\/)character-anchors\//i.test(key.replace(/\\/g, '/'));
 }
 
-export type ExposedDisposition = 'in_flight_keep' | 'delivered_or_orphan_residue';
+export type ExposedDisposition = 'in_flight_keep' | 'residue';
 
 export interface ExposedObject {
   key: string;
   disposition: ExposedDisposition;
+  orderId?: string;
+  orderStatus?: string;
 }
 
-/**
- * Classify each exposed child-photo object as KEEP (an in-flight order still references it) or RESIDUE (safe to remove
- * — a delivered order's leftover, or an orphan with no owning order). Conservative + safe: an object is only ever
- * remediated when it is NOT in the in-flight-referenced set, so an active render's photo is never deleted.
- * PURE — `inflightReferencedKeys` is the set of keys referenced by orders that are NOT yet delivered.
- */
-export function classifyExposedChildPhotos(objectKeys: string[], inflightReferencedKeys: Set<string>): ExposedObject[] {
-  return objectKeys
-    .filter(isExposedChildSourcePhotoKey)
-    .map((key) => ({ key, disposition: (inflightReferencedKeys.has(key) ? 'in_flight_keep' : 'delivered_or_orphan_residue') as ExposedDisposition }));
-}
-
-export interface ExposureSummary {
-  realPhotos: number;
-  characterAnchors: number;
-  in_flight_keep: number;
-  residue: number;
-}
-
-export function summarizeExposure(objects: ExposedObject[], allKeys: string[]): ExposureSummary {
-  return {
-    realPhotos: objects.length,
-    characterAnchors: allKeys.filter(isCharacterAnchorKey).length,
-    in_flight_keep: objects.filter((o) => o.disposition === 'in_flight_keep').length,
-    residue: objects.filter((o) => o.disposition === 'delivered_or_orphan_residue').length,
-  };
-}
-
-/** Keys the cleanup may safely remove — residue only, never an in-flight order's photo. */
-export function residueKeys(objects: ExposedObject[]): string[] {
-  return objects.filter((o) => o.disposition === 'delivered_or_orphan_residue').map((o) => o.key);
+/** The owning order of a storage key: its id (to clear the reference) + status (to classify). */
+export interface KeyOwner {
+  orderId: string;
+  status: string;
 }
 
 /** Deep-collect every Supabase public-object URL embedded anywhere in a JSON blob (characterAnchors). */
@@ -89,4 +67,59 @@ export function orderReferencedChildPhotoKeys(
     if (k && isExposedChildSourcePhotoKey(k)) keys.add(k);
   }
   return [...keys];
+}
+
+/**
+ * Map every referenced child-photo key → its owning order (id + status). On a conflict (two orders reference the same
+ * key) a RENDERABLE owner wins, so a photo a renderable order still needs is never mistaken for residue.
+ */
+export function buildKeyOwnerMap(
+  orders: Array<{ id: string; status: string; childImageUrl?: string | null; characterAnchors?: unknown }>,
+  bucket: string,
+): Map<string, KeyOwner> {
+  const map = new Map<string, KeyOwner>();
+  for (const o of orders) {
+    for (const key of orderReferencedChildPhotoKeys(o, bucket)) {
+      const existing = map.get(key);
+      if (!existing || (RENDERABLE_STATUSES.has(o.status) && !RENDERABLE_STATUSES.has(existing.status))) {
+        map.set(key, { orderId: o.id, status: o.status });
+      }
+    }
+  }
+  return map;
+}
+
+/**
+ * Classify each exposed child-photo object by its OWNING ORDER'S STATUS: KEEP iff the owner can still render; RESIDUE
+ * for ready/partial/failed owners AND for orphans (no resolvable owner). PURE.
+ */
+export function classifyExposedChildPhotos(objectKeys: string[], ownerMap: Map<string, KeyOwner>): ExposedObject[] {
+  return objectKeys
+    .filter(isExposedChildSourcePhotoKey)
+    .map((key) => {
+      const owner = ownerMap.get(key);
+      const keep = owner !== undefined && RENDERABLE_STATUSES.has(owner.status);
+      return { key, disposition: (keep ? 'in_flight_keep' : 'residue') as ExposedDisposition, orderId: owner?.orderId, orderStatus: owner?.status ?? '(orphan)' };
+    });
+}
+
+export interface ExposureSummary {
+  realPhotos: number;
+  characterAnchors: number;
+  in_flight_keep: number;
+  residue: number;
+}
+
+export function summarizeExposure(objects: ExposedObject[], allKeys: string[]): ExposureSummary {
+  return {
+    realPhotos: objects.length,
+    characterAnchors: allKeys.filter(isCharacterAnchorKey).length,
+    in_flight_keep: objects.filter((o) => o.disposition === 'in_flight_keep').length,
+    residue: objects.filter((o) => o.disposition === 'residue').length,
+  };
+}
+
+/** Residue objects — safe to remediate (delete/migrate + clear the owner's reference). Never a renderable order's photo. */
+export function residueObjects(objects: ExposedObject[]): ExposedObject[] {
+  return objects.filter((o) => o.disposition === 'residue');
 }

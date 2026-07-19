@@ -204,6 +204,7 @@ describe('cron sweep auth', () => {
     }));
     vi.doMock('@/lib/child-photo-deletion', () => ({
       sweepPendingChildPhotoDeletions: vi.fn(async () => 0),
+      tryDeleteOriginalChildPhotoAfterGeneration: vi.fn(async () => {}),
     }));
     return (await import('@/app/api/generate/cron/sweep/route')).GET;
   }
@@ -252,7 +253,11 @@ describe('sweepStaleGenerationJobs — DISPATCHER boundary (kicks the worker rou
     // Spy proves the compute path is NOT taken inside the 60s cron.
     const invoke = vi.fn(async () => ({ ok: true }));
     vi.doMock('@/lib/generation-chunked/process-worker', () => ({ runGenerationWorkerInvocation: invoke }));
-    return { update, orderUpdate, kick, invoke };
+    // (Track-4 Unit 1a) the sweeper now cleans up the child photo on a TERMINAL hard-fail — stub it (its own coverage
+    // lives in child-photo-terminal-failure-cleanup.spec.ts).
+    const cleanupPhoto = vi.fn(async () => {});
+    vi.doMock('@/lib/child-photo-deletion', () => ({ tryDeleteOriginalChildPhotoAfterGeneration: cleanupPhoto, sweepPendingChildPhotoDeletions: vi.fn(async () => 0) }));
+    return { update, orderUpdate, kick, invoke, cleanupPhoto };
   }
 
   it('dispatches a reclaimed job via the worker route — does NOT render in-process', async () => {

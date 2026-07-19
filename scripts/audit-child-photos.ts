@@ -1,24 +1,27 @@
 /**
  * (Track-4 Unit 1a, item 4) Audit — enumerate child SOURCE photos still reachable in the PUBLIC book-images bucket,
- * classify each against the DB, and REPORT THE COUNT. Read-only by default. Core + tests: lib/child-photo-audit.ts.
+ * classify each BY OWNING-ORDER STATUS, and REPORT THE COUNT. Read-only by default. Core + tests: lib/child-photo-audit.ts.
  *
- * Real child photos are matched BROADLY at `%/references/main-child-%` (+ stage0-child-photo, + wizard/char-photos) —
- * they sit at paths like orders/OLD/draft-<id>/references/main-child-<id>.jpg. Character-anchors (%/character-anchors/%)
- * are AI ILLUSTRATIONS, counted separately and NEVER touched. Rendered pages/covers are excluded.
+ * KEEP iff the owning order can still render (draft/pending_payment/paid/generating/needs_human_qa). ready/partial/
+ * failed owners and orphans (no resolvable owner) are RESIDUE. Character-anchors (%/character-anchors/%) are AI
+ * illustrations — counted separately and NEVER touched.
  *
- *   # report (read-only): real-photo count + sample keys, anchor count, residue-vs-in-flight
+ *   # report (read-only): keep-vs-residue by status + anchor count
  *   npx tsx --require ./scripts/shims/register-server-only.cjs scripts/audit-child-photos.ts
- *   # remediate residue (delivered/orphan real photos; NEVER an in-flight order's photo):
+ *   # remediate residue: delete object FIRST, then clear the order's persisted reference (childImageUrl + anchors);
+ *   # also clears dangling references (residue order holds a stale URL but the object is already gone):
  *   npx tsx … scripts/audit-child-photos.ts --delete-residue  --i-understand-this-deletes-production-objects
- *   npx tsx … scripts/audit-child-photos.ts --migrate-residue --i-understand-this-deletes-production-objects   # copy→private, then delete
+ *   npx tsx … scripts/audit-child-photos.ts --migrate-residue --i-understand-this-deletes-production-objects   # copy→private, then delete+clear
  *
- * Run against staging AND production (child photos are public in both). NEVER touches character-anchors.
+ * Run against staging AND production. NEVER touches character-anchors or a renderable order's photo.
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import { buildCharacterAnchorsAfterPhotoDeletion } from '../lib/child-photo-deletion-policy';
 import {
-  classifyExposedChildPhotos, summarizeExposure, residueKeys, orderReferencedChildPhotoKeys,
-  isExposedChildSourcePhotoKey, isCharacterAnchorKey,
+  buildKeyOwnerMap, classifyExposedChildPhotos, summarizeExposure, residueObjects,
+  isExposedChildSourcePhotoKey, isCharacterAnchorKey, RENDERABLE_STATUSES, orderReferencedChildPhotoKeys,
 } from '../lib/child-photo-audit';
 import { downloadStorageObjectBytes, storeChildPhotoToPrivateBucket } from '../lib/image-storage';
 
@@ -36,7 +39,6 @@ function client(): SupabaseClient {
 }
 function mask(): string { try { return new URL(process.env.SUPABASE_URL ?? '').host; } catch { return '(no SUPABASE_URL)'; } }
 
-/** List a single prefix (paginated). Supabase list is non-recursive → returns files + sub-folder placeholders. */
 async function listPrefix(sb: SupabaseClient, prefix: string): Promise<{ files: string[]; folders: string[] }> {
   const files: string[] = [];
   const folders: string[] = [];
@@ -52,23 +54,27 @@ async function listPrefix(sb: SupabaseClient, prefix: string): Promise<{ files: 
   }
   return { files, folders };
 }
-
-/** Recursively enumerate every object key under a prefix (walks sub-folders). */
 async function walk(sb: SupabaseClient, prefix: string, acc: string[]): Promise<void> {
   const { files, folders } = await listPrefix(sb, prefix);
   acc.push(...files);
   for (const f of folders) await walk(sb, f, acc);
 }
 
-/** Every child-photo storage key referenced by an order that is NOT yet delivered (its render still needs the photo). */
-async function loadInflightReferencedKeys(): Promise<Set<string>> {
-  const orders = await prisma.order.findMany({
-    where: { NOT: { AND: [{ status: { in: ['ready', 'partial'] } }, { packageStatus: 'done' }] } },
-    select: { childImageUrl: true, characterAnchors: true },
+type OrderRow = { id: string; status: string; childImageUrl: string | null; characterAnchors: Prisma.JsonValue };
+async function loadOrdersWithPhotoRefs(): Promise<OrderRow[]> {
+  return prisma.order.findMany({
+    where: { childImageUrl: { not: null } },
+    select: { id: true, status: true, childImageUrl: true, characterAnchors: true },
+  }) as unknown as Promise<OrderRow[]>;
+}
+
+/** Clear a residue order's persisted child-photo reference — childImageUrl + the nested characterAnchors URL fields. */
+async function clearOrderReference(orderId: string): Promise<void> {
+  const o = await prisma.order.findUnique({ where: { id: orderId }, select: { characterAnchors: true } });
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { childImageUrl: null, characterAnchors: buildCharacterAnchorsAfterPhotoDeletion(o?.characterAnchors ?? null, 'completed') as Prisma.InputJsonValue },
   });
-  const set = new Set<string>();
-  for (const o of orders) for (const k of orderReferencedChildPhotoKeys(o, BUCKET)) set.add(k);
-  return set;
 }
 
 async function main(): Promise<void> {
@@ -82,41 +88,56 @@ async function main(): Promise<void> {
   for (const f of orderFolders) await walk(sb, f, allKeys);
 
   const realPhotoKeys = allKeys.filter(isExposedChildSourcePhotoKey);
-  const inflight = await loadInflightReferencedKeys();
-  const classified = classifyExposedChildPhotos(realPhotoKeys, inflight);
+  const orders = await loadOrdersWithPhotoRefs();
+  const ownerMap = buildKeyOwnerMap(orders, BUCKET);
+  const classified = classifyExposedChildPhotos(realPhotoKeys, ownerMap);
   const summary = summarizeExposure(classified, allKeys);
 
+  // status breakdown of the exposed objects
+  const byStatus = new Map<string, number>();
+  for (const o of classified) byStatus.set(o.orderStatus ?? '(orphan)', (byStatus.get(o.orderStatus ?? '(orphan)') ?? 0) + 1);
+
   console.log(`\n[audit] REAL child SOURCE photos still PUBLIC: ${summary.realPhotos}`);
-  console.log(`  in-flight (KEEP — render still needs it): ${summary.in_flight_keep}`);
-  console.log(`  residue (delivered/orphan — remediate):   ${summary.residue}`);
+  console.log(`  KEEP (owning order can still render): ${summary.in_flight_keep}`);
+  console.log(`  RESIDUE (ready/partial/failed/orphan): ${summary.residue}`);
+  console.log(`  by owning-order status: ${[...byStatus.entries()].map(([s, n]) => `${s}=${n}`).join('  ')}`);
   console.log(`[audit] character-anchors (AI illustrations — NOT touched): ${summary.characterAnchors}`);
-  console.log(`\n[audit] sample real-photo keys:`);
-  for (const k of realPhotoKeys.slice(0, 20)) console.log(`   ${k}${inflight.has(k) ? '   [KEEP]' : ''}`);
-  // sanity: the walk must never mis-file an anchor as a photo
   const misfiled = realPhotoKeys.filter(isCharacterAnchorKey);
-  if (misfiled.length) console.error(`[audit] WARNING: ${misfiled.length} keys matched BOTH photo + anchor — investigate: ${misfiled.slice(0, 5).join(', ')}`);
+  if (misfiled.length) console.error(`[audit] WARNING: ${misfiled.length} keys matched BOTH photo + anchor — investigate`);
 
   if (!DELETE && !MIGRATE) {
     console.log('\n[audit] REPORT complete — nothing changed.');
     return;
   }
-  const toRemediate = residueKeys(classified);
-  if (toRemediate.length === 0) { console.log('\n[audit] no residue to remediate.'); return; }
 
-  let done = 0;
-  for (const key of toRemediate) {
+  // (item 2) Remediate residue: delete the OBJECT first, then clear the owning order's persisted reference — so a
+  // delete failure never leaves a field pointing at nothing it can recover.
+  const residue = residueObjects(classified);
+  const clearedOrders = new Set<string>();
+  let objDone = 0;
+  for (const obj of residue) {
     if (MIGRATE) {
-      const bytes = await downloadStorageObjectBytes(key);
-      if (!bytes) { console.error(`[audit] migrate skip (unreadable): ${key}`); continue; }
-      const ext = key.split('.').pop()?.toLowerCase();
-      const ct = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
-      await storeChildPhotoToPrivateBucket({ buffer: bytes, contentType: ct, key });
+      const bytes = await downloadStorageObjectBytes(obj.key);
+      if (!bytes) { console.error(`[audit] migrate skip (unreadable): ${obj.key}`); continue; }
+      const ext = obj.key.split('.').pop()?.toLowerCase();
+      await storeChildPhotoToPrivateBucket({ buffer: bytes, contentType: ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg', key: obj.key });
     }
-    const { error } = await sb.storage.from(BUCKET).remove([key]);
-    if (error) { console.error(`[audit] remove failed ${key}: ${error.message}`); continue; }
-    done += 1;
+    const { error } = await sb.storage.from(BUCKET).remove([obj.key]);
+    if (error) { console.error(`[audit] remove failed ${obj.key}: ${error.message} — NOT clearing its field`); continue; }
+    objDone += 1;
+    if (obj.orderId && !clearedOrders.has(obj.orderId)) { await clearOrderReference(obj.orderId); clearedOrders.add(obj.orderId); }
   }
-  console.log(`\n[audit] ${MIGRATE ? 'MIGRATE+DELETE' : 'DELETE'} complete — ${done}/${toRemediate.length} residue objects handled (in-flight + character-anchors untouched).`);
+
+  // (item 2, dangling) Clear the stale reference on residue orders whose object is already gone.
+  const existing = new Set(realPhotoKeys);
+  let danglingCleared = 0;
+  for (const o of orders) {
+    if (RENDERABLE_STATUSES.has(o.status) || clearedOrders.has(o.id)) continue;
+    const keys = orderReferencedChildPhotoKeys(o, BUCKET);
+    if (keys.length > 0 && keys.every((k) => !existing.has(k))) { await clearOrderReference(o.id); danglingCleared += 1; }
+  }
+
+  console.log(`\n[audit] remediation complete — ${objDone}/${residue.length} residue objects ${MIGRATE ? 'migrated+' : ''}deleted; ${clearedOrders.size} references cleared; ${danglingCleared} dangling references cleared.`);
 }
 
 main().then(() => prisma.$disconnect()).catch(async (e) => { console.error(e); await prisma.$disconnect(); process.exit(1); });
