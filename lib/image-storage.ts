@@ -622,6 +622,72 @@ export async function storePresentationBuffer(input: StorePresentationInput): Pr
 const MAX_WIZARD_CHARACTER_UPLOAD_BYTES = 15 * 1024 * 1024;
 const WIZARD_CHARACTER_UPLOAD_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
+// ── (Track-4 Unit 1) Private child-photo storage + signed-URL-at-use-time infrastructure ────────────────────────────
+// The child SOURCE photo is categorically more sensitive than a rendered page; it belongs in a PRIVATE bucket, is
+// persisted as a KEY (never a durable public URL), and is resolved to a SHORT-LIVED signed URL only at use time. These
+// primitives are the foundation for that cutover (the write/read migration is staged — see BRIDGE/Unit-1 report).
+
+/** The private bucket that holds child SOURCE photos. MUST be created with public=false + service-role-only access. */
+export function getPrivateChildPhotoBucket(): string {
+  return process.env.SUPABASE_PRIVATE_STORAGE_BUCKET?.trim() || 'child-photos-private';
+}
+
+/** A bare storage key (private-bucket reference) vs. a legacy public URL / an inline data: URL. Pure. */
+export function isBareStorageKey(ref: string | null | undefined): boolean {
+  const r = (ref ?? '').trim();
+  if (!r) return false;
+  return !r.startsWith('data:') && !/^https?:\/\//i.test(r);
+}
+
+/** Upload a child SOURCE photo to the PRIVATE bucket and return its storage KEY (never a public URL). */
+export async function storeChildPhotoToPrivateBucket(params: {
+  buffer: Buffer;
+  contentType: string;
+  /** Optional explicit key; defaults to the wizard/char-photos prefix so the existing deletion/audit patterns match. */
+  key?: string;
+}): Promise<string> {
+  const mime = params.contentType.split(';')[0].trim().toLowerCase();
+  const normalized = mime === 'image/jpg' ? 'image/jpeg' : mime;
+  if (!WIZARD_CHARACTER_UPLOAD_TYPES.has(normalized)) throw new Error('Unsupported image type.');
+  if (params.buffer.length > MAX_WIZARD_CHARACTER_UPLOAD_BYTES) throw new Error('Image exceeds size limit.');
+  const key = params.key ?? `wizard/char-photos/${Date.now()}-${randomUUID().slice(0, 10)}.${extensionFromContentType(normalized)}`;
+  await uploadToSupabaseWithRetry({
+    bucket: getPrivateChildPhotoBucket(),
+    key,
+    body: params.buffer,
+    contentType: normalized,
+    errorPrefix: 'Supabase private child-photo upload failed',
+  });
+  return key; // a KEY, not a URL — a URL in the DB is a durable public handle; a key is not.
+}
+
+/** Default use-time signed-URL TTL: short, yet comfortably outlives a single render (~50s) + provider round-trips. */
+export const CHILD_PHOTO_SIGNED_URL_TTL_SECONDS = 600;
+
+/** Sign a private child-photo storage KEY into a short-lived fetchable URL. Generated at use time, never persisted. */
+export async function createSignedChildPhotoUrl(key: string, expiresInSeconds = CHILD_PHOTO_SIGNED_URL_TTL_SECONDS): Promise<string> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.storage.from(getPrivateChildPhotoBucket()).createSignedUrl(key, expiresInSeconds);
+  if (error || !data?.signedUrl) throw new Error(`Failed to sign child-photo key "${key}": ${error?.message ?? 'no signedUrl'}`);
+  return data.signedUrl;
+}
+
+/**
+ * Resolve a persisted child-photo reference to a FETCHABLE url at use time. Backward compatible so the cutover is safe:
+ *   - a data: URL            → returned as-is (already inline);
+ *   - a legacy public http(s) URL → returned as-is (old orders keep working);
+ *   - a bare private-bucket KEY   → a fresh short-lived SIGNED URL (never persisted).
+ */
+export async function toFetchableChildPhotoReference(
+  ref: string | null | undefined,
+  expiresInSeconds = CHILD_PHOTO_SIGNED_URL_TTL_SECONDS,
+): Promise<string | null> {
+  const r = (ref ?? '').trim();
+  if (!r) return null;
+  if (!isBareStorageKey(r)) return r; // data: or legacy public URL
+  return createSignedChildPhotoUrl(r, expiresInSeconds);
+}
+
 /** Immediate wizard upload for reference photos (URLs fit in sessionStorage). */
 export async function storeWizardCharacterPhotoUpload(params: {
   buffer: Buffer;

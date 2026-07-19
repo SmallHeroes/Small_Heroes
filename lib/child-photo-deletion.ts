@@ -3,6 +3,12 @@ import 'server-only';
 import type { Prisma } from '@prisma/client';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { prisma } from '@/lib/prisma';
+import { createLogger } from '@/lib/logger';
+import { logServerEvent } from '@/lib/server-events';
+
+// (Track-4 Unit 1) A failed child-photo deletion leaves a photograph of a child reachable. It must be OBSERVABLE —
+// structured log + a greppable metric event — so it is retried by the sweeper, never silently swallowed.
+const log = createLogger({ subsystem: 'child-photo-deletion' });
 import {
   buildCharacterAnchorsAfterPhotoDeletion,
   CHILD_PHOTO_DELETION_POLICY,
@@ -74,6 +80,9 @@ async function deleteStorageKeys(
     const batch = keys.slice(i, i + 100);
     const result = await supabase.storage.from(bucket).remove(batch);
     if (result.error) {
+      // (Track-4 Unit 1) Do NOT discard the real Supabase error — a child's photo is still reachable. Log it so the
+      // batch can be diagnosed + retried; the failedKeys still flip the order outcome to 'failed'.
+      log.error('storage remove failed — child photo still reachable', result.error, { bucket, batchSize: batch.length });
       failedKeys.push(...batch);
       continue;
     }
@@ -116,6 +125,8 @@ export async function deleteOriginalChildPhotoForOrder(
 
   const env = getSupabaseEnv();
   if (!env) {
+    log.error('cannot delete child photo — Supabase env missing; photo remains reachable', undefined, { orderId });
+    logServerEvent('child_photo_deletion_failed', { orderId, stage: 'missing_supabase_env' });
     return {
       orderId,
       outcome: 'failed',
@@ -143,6 +154,8 @@ export async function deleteOriginalChildPhotoForOrder(
   const note = failedKeys.length > 0 ? ('storage_partial' as const) : ('completed' as const);
 
   if (failedKeys.length > 0) {
+    log.error('child-photo deletion PARTIAL — some objects still reachable', undefined, { orderId, failedKeys, deletedKeys });
+    logServerEvent('child_photo_deletion_failed', { orderId, stage: 'storage_delete_partial', failedKeyCount: failedKeys.length });
     return {
       orderId,
       outcome: 'failed',
@@ -171,20 +184,25 @@ export async function deleteOriginalChildPhotoForOrder(
   };
 }
 
-/** Non-throwing hook — deletion failure must not break book delivery. */
+/**
+ * Non-throwing hook — deletion failure must not break book delivery, BUT (Track-4 Unit 1) it must never be silent:
+ * a 'failed' outcome or a throw emits a structured error log + a greppable `child_photo_deletion_failed` metric event
+ * so monitoring can alert and the sweeper (sweepPendingChildPhotoDeletions) retries the straggler.
+ */
 export async function tryDeleteOriginalChildPhotoAfterGeneration(orderId: string): Promise<void> {
   if (CHILD_PHOTO_DELETION_POLICY.delayMs > 0) return;
 
   try {
     const result = await deleteOriginalChildPhotoForOrder(orderId);
     if (result.outcome === 'failed') {
-      console.warn('[child_photo_deletion] completion hook failed', result);
+      log.error('completion hook: child-photo deletion FAILED — photo still reachable, awaiting sweeper retry', undefined, {
+        orderId, error: result.error, failedKeys: result.failedKeys, deletedKeys: result.deletedKeys,
+      });
+      logServerEvent('child_photo_deletion_failed', { orderId, stage: 'completion_hook', error: result.error, failedKeyCount: result.failedKeys.length });
     }
   } catch (error) {
-    console.warn('[child_photo_deletion] completion hook threw (non-fatal)', {
-      orderId,
-      error: String(error),
-    });
+    log.error('completion hook THREW (non-fatal) — child-photo deletion did not run', error, { orderId });
+    logServerEvent('child_photo_deletion_failed', { orderId, stage: 'completion_hook_threw' });
   }
 }
 
@@ -208,6 +226,11 @@ export async function sweepPendingChildPhotoDeletions(limit = 20): Promise<numbe
     if (!orderHasChildPhotoEvidence(order)) continue;
 
     const result = await deleteOriginalChildPhotoForOrder(order.id);
+    if (result.outcome === 'failed') {
+      // (Track-4 Unit 1) A straggler the sweeper could not clear — keep it observable so it is not lost between sweeps.
+      log.error('sweeper: child-photo deletion FAILED — photo still reachable', undefined, { orderId: order.id, error: result.error, failedKeys: result.failedKeys });
+      logServerEvent('child_photo_deletion_failed', { orderId: order.id, stage: 'sweeper', error: result.error, failedKeyCount: result.failedKeys.length });
+    }
     if (result.outcome !== 'skipped') processed += 1;
   }
 
