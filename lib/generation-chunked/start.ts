@@ -67,6 +67,12 @@ export async function startChunkedGeneration(
   if (order.status === 'needs_human_qa' && heldReason.startsWith('contract_world_hold:')) {
     return { started: false, orderId, message: 'Parked for human QA (contract-world drift) — not redriven' };
   }
+  // (cutover Track 1.3) A cutover quarantine is TERMINAL — refuse under BOTH normal and recovery redrive, so a
+  // surviving exception case can never resurrect a parked order. quarantine_cutover: stays markerRank 1 (see
+  // isDeliveryTerminalHold): a pure resume refusal, not a precedence bump.
+  if (order.status === 'needs_human_qa' && heldReason.startsWith('quarantine_cutover:')) {
+    return { started: false, orderId, message: 'Parked for human QA (cutover quarantine) — not redriven' };
+  }
 
   if (
     order.status === 'ready' ||

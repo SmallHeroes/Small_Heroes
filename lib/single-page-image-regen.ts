@@ -43,6 +43,7 @@ import {
   withDeliveryInputMutation,
 } from '@/lib/generation-pipeline/readiness-manifest';
 import { resolveAnchorDeliveryGate } from '@/lib/anchor-resemblance-gate';
+import { isDeliveryTerminalHold } from '@/lib/generation-pipeline/order-authority';
 import { parsePipelineCache } from '@/lib/generation-pipeline/helpers';
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 
@@ -301,6 +302,13 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
 
   if (!order?.book) {
     throw new Error('Order or book not found');
+  }
+
+  // (cutover Track 1.3) Terminal fence: never re-render or re-drive readiness for an order parked for human QA
+  // (safety / contract-world / cutover-quarantine). Covers the debug regen route (P1-5) and every other caller.
+  // 'not found' in the message maps to a 404 at the route boundary.
+  if (order.status === 'needs_human_qa' && isDeliveryTerminalHold(order.deliveryHoldReason)) {
+    throw new Error(`Order ${orderId} is parked for human QA (${order.deliveryHoldReason}) — single-page regen refused; not found`);
   }
 
   const dbPage = order.book.pages.find((p) => p.pageNumber === pageNumber);

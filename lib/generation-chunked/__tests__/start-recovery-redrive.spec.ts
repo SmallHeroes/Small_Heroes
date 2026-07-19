@@ -138,6 +138,22 @@ describe('startChunkedGeneration — exception recovery redrive', () => {
     expect(jobUpdate).not.toHaveBeenCalled();
   });
 
+  it('(cutover 1.3) refuses to redrive a quarantine_cutover order even under recovery redrive (terminal park)', async () => {
+    const { startChunkedGeneration } = await loadStart();
+    orderFindUnique.mockResolvedValue({
+      id: 'order_1',
+      status: 'needs_human_qa',
+      deliveryHoldReason: 'quarantine_cutover:generating',
+      storyDirectionSet: null,
+      generationJob: { status: 'failed' },
+    });
+    const result = await startChunkedGeneration('order_1', 'exception_case_recovery', { skipWorkerChain: true });
+    expect(result.started).toBe(false);
+    expect(result.message).toMatch(/cutover quarantine/);
+    expect(orderUpdateMany).not.toHaveBeenCalled(); // never re-claims a quarantined order
+    expect(jobUpdate).not.toHaveBeenCalled();
+  });
+
   it('resumes to cover stage when cover was cleared but pages remain', async () => {
     const { startChunkedGeneration } = await loadStart();
     orderFindUnique.mockResolvedValue({

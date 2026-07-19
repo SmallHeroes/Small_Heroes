@@ -195,6 +195,11 @@ describe.skipIf(!RUN)('delivery fence — real Postgres READ COMMITTED interleav
     await seedOrder({ status: 'needs_human_qa', deliveryHoldReason: 'contract_world_hold:drift' });
     expect(await ship()).toBe(0);
   });
+  it('(cutover 1.3) a quarantine_cutover marker present → 0 rows, NOT shipped', async () => {
+    await seedOrder({ status: 'needs_human_qa', deliveryHoldReason: 'quarantine_cutover:generating' });
+    expect(await ship()).toBe(0); // TERMINAL_HOLD_NOT_LIKE_SQL blocks the ship CAS
+    expect(await statusOf()).toBe('needs_human_qa');
+  });
   it('a payment fence (manualReviewRequired=true) → 0 rows', async () => {
     await seedOrder({ status: 'needs_human_qa', deliveryHoldReason: 'coupon_over_cap', manualReviewRequired: true });
     expect(await ship()).toBe(0);

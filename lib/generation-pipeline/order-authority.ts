@@ -25,6 +25,21 @@ export function markerRank(reason: string | null | undefined): 1 | 2 | 3 {
   return 1;
 }
 
+/**
+ * (cutover Track 1.3 hardening) Terminal human-QA parks that block EVERY resume/ship path. ORTHOGONAL to markerRank
+ * (strength): a marker can be terminal-for-resume yet weak-for-precedence. `quarantine_cutover:` is such a case — it
+ * stays markerRank 1 (a real safety_hold: can still escalate over it) but must never be resumed or shipped. Keep this
+ * TS predicate and `TERMINAL_HOLD_NOT_LIKE_SQL` (below) in lock-step; both must list the exact same prefixes. PURE. */
+export function isDeliveryTerminalHold(reason: string | null | undefined): boolean {
+  const r = reason ?? '';
+  return r.startsWith('safety_hold:') || r.startsWith('contract_world_hold:') || r.startsWith('quarantine_cutover:');
+}
+
+/** SQL twin of isDeliveryTerminalHold: true when the row is NOT held by a terminal park (so a ship may proceed). The
+ *  ship CAS interpolates this so the SQL blocklist can never drift from the TS `isDeliveryTerminalHold` set. */
+export const TERMINAL_HOLD_NOT_LIKE_SQL = Prisma.sql`("deliveryHoldReason" IS NULL
+       OR ("deliveryHoldReason" NOT LIKE 'safety_hold:%' AND "deliveryHoldReason" NOT LIKE 'contract_world_hold:%' AND "deliveryHoldReason" NOT LIKE 'quarantine_cutover:%'))`;
+
 /** SQL for the CURRENT row's marker rank — the precedence guard compares against the incoming marker's rank. */
 const CURRENT_RANK_SQL = Prisma.sql`(CASE
   WHEN "deliveryHoldReason" LIKE 'safety_hold:%' THEN 3
@@ -110,8 +125,7 @@ export async function executeReadinessShipCas(
        AND "inputVersion" = ${p.inputVersion}
        AND "deliveryFenceVersion" = ${p.deliveryFenceVersion}
        AND "manualReviewRequired" = false
-       AND ("deliveryHoldReason" IS NULL
-            OR ("deliveryHoldReason" NOT LIKE 'safety_hold:%' AND "deliveryHoldReason" NOT LIKE 'contract_world_hold:%'))
+       AND ${TERMINAL_HOLD_NOT_LIKE_SQL}
        AND NOT EXISTS (
          SELECT 1 FROM "HumanQaReviewCase" c
           WHERE c."activeKey" IN (${p.orderId + ':base_book'}, ${p.orderId + ':payment'})
