@@ -20,8 +20,8 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { buildCharacterAnchorsAfterPhotoDeletion } from '../lib/child-photo-deletion-policy';
 import {
-  buildKeyOwnerMap, classifyExposedChildPhotos, summarizeExposure, residueObjects,
-  isExposedChildSourcePhotoKey, isCharacterAnchorKey, RENDERABLE_STATUSES, orderReferencedChildPhotoKeys,
+  buildKeyOwnerMap, classifyExposedChildPhotos, summarizeExposure, residueObjects, isKeepOwner,
+  isExposedChildSourcePhotoKey, isCharacterAnchorKey, orderReferencedChildPhotoKeys,
 } from '../lib/child-photo-audit';
 import { downloadStorageObjectBytes, storeChildPhotoToPrivateBucket } from '../lib/image-storage';
 
@@ -30,6 +30,10 @@ const ACK = argv.includes('--i-understand-this-deletes-production-objects');
 const DELETE = argv.includes('--delete-residue') && ACK;
 const MIGRATE = argv.includes('--migrate-residue') && ACK;
 const BUCKET = process.env.SUPABASE_STORAGE_BUCKET?.trim() || 'book-images';
+// (age-gated escape hatch) EXPLICITLY reclassify long-abandoned failed+retryable=true orders as residue.
+const INCLUDE_STALE = argv.includes('--include-stale-retryable-failed');
+const MIN_AGE_DAYS = Number((argv.find((x) => x.startsWith('--min-age-days=')) ?? '').split('=')[1] || '30');
+const STALE_CUTOFF = INCLUDE_STALE ? new Date(Date.now() - MIN_AGE_DAYS * 86_400_000) : undefined;
 
 function client(): SupabaseClient {
   const url = process.env.SUPABASE_URL?.trim();
@@ -60,12 +64,13 @@ async function walk(sb: SupabaseClient, prefix: string, acc: string[]): Promise<
   for (const f of folders) await walk(sb, f, acc);
 }
 
-type OrderRow = { id: string; status: string; childImageUrl: string | null; characterAnchors: Prisma.JsonValue };
+type OrderRow = { id: string; status: string; retryable?: boolean; updatedAt: Date; childImageUrl: string | null; characterAnchors: Prisma.JsonValue };
 async function loadOrdersWithPhotoRefs(): Promise<OrderRow[]> {
-  return prisma.order.findMany({
+  const rows = await prisma.order.findMany({
     where: { childImageUrl: { not: null } },
-    select: { id: true, status: true, childImageUrl: true, characterAnchors: true },
-  }) as unknown as Promise<OrderRow[]>;
+    select: { id: true, status: true, updatedAt: true, childImageUrl: true, characterAnchors: true, generationJob: { select: { retryable: true } } },
+  });
+  return rows.map((o) => ({ id: o.id, status: o.status, retryable: o.generationJob?.retryable ?? undefined, updatedAt: o.updatedAt, childImageUrl: o.childImageUrl, characterAnchors: o.characterAnchors as Prisma.JsonValue }));
 }
 
 /** Clear a residue order's persisted child-photo reference — childImageUrl + the nested characterAnchors URL fields. */
@@ -90,17 +95,21 @@ async function main(): Promise<void> {
   const realPhotoKeys = allKeys.filter(isExposedChildSourcePhotoKey);
   const orders = await loadOrdersWithPhotoRefs();
   const ownerMap = buildKeyOwnerMap(orders, BUCKET);
-  const classified = classifyExposedChildPhotos(realPhotoKeys, ownerMap);
+  const classified = classifyExposedChildPhotos(realPhotoKeys, ownerMap, { staleRetryableFailedCutoff: STALE_CUTOFF });
   const summary = summarizeExposure(classified, allKeys);
 
-  // status breakdown of the exposed objects
+  // status breakdown of the exposed objects (failed split by retryable — the decisive terminal signal)
   const byStatus = new Map<string, number>();
-  for (const o of classified) byStatus.set(o.orderStatus ?? '(orphan)', (byStatus.get(o.orderStatus ?? '(orphan)') ?? 0) + 1);
+  for (const o of classified) {
+    const label = o.orderStatus === 'failed' ? `failed(retryable=${o.retryable === true ? 'true' : o.retryable === false ? 'false' : '?'})` : (o.orderStatus ?? '(orphan)');
+    byStatus.set(label, (byStatus.get(label) ?? 0) + 1);
+  }
 
   console.log(`\n[audit] REAL child SOURCE photos still PUBLIC: ${summary.realPhotos}`);
-  console.log(`  KEEP (owning order can still render): ${summary.in_flight_keep}`);
-  console.log(`  RESIDUE (ready/partial/failed/orphan): ${summary.residue}`);
+  console.log(`  KEEP (renderable, or failed+retryable=true ambivalent): ${summary.in_flight_keep}`);
+  console.log(`  RESIDUE (ready/partial/failed-terminal/orphan): ${summary.residue}`);
   console.log(`  by owning-order status: ${[...byStatus.entries()].map(([s, n]) => `${s}=${n}`).join('  ')}`);
+  if (STALE_CUTOFF) console.log(`  (--include-stale-retryable-failed: failed+retryable=true older than ${MIN_AGE_DAYS}d reclassified as residue)`);
   console.log(`[audit] character-anchors (AI illustrations — NOT touched): ${summary.characterAnchors}`);
   const misfiled = realPhotoKeys.filter(isCharacterAnchorKey);
   if (misfiled.length) console.error(`[audit] WARNING: ${misfiled.length} keys matched BOTH photo + anchor — investigate`);
@@ -132,7 +141,9 @@ async function main(): Promise<void> {
   const existing = new Set(realPhotoKeys);
   let danglingCleared = 0;
   for (const o of orders) {
-    if (RENDERABLE_STATUSES.has(o.status) || clearedOrders.has(o.id)) continue;
+    if (clearedOrders.has(o.id)) continue;
+    // Only clear a dangling ref on a RESIDUE order (not a renderable or ambivalent-retryable-failed one).
+    if (isKeepOwner({ orderId: o.id, status: o.status, retryable: o.retryable, updatedAt: o.updatedAt }, { staleRetryableFailedCutoff: STALE_CUTOFF })) continue;
     const keys = orderReferencedChildPhotoKeys(o, BUCKET);
     if (keys.length > 0 && keys.every((k) => !existing.has(k))) { await clearOrderReference(o.id); danglingCleared += 1; }
   }

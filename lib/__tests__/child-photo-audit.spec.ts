@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   isExposedChildSourcePhotoKey, isCharacterAnchorKey, classifyExposedChildPhotos, buildKeyOwnerMap,
-  summarizeExposure, residueObjects, RENDERABLE_STATUSES, orderReferencedChildPhotoKeys, collectPublicUrlsDeep,
+  summarizeExposure, residueObjects, orderReferencedChildPhotoKeys, collectPublicUrlsDeep,
 } from '@/lib/child-photo-audit';
 
 const BUCKET = 'book-images';
@@ -21,17 +21,19 @@ describe('audit matchers (Track-4 Unit 1a)', () => {
   });
 });
 
-describe('classifyExposedChildPhotos — BY ORDER STATUS (Finding 1)', () => {
-  it('renderable statuses → KEEP; ready/partial/failed → RESIDUE', () => {
-    const statuses = ['draft', 'pending_payment', 'paid', 'generating', 'needs_human_qa', 'ready', 'partial', 'failed'];
-    const orders = statuses.map((s, i) => ({ id: `o_${s}`, status: s, childImageUrl: url(`orders/o_${s}/references/main-child-${i}.jpg`), characterAnchors: null }));
-    const keys = statuses.map((s, i) => `orders/o_${s}/references/main-child-${i}.jpg`);
+describe('classifyExposedChildPhotos — status + GenerationJob.retryable (Finding 1, corrected)', () => {
+  it('renderable → KEEP; ready/partial → RESIDUE; failed depends on retryable (false=terminal, true=ambivalent)', () => {
+    const cases: Array<{ status: string; retryable?: boolean; keep: boolean }> = [
+      { status: 'draft', keep: true }, { status: 'pending_payment', keep: true }, { status: 'paid', keep: true },
+      { status: 'generating', keep: true }, { status: 'needs_human_qa', keep: true },
+      { status: 'ready', keep: false }, { status: 'partial', keep: false },
+      { status: 'failed', retryable: false, keep: false }, // TERMINAL hard-fail → residue
+      { status: 'failed', retryable: true, keep: true },   // chain-worker sets retryable=true → ambivalent → keep
+    ];
+    const orders = cases.map((c, i) => ({ id: `o${i}`, status: c.status, retryable: c.retryable, updatedAt: new Date(), childImageUrl: url(`orders/o${i}/references/main-child-${i}.jpg`), characterAnchors: null }));
+    const keys = cases.map((_, i) => `orders/o${i}/references/main-child-${i}.jpg`);
     const classified = classifyExposedChildPhotos(keys, buildKeyOwnerMap(orders, BUCKET));
-    for (const c of classified) {
-      expect(c.disposition).toBe(RENDERABLE_STATUSES.has(c.orderStatus ?? '') ? 'in_flight_keep' : 'residue');
-    }
-    expect(classified.filter((c) => c.disposition === 'in_flight_keep')).toHaveLength(5); // the 5 renderable
-    expect(classified.filter((c) => c.disposition === 'residue')).toHaveLength(3); // ready/partial/failed
+    cases.forEach((c, i) => expect(classified[i].disposition).toBe(c.keep ? 'in_flight_keep' : 'residue'));
   });
 
   it('an object whose owning order cannot be resolved → RESIDUE (orphan)', () => {
@@ -40,29 +42,35 @@ describe('classifyExposedChildPhotos — BY ORDER STATUS (Finding 1)', () => {
     expect(c[0].orderStatus).toBe('(orphan)');
   });
 
-  it('buildKeyOwnerMap: on a shared key, a RENDERABLE owner wins (never delete a needed photo)', () => {
+  it('buildKeyOwnerMap: on a shared key a KEEP owner (renderable OR failed+retryable) beats a residue owner', () => {
     const key = 'orders/x/references/main-child-1.jpg';
     const map = buildKeyOwnerMap([
       { id: 'a', status: 'ready', childImageUrl: url(key), characterAnchors: null },
-      { id: 'b', status: 'paid', childImageUrl: url(key), characterAnchors: null },
+      { id: 'b', status: 'failed', retryable: true, childImageUrl: url(key), characterAnchors: null },
     ], BUCKET);
-    expect(map.get(key)?.status).toBe('paid');
+    expect(map.get(key)?.orderId).toBe('b'); // ambivalent-failed (keep) wins over ready (residue)
   });
 
-  it('ground-truth shape: 15 objects, only the paid + generating owners are KEEP (≤2)', () => {
-    // 13 residue owners (failed/ready) + 2 renderable (paid/generating) — mirrors staging.
+  it('CORRECTED ground truth: 15 objects → 5 RESIDUE (only failed+retryable=false), not 13', () => {
     const owners = [
-      ...Array.from({ length: 10 }, (_, i) => ({ id: `f${i}`, status: 'failed', key: `orders/f${i}/references/main-child-${i}.jpg` })),
-      ...Array.from({ length: 3 }, (_, i) => ({ id: `r${i}`, status: 'ready', key: `orders/r${i}/references/main-child-r${i}.jpg` })),
+      ...Array.from({ length: 5 }, (_, i) => ({ id: `ft${i}`, status: 'failed', retryable: false, key: `orders/ft${i}/references/main-child-${i}.jpg` })), // terminal → residue
+      ...Array.from({ length: 8 }, (_, i) => ({ id: `fr${i}`, status: 'failed', retryable: true, key: `orders/fr${i}/references/main-child-r${i}.jpg` })), // ambivalent → keep
       { id: 'paid1', status: 'paid', key: 'orders/paid1/references/main-child-p.jpg' },
       { id: 'gen1', status: 'generating', key: 'orders/gen1/references/main-child-g.jpg' },
     ];
-    const orders = owners.map((o) => ({ id: o.id, status: o.status, childImageUrl: url(o.key), characterAnchors: null }));
+    const orders = owners.map((o) => ({ id: o.id, status: o.status, retryable: (o as { retryable?: boolean }).retryable, updatedAt: new Date(), childImageUrl: url(o.key), characterAnchors: null }));
     const classified = classifyExposedChildPhotos(owners.map((o) => o.key), buildKeyOwnerMap(orders, BUCKET));
     const s = summarizeExposure(classified, owners.map((o) => o.key));
     expect(s.realPhotos).toBe(15);
-    expect(s.in_flight_keep).toBe(2); // ← the ground-truth check: at most 2 KEEP on staging
-    expect(residueObjects(classified)).toHaveLength(13);
+    expect(s.residue).toBe(5); // ← corrected ground-truth: 5, not 13
+    expect(s.in_flight_keep).toBe(10);
+  });
+
+  it('the age-gated escape hatch reclassifies a long-abandoned failed+retryable=true as residue', () => {
+    const key = 'orders/stale/references/main-child-1.jpg';
+    const map = buildKeyOwnerMap([{ id: 'stale', status: 'failed', retryable: true, updatedAt: new Date('2026-01-01'), childImageUrl: url(key), characterAnchors: null }], BUCKET);
+    expect(classifyExposedChildPhotos([key], map)[0].disposition).toBe('in_flight_keep'); // default → keep
+    expect(classifyExposedChildPhotos([key], map, { staleRetryableFailedCutoff: new Date('2026-06-01') })[0].disposition).toBe('residue');
   });
 });
 

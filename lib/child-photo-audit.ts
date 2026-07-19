@@ -16,8 +16,32 @@ import { parseSupabasePublicObjectKey } from '@/lib/child-photo-deletion-policy'
  * are AI ILLUSTRATIONS — counted separately and NEVER remediated.
  */
 
-/** An order in one of these statuses can still render, so its source photo must be KEPT. Everything else is residue. */
+/** An order in one of these statuses can still render, so its source photo must be KEPT. */
 export const RENDERABLE_STATUSES = new Set(['draft', 'pending_payment', 'paid', 'generating', 'needs_human_qa']);
+
+/**
+ * `Order.status='failed'` is NOT terminal: chain-worker.ts:failGenerationChain sets the order `failed` while marking
+ * the job `retryable:true` in the SAME write (the sweeper/recovery may still redrive it). Only `retryable=false`
+ * (the sweeper's exhausted hard-fail) is terminal. So classification MUST consult GenerationJob.retryable.
+ */
+export interface ClassifyOptions {
+  /** If set, a `failed`+retryable=true owner whose order.updatedAt is BEFORE this cutoff is treated as residue — an
+   *  EXPLICIT, age-gated escape hatch for long-abandoned ambivalent failures. Default undefined → keep the ambivalent. */
+  staleRetryableFailedCutoff?: Date;
+}
+
+/** True when the owning order still needs its source photo (KEEP). Orphan / ready / partial / terminal-failed → residue. */
+export function isKeepOwner(owner: KeyOwner | undefined, opts: ClassifyOptions = {}): boolean {
+  if (!owner) return false; // orphan (no resolvable owner) → residue
+  if (RENDERABLE_STATUSES.has(owner.status)) return true;
+  if (owner.status === 'failed' && owner.retryable === true) {
+    // AMBIVALENT — a retryable failure may still recover. Keep by default; a long-abandoned one is residue only
+    // under an EXPLICIT stale cutoff.
+    if (opts.staleRetryableFailedCutoff && owner.updatedAt && owner.updatedAt < opts.staleRetryableFailedCutoff) return false;
+    return true;
+  }
+  return false; // ready / partial / failed(retryable=false, terminal) → residue
+}
 
 /** Broad match for a child SOURCE photograph object, wherever it sits in the tree. */
 export function isExposedChildSourcePhotoKey(key: string): boolean {
@@ -37,12 +61,16 @@ export interface ExposedObject {
   disposition: ExposedDisposition;
   orderId?: string;
   orderStatus?: string;
+  /** The owning order's GenerationJob.retryable — surfaced so the report can show the failed/retryable split. */
+  retryable?: boolean;
 }
 
-/** The owning order of a storage key: its id (to clear the reference) + status (to classify). */
+/** The owning order of a storage key: id (to clear the reference), status + job.retryable + updatedAt (to classify). */
 export interface KeyOwner {
   orderId: string;
   status: string;
+  retryable?: boolean;
+  updatedAt?: Date;
 }
 
 /** Deep-collect every Supabase public-object URL embedded anywhere in a JSON blob (characterAnchors). */
@@ -74,16 +102,17 @@ export function orderReferencedChildPhotoKeys(
  * key) a RENDERABLE owner wins, so a photo a renderable order still needs is never mistaken for residue.
  */
 export function buildKeyOwnerMap(
-  orders: Array<{ id: string; status: string; childImageUrl?: string | null; characterAnchors?: unknown }>,
+  orders: Array<{ id: string; status: string; retryable?: boolean; updatedAt?: Date; childImageUrl?: string | null; characterAnchors?: unknown }>,
   bucket: string,
 ): Map<string, KeyOwner> {
   const map = new Map<string, KeyOwner>();
   for (const o of orders) {
+    const owner: KeyOwner = { orderId: o.id, status: o.status, retryable: o.retryable, updatedAt: o.updatedAt };
     for (const key of orderReferencedChildPhotoKeys(o, bucket)) {
       const existing = map.get(key);
-      if (!existing || (RENDERABLE_STATUSES.has(o.status) && !RENDERABLE_STATUSES.has(existing.status))) {
-        map.set(key, { orderId: o.id, status: o.status });
-      }
+      // On a shared key the most-protective owner wins — a KEEP owner beats a residue owner, so a still-needed photo
+      // is never mistaken for residue (default keep-rules; no stale cutoff applied to the tie-break).
+      if (!existing || (isKeepOwner(owner) && !isKeepOwner(existing))) map.set(key, owner);
     }
   }
   return map;
@@ -93,13 +122,13 @@ export function buildKeyOwnerMap(
  * Classify each exposed child-photo object by its OWNING ORDER'S STATUS: KEEP iff the owner can still render; RESIDUE
  * for ready/partial/failed owners AND for orphans (no resolvable owner). PURE.
  */
-export function classifyExposedChildPhotos(objectKeys: string[], ownerMap: Map<string, KeyOwner>): ExposedObject[] {
+export function classifyExposedChildPhotos(objectKeys: string[], ownerMap: Map<string, KeyOwner>, opts: ClassifyOptions = {}): ExposedObject[] {
   return objectKeys
     .filter(isExposedChildSourcePhotoKey)
     .map((key) => {
       const owner = ownerMap.get(key);
-      const keep = owner !== undefined && RENDERABLE_STATUSES.has(owner.status);
-      return { key, disposition: (keep ? 'in_flight_keep' : 'residue') as ExposedDisposition, orderId: owner?.orderId, orderStatus: owner?.status ?? '(orphan)' };
+      const keep = isKeepOwner(owner, opts);
+      return { key, disposition: (keep ? 'in_flight_keep' : 'residue') as ExposedDisposition, orderId: owner?.orderId, orderStatus: owner?.status ?? '(orphan)', retryable: owner?.retryable };
     });
 }
 
