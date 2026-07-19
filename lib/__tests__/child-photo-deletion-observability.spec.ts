@@ -17,7 +17,10 @@ const PUBLIC_URL = 'https://proj.supabase.co/storage/v1/object/public/book-image
 describe('child-photo deletion observability', () => {
   let errSpy: ReturnType<typeof vi.spyOn>;
   let logSpy: ReturnType<typeof vi.spyOn>;
+  const SAVED: Record<string, string | undefined> = {};
+  const KEYS = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_STORAGE_BUCKET'] as const;
   beforeEach(() => {
+    for (const k of KEYS) SAVED[k] = process.env[k];
     process.env.SUPABASE_URL = 'https://proj.supabase.co';
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role';
     process.env.SUPABASE_STORAGE_BUCKET = 'book-images';
@@ -26,7 +29,10 @@ describe('child-photo deletion observability', () => {
     errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
   });
-  afterEach(() => { errSpy.mockRestore(); logSpy.mockRestore(); });
+  afterEach(() => {
+    errSpy.mockRestore(); logSpy.mockRestore();
+    for (const k of KEYS) { if (SAVED[k] === undefined) delete process.env[k]; else process.env[k] = SAVED[k]; }
+  });
 
   it('a failed deletion emits a structured error log AND a child_photo_deletion_failed metric event (not silence)', async () => {
     const { tryDeleteOriginalChildPhotoAfterGeneration } = await import('@/lib/child-photo-deletion');
