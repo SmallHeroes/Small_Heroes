@@ -7,6 +7,22 @@ Production holds work that predates the readiness-only schema: **19 Orders at `g
 
 The counts are a **fail-closed invariant**: the parking script asserts exactly `20` orders + `3` running jobs (or an explicit id allowlist) and refuses to run on any other count.
 
+## Factual correction (verified against production)
+**There is NO externally-paid order in the quarantine set** — so there is **no refund-or-fulfil decision** to make:
+- the `paid`-status order has **no `paymentId` and no `PaymentRecord`** (zero payment evidence — the `status_paid_only` class);
+- the only `PaymentRecord.paid=true` is provider **`fake`** (a test payment), on a `generating` order;
+- the other 18 carry a checkout-intent `paymentId` with **no `PaymentRecord`** (intent ≠ payment).
+
+The script must still **detect** payment correctly — from `PaymentRecord`/real payment ids, **never** from `Order.status` — and report the class, but no customer-remediation path exists. The `Order.status='failed'`→auto-refund finding is unchanged and preserved.
+
+## Hardening applied (Codex re-gate — commits on `feat/chunked-generation`)
+1. **Terminal marker (P0-3).** `quarantine_cutover:` is now refused by `start.ts` recovery redrive, the ship CAS (`executeReadinessShipCas` via the shared `TERMINAL_HOLD_NOT_LIKE_SQL`), and single-page regen — so a surviving case or a stray render can never resurrect a parked order. `markerRank` is unchanged (quarantine stays rank 1; a real `safety_hold:` still escalates).
+2. **Atomicity (P0-1).** All per-order writes (job park → case neutralization → order hold) run in **one `prisma.$transaction`** (`lib/cutover/quarantine-park.ts` `parkOneOrderAtomic`); any step failure throws → Prisma rolls back → the order is left **untouched**.
+3. **Fail-closed case scan (P0-2).** Before any write, the script scans **all** active `ExceptionCase` rows in **every scope** for the target orders and **hard-stops (non-zero exit)** on any `refund_pending`/`customer_action`. A resolver that returns `false` aborts that order.
+4. **Schema preflight + sequencing (P0-4).** The script verifies the bridge schema exists (`ExceptionCase`/`HumanQaReviewCase` tables, `Order.deliveryFenceVersion`/`manualReviewRequired`, the `needs_human_qa` enum) and exits non-zero if not. **Quarantine EXECUTES only after the Track-2 bridge lands.**
+5. **Stripe vector (P1-5b).** Locked via a preflight assertion `PAYMENT_PROVIDER=payme` — the Stripe webhook handler already early-returns for a non-Stripe provider, so all three status-write sites are inert with **zero payment-path code change** (lower-risk; legacy byte-unchanged).
+6. **Payment detection (P1-6)** reads `PaymentRecord`/real ids (`classifyPayment`), never `Order.status`. **Post-verification (P0-7)** re-reads every order and exits non-zero on any mismatch. **Register (P0-8)** emits identifiers + payment *class* only — **no emails, no payment ids**.
+
 ---
 
 ## Why "never auto-resume": the six resume vectors
@@ -43,7 +59,7 @@ Once `ENABLE_PROD_GENERATION=true`, six paths reach the same claim logic. Two fi
 
 ### Why this is correct for BOTH cohorts
 - The **19 unpaid `generating`** orders are held silently — no delivery, no case, no notification, no spend.
-- The **1 `paid`** order lands in `needs_human_qa` — **held, undelivered, unrefunded** — awaiting an explicit human *refund-or-fulfil* decision rather than being silently abandoned.
+- The **`paid`-status** order (no payment evidence — `status_paid_only`) lands in `needs_human_qa` — **held, undelivered** — for manual disposition (discard / re-order). No external money moved, so **no refund is owed**; the register's `paymentClass` column records this explicitly.
 
 ### `start.ts` residual note
 `start.ts` unconditionally refuses `needs_human_qa` only for the `safety_hold:`/`contract_world_hold:` prefixes; a `quarantine_cutover:` order *would* be claimable under a **recovery redrive** (vector 4) — which is exactly why step 3 (neutralize cases) is **mandatory**, not optional. With no open case + the exceptions cron disabled pre-cutover, vector 4 has nothing to act on.
@@ -55,17 +71,18 @@ A durable, human-curated record — **a committed file, not a DB table** (a new 
 
 The parking script **snapshots each row before mutating** and writes `backend/cutover/QUARANTINE-REGISTER.csv` (+ a readable `.md`). Columns:
 
-`orderId, priorOrderStatus, paid, paymentProvider, paymentId, amountAgorot, customerEmail, jobStatus, jobStage, exceptionCaseId, exceptionCaseStatus, quarantinedAt, marker, resolution, resolvedBy, resolvedAt`
+`orderId, priorOrderStatus, paymentClass, jobStatus, jobStage, activeCaseCount, activeCaseScopes, quarantinedAt, marker, resolution, resolvedBy, resolvedAt`
 
-`resolution`/`resolvedBy`/`resolvedAt` are blank at park time — the operator fills them per order (refund / fulfil / discard / re-order). The paid order and any `refund_pending`/`customer_action` case are flagged for priority resolution.
+**No PII (P0-8):** identifiers + the derived `paymentClass` (`record_paid_external` / `record_paid_fake` / `status_paid_only` / `unpaid`) only — **no emails, no payment ids** in the committed file. `resolution`/`resolvedBy`/`resolvedAt` are blank at park time — the operator fills them per order (discard / re-order). Any `refund_pending`/`customer_action` case would have already **hard-stopped** the run (P0-2), so none reach the register.
 
 ---
 
 ## Runbook — strict ordering (each step gated on the previous)
+0. **Land the Track-2 bridge first** — the script's schema preflight refuses to run until `ExceptionCase`/`HumanQaReviewCase`, `Order.deliveryFenceVersion`/`manualReviewRequired`, and the `needs_human_qa` enum exist. **Lock `PAYMENT_PROVIDER=payme`** for the window (Stripe inert).
 1. **Confirm the freeze (§1.1)** is in effect — no new orders/jobs are being created (so the count invariant is stable).
-2. **Dry-run** `scripts/cutover-quarantine.ts` (default). It selects the target set (`Order.status IN ('generating','paid')` created before the cutover cutoff, **or** an explicit id allowlist), asserts `count == 20 orders + 3 running jobs`, and **prints** the snapshot + intended writes. **Abort if the count differs.**
+2. **Dry-run** `scripts/cutover-quarantine.ts` (default). Preflight (schema + PayMe) → select the target set (`Order.status IN ('generating','paid')` before the cutoff, **or** an explicit allowlist) → assert `count == 20 orders + 3 running jobs` → **hard-stop** on any active `refund_pending`/`customer_action` case → write the PII-free register. **Any failure exits non-zero.**
 3. **Review** the printed register with Guy/Codex. Resolve any `refund_pending`/`customer_action` case decisions.
-4. **Execute** the script (`--commit`), which, per order in one transaction each: writes the register row → parks the job → neutralizes the safe cases → parks the order via `writeOrderHoldFenced`. Idempotent (re-running is a no-op on already-parked rows).
+4. **Execute** the script (`--commit`), which parks each order in **one atomic transaction** (job → cases → order hold); a failure aborts that order untouched. Then it **post-verifies** every order and **exits non-zero** if even one did not park exactly. Idempotent (re-running is a no-op on already-parked rows).
 5. **Verify**: re-query and assert every target job is `failed/failed`, every target order is `needs_human_qa` with a `quarantine_cutover:` marker, and no target order has an active case in the claim set. Commit the filled register.
 6. **Only then** proceed to Track 3 (turn on `READINESS_MANIFEST_ENABLED`, then `ENABLE_PROD_GENERATION=true`).
 
