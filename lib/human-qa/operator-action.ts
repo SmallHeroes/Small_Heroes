@@ -22,8 +22,9 @@ import {
  *     case producer also takes the Order lock first, holding it closes the window in which a new case could appear.
  *   • PRECONDITIONS. Exactly `needs_human_qa` · an OPEN review case for `${orderId}:base_book` · the exact current
  *     hold marker (Order.deliveryHoldReason === the marker the operator acted on — optimistic concurrency) · and
- *     NO active `${orderId}:payment` case. A precondition failure THROWS (the endpoint maps it to 409) and the tx
- *     rolls back — nothing is recorded and the Idempotency-Key is NOT consumed, so a refreshed retry runs.
+ *     NO active payment fence (`Order.manualReviewRequired`, the authoritative money-tx flag, OR a derived
+ *     `${orderId}:payment` case). A precondition failure THROWS (the endpoint maps it to 409) and the tx rolls back
+ *     — nothing is recorded and the Idempotency-Key is NOT consumed, so a refreshed retry runs.
  *   • AUDIT. Writes the durable HumanQaOperatorAction row (observed marker/fence/inputVersion snapshot, actor, the
  *     note VERBATIM, targets, kind) BEFORE the body, then stamps its terminal status + outcome after — all atomic
  *     with the body's own writes and the receipt.
@@ -43,7 +44,7 @@ export type OperatorActionPreconditionReason =
   | 'not_held' // Order.status !== 'needs_human_qa'
   | 'no_active_case' // no OPEN HumanQaReviewCase for `${orderId}:base_book`
   | 'marker_changed' // Order.deliveryHoldReason !== the marker the operator acted on
-  | 'payment_case_active'; // an OPEN `${orderId}:payment` case exists
+  | 'payment_case_active'; // Order.manualReviewRequired=true OR an OPEN `${orderId}:payment` case exists
 
 const PRECONDITION_MESSAGE: Record<OperatorActionPreconditionReason, string> = {
   order_not_found: 'order not found',
@@ -71,6 +72,7 @@ export interface LockedOrder {
   id: string;
   status: string;
   deliveryHoldReason: string | null;
+  manualReviewRequired: boolean;
   deliveryFenceVersion: number;
   inputVersion: number;
 }
@@ -122,6 +124,24 @@ export interface OperatorActionReturn {
   outcome: Record<string, ReceiptSafeValue>;
 }
 
+/**
+ * Release overrides bind one delivered artifact hash. Multi-artifact release must grow the schema before it can be
+ * safe; for now the shared contract rejects it before any receipt/audit row is written.
+ */
+export class OperatorActionInputError extends Error {
+  readonly code = 'operator_action_input';
+  constructor(message: string) {
+    super(`[operator-action] invalid input: ${message}`);
+    this.name = 'OperatorActionInputError';
+  }
+}
+
+export function validateOperatorActionInput(input: OperatorActionInput): void {
+  if (input.kind === 'release' && (input.targetArtifacts ?? []).length !== 1) {
+    throw new OperatorActionInputError('release actions must target exactly one artifact');
+  }
+}
+
 /** Derive the exactly-once fence key. Scoped by kind + orderId so the same header on a different action can't collide. */
 export function operatorActionOperationKey(kind: OperatorActionKind, orderId: string, idempotencyKey: string): string {
   return `operator_action:${kind}:${orderId}:${idempotencyKey}`;
@@ -132,7 +152,7 @@ export function operatorActionOperationKey(kind: OperatorActionKind, orderId: st
  * database; `runOperatorAction` calls it against the LOCKED rows.
  */
 export function evaluateOperatorActionPreconditions(args: {
-  order: Pick<LockedOrder, 'status' | 'deliveryHoldReason'> | null;
+  order: Pick<LockedOrder, 'status' | 'deliveryHoldReason' | 'manualReviewRequired'> | null;
   activeCase: Pick<LockedReviewCase, 'status'> | null;
   paymentCaseActive: boolean;
   expectedMarker: string;
@@ -141,7 +161,7 @@ export function evaluateOperatorActionPreconditions(args: {
   if (args.order.status !== 'needs_human_qa') return { ok: false, reason: 'not_held' };
   if (!args.activeCase || args.activeCase.status !== 'open') return { ok: false, reason: 'no_active_case' };
   if ((args.order.deliveryHoldReason ?? '') !== args.expectedMarker) return { ok: false, reason: 'marker_changed' };
-  if (args.paymentCaseActive) return { ok: false, reason: 'payment_case_active' };
+  if (args.order.manualReviewRequired || args.paymentCaseActive) return { ok: false, reason: 'payment_case_active' };
   return { ok: true };
 }
 
@@ -167,6 +187,8 @@ export async function runOperatorAction(
   input: OperatorActionInput,
   body: OperatorActionBody,
 ): Promise<OperatorActionReturn> {
+  validateOperatorActionInput(input);
+
   const operationKey = operatorActionOperationKey(input.kind, input.orderId, input.idempotencyKey);
   const requestHash = operatorActionRequestHash(input);
   const scopeKey = `${input.orderId}:${OPERATOR_ACTION_SCOPE}`;
@@ -180,7 +202,7 @@ export async function runOperatorAction(
     run: async (tx): Promise<OperatorActionReturn> => {
       // (1) Lock the Order FIRST — deterministic order (matches sync-hold-case's Order-first FOR UPDATE).
       const orderRows = await tx.$queryRaw<LockedOrder[]>`
-        SELECT "id", "status", "deliveryHoldReason", "deliveryFenceVersion", "inputVersion"
+        SELECT "id", "status", "deliveryHoldReason", "manualReviewRequired", "deliveryFenceVersion", "inputVersion"
           FROM "Order" WHERE "id" = ${input.orderId} FOR UPDATE`;
       const order = orderRows[0] ?? null;
 
@@ -193,8 +215,8 @@ export async function runOperatorAction(
         : [];
       const activeCase = caseRows[0] ?? null;
 
-      // (3) Is there an active payment-integrity case? Holding the Order lock closes the create window, so a plain
-      //     existence read is race-free.
+      // (3) Is there an active payment fence? manualReviewRequired is the authoritative money-tx flag; the
+      //     HumanQaReviewCase is a derived post-commit artifact the reconciler may repair later.
       const payRows = order
         ? await tx.$queryRaw<Array<{ active: boolean }>>`
             SELECT EXISTS(

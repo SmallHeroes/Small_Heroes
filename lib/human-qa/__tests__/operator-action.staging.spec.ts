@@ -24,27 +24,31 @@ describe.skipIf(!RUN)('(Human-QA 3+4) operator-action shared contract — real P
   it('locks, is idempotent under the Idempotency-Key, enforces the four preconditions, and audits', async () => {
     assertEnvSeparation();
     const { prisma } = await import('@/lib/prisma');
-    const { runOperatorAction, OperatorActionPreconditionError } = await import('@/lib/human-qa/operator-action');
+    const { runOperatorAction, OperatorActionPreconditionError, operatorActionOperationKey } = await import('@/lib/human-qa/operator-action');
 
     const nonce = `${process.env.OPERATOR_ACTION_NONCE ?? 'a'}-${Date.now()}`;
     const idOk = `opact-ok-${nonce}`;
     const idNoCase = `opact-nocase-${nonce}`;
     const idPay = `opact-pay-${nonce}`;
+    const idManual = `opact-manual-${nonce}`;
     const MARKER = 'safety_hold:page:3';
+    const createdOrderIds: string[] = [];
 
-    const seedOrder = async (id: string, over: Record<string, unknown> = {}) =>
-      prisma.order.create({ data: {
+    const seedOrder = async (id: string, over: Record<string, unknown> = {}) => {
+      const row = await prisma.order.create({ data: {
         id, status: 'needs_human_qa', customerEmail: `${id}@example.invalid`, customerName: 'T', childName: 'Kid',
         topic: 'opact', basePrice: 0, addonsPrice: 0, totalPrice: 0, inputVersion: 4, deliveryFenceVersion: 2,
-        deliveryHoldReason: MARKER, ...over,
+        deliveryHoldReason: MARKER, manualReviewRequired: false, ...over,
       } });
+      createdOrderIds.push(id);
+      return row;
+    };
     const seedCase = async (orderId: string, scope: string, kind: string, revision = 1) =>
       prisma.humanQaReviewCase.create({ data: {
         activeKey: `${orderId}:${scope}`, orderId, scope, revision, kind: kind as never, status: 'open',
         holdFingerprint: shaOf(`${orderId}:${scope}:${revision}`), rawReason: MARKER, humanReason: 'held for QA', inputVersion: 4,
       } });
 
-    const ids = [idOk, idNoCase, idPay];
     let bodyRuns = 0;
     const noopBody = async () => { bodyRuns += 1; return { status: 'succeeded' as const, outcome: { did: 'noop', at: bodyRuns } }; };
 
@@ -87,6 +91,7 @@ describe.skipIf(!RUN)('(Human-QA 3+4) operator-action shared contract — real P
       await prisma.order.update({ where: { id: idOk }, data: { status: 'ready' } });
       await expect(runOperatorAction(prisma, {
         orderId: idOk, idempotencyKey: 'key-notheld', kind: 'release', actor: 'op', expectedMarker: 'safety_hold:page:9',
+        targetArtifacts: ['page:9'],
       }, noopBody)).rejects.toMatchObject({ reason: 'not_held' });
 
       // ── no_active_case: held order with NO review case ───────────────────────────────────────────
@@ -101,12 +106,37 @@ describe.skipIf(!RUN)('(Human-QA 3+4) operator-action shared contract — real P
       await seedCase(idPay, 'payment', 'payment_integrity', 1);
       await expect(runOperatorAction(prisma, {
         orderId: idPay, idempotencyKey: 'k', kind: 'release', actor: 'op', expectedMarker: MARKER,
+        targetArtifacts: ['page:3'],
       }, noopBody)).rejects.toMatchObject({ reason: 'payment_case_active' });
       expect(await prisma.humanQaOperatorAction.count({ where: { orderId: idPay } })).toBe(0);
 
-      console.log(`[OPERATOR-ACTION] OK — 1 audit row, body ran once, 4 preconditions enforced (marker/not_held/no_case/payment).`);
+      // ── payment_case_active: manualReviewRequired=true is authoritative even before a payment case exists ────────
+      await seedOrder(idManual, { manualReviewRequired: true });
+      await seedCase(idManual, 'base_book', 'safety', 1);
+      const manualKey = operatorActionOperationKey('rerender', idManual, 'key-manual');
+      await expect(runOperatorAction(prisma, {
+        orderId: idManual, idempotencyKey: 'key-manual', kind: 'rerender', actor: 'op', expectedMarker: MARKER,
+        targetArtifacts: ['page:3'],
+      }, noopBody)).rejects.toMatchObject({ reason: 'payment_case_active' });
+      expect(await prisma.humanQaOperatorAction.count({ where: { orderId: idManual } }), 'manual payment fence records no audit row').toBe(0);
+      expect(await prisma.atomicOperationReceipt.count({ where: { operationKey: manualKey } }), 'precondition failure consumes no receipt').toBe(0);
+
+      // Same key succeeds after the authoritative flag is refreshed, proving the failed precondition did not poison it.
+      await prisma.order.update({ where: { id: idManual }, data: { manualReviewRequired: false } });
+      const runsBeforeManualRetry = bodyRuns;
+      const manualRetry = await runOperatorAction(prisma, {
+        orderId: idManual, idempotencyKey: 'key-manual', kind: 'rerender', actor: 'op', expectedMarker: MARKER,
+        targetArtifacts: ['page:3'],
+      }, noopBody);
+      expect(manualRetry.status).toBe('succeeded');
+      expect(bodyRuns, 'same idempotency key succeeds after state refresh').toBe(runsBeforeManualRetry + 1);
+      expect(await prisma.humanQaOperatorAction.count({ where: { orderId: idManual } })).toBe(1);
+      expect(await prisma.atomicOperationReceipt.count({ where: { operationKey: manualKey } }), 'successful retry records one receipt').toBe(1);
+
+      console.log(`[OPERATOR-ACTION] OK — 2 audit rows, manual payment fence blocks without consuming a receipt, same key succeeds after refresh, all preconditions enforced.`);
     } finally {
-      for (const id of ids) {
+      for (const id of createdOrderIds) {
+        await prisma.atomicOperationReceipt.deleteMany({ where: { orderId: id } }).catch(() => {});
         await prisma.humanQaOperatorAction.deleteMany({ where: { orderId: id } }).catch(() => {});
         await prisma.humanQaReviewCase.deleteMany({ where: { orderId: id } }).catch(() => {});
         await prisma.order.delete({ where: { id } }).catch(() => {});
