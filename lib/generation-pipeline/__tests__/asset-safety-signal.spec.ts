@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 import {
   isSafetyHazardOverridden,
+  isSafetyShaMissing,
   imageAssetSafetyFields,
   coverSafetyFields,
 } from '@/lib/generation-pipeline/asset-safety-signal';
@@ -77,6 +78,24 @@ describe('isSafetyHazardOverridden — P0: SHA SHAPE is validated, not just non-
     const undef = undefined as unknown as null;
     expect(isSafetyHazardOverridden({ ...HAZ, contentSha256: SHA_A, overrideSha256: undef })).toBe(false);
     expect(isSafetyHazardOverridden({ ...HAZ, contentSha256: undef, overrideSha256: SHA_A })).toBe(false);
+  });
+});
+
+describe('isSafetyShaMissing — surface a phase-2-missed hazard as "not releasable" (shape C)', () => {
+  it('TRUE only for a confirmed hazard whose content SHA is absent or malformed', () => {
+    expect(isSafetyShaMissing({ hazards: ['railing'], contentSha256: null })).toBe(true);
+    expect(isSafetyShaMissing({ hazards: ['railing'], contentSha256: '' })).toBe(true);
+    expect(isSafetyShaMissing({ hazards: ['railing'], contentSha256: 'A'.repeat(64) })).toBe(true); // uppercase = malformed
+    expect(isSafetyShaMissing({ hazards: ['railing'], contentSha256: 'a'.repeat(63) })).toBe(true); // wrong length
+  });
+
+  it('FALSE for a hazard WITH a well-formed SHA (an ordinary, releasable hazard hold)', () => {
+    expect(isSafetyShaMissing({ hazards: ['railing'], contentSha256: SHA_A })).toBe(false);
+  });
+
+  it('FALSE when there is no hazard at all (a null-SHA unverified page is "unverified", not "sha_missing")', () => {
+    expect(isSafetyShaMissing({ hazards: [], contentSha256: null })).toBe(false);
+    expect(isSafetyShaMissing({ hazards: [], contentSha256: SHA_A })).toBe(false);
   });
 });
 

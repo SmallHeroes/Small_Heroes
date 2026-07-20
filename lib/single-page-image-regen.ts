@@ -46,6 +46,9 @@ import { resolveAnchorDeliveryGate } from '@/lib/anchor-resemblance-gate';
 import { isDeliveryTerminalHold } from '@/lib/generation-pipeline/order-authority';
 import { parsePipelineCache } from '@/lib/generation-pipeline/helpers';
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
+import { imageAssetSafetyFields } from '@/lib/generation-pipeline/asset-safety-signal';
+import { bindPageSafetySha } from '@/lib/generation-pipeline/asset-safety-writer';
+import { inspectAsset } from '@/lib/generation-pipeline/asset-integrity';
 
 const regenLogger = createLogger({ subsystem: 'regen-page', route: '/api/debug/regen-page' });
 
@@ -865,6 +868,9 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
       // NEW bytes are NOT safety-confirmed. Fail-close the durable safety signal (verified=false) — never leave the
       // prior render's stale safetyVerified=true on unchecked bytes. resolveSafetyDeliveryGate then holds the book
       // until the page is re-QA'd through the normal package stage. (Full re-QA-on-regen here is a follow-up.)
+      // (release shape C) phase-1 writes the fail-closed signal via the single writer (content SHA null, override
+      // reset); phase-2 (bindPageSafetySha, after the tx) records the inspected SHA → the "unverified WITH a SHA"
+      // regen lifecycle, WITHOUT touching the flag-gated evidence producer.
       if (dbPage.imageAsset) {
         await tx.imageAsset.update({
           where: { id: dbPage.imageAsset.id },
@@ -877,8 +883,7 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
             width: image.width,
             height: image.height,
             style: order.illustrationStyle,
-            safetyVerified: false,
-            safetyHazards: [],
+            ...imageAssetSafetyFields({ verified: false, hazards: [], contentSha256: null }),
           },
         });
       } else {
@@ -893,13 +898,27 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
             width: image.width,
             height: image.height,
             style: order.illustrationStyle,
-            safetyVerified: false,
-            safetyHazards: [],
+            ...imageAssetSafetyFields({ verified: false, hazards: [], contentSha256: null }),
           },
         });
       }
     },
   );
+
+  // (release shape C, phase 2) Bind the delivered-bytes SHA to the regenerated asset — the "unverified WITH a SHA"
+  // state. Inspect once outside the tx; CAS-bind to the row that still points at these bytes. A missed bind leaves
+  // the SHA null (still held — regen is unverified regardless), but the normal state is unverified-with-SHA.
+  const regenDeliveredUrl = presentationUrl ?? image.url;
+  const regenInspection = await inspectAsset(regenDeliveredUrl);
+  if (regenInspection.sha256) {
+    const bind = await bindPageSafetySha(prisma, {
+      pageId: dbPage.id, deliveredUrl: regenDeliveredUrl, presentationApplied: presentationUrl != null,
+      sha256: regenInspection.sha256,
+    });
+    if (!bind.bound) regenLogger.warn('Regen safety SHA not bound', { orderId, pageNumber, reason: bind.reason });
+  } else {
+    regenLogger.warn('Regen delivered-bytes inspect failed — safety SHA missing', { orderId, pageNumber, err: regenInspection.error });
+  }
 
   try {
     const imageUrlForAnalysis = presentationUrl || image.url;

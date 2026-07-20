@@ -83,3 +83,15 @@ export function isSafetyHazardOverridden(args: {
   if (args.overrideSha256 !== args.contentSha256) return false; // (3) bound to THESE bytes only
   return args.hazards.every((h) => args.overriddenHazards.includes(h)); // (4) a hazard outside the overridden set holds
 }
+
+/**
+ * (shape C — the gap must be SURFACED, not merely safe) A confirmed-hazard asset whose delivered-bytes SHA is
+ * ABSENT or malformed. The phase-2 second write (bind*SafetySha) never landed — an inspect failure, a crash, or a
+ * concurrent re-render that moved the bytes out from under the CAS. Because no override can ever bind to bytes we
+ * cannot identify, such a hold is NOT RELEASABLE: it must be re-rendered / re-inspected, NOT cleared by an operator.
+ * This is distinct from an ordinary (releasable) hazard hold, and a SILENT hold here is the #2 failure in the ranking
+ * — the operator/reconciler and the Unit-2 instrumentation read this to label it "SHA missing — not releasable".
+ */
+export function isSafetyShaMissing(a: { hazards: string[]; contentSha256: string | null }): boolean {
+  return a.hazards.length > 0 && !SAFETY_SHA256_RE.test(a.contentSha256 ?? '');
+}

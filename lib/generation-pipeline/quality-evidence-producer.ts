@@ -86,6 +86,12 @@ export interface DeliveredEvidenceArgs {
    * gate/TOCTOU fingerprint read verdict/hash/contractHash/regenCount, never the evidence blob). null = absent.
    */
   contractObservability?: Prisma.InputJsonValue | null;
+  /**
+   * (release shape C) The delivered-bytes inspection the caller ALREADY ran outside the tx — passed so the Gate-1
+   * evidence SHA and the Gate-2 asset SHA (bindPageSafetySha/bindCoverSafetySha) come from ONE inspect of the SAME
+   * bytes (no double fetch, no divergence on an unstable URL). Absent (recovery) → this producer inspects itself.
+   */
+  deliveredInspection?: AssetInspection;
 }
 
 export interface ProducerDeps {
@@ -300,8 +306,9 @@ export async function persistDeliveredQualityEvidence(
   let { verdict, reason } = await resolveDeliveredVerdict(args, evaluate, evaluateWorld);
 
   // Carry-in #3: bind the verdict to the EXACT delivered bytes. If the bytes can't be hashed, the verdict can't
-  // be trusted → evidence_unknown, and the empty hash guarantees a mismatch at readiness (fail-closed).
-  const inspection = await inspect(args.deliveredUrl);
+  // be trusted → evidence_unknown, and the empty hash guarantees a mismatch at readiness (fail-closed). (release
+  // shape C) Reuse the caller's inspection when provided so Gate-1 and Gate-2 bind the SAME inspected bytes.
+  const inspection = args.deliveredInspection ?? (await inspect(args.deliveredUrl));
   const assetSha256 = inspection.sha256 ?? '';
   if (!inspection.sha256) {
     verdict = 'evidence_unknown';

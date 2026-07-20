@@ -219,11 +219,29 @@ describe('resolveSafetyDeliveryGate (Fix 1) — the readiness-independent gate f
     expect(await resolveSafetyDeliveryGate(p as never, 'o1')).toEqual({ held: false, reason: null });
   });
 
-  it('a confirmed page hazard → held with safety_hold:hazard', async () => {
-    const p = mkPrisma({ coverImageUrl: 'c', coverSafetyVerified: true, coverSafetyHazards: [], pages: [{ pageNumber: 5, imageAsset: { safetyVerified: true, safetyHazards: ['child_on_railing'] } }] });
+  // (release shape C) A normally-rendered hazard carries its co-written content SHA → an ORDINARY (releasable) hazard.
+  const SHA = 'a'.repeat(64);
+
+  it('a confirmed page hazard WITH a content SHA → held with safety_hold:hazard (releasable)', async () => {
+    const p = mkPrisma({ coverImageUrl: 'c', coverSafetyVerified: true, coverSafetyHazards: [], pages: [{ pageNumber: 5, imageAsset: { safetyVerified: true, safetyHazards: ['child_on_railing'], safetyContentSha256: SHA, safetyOverriddenHazards: [], safetyOverrideSha256: null } }] });
     const g = await resolveSafetyDeliveryGate(p as never, 'o1');
     expect(g.held).toBe(true);
     expect(g.reason).toContain('safety_hold:hazard:page:5:child_on_railing');
+    expect(g.reason).not.toContain('sha_missing');
+  });
+
+  it('(shape C) a hazard whose phase-2 SHA never landed (null content SHA) → held + surfaced as sha_missing, NOT releasable', async () => {
+    const p = mkPrisma({ coverImageUrl: 'c', coverSafetyVerified: true, coverSafetyHazards: [], pages: [{ pageNumber: 5, imageAsset: { safetyVerified: true, safetyHazards: ['child_on_railing'], safetyContentSha256: null, safetyOverriddenHazards: [], safetyOverrideSha256: null } }] });
+    const g = await resolveSafetyDeliveryGate(p as never, 'o1');
+    expect(g.held).toBe(true);
+    // legibly distinct from an ordinary hazard hold — the marker prefix stays safety_hold: (terminal-hold/rank/kind intact)
+    expect(g.reason).toBe('safety_hold:hazard:page:5:sha_missing');
+  });
+
+  it('(shape C) a cover hazard with a null content SHA → cover:sha_missing', async () => {
+    const p = mkPrisma({ coverImageUrl: 'c', coverSafetyVerified: true, coverSafetyHazards: ['unsafe_cover'], coverSafetyContentSha256: null, coverSafetyOverriddenHazards: [], coverSafetyOverrideSha256: null, pages: [] });
+    const g = await resolveSafetyDeliveryGate(p as never, 'o1');
+    expect(g.reason).toBe('safety_hold:hazard:cover:sha_missing');
   });
 
   it('an UNVERIFIED page (fail-closed) → held with safety_hold:unverified', async () => {

@@ -11,7 +11,7 @@ import {
   type CommitResult,
 } from './readiness-manifest';
 import { writeOrderHoldFenced } from './order-authority';
-import { isSafetyHazardOverridden } from './asset-safety-signal';
+import { isSafetyHazardOverridden, isSafetyShaMissing } from './asset-safety-signal';
 import { resolveActiveRecoveryCaseInTx } from '@/lib/generation-chunked/exception-case';
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 
@@ -97,7 +97,13 @@ export async function resolveSafetyDeliveryGate(
         hazards: book.coverSafetyHazards, overriddenHazards: book.coverSafetyOverriddenHazards,
         contentSha256: book.coverSafetyContentSha256, overrideSha256: book.coverSafetyOverrideSha256,
       });
-      if (!overridden) hazards.push(`cover:${book.coverSafetyHazards.join('|')}`);
+      // (shape C) Surface a phase-2-missed hazard distinctly: `cover:sha_missing` is NOT releasable (no override can
+      // bind to unidentified bytes) vs `cover:<hazards>`, the ordinary releasable hazard hold.
+      if (!overridden) {
+        hazards.push(isSafetyShaMissing({ hazards: book.coverSafetyHazards, contentSha256: book.coverSafetyContentSha256 })
+          ? 'cover:sha_missing'
+          : `cover:${book.coverSafetyHazards.join('|')}`);
+      }
     } else if (!book.coverSafetyVerified) unverified.push('cover');
   }
   for (const p of book.pages) {
@@ -111,7 +117,13 @@ export async function resolveSafetyDeliveryGate(
         hazards: a.safetyHazards, overriddenHazards: a.safetyOverriddenHazards,
         contentSha256: a.safetyContentSha256, overrideSha256: a.safetyOverrideSha256,
       });
-      if (!overridden) hazards.push(`page:${p.pageNumber}:${a.safetyHazards.join('|')}`);
+      // (shape C) `page:N:sha_missing` (phase-2 never landed → not releasable) is distinct from an ordinary
+      // `page:N:<hazards>` hold that a byte-bound operator override can clear. Marker prefix stays `safety_hold:`.
+      if (!overridden) {
+        hazards.push(isSafetyShaMissing({ hazards: a.safetyHazards, contentSha256: a.safetyContentSha256 })
+          ? `page:${p.pageNumber}:sha_missing`
+          : `page:${p.pageNumber}:${a.safetyHazards.join('|')}`);
+      }
     } else if (!a.safetyVerified) unverified.push(`page:${p.pageNumber}`);
   }
   if (hazards.length === 0 && unverified.length === 0) return { held: false, reason: null };

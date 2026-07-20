@@ -228,6 +228,25 @@ function isExplicitReconciliationFulfillmentRoll(site: WriterSite): boolean {
   );
 }
 
+/**
+ * (release shape C) The PHASE-2 safety-SHA second write (asset-safety-writer.ts) is the ONE sanctioned
+ * ImageAsset/GeneratedBook writer that runs OUTSIDE the delivery-input barrier — by design: inspectAsset must not run
+ * in the tx that holds the Order row lock (§4). It is a CAS `updateMany` that advances ONLY the content SHA
+ * (safetyContentSha256 / coverSafetyContentSha256) from null → the inspected hash; it never writes a delivery input
+ * nor the detector's finding, so it cannot leave a stale override (phase 1 already reset it). Tightly scoped: the
+ * exact file, updateMany, and a single content-SHA field. (The complementary guard that the DETECTOR fields only ever
+ * flow through the field-builders is asset-safety-writer-coverage.spec.ts.)
+ */
+function isSafetyShaBindWrite(site: WriterSite): boolean {
+  return (
+    site.relative === 'lib/generation-pipeline/asset-safety-writer.ts' &&
+    site.method === 'updateMany' &&
+    site.dataFields?.length === 1 &&
+    ((site.model === 'imageAsset' && site.dataFields[0] === 'safetyContentSha256') ||
+      (site.model === 'generatedBook' && site.dataFields[0] === 'coverSafetyContentSha256'))
+  );
+}
+
 function hasFlagOnDevWriteGuard(relative: string): boolean {
   if (!relative.startsWith('app/api/dev/')) return false;
   const text = source(relative);
@@ -270,6 +289,7 @@ describe('P1-f #5 delivery-input writer coverage', () => {
         !isOrderCreationException(site) &&
         !isReadinessCommitOrderStateWrite(site) &&
         !isExplicitReconciliationFulfillmentRoll(site) &&
+        !isSafetyShaBindWrite(site) &&
         !hasFlagOnDevWriteGuard(site.relative),
     );
     expect(

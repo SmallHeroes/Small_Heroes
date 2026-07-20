@@ -108,6 +108,9 @@ import { persistDeliveredQualityEvidence, persistQualityContext, type QaContext 
 import { coverArtifactKey, pageArtifactKey, makeQualityRegenReserver } from './quality-evidence';
 import { openExceptionCase } from '@/lib/generation-chunked/exception-case';
 import { finalizePackageDelivery, resolveSafetyDeliveryGate, isSafetyVerified } from './package-delivery';
+import { imageAssetSafetyFields, coverSafetyFields } from './asset-safety-signal';
+import { bindPageSafetySha, bindCoverSafetySha } from './asset-safety-writer';
+import { inspectAsset } from './asset-integrity';
 import {
   buildImagePipelineAnchors,
   detectExpectedCharactersForPage,
@@ -1069,10 +1072,13 @@ async function runCoverStage(
         where: { id: book.id },
         data: {
           coverImageUrl: coverImage.url,
-          // (Stage 1 FIX) Persist the readiness-INDEPENDENT safety signal ATOMICALLY with the cover bytes.
-          // verified = the safety check reached a determination (safe/hazard); unverified/absent → false (fail-closed).
-          coverSafetyVerified: isSafetyVerified(coverImage.style01Meta?.pageVisualQa?.safetyStatus),
-          coverSafetyHazards: coverImage.style01Meta?.pageVisualQa?.safetyHazards ?? [],
+          // (release shape C, phase 1) Readiness-independent safety signal atomic with the cover bytes; content SHA
+          // is fail-closed null here (no fetch in the tx). Phase 2 (bindCoverSafetySha, below) CAS-binds the SHA.
+          ...coverSafetyFields({
+            verified: isSafetyVerified(coverImage.style01Meta?.pageVisualQa?.safetyStatus),
+            hazards: coverImage.style01Meta?.pageVisualQa?.safetyHazards ?? [],
+            contentSha256: null,
+          }),
         },
       });
       // (#6-fix-3 BLOCKER 1) Bind the cover's exact QA context ATOMICALLY with the delivered bytes, so recovery
@@ -1091,6 +1097,16 @@ async function runCoverStage(
     where: { id: order.id },
     data: { coverImageUrl: coverImage.url },
   });
+  // (release shape C, phase 2) Inspect the cover bytes ONCE outside the tx, then CAS-bind the SHA. A missed bind
+  // leaves it null → Gate 2 holds the cover (surfaced as sha_missing). The inspection is shared with Gate-1 below.
+  const coverInspection = await inspectAsset(coverImage.url);
+  if (coverInspection.sha256) {
+    const bind = await bindCoverSafetySha(prisma, { orderId: order.id, deliveredUrl: coverImage.url, sha256: coverInspection.sha256 });
+    if (!bind.bound) log.warn('Cover safety SHA not bound (fail-closed hold)', { reason: bind.reason });
+  } else {
+    log.warn('Cover delivered-bytes inspect failed — safety SHA missing (fail-closed hold)', { err: coverInspection.error });
+  }
+
   // (#7-a 5a) Durable Quality evidence for the cover's DELIVERED bytes. The cover has no presentation transform
   // (delivered == coverImage.url), so the genuine in-loop verdict applies to these exact bytes (carry-in #2:
   // never a synthesized PASS). Flag-gated — a no-op when readiness is OFF.
@@ -1107,6 +1123,8 @@ async function runCoverStage(
     providerModel: coverImage.provider,
     regenAttempts: coverImage.style01Meta?.pageVisualQa?.regenAttempts,
     contractHash: renderedContractHash,
+    // (release shape C) Share the one cover inspection so Gate-1 evidence SHA == Gate-2 cover SHA.
+    deliveredInspection: coverInspection,
     contractObservability: buildContractObservability(cache, 0, renderedContractHash),
   });
   return true;
@@ -1659,9 +1677,14 @@ async function runPageImagesChunk(
               height: image.height,
               style: order.illustrationStyle,
               idempotencyKey,
-              // (Stage 1 FIX) Readiness-independent safety signal, atomic with the delivered bytes (fail-closed default).
-              safetyVerified: isSafetyVerified(image.style01Meta?.pageVisualQa?.safetyStatus),
-              safetyHazards: image.style01Meta?.pageVisualQa?.safetyHazards ?? [],
+              // (release shape C, phase 1) Readiness-independent safety signal, atomic with the delivered bytes.
+              // The content SHA is fail-closed null HERE (no network fetch in the tx); phase 2 (bindPageSafetySha,
+              // below, outside the tx) CAS-binds the inspected SHA. The single writer co-resets the override.
+              ...imageAssetSafetyFields({
+                verified: isSafetyVerified(image.style01Meta?.pageVisualQa?.safetyStatus),
+                hazards: image.style01Meta?.pageVisualQa?.safetyHazards ?? [],
+                contentSha256: null,
+              }),
             },
           });
         } else {
@@ -1677,8 +1700,11 @@ async function runPageImagesChunk(
               height: image.height,
               style: order.illustrationStyle,
               idempotencyKey,
-              safetyVerified: isSafetyVerified(image.style01Meta?.pageVisualQa?.safetyStatus),
-              safetyHazards: image.style01Meta?.pageVisualQa?.safetyHazards ?? [],
+              ...imageAssetSafetyFields({
+                verified: isSafetyVerified(image.style01Meta?.pageVisualQa?.safetyStatus),
+                hazards: image.style01Meta?.pageVisualQa?.safetyHazards ?? [],
+                contentSha256: null,
+              }),
             },
           });
         }
@@ -1695,6 +1721,22 @@ async function runPageImagesChunk(
       },
     );
 
+    // (release shape C, phase 2) Inspect the DELIVERED bytes ONCE, outside the tx (never a fetch in the row lock),
+    // then CAS-bind the SHA to the just-written asset. A missed bind (inspect failure / row moved) leaves the SHA
+    // null → Gate 2 holds it (surfaced as sha_missing) — never a silent ship. The same inspection is shared with
+    // the Gate-1 evidence below so both gates bind the SAME bytes.
+    const pageDeliveredUrl = presentationUrl ?? image.url;
+    const pageInspection = await inspectAsset(pageDeliveredUrl);
+    if (pageInspection.sha256) {
+      const bind = await bindPageSafetySha(prisma, {
+        pageId: dbPage.id, deliveredUrl: pageDeliveredUrl, presentationApplied: presentationUrl != null,
+        sha256: pageInspection.sha256,
+      });
+      if (!bind.bound) log.warn('Page safety SHA not bound (fail-closed hold)', { page: dbPage.pageNumber, reason: bind.reason });
+    } else {
+      log.warn('Page delivered-bytes inspect failed — safety SHA missing (fail-closed hold)', { page: dbPage.pageNumber, err: pageInspection.error });
+    }
+
     // (#7-a 5a) Durable Quality evidence for the page's DELIVERED bytes (presentationUrl ?? url). When a
     // presentation transform was applied, the producer RE-QAs the delivered image (carry-in #1); otherwise it
     // reuses the genuine in-loop verdict for the same bytes. Runs OUTSIDE the persist tx (network I/O) and is
@@ -1702,7 +1744,7 @@ async function runPageImagesChunk(
     await persistDeliveredQualityEvidence(prisma, {
       orderId: order.id,
       artifactKey: pageArtifactKey(dbPage.pageNumber),
-      deliveredUrl: presentationUrl ?? image.url,
+      deliveredUrl: pageDeliveredUrl,
       presentationApplied: presentationUrl != null,
       rawVerdict: image.style01Meta?.pageVisualQa?.verdict,
       // (Stage 1) Used only when no presentation transform ran (delivered == raw bytes); ignored on the re-QA path.
@@ -1713,6 +1755,8 @@ async function runPageImagesChunk(
       regenAttempts: image.style01Meta?.pageVisualQa?.regenAttempts,
       contractHash: renderedContractHash,
       contractObservability: buildContractObservability(cache, dbPage.pageNumber, renderedContractHash),
+      // (release shape C) Share the one inspection so the Gate-1 evidence SHA == the Gate-2 asset SHA.
+      deliveredInspection: pageInspection,
     });
 
     const textZone = imageOutcome.textZones.get(dbPage.pageNumber) ?? 'bottom_clear';
