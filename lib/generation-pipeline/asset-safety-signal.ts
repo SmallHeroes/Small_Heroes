@@ -55,11 +55,20 @@ export function coverSafetyFields(s: AssetSafetySignal): {
   };
 }
 
+/** A delivered-bytes SHA is a lowercase 64-hex string — exactly what `createHash('sha256').digest('hex')` emits. */
+export const SAFETY_SHA256_RE = /^[0-9a-f]{64}$/;
+
 /**
  * The STRUCTURAL override predicate for Gate 2 — a confirmed hazard is cleared ONLY by an operator override that is
- * bound to the CURRENT bytes. Both SHAs are checked non-null EXPLICITLY first: `null === null` is `true`, so an
- * un-QA'd / never-released asset (both null) MUST fail closed HERE, by design — not by accident of the hazard test.
- * Then the byte binding (equal SHAs), then the coverage (every found hazard was explicitly overridden).
+ * bound to the CURRENT bytes. Order matters, and every guard is a deliberate fail-closed:
+ *   1. NO found hazards → nothing to override. `.every` over `[]` is vacuously `true`, which would HONOR an override
+ *      that clears no real hazard. This is the exported shared primitive; Gate 1 is not wired yet, so it must hold
+ *      for callers that do not exist — return false rather than lean on today's call sites never reaching here.
+ *   2. SHAPE, not just non-nullness. `null`/`undefined`/''/wrong-length/uppercase/any non-hex string fail HERE:
+ *      `'' === ''` must NOT pass, and a malformed SHA can never legitimately bind to real bytes. (`null === null` is
+ *      `true`, so a raw equality check would wrongly honor an un-QA'd asset — the regex closes that, INTENTIONALLY.)
+ *   3. Byte binding — equal, well-formed SHAs.
+ *   4. Coverage — every found hazard was explicitly overridden.
  */
 export function isSafetyHazardOverridden(args: {
   hazards: string[];
@@ -67,7 +76,10 @@ export function isSafetyHazardOverridden(args: {
   contentSha256: string | null;
   overrideSha256: string | null;
 }): boolean {
-  if (args.overrideSha256 == null || args.contentSha256 == null) return false; // fail-closed, INTENTIONALLY
-  if (args.overrideSha256 !== args.contentSha256) return false; // bound to THESE bytes only
-  return args.hazards.every((h) => args.overriddenHazards.includes(h)); // a hazard outside the overridden set holds
+  if (args.hazards.length === 0) return false; // (1) nothing found → nothing to override; never vacuously true
+  if (!SAFETY_SHA256_RE.test(args.overrideSha256 ?? '') || !SAFETY_SHA256_RE.test(args.contentSha256 ?? '')) {
+    return false; // (2) malformed / empty / null SHA on EITHER side → fail closed, INTENTIONALLY
+  }
+  if (args.overrideSha256 !== args.contentSha256) return false; // (3) bound to THESE bytes only
+  return args.hazards.every((h) => args.overriddenHazards.includes(h)); // (4) a hazard outside the overridden set holds
 }

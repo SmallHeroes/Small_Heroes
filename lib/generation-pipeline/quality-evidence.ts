@@ -278,6 +278,10 @@ export async function persistQualityEvidence(db: Db, args: PersistQualityEvidenc
       evidence,
       // (WS0b) Bind the row to the active contract (null = legacy/unbound). No reader yet; not in the fingerprint.
       ...(args.contractHash === undefined ? {} : { contractHash: args.contractHash }),
+      // (release c-ii, P1b) Fresh evidence describes new bytes/verdict → any prior operator override is void. Write
+      // the cleared state explicitly so the invariant is legible, not merely inherited from the column default.
+      safetyOverride: false,
+      safetyOverrideSha256: null,
       evaluatedAt: now,
     },
     update: {
@@ -289,6 +293,10 @@ export async function persistQualityEvidence(db: Db, args: PersistQualityEvidenc
       providerModel: args.providerModel ?? null,
       evidence,
       ...(args.contractHash === undefined ? {} : { contractHash: args.contractHash }),
+      // (release c-ii, P1b) The invariant that matters: re-evaluating an artifact CLEARS a stale override bound to the
+      // old bytes, so Gate 1 can never honor an override against evidence it did not produce.
+      safetyOverride: false,
+      safetyOverrideSha256: null,
       evaluatedAt: now,
     },
   });

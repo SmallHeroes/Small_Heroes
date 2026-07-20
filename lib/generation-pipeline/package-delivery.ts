@@ -90,7 +90,10 @@ export async function resolveSafetyDeliveryGate(
   const unverified: string[] = [];
   if (book.coverImageUrl) {
     if (book.coverSafetyHazards.length > 0) {
-      const overridden = isSafetyHazardOverridden({
+      // (F1) An override is honored ONLY on a verified-safe asset. The branch below never consults safetyVerified, so
+      // it silently rested on "hazards non-empty ⇒ verified true" (writer convention, asserted nowhere). Require it
+      // at the point of use: an unverified asset that somehow carries hazards can never be released.
+      const overridden = book.coverSafetyVerified === true && isSafetyHazardOverridden({
         hazards: book.coverSafetyHazards, overriddenHazards: book.coverSafetyOverriddenHazards,
         contentSha256: book.coverSafetyContentSha256, overrideSha256: book.coverSafetyOverrideSha256,
       });
@@ -102,8 +105,9 @@ export async function resolveSafetyDeliveryGate(
     if (!a) continue; // no rendered asset — not a safety concern (a different gate handles incompleteness)
     if (a.safetyHazards.length > 0) {
       // The hazard holds UNLESS an operator override, bound to these exact bytes, covers every found hazard. An
-      // unverified asset (empty hazards, below) can never be overridden — you cannot override ignorance.
-      const overridden = isSafetyHazardOverridden({
+      // unverified asset (empty hazards, below) can never be overridden — you cannot override ignorance. (F1)
+      // safetyVerified === true is required here too: an unverified-yet-hazardous asset is never releasable.
+      const overridden = a.safetyVerified === true && isSafetyHazardOverridden({
         hazards: a.safetyHazards, overriddenHazards: a.safetyOverriddenHazards,
         contentSha256: a.safetyContentSha256, overrideSha256: a.safetyOverrideSha256,
       });
