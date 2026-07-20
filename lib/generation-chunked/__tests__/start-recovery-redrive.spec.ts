@@ -154,6 +154,22 @@ describe('startChunkedGeneration — exception recovery redrive', () => {
     expect(jobUpdate).not.toHaveBeenCalled();
   });
 
+  it('(Human-QA Slice 4 PARK) refuses to redrive a manual_resolution_hold order even under recovery redrive (terminal park)', async () => {
+    const { startChunkedGeneration } = await loadStart();
+    orderFindUnique.mockResolvedValue({
+      id: 'order_1',
+      status: 'needs_human_qa',
+      deliveryHoldReason: 'manual_resolution_hold:anchor_low_confidence:soft_band',
+      storyDirectionSet: null,
+      generationJob: { status: 'done' },
+    });
+    const result = await startChunkedGeneration('order_1', 'exception_case_recovery', { skipWorkerChain: true });
+    expect(result.started).toBe(false);
+    expect(result.message).toMatch(/manual resolution/);
+    expect(orderUpdateMany).not.toHaveBeenCalled(); // a manually-parked book is never auto-redriven
+    expect(jobUpdate).not.toHaveBeenCalled();
+  });
+
   it('resumes to cover stage when cover was cleared but pages remain', async () => {
     const { startChunkedGeneration } = await loadStart();
     orderFindUnique.mockResolvedValue({

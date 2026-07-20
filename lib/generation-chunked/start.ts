@@ -73,6 +73,11 @@ export async function startChunkedGeneration(
   if (order.status === 'needs_human_qa' && heldReason.startsWith('quarantine_cutover:')) {
     return { started: false, orderId, message: 'Parked for human QA (cutover quarantine) — not redriven' };
   }
+  // (Human-QA Slice 4 PARK) An operator froze this book for manual resolution — TERMINAL under BOTH normal and
+  // recovery redrive, so a later ExceptionCase can never auto-resurrect it. markerRank 1 (see isDeliveryTerminalHold).
+  if (order.status === 'needs_human_qa' && heldReason.startsWith('manual_resolution_hold:')) {
+    return { started: false, orderId, message: 'Parked for human QA (manual resolution) — not redriven' };
+  }
 
   if (
     order.status === 'ready' ||
