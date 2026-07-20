@@ -1,0 +1,367 @@
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px 16px 48px;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(1.35rem, 3vw, 1.7rem);
+}
+
+.subtitle {
+  margin: 6px 0 0;
+  color: #5f5a70;
+  font-size: 0.95rem;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.chipSafety {
+  background: #fde8e4;
+  color: #9b2c1f;
+}
+
+.chipContract {
+  background: #fff3d6;
+  color: #8a5a00;
+}
+
+.chipAnchor {
+  background: #e8e4ff;
+  color: #4b3bb5;
+}
+
+.chipPayment {
+  background: #e4f2fd;
+  color: #1b4f72;
+}
+
+.chipUnknown {
+  background: #eee;
+  color: #555;
+}
+
+.refreshBtn,
+.linkBtn,
+.ghostBtn {
+  border: 1px solid #ebe7f7;
+  background: #fff;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  font-family: inherit;
+  color: #18171a;
+  text-decoration: none;
+}
+
+.refreshBtn:hover,
+.linkBtn:hover,
+.ghostBtn:hover {
+  background: #faf8ff;
+}
+
+.errorBox {
+  background: #fde8e4;
+  color: #9b2c1f;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.empty {
+  text-align: center;
+  padding: 56px 20px;
+  background: #fff;
+  border: 1px dashed #d9d3ef;
+  border-radius: 16px;
+  color: #5f5a70;
+}
+
+.emptyTitle {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+  color: #18171a;
+}
+
+.emptyHint {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card {
+  display: block;
+  background: #fff;
+  border: 1px solid #ebe7f7;
+  border-radius: 14px;
+  padding: 16px 18px;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 6px 18px rgba(40, 33, 74, 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.card:hover {
+  border-color: #cfc6f2;
+  box-shadow: 0 10px 24px rgba(40, 33, 74, 0.08);
+}
+
+.cardTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.childName {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: #5f5a70;
+  font-size: 0.88rem;
+  margin-bottom: 8px;
+}
+
+.reason {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: #18171a;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
+.loading {
+  padding: 40px;
+  text-align: center;
+  color: #5f5a70;
+}
+
+/* Detail */
+.metaGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin: 16px 0 24px;
+}
+
+.metaCell {
+  background: #fff;
+  border: 1px solid #ebe7f7;
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.metaLabel {
+  display: block;
+  font-size: 0.75rem;
+  color: #9692aa;
+  margin-bottom: 4px;
+}
+
+.metaValue {
+  font-size: 0.92rem;
+  word-break: break-word;
+}
+
+.actionsPlaceholder {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 24px;
+  padding: 14px;
+  background: #fff;
+  border: 1px dashed #d9d3ef;
+  border-radius: 12px;
+}
+
+.actionDisabled {
+  border: 1px solid #ebe7f7;
+  background: #f3f1f8;
+  color: #9692aa;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: not-allowed;
+}
+
+.actionsNote {
+  width: 100%;
+  margin: 0;
+  font-size: 0.82rem;
+  color: #9692aa;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.pageCard {
+  background: #fff;
+  border: 1px solid #ebe7f7;
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.pageCardFlagged {
+  border-color: #e0533d;
+  box-shadow: 0 0 0 1px rgba(224, 83, 61, 0.35);
+}
+
+.pageImgWrap {
+  aspect-ratio: 1 / 1;
+  background: #ece8f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.pageImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pageImgMissing {
+  color: #9692aa;
+  font-size: 0.9rem;
+  padding: 16px;
+  text-align: center;
+}
+
+.pageBody {
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pageHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pageNum {
+  font-weight: 700;
+}
+
+.flagTag {
+  font-size: 0.75rem;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #3a1713;
+  color: #ff9b86;
+}
+
+.okTag {
+  font-size: 0.75rem;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #173a26;
+  color: #7fe0a6;
+}
+
+.pageText {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: #2e2a22;
+  max-height: 4.5em;
+  overflow: hidden;
+}
+
+.evidenceBlock {
+  background: #faf8ff;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 0.8rem;
+  color: #4b3bb5;
+  line-height: 1.4;
+}
+
+.evidenceBlock strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #18171a;
+}
+
+.hazardList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.hazardPill {
+  background: #fde8e4;
+  color: #9b2c1f;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 14px 12px 40px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

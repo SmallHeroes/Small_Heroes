@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fox QA — order cmrnuhsva</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; background:#0e0f13; color:#e8e8ea; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif; }
+  header { padding:18px 22px; border-bottom:1px solid #23252b; position:sticky; top:0; background:#0e0f13ee; backdrop-filter:blur(6px); }
+  h1 { margin:0 0 4px; font-size:18px; }
+  .sub { color:#9aa0a6; font-size:13px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px; padding:22px; }
+  .card { background:#16181d; border:1px solid #23252b; border-radius:12px; overflow:hidden; }
+  .card.held { border-color:#e0533d; box-shadow:0 0 0 1px #e0533d55; }
+  .card img { width:100%; display:block; background:#000; aspect-ratio:1/1; object-fit:cover; }
+  .meta { padding:10px 12px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .pg { font-weight:600; }
+  .tag { font-size:12px; padding:3px 8px; border-radius:99px; }
+  .ok { background:#173a26; color:#7fe0a6; }
+  .bad { background:#3a1713; color:#ff9b86; }
+  .note { padding:0 12px 12px; font-size:12px; color:#c9663f; }
+  a.full { color:#8ab4f8; font-size:12px; text-decoration:none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Fox — הרפתקאת אוּרי · order cmrnuhsva0002l7042elr8kek</h1>
+  <div class="sub">12/12 עמודים · 11 עברו בטיחות · עמוד 4 מוחזק (safety_hold: unsupported_at_height | unsafe_pose) · staging preview @ d63f036e</div>
+</header>
+<div class="grid" id="grid"></div>
+<script>
+  const BASE = "https://qvksgpzzosotubcbizay.supabase.co/storage/v1/object/public/book-images/orders/cmrnuhsva0002l7042elr8kek/pages/";
+  const pages = [
+    [1,"page-001-2ee78435a8911fee.png",true,"חלון"],
+    [2,"page-002-fcf2b34a7a0db0f5.png",true,"דלת/ויטרינה"],
+    [3,"page-003-8be365a8377026c9.png",true,"פנקס (אוּרי?)"],
+    [4,"page-004-1c0689c1958b23d5.png",false,"מעקה — תנוחה מסוכנת"],
+    [5,"page-005-b6ac2cdfc2873630.png",true,"דלי מתגלה"],
+    [6,"page-006-017428b5247bf804.png",true,"אוזן לשפת הדלי"],
+    [7,"page-007-fa53a8913a60f89f.png",true,""],
+    [8,"page-008-7b3c27c0de7f0772.png",true,""],
+    [9,"page-009-32fabf53dcaaa254.png",true,""],
+    [10,"page-010-019b6d673f8b26c3.png",true,""],
+    [11,"page-011-4d635232f82766da.png",true,""],
+    [12,"page-012-da4801a977b060b4.png",true,""],
+  ];
+  const g = document.getElementById("grid");
+  for (const [n,file,safe,label] of pages) {
+    const url = BASE+file;
+    const card = document.createElement("div");
+    card.className = "card" + (safe ? "" : " held");
+    card.innerHTML =
+      '<a href="'+url+'" target="_blank"><img loading="lazy" src="'+url+'" alt="page '+n+'"></a>' +
+      '<div class="meta"><span class="pg">עמוד '+n+(label?' · '+label:'')+'</span>' +
+      '<span class="tag '+(safe?'ok':'bad')+'">'+(safe?'✓ בטוח':'⚠️ מוחזק')+'</span></div>' +
+      (safe ? '' : '<div class="note">unsupported_at_height · unsafe_pose</div>') +
+      '<div class="meta"><a class="full" href="'+url+'" target="_blank">פתח במלא ↗</a></div>';
+    g.appendChild(card);
+  }
+</script>
+</body>
+</html>
