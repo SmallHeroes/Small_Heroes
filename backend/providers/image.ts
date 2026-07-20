@@ -49,6 +49,7 @@ import {
 } from '@/lib/styles';
 import { composeVisualDirectorPrompt, type VisualDirectorInput } from '../../lib/visualDirector';
 import { composeContractAuthoritativePrompt } from '../../lib/visual-contract-compiler/buildVisualContractPromptBlock';
+import { appendOperatorNoteToRenderPrompt } from '../../lib/human-qa/operator-note';
 import type { Companion } from '../../lib/companions';
 import path from 'path';
 import { generateGPTImage, generateReplicateImage, resolveGPTImageEditMaxReferences } from '../../lib/generate-image';
@@ -368,6 +369,10 @@ export interface ImageInput {
    * contract exists; otherwise undefined → legacy behavior unchanged.
    */
   visualContractPromptBlock?: string;
+  /** (Human-QA re-render) Optional operator note — appended as the LAST, lowest-priority line of the finished
+   *  prompt (AFTER the authoritative contract block). Additive pose/spacing guidance ONLY; see
+   *  lib/human-qa/operator-note.ts. Absent → prompt byte-identical to today. */
+  operatorNote?: string | null;
   illustrationStyle: string;     // canonical active ids + legacy aliases normalized in lib/styles.ts
   childDescription?: string;     // fallback if no characterSheet
   characterSheet?: CharacterSheet;
@@ -3438,7 +3443,7 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
   // the tagged refs are only the PROTECT slice of a list that also carries child/companion/style, so a subset-derived
   // map would mislabel `Image 1` (claiming the set board while image 1 is the child anchor). A confidently wrong map
   // steers worse than none — see buildImageRoleMapFromAssembly.
-  const prompt =
+  const basePrompt =
     taggedRefPlan && taggedRefPlan.ordered.length > 0
       ? [
           buildImageRoleMapFromAssembly(referenceImages, breakdown),
@@ -3446,6 +3451,10 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
           contractAuthoritativePrompt,
         ].join('\n\n')
       : contractAuthoritativePrompt;
+  // (Human-QA re-render) The SOLE seam for an operator note: appended as the LAST line, AFTER the authoritative
+  // contract block above. Additive pose/spacing guidance only; never enters the contract block, its hash, the
+  // safety-QA prompt/qaInput, or the negatives. Absent note → `prompt === basePrompt` (byte-identical to today).
+  const prompt = appendOperatorNoteToRenderPrompt(basePrompt, input.operatorNote);
 
   console.log(
     `[style01_phase2] orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} ` +
@@ -4192,6 +4201,9 @@ export async function generateAllPageImages(
     /** (WS0b location authority) Authoritative contract prompt block → PREPENDED to the Style 01 prompt so the
      *  frozen contract outranks imageDirection for location/cast/wardrobe/forbidden. Absent → legacy prompt. */
     visualContractPromptBlock?: string;
+    /** (Human-QA re-render) Optional operator note, threaded to every page's ImageInput.operatorNote → appended as
+     *  the LAST prompt line at the render seam. Additive pose/spacing guidance ONLY. Absent → byte-identical. */
+    operatorNote?: string | null;
     /** (Milestone C) This page's approved set board as a TAGGED ref. Absent → the Milestone B transport stays a
      *  no-op (no protected ref, no role map, no set-copy instruction) → byte-identical. */
     setIdentityBoardRefs?: ReferenceAsset[];
@@ -4837,11 +4849,15 @@ export async function generateAllPageImages(
       | 'guardedV2RecipeId'
       | 'contractStyleRefEnvironment'
       | 'visualContractPromptBlock'
+      | 'operatorNote'
       | 'setIdentityBoardRefs'
     > = {
       bookPageText: page.bookPageText ?? null,
       contractStyleRefEnvironment: page.contractStyleRefEnvironment ?? null,
       visualContractPromptBlock: page.visualContractPromptBlock ?? undefined,
+      // (Human-QA re-render) The operator note for this page (the operator re-render passes ONE page). Appended as
+      // the last prompt line at the render seam; never enters the contract/QA/negative sections.
+      operatorNote: page.operatorNote ?? null,
       // (Milestone C) Forwarded verbatim into the SAME Style01 assembly the cover uses. Absent → undefined →
       // `taggedRefPlan` stays null → byte-identical.
       setIdentityBoardRefs: page.setIdentityBoardRefs ?? undefined,
