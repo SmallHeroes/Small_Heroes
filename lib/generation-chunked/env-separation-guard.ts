@@ -17,8 +17,10 @@ import { isVercelProductionRuntime } from '@/lib/runtime-env';
 // Known PRODUCTION identifiers. Kept as literals (not env-configurable) so a leaked prod value can't
 // be "allow-listed away": the guard exists precisely to catch a prod value where it must not be.
 const PROD_APP_HOSTS = ['smallheroes.co.il', 'www.smallheroes.co.il'];
-// Prod/dev Supabase project ref (host = <ref>.supabase.co). Staging is a different ref.
-const PROD_SUPABASE_REF = 'ozxjmnzybzetqudivlbw';
+// Production Supabase project ref (host = <ref>.supabase.co). Points at the CLEAN eu-central-1 project the
+// 2026-07-20 production move built. The FORMER dev/prod project was DELETED — this MUST name the CURRENT prod
+// or the guard protects nothing and would treat real prod as a safe write target. Staging is a different ref.
+const PROD_SUPABASE_REF = 'yevwpjxqusyyaxalbvyn';
 
 function hostOf(value: string | undefined): string {
   if (!value) return '';

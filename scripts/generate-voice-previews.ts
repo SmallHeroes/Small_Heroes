@@ -14,7 +14,9 @@ import { callElevenLabs } from '../backend/providers/audio';
 import { uploadToSupabaseWithRetry } from '../lib/image-storage';
 
 const PREVIEW_LINE = 'הָיֹה הָיָה יֶלֶד קָטָן וְאַמִּיץ, וְהַיּוֹם מַתְחִיל סִפּוּר חָדָשׁ.';
-const PRODUCTION_SUPABASE_HOST = 'ozxjmnzybzetqudivlbw.supabase.co';
+// The CLEAN eu-central-1 production project (post 2026-07-20 move); the former project was deleted. This
+// upload targets prod, so the host must match the CURRENT prod or the script refuses (see main()).
+const PRODUCTION_SUPABASE_HOST = 'yevwpjxqusyyaxalbvyn.supabase.co';
 
 function loadLocalEnv(): void {
   for (const name of ['.env.local', '.env']) {

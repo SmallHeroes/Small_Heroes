@@ -43,7 +43,7 @@ describe('env-separation guard (0089 P0)', () => {
   const setWorkerGuardEnv = () => {
     process.env.VERCEL_ENV = 'preview';
     process.env.NEXT_PUBLIC_APP_URL = 'https://preview.vercel.app';
-    process.env.SUPABASE_URL = 'https://ozxjmnzybzetqudivlbw.supabase.co';
+    process.env.SUPABASE_URL = 'https://yevwpjxqusyyaxalbvyn.supabase.co';
     process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/test';
     process.env.GENERATION_SECRET = 'test-secret';
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role';
@@ -64,8 +64,20 @@ describe('env-separation guard (0089 P0)', () => {
   it('throws when a non-prod runtime points SUPABASE_URL at the prod project', () => {
     process.env.VERCEL_ENV = 'preview';
     process.env.NEXT_PUBLIC_APP_URL = 'https://preview.vercel.app';
-    process.env.SUPABASE_URL = 'https://ozxjmnzybzetqudivlbw.supabase.co';
+    process.env.SUPABASE_URL = 'https://yevwpjxqusyyaxalbvyn.supabase.co';
     expect(() => assertEnvSeparation()).toThrow(/PRODUCTION Supabase project/);
+  });
+
+  // Regression: the guard once hardcoded a now-DELETED project as prod, so after the 2026-07-20 move it
+  // protected nothing and treated the real new prod as safe. This pins the guard to the CURRENT prod ref and
+  // to a real staging ref — it FAILS if the ref is ever swapped back to a stale/wrong project.
+  it('identifies the CURRENT eu-central-1 prod project as production, and accepts staging', () => {
+    process.env.VERCEL_ENV = 'preview';
+    process.env.NEXT_PUBLIC_APP_URL = 'https://preview.vercel.app';
+    process.env.SUPABASE_URL = 'https://yevwpjxqusyyaxalbvyn.supabase.co';
+    expect(findProdResourceLeak()).toMatch(/PRODUCTION Supabase project/);
+    process.env.SUPABASE_URL = 'https://qvksgpzzosotubcbizay.supabase.co'; // staging
+    expect(findProdResourceLeak()).toBeNull();
   });
 
   // These two guard tests do `vi.resetModules()` + `await import(...)` of the worker/start entrypoints,
@@ -108,7 +120,7 @@ describe('env-separation guard (0089 P0)', () => {
     process.env.NEXT_PUBLIC_APP_URL = 'https://preview.vercel.app';
     process.env.SUPABASE_URL = 'https://qvksgpzzosotubcbizay.supabase.co';
     process.env.DATABASE_URL =
-      'postgresql://postgres:pass@db.ozxjmnzybzetqudivlbw.supabase.co:5432/postgres';
+      'postgresql://postgres:pass@db.yevwpjxqusyyaxalbvyn.supabase.co:5432/postgres';
     expect(() => assertEnvSeparation()).toThrow(/DATABASE_URL\/DIRECT_URL/);
   });
 
@@ -123,7 +135,7 @@ describe('env-separation guard (0089 P0)', () => {
   it('does NOT throw on Vercel Production even with prod resources', () => {
     process.env.VERCEL_ENV = 'production';
     process.env.NEXT_PUBLIC_APP_URL = 'https://smallheroes.co.il';
-    process.env.SUPABASE_URL = 'https://ozxjmnzybzetqudivlbw.supabase.co';
+    process.env.SUPABASE_URL = 'https://yevwpjxqusyyaxalbvyn.supabase.co';
     expect(isProductionRuntime()).toBe(true);
     expect(() => assertEnvSeparation()).not.toThrow();
   });
