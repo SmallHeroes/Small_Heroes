@@ -11,6 +11,7 @@ import {
   type CommitResult,
 } from './readiness-manifest';
 import { writeOrderHoldFenced } from './order-authority';
+import { isSafetyHazardOverridden } from './asset-safety-signal';
 import { resolveActiveRecoveryCaseInTx } from '@/lib/generation-chunked/exception-case';
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 
@@ -64,9 +65,23 @@ export async function resolveSafetyDeliveryGate(
       coverImageUrl: true,
       coverSafetyVerified: true,
       coverSafetyHazards: true,
+      // (release c-ii) override columns — a confirmed hazard is cleared ONLY by an operator override BOUND to the
+      // current bytes (isSafetyHazardOverridden). The detector's finding is never deleted; nothing here compares an
+      // override to a promise — it compares the override SHA to the co-written content SHA, fail-closed on null.
+      coverSafetyContentSha256: true,
+      coverSafetyOverriddenHazards: true,
+      coverSafetyOverrideSha256: true,
       pages: {
         orderBy: { pageNumber: 'asc' },
-        select: { pageNumber: true, imageAsset: { select: { safetyVerified: true, safetyHazards: true } } },
+        select: {
+          pageNumber: true,
+          imageAsset: {
+            select: {
+              safetyVerified: true, safetyHazards: true,
+              safetyContentSha256: true, safetyOverriddenHazards: true, safetyOverrideSha256: true,
+            },
+          },
+        },
       },
     },
   });
@@ -74,14 +89,26 @@ export async function resolveSafetyDeliveryGate(
   const hazards: string[] = [];
   const unverified: string[] = [];
   if (book.coverImageUrl) {
-    if (book.coverSafetyHazards.length > 0) hazards.push(`cover:${book.coverSafetyHazards.join('|')}`);
-    else if (!book.coverSafetyVerified) unverified.push('cover');
+    if (book.coverSafetyHazards.length > 0) {
+      const overridden = isSafetyHazardOverridden({
+        hazards: book.coverSafetyHazards, overriddenHazards: book.coverSafetyOverriddenHazards,
+        contentSha256: book.coverSafetyContentSha256, overrideSha256: book.coverSafetyOverrideSha256,
+      });
+      if (!overridden) hazards.push(`cover:${book.coverSafetyHazards.join('|')}`);
+    } else if (!book.coverSafetyVerified) unverified.push('cover');
   }
   for (const p of book.pages) {
     const a = p.imageAsset;
     if (!a) continue; // no rendered asset — not a safety concern (a different gate handles incompleteness)
-    if (a.safetyHazards.length > 0) hazards.push(`page:${p.pageNumber}:${a.safetyHazards.join('|')}`);
-    else if (!a.safetyVerified) unverified.push(`page:${p.pageNumber}`);
+    if (a.safetyHazards.length > 0) {
+      // The hazard holds UNLESS an operator override, bound to these exact bytes, covers every found hazard. An
+      // unverified asset (empty hazards, below) can never be overridden — you cannot override ignorance.
+      const overridden = isSafetyHazardOverridden({
+        hazards: a.safetyHazards, overriddenHazards: a.safetyOverriddenHazards,
+        contentSha256: a.safetyContentSha256, overrideSha256: a.safetyOverrideSha256,
+      });
+      if (!overridden) hazards.push(`page:${p.pageNumber}:${a.safetyHazards.join('|')}`);
+    } else if (!a.safetyVerified) unverified.push(`page:${p.pageNumber}`);
   }
   if (hazards.length === 0 && unverified.length === 0) return { held: false, reason: null };
   const detail = hazards.length > 0 ? `hazard:${hazards.join(',')}` : `unverified:${unverified.join(',')}`;

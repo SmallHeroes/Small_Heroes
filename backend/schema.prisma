@@ -400,6 +400,11 @@ model GeneratedBook {
   /// Written atomically with coverImageUrl; the delivery boundary blocks unless verified AND hazard-free.
   coverSafetyVerified Boolean  @default(false)
   coverSafetyHazards  String[] @default([])
+  /// (Human-QA release, c-ii) Cover twins of ImageAsset.safety{ContentSha256,OverriddenHazards,OverrideSha256} —
+  /// coverSafetyContentSha256 is co-written with coverSafetyHazards; the override columns bind Gate 2 to those bytes.
+  coverSafetyContentSha256 String?
+  coverSafetyOverriddenHazards String[] @default([])
+  coverSafetyOverrideSha256 String?
   pages       BookPage[]
 
   audioAsset  AudioAsset?
@@ -460,6 +465,16 @@ model ImageAsset {
   safetyVerified Boolean  @default(false)
   /// The confirmed physical-safety hazards on this image (empty when safe). Deliver only when verified AND empty.
   safetyHazards  String[] @default([])
+  /// (Human-QA release, c-ii) SHA-256 of the delivered bytes the safety signal above describes — written ATOMICALLY
+  /// with safetyHazards/safetyVerified (same QA result). Gate 2 binds an operator override to THESE bytes by
+  /// comparing safetyOverrideSha256 to this; a byte change writes a new value here, so a stale override cannot honor.
+  safetyContentSha256 String?
+  /// (Human-QA release, c-ii) The specific hazards a human operator overrode (false-positive release). The detector's
+  /// safetyHazards above are NEVER deleted — this is a SEPARATE signal. Reset to [] on every safety-signal write.
+  safetyOverriddenHazards String[] @default([])
+  /// (Human-QA release, c-ii) The exact bytes SHA the override binds to (== safetyContentSha256 at release time).
+  /// Reset to null on every safety-signal write. Gate 2 honors ONLY when both are non-null AND equal.
+  safetyOverrideSha256 String?
 
   createdAt   DateTime @default(now())
 }
@@ -757,6 +772,12 @@ model QualityEvidence {
   reviewedBy               String?
   reviewedAt               DateTime?
   reviewReason             String?
+  /// (Human-QA release, c-ii) Gate-1 override. safetyOverride marks a human false-positive release of this artifact's
+  /// safety hard-hold; safetyOverrideSha256 is the exact bytes it binds to. The verdict/reason stay IMMUTABLE — the
+  /// gate honors ONLY when safetyOverride AND safetyOverrideSha256 (non-null) equals the LIVE current-bytes hash.
+  /// Cleared on every fresh evidence write (a re-QA invalidates a prior override).
+  safetyOverride           Boolean  @default(false)
+  safetyOverrideSha256     String?
 
   @@unique([orderId, artifactKey])
   @@index([orderId])
