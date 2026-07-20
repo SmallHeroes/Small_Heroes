@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  LEFT_PAGE_MASK_WINDOW,
   OPEN_BOOK_PAGE_BOXES,
   openBookLayoutCssVars,
   openBookTextSafeZone,
@@ -33,5 +34,29 @@ describe('open-book-layout', () => {
     expect(vars['--open-left-page-x']).toBeDefined();
     expect(vars['--open-text-safe-w']).toBeDefined();
     expect(vars['--open-spread-h']).toBeDefined();
+  });
+
+  it('exports the left-page mask window + source vars', () => {
+    const vars = openBookLayoutCssVars();
+    expect(vars['--book-image-mask-window-x']).toBeDefined();
+    expect(vars['--book-image-mask-window-y']).toBeDefined();
+    expect(vars['--book-image-mask-window-w']).toBeDefined();
+    expect(vars['--book-image-mask-window-h']).toBeDefined();
+    expect(vars['--book-image-mask-src']).toContain('BookImageBottomMask.png');
+  });
+
+  it('the mask window stays within the frame and is LARGER than the old cream-margin box', () => {
+    const m = LEFT_PAGE_MASK_WINDOW;
+    expect(m.x).toBeGreaterThanOrEqual(0);
+    expect(m.y).toBeGreaterThanOrEqual(0);
+    expect(m.x + m.w).toBeLessThanOrEqual(1.01);
+    expect(m.y + m.h).toBeLessThanOrEqual(1.01);
+    // The finding that decides the implementation (brief §4): the mask window is wider + taller than
+    // OPEN_BOOK_PAGE_BOXES.leftPage and starts higher — the illustration is re-based onto THIS window, not
+    // the old box. If someone re-tightens the box under the mask, this fails loudly.
+    const box = OPEN_BOOK_PAGE_BOXES.leftPage;
+    expect(m.w).toBeGreaterThan(box.w);
+    expect(m.h).toBeGreaterThan(box.h);
+    expect(m.y).toBeLessThan(box.y);
   });
 });

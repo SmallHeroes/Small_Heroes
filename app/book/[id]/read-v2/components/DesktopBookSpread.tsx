@@ -96,19 +96,21 @@ export function DesktopBookSpread({ spread, isCurrent }: Props) {
         aria-hidden
         draggable={false}
       />
-      {/* Left page - illustration; loading/error contained here */}
+      {/* Left-page illustration — a FULL-FRAME layer clipped to the true page shape by BookImageBottomMask.png
+          as a CSS mask (layers 2+3 of Guy's stack: מסכה + תמונה). It spans the whole page width and overflows
+          top/bottom; the mask cuts the overflow at the real page edge. Loading/error states live inside it. */}
+      <div className={styles.leftPageMaskLayer}>
+        <SceneIllustration
+          url={spread.illustrationUrl}
+          alt="איור סצנה"
+          isCurrent={isCurrent}
+          className={styles.leftPageMaskedIllustration}
+        />
+        <span className={styles.leftPageGrain} aria-hidden />
+        <span className={styles.leftPageWarmEdge} aria-hidden />
+      </div>
+      {/* Left page — stickers only; the illustration moved to the masked layer above. */}
       <div className={styles.openPageLeft}>
-        <div className={styles.leftPageClip}>
-          <SceneIllustration
-            url={spread.illustrationUrl}
-            alt="איור סצנה"
-            isCurrent={isCurrent}
-            className={styles.openPageIllustration}
-          />
-          <span className={styles.leftPageGrain} aria-hidden />
-          <span className={styles.leftPageWarmEdge} aria-hidden />
-          <span className={styles.leftPageSpineShadow} aria-hidden />
-        </div>
         <StickerSlots variant="desktop" />
       </div>
       {/* Right page - prose (RTL); paper comes from OpenBook.png */}

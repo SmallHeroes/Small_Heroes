@@ -1479,36 +1479,71 @@
   overflow: hidden;
 }
 
-.leftPageClip {
-  position: relative;
+/* ── Masked left-page illustration (BookImageBottomMask.png) ─────────────────────────────────────────
+   Guy's four-layer stack: OpenBook (ספר, z1) → mask (מסכה) → illustration (תמונה) → MaskOnBook (שכבת הסתרה, z10).
+   The mask is a CSS mask-image ON THIS LAYER — never a painted <img>; a mask only defines what SURVIVES.
+   Same box rules as .openBookImage / .maskOnBookImage (position:absolute; inset:0; 100%x100%), so mask, book and
+   torn-paper overlay are ONE box by construction and cannot drift at any viewport width OR height. The mask's
+   white window (--book-image-mask-window-*, from open-book-layout.ts) is the true LEFT-page area.
+   NON-WIDE spreads only — the wide branch has no left-page-only mask (brief §6.1). */
+.leftPageMaskLayer {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  /* Padding shapes the cream margin around the illustration. Top is tighter
-     than bottom so the picture sits a touch higher on the page — exposes more
-     of the AI's upper composition (sky / ceiling / context above the subject).
-     Tune the 3 vars to taste. */
-  --illustration-inset-top: 2%;
-  --illustration-inset-bottom: 2%;
-  --illustration-inset-x: 3%;
-  padding:
-    var(--illustration-inset-top)
-    var(--illustration-inset-x)
-    var(--illustration-inset-bottom);
-  box-sizing: border-box;
-  overflow: hidden;
-  border-radius: 3px 1px 1px 3px;
+  z-index: 2;
+  /* Decorative, like the book + overlay images — must not capture clicks over EITHER page (the mask is visual
+     only; hit-testing still uses the full border-box). The retry button re-enables pointer-events below. */
+  pointer-events: none;
+  /* mask-mode:alpha because the asset is white-on-transparent with a binary alpha channel. -webkit-* twins for
+     Safari / iPadOS. mask-size:100% 100% pins the mask to the frame; no-repeat makes everything outside the
+     window (alpha 0) disappear — including the illustration's deliberate top/bottom overflow. */
+  -webkit-mask-image: var(--book-image-mask-src);
+          mask-image: var(--book-image-mask-src);
+  -webkit-mask-mode: alpha;
+          mask-mode: alpha;
+  -webkit-mask-repeat: no-repeat;
+          mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+          mask-position: center;
+  -webkit-mask-size: 100% 100%;
+          mask-size: 100% 100%;
 }
 
-.leftPageClip .illustrationImg {
-  /* Flat fitted rectangle inside the clip-path polygon. The scale(1.10) overscale
-     crops the AI illustration's baked-in torn-paper watercolor borders (they sit
-     just inside the cream rectangle and would otherwise be visible). Content stays
-     centered; outer ~5% of each edge is sacrificed to hide the decoration. */
+/* The illustration spans 100% of the mask window's WIDTH and OVERFLOWS it top and bottom by
+   --left-illustration-overflow; the mask cuts that overflow at the true page edge. object-fit:cover fills the
+   box, so the sides always run edge-to-edge with no cream gap (a landscape image is center-cropped horizontally).
+   Positioned off the window vars, so it never drifts from the mask. Applies to the SceneIllustration frame AND
+   its loading/error placeholder (both carry this class). */
+.leftPageMaskedIllustration {
+  --left-illustration-overflow: 8%;
+  position: absolute;
+  left: var(--book-image-mask-window-x);
+  width: var(--book-image-mask-window-w);
+  top: calc(var(--book-image-mask-window-y) - var(--left-illustration-overflow));
+  height: calc(var(--book-image-mask-window-h) + 2 * var(--left-illustration-overflow));
+  min-height: 0;
+}
+
+.leftPageMaskedIllustration.illustrationPlaceholder {
+  /* the placeholder box is height-driven by the window calc above, not the shared min-height */
+  min-height: 0;
+  pointer-events: auto; /* so its retry button is reachable through the pointer-events:none layer */
+}
+
+.leftPageMaskedIllustration .illustrationImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   object-position: var(--open-left-illustration-object-position);
-  transform: scale(1.0);
-  transform-origin: center center;
 }
 
+
+/* Printed-paper treatments — now siblings of the illustration INSIDE .leftPageMaskLayer (inset:0), so the mask
+   clips them to the true page window exactly like the illustration; they stay aligned to it by construction.
+   (The old .leftPageSpineShadow was dropped: it was `right:0` of the small left-page box, which in a full-frame
+   masked layer points at the far right of the whole spread — a silent misalignment. The MaskOnBook overlay and
+   OpenBook's own binding already finish the gutter. See the brief §6.2.) */
 
 /* Paper grain — subtle fibrous texture so the illustration reads as printed-on-paper.
    Overlay blend lets light areas stay light, dark areas pick up speckle. */
@@ -1537,24 +1572,6 @@
     rgba(245, 232, 198, 0.12) 0%,
     rgba(252, 244, 220, 0.08) 35%,
     rgba(255, 248, 226, 0.04) 100%
-  );
-}
-
-/* Spine crease — soft inner shadow at the gutter edge. Reads as paper folding into
-   the binding, not as a transparent hole. Inner box-shadow handles the falloff cleanly. */
-.leftPageSpineShadow {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 22%;
-  z-index: 3;
-  pointer-events: none;
-  background: linear-gradient(
-    270deg,
-    rgba(54, 36, 18, 0.18) 0%,
-    rgba(54, 36, 18, 0.07) 35%,
-    transparent 80%
   );
 }
 

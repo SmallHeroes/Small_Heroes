@@ -43,6 +43,33 @@ export const MASK_ON_BOOK_ASSET = {
   height: 1588,
 } as const;
 
+/**
+ * BookImageBottomMask.png — a CSS `mask-image` (NOT a painted <img>) that clips the left-page illustration to
+ * the true page shape. Same 2594x1588 coordinate space as OpenBook.png / MaskOnBook.png, so all three share one
+ * frame. White (opaque) on transparent, binary alpha → `mask-mode: alpha`.
+ */
+export const BOOK_IMAGE_MASK_ASSET = {
+  src: '/Images/BookImageBottomMask.png',
+  width: 2594,
+  height: 1588,
+} as const;
+
+/**
+ * Opaque (white) window of BookImageBottomMask.png = the true LEFT-page area, normalized to the frame.
+ * Measured from the asset's alpha channel 2026-07-20; re-measure if the asset is replaced.
+ *
+ * NOTE (2026-07-20): this window is intentionally LARGER than OPEN_BOOK_PAGE_BOXES.leftPage — ~1.4% wider,
+ * ~3.5% taller, and it starts higher. That older box was tightened on 2026-05-27 to sit strictly inside the
+ * cream margin; this mask deliberately REMOVES that margin so the illustration fills the real page. The
+ * illustration is based on THIS window, not leftPage. (See open-book-layout.spec.ts for the guard.)
+ */
+export const LEFT_PAGE_MASK_WINDOW: NormalizedRect = {
+  x: 0.041634,
+  y: 0.034635,
+  w: 0.467232,
+  h: 0.925063,
+};
+
 /** Reserved asset - not loaded by the default desktop reader (warm-dark stage instead). */
 export const TABLE_TEXTURE_ASSET = {
   src: '/Images/TableTexture.png',
@@ -138,5 +165,9 @@ export function openBookLayoutCssVars(): Record<string, string> {
     ...rectToPercentVars('open-text-safe', textSafe),
     ...rectToPercentVars('open-spread', spread),
     '--open-left-illustration-object-position': leftPageShape.illustrationObjectPosition,
+    // The left-page illustration mask: the source (as a url() token, single-sourced from the asset constant)
+    // and its white window (the true page area the illustration fills + is clipped to).
+    '--book-image-mask-src': `url(${BOOK_IMAGE_MASK_ASSET.src})`,
+    ...rectToPercentVars('book-image-mask-window', LEFT_PAGE_MASK_WINDOW),
   };
 }
