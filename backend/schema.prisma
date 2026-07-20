@@ -894,6 +894,7 @@ model HumanQaReviewCase {
   updatedAt          DateTime                @updatedAt
 
   notifications OperatorNotificationOutbox[]
+  operatorActions HumanQaOperatorAction[]
 
   @@unique([orderId, scope, revision])
   @@index([status])
@@ -928,4 +929,56 @@ model OperatorNotificationOutbox {
   sentAt             DateTime?
 
   @@index([status, nextAttemptAt])
+}
+
+// (Human-QA Slices 3+4) Operator ACTION lifecycle for the review case: an operator can re-render / release /
+// park a held book. Distinct top-level marker per kind so start.ts / the exception-processor never confuse them.
+enum OperatorActionKind {
+  rerender
+  release
+  park
+}
+
+enum OperatorActionStatus {
+  pending    // locked + recorded; the action body has not completed yet
+  succeeded
+  failed
+  aborted    // a precondition was not met — no state change
+}
+
+// (Human-QA Slices 3+4) Durable operator-ACTION / audit record. ONE row per operator decision (re-render / release /
+// park) against a held book. Idempotent under the Idempotency-Key header: `idempotencyKey` is unique and a same-key
+// retry replays the recorded `outcome`; a same-key request with a DIFFERENT `requestHash` fails closed. Append-only
+// audit — it snapshots the observed hold marker, delivery fence and inputVersion AT ACTION TIME, the operator note
+// (stored VERBATIM — it is additive prompt guidance only and NEVER a safety/contract input; see the brief), and,
+// for a safety RELEASE, the overridden hazards + written reason + the exact delivered-bytes SHA the override binds
+// to (readiness READS this record; nothing direct-sets `ready`). Service-role only (RLS enabled, no client policy —
+// mirrors HumanQaReviewCase / QualityEvidence).
+model HumanQaOperatorAction {
+  id                   String               @id @default(cuid())
+  idempotencyKey       String               @unique // `${kind}:${orderId}:${Idempotency-Key header}`
+  requestHash          String               // hash of the request (note + targets + hazards + assetSha + reason)
+  orderId              String
+  caseId               String
+  case                 HumanQaReviewCase    @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  caseRevision         Int                  // HumanQaReviewCase.revision observed at action time
+  kind                 OperatorActionKind
+  status               OperatorActionStatus @default(pending)
+  actor                String
+  note                 String?              @db.Text // operator note, VERBATIM — additive pose/spacing guidance only
+  targetArtifacts      String[]             // e.g. ["page:3","cover"]
+  // Snapshot of the delivery-authority state the operator acted against (audit + optimistic-concurrency evidence).
+  observedMarker       String               // Order.deliveryHoldReason at action time
+  observedFence        Int                  // Order.deliveryFenceVersion at action time
+  observedInputVersion Int                  // Order.inputVersion at action time
+  // RELEASE ceremony (null for re-render / park). The override is asset-hash bound; readiness honours it.
+  overriddenHazards    String[]             // the specific hazards the operator overrode
+  overrideReason       String?              @db.Text // mandatory written reason on a release
+  assetSha256          String?              // the exact delivered-bytes SHA (presentationUrl ?? url) the release binds to
+  outcome              Json?                // recorded result (orderStatus / manifestStatus / held / error) — replayed on an idempotent retry
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  @@index([orderId, kind])
+  @@index([caseId, createdAt])
 }
