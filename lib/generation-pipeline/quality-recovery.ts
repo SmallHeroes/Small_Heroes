@@ -24,6 +24,7 @@ import {
   pageArtifactKey,
   pageNumberFromArtifactKey,
   readActiveVisualContractHash,
+  isSafetyEvidenceReleased,
   type HardHoldKind,
 } from './quality-evidence';
 import { isQualityEvidenceContractStale } from './quality-check-result';
@@ -129,7 +130,7 @@ export async function reQaUnknownQualityEvidence(
   const required = await loadRequiredArtifacts(prisma, orderId);
   const rows = await prisma.qualityEvidence.findMany({
     where: { orderId },
-    select: { artifactKey: true, verdict: true, evaluatorContractVersion: true, assetSha256: true, regenCount: true, evidence: true, contractHash: true, reason: true },
+    select: { artifactKey: true, verdict: true, evaluatorContractVersion: true, assetSha256: true, regenCount: true, evidence: true, contractHash: true, reason: true, safetyOverride: true, safetyOverrideSha256: true },
   });
   const byKey = new Map(rows.map((r) => [r.artifactKey, r]));
   // (WS0b B1) Recovery re-QAs STORED bytes and re-binds evidence to the Order's CURRENT active contract, so a
@@ -170,9 +171,14 @@ export async function reQaUnknownQualityEvidence(
       // reserve/regen-rescue never runs → a genuinely failing page ships. Route it to the rescue with its durable
       // regenCount (the processor reserves → clears → redrives, or refunds at budget). An admissible PASS is done.
       if (row!.verdict === 'failed') {
+        // (release c-ii) A byte-bound false-positive release CLEARS this artifact — evaluateQualityGate does exactly
+        // the same via isSafetyEvidenceReleased, so recovery MUST agree here or the two loop forever (gate ships,
+        // recovery re-parks). Checked BEFORE isHardHoldParkReason, because the reason still reads `safety:` after a
+        // release (the finding is never deleted). Not a park, not a rescue, not a refund — cleared.
+        if (isSafetyEvidenceReleased(row!, currentHash)) result.nowPassed.push(art.artifactKey);
         // (Slice A / Stage 1) A contract-world drift OR a physical-safety hazard is a TERMINAL human-QA PARK — never
         // route it to the regen-rescue (no reserve/clear/redrive, no refund). It converges to needs_human_qa.
-        if (isHardHoldParkReason(row!.reason)) notePark(art.artifactKey, row!.reason);
+        else if (isHardHoldParkReason(row!.reason)) notePark(art.artifactKey, row!.reason);
         else result.nowFailed.push({ artifactKey: art.artifactKey, regenCount: row!.regenCount });
       }
       continue;

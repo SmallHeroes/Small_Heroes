@@ -116,6 +116,30 @@ export interface QualityGateResult {
 }
 
 /**
+ * (release c-ii, Gate 1) True when a QualityEvidence row carries a HUMAN false-positive release that is BOUND to the
+ * CURRENT delivered bytes. The single source of truth for "released", shared by evaluateQualityGate AND
+ * quality-recovery so the two can NEVER disagree (a gate-release + recovery-park would loop the book forever).
+ *
+ * Byte-bound exactly like Gate 2: the release lapses the instant the bytes change (safetyOverrideSha256 no longer
+ * equals the live hash) or the bytes cannot be hashed (currentHash null → fail-closed). It NEVER inspects the
+ * `reason` — the detector's finding is never deleted, so after a release the reason still reads `safety:<hazards>`;
+ * clearing the artifact is done HERE, on the byte-bound override column, not by touching the reason. Admissibility
+ * (a determinate hazard, never `sha_missing` / `unverified`) is enforced where the override is WRITTEN (the release
+ * action) — this predicate only honors a bound override, mirroring how Gate 2 trusts its override columns.
+ */
+export function isSafetyEvidenceReleased(
+  row: Pick<QualityEvidenceRow, 'safetyOverride' | 'safetyOverrideSha256'>,
+  currentHash: string | null,
+): boolean {
+  return (
+    row.safetyOverride === true &&
+    row.safetyOverrideSha256 != null &&
+    currentHash != null &&
+    row.safetyOverrideSha256 === currentHash
+  );
+}
+
+/**
  * PURE fail-closed aggregate over the REQUIRED artifacts.
  *
  * Per artifact, given its persisted row and the CURRENT delivered-bytes hash:
@@ -154,6 +178,16 @@ export function evaluateQualityGate(
   for (const key of requiredKeys) {
     const row = byKey.get(key);
     const currentHash = currentHashes.get(key) ?? null;
+
+    // (release c-ii, Gate 1) A human FALSE-POSITIVE release, BOUND to the current delivered bytes, makes THIS artifact
+    // admissible (passed-equivalent for the aggregate) WITHOUT mutating the immutable verdict/reason. Placed FIRST —
+    // BEFORE the safety hard-hold below — because after a release the reason STILL reads `safety:<hazards>` (the
+    // finding is never deleted), so it must be cleared here on the byte-bound override, not by touching the reason.
+    // Inert by default: no row has safetyOverride until a release action sets it → byte-identical to today.
+    if (row && isSafetyEvidenceReleased(row, currentHash)) {
+      perArtifact[key] = { state: 'safety_released', verdict: row.verdict, overrideSha256: row.safetyOverrideSha256 };
+      continue; // skip the safety hard-hold AND the failed/unknown classification — the artifact is cleared
+    }
 
     // (Fix 3) A `safety:` tag hard-holds on ANY row REGARDLESS of verdict / hash / version — a known hazard or an
     // unconfirmed-safe image survives every downgrade (failed→evidence_unknown on a hash miss, a stale-version row)
