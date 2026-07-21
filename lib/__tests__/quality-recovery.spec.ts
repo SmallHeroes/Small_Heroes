@@ -151,13 +151,16 @@ describe('reQaUnknownQualityEvidence — enumerate REQUIRED artifacts (#6-fix BL
     expect(r.nowFailed).toEqual([]);
   });
 
-  it('(release c-ii) an admissible FAILED safety row with a BYTE-BOUND override → nowPassed (released), NOT nowParked — recovery AGREES with the gate', async () => {
-    // The disagreement this closes: evaluateQualityGate clears this artifact (isSafetyEvidenceReleased), so if recovery
-    // still parked it here the two would loop forever (gate ships → recovery re-parks → …). Both call the SAME predicate.
-    const rows: Row[] = [{ artifactKey: 'page:4', verdict: 'failed', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, assetSha256: 'H', regenCount: 0, reason: 'safety:unsafe_pose', safetyOverride: true, safetyOverrideSha256: 'H', evidence: { qaContext: QA_CTX } }];
+  const SHA = 'a'.repeat(64);      // valid lowercase 64-hex, so the regex-validated predicate (parity with Gate 2) fires
+  const SHA_OLD = 'b'.repeat(64);
+
+  it('(release c-ii) an admissible FAILED safety-only row with a BYTE-BOUND override → nowPassed (released), NOT nowParked — recovery AGREES with the gate', async () => {
+    // The disagreement this closes: evaluateQualityGate clears this artifact on the IDENTICAL composition (admissible →
+    // isSafetyEvidenceReleased && isSafetyOnlyReason), so if recovery still parked it the two loop forever.
+    const rows: Row[] = [{ artifactKey: 'page:4', verdict: 'failed', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, assetSha256: SHA, regenCount: 0, reason: 'safety:unsafe_pose', safetyOverride: true, safetyOverrideSha256: SHA, evidence: { qaContext: QA_CTX } }];
     const { db } = makeDb({ coverImageUrl: null, pages: [page(4, 'https://h/p4.png')] }, rows);
     const evaluate = vi.fn();
-    const r = await reQaUnknownQualityEvidence(db as never, 'o1', { evaluate: evaluate as never, inspect: async () => okInspect('H') });
+    const r = await reQaUnknownQualityEvidence(db as never, 'o1', { evaluate: evaluate as never, inspect: async () => okInspect(SHA) });
     expect(evaluate).not.toHaveBeenCalled();  // admissible → trusted, no re-QA (which would clear the override via P1b)
     expect(r.nowPassed).toEqual(['page:4']);  // released → cleared, exactly like the gate
     expect(r.nowParked).toEqual([]);          // NOT re-parked → no gate/recovery loop
@@ -165,10 +168,18 @@ describe('reQaUnknownQualityEvidence — enumerate REQUIRED artifacts (#6-fix BL
   });
 
   it('(release c-ii) the override is BYTE-BOUND in recovery too: a release for DIFFERENT bytes lapses → nowParked (matches the gate hard-hold)', async () => {
-    const rows: Row[] = [{ artifactKey: 'page:4', verdict: 'failed', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, assetSha256: 'H', regenCount: 0, reason: 'safety:unsafe_pose', safetyOverride: true, safetyOverrideSha256: 'H_OLD', evidence: { qaContext: QA_CTX } }];
+    const rows: Row[] = [{ artifactKey: 'page:4', verdict: 'failed', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, assetSha256: SHA, regenCount: 0, reason: 'safety:unsafe_pose', safetyOverride: true, safetyOverrideSha256: SHA_OLD, evidence: { qaContext: QA_CTX } }];
     const { db } = makeDb({ coverImageUrl: null, pages: [page(4, 'https://h/p4.png')] }, rows);
-    const r = await reQaUnknownQualityEvidence(db as never, 'o1', { inspect: async () => okInspect('H') });
+    const r = await reQaUnknownQualityEvidence(db as never, 'o1', { inspect: async () => okInspect(SHA) });
     expect(r.nowParked).toEqual(['page:4']);  // override bound to old bytes → lapsed → parked (fail-closed)
+    expect(r.nowPassed).toEqual([]);
+  });
+
+  it('(release c-ii §4) a MIXED safety:+contract_world: reason does NOT clear even with a valid override → nowParked (recovery matches the gate)', async () => {
+    const rows: Row[] = [{ artifactKey: 'page:4', verdict: 'failed', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, assetSha256: SHA, regenCount: 0, reason: 'safety:unsafe_pose+contract_world:door_moved', safetyOverride: true, safetyOverrideSha256: SHA, evidence: { qaContext: QA_CTX } }];
+    const { db } = makeDb({ coverImageUrl: null, pages: [page(4, 'https://h/p4.png')] }, rows);
+    const r = await reQaUnknownQualityEvidence(db as never, 'o1', { inspect: async () => okInspect(SHA) });
+    expect(r.nowParked).toEqual(['page:4']);  // safety-only false → not cleared → the contract_world component parks it
     expect(r.nowPassed).toEqual([]);
   });
 

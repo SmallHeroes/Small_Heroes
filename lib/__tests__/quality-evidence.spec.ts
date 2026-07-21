@@ -7,6 +7,7 @@ import {
   requiredArtifactKeys,
   evaluateQualityGate,
   isSafetyEvidenceReleased,
+  isSafetyOnlyReason,
   qualityEvidenceFingerprint,
   reserveQualityRegen,
   ensureQualityEvidenceRow,
@@ -231,61 +232,90 @@ describe('(WS0b) evaluateQualityGate — contract staleness (contract_stale → 
 });
 
 describe('evaluateQualityGate — (release c-ii, Gate 1) the byte-bound false-positive override branch', () => {
-  const SHA = 'hp1'; // page:1's current delivered-bytes hash in CURRENT
+  const SHA = 'a'.repeat(64);   // page:1's current delivered-bytes hash (valid lowercase 64-hex, matching Gate 2)
+  const OTHER = 'b'.repeat(64);
+  const CUR = hashes({ cover: 'hcover', 'page:1': SHA });
+  const relRow = (over: Partial<QualityEvidenceRow> = {}) =>
+    row({ artifactKey: 'page:1', assetSha256: SHA, verdict: 'failed', regenCount: QUALITY_REGEN_BUDGET,
+          reason: 'safety:unsafe_pose', safetyOverride: true, safetyOverrideSha256: SHA, ...over });
+  const coverOk = row({ artifactKey: 'cover', assetSha256: 'hcover', verdict: 'passed' });
 
-  it('a byte-bound override CLEARS a failed+safety artifact (passed-equivalent) — the reason still reads safety:, the verdict is untouched', () => {
-    const rows = [
-      row({ artifactKey: 'cover', assetSha256: 'hcover', verdict: 'passed' }),
-      row({ artifactKey: 'page:1', assetSha256: SHA, verdict: 'failed', regenCount: QUALITY_REGEN_BUDGET,
-            reason: 'safety:unsafe_pose', safetyOverride: true, safetyOverrideSha256: SHA }),
-    ];
-    const r = evaluateQualityGate(REQUIRED, rows, CURRENT);
-    expect(r.status).toBe('passed');            // the released artifact is admissible → the book ships
+  it('a byte-bound SAFETY-ONLY release CLEARS a failed artifact (passed-equivalent) — reason/verdict untouched', () => {
+    const rows = [coverOk, relRow()];
+    const r = evaluateQualityGate(REQUIRED, rows, CUR);
+    expect(r.status).toBe('passed');            // released artifact admissible → the book ships
     expect(r.contractHardHold).toBe(false);     // the safety hard-hold did NOT fire
     expect(r.hardHoldKind).toBeNull();
-    expect(r.failedArtifacts).toEqual([]);      // not terminal-failed either
-    // the finding is never deleted — the row's reason still says safety: and the verdict is still failed
-    expect(rows[1].reason).toBe('safety:unsafe_pose');
+    expect(r.failedArtifacts).toEqual([]);
+    expect(rows[1].reason).toBe('safety:unsafe_pose'); // the finding is never deleted
     expect(rows[1].verdict).toBe('failed');
   });
 
   it('INERT by default: the SAME failed+safety row WITHOUT an override hard-holds exactly as today', () => {
-    const rows = [
-      row({ artifactKey: 'cover', assetSha256: 'hcover', verdict: 'passed' }),
-      row({ artifactKey: 'page:1', assetSha256: SHA, verdict: 'failed', regenCount: QUALITY_REGEN_BUDGET, reason: 'safety:unsafe_pose' }),
-    ];
-    const r = evaluateQualityGate(REQUIRED, rows, CURRENT);
+    const r = evaluateQualityGate(REQUIRED, [coverOk, relRow({ safetyOverride: false, safetyOverrideSha256: null })], CUR);
     expect(r.contractHardHold).toBe(true);
     expect(r.hardHoldKind).toBe('safety');
   });
 
   it('BYTE-BOUND: an override made for DIFFERENT bytes (overrideSha ≠ current hash) does NOT clear → still hard-holds', () => {
-    const rows = [
-      row({ artifactKey: 'cover', assetSha256: 'hcover', verdict: 'passed' }),
-      row({ artifactKey: 'page:1', assetSha256: SHA, verdict: 'failed', reason: 'safety:unsafe_pose',
-            safetyOverride: true, safetyOverrideSha256: 'DIFFERENT' }),
-    ];
-    const r = evaluateQualityGate(REQUIRED, rows, CURRENT);
+    const r = evaluateQualityGate(REQUIRED, [coverOk, relRow({ safetyOverrideSha256: OTHER })], CUR);
     expect(r.contractHardHold).toBe(true);
     expect(r.hardHoldKind).toBe('safety');
   });
 
-  it('FAIL-CLOSED: an override on bytes that cannot be hashed (current hash null) does NOT clear → still hard-holds', () => {
-    const rows = [
-      row({ artifactKey: 'cover', assetSha256: 'hcover', verdict: 'passed' }),
-      row({ artifactKey: 'page:1', assetSha256: SHA, verdict: 'failed', reason: 'safety:unsafe_pose',
-            safetyOverride: true, safetyOverrideSha256: SHA }),
-    ];
-    const r = evaluateQualityGate(REQUIRED, rows, hashes({ cover: 'hcover', 'page:1': null }));
+  it('FAIL-CLOSED: bytes that cannot be hashed (current hash null) → not released, still hard-holds (Fix 3)', () => {
+    const r = evaluateQualityGate(REQUIRED, [coverOk, relRow()], hashes({ cover: 'hcover', 'page:1': null }));
     expect(r.contractHardHold).toBe(true);
   });
 
-  it('isSafetyEvidenceReleased — the shared predicate: honored only when override set AND both SHAs non-null AND equal', () => {
-    expect(isSafetyEvidenceReleased({ safetyOverride: true, safetyOverrideSha256: 'h' }, 'h')).toBe(true);
-    expect(isSafetyEvidenceReleased({ safetyOverride: false, safetyOverrideSha256: 'h' }, 'h')).toBe(false); // no override
-    expect(isSafetyEvidenceReleased({ safetyOverride: true, safetyOverrideSha256: 'h' }, 'other')).toBe(false); // bytes changed
-    expect(isSafetyEvidenceReleased({ safetyOverride: true, safetyOverrideSha256: null }, 'h')).toBe(false); // no bound SHA
-    expect(isSafetyEvidenceReleased({ safetyOverride: true, safetyOverrideSha256: 'h' }, null)).toBe(false); // unhashable bytes
+  it('P1 — a release NEVER certifies STALE-VERSION evidence: still hard-holds despite a valid byte-bound override', () => {
+    const r = evaluateQualityGate(REQUIRED, [coverOk, relRow({ evaluatorContractVersion: 'qa-v0' })], CUR);
+    expect(r.contractHardHold).toBe(true);      // Fix 3: safety hard-holds; the release did not fire (inadmissible)
+    expect(r.unknownArtifacts).toContain('page:1'); // stale_version → unknown, never cleared
+  });
+
+  it('P1 — a release NEVER certifies WRONG BYTES: an evidence hash-mismatch stays inadmissible + hard-holds', () => {
+    // override bound to the CURRENT bytes, but the evidence row was written for OTHER bytes → hashMismatch → not released.
+    const r = evaluateQualityGate(REQUIRED, [coverOk, relRow({ assetSha256: OTHER })], CUR);
+    expect(r.contractHardHold).toBe(true);
+    expect(r.unknownArtifacts).toContain('page:1');
+  });
+
+  it('§4 MIXED reason does NOT clear (safety-only false) — contract_world still hard-holds after a safety release', () => {
+    const r = evaluateQualityGate(REQUIRED, [coverOk, relRow({ reason: 'safety:unsafe_pose+contract_world:door_moved' })], CUR);
+    expect(r.status).not.toBe('passed');        // NOT cleared
+    expect(r.contractHardHold).toBe(true);
+    expect(r.hardHoldKind).toBe('contract_world'); // safety suppressed by the release; contract_world carries the hold
+  });
+
+  it('§4 the mirror direction: the SAME override on a SAFETY-ONLY reason DOES clear (proving it is the mix that blocks)', () => {
+    const r = evaluateQualityGate(REQUIRED, [coverOk, relRow({ reason: 'safety:unsafe_pose' })], CUR);
+    expect(r.status).toBe('passed');
+    expect(r.contractHardHold).toBe(false);
+  });
+
+  it('P2 — isSafetyEvidenceReleased validates BOTH SHAs with SAFETY_SHA256_RE before equality (parity with Gate 2)', () => {
+    expect(isSafetyEvidenceReleased({ safetyOverride: true, safetyOverrideSha256: SHA }, SHA)).toBe(true);
+    expect(isSafetyEvidenceReleased({ safetyOverride: false, safetyOverrideSha256: SHA }, SHA)).toBe(false); // no override
+    expect(isSafetyEvidenceReleased({ safetyOverride: true, safetyOverrideSha256: SHA }, OTHER)).toBe(false); // bytes changed
+    expect(isSafetyEvidenceReleased({ safetyOverride: true, safetyOverrideSha256: null }, SHA)).toBe(false); // no bound SHA
+    expect(isSafetyEvidenceReleased({ safetyOverride: true, safetyOverrideSha256: SHA }, null)).toBe(false); // unhashable
+    // malformed SHAs fail closed EXACTLY like Gate 2 — '' / short / uppercase / non-hex, on either side
+    for (const bad of ['', 'a'.repeat(63), 'A'.repeat(64), 'g'.repeat(64)]) {
+      expect(isSafetyEvidenceReleased({ safetyOverride: true, safetyOverrideSha256: bad }, bad)).toBe(false);
+      expect(isSafetyEvidenceReleased({ safetyOverride: true, safetyOverrideSha256: SHA }, bad)).toBe(false);
+      expect(isSafetyEvidenceReleased({ safetyOverride: true, safetyOverrideSha256: bad }, SHA)).toBe(false);
+    }
+  });
+
+  it('isSafetyOnlyReason — true iff EVERY +-joined component is a safety: tag', () => {
+    expect(isSafetyOnlyReason('safety:unsafe_pose')).toBe(true);
+    expect(isSafetyOnlyReason('safety:unsafe_pose+safety:height')).toBe(true);
+    expect(isSafetyOnlyReason('safety:unsafe_pose+contract_world:door_moved')).toBe(false);
+    expect(isSafetyOnlyReason('anatomy_failed+safety:railing')).toBe(false);
+    expect(isSafetyOnlyReason('contract_world:wrong_zone')).toBe(false);
+    expect(isSafetyOnlyReason(null)).toBe(false);
+    expect(isSafetyOnlyReason('')).toBe(false);
   });
 });
 

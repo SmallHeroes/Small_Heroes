@@ -11,6 +11,7 @@
  */
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { isQualityEvidenceContractStale } from './quality-check-result';
+import { SAFETY_SHA256_RE } from './asset-safety-signal';
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -131,12 +132,27 @@ export function isSafetyEvidenceReleased(
   row: Pick<QualityEvidenceRow, 'safetyOverride' | 'safetyOverrideSha256'>,
   currentHash: string | null,
 ): boolean {
-  return (
-    row.safetyOverride === true &&
-    row.safetyOverrideSha256 != null &&
-    currentHash != null &&
-    row.safetyOverrideSha256 === currentHash
-  );
+  if (row.safetyOverride !== true) return false;
+  // (P2) validate the SHAPE of BOTH SHAs with the SAME regex Gate 2 uses (asset-safety-signal SAFETY_SHA256_RE)
+  // BEFORE the equality — the two sibling predicates must not differ in strictness. '' / null / wrong-length /
+  // uppercase / non-hex all fail closed here, so `'' === ''` can never pass and an unhashable current byte is refused.
+  if (!SAFETY_SHA256_RE.test(row.safetyOverrideSha256 ?? '') || !SAFETY_SHA256_RE.test(currentHash ?? '')) return false;
+  return row.safetyOverrideSha256 === currentHash;
+}
+
+/**
+ * (release c-ii, Gate 1 — the "safety-only" test) A `failed` verdict clears under a release ONLY when its failure is
+ * exhaustively safety hazards — never when a non-safety component (a `contract_world:` drift, a base visual failure)
+ * rides the SAME reason string. Do NOT infer this from `includes('safety:')` being true: that says nothing about what
+ * ELSE is in the string. The producer joins components with `+`, so a reason is safety-only iff EVERY `+`-joined
+ * component is a `safety:` tag. `safety:unsafe_pose` → true; `safety:unsafe_pose+contract_world:door_moved` → false;
+ * `anatomy_failed+safety:railing` → false. (An `unverified` safety component is a moot input here — the release action
+ * never sets an override for it, so isSafetyEvidenceReleased is already false.)
+ */
+export function isSafetyOnlyReason(reason: string | null | undefined): boolean {
+  if (!reason) return false;
+  const parts = reason.split('+').map((p) => p.trim()).filter((p) => p.length > 0);
+  return parts.length > 0 && parts.every((p) => p.startsWith('safety:'));
 }
 
 /**
@@ -179,32 +195,36 @@ export function evaluateQualityGate(
     const row = byKey.get(key);
     const currentHash = currentHashes.get(key) ?? null;
 
-    // (release c-ii, Gate 1) A human FALSE-POSITIVE release, BOUND to the current delivered bytes, makes THIS artifact
-    // admissible (passed-equivalent for the aggregate) WITHOUT mutating the immutable verdict/reason. Placed FIRST —
-    // BEFORE the safety hard-hold below — because after a release the reason STILL reads `safety:<hazards>` (the
-    // finding is never deleted), so it must be cleared here on the byte-bound override, not by touching the reason.
-    // Inert by default: no row has safetyOverride until a release action sets it → byte-identical to today.
-    if (row && isSafetyEvidenceReleased(row, currentHash)) {
-      perArtifact[key] = { state: 'safety_released', verdict: row.verdict, overrideSha256: row.safetyOverrideSha256 };
-      continue; // skip the safety hard-hold AND the failed/unknown classification — the artifact is cleared
-    }
-
-    // (Fix 3) A `safety:` tag hard-holds on ANY row REGARDLESS of verdict / hash / version — a known hazard or an
-    // unconfirmed-safe image survives every downgrade (failed→evidence_unknown on a hash miss, a stale-version row)
-    // and can NEVER be soft-delivered. Checked BEFORE the admissibility `continue`s below.
-    if (row?.reason?.includes('safety:')) noteHardHold('safety');
-
     if (!row) {
       unknownArtifacts.push(key);
       perArtifact[key] = { state: 'missing' };
       continue;
     }
-    if (row.evaluatorContractVersion !== contractVersion) {
+
+    // (release c-ii, Gate 1) ADMISSIBILITY first — a false-positive release may clear ONLY the safety hold, and ONLY
+    // on otherwise-admissible evidence: never certifying a stale evaluator version, wrong bytes, or a superseded
+    // contract. Compute the admissibility flags here so `released` can compose them, then classify below. This is the
+    // SAME composition quality-recovery uses (its admissible-failed branch) — gate and recovery release at one point.
+    const staleVersion = row.evaluatorContractVersion !== contractVersion;
+    const hashMismatch = !currentHash || row.assetSha256 !== currentHash;
+    const contractStale = isQualityEvidenceContractStale(row.contractHash, opts.activeContractHash);
+    // A byte-bound release, honored only on admissible evidence. It suppresses ONLY the safety hard-hold — never
+    // contract_world (§4). "Cleared" additionally requires the failure be SAFETY-ONLY (the verdict branch below).
+    const released = !staleVersion && !hashMismatch && !contractStale && isSafetyEvidenceReleased(row, currentHash);
+
+    // (Fix 3, PRESERVED) A `safety:` tag hard-holds REGARDLESS of admissibility — a hash-missed / stale-version safety
+    // finding can NEVER be soft-delivered (resolveReadinessDeliveryPlan ships a blocked + !contractHardHold book when
+    // QA_SOFT_DELIVER is on) — UNLESS a byte-bound ADMISSIBLE release suppresses it. Kept BEFORE the admissibility
+    // `continue`s DELIBERATELY: the brief's illustrative shape put it after, which would drop the hard-hold on an
+    // inadmissible safety row and open exactly that soft-deliver hole. contract_world is handled in the failed branch.
+    if (row.reason?.includes('safety:') && !released) noteHardHold('safety');
+
+    if (staleVersion) {
       unknownArtifacts.push(key);
       perArtifact[key] = { state: 'stale_version', have: row.evaluatorContractVersion, want: contractVersion };
       continue;
     }
-    if (!currentHash || row.assetSha256 !== currentHash) {
+    if (hashMismatch) {
       unknownArtifacts.push(key);
       perArtifact[key] = { state: 'hash_mismatch', evidenceHash: row.assetSha256, currentHash };
       continue;
@@ -212,7 +232,7 @@ export function evaluateQualityGate(
     // (WS0b) A row produced against a superseded contract is inadmissible → re-QA (never a stale PASS). Fail-closed
     // by default: an absent `activeContractHash` treats any hash-bound row as stale (phantom contract). null/null
     // (no contract frozen — today) → NOT stale → behavior byte-identical.
-    if (isQualityEvidenceContractStale(row.contractHash, opts.activeContractHash)) {
+    if (contractStale) {
       unknownArtifacts.push(key);
       perArtifact[key] = {
         state: 'contract_stale',
@@ -226,8 +246,14 @@ export function evaluateQualityGate(
       continue;
     }
     if (row.verdict === 'failed') {
+      // A `failed` row clears ONLY when the release is bound (⇒ admissible) AND the failure is SAFETY-ONLY. A mixed
+      // `safety:…+contract_world:…` reason must STILL hold — it falls through to the contract_world hard-hold below.
+      if (released && isSafetyOnlyReason(row.reason)) {
+        perArtifact[key] = { state: 'safety_released', verdict: row.verdict, overrideSha256: row.safetyOverrideSha256 };
+        continue;
+      }
       // (Slice A) A deterministic contract-world drift must HARD-hold regardless of budget state (soft-deliver
-      // exemption). Safety is already handled ABOVE for every verdict (Fix 3), so only contract_world here.
+      // exemption) and is NEVER released. Safety is handled ABOVE (Fix 3), so only contract_world here.
       if (row.reason?.includes('contract_world:')) noteHardHold('contract_world');
       if (row.regenCount >= budget) {
         failedArtifacts.push(key);

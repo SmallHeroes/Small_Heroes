@@ -25,6 +25,7 @@ import {
   pageNumberFromArtifactKey,
   readActiveVisualContractHash,
   isSafetyEvidenceReleased,
+  isSafetyOnlyReason,
   type HardHoldKind,
 } from './quality-evidence';
 import { isQualityEvidenceContractStale } from './quality-check-result';
@@ -171,11 +172,13 @@ export async function reQaUnknownQualityEvidence(
       // reserve/regen-rescue never runs → a genuinely failing page ships. Route it to the rescue with its durable
       // regenCount (the processor reserves → clears → redrives, or refunds at budget). An admissible PASS is done.
       if (row!.verdict === 'failed') {
-        // (release c-ii) A byte-bound false-positive release CLEARS this artifact — evaluateQualityGate does exactly
-        // the same via isSafetyEvidenceReleased, so recovery MUST agree here or the two loop forever (gate ships,
-        // recovery re-parks). Checked BEFORE isHardHoldParkReason, because the reason still reads `safety:` after a
-        // release (the finding is never deleted). Not a park, not a rescue, not a refund — cleared.
-        if (isSafetyEvidenceReleased(row!, currentHash)) result.nowPassed.push(art.artifactKey);
+        // (release c-ii) A byte-bound, SAFETY-ONLY false-positive release CLEARS this artifact — evaluateQualityGate
+        // clears on the IDENTICAL composition (admissible → isSafetyEvidenceReleased && isSafetyOnlyReason), so
+        // recovery MUST agree here or the two loop forever (gate ships, recovery re-parks). This branch is already the
+        // ADMISSIBLE-failed path, matching the gate's admissibility. A mixed safety:+contract_world: reason is NOT
+        // safety-only → falls through to the contract_world park below. Checked before isHardHoldParkReason because the
+        // reason still reads `safety:` after a release (the finding is never deleted). Not a park/rescue/refund.
+        if (isSafetyEvidenceReleased(row!, currentHash) && isSafetyOnlyReason(row!.reason)) result.nowPassed.push(art.artifactKey);
         // (Slice A / Stage 1) A contract-world drift OR a physical-safety hazard is a TERMINAL human-QA PARK — never
         // route it to the regen-rescue (no reserve/clear/redrive, no refund). It converges to needs_human_qa.
         else if (isHardHoldParkReason(row!.reason)) notePark(art.artifactKey, row!.reason);
