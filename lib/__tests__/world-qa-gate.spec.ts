@@ -278,7 +278,7 @@ describe('evaluateQualityGate — contractHardHold', () => {
   const row = (over: Partial<QualityEvidenceRow>): QualityEvidenceRow => ({
     artifactKey: 'page:5', assetSha256: 'sha5', verdict: 'failed',
     evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, reason: 'contract_world:wrong_zone',
-    regenCount: 2, contractHash: null, ...over,
+    regenCount: 2, contractHash: null, safetyOverride: false, safetyOverrideSha256: null, ...over,
   });
   const hashes = new Map([['page:5', 'sha5']]);
 

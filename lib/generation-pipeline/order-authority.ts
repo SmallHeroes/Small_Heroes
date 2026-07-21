@@ -43,6 +43,32 @@ export function isDeliveryTerminalHold(reason: string | null | undefined): boole
 export const TERMINAL_HOLD_NOT_LIKE_SQL = Prisma.sql`("deliveryHoldReason" IS NULL
        OR ("deliveryHoldReason" NOT LIKE 'safety_hold:%' AND "deliveryHoldReason" NOT LIKE 'contract_world_hold:%' AND "deliveryHoldReason" NOT LIKE 'quarantine_cutover:%' AND "deliveryHoldReason" NOT LIKE 'manual_resolution_hold:%'))`;
 
+/**
+ * (release-as-readiness-mode, 2a-0) The marker a FALSE-POSITIVE safety release stamps IN PLACE of the original
+ * `safety_hold:hazard:<detail>` — the intermediate that lets the ship CAS proceed (safety_hold: is terminal; this is
+ * not). It is DELIVERABLE **by explicit declaration, not by absence** from the terminal blocklist above: the
+ * `isDeliveryTerminalHold`/`TERMINAL_HOLD_NOT_LIKE_SQL` set MUST NOT list `qa_released:`, and the guard test asserts
+ * exactly that + that a prefix TYPO is not silently accepted. It stays markerRank 1 so a genuinely new safety hazard
+ * on a later render can still escalate over it (a released false positive never suppresses a real one).
+ */
+export const QA_RELEASED_SAFETY_PREFIX = 'qa_released:safety:';
+
+/** Build the released marker from the original `safety_hold:hazard:<detail>` — the detail is preserved for audit
+ *  (`qa_released:safety:hazard:page:4:…`). Throws if handed something that is not a safety hazard marker, so this can
+ *  never mint a released marker for an unverified / non-safety hold. */
+export function qaReleasedSafetyMarker(originalSafetyMarker: string): string {
+  if (!originalSafetyMarker.startsWith('safety_hold:hazard:')) {
+    throw new Error(`[order-authority] qaReleasedSafetyMarker: not a safety hazard marker: ${originalSafetyMarker}`);
+  }
+  return `${QA_RELEASED_SAFETY_PREFIX}${originalSafetyMarker.slice('safety_hold:'.length)}`;
+}
+
+/** Recognise a canonical released marker. A prefix TYPO (e.g. `qa_relesed:`) returns false — it is never silently
+ *  treated as a released state (an unrecognised marker is the silent-un-hold failure this declaration exists to close). */
+export function isQaReleasedSafetyMarker(reason: string | null | undefined): boolean {
+  return (reason ?? '').startsWith(QA_RELEASED_SAFETY_PREFIX);
+}
+
 /** SQL for the CURRENT row's marker rank — the precedence guard compares against the incoming marker's rank. */
 const CURRENT_RANK_SQL = Prisma.sql`(CASE
   WHEN "deliveryHoldReason" LIKE 'safety_hold:%' THEN 3

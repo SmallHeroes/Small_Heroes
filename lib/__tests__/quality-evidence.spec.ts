@@ -24,6 +24,8 @@ function row(overrides: Partial<QualityEvidenceRow> & { artifactKey: string }): 
     reason: null,
     regenCount: 0,
     contractHash: null,
+    safetyOverride: false,
+    safetyOverrideSha256: null,
     ...overrides,
   };
 }
@@ -209,6 +211,21 @@ describe('(WS0b) evaluateQualityGate — contract staleness (contract_stale → 
     // instead of committing the stale-contract row as PASS.
     const atCommit = [row({ artifactKey: 'cover', assetSha256: 'h1', verdict: 'passed', contractHash: 'v2' })];
     expect(qualityEvidenceFingerprint(atEval)).not.toBe(qualityEvidenceFingerprint(atCommit));
+  });
+
+  it('(release c-ii, 2a-0 §5) the OVERRIDE columns are in the fingerprint — clearing an override between eval and commit drifts the TOCTOU', () => {
+    // The anti-bypass hole this closes: a manifest computed while a release override stood must NOT commit after the
+    // override was cleared (persistQualityEvidence on fresh evidence, P1b). Every other field identical → only the
+    // override differs → the fingerprint MUST drift so the readiness commit aborts + re-evaluates.
+    const released = [row({ artifactKey: 'page:4', assetSha256: 'h1', verdict: 'failed', reason: 'safety:unsafe_pose', safetyOverride: true, safetyOverrideSha256: 'h1' })];
+    const cleared = [row({ artifactKey: 'page:4', assetSha256: 'h1', verdict: 'failed', reason: 'safety:unsafe_pose', safetyOverride: false, safetyOverrideSha256: null })];
+    expect(qualityEvidenceFingerprint(released)).not.toBe(qualityEvidenceFingerprint(cleared));
+    // The bound SHA is part of it too: re-pointing an override at different bytes drifts the fingerprint.
+    const otherBytes = [row({ artifactKey: 'page:4', assetSha256: 'h1', verdict: 'failed', reason: 'safety:unsafe_pose', safetyOverride: true, safetyOverrideSha256: 'h2' })];
+    expect(qualityEvidenceFingerprint(released)).not.toBe(qualityEvidenceFingerprint(otherBytes));
+    // Inert by default: no override anywhere → a constant → byte-identical eval-vs-commit (today's behaviour).
+    const noRelease = () => [row({ artifactKey: 'page:4', assetSha256: 'h1', verdict: 'passed' })];
+    expect(qualityEvidenceFingerprint(noRelease())).toBe(qualityEvidenceFingerprint(noRelease()));
   });
 });
 

@@ -73,6 +73,14 @@ export interface QualityEvidenceRow {
   regenCount: number;
   /** (WS0b) The contract this row was produced against; a mismatch vs the Order's active contract → stale. */
   contractHash: string | null;
+  /**
+   * (release c-ii) The Gate-1 false-positive override + the delivered-bytes SHA it binds to. Read by the Gate-1
+   * override branch (evaluateQualityGate) and — critically — folded into qualityEvidenceFingerprint so that CLEARING
+   * an override (persistQualityEvidence on fresh evidence, P1b) DRIFTS the readiness TOCTOU fingerprint. Without that,
+   * a manifest computed while an override stood could commit AFTER the override was cleared → ship an un-QA'd image.
+   */
+  safetyOverride: boolean;
+  safetyOverrideSha256: string | null;
 }
 
 /** Current delivered-bytes hash per artifact, from the integrity gate's `inspect` (the source of truth). */
@@ -230,6 +238,11 @@ export function qualityEvidenceFingerprint(rows: QualityEvidenceRow[]): string {
     // otherwise-identical row must DRIFT the TOCTOU fingerprint → readiness aborts + re-evaluates, never commits a
     // stale-contract row as PASS. null everywhere (freeze off) → a constant → byte-identical eval-vs-commit.
     r.contractHash,
+    // (release c-ii) The override IS part of the fingerprint for the SAME anti-bypass reason: a concurrent
+    // override-clear (or set) between the readiness eval and its commit must drift the TOCTOU so the commit aborts +
+    // re-evaluates. false/null everywhere (no release) → a constant → byte-identical to today.
+    r.safetyOverride,
+    r.safetyOverrideSha256,
   ]);
   return JSON.stringify(canonical);
 }
@@ -314,6 +327,8 @@ export async function loadQualityEvidence(db: Db, orderId: string): Promise<Qual
       reason: true,
       regenCount: true,
       contractHash: true,
+      safetyOverride: true,
+      safetyOverrideSha256: true,
     },
   });
   return rows;
