@@ -1160,7 +1160,10 @@ export async function describeChildFromPhoto(photoUrl: string): Promise<string |
       method: 'POST',
       headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        // (render-loop Phase 1, section 8) Parameterize the Anthropic vision model so ops can point at a working
+        // model without a deploy — the hardcoded id 404s on every photo-vision call, wasting a round-trip before the
+        // OpenAI fallback. A NEW var (not CHILD_PHOTO_VISION_MODEL, which names the OpenAI/gpt-4o fallback model).
+        model: process.env.CHILD_PHOTO_VISION_ANTHROPIC_MODEL?.trim() || 'claude-sonnet-4-20250514',
         max_tokens: 400,
         temperature: 0.2,
         system: systemPrompt,
