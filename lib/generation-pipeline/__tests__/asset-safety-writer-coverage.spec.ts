@@ -124,13 +124,20 @@ function violationsFromSource(relative: string, text: string): Violation[] {
   return out;
 }
 
-/** The sole sanctioned inline writer of a safety-signal column: the phase-2 content-SHA advance. */
+/**
+ * The sole sanctioned inline writer of safety-signal columns: asset-safety-writer.ts, and ONLY the non-detector
+ * columns — the phase-2 content SHA (bind*SafetySha) and the operator-release override (writeSafetyReleaseOverride).
+ * The DETECTOR fields (safetyVerified / safetyHazards + cover twins) are NOT in the allow-set, so a detector-field
+ * write EVEN IN THIS FILE fails the build — that is what keeps the allowance from widening into a bypass.
+ */
+const SANCTIONED_WRITER_FIELDS: Record<string, Set<string>> = {
+  imageAsset: new Set(['safetyContentSha256', 'safetyOverriddenHazards', 'safetyOverrideSha256']),
+  generatedBook: new Set(['coverSafetyContentSha256', 'coverSafetyOverriddenHazards', 'coverSafetyOverrideSha256']),
+};
 function isSanctionedShaBind(v: Violation): boolean {
-  return (
-    v.relative === 'lib/generation-pipeline/asset-safety-writer.ts' &&
-    ((v.model === 'imageAsset' && v.fields.length === 1 && v.fields[0] === 'safetyContentSha256') ||
-      (v.model === 'generatedBook' && v.fields.length === 1 && v.fields[0] === 'coverSafetyContentSha256'))
-  );
+  if (v.relative !== 'lib/generation-pipeline/asset-safety-writer.ts') return false;
+  const allowed = SANCTIONED_WRITER_FIELDS[v.model];
+  return !!allowed && v.fields.length > 0 && v.fields.every((f) => allowed.has(f));
 }
 
 describe('asset safety-signal writer coverage — the detector finding flows ONLY through the field-builders', () => {
@@ -179,5 +186,20 @@ describe('asset safety-signal writer coverage — the detector finding flows ONL
       'imageAsset { safetyContentSha256 }',
     ]);
     expect(isSanctionedShaBind({ relative: 'lib/generation-pipeline/asset-safety-writer.ts', line: 1, model: 'imageAsset', fields: ['safetyContentSha256'] })).toBe(true);
+  });
+
+  it('(2a-2 §6 constraint 4) the writer allowance covers the override columns but NEVER the detector fields — a detector write IN the writer still fails', () => {
+    const WRITER = 'lib/generation-pipeline/asset-safety-writer.ts';
+    // sanctioned: the phase-2 SHA bind + the release override columns, in the writer file
+    expect(isSanctionedShaBind({ relative: WRITER, line: 1, model: 'imageAsset', fields: ['safetyOverrideSha256', 'safetyOverriddenHazards'] })).toBe(true);
+    expect(isSanctionedShaBind({ relative: WRITER, line: 1, model: 'generatedBook', fields: ['coverSafetyOverrideSha256', 'coverSafetyOverriddenHazards'] })).toBe(true);
+    // NEVER a detector field, even in the writer — the guard still fails the build
+    expect(isSanctionedShaBind({ relative: WRITER, line: 1, model: 'imageAsset', fields: ['safetyVerified'] })).toBe(false);
+    expect(isSanctionedShaBind({ relative: WRITER, line: 1, model: 'imageAsset', fields: ['safetyHazards', 'safetyOverrideSha256'] })).toBe(false);
+    expect(isSanctionedShaBind({ relative: WRITER, line: 1, model: 'generatedBook', fields: ['coverSafetyHazards'] })).toBe(false);
+    // the allowance is file-scoped — another file writing the override columns is NOT sanctioned
+    expect(isSanctionedShaBind({ relative: 'lib/foo.ts', line: 1, model: 'imageAsset', fields: ['safetyOverrideSha256'] })).toBe(false);
+    // and the real writer actually contains the sanctioned override write (guard is not vacuous)
+    expect(readFileSync(path.join(ROOT, WRITER), 'utf8')).toContain('writeSafetyReleaseOverride');
   });
 });

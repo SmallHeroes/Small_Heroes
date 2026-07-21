@@ -42,6 +42,7 @@ import {
 import type { AnchorLowConfidence } from '@/lib/anchor-resemblance-gate';
 import { runAtomicOperation, hashOperationPayload, type AtomicOperationDeps, type ReceiptSafeValue } from './atomic-operation';
 import { writeOrderHoldFenced, executeReadinessShipCas } from './order-authority';
+import { applyReleaseInTx, projectReleaseOntoQuality, ReleaseAdmissibilityError, type SafetyReleaseRequest, type ReleaseRuntime, type ReleaseApplied } from './safety-release';
 import { createLogger } from '@/lib/logger';
 import type { FrozenStoryProductTruth } from './frozen-product-truth';
 import {
@@ -347,6 +348,14 @@ export interface CommitArgs {
    * → the caller returns a typed 409, nothing ships. Callers that OMIT this are byte-unchanged.
    */
   requireHold?: { deliveryHoldReason: string };
+  /**
+   * (release-as-readiness-mode, 2a-2) An operator FALSE-POSITIVE safety release. When set, commitBaseBookReadiness
+   * runs the release MODE: the Gate-1 override is PROJECTED onto a copy of the quality rows so the decision passes
+   * (the fingerprint stays raw), and INSIDE the tx `applyReleaseInTx` re-checks admissibility on RAW data (authority),
+   * writes both gate overrides, transitions the marker safety_hold:hazard: → qa_released:safety:, closes the safety
+   * case, and audits — all-or-nothing with the ship. Undefined → not one line of this runs (structural inertness).
+   */
+  release?: SafetyReleaseRequest;
 }
 
 /**
@@ -760,14 +769,35 @@ async function nextRevision(tx: Tx, orderId: string, scope: string): Promise<num
 // (runReadinessTxn) and re-exported here for existing importers (package-delivery, the PG harness, tests).
 export { executeReadinessShipCas };
 
-async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, decision: ReadinessDecision, now: Date): Promise<CommitResult> {
+async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, decision: ReadinessDecision, now: Date, release?: ReleaseRuntime): Promise<CommitResult> {
   // (0) TOCTOU guard — the assets/text/frozen/QUALITY-EVIDENCE must not have changed between the (out-of-tx)
-  // eval and now (the fingerprint folds in the quality evidence, so a re-QA between eval and commit drifts it).
+  // eval and now (the fingerprint folds in the quality evidence, so a re-QA between eval and commit drifts it). The
+  // fingerprint is RAW (no projected override), so this still catches any genuine concurrent input change.
   const inTx = await loadCommitInputs(tx, args.orderId);
   if (!inTx || inTx.fingerprint !== loaded.fingerprint) throw new Error(TOCTOU);
 
+  // (release-as-readiness-mode, 2a-2) The AUTHORITY. Re-check admissibility on RAW in-tx data and, only if it passes,
+  // write both overrides + transition the marker + close the case + audit — all BEFORE the manifest/ship below, so a
+  // ReleaseAdmissibilityError (or a lost transition CAS) rolls the WHOLE release back (nothing written, no audit).
+  // The transition bumps the fence F → F+1; every downstream CAS binds the post-transition fence.
+  let releaseApplied: ReleaseApplied | null = null;
+  if (release) {
+    // A release COMMITS only if it SHIPS. If the projected decision does not pass — the target is not a releasable
+    // safety hold, or ANOTHER artifact still blocks — refuse and roll back; never a partial release (override/marker
+    // moved while the book stays held). This is checked before applyReleaseInTx writes anything.
+    if (decision.status !== 'passed') {
+      throw new ReleaseAdmissibilityError('not_safety_hard_hold', `readiness would not pass: ${decision.reason ?? 'blocked'}`);
+    }
+    releaseApplied = await applyReleaseInTx(tx, release);
+  }
+
   const { order, book } = loaded;
   const scope = BASE_BOOK_SCOPE;
+  // (§5 fence threading) the release transition bumped the fence F → F+1, so the ship CAS + every Outbox enqueue MUST
+  // bind the POST-transition fence, and the ship CAS must require the transitioned qa_released marker. No release →
+  // the load-time fence + the (anchor) requireHold, byte-identical to today.
+  const deliveryFenceVersion = releaseApplied ? releaseApplied.postFence : order.deliveryFenceVersion;
+  const requireHoldReason = releaseApplied ? releaseApplied.releasedMarker : (args.requireHold?.deliveryHoldReason ?? null);
   const revision = await nextRevision(tx, order.id, scope);
 
   // (1) IMMUTABLE manifest — terminal INSERT (throws P2002 on a concurrent same-revision insert). A BLOCKED
@@ -866,7 +896,7 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
       fulfillmentVersion: order.fulfillmentVersion,
       manifestId: manifest.id,
       inputVersion: order.inputVersion,
-      deliveryFenceVersion: order.deliveryFenceVersion,
+      deliveryFenceVersion,
       payload: buildPayload(payloadSourceOf(order, book), qaWarnings),
       now,
     });
@@ -875,7 +905,7 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
     deliveryHoldReason = plan.deliveryHoldReason;
   } else if (plan.enqueued && decision.status === 'passed' && args.anchorAllowsDelivery) {
     // (3) enqueue the delivery IN the same transaction (enqueue != send), then (4) mark the order ready.
-    await enqueueDelivery(tx, { orderId: order.id, scope, fulfillmentVersion: order.fulfillmentVersion, manifestId: manifest.id, inputVersion: order.inputVersion, deliveryFenceVersion: order.deliveryFenceVersion, payload: buildPayload(payloadSourceOf(order, book)), now });
+    await enqueueDelivery(tx, { orderId: order.id, scope, fulfillmentVersion: order.fulfillmentVersion, manifestId: manifest.id, inputVersion: order.inputVersion, deliveryFenceVersion, payload: buildPayload(payloadSourceOf(order, book)), now });
     enqueued = true; orderStatus = 'ready'; deliveryHoldReason = null;
   } else if (plan.usesSoftDeliver && decision.status === 'passed' && !args.anchorAllowsDelivery) {
     qaWarnings = buildQaWarningsFromAnchorHold(args.anchorLowConfidence ?? null, args.anchorReason);
@@ -885,7 +915,7 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
       fulfillmentVersion: order.fulfillmentVersion,
       manifestId: manifest.id,
       inputVersion: order.inputVersion,
-      deliveryFenceVersion: order.deliveryFenceVersion,
+      deliveryFenceVersion,
       payload: buildPayload(payloadSourceOf(order, book), qaWarnings),
       now,
     });
@@ -908,9 +938,9 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
     const shipped = await executeReadinessShipCas(tx, {
       orderId: order.id,
       inputVersion: order.inputVersion,
-      deliveryFenceVersion: order.deliveryFenceVersion,
+      deliveryFenceVersion,
       deliveryHoldReason,
-      requireHoldReason: args.requireHold?.deliveryHoldReason ?? null,
+      requireHoldReason,
     });
     if (shipped === 0) {
       // Distinguish a genuine inputVersion drift (→ retry FRESH) from a competing hold (→ NEVER retry into a ship).
@@ -922,9 +952,10 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
       const actual = cur
         ? { status: cur.status, deliveryHoldReason: cur.deliveryHoldReason, manualReviewRequired: cur.manualReviewRequired, deliveryFenceVersion: cur.deliveryFenceVersion }
         : null;
-      // A competing hold blocked the ship. requireHold (admin) → typed 409; normal path → held CommitResult (below).
-      if (args.requireHold) {
-        throw new ReleasePreconditionError(args.requireHold.deliveryHoldReason, actual);
+      // A competing hold blocked the ship. requireHold (anchor admin) OR a release (2a-2) → typed 409, and for a
+      // release the whole tx (override + transition + case + audit) rolls back with it; normal path → held (below).
+      if (args.requireHold || releaseApplied) {
+        throw new ReleasePreconditionError(requireHoldReason ?? '', actual);
       }
       throw new DeliveryFenceError(order.id, actual);
     }
@@ -978,7 +1009,21 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
     // (WS0b) Thread the Order's active contract so a QualityEvidence row bound to a superseded contract is re-QA'd
     // (contract_stale → evidence_unknown). null (no contract frozen) → isQualityEvidenceContractStale(null,null) is
     // false → byte-identical to today. This is the ONLY caller that threads activeContractHash.
-    const quality = evaluateQualityGate(requiredKeys, loaded.quality, currentArtifactHashes(result), {
+    // (release-as-readiness-mode, 2a-2) PROJECTION: apply the operator's override to a COPY of exactly one quality row
+    // so Gate 1 evaluates the intended release. `loaded.quality` (and thus the raw TOCTOU fingerprint) is untouched.
+    // This projection is NOT the authority — applyReleaseInTx re-checks admissibility on RAW data inside the tx.
+    const releaseRuntime: ReleaseRuntime | undefined = args.release
+      ? {
+          orderId: args.orderId,
+          request: args.release,
+          currentHash: currentArtifactHashes(result).get(args.release.artifactKey) ?? null,
+          observedFence: loaded.order.deliveryFenceVersion,
+          observedInputVersion: loaded.order.inputVersion,
+          activeContractHash: loaded.order.visualContractHash,
+        }
+      : undefined;
+    const projectedQuality = args.release ? projectReleaseOntoQuality(loaded.quality, args.release) : loaded.quality;
+    const quality = evaluateQualityGate(requiredKeys, projectedQuality, currentArtifactHashes(result), {
       activeContractHash: loaded.order.visualContractHash,
     });
     const decision = decideReadiness(result, quality);
@@ -988,7 +1033,12 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
       // retry reloads FRESH → different inputVersion/inputsHash → a NEW key (correct: genuinely different inputs);
       // an ambiguous commit (P2028 after the tx committed) replays the recorded CommitResult → EXACTLY ONE
       // Manifest + ONE Outbox binding, never a duplicate. The receipt commits atomically with the manifest/outbox.
-      if (isReadinessManifestEnabled()) {
+      // (release-as-readiness-mode, 2a-2) A release DELIBERATELY bypasses the readiness receipt: its idempotency is the
+      // marker CAS (a replay finds the marker at qa_released → refused), NOT a receipt keyed on the load-time fence
+      // (which the transition bumps → a replay would mint a different key anyway). Bypassing means a concurrent
+      // duplicate re-runs the CAS and is refused, never replayed-as-success (decision §2/§3). Every OTHER commit keeps
+      // the receipt fence unchanged.
+      if (isReadinessManifestEnabled() && !args.release) {
         const softDeliver = canUseQaSoftDeliver();
         const receipt = buildReadinessCommitReceiptBinding(
           args,
@@ -1004,12 +1054,15 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
             orderId: args.orderId,
             kind: 'readiness_commit',
             payloadHash: receipt.payloadHash,
-            run: (tx) => runReadinessTxn(tx, args, loaded, decision, now),
+            run: (tx) => runReadinessTxn(tx, args, loaded, decision, now, releaseRuntime),
           },
           deps.atomic,
         );
       }
-      return await prisma.$transaction((tx) => runReadinessTxn(tx, args, loaded, decision, now));
+      // (release-as-readiness-mode) The release mode does more work in-tx (admissibility reads + both overrides +
+      // transition + case close + audit + ship). A co-located prod DB commits it in well under a second; the wider
+      // timeout guards the pathological / high-latency case without affecting the (receipt-fenced) normal path.
+      return await prisma.$transaction((tx) => runReadinessTxn(tx, args, loaded, decision, now, releaseRuntime), args.release ? { timeout: 20_000, maxWait: 10_000 } : undefined);
     } catch (e) {
       if ((isToctou(e) || isRevisionCollision(e)) && attempt < 5) {
         log.warn('Readiness commit retry', { orderId: args.orderId, attempt, reason: isToctou(e) ? 'toctou_drift' : 'revision_collision' });

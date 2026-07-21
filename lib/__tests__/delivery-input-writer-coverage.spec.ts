@@ -229,22 +229,30 @@ function isExplicitReconciliationFulfillmentRoll(site: WriterSite): boolean {
 }
 
 /**
- * (release shape C) The PHASE-2 safety-SHA second write (asset-safety-writer.ts) is the ONE sanctioned
- * ImageAsset/GeneratedBook writer that runs OUTSIDE the delivery-input barrier — by design: inspectAsset must not run
- * in the tx that holds the Order row lock (§4). It is a CAS `updateMany` that advances ONLY the content SHA
- * (safetyContentSha256 / coverSafetyContentSha256) from null → the inspected hash; it never writes a delivery input
- * nor the detector's finding, so it cannot leave a stale override (phase 1 already reset it). Tightly scoped: the
- * exact file, updateMany, and a single content-SHA field. (The complementary guard that the DETECTOR fields only ever
- * flow through the field-builders is asset-safety-writer-coverage.spec.ts.)
+ * (release shape C + 2a-2) asset-safety-writer.ts is the ONE sanctioned ImageAsset/GeneratedBook writer that runs
+ * OUTSIDE the delivery-input barrier — by design: the phase-2 SHA bind must not `inspectAsset` inside the Order-lock
+ * tx, and the release override writes inside the READINESS tx, not this barrier. TWO tightly-scoped shapes, both in
+ * that exact file, both writing ONLY non-delivery-input, non-detector safety columns:
+ *   • phase-2 SHA bind — `updateMany`, the single content SHA (safetyContentSha256 / coverSafetyContentSha256);
+ *   • release override — `update`, ONLY the override columns (safety{,cover}OverriddenHazards + OverrideSha256).
+ * A detector-field (safetyVerified / safetyHazards) write is NOT covered here either — the complementary guard
+ * asset-safety-writer-coverage.spec.ts forces every detector write through the field-builders.
  */
-function isSafetyShaBindWrite(site: WriterSite): boolean {
-  return (
-    site.relative === 'lib/generation-pipeline/asset-safety-writer.ts' &&
-    site.method === 'updateMany' &&
-    site.dataFields?.length === 1 &&
-    ((site.model === 'imageAsset' && site.dataFields[0] === 'safetyContentSha256') ||
-      (site.model === 'generatedBook' && site.dataFields[0] === 'coverSafetyContentSha256'))
-  );
+const SAFETY_WRITER_OVERRIDE_FIELDS: Record<string, Set<string>> = {
+  imageAsset: new Set(['safetyOverriddenHazards', 'safetyOverrideSha256']),
+  generatedBook: new Set(['coverSafetyOverriddenHazards', 'coverSafetyOverrideSha256']),
+};
+const SAFETY_WRITER_CONTENT_SHA: Record<string, string> = {
+  imageAsset: 'safetyContentSha256',
+  generatedBook: 'coverSafetyContentSha256',
+};
+function isSanctionedSafetyWriterWrite(site: WriterSite): boolean {
+  if (site.relative !== 'lib/generation-pipeline/asset-safety-writer.ts' || !site.dataFields) return false;
+  if (site.model !== 'imageAsset' && site.model !== 'generatedBook') return false;
+  if (site.method === 'updateMany' && site.dataFields.length === 1 && site.dataFields[0] === SAFETY_WRITER_CONTENT_SHA[site.model]) return true;
+  const override = SAFETY_WRITER_OVERRIDE_FIELDS[site.model];
+  if (site.method === 'update' && site.dataFields.length > 0 && site.dataFields.every((f) => override.has(f))) return true;
+  return false;
 }
 
 function hasFlagOnDevWriteGuard(relative: string): boolean {
@@ -289,7 +297,7 @@ describe('P1-f #5 delivery-input writer coverage', () => {
         !isOrderCreationException(site) &&
         !isReadinessCommitOrderStateWrite(site) &&
         !isExplicitReconciliationFulfillmentRoll(site) &&
-        !isSafetyShaBindWrite(site) &&
+        !isSanctionedSafetyWriterWrite(site) &&
         !hasFlagOnDevWriteGuard(site.relative),
     );
     expect(

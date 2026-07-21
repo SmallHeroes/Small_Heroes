@@ -188,3 +188,35 @@ export async function executeAnchorReleaseCas(
             AND c."kind" IN ('safety', 'contract_world', 'payment_integrity')
        )`;
 }
+
+/**
+ * (release-as-readiness-mode, 2a-2) The ONE sanctioned rank-3→lower marker transition — a human FALSE-POSITIVE safety
+ * release, and nothing else. A release must move `safety_hold:hazard:` (terminal, rank 3) to a non-terminal
+ * `qa_released:safety:` so the ship CAS may proceed; `writeOrderHoldFenced`'s precedence guard REFUSES that downgrade
+ * by design (which is what makes a safety hold sticky). This is authorised NOT by precedence but by the EXACT current
+ * marker + the observed fence + `status='needs_human_qa'` — the operator acted on THIS marker at THIS fence.
+ *
+ * It NEVER sets `status='ready'` (commitBaseBookReadiness's ship CAS independently owns that, and both gates must
+ * still agree); it only moves the marker and BUMPS the fence (so downstream must bind the post-transition fence). It
+ * is NOT a general downgradeMarker: a new AST guard (safety-release-transition-caller.spec) enforces that ONLY the
+ * release mode references it. Returns rows updated: 1 = transitioned; 0 = the marker moved / fence bumped / no longer
+ * held under the lock — the CAS is itself the release's idempotency (a replay matches 0 rows).
+ */
+export async function executeSafetyFalsePositiveReleaseTransition(
+  db: Db,
+  p: { orderId: string; expectedMarker: string; observedFence: number; releasedMarker: string },
+): Promise<number> {
+  if (!p.expectedMarker.startsWith('safety_hold:hazard:')) {
+    throw new Error(`[order-authority] release transition: not a safety hazard marker: ${p.expectedMarker}`);
+  }
+  if (!isQaReleasedSafetyMarker(p.releasedMarker)) {
+    throw new Error(`[order-authority] release transition: released marker must be qa_released:safety:, got: ${p.releasedMarker}`);
+  }
+  return db.$executeRaw`
+    UPDATE "Order"
+       SET "deliveryHoldReason" = ${p.releasedMarker}, "deliveryFenceVersion" = "deliveryFenceVersion" + 1
+     WHERE "id" = ${p.orderId}
+       AND "status" = 'needs_human_qa'
+       AND "deliveryHoldReason" = ${p.expectedMarker}
+       AND "deliveryFenceVersion" = ${p.observedFence}`;
+}

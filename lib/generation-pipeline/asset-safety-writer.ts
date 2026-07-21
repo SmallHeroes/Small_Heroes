@@ -20,7 +20,7 @@
  * Always-on: Gate 2 is readiness-INDEPENDENT, and single-page-image-regen binds a SHA without ever calling the
  * flag-gated persistDeliveredQualityEvidence — so this must never depend on that producer.
  */
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 import { SAFETY_SHA256_RE } from './asset-safety-signal';
 
 export interface SafetyShaBindResult {
@@ -61,4 +61,48 @@ export async function bindCoverSafetySha(
     data: { coverSafetyContentSha256: args.sha256 },
   });
   return count === 1 ? { bound: true } : { bound: false, reason: 'cas_miss' };
+}
+
+/**
+ * (release-as-readiness-mode, 2a-2) The SINGLE sanctioned writer of an operator FALSE-POSITIVE release override —
+ * BOTH gates, in the caller's (readiness) transaction. It writes ONLY the override columns:
+ *   • Gate 2 (readiness-INDEPENDENT): ImageAsset.safetyOverriddenHazards + safetyOverrideSha256 (page) or the cover
+ *     twins on GeneratedBook — so a future re-package honours the release (isSafetyHazardOverridden).
+ *   • Gate 1: QualityEvidence.safetyOverride + safetyOverrideSha256 — so the readiness gate reads it as released.
+ * It NEVER touches the detector's finding (safetyVerified / safetyHazards / the cover twins) — those stay owned by the
+ * field-builders. The two structural guards (asset-safety-writer-coverage / delivery-input-writer-coverage) grant this
+ * file a NARROW allowance for the override columns while STILL failing the build on any detector-field write here.
+ * The SHA is validated first — a malformed override can never reach the DB CHECK.
+ */
+export async function writeSafetyReleaseOverride(
+  tx: Prisma.TransactionClient,
+  args: {
+    orderId: string;
+    /** The QualityEvidence artifactKey — 'cover' | 'page:<n>'. */
+    artifactKey: string;
+    /** The resolved Gate-2 target: a page ImageAsset (by pageId) or the cover (GeneratedBook by orderId). */
+    target: { kind: 'page'; pageId: string } | { kind: 'cover' };
+    overriddenHazards: string[];
+    overrideSha256: string;
+  },
+): Promise<void> {
+  if (!SAFETY_SHA256_RE.test(args.overrideSha256)) {
+    throw new Error('[asset-safety-writer] release override SHA malformed');
+  }
+  if (args.target.kind === 'page') {
+    await tx.imageAsset.update({
+      where: { pageId: args.target.pageId },
+      data: { safetyOverriddenHazards: args.overriddenHazards, safetyOverrideSha256: args.overrideSha256 },
+    });
+  } else {
+    await tx.generatedBook.update({
+      where: { orderId: args.orderId },
+      data: { coverSafetyOverriddenHazards: args.overriddenHazards, coverSafetyOverrideSha256: args.overrideSha256 },
+    });
+  }
+  // Gate 1 — QualityEvidence override. verdict/reason stay IMMUTABLE (the detector's finding is never deleted).
+  await tx.qualityEvidence.update({
+    where: { orderId_artifactKey: { orderId: args.orderId, artifactKey: args.artifactKey } },
+    data: { safetyOverride: true, safetyOverrideSha256: args.overrideSha256 },
+  });
 }
