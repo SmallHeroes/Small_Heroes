@@ -1515,7 +1515,14 @@
    box, so the sides always run edge-to-edge with no cream gap (a landscape image is center-cropped horizontally).
    Positioned off the window vars, so it never drifts from the mask. Applies to the SceneIllustration frame AND
    its loading/error placeholder (both carry this class). */
-.leftPageMaskedIllustration {
+/* COMPOUND selectors (0,2,0) so this beats .illustrationFrame / .illustrationPlaceholder — each a single class
+   (0,1,0) declared LATER in this file — by SPECIFICITY, not source order. SceneIllustration merges this class onto
+   the SAME element as .illustrationFrame (the illustration) and .illustrationPlaceholder (loading/error), so a bare
+   .leftPageMaskedIllustration loses the cascade and the box sizes to width/height:100% of the inset:0 mask layer —
+   the WHOLE spread — instead of the 46.72%-wide left page (~2x oversized, then object-fit:cover crops out the other
+   characters). Stating the collision in the selector keeps it from silently regressing when a block is reordered. */
+.illustrationFrame.leftPageMaskedIllustration,
+.leftPageMaskedIllustration.illustrationPlaceholder {
   --left-illustration-overflow: 8%;
   position: absolute;
   left: var(--book-image-mask-window-x);
@@ -1526,8 +1533,6 @@
 }
 
 .leftPageMaskedIllustration.illustrationPlaceholder {
-  /* the placeholder box is height-driven by the window calc above, not the shared min-height */
-  min-height: 0;
   pointer-events: auto; /* so its retry button is reachable through the pointer-events:none layer */
 }
 
