@@ -35,7 +35,7 @@ describe.skipIf(!RUN)('(release-as-readiness-mode) commitBaseBookReadiness relea
     const { prisma } = await import('@/lib/prisma');
     const { commitBaseBookReadiness } = await import('@/lib/generation-pipeline/readiness-manifest');
     const { QUALITY_EVALUATOR_CONTRACT_VERSION } = await import('@/lib/generation-pipeline/quality-evidence');
-    const { ReleaseAdmissibilityError } = await import('@/lib/generation-pipeline/safety-release');
+    const { ReleaseAdmissibilityError, ReleaseAlreadyCommittedError } = await import('@/lib/generation-pipeline/safety-release');
 
     const nonce = `${process.env.RELEASE_MODE_NONCE ?? 'a'}-${Date.now()}`;
     const APP = 'https://app.example.invalid';
@@ -115,9 +115,16 @@ describe.skipIf(!RUN)('(release-as-readiness-mode) commitBaseBookReadiness relea
       expect(audit.length, 'exactly ONE release audit row (in-tx, release-only)').toBe(1);
       expect(audit[0]).toMatchObject({ kind: 'release', status: 'succeeded', assetSha256: shaOf(pageUrl), overriddenHazards: ['unsafe_pose'] });
 
-      // ── (2) REPLAY → refused (marker now cleared/ready) — never a silent success ─────────────────────────
+      // ── (2) REPLAY of the committed release → "already released" (re-gate P2). After the ship the marker is null,
+      //        so the replay is recognised from DURABLE state (the override bound to these bytes + the succeeded audit
+      //        row), NOT the marker — and it writes NOTHING new (the first release stands; the endpoint maps this to an
+      //        idempotent 200). Contrast the OLD behaviour (a generic marker_changed refusal). ────────────────────────
       await expect(commitBaseBookReadiness(prisma, rel(idOk, { assetSha256: shaOf(pageUrl) }) as never, deps))
-        .rejects.toBeInstanceOf(ReleaseAdmissibilityError);
+        .rejects.toBeInstanceOf(ReleaseAlreadyCommittedError);
+      const afterReplay = await prisma.order.findUnique({ where: { id: idOk }, select: { status: true, deliveryFenceVersion: true } });
+      expect(afterReplay!.status, 'the replay changed nothing — still ready').toBe('ready');
+      expect(afterReplay!.deliveryFenceVersion, 'the fence did not move on the replay').toBe(fence0 + 1);
+      expect(await prisma.humanQaOperatorAction.count({ where: { orderId: idOk } }), 'still exactly ONE audit row — the replay wrote nothing').toBe(1);
 
       // ── (3) UNVERIFIED marker → refused ─────────────────────────────────────────────────────────────────
       const idUnv = `relmode-unv-${nonce}`; ids.push(idUnv);
@@ -147,7 +154,46 @@ describe.skipIf(!RUN)('(release-as-readiness-mode) commitBaseBookReadiness relea
       expect(await prisma.humanQaOperatorAction.count({ where: { orderId: idPof } }), 'NO audit row (refusal writes nothing)').toBe(0);
       expect(await prisma.deliveryOutbox.count({ where: { orderId: idPof } }), 'NO outbox row').toBe(0);
 
-      console.log(`[RELEASE-MODE] ship✓ replay-refused✓ unverified-refused✓ sha_missing-refused✓ passes-out/fails-in-rollback✓ fence ${fence0}->${fence0 + 1}`);
+      // ── (6) MULTI-HAZARD / GATE-2-ONLY (re-gate P1) — a SECOND hazard visible to Gate 2 but NOT to Gate 1 blocks the
+      //        release. page 2 carries a confirmed hazard on its ImageAsset, but page 2's QualityEvidence is PASSED, so
+      //        the projected Gate-1 decision passes — yet the in-tx Gate-2 recompute (the REAL gate, this override
+      //        projected) still HOLDS on page 2 → refused with gate2_still_held, and BEFORE any write. This is the
+      //        exact category error the fix closes: the marker may only move when the gate that PRODUCES it agrees. ────
+      const idMulti = `relmode-multi-${nonce}`; ids.push(idMulti);
+      const coverM = `${APP}/${idMulti}/cover.png`, p1M = `${APP}/${idMulti}/p1.png`, p2M = `${APP}/${idMulti}/p2.png`;
+      await prisma.order.create({ data: {
+        id: idMulti, status: 'generating', customerEmail: `${idMulti}@example.invalid`, customerName: 'T', childName: 'Kid', topic: 'reltest',
+        basePrice: 0, addonsPrice: 0, totalPrice: 0, inputVersion: 0,
+        expectedPageCount: 2, storySourceHash: 'src', selectionFilename: 'bedtime/x.md', frozenProductVersion: 'v3', coverImageUrl: coverM,
+        book: { create: { title: 'R', coverImageUrl: coverM, readUrl: `${APP}/ready?orderId=${idMulti}`, pages: { create: [{ pageNumber: 1, text: 'ע' }, { pageNumber: 2, text: 'ע' }] } } },
+      } });
+      const bookM = await prisma.generatedBook.findUnique({ where: { orderId: idMulti }, select: { pages: { orderBy: { pageNumber: 'asc' }, select: { id: true, pageNumber: true } } } });
+      const p1Id = bookM!.pages.find((p) => p.pageNumber === 1)!.id;
+      const p2Id = bookM!.pages.find((p) => p.pageNumber === 2)!.id;
+      // page 1: the releasable hazard — Gate 1 SEES it (QE failed:safety).
+      await prisma.imageAsset.create({ data: { pageId: p1Id, provider: 'stub', prompt: 'x', url: p1M, style: 'style-01', safetyVerified: true, safetyHazards: ['unsafe_pose'], safetyContentSha256: shaOf(p1M) } });
+      // page 2: a hazard VISIBLE TO GATE 2 (ImageAsset) but INVISIBLE to Gate 1 — its QualityEvidence is PASSED (the drift).
+      await prisma.imageAsset.create({ data: { pageId: p2Id, provider: 'stub', prompt: 'x', url: p2M, style: 'style-01', safetyVerified: true, safetyHazards: ['height'], safetyContentSha256: shaOf(p2M) } });
+      await prisma.generatedBook.update({ where: { orderId: idMulti }, data: { coverSafetyVerified: true, coverSafetyHazards: [], coverSafetyContentSha256: shaOf(coverM) } });
+      await prisma.generationJob.create({ data: { orderId: idMulti, status: 'running', currentStage: 'package' } });
+      await prisma.qualityEvidence.create({ data: { orderId: idMulti, artifactKey: 'cover', assetSha256: shaOf(coverM), verdict: 'passed', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, regenCount: 0 } });
+      await prisma.qualityEvidence.create({ data: { orderId: idMulti, artifactKey: 'page:1', assetSha256: shaOf(p1M), verdict: 'failed', reason: 'safety:unsafe_pose', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, regenCount: 0 } });
+      // page 2 QE = PASSED → the projected Gate-1 decision is BLIND to page 2's hazard (the category error's precondition).
+      await prisma.qualityEvidence.create({ data: { orderId: idMulti, artifactKey: 'page:2', assetSha256: shaOf(p2M), verdict: 'passed', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, regenCount: 0 } });
+      await prisma.humanQaReviewCase.create({ data: { activeKey: `${idMulti}:base_book`, orderId: idMulti, scope: 'base_book', revision: 1, kind: 'safety' as never, status: 'open', holdFingerprint: shaOf(`${idMulti}:safety`), rawReason: 'safety_hold:hazard:page:1:unsafe_pose', humanReason: 'safety hold', inputVersion: 0 } });
+      await prisma.order.update({ where: { id: idMulti }, data: { status: 'needs_human_qa', deliveryHoldReason: 'safety_hold:hazard:page:1:unsafe_pose' } });
+      const fenceM = (await prisma.order.findUnique({ where: { id: idMulti }, select: { deliveryFenceVersion: true } }))!.deliveryFenceVersion;
+      // Release page 1: Gate 1 (projection) passes (page 2 QE passed), but the in-tx Gate-2 recompute HOLDS on page 2.
+      await expect(commitBaseBookReadiness(prisma, rel(idMulti, { assetSha256: shaOf(p1M) }) as never, deps))
+        .rejects.toMatchObject({ rule: 'gate2_still_held' });
+      const afterMulti = await prisma.order.findUnique({ where: { id: idMulti }, select: { status: true, deliveryHoldReason: true, deliveryFenceVersion: true } });
+      expect(afterMulti, 'marker + status + fence intact — nothing moved').toMatchObject({ status: 'needs_human_qa', deliveryHoldReason: 'safety_hold:hazard:page:1:unsafe_pose', deliveryFenceVersion: fenceM });
+      expect(await prisma.humanQaReviewCase.findUnique({ where: { activeKey: `${idMulti}:base_book` } }), 'the safety case is STILL open').not.toBeNull();
+      expect((await prisma.imageAsset.findFirst({ where: { pageId: p1Id }, select: { safetyOverrideSha256: true } }))!.safetyOverrideSha256, 'NO override was written on page 1 (the recompute refused BEFORE any write)').toBeNull();
+      expect(await prisma.humanQaOperatorAction.count({ where: { orderId: idMulti } }), 'NO audit row').toBe(0);
+      expect(await prisma.deliveryOutbox.count({ where: { orderId: idMulti } }), 'NO outbox row').toBe(0);
+
+      console.log(`[RELEASE-MODE] ship✓ replay-already-released✓ unverified-refused✓ sha_missing-refused✓ passes-out/fails-in-rollback✓ gate2-still-held(multi/gate2-only)✓ fence ${fence0}->${fence0 + 1}`);
     } finally {
       if (prevFlag === undefined) delete process.env.READINESS_MANIFEST_ENABLED; else process.env.READINESS_MANIFEST_ENABLED = prevFlag;
       if (prevSoft === undefined) delete process.env.QA_SOFT_DELIVER; else process.env.QA_SOFT_DELIVER = prevSoft;

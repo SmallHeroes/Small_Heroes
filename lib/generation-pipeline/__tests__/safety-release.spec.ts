@@ -4,6 +4,7 @@ import {
   assertReleaseAdmissible,
   projectReleaseOntoQuality,
   releaseTargetOf,
+  releaseAuditIdempotencyKey,
   ReleaseAdmissibilityError,
   type ReleaseAdmissibilityInputs,
 } from '@/lib/generation-pipeline/safety-release';
@@ -132,5 +133,30 @@ describe('releaseTargetOf', () => {
     expect(releaseTargetOf('cover')).toEqual({ kind: 'cover' });
     expect(releaseTargetOf('page:4')).toEqual({ kind: 'page', pageNumber: 4 });
     expect(() => releaseTargetOf('nonsense')).toThrow(ReleaseAdmissibilityError);
+  });
+});
+
+describe('releaseAuditIdempotencyKey — §4 + re-gate: artifactKey AND caseId in the key, so legitimate distinct releases never collide', () => {
+  const order = 'order_abc';
+  const caseA = 'case_1';
+  const caseB = 'case_2';
+  it('two artifacts in the SAME order+case with IDENTICAL bytes produce DISTINCT keys (both releasable)', () => {
+    const k1 = releaseAuditIdempotencyKey(order, caseA, 'page:3', SHA);
+    const k2 = releaseAuditIdempotencyKey(order, caseA, 'cover', SHA);
+    expect(k1).not.toBe(k2);
+    expect(k1).toBe(`operator_action:release:${order}:${caseA}:page:3:${SHA}`);
+    expect(k2).toBe(`operator_action:release:${order}:${caseA}:cover:${SHA}`);
+  });
+
+  it('the SAME order+case+artifact+bytes is stable (a within-cycle replay would mint the same key → the unique constraint is the backstop)', () => {
+    expect(releaseAuditIdempotencyKey(order, caseA, 'page:3', SHA)).toBe(releaseAuditIdempotencyKey(order, caseA, 'page:3', SHA));
+  });
+
+  it('a NEW case cycle (re-render → byte-identical bytes → re-held under a new case) → DISTINCT key, so the re-release never collides', () => {
+    expect(releaseAuditIdempotencyKey(order, caseA, 'page:3', SHA)).not.toBe(releaseAuditIdempotencyKey(order, caseB, 'page:3', SHA));
+  });
+
+  it('different bytes on the same artifact → different keys (a re-render to NEW bytes is a new record)', () => {
+    expect(releaseAuditIdempotencyKey(order, caseA, 'page:3', SHA)).not.toBe(releaseAuditIdempotencyKey(order, caseA, 'page:3', OTHER));
   });
 });

@@ -15,7 +15,7 @@ import { assertAdminSecret } from '@/lib/admin/assert-generation-secret';
 import { prisma } from '@/lib/prisma';
 import { createLogger } from '@/lib/logger';
 import { commitBaseBookReadiness, isReadinessManifestEnabled, ReleasePreconditionError } from '@/lib/generation-pipeline/readiness-manifest';
-import { ReleaseAdmissibilityError, type SafetyReleaseRequest } from '@/lib/generation-pipeline/safety-release';
+import { ReleaseAdmissibilityError, ReleaseAlreadyCommittedError, type SafetyReleaseRequest } from '@/lib/generation-pipeline/safety-release';
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 
 const log = createLogger({ subsystem: 'safety-release', route: '/api/admin/review/cases/[orderId]/actions/release' });
@@ -73,6 +73,12 @@ export async function POST(req: NextRequest, context: RouteContext): Promise<Nex
     log.info('Safety false-positive release shipped', { orderId, actor, artifactKey, hazards: overriddenHazards });
     return NextResponse.json({ released: true, shipped: true, orderStatus: result.orderStatus, manifestStatus: result.manifestStatus });
   } catch (e) {
+    // (re-gate P2) REPLAY of a committed release — recognised from durable state (override + audit), NOT the marker.
+    // Idempotent success, not a refusal: the first release stands, this attempt wrote nothing (the tx rolled back).
+    if (e instanceof ReleaseAlreadyCommittedError) {
+      log.info('Safety release replay — already released (idempotent)', { orderId, actor, artifactKey });
+      return NextResponse.json({ released: true, alreadyReleased: true, orderStatus: 'ready' }, { status: 200 });
+    }
     // (§3/§7) Refusal → a STRUCTURED observability event OUTSIDE the tx (the in-tx audit is release-only). The
     // operator sees WHICH rule refused; Unit-3 instrumentation counts refusals to catch a repeated impossible attempt.
     if (e instanceof ReleaseAdmissibilityError) {

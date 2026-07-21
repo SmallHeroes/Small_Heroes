@@ -12,6 +12,11 @@ import {
 } from './quality-evidence';
 import { SAFETY_SHA256_RE, isSafetyShaMissing } from './asset-safety-signal';
 import { writeSafetyReleaseOverride } from './asset-safety-writer';
+import {
+  evaluateSafetyDeliveryGate,
+  loadSafetyGateInputs,
+  projectSafetyOverrideOntoGateInputs,
+} from './safety-delivery-gate';
 import { executeSafetyFalsePositiveReleaseTransition, qaReleasedSafetyMarker } from './order-authority';
 import { resolveHumanQaCaseOnReleaseInTx } from '@/lib/human-qa/record-hold';
 import { hashOperationPayload } from './atomic-operation';
@@ -55,7 +60,10 @@ export type ReleaseRefusalRule =
   | 'asset_hash_mismatch'      // operator hash != current delivered bytes != the asset's bound content SHA
   | 'evidence_stale'           // the QualityEvidence is stale version / hash-mismatched / superseded-contract
   | 'not_safety_hard_hold'     // the SHARED outcome is not a determinate safety hard-hold (passed / contract_world / released)
-  | 'hazards_not_subset';      // a found hazard on the asset is not in the operator's overridden set
+  | 'hazards_not_subset'       // a found hazard on the asset is not in the operator's overridden set
+  | 'gate2_still_held';        // (re-gate P1) Gate 2 (the marker's producer) still holds AFTER this override — another
+                               // artifact (a second page, the cover, a Gate-2-only hazard) blocks. The marker may only
+                               // move when the gate that PRODUCES it agrees; releasing one artifact never clears it.
 
 /** Thrown when a release is inadmissible. Inside the readiness tx the throw rolls everything back → 409, nothing written. */
 export class ReleaseAdmissibilityError extends Error {
@@ -64,6 +72,34 @@ export class ReleaseAdmissibilityError extends Error {
     super(`[safety-release] refused: ${rule}${detail ? ` — ${detail}` : ''}`);
     this.name = 'ReleaseAdmissibilityError';
   }
+}
+
+/**
+ * (re-gate P2) Thrown when THIS exact release already committed — recognised from durable state (the target asset's
+ * override bound to these bytes AND a succeeded release audit row for this order+artifact+bytes), NOT from the marker
+ * (which is cleared to null after a successful ship). It is a SUCCESS, not a refusal: the endpoint maps it to an
+ * idempotent "already released" 200. Thrown inside the tx, so the replay writes nothing (the first release stands).
+ */
+export class ReleaseAlreadyCommittedError extends Error {
+  readonly code = 'release_already_committed';
+  constructor(public readonly artifactKey: string) {
+    super(`[safety-release] already released: ${artifactKey}`);
+    this.name = 'ReleaseAlreadyCommittedError';
+  }
+}
+
+/**
+ * (re-gate P2/§4) The release audit idempotency key. Includes `artifactKey` so two artifacts in the SAME order with
+ * identical delivered bytes produce DISTINCT keys (both are legitimately releasable), and `caseId` so two release
+ * CYCLES for the same artifact+bytes are DISTINCT too: a re-render that restores byte-identical bytes re-holds under a
+ * NEW safety case (the prior case's activeKey was freed on resolve), and that legitimate re-release must not collide on
+ * the prior cycle's audit row (which would misfire the manifest-revision retry → a 500). `caseId` is a fresh id minted
+ * per hold cycle (a re-hold creates a new case row), so it is unconditionally unique per cycle. The marker CAS remains
+ * the concurrency fence; this key is only the audit row's natural id + a backstop unique constraint. (The §3 replay
+ * detector keys on override+audit fields, not this string.)
+ */
+export function releaseAuditIdempotencyKey(orderId: string, caseId: string, artifactKey: string, overrideSha256: string): string {
+  return `operator_action:release:${orderId}:${caseId}:${artifactKey}:${overrideSha256}`;
 }
 
 export interface ReleaseAdmissibilityInputs {
@@ -140,16 +176,16 @@ async function loadTargetAssetSafety(
   tx: Prisma.TransactionClient,
   orderId: string,
   target: { kind: 'cover' } | { kind: 'page'; pageNumber: number },
-): Promise<{ assetHazards: string[]; assetContentSha256: string | null; pageId: string | null }> {
+): Promise<{ assetHazards: string[]; assetContentSha256: string | null; assetOverrideSha256: string | null; pageId: string | null }> {
   if (target.kind === 'cover') {
-    const b = await tx.generatedBook.findUnique({ where: { orderId }, select: { coverSafetyHazards: true, coverSafetyContentSha256: true } });
-    return { assetHazards: b?.coverSafetyHazards ?? [], assetContentSha256: b?.coverSafetyContentSha256 ?? null, pageId: null };
+    const b = await tx.generatedBook.findUnique({ where: { orderId }, select: { coverSafetyHazards: true, coverSafetyContentSha256: true, coverSafetyOverrideSha256: true } });
+    return { assetHazards: b?.coverSafetyHazards ?? [], assetContentSha256: b?.coverSafetyContentSha256 ?? null, assetOverrideSha256: b?.coverSafetyOverrideSha256 ?? null, pageId: null };
   }
   const page = await tx.bookPage.findFirst({
     where: { book: { orderId }, pageNumber: target.pageNumber },
-    select: { id: true, imageAsset: { select: { safetyHazards: true, safetyContentSha256: true } } },
+    select: { id: true, imageAsset: { select: { safetyHazards: true, safetyContentSha256: true, safetyOverrideSha256: true } } },
   });
-  return { assetHazards: page?.imageAsset?.safetyHazards ?? [], assetContentSha256: page?.imageAsset?.safetyContentSha256 ?? null, pageId: page?.id ?? null };
+  return { assetHazards: page?.imageAsset?.safetyHazards ?? [], assetContentSha256: page?.imageAsset?.safetyContentSha256 ?? null, assetOverrideSha256: page?.imageAsset?.safetyOverrideSha256 ?? null, pageId: page?.id ?? null };
 }
 
 export interface ReleaseRuntime {
@@ -192,6 +228,19 @@ export async function applyReleaseInTx(tx: Prisma.TransactionClient, rt: Release
   const paymentCase = await tx.humanQaReviewCase.findUnique({ where: { activeKey: `${rt.orderId}:payment` }, select: { status: true } });
   const hasPaymentFence = order?.manualReviewRequired === true || paymentCase?.status === 'open';
 
+  // (re-gate P2) REPLAY of a committed release. After a successful ship the marker is cleared to null, so a replay can
+  // no longer be recognised by the marker — assertReleaseAdmissible would surface a generic marker_changed. Recognise
+  // committed success from DURABLE state that survives the marker clear: the target asset's override bound to THESE
+  // exact bytes AND a succeeded release audit row for this order+artifact+bytes (both written in the release tx). If
+  // both are present this exact release already committed → idempotent "already released", never a refusal.
+  if (asset.assetOverrideSha256 != null && asset.assetOverrideSha256 === r.assetSha256) {
+    const priorRelease = await tx.humanQaOperatorAction.findFirst({
+      where: { orderId: rt.orderId, kind: 'release', status: 'succeeded', assetSha256: r.assetSha256, targetArtifacts: { has: r.artifactKey } },
+      select: { id: true },
+    });
+    if (priorRelease) throw new ReleaseAlreadyCommittedError(r.artifactKey);
+  }
+
   const { overrideSha256 } = assertReleaseAdmissible({
     request: r,
     currentMarker: order?.deliveryHoldReason ?? null,
@@ -206,7 +255,22 @@ export async function applyReleaseInTx(tx: Prisma.TransactionClient, rt: Release
   });
   if (target.kind === 'page' && !asset.pageId) throw new ReleaseAdmissibilityError('not_safety_hard_hold', 'no rendered page asset');
 
-  // (effect — only after admissibility passed on RAW data)
+  // (re-gate P1) The marker is GATE 2's output — an aggregate over EVERY cover+page hazard — but the ship guard only
+  // proved the projected GATE 1 decision. Prove GATE 2 ITSELF clears BEFORE moving its marker: recompute the REAL gate
+  // (evaluateSafetyDeliveryGate — the same evaluator production uses, no second implementation) over the whole book
+  // with THIS override applied IN PROJECTION (in-memory, before any write). If any OTHER artifact still holds — a
+  // second hazardous page, the cover, a hazard visible to Gate 2 but not to the projected Gate 1 — refuse and roll
+  // back; a release clears exactly one artifact, never the whole book on Gate 1's say-so. DB read only → safe in-tx.
+  const projectedGate2 = evaluateSafetyDeliveryGate(
+    projectSafetyOverrideOntoGateInputs(
+      await loadSafetyGateInputs(tx, rt.orderId),
+      target,
+      { overriddenHazards: r.overriddenHazards, overrideSha256 },
+    ),
+  );
+  if (projectedGate2.held) throw new ReleaseAdmissibilityError('gate2_still_held', projectedGate2.reason ?? undefined);
+
+  // (effect — only after admissibility passed on RAW data AND Gate 2 clears under the projected override)
   // 1. Both gate overrides (Gate 1 QualityEvidence + Gate 2 ImageAsset/GeneratedBook), via the sanctioned writer.
   await writeSafetyReleaseOverride(tx, {
     orderId: rt.orderId,
@@ -227,11 +291,12 @@ export async function applyReleaseInTx(tx: Prisma.TransactionClient, rt: Release
   // 3. Close the OPEN safety case in the SAME tx (ship CAS keys off both marker AND case → no split state).
   await resolveHumanQaCaseOnReleaseInTx(tx, { orderId: rt.orderId, scope: 'base_book', kinds: ['safety'], actor: r.actor, note: r.overrideReason });
 
-  // 4. Release-only audit — the operator's OWN identity, in-tx. The marker CAS is the idempotency, so idempotencyKey
-  //    is only this row's natural identity (order + released bytes), NOT a second dedup fence.
+  // 4. Release-only audit — the operator's OWN identity, in-tx. The marker CAS is the idempotency fence; this key is
+  //    only the row's natural identity (order + ARTIFACT + released bytes — §4: two same-order artifacts with identical
+  //    bytes get distinct keys, so a legitimate second release never collides on the unique constraint).
   await tx.humanQaOperatorAction.create({
     data: {
-      idempotencyKey: `operator_action:release:${rt.orderId}:${overrideSha256}`,
+      idempotencyKey: releaseAuditIdempotencyKey(rt.orderId, activeCase!.id, r.artifactKey, overrideSha256),
       requestHash: hashOperationPayload({
         kind: 'release', artifactKey: r.artifactKey, marker: r.expectedMarker,
         overriddenHazards: [...r.overriddenHazards].sort(), overrideReason: r.overrideReason, assetSha256: r.assetSha256,
