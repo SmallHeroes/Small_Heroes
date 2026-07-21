@@ -121,7 +121,7 @@ import {
   promptContainsSceneMemoryLock,
 } from '../../lib/scene-memory';
 import {
-  evaluatePageVisualQa,
+  evaluatePageVisualQaWithReQa,
   resolvePageVisualQaConfig,
 } from '../../lib/generation-pipeline/page-visual-qa';
 import { resolveCompanionViewIntentForPage, resolveCompanionSheetViewForPage } from '../../lib/generation-pipeline/companion-sheet-page-map';
@@ -354,6 +354,14 @@ export interface ImageInput {
    * the readiness flag is on; absent → the loop uses the legacy in-memory budget (flag-off byte-identical).
    */
   reserveQualityRegen?: () => Promise<boolean>;
+  /**
+   * (render-loop Phase 1, 3a) AbortSignal from the per-page soft-timeout. Threaded through generateImage → the
+   * provider branch → generateGPTImage so a soft-timeout ACTUALLY cancels the in-flight OpenAI request instead of
+   * abandoning the promise while it keeps billing. Absent → no cancellation (unchanged behaviour, e.g. cover render).
+   */
+  signal?: AbortSignal;
+  /** (render-loop Phase 1, 3a) Explicit per-request OpenAI timeout (ms), derived from the remaining page budget. */
+  requestTimeoutMs?: number;
   /**
    * (WS0b e4a) The contract's coarse environment lock for this page (indoor|outdoor|neutral). When present it
    * routes Style 01 STYLE REFS "locks-first" (indoor→interior subset, outdoor→outdoor subset, neutral→ZERO refs),
@@ -2764,6 +2772,9 @@ async function generateWithGPTImage(input: ImageInput): Promise<GeneratedImage> 
         size: size as '1024x1024' | '1024x1536' | '1536x1536',
         quality,
         referenceImages,
+        // (render-loop Phase 1, 3a) thread cancellation + deadline for parity.
+        signal: input.signal,
+        requestTimeoutMs: input.requestTimeoutMs,
       });
 
       const durableUrl = await storeImageFromBuffer({
@@ -3012,6 +3023,9 @@ async function generateWithGPTImageStyle02(input: ImageInput): Promise<Generated
     size: size as '1024x1024' | '1024x1536' | '1536x1536',
     quality,
     modelOverride: STYLE_02_GPT_MODEL,
+    // (render-loop Phase 1, 3a) thread cancellation + deadline for parity.
+    signal: input.signal,
+    requestTimeoutMs: input.requestTimeoutMs,
   });
 
   if (result.model !== STYLE_02_GPT_MODEL) {
@@ -3169,7 +3183,7 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
     });
     const effectivePageTimeOfDay =
       last.style01Meta?.effectivePageTimeOfDay ?? input.effectivePageTimeOfDay ?? null;
-    const qa = await evaluatePageVisualQa({
+    const qaCallInput = {
       imageUrl: last.url,
       expectsChild,
       expectsCompanion,
@@ -3178,7 +3192,14 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
       hasStructuredObjects,
       hasRailedBedOrCrib,
       hasHumanFamily,
-    });
+    };
+    // (render-loop Phase 1, 3b) A malformed / parse-failed QA response (reason:'vision_malformed') is a QA-TRANSPORT
+    // failure, not a visual defect of THESE bytes — a brand-new image render can never fix a broken JSON reply. Re-run
+    // QA on the SAME already-uploaded URL (bounded) BEFORE the budget decision below, so a transient malformed response
+    // never consumes (or durably reserves) an image regen. A persistent malformed result still returns
+    // safetyStatus:'unverified', so the unchanged fail-closed budget/hold path below handles it exactly as before —
+    // only a *verified visual failure* spends a regen.
+    const qa = await evaluatePageVisualQaWithReQa(qaCallInput);
 
     // (#7-a 5b) Budget decision. A regen is for a DETERMINISTIC QA fail (qa.passed=false) OR (Fix 2) an UNVERIFIED
     // safety result (can't confirm the child is safe) — "can't confirm safe" is fail-closed, so try a regen within
@@ -3581,6 +3602,9 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     size: size as '1024x1024' | '1024x1536' | '1536x1536',
     quality,
     modelOverride: style01Model,
+    // (render-loop Phase 1, 3a) real cancellation + explicit per-request deadline for the SHIPPED render path.
+    signal: input.signal,
+    requestTimeoutMs: input.requestTimeoutMs,
   });
 
   if (result.model !== style01Model) {
@@ -4581,22 +4605,27 @@ export async function generateAllPageImages(
   };
 
   const runImageWithThrottleAndRetry = async (
-    makeAttempt: (attempt: number) => Promise<GeneratedImage>,
+    makeAttempt: (attempt: number, signal: AbortSignal) => Promise<GeneratedImage>,
     pageNumber: number,
     attemptContext: string
   ): Promise<GeneratedImage> => {
     const pageTimeoutMs = config.pageGenerationTimeoutMs;
-    const withOptionalTimeout = async (promise: Promise<GeneratedImage>): Promise<GeneratedImage> => {
-      if (!pageTimeoutMs || pageTimeoutMs <= 0) return promise;
+    // (render-loop Phase 1, 3a) The soft-timeout ABORTS the attempt — it cancels the in-flight OpenAI request via the
+    // AbortSignal threaded into makeAttempt, instead of merely abandoning the awaiter while the paid request keeps
+    // running (and billing) under the next attempt. Each attempt gets its OWN fresh AbortController.
+    const runAttemptWithTimeout = async (attempt: number, startedAtMs: number): Promise<GeneratedImage> => {
+      const controller = new AbortController();
+      if (!pageTimeoutMs || pageTimeoutMs <= 0) return makeAttempt(attempt, controller.signal);
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
         return await Promise.race([
-          promise,
+          makeAttempt(attempt, controller.signal),
           new Promise<GeneratedImage>((_, reject) => {
-            timer = setTimeout(
-              () => reject(new Error(`Page ${pageNumber} soft timeout after ${pageTimeoutMs}ms`)),
-              pageTimeoutMs
-            );
+            timer = setTimeout(() => {
+              const msg = `Page ${pageNumber} soft timeout after ${pageTimeoutMs}ms (attempt ${attempt}, elapsed ${Date.now() - startedAtMs}ms)`;
+              controller.abort(new Error(msg)); // <- actually cancels the OpenAI socket, not just the awaiter
+              reject(new Error(msg));
+            }, pageTimeoutMs);
           }),
         ]);
       } finally {
@@ -4606,8 +4635,13 @@ export async function generateAllPageImages(
 
     let lastError: unknown = null;
     for (let attempt = 1; attempt <= MAX_PAGE_ATTEMPTS; attempt++) {
+      const attemptStartedAt = Date.now();
       try {
-        const generated = await withOptionalTimeout(makeAttempt(attempt));
+        const generated = await runAttemptWithTimeout(attempt, attemptStartedAt);
+        // (3a) Log every attempt's TRUE duration so stacked/abandoned calls are never invisible again.
+        console.log(
+          `[Image] page_attempt_ok page=${pageNumber} ${attemptContext} attempt=${attempt} durationMs=${Date.now() - attemptStartedAt}`
+        );
         await sleep(THROTTLE_DELAY_MS);
         return generated;
       } catch (error) {
@@ -4634,7 +4668,7 @@ export async function generateAllPageImages(
           // GPT/image generation itself failed (or timed out) — this is the ONLY case we regenerate.
           console.warn(
             `[Image] page_regenerated_only_because_gpt_failed page=${pageNumber} ${attemptContext} ` +
-              `attempt=${attempt}; retriesLeft=${retriesLeft}; err=${
+              `attempt=${attempt}; retriesLeft=${retriesLeft}; elapsedMs=${Date.now() - attemptStartedAt}; err=${
                 error instanceof Error ? error.message : String(error)
               }`
           );
@@ -4957,8 +4991,10 @@ export async function generateAllPageImages(
       for (let candidateIndex = 0; candidateIndex < anchorCandidatesForPage; candidateIndex++) {
         const seed = Math.floor(Date.now() + page.pageNumber * 100 + candidateIndex);
         const generated = await runImageWithThrottleAndRetry(
-          () =>
+          (_attempt, signal) =>
             generateImage({
+              signal,
+              requestTimeoutMs: config.pageGenerationTimeoutMs,
               reserveQualityRegen,
               pagePrompt: storyboardPrompt,
               illustrationStyle: normalizedStyle,
@@ -5107,8 +5143,10 @@ export async function generateAllPageImages(
         const seed = Math.floor(Date.now() + page.pageNumber * 1000 + candidateIndex * 17);
         try {
           const generated = await runImageWithThrottleAndRetry(
-            () =>
+            (_attempt, signal) =>
               generateImage({
+                signal,
+                requestTimeoutMs: config.pageGenerationTimeoutMs,
                 reserveQualityRegen,
                 pagePrompt: storyboardPrompt,
                 illustrationStyle: normalizedStyle,
@@ -5195,7 +5233,7 @@ export async function generateAllPageImages(
       const attemptAnchors = anchorCharacters;
       try {
         image = await runImageWithThrottleAndRetry(
-          (attempt) => {
+          (attempt, signal) => {
             const retrySuffix =
               attempt > 1
                 ? '\n\nRETRY_HINT: previous render attempt failed for provider/runtime reasons. Preserve character consistency from anchors and reference images.'
@@ -5206,6 +5244,8 @@ export async function generateAllPageImages(
               )} skippedExistingImage=false`
             );
             return generateImage({
+              signal,
+              requestTimeoutMs: config.pageGenerationTimeoutMs,
               reserveQualityRegen,
               pagePrompt: `${storyboardPrompt}${retrySuffix}`,
               illustrationStyle: normalizedStyle,

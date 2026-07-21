@@ -357,6 +357,30 @@ async function evaluateClosedCribStrictQa(imageUrl: string): Promise<{
   }
 }
 
+/** (render-loop Phase 1, 3b) How many times a MALFORMED page-QA response is re-run on the SAME image before giving up. */
+export const REQA_MALFORMED_MAX_ATTEMPTS = 2;
+
+/**
+ * (render-loop Phase 1, 3b) Run page QA; if the response comes back MALFORMED (reason:'vision_malformed' — a broken /
+ * parse-failed vision reply, i.e. a QA-TRANSPORT failure, NOT a visual defect of these bytes), re-run QA on the SAME
+ * image up to REQA_MALFORMED_MAX_ATTEMPTS more times. A brand-new image render can never fix a broken JSON reply, so a
+ * transient malformed response must not consume an image regen. This changes NOTHING in the safety funnel: a
+ * persistent malformed result still returns safetyStatus:'unverified' (fail-closed) + verdict 'evidence_unknown', so
+ * the caller's unchanged budget/hold path handles it exactly as before. `evaluate` is injectable for tests.
+ */
+export async function evaluatePageVisualQaWithReQa(
+  input: Parameters<typeof evaluatePageVisualQa>[0],
+  evaluate: (i: Parameters<typeof evaluatePageVisualQa>[0]) => Promise<PageVisualQaResult> = evaluatePageVisualQa,
+  maxReQa: number = REQA_MALFORMED_MAX_ATTEMPTS,
+): Promise<PageVisualQaResult> {
+  let qa = await evaluate(input);
+  for (let attempt = 0; qa.reason === 'vision_malformed' && attempt < maxReQa; attempt += 1) {
+    console.log(`[page_visual_qa] reqa_same_image imageUrl=${input.imageUrl} attempt=${attempt + 1}/${maxReQa}`);
+    qa = await evaluate(input);
+  }
+  return qa;
+}
+
 export async function evaluatePageVisualQa(input: {
   imageUrl: string;
   expectsChild?: boolean;

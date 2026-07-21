@@ -266,6 +266,10 @@ export interface GenerateGPTImageInput {
   requireReferenceEdit?: boolean;
   /** Override GPT_IMAGE_MODEL for this call (e.g. gpt-image-2). */
   modelOverride?: string;
+  /** (render-loop Phase 1, 3a) AbortSignal from the per-page soft-timeout — aborts the in-flight OpenAI HTTP request. */
+  signal?: AbortSignal;
+  /** (render-loop Phase 1, 3a) Explicit per-request timeout (ms), derived from the remaining page budget. */
+  requestTimeoutMs?: number;
 }
 
 export interface GenerateGPTImageResult {
@@ -599,14 +603,19 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
     if (hasReference) {
       const files = await Promise.all(refsForApi.map((u, i) => referenceToOpenAIFile(u, i)));
       const imageArg = files.length === 1 ? files[0] : files;
-      const response = await openai.images.edit({
-        model: imageModel,
-        image: imageArg,
-        prompt: fullPrompt,
-        size: size as never,
-        quality: quality as never,
-        n: 1,
-      });
+      const response = await openai.images.edit(
+        {
+          model: imageModel,
+          image: imageArg,
+          prompt: fullPrompt,
+          size: size as never,
+          quality: quality as never,
+          n: 1,
+        },
+        // (render-loop Phase 1, 3a) Real cancellation (signal) + an explicit per-request deadline + NO hidden SDK
+        // retries — the visible MAX_PAGE_ATTEMPTS loop owns retries, not openai@6's default maxRetries:2.
+        { signal: input.signal, timeout: input.requestTimeoutMs, maxRetries: 0 },
+      );
       b64 = response.data?.[0]?.b64_json ?? undefined;
       usage = (response as { usage?: Record<string, unknown> }).usage;
       const first = response.data?.[0] as Record<string, unknown> | undefined;
@@ -619,13 +628,17 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
         };
       }
     } else {
-      const response = await openai.images.generate({
-        model: imageModel,
-        prompt: fullPrompt,
-        size: size as never,
-        quality: quality as never,
-        n: 1,
-      });
+      const response = await openai.images.generate(
+        {
+          model: imageModel,
+          prompt: fullPrompt,
+          size: size as never,
+          quality: quality as never,
+          n: 1,
+        },
+        // (render-loop Phase 1, 3a) Same: real cancellation + explicit per-request deadline + no hidden SDK retries.
+        { signal: input.signal, timeout: input.requestTimeoutMs, maxRetries: 0 },
+      );
       b64 = response.data?.[0]?.b64_json ?? undefined;
       usage = (response as { usage?: Record<string, unknown> }).usage;
       const first = response.data?.[0] as Record<string, unknown> | undefined;
@@ -639,7 +652,15 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
       }
     }
   } catch (err) {
-    console.error(`[GPTImage] API call failed (mode=${hasReference ? 'images.edit' : 'images.generate'}):`, err);
+    // (render-loop Phase 1, 3a) Log the TRUE duration + whether this was a real cancellation (AbortError / signal
+    // aborted) vs a genuine API failure — the success path already logs ms at [GPTImage] Done; this closes the blind
+    // spot where a timed-out/abandoned attempt logged no duration at all.
+    const failMs = Date.now() - startMs;
+    const aborted = (err as { name?: string })?.name === 'AbortError' || input.signal?.aborted === true;
+    console.error(
+      `[GPTImage] API call ${aborted ? 'ABORTED' : 'failed'} after ${failMs}ms ` +
+        `(mode=${hasReference ? 'images.edit' : 'images.generate'}): ${err instanceof Error ? err.message : String(err)}`
+    );
     throw err;
   }
 
