@@ -284,6 +284,21 @@ export function auditionAssetUrl(
   return `/api/dev/style01-book-preview/asset?${qs.toString()}`;
 }
 
+/**
+ * Dev audition viewer image-source precedence: the on-disk PNG wins over the manifest's `remote` URL.
+ *
+ * Pre-2026-07-19 audition manifests carry a `remote` that points at a since-deleted Supabase project
+ * (`ozxjmnzybzetqudivlbw.supabase.co`) — 57 of 109 manifests. The rendered PNGs sit intact on disk, so
+ * when a local asset exists it is the source of truth; `remote` is only the serverless fallback (no local
+ * file). Returns the served URL, or null when neither is available.
+ */
+export function pickAuditionPreviewImageUrl(
+  localUrl: string | null,
+  remote: string | null
+): string | null {
+  return localUrl ?? remote;
+}
+
 export function resolveAuditionPageAudioPath(
   dirPath: string,
   page: Style01AuditionManifestPage

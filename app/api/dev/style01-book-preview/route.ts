@@ -4,6 +4,7 @@ import {
   auditionAssetUrl,
   listStyle01DiniAuditions,
   loadStyle01AuditionManifest,
+  pickAuditionPreviewImageUrl,
   resolveAuditionPageAudioPath,
   resolveAuditionPageImagePath,
 } from '@/lib/style01-audition-preview';
@@ -86,8 +87,8 @@ export async function GET(req: NextRequest) {
             ? rendered.imageUrl.trim()
             : null;
         const hasLocal = rendered ? Boolean(resolveAuditionPageImagePath(dirPath, rendered)) : false;
-        const imageUrl =
-          remote ?? (hasLocal ? auditionAssetUrl(dir, storyPage.pageNumber, 'image') : null);
+        const localUrl = hasLocal ? auditionAssetUrl(dir, storyPage.pageNumber, 'image') : null;
+        const imageUrl = pickAuditionPreviewImageUrl(localUrl, remote);
         const isRendered = Boolean(imageUrl);
 
         const hasAudio = rendered ? Boolean(resolveAuditionPageAudioPath(dirPath, rendered)) : false;

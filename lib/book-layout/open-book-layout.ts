@@ -38,7 +38,10 @@ export const OPEN_BOOK_ASSET = {
 
 /** Decorative torn-paper mask laid above the page content. Same aspect/size as OpenBook. */
 export const MASK_ON_BOOK_ASSET = {
-  src: '/Images/MaskOnBook.png',
+  // Cache-bust: the artwork is replaced in place under a stable filename, so browsers/CDN
+  // would otherwise serve stale bytes. Convention — bump ?v= every time the PNG's bytes change.
+  // v3 = the 975,992-byte / 86%-coverage re-thickened torn-paper overlay.
+  src: '/Images/MaskOnBook.png?v=3',
   width: 2594,
   height: 1588,
 } as const;
