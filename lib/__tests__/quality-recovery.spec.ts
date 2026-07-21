@@ -175,12 +175,24 @@ describe('reQaUnknownQualityEvidence — enumerate REQUIRED artifacts (#6-fix BL
     expect(r.nowPassed).toEqual([]);
   });
 
-  it('(release c-ii §4) a MIXED safety:+contract_world: reason does NOT clear even with a valid override → nowParked (recovery matches the gate)', async () => {
+  it('(release c-ii §4) a MIXED reason WITH a valid release parks as contract_world in RECOVERY too — gate + recovery agree on the KIND', async () => {
+    // The P2 this closes: recovery used to derive the kind from the reason substring (safety: present → "safety"),
+    // mislabeling this as a safety case the operator could re-release but never ship. The SHARED outcome makes both
+    // paths call it contract_world (the safety component was validly released; contract_world is the real blocker).
     const rows: Row[] = [{ artifactKey: 'page:4', verdict: 'failed', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, assetSha256: SHA, regenCount: 0, reason: 'safety:unsafe_pose+contract_world:door_moved', safetyOverride: true, safetyOverrideSha256: SHA, evidence: { qaContext: QA_CTX } }];
     const { db } = makeDb({ coverImageUrl: null, pages: [page(4, 'https://h/p4.png')] }, rows);
     const r = await reQaUnknownQualityEvidence(db as never, 'o1', { inspect: async () => okInspect(SHA) });
-    expect(r.nowParked).toEqual(['page:4']);  // safety-only false → not cleared → the contract_world component parks it
+    expect(r.nowParked).toEqual(['page:4']);          // safety-only false → not cleared → parked
+    expect(r.nowParkedKind).toBe('contract_world');   // the FIX: released safety → contract_world drives the kind
     expect(r.nowPassed).toEqual([]);
+  });
+
+  it('(release c-ii §4) the SAME mixed reason with NO/invalid release parks as safety in both (safety dominates when NOT released)', async () => {
+    const rows: Row[] = [{ artifactKey: 'page:4', verdict: 'failed', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, assetSha256: SHA, regenCount: 0, reason: 'safety:unsafe_pose+contract_world:door_moved', safetyOverride: false, safetyOverrideSha256: null, evidence: { qaContext: QA_CTX } }];
+    const { db } = makeDb({ coverImageUrl: null, pages: [page(4, 'https://h/p4.png')] }, rows);
+    const r = await reQaUnknownQualityEvidence(db as never, 'o1', { inspect: async () => okInspect(SHA) });
+    expect(r.nowParked).toEqual(['page:4']);
+    expect(r.nowParkedKind).toBe('safety');           // no release → safety dominates contract_world
   });
 
   it('(Slice A) qa-v2 bump: a prior-evaluator (qa-v1) PASSED row is stale → re-QA\'d (never delivered un-world-QA\'d)', async () => {

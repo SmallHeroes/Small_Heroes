@@ -155,6 +155,61 @@ export function isSafetyOnlyReason(reason: string | null | undefined): boolean {
   return parts.length > 0 && parts.every((p) => p.startsWith('safety:'));
 }
 
+/** The WHOLE per-artifact hold outcome. The SINGLE owner of admissibility + release + hard-hold + kind. */
+export interface ArtifactHoldOutcome {
+  staleVersion: boolean;
+  hashMismatch: boolean;
+  contractStale: boolean;
+  admissible: boolean;
+  /** Fully CLEARED → passed-equivalent (gate) / nowPassed (recovery): admissible + byte-bound release + safety-only. */
+  released: boolean;
+  /** Contributes a TERMINAL hard-hold (never soft-deliverable). */
+  hardHold: boolean;
+  /** Dominant hard-hold kind — 'safety' UNLESS the safety component was validly released (→ 'contract_world'); null when not held. */
+  kind: HardHoldKind | null;
+}
+
+/**
+ * (release c-ii, 2a-1) THE single owner of a per-artifact hold outcome — admissibility, the byte-bound release, the
+ * safety-only clearing rule, AND the hold KIND. evaluateQualityGate (readiness) and reQaUnknownQualityEvidence
+ * (recovery) BOTH consume this, so they cannot diverge on ANY dimension — not release, not hard-hold, and (the bug
+ * this closes) not the kind. Before this, recovery derived the kind from the reason substring (`hardHoldKindOf`) and
+ * mislabeled a released mixed-reason artifact as `safety` while the gate called it `contract_world` — presenting the
+ * operator a safety case they could re-release but never ship.
+ *
+ * The rule that BECAME conditional with this feature and now lives in exactly one place: "safety DOMINATES
+ * contract_world" holds UNLESS the safety component was validly released — then contract_world drives the kind.
+ * Fix 3 is preserved: a `safety:` tag hard-holds REGARDLESS of admissibility (a hash-missed / stale safety finding
+ * can never be soft-delivered) unless released; contract_world holds only on ADMISSIBLE evidence (a stale drift is
+ * re-QA'd on the current bytes, not parked).
+ */
+export function resolveArtifactHoldOutcome(
+  row: Pick<QualityEvidenceRow, 'evaluatorContractVersion' | 'assetSha256' | 'reason' | 'contractHash' | 'safetyOverride' | 'safetyOverrideSha256'>,
+  currentHash: string | null,
+  opts: { contractVersion: string; activeContractHash?: string | null },
+): ArtifactHoldOutcome {
+  const staleVersion = row.evaluatorContractVersion !== opts.contractVersion;
+  const hashMismatch = !currentHash || row.assetSha256 !== currentHash;
+  const contractStale = isQualityEvidenceContractStale(row.contractHash, opts.activeContractHash);
+  const admissible = !staleVersion && !hashMismatch && !contractStale;
+
+  const hasSafety = row.reason?.includes('safety:') ?? false;
+  const hasContractWorld = row.reason?.includes('contract_world:') ?? false;
+
+  // A byte-bound release, honored ONLY on admissible evidence, SUPPRESSES the safety component (NOT gated on
+  // safety-only — a mixed reason still suppresses the safety hazard while contract_world holds).
+  const safetyReleased = admissible && isSafetyEvidenceReleased(row, currentHash);
+  // Fully cleared (passed-equivalent) ADDITIONALLY requires the failure be safety-only.
+  const released = safetyReleased && isSafetyOnlyReason(row.reason);
+
+  const safetyHold = hasSafety && !safetyReleased;      // (Fix 3) regardless of admissibility, unless released
+  const contractWorldHold = hasContractWorld && admissible; // stale drift → re-QA current bytes, not park
+  const hardHold = safetyHold || contractWorldHold;
+  const kind: HardHoldKind | null = safetyHold ? 'safety' : contractWorldHold ? 'contract_world' : null;
+
+  return { staleVersion, hashMismatch, contractStale, admissible, released, hardHold, kind };
+}
+
 /**
  * PURE fail-closed aggregate over the REQUIRED artifacts.
  *
@@ -201,30 +256,19 @@ export function evaluateQualityGate(
       continue;
     }
 
-    // (release c-ii, Gate 1) ADMISSIBILITY first — a false-positive release may clear ONLY the safety hold, and ONLY
-    // on otherwise-admissible evidence: never certifying a stale evaluator version, wrong bytes, or a superseded
-    // contract. Compute the admissibility flags here so `released` can compose them, then classify below. This is the
-    // SAME composition quality-recovery uses (its admissible-failed branch) — gate and recovery release at one point.
-    const staleVersion = row.evaluatorContractVersion !== contractVersion;
-    const hashMismatch = !currentHash || row.assetSha256 !== currentHash;
-    const contractStale = isQualityEvidenceContractStale(row.contractHash, opts.activeContractHash);
-    // A byte-bound release, honored only on admissible evidence. It suppresses ONLY the safety hard-hold — never
-    // contract_world (§4). "Cleared" additionally requires the failure be SAFETY-ONLY (the verdict branch below).
-    const released = !staleVersion && !hashMismatch && !contractStale && isSafetyEvidenceReleased(row, currentHash);
+    // (release c-ii, 2a-1) The SHARED per-artifact outcome owns admissibility + release + hard-hold + kind, so this
+    // gate and quality-recovery can never diverge on any of them. Fix 3 is preserved inside it: the safety hard-hold
+    // is noted BEFORE the admissibility `continue`s (a hash-missed / stale safety row still hard-holds, never
+    // soft-delivered) unless validly released; contract_world holds only on admissible evidence.
+    const h = resolveArtifactHoldOutcome(row, currentHash, { contractVersion, activeContractHash: opts.activeContractHash });
+    if (h.hardHold && h.kind) noteHardHold(h.kind);
 
-    // (Fix 3, PRESERVED) A `safety:` tag hard-holds REGARDLESS of admissibility — a hash-missed / stale-version safety
-    // finding can NEVER be soft-delivered (resolveReadinessDeliveryPlan ships a blocked + !contractHardHold book when
-    // QA_SOFT_DELIVER is on) — UNLESS a byte-bound ADMISSIBLE release suppresses it. Kept BEFORE the admissibility
-    // `continue`s DELIBERATELY: the brief's illustrative shape put it after, which would drop the hard-hold on an
-    // inadmissible safety row and open exactly that soft-deliver hole. contract_world is handled in the failed branch.
-    if (row.reason?.includes('safety:') && !released) noteHardHold('safety');
-
-    if (staleVersion) {
+    if (h.staleVersion) {
       unknownArtifacts.push(key);
       perArtifact[key] = { state: 'stale_version', have: row.evaluatorContractVersion, want: contractVersion };
       continue;
     }
-    if (hashMismatch) {
+    if (h.hashMismatch) {
       unknownArtifacts.push(key);
       perArtifact[key] = { state: 'hash_mismatch', evidenceHash: row.assetSha256, currentHash };
       continue;
@@ -232,7 +276,7 @@ export function evaluateQualityGate(
     // (WS0b) A row produced against a superseded contract is inadmissible → re-QA (never a stale PASS). Fail-closed
     // by default: an absent `activeContractHash` treats any hash-bound row as stale (phantom contract). null/null
     // (no contract frozen — today) → NOT stale → behavior byte-identical.
-    if (contractStale) {
+    if (h.contractStale) {
       unknownArtifacts.push(key);
       perArtifact[key] = {
         state: 'contract_stale',
@@ -246,15 +290,12 @@ export function evaluateQualityGate(
       continue;
     }
     if (row.verdict === 'failed') {
-      // A `failed` row clears ONLY when the release is bound (⇒ admissible) AND the failure is SAFETY-ONLY. A mixed
-      // `safety:…+contract_world:…` reason must STILL hold — it falls through to the contract_world hard-hold below.
-      if (released && isSafetyOnlyReason(row.reason)) {
+      // Cleared (passed-equivalent) ONLY when the release is bound (⇒ admissible) AND the failure is safety-only. A
+      // mixed `safety:…+contract_world:…` reason does NOT clear — its contract_world hard-hold was already noted above.
+      if (h.released) {
         perArtifact[key] = { state: 'safety_released', verdict: row.verdict, overrideSha256: row.safetyOverrideSha256 };
         continue;
       }
-      // (Slice A) A deterministic contract-world drift must HARD-hold regardless of budget state (soft-deliver
-      // exemption) and is NEVER released. Safety is handled ABOVE (Fix 3), so only contract_world here.
-      if (row.reason?.includes('contract_world:')) noteHardHold('contract_world');
       if (row.regenCount >= budget) {
         failedArtifacts.push(key);
         perArtifact[key] = { state: 'failed_terminal', reason: row.reason, regenCount: row.regenCount };

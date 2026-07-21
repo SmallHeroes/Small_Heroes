@@ -24,8 +24,7 @@ import {
   pageArtifactKey,
   pageNumberFromArtifactKey,
   readActiveVisualContractHash,
-  isSafetyEvidenceReleased,
-  isSafetyOnlyReason,
+  resolveArtifactHoldOutcome,
   type HardHoldKind,
 } from './quality-evidence';
 import { isQualityEvidenceContractStale } from './quality-check-result';
@@ -86,20 +85,6 @@ async function loadRequiredArtifacts(prisma: PrismaClient, orderId: string): Pro
 }
 
 /**
- * True when a durable QA reason carries a HARD-HOLD tag → the artifact is PARKED for human QA (never regen-rescued
- * or refunded), in both budget states. Two classes: `contract_world:` (a deterministic contract-world drift) and
- * (Stage 1) `safety:` (a physical-safety hazard). Mirrors evaluateQualityGate's dual-tag hard-hold trigger
- * (quality-evidence.ts) so recovery routes both to the SAME needs_human_qa park the readiness gate does.
- */
-function isHardHoldParkReason(reason: string | null | undefined): boolean {
-  return typeof reason === 'string' && (reason.includes('contract_world:') || reason.includes('safety:'));
-}
-/** (Fix 5) The park KIND from a reason — safety (universal child-safety) dominates a contract-world drift. */
-function hardHoldKindOf(reason: string | null | undefined): HardHoldKind {
-  return typeof reason === 'string' && reason.includes('safety:') ? 'safety' : 'contract_world';
-}
-
-/**
  * (Slice A) The per-page WORLD expectation from the order's FROZEN contract, keyed by artifactKey — so a recovery
  * re-QA runs world QA too (a pre-change steered `passed` row, re-QA'd under qa-v2, is judged against its contract
  * setting + recurring-object identities, not just visually). Gated on VISUAL_CONTRACT_STEERING + a frozen contract
@@ -143,10 +128,11 @@ export async function reQaUnknownQualityEvidence(
   const worldByArt = await loadPageWorldExpectations(prisma, orderId);
 
   const result: QualityRecoveryResult = { reQaCount: 0, nowPassed: [], nowFailed: [], nowParked: [], nowParkedKind: null, stillUnknown: [] };
-  // Record a park + fold its kind in (safety dominates), so the processor emits a distinct, accurate marker.
-  const notePark = (artifactKey: string, reason: string | null | undefined) => {
+  // Record a park + fold its kind in (safety dominates across artifacts). The KIND comes from the SHARED
+  // resolveArtifactHoldOutcome — never re-derived from the reason here — so recovery and the gate agree on it.
+  const notePark = (artifactKey: string, kind: HardHoldKind) => {
     result.nowParked.push(artifactKey);
-    if (result.nowParkedKind !== 'safety') result.nowParkedKind = hardHoldKindOf(reason);
+    if (result.nowParkedKind !== 'safety') result.nowParkedKind = kind;
   };
   for (const art of required) {
     const currentHash = (await inspect(art.deliveredUrl)).sha256;
@@ -172,16 +158,14 @@ export async function reQaUnknownQualityEvidence(
       // reserve/regen-rescue never runs → a genuinely failing page ships. Route it to the rescue with its durable
       // regenCount (the processor reserves → clears → redrives, or refunds at budget). An admissible PASS is done.
       if (row!.verdict === 'failed') {
-        // (release c-ii) A byte-bound, SAFETY-ONLY false-positive release CLEARS this artifact — evaluateQualityGate
-        // clears on the IDENTICAL composition (admissible → isSafetyEvidenceReleased && isSafetyOnlyReason), so
-        // recovery MUST agree here or the two loop forever (gate ships, recovery re-parks). This branch is already the
-        // ADMISSIBLE-failed path, matching the gate's admissibility. A mixed safety:+contract_world: reason is NOT
-        // safety-only → falls through to the contract_world park below. Checked before isHardHoldParkReason because the
-        // reason still reads `safety:` after a release (the finding is never deleted). Not a park/rescue/refund.
-        if (isSafetyEvidenceReleased(row!, currentHash) && isSafetyOnlyReason(row!.reason)) result.nowPassed.push(art.artifactKey);
-        // (Slice A / Stage 1) A contract-world drift OR a physical-safety hazard is a TERMINAL human-QA PARK — never
-        // route it to the regen-rescue (no reserve/clear/redrive, no refund). It converges to needs_human_qa.
-        else if (isHardHoldParkReason(row!.reason)) notePark(art.artifactKey, row!.reason);
+        // (release c-ii) The SHARED outcome decides release / park / rescue AND the park kind — evaluateQualityGate
+        // consumes the identical struct, so gate and recovery cannot disagree on any dimension. A byte-bound
+        // safety-only release CLEARS (nowPassed); a hard-hold (safety unless released, or contract_world) PARKS with
+        // the shared kind — a mixed safety:+contract_world: release parks as contract_world in BOTH; anything else is
+        // the regen-rescue. This is already the admissible-failed path, matching the gate's admissibility.
+        const h = resolveArtifactHoldOutcome(row!, currentHash, { contractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, activeContractHash });
+        if (h.released) result.nowPassed.push(art.artifactKey);
+        else if (h.hardHold && h.kind) notePark(art.artifactKey, h.kind);
         else result.nowFailed.push({ artifactKey: art.artifactKey, regenCount: row!.regenCount });
       }
       continue;
@@ -222,12 +206,19 @@ export async function reQaUnknownQualityEvidence(
 
     const fresh = await prisma.qualityEvidence.findUnique({
       where: { orderId_artifactKey: { orderId, artifactKey: art.artifactKey } },
-      select: { verdict: true, regenCount: true, reason: true },
+      select: {
+        verdict: true, regenCount: true, reason: true,
+        evaluatorContractVersion: true, assetSha256: true, contractHash: true, safetyOverride: true, safetyOverrideSha256: true,
+      },
     });
     if (fresh?.verdict === 'passed') result.nowPassed.push(art.artifactKey);
     // (Slice A / Stage 1) A contract-world drift OR a physical-safety hazard → PARK (terminal human QA), not rescue.
-    else if (fresh?.verdict === 'failed' && isHardHoldParkReason(fresh.reason)) notePark(art.artifactKey, fresh.reason);
-    else if (fresh?.verdict === 'failed') result.nowFailed.push({ artifactKey: art.artifactKey, regenCount: fresh.regenCount });
+    // The fresh re-QA cleared any override (P1b), so the shared outcome's kind is the plain safety-dominates classification.
+    else if (fresh?.verdict === 'failed') {
+      const h = resolveArtifactHoldOutcome(fresh, currentHash, { contractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, activeContractHash });
+      if (h.hardHold && h.kind) notePark(art.artifactKey, h.kind);
+      else result.nowFailed.push({ artifactKey: art.artifactKey, regenCount: fresh.regenCount });
+    }
     else result.stillUnknown.push(art.artifactKey);
   }
   return result;

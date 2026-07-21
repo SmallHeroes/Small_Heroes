@@ -8,6 +8,7 @@ import {
   evaluateQualityGate,
   isSafetyEvidenceReleased,
   isSafetyOnlyReason,
+  resolveArtifactHoldOutcome,
   qualityEvidenceFingerprint,
   reserveQualityRegen,
   ensureQualityEvidenceRow,
@@ -316,6 +317,50 @@ describe('evaluateQualityGate — (release c-ii, Gate 1) the byte-bound false-po
     expect(isSafetyOnlyReason('contract_world:wrong_zone')).toBe(false);
     expect(isSafetyOnlyReason(null)).toBe(false);
     expect(isSafetyOnlyReason('')).toBe(false);
+  });
+});
+
+describe('resolveArtifactHoldOutcome — the ONE shared owner of release + hard-hold + kind (gate and recovery consume it)', () => {
+  const SHA = 'a'.repeat(64);
+  const OTHER = 'b'.repeat(64);
+  const base = (over: Partial<QualityEvidenceRow>) =>
+    row({ artifactKey: 'page:4', assetSha256: SHA, verdict: 'failed', ...over });
+  const OUT = (over: Partial<QualityEvidenceRow>) =>
+    resolveArtifactHoldOutcome(base(over), SHA, { contractVersion: V, activeContractHash: null });
+
+  it('safety-only + valid byte-bound release + admissible → CLEARED (released, no hard-hold, kind null)', () => {
+    expect(OUT({ reason: 'safety:unsafe_pose', safetyOverride: true, safetyOverrideSha256: SHA }))
+      .toMatchObject({ admissible: true, released: true, hardHold: false, kind: null });
+  });
+
+  it('safety-only + NO release → hard-hold kind safety', () => {
+    expect(OUT({ reason: 'safety:unsafe_pose' })).toMatchObject({ released: false, hardHold: true, kind: 'safety' });
+  });
+
+  it('(Fix 3) safety-only + INADMISSIBLE (stale version) → STILL hard-holds (kind safety), never cleared', () => {
+    const o = resolveArtifactHoldOutcome(base({ reason: 'safety:unsafe_pose', safetyOverride: true, safetyOverrideSha256: SHA, evaluatorContractVersion: 'qa-v0' }), SHA, { contractVersion: V });
+    expect(o).toMatchObject({ admissible: false, staleVersion: true, released: false, hardHold: true, kind: 'safety' });
+  });
+
+  it('MIXED + valid release → NOT cleared, hard-hold kind CONTRACT_WORLD (safety released → contract_world drives)', () => {
+    expect(OUT({ reason: 'safety:unsafe_pose+contract_world:door_moved', safetyOverride: true, safetyOverrideSha256: SHA }))
+      .toMatchObject({ released: false, hardHold: true, kind: 'contract_world' });
+  });
+
+  it('MIXED + NO release → hard-hold kind SAFETY (safety dominates when not released)', () => {
+    expect(OUT({ reason: 'safety:unsafe_pose+contract_world:door_moved' }))
+      .toMatchObject({ released: false, hardHold: true, kind: 'safety' });
+  });
+
+  it('contract_world-only + admissible → hard-hold kind contract_world; but INADMISSIBLE → NOT held (re-QA a stale drift)', () => {
+    expect(OUT({ reason: 'contract_world:wrong_zone' })).toMatchObject({ hardHold: true, kind: 'contract_world' });
+    // hash mismatch → inadmissible → contract_world does NOT survive (unlike safety Fix 3)
+    expect(resolveArtifactHoldOutcome(base({ reason: 'contract_world:wrong_zone' }), OTHER, { contractVersion: V }))
+      .toMatchObject({ admissible: false, hardHold: false, kind: null });
+  });
+
+  it('a non-safety, non-contract_world failure (e.g. anatomy) → no hard-hold, not released → the regen-rescue', () => {
+    expect(OUT({ reason: 'anatomy_failed' })).toMatchObject({ released: false, hardHold: false, kind: null });
   });
 });
 
