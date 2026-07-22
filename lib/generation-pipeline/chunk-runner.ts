@@ -901,6 +901,18 @@ async function ensureStoryLocationPlan(
   return { cache: nextCache, storyLocationPlan };
 }
 
+async function persistUploadedPageCandidate(
+  orderId: string,
+  pageNumber: number,
+  candidate: { url: string; rawUrl: string | null; provider: string },
+): Promise<void> {
+  await prisma.pageUploadCandidate.upsert({
+    where: { orderId_pageNumber: { orderId, pageNumber } },
+    create: { orderId, pageNumber, url: candidate.url, rawUrl: candidate.rawUrl, provider: candidate.provider },
+    update: { url: candidate.url, rawUrl: candidate.rawUrl, provider: candidate.provider },
+  });
+}
+
 /**
  * Render the cover. Returns true when the cover is present/rendered, false when it was
  * deferred because the worker is already over budget (the loop then stops and the next
@@ -1015,6 +1027,8 @@ async function runCoverStage(
     reserveQualityRegen: isReadinessManifestEnabled()
       ? makeQualityRegenReserver(prisma, { orderId: order.id, artifactKey: coverArtifactKey() })
       : undefined,
+    // The cover is page 0 in durable artifact identity. Persist its uploaded bytes before QA, exactly like pages.
+    onCandidateUploaded: (candidate) => persistUploadedPageCandidate(order.id, 0, candidate),
     childName: order.childName,
     topicLabel,
     storyTitle: story.title,
@@ -1502,13 +1516,8 @@ async function runPageImagesChunk(
     // so a mid-QA crash leaves a recoverable record of the uploaded bytes instead of orphaned spend. This is a side
     // table (PageUploadCandidate) with NO safety columns — not an ImageAsset/delivery-input write, so it needs no
     // barrier and stays fail-closed by construction (the detector fields + SHA are still owned by the post-QA write).
-    onPageCandidateUploaded: async (pageNumber, candidate) => {
-      await prisma.pageUploadCandidate.upsert({
-        where: { orderId_pageNumber: { orderId: order.id, pageNumber } },
-        create: { orderId: order.id, pageNumber, url: candidate.url, rawUrl: candidate.rawUrl, provider: candidate.provider },
-        update: { url: candidate.url, rawUrl: candidate.rawUrl, provider: candidate.provider },
-      });
-    },
+    onPageCandidateUploaded: (pageNumber, candidate) =>
+      persistUploadedPageCandidate(order.id, pageNumber, candidate),
     illustrationStyle: order.illustrationStyle,
     childName: order.childName,
     childAge: order.childAge,

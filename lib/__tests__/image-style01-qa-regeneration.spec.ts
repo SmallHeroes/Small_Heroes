@@ -28,7 +28,7 @@ vi.mock('@/lib/image-storage', () => ({
   isImagePersistenceError: () => false,
 }));
 
-import { generateImage } from '@/backend/providers/image';
+import { generateBookCover, generateImage } from '@/backend/providers/image';
 
 const FLAGS: PageVisualQaResult['flags'] = {
   anatomyOk: true,
@@ -233,6 +233,35 @@ describe('shipped Style01 caller — QA evidence versus image-regeneration budge
       'persist:https://cdn.example/order-r1a/persisted-candidate.png',
       'persist:done',
       'qa:https://cdn.example/order-r1a/persisted-candidate.png',
+    ]);
+  });
+
+  it('wires the shipped Style01 cover through upload -> page-0 candidate persistence -> QA', async () => {
+    const events: string[] = [];
+    storeBufferSpy.mockImplementationOnce(async ({ pageNumber }: { pageNumber?: number }) => {
+      events.push(`upload:${pageNumber}`);
+      return 'https://cdn.example/order-r1a/cover-candidate.png';
+    });
+    evaluateQaSpy.mockImplementationOnce(async (input: { imageUrl: string }) => {
+      events.push(`qa:${input.imageUrl}`);
+      return VERIFIED_PASS;
+    });
+
+    await generateBookCover({
+      childName: 'Noa',
+      topicLabel: 'Courage',
+      storyTitle: 'Noa and the Quiet Light',
+      illustrationStyle: 'soft_hand_drawn_storybook',
+      orderId: 'order-r1a',
+      onCandidateUploaded: async (candidate) => {
+        events.push(`persist:${candidate.url}`);
+      },
+    });
+
+    expect(events).toEqual([
+      'upload:0',
+      'persist:https://cdn.example/order-r1a/cover-candidate.png',
+      'qa:https://cdn.example/order-r1a/cover-candidate.png',
     ]);
   });
 });

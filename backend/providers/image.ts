@@ -708,6 +708,8 @@ export interface CoverImageInput {
   coverText?: string;
   /** (#7-a 5b) Durable regen reserver bound to the cover artifact (flag-on only). */
   reserveQualityRegen?: () => Promise<boolean>;
+  /** Persist the uploaded cover candidate (page 0) before visual QA can reserve a replacement. */
+  onCandidateUploaded?: ImageInput['onCandidateUploaded'];
   illustrationStyle: string;
   childDescription?: string;
   characterSheet?: CharacterSheet;
@@ -4114,6 +4116,7 @@ export async function generateBookCover(input: CoverImageInput): Promise<Generat
   const pagePrompt = useStyle01 ? '' : buildCoverPrompt(input);
   return generateImage({
     reserveQualityRegen: input.reserveQualityRegen,
+    onCandidateUploaded: input.onCandidateUploaded,
     pagePrompt,
     illustrationStyle: input.illustrationStyle,
     childDescription: input.childDescription,
