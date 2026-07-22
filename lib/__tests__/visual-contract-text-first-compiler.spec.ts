@@ -27,9 +27,9 @@ import type { ContractLlmCaller } from '../visual-contract-compiler/compileBookV
 const BUNNY_KEY = 'bunny_ometz_adventure';
 const BANK = path.join(process.cwd(), 'story-bank/v3-approved');
 
-function bunnySource(): TemplateCompileInput {
+function bunnySource(): ReturnType<typeof extractSourceFromMarkdown> {
   const md = fs.readFileSync(path.join(BANK, `${BUNNY_KEY}.md`), 'utf8');
-  return extractSourceFromMarkdown(BUNNY_KEY, md) as TemplateCompileInput;
+  return extractSourceFromMarkdown(BUNNY_KEY, md);
 }
 function bunnyTemplate(): BookVisualContractTemplate {
   return JSON.parse(fs.readFileSync(path.join(BANK, `${BUNNY_KEY}.visual-contract-template.json`), 'utf8'));
@@ -44,6 +44,12 @@ describe('text-first compiler — C1 source extractor', () => {
     expect(src.pages).toHaveLength(12);
     expect(src.companion?.id).toBe('bunny_ometz');
     expect(src.pageImageDirections?.length).toBe(12);
+    expect(src.sourceIdentity).toMatchObject({
+      version: 'story-source/v1',
+      digestAlgorithm: 'sha256-normalized-utf8',
+      pageCount: 12,
+    });
+    expect(src.sourceIdentity.digest).toMatch(/^[a-f0-9]{64}$/);
     expect(src.pages[0].text).toContain('{{childName}}'); // placeholder preserved, not resolved
     expect(src.fullStoryText).toContain('--- Page 1 ---');
   });

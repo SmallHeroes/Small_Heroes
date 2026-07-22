@@ -26,6 +26,11 @@ import {
 } from '@/lib/story-bank-v3-import';
 import type { CompileBookVisualContractInput } from '@/lib/visual-contract-compiler';
 import { assertSourceHasRealProse } from '@/lib/visual-contract-compiler';
+import { normalizedTextDigest } from '@/lib/visual-package/integrity';
+import {
+  STORY_SOURCE_IDENTITY_VERSION,
+  type StorySourceIdentity,
+} from '@/lib/visual-package/types';
 
 /** Default child gender when the bank frontmatter omits it (Phase-B default). */
 const DEFAULT_CHILD_GENDER = 'female';
@@ -39,6 +44,8 @@ export interface SourcePage {
 /** The <storyKey>.source.json body: the compiler input + additive per-page prose. */
 export interface ContractSourceFile extends CompileBookVisualContractInput {
   storyKey: string;
+  /** Exact normalized story markdown identity carried into compiler evidence and later promotion. */
+  sourceIdentity: StorySourceIdentity;
   /** ADDITIVE — per-page prose for deterministic extraction (Component 2). Ignored by the LLM compile. */
   pages: SourcePage[];
 }
@@ -59,7 +66,11 @@ export function toFrontmatterMarkdown(raw: string): string {
 }
 
 /** Extract a source object from one story .md. Pure — no LLM, no filesystem writes. */
-export function extractSourceFromMarkdown(storyKey: string, rawMarkdown: string): ContractSourceFile {
+export function extractSourceFromMarkdown(
+  storyKey: string,
+  rawMarkdown: string,
+  sourcePath = `${storyKey}.md`,
+): ContractSourceFile {
   const md = toFrontmatterMarkdown(rawMarkdown);
   const companionId = frontmatterField(md, 'companionId');
   const gender = frontmatterField(md, 'gender') ?? DEFAULT_CHILD_GENDER;
@@ -93,6 +104,14 @@ export function extractSourceFromMarkdown(storyKey: string, rawMarkdown: string)
 
   return {
     storyKey,
+    sourceIdentity: {
+      version: STORY_SOURCE_IDENTITY_VERSION,
+      path: sourcePath.split(path.sep).join('/'),
+      digestAlgorithm: 'sha256-normalized-utf8',
+      digest: normalizedTextDigest(rawMarkdown),
+      pageCount: pages.length,
+      pageNumbers: pages.map((page) => page.pageNumber),
+    },
     fullStoryText,
     pageCount: pages.length,
     childGender: gender,
@@ -132,7 +151,12 @@ function main(): void {
     const storyKey = file.replace(/\.md$/, '');
     if (only && storyKey !== only) continue;
     try {
-      const source = extractSourceFromMarkdown(storyKey, readFileSync(path.join(bank, file), 'utf8'));
+      const storyPath = path.join(bank, file);
+      const source = extractSourceFromMarkdown(
+        storyKey,
+        readFileSync(storyPath, 'utf8'),
+        path.relative(process.cwd(), storyPath),
+      );
       const outPath = path.join(out, `${storyKey}.source.json`);
       writeFileSync(outPath, `${JSON.stringify(source, null, 2)}\n`, 'utf8');
       extracted += 1;

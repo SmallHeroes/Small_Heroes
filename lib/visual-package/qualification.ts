@@ -1,0 +1,205 @@
+import fs from 'fs';
+import path from 'path';
+
+import {
+  approvalIssues,
+  basicManifestIssues,
+  buildCoverageIdentity,
+  compareBoardArtifacts,
+  currentSourceIssues,
+  loadTemplateForPackage,
+  resolveRequiredBoardArtifacts,
+} from './artifacts';
+import {
+  buildStorySourceIdentity,
+  canonicalJsonDigest,
+  repoRelativePath,
+} from './integrity';
+import { VISUAL_PACKAGE_MANIFEST_SUFFIX } from './promotion';
+import type {
+  VisualPackageIssue,
+  VisualPackageManifest,
+} from './types';
+
+export interface RenderQualificationResult {
+  storyKey: string;
+  storySourcePath: string;
+  approvedPackagePath: string;
+  renderQualified: boolean;
+  reasons: VisualPackageIssue[];
+  manifest: VisualPackageManifest | null;
+}
+
+function issue(
+  code: VisualPackageIssue['code'],
+  message: string,
+  extra: Omit<VisualPackageIssue, 'code' | 'message'> = {},
+): VisualPackageIssue {
+  return { code, message, ...extra };
+}
+
+export function approvedVisualPackagePath(
+  repoRoot: string,
+  storyKey: string,
+  approvedPackagesDir?: string,
+): string {
+  return path.join(
+    approvedPackagesDir ?? path.join(repoRoot, 'visual-packages', 'approved'),
+    `${storyKey}${VISUAL_PACKAGE_MANIFEST_SUFFIX}`,
+  );
+}
+
+/** Read-only, local-filesystem-only qualification. It never compiles, renders, calls an LLM, or reaches storage. */
+export function evaluateRenderQualification(args: {
+  repoRoot: string;
+  storyKey: string;
+  storyPath: string;
+  styleId: string;
+  approvedPackagesDir?: string;
+  boardRegistryRoot?: string;
+}): RenderQualificationResult {
+  const reasons: VisualPackageIssue[] = [];
+  let sourcePath: string;
+  try {
+    sourcePath = path.isAbsolute(args.storyPath)
+      ? path.resolve(args.storyPath)
+      : path.resolve(args.repoRoot, args.storyPath);
+    repoRelativePath(args.repoRoot, sourcePath);
+  } catch (error) {
+    sourcePath = path.resolve(args.repoRoot, args.storyPath);
+    reasons.push(issue('story_source_missing', error instanceof Error ? error.message : String(error)));
+  }
+  const sourceRel = (() => {
+    try {
+      return repoRelativePath(args.repoRoot, sourcePath);
+    } catch {
+      return String(args.storyPath);
+    }
+  })();
+  if (!fs.existsSync(sourcePath)) {
+    reasons.push(issue('story_source_missing', `story source is missing: ${sourceRel}`));
+  }
+
+  const packagePath = approvedVisualPackagePath(args.repoRoot, args.storyKey, args.approvedPackagesDir);
+  const packageRel = (() => {
+    try {
+      return repoRelativePath(args.repoRoot, packagePath);
+    } catch {
+      return packagePath;
+    }
+  })();
+  if (!fs.existsSync(packagePath)) {
+    reasons.push(issue('approved_package_missing', `approved visual package is missing: ${packageRel}`));
+    const legacyPath = path.join(path.dirname(sourcePath), `${args.storyKey}.visual-contract.json`);
+    if (fs.existsSync(legacyPath)) {
+      reasons.push(issue('legacy_contract_not_qualified', 'a legacy visual contract exists but cannot confer render qualification'));
+    }
+    return {
+      storyKey: args.storyKey,
+      storySourcePath: sourceRel,
+      approvedPackagePath: packageRel,
+      renderQualified: false,
+      reasons,
+      manifest: null,
+    };
+  }
+
+  let raw: unknown;
+  try {
+    raw = JSON.parse(fs.readFileSync(packagePath, 'utf8')) as unknown;
+  } catch (error) {
+    reasons.push(issue('manifest_invalid', `approved package JSON is invalid: ${error instanceof Error ? error.message : String(error)}`));
+    return {
+      storyKey: args.storyKey,
+      storySourcePath: sourceRel,
+      approvedPackagePath: packageRel,
+      renderQualified: false,
+      reasons,
+      manifest: null,
+    };
+  }
+  reasons.push(...basicManifestIssues(raw));
+  if (reasons.some((reason) => reason.code === 'manifest_invalid')) {
+    return {
+      storyKey: args.storyKey,
+      storySourcePath: sourceRel,
+      approvedPackagePath: packageRel,
+      renderQualified: false,
+      reasons,
+      manifest: null,
+    };
+  }
+  const manifest = raw as VisualPackageManifest;
+  if (manifest.state !== 'approved' || !manifest.promotion) {
+    reasons.push(issue('approved_package_not_approved', 'package is not in approved state with a promotion record'));
+  }
+  if (manifest.storyKey !== args.storyKey) {
+    reasons.push(issue('story_key_mismatch', 'approved package storyKey does not match the selected story', {
+      expected: args.storyKey,
+      actual: manifest.storyKey,
+    }));
+  }
+  if (manifest.styleId !== args.styleId) {
+    reasons.push(issue('style_mismatch', 'approved package style does not match the render style', {
+      expected: args.styleId,
+      actual: manifest.styleId,
+    }));
+  }
+  reasons.push(...approvalIssues(manifest));
+
+  let currentSource = null;
+  if (fs.existsSync(sourcePath)) {
+    try {
+      currentSource = buildStorySourceIdentity({ repoRoot: args.repoRoot, storyPath: sourcePath });
+      reasons.push(...currentSourceIssues(manifest, currentSource));
+    } catch (error) {
+      reasons.push(issue('story_source_missing', error instanceof Error ? error.message : String(error)));
+    }
+  }
+
+  if (currentSource) {
+    const loaded = loadTemplateForPackage({
+      repoRoot: args.repoRoot,
+      templatePath: manifest.template.artifactPath,
+      storyKey: args.storyKey,
+      source: currentSource,
+      expectedDigest: manifest.template.digest,
+    });
+    reasons.push(...loaded.issues);
+    if (
+      loaded.identity &&
+      manifest.template.schemaVersion !== loaded.identity.schemaVersion
+    ) {
+      reasons.push(issue('template_schema_unsupported', 'approved package schema binding disagrees with the artifact', {
+        expected: loaded.identity.schemaVersion,
+        actual: manifest.template.schemaVersion,
+      }));
+    }
+    if (loaded.template) {
+      const coverage = buildCoverageIdentity(loaded.template);
+      if (canonicalJsonDigest(coverage) !== canonicalJsonDigest(manifest.coverage)) {
+        reasons.push(issue('coverage_identity_mismatch', 'approved cover/page coverage identity is stale', {
+          expected: manifest.coverage,
+          actual: coverage,
+        }));
+      }
+      const boards = resolveRequiredBoardArtifacts({
+        repoRoot: args.repoRoot,
+        boardRegistryRoot: args.boardRegistryRoot ?? path.join(args.repoRoot, 'set-identity-boards'),
+        template: loaded.template,
+        styleId: args.styleId,
+      });
+      reasons.push(...boards.issues);
+      reasons.push(...compareBoardArtifacts(manifest.requiredBoards, boards.boards));
+    }
+  }
+
+  return {
+    storyKey: args.storyKey,
+    storySourcePath: sourceRel,
+    approvedPackagePath: packageRel,
+    renderQualified: reasons.length === 0,
+    reasons,
+    manifest,
+  };
+}

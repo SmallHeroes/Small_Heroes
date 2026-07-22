@@ -23,6 +23,12 @@ import { validateBookVisualContractTemplate } from '@/lib/visual-contract-compil
 import { renderVisualContractReview } from '@/lib/visual-contract-compiler/writeVisualContractReview';
 import type { ContractLlmCaller } from '@/lib/visual-contract-compiler/compileBookVisualContract';
 import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler/contractTemplateTypes';
+import { canonicalHash } from '@/lib/canonical-json';
+import { renderCandidateEvidenceHeader } from '@/lib/visual-package/candidateEvidence';
+import {
+  CANDIDATE_EVIDENCE_VERSION,
+  type StorySourceIdentity,
+} from '@/lib/visual-package/types';
 
 const SOURCE_SUFFIX = '.source.json';
 const TEMPLATE_SUFFIX = '.visual-contract-template.json';
@@ -93,20 +99,45 @@ async function main(): Promise<void> {
   const failures: Array<{ storyKey: string; error: string }> = [];
 
   for (const file of files) {
-    const raw = JSON.parse(readFileSync(path.join(sources, file), 'utf8')) as TemplateCompileInput;
+    const raw = JSON.parse(readFileSync(path.join(sources, file), 'utf8')) as TemplateCompileInput & {
+      sourceIdentity?: StorySourceIdentity;
+    };
     const storyKey = raw.storyKey ?? file.replace(SOURCE_SUFFIX, '');
     if (only && storyKey !== only) continue;
     try {
+      if (
+        raw.sourceIdentity?.version !== 'story-source/v1' ||
+        raw.sourceIdentity.path.trim().length === 0 ||
+        raw.sourceIdentity.digest.trim().length === 0
+      ) {
+        throw new Error(
+          'sourceIdentity missing/invalid — re-run extract-visual-contract-sources before compiling a promotable candidate',
+        );
+      }
       lastAuthoringUsage = null;
       lastFinishReason = null;
       const { template, facts, notes, provenance, repairAttempts } = await compileBookVisualContractTemplate({ ...raw, storyKey }, { callLLM });
       const templatePath = path.join(out, `${storyKey}${TEMPLATE_SUFFIX}`);
       writeFileSync(templatePath, `${JSON.stringify(template, null, 2)}\n`, 'utf8');
-      const provenanceOut = { ...provenance, usage: lastAuthoringUsage, finishReason: lastFinishReason };
+      const candidateEvidence = {
+        version: CANDIDATE_EVIDENCE_VERSION,
+        storyKey,
+        storySource: raw.sourceIdentity,
+        sourceInputDigest: canonicalHash(raw),
+        templateDigest: canonicalHash(template),
+      } as const;
+      const provenanceOut = {
+        ...provenance,
+        candidateEvidence,
+        usage: lastAuthoringUsage,
+        finishReason: lastFinishReason,
+      };
       writeFileSync(path.join(out, `${storyKey}${PROVENANCE_SUFFIX}`), `${JSON.stringify(provenanceOut, null, 2)}\n`, 'utf8');
 
       const previous = loadPrevTemplate(prevBank, storyKey);
-      const review = renderVisualContractReview({ storyKey, facts, template, notes, valid: true, previous });
+      const review =
+        renderCandidateEvidenceHeader(candidateEvidence) +
+        renderVisualContractReview({ storyKey, facts, template, notes, valid: true, previous });
       writeFileSync(path.join(out, `${storyKey}${REVIEW_SUFFIX}`), review, 'utf8');
 
       // Persist the repair trail beside the review when Stage-3 repairs were needed (reviewability).

@@ -17,50 +17,21 @@
  * board". That is the correct behaviour, not a gap: flag-on with an empty registry must refuse to render, never
  * invent a fallback.
  */
-import path from 'path';
 import { createHash } from 'crypto';
 
 import { downloadStorageObjectBytes, resolveStoragePublicUrl } from '@/lib/image-storage';
 
-import { loadRegistryEntry, type ExpectedRegistryIdentity } from './registry';
+import { loadRegistryEntry } from './registry';
 import type { BoardResolverDeps } from './resolveBoards';
+import {
+  setIdentityBoardRegistryPath,
+} from './registryPath';
 
-/** Repo-relative root of the committed board registry. */
-export const SET_IDENTITY_BOARD_REGISTRY_DIR = 'set-identity-boards';
-
-/**
- * One path segment, made filesystem-safe without collapsing distinct ids together: anything outside
- * `[a-z0-9._-]` becomes `-`. Ids in this codebase are already snake/kebab-cased (`home_living_room`, `style01`),
- * so this is a no-op in practice; it exists so a hostile/unusual id can never escape the registry dir.
- *
- * Dot-runs are collapsed (`..` → `.`) and an all-dots/empty result becomes `_`, mirroring
- * `sanitizeAssetPathSegment` in image-storage.ts. Without that, an id of exactly `..` survives as a segment and
- * `path.join` / storage-key normalization walks it UP a level — escaping the very directory this function exists
- * to contain it in. Both the fs registry path and the durable storage key are built from this, so the fence has to
- * live here rather than at either call site.
- */
-function safeSegment(value: string): string {
-  const cleaned = value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, '-')
-    .replace(/\.{2,}/g, '.'); // no parent-dir traversal ("..")
-  return cleaned.length === 0 || /^\.+$/.test(cleaned) ? '_' : cleaned;
-}
-
-/**
- * The absolute sidecar path for one registry identity. THE single definition of the registry layout — the mint /
- * approve tooling must build its write path from this same function.
- */
-export function setIdentityBoardRegistryPath(key: ExpectedRegistryIdentity, rootDir?: string): string {
-  return path.join(
-    rootDir ?? path.join(process.cwd(), SET_IDENTITY_BOARD_REGISTRY_DIR),
-    safeSegment(key.storyKey),
-    safeSegment(key.styleId),
-    safeSegment(key.setIdentityId),
-    `${safeSegment(key.setDefinitionHash)}.json`
-  );
-}
+export {
+  SET_IDENTITY_BOARD_REGISTRY_DIR,
+  setIdentityBoardRegistryPath,
+  setIdentityBoardStorageKey,
+} from './registryPath';
 
 /** The identity a board's STORAGE key is addressed by: the registry identity PLUS the bytes' own sha256. */
 export interface BoardStorageIdentity {
@@ -86,17 +57,6 @@ export interface BoardStorageIdentity {
  * Mirrors `setIdentityBoardRegistryPath`'s tuple + `safeSegment` sanitation, one segment per key component, so the
  * storage tree and the committed sidecar tree are browsable side by side.
  */
-export function setIdentityBoardStorageKey(key: BoardStorageIdentity, opts?: { ext?: string }): string {
-  const ext = safeSegment(opts?.ext ?? 'png').replace(/^\.+/, '');
-  return [
-    SET_IDENTITY_BOARD_REGISTRY_DIR,
-    safeSegment(key.storyKey),
-    safeSegment(key.styleId),
-    safeSegment(key.setIdentityId),
-    `${safeSegment(key.setDefinitionHash)}.${safeSegment(key.assetSha256)}.${ext}`,
-  ].join('/');
-}
-
 /**
  * The live deps: committed sidecar → durable Supabase object. `resolveDurableUrl` and `fetchAssetSha256` both work
  * off the entry's `storageKey` (the durable authority) — never off any url a contract or a sidecar suggests.

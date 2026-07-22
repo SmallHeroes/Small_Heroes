@@ -5,6 +5,7 @@
  *
  *   npm run release-check
  *   ENABLE_V3_APPROVED_BANK=true npm run release-check
+ *   ENABLE_V3_APPROVED_BANK=true npm run release-check -- --require-render-qualified
  */
 import fs from 'fs';
 import path from 'path';
@@ -98,6 +99,7 @@ async function main(): Promise<void> {
   const v3Enabled = flag === 'true' || flag === '1';
   const v3Slots = v3ApprovedSlots();
   const sellable = countSellable();
+  const strictRenderQualification = process.argv.includes('--require-render-qualified');
 
   console.log(`[release-check] ENABLE_V3_APPROVED_BANK=${flag || '(unset)'}`);
   console.log(`[release-check] sellable matrix slots: ${sellable}/18`);
@@ -119,9 +121,47 @@ async function main(): Promise<void> {
     );
   }
 
+  const [{ STYLE_IDS }, { auditMvpRenderQualification }, { evaluateRenderQualificationReleaseGate }] =
+    await Promise.all([
+      import('../lib/styles'),
+      import('../lib/visual-package/audit'),
+      import('../lib/visual-package/releaseGate'),
+    ]);
+  const qualificationAudit = auditMvpRenderQualification({
+    repoRoot: process.cwd(),
+    styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  });
+  console.log(
+    `[release-check] product-sellable slots: ${qualificationAudit.productSellableCount}/${qualificationAudit.nominalSlotCount}`,
+  );
+  console.log(
+    `[release-check] render-qualified slots: ${qualificationAudit.renderQualifiedCount}/${qualificationAudit.nominalSlotCount}`,
+  );
+  const qualificationGate = evaluateRenderQualificationReleaseGate(
+    qualificationAudit,
+    strictRenderQualification,
+  );
+  if (!qualificationGate.pass) {
+    console.error('');
+    console.error('[release-check] FAIL — strict render qualification was explicitly required.');
+    for (const failure of qualificationGate.failures) {
+      console.error(`[release-check] ${failure.storyKey}: ${failure.reasonCodes.join(', ')}`);
+    }
+    process.exit(1);
+  }
+  if (!strictRenderQualification) {
+    console.log(
+      '[release-check] render qualification is report-only; pass --require-render-qualified for the fail-closed release gate.',
+    );
+  }
+
   await checkGenerationJobSchema();
 
-  console.log('[release-check] PASS');
+  console.log(
+    strictRenderQualification
+      ? '[release-check] PASS (strict render qualification required)'
+      : '[release-check] PASS (product/config checks only; not a render-readiness claim)',
+  );
 }
 
 main().catch((err) => {

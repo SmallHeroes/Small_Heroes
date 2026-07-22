@@ -70,6 +70,7 @@ import {
 import { heartbeatLease } from '@/lib/generation-chunked/lease';
 import { finalizeAndPersistStoryText } from './text-finalization';
 import { ensureFrozenVisualContract } from './ensure-frozen-visual-contract';
+import { runWithStyle01RenderQualification } from './render-qualification-preflight';
 // (Set Identity Board, Milestone C) ACTIVATE → BIND → ASSERT. Every one of these is a no-op for an order without a
 // `pipelineCache.setIdentityBoards` snapshot, and only `ensureSetIdentityBoardSnapshot` can create one (flag-gated,
 // hard-off on prod) — so with the flag off this import adds no DB call, no write, and no prompt byte.
@@ -1022,7 +1023,9 @@ async function runCoverStage(
   // byte-identical.
   await requireSetIdentityBoardsBoundForRender(order, cache);
 
-  const coverImage = await generateBookCover({
+  const coverImage = await runWithStyle01RenderQualification(
+    { illustrationStyle: order.illustrationStyle, cache },
+    () => generateBookCover({
     // (#7-a 5b) Durable regen reserver for the cover artifact — flag-on only.
     reserveQualityRegen: isReadinessManifestEnabled()
       ? makeQualityRegenReserver(prisma, { orderId: order.id, artifactKey: coverArtifactKey() })
@@ -1068,7 +1071,8 @@ async function runCoverStage(
     setIdentityBoardRefs: setIdentityBoardRefsForPage(cache, 0),
     childStructured: cache.dna?.childStructured,
     companionStructured: cache.dna?.companionStructured,
-  });
+    }),
+  );
 
   await withDeliveryInputMutation(
     prisma,
@@ -1506,7 +1510,9 @@ async function runPageImagesChunk(
   // Per-CHUNK, not per-page: one verification covers every page in this chunk. LEGACY order → no-op, no I/O.
   await requireSetIdentityBoardsBoundForRender(order, cache);
 
-  const imageOutcome = await generateAllPageImages(pagesForGen, {
+  const imageOutcome = await runWithStyle01RenderQualification(
+    { illustrationStyle: order.illustrationStyle, cache },
+    () => generateAllPageImages(pagesForGen, {
     // (#7-a 5b) Durable per-page regen reserver — flag-on only (flag-off → undefined → legacy in-memory budget).
     makeReserveQualityRegen: isReadinessManifestEnabled()
       ? (pageNumber: number) =>
@@ -1599,7 +1605,8 @@ async function runPageImagesChunk(
     sceneMemoryPlan,
     storyFile: storyFileKey,
     direction: (cache.directionForV3 as 'bedtime' | 'adventure' | 'fantasy' | undefined) ?? undefined,
-  });
+    }),
+  );
 
   const presentationEnabled =
     process.env.ENABLE_PRESENTATION_POSTPROCESS !== 'false' &&

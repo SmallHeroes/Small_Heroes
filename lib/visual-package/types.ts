@@ -1,0 +1,143 @@
+export const VISUAL_PACKAGE_MANIFEST_VERSION = 'visual-package/v1' as const;
+export const VISUAL_PACKAGE_PROMOTION_VERSION = 'visual-package-promotion/v1' as const;
+export const STORY_SOURCE_IDENTITY_VERSION = 'story-source/v1' as const;
+export const CANDIDATE_EVIDENCE_VERSION = 'visual-package-candidate/v1' as const;
+
+export type VisualPackageState = 'candidate' | 'approved';
+
+export type WorldRealityMode =
+  | 'grounded'
+  | 'grounded_with_visual_metaphor'
+  | 'fantastical';
+
+export interface StorySourceIdentity {
+  version: typeof STORY_SOURCE_IDENTITY_VERSION;
+  path: string;
+  digestAlgorithm: 'sha256-normalized-utf8';
+  digest: string;
+  pageCount: number;
+  pageNumbers: number[];
+}
+
+export interface VisualPackageTemplateIdentity {
+  artifactPath: string;
+  digestAlgorithm: 'canonical-json-sha256';
+  digest: string;
+  schemaVersion: string;
+}
+
+export interface VisualPackageCoverageIdentity {
+  coverDigest: string;
+  pageContractsDigest: string;
+  pageCount: number;
+  pageNumbers: number[];
+}
+
+export interface VisualPackageCandidateEvidence {
+  version: typeof CANDIDATE_EVIDENCE_VERSION;
+  sourceInputDigest: string;
+  reviewDigest: string;
+  provenanceDigest: string;
+}
+
+export interface VisualPackageBoardArtifactIdentity {
+  artifactPath: string;
+  artifactDigest: string;
+  registryVersion: string;
+  boardVersion: string;
+  storyKey: string;
+  setIdentityId: string;
+  styleId: string;
+  setDefinitionHash: string;
+  storageKey: string;
+  assetSha256: string;
+  approvedBy: string;
+  approvedAt: string;
+}
+
+export interface VisualPackageReviewReality {
+  authoredBy: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  worldMode: WorldRealityMode | null;
+}
+
+export interface VisualPackageApproval {
+  approvedBy: string;
+  approvedAt: string;
+  note?: string;
+}
+
+export interface VisualPackagePromotionRecord {
+  toolVersion: typeof VISUAL_PACKAGE_PROMOTION_VERSION;
+  promotedAt: string;
+  templateDestination: string;
+  manifestDestination: string;
+}
+
+/**
+ * The single lifecycle manifest. The compiler/review flow prepares it in `candidate` state with no approval.
+ * Guy fills the review + approval records without changing any digest. The promotion tool re-verifies every bound
+ * artifact and emits the same versioned shape in `approved` state with a promotion record.
+ */
+export interface VisualPackageManifest {
+  manifestVersion: typeof VISUAL_PACKAGE_MANIFEST_VERSION;
+  state: VisualPackageState;
+  storyKey: string;
+  styleId: string;
+  source: StorySourceIdentity;
+  template: VisualPackageTemplateIdentity;
+  coverage: VisualPackageCoverageIdentity;
+  candidateEvidence: VisualPackageCandidateEvidence;
+  review: VisualPackageReviewReality;
+  approval: VisualPackageApproval | null;
+  requiredBoards: VisualPackageBoardArtifactIdentity[];
+  promotion: VisualPackagePromotionRecord | null;
+}
+
+export type VisualPackageIssueCode =
+  | 'manifest_invalid'
+  | 'approved_package_missing'
+  | 'approved_package_not_approved'
+  | 'approval_missing'
+  | 'approval_not_guy'
+  | 'approval_invalid'
+  | 'review_metadata_missing'
+  | 'story_key_mismatch'
+  | 'story_source_missing'
+  | 'story_source_mismatch'
+  | 'style_mismatch'
+  | 'template_missing'
+  | 'template_parse_error'
+  | 'template_digest_mismatch'
+  | 'template_schema_unsupported'
+  | 'template_invalid'
+  | 'cover_contract_missing'
+  | 'page_coverage_incomplete'
+  | 'page_coverage_duplicate'
+  | 'page_coverage_out_of_range'
+  | 'coverage_identity_mismatch'
+  | 'candidate_review_disagreement'
+  | 'candidate_provenance_disagreement'
+  | 'candidate_evidence_digest_mismatch'
+  | 'board_unresolved'
+  | 'board_identity_mismatch'
+  | 'board_artifact_mismatch'
+  | 'legacy_contract_not_qualified';
+
+export interface VisualPackageIssue {
+  code: VisualPackageIssueCode;
+  message: string;
+  field?: string;
+  expected?: unknown;
+  actual?: unknown;
+}
+
+export class VisualPackageValidationError extends Error {
+  readonly isVisualPackageValidationError = true as const;
+
+  constructor(readonly issues: VisualPackageIssue[]) {
+    super(`Visual package rejected: ${issues.map((issue) => `${issue.code}: ${issue.message}`).join('; ')}`);
+    this.name = 'VisualPackageValidationError';
+  }
+}
