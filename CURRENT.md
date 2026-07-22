@@ -2,7 +2,55 @@
 
 **Updated:** 2026-07-22
 **Maintainer:** Codex
-**Working branch:** `codex/r1c-runtime-world-authority` in `C:\Users\guyna\.codex\worktrees\d775\Small_Heroes`; frozen R1B remains at `C:\Users\guyna\.codex\worktrees\0ef3\Small_Heroes`, accepted R1A remains at `C:\Users\guyna\.codex\worktrees\2d64\Small_Heroes`, and the legacy feature worktree remains untouched at `C:\GNart\Work\sh-wt-style01`
+**Working branch:** `codex/r1d-fox-package-prep` in `C:\Users\guyna\.codex\worktrees\887d\Small_Heroes`, based exactly on accepted/frozen R1C `515545a8b8867bc0928e5ec399136b67ddc18787`; frozen R1C remains at `C:\Users\guyna\.codex\worktrees\d775\Small_Heroes`, frozen R1B remains at `C:\Users\guyna\.codex\worktrees\0ef3\Small_Heroes`, accepted R1A remains at `C:\Users\guyna\.codex\worktrees\2d64\Small_Heroes`, and the dirty legacy feature worktree remains untouched at `C:\GNart\Work\sh-wt-style01`
+
+## R1D-PREP Fox candidate preparation - blocked at source-artifact gate
+
+Guy accepted/closed R1C after independent Claude Code PASS and authorized the zero-cost R1D-PREP artifact milestone. The supplied worktree started clean and detached at exact accepted R1C `515545a8b8867bc0928e5ec399136b67ddc18787`; Codex attached only `codex/r1d-fox-package-prep`. No other worktree or branch was written.
+
+The existing general extractor/compiler/candidate lifecycle cannot currently produce a candidate that both reuses the exact tracked Fox template and satisfies R1C complete cover authority. Per the milestone's stop rule, no candidate manifest was created and no package was promoted.
+
+### Exact blocking evidence
+
+- Current story: `story-bank/v3-approved/fox_uri_adventure.md`, normalized UTF-8 SHA-256 `02629e886a9aaa1e714d9a8d652c24d94ca5843465ff8a9cb70d320a24e2231c`, 12 pages numbered 1-12.
+- Current canonical template: `story-bank/v3-approved/fox_uri_adventure.visual-contract-template.json`, `vc-schema/v1`, canonical JSON digest `4f75dad54f7e212aa7de69ee1c7e7dadccbb312d5fe6b584f1c06e7bad88b2b8` (raw file SHA-256 `8733a15b9d1819b3e4ba19fcebc70e6c7d7717801bfc476f5b68c396326b120f`). Its cover exists and page contracts cover exactly 1-12, but its cover has no `zoneId` and no `castIds`.
+- The R1C runtime-authority validator returns exactly two issues for that tracked template: `world_authority_incomplete` at `template.coverContract.zoneId` and `world_authority_incomplete` at `template.coverContract.castIds`.
+- The accepted compiler, run offline with the tracked template as its descriptive fixture, proposes `coverContract.zoneId = "z_balcony_railing"` and `coverContract.castIds = ["child:hero", "companion:fox_uri"]`. That rebuilt output has canonical digest `ae65bd869d400f776c6b667046a6c0d07587424eefe006e907fab4aceeb367df` (raw SHA-256 `ebd614a35e24de995e9966b9db65a1d2929d61145ecba2553aa856c29aa6e8ee`) and no runtime-world-authority issue under the proposed mode below, but it is not the exact current canonical template.
+- The generated compiler review incorrectly says there are no differences from the previous template even though those two cover fields were added. `renderVisualContractReview` does not compare cover zone/cast. That makes the current generated review insufficient approval evidence; it was not patched in this milestone.
+- Running the default candidate CLI against only the exact tracked source/template failed closed with `candidate_review_disagreement` and `candidate_provenance_disagreement`, because no tracked review/provenance sidecars exist. It wrote no manifest. A pure, no-write diagnostic candidate build against the rebuilt compiler output resolves successfully, but binds the non-canonical digest above and is not a prepared candidate.
+
+### Board and reviewer state
+
+- Required board registry artifact: `set-identity-boards/fox_uri_adventure/soft_hand_drawn_storybook/set_room_balcony_night/aaa469afd9c6b0b15fa06d44d64045ba26787988fd2f58740527c2512c1f1f05.json`; canonical digest `83609468ea50aed1533930f136e1557989c956809b687a233c2b20e9a7ddccc4`.
+- Identity: `set-registry/v1`, `set-board/v1`, story `fox_uri_adventure`, style `soft_hand_drawn_storybook`, set `set_room_balcony_night`, definition hash `aaa469afd9c6b0b15fa06d44d64045ba26787988fd2f58740527c2512c1f1f05`.
+- Durable storage key: `set-identity-boards/fox_uri_adventure/soft_hand_drawn_storybook/set_room_balcony_night/aaa469afd9c6b0b15fa06d44d64045ba26787988fd2f58740527c2512c1f1f05.30392c033bba385738ba7399efa78135f869d2b222b3e86ff7a42f8ed0c75083.png`; approved asset SHA-256 `30392c033bba385738ba7399efa78135f869d2b222b3e86ff7a42f8ed0c75083`; board approval `Guy` at `2026-07-17T10:34:57.360Z`.
+- No URL was resolved. Registry URLs are environment-specific advisory values; the storage key plus SHA is durable authority, and resolving a URL would cross the prohibited live storage boundary.
+- Proposed reviewer-owned `worldMode`: `grounded_with_visual_metaphor`, pending human decision. The authored world is explicitly a real, non-magical bedroom/balcony at night, while small friendly rhythm marks may visualize sound. This is derived from authored physical facts, not from `adventure`, the story key, title, genre, or a runtime fallback.
+- `review.authoredBy`, `review.reviewedBy`, `review.reviewedAt`, `review.worldMode`, `approval`, and `promotion` remain null/unresolved. No approval ID is part of `visual-package/v1`, and none was invented.
+
+### Generated local diagnostics and validation
+
+- Generated ignored source: `outputs/r1d-fox-package-prep/sources/fox_uri_adventure.source.json` (raw SHA-256 `2fc3fab72d36d6e4a02dd288b5c2e7f9255d86e271e1fca93ad19e73f9d5b7dc`).
+- Generated ignored compiler outputs: `outputs/r1d-fox-package-prep/candidate/fox_uri_adventure.visual-contract-template.json`, `.visual-contract-review.md`, and `.visual-contract-provenance.json`. Candidate evidence binds source-input digest `7cb76e06f3fb41a2c72648ca70d4fc18d73340133fd24af85e61db4548d2f870`, rebuilt template digest `ae65bd...`, normalized review digest `c389e92a6f152ce321dadc0eb1fdd915de4eb6d32bf995cc45acf83953101d70`, and canonical provenance digest `fa2beb853335bda9fb5559ac432377a41f76e5be0d2ac1bf71c7002234ba66ea`.
+- Human-readable ignored stop report: `outputs/r1d-fox-package-prep/R1D-PREP-BLOCKED.md`, raw SHA-256 `bfaae123422ead0c3eaa6dadc5e0e9a81c93ffa4afbf8447e9fc16d732ec29c9`. It is presentation only, not a manifest or render authority.
+- Existing architecture intentionally treats sources, compiler review/provenance, and candidate manifests as generated ignored outputs. None was force-added. The only durable repository change in this stopped milestone is this canonical state record.
+- Focused visual-package/compiler/board/runtime-authority suite: PASS - 6 files / 87 tests.
+- `npx --no-install tsc --noEmit`: PASS.
+- Literal `npm run check`: TypeScript PASS; Vitest FAIL - 246 files total, 241 passed and 5 failed; 2,328 tests passed, 6 failed, 65 skipped. The six failures are the already-documented absent ignored `outputs/` fixture failures in `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and `story-read-back-validation.spec.ts`. No fixture was imported or copied.
+- Pre- and post-`npm run render-qualification-audit`: 18 nominal slots, 0 render-qualified. Both report the Fox approved package missing. Local product-sellable count was 6 because no catalog-expansion flag was enabled; that does not change the 0/18 render result.
+- The worktree used an ignored junction to existing canonical `node_modules` after the first audit command could not resolve `tsx`; no dependency installation occurred.
+- `visual-packages/approved/` does not exist; no candidate manifest exists; promotion destinations `story-bank/v3-approved/fox_uri_adventure.visual-contract-template.json` and `visual-packages/approved/fox_uri_adventure.visual-package.json` were untouched.
+- Zero image/audio renders, provider/live LLM/network/product API calls, storage/database writes, migrations, deployments, pushes, flag changes, or runtime/product/story/board modifications occurred.
+
+### Required next Decision Gate
+
+Guy chooses accept/change/reject for a focused zero-cost source-artifact correction:
+
+- Accept: authorize adding the compiler-proposed cover zone/cast to the tracked canonical Fox template and fixing the general human review diff so cover changes are visible, with focused tests and independent Claude Code QA; then rerun R1D-PREP from the new immutable commit.
+- Change: provide a different explicit cover zone and/or cast decision for that same focused artifact milestone.
+- Reject: leave the tracked template unchanged; Fox remains non-render-qualified and candidate preparation/LOW render do not proceed.
+
+Package review, approval, promotion, the one-LOW-page proof, runtime work, and all later milestones remain separately gated.
 
 ## R1C independent QA result - latest state
 
@@ -161,7 +209,7 @@ R1A is implemented and locally committed. Independent Claude Code adversarial QA
 
 ## Active task
 
-R1C has independent technical PASS and is awaiting Guy's accept/close and push decision. No image render is currently authorized.
+R1C is accepted/closed. R1D-PREP stopped fail-closed because the exact tracked Fox template lacks render-qualified cover `zoneId` and `castIds`, while the general compiler proposes them only in a new non-canonical candidate. No reviewable visual-package candidate or image render is currently authorized.
 
 The governing brief is `docs/ai-workflow/DECISION_GATE_IMAGE_GENERATION_ARCHITECTURE_2026-07-22.md`.
 
@@ -263,11 +311,11 @@ That historical blocker was corrected by `f4c335f6` and `74a73863`, then indepen
 
 ## Blockers
 
-- R1A and R1B are accepted/closed; R1C has independent technical PASS and now requires Guy's accept/close and push decisions.
-- The branch has no upstream and has not been pushed. Push remains an explicit Guy decision after inspection/QA.
+- R1A, R1B, and R1C are accepted/closed. R1D-PREP is blocked on Guy's accept/change/reject decision for the focused Fox cover-authority source-artifact correction and the general review-diff defect.
+- `codex/r1d-fox-package-prep` has no upstream and has not been pushed. Push remains an explicit Guy decision after inspection.
 - The one-LOW-page proof requires separate explicit cost approval.
 - Lion requires separate product/content acceptance; technical readiness alone is insufficient.
 
 ## Next action
 
-Guy reviews the independent R1C PASS and decides whether to accept/close R1C and push `codex/r1c-runtime-world-authority`. After that, the next safe step is a separate no-cost preparation milestone for a human-reviewable Fox visual-package candidate; package promotion and the one-LOW-page proof remain separately gated. Until Guy's decision: do not push, start R1D/R2, promote a real package, import ignored user fixtures, render, exercise a real database boundary, change staging/production flags, or begin Lion/catalog/full-book work.
+Guy reviews `outputs/r1d-fox-package-prep/R1D-PREP-BLOCKED.md` and chooses accept/change/reject for the smallest zero-cost source-artifact Decision Gate: explicit Fox cover zone/cast plus a general review-diff correction. Do not treat the rebuilt diagnostic as canonical, create or approve a candidate, promote, render, push, import ignored user fixtures, change flags, exercise a live storage/database boundary, or begin R2/Lion/catalog/full-book work. After the source-artifact milestone passes independent Claude Code QA, rerun R1D-PREP from its new immutable commit; package approval/promotion and the one-LOW-page proof remain separate gates.
