@@ -93,6 +93,7 @@ These entries mean “present in Git,” not automatic runtime or product accept
 
 ## Deferred
 
+- **Post-MVP Personalized Story Compiler R&D:** activate only after Guy accepts the R5 golden-path MVP proof. Evaluate pre-written stories, bounded generation from approved story structures, and fully original generation on the same offline profile matrix before any customer integration. Preserve the source-neutral boundary `Story Source → versioned StoryArtifact → Visual Package`; begin without image calls, use fail-closed Hebrew/gender/age/safety/structure gates and bounded repairs, and require a separate Decision Gate plus Guy approval before changing the production story-bank path.
 - Style02 customer availability
 - Physical/printed fulfillment and Power Card productization
 - International/Stripe rollout and non-Hebrew languages
