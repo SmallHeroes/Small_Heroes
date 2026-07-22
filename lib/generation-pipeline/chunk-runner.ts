@@ -1498,6 +1498,17 @@ async function runPageImagesChunk(
       ? (pageNumber: number) =>
           makeQualityRegenReserver(prisma, { orderId: order.id, artifactKey: pageArtifactKey(pageNumber) })
       : undefined,
+    // (render-loop Phase 1, 3c) Persist a DISCOVERABLE candidate row right after a page's winner upload (before QA),
+    // so a mid-QA crash leaves a recoverable record of the uploaded bytes instead of orphaned spend. This is a side
+    // table (PageUploadCandidate) with NO safety columns — not an ImageAsset/delivery-input write, so it needs no
+    // barrier and stays fail-closed by construction (the detector fields + SHA are still owned by the post-QA write).
+    onPageCandidateUploaded: async (pageNumber, candidate) => {
+      await prisma.pageUploadCandidate.upsert({
+        where: { orderId_pageNumber: { orderId: order.id, pageNumber } },
+        create: { orderId: order.id, pageNumber, url: candidate.url, rawUrl: candidate.rawUrl, provider: candidate.provider },
+        update: { url: candidate.url, rawUrl: candidate.rawUrl, provider: candidate.provider },
+      });
+    },
     illustrationStyle: order.illustrationStyle,
     childName: order.childName,
     childAge: order.childAge,

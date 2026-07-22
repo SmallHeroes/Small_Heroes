@@ -13,11 +13,12 @@
  */
 
 // ── Curated appendix (dims 7–9), extracted from the canonical migration chain; a drift test asserts it stays in sync ─
-/** Tables the canonical chain puts under RLS (ENABLE, no policy — deny non-bypass roles). These ARE the 14 new tables. */
+/** Tables the canonical chain puts under RLS (ENABLE, no policy — deny non-bypass roles). These ARE the new tables. */
 export const RLS_ENABLED_TABLES: readonly string[] = [
   'ExceptionCase', 'ExceptionCaseAudit', 'ReissueBudget', 'RefundAttempt', 'BookReadinessManifest',
   'BookReadiness', 'DeliveryOutbox', 'AtomicOperationReceipt', 'QualityEvidence', 'Coupon',
   'CouponRedemption', 'HumanQaReviewCase', 'OperatorNotificationOutbox', 'HumanQaOperatorAction',
+  'PageUploadCandidate',
 ];
 /** Explicit grant REVOKEs in the canonical chain (20260702_atomic_receipt_revoke_grants). */
 export const REVOKE_GRANTS: ReadonlyArray<{ table: string; from: readonly string[] }> = [

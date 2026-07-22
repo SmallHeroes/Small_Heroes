@@ -269,9 +269,32 @@ model Order {
   qualityEvidence    QualityEvidence[]
   atomicOperationReceipts AtomicOperationReceipt[]
   humanQaReviewCases HumanQaReviewCase[]
+  pageUploadCandidates PageUploadCandidate[]
 
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+}
+
+/**
+ * (render-loop Phase 1, 3c) A DISCOVERABLE record of a page's WINNER image bytes uploaded to storage BEFORE QA runs.
+ * Written right after the upload so a mid-QA crash leaves recoverable spend, not an orphaned object the DB can't find.
+ * Carries NO safety signal (no detector fields, no content SHA) — the fail-closed safety signal + the delivered-bytes
+ * binding stay owned by the post-QA ImageAsset write + the phase-2 SHA writer, so this is NOT a delivery-input / safety
+ * write. Auto-recovery (a reconciler reading this to skip re-generation + re-drive QA) is Phase 2.
+ */
+model PageUploadCandidate {
+  id         String   @id @default(cuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  pageNumber Int
+  url        String
+  rawUrl     String?
+  provider   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([orderId, pageNumber])
+  @@index([orderId])
 }
 
 model UserAccount {

@@ -363,6 +363,13 @@ export interface ImageInput {
   /** (render-loop Phase 1, 3a) Explicit per-request OpenAI timeout (ms), derived from the remaining page budget. */
   requestTimeoutMs?: number;
   /**
+   * (render-loop Phase 1, 3c) Fired right after THIS render's bytes are uploaded to storage, BEFORE the caller QAs
+   * them — so a mid-QA kill leaves a discoverable candidate instead of orphaned spend. The page loop binds it to
+   * config.onPageCandidateUploaded(page.pageNumber, …); the caller persists a FAIL-CLOSED candidate row (no detector
+   * fields, no SHA). Non-fatal.
+   */
+  onCandidateUploaded?: (candidate: { url: string; rawUrl: string | null; provider: string }) => Promise<void>;
+  /**
    * (WS0b e4a) The contract's coarse environment lock for this page (indoor|outdoor|neutral). When present it
    * routes Style 01 STYLE REFS "locks-first" (indoor→interior subset, outdoor→outdoor subset, neutral→ZERO refs),
    * overriding the regex scene-class classifier for ref selection ONLY — the sceneClass itself (scene-memory,
@@ -3935,6 +3942,23 @@ async function generateWithReplicate(input: ImageInput): Promise<GeneratedImage>
     );
   }
 
+  // (render-loop Phase 1, 3c) Persist a DISCOVERABLE candidate of these just-uploaded bytes, BEFORE the caller QAs
+  // them — so a mid-QA kill (worker deadline / crash between here and the post-loop ImageAsset write) leaves a
+  // recoverable record instead of orphaned spend. Non-fatal, and carries NO safety signal: the fail-closed detector
+  // fields + delivered-bytes SHA stay owned by the post-QA write. Fires per render attempt; the caller's upsert
+  // (keyed orderId+pageNumber) keeps the latest uploaded bytes.
+  if (input.onCandidateUploaded) {
+    try {
+      await input.onCandidateUploaded({ url: durableUrl, rawUrl: result.imageUrl, provider: result.model });
+    } catch (candidateError) {
+      console.warn(
+        `[Image] candidate persist failed (non-fatal) page=${input.pageNumber ?? '?'}: ${
+          candidateError instanceof Error ? candidateError.message : String(candidateError)
+        }`
+      );
+    }
+  }
+
   return {
     url:      durableUrl,
     rawUrl:   result.imageUrl,
@@ -4260,6 +4284,16 @@ export async function generateAllPageImages(
     entityVisualLock?: EntityVisualLock;
     onAnchorsResolved?: (resolvedAnchors: Record<string, string>) => Promise<void>;
     onResemblanceAudit?: (entry: ResemblanceAuditEntry) => Promise<void>;
+    /**
+     * (render-loop Phase 1, 3c) Fired right after a page's WINNER image is uploaded, BEFORE QA — so a mid-QA crash
+     * leaves a DISCOVERABLE record of the uploaded bytes instead of orphaned spend. The caller (chunk-runner, which
+     * holds prisma + the pageNumber→pageId map) persists a fail-closed candidate row; this file stays prisma-free.
+     * Non-fatal: a failed candidate write never fails the render.
+     */
+    onPageCandidateUploaded?: (
+      pageNumber: number,
+      candidate: { url: string; rawUrl: string | null; provider: string },
+    ) => Promise<void>;
     resemblanceThresholdConfig?: ResemblanceThresholdConfig;
     inputPhotoStrength?: InputPhotoStrength;
     photoQuality?: PhotoQualityForPrompt;
@@ -4995,6 +5029,7 @@ export async function generateAllPageImages(
             generateImage({
               signal,
               requestTimeoutMs: config.pageGenerationTimeoutMs,
+              onCandidateUploaded: (cand) => config.onPageCandidateUploaded?.(page.pageNumber, cand) ?? Promise.resolve(),
               reserveQualityRegen,
               pagePrompt: storyboardPrompt,
               illustrationStyle: normalizedStyle,
@@ -5147,6 +5182,7 @@ export async function generateAllPageImages(
               generateImage({
                 signal,
                 requestTimeoutMs: config.pageGenerationTimeoutMs,
+                onCandidateUploaded: (cand) => config.onPageCandidateUploaded?.(page.pageNumber, cand) ?? Promise.resolve(),
                 reserveQualityRegen,
                 pagePrompt: storyboardPrompt,
                 illustrationStyle: normalizedStyle,
@@ -5246,6 +5282,7 @@ export async function generateAllPageImages(
             return generateImage({
               signal,
               requestTimeoutMs: config.pageGenerationTimeoutMs,
+              onCandidateUploaded: (cand) => config.onPageCandidateUploaded?.(page.pageNumber, cand) ?? Promise.resolve(),
               reserveQualityRegen,
               pagePrompt: `${storyboardPrompt}${retrySuffix}`,
               illustrationStyle: normalizedStyle,
