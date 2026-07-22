@@ -56,7 +56,14 @@ Role decisions accumulated over time without reconciling all auto-loaded and “
 ## Commits
 
 - `980560a2` — authority model, workflow protocol, Decision Gate, DEC-009, and active role/routing summaries.
-- Canonical project/state documents and historical-snapshot markers are in the commit containing this `CURRENT.md` version.
+- `02102a84` — canonical `PROJECT`, `ROADMAP`, `CURRENT`, and `QUALITY_GATES` documents plus historical-snapshot markers.
+- This state checkpoint records the post-milestone branch graph and validation evidence.
+
+## Current branch graph
+
+- `main` contains the documentation transition and is ahead of `origin/main`; it has not been pushed.
+- Local `feat/chunked-generation` remains at `ef543312` and contains four implementation commits absent from `main`.
+- The feature branch does not contain the new canonical docs, so future integration must preserve both sides deliberately.
 
 ## Tests and validation
 

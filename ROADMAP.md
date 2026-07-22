@@ -16,9 +16,9 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### R1 — Complete and gate render-loop Phase 1
 
-- **Observed repository state:** local `feat/chunked-generation` is four commits ahead of `main` at `ef543312`; `main` is `b4813c04`. The feature diff changes image cancellation/retry behavior, same-image re-QA, and pre-QA page-upload candidate persistence.
+- **Observed repository state:** local `feat/chunked-generation` ends at `ef543312` and contains four implementation commits not in `main`. `main` now contains the ownership/source-of-truth documentation milestones that are not in the feature branch, so the branches have deliberately diverged. The feature diff changes image cancellation/retry behavior, same-image re-QA, and pre-QA page-upload candidate persistence.
 - **Technical next gate:** review the full four-commit slice, run its focused tests plus `npm run check`, verify migration/runtime implications, prepare the Claude Code handoff, and merge only after technical QA and Guy's relevant product decision.
-- **Do not:** cherry-pick or merge the slice merely because the branch is ahead; do not modify it as part of the role-document transition.
+- **Do not:** merge the slice merely because it is the active feature work; review it first, and preserve the new canonical documentation during integration.
 
 ## Next
 
