@@ -3640,6 +3640,23 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     contentType: 'image/png',
   });
 
+  // (render-loop Phase 1, 3c) Persist a DISCOVERABLE candidate of these just-uploaded bytes on the SHIPPED Style-01
+  // path, BEFORE the caller QAs them (QA runs in generateWithGPTImageStyle01Phase2 after this returns) — so a mid-QA
+  // kill (worker deadline / crash before the post-loop ImageAsset write) leaves a recoverable record instead of
+  // orphaned spend. Non-fatal; carries NO safety signal (fail-closed by construction — this is a buffer upload, so
+  // rawUrl == durableUrl, matching the return below). Fires per render attempt; the caller upserts by (order,page).
+  if (input.onCandidateUploaded) {
+    try {
+      await input.onCandidateUploaded({ url: durableUrl, rawUrl: durableUrl, provider: result.model });
+    } catch (candidateError) {
+      console.warn(
+        `[Image] candidate persist failed (non-fatal) page=${input.pageNumber ?? '?'}: ${
+          candidateError instanceof Error ? candidateError.message : String(candidateError)
+        }`
+      );
+    }
+  }
+
   const [widthStr, heightStr] = size.split('x');
 
   let sceneMemoryDriftReport: import('../../lib/scene-memory/types').SceneMemoryDriftReport | null =
