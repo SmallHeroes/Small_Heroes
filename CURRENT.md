@@ -2,9 +2,44 @@
 
 **Updated:** 2026-07-22
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-fox-package-prep` in `C:\Users\guyna\.codex\worktrees\887d\Small_Heroes`, based exactly on accepted/frozen R1C `515545a8b8867bc0928e5ec399136b67ddc18787`; frozen R1C remains at `C:\Users\guyna\.codex\worktrees\d775\Small_Heroes`, frozen R1B remains at `C:\Users\guyna\.codex\worktrees\0ef3\Small_Heroes`, accepted R1A remains at `C:\Users\guyna\.codex\worktrees\2d64\Small_Heroes`, and the dirty legacy feature worktree remains untouched at `C:\GNart\Work\sh-wt-style01`
+**Working branch:** `codex/r1d-cover-source-fidelity` in `C:\Users\guyna\.codex\worktrees\04d2\Small_Heroes`, based exactly on frozen R1D-PREP `5cf68a008b56b75f657ee294955aa635f10da429`; the original R1D-PREP worktree remains read-only at `C:\Users\guyna\.codex\worktrees\887d\Small_Heroes`, frozen R1C remains at `C:\Users\guyna\.codex\worktrees\d775\Small_Heroes`, frozen R1B remains at `C:\Users\guyna\.codex\worktrees\0ef3\Small_Heroes`, accepted R1A remains at `C:\Users\guyna\.codex\worktrees\2d64\Small_Heroes`, and the dirty legacy feature worktree remains untouched at `C:\GNart\Work\sh-wt-style01`
 
-## R1D-PREP Fox candidate preparation - blocked at source-artifact gate
+## R1D-FIX Cover Source Fidelity - implemented locally, independent QA pending
+
+Guy approved the focused zero-cost Decision Gate after the R1D-PREP stop. The product decision is explicit: the Fox cover stays inside the child's bedroom at the listening window and preserves the mystery. It must not show the bucket, drip source, falling water, any water-catching object, or rhythm marks. Whole-book reviewer-owned `worldMode` remains `grounded_with_visual_metaphor`; page-0 prohibitions override that permission on this cover. Implementation is committed locally at `645f706c` (`fix(visual-contract): enforce cover source fidelity`) on `codex/r1d-cover-source-fidelity`, based exactly on frozen R1D-PREP `5cf68a00`. It has not been pushed and has not received independent Claude Code PASS.
+
+### Corrected general behavior
+
+- The offline source extractor now carries explicit location-bible page-0 authority into the compiler source: source zone, visible anchors, page action, forbidden drift, structured hidden objects, and explicit cover cast.
+- One pure compiler-owned mapping resolves the authored source-zone vocabulary to the contract zone graph by exact/canonical ID identity. Zero or multiple matches fail closed; no LLM, prose similarity, page-1 fallback, or story-specific branch chooses the cover.
+- When page 0 is explicit, it overrides stale draft cover location, zone, cast, and positive content. Its `forbiddenDrift` plus `visualSpoilerPolicy.hiddenObjects` are projected into `mustNotShow`; hidden spoiler content cannot survive in `mustShow`.
+- The human review now diffs all material cover fields: `locationId`, `zoneId`, `castIds`, `mustShow`, and `mustNotShow`. It separately reports candidate and previous-template source-fidelity conflicts and cannot claim parity while any listed field differs.
+- The same read-only fidelity gate runs during candidate preparation, promotion, and render qualification. Because shipped Style01 preflight already requires `evaluateRenderQualification`, a structurally valid but page-0-contradictory cover now fails before provider dispatch.
+- Sources without an explicit page-0 location plan retain the legacy compiler behavior. No second schema/compiler, runtime authoring path, fuzzy mapper, or story-specific technical exception was added.
+
+### Corrected Fox authority and unchanged scope
+
+- The actual offline extractor/compiler path was run with the tracked Fox template as its saved fixture draft. The corrected cover is `loc_child_room / z_room_window`, with cast `child:hero` and `companion:fox_uri`, bedroom/listening-window mystery anchors, and explicit bucket/drip/falling-water/water-catching/rhythm-mark prohibitions.
+- The tracked template raw SHA-256 is `6e3c1293641223b749199b647110e39dfd758b26f2afdd4488b8b74ae21df5a3`; canonical JSON digest is `c4215b8fba8faa94968e2db3f3c5c59785fe5844db96a982197456c2f2770112`. The location-bible raw SHA-256 is `1065f74173ebef138e5d295c861bc820c58f85d0e5359edae1319a11431de762`.
+- Generated ignored evidence under `outputs/r1d-cover-source-fidelity/`: source raw SHA-256 `dc68986428170c364ead55afdcb02fdda67174b4d97b44a7e5d4e416c59c1d05`; candidate template raw SHA-256 `d48c2d762ecbf5afa64c499b4440d3697489d74020f3796c7f87934a28bb6658`; review raw SHA-256 `26a4465ef2e9d0371e794ef577a5095762b67c3028445e76b319b718fd002782`; provenance raw SHA-256 `1b23ac31c9385e6af0c49d534820984500c4278b952ae257f5069a390e9cbc83`.
+- The generated candidate and tracked corrected artifact differ only in historical `provenance.model`: the compiler fixture records its configured `gpt-5.5-pro`, while the tracked artifact preserves the truthful original live-authoring provenance `gpt-5.5`. No offline fixture run was misrepresented as a new model call.
+- Exact JSON comparison against frozen R1D-PREP proves `pageContracts`, `locations`, `zones`, and `recurringProps` unchanged. Both locations still bind only `set_room_balcony_night`. The approved board registry blob is unchanged at Git blob `30ab0884b5a9f5d4e1ad8a4c059b26196fb6b259` and no `set-identity-boards/` path differs from the base; no new board is required.
+- `worldMode`, the approved board artifact/asset, story markdown, page contracts, runtime Director behavior, and the `0.70` resemblance gate were not changed. No package candidate manifest was created, approved, or promoted.
+
+### Validation and limits
+
+- Focused compiler/Fox/location/package/preflight/release/board suite: **PASS - 8 files / 89 tests**.
+- `npx --no-install tsc --noEmit`: **PASS** after the final implementation changes.
+- Literal `npm run check`: TypeScript **PASS**; Vitest **FAIL - 247 files total: 226 passed, 16 skipped, 5 failed; 2,337 tests passed, 65 skipped, 6 failed**. The failures are exactly the previously documented absent ignored-output fixtures in `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and two cases in `story-read-back-validation.spec.ts`. No R1D-FIX test failed and no ignored fixture was imported or copied.
+- Before and after `npm run render-qualification-audit`: **18 nominal slots, 6 product-sellable under local flags, 0 render-qualified**. Every slot still reports its approved package missing; this milestone deliberately did not promote one.
+- `git diff --check` and staged diff check passed before the implementation commit.
+- The work used an ignored `node_modules` junction to the existing canonical dependency install; no dependency installation occurred.
+- Zero image/audio render, provider/live LLM/network/product API call, storage/database write, migration, deployment, flag change, candidate approval/promotion, or push occurred.
+- This is implementation evidence, not independent technical PASS, product/visual acceptance, package approval, or render authorization. R1D-PREP rerun/package review and the one-LOW-page proof remain separately gated.
+
+The earlier R1D-PREP Accept recommendation below is superseded by Guy's stricter page-0 product decision and this general correction. It remains recorded as immutable stop-history, not as the current next action.
+
+## R1D-PREP Fox candidate preparation - historical stop, superseded by R1D-FIX
 
 Guy accepted/closed R1C after independent Claude Code PASS and authorized the zero-cost R1D-PREP artifact milestone. The supplied worktree started clean and detached at exact accepted R1C `515545a8b8867bc0928e5ec399136b67ddc18787`; Codex attached only `codex/r1d-fox-package-prep`. No other worktree or branch was written.
 
@@ -209,7 +244,7 @@ R1A is implemented and locally committed. Independent Claude Code adversarial QA
 
 ## Active task
 
-R1C is accepted/closed. R1D-PREP stopped fail-closed because the exact tracked Fox template lacks render-qualified cover `zoneId` and `castIds`, while the general compiler proposes them only in a new non-canonical candidate. No reviewable visual-package candidate or image render is currently authorized.
+R1C is accepted/closed. R1D-FIX is implemented locally at `645f706c` and awaits independent Claude Code review. The tracked Fox template now carries complete page-0-faithful cover authority through the corrected general compiler path, while candidate preparation/promotion and any image render remain unauthorized.
 
 The governing brief is `docs/ai-workflow/DECISION_GATE_IMAGE_GENERATION_ARCHITECTURE_2026-07-22.md`.
 
@@ -311,11 +346,11 @@ That historical blocker was corrected by `f4c335f6` and `74a73863`, then indepen
 
 ## Blockers
 
-- R1A, R1B, and R1C are accepted/closed. R1D-PREP is blocked on Guy's accept/change/reject decision for the focused Fox cover-authority source-artifact correction and the general review-diff defect.
-- `codex/r1d-fox-package-prep` has no upstream and has not been pushed. Push remains an explicit Guy decision after inspection.
+- R1A, R1B, and R1C are accepted/closed. R1D-FIX awaits independent Claude Code QA; Codex does not self-award technical PASS.
+- `codex/r1d-cover-source-fidelity` has no upstream and has not been pushed. Push remains an explicit Guy decision after inspection.
 - The one-LOW-page proof requires separate explicit cost approval.
 - Lion requires separate product/content acceptance; technical readiness alone is insufficient.
 
 ## Next action
 
-Guy reviews `outputs/r1d-fox-package-prep/R1D-PREP-BLOCKED.md` and chooses accept/change/reject for the smallest zero-cost source-artifact Decision Gate: explicit Fox cover zone/cast plus a general review-diff correction. Do not treat the rebuilt diagnostic as canonical, create or approve a candidate, promote, render, push, import ignored user fixtures, change flags, exercise a live storage/database boundary, or begin R2/Lion/catalog/full-book work. After the source-artifact milestone passes independent Claude Code QA, rerun R1D-PREP from its new immutable commit; package approval/promotion and the one-LOW-page proof remain separate gates.
+Claude Code reviews the immutable R1D-FIX implementation range from `5cf68a008b56b75f657ee294955aa635f10da429` through `645f706c` plus the following `CURRENT.md`-only handoff commit, read-only and adversarially. After independent PASS/re-gate and Guy's acceptance, rerun R1D-PREP from the new immutable head; package review/approval/promotion and the one-LOW-page proof remain separate gates. Do not create or approve a candidate, promote, render, push, import ignored user fixtures, change flags, exercise a live storage/database boundary, or begin R2/Lion/catalog/full-book work.
