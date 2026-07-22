@@ -78,7 +78,9 @@ No measurement render occurs until this is corrected and Claude Code independent
 
 ## Branch and worktree state
 
-- `main` is ahead of `origin/main` by the canonical workflow/documentation commits and remains the documentation authority.
+- Guy explicitly reported pushing the canonical workflow/documentation range after its handoff was prepared. `origin/main` contains that range and the later repository-topology governance commit through `6748b813` as verified on 2026-07-22.
+- The earlier handoff statement "No push" was true at preparation time but was not a durable current-state claim. It is withdrawn as a description of the later repository state; the push was performed explicitly by Guy, so there was no unauthorized executor push.
+- Local/remote divergence is volatile operational state. Before every implementation start, QA handoff, and PowerShell handoff, Codex reads it from Git rather than relying on this snapshot.
 - Local `feat/chunked-generation` is ahead of its origin by four Phase 1 implementation commits.
 - The feature worktree has a pre-existing modified `.env.example` and untracked review/checkpoint/artifact files. They are user work and remain untouched.
 - Main also has pre-existing untracked `_review/`, `project-os/NOW.md`, and `scripts/check-order-anchor-readiness.ts`; they remain untouched.
@@ -91,6 +93,7 @@ No measurement render occurs until this is corrected and Claude Code independent
 - Ran `npm run release-check` on `main` with `ENABLE_V3_APPROVED_BANK=true` and `SKIP_DB_SCHEMA_CHECK=true`: PASS and 18/18 product-sellable. This was a catalog/config check only, not a database release proof.
 - Enumerated tracked contract and board artifacts from Git.
 - No image, audio, external API, database write, migration, deployment, or production action was performed.
+- Claude Code reviewed `b4813c04..8ba57d18` and correctly found that the post-handoff Git state no longer matched this file. Guy's preceding message establishes that he performed the push after preparation; the finding is accepted as a stale-state defect, not an authorization breach.
 
 ## Blockers
 

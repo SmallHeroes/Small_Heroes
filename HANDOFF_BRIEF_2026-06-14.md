@@ -1,5 +1,7 @@
 # Small Heroes — בריף מעבר לשיחה חדשה (Handoff Brief)
 
+> **HISTORICAL HANDOFF.** Role assignments and live state below are superseded by root `CURRENT.md`, `ROADMAP.md`, `PROJECT.md`, `QUALITY_GATES.md`, and the current `AGENTS.md`. Do not use this file as present authority.
+
 > הדבק את הקובץ הזה (או את תוכנו) בתחילת שיחה חדשה כדי שאמשיך כ-CTO/Product Lead מאותה נקודה.
 > תאריך: 2026-06-14 · נכתב כי המודל הקודם לא זמין.
 
