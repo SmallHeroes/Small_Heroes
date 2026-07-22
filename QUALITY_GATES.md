@@ -31,6 +31,8 @@ No customer-visible work is complete merely because code exists or tests are gre
 
 ## G3 — Implementation discipline
 
+- Branch/worktree ownership is explicit; exactly one implementation task has write authority, and any concurrent QA is pinned read-only to an immutable commit range.
+- Before editing and before QA, Codex records relevant worktrees, branches, HEADs, dirty state, ahead/behind state, and assigned task/reviewer.
 - Diff is focused; unrelated refactors are excluded.
 - Commits are small, logical green milestones.
 - Explicit Git pathspecs only; never `git add -A`.
@@ -101,6 +103,7 @@ Codex supplies Claude Code with:
 - Out of scope
 - Exact branch/worktree and base-to-head commit range
 - Copy-ready inspection commands
+- Confirmed reviewer branch/HEAD or an explicit note that it differs and must be reconciled
 
 Claude Code reviews adversarially and returns ranked, file/line-cited findings. The first QA pass does not silently fix the implementation. Codex validates and fixes valid findings in a new milestone; Claude Code re-gates the relevant whole surface.
 

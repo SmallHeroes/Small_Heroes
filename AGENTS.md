@@ -47,6 +47,18 @@ For every approved non-trivial implementation:
 
 Planning or a Decision Gate is not implementation. Codex must say explicitly when it is waiting for Guy's approval and must not present planning work as though the implementation has started.
 
+## Git, worktree, task, and QA topology
+
+Codex owns the repository topology and prevents conflicting work.
+
+- Before starting a milestone and again before QA handoff, inspect `git worktree list --porcelain`, `git branch -vv`, and `git status --short --branch` in every relevant worktree.
+- Record the active task/thread or reviewer, purpose, worktree path, branch, base/head or immutable review range, dirty state, ahead/behind state, and whether it has write authority.
+- Exactly one implementation task may write to a branch/worktree at a time. Parallel read-only review is allowed only against an explicit immutable commit range.
+- Claude Code receives a named branch plus base-to-head range and is read-only on its first pass. If its reported branch/HEAD differs from the handoff, stop and reconcile before accepting findings.
+- Before each approved milestone, Codex tells Guy whether to continue in the current task or open a dedicated execution task. Significant implementations normally receive a milestone-scoped execution task; this Lead task remains the decision and re-gate hub.
+- Do not create overlapping implementation tasks, reuse a dirty worktree blindly, sweep unrelated files into a commit, or delete/archive branches or worktrees without first proving their ownership and preservation state.
+- Branch cleanup is a separate audited operation. A large branch list is not permission to delete anything.
+
 ## Decision Gate — required before major changes
 
 Before changing image generation, prompt assembly, anchors (child/companion/family), story bank, reader/layout, production flow, payments, QA gates, fallbacks, style references, or anything that spends more than 1–2 test images:

@@ -58,6 +58,16 @@ Every approved implementation follows a visible loop:
 
 Codex states clearly when it is still waiting at a Decision Gate. Drafting or approving a plan is not described as implementation work.
 
+## Repository and task topology
+
+Codex owns branch, worktree, task, and QA coordination.
+
+- Before implementation and before QA, Codex inventories every relevant worktree and records branch, base/head, dirty files, ahead/behind state, assigned task/reviewer, and write authority.
+- One implementation task is the sole writer for a branch/worktree. QA is read-only on an immutable commit range during its first pass.
+- Codex tells Guy whether a milestone should stay in the Lead task or receive a dedicated execution task. Major implementations use a milestone-scoped execution task; the Lead task keeps approvals, architecture decisions, QA findings, and re-gates.
+- A reviewer reporting a different branch or HEAD than the handoff is a coordination failure that must be reconciled before its result is accepted.
+- Branch/worktree cleanup requires a separate preservation audit; stale-looking branches are not deleted by assumption.
+
 ## Handoff from Codex to Claude Code
 
 Every implementation handoff includes:
