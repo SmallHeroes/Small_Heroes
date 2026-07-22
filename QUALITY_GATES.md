@@ -9,6 +9,7 @@ No customer-visible work is complete merely because code exists or tests are gre
 
 ## G0 — Intake and authority
 
+- Before implementation begins, Codex gives Guy a visible start notice naming the approved brief/Decision Gate, branch/worktree, milestone, validation plan, cost/render allowance, and exclusions.
 - Problem, context, product goal, non-negotiables, acceptance criteria, and desired outcome are explicit.
 - Product decisions are made by Guy; technical decisions are owned by Codex.
 - Unresolved broad or irreversible assumptions are returned to Guy.
@@ -98,8 +99,12 @@ Codex supplies Claude Code with:
 - Explicit claims to falsify
 - Known limitations/uncertainty
 - Out of scope
+- Exact branch/worktree and base-to-head commit range
+- Copy-ready inspection commands
 
 Claude Code reviews adversarially and returns ranked, file/line-cited findings. The first QA pass does not silently fix the implementation. Codex validates and fixes valid findings in a new milestone; Claude Code re-gates the relevant whole surface.
+
+After every completed milestone, Codex also gives Guy a copy-ready PowerShell block matched to the actual Git state. If Codex already committed, the block verifies and pushes that commit; it must not pretend another commit is needed. Codex does not push unless Guy explicitly requests it.
 
 ## Definition of Done
 
@@ -117,5 +122,6 @@ A technical task is ready for independent QA only when:
 10. Claims are backed by evidence.
 11. Canonical state documents are current.
 12. The Claude Code handoff is complete.
+13. Guy received the exact PowerShell verification/push commands for the actual branch state.
 
 The task is technically complete only after Claude Code PASS/re-gate. It is product complete only after Guy accepts the customer-visible outcome. Launch readiness additionally requires all release gates and Guy's explicit go decision.

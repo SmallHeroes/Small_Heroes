@@ -45,6 +45,19 @@ Guy may explicitly assign a bounded task to Cursor, ChatGPT, or another tool. Su
 9. **Re-gate:** Codex fixes valid findings in a separate milestone and Claude Code rechecks the relevant whole surface.
 10. **Product acceptance:** Guy decides whether the product outcome is accepted and whether to proceed or launch.
 
+## Visible start, Git, and QA handoff
+
+Every approved implementation follows a visible loop:
+
+1. Codex announces implementation start before editing, naming the approved brief/Decision Gate, branch/worktree, milestone, validation plan, allowed cost/renders, and exclusions.
+2. Codex reports material progress and blockers while working.
+3. Codex runs the required checks, stages explicit pathspecs only, and normally creates the focused local commit.
+4. Codex then gives Guy copy-ready PowerShell commands matched to the actual state: inspect/status and push when the commit already exists; stage/commit only when they remain intentionally undone. `git add -A` is forbidden.
+5. Codex gives Guy a complete, ready-to-copy Claude Code brief for adversarial review of the committed range.
+6. Codex does not push unless Guy explicitly asks it to push. The normal handoff leaves a local green commit plus an exact push command.
+
+Codex states clearly when it is still waiting at a Decision Gate. Drafting or approving a plan is not described as implementation work.
+
 ## Handoff from Codex to Claude Code
 
 Every implementation handoff includes:
@@ -60,6 +73,8 @@ Every implementation handoff includes:
 - Explicit claims Claude Code should try to falsify
 - Known limitations and uncertainty
 - Out of scope
+- Exact branch, worktree, base commit, and head commit/range
+- Copy-ready commands Claude Code can use to inspect the committed range
 
 The handoff is evidence, not marketing. Codex must not claim independent technical PASS on its own work.
 

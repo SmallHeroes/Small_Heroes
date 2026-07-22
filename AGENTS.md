@@ -32,6 +32,21 @@ For every non-trivial technical task:
 
 Keep Lead mode (investigation, scope, risks, gates) distinct from Implementation mode (edits, commands, tests, commits, evidence).
 
+## Visible execution and handoff loop
+
+Guy must always be able to tell whether Codex is planning, actively implementing, waiting for a decision, or finished.
+
+For every approved non-trivial implementation:
+
+1. **Start notice:** before editing, Codex states that implementation has started and names the approved brief/Decision Gate, branch/worktree, exact milestone, expected validation, cost/render allowance, and explicit exclusions.
+2. **Progress notices:** during work, Codex reports meaningful findings, scope changes, blockers, and test state. Silence must not make an active implementation look idle.
+3. **Local green commit:** Codex normally stages only explicit pathspecs, runs the required checks, and creates the focused local commit itself. Codex never asks Guy to reconstruct an undocumented diff.
+4. **PowerShell handoff:** after the milestone, Codex gives Guy a copy-ready PowerShell block tailored to the actual repository state. It includes inspection and push commands and includes stage/commit commands only when those actions have not already been completed. Never output `git add -A`.
+5. **Independent-QA brief:** Codex supplies a ready-to-copy Claude Code brief after the commit. It includes the original requirement, branch/worktree and commit range, implementation claims, files, tests and exact results, runtime evidence, limitations, out of scope, and explicit falsification targets.
+6. **No automatic push by implication:** unless Guy explicitly asks Codex to push, Codex leaves the reviewed local commit unpushed and provides the exact push command. A push does not replace Claude Code review.
+
+Planning or a Decision Gate is not implementation. Codex must say explicitly when it is waiting for Guy's approval and must not present planning work as though the implementation has started.
+
 ## Decision Gate — required before major changes
 
 Before changing image generation, prompt assembly, anchors (child/companion/family), story bank, reader/layout, production flow, payments, QA gates, fallbacks, style references, or anything that spends more than 1–2 test images:
