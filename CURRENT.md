@@ -4,9 +4,9 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1a-render-loop-phase1` in `C:\Users\guyna\.codex\worktrees\2d64\Small_Heroes`; the frozen legacy worktree remains untouched at `C:\GNart\Work\sh-wt-style01` on `feat/chunked-generation`
 
-## R1A implementation handoff — latest state
+## R1A independent QA result — latest state
 
-R1A is implemented and locally committed, but **no technical PASS is claimed**. Independent Claude Code adversarial QA is the next gate. This section supersedes the pre-implementation Phase 1 NO-GO and next-action text retained below as historical context.
+R1A is implemented and locally committed. Independent Claude Code adversarial QA returned **PASS (R1A only)** with no blocker, major, or minor implementation defects. This is an external QA verdict, not a Codex self-award and not Guy's product acceptance. Guy's review is the remaining R1A acceptance gate. This section supersedes the pre-implementation Phase 1 NO-GO text retained below as historical context.
 
 ### Topology and commits
 
@@ -16,7 +16,9 @@ R1A is implemented and locally committed, but **no technical PASS is claimed**. 
 - `ec6c2ec7` — clean merge of canonical `main` through `ed1da86c`, preserving the four feature commits and governance documents.
 - `f4c335f6` — `fix(render-loop): gate regeneration on verified QA`.
 - `74a73863` — `fix(render-loop): persist cover candidate before QA`.
-- Claude Code runtime review range: `ec6c2ec7..74a73863`; the current HEAD adds only this handoff update.
+- `2d5ed60d` and `1f26cb58` — focused `CURRENT.md` implementation handoff updates.
+- Claude Code independently reviewed runtime range `ec6c2ec7..74a73863` and verified topology at `1f26cb58` on `codex/r1a-render-loop-phase1` with a clean worktree.
+- At that reviewed topology, the branch was 9 ahead / 0 behind both `main` and `origin/main`, and 18 ahead / 0 behind `origin/feat/chunked-generation`; it had no upstream. This `CURRENT.md` update changes documentation only.
 
 ### Implemented behavior
 
@@ -44,6 +46,7 @@ R1A is implemented and locally committed, but **no technical PASS is claimed**. 
 
 ### Validation evidence and limitations
 
+- Independent Claude Code adversarial QA: **PASS (R1A only)**. It independently read the shipped page and cover paths and concluded that no evidence-unknown outcome can reserve regeneration budget or generate replacement bytes, with visual readiness both enabled and disabled. It found all 20 claims in the QA brief supported.
 - Focused R1A suite: **PASS — 6 files, 65 tests**.
 - `npx tsc --noEmit` / local `tsc --noEmit`: **PASS**.
 - Literal `npm run check`: TypeScript **PASS**; Vitest **FAIL — 6 tests in 5 unrelated files** because this clean worktree lacks their untracked, ignored `outputs/` fixtures. The affected files are `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and `story-read-back-validation.spec.ts`. Every missing artifact is ignored by `.gitignore:65`; none is tracked.
@@ -51,6 +54,9 @@ R1A is implemented and locally committed, but **no technical PASS is claimed**. 
 - The clean worktree had no dependency directory. Validation used a temporary ignored junction to canonical `node_modules`, then verified and removed the junction. An initial `npx` attempt before that junction may have fetched a transient Vitest package into the user npm cache; it did not modify the repository or call any product/paid API.
 - Zero image renders, audio renders, paid/product API calls, database writes, migrations, deployments, pushes, or production actions were performed.
 - R1B/R1C, promotion/preflight, `worldMode`, Lion, story/catalog content, Set Board reuse, and full-book work remain out of scope and untouched.
+- Claude Code noted one deferred recovery concern: the operator-only single-page regeneration path does not supply `onPageCandidateUploaded`, so it lacks the page/cover crash-recovery record. The R1A safety gate still applies and there is no regeneration bypass; track the recovery wiring for R2 rather than expanding R1A.
+- Claude Code also noted that evidence-unknown results now hold for human review instead of being accepted by legacy behavior, which may increase human-QA volume. This is the intended fail-closed R1A tradeoff.
+- No real database or paid image boundary was exercised. Candidate-persistence wiring is statically and locally tested, while a real runtime boundary remains a separately authorized later proof.
 
 ## Active task
 
@@ -90,18 +96,18 @@ The immediate risk is not merely weak prompting. Product/story sellability curre
 - The Director sees authored image direction, runs pages in parallel, and receives only a previous-page text snippet rather than authoritative previous blocking/emotion. The complete frozen page contracts already contain the better deterministic continuity plan.
 - Set Board registry/storage is deliberately story-scoped. Cross-story reuse is not yet proven and will not be generalized now.
 
-## Render-loop Phase 1 re-gate
+## Historical render-loop Phase 1 re-gate (before the R1A fix)
 
 Feature commits through `ef543312` add useful foundations: no hidden OpenAI image retry, cancellation plumbing, same-image malformed re-QA, and pre-QA uploaded-candidate persistence. `npm run check` passes.
 
-The slice remains **NO-GO**:
+At `ef543312`, the slice remained **NO-GO**:
 
 1. The same-image helper returns persistent malformed QA as unverified, but the shipped Style01 caller treats unverified as regeneration-eligible and can spend a new image. That violates the requirement that only a verified visual failure may consume regeneration budget.
 2. The visual-QA fetch has no dedicated AbortSignal/timeout.
 3. Tests cover the helper but not the caller-level budget decision, so the green suite is false confidence for this requirement.
 4. Candidate persistence has no regression test proving the shipped Style01 order: upload → persist candidate → QA.
 
-No measurement render occurs until this is corrected and Claude Code independently re-gates it.
+That historical blocker was corrected by `f4c335f6` and `74a73863`, then independently PASSed for R1A. This does not itself authorize a measurement render.
 
 ## Binding technical decisions
 
@@ -117,7 +123,7 @@ No measurement render occurs until this is corrected and Claude Code independent
 
 ## Planned sequence
 
-1. Correct render-loop Phase 1 with caller-level tests and bounded QA; run `npm run check`; Claude Code re-gate.
+1. Correct render-loop Phase 1 with caller-level tests and bounded QA; run `npm run check`; Claude Code re-gate. **Complete locally; independent R1A PASS received.**
 2. Implement visual-package promotion and all-slot render-qualification audit/release gate, with zero image calls.
 3. Add `worldMode`, extend strict draft support for board bindings, and bound/remove legacy world fallbacks from the sellable path.
 4. With explicit Guy approval, run one LOW page on `fox_uri_adventure` and inspect runtime artifacts.
@@ -136,6 +142,9 @@ No measurement render occurs until this is corrected and Claude Code independent
 
 ## Evidence recorded this turn
 
+- Claude Code independently reviewed `ec6c2ec7..74a73863` plus the handoff/topology at `1f26cb58` and returned **PASS (R1A only)** with no blocker, major, or minor implementation defects.
+- The independent report explicitly confirmed the load-bearing page and cover claim across readiness ON/OFF: only verified visual failure can reserve regeneration or create replacement bytes; malformed/error/timeout/skipped/unavailable evidence holds without either action.
+- Its non-blocking observations are preserved above; neither its later LOW-page recommendation nor the PASS itself is treated as render authorization.
 - Read the attached Codex architectural verdict and traced its claims through loaders, guards, compiler scripts, Director call sites, board registry/storage, tests, and feature commits.
 - Ran `npm run check` on `feat/chunked-generation`: PASS, while caller review still found the regeneration-evidence bug above.
 - Ran `npm run release-check` on `main` with `ENABLE_V3_APPROVED_BANK=true` and `SKIP_DB_SCHEMA_CHECK=true`: PASS and 18/18 product-sellable. This was a catalog/config check only, not a database release proof.
@@ -147,10 +156,10 @@ No measurement render occurs until this is corrected and Claude Code independent
 ## Blockers
 
 - Guy approved the R1A implementation scope; implementation is complete locally.
-- Independent Claude Code PASS is required before R1A can be accepted or any later milestone begins.
+- Independent Claude Code QA has PASSed R1A; Guy's review/acceptance and explicit authorization are required before any later milestone begins.
 - The one-LOW-page proof requires separate explicit cost approval.
 - Lion requires separate product/content acceptance; technical readiness alone is insufficient.
 
 ## Next action
 
-Run independent Claude Code adversarial QA over runtime range `ec6c2ec7..74a73863` in `C:\Users\guyna\.codex\worktrees\2d64\Small_Heroes`, plus inspect the current `CURRENT.md` handoff. Do not push, start R1B/R1C, import ignored fixtures, render, or begin Lion/contract-catalog work before Guy reviews that result.
+Guy reviews the independent R1A-only PASS and decides whether to accept/close R1A and authorize the next milestone. The QA report's suggested LOW-page proof is not an authorization and does not override the approved sequence or separate cost gate. Until Guy directs otherwise: do not push, start R1B/R1C, import ignored fixtures, render, exercise a real database boundary, or begin Lion/contract-catalog work.
