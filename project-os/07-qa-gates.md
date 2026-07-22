@@ -1,5 +1,7 @@
 # 07 — QA Gates
 
+> Superseded as the active gate set by root `QUALITY_GATES.md` on 2026-07-22. Retained as historical product/launch context.
+
 **Last updated:** 2026-07-06
 No customer book ships without passing every applicable gate. Gates are layered — vision alone is never the source of truth (story/pageAction → approved seed / LocationBible / SetTopology → set-plate vision → rendered-page vision → human approval). Guy is the final eyeball on quality; Codex is the gate on money/technical.
 

@@ -1,4 +1,6 @@
-# 00 — Current State
+# 00 — Current State (historical snapshot)
+
+> Superseded as live state by root `CURRENT.md` on 2026-07-22. Retained for July 2026 history and evidence; do not use its branch, priority, or role claims without re-verifying the repository.
 
 **Last updated:** 2026-07-13
 **Maintained by:** Claude Cowork (Project Operator)
