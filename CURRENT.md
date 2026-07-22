@@ -15,7 +15,8 @@ R1A is implemented and locally committed, but **no technical PASS is claimed**. 
 - The existing Codex worktree was attached to `codex/r1a-render-loop-phase1`; no additional worktree was created.
 - `ec6c2ec7` — clean merge of canonical `main` through `ed1da86c`, preserving the four feature commits and governance documents.
 - `f4c335f6` — `fix(render-loop): gate regeneration on verified QA`.
-- Claude Code review range: `ec6c2ec7..f4c335f6`.
+- `74a73863` — `fix(render-loop): persist cover candidate before QA`.
+- Claude Code runtime review range: `ec6c2ec7..74a73863`; the current HEAD adds only this handoff update.
 
 ### Implemented behavior
 
@@ -25,6 +26,7 @@ R1A is implemented and locally committed, but **no technical PASS is claimed**. 
 - Retryable evidence failures get at most two same-candidate re-QAs; skipped/unavailable vision is not pointlessly retried in-process.
 - Every primary QA and strict-crib fetch gets a fresh dedicated `AbortSignal.timeout`; the default is 30 seconds and `PAGE_VISUAL_QA_TIMEOUT_MS` can lower/override it.
 - Candidate persistence failure remains non-throwing but now immediately holds before QA, budget reservation, or replacement generation.
+- The shipped cover path now persists its uploaded candidate as durable page `0` before QA; pages and cover share the same upsert helper.
 - The caller enforces the visible one-candidate plus two-replacement bound even if a durable reserver incorrectly keeps granting.
 - Shipped ordering is covered as upload → awaited candidate persistence → QA of that exact durable URL.
 - OpenAI `images.generate` and `images.edit` both have explicit request-option and live-abort coverage.
@@ -34,6 +36,7 @@ R1A is implemented and locally committed, but **no technical PASS is claimed**. 
 
 - `backend/providers/image.ts`
 - `lib/generation-pipeline/page-visual-qa.ts`
+- `lib/generation-pipeline/chunk-runner.ts`
 - `lib/__tests__/image-style01-qa-regeneration.spec.ts`
 - `lib/generation-pipeline/__tests__/page-visual-qa-timeout.spec.ts`
 - `lib/generation-pipeline/__tests__/page-visual-qa-requa.spec.ts`
@@ -41,7 +44,7 @@ R1A is implemented and locally committed, but **no technical PASS is claimed**. 
 
 ### Validation evidence and limitations
 
-- Focused R1A suite: **PASS — 6 files, 64 tests**.
+- Focused R1A suite: **PASS — 6 files, 65 tests**.
 - `npx tsc --noEmit` / local `tsc --noEmit`: **PASS**.
 - Literal `npm run check`: TypeScript **PASS**; Vitest **FAIL — 6 tests in 5 unrelated files** because this clean worktree lacks their untracked, ignored `outputs/` fixtures. The affected files are `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and `story-read-back-validation.spec.ts`. Every missing artifact is ignored by `.gitignore:65`; none is tracked.
 - Full remaining suite with only those five fixture-dependent files excluded: **PASS on the first run**. A later diagnostic rerun exposed a Vitest/tinypool `ERR_IPC_CHANNEL_CLOSED` infrastructure flake, so no stronger full-suite claim is made.
@@ -150,4 +153,4 @@ No measurement render occurs until this is corrected and Claude Code independent
 
 ## Next action
 
-Run independent Claude Code adversarial QA over `ec6c2ec7..f4c335f6` in `C:\Users\guyna\.codex\worktrees\2d64\Small_Heroes`. Do not push, start R1B/R1C, import ignored fixtures, render, or begin Lion/contract-catalog work before Guy reviews that result.
+Run independent Claude Code adversarial QA over runtime range `ec6c2ec7..74a73863` in `C:\Users\guyna\.codex\worktrees\2d64\Small_Heroes`, plus inspect the current `CURRENT.md` handoff. Do not push, start R1B/R1C, import ignored fixtures, render, or begin Lion/contract-catalog work before Guy reviews that result.
