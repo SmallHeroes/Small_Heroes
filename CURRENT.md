@@ -2,7 +2,52 @@
 
 **Updated:** 2026-07-22
 **Maintainer:** Codex
-**Working branch:** `main`; feature implementation remains in `C:\GNart\Work\sh-wt-style01` on `feat/chunked-generation`
+**Working branch:** `codex/r1a-render-loop-phase1` in `C:\Users\guyna\.codex\worktrees\2d64\Small_Heroes`; the frozen legacy worktree remains untouched at `C:\GNart\Work\sh-wt-style01` on `feat/chunked-generation`
+
+## R1A implementation handoff — latest state
+
+R1A is implemented and locally committed, but **no technical PASS is claimed**. Independent Claude Code adversarial QA is the next gate. This section supersedes the pre-implementation Phase 1 NO-GO and next-action text retained below as historical context.
+
+### Topology and commits
+
+- Dispatch started from a clean detached worktree at feature commit `ef543312` (4 ahead / 0 behind `origin/feat/chunked-generation` at `b4813c04`).
+- Canonical `main` and `origin/main` were both `ed1da86c`; feature versus main was 4 unique feature commits / 9 unique main commits.
+- The existing Codex worktree was attached to `codex/r1a-render-loop-phase1`; no additional worktree was created.
+- `ec6c2ec7` — clean merge of canonical `main` through `ed1da86c`, preserving the four feature commits and governance documents.
+- `f4c335f6` — `fix(render-loop): gate regeneration on verified QA`.
+- Claude Code review range: `ec6c2ec7..f4c335f6`.
+
+### Implemented behavior
+
+- Durable QA classification now distinguishes `verified_pass`, `verified_visual_failure`, and `evidence_unknown`.
+- Only a verified visual defect/hazard on the persisted Style01 candidate can reserve regeneration and render replacement bytes.
+- Malformed, transport/HTTP, timeout, skipped/unavailable, strict-follow-up unknown, and inconsistent evidence all hold without reserving regeneration.
+- Retryable evidence failures get at most two same-candidate re-QAs; skipped/unavailable vision is not pointlessly retried in-process.
+- Every primary QA and strict-crib fetch gets a fresh dedicated `AbortSignal.timeout`; the default is 30 seconds and `PAGE_VISUAL_QA_TIMEOUT_MS` can lower/override it.
+- Candidate persistence failure remains non-throwing but now immediately holds before QA, budget reservation, or replacement generation.
+- The caller enforces the visible one-candidate plus two-replacement bound even if a durable reserver incorrectly keeps granting.
+- Shipped ordering is covered as upload → awaited candidate persistence → QA of that exact durable URL.
+- OpenAI `images.generate` and `images.edit` both have explicit request-option and live-abort coverage.
+- No resemblance threshold changed; `0.70` remains intact.
+
+### Files in the R1A commit
+
+- `backend/providers/image.ts`
+- `lib/generation-pipeline/page-visual-qa.ts`
+- `lib/__tests__/image-style01-qa-regeneration.spec.ts`
+- `lib/generation-pipeline/__tests__/page-visual-qa-timeout.spec.ts`
+- `lib/generation-pipeline/__tests__/page-visual-qa-requa.spec.ts`
+- `lib/__tests__/generate-image-cancellation.spec.ts`
+
+### Validation evidence and limitations
+
+- Focused R1A suite: **PASS — 6 files, 64 tests**.
+- `npx tsc --noEmit` / local `tsc --noEmit`: **PASS**.
+- Literal `npm run check`: TypeScript **PASS**; Vitest **FAIL — 6 tests in 5 unrelated files** because this clean worktree lacks their untracked, ignored `outputs/` fixtures. The affected files are `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and `story-read-back-validation.spec.ts`. Every missing artifact is ignored by `.gitignore:65`; none is tracked.
+- Full remaining suite with only those five fixture-dependent files excluded: **PASS on the first run**. A later diagnostic rerun exposed a Vitest/tinypool `ERR_IPC_CHANNEL_CLOSED` infrastructure flake, so no stronger full-suite claim is made.
+- The clean worktree had no dependency directory. Validation used a temporary ignored junction to canonical `node_modules`, then verified and removed the junction. An initial `npx` attempt before that junction may have fetched a transient Vitest package into the user npm cache; it did not modify the repository or call any product/paid API.
+- Zero image renders, audio renders, paid/product API calls, database writes, migrations, deployments, pushes, or production actions were performed.
+- R1B/R1C, promotion/preflight, `worldMode`, Lion, story/catalog content, Set Board reuse, and full-book work remain out of scope and untouched.
 
 ## Active task
 
@@ -98,11 +143,11 @@ No measurement render occurs until this is corrected and Claude Code independent
 
 ## Blockers
 
-- Guy approval of the Decision Gate is required before image-generation implementation.
-- Claude Code PASS is required after each implementation re-gate.
+- Guy approved the R1A implementation scope; implementation is complete locally.
+- Independent Claude Code PASS is required before R1A can be accepted or any later milestone begins.
 - The one-LOW-page proof requires separate explicit cost approval.
 - Lion requires separate product/content acceptance; technical readiness alone is insufficient.
 
 ## Next action
 
-After Guy approves the sequence, correct R1A only. Do not start contract-catalog authoring, render measurement, or Lion-specific work in parallel.
+Run independent Claude Code adversarial QA over `ec6c2ec7..f4c335f6` in `C:\Users\guyna\.codex\worktrees\2d64\Small_Heroes`. Do not push, start R1B/R1C, import ignored fixtures, render, or begin Lion/contract-catalog work before Guy reviews that result.
