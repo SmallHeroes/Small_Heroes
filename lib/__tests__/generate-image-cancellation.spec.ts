@@ -12,6 +12,14 @@ vi.mock('openai', () => ({
   toFile: vi.fn(async () => ({})),
 }));
 
+vi.mock('@/lib/child-photo-normalize', () => ({
+  normalizeReferenceImageBuffer: vi.fn(async (buffer: Buffer) => ({
+    buffer,
+    ext: 'jpg' as const,
+    mime: 'image/jpeg' as const,
+  })),
+}));
+
 import { generateGPTImage } from '@/lib/generate-image';
 
 const OK_RESPONSE = { data: [{ b64_json: Buffer.from('fake-png-bytes').toString('base64') }] };
@@ -23,7 +31,7 @@ describe('generateGPTImage (3a) — real cancellation + no hidden SDK retries', 
     process.env.OPENAI_API_KEY = 'test-key';
   });
 
-  it('forwards maxRetries:0 + the signal + the explicit timeout as the RequestOptions arg', async () => {
+  it('images.generate forwards maxRetries:0 + signal + explicit timeout in RequestOptions', async () => {
     generateSpy.mockResolvedValue(OK_RESPONSE);
     const controller = new AbortController();
     await generateGPTImage({
@@ -37,6 +45,25 @@ describe('generateGPTImage (3a) — real cancellation + no hidden SDK retries', 
     const opts = generateSpy.mock.calls[0][1] as { maxRetries?: number; timeout?: number; signal?: AbortSignal };
     expect(opts.maxRetries).toBe(0); // the visible retry loop owns retries, not the SDK's default 2
     expect(opts.timeout).toBe(123456);
+    expect(opts.signal).toBe(controller.signal);
+  });
+
+  it('images.edit forwards maxRetries:0 + signal + explicit timeout in RequestOptions', async () => {
+    editSpy.mockResolvedValue(OK_RESPONSE);
+    const controller = new AbortController();
+    await generateGPTImage({
+      finalPrompt: 'a friendly fox',
+      referenceImages: ['package.json'],
+      size: '1024x1536',
+      quality: 'low',
+      signal: controller.signal,
+      requestTimeoutMs: 654321,
+    });
+    expect(generateSpy).not.toHaveBeenCalled();
+    expect(editSpy).toHaveBeenCalledTimes(1);
+    const opts = editSpy.mock.calls[0][1] as { maxRetries?: number; timeout?: number; signal?: AbortSignal };
+    expect(opts.maxRetries).toBe(0);
+    expect(opts.timeout).toBe(654321);
     expect(opts.signal).toBe(controller.signal);
   });
 
@@ -62,5 +89,36 @@ describe('generateGPTImage (3a) — real cancellation + no hidden SDK retries', 
     controller.abort(new Error('page soft timeout'));
     await expect(p).rejects.toThrow();
     expect(handlerFired).toBe(true); // the signal threaded all the way down to openai.images.generate
+  });
+
+  it('an abort reaches images.edit and fires its request-option signal handler', async () => {
+    const controller = new AbortController();
+    let handlerFired = false;
+    let markStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    editSpy.mockImplementation((_body: unknown, opts: { signal?: AbortSignal }) => {
+      markStarted();
+      return new Promise((_resolve, reject) => {
+        opts.signal?.addEventListener('abort', () => {
+          handlerFired = true;
+          reject(new DOMException('The operation was aborted', 'AbortError'));
+        });
+      });
+    });
+
+    const p = generateGPTImage({
+      finalPrompt: 'x',
+      referenceImages: ['package.json'],
+      size: '1024x1536',
+      quality: 'low',
+      signal: controller.signal,
+    });
+    await started;
+    controller.abort(new Error('page soft timeout'));
+
+    await expect(p).rejects.toThrow();
+    expect(handlerFired).toBe(true);
   });
 });

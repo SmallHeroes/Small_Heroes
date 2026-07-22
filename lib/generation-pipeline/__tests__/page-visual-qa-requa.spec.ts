@@ -13,13 +13,16 @@ function qaResult(over: Partial<PageVisualQaResult>): PageVisualQaResult {
   };
 }
 const MALFORMED = qaResult({ reason: 'vision_malformed', verdict: 'evidence_unknown', safetyStatus: 'unverified' });
+const TRANSPORT_ERROR = qaResult({ reason: 'vision_error', verdict: 'evidence_unknown', safetyStatus: 'unverified' });
+const TIMEOUT = qaResult({ reason: 'vision_timeout', verdict: 'evidence_unknown', safetyStatus: 'unverified' });
+const SKIPPED = qaResult({ reason: 'vision_skipped', verdict: 'evidence_unknown', safetyStatus: 'unverified' });
 const PASSED = qaResult({ passed: true, reason: 'ok', verdict: 'passed', safetyStatus: 'safe' });
 const VISUAL_FAIL = qaResult({ passed: false, reason: 'anatomy_failed', verdict: 'failed', safetyStatus: 'safe' });
 const HAZARD = qaResult({ passed: false, reason: 'safety_failed', verdict: 'failed', safetyStatus: 'hazard', safetyHazards: ['child_on_railing'] });
 
 const INPUT = { imageUrl: 'https://cdn.example/o/pages/page-04.png', expectsChild: true };
 
-describe('evaluatePageVisualQaWithReQa (3b) — malformed re-QAs the SAME image, never re-renders', () => {
+describe('evaluatePageVisualQaWithReQa (3b) — evidence re-QA uses the SAME image and stays bounded', () => {
   it('malformed twice then a real verdict → re-QAs the SAME input, returns the real verdict (3 QA calls, 0 renders)', async () => {
     const evaluate = vi.fn()
       .mockResolvedValueOnce(MALFORMED)
@@ -39,7 +42,25 @@ describe('evaluatePageVisualQaWithReQa (3b) — malformed re-QAs the SAME image,
     const qa = await evaluatePageVisualQaWithReQa(INPUT, evaluate, 2);
     expect(evaluate).toHaveBeenCalledTimes(3); // initial + 2 bounded re-QA, then give up
     expect(qa.reason).toBe('vision_malformed');
-    expect(qa.safetyStatus).toBe('unverified'); // fail-closed default PRESERVED — the caller then regen-or-holds
+    expect(qa.safetyStatus).toBe('unverified'); // fail-closed default PRESERVED — the caller holds without a render
+  });
+
+  it.each([
+    ['transport error', TRANSPORT_ERROR],
+    ['timeout', TIMEOUT],
+  ])('%s is boundedly re-QA\'d on the same candidate', async (_label, evidenceFailure) => {
+    const evaluate = vi.fn().mockResolvedValue(evidenceFailure);
+    const qa = await evaluatePageVisualQaWithReQa(INPUT, evaluate, 2);
+    expect(evaluate).toHaveBeenCalledTimes(3);
+    expect(evaluate.mock.calls.every(([callInput]) => callInput === INPUT)).toBe(true);
+    expect(qa).toBe(evidenceFailure);
+  });
+
+  it('skipped/unavailable vision is not retried in the same process', async () => {
+    const evaluate = vi.fn().mockResolvedValue(SKIPPED);
+    const qa = await evaluatePageVisualQaWithReQa(INPUT, evaluate, 2);
+    expect(evaluate).toHaveBeenCalledTimes(1);
+    expect(qa).toBe(SKIPPED);
   });
 
   it('a real visual failure on the first call → NO re-QA (only a verified failure consumes a regen)', async () => {

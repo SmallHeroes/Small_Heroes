@@ -121,6 +121,7 @@ import {
   promptContainsSceneMemoryLock,
 } from '../../lib/scene-memory';
 import {
+  classifyPageVisualQaOutcome,
   evaluatePageVisualQaWithReQa,
   resolvePageVisualQaConfig,
 } from '../../lib/generation-pipeline/page-visual-qa';
@@ -608,6 +609,8 @@ export interface Style01PageMeta {
     };
   };
   needsHumanReview?: boolean;
+  /** Candidate upload succeeded but its pre-QA durable record failed; held without QA or regeneration. */
+  candidatePersistenceError?: string;
   companionViewIntent?: import('../../lib/companion-view-intent').CompanionViewIntent;
   setTopologyLockPresent?: boolean;
   setRefsRequested?: string[];
@@ -3151,11 +3154,38 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
   let last: GeneratedImage | null = null;
 
   while (true) {
+    let candidatePersistenceError: string | null = null;
+    const onCandidateUploaded = input.onCandidateUploaded
+      ? async (candidate: { url: string; rawUrl: string | null; provider: string }) => {
+          try {
+            await input.onCandidateUploaded!(candidate);
+          } catch (error) {
+            candidatePersistenceError = error instanceof Error ? error.message : String(error);
+            // The upload helper remains non-throwing; this marker lets the outer loop hold instead of QA/regenerate.
+            throw error;
+          }
+        }
+      : undefined;
     last = await generateWithGPTImageStyle01Phase2Once({
       ...input,
       compositionStrictRetry,
       timeOfDayStrictRetry,
+      onCandidateUploaded,
     });
+    if (candidatePersistenceError) {
+      console.warn(
+        `[page_visual_qa] HOLD_CANDIDATE_PERSISTENCE_FAILED orderId=${input.orderId ?? 'unknown'} ` +
+          `page=${input.pageNumber} details=${candidatePersistenceError}`
+      );
+      return {
+        ...last,
+        style01Meta: {
+          ...last.style01Meta!,
+          needsHumanReview: true,
+          candidatePersistenceError,
+        },
+      };
+    }
     if (!qaConfig.enabled) return last;
 
     // (#5a-fix ITEM 1) QA MUST bind to what was actually ASSEMBLED/forced, not the pre-assembly input. Covers
@@ -3200,27 +3230,22 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
       hasRailedBedOrCrib,
       hasHumanFamily,
     };
-    // (render-loop Phase 1, 3b) A malformed / parse-failed QA response (reason:'vision_malformed') is a QA-TRANSPORT
-    // failure, not a visual defect of THESE bytes — a brand-new image render can never fix a broken JSON reply. Re-run
-    // QA on the SAME already-uploaded URL (bounded) BEFORE the budget decision below, so a transient malformed response
-    // never consumes (or durably reserves) an image regen. A persistent malformed result still returns
-    // safetyStatus:'unverified', so the unchanged fail-closed budget/hold path below handles it exactly as before —
-    // only a *verified visual failure* spends a regen.
+    // Retryable evidence failures are re-QA'd on this same persisted URL before the budget decision. Missing or
+    // persistently unavailable QA evidence is a hold, never a reason to buy different image bytes.
     const qa = await evaluatePageVisualQaWithReQa(qaCallInput);
 
-    // (#7-a 5b) Budget decision. A regen is for a DETERMINISTIC QA fail (qa.passed=false) OR (Fix 2) an UNVERIFIED
-    // safety result (can't confirm the child is safe) — "can't confirm safe" is fail-closed, so try a regen within
-    // budget to obtain a confirmed-safe image; when budget is spent the delivered signal keeps safetyVerified=false
-    // and the delivery boundary hard-holds it (never delivered as safe). A non-safety evidence_unknown still
-    // accepts (legacy). When a durable reserver is bound (readiness ON) reserve one regen DURABLY BEFORE generating.
-    const safetyUnverified = qa.safetyStatus === 'unverified';
+    // Only a VERIFIED defect/hazard on these persisted candidate bytes may reserve regeneration and render again.
+    // Transport, timeout, skipped/unavailable vision, malformed output, and every other evidence_unknown result hold
+    // fail-closed without touching either the durable or in-memory image-regeneration budget.
+    const qaOutcome = classifyPageVisualQaOutcome(qa);
+    const verifiedVisualFailure = qaOutcome === 'verified_visual_failure';
     let mayRegen = false;
-    if (!qa.passed || safetyUnverified) {
+    if (verifiedVisualFailure && regenAttempts < qaConfig.maxRegens) {
       mayRegen = input.reserveQualityRegen
         ? await input.reserveQualityRegen()
-        : regenAttempts < qaConfig.maxRegens;
+        : true;
     }
-    const needsHumanReview = (!qa.passed || safetyUnverified) && !mayRegen;
+    const needsHumanReview = qaOutcome !== 'verified_pass' && !mayRegen;
     const enriched: GeneratedImage = {
       ...last,
       style01Meta: {

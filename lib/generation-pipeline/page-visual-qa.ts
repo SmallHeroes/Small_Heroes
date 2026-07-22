@@ -24,6 +24,7 @@ export type PageVisualQaReason =
   | 'emotional_staging_failed'
   | 'vision_skipped'
   | 'vision_error'
+  | 'vision_timeout'
   | 'vision_malformed'
   | 'child_missing';
 
@@ -66,6 +67,23 @@ export type PageVisualQaResult = {
   safetyStatus: 'safe' | 'hazard' | 'unverified';
   raw?: Record<string, unknown>;
 };
+
+/**
+ * Render-loop disposition for the persisted candidate bytes. `verdict` is the durable evidence boundary:
+ * evidence/transport uncertainty is deliberately not a visual failure and can never justify new image bytes.
+ */
+export type PageVisualQaOutcome =
+  | 'verified_pass'
+  | 'verified_visual_failure'
+  | 'evidence_unknown';
+
+export function classifyPageVisualQaOutcome(qa: PageVisualQaResult): PageVisualQaOutcome {
+  if (qa.verdict === 'passed' && qa.passed && qa.safetyStatus === 'safe') return 'verified_pass';
+  if (qa.verdict === 'failed' && !qa.passed && qa.safetyStatus !== 'unverified') {
+    return 'verified_visual_failure';
+  }
+  return 'evidence_unknown';
+}
 
 export type PageVisualQaConfig = {
   enabled: boolean;
@@ -266,6 +284,31 @@ function evaluateClosedCribFlags(raw: Record<string, unknown>): boolean {
   return cribFieldsOk && !hardFails;
 }
 
+/** Dedicated deadline for each page-visual-QA fetch. Read per attempt so tests and operators can lower it safely. */
+export const PAGE_VISUAL_QA_TIMEOUT_MS_DEFAULT = 30_000;
+
+export function resolvePageVisualQaTimeoutMs(): number {
+  const raw = process.env.PAGE_VISUAL_QA_TIMEOUT_MS?.trim();
+  if (raw) {
+    const parsed = Number.parseInt(raw, 10);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  return PAGE_VISUAL_QA_TIMEOUT_MS_DEFAULT;
+}
+
+/** Every call creates a fresh signal; no QA attempt or strict follow-up can inherit an expired deadline. */
+function pageVisualQaFetch(url: string, init: RequestInit): Promise<Response> {
+  return fetch(url, {
+    ...init,
+    signal: AbortSignal.timeout(resolvePageVisualQaTimeoutMs()),
+  });
+}
+
+function isTimeoutError(error: unknown): boolean {
+  const name = (error as { name?: unknown } | null)?.name;
+  return name === 'TimeoutError' || name === 'AbortError';
+}
+
 const STRICT_CRIB_QA_PROMPT = `CRIB GEOMETRY INSPECTOR — children's book page. Default FAIL if uncertain.
 
 A correct crib page MUST show:
@@ -299,7 +342,7 @@ async function evaluateClosedCribStrictQa(imageUrl: string): Promise<{
     return { verdict: 'evidence_unknown', raw: {}, details: 'OPENAI_API_KEY missing — strict crib unvalidated' };
   }
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await pageVisualQaFetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -357,16 +400,21 @@ async function evaluateClosedCribStrictQa(imageUrl: string): Promise<{
   }
 }
 
-/** (render-loop Phase 1, 3b) How many times a MALFORMED page-QA response is re-run on the SAME image before giving up. */
+/** How many times a retryable evidence failure is re-run on the SAME persisted image before giving up. */
 export const REQA_MALFORMED_MAX_ATTEMPTS = 2;
 
+function isRetryableQaEvidenceFailure(qa: PageVisualQaResult): boolean {
+  return (
+    classifyPageVisualQaOutcome(qa) === 'evidence_unknown' &&
+    (qa.reason === 'vision_malformed' || qa.reason === 'vision_error' || qa.reason === 'vision_timeout')
+  );
+}
+
 /**
- * (render-loop Phase 1, 3b) Run page QA; if the response comes back MALFORMED (reason:'vision_malformed' — a broken /
- * parse-failed vision reply, i.e. a QA-TRANSPORT failure, NOT a visual defect of these bytes), re-run QA on the SAME
- * image up to REQA_MALFORMED_MAX_ATTEMPTS more times. A brand-new image render can never fix a broken JSON reply, so a
- * transient malformed response must not consume an image regen. This changes NOTHING in the safety funnel: a
- * persistent malformed result still returns safetyStatus:'unverified' (fail-closed) + verdict 'evidence_unknown', so
- * the caller's unchanged budget/hold path handles it exactly as before. `evaluate` is injectable for tests.
+ * Run page QA and boundedly retry transport/malformed/timeout evidence failures on the SAME persisted image.
+ * Missing credentials/vision (`vision_skipped`) are not retryable within the same process. A new image render cannot
+ * repair missing QA evidence, so persistent uncertainty returns `evidence_unknown` for the caller to hold without
+ * reserving image-regeneration budget. `evaluate` is injectable for tests.
  */
 export async function evaluatePageVisualQaWithReQa(
   input: Parameters<typeof evaluatePageVisualQa>[0],
@@ -374,7 +422,7 @@ export async function evaluatePageVisualQaWithReQa(
   maxReQa: number = REQA_MALFORMED_MAX_ATTEMPTS,
 ): Promise<PageVisualQaResult> {
   let qa = await evaluate(input);
-  for (let attempt = 0; qa.reason === 'vision_malformed' && attempt < maxReQa; attempt += 1) {
+  for (let attempt = 0; isRetryableQaEvidenceFailure(qa) && attempt < maxReQa; attempt += 1) {
     console.log(`[page_visual_qa] reqa_same_image imageUrl=${input.imageUrl} attempt=${attempt + 1}/${maxReQa}`);
     qa = await evaluate(input);
   }
@@ -437,7 +485,7 @@ export async function evaluatePageVisualQa(input: {
     (input.hasHumanFamily ? FAMILY_COHERENCE_QA_PROMPT : '');
 
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await pageVisualQaFetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -614,7 +662,7 @@ export async function evaluatePageVisualQa(input: {
     return {
       passed: true,
       verdict: 'evidence_unknown',
-      reason: 'vision_error',
+      reason: isTimeoutError(e) ? 'vision_timeout' : 'vision_error',
       details: e instanceof Error ? e.message : String(e),
       flags: defaultQaFlags(),
       safetyHazards: [],
