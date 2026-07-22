@@ -4,9 +4,9 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1b-visual-package-promotion` in `C:\Users\guyna\.codex\worktrees\0ef3\Small_Heroes`; accepted R1A remains frozen at `C:\Users\guyna\.codex\worktrees\2d64\Small_Heroes`, and the legacy feature worktree remains untouched at `C:\GNart\Work\sh-wt-style01`
 
-## R1B implementation handoff - latest state
+## R1B independent QA result - latest state
 
-R1B is implemented and locally committed at `da1914cb` (`feat(visual-package): add approved promotion lifecycle`). It is unpushed and awaiting the required independent read-only Claude Code gate. This is an implementation handoff, not a Codex technical PASS and not product acceptance.
+R1B is implemented and locally committed at `da1914cb` (`feat(visual-package): add approved promotion lifecycle`), with the implementation handoff recorded at `57291998`. Independent read-only Claude Code QA returned **PASS (R1B only)** with no blocker, major, or minor implementation defect. Codex reconciled the verdict against the live branch and Decision Gate; no fix or re-gate is required. This records the external technical gate only: Guy's accept/close decision, push authorization, and authorization to start R1C remain separate.
 
 ### Live topology at implementation
 
@@ -39,9 +39,17 @@ R1B is implemented and locally committed at `da1914cb` (`feat(visual-package): a
 - The worktree had no dependency installation; validation used an ignored junction from this worktree's `node_modules` to canonical `C:\GNart\Work\Small_Heroes\node_modules`. It remains available for independent QA and is not a repository change.
 - R1C runtime world authority/Director changes, R2 recovery, story/catalog authoring, Lion work, board reuse/generalization, real promotion, production cutover, and any render remain out of scope.
 
+### Independent R1B QA verdict
+
+- Claude Code reconciled the exact branch, clean worktree, `57291998` HEAD, `4a5dd041..57291998` range, two-commit lead over R1A, 12-commit lead over main, absent upstream, and absence of real story/template/board/package artifacts in the diff.
+- It independently proved all 13 implementation claims, including the source-bound package identity, dry-run-by-default promotion, structured fail-closed qualification, all-slot accounting, strict release mode, pre-provider cover/page guards, production hard-off, offline-only dependency boundary, and exact Set Identity Board re-resolution.
+- It independently ran the three load-bearing visual-package/preflight/release specs: **PASS - 28/28 tests**. The broader reported suites and baseline fixture/time-out limitations remain documented above.
+- Non-blocking operational note: enabling non-production enforcement while the catalog is still 0/18 qualified deliberately hard-throws before image-provider invocation. Keep enforcement off until reviewed packages are promoted, and verify downstream order-to-hold handling before any staging enablement.
+- Declared runtime limitation: provider guards are proven by code and zero-cost tests, not by a real end-to-end order or provider boundary. That later proof still requires the separately approved smallest-runtime milestone.
+
 ### R1B next gate
 
-Claude Code must review immutable range `4a5dd041..da1914cb` read-only first, verify the named branch/HEAD before accepting the handoff, and try to falsify the lifecycle, offline boundary, all-slot accounting, shipped pre-provider ordering, and production hard-off claims. Codex will validate and fix any valid findings in a separate milestone before re-gate. No push or render is authorized by this handoff.
+The independent technical gate is complete and Codex found no valid defect requiring a fix. Guy now decides whether to accept/close R1B, authorize its push, and authorize R1C as a separate zero-image execution milestone. The QA PASS is not authorization to promote a real package, enable enforcement, call a provider, run the one-LOW-page proof, or begin Lion/catalog work.
 
 ## R1A independent QA result — latest state
 
@@ -163,7 +171,7 @@ That historical blocker was corrected by `f4c335f6` and `74a73863`, then indepen
 ## Planned sequence
 
 1. Correct render-loop Phase 1 with caller-level tests and bounded QA; run `npm run check`; Claude Code re-gate. **Complete locally; independent R1A PASS received.**
-2. Implement visual-package promotion and all-slot render-qualification audit/release gate, with zero image calls. **Complete locally at `da1914cb`; independent QA pending.**
+2. Implement visual-package promotion and all-slot render-qualification audit/release gate, with zero image calls. **Complete locally at `da1914cb`; independent R1B QA PASS received with no implementation defects.**
 3. Consume reviewer-owned `worldMode` at runtime, extend strict draft support for board bindings, and bound/remove legacy world fallbacks from the sellable path.
 4. With explicit Guy approval, run one LOW page on `fox_uri_adventure` and inspect runtime artifacts.
 5. Based on measurement, land the durable candidate/QA/resume state machine and prove it at a real DB/runtime boundary.
@@ -182,6 +190,7 @@ That historical blocker was corrected by `f4c335f6` and `74a73863`, then indepen
 ## Evidence recorded this turn
 
 - Claude Code independently reviewed `ec6c2ec7..74a73863` plus the handoff/topology at `1f26cb58` and returned **PASS (R1A only)** with no blocker, major, or minor implementation defects.
+- Claude Code independently reviewed R1B range `4a5dd041..57291998` and returned **PASS (R1B only)** with all 13 claims proven, 28/28 independently run load-bearing tests passing, and no finding requiring a Codex fix or re-gate.
 - The independent report explicitly confirmed the load-bearing page and cover claim across readiness ON/OFF: only verified visual failure can reserve regeneration or create replacement bytes; malformed/error/timeout/skipped/unavailable evidence holds without either action.
 - Its non-blocking observations are preserved above; neither its later LOW-page recommendation nor the PASS itself is treated as render authorization.
 - Read the attached Codex architectural verdict and traced its claims through loaders, guards, compiler scripts, Director call sites, board registry/storage, tests, and feature commits.
@@ -195,10 +204,10 @@ That historical blocker was corrected by `f4c335f6` and `74a73863`, then indepen
 ## Blockers
 
 - Guy accepted/closed R1A and authorized R1B under the image-generation architecture Decision Gate.
-- R1B implementation is locally committed but cannot be treated as technically accepted until independent Claude Code QA and any required re-gate complete.
+- R1B has independent technical PASS and requires Guy's accept/close, push, and R1C authorization decisions before the workflow advances.
 - The one-LOW-page proof requires separate explicit cost approval.
 - Lion requires separate product/content acceptance; technical readiness alone is insufficient.
 
 ## Next action
 
-Run independent read-only Claude Code QA against `codex/r1b-visual-package-promotion` range `4a5dd041..da1914cb`. Codex then validates findings, fixes valid defects in a separate focused commit, and returns for re-gate. Until that gate and separate Guy authorization: do not push, start R1C/R2, promote a real package, import ignored user fixtures, render, exercise a real database boundary, change production flags, or begin Lion/catalog work.
+Guy reviews the independent R1B PASS and decides whether to accept/close R1B, push `codex/r1b-visual-package-promotion`, and authorize a separate R1C execution thread. Until that explicit decision: do not push, start R1C/R2, promote a real package, import ignored user fixtures, render, exercise a real database boundary, change production flags, or begin Lion/catalog work. The one-LOW-page proof remains a later, separately cost-approved milestone.
