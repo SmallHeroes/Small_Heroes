@@ -2,11 +2,56 @@
 
 **Updated:** 2026-07-22
 **Maintainer:** Codex
-**Working branch:** `codex/r1b-visual-package-promotion` in `C:\Users\guyna\.codex\worktrees\0ef3\Small_Heroes`; accepted R1A remains frozen at `C:\Users\guyna\.codex\worktrees\2d64\Small_Heroes`, and the legacy feature worktree remains untouched at `C:\GNart\Work\sh-wt-style01`
+**Working branch:** `codex/r1c-runtime-world-authority` in `C:\Users\guyna\.codex\worktrees\d775\Small_Heroes`; frozen R1B remains at `C:\Users\guyna\.codex\worktrees\0ef3\Small_Heroes`, accepted R1A remains at `C:\Users\guyna\.codex\worktrees\2d64\Small_Heroes`, and the legacy feature worktree remains untouched at `C:\GNart\Work\sh-wt-style01`
+
+## R1C local implementation handoff - latest state
+
+Guy accepted/closed R1B after independent Claude Code PASS and explicitly authorized R1C as a zero-cost implementation milestone. R1C is implemented locally in `a1002e86` (`feat: enforce R1C runtime world authority`) on `codex/r1c-runtime-world-authority`, based exactly on frozen R1B `be11768d05336299bc62007d5d8789a0f398849a`. This is a Codex implementation handoff, not an independent technical PASS. The next gate is read-only Claude Code QA against `be11768d..HEAD`.
+
+### R1C topology at handoff
+
+- R1C implementation authority: `C:\Users\guyna\.codex\worktrees\d775\Small_Heroes`, branch `codex/r1c-runtime-world-authority`, implementation commit `a1002e86`, no upstream and no push. Immediately after the implementation commit it was 1 commit ahead / 0 behind frozen R1B and 14 ahead / 0 behind both local and remote `main`; the following `CURRENT.md` commit is documentation-only.
+- Frozen R1B: `C:\Users\guyna\.codex\worktrees\0ef3\Small_Heroes`, `codex/r1b-visual-package-promotion` at `be11768d`, clean and equal to `origin/codex/r1b-visual-package-promotion`. It remained read-only.
+- Frozen R1A: `C:\Users\guyna\.codex\worktrees\2d64\Small_Heroes`, `codex/r1a-render-loop-phase1` at `4a5dd041`, clean and equal to its origin. It remained read-only.
+- Canonical main: `C:\GNart\Work\Small_Heroes`, `main` at `ed1da86c`, equal to `origin/main` in commits, with pre-existing user-owned untracked review/project/script files untouched.
+- Legacy feature worktree: `C:\GNart\Work\sh-wt-style01`, `feat/chunked-generation` at `ef543312`, 4 ahead / 0 behind its origin, with its pre-existing modified `.env.example` and untracked artifacts untouched.
+- No other worktree or branch was created, written, cleaned, merged, pushed, or deployed.
+
+### Implemented R1C behavior
+
+- Reviewer-owned `review.worldMode` is copied into an exact approved-package binding inside the materialized resolved contract and therefore its frozen hash. Runtime never derives it from story prose, direction, genre, story key, template name, world type, or fallback labels.
+- Render qualification now requires a complete authoritative cover and every page: explicit location, zone, supported time of day, environment class, lighting, cast, transition authority, required/forbidden content, and exact Set Identity Board artifact identities. Missing, stale, contradictory, incomplete, or changed authority returns structured fail-closed reasons.
+- The frozen resolved contract is checked against the current approved manifest/template, its exact source/template/coverage/board digests, the persisted `Order.visualContractHash`, and the exact runtime board snapshot before a provider callback can run.
+- Enforced non-production Style01 materializes only the exact qualified local package template. Runtime compilation/live authoring is unreachable there. The previous best-effort artifact/dynamic-compiler path remains only behind enforcement-off legacy development behavior.
+- One shared provider boundary projects the approved cover/page contract into exact location, zone, reality mode, time/lighting, transition, cast, wardrobe, required props/content, forbidden content, and board reference. Direct provider callers without the preflight-issued context fail before provider invocation.
+- Caller story text, direction/genre/category labels, generic home/night derivation, free-form character sheets, arbitrary reference images, operator prose, and legacy wardrobe/world helpers are removed or bypassed on the enforced path. They remain reachable only when enforcement is off or production hard-off applies.
+- Director and operator output is deterministically constrained to a closed presentation vocabulary for framing, placement, staging, pose/blocking, interaction, eyeline, and emotion. It cannot introduce or rename worlds, locations, zones, sets, cast, props, required/forbidden content, or board identity.
+- Shipped cover and page calls in `chunk-runner`, every internal page QA regeneration attempt, and operator single-page regeneration use the same preflight-issued authority. Single-page regeneration preflights before legacy story selection/DNA/photo/model/storage work and rechecks beside the provider call.
+- Enabling non-production Style01 enforcement now implies freeze, steering, and board activation so a secondary disabled flag cannot leak an enforced request back into inferred-world rendering. Enforcement off is unchanged, Style02 is unchanged, and Vercel production remains hard-off.
+- The strict offline draft schema now authors `setIdentityId`/`setReference` and explicit cover zone/cast. Compatibility proposals for older drafts occur only in the offline compiler before review; no runtime inference was added.
+- The protected Style01 page resemblance threshold remains exactly `0.70`.
+
+Primary implementation seams are `lib/visual-package/runtimeAuthority.ts`, `lib/generation-pipeline/render-qualification-preflight.ts`, `lib/generation-pipeline/runtime-visual-authority.ts`, `backend/providers/image.ts`, `backend/providers/director.ts`, `lib/style01-prompt-assembly.ts`, the frozen-contract/board/chunk/single-page callers, and the existing compiler/package validators. No second compiler, parallel package schema, sequential runtime LLM memory layer, database migration, or real package was added.
+
+### R1C validation and limitations
+
+- Final pre-implementation-commit validation: `npx --no-install tsc --noEmit` **PASS**; focused compiler/package/board/caller suite **PASS - 10 files / 233 tests**.
+- Post-commit broad zero-cost non-fixture suite, excluding only the five known ignored-output fixture files: **PASS - 225 files / 2,319 tests passed; 16 files / 65 tests skipped**.
+- Caller-level adversarial coverage includes direct page and cover provider rejection, exact reviewer `worldMode`, explicit cover/page location-zone-cast-content-board projection, malicious caller/Director/operator/reference/wardrobe override removal, shipped cover provider assembly, verified-QA regeneration retries, stale package/changed world/missing page/wrong board/incomplete world rejection, bounded Director output, `0.70`, enforcement-off, and production hard-off.
+- Package/freeze/board coverage also proves exact materialization, current source/package binding, `Order.visualContractHash`, exact board SHA/metadata/URL, enforcement-implied freeze/steering/board activation, Style02 compatibility, and absence of direct runtime imports to compiler authoring, promotion writing, provider, network, storage, or database seams.
+- Literal `npm run check` on committed `a1002e86`: TypeScript **PASS**; Vitest **FAIL - exactly 6 tests** in the five known files `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and `story-read-back-validation.spec.ts`. Every failure is the previously documented missing ignored `outputs/` story/JSON/PNG/board fixture; no R1C test or non-fixture regression failed.
+- Actual `npm run render-qualification-audit`: **18 nominal slots, 0 render-qualified**. No real package was promoted and no ignored user output fixture was imported or copied.
+- All provider/storage/QA seams in R1C tests are mocks and global network access is made throwing. No image/audio render, live LLM/provider/product API call, live compilation, database/storage write, migration, deploy, push, or production/staging flag change occurred.
+- The existing ignored `node_modules` junction points to canonical dependencies and is not a repository change. No dependency installation was performed in R1C.
+- There is no claim of a real runtime/provider/database boundary proof, visual quality, product acceptance, or launch readiness. The one-LOW-page proof, R2 durable recovery/state machine, catalog/story authoring, Lion work, shared-board generalization, full-book work, and production cutover remain explicitly out of scope.
+
+### R1C next independent gate
+
+Claude Code now performs independent read-only QA against branch `codex/r1c-runtime-world-authority`, immutable base `be11768d05336299bc62007d5d8789a0f398849a`, and the final local handoff HEAD. It should attempt to falsify caller bypasses, `worldMode` inference, generic/direction/genre/home-night fallback leakage, authority ordering, persisted freeze/hash freshness, exact board identity, cover/page/retry/regeneration parity, production hard-off, enforcement-off compatibility, Style02 isolation, `0.70`, and any runtime import path to compiler authoring/promotion/storage/database/network/provider/LLM seams. Codex does not self-award PASS. No push, real promotion, flag enablement, or one-LOW-page proof is authorized by this handoff.
 
 ## R1B independent QA result - latest state
 
-R1B is implemented and locally committed at `da1914cb` (`feat(visual-package): add approved promotion lifecycle`), with the implementation handoff recorded at `57291998`. Independent read-only Claude Code QA returned **PASS (R1B only)** with no blocker, major, or minor implementation defect. Codex reconciled the verdict against the live branch and Decision Gate; no fix or re-gate is required. This records the external technical gate only: Guy's accept/close decision, push authorization, and authorization to start R1C remain separate.
+R1B is implemented and locally committed at `da1914cb` (`feat(visual-package): add approved promotion lifecycle`), with the implementation handoff recorded at `57291998`. Independent read-only Claude Code QA returned **PASS (R1B only)** with no blocker, major, or minor implementation defect. Codex reconciled the verdict against the live branch and Decision Gate; no fix or re-gate was required. Guy subsequently accepted/closed R1B and explicitly authorized R1C. R1B remains frozen at `be11768d`.
 
 ### Live topology at implementation
 
@@ -49,7 +94,7 @@ R1B is implemented and locally committed at `da1914cb` (`feat(visual-package): a
 
 ### R1B next gate
 
-The independent technical gate is complete and Codex found no valid defect requiring a fix. Guy now decides whether to accept/close R1B, authorize its push, and authorize R1C as a separate zero-image execution milestone. The QA PASS is not authorization to promote a real package, enable enforcement, call a provider, run the one-LOW-page proof, or begin Lion/catalog work.
+The independent technical gate completed with PASS; Guy accepted/closed R1B and authorized R1C as a separate zero-image execution milestone. That decision did not authorize a real package promotion, enforcement enablement, provider call, one-LOW-page proof, or Lion/catalog work.
 
 ## R1A independent QA result — latest state
 
@@ -107,7 +152,7 @@ R1A is implemented and locally committed. Independent Claude Code adversarial QA
 
 ## Active task
 
-Turn the existing visual-contract, Set Board, rendering, and QA components into one stable fail-closed image-generation path. No image render is currently authorized.
+R1C implementation is locally complete and awaiting independent read-only Claude Code QA. No image render is currently authorized.
 
 The governing brief is `docs/ai-workflow/DECISION_GATE_IMAGE_GENERATION_ARCHITECTURE_2026-07-22.md`.
 
@@ -138,9 +183,9 @@ The immediate risk is not merely weak prompting. Product/story sellability curre
 - Bank runtime does not live-compile a missing contract. With enforcement on, missing authority blocks; with enforcement off, the path degrades to legacy behavior.
 - Visual-contract freeze/enforcement/steering are hard-off in Vercel production, so production cutover requires an explicit reviewed code/config milestone.
 - R1B now provides explicit approved visual-package promotion, structured qualification, all-slot audit, and strict release qualification. No real package has been promoted, so all current slots remain unqualified.
-- The strict LLM draft schema cannot currently author `setIdentityId`/`setReference`, even though downstream contract types can represent them.
-- The cover fallback can inject literal `home-night`; generic derived locations do not provide reliable set topology or references.
-- The Director sees authored image direction, runs pages in parallel, and receives only a previous-page text snippet rather than authoritative previous blocking/emotion. The complete frozen page contracts already contain the better deterministic continuity plan.
+- The strict offline draft schema now authors `setIdentityId`/`setReference` and explicit cover zone/cast bindings; the enforced runtime consumes only a reviewed, promoted, exact source-bound package.
+- Literal `home-night`, generic derived locations, direction/genre/category world choices, and other legacy world fallbacks remain in the enforcement-off development path but are projected out or bypassed before the enforced shared provider seam.
+- Runtime Director/operator output is now constrained to deterministic presentation vocabulary; the complete frozen page contracts own continuity and physical reality.
 - Set Board registry/storage is deliberately story-scoped. Cross-story reuse is not yet proven and will not be generalized now.
 
 ## Historical render-loop Phase 1 re-gate (before the R1A fix)
@@ -172,7 +217,7 @@ That historical blocker was corrected by `f4c335f6` and `74a73863`, then indepen
 
 1. Correct render-loop Phase 1 with caller-level tests and bounded QA; run `npm run check`; Claude Code re-gate. **Complete locally; independent R1A PASS received.**
 2. Implement visual-package promotion and all-slot render-qualification audit/release gate, with zero image calls. **Complete locally at `da1914cb`; independent R1B QA PASS received with no implementation defects.**
-3. Consume reviewer-owned `worldMode` at runtime, extend strict draft support for board bindings, and bound/remove legacy world fallbacks from the sellable path.
+3. Consume reviewer-owned `worldMode` at runtime, extend strict draft support for board bindings, and bound/remove legacy world fallbacks from the sellable path. **Complete locally at `a1002e86`; awaiting independent R1C QA.**
 4. With explicit Guy approval, run one LOW page on `fox_uri_adventure` and inspect runtime artifacts.
 5. Based on measurement, land the durable candidate/QA/resume state machine and prove it at a real DB/runtime boundary.
 6. Compile candidates for all 18, but review/promote only Guy's chosen launch set; then consider a five-page sample and eventually one explicitly approved full book.
@@ -189,6 +234,11 @@ That historical blocker was corrected by `f4c335f6` and `74a73863`, then indepen
 
 ## Evidence recorded this turn
 
+- Implemented the general R1C runtime-world-authority boundary at `a1002e86` from frozen R1B `be11768d`, with no story/child/companion/page-specific runtime exception.
+- Final focused validation passed `npx --no-install tsc --noEmit` and 233/233 tests; the post-commit non-fixture suite passed 2,319/2,319 tests across 225 files, with 65 tests skipped.
+- Literal `npm run check` passed TypeScript and reproduced only the six known missing ignored-output fixture failures in five files; the real all-slot audit remained 0/18 render-qualified.
+- Read-only topology audit confirmed R1A/R1B clean/frozen, R1C as the sole writer, and all unrelated main/legacy worktree changes untouched.
+- No render, external/provider/LLM call, database/storage write, migration, deployment, push, production/staging flag enablement, real package promotion, or ignored fixture import occurred.
 - Claude Code independently reviewed `ec6c2ec7..74a73863` plus the handoff/topology at `1f26cb58` and returned **PASS (R1A only)** with no blocker, major, or minor implementation defects.
 - Claude Code independently reviewed R1B range `4a5dd041..57291998` and returned **PASS (R1B only)** with all 13 claims proven, 28/28 independently run load-bearing tests passing, and no finding requiring a Codex fix or re-gate.
 - The independent report explicitly confirmed the load-bearing page and cover claim across readiness ON/OFF: only verified visual failure can reserve regeneration or create replacement bytes; malformed/error/timeout/skipped/unavailable evidence holds without either action.
@@ -203,11 +253,11 @@ That historical blocker was corrected by `f4c335f6` and `74a73863`, then indepen
 
 ## Blockers
 
-- Guy accepted/closed R1A and authorized R1B under the image-generation architecture Decision Gate.
-- R1B has independent technical PASS and requires Guy's accept/close, push, and R1C authorization decisions before the workflow advances.
+- R1A and R1B are accepted/closed; R1C is implemented locally but has not yet received independent Claude Code PASS or Guy product acceptance.
+- The branch has no upstream and has not been pushed. Push remains an explicit Guy decision after inspection/QA.
 - The one-LOW-page proof requires separate explicit cost approval.
 - Lion requires separate product/content acceptance; technical readiness alone is insufficient.
 
 ## Next action
 
-Guy reviews the independent R1B PASS and decides whether to accept/close R1B, push `codex/r1b-visual-package-promotion`, and authorize a separate R1C execution thread. Until that explicit decision: do not push, start R1C/R2, promote a real package, import ignored user fixtures, render, exercise a real database boundary, change production flags, or begin Lion/catalog work. The one-LOW-page proof remains a later, separately cost-approved milestone.
+Claude Code performs independent read-only adversarial QA of `be11768d..HEAD` on `codex/r1c-runtime-world-authority`. Codex then validates and fixes any genuine finding in a separate milestone and returns for re-gate. Until the independent R1C gate and Guy's subsequent decision: do not push, start the one-LOW-page/R2 milestone, promote a real package, import ignored user fixtures, render, exercise a real database boundary, change staging/production flags, or begin Lion/catalog/full-book work.
