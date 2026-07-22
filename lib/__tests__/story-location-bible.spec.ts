@@ -142,5 +142,6 @@ describe('StoryLocationBible', () => {
     expect(cover?.visibleAnchors.some((a) => /bucket/i.test(a))).toBe(false);
     expect(cover?.expectedBucketVisibility).toBe('hidden');
     expect(cover?.forbiddenDrift.some((d) => /visible bucket|drip source|falling water/i.test(d))).toBe(true);
+    expect(cover?.forbiddenDrift).toContain('rhythm marks');
   });
 });

@@ -10,6 +10,11 @@ import type { BookVisualContractTemplate, TemplateHumanCastMember } from './cont
 import { stripNiqqud, type DeterministicFacts } from './extractDeterministicFacts';
 import { containsAsStandaloneToken } from '../story-bank-personalization';
 import { companionPresenceTokens } from '../companion-presence-aliases';
+import {
+  coverSourceFidelityIssues,
+  resolveAuthoredCoverZone,
+  type AuthoredCoverAuthority,
+} from './coverSourceAuthority';
 
 export interface ReviewReportArgs {
   storyKey: string;
@@ -22,6 +27,8 @@ export interface ReviewReportArgs {
   validationErrors?: string[];
   /** A previously approved template (e.g. the hand-authored one) to diff against. */
   previous?: BookVisualContractTemplate;
+  /** Explicit page-0 source authority, when the location-bible authors one. */
+  authoredCoverAuthority?: AuthoredCoverAuthority;
 }
 
 function humanById(t: BookVisualContractTemplate | undefined, id: string): TemplateHumanCastMember | undefined {
@@ -42,6 +49,14 @@ function lateralityPages(t: BookVisualContractTemplate): number[] {
 
 function eq(a: number[], b: number[]): boolean {
   return a.length === b.length && a.every((x, i) => x === b[i]);
+}
+
+function sameJson(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+function inlineJson(value: unknown): string {
+  return `\`${JSON.stringify(value)}\``;
 }
 
 interface ProseAbsenceFlag {
@@ -175,10 +190,49 @@ export function renderVisualContractReview(args: ReviewReportArgs): string {
     for (const n of args.notes ?? []) push(`- ${n}`);
   }
 
+  push();
+  push('## Cover source fidelity');
+  if (!args.authoredCoverAuthority) {
+    push('- No explicit page-0 location-bible authority was supplied; legacy cover authoring rules apply.');
+  } else {
+    try {
+      const mapped = resolveAuthoredCoverZone(args.authoredCoverAuthority, template.zones);
+      push(`- Authored source zone \`${args.authoredCoverAuthority.sourceZoneId}\` maps deterministically to \`${mapped.locationId} / ${mapped.id}\`.`);
+    } catch {
+      push(`- Authored source zone \`${args.authoredCoverAuthority.sourceZoneId}\` has no safe deterministic mapping.`);
+    }
+    const candidateIssues = coverSourceFidelityIssues(template, args.authoredCoverAuthority);
+    if (candidateIssues.length === 0) push('- Candidate source-fidelity conflicts: none.');
+    else {
+      push('- Candidate source-fidelity conflicts:');
+      for (const candidate of candidateIssues) {
+        push(`  - **${candidate.code}**${candidate.field ? ` (\`${candidate.field}\`)` : ''}: ${candidate.message}`);
+      }
+    }
+    if (previous) {
+      const previousIssues = coverSourceFidelityIssues(previous, args.authoredCoverAuthority);
+      if (previousIssues.length === 0) push('- Previous-template source-fidelity conflicts: none.');
+      else {
+        push('- Previous-template source-fidelity conflicts:');
+        for (const candidate of previousIssues) {
+          push(`  - **${candidate.code}**${candidate.field ? ` (\`${candidate.field}\`)` : ''}: ${candidate.message}`);
+        }
+      }
+    }
+  }
+
   if (previous) {
     push();
     push('## Differences from the previously approved template');
     const diffs: string[] = [];
+    const coverFields = ['locationId', 'zoneId', 'castIds', 'mustShow', 'mustNotShow'] as const;
+    for (const field of coverFields) {
+      const candidateValue = template.coverContract[field];
+      const previousValue = previous.coverContract[field];
+      if (!sameJson(candidateValue, previousValue)) {
+        diffs.push(`- coverContract.${field}: candidate=${inlineJson(candidateValue ?? null)} vs previous=${inlineJson(previousValue ?? null)}.`);
+      }
+    }
     // humanCast gender + presence.
     for (const h of facts.humans) {
       const prev = humanById(previous, h.id);

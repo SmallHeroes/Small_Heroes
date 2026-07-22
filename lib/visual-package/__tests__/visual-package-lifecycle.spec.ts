@@ -10,6 +10,11 @@ import {
   computeVisualContractHash,
   materialize,
 } from '@/lib/visual-contract-compiler';
+import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler/contractTemplateTypes';
+import {
+  applyAuthoredCoverAuthority,
+  authoredCoverAuthorityFromLocationBible,
+} from '@/lib/visual-contract-compiler/coverSourceAuthority';
 import {
   requireStyle01RenderQualification,
   RenderQualificationPreflightError,
@@ -69,22 +74,37 @@ function makeFixture(): Fixture {
   fs.mkdirSync(path.dirname(storyPath), { recursive: true });
   fs.mkdirSync(candidateDir, { recursive: true });
   fs.copyFileSync(path.join(REPO, STORY_REL), storyPath);
+  const locationBibleName = `${STORY_KEY}.location-bible.json`;
+  const locationBiblePath = path.join(path.dirname(storyPath), locationBibleName);
+  fs.copyFileSync(
+    path.join(REPO, 'story-bank', 'v3-approved', locationBibleName),
+    locationBiblePath,
+  );
   fs.copyFileSync(
     path.join(REPO, 'story-bank', 'v3-approved', TEMPLATE_NAME),
     templatePath,
   );
   // R1C render qualification is stricter than the historical checked-in Fox candidate. Upgrade only this temporary
   // mock package; the real 0/18 package inventory remains untouched and unpromoted.
-  const runtimeTemplate = readJson<{
-    cast: { child: { id: string } };
-    coverContract: { locationId: string; zoneId?: string; castIds?: string[] };
-    zones: Array<{ id: string; locationId: string }>;
-    pageContracts: Array<{ zoneId?: string; castIds?: string[] }>;
-  }>(templatePath);
-  runtimeTemplate.coverContract.zoneId = runtimeTemplate.zones.find(
-    (zone) => zone.locationId === runtimeTemplate.coverContract.locationId,
-  )?.id;
-  runtimeTemplate.coverContract.castIds = [runtimeTemplate.cast.child.id];
+  const runtimeTemplate = readJson<BookVisualContractTemplate>(templatePath);
+  const authority = authoredCoverAuthorityFromLocationBible(
+    readJson<unknown>(locationBiblePath),
+    runtimeTemplate.cast.companion
+      ? {
+          id: runtimeTemplate.cast.companion.id.replace(/^companion:/, ''),
+          name: runtimeTemplate.cast.companion.name,
+        }
+      : null,
+  );
+  if (!authority) throw new Error('Fox lifecycle fixture must author page 0');
+  runtimeTemplate.coverContract = {
+    ...runtimeTemplate.coverContract,
+    ...applyAuthoredCoverAuthority({
+      cover: runtimeTemplate.coverContract as unknown as Record<string, unknown>,
+      zones: runtimeTemplate.zones,
+      authority,
+    }).cover,
+  } as BookVisualContractTemplate['coverContract'];
   writeJson(templatePath, runtimeTemplate);
   fs.cpSync(path.join(REPO, 'set-identity-boards'), path.join(root, 'set-identity-boards'), {
     recursive: true,
@@ -313,6 +333,23 @@ describe('visual-package candidate -> review -> Guy approval -> promotion', () =
     expectPromotionCode(f, 'template_digest_mismatch');
   });
 
+  it('rejects a structurally valid candidate whose cover location contradicts authored page 0', () => {
+    const f = fixture();
+    const template = readJson<BookVisualContractTemplate>(f.templatePath);
+    template.coverContract.locationId = 'loc_balcony';
+    template.coverContract.zoneId = 'z_balcony_railing';
+    writeJson(f.templatePath, template);
+    expectPromotionCode(f, 'cover_source_location_mismatch');
+  });
+
+  it('rejects a candidate that puts an authored hidden object back into cover mustShow', () => {
+    const f = fixture();
+    const template = readJson<BookVisualContractTemplate>(f.templatePath);
+    template.coverContract.mustShow = [...template.coverContract.mustShow, 'small metal bucket'];
+    writeJson(f.templatePath, template);
+    expectPromotionCode(f, 'cover_source_spoiler_contradiction');
+  });
+
   it('rejects an unsupported template schema', () => {
     const f = fixture();
     const template = readJson<Record<string, unknown>>(f.templatePath);
@@ -415,6 +452,29 @@ describe('visual-package candidate -> review -> Guy approval -> promotion', () =
     });
     expect(qualification.renderQualified).toBe(false);
     expect(qualification.reasons.map((reason) => reason.code)).toContain('story_source_mismatch');
+  });
+
+  it('render qualification fails closed when an approved cover contradicts authored page 0', () => {
+    const f = fixture();
+    const promoted = promoteVisualPackage({
+      repoRoot: f.root,
+      approvalManifestPath: f.manifestPath,
+      write: true,
+    });
+    const approvedTemplatePath = path.join(f.root, promoted.templateDestination);
+    const template = readJson<BookVisualContractTemplate>(approvedTemplatePath);
+    template.coverContract.locationId = 'loc_balcony';
+    template.coverContract.zoneId = 'z_balcony_railing';
+    writeJson(approvedTemplatePath, template);
+
+    const qualification = evaluateRenderQualification({
+      repoRoot: f.root,
+      storyKey: STORY_KEY,
+      storyPath: f.storyPath,
+      styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+    });
+    expect(qualification.renderQualified).toBe(false);
+    expect(qualification.reasons.map((reason) => reason.code)).toContain('cover_source_location_mismatch');
   });
 
   it('returns a structured failure for a malformed approved board identity instead of throwing', () => {

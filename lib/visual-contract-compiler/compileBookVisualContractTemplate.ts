@@ -37,6 +37,12 @@ import {
   TEMPLATE_DRAFT_SCHEMA_VERSION,
 } from './templateDraftSchema';
 import { assertSourceHasRealProse } from './assertSourceProse';
+import {
+  applyAuthoredCoverAuthority,
+  AuthoredCoverAuthorityError,
+  coverSourceFidelityIssues,
+  type AuthoredCoverAuthority,
+} from './coverSourceAuthority';
 
 /** The child's cast id is a fixed constant — the hero anchor. NEVER taken from the LLM draft. */
 const CHILD_ID = 'child:hero';
@@ -125,6 +131,8 @@ export interface TemplateCompileInput extends DeterministicFactsInput {
   childName?: string;
   /** Optional hint; the LLM may set worldType from the text when omitted. */
   worldType?: string;
+  /** Explicit author-owned page-0 cover authority extracted from the adjacent location-bible. */
+  authoredCoverAuthority?: AuthoredCoverAuthority;
 }
 
 export interface TemplateCompileResult {
@@ -185,6 +193,13 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
     facts.laterality.length
       ? `Laterality (from the text): ${facts.laterality.map((l) => `p${l.page}:${l.side}`).join(', ')}`
       : 'Laterality: none stated in the text (do NOT invent left/right).',
+    ...(input.authoredCoverAuthority
+      ? [
+          '',
+          'AUTHORED PAGE-0 COVER AUTHORITY (compiler-owned; the draft cannot override it):',
+          JSON.stringify(input.authoredCoverAuthority),
+        ]
+      : []),
     '',
     'Produce a JSON BookVisualContractTemplate DRAFT (descriptive fields only) with keys: worldType, locations[],',
     'zones[], cast{child,companion?}, humanCast[{id, garments, forbiddenAppearance}], recurringProps[],',
@@ -247,6 +262,13 @@ export function buildTemplateRepairUserPrompt(
     '',
     'AUTHORITATIVE FACTS (do NOT restate gender/presence/laterality — they are overlaid after you):',
     ...facts.humans.map((h) => `- ${h.id} (role=${h.role}, gender=${h.gender}); present on pages [${h.pagesPresent.join(', ')}]`),
+    ...(input.authoredCoverAuthority
+      ? [
+          '',
+          'AUTHORED PAGE-0 COVER AUTHORITY (compiler-owned; keep the zone vocabulary mappable):',
+          JSON.stringify(input.authoredCoverAuthority),
+        ]
+      : []),
     '',
     'PREVIOUS (INVALID) DRAFT — return a corrected COMPLETE version of this exact JSON object:',
     JSON.stringify(previousDraft),
@@ -455,7 +477,10 @@ function resolveZoneRef(ref: string, graph: ZoneGraph, label: string): Canonical
  * from/to reference. Absent transition refs are left for the validator (its message is precise). Returns the
  * rewritten page objects + review notes for every id the compiler had to canonicalize/override.
  */
-function canonicalizeTopology(draft: Record<string, unknown>): {
+function canonicalizeTopology(
+  draft: Record<string, unknown>,
+  authoredCoverAuthority?: AuthoredCoverAuthority,
+): {
   pages: Record<string, unknown>[];
   cover: Record<string, unknown>;
   notes: string[];
@@ -485,7 +510,27 @@ function canonicalizeTopology(draft: Record<string, unknown>): {
     }
     return pc;
   });
-  const cover: Record<string, unknown> = { ...asObj(draft.coverContract) };
+  let cover: Record<string, unknown> = { ...asObj(draft.coverContract) };
+  if (authoredCoverAuthority) {
+    try {
+      const applied = applyAuthoredCoverAuthority({
+        cover,
+        zones: [...graph.exact.values()],
+        authority: authoredCoverAuthority,
+      });
+      cover = applied.cover;
+      notes.push(...applied.notes);
+      if (cover.timeOfDay === null) delete cover.timeOfDay;
+      return { pages, cover, notes };
+    } catch (error) {
+      if (error instanceof AuthoredCoverAuthorityError) {
+        throw new InvalidTemplateContractError(
+          error.issues.map((candidate) => `${candidate.code}: ${candidate.message}`),
+        );
+      }
+      throw error;
+    }
+  }
   let authoredCoverZoneId = isStr(cover.zoneId) && cover.zoneId.trim() ? cover.zoneId : null;
   if (!authoredCoverZoneId) {
     // Offline candidate-upgrade compatibility: old reviewed drafts predate explicit cover zones. Propose the first
@@ -607,7 +652,10 @@ function assembleTemplateFromDraft(
 
   // Topology: canonicalize IDs + rewrite page/transition refs against the ONE zone graph (compiler-owned),
   // then overlay the fact-derived cast/presence LAST. Ambiguity/unresolved refs throw → repair.
-  const { pages: canonicalPages, cover: canonicalCover, notes: topoNotes } = canonicalizeTopology(draft);
+  const { pages: canonicalPages, cover: canonicalCover, notes: topoNotes } = canonicalizeTopology(
+    draft,
+    input.authoredCoverAuthority,
+  );
   notes.push(...topoNotes);
   const pageContracts = canonicalPages.map((pc) => overlayPage(pc, facts, childId, companionId));
   if (!Array.isArray(canonicalCover.castIds) || canonicalCover.castIds.length === 0) {
@@ -649,6 +697,15 @@ function assembleTemplateFromDraft(
     throw new InvalidTemplateContractError([
       `coverContract.worldType "${String((template.coverContract as { worldType?: unknown }).worldType)}" != top-level worldType "${template.worldType}"`,
     ]);
+  }
+
+  if (input.authoredCoverAuthority) {
+    const sourceIssues = coverSourceFidelityIssues(template, input.authoredCoverAuthority);
+    if (sourceIssues.length > 0) {
+      throw new InvalidTemplateContractError(
+        sourceIssues.map((candidate) => `${candidate.code}: ${candidate.message}`),
+      );
+    }
   }
 
   // STRUCTURAL INVARIANT (fail-closed): every cast identity + presence must match the input/facts EXACTLY, so a

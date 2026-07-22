@@ -26,6 +26,10 @@ import {
 } from '@/lib/story-bank-v3-import';
 import type { CompileBookVisualContractInput } from '@/lib/visual-contract-compiler';
 import { assertSourceHasRealProse } from '@/lib/visual-contract-compiler';
+import {
+  authoredCoverAuthorityFromLocationBible,
+  type AuthoredCoverAuthority,
+} from '@/lib/visual-contract-compiler/coverSourceAuthority';
 import { normalizedTextDigest } from '@/lib/visual-package/integrity';
 import {
   STORY_SOURCE_IDENTITY_VERSION,
@@ -48,6 +52,8 @@ export interface ContractSourceFile extends CompileBookVisualContractInput {
   sourceIdentity: StorySourceIdentity;
   /** ADDITIVE — per-page prose for deterministic extraction (Component 2). Ignored by the LLM compile. */
   pages: SourcePage[];
+  /** Explicit page-0 location/spoiler authority from the adjacent location-bible, when authored. */
+  authoredCoverAuthority?: AuthoredCoverAuthority;
 }
 
 /**
@@ -70,6 +76,7 @@ export function extractSourceFromMarkdown(
   storyKey: string,
   rawMarkdown: string,
   sourcePath = `${storyKey}.md`,
+  authoredCoverAuthority?: AuthoredCoverAuthority | null,
 ): ContractSourceFile {
   const md = toFrontmatterMarkdown(rawMarkdown);
   const companionId = frontmatterField(md, 'companionId');
@@ -118,6 +125,7 @@ export function extractSourceFromMarkdown(
     companion,
     pageImageDirections,
     pages,
+    ...(authoredCoverAuthority ? { authoredCoverAuthority } : {}),
   };
 }
 
@@ -152,10 +160,23 @@ function main(): void {
     if (only && storyKey !== only) continue;
     try {
       const storyPath = path.join(bank, file);
+      const rawMarkdown = readFileSync(storyPath, 'utf8');
+      const locationBiblePath = storyPath.replace(/\.md$/i, '.location-bible.json');
+      const companionId = frontmatterField(toFrontmatterMarkdown(rawMarkdown), 'companionId');
+      const companion = companionId
+        ? { id: companionId, name: getCompanionById(companionId)?.name }
+        : null;
+      const authoredCoverAuthority = existsSync(locationBiblePath)
+        ? authoredCoverAuthorityFromLocationBible(
+            JSON.parse(readFileSync(locationBiblePath, 'utf8')) as unknown,
+            companion,
+          )
+        : null;
       const source = extractSourceFromMarkdown(
         storyKey,
-        readFileSync(storyPath, 'utf8'),
+        rawMarkdown,
         path.relative(process.cwd(), storyPath),
+        authoredCoverAuthority,
       );
       const outPath = path.join(out, `${storyKey}.source.json`);
       writeFileSync(outPath, `${JSON.stringify(source, null, 2)}\n`, 'utf8');

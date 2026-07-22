@@ -421,14 +421,15 @@
   ],
   "coverContract": {
     "worldType": "cozy realistic nighttime home adventure with gentle picture-book whimsy; sounds may be visualized as small friendly rhythm marks, but the world remains non-magical",
-    "locationId": "loc_balcony",
+    "locationId": "loc_child_room",
     "timeOfDay": "night",
     "mustShow": [
-      "child in deep teal pajamas listening calmly beside Uri",
-      "Uri the fox with tiny warm neck flashlight",
-      "small old tin bucket near balcony edge",
-      "one or two gentle water droplets and tiny friendly rhythm marks",
-      "soft blue night balcony atmosphere with railing visible"
+      "same child bed",
+      "same window",
+      "same curtains",
+      "child + fox companion with neck lantern",
+      "warm indoor night light",
+      "curious mood at window"
     ],
     "mustNotShow": [
       "monster",
@@ -436,7 +437,28 @@
       "extra people",
       "storm or flood",
       "frightening horror mood",
-      "large dramatic spotlight"
+      "large dramatic spotlight",
+      "visible bucket",
+      "metal bucket",
+      "drip source",
+      "falling water",
+      "water-catching object",
+      "rhythm marks",
+      "downspout",
+      "gutter",
+      "faucet",
+      "plastic bucket",
+      "blue bucket",
+      "forest",
+      "stream",
+      "rooftop",
+      "cliff",
+      "open water"
+    ],
+    "zoneId": "z_room_window",
+    "castIds": [
+      "child:hero",
+      "companion:fox_uri"
     ]
   },
   "pageContracts": [

@@ -137,7 +137,15 @@ async function main(): Promise<void> {
       const previous = loadPrevTemplate(prevBank, storyKey);
       const review =
         renderCandidateEvidenceHeader(candidateEvidence) +
-        renderVisualContractReview({ storyKey, facts, template, notes, valid: true, previous });
+        renderVisualContractReview({
+          storyKey,
+          facts,
+          template,
+          notes,
+          valid: true,
+          previous,
+          authoredCoverAuthority: raw.authoredCoverAuthority,
+        });
       writeFileSync(path.join(out, `${storyKey}${REVIEW_SUFFIX}`), review, 'utf8');
 
       // Persist the repair trail beside the review when Stage-3 repairs were needed (reviewability).

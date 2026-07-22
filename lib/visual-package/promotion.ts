@@ -29,6 +29,7 @@ import {
   type VisualPackageManifest,
   type StorySourceIdentity,
 } from './types';
+import { storyCoverSourceFidelityIssues } from './coverSourceFidelity';
 
 const TEMPLATE_SUFFIX = '.visual-contract-template.json';
 const REVIEW_SUFFIX = '.visual-contract-review.md';
@@ -165,6 +166,7 @@ export function prepareVisualPackageCandidate(
   });
   const issues = [...loaded.issues];
   if (!loaded.template || !loaded.identity) throw new VisualPackageValidationError(issues);
+  issues.push(...storyCoverSourceFidelityIssues({ storyPath: sourcePath, template: loaded.template }));
 
   const evidence = readCandidateEvidence({
     paths,
@@ -297,6 +299,10 @@ export function promoteVisualPackage(args: PromoteVisualPackageArgs): VisualPack
   }
 
   if (loaded.template) {
+    issues.push(...storyCoverSourceFidelityIssues({
+      storyPath: resolveRepoPath(args.repoRoot, manifest.source.path),
+      template: loaded.template,
+    }));
     const coverage = buildCoverageIdentity(loaded.template);
     if (canonicalJsonDigest(coverage) !== canonicalJsonDigest(manifest.coverage)) {
       issues.push(issue('coverage_identity_mismatch', 'cover/page coverage identity changed after approval', {

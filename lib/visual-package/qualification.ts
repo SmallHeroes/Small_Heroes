@@ -22,6 +22,7 @@ import type {
 import { VISUAL_PACKAGE_MANIFEST_SUFFIX } from './types';
 import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler/contractTemplateTypes';
 import { runtimeWorldAuthorityIssues } from './runtimeAuthority';
+import { storyCoverSourceFidelityIssues } from './coverSourceFidelity';
 
 export interface RenderQualificationResult {
   storyKey: string;
@@ -185,6 +186,7 @@ export function evaluateRenderQualification(args: {
     if (loaded.template) {
       qualifiedTemplate = loaded.template;
       reasons.push(...runtimeWorldAuthorityIssues(loaded.template, manifest.review.worldMode));
+      reasons.push(...storyCoverSourceFidelityIssues({ storyPath: sourcePath, template: loaded.template }));
       const coverage = buildCoverageIdentity(loaded.template);
       if (canonicalJsonDigest(coverage) !== canonicalJsonDigest(manifest.coverage)) {
         reasons.push(issue('coverage_identity_mismatch', 'approved cover/page coverage identity is stale', {
