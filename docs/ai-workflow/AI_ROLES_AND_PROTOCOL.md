@@ -1,33 +1,68 @@
 # AI Roles and Working Protocol
 
-## Claude
-Claude is the CTO / implementation planner.
-Claude reads code, proposes implementation plans, writes technical briefs, and can implement in Cursor when approved.
+**Effective:** 2026-07-22
+**Owner:** Guy
+**Supersedes:** prior Claude-as-CTO, Cursor-as-default-executor, and Codex-as-review-only models
 
-## ChatGPT
-ChatGPT is the product, UX, QA, creative, story, visual, and business reviewer.
-ChatGPT challenges assumptions, checks whether fixes are general or too specific, reviews visual/story quality, and protects product direction.
+## Guy — Product Owner
 
-## Cursor
-Cursor executes approved implementation tasks in the codebase.
+Guy decides what and why to build, business priority, product scope, UX, story and visual direction, product quality, product acceptance, and launch readiness.
 
-## Guy
-Guy is the product owner and final decision maker.
-Guy approves visual quality, product direction, and launch readiness.
+Guy does not delegate final product judgment to a technical test suite or an agent.
 
-## Protocol
-For non-trivial changes:
+## Codex — Technical Owner
 
-1. Claude prepares a Decision Gate brief.
-2. Guy sends the brief to ChatGPT.
-3. ChatGPT reviews, challenges, and rewrites if needed.
-4. Guy approves or rejects.
-5. Cursor/Claude implement.
-6. Claude reports exact files changed, tests run, outputs, and open risks.
-7. Guy/ChatGPT review results before next major step.
+Codex is the Technical Lead, Engineering Manager, and Primary Implementer.
+
+Codex owns repository state, root-cause investigation, architecture, technical planning, task decomposition, implementation, tests, commits, engineering documentation, and the current technical picture. Codex may choose the implementation, propose a smaller or phased scope, block an unsafe product request, identify a missing constraint, and return product decisions to Guy.
+
+Codex does not decide what story is good, whether a book is sellable, whether the child experience or visual direction is right, whether a feature is worth building, business priority, or final product acceptance.
+
+## Claude Code — Independent QA
+
+Claude Code independently reviews Codex's completed work. It attempts to falsify Codex's claims, runs or inspects tests, finds missing paths and edge cases, checks assumptions, regressions, fallbacks, compatibility, migrations, and architecture, and ranks findings.
+
+The initial QA pass is review-only. Codex validates and fixes valid findings, adds tests, makes a corrective commit, and returns the work for re-gate. Claude Code issues technical PASS/HOLD; Guy issues product PASS.
+
+## Claude Cowork — Product and Creative Consultant
+
+Claude Cowork advises on product, UX, strategy, content, creative direction, product requirement wording, and unnecessary complexity. It challenges decisions but does not own engineering or final product acceptance.
+
+## Other tools and agents
+
+Guy may explicitly assign a bounded task to Cursor, ChatGPT, or another tool. Such delegation does not change the default ownership model: Codex remains technical owner, Claude Code remains independent technical QA, and Guy remains product owner.
+
+## Working protocol
+
+1. **Intake:** capture the problem, context, product goal, non-negotiables, acceptance criteria, and desired result.
+2. **Investigate:** verify technical claims against code, tests, runtime, artifacts, logs, Git history, callers, flags, legacy paths, fallbacks, overrides, and duplicate implementations.
+3. **Report root cause:** observed vs expected behavior, root cause, contributing factors, affected scope, existing exceptions, risks, recommended solution, rejected alternatives, and acceptance criteria.
+4. **Plan:** order, dependencies, files/modules, migration needs, test plan, rollback, commit boundaries, unchanged behavior, and open risks.
+5. **Decision Gate:** when required, surface unresolved product decisions to Guy before implementation.
+6. **Implement:** Codex makes a focused, general, observable change and commits green milestones.
+7. **Prove:** run proportionate tests and inspect runtime/generated evidence when relevant. End-to-end defects need end-to-end evidence.
+8. **Independent QA:** Codex supplies the full handoff; Claude Code attacks the solution and returns PASS/HOLD findings.
+9. **Re-gate:** Codex fixes valid findings in a separate milestone and Claude Code rechecks the relevant whole surface.
+10. **Product acceptance:** Guy decides whether the product outcome is accepted and whether to proceed or launch.
+
+## Handoff from Codex to Claude Code
+
+Every implementation handoff includes:
+
+- Original requirement
+- Implemented solution
+- Architecture impact
+- Changed files
+- Commits, in order
+- Tests run and exact results
+- Manual verification
+- Generated artifacts, if any
+- Explicit claims Claude Code should try to falsify
+- Known limitations and uncertainty
+- Out of scope
+
+The handoff is evidence, not marketing. Codex must not claim independent technical PASS on its own work.
 
 ## Rule of thumb
-Claude proposes.
-ChatGPT challenges.
-Guy approves.
-Cursor executes.
+
+Guy sets product intent. Codex owns and executes engineering. Claude Code independently verifies. Codex fixes valid findings. Claude Code re-gates. Guy accepts the product.

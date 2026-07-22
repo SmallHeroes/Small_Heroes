@@ -24,8 +24,10 @@ Before any major action, answer these questions.
 3. Does this affect production behavior?
 4. Does this spend money?
 5. What is the smallest safe validation run?
-6. What should ChatGPT review before implementation?
-7. What should Guy eyeball before continuing?
+6. What must Guy decide before implementation?
+7. What should Claude Code try to falsify after implementation?
+8. Should Claude Cowork review a product/creative/UX question?
+9. What should Guy eyeball before continuing?
 
 ## Rule
 If the answer is unclear: stop and ask.

@@ -1,54 +1,48 @@
 # 03 — Agent Roles
 
-**Last updated:** 2026-07-06
-**Status:** accepted operating model (DEC-008, Guy 2026-07-06). ⚠️ Repo `CLAUDE.md` / `AGENTS.md` / `AI_ROLES_AND_PROTOCOL.md` still give conflicting CTO assignments — reconciliation routed to Cursor (doc-only), see `project-os/briefs/BRIEF-cursor-role-doc-reconcile.md` (OQ-T1).
+**Last updated:** 2026-07-22
+**Status:** current operating model (DEC-009; supersedes DEC-008)
 
-**Master rule of thumb:** Operator maps & routes → specialist/executor proposes → Codex gatekeeps (technical) → ChatGPT challenges (product/creative) → **Guy approves** → Cursor/Claude Code execute. No agent works without a clear brief. No agent approves its own major recommendation.
+The canonical protocol is `docs/ai-workflow/AI_ROLES_AND_PROTOCOL.md`. This file is the Project OS summary.
 
----
+**Master rule:** Guy sets product intent → Codex investigates, plans, and implements → Claude Code independently verifies → Codex fixes valid findings → Claude Code re-gates → Guy gives product acceptance.
 
-## Claude Cowork — Project Operator / Chief of Staff (this agent)
-- **Role:** Organize, coordinate, map state, write task briefs, route work, read agent outputs, summarize, maintain Project OS, keep ClickUp aligned, surface blockers, separate MVP from post-MVP, prepare owner decision points.
-- **Allowed:** Maintain `/project-os/`, inspect repo read-only, write proposals/briefs, recommend.
-- **Forbidden:** Implement/refactor app code; change prod, payment, generation, story architecture, env; silently approve major decisions; let any agent work without a brief; move/edit ClickUp tasks unless explicitly instructed.
-- **Required output:** Updated Project OS files, task briefs, decision proposals, agent-output summaries.
-- **Consult:** Codex (technical feasibility), ChatGPT (product/creative), Guy (any major decision).
+No agent approves both its own implementation and the final product result.
 
-## Codex — Technical Gatekeeper / Forensic Reviewer
-- **Role:** Independent, adversarial code review; root-cause analysis; complex code audit; implementation verification. **The gate on money/concurrency/security code.**
-- **Allowed:** Read code, cite `file:line`, verify commits, HOLD/PASS.
-- **Forbidden:** Rewrite product direction; self-merge; broad "fix what you find" work.
-- **Required output:** File:line-cited verdicts (PASS / HOLD + specific gaps).
-- **Consult:** Escalate product/scope questions to Guy via Operator.
-- **Note:** Cowork/Claude reviews under-call money bugs — never say "verified" on money code; Codex is the source of truth there.
+## Guy — Product Owner
 
-## Claude Code — Deep Specialist
-- **Role:** Deep architecture / content / generation reviews and implementation planning under narrow, approved scope.
-- **Allowed:** Specialist analysis + implementation when explicitly tasked; updates `DECISIONS.md` on behavior change.
-- **Forbidden:** Self-merge; open-ended work; changing product direction; running full renders without approval.
-- **Required output:** Exact files changed, tests run, outputs, open risks.
-- **Consult:** Codex (review gate), Guy (approval).
+- Owns what and why to build, business priority, UX, story, visuals, product quality, product PASS, and launch readiness.
+- Approves customer-promise, scope, pricing, and broad/irreversible product decisions.
+- Does not delegate final sellability judgment to agents or tests.
 
-## Cursor — Frontend / UI Executor
-- **Role:** Implement approved tasks under narrow specs; frontend/UI; follow design tokens.
-- **Allowed:** Code execution within brief scope, explicit pathspec commits.
-- **Forbidden:** Architecture decisions; scope expansion; `git add -A` (EOL landmine); touching money/generation logic without a specific brief.
-- **Required output:** Committed diff matching brief; `npm run check` green.
-- **Consult:** Operator for brief clarification.
+## Codex — Technical Owner
 
-## ChatGPT — External Advisor
-- **Role:** Product strategy, prompt/creative design, UX/story/visual/business judgment, decision review; challenges assumptions, guards against hardcoding and story-specific patches.
-- **Allowed:** Review briefs, propose product/creative direction, stress-test decisions.
-- **Forbidden:** Direct code authority.
-- **Required output:** Challenge + recommendation Guy can route.
-- **Consult:** Guy routes to/from ChatGPT.
+- Technical Lead, Engineering Manager, and Primary Implementer.
+- Owns repository investigation, root cause, architecture, technical plans, task decomposition, code, tests, commits, technical documentation, and engineering state.
+- May choose implementation, propose narrower/phased scope, block unsafe requests, create tooling/tests, and return product questions to Guy.
+- Does not decide story quality, sellability, visual direction, business priority, feature value, or final product acceptance.
+- Does not self-award independent technical PASS.
 
-## Guy — Owner / Final Decision Maker
-- **Role:** Approves visual quality, product direction, launch readiness; the router between agents; final merge authority.
-- **Approval required for:** Anything in the "Major decision rules" list (see below).
-- **Only Guy** merges and pushes (Cowork/CC shells can't git-auth reliably).
+## Claude Code — Independent QA
 
----
+- Reviews Codex implementations adversarially and tries to falsify their claims.
+- Checks regressions, uncovered paths, fallbacks, compatibility, migrations, tests, runtime evidence, and architecture.
+- First QA pass is review-only; returns ranked file/line-cited PASS/HOLD findings.
+- After Codex fixes valid findings, re-gates the relevant whole surface.
+- Does not issue product PASS.
 
-## Major decision rules (written proposal + Codex-if-technical + Guy approval)
-Payment/order lifecycle · QA/PROD changes · env/secrets · DB/data model · generation pipeline · image pipeline · story architecture · viewer architecture · audio/narration architecture · any refactor affecting the full happy path · any change to what the user receives · any pre-MVP scope change.
+## Claude Cowork — Product and Creative Consultant
+
+- Advises on product, UX, strategy, content, creative direction, requirement wording, and avoidable complexity.
+- Challenges product assumptions and gives Guy options/recommendations.
+- Does not own engineering, implementation, technical PASS, or final product acceptance.
+
+## Other agents and tools
+
+Guy may explicitly delegate a bounded task to Cursor, ChatGPT, or another tool. That delegation does not change the default ownership chain. The assignment must state scope, forbidden areas, evidence, and review requirements.
+
+## Major-decision rules
+
+Guy's written decision is required for payment/order lifecycle policy, production/QA environment behavior, secrets, customer data policy, what the customer receives, generation/image/story/viewer product architecture, QA thresholds, pre-launch scope, full renders, and launch go/no-go.
+
+Codex supplies technical options, risks, validation, cost, and rollback before such a decision. Claude Code independently QA's the resulting technical implementation.
