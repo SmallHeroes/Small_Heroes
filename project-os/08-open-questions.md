@@ -3,6 +3,8 @@
 **Last updated:** 2026-07-06
 Grouped by area. Each needs an owner decision or a routed brief. Resolved questions move to `02-decision-log`.
 
+> **HISTORICAL PROJECT OS SNAPSHOT.** This queue is not current engineering authority. Use root `CURRENT.md` and `ROADMAP.md` first. Known superseded entries below include OQ-P1/T1/T6/T7/T8: Codex is now Technical Owner and Primary Implementer; Guy owns main/prod push authorization; the current matrix reports 18/18 product-sellable slots with v3 enabled; render qualification is a separate gate; and the bank currently has two visual-contract templates. Retained unchanged below as dated evidence.
+
 ---
 
 ## Product

@@ -102,7 +102,7 @@ Needs Codex review: no
 
 DEC-008: Operating model — Claude Cowork as Project Operator/Chief of Staff
 Date: 2026-07-06
-Status: accepted (Guy, 2026-07-06)
+Status: superseded by DEC-009 (Guy, 2026-07-22)
 Owner: Guy
 Follow-up: Repo role docs (CLAUDE.md, AGENTS.md, AI_ROLES_AND_PROTOCOL.md) to be reconciled to this model via a doc-only Cursor brief (see project-os/briefs/BRIEF-cursor-role-doc-reconcile.md). Closes OQ-T1.
 Context: Repo docs are inconsistent (`AGENTS.md` names Codex as CTO; `CLAUDE.md`/`AI_ROLES_AND_PROTOCOL.md` name Claude as CTO). Guy has defined a new operator model.
@@ -112,3 +112,15 @@ Rejected alternatives: Leaving the CTO-role ambiguity unreconciled.
 Risks: Existing repo role docs contradict this — must be reconciled or they'll confuse agents (see `08-open-questions` OQ-T1).
 Needs Codex review: no
 Revisit after: Guy confirms + repo role docs reconciled
+
+DEC-009: Operating model — Codex as Technical Owner and Primary Implementer
+Date: 2026-07-22
+Status: accepted
+Owner: Guy
+Context: Guy replaced the operator/gatekeeper/executor chain with direct technical ownership. The repository still contained three contradictory role models and lacked the four minimal canonical state documents.
+Decision: Guy owns product and final product acceptance. Codex is Technical Lead, Engineering Manager, and Primary Implementer. Claude Code is the independent technical QA and re-gate reviewer. Claude Cowork is the product and creative consultant. Other tools may receive explicitly bounded tasks but are not the default authority chain. Root `PROJECT.md`, `ROADMAP.md`, `CURRENT.md`, and `QUALITY_GATES.md` become canonical.
+Why: Reduce handoffs and ambiguity while preserving independent technical verification and Guy's product authority.
+Rejected alternatives: Keep Codex review-only; keep Cursor/Claude as default executor; let Codex self-certify; rewrite historical handoffs as current truth.
+Risks: Role drift in old snapshots; conflating technical PASS with product PASS; source-of-truth duplication.
+Needs Codex review: Codex implements the documentation transition; Claude Code independently QA's it.
+Revisit after: Claude Code re-gate and Guy's review of the authority split.

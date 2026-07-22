@@ -35,8 +35,10 @@ How many generations are expected?
 ## 9. Rollback plan
 How do we undo this safely?
 
-## 10. What ChatGPT should review
-What strategic/product/QA questions need review before implementation?
+## 10. Review assignment
+What must Guy decide before implementation?
+What should Claude Code try to falsify after implementation?
+Should Claude Cowork review a product, UX, story, visual, creative, or complexity question?
 
 ## 11. Do not do
 Explicit forbidden actions.

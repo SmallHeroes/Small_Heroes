@@ -1,46 +1,46 @@
 # 04 — Task Routing
 
-**Last updated:** 2026-07-06
-ClickUp is the tracker; this file defines **who gets which kind of work**. Every assignment needs a brief (format at bottom). ⚠️ ClickUp connector is not authorized in this session — ClickUp list/task IDs are **NEEDS_REVIEW**.
+**Last updated:** 2026-07-22
+**Status:** current summary; canonical protocol is `docs/ai-workflow/AI_ROLES_AND_PROTOCOL.md`
 
----
+## Default routing
 
-## Routing matrix
-
-| Work type | Route to | Gate before merge |
+| Work type | Owner/route | Required gate |
 |---|---|---|
-| Planning, state mapping, task briefs, decision proposals, ClickUp alignment, blocker triage | **Claude Cowork (Operator)** | Guy |
-| Deep architecture / generation / content review + planning; complex implementation under narrow scope | **Claude Code** | Codex review → Guy |
-| Independent code review, root-cause, money/concurrency/security audit, implementation verification | **Codex** | (Codex IS the gate) → Guy |
-| Frontend/UI implementation under narrow spec, wizard/reader UI, design-token work | **Cursor** | `npm run check` → Codex if money/gen touched → Guy |
-| Product strategy, prompt/creative design, UX/story/visual/business judgment, decision review | **ChatGPT** | Guy routes |
-| Final approval, merge, push, launch-readiness sign-off | **Guy** | — |
+| Repository investigation, root cause, architecture, planning, implementation, tests, commits, and technical state | **Codex** | Decision Gate when applicable → Claude Code independent QA → Guy product acceptance when customer-visible |
+| Independent implementation review, regression/edge-path audit, architecture verification, re-gate | **Claude Code** | PASS/HOLD with file/line evidence; no product PASS |
+| Product strategy, UX, story, visual, creative, requirement wording, complexity challenge | **Claude Cowork** | Guy decision |
+| Product scope, priority, sellability, visual/story acceptance, launch go/no-go | **Guy** | Owner decision |
+| Explicitly delegated bounded work | Cursor, ChatGPT, or another named tool | Scope-specific gate set by Guy/Codex; default ownership does not transfer |
 
 ## Routing principles
-- **Money / order / payment / refund code → Codex is mandatory gate.** Cowork/Claude "clean" is not sufficient.
-- **Generation / image / story-architecture changes → Decision Gate brief first** (`docs/ai-workflow/DECISION_GATE_TEMPLATE.md`) → ChatGPT challenge → Guy → execute. Page-only / 5-page eyeballed sample before any full render.
-- **UI-only, no money/gen impact → Cursor** directly under a narrow brief.
-- **Ambiguous scope or "review everything" → Operator** breaks it into scoped briefs first. No open-ended work.
-- **Never** let Claude Code / Codex / Cursor start without a brief. Never self-merge. Never `git add -A`.
 
-## Do-not-route (owner-only decisions)
-Payment lifecycle, QA/PROD env, secrets, DB/data model, what-the-user-receives, pre-MVP scope changes → these need a written proposal + Guy approval before any agent touches them.
+- Codex starts with repository investigation, not a presumed implementation.
+- Generation, image, story, reader, payment, production, fallback, and QA-gate changes require the Decision Gate/stop-check before implementation.
+- Money, order authority, concurrency, security, and migrations require proportionate runtime evidence and independent Claude Code review.
+- Product/creative uncertainty goes to Guy, optionally with Claude Cowork consultation.
+- No story-specific patch may be presented as a system solution.
+- No full render runs without Guy's explicit approval.
+- Never self-merge broad work, never self-award independent PASS, and never `git add -A`.
 
----
+## Task brief format
 
-## Task brief format (use before assigning any agent)
-```
+```text
 Task title:
 Why now:
-MVP category: launch blocker / pre-launch polish / post-MVP / technical debt / research
-Assigned agent:
-Context:
+Product goal:
+Non-negotiables:
+Acceptance criteria:
+Assigned owner/executor:
+Independent QA:
+Context and verified evidence:
 Allowed files/areas:
 Forbidden files/areas:
 Expected output:
+Migration/compatibility needs:
+Validation and cost:
+Rollback:
 Do not:
-Definition of done:
-QA required: yes/no
-Codex review required: yes/no
-Owner approval required: yes/no
+Definition of Done:
+Owner decision required:
 ```

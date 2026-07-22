@@ -1,5 +1,7 @@
 # 01 — MVP Scope
 
+> Historical scope snapshot. Root `PROJECT.md` and `ROADMAP.md` are canonical from 2026-07-22; Guy remains the owner of product promise and priority.
+
 **Last updated:** 2026-07-06
 **Target:** Soft launch 2026-07-15 (Cursor + Guy supervised, real payment, ~50% launch discount).
 **Governing principle (Guy):** Quality > speed. A book must feel like a real printed children's book, not a set of pretty AI images. If a decision does not serve "sellable, emotionally strong, visually consistent book," challenge it.

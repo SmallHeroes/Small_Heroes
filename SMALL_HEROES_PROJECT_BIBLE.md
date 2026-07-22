@@ -1,6 +1,6 @@
 # Small Heroes — Project Bible
 
-> ⚠️ **HISTORICAL (May 2026).** Current truth: **8/12/16 beats**, **16/24/32** display pages, **₪59/79/99**, MVP matrix **6×3×1** — see `outputs/DECISION_MEMO_launch_matrix_lock.md` + `CLAUDE.md`.
+> ⚠️ **HISTORICAL DETAIL (May 2026).** Current canonical truth is in `CURRENT.md`, `ROADMAP.md`, `PROJECT.md`, and `QUALITY_GATES.md`. Use this Bible for background only where a newer canonical document or verified repository state does not supersede it.
 
 **Last updated:** May 12, 2026
 **Repo:** https://github.com/SmallHeroes/Small_Heroes
@@ -432,17 +432,19 @@ Small_Heroes/
 ## 16. Development Workflow
 
 ### Roles
-- **Claude (Cowork):** CTO / Product Lead — architecture, planning, briefs, code review, direct fixes
-- **Cursor:** Implementing engineer — receives briefs, writes code, commits
-- **Guy:** Founder — product decisions, testing, feedback
+- **Guy:** Product Owner — product direction, priorities, story/visual/UX judgment, product PASS, launch readiness
+- **Codex:** Technical Owner — Technical Lead, Engineering Manager, Primary Implementer; owns investigation, architecture, code, tests, commits, and technical state
+- **Claude Code:** Independent technical QA — adversarial review and re-gate; technical PASS/HOLD
+- **Claude Cowork:** Product and creative consultant
+- **Other tools:** bounded tasks only when explicitly delegated; no default authority transfer
 
 ### Process
-1. Claude diagnoses problems and designs solutions
-2. Claude writes a `CURSOR_BRIEF_PHASE_XX.md` with exact instructions
-3. Guy passes the brief to Cursor
-4. Cursor implements and reports back
-5. Claude verifies the implementation
-6. Git commit and push
+1. Guy supplies product intent, non-negotiables, and acceptance criteria.
+2. Codex verifies repository state and reports the root cause before meaningful implementation.
+3. Codex plans, implements, tests, commits focused milestones, and updates the canonical state documents.
+4. Claude Code independently tries to falsify the implementation and returns PASS/HOLD findings.
+5. Codex fixes valid findings and returns the work for re-gate.
+6. Guy gives product acceptance and launch/go-forward decisions.
 
 ### Conventions
 - All responses in English (code + docs)
