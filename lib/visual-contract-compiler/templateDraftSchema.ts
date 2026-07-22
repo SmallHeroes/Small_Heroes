@@ -23,6 +23,12 @@ const nullableNumber = { type: ['number', 'null'] } as const;
 const stringArray = { type: 'array', items: { type: 'string' } } as const;
 
 const anchor = obj({ id: { type: 'string' }, description: { type: 'string' } });
+const setReference = obj({
+  status: { type: 'string', enum: ['none', 'pending', 'ready'] },
+  url: nullableString,
+  storageKey: nullableString,
+  prompt: nullableString,
+});
 
 const location = obj({
   id: { type: 'string' },
@@ -33,6 +39,8 @@ const location = obj({
   timeOfDay: nullableString,
   anchors: { type: 'array', items: anchor },
   topology: nullableString,
+  setIdentityId: nullableString,
+  setReference: { anyOf: [setReference, { type: 'null' }] },
 });
 
 const zone = obj({
@@ -86,6 +94,8 @@ const prop = obj({
 const coverContract = obj({
   worldType: { type: 'string' },
   locationId: { type: 'string' },
+  zoneId: { type: 'string' },
+  castIds: stringArray,
   timeOfDay: nullableString,
   mustShow: stringArray,
   mustNotShow: stringArray,
@@ -125,7 +135,7 @@ export const TEMPLATE_DRAFT_JSON_SCHEMA: Record<string, unknown> = obj({
 });
 
 /** Bump when the draft schema shape changes (recorded in authoring provenance). */
-export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v1' as const;
+export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v2' as const;
 
 /** The structured-output request name (OpenAI json_schema `name`). */
 export const TEMPLATE_DRAFT_SCHEMA_NAME = 'BookVisualContractTemplateDraft' as const;

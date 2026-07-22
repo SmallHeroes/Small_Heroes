@@ -22,6 +22,7 @@ import {
 import {
   CANDIDATE_EVIDENCE_VERSION,
   VISUAL_PACKAGE_MANIFEST_VERSION,
+  VISUAL_PACKAGE_MANIFEST_SUFFIX,
   VISUAL_PACKAGE_PROMOTION_VERSION,
   VisualPackageValidationError,
   type VisualPackageIssue,
@@ -32,7 +33,7 @@ import {
 const TEMPLATE_SUFFIX = '.visual-contract-template.json';
 const REVIEW_SUFFIX = '.visual-contract-review.md';
 const PROVENANCE_SUFFIX = '.visual-contract-provenance.json';
-export const VISUAL_PACKAGE_MANIFEST_SUFFIX = '.visual-package.json';
+export { VISUAL_PACKAGE_MANIFEST_SUFFIX } from './types';
 
 interface CandidateProvenance {
   candidateEvidence?: CandidateEvidenceBinding;

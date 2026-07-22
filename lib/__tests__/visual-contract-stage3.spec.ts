@@ -536,7 +536,9 @@ describe('Stage 3 — TIER C: the prompt block gains the projected lines ONLY wh
     // The projected geometry rides the existing per-page (own-zone only) STABLE GEOMETRY line.
     expect(block).toContain('STABLE GEOMETRY: floor "floor": a pale vinyl floor');
     // AUTHORITY must close the block so "THIS contract wins" covers the new lines too.
-    expect(block.indexOf('SAFETY (never render)')).toBeLessThan(block.indexOf('AUTHORITY:'));
+    expect(block.indexOf('SAFETY (never render)')).toBeLessThan(
+      block.indexOf('AUTHORITY: runtime presentation'),
+    );
   });
 
   it('the COVER carries no page-level structure (it has no page contract) → no ACTION/SAFETY lines', () => {

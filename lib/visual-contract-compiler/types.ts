@@ -503,6 +503,16 @@ export interface CoverContract {
   worldType: string;
   /** MUST reference a `BookVisualContract.locations[].id`. */
   locationId: string;
+  /**
+   * Render-qualified Style01 packages must author the cover's exact zone. Optional on legacy contracts so the
+   * enforcement-off development path remains readable; the approved runtime-authority validator requires it.
+   */
+  zoneId?: string;
+  /**
+   * Exact stable cast ids present on the cover. Optional only for legacy contracts; render-qualified Style01
+   * authority requires this array so cover cast can never be inferred from title/direction prose.
+   */
+  castIds?: string[];
   timeOfDay?: string;
   mustShow: string[];
   mustNotShow: string[];

@@ -68,19 +68,26 @@ export function derivePageVisualContracts(contract: BookVisualContract): Resolve
 export function deriveCoverVisualContract(contract: BookVisualContract): ResolvedPageContract {
   const cover = contract.coverContract;
   const location = contract.locations.find((l) => l.id === cover.locationId);
+  const zone = cover.zoneId ? contract.zones.find((candidate) => candidate.id === cover.zoneId) : undefined;
+  const castIds = cover.castIds ?? [contract.cast.child.id];
   return {
     pageNumber: 0,
     locationId: cover.locationId,
-    zoneId: undefined,
+    zoneId: cover.zoneId,
     sameLocationAs: null,
     mustShow: cover.mustShow ?? [],
     mustNotShow: uniq([...(cover.mustNotShow ?? []), ...(contract.forbiddenGlobalElements ?? [])]),
-    characterPresence: { child: true, companion: false },
+    characterPresence: {
+      child: castIds.includes(contract.cast.child.id),
+      companion: contract.cast.companion ? castIds.includes(contract.cast.companion.id) : false,
+    },
+    castIds,
     propState: [],
     camera: 'cover composition',
     childWardrobeLock: contract.cast.child.wardrobe.description,
     companionWardrobeLock: undefined,
     locationName: location?.name ?? cover.locationId,
-    zoneName: undefined,
+    zoneName: zone?.name,
+    zoneStableGeometry: zone?.stableGeometry,
   };
 }

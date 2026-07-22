@@ -480,6 +480,27 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
     if (!isStr(cover.locationId) || !locationIds.has(cover.locationId)) {
       errors.push(`coverContract.locationId "${String(cover.locationId)}" not a declared location`);
     }
+    if (cover.zoneId !== undefined) {
+      if (!isStr(cover.zoneId)) {
+        errors.push('coverContract.zoneId must be a non-empty string when present');
+      } else if (!isStr(cover.locationId) || !zoneByLocation.get(cover.locationId)?.has(cover.zoneId)) {
+        errors.push(
+          `coverContract.zoneId "${cover.zoneId}" is not a zone of location "${String(cover.locationId)}"`,
+        );
+      }
+    }
+    if (cover.castIds !== undefined) {
+      if (!Array.isArray(cover.castIds) || cover.castIds.length === 0 || !cover.castIds.every(isStr)) {
+        errors.push('coverContract.castIds must be a non-empty string[] when present');
+      } else {
+        const seenCoverCast = new Set<string>();
+        for (const castId of cover.castIds) {
+          if (seenCoverCast.has(castId)) errors.push(`coverContract.castIds contains duplicate "${castId}"`);
+          seenCoverCast.add(castId);
+          if (!castIdSet.has(castId)) errors.push(`coverContract.castIds references unknown cast id "${castId}"`);
+        }
+      }
+    }
     // (Stage 4) The cover's steering arrays were validated NOWHERE — yet the cover is the book's promise, and for a
     // contract-driven cover its `mustNotShow` is the SOLE no-spoiler authority. Require the shape.
     //

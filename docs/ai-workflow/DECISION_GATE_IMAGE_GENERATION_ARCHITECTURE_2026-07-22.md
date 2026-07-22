@@ -3,7 +3,7 @@
 **Date:** 2026-07-22
 **Technical owner:** Codex
 **Product owner:** Guy
-**Status:** proposed technical sequence; no image-generation implementation or render is authorized by this document alone
+**Status:** architecture accepted by Guy; R1A/R1B closed after independent QA; R1C zero-cost runtime-authority implementation explicitly authorized on 2026-07-22. No image render, production cutover, deploy, or push is authorized.
 
 ## 1. Proposed change
 
@@ -158,3 +158,15 @@ Claude Cowork should review:
 7. **Claude Code challenge?** Bypass, evidence classification, real caller coverage, idempotency, resume, and production/legacy paths.
 8. **Claude Cowork review?** Lion story and the human-facing contract review artifact.
 9. **Guy eyeball?** The promoted world package before render, then the single generated page and QA record before any wider sample.
+
+### R1C execution reconciliation (2026-07-22)
+
+1. **General or story-specific?** General Style01 runtime boundary for every eligible book; no story, companion, direction, cover, or page exception.
+2. **Could it break another story/style?** Style01 enforced non-production paths are intentionally fail-closed; enforcement-off and Vercel-production hard-off behavior remain the compatibility boundary. Style02 is unchanged.
+3. **Production behavior?** No cutover. The existing production hard-off is preserved and tested.
+4. **Spend money?** No. R1C uses fixtures/mocks only and forbids image/audio/provider/LLM calls.
+5. **Smallest validation?** Caller-level cover, page, verified-QA retry, chunk-wrapper, and single-page-regeneration tests plus compiler/package/board regressions and TypeScript.
+6. **Guy decision?** Already supplied: R1C is authorized after R1B PASS. The later one-LOW-page proof remains a separate decision and is excluded here.
+7. **Claude Code challenge?** Falsify bypasses, inference, legacy fallback leakage, authority ordering, exact board binding, retry/regeneration coverage, production hard-off, and live seams.
+8. **Claude Cowork review?** Not required for this technical zero-cost boundary milestone; no product/creative content changes are in scope.
+9. **Guy eyeball?** Code/test handoff only. No generated visual exists in R1C; the later one-page proof remains the first visual-eyeball gate.

@@ -149,7 +149,8 @@ export function buildTemplateCompileSystemPrompt(): string {
     'you MUST NOT restate or contradict them.',
     '',
     'Draft ONLY the DESCRIPTIVE fields:',
-    '- worldType, locations[], zones[] (with stableGeometry), cast.child + cast.companion wardrobe,',
+    '- worldType, locations[] (including authored setIdentityId/setReference bindings), zones[] (with stableGeometry),',
+    '  cast.child + cast.companion wardrobe,',
     '  recurringProps[] (material/scale/persistence), forbiddenGlobalElements[], coverContract, and per-page',
     '  mustShow/mustNotShow/propState/camera/transition/zoneId/locationId.',
     '- For each given human, draft ONLY garments (each colour an explicit value) and forbiddenAppearance. Do NOT',
@@ -187,7 +188,8 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
     '',
     'Produce a JSON BookVisualContractTemplate DRAFT (descriptive fields only) with keys: worldType, locations[],',
     'zones[], cast{child,companion?}, humanCast[{id, garments, forbiddenAppearance}], recurringProps[],',
-    'forbiddenGlobalElements[], coverContract, pageContracts[{pageNumber, locationId, zoneId, sameLocationAs?,',
+    'forbiddenGlobalElements[], coverContract{worldType,locationId,zoneId,castIds,timeOfDay,mustShow,mustNotShow},',
+    'pageContracts[{pageNumber, locationId, zoneId, sameLocationAs?,',
     'mustShow[], mustNotShow[], propState[], camera, transition}].',
     '',
     'FULL STORY TEXT:',
@@ -213,11 +215,11 @@ export function buildTemplateRepairSystemPrompt(): string {
     '',
     'You MAY edit ONLY these DESCRIPTIVE fields:',
     '- worldType (the semantic world type)',
-    '- locations[] (name/description/lighting/timeOfDay/environmentClass/anchors/topology)',
+    '- locations[] (name/description/lighting/timeOfDay/environmentClass/anchors/topology/setIdentityId/setReference)',
     '- zones[] (name/description/stableGeometry — a present stableGeometry must be a NON-EMPTY string[])',
     '- cast.child/cast.companion wardrobe; each human\'s garments (each colour an explicit value) + forbiddenAppearance',
     '- recurringProps[] (name/description and material/scale/persistence — NO empty string in a field you include)',
-    '- forbiddenGlobalElements[]; coverContract mustShow/mustNotShow/locationId/timeOfDay',
+    '- forbiddenGlobalElements[]; coverContract mustShow/mustNotShow/locationId/zoneId/castIds/timeOfDay',
     '- pageContracts[] mustShow/mustNotShow/propState/camera and the transition kind/cue',
     '',
     'You MUST NOT change these (they are COMPILER-owned or FACT-derived; your edits to them are IGNORED and',
@@ -453,7 +455,11 @@ function resolveZoneRef(ref: string, graph: ZoneGraph, label: string): Canonical
  * from/to reference. Absent transition refs are left for the validator (its message is precise). Returns the
  * rewritten page objects + review notes for every id the compiler had to canonicalize/override.
  */
-function canonicalizeTopology(draft: Record<string, unknown>): { pages: Record<string, unknown>[]; notes: string[] } {
+function canonicalizeTopology(draft: Record<string, unknown>): {
+  pages: Record<string, unknown>[];
+  cover: Record<string, unknown>;
+  notes: string[];
+} {
   const graph = buildZoneGraph(draft);
   const notes: string[] = [];
   const pages = asArr(draft.pageContracts).map((raw) => {
@@ -479,7 +485,63 @@ function canonicalizeTopology(draft: Record<string, unknown>): { pages: Record<s
     }
     return pc;
   });
-  return { pages, notes };
+  const cover: Record<string, unknown> = { ...asObj(draft.coverContract) };
+  let authoredCoverZoneId = isStr(cover.zoneId) && cover.zoneId.trim() ? cover.zoneId : null;
+  if (!authoredCoverZoneId) {
+    // Offline candidate-upgrade compatibility: old reviewed drafts predate explicit cover zones. Propose the first
+    // authored page's zone only when it is inside the already-authored cover location; otherwise a sole zone in that
+    // location is unambiguous. This is compiler-time authoring (still subject to human review), never runtime inference.
+    const coverLocationId = isStr(cover.locationId) ? cover.locationId : null;
+    const firstPageInCoverLocation = [...pages]
+      .filter((page) => page.locationId === coverLocationId && isStr(page.zoneId))
+      .sort((a, b) => Number(a.pageNumber ?? 0) - Number(b.pageNumber ?? 0))[0];
+    const locationZones = [...graph.exact.values()].filter((zone) => zone.locationId === coverLocationId);
+    authoredCoverZoneId = isStr(firstPageInCoverLocation?.zoneId)
+      ? firstPageInCoverLocation.zoneId
+      : locationZones.length === 1
+        ? locationZones[0].id
+        : null;
+    if (!authoredCoverZoneId) {
+      throw new InvalidTemplateContractError([
+        'coverContract has no zoneId and no unambiguous compiler-time proposal exists (repair).',
+      ]);
+    }
+    notes.push(`coverContract zoneId proposed as "${authoredCoverZoneId}" from its authored location/page graph`);
+  }
+  const coverZone = resolveZoneRef(authoredCoverZoneId, graph, 'coverContract');
+  if (isStr(cover.zoneId) && cover.zoneId !== coverZone.id) {
+    notes.push(`coverContract zoneId "${cover.zoneId}" canonicalized to "${coverZone.id}"`);
+  }
+  if (isStr(cover.locationId) && cover.locationId !== coverZone.locationId) {
+    notes.push(
+      `coverContract locationId "${cover.locationId}" overridden to "${coverZone.locationId}" ` +
+        `(derived from zone "${coverZone.id}")`,
+    );
+  }
+  cover.zoneId = coverZone.id;
+  cover.locationId = coverZone.locationId;
+  if (cover.timeOfDay === null) delete cover.timeOfDay;
+  return { pages, cover, notes };
+}
+
+/** Strict structured output uses null for optional fields; contracts use omission so validation stays exact. */
+function normalizeDraftLocations(raw: unknown): BookVisualContractTemplate['locations'] {
+  return asArr(raw).map((value) => {
+    const location = { ...asObj(value) };
+    if (location.timeOfDay === null) delete location.timeOfDay;
+    if (location.topology === null) delete location.topology;
+    if (location.setIdentityId === null) delete location.setIdentityId;
+    if (location.setReference === null) {
+      delete location.setReference;
+    } else if (location.setReference !== undefined) {
+      const setReference = { ...asObj(location.setReference) };
+      for (const field of ['url', 'storageKey', 'prompt']) {
+        if (setReference[field] === null) delete setReference[field];
+      }
+      location.setReference = setReference;
+    }
+    return location;
+  }) as unknown as BookVisualContractTemplate['locations'];
 }
 
 /**
@@ -545,9 +607,17 @@ function assembleTemplateFromDraft(
 
   // Topology: canonicalize IDs + rewrite page/transition refs against the ONE zone graph (compiler-owned),
   // then overlay the fact-derived cast/presence LAST. Ambiguity/unresolved refs throw → repair.
-  const { pages: canonicalPages, notes: topoNotes } = canonicalizeTopology(draft);
+  const { pages: canonicalPages, cover: canonicalCover, notes: topoNotes } = canonicalizeTopology(draft);
   notes.push(...topoNotes);
   const pageContracts = canonicalPages.map((pc) => overlayPage(pc, facts, childId, companionId));
+  if (!Array.isArray(canonicalCover.castIds) || canonicalCover.castIds.length === 0) {
+    const firstPage = [...pageContracts].sort(
+      (a, b) => Number(a.pageNumber ?? 0) - Number(b.pageNumber ?? 0),
+    )[0];
+    const proposedCastIds = asArr(firstPage?.castIds).filter(isStr);
+    canonicalCover.castIds = proposedCastIds.length > 0 ? proposedCastIds : [childId];
+    notes.push('coverContract castIds proposed from the fact-authoritative first page for human review');
+  }
 
   // worldType is LLM+human (semantic) — NO silent 'unspecified' default; a missing value fails (fail-closed →
   // repair). coverContract.worldType is COMPILER-owned: copied from the finalized top-level worldType.
@@ -563,13 +633,13 @@ function assembleTemplateFromDraft(
     version: 1,
     storyKey: input.storyKey,
     worldType,
-    locations: draft.locations as BookVisualContractTemplate['locations'],
+    locations: normalizeDraftLocations(draft.locations),
     zones: draft.zones as BookVisualContractTemplate['zones'],
     cast: authoritativeCast as unknown as BookVisualContractTemplate['cast'],
     humanCast,
     recurringProps: (draft.recurringProps as BookVisualContractTemplate['recurringProps']) ?? [],
     forbiddenGlobalElements: asArr(draft.forbiddenGlobalElements).filter((x): x is string => typeof x === 'string'),
-    coverContract: { ...asObj(draft.coverContract), worldType } as unknown as BookVisualContractTemplate['coverContract'],
+    coverContract: { ...canonicalCover, worldType } as unknown as BookVisualContractTemplate['coverContract'],
     pageContracts: pageContracts as unknown as BookVisualContractTemplate['pageContracts'],
     provenance: { source: 'llm', model: authoringModel, compiledFromPages: input.pageCount },
   };

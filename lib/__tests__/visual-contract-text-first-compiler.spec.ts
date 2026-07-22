@@ -107,7 +107,10 @@ describe('text-first compiler — C3 assembly (facts overlaid LAST) + fail-close
     const { template, notes } = await compileBookVisualContractTemplate(bunnySource(), {
       callLLM: stubFrom(bunnyTemplate()),
     });
-    expect(notes).toEqual([]);
+    expect(notes).toEqual([
+      'coverContract zoneId proposed as "clinic.waiting_room" from its authored location/page graph',
+      'coverContract castIds proposed from the fact-authoritative first page for human review',
+    ]);
     const doctor = template.humanCast.find((h) => h.id === 'human:doctor')!;
     expect(doctor.gender).toBe('male');
     expect(doctor.pagesPresent).toEqual([4, 6, 7, 9, 10, 11]);

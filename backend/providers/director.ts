@@ -63,6 +63,74 @@ export interface DirectorInput {
   totalPages?: number;
 }
 
+const BOUNDED_POSITIONS = [
+  'foreground-left',
+  'foreground-right',
+  'midground-left',
+  'midground-right',
+  'background-left',
+  'background-right',
+  'center',
+] as const;
+const BOUNDED_INTERACTIONS = [
+  'kneeling',
+  'reaching',
+  'pointing',
+  'listening',
+  'climbing',
+  'sharing',
+  'leaning',
+  'walking',
+  'running',
+  'turning',
+] as const;
+const BOUNDED_EMOTIONS = [
+  'calm',
+  'curious',
+  'joyful',
+  'brave',
+  'tender',
+  'hopeful',
+  'focused',
+  'worried',
+  'surprised',
+] as const;
+
+function firstAllowed(text: string, allowed: readonly string[], fallback: string): string {
+  const normalized = text.toLowerCase().replace(/\s+/g, ' ');
+  return allowed.find((token) => normalized.includes(token.replace('-', ' ')) || normalized.includes(token)) ?? fallback;
+}
+
+/**
+ * R1C presentation-only Director boundary. No free-form Director noun survives this projection: output can describe
+ * frame placement, an approved interaction verb, eyeline, and emotion, but can never name or transform a world,
+ * location, set, cast identity, prop, or required/forbidden content.
+ */
+export function constrainSceneBlockingToPresentation(input: SceneBlocking | null | undefined): SceneBlocking {
+  const raw = input ?? { blocking: '', interaction: '', eyeline: '', emotion: '' };
+  const primary = firstAllowed(raw.blocking, BOUNDED_POSITIONS, 'midground-left');
+  const secondary = firstAllowed(
+    raw.blocking.replace(new RegExp(primary.replace('-', '[- ]'), 'i'), ''),
+    BOUNDED_POSITIONS,
+    'midground-right',
+  );
+  const interaction = firstAllowed(raw.interaction, BOUNDED_INTERACTIONS, 'listening');
+  const emotion = firstAllowed(raw.emotion, BOUNDED_EMOTIONS, 'calm');
+  const eyelineMode = /shared|together|each other/i.test(raw.eyeline)
+    ? 'shared toward the contract-authorized focal content'
+    : /left/i.test(raw.eyeline)
+      ? 'toward the contract-authorized focal content on frame-left'
+      : /right/i.test(raw.eyeline)
+        ? 'toward the contract-authorized focal content on frame-right'
+        : 'toward the contract-authorized focal content';
+  return {
+    blocking: `Stage the contract-authorized cast at ${primary} and ${secondary}; preserve the authorized cast and content exactly.`,
+    interaction: `The contract-authorized cast is ${interaction} within the required content.`,
+    eyeline: eyelineMode,
+    emotion,
+  };
+}
+
 /** True when the Director Layer is enabled. Default ON. Set USE_DIRECTOR_LAYER=false to disable. */
 export function isDirectorLayerEnabled(): boolean {
   return process.env.USE_DIRECTOR_LAYER !== 'false';

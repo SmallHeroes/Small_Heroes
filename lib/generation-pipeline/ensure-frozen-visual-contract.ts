@@ -1,23 +1,22 @@
 /**
- * ensureFrozenVisualContract (WS0b commit a) — PRODUCE → FREEZE → BIND the BookVisualContract before spend.
+ * ensureFrozenVisualContract — PRODUCE → FREEZE → BIND the BookVisualContract before spend.
  *
  * Runs after text-finalization + DNA and BEFORE the cover (and, idempotently, on every resume before any paid
  * image). It:
- *   1. PRODUCES the contract — bank stories LOAD the approved artifact (no LLM at runtime); dynamic stories
- *      COMPILE once from the finalized text.
+ *   1. PRODUCES the contract — enforced Style01 materializes the exact approved local template; the legacy
+ *      development path retains its historical artifact/dormant dynamic-compiler behavior.
  *   2. FREEZES it atomically via the EXISTING `withDeliveryInputMutation` barrier: stamps `Order.visualContractHash`
  *      and persists the full contract into `pipelineCache.visualContract` in ONE transaction. The `operationKey`
  *      INCLUDES the contract hash, so a re-freeze of the same contract hits the receipt fence and REPLAYS (the
  *      mutation is never re-applied → NO second `inputVersion` bump; `AtomicOperationReceipt` is untouched — this
  *      module only CALLS the barrier).
  *
- * WS0b posture — non-blocking, byte-identical when off:
- *   - Gated by `VISUAL_CONTRACT_FREEZE` (default OFF, hard-off on prod). OFF → immediate no-op: no produce, no
- *     stamp, no cache write, no `inputVersion` bump → render output is byte-identical to today.
- *   - Best-effort: producing a contract must NEVER block delivery in WS0b (enforcement is OFF). A missing bank
- *     artifact (WS0c authors them) or any produce failure → SKIP the freeze and proceed on the legacy path. The
- *     blocking gate lands in WS1.
- *   - NO consumer reads `Order.visualContractHash` / `pipelineCache.visualContract` yet — this commit only binds.
+ * Dual posture:
+ *   - Enforcement OFF: `VISUAL_CONTRACT_FREEZE` remains best-effort and byte-identical when off; missing/invalid
+ *     legacy artifacts still degrade to the explicitly documented development path.
+ *   - Enforced non-production Style01: enforcement implies freeze, only the exact render-qualified local package
+ *     template is materialized/source-bound, and every failure propagates before image spend. No live authoring or
+ *     compiler call is reachable on this branch. Vercel production remains hard-off.
  *
  * The `mutationPayload` covers 100% of what this operation authoritatively writes — `{ visualContractHash,
  * visualContract }` — so a same-`operationKey` retry carrying different content FAILS CLOSED (it cannot, since the
@@ -28,20 +27,31 @@ import path from 'path';
 import { Prisma, type Order, type PrismaClient } from '@prisma/client';
 import { createLogger } from '@/lib/logger';
 import { STORY_BANK_V3_DIR_NAME } from '@/backend/providers/story-bank-index';
+import { computeVisualContractHash } from '@/lib/visual-contract-compiler/contractHash';
 import {
-  compileBookVisualContract,
-  computeVisualContractHash,
   loadVisualContractArtifact,
   tryLoadVisualContractTemplateArtifact,
-  materialize,
+  MissingContractArtifactError,
+} from '@/lib/visual-contract-compiler/contractArtifact';
+import { materialize } from '@/lib/visual-contract-compiler/materializeContract';
+import {
   assertValidResolvedBookVisualContract,
   validateResolvedBookVisualContract,
-  MissingContractArtifactError,
+} from '@/lib/visual-contract-compiler/validateResolvedContract';
+import {
+  isVisualContractEnforcementEnabled,
   isVisualContractFreezeEnabled,
-  readFrozenVisualContract,
-  type BookVisualContract,
-} from '@/lib/visual-contract-compiler';
+} from '@/lib/visual-contract-compiler/contractRenderGuards';
+import { readFrozenVisualContract } from '@/lib/visual-contract-compiler/readFrozenVisualContract';
+import type { BookVisualContract } from '@/lib/visual-contract-compiler/types';
+import type { ResolvedBookVisualContract } from '@/lib/visual-contract-compiler/contractTemplateTypes';
+import { STYLE_IDS, styleIdFromDatabaseValue } from '@/lib/styles';
+import { bindApprovedRuntimeAuthority } from '@/lib/visual-package/runtimeAuthority';
 import type { ReceiptSafeValue } from './atomic-operation';
+import {
+  evaluateStyle01VisualPackage,
+  RenderQualificationPreflightError,
+} from './render-qualification-preflight';
 import type { PipelineCache } from './types';
 // `prisma` and the delivery-input barrier are LAZY-imported inside the function (below) — so importing this
 // module (and unit tests that inject both) never triggers `validateEnv()` at load. Type-only here.
@@ -109,6 +119,38 @@ async function defaultProduceContract(
   cache: PipelineCache,
   db: PrismaClient,
 ): Promise<ProducedContract | null> {
+  if (
+    isVisualContractEnforcementEnabled() &&
+    styleIdFromDatabaseValue(order.illustrationStyle) === STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK
+  ) {
+    const qualification = evaluateStyle01VisualPackage({
+      illustrationStyle: order.illustrationStyle,
+      cache,
+    });
+    if (!qualification || !qualification.renderQualified || !qualification.manifest || !qualification.template) {
+      throw new RenderQualificationPreflightError(
+        qualification ?? {
+          storyKey: bankStoryKey(cache) ?? 'unknown_story',
+          storySourcePath: cache.storyFilePath ?? cache.selectionFilename ?? 'unknown',
+          approvedPackagePath: 'unknown',
+          renderQualified: false,
+          reasons: [{ code: 'approved_package_missing', message: 'approved Style01 package is unavailable' }],
+          manifest: null,
+          template: null,
+        },
+      );
+    }
+    const { deriveResolvedFamilyAppearanceProfile } = await import('./resolve-family-appearance');
+    const family = deriveResolvedFamilyAppearanceProfile(order, cache);
+    const resolved = materialize(qualification.template, family);
+    const bound = bindApprovedRuntimeAuthority(
+      resolved as ResolvedBookVisualContract,
+      qualification.manifest,
+    );
+    assertValidResolvedBookVisualContract(bound);
+    return { contract: bound, contractHash: computeVisualContractHash(bound) };
+  }
+
   const bankKey = bankStoryKey(cache);
   if (bankKey) {
     const dir = bankArtifactDir(cache);
@@ -138,6 +180,9 @@ async function defaultProduceContract(
   if (!ENABLE_DYNAMIC_CONTRACT_COMPILE) return null;
   const finalized = await loadFinalizedStoryText(db, order.id);
   if (!finalized) return null;
+  const { compileBookVisualContract } = await import(
+    '@/lib/visual-contract-compiler/compileBookVisualContract'
+  );
   const contract = await compileBookVisualContract({
     fullStoryText: finalized.text,
     pageCount: cache.expectedPageCount ?? finalized.pageCount,
@@ -148,16 +193,18 @@ async function defaultProduceContract(
 }
 
 /**
- * Freeze the BookVisualContract for `order` if it isn't already, returning the (possibly updated) cache. A no-op
- * — returning the input cache unchanged — when the flag is off, the contract is already frozen, or no contract is
- * available. NEVER throws into the pipeline: a produce failure is logged and skipped (WS0b is non-blocking).
+ * Freeze the BookVisualContract for `order` if it isn't already. The legacy freeze flag remains best-effort and
+ * non-blocking; enforced non-production Style01 deliberately propagates authority failures before image spend.
  */
 export async function ensureFrozenVisualContract(
   order: Order,
   cache: PipelineCache,
   deps: EnsureFrozenVisualContractDeps = {},
 ): Promise<PipelineCache> {
-  if (!isVisualContractFreezeEnabled()) return cache; // flag OFF → byte-identical no-op
+  const runtimeAuthorityEnforced =
+    isVisualContractEnforcementEnabled() &&
+    styleIdFromDatabaseValue(order.illustrationStyle) === STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK;
+  if (!isVisualContractFreezeEnabled() && !runtimeAuthorityEnforced) return cache;
   // Already produced + bound + cached → nothing to do (cheap resume fast-path: no LLM, no write, no fence). But ONLY
   // when the cached contract's hash MATCHES the Order stamp — a mismatched pair (a partial/failed prior freeze that
   // stamped the Order but left a stale/absent cache contract, or vice versa) must NOT be accepted as done; fall
@@ -176,6 +223,7 @@ export async function ensureFrozenVisualContract(
   try {
     produced = await produce(order, cache);
   } catch (err) {
+    if (runtimeAuthorityEnforced) throw err;
     // Non-blocking in WS0b: a missing bank artifact is EXPECTED (WS0c authors them) — skip quietly. Any OTHER
     // failure is also skipped (legacy path) but warned so QA sees it. The blocking gate is WS1, not this freeze.
     if (!(err instanceof MissingContractArtifactError)) {
@@ -186,7 +234,12 @@ export async function ensureFrozenVisualContract(
     }
     return cache;
   }
-  if (!produced) return cache; // no contract available → skip (legacy)
+  if (!produced) {
+    if (runtimeAuthorityEnforced) {
+      throw new Error('[runtime_world_authority] enforced Style01 path produced no frozen contract');
+    }
+    return cache;
+  }
 
   const { contract, contractHash } = produced;
   // (Fix 1 — belt, before :persist) Defense-in-depth on the money fence: never hash/persist a resolved-shaped contract
@@ -196,6 +249,9 @@ export async function ensureFrozenVisualContract(
   if ((contract as { contractKind?: unknown }).contractKind === 'resolved') {
     const check = validateResolvedBookVisualContract(contract);
     if (!check.ok) {
+      if (runtimeAuthorityEnforced) {
+        throw new Error(`[runtime_world_authority] invalid resolved contract: ${check.errors.join('; ')}`);
+      }
       log.warn('Refusing to freeze an invalid Resolved contract — skipping freeze (legacy path)', {
         orderId: order.id,
         errors: check.errors,
@@ -236,5 +292,8 @@ export async function ensureFrozenVisualContract(
     },
   );
 
+  // Keep this invocation's in-memory Order stamp aligned with the atomic write. Shipped preflights compare the
+  // persisted-authority stamp before provider entry; this assignment occurs only after the mutation/replay succeeds.
+  order.visualContractHash = contractHash;
   return nextCache;
 }

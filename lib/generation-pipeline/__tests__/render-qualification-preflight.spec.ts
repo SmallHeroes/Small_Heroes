@@ -68,4 +68,16 @@ describe('shipped Style01 render-qualification preflight', () => {
     expect(source).toMatch(/runWithStyle01RenderQualification\([\s\S]*?generateAllPageImages\(/);
     expect(source.match(/runWithStyle01RenderQualification\(/g)).toHaveLength(2);
   });
+
+  it('the operator single-page regeneration path preflights before fallback work and rechecks adjacent to render', () => {
+    const source = fs.readFileSync(path.join(REPO, 'lib/single-page-image-regen.ts'), 'utf8');
+    const earlyGate = source.indexOf('const earlyRuntimeAuthority = requireStyle01RenderQualification');
+    const legacySelection = source.indexOf('selectCompanionStory(');
+    const renderWrapper = source.indexOf('runWithStyle01RenderQualification(');
+    const provider = source.indexOf('generateAllPageImages(');
+    expect(earlyGate).toBeGreaterThan(-1);
+    expect(earlyGate).toBeLessThan(legacySelection);
+    expect(renderWrapper).toBeLessThan(provider);
+    expect(source).toMatch(/runtimeVisualAuthority/);
+  });
 });

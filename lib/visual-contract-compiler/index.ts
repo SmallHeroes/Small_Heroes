@@ -126,6 +126,7 @@ export {
   VISUAL_CONTRACT_SCHEMA_VERSION,
   MATERIALIZER_VERSION,
   PALETTE_VERSION,
+  APPROVED_RUNTIME_AUTHORITY_VERSION,
   RELATIVE_ROLES,
   type RelativeRole,
   type AppearanceBindingMode,
@@ -139,6 +140,7 @@ export {
   type ResolvedFamilyAppearanceProfile,
   type BookVisualContractTemplate,
   type ResolvedBookVisualContract,
+  type ApprovedRuntimeAuthorityBinding,
 } from './contractTemplateTypes';
 export {
   validateBookVisualContractTemplate,

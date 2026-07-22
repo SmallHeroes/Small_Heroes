@@ -167,11 +167,14 @@ function setTopologyOf(contract: BookVisualContract): SetTopology | undefined {
  * "home-night" anchor). zoneId is the cover location's first declared zone so the plan stays inside allowedZones.
  * `contractCover: true` (WS0b A2b) marks this as the contract's cover authority — its forbiddenDrift (from
  * coverContract.mustNotShow) carries the cover's no-spoiler intent, so the consumer suppresses the legacy
- * hardcoded COVER_MYSTERY_LOCK for it.
+ * hardcoded COVER_MYSTERY_LOCK for it. Render-qualified contracts carry an explicit cover zone; the first-zone
+ * fallback remains only for enforcement-off legacy contracts.
  */
 function coverPageLocationPlan(contract: BookVisualContract): PageLocationPlan {
   const cover = contract.coverContract;
-  const coverZone = contract.zones.find((z) => z.locationId === cover.locationId) ?? contract.zones[0];
+  const coverZone = cover.zoneId
+    ? contract.zones.find((z) => z.id === cover.zoneId && z.locationId === cover.locationId)
+    : contract.zones.find((z) => z.locationId === cover.locationId) ?? contract.zones[0];
   return {
     page: 0,
     zoneId: coverZone?.id ?? '',

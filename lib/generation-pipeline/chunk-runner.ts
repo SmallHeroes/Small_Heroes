@@ -1024,8 +1024,8 @@ async function runCoverStage(
   await requireSetIdentityBoardsBoundForRender(order, cache);
 
   const coverImage = await runWithStyle01RenderQualification(
-    { illustrationStyle: order.illustrationStyle, cache },
-    () => generateBookCover({
+    { illustrationStyle: order.illustrationStyle, frozenContractHash: order.visualContractHash, cache },
+    (runtimeVisualAuthority) => generateBookCover({
     // (#7-a 5b) Durable regen reserver for the cover artifact — flag-on only.
     reserveQualityRegen: isReadinessManifestEnabled()
       ? makeQualityRegenReserver(prisma, { orderId: order.id, artifactKey: coverArtifactKey() })
@@ -1038,6 +1038,7 @@ async function runCoverStage(
     coverText: story.coverText,
     coverSceneHint: story.coverSceneHint,
     illustrationStyle: order.illustrationStyle,
+    runtimeVisualAuthority,
     childDescription: lockedChildDescription,
     characterSheet: story.characterSheet,
     referenceImages: gptReferenceImages,
@@ -1511,8 +1512,8 @@ async function runPageImagesChunk(
   await requireSetIdentityBoardsBoundForRender(order, cache);
 
   const imageOutcome = await runWithStyle01RenderQualification(
-    { illustrationStyle: order.illustrationStyle, cache },
-    () => generateAllPageImages(pagesForGen, {
+    { illustrationStyle: order.illustrationStyle, frozenContractHash: order.visualContractHash, cache },
+    (runtimeVisualAuthority) => generateAllPageImages(pagesForGen, {
     // (#7-a 5b) Durable per-page regen reserver — flag-on only (flag-off → undefined → legacy in-memory budget).
     makeReserveQualityRegen: isReadinessManifestEnabled()
       ? (pageNumber: number) =>
@@ -1525,6 +1526,7 @@ async function runPageImagesChunk(
     onPageCandidateUploaded: (pageNumber, candidate) =>
       persistUploadedPageCandidate(order.id, pageNumber, candidate),
     illustrationStyle: order.illustrationStyle,
+    runtimeVisualAuthority,
     childName: order.childName,
     childAge: order.childAge,
     childGender: order.childGender,

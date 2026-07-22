@@ -55,20 +55,16 @@ export function isVisualContractFreezeEnabled(): boolean {
 }
 
 /**
- * (WS0b) Whether the contract STEERS live render output — prompt threading, scene-class routing, and style-ref
- * routing fed by the contract's projections. Default OFF, hard-off on prod. This is the flag Codex insisted on:
- * steering must NOT ship without the blocking location/cast QA gate (WS1). WS0b only BUILDS the projection
- * adapters; with this flag OFF they are available but do NOT drive the prompt/scene/style path, so render output
- * is byte-identical to today. WS1 turns this ON together with the gate.
- *
- * (B3) The "flip both together" rule is now a CODE invariant, not just operational intent: steering returns false
- * unless enforcement (the gate) is ALSO on, so steering can never drive live render output by misconfiguration
- * without a gate to catch a wrong contract. (Enforcement is itself hard-off on prod, so steering stays hard-off there.)
+ * Whether the contract steers live render output. R1C makes this identical to the non-production enforcement gate:
+ * an enforced request can never qualify and then fall through a second disabled steering flag into inferred-world
+ * prompts. Enforcement off keeps the legacy path; Vercel production remains hard-off.
  */
 export function isVisualContractSteeringEnabled(): boolean {
   if (isVercelProductionRuntime()) return false;
-  if (!isVisualContractEnforcementEnabled()) return false; // fail-closed: steering NEVER without the gate
-  return process.env.VISUAL_CONTRACT_STEERING === 'true';
+  // R1C: enforcement makes the approved contract authoritative. A second flag would allow an enforced request
+  // to pass qualification and then render through the legacy inferred-world path. Production remains hard-off
+  // because enforcement itself is hard-off there.
+  return isVisualContractEnforcementEnabled();
 }
 
 export class MissingVisualContractError extends Error {

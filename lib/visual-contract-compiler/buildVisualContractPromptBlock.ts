@@ -21,9 +21,24 @@ export function buildVisualContractPromptBlock(
   contract: BookVisualContract
 ): string {
   const location = contract.locations.find((l) => l.id === page.locationId);
+  const runtimeAuthority = (contract as BookVisualContract & {
+    approvedRuntimeAuthority?: { worldMode?: string };
+  }).approvedRuntimeAuthority;
   const presence: string[] = [];
-  if (page.characterPresence.child) presence.push('child');
-  if (page.characterPresence.companion) presence.push('companion');
+  const authoredCastIds = page.castIds ?? [];
+  if (authoredCastIds.length > 0) {
+    for (const castId of authoredCastIds) {
+      if (castId === contract.cast.child.id) presence.push(`child (id=${castId})`);
+      else if (castId === contract.cast.companion?.id) presence.push(`companion (id=${castId})`);
+      else {
+        const human = contract.humanCast?.find((member) => member.id === castId);
+        presence.push(`${human?.role ?? 'cast member'} (id=${castId})`);
+      }
+    }
+  } else {
+    if (page.characterPresence.child) presence.push('child');
+    if (page.characterPresence.companion) presence.push('companion');
+  }
 
   const propState = (page.propState ?? [])
     .map((p) => {
@@ -67,6 +82,14 @@ export function buildVisualContractPromptBlock(
     .join('; ');
 
   const zoneGeometry = (page.zoneStableGeometry ?? []).join('; ');
+  const transition = page.transition
+    ? [
+        `kind=${page.transition.kind}`,
+        page.transition.fromZoneId ? `from=${page.transition.fromZoneId}` : null,
+        page.transition.toZoneId ? `to=${page.transition.toZoneId}` : null,
+        page.transition.cue ? `cue=${page.transition.cue}` : null,
+      ].filter(Boolean).join('; ')
+    : undefined;
 
   // (Stage 3) Deterministic PROJECTIONS of the page's structured action beats + hazard prohibitions. Computed here
   // and never stored/hashed, so no v1 prose field competes with them and they need no migration. A page that
@@ -87,6 +110,10 @@ export function buildVisualContractPromptBlock(
     ),
     line('ZONE', page.zoneName ? `${page.zoneName} (id=${page.zoneId}) — a zone WITHIN this location, not a new place` : undefined),
     line('WORLD', contract.worldType),
+    line('REALITY MODE (reviewer-owned)', runtimeAuthority?.worldMode),
+    line('TIME / LIGHT', [location?.timeOfDay, location?.lighting].filter(Boolean).join('; ') || undefined),
+    line('SET IDENTITY', location?.setIdentityId),
+    line('TRANSITION AUTHORITY', transition),
     sameLocationNote,
     line('CAST PRESENT', presence.join(' + ') || 'none'),
     line('CHILD WARDROBE (locked)', page.childWardrobeLock),
@@ -105,7 +132,7 @@ export function buildVisualContractPromptBlock(
     // covers them too.
     line('ACTION BEATS', actionProse || undefined),
     line('SAFETY (never render)', safetyProse || undefined),
-    'AUTHORITY: imageDirection may influence camera angle and action ONLY. It may NEVER change the location, zone, cast, wardrobe, or introduce any MUST-NOT-SHOW element. Where they conflict, THIS contract wins.',
+    'AUTHORITY: runtime presentation may influence camera, composition, staging, pose, blocking, eyeline, and emotion ONLY. It may NEVER change reality mode, location, zone, transition, set identity, cast, wardrobe, required content, props, or forbidden content. Where they conflict, THIS contract wins.',
   ];
 
   return lines.filter((l): l is string => l != null).join('\n');

@@ -15,11 +15,13 @@ import {
   canonicalJsonDigest,
   repoRelativePath,
 } from './integrity';
-import { VISUAL_PACKAGE_MANIFEST_SUFFIX } from './promotion';
 import type {
   VisualPackageIssue,
   VisualPackageManifest,
 } from './types';
+import { VISUAL_PACKAGE_MANIFEST_SUFFIX } from './types';
+import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler/contractTemplateTypes';
+import { runtimeWorldAuthorityIssues } from './runtimeAuthority';
 
 export interface RenderQualificationResult {
   storyKey: string;
@@ -28,6 +30,7 @@ export interface RenderQualificationResult {
   renderQualified: boolean;
   reasons: VisualPackageIssue[];
   manifest: VisualPackageManifest | null;
+  template: BookVisualContractTemplate | null;
 }
 
 function issue(
@@ -101,6 +104,7 @@ export function evaluateRenderQualification(args: {
       renderQualified: false,
       reasons,
       manifest: null,
+      template: null,
     };
   }
 
@@ -116,6 +120,7 @@ export function evaluateRenderQualification(args: {
       renderQualified: false,
       reasons,
       manifest: null,
+      template: null,
     };
   }
   reasons.push(...basicManifestIssues(raw));
@@ -127,6 +132,7 @@ export function evaluateRenderQualification(args: {
       renderQualified: false,
       reasons,
       manifest: null,
+      template: null,
     };
   }
   const manifest = raw as VisualPackageManifest;
@@ -157,6 +163,7 @@ export function evaluateRenderQualification(args: {
     }
   }
 
+  let qualifiedTemplate: BookVisualContractTemplate | null = null;
   if (currentSource) {
     const loaded = loadTemplateForPackage({
       repoRoot: args.repoRoot,
@@ -176,6 +183,8 @@ export function evaluateRenderQualification(args: {
       }));
     }
     if (loaded.template) {
+      qualifiedTemplate = loaded.template;
+      reasons.push(...runtimeWorldAuthorityIssues(loaded.template, manifest.review.worldMode));
       const coverage = buildCoverageIdentity(loaded.template);
       if (canonicalJsonDigest(coverage) !== canonicalJsonDigest(manifest.coverage)) {
         reasons.push(issue('coverage_identity_mismatch', 'approved cover/page coverage identity is stale', {
@@ -201,5 +210,6 @@ export function evaluateRenderQualification(args: {
     renderQualified: reasons.length === 0,
     reasons,
     manifest,
+    template: qualifiedTemplate,
   };
 }

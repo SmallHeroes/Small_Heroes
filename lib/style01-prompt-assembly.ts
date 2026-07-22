@@ -92,6 +92,12 @@ export type Style01PromptAssemblyInput = {
   childStructured?: { face: string; hair: string; body: string; clothing: string; signature: string };
   companion?: { id: string; name: string; visualDescription?: string; image?: string } | null;
   companionStructured?: { species: string; size: string; coloring: string; feature: string };
+  /** R1C exact contract presence. When supplied, no story/direction classifier or default state may replace it. */
+  authoritativeEntityPresence?: PageEntityPresenceContract;
+  /** R1C exact contract wardrobe. Bypasses story-, direction-, companion-, and generic wardrobe fallbacks. */
+  authoritativeChildWardrobe?: { description: string; forbidden?: string[] };
+  /** R1C exact location time; bypasses text/direction/category time inference. */
+  authoritativeTimeOfDay?: StoryTimeOfDay;
   pageStoryState?: PageStoryState | null;
   useCanonicalChildAnchorRef?: boolean;
   storyRecurringEntityDeclarations?: StoryRecurringEntityDeclaration[];
@@ -184,9 +190,9 @@ export function assembleStyle01Phase2Prompt(
     input.companion?.id,
     input.storyRecurringEntityDeclarations
   );
-  const pageStoryState =
-    input.pageStoryState ??
-    resolveDefaultPageStoryState(input.companion?.id, input.pageNumber);
+  const pageStoryState = input.authoritativeEntityPresence
+    ? null
+    : input.pageStoryState ?? resolveDefaultPageStoryState(input.companion?.id, input.pageNumber);
 
   if (input.pageShot) assertOverShoulderAllowed(input.pageShot);
   const shotPlanSpec = input.pageShot ? shotPlanToCompositionSpec(input.pageShot) : undefined;
@@ -204,20 +210,23 @@ export function assembleStyle01Phase2Prompt(
     explicitCloseUp
   );
 
-  let entityPresence = derivePageEntityPresence({
-    bookPageText: input.bookPageText,
-    imageDirection,
-    rawScenePrompt: input.rawScenePrompt,
-    pagePrompt: input.pagePrompt,
-    childFirstName: input.childFirstName,
-    companionName: input.companion?.name,
-    companionId: input.companion?.id,
-    recurringObjectCatalog: storyLocks.recurringObjectCatalog,
-    recurringEntityCatalog: storyLocks.recurringEntityCatalog,
-  });
+  let entityPresence = input.authoritativeEntityPresence
+    ? structuredClone(input.authoritativeEntityPresence)
+    : derivePageEntityPresence({
+        bookPageText: input.bookPageText,
+        imageDirection,
+        rawScenePrompt: input.rawScenePrompt,
+        pagePrompt: input.pagePrompt,
+        childFirstName: input.childFirstName,
+        companionName: input.companion?.name,
+        companionId: input.companion?.id,
+        recurringObjectCatalog: storyLocks.recurringObjectCatalog,
+        recurringEntityCatalog: storyLocks.recurringEntityCatalog,
+      });
 
   const isCover = input.assetType === 'cover';
   if (
+    !input.authoritativeEntityPresence &&
     isCover &&
     (input.childStructured?.face?.trim() || input.childDescription?.trim())
   ) {
@@ -241,7 +250,7 @@ export function assembleStyle01Phase2Prompt(
     }
   }
 
-  if (compositionSpec && compositionAssumesChildPresent(compositionSpec)) {
+  if (!input.authoritativeEntityPresence && compositionSpec && compositionAssumesChildPresent(compositionSpec)) {
     if (entityPresence.childPresence === 'absent') {
       entityPresence = {
         ...entityPresence,
@@ -325,34 +334,44 @@ export function assembleStyle01Phase2Prompt(
   // Scene-time-aware wardrobe: resolve THIS page's effective time-of-day (scene-graph override wins)
   // so a daytime flashback page in a bedtime story gets day clothes while night pages get pajamas.
   const storyTimeOfDay: StoryTimeOfDay =
-    input.storyTimeOfDay ??
+    input.authoritativeTimeOfDay ?? input.storyTimeOfDay ??
     resolveStoryTimeOfDay({
       category: null,
       pages: [{ text: input.bookPageText ?? undefined, imagePrompt: imageDirection }],
     });
-  const effectivePageTimeOfDay = resolveEffectivePageTimeOfDay({
-    storyTimeOfDay,
-    pageNumber: input.pageNumber,
-    pageTimeOfDayOverrides: input.pageTimeOfDayOverrides,
-    imageDirection,
-    bookPageText: input.bookPageText,
-  });
+  const effectivePageTimeOfDay = input.authoritativeTimeOfDay ?? resolveEffectivePageTimeOfDay({
+      storyTimeOfDay,
+      pageNumber: input.pageNumber,
+      pageTimeOfDayOverrides: input.pageTimeOfDayOverrides,
+      imageDirection,
+      bookPageText: input.bookPageText,
+    });
 
   const wardrobeLock = childPresenceAllowsVisualLock(entityPresence.childPresence)
-    ? buildStyle01WardrobeLock({
-        companionId: input.companion?.id,
-        storyFile: input.storyFile,
-        direction: input.direction,
-        timeOfDay: input.timeOfDay ?? effectivePageTimeOfDay,
-        challengeCategory: input.challengeCategory,
-        childStructured: input.childStructured,
-      })
+    ? input.authoritativeChildWardrobe
+      ? [
+          'BOOK WARDROBE LOCK (visual-contract authority — never drift):',
+          input.authoritativeChildWardrobe.description,
+          input.authoritativeChildWardrobe.forbidden?.length
+            ? `NEVER: ${input.authoritativeChildWardrobe.forbidden.join('; ')}`
+            : '',
+        ].filter(Boolean).join('\n')
+      : buildStyle01WardrobeLock({
+          companionId: input.companion?.id,
+          storyFile: input.storyFile,
+          direction: input.direction,
+          timeOfDay: input.timeOfDay ?? effectivePageTimeOfDay,
+          challengeCategory: input.challengeCategory,
+          childStructured: input.childStructured,
+        })
     : undefined;
 
-  const storyWardrobeLock = resolveStyle01StoryWardrobeLock(input.companion?.id, input.storyFile, {
-    storyTimeOfDay: input.timeOfDay ?? effectivePageTimeOfDay,
-    category: input.challengeCategory,
-  });
+  const storyWardrobeLock = input.authoritativeChildWardrobe
+    ? null
+    : resolveStyle01StoryWardrobeLock(input.companion?.id, input.storyFile, {
+        storyTimeOfDay: input.timeOfDay ?? effectivePageTimeOfDay,
+        category: input.challengeCategory,
+      });
   if (storyWardrobeLock && childVisualLock) {
     assertIdentityLockFreeOfClothingWhenWardrobeApplies({
       identityLockText: [childVisualLock, input.childDescription].filter(Boolean).join('\n'),
@@ -368,15 +387,22 @@ export function assembleStyle01Phase2Prompt(
       })
     : undefined;
 
-  const accessoryLock = buildCompanionAccessoryLockBlock({
-    companionId: input.companion?.id,
-    companionName: input.companion?.name,
-    companionPresence: entityPresence.companionPresence,
-  });
+  const accessoryLock = input.authoritativeEntityPresence
+    ? ''
+    : buildCompanionAccessoryLockBlock({
+        companionId: input.companion?.id,
+        companionName: input.companion?.name,
+        companionPresence: entityPresence.companionPresence,
+      });
 
   const companionTextLock =
     entityPresence.companionPresence === 'present'
-      ? [
+      ? input.authoritativeEntityPresence
+        ? [
+            `COMPANION LOCK (visual-contract authority): ${input.companion?.name ?? 'the companion'} — ${input.companion?.visualDescription ?? 'exactly as specified by the visual contract'}.`,
+            'Do not add, remove, restyle, resize, or substitute this companion.',
+          ].join('\n')
+        : [
           buildStyle01CompanionTextLock({
             companionId: input.companion?.id,
             companionName: input.companion?.name,
@@ -434,7 +460,9 @@ export function assembleStyle01Phase2Prompt(
     input.locationBible
   );
 
-  const environmentLock = storyLocks.pageEnvironmentLock?.(input.pageNumber);
+  const environmentLock = input.authoritativeEntityPresence
+    ? undefined
+    : storyLocks.pageEnvironmentLock?.(input.pageNumber);
   const familyRoleDetectInput = {
     bookPageText: input.bookPageText,
     imageDirection,
@@ -479,7 +507,9 @@ export function assembleStyle01Phase2Prompt(
         pageNumber: input.pageNumber,
         imageDirection,
         compositionOverride: shotPlanSpec,
-        compositionByPage: shotPlanSpec ? undefined : storyLocks.compositionByPage,
+        compositionByPage: input.authoritativeEntityPresence || shotPlanSpec
+          ? undefined
+          : storyLocks.compositionByPage,
         childOnPage,
       });
 
@@ -517,7 +547,7 @@ export function assembleStyle01Phase2Prompt(
         bookPageText: input.bookPageText,
         imageDirection,
       });
-  const sceneFidelityAddendum = isCover
+  const sceneFidelityAddendum = isCover || input.authoritativeEntityPresence
     ? ''
     : resolvePageSceneFidelityAddendum({
         companionId: input.companion?.id,

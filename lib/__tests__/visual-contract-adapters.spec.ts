@@ -452,10 +452,12 @@ describe('contractToQaObservability (observability only)', () => {
 describe('VISUAL_CONTRACT_STEERING flag (B3: fail-closed-coupled to enforcement)', () => {
   const savedS = process.env.VISUAL_CONTRACT_STEERING;
   const savedE = process.env.VISUAL_CONTRACT_ENFORCEMENT;
-  beforeEach(() => { delete process.env.VISUAL_CONTRACT_STEERING; delete process.env.VISUAL_CONTRACT_ENFORCEMENT; });
+  const savedV = process.env.VERCEL_ENV;
+  beforeEach(() => { delete process.env.VISUAL_CONTRACT_STEERING; delete process.env.VISUAL_CONTRACT_ENFORCEMENT; delete process.env.VERCEL_ENV; });
   afterEach(() => {
     if (savedS === undefined) delete process.env.VISUAL_CONTRACT_STEERING; else process.env.VISUAL_CONTRACT_STEERING = savedS;
     if (savedE === undefined) delete process.env.VISUAL_CONTRACT_ENFORCEMENT; else process.env.VISUAL_CONTRACT_ENFORCEMENT = savedE;
+    if (savedV === undefined) delete process.env.VERCEL_ENV; else process.env.VERCEL_ENV = savedV;
   });
 
   it('defaults OFF (adapters never drive render until WS1 turns it on with the gate)', () => {
@@ -466,9 +468,15 @@ describe('VISUAL_CONTRACT_STEERING flag (B3: fail-closed-coupled to enforcement)
     // enforcement unset → the gate is off → steering must stay off (code invariant, not just operational intent)
     expect(isVisualContractSteeringEnabled()).toBe(false);
   });
-  it('reads the env var when set AND enforcement is also on (non-prod)', () => {
-    process.env.VISUAL_CONTRACT_STEERING = 'true';
+  it('R1C enforcement turns steering on even when the legacy steering variable is absent or false', () => {
+    process.env.VISUAL_CONTRACT_STEERING = 'false';
     process.env.VISUAL_CONTRACT_ENFORCEMENT = 'true';
     expect(isVisualContractSteeringEnabled()).toBe(true);
+  });
+  it('remains hard-off on Vercel production even when both variables are true', () => {
+    process.env.VERCEL_ENV = 'production';
+    process.env.VISUAL_CONTRACT_STEERING = 'true';
+    process.env.VISUAL_CONTRACT_ENFORCEMENT = 'true';
+    expect(isVisualContractSteeringEnabled()).toBe(false);
   });
 });

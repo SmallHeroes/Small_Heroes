@@ -20,11 +20,14 @@ import {
 import {
   MATERIALIZER_VERSION,
   PALETTE_VERSION,
+  APPROVED_RUNTIME_AUTHORITY_VERSION,
   RELATIVE_ROLES,
   VISUAL_CONTRACT_SCHEMA_VERSION,
   type ResolvedBookVisualContract,
   type ResolvedHumanCastMember,
 } from './contractTemplateTypes';
+
+const WORLD_MODES = new Set(['grounded', 'grounded_with_visual_metaphor', 'fantastical']);
 
 /** Roles for which a `family_profile` binding is legal (relatives share the hero's appearance band; a doctor is NOT). */
 const RELATIVE = new Set<string>(RELATIVE_ROLES);
@@ -107,6 +110,40 @@ export function validateResolvedBookVisualContract(input: unknown): ResolvedVali
   }
   if (input.paletteVersion !== PALETTE_VERSION) {
     errors.push(`paletteVersion must equal the supported "${PALETTE_VERSION}" (got ${JSON.stringify(input.paletteVersion)})`);
+  }
+
+  // Optional for legacy resolved contracts, but when present this source-bound package identity is all-or-nothing.
+  // The enforced Style01 runtime layer separately requires it and compares it to the current approved manifest.
+  if (input.approvedRuntimeAuthority !== undefined) {
+    const authority = input.approvedRuntimeAuthority;
+    if (!isObj(authority)) {
+      errors.push('approvedRuntimeAuthority must be an object when present');
+    } else {
+      if (authority.version !== APPROVED_RUNTIME_AUTHORITY_VERSION) {
+        errors.push(`approvedRuntimeAuthority.version must equal "${APPROVED_RUNTIME_AUTHORITY_VERSION}"`);
+      }
+      if (authority.manifestVersion !== 'visual-package/v1') {
+        errors.push('approvedRuntimeAuthority.manifestVersion must equal "visual-package/v1"');
+      }
+      for (const field of [
+        'storyKey',
+        'styleId',
+        'sourcePath',
+        'sourceDigest',
+        'templatePath',
+        'templateDigest',
+        'coverageDigest',
+        'requiredBoardsDigest',
+      ] as const) {
+        if (!isStr(authority[field])) errors.push(`approvedRuntimeAuthority.${field} missing`);
+      }
+      if (!isStr(authority.worldMode) || !WORLD_MODES.has(authority.worldMode)) {
+        errors.push('approvedRuntimeAuthority.worldMode must be grounded|grounded_with_visual_metaphor|fantastical');
+      }
+      if (isStr(input.storyKey) && authority.storyKey !== input.storyKey) {
+        errors.push('approvedRuntimeAuthority.storyKey must equal the frozen contract storyKey');
+      }
+    }
   }
 
   // Superset of vNext: it must be structurally renderable (locations/zones/cast/cover/coverage/transitions/castIds).

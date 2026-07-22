@@ -18,6 +18,7 @@ import {
   selectCompanionStory,
   selectStoryFromBank,
   STORY_BANK_V3_DIR_NAME,
+  type StoryBankSelection,
 } from '@/backend/providers/story-bank-index';
 import {
   buildPresentationWebpFromBuffer,
@@ -45,6 +46,11 @@ import {
 import { resolveAnchorDeliveryGate } from '@/lib/anchor-resemblance-gate';
 import { isDeliveryTerminalHold } from '@/lib/generation-pipeline/order-authority';
 import { parsePipelineCache } from '@/lib/generation-pipeline/helpers';
+import {
+  requireStyle01RenderQualification,
+  runWithStyle01RenderQualification,
+} from '@/lib/generation-pipeline/render-qualification-preflight';
+import { requireSetIdentityBoardsBoundForRender } from '@/lib/generation-pipeline/set-identity-board-stage';
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 import { imageAssetSafetyFields } from '@/lib/generation-pipeline/asset-safety-signal';
 import { bindPageSafetySha } from '@/lib/generation-pipeline/asset-safety-writer';
@@ -307,6 +313,15 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
     throw new Error('Order or book not found');
   }
 
+  const pipelineCache = parsePipelineCache(order.generationJob?.pipelineCache);
+  // Resolve exact package/frozen/board metadata before story selection, DNA/photo analysis, storage, or any model.
+  // Enforcement-off returns null and preserves the historical recovery path below byte-for-byte.
+  const earlyRuntimeAuthority = requireStyle01RenderQualification({
+    illustrationStyle: order.illustrationStyle,
+    frozenContractHash: order.visualContractHash,
+    cache: pipelineCache,
+  });
+
   // (cutover Track 1.3) Terminal fence: never re-render or re-drive readiness for an order parked for human QA
   // (safety / contract-world / cutover-quarantine). Covers the debug regen route (P1-5) and every other caller.
   // 'not found' in the message maps to a 404 at the route boundary.
@@ -329,9 +344,22 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
   const directionForV3 = effectiveStoryDirectionForV3(order.storyDirection, storyLength);
   const challengeCategory = wizardMeta.challengeCategory ?? order.topic ?? 'GENERAL_FEARS';
 
-  let selection = selectCompanionStory(resolvedCompanion?.id, directionForV3);
+  const approvedSourcePath = earlyRuntimeAuthority?.qualification.storySourcePath;
+  const approvedFilename = approvedSourcePath ? path.basename(approvedSourcePath) : null;
+  const approvedDir = approvedSourcePath
+    ? path.dirname(approvedSourcePath).replace(/^story-bank[\\/]/, '').replace(/\\/g, '/')
+    : null;
+  let selection: StoryBankSelection | null = approvedFilename
+    ? ({
+        filename: approvedFilename,
+        base: path.basename(approvedFilename, '.md'),
+        title: earlyRuntimeAuthority!.qualification.storyKey,
+        bankCategory: 'GENERAL_FEARS',
+        ...(approvedDir ? { dirName: approvedDir } : {}),
+      } as StoryBankSelection)
+    : selectCompanionStory(resolvedCompanion?.id, directionForV3);
   let storyBankVersion: 'v3' | 'v1' = 'v3';
-  if (!selection) {
+  if (!selection && !earlyRuntimeAuthority) {
     selection = selectStoryFromBank(challengeCategory, storyLength);
     storyBankVersion = 'v1';
   }
@@ -341,7 +369,9 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
 
   let storyDir =
     selection.dirName ?? (storyBankVersion === 'v3' ? STORY_BANK_V3_DIR_NAME : 'raw');
-  let storyFilePath = path.join(process.cwd(), 'story-bank', storyDir, selection.filename);
+  let storyFilePath = approvedSourcePath
+    ? path.resolve(process.cwd(), approvedSourcePath)
+    : path.join(process.cwd(), 'story-bank', storyDir, selection.filename);
 
   // ── Legacy-order fallback ──
   // Older orders point at v1 'raw/' filenames which no longer exist on disk
@@ -350,7 +380,7 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
   //  2) ANY companion in v5-fixed-v2 across all 3 directions
   // The story will not match the original 1:1 but it will let us regen images.
   const { existsSync, readdirSync } = await import('fs');
-  if (!existsSync(storyFilePath)) {
+  if (!existsSync(storyFilePath) && !earlyRuntimeAuthority) {
     regenLogger.warn('Story file missing; attempting v3 fallback', {
       orderId,
       pageNumber,
@@ -742,10 +772,18 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
   });
 
   // Same engine as full book: generateAllPageImages → generateImage → Style 01/02 phase-2 gpt-image-2.
-  const imageOutcome = await generateAllPageImages(
-    [{ ...pageForGeneration, supportingCharacters }],
+  await requireSetIdentityBoardsBoundForRender(order, pipelineCache);
+  const imageOutcome = await runWithStyle01RenderQualification(
     {
       illustrationStyle: order.illustrationStyle,
+      frozenContractHash: order.visualContractHash,
+      cache: pipelineCache,
+    },
+    (runtimeVisualAuthority) => generateAllPageImages(
+      [{ ...pageForGeneration, supportingCharacters }],
+      {
+      illustrationStyle: order.illustrationStyle,
+      runtimeVisualAuthority,
       childName: order.childName ?? null,
       childAge: order.childAge ?? null,
       childGender: order.childGender ?? null,
@@ -778,7 +816,8 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
       directionStoryPremise: selectedDirection?.storyPremise,
       pdfEnabled: order.pdfEnabled,
       familyCoherence,
-    }
+      }
+    )
   );
 
   const image = imageOutcome.results.get(pageNumber);
@@ -934,8 +973,7 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
   }
 
   if (isReadinessManifestEnabled()) {
-    const cache = parsePipelineCache(order.generationJob?.pipelineCache);
-    const deliveryGate = resolveAnchorDeliveryGate(cache.childAnchorLowConfidence);
+    const deliveryGate = resolveAnchorDeliveryGate(pipelineCache.childAnchorLowConfidence);
     await commitBaseBookReadiness(prisma, {
       orderId,
       anchorAllowsDelivery: deliveryGate.sendBookReadyEmail,

@@ -2,6 +2,8 @@ export const VISUAL_PACKAGE_MANIFEST_VERSION = 'visual-package/v1' as const;
 export const VISUAL_PACKAGE_PROMOTION_VERSION = 'visual-package-promotion/v1' as const;
 export const STORY_SOURCE_IDENTITY_VERSION = 'story-source/v1' as const;
 export const CANDIDATE_EVIDENCE_VERSION = 'visual-package-candidate/v1' as const;
+/** Read-only package locator shared by qualification and the offline promotion writer. */
+export const VISUAL_PACKAGE_MANIFEST_SUFFIX = '.visual-package.json' as const;
 
 export type VisualPackageState = 'candidate' | 'approved';
 
@@ -123,6 +125,12 @@ export type VisualPackageIssueCode =
   | 'board_unresolved'
   | 'board_identity_mismatch'
   | 'board_artifact_mismatch'
+  | 'world_authority_incomplete'
+  | 'world_authority_contradictory'
+  | 'frozen_authority_missing'
+  | 'frozen_authority_mismatch'
+  | 'board_binding_missing'
+  | 'board_binding_mismatch'
   | 'legacy_contract_not_qualified';
 
 export interface VisualPackageIssue {

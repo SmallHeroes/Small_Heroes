@@ -164,6 +164,12 @@ import {
   type InputPhotoStrength,
   type ResemblanceCandidate,
 } from '../../lib/resemblance-core';
+import type { Style01RuntimeAuthority } from '../../lib/generation-pipeline/render-qualification-preflight';
+import {
+  assertStyle01RuntimeAuthorityForPage,
+  buildRuntimePageAuthorityProjection,
+  constrainRuntimePresentationNote,
+} from '../../lib/generation-pipeline/runtime-visual-authority';
 import { createLogger } from '../../lib/logger';
 import {
   applyWardrobeToChildStructured,
@@ -172,7 +178,13 @@ import {
   resolveBookWardrobeLock,
 } from '../../lib/book-wardrobe-lock';
 
-import { generateSceneBlocking, isDirectorLayerEnabled, renderSceneBlockingForPrompt, type SceneBlocking } from './director';
+import {
+  constrainSceneBlockingToPresentation,
+  generateSceneBlocking,
+  isDirectorLayerEnabled,
+  renderSceneBlockingForPrompt,
+  type SceneBlocking,
+} from './director';
 import { sanitizeSceneTextForSingleMoment } from '../../lib/image-scene-text';
 type PhotoQualityForPrompt = {
   status: 'good' | 'warning' | 'blocked';
@@ -385,6 +397,10 @@ export interface ImageInput {
    * contract exists; otherwise undefined → legacy behavior unchanged.
    */
   visualContractPromptBlock?: string;
+  /** R1C preflight-issued, exact package/frozen-contract authority. Required for enforced Style01 provider calls. */
+  runtimeVisualAuthority?: Style01RuntimeAuthority | null;
+  /** Exact contract cast/content presence; bypasses all story-text/direction inference on the enforced path. */
+  authoritativeEntityPresence?: PageEntityPresenceContract;
   /** (Human-QA re-render) Optional operator note — appended as the LAST, lowest-priority line of the finished
    *  prompt (AFTER the authoritative contract block). Additive pose/spacing guidance ONLY; see
    *  lib/human-qa/operator-note.ts. Absent → prompt byte-identical to today. */
@@ -745,6 +761,8 @@ export interface CoverImageInput {
   /** (WS0b location authority) Authoritative contract prompt block for the cover; PREPENDED to the Style 01
    *  prompt so the frozen cover contract outranks direction. Absent → legacy prompt unchanged. */
   visualContractPromptBlock?: string;
+  /** R1C preflight-issued authority, forwarded unchanged to the shared provider seam. */
+  runtimeVisualAuthority?: Style01RuntimeAuthority | null;
   /**
    * (Milestone B) Tagged set refs for the COVER. EMPTY/absent today → byte-identical no-op; forwarded verbatim into
    * the SAME Style01 assembly the pages use, so cover parity is automatic. Milestone C populates it.
@@ -1733,6 +1751,7 @@ function companionReferencedInStoryText(input: Pick<ImageInput, 'companion' | 'b
 }
 
 function deriveImageInputEntityPresence(input: ImageInput): PageEntityPresenceContract {
+  if (input.authoritativeEntityPresence) return input.authoritativeEntityPresence;
   const imageDirection =
     (input.rawScenePrompt ?? '').trim() ||
     extractSceneCore(input.pagePrompt || '').trim();
@@ -3346,6 +3365,13 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     childStructured: input.childStructured,
     companion: input.companion,
     companionStructured: input.companionStructured,
+    authoritativeEntityPresence: input.authoritativeEntityPresence,
+    authoritativeChildWardrobe: input.runtimeVisualAuthority
+      ? input.runtimeVisualAuthority.contract.cast.child.wardrobe
+      : undefined,
+    authoritativeTimeOfDay: input.runtimeVisualAuthority
+      ? input.effectivePageTimeOfDay
+      : undefined,
     supportingCharacters: input.supportingCharacters,
     pageStoryState: input.pageStoryState,
     useCanonicalChildAnchorRef,
@@ -4014,7 +4040,140 @@ async function generateWithReplicate(input: ImageInput): Promise<GeneratedImage>
 }
 
 // ─── Main Entry Point ─────────────────────────────────
+function applyRuntimeWorldAuthority(input: ImageInput): ImageInput {
+  const projection = buildRuntimePageAuthorityProjection({
+    illustrationStyle: input.illustrationStyle,
+    authority: input.runtimeVisualAuthority,
+    pageNumber: input.pageNumber,
+    requestedVisualDirection: input.visualDirection,
+  });
+  if (!projection) return input;
+
+  const expectedIds = new Set(projection.expectedCharacterIds);
+  const childAnchorIds = new Set(['child', projection.childCast.id]);
+  const companionId = projection.companionCast?.id ?? null;
+  const companionRuntimeId = companionId?.replace(/^companion:/, '') ?? null;
+  const callerCompanionId = input.companion?.id ?? null;
+  const callerCompanionMatches = Boolean(
+    companionId && callerCompanionId &&
+    (callerCompanionId === companionId || callerCompanionId === companionRuntimeId),
+  );
+  const authorizedCompanion: Companion | null = projection.companionCast
+    ? {
+        id: companionRuntimeId ?? projection.companionCast.id,
+        name: projection.companionCast.name ?? 'the companion',
+        tagline: '',
+        narrativeHook: '',
+        image: callerCompanionMatches ? input.companion!.image : '',
+        visualDescription: projection.companionCast.wardrobe.description,
+      }
+    : null;
+  const authorizedHeroLock = input.heroVisualLock
+    ? {
+        ...input.heroVisualLock,
+        clothing: projection.childCast.wardrobe.description,
+        identityGuardrails: [...(projection.childCast.wardrobe.forbidden ?? [])],
+      }
+    : undefined;
+  const authorizedChildName = projection.childCast.name ?? input.childFirstName ?? 'the child';
+  const authorizedChildIdentityDescription = input.heroVisualLock
+    ? [
+        input.heroVisualLock.ageImpression,
+        `hair: ${input.heroVisualLock.hair}`,
+        `skin tone: ${input.heroVisualLock.skinTone}`,
+        `face: ${input.heroVisualLock.faceShape}`,
+        `eyes: ${input.heroVisualLock.eyes}`,
+      ].filter(Boolean).join('; ')
+    : 'match only the attached child identity reference; do not derive clothing, props, cast, or setting from it';
+  const authorizedCharacterSheet: CharacterSheet = {
+    mainCharacter: {
+      name: authorizedChildName,
+      visualDescription: projection.childCast.wardrobe.description,
+    },
+    supportingCharacters: projection.supportingCharacters.map((member) => ({
+      name: member.name,
+      relationship: member.relationship ?? member.name,
+      visualDescription: member.description,
+    })),
+    worldDescription: projection.locationBible.primarySetting,
+  };
+  const authorizedAnchors = (input.anchorCharacters ?? []).filter((entry) => {
+    if (childAnchorIds.has(entry.characterId)) return expectedIds.has(projection.childCast.id);
+    if (entry.characterId === companionId || entry.characterId === companionRuntimeId) {
+      return companionId ? expectedIds.has(companionId) : false;
+    }
+    return expectedIds.has(entry.characterId);
+  });
+
+  return {
+    ...input,
+    pagePrompt: projection.safeScenePrompt,
+    bookPageText: null,
+    stage4Prompt: projection.safeScenePrompt,
+    rawScenePrompt: null,
+    visualDirection: projection.visualDirection,
+    blocking: constrainSceneBlockingToPresentation(input.blocking),
+    operatorNote: constrainRuntimePresentationNote(input.operatorNote),
+    childFirstName: authorizedChildName,
+    childDescription: authorizedChildIdentityDescription,
+    characterSheet: authorizedCharacterSheet,
+    heroVisualLock: authorizedHeroLock,
+    companion: authorizedCompanion,
+    entityVisualLock: undefined,
+    childStructured: input.childStructured
+      ? {
+          ...input.childStructured,
+          clothing: projection.childCast.wardrobe.description,
+          signature: 'identity-only; no additional character, prop, set, or world content',
+        }
+      : undefined,
+    companionStructured: undefined,
+    concept: undefined,
+    referenceImages: projection.entityPresence.childPresence === 'present'
+      ? input.referenceImages?.slice(0, 1)
+      : undefined,
+    anchorCharacters: authorizedAnchors.length > 0 ? authorizedAnchors : undefined,
+    contractStyleRefEnvironment: projection.contractStyleRefEnvironment,
+    visualContractPromptBlock: projection.contractPromptBlock,
+    expectedCharacterIds: projection.expectedCharacterIds,
+    expectedCharacterNames: projection.expectedCharacterNames,
+    supportingCharacters: projection.supportingCharacters,
+    authoritativeEntityPresence: projection.entityPresence,
+    setIdentityBoardRefs: projection.setIdentityBoardRefs,
+    locationBible: projection.locationBible,
+    pageLocationPlan: projection.pageLocationPlan,
+    directionArchetype: undefined,
+    directionEmotionalLabel: undefined,
+    directionStoryPremise: undefined,
+    challengeCategory: null,
+    storyTitle: null,
+    coverText: null,
+    topicLabel: null,
+    coverSceneHint: null,
+    isDirectionPreview: false,
+    compositionRules: undefined,
+    composition: null,
+    environmentContinuity: projection.pageLocationPlan.allowedVariation,
+    pageStoryboard: undefined,
+    pageShot: null,
+    extraNegativeRules: undefined,
+    propDNA: undefined,
+    storyRecurringEntityDeclarations: undefined,
+    storyTimeOfDay: projection.timeOfDay,
+    pageTimeOfDayOverrides: { [input.pageNumber]: projection.timeOfDay },
+    effectivePageTimeOfDay: projection.timeOfDay,
+    familyCoherence: null,
+    sceneMemory: null,
+    sceneAppearance: null,
+    setAppearanceBoardPath: null,
+    storyFile: null,
+    direction: null,
+    pageStoryState: null,
+  };
+}
+
 export async function generateImage(input: ImageInput): Promise<GeneratedImage> {
+  input = applyRuntimeWorldAuthority(input);
   if (shouldUseStyle02Phase2Path(input.illustrationStyle)) {
     return generateWithGPTImageStyle02(input);
   }
@@ -4110,6 +4269,11 @@ function buildCoverPrompt(input: CoverImageInput): string {
 }
 
 export async function generateBookCover(input: CoverImageInput): Promise<GeneratedImage> {
+  assertStyle01RuntimeAuthorityForPage({
+    illustrationStyle: input.illustrationStyle,
+    authority: input.runtimeVisualAuthority,
+    pageNumber: 0,
+  });
   assertShippedBookStyleEngineActive(input.illustrationStyle);
 
   const useStyle01 = shouldUseStyle01Phase2Path(input.illustrationStyle);
@@ -4146,6 +4310,7 @@ export async function generateBookCover(input: CoverImageInput): Promise<Generat
     // lock (page 0, resolved from coverContract) instead of the regex classifier, and prepend the cover block.
     contractStyleRefEnvironment: input.contractStyleRefEnvironment ?? null,
     visualContractPromptBlock: input.visualContractPromptBlock,
+    runtimeVisualAuthority: input.runtimeVisualAuthority,
     // (Milestone B) Forward the cover's tagged set refs into the SAME Style01 assembly the pages use — absent today,
     // so this stays a no-op and cover parity comes for free from the shared seam.
     setIdentityBoardRefs: input.setIdentityBoardRefs,
@@ -4312,6 +4477,8 @@ export async function generateAllPageImages(
   }>,
   config: {
     illustrationStyle: string;
+    /** R1C exact approved/frozen authority. Required before any enforced Style01 model/provider call. */
+    runtimeVisualAuthority?: Style01RuntimeAuthority | null;
     childDescription?: string;
     /** Child first name (Visual Director and prompts). */
     childName?: string | null;
@@ -4404,8 +4571,32 @@ export async function generateAllPageImages(
   lightingModes: Map<number, Lighting>;
   storyboardPlan: PageVisualStoryboard[];
 }> {
+  // Fail and project before storyboard or Director LLM work. On the enforced path those systems receive only
+  // presentation-safe prose plus the exact contract location/cast/content, never raw story-derived physical world.
+  const authorityProjectedPages = pages.map((page) => {
+    const projection = buildRuntimePageAuthorityProjection({
+      illustrationStyle: config.illustrationStyle,
+      authority: config.runtimeVisualAuthority,
+      pageNumber: page.pageNumber,
+      requestedVisualDirection: page.visualDirection,
+    });
+    if (!projection) return page;
+    return {
+      ...page,
+      imagePrompt: projection.safeScenePrompt,
+      rawScenePrompt: undefined,
+      bookPageText: undefined,
+      visualDirection: projection.visualDirection,
+      expectedCharacterIds: projection.expectedCharacterIds,
+      supportingCharacters: projection.supportingCharacters,
+      contractStyleRefEnvironment: projection.contractStyleRefEnvironment,
+      visualContractPromptBlock: projection.contractPromptBlock,
+      setIdentityBoardRefs: projection.setIdentityBoardRefs,
+      environmentContinuity: projection.pageLocationPlan.allowedVariation,
+    };
+  });
   const fluxOverrideActive = isFluxProOverrideActive();
-  const pagesToGenerate = fluxOverrideActive ? pages.slice(0, 2) : pages;
+  const pagesToGenerate = fluxOverrideActive ? authorityProjectedPages.slice(0, 2) : authorityProjectedPages;
   if (fluxOverrideActive) {
     console.log('[test_mode]', 'flux override → generating 2 pages only');
   }
@@ -4964,6 +5155,7 @@ export async function generateAllPageImages(
       | 'visualContractPromptBlock'
       | 'operatorNote'
       | 'setIdentityBoardRefs'
+      | 'runtimeVisualAuthority'
     > = {
       bookPageText: page.bookPageText ?? null,
       contractStyleRefEnvironment: page.contractStyleRefEnvironment ?? null,
@@ -4974,6 +5166,7 @@ export async function generateAllPageImages(
       // (Milestone C) Forwarded verbatim into the SAME Style01 assembly the cover uses. Absent → undefined →
       // `taggedRefPlan` stays null → byte-identical.
       setIdentityBoardRefs: page.setIdentityBoardRefs ?? undefined,
+      runtimeVisualAuthority: config.runtimeVisualAuthority,
       guardedV2RecipeId:
         config.guardedV2RecipeId ??
         (config.companion?.id === 'bolly_armadillo' ? 'bolly_bedtime_age_5' : null),

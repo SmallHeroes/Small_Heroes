@@ -38,13 +38,14 @@ const VALID_CONTRACT = {
 const REAL_HASH = computeVisualContractHash(VALID_CONTRACT);
 
 function fakeOrder(
-  overrides: Partial<Pick<Order, 'id' | 'visualContractHash' | 'childName' | 'childGender'>> = {},
+  overrides: Partial<Pick<Order, 'id' | 'visualContractHash' | 'childName' | 'childGender' | 'illustrationStyle'>> = {},
 ): Order {
   return {
     id: 'ord_1',
     visualContractHash: null,
     childName: 'Dana',
     childGender: 'female',
+    illustrationStyle: 'pencil_watercolor',
     ...overrides,
   } as unknown as Order;
 }
@@ -95,6 +96,7 @@ describe('ensureFrozenVisualContract (WS0b freeze)', () => {
     if (savedFlag === undefined) delete process.env.VISUAL_CONTRACT_FREEZE;
     else process.env.VISUAL_CONTRACT_FREEZE = savedFlag;
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
   });
 
   it('flag OFF → no-op: no produce, no fence, same cache reference', async () => {
@@ -180,16 +182,52 @@ describe('ensureFrozenVisualContract (WS0b freeze)', () => {
     expect(fn).not.toHaveBeenCalled();
   });
 
+  it('non-production enforcement implies freeze and never degrades a producer failure to legacy', async () => {
+    vi.stubEnv('VERCEL_ENV', 'preview');
+    vi.stubEnv('VISUAL_CONTRACT_ENFORCEMENT', 'true');
+    vi.stubEnv('VISUAL_CONTRACT_FREEZE', 'false');
+    const produce = vi.fn(async () => {
+      throw new Error('approved package unavailable');
+    });
+    const { fn } = makeWithMutation();
+    await expect(ensureFrozenVisualContract(
+      fakeOrder(),
+      { textFinalized: true },
+      { produce, withMutation: fn, db: {} as never },
+    )).rejects.toThrow('approved package unavailable');
+    expect(produce).toHaveBeenCalledTimes(1);
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('R1C enforcement does not change the freeze lifecycle for a non-Style01 order', async () => {
+    vi.stubEnv('VERCEL_ENV', 'preview');
+    vi.stubEnv('VISUAL_CONTRACT_ENFORCEMENT', 'true');
+    vi.stubEnv('VISUAL_CONTRACT_FREEZE', 'false');
+    const produce = vi.fn();
+    const { fn } = makeWithMutation();
+    const cache: PipelineCache = { textFinalized: true };
+    const out = await ensureFrozenVisualContract(
+      fakeOrder({ illustrationStyle: 'whimsical_comic_fantasy' }),
+      cache,
+      { produce, withMutation: fn, db: {} as never },
+    );
+    expect(out).toBe(cache);
+    expect(produce).not.toHaveBeenCalled();
+    expect(fn).not.toHaveBeenCalled();
+  });
+
   it('flag ON + contract → freezes: hash-keyed op, payload covers BOTH writes, stamps order + single-key jsonb_set', async () => {
     process.env.VISUAL_CONTRACT_FREEZE = 'true';
     const produce = vi.fn(async () => ({ contract: VALID_CONTRACT, contractHash: REAL_HASH }));
     const { fn, calls } = makeWithMutation();
     const cache: PipelineCache = { textFinalized: true, expectedPageCount: 12 };
-    const out = await ensureFrozenVisualContract(fakeOrder(), cache, { produce, withMutation: fn, db: {} as never });
+    const order = fakeOrder();
+    const out = await ensureFrozenVisualContract(order, cache, { produce, withMutation: fn, db: {} as never });
 
     // Returned cache carries the frozen contract; unrelated fields preserved.
     expect(out.visualContract).toBe(VALID_CONTRACT);
     expect(out.expectedPageCount).toBe(12);
+    expect(order.visualContractHash).toBe(REAL_HASH);
 
     expect(fn).toHaveBeenCalledTimes(1);
     const { args, writes, execRaw } = calls[0];

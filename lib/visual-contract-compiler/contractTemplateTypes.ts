@@ -33,6 +33,26 @@ export const VISUAL_CONTRACT_SCHEMA_VERSION = 'vc-schema/v1' as const;
 export const MATERIALIZER_VERSION = 'materializer/v1' as const;
 /** Bump when the deterministic palette table changes (recorded on the Resolved → auditable, safely re-hashes). */
 export const PALETTE_VERSION = 'palette/v1' as const;
+export const APPROVED_RUNTIME_AUTHORITY_VERSION = 'approved-runtime-authority/v1' as const;
+
+/**
+ * Exact approved-package identity carried inside the resolved/frozen contract. This is reviewer-owned metadata,
+ * never an authoring-LLM field. It intentionally uses primitive compiler-layer types so the visual-package module
+ * may build it without introducing a compiler <-> package dependency cycle.
+ */
+export interface ApprovedRuntimeAuthorityBinding {
+  version: typeof APPROVED_RUNTIME_AUTHORITY_VERSION;
+  manifestVersion: 'visual-package/v1';
+  storyKey: string;
+  styleId: string;
+  sourcePath: string;
+  sourceDigest: string;
+  templatePath: string;
+  templateDigest: string;
+  coverageDigest: string;
+  requiredBoardsDigest: string;
+  worldMode: 'grounded' | 'grounded_with_visual_metaphor' | 'fantastical';
+}
 
 /** Closed set of roles for which a `family_profile` binding is legal (relatives share the hero's appearance band).
  *  `parent` is included: the extractor emits it when a parent's gender is unspecified, and a parent IS a relative. */
@@ -144,4 +164,6 @@ export interface ResolvedBookVisualContract extends BookVisualContract {
   materializerVersion: string;
   paletteVersion: string;
   humanCast: ResolvedHumanCastMember[];
+  /** Present only on the enforced, source-bound Style01 path; included in the frozen contract hash. */
+  approvedRuntimeAuthority?: ApprovedRuntimeAuthorityBinding;
 }

@@ -6,6 +6,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { canonicalHash } from '@/lib/canonical-json';
 import { STYLE_IDS } from '@/lib/styles';
+import {
+  computeVisualContractHash,
+  materialize,
+} from '@/lib/visual-contract-compiler';
+import {
+  requireStyle01RenderQualification,
+  RenderQualificationPreflightError,
+} from '@/lib/generation-pipeline/render-qualification-preflight';
+import type { PipelineCache } from '@/lib/generation-pipeline/types';
 import { auditMvpRenderQualification } from '@/lib/visual-package/audit';
 import { renderCandidateEvidenceHeader, type CandidateEvidenceBinding } from '@/lib/visual-package/candidateEvidence';
 import { buildStorySourceIdentity } from '@/lib/visual-package/integrity';
@@ -15,6 +24,7 @@ import {
   writePreparedCandidateManifest,
 } from '@/lib/visual-package/promotion';
 import { evaluateRenderQualification } from '@/lib/visual-package/qualification';
+import { bindApprovedRuntimeAuthority } from '@/lib/visual-package/runtimeAuthority';
 import { evaluateRenderQualificationReleaseGate } from '@/lib/visual-package/releaseGate';
 import {
   CANDIDATE_EVIDENCE_VERSION,
@@ -63,6 +73,19 @@ function makeFixture(): Fixture {
     path.join(REPO, 'story-bank', 'v3-approved', TEMPLATE_NAME),
     templatePath,
   );
+  // R1C render qualification is stricter than the historical checked-in Fox candidate. Upgrade only this temporary
+  // mock package; the real 0/18 package inventory remains untouched and unpromoted.
+  const runtimeTemplate = readJson<{
+    cast: { child: { id: string } };
+    coverContract: { locationId: string; zoneId?: string; castIds?: string[] };
+    zones: Array<{ id: string; locationId: string }>;
+    pageContracts: Array<{ zoneId?: string; castIds?: string[] }>;
+  }>(templatePath);
+  runtimeTemplate.coverContract.zoneId = runtimeTemplate.zones.find(
+    (zone) => zone.locationId === runtimeTemplate.coverContract.locationId,
+  )?.id;
+  runtimeTemplate.coverContract.castIds = [runtimeTemplate.cast.child.id];
+  writeJson(templatePath, runtimeTemplate);
   fs.cpSync(path.join(REPO, 'set-identity-boards'), path.join(root, 'set-identity-boards'), {
     recursive: true,
   });
@@ -139,6 +162,7 @@ describe('visual-package candidate -> review -> Guy approval -> promotion', () =
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.unstubAllGlobals();
     for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
   });
@@ -183,6 +207,64 @@ describe('visual-package candidate -> review -> Guy approval -> promotion', () =
     });
     expect(qualification).toMatchObject({ renderQualified: true, reasons: [] });
     expect(fetch).not.toHaveBeenCalled();
+
+    vi.stubEnv('VERCEL_ENV', 'preview');
+    vi.stubEnv('VISUAL_CONTRACT_ENFORCEMENT', 'true');
+    const resolved = bindApprovedRuntimeAuthority(
+      materialize(qualification.template!, {
+        skinTone: 'warm brown',
+        hairColour: 'dark brown',
+        hairTexture: 'wavy',
+      }),
+      qualification.manifest!,
+    );
+    const frozenContractHash = computeVisualContractHash(resolved);
+    const boardBindings = Object.fromEntries(
+      qualification.manifest!.requiredBoards.map((board) => [
+        board.setIdentityId,
+        {
+          setIdentityId: board.setIdentityId,
+          setDefinitionHash: board.setDefinitionHash,
+          styleId: board.styleId,
+          storageKey: board.storageKey,
+          resolvedUrl: `https://fixtures.invalid/${board.setIdentityId}.png`,
+          assetSha256: board.assetSha256,
+          boardVersion: board.boardVersion,
+          approvedAt: board.approvedAt,
+        },
+      ]),
+    );
+    const runtimeCache = {
+      storyFilePath: f.storyPath,
+      storyDir: 'v3-approved',
+      selectionFilename: `${STORY_KEY}.md`,
+      visualContract: resolved as unknown as PipelineCache['visualContract'],
+      setIdentityBoards: { mode: 'required-v1' as const, frozenContractHash, bindings: boardBindings },
+    };
+    const runtime = requireStyle01RenderQualification({
+      illustrationStyle: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+      frozenContractHash,
+      cache: runtimeCache,
+      repoRoot: f.root,
+    });
+    expect(runtime?.packageBinding.worldMode).toBe('grounded_with_visual_metaphor');
+    expect(runtime?.contractHash).toBe(frozenContractHash);
+
+    expect(() => requireStyle01RenderQualification({
+      illustrationStyle: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+      frozenContractHash: 'stale-order-contract-hash',
+      cache: runtimeCache,
+      repoRoot: f.root,
+    })).toThrow(RenderQualificationPreflightError);
+
+    const boardId = qualification.manifest!.requiredBoards[0].setIdentityId;
+    runtimeCache.setIdentityBoards.bindings[boardId].assetSha256 = 'swapped-board-bytes';
+    expect(() => requireStyle01RenderQualification({
+      illustrationStyle: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+      frozenContractHash,
+      cache: runtimeCache,
+      repoRoot: f.root,
+    })).toThrow(RenderQualificationPreflightError);
   });
 
   it('rejects missing exact approval', () => {
@@ -410,6 +492,31 @@ describe('offline dependency boundary', () => {
       'createLiveBoardResolverDeps',
       'compileBookVisualContract(',
       'compileBookVisualContractTemplate(',
+      'fetch(',
+    ];
+    for (const file of files) {
+      const source = fs.readFileSync(path.join(REPO, file), 'utf8');
+      for (const token of forbidden) expect(source, `${file} contains ${token}`).not.toContain(token);
+    }
+  });
+
+  it('runtime authority resolution does not import authoring, promotion, provider, network, storage, or database seams', () => {
+    const files = [
+      'lib/visual-package/qualification.ts',
+      'lib/visual-package/runtimeAuthority.ts',
+      'lib/generation-pipeline/render-qualification-preflight.ts',
+      'lib/generation-pipeline/runtime-visual-authority.ts',
+    ];
+    const forbidden = [
+      "from './promotion'",
+      'compileBookVisualContract',
+      'compileBookVisualContractTemplate',
+      'generate-image',
+      'image-storage',
+      "from 'openai'",
+      "@/lib/prisma",
+      'readiness-manifest',
+      'createLiveBoardResolverDeps',
       'fetch(',
     ];
     for (const file of files) {

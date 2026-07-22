@@ -10,13 +10,14 @@
  *   fresh:  text → dna → [freeze] → [ACTIVATE] → set_refs [BIND] → cover → page_images
  *   resume: (currentStage) → [freeze] → [ASSERT] → …
  *
- * OFF IS INERT. Read this as the OFF-inertness argument in code:
- *   - `ensureSetIdentityBoardSnapshot` is the ONLY writer of `cache.setIdentityBoards`, and its FIRST line is the
- *     flag check. Flag off → no snapshot is ever written → no order ever becomes board-activated.
+ * LEGACY OFF IS INERT. Read this as the compatibility argument in code:
+ *   - `ensureSetIdentityBoardSnapshot` is the ONLY writer of `cache.setIdentityBoards`. With both the board flag and
+ *     non-production Style01 enforcement off, no snapshot is written. R1C enforcement intentionally implies board
+ *     activation so an enforced request cannot qualify and then render board-less.
  *   - Every OTHER function here gates on the SNAPSHOT being `required-v1`, not on the flag. With no snapshot they
  *     return `cache` / `undefined` / do nothing, before reading the contract, before any DB call, before any I/O.
- *   - Therefore, flag off (or an order that predates activation): zero extra DB reads, zero writes, zero prompt
- *     bytes, and `deriveStartingStage` can never yield `'set_refs'`. The pipeline is byte/behaviour-identical.
+ *   - Therefore, enforcement off + board flag off means zero extra DB reads, writes, or prompt bytes. Production
+ *     remains identical because both gates are hard-off there.
  *
  * Gating the post-activation steps on the SNAPSHOT rather than the flag is not an oversight — it is the fence in
  * both directions: an activated order can never silently drop its board because someone flipped the env var off
@@ -25,30 +26,30 @@
  *
  * (P0-1) `shouldEnterSetRefsStage` used to read the flag too, which broke that fence in the first direction: an
  * activated-but-unbound order whose flag went down would skip `set_refs` entirely and then be asserted-to-death at
- * the cover, unable to ever bind. The flag now governs snapshot CREATION and NOTHING else — the single sentence
- * this module's design rests on.
+ * the cover, unable to ever bind. The board flag (or R1C Style01 enforcement) governs snapshot CREATION and nothing
+ * after activation; post-activation behavior remains structural.
  */
 import { type Order, type PrismaClient } from '@prisma/client';
 import { canonicalHash } from '@/lib/canonical-json';
-import { styleIdFromDatabaseValue } from '@/lib/styles';
-import {
-  computeVisualContractHash,
-  readFrozenVisualContract,
-  type BookVisualContract,
-} from '@/lib/visual-contract-compiler';
+import { STYLE_IDS, styleIdFromDatabaseValue } from '@/lib/styles';
+import { computeVisualContractHash } from '@/lib/visual-contract-compiler/contractHash';
+import { isVisualContractEnforcementEnabled } from '@/lib/visual-contract-compiler/contractRenderGuards';
+import { readFrozenVisualContract } from '@/lib/visual-contract-compiler/readFrozenVisualContract';
+import type { BookVisualContract } from '@/lib/visual-contract-compiler/types';
 import {
   assertBoardsBoundForRender,
-  createLiveBoardResolverDeps,
   hasUnboundRequiredSetIdentity,
-  isSetIdentityBoardEnabled,
   resolveBoardBindings,
-  selectBoardRefForLocation,
   snapshotBoardMode,
   SetIdentityBoardUnavailableError,
   type BoardResolverDeps,
+} from '@/lib/set-identity-board/resolveBoards';
+import { isSetIdentityBoardEnabled } from '@/lib/set-identity-board/flags';
+import {
+  selectBoardRefForLocation,
   type ReferenceAsset,
-  type SetIdentityBoardBindingContext,
-} from '@/lib/set-identity-board';
+} from '@/lib/set-identity-board/referenceTransport';
+import type { SetIdentityBoardBindingContext } from '@/lib/set-identity-board/types';
 import type { ReceiptSafeValue } from './atomic-operation';
 import type { PipelineCache } from './types';
 // Lazy-imported inside the functions (mirrors ensure-frozen-visual-contract.ts). Type-only here.
@@ -150,15 +151,16 @@ async function persistBoardContext(
  * path — and it can only happen at the fresh dna→cover transition, before any paid image exists.
  *
  * No-op (returns `cache` untouched) when:
- *   - the flag is off                       → OFF-inertness
+ *   - board flag and Style01 enforcement off → legacy OFF-inertness
  *   - there is no frozen contract           → freeze off / no artifact → legacy order, nothing to derive a set from
  *   - the same snapshot already exists      → idempotent resume (no write, no inputVersion bump)
  *   - the book already has a paid image     → HALF-LEGACY FENCE (below)
  *
  * HALF-LEGACY FENCE: a book with a cover/page already rendered was rendered without a board. Introducing one now
  * would make page 7 disagree with page 6 — a half-boarded book is worse than an unboarded one. Such an order stays
- * legacy FOREVER, even when the env flag is on. (The stage graph makes this nearly unreachable — dna is done, so a
- * resume enters at cover, not dna — but the fence is written down structurally rather than left incidental.)
+ * legacy rather than becoming half-boarded. If R1C enforcement is on, the later exact-package preflight holds the
+ * order instead of rendering it through that legacy state. (The stage graph makes this nearly unreachable — dna is
+ * done, so a resume enters at cover, not dna — but the fence is structural rather than incidental.)
  *
  * RE-FREEZE: when a snapshot exists for a DIFFERENT contract hash and no paid image has been rendered, it is
  * REPLACED (fresh, empty bindings). Nothing was paid for against the old set, and leaving the stale snapshot in
@@ -169,7 +171,12 @@ export async function ensureSetIdentityBoardSnapshot(
   cache: PipelineCache,
   deps: SetIdentityBoardStageDeps = {}
 ): Promise<PipelineCache> {
-  if (!isSetIdentityBoardEnabled()) return cache; // flag OFF → byte-identical no-op
+  // R1C: an enforced Style01 request cannot remain a board-less legacy order. Production remains inert because
+  // both gates are hard-off there; enforcement-off retains the original board-flag lifecycle exactly.
+  const runtimeAuthorityEnforced =
+    isVisualContractEnforcementEnabled() &&
+    boardStyleIdOf(order) === STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK;
+  if (!isSetIdentityBoardEnabled() && !runtimeAuthorityEnforced) return cache;
 
   const active = activeFrozenContract(cache);
   if (!active) return cache; // no frozen contract → never board-activated
@@ -225,7 +232,7 @@ export async function runSetIdentityBoardBindStage(
       frozenContractHash: active.hash,
       existing: snapshot,
     },
-    deps.resolver ?? createLiveBoardResolverDeps()
+    deps.resolver ?? (await import('@/lib/set-identity-board/liveResolverDeps')).createLiveBoardResolverDeps()
   );
 
   if (canonicalHash(resolved) === canonicalHash(snapshot)) return cache; // already bound → no write
@@ -266,7 +273,7 @@ export async function requireSetIdentityBoardsBoundForRender(
       styleId: boardStyleIdOf(order),
       activeFrozenContractHash: active.hash,
     },
-    deps.resolver ?? createLiveBoardResolverDeps()
+    deps.resolver ?? (await import('@/lib/set-identity-board/liveResolverDeps')).createLiveBoardResolverDeps()
   );
 }
 
