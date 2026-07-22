@@ -4,9 +4,9 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-cover-source-fidelity` in `C:\Users\guyna\.codex\worktrees\04d2\Small_Heroes`, based exactly on frozen R1D-PREP `5cf68a008b56b75f657ee294955aa635f10da429`; the original R1D-PREP worktree remains read-only at `C:\Users\guyna\.codex\worktrees\887d\Small_Heroes`, frozen R1C remains at `C:\Users\guyna\.codex\worktrees\d775\Small_Heroes`, frozen R1B remains at `C:\Users\guyna\.codex\worktrees\0ef3\Small_Heroes`, accepted R1A remains at `C:\Users\guyna\.codex\worktrees\2d64\Small_Heroes`, and the dirty legacy feature worktree remains untouched at `C:\GNart\Work\sh-wt-style01`
 
-## R1D-FIX Cover Source Fidelity - implemented locally, independent QA pending
+## R1D-FIX Cover Source Fidelity - independent technical QA PASS; push-state reconciliation pending
 
-Guy approved the focused zero-cost Decision Gate after the R1D-PREP stop. The product decision is explicit: the Fox cover stays inside the child's bedroom at the listening window and preserves the mystery. It must not show the bucket, drip source, falling water, any water-catching object, or rhythm marks. Whole-book reviewer-owned `worldMode` remains `grounded_with_visual_metaphor`; page-0 prohibitions override that permission on this cover. Implementation is committed locally at `645f706c` (`fix(visual-contract): enforce cover source fidelity`) on `codex/r1d-cover-source-fidelity`, based exactly on frozen R1D-PREP `5cf68a00`. It has not been pushed and has not received independent Claude Code PASS.
+Guy approved the focused zero-cost Decision Gate after the R1D-PREP stop. The product decision is explicit: the Fox cover stays inside the child's bedroom at the listening window and preserves the mystery. It must not show the bucket, drip source, falling water, any water-catching object, or rhythm marks. Whole-book reviewer-owned `worldMode` remains `grounded_with_visual_metaphor`; page-0 prohibitions override that permission on this cover. Implementation is committed at `645f706c` (`fix(visual-contract): enforce cover source fidelity`) on `codex/r1d-cover-source-fidelity`, based exactly on frozen R1D-PREP `5cf68a00`. Independent read-only Claude Code QA reviewed the implementation plus the `8171902c` handoff and returned **PASS (R1D-FIX only)** with all 11 claims proven. The QA also correctly found that the handoff's no-upstream/unpushed statement had become false: local and `origin/codex/r1d-cover-source-fidelity` were at exact `8171902c` parity, and the remote-tracking reflog records `update by push` at 2026-07-22 22:56:42 +0300. Local Git does not establish the push actor or owner authorization, so Guy's confirmation remains required. This documentation-only reconciliation is intentionally local and unpushed by Codex.
 
 ### Corrected general behavior
 
@@ -34,8 +34,16 @@ Guy approved the focused zero-cost Decision Gate after the R1D-PREP stop. The pr
 - Before and after `npm run render-qualification-audit`: **18 nominal slots, 6 product-sellable under local flags, 0 render-qualified**. Every slot still reports its approved package missing; this milestone deliberately did not promote one.
 - `git diff --check` and staged diff check passed before the implementation commit.
 - The work used an ignored `node_modules` junction to the existing canonical dependency install; no dependency installation occurred.
-- Zero image/audio render, provider/live LLM/network/product API call, storage/database write, migration, deployment, flag change, candidate approval/promotion, or push occurred.
-- This is implementation evidence, not independent technical PASS, product/visual acceptance, package approval, or render authorization. R1D-PREP rerun/package review and the one-LOW-page proof remain separately gated.
+- Zero image/audio render, provider/live LLM/network/product API call, storage/database write, migration, deployment, flag change, or candidate approval/promotion occurred. A later feature-branch push did occur after the original handoff: the remote-tracking reflog records the update and the reviewed `8171902c` bytes equal origin. Its actor and authorization cannot be proven from local Git; Codex performed no push during this reconciliation.
+- Independent Claude Code technical QA is **PASS (R1D-FIX only)**. That PASS is not Guy's product/visual acceptance, package approval, promotion, render authorization, or approval of the one-LOW-page proof. R1D-PREP rerun/package review and every paid or production boundary remain separately gated.
+
+### Independent R1D-FIX QA verdict and topology correction
+
+- Claude Code reconciled `codex/r1d-cover-source-fidelity` at clean `8171902c`, with reviewed range `5cf68a00..8171902c` intact and local bytes exactly equal to origin. It independently verified all 11 implementation claims and returned **PASS**, closing all three prior R1D-PREP MAJOR findings.
+- It independently proved that the mechanism is general and fail-closed, that the shared source-fidelity gate is wired into candidate preparation, promotion, and render qualification, that every material cover field is visible in review, and that the corrected Fox artifact was produced through the compiler path without changing page contracts, topology, `worldMode`, the `0.70` threshold, or the approved Set Board.
+- Its independent focused run passed **67 tests**; it reconfirmed board blob `30ab0884b5a9f5d4e1ad8a4c059b26196fb6b259`, no package manifest, and audit state **18 nominal / 6 product-sellable / 0 render-qualified**.
+- The sole finding is a non-code MINOR: the prior handoff incorrectly attested no upstream/no push. This section supersedes that stale attestation. The two technical notes - keep the canonical alias/noise table minimal and treat `provenance.model` as a historical label - are informational and require no R1D-FIX code change.
+- The remote feature branch is proven to contain `8171902c`; local evidence cannot prove who pushed it or whether Guy intended that push. The following documentation-only correction commit remains local and should receive a topology-only micro re-gate before Guy accepts/closes the milestone.
 
 The earlier R1D-PREP Accept recommendation below is superseded by Guy's stricter page-0 product decision and this general correction. It remains recorded as immutable stop-history, not as the current next action.
 
@@ -244,7 +252,7 @@ R1A is implemented and locally committed. Independent Claude Code adversarial QA
 
 ## Active task
 
-R1C is accepted/closed. R1D-FIX is implemented locally at `645f706c` and awaits independent Claude Code review. The tracked Fox template now carries complete page-0-faithful cover authority through the corrected general compiler path, while candidate preparation/promotion and any image render remain unauthorized.
+R1C is accepted/closed. Independent Claude Code QA returned **PASS (R1D-FIX only)** for implementation `645f706c` plus handoff `8171902c`, with all 11 claims proven and all prior R1D-PREP MAJOR findings closed. This documentation-only follow-up corrects the stale no-upstream/unpushed attestation; it does not change implementation code. Guy still needs to confirm whether the already-observed feature-branch push was intended and accept/close R1D-FIX. Candidate preparation/promotion and every image render remain unauthorized.
 
 The governing brief is `docs/ai-workflow/DECISION_GATE_IMAGE_GENERATION_ARCHITECTURE_2026-07-22.md`.
 
@@ -346,11 +354,11 @@ That historical blocker was corrected by `f4c335f6` and `74a73863`, then indepen
 
 ## Blockers
 
-- R1A, R1B, and R1C are accepted/closed. R1D-FIX awaits independent Claude Code QA; Codex does not self-award technical PASS.
-- `codex/r1d-cover-source-fidelity` has no upstream and has not been pushed. Push remains an explicit Guy decision after inspection.
+- R1A, R1B, and R1C are accepted/closed. Independent Claude Code QA returned **PASS (R1D-FIX only)**; Guy's acceptance/closure remains pending.
+- `origin/codex/r1d-cover-source-fidelity` exists and matched local `8171902c` at the independent review. The prior no-upstream/unpushed claim is superseded. Local Git cannot prove the push actor or authorization, so Guy must confirm whether that feature-branch push was intended. This documentation-only reconciliation remains local and must not be pushed without explicit authorization.
 - The one-LOW-page proof requires separate explicit cost approval.
 - Lion requires separate product/content acceptance; technical readiness alone is insufficient.
 
 ## Next action
 
-Claude Code reviews the immutable R1D-FIX implementation range from `5cf68a008b56b75f657ee294955aa635f10da429` through `645f706c` plus the following `CURRENT.md`-only handoff commit, read-only and adversarially. After independent PASS/re-gate and Guy's acceptance, rerun R1D-PREP from the new immutable head; package review/approval/promotion and the one-LOW-page proof remain separate gates. Do not create or approve a candidate, promote, render, push, import ignored user fixtures, change flags, exercise a live storage/database boundary, or begin R2/Lion/catalog/full-book work.
+Claude Code performs a topology-only micro re-gate of the documentation correction after `8171902c`, confirming that `CURRENT.md` accurately records its R1D-FIX PASS and the observed remote state without claiming an unprovable push actor or authorization. Guy then confirms whether the existing feature-branch push was intended and accepts/closes R1D-FIX. Only after closure should R1D-PREP be rerun from the new immutable head; package review/approval/promotion and the one-LOW-page proof remain separate gates. Do not create or approve a candidate, promote, render, push, import ignored user fixtures, change flags, exercise a live storage/database boundary, or begin R2/Lion/catalog/full-book work.
