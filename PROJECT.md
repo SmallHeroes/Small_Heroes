@@ -28,6 +28,7 @@ Guy decides whether a book is sellable. Passing technical tests does not establi
 Wizard
   → order and product-truth resolution
   → pre-written story-bank selection and personalization
+  → render-qualification preflight
   → chunked generation pipeline
   → resolved visual contract and character/set anchors
   → cover and per-page image generation
@@ -52,7 +53,8 @@ Primary runtime landmarks:
 ## Core terms
 
 - **Story bank:** pre-written, reviewed story sources used by the production loader.
-- **Sellable slot:** an approved combination in the product matrix that is enabled and has passed the required story/product gates.
+- **Product-sellable slot:** an approved combination in the product matrix that is enabled and has passed the required story/product gates.
+- **Render-qualified slot:** a product-sellable slot whose current story source is bound to an approved visual-contract template, complete cover/page plan, explicit world mode, and every required approved set board. Product sellability alone does not authorize an image call.
 - **BookVisualContract:** structured continuity authority for recurring people, setting, palette, geometry, and other render-critical facts.
 - **Resolved/frozen contract:** the per-order contract that is validated, serialized, hashed, persisted, rendered, and projected into QA.
 - **Anchor:** structured identity reference for the child, companion, family member, or set.
@@ -69,6 +71,7 @@ Primary runtime landmarks:
 - Fix general systems, never disguise a story-specific patch as architecture.
 - Structured state is authoritative where continuity or delivery safety is critical; prose is not a substitute for a contract.
 - A held or unsafe book must not ship automatically.
+- A sellable path must pass render qualification before any paid image call; missing or stale visual authority fails closed.
 - Money, order lifecycle, release authority, and migrations require proportionate concurrency/runtime evidence.
 - No full book render without explicit approval. Use the smallest proof first unless Guy approves an end-to-end render because only a full run can answer the question.
 - Per-page resemblance threshold is **0.70** and changes require Guy's approval.

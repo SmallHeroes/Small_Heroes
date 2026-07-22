@@ -63,6 +63,10 @@ No customer-visible work is complete merely because code exists or tests are gre
 
 ## G7 — Visual and book gate
 
+- Product/story sellability and render qualification are separate gates. Before the first paid image, the current story source must be bound to an approved visual-contract template with complete cover/page coverage, explicit world mode, and every required approved Set Identity Board.
+- Missing, stale, or contradictory visual authority fails before render. A sellable path may not use generic-world, cover-location, or enforcement-off fallbacks.
+- The frozen page contract owns world, location, zone, cast, required/forbidden content, and transitions. Runtime direction/Director prose may only make bounded composition choices inside it.
+- QA transport, timeout, skipped, or malformed-evidence outcomes may recheck the same persisted bytes and then hold; only a verified visual defect may consume image-regeneration budget.
 - Child, companion, family, clothing, location, objects, geometry, and style remain coherent across the relevant sample/full book.
 - Per-page resemblance is at least **0.70**; threshold changes require Guy's approval.
 - LOW audition precedes approved HIGH production work.

@@ -2,82 +2,103 @@
 
 **Updated:** 2026-07-22
 **Maintainer:** Codex
-**Working branch:** `main`; workflow milestone committed at `980560a2`
+**Working branch:** `main`; feature implementation remains in `C:\GNart\Work\sh-wt-style01` on `feat/chunked-generation`
 
 ## Active task
 
-Adopt Guy's new operating model and establish the minimal canonical documentation set before beginning the next implementation task.
+Turn the existing visual-contract, Set Board, rendering, and QA components into one stable fail-closed image-generation path. No image render is currently authorized.
 
-## Pre-change observed behavior
+The governing brief is `docs/ai-workflow/DECISION_GATE_IMAGE_GENERATION_ARCHITECTURE_2026-07-22.md`.
 
-- `AGENTS.md` named Codex as a planner/reviewer but sent default execution to Cursor.
-- `CLAUDE.md` and `docs/ai-workflow/AI_ROLES_AND_PROTOCOL.md` named Claude as CTO and Cursor as executor.
-- `project-os/03-agent-roles.md` and `project-os/04-task-routing.md` used a later model in which Claude Cowork operated the project and Codex was review-only.
-- Root `PROJECT.md`, `ROADMAP.md`, `CURRENT.md`, and `QUALITY_GATES.md` did not exist.
-- Dated handoffs and Project OS state snapshots disagree on current branch and workstream status.
+## Executive finding
 
-## Expected behavior
+The repository does not need a second image architecture or another general compiler. It needs the missing lifecycle between the components already present:
 
-One current authority chain and one discoverable source hierarchy:
+```text
+approved story
+  → reviewed/promoted visual package
+  → zero-cost render preflight
+  → frozen source-bound contract + board bindings
+  → bounded page render
+  → uploaded candidate persisted
+  → QA on the same bytes
+  → accepted, verified regeneration, or hold
+  → durable resume and human release
+```
 
-1. Guy owns product and final product acceptance.
-2. Codex owns and executes engineering.
-3. Claude Code independently QA's Codex work and issues technical PASS/HOLD.
-4. Codex fixes valid findings; Claude Code re-gates.
-5. Claude Cowork consults on product and creative questions.
+The immediate risk is not merely weak prompting. Product/story sellability currently permits more stories than the visual system can safely render.
 
-## Verified root cause
+## Verified repository facts
 
-Role decisions accumulated over time without reconciling all auto-loaded and “current state” documents. Historical snapshots continued to present their old workflow as current. There was no minimal canonical root-document hierarchy to resolve conflicts.
+- With `ENABLE_V3_APPROVED_BANK=true` and the DB check intentionally skipped, `npm run release-check` reports **18/18 product-sellable slots**. The historical 8/18 statement is stale.
+- The bank currently contains **2 visual-contract templates** (`bunny_ometz_adventure`, `fox_uri_adventure`), **1 legacy visual contract** (`bunny_ometz_adventure`), and **6 location bibles**.
+- A tracked approved Set Identity Board exists for `fox_uri_adventure`.
+- Offline text-first extraction/compilation, strict validation/materialization, frozen contract hashing, contract steering, world QA, and the Set Identity Board engine already exist on the common code line.
+- Bank runtime does not live-compile a missing contract. With enforcement on, missing authority blocks; with enforcement off, the path degrades to legacy behavior.
+- Visual-contract freeze/enforcement/steering are hard-off in Vercel production, so production cutover requires an explicit reviewed code/config milestone.
+- No tool currently performs approved visual-package promotion into the bank, and `release-check` does not check contract/source/board coverage.
+- The strict LLM draft schema cannot currently author `setIdentityId`/`setReference`, even though downstream contract types can represent them.
+- The cover fallback can inject literal `home-night`; generic derived locations do not provide reliable set topology or references.
+- The Director sees authored image direction, runs pages in parallel, and receives only a previous-page text snippet rather than authoritative previous blocking/emotion. The complete frozen page contracts already contain the better deterministic continuity plan.
+- Set Board registry/storage is deliberately story-scoped. Cross-story reuse is not yet proven and will not be generalized now.
 
-## Decisions
+## Render-loop Phase 1 re-gate
 
-- Guy's 2026-07-22 directive is the binding owner decision and supersedes DEC-008's review-only Codex model.
-- The role transition is documentation/governance only. It does not authorize a product, runtime, generation, payment, QA-threshold, or production change.
-- Historical handoffs remain unchanged as history.
-- `project-os/NOW.md` and unrelated `_review/` and script files are pre-existing untracked user work and remain untouched.
-- The local `feat/chunked-generation` branch is a separate implementation workstream and remains untouched by this milestone.
+Feature commits through `ef543312` add useful foundations: no hidden OpenAI image retry, cancellation plumbing, same-image malformed re-QA, and pre-QA uploaded-candidate persistence. `npm run check` passes.
 
-## Repository state verified before edits
+The slice remains **NO-GO**:
 
-- `main`: `b4813c04`, equal to `origin/main` and `origin/feat/chunked-generation`.
-- Local `feat/chunked-generation`: `ef543312`, four commits ahead of `main`, with a 10-file render-loop Phase 1 diff.
-- Tracked working tree: clean before this milestone.
-- Pre-existing untracked files: `_review/*`, `project-os/NOW.md`, and `scripts/check-order-anchor-readiness.ts`.
+1. The same-image helper returns persistent malformed QA as unverified, but the shipped Style01 caller treats unverified as regeneration-eligible and can spend a new image. That violates the requirement that only a verified visual failure may consume regeneration budget.
+2. The visual-QA fetch has no dedicated AbortSignal/timeout.
+3. Tests cover the helper but not the caller-level budget decision, so the green suite is false confidence for this requirement.
+4. Candidate persistence has no regression test proving the shipped Style01 order: upload → persist candidate → QA.
 
-## Files in this milestone
+No measurement render occurs until this is corrected and Claude Code independently re-gates it.
 
-- Auto-loaded role instructions and workflow protocol
-- Decision Gate/stop-check wording
-- `PROJECT.md`, `ROADMAP.md`, `CURRENT.md`, `QUALITY_GATES.md`
-- Active governance references in `project-os/`
-- Workflow/source-of-truth notes in the Project Bible
+## Binding technical decisions
 
-## Commits
+- **Two gates:** product-sellable and render-qualified are separate. Only both together permit a paid image.
+- **Approved package first:** a current source-bound template, explicit `worldMode`, complete cover/page plan, and every required approved board must exist before render.
+- **No runtime authoring:** contracts are compiled offline, reviewed, explicitly promoted, then frozen/materialized per order.
+- **One world authority:** frozen cover/page contracts own location, zone, transition, cast, props, required/forbidden content, and reality mode.
+- **Bounded Director:** runtime creative prose may choose camera/blocking only within the contract. Direction labels cannot choose or transform the world.
+- **No new sequential LLM memory:** deterministic page contracts are the continuity state. Add runtime sequence only if later evidence identifies a fact that the contract cannot express.
+- **QA evidence is not image failure:** malformed/error/timeout/skipped QA may retry the same candidate and then hold; it may not consume regeneration.
+- **Story-scoped boards stay:** shared world kits are deferred until two reviewed stories intentionally share one canonical set.
+- **Lion stays blocked:** no `lion_shaket_adventure` render until the general system passes, the story receives product review, its visual package is approved, and Guy explicitly authorizes the cost.
 
-- `980560a2` — authority model, workflow protocol, Decision Gate, DEC-009, and active role/routing summaries.
-- `02102a84` — canonical `PROJECT`, `ROADMAP`, `CURRENT`, and `QUALITY_GATES` documents plus historical-snapshot markers.
-- This state checkpoint records the post-milestone branch graph and validation evidence.
+## Planned sequence
 
-## Current branch graph
+1. Correct render-loop Phase 1 with caller-level tests and bounded QA; run `npm run check`; Claude Code re-gate.
+2. Implement visual-package promotion and all-slot render-qualification audit/release gate, with zero image calls.
+3. Add `worldMode`, extend strict draft support for board bindings, and bound/remove legacy world fallbacks from the sellable path.
+4. With explicit Guy approval, run one LOW page on `fox_uri_adventure` and inspect runtime artifacts.
+5. Based on measurement, land the durable candidate/QA/resume state machine and prove it at a real DB/runtime boundary.
+6. Compile candidates for all 18, but review/promote only Guy's chosen launch set; then consider a five-page sample and eventually one explicitly approved full book.
 
-- `main` contains the documentation transition and is ahead of `origin/main`; it has not been pushed.
-- Local `feat/chunked-generation` remains at `ef543312` and contains four implementation commits absent from `main`.
-- The feature branch does not contain the new canonical docs, so future integration must preserve both sides deliberately.
+## Branch and worktree state
 
-## Tests and validation
+- `main` is ahead of `origin/main` by the canonical workflow/documentation commits and remains the documentation authority.
+- Local `feat/chunked-generation` is ahead of its origin by four Phase 1 implementation commits.
+- The feature worktree has a pre-existing modified `.env.example` and untracked review/checkpoint/artifact files. They are user work and remain untouched.
+- Main also has pre-existing untracked `_review/`, `project-os/NOW.md`, and `scripts/check-order-anchor-readiness.ts`; they remain untouched.
+- Before implementation resumes, the feature line must preserve/merge the canonical documents without sweeping unrelated work into a commit.
 
-- `npx tsc --noEmit` — PASS (exit 0, 2026-07-22).
-- Active-role cross-check — the four current role summaries agree; remaining old assignments are inside DEC-008 or explicitly historical descriptions.
-- Named architecture/source paths — all checked paths exist.
-- `git diff --check` / staged diff check — PASS; no whitespace error or broad EOL churn.
-- Diff scope — documentation/governance only; no application, migration, generation, payment, or production file changed.
-- Independent Claude Code review — pending by design.
+## Evidence recorded this turn
+
+- Read the attached Codex architectural verdict and traced its claims through loaders, guards, compiler scripts, Director call sites, board registry/storage, tests, and feature commits.
+- Ran `npm run check` on `feat/chunked-generation`: PASS, while caller review still found the regeneration-evidence bug above.
+- Ran `npm run release-check` on `main` with `ENABLE_V3_APPROVED_BANK=true` and `SKIP_DB_SCHEMA_CHECK=true`: PASS and 18/18 product-sellable. This was a catalog/config check only, not a database release proof.
+- Enumerated tracked contract and board artifacts from Git.
+- No image, audio, external API, database write, migration, deployment, or production action was performed.
 
 ## Blockers
 
-No implementation blocker for the documentation transition. Independent QA PASS is intentionally pending Claude Code review.
+- Guy approval of the Decision Gate is required before image-generation implementation.
+- Claude Code PASS is required after each implementation re-gate.
+- The one-LOW-page proof requires separate explicit cost approval.
+- Lion requires separate product/content acceptance; technical readiness alone is insufficient.
 
 ## Next action
 
-Send the adversarial handoff to Claude Code. After independent review and any required re-gate, investigate and gate the four-commit render-loop Phase 1 slice before any merge or further implementation.
+After Guy approves the sequence, correct R1A only. Do not start contract-catalog authoring, render measurement, or Lion-specific work in parallel.
