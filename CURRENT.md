@@ -2,11 +2,50 @@
 
 **Updated:** 2026-07-22
 **Maintainer:** Codex
-**Working branch:** `codex/r1a-render-loop-phase1` in `C:\Users\guyna\.codex\worktrees\2d64\Small_Heroes`; the frozen legacy worktree remains untouched at `C:\GNart\Work\sh-wt-style01` on `feat/chunked-generation`
+**Working branch:** `codex/r1b-visual-package-promotion` in `C:\Users\guyna\.codex\worktrees\0ef3\Small_Heroes`; accepted R1A remains frozen at `C:\Users\guyna\.codex\worktrees\2d64\Small_Heroes`, and the legacy feature worktree remains untouched at `C:\GNart\Work\sh-wt-style01`
+
+## R1B implementation handoff - latest state
+
+R1B is implemented and locally committed at `da1914cb` (`feat(visual-package): add approved promotion lifecycle`). It is unpushed and awaiting the required independent read-only Claude Code gate. This is an implementation handoff, not a Codex technical PASS and not product acceptance.
+
+### Live topology at implementation
+
+- Canonical `main`: `C:\GNart\Work\Small_Heroes`, `main` at `ed1da86c`, tracked clean with pre-existing user-owned untracked files, and 0 ahead / 0 behind `origin/main` at dispatch.
+- Accepted/frozen R1A: `C:\Users\guyna\.codex\worktrees\2d64\Small_Heroes`, `codex/r1a-render-loop-phase1` at `4a5dd041`, clean and 0 ahead / 0 behind its origin at dispatch. It remained read-only.
+- R1B implementation: `C:\Users\guyna\.codex\worktrees\0ef3\Small_Heroes`. The supplied worktree was detached at accepted R1A `4a5dd041` because the R1A branch was already checked out in the frozen worktree, so the existing worktree was attached to the new milestone branch `codex/r1b-visual-package-promotion`; no new worktree or merge was created.
+- Frozen legacy feature line: `C:\GNart\Work\sh-wt-style01`, `feat/chunked-generation` at `ef543312`, 4 ahead / 0 behind its origin, with the pre-existing `.env.example` modification and user-owned untracked artifacts untouched.
+
+### Implemented R1B behavior
+
+- One versioned `visual-package/v1` manifest now carries candidate and approved lifecycle state, exact normalized story-source identity, canonical template digest/schema, cover/page coverage identity, candidate review/provenance digests, structured author/reviewer reality metadata, Guy approval, and exact approved Set Identity Board artifact identities.
+- `worldMode` is reviewer-owned structured metadata (`grounded`, `grounded_with_visual_metaphor`, or `fantastical`). It is not inferred from direction and is not consumed by runtime prompts or Director logic in R1B.
+- The existing offline extractor/compiler now emits source-bound candidate evidence. No second compiler or visual-contract schema was added.
+- `promote-visual-package` prepares a candidate by default, validates an exact approval as a dry run, and writes only with explicit `--promote`. It rejects missing/wrong approval, wrong story, stale source/template, unsupported/invalid templates, missing cover, incomplete/duplicate/out-of-range pages, unresolved or changed boards, and review/provenance/evidence disagreement.
+- Promotion and qualification reuse the existing template validator and Set Identity Board registry validation/projection. The pure board registry path builder was separated from live storage resolver dependencies so offline paths cannot reach storage.
+- The reusable qualification evaluator returns structured issue codes and never counts a legacy contract or enforcement-off fallback as qualified.
+- The all-slot audit emits one record for every 18 nominally sellable slots, with `productSellable` and `renderQualified` reported separately. With the v3 product flag enabled, the actual audit reports 18/18 product-sellable and 0/18 render-qualified because no real approved visual package was promoted.
+- `release-check` remains report-only by default and explicitly says it is not a render-readiness claim. `--require-render-qualified` is the deliberate fail-closed strict mode.
+- The shipped Style01 cover and page provider entry points are wrapped by a synchronous qualification preflight. When existing visual-contract enforcement is enabled in a non-production environment, a missing/stale/contradictory package throws before the provider callback. Enforcement off preserves the documented non-qualified legacy path, and Vercel production remains hard-off even if the flag leaks on.
+- No real story, template, board, visual-package, world prompt, Director behavior, customer availability, or `0.70` resemblance threshold was changed.
+
+### R1B validation and limitations
+
+- Focused lifecycle/runtime/release/compiler/board regression suite: **PASS - 11 files, 182 tests**.
+- `npx --no-install tsc --noEmit`: **PASS** after the final implementation changes.
+- Actual all-slot audit with `ENABLE_V3_APPROVED_BANK=true`: **18 records, 18 product-sellable, 0 render-qualified**; every current record reports structured `approved_package_missing`.
+- Full remaining repository suite excluding only the five known ignored-output fixture files: **PASS - 224 files / 2,305 tests passed; 16 files / 65 tests skipped**.
+- Literal `npm run check -- --silent`: TypeScript **PASS**; Vitest **FAIL - 8 tests in 7 files**. Six failures are the recurring absent ignored `outputs/` fixtures in `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and `story-read-back-validation.spec.ts`. Under the full parallel load, `qa-console-anchor-durable.spec.ts` and `generate-board-model.spec.ts` also exceeded their 5-second timeouts; both passed immediately in isolation (**2 files / 5 tests**) and passed again in the full non-fixture suite. No user-owned output artifact was copied into this worktree.
+- Tests and audit used only local files and mocks. No image/audio render, live compiler, LLM, network/product API, database write, migration application, deployment, push, or production action occurred.
+- The worktree had no dependency installation; validation used an ignored junction from this worktree's `node_modules` to canonical `C:\GNart\Work\Small_Heroes\node_modules`. It remains available for independent QA and is not a repository change.
+- R1C runtime world authority/Director changes, R2 recovery, story/catalog authoring, Lion work, board reuse/generalization, real promotion, production cutover, and any render remain out of scope.
+
+### R1B next gate
+
+Claude Code must review immutable range `4a5dd041..da1914cb` read-only first, verify the named branch/HEAD before accepting the handoff, and try to falsify the lifecycle, offline boundary, all-slot accounting, shipped pre-provider ordering, and production hard-off claims. Codex will validate and fix any valid findings in a separate milestone before re-gate. No push or render is authorized by this handoff.
 
 ## R1A independent QA result — latest state
 
-R1A is implemented and locally committed. Independent Claude Code adversarial QA returned **PASS (R1A only)** with no blocker, major, or minor implementation defects. This is an external QA verdict, not a Codex self-award and not Guy's product acceptance. Guy's review is the remaining R1A acceptance gate. This section supersedes the pre-implementation Phase 1 NO-GO text retained below as historical context.
+R1A is implemented and locally committed. Independent Claude Code adversarial QA returned **PASS (R1A only)** with no blocker, major, or minor implementation defects. Guy subsequently accepted/closed R1A and authorized R1B. This section records the external QA verdict and historical R1A evidence; it is not a Codex self-award.
 
 ### Topology and commits
 
@@ -90,7 +129,7 @@ The immediate risk is not merely weak prompting. Product/story sellability curre
 - Offline text-first extraction/compilation, strict validation/materialization, frozen contract hashing, contract steering, world QA, and the Set Identity Board engine already exist on the common code line.
 - Bank runtime does not live-compile a missing contract. With enforcement on, missing authority blocks; with enforcement off, the path degrades to legacy behavior.
 - Visual-contract freeze/enforcement/steering are hard-off in Vercel production, so production cutover requires an explicit reviewed code/config milestone.
-- No tool currently performs approved visual-package promotion into the bank, and `release-check` does not check contract/source/board coverage.
+- R1B now provides explicit approved visual-package promotion, structured qualification, all-slot audit, and strict release qualification. No real package has been promoted, so all current slots remain unqualified.
 - The strict LLM draft schema cannot currently author `setIdentityId`/`setReference`, even though downstream contract types can represent them.
 - The cover fallback can inject literal `home-night`; generic derived locations do not provide reliable set topology or references.
 - The Director sees authored image direction, runs pages in parallel, and receives only a previous-page text snippet rather than authoritative previous blocking/emotion. The complete frozen page contracts already contain the better deterministic continuity plan.
@@ -124,8 +163,8 @@ That historical blocker was corrected by `f4c335f6` and `74a73863`, then indepen
 ## Planned sequence
 
 1. Correct render-loop Phase 1 with caller-level tests and bounded QA; run `npm run check`; Claude Code re-gate. **Complete locally; independent R1A PASS received.**
-2. Implement visual-package promotion and all-slot render-qualification audit/release gate, with zero image calls.
-3. Add `worldMode`, extend strict draft support for board bindings, and bound/remove legacy world fallbacks from the sellable path.
+2. Implement visual-package promotion and all-slot render-qualification audit/release gate, with zero image calls. **Complete locally at `da1914cb`; independent QA pending.**
+3. Consume reviewer-owned `worldMode` at runtime, extend strict draft support for board bindings, and bound/remove legacy world fallbacks from the sellable path.
 4. With explicit Guy approval, run one LOW page on `fox_uri_adventure` and inspect runtime artifacts.
 5. Based on measurement, land the durable candidate/QA/resume state machine and prove it at a real DB/runtime boundary.
 6. Compile candidates for all 18, but review/promote only Guy's chosen launch set; then consider a five-page sample and eventually one explicitly approved full book.
@@ -155,11 +194,11 @@ That historical blocker was corrected by `f4c335f6` and `74a73863`, then indepen
 
 ## Blockers
 
-- Guy approved the R1A implementation scope; implementation is complete locally.
-- Independent Claude Code QA has PASSed R1A; Guy's review/acceptance and explicit authorization are required before any later milestone begins.
+- Guy accepted/closed R1A and authorized R1B under the image-generation architecture Decision Gate.
+- R1B implementation is locally committed but cannot be treated as technically accepted until independent Claude Code QA and any required re-gate complete.
 - The one-LOW-page proof requires separate explicit cost approval.
 - Lion requires separate product/content acceptance; technical readiness alone is insufficient.
 
 ## Next action
 
-Guy reviews the independent R1A-only PASS and decides whether to accept/close R1A and authorize the next milestone. The QA report's suggested LOW-page proof is not an authorization and does not override the approved sequence or separate cost gate. Until Guy directs otherwise: do not push, start R1B/R1C, import ignored fixtures, render, exercise a real database boundary, or begin Lion/contract-catalog work.
+Run independent read-only Claude Code QA against `codex/r1b-visual-package-promotion` range `4a5dd041..da1914cb`. Codex then validates findings, fixes valid defects in a separate focused commit, and returns for re-gate. Until that gate and separate Guy authorization: do not push, start R1C/R2, promote a real package, import ignored user fixtures, render, exercise a real database boundary, change production flags, or begin Lion/catalog work.
