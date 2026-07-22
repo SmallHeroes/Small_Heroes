@@ -66,7 +66,7 @@ Codex owns branch, worktree, task, and QA coordination.
 - One implementation task is the sole writer for a branch/worktree. QA is read-only on an immutable commit range during its first pass.
 - Codex tells Guy whether a milestone should stay in the Lead task or receive a dedicated execution task. Major implementations use a milestone-scoped execution task; the Lead task keeps approvals, architecture decisions, QA findings, and re-gates.
 - A reviewer reporting a different branch or HEAD than the handoff is a coordination failure that must be reconciled before its result is accepted.
-- Branch/worktree cleanup requires a separate preservation audit; stale-looking branches are not deleted by assumption.
+- Branch/worktree cleanup requires a separate preservation audit covering ownership, merge/push state, unique commits, dirty/untracked work, and recoverability. Codex then presents the exact targets and preservation/rollback plan to Guy. The audit itself does not authorize deletion; actual branch/worktree deletion requires Guy's explicit approval.
 
 ## Handoff from Codex to Claude Code
 

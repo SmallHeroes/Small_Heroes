@@ -56,8 +56,9 @@ Codex owns the repository topology and prevents conflicting work.
 - Exactly one implementation task may write to a branch/worktree at a time. Parallel read-only review is allowed only against an explicit immutable commit range.
 - Claude Code receives a named branch plus base-to-head range and is read-only on its first pass. If its reported branch/HEAD differs from the handoff, stop and reconcile before accepting findings.
 - Before each approved milestone, Codex tells Guy whether to continue in the current task or open a dedicated execution task. Significant implementations normally receive a milestone-scoped execution task; this Lead task remains the decision and re-gate hub.
-- Do not create overlapping implementation tasks, reuse a dirty worktree blindly, sweep unrelated files into a commit, or delete/archive branches or worktrees without first proving their ownership and preservation state.
-- Branch cleanup is a separate audited operation. A large branch list is not permission to delete anything.
+- Do not create overlapping implementation tasks, reuse a dirty worktree blindly, or sweep unrelated files into a commit.
+- Branch/worktree cleanup is a separate audited operation. Codex must first prove ownership, merge/push status, unique commits, dirty/untracked preservation, and recoverability, then present Guy with the exact proposed targets and rollback/preservation plan. The audit does not authorize deletion: actual branch/worktree deletion requires Guy's explicit approval.
+- A large or stale-looking branch list is not permission to delete anything.
 
 ## Decision Gate — required before major changes
 

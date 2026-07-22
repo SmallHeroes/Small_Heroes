@@ -33,6 +33,7 @@ No customer-visible work is complete merely because code exists or tests are gre
 
 - Branch/worktree ownership is explicit; exactly one implementation task has write authority, and any concurrent QA is pinned read-only to an immutable commit range.
 - Before editing and before QA, Codex records relevant worktrees, branches, HEADs, dirty state, ahead/behind state, and assigned task/reviewer.
+- Branch/worktree deletion requires both a completed preservation audit and Guy's explicit approval of the exact targets; topology ownership alone is not deletion authority.
 - Diff is focused; unrelated refactors are excluded.
 - Commits are small, logical green milestones.
 - Explicit Git pathspecs only; never `git add -A`.
