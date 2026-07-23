@@ -23,19 +23,20 @@
  *
  * USAGE:
  *   # 1. dry — no spend: print the prompt + hashes, write a candidate preview
- *   npx tsx scripts/mint-set-identity-board.ts --story <key> --identity <id> --style <db-or-style-id> \
+ *   node scripts/mint-set-identity-board.cjs --story <key> --identity <id> --style <db-or-style-id> \
  *       --contract <path.json> [--out <path.json>]
  *
  *   # 2. mint for real — RENDERS + UPLOADS (spends), QAs, writes the registry entry (pending, UNAPPROVED)
- *   npx tsx scripts/mint-set-identity-board.ts --story <key> --identity <id> --style <db-or-style-id> \
+ *   node scripts/mint-set-identity-board.cjs --story <key> --identity <id> --style <db-or-style-id> \
  *       --contract <path.json> --render [--quality low|medium] [--registry-root <dir>]
  *
  *   # 3. human approval — the ONLY step that can approve, and only over a QA-passed entry
- *   npx tsx scripts/mint-set-identity-board.ts --approve --entry <path.json> --approved-by "<name>"
+ *   node scripts/mint-set-identity-board.cjs --approve --entry <path.json> --approved-by "<name>"
  *
- * Kept env-free (no `server-only`) so it stays runnable via tsx. The provider / storage / vision adapters are
- * INJECTED and their live implementations are LAZY dynamic imports, so importing this module (in a test, say)
- * pulls in no OpenAI client, no Supabase client, and no env validation.
+ * The canonical launcher preloads the repository's `server-only` shim before registering tsx or importing this
+ * module. Do not invoke this TypeScript file directly: the live renderer's real transitive graph includes
+ * `server-only`. Provider / storage / vision adapters remain injected and lazy, so importing this module alone
+ * performs no provider, storage, or Vision operation.
  */
 import path from 'path';
 import { createHash } from 'crypto';
@@ -96,6 +97,33 @@ export interface MintDeps {
   now: () => Date;
 }
 
+interface LiveRendererModules {
+  generateGPTImage: typeof import('@/lib/generate-image').generateGPTImage;
+  resolveStyle01GptModel: typeof import('@/lib/style01-gptimage').resolveStyle01GptModel;
+}
+
+interface LiveStorageModules {
+  uploadContentAddressedObjectNoOverwrite: typeof import('@/lib/image-storage').uploadContentAddressedObjectNoOverwrite;
+}
+
+export interface LiveImportPreflightDeps {
+  loadRendererModules: () => Promise<LiveRendererModules>;
+  loadStorageModules: () => Promise<LiveStorageModules>;
+  inspectVisionSurface: () => {
+    endpoint: string;
+    model: string;
+    adapterReady: boolean;
+  };
+}
+
+export interface LiveImportPreflightResult {
+  rendererExports: readonly ['generateGPTImage', 'resolveStyle01GptModel'];
+  storageExports: readonly ['uploadContentAddressedObjectNoOverwrite'];
+  visionEndpoint: string;
+  visionModel: string;
+  blockedFetchAttempts: number;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Live adapters (lazy — importing this module must not construct any client)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -105,11 +133,19 @@ export interface MintDeps {
  * path uses: a board rendered by a different model or a different style authority than the pages it is supposed to
  * anchor would be a reference that disagrees with its own book.
  */
-const liveRenderBoard: BoardRenderer = async ({ prompt, negativePrompt, quality }) => {
+export const loadLiveRendererModules: LiveImportPreflightDeps['loadRendererModules'] = async () => {
   const [{ generateGPTImage }, { resolveStyle01GptModel }] = await Promise.all([
     import('@/lib/generate-image'),
     import('@/lib/style01-gptimage'),
   ]);
+  if (typeof generateGPTImage !== 'function' || typeof resolveStyle01GptModel !== 'function') {
+    throw new Error('live renderer import surface is incomplete');
+  }
+  return { generateGPTImage, resolveStyle01GptModel };
+};
+
+const liveRenderBoard: BoardRenderer = async ({ prompt, negativePrompt, quality }) => {
+  const { generateGPTImage, resolveStyle01GptModel } = await loadLiveRendererModules();
   const result = await generateGPTImage({
     finalPrompt: prompt,
     negativePrompt,
@@ -121,8 +157,16 @@ const liveRenderBoard: BoardRenderer = async ({ prompt, negativePrompt, quality 
 };
 
 /** The live uploader: the content-addressed, no-overwrite door added for P0-4a. There is no other. */
-const liveUploadBoard: BoardUploader = async ({ identity, buffer, contentType }) => {
+export const loadLiveStorageModules: LiveImportPreflightDeps['loadStorageModules'] = async () => {
   const { uploadContentAddressedObjectNoOverwrite } = await import('@/lib/image-storage');
+  if (typeof uploadContentAddressedObjectNoOverwrite !== 'function') {
+    throw new Error('live storage import surface is incomplete');
+  }
+  return { uploadContentAddressedObjectNoOverwrite };
+};
+
+const liveUploadBoard: BoardUploader = async ({ identity, buffer, contentType }) => {
+  const { uploadContentAddressedObjectNoOverwrite } = await loadLiveStorageModules();
   const { url, storageKey } = await uploadContentAddressedObjectNoOverwrite({
     key: setIdentityBoardStorageKey(identity),
     buffer,
@@ -137,6 +181,12 @@ const liveUploadBoard: BoardUploader = async ({ identity, buffer, contentType })
  * `lib/scene-memory/analyze.ts`. FAIL-CLOSED by omission: any throw here aborts the mint before an entry is
  * written, so a board whose QA could not run never reaches the registry as anything a human could approve.
  */
+export const BOARD_QA_VISION_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
+
+export function resolveBoardQaVisionModel(): string {
+  return process.env.CHILD_PHOTO_VISION_MODEL?.trim() || 'gpt-4o';
+}
+
 const liveRunBoardQa: BoardQaRunner = async ({ imageUrl, def }) =>
   qaSetIdentityBoardImage(
     { imageUrl, def },
@@ -144,11 +194,11 @@ const liveRunBoardQa: BoardQaRunner = async ({ imageUrl, def }) =>
       callVision: async ({ imageUrl: url, instruction }) => {
         const apiKey = process.env.OPENAI_API_KEY?.trim();
         if (!apiKey) throw new Error('OPENAI_API_KEY missing — cannot run board QA');
-        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        const res = await fetch(BOARD_QA_VISION_ENDPOINT, {
           method: 'POST',
           headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model: process.env.CHILD_PHOTO_VISION_MODEL?.trim() || 'gpt-4o',
+            model: resolveBoardQaVisionModel(),
             max_tokens: 800,
             temperature: 0,
             response_format: { type: 'json_object' },
@@ -189,6 +239,75 @@ export const liveMintDeps: MintDeps = {
   now: () => new Date(),
 };
 
+export const inspectLiveVisionSurface: LiveImportPreflightDeps['inspectVisionSurface'] = () => {
+  const endpoint = new URL(BOARD_QA_VISION_ENDPOINT);
+  const model = resolveBoardQaVisionModel();
+  return {
+    endpoint: endpoint.toString(),
+    model,
+    adapterReady:
+      endpoint.protocol === 'https:' &&
+      endpoint.hostname === 'api.openai.com' &&
+      model.length > 0 &&
+      typeof fetch === 'function' &&
+      typeof liveRunBoardQa === 'function',
+  };
+};
+
+export const liveImportPreflightDeps: LiveImportPreflightDeps = {
+  loadRendererModules: loadLiveRendererModules,
+  loadStorageModules: loadLiveStorageModules,
+  inspectVisionSurface: inspectLiveVisionSurface,
+};
+
+/**
+ * Zero-cost reachability proof for the exact live module graph.
+ *
+ * This code has no contract/board input and no access to `MintDeps`, so it cannot render, upload, run QA, write a
+ * candidate/registry entry, or approve one. A throwing fetch sentinel remains installed for the whole import
+ * window as a second line of defense; the subprocess smoke test adds lower-level network sentinels too.
+ */
+export async function runLiveImportPreflight(
+  deps: LiveImportPreflightDeps = liveImportPreflightDeps
+): Promise<LiveImportPreflightResult> {
+  const originalFetch = globalThis.fetch;
+  if (typeof originalFetch !== 'function') {
+    throw new Error('live-import preflight requires a runtime with global fetch');
+  }
+
+  let blockedFetchAttempts = 0;
+  globalThis.fetch = (async () => {
+    blockedFetchAttempts += 1;
+    throw new Error('live-import preflight blocked an unexpected fetch');
+  }) as typeof fetch;
+
+  try {
+    const renderer = await deps.loadRendererModules();
+    const storage = await deps.loadStorageModules();
+    const vision = deps.inspectVisionSurface();
+    if (
+      typeof renderer.generateGPTImage !== 'function' ||
+      typeof renderer.resolveStyle01GptModel !== 'function' ||
+      typeof storage.uploadContentAddressedObjectNoOverwrite !== 'function' ||
+      !vision.adapterReady
+    ) {
+      throw new Error('live-import preflight found an incomplete renderer, storage, or Vision surface');
+    }
+    if (blockedFetchAttempts !== 0) {
+      throw new Error(`live-import preflight observed ${blockedFetchAttempts} unexpected fetch attempt(s)`);
+    }
+    return {
+      rendererExports: ['generateGPTImage', 'resolveStyle01GptModel'],
+      storageExports: ['uploadContentAddressedObjectNoOverwrite'],
+      visionEndpoint: vision.endpoint,
+      visionModel: vision.model,
+      blockedFetchAttempts,
+    };
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CLI parsing
 // ─────────────────────────────────────────────────────────────────────────────
@@ -212,18 +331,30 @@ export interface ApproveArgs {
   approvedBy: string;
 }
 
-export type CliArgs = MintArgs | ApproveArgs;
+export interface LiveImportPreflightArgs {
+  mode: 'preflight-live-imports';
+}
 
-export const USAGE = `mint-set-identity-board — mint + approve Set Identity Boards (offline)
+export type CliArgs = MintArgs | ApproveArgs | LiveImportPreflightArgs;
+
+export const CANONICAL_BOARD_MINT_COMMAND = 'node scripts/mint-set-identity-board.cjs';
+
+export const USAGE = `mint-set-identity-board — mint + approve Set Identity Boards
+
+  CANONICAL LAUNCHER (preloads the server-only shim; do not invoke the .ts file directly):
+    ${CANONICAL_BOARD_MINT_COMMAND}
 
   DRY (no spend):
-    --story <key> --identity <id> --style <db-or-style-id> --contract <path.json> [--out <path.json>]
+    ${CANONICAL_BOARD_MINT_COMMAND} --story <key> --identity <id> --style <db-or-style-id> --contract <path.json> [--out <path.json>]
 
   MINT (RENDERS + UPLOADS — spends):
-    ... --render [--quality low|medium] [--registry-root <dir>] [--out <path.json>]
+    ${CANONICAL_BOARD_MINT_COMMAND} --story <key> --identity <id> --style <db-or-style-id> --contract <path.json> --render [--quality low|medium] [--registry-root <dir>] [--out <path.json>]
 
   APPROVE (the only step that may approve; refuses unless qaStatus === 'passed'):
-    --approve --entry <path.json> --approved-by "<name>"`;
+    ${CANONICAL_BOARD_MINT_COMMAND} --approve --entry <path.json> --approved-by "<name>"
+
+  LIVE-IMPORT PREFLIGHT (zero cost; imports exact live renderer/storage graph, never invokes it):
+    ${CANONICAL_BOARD_MINT_COMMAND} --preflight-live-imports`;
 
 function parseQuality(raw: string | undefined): BoardQuality {
   const q = (raw ?? 'low').trim().toLowerCase();
@@ -233,6 +364,13 @@ function parseQuality(raw: string | undefined): BoardQuality {
 }
 
 export function parseArgs(argv: string[]): CliArgs {
+  if (argv.includes('--preflight-live-imports')) {
+    if (argv.length !== 1) {
+      throw new Error('--preflight-live-imports must be used alone');
+    }
+    return { mode: 'preflight-live-imports' };
+  }
+
   const flags: Record<string, string> = {};
   const bare = new Set<string>();
   for (let i = 0; i < argv.length; i += 1) {
@@ -403,7 +541,7 @@ export async function runMint(args: MintArgs, deps: MintDeps = liveMintDeps): Pr
   if (qa.qaStatus === 'passed') {
     console.log(
       `\nNOT USABLE YET — a human must look at the board and approve it:\n` +
-        `  npx tsx scripts/mint-set-identity-board.ts --approve --entry "${outPath}" --approved-by "<name>"`
+        `  ${CANONICAL_BOARD_MINT_COMMAND} --approve --entry "${outPath}" --approved-by "<name>"`
     );
   } else {
     console.log(`\nQA FAILED — this board can never be approved. Fix the set/prompt and re-mint.`);
@@ -453,12 +591,28 @@ export async function runApprove(
   return approved;
 }
 
-export async function runCli(argv: string[], deps: MintDeps = liveMintDeps): Promise<void> {
+export async function runCli(
+  argv: string[],
+  deps: MintDeps = liveMintDeps,
+  preflightDeps: LiveImportPreflightDeps = liveImportPreflightDeps
+): Promise<void> {
   if (argv.includes('--help') || argv.includes('-h') || argv.length === 0) {
     console.log(USAGE);
     return;
   }
   const args = parseArgs(argv);
+  if (args.mode === 'preflight-live-imports') {
+    const result = await runLiveImportPreflight(preflightDeps);
+    console.log(
+      `LIVE-IMPORT PREFLIGHT PASS\n` +
+        `renderer exports: ${result.rendererExports.join(', ')}\n` +
+        `storage exports: ${result.storageExports.join(', ')}\n` +
+        `Vision surface: endpoint=${result.visionEndpoint} model=${result.visionModel}\n` +
+        `external attempts: fetch=${result.blockedFetchAttempts}\n` +
+        `side effects invoked: render=0 upload=0 Vision=0 candidate/registry writes=0 approval writes=0`
+    );
+    return;
+  }
   if (args.mode === 'approve') {
     await runApprove(args, deps);
     return;
@@ -467,13 +621,16 @@ export async function runCli(argv: string[], deps: MintDeps = liveMintDeps): Pro
 }
 /* eslint-enable no-console */
 
-// Only run when invoked directly (keeps the module importable/testable without executing).
+export const DIRECT_TYPESCRIPT_ENTRYPOINT_ERROR =
+  `Direct invocation of scripts/mint-set-identity-board.ts is unsupported because it cannot guarantee ` +
+  `server-only shim ordering. Use: ${CANONICAL_BOARD_MINT_COMMAND}`;
+
+// Refuse the historically documented direct TypeScript path. The canonical CJS launcher imports this module only
+// after preloading the shim, then calls `runCli` itself.
 const invokedDirectly =
   typeof process !== 'undefined' && Array.isArray(process.argv) && /mint-set-identity-board\.ts$/.test(process.argv[1] ?? '');
 if (invokedDirectly) {
-  runCli(process.argv.slice(2)).catch((err) => {
-    // eslint-disable-next-line no-console
-    console.error(err instanceof Error ? err.message : String(err));
-    process.exitCode = 1;
-  });
+  // eslint-disable-next-line no-console
+  console.error(DIRECT_TYPESCRIPT_ENTRYPOINT_ERROR);
+  process.exitCode = 1;
 }

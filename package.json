@@ -10,6 +10,7 @@
     "render-qualification-audit": "tsx --require ./scripts/shims/register-server-only.cjs scripts/audit-render-qualification.ts",
     "promote-visual-package": "tsx --require ./scripts/shims/register-server-only.cjs scripts/promote-visual-package.ts",
     "verify-v3-bank-safeguards": "tsx --require ./scripts/shims/register-server-only.cjs scripts/verify-v3-bank-import-safeguards.ts",
+    "mint-set-identity-board": "node scripts/mint-set-identity-board.cjs",
     "check": "tsc --noEmit && vitest run",
     "test": "vitest run",
     "test:watch": "vitest"
