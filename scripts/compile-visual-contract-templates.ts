@@ -27,8 +27,10 @@ import { canonicalHash } from '@/lib/canonical-json';
 import { renderCandidateEvidenceHeader } from '@/lib/visual-package/candidateEvidence';
 import {
   CANDIDATE_EVIDENCE_VERSION,
+  SOURCE_PROMPT_RECONCILIATION_SUFFIX,
   type StorySourceIdentity,
 } from '@/lib/visual-package/types';
+import { buildSourcePromptReconciliationDraft } from '@/lib/visual-package/sourcePromptReconciliation';
 
 const SOURCE_SUFFIX = '.source.json';
 const TEMPLATE_SUFFIX = '.visual-contract-template.json';
@@ -119,6 +121,21 @@ async function main(): Promise<void> {
       const { template, facts, notes, provenance, repairAttempts } = await compileBookVisualContractTemplate({ ...raw, storyKey }, { callLLM });
       const templatePath = path.join(out, `${storyKey}${TEMPLATE_SUFFIX}`);
       writeFileSync(templatePath, `${JSON.stringify(template, null, 2)}\n`, 'utf8');
+      const reconciliationDraft = buildSourcePromptReconciliationDraft(
+        {
+          storyKey,
+          sourceIdentity: raw.sourceIdentity,
+          pages: raw.pages,
+          pageImageDirections: raw.pageImageDirections,
+          authoredCoverAuthority: raw.authoredCoverAuthority,
+        },
+        template,
+      );
+      writeFileSync(
+        path.join(out, `${storyKey}${SOURCE_PROMPT_RECONCILIATION_SUFFIX}`),
+        `${JSON.stringify(reconciliationDraft, null, 2)}\n`,
+        'utf8',
+      );
       const candidateEvidence = {
         version: CANDIDATE_EVIDENCE_VERSION,
         storyKey,

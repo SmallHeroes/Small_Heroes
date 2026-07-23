@@ -1,10 +1,14 @@
-export const VISUAL_PACKAGE_MANIFEST_VERSION = 'visual-package/v2' as const;
-export const VISUAL_PACKAGE_PROMOTION_VERSION = 'visual-package-promotion/v2' as const;
+export const VISUAL_PACKAGE_MANIFEST_VERSION = 'visual-package/v3' as const;
+export const VISUAL_PACKAGE_PROMOTION_VERSION = 'visual-package-promotion/v3' as const;
 export const STORY_SOURCE_IDENTITY_VERSION = 'story-source/v1' as const;
 export const CANDIDATE_EVIDENCE_VERSION = 'visual-package-candidate/v1' as const;
 export const PROP_REFERENCE_CATALOG_VERSION = 'prop-reference-catalog/v1' as const;
+export const SOURCE_PROMPT_RECONCILIATION_VERSION = 'source-prompt-reconciliation/v1' as const;
+export const SOURCE_PROMPT_PROJECTION_VERSION = 'style01-source-prompt-projection/v1' as const;
 /** Read-only package locator shared by qualification and the offline promotion writer. */
 export const VISUAL_PACKAGE_MANIFEST_SUFFIX = '.visual-package.json' as const;
+export const SOURCE_PROMPT_RECONCILIATION_SUFFIX =
+  '.visual-contract-reconciliation.json' as const;
 
 export type VisualPackageState = 'candidate' | 'approved';
 
@@ -41,6 +45,14 @@ export interface VisualPackageCandidateEvidence {
   sourceInputDigest: string;
   reviewDigest: string;
   provenanceDigest: string;
+}
+
+export interface VisualPackageReconciliationIdentity {
+  artifactPath: string;
+  digestAlgorithm: 'canonical-json-sha256';
+  digest: string;
+  version: typeof SOURCE_PROMPT_RECONCILIATION_VERSION;
+  projectionVersion: typeof SOURCE_PROMPT_PROJECTION_VERSION;
 }
 
 export interface VisualPackageBoardArtifactIdentity {
@@ -97,6 +109,7 @@ export interface VisualPackagePromotionRecord {
   toolVersion: typeof VISUAL_PACKAGE_PROMOTION_VERSION;
   promotedAt: string;
   templateDestination: string;
+  reconciliationDestination: string;
   manifestDestination: string;
 }
 
@@ -112,6 +125,7 @@ export interface VisualPackageManifest {
   styleId: string;
   source: StorySourceIdentity;
   template: VisualPackageTemplateIdentity;
+  reconciliation: VisualPackageReconciliationIdentity;
   coverage: VisualPackageCoverageIdentity;
   candidateEvidence: VisualPackageCandidateEvidence;
   review: VisualPackageReviewReality;
@@ -146,6 +160,12 @@ export type VisualPackageIssueCode =
   | 'candidate_review_disagreement'
   | 'candidate_provenance_disagreement'
   | 'candidate_evidence_digest_mismatch'
+  | 'reconciliation_missing'
+  | 'reconciliation_invalid'
+  | 'reconciliation_incomplete'
+  | 'reconciliation_identity_mismatch'
+  | 'reconciliation_source_mismatch'
+  | 'reconciliation_template_mismatch'
   | 'board_unresolved'
   | 'board_identity_mismatch'
   | 'board_artifact_mismatch'

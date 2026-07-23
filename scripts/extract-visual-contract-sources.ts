@@ -18,14 +18,14 @@
 import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import path from 'path';
 
-import { parseStoryMarkdown } from '@/lib/story-validators/parser';
 import { getCompanionById } from '@/lib/companions';
-import {
-  frontmatterField,
-  stripGoldenSourceHeader,
-} from '@/lib/story-bank-v3-import';
+import { frontmatterField } from '@/lib/story-bank-v3-import';
 import type { CompileBookVisualContractInput } from '@/lib/visual-contract-compiler';
 import { assertSourceHasRealProse } from '@/lib/visual-contract-compiler';
+import {
+  parseStorySourceContent,
+  toVisualContractFrontmatterMarkdown,
+} from '@/lib/visual-contract-compiler/storySourceContent';
 import {
   authoredCoverAuthorityFromLocationBible,
   type AuthoredCoverAuthority,
@@ -62,13 +62,7 @@ export interface ContractSourceFile extends CompileBookVisualContractInput {
  * the canonical story; a staged/clean file may already start at the frontmatter.
  */
 export function toFrontmatterMarkdown(raw: string): string {
-  const normalized = raw.replace(/^﻿/, '').replace(/\r\n/g, '\n');
-  const body = /^---\ntitle:/.test(normalized) ? normalized : stripGoldenSourceHeader(normalized);
-  // Drop the bank's trailing WORD_COUNT metadata line (a document trailer, NOT page prose — e.g.
-  // "WORD_COUNT: [36, 41, ...] = 467" or "= [363]"). The parser now keeps prose on BOTH sides of the
-  // imageDirection line, so without this the FINAL page's .text would fold the trailer into pages[] +
-  // fullStoryText and hand it to the authoring LLM as story content. Anchored to end-of-document.
-  return body.replace(/\n+WORD_COUNT:[^\n]*\s*$/i, '\n');
+  return toVisualContractFrontmatterMarkdown(raw);
 }
 
 /** Extract a source object from one story .md. Pure — no LLM, no filesystem writes. */
@@ -78,32 +72,26 @@ export function extractSourceFromMarkdown(
   sourcePath = `${storyKey}.md`,
   authoredCoverAuthority?: AuthoredCoverAuthority | null,
 ): ContractSourceFile {
-  const md = toFrontmatterMarkdown(rawMarkdown);
+  const content = parseStorySourceContent(rawMarkdown);
+  const md = content.frontmatterMarkdown;
   const companionId = frontmatterField(md, 'companionId');
   const gender = frontmatterField(md, 'gender') ?? DEFAULT_CHILD_GENDER;
 
-  const parsed = parseStoryMarkdown(md);
-  const orderedPages = parsed.pages.slice().sort((a, b) => a.pageNumber - b.pageNumber);
-  if (orderedPages.length === 0) {
+  if (content.pages.length === 0) {
     throw new Error(`extract-vc-source: ${storyKey} parsed 0 pages (bad markers or empty story)`);
   }
 
-  const pages: SourcePage[] = orderedPages.map((p) => ({
-    pageNumber: p.pageNumber,
-    text: p.text.trim(),
-  }));
+  const pages: SourcePage[] = content.pages;
 
   // FAIL-CLOSED: never emit a source with empty/negligible prose. A story that parses N page markers but whose
   // per-page prose is empty (e.g. a parser drop) would otherwise flow to the compiler, which HALLUCINATES a fully-
   // valid contract from nothing. Refuse here so the empty source never reaches the LLM.
   assertSourceHasRealProse(storyKey, pages, 'extract-vc-source');
-  const pageImageDirections = orderedPages
-    .filter((p) => p.imageDirection.trim().length > 0)
-    .map((p) => ({ pageNumber: p.pageNumber, imageDirection: p.imageDirection.trim() }));
+  const pageImageDirections = content.pageImageDirections;
 
   // fullStoryText carries page-boundary markers so the LLM can assign per-page contracts; the
   // imageDirection lines are supplied separately via pageImageDirections (never inlined here).
-  const fullStoryText = pages.map((p) => `--- Page ${p.pageNumber} ---\n${p.text}`).join('\n\n');
+  const fullStoryText = content.fullStoryText;
 
   const companion = companionId
     ? { id: companionId, name: getCompanionById(companionId)?.name }

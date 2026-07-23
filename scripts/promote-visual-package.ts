@@ -61,6 +61,7 @@ function main(): void {
   });
   console.log(`[visual-package] ${promote ? 'PROMOTED' : 'DRY-RUN PASS'}: ${result.approvedManifest.storyKey}`);
   console.log(`[visual-package] template: ${result.templateDestination}`);
+  console.log(`[visual-package] reconciliation: ${result.reconciliationDestination}`);
   console.log(`[visual-package] manifest: ${result.manifestDestination}`);
 }
 

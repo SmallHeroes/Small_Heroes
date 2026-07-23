@@ -5,6 +5,7 @@ import {
   AuthoredCoverAuthorityError,
   authoredCoverAuthorityFromLocationBible,
   coverSourceFidelityIssues,
+  type AuthoredCoverAuthority,
 } from '@/lib/visual-contract-compiler/coverSourceAuthority';
 
 import type { VisualPackageIssue } from './types';
@@ -35,18 +36,32 @@ export function storyCoverSourceFidelityIssues(args: {
   storyPath: string;
   template: BookVisualContractTemplate;
 }): VisualPackageIssue[] {
+  const loaded = loadStoryAuthoredCoverAuthority(args);
+  if (loaded.issues.length > 0 || !loaded.authority) return loaded.issues;
+  return coverSourceFidelityIssues(args.template, loaded.authority).map(packageIssue);
+}
+
+export function loadStoryAuthoredCoverAuthority(args: {
+  storyPath: string;
+  template: BookVisualContractTemplate;
+}): { authority: AuthoredCoverAuthority | null; issues: VisualPackageIssue[] } {
   const locationBiblePath = args.storyPath.replace(/\.md$/i, '.location-bible.json');
-  if (locationBiblePath === args.storyPath || !fs.existsSync(locationBiblePath)) return [];
+  if (locationBiblePath === args.storyPath || !fs.existsSync(locationBiblePath)) {
+    return { authority: null, issues: [] };
+  }
 
   let raw: unknown;
   try {
     raw = JSON.parse(fs.readFileSync(locationBiblePath, 'utf8')) as unknown;
   } catch (error) {
-    return [packageIssue({
-      code: 'cover_source_authority_invalid',
-      message: `location-bible JSON is invalid: ${error instanceof Error ? error.message : String(error)}`,
-      field: 'locationBible',
-    })];
+    return {
+      authority: null,
+      issues: [packageIssue({
+        code: 'cover_source_authority_invalid',
+        message: `location-bible JSON is invalid: ${error instanceof Error ? error.message : String(error)}`,
+        field: 'locationBible',
+      })],
+    };
   }
 
   try {
@@ -57,10 +72,11 @@ export function storyCoverSourceFidelityIssues(args: {
         }
       : null;
     const authority = authoredCoverAuthorityFromLocationBible(raw, companion);
-    if (!authority) return [];
-    return coverSourceFidelityIssues(args.template, authority).map(packageIssue);
+    return { authority, issues: [] };
   } catch (error) {
-    if (error instanceof AuthoredCoverAuthorityError) return error.issues.map(packageIssue);
+    if (error instanceof AuthoredCoverAuthorityError) {
+      return { authority: null, issues: error.issues.map(packageIssue) };
+    }
     throw error;
   }
 }

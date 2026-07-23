@@ -363,6 +363,19 @@ export function basicManifestIssues(raw: unknown): VisualPackageIssue[] {
     issues.push(issue('manifest_invalid', 'template digest algorithm is unsupported'));
   }
   if (
+    !manifest.reconciliation ||
+    !nonEmpty(manifest.reconciliation.artifactPath) ||
+    !nonEmpty(manifest.reconciliation.digest)
+  ) {
+    issues.push(issue('manifest_invalid', 'source-prompt reconciliation identity is incomplete'));
+  } else if (
+    manifest.reconciliation.digestAlgorithm !== 'canonical-json-sha256' ||
+    manifest.reconciliation.version !== 'source-prompt-reconciliation/v1' ||
+    manifest.reconciliation.projectionVersion !== 'style01-source-prompt-projection/v1'
+  ) {
+    issues.push(issue('manifest_invalid', 'source-prompt reconciliation identity is unsupported'));
+  }
+  if (
     !manifest.coverage ||
     !nonEmpty(manifest.coverage.coverDigest) ||
     !nonEmpty(manifest.coverage.pageContractsDigest) ||
@@ -449,9 +462,18 @@ export function basicManifestIssues(raw: unknown): VisualPackageIssue[] {
       manifest.promotion.toolVersion !== VISUAL_PACKAGE_PROMOTION_VERSION ||
       !isoTimestampIsValid(manifest.promotion.promotedAt) ||
       !nonEmpty(manifest.promotion.templateDestination) ||
+      !nonEmpty(manifest.promotion.reconciliationDestination) ||
       !nonEmpty(manifest.promotion.manifestDestination)
     ) {
       issues.push(issue('manifest_invalid', 'approved package promotion record is incomplete or unsupported'));
+    } else if (
+      manifest.promotion.templateDestination !== manifest.template?.artifactPath ||
+      manifest.promotion.reconciliationDestination !== manifest.reconciliation?.artifactPath
+    ) {
+      issues.push(issue(
+        'manifest_invalid',
+        'approved package promotion destinations disagree with template/reconciliation identities',
+      ));
     }
   }
   return issues;

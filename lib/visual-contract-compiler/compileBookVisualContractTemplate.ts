@@ -174,6 +174,11 @@ export function buildTemplateCompileSystemPrompt(): string {
     'or any laterality (injectionArm/bandageArm/freeHand). Those are supplied by the deterministic extractor. Do not',
     'invent a human who is not in the given facts.',
     '',
+    'Historical imageDirection is ADVISORY evidence only. It may help preserve visual action, interaction, expression,',
+    'camera, composition, or staging. It MUST NOT select or change worldType, location, zone, set topology, cast,',
+    'wardrobe, props, reveal timing, or forbidden content. Story prose and authored page-0 authority win every',
+    'conflict. A later source-prompt reconciliation review records preserved or intentionally superseded direction.',
+    '',
     'Output ONLY the JSON object, no prose, no markdown fences.',
   ].join('\n');
 }
@@ -218,6 +223,12 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
       .sort((a, b) => a.pageNumber - b.pageNumber)
       .map((p) => `--- Page ${p.pageNumber} ---\n${p.text}`)
       .join('\n\n'),
+    '',
+    'HISTORICAL IMAGE DIRECTIONS (OPTIONAL, ADVISORY PRESENTATION EVIDENCE ONLY):',
+    ...(input.pageImageDirections ?? [])
+      .slice()
+      .sort((a, b) => a.pageNumber - b.pageNumber)
+      .map((candidate) => `--- Page ${candidate.pageNumber} ---\n${candidate.imageDirection}`),
   ].join('\n');
 }
 
@@ -273,6 +284,10 @@ export function buildTemplateRepairUserPrompt(
       : []),
     '',
     'PREVIOUS (INVALID) DRAFT — return a corrected COMPLETE version of this exact JSON object:',
+    'Historical imageDirection remains ADVISORY only for action, interaction, expression, camera, composition, and',
+    'staging. It cannot alter world/location/zone/cast/wardrobe/props/reveal timing/forbidden content; story prose and',
+    'authored page-0 authority win conflicts.',
+    '',
     JSON.stringify(previousDraft),
   ].join('\n');
 }

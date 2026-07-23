@@ -288,6 +288,32 @@ export interface GenerateGPTImageResult {
   fallbackUsed: boolean;
 }
 
+export interface GPTImageRequestPlan {
+  version: 'gpt-image-request-plan/v1';
+  finalPrompt: string;
+  model: string;
+  quality: 'low' | 'medium' | 'high';
+  size: '1024x1024' | '1024x1536' | '1536x1536';
+  apiMode: 'images.generate' | 'images.edit';
+  referenceMode: GPTImageReferenceMode;
+  referenceCountRequested: number;
+  referenceCountPassed: number;
+  referenceCountCap: number;
+  orderedReferenceSources: string[];
+  bodyWithoutBinaryImage: {
+    model: string;
+    prompt: string;
+    size: '1024x1024' | '1024x1536' | '1536x1536';
+    quality: 'low' | 'medium' | 'high';
+    n: 1;
+  };
+  requestOptions: {
+    signal?: AbortSignal;
+    timeout?: number;
+    maxRetries: 0;
+  };
+}
+
 function resolveEnvGPTQuality(): 'low' | 'medium' | 'high' {
   const q = process.env.GPT_IMAGE_QUALITY?.trim().toLowerCase();
   if (q === 'low' || q === 'medium' || q === 'high') return q;
@@ -415,10 +441,9 @@ export const STYLE01_ANCHOR_COMPANION_FROM_SHEET_PREFIX = (
 /** Object anchor sheet — same set assets as approved zone set reference; tighter crop only. */
 export const STYLE01_ZONE_SET_DERIVED_OBJECT_PREFIX = (
   '[STYLE 01 ZONE SET — APPROVED SET REFERENCE]\n' +
-  'Image 1 is the APPROVED zone set reference for this location. Preserve EXACT set geometry, mood, lighting, and object identity:\n' +
-  'same warm window glow on the left, same stone/plaster window-ledge drip source, same terracotta floor tiles, same safe black metal-bar railing, same wooden chair scale cue on the right, same small galvanized metal bucket under the drip.\n' +
-  'Match the SAME dark moonlit home-night mood — NO daylight, NO dusk, NO alternate furniture, NO alternate railing, NO faucet/downspout.\n' +
-  'Change ONLY camera distance — compose CLOSER on the bucket + ledge drip while keeping the same continuous asset truth. ZERO characters. NO humans. NO creatures.\n\n' +
+  'Image 1 is the APPROVED zone set reference for this location. Preserve its exact set geometry, materials, scale, mood, lighting, and target-object identity.\n' +
+  'The target scene below names the object and crop. Do not invent, replace, recolor, resize, duplicate, or relocate it; do not copy unrelated reference content.\n' +
+  'Change ONLY the requested camera distance/composition while keeping one continuous approved asset truth. ZERO characters unless the target scene explicitly requires them.\n\n' +
   '[TARGET OBJECT ANCHOR]\n'
 );
 
@@ -439,6 +464,78 @@ function resolveReferencePrefix(
   if (mode === 'style') return STYLE_REFERENCE_PREFIX;
   if (mode === 'companion_dual' || referenceCount >= 2) return DUAL_REFERENCE_PREFIX;
   return REFERENCE_PHOTO_PREFIX;
+}
+
+/**
+ * The production request-planning seam used by generateGPTImage. It performs no I/O and exposes the exact final
+ * prompt, model, mode, reference order/cap, request body fields, and retry/cancellation options at the boundary.
+ */
+export function planGPTImageRequest(
+  input: GenerateGPTImageInput,
+  resolved: {
+    defaultQuality: 'low' | 'medium' | 'high';
+    defaultModel: string;
+    maxReferences: number;
+  },
+): GPTImageRequestPlan {
+  const size = input.size || '1024x1536';
+  const quality = input.quality ?? resolved.defaultQuality;
+  const references = (input.referenceImages || [])
+    .filter((source) => typeof source === 'string' && source.trim().length > 0);
+  const referenceCountRequested = references.length;
+  const referenceMode: GPTImageReferenceMode = input.referenceMode ?? 'identity';
+  const referenceCountCap = resolved.maxReferences;
+  const orderedReferenceSources = references.slice(0, referenceCountCap);
+  const apiMode = orderedReferenceSources.length > 0 ? 'images.edit' : 'images.generate';
+  if (
+    input.requireReferenceEdit &&
+    referenceCountRequested > 0 &&
+    apiMode !== 'images.edit'
+  ) {
+    throw new Error('Reference edit was required but API mode resolved to images.generate.');
+  }
+
+  let finalPrompt = input.finalPrompt;
+  if (orderedReferenceSources.length > 0) {
+    finalPrompt =
+      resolveReferencePrefix(referenceMode, orderedReferenceSources.length) +
+      finalPrompt;
+  }
+  if (input.negativePrompt) {
+    finalPrompt += `\n\n[AVOID]\n${input.negativePrompt}`;
+    if (!/\btext\b/i.test(input.negativePrompt)) {
+      finalPrompt += '\nNo text or letters in the image.';
+    }
+  }
+  const model = (
+    input.modelOverride ??
+    resolved.defaultModel
+  ).trim();
+  return {
+    version: 'gpt-image-request-plan/v1',
+    finalPrompt,
+    model,
+    quality,
+    size,
+    apiMode,
+    referenceMode,
+    referenceCountRequested,
+    referenceCountPassed: orderedReferenceSources.length,
+    referenceCountCap,
+    orderedReferenceSources,
+    bodyWithoutBinaryImage: {
+      model,
+      prompt: finalPrompt,
+      size,
+      quality,
+      n: 1,
+    },
+    requestOptions: {
+      signal: input.signal,
+      timeout: input.requestTimeoutMs,
+      maxRetries: 0,
+    },
+  };
 }
 
 function resolveReferenceSource(source: string): string {
@@ -552,38 +649,31 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
   if (!apiKey) throw new Error('Missing OPENAI_API_KEY for GPT Image generation');
 
   const openai = new OpenAI({ apiKey });
-  const size = input.size || '1024x1536';
-  const quality = input.quality ?? resolveEnvGPTQuality();
-
-  const refs = (input.referenceImages || []).filter((u) => typeof u === 'string' && u.trim().length > 0);
-  const referenceCountRequested = refs.length;
-  const referenceMode: GPTImageReferenceMode = input.referenceMode ?? 'identity';
-  const maxRefs = resolveGPTImageEditMaxReferences();
-  const refsForApi = refs.slice(0, maxRefs);
-  const hasReference = refsForApi.length > 0;
+  const plan = planGPTImageRequest(input, {
+    defaultQuality: resolveEnvGPTQuality(),
+    defaultModel: process.env.GPT_IMAGE_MODEL ?? 'gpt-image-1',
+    maxReferences: resolveGPTImageEditMaxReferences(),
+  });
+  const {
+    apiMode,
+    finalPrompt: fullPrompt,
+    model: imageModel,
+    orderedReferenceSources: refsForApi,
+    quality,
+    referenceCountRequested,
+    referenceMode,
+    size,
+  } = plan;
+  const hasReference = apiMode === 'images.edit';
 
   if (input.requireReferenceEdit && referenceCountRequested > 0 && !hasReference) {
     throw new Error('Reference images were required but none could be loaded for images.edit.');
   }
 
-  let fullPrompt = input.finalPrompt;
-  if (hasReference) {
-    fullPrompt = resolveReferencePrefix(referenceMode, refsForApi.length) + fullPrompt;
-  }
-  if (input.negativePrompt) {
-    fullPrompt += `\n\n[AVOID]\n${input.negativePrompt}`;
-    if (!/\btext\b/i.test(input.negativePrompt)) {
-      fullPrompt += '\nNo text or letters in the image.';
-    }
-  }
-
   // Allow overriding the OpenAI image model via env var. Defaults to gpt-image-1.
   // Set GPT_IMAGE_MODEL=gpt-image-2 to switch to the newer agentic model (April 2026)
   // which plans composition before rendering — should obey our framing instructions.
-  const imageModel = (input.modelOverride ?? process.env.GPT_IMAGE_MODEL ?? 'gpt-image-1').trim();
   const requestedModel = imageModel;
-
-  const apiMode: 'images.generate' | 'images.edit' = hasReference ? 'images.edit' : 'images.generate';
 
   if (input.requireReferenceEdit && referenceCountRequested > 0 && apiMode !== 'images.edit') {
     throw new Error('Reference edit was required but API mode resolved to images.generate.');
@@ -605,16 +695,14 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
       const imageArg = files.length === 1 ? files[0] : files;
       const response = await openai.images.edit(
         {
-          model: imageModel,
           image: imageArg,
-          prompt: fullPrompt,
-          size: size as never,
-          quality: quality as never,
-          n: 1,
+          ...plan.bodyWithoutBinaryImage,
+          size: plan.bodyWithoutBinaryImage.size as never,
+          quality: plan.bodyWithoutBinaryImage.quality as never,
         },
         // (render-loop Phase 1, 3a) Real cancellation (signal) + an explicit per-request deadline + NO hidden SDK
         // retries — the visible MAX_PAGE_ATTEMPTS loop owns retries, not openai@6's default maxRetries:2.
-        { signal: input.signal, timeout: input.requestTimeoutMs, maxRetries: 0 },
+        plan.requestOptions,
       );
       b64 = response.data?.[0]?.b64_json ?? undefined;
       usage = (response as { usage?: Record<string, unknown> }).usage;
@@ -630,14 +718,12 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
     } else {
       const response = await openai.images.generate(
         {
-          model: imageModel,
-          prompt: fullPrompt,
-          size: size as never,
-          quality: quality as never,
-          n: 1,
+          ...plan.bodyWithoutBinaryImage,
+          size: plan.bodyWithoutBinaryImage.size as never,
+          quality: plan.bodyWithoutBinaryImage.quality as never,
         },
         // (render-loop Phase 1, 3a) Same: real cancellation + explicit per-request deadline + no hidden SDK retries.
-        { signal: input.signal, timeout: input.requestTimeoutMs, maxRetries: 0 },
+        plan.requestOptions,
       );
       b64 = response.data?.[0]?.b64_json ?? undefined;
       usage = (response as { usage?: Record<string, unknown> }).usage;

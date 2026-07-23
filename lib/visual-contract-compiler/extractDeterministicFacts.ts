@@ -33,7 +33,7 @@ export interface HumanFact {
   aliasesFound: string[];
   /** Pages where the human is textually present (subject/object mention; genitive + construct excluded). */
   pagesPresent: number[];
-  /** Subset of pagesPresent that rests only on a low-confidence signal (image-direction-only). */
+  /** Reserved review field; source-authoritative extraction never adds direction-only presence. */
   lowConfidencePages: number[];
 }
 
@@ -206,7 +206,6 @@ function allAliases(e: HumanLexEntry): { he: string[]; en: string[] } {
 function resolveGender(
   e: HumanLexEntry,
   pages: DeterministicFactsInputPage[],
-  directions: Map<number, string>
 ): { gender: HumanGender; confidence: Confidence; evidence: FactEvidence | null; role: string; id: string } {
   const maleHe = (e.heMale ?? []).map(stripNiqqud);
   const femHe = (e.heFemale ?? []).map(stripNiqqud);
@@ -216,21 +215,21 @@ function resolveGender(
   let maleEvidence = bestHebrewEvidence(pages, maleHe);
   let femEvidence = bestHebrewEvidence(pages, femHe);
 
-  // Fall back to English direction aliases for gender only if the Hebrew gave nothing.
+  // English prose is source authority too. Historical image directions are excluded from cast/gender.
   const enMale = (e.enMale ?? []).map((s) => s.toLowerCase());
   const enFem = (e.enFemale ?? []).map((s) => s.toLowerCase());
   if (!maleEvidence && enMale.length) {
-    for (const [page, dir] of directions) {
-      if (hasCleanEnglishMention(dir, enMale)) {
-        maleEvidence = { page, phrase: `imageDirection: ${dir.trim()}` };
+    for (const page of pages) {
+      if (hasCleanEnglishMention(page.text, enMale)) {
+        maleEvidence = { page: page.pageNumber, phrase: page.text.trim() };
         break;
       }
     }
   }
   if (!femEvidence && enFem.length) {
-    for (const [page, dir] of directions) {
-      if (hasCleanEnglishMention(dir, enFem)) {
-        femEvidence = { page, phrase: `imageDirection: ${dir.trim()}` };
+    for (const page of pages) {
+      if (hasCleanEnglishMention(page.text, enFem)) {
+        femEvidence = { page: page.pageNumber, phrase: page.text.trim() };
         break;
       }
     }
@@ -320,10 +319,6 @@ const LATERALITY_RELEVANT_HE = ['דקירה', 'זריקה', 'מזרק', 'פלס�
 
 export function extractDeterministicFacts(input: DeterministicFactsInput): DeterministicFacts {
   const pages = input.pages.slice().sort((a, b) => a.pageNumber - b.pageNumber);
-  const directions = new Map<number, string>();
-  for (const d of input.pageImageDirections ?? []) {
-    if (d && typeof d.pageNumber === 'number') directions.set(d.pageNumber, d.imageDirection ?? '');
-  }
 
   const warnings: string[] = [];
   const deferrals: Deferral[] = [];
@@ -333,14 +328,15 @@ export function extractDeterministicFacts(input: DeterministicFactsInput): Deter
     .filter((p) => /\{\{childName\}\}/.test(p.text))
     .map((p) => p.pageNumber);
 
-  // Companion presence. The explicit "companionPresence: absent|present" directive is authoritative (an override).
-  // Otherwise, detect the companion by ANY of its ALIASES / short names — not only the full roster display name.
+  // Companion presence is derived from STORY PROSE only. Historical imageDirection (including legacy
+  // companionPresence markers) is advisory presentation evidence and can never select or suppress cast.
+  // Detect the companion by ANY prose alias / short name — not only the full roster display name.
   // The old code matched only input.companion.name, so a prose short-name ("אוּרי" / "Uri" / "fox") went undetected
   // → companion forced ABSENT while the LLM's mustShow (which read the same prose) still required it → a cross-field
   // contradiction. companionPresenceTokens is the same alias source used by the review flag + Fix 2.
   //
-  // The companion is matched as a plain STANDALONE TOKEN (niqqud-stripped, case-insensitive, across prose AND the
-  // image direction) — INTENTIONALLY more permissive than the recurring-human detector, which excludes genitive /
+  // The companion is matched as a plain STANDALONE TOKEN (niqqud-stripped, case-insensitive) — INTENTIONALLY more
+  // permissive than the recurring-human detector, which excludes genitive /
   // construct / possessive mentions. For a HUMAN ROLE, "the doctor's door" is scenery (the doctor is not on-scene);
   // but the companion is a NAMED character whose every mention — as a speaker ("הכריז אוּרי"), a genitive
   // ("הפנס של אוּרי"), or a possessive ("Uri's neck-lantern") — means it IS in the scene. Using the SAME
@@ -358,13 +354,8 @@ export function extractDeterministicFacts(input: DeterministicFactsInput): Deter
   const companionPresentPages: number[] = [];
   const companionAbsentPages: number[] = [];
   for (const p of pages) {
-    const dir = directions.get(p.pageNumber) ?? '';
-    const m = dir.match(/companionPresence:\s*(absent|present)/i);
-    if (m) {
-      if (m[1].toLowerCase() === 'present') companionPresentPages.push(p.pageNumber);
-      else companionAbsentPages.push(p.pageNumber);
-    } else if (companionNeedles.length > 0) {
-      const haystack = `${stripNiqqud(p.text)}\n${stripNiqqud(dir)}`.toLowerCase();
+    if (companionNeedles.length > 0) {
+      const haystack = stripNiqqud(p.text).toLowerCase();
       if (companionNeedles.some((n) => containsAsStandaloneToken(haystack, n))) companionPresentPages.push(p.pageNumber);
     }
   }
@@ -380,20 +371,18 @@ export function extractDeterministicFacts(input: DeterministicFactsInput): Deter
 
     for (const p of pages) {
       const clean = stripNiqqud(p.text);
-      const dir = directions.get(p.pageNumber) ?? '';
       const hebrewPresent = hasPresentHebrewMention(p.text, he);
-      const englishPresent = en.length > 0 && hasCleanEnglishMention(dir, en);
+      const englishPresent = en.length > 0 && hasCleanEnglishMention(p.text, en);
       if (hebrewPresent || englishPresent) {
         pagesPresent.push(p.pageNumber);
-        if (!hebrewPresent && englishPresent) lowConfidencePages.push(p.pageNumber); // direction-only
         for (const a of he) if (standaloneMatchIndices(clean, a).length > 0) aliasesFound.add(a);
-        for (const a of en) if (hasCleanEnglishMention(dir, [a])) aliasesFound.add(a);
+        for (const a of en) if (hasCleanEnglishMention(p.text, [a])) aliasesFound.add(a);
       }
     }
 
     if (pagesPresent.length === 0) continue; // human not in this story
 
-    const g = resolveGender(entry, pages, directions);
+    const g = resolveGender(entry, pages);
     if (g.gender === 'unspecified') {
       warnings.push(`human ${g.role}: gender not determinable from the text (no gendered noun form found)`);
     }

@@ -18,7 +18,10 @@ import {
   deriveCoverVisualContract,
   type ResolvedPageContract,
 } from './derivePageVisualContracts';
-import { selectCalibrationPages } from './selectCalibrationPages';
+import {
+  selectCalibrationPages,
+  type CalibrationRiskEvidence,
+} from './selectCalibrationPages';
 import {
   evaluatePageContractQa,
   type ContractQaVerdict,
@@ -74,6 +77,8 @@ export async function runVisualContractCalibration(input: {
   contract: BookVisualContract;
   renderer: CalibrationRenderer;
   vision: CalibrationVision;
+  /** Optional reviewer-authored, story-data risk mapping; never inferred from camera/prose words. */
+  riskEvidence?: CalibrationRiskEvidence;
   maxRerolls?: number;
 }): Promise<CalibrationResult> {
   // Fail-closed before any render.
@@ -81,7 +86,7 @@ export async function runVisualContractCalibration(input: {
 
   const pages = derivePageVisualContracts(input.contract);
   const byNumber = new Map(pages.map((p) => [p.pageNumber, p]));
-  const selection = selectCalibrationPages(input.contract);
+  const selection = selectCalibrationPages(input.contract, input.riskEvidence);
   const maxRerolls = resolveMaxRerolls(input.maxRerolls);
 
   const results: CalibrationPageResult[] = [];
@@ -125,4 +130,3 @@ export async function runVisualContractCalibration(input: {
   const failedPages = results.filter((r) => !r.pass).map((r) => r.pageNumber);
   return { allPass: failedPages.length === 0, results, failedPages };
 }
-

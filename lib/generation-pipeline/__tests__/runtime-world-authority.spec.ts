@@ -37,7 +37,8 @@ vi.mock('@/lib/generation-pipeline/page-visual-qa', async (importOriginal) => ({
   evaluatePageVisualQaWithReQa: evaluateQaSpy,
 }));
 
-vi.mock('@/lib/generate-image', () => ({
+vi.mock('@/lib/generate-image', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/generate-image')>()),
   generateGPTImage: generateGptSpy,
   generateReplicateImage: vi.fn(),
   resolveGPTImageEditMaxReferences: () => 16,
@@ -50,6 +51,7 @@ vi.mock('@/lib/image-storage', () => ({
 }));
 
 import { generateBookCover, generateImage } from '@/backend/providers/image';
+import { planGPTImageRequest } from '@/lib/generate-image';
 
 const FAMILY: ResolvedFamilyAppearanceProfile = {
   skinTone: 'warm brown',
@@ -98,13 +100,27 @@ function template(): BookVisualContractTemplate {
       locationId: 'loc_clinic',
       zoneId: 'zone_exam',
       sameLocationAs: null,
-      mustShow: ['round stool'],
+      mustShow: [
+        'round stool',
+        'the child smiles with relieved delight while touching the stool',
+      ],
       mustNotShow: ['castles', 'dragons'],
       characterPresence: { child: true, companion: false },
       castIds: ['child:hero'],
       propState: [{ propId: 'prop_stool', state: 'beside the child' }],
+      castStates: [{
+        castId: 'child:hero',
+        bodyState: 'relaxed shoulders and a bright relieved smile',
+      }],
+      actionRequirements: [{
+        checkId: 'action:touch_stool',
+        actorId: 'child:hero',
+        predicate: 'touches',
+        object: { kind: 'prop', id: 'prop_stool' },
+        polarity: 'must',
+      }],
       transition: { kind: 'steady' },
-      camera: 'wide eye-level composition',
+      camera: 'wide eye-level composition with child and stool sharing the foreground',
     }],
     humanCast: [],
   };
@@ -129,6 +145,13 @@ function manifest(): VisualPackageManifest {
       digestAlgorithm: 'canonical-json-sha256',
       digest: 'template-digest',
       schemaVersion: VISUAL_CONTRACT_SCHEMA_VERSION,
+    },
+    reconciliation: {
+      artifactPath: 'story-bank/fixtures/runtime_fixture.visual-contract-reconciliation.json',
+      digestAlgorithm: 'canonical-json-sha256',
+      digest: 'reconciliation-digest',
+      version: 'source-prompt-reconciliation/v1',
+      projectionVersion: 'style01-source-prompt-projection/v1',
     },
     coverage: {
       coverDigest: 'cover-digest',
@@ -170,6 +193,7 @@ function manifest(): VisualPackageManifest {
       toolVersion: VISUAL_PACKAGE_PROMOTION_VERSION,
       promotedAt: '2026-07-22T10:06:00.000Z',
       templateDestination: 'story-bank/fixtures/runtime_fixture.visual-contract-template.json',
+      reconciliationDestination: 'story-bank/fixtures/runtime_fixture.visual-contract-reconciliation.json',
       manifestDestination: 'visual-packages/approved/runtime_fixture.visual-package.json',
     },
   };
@@ -184,7 +208,7 @@ function authority(): Style01RuntimeAuthority {
   );
   const contractHash = computeVisualContractHash(contract);
   return {
-    version: 'style01-runtime-authority/v2',
+    version: 'style01-runtime-authority/v3',
     repoRoot: process.cwd(),
     qualification: {
       storyKey: approved.storyKey,
@@ -426,7 +450,14 @@ describe('R1C shared runtime world-authority boundary', () => {
     const runtimeAuthority = authority();
     await generateImage(imageInput(runtimeAuthority));
     expect(generateGptSpy).toHaveBeenCalledTimes(1);
-    const providerInput = generateGptSpy.mock.calls[0][0] as { finalPrompt: string; referenceImages: string[] };
+    const providerInput = generateGptSpy.mock.calls[0][0] as {
+      finalPrompt: string;
+      negativePrompt?: string;
+      referenceImages: string[];
+      referenceMode?: Parameters<typeof planGPTImageRequest>[0]['referenceMode'];
+      quality?: Parameters<typeof planGPTImageRequest>[0]['quality'];
+      size?: Parameters<typeof planGPTImageRequest>[0]['size'];
+    };
     expect(providerInput.finalPrompt).toContain('REALITY MODE (reviewer-owned): grounded');
     expect(providerInput.finalPrompt).toContain('Neighborhood clinic');
     expect(providerInput.finalPrompt).toContain('Exam room');
@@ -434,10 +465,28 @@ describe('R1C shared runtime world-authority boundary', () => {
     expect(providerInput.finalPrompt).not.toMatch(/MALICIOUS_|summon an extra dragon|wrong-board/);
     expect(providerInput.finalPrompt).not.toMatch(/home-night|moonlit home/i);
     expect(providerInput.finalPrompt).not.toMatch(/sky-blue t-shirt|RED sneakers/);
+    expect(providerInput.finalPrompt).toContain('relaxed shoulders and a bright relieved smile');
+    expect(providerInput.finalPrompt).toContain('Noa touches round stool');
+    expect(providerInput.finalPrompt).toContain('child and stool sharing the foreground');
     expect(providerInput.referenceImages).toContain('https://fixtures.invalid/set-clinic.png');
     expect(providerInput.referenceImages).toContain('https://fixtures.invalid/child.png');
     expect(providerInput.referenceImages).not.toContain('https://fixtures.invalid/wrong-board.png');
     expect(providerInput.referenceImages).not.toContain('https://fixtures.invalid/wrong-extra-cast.png');
+    const finalRequest = planGPTImageRequest(providerInput, {
+      defaultModel: 'gpt-image-1',
+      defaultQuality: 'low',
+      maxReferences: 16,
+    });
+    expect(finalRequest.apiMode).toBe('images.edit');
+    expect(finalRequest.finalPrompt).toContain('[STYLE 02 BOOK — REFERENCE IMAGES]');
+    expect(finalRequest.finalPrompt).toContain('[AVOID]');
+    expect(finalRequest.finalPrompt).toContain('relaxed shoulders and a bright relieved smile');
+    expect(finalRequest.finalPrompt).toContain('Noa touches round stool');
+    expect(finalRequest.finalPrompt).toContain('child and stool sharing the foreground');
+    expect(finalRequest.finalPrompt).not.toMatch(/MALICIOUS_|wrong-board|wrong-extra-cast/);
+    expect(finalRequest.bodyWithoutBinaryImage.prompt).toBe(finalRequest.finalPrompt);
+    expect(finalRequest.orderedReferenceSources).toEqual(providerInput.referenceImages);
+    expect(finalRequest.requestOptions.maxRetries).toBe(0);
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -507,6 +556,12 @@ describe('R1C shared runtime world-authority boundary', () => {
     const stale = authority();
     stale.packageBinding = { ...stale.packageBinding, sourceDigest: 'stale-source' };
     await expect(generateImage(imageInput(stale))).rejects.toBeInstanceOf(RuntimeVisualAuthorityBoundaryError);
+
+    const staleReconciliation = authority();
+    staleReconciliation.qualification.manifest!.reconciliation.digest = 'changed-reconciliation';
+    await expect(generateImage(imageInput(staleReconciliation))).rejects.toBeInstanceOf(
+      RuntimeVisualAuthorityBoundaryError,
+    );
 
     const changedWorld = authority();
     changedWorld.contract.locations[0].name = 'Changed physical world';

@@ -21,6 +21,7 @@ import {
 } from './artifacts';
 import {
   CANDIDATE_EVIDENCE_VERSION,
+  SOURCE_PROMPT_RECONCILIATION_SUFFIX,
   VISUAL_PACKAGE_MANIFEST_VERSION,
   VISUAL_PACKAGE_MANIFEST_SUFFIX,
   VISUAL_PACKAGE_PROMOTION_VERSION,
@@ -29,8 +30,12 @@ import {
   type VisualPackageManifest,
   type StorySourceIdentity,
 } from './types';
-import { storyCoverSourceFidelityIssues } from './coverSourceFidelity';
+import {
+  loadStoryAuthoredCoverAuthority,
+  storyCoverSourceFidelityIssues,
+} from './coverSourceFidelity';
 import { comparePropArtifacts, resolveRequiredPropArtifacts } from './propArtifacts';
+import { loadSourcePromptReconciliation } from './sourcePromptReconciliation';
 
 const TEMPLATE_SUFFIX = '.visual-contract-template.json';
 const REVIEW_SUFFIX = '.visual-contract-review.md';
@@ -54,6 +59,7 @@ function candidatePaths(candidateDir: string, storyKey: string) {
     template: path.join(candidateDir, `${storyKey}${TEMPLATE_SUFFIX}`),
     review: path.join(candidateDir, `${storyKey}${REVIEW_SUFFIX}`),
     provenance: path.join(candidateDir, `${storyKey}${PROVENANCE_SUFFIX}`),
+    reconciliation: path.join(candidateDir, `${storyKey}${SOURCE_PROMPT_RECONCILIATION_SUFFIX}`),
     manifest: path.join(candidateDir, `${storyKey}${VISUAL_PACKAGE_MANIFEST_SUFFIX}`),
   };
 }
@@ -168,6 +174,23 @@ export function prepareVisualPackageCandidate(
   const issues = [...loaded.issues];
   if (!loaded.template || !loaded.identity) throw new VisualPackageValidationError(issues);
   issues.push(...storyCoverSourceFidelityIssues({ storyPath: sourcePath, template: loaded.template }));
+  const coverAuthority = loadStoryAuthoredCoverAuthority({
+    storyPath: sourcePath,
+    template: loaded.template,
+  });
+  issues.push(...coverAuthority.issues);
+  const reconciliationPath = repoRelativePath(args.repoRoot, paths.reconciliation);
+  const reconciliation = loadSourcePromptReconciliation({
+    repoRoot: args.repoRoot,
+    artifactPath: reconciliationPath,
+    storyKey: args.storyKey,
+    sourceIdentity: source,
+    storyPath: source.path,
+    template: loaded.template,
+    templateDigest: loaded.identity.digest,
+    authoredCoverAuthority: coverAuthority.authority ?? undefined,
+  });
+  issues.push(...reconciliation.issues);
 
   const evidence = readCandidateEvidence({
     paths,
@@ -191,7 +214,9 @@ export function prepareVisualPackageCandidate(
     template: loaded.template,
   });
   issues.push(...propResolution.issues);
-  if (issues.length > 0) throw new VisualPackageValidationError(issues);
+  if (issues.length > 0 || !reconciliation.identity) {
+    throw new VisualPackageValidationError(issues);
+  }
 
   return {
     manifest: {
@@ -201,6 +226,7 @@ export function prepareVisualPackageCandidate(
       styleId: args.styleId,
       source,
       template: loaded.identity,
+      reconciliation: reconciliation.identity,
       coverage: buildCoverageIdentity(loaded.template),
       candidateEvidence: {
         version: CANDIDATE_EVIDENCE_VERSION,
@@ -235,6 +261,7 @@ export interface PromoteVisualPackageArgs {
 export interface VisualPackagePromotionResult {
   approvedManifest: VisualPackageManifest;
   templateDestination: string;
+  reconciliationDestination: string;
   manifestDestination: string;
   wrote: boolean;
 }
@@ -309,10 +336,37 @@ export function promoteVisualPackage(args: PromoteVisualPackageArgs): VisualPack
   }
 
   if (loaded.template) {
+    const storyPath = resolveRepoPath(args.repoRoot, manifest.source.path);
     issues.push(...storyCoverSourceFidelityIssues({
-      storyPath: resolveRepoPath(args.repoRoot, manifest.source.path),
+      storyPath,
       template: loaded.template,
     }));
+    const coverAuthority = loadStoryAuthoredCoverAuthority({
+      storyPath,
+      template: loaded.template,
+    });
+    issues.push(...coverAuthority.issues);
+    const reconciliation = loadSourcePromptReconciliation({
+      repoRoot: args.repoRoot,
+      artifactPath: manifest.reconciliation.artifactPath,
+      storyKey: manifest.storyKey,
+      sourceIdentity: manifest.source,
+      storyPath: manifest.source.path,
+      template: loaded.template,
+      templateDigest: manifest.template.digest,
+      authoredCoverAuthority: coverAuthority.authority ?? undefined,
+    });
+    issues.push(...reconciliation.issues);
+    if (
+      reconciliation.identity &&
+      canonicalJsonDigest(reconciliation.identity) !== canonicalJsonDigest(manifest.reconciliation)
+    ) {
+      issues.push(issue(
+        'reconciliation_identity_mismatch',
+        'reconciliation artifact identity changed after approval',
+        { expected: manifest.reconciliation, actual: reconciliation.identity },
+      ));
+    }
     const coverage = buildCoverageIdentity(loaded.template);
     if (canonicalJsonDigest(coverage) !== canonicalJsonDigest(manifest.coverage)) {
       issues.push(issue('coverage_identity_mismatch', 'cover/page coverage identity changed after approval', {
@@ -349,6 +403,10 @@ export function promoteVisualPackage(args: PromoteVisualPackageArgs): VisualPack
 
   const sourceDir = path.posix.dirname(manifest.source.path);
   const templateDestinationRel = path.posix.join(sourceDir, `${manifest.storyKey}${TEMPLATE_SUFFIX}`);
+  const reconciliationDestinationRel = path.posix.join(
+    sourceDir,
+    `${manifest.storyKey}${SOURCE_PROMPT_RECONCILIATION_SUFFIX}`,
+  );
   const approvedPackagesDir = args.approvedPackagesDir ?? path.join(args.repoRoot, 'visual-packages', 'approved');
   const manifestDestination = path.join(approvedPackagesDir, `${manifest.storyKey}${VISUAL_PACKAGE_MANIFEST_SUFFIX}`);
   const manifestDestinationRel = repoRelativePath(args.repoRoot, manifestDestination);
@@ -357,25 +415,36 @@ export function promoteVisualPackage(args: PromoteVisualPackageArgs): VisualPack
     ...manifest,
     state: 'approved',
     template: { ...manifest.template, artifactPath: templateDestinationRel },
+    reconciliation: {
+      ...manifest.reconciliation,
+      artifactPath: reconciliationDestinationRel,
+    },
     promotion: {
       toolVersion: VISUAL_PACKAGE_PROMOTION_VERSION,
       promotedAt,
       templateDestination: templateDestinationRel,
+      reconciliationDestination: reconciliationDestinationRel,
       manifestDestination: manifestDestinationRel,
     },
   };
 
   if (args.write === true) {
     const templateDestination = resolveRepoPath(args.repoRoot, templateDestinationRel);
+    const reconciliationDestination = resolveRepoPath(args.repoRoot, reconciliationDestinationRel);
     fs.mkdirSync(path.dirname(templateDestination), { recursive: true });
     fs.mkdirSync(path.dirname(manifestDestination), { recursive: true });
     fs.copyFileSync(resolveRepoPath(args.repoRoot, manifest.template.artifactPath), templateDestination);
+    fs.copyFileSync(
+      resolveRepoPath(args.repoRoot, manifest.reconciliation.artifactPath),
+      reconciliationDestination,
+    );
     fs.writeFileSync(manifestDestination, `${JSON.stringify(approvedManifest, null, 2)}\n`, 'utf8');
   }
 
   return {
     approvedManifest,
     templateDestination: templateDestinationRel,
+    reconciliationDestination: reconciliationDestinationRel,
     manifestDestination: manifestDestinationRel,
     wrote: args.write === true,
   };

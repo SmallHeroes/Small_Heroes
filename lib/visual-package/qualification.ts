@@ -22,8 +22,12 @@ import type {
 import { VISUAL_PACKAGE_MANIFEST_SUFFIX } from './types';
 import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler/contractTemplateTypes';
 import { runtimeWorldAuthorityIssues } from './runtimeAuthority';
-import { storyCoverSourceFidelityIssues } from './coverSourceFidelity';
+import {
+  loadStoryAuthoredCoverAuthority,
+  storyCoverSourceFidelityIssues,
+} from './coverSourceFidelity';
 import { comparePropArtifacts, resolveRequiredPropArtifacts } from './propArtifacts';
+import { loadSourcePromptReconciliation } from './sourcePromptReconciliation';
 
 export interface RenderQualificationResult {
   storyKey: string;
@@ -188,6 +192,32 @@ export function evaluateRenderQualification(args: {
       qualifiedTemplate = loaded.template;
       reasons.push(...runtimeWorldAuthorityIssues(loaded.template, manifest.review.worldMode));
       reasons.push(...storyCoverSourceFidelityIssues({ storyPath: sourcePath, template: loaded.template }));
+      const coverAuthority = loadStoryAuthoredCoverAuthority({
+        storyPath: sourcePath,
+        template: loaded.template,
+      });
+      reasons.push(...coverAuthority.issues);
+      const reconciliation = loadSourcePromptReconciliation({
+        repoRoot: args.repoRoot,
+        artifactPath: manifest.reconciliation.artifactPath,
+        storyKey: manifest.storyKey,
+        sourceIdentity: manifest.source,
+        storyPath: manifest.source.path,
+        template: loaded.template,
+        templateDigest: manifest.template.digest,
+        authoredCoverAuthority: coverAuthority.authority ?? undefined,
+      });
+      reasons.push(...reconciliation.issues);
+      if (
+        reconciliation.identity &&
+        canonicalJsonDigest(reconciliation.identity) !== canonicalJsonDigest(manifest.reconciliation)
+      ) {
+        reasons.push(issue(
+          'reconciliation_identity_mismatch',
+          'approved reconciliation identity disagrees with the artifact',
+          { expected: manifest.reconciliation, actual: reconciliation.identity },
+        ));
+      }
       const coverage = buildCoverageIdentity(loaded.template);
       if (canonicalJsonDigest(coverage) !== canonicalJsonDigest(manifest.coverage)) {
         reasons.push(issue('coverage_identity_mismatch', 'approved cover/page coverage identity is stale', {

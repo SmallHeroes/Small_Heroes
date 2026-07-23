@@ -14,6 +14,8 @@ import {
 import {
   compileBookVisualContractTemplate,
   assertCastIsFactAuthoritative,
+  buildTemplateCompileSystemPrompt,
+  buildTemplateCompileUserPrompt,
   type TemplateCompileInput,
 } from '../visual-contract-compiler/compileBookVisualContractTemplate';
 import { renderVisualContractReview } from '../visual-contract-compiler/writeVisualContractReview';
@@ -56,6 +58,17 @@ describe('text-first compiler — C1 source extractor', () => {
 });
 
 describe('text-first compiler — C2 deterministic facts (Hebrew morphology, never \\b)', () => {
+  it('shows historical directions to authoring as advisory presentation evidence, never cast/world authority', () => {
+    const src = bunnySource();
+    const facts = extractDeterministicFacts(src);
+    const system = buildTemplateCompileSystemPrompt();
+    const user = buildTemplateCompileUserPrompt(src, facts);
+    expect(system).toContain('Historical imageDirection is ADVISORY evidence only');
+    expect(system).toContain('MUST NOT select or change worldType, location, zone');
+    expect(user).toContain('HISTORICAL IMAGE DIRECTIONS');
+    expect(user).toContain(src.pageImageDirections![0].imageDirection);
+  });
+
   it('strips niqqud so vowelized aliases match bare needles', () => {
     expect(stripNiqqud('הָרוֹפֵא')).toBe('הרופא');
     expect(stripNiqqud('אִמָּא')).toBe('אמא');
@@ -76,13 +89,13 @@ describe('text-first compiler — C2 deterministic facts (Hebrew morphology, nev
     const facts = extractDeterministicFacts(bunnySource());
     const doctor = facts.humans.find((h) => h.id === 'human:doctor')!;
     // p1 "דלת הרופא" (construct) + p5 "של הרופא" (genitive) excluded; 9,10 are image-direction only.
-    expect(doctor.pagesPresent).toEqual([4, 6, 7, 9, 10, 11]);
-    expect(doctor.lowConfidencePages).toEqual([9, 10]);
+    expect(doctor.pagesPresent).toEqual([4, 6, 7, 11]);
+    expect(doctor.lowConfidencePages).toEqual([]);
   });
 
-  it('reproduces companion presence EXACTLY from the companionPresence marker', () => {
+  it('derives companion presence from story prose and ignores legacy direction markers', () => {
     const facts = extractDeterministicFacts(bunnySource());
-    expect(facts.companionAbsentPages).toEqual([1]);
+    expect(facts.companionAbsentPages).toEqual([]);
     expect(facts.companionPresentPages).toEqual([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   });
 
@@ -95,10 +108,10 @@ describe('text-first compiler — C2 deterministic facts (Hebrew morphology, nev
   it('flags mother continuity gaps (named on some pages, not others) rather than guessing', () => {
     const facts = extractDeterministicFacts(bunnySource());
     const mother = facts.humans.find((h) => h.id === 'human:mother')!;
-    expect(mother.pagesPresent).toEqual([1, 4, 9, 10, 12]);
+    expect(mother.pagesPresent).toEqual([4, 9, 10]);
     const gap = facts.deferrals.find((d) => d.field.includes('human:mother'));
     expect(gap?.pages).toContain(5);
-    expect(gap?.pages).toContain(11);
+    expect(gap?.pages).toContain(8);
   });
 });
 
@@ -113,7 +126,7 @@ describe('text-first compiler — C3 assembly (facts overlaid LAST) + fail-close
     ]);
     const doctor = template.humanCast.find((h) => h.id === 'human:doctor')!;
     expect(doctor.gender).toBe('male');
-    expect(doctor.pagesPresent).toEqual([4, 6, 7, 9, 10, 11]);
+    expect(doctor.pagesPresent).toEqual([4, 6, 7, 11]);
     // Laterality is DEFERRED → no injectionArm/bandageArm/freeHand anywhere in the candidate.
     const anyLat = template.pageContracts.some((pc) =>
       (pc.castStates ?? []).some((cs) => cs.injectionArm || cs.bandageArm || cs.freeHand),
@@ -262,10 +275,13 @@ describe('leak-class closure — a character named in prose but ABSENT per facts
     const { template, facts, notes } = await compileBookVisualContractTemplate(bunnySource(), {
       callLLM: stubFrom(bunnyTemplate()),
     });
+    const p2 = template.pageContracts.find((pc) => pc.pageNumber === 2)!;
+    const motherAlias = facts.humans.find((candidate) => candidate.role === 'mother')!.aliasesFound[0]!;
+    p2.mustShow = [...p2.mustShow, `${motherAlias} stands beside the child`];
     const review = renderVisualContractReview({ storyKey: BUNNY_KEY, facts, template, notes, valid: true });
     // The mother is absent per facts on pp.5-8,11, but the hand-authored mustShow names "the parent" there.
     expect(review).toContain('Named in prose but ABSENT');
-    expect(review).toMatch(/p5: \*\*mother\*\*[^\n]*mustShow/);
+    expect(review).toMatch(/p2: \*\*mother\*\*[^\n]*mustShow/);
     // A page where the mother IS present (p4) is NOT flagged as absent.
     expect(review).not.toMatch(/p4: \*\*mother\*\*/);
   });
@@ -326,10 +342,10 @@ describe('text-first compiler — C4 review + bunny re-derivation DIFF', () => {
     });
     // The ONLY differences are mother continuity + laterality (both correctly deferred).
     expect(review).toContain('human:mother.pagesPresent');
-    expect(review).toContain('previous had extra [5, 6, 7, 8, 11]');
+    expect(review).toContain('previous had extra [1, 5, 6, 7, 8, 11, 12]');
     expect(review).toContain('castStates laterality on pages: candidate=[—] vs previous=[9, 10, 11, 12]');
     // The doctor is NOT a difference (reproduced exactly) — no doctor pagesPresent diff line.
-    expect(review).not.toContain('human:doctor.pagesPresent: candidate');
+    expect(review).toContain('human:doctor.pagesPresent: candidate=[4, 6, 7, 11]');
     expect(review).toContain('gender **male**');
   });
 });

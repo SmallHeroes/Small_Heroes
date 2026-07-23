@@ -165,6 +165,8 @@ export function buildApprovedRuntimeAuthorityBinding(
     sourceDigest: manifest.source.digest,
     templatePath: manifest.template.artifactPath,
     templateDigest: manifest.template.digest,
+    reconciliationPath: manifest.reconciliation.artifactPath,
+    reconciliationDigest: manifest.reconciliation.digest,
     coverageDigest: canonicalJsonDigest(manifest.coverage),
     requiredBoardsDigest: canonicalJsonDigest(manifest.requiredBoards),
     requiredPropReferencesDigest: canonicalJsonDigest(manifest.requiredPropReferences),

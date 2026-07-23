@@ -38,7 +38,7 @@ describe('Fix 1 — alias-aware companion presence detection', () => {
     expect(facts.companionPresentPages).not.toContain(2); // genuinely absent
   });
 
-  it('detects the companion via a genitive / speech-subject / direction-possessive mention (a NAMED entity, not a role)', () => {
+  it('detects prose genitive/speech mentions but never lets direction-only possession select cast', () => {
     const input: DeterministicFactsInput = {
       storyKey: 'fox_test',
       pageCount: 3,
@@ -51,7 +51,7 @@ describe('Fix 1 — alias-aware companion presence detection', () => {
       pageImageDirections: [{ pageNumber: 3, imageDirection: "Uri's neck-lantern lights the next patch." }], // …but the direction possessive does
     };
     const facts = extractDeterministicFacts(input);
-    expect(facts.companionPresentPages).toEqual([1, 2, 3]);
+    expect(facts.companionPresentPages).toEqual([1, 2]);
   });
 
   it('hasCleanEnglishMention: a clean mention is detected even alongside a possessive of the same alias', () => {
@@ -59,7 +59,7 @@ describe('Fix 1 — alias-aware companion presence detection', () => {
     expect(hasCleanEnglishMention('only the doctor’s closed door is visible', ['doctor'])).toBe(false); // possessive only
   });
 
-  it('the explicit "companionPresence: absent" directive OVERRIDES an alias match', () => {
+  it('ignores a legacy companionPresence directive when source prose authoritatively names the companion', () => {
     const input: DeterministicFactsInput = {
       storyKey: 'fox_test',
       pageCount: 1,
@@ -68,8 +68,8 @@ describe('Fix 1 — alias-aware companion presence detection', () => {
       pageImageDirections: [{ pageNumber: 1, imageDirection: 'companionPresence: absent.' }], // …but the directive wins
     };
     const facts = extractDeterministicFacts(input);
-    expect(facts.companionPresentPages).not.toContain(1);
-    expect(facts.companionAbsentPages).toContain(1);
+    expect(facts.companionPresentPages).toContain(1);
+    expect(facts.companionAbsentPages).not.toContain(1);
   });
 });
 

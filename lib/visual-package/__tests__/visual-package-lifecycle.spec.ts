@@ -21,6 +21,7 @@ import {
   setIdentityBoardRegistryPath,
 } from '@/lib/set-identity-board';
 import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler/contractTemplateTypes';
+import { parseStorySourceContent } from '@/lib/visual-contract-compiler/storySourceContent';
 import {
   applyAuthoredCoverAuthority,
   authoredCoverAuthorityFromLocationBible,
@@ -28,6 +29,7 @@ import {
 import {
   requireStyle01RenderQualification,
   RenderQualificationPreflightError,
+  runWithStyle01RenderQualification,
 } from '@/lib/generation-pipeline/render-qualification-preflight';
 import type { PipelineCache } from '@/lib/generation-pipeline/types';
 import { auditMvpRenderQualification } from '@/lib/visual-package/audit';
@@ -40,9 +42,14 @@ import {
 } from '@/lib/visual-package/promotion';
 import { evaluateRenderQualification } from '@/lib/visual-package/qualification';
 import { bindApprovedRuntimeAuthority } from '@/lib/visual-package/runtimeAuthority';
+import {
+  buildSourcePromptReconciliationDraft,
+  type SourcePromptReconciliation,
+} from '@/lib/visual-package/sourcePromptReconciliation';
 import { evaluateRenderQualificationReleaseGate } from '@/lib/visual-package/releaseGate';
 import {
   CANDIDATE_EVIDENCE_VERSION,
+  SOURCE_PROMPT_RECONCILIATION_SUFFIX,
   VisualPackageValidationError,
   type VisualPackageIssueCode,
   type VisualPackageManifest,
@@ -54,6 +61,7 @@ const STORY_REL = `story-bank/v3-approved/${STORY_KEY}.md`;
 const TEMPLATE_NAME = `${STORY_KEY}.visual-contract-template.json`;
 const REVIEW_NAME = `${STORY_KEY}.visual-contract-review.md`;
 const PROVENANCE_NAME = `${STORY_KEY}.visual-contract-provenance.json`;
+const RECONCILIATION_NAME = `${STORY_KEY}${SOURCE_PROMPT_RECONCILIATION_SUFFIX}`;
 
 interface Fixture {
   root: string;
@@ -63,6 +71,7 @@ interface Fixture {
   templatePath: string;
   reviewPath: string;
   provenancePath: string;
+  reconciliationPath: string;
 }
 
 function writeJson(filePath: string, value: unknown): void {
@@ -81,6 +90,7 @@ function makeFixture(): Fixture {
   const templatePath = path.join(candidateDir, TEMPLATE_NAME);
   const reviewPath = path.join(candidateDir, REVIEW_NAME);
   const provenancePath = path.join(candidateDir, PROVENANCE_NAME);
+  const reconciliationPath = path.join(candidateDir, RECONCILIATION_NAME);
   fs.mkdirSync(path.dirname(storyPath), { recursive: true });
   fs.mkdirSync(candidateDir, { recursive: true });
   fs.copyFileSync(path.join(REPO, STORY_REL), storyPath);
@@ -176,6 +186,51 @@ function makeFixture(): Fixture {
 
   const source = buildStorySourceIdentity({ repoRoot: root, storyPath });
   const template = readJson<unknown>(templatePath);
+  const sourceContent = parseStorySourceContent(fs.readFileSync(storyPath, 'utf8'));
+  const reconciliation = buildSourcePromptReconciliationDraft(
+    {
+      storyKey: STORY_KEY,
+      sourceIdentity: source,
+      pages: sourceContent.pages,
+      pageImageDirections: sourceContent.pageImageDirections,
+      authoredCoverAuthority: authority,
+    },
+    runtimeTemplate,
+  );
+  for (const frame of reconciliation.frames) {
+    const pageIndex = runtimeTemplate.pageContracts.findIndex(
+      (candidate) => candidate.pageNumber === frame.pageNumber,
+    );
+    for (const requirement of frame.sourceRequirements) {
+      const pointer = frame.frameKind === 'cover'
+        ? '/coverContract'
+        : requirement.sourceKind === 'historical_image_direction'
+          ? `/pageContracts/${pageIndex}/camera`
+          : `/pageContracts/${pageIndex}`;
+      const value = frame.frameKind === 'cover'
+        ? runtimeTemplate.coverContract
+        : requirement.sourceKind === 'historical_image_direction'
+          ? runtimeTemplate.pageContracts[pageIndex].camera
+          : runtimeTemplate.pageContracts[pageIndex];
+      requirement.visualBeats = [{
+        id: `${requirement.sourceKind}:${frame.pageNumber}`,
+        description: `reviewed ${requirement.sourceKind} evidence`,
+        aspects: requirement.sourceKind === 'historical_image_direction'
+          ? ['camera']
+          : ['narrative_meaning'],
+        disposition: 'preserved',
+        contractEvidence: [{ path: pointer, value }],
+        justification: null,
+        supersessionReview: null,
+      }];
+    }
+  }
+  reconciliation.review = {
+    status: 'approved',
+    reviewedBy: 'fixture reviewer',
+    reviewedAt: '2026-07-22T11:55:00.000Z',
+  };
+  writeJson(reconciliationPath, reconciliation);
   const binding: CandidateEvidenceBinding = {
     version: CANDIDATE_EVIDENCE_VERSION,
     storyKey: STORY_KEY,
@@ -219,6 +274,7 @@ function makeFixture(): Fixture {
     templatePath,
     reviewPath,
     provenancePath,
+    reconciliationPath,
   };
 }
 
@@ -257,7 +313,7 @@ describe('visual-package candidate -> review -> Guy approval -> promotion', () =
     return result;
   }
 
-  it('promotes a complete approved fixture only on explicit write, then qualifies it offline', () => {
+  it('promotes a complete approved fixture only on explicit write, then qualifies it offline', async () => {
     const f = fixture();
     const dryRun = promoteVisualPackage({
       repoRoot: f.root,
@@ -352,6 +408,7 @@ describe('visual-package candidate -> review -> Guy approval -> promotion', () =
     })).toThrow(RenderQualificationPreflightError);
 
     const boardId = qualification.manifest!.requiredBoards[0].setIdentityId;
+    const approvedBoardSha = runtimeCache.setIdentityBoards.bindings[boardId].assetSha256;
     runtimeCache.setIdentityBoards.bindings[boardId].assetSha256 = 'swapped-board-bytes';
     expect(() => requireStyle01RenderQualification({
       illustrationStyle: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
@@ -359,6 +416,18 @@ describe('visual-package candidate -> review -> Guy approval -> promotion', () =
       cache: runtimeCache,
       repoRoot: f.root,
     })).toThrow(RenderQualificationPreflightError);
+    runtimeCache.setIdentityBoards.bindings[boardId].assetSha256 = approvedBoardSha;
+
+    fs.appendFileSync(f.storyPath, '\n<!-- plot changed after approval -->\n', 'utf8');
+    const provider = vi.fn(async () => 'paid-image');
+    await expect(runWithStyle01RenderQualification({
+      illustrationStyle: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+      frozenContractHash,
+      cache: runtimeCache,
+      repoRoot: f.root,
+      pageNumbers: [1],
+    }, provider)).rejects.toBeInstanceOf(RenderQualificationPreflightError);
+    expect(provider).not.toHaveBeenCalled();
   });
 
   it('qualification rejects changed prop-reference bytes without online storage access', () => {
@@ -439,6 +508,33 @@ describe('visual-package candidate -> review -> Guy approval -> promotion', () =
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it('fails closed on the formerly current v2 package because it has no reconciliation authority', () => {
+    const f = fixture();
+    const promoted = promoteVisualPackage({
+      repoRoot: f.root,
+      approvalManifestPath: f.manifestPath,
+      write: true,
+    });
+    const approvedPath = path.join(f.root, promoted.manifestDestination);
+    const legacy = readJson<Record<string, any>>(approvedPath);
+    legacy.manifestVersion = 'visual-package/v2';
+    delete legacy.reconciliation;
+    if (legacy.promotion) {
+      legacy.promotion.toolVersion = 'visual-package-promotion/v2';
+      delete legacy.promotion.reconciliationDestination;
+    }
+    writeJson(approvedPath, legacy);
+    const qualification = evaluateRenderQualification({
+      repoRoot: f.root,
+      storyKey: STORY_KEY,
+      storyPath: f.storyPath,
+      styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+    });
+    expect(qualification.renderQualified).toBe(false);
+    expect(qualification.reasons.map((reason) => reason.code)).toContain('manifest_invalid');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('rejects missing exact approval', () => {
     const f = fixture();
     const manifest = readJson<VisualPackageManifest>(f.manifestPath);
@@ -483,6 +579,24 @@ describe('visual-package candidate -> review -> Guy approval -> promotion', () =
     template.worldType = `${String(template.worldType)} changed`;
     writeJson(f.templatePath, template);
     expectPromotionCode(f, 'template_digest_mismatch');
+  });
+
+  it('rejects a missing, incomplete, or digest-tampered source-prompt reconciliation', () => {
+    const missing = fixture();
+    fs.unlinkSync(missing.reconciliationPath);
+    expectPromotionCode(missing, 'reconciliation_missing');
+
+    const incomplete = fixture();
+    const incompleteArtifact = readJson<SourcePromptReconciliation>(incomplete.reconciliationPath);
+    incompleteArtifact.frames[1].sourceRequirements[0].visualBeats = [];
+    writeJson(incomplete.reconciliationPath, incompleteArtifact);
+    expectPromotionCode(incomplete, 'reconciliation_incomplete');
+
+    const tampered = fixture();
+    const tamperedArtifact = readJson<SourcePromptReconciliation>(tampered.reconciliationPath);
+    tamperedArtifact.frames[1].sourceRequirements[0].visualBeats[0].description += ' changed';
+    writeJson(tampered.reconciliationPath, tamperedArtifact);
+    expectPromotionCode(tampered, 'reconciliation_identity_mismatch');
   });
 
   it('rejects a structurally valid candidate whose cover location contradicts authored page 0', () => {

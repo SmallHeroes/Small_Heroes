@@ -57,7 +57,7 @@ export interface RenderQualificationPreflightArgs {
 }
 
 export interface Style01RuntimeAuthority {
-  version: 'style01-runtime-authority/v2';
+  version: 'style01-runtime-authority/v3';
   repoRoot: string;
   qualification: RenderQualificationResult;
   contract: ResolvedBookVisualContract;
@@ -200,7 +200,7 @@ function requireFrozenAuthority(
     throw new RenderQualificationPreflightError(rejectedQualification(qualification, reasons));
   }
   return {
-    version: 'style01-runtime-authority/v2',
+    version: 'style01-runtime-authority/v3',
     repoRoot,
     qualification,
     contract,

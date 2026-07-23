@@ -77,7 +77,7 @@ export function assertStyle01RuntimeAuthorityForPage(args: {
   if (normalizeStyleId(args.illustrationStyle) !== STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK) return null;
 
   const authority = args.authority;
-  if (!authority || authority.version !== 'style01-runtime-authority/v2') {
+  if (!authority || authority.version !== 'style01-runtime-authority/v3') {
     throw new RuntimeVisualAuthorityBoundaryError(
       'runtime_authority_missing',
       'enforced Style01 provider call has no preflight-issued authority context',

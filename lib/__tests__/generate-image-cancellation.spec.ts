@@ -20,7 +20,7 @@ vi.mock('@/lib/child-photo-normalize', () => ({
   })),
 }));
 
-import { generateGPTImage } from '@/lib/generate-image';
+import { generateGPTImage, planGPTImageRequest } from '@/lib/generate-image';
 
 const OK_RESPONSE = { data: [{ b64_json: Buffer.from('fake-png-bytes').toString('base64') }] };
 
@@ -29,6 +29,7 @@ describe('generateGPTImage (3a) — real cancellation + no hidden SDK retries', 
     generateSpy.mockReset();
     editSpy.mockReset();
     process.env.OPENAI_API_KEY = 'test-key';
+    delete process.env.GPT_IMAGE_EDIT_MAX_REFERENCES;
   });
 
   it('images.generate forwards maxRetries:0 + signal + explicit timeout in RequestOptions', async () => {
@@ -65,6 +66,62 @@ describe('generateGPTImage (3a) — real cancellation + no hidden SDK retries', 
     expect(opts.maxRetries).toBe(0);
     expect(opts.timeout).toBe(654321);
     expect(opts.signal).toBe(controller.signal);
+  });
+
+  it('uses the production planner for the exact final edit body, prompt additions, and ordered reference cap', async () => {
+    const plan = planGPTImageRequest({
+      finalPrompt: 'child shares a reassuring smile while touching the stool',
+      negativePrompt: 'castle, dragon',
+      referenceImages: ['first.png', 'second.png', 'third.png'],
+      referenceMode: 'style',
+      quality: 'medium',
+      size: '1536x1536',
+      modelOverride: 'gpt-image-fixture',
+    }, {
+      defaultModel: 'gpt-image-1',
+      defaultQuality: 'low',
+      maxReferences: 2,
+    });
+    expect(plan).toMatchObject({
+      version: 'gpt-image-request-plan/v1',
+      apiMode: 'images.edit',
+      model: 'gpt-image-fixture',
+      quality: 'medium',
+      size: '1536x1536',
+      referenceCountRequested: 3,
+      referenceCountPassed: 2,
+      referenceCountCap: 2,
+      orderedReferenceSources: ['first.png', 'second.png'],
+    });
+    expect(plan.finalPrompt).toContain('[STYLE REFERENCES');
+    expect(plan.finalPrompt).toContain('[AVOID]\ncastle, dragon');
+    expect(plan.finalPrompt).toContain('No text or letters in the image.');
+    expect(plan.bodyWithoutBinaryImage.prompt).toBe(plan.finalPrompt);
+
+    editSpy.mockResolvedValue(OK_RESPONSE);
+    process.env.GPT_IMAGE_EDIT_MAX_REFERENCES = '2';
+    await generateGPTImage({
+      finalPrompt: 'child shares a reassuring smile while touching the stool',
+      negativePrompt: 'castle, dragon',
+      referenceImages: ['package.json', 'package-lock.json', 'tsconfig.json'],
+      referenceMode: 'style',
+      quality: 'medium',
+      size: '1536x1536',
+      modelOverride: 'gpt-image-fixture',
+    });
+    expect(editSpy).toHaveBeenCalledTimes(1);
+    const body = editSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(body).toMatchObject({
+      model: 'gpt-image-fixture',
+      prompt: expect.stringContaining('[AVOID]\ncastle, dragon'),
+      size: '1536x1536',
+      quality: 'medium',
+      n: 1,
+    });
+    expect(String(body.prompt)).toContain('[STYLE REFERENCES');
+    expect(Array.isArray(body.image)).toBe(true);
+    expect((body.image as unknown[])).toHaveLength(2);
+    delete process.env.GPT_IMAGE_EDIT_MAX_REFERENCES;
   });
 
   it('maxRetries:0 is set even when the caller passes no signal/timeout', async () => {

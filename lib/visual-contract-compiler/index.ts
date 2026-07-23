@@ -83,6 +83,9 @@ export {
 export {
   selectCalibrationPages,
   type CalibrationSelection,
+  type CalibrationRisk,
+  type CalibrationRiskAssignment,
+  type CalibrationRiskEvidence,
 } from './selectCalibrationPages';
 export {
   runVisualContractCalibration,

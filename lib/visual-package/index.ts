@@ -1,6 +1,7 @@
 export * from './types';
 export * from './integrity';
 export * from './candidateEvidence';
+export * from './sourcePromptReconciliation';
 export * from './artifacts';
 export * from './propArtifacts';
 export * from './promotion';
