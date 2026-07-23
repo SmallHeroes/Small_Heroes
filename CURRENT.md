@@ -2,7 +2,44 @@
 
 **Updated:** 2026-07-23
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-fox-package-prep-rerun` in `C:\Users\guyna\.codex\worktrees\df0a\Small_Heroes`, based exactly on accepted R1D-FIX head `371e470decc249c668b76abf7fba91489eae3fbc`; accepted R1D-FIX remains read-only at `C:\Users\guyna\.codex\worktrees\04d2\Small_Heroes`, original stopped R1D-PREP remains read-only at `C:\Users\guyna\.codex\worktrees\887d\Small_Heroes`, frozen R1C/R1B/R1A remain read-only in their existing worktrees, and canonical main plus the dirty legacy feature worktree remain untouched.
+**Working branch:** `codex/r1d-board-spoiler-safe-authority` in `C:\Users\guyna\.codex\worktrees\3f43\Small_Heroes`, based exactly on approved R1D-PREP-RERUN head `f5a248a0887cfc6e841a4a5040d2447eafee9fcc`; implementation commit `94678097568f2e874792f93539ed171859a3f41d`. The prior R1D-PREP-RERUN worktree at `C:\Users\guyna\.codex\worktrees\df0a\Small_Heroes` is read-only evidence. Canonical main and every other worktree/branch remain untouched.
+
+## R1D Board Spoiler-Safe Authority - implemented locally; independent QA pending
+
+Guy approved the Decision Gate and all four product/architecture decisions for this zero-cost code milestone. The implementation is committed locally at `94678097568f2e874792f93539ed171859a3f41d` (`feat: add spoiler-safe board and prop authority`), with immutable implementation range `f5a248a0887cfc6e841a4a5040d2447eafee9fcc..94678097568f2e874792f93539ed171859a3f41d`. This is not independent technical PASS, product acceptance, board approval, visual-package approval/promotion, render qualification, or render authorization.
+
+### Verified root cause and implemented general authority
+
+- The prior `set-board/v1` projection included all authored prop-bound geometry and asked for one continuous full-set view. Registry/runtime selection was set/location-only, and board QA did not establish page spoiler compatibility or exact prop count/placement. The historical Fox board therefore visibly exposed and duplicated the reveal-gated bucket before page 5.
+- Set Board authority is now explicitly `set-board/v2` / `set-registry/v2`, with a canonical `set-board-content/v1` policy digest. A reusable board contains only stable materials, lighting, environment, and structured spoiler-neutral geometry. Lifecycle-gated/transient props, prop-bound nodes, dependent relations/fixed facts, page effects/actions, and free-form topology prose are deterministically excluded.
+- Board prompts use local neutral area aliases rather than story-authored zone IDs, carry explicit negative excluded-prop authority, and define one physical instance per included recurring prop. Board QA now checks excluded content plus exact count and placement. The historical v1 Fox artifact and its asset SHA-256 `30392c033bba385738ba7399efa78135f869d2b222b3e86ff7a42f8ed0c75083` are unchanged evidence and fail closed for v2 authority.
+- The strict authoring schema/compiler now carries `RecurringProp.firstRevealPage` and structured page `propConstraints`. Shared lifecycle functions resolve required/forbidden prop IDs for cover/page contracts. Validation rejects a required prop before its reveal and requires complete explicit pre-reveal page prohibitions; compiler-owned cover prohibitions include every lifecycle-gated prop. Runtime also removes structurally forbidden `propState` from visible recurring-object projection.
+- Visual package authority is now `visual-package/v2` / `visual-package-promotion/v2` / `runtime-visual-authority/v2`. Exact v2 board content-policy identities and approved prop-reference catalog/artifact identities flow through candidate preparation, promotion, qualification, frozen authority, and runtime checks. Legacy v1 manifests and boards fail closed as structured validation failures.
+- A general page-conditioned reference resolver selects the base set board and only catalogued prop artifacts explicitly required by that exact page. It rehashes local prop bytes, binds artifact/catalog approval identity, validates every set/prop reference's declared visible prop content against the page/cover contract, and blocks forbidden or undeclared content before a render callback can run.
+- The same preflight authority is wired into cover, page batch/resume, and single-page regeneration. The provider boundary independently re-resolves the exact references for direct, retry, QA rerender, and regeneration paths. Required prop/set references have explicit roles and priority; only optional style references may be evicted by the budget.
+- Legacy isolated-object heuristics no longer choose enforced-path prop authority from story key, page number, object name, or persistence prose. The old structured opt-in remains only for the legacy enforcement-off zone-sheet path.
+
+### Fox data migration and observable result
+
+- `prop_tin_bucket.firstRevealPage` is structured as page 5 through the normal Fox visual-contract template. Pages 1-4 explicitly forbid it and page 5 explicitly requires it; the cover has lifecycle-derived bucket/drip prohibitions. Stable set prose that previously leaked bucket/drip content into the board projection was neutralized.
+- `story-bank/v3-approved/fox_uri_adventure.prop-references.json` binds the already Guy-approved isolated asset `story-bank/v3-approved/fox_uri_adventure.zone-sheets/balcony_drip_area/bucket-object.png`, SHA-256 `60ee317551759e42e08dba592b52d206ec4ed22e47d85a43789acfd977b869bc`. No new asset was generated, copied, uploaded, or approved.
+- Cover and pages 1-4 resolve the same spoiler-neutral base board and no bucket reference. Page 5 resolves that same board plus exactly one approved bucket reference. Generic synthetic coverage proves projection/filter/reference/preflight behavior; the Fox case is the data migration exercising the general mechanism.
+- The prior R1D-PREP-RERUN candidate remains HOLD and was not patched, promoted, qualified, or used as runtime authority. A future candidate must be regenerated pure under the new v2 identities and remains separately gated.
+
+### Validation, known baseline, and limits
+
+- Final focused compiler/Fox/set-board/package/preflight/runtime suite: **PASS - 18 files / 359 tests**.
+- `npx --no-install tsc --noEmit`: **PASS** after final changes.
+- Literal `npm run check` reached TypeScript **PASS** and Vitest's established assertion baseline: **248 files total; 227 passed, 16 skipped, 5 failed; 2,351 tests passed, 65 skipped, 6 failed**. Those six failures are exactly the previously documented missing ignored-output fixtures in `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and two cases in `story-read-back-validation.spec.ts`. No ignored output fixture was imported or copied.
+- A later literal rerun again displayed only those six fixture failures and passed the release-check CLI, then the Windows/Node Vitest worker ended with `ERR_IPC_CHANNEL_CLOSED` before printing its aggregate summary. `release-check-cli.spec.ts` passed in isolation (**1 file / 2 tests**). The earlier complete-summary run above is the precise assertion baseline; the final 18-file load-bearing suite covers the later code changes.
+- `git diff --check`, staged diff check, story-specific-literal scan, runtime legacy-version scan, and the exact bucket asset SHA check passed.
+- This worktree uses an ignored local copy of the existing canonical dependency tree because it was provisioned without `node_modules`; no dependency installation or network access occurred.
+- Zero image/audio render, provider/live LLM/product API call, storage/database read-mutation or write, storage URL resolution/upload, migration, deployment, flag change, package/board promotion or approval, threshold change, or push occurred. The protected resemblance threshold remains `0.70`.
+- No v2 Fox board has been minted or rendered. The historical v1 board cannot satisfy v2 authority. Stories without reveal-gated props preserve lifecycle behavior, but every legacy v1 board/package intentionally requires the explicit safe v2 migration path: offline projection, separately authorized board render and human QA, then separately gated v2 candidate preparation/promotion.
+
+### Next gate
+
+Claude Code must perform the first independent read-only adversarial review against the immutable branch/range above and try to falsify the projection, lifecycle, reference compatibility, caller coverage, budget, offline-qualification, and migration claims. Codex must validate and fix any valid findings in a separate milestone and return for re-gate. Guy then owns product acceptance. Any v2 board render, candidate regeneration, package approval/promotion, or paid/external boundary remains separately gated.
 
 ## R1D-PREP-RERUN Fox visual-package candidate - prepared, unapproved, and unpromoted
 
