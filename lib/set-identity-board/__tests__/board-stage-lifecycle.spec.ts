@@ -388,7 +388,7 @@ describe('P0-2 — styleId is NORMALIZED once, and bind + assert agree by constr
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('ensureSetIdentityBoardSnapshot — the ONE activation point', () => {
-  it('writes a required-v1 snapshot pinned to the frozen contract, atomically and content-addressed', async () => {
+  it('writes a required-v2 snapshot pinned to the frozen contract, atomically and content-addressed', async () => {
     enableFlag();
     const barrier = makeBarrier();
     const cache = await ensureSetIdentityBoardSnapshot(makeOrder(), makeCache(), {
@@ -396,7 +396,7 @@ describe('ensureSetIdentityBoardSnapshot — the ONE activation point', () => {
       withMutation: barrier.withMutation,
     });
     expect(cache.setIdentityBoards).toEqual({
-      mode: 'required-v1',
+      mode: 'required-v2',
       frozenContractHash: frozenHash(),
       bindings: {},
     });
@@ -562,7 +562,7 @@ describe('runSetIdentityBoardBindStage — fresh / retry / crash-after-bind all 
   it('THROWS rather than bind when the snapshot is pinned to a different frozen contract', async () => {
     enableFlag();
     const cache = makeCache({
-      setIdentityBoards: { mode: 'required-v1', frozenContractHash: 'a-stale-hash', bindings: {} },
+      setIdentityBoards: { mode: 'required-v2', frozenContractHash: 'a-stale-hash', bindings: {} },
     });
     await expect(
       runSetIdentityBoardBindStage(makeOrder(), cache, {
@@ -577,7 +577,7 @@ describe('runSetIdentityBoardBindStage — fresh / retry / crash-after-bind all 
     enableFlag();
     const cache = makeCache({
       visualContract: undefined,
-      setIdentityBoards: { mode: 'required-v1', frozenContractHash: frozenHash(), bindings: {} },
+      setIdentityBoards: { mode: 'required-v2', frozenContractHash: frozenHash(), bindings: {} },
     });
     await expect(
       runSetIdentityBoardBindStage(makeOrder(), cache, {

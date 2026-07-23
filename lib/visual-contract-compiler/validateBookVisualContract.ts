@@ -846,6 +846,25 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
             `recurringProp "${propId}" firstRevealPage ${reveal} is beyond the book's last page (${maxPage}) — the lifecycle must reference a page that exists`
           );
         }
+        for (let pageNumber = 1; pageNumber < reveal; pageNumber += 1) {
+          const page = pages.find(
+            (candidate) => isObj(candidate) && candidate.pageNumber === pageNumber,
+          );
+          const hasExplicitProhibition =
+            isObj(page) &&
+            Array.isArray(page.propConstraints) &&
+            page.propConstraints.some(
+              (constraint) =>
+                isObj(constraint) &&
+                constraint.propId === propId &&
+                constraint.visibility === 'forbidden',
+            );
+          if (!hasExplicitProhibition) {
+            errors.push(
+              `page ${pageNumber}.propConstraints must explicitly FORBID prop "${propId}" before its firstRevealPage (${reveal}) — pre-reveal authority must be complete`
+            );
+          }
+        }
       }
       pages.forEach((p) => {
         if (!isObj(p) || typeof p.pageNumber !== 'number' || !Array.isArray(p.propConstraints)) return;

@@ -23,6 +23,8 @@ const EXPECTED: ExpectedRegistryIdentity = {
   setIdentityId: 'set_alpha',
   styleId: 'detailed_whimsical_world',
   setDefinitionHash: 'a'.repeat(64),
+  contentPolicyDigest: 'd'.repeat(64),
+  declaredPropIds: [],
 };
 
 /** A fully-correct, human-approved, QA-passed entry. */
@@ -34,6 +36,8 @@ function approvedEntry(): SetIdentityBoardRegistryEntry {
     setIdentityId: 'set_alpha',
     styleId: 'detailed_whimsical_world',
     setDefinitionHash: 'a'.repeat(64),
+    contentPolicyDigest: 'd'.repeat(64),
+    declaredPropIds: [],
     storageKey: 'boards/set_alpha/board.png',
     assetSha256: 'b'.repeat(64),
     promptHash: 'c'.repeat(64),
@@ -77,10 +81,12 @@ describe('validateSetIdentityBoardRegistryEntry — fail-closed', () => {
     if (!result.ok) expect(result.errors.join(' ')).toMatch(/approvedBy|approvedAt/);
   });
 
-  it('REJECTS a stale boardVersion', () => {
+  it('REJECTS a historical set-board/v1 entry under v2 content authority', () => {
     const e = approvedEntry();
-    e.boardVersion = 'set-board/v0';
-    expect(validateSetIdentityBoardRegistryEntry(e, EXPECTED).ok).toBe(false);
+    e.boardVersion = 'set-board/v1';
+    const result = validateSetIdentityBoardRegistryEntry(e, EXPECTED);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors.join(' ')).toContain('boardVersion mismatch');
   });
 
   it('REJECTS a stale registryVersion', () => {

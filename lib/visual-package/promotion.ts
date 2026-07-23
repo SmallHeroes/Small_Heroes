@@ -30,6 +30,7 @@ import {
   type StorySourceIdentity,
 } from './types';
 import { storyCoverSourceFidelityIssues } from './coverSourceFidelity';
+import { comparePropArtifacts, resolveRequiredPropArtifacts } from './propArtifacts';
 
 const TEMPLATE_SUFFIX = '.visual-contract-template.json';
 const REVIEW_SUFFIX = '.visual-contract-review.md';
@@ -182,6 +183,14 @@ export function prepareVisualPackageCandidate(
     styleId: args.styleId,
   });
   issues.push(...boardResolution.issues);
+  const propResolution = resolveRequiredPropArtifacts({
+    repoRoot: args.repoRoot,
+    storyKey: args.storyKey,
+    storySourcePath: source.path,
+    styleId: args.styleId,
+    template: loaded.template,
+  });
+  issues.push(...propResolution.issues);
   if (issues.length > 0) throw new VisualPackageValidationError(issues);
 
   return {
@@ -207,6 +216,7 @@ export function prepareVisualPackageCandidate(
       },
       approval: null,
       requiredBoards: boardResolution.boards,
+      requiredPropReferences: propResolution.artifacts,
       promotion: null,
     },
     manifestPath: paths.manifest,
@@ -317,7 +327,22 @@ export function promoteVisualPackage(args: PromoteVisualPackageArgs): VisualPack
       styleId: manifest.styleId,
     });
     issues.push(...boards.issues);
-    issues.push(...compareBoardArtifacts(manifest.requiredBoards, boards.boards));
+    issues.push(...compareBoardArtifacts(
+      Array.isArray(manifest.requiredBoards) ? manifest.requiredBoards : [],
+      boards.boards,
+    ));
+    const propArtifacts = resolveRequiredPropArtifacts({
+      repoRoot: args.repoRoot,
+      storyKey: manifest.storyKey,
+      storySourcePath: manifest.source.path,
+      styleId: manifest.styleId,
+      template: loaded.template,
+    });
+    issues.push(...propArtifacts.issues);
+    issues.push(...comparePropArtifacts(
+      Array.isArray(manifest.requiredPropReferences) ? manifest.requiredPropReferences : [],
+      propArtifacts.artifacts,
+    ));
   }
 
   if (issues.length > 0) throw new VisualPackageValidationError(issues);

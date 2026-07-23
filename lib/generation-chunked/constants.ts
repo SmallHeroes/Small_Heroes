@@ -85,7 +85,7 @@ export const CHUNK_STAGES = [
   'text',
   'dna',
   // (Set Identity Board, Milestone C) Look up + verify + BIND the already-approved set boards for this order,
-  // between the contract freeze and the first paid image. Entered ONLY by an order that carries a `required-v1`
+  // between the contract freeze and the first paid image. Entered ONLY by an order that carries a `required-v2`
   // `pipelineCache.setIdentityBoards` snapshot — which only exists when SET_IDENTITY_BOARD is on (hard-off on
   // prod). Every other order goes dna → cover exactly as before. `GenerationJob.currentStage` is a plain String
   // column, so this needs no migration.

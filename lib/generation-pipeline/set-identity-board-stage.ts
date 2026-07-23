@@ -14,7 +14,7 @@
  *   - `ensureSetIdentityBoardSnapshot` is the ONLY writer of `cache.setIdentityBoards`. With both the board flag and
  *     non-production Style01 enforcement off, no snapshot is written. R1C enforcement intentionally implies board
  *     activation so an enforced request cannot qualify and then render board-less.
- *   - Every OTHER function here gates on the SNAPSHOT being `required-v1`, not on the flag. With no snapshot they
+ *   - Every OTHER function here gates on the SNAPSHOT being `required-v2`, not on the flag. With no snapshot they
  *     return `cache` / `undefined` / do nothing, before reading the contract, before any DB call, before any I/O.
  *   - Therefore, enforcement off + board flag off means zero extra DB reads, writes, or prompt bytes. Production
  *     remains identical because both gates are hard-off there.
@@ -147,7 +147,7 @@ async function persistBoardContext(
 }
 
 /**
- * ACTIVATE: write the `required-v1` snapshot for a freshly frozen contract. The ONE place an order joins the board
+ * ACTIVATE: write the `required-v2` snapshot for a freshly frozen contract. The ONE place an order joins the board
  * path — and it can only happen at the fresh dna→cover transition, before any paid image exists.
  *
  * No-op (returns `cache` untouched) when:
@@ -182,7 +182,7 @@ export async function ensureSetIdentityBoardSnapshot(
   if (!active) return cache; // no frozen contract → never board-activated
 
   const existing = cache.setIdentityBoards;
-  if (existing?.mode === 'required-v1' && existing.frozenContractHash === active.hash) return cache;
+  if (existing?.mode === 'required-v2' && existing.frozenContractHash === active.hash) return cache;
 
   const db = deps.db ?? (await import('@/lib/prisma')).prisma;
   if (await hasRenderedPaidImage(db, order.id)) return cache; // HALF-LEGACY FENCE
@@ -209,12 +209,12 @@ export async function runSetIdentityBoardBindStage(
   deps: SetIdentityBoardStageDeps = {}
 ): Promise<PipelineCache> {
   const snapshot = cache.setIdentityBoards;
-  if (snapshot?.mode !== 'required-v1') return cache; // LEGACY → straight through to cover.
+  if (snapshot?.mode !== 'required-v2') return cache; // LEGACY → straight through to cover.
 
   const active = activeFrozenContract(cache);
   if (!active) {
     throw new SetIdentityBoardUnavailableError('*', [
-      'the order carries a required-v1 board snapshot but no readable frozen visual contract',
+      'the order carries a required-v2 board snapshot but no readable frozen visual contract',
     ]);
   }
   if (snapshot.frozenContractHash !== active.hash) {
@@ -257,12 +257,12 @@ export async function requireSetIdentityBoardsBoundForRender(
   deps: SetIdentityBoardStageDeps = {}
 ): Promise<void> {
   const snapshot = cache.setIdentityBoards;
-  if (snapshot?.mode !== 'required-v1') return; // LEGACY → no-op, no I/O, no deps → byte-identical.
+  if (snapshot?.mode !== 'required-v2') return; // LEGACY → no-op, no I/O, no deps → byte-identical.
 
   const active = activeFrozenContract(cache);
   if (!active) {
     throw new SetIdentityBoardUnavailableError('*', [
-      'the order carries a required-v1 board snapshot but no readable frozen visual contract',
+      'the order carries a required-v2 board snapshot but no readable frozen visual contract',
     ]);
   }
   await assertBoardsBoundForRender(
@@ -290,7 +290,7 @@ export async function requireSetIdentityBoardsBoundForRender(
  * snapshot) then throws forever. The order is bricked by an env var, which is precisely the "flipping it off
  * mid-book silently drops the board" failure the snapshot/flag split exists to prevent.
  *
- * With the flag gone, the decision is purely structural: a `required-v1` snapshot + a readable frozen contract +
+ * With the flag gone, the decision is purely structural: a `required-v2` snapshot + a readable frozen contract +
  * any required identity still unbound (the required list derived from the contract via `listRequiredSetIdentityIds`
  * inside `hasUnboundRequiredSetIdentity`). OFF-inertness is UNCHANGED and now rests on one fact instead of two: a
  * legacy order has no snapshot, so this returns false at the first line, before it reads the contract — and with
@@ -301,7 +301,7 @@ export async function requireSetIdentityBoardsBoundForRender(
  */
 export function shouldEnterSetRefsStage(cache: PipelineCache): boolean {
   const snapshot = cache.setIdentityBoards;
-  if (snapshot?.mode !== 'required-v1') return false; // LEGACY → never → byte-identical.
+  if (snapshot?.mode !== 'required-v2') return false; // LEGACY → never → byte-identical.
   const active = activeFrozenContract(cache);
   if (!active) return false;
   return hasUnboundRequiredSetIdentity(active.contract, snapshot);
@@ -330,7 +330,7 @@ export function setIdentityBoardRefsForPage(
   pageNumber: number
 ): ReferenceAsset[] | undefined {
   const snapshot = cache.setIdentityBoards;
-  if (snapshot?.mode !== 'required-v1') return undefined; // LEGACY → byte-identical.
+  if (snapshot?.mode !== 'required-v2') return undefined; // LEGACY → byte-identical.
 
   const active = activeFrozenContract(cache);
   if (!active) return undefined;

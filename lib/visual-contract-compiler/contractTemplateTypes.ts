@@ -33,7 +33,7 @@ export const VISUAL_CONTRACT_SCHEMA_VERSION = 'vc-schema/v1' as const;
 export const MATERIALIZER_VERSION = 'materializer/v1' as const;
 /** Bump when the deterministic palette table changes (recorded on the Resolved → auditable, safely re-hashes). */
 export const PALETTE_VERSION = 'palette/v1' as const;
-export const APPROVED_RUNTIME_AUTHORITY_VERSION = 'approved-runtime-authority/v1' as const;
+export const APPROVED_RUNTIME_AUTHORITY_VERSION = 'approved-runtime-authority/v2' as const;
 
 /**
  * Exact approved-package identity carried inside the resolved/frozen contract. This is reviewer-owned metadata,
@@ -42,7 +42,7 @@ export const APPROVED_RUNTIME_AUTHORITY_VERSION = 'approved-runtime-authority/v1
  */
 export interface ApprovedRuntimeAuthorityBinding {
   version: typeof APPROVED_RUNTIME_AUTHORITY_VERSION;
-  manifestVersion: 'visual-package/v1';
+  manifestVersion: 'visual-package/v2';
   storyKey: string;
   styleId: string;
   sourcePath: string;
@@ -51,6 +51,7 @@ export interface ApprovedRuntimeAuthorityBinding {
   templateDigest: string;
   coverageDigest: string;
   requiredBoardsDigest: string;
+  requiredPropReferencesDigest: string;
   worldMode: 'grounded' | 'grounded_with_visual_metaphor' | 'fantastical';
 }
 

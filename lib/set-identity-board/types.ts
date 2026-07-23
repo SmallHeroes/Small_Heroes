@@ -15,45 +15,68 @@
  */
 import type { SpatialNode, SpatialRelation } from '@/lib/visual-contract-compiler';
 
-/** Version of the SET projection + prompt derivation. Bump to force every board to be re-minted. */
-export const SET_IDENTITY_BOARD_VERSION = 'set-board/v1' as const;
+/** Version of the spoiler-neutral SET projection + prompt derivation. */
+export const SET_IDENTITY_BOARD_VERSION = 'set-board/v2' as const;
 
 /** Version of the on-disk registry entry schema. Bump to invalidate previously-saved registry entries. */
-export const SET_IDENTITY_REGISTRY_VERSION = 'set-registry/v1' as const;
+export const SET_IDENTITY_REGISTRY_VERSION = 'set-registry/v2' as const;
+
+/** Version of the declared board-content policy carried through registry/package/runtime identities. */
+export const SET_BOARD_CONTENT_POLICY_VERSION = 'set-board-content/v1' as const;
 
 /** A location as it appears in the SET-only projection (set facts only — no cast/appearance/page data). */
 export interface SetDefinitionLocation {
   id: string;
-  description: string;
+  name: string;
   timeOfDay?: string;
   lighting?: string;
   environmentClass?: string;
-  anchors: Array<{ id: string; description: string }>;
-  topology?: string;
 }
 
 /** A zone as it appears in the SET-only projection. Nodes/relations in authored DECLARATION order (hash-significant). */
 export interface SetDefinitionZone {
   id: string;
-  name?: string;
-  description?: string;
+  locationId: string;
   spatialNodes: SpatialNode[];
   spatialRelations: SpatialRelation[];
-  /** Deterministic prose projection of the zone geometry (`projectZoneStableGeometry(zone) ?? []`). */
+  /** Deterministic spoiler-neutral prose projection using local node aliases rather than authored ids. */
   geometry: string[];
 }
 
-/** A fixed set fact = a recurring prop bound INTO the set geometry (via a `{kind:'prop'}` spatialNode `bindsTo`). */
+export interface SetDefinitionFixedFactPlacement {
+  zoneId: string;
+  nodeId: string;
+  nodeKind: SpatialNode['kind'];
+}
+
+/** A fixed prop that is safe on every cover/page consuming this board. */
 export interface SetDefinitionFixedFact {
   propId: string;
+  name: string;
   material?: string;
   scale?: string;
+  quantity: number;
+  placements: SetDefinitionFixedFactPlacement[];
+}
+
+export type SetBoardExclusionReason = 'lifecycle' | 'page_forbidden';
+
+export interface SetBoardExcludedProp {
+  propId: string;
+  name: string;
+  reasons: SetBoardExclusionReason[];
+}
+
+export interface SetBoardContentPolicy {
+  version: typeof SET_BOARD_CONTENT_POLICY_VERSION;
+  includedPropIds: string[];
+  excludedProps: SetBoardExcludedProp[];
 }
 
 /**
  * The SET-only projection that gets hashed. Contains ONLY set-relevant, reusable facts — deliberately NO cast, NO
- * humanCast, NO page camera/action, NO transient prop state, NO firstRevealPage, NO family/appearance, NO order data.
- * Two contracts that differ only in those excluded dimensions project to an IDENTICAL `SetDefinition` (same hash).
+ * humanCast, NO page camera/action, NO transient prop state, NO lifecycle prose, NO family/appearance, NO order data.
+ * Lifecycle/visibility may change only the explicit content policy and whether prop-bound geometry is retained.
  */
 export interface SetDefinition {
   boardVersion: string;
@@ -63,6 +86,7 @@ export interface SetDefinition {
   locations: SetDefinitionLocation[];
   zones: SetDefinitionZone[];
   fixedSetFacts: SetDefinitionFixedFact[];
+  contentPolicy: SetBoardContentPolicy;
 }
 
 /**
@@ -81,6 +105,8 @@ export interface SetIdentityBoardRegistryEntry {
   setIdentityId: string;
   styleId: string;
   setDefinitionHash: string;
+  contentPolicyDigest: string;
+  declaredPropIds: string[];
   storageKey: string;
   assetSha256: string;
   promptHash: string;
@@ -104,6 +130,8 @@ export interface SetIdentityBoardRegistryEntry {
 export type SetIdentityBoardBinding = {
   setIdentityId: string;
   setDefinitionHash: string;
+  contentPolicyDigest: string;
+  declaredPropIds: string[];
   styleId: string;
   storageKey: string;
   resolvedUrl?: string;
@@ -113,7 +141,7 @@ export type SetIdentityBoardBinding = {
 };
 
 /**
- * The set of board bindings for one order, pinned to the order's frozen contract hash. `mode:'required-v1'` marks
+ * The set of board bindings for one order, pinned to the order's frozen contract hash. `mode:'required-v2'` marks
  * that every board-required set identity MUST have a binding (fail-closed) — enforced from Milestone C by
  * `assertBoardsBoundForRender` before any paid image.
  *
@@ -121,7 +149,7 @@ export type SetIdentityBoardBinding = {
  * in `PipelineCache` and must stay assignable to `Prisma.InputJsonValue`.
  */
 export type SetIdentityBoardBindingContext = {
-  mode: 'required-v1';
+  mode: 'required-v2';
   frozenContractHash: string;
   bindings: Record<string, SetIdentityBoardBinding>;
 };

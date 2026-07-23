@@ -15,9 +15,9 @@ import {
   derivePageVisualContracts,
 } from '@/lib/visual-contract-compiler/derivePageVisualContracts';
 import type { ResolvedPageContract } from '@/lib/visual-contract-compiler/derivePageVisualContracts';
+import { effectivePropVisibility } from '@/lib/visual-contract-compiler/propLifecycle';
 import { resolvePageLocationPlan } from '@/lib/story-location-bible';
 import {
-  selectBoardRefForLocation,
   type ReferenceAsset,
 } from '@/lib/set-identity-board/referenceTransport';
 import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
@@ -28,6 +28,7 @@ import {
 } from '@/lib/visual-package/runtimeAuthority';
 
 import type { Style01RuntimeAuthority } from './render-qualification-preflight';
+import { resolvePageReferenceAssets } from './page-reference-authority';
 
 export type RuntimeVisualAuthorityErrorCode =
   | 'runtime_authority_missing'
@@ -76,7 +77,7 @@ export function assertStyle01RuntimeAuthorityForPage(args: {
   if (normalizeStyleId(args.illustrationStyle) !== STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK) return null;
 
   const authority = args.authority;
-  if (!authority || authority.version !== 'style01-runtime-authority/v1') {
+  if (!authority || authority.version !== 'style01-runtime-authority/v2') {
     throw new RuntimeVisualAuthorityBoundaryError(
       'runtime_authority_missing',
       'enforced Style01 provider call has no preflight-issued authority context',
@@ -130,6 +131,8 @@ export function assertStyle01RuntimeAuthorityForPage(args: {
         bound.storageKey !== approved.storageKey ||
         bound.assetSha256 !== approved.assetSha256 ||
         bound.boardVersion !== approved.boardVersion ||
+        bound.contentPolicyDigest !== approved.contentPolicyDigest ||
+        canonicalJsonDigest(bound.declaredPropIds) !== canonicalJsonDigest(approved.declaredPropIds) ||
         bound.approvedAt !== approved.approvedAt ||
         !bound.resolvedUrl?.trim()
       ) {
@@ -229,13 +232,14 @@ export function buildRuntimePageAuthorityProjection(args: {
   const approvedBoard = authority.qualification.manifest?.requiredBoards.find(
     (entry) => entry.setIdentityId === requiredBoard,
   );
-  const boardRef = authority.boardBindings
-    ? selectBoardRefForLocation({
-        contract,
-        bindings: authority.boardBindings.bindings,
-        locationId: page.locationId,
-      })
-    : undefined;
+  const referenceAssets = resolvePageReferenceAssets({
+    repoRoot: authority.repoRoot,
+    contract,
+    pageNumber: args.pageNumber,
+    boardBindings: authority.boardBindings,
+    propArtifacts: authority.qualification.manifest?.requiredPropReferences ?? [],
+  });
+  const boardRef = referenceAssets.find((reference) => reference.kind === 'set');
   if (approvedBoard && !boardRef) {
     throw new RuntimeVisualAuthorityBoundaryError(
       'runtime_authority_board_missing',
@@ -249,9 +253,14 @@ export function buildRuntimePageAuthorityProjection(args: {
   const companionPresent = contract.cast.companion
     ? castIds.includes(contract.cast.companion.id)
     : false;
-  const recurringObjects = (page.propState ?? []).map((state) =>
-    contract.recurringProps.find((prop) => prop.id === state.propId)?.name ?? state.propId
-  );
+  const recurringObjects = (page.propState ?? [])
+    .filter(
+      (state) =>
+        effectivePropVisibility(contract, args.pageNumber, state.propId) !== 'forbidden',
+    )
+    .map((state) =>
+      contract.recurringProps.find((prop) => prop.id === state.propId)?.name ?? state.propId
+    );
   const recurringEntities = contract.humanCast
     .filter((member) => castIds.includes(member.id))
     .map((member) => member.role);
@@ -291,7 +300,7 @@ export function buildRuntimePageAuthorityProjection(args: {
       recurringEntities,
       forbiddenEntities: [...new Set([...(page.mustNotShow ?? []), ...contract.forbiddenGlobalElements])],
     },
-    ...(boardRef ? { setIdentityBoardRefs: [boardRef] } : {}),
+    ...(referenceAssets.length > 0 ? { setIdentityBoardRefs: referenceAssets } : {}),
     visualDirection,
     safeScenePrompt:
       `Render only the contract-authorized scene and content. ` +

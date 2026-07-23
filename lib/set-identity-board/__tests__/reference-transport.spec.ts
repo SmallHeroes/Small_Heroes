@@ -38,11 +38,13 @@ function binding(identityId: string, url: string, sha = `sha-${identityId}`): Se
   return {
     setIdentityId: identityId,
     setDefinitionHash: `hash-${identityId}`,
+    contentPolicyDigest: `policy-${identityId}`,
+    declaredPropIds: [],
     styleId: 'style01',
     storageKey: `boards/${identityId}.png`,
     resolvedUrl: url,
     assetSha256: sha,
-    boardVersion: 'set-board/v1',
+    boardVersion: 'set-board/v2',
     approvedAt: '2026-01-01T00:00:00.000Z',
   };
 }
@@ -309,6 +311,8 @@ describe('selectBoardRefForLocation', () => {
       url: 'https://cdn/kitchen.png',
       assetSha256: 'sha-kitchen',
       identityId: 'kitchen',
+      declaredPropIds: [],
+      contentPolicyDigest: 'policy-kitchen',
     });
   });
 
@@ -399,6 +403,21 @@ describe('selectBoardRefForLocation', () => {
  * child anchor — a confidently WRONG map steers worse than none, so this is locked down.
  */
 describe('buildImageRoleMapFromAssembly — index-aligned with the ACTUAL provider array', () => {
+  it('keeps package prop references role-distinct from base set boards', () => {
+    const paths = ['/prop.png', '/set.png'];
+    const breakdown = {
+      contractPropSheets: ['/prop.png'],
+      contractSetSheets: ['/set.png'],
+    };
+    expect(describeAssembledReferences(paths, breakdown).map((slot) => slot.role)).toEqual([
+      'prop',
+      'set',
+    ]);
+    expect(buildImageRoleMapFromAssembly(paths, breakdown)).toContain(
+      'Image 1 -> prop identity reference',
+    );
+  });
+
   const ASSEMBLED = ['child.png', 'comp.png', 'board.png', 'style1.png'];
   const BREAKDOWN: Record<string, string[]> = {
     style: ['style1.png'],

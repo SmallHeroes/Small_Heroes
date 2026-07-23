@@ -83,12 +83,33 @@ function allowedOpenings(def: SetDefinition): string[] {
   return Array.from(present).sort();
 }
 
+function placementAreaLabels(def: SetDefinition, zoneIds: readonly string[]): string[] {
+  return [...new Set(zoneIds)]
+    .map((zoneId) => def.zones.findIndex((zone) => zone.id === zoneId))
+    .filter((index) => index >= 0)
+    .map((index) => `Area ${index + 1}`);
+}
+
 /** Build the character-free QA instruction from the projection ONLY (no story literals). */
 export function buildBoardQaInstruction(def: SetDefinition): string {
   const openings = allowedOpenings(def);
   const openingsLine = openings.length
     ? `The ONLY wall openings that belong to this set are: ${openings.join(', ')}. Flag any other opening kind (e.g. a doorway/window/balcony door not in that list) as "opening-kind-not-in-contract".`
     : 'This set has NO wall openings. Flag any doorway, window, or balcony door as "opening-kind-not-in-contract".';
+  const excludedPropLines = def.contentPolicy.excludedProps.map(
+    (prop) => `- "${prop.name}" (${prop.propId}) must be completely absent; flag it as "excluded-prop:${prop.propId}".`,
+  );
+  const fixedPropLines = def.fixedSetFacts.map((fact) => {
+    const areas = placementAreaLabels(
+      def,
+      fact.placements.map((placement) => placement.zoneId),
+    );
+    return (
+      `- "${fact.name}" (${fact.propId}) must appear exactly ${fact.quantity} time(s) as one recurring physical ` +
+      `identity, in the declared placement area(s) ${areas.join(', ') || 'none'}; flag a missing/duplicate count as ` +
+      `"prop-count:${fact.propId}" and wrong placement as "prop-placement:${fact.propId}".`
+    );
+  });
 
   return [
     `Inspect this image as a CHARACTER-FREE set reference sheet for set identity "${def.setIdentityId}".`,
@@ -99,7 +120,11 @@ export function buildBoardQaInstruction(def: SetDefinition): string {
     '- "text" for any text, letters, numbers, labels, captions, or watermarks',
     '- "panels" for any story panel, page layout, panel border, or gutter',
     openingsLine,
-    'If the image is a clean, empty, character-free set plate with only the allowed openings, return an empty flag list.',
+    'PAGE-CONDITIONED PROPS THAT MUST NOT APPEAR:',
+    ...(excludedPropLines.length ? excludedPropLines : ['- none']),
+    'FIXED PROP COUNT AND PLACEMENT:',
+    ...(fixedPropLines.length ? fixedPropLines : ['- none']),
+    'If the image is a clean, empty, spoiler-neutral set plate with only the allowed openings and exact fixed-prop count/placement, return an empty flag list.',
   ].join('\n');
 }
 

@@ -167,6 +167,7 @@ export function buildApprovedRuntimeAuthorityBinding(
     templateDigest: manifest.template.digest,
     coverageDigest: canonicalJsonDigest(manifest.coverage),
     requiredBoardsDigest: canonicalJsonDigest(manifest.requiredBoards),
+    requiredPropReferencesDigest: canonicalJsonDigest(manifest.requiredPropReferences),
     worldMode,
   };
 }

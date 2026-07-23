@@ -8,6 +8,10 @@ import {
   type SetIdentityBoardRegistryEntry,
 } from '../types';
 import type { BookVisualContract } from '@/lib/visual-contract-compiler';
+import {
+  computeSetBoardContentPolicyDigest,
+  projectSetDefinition,
+} from '../setDefinition';
 
 export const STYLE = 'detailed_whimsical_world';
 
@@ -142,6 +146,7 @@ export function makeApprovedEntry(
   setDefinitionHash: string,
   overrides: Partial<SetIdentityBoardRegistryEntry> = {}
 ): SetIdentityBoardRegistryEntry {
+  const definition = projectSetDefinition(makeContract(), 'set_alpha', STYLE);
   return {
     registryVersion: SET_IDENTITY_REGISTRY_VERSION,
     boardVersion: SET_IDENTITY_BOARD_VERSION,
@@ -149,6 +154,8 @@ export function makeApprovedEntry(
     setIdentityId: 'set_alpha',
     styleId: STYLE,
     setDefinitionHash,
+    contentPolicyDigest: computeSetBoardContentPolicyDigest(definition),
+    declaredPropIds: definition.contentPolicy.includedPropIds,
     storageKey: 'set-identity-boards/synthetic/set_alpha/board.png',
     assetSha256: 'sha-approved-bytes',
     promptHash: 'prompt-hash-1',

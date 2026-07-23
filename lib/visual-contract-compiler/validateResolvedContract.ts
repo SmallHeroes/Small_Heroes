@@ -122,8 +122,8 @@ export function validateResolvedBookVisualContract(input: unknown): ResolvedVali
       if (authority.version !== APPROVED_RUNTIME_AUTHORITY_VERSION) {
         errors.push(`approvedRuntimeAuthority.version must equal "${APPROVED_RUNTIME_AUTHORITY_VERSION}"`);
       }
-      if (authority.manifestVersion !== 'visual-package/v1') {
-        errors.push('approvedRuntimeAuthority.manifestVersion must equal "visual-package/v1"');
+      if (authority.manifestVersion !== 'visual-package/v2') {
+        errors.push('approvedRuntimeAuthority.manifestVersion must equal "visual-package/v2"');
       }
       for (const field of [
         'storyKey',
@@ -134,6 +134,7 @@ export function validateResolvedBookVisualContract(input: unknown): ResolvedVali
         'templateDigest',
         'coverageDigest',
         'requiredBoardsDigest',
+        'requiredPropReferencesDigest',
       ] as const) {
         if (!isStr(authority[field])) errors.push(`approvedRuntimeAuthority.${field} missing`);
       }

@@ -187,6 +187,13 @@ describe('Stage 4 — TIER-B containment: projection ⊆ stored (never equality)
     const spoiler = {
       ...c,
       recurringProps: [c.recurringProps[0], { ...c.recurringProps[1], firstRevealPage: 2 }],
+      pageContracts: [
+        {
+          ...c.pageContracts[0],
+          propConstraints: [{ propId: 'syringe', visibility: 'forbidden' }],
+        },
+        c.pageContracts[1],
+      ],
     } as unknown as BookVisualContract;
     expect(validateBookVisualContract(spoiler).ok).toBe(false);
     expect(validateBookVisualContract(withProjectedProse(spoiler)).ok).toBe(true);
@@ -194,6 +201,17 @@ describe('Stage 4 — TIER-B containment: projection ⊆ stored (never equality)
 });
 
 describe('Stage 4 — reject rule: prop lifecycle (firstRevealPage)', () => {
+  it('requires an explicit forbidden constraint on every pre-reveal page', () => {
+    const c = baseContract();
+    const contract = {
+      ...c,
+      recurringProps: [{ ...c.recurringProps[0], firstRevealPage: 2 }, c.recurringProps[1]],
+    } as unknown as BookVisualContract;
+    const result = validateBookVisualContract(withProjectedProse(contract));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors.join(' ')).toContain('must explicitly FORBID');
+  });
+
   it('a prop REQUIRED before its firstRevealPage → rejected', () => {
     const errors = errorsOf({
       props: [{ id: 'exam_chair', name: 'Examination chair', description: 'c', firstRevealPage: 2 }],
@@ -207,7 +225,13 @@ describe('Stage 4 — reject rule: prop lifecycle (firstRevealPage)', () => {
     const contract = {
       ...c,
       recurringProps: [{ ...c.recurringProps[0], firstRevealPage: 2 }, c.recurringProps[1]],
-      pageContracts: [c.pageContracts[0], { ...c.pageContracts[1], propConstraints: [{ propId: 'exam_chair', visibility: 'required' }] }],
+      pageContracts: [
+        {
+          ...c.pageContracts[0],
+          propConstraints: [{ propId: 'exam_chair', visibility: 'forbidden' }],
+        },
+        { ...c.pageContracts[1], propConstraints: [{ propId: 'exam_chair', visibility: 'required' }] },
+      ],
     } as unknown as BookVisualContract;
     expect(validateBookVisualContract(withProjectedProse(contract)).ok).toBe(true);
   });

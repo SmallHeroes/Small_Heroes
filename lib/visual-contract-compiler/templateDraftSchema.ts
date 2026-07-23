@@ -89,6 +89,7 @@ const prop = obj({
   material: nullableString,
   scale: nullableString,
   persistence: nullableString,
+  firstRevealPage: nullableNumber,
 });
 
 const coverContract = obj({
@@ -108,6 +109,12 @@ const transition = obj({
   cue: nullableString,
 });
 const propState = obj({ propId: { type: 'string' }, state: { type: 'string' } });
+const propConstraint = obj({
+  propId: { type: 'string' },
+  visibility: { type: 'string', enum: ['required', 'forbidden'] },
+  stateId: nullableString,
+  anchorId: nullableString,
+});
 
 const pageContract = obj({
   pageNumber: { type: 'number' },
@@ -117,6 +124,7 @@ const pageContract = obj({
   mustShow: stringArray,
   mustNotShow: stringArray,
   propState: { type: 'array', items: propState },
+  propConstraints: { type: 'array', items: propConstraint },
   camera: { type: 'string' },
   transition,
 });
@@ -135,7 +143,7 @@ export const TEMPLATE_DRAFT_JSON_SCHEMA: Record<string, unknown> = obj({
 });
 
 /** Bump when the draft schema shape changes (recorded in authoring provenance). */
-export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v2' as const;
+export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v3' as const;
 
 /** The structured-output request name (OpenAI json_schema `name`). */
 export const TEMPLATE_DRAFT_SCHEMA_NAME = 'BookVisualContractTemplateDraft' as const;

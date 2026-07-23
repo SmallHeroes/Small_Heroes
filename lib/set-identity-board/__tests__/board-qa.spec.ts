@@ -11,6 +11,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   boardContaminationFlags,
+  buildBoardQaInstruction,
   qaSetIdentityBoardImage,
   QA_CALL_FAILED_FLAG,
   QA_RESPONSE_MALFORMED_FLAG,
@@ -24,17 +25,22 @@ function makeDef(): SetDefinition {
     storyKey: 'synthetic_story',
     styleId: 'style01',
     setIdentityId: 'set_alpha',
-    locations: [{ id: 'room_north', description: 'a plain north room', anchors: [] }],
+    locations: [{ id: 'room_north', name: 'North Room' }],
     zones: [
       {
         id: 'z_north',
-        name: 'North Zone',
+        locationId: 'room_north',
         spatialNodes: [{ id: 'main_door', kind: 'doorway', description: 'a wide wooden doorway' }],
         spatialRelations: [],
         geometry: ['doorway "main_door": a wide wooden doorway'],
       },
     ],
     fixedSetFacts: [],
+    contentPolicy: {
+      version: 'set-board-content/v1',
+      includedPropIds: [],
+      excludedProps: [],
+    },
   };
 }
 
@@ -71,6 +77,25 @@ describe('qaSetIdentityBoardImage — well-formed responses', () => {
     const args = callVision.mock.calls[0][0];
     expect(args.imageUrl).toBe('https://cdn/board.png');
     expect(args.instruction).toContain('set_alpha');
+  });
+
+  it('asks QA to verify excluded props plus exact fixed-prop count and placement', () => {
+    const def = makeDef();
+    def.fixedSetFacts = [{
+      propId: 'prop_table',
+      name: 'Stone Table',
+      quantity: 1,
+      placements: [{ zoneId: 'z_north', nodeId: 'table', nodeKind: 'furniture' }],
+    }];
+    def.contentPolicy = {
+      version: 'set-board-content/v1',
+      includedPropIds: ['prop_table'],
+      excludedProps: [{ propId: 'prop_later', name: 'Covered Parcel', reasons: ['lifecycle'] }],
+    };
+    const instruction = buildBoardQaInstruction(def);
+    expect(instruction).toContain('exactly 1');
+    expect(instruction).toContain('Area 1');
+    expect(instruction).toContain('Covered Parcel');
   });
 });
 

@@ -48,6 +48,7 @@ import {
   SET_IDENTITY_BOARD_VERSION,
   SET_IDENTITY_REGISTRY_VERSION,
   buildSetIdentityBoardPrompt,
+  computeSetBoardContentPolicyDigest,
   computeSetDefinitionHash,
   loadRegistryEntry,
   projectSetDefinition,
@@ -296,6 +297,8 @@ export async function runMint(args: MintArgs, deps: MintDeps = liveMintDeps): Pr
 
   const def = projectSetDefinition(contract, args.identity, styleId);
   const setDefinitionHash = computeSetDefinitionHash(contract, args.identity, styleId);
+  const contentPolicyDigest = computeSetBoardContentPolicyDigest(def);
+  const declaredPropIds = def.contentPolicy.includedPropIds;
   const { prompt, negativePrompt, promptHash } = buildSetIdentityBoardPrompt(def);
 
   console.log(`styleId (normalized): ${styleId}  (from --style "${args.style}")`);
@@ -315,6 +318,8 @@ export async function runMint(args: MintArgs, deps: MintDeps = liveMintDeps): Pr
       setIdentityId: def.setIdentityId,
       styleId,
       setDefinitionHash,
+      contentPolicyDigest,
+      declaredPropIds,
       storageKey: '',
       assetSha256: '',
       promptHash,
@@ -364,6 +369,8 @@ export async function runMint(args: MintArgs, deps: MintDeps = liveMintDeps): Pr
     setIdentityId: def.setIdentityId,
     styleId,
     setDefinitionHash,
+    contentPolicyDigest,
+    declaredPropIds,
     storageKey,
     assetSha256,
     promptHash,
@@ -385,6 +392,8 @@ export async function runMint(args: MintArgs, deps: MintDeps = liveMintDeps): Pr
         setIdentityId: def.setIdentityId,
         styleId,
         setDefinitionHash,
+        contentPolicyDigest,
+        declaredPropIds,
       },
       args.registryRoot
     );

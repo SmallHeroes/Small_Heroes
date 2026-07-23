@@ -208,6 +208,8 @@ describe('mint NEVER auto-approves', () => {
       setIdentityId: IDENTITY_ID,
       styleId: NORMALIZED_STYLE,
       setDefinitionHash: entry.setDefinitionHash,
+      contentPolicyDigest: entry.contentPolicyDigest,
+      declaredPropIds: entry.declaredPropIds,
     });
     expect(validation.ok).toBe(false);
     expect((validation as { errors: string[] }).errors.join(' ')).toMatch(/a human must explicitly approve/);
@@ -278,6 +280,8 @@ describe('--approve — the only path to an approved board, and only over a QA p
       setIdentityId: IDENTITY_ID,
       styleId: NORMALIZED_STYLE,
       setDefinitionHash: approved.setDefinitionHash,
+      contentPolicyDigest: approved.contentPolicyDigest,
+      declaredPropIds: approved.declaredPropIds,
     });
     expect(validation.ok).toBe(true);
   });
@@ -336,6 +340,11 @@ describe('mint — the LIVE vision adapter is fail-closed (P1-6 seam)', () => {
     locations: [],
     zones: [],
     fixedSetFacts: [],
+    contentPolicy: {
+      version: 'set-board-content/v1',
+      includedPropIds: [],
+      excludedProps: [],
+    },
   };
 
   /** Mock the chat-completions call so the adapter parses `content` exactly as it would in production. */

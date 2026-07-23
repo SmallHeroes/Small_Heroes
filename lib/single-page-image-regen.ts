@@ -778,6 +778,7 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
       illustrationStyle: order.illustrationStyle,
       frozenContractHash: order.visualContractHash,
       cache: pipelineCache,
+      pageNumbers: [pageNumber],
     },
     (runtimeVisualAuthority) => generateAllPageImages(
       [{ ...pageForGeneration, supportingCharacters }],

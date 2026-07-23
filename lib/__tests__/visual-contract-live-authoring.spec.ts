@@ -61,6 +61,14 @@ describe('Stage 1 — draft json_schema is strict-mode compliant', () => {
       expect(Object.keys(props)).toContain(k);
     }
   });
+
+  it('carries structured prop lifecycle and per-page visibility through strict authoring', () => {
+    const root = TEMPLATE_DRAFT_JSON_SCHEMA as {
+      properties: Record<string, { items?: { properties?: Record<string, unknown> } }>;
+    };
+    expect(root.properties.recurringProps.items?.properties).toHaveProperty('firstRevealPage');
+    expect(root.properties.pageContracts.items?.properties).toHaveProperty('propConstraints');
+  });
 });
 
 describe('Stage 1 — authoring token budget scales by page count (Responses budget INCLUDES reasoning)', () => {
@@ -92,7 +100,7 @@ describe('Stage 1 — compiler requests the dedicated authoring call + records p
     expect(provenance.authoringModel).toBe('gpt-5.5-pro');
     expect(provenance.reasoningEffort).toBe('medium');
     expect(provenance.maxOutputTokens).toBe(36000);
-    expect(provenance.schemaVersion).toBe('vc-draft-schema/v2');
+    expect(provenance.schemaVersion).toBe('vc-draft-schema/v3');
     expect(provenance.attempt).toBe(1);
   });
 

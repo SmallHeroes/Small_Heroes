@@ -20,6 +20,7 @@ import {
 import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
 import type { VisualPackageIssue } from '@/lib/visual-package/types';
 
+import { resolvePageReferenceAssets } from './page-reference-authority';
 import { resolveCachedStoryFilePath } from './story-path';
 import type { PipelineCache } from './types';
 
@@ -51,10 +52,13 @@ export interface RenderQualificationPreflightArgs {
   repoRoot?: string;
   approvedPackagesDir?: string;
   boardRegistryRoot?: string;
+  /** Exact cover/page set that the callback will render. Page 0 denotes the cover. */
+  pageNumbers?: number[];
 }
 
 export interface Style01RuntimeAuthority {
-  version: 'style01-runtime-authority/v1';
+  version: 'style01-runtime-authority/v2';
+  repoRoot: string;
   qualification: RenderQualificationResult;
   contract: ResolvedBookVisualContract;
   contractHash: string;
@@ -105,6 +109,7 @@ function requireFrozenAuthority(
   qualification: RenderQualificationResult,
   cache: RenderQualificationPreflightArgs['cache'],
   frozenContractHash: string | null | undefined,
+  repoRoot: string,
 ): Style01RuntimeAuthority {
   const reasons: VisualPackageIssue[] = [];
   const manifest = qualification.manifest;
@@ -150,7 +155,7 @@ function requireFrozenAuthority(
   const requiredBoards = manifest.requiredBoards;
   const boardContext = cache.setIdentityBoards;
   if (requiredBoards.length > 0) {
-    if (!boardContext || boardContext.mode !== 'required-v1') {
+    if (!boardContext || boardContext.mode !== 'required-v2') {
       reasons.push(issue('board_binding_missing', 'approved package requires Set Identity Board bindings but the order has none'));
     } else {
       if (boardContext.frozenContractHash !== contractHash) {
@@ -177,6 +182,8 @@ function requireFrozenAuthority(
           bound.storageKey !== approved.storageKey ||
           bound.assetSha256 !== approved.assetSha256 ||
           bound.boardVersion !== approved.boardVersion ||
+          bound.contentPolicyDigest !== approved.contentPolicyDigest ||
+          canonicalJsonDigest(bound.declaredPropIds) !== canonicalJsonDigest(approved.declaredPropIds) ||
           bound.approvedAt !== approved.approvedAt ||
           !bound.resolvedUrl?.trim()
         ) {
@@ -193,7 +200,8 @@ function requireFrozenAuthority(
     throw new RenderQualificationPreflightError(rejectedQualification(qualification, reasons));
   }
   return {
-    version: 'style01-runtime-authority/v1',
+    version: 'style01-runtime-authority/v2',
+    repoRoot,
     qualification,
     contract,
     contractHash,
@@ -213,7 +221,40 @@ export function requireStyle01RenderQualification(
   const qualification = evaluateStyle01VisualPackage(args);
   if (!qualification) return null;
   if (!qualification.renderQualified) throw new RenderQualificationPreflightError(qualification);
-  return requireFrozenAuthority(qualification, args.cache, args.frozenContractHash);
+  return requireFrozenAuthority(
+    qualification,
+    args.cache,
+    args.frozenContractHash,
+    args.repoRoot ?? process.cwd(),
+  );
+}
+
+type PageReferencePreflightAuthority = Pick<
+  Style01RuntimeAuthority,
+  'repoRoot' | 'contract' | 'boardBindings' | 'qualification'
+>;
+
+/** Page/content fence shared by cover, batch/resume, and single-page callers before their callback is reachable. */
+export async function runAfterPageReferencePreflight<
+  T,
+  TAuthority extends PageReferencePreflightAuthority | null,
+>(
+  authority: TAuthority,
+  pageNumbers: readonly number[],
+  render: (checkedAuthority: TAuthority) => Promise<T>,
+): Promise<T> {
+  if (authority) {
+    for (const pageNumber of pageNumbers) {
+      resolvePageReferenceAssets({
+        repoRoot: authority.repoRoot,
+        contract: authority.contract,
+        pageNumber,
+        boardBindings: authority.boardBindings,
+        propArtifacts: authority.qualification.manifest?.requiredPropReferences ?? [],
+      });
+    }
+  }
+  return render(authority);
 }
 
 /** Actual shipped call wrapper: the render callback is unreachable until the synchronous preflight succeeds. */
@@ -222,5 +263,5 @@ export async function runWithStyle01RenderQualification<T>(
   render: (authority: Style01RuntimeAuthority | null) => Promise<T>,
 ): Promise<T> {
   const authority = requireStyle01RenderQualification(args);
-  return render(authority);
+  return runAfterPageReferencePreflight(authority, args.pageNumbers ?? [], render);
 }

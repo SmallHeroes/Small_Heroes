@@ -189,6 +189,12 @@ export { resolvePageCheckIds, type PageCheck, type PageCheckKind } from './pageC
 /** (Stage 4) A hazard citing a story quote must be quoting that page — needs the SOURCE, so the compiler calls it. */
 export { sourceEvidenceErrors, type SourceEvidencePage } from './validateSourceEvidence';
 export {
+  effectivePropVisibility,
+  requiredPropIdsForPage,
+  forbiddenPropIdsForPage,
+  type EffectivePropVisibility,
+} from './propLifecycle';
+export {
   bindingCoherenceError,
   coherentOriginKindsFor,
   type OriginKind,

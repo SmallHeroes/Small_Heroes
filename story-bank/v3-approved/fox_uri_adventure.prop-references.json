@@ -1,0 +1,14 @@
+{
+  "version": "prop-reference-catalog/v1",
+  "storyKey": "fox_uri_adventure",
+  "styleId": "soft_hand_drawn_storybook",
+  "artifacts": [
+    {
+      "propId": "prop_tin_bucket",
+      "artifactPath": "story-bank/v3-approved/fox_uri_adventure.zone-sheets/balcony_drip_area/bucket-object.png",
+      "assetSha256": "60ee317551759e42e08dba592b52d206ec4ed22e47d85a43789acfd977b869bc",
+      "approvedBy": "Guy",
+      "approvedAt": "2026-06-12"
+    }
+  ]
+}

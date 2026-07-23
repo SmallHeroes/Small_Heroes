@@ -6,6 +6,7 @@ import {
   computeSetDefinitionHash,
   groupLocationsBySetIdentity,
   listRequiredSetIdentityIds,
+  projectSetDefinition,
 } from '../setDefinition';
 
 /** Deep clone so a mutated variant never aliases the base. */
@@ -195,12 +196,49 @@ describe('projectSetDefinition / computeSetDefinitionHash — set-only, personal
     const h = computeSetDefinitionHash(base, ID, STYLE);
     expect(computeSetDefinitionHash(base, ID, 'soft_hand_drawn_storybook')).not.toBe(h);
     expect(computeSetDefinitionHash(base, 'meadow', STYLE)).not.toBe(h);
-    expect(computeSetDefinitionHash(base, ID, STYLE, { boardVersion: 'set-board/v2' })).not.toBe(h);
+    expect(computeSetDefinitionHash(base, ID, STYLE, { boardVersion: 'set-board/v1' })).not.toBe(h);
   });
 
   it('is deterministic (same inputs → same hash)', () => {
     const base = makeContract();
     expect(computeSetDefinitionHash(base, ID, STYLE)).toBe(computeSetDefinitionHash(makeContract(), ID, STYLE));
+  });
+
+  it('deterministically removes a reveal-gated prop node, dependent relations, and fixed facts', () => {
+    const contract = makeContract();
+    const prop = contract.recurringProps.find((candidate) => candidate.id === 'floor_lamp')!;
+    prop.firstRevealPage = 2;
+    contract.pageContracts[0].propConstraints = [
+      { propId: prop.id, visibility: 'forbidden' },
+    ];
+
+    const definition = projectSetDefinition(contract, ID, STYLE);
+    expect(definition.contentPolicy.includedPropIds).not.toContain(prop.id);
+    expect(definition.contentPolicy.excludedProps).toEqual([
+      { propId: prop.id, name: prop.name, reasons: ['lifecycle', 'page_forbidden'] },
+    ]);
+    expect(definition.zones.flatMap((zone) => zone.spatialNodes).some(
+      (node) => node.bindsTo?.kind === 'prop' && node.bindsTo.id === prop.id,
+    )).toBe(false);
+    expect(definition.zones.flatMap((zone) => zone.spatialRelations).some(
+      (relation) => relation.subjectId === 'tall_lamp' || relation.objectId === 'tall_lamp',
+    )).toBe(false);
+    expect(definition.fixedSetFacts.some((fact) => fact.propId === prop.id)).toBe(false);
+  });
+
+  it('keeps lifecycle-gated props off the base board even when the set is consumed only at reveal', () => {
+    const contract = makeContract();
+    const prop = contract.recurringProps.find((candidate) => candidate.id === 'floor_lamp')!;
+    prop.firstRevealPage = 1;
+    contract.coverContract.locationId = 'meadow';
+
+    const definition = projectSetDefinition(contract, ID, STYLE);
+    expect(definition.contentPolicy.excludedProps).toContainEqual({
+      propId: prop.id,
+      name: prop.name,
+      reasons: ['lifecycle'],
+    });
+    expect(definition.contentPolicy.includedPropIds).not.toContain(prop.id);
   });
 });
 

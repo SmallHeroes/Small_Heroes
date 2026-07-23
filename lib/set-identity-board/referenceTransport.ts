@@ -32,6 +32,12 @@ export interface ReferenceAsset {
   url: string;
   assetSha256?: string;
   identityId?: string;
+  /** Structured content declaration used by the page/reference compatibility fence. */
+  declaredPropIds?: string[];
+  /** Set-board content-policy identity, required for versioned set references. */
+  contentPolicyDigest?: string;
+  /** Exact approved package/catalog identity for a page-conditioned prop reference. */
+  artifactIdentityDigest?: string;
 }
 
 /**
@@ -161,6 +167,7 @@ const BREAKDOWN_BUCKET: Readonly<Record<string, { role: ReferenceRole; label: st
   otherCharacters: { role: 'other_character', label: ROLE_LABEL.other_character },
   setAppearanceBoard: { role: 'set', label: 'set appearance board' },
   contractSetSheets: { role: 'set', label: ROLE_LABEL.set },
+  contractPropSheets: { role: 'prop', label: ROLE_LABEL.prop },
   objectAnchors: { role: 'prop', label: ROLE_LABEL.prop },
   isolatedObjects: { role: 'prop', label: ROLE_LABEL.prop },
   style: { role: 'style', label: ROLE_LABEL.style },
@@ -215,7 +222,8 @@ export function describeAssembledReferences(
  * The image→role map derived from the ACTUAL assembled provider array — the only INDEX-SAFE source.
  *
  * The live Style-01 array is assembled by `assembleStyle01BookReferencesWithZoneSheets` as
- * child → companion → setAppearanceBoard → contractSetSheets → objectAnchors → otherCharacters → style. A map built
+ * child → companion → setAppearanceBoard → contractPropSheets → contractSetSheets → objectAnchors →
+ * otherCharacters → style. A map built
  * from the tagged SUBSET alone would confidently claim `Image 1 -> set identity board` while the provider's image 1
  * is the child anchor — and a confidently WRONG map steers worse than no map at all. So the map is built by walking
  * the assembled `orderedPaths` and labelling each slot from the `breakdown` bucket that contains it.
@@ -245,6 +253,13 @@ export const SET_REFERENCE_COPY_INSTRUCTION = [
   'The set reference is an empty reference plate, not a page.',
 ].join('\n');
 
+export const PROP_REFERENCE_COPY_INSTRUCTION = [
+  'PROP REFERENCE USE:',
+  'From a prop reference, copy ONLY that prop identity, material, scale, and stable design.',
+  'NEVER copy the neutral background, sheet layout, camera, framing, pose, or composition.',
+  'Place the prop only where the authoritative page contract requires it.',
+].join('\n');
+
 /** One manifest row: the durable role/order/hash proof for a single reference image. */
 export interface ReferenceAssetManifestEntry {
   order: number;
@@ -252,6 +267,9 @@ export interface ReferenceAssetManifestEntry {
   url: string;
   assetSha256?: string;
   identityId?: string;
+  declaredPropIds?: string[];
+  contentPolicyDigest?: string;
+  artifactIdentityDigest?: string;
 }
 
 /**
@@ -270,6 +288,9 @@ export function buildReferenceAssetManifest(ordered: ReferenceAsset[]): Referenc
     url: asset.url,
     assetSha256: asset.assetSha256,
     identityId: asset.identityId,
+    declaredPropIds: asset.declaredPropIds,
+    contentPolicyDigest: asset.contentPolicyDigest,
+    artifactIdentityDigest: asset.artifactIdentityDigest,
   }));
 }
 
@@ -300,6 +321,9 @@ export function buildReferenceAssetManifestFromAssembly(
     const entry: ReferenceAssetManifestEntry = { order: slot.order, role: slot.role, url: slot.url };
     if (twin?.assetSha256 !== undefined) entry.assetSha256 = twin.assetSha256;
     if (twin?.identityId !== undefined) entry.identityId = twin.identityId;
+    if (twin?.declaredPropIds !== undefined) entry.declaredPropIds = twin.declaredPropIds;
+    if (twin?.contentPolicyDigest !== undefined) entry.contentPolicyDigest = twin.contentPolicyDigest;
+    if (twin?.artifactIdentityDigest !== undefined) entry.artifactIdentityDigest = twin.artifactIdentityDigest;
     return entry;
   });
 }
@@ -342,5 +366,7 @@ export function selectBoardRefForLocation(args: {
     url,
     assetSha256: binding.assetSha256,
     identityId,
+    declaredPropIds: binding.declaredPropIds,
+    contentPolicyDigest: binding.contentPolicyDigest,
   };
 }

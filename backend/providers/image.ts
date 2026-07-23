@@ -59,6 +59,7 @@ import {
   buildImageRoleMapFromAssembly,
   buildReferenceAssetManifestFromAssembly,
   planReferenceAssets,
+  PROP_REFERENCE_COPY_INSTRUCTION,
   SET_REFERENCE_COPY_INSTRUCTION,
   type ReferenceAsset,
   type ReferenceAssetManifestEntry,
@@ -3494,7 +3495,10 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     ? planReferenceAssets(input.setIdentityBoardRefs, resolveGPTImageEditMaxReferences())
     : null;
   const protectedSetSheetPaths: string[] = taggedRefPlan
-    ? taggedRefPlan.ordered.filter((a) => a.kind === 'set' || a.kind === 'prop').map((a) => a.url)
+    ? taggedRefPlan.ordered.filter((a) => a.kind === 'set').map((a) => a.url)
+    : [];
+  const protectedPropSheetPaths: string[] = taggedRefPlan
+    ? taggedRefPlan.ordered.filter((a) => a.kind === 'prop').map((a) => a.url)
     : [];
   const { paths: referenceImages, breakdown } = assembleStyle01BookReferencesWithZoneSheets({
     styleRefPaths,
@@ -3507,6 +3511,7 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     isolatedObjectRefPaths: appearanceBoardPath ? [] : setRefSelection.selected,
     setAppearanceBoardPath: appearanceBoardPath,
     protectedSetRefPaths: protectedSetSheetPaths,
+    protectedPropRefPaths: protectedPropSheetPaths,
   });
 
   // (WS0b location authority) Prepend the AUTHORITATIVE contract block (when present) so the frozen contract
@@ -3528,7 +3533,12 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     taggedRefPlan && taggedRefPlan.ordered.length > 0
       ? [
           buildImageRoleMapFromAssembly(referenceImages, breakdown),
-          SET_REFERENCE_COPY_INSTRUCTION,
+          ...(taggedRefPlan.ordered.some((reference) => reference.kind === 'set')
+            ? [SET_REFERENCE_COPY_INSTRUCTION]
+            : []),
+          ...(taggedRefPlan.ordered.some((reference) => reference.kind === 'prop')
+            ? [PROP_REFERENCE_COPY_INSTRUCTION]
+            : []),
           contractAuthoritativePrompt,
         ].join('\n\n')
       : contractAuthoritativePrompt;

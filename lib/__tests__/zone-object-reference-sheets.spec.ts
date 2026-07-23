@@ -37,7 +37,7 @@ function writeApprovedFixture(dir: string) {
 }
 
 describe('Zone & object reference sheets (isolated object fix)', () => {
-  it('p5 resolves isolated object only — no set.png path', () => {
+  it('does not infer an isolated object from a story/page heuristic', () => {
     const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'zone-sheets-'));
     const approvedDir = path.join(
       tmpRoot,
@@ -53,8 +53,7 @@ describe('Zone & object reference sheets (isolated object fix)', () => {
       const bundle = loadStoryLocationPlanOverride(FOX_BANK);
       const enriched = enrichStoryLocationPlanWithReferenceSheets(bundle!, FOX_BANK);
       const p5 = enriched.pagePlans.find((p) => p.page === 5)!;
-      expect(p5.referenceSheets?.zoneSetPath).toBeUndefined();
-      expect(p5.referenceSheets?.isolatedObjectPaths?.[0]).toMatch(/bucket-object\.png$/);
+      expect(p5.referenceSheets).toBeUndefined();
       const p4 = enriched.pagePlans.find((p) => p.page === 4)!;
       expect(p4.referenceSheets).toBeUndefined();
     } finally {
@@ -63,7 +62,7 @@ describe('Zone & object reference sheets (isolated object fix)', () => {
     }
   });
 
-  it('pageAllowsIsolatedObjectRef respects spoiler on p1-4 and cover', () => {
+  it('pageAllowsIsolatedObjectRef requires an explicit structured opt-in', () => {
     const bundle = loadStoryLocationPlanOverride(FOX_BANK)!;
     const cover = bundle.pagePlans.find((p) => p.page === 0)!;
     expect(pageAllowsIsolatedObjectRef(cover)).toBe(false);
@@ -72,7 +71,8 @@ describe('Zone & object reference sheets (isolated object fix)', () => {
       expect(pageAllowsIsolatedObjectRef(plan)).toBe(false);
     }
     const p5 = bundle.pagePlans.find((p) => p.page === 5)!;
-    expect(pageAllowsIsolatedObjectRef(p5)).toBe(true);
+    expect(pageAllowsIsolatedObjectRef(p5)).toBe(false);
+    expect(pageAllowsIsolatedObjectRef({ ...p5, attachIsolatedObjectRefs: true })).toBe(true);
   });
 
   it('bucket pages include window-ledge drip lock in location block', () => {

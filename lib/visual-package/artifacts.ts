@@ -13,8 +13,10 @@ import {
   type SetIdentityBoardRegistryEntry,
 } from '@/lib/set-identity-board/types';
 import {
+  computeSetBoardContentPolicyDigest,
   computeSetDefinitionHash,
   listRequiredSetIdentityIds,
+  projectSetDefinition,
 } from '@/lib/set-identity-board/setDefinition';
 import {
   validateSetIdentityBoardRegistryEntry,
@@ -39,6 +41,7 @@ import {
   type VisualPackageIssue,
   type VisualPackageManifest,
   type VisualPackageTemplateIdentity,
+  VISUAL_PACKAGE_PROMOTION_VERSION,
 } from './types';
 
 const WORLD_MODES = new Set(['grounded', 'grounded_with_visual_metaphor', 'fantastical']);
@@ -204,6 +207,7 @@ function boardExpectedIdentity(
   // Set-board projection deliberately reads no human appearance fields; a validated Template carries every set
   // field it needs. Keep the one contract schema and adapt only at this existing pure projection seam.
   const setProjectionContract = template as unknown as BookVisualContract;
+  const definition = projectSetDefinition(setProjectionContract, setIdentityId, styleId);
   return {
     registryVersion: SET_IDENTITY_REGISTRY_VERSION,
     boardVersion: SET_IDENTITY_BOARD_VERSION,
@@ -211,6 +215,8 @@ function boardExpectedIdentity(
     setIdentityId,
     styleId,
     setDefinitionHash: computeSetDefinitionHash(setProjectionContract, setIdentityId, styleId),
+    contentPolicyDigest: computeSetBoardContentPolicyDigest(definition),
+    declaredPropIds: definition.contentPolicy.includedPropIds,
   };
 }
 
@@ -259,6 +265,8 @@ export function resolveRequiredBoardArtifacts(args: {
       setIdentityId: entry.setIdentityId,
       styleId: entry.styleId,
       setDefinitionHash: entry.setDefinitionHash,
+      contentPolicyDigest: entry.contentPolicyDigest,
+      declaredPropIds: entry.declaredPropIds,
       storageKey: entry.storageKey,
       assetSha256: entry.assetSha256,
       approvedBy: entry.approvedBy!,
@@ -285,7 +293,9 @@ export function compareBoardArtifacts(
       approved.boardVersion !== resolved.boardVersion ||
       approved.storyKey !== resolved.storyKey ||
       approved.styleId !== resolved.styleId ||
-      approved.setDefinitionHash !== resolved.setDefinitionHash
+      approved.setDefinitionHash !== resolved.setDefinitionHash ||
+      approved.contentPolicyDigest !== resolved.contentPolicyDigest ||
+      canonicalJsonDigest(approved.declaredPropIds) !== canonicalJsonDigest(resolved.declaredPropIds)
     ) {
       issues.push(issue('board_identity_mismatch', `board identity changed for ${approved.setIdentityId}`, {
         expected: approved,
@@ -390,6 +400,9 @@ export function basicManifestIssues(raw: unknown): VisualPackageIssue[] {
         !nonEmpty(board.setIdentityId) ||
         !nonEmpty(board.styleId) ||
         !nonEmpty(board.setDefinitionHash) ||
+        !nonEmpty(board.contentPolicyDigest) ||
+        !Array.isArray(board.declaredPropIds) ||
+        !board.declaredPropIds.every((propId) => nonEmpty(propId)) ||
         !nonEmpty(board.storageKey) ||
         !nonEmpty(board.assetSha256) ||
         !nonEmpty(board.approvedBy) ||
@@ -405,10 +418,35 @@ export function basicManifestIssues(raw: unknown): VisualPackageIssue[] {
       }
     }
   }
+  if (!Array.isArray(manifest.requiredPropReferences)) {
+    issues.push(issue('manifest_invalid', 'requiredPropReferences must be an array'));
+  } else {
+    const propIds = new Set<string>();
+    for (const [index, prop] of manifest.requiredPropReferences.entries()) {
+      if (
+        !prop ||
+        !nonEmpty(prop.propId) ||
+        !nonEmpty(prop.artifactPath) ||
+        !nonEmpty(prop.assetSha256) ||
+        !nonEmpty(prop.catalogPath) ||
+        !nonEmpty(prop.catalogDigest) ||
+        !nonEmpty(prop.approvedBy) ||
+        !isoTimestampIsValid(prop.approvedAt)
+      ) {
+        issues.push(issue('manifest_invalid', `requiredPropReferences[${index}] has an incomplete artifact identity`));
+      }
+      if (prop && nonEmpty(prop.propId)) {
+        if (propIds.has(prop.propId)) {
+          issues.push(issue('manifest_invalid', `requiredPropReferences contains duplicate ${prop.propId}`));
+        }
+        propIds.add(prop.propId);
+      }
+    }
+  }
   if (manifest.state === 'approved') {
     if (
       !manifest.promotion ||
-      manifest.promotion.toolVersion !== 'visual-package-promotion/v1' ||
+      manifest.promotion.toolVersion !== VISUAL_PACKAGE_PROMOTION_VERSION ||
       !isoTimestampIsValid(manifest.promotion.promotedAt) ||
       !nonEmpty(manifest.promotion.templateDestination) ||
       !nonEmpty(manifest.promotion.manifestDestination)

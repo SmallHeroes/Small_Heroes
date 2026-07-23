@@ -50,7 +50,7 @@ describe('resolveBoardBindings — LOOK UP → VERIFY → BIND', () => {
     expect(binding.setIdentityId).toBe(REQUIRED_ID);
     expect(binding.setDefinitionHash).toBe(hashFor());
     expect(binding.styleId).toBe(STYLE);
-    expect(ctx.mode).toBe('required-v1');
+    expect(ctx.mode).toBe('required-v2');
     expect(ctx.frozenContractHash).toBe(FROZEN_HASH);
   });
 
@@ -302,7 +302,7 @@ describe('assertBoardsBoundForRender — the pre-image gate', () => {
   it('THROWS when the set changed after binding (recomputed setDefinitionHash no longer matches)', async () => {
     const ctx = await bindFresh();
     const edited = makeContract();
-    edited.locations[0].description = 'the north room, now with a completely different floor';
+    edited.zones[0].spatialNodes![0].description = 'a completely different fixed doorway';
     await expect(
       assertBoardsBoundForRender(
         {

@@ -22,6 +22,7 @@ export {
   groupLocationsBySetIdentity,
   listRequiredSetIdentityIds,
   projectSetDefinition,
+  computeSetBoardContentPolicyDigest,
   computeSetDefinitionHash,
 } from './setDefinition';
 
@@ -48,6 +49,8 @@ export {
   planReferenceAssets,
   selectBoardRefForLocation,
   ReferenceBudgetExceededError,
+  SET_REFERENCE_COPY_INSTRUCTION,
+  PROP_REFERENCE_COPY_INSTRUCTION,
   type ReferenceAsset,
   type ReferenceRole,
 } from './referenceTransport';

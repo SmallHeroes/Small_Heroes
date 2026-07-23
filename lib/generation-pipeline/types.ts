@@ -100,7 +100,7 @@ export type PipelineCache = {
    * `saveCache`.
    *
    * ABSENT = LEGACY ORDER, and permanently so: every board branch (bind stage, pre-render assertion, tagged refs,
-   * the `set_refs` stage decision) gates on this field being `mode:'required-v1'`, so an order that never got a
+   * the `set_refs` stage decision) gates on this field being `mode:'required-v2'`, so an order that never got a
    * snapshot renders byte-identically to today FOREVER — including an order already in flight when the flag is
    * switched on. Boards are never introduced mid-book.
    *
@@ -234,7 +234,7 @@ export type PageForGeneration = {
    *  Ephemeral; set only when VISUAL_CONTRACT_STEERING is on. Absent → legacy prompt unchanged (byte-identical). */
   visualContractPromptBlock?: string;
   /** (Set Identity Board, Milestone C) This page's approved set board as a TAGGED ref (Milestone B transport).
-   *  Ephemeral; set only for an order carrying a `required-v1` board snapshot. Absent → no protected ref, no role
+   *  Ephemeral; set only for an order carrying a `required-v2` board snapshot. Absent → no protected ref, no role
    *  map, no set-copy instruction → byte-identical. */
   setIdentityBoardRefs?: import('@/lib/set-identity-board').ReferenceAsset[];
 };

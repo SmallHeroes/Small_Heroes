@@ -86,9 +86,9 @@ describe('buildSetIdentityBoardPrompt', () => {
   it('is derived from the SetDefinition (set identity, location, geometry, materials)', () => {
     const { prompt } = buildForFixture();
     expect(prompt).toContain('set_hall');
-    expect(prompt).toContain('a plain stone hall with a flat floor');
+    expect(prompt).toContain('Main Hall');
     expect(prompt).toContain('a tall arched doorway in the east wall'); // geometry from spatialNode
-    expect(prompt).toContain('stone_table_prop'); // fixed set object
+    expect(prompt).toContain('Stone Table'); // fixed set object
     expect(prompt).toContain('grey granite'); // material fact
   });
 
@@ -178,7 +178,7 @@ describe('buildSetIdentityBoardPrompt — ONE continuous establishing view, neve
   it('still carries the set geometry, fixed objects, authored openings and the order style', () => {
     const p = prompt();
     expect(p).toMatch(/SET GEOMETRY/);
-    expect(p).toMatch(/a plain stone hall with a flat floor/); // from the projection
+    expect(p).toMatch(/Main Hall/); // from the spoiler-neutral projection
     expect(p).toMatch(/FIXED SET OBJECTS/);
     expect(p).toMatch(/WALL OPENINGS/);
     expect(p).toMatch(/doorway/); // the ONLY authored opening

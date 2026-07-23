@@ -23,6 +23,7 @@ import { VISUAL_PACKAGE_MANIFEST_SUFFIX } from './types';
 import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler/contractTemplateTypes';
 import { runtimeWorldAuthorityIssues } from './runtimeAuthority';
 import { storyCoverSourceFidelityIssues } from './coverSourceFidelity';
+import { comparePropArtifacts, resolveRequiredPropArtifacts } from './propArtifacts';
 
 export interface RenderQualificationResult {
   storyKey: string;
@@ -201,7 +202,22 @@ export function evaluateRenderQualification(args: {
         styleId: args.styleId,
       });
       reasons.push(...boards.issues);
-      reasons.push(...compareBoardArtifacts(manifest.requiredBoards, boards.boards));
+      reasons.push(...compareBoardArtifacts(
+        Array.isArray(manifest.requiredBoards) ? manifest.requiredBoards : [],
+        boards.boards,
+      ));
+      const propArtifacts = resolveRequiredPropArtifacts({
+        repoRoot: args.repoRoot,
+        storyKey: args.storyKey,
+        storySourcePath: manifest.source.path,
+        styleId: args.styleId,
+        template: loaded.template,
+      });
+      reasons.push(...propArtifacts.issues);
+      reasons.push(...comparePropArtifacts(
+        Array.isArray(manifest.requiredPropReferences) ? manifest.requiredPropReferences : [],
+        propArtifacts.artifacts,
+      ));
     }
   }
 

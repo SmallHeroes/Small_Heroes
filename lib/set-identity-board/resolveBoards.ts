@@ -33,7 +33,12 @@ import {
   type SetIdentityBoardBindingContext,
   type SetIdentityBoardRegistryEntry,
 } from './types';
-import { computeSetDefinitionHash, listRequiredSetIdentityIds } from './setDefinition';
+import {
+  computeSetBoardContentPolicyDigest,
+  computeSetDefinitionHash,
+  listRequiredSetIdentityIds,
+  projectSetDefinition,
+} from './setDefinition';
 import {
   validateSetIdentityBoardRegistryEntry,
   verifyBoardAssetBytes,
@@ -83,6 +88,7 @@ function expectedIdentityFor(
   setIdentityId: string,
   styleId: string
 ): ExpectedRegistryIdentity {
+  const definition = projectSetDefinition(contract, setIdentityId, styleId);
   return {
     registryVersion: SET_IDENTITY_REGISTRY_VERSION,
     boardVersion: SET_IDENTITY_BOARD_VERSION,
@@ -90,6 +96,8 @@ function expectedIdentityFor(
     setIdentityId,
     styleId,
     setDefinitionHash: computeSetDefinitionHash(contract, setIdentityId, styleId),
+    contentPolicyDigest: computeSetBoardContentPolicyDigest(definition),
+    declaredPropIds: definition.contentPolicy.includedPropIds,
   };
 }
 
@@ -109,6 +117,8 @@ function isBindingStillValid(
   if (!binding) return false;
   if (binding.setIdentityId !== expected.setIdentityId) return false;
   if (binding.setDefinitionHash !== expected.setDefinitionHash) return false;
+  if (binding.contentPolicyDigest !== expected.contentPolicyDigest) return false;
+  if (JSON.stringify(binding.declaredPropIds) !== JSON.stringify(expected.declaredPropIds)) return false;
   if (binding.styleId !== expected.styleId) return false;
   if (binding.boardVersion !== expected.boardVersion) return false;
   if (!isNonEmptyString(binding.storageKey)) return false;
@@ -120,12 +130,12 @@ function isBindingStillValid(
 }
 
 /**
- * The ACTIVATION snapshot for a newly frozen contract: `required-v1` with ZERO bindings yet. Writing this is what
+ * The ACTIVATION snapshot for a newly frozen contract: `required-v2` with ZERO bindings yet. Writing this is what
  * opts ONE order onto the board path, permanently. Called ONLY when the flag is on and only at the moment the
  * contract freezes — an order that never gets this stays legacy for life (see `set-identity-board-stage.ts`).
  */
 export function snapshotBoardMode(args: { frozenContractHash: string }): SetIdentityBoardBindingContext {
-  return { mode: 'required-v1', frozenContractHash: args.frozenContractHash, bindings: {} };
+  return { mode: 'required-v2', frozenContractHash: args.frozenContractHash, bindings: {} };
 }
 
 /** LOOK UP → VERIFY → BIND exactly one set identity. Every failure path throws; there is no degraded return. */
@@ -173,6 +183,8 @@ async function bindOneBoard(
   return {
     setIdentityId,
     setDefinitionHash: entry.setDefinitionHash,
+    contentPolicyDigest: entry.contentPolicyDigest,
+    declaredPropIds: entry.declaredPropIds,
     styleId: entry.styleId,
     // storageKey is the DURABLE authority; resolvedUrl is the env-specific locator handed to the provider. Both are
     // durable descriptors — NEVER a local /tmp path (assertCacheHasNoLocalArtifactPaths would reject the cache).
@@ -214,7 +226,7 @@ export async function resolveBoardBindings(
     bindings[setIdentityId] = await bindOneBoard(setIdentityId, expected, deps);
   }
 
-  return { mode: 'required-v1', frozenContractHash, bindings };
+  return { mode: 'required-v2', frozenContractHash, bindings };
 }
 
 /**
@@ -237,7 +249,7 @@ export type BoardByteVerifierDeps = Pick<BoardResolverDeps, 'fetchAssetSha256'>;
 /**
  * THE PRE-IMAGE ASSERTION — the last thing between a board-activated order and a paid render.
  *
- * A NO-OP for a LEGACY order (no `required-v1` snapshot) — which is every order today and every order while the
+ * A NO-OP for a LEGACY order (no `required-v2` snapshot) — which is every order today and every order while the
  * flag is off. It returns BEFORE it touches `deps`, so an OFF/legacy order performs zero I/O and stays
  * byte-identical. That is the whole OFF-inertness argument in one line.
  *
@@ -271,7 +283,7 @@ export async function assertBoardsBoundForRender(
   deps: BoardByteVerifierDeps
 ): Promise<void> {
   const snapshot = args.cache.setIdentityBoards;
-  if (snapshot?.mode !== 'required-v1') return; // LEGACY order → no-op, no I/O → byte-identical.
+  if (snapshot?.mode !== 'required-v2') return; // LEGACY order → no-op, no I/O → byte-identical.
 
   if (!isNonEmptyString(args.activeFrozenContractHash) || snapshot.frozenContractHash !== args.activeFrozenContractHash) {
     throw new SetIdentityBoardUnavailableError('*', [

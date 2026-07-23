@@ -25,6 +25,8 @@ export interface ExpectedRegistryIdentity {
   setIdentityId: string;
   styleId: string;
   setDefinitionHash: string;
+  contentPolicyDigest: string;
+  declaredPropIds: string[];
 }
 
 export type RegistryValidation = { ok: true } | { ok: false; errors: string[] };
@@ -43,6 +45,7 @@ function shapeErrors(entry: Record<string, unknown>): string[] {
     'setIdentityId',
     'styleId',
     'setDefinitionHash',
+    'contentPolicyDigest',
     'storageKey',
     'assetSha256',
     'promptHash',
@@ -56,6 +59,9 @@ function shapeErrors(entry: Record<string, unknown>): string[] {
   }
   if (entry.qaStatus !== undefined && !['passed', 'failed', 'pending'].includes(entry.qaStatus as string)) {
     errors.push('field "qaStatus" must be one of passed|failed|pending');
+  }
+  if (!Array.isArray(entry.declaredPropIds) || !entry.declaredPropIds.every((value) => typeof value === 'string')) {
+    errors.push('field "declaredPropIds" must be an array of strings');
   }
   // approvedBy / approvedAt are string|null by type — reject any other type outright.
   if (!(entry.approvedBy === null || typeof entry.approvedBy === 'string')) {
@@ -107,6 +113,12 @@ export function validateSetIdentityBoardRegistryEntry(
   }
   if (typed.setDefinitionHash !== expected.setDefinitionHash) {
     errors.push('setDefinitionHash mismatch (the set changed — an old board must not be reused)');
+  }
+  if (typed.contentPolicyDigest !== expected.contentPolicyDigest) {
+    errors.push('contentPolicyDigest mismatch (the declared visible board content changed)');
+  }
+  if (JSON.stringify(typed.declaredPropIds) !== JSON.stringify(expected.declaredPropIds)) {
+    errors.push('declaredPropIds mismatch (the board prop-content declaration changed)');
   }
   if (typed.qaStatus !== 'passed') {
     errors.push(`qaStatus must be "passed" (got "${typed.qaStatus}")`);

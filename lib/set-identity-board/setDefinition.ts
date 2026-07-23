@@ -1,54 +1,43 @@
 /**
- * Set Identity Board — the PURE SET-only projection + its hash. NO I/O, NO clock, NO randomness.
+ * Set Identity Board v2 — PURE spoiler-neutral base-set projection. NO I/O, clock, randomness, or prose parsing.
  *
- * This module answers exactly one question deterministically: "for one physical SET (a `setIdentityId`), what are the
- * reusable set facts?" — and hashes them. The projection is DELIBERATELY narrow: it reads only locations, zones, their
- * geometry, and the recurring props bound INTO that geometry. It never reads cast / humanCast / page camera / page
- * action / transient prop state / firstRevealPage / family or appearance / order data. That narrowness is what makes
- * an approved board survive personalization: two orders of the same story with different children (or different page
- * cameras, or different prop states) project to the SAME `SetDefinition` and therefore reuse the SAME approved board.
- *
- * Everything is contract-derived and reusable — ZERO story-specific literals live here.
+ * The projection keeps stable location lighting and structured zone geometry. A prop-bound node is excluded when
+ * any cover/page that consumes the physical set forbids that prop or precedes its lifecycle reveal. Relations that
+ * depend on an excluded node and the prop's fixed facts are removed with it. Free-form location/zone descriptions,
+ * anchors, topology prose, page actions, effects, and prop states are never board authority.
  */
 import { canonicalHash } from '@/lib/canonical-json';
 import type {
   BookVisualContract,
-  VisualLocation,
-  VisualZone,
+  PageVisualContract,
   SpatialNode,
   SpatialRelation,
+  VisualLocation,
+  VisualZone,
 } from '@/lib/visual-contract-compiler';
-import { projectZoneStableGeometry } from '@/lib/visual-contract-compiler';
 
 import {
+  SET_BOARD_CONTENT_POLICY_VERSION,
   SET_IDENTITY_BOARD_VERSION,
+  type SetBoardContentPolicy,
+  type SetBoardExcludedProp,
+  type SetBoardExclusionReason,
   type SetDefinition,
   type SetDefinitionFixedFact,
   type SetDefinitionLocation,
   type SetDefinitionZone,
 } from './types';
 
-/** Stable ascending sort by `.id` — used everywhere the projection order must be deterministic and hash-stable. */
 function byId<T extends { id: string }>(items: readonly T[]): T[] {
   return items.slice().sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
-/**
- * The physical-set identity a location belongs to. Authored `setIdentityId` when present; otherwise the location is
- * its OWN singleton identity, keyed by its own id. This makes default authoring (omit the field) resolve to exactly
- * one identity per location, and guarantees two distinct identities never share a key.
- */
 function identityKeyOf(location: VisualLocation): string {
   return location.setIdentityId ?? location.id;
 }
 
-/**
- * Group a contract's locations by their physical-set identity. A location WITHOUT `setIdentityId` forms its own
- * singleton group keyed by its own location id; locations that share a `setIdentityId` land in one group. Distinct
- * identities never cross-wire (different keys → different groups).
- */
 export function groupLocationsBySetIdentity(
-  contract: BookVisualContract
+  contract: BookVisualContract,
 ): Map<string, VisualLocation[]> {
   const groups = new Map<string, VisualLocation[]>();
   for (const location of contract.locations ?? []) {
@@ -61,117 +50,212 @@ export function groupLocationsBySetIdentity(
   return groups;
 }
 
-/**
- * The distinct set-identity ids that REQUIRE an approved board — i.e. whose group contains any location whose
- * `setReference.status` is `'pending'` or `'ready'`. A location with `status:'none'` (or no `setReference`) does not
- * require a board. Result is sorted + deduped.
- */
 export function listRequiredSetIdentityIds(contract: BookVisualContract): string[] {
   const required = new Set<string>();
   for (const [identityId, locations] of groupLocationsBySetIdentity(contract)) {
-    const needsBoard = locations.some(
-      (l) => l.setReference?.status === 'pending' || l.setReference?.status === 'ready'
-    );
-    if (needsBoard) required.add(identityId);
+    if (locations.some((location) =>
+      location.setReference?.status === 'pending' || location.setReference?.status === 'ready'
+    )) {
+      required.add(identityId);
+    }
   }
   return Array.from(required).sort();
 }
 
-/** Project one location to the SET-only shape. Optional fields are carried through only when authored. */
 function projectLocation(location: VisualLocation): SetDefinitionLocation {
   return {
     id: location.id,
-    description: location.description,
-    // Undefined optionals are dropped by JSON serialization, so an unauthored field hashes byte-identically.
+    name: location.name,
     timeOfDay: location.timeOfDay,
     lighting: location.lighting,
     environmentClass: location.environmentClass,
-    anchors: (location.anchors ?? []).map((a) => ({ id: a.id, description: a.description })),
-    topology: location.topology,
   };
 }
 
-/** Project one zone to the SET-only shape, preserving authored declaration order of nodes + relations. */
-function projectZone(zone: VisualZone): SetDefinitionZone {
-  const spatialNodes: SpatialNode[] = Array.isArray(zone.spatialNodes) ? zone.spatialNodes : [];
-  const spatialRelations: SpatialRelation[] = Array.isArray(zone.spatialRelations)
-    ? zone.spatialRelations
-    : [];
-  return {
-    id: zone.id,
-    name: zone.name,
-    description: zone.description,
-    spatialNodes,
-    spatialRelations,
-    geometry: projectZoneStableGeometry(zone) ?? [],
-  };
-}
-
-/**
- * The recurring props that are part of THIS set's fixed geometry: every `recurringProps` entry whose id is the
- * `bindsTo.id` of a `{kind:'prop'}` spatialNode in the selected zones. Sorted by propId, deduped. Only the STABLE
- * facts (material/scale) are carried — never per-page state.
- */
-function projectFixedSetFacts(
+function consumingPageNumbers(
   contract: BookVisualContract,
-  zones: readonly SetDefinitionZone[]
-): SetDefinitionFixedFact[] {
-  const boundPropIds = new Set<string>();
+  locationIds: ReadonlySet<string>,
+): number[] {
+  const pages = new Set<number>();
+  if (locationIds.has(contract.coverContract.locationId)) pages.add(0);
+  for (const page of contract.pageContracts ?? []) {
+    if (locationIds.has(page.locationId)) pages.add(page.pageNumber);
+  }
+  return Array.from(pages).sort((a, b) => a - b);
+}
+
+function pageFor(
+  contract: BookVisualContract,
+  pageNumber: number,
+): PageVisualContract | undefined {
+  return pageNumber === 0
+    ? undefined
+    : contract.pageContracts.find((page) => page.pageNumber === pageNumber);
+}
+
+function exclusionReasons(
+  contract: BookVisualContract,
+  propId: string,
+  consumers: readonly number[],
+): SetBoardExclusionReason[] {
+  const prop = contract.recurringProps.find((candidate) => candidate.id === propId);
+  const reasons = new Set<SetBoardExclusionReason>();
+  // A lifecycle-gated prop is page-conditioned by definition. It remains separate from the reusable base board
+  // even when this set first appears on/after the reveal page; the same neutral board must never absorb reveal state.
+  if (prop?.firstRevealPage !== undefined) {
+    reasons.add('lifecycle');
+  }
+  if (consumers.some((pageNumber) =>
+    pageFor(contract, pageNumber)?.propConstraints?.some(
+      (constraint) => constraint.propId === propId && constraint.visibility === 'forbidden',
+    )
+  )) {
+    reasons.add('page_forbidden');
+  }
+  return Array.from(reasons).sort();
+}
+
+function nodeAliases(nodes: readonly SpatialNode[]): Map<string, string> {
+  const counts = new Map<string, number>();
+  const aliases = new Map<string, string>();
+  for (const node of nodes) {
+    const count = (counts.get(node.kind) ?? 0) + 1;
+    counts.set(node.kind, count);
+    aliases.set(node.id, `${node.kind.replace(/_/g, ' ')} ${count}`);
+  }
+  return aliases;
+}
+
+function projectBoardGeometry(
+  nodes: readonly SpatialNode[],
+  relations: readonly SpatialRelation[],
+): string[] {
+  const aliases = nodeAliases(nodes);
+  const lines = nodes.map((node) => `${aliases.get(node.id)}: ${node.description}`);
+  for (const relation of relations) {
+    const subject = aliases.get(relation.subjectId);
+    const object = relation.objectId ? aliases.get(relation.objectId) : undefined;
+    if (!subject) continue;
+    const relationLabel = relation.relation.replace(/_/g, ' ');
+    lines.push(object ? `${subject} ${relationLabel} ${object}` : `${subject} ${relationLabel}`);
+  }
+  return lines;
+}
+
+function projectZones(
+  zones: readonly VisualZone[],
+  excludedPropIds: ReadonlySet<string>,
+): SetDefinitionZone[] {
+  return byId(zones).map((zone) => {
+    const spatialNodes = (zone.spatialNodes ?? []).filter(
+      (node) => node.bindsTo?.kind !== 'prop' || !excludedPropIds.has(node.bindsTo.id),
+    );
+    const retainedIds = new Set(spatialNodes.map((node) => node.id));
+    const spatialRelations = (zone.spatialRelations ?? []).filter(
+      (relation) =>
+        retainedIds.has(relation.subjectId) &&
+        (relation.objectId === undefined || retainedIds.has(relation.objectId)),
+    );
+    return {
+      id: zone.id,
+      locationId: zone.locationId,
+      spatialNodes,
+      spatialRelations,
+      geometry: projectBoardGeometry(spatialNodes, spatialRelations),
+    };
+  });
+}
+
+function boundPropIds(zones: readonly VisualZone[]): Set<string> {
+  const ids = new Set<string>();
   for (const zone of zones) {
-    for (const node of zone.spatialNodes) {
-      if (node.bindsTo?.kind === 'prop' && typeof node.bindsTo.id === 'string') {
-        boundPropIds.add(node.bindsTo.id);
-      }
+    for (const node of zone.spatialNodes ?? []) {
+      if (node.bindsTo?.kind === 'prop') ids.add(node.bindsTo.id);
     }
   }
-  const facts = (contract.recurringProps ?? [])
-    .filter((p) => boundPropIds.has(p.id))
-    .map((p): SetDefinitionFixedFact => ({ propId: p.id, material: p.material, scale: p.scale }));
-  return facts
-    .slice()
+  return ids;
+}
+
+function projectFixedSetFacts(
+  contract: BookVisualContract,
+  zones: readonly SetDefinitionZone[],
+): SetDefinitionFixedFact[] {
+  const placementsByProp = new Map<string, SetDefinitionFixedFact['placements']>();
+  for (const zone of zones) {
+    for (const node of zone.spatialNodes) {
+      if (node.bindsTo?.kind !== 'prop') continue;
+      const placements = placementsByProp.get(node.bindsTo.id) ?? [];
+      placements.push({ zoneId: zone.id, nodeId: node.id, nodeKind: node.kind });
+      placementsByProp.set(node.bindsTo.id, placements);
+    }
+  }
+  return contract.recurringProps
+    .filter((prop) => placementsByProp.has(prop.id))
+    .map((prop) => {
+      const placements = placementsByProp.get(prop.id) ?? [];
+      return {
+        propId: prop.id,
+        name: prop.name,
+        material: prop.material,
+        scale: prop.scale,
+        // One recurring prop id denotes one physical identity. Multiple zone bindings describe where that SAME
+        // continuous object is visible; they are not authorization to duplicate it on the one-view base board.
+        quantity: 1,
+        placements,
+      };
+    })
     .sort((a, b) => (a.propId < b.propId ? -1 : a.propId > b.propId ? 1 : 0));
 }
 
-/**
- * Build the SET-only projection for ONE set identity. Deterministic and pure: same inputs → same object → same hash.
- *
- * `setIdentityId` selects the location group (see `groupLocationsBySetIdentity`); a missing/unknown identity yields
- * an empty group (empty locations/zones/facts) rather than throwing — the caller decides requiredness.
- */
 export function projectSetDefinition(
   contract: BookVisualContract,
   setIdentityId: string,
   styleId: string,
-  opts?: { boardVersion?: string }
+  opts?: { boardVersion?: string },
 ): SetDefinition {
-  const boardVersion = opts?.boardVersion ?? SET_IDENTITY_BOARD_VERSION;
-
   const group = groupLocationsBySetIdentity(contract).get(setIdentityId) ?? [];
   const locations = byId(group).map(projectLocation);
-  const locationIds = new Set(group.map((l) => l.id));
+  const locationIds = new Set(group.map((location) => location.id));
+  const sourceZones = (contract.zones ?? []).filter((zone) => locationIds.has(zone.locationId));
+  const consumers = consumingPageNumbers(contract, locationIds);
+  const propsBoundToSet = boundPropIds(sourceZones);
 
-  const zoneEntities = byId((contract.zones ?? []).filter((z) => locationIds.has(z.locationId)));
-  const zones = zoneEntities.map(projectZone);
-
+  const excludedProps: SetBoardExcludedProp[] = contract.recurringProps
+    .filter((prop) => propsBoundToSet.has(prop.id))
+    .map((prop) => ({ prop, reasons: exclusionReasons(contract, prop.id, consumers) }))
+    .filter((entry) => entry.reasons.length > 0)
+    .map(({ prop, reasons }) => ({ propId: prop.id, name: prop.name, reasons }))
+    .sort((a, b) => (a.propId < b.propId ? -1 : a.propId > b.propId ? 1 : 0));
+  const excludedPropIds = new Set(excludedProps.map((prop) => prop.propId));
+  const zones = projectZones(sourceZones, excludedPropIds);
   const fixedSetFacts = projectFixedSetFacts(contract, zones);
+  const contentPolicy: SetBoardContentPolicy = {
+    version: SET_BOARD_CONTENT_POLICY_VERSION,
+    includedPropIds: fixedSetFacts.map((fact) => fact.propId).sort(),
+    excludedProps,
+  };
 
   return {
-    boardVersion,
+    boardVersion: opts?.boardVersion ?? SET_IDENTITY_BOARD_VERSION,
     storyKey: contract.storyKey ?? '',
     styleId,
     setIdentityId,
     locations,
     zones,
     fixedSetFacts,
+    contentPolicy,
   };
 }
 
-/** SHA-256 (canonical JSON) of the SET-only projection — the GLOBAL board key. */
+export function computeSetBoardContentPolicyDigest(definition: SetDefinition): string {
+  return canonicalHash(definition.contentPolicy);
+}
+
 export function computeSetDefinitionHash(
   contract: BookVisualContract,
   setIdentityId: string,
   styleId: string,
-  opts?: { boardVersion?: string }
+  opts?: { boardVersion?: string },
 ): string {
   return canonicalHash(projectSetDefinition(contract, setIdentityId, styleId, opts));
 }

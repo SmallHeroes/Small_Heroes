@@ -1024,7 +1024,12 @@ async function runCoverStage(
   await requireSetIdentityBoardsBoundForRender(order, cache);
 
   const coverImage = await runWithStyle01RenderQualification(
-    { illustrationStyle: order.illustrationStyle, frozenContractHash: order.visualContractHash, cache },
+    {
+      illustrationStyle: order.illustrationStyle,
+      frozenContractHash: order.visualContractHash,
+      cache,
+      pageNumbers: [0],
+    },
     (runtimeVisualAuthority) => generateBookCover({
     // (#7-a 5b) Durable regen reserver for the cover artifact — flag-on only.
     reserveQualityRegen: isReadinessManifestEnabled()
@@ -1512,7 +1517,12 @@ async function runPageImagesChunk(
   await requireSetIdentityBoardsBoundForRender(order, cache);
 
   const imageOutcome = await runWithStyle01RenderQualification(
-    { illustrationStyle: order.illustrationStyle, frozenContractHash: order.visualContractHash, cache },
+    {
+      illustrationStyle: order.illustrationStyle,
+      frozenContractHash: order.visualContractHash,
+      cache,
+      pageNumbers: pagesForGen.map((page) => page.pageNumber),
+    },
     (runtimeVisualAuthority) => generateAllPageImages(pagesForGen, {
     // (#7-a 5b) Durable per-page regen reserver — flag-on only (flag-off → undefined → legacy in-memory budget).
     makeReserveQualityRegen: isReadinessManifestEnabled()
@@ -2096,7 +2106,7 @@ export async function deriveStartingStage(
   // set_refs. (P0-1) THE SNAPSHOT IS THE AUTHORITY — shouldEnterSetRefsStage does NOT read the env flag: an order
   // activated at dna must still be able to bind if the flag later goes down, otherwise an env var could brick it
   // (it would fall through to cover and then throw on the snapshot-gated assert, forever). An order WITHOUT a
-  // required-v1 snapshot — which is every order while the flag is off, since snapshot CREATION is the flag's one
+  // required-v2 snapshot — which is every order while the flag is off, since snapshot CREATION is the flag's one
   // and only reader — returns false here and falls through to 'cover' exactly as today.
   if (!hasCover && shouldEnterSetRefsStage(cache)) return 'set_refs';
   if (!hasCover) return 'cover';

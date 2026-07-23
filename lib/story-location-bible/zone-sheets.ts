@@ -14,23 +14,19 @@ import type {
   ZoneSheetManifest,
 } from './types';
 
-/** Zones that inherit isolated object sheets from a parent zone. */
-export const ZONE_SHEET_ASSET_PARENT: Record<string, string> = {
-  bucket_close_area: 'balcony_drip_area',
-  balcony_threshold: 'balcony_drip_area',
-  bedroom_window_or_bucket_resolution: 'balcony_drip_area',
-};
+/** @deprecated Page-conditioned prop references now come from the versioned package catalog. */
+export const ZONE_SHEET_ASSET_PARENT: Record<string, string> = {};
 
 /** @deprecated — scene set refs removed from page generation. */
 export const ZONE_OBJECT_REFERENCE_INSTRUCTION = `Use the ZONE/OBJECT reference images for SET LAYOUT, OBJECT IDENTITY, and SCALE ONLY:
-same wall/window/railing/floor, same small galvanized bucket (child knee-height), same drip source.
+copy only stable set geometry and explicitly declared object identity.
 Do NOT copy the reference composition or camera. Compose this page per its own COMPOSITION block.
 No characters appear in the reference — characters come from CHILD/COMPANION locks only.`;
 
-export const ISOLATED_OBJECT_REFERENCE_INSTRUCTION = `Use the ISOLATED OBJECT reference image for BUCKET IDENTITY and SCALE ONLY:
-same small galvanized metal bucket (dull silver, child knee-height, wire handle — NOT plastic, NOT basin-sized).
+export const ISOLATED_OBJECT_REFERENCE_INSTRUCTION = `Use the ISOLATED OBJECT reference image for OBJECT IDENTITY and SCALE ONLY:
+copy only the explicitly declared prop's stable material, scale, and design.
 Do NOT copy the neutral cream background, sheet layout, or centered product pose from the reference.
-Compose THIS page per PAGE ACTION and COMPOSITION — place the bucket only where the page action requires it.
+Compose THIS page per PAGE ACTION and COMPOSITION — place the object only where the page contract requires it.
 No characters appear in the object reference — characters come from CHILD/COMPANION locks only.`;
 
 export function storyKeyFromStoryFilePath(storyFilePath: string): string {
@@ -115,19 +111,7 @@ export function resolveZoneForAssetSheets(
 }
 
 export function pageAllowsIsolatedObjectRef(pagePlan: PageLocationPlan): boolean {
-  if (typeof pagePlan.attachIsolatedObjectRefs === 'boolean') {
-    return pagePlan.attachIsolatedObjectRefs;
-  }
-
-  // Cover mystery — never attach bucket object ref on cover (fox)
-  if (pagePlan.page === 0) return false;
-
-  const hidden = pagePlan.visualSpoilerPolicy?.hiddenObjects ?? [];
-  if (hidden.some((o) => /bucket|drip/i.test(o))) return false;
-
-  if (pagePlan.page >= 5 && pagePlan.page <= 12) return true;
-
-  return false;
+  return pagePlan.attachIsolatedObjectRefs === true;
 }
 
 function resolveIsolatedObjectFiles(sheetZone: LocationZone, manifest: ZoneSheetManifest): string[] {
@@ -140,19 +124,17 @@ function resolveIsolatedObjectFiles(sheetZone: LocationZone, manifest: ZoneSheet
   for (const f of sheetZone.referenceSheet?.objectFiles ?? manifest.files.objects ?? []) {
     if (f?.trim()) files.add(String(f).trim());
   }
-  if (!files.size) files.add('bucket-object.png');
   return [...files];
 }
 
 export function resolveIsolatedObjectFile(
   sheetZone: LocationZone,
   manifest: ZoneSheetManifest
-): string {
+): string | undefined {
   return (
     sheetZone.referenceSheet?.isolatedObjectFile ??
     manifest.files.isolatedObject ??
-    sheetZone.referenceSheet?.objectFiles?.find((f) => f.includes('object')) ??
-    'bucket-object.png'
+    sheetZone.referenceSheet?.objectFiles?.find((f) => f.includes('object'))
   );
 }
 
@@ -234,7 +216,7 @@ export function buildVisualSpoilerPromptBlock(
   const lines = ['VISUAL SPOILER CONTROL:'];
   if (policy.hiddenObjects?.length) {
     lines.push(
-      `FORBIDDEN on this page: ${policy.hiddenObjects.join(', ')} — no visible bucket, no clear drip source, no water-catching solution object.`
+      `FORBIDDEN on this page: ${policy.hiddenObjects.join(', ')}.`
     );
   }
   if (policy.revealObjects?.length) {
@@ -271,7 +253,7 @@ export function assembleStyle01BookReferencesWithZoneSheets(input: {
   /** @deprecated scene set refs — never pass for page generation */
   zoneSetRefPath?: string;
   objectAnchorRefPaths?: string[];
-  /** Isolated object refs (bucket-object.png) — identity only */
+  /** Legacy isolated object refs — identity only */
   isolatedObjectRefPaths?: string[];
   /** J2.5 — single set-appearance board replaces per-object refs when present */
   setAppearanceBoardPath?: string | null;
@@ -281,11 +263,14 @@ export function assembleStyle01BookReferencesWithZoneSheets(input: {
    * array is a pure no-op — paths, breakdown, and eviction stay byte/behavior-identical to today.
    */
   protectedSetRefPaths?: string[];
+  /** Approved, page-conditioned prop references. Protected and role-labelled separately from set boards. */
+  protectedPropRefPaths?: string[];
 }): { paths: string[]; breakdown: Record<string, string[]> } {
   const base = assembleStyle01BookReferences(input);
   const boardPath = input.setAppearanceBoardPath?.trim();
   // (Slice B) the PROTECT bucket (Slice C fills it). Empty here → spreads to nothing below.
   const protectedSetRefs = (input.protectedSetRefPaths ?? []).filter(Boolean);
+  const protectedPropRefs = (input.protectedPropRefPaths ?? []).filter(Boolean);
   const objectPaths = boardPath
     ? [boardPath]
     : (
@@ -305,6 +290,7 @@ export function assembleStyle01BookReferencesWithZoneSheets(input: {
   // log + the persisted style01Meta.referenceBreakdown — stays byte-identical while the slot is empty; the key first
   // appears once Slice C populates the sheets.
   if (protectedSetRefs.length) breakdown.contractSetSheets = protectedSetRefs;
+  if (protectedPropRefs.length) breakdown.contractPropSheets = protectedPropRefs;
 
   // Single source of truth for ref ordering AND priority. Protected tier (never trimmed): child
   // anchor + companion lock + the set-appearance board (the room anchor). Only style refs drop under
@@ -315,7 +301,8 @@ export function assembleStyle01BookReferencesWithZoneSheets(input: {
     ...breakdown.child,
     ...breakdown.companion,
     ...breakdown.setAppearanceBoard, // PROTECTED — same tier as child/companion identity refs
-    ...protectedSetRefs, // (Slice B) PROTECTED contract set/prop sheets — never trimmed (empty this slice → no-op)
+    ...protectedPropRefs, // PROTECTED page-conditioned prop identity — never trimmed
+    ...protectedSetRefs, // PROTECTED contract set boards — never trimmed
     ...breakdown.objectAnchors,
     ...breakdown.otherCharacters,
     ...breakdown.style, // first (and only) tier to drop under budget pressure
@@ -331,7 +318,7 @@ export function assembleStyle01BookReferencesWithZoneSheets(input: {
     // Out of droppable style refs and still over budget — fail loud rather than silently evict an
     // identity ref or the room anchor.
     throw new Error(
-      `[style01_refs] reference budget exceeded after explicit set-ref selection (${paths.length}/${maxRefs}) — identity + set-appearance-board refs must not be evicted`
+      `[style01_refs] reference budget exceeded after explicit prop/set-ref selection (${paths.length}/${maxRefs}) — identity + required prop + set-board refs must not be evicted`
     );
   }
 

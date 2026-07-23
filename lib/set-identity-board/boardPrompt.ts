@@ -65,18 +65,20 @@ function locationLine(loc: SetDefinitionLocation): string {
   if (loc.timeOfDay) facets.push(`time of day: ${loc.timeOfDay}`);
   if (loc.lighting) facets.push(`lighting: ${loc.lighting}`);
   if (loc.environmentClass) facets.push(`environment: ${loc.environmentClass}`);
-  if (loc.topology) facets.push(`layout: ${loc.topology}`);
   const facetText = facets.length ? ` (${facets.join('; ')})` : '';
-  const anchorText = loc.anchors.length
-    ? ` — fixed anchors: ${loc.anchors.map((a) => a.description).join('; ')}`
-    : '';
-  return `- ${loc.description}${facetText}${anchorText}`;
+  return `- ${loc.name}${facetText}`;
 }
 
-function zoneGeometryLines(zone: SetDefinitionZone): string[] {
+function zoneGeometryLines(zone: SetDefinitionZone, index: number): string[] {
   if (zone.geometry.length === 0) return [];
-  const heading = zone.name ? `${zone.name}:` : `${zone.id}:`;
-  return [`- ${heading}`, ...zone.geometry.map((g) => `    • ${g}`)];
+  return [`- Area ${index + 1}:`, ...zone.geometry.map((g) => `    • ${g}`)];
+}
+
+function placementAreaLabels(def: SetDefinition, zoneIds: readonly string[]): string[] {
+  return [...new Set(zoneIds)]
+    .map((zoneId) => def.zones.findIndex((zone) => zone.id === zoneId))
+    .filter((index) => index >= 0)
+    .map((index) => `Area ${index + 1}`);
 }
 
 /**
@@ -99,11 +101,23 @@ export function buildSetIdentityBoardPrompt(def: SetDefinition): {
 
   const geometryLines = def.zones.flatMap(zoneGeometryLines);
   const materialLines = def.fixedSetFacts.map((f) => {
-    const detail = [f.material ? `material: ${f.material}` : '', f.scale ? `scale: ${f.scale}` : '']
+    const placementAreas = placementAreaLabels(
+      def,
+      f.placements.map((placement) => placement.zoneId),
+    );
+    const detail = [
+      `count: exactly ${f.quantity}`,
+      f.material ? `material: ${f.material}` : '',
+      f.scale ? `scale: ${f.scale}` : '',
+      placementAreas.length ? `placement areas: ${placementAreas.join(', ')}` : '',
+    ]
       .filter(Boolean)
       .join('; ');
-    return `- ${f.propId}${detail ? ` — ${detail}` : ''}`;
+    return `- ${f.name}${detail ? ` — ${detail}` : ''}`;
   });
+  const excludedLines = def.contentPolicy.excludedProps.map(
+    (prop) => `NO ${prop.name}; it is page-conditioned content and must be absent from this base board`,
+  );
 
   const sections: string[] = [
     'SET IDENTITY BOARD — CHARACTER-FREE SINGLE ESTABLISHING VIEW OF ONE SET',
@@ -121,6 +135,11 @@ export function buildSetIdentityBoardPrompt(def: SetDefinition): {
     'FIXED SET OBJECTS (stable materials + scale — the same object, never redesigned):',
     ...(materialLines.length ? materialLines : ['- (no fixed set objects bound into this set)']),
     '',
+    'SPOILER-NEUTRAL CONTENT POLICY:',
+    ...(excludedLines.length
+      ? excludedLines.map((line) => `- ${line}`)
+      : ['- No page-conditioned prop is declared for exclusion.']),
+    '',
     'WALL OPENINGS:',
     ...(openings.length
       ? [
@@ -130,6 +149,7 @@ export function buildSetIdentityBoardPrompt(def: SetDefinition): {
     '',
     'STRICT FORBIDS (this is a SET PLATE, not a story page):',
     ...BOARD_FORBIDS.map((f) => `- ${f}`),
+    ...excludedLines.map((f) => `- ${f}`),
     '',
     'STYLE (from the order style; apply this rendering language to the set plate):',
     getPositiveStylePromptBlock(def.styleId),
@@ -140,6 +160,7 @@ export function buildSetIdentityBoardPrompt(def: SetDefinition): {
   const negativePrompt = [
     getNegativeStylePromptBlock(def.styleId),
     ...BOARD_FORBIDS,
+    ...excludedLines,
     'people',
     'child',
     'character',

@@ -5,8 +5,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   RenderQualificationPreflightError,
+  runAfterPageReferencePreflight,
   runWithStyle01RenderQualification,
 } from '../render-qualification-preflight';
+import { PageReferenceCompatibilityError } from '../page-reference-authority';
+import type { BookVisualContract } from '@/lib/visual-contract-compiler';
 
 const REPO = process.cwd();
 const CACHE = {
@@ -33,6 +36,58 @@ describe('shipped Style01 render-qualification preflight', () => {
         provider,
       ),
     ).rejects.toBeInstanceOf(RenderQualificationPreflightError);
+    expect(provider).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['cover', [0]],
+    ['batch/resume', [1]],
+    ['single-page/rerender', [1]],
+  ])('blocks a forbidden reference before the %s callback is reachable', async (_label, pageNumbers) => {
+    const contract = {
+      locations: [{ id: 'loc_room', setIdentityId: 'set_room' }],
+      recurringProps: [{
+        id: 'prop_reveal',
+        name: 'Covered Parcel',
+        description: 'a parcel',
+        firstRevealPage: 2,
+      }],
+      coverContract: { locationId: 'loc_room' },
+      pageContracts: [{
+        pageNumber: 1,
+        locationId: 'loc_room',
+        propConstraints: [{ propId: 'prop_reveal', visibility: 'forbidden' }],
+      }],
+    } as unknown as BookVisualContract;
+    const authority = {
+      repoRoot: REPO,
+      contract,
+      boardBindings: {
+        mode: 'required-v2' as const,
+        frozenContractHash: 'fixture-hash',
+        bindings: {
+          set_room: {
+            setIdentityId: 'set_room',
+            setDefinitionHash: 'fixture-definition',
+            contentPolicyDigest: 'fixture-policy',
+            declaredPropIds: ['prop_reveal'],
+            styleId: 'soft_hand_drawn_storybook',
+            storageKey: 'fixture-board',
+            resolvedUrl: 'https://fixtures.invalid/board.png',
+            assetSha256: 'fixture-sha',
+            boardVersion: 'set-board/v2',
+            approvedAt: '2026-07-22T00:00:00.000Z',
+          },
+        },
+      },
+      qualification: {
+        manifest: { requiredPropReferences: [] },
+      },
+    };
+    const provider = vi.fn(async () => 'paid-image');
+    await expect(
+      runAfterPageReferencePreflight(authority as never, pageNumbers, provider),
+    ).rejects.toBeInstanceOf(PageReferenceCompatibilityError);
     expect(provider).not.toHaveBeenCalled();
   });
 
@@ -67,6 +122,8 @@ describe('shipped Style01 render-qualification preflight', () => {
     expect(source).toMatch(/runWithStyle01RenderQualification\([\s\S]*?generateBookCover\(/);
     expect(source).toMatch(/runWithStyle01RenderQualification\([\s\S]*?generateAllPageImages\(/);
     expect(source.match(/runWithStyle01RenderQualification\(/g)).toHaveLength(2);
+    expect(source).toMatch(/pageNumbers:\s*\[0\]/);
+    expect(source).toMatch(/pageNumbers:\s*pagesForGen\.map/);
   });
 
   it('the operator single-page regeneration path preflights before fallback work and rechecks adjacent to render', () => {
@@ -78,6 +135,7 @@ describe('shipped Style01 render-qualification preflight', () => {
     expect(earlyGate).toBeGreaterThan(-1);
     expect(earlyGate).toBeLessThan(legacySelection);
     expect(renderWrapper).toBeLessThan(provider);
+    expect(source).toMatch(/pageNumbers:\s*\[pageNumber\]/);
     expect(source).toMatch(/runtimeVisualAuthority/);
   });
 });

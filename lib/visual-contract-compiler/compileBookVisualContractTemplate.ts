@@ -43,6 +43,7 @@ import {
   coverSourceFidelityIssues,
   type AuthoredCoverAuthority,
 } from './coverSourceAuthority';
+import { projectCoverMustNotShow } from './projectContractProse';
 
 /** The child's cast id is a fixed constant — the hero anchor. NEVER taken from the LLM draft. */
 const CHILD_ID = 'child:hero';
@@ -159,8 +160,8 @@ export function buildTemplateCompileSystemPrompt(): string {
     'Draft ONLY the DESCRIPTIVE fields:',
     '- worldType, locations[] (including authored setIdentityId/setReference bindings), zones[] (with stableGeometry),',
     '  cast.child + cast.companion wardrobe,',
-    '  recurringProps[] (material/scale/persistence), forbiddenGlobalElements[], coverContract, and per-page',
-    '  mustShow/mustNotShow/propState/camera/transition/zoneId/locationId.',
+    '  recurringProps[] (material/scale/persistence/firstRevealPage), forbiddenGlobalElements[], coverContract, and per-page',
+    '  mustShow/mustNotShow/propState/propConstraints/camera/transition/zoneId/locationId.',
     '- For each given human, draft ONLY garments (each colour an explicit value) and forbiddenAppearance. Do NOT',
     '  output appearance (skinTone/hairColour/hairTexture/hairStyle) — the compiler injects those from a role policy.',
     '',
@@ -202,10 +203,11 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
       : []),
     '',
     'Produce a JSON BookVisualContractTemplate DRAFT (descriptive fields only) with keys: worldType, locations[],',
-    'zones[], cast{child,companion?}, humanCast[{id, garments, forbiddenAppearance}], recurringProps[],',
+    'zones[], cast{child,companion?}, humanCast[{id, garments, forbiddenAppearance}],',
+    'recurringProps[{id,name,description,material?,scale?,persistence?,firstRevealPage?}],',
     'forbiddenGlobalElements[], coverContract{worldType,locationId,zoneId,castIds,timeOfDay,mustShow,mustNotShow},',
     'pageContracts[{pageNumber, locationId, zoneId, sameLocationAs?,',
-    'mustShow[], mustNotShow[], propState[], camera, transition}].',
+    'mustShow[], mustNotShow[], propState[], propConstraints[{propId,visibility,stateId?,anchorId?}], camera, transition}].',
     '',
     'FULL STORY TEXT:',
     // Build the page-marked story text from input.pages — the SAME field assertSourceHasRealProse validated — so
@@ -233,9 +235,9 @@ export function buildTemplateRepairSystemPrompt(): string {
     '- locations[] (name/description/lighting/timeOfDay/environmentClass/anchors/topology/setIdentityId/setReference)',
     '- zones[] (name/description/stableGeometry — a present stableGeometry must be a NON-EMPTY string[])',
     '- cast.child/cast.companion wardrobe; each human\'s garments (each colour an explicit value) + forbiddenAppearance',
-    '- recurringProps[] (name/description and material/scale/persistence — NO empty string in a field you include)',
+    '- recurringProps[] (name/description, material/scale/persistence, and firstRevealPage — NO empty string in a field you include)',
     '- forbiddenGlobalElements[]; coverContract mustShow/mustNotShow/locationId/zoneId/castIds/timeOfDay',
-    '- pageContracts[] mustShow/mustNotShow/propState/camera and the transition kind/cue',
+    '- pageContracts[] mustShow/mustNotShow/propState/propConstraints/camera and the transition kind/cue',
     '',
     'You MUST NOT change these (they are COMPILER-owned or FACT-derived; your edits to them are IGNORED and',
     'overwritten, so changing them only wastes the repair):',
@@ -386,6 +388,14 @@ function overlayPage(
     castIds,
     characterPresence: { child: true, companion: companionPresent },
   };
+  const propConstraints = asArr(pc.propConstraints).map((raw) => {
+    const constraint = { ...asObj(raw) };
+    if (constraint.stateId === null) delete constraint.stateId;
+    if (constraint.anchorId === null) delete constraint.anchorId;
+    return constraint;
+  });
+  if (propConstraints.length > 0) out.propConstraints = propConstraints;
+  else delete out.propConstraints;
   if (rebuilt.length > 0) out.castStates = rebuilt;
   else delete out.castStates; // omit rather than emit [] (Slice B fail-closed rule)
   return out;
@@ -589,6 +599,16 @@ function normalizeDraftLocations(raw: unknown): BookVisualContractTemplate['loca
   }) as unknown as BookVisualContractTemplate['locations'];
 }
 
+function normalizeDraftProps(raw: unknown): BookVisualContractTemplate['recurringProps'] {
+  return asArr(raw).map((value) => {
+    const prop = { ...asObj(value) };
+    for (const field of ['material', 'scale', 'persistence', 'firstRevealPage']) {
+      if (prop[field] === null) delete prop[field];
+    }
+    return prop;
+  }) as unknown as BookVisualContractTemplate['recurringProps'];
+}
+
 /**
  * Assemble ONE template CANDIDATE from a single descriptive draft: authoritative cast + compiler-owned
  * appearance/topology/worldType, the fact overlay LAST, then the structural cast invariant + the full fail-closed
@@ -685,12 +705,22 @@ function assembleTemplateFromDraft(
     zones: draft.zones as BookVisualContractTemplate['zones'],
     cast: authoritativeCast as unknown as BookVisualContractTemplate['cast'],
     humanCast,
-    recurringProps: (draft.recurringProps as BookVisualContractTemplate['recurringProps']) ?? [],
+    recurringProps: normalizeDraftProps(draft.recurringProps),
     forbiddenGlobalElements: asArr(draft.forbiddenGlobalElements).filter((x): x is string => typeof x === 'string'),
     coverContract: { ...canonicalCover, worldType } as unknown as BookVisualContractTemplate['coverContract'],
     pageContracts: pageContracts as unknown as BookVisualContractTemplate['pageContracts'],
     provenance: { source: 'llm', model: authoringModel, compiledFromPages: input.pageCount },
   };
+
+  // Prop lifecycle is compiler-owned authority, just like cover worldType. An authored page-0 source can replace
+  // stale draft prohibitions, so append the exact structured lifecycle projection after topology/source overlay.
+  // This keeps cover containment complete without asking prose to duplicate structured data.
+  template.coverContract.mustNotShow = [
+    ...new Set([
+      ...template.coverContract.mustNotShow,
+      ...projectCoverMustNotShow(template as unknown as BookVisualContract),
+    ]),
+  ];
 
   // coverContract.worldType is a COMPILER-owned copy of the top-level worldType — enforce the equality invariant.
   if ((template.coverContract as { worldType?: unknown }).worldType !== template.worldType) {

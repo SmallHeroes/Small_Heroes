@@ -152,17 +152,20 @@ function manifest(): VisualPackageManifest {
     requiredBoards: [{
       artifactPath: 'set-identity-boards/runtime_fixture/set_clinic.json',
       artifactDigest: 'board-artifact-digest',
-      registryVersion: 'set-registry/v1',
-      boardVersion: 'set-board/v1',
+      registryVersion: 'set-registry/v2',
+      boardVersion: 'set-board/v2',
       storyKey: 'runtime_fixture',
       setIdentityId: 'set_clinic',
       styleId: 'soft_hand_drawn_storybook',
       setDefinitionHash: 'set-definition-hash',
+      contentPolicyDigest: 'content-policy-digest',
+      declaredPropIds: [],
       storageKey: 'set-identity-boards/runtime_fixture/set_clinic.png',
       assetSha256: 'board-bytes-sha',
       approvedBy: 'Guy',
       approvedAt: '2026-07-22T10:05:00.000Z',
     }],
+    requiredPropReferences: [],
     promotion: {
       toolVersion: VISUAL_PACKAGE_PROMOTION_VERSION,
       promotedAt: '2026-07-22T10:06:00.000Z',
@@ -181,7 +184,8 @@ function authority(): Style01RuntimeAuthority {
   );
   const contractHash = computeVisualContractHash(contract);
   return {
-    version: 'style01-runtime-authority/v1',
+    version: 'style01-runtime-authority/v2',
+    repoRoot: process.cwd(),
     qualification: {
       storyKey: approved.storyKey,
       storySourcePath: approved.source.path,
@@ -195,17 +199,19 @@ function authority(): Style01RuntimeAuthority {
     contractHash,
     packageBinding: buildApprovedRuntimeAuthorityBinding(approved),
     boardBindings: {
-      mode: 'required-v1',
+      mode: 'required-v2',
       frozenContractHash: contractHash,
       bindings: {
         set_clinic: {
           setIdentityId: 'set_clinic',
           setDefinitionHash: 'set-definition-hash',
+          contentPolicyDigest: 'content-policy-digest',
+          declaredPropIds: [],
           styleId: 'soft_hand_drawn_storybook',
           storageKey: 'set-identity-boards/runtime_fixture/set_clinic.png',
           resolvedUrl: 'https://fixtures.invalid/set-clinic.png',
           assetSha256: 'board-bytes-sha',
-          boardVersion: 'set-board/v1',
+          boardVersion: 'set-board/v2',
           approvedAt: '2026-07-22T10:05:00.000Z',
         },
       },
@@ -377,6 +383,43 @@ describe('R1C shared runtime world-authority boundary', () => {
     });
     expect(cover?.expectedCharacterIds).toEqual(['child:hero', 'companion:friend']);
     expect(cover?.pageLocationPlan.zoneId).toBe('zone_exam');
+  });
+
+  it('does not project a structurally forbidden propState entry as a visible runtime object', () => {
+    const approved = manifest();
+    const sourceTemplate = template();
+    sourceTemplate.pageContracts[0].mustShow = [];
+    sourceTemplate.pageContracts[0].mustNotShow = [
+      ...sourceTemplate.pageContracts[0].mustNotShow,
+      'round stool',
+    ];
+    sourceTemplate.pageContracts[0].propState = [{
+      propId: 'prop_stool',
+      state: 'not visible on this page',
+    }];
+    sourceTemplate.pageContracts[0].propConstraints = [{
+      propId: 'prop_stool',
+      visibility: 'forbidden',
+    }];
+    const contract = bindApprovedRuntimeAuthority(
+      materialize(structuredClone(sourceTemplate), FAMILY),
+      approved,
+    );
+    const runtimeAuthority = authority();
+    runtimeAuthority.qualification.manifest = approved;
+    runtimeAuthority.qualification.template = sourceTemplate;
+    runtimeAuthority.contract = contract;
+    runtimeAuthority.contractHash = computeVisualContractHash(contract);
+    runtimeAuthority.packageBinding = buildApprovedRuntimeAuthorityBinding(approved);
+    runtimeAuthority.boardBindings!.frozenContractHash = runtimeAuthority.contractHash;
+
+    const projection = buildRuntimePageAuthorityProjection({
+      illustrationStyle: 'soft_hand_drawn_storybook',
+      authority: runtimeAuthority,
+      pageNumber: 1,
+    });
+    expect(projection?.entityPresence.recurringObjects).not.toContain('round stool');
+    expect(projection?.visualDirection.visibleObjects).not.toContain('round stool');
   });
 
   it('deterministically removes caller and Director world overrides before the image provider', async () => {

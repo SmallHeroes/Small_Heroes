@@ -1,7 +1,8 @@
-export const VISUAL_PACKAGE_MANIFEST_VERSION = 'visual-package/v1' as const;
-export const VISUAL_PACKAGE_PROMOTION_VERSION = 'visual-package-promotion/v1' as const;
+export const VISUAL_PACKAGE_MANIFEST_VERSION = 'visual-package/v2' as const;
+export const VISUAL_PACKAGE_PROMOTION_VERSION = 'visual-package-promotion/v2' as const;
 export const STORY_SOURCE_IDENTITY_VERSION = 'story-source/v1' as const;
 export const CANDIDATE_EVIDENCE_VERSION = 'visual-package-candidate/v1' as const;
+export const PROP_REFERENCE_CATALOG_VERSION = 'prop-reference-catalog/v1' as const;
 /** Read-only package locator shared by qualification and the offline promotion writer. */
 export const VISUAL_PACKAGE_MANIFEST_SUFFIX = '.visual-package.json' as const;
 
@@ -51,10 +52,32 @@ export interface VisualPackageBoardArtifactIdentity {
   setIdentityId: string;
   styleId: string;
   setDefinitionHash: string;
+  contentPolicyDigest: string;
+  declaredPropIds: string[];
   storageKey: string;
   assetSha256: string;
   approvedBy: string;
   approvedAt: string;
+}
+
+export interface PropReferenceCatalogEntry {
+  propId: string;
+  artifactPath: string;
+  assetSha256: string;
+  approvedBy: string;
+  approvedAt: string;
+}
+
+export interface PropReferenceCatalog {
+  version: typeof PROP_REFERENCE_CATALOG_VERSION;
+  storyKey: string;
+  styleId: string;
+  artifacts: PropReferenceCatalogEntry[];
+}
+
+export interface VisualPackagePropArtifactIdentity extends PropReferenceCatalogEntry {
+  catalogPath: string;
+  catalogDigest: string;
 }
 
 export interface VisualPackageReviewReality {
@@ -94,6 +117,7 @@ export interface VisualPackageManifest {
   review: VisualPackageReviewReality;
   approval: VisualPackageApproval | null;
   requiredBoards: VisualPackageBoardArtifactIdentity[];
+  requiredPropReferences: VisualPackagePropArtifactIdentity[];
   promotion: VisualPackagePromotionRecord | null;
 }
 
@@ -125,6 +149,11 @@ export type VisualPackageIssueCode =
   | 'board_unresolved'
   | 'board_identity_mismatch'
   | 'board_artifact_mismatch'
+  | 'prop_reference_catalog_invalid'
+  | 'prop_reference_missing'
+  | 'prop_reference_identity_mismatch'
+  | 'prop_reference_artifact_mismatch'
+  | 'reference_content_conflict'
   | 'world_authority_incomplete'
   | 'world_authority_contradictory'
   | 'cover_source_authority_invalid'

@@ -37,7 +37,7 @@
       "name": "Small balcony under the window",
       "description": "A compact nighttime balcony with a dry metal railing, a simple chair, one loose slipper on the floor, and an old tin bucket near the outer edge where water drips make rhythms.",
       "environmentClass": "outdoor",
-      "lighting": "Dark blue night ambience with a tiny warm, shaky flashlight beam creating bright spots on metal, floor, chair leg, slipper, and bucket.",
+      "lighting": "Dark blue night ambience with a tiny warm, shaky flashlight beam creating small highlights across the balcony surfaces.",
       "timeOfDay": "night",
       "setIdentityId": "set_room_balcony_night",
       "setReference": {
@@ -219,7 +219,7 @@
       "name": "Bucket corner under the drip",
       "description": "Outer balcony corner with the small tin bucket, soft falling droplets, nearby chair leg and single slipper, where the mystery resolves into rhythm.",
       "stableGeometry": [
-        "ledge \"drip_ledge\": the small fixed ledge overhead that the droplets fall from — the drip source, in the SAME place on every bucket-corner page",
+        "ledge \"drip_ledge\": a small fixed overhead ledge, in the SAME place on every corner page",
         "furniture \"bucket\": the old small tin bucket, standing still on the balcony floor directly beneath the drip",
         "floor \"corner_floor\": the balcony corner floor, with enough space to sit at a comfortable listening distance",
         "furniture \"chair_leg\": one simple chair leg standing nearby on the same floor",
@@ -234,7 +234,7 @@
         {
           "id": "drip_ledge",
           "kind": "ledge",
-          "description": "the small fixed ledge overhead that the droplets fall from — the drip source, in the SAME place on every bucket-corner page"
+          "description": "a small fixed overhead ledge, in the SAME place on every corner page"
         },
         {
           "id": "bucket",
@@ -350,7 +350,8 @@
       "description": "Small old bucket at the balcony edge; initially mysterious and too quiet, then revealed as the source of metallic and soft water-drop rhythms.",
       "material": "slightly shiny galvanized tin with soft worn edges, not sharp or rusty-dangerous",
       "scale": "small child-manageable bucket, about knee height to the child when standing",
-      "persistence": "first clearly revealed on page 5; remains in the bucket corner through page 12; shifts slightly on page 9"
+      "persistence": "first clearly revealed on page 5; remains in the bucket corner through page 12; shifts slightly on page 9",
+      "firstRevealPage": 5
     },
     {
       "id": "prop_water_drops",
@@ -453,7 +454,8 @@
       "stream",
       "rooftop",
       "cliff",
-      "open water"
+      "open water",
+      "old tin bucket (first revealed on page 5 — no spoiler)"
     ],
     "zoneId": "z_room_window",
     "castIds": [

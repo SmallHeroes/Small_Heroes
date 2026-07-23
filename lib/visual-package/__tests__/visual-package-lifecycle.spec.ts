@@ -9,7 +9,17 @@ import { STYLE_IDS } from '@/lib/styles';
 import {
   computeVisualContractHash,
   materialize,
+  type BookVisualContract,
 } from '@/lib/visual-contract-compiler';
+import {
+  SET_IDENTITY_BOARD_VERSION,
+  SET_IDENTITY_REGISTRY_VERSION,
+  computeSetBoardContentPolicyDigest,
+  computeSetDefinitionHash,
+  listRequiredSetIdentityIds,
+  projectSetDefinition,
+  setIdentityBoardRegistryPath,
+} from '@/lib/set-identity-board';
 import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler/contractTemplateTypes';
 import {
   applyAuthoredCoverAuthority,
@@ -84,6 +94,21 @@ function makeFixture(): Fixture {
     path.join(REPO, 'story-bank', 'v3-approved', TEMPLATE_NAME),
     templatePath,
   );
+  const propCatalogName = `${STORY_KEY}.prop-references.json`;
+  fs.copyFileSync(
+    path.join(REPO, 'story-bank', 'v3-approved', propCatalogName),
+    path.join(path.dirname(storyPath), propCatalogName),
+  );
+  const propAssetRel = path.join(
+    'story-bank',
+    'v3-approved',
+    `${STORY_KEY}.zone-sheets`,
+    'balcony_drip_area',
+    'bucket-object.png',
+  );
+  const propAssetDestination = path.join(root, propAssetRel);
+  fs.mkdirSync(path.dirname(propAssetDestination), { recursive: true });
+  fs.copyFileSync(path.join(REPO, propAssetRel), propAssetDestination);
   // R1C render qualification is stricter than the historical checked-in Fox candidate. Upgrade only this temporary
   // mock package; the real 0/18 package inventory remains untouched and unpromoted.
   const runtimeTemplate = readJson<BookVisualContractTemplate>(templatePath);
@@ -106,9 +131,48 @@ function makeFixture(): Fixture {
     }).cover,
   } as BookVisualContractTemplate['coverContract'];
   writeJson(templatePath, runtimeTemplate);
-  fs.cpSync(path.join(REPO, 'set-identity-boards'), path.join(root, 'set-identity-boards'), {
-    recursive: true,
-  });
+  const setContract = runtimeTemplate as unknown as BookVisualContract;
+  for (const setIdentityId of listRequiredSetIdentityIds(setContract)) {
+    const definition = projectSetDefinition(
+      setContract,
+      setIdentityId,
+      STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+    );
+    const setDefinitionHash = computeSetDefinitionHash(
+      setContract,
+      setIdentityId,
+      STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+    );
+    const registryPath = setIdentityBoardRegistryPath({
+      registryVersion: SET_IDENTITY_REGISTRY_VERSION,
+      boardVersion: SET_IDENTITY_BOARD_VERSION,
+      storyKey: STORY_KEY,
+      setIdentityId,
+      styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+      setDefinitionHash,
+      contentPolicyDigest: computeSetBoardContentPolicyDigest(definition),
+      declaredPropIds: definition.contentPolicy.includedPropIds,
+    }, path.join(root, 'set-identity-boards'));
+    writeJson(registryPath, {
+      registryVersion: SET_IDENTITY_REGISTRY_VERSION,
+      boardVersion: SET_IDENTITY_BOARD_VERSION,
+      storyKey: STORY_KEY,
+      setIdentityId,
+      styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+      setDefinitionHash,
+      contentPolicyDigest: computeSetBoardContentPolicyDigest(definition),
+      declaredPropIds: definition.contentPolicy.includedPropIds,
+      storageKey: `set-identity-boards/${STORY_KEY}/${setIdentityId}/board.png`,
+      assetSha256: 'fixture-board-bytes-sha',
+      promptHash: 'fixture-board-prompt-hash',
+      model: 'fixture-model',
+      quality: 'low',
+      qaStatus: 'passed',
+      qaCheckedAt: '2026-07-22T11:00:00.000Z',
+      approvedBy: 'Guy',
+      approvedAt: '2026-07-22T11:05:00.000Z',
+    });
+  }
 
   const source = buildStorySourceIdentity({ repoRoot: root, storyPath });
   const template = readJson<unknown>(templatePath);
@@ -218,6 +282,13 @@ describe('visual-package candidate -> review -> Guy approval -> promotion', () =
       setIdentityId: 'set_room_balcony_night',
       approvedBy: 'Guy',
     });
+    expect(promoted.approvedManifest.requiredPropReferences).toEqual([
+      expect.objectContaining({
+        propId: 'prop_tin_bucket',
+        assetSha256: '60ee317551759e42e08dba592b52d206ec4ed22e47d85a43789acfd977b869bc',
+        approvedBy: 'Guy',
+      }),
+    ]);
 
     const qualification = evaluateRenderQualification({
       repoRoot: f.root,
@@ -245,6 +316,8 @@ describe('visual-package candidate -> review -> Guy approval -> promotion', () =
         {
           setIdentityId: board.setIdentityId,
           setDefinitionHash: board.setDefinitionHash,
+          contentPolicyDigest: board.contentPolicyDigest,
+          declaredPropIds: board.declaredPropIds,
           styleId: board.styleId,
           storageKey: board.storageKey,
           resolvedUrl: `https://fixtures.invalid/${board.setIdentityId}.png`,
@@ -259,7 +332,7 @@ describe('visual-package candidate -> review -> Guy approval -> promotion', () =
       storyDir: 'v3-approved',
       selectionFilename: `${STORY_KEY}.md`,
       visualContract: resolved as unknown as PipelineCache['visualContract'],
-      setIdentityBoards: { mode: 'required-v1' as const, frozenContractHash, bindings: boardBindings },
+      setIdentityBoards: { mode: 'required-v2' as const, frozenContractHash, bindings: boardBindings },
     };
     const runtime = requireStyle01RenderQualification({
       illustrationStyle: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
@@ -268,6 +341,7 @@ describe('visual-package candidate -> review -> Guy approval -> promotion', () =
       repoRoot: f.root,
     });
     expect(runtime?.packageBinding.worldMode).toBe('grounded_with_visual_metaphor');
+    expect(runtime?.packageBinding.requiredPropReferencesDigest).toBeTruthy();
     expect(runtime?.contractHash).toBe(frozenContractHash);
 
     expect(() => requireStyle01RenderQualification({
@@ -285,6 +359,84 @@ describe('visual-package candidate -> review -> Guy approval -> promotion', () =
       cache: runtimeCache,
       repoRoot: f.root,
     })).toThrow(RenderQualificationPreflightError);
+  });
+
+  it('qualification rejects changed prop-reference bytes without online storage access', () => {
+    const f = fixture();
+    promoteVisualPackage({
+      repoRoot: f.root,
+      approvalManifestPath: f.manifestPath,
+      write: true,
+      now: () => new Date('2026-07-22T12:10:00.000Z'),
+    });
+    fs.writeFileSync(
+      path.join(
+        f.root,
+        'story-bank',
+        'v3-approved',
+        `${STORY_KEY}.zone-sheets`,
+        'balcony_drip_area',
+        'bucket-object.png',
+      ),
+      Buffer.from('changed-prop-bytes'),
+    );
+    const qualification = evaluateRenderQualification({
+      repoRoot: f.root,
+      storyKey: STORY_KEY,
+      storyPath: f.storyPath,
+      styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+    });
+    expect(qualification.renderQualified).toBe(false);
+    expect(qualification.reasons.map((reason) => reason.code)).toContain(
+      'prop_reference_artifact_mismatch',
+    );
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('rejects a legacy v1 candidate as a validation error instead of reading it as v2 authority', () => {
+    const f = fixture();
+    const legacy = readJson<Record<string, any>>(f.manifestPath);
+    legacy.manifestVersion = 'visual-package/v1';
+    delete legacy.requiredPropReferences;
+    for (const board of legacy.requiredBoards ?? []) {
+      delete board.contentPolicyDigest;
+      delete board.declaredPropIds;
+    }
+    writeJson(f.manifestPath, legacy);
+
+    expect(() => promoteVisualPackage({
+      repoRoot: f.root,
+      approvalManifestPath: f.manifestPath,
+      write: false,
+    })).toThrow(VisualPackageValidationError);
+  });
+
+  it('qualification fails closed on a legacy v1 approved package without online storage access', () => {
+    const f = fixture();
+    const promoted = promoteVisualPackage({
+      repoRoot: f.root,
+      approvalManifestPath: f.manifestPath,
+      write: true,
+    });
+    const approvedPath = path.join(f.root, promoted.manifestDestination);
+    const legacy = readJson<Record<string, any>>(approvedPath);
+    legacy.manifestVersion = 'visual-package/v1';
+    delete legacy.requiredPropReferences;
+    for (const board of legacy.requiredBoards ?? []) {
+      delete board.contentPolicyDigest;
+      delete board.declaredPropIds;
+    }
+    writeJson(approvedPath, legacy);
+
+    const qualification = evaluateRenderQualification({
+      repoRoot: f.root,
+      storyKey: STORY_KEY,
+      storyPath: f.storyPath,
+      styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+    });
+    expect(qualification.renderQualified).toBe(false);
+    expect(qualification.reasons.map((reason) => reason.code)).toContain('manifest_invalid');
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('rejects missing exact approval', () => {
