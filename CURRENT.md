@@ -2,7 +2,34 @@
 
 **Updated:** 2026-07-23
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-board-stable-prompt-authority` in `C:\Users\guyna\.codex\worktrees\7123\Small_Heroes`. The approved R1D-BOARD-STABLE-PROMPT-AUTHORITY implementation base is exactly `73c0697ee3f6c7369e67f64eee799b148cf3aac7`; focused code is committed locally at `833b71376aff9d9c75c9ceecbfdbbb8578ea0064`; the independently reviewed implementation-handoff head is `4c510984360dc970d59d9fe1696564257b90926c`. Claude Code returned technical **PASS** for the exact immutable range `73c0697ee3f6c7369e67f64eee799b148cf3aac7..4c510984360dc970d59d9fe1696564257b90926c`, with no finding requiring correction. This worktree is the sole writer for the milestone. The branch has no upstream and remains unpushed. Canonical main and every other worktree/branch remain read-only.
+**Working branch:** `codex/r1d-fox-v3-board-mint` in `C:\Users\guyna\.codex\worktrees\0d94\Small_Heroes`, based exactly on the approved parent head `9c41bb98f7e52a2433264854bba296a88c3af74c`. The starting tree was clean, contained the independently reviewed implementation head `4c510984360dc970d59d9fe1696564257b90926c`, and its mint surface was unchanged from that reviewed head. This worktree is the sole writer for the execution milestone. The branch has no upstream and remains unpushed. Canonical main, the parent worktree, and every other worktree/branch remain read-only.
+
+## R1D Fox v3 Set Identity Board mint - fail-closed before tool start
+
+Guy explicitly authorized exactly one LOW Fox v3 Set Identity Board mint, including one image-generation call, one content-addressed no-overwrite storage operation, and one vision-QA call. The single live command invocation failed in the local package launcher before `tsx` or `scripts/mint-set-identity-board.ts` started. Per the binding no-retry rule, Codex stopped and did not rerun, reroll, substitute a launcher, or invoke any provider/storage path.
+
+### Reconciled authority and zero-cost preflight
+
+- The execution worktree started clean and detached at exact expected head `9c41bb98f7e52a2433264854bba296a88c3af74c`, was attached only to `codex/r1d-fox-v3-board-mint`, and contains reviewed head `4c510984360dc970d59d9fe1696564257b90926c`. Parent branch/worktree `codex/r1d-board-stable-prompt-authority` at `C:\Users\guyna\.codex\worktrees\7123\Small_Heroes` was clean and exactly equal to `origin/codex/r1d-board-stable-prompt-authority` at `9c41bb98`.
+- The existing reusable credentials were found in canonical `C:\GNart\Work\Small_Heroes\.env.local`, loaded only into the attempted command's process environment, and never copied into this worktree or printed. `C:\GNart\Work\Small_Heroes\.env.production.local` was deliberately not used.
+- The reviewed canonical contract/style inputs were `story-bank/v3-approved/fox_uri_adventure.visual-contract-template.json` and `soft_hand_drawn_storybook`. The dry mint path reproduced story `fox_uri_adventure`, identity `set_room_balcony_night`, registry `set-registry/v3`, board `set-board/v3`, set-definition hash `dc86d58e443bf9b3274f9d64c7b4ecbe9e443d1a2c8d52fb2f211dae32989bfe`, content-policy digest `c00b9b6b6b6da477e045065b2ca4b364f5d1885a03385aa6757e3734bc3900df`, and prompt hash `7ce108dadef5ab877bb945ae639fb3fd1bd561635b421cce6572ee1ff1eeeecd`.
+- Included prop IDs were exactly `prop_chair_leg`, `prop_metal_railing`, `prop_single_slipper`, and `prop_window`. `prop_tin_bucket` was absent from positive/included authority and present only in the negative/QA prohibition.
+- The planned image boundary was `gpt-image-2`, LOW, `1024x1024`, `images.generate`, zero references, one output, and OpenAI SDK `maxRetries: 0`. The attempted process also set `SUPABASE_UPLOAD_MAX_ATTEMPTS=1`; neither boundary became reachable.
+- Zero-cost focused validation passed **4 files / 99 tests**: the Fox structured contract, mint tool, board storage key/no-overwrite, and board QA suites. The dry path wrote only ignored `outputs/r1d-fox-v3-board-mint/preflight.registry-preview.json`. An ignored `node_modules` junction to the existing canonical dependency tree was created; no dependency installation occurred.
+
+### Single live invocation and exact failure
+
+- Intended non-secret command shape: `npx --no-install tsx scripts/mint-set-identity-board.ts --story fox_uri_adventure --identity set_room_balcony_night --style soft_hand_drawn_storybook --contract story-bank/v3-approved/fox_uri_adventure.visual-contract-template.json --render --quality low`.
+- Invocation start: `2026-07-23T17:25:43.3642260Z`. End: `2026-07-23T17:25:44.6639373Z`. Exit code: `1`.
+- The Windows `npx.ps1` shim interpreted the PowerShell call-operator form `& npx ...` as `npm exec px --no-install tsx ...`. npm fetched only the package manifest for `px@0.1.2` from `registry.npmjs.org`, then failed with `could not determine executable to run`. It did not execute `tsx`, load the mint script, or install a package.
+- The npm debug record is outside the repository at `C:\Users\guyna\AppData\Local\npm-cache\_logs\2026-07-23T17_25_43_696Z-debug-0.log`. It contains the misparsed argv, the single registry metadata request, the stack inside `libnpmexec`, and exit code 1. It contains no mint/provider/storage output.
+
+### Outcome, side effects, and next gate
+
+- Evidence supports **0 image-generation calls, 0 vision-QA calls, 0 Supabase upload/write attempts, and 0 board registry writes**. The mint script never started, so there is no model response, image buffer, asset SHA-256, storage key, QA status/flags/reason, or visual artifact to inspect.
+- Expected registry path `set-identity-boards/fox_uri_adventure/soft_hand_drawn_storybook/set_room_balcony_night/dc86d58e443bf9b3274f9d64c7b4ecbe9e443d1a2c8d52fb2f211dae32989bfe.json` remains absent. No candidate was approved or promotable; `approvedBy`/`approvedAt` do not exist because no entry exists.
+- No reroll, second invocation, page/full-book render, `--approve`, human/product approval, package approval/promotion, deployment, flag/threshold change, merge, rebase, push, storage inspection, or worktree/branch cleanup occurred. There is no visual/product acceptance claim and no technical PASS claim.
+- The one-invocation execution authorization is exhausted by the fail-closed stop. Any future mint requires a new explicit Guy authorization and should call the Windows executable directly (for example `npx.cmd`) or the local `tsx` binary, after a new topology/identity preflight. This record does not authorize that follow-up.
 
 ## R1D Stable Set Board Prompt Authority - independent technical QA PASS
 
