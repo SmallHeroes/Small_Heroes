@@ -65,8 +65,19 @@ describe('assembleStyle01BookReferencesWithZoneSheets — set-appearance board p
     // child(1) + companion(1) + board(1) = 3 protected refs, no style to drop, budget 2 → must throw.
     const input = baseInput('2');
     input.styleRefPaths = [];
-    expect(() => assembleStyle01BookReferencesWithZoneSheets(input)).toThrow(
-      /reference budget exceeded.*set-appearance-board refs must not be evicted/s
-    );
+    let thrown: Error | undefined;
+    try {
+      assembleStyle01BookReferencesWithZoneSheets(input);
+    } catch (error) {
+      if (error instanceof Error) thrown = error;
+    }
+
+    expect(thrown, 'protected references over budget must fail loudly').toBeDefined();
+    expect(thrown?.message).toMatch(/reference budget exceeded/i);
+    expect(thrown?.message).toContain('(3/2)');
+    expect(thrown?.message).toMatch(/identity/i);
+    expect(thrown?.message).toMatch(/required prop/i);
+    expect(thrown?.message).toMatch(/set-board/i);
+    expect(thrown?.message).toMatch(/must not be evicted/i);
   });
 });
