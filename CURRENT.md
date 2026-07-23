@@ -2,7 +2,35 @@
 
 **Updated:** 2026-07-24
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-fox-v3-board-mint` in `C:\Users\guyna\.codex\worktrees\0d94\Small_Heroes`. The canonical-rerun authorization started with local HEAD and `origin/codex/r1d-fox-v3-board-mint` at exact pushed parity `73eda354a0e16ba10ec5476c6a311a79032d0822`, tracked clean. This worktree is the sole writer; canonical main, the parent worktree, and every other worktree/branch remain read-only.
+**Working branch:** `codex/r1d-fox-v3-board-mint` in `C:\Users\guyna\.codex\worktrees\0d94\Small_Heroes`. Canonical attempt 2 started from exact local HEAD `4eec48e2bfbd32ad1259e1ddf6023adb46935aa3`, one documentation commit ahead of `origin/codex/r1d-fox-v3-board-mint` at `73eda354a0e16ba10ec5476c6a311a79032d0822`, tracked clean. This worktree is the sole writer; canonical main, the parent worktree, and every other worktree/branch remain read-only.
+
+## R1D Fox v3 Set Identity Board canonical attempt 2 - fail-closed at local SDK request validation
+
+Guy explicitly authorized `R1D-FOX-V3-BOARD-MINT-CANONICAL-ATTEMPT-2` after the prior attempt failed before the canonical launcher. This authorization required one exact unwrapped canonical preflight and, only after its PASS plus fresh authority reconciliation, one canonical LOW live invocation. Both authorized commands were invoked exactly once. The preflight passed, while the live command failed in the OpenAI SDK's local request validation before an HTTP request or image bytes existed. Per the binding rule, Codex stopped without retrying, changing the timeout/arguments, or invoking any later boundary. This record is not an independent technical PASS or product/visual acceptance.
+
+### Exact canonical preflight and spend gate
+
+- Exact command: `node scripts/mint-set-identity-board.cjs --preflight-live-imports`. No `NODE_OPTIONS`, wrapper, env file, test fixture, manual shim, npm/npx/tsx substitution, or additional argument was used.
+- The task's PowerShell capture recorded start `2026-07-24T00:24:29.0439163+03:00`, end `2026-07-24T00:24:29.8076087+03:00`, elapsed `764ms`, and exit `0`.
+- Output reported `LIVE-IMPORT PREFLIGHT PASS`; checked renderer functions `generateGPTImage, resolveStyle01GptModel`; checked storage function `uploadContentAddressedObjectNoOverwrite`; locally inspected Vision endpoint `https://api.openai.com/v1/chat/completions`, model label `gpt-4o`, QA runner/fetch function surfaces; observed fetch attempts `0`; and explicit provider credential/connectivity/configuration limitations. Render/upload/Vision/registry/approval paths remained structurally unreachable in preflight mode.
+- After PASS, local HEAD remained exact `4eec48e2bfbd32ad1259e1ddf6023adb46935aa3`, tracked clean, ahead `1`/behind `0`; the expected v3 registry entry and candidate root were absent. Reviewed authority inputs were unchanged.
+- Fresh evidence reconfirmed story `fox_uri_adventure`, identity `set_room_balcony_night`, style `soft_hand_drawn_storybook`, registry `set-registry/v3`, board `set-board/v3`, set-definition hash `dc86d58e443bf9b3274f9d64c7b4ecbe9e443d1a2c8d52fb2f211dae32989bfe`, content-policy digest `c00b9b6b6b6da477e045065b2ca4b364f5d1885a03385aa6757e3734bc3900df`, and prompt hash `7ce108dadef5ab877bb945ae639fb3fd1bd561635b421cce6572ee1ff1eeeecd`.
+- Declared props were exactly `prop_chair_leg`, `prop_metal_railing`, `prop_single_slipper`, and `prop_window`. `prop_tin_bucket` remained excluded and its contract lifecycle remained `firstRevealPage: 5`. The provider plan was `gpt-image-2`, LOW, `1024x1024`, `images.generate`, `n: 1`, zero requested/passed references, and request option `maxRetries: 0`. `SUPABASE_UPLOAD_MAX_ATTEMPTS` was set to `1` for the live process.
+
+### Single live invocation and failure evidence
+
+- Exact command: `node scripts/mint-set-identity-board.cjs --story fox_uri_adventure --identity set_room_balcony_night --style soft_hand_drawn_storybook --contract story-bank/v3-approved/fox_uri_adventure.visual-contract-template.json --render --quality low`.
+- The approved credential source was parsed without printing or copying values. Only `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET`, and `STYLE_01_GPT_MODEL` were loaded into the live invocation process. `NODE_OPTIONS` remained absent.
+- The task's PowerShell capture recorded start `2026-07-24T00:26:58.1582772+03:00`, end `2026-07-24T00:26:59.1513804+03:00`, elapsed `993ms`, and exit `1`.
+- The script printed the exact normalized authority/prompt and one provider-plan attempt line: `[GPTImage] model=gpt-image-2 quality=low size=1024x1024 promptLen=6264 refMode=identity refsRequested=0 refsPassed=0 mode=images.generate`. It then reported `[GPTImage] API call failed after 1ms (mode=images.generate): timeout must be an integer`.
+- Static runtime evidence explains the local failure: `planGPTImageRequest` always included `timeout: input.requestTimeoutMs` in request options; this board call supplied no timeout, so the property existed with value `undefined`. The installed OpenAI SDK's `buildRequest` checks for the presence of the `timeout` property and calls `validatePositiveInteger` before transport dispatch. The application invoked `openai.images.generate` once, with `maxRetries: 0`, but the SDK rejected its options locally before provider transport.
+
+### Outcome, limits, and next gate
+
+- No image buffer or provider response exists, so there is no byte count, asset SHA-256, content-addressed storage key/URL, local board copy, Vision-QA status/flags/reason, registry entry, or approval field. Vision, Supabase upload, registry/candidate write, and approval were never reached. The expected v3 registry path and candidate root remain absent; the only ignored output remains the older unrendered dry preview.
+- Evidence supports one application-level `openai.images.generate` invocation and zero SDK retries. It supports zero provider HTTP image requests because the SDK threw during local request-option validation; no independent OpenAI account usage/billing audit was performed. Zero Vision calls and zero Supabase operations are supported by the missing image bytes, output ordering, absent artifacts, and reviewed call graph; no Supabase provider-log audit was performed.
+- No second live command, retry, reroll, timeout correction, argument change, second launcher, page/full-book render, `--approve`, board/package approval or promotion, deployment, or push occurred. There is no board for Guy to eyeball.
+- Attempt 2 is exhausted by this fail-closed stop. Fixing the shared undefined-timeout request option or running another preflight/live attempt requires a separately approved corrective milestone and new explicit Guy authorization. The absence of a provider HTTP request is not implicit retry authority.
 
 ## R1D Fox v3 Set Identity Board canonical rerun - fail-closed at sentineled preflight preload
 
