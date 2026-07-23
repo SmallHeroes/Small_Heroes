@@ -2,11 +2,45 @@
 
 **Updated:** 2026-07-23
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-board-spoiler-safe-authority` in `C:\Users\guyna\.codex\worktrees\3f43\Small_Heroes`, based exactly on approved R1D-PREP-RERUN head `f5a248a0887cfc6e841a4a5040d2447eafee9fcc`; implementation commit `94678097568f2e874792f93539ed171859a3f41d`. The prior R1D-PREP-RERUN worktree at `C:\Users\guyna\.codex\worktrees\df0a\Small_Heroes` is read-only evidence. Canonical main and every other worktree/branch remain untouched.
+**Working branch:** `codex/r1d-board-spoiler-safe-authority` in `C:\Users\guyna\.codex\worktrees\3f43\Small_Heroes`, based exactly on approved R1D-PREP-RERUN head `f5a248a0887cfc6e841a4a5040d2447eafee9fcc`. The independently reviewed implementation/handoff ends at `3b52cf2333dc4e85cc9e034f9dc254f753623523`; the free-text correction is `3fc65609aa43a8f0c1a572a20a3f9d77e0385551`, followed by the separate test-only stability-contract repair `338cd74b080ddad481b019c7dabecf96862b444a`. The prior R1D-PREP-RERUN worktree at `C:\Users\guyna\.codex\worktrees\df0a\Small_Heroes` is read-only evidence. Canonical main and every other worktree/branch remain untouched.
 
-## R1D Board Spoiler-Safe Authority - implemented locally; independent QA pending
+## R1D Board Free-Text Spoiler Guard - corrective implementation complete; independent micro re-gate pending
 
-Guy approved the Decision Gate and all four product/architecture decisions for this zero-cost code milestone. The implementation is committed locally at `94678097568f2e874792f93539ed171859a3f41d` (`feat: add spoiler-safe board and prop authority`), with immutable implementation range `f5a248a0887cfc6e841a4a5040d2447eafee9fcc..94678097568f2e874792f93539ed171859a3f41d`. This is not independent technical PASS, product acceptance, board approval, visual-package approval/promotion, render qualification, or render authorization.
+Claude Code independently reviewed the completed R1D Board Spoiler-Safe Authority range `f5a248a0887cfc6e841a4a5040d2447eafee9fcc..3b52cf2333dc4e85cc9e034f9dc254f753623523` and returned **PASS**, with one valid MINOR hardening finding. Guy authorized this separate zero-cost corrective milestone on the same sole-writer branch/worktree. The correction and its stability-test follow-up are committed locally and unpushed. Codex does not self-award the required independent micro re-gate PASS.
+
+### Validated root risk and general correction
+
+- `set-board/v2` correctly excluded structured reveal-gated prop nodes, facts, and relations, but positive free text still reached `buildSetIdentityBoardPrompt`. A future location name, lighting string, retained zone geometry description, fixed-fact material/scale, set identity/facet, or registered positive style block could therefore reintroduce an excluded prop before board mint even though the structured projection and negative policy were correct.
+- A new pure, deterministic `assertSetBoardPositiveAuthorityIsSpoilerNeutral` invariant rejects that leak with typed `SetBoardPositiveAuthoritySpoilerError` code `set_board_positive_authority_spoiler_leak`. The error identifies the set, exact field path/provenance, excluded structured prop ID/name, and matched canonical term. There is no silent scrubbing, mutation, warning-only behavior, I/O, network, clock, or randomness.
+- Canonical terms are explainably derived from structured prop identity/name: normalized full name, semantic ID after leading namespace tokens such as `prop`, `props`, `recurring`, `item`, or `object`, and a semantic head shared by the ID/name when available. Unicode NFKC, lowercase word tokens, and exact token-sequence boundaries catch case/punctuation variants and the approved partial-name example while containing short-token, substring, and common-prefix false positives. There is no fuzzy matching, stemming, story vocabulary, page-number rule, or Fox-specific branch.
+- The central projection invariant checks every positive source actually emitted by the prompt: set identity and board version/facet; location name, time, lighting, and environment class; retained zone geometry; fixed-fact name, material, and scale; and registered positive style prompt. A defense-in-depth check also protects callers that construct a `SetBoardDefinition` and invoke the prompt builder directly. Non-prose local aliases and the closed relation/opening vocabulary are documented at the invariant.
+- Intentional generated `NO <excluded prop>` content-policy and negative-prompt lines are outside the positive-authority scan and remain present. Useful legitimate set, lighting, geometry, material, and style authority is preserved.
+- The invariant runs in the shared set-definition/prompt path used before mint can invoke its render callback. Caller-level mint coverage proves a leaking definition fails before render, upload, or QA callbacks are reachable. Existing Fox v2 projection/prompt remains valid and spoiler-neutral; historical v1 board bytes and registry evidence are untouched.
+- Shared guard/projection/prompt code contains no Fox story key, bucket name, or page-5 literal.
+
+### Focused coverage
+
+- New adversarial unit coverage exercises location-name and exact `FLASHLIGHT on the bucket!` lighting leaks, retained geometry, fixed material, set identity/facet, positive style, direct prompt-builder construction, allowed negative policy, punctuation/case, short names, substring containment, common `prop_` prefixes, and clean general/Fox projections.
+- Caller-level mint coverage proves callback unreachability for a positive-authority leak. Existing projection, prompt, board QA, mint, runtime-reference, lifecycle, compatibility, and Fox tests remain green.
+- Final relevant regression run: **PASS - 14 files / 282 tests**. Isolated corrected budget contract: **PASS - 1 file / 3 tests**.
+
+### Separate pre-existing stability-contract repair
+
+- The newly surfaced `setboard-budget-protect.spec.ts` discrepancy was proven against exact historical revisions in an isolated local checkout. At `f5a248a0887cfc6e841a4a5040d2447eafee9fcc`, the test passed **3/3**. At exact reviewed handoff `3b52cf2333dc4e85cc9e034f9dc254f753623523`, it failed **1/3** with the same stale regex failure reproduced on the corrective branch before repair.
+- Diffing `f5a248a..94678097` proved the reviewed Set Board v2 runtime intentionally changed the legacy reference-budget error from identity plus `set-appearance-board` wording to identity plus required-prop plus `set-board` semantics, while the test expectation was unchanged. This was a pre-existing regression inside the already-reviewed range, not caused by the free-text QA finding.
+- Runtime still throws a plain `Error` at this legacy assembly seam; adding a runtime error class/code would have expanded the corrective scope. The separate test-only commit `338cd74b080ddad481b019c7dabecf96862b444a` leaves runtime behavior untouched and now asserts the stable contract: error presence, budget-exceeded semantics, exact required/cap counts `(3/2)`, identity, required prop, set board, and non-eviction.
+
+### Validation, boundaries, and next gate
+
+- `npx --no-install tsc --noEmit`: **PASS**. `git diff --check`: **PASS**. Explicit shared-path story-literal scan: **PASS**.
+- The first literal post-repair `npm run check -- --silent` completed TypeScript but its Windows/Node Vitest worker ended with `ERR_IPC_CHANNEL_CLOSED` before an aggregate summary. The immediate bounded-worker rerun `npm run check -- --silent --maxWorkers=4` completed: TypeScript **PASS**; **249 files total, 228 passed, 16 skipped, 5 failed; 2,435 tests total, 2,364 passed, 65 skipped, 6 failed**. The six failures are exactly the established absent ignored-output fixtures in `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and two cases in `story-read-back-validation.spec.ts`. The repaired Set Board budget test passes. No ignored output was copied or imported.
+- Zero image/audio render, image/LLM/provider API call, storage/database/Supabase action, package or board promotion/approval, candidate regeneration, deployment, flag or threshold change, source-prompt reconciliation, merge/rebase, or push occurred. All provider/storage seams exercised by tests were local mocks.
+- Claude Code must now perform a read-only adversarial **micro re-gate only** over the correction range beginning at `3b52cf2333dc4e85cc9e034f9dc254f753623523`. It must try to falsify term derivation/boundaries, full positive-source coverage, intentional-negative allowance, all pre-mint paths, callback unreachability, Fox/general compatibility, purity, and the separate test-only stability repair.
+- The later SOURCE-PROMPT-RECONCILIATION gate must inspect/capture the exact final provider payload after every sanitization and steering layer, and must prove that removing legacy `imageDirection` does not erase required story action, interaction, emotional evidence, or approved composition intent. Those advisory additions are recorded here but were not implemented in this milestone.
+
+## R1D Board Spoiler-Safe Authority - independent QA PASS; corrective micro re-gate pending
+
+Guy approved the Decision Gate and all four product/architecture decisions for this zero-cost code milestone. The implementation is committed locally at `94678097568f2e874792f93539ed171859a3f41d` (`feat: add spoiler-safe board and prop authority`), with implementation range `f5a248a0887cfc6e841a4a5040d2447eafee9fcc..94678097568f2e874792f93539ed171859a3f41d` and reviewed documentation handoff at `3b52cf2333dc4e85cc9e034f9dc254f753623523`. Claude Code independently returned **PASS** on that completed range with the one valid MINOR free-text hardening finding addressed above. This is not product acceptance, board approval, visual-package approval/promotion, render qualification, or render authorization; the correction still requires its independent micro re-gate.
 
 ### Verified root cause and implemented general authority
 
@@ -39,7 +73,7 @@ Guy approved the Decision Gate and all four product/architecture decisions for t
 
 ### Next gate
 
-Claude Code must perform the first independent read-only adversarial review against the immutable branch/range above and try to falsify the projection, lifecycle, reference compatibility, caller coverage, budget, offline-qualification, and migration claims. Codex must validate and fix any valid findings in a separate milestone and return for re-gate. Guy then owns product acceptance. Any v2 board render, candidate regeneration, package approval/promotion, or paid/external boundary remains separately gated.
+The first independent read-only adversarial review is complete and returned PASS with the one MINOR correction recorded above. Claude Code must now micro re-gate only the corrective range; Guy then owns product acceptance. Any v2 board render, candidate regeneration, package approval/promotion, or paid/external boundary remains separately gated.
 
 ## R1D-PREP-RERUN Fox visual-package candidate - prepared, unapproved, and unpromoted
 
