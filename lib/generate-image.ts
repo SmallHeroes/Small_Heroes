@@ -511,6 +511,24 @@ export function planGPTImageRequest(
     input.modelOverride ??
     resolved.defaultModel
   ).trim();
+  const requestOptions: GPTImageRequestPlan['requestOptions'] = {
+    maxRetries: 0,
+  };
+  if (input.signal !== undefined) {
+    requestOptions.signal = input.signal;
+  }
+  if (input.requestTimeoutMs !== undefined) {
+    if (
+      !Number.isFinite(input.requestTimeoutMs) ||
+      !Number.isInteger(input.requestTimeoutMs) ||
+      input.requestTimeoutMs <= 0
+    ) {
+      throw new Error(
+        `requestTimeoutMs must be a finite positive integer (got ${String(input.requestTimeoutMs)})`
+      );
+    }
+    requestOptions.timeout = input.requestTimeoutMs;
+  }
   return {
     version: 'gpt-image-request-plan/v1',
     finalPrompt,
@@ -530,11 +548,7 @@ export function planGPTImageRequest(
       quality,
       n: 1,
     },
-    requestOptions: {
-      signal: input.signal,
-      timeout: input.requestTimeoutMs,
-      maxRetries: 0,
-    },
+    requestOptions,
   };
 }
 

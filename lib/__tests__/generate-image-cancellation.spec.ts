@@ -23,6 +23,8 @@ vi.mock('@/lib/child-photo-normalize', () => ({
 import { generateGPTImage, planGPTImageRequest } from '@/lib/generate-image';
 
 const OK_RESPONSE = { data: [{ b64_json: Buffer.from('fake-png-bytes').toString('base64') }] };
+const hasOwn = (value: object, property: PropertyKey): boolean =>
+  Object.prototype.hasOwnProperty.call(value, property);
 
 describe('generateGPTImage (3a) — real cancellation + no hidden SDK retries', () => {
   beforeEach(() => {
@@ -66,6 +68,77 @@ describe('generateGPTImage (3a) — real cancellation + no hidden SDK retries', 
     expect(opts.maxRetries).toBe(0);
     expect(opts.timeout).toBe(654321);
     expect(opts.signal).toBe(controller.signal);
+  });
+
+  it('omits absent signal/timeout properties while keeping maxRetries:0 mandatory', () => {
+    const plan = planGPTImageRequest(
+      { finalPrompt: 'x' },
+      { defaultModel: 'gpt-image-1', defaultQuality: 'low', maxReferences: 4 },
+    );
+
+    expect(plan.requestOptions).toEqual({ maxRetries: 0 });
+    expect(hasOwn(plan.requestOptions, 'signal')).toBe(false);
+    expect(hasOwn(plan.requestOptions, 'timeout')).toBe(false);
+  });
+
+  it('includes signal without manufacturing a timeout property', () => {
+    const controller = new AbortController();
+    const plan = planGPTImageRequest(
+      { finalPrompt: 'x', signal: controller.signal },
+      { defaultModel: 'gpt-image-1', defaultQuality: 'low', maxReferences: 4 },
+    );
+
+    expect(plan.requestOptions).toEqual({ maxRetries: 0, signal: controller.signal });
+    expect(hasOwn(plan.requestOptions, 'timeout')).toBe(false);
+  });
+
+  it('includes a valid explicit timeout without manufacturing a signal property', () => {
+    const plan = planGPTImageRequest(
+      { finalPrompt: 'x', requestTimeoutMs: 30_000 },
+      { defaultModel: 'gpt-image-1', defaultQuality: 'low', maxReferences: 4 },
+    );
+
+    expect(plan.requestOptions).toEqual({ maxRetries: 0, timeout: 30_000 });
+    expect(hasOwn(plan.requestOptions, 'signal')).toBe(false);
+  });
+
+  it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+    'rejects invalid explicit timeout %s in the pure planner',
+    (requestTimeoutMs) => {
+      expect(() =>
+        planGPTImageRequest(
+          { finalPrompt: 'x', requestTimeoutMs },
+          { defaultModel: 'gpt-image-1', defaultQuality: 'low', maxReferences: 4 },
+        )
+      ).toThrow(/requestTimeoutMs must be a finite positive integer/);
+    },
+  );
+
+  it.each([
+    { mode: 'images.generate', referenceImages: undefined },
+    { mode: 'images.edit', referenceImages: ['package.json'] },
+  ])('does not invoke $mode for any invalid explicit timeout', async ({ referenceImages }) => {
+    for (const requestTimeoutMs of [
+      0,
+      -1,
+      1.5,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      Number.NEGATIVE_INFINITY,
+    ]) {
+      await expect(
+        generateGPTImage({
+          finalPrompt: 'x',
+          referenceImages,
+          size: '1024x1536',
+          quality: 'low',
+          requestTimeoutMs,
+        }),
+      ).rejects.toThrow(/requestTimeoutMs must be a finite positive integer/);
+    }
+
+    expect(generateSpy).not.toHaveBeenCalled();
+    expect(editSpy).not.toHaveBeenCalled();
   });
 
   it('uses the production planner for the exact final edit body, prompt additions, and ordered reference cap', async () => {
@@ -127,15 +200,32 @@ describe('generateGPTImage (3a) — real cancellation + no hidden SDK retries', 
   it('maxRetries:0 is set even when the caller passes no signal/timeout', async () => {
     generateSpy.mockResolvedValue(OK_RESPONSE);
     await generateGPTImage({ finalPrompt: 'x', size: '1024x1536', quality: 'low' });
-    const opts = generateSpy.mock.calls[0][1] as { maxRetries?: number };
-    expect(opts.maxRetries).toBe(0);
+    const opts = generateSpy.mock.calls[0][1] as { maxRetries?: number; signal?: AbortSignal; timeout?: number };
+    expect(opts).toEqual({ maxRetries: 0 });
+    expect(hasOwn(opts, 'signal')).toBe(false);
+    expect(hasOwn(opts, 'timeout')).toBe(false);
+  });
+
+  it('images.edit also omits absent signal/timeout while keeping maxRetries:0', async () => {
+    editSpy.mockResolvedValue(OK_RESPONSE);
+    await generateGPTImage({
+      finalPrompt: 'x',
+      referenceImages: ['package.json'],
+      size: '1024x1536',
+      quality: 'low',
+    });
+    const opts = editSpy.mock.calls[0][1] as { maxRetries?: number; signal?: AbortSignal; timeout?: number };
+    expect(opts).toEqual({ maxRetries: 0 });
+    expect(hasOwn(opts, 'signal')).toBe(false);
+    expect(hasOwn(opts, 'timeout')).toBe(false);
   });
 
   it('an abort reaches the OpenAI call and fires its abort handler — cancellation is REAL, not abandoned', async () => {
     const controller = new AbortController();
     let handlerFired = false;
-    generateSpy.mockImplementation((_body: unknown, opts: { signal?: AbortSignal }) =>
+    generateSpy.mockImplementation((_body: unknown, opts: { signal?: AbortSignal; timeout?: number }) =>
       new Promise((_resolve, reject) => {
+        expect(hasOwn(opts, 'timeout')).toBe(false);
         opts.signal?.addEventListener('abort', () => {
           handlerFired = true;
           reject(new DOMException('The operation was aborted', 'AbortError'));
@@ -155,9 +245,10 @@ describe('generateGPTImage (3a) — real cancellation + no hidden SDK retries', 
     const started = new Promise<void>((resolve) => {
       markStarted = resolve;
     });
-    editSpy.mockImplementation((_body: unknown, opts: { signal?: AbortSignal }) => {
+    editSpy.mockImplementation((_body: unknown, opts: { signal?: AbortSignal; timeout?: number }) => {
       markStarted();
       return new Promise((_resolve, reject) => {
+        expect(hasOwn(opts, 'timeout')).toBe(false);
         opts.signal?.addEventListener('abort', () => {
           handlerFired = true;
           reject(new DOMException('The operation was aborted', 'AbortError'));
