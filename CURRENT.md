@@ -1,8 +1,43 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-07-22
+**Updated:** 2026-07-23
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-cover-source-fidelity` in `C:\Users\guyna\.codex\worktrees\04d2\Small_Heroes`, based exactly on frozen R1D-PREP `5cf68a008b56b75f657ee294955aa635f10da429`; the original R1D-PREP worktree remains read-only at `C:\Users\guyna\.codex\worktrees\887d\Small_Heroes`, frozen R1C remains at `C:\Users\guyna\.codex\worktrees\d775\Small_Heroes`, frozen R1B remains at `C:\Users\guyna\.codex\worktrees\0ef3\Small_Heroes`, accepted R1A remains at `C:\Users\guyna\.codex\worktrees\2d64\Small_Heroes`, and the dirty legacy feature worktree remains untouched at `C:\GNart\Work\sh-wt-style01`
+**Working branch:** `codex/r1d-fox-package-prep-rerun` in `C:\Users\guyna\.codex\worktrees\df0a\Small_Heroes`, based exactly on accepted R1D-FIX head `371e470decc249c668b76abf7fba91489eae3fbc`; accepted R1D-FIX remains read-only at `C:\Users\guyna\.codex\worktrees\04d2\Small_Heroes`, original stopped R1D-PREP remains read-only at `C:\Users\guyna\.codex\worktrees\887d\Small_Heroes`, frozen R1C/R1B/R1A remain read-only in their existing worktrees, and canonical main plus the dirty legacy feature worktree remain untouched.
+
+## R1D-PREP-RERUN Fox visual-package candidate - prepared, unapproved, and unpromoted
+
+Guy explicitly authorized the zero-cost offline rerun after accepting/closing R1D-FIX and its documentation micro re-gate. The supplied worktree was clean and detached at exact accepted base `371e470decc249c668b76abf7fba91489eae3fbc`; Codex attached only `codex/r1d-fox-package-prep-rerun`. The accepted extractor/compiler/candidate lifecycle now produces a real human-reviewable Fox candidate without the prior source-fidelity blocker. This is candidate preparation only: it is not independent technical PASS, package approval, product acceptance, promotion, render qualification, or render authorization.
+
+### Current source, compiler, and review evidence
+
+- The actual offline extractor recomputed `story-bank/v3-approved/fox_uri_adventure.md` as `story-source/v1`, normalized UTF-8 SHA-256 `02629e886a9aaa1e714d9a8d652c24d94ca5843465ff8a9cb70d320a24e2231c`, with exactly pages 1-12. Generated ignored source `outputs/r1d-fox-package-prep-rerun/sources/fox_uri_adventure.source.json` has raw SHA-256 `dc68986428170c364ead55afdcb02fdda67174b4d97b44a7e5d4e416c59c1d05` and canonical digest `8b5773141572dd2bccde806effc5d00e7a0f8cf47d3679ad4eb5dbf17837127f`.
+- Current tracked authority is unchanged: location-bible raw SHA-256 `1065f74173ebef138e5d295c861bc820c58f85d0e5359edae1319a11431de762`; corrected template raw SHA-256 `6e3c1293641223b749199b647110e39dfd758b26f2afdd4488b8b74ae21df5a3`, canonical digest `c4215b8fba8faa94968e2db3f3c5c59785fe5844db96a982197456c2f2770112`.
+- The accepted offline compiler used that current tracked template as its fixture draft. Frozen original R1D-PREP was used only as the read-only previous-template comparison (`8733a15b...` raw / `4f75dad5...` canonical) so the generated human review visibly demonstrates the resolved blocker rather than hiding it behind current-to-current parity.
+- Generated candidate template `outputs/r1d-fox-package-prep-rerun/candidate/fox_uri_adventure.visual-contract-template.json` has raw SHA-256 `d48c2d762ecbf5afa64c499b4440d3697489d74020f3796c7f87934a28bb6658` and canonical digest `35ad5728e6d97177bd609a0b563506d4de1dfc58263bce33151f5588df94d4b8`. Exact structural comparison proves its only difference from the current tracked corrected template is compiler-owned historical `provenance.model`: generated fixture provenance says `gpt-5.5-pro`; the tracked artifact truthfully retains original live-authoring provenance `gpt-5.5`. No model call occurred.
+- The candidate cover is exactly `loc_child_room / z_room_window`, cast `["child:hero","companion:fox_uri"]`, with bedroom/listening-window mystery anchors. `mustNotShow` includes visible/metal bucket, drip source, falling water, water-catching object, and rhythm marks plus the authored drift list. Candidate source-fidelity conflicts are empty.
+- Generated review `fox_uri_adventure.visual-contract-review.md` has raw/normalized SHA-256 `add950d1241a04ce17569bae9b660348749a2947bb5a2ca9fe36eb30871103b3`. It visibly reports `locationId`, `zoneId`, `castIds`, `mustShow`, `mustNotShow`, the deterministic page-0 mapping, zero candidate conflicts, every original-template conflict, and exact old/new values. It does not make a false parity claim.
+- Generated provenance `fox_uri_adventure.visual-contract-provenance.json` has raw SHA-256 `1b23ac31c9385e6af0c49d534820984500c4278b952ae257f5069a390e9cbc83` and canonical digest `8a8749ff83731ea3f94faf2dd19dcb59b5290d05fefe196caa13d0e1a6cc4083`. Review and provenance bind the same source-input digest, story identity, and candidate template digest.
+
+### Candidate package, board binding, and fail-closed state
+
+- The established `promote-visual-package` candidate mode created `outputs/r1d-fox-package-prep-rerun/candidate/fox_uri_adventure.visual-package.json`; raw SHA-256 `b7376f7c578b46182039b8d1b5974c66709753307b86834ad244de8ef1cfca7d`, canonical digest `1d89f0f40e0521b9638b30dfaafb5fd2db22ba9c567b4951e7353bd09b80e87e`.
+- It remains `state: "candidate"`, with `approval: null` and `promotion: null`. Guy's already-decided `review.worldMode: "grounded_with_visual_metaphor"` is recorded in the schema-supported review field; `authoredBy`, `reviewedBy`, and `reviewedAt` remain null because no identity or timestamp was invented.
+- Coverage binds a cover plus exactly pages 1-12 (`coverDigest` `78aa5e9f...`, `pageContractsDigest` `219fc5ff...`). Candidate evidence binds source input `8b577314...`, review `add950d1...`, and provenance `8a8749ff...`.
+- Both `loc_child_room` and `loc_balcony` still require only `set_room_balcony_night`. The package binds the existing registry artifact canonical digest `83609468ea50aed1533930f136e1557989c956809b687a233c2b20e9a7ddccc4`, Git blob `30ab0884b5a9f5d4e1ad8a4c059b26196fb6b259`, definition hash `aaa469afd9c6b0b15fa06d44d64045ba26787988fd2f58740527c2512c1f1f05`, durable storage key `set-identity-boards/fox_uri_adventure/soft_hand_drawn_storybook/set_room_balcony_night/aaa469afd9c6b0b15fa06d44d64045ba26787988fd2f58740527c2512c1f1f05.30392c033bba385738ba7399efa78135f869d2b222b3e86ff7a42f8ed0c75083.png`, and approved asset SHA-256 `30392c033bba385738ba7399efa78135f869d2b222b3e86ff7a42f8ed0c75083`. No URL was resolved and the complete `set-identity-boards/` tree is unchanged from frozen R1D-PREP.
+- Pure candidate re-preparation matches the generated manifest before the one explicit `worldMode` decision; basic manifest issues, cover source-fidelity issues, and runtime-world-authority issues are empty. A no-write promotion dry-run fails exactly with `approval_missing` and `review_metadata_missing`. Direct qualification/preflight remains false with only `approved_package_missing`. `visual-packages/approved/` remains absent.
+
+### Validation and limits
+
+- Before and after literal `npm run render-qualification-audit`, with `ENABLE_V3_APPROVED_BANK` unset: **18 nominal slots, 6 product-sellable, 0 render-qualified**. Fox reports only `approved_package_missing`; candidate preparation did not change catalog authority.
+- Focused compiler/Fox/location/package/preflight/release/board suite: **PASS - 8 files / 89 tests**.
+- `npx --no-install tsc --noEmit`: **PASS**.
+- Literal `npm run check`: TypeScript **PASS**; Vitest **FAIL - 247 files total: 225 passed, 16 skipped, 6 failed; 2,336 tests passed, 65 skipped, 7 failed**. Six failures are the already documented absent ignored-output fixtures in five files; the seventh was a full-load 5-second timeout in `order-authority-guard.spec.ts`. That guard passed immediately in isolation (**1 file / 7 tests**). A diagnostic `npm run check -- --silent --reporter=json` rerun reproduced only the known fixture baseline: **2,337 passed, 65 skipped, 6 failed** in the same five fixture-dependent files. No ignored fixture was imported or copied.
+- The worktree uses an ignored junction to the existing canonical dependency install; no dependency installation occurred. Generated candidate/evidence files remain ignored and are not committed.
+- Zero image/audio render, provider/live LLM/product API/network call, storage/database action, storage URL resolution, migration, deployment, flag change, approved-package write, approval, promotion, release, render qualification, threshold change, or push occurred.
+
+### Required review gates
+
+The candidate is ready for independent read-only Claude Code adversarial QA and for Guy/Claude Cowork product review of the human-facing package. Claude Code must falsify source/template/review/provenance/board identity, full coverage, page-0 fidelity, truthful review output, no-write boundaries, and unchanged audit state. Guy decides whether the candidate's world, cover, set reuse, continuity plan, and prohibitions are product-acceptable. Any later completion of reviewer identities/timestamps, package approval, promotion, or one-LOW-page proof requires its own explicit authority.
 
 ## R1D-FIX Cover Source Fidelity - independent technical QA PASS; accepted and closed
 
@@ -252,7 +287,7 @@ R1A is implemented and locally committed. Independent Claude Code adversarial QA
 
 ## Active task
 
-R1C and R1D-FIX are accepted/closed. Independent Claude Code QA returned **PASS (R1D-FIX only)** for implementation `645f706c` plus handoff `8171902c`, with all 11 claims proven and all prior R1D-PREP MAJOR findings closed. Guy explicitly confirmed the two observed feature-branch pushes were intentional and authorized. This documentation-only follow-up removes the remaining volatile push-state wording; it does not change implementation code. Candidate preparation/promotion, an R1D-PREP rerun, and every image render remain unauthorized until separately approved.
+R1C and R1D-FIX are accepted/closed. Guy authorized the zero-cost R1D-PREP rerun, and the general offline lifecycle has now prepared the source-bound Fox candidate documented above. No implementation code changed. The active gates are independent Claude Code first-pass read-only QA and Guy/Claude Cowork product review of the unapproved candidate. Package approval, promotion, render qualification, and every image render remain unauthorized.
 
 The governing brief is `docs/ai-workflow/DECISION_GATE_IMAGE_GENERATION_ARCHITECTURE_2026-07-22.md`.
 
@@ -354,11 +389,12 @@ That historical blocker was corrected by `f4c335f6` and `74a73863`, then indepen
 
 ## Blockers
 
-- R1A, R1B, R1C, and R1D-FIX are accepted/closed. This final `CURRENT.md`-only correction requires a topology/documentation micro re-gate; it does not reopen the independently PASSed implementation.
-- The stale no-upstream/unpushed and "remains local" claims are superseded by durable history: remote-tracking reflogs recorded pushes through `8171902c` and `2a73afc4`, Codex performed neither, and Guy confirmed both were intentional and authorized. This file intentionally makes no claim that depends on a present or future ahead/behind snapshot. Any later push remains a separate explicit action.
+- The R1D-PREP-RERUN candidate has not received independent Claude Code PASS or Guy's product acceptance. It deliberately lacks author/reviewer identities, review timestamp, approval, and promotion authority.
+- Literal `npm run check` remains non-green only for the six known ignored-output fixture failures; the additional first-run guard timeout passed in isolation and did not reproduce in the diagnostic rerun. No fixture was imported to manufacture green.
+- Any later push remains a separate explicit action. This handoff records immutable base/head evidence and does not rely on a durable ahead/behind claim.
 - The one-LOW-page proof requires separate explicit cost approval.
 - Lion requires separate product/content acceptance; technical readiness alone is insufficient.
 
 ## Next action
 
-Claude Code performs a topology/documentation-only micro re-gate of the `CURRENT.md` correction after `2a73afc4`, confirming that it records R1D-FIX's PASS and closure using durable history and authority statements rather than volatile parity claims. After that micro gate, the Lead task may request a separate Guy authorization to rerun R1D-PREP from the new immutable head. Package review/approval/promotion and the one-LOW-page proof remain separate gates. Do not create or approve a candidate, promote, render, push, import ignored user fixtures, change flags, exercise a live storage/database boundary, or begin R2/Lion/catalog/full-book work.
+Commit this `CURRENT.md`-only handoff, then Claude Code performs first-pass read-only adversarial QA against the immutable base-to-head range and the generated ignored evidence in this worktree. Guy/Claude Cowork review the candidate's human-facing cover/world/continuity package. If both gates are accepted, Guy may authorize a separate approval/promotion milestone; this rerun does not supply that authority. Do not approve or promote the candidate, render, push, import ignored fixtures, change flags, resolve storage URLs, exercise a live storage/database boundary, or begin R2/Lion/catalog/full-book work.
