@@ -111,17 +111,20 @@ export interface LiveImportPreflightDeps {
   loadStorageModules: () => Promise<LiveStorageModules>;
   inspectVisionSurface: () => {
     endpoint: string;
-    model: string;
-    adapterReady: boolean;
+    modelLabel: string;
+    qaRunnerType: string;
+    fetchType: string;
   };
 }
 
 export interface LiveImportPreflightResult {
-  rendererExports: readonly ['generateGPTImage', 'resolveStyle01GptModel'];
-  storageExports: readonly ['uploadContentAddressedObjectNoOverwrite'];
+  rendererFunctionExports: string[];
+  storageFunctionExports: string[];
   visionEndpoint: string;
-  visionModel: string;
-  blockedFetchAttempts: number;
+  visionModelLabel: string;
+  visionQaRunnerType: string;
+  visionFetchType: string;
+  observedFetchAttempts: number;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -240,17 +243,11 @@ export const liveMintDeps: MintDeps = {
 };
 
 export const inspectLiveVisionSurface: LiveImportPreflightDeps['inspectVisionSurface'] = () => {
-  const endpoint = new URL(BOARD_QA_VISION_ENDPOINT);
-  const model = resolveBoardQaVisionModel();
   return {
-    endpoint: endpoint.toString(),
-    model,
-    adapterReady:
-      endpoint.protocol === 'https:' &&
-      endpoint.hostname === 'api.openai.com' &&
-      model.length > 0 &&
-      typeof fetch === 'function' &&
-      typeof liveRunBoardQa === 'function',
+    endpoint: BOARD_QA_VISION_ENDPOINT,
+    modelLabel: resolveBoardQaVisionModel(),
+    qaRunnerType: typeof liveRunBoardQa,
+    fetchType: typeof globalThis.fetch,
   };
 };
 
@@ -259,6 +256,8 @@ export const liveImportPreflightDeps: LiveImportPreflightDeps = {
   loadStorageModules: loadLiveStorageModules,
   inspectVisionSurface: inspectLiveVisionSurface,
 };
+
+let liveImportPreflightInProgress = false;
 
 /**
  * Zero-cost reachability proof for the exact live module graph.
@@ -270,41 +269,63 @@ export const liveImportPreflightDeps: LiveImportPreflightDeps = {
 export async function runLiveImportPreflight(
   deps: LiveImportPreflightDeps = liveImportPreflightDeps
 ): Promise<LiveImportPreflightResult> {
-  const originalFetch = globalThis.fetch;
-  if (typeof originalFetch !== 'function') {
-    throw new Error('live-import preflight requires a runtime with global fetch');
+  if (liveImportPreflightInProgress) {
+    throw new Error('live-import preflight is already running in this process');
   }
+  liveImportPreflightInProgress = true;
 
-  let blockedFetchAttempts = 0;
-  globalThis.fetch = (async () => {
-    blockedFetchAttempts += 1;
-    throw new Error('live-import preflight blocked an unexpected fetch');
-  }) as typeof fetch;
-
+  const originalFetch = globalThis.fetch;
   try {
+    if (typeof originalFetch !== 'function') {
+      throw new Error('live-import preflight requires a runtime with global fetch');
+    }
+
+    let observedFetchAttempts = 0;
+    globalThis.fetch = (async () => {
+      observedFetchAttempts += 1;
+      throw new Error('live-import preflight blocked an unexpected fetch');
+    }) as typeof fetch;
+
     const renderer = await deps.loadRendererModules();
     const storage = await deps.loadStorageModules();
     const vision = deps.inspectVisionSurface();
-    if (
-      typeof renderer.generateGPTImage !== 'function' ||
-      typeof renderer.resolveStyle01GptModel !== 'function' ||
-      typeof storage.uploadContentAddressedObjectNoOverwrite !== 'function' ||
-      !vision.adapterReady
-    ) {
-      throw new Error('live-import preflight found an incomplete renderer, storage, or Vision surface');
+
+    const rendererFunctionExports = [
+      ...(typeof renderer.generateGPTImage === 'function' ? ['generateGPTImage'] : []),
+      ...(typeof renderer.resolveStyle01GptModel === 'function' ? ['resolveStyle01GptModel'] : []),
+    ];
+    const storageFunctionExports = [
+      ...(typeof storage.uploadContentAddressedObjectNoOverwrite === 'function'
+        ? ['uploadContentAddressedObjectNoOverwrite']
+        : []),
+    ];
+    const visionEndpoint = new URL(vision.endpoint);
+    if (rendererFunctionExports.length !== 2 || storageFunctionExports.length !== 1) {
+      throw new Error('live-import preflight found an incomplete renderer or storage function-export surface');
     }
-    if (blockedFetchAttempts !== 0) {
-      throw new Error(`live-import preflight observed ${blockedFetchAttempts} unexpected fetch attempt(s)`);
+    if (
+      visionEndpoint.protocol !== 'https:' ||
+      !vision.modelLabel.trim() ||
+      vision.qaRunnerType !== 'function' ||
+      vision.fetchType !== 'function'
+    ) {
+      throw new Error('live-import preflight found an incomplete local Vision function/label surface');
+    }
+    if (observedFetchAttempts !== 0) {
+      throw new Error(`live-import preflight observed ${observedFetchAttempts} unexpected fetch attempt(s)`);
     }
     return {
-      rendererExports: ['generateGPTImage', 'resolveStyle01GptModel'],
-      storageExports: ['uploadContentAddressedObjectNoOverwrite'],
-      visionEndpoint: vision.endpoint,
-      visionModel: vision.model,
-      blockedFetchAttempts,
+      rendererFunctionExports,
+      storageFunctionExports,
+      visionEndpoint: visionEndpoint.toString(),
+      visionModelLabel: vision.modelLabel,
+      visionQaRunnerType: vision.qaRunnerType,
+      visionFetchType: vision.fetchType,
+      observedFetchAttempts,
     };
   } finally {
     globalThis.fetch = originalFetch;
+    liveImportPreflightInProgress = false;
   }
 }
 
@@ -353,7 +374,8 @@ export const USAGE = `mint-set-identity-board — mint + approve Set Identity Bo
   APPROVE (the only step that may approve; refuses unless qaStatus === 'passed'):
     ${CANONICAL_BOARD_MINT_COMMAND} --approve --entry <path.json> --approved-by "<name>"
 
-  LIVE-IMPORT PREFLIGHT (zero cost; imports exact live renderer/storage graph, never invokes it):
+  LIVE-IMPORT PREFLIGHT (zero external cost; imports exact live renderer/storage graph, never invokes it;
+  local imports may load operating-system/native modules):
     ${CANONICAL_BOARD_MINT_COMMAND} --preflight-live-imports`;
 
 function parseQuality(raw: string | undefined): BoardQuality {
@@ -364,35 +386,76 @@ function parseQuality(raw: string | undefined): BoardQuality {
 }
 
 export function parseArgs(argv: string[]): CliArgs {
-  if (argv.includes('--preflight-live-imports')) {
-    if (argv.length !== 1) {
-      throw new Error('--preflight-live-imports must be used alone');
-    }
-    return { mode: 'preflight-live-imports' };
-  }
-
+  const valueFlags = new Set([
+    'story',
+    'identity',
+    'style',
+    'contract',
+    'out',
+    'registry-root',
+    'quality',
+    'entry',
+    'approved-by',
+  ]);
+  const booleanFlags = new Set(['render', 'approve', 'preflight-live-imports']);
   const flags: Record<string, string> = {};
   const bare = new Set<string>();
+  const seen = new Set<string>();
+
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
-    if (!arg.startsWith('--')) continue;
+    if (!arg.startsWith('--')) {
+      throw new Error(`unexpected positional argument "${arg}"`);
+    }
+    if (arg.includes('=')) {
+      throw new Error(`--flag=value syntax is unsupported; pass flag values as separate arguments (got "${arg}")`);
+    }
     const key = arg.slice(2);
-    const value = argv[i + 1];
-    if (value === undefined || value.startsWith('--')) {
+    if (!valueFlags.has(key) && !booleanFlags.has(key)) {
+      throw new Error(`unknown flag "--${key}"`);
+    }
+    if (seen.has(key)) {
+      throw new Error(`duplicate flag "--${key}"`);
+    }
+    seen.add(key);
+
+    if (booleanFlags.has(key)) {
       bare.add(key);
       continue;
+    }
+
+    const value = argv[i + 1];
+    if (value === undefined || value.startsWith('-')) {
+      throw new Error(`--${key} requires a separated value`);
     }
     flags[key] = value;
     i += 1;
   }
 
+  if (bare.has('preflight-live-imports')) {
+    if (seen.size !== 1) {
+      throw new Error('--preflight-live-imports must be used alone');
+    }
+    return { mode: 'preflight-live-imports' };
+  }
+
   if (bare.has('approve')) {
+    const approveFlags = new Set(['approve', 'entry', 'approved-by']);
+    const incompatible = [...seen].find((key) => !approveFlags.has(key));
+    if (incompatible) {
+      throw new Error(`--${incompatible} cannot be used with --approve`);
+    }
     for (const required of ['entry', 'approved-by'] as const) {
       if (!flags[required]?.trim()) throw new Error(`--${required} is required with --approve`);
     }
     return { mode: 'approve', entry: flags.entry, approvedBy: flags['approved-by'].trim() };
   }
 
+  const mintFlags = new Set(['story', 'identity', 'style', 'contract', 'out', 'registry-root', 'render', 'quality']);
+  const incompatible = [...seen].find((key) => !mintFlags.has(key));
+  if (incompatible) {
+    throw new Error(`--${incompatible} requires --approve`);
+  }
   for (const required of ['story', 'identity', 'style', 'contract'] as const) {
     if (!flags[required]) throw new Error(`--${required} is required`);
   }
@@ -596,20 +659,26 @@ export async function runCli(
   deps: MintDeps = liveMintDeps,
   preflightDeps: LiveImportPreflightDeps = liveImportPreflightDeps
 ): Promise<void> {
-  if (argv.includes('--help') || argv.includes('-h') || argv.length === 0) {
+  if (argv.length === 0 || (argv.length === 1 && (argv[0] === '--help' || argv[0] === '-h'))) {
     console.log(USAGE);
     return;
+  }
+  if (argv.includes('--help') || argv.includes('-h')) {
+    throw new Error('--help must be used alone');
   }
   const args = parseArgs(argv);
   if (args.mode === 'preflight-live-imports') {
     const result = await runLiveImportPreflight(preflightDeps);
     console.log(
       `LIVE-IMPORT PREFLIGHT PASS\n` +
-        `renderer exports: ${result.rendererExports.join(', ')}\n` +
-        `storage exports: ${result.storageExports.join(', ')}\n` +
-        `Vision surface: endpoint=${result.visionEndpoint} model=${result.visionModel}\n` +
-        `external attempts: fetch=${result.blockedFetchAttempts}\n` +
-        `side effects invoked: render=0 upload=0 Vision=0 candidate/registry writes=0 approval writes=0`
+        `renderer function exports (typeof checked): ${result.rendererFunctionExports.join(', ')}\n` +
+        `storage function exports (typeof checked): ${result.storageFunctionExports.join(', ')}\n` +
+        `Vision surface inspected locally: endpoint=${result.visionEndpoint} model-label=${result.visionModelLabel} ` +
+        `qaRunner typeof=${result.visionQaRunnerType} fetch typeof=${result.visionFetchType}\n` +
+        `observed fetch attempts: ${result.observedFetchAttempts}\n` +
+        `provider credentials, provider connectivity, and provider-side configuration were not validated\n` +
+        `render/upload/Vision/registry/approval paths are structurally unreachable from this exclusive mode\n` +
+        `local imports may load operating-system/native modules; this mode contains no provider/write invocation path`
     );
     return;
   }
@@ -627,8 +696,13 @@ export const DIRECT_TYPESCRIPT_ENTRYPOINT_ERROR =
 
 // Refuse the historically documented direct TypeScript path. The canonical CJS launcher imports this module only
 // after preloading the shim, then calls `runCli` itself.
+export function isDirectMintCoreEntrypoint(argv1: string | undefined): boolean {
+  const basename = argv1?.split(/[\\/]/).pop()?.toLowerCase();
+  return basename === 'mint-set-identity-board.ts';
+}
+
 const invokedDirectly =
-  typeof process !== 'undefined' && Array.isArray(process.argv) && /mint-set-identity-board\.ts$/.test(process.argv[1] ?? '');
+  typeof process !== 'undefined' && Array.isArray(process.argv) && isDirectMintCoreEntrypoint(process.argv[1]);
 if (invokedDirectly) {
   // eslint-disable-next-line no-console
   console.error(DIRECT_TYPESCRIPT_ENTRYPOINT_ERROR);
