@@ -16,7 +16,12 @@ import {
   QA_CALL_FAILED_FLAG,
   QA_RESPONSE_MALFORMED_FLAG,
 } from '../boardQa';
-import { SET_IDENTITY_BOARD_VERSION, type SetDefinition } from '../types';
+import {
+  SET_BOARD_CONTENT_POLICY_VERSION,
+  SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
+  SET_IDENTITY_BOARD_VERSION,
+  type SetDefinition,
+} from '../types';
 
 /** Minimal synthetic SET projection — invented, references no real story. */
 function makeDef(): SetDefinition {
@@ -37,9 +42,14 @@ function makeDef(): SetDefinition {
     ],
     fixedSetFacts: [],
     contentPolicy: {
-      version: 'set-board-content/v1',
+      version: SET_BOARD_CONTENT_POLICY_VERSION,
       includedPropIds: [],
       excludedProps: [],
+    },
+    positiveAuthorityPolicy: {
+      version: SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
+      blockedCast: [],
+      blockedProps: [],
     },
   };
 }
@@ -88,14 +98,19 @@ describe('qaSetIdentityBoardImage — well-formed responses', () => {
       placements: [{ zoneId: 'z_north', nodeId: 'table', nodeKind: 'furniture' }],
     }];
     def.contentPolicy = {
-      version: 'set-board-content/v1',
+      version: SET_BOARD_CONTENT_POLICY_VERSION,
       includedPropIds: ['prop_table'],
       excludedProps: [{ propId: 'prop_later', name: 'Covered Parcel', reasons: ['lifecycle'] }],
     };
+    def.positiveAuthorityPolicy.blockedProps = [
+      { propId: 'prop_later', name: 'Covered Parcel' },
+      { propId: 'prop_portable', name: 'Portable Lantern' },
+    ];
     const instruction = buildBoardQaInstruction(def);
     expect(instruction).toContain('exactly 1');
     expect(instruction).toContain('Area 1');
     expect(instruction).toContain('Covered Parcel');
+    expect(instruction).toContain('Portable Lantern');
   });
 });
 

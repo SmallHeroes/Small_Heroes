@@ -8,10 +8,17 @@
 export {
   SET_IDENTITY_BOARD_VERSION,
   SET_IDENTITY_REGISTRY_VERSION,
+  SET_BOARD_CONTENT_POLICY_VERSION,
+  SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
   type SetDefinition,
   type SetDefinitionLocation,
   type SetDefinitionZone,
   type SetDefinitionFixedFact,
+  type SetBoardContentPolicy,
+  type SetBoardExcludedProp,
+  type SetBoardPositiveAuthorityPolicy,
+  type SetBoardBlockedCastIdentity,
+  type SetBoardBlockedPropIdentity,
   type SetIdentityBoardRegistryEntry,
   type SetIdentityBoardBinding,
   type SetIdentityBoardBindingContext,
@@ -33,6 +40,7 @@ export {
   canonicalSetBoardWords,
   deriveExcludedPropCanonicalTerms,
   SetBoardPositiveAuthoritySpoilerError,
+  SetBoardPositiveAuthorityLeakError,
 } from './positiveAuthoritySpoilerGuard';
 
 export {

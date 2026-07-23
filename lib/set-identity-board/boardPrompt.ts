@@ -1,7 +1,7 @@
 /**
  * Set Identity Board — the PURE board-prompt builder. NO I/O, NO clock, NO randomness.
  *
- * Turns a `SetDefinition` (the SET-only projection) into the text used to render ONE character-free establishing
+ * Turns a `SetDefinition` (the SET-only projection) into the text used to render ONE unoccupied establishing
  * view of the set. Composed from the projection ONLY plus the order's style blocks (`@/lib/styles`). It never
  * imports the image provider or any env-coupled module, so it is fully testable and deterministic: same def →
  * same prompt → same `promptHash`.
@@ -19,7 +19,7 @@
  *     opening kind (a doorway/window/balcony_door) that the structure does not contain.
  */
 import { canonicalHash } from '@/lib/canonical-json';
-import { getNegativeStylePromptBlock, getPositiveStylePromptBlock } from '@/lib/styles';
+import { getNegativeStylePromptBlock, getSetBoardStylePromptBlock } from '@/lib/styles';
 
 import type { SetDefinition, SetDefinitionLocation, SetDefinitionZone } from './types';
 import { assertSetBoardPositiveAuthoritySpoilerNeutral } from './positiveAuthoritySpoilerGuard';
@@ -85,10 +85,9 @@ function placementAreaLabels(def: SetDefinition, zoneIds: readonly string[]): st
 /**
  * Build the board prompt, its negative prompt, and their joint hash.
  *
- * The positive prompt: asks for ONE single continuous establishing view of the whole empty set, states the set's
- * locations / geometry / materials / lighting from the projection, declares ONLY the openings present, forbids all
- * inhabitants/action/text/paneling, and applies the order's positive style block. The negative prompt fuses the
- * style's negatives with the board forbids.
+ * The positive prompt contains stable physical-set authority only: locations, geometry, fixed objects, light,
+ * declared openings, and the board-safe style projection. All blocked entities/actions/layouts live exclusively
+ * in the negative prompt, where they cannot become positive visual authority.
  *
  * Deliberately NO view plan and no "reference sheet" framing: enumerating views is what made the model draw a
  * panelled sheet (see the module header).
@@ -122,11 +121,18 @@ export function buildSetIdentityBoardPrompt(def: SetDefinition): {
   const excludedLines = def.contentPolicy.excludedProps.map(
     (prop) => `NO ${prop.name}; it is page-conditioned content and must be absent from this base board`,
   );
+  const excludedPropIds = new Set(def.contentPolicy.excludedProps.map((prop) => prop.propId));
+  const undeclaredPropLines = def.positiveAuthorityPolicy.blockedProps
+    .filter((prop) => !excludedPropIds.has(prop.propId))
+    .map(
+      (prop) =>
+        `NO ${prop.name}; it is not declared as a stable fixed set object and must be absent from this base board`,
+    );
 
   const sections: string[] = [
-    'SET IDENTITY BOARD — CHARACTER-FREE SINGLE ESTABLISHING VIEW OF ONE SET',
-    'Render ONE single canonical establishing view of this whole set, empty of all inhabitants: a SINGLE CONTINUOUS ILLUSTRATION filling the frame edge to edge, from one natural establishing angle wide enough to take in the entire connected space at once.',
-    'This is ONE picture — NOT a sheet, NOT multiple views, NOT panels, NOT a grid, NOT a collage. There are no dividing lines anywhere in the image.',
+    'SET IDENTITY BOARD — SINGLE ESTABLISHING VIEW OF ONE PHYSICAL SET',
+    'Render ONE single canonical establishing view of this unoccupied physical set: a SINGLE CONTINUOUS ILLUSTRATION filling the frame edge to edge, from one natural establishing angle wide enough to take in the entire connected space at once.',
+    'Compose the result as one uninterrupted picture filling the frame edge to edge.',
     '',
     `SET IDENTITY: ${def.setIdentityId}  (board ${def.boardVersion})`,
     '',
@@ -139,10 +145,8 @@ export function buildSetIdentityBoardPrompt(def: SetDefinition): {
     'FIXED SET OBJECTS (stable materials + scale — the same object, never redesigned):',
     ...(materialLines.length ? materialLines : ['- (no fixed set objects bound into this set)']),
     '',
-    'SPOILER-NEUTRAL CONTENT POLICY:',
-    ...(excludedLines.length
-      ? excludedLines.map((line) => `- ${line}`)
-      : ['- No page-conditioned prop is declared for exclusion.']),
+    'STABLE OBJECT AUTHORITY:',
+    '- Only the fixed set objects declared above belong to this stable physical-set view.',
     '',
     'WALL OPENINGS:',
     ...(openings.length
@@ -151,12 +155,8 @@ export function buildSetIdentityBoardPrompt(def: SetDefinition): {
         ]
       : ['No wall openings belong to this set — render solid, unbroken walls only.']),
     '',
-    'STRICT FORBIDS (this is a SET PLATE, not a story page):',
-    ...BOARD_FORBIDS.map((f) => `- ${f}`),
-    ...excludedLines.map((f) => `- ${f}`),
-    '',
     'STYLE (from the order style; apply this rendering language to the set plate):',
-    getPositiveStylePromptBlock(def.styleId),
+    getSetBoardStylePromptBlock(def.styleId),
   ];
 
   const prompt = sections.join('\n');
@@ -165,6 +165,7 @@ export function buildSetIdentityBoardPrompt(def: SetDefinition): {
     getNegativeStylePromptBlock(def.styleId),
     ...BOARD_FORBIDS,
     ...excludedLines,
+    ...undeclaredPropLines,
     'people',
     'child',
     'character',

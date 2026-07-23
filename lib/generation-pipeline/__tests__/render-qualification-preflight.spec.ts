@@ -10,6 +10,7 @@ import {
 } from '../render-qualification-preflight';
 import { PageReferenceCompatibilityError } from '../page-reference-authority';
 import type { BookVisualContract } from '@/lib/visual-contract-compiler';
+import { SET_IDENTITY_BOARD_VERSION } from '@/lib/set-identity-board';
 
 const REPO = process.cwd();
 const CACHE = {
@@ -75,7 +76,7 @@ describe('shipped Style01 render-qualification preflight', () => {
             storageKey: 'fixture-board',
             resolvedUrl: 'https://fixtures.invalid/board.png',
             assetSha256: 'fixture-sha',
-            boardVersion: 'set-board/v2',
+            boardVersion: SET_IDENTITY_BOARD_VERSION,
             approvedAt: '2026-07-22T00:00:00.000Z',
           },
         },

@@ -157,6 +157,62 @@ export interface SpatialRelation {
 }
 
 /**
+ * Explicit, reviewed source authority for one character-free Set Identity Board.
+ *
+ * This is deliberately separate from `VisualLocation.description` / `lighting`, `VisualZone.description`, and
+ * `SpatialNode.description`. Those fields are page authority and may legitimately contain cast, action, reveal,
+ * and transient-prop language. A board-required physical set must instead author one stable projection here.
+ */
+export interface SetBoardStableLocation {
+  /** MUST reference a location carrying this authority's `setIdentityId`. */
+  locationId: string;
+  /** Character-free physical label used by the board prompt. */
+  name: string;
+  environmentClass: EnvironmentClass;
+  timeOfDay: string;
+  /** Stable environmental light only; no portable/cast-operated/page-conditioned source. */
+  lighting: string;
+}
+
+export interface SetBoardStableSpatialNode {
+  /** Unique within this board area. */
+  id: string;
+  kind: SpatialNodeKind;
+  /** Stable physical form/placement only; no cast, action, reveal, or transient-prop prose. */
+  description: string;
+  /** Optional recurring-prop identity for an explicitly declared stable fixed object. */
+  propId?: string;
+}
+
+export interface SetBoardStableArea {
+  /** Board-local stable area id. It need not reuse a page zone id. */
+  id: string;
+  /** MUST reference one of this authority's stable locations. */
+  locationId: string;
+  spatialNodes: SetBoardStableSpatialNode[];
+  spatialRelations?: SpatialRelation[];
+}
+
+export interface SetBoardStableFixedObject {
+  /** MUST reference a recurring prop that is safe on every consumer of this physical set. */
+  propId: string;
+  /** Board-only physical label. Raw recurring-prop prose is never auto-projected. */
+  name: string;
+  material?: string;
+  scale?: string;
+  /** Exact number of physical instances in the one continuous board view. */
+  quantity: number;
+}
+
+export interface SetBoardStableAuthority {
+  setIdentityId: string;
+  locations: SetBoardStableLocation[];
+  areas: SetBoardStableArea[];
+  /** Explicit even when empty: stable objects are reviewed board authority, never inferred from page prose. */
+  fixedObjects: SetBoardStableFixedObject[];
+}
+
+/**
  * A zone is a sub-area of a location, shown hierarchically as `locationId → zoneId`. CRITICAL: a
  * "gate" is a ZONE inside `playground_main`, NOT a new location — this is the fix for the
  * gate→cave reclassification (the keyword classifier used to promote a zone to a whole new world).
@@ -559,6 +615,11 @@ export interface BookVisualContract {
   worldType: string;
   locations: VisualLocation[];
   zones: VisualZone[];
+  /**
+   * Optional for no-board/legacy stories. Every set whose locations declare `setReference.status` pending/ready
+   * MUST have exactly one complete stable authority; board projection fails closed when it is absent or malformed.
+   */
+  setBoardAuthorities?: SetBoardStableAuthority[];
   cast: VisualCast;
   /**
    * vNext: recurring HUMAN cast (doctor/mother/teacher/…), with stable namespaced ids. Optional + additive

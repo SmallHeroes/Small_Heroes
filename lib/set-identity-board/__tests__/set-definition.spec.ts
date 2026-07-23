@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import type { BookVisualContract } from '@/lib/visual-contract-compiler';
+import {
+  setBoardStableAuthorityErrors,
+  type BookVisualContract,
+} from '@/lib/visual-contract-compiler';
 
 import {
   computeSetDefinitionHash,
@@ -88,6 +91,61 @@ function makeContract(): BookVisualContract {
         description: 'the open field',
       },
     ],
+    setBoardAuthorities: [
+      {
+        setIdentityId: 'set_alpha',
+        locations: [
+          {
+            locationId: 'room_north',
+            name: 'North Room',
+            timeOfDay: 'day',
+            lighting: 'stable diffuse daylight',
+            environmentClass: 'indoor',
+          },
+          {
+            locationId: 'room_south',
+            name: 'South Room',
+            timeOfDay: 'day',
+            lighting: 'stable diffuse daylight',
+            environmentClass: 'indoor',
+          },
+        ],
+        areas: [
+          {
+            id: 'board_north',
+            locationId: 'room_north',
+            spatialNodes: [
+              { id: 'main_door', kind: 'doorway', description: 'a wide wooden doorway in the east wall' },
+              {
+                id: 'tall_lamp',
+                kind: 'furniture',
+                description: 'a tall brass floor lamp with a linen shade',
+                propId: 'floor_lamp',
+              },
+            ],
+            spatialRelations: [
+              { subjectId: 'tall_lamp', relation: 'adjacent_to', objectId: 'main_door' },
+            ],
+          },
+          {
+            id: 'board_south',
+            locationId: 'room_south',
+            spatialNodes: [
+              { id: 'south_shelf', kind: 'wall', description: 'a long shelf on the south wall' },
+            ],
+          },
+        ],
+        fixedObjects: [
+          {
+            propId: 'floor_lamp',
+            name: 'Floor Lamp',
+            material: 'brass and linen',
+            scale: 'tall floor-standing fixture',
+            quantity: 1,
+          },
+        ],
+      },
+    ],
     cast: {
       child: { id: 'child_1', role: 'child', name: 'Kid', wardrobe: { description: 'a green tunic' } },
       companion: { id: 'comp_1', role: 'companion', name: 'Pal', wardrobe: { description: 'a blue scarf' } },
@@ -166,7 +224,19 @@ describe('projectSetDefinition / computeSetDefinitionHash — set-only, personal
     expect(computeSetDefinitionHash(variant, ID, STYLE)).toBe(computeSetDefinitionHash(base, ID, STYLE));
   });
 
-  it('(b) CHANGES when a zone gains a spatialNode', () => {
+  it('(a) CHANGES when the undeclared-prop negative authority changes', () => {
+    const base = makeContract();
+    const variant = clone(base);
+    variant.recurringProps.push({
+      id: 'portable_lantern',
+      name: 'Portable Lantern',
+      description: 'a page-conditioned object',
+    });
+    expect(computeSetDefinitionHash(variant, ID, STYLE))
+      .not.toBe(computeSetDefinitionHash(base, ID, STYLE));
+  });
+
+  it('(b) is IDENTICAL when page-rich zone geometry changes', () => {
     const base = makeContract();
     const variant = clone(base);
     variant.zones[0].spatialNodes!.push({
@@ -174,28 +244,41 @@ describe('projectSetDefinition / computeSetDefinitionHash — set-only, personal
       kind: 'window',
       description: 'a round skylight in the ceiling',
     });
-    expect(computeSetDefinitionHash(variant, ID, STYLE)).not.toBe(computeSetDefinitionHash(base, ID, STYLE));
+    expect(computeSetDefinitionHash(variant, ID, STYLE)).toBe(computeSetDefinitionHash(base, ID, STYLE));
   });
 
-  it('(b) CHANGES when a zone gains a spatialRelation', () => {
+  it('(b) is IDENTICAL when a page-rich zone relation changes', () => {
     const base = makeContract();
     const variant = clone(base);
     variant.zones[0].spatialRelations!.push({ subjectId: 'main_door', relation: 'centered_in' });
-    expect(computeSetDefinitionHash(variant, ID, STYLE)).not.toBe(computeSetDefinitionHash(base, ID, STYLE));
+    expect(computeSetDefinitionHash(variant, ID, STYLE)).toBe(computeSetDefinitionHash(base, ID, STYLE));
   });
 
-  it('(b) CHANGES when an opening KIND changes', () => {
+  it('(b) is IDENTICAL when page-rich location light changes', () => {
     const base = makeContract();
     const variant = clone(base);
-    variant.zones[0].spatialNodes![0].kind = 'window'; // was 'doorway'
+    variant.locations[0].lighting = 'a dramatic portable beam';
+    expect(computeSetDefinitionHash(variant, ID, STYLE)).toBe(computeSetDefinitionHash(base, ID, STYLE));
+  });
+
+  it('(b) CHANGES when reviewed stable geometry changes', () => {
+    const base = makeContract();
+    const variant = clone(base);
+    variant.setBoardAuthorities![0].areas[0].spatialNodes[0].kind = 'window';
     expect(computeSetDefinitionHash(variant, ID, STYLE)).not.toBe(computeSetDefinitionHash(base, ID, STYLE));
   });
 
-  it('(b) CHANGES with styleId, setIdentityId, and boardVersion', () => {
+  it('(b) CHANGES when reviewed stable environmental light changes', () => {
+    const base = makeContract();
+    const variant = clone(base);
+    variant.setBoardAuthorities![0].locations[0].lighting = 'stable overcast daylight';
+    expect(computeSetDefinitionHash(variant, ID, STYLE)).not.toBe(computeSetDefinitionHash(base, ID, STYLE));
+  });
+
+  it('(b) CHANGES with styleId and boardVersion', () => {
     const base = makeContract();
     const h = computeSetDefinitionHash(base, ID, STYLE);
     expect(computeSetDefinitionHash(base, ID, 'soft_hand_drawn_storybook')).not.toBe(h);
-    expect(computeSetDefinitionHash(base, 'meadow', STYLE)).not.toBe(h);
     expect(computeSetDefinitionHash(base, ID, STYLE, { boardVersion: 'set-board/v1' })).not.toBe(h);
   });
 
@@ -204,7 +287,7 @@ describe('projectSetDefinition / computeSetDefinitionHash — set-only, personal
     expect(computeSetDefinitionHash(base, ID, STYLE)).toBe(computeSetDefinitionHash(makeContract(), ID, STYLE));
   });
 
-  it('deterministically removes a reveal-gated prop node, dependent relations, and fixed facts', () => {
+  it('fails closed when reviewed stable authority includes a reveal-gated prop', () => {
     const contract = makeContract();
     const prop = contract.recurringProps.find((candidate) => candidate.id === 'floor_lamp')!;
     prop.firstRevealPage = 2;
@@ -212,33 +295,47 @@ describe('projectSetDefinition / computeSetDefinitionHash — set-only, personal
       { propId: prop.id, visibility: 'forbidden' },
     ];
 
-    const definition = projectSetDefinition(contract, ID, STYLE);
-    expect(definition.contentPolicy.includedPropIds).not.toContain(prop.id);
-    expect(definition.contentPolicy.excludedProps).toEqual([
-      { propId: prop.id, name: prop.name, reasons: ['lifecycle', 'page_forbidden'] },
-    ]);
-    expect(definition.zones.flatMap((zone) => zone.spatialNodes).some(
-      (node) => node.bindsTo?.kind === 'prop' && node.bindsTo.id === prop.id,
-    )).toBe(false);
-    expect(definition.zones.flatMap((zone) => zone.spatialRelations).some(
-      (relation) => relation.subjectId === 'tall_lamp' || relation.objectId === 'tall_lamp',
-    )).toBe(false);
-    expect(definition.fixedSetFacts.some((fact) => fact.propId === prop.id)).toBe(false);
+    expect(() => projectSetDefinition(contract, ID, STYLE)).toThrow(
+      /lifecycle-gated and cannot be stable board content/,
+    );
   });
 
-  it('keeps lifecycle-gated props off the base board even when the set is consumed only at reveal', () => {
+  it('fails closed when stable authority is missing for a required set', () => {
     const contract = makeContract();
-    const prop = contract.recurringProps.find((candidate) => candidate.id === 'floor_lamp')!;
-    prop.firstRevealPage = 1;
-    contract.coverContract.locationId = 'meadow';
+    delete contract.setBoardAuthorities;
+    expect(() => projectSetDefinition(contract, ID, STYLE)).toThrow(
+      /has no reviewed stable authority/,
+    );
+  });
 
-    const definition = projectSetDefinition(contract, ID, STYLE);
-    expect(definition.contentPolicy.excludedProps).toContainEqual({
-      propId: prop.id,
-      name: prop.name,
-      reasons: ['lifecycle'],
-    });
-    expect(definition.contentPolicy.includedPropIds).not.toContain(prop.id);
+  it('keeps no-board contracts schema-compatible without stable authority', () => {
+    const contract = makeContract();
+    for (const location of contract.locations) location.setReference = { status: 'none' };
+    delete contract.setBoardAuthorities;
+    expect(listRequiredSetIdentityIds(contract)).toEqual([]);
+  });
+});
+
+describe('reviewed stable Set Board authority validation', () => {
+  it('requires complete authority for every pending/ready physical set', () => {
+    const missing = makeContract();
+    delete missing.setBoardAuthorities;
+    expect(setBoardStableAuthorityErrors(missing).join(' ')).toMatch(
+      /requires a Set Board.*no reviewed stable authority/,
+    );
+
+    const partial = makeContract();
+    partial.setBoardAuthorities![0].locations.pop();
+    expect(setBoardStableAuthorityErrors(partial).join(' ')).toMatch(
+      /locations must cover exactly the physical-set locations/,
+    );
+  });
+
+  it('keeps no-board stories compatible when the stable authority field is absent', () => {
+    const contract = makeContract();
+    for (const location of contract.locations) location.setReference = { status: 'none' };
+    delete contract.setBoardAuthorities;
+    expect(setBoardStableAuthorityErrors(contract)).toEqual([]);
   });
 });
 

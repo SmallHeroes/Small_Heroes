@@ -164,6 +164,9 @@ export function materialize(
     worldType: template.worldType,
     locations: template.locations,
     zones: template.zones,
+    ...(template.setBoardAuthorities
+      ? { setBoardAuthorities: template.setBoardAuthorities }
+      : {}),
     cast: template.cast,
     humanCast,
     recurringProps: template.recurringProps,

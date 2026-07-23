@@ -57,7 +57,7 @@ describe('Stage 1 — draft json_schema is strict-mode compliant', () => {
   });
   it('has the top-level descriptive keys the compiler consumes', () => {
     const props = (TEMPLATE_DRAFT_JSON_SCHEMA as { properties: Record<string, unknown> }).properties;
-    for (const k of ['worldType', 'locations', 'zones', 'cast', 'humanCast', 'recurringProps', 'forbiddenGlobalElements', 'coverContract', 'pageContracts']) {
+    for (const k of ['worldType', 'locations', 'zones', 'setBoardAuthorities', 'cast', 'humanCast', 'recurringProps', 'forbiddenGlobalElements', 'coverContract', 'pageContracts']) {
       expect(Object.keys(props)).toContain(k);
     }
   });
@@ -68,6 +68,21 @@ describe('Stage 1 — draft json_schema is strict-mode compliant', () => {
     };
     expect(root.properties.recurringProps.items?.properties).toHaveProperty('firstRevealPage');
     expect(root.properties.pageContracts.items?.properties).toHaveProperty('propConstraints');
+  });
+
+  it('authors stable board authority as separate structured set/location/area/object fields', () => {
+    const root = TEMPLATE_DRAFT_JSON_SCHEMA as {
+      properties: Record<string, {
+        items?: { properties?: Record<string, { items?: { properties?: Record<string, unknown> } }> };
+      }>;
+    };
+    const authority = root.properties.setBoardAuthorities.items?.properties;
+    expect(authority).toHaveProperty('setIdentityId');
+    expect(authority).toHaveProperty('locations');
+    expect(authority).toHaveProperty('areas');
+    expect(authority).toHaveProperty('fixedObjects');
+    expect(authority?.areas.items?.properties).toHaveProperty('spatialNodes');
+    expect(authority?.areas.items?.properties).toHaveProperty('spatialRelations');
   });
 });
 
@@ -100,7 +115,7 @@ describe('Stage 1 — compiler requests the dedicated authoring call + records p
     expect(provenance.authoringModel).toBe('gpt-5.5-pro');
     expect(provenance.reasoningEffort).toBe('medium');
     expect(provenance.maxOutputTokens).toBe(36000);
-    expect(provenance.schemaVersion).toBe('vc-draft-schema/v3');
+    expect(provenance.schemaVersion).toBe('vc-draft-schema/v4');
     expect(provenance.attempt).toBe(1);
   });
 

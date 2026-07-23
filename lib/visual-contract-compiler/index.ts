@@ -33,6 +33,11 @@ export {
 export { normalizeRawBookVisualContract } from './normalizeRawContract';
 export { computeVisualContractHash } from './contractHash';
 export {
+  setBoardStableAuthorityErrors,
+  requireSetBoardStableAuthority,
+  InvalidSetBoardStableAuthorityError,
+} from './setBoardStableAuthority';
+export {
   CONTRACT_ARTIFACT_SUFFIX,
   CONTRACT_TEMPLATE_ARTIFACT_SUFFIX,
   MissingContractArtifactError,

@@ -26,7 +26,10 @@ import {
   SET_REFERENCE_COPY_INSTRUCTION,
   type ReferenceAsset,
 } from '../referenceTransport';
-import type { SetIdentityBoardBinding } from '../types';
+import {
+  SET_IDENTITY_BOARD_VERSION,
+  type SetIdentityBoardBinding,
+} from '../types';
 
 /** Minimal synthetic asset. */
 function asset(kind: ReferenceAsset['kind'], url: string, extra?: Partial<ReferenceAsset>): ReferenceAsset {
@@ -44,7 +47,7 @@ function binding(identityId: string, url: string, sha = `sha-${identityId}`): Se
     storageKey: `boards/${identityId}.png`,
     resolvedUrl: url,
     assetSha256: sha,
-    boardVersion: 'set-board/v2',
+    boardVersion: SET_IDENTITY_BOARD_VERSION,
     approvedAt: '2026-01-01T00:00:00.000Z',
   };
 }

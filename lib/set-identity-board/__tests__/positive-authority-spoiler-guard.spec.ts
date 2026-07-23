@@ -20,19 +20,19 @@ function revealGatedContract(args: {
   propName?: string;
 } = {}): BookVisualContract {
   const contract = clone(makeContract());
-  const prop = contract.recurringProps[0];
-  const previousPropId = prop.id;
-  prop.id = args.propId ?? 'prop_tin_bucket';
-  prop.name = args.propName ?? 'Old Tin Bucket';
-  prop.firstRevealPage = 2;
-
-  for (const zone of contract.zones) {
-    for (const node of zone.spatialNodes ?? []) {
-      if (node.bindsTo?.kind === 'prop' && node.bindsTo.id === previousPropId) {
-        node.bindsTo.id = prop.id;
-      }
-    }
-  }
+  const prop = {
+    id: args.propId ?? 'prop_tin_bucket',
+    name: args.propName ?? 'Old Tin Bucket',
+    description: 'a page-conditioned object',
+    firstRevealPage: 2,
+  };
+  contract.recurringProps.push(prop);
+  contract.zones[0].spatialNodes!.push({
+    id: 'transient_object',
+    kind: 'furniture',
+    description: 'page-rich transient object placement',
+    bindsTo: { kind: 'prop', id: prop.id },
+  });
   contract.pageContracts[0].propState = [];
   contract.pageContracts[0].propConstraints = [
     { propId: prop.id, visibility: 'forbidden' },
@@ -85,7 +85,7 @@ describe('Set Board positive free-text spoiler guard', () => {
 
   it('rejects an excluded prop leaking through a positive location name', () => {
     const contract = revealGatedContract();
-    contract.locations[0].name = 'Bucket Supply Room';
+    contract.setBoardAuthorities![0].locations[0].name = 'Bucket Supply Room';
 
     expectLeak(
       () => projectSetDefinition(contract, SET_ID, STYLE),
@@ -95,7 +95,7 @@ describe('Set Board positive free-text spoiler guard', () => {
 
   it('rejects the validated partial lighting leak with precise field provenance', () => {
     const contract = revealGatedContract();
-    contract.locations[0].lighting = 'FLASHLIGHT on the bucket!';
+    contract.setBoardAuthorities![0].locations[0].lighting = 'FLASHLIGHT on the bucket!';
 
     const leak = expectLeak(
       () => projectSetDefinition(contract, SET_ID, STYLE),
@@ -106,17 +106,15 @@ describe('Set Board positive free-text spoiler guard', () => {
   });
 
   it('rejects adjacent leaks through set identity, projected geometry, and fixed-object material', () => {
-    const identityLeak = revealGatedContract();
-    for (const location of identityLeak.locations.slice(0, 2)) {
-      location.setIdentityId = 'set_bucket_gallery';
-    }
+    const identityLeak = projectSetDefinition(revealGatedContract(), SET_ID, STYLE);
+    identityLeak.setIdentityId = 'set_bucket_gallery';
     expectLeak(
-      () => projectSetDefinition(identityLeak, 'set_bucket_gallery', STYLE),
+      () => buildSetIdentityBoardPrompt(identityLeak),
       { fieldPath: 'setIdentityId' },
     );
 
     const geometryLeak = revealGatedContract();
-    geometryLeak.zones[1].spatialNodes?.push({
+    geometryLeak.setBoardAuthorities![0].areas[1].spatialNodes.push({
       id: 'clean_shelf_extension',
       kind: 'furniture',
       description: 'a narrow shelf directly above the bucket',
@@ -127,13 +125,7 @@ describe('Set Board positive free-text spoiler guard', () => {
     );
 
     const materialLeak = revealGatedContract();
-    materialLeak.recurringProps.push({
-      id: 'stable_shelf',
-      name: 'Stable Shelf',
-      description: 'a permanent wall shelf',
-      material: 'bucket-plated brass',
-    });
-    materialLeak.zones[1].spatialNodes![0].bindsTo = { kind: 'prop', id: 'stable_shelf' };
+    materialLeak.setBoardAuthorities![0].fixedObjects[0].material = 'bucket-plated brass';
     expectLeak(
       () => projectSetDefinition(materialLeak, SET_ID, STYLE),
       { fieldPath: /fixedSetFacts\[\d+\]\.material/ },
@@ -148,7 +140,7 @@ describe('Set Board positive free-text spoiler guard', () => {
     expectLeak(
       () => projectSetDefinition(styleLeak, SET_ID, STYLE),
       {
-        fieldPath: 'styles["detailed_whimsical_world"].positivePrompt',
+        fieldPath: 'styles["detailed_whimsical_world"].setBoard',
         matchedTerm: 'world',
         excludedPropId: 'prop_world',
       },
@@ -167,29 +159,29 @@ describe('Set Board positive free-text spoiler guard', () => {
     const { prompt, negativePrompt } = buildSetIdentityBoardPrompt(definition);
     const bucketLines = prompt.split(/\r?\n/).filter((line) => /bucket/i.test(line));
 
-    expect(bucketLines.length).toBeGreaterThan(0);
-    expect(bucketLines.every((line) => line.startsWith('- NO Old Tin Bucket'))).toBe(true);
+    expect(bucketLines).toEqual([]);
     expect(negativePrompt).toContain('NO Old Tin Bucket');
   });
 
   it('uses whole canonical words: punctuation/case and short names match, substrings do not', () => {
     const partial = revealGatedContract();
-    partial.locations[0].lighting = 'a cathedral-like glow with proper proportions';
+    partial.setBoardAuthorities![0].locations[0].lighting =
+      'a cathedral-like glow with proper proportions';
     expect(() => projectSetDefinition(partial, SET_ID, STYLE)).not.toThrow();
 
     const punctuation = revealGatedContract();
-    punctuation.locations[0].lighting = 'FLASHLIGHT ON THE BUCKET!';
+    punctuation.setBoardAuthorities![0].locations[0].lighting = 'FLASHLIGHT ON THE BUCKET!';
     expectLeak(
       () => projectSetDefinition(punctuation, SET_ID, STYLE),
       { fieldPath: 'locations[0].lighting' },
     );
 
     const shortClean = revealGatedContract({ propId: 'prop_x', propName: 'X' });
-    shortClean.locations[0].lighting = 'xylophone-colored daylight';
+    shortClean.setBoardAuthorities![0].locations[0].lighting = 'xylophone-colored daylight';
     expect(() => projectSetDefinition(shortClean, SET_ID, STYLE)).not.toThrow();
 
     const shortLeak = revealGatedContract({ propId: 'prop_x', propName: 'X' });
-    shortLeak.locations[0].lighting = 'marker X.';
+    shortLeak.setBoardAuthorities![0].locations[0].lighting = 'marker X.';
     expectLeak(
       () => projectSetDefinition(shortLeak, SET_ID, STYLE),
       {
@@ -200,7 +192,8 @@ describe('Set Board positive free-text spoiler guard', () => {
     );
 
     const prefixClean = revealGatedContract({ propId: 'prop_globe', propName: 'Globe' });
-    prefixClean.locations[0].lighting = 'proper proportions and a prop layout guide';
+    prefixClean.setBoardAuthorities![0].locations[0].lighting =
+      'proper proportions and a prop layout guide';
     expect(() => projectSetDefinition(prefixClean, SET_ID, STYLE)).not.toThrow();
   });
 
@@ -218,9 +211,9 @@ describe('Set Board positive free-text spoiler guard', () => {
       'set_room_balcony_night',
       'soft_hand_drawn_storybook',
     );
-    const { prompt } = buildSetIdentityBoardPrompt(definition);
+    const { prompt, negativePrompt } = buildSetIdentityBoardPrompt(definition);
     const spoilerLines = prompt.split(/\r?\n/).filter((line) => /bucket|drip source/i.test(line));
-    expect(spoilerLines.length).toBeGreaterThan(0);
-    expect(spoilerLines.every((line) => line.startsWith('- NO old tin bucket'))).toBe(true);
+    expect(spoilerLines).toEqual([]);
+    expect(negativePrompt).toContain('NO old tin bucket');
   });
 });

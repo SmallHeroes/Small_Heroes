@@ -16,13 +16,17 @@
 import type { SpatialNode, SpatialRelation } from '@/lib/visual-contract-compiler';
 
 /** Version of the spoiler-neutral SET projection + prompt derivation. */
-export const SET_IDENTITY_BOARD_VERSION = 'set-board/v2' as const;
+export const SET_IDENTITY_BOARD_VERSION = 'set-board/v3' as const;
 
 /** Version of the on-disk registry entry schema. Bump to invalidate previously-saved registry entries. */
-export const SET_IDENTITY_REGISTRY_VERSION = 'set-registry/v2' as const;
+export const SET_IDENTITY_REGISTRY_VERSION = 'set-registry/v3' as const;
 
 /** Version of the declared board-content policy carried through registry/package/runtime identities. */
-export const SET_BOARD_CONTENT_POLICY_VERSION = 'set-board-content/v1' as const;
+export const SET_BOARD_CONTENT_POLICY_VERSION = 'set-board-content/v2' as const;
+
+/** Version of the structured cast/undeclared-prop guard carried by every direct prompt input. */
+export const SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION =
+  'set-board-positive-authority/v1' as const;
 
 /** A location as it appears in the SET-only projection (set facts only — no cast/appearance/page data). */
 export interface SetDefinitionLocation {
@@ -73,10 +77,27 @@ export interface SetBoardContentPolicy {
   excludedProps: SetBoardExcludedProp[];
 }
 
+export interface SetBoardBlockedCastIdentity {
+  castId: string;
+  labels: string[];
+}
+
+export interface SetBoardBlockedPropIdentity {
+  propId: string;
+  name: string;
+}
+
+export interface SetBoardPositiveAuthorityPolicy {
+  version: typeof SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION;
+  blockedCast: SetBoardBlockedCastIdentity[];
+  /** Every recurring prop not explicitly listed in `contentPolicy.includedPropIds`. */
+  blockedProps: SetBoardBlockedPropIdentity[];
+}
+
 /**
- * The SET-only projection that gets hashed. Contains ONLY set-relevant, reusable facts — deliberately NO cast, NO
- * humanCast, NO page camera/action, NO transient prop state, NO lifecycle prose, NO family/appearance, NO order data.
- * Lifecycle/visibility may change only the explicit content policy and whether prop-bound geometry is retained.
+ * The SET-only projection. Its physical authority, content policy, and blocked-prop policy get hashed; blocked-cast
+ * evidence remains guard-only so cast/family changes never invalidate an otherwise identical reusable board. It
+ * deliberately contains NO page camera/action, transient prop state, family appearance, or order data.
  */
 export interface SetDefinition {
   boardVersion: string;
@@ -87,6 +108,8 @@ export interface SetDefinition {
   zones: SetDefinitionZone[];
   fixedSetFacts: SetDefinitionFixedFact[];
   contentPolicy: SetBoardContentPolicy;
+  /** Guard-only structured evidence. It is never emitted into positive or negative prompt prose. */
+  positiveAuthorityPolicy: SetBoardPositiveAuthorityPolicy;
 }
 
 /**

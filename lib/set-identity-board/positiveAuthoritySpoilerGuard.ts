@@ -1,6 +1,10 @@
-import { getPositiveStylePromptBlock } from '@/lib/styles';
+import { getSetBoardStylePromptBlock } from '@/lib/styles';
 
-import type { SetBoardExcludedProp, SetDefinition } from './types';
+import {
+  SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
+  type SetBoardExcludedProp,
+  type SetDefinition,
+} from './types';
 
 const LEADING_PROP_ID_NAMESPACES = new Set([
   'prop',
@@ -23,6 +27,88 @@ interface CanonicalTerm {
   words: string[];
 }
 
+const GENERIC_CAST_TERMS = [
+  'person',
+  'people',
+  'human',
+  'child',
+  'children',
+  'boy',
+  'girl',
+  'character',
+  'companion',
+  'animal',
+  'creature',
+  'mascot',
+  'pet',
+] as const;
+
+const ACTION_TERMS = [
+  'step through',
+  'steps through',
+  'stepping through',
+  'step over',
+  'steps over',
+  'stepping over',
+  'presses',
+  'pressed',
+  'pressing',
+  'holds',
+  'holding',
+  'offers',
+  'offering',
+  'touches',
+  'touching',
+  'looks at',
+  'reaches toward',
+  'climbs onto',
+  'sits on',
+  'stands on',
+  'points at',
+  'walks',
+  'walking',
+  'runs',
+  'running',
+  'crouches',
+  'crouching',
+  'kneels',
+  'kneeling',
+  'leans',
+  'leaning',
+  'gestures',
+  'posing',
+  'behind them',
+  'in front of them',
+  'reveals',
+  'revealed',
+  'revealing',
+  'discovers',
+  'discovered',
+  'appears',
+  'appearing',
+  'disappears',
+  'disappearing',
+  'portable light',
+  'portable beam',
+  'handheld light',
+  'hand held light',
+  'carried light',
+  'moving beam',
+  'sound',
+  'sounds',
+  'sound effect',
+  'audible',
+  'noise',
+] as const;
+
+const CAST_LABEL_STOP_WORDS = new Set([
+  'a',
+  'an',
+  'and',
+  'of',
+  'the',
+]);
+
 export class SetBoardPositiveAuthoritySpoilerError extends Error {
   readonly code = 'set_board_positive_authority_spoiler_leak' as const;
   readonly isSetBoardPositiveAuthoritySpoilerError = true as const;
@@ -41,6 +127,28 @@ export class SetBoardPositiveAuthoritySpoilerError extends Error {
       `${JSON.stringify(matchedTerm)} for ${excludedPropId} (${JSON.stringify(excludedPropName)})`,
     );
     this.name = 'SetBoardPositiveAuthoritySpoilerError';
+  }
+}
+
+export class SetBoardPositiveAuthorityLeakError extends Error {
+  readonly code = 'set_board_positive_authority_leak' as const;
+  readonly isSetBoardPositiveAuthorityLeakError = true as const;
+
+  constructor(
+    readonly setIdentityId: string,
+    readonly category: 'policy' | 'cast' | 'undeclared_prop' | 'action',
+    readonly fieldPath: string,
+    readonly provenance: string,
+    readonly matchedTerm: string,
+    readonly blockedIdentity?: string,
+  ) {
+    super(
+      `[set_board_positive_authority_leak] set ${JSON.stringify(setIdentityId)} ` +
+      `positive field ${fieldPath} (${provenance}) contains ${category} term ` +
+      `${JSON.stringify(matchedTerm)}` +
+      (blockedIdentity ? ` for ${JSON.stringify(blockedIdentity)}` : ''),
+    );
+    this.name = 'SetBoardPositiveAuthorityLeakError';
   }
 }
 
@@ -109,6 +217,31 @@ function containsTerm(sourceWords: readonly string[], termWords: readonly string
     if (termWords.every((word, offset) => sourceWords[start + offset] === word)) return true;
   }
   return false;
+}
+
+function canonicalTerms(values: readonly string[], includeIndividualWords: boolean): CanonicalTerm[] {
+  const seen = new Set<string>();
+  const terms: CanonicalTerm[] = [];
+  for (const value of values) {
+    const words = canonicalSetBoardWords(value);
+    const candidates = [
+      words,
+      ...(includeIndividualWords
+        ? words
+            .filter((word) => word.length > 1 && !CAST_LABEL_STOP_WORDS.has(word))
+            .map((word) => [word])
+        : []),
+    ];
+    for (const candidate of candidates) {
+      if (candidate.length === 0) continue;
+      const label = candidate.join(' ');
+      if (!seen.has(label)) {
+        seen.add(label);
+        terms.push({ label, words: candidate });
+      }
+    }
+  }
+  return terms;
 }
 
 function positiveAuthoritySources(definition: SetDefinition): PositiveAuthoritySource[] {
@@ -185,9 +318,9 @@ function positiveAuthoritySources(definition: SetDefinition): PositiveAuthorityS
   }
 
   sources.push({
-    fieldPath: `styles[${JSON.stringify(definition.styleId)}].positivePrompt`,
-    provenance: 'registered positive style block -> positive STYLE section',
-    value: getPositiveStylePromptBlock(definition.styleId),
+    fieldPath: `styles[${JSON.stringify(definition.styleId)}].setBoard`,
+    provenance: 'registered board-safe structured style fields -> positive STYLE section',
+    value: getSetBoardStylePromptBlock(definition.styleId),
   });
   return sources;
 }
@@ -202,11 +335,23 @@ function positiveAuthoritySources(definition: SetDefinition): PositiveAuthorityS
 export function assertSetBoardPositiveAuthoritySpoilerNeutral(
   definition: SetDefinition,
 ): void {
+  if (
+    definition.positiveAuthorityPolicy?.version !==
+    SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION
+  ) {
+    throw new SetBoardPositiveAuthorityLeakError(
+      definition.setIdentityId,
+      'policy',
+      'positiveAuthorityPolicy.version',
+      'direct SetDefinition prompt-input policy',
+      String(definition.positiveAuthorityPolicy?.version ?? '(missing)'),
+    );
+  }
+
+  const sources = positiveAuthoritySources(definition);
   const excludedProps = definition.contentPolicy.excludedProps
     .slice()
     .sort((a, b) => (a.propId < b.propId ? -1 : a.propId > b.propId ? 1 : 0));
-  if (excludedProps.length === 0) return;
-
   const termsByProp = new Map<string, CanonicalTerm[]>(
     excludedProps.map((prop) => [
       prop.propId,
@@ -217,7 +362,7 @@ export function assertSetBoardPositiveAuthoritySpoilerNeutral(
     ]),
   );
 
-  for (const source of positiveAuthoritySources(definition)) {
+  for (const source of sources) {
     const sourceWords = canonicalSetBoardWords(source.value);
     if (sourceWords.length === 0) continue;
     for (const prop of excludedProps) {
@@ -232,6 +377,75 @@ export function assertSetBoardPositiveAuthoritySpoilerNeutral(
             term.label,
           );
         }
+      }
+    }
+  }
+
+  const genericCastTerms = canonicalTerms(GENERIC_CAST_TERMS, false);
+  const blockedCast = definition.positiveAuthorityPolicy.blockedCast.map((identity) => ({
+    identity: identity.castId,
+    terms: canonicalTerms([identity.castId, ...identity.labels], true),
+  }));
+  const blockedProps = definition.positiveAuthorityPolicy.blockedProps.map((prop) => ({
+    identity: prop.propId,
+    terms: deriveExcludedPropCanonicalTerms(prop).map((label) => ({
+      label,
+      words: canonicalSetBoardWords(label),
+    })),
+  }));
+  const actionTerms = canonicalTerms(ACTION_TERMS, false);
+
+  for (const source of sources) {
+    const sourceWords = canonicalSetBoardWords(source.value);
+    if (sourceWords.length === 0) continue;
+    for (const term of genericCastTerms) {
+      if (containsTerm(sourceWords, term.words)) {
+        throw new SetBoardPositiveAuthorityLeakError(
+          definition.setIdentityId,
+          'cast',
+          source.fieldPath,
+          source.provenance,
+          term.label,
+        );
+      }
+    }
+    for (const blocked of blockedCast) {
+      for (const term of blocked.terms) {
+        if (containsTerm(sourceWords, term.words)) {
+          throw new SetBoardPositiveAuthorityLeakError(
+            definition.setIdentityId,
+            'cast',
+            source.fieldPath,
+            source.provenance,
+            term.label,
+            blocked.identity,
+          );
+        }
+      }
+    }
+    for (const blocked of blockedProps) {
+      for (const term of blocked.terms) {
+        if (containsTerm(sourceWords, term.words)) {
+          throw new SetBoardPositiveAuthorityLeakError(
+            definition.setIdentityId,
+            'undeclared_prop',
+            source.fieldPath,
+            source.provenance,
+            term.label,
+            blocked.identity,
+          );
+        }
+      }
+    }
+    for (const term of actionTerms) {
+      if (containsTerm(sourceWords, term.words)) {
+        throw new SetBoardPositiveAuthorityLeakError(
+          definition.setIdentityId,
+          'action',
+          source.fieldPath,
+          source.provenance,
+          term.label,
+        );
       }
     }
   }

@@ -19,6 +19,7 @@ import {
   type PageVisualContract,
   type VisualZone,
 } from './types';
+import { setBoardStableAuthorityErrors } from './setBoardStableAuthority';
 
 export type ContractValidationResult =
   | { ok: true; contract: BookVisualContract }
@@ -894,6 +895,8 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
       }
     }
   }
+
+  errors.push(...setBoardStableAuthorityErrors(input));
 
   if (errors.length > 0) return { ok: false, errors };
   return { ok: true, contract: input as unknown as BookVisualContract };

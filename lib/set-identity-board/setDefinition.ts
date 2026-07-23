@@ -12,18 +12,23 @@ import { canonicalHash } from '@/lib/canonical-json';
 import type {
   BookVisualContract,
   PageVisualContract,
+  SetBoardStableArea,
+  SetBoardStableAuthority,
+  SetBoardStableLocation,
   SpatialNode,
   SpatialRelation,
   VisualLocation,
-  VisualZone,
 } from '@/lib/visual-contract-compiler';
+import { requireSetBoardStableAuthority } from '@/lib/visual-contract-compiler/setBoardStableAuthority';
 
 import {
   SET_BOARD_CONTENT_POLICY_VERSION,
+  SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
   SET_IDENTITY_BOARD_VERSION,
   type SetBoardContentPolicy,
   type SetBoardExcludedProp,
   type SetBoardExclusionReason,
+  type SetBoardPositiveAuthorityPolicy,
   type SetDefinition,
   type SetDefinitionFixedFact,
   type SetDefinitionLocation,
@@ -65,9 +70,9 @@ export function listRequiredSetIdentityIds(contract: BookVisualContract): string
   return Array.from(required).sort();
 }
 
-function projectLocation(location: VisualLocation): SetDefinitionLocation {
+function projectLocation(location: SetBoardStableLocation): SetDefinitionLocation {
   return {
-    id: location.id,
+    id: location.locationId,
     name: location.name,
     timeOfDay: location.timeOfDay,
     lighting: location.lighting,
@@ -145,23 +150,23 @@ function projectBoardGeometry(
   return lines;
 }
 
-function projectZones(
-  zones: readonly VisualZone[],
-  excludedPropIds: ReadonlySet<string>,
-): SetDefinitionZone[] {
-  return byId(zones).map((zone) => {
-    const spatialNodes = (zone.spatialNodes ?? []).filter(
-      (node) => node.bindsTo?.kind !== 'prop' || !excludedPropIds.has(node.bindsTo.id),
-    );
+function projectZones(areas: readonly SetBoardStableArea[]): SetDefinitionZone[] {
+  return byId(areas).map((area) => {
+    const spatialNodes: SpatialNode[] = area.spatialNodes.map((node) => ({
+      id: node.id,
+      kind: node.kind,
+      description: node.description,
+      ...(node.propId ? { bindsTo: { kind: 'prop' as const, id: node.propId } } : {}),
+    }));
     const retainedIds = new Set(spatialNodes.map((node) => node.id));
-    const spatialRelations = (zone.spatialRelations ?? []).filter(
+    const spatialRelations = (area.spatialRelations ?? []).filter(
       (relation) =>
         retainedIds.has(relation.subjectId) &&
         (relation.objectId === undefined || retainedIds.has(relation.objectId)),
     );
     return {
-      id: zone.id,
-      locationId: zone.locationId,
+      id: area.id,
+      locationId: area.locationId,
       spatialNodes,
       spatialRelations,
       geometry: projectBoardGeometry(spatialNodes, spatialRelations),
@@ -169,9 +174,10 @@ function projectZones(
   });
 }
 
-function boundPropIds(zones: readonly VisualZone[]): Set<string> {
+function boundPropIds(contract: BookVisualContract, locationIds: ReadonlySet<string>): Set<string> {
   const ids = new Set<string>();
-  for (const zone of zones) {
+  for (const zone of contract.zones ?? []) {
+    if (!locationIds.has(zone.locationId)) continue;
     for (const node of zone.spatialNodes ?? []) {
       if (node.bindsTo?.kind === 'prop') ids.add(node.bindsTo.id);
     }
@@ -180,7 +186,7 @@ function boundPropIds(zones: readonly VisualZone[]): Set<string> {
 }
 
 function projectFixedSetFacts(
-  contract: BookVisualContract,
+  authority: SetBoardStableAuthority,
   zones: readonly SetDefinitionZone[],
 ): SetDefinitionFixedFact[] {
   const placementsByProp = new Map<string, SetDefinitionFixedFact['placements']>();
@@ -192,22 +198,58 @@ function projectFixedSetFacts(
       placementsByProp.set(node.bindsTo.id, placements);
     }
   }
-  return contract.recurringProps
-    .filter((prop) => placementsByProp.has(prop.id))
-    .map((prop) => {
-      const placements = placementsByProp.get(prop.id) ?? [];
+  return authority.fixedObjects
+    .map((fixedObject) => {
+      const placements = placementsByProp.get(fixedObject.propId) ?? [];
       return {
-        propId: prop.id,
-        name: prop.name,
-        material: prop.material,
-        scale: prop.scale,
-        // One recurring prop id denotes one physical identity. Multiple zone bindings describe where that SAME
-        // continuous object is visible; they are not authorization to duplicate it on the one-view base board.
-        quantity: 1,
+        propId: fixedObject.propId,
+        name: fixedObject.name,
+        material: fixedObject.material,
+        scale: fixedObject.scale,
+        quantity: fixedObject.quantity,
         placements,
       };
     })
     .sort((a, b) => (a.propId < b.propId ? -1 : a.propId > b.propId ? 1 : 0));
+}
+
+function positiveAuthorityPolicy(
+  contract: BookVisualContract,
+  includedPropIds: ReadonlySet<string>,
+): SetBoardPositiveAuthorityPolicy {
+  const blockedCast = [
+    contract.cast?.child,
+    contract.cast?.companion,
+    ...(contract.humanCast ?? []),
+  ]
+    .filter((candidate): candidate is Exclude<typeof candidate, undefined> => candidate !== undefined)
+    .map((candidate) => {
+      const record = candidate as unknown as {
+        id: string;
+        role?: string;
+        name?: string;
+        aliases?: string[];
+      };
+      return {
+        castId: record.id,
+        labels: [...new Set([
+          record.id,
+          record.role ?? '',
+          record.name ?? '',
+          ...(record.aliases ?? []),
+        ].filter((value) => value.trim().length > 0))],
+      };
+    })
+    .sort((a, b) => (a.castId < b.castId ? -1 : a.castId > b.castId ? 1 : 0));
+  const blockedProps = contract.recurringProps
+    .filter((prop) => !includedPropIds.has(prop.id))
+    .map((prop) => ({ propId: prop.id, name: prop.name }))
+    .sort((a, b) => (a.propId < b.propId ? -1 : a.propId > b.propId ? 1 : 0));
+  return {
+    version: SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
+    blockedCast,
+    blockedProps,
+  };
 }
 
 export function projectSetDefinition(
@@ -216,12 +258,17 @@ export function projectSetDefinition(
   styleId: string,
   opts?: { boardVersion?: string },
 ): SetDefinition {
+  const authority = requireSetBoardStableAuthority(contract, setIdentityId);
   const group = groupLocationsBySetIdentity(contract).get(setIdentityId) ?? [];
-  const locations = byId(group).map(projectLocation);
+  const locations = authority.locations
+    .slice()
+    .sort((a, b) =>
+      a.locationId < b.locationId ? -1 : a.locationId > b.locationId ? 1 : 0
+    )
+    .map(projectLocation);
   const locationIds = new Set(group.map((location) => location.id));
-  const sourceZones = (contract.zones ?? []).filter((zone) => locationIds.has(zone.locationId));
   const consumers = consumingPageNumbers(contract, locationIds);
-  const propsBoundToSet = boundPropIds(sourceZones);
+  const propsBoundToSet = boundPropIds(contract, locationIds);
 
   const excludedProps: SetBoardExcludedProp[] = contract.recurringProps
     .filter((prop) => propsBoundToSet.has(prop.id))
@@ -229,14 +276,17 @@ export function projectSetDefinition(
     .filter((entry) => entry.reasons.length > 0)
     .map(({ prop, reasons }) => ({ propId: prop.id, name: prop.name, reasons }))
     .sort((a, b) => (a.propId < b.propId ? -1 : a.propId > b.propId ? 1 : 0));
-  const excludedPropIds = new Set(excludedProps.map((prop) => prop.propId));
-  const zones = projectZones(sourceZones, excludedPropIds);
-  const fixedSetFacts = projectFixedSetFacts(contract, zones);
+  const zones = projectZones(authority.areas);
+  const fixedSetFacts = projectFixedSetFacts(authority, zones);
   const contentPolicy: SetBoardContentPolicy = {
     version: SET_BOARD_CONTENT_POLICY_VERSION,
     includedPropIds: fixedSetFacts.map((fact) => fact.propId).sort(),
     excludedProps,
   };
+  const authorityPolicy = positiveAuthorityPolicy(
+    contract,
+    new Set(contentPolicy.includedPropIds),
+  );
 
   const definition: SetDefinition = {
     boardVersion: opts?.boardVersion ?? SET_IDENTITY_BOARD_VERSION,
@@ -247,6 +297,7 @@ export function projectSetDefinition(
     zones,
     fixedSetFacts,
     contentPolicy,
+    positiveAuthorityPolicy: authorityPolicy,
   };
   assertSetBoardPositiveAuthoritySpoilerNeutral(definition);
   return definition;
@@ -262,5 +313,13 @@ export function computeSetDefinitionHash(
   styleId: string,
   opts?: { boardVersion?: string },
 ): string {
-  return canonicalHash(projectSetDefinition(contract, setIdentityId, styleId, opts));
+  const { positiveAuthorityPolicy, ...physicalAuthority } =
+    projectSetDefinition(contract, setIdentityId, styleId, opts);
+  return canonicalHash({
+    ...physicalAuthority,
+    positiveAuthorityPolicy: {
+      version: positiveAuthorityPolicy.version,
+      blockedProps: positiveAuthorityPolicy.blockedProps,
+    },
+  });
 }

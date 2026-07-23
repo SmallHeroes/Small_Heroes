@@ -9,6 +9,8 @@ import {
   computeSetBoardContentPolicyDigest,
   computeSetDefinitionHash,
   projectSetDefinition,
+  SET_IDENTITY_BOARD_VERSION,
+  SET_IDENTITY_REGISTRY_VERSION,
   validateSetIdentityBoardRegistryEntry,
 } from '@/lib/set-identity-board';
 import type { SetIdentityBoardBindingContext } from '@/lib/set-identity-board/types';
@@ -49,7 +51,7 @@ function boardContext(source: BookVisualContract): SetIdentityBoardBindingContex
         storageKey: 'fixture/board.png',
         resolvedUrl: 'https://fixtures.invalid/base-set-board.png',
         assetSha256: 'fixture-board-sha',
-        boardVersion: 'set-board/v2',
+        boardVersion: SET_IDENTITY_BOARD_VERSION,
         approvedAt: '2026-07-22T00:00:00.000Z',
       },
     },
@@ -90,7 +92,7 @@ describe('spoiler-safe board and page-conditioned prop authority', () => {
     });
   });
 
-  it('projects one spoiler-neutral base board with the gated prop and dependent geometry removed', () => {
+  it('projects one stable physical base board with excluded story content negative-only', () => {
     const definition = projectSetDefinition(contract(), SET_ID, STYLE_ID);
     expect(definition.contentPolicy.excludedProps).toContainEqual({
       propId: PROP_ID,
@@ -109,12 +111,63 @@ describe('spoiler-safe board and page-conditioned prop authority', () => {
       (fact) => fact.propId === 'prop_metal_railing',
     )?.quantity).toBe(1);
 
-    const { prompt } = buildSetIdentityBoardPrompt(definition);
-    const spoilerMentions = prompt
-      .split(/\r?\n/)
-      .filter((line) => /bucket|drip source/i.test(line));
-    expect(spoilerMentions.length).toBeGreaterThan(0);
-    expect(spoilerMentions.every((line) => line.startsWith('- NO old tin bucket'))).toBe(true);
+    const { prompt, negativePrompt } = buildSetIdentityBoardPrompt(definition);
+    expect(prompt).not.toMatch(/\b(bucket|drip|water|rhythm)\b/i);
+    expect(negativePrompt).toContain('NO old tin bucket');
+  });
+
+  it('locks the corrected Fox dry projection and positive-vs-negative authority boundary', () => {
+    const source = contract();
+    const definition = projectSetDefinition(source, SET_ID, STYLE_ID);
+    const { prompt, negativePrompt, promptHash } = buildSetIdentityBoardPrompt(definition);
+
+    expect({
+      boardVersion: definition.boardVersion,
+      setDefinitionHash: computeSetDefinitionHash(source, SET_ID, STYLE_ID),
+      contentPolicyDigest: computeSetBoardContentPolicyDigest(definition),
+      promptHash,
+    }).toEqual({
+      boardVersion: 'set-board/v3',
+      setDefinitionHash: 'dc86d58e443bf9b3274f9d64c7b4ecbe9e443d1a2c8d52fb2f211dae32989bfe',
+      contentPolicyDigest: 'c00b9b6b6b6da477e045065b2ca4b364f5d1885a03385aa6757e3734bc3900df',
+      promptHash: '7ce108dadef5ab877bb945ae639fb3fd1bd561635b421cce6572ee1ff1eeeecd',
+    });
+    expect(definition.contentPolicy.includedPropIds).toEqual([
+      'prop_chair_leg',
+      'prop_metal_railing',
+      'prop_single_slipper',
+      'prop_window',
+    ]);
+    expect(definition.contentPolicy.includedPropIds).not.toContain(PROP_ID);
+
+    for (const retained of [
+      'SINGLE CONTINUOUS ILLUSTRATION',
+      'small listening casement window',
+      'separate full-height glazed balcony door',
+      'soft curtains',
+      'continuous bedroom floor',
+      'exterior balcony floor',
+      'metal balcony railing',
+      'fixed low threshold',
+      'simple chair leg',
+      'single balcony slipper',
+      'Stable blue night ambience',
+      'warm indoor environmental glow',
+    ]) {
+      expect(prompt).toContain(retained);
+    }
+    expect(definition.fixedSetFacts.find((fact) => fact.propId === 'prop_single_slipper')?.quantity)
+      .toBe(1);
+
+    expect(prompt).not.toMatch(
+      /\buri\b|\b(child|children|cast|character|characters|resemblance|emotion|emotional|companion)\b|30\s*[–-]\s*50|neck flashlight|portable beam|ear pressing|pressing (?:an? )?ear|steps? through|stepping through|behind them|strange ticking|\b(bucket|drip|water|rhythm)\b|\breveal(?:ed|s|ing)?\b/i,
+    );
+    expect(negativePrompt).toMatch(/NO children/i);
+    expect(negativePrompt).toMatch(/NO action/i);
+    expect(negativePrompt).toContain('NO old tin bucket');
+    expect(negativePrompt).toContain("NO Uri's neck flashlight");
+    expect(negativePrompt).toContain('NO falling water drops');
+    expect(negativePrompt).toContain('NO gentle rhythm marks');
   });
 
   it('gives cover/pages 1–4 only the same base board and page 5 exactly one approved prop reference', () => {
@@ -163,7 +216,7 @@ describe('spoiler-safe board and page-conditioned prop authority', () => {
     })).toThrow(PageReferenceCompatibilityError);
   });
 
-  it('preserves the historical v1 Fox board as evidence while rejecting it for v2 authority', () => {
+  it('preserves historical Fox evidence while rejecting both v1 and v2 identities for v3 authority', () => {
     const source = contract();
     const definition = projectSetDefinition(source, SET_ID, STYLE_ID);
     const historicalPath = path.join(
@@ -180,15 +233,21 @@ describe('spoiler-safe board and page-conditioned prop authority', () => {
     expect(historical.assetSha256).toBe(
       '30392c033bba385738ba7399efa78135f869d2b222b3e86ff7a42f8ed0c75083',
     );
-    expect(validateSetIdentityBoardRegistryEntry(historical, {
-      registryVersion: 'set-registry/v2',
-      boardVersion: 'set-board/v2',
+    const expected = {
+      registryVersion: SET_IDENTITY_REGISTRY_VERSION,
+      boardVersion: SET_IDENTITY_BOARD_VERSION,
       storyKey: STORY_KEY,
       setIdentityId: SET_ID,
       styleId: STYLE_ID,
       setDefinitionHash: computeSetDefinitionHash(source, SET_ID, STYLE_ID),
       contentPolicyDigest: computeSetBoardContentPolicyDigest(definition),
       declaredPropIds: definition.contentPolicy.includedPropIds,
-    }).ok).toBe(false);
+    };
+    expect(validateSetIdentityBoardRegistryEntry(historical, expected).ok).toBe(false);
+    expect(validateSetIdentityBoardRegistryEntry({
+      ...historical,
+      registryVersion: 'set-registry/v2',
+      boardVersion: 'set-board/v2',
+    }, expected).ok).toBe(false);
   });
 });

@@ -22,6 +22,7 @@ import type {
   PageVisualContract,
   RecurringHumanCastMember,
   RecurringProp,
+  SetBoardStableAuthority,
   VisualCast,
   VisualLocation,
   VisualZone,
@@ -145,6 +146,7 @@ export interface BookVisualContractTemplate {
   worldType: string;
   locations: VisualLocation[];
   zones: VisualZone[];
+  setBoardAuthorities?: SetBoardStableAuthority[];
   cast: VisualCast;
   humanCast: TemplateHumanCastMember[];
   recurringProps: RecurringProp[];

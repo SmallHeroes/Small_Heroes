@@ -39,6 +39,14 @@ export interface StylePipelineProfile {
   /** Style reinforcement text appended after trigger word for LoRA prompts. */
 }
 
+export interface SetBoardStyleProjection {
+  medium: string[];
+  color: string[];
+  lighting: string[];
+  texture: string[];
+  environment: string[];
+}
+
 export interface StyleContract {
   id: StyleId;
   userLabel: string;
@@ -51,6 +59,8 @@ export interface StyleContract {
   backgroundRules: string[];
   compositionRules: string[];
   negativeConstraints: string[];
+  /** Explicit character-free style authority for Set Identity Boards. Never derived by stripping page prose. */
+  setBoard: SetBoardStyleProjection;
   pipeline: StylePipelineProfile;
   imageNudge: { title: string; lines: string[] } | null;
   optionBlock: string;
@@ -91,6 +101,28 @@ export const STYLE_REGISTRY: Record<StyleId, StyleContract> = {
       textureStyle: 'rich watercolor on textured cream paper — visible brushwork, paper grain, layered pigment washes, fine detail',
       renderingBehavior: 'premium children\'s book illustration — adorable round characters, richly detailed backgrounds, master illustrator quality',
       styleToken: 'soft_hand_drawn_storybook',
+    },
+    setBoard: {
+      medium: [
+        'Rich hand-painted watercolor illustration with delicate organic linework',
+        'Detailed physical architecture and objects, never flat vector art or glossy 3D',
+      ],
+      color: [
+        'Warm cream, peach, earthy green, dusty blue, and soft ochre pigments with balanced cool accents',
+        'Layered luminous watercolor color, varied rather than a monochrome amber wash',
+      ],
+      lighting: [
+        'Use only the stable environmental light declared for the physical set',
+        'Soft readable shadows and gentle depth without replacing the declared light source',
+      ],
+      texture: [
+        'Textured cream paper, visible brushwork, pigment granulation, and layered washes',
+        'Fine material detail in wood, fabric, glass, metal, walls, and floors',
+      ],
+      environment: [
+        'Render the complete connected physical environment with clear spatial continuity',
+        'Keep architectural distinctions and fixed-object identity legible in one continuous establishing view',
+      ],
     },
     imageNudge: {
       title: 'CUTE_STORYBOOK_ILLUSTRATION_NUDGE',
@@ -184,6 +216,28 @@ ZERO text, letters, numbers, or symbols anywhere.`,
       textureStyle: 'fine watercolor on premium cream paper — refined brushwork, delicate wet-on-wet edges, luminous pigment layering',
       renderingBehavior: 'fine realistic watercolor storybook scene — real child proportions inside a real environment, varied compositions, accomplished technique, narrative-driven',
       styleToken: 'realistic_artistic_storybook',
+    },
+    setBoard: {
+      medium: [
+        'Fine transparent watercolor environment illustration on premium cream paper',
+        'Refined wet-on-wet edges and natural physical proportions, never cartoon or glossy 3D',
+      ],
+      color: [
+        'Refined cream, peach, natural green, dusty blue, and location-appropriate pigments',
+        'Luminous transparent color with balanced warmth and no monochrome amber flood',
+      ],
+      lighting: [
+        'Use only the stable environmental light declared for the physical set',
+        'Natural soft illumination with delicate shadows and no studio-light substitution',
+      ],
+      texture: [
+        'Premium watercolor paper grain, fine brushwork, transparent pigment layers, and delicate bleeds',
+        'Careful physical texture on architecture, fixtures, fabric, glass, metal, and floors',
+      ],
+      environment: [
+        'Make the complete connected physical location immediately recognizable',
+        'Preserve stable architecture and fixed-object identity in one continuous establishing view',
+      ],
     },
     imageNudge: {
       title: 'REALISTIC_WATERCOLOR_STORYBOOK_NUDGE',
@@ -282,6 +336,28 @@ ZERO text, letters, numbers, or symbols anywhere.`,
       renderingBehavior:
         'dense illustrated narrative scene — every surface filled with story props and micro-details',
       styleToken: 'detailed_whimsical_world',
+    },
+    setBoard: {
+      medium: [
+        'Traditional scratchy ink and opaque gouache mixed media on textured paper',
+        'Visible nib strokes, crosshatching, matte paint, dry brush, and hand-painted edges',
+      ],
+      color: [
+        'Rich ochres, olive greens, dusty blues, and cool indigo shadows with strong color harmony',
+        'Opaque gouache and translucent watercolor layers, never glossy digital color',
+      ],
+      lighting: [
+        'Use only the stable environmental light declared for the physical set',
+        'Motivated illumination with readable depth and no globally murky exposure',
+      ],
+      texture: [
+        'Paper tooth, pigment granulation, ink bleed, dry brush marks, and uneven paint boundaries',
+        'Dense physical surface detail across architecture, fixtures, materials, and floors',
+      ],
+      environment: [
+        'Environment-first rendering of the complete connected physical set',
+        'Keep stable architecture and fixed-object identity clear in one continuous establishing view',
+      ],
     },
     imageNudge: {
       title: 'DETAILED_WHIMSICAL_WORLD_NUDGE',
@@ -496,6 +572,26 @@ export function getPositiveStylePromptBlock(styleIdInput?: string | null): strin
     `COMPOSITION_RULES: ${style.compositionRules.join('; ')}`,
     '',
     FINAL_STYLE_INSTRUCTION,
+  ].join('\n');
+}
+
+/**
+ * Character-free positive style authority for a Set Identity Board.
+ *
+ * Every line comes from the explicit `StyleContract.setBoard` fields of the normalized active style. Aliases use
+ * the same normalized record; no page prompt is copied and no phrase-stripping/sanitization is performed.
+ */
+export function getSetBoardStylePromptBlock(styleIdInput?: string | null): string {
+  const style = getStyleContract(styleIdInput);
+  const board = style.setBoard;
+  return [
+    'SET BOARD STYLE',
+    `canonical_style_id: ${style.id}`,
+    `MEDIUM: ${board.medium.join('; ')}`,
+    `COLOR: ${board.color.join('; ')}`,
+    `LIGHTING: ${board.lighting.join('; ')}`,
+    `TEXTURE: ${board.texture.join('; ')}`,
+    `ENVIRONMENT: ${board.environment.join('; ')}`,
   ].join('\n');
 }
 

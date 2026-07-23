@@ -16,8 +16,13 @@ import {
 import { setIdentityBoardStorageKey } from '../liveResolverDeps';
 import { validateSetIdentityBoardRegistryEntry } from '../registry';
 import { computeSetDefinitionHash } from '../setDefinition';
-import type { SetBoardPositiveAuthoritySpoilerError } from '../positiveAuthoritySpoilerGuard';
-import { SET_IDENTITY_BOARD_VERSION, SET_IDENTITY_REGISTRY_VERSION } from '../types';
+import type { SetBoardPositiveAuthorityLeakError } from '../positiveAuthoritySpoilerGuard';
+import {
+  SET_BOARD_CONTENT_POLICY_VERSION,
+  SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
+  SET_IDENTITY_BOARD_VERSION,
+  SET_IDENTITY_REGISTRY_VERSION,
+} from '../types';
 import type { SetDefinition, SetIdentityBoardRegistryEntry } from '../types';
 import { makeContract } from './board-fixtures';
 
@@ -139,35 +144,25 @@ describe('mint — the render/upload path is OPT-IN and never runs by default', 
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('mint --render — render → sha → content-addressed upload → QA → entry', () => {
-  it('rejects a positive free-text spoiler before the board render callback is reachable', async () => {
+  it('rejects a blocked transient prop in positive authority before render/upload/QA callbacks are reachable', async () => {
     const contract = makeContract();
-    const prop = contract.recurringProps[0];
-    const previousPropId = prop.id;
-    prop.id = 'prop_reveal_key';
-    prop.name = 'Hidden Brass Key';
-    prop.firstRevealPage = 2;
-    contract.locations[0].lighting = 'a bright spotlight on the key';
-    contract.pageContracts[0].propState = [];
-    contract.pageContracts[0].propConstraints = [
-      { propId: prop.id, visibility: 'forbidden' },
-    ];
-    for (const zone of contract.zones) {
-      for (const node of zone.spatialNodes ?? []) {
-        if (node.bindsTo?.kind === 'prop' && node.bindsTo.id === previousPropId) {
-          node.bindsTo.id = prop.id;
-        }
-      }
-    }
+    contract.recurringProps.push({
+      id: 'prop_reveal_key',
+      name: 'Hidden Brass Key',
+      description: 'a page-conditioned key',
+      firstRevealPage: 2,
+    });
+    contract.setBoardAuthorities![0].locations[0].lighting = 'a bright spotlight on the key';
     writeFileSync(contractPath, JSON.stringify(contract));
 
     const deps = makeDeps();
     await expect(runMint(mintArgs(), deps)).rejects.toMatchObject({
-      name: 'SetBoardPositiveAuthoritySpoilerError',
-      code: 'set_board_positive_authority_spoiler_leak',
+      name: 'SetBoardPositiveAuthorityLeakError',
+      code: 'set_board_positive_authority_leak',
       fieldPath: 'locations[0].lighting',
-      excludedPropId: 'prop_reveal_key',
+      blockedIdentity: 'prop_reveal_key',
       matchedTerm: 'key',
-    } satisfies Partial<SetBoardPositiveAuthoritySpoilerError>);
+    } satisfies Partial<SetBoardPositiveAuthorityLeakError>);
     expect(deps.renderBoard).not.toHaveBeenCalled();
     expect(deps.uploadBoard).not.toHaveBeenCalled();
     expect(deps.runBoardQa).not.toHaveBeenCalled();
@@ -376,9 +371,14 @@ describe('mint — the LIVE vision adapter is fail-closed (P1-6 seam)', () => {
     zones: [],
     fixedSetFacts: [],
     contentPolicy: {
-      version: 'set-board-content/v1',
+      version: SET_BOARD_CONTENT_POLICY_VERSION,
       includedPropIds: [],
       excludedProps: [],
+    },
+    positiveAuthorityPolicy: {
+      version: SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
+      blockedCast: [],
+      blockedProps: [],
     },
   };
 

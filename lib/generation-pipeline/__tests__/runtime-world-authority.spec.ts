@@ -10,8 +10,13 @@ import {
 } from '@/lib/visual-contract-compiler';
 import { resolveEffectiveThreshold, resolveResemblanceThresholdConfig } from '@/lib/resemblance-core';
 import {
+  SET_IDENTITY_BOARD_VERSION,
+  SET_IDENTITY_REGISTRY_VERSION,
+} from '@/lib/set-identity-board';
+import {
   bindApprovedRuntimeAuthority,
   buildApprovedRuntimeAuthorityBinding,
+  runtimeWorldProjectionDigest,
 } from '@/lib/visual-package/runtimeAuthority';
 import {
   VISUAL_PACKAGE_MANIFEST_VERSION,
@@ -31,6 +36,35 @@ const { evaluateQaSpy, generateGptSpy, storeBufferSpy } = vi.hoisted(() => ({
   generateGptSpy: vi.fn(),
   storeBufferSpy: vi.fn(),
 }));
+
+describe('runtime world identity includes reviewed Set Board authority', () => {
+  it('changes when stable board-only physical authority changes', () => {
+    const base = template();
+    const withBoardAuthority = structuredClone(base);
+    withBoardAuthority.setBoardAuthorities = [{
+      setIdentityId: 'set_clinic',
+      locations: [{
+        locationId: 'loc_clinic',
+        name: 'Clinic room',
+        environmentClass: 'indoor',
+        timeOfDay: 'day',
+        lighting: 'stable diffuse daylight',
+      }],
+      areas: [{
+        id: 'board_clinic',
+        locationId: 'loc_clinic',
+        spatialNodes: [{
+          id: 'floor',
+          kind: 'floor',
+          description: 'a continuous pale floor',
+        }],
+      }],
+      fixedObjects: [],
+    }];
+    expect(runtimeWorldProjectionDigest(withBoardAuthority))
+      .not.toBe(runtimeWorldProjectionDigest(base));
+  });
+});
 
 vi.mock('@/lib/generation-pipeline/page-visual-qa', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/generation-pipeline/page-visual-qa')>()),
@@ -175,8 +209,8 @@ function manifest(): VisualPackageManifest {
     requiredBoards: [{
       artifactPath: 'set-identity-boards/runtime_fixture/set_clinic.json',
       artifactDigest: 'board-artifact-digest',
-      registryVersion: 'set-registry/v2',
-      boardVersion: 'set-board/v2',
+      registryVersion: SET_IDENTITY_REGISTRY_VERSION,
+      boardVersion: SET_IDENTITY_BOARD_VERSION,
       storyKey: 'runtime_fixture',
       setIdentityId: 'set_clinic',
       styleId: 'soft_hand_drawn_storybook',
@@ -235,7 +269,7 @@ function authority(): Style01RuntimeAuthority {
           storageKey: 'set-identity-boards/runtime_fixture/set_clinic.png',
           resolvedUrl: 'https://fixtures.invalid/set-clinic.png',
           assetSha256: 'board-bytes-sha',
-          boardVersion: 'set-board/v2',
+          boardVersion: SET_IDENTITY_BOARD_VERSION,
           approvedAt: '2026-07-22T10:05:00.000Z',
         },
       },

@@ -218,7 +218,7 @@ describe('resolveBoardBindings — FAIL-CLOSED (§6), never a downgrade', () => 
         { contract, styleId: STYLE, frozenContractHash: FROZEN_HASH },
         makeDeps({}, null)
       )
-    ).rejects.toThrow(SetIdentityBoardUnavailableError);
+    ).rejects.toThrow(/set_board_stable_authority_invalid/);
   });
 });
 
@@ -302,7 +302,8 @@ describe('assertBoardsBoundForRender — the pre-image gate', () => {
   it('THROWS when the set changed after binding (recomputed setDefinitionHash no longer matches)', async () => {
     const ctx = await bindFresh();
     const edited = makeContract();
-    edited.zones[0].spatialNodes![0].description = 'a completely different fixed doorway';
+    edited.setBoardAuthorities![0].areas[0].spatialNodes[0].description =
+      'a completely different fixed doorway';
     await expect(
       assertBoardsBoundForRender(
         {

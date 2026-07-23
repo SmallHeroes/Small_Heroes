@@ -67,6 +67,7 @@ describe('render-proof — fox_uri_adventure Template materialization (offline; 
     // no humans survive materialization; the companion flows through unchanged
     expect(resolved.humanCast).toHaveLength(0);
     expect(resolved.cast.companion?.id).toBe('companion:fox_uri');
+    expect(resolved.setBoardAuthorities).toEqual(loadTemplate().setBoardAuthorities);
   });
 
   it('materialization is DETERMINISTIC — byte-identical Resolved + identical hash', () => {

@@ -96,6 +96,61 @@ export function makeContract(): BookVisualContract {
       },
       { id: 'z_meadow', locationId: 'meadow', name: 'Meadow Zone', description: 'the open field' },
     ],
+    setBoardAuthorities: [
+      {
+        setIdentityId: 'set_alpha',
+        locations: [
+          {
+            locationId: 'room_north',
+            name: 'North Room',
+            timeOfDay: 'day',
+            lighting: 'stable diffuse daylight',
+            environmentClass: 'indoor',
+          },
+          {
+            locationId: 'room_south',
+            name: 'South Room',
+            timeOfDay: 'day',
+            lighting: 'stable diffuse daylight',
+            environmentClass: 'indoor',
+          },
+        ],
+        areas: [
+          {
+            id: 'board_north',
+            locationId: 'room_north',
+            spatialNodes: [
+              { id: 'main_door', kind: 'doorway', description: 'a wide wooden doorway in the east wall' },
+              {
+                id: 'tall_lamp',
+                kind: 'furniture',
+                description: 'a tall brass floor lamp with a linen shade',
+                propId: 'floor_lamp',
+              },
+            ],
+            spatialRelations: [
+              { subjectId: 'tall_lamp', relation: 'adjacent_to', objectId: 'main_door' },
+            ],
+          },
+          {
+            id: 'board_south',
+            locationId: 'room_south',
+            spatialNodes: [
+              { id: 'south_shelf', kind: 'wall', description: 'a long shelf on the south wall' },
+            ],
+          },
+        ],
+        fixedObjects: [
+          {
+            propId: 'floor_lamp',
+            name: 'Floor Lamp',
+            material: 'brass and linen',
+            scale: 'tall floor-standing fixture',
+            quantity: 1,
+          },
+        ],
+      },
+    ],
     cast: {
       child: { id: 'child_1', role: 'child', name: 'Kid', wardrobe: { description: 'a green tunic' } },
       companion: { id: 'comp_1', role: 'companion', name: 'Pal', wardrobe: { description: 'a blue scarf' } },

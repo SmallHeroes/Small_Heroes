@@ -302,6 +302,190 @@
       ]
     }
   ],
+  "setBoardAuthorities": [
+    {
+      "setIdentityId": "set_room_balcony_night",
+      "locations": [
+        {
+          "locationId": "loc_child_room",
+          "name": "Bedroom interior beside the small listening window",
+          "environmentClass": "indoor",
+          "timeOfDay": "night",
+          "lighting": "Stable low blue night ambience from outside with a gentle warm indoor environmental glow."
+        },
+        {
+          "locationId": "loc_balcony",
+          "name": "Small exterior balcony",
+          "environmentClass": "outdoor",
+          "timeOfDay": "night",
+          "lighting": "Stable blue night ambience with subtle warm environmental spill from the bedroom interior."
+        }
+      ],
+      "areas": [
+        {
+          "id": "board_room_openings",
+          "locationId": "loc_child_room",
+          "spatialNodes": [
+            {
+              "id": "small_window",
+              "kind": "window",
+              "description": "a small listening casement window with a raised sill, visibly smaller and higher than the separate full-height glazed balcony door",
+              "propId": "prop_window"
+            },
+            {
+              "id": "curtains",
+              "kind": "furniture",
+              "description": "soft curtains framing the small listening window"
+            },
+            {
+              "id": "shared_outer_wall",
+              "kind": "wall",
+              "description": "the continuous bedroom outer wall containing two visibly distinct glazed openings"
+            },
+            {
+              "id": "balcony_door",
+              "kind": "balcony_door",
+              "description": "a separate full-height glazed balcony door extending from the bedroom floor, clearly distinct from the smaller raised window"
+            },
+            {
+              "id": "threshold",
+              "kind": "ledge",
+              "description": "the fixed low threshold of the full-height glazed balcony door"
+            },
+            {
+              "id": "room_floor",
+              "kind": "floor",
+              "description": "the continuous bedroom floor meeting the balcony-door threshold"
+            },
+            {
+              "id": "balcony_floor_beyond",
+              "kind": "floor",
+              "description": "the exterior balcony floor directly beyond the threshold"
+            },
+            {
+              "id": "railing_beyond",
+              "kind": "railing",
+              "description": "the dry painted metal balcony railing visible across the exterior floor",
+              "propId": "prop_metal_railing"
+            }
+          ],
+          "spatialRelations": [
+            {
+              "subjectId": "small_window",
+              "relation": "on_same_wall_as",
+              "objectId": "balcony_door"
+            },
+            {
+              "subjectId": "curtains",
+              "relation": "adjacent_to",
+              "objectId": "small_window"
+            },
+            {
+              "subjectId": "small_window",
+              "relation": "above",
+              "objectId": "room_floor"
+            },
+            {
+              "subjectId": "balcony_door",
+              "relation": "above",
+              "objectId": "threshold"
+            },
+            {
+              "subjectId": "threshold",
+              "relation": "adjacent_to",
+              "objectId": "room_floor"
+            },
+            {
+              "subjectId": "threshold",
+              "relation": "adjacent_to",
+              "objectId": "balcony_floor_beyond"
+            },
+            {
+              "subjectId": "railing_beyond",
+              "relation": "above",
+              "objectId": "balcony_floor_beyond"
+            }
+          ]
+        },
+        {
+          "id": "board_balcony",
+          "locationId": "loc_balcony",
+          "spatialNodes": [
+            {
+              "id": "balcony_floor",
+              "kind": "floor",
+              "description": "the compact exterior balcony floor connected directly to the bedroom threshold"
+            },
+            {
+              "id": "metal_railing",
+              "kind": "railing",
+              "description": "the same dry painted metal railing continuing along the balcony edge",
+              "propId": "prop_metal_railing"
+            },
+            {
+              "id": "chair_leg",
+              "kind": "furniture",
+              "description": "one simple chair leg at a stable position on the balcony floor",
+              "propId": "prop_chair_leg"
+            },
+            {
+              "id": "single_slipper",
+              "kind": "furniture",
+              "description": "exactly one loose household slipper at a stable position on the balcony floor",
+              "propId": "prop_single_slipper"
+            }
+          ],
+          "spatialRelations": [
+            {
+              "subjectId": "metal_railing",
+              "relation": "above",
+              "objectId": "balcony_floor"
+            },
+            {
+              "subjectId": "chair_leg",
+              "relation": "adjacent_to",
+              "objectId": "balcony_floor"
+            },
+            {
+              "subjectId": "single_slipper",
+              "relation": "adjacent_to",
+              "objectId": "balcony_floor"
+            }
+          ]
+        }
+      ],
+      "fixedObjects": [
+        {
+          "propId": "prop_window",
+          "name": "small bedroom listening window",
+          "material": "painted frame, clear glass, and soft curtains",
+          "scale": "one small raised casement window, visibly smaller and higher than the separate full-height glazed balcony door",
+          "quantity": 1
+        },
+        {
+          "propId": "prop_metal_railing",
+          "name": "dry painted metal balcony railing",
+          "material": "smooth painted metal",
+          "scale": "continuous balcony safety railing",
+          "quantity": 1
+        },
+        {
+          "propId": "prop_chair_leg",
+          "name": "simple chair leg",
+          "material": "painted wood or metal",
+          "scale": "one leg of a small balcony chair",
+          "quantity": 1
+        },
+        {
+          "propId": "prop_single_slipper",
+          "name": "single balcony slipper",
+          "material": "soft fabric or rubber",
+          "scale": "one household slipper",
+          "quantity": 1
+        }
+      ]
+    }
+  ],
   "cast": {
     "child": {
       "id": "child:hero",

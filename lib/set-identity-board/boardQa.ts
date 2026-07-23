@@ -96,9 +96,15 @@ export function buildBoardQaInstruction(def: SetDefinition): string {
   const openingsLine = openings.length
     ? `The ONLY wall openings that belong to this set are: ${openings.join(', ')}. Flag any other opening kind (e.g. a doorway/window/balcony door not in that list) as "opening-kind-not-in-contract".`
     : 'This set has NO wall openings. Flag any doorway, window, or balcony door as "opening-kind-not-in-contract".';
-  const excludedPropLines = def.contentPolicy.excludedProps.map(
-    (prop) => `- "${prop.name}" (${prop.propId}) must be completely absent; flag it as "excluded-prop:${prop.propId}".`,
+  const blockedProps = new Map(
+    def.positiveAuthorityPolicy.blockedProps.map((prop) => [prop.propId, prop]),
   );
+  for (const prop of def.contentPolicy.excludedProps) blockedProps.set(prop.propId, prop);
+  const excludedPropLines = [...blockedProps.values()]
+    .sort((a, b) => (a.propId < b.propId ? -1 : a.propId > b.propId ? 1 : 0))
+    .map(
+      (prop) => `- "${prop.name}" (${prop.propId}) must be completely absent; flag it as "excluded-prop:${prop.propId}".`,
+    );
   const fixedPropLines = def.fixedSetFacts.map((fact) => {
     const areas = placementAreaLabels(
       def,
@@ -120,7 +126,7 @@ export function buildBoardQaInstruction(def: SetDefinition): string {
     '- "text" for any text, letters, numbers, labels, captions, or watermarks',
     '- "panels" for any story panel, page layout, panel border, or gutter',
     openingsLine,
-    'PAGE-CONDITIONED PROPS THAT MUST NOT APPEAR:',
+    'UNDECLARED OR PAGE-CONDITIONED PROPS THAT MUST NOT APPEAR:',
     ...(excludedPropLines.length ? excludedPropLines : ['- none']),
     'FIXED PROP COUNT AND PLACEMENT:',
     ...(fixedPropLines.length ? fixedPropLines : ['- none']),

@@ -193,6 +193,7 @@ export function runtimeWorldProjectionDigest(
       | 'worldType'
       | 'locations'
       | 'zones'
+      | 'setBoardAuthorities'
       | 'cast'
       | 'recurringProps'
       | 'forbiddenGlobalElements'
@@ -217,6 +218,7 @@ export function runtimeWorldProjectionDigest(
     worldType: contract.worldType,
     locations: contract.locations,
     zones: contract.zones,
+    setBoardAuthorities: contract.setBoardAuthorities,
     cast: contract.cast,
     humanCast: (contract.humanCast ?? []).map((member) => ({
       id: member.id,

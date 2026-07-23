@@ -51,6 +51,50 @@ const zone = obj({
   stableGeometry: stringArray,
 });
 
+const setBoardStableLocation = obj({
+  locationId: { type: 'string' },
+  name: { type: 'string' },
+  environmentClass: { type: 'string', enum: ['indoor', 'outdoor', 'neutral'] },
+  timeOfDay: { type: 'string' },
+  lighting: { type: 'string' },
+});
+const setBoardStableNode = obj({
+  id: { type: 'string' },
+  kind: {
+    type: 'string',
+    enum: ['doorway', 'window', 'balcony_door', 'railing', 'ledge', 'wall', 'floor', 'furniture'],
+  },
+  description: { type: 'string' },
+  propId: nullableString,
+});
+const setBoardStableRelation = obj({
+  subjectId: { type: 'string' },
+  relation: {
+    type: 'string',
+    enum: ['on_same_wall_as', 'adjacent_to', 'opposite_to', 'above', 'below', 'centered_in'],
+  },
+  objectId: nullableString,
+});
+const setBoardStableArea = obj({
+  id: { type: 'string' },
+  locationId: { type: 'string' },
+  spatialNodes: { type: 'array', items: setBoardStableNode },
+  spatialRelations: { type: 'array', items: setBoardStableRelation },
+});
+const setBoardStableFixedObject = obj({
+  propId: { type: 'string' },
+  name: { type: 'string' },
+  material: nullableString,
+  scale: nullableString,
+  quantity: { type: 'integer', minimum: 1 },
+});
+const setBoardStableAuthority = obj({
+  setIdentityId: { type: 'string' },
+  locations: { type: 'array', items: setBoardStableLocation },
+  areas: { type: 'array', items: setBoardStableArea },
+  fixedObjects: { type: 'array', items: setBoardStableFixedObject },
+});
+
 const wardrobe = obj({ description: { type: 'string' }, forbidden: stringArray });
 
 const childCast = obj({ id: { type: 'string' }, role: { type: 'string' }, wardrobe });
@@ -134,6 +178,7 @@ export const TEMPLATE_DRAFT_JSON_SCHEMA: Record<string, unknown> = obj({
   worldType: { type: 'string' },
   locations: { type: 'array', items: location },
   zones: { type: 'array', items: zone },
+  setBoardAuthorities: { type: 'array', items: setBoardStableAuthority },
   cast,
   humanCast: { type: 'array', items: humanDraft },
   recurringProps: { type: 'array', items: prop },
@@ -143,7 +188,7 @@ export const TEMPLATE_DRAFT_JSON_SCHEMA: Record<string, unknown> = obj({
 });
 
 /** Bump when the draft schema shape changes (recorded in authoring provenance). */
-export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v3' as const;
+export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v4' as const;
 
 /** The structured-output request name (OpenAI json_schema `name`). */
 export const TEMPLATE_DRAFT_SCHEMA_NAME = 'BookVisualContractTemplateDraft' as const;

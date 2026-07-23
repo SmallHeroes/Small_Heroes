@@ -54,10 +54,10 @@ const CHILD_ID = 'child:hero';
 /** Default authoring model — a strong, accessible reasoning model. Override with VISUAL_CONTRACT_AUTHOR_MODEL. */
 const DEFAULT_AUTHOR_MODEL = 'gpt-5.5-pro';
 const AUTHORING_REASONING_EFFORT = 'medium';
-const TEMPLATE_PROMPT_VERSION = 'vc-template-prompt/v1';
+const TEMPLATE_PROMPT_VERSION = 'vc-template-prompt/v2';
 /** Stage 3 — at most this many SEMANTIC repair attempts AFTER the initial authoring call (bounded safety net). */
 const MAX_REPAIR_ATTEMPTS = 2;
-const REPAIR_PROMPT_VERSION = 'vc-repair-prompt/v1';
+const REPAIR_PROMPT_VERSION = 'vc-repair-prompt/v2';
 
 /** Resolve the authoring model at CALL time (env-configurable, so a project can point at an accessible model). */
 export function resolveAuthoringModel(): string {
@@ -159,6 +159,9 @@ export function buildTemplateCompileSystemPrompt(): string {
     '',
     'Draft ONLY the DESCRIPTIVE fields:',
     '- worldType, locations[] (including authored setIdentityId/setReference bindings), zones[] (with stableGeometry),',
+    '- setBoardAuthorities[]: for every pending/ready set identity, author a SEPARATE stable, character-free physical',
+    '  projection. Use only environmental light, fixed architecture, and props safe on every consuming page. Never',
+    '  copy page action, cast/name/appearance, portable light, reveal language, or transient props into this field.',
     '  cast.child + cast.companion wardrobe,',
     '  recurringProps[] (material/scale/persistence/firstRevealPage), forbiddenGlobalElements[], coverContract, and per-page',
     '  mustShow/mustNotShow/propState/propConstraints/camera/transition/zoneId/locationId.',
@@ -208,7 +211,8 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
       : []),
     '',
     'Produce a JSON BookVisualContractTemplate DRAFT (descriptive fields only) with keys: worldType, locations[],',
-    'zones[], cast{child,companion?}, humanCast[{id, garments, forbiddenAppearance}],',
+    'zones[], setBoardAuthorities[{setIdentityId,locations[],areas[],fixedObjects[]}],',
+    'cast{child,companion?}, humanCast[{id, garments, forbiddenAppearance}],',
     'recurringProps[{id,name,description,material?,scale?,persistence?,firstRevealPage?}],',
     'forbiddenGlobalElements[], coverContract{worldType,locationId,zoneId,castIds,timeOfDay,mustShow,mustNotShow},',
     'pageContracts[{pageNumber, locationId, zoneId, sameLocationAs?,',
@@ -244,6 +248,8 @@ export function buildTemplateRepairSystemPrompt(): string {
     'You MAY edit ONLY these DESCRIPTIVE fields:',
     '- worldType (the semantic world type)',
     '- locations[] (name/description/lighting/timeOfDay/environmentClass/anchors/topology/setIdentityId/setReference)',
+    '- setBoardAuthorities[] stable location light, fixed physical nodes/relations, and fixed objects only; never',
+    '  cast, page action/staging, portable light, reveal language, or props unsafe on any consuming page',
     '- zones[] (name/description/stableGeometry — a present stableGeometry must be a NON-EMPTY string[])',
     '- cast.child/cast.companion wardrobe; each human\'s garments (each colour an explicit value) + forbiddenAppearance',
     '- recurringProps[] (name/description, material/scale/persistence, and firstRevealPage — NO empty string in a field you include)',
@@ -624,6 +630,41 @@ function normalizeDraftProps(raw: unknown): BookVisualContractTemplate['recurrin
   }) as unknown as BookVisualContractTemplate['recurringProps'];
 }
 
+function normalizeDraftSetBoardAuthorities(
+  raw: unknown,
+): BookVisualContractTemplate['setBoardAuthorities'] {
+  const authorities = asArr(raw).map((rawAuthority) => {
+    const authority = { ...asObj(rawAuthority) };
+    authority.areas = asArr(authority.areas).map((rawArea) => {
+      const area = { ...asObj(rawArea) };
+      area.spatialNodes = asArr(area.spatialNodes).map((rawNode) => {
+        const node = { ...asObj(rawNode) };
+        if (node.propId === null) delete node.propId;
+        return node;
+      });
+      const relations = asArr(area.spatialRelations).map((rawRelation) => {
+        const relation = { ...asObj(rawRelation) };
+        if (relation.objectId === null) delete relation.objectId;
+        return relation;
+      });
+      if (relations.length > 0) area.spatialRelations = relations;
+      else delete area.spatialRelations;
+      return area;
+    });
+    authority.fixedObjects = asArr(authority.fixedObjects).map((rawObject) => {
+      const fixedObject = { ...asObj(rawObject) };
+      for (const field of ['material', 'scale']) {
+        if (fixedObject[field] === null) delete fixedObject[field];
+      }
+      return fixedObject;
+    });
+    return authority;
+  });
+  return authorities.length > 0
+    ? authorities as unknown as BookVisualContractTemplate['setBoardAuthorities']
+    : undefined;
+}
+
 /**
  * Assemble ONE template CANDIDATE from a single descriptive draft: authoritative cast + compiler-owned
  * appearance/topology/worldType, the fact overlay LAST, then the structural cast invariant + the full fail-closed
@@ -710,6 +751,7 @@ function assembleTemplateFromDraft(
     throw new InvalidTemplateContractError(['worldType is missing — the semantic world type must be set (no silent default); author or repair it.']);
   }
 
+  const setBoardAuthorities = normalizeDraftSetBoardAuthorities(draft.setBoardAuthorities);
   const template: BookVisualContractTemplate = {
     contractKind: 'template',
     schemaVersion: VISUAL_CONTRACT_SCHEMA_VERSION,
@@ -718,6 +760,7 @@ function assembleTemplateFromDraft(
     worldType,
     locations: normalizeDraftLocations(draft.locations),
     zones: draft.zones as BookVisualContractTemplate['zones'],
+    ...(setBoardAuthorities ? { setBoardAuthorities } : {}),
     cast: authoritativeCast as unknown as BookVisualContractTemplate['cast'],
     humanCast,
     recurringProps: normalizeDraftProps(draft.recurringProps),

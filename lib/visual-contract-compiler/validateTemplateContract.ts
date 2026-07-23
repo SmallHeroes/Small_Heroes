@@ -154,6 +154,12 @@ export function validateBookVisualContractTemplate(input: unknown): TemplateVali
     worldType: input.worldType as string,
     locations: (Array.isArray(input.locations) ? input.locations : []) as BookVisualContract['locations'],
     zones: (Array.isArray(input.zones) ? input.zones : []) as BookVisualContract['zones'],
+    ...(Array.isArray(input.setBoardAuthorities)
+      ? {
+          setBoardAuthorities:
+            input.setBoardAuthorities as BookVisualContract['setBoardAuthorities'],
+        }
+      : {}),
     cast: input.cast as BookVisualContract['cast'],
     humanCast: humanCast.map(toShadowHuman),
     recurringProps: (Array.isArray(input.recurringProps) ? input.recurringProps : []) as BookVisualContract['recurringProps'],

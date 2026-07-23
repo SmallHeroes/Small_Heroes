@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { BookVisualContract } from '@/lib/visual-contract-compiler';
+import { getSetBoardStylePromptBlock } from '@/lib/styles';
 
 import { buildSetIdentityBoardPrompt } from '../boardPrompt';
 import { projectSetDefinition } from '../setDefinition';
@@ -44,6 +45,45 @@ function makeContract(): BookVisualContract {
           },
         ],
         spatialRelations: [{ subjectId: 'stone_table', relation: 'centered_in' }],
+      },
+    ],
+    setBoardAuthorities: [
+      {
+        setIdentityId: 'set_hall',
+        locations: [
+          {
+            locationId: 'hall_main',
+            name: 'Main Hall',
+            timeOfDay: 'day',
+            lighting: 'stable cool daylight',
+            environmentClass: 'indoor',
+          },
+        ],
+        areas: [
+          {
+            id: 'board_hall',
+            locationId: 'hall_main',
+            spatialNodes: [
+              { id: 'east_door', kind: 'doorway', description: 'a tall arched doorway in the east wall' },
+              {
+                id: 'stone_table',
+                kind: 'furniture',
+                description: 'a heavy grey granite table',
+                propId: 'stone_table_prop',
+              },
+            ],
+            spatialRelations: [{ subjectId: 'stone_table', relation: 'centered_in' }],
+          },
+        ],
+        fixedObjects: [
+          {
+            propId: 'stone_table_prop',
+            name: 'Stone Table',
+            material: 'grey granite',
+            scale: 'broad waist-high table',
+            quantity: 1,
+          },
+        ],
       },
     ],
     cast: {
@@ -92,16 +132,15 @@ describe('buildSetIdentityBoardPrompt', () => {
     expect(prompt).toContain('grey granite'); // material fact
   });
 
-  it('is character-free: contains explicit forbids for people, animals, text, and panels', () => {
+  it('keeps positive authority physical-only and puts entity/action/layout forbids in the negative prompt', () => {
     const { prompt, negativePrompt } = buildForFixture();
-    expect(prompt).toMatch(/NO people/i);
-    expect(prompt).toMatch(/NO animals/i);
-    expect(prompt).toMatch(/NO text/i);
-    expect(prompt).toMatch(/panel/i);
-    expect(prompt).toMatch(/gutter/i);
-    // negatives are also mirrored into the negative prompt
+    expect(prompt).not.toMatch(/\b(child|children|character|companion|people|human|animal|creature|action|pose)\b/i);
+    expect(prompt).not.toMatch(/30-50|emotion|resemblance|NO people|NO text|panel|gutter/i);
     expect(negativePrompt).toMatch(/character/i);
     expect(negativePrompt).toMatch(/animal/i);
+    expect(negativePrompt).toMatch(/action/i);
+    expect(negativePrompt).toMatch(/panel/i);
+    expect(negativePrompt).toMatch(/gutter/i);
   });
 
   it('mentions ONLY the opening kinds present in the def (doorway present, balcony_door absent)', () => {
@@ -142,7 +181,7 @@ describe('buildSetIdentityBoardPrompt — ONE continuous establishing view, neve
     const p = prompt();
     expect(p).toMatch(/SINGLE ESTABLISHING VIEW/i);
     expect(p).toMatch(/SINGLE CONTINUOUS ILLUSTRATION/i);
-    expect(p).toMatch(/ONE picture/i);
+    expect(p).toMatch(/one uninterrupted picture/i);
   });
 
   it('has NO numbered VIEW PLAN — the block that enumerated panels is gone', () => {
@@ -164,15 +203,13 @@ describe('buildSetIdentityBoardPrompt — ONE continuous establishing view, neve
     expect(p).not.toMatch(/arranged as a/i);
   });
 
-  it('still FORBIDS panels/gutters/grids — belt and suspenders alongside the positive single-view ask', () => {
+  it('keeps panels/gutters/grids negative-only alongside the positive single-view ask', () => {
     const { prompt: p, negativePrompt } = buildSetIdentityBoardPrompt(def());
-    for (const text of [p, negativePrompt]) {
-      expect(text).toMatch(/NO panel borders|panel/i);
-      expect(text).toMatch(/gutter/i);
-    }
-    expect(p).toMatch(/NO multiple views/i);
-    expect(p).toMatch(/NO grid/i);
-    expect(p).toMatch(/NO collage/i);
+    expect(p).not.toMatch(/panel|gutter|NO grid|NO collage|NO multiple views/i);
+    expect(negativePrompt).toMatch(/NO panel borders|panel/i);
+    expect(negativePrompt).toMatch(/gutter/i);
+    expect(negativePrompt).toMatch(/NO grid/i);
+    expect(negativePrompt).toMatch(/NO collage/i);
   });
 
   it('still carries the set geometry, fixed objects, authored openings and the order style', () => {
@@ -190,7 +227,56 @@ describe('buildSetIdentityBoardPrompt — ONE continuous establishing view, neve
     const a = buildSetIdentityBoardPrompt(def());
     const b = buildSetIdentityBoardPrompt(def());
     expect(a.promptHash).toBe(b.promptHash);
-    expect(a.prompt).toMatch(/NO people/i);
-    expect(a.prompt).toMatch(/NO animals/i);
+    expect(a.prompt).not.toMatch(/\b(people|children|characters|animals)\b/i);
+    expect(a.negativePrompt).toMatch(/NO people/i);
+    expect(a.negativePrompt).toMatch(/NO animals/i);
+  });
+});
+
+describe('positive-authority guard — direct prompt construction fails closed', () => {
+  it('rejects a blocked cast label before prompt construction', () => {
+    const def = projectSetDefinition(makeContract(), 'set_hall', STYLE);
+    def.locations[0].name = 'Kid waits in the hall';
+    expect(() => buildSetIdentityBoardPrompt(def)).toThrow(/set_board_positive_authority_leak/);
+  });
+
+  it('rejects a generic action phrase before prompt construction', () => {
+    const def = projectSetDefinition(makeContract(), 'set_hall', STYLE);
+    def.zones[0].geometry[0] = 'doorway 1: walking through the east arch';
+    expect(() => buildSetIdentityBoardPrompt(def)).toThrow(/set_board_positive_authority_leak/);
+  });
+
+  it('rejects a recurring prop outside includedPropIds before prompt construction', () => {
+    const contract = makeContract();
+    contract.recurringProps.push({
+      id: 'portable_lantern',
+      name: 'Portable Lantern',
+      description: 'a handheld lantern used on one page',
+    });
+    const def = projectSetDefinition(contract, 'set_hall', STYLE);
+    def.locations[0].lighting = 'warm light from a portable lantern';
+    expect(() => buildSetIdentityBoardPrompt(def)).toThrow(/set_board_positive_authority_leak/);
+  });
+});
+
+describe('board-safe style projection', () => {
+  it('uses explicit structured board fields for both active styles', () => {
+    for (const styleId of ['soft_hand_drawn_storybook', 'detailed_whimsical_world']) {
+      const block = getSetBoardStylePromptBlock(styleId);
+      expect(block).toContain('SET BOARD STYLE');
+      expect(block).toContain(`canonical_style_id: ${styleId}`);
+      expect(block).not.toMatch(
+        /\b(child|children|character|companion|resemblance|emotion|emotional)\b|30\s*[–-]\s*50/i,
+      );
+    }
+  });
+
+  it('normalizes aliases before selecting the board-safe structured projection', () => {
+    expect(getSetBoardStylePromptBlock('pencil_watercolor'))
+      .toBe(getSetBoardStylePromptBlock('soft_hand_drawn_storybook'));
+    expect(getSetBoardStylePromptBlock('whimsical_comic_fantasy'))
+      .toBe(getSetBoardStylePromptBlock('detailed_whimsical_world'));
+    expect(getSetBoardStylePromptBlock('expressive_painterly_storybook'))
+      .toBe(getSetBoardStylePromptBlock('detailed_whimsical_world'));
   });
 });
