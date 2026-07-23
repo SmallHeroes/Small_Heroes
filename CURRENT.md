@@ -2,7 +2,25 @@
 
 **Updated:** 2026-07-24
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-fox-v3-board-mint` in `C:\Users\guyna\.codex\worktrees\0d94\Small_Heroes`, at independently reviewed correction head `cb220cd86879dd7eb5fd6a1a814f56022a8c0231`. Claude Code returned technical **PASS** for combined immutable range `f44661248631a95caa262ff5a15d9b86ab2ffc11..cb220cd86879dd7eb5fd6a1a814f56022a8c0231`, closing the earlier launcher-hardening HOLD with no remaining BLOCKER, MAJOR, or MINOR. This worktree is the sole writer; the reviewed commits remain local and unpushed. Canonical main, the parent worktree, and every other worktree/branch remain read-only.
+**Working branch:** `codex/r1d-fox-v3-board-mint` in `C:\Users\guyna\.codex\worktrees\0d94\Small_Heroes`. The canonical-rerun authorization started with local HEAD and `origin/codex/r1d-fox-v3-board-mint` at exact pushed parity `73eda354a0e16ba10ec5476c6a311a79032d0822`, tracked clean. This worktree is the sole writer; canonical main, the parent worktree, and every other worktree/branch remain read-only.
+
+## R1D Fox v3 Set Identity Board canonical rerun - fail-closed at sentineled preflight preload
+
+After Claude Code independently passed the launcher-hardening correction and the reviewed branch was pushed, Guy explicitly authorized `R1D-FOX-V3-BOARD-MINT-CANONICAL-RERUN`. The sequence required exactly one fresh sentineled canonical live-import preflight and allowed one canonical LOW live invocation only if that preflight exited `0` and all authority checks remained green. The sole preflight attempt failed before the canonical launcher or preflight code loaded. Per the binding rule, Codex stopped without retrying, altering the sentinel command, loading credentials, or invoking the live mint. This record does not imply an independent technical PASS or product/visual acceptance.
+
+### Reconciliation and single preflight attempt
+
+- Immediately before the attempt, branch and origin were exact `73eda354a0e16ba10ec5476c6a311a79032d0822` with divergence `0/0`; tracked status was clean; `scripts/mint-set-identity-board.cjs` existed; the expected Fox v3 registry entry and candidate root were absent. The previously approved credential source existed and safe presence checks detected its OpenAI key plus established service-role, storage-bucket, and style-model settings without printing values, but the file was not loaded into the zero-cost preflight process.
+- Non-secret command shape: PowerShell set `NODE_OPTIONS` to preload the absolute `lib/set-identity-board/__tests__/fixtures/deny-network.cjs` path, then invoked `node scripts/mint-set-identity-board.cjs --preflight-live-imports` exactly once.
+- The task's PowerShell capture recorded start `2026-07-24T00:19:25.3659077+03:00`, end `2026-07-24T00:19:25.4089912+03:00`, elapsed `43ms`, and exit code `1`.
+- Node failed in `internal/preload` with `MODULE_NOT_FOUND`. The error's attempted module path was the absolute Windows sentinel path with its separators removed: `C:Usersguyna.codexworktrees0d94Small_Heroeslibset-identity-board__tests__fixturesdeny-network.cjs`. The directly observed evidence establishes a `NODE_OPTIONS` path-serialization/preload failure; it does not establish that the canonical launcher, its child shim, or the live-import graph ran.
+
+### Outcome, limits, and next gate
+
+- The launcher never loaded, so no story/identity/style/contract parsing, image-generation call, Vision-QA call, upload, registry/candidate write, approval, or local native renderer import occurred. The approved credential file was not read by the attempted process. The expected v3 registry entry and candidate root remain absent.
+- Evidence supports zero OpenAI image/Vision attempts and zero Supabase storage operations from this attempt because Node terminated in its preload phase before evaluating the launcher. No independent OpenAI provider-account usage/billing audit or Supabase provider-log audit was performed.
+- No live canonical invocation, second preflight, retry, reroll, launcher/shim substitution, argument correction, page/full-book render, `--approve`, board/package approval or promotion, deployment, or push occurred. No image bytes, asset SHA-256, storage key/URL, QA status/flags/reason, registry entry, approval fields, or board for Guy to inspect exist.
+- The one-preflight authorization is exhausted by the fail-closed stop. Any correction or another preflight/live attempt requires a new explicit Guy authorization. The unspent paid-call budget is not implicit retry authority.
 
 ## R1D Board Mint Launcher Hardening - independent technical QA PASS
 
