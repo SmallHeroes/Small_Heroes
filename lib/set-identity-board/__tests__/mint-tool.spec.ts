@@ -16,6 +16,7 @@ import {
 import { setIdentityBoardStorageKey } from '../liveResolverDeps';
 import { validateSetIdentityBoardRegistryEntry } from '../registry';
 import { computeSetDefinitionHash } from '../setDefinition';
+import type { SetBoardPositiveAuthoritySpoilerError } from '../positiveAuthoritySpoilerGuard';
 import { SET_IDENTITY_BOARD_VERSION, SET_IDENTITY_REGISTRY_VERSION } from '../types';
 import type { SetDefinition, SetIdentityBoardRegistryEntry } from '../types';
 import { makeContract } from './board-fixtures';
@@ -138,6 +139,40 @@ describe('mint — the render/upload path is OPT-IN and never runs by default', 
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('mint --render — render → sha → content-addressed upload → QA → entry', () => {
+  it('rejects a positive free-text spoiler before the board render callback is reachable', async () => {
+    const contract = makeContract();
+    const prop = contract.recurringProps[0];
+    const previousPropId = prop.id;
+    prop.id = 'prop_reveal_key';
+    prop.name = 'Hidden Brass Key';
+    prop.firstRevealPage = 2;
+    contract.locations[0].lighting = 'a bright spotlight on the key';
+    contract.pageContracts[0].propState = [];
+    contract.pageContracts[0].propConstraints = [
+      { propId: prop.id, visibility: 'forbidden' },
+    ];
+    for (const zone of contract.zones) {
+      for (const node of zone.spatialNodes ?? []) {
+        if (node.bindsTo?.kind === 'prop' && node.bindsTo.id === previousPropId) {
+          node.bindsTo.id = prop.id;
+        }
+      }
+    }
+    writeFileSync(contractPath, JSON.stringify(contract));
+
+    const deps = makeDeps();
+    await expect(runMint(mintArgs(), deps)).rejects.toMatchObject({
+      name: 'SetBoardPositiveAuthoritySpoilerError',
+      code: 'set_board_positive_authority_spoiler_leak',
+      fieldPath: 'locations[0].lighting',
+      excludedPropId: 'prop_reveal_key',
+      matchedTerm: 'key',
+    } satisfies Partial<SetBoardPositiveAuthoritySpoilerError>);
+    expect(deps.renderBoard).not.toHaveBeenCalled();
+    expect(deps.uploadBoard).not.toHaveBeenCalled();
+    expect(deps.runBoardQa).not.toHaveBeenCalled();
+  });
+
   it('runs the whole pipeline in order and content-addresses the upload by the RENDERED bytes sha', async () => {
     const deps = makeDeps();
     const entry = await runMint(mintArgs(), deps);

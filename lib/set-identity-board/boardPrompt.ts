@@ -22,6 +22,7 @@ import { canonicalHash } from '@/lib/canonical-json';
 import { getNegativeStylePromptBlock, getPositiveStylePromptBlock } from '@/lib/styles';
 
 import type { SetDefinition, SetDefinitionLocation, SetDefinitionZone } from './types';
+import { assertSetBoardPositiveAuthoritySpoilerNeutral } from './positiveAuthoritySpoilerGuard';
 
 /**
  * The wall-APERTURE kinds (a subset of `SpatialNodeKind`). Only these are announced as "openings" in the prompt;
@@ -97,6 +98,9 @@ export function buildSetIdentityBoardPrompt(def: SetDefinition): {
   negativePrompt: string;
   promptHash: string;
 } {
+  // Defense in depth for callers that construct/read a SetDefinition without using projectSetDefinition.
+  // This runs before any positive prompt text or provider-facing hash can be produced.
+  assertSetBoardPositiveAuthoritySpoilerNeutral(def);
   const openings = openingKindsPresent(def);
 
   const geometryLines = def.zones.flatMap(zoneGeometryLines);

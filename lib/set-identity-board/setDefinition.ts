@@ -1,10 +1,12 @@
 /**
- * Set Identity Board v2 — PURE spoiler-neutral base-set projection. NO I/O, clock, randomness, or prose parsing.
+ * Set Identity Board v2 — PURE spoiler-neutral base-set projection. NO I/O, clock, or randomness.
  *
  * The projection keeps stable location lighting and structured zone geometry. A prop-bound node is excluded when
  * any cover/page that consumes the physical set forbids that prop or precedes its lifecycle reveal. Relations that
  * depend on an excluded node and the prop's fixed facts are removed with it. Free-form location/zone descriptions,
- * anchors, topology prose, page actions, effects, and prop states are never board authority.
+ * anchors, topology prose, page actions, effects, and prop states are never board authority. The completed
+ * projection is then checked by a deterministic canonical-token invariant so an excluded prop cannot re-enter
+ * through retained positive free text.
  */
 import { canonicalHash } from '@/lib/canonical-json';
 import type {
@@ -27,6 +29,7 @@ import {
   type SetDefinitionLocation,
   type SetDefinitionZone,
 } from './types';
+import { assertSetBoardPositiveAuthoritySpoilerNeutral } from './positiveAuthoritySpoilerGuard';
 
 function byId<T extends { id: string }>(items: readonly T[]): T[] {
   return items.slice().sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -235,7 +238,7 @@ export function projectSetDefinition(
     excludedProps,
   };
 
-  return {
+  const definition: SetDefinition = {
     boardVersion: opts?.boardVersion ?? SET_IDENTITY_BOARD_VERSION,
     storyKey: contract.storyKey ?? '',
     styleId,
@@ -245,6 +248,8 @@ export function projectSetDefinition(
     fixedSetFacts,
     contentPolicy,
   };
+  assertSetBoardPositiveAuthoritySpoilerNeutral(definition);
+  return definition;
 }
 
 export function computeSetBoardContentPolicyDigest(definition: SetDefinition): string {

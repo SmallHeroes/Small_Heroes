@@ -29,6 +29,13 @@ export {
 export { buildSetIdentityBoardPrompt } from './boardPrompt';
 
 export {
+  assertSetBoardPositiveAuthoritySpoilerNeutral,
+  canonicalSetBoardWords,
+  deriveExcludedPropCanonicalTerms,
+  SetBoardPositiveAuthoritySpoilerError,
+} from './positiveAuthoritySpoilerGuard';
+
+export {
   validateSetIdentityBoardRegistryEntry,
   verifyBoardAssetBytes,
   loadRegistryEntry,
