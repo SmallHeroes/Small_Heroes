@@ -2,7 +2,34 @@
 
 **Updated:** 2026-07-24
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-fox-v3-board-mint` in `C:\Users\guyna\.codex\worktrees\0d94\Small_Heroes`. Canonical attempt 2 started from exact local HEAD `4eec48e2bfbd32ad1259e1ddf6023adb46935aa3`, one documentation commit ahead of `origin/codex/r1d-fox-v3-board-mint` at `73eda354a0e16ba10ec5476c6a311a79032d0822`, tracked clean. This worktree is the sole writer; canonical main, the parent worktree, and every other worktree/branch remain read-only.
+**Working branch:** `codex/r1d-fox-v3-board-mint` in `C:\Users\guyna\.codex\worktrees\0d94\Small_Heroes`. `R1D-GPT-IMAGE-REQUEST-OPTIONS-HARDENING` started from exact local HEAD `294e6ba1952036c3745ddeada4c23ac669929b0a`, tracked clean and ahead `2` / behind `0` versus `origin/codex/r1d-fox-v3-board-mint` at `73eda354a0e16ba10ec5476c6a311a79032d0822`. This worktree is the sole writer; canonical main, the parent worktree, and every other worktree/branch remain read-only.
+
+## R1D GPT Image request-options hardening - implemented; awaiting independent QA
+
+Guy explicitly approved `R1D-GPT-IMAGE-REQUEST-OPTIONS-HARDENING` as a general zero-cost corrective milestone after canonical board-mint attempt 2 failed in local OpenAI SDK request validation. The code correction is focused commit `cec084943ba2799b50ef4a35e1db5e5dfe89956f`. This section records implementation and local evidence only; Codex does not self-award independent technical PASS, and this milestone does not authorize a live mint retry.
+
+### Verified root cause and general correction
+
+- `planGPTImageRequest` previously created own `signal` and `timeout` properties even when their values were `undefined`. The installed OpenAI SDK is `6.35.0`; its `buildRequest` checks `'timeout' in options`, validates that value with `validatePositiveInteger`, and only then applies the SDK default. A caller that omitted `requestTimeoutMs` therefore reached `images.generate` or `images.edit` with an own `timeout: undefined` property and failed locally with `timeout must be an integer`.
+- The defect was in the shared GPT Image request planner, not in Fox, Set Board, or the mint launcher. Repository call-site review found multiple shared generation paths that intentionally omit `requestTimeoutMs`, while page-generation paths that own a bounded deadline pass an explicit positive timeout. Both `images.generate` and `images.edit` consume the same planned request options.
+- The planner now starts from mandatory `{ maxRetries: 0 }` and conditionally adds `signal` and `timeout` only when the caller supplied them. This preserves the existing no-hidden-SDK-retry policy, explicit AbortSignal forwarding, and explicit timeout forwarding without inventing a Board-specific timeout or changing model, quality, retry, reference, QA, or storage policy.
+- An explicitly supplied `requestTimeoutMs` must now be a finite positive integer. Zero, negative, fractional, `NaN`, and either infinity fail locally with a clear planner error before either OpenAI image method can be invoked. Existing TypeScript callers already use millisecond numbers; no schema or data migration is required.
+
+### Zero-network compatibility and regression evidence
+
+- Focused request-option validation: **PASS - 2 files / 19 tests**. Coverage distinguishes property absence from an own property whose value is `undefined`; covers no optional options, signal-only, valid timeout-only, invalid timeouts, both generate/edit paths, no SDK image-method invocation for invalid values, explicit timeout forwarding, and real AbortSignal handler propagation.
+- Relevant shared-call-path validation: **PASS - 6 files / 87 tests** across GPT Image request planning/cancellation, the installed-SDK compatibility test, set-appearance board model selection, board-mint launcher, runtime world authority, and Style 01 QA regeneration.
+- The compatibility test imports the actual installed OpenAI SDK `6.35.0`, supplies the explicit fake key `test-key-never-sent`, blanks the process API-key environment for the test, uses `https://network.invalid/v1`, and injects the same throwing fetch sentinel both into the client and as global fetch. With timeout and signal absent, SDK option validation accepted `{ maxRetries: 0 }`, reached the injected fetch boundary exactly once, and surfaced the sentinel error. No real key or credential file was loaded, and the client had no network-capable fetch path.
+- `npx --no-install tsc --noEmit` and `git diff --check`: **PASS**.
+- Proportional full validation with `npm run check -- --silent --maxWorkers=4 --reporter=dot`: TypeScript **PASS**; Vitest **253 files total - 232 passed, 16 skipped, 5 failed; 2,518 tests total - 2,447 passed, 65 skipped, 6 failed**. The six failures are exactly the established absent ignored-output fixture baseline in `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and two cases in `story-read-back-validation.spec.ts`. No changed or new request-option test failed under full-suite load.
+- The full suite created the four ordinary ignored synthetic files under `outputs/qa-anchors/test_lion__fp__wardrobe` and `outputs/test-fixtures/story-read-back-regression`; only those exact files were removed after each run. The historical ignored Fox dry preview was preserved, with observed SHA-256 `f1b91a39d6ade95905b7d84fcf135b0158cfc8f477ad4d5ebac3b4ace04c9b0b`.
+
+### Boundaries, limitations, rollback, and next gate
+
+- No image render, OpenAI image or Vision provider request, real network request, reference download, Supabase/storage/database operation, registry/candidate write, approval, promotion, deployment, push, flag change, threshold change, or production action occurred. The compatibility test's zero-network claim is supported by its explicit client-level and global throwing fetch sentinel plus the one observed sentinel call. Other exercised provider/storage seams were local mocks. No independent OpenAI provider-account usage/billing audit or Supabase provider-log audit was performed.
+- The correction does not alter the previously failed attempt evidence, create a Fox v3 board, or provide visual/product acceptance. There remains no current v3 board for Guy to eyeball.
+- Rollback is a focused revert of the code and state-record commits; there is no migration.
+- Next gate: Claude Code read-only adversarial review of the immutable hardening range beginning at `294e6ba1952036c3745ddeada4c23ac669929b0a`. A future paid attempt requires both independent technical PASS for this correction and a new explicit Guy live-rerun authorization; this zero-cost milestone supplies neither by itself.
 
 ## R1D Fox v3 Set Identity Board canonical attempt 2 - fail-closed at local SDK request validation
 
