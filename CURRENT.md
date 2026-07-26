@@ -2,7 +2,36 @@
 
 **Updated:** 2026-07-26
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-a-schema-feasibility` in `C:\Users\guyna\.codex\worktrees\ea3d\Small_Heroes`, based exactly on approved SHA `0734efc21549ab5d449bdb5960b398c0f5196d3c`. `R1D-PVB-A — Schema and Feasibility` implementation is focused commit `ba1ea438f8facc95a6a6922a699ea0546cc308d4`; accepted independent-QA corrections are focused commit `f805a6b1a4f4da9088cea23a0c7b0f46330e2471`. This worktree is the sole writer for this milestone. The Lead/Decision task remains separate; `codex/r1d-fox-v3-board-mint` at `C:\Users\guyna\.codex\worktrees\0d94\Small_Heroes` and every other worktree/branch remain read-only.
+**Working branch:** `codex/r1d-pvb-a-schema-feasibility` in `C:\Users\guyna\.codex\worktrees\ea3d\Small_Heroes`, based exactly on approved SHA `0734efc21549ab5d449bdb5960b398c0f5196d3c`. `R1D-PVB-A — Schema and Feasibility` implementation is focused commit `ba1ea438f8facc95a6a6922a699ea0546cc308d4`; accepted first-pass QA corrections are focused commit `f805a6b1a4f4da9088cea23a0c7b0f46330e2471`; accepted micro re-gate corrections are focused commit `27d4ff254ed45f109b4cd46d482227a0102c216a`. This worktree is the sole writer for this milestone. The Lead/Decision task remains separate; `codex/r1d-fox-v3-board-mint` at `C:\Users\guyna\.codex\worktrees\0d94\Small_Heroes` and every other worktree/branch remain read-only.
+
+## R1D-PVB-A-QA-FIX-2 — micro-correction awaiting independent re-gate
+
+Claude Code returned a narrow **HOLD** on combined range `0734efc21549ab5d449bdb5960b398c0f5196d3c..5faa96c7ca73248e2d352149ee4e0b1ef1101c4e`. The Lead independently confirmed both actionable findings: the canonical Template validator erased a malformed required `recurringProps` field by coercing it to `[]`, allowing a later raw PVB index/lifecycle dereference to throw; and PVB transition support assumed every non-steady frame was `after_transition`, contradicting the canonical `before_transition`/`threshold` state machine. Focused code commit `27d4ff254ed45f109b4cd46d482227a0102c216a` corrects those findings. This record does not self-award PASS; Claude Code must micro re-gate the combined original and corrective ranges.
+
+### Required recurring-props boundary and no-throw defense
+
+- `BookVisualContractTemplate` validation now explicitly rejects omitted or non-array `recurringProps`. A legitimate story with no recurring props must author the required empty array; malformed durable input is no longer made indistinguishable from that valid shape.
+- PVB independently requires an indexable recurring-prop array before building its contract index, so an upstream validator regression cannot expose the original raw `.map` path. Contract indexing, cover lifecycle projection, page lifecycle helpers, and the final reveal scan all use guarded durable-array reads as defense in depth.
+- The malformed-input matrix now includes omitted, `null`, object, string, and malformed-array recurring-prop forms. Each is deterministically restamped where normalization permits, returns identical structured `ok:false` issues across repeated calls, never throws, and causes the assertion API to emit only `InvalidPreRenderBookVisualBlueprintError`.
+- The canonical validator regressions prove deterministic rejection of the four missing/non-array forms and safe rejection of a malformed array entry. All existing Template fixtures already carried the required array, so no compatibility fixture migration or permissive legacy fallback was needed.
+
+### Canonical transition-kind semantics
+
+- The connection graph now requires each traversal authority to use either authored endpoint and a direction permitted by the connection. Endpoint placement no longer incorrectly encodes arrival state.
+- Frame validation remains pinned to the existing exact page/frame zone authority: `before_transition` uses the origin, `after_transition` uses the destination, and `threshold` may use either authored endpoint. Visible traversal and opening-clearance support must be in that exact frame zone; numerically overlapping geometry from the opposite endpoint cannot qualify.
+- Direction is still checked against the authored connection orientation. Tests cover valid origin `before_transition`, invalid destination `before_transition`, valid destination `after_transition`, both valid threshold endpoints, opposite-endpoint support with identical geometry, forward and reverse bidirectional traversal, incompatible direction, and a multi-element traversal-authority list.
+- The canonical transition state machine was not changed. The reordered neutral-geometry reveal regression now also proves it is not passing through unrelated `template_stale` evidence.
+
+### Corrective validation, limits, and next gate
+
+- Focused PVB plus canonical Template validation: **PASS — 2 files / 100 tests**.
+- Full PVB-A suite: **PASS — 72/72 tests**. Relevant Visual Contract / Visual Package adjacent set: **PASS — 7 files / 206 tests**.
+- Every repository suite directly exercising `validateBookVisualContractTemplate`: **PASS — 7 files / 110 tests**. No existing template fixture needed migration.
+- `npx --no-install tsc --noEmit`, working/cached correction diff checks, and explicit-path staging checks: **PASS**.
+- Literal `npm run check`: TypeScript **PASS**; Vitest **254 files total — 233 passed, 16 skipped, 5 failed; 2,595 tests total — 2,524 passed, 65 skipped, 6 failed**. The six failures are the unchanged absent ignored-output baseline in `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and two `story-read-back-validation.spec.ts` cases. All new/changed tests passed under full-suite load; no ignored fixture was copied or fabricated. The four ordinary ignored scratch artifacts created by the run were removed.
+- Token-exact secondary prose matching intentionally does not implement Hebrew clitic/plural stemming. That is a known future controlled language-aware gate; primary structured exact-ID reveal constraints remain authoritative.
+- No authoring/model/LLM call, render, provider/OpenAI/Vision/fetch/network/credential use, storage/Supabase/database access, Board action, package approval/qualification/promotion, runtime storyboard/director change, deployment, push, or cleanup occurred. PVB-B lifecycle and PVB-C runtime cutover remain separate future Decision Gates.
+- Next action: Claude Code performs a **READ-ONLY micro re-gate** focused on the residual durable-input throw and every canonical transition kind. Valid new findings require another scoped correction and re-gate; Guy retains product, visual, launch, and push authority.
 
 ## R1D-PVB-A-QA-FIX — corrective implementation awaiting independent re-gate
 
