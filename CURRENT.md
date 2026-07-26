@@ -2,7 +2,25 @@
 
 **Updated:** 2026-07-26
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-a-schema-feasibility` in `C:\Users\guyna\.codex\worktrees\ea3d\Small_Heroes`, based exactly on approved SHA `0734efc21549ab5d449bdb5960b398c0f5196d3c`. `R1D-PVB-A — Schema and Feasibility` implementation is focused commit `ba1ea438f8facc95a6a6922a699ea0546cc308d4`; accepted first-pass QA corrections are focused commit `f805a6b1a4f4da9088cea23a0c7b0f46330e2471`; accepted micro re-gate corrections are focused commit `27d4ff254ed45f109b4cd46d482227a0102c216a`; the total durable-validation correction is focused commit `b786269516ed9dd288290ac54b3899c8ff8bc134`. This worktree is the sole writer for this milestone. The Lead/Decision task remains separate; `codex/r1d-fox-v3-board-mint` at `C:\Users\guyna\.codex\worktrees\0d94\Small_Heroes` and every other worktree/branch remain read-only.
+**Working branch:** `codex/r1d-pvb-a-schema-feasibility` in `C:\Users\guyna\.codex\worktrees\ea3d\Small_Heroes`, based exactly on approved SHA `0734efc21549ab5d449bdb5960b398c0f5196d3c`. `R1D-PVB-A — Schema and Feasibility` implementation is focused commit `ba1ea438f8facc95a6a6922a699ea0546cc308d4`; accepted first-pass QA corrections are focused commit `f805a6b1a4f4da9088cea23a0c7b0f46330e2471`; accepted micro re-gate corrections are focused commit `27d4ff254ed45f109b4cd46d482227a0102c216a`; the total durable-validation correction is focused commit `b786269516ed9dd288290ac54b3899c8ff8bc134`. Claude Code independently returned technical **PASS** for immutable combined range `0734efc21549ab5d449bdb5960b398c0f5196d3c..09ec174f127001e7b6a8135ea38a8bab32b55795`. This worktree is the sole writer for this documentation closeout. The Lead/Decision task remains separate; `codex/r1d-fox-v3-board-mint` at `C:\Users\guyna\.codex\worktrees\0d94\Small_Heroes` and every other worktree/branch remain read-only.
+
+## R1D-PVB-A — independent technical QA PASS
+
+Claude Code independently re-gated the exact branch/worktree topology and immutable combined range `0734efc21549ab5d449bdb5960b398c0f5196d3c..09ec174f127001e7b6a8135ea38a8bab32b55795`, including `R1D-PVB-A-QA-FIX-3 — Total Durable Validation Boundary` range `785749c742d1f7bf5ef6eb2206cebbe8983308b5..09ec174f127001e7b6a8135ea38a8bab32b55795`, and returned technical **PASS**. The reviewed worktree was clean at the handed-off head, the branch and ranges matched, and the read-only Fox calibration worktree remained unchanged at `f5ace18a9a312533c2caba17223fca03e50beca8`.
+
+### Independent verification
+
+- `npx --no-install tsc --noEmit`: **PASS**. The relevant seven-file Visual Contract / Visual Package suite: **PASS — 250/250 tests**.
+- Claude Code's totality fuzzer and direct execution probes verified the residual MAJOR fixed: no real Template or PVB public-validator call leaked a raw exception; no malformed input returned `ok:true`; repeated malformed validation remained deterministic and fail-closed; assertion APIs emitted only their domain error classes; digest restamping could not authorize malformed input; and valid projections remained byte-identical.
+- All nine re-gate claims were verified. Previously passed transition-kind behavior, capacity and clearance enforcement, Unicode token-exact reveal rules, deterministic digest behavior, and general-story fixtures remained unchanged.
+- The PASS is limited to the PVB-A schema/feasibility authority and the immutable reviewed range. It is not PVB-B authoring/review/persistence lifecycle, PVB-C runtime cutover, product or visual acceptance, finished-book acceptance, render qualification, package approval/promotion, deployment, or push authorization.
+
+### Non-blocking pre-existing notes and product invariant
+
+- **NOTE — generic nested-shape containment:** a nested non-array `spatialNodes` shape reaches deterministic generic fail-closed containment at the public Template/PVB wrappers rather than receiving a path-specific diagnostic.
+- **NOTE — direct base-validator totality:** direct callers of the base validator outside the total public Template/PVB wrappers may still throw on that malformed `spatialNodes` shape. Compiler and frozen golden paths use well-formed contracts. General base-validator totality hardening must be tracked before broad production rollout or runtime cutover, but this pre-existing note does not reopen the scoped PVB-A PASS.
+- Guy's binding product invariant is that PVB-B, PVB-C, and every calibration/test story must use the same Story-Source-parameterized path. No story key, story literal, story-specific branch, or special-case code may define or bypass the architecture. Calibration artifacts are evidence only.
+- Next action: the Lead prepares a separate Decision Gate for general PVB-B authoring/review/persistence lifecycle. This documentation closeout authorizes no implementation, live authoring, render, provider/network call, storage/database action, Board action, approval/promotion, deployment, or push.
 
 ## R1D-PVB-A-QA-FIX-3 — total durable validation boundary awaiting independent re-gate
 
