@@ -1,6 +1,8 @@
 import {
   APPROVED_RUNTIME_AUTHORITY_VERSION,
+  APPROVED_PVB_RUNTIME_AUTHORITY_VERSION,
   type ApprovedRuntimeAuthorityBinding,
+  type ApprovedPvbRuntimeAuthorityBinding,
   type BookVisualContractTemplate,
   type ResolvedBookVisualContract,
 } from '@/lib/visual-contract-compiler/contractTemplateTypes';
@@ -12,6 +14,10 @@ import type {
   VisualPackageManifest,
   WorldRealityMode,
 } from './types';
+import type {
+  FrozenVisualPackageAuthority,
+  VisualPackageV4,
+} from './visualPackageV4';
 
 function issue(
   code: VisualPackageIssue['code'],
@@ -181,6 +187,64 @@ export function bindApprovedRuntimeAuthority(
   return {
     ...contract,
     approvedRuntimeAuthority: buildApprovedRuntimeAuthorityBinding(manifest),
+  };
+}
+
+export function buildApprovedPvbRuntimeAuthorityBinding(args: {
+  packageValue: VisualPackageV4;
+  frozen: FrozenVisualPackageAuthority;
+}): ApprovedPvbRuntimeAuthorityBinding {
+  const { packageValue, frozen } = args;
+  if (
+    packageValue.revisionDigest !== frozen.packageRevisionDigest ||
+    packageValue.storyKey !== frozen.storyKey ||
+    packageValue.styleId !== frozen.styleId
+  ) {
+    throw new Error('immutable package and frozen authority identity mismatch');
+  }
+  const worldMode = packageValue.review.worldMode;
+  if (!worldMode) {
+    throw new Error('approved PVB runtime authority requires reviewer-owned worldMode');
+  }
+  return {
+    version: APPROVED_PVB_RUNTIME_AUTHORITY_VERSION,
+    manifestVersion: packageValue.manifestVersion,
+    storyKey: packageValue.storyKey,
+    styleId: packageValue.styleId,
+    packagePath: frozen.packagePath,
+    packageRevisionDigest: packageValue.revisionDigest,
+    sourcePath: packageValue.sourceSnapshot.identity.path,
+    sourceDigest: packageValue.sourceSnapshot.identity.digest,
+    sourceRawDigest: packageValue.sourceSnapshot.rawDigest,
+    blueprintDigest: packageValue.blueprint.digest,
+    authoringAuthorityDigest:
+      packageValue.blueprint.content.identity.authoringAuthority.digest,
+    planningApprovalDigest: packageValue.planningApproval.content.digest,
+    styleAuthorityDigest: packageValue.styleAuthority.digest,
+    templatePath: packageValue.visualContractTemplate.identity.artifactPath,
+    templateDigest: packageValue.visualContractTemplate.digest,
+    reconciliationPath: packageValue.reconciliation.identity.artifactPath,
+    reconciliationDigest: packageValue.reconciliation.identity.digest,
+    requiredBoardsDigest: canonicalJsonDigest(packageValue.requiredBoards),
+    requiredPropReferencesDigest: canonicalJsonDigest(
+      packageValue.requiredPropReferences,
+    ),
+    layoutPolicyVersion: packageValue.layoutPolicy.version,
+    worldMode,
+  };
+}
+
+export function bindApprovedPvbRuntimeAuthority(
+  contract: ResolvedBookVisualContract,
+  packageValue: VisualPackageV4,
+  frozen: FrozenVisualPackageAuthority,
+): ResolvedBookVisualContract {
+  return {
+    ...contract,
+    approvedRuntimeAuthority: buildApprovedPvbRuntimeAuthorityBinding({
+      packageValue,
+      frozen,
+    }),
   };
 }
 

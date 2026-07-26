@@ -94,6 +94,12 @@ export type PipelineCache = {
    */
   visualContract?: Prisma.InputJsonValue;
   /**
+   * Exact immutable PVB runtime authority frozen for this order. The selector/current locator is never persisted
+   * here: resume and regeneration load only this content-addressed package revision. Written atomically with the
+   * resolved Visual Contract and Order.visualContractHash on the enforced Style01 path.
+   */
+  visualPackageAuthority?: import('@/lib/visual-package').FrozenVisualPackageAuthority;
+  /**
    * (Set Identity Board, Milestone C) This order's per-order board ACTIVATION + BINDINGS, pinned to the frozen
    * contract hash. Written ONLY by `set-identity-board-stage.ts`, ONLY at the fresh dna→cover transition, and ONLY
    * when `isSetIdentityBoardEnabled()` (hard-off on Vercel Production) — via a single-key `jsonb_set`, never

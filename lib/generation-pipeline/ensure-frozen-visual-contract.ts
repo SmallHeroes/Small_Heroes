@@ -46,12 +46,13 @@ import { readFrozenVisualContract } from '@/lib/visual-contract-compiler/readFro
 import type { BookVisualContract } from '@/lib/visual-contract-compiler/types';
 import type { ResolvedBookVisualContract } from '@/lib/visual-contract-compiler/contractTemplateTypes';
 import { STYLE_IDS, styleIdFromDatabaseValue } from '@/lib/styles';
-import { bindApprovedRuntimeAuthority } from '@/lib/visual-package/runtimeAuthority';
-import type { ReceiptSafeValue } from './atomic-operation';
+import { bindApprovedPvbRuntimeAuthority } from '@/lib/visual-package/runtimeAuthority';
 import {
-  evaluateStyle01VisualPackage,
-  RenderQualificationPreflightError,
-} from './render-qualification-preflight';
+  InvalidVisualPackageV4Error,
+  evaluateVisualPackageV4Qualification,
+  type FrozenVisualPackageAuthority,
+} from '@/lib/visual-package/visualPackageV4';
+import type { ReceiptSafeValue } from './atomic-operation';
 import type { PipelineCache } from './types';
 // `prisma` and the delivery-input barrier are LAZY-imported inside the function (below) — so importing this
 // module (and unit tests that inject both) never triggers `validateEnv()` at load. Type-only here.
@@ -63,6 +64,7 @@ const log = createLogger({ subsystem: 'chunked-gen', route: 'visual-contract-fre
 export interface ProducedContract {
   contract: BookVisualContract;
   contractHash: string;
+  visualPackageAuthority?: FrozenVisualPackageAuthority;
 }
 
 /** Injectable seam: yield the contract to freeze for this order, or `null` to skip. */
@@ -123,32 +125,37 @@ async function defaultProduceContract(
     isVisualContractEnforcementEnabled() &&
     styleIdFromDatabaseValue(order.illustrationStyle) === STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK
   ) {
-    const qualification = evaluateStyle01VisualPackage({
-      illustrationStyle: order.illustrationStyle,
-      cache,
+    const storyKey = bankStoryKey(cache) ?? 'unknown_story';
+    const qualification = evaluateVisualPackageV4Qualification({
+      repoRoot: process.cwd(),
+      storyKey,
+      styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+      expectedOrderSourceRawDigest: order.storySourceHash,
     });
-    if (!qualification || !qualification.renderQualified || !qualification.manifest || !qualification.template) {
-      throw new RenderQualificationPreflightError(
-        qualification ?? {
-          storyKey: bankStoryKey(cache) ?? 'unknown_story',
-          storySourcePath: cache.storyFilePath ?? cache.selectionFilename ?? 'unknown',
-          approvedPackagePath: 'unknown',
-          renderQualified: false,
-          reasons: [{ code: 'approved_package_missing', message: 'approved Style01 package is unavailable' }],
-          manifest: null,
-          template: null,
-        },
-      );
+    if (
+      !qualification.renderQualified ||
+      !qualification.packageValue ||
+      !qualification.frozenAuthority
+    ) {
+      throw new InvalidVisualPackageV4Error(qualification.reasons);
     }
     const { deriveResolvedFamilyAppearanceProfile } = await import('./resolve-family-appearance');
     const family = deriveResolvedFamilyAppearanceProfile(order, cache);
-    const resolved = materialize(qualification.template, family);
-    const bound = bindApprovedRuntimeAuthority(
+    const resolved = materialize(
+      qualification.packageValue.visualContractTemplate.content,
+      family,
+    );
+    const bound = bindApprovedPvbRuntimeAuthority(
       resolved as ResolvedBookVisualContract,
-      qualification.manifest,
+      qualification.packageValue,
+      qualification.frozenAuthority,
     );
     assertValidResolvedBookVisualContract(bound);
-    return { contract: bound, contractHash: computeVisualContractHash(bound) };
+    return {
+      contract: bound,
+      contractHash: computeVisualContractHash(bound),
+      visualPackageAuthority: qualification.frozenAuthority,
+    };
   }
 
   const bankKey = bankStoryKey(cache);
@@ -211,7 +218,25 @@ export async function ensureFrozenVisualContract(
   // through and re-freeze to reconcile. (B2: verify the pair, don't trust mere presence.)
   if (order.visualContractHash && cache.visualContract) {
     const cached = readFrozenVisualContract(cache.visualContract);
-    if (cached && computeVisualContractHash(cached) === order.visualContractHash) return cache;
+    if (cached && computeVisualContractHash(cached) === order.visualContractHash) {
+      if (!runtimeAuthorityEnforced) return cache;
+      if (!cache.visualPackageAuthority) {
+        throw new InvalidVisualPackageV4Error([
+          'frozen order visual-package/v4 authority is missing',
+        ]);
+      }
+      const qualification = evaluateVisualPackageV4Qualification({
+        repoRoot: process.cwd(),
+        storyKey: bankStoryKey(cache) ?? 'unknown_story',
+        styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+        frozenAuthority: cache.visualPackageAuthority,
+        expectedOrderSourceRawDigest: order.storySourceHash,
+      });
+      if (!qualification.renderQualified) {
+        throw new InvalidVisualPackageV4Error(qualification.reasons);
+      }
+      return cache;
+    }
     // mismatch or invalid cached contract → re-freeze (fall through, do not return)
   }
 
@@ -241,7 +266,12 @@ export async function ensureFrozenVisualContract(
     return cache;
   }
 
-  const { contract, contractHash } = produced;
+  const { contract, contractHash, visualPackageAuthority } = produced;
+  if (runtimeAuthorityEnforced && !visualPackageAuthority) {
+    throw new InvalidVisualPackageV4Error([
+      'enforced Style01 freeze produced no immutable visual-package/v4 authority',
+    ]);
+  }
   // (Fix 1 — belt, before :persist) Defense-in-depth on the money fence: never hash/persist a resolved-shaped contract
   // that fails validation, whatever producer yielded it. Non-throwing (WS0b must NEVER throw into the pipeline) — an
   // invalid Resolved is logged and degrades to the legacy path rather than being frozen. Legacy vNext contracts (no
@@ -263,6 +293,7 @@ export async function ensureFrozenVisualContract(
     ...cache,
     // Stored as opaque JSON on PipelineCache (see the field's note); the value IS this BookVisualContract.
     visualContract: contract as unknown as Prisma.InputJsonValue,
+    ...(visualPackageAuthority ? { visualPackageAuthority } : {}),
   };
 
   await withMutation(
@@ -274,7 +305,11 @@ export async function ensureFrozenVisualContract(
       // fence (no double inputVersion bump); a genuinely different contract is a NEW key (a new freeze).
       operationKey: `delivery_input:${order.id}:visual_contract:${contractHash}`,
       // Covers 100% of what this operation authoritatively persists.
-      mutationPayload: { visualContractHash: contractHash, visualContract: contract } as unknown as ReceiptSafeValue,
+      mutationPayload: {
+        visualContractHash: contractHash,
+        visualContract: contract,
+        ...(visualPackageAuthority ? { visualPackageAuthority } : {}),
+      } as unknown as ReceiptSafeValue,
     },
     async (tx) => {
       await tx.order.update({ where: { id: order.id }, data: { visualContractHash: contractHash } });
@@ -284,11 +319,29 @@ export async function ensureFrozenVisualContract(
       // concurrent (non-freeze) pipelineCache writer. A single-key jsonb_set has NO read-window: it reads + sets the
       // one key inside one row-locked UPDATE, so a lost-lease late freeze can never clobber newer unrelated fields.
       // The write now covers EXACTLY the mutationPayload ({ visualContractHash, visualContract }).
-      await tx.$executeRaw`
-        UPDATE "GenerationJob"
-        SET "pipelineCache" = jsonb_set(COALESCE("pipelineCache", '{}'::jsonb), '{visualContract}', ${JSON.stringify(contract)}::jsonb, true)
-        WHERE "orderId" = ${order.id}
-      `;
+      if (visualPackageAuthority) {
+        await tx.$executeRaw`
+          UPDATE "GenerationJob"
+          SET "pipelineCache" = jsonb_set(
+            jsonb_set(
+              COALESCE("pipelineCache", '{}'::jsonb),
+              '{visualContract}',
+              ${JSON.stringify(contract)}::jsonb,
+              true
+            ),
+            '{visualPackageAuthority}',
+            ${JSON.stringify(visualPackageAuthority)}::jsonb,
+            true
+          )
+          WHERE "orderId" = ${order.id}
+        `;
+      } else {
+        await tx.$executeRaw`
+          UPDATE "GenerationJob"
+          SET "pipelineCache" = jsonb_set(COALESCE("pipelineCache", '{}'::jsonb), '{visualContract}', ${JSON.stringify(contract)}::jsonb, true)
+          WHERE "orderId" = ${order.id}
+        `;
+      }
     },
   );
 

@@ -35,6 +35,8 @@ export const MATERIALIZER_VERSION = 'materializer/v1' as const;
 /** Bump when the deterministic palette table changes (recorded on the Resolved → auditable, safely re-hashes). */
 export const PALETTE_VERSION = 'palette/v1' as const;
 export const APPROVED_RUNTIME_AUTHORITY_VERSION = 'approved-runtime-authority/v3' as const;
+export const APPROVED_PVB_RUNTIME_AUTHORITY_VERSION =
+  'approved-pvb-runtime-authority/v4' as const;
 
 /**
  * Exact approved-package identity carried inside the resolved/frozen contract. This is reviewer-owned metadata,
@@ -55,6 +57,31 @@ export interface ApprovedRuntimeAuthorityBinding {
   coverageDigest: string;
   requiredBoardsDigest: string;
   requiredPropReferencesDigest: string;
+  worldMode: 'grounded' | 'grounded_with_visual_metaphor' | 'fantastical';
+}
+
+/** Exact immutable successor authority for the enforced PVB runtime. */
+export interface ApprovedPvbRuntimeAuthorityBinding {
+  version: typeof APPROVED_PVB_RUNTIME_AUTHORITY_VERSION;
+  manifestVersion: 'visual-package/v4';
+  storyKey: string;
+  styleId: string;
+  packagePath: string;
+  packageRevisionDigest: string;
+  sourcePath: string;
+  sourceDigest: string;
+  sourceRawDigest: string;
+  blueprintDigest: string;
+  authoringAuthorityDigest: string;
+  planningApprovalDigest: string;
+  styleAuthorityDigest: string;
+  templatePath: string;
+  templateDigest: string;
+  reconciliationPath: string;
+  reconciliationDigest: string;
+  requiredBoardsDigest: string;
+  requiredPropReferencesDigest: string;
+  layoutPolicyVersion: 'portrait-layout-compatibility/v1';
   worldMode: 'grounded' | 'grounded_with_visual_metaphor' | 'fantastical';
 }
 
@@ -170,5 +197,7 @@ export interface ResolvedBookVisualContract extends BookVisualContract {
   paletteVersion: string;
   humanCast: ResolvedHumanCastMember[];
   /** Present only on the enforced, source-bound Style01 path; included in the frozen contract hash. */
-  approvedRuntimeAuthority?: ApprovedRuntimeAuthorityBinding;
+  approvedRuntimeAuthority?:
+    | ApprovedRuntimeAuthorityBinding
+    | ApprovedPvbRuntimeAuthorityBinding;
 }

@@ -13,3 +13,4 @@ export * from './preRenderBlueprint';
 export * from './preRenderBlueprintDraftSchema';
 export * from './preRenderBlueprintAuthoring';
 export * from './preRenderBlueprintLifecycle';
+export * from './visualPackageV4';

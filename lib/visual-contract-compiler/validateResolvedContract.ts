@@ -21,6 +21,7 @@ import {
   MATERIALIZER_VERSION,
   PALETTE_VERSION,
   APPROVED_RUNTIME_AUTHORITY_VERSION,
+  APPROVED_PVB_RUNTIME_AUTHORITY_VERSION,
   RELATIVE_ROLES,
   VISUAL_CONTRACT_SCHEMA_VERSION,
   type ResolvedBookVisualContract,
@@ -118,6 +119,49 @@ export function validateResolvedBookVisualContract(input: unknown): ResolvedVali
     const authority = input.approvedRuntimeAuthority;
     if (!isObj(authority)) {
       errors.push('approvedRuntimeAuthority must be an object when present');
+    } else if (authority.version === APPROVED_PVB_RUNTIME_AUTHORITY_VERSION) {
+      if (authority.manifestVersion !== 'visual-package/v4') {
+        errors.push(
+          'approvedRuntimeAuthority.manifestVersion must equal "visual-package/v4"',
+        );
+      }
+      for (const field of [
+        'storyKey',
+        'styleId',
+        'packagePath',
+        'packageRevisionDigest',
+        'sourcePath',
+        'sourceDigest',
+        'sourceRawDigest',
+        'blueprintDigest',
+        'authoringAuthorityDigest',
+        'planningApprovalDigest',
+        'styleAuthorityDigest',
+        'templatePath',
+        'templateDigest',
+        'reconciliationPath',
+        'reconciliationDigest',
+        'requiredBoardsDigest',
+        'requiredPropReferencesDigest',
+        'layoutPolicyVersion',
+      ] as const) {
+        if (!isStr(authority[field])) {
+          errors.push(`approvedRuntimeAuthority.${field} missing`);
+        }
+      }
+      if (
+        !isStr(authority.worldMode) ||
+        !WORLD_MODES.has(authority.worldMode)
+      ) {
+        errors.push(
+          'approvedRuntimeAuthority.worldMode must be grounded|grounded_with_visual_metaphor|fantastical',
+        );
+      }
+      if (isStr(input.storyKey) && authority.storyKey !== input.storyKey) {
+        errors.push(
+          'approvedRuntimeAuthority.storyKey must equal the frozen contract storyKey',
+        );
+      }
     } else {
       if (authority.version !== APPROVED_RUNTIME_AUTHORITY_VERSION) {
         errors.push(`approvedRuntimeAuthority.version must equal "${APPROVED_RUNTIME_AUTHORITY_VERSION}"`);
