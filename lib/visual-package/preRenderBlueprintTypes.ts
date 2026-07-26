@@ -17,8 +17,8 @@ import type { SourcePromptReconciliation } from './sourcePromptReconciliation';
 /**
  * Explicit version boundary for the successor book-level visual authority.
  *
- * PVB-A deliberately does not make this part of visual-package/v3 qualification. PVB-B owns
- * review/approval lifecycle and PVB-C owns runtime cutover.
+ * PVB-B owns authoring/review/approval but deliberately does not make this part of
+ * Visual Package qualification. PVB-C owns the separate runtime cutover decision.
  */
 export const PRE_RENDER_BOOK_VISUAL_BLUEPRINT_VERSION =
   'pre-render-book-visual-blueprint/v2' as const;

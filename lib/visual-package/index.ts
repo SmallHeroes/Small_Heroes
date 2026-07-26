@@ -12,3 +12,4 @@ export * from './preRenderBlueprintTypes';
 export * from './preRenderBlueprint';
 export * from './preRenderBlueprintDraftSchema';
 export * from './preRenderBlueprintAuthoring';
+export * from './preRenderBlueprintLifecycle';
