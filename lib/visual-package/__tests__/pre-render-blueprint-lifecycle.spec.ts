@@ -138,6 +138,17 @@ describe('R1D-PVB-B - immutable Blueprint review and approval lifecycle', () => 
       ].every((artifact) => artifact.created === false),
     ).toBe(true);
     expect(second.review).toEqual(first.review);
+    expect(first.review.packet.authoringProvenance).toMatchObject({
+      model: 'synthetic-offline-fixture',
+      reasoningEffort: 'medium',
+      maxOutputTokens: 48_000,
+      noFallback: true,
+      passingAttempt: 1,
+      callCount: 1,
+    });
+    expect(first.review.packet.validationEvidenceDigest).toBe(
+      first.evidence.digest,
+    );
 
     const markdown = readFileSync(first.reviewMarkdown.path, 'utf8');
     expect(markdown).toContain('## World connections');
@@ -149,6 +160,7 @@ describe('R1D-PVB-B - immutable Blueprint review and approval lifecycle', () => 
     expect(markdown).toContain('Transition:');
     expect(markdown).toContain('Text-safe region:');
     expect(markdown).toContain('Placements:');
+    expect(markdown).toContain('synthetic-offline-fixture');
 
     const contactSheet = readFileSync(first.contactSheet.path, 'utf8');
     expect(contactSheet).toContain('aspect-ratio:2/3');
@@ -159,6 +171,7 @@ describe('R1D-PVB-B - immutable Blueprint review and approval lifecycle', () => 
     expect(contactSheet).toContain('World connections');
     expect(contactSheet).toContain('Source coverage');
     expect(contactSheet).toContain('Prior-approved diff');
+    expect(contactSheet).toContain('synthetic-offline-fixture');
   });
 
   it('never overwrites a content-address collision', () => {
@@ -259,6 +272,48 @@ describe('R1D-PVB-B - immutable Blueprint review and approval lifecycle', () => 
         provenance: provenanceFor(stale),
       }),
     ).toThrow('refusing to persist invalid Blueprint');
+    expect(readdirSync(root)).toEqual([]);
+  });
+
+  it('rejects impossible or fallback-enabled authoring provenance before writing', () => {
+    const fixture = buildBlueprintFixture('single_location');
+    const root = temporaryRoot();
+    const provenance = provenanceFor(fixture.blueprint);
+    (
+      provenance as unknown as {
+        noFallback: boolean;
+        maxOutputTokens: number;
+        passingAttempt: number;
+        callCount: number;
+      }
+    ).noFallback = false;
+    provenance.maxOutputTokens = 0;
+    provenance.passingAttempt = 2;
+    provenance.callCount = 7;
+
+    const review = buildPreRenderBlueprintReviewBundle({
+      blueprint: fixture.blueprint,
+      context: fixture.context,
+      provenance,
+    });
+    expect(review.packet.readyForApproval).toBe(false);
+    expect(review.packet.blockers.join('\n')).toContain(
+      'noFallback=true',
+    );
+    expect(review.packet.blockers.join('\n')).toContain(
+      'token budget',
+    );
+    expect(review.packet.blockers.join('\n')).toContain(
+      'attempt/call count',
+    );
+    expect(() =>
+      persistPreRenderBlueprintLifecycle({
+        root,
+        blueprint: fixture.blueprint,
+        context: fixture.context,
+        provenance,
+      }),
+    ).toThrow('invalid authoring provenance');
     expect(readdirSync(root)).toEqual([]);
   });
 

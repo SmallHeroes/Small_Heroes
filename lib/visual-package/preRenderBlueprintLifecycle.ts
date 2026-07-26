@@ -30,10 +30,14 @@ import type {
   PreRenderBlueprintValidationContext,
   PreRenderBookVisualBlueprint,
 } from './preRenderBlueprintTypes';
-import type {
-  PreRenderBlueprintAuthoringAttempt,
-  PreRenderBlueprintAuthoringProvenance,
+import {
+  PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION,
+  PRE_RENDER_BLUEPRINT_MAX_REPAIR_ATTEMPTS,
+  PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION,
+  type PreRenderBlueprintAuthoringAttempt,
+  type PreRenderBlueprintAuthoringProvenance,
 } from './preRenderBlueprintAuthoring';
+import { PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION } from './preRenderBlueprintDraftSchema';
 import type {
   ReconciliationDisposition,
   ReconciliationSourceKind,
@@ -115,6 +119,16 @@ export interface PreRenderBlueprintReviewPacket {
   authoringAuthorityDigest: string;
   storyKey: string;
   styleId: string;
+  validationEvidenceDigest: string;
+  authoringProvenance: {
+    digest: string;
+    model: string;
+    reasoningEffort: string;
+    maxOutputTokens: number;
+    noFallback: true;
+    passingAttempt: number;
+    callCount: number;
+  };
   readyForApproval: boolean;
   blockers: string[];
   warnings: string[];
@@ -212,6 +226,76 @@ function stableIdSet(values: readonly string[]): string[] {
 
 function issueText(issue: PreRenderBlueprintIssue): string {
   return `${issue.code}${issue.field ? ` (${issue.field})` : ''}: ${issue.message}`;
+}
+
+function authoringProvenanceIssues(args: {
+  blueprint: PreRenderBookVisualBlueprint;
+  provenance: PreRenderBlueprintAuthoringProvenance;
+  repairAttempts?: readonly PreRenderBlueprintAuthoringAttempt[];
+}): string[] {
+  const { provenance } = args;
+  const issues: string[] = [];
+  if (provenance.version !== 'pre-render-blueprint-authoring-provenance/v1') {
+    issues.push('unsupported authoring provenance version');
+  }
+  if (
+    provenance.blueprintDigest !== args.blueprint.digest ||
+    provenance.authoringAuthorityDigest !==
+      args.blueprint.identity.authoringAuthority.digest
+  ) {
+    issues.push('authoring provenance binds a different Blueprint or authority');
+  }
+  if (!nonEmpty(provenance.model) || !nonEmpty(provenance.reasoningEffort)) {
+    issues.push('authoring provenance requires explicit model and reasoning effort');
+  }
+  if (
+    !Number.isSafeInteger(provenance.maxOutputTokens) ||
+    provenance.maxOutputTokens <= 0
+  ) {
+    issues.push('authoring provenance token budget must be a positive safe integer');
+  }
+  if (provenance.noFallback !== true) {
+    issues.push('authoring provenance must record noFallback=true');
+  }
+  if (
+    provenance.draftSchemaVersion !==
+      PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION ||
+    provenance.promptVersion !== PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION
+  ) {
+    issues.push('authoring provenance schema or prompt version is unsupported');
+  }
+  if (
+    !Number.isSafeInteger(provenance.passingAttempt) ||
+    provenance.passingAttempt < 1 ||
+    provenance.passingAttempt > PRE_RENDER_BLUEPRINT_MAX_REPAIR_ATTEMPTS + 1 ||
+    provenance.callCount !== provenance.passingAttempt
+  ) {
+    issues.push('authoring provenance attempt/call count is impossible');
+  }
+  if (
+    (args.repairAttempts ?? []).length !== provenance.passingAttempt - 1 ||
+    (args.repairAttempts ?? []).some(
+      (attempt, index) =>
+        attempt.attempt !== index + 1 || attempt.errors.length === 0,
+    )
+  ) {
+    issues.push('authoring provenance does not match bounded repair evidence');
+  }
+  if (
+    provenance.passingAttempt > 1
+      ? provenance.repairPromptVersion !==
+        PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION
+      : provenance.repairPromptVersion !== undefined
+  ) {
+    issues.push('authoring provenance repair prompt version is inconsistent');
+  }
+  if (
+    !HEX_SHA256.test(provenance.systemPromptDigest) ||
+    !HEX_SHA256.test(provenance.userPromptDigest)
+  ) {
+    issues.push('authoring provenance prompt digests must be lowercase SHA-256 hex');
+  }
+  return issues;
 }
 
 export function createPreRenderBlueprintValidationEvidence(args: {
@@ -440,8 +524,11 @@ function createReviewPacket(args: {
 }): PreRenderBlueprintReviewPacket {
   const evidence = createPreRenderBlueprintValidationEvidence(args);
   const sourceCoverage = buildSourceCoverage(args.context);
+  const provenanceIssues = authoringProvenanceIssues(args);
+  const provenanceDigest = canonicalJsonDigest(args.provenance);
   const blockers = [
     ...evidence.issues.map(issueText),
+    ...provenanceIssues,
     ...sourceCoverage
       .filter(
         (record) =>
@@ -453,15 +540,6 @@ function createReviewPacket(args: {
           `unresolved source coverage: ${record.frameId} ${record.sourceKind}`,
       ),
   ];
-  if (args.provenance.blueprintDigest !== args.blueprint.digest) {
-    blockers.push('authoring provenance binds a different Blueprint digest');
-  }
-  if (
-    args.provenance.authoringAuthorityDigest !==
-    args.blueprint.identity.authoringAuthority.digest
-  ) {
-    blockers.push('authoring provenance binds a different authoring authority');
-  }
   const warnings = (args.repairAttempts ?? []).flatMap((attempt) =>
     attempt.errors.map(
       (error) => `authoring attempt ${attempt.attempt}: ${error}`,
@@ -475,6 +553,16 @@ function createReviewPacket(args: {
       args.blueprint.identity.authoringAuthority.digest,
     storyKey: args.blueprint.identity.storyKey,
     styleId: args.blueprint.identity.styleId,
+    validationEvidenceDigest: evidence.digest,
+    authoringProvenance: {
+      digest: provenanceDigest,
+      model: args.provenance.model,
+      reasoningEffort: args.provenance.reasoningEffort,
+      maxOutputTokens: args.provenance.maxOutputTokens,
+      noFallback: args.provenance.noFallback,
+      passingAttempt: args.provenance.passingAttempt,
+      callCount: args.provenance.callCount,
+    },
     readyForApproval: blockers.length === 0,
     blockers,
     warnings,
@@ -546,6 +634,8 @@ function renderReviewMarkdown(packet: PreRenderBlueprintReviewPacket): string {
     '',
     `- Blueprint digest: \`${packet.blueprintDigest}\``,
     `- Authoring authority: \`${packet.authoringAuthorityDigest}\``,
+    `- Validation evidence: \`${packet.validationEvidenceDigest}\``,
+    `- Authoring provenance: \`${packet.authoringProvenance.digest}\` (${packet.authoringProvenance.model}, reasoning=${packet.authoringProvenance.reasoningEffort}, max tokens=${packet.authoringProvenance.maxOutputTokens}, no fallback=${packet.authoringProvenance.noFallback}, attempt=${packet.authoringProvenance.passingAttempt}/${packet.authoringProvenance.callCount} calls)`,
     `- Review packet: \`${packet.digest}\``,
     `- Ready for Blueprint approval: **${packet.readyForApproval ? 'YES' : 'NO'}**`,
     '',
@@ -683,7 +773,7 @@ function renderContactSheetHtml(packet: PreRenderBlueprintReviewPacket): string 
 <section class="meta">
 <p><strong>${escapeHtml(packet.storyKey)} / ${escapeHtml(packet.styleId)}</strong></p>
 <p class="status">Ready for Blueprint approval: ${packet.readyForApproval ? 'YES' : 'NO'}</p>
-<p>Blueprint <code>${packet.blueprintDigest}</code><br>Authority <code>${packet.authoringAuthorityDigest}</code><br>Review <code>${packet.digest}</code></p>
+<p>Blueprint <code>${packet.blueprintDigest}</code><br>Authority <code>${packet.authoringAuthorityDigest}</code><br>Validation <code>${packet.validationEvidenceDigest}</code><br>Provenance <code>${packet.authoringProvenance.digest}</code> (${escapeHtml(packet.authoringProvenance.model)}; reasoning=${escapeHtml(packet.authoringProvenance.reasoningEffort)}; max tokens=${packet.authoringProvenance.maxOutputTokens}; no fallback=${packet.authoringProvenance.noFallback})<br>Review <code>${packet.digest}</code></p>
 <p>Planning review only — no image/style acceptance, Board mint, render, promotion, runtime cutover, deployment, or release authority.</p>
 </section>
 <section class="summary">
@@ -818,12 +908,11 @@ export function persistPreRenderBlueprintLifecycle(args: {
       `refusing to persist invalid Blueprint: ${evidence.issues.map(issueText).join('; ')}`,
     );
   }
-  if (
-    args.provenance.blueprintDigest !== args.blueprint.digest ||
-    args.provenance.authoringAuthorityDigest !==
-      args.blueprint.identity.authoringAuthority.digest
-  ) {
-    throw new Error('refusing to persist stale authoring provenance');
+  const provenanceIssues = authoringProvenanceIssues(args);
+  if (provenanceIssues.length > 0) {
+    throw new Error(
+      `refusing to persist invalid authoring provenance: ${provenanceIssues.join('; ')}`,
+    );
   }
   const review = buildPreRenderBlueprintReviewBundle(args);
   if (!review.packet.readyForApproval) {
@@ -924,6 +1013,25 @@ function reviewPacketIssues(args: {
     args.packet.styleId !== args.blueprint.identity.styleId
   ) {
     issues.push('review packet does not bind the exact Blueprint authority');
+  }
+  if (
+    !HEX_SHA256.test(args.packet.validationEvidenceDigest) ||
+    !HEX_SHA256.test(args.packet.authoringProvenance.digest) ||
+    !nonEmpty(args.packet.authoringProvenance.model) ||
+    !nonEmpty(args.packet.authoringProvenance.reasoningEffort) ||
+    !Number.isSafeInteger(
+      args.packet.authoringProvenance.maxOutputTokens,
+    ) ||
+    args.packet.authoringProvenance.maxOutputTokens <= 0 ||
+    args.packet.authoringProvenance.noFallback !== true ||
+    !Number.isSafeInteger(args.packet.authoringProvenance.passingAttempt) ||
+    args.packet.authoringProvenance.passingAttempt < 1 ||
+    args.packet.authoringProvenance.passingAttempt >
+      PRE_RENDER_BLUEPRINT_MAX_REPAIR_ATTEMPTS + 1 ||
+    args.packet.authoringProvenance.callCount !==
+      args.packet.authoringProvenance.passingAttempt
+  ) {
+    issues.push('review packet contains invalid authoring/validation provenance');
   }
   if (!args.packet.readyForApproval || args.packet.blockers.length > 0) {
     issues.push('review packet is not ready for approval');
