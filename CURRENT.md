@@ -1,8 +1,44 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-07-24
+**Updated:** 2026-07-26
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-fox-v3-board-mint` in `C:\Users\guyna\.codex\worktrees\0d94\Small_Heroes`. `R1D-GPT-IMAGE-REQUEST-OPTIONS-HARDENING` started from exact local HEAD `294e6ba1952036c3745ddeada4c23ac669929b0a`; its independent-QA closeout started from exact local HEAD `d39b6eb80e49d1841e8873465829573986abc167`, tracked clean and ahead `4` / behind `0` versus `origin/codex/r1d-fox-v3-board-mint` at `73eda354a0e16ba10ec5476c6a311a79032d0822`. This worktree is the sole writer; canonical main, the parent worktree, and every other worktree/branch remain read-only.
+**Working branch:** `codex/r1d-pvb-a-schema-feasibility` in `C:\Users\guyna\.codex\worktrees\ea3d\Small_Heroes`, based exactly on approved SHA `0734efc21549ab5d449bdb5960b398c0f5196d3c`. `R1D-PVB-A — Schema and Feasibility` implementation is focused commit `ba1ea438f8facc95a6a6922a699ea0546cc308d4`. This worktree is the sole writer for this milestone. The Lead/Decision task remains separate; `codex/r1d-fox-v3-board-mint` at `C:\Users\guyna\.codex\worktrees\0d94\Small_Heroes` and every other worktree/branch remain read-only.
+
+## R1D-PVB-A — Pre-Render Book Visual Blueprint schema and feasibility awaiting independent QA
+
+Guy approved the zero-cost `R1D-PVB-A — Schema and Feasibility` milestone under the `R1D-PRE-RENDER-BOOK-VISUAL-BLUEPRINT` Decision Gate. Repository investigation confirmed that the existing Visual Contract / Visual Package already owns structured world, cast, prop lifecycle, page action, safety, source identity, and package evidence, but final composition authority is still created later by a page-only runtime storyboard LLM plus a separate per-page director/fallback path. This milestone adds the missing book-level structured composition and feasibility authority without cutting over either runtime path. It makes no independent technical PASS claim; Claude Code first-pass read-only review is still required.
+
+### Versioned authority and deterministic binding
+
+- New additive artifact `pre-render-book-visual-blueprint/v1` lives inside `lib/visual-package` as an explicit successor authority, not a parallel top-level subsystem. It embeds the exact validated `BookVisualContractTemplate` once and binds the exact normalized Story Source identity/digest, template identity/digest, and candidate Visual Package artifact identity/content digest.
+- The artifact has a canonical JSON SHA-256 digest. Pure finalization clones and deterministically sorts order-insensitive arrays before hashing, does not mutate caller-owned drafts, and produces stable serialization across object-key and input-array ordering. Any schema, content, or stored-digest mutation fails closed.
+- The whole-story world plan adds only the composition data absent from the current Visual Contract: typed authored connections, traversal/opening clearance, placement support, action footprint, camera access, safe-boundary affordances, and explicitly spoiler-neutral supporting geometry. Stable IDs and discriminated consumers link frames, actions, placements, transitions, and safety constraints back to the embedded contract.
+- One structured frame is required for the cover and every exact Story Source page. Each frame has the invariant numeric aspect ratio `{ width: 2, height: 3 }`, normalized integer coordinates in `0..1000`, narrative purpose/beat, exact contract-projected location/zone/cast/prop lifecycle, deterministic blocking/depth regions, camera authority, text-safe region, continuity/carryover, and referenced affordances.
+
+### Fail-closed feasibility and reveal validation
+
+- Validation requires one cover plus exact page-number coverage with no missing, duplicate, or extra frame and rejects unresolved or duplicate location, zone, connection, cast, prop, action, affordance, geometry, frame, and consumer references.
+- Frame location, zone, cast, prop lifecycle, transition kind, and previous-frame chain must be exact deterministic projections of the embedded Visual Contract. Current Story Source, template, and candidate Visual Package context are recomputed and compared, so any authoritative source/package change makes the blueprint stale.
+- Every required cast member, required prop, and must-action needs exactly one key bounded placement. Required prop placement must fit a compatible typed support/anchor affordance; required action evidence must fit an action-space affordance with compatible predicate and entities; camera visibility must contain all key evidence.
+- Text-safe collision is deterministic rectangle intersection, not subjective prose. The declared text-safe region may not overlap any key cast, must-action, or required-prop evidence.
+- Non-steady page transitions must follow an authored zone connection and carry visible traversal support, any declared opening-clearance support, and the page's applicable safety boundaries. Required props may not block opening clearance. Safety constraints require a compatible safe boundary that contains the subject placement.
+- Before `firstRevealPage`, hidden narrative props are forbidden in placements, carryover, and narrative naming. Supporting geometry is allowed only when explicitly `spoilerNeutral: true`, structurally bound to declared stable geometry, and neither bound to nor described with the future prop identity. This permits stable support/path/space planning without depicting the reveal object.
+
+### Generalization, compatibility, and validation evidence
+
+- Compact synthetic fixtures cover five different story shapes through the same shared code: single-location, multi-zone transition, journey/fantastical, no-companion, and reveal-timeline. Shared schema/validator modules contain no Fox, Uri, bucket, bedroom, balcony, or fixed-page literal.
+- The new focused suite passes **25/25 tests**, including all five shapes; exact 2:3 cover/page authority; coverage/reference failures; deterministic serialization and non-mutating finalization; schema/content/digest tampering; malformed-input issue returns; action, placement, traversal, opening, camera, safety, and text-safe infeasibility; reveal-safe geometry and spoiler violations; Story Source/template/package staleness; and the typed assertion API.
+- Relevant regression validation passes **7 files / 154 tests** across the new blueprint suite, Visual Package lifecycle, source/prompt reconciliation, spoiler-safe prop authority, and Visual Contract template/stage 3/stage 4.
+- `npx --no-install tsc --noEmit`, `git diff --check`, and cached diff checks: **PASS**.
+- Literal `npm run check`: TypeScript **PASS**; Vitest **254 files total — 233 passed, 16 skipped, 5 failed; 2,543 tests total — 2,472 passed, 65 skipped, 6 failed**. The six failures are exactly the established absent ignored-output fixture baseline in `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and two cases in `story-read-back-validation.spec.ts`. No new or changed test failed. No missing ignored fixture was copied, fabricated, or imported. The four ordinary ignored scratch files created by the full run were removed afterward.
+- Compatibility is additive: `visual-package/v3` candidate/review/approval/promotion qualification and existing runtime storyboard/director/fallback behavior are unchanged. Existing packages do not acquire blueprint authority or become render-qualified, and there is no schema/data migration.
+
+### Boundaries, limitations, and next gates
+
+- No live authoring/model/LLM call, image/page/full-book render, provider/OpenAI/Vision/fetch/network/credential use, storage/Supabase/database read or write, Set Identity Board action, candidate/approval/promotion/deployment, production flag, threshold change, merge, rebase, push, or worktree/branch cleanup occurred. Tests use only synthetic in-memory data and existing local mocks.
+- PVB-A provides schema, pure finalization/digest, validators, exports, fixtures, and tests only. It does not generate a production blueprint for any current story, persist one, expose a review UI, or define approval lifecycle. PVB-B must separately design and approve authoring/review/persistence/lifecycle integration.
+- Existing runtime page storyboard, director, prompt assembly, and fallback paths remain active and independently mutable until a separately approved PVB-C cutover. PVB-C must make downstream prose/prompts/boards deterministic projections of reviewed blueprint authority and remove or gate the legacy independent truths; this milestone does not imply that cutover.
+- Next action: independent Claude Code first-pass **READ-ONLY** review of exact base-to-handoff range. Any valid findings are a separate corrective milestone followed by re-gate. Guy retains product/visual acceptance and launch authority.
 
 ## R1D GPT Image request-options hardening - independent technical QA PASS
 
