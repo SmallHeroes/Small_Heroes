@@ -5,12 +5,14 @@ import type {
   SafetyRelation,
 } from '@/lib/visual-contract-compiler/types';
 import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler/contractTemplateTypes';
+import type { AuthoredCoverAuthority } from '@/lib/visual-contract-compiler/coverSourceAuthority';
 
 import type {
   StorySourceIdentity,
-  VisualPackageManifest,
+  VisualPackageReconciliationIdentity,
   VisualPackageTemplateIdentity,
 } from './types';
+import type { SourcePromptReconciliation } from './sourcePromptReconciliation';
 
 /**
  * Explicit version boundary for the successor book-level visual authority.
@@ -19,9 +21,13 @@ import type {
  * review/approval lifecycle and PVB-C owns runtime cutover.
  */
 export const PRE_RENDER_BOOK_VISUAL_BLUEPRINT_VERSION =
-  'pre-render-book-visual-blueprint/v1' as const;
+  'pre-render-book-visual-blueprint/v2' as const;
+export const PRE_RENDER_BLUEPRINT_AUTHORING_AUTHORITY_VERSION =
+  'pre-render-blueprint-authoring-authority/v1' as const;
 export const PRE_RENDER_BLUEPRINT_DIGEST_ALGORITHM =
   'canonical-json-sha256' as const;
+export const PRE_RENDER_BLUEPRINT_RECONCILIATION_DIGEST_ALGORITHM =
+  'canonical-json-sha256-excluding-review-lifecycle/v1' as const;
 export const PRE_RENDER_BLUEPRINT_COORDINATE_SPACE =
   'normalized-1000/v1' as const;
 export const PRE_RENDER_BLUEPRINT_PORTRAIT_ASPECT_RATIO = {
@@ -29,21 +35,41 @@ export const PRE_RENDER_BLUEPRINT_PORTRAIT_ASPECT_RATIO = {
   height: 3,
 } as const;
 
-export interface PreRenderBlueprintPackageIdentity {
+export interface PreRenderBlueprintStyleAuthority {
+  styleId: string;
   artifactPath: string;
   digestAlgorithm: typeof PRE_RENDER_BLUEPRINT_DIGEST_ALGORITHM;
   digest: string;
-  manifestVersion: VisualPackageManifest['manifestVersion'];
+}
+
+export interface PreRenderBlueprintReconciliationAuthority
+  extends Omit<VisualPackageReconciliationIdentity, 'digestAlgorithm'> {
+  digestAlgorithm: typeof PRE_RENDER_BLUEPRINT_RECONCILIATION_DIGEST_ALGORITHM;
+}
+
+/**
+ * Stable prerequisite authority for authoring a Blueprint.
+ *
+ * This projection deliberately excludes mutable Visual Package state, Boards/assets, candidate/review/approval
+ * timestamps, and promotion records. Reconciliation lifecycle fields are validated separately but excluded from
+ * its semantic digest, so changing only who/when reviewed cannot stale an otherwise identical Blueprint.
+ */
+export interface PreRenderBlueprintAuthoringAuthority {
+  version: typeof PRE_RENDER_BLUEPRINT_AUTHORING_AUTHORITY_VERSION;
   storyKey: string;
   styleId: string;
+  source: StorySourceIdentity;
+  visualContract: VisualPackageTemplateIdentity;
+  reconciliation: PreRenderBlueprintReconciliationAuthority;
+  style: PreRenderBlueprintStyleAuthority;
+  digestAlgorithm: typeof PRE_RENDER_BLUEPRINT_DIGEST_ALGORITHM;
+  digest: string;
 }
 
 export interface PreRenderBlueprintIdentity {
   storyKey: string;
   styleId: string;
-  source: StorySourceIdentity;
-  template: VisualPackageTemplateIdentity;
-  visualPackage: PreRenderBlueprintPackageIdentity;
+  authoringAuthority: PreRenderBlueprintAuthoringAuthority;
 }
 
 /**
@@ -274,9 +300,14 @@ export type PreRenderBookVisualBlueprintDraft = Omit<
 
 export interface PreRenderBlueprintValidationContext {
   source: StorySourceIdentity;
+  /** Exact current Story Source bytes; validation recomputes the normalized source identity. */
+  rawStorySource: string;
   template: BookVisualContractTemplate;
-  visualPackage: VisualPackageManifest;
-  visualPackageArtifactPath: string;
+  templateIdentity: VisualPackageTemplateIdentity;
+  reconciliation: SourcePromptReconciliation;
+  reconciliationArtifactPath: string;
+  authoredCoverAuthority?: AuthoredCoverAuthority;
+  style: PreRenderBlueprintStyleAuthority;
 }
 
 export type PreRenderBlueprintIssueCode =
@@ -284,9 +315,13 @@ export type PreRenderBlueprintIssueCode =
   | 'schema_version_unsupported'
   | 'digest_mismatch'
   | 'identity_mismatch'
+  | 'authoring_authority_mismatch'
   | 'source_stale'
   | 'template_stale'
-  | 'package_stale'
+  | 'reconciliation_stale'
+  | 'reconciliation_unapproved'
+  | 'reconciliation_unresolved'
+  | 'style_stale'
   | 'visual_contract_invalid'
   | 'coverage_incomplete'
   | 'coverage_duplicate'

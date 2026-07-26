@@ -2,6 +2,7 @@ import {
   PRE_RENDER_BLUEPRINT_COORDINATE_SPACE,
   PRE_RENDER_BLUEPRINT_PORTRAIT_ASPECT_RATIO,
   PRE_RENDER_BOOK_VISUAL_BLUEPRINT_VERSION,
+  buildPreRenderBlueprintAuthoringAuthority,
   buildPreRenderBlueprintIdentity,
   finalizePreRenderBookVisualBlueprint,
   type BlueprintAffordanceConsumer,
@@ -9,6 +10,7 @@ import {
   type BlueprintSpatialAffordance,
   type BlueprintWorldConnection,
   type PortraitBlueprintFrame,
+  type PreRenderBlueprintStyleAuthority,
   type PreRenderBlueprintValidationContext,
   type PreRenderBookVisualBlueprint,
   type RevealSafeSupportingGeometry,
@@ -28,17 +30,19 @@ import type {
   VisualLocation,
   VisualZone,
 } from '@/lib/visual-contract-compiler/types';
-import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
 import {
-  CANDIDATE_EVIDENCE_VERSION,
-  SOURCE_PROMPT_PROJECTION_VERSION,
-  SOURCE_PROMPT_RECONCILIATION_VERSION,
+  canonicalJsonDigest,
+  normalizedTextDigest,
+} from '@/lib/visual-package/integrity';
+import {
   STORY_SOURCE_IDENTITY_VERSION,
-  VISUAL_PACKAGE_MANIFEST_VERSION,
   type StorySourceIdentity,
-  type VisualPackageManifest,
   type VisualPackageTemplateIdentity,
 } from '@/lib/visual-package/types';
+import {
+  buildSourcePromptReconciliationDraft,
+  type SourcePromptReconciliation,
+} from '@/lib/visual-package/sourcePromptReconciliation';
 
 export type BlueprintFixtureShape =
   | 'single_location'
@@ -271,63 +275,85 @@ function makeTemplate(plan: ShapePlan): BookVisualContractTemplate {
   return template;
 }
 
-function makeSource(plan: ShapePlan): StorySourceIdentity {
+function makeRawStorySource(plan: ShapePlan): string {
+  return [
+    '---',
+    `title: "${plan.storyKey}"`,
+    `pages: ${plan.pageZoneIds.length}`,
+    '---',
+    '',
+    ...plan.pageZoneIds.flatMap((_, index) => [
+      `--- Page ${index + 1} ---`,
+      `authored source page ${index + 1}`,
+      '',
+    ]),
+  ].join('\n');
+}
+
+function makeSource(plan: ShapePlan, rawStorySource: string): StorySourceIdentity {
   const pageNumbers = plan.pageZoneIds.map((_, index) => index + 1);
   return {
     version: STORY_SOURCE_IDENTITY_VERSION,
     path: `fixtures/${plan.storyKey}.md`,
     digestAlgorithm: 'sha256-normalized-utf8',
-    digest: canonicalJsonDigest({
-      storyKey: plan.storyKey,
-      pages: pageNumbers.map((pageNumber) => `authored source page ${pageNumber}`),
-    }),
+    digest: normalizedTextDigest(rawStorySource),
     pageCount: pageNumbers.length,
     pageNumbers,
   };
 }
 
-function makeManifest(
+function makeReconciliation(
   plan: ShapePlan,
   source: StorySourceIdentity,
-  templateIdentity: VisualPackageTemplateIdentity,
-): VisualPackageManifest {
-  return {
-    manifestVersion: VISUAL_PACKAGE_MANIFEST_VERSION,
-    state: 'candidate',
-    storyKey: plan.storyKey,
-    styleId: 'fixture_storybook_style',
-    source,
-    template: templateIdentity,
-    reconciliation: {
-      artifactPath: `fixtures/${plan.storyKey}.visual-contract-reconciliation.json`,
-      digestAlgorithm: 'canonical-json-sha256',
-      digest: canonicalJsonDigest({ storyKey: plan.storyKey, kind: 'reconciliation' }),
-      version: SOURCE_PROMPT_RECONCILIATION_VERSION,
-      projectionVersion: SOURCE_PROMPT_PROJECTION_VERSION,
+  template: BookVisualContractTemplate,
+): SourcePromptReconciliation {
+  const pages = source.pageNumbers.map((pageNumber) => ({
+    pageNumber,
+    text: `authored source page ${pageNumber}`,
+  }));
+  const reconciliation = buildSourcePromptReconciliationDraft(
+    {
+      storyKey: plan.storyKey,
+      sourceIdentity: source,
+      pages,
     },
-    coverage: {
-      coverDigest: canonicalJsonDigest({ storyKey: plan.storyKey, kind: 'cover' }),
-      pageContractsDigest: canonicalJsonDigest({ storyKey: plan.storyKey, kind: 'pages' }),
-      pageCount: source.pageCount,
-      pageNumbers: source.pageNumbers,
-    },
-    candidateEvidence: {
-      version: CANDIDATE_EVIDENCE_VERSION,
-      sourceInputDigest: canonicalJsonDigest({ storyKey: plan.storyKey, kind: 'source-input' }),
-      reviewDigest: canonicalJsonDigest({ storyKey: plan.storyKey, kind: 'review' }),
-      provenanceDigest: canonicalJsonDigest({ storyKey: plan.storyKey, kind: 'provenance' }),
-    },
-    review: {
-      authoredBy: null,
-      reviewedBy: null,
-      reviewedAt: null,
-      worldMode: null,
-    },
-    approval: null,
-    requiredBoards: [],
-    requiredPropReferences: [],
-    promotion: null,
+    template,
+  );
+  reconciliation.review = {
+    status: 'approved',
+    reviewedBy: 'Fixture Reviewer',
+    reviewedAt: '2026-07-25T10:00:00.000Z',
   };
+  for (const frame of reconciliation.frames) {
+    const pageIndex =
+      frame.frameKind === 'page'
+        ? template.pageContracts.findIndex(
+            (page) => page.pageNumber === frame.pageNumber,
+          )
+        : -1;
+    for (const [requirementIndex, requirement] of frame.sourceRequirements.entries()) {
+      const path =
+        frame.frameKind === 'cover'
+          ? '/coverContract/mustShow/0'
+          : `/pageContracts/${pageIndex}/mustShow/0`;
+      const value =
+        frame.frameKind === 'cover'
+          ? template.coverContract.mustShow[0]
+          : template.pageContracts[pageIndex].mustShow[0];
+      requirement.visualBeats = [
+        {
+          id: `beat:${frame.frameKind}:${frame.pageNumber}:${requirementIndex}`,
+          description: `Reviewed visual meaning for ${frame.frameKind} ${frame.pageNumber}`,
+          aspects: ['narrative_meaning'],
+          disposition: 'preserved',
+          contractEvidence: [{ path, value }],
+          justification: null,
+          supersessionReview: null,
+        },
+      ];
+    }
+  }
+  return reconciliation;
 }
 
 function cameraAffordance(frameId: string, zoneId: string): BlueprintSpatialAffordance {
@@ -613,24 +639,38 @@ function makeWorldAndFrames(
 export function buildBlueprintFixture(shape: BlueprintFixtureShape): BlueprintFixture {
   const plan = shapePlans[shape];
   const template = makeTemplate(plan);
-  const source = makeSource(plan);
+  const rawStorySource = makeRawStorySource(plan);
+  const source = makeSource(plan, rawStorySource);
   const templateIdentity: VisualPackageTemplateIdentity = {
     artifactPath: `fixtures/${plan.storyKey}.visual-contract-template.json`,
     digestAlgorithm: 'canonical-json-sha256',
     digest: canonicalJsonDigest(template),
     schemaVersion: template.schemaVersion,
   };
-  const visualPackage = makeManifest(plan, source, templateIdentity);
-  const visualPackageArtifactPath = `fixtures/${plan.storyKey}.visual-package.json`;
+  const reconciliation = makeReconciliation(plan, source, template);
+  const reconciliationArtifactPath =
+    `fixtures/${plan.storyKey}.visual-contract-reconciliation.json`;
+  const style: PreRenderBlueprintStyleAuthority = {
+    styleId: 'fixture_storybook_style',
+    artifactPath: 'fixtures/styles/fixture_storybook_style.json',
+    digestAlgorithm: 'canonical-json-sha256',
+    digest: canonicalJsonDigest({
+      styleId: 'fixture_storybook_style',
+      renderingContract: 'stable fixture storybook rendering contract',
+    }),
+  };
+  const authoringAuthority = buildPreRenderBlueprintAuthoringAuthority({
+    storyKey: plan.storyKey,
+    source,
+    template: templateIdentity,
+    reconciliation,
+    reconciliationArtifactPath,
+    style,
+  });
   const world = makeWorldAndFrames(plan, template);
   const blueprint = finalizePreRenderBookVisualBlueprint({
     version: PRE_RENDER_BOOK_VISUAL_BLUEPRINT_VERSION,
-    identity: buildPreRenderBlueprintIdentity({
-      source,
-      template: templateIdentity,
-      visualPackage,
-      visualPackageArtifactPath,
-    }),
+    identity: buildPreRenderBlueprintIdentity({ authority: authoringAuthority }),
     visualContract: template,
     worldPlan: {
       connections: world.connections,
@@ -643,9 +683,12 @@ export function buildBlueprintFixture(shape: BlueprintFixtureShape): BlueprintFi
     blueprint,
     context: {
       source,
+      rawStorySource,
       template,
-      visualPackage,
-      visualPackageArtifactPath,
+      templateIdentity,
+      reconciliation,
+      reconciliationArtifactPath,
+      style,
     },
   };
 }

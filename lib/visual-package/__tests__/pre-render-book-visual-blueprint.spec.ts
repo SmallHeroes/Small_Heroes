@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   PRE_RENDER_BOOK_VISUAL_BLUEPRINT_VERSION,
   assertValidPreRenderBookVisualBlueprint,
+  buildPreRenderBlueprintAuthoringAuthority,
   buildPreRenderBlueprintIdentity,
   computePreRenderBookVisualBlueprintDigest,
   finalizePreRenderBookVisualBlueprint,
@@ -13,6 +14,7 @@ import {
   type PreRenderBookVisualBlueprint,
 } from '@/lib/visual-package';
 import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
+import { buildSourcePromptProjectionDigest } from '@/lib/visual-package/sourcePromptReconciliation';
 import {
   projectCoverMustNotShow,
   projectPageMustNotShow,
@@ -63,16 +65,29 @@ function rebindEmbeddedAuthority(args: {
   const blueprint = clone(args.blueprint);
   const context = clone(args.context);
   context.template = clone(blueprint.visualContract);
-  context.visualPackage.template = {
-    ...context.visualPackage.template,
+  context.templateIdentity = {
+    ...context.templateIdentity,
     digest: canonicalJsonDigest(context.template),
     schemaVersion: context.template.schemaVersion,
   };
+  context.reconciliation.templateDigest = context.templateIdentity.digest;
+  context.reconciliation.templateSchemaVersion = context.template.schemaVersion;
+  for (const frame of context.reconciliation.frames) {
+    frame.contractProjectionDigest = buildSourcePromptProjectionDigest(
+      context.template,
+      frame.frameKind,
+      frame.pageNumber,
+    );
+  }
   blueprint.identity = buildPreRenderBlueprintIdentity({
-    source: context.source,
-    template: context.visualPackage.template,
-    visualPackage: context.visualPackage,
-    visualPackageArtifactPath: blueprint.identity.visualPackage.artifactPath,
+    authority: buildPreRenderBlueprintAuthoringAuthority({
+      storyKey: blueprint.identity.storyKey,
+      source: context.source,
+      template: context.templateIdentity,
+      reconciliation: context.reconciliation,
+      reconciliationArtifactPath: context.reconciliationArtifactPath,
+      style: context.style,
+    }),
   });
   return {
     blueprint: restamp(blueprint),
@@ -776,24 +791,30 @@ describe('R1D-PVB-A — coverage, references, and deterministic authority', () =
       },
     },
     {
-      name: 'missing identity.source',
+      name: 'missing identity.authoringAuthority',
       restampable: true,
       mutate: (blueprint) => {
-        delete (blueprint.identity as unknown as { source?: unknown }).source;
+        delete (blueprint.identity as unknown as { authoringAuthority?: unknown })
+          .authoringAuthority;
       },
     },
     {
-      name: 'missing identity.template',
+      name: 'missing identity.authoringAuthority.source',
       restampable: true,
       mutate: (blueprint) => {
-        delete (blueprint.identity as unknown as { template?: unknown }).template;
+        delete (blueprint.identity.authoringAuthority as unknown as { source?: unknown })
+          .source;
       },
     },
     {
-      name: 'missing identity.visualPackage',
+      name: 'missing identity.authoringAuthority.visualContract',
       restampable: true,
       mutate: (blueprint) => {
-        delete (blueprint.identity as unknown as { visualPackage?: unknown }).visualPackage;
+        delete (
+          blueprint.identity.authoringAuthority as unknown as {
+            visualContract?: unknown;
+          }
+        ).visualContract;
       },
     },
     {
@@ -1390,7 +1411,7 @@ describe('R1D-PVB-A — reveal lifecycle and staleness', () => {
     expect(codes).not.toContain('template_stale');
   });
 
-  it('becomes stale when the current Story Source, template, or visual package changes', () => {
+  it('becomes stale on exact source, contract, reconciliation, or style content changes', () => {
     const fixture = buildBlueprintFixture('single_location');
 
     const sourceContext = clone(fixture.context);
@@ -1401,9 +1422,45 @@ describe('R1D-PVB-A — reveal lifecycle and staleness', () => {
     templateContext.template.worldType = 'changed_world';
     expect(issueCodes(fixture.blueprint, templateContext)).toContain('template_stale');
 
-    const packageContext = clone(fixture.context);
-    packageContext.visualPackage.candidateEvidence.reviewDigest = 'changed-review';
-    expect(issueCodes(fixture.blueprint, packageContext)).toContain('package_stale');
+    const reconciliationContext = clone(fixture.context);
+    reconciliationContext.reconciliation.frames[0].sourceRequirements[0].visualBeats[0]
+      .description = 'changed reconciliation meaning';
+    expect(issueCodes(fixture.blueprint, reconciliationContext)).toContain(
+      'reconciliation_stale',
+    );
+
+    const styleContext = clone(fixture.context);
+    styleContext.style.digest = 'b'.repeat(64);
+    expect(issueCodes(fixture.blueprint, styleContext)).toContain('style_stale');
+  });
+
+  it('does not stale stable authoring authority on reconciliation review lifecycle changes', () => {
+    const fixture = buildBlueprintFixture('single_location');
+    const lifecycleOnly = clone(fixture.context);
+    lifecycleOnly.reconciliation.review.reviewedBy = 'Another Reviewer';
+    lifecycleOnly.reconciliation.review.reviewedAt = '2026-07-26T12:34:56.000Z';
+
+    expect(issueCodes(fixture.blueprint, lifecycleOnly)).toEqual([]);
+  });
+
+  it('requires approved, fully resolved reconciliation independently of stable identity', () => {
+    const fixture = buildBlueprintFixture('single_location');
+    const pending = clone(fixture.context);
+    pending.reconciliation.review = {
+      status: 'pending',
+      reviewedBy: null,
+      reviewedAt: null,
+    };
+    expect(issueCodes(fixture.blueprint, pending)).toContain(
+      'reconciliation_unapproved',
+    );
+
+    const unresolved = clone(fixture.context);
+    unresolved.reconciliation.frames[0].sourceRequirements[0].visualBeats[0]
+      .disposition = 'unresolved';
+    expect(issueCodes(fixture.blueprint, unresolved)).toContain(
+      'reconciliation_unresolved',
+    );
   });
 
   it('provides a fail-closed assertion API', () => {

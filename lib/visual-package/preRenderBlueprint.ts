@@ -12,13 +12,19 @@ import type {
 } from '@/lib/visual-contract-compiler/types';
 import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler/contractTemplateTypes';
 import { validateBookVisualContractTemplate } from '@/lib/visual-contract-compiler/validateTemplateContract';
+import { parseStorySourceContent } from '@/lib/visual-contract-compiler/storySourceContent';
 
-import { basicManifestIssues } from './artifacts';
-import { canonicalJsonDigest } from './integrity';
+import { canonicalJsonDigest, normalizedTextDigest } from './integrity';
 import {
+  sourcePromptReconciliationIssues,
+  type SourcePromptReconciliation,
+} from './sourcePromptReconciliation';
+import {
+  PRE_RENDER_BLUEPRINT_AUTHORING_AUTHORITY_VERSION,
   PRE_RENDER_BLUEPRINT_COORDINATE_SPACE,
   PRE_RENDER_BLUEPRINT_DIGEST_ALGORITHM,
   PRE_RENDER_BLUEPRINT_PORTRAIT_ASPECT_RATIO,
+  PRE_RENDER_BLUEPRINT_RECONCILIATION_DIGEST_ALGORITHM,
   PRE_RENDER_BOOK_VISUAL_BLUEPRINT_VERSION,
   InvalidPreRenderBookVisualBlueprintError,
   type BlueprintAffordanceConsumer,
@@ -27,10 +33,12 @@ import {
   type BlueprintSpatialAffordance,
   type BlueprintWorldConnection,
   type PortraitBlueprintFrame,
+  type PreRenderBlueprintAuthoringAuthority,
   type PreRenderBlueprintIdentity,
   type PreRenderBlueprintIssue,
   type PreRenderBlueprintIssueCode,
-  type PreRenderBlueprintPackageIdentity,
+  type PreRenderBlueprintReconciliationAuthority,
+  type PreRenderBlueprintStyleAuthority,
   type PreRenderBlueprintValidationContext,
   type PreRenderBlueprintValidationResult,
   type PreRenderBookVisualBlueprint,
@@ -39,7 +47,6 @@ import {
 } from './preRenderBlueprintTypes';
 import type {
   StorySourceIdentity,
-  VisualPackageManifest,
   VisualPackageTemplateIdentity,
 } from './types';
 
@@ -234,35 +241,113 @@ export function finalizePreRenderBookVisualBlueprint(
   };
 }
 
-export function buildPreRenderBlueprintPackageIdentity(args: {
+function reconciliationSemanticProjection(
+  reconciliation: SourcePromptReconciliation,
+): unknown {
+  const { review: _review, ...stable } = normalizedClone(reconciliation);
+  return {
+    ...stable,
+    frames: Array.isArray(stable.frames)
+      ? stable.frames.map((frame) => ({
+          ...frame,
+          sourceRequirements: Array.isArray(frame.sourceRequirements)
+            ? frame.sourceRequirements.map((requirement) => ({
+                ...requirement,
+                visualBeats: Array.isArray(requirement.visualBeats)
+                  ? requirement.visualBeats.map((beat) => {
+                      const {
+                        supersessionReview: _supersessionReview,
+                        ...stableBeat
+                      } = beat;
+                      return stableBeat;
+                    })
+                  : requirement.visualBeats,
+              }))
+            : frame.sourceRequirements,
+        }))
+      : stable.frames,
+  };
+}
+
+/** Stable semantic reconciliation digest; review identities, state, and timestamps are deliberately excluded. */
+export function computePreRenderBlueprintReconciliationDigest(
+  reconciliation: SourcePromptReconciliation,
+): string {
+  return canonicalJsonDigest(reconciliationSemanticProjection(reconciliation));
+}
+
+export function buildPreRenderBlueprintReconciliationAuthority(args: {
   artifactPath: string;
-  manifest: VisualPackageManifest;
-}): PreRenderBlueprintPackageIdentity {
+  reconciliation: SourcePromptReconciliation;
+}): PreRenderBlueprintReconciliationAuthority {
   return {
     artifactPath: args.artifactPath,
+    digestAlgorithm: PRE_RENDER_BLUEPRINT_RECONCILIATION_DIGEST_ALGORITHM,
+    digest: computePreRenderBlueprintReconciliationDigest(args.reconciliation),
+    version: args.reconciliation.version,
+    projectionVersion: args.reconciliation.projectionVersion,
+  };
+}
+
+function authoringAuthorityDigestPayload(
+  authority: Omit<
+    PreRenderBlueprintAuthoringAuthority,
+    'digestAlgorithm' | 'digest'
+  >,
+): Omit<PreRenderBlueprintAuthoringAuthority, 'digestAlgorithm' | 'digest'> {
+  return normalizedClone(authority);
+}
+
+export function computePreRenderBlueprintAuthoringAuthorityDigest(
+  authority:
+    | PreRenderBlueprintAuthoringAuthority
+    | Omit<PreRenderBlueprintAuthoringAuthority, 'digestAlgorithm' | 'digest'>,
+): string {
+  const {
+    digestAlgorithm: _digestAlgorithm,
+    digest: _digest,
+    ...payload
+  } = authority as PreRenderBlueprintAuthoringAuthority;
+  return canonicalJsonDigest(authoringAuthorityDigestPayload(payload));
+}
+
+export function buildPreRenderBlueprintAuthoringAuthority(args: {
+  storyKey: string;
+  source: StorySourceIdentity;
+  template: VisualPackageTemplateIdentity;
+  reconciliation: SourcePromptReconciliation;
+  reconciliationArtifactPath: string;
+  style: PreRenderBlueprintStyleAuthority;
+}): PreRenderBlueprintAuthoringAuthority {
+  const payload = {
+    version: PRE_RENDER_BLUEPRINT_AUTHORING_AUTHORITY_VERSION,
+    storyKey: args.storyKey,
+    styleId: args.style.styleId,
+    source: normalizedClone(args.source),
+    visualContract: normalizedClone(args.template),
+    reconciliation: buildPreRenderBlueprintReconciliationAuthority({
+      artifactPath: args.reconciliationArtifactPath,
+      reconciliation: args.reconciliation,
+    }),
+    style: normalizedClone(args.style),
+  } satisfies Omit<
+    PreRenderBlueprintAuthoringAuthority,
+    'digestAlgorithm' | 'digest'
+  >;
+  return {
+    ...payload,
     digestAlgorithm: PRE_RENDER_BLUEPRINT_DIGEST_ALGORITHM,
-    digest: canonicalJsonDigest(args.manifest),
-    manifestVersion: args.manifest.manifestVersion,
-    storyKey: args.manifest.storyKey,
-    styleId: args.manifest.styleId,
+    digest: computePreRenderBlueprintAuthoringAuthorityDigest(payload),
   };
 }
 
 export function buildPreRenderBlueprintIdentity(args: {
-  source: StorySourceIdentity;
-  template: VisualPackageTemplateIdentity;
-  visualPackage: VisualPackageManifest;
-  visualPackageArtifactPath: string;
+  authority: PreRenderBlueprintAuthoringAuthority;
 }): PreRenderBlueprintIdentity {
   return {
-    storyKey: args.visualPackage.storyKey,
-    styleId: args.visualPackage.styleId,
-    source: normalizedClone(args.source),
-    template: normalizedClone(args.template),
-    visualPackage: buildPreRenderBlueprintPackageIdentity({
-      artifactPath: args.visualPackageArtifactPath,
-      manifest: args.visualPackage,
-    }),
+    storyKey: args.authority.storyKey,
+    styleId: args.authority.styleId,
+    authoringAuthority: normalizedClone(args.authority),
   };
 }
 
@@ -558,123 +643,196 @@ function validateIdentity(
     return;
   }
   const identityRaw = raw.identity;
-  const sourceIdentity = isObj(identityRaw.source) ? identityRaw.source : null;
-  const templateIdentity = isObj(identityRaw.template) ? identityRaw.template : null;
-  const packageIdentity = isObj(identityRaw.visualPackage)
-    ? identityRaw.visualPackage
+  const authorityRaw = isObj(identityRaw.authoringAuthority)
+    ? identityRaw.authoringAuthority
     : null;
-  if (!sourceIdentity) {
-    issues.push(issue('schema_invalid', 'identity.source must be an object', {
-      field: 'identity.source',
+  if (!authorityRaw) {
+    issues.push(issue('schema_invalid', 'identity.authoringAuthority must be an object', {
+      field: 'identity.authoringAuthority',
     }));
+    return;
   }
-  if (!templateIdentity) {
-    issues.push(issue('schema_invalid', 'identity.template must be an object', {
-      field: 'identity.template',
-    }));
-  }
-  if (!packageIdentity) {
-    issues.push(issue('schema_invalid', 'identity.visualPackage must be an object', {
-      field: 'identity.visualPackage',
-    }));
-  }
-  const expectedPackage = buildPreRenderBlueprintPackageIdentity({
-    artifactPath: context.visualPackageArtifactPath,
-    manifest: context.visualPackage,
-  });
+
   const contextTemplateDigest = canonicalJsonDigest(context.template);
   const embeddedTemplateDigest = canonicalJsonDigest(blueprint.visualContract);
+  const contextStoryKey = isStr(context.template.storyKey)
+    ? context.template.storyKey
+    : '';
+  const expectedAuthority = buildPreRenderBlueprintAuthoringAuthority({
+    storyKey: contextStoryKey,
+    source: context.source,
+    template: context.templateIdentity,
+    reconciliation: context.reconciliation,
+    reconciliationArtifactPath: context.reconciliationArtifactPath,
+    style: context.style,
+  });
 
   if (
-    identityRaw.storyKey !== context.visualPackage.storyKey ||
-    identityRaw.storyKey !== context.template.storyKey ||
+    identityRaw.storyKey !== contextStoryKey ||
     identityRaw.storyKey !== blueprint.visualContract.storyKey ||
-    identityRaw.styleId !== context.visualPackage.styleId
+    identityRaw.styleId !== context.style.styleId ||
+    authorityRaw.storyKey !== contextStoryKey ||
+    authorityRaw.styleId !== context.style.styleId
   ) {
     issues.push(
-      issue('identity_mismatch', 'story/style identities disagree across blueprint, template, and package', {
+      issue('identity_mismatch', 'story/style identities disagree across Blueprint authoring inputs', {
         field: 'identity',
       }),
     );
   }
 
-  if (!sourceIdentity || !sameCanonical(sourceIdentity, context.source)) {
-    issues.push(
-      issue('source_stale', 'blueprint Story Source identity is not the current authoritative source', {
-        field: 'identity.source',
-        expected: context.source,
-        actual: identityRaw.source,
-      }),
-    );
-  }
-  if (!sameCanonical(context.visualPackage.source, context.source)) {
-    issues.push(
-      issue('source_stale', 'current visual package is not bound to the current Story Source', {
-        field: 'visualPackage.source',
-        expected: context.source,
-        actual: context.visualPackage.source,
-      }),
-    );
+  let parsedSourceIdentityIsCurrent = false;
+  try {
+    const parsed = parseStorySourceContent(context.rawStorySource);
+    parsedSourceIdentityIsCurrent =
+      context.source.digest === normalizedTextDigest(context.rawStorySource) &&
+      context.source.pageCount === parsed.pages.length &&
+      sameCanonical(
+        context.source.pageNumbers,
+        parsed.pages.map((page) => page.pageNumber),
+      );
+  } catch {
+    parsedSourceIdentityIsCurrent = false;
   }
   if (
-    !templateIdentity ||
-    !sameCanonical(templateIdentity, context.visualPackage.template) ||
-    templateIdentity.digest !== contextTemplateDigest ||
+    !parsedSourceIdentityIsCurrent ||
+    !isObj(authorityRaw.source) ||
+    !sameCanonical(authorityRaw.source, context.source)
+  ) {
+    issues.push(
+      issue('source_stale', 'blueprint Story Source identity is not the current authoritative source', {
+        field: 'identity.authoringAuthority.source',
+        expected: context.source,
+        actual: authorityRaw.source,
+      }),
+    );
+  }
+
+  if (
+    !isObj(authorityRaw.visualContract) ||
+    !sameCanonical(authorityRaw.visualContract, context.templateIdentity) ||
+    context.templateIdentity.digest !== contextTemplateDigest ||
     embeddedTemplateDigest !== contextTemplateDigest
   ) {
     issues.push(
-      issue('template_stale', 'blueprint template identity/content is not the current package template', {
-        field: 'identity.template',
+      issue('template_stale', 'blueprint Visual Contract identity/content is not current', {
+        field: 'identity.authoringAuthority.visualContract',
         expected: {
-          identity: context.visualPackage.template,
+          identity: context.templateIdentity,
           digest: contextTemplateDigest,
         },
         actual: {
-          identity: identityRaw.template,
+          identity: authorityRaw.visualContract,
           embeddedDigest: embeddedTemplateDigest,
         },
       }),
     );
   }
-  if (!packageIdentity || !sameCanonical(packageIdentity, expectedPackage)) {
+
+  const reconciliationIssues = sourcePromptReconciliationIssues({
+    raw: context.reconciliation,
+    storyKey: contextStoryKey,
+    sourceIdentity: context.source,
+    rawStorySource: context.rawStorySource,
+    template: context.template,
+    templateDigest: contextTemplateDigest,
+    authoredCoverAuthority: context.authoredCoverAuthority,
+    requireComplete: true,
+  });
+  for (const reconciliationIssue of reconciliationIssues) {
+    const code: PreRenderBlueprintIssueCode =
+      /unresolved/i.test(reconciliationIssue.message)
+        ? 'reconciliation_unresolved'
+        : reconciliationIssue.field === 'review' ||
+            /human review|supersession lacks valid.*review/i.test(reconciliationIssue.message)
+          ? 'reconciliation_unapproved'
+          : 'reconciliation_stale';
     issues.push(
-      issue('package_stale', 'blueprint visual-package identity/digest is stale or mismatched', {
-        field: 'identity.visualPackage',
-        expected: expectedPackage,
-        actual: identityRaw.visualPackage,
+      issue(code, reconciliationIssue.message, {
+        field: reconciliationIssue.field ?? 'identity.authoringAuthority.reconciliation',
+        expected: reconciliationIssue.expected,
+        actual: reconciliationIssue.actual,
       }),
     );
   }
-  if (context.visualPackage.template.digest !== contextTemplateDigest) {
+  if (
+    !isObj(authorityRaw.reconciliation) ||
+    !sameCanonical(authorityRaw.reconciliation, expectedAuthority.reconciliation)
+  ) {
     issues.push(
-      issue('template_stale', 'current package template digest does not match current template content', {
-        field: 'visualPackage.template.digest',
-        expected: contextTemplateDigest,
-        actual: context.visualPackage.template.digest,
-      }),
-    );
-  }
-  const manifestIssues = basicManifestIssues(context.visualPackage);
-  if (manifestIssues.length > 0) {
-    issues.push(
-      issue('package_stale', 'current visual package is structurally invalid', {
-        field: 'visualPackage',
-        actual: manifestIssues,
+      issue('reconciliation_stale', 'blueprint reconciliation semantic authority changed', {
+        field: 'identity.authoringAuthority.reconciliation',
+        expected: expectedAuthority.reconciliation,
+        actual: authorityRaw.reconciliation,
       }),
     );
   }
 
   if (
-    !isStr(sourceIdentity?.digest) ||
-    !HEX_SHA256.test(sourceIdentity.digest) ||
-    !isStr(templateIdentity?.digest) ||
-    !HEX_SHA256.test(templateIdentity.digest) ||
-    !isStr(packageIdentity?.digest) ||
-    !HEX_SHA256.test(packageIdentity.digest)
+    !isObj(authorityRaw.style) ||
+    !sameCanonical(authorityRaw.style, context.style)
   ) {
     issues.push(
-      issue('schema_invalid', 'source/template/package digests must be lowercase SHA-256 hex', {
-        field: 'identity',
+      issue('style_stale', 'blueprint style identity/content digest changed', {
+        field: 'identity.authoringAuthority.style',
+        expected: context.style,
+        actual: authorityRaw.style,
+      }),
+    );
+  }
+
+  if (
+    authorityRaw.version !== PRE_RENDER_BLUEPRINT_AUTHORING_AUTHORITY_VERSION ||
+    authorityRaw.digestAlgorithm !== PRE_RENDER_BLUEPRINT_DIGEST_ALGORITHM ||
+    !isStr(authorityRaw.digest) ||
+    !HEX_SHA256.test(authorityRaw.digest)
+  ) {
+    issues.push(
+      issue('schema_invalid', 'authoring authority version/digest metadata is invalid', {
+        field: 'identity.authoringAuthority',
+      }),
+    );
+  } else {
+    const computedAuthorityDigest =
+      computePreRenderBlueprintAuthoringAuthorityDigest(
+        authorityRaw as unknown as PreRenderBlueprintAuthoringAuthority,
+      );
+    if (authorityRaw.digest !== computedAuthorityDigest) {
+      issues.push(
+        issue(
+          'authoring_authority_mismatch',
+          'authoring authority content does not match its digest',
+          {
+            field: 'identity.authoringAuthority.digest',
+            expected: computedAuthorityDigest,
+            actual: authorityRaw.digest,
+          },
+        ),
+      );
+    }
+  }
+
+  if (!sameCanonical(authorityRaw, expectedAuthority)) {
+    issues.push(
+      issue('authoring_authority_mismatch', 'blueprint authoring authority is not the current stable authority', {
+        field: 'identity.authoringAuthority',
+        expected: expectedAuthority,
+        actual: authorityRaw,
+      }),
+    );
+  }
+
+  const requiredDigests = [
+    context.source.digest,
+    context.templateIdentity.digest,
+    context.style.digest,
+    expectedAuthority.reconciliation.digest,
+    expectedAuthority.digest,
+  ];
+  if (!requiredDigests.every((digest) => HEX_SHA256.test(digest))) {
+    issues.push(
+      issue('schema_invalid', 'source/contract/reconciliation/style/authority digests must be lowercase SHA-256 hex', {
+        field: 'identity.authoringAuthority',
       }),
     );
   }
