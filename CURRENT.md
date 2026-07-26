@@ -1,12 +1,19 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-07-26
+**Updated:** 2026-07-27
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-b-authoring-lifecycle` in `C:\Users\guyna\.codex\worktrees\bcbd\Small_Heroes`, based exactly on approved PVB-A SHA `cd0a6c836a917d20d848558a88f649e486d76be1`. `R1D-PVB-B — General Blueprint Authoring, Review, Persistence and Approval Lifecycle` is implemented in focused commits `24d94117` (authority inversion and v2), `ae942d53` (whole-book offline authoring), `8382db61` (immutable lifecycle/review/approval), and the final fail-closed provenance hardening commit identified in the handoff. This worktree is the sole writer pending independent first-pass QA. The frozen PVB-A worktree `C:\Users\guyna\.codex\worktrees\ea3d\Small_Heroes`, the Fox Board worktree `C:\Users\guyna\.codex\worktrees\0d94\Small_Heroes`, and every other branch/worktree remain read-only.
+**Working branch:** `codex/r1d-pvb-b-authoring-lifecycle` in `C:\Users\guyna\.codex\worktrees\bcbd\Small_Heroes`, based exactly on approved PVB-A SHA `cd0a6c836a917d20d848558a88f649e486d76be1`. `R1D-PVB-B — General Blueprint Authoring, Review, Persistence and Approval Lifecycle` is implemented in focused commits `24d94117` (authority inversion and v2), `ae942d53` (whole-book offline authoring), `8382db61` (immutable lifecycle/review/approval), and `e593df55` (fail-closed provenance hardening). Claude Code independently returned technical **PASS** with zero BLOCKER, MAJOR, or MINOR for exact immutable implementation range `cd0a6c836a917d20d848558a88f649e486d76be1..e593df55d811ed23962320d5ddb8ea3a0d99b2c1`. This worktree is the sole writer for this documentation-only closeout. The frozen PVB-A worktree `C:\Users\guyna\.codex\worktrees\ea3d\Small_Heroes`, the Fox Board worktree `C:\Users\guyna\.codex\worktrees\0d94\Small_Heroes`, and every other branch/worktree remain read-only.
 
-## R1D-PVB-B — implementation complete; awaiting independent technical QA
+## R1D-PVB-B — independent technical QA PASS
 
-Guy approved the general PVB-B architecture and product boundaries. The implementation corrects PVB-A's downstream dependency inversion, adds one strict whole-book authoring path with an injected offline caller, and implements separate immutable candidate/provenance/validation/review/approval artifacts. This record makes no independent technical PASS claim; Claude Code must first review the exact final base-to-head range identified in the handoff.
+Claude Code independently reconciled and reviewed exact immutable implementation range `cd0a6c836a917d20d848558a88f649e486d76be1..e593df55d811ed23962320d5ddb8ea3a0d99b2c1` and returned technical **PASS**: zero BLOCKER, MAJOR, or MINOR, with five NOTE-level observations only. This PASS belongs to Claude Code, not Codex, and is limited to the reviewed PVB-B implementation range.
+
+### Independent verification
+
+- Claude Code reviewed the stable v2 authority inversion, whole-book offline authoring, deterministic overlay, bounded repair/provenance contract, immutable local lifecycle, review surfaces, exact-digest Guy approval semantics, general five-shape fixtures, failure recovery, and provider/runtime isolation without falsifying an implementation claim.
+- The reviewed evidence included the focused PVB v2/authoring/lifecycle result (**3 files / 115 tests**), broader PVB/Visual Package regression result (**7 files / 159 tests**), TypeScript and boundary-scan PASS, final full-suite separation of six unchanged missing ignored-output fixtures from two independently passing scanner timeouts, and the isolated scanner result (**11/11 tests**).
+- The reviewed worktree, branch, base, and head matched the handoff. PVB-A and Fox Board worktrees remained outside the implementation range and read-only.
+- The PASS is not product or visual acceptance, a real Blueprint approval, Board mint authority, image/render acceptance, Visual Package approval/promotion, runtime cutover, deployment, release, or push acceptance.
 
 ### Stable v2 authoring authority
 
@@ -37,7 +44,18 @@ Guy approved the general PVB-B architecture and product boundaries. The implemen
 - Final literal `npm run check`: TypeScript **PASS**; Vitest reported **8 failed tests**. Six are the unchanged absent ignored-output fixture baseline in `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and two `story-read-back-validation.spec.ts` cases. Two were repository-scanner 5-second timeouts under full-suite contention: one delivery-input writer scan and one asset-safety writer scan. Both affected scanner files passed independently — **11/11 tests**. Every PVB-B test, including the final provenance regression, passed under full-suite load.
 - No missing ignored-output fixture was copied or fabricated. The four ordinary ignored scratch artifacts created by the full run were absent before the run and were removed afterward from their two exact test directories.
 - No live authoring/model/LLM call, render, OpenAI/provider/Vision/fetch/network/credential use, Supabase/storage/database operation, Board action, real approval, Visual Package promotion, runtime storyboard/Director/prompt/fallback cutover, production qualification, deployment, push, or branch/worktree cleanup occurred.
-- PVB-C remains the separate Decision Gate that must make production Visual Package/runtime consumers project from an approved Blueprint and remove parallel truths. Next action: Claude Code performs a first-pass **READ-ONLY** adversarial review of the exact immutable PVB-B range. Guy retains product, visual, approval, launch, and push authority.
+
+### Independent NOTE dispositions
+
+- **Lenient shared timestamp parsing:** the shared `Date.parse`-based timestamp validator accepts some parseable non-strict ISO forms. This is pre-existing and non-blocking for PVB-B. Track a general strict-timestamp policy rather than patching this closed range.
+- **Contact-sheet class/style interpolation:** persistable and approvable paths feed interpolation only enum and bounded-integer content already validated by the Blueprint validator. The residual invalid in-memory rendering observation is NOTE-level and requires no current correction.
+- **Markdown/contact-sheet address naming:** those content addresses hash the canonical JSON string representation of the rendered string rather than its raw bytes. The mapping remains deterministic, injective, and no-overwrite-safe; this is naming semantics only.
+- **Hand-built non-normalized Blueprint collision:** a non-normalized manually assembled Blueprint can fail closed on re-persist collision. The case is unreachable through the canonical finalizer/authoring path and never overwrites content; no compatibility fallback or correction is warranted.
+- **Additional lifecycle/isolation assertions:** dedicated `supersessionReview` lifecycle-stability and deeper committed transitive-isolation regression assertions would strengthen coverage. Track them as non-blocking hardening for the next relevant zero-cost gate; do not reopen or patch this independently passed range.
+
+### Scope and next gate
+
+- PVB-C remains the separate Decision Gate that must make production Visual Package/runtime consumers project from an approved Blueprint and remove parallel truths. Guy retains product, visual, real approval, launch, release, and push authority.
 
 ## R1D-PVB-A — independent technical QA PASS
 
