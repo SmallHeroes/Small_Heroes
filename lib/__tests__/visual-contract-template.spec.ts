@@ -19,6 +19,9 @@ import {
   VISUAL_CONTRACT_SCHEMA_VERSION,
   MATERIALIZER_VERSION,
   PALETTE_VERSION,
+  projectCoverMustNotShow,
+  projectPageMustShow,
+  type BookVisualContract,
 } from '@/lib/visual-contract-compiler';
 
 type Obj = Record<string, unknown>;
@@ -136,6 +139,178 @@ function resolvedFixture(): Obj {
   });
 }
 
+function validRecurringProp(id: string, firstRevealPage?: number): Obj {
+  return {
+    id,
+    name: `Prop ${id}`,
+    description: `Stable description for ${id}`,
+    ...(firstRevealPage === undefined ? {} : { firstRevealPage }),
+  };
+}
+
+const templateTotalityCases: Array<{
+  name: string;
+  expected: string;
+  mutate: (template: Obj) => void;
+}> = [
+  {
+    name: 'omitted humanCast',
+    expected: 'humanCast must be an array',
+    mutate: (template) => {
+      delete template.humanCast;
+    },
+  },
+  {
+    name: 'non-array humanCast',
+    expected: 'humanCast must be an array',
+    mutate: (template) => {
+      template.humanCast = 'invalid';
+    },
+  },
+  {
+    name: 'humanCast [null]',
+    expected: 'humanCast[0] must be an object',
+    mutate: (template) => {
+      template.humanCast = [null];
+    },
+  },
+  {
+    name: 'humanCast [undefined]',
+    expected: 'humanCast[0] must be an object',
+    mutate: (template) => {
+      template.humanCast = [undefined];
+    },
+  },
+  {
+    name: 'humanCast [{}]',
+    expected: 'humanCast[0]',
+    mutate: (template) => {
+      template.humanCast = [{}];
+    },
+  },
+  {
+    name: 'humanCast valid plus null',
+    expected: 'humanCast[2] must be an object',
+    mutate: (template) => {
+      template.humanCast = [...(template.humanCast as unknown[]), null];
+    },
+  },
+  {
+    name: 'humanCast mixed scalar and object entries',
+    expected: 'humanCast[2] must be an object',
+    mutate: (template) => {
+      template.humanCast = [...(template.humanCast as unknown[]), 'invalid', {}];
+    },
+  },
+  {
+    name: 'recurringProps [null]',
+    expected: 'recurringProps[0] must be an object',
+    mutate: (template) => {
+      template.recurringProps = [null];
+    },
+  },
+  {
+    name: 'recurringProps [{}]',
+    expected: 'recurringProps[0]',
+    mutate: (template) => {
+      template.recurringProps = [{}];
+    },
+  },
+  {
+    name: 'recurringProps valid plus null',
+    expected: 'recurringProps[1] must be an object',
+    mutate: (template) => {
+      template.recurringProps = [validRecurringProp('plain'), null];
+    },
+  },
+  {
+    name: 'recurringProps null plus valid',
+    expected: 'recurringProps[0] must be an object',
+    mutate: (template) => {
+      template.recurringProps = [null, validRecurringProp('plain')];
+    },
+  },
+  {
+    name: 'recurringProps mixed scalars with valid prop',
+    expected: 'recurringProps[1] must be an object',
+    mutate: (template) => {
+      template.recurringProps = [validRecurringProp('plain'), 'invalid', 7];
+    },
+  },
+  {
+    name: 'recurringProps lifecycle and non-lifecycle neighbors around null',
+    expected: 'recurringProps[1] must be an object',
+    mutate: (template) => {
+      template.recurringProps = [
+        validRecurringProp('future', 2),
+        null,
+        validRecurringProp('plain'),
+      ];
+    },
+  },
+  {
+    name: 'garments [null]',
+    expected: 'garments[0] must be an object',
+    mutate: (template) => {
+      (template.humanCast as Obj[])[0].garments = [null];
+    },
+  },
+  {
+    name: 'garments [{}]',
+    expected: 'garments[0].id missing',
+    mutate: (template) => {
+      (template.humanCast as Obj[])[0].garments = [{}];
+    },
+  },
+  {
+    name: 'garments mixed valid and invalid entries',
+    expected: 'garments[1] must be an object',
+    mutate: (template) => {
+      const member = (template.humanCast as Obj[])[0];
+      member.garments = [
+        ...((member.garments as unknown[]) ?? []),
+        null,
+        'invalid',
+      ];
+    },
+  },
+  {
+    name: 'locations mixed valid and null',
+    expected: 'locations[1] must be an object',
+    mutate: (template) => {
+      template.locations = [(template.locations as unknown[])[0], null];
+    },
+  },
+  {
+    name: 'zones mixed valid and null',
+    expected: 'zones[2] must be an object',
+    mutate: (template) => {
+      template.zones = [...(template.zones as unknown[]), null];
+    },
+  },
+  {
+    name: 'pageContracts mixed valid and null',
+    expected: 'pageContracts[2] must be an object',
+    mutate: (template) => {
+      template.pageContracts = [...(template.pageContracts as unknown[]), null];
+    },
+  },
+  {
+    name: 'forbiddenGlobalElements mixed string and null',
+    expected: 'forbiddenGlobalElements[1] must be a string',
+    mutate: (template) => {
+      template.forbiddenGlobalElements = ['valid exclusion', null];
+    },
+  },
+  {
+    name: 'setBoardAuthorities [null]',
+    expected: 'setBoardAuthorities[0] must be an object',
+    mutate: (template) => {
+      template.setBoardAuthorities = [null];
+    },
+  },
+];
+
 describe('P0 — Template validator', () => {
   it('accepts a well-formed template', () => {
     const r = validateBookVisualContractTemplate(templateFixture());
@@ -183,7 +358,84 @@ describe('P0 — Template validator', () => {
     expect(() => validateBookVisualContractTemplate(template)).not.toThrow();
     const result = validateBookVisualContractTemplate(template);
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.errors.join(' ')).toContain('recurringProps[0].id missing');
+    if (!result.ok) expect(result.errors.join(' ')).toContain('recurringProps[0] must be an object');
+  });
+
+  it.each(templateTotalityCases)(
+    'is total and deterministic for malformed durable array: $name',
+    ({ expected, mutate }) => {
+      const template = templateFixture();
+      mutate(template);
+
+      expect(() => validateBookVisualContractTemplate(template)).not.toThrow();
+      const first = validateBookVisualContractTemplate(template);
+      const second = validateBookVisualContractTemplate(template);
+      expect(first).toEqual(second);
+      expect(first.ok).toBe(false);
+      if (!first.ok) {
+        expect(first.errors.join(' ')).toContain(expected);
+        expect(first.errors).not.toEqual([
+          'template validation could not safely inspect malformed nested input',
+        ]);
+      }
+
+      let thrown: unknown;
+      try {
+        assertValidBookVisualContractTemplate(template);
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toBeInstanceOf(InvalidTemplateContractError);
+      expect(thrown).not.toBeInstanceOf(TypeError);
+    },
+  );
+
+  it('contains unforeseen property-access failures at the public boundary', () => {
+    const explosive = Object.defineProperty(templateFixture(), 'contractKind', {
+      get: () => {
+        throw new TypeError('untrusted accessor');
+      },
+    });
+    const first = validateBookVisualContractTemplate(explosive);
+    const second = validateBookVisualContractTemplate(explosive);
+    expect(first).toEqual(second);
+    expect(first).toEqual({
+      ok: false,
+      errors: ['template validation could not safely inspect malformed nested input'],
+    });
+    expect(() => assertValidBookVisualContractTemplate(explosive)).toThrow(
+      InvalidTemplateContractError,
+    );
+  });
+
+  it('keeps recurring-prop projections total and byte-identical around malformed neighbors', () => {
+    const contract = templateFixture() as unknown as BookVisualContract;
+    const prop = validRecurringProp('prop:token', 2) as unknown as
+      BookVisualContract['recurringProps'][number];
+    contract.recurringProps = [prop];
+    const page = contract.pageContracts[0];
+    page.propConstraints = [{ propId: prop.id, visibility: 'required' }];
+    page.actionRequirements = [
+      {
+        checkId: 'action:mother_holds_token',
+        actorId: 'human:mother',
+        predicate: 'holds',
+        object: { kind: 'prop', id: prop.id },
+        polarity: 'must',
+      },
+    ];
+    const expectedCover = projectCoverMustNotShow(contract);
+    const expectedPage = projectPageMustShow(page, contract);
+
+    const malformed = clone(contract);
+    malformed.recurringProps = [null, prop, 'invalid'] as never;
+    malformed.humanCast = [null, ...(malformed.humanCast ?? [])] as never;
+    expect(() => projectCoverMustNotShow(malformed)).not.toThrow();
+    expect(() => projectPageMustShow(malformed.pageContracts[0], malformed)).not.toThrow();
+    expect(projectCoverMustNotShow(malformed)).toEqual(expectedCover);
+    expect(projectPageMustShow(malformed.pageContracts[0], malformed)).toEqual(
+      expectedPage,
+    );
   });
 
   it('REJECTS family_profile on a non-relative (the clinic doctor)', () => {

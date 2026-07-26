@@ -31,6 +31,71 @@ function isStr(v: unknown): v is string {
   return typeof v === 'string' && v.trim().length > 0;
 }
 
+function safeObjectArray(
+  value: unknown,
+  field: string,
+  errors: string[],
+  options: { optional?: boolean } = {},
+): Record<string, unknown>[] | undefined {
+  if (value === undefined && options.optional) return undefined;
+  if (!Array.isArray(value)) {
+    errors.push(`${field} must be an array`);
+    return [];
+  }
+  const safe: Record<string, unknown>[] = [];
+  value.forEach((entry, index) => {
+    if (!isObj(entry)) {
+      errors.push(`${field}[${index}] must be an object`);
+      // Preserve the durable source index for subsequent field-level validation
+      // while ensuring typed projectors only receive object-shaped elements.
+      safe.push({});
+      return;
+    }
+    safe.push(entry);
+  });
+  return safe;
+}
+
+function safeStringArray(
+  value: unknown,
+  field: string,
+  errors: string[],
+): string[] {
+  if (!Array.isArray(value)) {
+    errors.push(`${field} must be an array`);
+    return [];
+  }
+  const safe: string[] = [];
+  value.forEach((entry, index) => {
+    if (typeof entry !== 'string') {
+      errors.push(`${field}[${index}] must be a string`);
+      return;
+    }
+    safe.push(entry);
+  });
+  return safe;
+}
+
+function safeNumberArray(
+  value: unknown,
+  field: string,
+  errors: string[],
+): number[] {
+  if (!Array.isArray(value)) {
+    errors.push(`${field} must be an array`);
+    return [];
+  }
+  const safe: number[] = [];
+  value.forEach((entry, index) => {
+    if (typeof entry !== 'number' || !Number.isFinite(entry)) {
+      errors.push(`${field}[${index}] must be a finite number`);
+      return;
+    }
+    safe.push(entry);
+  });
+  return safe;
+}
+
 /**
  * Placeholder / deferral text that must NOT survive into a concrete `explicit` value (Template) or a Resolved
  * contract's concrete values / projected prose (Resolved). The AUTHORITATIVE single source — imported by
@@ -121,16 +186,22 @@ function toShadowHuman(m: TemplateHumanCastMember): RecurringHumanCastMember {
     id: m.id,
     role: m.role,
     gender: m.gender,
-    aliases: Array.isArray(m.aliases) ? m.aliases : [],
+    aliases: Array.isArray(m.aliases)
+      ? m.aliases.filter((entry): entry is string => typeof entry === 'string')
+      : [],
     coarseAppearance: 'template-unresolved',
     wardrobe: { description: 'template-unresolved' },
     textEvidence: 'template-unresolved',
-    forbiddenAppearance: Array.isArray(m.forbiddenAppearance) ? m.forbiddenAppearance : [],
-    pagesPresent: Array.isArray(m.pagesPresent) ? m.pagesPresent : [],
+    forbiddenAppearance: Array.isArray(m.forbiddenAppearance)
+      ? m.forbiddenAppearance.filter((entry): entry is string => typeof entry === 'string')
+      : [],
+    pagesPresent: Array.isArray(m.pagesPresent)
+      ? m.pagesPresent.filter((entry): entry is number => typeof entry === 'number')
+      : [],
   };
 }
 
-export function validateBookVisualContractTemplate(input: unknown): TemplateValidationResult {
+function validateBookVisualContractTemplateInternal(input: unknown): TemplateValidationResult {
   const errors: string[] = [];
   if (!isObj(input)) return { ok: false, errors: ['template is not an object'] };
 
@@ -141,14 +212,30 @@ export function validateBookVisualContractTemplate(input: unknown): TemplateVali
   // storyKey is REQUIRED + non-empty: it seeds the deterministic palette; an empty key collapses the seed across stories.
   if (!isStr(input.storyKey)) errors.push('storyKey missing (required — it seeds the deterministic appearance palette)');
 
-  const humanCast: TemplateHumanCastMember[] = Array.isArray(input.humanCast)
-    ? (input.humanCast as TemplateHumanCastMember[])
-    : [];
-  if (!Array.isArray(input.humanCast)) errors.push('humanCast must be an array');
-  // `recurringProps` is a required durable array even when a story has no recurring props (the valid
-  // representation is `[]`). Do not coerce an omitted/malformed value to the same semantic shape: callers that
-  // validate before indexing the original durable object must be able to rely on this boundary failing closed.
-  if (!Array.isArray(input.recurringProps)) errors.push('recurringProps must be an array');
+  // Durable arrays remain invalid when malformed, but only safe local elements reach typed projectors and the
+  // vNext shadow. Sanitizing here is solely for deterministic continued error collection; `errors` preserves the
+  // rejection of the original artifact.
+  const humanCast = (safeObjectArray(input.humanCast, 'humanCast', errors) ??
+    []) as unknown as TemplateHumanCastMember[];
+  const recurringProps = (safeObjectArray(input.recurringProps, 'recurringProps', errors) ??
+    []) as unknown as BookVisualContract['recurringProps'];
+  const locations = (safeObjectArray(input.locations, 'locations', errors) ??
+    []) as unknown as BookVisualContract['locations'];
+  const zones = (safeObjectArray(input.zones, 'zones', errors) ??
+    []) as unknown as BookVisualContract['zones'];
+  const pageContracts = (safeObjectArray(input.pageContracts, 'pageContracts', errors) ??
+    []) as unknown as BookVisualContract['pageContracts'];
+  const setBoardAuthorities = safeObjectArray(
+    input.setBoardAuthorities,
+    'setBoardAuthorities',
+    errors,
+    { optional: true },
+  ) as BookVisualContract['setBoardAuthorities'] | undefined;
+  const forbiddenGlobalElements = safeStringArray(
+    input.forbiddenGlobalElements,
+    'forbiddenGlobalElements',
+    errors,
+  );
 
   // Structural reuse: a vNext shadow with placeholder prose exercises the exact coverage/transition/castIds/
   // humanCast pagesPresent binding rules; Template-specific structured checks layer on the REAL humanCast below.
@@ -156,29 +243,32 @@ export function validateBookVisualContractTemplate(input: unknown): TemplateVali
     version: (typeof input.version === 'number' ? input.version : 1) as BookVisualContract['version'],
     ...(isStr(input.storyKey) ? { storyKey: input.storyKey } : {}),
     worldType: input.worldType as string,
-    locations: (Array.isArray(input.locations) ? input.locations : []) as BookVisualContract['locations'],
-    zones: (Array.isArray(input.zones) ? input.zones : []) as BookVisualContract['zones'],
-    ...(Array.isArray(input.setBoardAuthorities)
-      ? {
-          setBoardAuthorities:
-            input.setBoardAuthorities as BookVisualContract['setBoardAuthorities'],
-        }
-      : {}),
+    locations,
+    zones,
+    ...(setBoardAuthorities !== undefined ? { setBoardAuthorities } : {}),
     cast: input.cast as BookVisualContract['cast'],
     humanCast: humanCast.map(toShadowHuman),
-    recurringProps: (Array.isArray(input.recurringProps) ? input.recurringProps : []) as BookVisualContract['recurringProps'],
-    forbiddenGlobalElements: (Array.isArray(input.forbiddenGlobalElements) ? input.forbiddenGlobalElements : []) as string[],
+    recurringProps,
+    forbiddenGlobalElements,
     coverContract: input.coverContract as BookVisualContract['coverContract'],
-    pageContracts: (Array.isArray(input.pageContracts) ? input.pageContracts : []) as BookVisualContract['pageContracts'],
+    pageContracts,
     ...(input.provenance ? { provenance: input.provenance as BookVisualContract['provenance'] } : {}),
   };
   const base = validateVNextVisualContract(shadow);
   if (!base.ok) errors.push(...base.errors.map((e) => `structure: ${e}`));
 
+  recurringProps.forEach((prop, index) => {
+    if (!isStr(prop.name)) errors.push(`recurringProps[${index}].name missing`);
+    if (!isStr(prop.description)) errors.push(`recurringProps[${index}].description missing`);
+  });
+
   humanCast.forEach((m, i) => {
     const label = isStr(m?.id) ? `humanCast "${m.id}"` : `humanCast[${i}]`;
     const role = isStr(m?.role) ? m.role : '';
     if (!isStr(m?.textEvidence)) errors.push(`${label}.textEvidence missing (identity must bind to a story phrase)`);
+    safeStringArray(m.aliases, `${label}.aliases`, errors);
+    safeStringArray(m.forbiddenAppearance, `${label}.forbiddenAppearance`, errors);
+    safeNumberArray(m.pagesPresent, `${label}.pagesPresent`, errors);
     const appearance = isObj((m as unknown as Record<string, unknown>)?.appearance)
       ? ((m as unknown as Record<string, unknown>).appearance as Record<string, unknown>)
       : null;
@@ -190,13 +280,18 @@ export function validateBookVisualContractTemplate(input: unknown): TemplateVali
         else validateBinding(`${label}.appearance.${trait}`, role, appearance[trait], errors);
       }
     }
-    if (!Array.isArray(m?.garments)) {
+    if (!Array.isArray(m.garments)) {
       errors.push(`${label}.garments must be an array`);
     } else {
       m.garments.forEach((g, gi) => {
-        const glabel = `${label}.garments[${isStr(g?.id) ? g.id : gi}]`;
-        if (!isStr(g?.id)) errors.push(`${glabel}.id missing`);
-        const colour = (g as { colour?: unknown })?.colour;
+        const path = `${label}.garments[${gi}]`;
+        if (!isObj(g)) {
+          errors.push(`${path} must be an object`);
+          return;
+        }
+        const glabel = isStr(g.id) ? `${label}.garments[${g.id}]` : path;
+        if (!isStr(g.id)) errors.push(`${glabel}.id missing`);
+        const colour = g.colour;
         if (colour === undefined) {
           errors.push(`${glabel}.colour missing`);
         } else {
@@ -212,6 +307,21 @@ export function validateBookVisualContractTemplate(input: unknown): TemplateVali
 
   if (errors.length > 0) return { ok: false, errors };
   return { ok: true, template: input as unknown as BookVisualContractTemplate };
+}
+
+/**
+ * Total public durable-input boundary. Root guards above own precise diagnostics; this deterministic containment
+ * is defense in depth for an unforeseen malformed nested shape and can only fail closed.
+ */
+export function validateBookVisualContractTemplate(input: unknown): TemplateValidationResult {
+  try {
+    return validateBookVisualContractTemplateInternal(input);
+  } catch {
+    return {
+      ok: false,
+      errors: ['template validation could not safely inspect malformed nested input'],
+    };
+  }
 }
 
 /** Fail-closed assertion — throws InvalidTemplateContractError on any problem. */

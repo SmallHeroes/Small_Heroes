@@ -19,6 +19,7 @@ import {
   projectPageMustShow,
   projectZoneStableGeometry,
   type BookVisualContract,
+  type BookVisualContractTemplate,
   type PageTransitionKind,
 } from '@/lib/visual-contract-compiler';
 
@@ -76,6 +77,64 @@ function rebindEmbeddedAuthority(args: {
   return {
     blueprint: restamp(blueprint),
     context,
+  };
+}
+
+function validTemplateHuman(): BookVisualContractTemplate['humanCast'][number] {
+  const explicit = (value: string) => ({
+    mode: 'explicit' as const,
+    value,
+    origin: {
+      kind: 'story_evidence' as const,
+      page: 1,
+      phrase: `page 1 explicitly establishes ${value}`,
+    },
+  });
+  return {
+    id: 'human:guide',
+    role: 'guide',
+    gender: 'unspecified',
+    aliases: ['the guide'],
+    textEvidence: 'page 1: the guide',
+    pagesPresent: [1],
+    appearance: {
+      skinTone: explicit('warm brown skin'),
+      hairColour: explicit('dark brown hair'),
+      hairTexture: explicit('wavy hair texture'),
+      hairStyle: explicit('short side-parted hair'),
+    },
+    garments: [
+      {
+        id: 'guide_coat',
+        colour: explicit('green coat'),
+      },
+    ],
+    forbiddenAppearance: [],
+  };
+}
+
+function addValidTemplateHuman(
+  blueprint: PreRenderBookVisualBlueprint,
+): BookVisualContractTemplate['humanCast'][number] {
+  const human = validTemplateHuman();
+  blueprint.visualContract.humanCast.push(human);
+  const page = blueprint.visualContract.pageContracts.find(
+    (entry) => entry.pageNumber === 1,
+  );
+  if (!page) throw new Error('page-1 contract fixture missing');
+  page.castIds = [...(page.castIds ?? []), human.id];
+  return human;
+}
+
+function validTemplateProp(
+  id: string,
+  firstRevealPage?: number,
+): BookVisualContractTemplate['recurringProps'][number] {
+  return {
+    id,
+    name: `Prop ${id}`,
+    description: `Stable description for ${id}`,
+    ...(firstRevealPage === undefined ? {} : { firstRevealPage }),
   };
 }
 
@@ -483,6 +542,64 @@ describe('R1D-PVB-A — coverage, references, and deterministic authority', () =
     mutate: (blueprint: PreRenderBookVisualBlueprint) => void;
   }> = [
     {
+      name: 'omitted visual-contract humanCast',
+      restampable: true,
+      expectedCode: 'visual_contract_invalid',
+      mutate: (blueprint) => {
+        delete (blueprint.visualContract as unknown as { humanCast?: unknown }).humanCast;
+      },
+    },
+    {
+      name: 'non-array visual-contract humanCast',
+      restampable: true,
+      expectedCode: 'visual_contract_invalid',
+      mutate: (blueprint) => {
+        blueprint.visualContract.humanCast = 'invalid' as never;
+      },
+    },
+    {
+      name: 'visual-contract humanCast [null]',
+      restampable: true,
+      expectedCode: 'visual_contract_invalid',
+      mutate: (blueprint) => {
+        blueprint.visualContract.humanCast = [null] as never;
+      },
+    },
+    {
+      name: 'visual-contract humanCast [undefined]',
+      restampable: false,
+      expectedCode: 'visual_contract_invalid',
+      mutate: (blueprint) => {
+        blueprint.visualContract.humanCast = [undefined] as never;
+      },
+    },
+    {
+      name: 'visual-contract humanCast [{}]',
+      restampable: true,
+      expectedCode: 'visual_contract_invalid',
+      mutate: (blueprint) => {
+        blueprint.visualContract.humanCast = [{}] as never;
+      },
+    },
+    {
+      name: 'visual-contract humanCast valid plus null',
+      restampable: true,
+      expectedCode: 'visual_contract_invalid',
+      mutate: (blueprint) => {
+        const valid = addValidTemplateHuman(blueprint);
+        blueprint.visualContract.humanCast = [valid, null] as never;
+      },
+    },
+    {
+      name: 'visual-contract humanCast mixed scalar and object entries',
+      restampable: true,
+      expectedCode: 'visual_contract_invalid',
+      mutate: (blueprint) => {
+        const valid = addValidTemplateHuman(blueprint);
+        blueprint.visualContract.humanCast = [valid, 'invalid', {}] as never;
+      },
+    },
+    {
       name: 'omitted visual-contract recurringProps',
       restampable: true,
       expectedCode: 'visual_contract_invalid',
@@ -521,6 +638,141 @@ describe('R1D-PVB-A — coverage, references, and deterministic authority', () =
       expectedCode: 'visual_contract_invalid',
       mutate: (blueprint) => {
         blueprint.visualContract.recurringProps = [null] as never;
+      },
+    },
+    {
+      name: 'visual-contract recurringProps [{}]',
+      restampable: true,
+      expectedCode: 'visual_contract_invalid',
+      mutate: (blueprint) => {
+        blueprint.visualContract.recurringProps = [{}] as never;
+      },
+    },
+    {
+      name: 'visual-contract recurringProps valid plus null',
+      restampable: true,
+      expectedCode: 'visual_contract_invalid',
+      mutate: (blueprint) => {
+        blueprint.visualContract.recurringProps = [
+          validTemplateProp('prop:plain'),
+          null,
+        ] as never;
+      },
+    },
+    {
+      name: 'visual-contract recurringProps null plus valid',
+      restampable: true,
+      expectedCode: 'visual_contract_invalid',
+      mutate: (blueprint) => {
+        blueprint.visualContract.recurringProps = [
+          null,
+          validTemplateProp('prop:plain'),
+        ] as never;
+      },
+    },
+    {
+      name: 'visual-contract recurringProps mixed scalars with valid prop',
+      restampable: true,
+      expectedCode: 'visual_contract_invalid',
+      mutate: (blueprint) => {
+        blueprint.visualContract.recurringProps = [
+          validTemplateProp('prop:plain'),
+          'invalid',
+          7,
+        ] as never;
+      },
+    },
+    {
+      name: 'visual-contract lifecycle and non-lifecycle props around null',
+      shape: 'reveal_timeline',
+      restampable: true,
+      expectedCode: 'visual_contract_invalid',
+      mutate: (blueprint) => {
+        const lifecycle = blueprint.visualContract.recurringProps[0];
+        blueprint.visualContract.recurringProps = [
+          lifecycle,
+          null,
+          validTemplateProp('prop:plain'),
+        ] as never;
+      },
+    },
+    {
+      name: 'visual-contract garments [null]',
+      restampable: true,
+      expectedCode: 'visual_contract_invalid',
+      mutate: (blueprint) => {
+        const human = addValidTemplateHuman(blueprint);
+        human.garments = [null] as never;
+      },
+    },
+    {
+      name: 'visual-contract garments [{}]',
+      restampable: true,
+      expectedCode: 'visual_contract_invalid',
+      mutate: (blueprint) => {
+        const human = addValidTemplateHuman(blueprint);
+        human.garments = [{}] as never;
+      },
+    },
+    {
+      name: 'visual-contract garments mixed valid and invalid entries',
+      restampable: true,
+      expectedCode: 'visual_contract_invalid',
+      mutate: (blueprint) => {
+        const human = addValidTemplateHuman(blueprint);
+        human.garments = [...human.garments, null, 'invalid'] as never;
+      },
+    },
+    {
+      name: 'visual-contract locations mixed valid and null',
+      restampable: true,
+      expectedCode: 'visual_contract_invalid',
+      mutate: (blueprint) => {
+        blueprint.visualContract.locations = [
+          blueprint.visualContract.locations[0],
+          null,
+        ] as never;
+      },
+    },
+    {
+      name: 'visual-contract zones mixed valid and null',
+      restampable: true,
+      expectedCode: 'visual_contract_invalid',
+      mutate: (blueprint) => {
+        blueprint.visualContract.zones = [
+          ...blueprint.visualContract.zones,
+          null,
+        ] as never;
+      },
+    },
+    {
+      name: 'visual-contract pageContracts mixed valid and null',
+      restampable: true,
+      expectedCode: 'visual_contract_invalid',
+      mutate: (blueprint) => {
+        blueprint.visualContract.pageContracts = [
+          ...blueprint.visualContract.pageContracts,
+          null,
+        ] as never;
+      },
+    },
+    {
+      name: 'visual-contract forbiddenGlobalElements mixed string and null',
+      restampable: true,
+      expectedCode: 'visual_contract_invalid',
+      mutate: (blueprint) => {
+        blueprint.visualContract.forbiddenGlobalElements = [
+          'valid exclusion',
+          null,
+        ] as never;
+      },
+    },
+    {
+      name: 'visual-contract setBoardAuthorities [null]',
+      restampable: true,
+      expectedCode: 'visual_contract_invalid',
+      mutate: (blueprint) => {
+        blueprint.visualContract.setBoardAuthorities = [null] as never;
       },
     },
     {
@@ -699,6 +951,12 @@ describe('R1D-PVB-A — coverage, references, and deterministic authority', () =
       expect(first.ok).toBe(false);
       if (!first.ok && expectedCode) {
         expect(first.issues.map((entry) => entry.code)).toContain(expectedCode);
+        expect(first.issues).not.toEqual([
+          {
+            code: 'schema_invalid',
+            message: 'blueprint validation could not safely inspect malformed nested input',
+          },
+        ]);
       }
 
       let thrown: unknown;
@@ -711,6 +969,30 @@ describe('R1D-PVB-A — coverage, references, and deterministic authority', () =
       expect(thrown).not.toBeInstanceOf(TypeError);
     },
   );
+
+  it('contains unforeseen property-access failures at the PVB public boundary', () => {
+    const fixture = buildBlueprintFixture('single_location');
+    const explosive = Object.defineProperty(clone(fixture.blueprint), 'version', {
+      get: () => {
+        throw new TypeError('untrusted accessor');
+      },
+    });
+    const first = validatePreRenderBookVisualBlueprint(explosive, fixture.context);
+    const second = validatePreRenderBookVisualBlueprint(explosive, fixture.context);
+    expect(first).toEqual(second);
+    expect(first).toEqual({
+      ok: false,
+      issues: [
+        {
+          code: 'schema_invalid',
+          message: 'blueprint validation could not safely inspect malformed nested input',
+        },
+      ],
+    });
+    expect(() =>
+      assertValidPreRenderBookVisualBlueprint(explosive, fixture.context),
+    ).toThrow(InvalidPreRenderBookVisualBlueprintError);
+  });
 });
 
 describe('R1D-PVB-A — spatial feasibility and safety', () => {

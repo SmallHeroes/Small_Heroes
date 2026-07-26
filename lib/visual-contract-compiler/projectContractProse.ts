@@ -68,6 +68,15 @@ const SAFETY_RELATION_PROSE: Record<SafetyConstraint['relation'], string> = {
 
 /* ── Label resolution ────────────────────────────────────────────────────────────────────────── */
 
+function isObj(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function safeObjectElements<T>(value: unknown): T[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(isObj) as T[];
+}
+
 function humanizeKind(kind: string): string {
   return kind.replace(/_/g, ' ');
 }
@@ -75,7 +84,9 @@ function humanizeKind(kind: string): string {
 /** The page's own zone (never another zone — geometry is zone-scoped by construction). */
 function zoneOfPage(page: PageVisualContract, contract: BookVisualContract): VisualZone | undefined {
   if (!page.zoneId) return undefined;
-  return (contract.zones ?? []).find((z) => z.id === page.zoneId && z.locationId === page.locationId);
+  return safeObjectElements<VisualZone>(contract.zones).find(
+    (z) => z.id === page.zoneId && z.locationId === page.locationId,
+  );
 }
 
 /** A cast member's readable label: authored name, else the human-cast role, else the raw id. */
@@ -83,7 +94,9 @@ function castLabel(castId: string, contract: BookVisualContract): string {
   const cast = contract.cast;
   if (cast?.child?.id === castId) return cast.child.name ?? 'the child';
   if (cast?.companion?.id === castId) return cast.companion.name ?? 'the companion';
-  const human = (contract.humanCast ?? []).find((h) => h.id === castId);
+  const human = safeObjectElements<NonNullable<BookVisualContract['humanCast']>[number]>(
+    contract.humanCast,
+  ).find((h) => h.id === castId);
   if (human) return `the ${human.role}`;
   return castId;
 }
@@ -94,20 +107,31 @@ function castLabel(castId: string, contract: BookVisualContract): string {
  * not throw on input the validator is about to reject anyway.
  */
 function refLabel(ref: EntityRef, page: PageVisualContract, contract: BookVisualContract): string {
+  if (!isObj(ref) || typeof ref.kind !== 'string' || typeof ref.id !== 'string') {
+    return '';
+  }
   switch (ref.kind) {
     case 'cast':
       return castLabel(ref.id, contract);
     case 'prop': {
-      const prop = (contract.recurringProps ?? []).find((p) => p.id === ref.id);
+      const prop = safeObjectElements<BookVisualContract['recurringProps'][number]>(
+        contract.recurringProps,
+      ).find((p) => p.id === ref.id);
       return prop ? prop.name : ref.id;
     }
     case 'spatial': {
-      const node = zoneOfPage(page, contract)?.spatialNodes?.find((n) => n.id === ref.id);
+      const node = safeObjectElements<
+        NonNullable<VisualZone['spatialNodes']>[number]
+      >(zoneOfPage(page, contract)?.spatialNodes).find((n) => n.id === ref.id);
       return node ? `the ${humanizeKind(node.kind)}` : ref.id;
     }
     case 'anchor': {
-      const location = (contract.locations ?? []).find((l) => l.id === page.locationId);
-      const anchor = (location?.anchors ?? []).find((a) => a.id === ref.id);
+      const location = safeObjectElements<BookVisualContract['locations'][number]>(
+        contract.locations,
+      ).find((l) => l.id === page.locationId);
+      const anchor = safeObjectElements<
+        NonNullable<BookVisualContract['locations'][number]['anchors']>[number]
+      >(location?.anchors).find((a) => a.id === ref.id);
       return anchor ? anchor.description : ref.id;
     }
   }
@@ -184,8 +208,8 @@ function safetyProseLine(
  * authors none, so the caller's `line()` helper filters it out and the prompt block stays byte-identical.
  */
 export function projectPageActionProse(page: PageVisualContract, contract: BookVisualContract): string {
-  const actions = page.actionRequirements;
-  if (!actions || actions.length === 0) return '';
+  const actions = safeObjectElements<PageActionRequirement>(page.actionRequirements);
+  if (actions.length === 0) return '';
   return actions.map((a) => actionProseLine(a, page, contract)).join('; ');
 }
 
@@ -194,8 +218,8 @@ export function projectPageActionProse(page: PageVisualContract, contract: BookV
  * page authors none (→ byte-identical prompt block).
  */
 export function projectPageSafetyProse(page: PageVisualContract, contract: BookVisualContract): string {
-  const safety = page.safetyConstraints;
-  if (!safety || safety.length === 0) return '';
+  const safety = safeObjectElements<SafetyConstraint>(page.safetyConstraints);
+  if (safety.length === 0) return '';
   return safety.map((s) => safetyProseLine(s, page, contract)).join('; ');
 }
 
@@ -208,7 +232,9 @@ export function projectPageSafetyProse(page: PageVisualContract, contract: BookV
  * (Stage 5 fixes this properly by making the gate read `PagePropConstraint` directly.)
  */
 function propName(propId: string, contract: BookVisualContract): string {
-  const prop = (contract.recurringProps ?? []).find((p) => p.id === propId);
+  const prop = safeObjectElements<BookVisualContract['recurringProps'][number]>(
+    contract.recurringProps,
+  ).find((p) => p.id === propId);
   return prop ? prop.name : propId;
 }
 
@@ -221,10 +247,12 @@ function propName(propId: string, contract: BookVisualContract): string {
  */
 export function projectPageMustShow(page: PageVisualContract, contract: BookVisualContract): string[] {
   const out: string[] = [];
-  for (const pc of page.propConstraints ?? []) {
+  for (const pc of safeObjectElements<
+    NonNullable<PageVisualContract['propConstraints']>[number]
+  >(page.propConstraints)) {
     if (pc.visibility === 'required') out.push(propName(pc.propId, contract));
   }
-  for (const action of page.actionRequirements ?? []) {
+  for (const action of safeObjectElements<PageActionRequirement>(page.actionRequirements)) {
     if (action.polarity === 'must') out.push(actionProseLine(action, page, contract));
   }
   return out;
@@ -237,13 +265,15 @@ export function projectPageMustShow(page: PageVisualContract, contract: BookVisu
  */
 export function projectPageMustNotShow(page: PageVisualContract, contract: BookVisualContract): string[] {
   const out: string[] = [];
-  for (const pc of page.propConstraints ?? []) {
+  for (const pc of safeObjectElements<
+    NonNullable<PageVisualContract['propConstraints']>[number]
+  >(page.propConstraints)) {
     if (pc.visibility === 'forbidden') out.push(propName(pc.propId, contract));
   }
-  for (const action of page.actionRequirements ?? []) {
+  for (const action of safeObjectElements<PageActionRequirement>(page.actionRequirements)) {
     if (action.polarity === 'must_not') out.push(actionProseLine(action, page, contract));
   }
-  for (const safety of page.safetyConstraints ?? []) {
+  for (const safety of safeObjectElements<SafetyConstraint>(page.safetyConstraints)) {
     out.push(safetyProseLine(safety, page, contract));
   }
   return out;
@@ -258,7 +288,9 @@ export function projectPageMustNotShow(page: PageVisualContract, contract: BookV
  */
 export function projectCoverMustNotShow(contract: BookVisualContract): string[] {
   const out: string[] = [];
-  for (const prop of contract.recurringProps ?? []) {
+  for (const prop of safeObjectElements<BookVisualContract['recurringProps'][number]>(
+    contract.recurringProps,
+  )) {
     if (typeof prop.firstRevealPage === 'number') {
       out.push(`${prop.name} (first revealed on page ${prop.firstRevealPage} — no spoiler)`);
     }

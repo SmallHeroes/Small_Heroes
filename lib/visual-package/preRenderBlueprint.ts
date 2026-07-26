@@ -1890,7 +1890,7 @@ function deterministicIssues(issues: PreRenderBlueprintIssue[]): PreRenderBluepr
  * The context is required: internal self-consistency alone cannot prove that a story or package
  * has not changed since the blueprint was compiled.
  */
-export function validatePreRenderBookVisualBlueprint(
+function validatePreRenderBookVisualBlueprintInternal(
   input: unknown,
   context: PreRenderBlueprintValidationContext,
 ): PreRenderBlueprintValidationResult {
@@ -2095,6 +2095,29 @@ export function validatePreRenderBookVisualBlueprint(
   return finalIssues.length === 0
     ? { ok: true, blueprint }
     : { ok: false, issues: finalIssues };
+}
+
+/**
+ * Total public durable-input boundary. The validators above own precise issue collection; this deterministic
+ * containment is defense in depth if an unforeseen malformed nested shape reaches a typed helper.
+ */
+export function validatePreRenderBookVisualBlueprint(
+  input: unknown,
+  context: PreRenderBlueprintValidationContext,
+): PreRenderBlueprintValidationResult {
+  try {
+    return validatePreRenderBookVisualBlueprintInternal(input, context);
+  } catch {
+    return {
+      ok: false,
+      issues: [
+        issue(
+          'schema_invalid',
+          'blueprint validation could not safely inspect malformed nested input',
+        ),
+      ],
+    };
+  }
 }
 
 export function assertValidPreRenderBookVisualBlueprint(
