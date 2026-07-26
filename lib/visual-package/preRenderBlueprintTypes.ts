@@ -308,6 +308,8 @@ export interface PreRenderBlueprintValidationContext {
   reconciliationArtifactPath: string;
   authoredCoverAuthority?: AuthoredCoverAuthority;
   style: PreRenderBlueprintStyleAuthority;
+  /** Exact immutable style-authority content hashed by `style.digest`. */
+  styleContent: unknown;
 }
 
 export type PreRenderBlueprintIssueCode =

@@ -10,3 +10,5 @@ export * from './audit';
 export * from './releaseGate';
 export * from './preRenderBlueprintTypes';
 export * from './preRenderBlueprint';
+export * from './preRenderBlueprintDraftSchema';
+export * from './preRenderBlueprintAuthoring';

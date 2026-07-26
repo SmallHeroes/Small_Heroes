@@ -241,7 +241,7 @@ export function finalizePreRenderBookVisualBlueprint(
   };
 }
 
-function reconciliationSemanticProjection(
+export function projectPreRenderBlueprintReconciliationSemanticContent(
   reconciliation: SourcePromptReconciliation,
 ): unknown {
   const { review: _review, ...stable } = normalizedClone(reconciliation);
@@ -273,7 +273,9 @@ function reconciliationSemanticProjection(
 export function computePreRenderBlueprintReconciliationDigest(
   reconciliation: SourcePromptReconciliation,
 ): string {
-  return canonicalJsonDigest(reconciliationSemanticProjection(reconciliation));
+  return canonicalJsonDigest(
+    projectPreRenderBlueprintReconciliationSemanticContent(reconciliation),
+  );
 }
 
 export function buildPreRenderBlueprintReconciliationAuthority(args: {
@@ -770,7 +772,8 @@ function validateIdentity(
 
   if (
     !isObj(authorityRaw.style) ||
-    !sameCanonical(authorityRaw.style, context.style)
+    !sameCanonical(authorityRaw.style, context.style) ||
+    canonicalJsonDigest(context.styleContent) !== context.style.digest
   ) {
     issues.push(
       issue('style_stale', 'blueprint style identity/content digest changed', {

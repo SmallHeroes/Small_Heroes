@@ -650,14 +650,15 @@ export function buildBlueprintFixture(shape: BlueprintFixtureShape): BlueprintFi
   const reconciliation = makeReconciliation(plan, source, template);
   const reconciliationArtifactPath =
     `fixtures/${plan.storyKey}.visual-contract-reconciliation.json`;
+  const styleContent = {
+    styleId: 'fixture_storybook_style',
+    renderingContract: 'stable fixture storybook rendering contract',
+  };
   const style: PreRenderBlueprintStyleAuthority = {
     styleId: 'fixture_storybook_style',
     artifactPath: 'fixtures/styles/fixture_storybook_style.json',
     digestAlgorithm: 'canonical-json-sha256',
-    digest: canonicalJsonDigest({
-      styleId: 'fixture_storybook_style',
-      renderingContract: 'stable fixture storybook rendering contract',
-    }),
+    digest: canonicalJsonDigest(styleContent),
   };
   const authoringAuthority = buildPreRenderBlueprintAuthoringAuthority({
     storyKey: plan.storyKey,
@@ -689,6 +690,7 @@ export function buildBlueprintFixture(shape: BlueprintFixtureShape): BlueprintFi
       reconciliation,
       reconciliationArtifactPath,
       style,
+      styleContent,
     },
   };
 }
