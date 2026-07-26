@@ -145,6 +145,10 @@ export function validateBookVisualContractTemplate(input: unknown): TemplateVali
     ? (input.humanCast as TemplateHumanCastMember[])
     : [];
   if (!Array.isArray(input.humanCast)) errors.push('humanCast must be an array');
+  // `recurringProps` is a required durable array even when a story has no recurring props (the valid
+  // representation is `[]`). Do not coerce an omitted/malformed value to the same semantic shape: callers that
+  // validate before indexing the original durable object must be able to rely on this boundary failing closed.
+  if (!Array.isArray(input.recurringProps)) errors.push('recurringProps must be an array');
 
   // Structural reuse: a vNext shadow with placeholder prose exercises the exact coverage/transition/castIds/
   // humanCast pagesPresent binding rules; Template-specific structured checks layer on the REAL humanCast below.

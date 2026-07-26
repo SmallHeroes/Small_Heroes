@@ -7,6 +7,24 @@ import type {
 
 export type EffectivePropVisibility = PropVisibility | 'permitted';
 
+function durableRecurringProps(
+  contract: Pick<BookVisualContract, 'recurringProps'>,
+): BookVisualContract['recurringProps'] {
+  if (!Array.isArray(contract.recurringProps)) return [];
+  return contract.recurringProps.filter(
+    (candidate) => typeof candidate === 'object' && candidate !== null,
+  );
+}
+
+function durablePageContracts(
+  contract: Pick<BookVisualContract, 'pageContracts'>,
+): BookVisualContract['pageContracts'] {
+  if (!Array.isArray(contract.pageContracts)) return [];
+  return contract.pageContracts.filter(
+    (candidate) => typeof candidate === 'object' && candidate !== null,
+  );
+}
+
 function explicitConstraint(
   page: Pick<PageVisualContract, 'propConstraints'> | null | undefined,
   propId: string,
@@ -26,10 +44,10 @@ export function effectivePropVisibility(
   pageNumber: number,
   propId: string,
 ): EffectivePropVisibility {
-  const prop = contract.recurringProps.find((candidate) => candidate.id === propId);
+  const prop = durableRecurringProps(contract).find((candidate) => candidate.id === propId);
   const page = pageNumber === 0
     ? null
-    : contract.pageContracts.find((candidate) => candidate.pageNumber === pageNumber);
+    : durablePageContracts(contract).find((candidate) => candidate.pageNumber === pageNumber);
   const explicit = explicitConstraint(page, propId);
 
   if (prop?.firstRevealPage !== undefined && pageNumber < prop.firstRevealPage) {
@@ -42,8 +60,9 @@ export function requiredPropIdsForPage(
   contract: Pick<BookVisualContract, 'recurringProps' | 'pageContracts'>,
   pageNumber: number,
 ): string[] {
-  return contract.recurringProps
+  return durableRecurringProps(contract)
     .map((prop) => prop.id)
+    .filter((propId): propId is string => typeof propId === 'string')
     .filter((propId) => effectivePropVisibility(contract, pageNumber, propId) === 'required')
     .sort();
 }
@@ -52,8 +71,9 @@ export function forbiddenPropIdsForPage(
   contract: Pick<BookVisualContract, 'recurringProps' | 'pageContracts'>,
   pageNumber: number,
 ): string[] {
-  return contract.recurringProps
+  return durableRecurringProps(contract)
     .map((prop) => prop.id)
+    .filter((propId): propId is string => typeof propId === 'string')
     .filter((propId) => effectivePropVisibility(contract, pageNumber, propId) === 'forbidden')
     .sort();
 }

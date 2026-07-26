@@ -142,6 +142,50 @@ describe('P0 — Template validator', () => {
     expect(r.ok, r.ok ? '' : r.errors.join('; ')).toBe(true);
   });
 
+  it.each([
+    {
+      name: 'omitted',
+      mutate: (template: Obj) => {
+        delete template.recurringProps;
+      },
+    },
+    {
+      name: 'null',
+      mutate: (template: Obj) => {
+        template.recurringProps = null;
+      },
+    },
+    {
+      name: 'object',
+      mutate: (template: Obj) => {
+        template.recurringProps = { invalid: true };
+      },
+    },
+    {
+      name: 'string',
+      mutate: (template: Obj) => {
+        template.recurringProps = 'invalid';
+      },
+    },
+  ])('REJECTS $name recurringProps instead of coercing it to an empty array', ({ mutate }) => {
+    const template = templateFixture();
+    mutate(template);
+    const first = validateBookVisualContractTemplate(template);
+    const second = validateBookVisualContractTemplate(template);
+    expect(first).toEqual(second);
+    expect(first.ok).toBe(false);
+    if (!first.ok) expect(first.errors).toContain('recurringProps must be an array');
+  });
+
+  it('REJECTS malformed recurringProps array entries without throwing', () => {
+    const template = templateFixture();
+    template.recurringProps = [null];
+    expect(() => validateBookVisualContractTemplate(template)).not.toThrow();
+    const result = validateBookVisualContractTemplate(template);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors.join(' ')).toContain('recurringProps[0].id missing');
+  });
+
   it('REJECTS family_profile on a non-relative (the clinic doctor)', () => {
     const bad = templateFixture();
     (((bad.humanCast as Obj[])[1].appearance as Obj).skinTone as Obj) = { mode: 'family_profile', origin: { kind: 'family_profile' } };

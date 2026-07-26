@@ -19,6 +19,7 @@ import {
   projectPageMustShow,
   projectZoneStableGeometry,
   type BookVisualContract,
+  type PageTransitionKind,
 } from '@/lib/visual-contract-compiler';
 
 import {
@@ -76,6 +77,44 @@ function rebindEmbeddedAuthority(args: {
     blueprint: restamp(blueprint),
     context,
   };
+}
+
+function buildTransitionKindFixture(
+  kind: Exclude<PageTransitionKind, 'steady'>,
+  frameEndpoint: 'from' | 'to',
+): BlueprintFixture {
+  const fixture = buildBlueprintFixture('multi_zone_transition');
+  const blueprint = clone(fixture.blueprint);
+  const page = blueprint.visualContract.pageContracts.find(
+    (entry) => entry.pageNumber === 2,
+  );
+  const frame = blueprint.frames.find((entry) => entry.id === 'frame:page:2');
+  if (
+    !page?.transition?.fromZoneId ||
+    !page.transition.toZoneId ||
+    !frame ||
+    frame.kind !== 'page'
+  ) {
+    throw new Error('transition fixture missing');
+  }
+  const zoneId =
+    frameEndpoint === 'from' ? page.transition.fromZoneId : page.transition.toZoneId;
+  page.transition = { ...page.transition, kind };
+  page.zoneId = zoneId;
+  frame.zoneId = zoneId;
+  frame.continuity.transitionKind = kind;
+
+  for (const affordance of blueprint.worldPlan.affordances) {
+    const consumedByPageFrame = affordance.consumers.some(
+      (consumer) =>
+        ('pageNumber' in consumer && consumer.pageNumber === page.pageNumber) ||
+        (consumer.kind === 'frame' && consumer.frameId === frame.id),
+    );
+    if (consumedByPageFrame) affordance.zoneId = zoneId;
+  }
+
+  refreshContractProjections(blueprint);
+  return rebindEmbeddedAuthority({ blueprint, context: fixture.context });
 }
 
 function renameRevealProp(
@@ -440,8 +479,50 @@ describe('R1D-PVB-A — coverage, references, and deterministic authority', () =
     name: string;
     shape?: BlueprintFixtureShape;
     restampable: boolean;
+    expectedCode?: PreRenderBlueprintIssueCode;
     mutate: (blueprint: PreRenderBookVisualBlueprint) => void;
   }> = [
+    {
+      name: 'omitted visual-contract recurringProps',
+      restampable: true,
+      expectedCode: 'visual_contract_invalid',
+      mutate: (blueprint) => {
+        delete (blueprint.visualContract as unknown as { recurringProps?: unknown })
+          .recurringProps;
+      },
+    },
+    {
+      name: 'null visual-contract recurringProps',
+      restampable: true,
+      expectedCode: 'visual_contract_invalid',
+      mutate: (blueprint) => {
+        blueprint.visualContract.recurringProps = null as never;
+      },
+    },
+    {
+      name: 'object visual-contract recurringProps',
+      restampable: true,
+      expectedCode: 'visual_contract_invalid',
+      mutate: (blueprint) => {
+        blueprint.visualContract.recurringProps = { invalid: true } as never;
+      },
+    },
+    {
+      name: 'string visual-contract recurringProps',
+      restampable: true,
+      expectedCode: 'visual_contract_invalid',
+      mutate: (blueprint) => {
+        blueprint.visualContract.recurringProps = 'invalid' as never;
+      },
+    },
+    {
+      name: 'malformed-array visual-contract recurringProps',
+      restampable: true,
+      expectedCode: 'visual_contract_invalid',
+      mutate: (blueprint) => {
+        blueprint.visualContract.recurringProps = [null] as never;
+      },
+    },
     {
       name: 'missing identity.source',
       restampable: true,
@@ -605,7 +686,7 @@ describe('R1D-PVB-A — coverage, references, and deterministic authority', () =
 
   it.each(malformedCases)(
     'fails closed deterministically without raw exceptions for $name',
-    ({ shape = 'multi_zone_transition', restampable, mutate }) => {
+    ({ shape = 'multi_zone_transition', restampable, expectedCode, mutate }) => {
       const fixture = buildBlueprintFixture(shape);
       let bad = clone(fixture.blueprint);
       mutate(bad);
@@ -616,6 +697,9 @@ describe('R1D-PVB-A — coverage, references, and deterministic authority', () =
       const second = validatePreRenderBookVisualBlueprint(bad, fixture.context);
       expect(first).toEqual(second);
       expect(first.ok).toBe(false);
+      if (!first.ok && expectedCode) {
+        expect(first.issues.map((entry) => entry.code)).toContain(expectedCode);
+      }
 
       let thrown: unknown;
       try {
@@ -755,7 +839,55 @@ describe('R1D-PVB-A — spatial feasibility and safety', () => {
     expect(issueCodes(restamp(bad), fixture.context)).toContain('traversal_infeasible');
   });
 
-  it('represents a valid reverse traversal on a bidirectional connection', () => {
+  it.each([
+    { kind: 'before_transition' as const, endpoint: 'from' as const },
+    { kind: 'after_transition' as const, endpoint: 'to' as const },
+    { kind: 'threshold' as const, endpoint: 'from' as const },
+    { kind: 'threshold' as const, endpoint: 'to' as const },
+  ])('accepts $kind support at its authoritative $endpoint endpoint', ({ kind, endpoint }) => {
+    const fixture = buildTransitionKindFixture(kind, endpoint);
+    const result = validatePreRenderBookVisualBlueprint(
+      fixture.blueprint,
+      fixture.context,
+    );
+    expect(result.ok, result.ok ? '' : JSON.stringify(result.issues, null, 2)).toBe(true);
+  });
+
+  it('rejects a before-transition frame authored at the destination', () => {
+    const fixture = buildTransitionKindFixture('before_transition', 'to');
+    const codes = issueCodes(fixture.blueprint, fixture.context);
+    expect(codes).toContain('visual_contract_invalid');
+  });
+
+  it('rejects opposite-endpoint support with identical geometry for a before-transition frame', () => {
+    const fixture = buildTransitionKindFixture('before_transition', 'from');
+    const bad = clone(fixture.blueprint);
+    for (const affordance of bad.worldPlan.affordances) {
+      if (
+        (affordance.kind === 'traversal' ||
+          affordance.kind === 'opening_clearance') &&
+        affordance.connectionId === bad.worldPlan.connections[0].id
+      ) {
+        affordance.zoneId = 'zone:room';
+      }
+    }
+    const codes = issueCodes(restamp(bad), fixture.context);
+    expect(codes).toContain('traversal_infeasible');
+  });
+
+  it('represents valid forward and reverse traversal on a bidirectional connection', () => {
+    const forwardFixture = buildBlueprintFixture('multi_zone_transition');
+    const forward = clone(forwardFixture.blueprint);
+    forward.worldPlan.connections[0].bidirectional = true;
+    const forwardResult = validatePreRenderBookVisualBlueprint(
+      restamp(forward),
+      forwardFixture.context,
+    );
+    expect(
+      forwardResult.ok,
+      forwardResult.ok ? '' : JSON.stringify(forwardResult.issues, null, 2),
+    ).toBe(true);
+
     const fixture = buildBlueprintFixture('multi_zone_transition');
     const reverse = clone(fixture.blueprint);
     const connection = reverse.worldPlan.connections[0];
@@ -771,6 +903,31 @@ describe('R1D-PVB-A — spatial feasibility and safety', () => {
     traversal.direction = 'reverse';
     const result = validatePreRenderBookVisualBlueprint(
       restamp(reverse),
+      fixture.context,
+    );
+    expect(result.ok, result.ok ? '' : JSON.stringify(result.issues, null, 2)).toBe(true);
+  });
+
+  it('accepts multiple endpoint-pinned traversal authorities on a bidirectional connection', () => {
+    const fixture = buildBlueprintFixture('multi_zone_transition');
+    const blueprint = clone(fixture.blueprint);
+    const connection = blueprint.worldPlan.connections[0];
+    const existingTraversal = blueprint.worldPlan.affordances.find(
+      (entry) => entry.kind === 'traversal',
+    );
+    if (!existingTraversal || existingTraversal.kind !== 'traversal') {
+      throw new Error('traversal fixture missing');
+    }
+    connection.bidirectional = true;
+    connection.traversalAffordanceIds.push('affordance:traversal:2:origin');
+    blueprint.worldPlan.affordances.push({
+      ...clone(existingTraversal),
+      id: 'affordance:traversal:2:origin',
+      zoneId: 'zone:hall',
+      direction: 'reverse',
+    });
+    const result = validatePreRenderBookVisualBlueprint(
+      restamp(blueprint),
       fixture.context,
     );
     expect(result.ok, result.ok ? '' : JSON.stringify(result.issues, null, 2)).toBe(true);
@@ -946,7 +1103,9 @@ describe('R1D-PVB-A — reveal lifecycle and staleness', () => {
     node.description = 'a fixed platform for the bucket, which is painted red';
     zone.stableGeometry = projectZoneStableGeometry(zone);
     const rebound = rebindEmbeddedAuthority({ blueprint: bad, context: fixture.context });
-    expect(issueCodes(rebound.blueprint, rebound.context)).toContain('reveal_violation');
+    const codes = issueCodes(rebound.blueprint, rebound.context);
+    expect(codes).toContain('reveal_violation');
+    expect(codes).not.toContain('template_stale');
   });
 
   it('becomes stale when the current Story Source, template, or visual package changes', () => {

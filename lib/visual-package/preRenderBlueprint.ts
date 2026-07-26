@@ -327,6 +327,30 @@ interface ContractIndex {
   pages: Map<number, PageVisualContract>;
 }
 
+function durableRecurringProps(
+  template: BookVisualContractTemplate,
+): BookVisualContractTemplate['recurringProps'] {
+  if (!Array.isArray(template.recurringProps)) return [];
+  return template.recurringProps.filter(
+    (entry) =>
+      isObj(entry) &&
+      isStr(entry.id) &&
+      isStr(entry.name),
+  ) as BookVisualContractTemplate['recurringProps'];
+}
+
+function recurringPropsAreIndexable(template: BookVisualContractTemplate): boolean {
+  return (
+    Array.isArray(template.recurringProps) &&
+    template.recurringProps.every(
+      (entry) =>
+        isObj(entry) &&
+        isStr(entry.id) &&
+        isStr(entry.name),
+    )
+  );
+}
+
 function buildContractIndex(template: BookVisualContractTemplate): ContractIndex {
   const castIds = new Set<string>([template.cast.child.id]);
   if (template.cast.companion) castIds.add(template.cast.companion.id);
@@ -334,7 +358,9 @@ function buildContractIndex(template: BookVisualContractTemplate): ContractIndex
   return {
     locations: new Map(template.locations.map((entry) => [entry.id, entry])),
     zones: new Map(template.zones.map((entry) => [entry.id, entry])),
-    props: new Map(template.recurringProps.map((entry) => [entry.id, entry])),
+    // Defense in depth: this function indexes durable input. The canonical Template validator rejects malformed
+    // recurringProps before this path, but indexing remains non-throwing if that upstream contract changes.
+    props: new Map(durableRecurringProps(template).map((entry) => [entry.id, entry])),
     castIds,
     pages: new Map(template.pageContracts.map((entry) => [entry.pageNumber, entry])),
   };
@@ -508,7 +534,7 @@ function expectedPropLifecycle(
   if (frame.kind === 'cover') {
     return {
       required: [],
-      forbidden: template.recurringProps
+      forbidden: durableRecurringProps(template)
         .filter((prop) => prop.firstRevealPage !== undefined)
         .map((prop) => prop.id)
         .sort(),
@@ -941,18 +967,13 @@ function validateConnection(
       return;
     }
     connectionTraversals.push(traversal);
-    const forwardZone = connection.to?.zoneId;
-    const reverseZone = connection.from?.zoneId;
-    const directionZoneValid =
-      (traversal.direction === 'forward' && traversal.zoneId === forwardZone) ||
-      (traversal.direction === 'reverse' &&
-        connection.bidirectional &&
-        traversal.zoneId === reverseZone) ||
-      (traversal.direction === 'both' &&
-        (traversal.zoneId === forwardZone ||
-          (connection.bidirectional && traversal.zoneId === reverseZone)));
-    if (!directionZoneValid) {
-      issues.push(issue('transition_invalid', 'traversal direction must be pinned to its destination endpoint zone', {
+    const endpointZoneValid =
+      traversal.zoneId === connection.from?.zoneId ||
+      traversal.zoneId === connection.to?.zoneId;
+    const directionValid =
+      traversal.direction !== 'reverse' || connection.bidirectional === true;
+    if (!endpointZoneValid || !directionValid) {
+      issues.push(issue('transition_invalid', 'traversal must use a connection endpoint zone and a permitted direction', {
         field: traversalField,
         actual: {
           direction: traversal.direction,
@@ -1627,20 +1648,30 @@ function validateFrame(args: {
         kind: 'transition',
         pageNumber: frame.pageNumber,
       };
-      if (
-        frame.zoneId !== page.transition.toZoneId ||
-        !index.zones.has(page.transition.toZoneId)
-      ) {
-        issues.push(issue('transition_invalid', 'transition frame must be pinned to the authored destination zone', {
+      const transitionZoneValid =
+        (page.transition.kind === 'before_transition' &&
+          frame.zoneId === page.transition.fromZoneId) ||
+        (page.transition.kind === 'after_transition' &&
+          frame.zoneId === page.transition.toZoneId) ||
+        (page.transition.kind === 'threshold' &&
+          (frame.zoneId === page.transition.fromZoneId ||
+            frame.zoneId === page.transition.toZoneId));
+      if (!transitionZoneValid || !index.zones.has(frame.zoneId)) {
+        issues.push(issue('transition_invalid', 'transition frame zone does not match its authored transition kind', {
           field: `${field}.zoneId`,
-          expected: page.transition.toZoneId,
+          expected:
+            page.transition.kind === 'before_transition'
+              ? page.transition.fromZoneId
+              : page.transition.kind === 'after_transition'
+                ? page.transition.toZoneId
+                : [page.transition.fromZoneId, page.transition.toZoneId],
           actual: frame.zoneId,
         }));
       }
       const traversalIds = Array.isArray(connection.traversalAffordanceIds)
         ? connection.traversalAffordanceIds
         : [];
-      const matchingTraversals = traversalIds
+      const visibleTraversalCandidates = traversalIds
         .map((id) => affordances.get(id))
         .filter(
           (
@@ -1649,10 +1680,22 @@ function validateFrame(args: {
             candidate?.kind === 'traversal' &&
             candidate.connectionId === connection.id &&
             candidate.zoneId === frame.zoneId &&
-            traversalSupportsDirection(candidate, transitionDirection) &&
             hasConsumer(candidate, transitionConsumer) &&
             frameAffordanceIds.includes(candidate.id),
         );
+      const matchingTraversals = visibleTraversalCandidates.filter((candidate) =>
+        traversalSupportsDirection(candidate, transitionDirection),
+      );
+      if (
+        visibleTraversalCandidates.length > 0 &&
+        matchingTraversals.length === 0
+      ) {
+        issues.push(issue('transition_invalid', 'visible traversal direction cannot serve the authored transition', {
+          field: `${field}.affordanceIds`,
+          expected: transitionDirection,
+          actual: visibleTraversalCandidates.map((candidate) => candidate.direction),
+        }));
+      }
       const castTouchesTraversal = matchingTraversals.some((traversal) =>
         frameCastIds.some((castId) => {
           const placement = framePlacementForCast(validPlacements, castId);
@@ -1672,7 +1715,7 @@ function validateFrame(args: {
       const openingIds = Array.isArray(connection.openingClearanceAffordanceIds)
         ? connection.openingClearanceAffordanceIds
         : [];
-      const destinationOpenings = openingIds
+      const visibleFrameOpenings = openingIds
         .map((id) => affordances.get(id))
         .filter(
           (
@@ -1687,14 +1730,14 @@ function validateFrame(args: {
         );
       if (
         ['doorway', 'opening', 'threshold', 'portal'].includes(connection.kind) &&
-        destinationOpenings.length === 0
+        visibleFrameOpenings.length === 0
       ) {
-        issues.push(issue('traversal_infeasible', 'transition has no opening clearance in the destination frame zone', {
+        issues.push(issue('traversal_infeasible', 'transition has no opening clearance in the authoritative frame zone', {
           field: `${field}.affordanceIds`,
           expected: frame.zoneId,
         }));
       }
-      for (const opening of destinationOpenings) {
+      for (const opening of visibleFrameOpenings) {
         if (
           !hasConsumer(opening, transitionConsumer) ||
           !frameAffordanceIds.includes(opening.id)
@@ -1751,7 +1794,7 @@ function validateFrame(args: {
   }
 
   const numericPage = frameNumber(frame);
-  for (const prop of template.recurringProps) {
+  for (const prop of durableRecurringProps(template)) {
     if (prop.firstRevealPage === undefined || numericPage >= prop.firstRevealPage) continue;
     if (
       isStr(frame.narrative?.summary) &&
@@ -1908,14 +1951,20 @@ export function validatePreRenderBookVisualBlueprint(
   }
 
   const templateValidation = validateBookVisualContractTemplate(blueprint.visualContract);
-  if (!templateValidation.ok) {
+  const recurringPropsIndexable = recurringPropsAreIndexable(blueprint.visualContract);
+  if (!templateValidation.ok || !recurringPropsIndexable) {
     issues.push(issue('visual_contract_invalid', 'embedded Visual Contract template is invalid', {
       field: 'visualContract',
-      actual: templateValidation.errors,
+      actual: [
+        ...(!templateValidation.ok ? templateValidation.errors : []),
+        ...(!recurringPropsIndexable
+          ? ['recurringProps must be an array of objects with non-empty id and name']
+          : []),
+      ],
     }));
   }
   validateIdentity(input, blueprint, context, issues);
-  if (!templateValidation.ok) {
+  if (!templateValidation.ok || !recurringPropsIndexable) {
     return { ok: false, issues: deterministicIssues(issues) };
   }
 
