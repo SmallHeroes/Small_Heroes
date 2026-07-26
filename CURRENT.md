@@ -2,7 +2,42 @@
 
 **Updated:** 2026-07-26
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-a-schema-feasibility` in `C:\Users\guyna\.codex\worktrees\ea3d\Small_Heroes`, based exactly on approved SHA `0734efc21549ab5d449bdb5960b398c0f5196d3c`. `R1D-PVB-A — Schema and Feasibility` implementation is focused commit `ba1ea438f8facc95a6a6922a699ea0546cc308d4`; accepted first-pass QA corrections are focused commit `f805a6b1a4f4da9088cea23a0c7b0f46330e2471`; accepted micro re-gate corrections are focused commit `27d4ff254ed45f109b4cd46d482227a0102c216a`; the total durable-validation correction is focused commit `b786269516ed9dd288290ac54b3899c8ff8bc134`. Claude Code independently returned technical **PASS** for immutable combined range `0734efc21549ab5d449bdb5960b398c0f5196d3c..09ec174f127001e7b6a8135ea38a8bab32b55795`. This worktree is the sole writer for this documentation closeout. The Lead/Decision task remains separate; `codex/r1d-fox-v3-board-mint` at `C:\Users\guyna\.codex\worktrees\0d94\Small_Heroes` and every other worktree/branch remain read-only.
+**Working branch:** `codex/r1d-pvb-b-authoring-lifecycle` in `C:\Users\guyna\.codex\worktrees\bcbd\Small_Heroes`, based exactly on approved PVB-A SHA `cd0a6c836a917d20d848558a88f649e486d76be1`. `R1D-PVB-B — General Blueprint Authoring, Review, Persistence and Approval Lifecycle` is implemented in focused commits `24d94117` (authority inversion and v2), `ae942d53` (whole-book offline authoring), and `8382db61` (immutable lifecycle/review/approval). This worktree is the sole writer pending independent first-pass QA. The frozen PVB-A worktree `C:\Users\guyna\.codex\worktrees\ea3d\Small_Heroes`, the Fox Board worktree `C:\Users\guyna\.codex\worktrees\0d94\Small_Heroes`, and every other branch/worktree remain read-only.
+
+## R1D-PVB-B — implementation complete; awaiting independent technical QA
+
+Guy approved the general PVB-B architecture and product boundaries. The implementation corrects PVB-A's downstream dependency inversion, adds one strict whole-book authoring path with an injected offline caller, and implements separate immutable candidate/provenance/validation/review/approval artifacts. This record makes no independent technical PASS claim; Claude Code must first review implementation range `cd0a6c836a917d20d848558a88f649e486d76be1..8382db61` plus the final documentation-only closeout commit identified in the handoff.
+
+### Stable v2 authoring authority
+
+- The production lifecycle artifact is the explicit successor `pre-render-book-visual-blueprint/v2`; there is no v1 migration, fallback, or permissive loader because no PVB-A production artifact was persisted.
+- Blueprint identity no longer depends on a complete mutable Visual Package manifest. One authority is derived from the exact Story Source identity and normalized source digest, exact Visual Contract template identity/content, approved semantic Source Prompt Reconciliation, and exact style identity/content for one `storyKey + styleId`.
+- Review identities, review/approval state, timestamps, Boards, assets, promotion state, and later Visual Package identities are excluded from stable authority. Exact source, template, semantic reconciliation, style identity, or style content changes fail closed. Approval and full resolution of the current reconciliation remain independent readiness requirements.
+- PVB-A's total deterministic world/frame/spatial/action/reveal/text-safe feasibility rules are reused, not duplicated. One cover plus every exact Story Source page remains mandatory and portrait 2:3.
+
+### Whole-book authoring and deterministic overlay
+
+- The authoring compiler makes one structured whole-book call through a required injected dependency. It has a strict fully-required JSON schema, explicit model/reasoning/token/no-fallback provenance, and at most two bounded whole-book repair attempts after the initial attempt.
+- There is no built-in live/provider caller and no silent model fallback. The local `npm run pre-render-blueprint -- prepare ...` entrypoint accepts only an already-produced local draft fixture; `--live` is not a supported flag.
+- The deterministic overlay owns Blueprint identity, embedded contract, exact cover/page frame IDs and coverage, portrait aspect ratio, location/zone/cast, prop lifecycle, and transition kind. Draft attempts cannot inject or override those authorities.
+- The same public compiler path is proven across five synthetic Story Source shapes: single location, multi-zone transition, journey/fantastical, no companion, and reveal timeline. Shared implementation contains no current-story, child, companion, Fox, Uri, bucket, bedroom, balcony, or fixed-page special case.
+
+### Immutable review and approval lifecycle
+
+- Candidate Blueprint, authoring provenance, validation evidence, machine review JSON, deterministic review Markdown, schematic portrait 2:3 HTML contact sheet, and approval attestation are separate local artifacts.
+- Writes are content-addressed, canonical, atomic per artifact, no-overwrite, idempotent for identical bytes, collision-rejecting for different bytes, and recoverable after injected mid-bundle failure. Validation and review readiness run before any artifact write.
+- Review surfaces bind the exact Blueprint and stable authority digests and expose world connections, reveal timeline, text-safe regions, placements/actions/props/supporting geometry, transitions, warnings/blockers, source coverage, and prior-approved diff. The contact sheet is schematic planning evidence only, with no generated art or style/image acceptance.
+- Every historical direction/source conflict remains `preserved`, `intentionally_superseded`, or `unresolved`; any unresolved coverage blocks review readiness, persistence, and approval.
+- Approval is a separate exact-digest attestation restricted case-sensitively to exact approver `Guy`. It contains no Blueprint content and explicitly grants no Board mint, render, Visual Package promotion, runtime cutover, deployment, or release authority. Tests exercise only synthetic approval semantics inside temporary directories; no real approval was created.
+
+### Validation evidence and limits
+
+- Focused PVB v2, authoring, and lifecycle suite: **PASS — 3 files / 114 tests**. Broader PVB/Visual Package regression suite: **PASS — 7 files / 158 tests**.
+- `npx --no-install tsc --noEmit`, working/cached diff checks, deterministic/literal scans, downstream-authority scans, forbidden provider/runtime-boundary scans, local CLI help, and explicit `--live` rejection: **PASS**.
+- Literal `npm run check`: TypeScript **PASS**; Vitest reported **10 failed tests**. Six are the unchanged absent ignored-output fixture baseline in `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and two `story-read-back-validation.spec.ts` cases. Four were repository-scanner 5-second timeouts under full-suite contention: one delivery-input writer scan, two order-authority scans, and one asset-safety writer scan. All three affected scanner files passed independently — **18/18 tests**. Every PVB-B test passed under full-suite load.
+- No missing ignored-output fixture was copied or fabricated. The four ordinary ignored scratch artifacts created by the full run were absent before the run and were removed afterward from their two exact test directories.
+- No live authoring/model/LLM call, render, OpenAI/provider/Vision/fetch/network/credential use, Supabase/storage/database operation, Board action, real approval, Visual Package promotion, runtime storyboard/Director/prompt/fallback cutover, production qualification, deployment, push, or branch/worktree cleanup occurred.
+- PVB-C remains the separate Decision Gate that must make production Visual Package/runtime consumers project from an approved Blueprint and remove parallel truths. Next action: Claude Code performs a first-pass **READ-ONLY** adversarial review of the exact immutable PVB-B range. Guy retains product, visual, approval, launch, and push authority.
 
 ## R1D-PVB-A — independent technical QA PASS
 
