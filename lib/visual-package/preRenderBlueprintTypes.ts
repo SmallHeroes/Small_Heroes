@@ -77,7 +77,11 @@ export interface BlueprintWorldConnection {
   from: BlueprintConnectionEndpoint;
   to: BlueprintConnectionEndpoint;
   bidirectional: boolean;
-  traversalAffordanceId: string;
+  /**
+   * One or more explicitly authored traversal footprints. Bidirectional connections need a
+   * destination-zone affordance for each direction that is used by a portrait frame.
+   */
+  traversalAffordanceIds: string[];
   openingClearanceAffordanceIds: string[];
   safeBoundaryAffordanceIds: string[];
 }
@@ -106,6 +110,7 @@ export interface BlueprintTraversalAffordance extends BlueprintAffordanceBase {
   kind: 'traversal';
   connectionId: string;
   direction: 'forward' | 'reverse' | 'both';
+  /** Minimum required `min(width, height)` in normalized-1000 units. */
   minimumClearance: number;
 }
 
@@ -127,6 +132,7 @@ export interface BlueprintActionSpaceAffordance extends BlueprintAffordanceBase 
   kind: 'action_space';
   supportedPredicates: ActionPredicate[];
   supportedEntities: EntityRef[];
+  /** Maximum unique required-action `actorId` cast members assigned on one frame/page. */
   maximumActors: number;
 }
 

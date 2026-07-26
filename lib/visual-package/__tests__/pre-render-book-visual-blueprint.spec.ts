@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   PRE_RENDER_BOOK_VISUAL_BLUEPRINT_VERSION,
   assertValidPreRenderBookVisualBlueprint,
+  buildPreRenderBlueprintIdentity,
   computePreRenderBookVisualBlueprintDigest,
   finalizePreRenderBookVisualBlueprint,
   serializePreRenderBookVisualBlueprint,
@@ -11,10 +12,18 @@ import {
   type PreRenderBlueprintIssueCode,
   type PreRenderBookVisualBlueprint,
 } from '@/lib/visual-package';
-import { projectZoneStableGeometry } from '@/lib/visual-contract-compiler';
+import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
+import {
+  projectCoverMustNotShow,
+  projectPageMustNotShow,
+  projectPageMustShow,
+  projectZoneStableGeometry,
+  type BookVisualContract,
+} from '@/lib/visual-contract-compiler';
 
 import {
   buildBlueprintFixture,
+  type BlueprintFixture,
   type BlueprintFixtureShape,
 } from './pre-render-book-visual-blueprint.fixtures';
 
@@ -31,6 +40,201 @@ function issueCodes(
 function restamp(blueprint: PreRenderBookVisualBlueprint): PreRenderBookVisualBlueprint {
   const { digest: _digest, digestAlgorithm: _algorithm, ...draft } = blueprint;
   return finalizePreRenderBookVisualBlueprint(draft);
+}
+
+function refreshContractProjections(blueprint: PreRenderBookVisualBlueprint): void {
+  const contract = blueprint.visualContract as unknown as BookVisualContract;
+  blueprint.visualContract.coverContract.mustNotShow = projectCoverMustNotShow(contract);
+  for (const page of blueprint.visualContract.pageContracts) {
+    page.mustShow = [
+      `authored narrative beat ${page.pageNumber}`,
+      ...projectPageMustShow(page, contract),
+    ];
+    page.mustNotShow = projectPageMustNotShow(page, contract);
+  }
+}
+
+function rebindEmbeddedAuthority(args: {
+  blueprint: PreRenderBookVisualBlueprint;
+  context: BlueprintFixture['context'];
+}): BlueprintFixture {
+  const blueprint = clone(args.blueprint);
+  const context = clone(args.context);
+  context.template = clone(blueprint.visualContract);
+  context.visualPackage.template = {
+    ...context.visualPackage.template,
+    digest: canonicalJsonDigest(context.template),
+    schemaVersion: context.template.schemaVersion,
+  };
+  blueprint.identity = buildPreRenderBlueprintIdentity({
+    source: context.source,
+    template: context.visualPackage.template,
+    visualPackage: context.visualPackage,
+    visualPackageArtifactPath: blueprint.identity.visualPackage.artifactPath,
+  });
+  return {
+    blueprint: restamp(blueprint),
+    context,
+  };
+}
+
+function renameRevealProp(
+  fixture: BlueprintFixture,
+  next: { id: string; name: string },
+): BlueprintFixture {
+  const blueprint = clone(fixture.blueprint);
+  const prop = blueprint.visualContract.recurringProps[0];
+  const previousId = prop.id;
+  prop.id = next.id;
+  prop.name = next.name;
+  for (const page of blueprint.visualContract.pageContracts) {
+    for (const constraint of page.propConstraints ?? []) {
+      if (constraint.propId === previousId) constraint.propId = next.id;
+    }
+  }
+  for (const frame of blueprint.frames) {
+    frame.propLifecycle.requiredPropIds = frame.propLifecycle.requiredPropIds.map((id) =>
+      id === previousId ? next.id : id,
+    );
+    frame.propLifecycle.forbiddenPropIds = frame.propLifecycle.forbiddenPropIds.map((id) =>
+      id === previousId ? next.id : id,
+    );
+    for (const placement of frame.placements) {
+      if (placement.subject.kind === 'prop' && placement.subject.propId === previousId) {
+        placement.subject.propId = next.id;
+      }
+    }
+    for (const ref of frame.continuity.carryoverRefs) {
+      if (ref.kind === 'prop' && ref.id === previousId) ref.id = next.id;
+    }
+  }
+  for (const geometry of blueprint.worldPlan.revealSafeSupportingGeometry) {
+    geometry.supportsPropIds = geometry.supportsPropIds.map((id) =>
+      id === previousId ? next.id : id,
+    );
+  }
+  for (const affordance of blueprint.worldPlan.affordances) {
+    if (affordance.kind === 'placement_support') {
+      for (const entity of affordance.supportedEntities) {
+        if (entity.kind === 'prop' && entity.id === previousId) entity.id = next.id;
+      }
+      for (const consumer of affordance.consumers) {
+        if (consumer.kind === 'placement' && consumer.propId === previousId) {
+          consumer.propId = next.id;
+        }
+      }
+    }
+  }
+  refreshContractProjections(blueprint);
+  return rebindEmbeddedAuthority({ blueprint, context: fixture.context });
+}
+
+function buildTwoPropCapacityFixture(maximumOccupants: number): BlueprintFixture {
+  const fixture = buildBlueprintFixture('reveal_timeline');
+  const blueprint = clone(fixture.blueprint);
+  const secondPropId = 'prop:second_token';
+  blueprint.visualContract.recurringProps.push({
+    id: secondPropId,
+    name: 'Second token',
+    description: 'a second small token with an independent stable identity',
+    firstRevealPage: 2,
+  });
+  const page1 = blueprint.visualContract.pageContracts.find(
+    (page) => page.pageNumber === 1,
+  )!;
+  const page2 = blueprint.visualContract.pageContracts.find(
+    (page) => page.pageNumber === 2,
+  )!;
+  page1.propConstraints = [
+    ...(page1.propConstraints ?? []),
+    { propId: secondPropId, visibility: 'forbidden' },
+  ];
+  page2.propConstraints = [
+    ...(page2.propConstraints ?? []),
+    {
+      propId: secondPropId,
+      visibility: 'required',
+      anchorId: 'anchor:support',
+    },
+  ];
+  const cover = blueprint.frames.find((frame) => frame.kind === 'cover')!;
+  cover.propLifecycle.forbiddenPropIds.push(secondPropId);
+  const frame1 = blueprint.frames.find((frame) => frame.id === 'frame:page:1')!;
+  frame1.propLifecycle.forbiddenPropIds.push(secondPropId);
+  const frame2 = blueprint.frames.find((frame) => frame.id === 'frame:page:2')!;
+  frame2.propLifecycle.requiredPropIds.push(secondPropId);
+  frame2.placements.push({
+    id: 'placement:2:second-required-prop',
+    subject: { kind: 'prop', propId: secondPropId },
+    region: { x: 620, y: 550, width: 100, height: 100 },
+    depth: 'foreground',
+    importance: 'key',
+  });
+  const support = blueprint.worldPlan.affordances.find(
+    (affordance) =>
+      affordance.kind === 'placement_support' &&
+      affordance.consumers.some(
+        (consumer) => consumer.kind === 'placement' && consumer.pageNumber === 2,
+      ),
+  );
+  if (!support || support.kind !== 'placement_support') {
+    throw new Error('placement support fixture missing');
+  }
+  support.maximumOccupants = maximumOccupants;
+  support.supportedEntities.push({ kind: 'prop', id: secondPropId });
+  support.consumers.push({
+    kind: 'placement',
+    pageNumber: 2,
+    propId: secondPropId,
+  });
+  refreshContractProjections(blueprint);
+  return rebindEmbeddedAuthority({ blueprint, context: fixture.context });
+}
+
+function buildTwoActorCapacityFixture(maximumActors: number): BlueprintFixture {
+  const fixture = buildBlueprintFixture('single_location');
+  const blueprint = clone(fixture.blueprint);
+  const page = blueprint.visualContract.pageContracts[0];
+  const companionId = blueprint.visualContract.cast.companion?.id;
+  if (!companionId) throw new Error('companion fixture missing');
+  page.actionRequirements = [
+    ...(page.actionRequirements ?? []),
+    {
+      checkId: 'action:page_1_companion_points',
+      actorId: companionId,
+      predicate: 'points_at',
+      object: { kind: 'anchor', id: 'anchor:focus' },
+      polarity: 'must',
+    },
+  ];
+  const frame = blueprint.frames.find((entry) => entry.id === 'frame:page:1')!;
+  frame.placements.push({
+    id: 'placement:1:companion-action',
+    subject: { kind: 'action', checkId: 'action:page_1_companion_points' },
+    region: { x: 250, y: 360, width: 200, height: 220 },
+    depth: 'midground',
+    importance: 'key',
+  });
+  const actionSpace = blueprint.worldPlan.affordances.find(
+    (affordance) =>
+      affordance.kind === 'action_space' &&
+      affordance.consumers.some(
+        (consumer) => consumer.kind === 'action' && consumer.pageNumber === 1,
+      ),
+  );
+  if (!actionSpace || actionSpace.kind !== 'action_space') {
+    throw new Error('action-space fixture missing');
+  }
+  actionSpace.maximumActors = maximumActors;
+  actionSpace.supportedPredicates.push('points_at');
+  actionSpace.supportedEntities.push({ kind: 'cast', id: companionId });
+  actionSpace.consumers.push({
+    kind: 'action',
+    pageNumber: 1,
+    checkId: 'action:page_1_companion_points',
+  });
+  refreshContractProjections(blueprint);
+  return rebindEmbeddedAuthority({ blueprint, context: fixture.context });
 }
 
 describe('R1D-PVB-A — schema generalization fixtures', () => {
@@ -145,6 +349,56 @@ describe('R1D-PVB-A — coverage, references, and deterministic authority', () =
     );
   });
 
+  it('uses explicit locale-independent lexical ordering for digest-owned arrays', () => {
+    const fixture = buildBlueprintFixture('single_location');
+    const reordered = clone(fixture.blueprint);
+    const coverCamera = reordered.worldPlan.affordances.find(
+      (affordance) =>
+        affordance.kind === 'camera_access' &&
+        affordance.consumers.some(
+          (consumer) => consumer.kind === 'frame' && consumer.frameId === 'frame:cover',
+        ),
+    );
+    const pageCamera = reordered.worldPlan.affordances.find(
+      (affordance) =>
+        affordance.kind === 'camera_access' &&
+        affordance.consumers.some(
+          (consumer) => consumer.kind === 'frame' && consumer.frameId === 'frame:page:1',
+        ),
+    );
+    if (!coverCamera || coverCamera.kind !== 'camera_access') {
+      throw new Error('cover camera fixture missing');
+    }
+    if (!pageCamera || pageCamera.kind !== 'camera_access') {
+      throw new Error('page camera fixture missing');
+    }
+    const oldCoverId = coverCamera.id;
+    const oldPageId = pageCamera.id;
+    coverCamera.id = 'affordance:camera:ä';
+    pageCamera.id = 'affordance:camera:z';
+    for (const frame of reordered.frames) {
+      frame.affordanceIds = frame.affordanceIds.map((id) =>
+        id === oldCoverId
+          ? coverCamera.id
+          : id === oldPageId
+            ? pageCamera.id
+            : id,
+      );
+      if (frame.camera.affordanceId === oldCoverId) {
+        frame.camera.affordanceId = coverCamera.id;
+      } else if (frame.camera.affordanceId === oldPageId) {
+        frame.camera.affordanceId = pageCamera.id;
+      }
+    }
+    reordered.worldPlan.affordances.reverse();
+    const finalized = restamp(reordered);
+    const orderedIds = finalized.worldPlan.affordances
+      .map((affordance) => affordance.id)
+      .filter((id) => id === coverCamera.id || id === pageCamera.id);
+    expect(orderedIds).toEqual(['affordance:camera:z', 'affordance:camera:ä']);
+    expect(validatePreRenderBookVisualBlueprint(finalized, fixture.context).ok).toBe(true);
+  });
+
   it('finalization is pure and does not mutate caller-owned draft arrays', () => {
     const fixture = buildBlueprintFixture('journey_fantastical');
     const { digest: _digest, digestAlgorithm: _algorithm, ...draft } = clone(fixture.blueprint);
@@ -181,6 +435,198 @@ describe('R1D-PVB-A — coverage, references, and deterministic authority', () =
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.issues.map((entry) => entry.code)).toContain('schema_invalid');
   });
+
+  const malformedCases: Array<{
+    name: string;
+    shape?: BlueprintFixtureShape;
+    restampable: boolean;
+    mutate: (blueprint: PreRenderBookVisualBlueprint) => void;
+  }> = [
+    {
+      name: 'missing identity.source',
+      restampable: true,
+      mutate: (blueprint) => {
+        delete (blueprint.identity as unknown as { source?: unknown }).source;
+      },
+    },
+    {
+      name: 'missing identity.template',
+      restampable: true,
+      mutate: (blueprint) => {
+        delete (blueprint.identity as unknown as { template?: unknown }).template;
+      },
+    },
+    {
+      name: 'missing identity.visualPackage',
+      restampable: true,
+      mutate: (blueprint) => {
+        delete (blueprint.identity as unknown as { visualPackage?: unknown }).visualPackage;
+      },
+    },
+    {
+      name: 'null placement entry',
+      restampable: false,
+      mutate: (blueprint) => {
+        blueprint.frames[1].placements = [null] as never;
+      },
+    },
+    {
+      name: 'null placement subject',
+      restampable: true,
+      mutate: (blueprint) => {
+        blueprint.frames[1].placements[0].subject = null as never;
+      },
+    },
+    {
+      name: 'null castIds',
+      restampable: false,
+      mutate: (blueprint) => {
+        blueprint.frames[1].castIds = null as never;
+      },
+    },
+    {
+      name: 'null frame camera',
+      restampable: true,
+      mutate: (blueprint) => {
+        blueprint.frames[1].camera = null as never;
+      },
+    },
+    {
+      name: 'null frame propLifecycle',
+      restampable: false,
+      mutate: (blueprint) => {
+        blueprint.frames[1].propLifecycle = null as never;
+      },
+    },
+    {
+      name: 'non-array frame affordanceIds',
+      restampable: false,
+      mutate: (blueprint) => {
+        blueprint.frames[1].affordanceIds = { invalid: true } as never;
+      },
+    },
+    {
+      name: 'null affordance consumers',
+      restampable: false,
+      mutate: (blueprint) => {
+        blueprint.worldPlan.affordances[0].consumers = null as never;
+      },
+    },
+    {
+      name: 'null placement supportedEntities',
+      shape: 'reveal_timeline',
+      restampable: false,
+      mutate: (blueprint) => {
+        const target = blueprint.worldPlan.affordances.find(
+          (entry) => entry.kind === 'placement_support',
+        );
+        if (!target || target.kind !== 'placement_support') {
+          throw new Error('placement support fixture missing');
+        }
+        target.supportedEntities = null as never;
+      },
+    },
+    {
+      name: 'null action supportedEntities',
+      restampable: false,
+      mutate: (blueprint) => {
+        const target = blueprint.worldPlan.affordances.find(
+          (entry) => entry.kind === 'action_space',
+        );
+        if (!target || target.kind !== 'action_space') {
+          throw new Error('action-space fixture missing');
+        }
+        target.supportedEntities = null as never;
+      },
+    },
+    {
+      name: 'null safe-boundary target',
+      restampable: true,
+      mutate: (blueprint) => {
+        const target = blueprint.worldPlan.affordances.find(
+          (entry) => entry.kind === 'safe_boundary',
+        );
+        if (!target || target.kind !== 'safe_boundary') {
+          throw new Error('safe-boundary fixture missing');
+        }
+        target.target = null as never;
+      },
+    },
+    {
+      name: 'truthy non-array continuity carryoverRefs',
+      restampable: false,
+      mutate: (blueprint) => {
+        blueprint.frames[1].continuity.carryoverRefs = { invalid: true } as never;
+      },
+    },
+    {
+      name: 'non-array transition traversal ids',
+      restampable: false,
+      mutate: (blueprint) => {
+        blueprint.worldPlan.connections[0].traversalAffordanceIds = {
+          invalid: true,
+        } as never;
+      },
+    },
+    {
+      name: 'non-array transition opening ids',
+      restampable: false,
+      mutate: (blueprint) => {
+        blueprint.worldPlan.connections[0].openingClearanceAffordanceIds = {
+          invalid: true,
+        } as never;
+      },
+    },
+    {
+      name: 'non-array transition safety ids',
+      restampable: false,
+      mutate: (blueprint) => {
+        blueprint.worldPlan.connections[0].safeBoundaryAffordanceIds = {
+          invalid: true,
+        } as never;
+      },
+    },
+    {
+      name: 'null connection endpoint',
+      restampable: true,
+      mutate: (blueprint) => {
+        blueprint.worldPlan.connections[0].from = null as never;
+      },
+    },
+    {
+      name: 'null supporting-geometry entry',
+      shape: 'reveal_timeline',
+      restampable: false,
+      mutate: (blueprint) => {
+        blueprint.worldPlan.revealSafeSupportingGeometry = [null] as never;
+      },
+    },
+  ];
+
+  it.each(malformedCases)(
+    'fails closed deterministically without raw exceptions for $name',
+    ({ shape = 'multi_zone_transition', restampable, mutate }) => {
+      const fixture = buildBlueprintFixture(shape);
+      let bad = clone(fixture.blueprint);
+      mutate(bad);
+      if (restampable) bad = restamp(bad);
+
+      expect(() => validatePreRenderBookVisualBlueprint(bad, fixture.context)).not.toThrow();
+      const first = validatePreRenderBookVisualBlueprint(bad, fixture.context);
+      const second = validatePreRenderBookVisualBlueprint(bad, fixture.context);
+      expect(first).toEqual(second);
+      expect(first.ok).toBe(false);
+
+      let thrown: unknown;
+      try {
+        assertValidPreRenderBookVisualBlueprint(bad, fixture.context);
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toBeInstanceOf(InvalidPreRenderBookVisualBlueprintError);
+      expect(thrown).not.toBeInstanceOf(TypeError);
+    },
+  );
 });
 
 describe('R1D-PVB-A — spatial feasibility and safety', () => {
@@ -210,13 +656,135 @@ describe('R1D-PVB-A — spatial feasibility and safety', () => {
     expect(issueCodes(restamp(bad), fixture.context)).toContain('placement_infeasible');
   });
 
+  it('enforces aggregate unique-prop capacity with an exact-capacity boundary', () => {
+    const exact = buildTwoPropCapacityFixture(2);
+    expect(validatePreRenderBookVisualBlueprint(exact.blueprint, exact.context).ok).toBe(true);
+
+    const overbooked = buildTwoPropCapacityFixture(1);
+    expect(issueCodes(overbooked.blueprint, overbooked.context)).toContain(
+      'placement_infeasible',
+    );
+  });
+
+  it('enforces aggregate unique required-action actors with an exact-capacity boundary', () => {
+    const exact = buildTwoActorCapacityFixture(2);
+    expect(validatePreRenderBookVisualBlueprint(exact.blueprint, exact.context).ok).toBe(true);
+
+    const overbooked = buildTwoActorCapacityFixture(1);
+    expect(issueCodes(overbooked.blueprint, overbooked.context)).toContain(
+      'action_infeasible',
+    );
+  });
+
   it('rejects a transition without traversal/opening clearance and authored connection support', () => {
     const fixture = buildBlueprintFixture('multi_zone_transition');
     const bad = clone(fixture.blueprint);
     const connection = bad.worldPlan.connections[0];
-    connection.traversalAffordanceId = 'affordance:missing';
+    connection.traversalAffordanceIds = ['affordance:missing'];
     connection.openingClearanceAffordanceIds = [];
     const codes = issueCodes(restamp(bad), fixture.context);
+    expect(codes).toContain('traversal_infeasible');
+  });
+
+  it('enforces minimumClearance on traversal and opening min-dimensions at the exact boundary', () => {
+    const fixture = buildBlueprintFixture('multi_zone_transition');
+    const traversal = fixture.blueprint.worldPlan.affordances.find(
+      (entry) => entry.kind === 'traversal',
+    );
+    const opening = fixture.blueprint.worldPlan.affordances.find(
+      (entry) => entry.kind === 'opening_clearance',
+    );
+    if (!traversal || traversal.kind !== 'traversal') {
+      throw new Error('traversal fixture missing');
+    }
+    if (!opening || opening.kind !== 'opening_clearance') {
+      throw new Error('opening fixture missing');
+    }
+    expect(traversal.minimumClearance).toBe(180);
+    expect(Math.min(opening.clearanceRegion.width, opening.clearanceRegion.height)).toBe(180);
+    expect(validatePreRenderBookVisualBlueprint(fixture.blueprint, fixture.context).ok).toBe(true);
+
+    const narrowOpening = clone(fixture.blueprint);
+    const narrowOpeningAffordance = narrowOpening.worldPlan.affordances.find(
+      (entry) => entry.kind === 'opening_clearance',
+    );
+    if (!narrowOpeningAffordance || narrowOpeningAffordance.kind !== 'opening_clearance') {
+      throw new Error('opening fixture missing');
+    }
+    narrowOpeningAffordance.clearanceRegion.width = 179;
+    expect(issueCodes(restamp(narrowOpening), fixture.context)).toContain(
+      'traversal_infeasible',
+    );
+
+    const narrowTraversal = clone(fixture.blueprint);
+    const narrowTraversalAffordance = narrowTraversal.worldPlan.affordances.find(
+      (entry) => entry.kind === 'traversal',
+    );
+    if (!narrowTraversalAffordance || narrowTraversalAffordance.kind !== 'traversal') {
+      throw new Error('traversal fixture missing');
+    }
+    narrowTraversalAffordance.footprint.width = 179;
+    expect(issueCodes(restamp(narrowTraversal), fixture.context)).toContain(
+      'traversal_infeasible',
+    );
+  });
+
+  it('rejects transition support in an unrelated endpoint zone', () => {
+    const fixture = buildBlueprintFixture('journey_fantastical');
+    const bad = clone(fixture.blueprint);
+    const page2 = bad.frames.find((frame) => frame.id === 'frame:page:2');
+    if (!page2?.continuity.connectionId) throw new Error('page-2 connection fixture missing');
+    const traversal = bad.worldPlan.affordances.find(
+      (entry) =>
+        entry.kind === 'traversal' &&
+        entry.connectionId === page2.continuity.connectionId,
+    );
+    const opening = bad.worldPlan.affordances.find(
+      (entry) =>
+        entry.kind === 'opening_clearance' &&
+        entry.connectionId === page2.continuity.connectionId,
+    );
+    if (!traversal || traversal.kind !== 'traversal') {
+      throw new Error('traversal fixture missing');
+    }
+    if (!opening || opening.kind !== 'opening_clearance') {
+      throw new Error('opening fixture missing');
+    }
+    traversal.zoneId = 'zone:castle';
+    opening.zoneId = 'zone:castle';
+    expect(issueCodes(restamp(bad), fixture.context)).toContain('traversal_infeasible');
+  });
+
+  it('represents a valid reverse traversal on a bidirectional connection', () => {
+    const fixture = buildBlueprintFixture('multi_zone_transition');
+    const reverse = clone(fixture.blueprint);
+    const connection = reverse.worldPlan.connections[0];
+    connection.from = { zoneId: 'zone:room' };
+    connection.to = { zoneId: 'zone:hall' };
+    connection.bidirectional = true;
+    const traversal = reverse.worldPlan.affordances.find(
+      (entry) => entry.kind === 'traversal',
+    );
+    if (!traversal || traversal.kind !== 'traversal') {
+      throw new Error('traversal fixture missing');
+    }
+    traversal.direction = 'reverse';
+    const result = validatePreRenderBookVisualBlueprint(
+      restamp(reverse),
+      fixture.context,
+    );
+    expect(result.ok, result.ok ? '' : JSON.stringify(result.issues, null, 2)).toBe(true);
+  });
+
+  it('rejects a traversal whose declared direction cannot serve the authored transition', () => {
+    const fixture = buildBlueprintFixture('multi_zone_transition');
+    const wrongDirection = clone(fixture.blueprint);
+    const connection = wrongDirection.worldPlan.connections[0];
+    connection.from = { zoneId: 'zone:room' };
+    connection.to = { zoneId: 'zone:hall' };
+    connection.bidirectional = true;
+    const codes = issueCodes(restamp(wrongDirection), fixture.context);
+    expect(codes).toContain('transition_invalid');
     expect(codes).toContain('traversal_infeasible');
   });
 
@@ -294,6 +862,57 @@ describe('R1D-PVB-A — reveal lifecycle and staleness', () => {
     expect(issueCodes(restamp(named), fixture.context)).toContain('reveal_violation');
   });
 
+  it.each([
+    { propName: 'TV', leak: 'The TV waits beside the child' },
+    { propName: 'Ax', leak: 'The child notices an Ax nearby' },
+    { propName: 'Object', leak: 'The Object waits beside the child' },
+    { propName: 'ד', leak: 'הילד רואה ד ליד הדלת' },
+    { propName: '桶', leak: '孩子看见桶在门边' },
+  ])('detects short Unicode token-exact pre-reveal names: $propName', ({ propName, leak }) => {
+    const renamed = renameRevealProp(buildBlueprintFixture('reveal_timeline'), {
+      id: `prop:${propName}`,
+      name: propName,
+    });
+    const bad = clone(renamed.blueprint);
+    bad.frames.find((frame) => frame.id === 'frame:page:1')!.narrative.summary = leak;
+    expect(issueCodes(restamp(bad), renamed.context)).toContain('reveal_violation');
+  });
+
+  it('detects separated and reordered multi-token prop names', () => {
+    const renamed = renameRevealProp(buildBlueprintFixture('reveal_timeline'), {
+      id: 'prop:red_bucket',
+      name: 'Red Bucket',
+    });
+    const bad = clone(renamed.blueprint);
+    bad.frames.find((frame) => frame.id === 'frame:page:1')!.narrative.summary =
+      'The bucket, which is red, waits beyond the child';
+    expect(issueCodes(restamp(bad), renamed.context)).toContain('reveal_violation');
+  });
+
+  it('keeps reveal matching token-exact instead of matching substrings', () => {
+    const renamed = renameRevealProp(buildBlueprintFixture('reveal_timeline'), {
+      id: 'prop:ax',
+      name: 'Ax',
+    });
+    const safe = clone(renamed.blueprint);
+    safe.frames.find((frame) => frame.id === 'frame:page:1')!.narrative.summary =
+      'The tax and axle stay outside while the child looks at the platform';
+    const result = validatePreRenderBookVisualBlueprint(restamp(safe), renamed.context);
+    expect(result.ok, result.ok ? '' : JSON.stringify(result.issues, null, 2)).toBe(true);
+  });
+
+  it('does not flag a partial multi-token name when one exact semantic token is absent', () => {
+    const renamed = renameRevealProp(buildBlueprintFixture('reveal_timeline'), {
+      id: 'prop:red_bucket',
+      name: 'Red Bucket',
+    });
+    const safe = clone(renamed.blueprint);
+    safe.frames.find((frame) => frame.id === 'frame:page:1')!.narrative.summary =
+      'A red scarf rests near a basket while the child looks at the platform';
+    const result = validatePreRenderBookVisualBlueprint(restamp(safe), renamed.context);
+    expect(result.ok, result.ok ? '' : JSON.stringify(result.issues, null, 2)).toBe(true);
+  });
+
   it('rejects supporting geometry unless it is explicitly spoiler-neutral', () => {
     const fixture = buildBlueprintFixture('reveal_timeline');
     const bad = clone(fixture.blueprint);
@@ -309,7 +928,25 @@ describe('R1D-PVB-A — reveal lifecycle and staleness', () => {
     if (!node) throw new Error('supporting-geometry node missing');
     node.description = 'a platform labeled Hidden keepsake';
     zone.stableGeometry = projectZoneStableGeometry(zone);
-    expect(issueCodes(restamp(bad), fixture.context)).toContain('reveal_violation');
+    const rebound = rebindEmbeddedAuthority({ blueprint: bad, context: fixture.context });
+    const codes = issueCodes(rebound.blueprint, rebound.context);
+    expect(codes).toContain('reveal_violation');
+    expect(codes).not.toContain('template_stale');
+  });
+
+  it('applies separated/reordered token detection identically to neutral geometry prose', () => {
+    const fixture = renameRevealProp(buildBlueprintFixture('reveal_timeline'), {
+      id: 'prop:red_bucket',
+      name: 'Red Bucket',
+    });
+    const bad = clone(fixture.blueprint);
+    const zone = bad.visualContract.zones[0];
+    const node = zone.spatialNodes?.find((entry) => entry.id === 'future_support');
+    if (!node) throw new Error('supporting-geometry node missing');
+    node.description = 'a fixed platform for the bucket, which is painted red';
+    zone.stableGeometry = projectZoneStableGeometry(zone);
+    const rebound = rebindEmbeddedAuthority({ blueprint: bad, context: fixture.context });
+    expect(issueCodes(rebound.blueprint, rebound.context)).toContain('reveal_violation');
   });
 
   it('becomes stale when the current Story Source, template, or visual package changes', () => {

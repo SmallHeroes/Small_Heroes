@@ -108,18 +108,24 @@ function issue(
   return { code, message, ...extra };
 }
 
+function lexicalCompare(left: string, right: string): number {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+}
+
 function canonicalKey(value: unknown): string {
-  return JSON.stringify(canonicalize(value));
+  return JSON.stringify(canonicalize(value)) ?? 'undefined';
 }
 
 function sameCanonical(left: unknown, right: unknown): boolean {
-  return canonicalJsonDigest(left) === canonicalJsonDigest(right);
+  return canonicalKey(left) === canonicalKey(right);
 }
 
 function sameStringSet(left: unknown, right: readonly string[]): boolean {
   if (!Array.isArray(left) || !left.every((entry) => typeof entry === 'string')) return false;
-  const actual = [...left].sort();
-  const expected = [...right].sort();
+  const actual = [...left].sort(lexicalCompare);
+  const expected = [...right].sort(lexicalCompare);
   return sameCanonical(actual, expected);
 }
 
@@ -127,8 +133,15 @@ function entityRefKey(ref: EntityRef): string {
   return `${ref.kind}:${ref.id}`;
 }
 
-function entityRefEquals(left: EntityRef, right: EntityRef): boolean {
-  return left.kind === right.kind && left.id === right.id;
+function entityRefEquals(left: unknown, right: unknown): boolean {
+  return (
+    isObj(left) &&
+    isObj(right) &&
+    isStr(left.kind) &&
+    isStr(left.id) &&
+    left.kind === right.kind &&
+    left.id === right.id
+  );
 }
 
 function normalizedClone<T>(value: T): T {
@@ -139,35 +152,44 @@ function normalizeOwnedArrays(
   draft: PreRenderBookVisualBlueprintDraft,
 ): PreRenderBookVisualBlueprintDraft {
   const normalized = normalizedClone(draft);
-  normalized.worldPlan.connections.sort((a, b) => a.id.localeCompare(b.id));
-  normalized.worldPlan.affordances.sort((a, b) => a.id.localeCompare(b.id));
-  normalized.worldPlan.revealSafeSupportingGeometry.sort((a, b) => a.id.localeCompare(b.id));
+  normalized.worldPlan.connections.sort((a, b) => lexicalCompare(a.id, b.id));
+  normalized.worldPlan.affordances.sort((a, b) => lexicalCompare(a.id, b.id));
+  normalized.worldPlan.revealSafeSupportingGeometry.sort((a, b) =>
+    lexicalCompare(a.id, b.id),
+  );
   normalized.frames.sort((a, b) => {
-    if (a.kind === 'cover') return b.kind === 'cover' ? a.id.localeCompare(b.id) : -1;
+    if (a.kind === 'cover') return b.kind === 'cover' ? lexicalCompare(a.id, b.id) : -1;
     if (b.kind === 'cover') return 1;
-    return a.pageNumber - b.pageNumber || a.id.localeCompare(b.id);
+    return a.pageNumber - b.pageNumber || lexicalCompare(a.id, b.id);
   });
   for (const connection of normalized.worldPlan.connections) {
-    connection.openingClearanceAffordanceIds.sort();
-    connection.safeBoundaryAffordanceIds.sort();
+    connection.traversalAffordanceIds.sort(lexicalCompare);
+    connection.openingClearanceAffordanceIds.sort(lexicalCompare);
+    connection.safeBoundaryAffordanceIds.sort(lexicalCompare);
   }
   for (const affordance of normalized.worldPlan.affordances) {
-    affordance.consumers.sort((a, b) => canonicalKey(a).localeCompare(canonicalKey(b)));
+    affordance.consumers.sort((a, b) => lexicalCompare(canonicalKey(a), canonicalKey(b)));
     if (affordance.kind === 'placement_support' || affordance.kind === 'action_space') {
-      affordance.supportedEntities.sort((a, b) => entityRefKey(a).localeCompare(entityRefKey(b)));
+      affordance.supportedEntities.sort((a, b) =>
+        lexicalCompare(entityRefKey(a), entityRefKey(b)),
+      );
     }
-    if (affordance.kind === 'action_space') affordance.supportedPredicates.sort();
+    if (affordance.kind === 'action_space') {
+      affordance.supportedPredicates.sort(lexicalCompare);
+    }
   }
   for (const geometry of normalized.worldPlan.revealSafeSupportingGeometry) {
-    geometry.supportsPropIds.sort();
+    geometry.supportsPropIds.sort(lexicalCompare);
   }
   for (const frame of normalized.frames) {
-    frame.castIds.sort();
-    frame.propLifecycle.requiredPropIds.sort();
-    frame.propLifecycle.forbiddenPropIds.sort();
-    frame.placements.sort((a, b) => a.id.localeCompare(b.id));
-    frame.affordanceIds.sort();
-    frame.continuity.carryoverRefs.sort((a, b) => entityRefKey(a).localeCompare(entityRefKey(b)));
+    frame.castIds.sort(lexicalCompare);
+    frame.propLifecycle.requiredPropIds.sort(lexicalCompare);
+    frame.propLifecycle.forbiddenPropIds.sort(lexicalCompare);
+    frame.placements.sort((a, b) => lexicalCompare(a.id, b.id));
+    frame.affordanceIds.sort(lexicalCompare);
+    frame.continuity.carryoverRefs.sort((a, b) =>
+      lexicalCompare(entityRefKey(a), entityRefKey(b)),
+    );
   }
   return normalized;
 }
@@ -277,6 +299,10 @@ function regionsOverlap(left: BlueprintRegion, right: BlueprintRegion): boolean 
   );
 }
 
+function regionMinimumDimension(region: BlueprintRegion): number {
+  return Math.min(region.width, region.height);
+}
+
 function addRegionIssue(
   issues: PreRenderBlueprintIssue[],
   value: unknown,
@@ -337,17 +363,31 @@ function entityRefResolves(
   }
 }
 
-function connectionSupportsTransition(
+type BlueprintTraversalDirection = 'forward' | 'reverse';
+
+function connectionTransitionDirection(
   connection: BlueprintWorldConnection,
   fromZoneId: string,
   toZoneId: string,
-): boolean {
-  if (connection.from.zoneId === fromZoneId && connection.to.zoneId === toZoneId) return true;
-  return (
+): BlueprintTraversalDirection | null {
+  if (connection.from?.zoneId === fromZoneId && connection.to?.zoneId === toZoneId) {
+    return 'forward';
+  }
+  if (
     connection.bidirectional &&
-    connection.from.zoneId === toZoneId &&
-    connection.to.zoneId === fromZoneId
-  );
+    connection.from?.zoneId === toZoneId &&
+    connection.to?.zoneId === fromZoneId
+  ) {
+    return 'reverse';
+  }
+  return null;
+}
+
+function traversalSupportsDirection(
+  affordance: Extract<BlueprintSpatialAffordance, { kind: 'traversal' }>,
+  direction: BlueprintTraversalDirection,
+): boolean {
+  return affordance.direction === 'both' || affordance.direction === direction;
 }
 
 function consumerEquals(left: BlueprintAffordanceConsumer, right: BlueprintAffordanceConsumer): boolean {
@@ -358,42 +398,60 @@ function hasConsumer(
   affordance: BlueprintSpatialAffordance,
   expected: BlueprintAffordanceConsumer,
 ): boolean {
-  return affordance.consumers.some((consumer) => consumerEquals(consumer, expected));
+  return (
+    Array.isArray(affordance.consumers) &&
+    affordance.consumers.some((consumer) => consumerEquals(consumer, expected))
+  );
+}
+
+const GENERIC_PROP_ID_NAMESPACES = new Set([
+  'prop',
+  'props',
+  'item',
+  'object',
+  'recurring',
+]);
+
+function semanticTokens(value: string): string[] {
+  return value
+    .normalize('NFKC')
+    .toLowerCase()
+    .match(
+      /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]|[\p{L}\p{N}]+/gu,
+    ) ?? [];
 }
 
 function semanticPropTerms(propId: string, propName: string): string[][] {
-  const normalize = (value: string) =>
-    value
-      .normalize('NFKC')
-      .toLowerCase()
-      .replace(/[_:/.-]+/g, ' ')
-      .replace(/[^\p{L}\p{N}\s]+/gu, ' ')
-      .split(/\s+/)
-      .filter((token) => token.length >= 3);
-  const idTokens = normalize(propId).filter(
-    (token) => !['prop', 'props', 'item', 'object', 'recurring'].includes(token),
-  );
-  const nameTokens = normalize(propName);
+  const idTokens = semanticTokens(propId);
+  while (idTokens.length > 1 && GENERIC_PROP_ID_NAMESPACES.has(idTokens[0])) {
+    idTokens.shift();
+  }
+  const nameTokens = semanticTokens(propName);
   const terms = [idTokens, nameTokens].filter((tokens) => tokens.length > 0);
   return terms.filter(
     (tokens, index) =>
-      terms.findIndex((candidate) => candidate.join('\u0000') === tokens.join('\u0000')) === index,
+      terms.findIndex(
+        (candidate) =>
+          canonicalKey([...candidate].sort(lexicalCompare)) ===
+          canonicalKey([...tokens].sort(lexicalCompare)),
+      ) === index,
   );
 }
 
 function textContainsTerm(text: string, term: string[]): boolean {
-  const tokens = text
-    .normalize('NFKC')
-    .toLowerCase()
-    .replace(/[_:/.-]+/g, ' ')
-    .replace(/[^\p{L}\p{N}\s]+/gu, ' ')
-    .split(/\s+/)
-    .filter(Boolean);
+  const tokens = semanticTokens(text);
   if (term.length === 0 || tokens.length < term.length) return false;
-  for (let start = 0; start <= tokens.length - term.length; start += 1) {
-    if (term.every((token, offset) => tokens[start + offset] === token)) return true;
+  const available = new Map<string, number>();
+  for (const token of tokens) {
+    available.set(token, (available.get(token) ?? 0) + 1);
   }
-  return false;
+  const required = new Map<string, number>();
+  for (const token of term) {
+    required.set(token, (required.get(token) ?? 0) + 1);
+  }
+  return [...required].every(
+    ([token, count]) => (available.get(token) ?? 0) >= count,
+  );
 }
 
 function frameNumber(frame: PortraitBlueprintFrame): number {
@@ -411,33 +469,33 @@ function expectedPreviousFrameId(
 }
 
 function framePlacementForCast(
-  frame: PortraitBlueprintFrame,
+  placements: readonly BlueprintFramePlacement[],
   castId: string,
 ): BlueprintFramePlacement | null {
   return (
-    frame.placements.find(
+    placements.find(
       (placement) => placement.subject.kind === 'cast' && placement.subject.castId === castId,
     ) ?? null
   );
 }
 
 function framePlacementForProp(
-  frame: PortraitBlueprintFrame,
+  placements: readonly BlueprintFramePlacement[],
   propId: string,
 ): BlueprintFramePlacement | null {
   return (
-    frame.placements.find(
+    placements.find(
       (placement) => placement.subject.kind === 'prop' && placement.subject.propId === propId,
     ) ?? null
   );
 }
 
 function framePlacementForAction(
-  frame: PortraitBlueprintFrame,
+  placements: readonly BlueprintFramePlacement[],
   checkId: string,
 ): BlueprintFramePlacement | null {
   return (
-    frame.placements.find(
+    placements.find(
       (placement) => placement.subject.kind === 'action' && placement.subject.checkId === checkId,
     ) ?? null
   );
@@ -473,7 +531,27 @@ function validateIdentity(
     issues.push(issue('schema_invalid', 'identity must be an object', { field: 'identity' }));
     return;
   }
-  const identity = raw.identity as unknown as PreRenderBlueprintIdentity;
+  const identityRaw = raw.identity;
+  const sourceIdentity = isObj(identityRaw.source) ? identityRaw.source : null;
+  const templateIdentity = isObj(identityRaw.template) ? identityRaw.template : null;
+  const packageIdentity = isObj(identityRaw.visualPackage)
+    ? identityRaw.visualPackage
+    : null;
+  if (!sourceIdentity) {
+    issues.push(issue('schema_invalid', 'identity.source must be an object', {
+      field: 'identity.source',
+    }));
+  }
+  if (!templateIdentity) {
+    issues.push(issue('schema_invalid', 'identity.template must be an object', {
+      field: 'identity.template',
+    }));
+  }
+  if (!packageIdentity) {
+    issues.push(issue('schema_invalid', 'identity.visualPackage must be an object', {
+      field: 'identity.visualPackage',
+    }));
+  }
   const expectedPackage = buildPreRenderBlueprintPackageIdentity({
     artifactPath: context.visualPackageArtifactPath,
     manifest: context.visualPackage,
@@ -482,10 +560,10 @@ function validateIdentity(
   const embeddedTemplateDigest = canonicalJsonDigest(blueprint.visualContract);
 
   if (
-    identity.storyKey !== context.visualPackage.storyKey ||
-    identity.storyKey !== context.template.storyKey ||
-    identity.storyKey !== blueprint.visualContract.storyKey ||
-    identity.styleId !== context.visualPackage.styleId
+    identityRaw.storyKey !== context.visualPackage.storyKey ||
+    identityRaw.storyKey !== context.template.storyKey ||
+    identityRaw.storyKey !== blueprint.visualContract.storyKey ||
+    identityRaw.styleId !== context.visualPackage.styleId
   ) {
     issues.push(
       issue('identity_mismatch', 'story/style identities disagree across blueprint, template, and package', {
@@ -494,12 +572,12 @@ function validateIdentity(
     );
   }
 
-  if (!sameCanonical(identity.source, context.source)) {
+  if (!sourceIdentity || !sameCanonical(sourceIdentity, context.source)) {
     issues.push(
       issue('source_stale', 'blueprint Story Source identity is not the current authoritative source', {
         field: 'identity.source',
         expected: context.source,
-        actual: identity.source,
+        actual: identityRaw.source,
       }),
     );
   }
@@ -513,8 +591,9 @@ function validateIdentity(
     );
   }
   if (
-    !sameCanonical(identity.template, context.visualPackage.template) ||
-    identity.template.digest !== contextTemplateDigest ||
+    !templateIdentity ||
+    !sameCanonical(templateIdentity, context.visualPackage.template) ||
+    templateIdentity.digest !== contextTemplateDigest ||
     embeddedTemplateDigest !== contextTemplateDigest
   ) {
     issues.push(
@@ -525,18 +604,18 @@ function validateIdentity(
           digest: contextTemplateDigest,
         },
         actual: {
-          identity: identity.template,
+          identity: identityRaw.template,
           embeddedDigest: embeddedTemplateDigest,
         },
       }),
     );
   }
-  if (!sameCanonical(identity.visualPackage, expectedPackage)) {
+  if (!packageIdentity || !sameCanonical(packageIdentity, expectedPackage)) {
     issues.push(
       issue('package_stale', 'blueprint visual-package identity/digest is stale or mismatched', {
         field: 'identity.visualPackage',
         expected: expectedPackage,
-        actual: identity.visualPackage,
+        actual: identityRaw.visualPackage,
       }),
     );
   }
@@ -560,12 +639,12 @@ function validateIdentity(
   }
 
   if (
-    !isStr(identity.source?.digest) ||
-    !HEX_SHA256.test(identity.source.digest) ||
-    !isStr(identity.template?.digest) ||
-    !HEX_SHA256.test(identity.template.digest) ||
-    !isStr(identity.visualPackage?.digest) ||
-    !HEX_SHA256.test(identity.visualPackage.digest)
+    !isStr(sourceIdentity?.digest) ||
+    !HEX_SHA256.test(sourceIdentity.digest) ||
+    !isStr(templateIdentity?.digest) ||
+    !HEX_SHA256.test(templateIdentity.digest) ||
+    !isStr(packageIdentity?.digest) ||
+    !HEX_SHA256.test(packageIdentity.digest)
   ) {
     issues.push(
       issue('schema_invalid', 'source/template/package digests must be lowercase SHA-256 hex', {
@@ -828,16 +907,71 @@ function validateConnection(
   if (connection.from?.zoneId === connection.to?.zoneId) {
     issues.push(issue('transition_invalid', 'connection endpoints must be different zones', { field }));
   }
-  const traversal = affordances.get(connection.traversalAffordanceId);
+  const traversalIds = Array.isArray(connection.traversalAffordanceIds)
+    ? connection.traversalAffordanceIds.filter((id): id is string => typeof id === 'string')
+    : [];
   if (
-    !traversal ||
-    traversal.kind !== 'traversal' ||
-    traversal.connectionId !== connection.id
+    !Array.isArray(connection.traversalAffordanceIds) ||
+    traversalIds.length !== connection.traversalAffordanceIds.length ||
+    traversalIds.length === 0
   ) {
-    issues.push(issue('traversal_infeasible', 'connection traversal affordance is missing or mismatched', {
-      field: `${field}.traversalAffordanceId`,
+    issues.push(issue('schema_invalid', 'traversalAffordanceIds must be a non-empty string array', {
+      field: `${field}.traversalAffordanceIds`,
     }));
   }
+  if (new Set(traversalIds).size !== traversalIds.length) {
+    issues.push(issue('reference_duplicate', 'connection traversal affordance ids must be unique', {
+      field: `${field}.traversalAffordanceIds`,
+    }));
+  }
+  const connectionTraversals: Array<
+    Extract<BlueprintSpatialAffordance, { kind: 'traversal' }>
+  > = [];
+  traversalIds.forEach((id, offset) => {
+    const traversal = affordances.get(id);
+    const traversalField = `${field}.traversalAffordanceIds[${offset}]`;
+    if (
+      !traversal ||
+      traversal.kind !== 'traversal' ||
+      traversal.connectionId !== connection.id
+    ) {
+      issues.push(issue('traversal_infeasible', 'connection traversal affordance is missing or mismatched', {
+        field: traversalField,
+      }));
+      return;
+    }
+    connectionTraversals.push(traversal);
+    const forwardZone = connection.to?.zoneId;
+    const reverseZone = connection.from?.zoneId;
+    const directionZoneValid =
+      (traversal.direction === 'forward' && traversal.zoneId === forwardZone) ||
+      (traversal.direction === 'reverse' &&
+        connection.bidirectional &&
+        traversal.zoneId === reverseZone) ||
+      (traversal.direction === 'both' &&
+        (traversal.zoneId === forwardZone ||
+          (connection.bidirectional && traversal.zoneId === reverseZone)));
+    if (!directionZoneValid) {
+      issues.push(issue('transition_invalid', 'traversal direction must be pinned to its destination endpoint zone', {
+        field: traversalField,
+        actual: {
+          direction: traversal.direction,
+          zoneId: traversal.zoneId,
+        },
+      }));
+    }
+    if (
+      regionIsValid(traversal.footprint) &&
+      Number.isInteger(traversal.minimumClearance) &&
+      regionMinimumDimension(traversal.footprint) < traversal.minimumClearance
+    ) {
+      issues.push(issue('traversal_infeasible', 'traversal footprint is narrower than minimumClearance', {
+        field: `${traversalField}.footprint`,
+        expected: traversal.minimumClearance,
+        actual: regionMinimumDimension(traversal.footprint),
+      }));
+    }
+  });
   if (!Array.isArray(connection.openingClearanceAffordanceIds)) {
     issues.push(issue('schema_invalid', 'openingClearanceAffordanceIds must be an array', { field }));
   } else {
@@ -851,10 +985,49 @@ function validateConnection(
     }
     connection.openingClearanceAffordanceIds.forEach((id, offset) => {
       const opening = affordances.get(id);
-      if (!opening || opening.kind !== 'opening_clearance' || opening.connectionId !== connection.id) {
+      const openingField = `${field}.openingClearanceAffordanceIds[${offset}]`;
+      if (
+        !opening ||
+        opening.kind !== 'opening_clearance' ||
+        opening.connectionId !== connection.id
+      ) {
         issues.push(issue('traversal_infeasible', 'opening-clearance affordance is missing or mismatched', {
-          field: `${field}.openingClearanceAffordanceIds[${offset}]`,
+          field: openingField,
         }));
+        return;
+      }
+      if (
+        opening.zoneId !== connection.from?.zoneId &&
+        opening.zoneId !== connection.to?.zoneId
+      ) {
+        issues.push(issue('transition_invalid', 'opening clearance must be pinned to a connection endpoint zone', {
+          field: openingField,
+          actual: opening.zoneId,
+        }));
+      }
+      const sameZoneTraversals = connectionTraversals.filter(
+        (traversal) => traversal.zoneId === opening.zoneId,
+      );
+      if (sameZoneTraversals.length === 0) {
+        issues.push(issue('traversal_infeasible', 'opening clearance has no same-zone traversal authority', {
+          field: openingField,
+          actual: opening.zoneId,
+        }));
+      }
+      if (regionIsValid(opening.clearanceRegion)) {
+        for (const traversal of sameZoneTraversals) {
+          if (
+            Number.isInteger(traversal.minimumClearance) &&
+            regionMinimumDimension(opening.clearanceRegion) <
+              traversal.minimumClearance
+          ) {
+            issues.push(issue('traversal_infeasible', 'opening clearance is narrower than traversal minimumClearance', {
+              field: `${openingField}.clearanceRegion`,
+              expected: traversal.minimumClearance,
+              actual: regionMinimumDimension(opening.clearanceRegion),
+            }));
+          }
+        }
       }
     });
   }
@@ -921,6 +1094,8 @@ function actionSupportIsCompatible(
   const entities: EntityRef[] = [{ kind: 'cast', id: action.actorId }];
   if (action.object) entities.push(action.object);
   return (
+    Array.isArray(affordance.supportedPredicates) &&
+    Array.isArray(affordance.supportedEntities) &&
     affordance.supportedPredicates.includes(action.predicate) &&
     entities.every((expected) =>
       affordance.supportedEntities.some((actual) => entityRefEquals(actual, expected)),
@@ -933,6 +1108,7 @@ function placementSupportIsCompatible(
   constraint: PagePropConstraint,
 ): boolean {
   const propRef: EntityRef = { kind: 'prop', id: constraint.propId };
+  if (!Array.isArray(affordance.supportedEntities)) return false;
   if (!affordance.supportedEntities.some((entry) => entityRefEquals(entry, propRef))) return false;
   if (!constraint.anchorId) return true;
   return entityRefEquals(affordance.support, { kind: 'anchor', id: constraint.anchorId });
@@ -1072,6 +1248,7 @@ function validateFrame(args: {
     issues.push(issue('schema_invalid', 'frame placements must be an array', { field: `${field}.placements` }));
     return;
   }
+  const validPlacements: BlueprintFramePlacement[] = [];
   const placementIds = new Set<string>();
   const subjectKeys = new Set<string>();
   frame.placements.forEach((placement, placementIndex) => {
@@ -1080,6 +1257,7 @@ function validateFrame(args: {
       issues.push(issue('schema_invalid', 'placement id/subject is invalid', { field: placementField }));
       return;
     }
+    validPlacements.push(placement);
     if (placementIds.has(placement.id)) {
       issues.push(issue('reference_duplicate', `duplicate placement id "${placement.id}"`, {
         field: placementField,
@@ -1103,7 +1281,7 @@ function validateFrame(args: {
     const subject = placement.subject;
     switch (subject.kind) {
       case 'cast':
-        if (!frame.castIds.includes(subject.castId)) {
+        if (!frameCastIds.includes(subject.castId)) {
           issues.push(issue('reference_unresolved', 'cast placement is not in this frame cast', {
             field: `${placementField}.subject`,
           }));
@@ -1153,7 +1331,7 @@ function validateFrame(args: {
       : [];
   const requiredPlacements: BlueprintFramePlacement[] = [];
   for (const castId of frameCastIds) {
-    const placement = framePlacementForCast(frame, castId);
+    const placement = framePlacementForCast(validPlacements, castId);
     if (!placement || placement.importance !== 'key') {
       issues.push(issue('placement_infeasible', `key cast "${castId}" lacks exactly one key placement`, {
         field: `${field}.placements`,
@@ -1163,7 +1341,7 @@ function validateFrame(args: {
     }
   }
   for (const propId of lifecycle.required) {
-    const placement = framePlacementForProp(frame, propId);
+    const placement = framePlacementForProp(validPlacements, propId);
     if (!placement || placement.importance !== 'key') {
       issues.push(issue('placement_infeasible', `required prop "${propId}" lacks exactly one key placement`, {
         field: `${field}.placements`,
@@ -1173,7 +1351,7 @@ function validateFrame(args: {
     }
   }
   for (const action of mustActions) {
-    const placement = framePlacementForAction(frame, action.checkId);
+    const placement = framePlacementForAction(validPlacements, action.checkId);
     if (!placement || placement.importance !== 'key') {
       issues.push(issue('action_infeasible', `required action "${action.checkId}" lacks exactly one key evidence region`, {
         field: `${field}.placements`,
@@ -1239,11 +1417,12 @@ function validateFrame(args: {
   }
 
   if (frame.kind === 'page' && page) {
+    const propAssignments = new Map<string, Set<string>>();
     for (const constraint of (page.propConstraints ?? []).filter(
       (entry) => lifecycle.required.includes(entry.propId),
     )) {
-      const placement = framePlacementForProp(frame, constraint.propId);
-      const support = [...affordances.values()].find(
+      const placement = framePlacementForProp(validPlacements, constraint.propId);
+      const compatibleSupports = [...affordances.values()].filter(
         (candidate) =>
           candidate.kind === 'placement_support' &&
           candidate.zoneId === frame.zoneId &&
@@ -1261,16 +1440,40 @@ function validateFrame(args: {
               regionContains(candidate.footprint, placement.region),
           ),
       );
-      if (!support) {
+      if (compatibleSupports.length === 0) {
         issues.push(issue('placement_infeasible', `required prop "${constraint.propId}" has no compatible placement/support affordance`, {
           field: `${field}.affordanceIds`,
+        }));
+      } else if (compatibleSupports.length > 1) {
+        issues.push(issue('affordance_incompatible', `required prop "${constraint.propId}" has ambiguous placement/support assignments`, {
+          field: `${field}.affordanceIds`,
+          actual: compatibleSupports.map((support) => support.id).sort(lexicalCompare),
+        }));
+      } else {
+        const assigned = propAssignments.get(compatibleSupports[0].id) ?? new Set<string>();
+        assigned.add(constraint.propId);
+        propAssignments.set(compatibleSupports[0].id, assigned);
+      }
+    }
+    for (const [supportId, propIds] of propAssignments) {
+      const support = affordances.get(supportId);
+      if (
+        support?.kind === 'placement_support' &&
+        Number.isInteger(support.maximumOccupants) &&
+        propIds.size > support.maximumOccupants
+      ) {
+        issues.push(issue('placement_infeasible', 'placement support exceeds maximumOccupants for this frame', {
+          field: `worldPlan.affordances.${supportId}.maximumOccupants`,
+          expected: support.maximumOccupants,
+          actual: [...propIds].sort(lexicalCompare),
         }));
       }
     }
 
+    const actionActorAssignments = new Map<string, Set<string>>();
     for (const action of mustActions) {
-      const placement = framePlacementForAction(frame, action.checkId);
-      const support = [...affordances.values()].find(
+      const placement = framePlacementForAction(validPlacements, action.checkId);
+      const compatibleSupports = [...affordances.values()].filter(
         (candidate) =>
           candidate.kind === 'action_space' &&
           candidate.zoneId === frame.zoneId &&
@@ -1288,9 +1491,35 @@ function validateFrame(args: {
               regionContains(candidate.footprint, placement.region),
           ),
       );
-      if (!support) {
+      if (compatibleSupports.length === 0) {
         issues.push(issue('action_infeasible', `action "${action.checkId}" has no compatible action-space affordance`, {
           field: `${field}.affordanceIds`,
+        }));
+      } else if (compatibleSupports.length > 1) {
+        issues.push(issue('affordance_incompatible', `action "${action.checkId}" has ambiguous action-space assignments`, {
+          field: `${field}.affordanceIds`,
+          actual: compatibleSupports.map((support) => support.id).sort(lexicalCompare),
+        }));
+      } else {
+        const actors =
+          actionActorAssignments.get(compatibleSupports[0].id) ?? new Set<string>();
+        // Capacity counts the unique cast members performing required actions. An action object,
+        // even when it is another cast member, is acted upon and is not a second actor.
+        actors.add(action.actorId);
+        actionActorAssignments.set(compatibleSupports[0].id, actors);
+      }
+    }
+    for (const [supportId, actorIds] of actionActorAssignments) {
+      const support = affordances.get(supportId);
+      if (
+        support?.kind === 'action_space' &&
+        Number.isInteger(support.maximumActors) &&
+        actorIds.size > support.maximumActors
+      ) {
+        issues.push(issue('action_infeasible', 'action space exceeds maximumActors for this frame', {
+          field: `worldPlan.affordances.${supportId}.maximumActors`,
+          expected: support.maximumActors,
+          actual: [...actorIds].sort(lexicalCompare),
         }));
       }
     }
@@ -1303,7 +1532,7 @@ function validateFrame(args: {
         relation: constraint.relation,
         target: constraint.target,
       };
-      const subjectPlacement = framePlacementForCast(frame, constraint.subjectId);
+      const subjectPlacement = framePlacementForCast(validPlacements, constraint.subjectId);
       const boundary = [...affordances.values()].find(
         (candidate) =>
           candidate.kind === 'safe_boundary' &&
@@ -1329,11 +1558,15 @@ function validateFrame(args: {
 
   const expectedPrevious = expectedPreviousFrameId(frame, sourcePages);
   const expectedTransition = frame.kind === 'cover' ? 'steady' : page?.transition?.kind ?? 'steady';
+  const continuity = isObj(frame.continuity) ? frame.continuity : null;
+  const carryoverRefs = continuity && Array.isArray(continuity.carryoverRefs)
+    ? continuity.carryoverRefs
+    : [];
   if (
-    !isObj(frame.continuity) ||
-    frame.continuity.previousFrameId !== expectedPrevious ||
-    frame.continuity.transitionKind !== expectedTransition ||
-    !Array.isArray(frame.continuity.carryoverRefs)
+    !continuity ||
+    continuity.previousFrameId !== expectedPrevious ||
+    continuity.transitionKind !== expectedTransition ||
+    !Array.isArray(continuity.carryoverRefs)
   ) {
     issues.push(issue('transition_invalid', 'frame continuity does not match cover/page order and transition authority', {
       field: `${field}.continuity`,
@@ -1342,21 +1575,21 @@ function validateFrame(args: {
     }));
   }
   if (
-    frame.continuity?.previousFrameId &&
-    !frames.has(frame.continuity.previousFrameId)
+    isStr(continuity?.previousFrameId) &&
+    !frames.has(continuity.previousFrameId)
   ) {
     issues.push(issue('reference_unresolved', 'previousFrameId does not resolve', {
       field: `${field}.continuity.previousFrameId`,
     }));
   }
-  for (const [offset, ref] of (frame.continuity?.carryoverRefs ?? []).entries()) {
+  for (const [offset, ref] of carryoverRefs.entries()) {
     if (!entityRefResolves(ref, frame.zoneId, index)) {
       issues.push(issue('reference_unresolved', 'continuity carryover ref does not resolve in the frame', {
         field: `${field}.continuity.carryoverRefs[${offset}]`,
       }));
       continue;
     }
-    if (ref.kind === 'cast' && !frame.castIds.includes(ref.id)) {
+    if (ref.kind === 'cast' && !frameCastIds.includes(ref.id)) {
       issues.push(issue('frame_authority_mismatch', 'cast carryover is not present in the current frame', {
         field: `${field}.continuity.carryoverRefs[${offset}]`,
       }));
@@ -1369,67 +1602,112 @@ function validateFrame(args: {
   }
 
   if (frame.kind === 'cover' || expectedTransition === 'steady') {
-    if (frame.continuity?.connectionId !== undefined) {
+    if (continuity?.connectionId !== undefined) {
       issues.push(issue('transition_invalid', 'cover/steady frame must not declare a connection', {
         field: `${field}.continuity.connectionId`,
       }));
     }
   } else if (page?.transition?.fromZoneId && page.transition.toZoneId) {
-    const connection = connections.get(frame.continuity?.connectionId ?? '');
-    if (
-      !connection ||
-      !connectionSupportsTransition(
-        connection,
-        page.transition.fromZoneId,
-        page.transition.toZoneId,
-      )
-    ) {
+    const connection = connections.get(
+      isStr(continuity?.connectionId) ? continuity.connectionId : '',
+    );
+    const transitionDirection = connection
+      ? connectionTransitionDirection(
+          connection,
+          page.transition.fromZoneId,
+          page.transition.toZoneId,
+        )
+      : null;
+    if (!connection || !transitionDirection) {
       issues.push(issue('transition_invalid', 'page transition does not follow the authored connection graph', {
         field: `${field}.continuity.connectionId`,
       }));
     } else {
-      const traversal = affordances.get(connection.traversalAffordanceId);
       const transitionConsumer: BlueprintAffordanceConsumer = {
         kind: 'transition',
         pageNumber: frame.pageNumber,
       };
-      const castTouchesTraversal =
-        traversal?.kind === 'traversal' &&
-        frame.castIds.some((castId) => {
-          const placement = framePlacementForCast(frame, castId);
+      if (
+        frame.zoneId !== page.transition.toZoneId ||
+        !index.zones.has(page.transition.toZoneId)
+      ) {
+        issues.push(issue('transition_invalid', 'transition frame must be pinned to the authored destination zone', {
+          field: `${field}.zoneId`,
+          expected: page.transition.toZoneId,
+          actual: frame.zoneId,
+        }));
+      }
+      const traversalIds = Array.isArray(connection.traversalAffordanceIds)
+        ? connection.traversalAffordanceIds
+        : [];
+      const matchingTraversals = traversalIds
+        .map((id) => affordances.get(id))
+        .filter(
+          (
+            candidate,
+          ): candidate is Extract<BlueprintSpatialAffordance, { kind: 'traversal' }> =>
+            candidate?.kind === 'traversal' &&
+            candidate.connectionId === connection.id &&
+            candidate.zoneId === frame.zoneId &&
+            traversalSupportsDirection(candidate, transitionDirection) &&
+            hasConsumer(candidate, transitionConsumer) &&
+            frameAffordanceIds.includes(candidate.id),
+        );
+      const castTouchesTraversal = matchingTraversals.some((traversal) =>
+        frameCastIds.some((castId) => {
+          const placement = framePlacementForCast(validPlacements, castId);
           return Boolean(
             placement &&
               regionIsValid(placement.region) &&
               regionIsValid(traversal.footprint) &&
               regionsOverlap(placement.region, traversal.footprint),
           );
-        });
-      if (
-        traversal?.kind !== 'traversal' ||
-        !hasConsumer(traversal, transitionConsumer) ||
-        !frameAffordanceIds.includes(traversal.id) ||
-        !castTouchesTraversal
-      ) {
+        }),
+      );
+      if (matchingTraversals.length === 0 || !castTouchesTraversal) {
         issues.push(issue('traversal_infeasible', 'transition frame lacks visible compatible traversal support', {
           field: `${field}.affordanceIds`,
         }));
       }
-      for (const openingId of connection.openingClearanceAffordanceIds) {
-        const opening = affordances.get(openingId);
+      const openingIds = Array.isArray(connection.openingClearanceAffordanceIds)
+        ? connection.openingClearanceAffordanceIds
+        : [];
+      const destinationOpenings = openingIds
+        .map((id) => affordances.get(id))
+        .filter(
+          (
+            candidate,
+          ): candidate is Extract<
+            BlueprintSpatialAffordance,
+            { kind: 'opening_clearance' }
+          > =>
+            candidate?.kind === 'opening_clearance' &&
+            candidate.connectionId === connection.id &&
+            candidate.zoneId === frame.zoneId,
+        );
+      if (
+        ['doorway', 'opening', 'threshold', 'portal'].includes(connection.kind) &&
+        destinationOpenings.length === 0
+      ) {
+        issues.push(issue('traversal_infeasible', 'transition has no opening clearance in the destination frame zone', {
+          field: `${field}.affordanceIds`,
+          expected: frame.zoneId,
+        }));
+      }
+      for (const opening of destinationOpenings) {
         if (
-          opening?.kind !== 'opening_clearance' ||
           !hasConsumer(opening, transitionConsumer) ||
           !frameAffordanceIds.includes(opening.id)
         ) {
           issues.push(issue('traversal_infeasible', 'transition opening-clearance support is missing', {
             field: `${field}.affordanceIds`,
-            actual: openingId,
+            actual: opening.id,
           }));
           continue;
         }
         if (regionIsValid(opening.clearanceRegion)) {
           for (const propId of lifecycle.required) {
-            const placement = framePlacementForProp(frame, propId);
+            const placement = framePlacementForProp(validPlacements, propId);
             if (
               placement &&
               regionIsValid(placement.region) &&
@@ -1458,8 +1736,11 @@ function validateFrame(args: {
             ),
         )
         .map((candidate) => candidate.id);
+      const connectionSafetyIds = Array.isArray(connection.safeBoundaryAffordanceIds)
+        ? connection.safeBoundaryAffordanceIds
+        : [];
       for (const safetyId of pageSafetyIds) {
-        if (!connection.safeBoundaryAffordanceIds.includes(safetyId)) {
+        if (!connectionSafetyIds.includes(safetyId)) {
           issues.push(issue('safety_infeasible', 'transition connection omits a page safety boundary', {
             field: `${field}.continuity.connectionId`,
             actual: safetyId,
@@ -1483,7 +1764,7 @@ function validateFrame(args: {
       }));
     }
     if (
-      frame.placements.some(
+      validPlacements.some(
         (placement) =>
           placement.subject.kind === 'prop' && placement.subject.propId === prop.id,
       )
@@ -1550,7 +1831,7 @@ function deterministicIssues(issues: PreRenderBlueprintIssue[]): PreRenderBluepr
     .sort((a, b) => {
       const left = `${a.code}\u0000${a.field ?? ''}\u0000${a.message}`;
       const right = `${b.code}\u0000${b.field ?? ''}\u0000${b.message}`;
-      return left.localeCompare(right);
+      return lexicalCompare(left, right);
     })
     .filter((entry) => {
       const key = canonicalKey(entry);

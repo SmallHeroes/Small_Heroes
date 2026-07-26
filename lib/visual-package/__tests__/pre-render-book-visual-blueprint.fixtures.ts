@@ -561,7 +561,7 @@ function makeWorldAndFrames(
         from: { zoneId: page.transition!.fromZoneId! },
         to: { zoneId: page.transition!.toZoneId! },
         bidirectional: false,
-        traversalAffordanceId: traversalId,
+        traversalAffordanceIds: [traversalId],
         openingClearanceAffordanceIds: [openingId],
         safeBoundaryAffordanceIds: [safetyId],
       });
