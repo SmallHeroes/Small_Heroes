@@ -2,9 +2,35 @@
 
 **Updated:** 2026-07-27
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-c-runtime-cutover` in `C:\Users\guyna\.codex\worktrees\500e\Small_Heroes`, based exactly on approved immutable PVB-A/PVB-B integration SHA `09cfb2f7429979a1e6576873db19b5471b7836e3`. `R1D-PVB-C — Runtime Consumption and Single Authority Cutover` is implemented in three focused local commits: `5f083ae3` (C1 immutable v4 authority), `d900b111` (C2 deterministic runtime projection and consumer cutover), and the C3 documentation-bearing handoff commit identified in the final handoff. The branch is awaiting Claude Code first-pass READ-ONLY adversarial QA; Codex does not self-award independent technical PASS. PVB-A, PVB-B, Fox Board, and every other worktree remain read-only evidence.
+**Working branch:** `codex/r1d-pvb-c-runtime-cutover` in `C:\Users\guyna\.codex\worktrees\500e\Small_Heroes`, based exactly on approved immutable PVB-A/PVB-B integration SHA `09cfb2f7429979a1e6576873db19b5471b7836e3`. Claude Code returned HOLD on original PVB-C range `09cfb2f7429979a1e6576873db19b5471b7836e3..883e531f3237d2d52bbbf5537e6736492682f81a`; the accepted `R1D-PVB-C-QA-FIX — Sole Prompt Authority and Exact Portrait Canvas` code/test correction is local commit `b872120b`, followed by the documentation closeout commit identified in the final handoff. The branch is awaiting whole-surface Claude Code READ-ONLY re-gate; Codex does not self-award independent technical PASS. PVB-A, PVB-B, Fox Board, and every other worktree remain read-only evidence.
 
-## R1D-PVB-C — implementation complete; awaiting independent technical QA
+## R1D-PVB-C-QA-FIX — both accepted MAJORs corrected; awaiting whole-surface re-gate
+
+Claude Code independently returned HOLD on immutable original range `09cfb2f7429979a1e6576873db19b5471b7836e3..883e531f3237d2d52bbbf5537e6736492682f81a`. Codex Lead independently validated both MAJOR findings, and focused correction commit `b872120b` addresses them without amending the reviewed C1/C2/C3 commits. This record is implementation evidence for re-gate, not an independent PASS.
+
+### Sole enforced prompt authority
+
+- The original enforced provider prompt joined the Blueprint block to the legacy Visual Contract block. That legacy block emitted `CAMERA / ACTION`, `BODY STATE`, `LATERALITY`, `ACTION BEATS`, and a contract-wins closer, while its camera prose was not structurally reconciled to the approved frame.
+- Enforced PVB now uses explicit typed projection `pvb-visual-contract-facts/v1`. Its allowlist contains only verified world/reality, location/zone, light/set/transition identity, cast/wardrobe, prop state and stable traits, stable geometry, forbidden world elements, and structured safety facts. Its type and renderer have no camera, action, body-state, laterality, staging, pose, blocking, eyeline, placement, or page-layout fields. The closer explicitly makes the Blueprint frame sole authority for all of those composition/action dimensions.
+- The legacy `buildVisualContractPromptBlock` behavior remains available unchanged for explicit enforcement-off development compatibility. No string stripping, story literal, child/companion special case, or production flag change was introduced.
+- A valid immutable v4 regression fixture deliberately conflicts with the Blueprint through contract camera, body state, laterality, and action beats. The inspected zero-network provider request retains required world/cast/wardrobe facts and the exact Blueprint frame/camera/action while excluding every conflicting contract steering line.
+
+### Exact frozen portrait canvas
+
+- The original PDF-enabled single-page path mapped mutable `order.pdfEnabled` to `printPdfOptimized:true`, allowing Style01 to select square `1536x1536` despite frozen `2:3 + remapPolicy:reject` authority.
+- A shared final provider-seam resolver now derives canvas from the exact authoritative frame layout. The current supported policy requires exact `2:3`, `portrait-normalized-1000`, `remapPolicy:reject`, cover `top_clear` region `{x:0,y:0,width:1000,height:250}`, or body `bottom_clear` region `{x:0,y:750,width:1000,height:250}`. Valid authoritative frames resolve only to `1024x1536`; unsupported aspect, remap policy, text zone, or region throws before the provider mock.
+- Cover, batch/chunk, retries, and the production single-page adapter use the same final seam. The single-page adapter binds the exact approved frame beside `order.pdfEnabled`, neutralizes the legacy square hint, and preserves the same frame/projection digest and runtime evidence. Explicit enforcement-off development calls retain historical square PDF behavior.
+
+### Corrective evidence and limits
+
+- Red reproduction before the fix: **3 failed / 14 passed**. The actual mocked provider prompt contained the conflicting contract camera/action authority, and PDF-enabled direct/batch requests reached the mock with `size:'1536x1536'`. No real network or provider call occurred.
+- Focused final prompt/runtime/preflight result: **2 files / 29 tests passed**. Broad PVB-C/v4/runtime result: **17 files / 320 tests passed**. This includes five general Story Source shapes, direct provider, cover, batch/chunk, production single-page adapter, QA retry, resume identity, invalid-layout fail-before-provider, exact runtime evidence, and enforcement-off compatibility.
+- `npx --no-install tsc --noEmit`, working/cached `git diff --check`, and explicit-path staging checks: **PASS**.
+- Literal `npm run check`: TypeScript **PASS**; Vitest **257 files total — 236 passed, 16 skipped, 5 failed; 2,680 tests total — 2,609 passed, 65 skipped, 6 failed**. The six failures exactly reproduce the pre-correction absent ignored-output baseline: `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and two `story-read-back-validation.spec.ts` cases. All six referenced output artifacts remain absent, and all five failing test files are unchanged from correction start `883e531f`. No missing ignored fixture was copied or fabricated.
+- No live authoring/model/LLM call, render, image/provider/Vision/fetch/network action, credential use, Supabase/storage/database write, Board mint/action, real Blueprint/package approval or promotion, production flag activation, deployment, push, PR, story rewrite, reader-layout redesign, or branch/worktree cleanup occurred.
+- Next action: Claude Code performs a READ-ONLY re-gate of correction-only range `883e531f3237d2d52bbbf5537e6736492682f81a..HEAD` and combined PVB-C range `09cfb2f7429979a1e6576873db19b5471b7836e3..HEAD`, rechecking both accepted MAJOR fixes and the full enforced cover/chunk/resume/retry/single-page/direct-provider surface. Guy retains product, visual, real approval, launch, release, and push authority.
+
+## R1D-PVB-C — original implementation reviewed; QA HOLD corrected above
 
 Guy approved the general Story-Source-parameterized runtime cutover from exact base `09cfb2f7429979a1e6576873db19b5471b7836e3`. The enforced Style01 path now requires immutable `visual-package/v4` authority and consumes deterministic Blueprint projections for cover, batch/chunk, resume, provider/QA retry, single-page regeneration, and direct provider entry. Production remains hard-off; this record is not independent QA, product/visual acceptance, real package/Blueprint approval, deployment, release, or push authorization.
 
