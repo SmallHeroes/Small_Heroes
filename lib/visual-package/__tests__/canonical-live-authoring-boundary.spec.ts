@@ -32,6 +32,7 @@ import {
   buildVisualContractAuthoringRequest,
   canonicalJsonDigest,
   OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
+  persistVisualContractAuthoringRequest,
   runVisualContractAuthoring,
   visualContractAuthoringCallPromptAuthorityIssues,
   visualContractAuthoringRequestIssues,
@@ -337,6 +338,35 @@ function allArtifactText(repoRoot: string): string {
   return files
     .map((file) => fs.readFileSync(file, 'utf8'))
     .join('\n');
+}
+
+function readRejectedEvidence(
+  fixture: LiveFixture,
+  result: Awaited<
+    ReturnType<
+      typeof runCanonicalLiveVisualContractAuthoring
+    >
+  >,
+): {
+  observedRequestDigest: string | null;
+  claimedRequestDigest: string | null;
+  issues: string[];
+  request?: unknown;
+} {
+  return JSON.parse(
+    fs.readFileSync(
+      path.join(
+        fixture.repoRoot,
+        result.persistence.authoringRequest.path,
+      ),
+      'utf8',
+    ),
+  ) as {
+    observedRequestDigest: string | null;
+    claimedRequestDigest: string | null;
+    issues: string[];
+    request?: unknown;
+  };
 }
 
 describe('canonical OpenAI Responses authoring adapter', () => {
@@ -1316,6 +1346,337 @@ describe('canonical live authoring executable boundary', () => {
         value: { different: true },
       }),
     ).toThrow(/immutable artifact collision/);
+  });
+
+  it('uses one repository real-path basis for containment and artifact labels through a root alias', async () => {
+    const fixture = createLiveFixture('real-root-alias');
+    const aliasParent = tempRoot();
+    const aliasRoot = path.join(aliasParent, 'repository-alias');
+    try {
+      fs.symlinkSync(
+        fixture.repoRoot,
+        aliasRoot,
+        process.platform === 'win32' ? 'junction' : 'dir',
+      );
+    } catch (error) {
+      expect(
+        (error as NodeJS.ErrnoException).code,
+      ).toMatch(/^(EACCES|EINVAL|ENOTSUP|EPERM)$/);
+      const providerFactory = vi.fn();
+      await expect(
+        runCanonicalLiveVisualContractAuthoring(
+          {
+            ...fixtureInput(fixture),
+            repoRoot: aliasRoot,
+          },
+          { providerFactory },
+        ),
+      ).rejects.toThrow();
+      expect(providerFactory).not.toHaveBeenCalled();
+      return;
+    }
+
+    const adapter = fakeAdapter({
+      responses: [
+        responseFor(fullyActionedDraft(fixture.snapshot)),
+      ],
+    });
+    const result =
+      await runCanonicalLiveVisualContractAuthoring(
+        {
+          ...fixtureInput(fixture),
+          repoRoot: aliasRoot,
+        },
+        { provider: adapter.provider },
+      );
+    expect(result.status).toBe('completed');
+    for (const artifact of [
+      result.persistence.sourceSnapshot!,
+      result.persistence.authoringRequest,
+      result.persistence.authoringReceipt,
+      result.persistence.readiness,
+      result.persistence.candidate!,
+    ]) {
+      expect(path.isAbsolute(artifact.path)).toBe(false);
+      expect(artifact.path).not.toMatch(/^\.\./);
+      expect(
+        fs.existsSync(
+          path.join(fixture.repoRoot, artifact.path),
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it.each([
+    'structuredOutput',
+    'tokenBudget',
+    'callBudget',
+    'costBudget',
+    'promptDigests',
+    'promptAuthority',
+    'pricing',
+  ] as const)(
+    'preserves the exact camelCase rejection code for unknown %s fields',
+    async (field) => {
+      const fixture = createLiveFixture(
+        `reason-code-${field}`,
+      );
+      const request = structuredClone(
+        fixture.request,
+      ) as unknown as Record<string, unknown>;
+      (
+        request[field] as Record<string, unknown>
+      ).untrustedExtra = RAW_PROVIDER_ERROR;
+      redigestRequest(request);
+      writeJson(
+        fixture.repoRoot,
+        fixture.requestPath,
+        request,
+      );
+      const providerFactory = vi.fn();
+      const result =
+        await runCanonicalLiveVisualContractAuthoring(
+          fixtureInput(fixture),
+          { providerFactory },
+        );
+      const evidence = readRejectedEvidence(
+        fixture,
+        result,
+      );
+      expect(evidence.issues).toContain(
+        `unexpected_request_field:${field}`,
+      );
+      expect(evidence.issues).not.toContain(
+        'request_rejected',
+      );
+      expect(allArtifactText(fixture.repoRoot)).not.toContain(
+        RAW_PROVIDER_ERROR,
+      );
+      expect(providerFactory).not.toHaveBeenCalled();
+    },
+  );
+
+  it('rejects non-finite request numbers before digest, persistence of raw input, or provider construction', async () => {
+    const fixture = createLiveFixture('non-finite-request');
+    const requestText = fs.readFileSync(
+      path.join(fixture.repoRoot, fixture.requestPath),
+      'utf8',
+    );
+    const finiteField =
+      `"timeoutMs": ${fixture.request.timeoutMs}`;
+    expect(requestText).toContain(finiteField);
+    fs.writeFileSync(
+      path.join(fixture.repoRoot, fixture.requestPath),
+      requestText.replace(
+        finiteField,
+        '"timeoutMs": 1e400',
+      ),
+      'utf8',
+    );
+    expect(() =>
+      canonicalJsonDigest({ value: Number.POSITIVE_INFINITY }),
+    ).toThrow(/non_finite_number/);
+    expect(() =>
+      canonicalLiveAuthoringJsonBytes({
+        value: Number.POSITIVE_INFINITY,
+      }),
+    ).toThrow(/non_finite_number/);
+
+    const providerFactory = vi.fn();
+    const result =
+      await runCanonicalLiveVisualContractAuthoring(
+        fixtureInput(fixture),
+        { providerFactory },
+      );
+    const evidence = readRejectedEvidence(fixture, result);
+    expect(evidence.observedRequestDigest).toBeNull();
+    expect(evidence.issues).toEqual(
+      expect.arrayContaining([
+        'request_json_non_finite_number',
+        'request_field_non_finite:timeoutMs',
+      ]),
+    );
+    expect(evidence).not.toHaveProperty('request');
+    expect(providerFactory).not.toHaveBeenCalled();
+  });
+
+  it('persists stale v2 and missing prompt authority as structured immutable rejection evidence', async () => {
+    const fixture = createLiveFixture(
+      'stale-v2-missing-prompt-authority',
+    );
+    const request = structuredClone(
+      fixture.request,
+    ) as unknown as Record<string, unknown>;
+    request.version = 'visual-contract-authoring-request/v2';
+    delete request.promptAuthority;
+    redigestRequest(request);
+    writeJson(
+      fixture.repoRoot,
+      fixture.requestPath,
+      request,
+    );
+
+    const providerFactory = vi.fn();
+    const result =
+      await runCanonicalLiveVisualContractAuthoring(
+        fixtureInput(fixture),
+        { providerFactory },
+      );
+    const evidence = readRejectedEvidence(fixture, result);
+    expect(result.status).toBe('failed');
+    expect(evidence.issues).toEqual(
+      expect.arrayContaining([
+        'request_version_mismatch',
+        'request_field_invalid:promptAuthority',
+        'supplied_live_request_content_mismatch',
+      ]),
+    );
+    expect(evidence.observedRequestDigest).toMatch(
+      /^[a-f0-9]{64}$/,
+    );
+    expect(evidence).not.toHaveProperty('request');
+    expect(providerFactory).not.toHaveBeenCalled();
+  });
+
+  it('totally rejects every omitted or wrong-type top-level request scalar with stable evidence', async () => {
+    const fixture = createLiveFixture(
+      'total-top-level-scalars',
+    );
+    const scalarKinds = {
+      version: 'string',
+      policyVersion: 'string',
+      mode: 'string',
+      requestId: 'string',
+      requestedAt: 'string',
+      sourceSnapshotDigest: 'string',
+      provider: 'string',
+      endpoint: 'string',
+      model: 'string',
+      serviceTier: 'string',
+      reasoningEffort: 'string',
+      toolsDisabled: 'boolean',
+      noFallback: 'boolean',
+      transportRetries: 'number',
+      timeoutMs: 'number',
+      pricingDigest: 'string',
+      digestAlgorithm: 'string',
+      digest: 'string',
+    } as const;
+    const providerFactory = vi.fn();
+
+    for (const [field, kind] of Object.entries(
+      scalarKinds,
+    )) {
+      for (const variant of ['omitted', 'wrong-type']) {
+        const request = structuredClone(
+          fixture.request,
+        ) as unknown as Record<string, unknown>;
+        if (variant === 'omitted') {
+          delete request[field];
+        } else {
+          request[field] =
+            kind === 'string'
+              ? { invalid: true }
+              : kind === 'boolean'
+                ? 'true'
+                : '1';
+        }
+        writeJson(
+          fixture.repoRoot,
+          fixture.requestPath,
+          request,
+        );
+        const result =
+          await runCanonicalLiveVisualContractAuthoring(
+            fixtureInput(fixture),
+            { providerFactory },
+          );
+        const evidence = readRejectedEvidence(
+          fixture,
+          result,
+        );
+        expect(
+          evidence.issues,
+          `${field} ${variant}`,
+        ).toContain(`request_field_invalid:${field}`);
+        expect(evidence.issues.length).toBeGreaterThan(0);
+        expect(evidence).not.toHaveProperty('request');
+      }
+    }
+    expect(providerFactory).not.toHaveBeenCalled();
+  });
+
+  it('accepts legacy D1A0 pretty bytes as semantically identical at a D1A1 content address', () => {
+    const repoRoot = tempRoot();
+    const store =
+      createCanonicalLiveAuthoringArtifactStore({
+        repoRoot,
+        outputDir: 'outputs/shared',
+      });
+    store.prepare();
+    const legacyValue = {
+      z: 'e\u0301',
+      a: { second: 2, first: 1 },
+    };
+    const canonicalValue = {
+      a: { first: 1, second: 2 },
+      z: '\u00e9',
+    };
+    const digest = canonicalJsonDigest(legacyValue);
+    const destination = path.join(
+      repoRoot,
+      'outputs',
+      'shared',
+      'authoring-receipts',
+      `${digest}.json`,
+    );
+    fs.writeFileSync(
+      destination,
+      `${JSON.stringify(legacyValue, null, 2)}\n`,
+      'utf8',
+    );
+    expect(
+      store.persist({
+        category: 'authoring-receipts',
+        digest,
+        value: canonicalValue,
+      }),
+    ).toMatchObject({ created: false, digest });
+    expect(fs.readFileSync(destination, 'utf8')).toBe(
+      `${JSON.stringify(legacyValue, null, 2)}\n`,
+    );
+    expect(() =>
+      store.persist({
+        category: 'authoring-receipts',
+        digest,
+        value: { actually: 'different' },
+      }),
+    ).toThrow(/immutable artifact collision/);
+
+    const fixture = createLiveFixture(
+      'd1a0-d1a1-shared-writer',
+    );
+    const requestStore =
+      createCanonicalLiveAuthoringArtifactStore({
+        repoRoot: fixture.repoRoot,
+        outputDir: 'outputs/shared-request',
+      });
+    requestStore.prepare();
+    expect(
+      requestStore.persist({
+        category: 'authoring-requests',
+        digest: fixture.request.digest,
+        value: fixture.request,
+      }).created,
+    ).toBe(true);
+    expect(
+      persistVisualContractAuthoringRequest({
+        repoRoot: fixture.repoRoot,
+        outputDir: 'outputs/shared-request',
+        request: fixture.request,
+        write: true,
+      }).created,
+    ).toBe(false);
   });
 
   it('accepts 12 pages under the current fence and rejects page 13 before provider reachability', async () => {

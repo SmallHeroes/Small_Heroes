@@ -30,7 +30,9 @@ import {
   repoRelativePath,
   resolveRepoPath,
 } from './integrity';
-import { writeImmutableLocalArtifact } from './preRenderBlueprintLifecycle';
+import {
+  writeCanonicalContentAddressedJsonArtifact,
+} from './canonicalContentAddressedJson';
 import type { StorySourceIdentity } from './types';
 
 export const STORY_SOURCE_AUTHORITY_SNAPSHOT_VERSION =
@@ -301,9 +303,9 @@ export function persistStorySourceAuthoritySnapshot(args: {
   );
   const result =
     args.write === true
-      ? writeImmutableLocalArtifact({
+      ? writeCanonicalContentAddressedJsonArtifact({
           destinationPath,
-          bytes: `${JSON.stringify(args.snapshot, null, 2)}\n`,
+          value: args.snapshot,
         })
       : { created: false };
   return {

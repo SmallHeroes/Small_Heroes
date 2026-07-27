@@ -79,6 +79,14 @@ const SENTINEL = path.join(
   'fixtures',
   'deny-live-authoring-boundaries.cjs',
 );
+const FAIL_TO_ARM_SENTINEL = path.join(
+  REPO,
+  'lib',
+  'visual-package',
+  '__tests__',
+  'fixtures',
+  'fail-live-authoring-sentinel-arm.cjs',
+);
 const NETWORK_SENTINEL = path.join(
   REPO,
   'lib',
@@ -637,6 +645,34 @@ describe('canonical Visual Contract authoring launcher', () => {
       /TEST_LIVE_AUTHORING_SENTINEL|TEST_NETWORK_SENTINEL/,
     );
   }, 30_000);
+
+  it('fails a non-arming private-entry sentinel before the CLI core import tripwire can fire', () => {
+    const env = safeSubprocessEnv();
+    Object.assign(env, { NODE_ENV: 'test' });
+    env.TSX_DISABLE_CACHE = '1';
+    env[TEST_BOUNDARY_SENTINEL_ENV] =
+      FAIL_TO_ARM_SENTINEL;
+    const result = spawnSync(
+      process.execPath,
+      [LAUNCHER, 'preflight'],
+      {
+        cwd: REPO,
+        encoding: 'utf8',
+        env,
+      },
+    );
+    const output = `${result.stdout}\n${result.stderr}`;
+    expect(result.status, output).toBe(1);
+    expect(output).toContain(
+      'credential/write sentinel did not arm through the private entry hook',
+    );
+    expect(output).not.toContain(
+      'TEST_LIVE_AUTHORING_CORE_IMPORT_TRIPWIRE',
+    );
+    expect(result.stdout).not.toContain(
+      'LIVE-AUTHORING IMPORT PREFLIGHT PASS',
+    );
+  }, 20_000);
 
   it('restores the exact original fetch after success and import failure', async () => {
     const originalFetch = globalThis.fetch;

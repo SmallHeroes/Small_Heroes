@@ -6,8 +6,9 @@ import {
   resolveRepoPath,
 } from './integrity';
 import {
-  writeImmutableLocalArtifact,
-} from './preRenderBlueprintLifecycle';
+  canonicalContentAddressedJsonBytes,
+  writeCanonicalContentAddressedJsonArtifact,
+} from './canonicalContentAddressedJson';
 import type {
   VisualContractAuthoringArtifactWrite,
 } from './visualContractAuthoringLifecycle';
@@ -34,69 +35,10 @@ export interface CanonicalLiveAuthoringArtifactStore {
   }): VisualContractAuthoringArtifactWrite;
 }
 
-function stableCanonicalValue(
-  value: unknown,
-  location = '$',
-): unknown {
-  if (typeof value === 'string') return value.normalize('NFC');
-  if (
-    value === null ||
-    typeof value === 'boolean'
-  ) {
-    return value;
-  }
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value)) {
-      throw new Error(
-        `canonical live artifact contains a non-finite number at ${location}`,
-      );
-    }
-    return value;
-  }
-  if (Array.isArray(value)) {
-    return value.map((entry, index) =>
-      stableCanonicalValue(entry, `${location}[${index}]`),
-    );
-  }
-  if (value && typeof value === 'object') {
-    const normalizedEntries = Object.entries(
-      value as Record<string, unknown>,
-    ).map(([key, entry]) => [
-      key.normalize('NFC'),
-      entry,
-    ] as const);
-    const normalizedKeys = new Set<string>();
-    const result: Record<string, unknown> = {};
-    for (const [key, entry] of normalizedEntries.sort(
-      ([left], [right]) =>
-        left < right ? -1 : left > right ? 1 : 0,
-    )) {
-      if (normalizedKeys.has(key)) {
-        throw new Error(
-          `canonical live artifact has duplicate normalized key at ${location}`,
-        );
-      }
-      normalizedKeys.add(key);
-      result[key] = stableCanonicalValue(
-        entry,
-        `${location}.${key}`,
-      );
-    }
-    return result;
-  }
-  throw new Error(
-    `canonical live artifact contains a non-JSON value at ${location}`,
-  );
-}
-
 export function canonicalLiveAuthoringJsonBytes(
   value: unknown,
 ): string {
-  return `${JSON.stringify(
-    stableCanonicalValue(value),
-    null,
-    2,
-  )}\n`;
+  return canonicalContentAddressedJsonBytes(value);
 }
 
 function assertContainedRealPath(
@@ -159,13 +101,24 @@ function writableProbe(directory: string): void {
 export function createCanonicalLiveAuthoringArtifactStore(
   args: {
     repoRoot: string;
+    repositoryRealPath?: string;
     outputDir: string;
   },
 ): CanonicalLiveAuthoringArtifactStore {
-  const repoRoot = path.resolve(args.repoRoot);
-  const repositoryRealPath = fs.realpathSync(repoRoot);
+  const suppliedRepoRoot = path.resolve(args.repoRoot);
+  const repositoryRealPath =
+    args.repositoryRealPath ??
+    fs.realpathSync(suppliedRepoRoot);
+  if (
+    fs.realpathSync(suppliedRepoRoot) !==
+    fs.realpathSync(repositoryRealPath)
+  ) {
+    throw new Error(
+      'canonical live authoring repository real path mismatch',
+    );
+  }
   const outputRoot = resolveRepoPath(
-    repoRoot,
+    repositoryRealPath,
     args.outputDir,
   );
   const existingAncestor = nearestExistingAncestor(
@@ -232,13 +185,14 @@ export function createCanonicalLiveAuthoringArtifactStore(
         repositoryRealPath,
         fs.realpathSync(path.dirname(destinationPath)),
       );
-      const result = writeImmutableLocalArtifact({
-        destinationPath,
-        bytes: canonicalLiveAuthoringJsonBytes(value),
-      });
+      const result =
+        writeCanonicalContentAddressedJsonArtifact({
+          destinationPath,
+          value,
+        });
       return {
         path: repoRelativePath(
-          repoRoot,
+          repositoryRealPath,
           destinationPath,
         ),
         digest,

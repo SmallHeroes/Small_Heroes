@@ -10,6 +10,10 @@ import {
   type CanonicalLiveAuthoringArtifactStore,
 } from './canonicalLiveAuthoringArtifacts';
 import {
+  CanonicalJsonDomainError,
+  canonicalContentAddressedJsonBytes,
+} from './canonicalContentAddressedJson';
+import {
   createOpenAIResponsesVisualContractAuthoringAdapter,
 } from './openaiResponsesVisualContractAuthoringAdapter';
 import {
@@ -20,6 +24,7 @@ import {
 } from './storySourceAuthority';
 import {
   OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
+  VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION,
   buildVisualContractCandidateArtifact,
   buildVisualContractAuthoringReadinessEvidence,
   buildVisualContractAuthoringRequest,
@@ -45,8 +50,10 @@ export interface CanonicalLiveVisualContractAuthoringInput {
 
 export interface CanonicalLiveVisualContractAuthoringDeps {
   provider?: VisualContractAuthoringProvider;
+  providerFactory?: () => VisualContractAuthoringProvider;
   artifactStoreFactory?: (args: {
     repoRoot: string;
+    repositoryRealPath: string;
     outputDir: string;
   }) => CanonicalLiveAuthoringArtifactStore;
 }
@@ -154,12 +161,9 @@ function snapshotValue(
 }
 
 function authoringRequestValue(
-  value: unknown,
+  value: Record<string, unknown>,
 ): VisualContractAuthoringRequest {
-  const object = objectValue(
-    value,
-    'visual contract authoring request',
-  );
+  const object = value;
   const structuredOutput = objectValue(
     object.structuredOutput,
     'visual contract authoring request structuredOutput',
@@ -361,71 +365,299 @@ const REQUEST_NESTED_KEYS: Record<string, Set<string>> = {
   promptAuthority: new Set(['initial', 'repair']),
 };
 
-function unexpectedRequestFieldIssues(
+const REQUEST_TOP_LEVEL_FIELDS = {
+  version: 'string',
+  policyVersion: 'string',
+  mode: 'string',
+  requestId: 'string',
+  requestedAt: 'string',
+  sourceSnapshotDigest: 'string',
+  provider: 'string',
+  endpoint: 'string',
+  model: 'string',
+  serviceTier: 'string',
+  reasoningEffort: 'string',
+  toolsDisabled: 'boolean',
+  noFallback: 'boolean',
+  transportRetries: 'number',
+  timeoutMs: 'number',
+  pricingDigest: 'string',
+  digestAlgorithm: 'string',
+  digest: 'string',
+} as const;
+
+const REQUEST_OBJECT_FIELDS = {
+  structuredOutput: {
+    strict: 'boolean',
+    schemaName: 'string',
+    schemaVersion: 'string',
+    schemaDigest: 'string',
+  },
+  tokenBudget: {
+    maxInputTokens: 'number',
+    promptAndSchemaTokenUpperBound: 'number',
+    maxOutputTokens: 'number',
+    outputIncludesReasoning: 'boolean',
+  },
+  callBudget: {
+    maxCalls: 'number',
+    maxRepairCount: 'number',
+  },
+  pricing: {
+    version: 'string',
+    currency: 'string',
+    unitTokens: 'number',
+    uncachedInputUsdPerUnit: 'number',
+    cacheWriteInputUsdPerUnit: 'number',
+    cachedInputUsdPerUnit: 'number',
+    outputUsdPerUnit: 'number',
+    regionalUpliftMultiplier: 'number',
+    source: 'string',
+  },
+  costBudget: {
+    projectedMaxUsd: 'number',
+    hardCeilingUsd: 'number',
+  },
+  promptDigests: {
+    system: 'string',
+    user: 'string',
+  },
+} as const;
+
+const PROMPT_AUTHORITY_FIELDS = {
+  initial: {
+    systemPromptVersion: 'string',
+    userPromptVersion: 'string',
+    systemPromptDigest: 'string',
+    userPromptDigest: 'string',
+  },
+  repair: {
+    systemPromptVersion: 'string',
+    userPromptVersion: 'string',
+    systemPromptDigest: 'string',
+  },
+} as const;
+
+type RequestScalarKind = 'string' | 'boolean' | 'number';
+
+function recordValue(
   value: unknown,
-): string[] {
-  const object = objectValue(
-    value,
-    'visual contract authoring request',
+): Record<string, unknown> | null {
+  return value !== null &&
+    typeof value === 'object' &&
+    !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function validateRequestScalar(args: {
+  object: Record<string, unknown>;
+  field: string;
+  kind: RequestScalarKind;
+  scope?: string;
+  issues: string[];
+  structuralIssues: string[];
+}): void {
+  const codeSuffix = args.scope
+    ? `${args.scope}:${args.field}`
+    : args.field;
+  const value = args.object[args.field];
+  if (typeof value !== args.kind) {
+    const code = `request_field_invalid:${codeSuffix}`;
+    args.issues.push(code);
+    args.structuralIssues.push(code);
+    return;
+  }
+  if (
+    args.kind === 'number' &&
+    !Number.isFinite(value)
+  ) {
+    const code =
+      `request_field_non_finite:${codeSuffix}`;
+    args.issues.push(code);
+    args.structuralIssues.push(code);
+  }
+}
+
+function validateRequestObject(args: {
+  parent: Record<string, unknown>;
+  field: string;
+  schema: Record<string, RequestScalarKind>;
+  issues: string[];
+  structuralIssues: string[];
+}): Record<string, unknown> | null {
+  const nested = recordValue(args.parent[args.field]);
+  if (!nested) {
+    const code = `request_field_invalid:${args.field}`;
+    args.issues.push(code);
+    args.structuralIssues.push(code);
+    return null;
+  }
+  const allowed = REQUEST_NESTED_KEYS[args.field];
+  args.issues.push(
+    ...Object.keys(nested)
+      .filter((key) => !allowed?.has(key))
+      .map(
+        () => `unexpected_request_field:${args.field}`,
+      ),
   );
-  const issues = Object.keys(object)
-    .filter((key) => !REQUEST_KEYS.has(key))
-    .map(() => 'unexpected_request_field');
-  for (const [field, allowed] of Object.entries(
-    REQUEST_NESTED_KEYS,
+  for (const [field, kind] of Object.entries(
+    args.schema,
   )) {
-    const nested = objectValue(
-      object[field],
-      `visual contract authoring request ${field}`,
-    );
+    validateRequestScalar({
+      object: nested,
+      field,
+      kind,
+      scope: args.field,
+      issues: args.issues,
+      structuralIssues: args.structuralIssues,
+    });
+  }
+  return nested;
+}
+
+interface DecodedAuthoringRequest {
+  request: VisualContractAuthoringRequest | null;
+  issues: string[];
+  observedRequestDigest: string | null;
+  claimedRequestDigest: string | null;
+}
+
+function decodeAuthoringRequest(
+  value: unknown,
+): DecodedAuthoringRequest {
+  const object = recordValue(value);
+  const issues: string[] = [];
+  const structuralIssues: string[] = [];
+  let observedRequestDigest: string | null = null;
+  try {
+    canonicalContentAddressedJsonBytes(value);
+    observedRequestDigest = canonicalJsonDigest(value);
+  } catch (error) {
     issues.push(
-      ...Object.keys(nested)
-        .filter((key) => !allowed.has(key))
-        .map(() => `unexpected_request_field:${field}`),
+      error instanceof CanonicalJsonDomainError
+        ? `request_json_${error.code}`
+        : 'request_json_domain_invalid',
     );
   }
-  const promptAuthority = objectValue(
-    object.promptAuthority,
-    'visual contract authoring request promptAuthority',
+  if (!object) {
+    issues.push('request_object_required');
+    return {
+      request: null,
+      issues: [...new Set(issues)].sort(),
+      observedRequestDigest,
+      claimedRequestDigest: null,
+    };
+  }
+
+  issues.push(
+    ...Object.keys(object)
+    .filter((key) => !REQUEST_KEYS.has(key))
+      .map(() => 'unexpected_request_field'),
   );
-  for (const [field, allowed] of [
-    [
-      'initial',
-      new Set([
-        'systemPromptVersion',
-        'userPromptVersion',
-        'systemPromptDigest',
-        'userPromptDigest',
-      ]),
-    ],
-    [
-      'repair',
-      new Set([
-        'systemPromptVersion',
-        'userPromptVersion',
-        'systemPromptDigest',
-      ]),
-    ],
-  ] as const) {
-    const nested = objectValue(
-      promptAuthority[field],
-      `visual contract authoring request promptAuthority ${field}`,
-    );
+  for (const [field, kind] of Object.entries(
+    REQUEST_TOP_LEVEL_FIELDS,
+  )) {
+    validateRequestScalar({
+      object,
+      field,
+      kind,
+      issues,
+      structuralIssues,
+    });
+  }
+  for (const [field, schema] of Object.entries(
+    REQUEST_OBJECT_FIELDS,
+  )) {
+    validateRequestObject({
+      parent: object,
+      field,
+      schema,
+      issues,
+      structuralIssues,
+    });
+  }
+
+  const promptAuthority = recordValue(
+    object.promptAuthority,
+  );
+  if (!promptAuthority) {
+    const code =
+      'request_field_invalid:promptAuthority';
+    issues.push(code);
+    structuralIssues.push(code);
+  } else {
     issues.push(
-      ...Object.keys(nested)
-        .filter((key) => !allowed.has(key))
+      ...Object.keys(promptAuthority)
+        .filter(
+          (key) =>
+            !REQUEST_NESTED_KEYS.promptAuthority?.has(key),
+        )
         .map(
-          () =>
-            'unexpected_request_field:promptAuthority',
+          () => 'unexpected_request_field:promptAuthority',
         ),
     );
+    for (const [field, schema] of Object.entries(
+      PROMPT_AUTHORITY_FIELDS,
+    )) {
+      const nested = recordValue(promptAuthority[field]);
+      if (!nested) {
+        const code =
+          `request_field_invalid:promptAuthority:${field}`;
+        issues.push(code);
+        structuralIssues.push(code);
+        continue;
+      }
+      const allowed = new Set(Object.keys(schema));
+      issues.push(
+        ...Object.keys(nested)
+          .filter((key) => !allowed.has(key))
+          .map(
+            () =>
+              'unexpected_request_field:promptAuthority',
+          ),
+      );
+      for (const [nestedField, kind] of Object.entries(
+        schema,
+      )) {
+        validateRequestScalar({
+          object: nested,
+          field: nestedField,
+          kind,
+          scope: `promptAuthority:${field}`,
+          issues,
+          structuralIssues,
+        });
+      }
+    }
   }
-  return issues;
+
+  if (
+    typeof object.version === 'string' &&
+    object.version !==
+      VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION
+  ) {
+    issues.push('request_version_mismatch');
+  }
+
+  return {
+    request:
+      structuralIssues.length === 0
+        ? authoringRequestValue(object)
+        : null,
+    issues: [...new Set(issues)].sort(),
+    observedRequestDigest,
+    claimedRequestDigest:
+      typeof object.digest === 'string' &&
+      /^[a-f0-9]{64}$/.test(object.digest)
+        ? object.digest
+        : null,
+  };
 }
 
 interface RejectedRequestEvidence {
   version: typeof CANONICAL_LIVE_REJECTED_REQUEST_EVIDENCE_VERSION;
-  observedRequestDigest: string;
+  observedRequestDigest: string | null;
   claimedRequestDigest: string | null;
   status: 'rejected';
   issues: string[];
@@ -440,7 +672,7 @@ function stableRejectedReasonCodes(
   const stable = [
     ...new Set(
       issues.map((issue) =>
-        /^[a-z0-9_:-]{1,128}$/.test(issue)
+        /^[A-Za-z0-9_:-]{1,128}$/.test(issue)
           ? issue
           : 'request_rejected',
       ),
@@ -452,18 +684,15 @@ function stableRejectedReasonCodes(
 }
 
 function buildRejectedRequestEvidence(args: {
-  request: VisualContractAuthoringRequest;
+  observedRequestDigest: string | null;
+  claimedRequestDigest: string | null;
   issues: readonly string[];
 }): RejectedRequestEvidence {
   const withoutDigest = {
     version:
       CANONICAL_LIVE_REJECTED_REQUEST_EVIDENCE_VERSION,
-    observedRequestDigest: canonicalJsonDigest(args.request),
-    claimedRequestDigest: /^[a-f0-9]{64}$/.test(
-      args.request.digest,
-    )
-      ? args.request.digest
-      : null,
+    observedRequestDigest: args.observedRequestDigest,
+    claimedRequestDigest: args.claimedRequestDigest,
     status: 'rejected' as const,
     issues: stableRejectedReasonCodes(args.issues),
     doesNotAuthorize: [
@@ -481,7 +710,14 @@ function buildRejectedRequestEvidence(args: {
 }
 
 function normalizedAbsolute(value: string): string {
-  const resolved = path.resolve(value);
+  const absolute = path.resolve(value);
+  let resolved = absolute;
+  try {
+    resolved = fs.realpathSync(absolute);
+  } catch {
+    // A stale/missing source-authority root is a deterministic mismatch, not
+    // a reason to bypass durable request rejection.
+  }
   return process.platform === 'win32'
     ? resolved.toLowerCase()
     : resolved;
@@ -494,7 +730,13 @@ export async function runCanonicalLiveVisualContractAuthoring(
   if (!path.isAbsolute(input.repoRoot)) {
     throw new Error('--repo-root must be an absolute path');
   }
-  const repoRoot = path.resolve(input.repoRoot);
+  // All containment decisions, reads, writes, and repository-relative labels
+  // share this one canonical basis even when the supplied root is a junction
+  // or symlink alias.
+  const repositoryRealPath = fs.realpathSync(
+    path.resolve(input.repoRoot),
+  );
+  const repoRoot = repositoryRealPath;
   const sourceRequest = sourceAuthorityRequestValue(
     readJsonArtifact(
       repoRoot,
@@ -514,14 +756,12 @@ export async function runCanonicalLiveVisualContractAuthoring(
     input.requestPath,
     'visual contract authoring request',
   );
-  const requestShapeIssues =
-    unexpectedRequestFieldIssues(suppliedRequestRaw);
-  const suppliedRequest = authoringRequestValue(
+  const decodedRequest = decodeAuthoringRequest(
     suppliedRequestRaw,
   );
 
   const boundaryIssues: string[] = [
-    ...requestShapeIssues,
+    ...decodedRequest.issues,
   ];
   if (
     normalizedAbsolute(sourceRequest.repoRoot) !==
@@ -552,20 +792,41 @@ export async function runCanonicalLiveVisualContractAuthoring(
     );
   }
 
+  const rawRequestObject = recordValue(
+    suppliedRequestRaw,
+  );
+  const safeMode =
+    rawRequestObject?.mode === 'live'
+      ? 'live'
+      : 'preflight';
+  const safeRequestId =
+    typeof rawRequestObject?.requestId === 'string' &&
+    rawRequestObject.requestId.trim().length > 0 &&
+    rawRequestObject.requestId.length <= 160
+      ? rawRequestObject.requestId
+      : `rejected-${rebuiltSnapshot.digest.slice(0, 24)}`;
+  const safeRequestedAt =
+    typeof rawRequestObject?.requestedAt === 'string' &&
+    rawRequestObject.requestedAt.trim().length > 0 &&
+    !Number.isNaN(
+      Date.parse(rawRequestObject.requestedAt),
+    )
+      ? rawRequestObject.requestedAt
+      : '1970-01-01T00:00:00.000Z';
   const rebuiltRequest =
     buildVisualContractAuthoringRequest({
       snapshot: rebuiltSnapshot,
-      mode:
-        suppliedRequest.mode === 'live'
-          ? 'live'
-          : 'preflight',
-      requestId: suppliedRequest.requestId,
-      requestedAt: suppliedRequest.requestedAt,
+      mode: safeMode,
+      requestId: safeRequestId,
+      requestedAt: safeRequestedAt,
     });
+  const requestForLifecycle =
+    decodedRequest.request ?? rebuiltRequest;
   const requestExact =
-    requestShapeIssues.length === 0 &&
-    canonicalJsonDigest(suppliedRequest) ===
-    canonicalJsonDigest(rebuiltRequest);
+    decodedRequest.request !== null &&
+    decodedRequest.issues.length === 0 &&
+    canonicalJsonDigest(decodedRequest.request) ===
+      canonicalJsonDigest(rebuiltRequest);
   if (!requestExact) {
     boundaryIssues.push(
       'supplied_live_request_content_mismatch',
@@ -574,20 +835,20 @@ export async function runCanonicalLiveVisualContractAuthoring(
 
   const requestIssues =
     visualContractAuthoringRequestIssues({
-      request: suppliedRequest,
+      request: requestForLifecycle,
       snapshot: rebuiltSnapshot,
     });
   const lifecycleRequestIssues = [
     ...boundaryIssues,
     ...requestIssues,
-    ...(suppliedRequest.mode === 'live'
+    ...(rawRequestObject?.mode === 'live'
       ? []
       : ['request_mode_must_be_live']),
   ];
   const approvedAuthoringRequest =
     requestExact &&
     requestIssues.length === 0 &&
-    suppliedRequest.mode === 'live' &&
+    decodedRequest.request?.mode === 'live' &&
     snapshotExact &&
     boundaryIssues.length === 0;
 
@@ -596,6 +857,7 @@ export async function runCanonicalLiveVisualContractAuthoring(
     createCanonicalLiveAuthoringArtifactStore
   )({
     repoRoot,
+    repositoryRealPath,
     outputDir: input.outputDir,
   });
   // Every category is containment-checked, created, and writable-probed
@@ -614,13 +876,16 @@ export async function runCanonicalLiveVisualContractAuthoring(
     });
     authoringRequestWrite = artifactStore.persist({
       category: 'authoring-requests',
-      digest: suppliedRequest.digest,
-      value: suppliedRequest,
+      digest: requestForLifecycle.digest,
+      value: requestForLifecycle,
     });
   } else {
     const rejectedRequestEvidence =
       buildRejectedRequestEvidence({
-        request: suppliedRequest,
+        observedRequestDigest:
+          decodedRequest.observedRequestDigest,
+        claimedRequestDigest:
+          decodedRequest.claimedRequestDigest,
         issues: lifecycleRequestIssues,
       });
     authoringRequestWrite = artifactStore.persist({
@@ -632,10 +897,13 @@ export async function runCanonicalLiveVisualContractAuthoring(
 
   const provider = approvedAuthoringRequest
     ? deps.provider ??
-      createOpenAIResponsesVisualContractAuthoringAdapter()
-    : deps.provider;
+      (
+        deps.providerFactory ??
+        createOpenAIResponsesVisualContractAuthoringAdapter
+      )()
+    : undefined;
   const authored = await runVisualContractAuthoring({
-    request: suppliedRequest,
+    request: requestForLifecycle,
     snapshot: rebuiltSnapshot,
     provider,
     requiredMode: 'live',
@@ -653,7 +921,7 @@ export async function runCanonicalLiveVisualContractAuthoring(
   const readiness =
     buildVisualContractAuthoringReadinessEvidence({
       snapshot: rebuiltSnapshot,
-      request: suppliedRequest,
+      request: requestForLifecycle,
       receipt: authored.receipt,
     });
   const readinessWrite = artifactStore.persist({

@@ -54,7 +54,9 @@ import {
   nonEmpty,
   repoRelativePath,
 } from './integrity';
-import { writeImmutableLocalArtifact } from './preRenderBlueprintLifecycle';
+import {
+  writeCanonicalContentAddressedJsonArtifact,
+} from './canonicalContentAddressedJson';
 import {
   assertValidStorySourceAuthoritySnapshot,
   storySourceSnapshotToTemplateInput,
@@ -1638,9 +1640,9 @@ function persistJsonArtifact(args: {
   );
   const result =
     args.write === true
-      ? writeImmutableLocalArtifact({
+      ? writeCanonicalContentAddressedJsonArtifact({
           destinationPath,
-          bytes: `${JSON.stringify(args.value, null, 2)}\n`,
+          value: args.value,
         })
       : { created: false };
   return {
