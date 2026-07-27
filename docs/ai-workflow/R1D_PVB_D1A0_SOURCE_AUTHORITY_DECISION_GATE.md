@@ -4,6 +4,7 @@
 **Immutable base:** `455670c85d0890502736524f692ca1d6e8da9281`
 **Implementation branch:** `codex/r1d-pvb-d1a0-source-authority`
 **Cost boundary:** zero provider, model, image, Vision, network, storage, database, or Board calls
+**QA state:** Claude Code HOLD on `455670c85d0890502736524f692ca1d6e8da9281..fbbea4daf7fbd997dfb0fe471e5bf346cfeb9280`; accepted findings corrected locally in `f13cb2c8`; read-only re-gate pending
 
 ## 1. Proposed change
 
@@ -24,9 +25,11 @@ D1A0 builds the general schemas, request and receipt contracts, immutable writer
 
 ## 2. Why now?
 
-The D0 readiness audit correctly found that the selected 12-page source is not ready: only one current page has structured action authority and Semantic Reconciliation is absent. The current strict draft schema cannot author `actionRequirements`; the compiler model and generic provider routing are not independently locked; transport retries can multiply provider requests; the old compiler driver retains only last-call usage and writes mutable filenames.
+The D0 readiness audit correctly found that the selected 12-page source is not ready: only one current page has structured action authority and Semantic Reconciliation is absent. The pre-D1A0 strict draft schema could not author `actionRequirements`; the compiler model and generic provider routing were not independently locked; transport retries could multiply provider requests; the old compiler driver retained only last-call usage and wrote mutable filenames.
 
 Those gaps must be closed before a paid run can be safely authorized.
+
+Claude Code's first read-only D1A0 review then found four remaining defects: legacy executable/provider bypasses, non-conservative cost authority that omitted cache-write pricing and regional uplift, a strict-schema empty-action contradiction, and a pricing citation that did not point to the numeric pricing table. Guy accepted all four for the zero-cost corrective milestone.
 
 ## 3. Scope
 
@@ -55,12 +58,15 @@ Story Sources, existing reviewed Visual Contracts, reconciliation approvals, Blu
 
 - A content-addressed source snapshot binds normalized raw source, parsed page prose, historical image directions, authored cover authority, story key/path, and the legacy D0 source identity.
 - Any text, page, image-direction, or cover-authority mutation changes the snapshot digest and invalidates every bound downstream artifact.
-- The authoring request fixes OpenAI, Responses API, `gpt-5.6-sol`, standard service tier, reasoning `medium`, strict exact JSON Schema, tools disabled, no fallback, zero transport retries, 20-minute timeout, 64,000 input-token ceiling, page-derived output ceiling, at most two semantic repairs/three provider requests, and a $5.00 projected ceiling.
+- The authoring request fixes OpenAI, Responses API, `gpt-5.6-sol`, standard service tier, reasoning `medium`, strict exact JSON Schema, tools disabled, no fallback, zero transport retries, 20-minute timeout, 64,000 input-token ceiling, page-derived output ceiling, at most two semantic repairs/three provider requests, and a $5.00 hard ceiling.
+- Pricing authority binds the official numeric table, version, and digest: uncached input `$5/M`, cache write `$6.25/M`, cached read `$0.50/M`, output `$30/M`, and regional uplift `1.10`. Authorization and per-call reservation use cache-write input plus uplift, never the lower nominal rate.
+- The approved 12-page maximum is exactly `3 × ((64,000 × 6.25 + 36,000 × 30) / 1,000,000) × 1.10 = $4.884`; a request or remaining-call reservation above `$5.00` fails before provider reachability.
 - Preflight proves provider/model/schema/call/input/output/timeout/retry/cost gates before an injected provider is reachable.
-- The strict authoring draft supports source-grounded closed `actionRequirements`. Every action cites exact same-page source text. Unsupported semantics fail with a stable general blocker.
-- Receipts preserve exact sanitized per-attempt and aggregate prompt/response digests, labels, usage, pricing assumptions, bounded projected/actual cost, validation errors, and stable status without prompts, responses, credentials, headers, environment values, or raw provider exceptions.
+- The strict authoring draft requires non-empty source-grounded closed `actionRequirements` (`minItems:1`). Every action cites exact same-page source text. Unsupported semantics fail with a stable general blocker and are never invented to satisfy the schema.
+- Receipts preserve exact sanitized per-attempt and aggregate prompt/response digests, labels, provider-reported usage, pricing assumptions and digest, reserved exposure, nominal estimated cost, conservative accounted cost, validation errors, and stable status without prompts, responses, credentials, headers, environment values, or raw provider exceptions.
 - Source snapshots, requests, receipts, candidates, reconciliation draft/review surfaces, and readiness evidence use content-addressed no-overwrite persistence.
 - No compiler or model output approves itself. Reconciliation remains a separate exact-digest artifact and grants no Blueprint, Board, package, render, publication, or release authority.
+- The old compiler has no default provider; the dormant dynamic runtime compile path is removed; the legacy artifact and calibration scripts fail closed before I/O/provider reachability; and the template utility remains fixture-only.
 
 ## 7. Validation plan
 
@@ -100,6 +106,8 @@ Claude Code first-pass review is read-only and should try to falsify:
 - absence of self-approval, fabricated candidate/reconciliation, or downstream authority;
 - generality across every required fixture shape;
 - D1A0 having performed no external action.
+
+For the corrective re-gate, use the exact correction and combined ranges in the final handoff and additionally falsify every accepted HOLD finding: enumerate all compiler/provider call sites, execute every retired legacy script as a subprocess, challenge pricing/version/digest mutation, recompute `$4.884`, test at/below/above `$5`, test cache-write/uplift and remaining-call reservation accounting, prove failed spend gates cannot touch a provider, prove `actionRequirements:[]` violates the strict schema, and prove unsupported semantics remain an explicit source-grounded blocker.
 
 Claude Cowork review is not required for this zero-cost technical tooling milestone. Guy will review future real semantic artifacts before any approval.
 
