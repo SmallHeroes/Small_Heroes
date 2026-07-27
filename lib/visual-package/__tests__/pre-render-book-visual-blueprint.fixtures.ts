@@ -131,6 +131,8 @@ function makeLocations(plan: ShapePlan): VisualLocation[] {
     environmentClass: locationId.includes('forest') || locationId.includes('bridge')
       ? 'outdoor'
       : 'indoor',
+    timeOfDay: 'day',
+    lighting: 'stable authored daylight',
     anchors: [
       { id: 'anchor:focus', description: 'the stable focal point' },
       { id: 'anchor:support', description: 'the stable support surface' },

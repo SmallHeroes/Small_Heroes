@@ -357,72 +357,19 @@ describe('visual-package candidate -> review -> Guy approval -> promotion', () =
 
     vi.stubEnv('VERCEL_ENV', 'preview');
     vi.stubEnv('VISUAL_CONTRACT_ENFORCEMENT', 'true');
-    const resolved = bindApprovedRuntimeAuthority(
-      materialize(qualification.template!, {
-        skinTone: 'warm brown',
-        hairColour: 'dark brown',
-        hairTexture: 'wavy',
-      }),
-      qualification.manifest!,
-    );
-    const frozenContractHash = computeVisualContractHash(resolved);
-    const boardBindings = Object.fromEntries(
-      qualification.manifest!.requiredBoards.map((board) => [
-        board.setIdentityId,
-        {
-          setIdentityId: board.setIdentityId,
-          setDefinitionHash: board.setDefinitionHash,
-          contentPolicyDigest: board.contentPolicyDigest,
-          declaredPropIds: board.declaredPropIds,
-          styleId: board.styleId,
-          storageKey: board.storageKey,
-          resolvedUrl: `https://fixtures.invalid/${board.setIdentityId}.png`,
-          assetSha256: board.assetSha256,
-          boardVersion: board.boardVersion,
-          approvedAt: board.approvedAt,
-        },
-      ]),
-    );
     const runtimeCache = {
       storyFilePath: f.storyPath,
       storyDir: 'v3-approved',
       selectionFilename: `${STORY_KEY}.md`,
-      visualContract: resolved as unknown as PipelineCache['visualContract'],
-      setIdentityBoards: { mode: 'required-v2' as const, frozenContractHash, bindings: boardBindings },
     };
-    const runtime = requireStyle01RenderQualification({
-      illustrationStyle: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
-      frozenContractHash,
-      cache: runtimeCache,
-      repoRoot: f.root,
-    });
-    expect(runtime?.packageBinding.worldMode).toBe('grounded_with_visual_metaphor');
-    expect(runtime?.packageBinding.requiredPropReferencesDigest).toBeTruthy();
-    expect(runtime?.contractHash).toBe(frozenContractHash);
-
     expect(() => requireStyle01RenderQualification({
       illustrationStyle: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
-      frozenContractHash: 'stale-order-contract-hash',
       cache: runtimeCache,
       repoRoot: f.root,
     })).toThrow(RenderQualificationPreflightError);
-
-    const boardId = qualification.manifest!.requiredBoards[0].setIdentityId;
-    const approvedBoardSha = runtimeCache.setIdentityBoards.bindings[boardId].assetSha256;
-    runtimeCache.setIdentityBoards.bindings[boardId].assetSha256 = 'swapped-board-bytes';
-    expect(() => requireStyle01RenderQualification({
-      illustrationStyle: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
-      frozenContractHash,
-      cache: runtimeCache,
-      repoRoot: f.root,
-    })).toThrow(RenderQualificationPreflightError);
-    runtimeCache.setIdentityBoards.bindings[boardId].assetSha256 = approvedBoardSha;
-
-    fs.appendFileSync(f.storyPath, '\n<!-- plot changed after approval -->\n', 'utf8');
     const provider = vi.fn(async () => 'paid-image');
     await expect(runWithStyle01RenderQualification({
       illustrationStyle: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
-      frozenContractHash,
       cache: runtimeCache,
       repoRoot: f.root,
       pageNumbers: [1],

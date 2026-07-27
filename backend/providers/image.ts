@@ -166,10 +166,10 @@ import {
   type ResemblanceCandidate,
 } from '../../lib/resemblance-core';
 import type { Style01RuntimeAuthority } from '../../lib/generation-pipeline/render-qualification-preflight';
+import type { RuntimeBlueprintFrameProjection } from '../../lib/generation-pipeline/runtime-blueprint-projection';
 import {
   assertStyle01RuntimeAuthorityForPage,
   buildRuntimePageAuthorityProjection,
-  constrainRuntimePresentationNote,
 } from '../../lib/generation-pipeline/runtime-visual-authority';
 import { createLogger } from '../../lib/logger';
 import {
@@ -247,7 +247,12 @@ export type TextZone =
   | 'right_clear'
   | 'center_clear';
 
-export type CameraAngle = 'eye_level' | 'low_angle' | 'high_angle' | 'three_quarter';
+export type CameraAngle =
+  | 'eye_level'
+  | 'low_angle'
+  | 'high_angle'
+  | 'three_quarter'
+  | 'overhead';
 
 export type Lighting = 'soft_daylight' | 'warm_golden' | 'moonlit' | 'indoor_warm' | 'dramatic_soft';
 
@@ -287,6 +292,55 @@ export interface PageVisualStoryboard {
   pageLayoutStyle: PageLayoutStyle;
 }
 
+function storyboardFromBlueprintFrame(
+  frame: RuntimeBlueprintFrameProjection,
+): PageVisualStoryboard {
+  const castCount = frame.castIds.length;
+  const depths = new Set(frame.placements.map((placement) => placement.depth));
+  const compositionMode: CompositionMode =
+    depths.size > 1
+      ? 'foreground_background'
+      : castCount > 1
+        ? 'duo_interaction'
+        : frame.camera.shot === 'wide'
+          ? 'environmental'
+          : frame.narrative.purpose === 'advance_action'
+            ? 'diagonal_motion'
+            : 'single_focus';
+  const lighting: Lighting =
+    frame.timeOfDay === 'night'
+      ? 'moonlit'
+      : frame.timeOfDay === 'dusk' || frame.timeOfDay === 'dawn'
+        ? 'warm_golden'
+        : frame.contractStyleRefEnvironment === 'indoor'
+          ? 'indoor_warm'
+          : 'soft_daylight';
+  const emotionalTone: EmotionalTone =
+    frame.narrative.purpose === 'resolution'
+      ? 'hopeful'
+      : frame.narrative.purpose === 'reveal'
+        ? 'curious'
+        : frame.narrative.purpose === 'advance_action'
+          ? 'brave'
+          : 'calm';
+  return {
+    pageNumber: frame.pageNumber,
+    shotType: frame.camera.shot,
+    compositionMode,
+    textZone: frame.layoutPlan.textZone,
+    cameraAngle: frame.camera.angle,
+    lighting,
+    emotionalTone,
+    action: frame.narrative.summary,
+    environment: `${frame.locationId} / ${frame.zoneId}`,
+    intent: frame.narrative.purpose,
+    mainCharacterVisibility: 'three_quarter',
+    protagonistDominance:
+      castCount <= 1 ? 'primary' : 'shared',
+    pageLayoutStyle: 'full_bleed',
+  };
+}
+
 const SHOT_TYPES: ShotType[] = ['close_up', 'medium', 'wide', 'over_shoulder', 'tracking'];
 const COMPOSITION_MODES: CompositionMode[] = [
   'single_focus',
@@ -296,7 +350,7 @@ const COMPOSITION_MODES: CompositionMode[] = [
   'diagonal_motion',
 ];
 const TEXT_ZONES: TextZone[] = ['top_clear', 'bottom_clear', 'left_clear', 'right_clear', 'center_clear'];
-const CAMERA_ANGLES: CameraAngle[] = ['eye_level', 'low_angle', 'high_angle', 'three_quarter'];
+const CAMERA_ANGLES: CameraAngle[] = ['eye_level', 'low_angle', 'high_angle', 'three_quarter', 'overhead'];
 const LIGHTING_MODES: Lighting[] = ['soft_daylight', 'warm_golden', 'moonlit', 'indoor_warm', 'dramatic_soft'];
 const EMOTIONAL_TONES: EmotionalTone[] = ['calm', 'hopeful', 'curious', 'joyful', 'brave', 'tender'];
 const MAIN_CHARACTER_VISIBILITY: MainCharacterVisibility[] = [
@@ -400,6 +454,8 @@ export interface ImageInput {
   visualContractPromptBlock?: string;
   /** R1C preflight-issued, exact package/frozen-contract authority. Required for enforced Style01 provider calls. */
   runtimeVisualAuthority?: Style01RuntimeAuthority | null;
+  /** Exact deterministic PVB frame projection; required whenever runtimeVisualAuthority is v4. */
+  runtimeBlueprintFrame?: RuntimeBlueprintFrameProjection;
   /** Exact contract cast/content presence; bypasses all story-text/direction inference on the enforced path. */
   authoritativeEntityPresence?: PageEntityPresenceContract;
   /** (Human-QA re-render) Optional operator note — appended as the LAST, lowest-priority line of the finished
@@ -3373,6 +3429,7 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     authoritativeTimeOfDay: input.runtimeVisualAuthority
       ? input.effectivePageTimeOfDay
       : undefined,
+    authoritativeBlueprintFrame: input.runtimeBlueprintFrame,
     supportingCharacters: input.supportingCharacters,
     pageStoryState: input.pageStoryState,
     useCanonicalChildAnchorRef,
@@ -4122,8 +4179,9 @@ function applyRuntimeWorldAuthority(input: ImageInput): ImageInput {
     stage4Prompt: projection.safeScenePrompt,
     rawScenePrompt: null,
     visualDirection: projection.visualDirection,
-    blocking: constrainSceneBlockingToPresentation(input.blocking),
-    operatorNote: constrainRuntimePresentationNote(input.operatorNote),
+    blocking: null,
+    operatorNote: null,
+    runtimeBlueprintFrame: projection.blueprintFrame,
     childFirstName: authorizedChildName,
     childDescription: authorizedChildIdentityDescription,
     characterSheet: authorizedCharacterSheet,
@@ -4144,7 +4202,10 @@ function applyRuntimeWorldAuthority(input: ImageInput): ImageInput {
       : undefined,
     anchorCharacters: authorizedAnchors.length > 0 ? authorizedAnchors : undefined,
     contractStyleRefEnvironment: projection.contractStyleRefEnvironment,
-    visualContractPromptBlock: projection.contractPromptBlock,
+    visualContractPromptBlock: [
+      projection.blueprintPromptBlock,
+      projection.contractPromptBlock,
+    ].join('\n\n'),
     expectedCharacterIds: projection.expectedCharacterIds,
     expectedCharacterNames: projection.expectedCharacterNames,
     supportingCharacters: projection.supportingCharacters,
@@ -4163,6 +4224,7 @@ function applyRuntimeWorldAuthority(input: ImageInput): ImageInput {
     isDirectionPreview: false,
     compositionRules: undefined,
     composition: null,
+    pageIntent: undefined,
     environmentContinuity: projection.pageLocationPlan.allowedVariation,
     pageStoryboard: undefined,
     pageShot: null,
@@ -4469,6 +4531,8 @@ export async function generateAllPageImages(
     /** (WS0b location authority) Authoritative contract prompt block → PREPENDED to the Style 01 prompt so the
      *  frozen contract outranks imageDirection for location/cast/wardrobe/forbidden. Absent → legacy prompt. */
     visualContractPromptBlock?: string;
+    /** Exact deterministic PVB frame projected before all legacy planners. */
+    runtimeBlueprintFrame?: RuntimeBlueprintFrameProjection;
     /** (Human-QA re-render) Optional operator note, threaded to every page's ImageInput.operatorNote → appended as
      *  the LAST prompt line at the render seam. Additive pose/spacing guidance ONLY. Absent → byte-identical. */
     operatorNote?: string | null;
@@ -4601,6 +4665,7 @@ export async function generateAllPageImages(
       supportingCharacters: projection.supportingCharacters,
       contractStyleRefEnvironment: projection.contractStyleRefEnvironment,
       visualContractPromptBlock: projection.contractPromptBlock,
+      runtimeBlueprintFrame: projection.blueprintFrame,
       setIdentityBoardRefs: projection.setIdentityBoardRefs,
       environmentContinuity: projection.pageLocationPlan.allowedVariation,
     };
@@ -4616,6 +4681,9 @@ export async function generateAllPageImages(
   const lightingModes = new Map<number, Lighting>();
   const failedPages: number[] = [];
   const normalizedStyle = normalizeStyleId(config.illustrationStyle);
+  const pvbRuntimeActive =
+    config.runtimeVisualAuthority?.version ===
+    'style01-runtime-authority/v4';
   assertShippedBookStyleEngineActive(normalizedStyle);
   const style02Phase2Active = shouldUseStyle02Phase2Path(normalizedStyle);
   const style02BookProfile = style02Phase2Active ? resolveStyle02BookPromptProfile() : 'default';
@@ -4658,13 +4726,25 @@ export async function generateAllPageImages(
     );
   }
   const bookLockContext = buildBookImageLockContext({
-    bookShotPlan: config.bookShotPlan ?? null,
-    storyLocationPlan: config.storyLocationPlan ?? null,
-    sceneMemoryPlan: config.sceneMemoryPlan ?? null,
-    storyTimeOfDay: config.storyTimeOfDay,
-    pageTimeOfDayOverrides: config.pageTimeOfDayOverrides,
-    familyCoherence: config.familyCoherence ?? null,
-    storyRecurringEntityDeclarations: config.storyRecurringEntityDeclarations,
+    bookShotPlan: pvbRuntimeActive ? null : config.bookShotPlan ?? null,
+    storyLocationPlan: pvbRuntimeActive
+      ? null
+      : config.storyLocationPlan ?? null,
+    sceneMemoryPlan: pvbRuntimeActive
+      ? null
+      : config.sceneMemoryPlan ?? null,
+    storyTimeOfDay: pvbRuntimeActive
+      ? undefined
+      : config.storyTimeOfDay,
+    pageTimeOfDayOverrides: pvbRuntimeActive
+      ? undefined
+      : config.pageTimeOfDayOverrides,
+    familyCoherence: pvbRuntimeActive
+      ? null
+      : config.familyCoherence ?? null,
+    storyRecurringEntityDeclarations: pvbRuntimeActive
+      ? undefined
+      : config.storyRecurringEntityDeclarations,
     childCanonicalAnchorPath: resolveStyle02ChildAnchorPath({
       childCanonicalAnchorPath: config.initialCharacterAnchors?.child ?? null,
       referenceImages: config.referenceImages,
@@ -4761,20 +4841,31 @@ export async function generateAllPageImages(
 
   const thresholdConfig = config.resemblanceThresholdConfig ?? resolveResemblanceThresholdConfig();
   const inputPhotoStrength = config.inputPhotoStrength ?? 'adequate';
-  const storyboardPlan = await generateStoryboard({
-    fullStory: pagesToGenerate
-      .map((p) => (p.bookPageText ?? '').trim())
-      .filter(Boolean)
-      .join('\n\n')
-      .slice(0, 12000),
-    pages: pagesToGenerate.map((p) => ({
-      pageNumber: p.pageNumber,
-      bookPageText: p.bookPageText,
-      imagePrompt: p.imagePrompt,
-    })),
-    childProfile: [config.childName ?? '', config.childDescription ?? ''].filter(Boolean).join(' | '),
-    selectedStyle: normalizedStyle,
-  });
+  const storyboardPlan = pvbRuntimeActive
+    ? pagesToGenerate.map((page) => {
+        if (!page.runtimeBlueprintFrame) {
+          throw new Error(
+            `[runtime_blueprint_projection] page ${page.pageNumber} has no exact frame before Storyboard boundary`,
+          );
+        }
+        return storyboardFromBlueprintFrame(page.runtimeBlueprintFrame);
+      })
+    : await generateStoryboard({
+        fullStory: pagesToGenerate
+          .map((p) => (p.bookPageText ?? '').trim())
+          .filter(Boolean)
+          .join('\n\n')
+          .slice(0, 12000),
+        pages: pagesToGenerate.map((p) => ({
+          pageNumber: p.pageNumber,
+          bookPageText: p.bookPageText,
+          imagePrompt: p.imagePrompt,
+        })),
+        childProfile: [config.childName ?? '', config.childDescription ?? '']
+          .filter(Boolean)
+          .join(' | '),
+        selectedStyle: normalizedStyle,
+      });
   const storyboardByPage = new Map<number, PageVisualStoryboard>(
     storyboardPlan.map((row) => [row.pageNumber, row])
   );
@@ -4784,7 +4875,11 @@ export async function generateAllPageImages(
   // replaces the mechanical "Location/Action/Pose/Expression" lines downstream.
   // Disable with USE_DIRECTOR_LAYER=false (falls back to legacy mechanical scene block).
   const blockingByPage = new Map<number, SceneBlocking>();
-  if (isDirectorLayerEnabled() && !isFluxCleanPromptEnabled()) {
+  if (
+    !pvbRuntimeActive &&
+    isDirectorLayerEnabled() &&
+    !isFluxCleanPromptEnabled()
+  ) {
     const directorStart = Date.now();
     const pageByNum = new Map(pagesToGenerate.map((p) => [p.pageNumber, p]));
     const totalPagesForDirector = pagesToGenerate.length;
@@ -4859,6 +4954,10 @@ export async function generateAllPageImages(
     const elapsed = Date.now() - directorStart;
     console.log(
       `[Director] completed — ${blockingByPage.size}/${pagesToGenerate.length} pages got blocking (${elapsed}ms)`,
+    );
+  } else if (pvbRuntimeActive) {
+    console.log(
+      '[Director] skipped — immutable PVB frame is the sole composition authority',
     );
   } else if (isFluxCleanPromptEnabled()) {
     console.log('[Director] skipped — FLUX_CLEAN_PROMPT=on (Director output unused on Flux clean path)');
@@ -4998,14 +5097,21 @@ export async function generateAllPageImages(
         [{ pageNumber: page.pageNumber, imagePrompt: page.imagePrompt, bookPageText: page.bookPageText }],
         []
       )[0];
-    const lockSlice = resolvePageImageLockSlice(bookLockContext, page.pageNumber, {
-      imageDirection: page.rawScenePrompt ?? page.imagePrompt,
-      bookPageText: page.bookPageText,
-    });
-    const pageShot = lockSlice.pageShot;
-    const pageLocationPlan = lockSlice.pageLocationPlan;
-    const effectivePageTimeOfDay = lockSlice.effectivePageTimeOfDay;
-    if (config.bookShotPlan) {
+    const lockSlice = pvbRuntimeActive
+      ? null
+      : resolvePageImageLockSlice(bookLockContext, page.pageNumber, {
+          imageDirection: page.rawScenePrompt ?? page.imagePrompt,
+          bookPageText: page.bookPageText,
+        });
+    const pageShot = lockSlice?.pageShot ?? null;
+    const pageLocationPlan =
+      page.runtimeBlueprintFrame?.pageLocationPlan ??
+      lockSlice?.pageLocationPlan ??
+      null;
+    const effectivePageTimeOfDay =
+      page.runtimeBlueprintFrame?.timeOfDay ??
+      lockSlice?.effectivePageTimeOfDay;
+    if (!pvbRuntimeActive && config.bookShotPlan) {
       console.log('[book-shot-plan]', {
         page: page.pageNumber,
         shot: pageShot?.shot,
@@ -5121,14 +5227,19 @@ export async function generateAllPageImages(
     console.log(
       `[image_prompt_stripped] page=${page.pageNumber} originalLen=${page.imagePrompt.length} cleanedLen=${cleanedImagePrompt.length} hadContract=${hadContract}`
     );
-    const isActionBeat = looksLikeActionBeat(cleanedImagePrompt) || looksLikeActionBeat(page.bookPageText ?? null);
+    const isActionBeat =
+      !pvbRuntimeActive &&
+      (looksLikeActionBeat(cleanedImagePrompt) ||
+        looksLikeActionBeat(page.bookPageText ?? null));
     const beforePageTemplate = page.pageTemplate ?? 'art_top_text_bottom';
     const effectivePageTemplate =
       isActionBeat && beforePageTemplate === 'character_vignette_text'
         ? 'art_top_text_bottom'
         : beforePageTemplate;
     const beforePageIntent = page.pageIntent;
-    const effectivePageIntent: PageIntent | undefined = isActionBeat
+    const effectivePageIntent: PageIntent | undefined = pvbRuntimeActive
+      ? undefined
+      : isActionBeat
       ? {
           type: 'action_page',
           focus: 'action' as unknown as PageIntent['focus'],
@@ -5166,24 +5277,32 @@ export async function generateAllPageImages(
       | 'operatorNote'
       | 'setIdentityBoardRefs'
       | 'runtimeVisualAuthority'
+      | 'runtimeBlueprintFrame'
     > = {
       bookPageText: page.bookPageText ?? null,
       contractStyleRefEnvironment: page.contractStyleRefEnvironment ?? null,
       visualContractPromptBlock: page.visualContractPromptBlock ?? undefined,
       // (Human-QA re-render) The operator note for this page (the operator re-render passes ONE page). Appended as
       // the last prompt line at the render seam; never enters the contract/QA/negative sections.
-      operatorNote: page.operatorNote ?? null,
+      operatorNote: pvbRuntimeActive ? null : page.operatorNote ?? null,
       // (Milestone C) Forwarded verbatim into the SAME Style01 assembly the cover uses. Absent → undefined →
       // `taggedRefPlan` stays null → byte-identical.
       setIdentityBoardRefs: page.setIdentityBoardRefs ?? undefined,
       runtimeVisualAuthority: config.runtimeVisualAuthority,
+      runtimeBlueprintFrame: page.runtimeBlueprintFrame,
       guardedV2RecipeId:
-        config.guardedV2RecipeId ??
-        (config.companion?.id === 'bolly_armadillo' ? 'bolly_bedtime_age_5' : null),
+        pvbRuntimeActive
+          ? null
+          : config.guardedV2RecipeId ??
+            (config.companion?.id === 'bolly_armadillo'
+              ? 'bolly_bedtime_age_5'
+              : null),
       stage4Prompt: rawScene || cleanedImagePrompt,
       rawScenePrompt: page.rawScenePrompt || null,
       visualDirection: page.visualDirection ?? null,
-      blocking: blockingByPage.get(page.pageNumber) ?? null,
+      blocking: pvbRuntimeActive
+        ? null
+        : blockingByPage.get(page.pageNumber) ?? null,
       childFirstName: config.childName ?? null,
       expectedCharacterNames: pageExpectedDisplayNames,
       supportingCharacters: page.supportingCharacters ?? [],
@@ -5209,9 +5328,11 @@ export async function generateAllPageImages(
       | 'direction'
     > = {
       totalPages: pagesToGenerate.length,
-      storyFile: config.storyFile ?? null,
-      direction: config.direction ?? config.directionArchetype ?? null,
-      ...(phase2BookPipelineActive
+      storyFile: pvbRuntimeActive ? null : config.storyFile ?? null,
+      direction: pvbRuntimeActive
+        ? null
+        : config.direction ?? config.directionArchetype ?? null,
+      ...(phase2BookPipelineActive && !pvbRuntimeActive
         ? {
             storyRecurringEntityDeclarations: config.storyRecurringEntityDeclarations,
             familyCoherence: config.familyCoherence ?? null,
@@ -5219,9 +5340,9 @@ export async function generateAllPageImages(
             pageTimeOfDayOverrides: config.pageTimeOfDayOverrides,
             effectivePageTimeOfDay,
             pageShot,
-            locationBible: lockSlice.locationBible,
+            locationBible: lockSlice?.locationBible ?? null,
             pageLocationPlan,
-            sceneMemory: lockSlice.sceneMemory,
+            sceneMemory: lockSlice?.sceneMemory ?? null,
             sceneAppearance: config.sceneAppearance ?? null,
             setAppearanceBoardPath: config.setAppearanceBoardPath ?? null,
             childCanonicalAnchorPath: bookLockContext.childCanonicalAnchorPath ?? null,
@@ -5243,18 +5364,35 @@ export async function generateAllPageImages(
         `[child_expression_ref] page=${page.pageNumber} kind=${exprRef.kind} url=${exprRef.url.slice(0, 80)}…`
       );
     }
-    const anchorVariantPlan = resolveChildAnchorVariantPlan({
-      imagePrompt: page.imagePrompt,
-      rawScenePrompt: page.rawScenePrompt,
-      bookPageText: page.bookPageText,
-      visualDirection: page.visualDirection,
-      assignedIncludesChild: assignedCharacterIds.includes('child'),
-      hasChildAnchor: Boolean(characterAnchors.child),
-      childReferencePhotoUrl: baseReferenceImage,
-      companionId: config.companion?.id ?? null,
-      childFirstName: config.childName ?? null,
-      companionName: config.companion?.name ?? null,
-    });
+    const anchorVariantPlan = pvbRuntimeActive
+      ? (() => {
+          const eligible =
+            assignedCharacterIds.includes('child') &&
+            !characterAnchors.child &&
+            Boolean(baseReferenceImage);
+          const variantCount = eligible
+            ? parseChildAnchorVariantsCount()
+            : 1;
+          return {
+            variantCount,
+            useAnchorElection: eligible && variantCount > 1,
+            reason: eligible
+              ? 'pvb_child_identity_anchor_election'
+              : 'pvb_anchor_already_bound_or_child_absent',
+          };
+        })()
+      : resolveChildAnchorVariantPlan({
+          imagePrompt: page.imagePrompt,
+          rawScenePrompt: page.rawScenePrompt,
+          bookPageText: page.bookPageText,
+          visualDirection: page.visualDirection,
+          assignedIncludesChild: assignedCharacterIds.includes('child'),
+          hasChildAnchor: Boolean(characterAnchors.child),
+          childReferencePhotoUrl: baseReferenceImage,
+          companionId: config.companion?.id ?? null,
+          childFirstName: config.childName ?? null,
+          companionName: config.companion?.name ?? null,
+        });
     console.log(
       `[image] page=${page.pageNumber} variantCount=${anchorVariantPlan.variantCount} reason="${anchorVariantPlan.reason}"`
     );
@@ -5292,8 +5430,10 @@ export async function generateAllPageImages(
               styleLock: config.styleLock,
               entityVisualLock: config.entityVisualLock,
               pageIntent: effectivePageIntent,
-              composition: page.composition,
-              compositionRules: page.compositionRules,
+              composition: pvbRuntimeActive ? null : page.composition,
+              compositionRules: pvbRuntimeActive
+                ? undefined
+                : page.compositionRules,
               environmentContinuity: page.environmentContinuity,
               pageNumber: page.pageNumber,
               assetType: 'page',
@@ -5445,8 +5585,10 @@ export async function generateAllPageImages(
                 styleLock: config.styleLock,
                 entityVisualLock: config.entityVisualLock,
                 pageIntent: effectivePageIntent,
-                composition: page.composition,
-                compositionRules: page.compositionRules,
+                composition: pvbRuntimeActive ? null : page.composition,
+                compositionRules: pvbRuntimeActive
+                  ? undefined
+                  : page.compositionRules,
                 environmentContinuity: page.environmentContinuity,
                 pageNumber: page.pageNumber,
                 assetType: 'page',
@@ -5545,8 +5687,10 @@ export async function generateAllPageImages(
               styleLock: config.styleLock,
               entityVisualLock: config.entityVisualLock,
               pageIntent: effectivePageIntent,
-              composition: page.composition,
-              compositionRules: page.compositionRules,
+              composition: pvbRuntimeActive ? null : page.composition,
+              compositionRules: pvbRuntimeActive
+                ? undefined
+                : page.compositionRules,
               environmentContinuity: page.environmentContinuity,
               pageNumber: page.pageNumber,
               assetType: 'page',

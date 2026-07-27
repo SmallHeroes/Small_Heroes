@@ -496,6 +496,23 @@ export function validateVisualPackageV4(value: unknown): string[] {
     ) {
       issues.push('package identity disagrees with Blueprint authoring authority');
     }
+    for (const frame of packageValue.blueprint.content.frames) {
+      const location = packageValue.visualContractTemplate.content.locations.find(
+        (entry) => entry.id === frame.locationId,
+      );
+      if (
+        !location?.environmentClass ||
+        !location.timeOfDay?.trim() ||
+        !['day', 'night', 'dusk', 'dawn', 'mixed'].includes(
+          location.timeOfDay.trim().toLowerCase(),
+        ) ||
+        !location.lighting?.trim()
+      ) {
+        issues.push(
+          `${frame.id} location lacks exact environment, supported time-of-day, or lighting authority`,
+        );
+      }
+    }
     if (
       packageValue.styleAuthority.styleId !== packageValue.styleId ||
       packageValue.styleAuthority.digest !==
@@ -605,6 +622,14 @@ export function loadVisualPackageV4Revision(args: {
   }
   const value = readJson(absolute);
   assertValidVisualPackageV4(value);
+  if (
+    path.basename(absolute) !==
+    `${value.revisionDigest}.visual-package.json`
+  ) {
+    throw new InvalidVisualPackageV4Error([
+      'immutable package filename is not its exact content address',
+    ]);
+  }
   if (
     args.expectedRevisionDigest &&
     value.revisionDigest !== args.expectedRevisionDigest

@@ -319,6 +319,7 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
   const earlyRuntimeAuthority = requireStyle01RenderQualification({
     illustrationStyle: order.illustrationStyle,
     frozenContractHash: order.visualContractHash,
+    storySourceHash: order.storySourceHash,
     cache: pipelineCache,
   });
 
@@ -344,7 +345,8 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
   const directionForV3 = effectiveStoryDirectionForV3(order.storyDirection, storyLength);
   const challengeCategory = wizardMeta.challengeCategory ?? order.topic ?? 'GENERAL_FEARS';
 
-  const approvedSourcePath = earlyRuntimeAuthority?.qualification.storySourcePath;
+  const approvedSourcePath =
+    earlyRuntimeAuthority?.packageValue.sourceSnapshot.identity.path;
   const approvedFilename = approvedSourcePath ? path.basename(approvedSourcePath) : null;
   const approvedDir = approvedSourcePath
     ? path.dirname(approvedSourcePath).replace(/^story-bank[\\/]/, '').replace(/\\/g, '/')
@@ -777,6 +779,7 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
     {
       illustrationStyle: order.illustrationStyle,
       frozenContractHash: order.visualContractHash,
+      storySourceHash: order.storySourceHash,
       cache: pipelineCache,
       pageNumbers: [pageNumber],
     },

@@ -78,6 +78,7 @@ import {
   buildStyle01CoverSceneDescription,
   resolvePageSceneFidelityAddendum,
 } from './style01-visual-polish';
+import type { RuntimeBlueprintFrameProjection } from './generation-pipeline/runtime-blueprint-projection';
 
 export type Style01PromptAssemblyInput = {
   pageNumber: number;
@@ -98,6 +99,8 @@ export type Style01PromptAssemblyInput = {
   authoritativeChildWardrobe?: { description: string; forbidden?: string[] };
   /** R1C exact location time; bypasses text/direction/category time inference. */
   authoritativeTimeOfDay?: StoryTimeOfDay;
+  /** PVB-C exact frame. When present, the dedicated branch bypasses every story/page/companion planner and lock. */
+  authoritativeBlueprintFrame?: RuntimeBlueprintFrameProjection;
   pageStoryState?: PageStoryState | null;
   useCanonicalChildAnchorRef?: boolean;
   storyRecurringEntityDeclarations?: StoryRecurringEntityDeclaration[];
@@ -186,6 +189,118 @@ export function resolveStyle01SceneDescription(input: {
 export function assembleStyle01Phase2Prompt(
   input: Style01PromptAssemblyInput
 ): Style01PromptAssemblyResult {
+  if (input.authoritativeBlueprintFrame) {
+    const frame = input.authoritativeBlueprintFrame;
+    const entityPresence = structuredClone(frame.entityPresence);
+    const childPresent =
+      entityPresence.childPresence === 'present' ||
+      entityPresence.childPresence === 'partial' ||
+      entityPresence.childPresence === 'background';
+    const childVisualLock = childPresent
+      ? [
+          'PER-ORDER CHILD IDENTITY (identity only; Blueprint owns composition):',
+          input.childFirstName ? `Name: ${input.childFirstName}.` : '',
+          input.childAge != null ? `Age: ${input.childAge}.` : '',
+          input.childGender ? `Gender: ${input.childGender}.` : '',
+          input.childDescription ?? '',
+          input.childStructured
+            ? `Face: ${input.childStructured.face}; hair: ${input.childStructured.hair}; body: ${input.childStructured.body}.`
+            : '',
+        ].filter(Boolean).join('\n')
+      : undefined;
+    const wardrobeLock = childPresent
+      ? [
+          'PER-ORDER CHILD WARDROBE (resolved Visual Contract):',
+          input.authoritativeChildWardrobe?.description ?? '',
+          input.authoritativeChildWardrobe?.forbidden?.length
+            ? `NEVER: ${input.authoritativeChildWardrobe.forbidden.join('; ')}`
+            : '',
+        ].filter(Boolean).join('\n')
+      : undefined;
+    const companionTextLock =
+      entityPresence.companionPresence === 'present'
+        ? [
+            'PER-ORDER COMPANION APPEARANCE (resolved Visual Contract; appearance only):',
+            `${input.companion?.name ?? 'the companion'} — ${
+              input.companion?.visualDescription ??
+              'match the exact resolved companion appearance'
+            }.`,
+            'Do not add, remove, restyle, resize, or substitute the companion.',
+          ].join('\n')
+        : undefined;
+    const supportingCharacterLock = frame.supportingCharacters.length
+      ? frame.supportingCharacters
+          .map(
+            (member) =>
+              `PER-ORDER HUMAN APPEARANCE — ${member.name}: ${member.description}.`,
+          )
+          .join('\n')
+      : undefined;
+    const entityPresenceBlock = buildStyle01EntityPresenceBlock({
+      childPresence: entityPresence.childPresence,
+      companionPresence: entityPresence.companionPresence,
+      forbiddenEntities: entityPresence.forbiddenEntities,
+    });
+    const compositionBlock = frame.blueprintPromptBlock;
+    const framingRule = [
+      'PVB FRAMING RULE — immutable approved frame:',
+      `Frame ${frame.frameId} (${frame.frameDigest}); camera ${frame.camera.shot}/${frame.camera.angle}.`,
+      `Exact normalized placements: ${JSON.stringify(frame.placements)}.`,
+      `Text-safe ${frame.layoutPlan.textZone}: ${JSON.stringify(frame.layoutPlan.textSafeRegion)}.`,
+      'Do not crop, remap, quantize, or replan this frame.',
+    ].join('\n');
+    const effectivePageTimeOfDay =
+      input.authoritativeTimeOfDay ?? frame.timeOfDay;
+    const prompt = buildStyle01BookPagePrompt({
+      sceneDescription: frame.safeScenePrompt,
+      childVisualLock,
+      wardrobeLock,
+      companionTextLock,
+      supportingCharacterLock,
+      environmentLock: [
+        `EXACT LOCATION/ZONE: ${frame.locationId} / ${frame.zoneId}.`,
+        `EXACT TIME: ${effectivePageTimeOfDay}.`,
+        `CONTINUITY: ${JSON.stringify(frame.continuity)}.`,
+        `SUPPORTING GEOMETRY: ${JSON.stringify(frame.worldGeometry)}.`,
+        `AFFORDANCES: ${JSON.stringify(frame.affordances)}.`,
+        `CONNECTIONS: ${JSON.stringify(frame.connections)}.`,
+        buildStyle01AnatomyIntegrityLock(),
+      ].join('\n\n'),
+      compositionBlock,
+      entityPresenceBlock,
+      useCanonicalChildAnchorRef: input.useCanonicalChildAnchorRef,
+      isCover: frame.kind === 'cover',
+      framingRule: frame.kind === 'cover' ? undefined : framingRule,
+      companionSizeLock: buildCompanionSizeVsChildLock({
+        childPresence: entityPresence.childPresence,
+        companionPresence: entityPresence.companionPresence,
+      }),
+    });
+    const contractSceneClass =
+      input.contractEnvironmentClass != null
+        ? contractEnvironmentToSceneClass(
+            input.contractEnvironmentClass,
+            isNightEffectiveTime(effectivePageTimeOfDay),
+          )
+        : null;
+    const sceneClass =
+      contractSceneClass ??
+      classifyStyle01SceneClass({
+        imagePrompt: frame.safeScenePrompt,
+        rawScenePrompt: frame.safeScenePrompt,
+        effectivePageTimeOfDay,
+      });
+    return {
+      prompt,
+      sceneDescription: frame.safeScenePrompt,
+      sceneClass,
+      entityPresence,
+      pageStoryState: null,
+      compositionBlock,
+      storyTimeOfDay: effectivePageTimeOfDay,
+      effectivePageTimeOfDay,
+    };
+  }
   const storyLocks = resolveStyle01StoryLocks(
     input.companion?.id,
     input.storyRecurringEntityDeclarations

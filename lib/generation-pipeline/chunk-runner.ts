@@ -1027,6 +1027,7 @@ async function runCoverStage(
     {
       illustrationStyle: order.illustrationStyle,
       frozenContractHash: order.visualContractHash,
+      storySourceHash: order.storySourceHash,
       cache,
       pageNumbers: [0],
     },
@@ -1520,6 +1521,7 @@ async function runPageImagesChunk(
     {
       illustrationStyle: order.illustrationStyle,
       frozenContractHash: order.visualContractHash,
+      storySourceHash: order.storySourceHash,
       cache,
       pageNumbers: pagesForGen.map((page) => page.pageNumber),
     },

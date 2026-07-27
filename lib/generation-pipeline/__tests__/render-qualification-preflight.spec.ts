@@ -81,9 +81,7 @@ describe('shipped Style01 render-qualification preflight', () => {
           },
         },
       },
-      qualification: {
-        manifest: { requiredPropReferences: [] },
-      },
+      packageValue: { requiredPropReferences: [] },
     };
     const provider = vi.fn(async () => 'paid-image');
     await expect(

@@ -5,29 +5,45 @@ import { computeVisualContractHash } from '@/lib/visual-contract-compiler/contra
 import { isVisualContractEnforcementEnabled } from '@/lib/visual-contract-compiler/contractRenderGuards';
 import { readFrozenVisualContract } from '@/lib/visual-contract-compiler/readFrozenVisualContract';
 import type {
-  ApprovedRuntimeAuthorityBinding,
+  ApprovedPvbRuntimeAuthorityBinding,
   ResolvedBookVisualContract,
 } from '@/lib/visual-contract-compiler/contractTemplateTypes';
+import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler';
 import type { SetIdentityBoardBindingContext } from '@/lib/set-identity-board/types';
+import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
 import {
-  evaluateRenderQualification,
-  type RenderQualificationResult,
-} from '@/lib/visual-package/qualification';
+  evaluateVisualPackageV4Qualification,
+  type FrozenVisualPackageAuthority,
+  type VisualPackageV4,
+} from '@/lib/visual-package/visualPackageV4';
 import {
-  buildApprovedRuntimeAuthorityBinding,
+  buildApprovedPvbRuntimeAuthorityBinding,
   runtimeWorldProjectionDigest,
 } from '@/lib/visual-package/runtimeAuthority';
-import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
 import type { VisualPackageIssue } from '@/lib/visual-package/types';
 
+import {
+  buildRuntimeBlueprintBookProjection,
+  type RuntimeBlueprintBookProjection,
+} from './runtime-blueprint-projection';
 import { resolvePageReferenceAssets } from './page-reference-authority';
-import { resolveCachedStoryFilePath } from './story-path';
 import type { PipelineCache } from './types';
+
+export interface Style01PvbQualification {
+  storyKey: string;
+  styleId: string;
+  approvedPackagePath: string;
+  renderQualified: boolean;
+  reasons: VisualPackageIssue[];
+  packageValue: VisualPackageV4 | null;
+  template: BookVisualContractTemplate | null;
+  frozenAuthority: FrozenVisualPackageAuthority | null;
+}
 
 export class RenderQualificationPreflightError extends Error {
   readonly isRenderQualificationPreflightError = true as const;
 
-  constructor(readonly qualification: RenderQualificationResult) {
+  constructor(readonly qualification: Style01PvbQualification) {
     super(
       `[render_qualification] ${qualification.storyKey} blocked before image provider: ` +
         qualification.reasons.map((reason) => reason.code).join(', '),
@@ -40,6 +56,8 @@ export interface RenderQualificationPreflightArgs {
   illustrationStyle?: string | null;
   /** Persisted Order.visualContractHash. Required and exact on the enforced shipped path. */
   frozenContractHash?: string | null;
+  /** Exact raw Story Source snapshot digest frozen on Order. */
+  storySourceHash?: string | null;
   cache: Pick<
     PipelineCache,
     | 'devStoryBankFile'
@@ -47,6 +65,7 @@ export interface RenderQualificationPreflightArgs {
     | 'storyDir'
     | 'selectionFilename'
     | 'visualContract'
+    | 'visualPackageAuthority'
     | 'setIdentityBoards'
   >;
   repoRoot?: string;
@@ -57,37 +76,16 @@ export interface RenderQualificationPreflightArgs {
 }
 
 export interface Style01RuntimeAuthority {
-  version: 'style01-runtime-authority/v3';
+  version: 'style01-runtime-authority/v4';
   repoRoot: string;
-  qualification: RenderQualificationResult;
+  qualification: Style01PvbQualification;
+  packageValue: VisualPackageV4;
+  frozenAuthority: FrozenVisualPackageAuthority;
   contract: ResolvedBookVisualContract;
   contractHash: string;
-  packageBinding: ApprovedRuntimeAuthorityBinding;
+  packageBinding: ApprovedPvbRuntimeAuthorityBinding;
+  bookProjection: RuntimeBlueprintBookProjection;
   boardBindings?: SetIdentityBoardBindingContext;
-}
-
-/** Resolve and validate the exact reviewer-approved local package without consulting runtime contract state. */
-export function evaluateStyle01VisualPackage(
-  args: RenderQualificationPreflightArgs,
-): RenderQualificationResult | null {
-  if (!isVisualContractEnforcementEnabled()) return null;
-  if (normalizeStyleId(args.illustrationStyle) !== STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK) return null;
-
-  const repoRoot = args.repoRoot ?? process.cwd();
-  const storyPath = resolveCachedStoryFilePath(args.cache);
-  const storyKey = (args.cache.selectionFilename
-    ? path.basename(args.cache.selectionFilename, '.md')
-    : storyPath
-      ? path.basename(storyPath, '.md')
-      : 'unknown_story');
-  return evaluateRenderQualification({
-    repoRoot,
-    storyKey,
-    storyPath: storyPath ?? path.join(repoRoot, 'story-bank', '__missing_story__.md'),
-    styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
-    approvedPackagesDir: args.approvedPackagesDir,
-    boardRegistryRoot: args.boardRegistryRoot,
-  });
 }
 
 function issue(
@@ -98,143 +96,248 @@ function issue(
   return { code, message, ...extra };
 }
 
-function rejectedQualification(
-  qualification: RenderQualificationResult,
-  reasons: VisualPackageIssue[],
-): RenderQualificationResult {
-  return { ...qualification, renderQualified: false, reasons: [...qualification.reasons, ...reasons] };
+function storyKeyOf(
+  cache: RenderQualificationPreflightArgs['cache'],
+): string {
+  const value =
+    cache.selectionFilename ??
+    cache.storyFilePath ??
+    cache.devStoryBankFile ??
+    'unknown_story.md';
+  return path.basename(value, '.md');
 }
 
-function requireFrozenAuthority(
-  qualification: RenderQualificationResult,
-  cache: RenderQualificationPreflightArgs['cache'],
-  frozenContractHash: string | null | undefined,
-  repoRoot: string,
-): Style01RuntimeAuthority {
-  const reasons: VisualPackageIssue[] = [];
-  const manifest = qualification.manifest;
-  const template = qualification.template;
-  const frozen = readFrozenVisualContract(cache.visualContract);
-  if (!manifest || !template) {
-    throw new RenderQualificationPreflightError(
-      rejectedQualification(qualification, [issue('frozen_authority_missing', 'qualified manifest/template is unavailable')]),
-    );
-  }
-  if (!frozen || (frozen as { contractKind?: unknown }).contractKind !== 'resolved') {
-    throw new RenderQualificationPreflightError(
-      rejectedQualification(qualification, [
-        issue('frozen_authority_missing', 'the exact approved package is not materialized as a resolved frozen contract'),
-      ]),
-    );
-  }
-  const contract = frozen as ResolvedBookVisualContract;
-  const expectedBinding = buildApprovedRuntimeAuthorityBinding(manifest);
-  if (canonicalJsonDigest(contract.approvedRuntimeAuthority) !== canonicalJsonDigest(expectedBinding)) {
-    reasons.push(issue('frozen_authority_mismatch', 'frozen contract is not bound to the current approved package', {
-      field: 'pipelineCache.visualContract.approvedRuntimeAuthority',
-      expected: expectedBinding,
-      actual: contract.approvedRuntimeAuthority ?? null,
-    }));
-  }
-  if (runtimeWorldProjectionDigest(contract) !== runtimeWorldProjectionDigest(template)) {
-    reasons.push(issue('frozen_authority_mismatch', 'frozen physical-world contract differs from the approved template', {
-      field: 'pipelineCache.visualContract',
-    }));
-  }
-
-  const contractHash = computeVisualContractHash(contract);
-  if (!frozenContractHash?.trim()) {
-    reasons.push(issue('frozen_authority_missing', 'Order.visualContractHash is missing for the frozen contract'));
-  } else if (frozenContractHash !== contractHash) {
-    reasons.push(issue('frozen_authority_mismatch', 'Order.visualContractHash differs from the frozen contract', {
-      field: 'Order.visualContractHash',
-      expected: contractHash,
-      actual: frozenContractHash,
-    }));
-  }
-  const requiredBoards = manifest.requiredBoards;
-  const boardContext = cache.setIdentityBoards;
-  if (requiredBoards.length > 0) {
-    if (!boardContext || boardContext.mode !== 'required-v2') {
-      reasons.push(issue('board_binding_missing', 'approved package requires Set Identity Board bindings but the order has none'));
-    } else {
-      if (boardContext.frozenContractHash !== contractHash) {
-        reasons.push(issue('board_binding_mismatch', 'board bindings are pinned to a different frozen contract', {
-          expected: contractHash,
-          actual: boardContext.frozenContractHash,
-        }));
-      }
-      const expectedIds = new Set(requiredBoards.map((board) => board.setIdentityId));
-      const actualIds = Object.keys(boardContext.bindings);
-      if (actualIds.length !== expectedIds.size || actualIds.some((setIdentityId) => !expectedIds.has(setIdentityId))) {
-        reasons.push(issue('board_binding_mismatch', 'board binding identity set differs from the approved package', {
-          expected: [...expectedIds].sort(),
-          actual: actualIds.sort(),
-        }));
-      }
-      for (const approved of requiredBoards) {
-        const bound = boardContext.bindings[approved.setIdentityId];
-        if (!bound) continue;
-        if (
-          bound.setIdentityId !== approved.setIdentityId ||
-          bound.setDefinitionHash !== approved.setDefinitionHash ||
-          bound.styleId !== approved.styleId ||
-          bound.storageKey !== approved.storageKey ||
-          bound.assetSha256 !== approved.assetSha256 ||
-          bound.boardVersion !== approved.boardVersion ||
-          bound.contentPolicyDigest !== approved.contentPolicyDigest ||
-          canonicalJsonDigest(bound.declaredPropIds) !== canonicalJsonDigest(approved.declaredPropIds) ||
-          bound.approvedAt !== approved.approvedAt ||
-          !bound.resolvedUrl?.trim()
-        ) {
-          reasons.push(issue('board_binding_mismatch', `runtime board binding differs from approved artifact ${approved.setIdentityId}`, {
-            expected: approved,
-            actual: bound,
-          }));
-        }
-      }
-    }
-  }
-
-  if (reasons.length > 0) {
-    throw new RenderQualificationPreflightError(rejectedQualification(qualification, reasons));
-  }
+function rejected(args: {
+  storyKey: string;
+  styleId: string;
+  packagePath?: string | null;
+  reasons: VisualPackageIssue[];
+}): Style01PvbQualification {
   return {
-    version: 'style01-runtime-authority/v3',
-    repoRoot,
-    qualification,
-    contract,
-    contractHash,
-    packageBinding: expectedBinding,
-    ...(boardContext ? { boardBindings: boardContext } : {}),
+    storyKey: args.storyKey,
+    styleId: args.styleId,
+    approvedPackagePath: args.packagePath ?? 'unknown',
+    renderQualified: false,
+    reasons: args.reasons,
+    packageValue: null,
+    template: null,
+    frozenAuthority: null,
   };
 }
 
 /**
- * Shipped Style01 pre-image guard. It is coupled to the existing visual-contract enforcement boundary, which is
- * explicitly opt-in outside production and hard-false on Vercel production. Enforcement off therefore preserves
- * the documented legacy path; enforcement on requires a complete current approved package before invoking render.
+ * Render-time qualification never consults a mutable current locator. Fresh selection belongs to the freeze stage;
+ * every cover/page/resume/regeneration call must load only the exact immutable revision already frozen on the order.
  */
+export function evaluateStyle01VisualPackage(
+  args: RenderQualificationPreflightArgs,
+): Style01PvbQualification | null {
+  if (!isVisualContractEnforcementEnabled()) return null;
+  const styleId = normalizeStyleId(args.illustrationStyle);
+  if (styleId !== STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK) return null;
+  const storyKey = storyKeyOf(args.cache);
+  const frozen = args.cache.visualPackageAuthority;
+  if (!frozen) {
+    return rejected({
+      storyKey,
+      styleId,
+      reasons: [
+        issue(
+          'frozen_authority_missing',
+          'pipelineCache.visualPackageAuthority is missing; visual-package/v3 and current-locator fallback are forbidden',
+        ),
+      ],
+    });
+  }
+  const qualification = evaluateVisualPackageV4Qualification({
+    repoRoot: args.repoRoot ?? process.cwd(),
+    storyKey,
+    styleId,
+    frozenAuthority: frozen,
+    expectedOrderSourceRawDigest: args.storySourceHash,
+  });
+  const reasons = qualification.reasons.map((message) =>
+    issue('frozen_authority_mismatch', message),
+  );
+  return {
+    storyKey,
+    styleId,
+    approvedPackagePath: qualification.packagePath ?? frozen.packagePath,
+    renderQualified: qualification.renderQualified && reasons.length === 0,
+    reasons,
+    packageValue: qualification.packageValue,
+    template:
+      qualification.packageValue?.visualContractTemplate.content ?? null,
+    frozenAuthority: qualification.frozenAuthority,
+  };
+}
+
+function rejectMore(
+  qualification: Style01PvbQualification,
+  reasons: VisualPackageIssue[],
+): never {
+  throw new RenderQualificationPreflightError({
+    ...qualification,
+    renderQualified: false,
+    reasons: [...qualification.reasons, ...reasons],
+  });
+}
+
+function requireFrozenAuthority(
+  qualification: Style01PvbQualification,
+  args: RenderQualificationPreflightArgs,
+): Style01RuntimeAuthority {
+  const packageValue = qualification.packageValue;
+  const frozenAuthority = qualification.frozenAuthority;
+  const frozen = readFrozenVisualContract(args.cache.visualContract);
+  if (
+    !packageValue ||
+    !frozenAuthority ||
+    !frozen ||
+    (frozen as { contractKind?: unknown }).contractKind !== 'resolved'
+  ) {
+    rejectMore(qualification, [
+      issue(
+        'frozen_authority_missing',
+        'exact v4 package and resolved frozen contract are both required',
+      ),
+    ]);
+  }
+  const contract = frozen as ResolvedBookVisualContract;
+  const binding = buildApprovedPvbRuntimeAuthorityBinding({
+    packageValue,
+    frozen: frozenAuthority,
+  });
+  const reasons: VisualPackageIssue[] = [];
+  if (
+    canonicalJsonDigest(contract.approvedRuntimeAuthority) !==
+    canonicalJsonDigest(binding)
+  ) {
+    reasons.push(
+      issue(
+        'frozen_authority_mismatch',
+        'resolved contract is not bound to the exact immutable v4 package',
+      ),
+    );
+  }
+  if (
+    runtimeWorldProjectionDigest(contract) !==
+    runtimeWorldProjectionDigest(packageValue.blueprint.content.visualContract)
+  ) {
+    reasons.push(
+      issue(
+        'frozen_authority_mismatch',
+        'resolved contract physical-world projection differs from the Blueprint',
+      ),
+    );
+  }
+  const contractHash = computeVisualContractHash(contract);
+  if (!args.frozenContractHash?.trim()) {
+    reasons.push(
+      issue(
+        'frozen_authority_missing',
+        'Order.visualContractHash is missing',
+      ),
+    );
+  } else if (args.frozenContractHash !== contractHash) {
+    reasons.push(
+      issue(
+        'frozen_authority_mismatch',
+        'Order.visualContractHash differs from the resolved contract',
+      ),
+    );
+  }
+  const boardContext = args.cache.setIdentityBoards;
+  const requiredBoards = packageValue.requiredBoards;
+  if (requiredBoards.length > 0) {
+    if (
+      !boardContext ||
+      boardContext.mode !== 'required-v2' ||
+      boardContext.frozenContractHash !== contractHash
+    ) {
+      reasons.push(
+        issue(
+          'board_binding_missing',
+          'approved package Board bindings are missing or pinned to another contract',
+        ),
+      );
+    } else {
+      const expectedIds = new Set(
+        requiredBoards.map((entry) => entry.setIdentityId),
+      );
+      const actualIds = Object.keys(boardContext.bindings);
+      if (
+        actualIds.length !== expectedIds.size ||
+        actualIds.some((entry) => !expectedIds.has(entry))
+      ) {
+        reasons.push(
+          issue(
+            'board_binding_mismatch',
+            'runtime Board identity set differs from the immutable package',
+          ),
+        );
+      }
+      for (const approved of requiredBoards) {
+        const bound = boardContext.bindings[approved.setIdentityId];
+        if (
+          !bound ||
+          bound.setDefinitionHash !== approved.setDefinitionHash ||
+          bound.contentPolicyDigest !== approved.contentPolicyDigest ||
+          bound.styleId !== approved.styleId ||
+          bound.storageKey !== approved.storageKey ||
+          bound.assetSha256 !== approved.assetSha256 ||
+          bound.boardVersion !== approved.boardVersion ||
+          canonicalJsonDigest(bound.declaredPropIds) !==
+            canonicalJsonDigest(approved.declaredPropIds) ||
+          bound.approvedAt !== approved.approvedAt ||
+          !bound.resolvedUrl?.trim()
+        ) {
+          reasons.push(
+            issue(
+              'board_binding_mismatch',
+              `runtime Board binding differs for ${approved.setIdentityId}`,
+            ),
+          );
+        }
+      }
+    }
+  }
+  if (reasons.length > 0) rejectMore(qualification, reasons);
+  const bookProjection = buildRuntimeBlueprintBookProjection({
+    packageValue,
+    frozenAuthority,
+    contract,
+  });
+  return {
+    version: 'style01-runtime-authority/v4',
+    repoRoot: args.repoRoot ?? process.cwd(),
+    qualification,
+    packageValue,
+    frozenAuthority,
+    contract,
+    contractHash,
+    packageBinding: binding,
+    bookProjection,
+    ...(boardContext ? { boardBindings: boardContext } : {}),
+  };
+}
+
 export function requireStyle01RenderQualification(
   args: RenderQualificationPreflightArgs,
 ): Style01RuntimeAuthority | null {
   const qualification = evaluateStyle01VisualPackage(args);
   if (!qualification) return null;
-  if (!qualification.renderQualified) throw new RenderQualificationPreflightError(qualification);
-  return requireFrozenAuthority(
-    qualification,
-    args.cache,
-    args.frozenContractHash,
-    args.repoRoot ?? process.cwd(),
-  );
+  if (!qualification.renderQualified) {
+    throw new RenderQualificationPreflightError(qualification);
+  }
+  return requireFrozenAuthority(qualification, args);
 }
 
 type PageReferencePreflightAuthority = Pick<
   Style01RuntimeAuthority,
-  'repoRoot' | 'contract' | 'boardBindings' | 'qualification'
+  'repoRoot' | 'contract' | 'boardBindings' | 'packageValue'
 >;
 
-/** Page/content fence shared by cover, batch/resume, and single-page callers before their callback is reachable. */
 export async function runAfterPageReferencePreflight<
   T,
   TAuthority extends PageReferencePreflightAuthority | null,
@@ -250,18 +353,21 @@ export async function runAfterPageReferencePreflight<
         contract: authority.contract,
         pageNumber,
         boardBindings: authority.boardBindings,
-        propArtifacts: authority.qualification.manifest?.requiredPropReferences ?? [],
+        propArtifacts: authority.packageValue.requiredPropReferences,
       });
     }
   }
   return render(authority);
 }
 
-/** Actual shipped call wrapper: the render callback is unreachable until the synchronous preflight succeeds. */
 export async function runWithStyle01RenderQualification<T>(
   args: RenderQualificationPreflightArgs,
   render: (authority: Style01RuntimeAuthority | null) => Promise<T>,
 ): Promise<T> {
   const authority = requireStyle01RenderQualification(args);
-  return runAfterPageReferencePreflight(authority, args.pageNumbers ?? [], render);
+  return runAfterPageReferencePreflight(
+    authority,
+    args.pageNumbers ?? [],
+    render,
+  );
 }
