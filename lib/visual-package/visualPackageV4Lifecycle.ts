@@ -43,7 +43,9 @@ import type {
 } from './types';
 import {
   VISUAL_PACKAGE_V4_APPROVAL_VERSION,
+  VISUAL_PACKAGE_V4_APPROVAL_EXCLUSIONS,
   VISUAL_PACKAGE_V4_LAYOUT_POLICY,
+  VISUAL_PACKAGE_V4_PACKAGE_REVIEW_EXCLUSIONS,
   VISUAL_PACKAGE_V4_PACKAGE_REVIEW_VERSION,
   VISUAL_PACKAGE_V4_VERSION,
   buildVisualPackageV4Candidate,
@@ -325,7 +327,7 @@ export function buildVisualPackageV4PackageReview(args: {
   blockers?: string[];
 }): VisualPackageV4PackageReview {
   const blockers = [...new Set(args.blockers ?? [])].sort();
-  const review = {
+  const review: VisualPackageV4PackageReview = {
     version: VISUAL_PACKAGE_V4_PACKAGE_REVIEW_VERSION,
     storyKey: args.candidate.content.storyKey,
     styleId: args.candidate.content.styleId,
@@ -336,13 +338,8 @@ export function buildVisualPackageV4PackageReview(args: {
     blockers,
     readyForApproval: blockers.length === 0,
     doesNotAuthorize: [
-      'image_render',
-      'publication',
-      'locator_update',
-      'production_activation',
-      'deployment',
-      'release',
-    ] as VisualPackageV4PackageReview['doesNotAuthorize'],
+      ...VISUAL_PACKAGE_V4_PACKAGE_REVIEW_EXCLUSIONS,
+    ],
     digestAlgorithm: 'canonical-json-sha256' as const,
     digest: '',
   };
@@ -574,6 +571,11 @@ function packageReviewReasons(args: {
     packageReview.readyForApproval !== true ||
     !Array.isArray(packageReview.blockers) ||
     packageReview.blockers.length > 0 ||
+    !Array.isArray(packageReview.doesNotAuthorize) ||
+    canonicalJsonDigest(packageReview.doesNotAuthorize) !==
+      canonicalJsonDigest(
+        VISUAL_PACKAGE_V4_PACKAGE_REVIEW_EXCLUSIONS,
+      ) ||
     packageReview.digestAlgorithm !== 'canonical-json-sha256' ||
     !digestMatches
   ) {
@@ -613,6 +615,15 @@ export function visualPackageV4ApprovalIssues(args: {
   ) {
     issues.push(
       'package approval does not bind the exact Blueprint approval, candidate, and package review digests',
+    );
+  }
+  if (
+    !Array.isArray(approval.doesNotAuthorize) ||
+    canonicalJsonDigest(approval.doesNotAuthorize) !==
+    canonicalJsonDigest(VISUAL_PACKAGE_V4_APPROVAL_EXCLUSIONS)
+  ) {
+    issues.push(
+      'package approval must retain the exact non-authorized action boundary',
     );
   }
   if (

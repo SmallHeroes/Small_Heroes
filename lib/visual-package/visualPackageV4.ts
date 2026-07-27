@@ -50,6 +50,22 @@ export const VISUAL_PACKAGE_V4_CANDIDATE_VERSION =
   'visual-package-v4-candidate/v1' as const;
 export const VISUAL_PACKAGE_V4_PACKAGE_REVIEW_VERSION =
   'visual-package-v4-package-review/v1' as const;
+export const VISUAL_PACKAGE_V4_PACKAGE_REVIEW_EXCLUSIONS = [
+  'image_render',
+  'publication',
+  'locator_update',
+  'production_activation',
+  'deployment',
+  'release',
+] as const;
+export const VISUAL_PACKAGE_V4_APPROVAL_EXCLUSIONS = [
+  'image_render',
+  'publication',
+  'locator_update',
+  'production_activation',
+  'deployment',
+  'release',
+] as const;
 export const VISUAL_PACKAGE_V4_LAYOUT_POLICY_VERSION =
   'portrait-layout-compatibility/v1' as const;
 export const VISUAL_PACKAGE_V4_FREEZE_VERSION =
@@ -84,6 +100,7 @@ export interface VisualPackageV4Approval {
   blueprintApprovalDigest: string;
   packageCandidateDigest: string;
   packageReviewDigest: string;
+  doesNotAuthorize: typeof VISUAL_PACKAGE_V4_APPROVAL_EXCLUSIONS;
   note?: string;
   digestAlgorithm: 'canonical-json-sha256';
   digest: string;
@@ -112,14 +129,8 @@ export interface VisualPackageV4PackageReview {
   summary: VisualPackageV4PackageReviewSummary;
   blockers: string[];
   readyForApproval: boolean;
-  doesNotAuthorize: [
-    'image_render',
-    'publication',
-    'locator_update',
-    'production_activation',
-    'deployment',
-    'release',
-  ];
+  doesNotAuthorize:
+    typeof VISUAL_PACKAGE_V4_PACKAGE_REVIEW_EXCLUSIONS;
   digestAlgorithm: 'canonical-json-sha256';
   digest: string;
 }
@@ -668,6 +679,11 @@ export function validateVisualPackageV4(value: unknown): string[] {
       packageReview.readyForApproval !== true ||
       !Array.isArray(packageReview.blockers) ||
       packageReview.blockers.length > 0 ||
+      !Array.isArray(packageReview.doesNotAuthorize) ||
+      canonicalJsonDigest(packageReview.doesNotAuthorize) !==
+        canonicalJsonDigest(
+          VISUAL_PACKAGE_V4_PACKAGE_REVIEW_EXCLUSIONS,
+        ) ||
       packageReview.digestAlgorithm !== 'canonical-json-sha256' ||
       packageReview.digest !==
         computeVisualPackageV4PackageReviewDigest(packageReview)
@@ -695,6 +711,9 @@ export function validateVisualPackageV4(value: unknown): string[] {
       ) ||
     approval.packageReviewDigest !==
       packageValue.packageReview?.content.digest ||
+    !Array.isArray(approval.doesNotAuthorize) ||
+    canonicalJsonDigest(approval.doesNotAuthorize) !==
+      canonicalJsonDigest(VISUAL_PACKAGE_V4_APPROVAL_EXCLUSIONS) ||
     approval.digestAlgorithm !== 'canonical-json-sha256' ||
     approval.digest !== computeVisualPackageV4ApprovalDigest(approval)
   ) {

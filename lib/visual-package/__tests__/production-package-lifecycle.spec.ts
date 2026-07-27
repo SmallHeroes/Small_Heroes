@@ -8,6 +8,7 @@ import {
   PRE_RENDER_BLUEPRINT_APPROVAL_VERSION,
   STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
   VISUAL_PACKAGE_V4_APPROVAL_VERSION,
+  VISUAL_PACKAGE_V4_APPROVAL_EXCLUSIONS,
   assemblePreRenderBookVisualBlueprintFromDraft,
   assembleVisualPackageV4Candidate,
   buildPreRenderBlueprintReviewBundle,
@@ -17,6 +18,7 @@ import {
   canonicalJsonDigest,
   computePreRenderBlueprintApprovalDigest,
   computeVisualPackageV4ApprovalDigest,
+  computeVisualPackageV4PackageReviewDigest,
   createPreRenderBlueprintValidationEvidence,
   finalizeApprovedVisualPackageV4,
   persistVisualPackageV4CandidateReview,
@@ -159,6 +161,7 @@ function packageApproval(args: {
       args.candidate.content.planningApproval.content.digest,
     packageCandidateDigest: args.candidate.digest,
     packageReviewDigest: args.packageReview.digest,
+    doesNotAuthorize: VISUAL_PACKAGE_V4_APPROVAL_EXCLUSIONS,
   } as const;
   const approval = {
     ...payload,
@@ -442,6 +445,34 @@ describe('production visual-package/v4 candidate lifecycle', () => {
     expect(selfResult.reasons.map((reason) => reason.code)).toContain(
       'package_approval_invalid',
     );
+
+    const overreachingReview = clone(lifecycle.packageReview);
+    overreachingReview.doesNotAuthorize = [] as never;
+    overreachingReview.digest =
+      computeVisualPackageV4PackageReviewDigest(overreachingReview);
+    const reviewBoundary = qualifyVisualPackageV4Candidate({
+      repoRoot: lifecycle.repoRoot,
+      candidate: lifecycle.candidate,
+      packageReview: overreachingReview,
+      approval,
+    });
+    expect(
+      reviewBoundary.reasons.map((reason) => reason.code),
+    ).toContain('package_review_invalid');
+
+    const overreachingApproval = clone(approval);
+    overreachingApproval.doesNotAuthorize = [] as never;
+    overreachingApproval.digest =
+      computeVisualPackageV4ApprovalDigest(overreachingApproval);
+    const approvalBoundary = qualifyVisualPackageV4Candidate({
+      repoRoot: lifecycle.repoRoot,
+      candidate: lifecycle.candidate,
+      packageReview: lifecycle.packageReview,
+      approval: overreachingApproval,
+    });
+    expect(
+      approvalBoundary.reasons.map((reason) => reason.code),
+    ).toContain('package_approval_invalid');
 
     const legacy = clone(lifecycle.candidate) as unknown as {
       content: { manifestVersion: string };

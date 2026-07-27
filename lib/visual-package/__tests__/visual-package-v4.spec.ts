@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   PRE_RENDER_BLUEPRINT_APPROVAL_VERSION,
   VISUAL_PACKAGE_V4_APPROVAL_VERSION,
+  VISUAL_PACKAGE_V4_APPROVAL_EXCLUSIONS,
   VISUAL_PACKAGE_V4_LAYOUT_POLICY,
   VISUAL_PACKAGE_V4_PACKAGE_REVIEW_VERSION,
   VISUAL_PACKAGE_V4_VERSION,
@@ -143,6 +144,7 @@ function packageApproval(
     blueprintApprovalDigest,
     packageCandidateDigest,
     packageReviewDigest,
+    doesNotAuthorize: VISUAL_PACKAGE_V4_APPROVAL_EXCLUSIONS,
     ...(note ? { note } : {}),
   } as const;
   const approval = {
