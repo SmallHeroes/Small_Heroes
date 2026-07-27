@@ -1,0 +1,327 @@
+import OpenAI from 'openai';
+import type {
+  ResponseCreateParamsNonStreaming,
+} from 'openai/resources/responses/responses';
+
+import {
+  VISUAL_CONTRACT_AUTHORING_ENDPOINT,
+  VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
+  VISUAL_CONTRACT_AUTHORING_MODEL,
+  VISUAL_CONTRACT_AUTHORING_NO_FALLBACK,
+  VISUAL_CONTRACT_AUTHORING_PROVIDER,
+  VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT,
+  VISUAL_CONTRACT_AUTHORING_SERVICE_TIER,
+  VISUAL_CONTRACT_AUTHORING_TIMEOUT_MS,
+  VISUAL_CONTRACT_AUTHORING_TOOLS_DISABLED,
+  VISUAL_CONTRACT_AUTHORING_TRANSPORT_RETRIES,
+} from '@/lib/visual-contract-compiler/authoringPolicy';
+import type {
+  ContractLlmCallOptions,
+} from '@/lib/visual-contract-compiler/compileBookVisualContract';
+import {
+  TEMPLATE_DRAFT_JSON_SCHEMA,
+  TEMPLATE_DRAFT_SCHEMA_NAME,
+} from '@/lib/visual-contract-compiler/templateDraftSchema';
+
+import { canonicalJsonDigest } from './integrity';
+import {
+  OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
+  type VisualContractAuthoringProvider,
+  type VisualContractAuthoringProviderResponse,
+} from './visualContractAuthoringLifecycle';
+
+export {
+  OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
+};
+
+export const OPENAI_RESPONSES_AUTHORING_CREDENTIAL_ENV =
+  'OPENAI_API_KEY' as const;
+
+export interface OpenAIResponsesAuthoringTransportRequest {
+  apiKey: string;
+  body: ResponseCreateParamsNonStreaming;
+  requestOptions: {
+    maxRetries: 0;
+    timeout: typeof VISUAL_CONTRACT_AUTHORING_TIMEOUT_MS;
+  };
+}
+
+export interface OpenAIResponsesAuthoringTransport {
+  create(
+    request: OpenAIResponsesAuthoringTransportRequest,
+  ): Promise<unknown>;
+}
+
+export type OpenAIResponsesAuthoringCredentialReader =
+  () => string;
+
+export interface OpenAIResponsesVisualContractAuthoringAdapterDeps {
+  transport?: OpenAIResponsesAuthoringTransport;
+  readCredential?: OpenAIResponsesAuthoringCredentialReader;
+}
+
+function record(value: unknown): Record<string, unknown> | null {
+  return value !== null &&
+    typeof value === 'object' &&
+    !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function nonNegativeSafeInteger(value: unknown): boolean {
+  return (
+    typeof value === 'number' &&
+    Number.isSafeInteger(value) &&
+    value >= 0
+  );
+}
+
+function exactCallOptionsIssues(
+  options: ContractLlmCallOptions,
+): string[] {
+  const issues: string[] = [];
+  if (options.model !== VISUAL_CONTRACT_AUTHORING_MODEL) {
+    issues.push('model');
+  }
+  if (
+    options.reasoningEffort !==
+    VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT
+  ) {
+    issues.push('reasoning_effort');
+  }
+  if (
+    options.provider !== VISUAL_CONTRACT_AUTHORING_PROVIDER
+  ) {
+    issues.push('provider');
+  }
+  if (
+    options.endpoint !== VISUAL_CONTRACT_AUTHORING_ENDPOINT
+  ) {
+    issues.push('endpoint');
+  }
+  if (
+    options.serviceTier !==
+    VISUAL_CONTRACT_AUTHORING_SERVICE_TIER
+  ) {
+    issues.push('service_tier');
+  }
+  if (
+    options.toolsDisabled !==
+    VISUAL_CONTRACT_AUTHORING_TOOLS_DISABLED
+  ) {
+    issues.push('tools');
+  }
+  if (
+    options.noFallback !==
+    VISUAL_CONTRACT_AUTHORING_NO_FALLBACK
+  ) {
+    issues.push('fallback');
+  }
+  if (
+    options.transportRetries !==
+    VISUAL_CONTRACT_AUTHORING_TRANSPORT_RETRIES
+  ) {
+    issues.push('transport_retries');
+  }
+  if (
+    options.timeoutMs !==
+    VISUAL_CONTRACT_AUTHORING_TIMEOUT_MS
+  ) {
+    issues.push('timeout');
+  }
+  if (
+    options.maxInputTokens !==
+    VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS
+  ) {
+    issues.push('max_input_tokens');
+  }
+  if (
+    !Number.isSafeInteger(options.maxOutputTokens) ||
+    (options.maxOutputTokens ?? 0) < 32_000 ||
+    (options.maxOutputTokens ?? 0) > 64_000
+  ) {
+    issues.push('max_output_tokens');
+  }
+  if (
+    options.jsonSchema?.name !==
+      TEMPLATE_DRAFT_SCHEMA_NAME ||
+    canonicalJsonDigest(options.jsonSchema?.schema) !==
+      canonicalJsonDigest(TEMPLATE_DRAFT_JSON_SCHEMA)
+  ) {
+    issues.push('structured_output');
+  }
+  return issues;
+}
+
+export function buildOpenAIResponsesVisualContractAuthoringBody(
+  args: {
+    systemPrompt: string;
+    userPrompt: string;
+    options: ContractLlmCallOptions;
+  },
+): ResponseCreateParamsNonStreaming {
+  const issues = exactCallOptionsIssues(args.options);
+  if (issues.length > 0) {
+    throw new Error(
+      `visual_contract_authoring_adapter_policy_mismatch: ${issues.join(',')}`,
+    );
+  }
+  return {
+    model: VISUAL_CONTRACT_AUTHORING_MODEL,
+    service_tier: VISUAL_CONTRACT_AUTHORING_SERVICE_TIER,
+    max_output_tokens: args.options.maxOutputTokens!,
+    input: [
+      { role: 'system', content: args.systemPrompt },
+      { role: 'user', content: args.userPrompt },
+    ],
+    reasoning: {
+      effort: VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT,
+    },
+    text: {
+      format: {
+        type: 'json_schema',
+        name: TEMPLATE_DRAFT_SCHEMA_NAME,
+        schema: TEMPLATE_DRAFT_JSON_SCHEMA,
+        strict: true,
+      },
+    },
+    tools: [],
+    tool_choice: 'none',
+  };
+}
+
+export const openAIResponsesAuthoringTransport: OpenAIResponsesAuthoringTransport =
+  {
+    create: async ({ apiKey, body, requestOptions }) => {
+      const client = new OpenAI({
+        apiKey,
+        maxRetries: requestOptions.maxRetries,
+        timeout: requestOptions.timeout,
+      });
+      return client.responses.create(body, requestOptions);
+    },
+  };
+
+export const readOpenAIResponsesAuthoringCredential: OpenAIResponsesAuthoringCredentialReader =
+  () => {
+    const value =
+      process.env[
+        OPENAI_RESPONSES_AUTHORING_CREDENTIAL_ENV
+      ];
+    if (!value?.trim()) {
+      throw new Error(
+        `${OPENAI_RESPONSES_AUTHORING_CREDENTIAL_ENV} is required for canonical live authoring`,
+      );
+    }
+    return value;
+  };
+
+function mapUsage(rawUsage: unknown): {
+  usage: Record<string, unknown> | null;
+  complete: boolean;
+} {
+  const usage = record(rawUsage);
+  const inputDetails = record(
+    usage?.input_tokens_details,
+  );
+  const outputDetails = record(
+    usage?.output_tokens_details,
+  );
+  const values = {
+    input_tokens: usage?.input_tokens,
+    cached_input_tokens: inputDetails?.cached_tokens,
+    output_tokens: usage?.output_tokens,
+    reasoning_tokens: outputDetails?.reasoning_tokens,
+    total_tokens: usage?.total_tokens,
+  };
+  const individuallyValid = Object.values(values).every(
+    nonNegativeSafeInteger,
+  );
+  const internallyConsistent =
+    individuallyValid &&
+    (values.cached_input_tokens as number) <=
+      (values.input_tokens as number) &&
+    (values.reasoning_tokens as number) <=
+      (values.output_tokens as number) &&
+    (values.total_tokens as number) ===
+      (values.input_tokens as number) +
+        (values.output_tokens as number);
+  return {
+    usage: usage ? values : null,
+    complete: internallyConsistent,
+  };
+}
+
+export function mapOpenAIResponsesAuthoringResponse(
+  rawResponse: unknown,
+): VisualContractAuthoringProviderResponse {
+  const response = record(rawResponse);
+  const mappedUsage = mapUsage(response?.usage);
+  return {
+    output:
+      typeof response?.output_text === 'string'
+        ? response.output_text
+        : '',
+    receipt: {
+      provider: VISUAL_CONTRACT_AUTHORING_PROVIDER,
+      model:
+        typeof response?.model === 'string'
+          ? response.model
+          : '',
+      ...(typeof response?.id === 'string'
+        ? { responseId: response.id }
+        : {}),
+      usage: mappedUsage.usage,
+      evidenceVersion:
+        OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
+      completionStatus:
+        typeof response?.status === 'string'
+          ? response.status
+          : '',
+      usageEvidenceComplete: mappedUsage.complete,
+    },
+  };
+}
+
+/**
+ * The sole D1A live adapter. Construction performs no credential read and no
+ * provider work. The credential is read inside `call`, after the lifecycle has
+ * passed its deterministic source/request/schema/price/spend/input/options
+ * gates and this adapter has independently checked the locked call options.
+ */
+export function createOpenAIResponsesVisualContractAuthoringAdapter(
+  deps: OpenAIResponsesVisualContractAuthoringAdapterDeps = {},
+): VisualContractAuthoringProvider {
+  const transport =
+    deps.transport ?? openAIResponsesAuthoringTransport;
+  const readCredential =
+    deps.readCredential ??
+    readOpenAIResponsesAuthoringCredential;
+  return {
+    call: async ({
+      systemPrompt,
+      userPrompt,
+      options,
+    }) => {
+      const body =
+        buildOpenAIResponsesVisualContractAuthoringBody({
+          systemPrompt,
+          userPrompt,
+          options,
+        });
+      const apiKey = readCredential();
+      const rawResponse = await transport.create({
+        apiKey,
+        body,
+        requestOptions: {
+          maxRetries:
+            VISUAL_CONTRACT_AUTHORING_TRANSPORT_RETRIES,
+          timeout: VISUAL_CONTRACT_AUTHORING_TIMEOUT_MS,
+        },
+      });
+      return mapOpenAIResponsesAuthoringResponse(
+        rawResponse,
+      );
+    },
+  };
+}

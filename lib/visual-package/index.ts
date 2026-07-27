@@ -22,3 +22,5 @@ export * from './productionAuthoringRunner';
 export * from './visualPackageV4Lifecycle';
 export * from './storySourceAuthority';
 export * from './visualContractAuthoringLifecycle';
+export * from './openaiResponsesVisualContractAuthoringAdapter';
+export * from './canonicalLiveVisualContractAuthoring';

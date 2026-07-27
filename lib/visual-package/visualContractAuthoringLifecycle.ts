@@ -62,6 +62,8 @@ export const VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
   'visual-contract-authoring-readiness/v1' as const;
 export const VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v1' as const;
+export const OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION =
+  'openai-responses-authoring-evidence/v1' as const;
 
 const PROMPT_PROTOCOL_TOKEN_ALLOWANCE = 4_096;
 const MAX_RECEIPT_ERRORS = 128;
@@ -133,6 +135,15 @@ export interface VisualContractAuthoringProviderResponse {
     model: string;
     responseId?: string;
     usage?: Record<string, unknown> | null;
+    /**
+     * Present only on the canonical D1A Responses adapter. Older injected test
+     * adapters remain compatible, while this brand activates complete live
+     * response-ID/completion/output evidence validation.
+     */
+    evidenceVersion?:
+      typeof OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION;
+    completionStatus?: string;
+    usageEvidenceComplete?: boolean;
   };
 }
 
@@ -157,6 +168,8 @@ export interface VisualContractAuthoringAttemptReceipt {
     | 'input_ceiling_exceeded'
     | 'spend_reservation_exceeded'
     | 'usage_invalid'
+    | 'provider_evidence_invalid'
+    | 'completion_status_invalid'
     | 'cost_ceiling_exceeded';
   provider: string;
   model: string;
@@ -165,6 +178,10 @@ export interface VisualContractAuthoringAttemptReceipt {
   userPromptDigest: string;
   responseDigest: string | null;
   usage: VisualContractAuthoringUsage | null;
+  providerEvidenceVersion?:
+    typeof OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION;
+  completionStatus?: string;
+  usageEvidenceComplete?: boolean;
   reservedExposureBeforeCallUsd: number;
   nominalEstimatedCostUsd: number | null;
   conservativeAccountedCostUsd: number | null;
@@ -200,6 +217,8 @@ export interface VisualContractAuthoringReceipt {
       | 'provider_policy_mismatch'
       | 'input_token_ceiling_exceeded'
       | 'usage_invalid'
+      | 'provider_evidence_invalid'
+      | 'completion_status_invalid'
       | 'cost_ceiling_exceeded'
       | 'validation_exhausted'
       | 'action_authority_incomplete';
@@ -930,11 +949,24 @@ export async function runVisualContractAuthoring(args: {
   request: VisualContractAuthoringRequest;
   snapshot: StorySourceAuthoritySnapshot;
   provider?: VisualContractAuthoringProvider;
+  /** Additive executable-boundary issues checked before provider reachability. */
+  additionalRequestIssues?: readonly string[];
+  /** Used by the canonical live command so a preflight request cannot be promoted in place. */
+  requiredMode?: 'preflight' | 'live';
 }): Promise<VisualContractAuthoringRunResult> {
-  const requestIssues = visualContractAuthoringRequestIssues({
-    request: args.request,
-    snapshot: args.snapshot,
-  });
+  const requestIssues = [
+    ...new Set([
+      ...visualContractAuthoringRequestIssues({
+        request: args.request,
+        snapshot: args.snapshot,
+      }),
+      ...(args.requiredMode &&
+      args.request.mode !== args.requiredMode
+        ? [`request_mode_must_be_${args.requiredMode}`]
+        : []),
+      ...(args.additionalRequestIssues ?? []),
+    ]),
+  ];
   if (requestIssues.length > 0) {
     return {
       receipt: failureReceipt({
@@ -1125,31 +1157,137 @@ export async function runVisualContractAuthoring(args: {
             const responseId = nonEmpty(
               response.receipt.responseId,
             )
-              ? response.receipt.responseId.slice(0, 200)
+              ? safeLabel(
+                  response.receipt.responseId,
+                  'unknown-response-id',
+                )
               : null;
+            const canonicalProviderEvidence =
+              response.receipt.evidenceVersion ===
+              OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION;
+            const completionStatus =
+              canonicalProviderEvidence
+                ? safeLabel(
+                    response.receipt.completionStatus,
+                    'unknown-status',
+                  )
+                : undefined;
+            const responseOutput =
+              typeof response.output === 'string'
+                ? response.output
+                : '';
+            const usage = safeUsage(
+              response.receipt.usage,
+            );
+            const nominalEstimatedCostUsd = usage
+              ? nominalAuthoringUsageCostUsd(usage)
+              : null;
+            const conservativeAccountedCostUsd = usage
+              ? conservativeAuthoringCostUsd({
+                  inputTokens: usage.inputTokens,
+                  outputTokens: usage.outputTokens,
+                })
+              : null;
+            const receivedBase = {
+              ...base,
+              providerReached: true,
+              provider,
+              model,
+              responseId,
+              responseDigest:
+                canonicalJsonDigest(responseOutput),
+              usage,
+              nominalEstimatedCostUsd,
+              conservativeAccountedCostUsd,
+              ...(canonicalProviderEvidence
+                ? {
+                    providerEvidenceVersion:
+                      OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
+                    completionStatus,
+                    usageEvidenceComplete:
+                      response.receipt
+                        .usageEvidenceComplete === true,
+                  }
+                : {}),
+            } satisfies Omit<
+              VisualContractAuthoringAttemptReceipt,
+              'status'
+            >;
+            // Preserve the D1A0 receipt shape for older injected adapters on
+            // failure paths. Only the branded canonical Responses adapter
+            // gains the new complete evidence/cost capture.
+            const providerMismatchEvidenceBase =
+              canonicalProviderEvidence
+                ? receivedBase
+                : {
+                    ...base,
+                    providerReached: true,
+                    provider,
+                    model,
+                    responseId,
+                    responseDigest:
+                      canonicalJsonDigest(responseOutput),
+                  };
+            const usageFailureEvidenceBase =
+              canonicalProviderEvidence
+                ? receivedBase
+                : {
+                    ...providerMismatchEvidenceBase,
+                    usage,
+                  };
             if (
               provider !== args.request.provider ||
               model !== args.request.model
             ) {
               terminal.code = 'provider_policy_mismatch';
               attempts.push({
-                ...base,
-                providerReached: true,
+                ...providerMismatchEvidenceBase,
                 status: 'policy_mismatch',
-                provider,
-                model,
-                responseId,
-                responseDigest: canonicalJsonDigest(
-                  response.output,
-                ),
               });
               throw new Error(
                 'provider response labels differ from approved request',
               );
             }
-            const usage = safeUsage(
-              response.receipt.usage,
-            );
+            if (
+              canonicalProviderEvidence &&
+              (!responseId || !responseOutput.trim())
+            ) {
+              terminal.code = 'provider_evidence_invalid';
+              attempts.push({
+                ...receivedBase,
+                status: 'provider_evidence_invalid',
+              });
+              throw new Error(
+                'canonical provider response identity or output evidence is incomplete',
+              );
+            }
+            if (
+              canonicalProviderEvidence &&
+              completionStatus !== 'completed'
+            ) {
+              terminal.code = 'completion_status_invalid';
+              attempts.push({
+                ...receivedBase,
+                status: 'completion_status_invalid',
+              });
+              throw new Error(
+                'canonical provider response did not complete',
+              );
+            }
+            if (
+              canonicalProviderEvidence &&
+              response.receipt.usageEvidenceComplete !==
+                true
+            ) {
+              terminal.code = 'usage_invalid';
+              attempts.push({
+                ...usageFailureEvidenceBase,
+                status: 'usage_invalid',
+              });
+              throw new Error(
+                'canonical provider usage evidence is incomplete',
+              );
+            }
             if (
               !usage ||
               usage.inputTokens >
@@ -1159,42 +1297,17 @@ export async function runVisualContractAuthoring(args: {
             ) {
               terminal.code = 'usage_invalid';
               attempts.push({
-                ...base,
-                providerReached: true,
+                ...receivedBase,
                 status: 'usage_invalid',
-                provider,
-                model,
-                responseId,
-                responseDigest: canonicalJsonDigest(
-                  response.output,
-                ),
-                usage,
               });
               throw new Error(
                 'provider usage is missing or outside approved token bounds',
               );
             }
-            const nominalEstimatedCostUsd =
-              nominalAuthoringUsageCostUsd(usage);
-            const conservativeAccountedCostUsd =
-              conservativeAuthoringCostUsd({
-                inputTokens: usage.inputTokens,
-                outputTokens: usage.outputTokens,
-              });
             const receipt: VisualContractAuthoringAttemptReceipt =
               {
-                ...base,
-                providerReached: true,
+                ...receivedBase,
                 status: 'response_received',
-                provider,
-                model,
-                responseId,
-                responseDigest: canonicalJsonDigest(
-                  response.output,
-                ),
-                usage,
-                nominalEstimatedCostUsd,
-                conservativeAccountedCostUsd,
               };
             attempts.push(receipt);
             if (
@@ -1209,7 +1322,7 @@ export async function runVisualContractAuthoring(args: {
                 'conservative accounted authoring cost exceeded approved ceiling',
               );
             }
-            return response.output;
+            return responseOutput;
           },
         },
       );
@@ -1299,6 +1412,10 @@ export async function runVisualContractAuthoring(args: {
                 ? 'authoring stopped before provider reachability at the approved input-token ceiling'
               : code === 'usage_invalid'
                 ? 'provider usage was missing or outside approved token bounds'
+                : code === 'provider_evidence_invalid'
+                  ? 'provider response identity or output evidence was incomplete'
+                  : code === 'completion_status_invalid'
+                    ? 'provider response did not report a completed result'
                 : code === 'cost_ceiling_exceeded'
                   ? 'authoring stopped at the approved hard cost ceiling'
                   : 'all bounded whole-book validation attempts failed',

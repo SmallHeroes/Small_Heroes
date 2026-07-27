@@ -1,0 +1,1046 @@
+import fs from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import os from 'node:os';
+import path from 'node:path';
+
+import {
+  afterEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
+
+import type {
+  ContractLlmCallOptions,
+} from '@/lib/visual-contract-compiler/compileBookVisualContract';
+import type {
+  BookVisualContractTemplate,
+} from '@/lib/visual-contract-compiler/contractTemplateTypes';
+import {
+  projectPageMustShow,
+} from '@/lib/visual-contract-compiler/projectContractProse';
+import {
+  TEMPLATE_DRAFT_JSON_SCHEMA,
+  TEMPLATE_DRAFT_SCHEMA_NAME,
+} from '@/lib/visual-contract-compiler/templateDraftSchema';
+import type {
+  BookVisualContract,
+} from '@/lib/visual-contract-compiler/types';
+import {
+  buildStorySourceAuthoritySnapshot,
+  buildVisualContractAuthoringRequest,
+  canonicalJsonDigest,
+  createOpenAIResponsesVisualContractAuthoringAdapter,
+  OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
+  runCanonicalLiveVisualContractAuthoring,
+  runVisualContractAuthoring,
+  type OpenAIResponsesAuthoringTransport,
+  type StorySourceAuthoritySnapshot,
+  type VisualContractAuthoringRequest,
+} from '@/lib/visual-package';
+
+const tempRoots: string[] = [];
+const REQUESTED_AT = '2026-07-27T12:00:00.000Z';
+const STORY_KEY = 'bunny_ometz_adventure';
+const BANK = path.join(
+  process.cwd(),
+  'story-bank',
+  'v3-approved',
+);
+const FAKE_CREDENTIAL =
+  'TEST_ONLY_FAKE_OPENAI_CREDENTIAL_MUST_NOT_PERSIST';
+const RAW_PROVIDER_ERROR =
+  'RAW_PROVIDER_EXCEPTION_MUST_NOT_PERSIST';
+const LAUNCHER = path.join(
+  process.cwd(),
+  'scripts',
+  'visual-contract-authoring.cjs',
+);
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  for (const root of tempRoots.splice(0)) {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+function tempRoot(): string {
+  const root = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'canonical-live-authoring-'),
+  );
+  tempRoots.push(root);
+  return root;
+}
+
+function exactSourcePhrase(text: string): string {
+  return text
+    .trim()
+    .split(/\s+/)
+    .slice(0, 6)
+    .join(' ');
+}
+
+function fullyActionedDraft(
+  snapshot: StorySourceAuthoritySnapshot,
+): BookVisualContractTemplate & Record<string, unknown> {
+  const draft = JSON.parse(
+    fs.readFileSync(
+      path.join(
+        BANK,
+        `${STORY_KEY}.visual-contract-template.json`,
+      ),
+      'utf8',
+    ),
+  ) as BookVisualContractTemplate & Record<string, unknown>;
+  for (const page of draft.pageContracts) {
+    const sourcePage = snapshot.content.pages.find(
+      (candidate) =>
+        candidate.pageNumber === page.pageNumber,
+    );
+    (
+      page as unknown as Record<string, unknown>
+    ).actionRequirements = [
+      {
+        checkId: `action:p${page.pageNumber}_look`,
+        actorId: 'child:hero',
+        predicate: 'looks_at',
+        object: null,
+        polarity: 'must',
+        laterality: null,
+        sourcePhrase: exactSourcePhrase(
+          sourcePage?.text ?? '',
+        ),
+      },
+    ];
+    (
+      page as unknown as Record<string, unknown>
+    ).unsupportedActionSemantics = [];
+  }
+  for (const page of draft.pageContracts) {
+    page.mustShow = [
+      ...new Set([
+        ...page.mustShow,
+        ...projectPageMustShow(
+          page,
+          draft as unknown as BookVisualContract,
+        ),
+      ]),
+    ];
+  }
+  return draft;
+}
+
+interface LiveFixture {
+  repoRoot: string;
+  sourceRequestPath: string;
+  snapshotPath: string;
+  requestPath: string;
+  outputDir: string;
+  snapshot: StorySourceAuthoritySnapshot;
+  request: VisualContractAuthoringRequest;
+  storyAbsolutePath: string;
+}
+
+function writeJson(
+  repoRoot: string,
+  relativePath: string,
+  value: unknown,
+): void {
+  const absolute = path.join(repoRoot, relativePath);
+  fs.mkdirSync(path.dirname(absolute), {
+    recursive: true,
+  });
+  fs.writeFileSync(
+    absolute,
+    `${JSON.stringify(value, null, 2)}\n`,
+    'utf8',
+  );
+}
+
+function createLiveFixture(
+  suffix = 'base',
+): LiveFixture {
+  const repoRoot = tempRoot();
+  const storyPath = `stories/${STORY_KEY}.md`;
+  const storyAbsolutePath = path.join(repoRoot, storyPath);
+  fs.mkdirSync(path.dirname(storyAbsolutePath), {
+    recursive: true,
+  });
+  fs.copyFileSync(
+    path.join(BANK, `${STORY_KEY}.md`),
+    storyAbsolutePath,
+  );
+  const sourceRequest = {
+    repoRoot,
+    storyKey: STORY_KEY,
+    storyPath,
+  };
+  const snapshot =
+    buildStorySourceAuthoritySnapshot(sourceRequest);
+  const request = buildVisualContractAuthoringRequest({
+    snapshot,
+    mode: 'live',
+    requestId: `request-live-${suffix}`,
+    requestedAt: REQUESTED_AT,
+  });
+  const sourceRequestPath = 'inputs/source-request.json';
+  const snapshotPath = 'inputs/source-snapshot.json';
+  const requestPath = 'inputs/authoring-request.json';
+  writeJson(repoRoot, sourceRequestPath, sourceRequest);
+  writeJson(repoRoot, snapshotPath, snapshot);
+  writeJson(repoRoot, requestPath, request);
+  return {
+    repoRoot,
+    sourceRequestPath,
+    snapshotPath,
+    requestPath,
+    outputDir: `outputs/${suffix}`,
+    snapshot,
+    request,
+    storyAbsolutePath,
+  };
+}
+
+function responseFor(
+  output: unknown,
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    id: 'resp_test_1',
+    model: 'gpt-5.6-sol',
+    status: 'completed',
+    output_text:
+      typeof output === 'string'
+        ? output
+        : JSON.stringify(output),
+    usage: {
+      input_tokens: 1_000,
+      input_tokens_details: {
+        cached_tokens: 200,
+      },
+      output_tokens: 2_000,
+      output_tokens_details: {
+        reasoning_tokens: 500,
+      },
+      total_tokens: 3_000,
+    },
+    ...overrides,
+  };
+}
+
+function fakeAdapter(args: {
+  responses: unknown[];
+  readCredential?: ReturnType<typeof vi.fn>;
+  transportCreate?: ReturnType<typeof vi.fn>;
+}) {
+  const readCredential =
+    args.readCredential ??
+    vi.fn(() => FAKE_CREDENTIAL);
+  const transportCreate =
+    args.transportCreate ??
+    vi.fn(async () => {
+      const next = args.responses.shift();
+      if (next instanceof Error) throw next;
+      return next;
+    });
+  const transport: OpenAIResponsesAuthoringTransport = {
+    create: transportCreate,
+  };
+  return {
+    provider:
+      createOpenAIResponsesVisualContractAuthoringAdapter({
+        readCredential,
+        transport,
+      }),
+    readCredential,
+    transportCreate,
+  };
+}
+
+function fixtureInput(fixture: LiveFixture) {
+  return {
+    repoRoot: fixture.repoRoot,
+    sourceAuthorityRequestPath:
+      fixture.sourceRequestPath,
+    snapshotPath: fixture.snapshotPath,
+    requestPath: fixture.requestPath,
+    outputDir: fixture.outputDir,
+  };
+}
+
+function exactOptions(
+  request: VisualContractAuthoringRequest,
+): ContractLlmCallOptions {
+  return {
+    maxOutputTokens: request.tokenBudget.maxOutputTokens,
+    model: request.model,
+    reasoningEffort: request.reasoningEffort,
+    jsonSchema: {
+      name: TEMPLATE_DRAFT_SCHEMA_NAME,
+      schema: TEMPLATE_DRAFT_JSON_SCHEMA,
+    },
+    noFallback: request.noFallback,
+    provider: request.provider,
+    endpoint: request.endpoint,
+    serviceTier: request.serviceTier,
+    toolsDisabled: request.toolsDisabled,
+    transportRetries: request.transportRetries,
+    timeoutMs: request.timeoutMs,
+    maxInputTokens: request.tokenBudget.maxInputTokens,
+  };
+}
+
+function redigestRequest(
+  request: Record<string, unknown>,
+): void {
+  const {
+    digestAlgorithm: _digestAlgorithm,
+    digest: _digest,
+    ...payload
+  } = request;
+  request.digest = canonicalJsonDigest(payload);
+}
+
+function allArtifactText(repoRoot: string): string {
+  const files: string[] = [];
+  function walk(directory: string): void {
+    if (!fs.existsSync(directory)) return;
+    for (const entry of fs.readdirSync(directory, {
+      withFileTypes: true,
+    })) {
+      const absolute = path.join(directory, entry.name);
+      if (entry.isDirectory()) walk(absolute);
+      else files.push(absolute);
+    }
+  }
+  walk(path.join(repoRoot, 'outputs'));
+  return files
+    .map((file) => fs.readFileSync(file, 'utf8'))
+    .join('\n');
+}
+
+describe('canonical OpenAI Responses authoring adapter', () => {
+  it('does not read credentials or construct transport work at adapter creation', () => {
+    const readCredential = vi.fn(() => FAKE_CREDENTIAL);
+    const transportCreate = vi.fn();
+    createOpenAIResponsesVisualContractAuthoringAdapter({
+      readCredential,
+      transport: { create: transportCreate },
+    });
+    expect(readCredential).not.toHaveBeenCalled();
+    expect(transportCreate).not.toHaveBeenCalled();
+  });
+
+  it('maps the exact request body, zero-retry transport options, and complete provider evidence', async () => {
+    const fixture = createLiveFixture('mapping');
+    const draft = fullyActionedDraft(fixture.snapshot);
+    const adapter = fakeAdapter({
+      responses: [responseFor(draft)],
+    });
+    const result = await runVisualContractAuthoring({
+      request: fixture.request,
+      snapshot: fixture.snapshot,
+      provider: adapter.provider,
+      requiredMode: 'live',
+    });
+
+    expect(result.receipt.status).toBe('completed');
+    expect(adapter.readCredential).toHaveBeenCalledTimes(1);
+    expect(adapter.transportCreate).toHaveBeenCalledTimes(1);
+    const transportRequest =
+      adapter.transportCreate.mock.calls[0]?.[0];
+    expect(transportRequest).toMatchObject({
+      apiKey: FAKE_CREDENTIAL,
+      requestOptions: {
+        maxRetries: 0,
+        timeout: 1_200_000,
+      },
+      body: {
+        model: 'gpt-5.6-sol',
+        service_tier: 'default',
+        max_output_tokens: 36_000,
+        reasoning: { effort: 'medium' },
+        text: {
+          format: {
+            type: 'json_schema',
+            name: TEMPLATE_DRAFT_SCHEMA_NAME,
+            strict: true,
+          },
+        },
+        tools: [],
+        tool_choice: 'none',
+      },
+    });
+    expect(transportRequest.body.input).toHaveLength(2);
+    expect(result.receipt.aggregateUsage).toEqual({
+      inputTokens: 1_000,
+      cachedInputTokens: 200,
+      outputTokens: 2_000,
+      reasoningTokens: 500,
+      totalTokens: 3_000,
+    });
+    expect(result.receipt.attempts[0]).toMatchObject({
+      responseId: 'resp_test_1',
+      provider: 'openai',
+      model: 'gpt-5.6-sol',
+      providerEvidenceVersion:
+        OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
+      completionStatus: 'completed',
+      usageEvidenceComplete: true,
+      status: 'response_received',
+    });
+  });
+
+  it.each([
+    ['model', { model: 'gpt-substitute' }],
+    ['provider', { provider: 'alternate' }],
+    ['endpoint', { endpoint: 'chat.completions' }],
+    ['service tier', { serviceTier: 'priority' }],
+    ['reasoning', { reasoningEffort: 'high' }],
+    ['tools', { toolsDisabled: false }],
+    ['fallback', { noFallback: false }],
+    ['retry', { transportRetries: 1 }],
+    ['timeout', { timeoutMs: 1_199_999 }],
+    ['input budget', { maxInputTokens: 63_999 }],
+    ['output budget', { maxOutputTokens: 31_999 }],
+    [
+      'schema name',
+      {
+        jsonSchema: {
+          name: 'other-schema',
+          schema: TEMPLATE_DRAFT_JSON_SCHEMA,
+        },
+      },
+    ],
+    [
+      'schema body',
+      {
+        jsonSchema: {
+          name: TEMPLATE_DRAFT_SCHEMA_NAME,
+          schema: { type: 'object' },
+        },
+      },
+    ],
+  ])(
+    'rejects an invalid %s option before credential and transport reachability',
+    async (_label, mutation) => {
+      const fixture = createLiveFixture(
+        `adapter-policy-${_label}`,
+      );
+      const adapter = fakeAdapter({
+        responses: [
+          responseFor(
+            fullyActionedDraft(fixture.snapshot),
+          ),
+        ],
+      });
+      await expect(
+        adapter.provider.call({
+          attempt: 1,
+          kind: 'initial',
+          systemPrompt: 'system',
+          userPrompt: 'user',
+          options: {
+            ...exactOptions(fixture.request),
+            ...mutation,
+          } as ContractLlmCallOptions,
+        }),
+      ).rejects.toThrow(
+        /visual_contract_authoring_adapter_policy_mismatch/,
+      );
+      expect(adapter.readCredential).not.toHaveBeenCalled();
+      expect(adapter.transportCreate).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    [
+      'missing usage',
+      { usage: undefined },
+      'usage_invalid',
+    ],
+    [
+      'missing cached usage',
+      {
+        usage: {
+          input_tokens: 1_000,
+          output_tokens: 2_000,
+          output_tokens_details: {
+            reasoning_tokens: 500,
+          },
+          total_tokens: 3_000,
+        },
+      },
+      'usage_invalid',
+    ],
+    [
+      'malformed reasoning usage',
+      {
+        usage: {
+          input_tokens: 1_000,
+          input_tokens_details: { cached_tokens: 0 },
+          output_tokens: 2_000,
+          output_tokens_details: {
+            reasoning_tokens: 'five hundred',
+          },
+          total_tokens: 3_000,
+        },
+      },
+      'usage_invalid',
+    ],
+    [
+      'inconsistent total usage',
+      {
+        usage: {
+          input_tokens: 1_000,
+          input_tokens_details: { cached_tokens: 0 },
+          output_tokens: 2_000,
+          output_tokens_details: {
+            reasoning_tokens: 500,
+          },
+          total_tokens: 3_001,
+        },
+      },
+      'usage_invalid',
+    ],
+    [
+      'overflow input usage',
+      {
+        usage: {
+          input_tokens: 64_001,
+          input_tokens_details: { cached_tokens: 0 },
+          output_tokens: 2_000,
+          output_tokens_details: {
+            reasoning_tokens: 500,
+          },
+          total_tokens: 66_001,
+        },
+      },
+      'usage_invalid',
+    ],
+    [
+      'overflow output usage',
+      {
+        usage: {
+          input_tokens: 1_000,
+          input_tokens_details: { cached_tokens: 0 },
+          output_tokens: 36_001,
+          output_tokens_details: {
+            reasoning_tokens: 500,
+          },
+          total_tokens: 37_001,
+        },
+      },
+      'usage_invalid',
+    ],
+    [
+      'incomplete status',
+      { status: 'incomplete' },
+      'completion_status_invalid',
+    ],
+    [
+      'failed status',
+      { status: 'failed' },
+      'completion_status_invalid',
+    ],
+    [
+      'missing completion status',
+      { status: undefined },
+      'completion_status_invalid',
+    ],
+    [
+      'missing response id',
+      { id: undefined },
+      'provider_evidence_invalid',
+    ],
+    [
+      'empty response',
+      { output_text: '' },
+      'provider_evidence_invalid',
+    ],
+    [
+      'model substitution',
+      { model: 'gpt-substitute' },
+      'provider_policy_mismatch',
+    ],
+  ])(
+    'fails closed on %s while retaining only sanitized evidence',
+    async (label, override, expectedCode) => {
+      const fixture = createLiveFixture(
+        `response-${label}`,
+      );
+      const adapter = fakeAdapter({
+        responses: [
+          responseFor(
+            fullyActionedDraft(fixture.snapshot),
+            override,
+          ),
+        ],
+      });
+      const result = await runVisualContractAuthoring({
+        request: fixture.request,
+        snapshot: fixture.snapshot,
+        provider: adapter.provider,
+      });
+      expect(result.receipt.failure?.code).toBe(
+        expectedCode,
+      );
+      expect(result.receipt.callCount).toBe(1);
+      expect(JSON.stringify(result.receipt)).not.toMatch(
+        /output_text|"systemPrompt":|"userPrompt":|apiKey|Bearer/i,
+      );
+    },
+  );
+
+  it('discards provider exceptions and credential values from the receipt', async () => {
+    const fixture = createLiveFixture('provider-failure');
+    const adapter = fakeAdapter({
+      responses: [
+        new Error(
+          `${RAW_PROVIDER_ERROR} ${FAKE_CREDENTIAL}`,
+        ),
+      ],
+    });
+    const result = await runVisualContractAuthoring({
+      request: fixture.request,
+      snapshot: fixture.snapshot,
+      provider: adapter.provider,
+    });
+    expect(result.receipt.failure?.code).toBe(
+      'provider_call_failed',
+    );
+    const serialized = JSON.stringify(result.receipt);
+    expect(serialized).not.toContain(RAW_PROVIDER_ERROR);
+    expect(serialized).not.toContain(FAKE_CREDENTIAL);
+    expect(serialized).not.toContain('stack');
+  });
+});
+
+describe('canonical live authoring executable boundary', () => {
+  it('returns a nonzero canonical child status after persisting a handled invalid-request failure', () => {
+    const fixture = createLiveFixture(
+      'canonical-child-failure',
+    );
+    const request = structuredClone(
+      fixture.request,
+    ) as unknown as Record<string, unknown>;
+    request.provider = 'alternate';
+    redigestRequest(request);
+    writeJson(
+      fixture.repoRoot,
+      fixture.requestPath,
+      request,
+    );
+    const result = spawnSync(
+      process.execPath,
+      [
+        LAUNCHER,
+        'live',
+        '--repo-root',
+        fixture.repoRoot,
+        '--source-authority-request',
+        fixture.sourceRequestPath,
+        '--snapshot',
+        fixture.snapshotPath,
+        '--request',
+        fixture.requestPath,
+        '--out',
+        fixture.outputDir,
+      ],
+      {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          OPENAI_API_KEY: '',
+        },
+      },
+    );
+    expect(
+      result.status,
+      `${result.stdout}\n${result.stderr}`,
+    ).toBe(1);
+    const output = JSON.parse(result.stdout) as {
+      status: string;
+      persistence: {
+        authoringRequestKind: string;
+        authoringReceipt: { path: string };
+        readiness: { path: string };
+      };
+    };
+    expect(output.status).toBe('failed');
+    expect(
+      output.persistence.authoringRequestKind,
+    ).toBe('rejected_request_evidence');
+    expect(
+      fs.existsSync(
+        path.join(
+          fixture.repoRoot,
+          output.persistence.authoringReceipt.path,
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      fs.existsSync(
+        path.join(
+          fixture.repoRoot,
+          output.persistence.readiness.path,
+        ),
+      ),
+    ).toBe(true);
+    expect(result.stderr).toBe('');
+  }, 30_000);
+
+  it.each([
+    ['provider', (request: Record<string, unknown>) => {
+      request.provider = 'alternate';
+    }],
+    ['endpoint', (request: Record<string, unknown>) => {
+      request.endpoint = 'chat.completions';
+    }],
+    ['model', (request: Record<string, unknown>) => {
+      request.model = 'gpt-substitute';
+    }],
+    ['service tier', (request: Record<string, unknown>) => {
+      request.serviceTier = 'priority';
+    }],
+    ['reasoning', (request: Record<string, unknown>) => {
+      request.reasoningEffort = 'high';
+    }],
+    ['schema', (request: Record<string, unknown>) => {
+      (
+        request.structuredOutput as Record<string, unknown>
+      ).schemaDigest = '0'.repeat(64);
+    }],
+    ['prompt digest', (request: Record<string, unknown>) => {
+      (
+        request.promptDigests as Record<string, unknown>
+      ).system = '0'.repeat(64);
+    }],
+    ['pricing digest', (request: Record<string, unknown>) => {
+      request.pricingDigest = '0'.repeat(64);
+    }],
+    ['pricing version', (request: Record<string, unknown>) => {
+      (
+        request.pricing as Record<string, unknown>
+      ).version = 'unapproved-price-version';
+      request.pricingDigest = canonicalJsonDigest(
+        request.pricing,
+      );
+    }],
+    ['cost ceiling', (request: Record<string, unknown>) => {
+      (
+        request.costBudget as Record<string, unknown>
+      ).hardCeilingUsd = 6;
+    }],
+    ['retry', (request: Record<string, unknown>) => {
+      request.transportRetries = 1;
+    }],
+    ['timeout', (request: Record<string, unknown>) => {
+      request.timeoutMs = 1_199_999;
+    }],
+    ['tools', (request: Record<string, unknown>) => {
+      request.toolsDisabled = false;
+    }],
+    ['fallback', (request: Record<string, unknown>) => {
+      request.noFallback = false;
+    }],
+    ['input budget', (request: Record<string, unknown>) => {
+      (
+        request.tokenBudget as Record<string, unknown>
+      ).maxInputTokens = 63_999;
+    }],
+    ['output budget', (request: Record<string, unknown>) => {
+      (
+        request.tokenBudget as Record<string, unknown>
+      ).maxOutputTokens = 35_999;
+    }],
+    ['call budget', (request: Record<string, unknown>) => {
+      (
+        request.callBudget as Record<string, unknown>
+      ).maxCalls = 4;
+    }],
+    ['repair budget', (request: Record<string, unknown>) => {
+      (
+        request.callBudget as Record<string, unknown>
+      ).maxRepairCount = 3;
+    }],
+    ['unknown field', (request: Record<string, unknown>) => {
+      request.credential = FAKE_CREDENTIAL;
+    }],
+  ])(
+    'blocks a stale or invalid %s request before credential/provider reachability',
+    async (label, mutate) => {
+      const fixture = createLiveFixture(
+        `request-boundary-${label}`,
+      );
+      const request = structuredClone(
+        fixture.request,
+      ) as unknown as Record<string, unknown>;
+      mutate(request);
+      redigestRequest(request);
+      writeJson(
+        fixture.repoRoot,
+        fixture.requestPath,
+        request,
+      );
+      const adapter = fakeAdapter({
+        responses: [
+          responseFor(
+            fullyActionedDraft(fixture.snapshot),
+          ),
+        ],
+      });
+      const result =
+        await runCanonicalLiveVisualContractAuthoring(
+          fixtureInput(fixture),
+          { provider: adapter.provider },
+        );
+      expect(result.status).toBe('failed');
+      expect(result.receipt.failure?.code).toBe(
+        'request_invalid',
+      );
+      expect(adapter.readCredential).not.toHaveBeenCalled();
+      expect(adapter.transportCreate).not.toHaveBeenCalled();
+      expect(result.persistence.candidate).toBeNull();
+      expect(result.persistence.authoringReceipt.created).toBe(
+        true,
+      );
+      expect(result.persistence.readiness.created).toBe(true);
+      expect(result.persistence.authoringRequest.created).toBe(
+        true,
+      );
+      expect(
+        result.persistence.authoringRequestKind,
+      ).toBe('rejected_request_evidence');
+      expect(allArtifactText(fixture.repoRoot)).not.toContain(
+        FAKE_CREDENTIAL,
+      );
+    },
+  );
+
+  it('blocks preflight promotion and stale source/snapshot authority before credential reachability', async () => {
+    const preflight = createLiveFixture('preflight-promotion');
+    const preflightRequest =
+      buildVisualContractAuthoringRequest({
+        snapshot: preflight.snapshot,
+        mode: 'preflight',
+        requestId: 'request-preflight',
+        requestedAt: REQUESTED_AT,
+      });
+    writeJson(
+      preflight.repoRoot,
+      preflight.requestPath,
+      preflightRequest,
+    );
+    const preflightAdapter = fakeAdapter({
+      responses: [],
+    });
+    const promotion =
+      await runCanonicalLiveVisualContractAuthoring(
+        fixtureInput(preflight),
+        { provider: preflightAdapter.provider },
+      );
+    expect(promotion.receipt.failure?.issues).toContain(
+      'request_mode_must_be_live',
+    );
+    expect(
+      preflightAdapter.readCredential,
+    ).not.toHaveBeenCalled();
+
+    const stale = createLiveFixture('stale-source');
+    fs.appendFileSync(
+      stale.storyAbsolutePath,
+      '\nStale source mutation.\n',
+      'utf8',
+    );
+    const staleAdapter = fakeAdapter({ responses: [] });
+    const staleResult =
+      await runCanonicalLiveVisualContractAuthoring(
+        fixtureInput(stale),
+        { provider: staleAdapter.provider },
+      );
+    expect(staleResult.receipt.failure?.issues).toEqual(
+      expect.arrayContaining([
+        'supplied_source_snapshot_content_mismatch',
+        'supplied_live_request_content_mismatch',
+      ]),
+    );
+    expect(staleAdapter.readCredential).not.toHaveBeenCalled();
+
+    const badSnapshot = createLiveFixture('bad-snapshot');
+    const suppliedSnapshot = structuredClone(
+      badSnapshot.snapshot,
+    ) as unknown as Record<string, unknown>;
+    suppliedSnapshot.digest = '0'.repeat(64);
+    writeJson(
+      badSnapshot.repoRoot,
+      badSnapshot.snapshotPath,
+      suppliedSnapshot,
+    );
+    const snapshotAdapter = fakeAdapter({ responses: [] });
+    const snapshotResult =
+      await runCanonicalLiveVisualContractAuthoring(
+        fixtureInput(badSnapshot),
+        { provider: snapshotAdapter.provider },
+      );
+    expect(snapshotResult.receipt.failure?.issues).toEqual(
+      expect.arrayContaining([
+        'supplied_source_snapshot_invalid',
+        'supplied_source_snapshot_content_mismatch',
+      ]),
+    );
+    expect(
+      snapshotAdapter.readCredential,
+    ).not.toHaveBeenCalled();
+  });
+
+  it.each([0, 1, 2])(
+    'completes after %i semantic repair(s) within the three-call fence',
+    async (repairCount) => {
+      const fixture = createLiveFixture(
+        `repairs-${repairCount}`,
+      );
+      const valid = fullyActionedDraft(fixture.snapshot);
+      const invalid = structuredClone(valid);
+      invalid.recurringProps[0].material = '';
+      const outputs = [
+        ...Array.from({ length: repairCount }, () =>
+          responseFor(invalid),
+        ),
+        responseFor(valid),
+      ];
+      const adapter = fakeAdapter({
+        responses: outputs,
+      });
+      const result =
+        await runCanonicalLiveVisualContractAuthoring(
+          fixtureInput(fixture),
+          { provider: adapter.provider },
+        );
+      expect(result.status).toBe('completed');
+      expect(
+        result.persistence.authoringRequestKind,
+      ).toBe('approved_live_request');
+      expect(result.receipt.callCount).toBe(
+        repairCount + 1,
+      );
+      expect(result.receipt.repairCount).toBe(repairCount);
+      expect(adapter.readCredential).toHaveBeenCalledTimes(
+        repairCount + 1,
+      );
+      expect(result.receipt.attempts[0]
+        ?.reservedExposureBeforeCallUsd).toBe(4.884);
+      expect(result.persistence.candidate).not.toBeNull();
+      expect(result.readiness).toMatchObject({
+        visualContractCandidate: {
+          status: 'candidate',
+        },
+        semanticReconciliation: { status: 'absent' },
+        humanSourceApproval: { status: 'absent' },
+        blueprintAuthoringReady: false,
+        d1a1Authorized: false,
+      });
+    },
+  );
+
+  it('fails after exactly two semantic repairs and persists no candidate', async () => {
+    const fixture = createLiveFixture('repair-exhaustion');
+    const invalid = fullyActionedDraft(fixture.snapshot);
+    invalid.recurringProps[0].material = '';
+    const adapter = fakeAdapter({
+      responses: [
+        responseFor(invalid),
+        responseFor(invalid),
+        responseFor(invalid),
+      ],
+    });
+    const result =
+      await runCanonicalLiveVisualContractAuthoring(
+        fixtureInput(fixture),
+        { provider: adapter.provider },
+      );
+    expect(result.status).toBe('failed');
+    expect(result.receipt.failure?.code).toBe(
+      'validation_exhausted',
+    );
+    expect(result.receipt.callCount).toBe(3);
+    expect(result.receipt.repairCount).toBe(2);
+    expect(result.persistence.candidate).toBeNull();
+    expect(
+      result.receipt.attempts.map(
+        (attempt) =>
+          attempt.reservedExposureBeforeCallUsd,
+      ),
+    ).toEqual([4.884, 3.328875, 1.77375]);
+  });
+
+  it('writes sanitized content-addressed evidence, is byte-idempotent, and fails closed on each evidence collision', async () => {
+    const fixture = createLiveFixture('immutable');
+    const draft = fullyActionedDraft(fixture.snapshot);
+    const adapter = fakeAdapter({
+      responses: [
+        responseFor(draft),
+        responseFor(draft),
+        responseFor(draft),
+        responseFor(draft),
+        responseFor(draft),
+      ],
+    });
+    const first =
+      await runCanonicalLiveVisualContractAuthoring(
+        fixtureInput(fixture),
+        { provider: adapter.provider },
+      );
+    const second =
+      await runCanonicalLiveVisualContractAuthoring(
+        fixtureInput(fixture),
+        { provider: adapter.provider },
+      );
+    expect(first.persistence.authoringReceipt.created).toBe(
+      true,
+    );
+    expect(first.persistence.readiness.created).toBe(true);
+    expect(first.persistence.candidate?.created).toBe(true);
+    expect(second.persistence.authoringReceipt.created).toBe(
+      false,
+    );
+    expect(second.persistence.readiness.created).toBe(false);
+    expect(second.persistence.candidate?.created).toBe(false);
+
+    const serialized = allArtifactText(fixture.repoRoot);
+    expect(serialized).not.toContain(FAKE_CREDENTIAL);
+    expect(serialized).not.toContain(RAW_PROVIDER_ERROR);
+    expect(serialized).not.toMatch(
+      /"systemPrompt"|"userPrompt"|"output_text"|"apiKey"|"headers"|"stack"/i,
+    );
+
+    for (const evidence of [
+      first.persistence.authoringReceipt,
+      first.persistence.readiness,
+      first.persistence.candidate!,
+    ]) {
+      const original = fs.readFileSync(
+        path.join(fixture.repoRoot, evidence.path),
+        'utf8',
+      );
+      fs.writeFileSync(
+        path.join(fixture.repoRoot, evidence.path),
+        '{"collision":true}\n',
+        'utf8',
+      );
+      await expect(
+        runCanonicalLiveVisualContractAuthoring(
+          fixtureInput(fixture),
+          { provider: adapter.provider },
+        ),
+      ).rejects.toThrow(/immutable artifact collision/);
+      fs.writeFileSync(
+        path.join(fixture.repoRoot, evidence.path),
+        original,
+        'utf8',
+      );
+    }
+  });
+});
