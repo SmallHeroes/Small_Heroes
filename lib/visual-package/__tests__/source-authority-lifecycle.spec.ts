@@ -29,7 +29,11 @@ import {
   buildProductionReconciliationDraftFromSourceSnapshot,
   buildVisualContractAuthoringReadinessEvidence,
   buildVisualContractAuthoringRequest,
+  authoringReservedExposureUsd,
+  authoringSpendIsWithinCeiling,
   canonicalJsonDigest,
+  conservativeAuthoringCostUsd,
+  nominalAuthoringUsageCostUsd,
   persistStorySourceAuthoritySnapshot,
   persistReconciliationDraftBundle,
   persistVisualContractAuthoringReadiness,
@@ -441,11 +445,24 @@ describe('exact zero-cost authoring preflight', () => {
         maxCalls: 3,
         maxRepairCount: 2,
       },
+      pricing: {
+        version: 'openai-standard-pricing/2026-07-27-v2',
+        uncachedInputUsdPerUnit: 5,
+        cacheWriteInputUsdPerUnit: 6.25,
+        cachedInputUsdPerUnit: 0.5,
+        outputUsdPerUnit: 30,
+        regionalUpliftMultiplier: 1.1,
+        source:
+          'https://developers.openai.com/api/docs/pricing',
+      },
       costBudget: {
-        projectedMaxUsd: 4.2,
+        projectedMaxUsd: 4.884,
         hardCeilingUsd: 5,
       },
     });
+    expect(request.pricingDigest).toBe(
+      canonicalJsonDigest(request.pricing),
+    );
     expect(
       request.tokenBudget.promptAndSchemaTokenUpperBound,
     ).toBeLessThanOrEqual(64_000);
@@ -456,14 +473,14 @@ describe('exact zero-cost authoring preflight', () => {
     expect(provider.call).not.toHaveBeenCalled();
   });
 
-  it('blocks a generally-derived longer-story budget above the approved ceiling before provider reachability', async () => {
+  it('blocks a generally-derived longer-story live budget above the approved ceiling before provider reachability', async () => {
     const snapshot = snapshotFor(
       writeStoryFixture({
-        pageCount: 16,
+        pageCount: 13,
         multiLocation: true,
       }),
     );
-    const request = requestFor(snapshot, 'preflight');
+    const request = requestFor(snapshot, 'live');
     const provider = {
       call: vi.fn(async () => {
         throw new Error('must remain unreachable');
@@ -474,8 +491,8 @@ describe('exact zero-cost authoring preflight', () => {
       snapshot,
       provider,
     });
-    expect(request.tokenBudget.maxOutputTokens).toBe(48_000);
-    expect(request.costBudget.projectedMaxUsd).toBe(5.28);
+    expect(request.tokenBudget.maxOutputTokens).toBe(39_000);
+    expect(request.costBudget.projectedMaxUsd).toBe(5.181);
     expect(result.receipt.status).toBe('failed');
     expect(result.receipt.failure?.issues).toContain(
       'projected_cost_ceiling_exceeded',
@@ -483,10 +500,58 @@ describe('exact zero-cost authoring preflight', () => {
     expect(provider.call).not.toHaveBeenCalled();
   });
 
+  it('uses cache-write worst case plus regional uplift and treats the $5 boundary inclusively', () => {
+    expect(
+      conservativeAuthoringCostUsd({
+        inputTokens: 64_000,
+        outputTokens: 36_000,
+      }),
+    ).toBe(1.628);
+    expect(authoringSpendIsWithinCeiling(4.999999, 5)).toBe(
+      true,
+    );
+    expect(authoringSpendIsWithinCeiling(5, 5)).toBe(true);
+    expect(authoringSpendIsWithinCeiling(5.000001, 5)).toBe(
+      false,
+    );
+  });
+
+  it('reserves remaining multi-call exposure conservatively before each provider call', () => {
+    const request = requestFor(
+      snapshotFor(writeStoryFixture({ pageCount: 12 })),
+      'live',
+    );
+    expect(
+      authoringReservedExposureUsd({
+        request,
+        conservativeAccountedCostUsd: 0,
+        providerCallsCompleted: 0,
+      }),
+    ).toBe(4.884);
+    expect(
+      authoringReservedExposureUsd({
+        request,
+        conservativeAccountedCostUsd: 1.628,
+        providerCallsCompleted: 1,
+      }),
+    ).toBe(4.884);
+    expect(
+      authoringSpendIsWithinCeiling(
+        authoringReservedExposureUsd({
+          request,
+          conservativeAccountedCostUsd: 1.75,
+          providerCallsCompleted: 1,
+        }),
+        request.costBudget.hardCeilingUsd,
+      ),
+    ).toBe(false);
+  });
+
   it.each([
     ['provider', 'anthropic'],
     ['model', 'gpt-substitute'],
     ['transportRetries', 1],
+    ['pricingDigest', '0'.repeat(64)],
   ] as const)(
     'blocks %s mismatch before provider reachability',
     async (field, value) => {
@@ -514,6 +579,44 @@ describe('exact zero-cost authoring preflight', () => {
       expect(provider.call).not.toHaveBeenCalled();
     },
   );
+
+  it('invalidates stale authority even when altered price assumptions are internally re-digested', async () => {
+    const snapshot = snapshotFor(
+      writeStoryFixture({ pageCount: 12 }),
+    );
+    const request = structuredClone(
+      requestFor(snapshot, 'live'),
+    ) as unknown as Record<string, unknown>;
+    const pricing = request.pricing as Record<
+      string,
+      unknown
+    >;
+    pricing.cacheWriteInputUsdPerUnit = 5;
+    request.pricingDigest = canonicalJsonDigest(pricing);
+    const {
+      digestAlgorithm: _digestAlgorithm,
+      digest: _digest,
+      ...payload
+    } = request;
+    request.digest = canonicalJsonDigest(payload);
+    const provider = {
+      call: vi.fn(async () => {
+        throw new Error('must remain unreachable');
+      }),
+    };
+    const result = await runVisualContractAuthoring({
+      request:
+        request as unknown as ReturnType<
+          typeof requestFor
+        >,
+      snapshot,
+      provider,
+    });
+    expect(result.receipt.failure?.issues).toContain(
+      'price_assumptions_mismatch',
+    );
+    expect(provider.call).not.toHaveBeenCalled();
+  });
 });
 
 describe('source-grounded closed action authority', () => {
@@ -593,6 +696,45 @@ describe('source-grounded closed action authority', () => {
       ).attempts.some((attempt) =>
         attempt.errors.some((error) =>
           error.includes('unsupported_action_semantic'),
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects an empty per-page action list instead of treating property presence as authority', async () => {
+    const snapshot = bunnySnapshot();
+    const draft = fullyActionedBunnyDraft(snapshot);
+    (
+      draft.pageContracts[0] as unknown as Record<
+        string,
+        unknown
+      >
+    ).actionRequirements = [];
+    let thrown: unknown;
+    try {
+      await compileBookVisualContractTemplate(
+        {
+          ...snapshot.content,
+          storyKey: snapshot.content.storyKey,
+          pageCount: snapshot.content.pages.length,
+          authoredCoverAuthority: undefined,
+        },
+        {
+          callLLM: async () => JSON.stringify(draft),
+        },
+      );
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(
+      TemplateRepairExhaustedError,
+    );
+    expect(
+      (
+        thrown as TemplateRepairExhaustedError
+      ).attempts.some((attempt) =>
+        attempt.errors.some((error) =>
+          error.includes('actionRequirements'),
         ),
       ),
     ).toBe(true);
@@ -703,12 +845,23 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       reasoningTokens: 500,
       totalTokens: 3_000,
     });
-    expect(result.receipt.actualCostUsd).toBe(0.065);
+    expect(result.receipt.nominalEstimatedCostUsd).toBe(
+      0.065,
+    );
+    expect(
+      result.receipt.conservativeAccountedCostUsd,
+    ).toBe(0.072875);
+    expect(result.receipt.pricing).toEqual(request.pricing);
+    expect(result.receipt.pricingDigest).toBe(
+      request.pricingDigest,
+    );
     expect(result.receipt.attempts[0]).toMatchObject({
       provider: 'openai',
       model: 'gpt-5.6-sol',
       responseId: 'response-1',
-      actualCostUsd: 0.065,
+      reservedExposureBeforeCallUsd: 4.884,
+      nominalEstimatedCostUsd: 0.065,
+      conservativeAccountedCostUsd: 0.072875,
       status: 'response_received',
     });
     expect(
@@ -723,6 +876,25 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     );
     expect(serialized).not.toContain('"output"');
     expect(result.compileResult).not.toBeNull();
+  });
+
+  it('reports cached reads nominally but accounts every input token at cache-write worst case with uplift', () => {
+    const usage = {
+      inputTokens: 1_000,
+      cachedInputTokens: 1_000,
+      outputTokens: 0,
+      reasoningTokens: 0,
+      totalTokens: 1_000,
+    };
+    expect(nominalAuthoringUsageCostUsd(usage)).toBe(
+      0.0005,
+    );
+    expect(
+      conservativeAuthoringCostUsd({
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+      }),
+    ).toBe(0.006875);
   });
 
   it('sanitizes provider failures and refuses provider/model substitution', async () => {
@@ -789,7 +961,39 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(result.receipt.aggregateUsage.inputTokens).toBe(
       3_000,
     );
-    expect(result.receipt.actualCostUsd).toBe(0.195);
+    expect(result.receipt.nominalEstimatedCostUsd).toBe(
+      0.195,
+    );
+    expect(
+      result.receipt.conservativeAccountedCostUsd,
+    ).toBe(0.218625);
+    expect(
+      result.receipt.attempts.map(
+        (attempt) =>
+          attempt.reservedExposureBeforeCallUsd,
+      ),
+    ).toEqual([4.884, 3.328875, 1.77375]);
+    expect(
+      result.receipt.attempts.reduce(
+        (sum, attempt) =>
+          sum + (attempt.nominalEstimatedCostUsd ?? 0),
+        0,
+      ),
+    ).toBeCloseTo(
+      result.receipt.nominalEstimatedCostUsd,
+      6,
+    );
+    expect(
+      result.receipt.attempts.reduce(
+        (sum, attempt) =>
+          sum +
+          (attempt.conservativeAccountedCostUsd ?? 0),
+        0,
+      ),
+    ).toBeCloseTo(
+      result.receipt.conservativeAccountedCostUsd,
+      6,
+    );
   });
 
   it('rechecks the 64k input ceiling before a repair and never reaches the provider for an oversized repair prompt', async () => {

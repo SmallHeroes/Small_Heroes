@@ -72,25 +72,7 @@ export interface CompileBookVisualContractInput {
   pageImageDirections?: PageImageDirection[];
 }
 
-/** Default caller — lazily pulls the shared pipeline LLM so the VCC module graph stays light. */
-const defaultContractLlmCaller: ContractLlmCaller = async (system, user, opts) => {
-  const { callLLM } = await import('@/backend/providers/pipeline');
-  const res = await callLLM(system, user, opts?.maxOutputTokens ?? 4000, 0.4, 'VisualContract', true, {
-    modelOverride: opts?.model,
-    reasoningEffort: opts?.reasoningEffort,
-    jsonSchema: opts?.jsonSchema,
-    noFallback: opts?.noFallback,
-    providerOverride: opts?.provider,
-    endpointOverride: opts?.endpoint,
-    serviceTier: opts?.serviceTier,
-    toolsDisabled: opts?.toolsDisabled,
-    transportRetries: opts?.transportRetries,
-    timeoutMs: opts?.timeoutMs,
-    maxInputTokens: opts?.maxInputTokens,
-  });
-  return res.text;
-};
-
+/** Pure prompt assembly; provider execution is never owned by this module. */
 export function buildCompileSystemPrompt(): string {
   return [
     'You are a visual continuity compiler for a children\'s picture book.',
@@ -193,10 +175,14 @@ export function parseContractJson(raw: string): unknown {
  */
 export async function compileBookVisualContract(
   input: CompileBookVisualContractInput,
-  deps?: { callLLM?: ContractLlmCaller }
+  deps: { callLLM: ContractLlmCaller },
 ): Promise<BookVisualContract> {
-  const call = deps?.callLLM ?? defaultContractLlmCaller;
-  const raw = await call(buildCompileSystemPrompt(), buildCompileUserPrompt(input));
+  if (!deps?.callLLM) {
+    throw new Error(
+      'visual_contract_caller_required: implicit provider-backed authoring is disabled; use the source-authority lifecycle',
+    );
+  }
+  const raw = await deps.callLLM(buildCompileSystemPrompt(), buildCompileUserPrompt(input));
   // Coerce common LLM shape variations into the canonical schema BEFORE validating (general; genuinely
   // missing content still fails closed).
   const parsed = normalizeRawBookVisualContract(parseContractJson(raw)) as Record<string, unknown>;

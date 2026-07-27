@@ -70,6 +70,13 @@ describe('Stage 1 — draft json_schema is strict-mode compliant', () => {
     expect(root.properties.pageContracts.items?.properties).toHaveProperty('propConstraints');
     expect(root.properties.pageContracts.items?.properties).toHaveProperty('actionRequirements');
     expect(root.properties.pageContracts.items?.properties).toHaveProperty('unsupportedActionSemantics');
+    expect(
+      root.properties.pageContracts.items?.properties
+        ?.actionRequirements,
+    ).toMatchObject({
+      type: 'array',
+      minItems: 1,
+    });
   });
 
   it('authors stable board authority as separate structured set/location/area/object fields', () => {
@@ -124,7 +131,7 @@ describe('Stage 1 — compiler requests the dedicated authoring call + records p
     expect(provenance.authoringModel).toBe('gpt-5.6-sol');
     expect(provenance.reasoningEffort).toBe('medium');
     expect(provenance.maxOutputTokens).toBe(36000);
-    expect(provenance.schemaVersion).toBe('vc-draft-schema/v5');
+    expect(provenance.schemaVersion).toBe('vc-draft-schema/v6');
     expect(provenance.attempt).toBe(1);
   });
 

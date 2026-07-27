@@ -4,7 +4,7 @@
  * Runs after text-finalization + DNA and BEFORE the cover (and, idempotently, on every resume before any paid
  * image). It:
  *   1. PRODUCES the contract — enforced Style01 materializes the exact approved local template; the legacy
- *      development path retains its historical artifact/dormant dynamic-compiler behavior.
+ *      development path can load only checked-in artifacts. Dynamic live compilation is not reachable.
  *   2. FREEZES it atomically via the EXISTING `withDeliveryInputMutation` barrier: stamps `Order.visualContractHash`
  *      and persists the full contract into `pipelineCache.visualContract` in ONE transaction. The `operationKey`
  *      INCLUDES the contract hash, so a re-freeze of the same contract hits the receipt fence and REPLAYS (the
@@ -71,7 +71,7 @@ export interface ProducedContract {
 export type ContractProducer = (order: Order, cache: PipelineCache) => Promise<ProducedContract | null>;
 
 export interface EnsureFrozenVisualContractDeps {
-  /** Override the contract source (tests). Default: bank-artifact load, else dynamic compile. */
+  /** Override the contract source (tests). Default: bank-artifact load, else no contract. */
   produce?: ContractProducer;
   /** Override the delivery-input barrier (tests). Default: the real `withDeliveryInputMutation`. */
   withMutation?: WithDeliveryInputMutation;
@@ -91,35 +91,10 @@ function bankArtifactDir(cache: PipelineCache): string {
   return path.join(process.cwd(), 'story-bank', cache.storyDir ?? STORY_BANK_V3_DIR_NAME);
 }
 
-/** Assemble the finalized full-story text from persisted book pages (for dynamic compile). */
-async function loadFinalizedStoryText(
-  db: PrismaClient,
-  orderId: string,
-): Promise<{ text: string; pageCount: number } | null> {
-  const book = await db.generatedBook.findUnique({
-    where: { orderId },
-    select: { pages: { orderBy: { pageNumber: 'asc' }, select: { text: true } } },
-  });
-  if (!book || book.pages.length === 0) return null;
-  const text = book.pages.map((p) => p.text ?? '').join('\n\n').trim();
-  if (!text) return null;
-  return { text, pageCount: book.pages.length };
-}
-
-/**
- * (C1) Whether the DEFAULT producer compiles a contract for DYNAMIC (non-bank) stories on the live freeze path.
- * DORMANT (false) for launch: the dynamic compiler supplies no companion / no per-page image directions and isn't
- * crash-safe compile-once, so dynamic stories stay on the legacy path. Retained (not deleted, and kept reachable +
- * type-checked) so a future SAFE design — or a precompiled dynamic artifact — flips this ONE gate; the compiler
- * module itself is untouched. `as boolean` keeps the dormant branch reachable so it type-checks.
- */
-const ENABLE_DYNAMIC_CONTRACT_COMPILE = false as boolean;
-
-/** Default producer: bank artifact (no LLM). Dynamic (non-bank) stories are DORMANT (C1) → null (legacy path). */
+/** Default producer: bank artifact (no LLM). Dynamic stories have no implicit authoring path. */
 async function defaultProduceContract(
   order: Order,
   cache: PipelineCache,
-  db: PrismaClient,
 ): Promise<ProducedContract | null> {
   if (
     isVisualContractEnforcementEnabled() &&
@@ -181,22 +156,7 @@ async function defaultProduceContract(
     // No template yet: load the approved legacy artifact — NO LLM on the customer path. Missing artifact → skip.
     return loadVisualContractArtifact(dir, bankKey);
   }
-  // (C1) Non-bank/dynamic → stay on the LEGACY path (no runtime freeze) for launch. Returning null →
-  // ensureFrozenVisualContract no-ops → byte-identical. The dynamic compile below is retained but DORMANT behind
-  // this gate: kept reachable + type-checked so a future SAFE design flips the one gate above.
-  if (!ENABLE_DYNAMIC_CONTRACT_COMPILE) return null;
-  const finalized = await loadFinalizedStoryText(db, order.id);
-  if (!finalized) return null;
-  const { compileBookVisualContract } = await import(
-    '@/lib/visual-contract-compiler/compileBookVisualContract'
-  );
-  const contract = await compileBookVisualContract({
-    fullStoryText: finalized.text,
-    pageCount: cache.expectedPageCount ?? finalized.pageCount,
-    childName: order.childName,
-    childGender: order.childGender ?? undefined,
-  });
-  return { contract, contractHash: computeVisualContractHash(contract) };
+  return null;
 }
 
 /**
@@ -241,7 +201,7 @@ export async function ensureFrozenVisualContract(
   }
 
   const db = deps.db ?? (await import('@/lib/prisma')).prisma;
-  const produce = deps.produce ?? ((o, c) => defaultProduceContract(o, c, db));
+  const produce = deps.produce ?? ((o, c) => defaultProduceContract(o, c));
   const withMutation = deps.withMutation ?? (await import('./readiness-manifest')).withDeliveryInputMutation;
 
   let produced: ProducedContract | null;

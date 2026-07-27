@@ -183,6 +183,12 @@ describe('normalizeRawBookVisualContract â€” absorbs LLM shape variations (the ×
 describe('compileBookVisualContract (fail-closed parse + validate)', () => {
   const input = { storyKey: 'demo_playground', fullStoryText: 'Anat played at the playground...', pageCount: 2 };
 
+  it('has no implicit provider caller', async () => {
+    await expect(
+      compileBookVisualContract(input, undefined as never),
+    ).rejects.toThrow(/visual_contract_caller_required/);
+  });
+
   it('returns a validated contract when the LLM yields valid JSON (fenced)', async () => {
     const json = JSON.stringify(validContract());
     const contract = await compileBookVisualContract(input, {

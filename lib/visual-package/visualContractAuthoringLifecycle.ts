@@ -55,9 +55,9 @@ import {
 } from './storySourceAuthority';
 
 export const VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
-  'visual-contract-authoring-request/v1' as const;
+  'visual-contract-authoring-request/v2' as const;
 export const VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
-  'visual-contract-authoring-receipt/v1' as const;
+  'visual-contract-authoring-receipt/v2' as const;
 export const VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
   'visual-contract-authoring-readiness/v1' as const;
 export const VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
@@ -105,6 +105,7 @@ export interface VisualContractAuthoringRequest {
     maxRepairCount: number;
   };
   pricing: typeof VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS;
+  pricingDigest: string;
   costBudget: {
     projectedMaxUsd: number;
     hardCeilingUsd: number;
@@ -154,6 +155,7 @@ export interface VisualContractAuthoringAttemptReceipt {
     | 'provider_failed'
     | 'policy_mismatch'
     | 'input_ceiling_exceeded'
+    | 'spend_reservation_exceeded'
     | 'usage_invalid'
     | 'cost_ceiling_exceeded';
   provider: string;
@@ -163,7 +165,9 @@ export interface VisualContractAuthoringAttemptReceipt {
   userPromptDigest: string;
   responseDigest: string | null;
   usage: VisualContractAuthoringUsage | null;
-  actualCostUsd: number | null;
+  reservedExposureBeforeCallUsd: number;
+  nominalEstimatedCostUsd: number | null;
+  conservativeAccountedCostUsd: number | null;
   validationErrors: string[];
 }
 
@@ -179,8 +183,11 @@ export interface VisualContractAuthoringReceipt {
   status: 'preflight_passed' | 'completed' | 'failed';
   callCount: number;
   repairCount: number;
+  pricing: typeof VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS;
+  pricingDigest: string;
   projectedMaxCostUsd: number;
-  actualCostUsd: number;
+  nominalEstimatedCostUsd: number;
+  conservativeAccountedCostUsd: number;
   aggregateUsage: VisualContractAuthoringUsage;
   attempts: VisualContractAuthoringAttemptReceipt[];
   candidateDigest: string | null;
@@ -270,6 +277,13 @@ function roundUsd(value: number): number {
   return Math.round(value * 1_000_000) / 1_000_000;
 }
 
+function ceilUsd(value: number): number {
+  return (
+    Math.ceil((value - Number.EPSILON) * 1_000_000) /
+    1_000_000
+  );
+}
+
 function requestWithoutDigest(
   request: Omit<
     VisualContractAuthoringRequest,
@@ -337,15 +351,57 @@ function callInputTokenUpperBound(
   );
 }
 
-function projectedMaximumCostUsd(maxOutputTokens: number): number {
+export function nominalAuthoringUsageCostUsd(
+  usage: VisualContractAuthoringUsage,
+): number {
   const prices = VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS;
-  const perCall =
-    (VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS *
-      prices.inputUsdPerUnit +
-      maxOutputTokens * prices.outputUsdPerUnit) /
-    prices.unitTokens;
+  const uncached =
+    usage.inputTokens - usage.cachedInputTokens;
   return roundUsd(
-    perCall * VISUAL_CONTRACT_AUTHORING_MAX_CALLS,
+    (uncached * prices.uncachedInputUsdPerUnit +
+      usage.cachedInputTokens *
+        prices.cachedInputUsdPerUnit +
+      usage.outputTokens * prices.outputUsdPerUnit) /
+      prices.unitTokens,
+  );
+}
+
+export function conservativeAuthoringCostUsd(args: {
+  inputTokens: number;
+  outputTokens: number;
+}): number {
+  const prices = VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS;
+  return ceilUsd(
+    ((args.inputTokens * prices.cacheWriteInputUsdPerUnit +
+      args.outputTokens * prices.outputUsdPerUnit) /
+      prices.unitTokens) *
+      prices.regionalUpliftMultiplier,
+  );
+}
+
+export function projectedMaximumAuthoringCostUsd(args: {
+  maxInputTokens: number;
+  maxOutputTokens: number;
+  maxCalls: number;
+}): number {
+  return ceilUsd(
+    conservativeAuthoringCostUsd({
+      inputTokens: args.maxInputTokens,
+      outputTokens: args.maxOutputTokens,
+    }) * args.maxCalls,
+  );
+}
+
+export function authoringSpendIsWithinCeiling(
+  exposureUsd: number,
+  hardCeilingUsd: number,
+): boolean {
+  return (
+    Number.isFinite(exposureUsd) &&
+    Number.isFinite(hardCeilingUsd) &&
+    exposureUsd >= 0 &&
+    hardCeilingUsd >= 0 &&
+    exposureUsd <= hardCeilingUsd
   );
 }
 
@@ -403,9 +459,17 @@ export function buildVisualContractAuthoringRequest(args: {
         VISUAL_CONTRACT_AUTHORING_MAX_REPAIRS,
     },
     pricing: VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS,
+    pricingDigest: canonicalJsonDigest(
+      VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS,
+    ),
     costBudget: {
       projectedMaxUsd:
-        projectedMaximumCostUsd(maxOutputTokens),
+        projectedMaximumAuthoringCostUsd({
+          maxInputTokens:
+            VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
+          maxOutputTokens,
+          maxCalls: VISUAL_CONTRACT_AUTHORING_MAX_CALLS,
+        }),
       hardCeilingUsd:
         VISUAL_CONTRACT_AUTHORING_HARD_COST_CEILING_USD,
     },
@@ -528,6 +592,11 @@ export function visualContractAuthoringRequestIssues(args: {
       exact.pricing,
     ],
     [
+      'pricing_digest_mismatch',
+      request.pricingDigest,
+      exact.pricingDigest,
+    ],
+    [
       'cost_budget_mismatch',
       request.costBudget,
       exact.costBudget,
@@ -548,8 +617,10 @@ export function visualContractAuthoringRequestIssues(args: {
     issues.push('input_token_ceiling_exceeded');
   }
   if (
-    request.costBudget?.projectedMaxUsd >
-    request.costBudget?.hardCeilingUsd
+    !authoringSpendIsWithinCeiling(
+      request.costBudget.projectedMaxUsd,
+      request.costBudget.hardCeilingUsd,
+    )
   ) {
     issues.push('projected_cost_ceiling_exceeded');
   }
@@ -615,9 +686,16 @@ function failureReceipt(args: {
     status: 'failed',
     callCount: providerCallCount(args.attempts),
     repairCount: providerRepairCallCount(args.attempts),
+    pricing: VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS,
+    pricingDigest: canonicalJsonDigest(
+      VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS,
+    ),
     projectedMaxCostUsd:
       args.request.costBudget.projectedMaxUsd,
-    actualCostUsd: aggregateCost(args.attempts),
+    nominalEstimatedCostUsd:
+      aggregateNominalEstimatedCost(args.attempts),
+    conservativeAccountedCostUsd:
+      aggregateConservativeAccountedCost(args.attempts),
     aggregateUsage: usage,
     attempts: args.attempts,
     candidateDigest: null,
@@ -689,21 +767,6 @@ function safeUsage(
   };
 }
 
-function usageCost(
-  usage: VisualContractAuthoringUsage,
-): number {
-  const prices = VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS;
-  const uncached =
-    usage.inputTokens - usage.cachedInputTokens;
-  return roundUsd(
-    (uncached * prices.inputUsdPerUnit +
-      usage.cachedInputTokens *
-        prices.cachedInputUsdPerUnit +
-      usage.outputTokens * prices.outputUsdPerUnit) /
-      prices.unitTokens,
-  );
-}
-
 function aggregateUsage(
   attempts: VisualContractAuthoringAttemptReceipt[],
 ): VisualContractAuthoringUsage {
@@ -726,16 +789,61 @@ function aggregateUsage(
   );
 }
 
-function aggregateCost(
+function aggregateNominalEstimatedCost(
   attempts: VisualContractAuthoringAttemptReceipt[],
 ): number {
   return roundUsd(
     attempts.reduce(
       (sum, attempt) =>
-        sum + (attempt.actualCostUsd ?? 0),
+        sum + (attempt.nominalEstimatedCostUsd ?? 0),
       0,
     ),
   );
+}
+
+function aggregateConservativeAccountedCost(
+  attempts: VisualContractAuthoringAttemptReceipt[],
+): number {
+  return ceilUsd(
+    attempts.reduce(
+      (sum, attempt) =>
+        sum +
+        (attempt.conservativeAccountedCostUsd ?? 0),
+      0,
+    ),
+  );
+}
+
+export function authoringReservedExposureUsd(args: {
+  request: VisualContractAuthoringRequest;
+  conservativeAccountedCostUsd: number;
+  providerCallsCompleted: number;
+}): number {
+  const remainingCalls = Math.max(
+    0,
+    args.request.callBudget.maxCalls -
+      args.providerCallsCompleted,
+  );
+  const perCallReserve = conservativeAuthoringCostUsd({
+    inputTokens: args.request.tokenBudget.maxInputTokens,
+    outputTokens: args.request.tokenBudget.maxOutputTokens,
+  });
+  return ceilUsd(
+    args.conservativeAccountedCostUsd +
+      remainingCalls * perCallReserve,
+  );
+}
+
+function reservedExposureBeforeNextCall(
+  request: VisualContractAuthoringRequest,
+  attempts: VisualContractAuthoringAttemptReceipt[],
+): number {
+  return authoringReservedExposureUsd({
+    request,
+    conservativeAccountedCostUsd:
+      aggregateConservativeAccountedCost(attempts),
+    providerCallsCompleted: providerCallCount(attempts),
+  });
 }
 
 function providerCallCount(
@@ -855,9 +963,14 @@ export async function runVisualContractAuthoring(args: {
         status: 'preflight_passed',
         callCount: 0,
         repairCount: 0,
+        pricing: VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS,
+        pricingDigest: canonicalJsonDigest(
+          VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS,
+        ),
         projectedMaxCostUsd:
           args.request.costBudget.projectedMaxUsd,
-        actualCostUsd: 0,
+        nominalEstimatedCostUsd: 0,
+        conservativeAccountedCostUsd: 0,
         aggregateUsage: zeroUsage(),
         attempts: [],
         candidateDigest: null,
@@ -903,6 +1016,11 @@ export async function runVisualContractAuthoring(args: {
             const attempt = attempts.length + 1;
             const kind =
               attempt === 1 ? 'initial' : 'repair';
+            const reservedExposureBeforeCallUsd =
+              reservedExposureBeforeNextCall(
+                args.request,
+                attempts,
+              );
             const base = {
               attempt,
               kind,
@@ -916,7 +1034,9 @@ export async function runVisualContractAuthoring(args: {
                 canonicalJsonDigest(userPrompt),
               responseDigest: null,
               usage: null,
-              actualCostUsd: null,
+              reservedExposureBeforeCallUsd,
+              nominalEstimatedCostUsd: null,
+              conservativeAccountedCostUsd: null,
               validationErrors: [],
             } satisfies Omit<
               VisualContractAuthoringAttemptReceipt,
@@ -929,6 +1049,21 @@ export async function runVisualContractAuthoring(args: {
               terminal.code = 'validation_exhausted';
               throw new Error(
                 'application call budget exhausted',
+              );
+            }
+            if (
+              !authoringSpendIsWithinCeiling(
+                reservedExposureBeforeCallUsd,
+                args.request.costBudget.hardCeilingUsd,
+              )
+            ) {
+              terminal.code = 'cost_ceiling_exceeded';
+              attempts.push({
+                ...base,
+                status: 'spend_reservation_exceeded',
+              });
+              throw new Error(
+                'maximum reserved authoring exposure exceeds the approved hard cost ceiling',
               );
             }
             if (
@@ -1039,7 +1174,13 @@ export async function runVisualContractAuthoring(args: {
                 'provider usage is missing or outside approved token bounds',
               );
             }
-            const actualCostUsd = usageCost(usage);
+            const nominalEstimatedCostUsd =
+              nominalAuthoringUsageCostUsd(usage);
+            const conservativeAccountedCostUsd =
+              conservativeAuthoringCostUsd({
+                inputTokens: usage.inputTokens,
+                outputTokens: usage.outputTokens,
+              });
             const receipt: VisualContractAuthoringAttemptReceipt =
               {
                 ...base,
@@ -1052,17 +1193,20 @@ export async function runVisualContractAuthoring(args: {
                   response.output,
                 ),
                 usage,
-                actualCostUsd,
+                nominalEstimatedCostUsd,
+                conservativeAccountedCostUsd,
               };
             attempts.push(receipt);
             if (
-              aggregateCost(attempts) >
-              args.request.costBudget.hardCeilingUsd
+              !authoringSpendIsWithinCeiling(
+                aggregateConservativeAccountedCost(attempts),
+                args.request.costBudget.hardCeilingUsd,
+              )
             ) {
               receipt.status = 'cost_ceiling_exceeded';
               terminal.code = 'cost_ceiling_exceeded';
               throw new Error(
-                'actual authoring cost exceeded approved ceiling',
+                'conservative accounted authoring cost exceeded approved ceiling',
               );
             }
             return response.output;
@@ -1110,9 +1254,16 @@ export async function runVisualContractAuthoring(args: {
         status: 'completed',
         callCount: providerCallCount(attempts),
         repairCount: providerRepairCallCount(attempts),
+        pricing: VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS,
+        pricingDigest: canonicalJsonDigest(
+          VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS,
+        ),
         projectedMaxCostUsd:
           args.request.costBudget.projectedMaxUsd,
-        actualCostUsd: aggregateCost(attempts),
+        nominalEstimatedCostUsd:
+          aggregateNominalEstimatedCost(attempts),
+        conservativeAccountedCostUsd:
+          aggregateConservativeAccountedCost(attempts),
         aggregateUsage: aggregateUsage(attempts),
         attempts,
         candidateDigest,

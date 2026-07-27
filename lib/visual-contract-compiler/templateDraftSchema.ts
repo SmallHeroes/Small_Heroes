@@ -214,6 +214,7 @@ const pageContract = obj({
   propConstraints: { type: 'array', items: propConstraint },
   actionRequirements: {
     type: 'array',
+    minItems: 1,
     items: actionRequirement,
   },
   unsupportedActionSemantics: {
@@ -239,7 +240,7 @@ export const TEMPLATE_DRAFT_JSON_SCHEMA: Record<string, unknown> = obj({
 });
 
 /** Bump when the draft schema shape changes (recorded in authoring provenance). */
-export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v5' as const;
+export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v6' as const;
 
 /** The structured-output request name (OpenAI json_schema `name`). */
 export const TEMPLATE_DRAFT_SCHEMA_NAME = 'BookVisualContractTemplateDraft' as const;
