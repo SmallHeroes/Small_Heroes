@@ -460,6 +460,32 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function artifactShapeIsComplete(
+  value: unknown,
+): value is Record<string, unknown> {
+  return (
+    isRecord(value) &&
+    nonEmpty(value.artifactPath) &&
+    value.digestAlgorithm === 'canonical-json-sha256' &&
+    nonEmpty(value.digest) &&
+    isRecord(value.content)
+  );
+}
+
+function frameShapeIsComplete(value: unknown): boolean {
+  if (!isRecord(value) || !nonEmpty(value.id)) return false;
+  if (value.kind !== 'cover' && value.kind !== 'page') return false;
+  if (!isRecord(value.textSafeRegion)) return false;
+  const region = value.textSafeRegion;
+  return ['x', 'y', 'width', 'height'].every((field) =>
+    isFiniteNumber(region[field]),
+  );
+}
+
 function candidateShapeReasons(
   value: unknown,
 ): VisualPackageV4QualificationReason[] {
@@ -475,25 +501,76 @@ function candidateShapeReasons(
   const blueprintContent = isRecord(blueprint?.content)
     ? blueprint.content
     : null;
+  const sourceSnapshot = isRecord(content?.sourceSnapshot)
+    ? content.sourceSnapshot
+    : null;
+  const sourceIdentity = isRecord(sourceSnapshot?.identity)
+    ? sourceSnapshot.identity
+    : null;
+  const blueprintIdentity = isRecord(blueprintContent?.identity)
+    ? blueprintContent.identity
+    : null;
+  const authoringAuthority = isRecord(blueprintIdentity?.authoringAuthority)
+    ? blueprintIdentity.authoringAuthority
+    : null;
+  const planningApproval = isRecord(content?.planningApproval)
+    ? content.planningApproval
+    : null;
+  const planningApprovalContent = isRecord(planningApproval?.content)
+    ? planningApproval.content
+    : null;
+  const review = isRecord(content?.review) ? content.review : null;
+  const frames = Array.isArray(blueprintContent?.frames)
+    ? blueprintContent.frames
+    : null;
   const structurallyComplete =
     isRecord(content) &&
-    isRecord(content.sourceSnapshot) &&
-    isRecord(content.styleAuthority) &&
-    isRecord(content.visualContractTemplate) &&
-    isRecord(content.reconciliation) &&
-    isRecord(content.authoringProvenance) &&
-    isRecord(content.validationEvidence) &&
-    isRecord(content.reviewPacket) &&
-    isRecord(content.planningApproval) &&
-    isRecord(content.review) &&
+    nonEmpty(content.storyKey) &&
+    nonEmpty(content.styleId) &&
+    isRecord(sourceSnapshot) &&
+    isRecord(sourceIdentity) &&
+    sourceIdentity.version === 'story-source/v1' &&
+    nonEmpty(sourceIdentity.path) &&
+    sourceIdentity.digestAlgorithm === 'sha256-normalized-utf8' &&
+    nonEmpty(sourceIdentity.digest) &&
+    sourceSnapshot.rawDigestAlgorithm === 'sha256-utf8' &&
+    nonEmpty(sourceSnapshot.rawDigest) &&
+    typeof sourceSnapshot.content === 'string' &&
+    artifactShapeIsComplete(content.styleAuthority) &&
+    artifactShapeIsComplete(content.visualContractTemplate) &&
+    artifactShapeIsComplete(content.reconciliation) &&
+    artifactShapeIsComplete(content.authoringProvenance) &&
+    artifactShapeIsComplete(content.validationEvidence) &&
+    artifactShapeIsComplete(content.reviewPacket) &&
+    artifactShapeIsComplete(content.planningApproval) &&
+    isRecord(planningApprovalContent) &&
+    nonEmpty(planningApprovalContent.digest) &&
+    isRecord(review) &&
+    nonEmpty(review.authoredBy) &&
+    review.reviewedBy === 'Guy' &&
+    isoTimestampIsValid(review.reviewedAt) &&
+    [
+      'grounded',
+      'grounded_with_visual_metaphor',
+      'fantastical',
+    ].includes(String(review.worldMode)) &&
     isRecord(content.layoutPolicy) &&
     Array.isArray(content.requiredBoards) &&
+    content.requiredBoards.every(
+      (board) =>
+        isRecord(board) &&
+        nonEmpty(board.setIdentityId) &&
+        Array.isArray(board.declaredPropIds),
+    ) &&
     Array.isArray(content.requiredPropReferences) &&
-    isRecord(blueprint) &&
+    content.requiredPropReferences.every((artifact) => isRecord(artifact)) &&
+    artifactShapeIsComplete(blueprint) &&
     isRecord(blueprintContent) &&
-    Array.isArray(blueprintContent.frames) &&
-    isRecord(blueprintContent.identity) &&
-    isRecord(blueprintContent.identity.authoringAuthority);
+    Array.isArray(frames) &&
+    frames.every(frameShapeIsComplete) &&
+    isRecord(blueprintIdentity) &&
+    isRecord(authoringAuthority) &&
+    nonEmpty(authoringAuthority.digest);
   let digestMatches = false;
   if (structurallyComplete) {
     try {
@@ -541,10 +618,25 @@ function packageReviewReasons(args: {
   }
   const packageReview =
     args.packageReview as unknown as VisualPackageV4PackageReview;
+  if (
+    !isRecord(packageReview.summary) ||
+    !Array.isArray(packageReview.blockers) ||
+    !Array.isArray(packageReview.doesNotAuthorize) ||
+    !nonEmpty(packageReview.digest)
+  ) {
+    return [
+      qualificationReason(
+        'package_review_invalid',
+        'package review structure or digest payload is invalid',
+      ),
+    ];
+  }
   let expectedSummary: ReturnType<
     typeof buildVisualPackageV4PackageReviewSummary
   >;
   let digestMatches = false;
+  let summaryMatches = false;
+  let exclusionsMatch = false;
   try {
     expectedSummary = buildVisualPackageV4PackageReviewSummary(
       args.candidate.content,
@@ -552,6 +644,14 @@ function packageReviewReasons(args: {
     digestMatches =
       packageReview.digest ===
       computeVisualPackageV4PackageReviewDigest(packageReview);
+    summaryMatches =
+      canonicalJsonDigest(packageReview.summary) ===
+      canonicalJsonDigest(expectedSummary);
+    exclusionsMatch =
+      canonicalJsonDigest(packageReview.doesNotAuthorize) ===
+      canonicalJsonDigest(
+        VISUAL_PACKAGE_V4_PACKAGE_REVIEW_EXCLUSIONS,
+      );
   } catch {
     return [
       qualificationReason(
@@ -566,16 +666,10 @@ function packageReviewReasons(args: {
     packageReview.storyKey !== args.candidate.content.storyKey ||
     packageReview.styleId !== args.candidate.content.styleId ||
     packageReview.packageCandidateDigest !== args.candidate.digest ||
-    canonicalJsonDigest(packageReview.summary) !==
-      canonicalJsonDigest(expectedSummary) ||
+    !summaryMatches ||
     packageReview.readyForApproval !== true ||
-    !Array.isArray(packageReview.blockers) ||
     packageReview.blockers.length > 0 ||
-    !Array.isArray(packageReview.doesNotAuthorize) ||
-    canonicalJsonDigest(packageReview.doesNotAuthorize) !==
-      canonicalJsonDigest(
-        VISUAL_PACKAGE_V4_PACKAGE_REVIEW_EXCLUSIONS,
-      ) ||
+    !exclusionsMatch ||
     packageReview.digestAlgorithm !== 'canonical-json-sha256' ||
     !digestMatches
   ) {
@@ -599,6 +693,12 @@ export function visualPackageV4ApprovalIssues(args: {
   }
   const approval = args.approval as unknown as VisualPackageV4Approval;
   const issues: string[] = [];
+  const planningApproval = isRecord(args.candidate?.content?.planningApproval)
+    ? args.candidate.content.planningApproval
+    : null;
+  const planningApprovalContent = isRecord(planningApproval?.content)
+    ? planningApproval.content
+    : null;
   if (
     approval.version !== VISUAL_PACKAGE_V4_APPROVAL_VERSION ||
     approval.approvedBy !== 'Guy' ||
@@ -608,8 +708,9 @@ export function visualPackageV4ApprovalIssues(args: {
     issues.push('package approval identity, approver, scope, or timestamp is invalid');
   }
   if (
+    !nonEmpty(planningApprovalContent?.digest) ||
     approval.blueprintApprovalDigest !==
-      args.candidate.content.planningApproval.content.digest ||
+      planningApprovalContent.digest ||
     approval.packageCandidateDigest !== args.candidate.digest ||
     approval.packageReviewDigest !== args.packageReview.digest
   ) {
@@ -617,37 +718,93 @@ export function visualPackageV4ApprovalIssues(args: {
       'package approval does not bind the exact Blueprint approval, candidate, and package review digests',
     );
   }
-  if (
-    !Array.isArray(approval.doesNotAuthorize) ||
-    canonicalJsonDigest(approval.doesNotAuthorize) !==
-    canonicalJsonDigest(VISUAL_PACKAGE_V4_APPROVAL_EXCLUSIONS)
-  ) {
+  let exclusionsMatch = false;
+  try {
+    exclusionsMatch =
+      Array.isArray(approval.doesNotAuthorize) &&
+      canonicalJsonDigest(approval.doesNotAuthorize) ===
+        canonicalJsonDigest(VISUAL_PACKAGE_V4_APPROVAL_EXCLUSIONS);
+  } catch {
+    exclusionsMatch = false;
+  }
+  if (!exclusionsMatch) {
     issues.push(
       'package approval must retain the exact non-authorized action boundary',
     );
   }
-  if (
-    approval.digestAlgorithm !== 'canonical-json-sha256' ||
-    approval.digest !== computeVisualPackageV4ApprovalDigest(approval)
-  ) {
+  let digestMatches = false;
+  try {
+    digestMatches =
+      approval.digestAlgorithm === 'canonical-json-sha256' &&
+      approval.digest === computeVisualPackageV4ApprovalDigest(approval);
+  } catch {
+    digestMatches = false;
+  }
+  if (!digestMatches) {
     issues.push('package approval content digest is invalid');
   }
   return issues;
 }
 
-export function qualifyVisualPackageV4Candidate(args: {
+type QualificationSafetyReasonCode =
+  | 'candidate_invalid'
+  | 'package_review_invalid'
+  | 'package_approval_invalid'
+  | 'layout_incompatible';
+
+function safetyFenceQualification(
+  code: QualificationSafetyReasonCode,
+): VisualPackageV4OfflineQualification {
+  const messages: Record<QualificationSafetyReasonCode, string> = {
+    candidate_invalid:
+      'candidate validation failed at a protected qualification boundary',
+    package_review_invalid:
+      'package review validation failed at a protected qualification boundary',
+    package_approval_invalid:
+      'package approval validation failed at a protected qualification boundary',
+    layout_incompatible:
+      'layout validation failed at a protected qualification boundary',
+  };
+  const withoutDigest = {
+    version: VISUAL_PACKAGE_V4_QUALIFICATION_VERSION,
+    storyKey: '',
+    styleId: '',
+    candidateDigest: null,
+    packageReviewDigest: null,
+    packageApprovalDigest: null,
+    candidateValid: false,
+    reviewReady: false,
+    approvalValid: false,
+    readyForPublication: false,
+    zeroWrite: true as const,
+    reasons: [qualificationReason(code, messages[code])],
+  };
+  return {
+    ...withoutDigest,
+    digestAlgorithm: 'canonical-json-sha256',
+    digest: canonicalJsonDigest(withoutDigest),
+  };
+}
+
+type VisualPackageV4QualificationArgs = {
   repoRoot: string;
   candidate: unknown;
   packageReview: unknown;
   approval?: unknown;
   boardRegistryDir?: string;
-}): VisualPackageV4OfflineQualification {
+};
+
+function qualifyVisualPackageV4CandidateUnchecked(
+  args: VisualPackageV4QualificationArgs,
+  safety: { reasonCode: QualificationSafetyReasonCode },
+): VisualPackageV4OfflineQualification {
   const candidateShape = candidateShapeReasons(args.candidate);
   const candidate = args.candidate as VisualPackageV4Candidate;
   const packageReview =
     args.packageReview as VisualPackageV4PackageReview;
   const reasons = [...candidateShape];
   if (candidateShape.length === 0) {
+    safety.reasonCode = 'package_review_invalid';
     reasons.push(
       ...packageReviewReasons({
         candidate,
@@ -662,6 +819,7 @@ export function qualifyVisualPackageV4Candidate(args: {
       ),
     );
   }
+  safety.reasonCode = 'candidate_invalid';
   if (reasons.length === 0) {
     const exactInputs = [
       {
@@ -906,13 +1064,16 @@ export function qualifyVisualPackageV4Candidate(args: {
         ),
       ),
     );
+    safety.reasonCode = 'layout_incompatible';
     reasons.push(
       ...visualPackageV4LayoutIssues(content).map((message) =>
         qualificationReason('layout_incompatible', message),
       ),
     );
+    safety.reasonCode = 'candidate_invalid';
   }
 
+  safety.reasonCode = 'package_approval_invalid';
   if (!args.approval) {
     reasons.push(
       qualificationReason(
@@ -941,6 +1102,7 @@ export function qualifyVisualPackageV4Candidate(args: {
       ),
     );
   }
+  safety.reasonCode = 'candidate_invalid';
   const stableReasons = reasons
     .sort((left, right) => {
       const code = left.code.localeCompare(right.code);
@@ -1017,6 +1179,19 @@ export function qualifyVisualPackageV4Candidate(args: {
     digestAlgorithm: 'canonical-json-sha256',
     digest: canonicalJsonDigest(withoutDigest),
   };
+}
+
+export function qualifyVisualPackageV4Candidate(
+  args: VisualPackageV4QualificationArgs,
+): VisualPackageV4OfflineQualification {
+  const safety: { reasonCode: QualificationSafetyReasonCode } = {
+    reasonCode: 'candidate_invalid',
+  };
+  try {
+    return qualifyVisualPackageV4CandidateUnchecked(args, safety);
+  } catch {
+    return safetyFenceQualification(safety.reasonCode);
+  }
 }
 
 export function finalizeApprovedVisualPackageV4(args: {

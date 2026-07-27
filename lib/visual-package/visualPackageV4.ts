@@ -426,21 +426,78 @@ function artifactIssues(
   return issues;
 }
 
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function finiteCoordinate(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
 export function visualPackageV4LayoutIssues(
-  value: Pick<VisualPackageV4, 'layoutPolicy' | 'blueprint'>,
+  value: unknown,
 ): string[] {
   const issues: string[] = [];
+  if (!isObjectRecord(value)) {
+    return ['layout compatibility input is not a structured object'];
+  }
+  const layoutPolicy = isObjectRecord(value.layoutPolicy)
+    ? value.layoutPolicy
+    : null;
+  const blueprint = isObjectRecord(value.blueprint)
+    ? value.blueprint
+    : null;
+  const blueprintContent = isObjectRecord(blueprint?.content)
+    ? blueprint.content
+    : null;
+  const frames = Array.isArray(blueprintContent?.frames)
+    ? blueprintContent.frames
+    : null;
+  if (!layoutPolicy || !frames) {
+    return ['layout compatibility policy or Blueprint frames are missing'];
+  }
+  let policyMatches = false;
+  try {
+    policyMatches =
+      canonicalJsonDigest(layoutPolicy) ===
+      canonicalJsonDigest(VISUAL_PACKAGE_V4_LAYOUT_POLICY);
+  } catch {
+    policyMatches = false;
+  }
   if (
-    canonicalJsonDigest(value.layoutPolicy) !==
-    canonicalJsonDigest(VISUAL_PACKAGE_V4_LAYOUT_POLICY)
+    !policyMatches
   ) {
     issues.push('layout compatibility policy is not the exact supported v1 policy');
     return issues;
   }
-  for (const frame of value.blueprint.content.frames) {
-    const region = frame.textSafeRegion;
+  for (const [index, rawFrame] of frames.entries()) {
+    if (!isObjectRecord(rawFrame)) {
+      issues.push(`Blueprint frame ${index + 1} is not a structured object`);
+      continue;
+    }
+    const frameId = nonEmpty(rawFrame.id)
+      ? rawFrame.id
+      : `Blueprint frame ${index + 1}`;
+    const region = isObjectRecord(rawFrame.textSafeRegion)
+      ? rawFrame.textSafeRegion
+      : null;
+    if (
+      !region ||
+      !finiteCoordinate(region.x) ||
+      !finiteCoordinate(region.y) ||
+      !finiteCoordinate(region.width) ||
+      !finiteCoordinate(region.height)
+    ) {
+      issues.push(`${frameId} text-safe region is missing or invalid`);
+      continue;
+    }
+    if (rawFrame.kind !== 'cover' && rawFrame.kind !== 'page') {
+      issues.push(`${frameId} frame kind is unsupported for layout compatibility`);
+      continue;
+    }
+    const frame = rawFrame as unknown as PreRenderBookVisualBlueprint['frames'][number];
     if (frame.kind === 'cover') {
-      const policy = value.layoutPolicy.cover;
+      const policy = VISUAL_PACKAGE_V4_LAYOUT_POLICY.cover;
       if (
         region.x !== policy.x ||
         region.y !== policy.y ||
@@ -454,7 +511,7 @@ export function visualPackageV4LayoutIssues(
       }
       continue;
     }
-    const policy = value.layoutPolicy.body;
+    const policy = VISUAL_PACKAGE_V4_LAYOUT_POLICY.body;
     if (
       region.x !== policy.x ||
       region.width !== policy.width ||

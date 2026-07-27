@@ -585,7 +585,76 @@ describe('provider-isolated Blueprint authoring runner', () => {
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.failure?.code).toBe('provider_call_failed');
     expect(JSON.stringify(result.receipt)).not.toContain('secret-token');
+    expect(result.receipt.attempts[0]?.validationErrors).toEqual([]);
     expect(provider.call).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves bounded deterministic validation evidence when all repairs are exhausted', async () => {
+    const { context } = buildContext('single_location');
+    const rawDraftSentinel = 'raw-draft-must-not-persist';
+    const provider = {
+      call: vi.fn(async ({ attempt }: { attempt: number }) => ({
+        output: {
+          rawDraftSentinel,
+          attempt,
+        },
+        receipt: {
+          provider: 'injected-test-provider',
+          model: 'injected-production-model',
+          responseId: `response-${attempt}`,
+        },
+      })),
+    };
+    const result = await runProductionBlueprintAuthoring({
+      request: requestFor(context, 'live'),
+      context,
+      provider,
+    });
+
+    expect(result.receipt.status).toBe('failed');
+    expect(result.receipt.failure?.code).toBe('validation_exhausted');
+    expect(result.receipt.callCount).toBe(3);
+    expect(result.receipt.repairCount).toBe(2);
+    expect(provider.call).toHaveBeenCalledTimes(3);
+    expect(result.receipt.attempts).toHaveLength(3);
+    for (const attempt of result.receipt.attempts) {
+      expect(attempt.validationErrors.length).toBeGreaterThan(0);
+      expect(attempt.failureCode).toBeNull();
+    }
+    const serialized = JSON.stringify(result.receipt);
+    expect(serialized).not.toContain(rawDraftSentinel);
+    expect(serialized).not.toMatch(
+      /systemPrompt["']|userPrompt["']|responseBody|credential|apiKey|Bearer/i,
+    );
+    expect(serialized).not.toContain('"draft"');
+    expect(serialized).not.toContain('"output"');
+  });
+
+  it('keeps call-budget exhaustion redacted without copying compiler-wrapped failure text', async () => {
+    const { context } = buildContext('single_location');
+    const provider = {
+      call: vi.fn(async () => ({
+        output: { invalidDraft: 'call-budget-secret-sentinel' },
+        receipt: {
+          provider: 'injected-test-provider',
+          model: 'injected-production-model',
+        },
+      })),
+    };
+    const result = await runProductionBlueprintAuthoring({
+      request: requestFor(context, 'live', 1),
+      context,
+      provider,
+    });
+
+    expect(result.receipt.failure?.code).toBe('call_budget_exhausted');
+    expect(result.receipt.callCount).toBe(1);
+    expect(result.receipt.repairCount).toBe(0);
+    expect(result.receipt.attempts[0]?.validationErrors).toEqual([]);
+    expect(provider.call).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(result.receipt)).not.toMatch(
+      /call-budget-secret-sentinel|authoring call budget exhausted|repair call failed/i,
+    );
   });
 
   it('rejects mutated context and live mode without an adapter before any call', async () => {

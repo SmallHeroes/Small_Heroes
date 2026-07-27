@@ -2,7 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   PRE_RENDER_BLUEPRINT_APPROVAL_VERSION,
@@ -24,6 +24,7 @@ import {
   persistVisualPackageV4CandidateReview,
   publishVisualPackageV4,
   qualifyVisualPackageV4Candidate,
+  visualPackageV4LayoutIssues,
   type ApprovedBlueprintLifecyclePaths,
   type PreRenderBlueprintApprovalAttestation,
   type PreRenderBlueprintAuthoringProvenance,
@@ -494,6 +495,235 @@ describe('production visual-package/v4 candidate lifecycle', () => {
         approval: {},
       }),
     ).not.toThrow();
+  });
+
+  it('totally rejects malformed nested package review, approval, and frame values', () => {
+    const lifecycle = materialize();
+
+    const missingSummary = clone(lifecycle.packageReview) as unknown as Record<
+      string,
+      unknown
+    >;
+    delete missingSummary.summary;
+    const missingSummaryResult = qualifyVisualPackageV4Candidate({
+      repoRoot: lifecycle.repoRoot,
+      candidate: lifecycle.candidate,
+      packageReview: missingSummary,
+    });
+    expect(missingSummaryResult.reasons.map((reason) => reason.code)).toContain(
+      'package_review_invalid',
+    );
+    expect(missingSummaryResult.reviewReady).toBe(false);
+    expect(missingSummaryResult.approvalValid).toBe(false);
+    expect(missingSummaryResult.readyForPublication).toBe(false);
+    for (const malformedReview of [null, [], { summary: [] }]) {
+      const result = qualifyVisualPackageV4Candidate({
+        repoRoot: lifecycle.repoRoot,
+        candidate: lifecycle.candidate,
+        packageReview: malformedReview,
+        approval: {},
+      });
+      expect(result.reviewReady).toBe(false);
+      expect(result.approvalValid).toBe(false);
+      expect(result.readyForPublication).toBe(false);
+    }
+    for (const malformedApproval of [null, [], { doesNotAuthorize: {} }]) {
+      const result = qualifyVisualPackageV4Candidate({
+        repoRoot: lifecycle.repoRoot,
+        candidate: lifecycle.candidate,
+        packageReview: lifecycle.packageReview,
+        approval: malformedApproval,
+      });
+      expect(result.approvalValid).toBe(false);
+      expect(result.readyForPublication).toBe(false);
+    }
+
+    const missingPlanningApprovalContent = clone(
+      lifecycle.candidate.content,
+    ) as unknown as Record<string, unknown>;
+    missingPlanningApprovalContent.planningApproval = {};
+    const planningApprovalCandidate = buildVisualPackageV4Candidate(
+      missingPlanningApprovalContent as never,
+    );
+    const planningApprovalReview = buildVisualPackageV4PackageReview({
+      candidate: planningApprovalCandidate,
+    });
+    const planningApprovalResult = qualifyVisualPackageV4Candidate({
+      repoRoot: lifecycle.repoRoot,
+      candidate: planningApprovalCandidate,
+      packageReview: planningApprovalReview,
+      approval: {},
+    });
+    expect(
+      planningApprovalResult.reasons.map((reason) => reason.code),
+    ).toEqual(
+      expect.arrayContaining([
+        'candidate_invalid',
+        'package_approval_invalid',
+      ]),
+    );
+    expect(planningApprovalResult.candidateValid).toBe(false);
+    expect(planningApprovalResult.approvalValid).toBe(false);
+    expect(planningApprovalResult.readyForPublication).toBe(false);
+
+    const missingTextSafeRegion = clone(lifecycle.candidate.content);
+    delete (
+      missingTextSafeRegion.blueprint.content.frames[1] as unknown as Record<
+        string,
+        unknown
+      >
+    ).textSafeRegion;
+    missingTextSafeRegion.blueprint.content.digest = canonicalJsonDigest(
+      (() => {
+        const {
+          digest: _digest,
+          digestAlgorithm: _digestAlgorithm,
+          ...draft
+        } = missingTextSafeRegion.blueprint.content;
+        return draft;
+      })(),
+    );
+    missingTextSafeRegion.blueprint.digest =
+      missingTextSafeRegion.blueprint.content.digest;
+    const missingRegionCandidate = buildVisualPackageV4Candidate(
+      missingTextSafeRegion,
+    );
+    const missingRegionReview = buildVisualPackageV4PackageReview({
+      candidate: missingRegionCandidate,
+    });
+    const missingRegionResult = qualifyVisualPackageV4Candidate({
+      repoRoot: lifecycle.repoRoot,
+      candidate: missingRegionCandidate,
+      packageReview: missingRegionReview,
+    });
+    expect(
+      missingRegionResult.reasons.map((reason) => reason.code),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/candidate_invalid|layout_incompatible/),
+      ]),
+    );
+    expect(missingRegionResult.candidateValid).toBe(false);
+    expect(missingRegionResult.readyForPublication).toBe(false);
+    expect(
+      visualPackageV4LayoutIssues(missingTextSafeRegion),
+    ).toContain(
+      `${missingTextSafeRegion.blueprint.content.frames[1]?.id} text-safe region is missing or invalid`,
+    );
+  });
+
+  it.each([
+    { candidate: null, packageReview: null, approval: null },
+    { candidate: [], packageReview: [], approval: [] },
+    {
+      candidate: { content: [] },
+      packageReview: { summary: [] },
+      approval: { doesNotAuthorize: {} },
+    },
+    {
+      candidate: {
+        version: 'visual-package-v4-candidate/v1',
+        state: 'candidate',
+        content: { blueprint: { content: { frames: [null] } } },
+      },
+      packageReview: {},
+      approval: {},
+    },
+  ])(
+    'returns a structured fail-closed qualification for malformed unknown values %#',
+    ({ candidate, packageReview, approval }) => {
+      const result = qualifyVisualPackageV4Candidate({
+        repoRoot: temporaryRoot(),
+        candidate,
+        packageReview,
+        approval,
+      });
+      expect(result.zeroWrite).toBe(true);
+      expect(result.candidateValid).toBe(false);
+      expect(result.reviewReady).toBe(false);
+      expect(result.approvalValid).toBe(false);
+      expect(result.readyForPublication).toBe(false);
+      expect(result.reasons.length).toBeGreaterThan(0);
+    },
+  );
+
+  it('contains unanticipated qualifier exceptions behind a deterministic zero-write safety fence', () => {
+    const lifecycle = materialize();
+    const writeSpy = vi.spyOn(fs, 'writeFileSync');
+    const sentinel = 'C:\\secret\\raw-provider-exception';
+    const throwingCandidate = new Proxy(lifecycle.candidate, {
+      get(_target, property) {
+        if (property === 'content') throw new Error(sentinel);
+        return Reflect.get(_target, property);
+      },
+    });
+
+    const first = qualifyVisualPackageV4Candidate({
+      repoRoot: lifecycle.repoRoot,
+      candidate: throwingCandidate,
+      packageReview: lifecycle.packageReview,
+      approval: packageApproval(lifecycle),
+    });
+    const second = qualifyVisualPackageV4Candidate({
+      repoRoot: lifecycle.repoRoot,
+      candidate: throwingCandidate,
+      packageReview: lifecycle.packageReview,
+      approval: packageApproval(lifecycle),
+    });
+
+    expect(second).toEqual(first);
+    expect(first.zeroWrite).toBe(true);
+    expect(first.candidateValid).toBe(false);
+    expect(first.reviewReady).toBe(false);
+    expect(first.approvalValid).toBe(false);
+    expect(first.readyForPublication).toBe(false);
+    expect(first.reasons).toEqual([
+      expect.objectContaining({ code: 'candidate_invalid' }),
+    ]);
+    expect(JSON.stringify(first)).not.toContain(sentinel);
+
+    const throwingReview = new Proxy(lifecycle.packageReview, {
+      get(target, property) {
+        if (property === 'summary') throw new Error(sentinel);
+        return Reflect.get(target, property);
+      },
+    });
+    const reviewFence = qualifyVisualPackageV4Candidate({
+      repoRoot: lifecycle.repoRoot,
+      candidate: lifecycle.candidate,
+      packageReview: throwingReview,
+      approval: packageApproval(lifecycle),
+    });
+    expect(reviewFence.reasons).toEqual([
+      expect.objectContaining({ code: 'package_review_invalid' }),
+    ]);
+    expect(reviewFence.candidateValid).toBe(false);
+    expect(reviewFence.reviewReady).toBe(false);
+    expect(reviewFence.approvalValid).toBe(false);
+    expect(reviewFence.readyForPublication).toBe(false);
+    expect(JSON.stringify(reviewFence)).not.toContain(sentinel);
+
+    const throwingApproval = new Proxy(packageApproval(lifecycle), {
+      get(target, property) {
+        if (property === 'version') throw new Error(sentinel);
+        return Reflect.get(target, property);
+      },
+    });
+    const approvalFence = qualifyVisualPackageV4Candidate({
+      repoRoot: lifecycle.repoRoot,
+      candidate: lifecycle.candidate,
+      packageReview: lifecycle.packageReview,
+      approval: throwingApproval,
+    });
+    expect(approvalFence.reasons).toEqual([
+      expect.objectContaining({ code: 'package_approval_invalid' }),
+    ]);
+    expect(approvalFence.candidateValid).toBe(false);
+    expect(approvalFence.reviewReady).toBe(false);
+    expect(approvalFence.approvalValid).toBe(false);
+    expect(approvalFence.readyForPublication).toBe(false);
+    expect(JSON.stringify(approvalFence)).not.toContain(sentinel);
+    expect(writeSpy).not.toHaveBeenCalled();
   });
 
   it('rejects historical Board identity and portrait-layout contradictions', () => {

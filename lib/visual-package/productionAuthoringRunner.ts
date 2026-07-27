@@ -2,6 +2,7 @@ import path from 'path';
 
 import {
   PRE_RENDER_BLUEPRINT_MAX_REPAIR_ATTEMPTS,
+  PreRenderBlueprintAuthoringRepairExhaustedError,
   compilePreRenderBookVisualBlueprint,
   preRenderBlueprintAuthoringInputErrors,
   type PreRenderBlueprintAuthoringCallOptions,
@@ -278,6 +279,40 @@ function failureReceipt(args: {
   });
 }
 
+const MAX_PERSISTED_VALIDATION_ERRORS_PER_ATTEMPT = 128;
+const MAX_PERSISTED_VALIDATION_ERROR_LENGTH = 2_000;
+
+function boundedValidationErrors(errors: readonly unknown[]): string[] {
+  return errors
+    .filter((error): error is string => typeof error === 'string')
+    .slice(0, MAX_PERSISTED_VALIDATION_ERRORS_PER_ATTEMPT)
+    .map((error) =>
+      error
+        .slice(0, MAX_PERSISTED_VALIDATION_ERROR_LENGTH)
+        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, ''),
+    );
+}
+
+function copyValidationExhaustionEvidence(args: {
+  error: PreRenderBlueprintAuthoringRepairExhaustedError;
+  receipts: ProductionAuthoringAttemptReceipt[];
+}): void {
+  for (const repairAttempt of args.error.attempts) {
+    if (
+      !Number.isSafeInteger(repairAttempt.attempt) ||
+      repairAttempt.attempt < 1 ||
+      repairAttempt.attempt > args.receipts.length
+    ) {
+      continue;
+    }
+    const receipt = args.receipts[repairAttempt.attempt - 1];
+    if (!receipt || receipt.failureCode !== null) continue;
+    receipt.validationErrors = boundedValidationErrors(
+      repairAttempt.errors,
+    );
+  }
+}
+
 export async function runProductionBlueprintAuthoring(args: {
   request: ProductionAuthoringRunRequest;
   context: ProductionAuthoringContext;
@@ -438,15 +473,25 @@ export async function runProductionBlueprintAuthoring(args: {
     const providerFailure = attempts.some(
       (attempt) => attempt.failureCode === 'provider_call_failed',
     );
+    const failureCode = budgetFailure
+      ? 'call_budget_exhausted'
+      : providerFailure
+        ? 'provider_call_failed'
+        : 'validation_exhausted';
+    if (
+      failureCode === 'validation_exhausted' &&
+      error instanceof PreRenderBlueprintAuthoringRepairExhaustedError
+    ) {
+      copyValidationExhaustionEvidence({
+        error,
+        receipts: attempts,
+      });
+    }
     return {
       receipt: failureReceipt({
         request: args.request,
         attempts,
-        code: budgetFailure
-          ? 'call_budget_exhausted'
-          : providerFailure
-            ? 'provider_call_failed'
-            : 'validation_exhausted',
+        code: failureCode,
         message: budgetFailure
           ? 'authoring stopped at the exact call budget'
           : providerFailure
