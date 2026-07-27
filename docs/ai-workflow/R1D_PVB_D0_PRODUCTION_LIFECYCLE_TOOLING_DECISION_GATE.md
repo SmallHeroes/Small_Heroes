@@ -1,8 +1,8 @@
 # R1D-PVB-D0 — Production Lifecycle Tooling Decision Gate
 
-**Status:** APPROVED by Guy in the delegated R1D-PVB-D0 implementation brief on 2026-07-27  
-**Immutable base:** `4b84f54b79f2ac63582f7efe0760accc1ea6610d`  
-**Implementation branch:** `codex/r1d-pvb-d0-production-lifecycle-tooling`  
+**Status:** APPROVED by Guy in the delegated R1D-PVB-D0 implementation brief on 2026-07-27
+**Immutable base:** `4b84f54b79f2ac63582f7efe0760accc1ea6610d`
+**Implementation branch:** `codex/r1d-pvb-d0-production-lifecycle-tooling`
 **Cost boundary:** zero image, audio, provider, Vision, network, storage, or database calls
 
 ## 1. Proposed change

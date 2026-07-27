@@ -901,7 +901,7 @@ R1A is implemented and locally committed. Independent Claude Code adversarial QA
 
 ## Active task
 
-R1D-PVB-D0 production lifecycle tooling is locally implemented in focused commits `f4c2153e` and `d5c532ca` from exact immutable PVB-C PASS base `4b84f54b79f2ac63582f7efe0760accc1ea6610d`. The branch is clean except for this documentation closeout while it is being prepared, local, and unpushed. Independent Claude Code first-pass read-only adversarial QA is the active technical gate. No real lifecycle action is authorized.
+R1D-PVB-D0 production lifecycle tooling is locally implemented in focused commits `f4c2153e` and `d5c532ca` from exact immutable PVB-C PASS base `4b84f54b79f2ac63582f7efe0760accc1ea6610d`. The branch is clean, local, and unpushed. Independent Claude Code first-pass read-only adversarial QA is the active technical gate. No real lifecycle action is authorized.
 
 The governing brief is `docs/ai-workflow/R1D_PVB_D0_PRODUCTION_LIFECYCLE_TOOLING_DECISION_GATE.md`; the operator/reviewer map is `docs/ai-workflow/R1D_PVB_D0_PRODUCTION_LIFECYCLE_TOOLING.md`.
 
