@@ -36,7 +36,7 @@ The Blueprint is the sole composition, camera, staging, action, pose, blocking, 
 - Offline qualification: `visual-package-v4-offline-qualification/v1`
 - Final package: `visual-package/v4`
 
-The v2 package approval adds `packageCandidateDigest` and `packageReviewDigest` to the pre-existing exact Blueprint approval digest. A v1 approval cannot qualify.
+The v2 package approval adds `packageCandidateDigest`, `packageReviewDigest`, and the exact non-authorized-action boundary to the pre-existing exact Blueprint approval digest. Package review carries the same boundary. Removing any image-render, publication, locator, production, deployment, or release exclusion invalidates the review or approval even if its content digest is recomputed. A v1 approval cannot qualify.
 
 ## D0 CLI
 

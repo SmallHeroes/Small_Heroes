@@ -2,11 +2,11 @@
 
 **Updated:** 2026-07-27
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d0-production-lifecycle-tooling` in `C:\Users\guyna\.codex\worktrees\f485\Small_Heroes`, based exactly on immutable PVB-C PASS SHA `4b84f54b79f2ac63582f7efe0760accc1ea6610d`. The focused D0 implementation commits are `f4c2153e` and `d5c532ca`; the implementation range is `4b84f54b79f2ac63582f7efe0760accc1ea6610d..d5c532ca`. The branch is local and unpushed. PVB-C, PVB-B, PVB-A, Fox Board, main, Style01, and every other worktree remain read-only evidence. D0 is locally implemented and validated but has not received independent Claude Code technical PASS; Codex does not self-award that gate.
+**Working branch:** `codex/r1d-pvb-d0-production-lifecycle-tooling` in `C:\Users\guyna\.codex\worktrees\f485\Small_Heroes`, based exactly on immutable PVB-C PASS SHA `4b84f54b79f2ac63582f7efe0760accc1ea6610d`. The focused D0 implementation commits are `f4c2153e`, `d5c532ca`, and boundary-hardening commit `7d6ea30a`; the implementation range is `4b84f54b79f2ac63582f7efe0760accc1ea6610d..7d6ea30a`. The branch is local and unpushed. PVB-C, PVB-B, PVB-A, Fox Board, main, Style01, and every other worktree remain read-only evidence. D0 is locally implemented and validated but has not received independent Claude Code technical PASS; Codex does not self-award that gate.
 
 ## R1D-PVB-D0 — production lifecycle tooling implemented; independent QA pending
 
-Guy approved the general, zero-cost production lifecycle tooling milestone through the delegated implementation brief. The implementation is complete in focused commits `f4c2153e` and `d5c532ca`. It performed no real reconciliation, authoring, approval, Board action, package finalization/publication, render, or external action.
+Guy approved the general, zero-cost production lifecycle tooling milestone through the delegated implementation brief. The implementation is complete in focused commits `f4c2153e`, `d5c532ca`, and `7d6ea30a`. It performed no real reconciliation, authoring, approval, Board action, package finalization/publication, render, or external action.
 
 ### Deterministic readiness and exact authoring context
 
@@ -28,6 +28,7 @@ Guy approved the general, zero-cost production lifecycle tooling milestone throu
 - The canonical lifecycle consumes only exact approved PVB-B Blueprint, provenance, validation evidence, review packet, and planning approval artifacts plus exact production context and compatible Board/prop authority.
 - `visual-package-v4-candidate/v1` is content-addressed and excludes package review and approval. `visual-package-v4-package-review/v1` independently binds the exact candidate and summarized source, Blueprint, planning approval, style, template, reconciliation, Board, prop, layout, and world-mode digests.
 - Package approval is now `visual-package-v4-approval/v2`. It binds the exact Blueprint planning approval, package candidate, and package review digests. No production v4 package existed at the immutable base; historical v1 approvals intentionally cannot qualify.
+- Package review and package approval each bind the exact non-authorized-action list. Removing image-render, publication, locator, production, deployment, or release exclusions invalidates the exact review/approval even when its digest is recomputed.
 - Offline qualification is total for malformed input, returns stable reasons, re-reads exact current source/template/style/reconciliation/Blueprint/Board/prop artifacts, rejects v1/v3/legacy authority and portrait-layout contradictions, and always reports `zeroWrite:true`.
 - Finalization validates an externally supplied exact Guy approval and persisted exact package review; it does not mint approval. Immutable publication/locator update remains a separate existing boundary. D0 executed only `write:false` publication planning.
 - The D0 CLI is `npm run production-visual-lifecycle -- ...`. It supports readiness, context, reconciliation draft, authoring preflight, v4 assembly, qualification, finalization plan, and publication plan. It has no live provider, approval, write-publication, render, Vision, network, database, storage, registry mutation, or environment-loading command.
@@ -901,7 +902,7 @@ R1A is implemented and locally committed. Independent Claude Code adversarial QA
 
 ## Active task
 
-R1D-PVB-D0 production lifecycle tooling is locally implemented in focused commits `f4c2153e` and `d5c532ca` from exact immutable PVB-C PASS base `4b84f54b79f2ac63582f7efe0760accc1ea6610d`. The branch is clean, local, and unpushed. Independent Claude Code first-pass read-only adversarial QA is the active technical gate. No real lifecycle action is authorized.
+R1D-PVB-D0 production lifecycle tooling is locally implemented in focused commits `f4c2153e`, `d5c532ca`, and `7d6ea30a` from exact immutable PVB-C PASS base `4b84f54b79f2ac63582f7efe0760accc1ea6610d`. The branch is clean, local, and unpushed. Independent Claude Code first-pass read-only adversarial QA is the active technical gate. No real lifecycle action is authorized.
 
 The governing brief is `docs/ai-workflow/R1D_PVB_D0_PRODUCTION_LIFECYCLE_TOOLING_DECISION_GATE.md`; the operator/reviewer map is `docs/ai-workflow/R1D_PVB_D0_PRODUCTION_LIFECYCLE_TOOLING.md`.
 
