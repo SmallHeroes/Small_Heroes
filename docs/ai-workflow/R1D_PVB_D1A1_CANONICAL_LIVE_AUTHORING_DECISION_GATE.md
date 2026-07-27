@@ -1,6 +1,6 @@
 # R1D-PVB-D1A1 — Canonical Live Authoring Decision Gate
 
-**Status:** APPROVED by Guy through the delegated `R1D-PVB-D1A1A — Canonical Live Authoring Boundary` implementation brief on 2026-07-27
+**Status:** APPROVED scope; initial implementation `031bcb6a..e069f19e` received Claude Code **HOLD** (2 MAJOR, 4 MINOR). Corrective code commit `e8a01182` is locally green and awaits READ-ONLY re-gate; no PASS is claimed.
 **Immutable base:** `031bcb6aa08d4a9ee7cf527bb051970efc3e96d1`
 **Implementation branch:** `codex/r1d-pvb-d1a1a-live-authoring-boundary`
 **D1A1A cost boundary:** exactly zero provider, model, LLM, image, Vision, network, storage, database, or Board calls
@@ -32,6 +32,23 @@ D1A1 is deliberately split:
 - **D1A1B — One Real Authoring Invocation:** a future separately authorized live invocation after read-only official price verification and an explicit spend decision.
 - **D1A1C — Local Review and Approval:** a future separate review of the D1A1B candidate, Semantic Reconciliation, and exact human approval. It cannot be combined with the provider call.
 
+## 1A. R1D-PVB-D1A1A-QA-FIX disposition
+
+Claude Code's first-pass review of `031bcb6aa08d4a9ee7cf527bb051970efc3e96d1..e069f19e8c9a071cffb22ff5b66d27ea2643e82b` returned HOLD. Guy authorized the correction in the same task, worktree, and branch without expanding the zero-cost D1A1A boundary.
+
+Both MAJOR findings and all four MINOR findings are accepted:
+
+- **MAJOR — credential-bearing destination was not pinned:** the installed OpenAI SDK could consume routing/identity environment defaults. Correction pins `https://api.openai.com/v1`, guards the final exact HTTPS `/v1/responses` POST, rejects redirect following and unauthorized identity headers, explicitly nulls organization/project/webhook authority, filters non-authorized SDK environment names from the child, preserves only `OPENAI_API_KEY` as future credential authority, keeps retries at zero, and sends `store:false`.
+- **MAJOR — provider reachability preceded durable output authority:** correction realpath/containment-checks, creates, and writable-probes every output category first; persists the exact source snapshot and approved live request before the credential/provider boundary; and writes the sanitized receipt first after a handled provider result, followed by readiness and then candidate.
+- **MINOR — incomplete rejected-request reasons:** durable rejected evidence now contains a non-empty, bounded, deduplicated, sorted set of stable reason codes, including `request_mode_must_be_live`, and no full request or raw untrusted value.
+- **MINOR — sentinel arming was inferred:** the exact private-entry test hook now requires a same-path credential/write arming marker; canonical subprocess output positively confirms that marker, while independent positive controls and restoration remain.
+- **MINOR — byte equality was not canonical:** D1A1 evidence uses a scoped human-readable stable serializer that sorts keys and NFC-normalizes strings/keys before immutable equality checks.
+- **MINOR — the temporary page ceiling was implicit:** under the current `$5` / three-call policy, up to 12 pages qualify; 13 or more fail before credential/provider reachability with `page_budget_partition_decision_required` and require a separate budget or partition Decision Gate.
+
+Additional accepted pre-spend hardening makes the exact Responses evidence brand mandatory on the canonical live path, versions the authoring request as `visual-contract-authoring-request/v3`, binds initial system/user prompt digests and versions, binds the repair system digest plus compiler-owned repair user-builder version, and verifies that authority before every provider call. D1A0 retains its explicit optional injected-provider seam.
+
+Advisory disposition: live adapter/runner barrel exports are removed; rejected evidence retains only bounded labels/digests/reason codes; exact model equality remains fail-closed. Provider alias behavior cannot be proven without a live call, so first-contact exact-label risk remains documented rather than broadened speculatively. The input ceiling remains a conservative UTF-8 byte upper bound plus protocol allowance because no already-approved zero-cost tokenizer authority is introduced.
+
 ## 2. Why now?
 
 D1A0 has independent technical PASS for its injected-provider lifecycle, immutable source snapshot, exact request, conservative `$5.00` fence, sanitized receipt/candidate functions, and fail-closed validation. It intentionally has no canonical live provider adapter or public live command.
@@ -57,12 +74,12 @@ D1A1A may not perform a live invocation or create a real candidate/reconciliatio
 ## 4. Approved architectural decisions
 
 1. **Generality:** shared implementation is path/data driven. Calibration evidence never becomes a shared-code exception.
-2. **One public launcher and private-entry closure:** one canonical `node` command owns future preflight/live execution. It resolves the exact local `tsx` dependency, preloads the repository `server-only` shim in the child before TypeScript evaluation, uses a one-time capability, rejects direct private/core execution, parses strictly, and propagates all child outcomes deterministically.
-3. **Exclusive zero-cost import preflight:** preflight accepts no source, output, credential, model, price, or write authority. It imports and checks the exact future live graph under throwing network, credential, and write sentinels without invoking any external or write boundary. Output states only direct checks.
-4. **One exact D1A adapter:** the live lifecycle receives one explicitly injected OpenAI Responses adapter. The adapter honors OpenAI / Responses / `gpt-5.6-sol` / default service tier / reasoning `medium` / strict `vc-draft-schema/v6` / tools disabled / no fallback / zero transport retries / 20-minute timeout / 64K input ceiling / page-derived output ceiling.
-5. **Delayed credential boundary:** no env file is loaded. Only `OPENAI_API_KEY` from the existing process environment may be read, and only after deterministic source, snapshot, request, topology, price, schema, retry, timeout, token, and spend gates pass. Credential values are never printed, persisted, copied, hashed, or included in errors.
-6. **Exact live request and cost fence:** live consumes a separately authored `mode=live` request and never mutates a D1A0 preflight artifact into live authority. Price version/digest, provider/model/schema/prompts, call/repair budget, timeout/retry, source bindings, `$5.00` hard ceiling, and maximum reserved exposure `$4.884` remain exact. D1A1A neither verifies public prices nor spends.
-7. **Sanitized immutable artifacts and honest failure semantics:** one handled invocation persists content-addressed request, receipt, and readiness evidence; a candidate is persisted only on full compile/action success. Raw prompt, raw response, credential/header/env value, raw provider exception, and full stack are excluded. Writes are no-overwrite, identical-byte idempotent, and different-byte collision rejecting. Forced process termination can interrupt the in-memory interval before a post-call receipt is durable; this limitation must remain explicit.
+2. **One public launcher and private-entry closure:** one canonical `node` command owns future preflight/live execution. It resolves the exact local `tsx` dependency, preloads the repository `server-only` shim in the child before TypeScript evaluation, uses a one-time capability, rejects direct private/core execution, parses strictly, propagates all child outcomes deterministically, and removes unauthorized OpenAI SDK routing/identity environment names from the child without printing their values.
+3. **Exclusive zero-cost import preflight:** preflight accepts no source, output, credential, model, price, or write authority. It imports and checks the exact future live graph under throwing network, credential, and write sentinels without invoking any external or write boundary. The private entry and credential/write sentinel complete an explicit arming handshake; output states only direct checks.
+4. **One exact D1A adapter:** the live lifecycle receives one explicitly injected OpenAI Responses adapter. The adapter honors OpenAI / Responses / exact `gpt-5.6-sol` / default service tier / reasoning `medium` / strict `vc-draft-schema/v6` / tools disabled / `store:false` / no fallback / zero transport retries / 20-minute timeout / 64K conservative input ceiling / page-derived output ceiling. Its credential-bearing transport is pinned to the exact HTTPS Responses endpoint and refuses alternate destinations or redirects.
+5. **Delayed credential boundary:** no env file is loaded. Only `OPENAI_API_KEY` from the existing process environment may be read, and only after deterministic source, snapshot, request, topology, price, schema, retry, timeout, token, spend, output containment, category creation/writable probe, and durable source/request authority gates pass. Credential values are never printed, persisted, copied, hashed, or included in errors.
+6. **Exact live request and cost fence:** live consumes a separately authored `mode=live` v3 request and never mutates a D1A0 preflight artifact into live authority. Price version/digest, provider/model/schema, initial/repair prompt authority, call/repair budget, timeout/retry, source bindings, `$5.00` hard ceiling, maximum reserved exposure `$4.884`, and current 12-page maximum remain exact. Thirteen or more pages require a separate budget/partition Decision Gate. D1A1A neither verifies public prices nor spends.
+7. **Sanitized immutable artifacts and honest failure semantics:** one handled invocation persists content-addressed source/request authority before provider reachability, then receipt first, readiness second, and candidate last only on full compile/action success. Raw prompt, raw response, credential/header/env value, raw provider exception, invalid draft, and full stack are excluded. D1A1 writes are canonically serialized, no-overwrite, identical-byte idempotent, and different-byte collision rejecting. Forced termination or disk failure can still interrupt the post-call in-memory interval before a receipt is durable; no automatic rerun/resume authority exists.
 8. **Approval/downstream separation:** a produced artifact remains candidate only. No automatic Semantic Reconciliation, human approval, Blueprint readiness, Board/package/render/publication/production authority, or deployment follows.
 9. **QA, rollback, and milestone separation:** D1A1A is independently reviewed before D1A1B. Rollback is focused commit revert; D1A1A creates no external state. D1A1B and D1A1C each require their own explicit authorization and immutable review range.
 
@@ -83,8 +100,9 @@ The generic story pipeline, D0/D1A0 public CLI commands, Story Sources, reviewed
 - `preflight` imports the exact live adapter/orchestrator graph and nothing else. Any extra flag or positional token fails closed before that graph loads.
 - `live` requires exact explicit path inputs, rebuilds current source authority, validates the supplied content-addressed snapshot, requires a separate `mode=live` request, and stops every stale or mutated authority before credential/provider reachability.
 - The adapter constructs only the locked Responses request, configures SDK and request transport retries to zero, and exposes response ID, exact provider/model labels, input tokens, cached input tokens, output tokens, reasoning tokens, total tokens, and completion status.
+- The adapter pins the exact official Responses destination, disables provider storage, and cannot inherit base URL, organization, project, webhook, or logging authority from the canonical child environment.
 - Missing, malformed, inconsistent, overflowing, incomplete, failed, or substituted provider evidence fails closed and is sanitized.
-- Successful and handled-failure paths persist content-addressed sanitized request/receipt/readiness evidence. Candidate persistence is conditional on complete compiler/action success and remains `candidate`.
+- Before any future call, the canonical path proves writable contained output authority and durably records exact run intent. Successful and handled-failure paths persist receipt before readiness/candidate. Candidate persistence is conditional on complete compiler/action success and remains `candidate`.
 - D1A0 provider-unreachable commands and unrelated pipeline retry defaults remain behaviorally compatible.
 
 ## 7. Validation plan
@@ -99,6 +117,7 @@ The generic story pipeline, D0/D1A0 public CLI commands, Story Sources, reviewed
 8. Artifact tests cover request/receipt/readiness/candidate idempotence, collision refusal, secret/raw-prompt/raw-response/raw-error absence, and no downstream authority.
 9. Existing D1A0 lifecycle/compiler/preflight and generic pipeline retry suites remain green.
 10. Run `npx --no-install tsc --noEmit`, literal `npm run check`, committed-range `git diff --check`, shared calibration-literal scan, boundary scan, and final topology reconciliation.
+11. Adversarial correction tests cover SDK environment-default bypass, exact guarded destination and redirect refusal, `store:false`, output traversal/symlink/unwritable refusal, exact write ordering, rejected reason codes, sentinel arming, canonical serialization, 12/13-page behavior, evidence-brand enforcement, and prompt digest/version enforcement.
 
 No image, page, book, audio, Vision, provider, storage, database, or Board action is required or authorized.
 
@@ -111,12 +130,15 @@ No image, page, book, audio, Vision, provider, storage, database, or Board actio
 - Future D1A1B transport retries: **0**.
 - Approved point-in-time maximum reserved exposure: **$4.884**.
 - Hard ceiling: **$5.00**.
+- Current maximum qualifying book length under this exact fence: **12 pages**. A 13-page request projects beyond the approved fence and stops before credential/provider reachability; partitioning or a changed budget requires a new Decision Gate.
 
 Before D1A1B, the Lead must obtain separate authority for read-only official price verification. Any mismatch stops the live milestone and requires new authority.
 
 ## 9. Rollback plan
 
 D1A1A is isolated in focused local commits on its dedicated branch. Rollback is a normal revert of those commits. It applies no migration and creates no remote, provider, database, storage, Board, approval, publication, package, production, or deployment state.
+
+The QA correction has no external state. Focused rollback is a normal revert of the correction commits after `e069f19e`; it does not authorize reuse or replay of any future provider request.
 
 Temporary synthetic test artifacts are local and scoped to test-owned directories. Cleanup of unrelated artifacts, worktrees, or branches is not authorized.
 
