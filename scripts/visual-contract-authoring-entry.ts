@@ -18,6 +18,10 @@ const PRIVATE_ENTRYPOINT_ERROR =
   'Use: node scripts/visual-contract-authoring.cjs';
 const TEST_BOUNDARY_SENTINEL_ENV =
   'SMALL_HEROES_TEST_LIVE_AUTHORING_BOUNDARY_SENTINEL';
+const TEST_BOUNDARY_SENTINEL_ARMED_ENV =
+  'SMALL_HEROES_TEST_LIVE_AUTHORING_BOUNDARY_SENTINEL_ARMED';
+const TEST_BOUNDARY_SENTINEL_ARMED_VALUE =
+  'credential-write-sentinel/v1';
 
 function capabilityMatches(
   argToken: string | undefined,
@@ -73,8 +77,17 @@ if (!capabilityMatches(argToken, envToken)) {
       ? process.env[TEST_BOUNDARY_SENTINEL_ENV]
       : undefined;
   delete process.env[TEST_BOUNDARY_SENTINEL_ENV];
+  delete process.env[TEST_BOUNDARY_SENTINEL_ARMED_ENV];
   if (testBoundarySentinel) {
     createRequire(import.meta.url)(testBoundarySentinel);
+    if (
+      process.env[TEST_BOUNDARY_SENTINEL_ARMED_ENV] !==
+      TEST_BOUNDARY_SENTINEL_ARMED_VALUE
+    ) {
+      throw new Error(
+        'canonical live-authoring credential/write sentinel did not arm through the private entry hook',
+      );
+    }
   }
   void import('./visual-contract-authoring')
     .then(({ runVisualContractAuthoringCli }) =>

@@ -3,29 +3,26 @@ import path from 'node:path';
 
 import {
   canonicalJsonDigest,
-  repoRelativePath,
   resolveRepoPath,
 } from './integrity';
+import {
+  createCanonicalLiveAuthoringArtifactStore,
+  type CanonicalLiveAuthoringArtifactStore,
+} from './canonicalLiveAuthoringArtifacts';
 import {
   createOpenAIResponsesVisualContractAuthoringAdapter,
 } from './openaiResponsesVisualContractAuthoringAdapter';
 import {
-  writeImmutableLocalArtifact,
-} from './preRenderBlueprintLifecycle';
-import {
   assertValidStorySourceAuthoritySnapshot,
   buildStorySourceAuthoritySnapshot,
-  persistStorySourceAuthoritySnapshot,
   type StorySourceAuthorityRequest,
   type StorySourceAuthoritySnapshot,
 } from './storySourceAuthority';
 import {
+  OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
+  buildVisualContractCandidateArtifact,
   buildVisualContractAuthoringReadinessEvidence,
   buildVisualContractAuthoringRequest,
-  persistVisualContractAuthoringReadiness,
-  persistVisualContractAuthoringReceipt,
-  persistVisualContractAuthoringRequest,
-  persistVisualContractCandidate,
   runVisualContractAuthoring,
   visualContractAuthoringRequestIssues,
   type VisualContractAuthoringArtifactWrite,
@@ -34,7 +31,7 @@ import {
 } from './visualContractAuthoringLifecycle';
 
 export const CANONICAL_LIVE_AUTHORING_INTERRUPTION_LIMITATION =
-  'A forced process termination during or immediately after a provider request can occur before the in-memory sanitized receipt is durably persisted; rerun authority must be reconciled from provider-side evidence and is never implied.';
+  'The exact source snapshot and approved live request are durable before provider reachability, but forced process termination or disk failure during or immediately after a provider request can still occur before the in-memory sanitized receipt is durable; no automatic rerun or resume authority exists, and any later action must reconcile provider-side evidence first.';
 export const CANONICAL_LIVE_REJECTED_REQUEST_EVIDENCE_VERSION =
   'canonical-live-rejected-request-evidence/v1' as const;
 
@@ -48,6 +45,10 @@ export interface CanonicalLiveVisualContractAuthoringInput {
 
 export interface CanonicalLiveVisualContractAuthoringDeps {
   provider?: VisualContractAuthoringProvider;
+  artifactStoreFactory?: (args: {
+    repoRoot: string;
+    outputDir: string;
+  }) => CanonicalLiveAuthoringArtifactStore;
 }
 
 export interface CanonicalLiveVisualContractAuthoringResult {
@@ -183,6 +184,18 @@ function authoringRequestValue(
     object.promptDigests,
     'visual contract authoring request promptDigests',
   );
+  const promptAuthority = objectValue(
+    object.promptAuthority,
+    'visual contract authoring request promptAuthority',
+  );
+  const initialPromptAuthority = objectValue(
+    promptAuthority.initial,
+    'visual contract authoring request initial promptAuthority',
+  );
+  const repairPromptAuthority = objectValue(
+    promptAuthority.repair,
+    'visual contract authoring request repair promptAuthority',
+  );
   for (const field of [
     'version',
     'mode',
@@ -262,6 +275,26 @@ function authoringRequestValue(
       system: promptDigests.system,
       user: promptDigests.user,
     },
+    promptAuthority: {
+      initial: {
+        systemPromptVersion:
+          initialPromptAuthority.systemPromptVersion,
+        userPromptVersion:
+          initialPromptAuthority.userPromptVersion,
+        systemPromptDigest:
+          initialPromptAuthority.systemPromptDigest,
+        userPromptDigest:
+          initialPromptAuthority.userPromptDigest,
+      },
+      repair: {
+        systemPromptVersion:
+          repairPromptAuthority.systemPromptVersion,
+        userPromptVersion:
+          repairPromptAuthority.userPromptVersion,
+        systemPromptDigest:
+          repairPromptAuthority.systemPromptDigest,
+      },
+    },
     digestAlgorithm: object.digestAlgorithm,
     digest: object.digest,
   } as VisualContractAuthoringRequest;
@@ -290,6 +323,7 @@ const REQUEST_KEYS = new Set([
   'pricingDigest',
   'costBudget',
   'promptDigests',
+  'promptAuthority',
   'digestAlgorithm',
   'digest',
 ]);
@@ -324,6 +358,7 @@ const REQUEST_NESTED_KEYS: Record<string, Set<string>> = {
     'hardCeilingUsd',
   ]),
   promptDigests: new Set(['system', 'user']),
+  promptAuthority: new Set(['initial', 'repair']),
 };
 
 function unexpectedRequestFieldIssues(
@@ -349,19 +384,71 @@ function unexpectedRequestFieldIssues(
         .map(() => `unexpected_request_field:${field}`),
     );
   }
+  const promptAuthority = objectValue(
+    object.promptAuthority,
+    'visual contract authoring request promptAuthority',
+  );
+  for (const [field, allowed] of [
+    [
+      'initial',
+      new Set([
+        'systemPromptVersion',
+        'userPromptVersion',
+        'systemPromptDigest',
+        'userPromptDigest',
+      ]),
+    ],
+    [
+      'repair',
+      new Set([
+        'systemPromptVersion',
+        'userPromptVersion',
+        'systemPromptDigest',
+      ]),
+    ],
+  ] as const) {
+    const nested = objectValue(
+      promptAuthority[field],
+      `visual contract authoring request promptAuthority ${field}`,
+    );
+    issues.push(
+      ...Object.keys(nested)
+        .filter((key) => !allowed.has(key))
+        .map(
+          () =>
+            'unexpected_request_field:promptAuthority',
+        ),
+    );
+  }
   return issues;
 }
 
 interface RejectedRequestEvidence {
   version: typeof CANONICAL_LIVE_REJECTED_REQUEST_EVIDENCE_VERSION;
   observedRequestDigest: string;
-  claimedRequestDigest: string;
+  claimedRequestDigest: string | null;
   status: 'rejected';
-  request: VisualContractAuthoringRequest;
   issues: string[];
   doesNotAuthorize: string[];
   digestAlgorithm: 'canonical-json-sha256';
   digest: string;
+}
+
+function stableRejectedReasonCodes(
+  issues: readonly string[],
+): string[] {
+  const stable = [
+    ...new Set(
+      issues.map((issue) =>
+        /^[a-z0-9_:-]{1,128}$/.test(issue)
+          ? issue
+          : 'request_rejected',
+      ),
+    ),
+  ]
+    .sort()
+    .slice(0, 128);
+  return stable.length > 0 ? stable : ['request_rejected'];
 }
 
 function buildRejectedRequestEvidence(args: {
@@ -372,10 +459,13 @@ function buildRejectedRequestEvidence(args: {
     version:
       CANONICAL_LIVE_REJECTED_REQUEST_EVIDENCE_VERSION,
     observedRequestDigest: canonicalJsonDigest(args.request),
-    claimedRequestDigest: args.request.digest,
+    claimedRequestDigest: /^[a-f0-9]{64}$/.test(
+      args.request.digest,
+    )
+      ? args.request.digest
+      : null,
     status: 'rejected' as const,
-    request: args.request,
-    issues: [...new Set(args.issues)].sort(),
+    issues: stableRejectedReasonCodes(args.issues),
     doesNotAuthorize: [
       'provider or model calls',
       'Visual Contract candidate status',
@@ -387,29 +477,6 @@ function buildRejectedRequestEvidence(args: {
     ...withoutDigest,
     digestAlgorithm: 'canonical-json-sha256',
     digest: canonicalJsonDigest(withoutDigest),
-  };
-}
-
-function persistRejectedRequestEvidence(args: {
-  repoRoot: string;
-  outputDir: string;
-  evidence: RejectedRequestEvidence;
-}): VisualContractAuthoringArtifactWrite {
-  const root = path.resolve(args.repoRoot, args.outputDir);
-  repoRelativePath(args.repoRoot, root);
-  const destinationPath = path.join(
-    root,
-    'rejected-authoring-requests',
-    `${args.evidence.digest}.json`,
-  );
-  const result = writeImmutableLocalArtifact({
-    destinationPath,
-    bytes: `${JSON.stringify(args.evidence, null, 2)}\n`,
-  });
-  return {
-    path: repoRelativePath(args.repoRoot, destinationPath),
-    digest: args.evidence.digest,
-    created: result.created,
   };
 }
 
@@ -510,15 +577,78 @@ export async function runCanonicalLiveVisualContractAuthoring(
       request: suppliedRequest,
       snapshot: rebuiltSnapshot,
     });
-  const provider =
-    deps.provider ??
-    createOpenAIResponsesVisualContractAuthoringAdapter();
+  const lifecycleRequestIssues = [
+    ...boundaryIssues,
+    ...requestIssues,
+    ...(suppliedRequest.mode === 'live'
+      ? []
+      : ['request_mode_must_be_live']),
+  ];
+  const approvedAuthoringRequest =
+    requestExact &&
+    requestIssues.length === 0 &&
+    suppliedRequest.mode === 'live' &&
+    snapshotExact &&
+    boundaryIssues.length === 0;
+
+  const artifactStore = (
+    deps.artifactStoreFactory ??
+    createCanonicalLiveAuthoringArtifactStore
+  )({
+    repoRoot,
+    outputDir: input.outputDir,
+  });
+  // Every category is containment-checked, created, and writable-probed
+  // before any credential or provider boundary can be reached.
+  artifactStore.prepare();
+
+  let sourceSnapshotWrite:
+    | VisualContractAuthoringArtifactWrite
+    | null = null;
+  let authoringRequestWrite: VisualContractAuthoringArtifactWrite;
+  if (approvedAuthoringRequest) {
+    sourceSnapshotWrite = artifactStore.persist({
+      category: 'source-snapshots',
+      digest: rebuiltSnapshot.digest,
+      value: rebuiltSnapshot,
+    });
+    authoringRequestWrite = artifactStore.persist({
+      category: 'authoring-requests',
+      digest: suppliedRequest.digest,
+      value: suppliedRequest,
+    });
+  } else {
+    const rejectedRequestEvidence =
+      buildRejectedRequestEvidence({
+        request: suppliedRequest,
+        issues: lifecycleRequestIssues,
+      });
+    authoringRequestWrite = artifactStore.persist({
+      category: 'rejected-authoring-requests',
+      digest: rejectedRequestEvidence.digest,
+      value: rejectedRequestEvidence,
+    });
+  }
+
+  const provider = approvedAuthoringRequest
+    ? deps.provider ??
+      createOpenAIResponsesVisualContractAuthoringAdapter()
+    : deps.provider;
   const authored = await runVisualContractAuthoring({
     request: suppliedRequest,
     snapshot: rebuiltSnapshot,
     provider,
     requiredMode: 'live',
     additionalRequestIssues: boundaryIssues,
+    requiredProviderEvidenceVersion:
+      OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
+  });
+  // Receipt is always the first post-call write. If it cannot become durable,
+  // no readiness or candidate artifact is attempted.
+  const authoringReceiptWrite = artifactStore.persist({
+    category: 'authoring-receipts',
+    digest: authored.receipt.digest,
+    value: authored.receipt,
   });
   const readiness =
     buildVisualContractAuthoringReadinessEvidence({
@@ -526,64 +656,25 @@ export async function runCanonicalLiveVisualContractAuthoring(
       request: suppliedRequest,
       receipt: authored.receipt,
     });
-
-  const sourceSnapshotWrite =
-    snapshotExact && boundaryIssues.length === 0
-      ? persistStorySourceAuthoritySnapshot({
-          repoRoot,
-          outputDir: input.outputDir,
-          snapshot: rebuiltSnapshot,
-          write: true,
-        })
-      : null;
-  const approvedAuthoringRequest =
-    requestExact &&
-    requestIssues.length === 0 &&
-    suppliedRequest.mode === 'live' &&
-    snapshotExact &&
-    boundaryIssues.length === 0;
-  const authoringRequestWrite =
-    approvedAuthoringRequest
-      ? persistVisualContractAuthoringRequest({
-          repoRoot,
-          outputDir: input.outputDir,
-          request: suppliedRequest,
-          write: true,
-        })
-      : persistRejectedRequestEvidence({
-          repoRoot,
-          outputDir: input.outputDir,
-          evidence: buildRejectedRequestEvidence({
-            request: suppliedRequest,
-            issues: [
-              ...boundaryIssues,
-              ...requestIssues,
-            ],
-          }),
-        });
-  const authoringReceiptWrite =
-    persistVisualContractAuthoringReceipt({
-      repoRoot,
-      outputDir: input.outputDir,
+  const readinessWrite = artifactStore.persist({
+    category: 'readiness-evidence',
+    digest: readiness.digest,
+    value: readiness,
+  });
+  let candidateWrite:
+    | VisualContractAuthoringArtifactWrite
+    | null = null;
+  if (authored.compileResult) {
+    const candidate = buildVisualContractCandidateArtifact({
       receipt: authored.receipt,
-      write: true,
+      compileResult: authored.compileResult,
     });
-  const readinessWrite =
-    persistVisualContractAuthoringReadiness({
-      repoRoot,
-      outputDir: input.outputDir,
-      evidence: readiness,
-      write: true,
+    candidateWrite = artifactStore.persist({
+      category: 'contract-candidates',
+      digest: candidate.digest,
+      value: candidate,
     });
-  const candidateWrite = authored.compileResult
-    ? persistVisualContractCandidate({
-        repoRoot,
-        outputDir: input.outputDir,
-        receipt: authored.receipt,
-        compileResult: authored.compileResult,
-        write: true,
-      })
-    : null;
+  }
 
   return {
     mode: 'canonical_visual_contract_live_authoring',

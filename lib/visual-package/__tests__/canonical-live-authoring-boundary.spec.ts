@@ -31,14 +31,31 @@ import {
   buildStorySourceAuthoritySnapshot,
   buildVisualContractAuthoringRequest,
   canonicalJsonDigest,
-  createOpenAIResponsesVisualContractAuthoringAdapter,
   OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
-  runCanonicalLiveVisualContractAuthoring,
   runVisualContractAuthoring,
-  type OpenAIResponsesAuthoringTransport,
+  visualContractAuthoringCallPromptAuthorityIssues,
+  visualContractAuthoringRequestIssues,
   type StorySourceAuthoritySnapshot,
+  type VisualContractAuthoringProvider,
   type VisualContractAuthoringRequest,
 } from '@/lib/visual-package';
+import {
+  canonicalLiveAuthoringJsonBytes,
+  createCanonicalLiveAuthoringArtifactStore,
+} from '@/lib/visual-package/canonicalLiveAuthoringArtifacts';
+import {
+  runCanonicalLiveVisualContractAuthoring,
+} from '@/lib/visual-package/canonicalLiveVisualContractAuthoring';
+import {
+  createGuardedOpenAIResponsesAuthoringFetch,
+  createOpenAIResponsesVisualContractAuthoringAdapter,
+  openAIResponsesAuthoringTransport,
+  buildOpenAIResponsesVisualContractAuthoringBody,
+  type OpenAIResponsesAuthoringTransport,
+} from '@/lib/visual-package/openaiResponsesVisualContractAuthoringAdapter';
+import type {
+  CanonicalLiveAuthoringArtifactStore,
+} from '@/lib/visual-package/canonicalLiveAuthoringArtifacts';
 
 const tempRoots: string[] = [];
 const REQUESTED_AT = '2026-07-27T12:00:00.000Z';
@@ -60,6 +77,8 @@ const LAUNCHER = path.join(
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
   for (const root of tempRoots.splice(0)) {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -370,6 +389,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
         },
         tools: [],
         tool_choice: 'none',
+        store: false,
       },
     });
     expect(transportRequest.body.input).toHaveLength(2);
@@ -390,6 +410,131 @@ describe('canonical OpenAI Responses authoring adapter', () => {
       usageEvidenceComplete: true,
       status: 'response_received',
     });
+  });
+
+  it('guards the final HTTPS Responses destination and refuses redirect or identity authority', async () => {
+    const delegated = vi.fn(
+      async () =>
+        new Response('{}', {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+          },
+        }),
+    );
+    const guarded =
+      createGuardedOpenAIResponsesAuthoringFetch(
+        delegated,
+      );
+    await guarded(
+      'https://api.openai.com/v1/responses',
+      {
+        method: 'POST',
+      },
+    );
+    expect(delegated).toHaveBeenCalledWith(
+      'https://api.openai.com/v1/responses',
+      expect.objectContaining({
+        method: 'POST',
+        redirect: 'error',
+      }),
+    );
+    await expect(
+      guarded('https://redirect.invalid/v1/responses', {
+        method: 'POST',
+      }),
+    ).rejects.toThrow(/unauthorized destination/);
+    await expect(
+      guarded('https://api.openai.com/v1/responses/', {
+        method: 'POST',
+      }),
+    ).rejects.toThrow(/unauthorized destination/);
+    await expect(
+      guarded('https://api.openai.com/v1/responses', {
+        method: 'POST',
+        redirect: 'follow',
+        headers: {
+          'OpenAI-Organization': 'org-marker',
+        },
+      }),
+    ).rejects.toThrow(/unauthorized identity headers/);
+    expect(delegated).toHaveBeenCalledTimes(1);
+  });
+
+  it('pins actual SDK routing and identity options against injected environment defaults', async () => {
+    const fixture = createLiveFixture('sdk-env-pin');
+    vi.stubEnv(
+      'OPENAI_BASE_URL',
+      'https://redirect.invalid/v1',
+    );
+    vi.stubEnv('OPENAI_ORG_ID', 'org-marker');
+    vi.stubEnv('OPENAI_PROJECT_ID', 'project-marker');
+    vi.stubEnv(
+      'OPENAI_WEBHOOK_SECRET',
+      'webhook-marker',
+    );
+    const delegated = vi.fn(
+      async (
+        input: string | URL | Request,
+        init?: RequestInit,
+      ) => {
+        const url = new URL(
+          input instanceof Request ? input.url : input,
+        );
+        expect(url.href).toBe(
+          'https://api.openai.com/v1/responses',
+        );
+        expect(init?.redirect).toBe('error');
+        const headers = new Headers(
+          input instanceof Request
+            ? input.headers
+            : init?.headers,
+        );
+        expect(
+          headers.has('openai-organization'),
+        ).toBe(false);
+        expect(headers.has('openai-project')).toBe(false);
+        expect(
+          headers.has('openai-webhook-secret'),
+        ).toBe(false);
+        const body = JSON.parse(
+          String(init?.body),
+        ) as Record<string, unknown>;
+        expect(body.store).toBe(false);
+        expect(JSON.stringify(body)).not.toMatch(
+          /redirect\.invalid|org-marker|project-marker|webhook-marker/,
+        );
+        return new Response(
+          JSON.stringify(
+            responseFor(
+              fullyActionedDraft(fixture.snapshot),
+            ),
+          ),
+          {
+            status: 200,
+            headers: {
+              'content-type': 'application/json',
+            },
+          },
+        );
+      },
+    );
+    vi.stubGlobal('fetch', delegated);
+    const body =
+      buildOpenAIResponsesVisualContractAuthoringBody({
+        systemPrompt: 'system',
+        userPrompt: 'user',
+        options: exactOptions(fixture.request),
+      });
+    await openAIResponsesAuthoringTransport.create({
+      apiKey: FAKE_CREDENTIAL,
+      body,
+      requestOptions: {
+        maxRetries: 0,
+        timeout: 1_200_000,
+      },
+    });
+    expect(delegated).toHaveBeenCalledTimes(1);
   });
 
   it.each([
@@ -615,6 +760,90 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     expect(serialized).not.toContain(FAKE_CREDENTIAL);
     expect(serialized).not.toContain('stack');
   });
+
+  it.each(['missing', 'wrong'])(
+    'requires the branded evidence contract on the canonical lifecycle seam: %s',
+    async (brandKind) => {
+      const fixture = createLiveFixture(
+        `evidence-brand-${brandKind}`,
+      );
+      const output = JSON.stringify(
+        fullyActionedDraft(fixture.snapshot),
+      );
+      const provider = {
+        call: vi.fn(async () => ({
+          output,
+          receipt: {
+            provider: 'openai',
+            model: 'gpt-5.6-sol',
+            responseId: 'resp_brand_test',
+            usage: {
+              input_tokens: 10,
+              cached_input_tokens: 0,
+              output_tokens: 20,
+              reasoning_tokens: 5,
+              total_tokens: 30,
+            },
+            ...(brandKind === 'wrong'
+              ? {
+                  evidenceVersion:
+                    'wrong-provider-evidence/v1',
+                }
+              : {}),
+            completionStatus: 'completed',
+            usageEvidenceComplete: true,
+          },
+        })),
+      };
+      const result = await runVisualContractAuthoring({
+        request: fixture.request,
+        snapshot: fixture.snapshot,
+        provider:
+          provider as unknown as VisualContractAuthoringProvider,
+        requiredMode: 'live',
+        requiredProviderEvidenceVersion:
+          OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
+      });
+      expect(result.receipt.failure?.code).toBe(
+        'provider_evidence_invalid',
+      );
+      expect(
+        result.receipt.attempts[0]?.validationErrors,
+      ).toContain('provider_evidence_version_mismatch');
+    },
+  );
+
+  it('fails prompt version and digest mismatches before provider reachability', () => {
+    const fixture = createLiveFixture('prompt-authority');
+    const request = structuredClone(fixture.request);
+    request.promptDigests.system =
+      canonicalJsonDigest('approved-system');
+    request.promptDigests.user =
+      canonicalJsonDigest('approved-user');
+    request.promptAuthority.initial.systemPromptDigest =
+      request.promptDigests.system;
+    request.promptAuthority.initial.userPromptDigest =
+      request.promptDigests.user;
+    expect(
+      visualContractAuthoringCallPromptAuthorityIssues({
+        request,
+        kind: 'initial',
+        systemPrompt: 'changed-system',
+        userPrompt: 'approved-user',
+        promptAuthority: {
+          kind: 'initial',
+          systemPromptVersion:
+            request.promptAuthority.initial
+              .systemPromptVersion,
+          userPromptVersion: 'wrong-prompt-version',
+        },
+      }),
+    ).toEqual(
+      expect.arrayContaining([
+        'initial_prompt_authority_mismatch',
+      ]),
+    );
+  });
 });
 
 describe('canonical live authoring executable boundary', () => {
@@ -717,6 +946,13 @@ describe('canonical live authoring executable boundary', () => {
       (
         request.promptDigests as Record<string, unknown>
       ).system = '0'.repeat(64);
+    }],
+    ['prompt authority', (request: Record<string, unknown>) => {
+      const authority = request.promptAuthority as {
+        repair: Record<string, unknown>;
+      };
+      authority.repair.systemPromptVersion =
+        'unapproved-repair-prompt/v1';
     }],
     ['pricing digest', (request: Record<string, unknown>) => {
       request.pricingDigest = '0'.repeat(64);
@@ -845,6 +1081,26 @@ describe('canonical live authoring executable boundary', () => {
     expect(promotion.receipt.failure?.issues).toContain(
       'request_mode_must_be_live',
     );
+    const rejectedEvidence = JSON.parse(
+      fs.readFileSync(
+        path.join(
+          preflight.repoRoot,
+          promotion.persistence.authoringRequest.path,
+        ),
+        'utf8',
+      ),
+    ) as {
+      issues: string[];
+      request?: unknown;
+    };
+    expect(rejectedEvidence.issues).toContain(
+      'request_mode_must_be_live',
+    );
+    expect(rejectedEvidence.issues.length).toBeGreaterThan(0);
+    expect(new Set(rejectedEvidence.issues).size).toBe(
+      rejectedEvidence.issues.length,
+    );
+    expect(rejectedEvidence).not.toHaveProperty('request');
     expect(
       preflightAdapter.readCredential,
     ).not.toHaveBeenCalled();
@@ -894,6 +1150,271 @@ describe('canonical live authoring executable boundary', () => {
     expect(
       snapshotAdapter.readCredential,
     ).not.toHaveBeenCalled();
+  });
+
+  it('rejects escaping, symlinked, and unwritable output authority before credentials or provider work', async () => {
+    const escaping = createLiveFixture('output-escape');
+    const escapingAdapter = fakeAdapter({ responses: [] });
+    await expect(
+      runCanonicalLiveVisualContractAuthoring(
+        {
+          ...fixtureInput(escaping),
+          outputDir: '../outside',
+        },
+        { provider: escapingAdapter.provider },
+      ),
+    ).rejects.toThrow(/escapes repository root/);
+    expect(
+      escapingAdapter.readCredential,
+    ).not.toHaveBeenCalled();
+
+    const symlinked = createLiveFixture(
+      'output-symlink',
+    );
+    const outside = tempRoot();
+    const symlinkPath = path.join(
+      symlinked.repoRoot,
+      'linked-output',
+    );
+    fs.symlinkSync(outside, symlinkPath, 'junction');
+    const symlinkAdapter = fakeAdapter({ responses: [] });
+    await expect(
+      runCanonicalLiveVisualContractAuthoring(
+        {
+          ...fixtureInput(symlinked),
+          outputDir: 'linked-output',
+        },
+        { provider: symlinkAdapter.provider },
+      ),
+    ).rejects.toThrow(/outside the repository/);
+    expect(
+      symlinkAdapter.readCredential,
+    ).not.toHaveBeenCalled();
+
+    const unwritable = createLiveFixture(
+      'output-unwritable',
+    );
+    const unwritableAdapter = fakeAdapter({ responses: [] });
+    const persist = vi.fn();
+    await expect(
+      runCanonicalLiveVisualContractAuthoring(
+        fixtureInput(unwritable),
+        {
+          provider: unwritableAdapter.provider,
+          artifactStoreFactory: () => ({
+            prepare() {
+              throw new Error(
+                'canonical live authoring output is not writable',
+              );
+            },
+            persist,
+          }),
+        },
+      ),
+    ).rejects.toThrow(/not writable/);
+    expect(persist).not.toHaveBeenCalled();
+    expect(
+      unwritableAdapter.readCredential,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('persists intent before provider reachability and receipt before all other post-call evidence', async () => {
+    const fixture = createLiveFixture('write-order');
+    const events: string[] = [];
+    const store: CanonicalLiveAuthoringArtifactStore = {
+      prepare() {
+        events.push('prepare');
+      },
+      persist({ category, digest }) {
+        events.push(`persist:${category}`);
+        return {
+          path: `synthetic/${category}/${digest}.json`,
+          digest,
+          created: true,
+        };
+      },
+    };
+    const adapter = fakeAdapter({
+      responses: [
+        responseFor(
+          fullyActionedDraft(fixture.snapshot),
+        ),
+      ],
+      readCredential: vi.fn(() => {
+        events.push('credential');
+        return FAKE_CREDENTIAL;
+      }),
+      transportCreate: vi.fn(async () => {
+        events.push('provider');
+        return responseFor(
+          fullyActionedDraft(fixture.snapshot),
+        );
+      }),
+    });
+    const result =
+      await runCanonicalLiveVisualContractAuthoring(
+        fixtureInput(fixture),
+        {
+          provider: adapter.provider,
+          artifactStoreFactory: () => store,
+        },
+      );
+    expect(result.status).toBe('completed');
+    expect(events).toEqual([
+      'prepare',
+      'persist:source-snapshots',
+      'persist:authoring-requests',
+      'credential',
+      'provider',
+      'persist:authoring-receipts',
+      'persist:readiness-evidence',
+      'persist:contract-candidates',
+    ]);
+  });
+
+  it('uses canonical byte equality for D1A1 evidence key order and Unicode normalization', () => {
+    const firstValue = {
+      z: 'e\u0301',
+      a: { second: 2, first: 1 },
+    };
+    const equivalentValue = {
+      a: { first: 1, second: 2 },
+      z: '\u00e9',
+    };
+    expect(
+      canonicalLiveAuthoringJsonBytes(firstValue),
+    ).toBe(
+      canonicalLiveAuthoringJsonBytes(equivalentValue),
+    );
+
+    const repoRoot = tempRoot();
+    const store =
+      createCanonicalLiveAuthoringArtifactStore({
+        repoRoot,
+        outputDir: 'outputs/canonical',
+      });
+    store.prepare();
+    const digest = canonicalJsonDigest(firstValue);
+    expect(
+      store.persist({
+        category: 'authoring-receipts',
+        digest,
+        value: firstValue,
+      }).created,
+    ).toBe(true);
+    expect(
+      store.persist({
+        category: 'authoring-receipts',
+        digest,
+        value: equivalentValue,
+      }).created,
+    ).toBe(false);
+    expect(() =>
+      store.persist({
+        category: 'authoring-receipts',
+        digest,
+        value: { different: true },
+      }),
+    ).toThrow(/immutable artifact collision/);
+  });
+
+  it('accepts 12 pages under the current fence and rejects page 13 before provider reachability', async () => {
+    const twelve = createLiveFixture('page-12');
+    expect(twelve.snapshot.content.pages).toHaveLength(12);
+    expect(
+      visualContractAuthoringRequestIssues({
+        request: twelve.request,
+        snapshot: twelve.snapshot,
+      }),
+    ).not.toContain(
+      'page_budget_partition_decision_required',
+    );
+
+    const thirteen = createLiveFixture('page-13');
+    fs.appendFileSync(
+      thirteen.storyAbsolutePath,
+      '\n--- Page 13 ---\nThe child takes one more brave step with clear source prose.\n',
+      'utf8',
+    );
+    const sourceRequest = {
+      repoRoot: thirteen.repoRoot,
+      storyKey: STORY_KEY,
+      storyPath: `stories/${STORY_KEY}.md`,
+    };
+    const snapshot =
+      buildStorySourceAuthoritySnapshot(sourceRequest);
+    const request = buildVisualContractAuthoringRequest({
+      snapshot,
+      mode: 'live',
+      requestId: 'request-live-page-13',
+      requestedAt: REQUESTED_AT,
+    });
+    writeJson(
+      thirteen.repoRoot,
+      thirteen.snapshotPath,
+      snapshot,
+    );
+    writeJson(
+      thirteen.repoRoot,
+      thirteen.requestPath,
+      request,
+    );
+    expect(snapshot.content.pages).toHaveLength(13);
+    expect(
+      visualContractAuthoringRequestIssues({
+        request,
+        snapshot,
+      }),
+    ).toContain(
+      'page_budget_partition_decision_required',
+    );
+    const adapter = fakeAdapter({ responses: [] });
+    const result =
+      await runCanonicalLiveVisualContractAuthoring(
+        fixtureInput(thirteen),
+        { provider: adapter.provider },
+      );
+    expect(result.receipt.failure?.issues).toContain(
+      'page_budget_partition_decision_required',
+    );
+    expect(adapter.readCredential).not.toHaveBeenCalled();
+    expect(adapter.transportCreate).not.toHaveBeenCalled();
+  });
+
+  it('cannot opt the canonical runner out of branded Responses evidence', async () => {
+    const fixture = createLiveFixture(
+      'canonical-brand-required',
+    );
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async () => ({
+        output: JSON.stringify(
+          fullyActionedDraft(fixture.snapshot),
+        ),
+        receipt: {
+          provider: 'openai',
+          model: 'gpt-5.6-sol',
+          responseId: 'resp_unbranded',
+          usage: {
+            input_tokens: 10,
+            cached_input_tokens: 0,
+            output_tokens: 20,
+            reasoning_tokens: 5,
+            total_tokens: 30,
+          },
+          completionStatus: 'completed',
+          usageEvidenceComplete: true,
+        },
+      })),
+    };
+    const result =
+      await runCanonicalLiveVisualContractAuthoring(
+        fixtureInput(fixture),
+        { provider },
+      );
+    expect(result.receipt.failure?.code).toBe(
+      'provider_evidence_invalid',
+    );
+    expect(result.persistence.candidate).toBeNull();
   });
 
   it.each([0, 1, 2])(

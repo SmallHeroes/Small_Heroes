@@ -69,10 +69,16 @@ const CHILD_ID = 'child:hero';
 // output, not the support default. These are REQUESTED by the compiler; the injected caller executes them.
 const AUTHORING_REASONING_EFFORT =
   VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT;
-const TEMPLATE_PROMPT_VERSION = 'vc-template-prompt/v3';
+export const TEMPLATE_PROMPT_VERSION =
+  'vc-template-prompt/v3' as const;
+export const TEMPLATE_USER_PROMPT_VERSION =
+  'vc-template-user-prompt/v3' as const;
 /** Stage 3 — at most this many SEMANTIC repair attempts AFTER the initial authoring call (bounded safety net). */
 const MAX_REPAIR_ATTEMPTS = 2;
-const REPAIR_PROMPT_VERSION = 'vc-repair-prompt/v3';
+export const REPAIR_PROMPT_VERSION =
+  'vc-repair-prompt/v3' as const;
+export const REPAIR_USER_PROMPT_VERSION =
+  'vc-repair-user-prompt/v3' as const;
 
 /** The production authoring model is exact and never environment-overridable. */
 export function resolveAuthoringModel(): string {
@@ -1016,7 +1022,18 @@ export async function compileBookVisualContractTemplate(
   } satisfies ContractLlmCallOptions;
 
   let draft = asObj(
-    parseContractJson(await deps.callLLM(buildTemplateCompileSystemPrompt(), buildTemplateCompileUserPrompt(input, facts), llmOpts)),
+    parseContractJson(
+      await deps.callLLM(
+        buildTemplateCompileSystemPrompt(),
+        buildTemplateCompileUserPrompt(input, facts),
+        llmOpts,
+        {
+          kind: 'initial',
+          systemPromptVersion: TEMPLATE_PROMPT_VERSION,
+          userPromptVersion: TEMPLATE_USER_PROMPT_VERSION,
+        },
+      ),
+    ),
   );
 
   const repairAttempts: TemplateRepairAttempt[] = [];
@@ -1070,7 +1087,21 @@ export async function compileBookVisualContractTemplate(
     try {
       draft = asObj(
         parseContractJson(
-          await deps.callLLM(buildTemplateRepairSystemPrompt(), buildTemplateRepairUserPrompt(draft, attemptErrors, facts, input), llmOpts),
+          await deps.callLLM(
+            buildTemplateRepairSystemPrompt(),
+            buildTemplateRepairUserPrompt(
+              draft,
+              attemptErrors,
+              facts,
+              input,
+            ),
+            llmOpts,
+            {
+              kind: 'repair',
+              systemPromptVersion: REPAIR_PROMPT_VERSION,
+              userPromptVersion: REPAIR_USER_PROMPT_VERSION,
+            },
+          ),
         ),
       );
     } catch (err) {

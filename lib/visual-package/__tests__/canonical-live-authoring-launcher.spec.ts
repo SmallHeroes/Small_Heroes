@@ -24,6 +24,7 @@ import {
 
 const nodeRequire = createRequire(import.meta.url);
 const {
+  OPENAI_RESPONSES_AUTHORING_SCRUBBED_ENV_NAMES,
   VISUAL_CONTRACT_AUTHORING_LAUNCH_CAPABILITY_ARG_PREFIX,
   VISUAL_CONTRACT_AUTHORING_LAUNCH_CAPABILITY_ENV,
   resolveVisualContractAuthoringChildExitCode,
@@ -31,6 +32,7 @@ const {
 } = nodeRequire(
   '../../../scripts/lib/visual-contract-authoring-launcher-runner.cjs',
 ) as {
+  OPENAI_RESPONSES_AUTHORING_SCRUBBED_ENV_NAMES: readonly string[];
   VISUAL_CONTRACT_AUTHORING_LAUNCH_CAPABILITY_ARG_PREFIX: string;
   VISUAL_CONTRACT_AUTHORING_LAUNCH_CAPABILITY_ENV: string;
   resolveVisualContractAuthoringChildExitCode: (
@@ -400,6 +402,58 @@ describe('canonical Visual Contract authoring launcher', () => {
     });
   });
 
+  it('scrubs SDK routing and identity defaults while preserving only the key authority', () => {
+    const environment: Record<string, string> = {
+      ...Object.fromEntries(
+        OPENAI_RESPONSES_AUTHORING_SCRUBBED_ENV_NAMES.map(
+          (name) => [name, `marker-${name}`],
+        ),
+      ),
+      OPENAI_API_KEY: 'fake-key-marker',
+      OPENAI_BASE_URL: 'https://redirect.invalid/v1',
+      OPENAI_ORG_ID: 'org-marker',
+      OPENAI_PROJECT_ID: 'project-marker',
+      OPENAI_WEBHOOK_SECRET: 'webhook-marker',
+      OPENAI_LOG: 'debug',
+      KEEP: 'yes',
+    };
+    let childEnvironment:
+      | Record<string, string>
+      | undefined;
+    expect(
+      runVisualContractAuthoringLauncher({
+        argv: ['preflight'],
+        cwd: REPO,
+        env: environment,
+        execPath: 'exact-node',
+        tsxCli: 'exact-local-tsx',
+        shim: 'server-only-shim',
+        entrypoint: 'private-entry',
+        createCapability: () => 'c'.repeat(64),
+        spawnSyncImpl: (
+          _command: string,
+          _args: string[],
+          options: { env: Record<string, string> },
+        ) => {
+          childEnvironment = {
+            ...options.env,
+          };
+          return { status: 0 };
+        },
+        logError: vi.fn(),
+      }),
+    ).toBe(0);
+    expect(childEnvironment).toMatchObject({
+      OPENAI_API_KEY: 'fake-key-marker',
+      KEEP: 'yes',
+    });
+    for (const name of
+      OPENAI_RESPONSES_AUTHORING_SCRUBBED_ENV_NAMES) {
+      expect(childEnvironment).not.toHaveProperty(name);
+      expect(environment).toHaveProperty(name);
+    }
+  });
+
   it.each([
     {
       result: {
@@ -569,6 +623,9 @@ describe('canonical Visual Contract authoring launcher', () => {
     );
     expect(result.stdout).toContain(
       'checked credential environment name label: OPENAI_API_KEY',
+    );
+    expect(result.stdout).toContain(
+      'checked canonical private-entry credential/write sentinel arming: armed',
     );
     expect(result.stdout).toContain(
       'this exclusive mode checked imports and function/version labels only',

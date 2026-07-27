@@ -36,6 +36,21 @@ export {
 
 export const OPENAI_RESPONSES_AUTHORING_CREDENTIAL_ENV =
   'OPENAI_API_KEY' as const;
+export const OPENAI_RESPONSES_AUTHORING_BASE_URL =
+  'https://api.openai.com/v1' as const;
+export const OPENAI_RESPONSES_AUTHORING_ENDPOINT_URL =
+  'https://api.openai.com/v1/responses' as const;
+
+const FORBIDDEN_OPENAI_IDENTITY_HEADERS = [
+  'openai-organization',
+  'openai-project',
+  'openai-webhook-secret',
+] as const;
+
+export type OpenAIResponsesAuthoringFetch = (
+  input: string | URL | Request,
+  init?: RequestInit,
+) => Promise<Response>;
 
 export interface OpenAIResponsesAuthoringTransportRequest {
   apiKey: string;
@@ -187,16 +202,103 @@ export function buildOpenAIResponsesVisualContractAuthoringBody(
     },
     tools: [],
     tool_choice: 'none',
+    store: false,
+  };
+}
+
+function requestUrl(
+  input: string | URL | Request,
+): URL {
+  return new URL(
+    input instanceof Request ? input.url : input,
+  );
+}
+
+function combinedHeaders(
+  input: string | URL | Request,
+  init: RequestInit | undefined,
+): Headers {
+  const headers = new Headers(
+    input instanceof Request ? input.headers : undefined,
+  );
+  new Headers(init?.headers).forEach((value, key) => {
+    headers.set(key, value);
+  });
+  return headers;
+}
+
+/**
+ * The credential-bearing transport may send only one POST to the exact
+ * OpenAI Responses endpoint. Redirect following and SDK-injected
+ * organization/project/webhook authority are rejected before the delegated
+ * fetch can observe credentials or prompts.
+ */
+export function createGuardedOpenAIResponsesAuthoringFetch(
+  delegatedFetch: OpenAIResponsesAuthoringFetch,
+): OpenAIResponsesAuthoringFetch {
+  return async (input, init) => {
+    const url = requestUrl(input);
+    if (
+      url.href !== OPENAI_RESPONSES_AUTHORING_ENDPOINT_URL ||
+      url.protocol !== 'https:' ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash
+    ) {
+      throw new Error(
+        'canonical OpenAI Responses transport rejected an unauthorized destination',
+      );
+    }
+    const method = (
+      init?.method ??
+      (input instanceof Request ? input.method : 'GET')
+    ).toUpperCase();
+    if (method !== 'POST') {
+      throw new Error(
+        'canonical OpenAI Responses transport rejected a non-POST request',
+      );
+    }
+    const headers = combinedHeaders(input, init);
+    if (
+      FORBIDDEN_OPENAI_IDENTITY_HEADERS.some((name) =>
+        headers.has(name),
+      )
+    ) {
+      throw new Error(
+        'canonical OpenAI Responses transport rejected unauthorized identity headers',
+      );
+    }
+    return delegatedFetch(input, {
+      ...init,
+      redirect: 'error',
+    });
   };
 }
 
 export const openAIResponsesAuthoringTransport: OpenAIResponsesAuthoringTransport =
   {
     create: async ({ apiKey, body, requestOptions }) => {
+      if (typeof globalThis.fetch !== 'function') {
+        throw new Error(
+          'canonical OpenAI Responses transport requires global fetch',
+        );
+      }
       const client = new OpenAI({
         apiKey,
+        baseURL: OPENAI_RESPONSES_AUTHORING_BASE_URL,
+        organization: null,
+        project: null,
+        webhookSecret: null,
         maxRetries: requestOptions.maxRetries,
         timeout: requestOptions.timeout,
+        fetch: createGuardedOpenAIResponsesAuthoringFetch(
+          globalThis.fetch,
+        ),
+        fetchOptions: {
+          redirect: 'error',
+        },
+        logLevel: 'error',
       });
       return client.responses.create(body, requestOptions);
     },

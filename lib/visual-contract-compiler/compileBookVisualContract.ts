@@ -43,10 +43,17 @@ export interface ContractLlmCallOptions {
 }
 
 /** Minimal LLM seam: system+user prompt (+ optional per-call overrides) in, raw model text (expected JSON) out. */
+export interface ContractLlmPromptAuthority {
+  kind: 'initial' | 'repair';
+  systemPromptVersion: string;
+  userPromptVersion: string;
+}
+
 export type ContractLlmCaller = (
   system: string,
   user: string,
   opts?: ContractLlmCallOptions,
+  promptAuthority?: ContractLlmPromptAuthority,
 ) => Promise<string>;
 
 /** One page's authored image direction (camera/action/staging), fed alongside the text (vNext). */

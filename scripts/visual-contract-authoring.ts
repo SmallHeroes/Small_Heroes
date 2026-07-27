@@ -16,8 +16,14 @@ export const VISUAL_CONTRACT_AUTHORING_USAGE = [
   '',
   'preflight is exclusive and zero-cost: it accepts no source, output, credential, model, price, or write arguments.',
   'live requires a separately created mode=live request and writes only immutable sanitized local evidence.',
+  'The current $5 / three-call policy admits up to 12 pages; 13+ pages stop before provider access and require a separate budget or partition Decision Gate.',
   'This command never performs reconciliation, approval, Blueprint authoring, Board/package work, render, publication, or production activation.',
 ].join('\n');
+
+const TEST_BOUNDARY_SENTINEL_ARMED_ENV =
+  'SMALL_HEROES_TEST_LIVE_AUTHORING_BOUNDARY_SENTINEL_ARMED';
+const TEST_BOUNDARY_SENTINEL_ARMED_VALUE =
+  'credential-write-sentinel/v1';
 
 export interface VisualContractAuthoringPreflightArgs {
   mode: 'preflight';
@@ -227,6 +233,10 @@ export async function runVisualContractAuthoringCli(
 
   const parsed = parseVisualContractAuthoringArgs(argv);
   if (parsed.mode === 'preflight') {
+    const boundarySentinelArmed =
+      process.env[TEST_BOUNDARY_SENTINEL_ARMED_ENV] ===
+      TEST_BOUNDARY_SENTINEL_ARMED_VALUE;
+    delete process.env[TEST_BOUNDARY_SENTINEL_ARMED_ENV];
     const graph =
       await runVisualContractAuthoringImportPreflight();
     process.stdout.write(
@@ -237,6 +247,11 @@ export async function runVisualContractAuthoringCli(
         `checked canonical live runner export: ${graph.liveRunnerType}`,
         `checked credential environment name label: ${graph.credentialEnvironmentName}`,
         `checked provider evidence version label: ${graph.providerEvidenceVersion}`,
+        ...(boundarySentinelArmed
+          ? [
+              'checked canonical private-entry credential/write sentinel arming: armed',
+            ]
+          : []),
         'this exclusive mode checked imports and function/version labels only',
         'credential availability, provider connectivity, provider-side configuration, price currency, and billing were not checked',
         'no source, output, credential, model, price, or write argument is accepted by this mode',

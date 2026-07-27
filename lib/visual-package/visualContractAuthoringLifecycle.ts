@@ -5,6 +5,7 @@ import {
   VISUAL_CONTRACT_AUTHORING_HARD_COST_CEILING_USD,
   VISUAL_CONTRACT_AUTHORING_MAX_CALLS,
   VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
+  VISUAL_CONTRACT_AUTHORING_MAX_PAGES_CURRENT_POLICY,
   VISUAL_CONTRACT_AUTHORING_MAX_REPAIRS,
   VISUAL_CONTRACT_AUTHORING_MODEL,
   VISUAL_CONTRACT_AUTHORING_NO_FALLBACK,
@@ -19,15 +20,21 @@ import {
 } from '@/lib/visual-contract-compiler/authoringPolicy';
 import {
   authoringMaxOutputTokens,
+  buildTemplateRepairSystemPrompt,
   buildTemplateCompileSystemPrompt,
   buildTemplateCompileUserPrompt,
   compileBookVisualContractTemplate,
+  REPAIR_PROMPT_VERSION,
+  REPAIR_USER_PROMPT_VERSION,
+  TEMPLATE_PROMPT_VERSION,
+  TEMPLATE_USER_PROMPT_VERSION,
   TemplateRepairExhaustedError,
   type TemplateActionSourceEvidence,
   type TemplateCompileResult,
 } from '@/lib/visual-contract-compiler/compileBookVisualContractTemplate';
 import type {
   ContractLlmCallOptions,
+  ContractLlmPromptAuthority,
 } from '@/lib/visual-contract-compiler/compileBookVisualContract';
 import {
   extractDeterministicFacts,
@@ -55,7 +62,7 @@ import {
 } from './storySourceAuthority';
 
 export const VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
-  'visual-contract-authoring-request/v2' as const;
+  'visual-contract-authoring-request/v3' as const;
 export const VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
   'visual-contract-authoring-receipt/v2' as const;
 export const VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
@@ -115,6 +122,19 @@ export interface VisualContractAuthoringRequest {
   promptDigests: {
     system: string;
     user: string;
+  };
+  promptAuthority: {
+    initial: {
+      systemPromptVersion: typeof TEMPLATE_PROMPT_VERSION;
+      userPromptVersion: typeof TEMPLATE_USER_PROMPT_VERSION;
+      systemPromptDigest: string;
+      userPromptDigest: string;
+    };
+    repair: {
+      systemPromptVersion: typeof REPAIR_PROMPT_VERSION;
+      userPromptVersion: typeof REPAIR_USER_PROMPT_VERSION;
+      systemPromptDigest: string;
+    };
   };
   digestAlgorithm: 'canonical-json-sha256';
   digest: string;
@@ -496,6 +516,23 @@ export function buildVisualContractAuthoringRequest(args: {
       system: canonicalJsonDigest(prompts.systemPrompt),
       user: canonicalJsonDigest(prompts.userPrompt),
     },
+    promptAuthority: {
+      initial: {
+        systemPromptVersion: TEMPLATE_PROMPT_VERSION,
+        userPromptVersion: TEMPLATE_USER_PROMPT_VERSION,
+        systemPromptDigest:
+          canonicalJsonDigest(prompts.systemPrompt),
+        userPromptDigest:
+          canonicalJsonDigest(prompts.userPrompt),
+      },
+      repair: {
+        systemPromptVersion: REPAIR_PROMPT_VERSION,
+        userPromptVersion: REPAIR_USER_PROMPT_VERSION,
+        systemPromptDigest: canonicalJsonDigest(
+          buildTemplateRepairSystemPrompt(),
+        ),
+      },
+    },
   };
   return {
     ...withoutDigest,
@@ -625,6 +662,11 @@ export function visualContractAuthoringRequestIssues(args: {
       request.promptDigests,
       exact.promptDigests,
     ],
+    [
+      'prompt_authority_mismatch',
+      request.promptAuthority,
+      exact.promptAuthority,
+    ],
   ];
   for (const [code, actual, expected] of exactFields) {
     if (!exactJson(actual, expected)) issues.push(code);
@@ -634,6 +676,14 @@ export function visualContractAuthoringRequestIssues(args: {
     request.tokenBudget?.maxInputTokens
   ) {
     issues.push('input_token_ceiling_exceeded');
+  }
+  if (
+    snapshot.content.pages.length >
+    VISUAL_CONTRACT_AUTHORING_MAX_PAGES_CURRENT_POLICY
+  ) {
+    issues.push(
+      'page_budget_partition_decision_required',
+    );
   }
   if (
     !authoringSpendIsWithinCeiling(
@@ -945,6 +995,56 @@ function actionAuthorityIssues(
   return issues;
 }
 
+export function visualContractAuthoringCallPromptAuthorityIssues(
+  args: {
+    request: VisualContractAuthoringRequest;
+    kind: 'initial' | 'repair';
+    systemPrompt: string;
+    userPrompt: string;
+    promptAuthority:
+      | ContractLlmPromptAuthority
+      | undefined;
+  },
+): string[] {
+  const issues: string[] = [];
+  const actualSystemDigest = canonicalJsonDigest(
+    args.systemPrompt,
+  );
+  const actualUserDigest = canonicalJsonDigest(
+    args.userPrompt,
+  );
+  if (args.promptAuthority?.kind !== args.kind) {
+    issues.push('prompt_kind_mismatch');
+  }
+  if (args.kind === 'initial') {
+    const expected = args.request.promptAuthority?.initial;
+    if (
+      args.promptAuthority?.systemPromptVersion !==
+        expected?.systemPromptVersion ||
+      args.promptAuthority?.userPromptVersion !==
+        expected?.userPromptVersion ||
+      actualSystemDigest !== expected?.systemPromptDigest ||
+      actualUserDigest !== expected?.userPromptDigest ||
+      actualSystemDigest !== args.request.promptDigests?.system ||
+      actualUserDigest !== args.request.promptDigests?.user
+    ) {
+      issues.push('initial_prompt_authority_mismatch');
+    }
+  } else {
+    const expected = args.request.promptAuthority?.repair;
+    if (
+      args.promptAuthority?.systemPromptVersion !==
+        expected?.systemPromptVersion ||
+      args.promptAuthority?.userPromptVersion !==
+        expected?.userPromptVersion ||
+      actualSystemDigest !== expected?.systemPromptDigest
+    ) {
+      issues.push('repair_prompt_authority_mismatch');
+    }
+  }
+  return [...new Set(issues)];
+}
+
 export async function runVisualContractAuthoring(args: {
   request: VisualContractAuthoringRequest;
   snapshot: StorySourceAuthoritySnapshot;
@@ -953,6 +1053,12 @@ export async function runVisualContractAuthoring(args: {
   additionalRequestIssues?: readonly string[];
   /** Used by the canonical live command so a preflight request cannot be promoted in place. */
   requiredMode?: 'preflight' | 'live';
+  /**
+   * Optional at the injected-provider seam for D1A0 compatibility. The
+   * canonical live executable always requires the exact Responses brand.
+   */
+  requiredProviderEvidenceVersion?:
+    typeof OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION;
 }): Promise<VisualContractAuthoringRunResult> {
   const requestIssues = [
     ...new Set([
@@ -1044,6 +1150,7 @@ export async function runVisualContractAuthoring(args: {
             systemPrompt,
             userPrompt,
             options,
+            promptAuthority,
           ) => {
             const attempt = attempts.length + 1;
             const kind =
@@ -1081,6 +1188,25 @@ export async function runVisualContractAuthoring(args: {
               terminal.code = 'validation_exhausted';
               throw new Error(
                 'application call budget exhausted',
+              );
+            }
+            const promptAuthorityIssues =
+              visualContractAuthoringCallPromptAuthorityIssues({
+                request: args.request,
+                kind,
+                systemPrompt,
+                userPrompt,
+                promptAuthority,
+              });
+            if (promptAuthorityIssues.length > 0) {
+              terminal.code = 'provider_policy_mismatch';
+              attempts.push({
+                ...base,
+                status: 'policy_mismatch',
+                validationErrors: promptAuthorityIssues,
+              });
+              throw new Error(
+                'compiler prompts differ from approved request authority',
               );
             }
             if (
@@ -1235,6 +1361,22 @@ export async function runVisualContractAuthoring(args: {
                     ...providerMismatchEvidenceBase,
                     usage,
                   };
+            if (
+              args.requiredProviderEvidenceVersion &&
+              !canonicalProviderEvidence
+            ) {
+              terminal.code = 'provider_evidence_invalid';
+              attempts.push({
+                ...receivedBase,
+                status: 'provider_evidence_invalid',
+                validationErrors: [
+                  'provider_evidence_version_mismatch',
+                ],
+              });
+              throw new Error(
+                'provider response did not supply the required evidence contract',
+              );
+            }
             if (
               provider !== args.request.provider ||
               model !== args.request.model
@@ -1536,16 +1678,13 @@ export function persistVisualContractAuthoringReceipt(args: {
   });
 }
 
-export function persistVisualContractCandidate(args: {
-  repoRoot: string;
-  outputDir: string;
+export function buildVisualContractCandidateArtifact(args: {
   receipt: VisualContractAuthoringReceipt;
   compileResult: Pick<
     TemplateCompileResult,
     'template' | 'actionSourceEvidence'
   >;
-  write?: boolean;
-}): VisualContractAuthoringArtifactWrite {
+}): VisualContractCandidateArtifact {
   const templateDigest = canonicalJsonDigest(
     args.compileResult.template,
   );
@@ -1579,6 +1718,22 @@ export function persistVisualContractCandidate(args: {
     digestAlgorithm: 'canonical-json-sha256',
     digest: canonicalJsonDigest(artifactWithoutDigest),
   };
+  return artifact;
+}
+
+export function persistVisualContractCandidate(args: {
+  repoRoot: string;
+  outputDir: string;
+  receipt: VisualContractAuthoringReceipt;
+  compileResult: Pick<
+    TemplateCompileResult,
+    'template' | 'actionSourceEvidence'
+  >;
+  write?: boolean;
+}): VisualContractAuthoringArtifactWrite {
+  const artifact = buildVisualContractCandidateArtifact(
+    args,
+  );
   return persistJsonArtifact({
     ...args,
     category: 'contract-candidates',
