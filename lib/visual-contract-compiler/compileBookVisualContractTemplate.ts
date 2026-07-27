@@ -24,7 +24,10 @@ import type { BookVisualContract } from './types';
 import { assertValidBookVisualContractTemplate, InvalidTemplateContractError } from './validateTemplateContract';
 import { sourceEvidenceErrors } from './validateSourceEvidence';
 import { parseContractJson } from './compileBookVisualContract';
-import type { ContractLlmCaller } from './compileBookVisualContract';
+import type {
+  ContractLlmCaller,
+  ContractLlmCallOptions,
+} from './compileBookVisualContract';
 import {
   extractDeterministicFacts,
   type DeterministicFacts,
@@ -44,6 +47,19 @@ import {
   type AuthoredCoverAuthority,
 } from './coverSourceAuthority';
 import { projectCoverMustNotShow } from './projectContractProse';
+import { stripNiqqud } from './extractDeterministicFacts';
+import {
+  VISUAL_CONTRACT_AUTHORING_ENDPOINT,
+  VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
+  VISUAL_CONTRACT_AUTHORING_MODEL,
+  VISUAL_CONTRACT_AUTHORING_NO_FALLBACK,
+  VISUAL_CONTRACT_AUTHORING_PROVIDER,
+  VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT,
+  VISUAL_CONTRACT_AUTHORING_SERVICE_TIER,
+  VISUAL_CONTRACT_AUTHORING_TIMEOUT_MS,
+  VISUAL_CONTRACT_AUTHORING_TOOLS_DISABLED,
+  VISUAL_CONTRACT_AUTHORING_TRANSPORT_RETRIES,
+} from './authoringPolicy';
 
 /** The child's cast id is a fixed constant — the hero anchor. NEVER taken from the LLM draft. */
 const CHILD_ID = 'child:hero';
@@ -51,24 +67,25 @@ const CHILD_ID = 'child:hero';
 // ── Dedicated authoring call (Stage 1 of the live-authoring fix) ─────────────
 // The template draft is a large relational doc; it needs a real reasoning model + budget + strict structured
 // output, not the support default. These are REQUESTED by the compiler; the injected caller executes them.
-/** Default authoring model — a strong, accessible reasoning model. Override with VISUAL_CONTRACT_AUTHOR_MODEL. */
-const DEFAULT_AUTHOR_MODEL = 'gpt-5.5-pro';
-const AUTHORING_REASONING_EFFORT = 'medium';
-const TEMPLATE_PROMPT_VERSION = 'vc-template-prompt/v2';
+const AUTHORING_REASONING_EFFORT =
+  VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT;
+const TEMPLATE_PROMPT_VERSION = 'vc-template-prompt/v3';
 /** Stage 3 — at most this many SEMANTIC repair attempts AFTER the initial authoring call (bounded safety net). */
 const MAX_REPAIR_ATTEMPTS = 2;
-const REPAIR_PROMPT_VERSION = 'vc-repair-prompt/v2';
+const REPAIR_PROMPT_VERSION = 'vc-repair-prompt/v3';
 
-/** Resolve the authoring model at CALL time (env-configurable, so a project can point at an accessible model). */
+/** The production authoring model is exact and never environment-overridable. */
 export function resolveAuthoringModel(): string {
-  return process.env.VISUAL_CONTRACT_AUTHOR_MODEL || DEFAULT_AUTHOR_MODEL;
+  return VISUAL_CONTRACT_AUTHORING_MODEL;
 }
 
 /**
  * Output token budget for the authoring call. On the Responses API `max_output_tokens` INCLUDES reasoning tokens —
  * reasoning='medium' can burn ~10k — so the budget must cover reasoning headroom AND the full JSON (a valid
- * template ≈ 6.3k). ~3000 tokens/page, floored at 32000, capped at 64000 (12 pages → 36000). Cost is irrelevant
- * here (offline, one call, human-approved).
+ * template ≈ 6.3k). The candidate output budget is ~3000 tokens/page, floored at 32000, capped at 64000
+ * (12 pages → 36000); the separate source-authoring
+ * request preflight combines it with exact call and dollar ceilings before
+ * any future provider adapter can be reached.
  */
 export function authoringMaxOutputTokens(pageCount: number): number {
   const pages = Number.isFinite(pageCount) && pageCount > 0 ? pageCount : 12;
@@ -164,7 +181,12 @@ export function buildTemplateCompileSystemPrompt(): string {
     '  copy page action, cast/name/appearance, portable light, reveal language, or transient props into this field.',
     '  cast.child + cast.companion wardrobe,',
     '  recurringProps[] (material/scale/persistence/firstRevealPage), forbiddenGlobalElements[], coverContract, and per-page',
-    '  mustShow/mustNotShow/propState/propConstraints/camera/transition/zoneId/locationId.',
+    '  mustShow/mustNotShow/propState/propConstraints/actionRequirements/camera/transition/zoneId/locationId.',
+    '- Every actionRequirements[] entry uses ONLY the closed predicate vocabulary in the schema and includes',
+    '  sourcePhrase containing exact words from that SAME page of Story Source prose. Historical imageDirection is',
+    '  never action authority and cannot supply sourcePhrase. If a required source beat cannot be represented',
+    '  faithfully, do not force-fit it: add it to unsupportedActionSemantics[] with reason',
+    '  "closed_action_vocabulary_gap". Empty unsupportedActionSemantics[] means no vocabulary gap was found.',
     '- For each given human, draft ONLY garments (each colour an explicit value) and forbiddenAppearance. Do NOT',
     '  output appearance (skinTone/hairColour/hairTexture/hairStyle) — the compiler injects those from a role policy.',
     '',
@@ -179,7 +201,7 @@ export function buildTemplateCompileSystemPrompt(): string {
     '',
     'Historical imageDirection is ADVISORY evidence only. It may help preserve visual action, interaction, expression,',
     'camera, composition, or staging. It MUST NOT select or change worldType, location, zone, set topology, cast,',
-    'wardrobe, props, reveal timing, or forbidden content. Story prose and authored page-0 authority win every',
+    'wardrobe, props, reveal timing, action authority, or forbidden content. Story prose and authored page-0 authority win every',
     'conflict. A later source-prompt reconciliation review records preserved or intentionally superseded direction.',
     '',
     'Output ONLY the JSON object, no prose, no markdown fences.',
@@ -217,6 +239,9 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
     'forbiddenGlobalElements[], coverContract{worldType,locationId,zoneId,castIds,timeOfDay,mustShow,mustNotShow},',
     'pageContracts[{pageNumber, locationId, zoneId, sameLocationAs?,',
     'mustShow[], mustNotShow[], propState[], propConstraints[{propId,visibility,stateId?,anchorId?}], camera, transition}].',
+    'Each page also requires actionRequirements[{checkId,actorId,predicate,object?,polarity,laterality?,sourcePhrase}]',
+    'and unsupportedActionSemantics[{sourcePhrase,reason}] arrays. sourcePhrase must quote exact same-page Story',
+    'Source prose; never quote or derive action authority from imageDirection.',
     '',
     'FULL STORY TEXT:',
     // Build the page-marked story text from input.pages — the SAME field assertSourceHasRealProse validated — so
@@ -254,7 +279,8 @@ export function buildTemplateRepairSystemPrompt(): string {
     '- cast.child/cast.companion wardrobe; each human\'s garments (each colour an explicit value) + forbiddenAppearance',
     '- recurringProps[] (name/description, material/scale/persistence, and firstRevealPage — NO empty string in a field you include)',
     '- forbiddenGlobalElements[]; coverContract mustShow/mustNotShow/locationId/zoneId/castIds/timeOfDay',
-    '- pageContracts[] mustShow/mustNotShow/propState/propConstraints/camera and the transition kind/cue',
+    '- pageContracts[] mustShow/mustNotShow/propState/propConstraints/actionRequirements/',
+    '  unsupportedActionSemantics/camera and the transition kind/cue',
     '',
     'You MUST NOT change these (they are COMPILER-owned or FACT-derived; your edits to them are IGNORED and',
     'overwritten, so changing them only wastes the repair):',
@@ -292,7 +318,7 @@ export function buildTemplateRepairUserPrompt(
     'PREVIOUS (INVALID) DRAFT — return a corrected COMPLETE version of this exact JSON object:',
     'Historical imageDirection remains ADVISORY only for action, interaction, expression, camera, composition, and',
     'staging. It cannot alter world/location/zone/cast/wardrobe/props/reveal timing/forbidden content; story prose and',
-    'authored page-0 authority win conflicts.',
+    'authored page-0 authority win conflicts. It is not action authority and cannot be used as sourcePhrase.',
     '',
     JSON.stringify(previousDraft),
   ].join('\n');
@@ -370,6 +396,100 @@ function mergeHuman(fact: HumanFact, draftHuman: Record<string, unknown>): Templ
     garments: (draftHuman.garments as TemplateHumanCastMember['garments']) ?? [],
     forbiddenAppearance: asArr(draftHuman.forbiddenAppearance).filter((a): a is string => typeof a === 'string'),
   };
+}
+
+function normalizeActionEvidence(value: string): string {
+  return stripNiqqud(value)
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * Action authority is descriptive but must remain source-grounded. The
+ * evidence-only `sourcePhrase` and unsupported-semantics records belong to the
+ * authoring draft/repair surface, not the candidate contract.
+ */
+function sourceGroundPageActions(
+  pageDraft: Record<string, unknown>,
+  sourcePages: TemplateCompileInput['pages'],
+): Record<string, unknown> {
+  const pageNumber =
+    typeof pageDraft.pageNumber === 'number'
+      ? pageDraft.pageNumber
+      : -1;
+  const sourcePage = sourcePages.find(
+    (candidate) => candidate.pageNumber === pageNumber,
+  );
+  const sourceText = normalizeActionEvidence(sourcePage?.text ?? '');
+  const evidenceIssues: string[] = [];
+  const assertPhrase = (
+    rawPhrase: unknown,
+    label: string,
+  ): string | null => {
+    if (typeof rawPhrase !== 'string') {
+      evidenceIssues.push(
+        `action_source_evidence_missing: ${label}.sourcePhrase must quote exact same-page Story Source prose`,
+      );
+      return null;
+    }
+    const phrase = normalizeActionEvidence(rawPhrase);
+    if (!phrase || !sourceText.includes(phrase)) {
+      evidenceIssues.push(
+        `action_source_evidence_missing: ${label}.sourcePhrase does not occur in Story Source page ${pageNumber}`,
+      );
+      return null;
+    }
+    return rawPhrase;
+  };
+
+  const unsupported = asArr(
+    pageDraft.unsupportedActionSemantics,
+  );
+  for (let index = 0; index < unsupported.length; index += 1) {
+    const record = asObj(unsupported[index]);
+    assertPhrase(
+      record.sourcePhrase,
+      `page ${pageNumber}.unsupportedActionSemantics[${index}]`,
+    );
+    if (
+      record.reason !== 'closed_action_vocabulary_gap'
+    ) {
+      evidenceIssues.push(
+        `unsupported_action_semantic: page ${pageNumber}.unsupportedActionSemantics[${index}].reason must be closed_action_vocabulary_gap`,
+      );
+    }
+  }
+  if (evidenceIssues.length > 0) {
+    throw new InvalidTemplateContractError(evidenceIssues);
+  }
+  if (unsupported.length > 0) {
+    throw new InvalidTemplateContractError([
+      `unsupported_action_semantic: page ${pageNumber} contains ${unsupported.length} Story Source beat(s) that the closed action vocabulary cannot faithfully represent`,
+    ]);
+  }
+
+  const out = { ...pageDraft };
+  if (pageDraft.actionRequirements !== undefined) {
+    out.actionRequirements = asArr(
+      pageDraft.actionRequirements,
+    ).map((raw, index) => {
+      const action = { ...asObj(raw) };
+      assertPhrase(
+        action.sourcePhrase,
+        `page ${pageNumber}.actionRequirements[${index}]`,
+      );
+      delete action.sourcePhrase;
+      if (action.object === null) delete action.object;
+      if (action.laterality === null) delete action.laterality;
+      return action;
+    });
+  }
+  delete out.unsupportedActionSemantics;
+  if (evidenceIssues.length > 0) {
+    throw new InvalidTemplateContractError(evidenceIssues);
+  }
+  return out;
 }
 
 /** Recompute one page's castIds + characterPresence + laterality castStates from the deterministic facts. */
@@ -733,7 +853,14 @@ function assembleTemplateFromDraft(
     input.authoredCoverAuthority,
   );
   notes.push(...topoNotes);
-  const pageContracts = canonicalPages.map((pc) => overlayPage(pc, facts, childId, companionId));
+  const pageContracts = canonicalPages.map((pc) =>
+    overlayPage(
+      sourceGroundPageActions(pc, input.pages),
+      facts,
+      childId,
+      companionId,
+    ),
+  );
   if (!Array.isArray(canonicalCover.castIds) || canonicalCover.castIds.length === 0) {
     const firstPage = [...pageContracts].sort(
       (a, b) => Number(a.pageNumber ?? 0) - Number(b.pageNumber ?? 0),
@@ -844,8 +971,17 @@ export async function compileBookVisualContractTemplate(
     model: authoringModel,
     reasoningEffort: AUTHORING_REASONING_EFFORT,
     jsonSchema: { name: TEMPLATE_DRAFT_SCHEMA_NAME, schema: TEMPLATE_DRAFT_JSON_SCHEMA },
-    noFallback: true,
-  };
+    noFallback: VISUAL_CONTRACT_AUTHORING_NO_FALLBACK,
+    provider: VISUAL_CONTRACT_AUTHORING_PROVIDER,
+    endpoint: VISUAL_CONTRACT_AUTHORING_ENDPOINT,
+    serviceTier: VISUAL_CONTRACT_AUTHORING_SERVICE_TIER,
+    toolsDisabled: VISUAL_CONTRACT_AUTHORING_TOOLS_DISABLED,
+    transportRetries:
+      VISUAL_CONTRACT_AUTHORING_TRANSPORT_RETRIES,
+    timeoutMs: VISUAL_CONTRACT_AUTHORING_TIMEOUT_MS,
+    maxInputTokens:
+      VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
+  } satisfies ContractLlmCallOptions;
 
   let draft = asObj(
     parseContractJson(await deps.callLLM(buildTemplateCompileSystemPrompt(), buildTemplateCompileUserPrompt(input, facts), llmOpts)),

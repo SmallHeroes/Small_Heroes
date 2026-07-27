@@ -1,0 +1,1016 @@
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+
+import {
+  afterEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
+
+import {
+  compileBookVisualContractTemplate,
+  TemplateRepairExhaustedError,
+} from '@/lib/visual-contract-compiler/compileBookVisualContractTemplate';
+import {
+  projectPageMustShow,
+} from '@/lib/visual-contract-compiler/projectContractProse';
+import type {
+  BookVisualContract,
+  PageVisualContract,
+} from '@/lib/visual-contract-compiler/types';
+import type {
+  BookVisualContractTemplate,
+} from '@/lib/visual-contract-compiler/contractTemplateTypes';
+import {
+  buildStorySourceAuthoritySnapshot,
+  buildProductionReconciliationDraftFromSourceSnapshot,
+  buildVisualContractAuthoringReadinessEvidence,
+  buildVisualContractAuthoringRequest,
+  canonicalJsonDigest,
+  persistStorySourceAuthoritySnapshot,
+  persistReconciliationDraftBundle,
+  persistVisualContractAuthoringReadiness,
+  persistVisualContractAuthoringReceipt,
+  persistVisualContractAuthoringRequest,
+  persistVisualContractCandidate,
+  runVisualContractAuthoring,
+  sourcePromptReconciliationIssues,
+  type StorySourceAuthoritySnapshot,
+  type VisualContractAuthoringProvider,
+} from '@/lib/visual-package';
+
+const tempRoots: string[] = [];
+const REQUESTED_AT = '2026-07-27T12:00:00.000Z';
+const BANK = path.join(
+  process.cwd(),
+  'story-bank',
+  'v3-approved',
+);
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  for (const root of tempRoots.splice(0)) {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+function tempRoot(): string {
+  const root = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'source-authority-'),
+  );
+  tempRoots.push(root);
+  return root;
+}
+
+function storyMarkdown(args: {
+  pageCount: number;
+  companion?: boolean;
+  multiLocation?: boolean;
+  revealGatedProp?: boolean;
+  imageDirectionSuffix?: string;
+}): string {
+  const pages = Array.from(
+    { length: args.pageCount },
+    (_, index) => {
+      const page = index + 1;
+      const location =
+        args.multiLocation && page > args.pageCount / 2
+          ? 'the garden'
+          : 'the reading room';
+      const prop =
+        args.revealGatedProp && page === args.pageCount
+          ? ' The child opens the covered box and points at the silver key for the first time.'
+          : ' The child looks at the paper map and holds it carefully.';
+      return [
+        `--- Page ${page} ---`,
+        `In ${location}, the child takes a slow breath, notices the light, and chooses one clear next step.${prop}`,
+        '',
+        `imageDirection: A calm composition in ${location}, with the map visible.${args.imageDirectionSuffix ?? ''}`,
+      ].join('\n');
+    },
+  ).join('\n\n');
+  return [
+    '---',
+    'title: "General source fixture"',
+    ...(args.companion
+      ? ['companionId: bunny_ometz']
+      : []),
+    'gender: female',
+    `pages: ${args.pageCount}`,
+    '---',
+    '',
+    pages,
+    '',
+  ].join('\n');
+}
+
+function writeStoryFixture(args: {
+  pageCount?: number;
+  companion?: boolean;
+  multiLocation?: boolean;
+  revealGatedProp?: boolean;
+  cover?: boolean;
+}): {
+  repoRoot: string;
+  storyKey: string;
+  storyPath: string;
+} {
+  const repoRoot = tempRoot();
+  const storyKey = `fixture_${args.pageCount ?? 3}_${args.companion ? 'with' : 'without'}_companion`;
+  const storyPath = `stories/${storyKey}.md`;
+  const absolute = path.join(repoRoot, storyPath);
+  fs.mkdirSync(path.dirname(absolute), { recursive: true });
+  fs.writeFileSync(
+    absolute,
+    storyMarkdown({
+      pageCount: args.pageCount ?? 3,
+      companion: args.companion,
+      multiLocation: args.multiLocation,
+      revealGatedProp: args.revealGatedProp,
+    }),
+    'utf8',
+  );
+  if (args.cover) {
+    fs.writeFileSync(
+      absolute.replace(/\.md$/, '.location-bible.json'),
+      `${JSON.stringify(
+        {
+          allowedZones: [{ id: 'reading_room_window' }],
+          pagePlans: [
+            {
+              page: 0,
+              zoneId: 'reading_room_window',
+              visibleAnchors: ['wide window', 'paper map'],
+              forbiddenDrift: ['no hidden key on cover'],
+              visualSpoilerPolicy: {
+                hiddenObjects: ['silver_key'],
+              },
+              pageAction: 'the child looks at the paper map',
+            },
+          ],
+        },
+        null,
+        2,
+      )}\n`,
+      'utf8',
+    );
+  }
+  return { repoRoot, storyKey, storyPath };
+}
+
+function snapshotFor(
+  fixture: ReturnType<typeof writeStoryFixture>,
+): StorySourceAuthoritySnapshot {
+  return buildStorySourceAuthoritySnapshot(fixture);
+}
+
+function requestFor(
+  snapshot: StorySourceAuthoritySnapshot,
+  mode: 'preflight' | 'live',
+) {
+  return buildVisualContractAuthoringRequest({
+    snapshot,
+    mode,
+    requestId: `request-${mode}`,
+    requestedAt: REQUESTED_AT,
+  });
+}
+
+function bunnySnapshot(): StorySourceAuthoritySnapshot {
+  const repoRoot = tempRoot();
+  const storyKey = 'bunny_ometz_adventure';
+  const storyPath = `stories/${storyKey}.md`;
+  const destination = path.join(repoRoot, storyPath);
+  fs.mkdirSync(path.dirname(destination), {
+    recursive: true,
+  });
+  fs.copyFileSync(
+    path.join(BANK, `${storyKey}.md`),
+    destination,
+  );
+  return buildStorySourceAuthoritySnapshot({
+    repoRoot,
+    storyKey,
+    storyPath,
+  });
+}
+
+function exactSourcePhrase(text: string): string {
+  return text
+    .trim()
+    .split(/\s+/)
+    .slice(0, 6)
+    .join(' ');
+}
+
+function fullyActionedBunnyDraft(
+  snapshot: StorySourceAuthoritySnapshot,
+): BookVisualContractTemplate & Record<string, unknown> {
+  const draft = JSON.parse(
+    fs.readFileSync(
+      path.join(
+        BANK,
+        'bunny_ometz_adventure.visual-contract-template.json',
+      ),
+      'utf8',
+    ),
+  ) as BookVisualContractTemplate & Record<string, unknown>;
+  for (const page of draft.pageContracts) {
+    const sourcePage = snapshot.content.pages.find(
+      (candidate) =>
+        candidate.pageNumber === page.pageNumber,
+    );
+    const action = {
+      checkId: `action:p${page.pageNumber}_look`,
+      actorId: 'child:hero',
+      predicate: 'looks_at' as const,
+      object: null,
+      polarity: 'must' as const,
+      laterality: null,
+      sourcePhrase: exactSourcePhrase(
+        sourcePage?.text ?? '',
+      ),
+    };
+    (
+      page as unknown as Record<string, unknown>
+    ).actionRequirements = [action];
+    (
+      page as unknown as Record<string, unknown>
+    ).unsupportedActionSemantics = [];
+  }
+  for (const page of draft.pageContracts) {
+    const projected = projectPageMustShow(
+      page,
+      draft as unknown as BookVisualContract,
+    );
+    page.mustShow = [
+      ...new Set([...page.mustShow, ...projected]),
+    ];
+  }
+  return draft;
+}
+
+function successfulProvider(
+  draft: unknown,
+  overrides: Partial<{
+    provider: string;
+    model: string;
+    usage: Record<string, unknown> | null;
+  }> = {},
+): VisualContractAuthoringProvider {
+  return {
+    call: vi.fn(async () => ({
+      output: JSON.stringify(draft),
+      receipt: {
+        provider: overrides.provider ?? 'openai',
+        model: overrides.model ?? 'gpt-5.6-sol',
+        responseId: 'response-1',
+        usage:
+          overrides.usage === undefined
+            ? {
+                input_tokens: 1_000,
+                output_tokens: 2_000,
+                total_tokens: 3_000,
+                output_tokens_details: {
+                  reasoning_tokens: 500,
+                },
+                secret_debug_payload:
+                  'must-not-persist',
+              }
+            : overrides.usage,
+      },
+    })),
+  };
+}
+
+describe('Story Source authority snapshot', () => {
+  it.each([
+    {
+      label: 'no companion / one location / ordinary prop',
+      options: {
+        companion: false,
+        multiLocation: false,
+        revealGatedProp: false,
+      },
+    },
+    {
+      label:
+        'companion / multiple locations / reveal-gated prop / cover',
+      options: {
+        companion: true,
+        multiLocation: true,
+        revealGatedProp: true,
+        cover: true,
+      },
+    },
+  ])('captures the general $label shape', ({ options }) => {
+    const fixture = writeStoryFixture(options);
+    const snapshot = snapshotFor(fixture);
+    expect(snapshot.content.pages).toHaveLength(3);
+    expect(snapshot.content.pageImageDirections).toHaveLength(
+      3,
+    );
+    expect(Boolean(snapshot.content.companion)).toBe(
+      options.companion,
+    );
+    expect(Boolean(snapshot.content.authoredCoverAuthority)).toBe(
+      Boolean(options.cover),
+    );
+    expect(snapshot.digest).toMatch(/^[a-f0-9]{64}$/);
+    expect(snapshot.content.sourceIdentity.path).toBe(
+      fixture.storyPath,
+    );
+  });
+
+  it('invalidates on prose, image-direction, and cover-authority mutations', () => {
+    const fixture = writeStoryFixture({
+      companion: true,
+      cover: true,
+    });
+    const first = snapshotFor(fixture);
+    const storyAbsolute = path.join(
+      fixture.repoRoot,
+      fixture.storyPath,
+    );
+
+    fs.appendFileSync(
+      storyAbsolute,
+      '\nA final source-authority sentence changes.\n',
+      'utf8',
+    );
+    const proseMutation = snapshotFor(fixture);
+    expect(proseMutation.digest).not.toBe(first.digest);
+    expect(
+      requestFor(proseMutation, 'preflight').digest,
+    ).not.toBe(requestFor(first, 'preflight').digest);
+
+    const current = fs.readFileSync(storyAbsolute, 'utf8');
+    fs.writeFileSync(
+      storyAbsolute,
+      current.replace(
+        'A calm composition',
+        'A changed composition',
+      ),
+      'utf8',
+    );
+    const directionMutation = snapshotFor(fixture);
+    expect(directionMutation.digest).not.toBe(
+      proseMutation.digest,
+    );
+    expect(
+      requestFor(directionMutation, 'preflight').digest,
+    ).not.toBe(
+      requestFor(proseMutation, 'preflight').digest,
+    );
+
+    const biblePath = storyAbsolute.replace(
+      /\.md$/,
+      '.location-bible.json',
+    );
+    const bible = JSON.parse(
+      fs.readFileSync(biblePath, 'utf8'),
+    ) as {
+      pagePlans: Array<{
+        visibleAnchors: string[];
+      }>;
+    };
+    bible.pagePlans[0].visibleAnchors.push(
+      'a new cover anchor',
+    );
+    fs.writeFileSync(
+      biblePath,
+      `${JSON.stringify(bible, null, 2)}\n`,
+      'utf8',
+    );
+    const coverMutation = snapshotFor(fixture);
+    expect(coverMutation.content.sourceIdentity.digest).toBe(
+      directionMutation.content.sourceIdentity.digest,
+    );
+    expect(coverMutation.digest).not.toBe(
+      directionMutation.digest,
+    );
+    expect(
+      requestFor(coverMutation, 'preflight').digest,
+    ).not.toBe(
+      requestFor(directionMutation, 'preflight').digest,
+    );
+  });
+});
+
+describe('exact zero-cost authoring preflight', () => {
+  it('locks every approved request surface and keeps the injected provider unreachable', async () => {
+    const fixture = writeStoryFixture({
+      pageCount: 12,
+      companion: true,
+      multiLocation: true,
+      revealGatedProp: true,
+      cover: true,
+    });
+    const snapshot = snapshotFor(fixture);
+    const request = requestFor(snapshot, 'preflight');
+    const provider = {
+      call: vi.fn(async () => {
+        throw new Error('must remain unreachable');
+      }),
+    };
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+
+    expect(request).toMatchObject({
+      provider: 'openai',
+      endpoint: 'responses',
+      model: 'gpt-5.6-sol',
+      serviceTier: 'default',
+      reasoningEffort: 'medium',
+      toolsDisabled: true,
+      noFallback: true,
+      transportRetries: 0,
+      timeoutMs: 1_200_000,
+      tokenBudget: {
+        maxInputTokens: 64_000,
+        maxOutputTokens: 36_000,
+        outputIncludesReasoning: true,
+      },
+      callBudget: {
+        maxCalls: 3,
+        maxRepairCount: 2,
+      },
+      costBudget: {
+        projectedMaxUsd: 4.2,
+        hardCeilingUsd: 5,
+      },
+    });
+    expect(
+      request.tokenBudget.promptAndSchemaTokenUpperBound,
+    ).toBeLessThanOrEqual(64_000);
+    expect(result.receipt.status).toBe(
+      'preflight_passed',
+    );
+    expect(result.receipt.callCount).toBe(0);
+    expect(provider.call).not.toHaveBeenCalled();
+  });
+
+  it('blocks a generally-derived longer-story budget above the approved ceiling before provider reachability', async () => {
+    const snapshot = snapshotFor(
+      writeStoryFixture({
+        pageCount: 16,
+        multiLocation: true,
+      }),
+    );
+    const request = requestFor(snapshot, 'preflight');
+    const provider = {
+      call: vi.fn(async () => {
+        throw new Error('must remain unreachable');
+      }),
+    };
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+    expect(request.tokenBudget.maxOutputTokens).toBe(48_000);
+    expect(request.costBudget.projectedMaxUsd).toBe(5.28);
+    expect(result.receipt.status).toBe('failed');
+    expect(result.receipt.failure?.issues).toContain(
+      'projected_cost_ceiling_exceeded',
+    );
+    expect(provider.call).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['provider', 'anthropic'],
+    ['model', 'gpt-substitute'],
+    ['transportRetries', 1],
+  ] as const)(
+    'blocks %s mismatch before provider reachability',
+    async (field, value) => {
+      const snapshot = snapshotFor(
+        writeStoryFixture({ pageCount: 3 }),
+      );
+      const request = structuredClone(
+        requestFor(snapshot, 'preflight'),
+      ) as unknown as Record<string, unknown>;
+      request[field] = value;
+      const provider = {
+        call: vi.fn(async () => {
+          throw new Error('must remain unreachable');
+        }),
+      };
+      const result = await runVisualContractAuthoring({
+        request:
+          request as unknown as ReturnType<
+            typeof requestFor
+          >,
+        snapshot,
+        provider,
+      });
+      expect(result.receipt.status).toBe('failed');
+      expect(provider.call).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe('source-grounded closed action authority', () => {
+  it('authors and validates explicit actions on every page of a complete real template shape', async () => {
+    const snapshot = bunnySnapshot();
+    const draft = fullyActionedBunnyDraft(snapshot);
+    const result =
+      await compileBookVisualContractTemplate(
+        {
+          ...snapshot.content,
+          storyKey: snapshot.content.storyKey,
+          pageCount: snapshot.content.pages.length,
+          authoredCoverAuthority: undefined,
+        },
+        {
+          callLLM: async () => JSON.stringify(draft),
+        },
+      );
+    expect(
+      result.template.pageContracts.every(
+        (page) =>
+          (page.actionRequirements?.length ?? 0) > 0,
+      ),
+    ).toBe(true);
+    expect(
+      JSON.stringify(result.template),
+    ).not.toContain('sourcePhrase');
+  });
+
+  it('fails with a stable blocker when a source beat cannot fit the closed vocabulary', async () => {
+    const snapshot = bunnySnapshot();
+    const draft = fullyActionedBunnyDraft(snapshot);
+    const first = draft.pageContracts[0] as PageVisualContract &
+      Record<string, unknown>;
+    first.unsupportedActionSemantics = [
+      {
+        sourcePhrase: exactSourcePhrase(
+          snapshot.content.pages[0].text,
+        ),
+        reason: 'closed_action_vocabulary_gap',
+      },
+    ];
+    let thrown: unknown;
+    try {
+      await compileBookVisualContractTemplate(
+        {
+          ...snapshot.content,
+          storyKey: snapshot.content.storyKey,
+          pageCount: snapshot.content.pages.length,
+          authoredCoverAuthority: undefined,
+        },
+        {
+          callLLM: async () => JSON.stringify(draft),
+        },
+      );
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(
+      TemplateRepairExhaustedError,
+    );
+    expect(
+      (
+        thrown as TemplateRepairExhaustedError
+      ).attempts.some((attempt) =>
+        attempt.errors.some((error) =>
+          error.includes('unsupported_action_semantic'),
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects minted, malformed, and duplicate action authority through the repair path', async () => {
+    const snapshot = bunnySnapshot();
+    const minted = fullyActionedBunnyDraft(snapshot);
+    (
+      minted.pageContracts[0] as unknown as Record<
+        string,
+        unknown
+      >
+    ).actionRequirements = [
+      {
+        checkId: 'action:p1_minted',
+        actorId: 'child:hero',
+        predicate: 'holds',
+        object: null,
+        polarity: 'must',
+        laterality: null,
+        sourcePhrase:
+          'words that do not occur in the source page',
+      },
+    ];
+    await expect(
+      compileBookVisualContractTemplate(
+        {
+          ...snapshot.content,
+          storyKey: snapshot.content.storyKey,
+          pageCount: snapshot.content.pages.length,
+          authoredCoverAuthority: undefined,
+        },
+        {
+          callLLM: async () => JSON.stringify(minted),
+        },
+      ),
+    ).rejects.toThrow(/action_source_evidence_missing/);
+
+    const malformed = fullyActionedBunnyDraft(snapshot);
+    (
+      (
+        malformed.pageContracts[0] as unknown as Record<
+          string,
+          unknown
+        >
+      ).actionRequirements as Array<
+        Record<string, unknown>
+      >
+    )[0].predicate = 'flies_over';
+    await expect(
+      compileBookVisualContractTemplate(
+        {
+          ...snapshot.content,
+          storyKey: snapshot.content.storyKey,
+          pageCount: snapshot.content.pages.length,
+          authoredCoverAuthority: undefined,
+        },
+        {
+          callLLM: async () => JSON.stringify(malformed),
+        },
+      ),
+    ).rejects.toThrow(/predicate.*not one of/);
+
+    const duplicate = fullyActionedBunnyDraft(snapshot);
+    const first =
+      duplicate.pageContracts[0] as unknown as Record<
+        string,
+        unknown
+      >;
+    const existing = structuredClone(
+      (first.actionRequirements as unknown[])[0],
+    );
+    first.actionRequirements = [existing, existing];
+    await expect(
+      compileBookVisualContractTemplate(
+        {
+          ...snapshot.content,
+          storyKey: snapshot.content.storyKey,
+          pageCount: snapshot.content.pages.length,
+          authoredCoverAuthority: undefined,
+        },
+        {
+          callLLM: async () => JSON.stringify(duplicate),
+        },
+      ),
+    ).rejects.toThrow(/duplicate checkId/);
+  });
+});
+
+describe('sanitized receipts and immutable artifact lifecycle', () => {
+  it('records exact per-attempt and aggregate usage/cost without raw prompt, response, or provider payload', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const draft = fullyActionedBunnyDraft(snapshot);
+    const provider = successfulProvider(draft);
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+    expect(result.receipt.status).toBe('completed');
+    expect(result.receipt.callCount).toBe(1);
+    expect(result.receipt.aggregateUsage).toEqual({
+      inputTokens: 1_000,
+      cachedInputTokens: 0,
+      outputTokens: 2_000,
+      reasoningTokens: 500,
+      totalTokens: 3_000,
+    });
+    expect(result.receipt.actualCostUsd).toBe(0.065);
+    expect(result.receipt.attempts[0]).toMatchObject({
+      provider: 'openai',
+      model: 'gpt-5.6-sol',
+      responseId: 'response-1',
+      actualCostUsd: 0.065,
+      status: 'response_received',
+    });
+    expect(
+      result.receipt.attempts[0].systemPromptDigest,
+    ).toMatch(/^[a-f0-9]{64}$/);
+    expect(
+      result.receipt.attempts[0].responseDigest,
+    ).toMatch(/^[a-f0-9]{64}$/);
+    const serialized = JSON.stringify(result.receipt);
+    expect(serialized).not.toMatch(
+      /secret_debug_payload|systemPrompt["']|userPrompt["']|responseBody|Bearer|apiKey/i,
+    );
+    expect(serialized).not.toContain('"output"');
+    expect(result.compileResult).not.toBeNull();
+  });
+
+  it('sanitizes provider failures and refuses provider/model substitution', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const failing: VisualContractAuthoringProvider = {
+      call: vi.fn(async () => {
+        throw new Error(
+          'Bearer secret-token raw provider exception',
+        );
+      }),
+    };
+    const failure = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider: failing,
+    });
+    expect(failure.receipt.failure?.code).toBe(
+      'provider_call_failed',
+    );
+    expect(JSON.stringify(failure.receipt)).not.toMatch(
+      /secret-token|raw provider exception/i,
+    );
+    expect(failing.call).toHaveBeenCalledTimes(1);
+
+    const mismatch = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider: successfulProvider('{}', {
+        provider: 'another-provider',
+        model: 'gpt-substitute',
+      }),
+    });
+    expect(mismatch.receipt.failure?.code).toBe(
+      'provider_policy_mismatch',
+    );
+    expect(mismatch.receipt.callCount).toBe(1);
+  });
+
+  it('preserves all three bounded attempt receipts and aggregate evidence on validation exhaustion', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const invalid = fullyActionedBunnyDraft(snapshot);
+    invalid.recurringProps[0].material = '';
+    const provider = successfulProvider(invalid);
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+    expect(result.receipt.status).toBe('failed');
+    expect(result.receipt.failure?.code).toBe(
+      'validation_exhausted',
+    );
+    expect(result.receipt.callCount).toBe(3);
+    expect(result.receipt.repairCount).toBe(2);
+    expect(result.receipt.attempts).toHaveLength(3);
+    expect(
+      result.receipt.attempts.every(
+        (attempt) =>
+          attempt.validationErrors.length > 0,
+      ),
+    ).toBe(true);
+    expect(result.receipt.aggregateUsage.inputTokens).toBe(
+      3_000,
+    );
+    expect(result.receipt.actualCostUsd).toBe(0.195);
+  });
+
+  it('rechecks the 64k input ceiling before a repair and never reaches the provider for an oversized repair prompt', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const invalid = fullyActionedBunnyDraft(snapshot);
+    invalid.worldType = '';
+    invalid.recurringProps[0].description =
+      'x'.repeat(80_000);
+    const provider = successfulProvider(invalid);
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+    expect(result.receipt.failure?.code).toBe(
+      'input_token_ceiling_exceeded',
+    );
+    expect(provider.call).toHaveBeenCalledTimes(1);
+    expect(result.receipt.callCount).toBe(1);
+    expect(result.receipt.repairCount).toBe(0);
+    expect(
+      result.receipt.attempts[
+        result.receipt.attempts.length - 1
+      ]?.status,
+    ).toBe('input_ceiling_exceeded');
+    expect(
+      result.receipt.attempts[
+        result.receipt.attempts.length - 1
+      ]?.providerReached,
+    ).toBe(false);
+    expect(
+      JSON.stringify(result.receipt),
+    ).not.toContain('x'.repeat(100));
+  });
+
+  it('persists source/request/receipt/readiness/candidate by digest, is idempotent, and fails on collision', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider: successfulProvider(
+        fullyActionedBunnyDraft(snapshot),
+      ),
+    });
+    expect(result.compileResult).not.toBeNull();
+    const evidence =
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request,
+        receipt: result.receipt,
+      });
+    expect(evidence.blueprintAuthoringReady).toBe(false);
+    expect(evidence.d1a1Authorized).toBe(false);
+    expect(evidence.blockers).toEqual(
+      expect.arrayContaining([
+        'semantic_reconciliation_absent',
+        'human_source_approval_absent',
+      ]),
+    );
+    const repoRoot = tempRoot();
+    const outputDir = 'outputs/review';
+    const sourceWrite =
+      persistStorySourceAuthoritySnapshot({
+        repoRoot,
+        outputDir,
+        snapshot,
+        write: true,
+      });
+    const requestWrite =
+      persistVisualContractAuthoringRequest({
+        repoRoot,
+        outputDir,
+        request,
+        write: true,
+      });
+    const receiptWrite =
+      persistVisualContractAuthoringReceipt({
+        repoRoot,
+        outputDir,
+        receipt: result.receipt,
+        write: true,
+      });
+    const readinessWrite =
+      persistVisualContractAuthoringReadiness({
+        repoRoot,
+        outputDir,
+        evidence,
+        write: true,
+      });
+    const candidateWrite = persistVisualContractCandidate({
+      repoRoot,
+      outputDir,
+      receipt: result.receipt,
+      template: result.compileResult!.template,
+      write: true,
+    });
+    for (const write of [
+      sourceWrite,
+      requestWrite,
+      receiptWrite,
+      readinessWrite,
+      candidateWrite,
+    ]) {
+      expect(write.path).toContain(write.digest);
+      expect(write.created).toBe(true);
+      expect(
+        fs.existsSync(path.join(repoRoot, write.path)),
+      ).toBe(true);
+    }
+    expect(
+      persistVisualContractAuthoringRequest({
+        repoRoot,
+        outputDir,
+        request,
+        write: true,
+      }).created,
+    ).toBe(false);
+
+    fs.writeFileSync(
+      path.join(repoRoot, receiptWrite.path),
+      '{"collision":true}\n',
+      'utf8',
+    );
+    expect(() =>
+      persistVisualContractAuthoringReceipt({
+        repoRoot,
+        outputDir,
+        receipt: result.receipt,
+        write: true,
+      }),
+    ).toThrow(/immutable artifact collision/);
+  });
+
+  it('reuses the established reconciliation draft/review lifecycle while binding exact source-snapshot and Visual Contract digests', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const authored = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider: successfulProvider(
+        fullyActionedBunnyDraft(snapshot),
+      ),
+    });
+    const template = authored.compileResult!.template;
+    const bundle =
+      buildProductionReconciliationDraftFromSourceSnapshot({
+        snapshot,
+        template,
+      });
+    expect(
+      bundle.reconciliation.sourceAuthoritySnapshotDigest,
+    ).toBe(snapshot.digest);
+    expect(bundle.reconciliation.templateDigest).toBe(
+      canonicalJsonDigest(template),
+    );
+    expect(
+      bundle.reviewBundle.sourceAuthoritySnapshotDigest,
+    ).toBe(snapshot.digest);
+    expect(bundle.reviewBundle.readyForApproval).toBe(false);
+    expect(bundle.reconciliation.review.status).toBe('pending');
+
+    const stale = structuredClone(bundle.reconciliation);
+    stale.sourceAuthoritySnapshotDigest = '0'.repeat(64);
+    expect(
+      sourcePromptReconciliationIssues({
+        raw: stale,
+        storyKey: snapshot.content.storyKey,
+        sourceIdentity: snapshot.content.sourceIdentity,
+        sourceAuthoritySnapshotDigest: snapshot.digest,
+        rawStorySource:
+          snapshot.content.normalizedRawStorySource,
+        template,
+        templateDigest: canonicalJsonDigest(template),
+        authoredCoverAuthority:
+          snapshot.content.authoredCoverAuthority ??
+          undefined,
+        requireComplete: false,
+      }).some(
+        (issue) =>
+          issue.code === 'reconciliation_source_mismatch',
+      ),
+    ).toBe(true);
+
+    const repoRoot = tempRoot();
+    const persisted = persistReconciliationDraftBundle({
+      repoRoot,
+      outputDir: 'outputs/reconciliation',
+      reconciliation: bundle.reconciliation,
+      reviewBundle: bundle.reviewBundle,
+      markdown: bundle.markdown,
+      write: true,
+    });
+    expect(persisted.wrote).toBe(true);
+    expect(
+      fs.existsSync(
+        path.join(repoRoot, persisted.reconciliationPath),
+      ),
+    ).toBe(true);
+    expect(
+      persistReconciliationDraftBundle({
+        repoRoot,
+        outputDir: 'outputs/reconciliation',
+        reconciliation: bundle.reconciliation,
+        reviewBundle: bundle.reviewBundle,
+        markdown: bundle.markdown,
+        write: true,
+      }).wrote,
+    ).toBe(true);
+  });
+
+  it('refuses to persist a candidate without a completed exact receipt binding', () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'preflight');
+    return runVisualContractAuthoring({
+      request,
+      snapshot,
+    }).then((result) => {
+      expect(() =>
+        persistVisualContractCandidate({
+          repoRoot: tempRoot(),
+          outputDir: 'outputs/review',
+          receipt: result.receipt,
+          template:
+            fullyActionedBunnyDraft(snapshot),
+          write: true,
+        }),
+      ).toThrow(/receipt-unbound/);
+      expect(result.receipt.candidateDigest).toBeNull();
+      expect(
+        canonicalJsonDigest(result.receipt),
+      ).toMatch(/^[a-f0-9]{64}$/);
+    });
+  });
+});

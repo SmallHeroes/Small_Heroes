@@ -526,7 +526,15 @@ describe('provider-isolated Blueprint authoring runner', () => {
       /process\.env|dotenv|fetch\s*\(|\bwrite\s*:\s*true/i,
     );
     expect(cliSource).not.toContain("command === 'approve'");
-    expect(cliSource).not.toContain('--write');
+    expect(cliSource).toContain(
+      "'source-authoring-preflight'",
+    );
+    expect(cliSource).toContain(
+      '--write must be exactly true or false',
+    );
+    expect(cliSource).toContain(
+      'The only write surface is explicit --write true for immutable content-addressed local source/preflight review artifacts.',
+    );
   });
 
   it('records only strict receipt metadata and sanitized usage through an injected live adapter', async () => {

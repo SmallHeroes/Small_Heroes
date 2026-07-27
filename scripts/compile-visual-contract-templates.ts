@@ -1,7 +1,6 @@
 /**
  * Brief 1 driver — compile `.visual-contract-template.json` CANDIDATES + `.visual-contract-review.md` from
- * `<storyKey>.source.json` sources. OFFLINE by default: it REFUSES to call a live model unless `--live` is
- * passed (the tool is human-in-the-loop; a live LLM drafts descriptive fields only, never on the paid path).
+ * `<storyKey>.source.json` sources. This legacy fixture utility is OFFLINE-only.
  * For the offline pilot, pass `--fixture-draft <file.json>` to use a saved descriptive draft as the LLM output.
  *
  * NO RENDER. NO write under story-bank/v3-approved (candidates land in --out for human review, never frozen).
@@ -9,7 +8,10 @@
  * Usage (offline pilot, with the server-only shim):
  *   tsx --require ./scripts/shims/register-server-only.cjs scripts/compile-visual-contract-templates.ts \
  *     --sources <dir> --out <dir> [--only <storyKey>] [--prev-bank story-bank/v3-approved] \
- *     [--fixture-draft <file.json> | --live]
+ *     --fixture-draft <file.json>
+ *
+ * Live authoring is intentionally unavailable here. It must use the exact
+ * source-authority request/preflight/receipt lifecycle.
  */
 import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import path from 'path';
@@ -45,7 +47,7 @@ function parseArgs(argv: string[]) {
   };
   const sources = get('--sources');
   const out = get('--out');
-  if (!sources || !out) throw new Error('usage: --sources <dir> --out <dir> [--only <k>] [--prev-bank <dir>] [--fixture-draft <f> | --live]');
+  if (!sources || !out) throw new Error('usage: --sources <dir> --out <dir> [--only <k>] [--prev-bank <dir>] --fixture-draft <f>');
   return {
     sources,
     out,
@@ -66,34 +68,26 @@ function loadPrevTemplate(prevBank: string | undefined, storyKey: string): BookV
 
 async function main(): Promise<void> {
   const { sources, out, only, prevBank, fixtureDraft, live } = parseArgs(process.argv.slice(2));
+  if (live) {
+    throw new Error(
+      'legacy_live_authoring_disabled: use production-visual-lifecycle source-authoring-preflight and a separately approved live milestone',
+    );
+  }
   if (!existsSync(sources)) throw new Error(`sources dir not found: ${sources}`);
   mkdirSync(out, { recursive: true });
 
-  // Resolve the LLM caller. Offline (fixture) by default; a live model requires the explicit --live opt-in.
-  // The --live caller captures the authoring response's token usage + status so the provenance sidecar records it
-  // (so a truncation is never a mystery — see the pipeline's INCOMPLETE guard).
+  // Resolve the fixture caller. Provider-backed authoring is available only
+  // through the source-authority lifecycle and its exact request/receipts.
   let lastAuthoringUsage: { outputTokens: number; reasoningTokens: number; totalTokens: number } | null = null;
   let lastFinishReason: string | null = null;
   let callLLM: ContractLlmCaller;
   if (fixtureDraft) {
     const draftText = readFileSync(fixtureDraft, 'utf8');
     callLLM = async () => draftText;
-  } else if (live) {
-    const { callLLM: pipelineCall } = await import('@/backend/providers/pipeline');
-    // Forward the compiler's authoring overrides (model / reasoning / json_schema / budget / no-fallback).
-    callLLM = async (system, user, opts) => {
-      const res = await pipelineCall(system, user, opts?.maxOutputTokens ?? 4000, 0.4, 'VisualContractTemplate', true, {
-        modelOverride: opts?.model,
-        reasoningEffort: opts?.reasoningEffort,
-        jsonSchema: opts?.jsonSchema,
-        noFallback: opts?.noFallback,
-      });
-      lastAuthoringUsage = res.usage ?? null;
-      lastFinishReason = res.finishReason ?? null;
-      return res.text;
-    };
   } else {
-    throw new Error('refusing to call a live model: pass --fixture-draft <file.json> (offline) or --live to opt in');
+    throw new Error(
+      'offline fixture mode requires --fixture-draft <file.json>; live authoring is disabled in this legacy driver',
+    );
   }
 
   const files = readdirSync(sources).filter((f) => f.endsWith(SOURCE_SUFFIX)).sort();

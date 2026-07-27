@@ -401,18 +401,26 @@ export interface PagePropConstraint {
  * possible. Deliberately small: the vision gate needs a FINITE check vocabulary (a free string would be the
  * prose-as-authority bug relocated; a mini-DSL would be unparseable downstream).
  */
+export const ACTION_PREDICATE_VALUES = [
+  'holds',
+  'offers',
+  'touches',
+  'looks_at',
+  'reaches_toward',
+  'climbs_onto',
+  'sits_on',
+  'stands_on',
+  'points_at',
+] as const;
 export type ActionPredicate =
-  | 'holds'
-  | 'offers'
-  | 'touches'
-  | 'looks_at'
-  | 'reaches_toward'
-  | 'climbs_onto'
-  | 'sits_on'
-  | 'stands_on'
-  | 'points_at';
+  (typeof ACTION_PREDICATE_VALUES)[number];
 
-export type ActionPolarity = 'must' | 'must_not';
+export const ACTION_POLARITY_VALUES = [
+  'must',
+  'must_not',
+] as const;
+export type ActionPolarity =
+  (typeof ACTION_POLARITY_VALUES)[number];
 
 /**
  * vNext (Contract v2 / Stage 3): a per-page ACTION beat, structured.

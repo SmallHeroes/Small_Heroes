@@ -26,6 +26,20 @@ export interface ContractLlmCallOptions {
   jsonSchema?: { name: string; schema: Record<string, unknown> };
   /** Never silently fall back to another model if the requested one is unavailable — throw instead. */
   noFallback?: boolean;
+  /** Lock the provider independently of global story routing. */
+  provider?: 'openai';
+  /** Lock the OpenAI endpoint independently of model-name heuristics. */
+  endpoint?: 'responses';
+  /** Standard/default processing tier; never priority/flex/batch. */
+  serviceTier?: 'default';
+  /** Disable provider tools explicitly. */
+  toolsDisabled?: true;
+  /** Per-application-call transport retry count. */
+  transportRetries?: number;
+  /** Per-provider-request timeout. */
+  timeoutMs?: number;
+  /** Deterministic preflight input-token hard ceiling. */
+  maxInputTokens?: number;
 }
 
 /** Minimal LLM seam: system+user prompt (+ optional per-call overrides) in, raw model text (expected JSON) out. */
@@ -66,6 +80,13 @@ const defaultContractLlmCaller: ContractLlmCaller = async (system, user, opts) =
     reasoningEffort: opts?.reasoningEffort,
     jsonSchema: opts?.jsonSchema,
     noFallback: opts?.noFallback,
+    providerOverride: opts?.provider,
+    endpointOverride: opts?.endpoint,
+    serviceTier: opts?.serviceTier,
+    toolsDisabled: opts?.toolsDisabled,
+    transportRetries: opts?.transportRetries,
+    timeoutMs: opts?.timeoutMs,
+    maxInputTokens: opts?.maxInputTokens,
   });
   return res.text;
 };

@@ -46,8 +46,35 @@ function foxInput(): TemplateCompileInput & { authoredCoverAuthority: AuthoredCo
   return { ...source, authoredCoverAuthority: authority };
 }
 
-function staleFoxDraft(): BookVisualContractTemplate {
-  const draft = foxDraft();
+function withExactActionSourceEvidence(
+  draft: BookVisualContractTemplate,
+  input: TemplateCompileInput,
+): BookVisualContractTemplate {
+  for (const page of draft.pageContracts) {
+    if (!page.actionRequirements?.length) continue;
+    const sourcePage = input.pages.find(
+      (candidate) => candidate.pageNumber === page.pageNumber,
+    );
+    if (!sourcePage) {
+      throw new Error(`Fox fixture is missing Story Source page ${page.pageNumber}`);
+    }
+    // The checked-in template is a candidate artifact and intentionally omits
+    // authoring-only evidence. Reattach the exact page prose only at this test
+    // adapter boundary before using that candidate as a simulated model draft.
+    (
+      page as unknown as {
+        actionRequirements: Array<Record<string, unknown>>;
+      }
+    ).actionRequirements = page.actionRequirements.map((action) => ({
+      ...action,
+      sourcePhrase: sourcePage.text,
+    }));
+  }
+  return draft;
+}
+
+function staleFoxDraft(input: TemplateCompileInput = foxInput()): BookVisualContractTemplate {
+  const draft = withExactActionSourceEvidence(foxDraft(), input);
   draft.coverContract = {
     ...draft.coverContract,
     locationId: 'loc_balcony',
@@ -68,7 +95,7 @@ const stubFrom = (draft: unknown) => async () => JSON.stringify(draft);
 describe('authored page-0 cover authority', () => {
   it('overrides stale draft cover topology/cast/content without changing page contracts', async () => {
     const input = foxInput();
-    const draft = staleFoxDraft();
+    const draft = staleFoxDraft(input);
     const withSource = await compileBookVisualContractTemplate(input, { callLLM: stubFrom(draft) });
     const legacy = await compileBookVisualContractTemplate(
       { ...input, authoredCoverAuthority: undefined },
@@ -148,8 +175,10 @@ describe('authored page-0 cover authority', () => {
 describe('cover review and qualification source-fidelity evidence', () => {
   it('reports location, zone, cast, mustShow, mustNotShow, and source conflicts; never claims parity', async () => {
     const input = foxInput();
-    const compiled = await compileBookVisualContractTemplate(input, { callLLM: stubFrom(staleFoxDraft()) });
-    const previous = staleFoxDraft();
+    const compiled = await compileBookVisualContractTemplate(input, {
+      callLLM: stubFrom(staleFoxDraft(input)),
+    });
+    const previous = staleFoxDraft(input);
     const review = renderVisualContractReview({
       storyKey: STORY_KEY,
       facts: compiled.facts,
@@ -172,7 +201,9 @@ describe('cover review and qualification source-fidelity evidence', () => {
 
   it('the package gate accepts a matching cover and rejects wrong location plus spoiler contradiction', async () => {
     const input = foxInput();
-    const compiled = await compileBookVisualContractTemplate(input, { callLLM: stubFrom(staleFoxDraft()) });
+    const compiled = await compileBookVisualContractTemplate(input, {
+      callLLM: stubFrom(staleFoxDraft(input)),
+    });
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'smallheroes-cover-source-'));
     try {
       const storyPath = path.join(root, `${STORY_KEY}.md`);
@@ -201,7 +232,9 @@ describe('cover review and qualification source-fidelity evidence', () => {
 
   it('a matching cover has no pure fidelity issues', async () => {
     const input = foxInput();
-    const compiled = await compileBookVisualContractTemplate(input, { callLLM: stubFrom(staleFoxDraft()) });
+    const compiled = await compileBookVisualContractTemplate(input, {
+      callLLM: stubFrom(staleFoxDraft(input)),
+    });
     expect(coverSourceFidelityIssues(compiled.template, input.authoredCoverAuthority)).toEqual([]);
   });
 });

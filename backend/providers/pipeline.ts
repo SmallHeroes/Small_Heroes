@@ -566,6 +566,20 @@ export interface LLMCallOptions {
   jsonSchema?: { name: string; schema: Record<string, unknown> };
   /** Never silently fall back to FALLBACK_STORY_MODEL if the requested model is unavailable — throw instead. */
   noFallback?: boolean;
+  /** Exact provider lock for callers that must not inherit STORY_PROVIDER. */
+  providerOverride?: 'openai';
+  /** Exact endpoint lock for callers that must not rely on model-name routing. */
+  endpointOverride?: 'responses';
+  /** OpenAI standard/default processing tier. */
+  serviceTier?: 'default';
+  /** Explicitly disable all provider tools. */
+  toolsDisabled?: true;
+  /** Override the generic three-retry transport policy for this call. */
+  transportRetries?: number;
+  /** Abort each provider request after this many milliseconds. */
+  timeoutMs?: number;
+  /** Conservative hard ceiling for prompt + strict-schema input. */
+  maxInputTokens?: number;
 }
 
 const STORY_STAGE_PREFIXES = ['Brain', 'Outline', 'Prose-3A', 'Prose-3B', 'Prose-3C', 'Prose-3D'] as const;
@@ -643,7 +657,10 @@ async function callLLMOnce(
   jsonMode:     boolean = true,   // false → plain text (Stage 3A)
   opts:         LLMCallOptions = {},
 ): Promise<LLMResult> {
-  const provider = process.env.STORY_PROVIDER || 'openai';
+  const provider =
+    opts.providerOverride ||
+    process.env.STORY_PROVIDER ||
+    'openai';
   const model = opts.modelOverride || getModelForStage(stage, provider);
   const storyStage = isStoryStage(stage);
   const reasoningEffort = opts.reasoningEffort || (storyStage ? (process.env.STORY_REASONING_EFFORT || '') : '');
@@ -657,6 +674,9 @@ async function callLLMOnce(
       method: 'POST',
       headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
       body: JSON.stringify({ model, max_tokens: maxTokens, temperature, system: systemPrompt, messages: [{ role: 'user', content: userPrompt }] }),
+      ...(opts.timeoutMs
+        ? { signal: AbortSignal.timeout(opts.timeoutMs) }
+        : {}),
     });
     if (!res.ok) throw new Error(`[${stage}] Anthropic ${res.status}: ${await res.text()}`);
     const data = await res.json();
@@ -677,6 +697,7 @@ async function callLLMOnce(
     // GPT-5.x family models (5.3-chat-latest, 5.3-pro, etc.) are served via the Responses API
     // endpoint (/v1/responses) and NOT via /v1/chat/completions. Route them accordingly.
     const useResponsesAPI =
+      opts.endpointOverride === 'responses' ||
       modelName.startsWith('gpt-5.') ||
       modelName.includes('-pro') ||
       !!selectedReasoningEffort;
@@ -691,6 +712,13 @@ async function callLLMOnce(
       };
       if (selectedReasoningEffort) {
         body.reasoning = { effort: selectedReasoningEffort };
+      }
+      if (opts.serviceTier) {
+        body.service_tier = opts.serviceTier;
+      }
+      if (opts.toolsDisabled) {
+        body.tools = [];
+        body.tool_choice = 'none';
       }
       if (selectedVerbosity) {
         body.text = { verbosity: selectedVerbosity };
@@ -710,6 +738,9 @@ async function callLLMOnce(
         method: 'POST',
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
+        ...(opts.timeoutMs
+          ? { signal: AbortSignal.timeout(opts.timeoutMs) }
+          : {}),
       });
 
       if (!res.ok) {
@@ -784,6 +815,9 @@ async function callLLMOnce(
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+      ...(opts.timeoutMs
+        ? { signal: AbortSignal.timeout(opts.timeoutMs) }
+        : {}),
     });
     if (!res.ok) throw new Error(`[${stage}] OpenAI ${res.status}: ${await res.text()}`);
     const data = await res.json();
@@ -802,7 +836,48 @@ export async function callLLM(
   jsonMode: boolean = true,
   opts: LLMCallOptions = {},
 ): Promise<LLMResult> {
-  const MAX_RETRIES = 3;
+  if (opts.maxInputTokens !== undefined) {
+    if (
+      !Number.isSafeInteger(opts.maxInputTokens) ||
+      opts.maxInputTokens < 1
+    ) {
+      throw new Error(
+        `[Pipeline][${stage}] maxInputTokens must be a positive safe integer`,
+      );
+    }
+    const conservativeInputTokenUpperBound =
+      Buffer.byteLength(
+        [
+          systemPrompt,
+          userPrompt,
+          opts.jsonSchema
+            ? JSON.stringify(opts.jsonSchema.schema)
+            : '',
+        ].join('\n'),
+        'utf8',
+      ) + 4_096;
+    if (
+      conservativeInputTokenUpperBound >
+      opts.maxInputTokens
+    ) {
+      throw new Error(
+        `[Pipeline][${stage}] input_token_ceiling_exceeded: conservative prompt/schema upper bound ${conservativeInputTokenUpperBound} > ${opts.maxInputTokens}`,
+      );
+    }
+  }
+  const MAX_RETRIES =
+    opts.transportRetries === undefined
+      ? 3
+      : opts.transportRetries;
+  if (
+    !Number.isSafeInteger(MAX_RETRIES) ||
+    MAX_RETRIES < 0 ||
+    MAX_RETRIES > 3
+  ) {
+    throw new Error(
+      `[Pipeline][${stage}] transportRetries must be an integer between 0 and 3`,
+    );
+  }
   const RETRY_DELAYS = [2000, 4000, 8000];
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {

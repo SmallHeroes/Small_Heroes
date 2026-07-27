@@ -14,6 +14,8 @@ import {
   projectZoneStableGeometry,
 } from './projectContractProse';
 import {
+  ACTION_POLARITY_VALUES,
+  ACTION_PREDICATE_VALUES,
   BOOK_VISUAL_CONTRACT_VERSION,
   type BookVisualContract,
   type PageVisualContract,
@@ -74,8 +76,12 @@ const ACTION_SAFETY_CONFLICT: Record<string, string> = {
   sits_on: 'must_not_sit_on',
   stands_on: 'must_not_stand_on',
 };
-const ACTION_PREDICATES = new Set(['holds', 'offers', 'touches', 'looks_at', 'reaches_toward', 'climbs_onto', 'sits_on', 'stands_on', 'points_at']);
-const ACTION_POLARITIES = new Set(['must', 'must_not']);
+const ACTION_PREDICATES = new Set<string>(
+  ACTION_PREDICATE_VALUES,
+);
+const ACTION_POLARITIES = new Set<string>(
+  ACTION_POLARITY_VALUES,
+);
 const SAFETY_RELATIONS = new Set([
   'must_not_sit_on',
   'must_not_stand_on',

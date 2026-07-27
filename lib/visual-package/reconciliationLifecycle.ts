@@ -23,11 +23,15 @@ import type {
   VisualPackageIssue,
 } from './types';
 import { writeImmutableLocalArtifact } from './preRenderBlueprintLifecycle';
+import {
+  assertValidStorySourceAuthoritySnapshot,
+  type StorySourceAuthoritySnapshot,
+} from './storySourceAuthority';
 
 export const RECONCILIATION_REVIEW_BUNDLE_VERSION =
-  'source-prompt-reconciliation-review-bundle/v1' as const;
+  'source-prompt-reconciliation-review-bundle/v2' as const;
 export const RECONCILIATION_REVIEW_RENDERER_VERSION =
-  'source-prompt-reconciliation-review-markdown/v1' as const;
+  'source-prompt-reconciliation-review-markdown/v2' as const;
 
 export interface ReconciliationReviewRequirement {
   frameKind: 'cover' | 'page';
@@ -47,6 +51,7 @@ export interface ReconciliationReviewBundle {
   rendererVersion: typeof RECONCILIATION_REVIEW_RENDERER_VERSION;
   storyKey: string;
   sourceDigest: string;
+  sourceAuthoritySnapshotDigest: string | null;
   templateDigest: string;
   reconciliationDigest: string;
   requirements: ReconciliationReviewRequirement[];
@@ -95,6 +100,7 @@ function reviewPayload(
 export function buildReconciliationReviewBundle(args: {
   reconciliation: SourcePromptReconciliation;
   sourceIdentity: StorySourceIdentity;
+  sourceAuthoritySnapshotDigest?: string;
   rawStorySource: string;
   template: BookVisualContractTemplate;
   authoredCoverAuthority?: AuthoredCoverAuthority;
@@ -104,6 +110,8 @@ export function buildReconciliationReviewBundle(args: {
     raw: args.reconciliation,
     storyKey: args.reconciliation.storyKey,
     sourceIdentity: args.sourceIdentity,
+    sourceAuthoritySnapshotDigest:
+      args.sourceAuthoritySnapshotDigest,
     rawStorySource: args.rawStorySource,
     template: args.template,
     templateDigest,
@@ -142,6 +150,8 @@ export function buildReconciliationReviewBundle(args: {
     rendererVersion: RECONCILIATION_REVIEW_RENDERER_VERSION,
     storyKey: args.reconciliation.storyKey,
     sourceDigest: args.sourceIdentity.digest,
+    sourceAuthoritySnapshotDigest:
+      args.sourceAuthoritySnapshotDigest ?? null,
     templateDigest,
     reconciliationDigest: canonicalJsonDigest(args.reconciliation),
     requirements,
@@ -165,6 +175,7 @@ export function buildReconciliationReviewBundle(args: {
 export function buildProductionReconciliationDraftBundle(args: {
   storyKey: string;
   sourceIdentity: StorySourceIdentity;
+  sourceAuthoritySnapshotDigest?: string;
   rawStorySource: string;
   template: BookVisualContractTemplate;
   authoredCoverAuthority?: AuthoredCoverAuthority;
@@ -178,6 +189,8 @@ export function buildProductionReconciliationDraftBundle(args: {
     {
       storyKey: args.storyKey,
       sourceIdentity: args.sourceIdentity,
+      sourceAuthoritySnapshotDigest:
+        args.sourceAuthoritySnapshotDigest,
       pages: content.pages,
       pageImageDirections: content.pageImageDirections,
       authoredCoverAuthority: args.authoredCoverAuthority,
@@ -187,6 +200,8 @@ export function buildProductionReconciliationDraftBundle(args: {
   const reviewBundle = buildReconciliationReviewBundle({
     reconciliation,
     sourceIdentity: args.sourceIdentity,
+    sourceAuthoritySnapshotDigest:
+      args.sourceAuthoritySnapshotDigest,
     rawStorySource: args.rawStorySource,
     template: args.template,
     authoredCoverAuthority: args.authoredCoverAuthority,
@@ -196,6 +211,36 @@ export function buildProductionReconciliationDraftBundle(args: {
     reviewBundle,
     markdown: renderReconciliationReviewMarkdown(reviewBundle),
   };
+}
+
+/**
+ * D1 bridge into the established reconciliation lifecycle. The resulting
+ * draft remains intentionally pending, but now binds the exact broader source
+ * snapshot digest as well as the exact Visual Contract template digest.
+ */
+export function buildProductionReconciliationDraftFromSourceSnapshot(
+  args: {
+    snapshot: StorySourceAuthoritySnapshot;
+    template: BookVisualContractTemplate;
+  },
+): ReturnType<
+  typeof buildProductionReconciliationDraftBundle
+> {
+  assertValidStorySourceAuthoritySnapshot(args.snapshot);
+  return buildProductionReconciliationDraftBundle({
+    storyKey: args.snapshot.content.storyKey,
+    sourceIdentity: args.snapshot.content.sourceIdentity,
+    sourceAuthoritySnapshotDigest: args.snapshot.digest,
+    rawStorySource:
+      args.snapshot.content.normalizedRawStorySource,
+    template: args.template,
+    ...(args.snapshot.content.authoredCoverAuthority
+      ? {
+          authoredCoverAuthority:
+            args.snapshot.content.authoredCoverAuthority,
+        }
+      : {}),
+  });
 }
 
 export function buildProductionReconciliationDraftFromFiles(args: {
@@ -260,6 +305,7 @@ export function renderReconciliationReviewMarkdown(
     '',
     `- Story: \`${bundle.storyKey}\``,
     `- Story Source digest: \`${bundle.sourceDigest}\``,
+    `- Story Source authority snapshot digest: \`${bundle.sourceAuthoritySnapshotDigest ?? 'legacy-not-bound'}\``,
     `- Visual Contract digest: \`${bundle.templateDigest}\``,
     `- Reconciliation digest: \`${bundle.reconciliationDigest}\``,
     `- Review-bundle digest: \`${bundle.digest}\``,

@@ -27,9 +27,11 @@ export {
   buildCompileUserPrompt,
   parseContractJson,
   type ContractLlmCaller,
+  type ContractLlmCallOptions,
   type CompileBookVisualContractInput,
   type PageImageDirection,
 } from './compileBookVisualContract';
+export * from './authoringPolicy';
 export { normalizeRawBookVisualContract } from './normalizeRawContract';
 export { computeVisualContractHash } from './contractHash';
 export {

@@ -80,6 +80,8 @@ export interface SourcePromptReconciliation {
   projectionVersion: typeof SOURCE_PROMPT_PROJECTION_VERSION;
   storyKey: string;
   sourceIdentity: StorySourceIdentity;
+  /** Exact D1 source snapshot binding (raw source + pages + image directions + cover authority). */
+  sourceAuthoritySnapshotDigest?: string;
   templateDigest: string;
   templateSchemaVersion: string;
   frames: SourcePromptReconciliationFrame[];
@@ -89,6 +91,7 @@ export interface SourcePromptReconciliation {
 export interface SourcePromptReconciliationInput {
   storyKey: string;
   sourceIdentity: StorySourceIdentity;
+  sourceAuthoritySnapshotDigest?: string;
   pages: Array<{ pageNumber: number; text: string }>;
   pageImageDirections?: Array<{ pageNumber: number; imageDirection: string }>;
   authoredCoverAuthority?: AuthoredCoverAuthority;
@@ -173,6 +176,12 @@ export function buildSourcePromptReconciliationDraft(
     projectionVersion: SOURCE_PROMPT_PROJECTION_VERSION,
     storyKey: input.storyKey,
     sourceIdentity: input.sourceIdentity,
+    ...(input.sourceAuthoritySnapshotDigest
+      ? {
+          sourceAuthoritySnapshotDigest:
+            input.sourceAuthoritySnapshotDigest,
+        }
+      : {}),
     templateDigest: canonicalJsonDigest(template),
     templateSchemaVersion: template.schemaVersion,
     frames: [
@@ -326,6 +335,7 @@ export function sourcePromptReconciliationIssues(args: {
   raw: unknown;
   storyKey: string;
   sourceIdentity: StorySourceIdentity;
+  sourceAuthoritySnapshotDigest?: string;
   rawStorySource: string;
   template: BookVisualContractTemplate;
   templateDigest: string;
@@ -379,6 +389,23 @@ export function sourcePromptReconciliationIssues(args: {
       expected: args.sourceIdentity,
       actual: reconciliation.sourceIdentity,
     }));
+  }
+  if (
+    args.sourceAuthoritySnapshotDigest !== undefined &&
+    reconciliation.sourceAuthoritySnapshotDigest !==
+      args.sourceAuthoritySnapshotDigest
+  ) {
+    issues.push(
+      packageIssue(
+        'reconciliation_source_mismatch',
+        'reconciliation exact source-authority snapshot binding is stale',
+        {
+          expected: args.sourceAuthoritySnapshotDigest,
+          actual:
+            reconciliation.sourceAuthoritySnapshotDigest,
+        },
+      ),
+    );
   }
   if (
     reconciliation.templateDigest !== args.templateDigest ||
@@ -610,6 +637,7 @@ export function loadSourcePromptReconciliation(args: {
   artifactPath: string;
   storyKey: string;
   sourceIdentity: StorySourceIdentity;
+  sourceAuthoritySnapshotDigest?: string;
   storyPath: string;
   template: BookVisualContractTemplate;
   templateDigest: string;
@@ -655,6 +683,8 @@ export function loadSourcePromptReconciliation(args: {
     raw,
     storyKey: args.storyKey,
     sourceIdentity: args.sourceIdentity,
+    sourceAuthoritySnapshotDigest:
+      args.sourceAuthoritySnapshotDigest,
     rawStorySource,
     template: args.template,
     templateDigest: args.templateDigest,

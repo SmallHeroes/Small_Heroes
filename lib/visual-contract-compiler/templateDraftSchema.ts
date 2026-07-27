@@ -7,6 +7,10 @@
  * in this schema. Strict-mode invariant (enforced by `obj()`): every object sets additionalProperties:false and
  * lists ALL its properties in `required`; genuinely-optional fields are nullable (type union / anyOf-null).
  */
+import {
+  ACTION_POLARITY_VALUES,
+  ACTION_PREDICATE_VALUES,
+} from './types';
 
 /** Build a strict object schema: additionalProperties:false + required = every property. */
 function obj(properties: Record<string, unknown>): Record<string, unknown> {
@@ -159,6 +163,45 @@ const propConstraint = obj({
   stateId: nullableString,
   anchorId: nullableString,
 });
+const actionObject = obj({
+  kind: {
+    type: 'string',
+    enum: ['cast', 'prop', 'spatial', 'anchor'],
+  },
+  id: { type: 'string' },
+});
+const actionRequirement = obj({
+  checkId: { type: 'string' },
+  actorId: { type: 'string' },
+  predicate: {
+    type: 'string',
+    enum: ACTION_PREDICATE_VALUES,
+  },
+  object: { anyOf: [actionObject, { type: 'null' }] },
+  polarity: {
+    type: 'string',
+    enum: ACTION_POLARITY_VALUES,
+  },
+  laterality: {
+    anyOf: [
+      { type: 'string', enum: ['left', 'right'] },
+      { type: 'null' },
+    ],
+  },
+  /**
+   * Exact same-page Story Source words that support this structured beat.
+   * Compiler validation removes this evidence-only field before the
+   * candidate contract is assembled.
+   */
+  sourcePhrase: { type: 'string' },
+});
+const unsupportedActionSemantic = obj({
+  sourcePhrase: { type: 'string' },
+  reason: {
+    type: 'string',
+    enum: ['closed_action_vocabulary_gap'],
+  },
+});
 
 const pageContract = obj({
   pageNumber: { type: 'number' },
@@ -169,6 +212,14 @@ const pageContract = obj({
   mustNotShow: stringArray,
   propState: { type: 'array', items: propState },
   propConstraints: { type: 'array', items: propConstraint },
+  actionRequirements: {
+    type: 'array',
+    items: actionRequirement,
+  },
+  unsupportedActionSemantics: {
+    type: 'array',
+    items: unsupportedActionSemantic,
+  },
   camera: { type: 'string' },
   transition,
 });
@@ -188,7 +239,7 @@ export const TEMPLATE_DRAFT_JSON_SCHEMA: Record<string, unknown> = obj({
 });
 
 /** Bump when the draft schema shape changes (recorded in authoring provenance). */
-export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v4' as const;
+export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v5' as const;
 
 /** The structured-output request name (OpenAI json_schema `name`). */
 export const TEMPLATE_DRAFT_SCHEMA_NAME = 'BookVisualContractTemplateDraft' as const;

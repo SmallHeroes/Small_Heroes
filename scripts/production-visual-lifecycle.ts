@@ -1,11 +1,11 @@
 /**
- * Zero-cost production lifecycle entrypoint for R1D-PVB-D0.
+ * Zero-cost production lifecycle entrypoint for R1D-PVB-D0/D1A0.
  *
  * This CLI intentionally has no provider adapter, approval command, publication
  * write flag, environment-file loader, registry mutation, or render boundary.
- * It reads exact local artifacts, creates deterministic drafts/plans in memory,
- * and emits JSON to stdout. Content-addressed write functions remain injectable
- * library boundaries for a later explicitly approved production milestone.
+ * It reads exact local artifacts, creates deterministic drafts/plans, and emits
+ * JSON to stdout. D1A0 adds one explicit write surface for immutable,
+ * content-addressed local source/preflight review artifacts only.
  */
 import fs from 'fs';
 
@@ -15,14 +15,23 @@ import {
   auditProductionStoryReadiness,
   buildProductionAuthoringContext,
   buildProductionReconciliationDraftFromFiles,
+  buildStorySourceAuthoritySnapshot,
+  buildVisualContractAuthoringReadinessEvidence,
+  buildVisualContractAuthoringRequest,
   finalizeApprovedVisualPackageV4,
   persistReconciliationDraftBundle,
+  persistStorySourceAuthoritySnapshot,
+  persistVisualContractAuthoringReadiness,
+  persistVisualContractAuthoringReceipt,
+  persistVisualContractAuthoringRequest,
   persistVisualPackageV4CandidateReview,
   publishVisualPackageV4,
   qualifyVisualPackageV4Candidate,
   runProductionBlueprintAuthoring,
+  runVisualContractAuthoring,
   type ApprovedBlueprintLifecyclePaths,
   type ProductionAuthoringRunRequest,
+  type StorySourceAuthorityRequest,
   type VisualPackageReviewReality,
   type VisualPackageV4,
   type VisualPackageV4Approval,
@@ -45,6 +54,12 @@ interface AuthoringPreflightRequest {
   authoringRequest: ProductionAuthoringRunRequest;
 }
 
+interface SourceAuthoringPreflightRequest
+  extends StorySourceAuthorityRequest {
+  requestId: string;
+  requestedAt: string;
+}
+
 interface AssembleV4Request {
   context: ContextRequest;
   approvedBlueprintPaths: ApprovedBlueprintLifecyclePaths;
@@ -54,6 +69,11 @@ interface AssembleV4Request {
 
 const REQUEST_ONLY = new Set(['--request']);
 const REQUEST_WITH_OUT = new Set(['--request', '--out']);
+const REQUEST_WITH_OUT_WRITE = new Set([
+  '--request',
+  '--out',
+  '--write',
+]);
 const QUALIFY_FLAGS = new Set([
   '--repo-root',
   '--candidate',
@@ -73,7 +93,8 @@ const PUBLICATION_FLAGS = new Set([
 
 function usage(): string {
   return [
-    'Production visual lifecycle (D0, deterministic and zero-write):',
+    'Production visual lifecycle (deterministic local authority tooling):',
+    '  source-authoring-preflight --request <json> [--out <repo-relative-dir>] [--write true|false]',
     '  readiness --request <json>',
     '  context --request <json>',
     '  reconciliation-draft --request <json> [--out <repo-relative-dir>]',
@@ -83,6 +104,7 @@ function usage(): string {
     '  finalize-plan --repo-root <dir> --candidate <json> --review <json> --review-artifact <repo-relative-json> --approval <json> [--board-registry-dir <dir>]',
     '  publication-plan --repo-root <dir> --package <json> --approved-dir <dir>',
     '',
+    'The only write surface is explicit --write true for immutable content-addressed local source/preflight review artifacts.',
     'There is no live provider adapter, approval command, publication write flag, fallback, render, Vision, network, database, or registry mutation in this entrypoint.',
   ].join('\n');
 }
@@ -220,6 +242,90 @@ async function authoringPreflight(tokens: string[]): Promise<void> {
     mode: 'provider_unreachable_authoring_preflight',
     zeroWrite: true,
     receipt: result.receipt,
+  });
+}
+
+function writeFlag(flags: ReadonlyMap<string, string>): boolean {
+  const value = flags.get('--write');
+  if (value === undefined || value === 'false') return false;
+  if (value === 'true') return true;
+  throw new Error('--write must be exactly true or false');
+}
+
+async function sourceAuthoringPreflight(
+  tokens: string[],
+): Promise<void> {
+  const { request, flags } =
+    requestFile<SourceAuthoringPreflightRequest>(
+      tokens,
+      REQUEST_WITH_OUT_WRITE,
+    );
+  const snapshot =
+    buildStorySourceAuthoritySnapshot(request);
+  const authoringRequest =
+    buildVisualContractAuthoringRequest({
+      snapshot,
+      mode: 'preflight',
+      requestId: request.requestId,
+      requestedAt: request.requestedAt,
+    });
+  const result = await runVisualContractAuthoring({
+    request: authoringRequest,
+    snapshot,
+  });
+  const readiness =
+    buildVisualContractAuthoringReadinessEvidence({
+      snapshot,
+      request: authoringRequest,
+      receipt: result.receipt,
+    });
+  const shouldWrite = writeFlag(flags);
+  if (shouldWrite && !flags.has('--out')) {
+    throw new Error(
+      '--write true requires --out <repo-relative-dir>',
+    );
+  }
+  const outputDir = flags.get('--out');
+  const persistence = outputDir
+    ? {
+        sourceSnapshot:
+          persistStorySourceAuthoritySnapshot({
+            repoRoot: request.repoRoot,
+            outputDir,
+            snapshot,
+            write: shouldWrite,
+          }),
+        authoringRequest:
+          persistVisualContractAuthoringRequest({
+            repoRoot: request.repoRoot,
+            outputDir,
+            request: authoringRequest,
+            write: shouldWrite,
+          }),
+        authoringReceipt:
+          persistVisualContractAuthoringReceipt({
+            repoRoot: request.repoRoot,
+            outputDir,
+            receipt: result.receipt,
+            write: shouldWrite,
+          }),
+        readiness:
+          persistVisualContractAuthoringReadiness({
+            repoRoot: request.repoRoot,
+            outputDir,
+            evidence: readiness,
+            write: shouldWrite,
+          }),
+      }
+    : null;
+  output({
+    mode: 'provider_unreachable_source_authoring_preflight',
+    localImmutableWrite: shouldWrite,
+    snapshot,
+    authoringRequest,
+    receipt: result.receipt,
+    readiness,
+    persistence,
   });
 }
 
@@ -367,6 +473,9 @@ async function main(): Promise<void> {
     return;
   }
   if (command === 'readiness') return readiness(tokens);
+  if (command === 'source-authoring-preflight') {
+    return sourceAuthoringPreflight(tokens);
+  }
   if (command === 'context') return context(tokens);
   if (command === 'reconciliation-draft') {
     return reconciliationDraft(tokens);

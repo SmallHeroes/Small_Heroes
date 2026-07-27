@@ -68,6 +68,8 @@ describe('Stage 1 — draft json_schema is strict-mode compliant', () => {
     };
     expect(root.properties.recurringProps.items?.properties).toHaveProperty('firstRevealPage');
     expect(root.properties.pageContracts.items?.properties).toHaveProperty('propConstraints');
+    expect(root.properties.pageContracts.items?.properties).toHaveProperty('actionRequirements');
+    expect(root.properties.pageContracts.items?.properties).toHaveProperty('unsupportedActionSemantics');
   });
 
   it('authors stable board authority as separate structured set/location/area/object fields', () => {
@@ -99,27 +101,34 @@ describe('Stage 1 — authoring token budget scales by page count (Responses bud
 describe('Stage 1 — compiler requests the dedicated authoring call + records provenance', () => {
   afterEach(() => vi.unstubAllEnvs());
 
-  it('requests the resolved authoring model (default gpt-5.5-pro) + medium + json_schema + 12000 budget, no fallback', async () => {
+  it('requests the exact gpt-5.6-sol authoring policy, strict schema, bounded output, and zero transport retries', async () => {
     let captured: ContractLlmCallOptions | undefined;
     const spy: ContractLlmCaller = async (_s, _u, opts) => {
       captured = opts;
       return JSON.stringify(bunnyTemplate());
     };
     const { provenance } = await compileBookVisualContractTemplate(bunnySource(), { callLLM: spy });
-    expect(captured?.model).toBe('gpt-5.5-pro');
+    expect(captured?.model).toBe('gpt-5.6-sol');
     expect(captured?.reasoningEffort).toBe('medium');
     expect(captured?.noFallback).toBe(true);
+    expect(captured?.provider).toBe('openai');
+    expect(captured?.endpoint).toBe('responses');
+    expect(captured?.serviceTier).toBe('default');
+    expect(captured?.toolsDisabled).toBe(true);
+    expect(captured?.transportRetries).toBe(0);
+    expect(captured?.timeoutMs).toBe(1_200_000);
+    expect(captured?.maxInputTokens).toBe(64_000);
     expect(captured?.jsonSchema?.name).toBe(TEMPLATE_DRAFT_SCHEMA_NAME);
     expect(captured?.maxOutputTokens).toBe(36000);
     // Provenance records the resolved model.
-    expect(provenance.authoringModel).toBe('gpt-5.5-pro');
+    expect(provenance.authoringModel).toBe('gpt-5.6-sol');
     expect(provenance.reasoningEffort).toBe('medium');
     expect(provenance.maxOutputTokens).toBe(36000);
-    expect(provenance.schemaVersion).toBe('vc-draft-schema/v4');
+    expect(provenance.schemaVersion).toBe('vc-draft-schema/v5');
     expect(provenance.attempt).toBe(1);
   });
 
-  it('the authoring model is overridable via VISUAL_CONTRACT_AUTHOR_MODEL', async () => {
+  it('does not permit VISUAL_CONTRACT_AUTHOR_MODEL substitution', async () => {
     vi.stubEnv('VISUAL_CONTRACT_AUTHOR_MODEL', 'gpt-custom-authoring');
     let captured: ContractLlmCallOptions | undefined;
     const spy: ContractLlmCaller = async (_s, _u, opts) => {
@@ -127,8 +136,8 @@ describe('Stage 1 — compiler requests the dedicated authoring call + records p
       return JSON.stringify(bunnyTemplate());
     };
     const { provenance } = await compileBookVisualContractTemplate(bunnySource(), { callLLM: spy });
-    expect(captured?.model).toBe('gpt-custom-authoring');
-    expect(provenance.authoringModel).toBe('gpt-custom-authoring');
+    expect(captured?.model).toBe('gpt-5.6-sol');
+    expect(provenance.authoringModel).toBe('gpt-5.6-sol');
   });
 });
 
@@ -149,25 +158,34 @@ describe('Stage 1 — pipeline json_schema + no silent fallback', () => {
         return { ok: true, json: async () => ({ output_text: '{}', usage: { total_tokens: 5 } }) };
       }),
     );
-    expect(resolveAuthoringModel()).toBe('gpt-5.5-pro'); // default
+    expect(resolveAuthoringModel()).toBe('gpt-5.6-sol');
     await callLLM('sys', 'usr', 12000, 0.4, 'VisualContractTemplate', true, {
       modelOverride: resolveAuthoringModel(),
       reasoningEffort: 'medium',
       jsonSchema: { name: 'X', schema: { type: 'object', additionalProperties: false, properties: {}, required: [] } },
       noFallback: true,
+      providerOverride: 'openai',
+      endpointOverride: 'responses',
+      serviceTier: 'default',
+      toolsDisabled: true,
+      transportRetries: 0,
+      timeoutMs: 1_200_000,
     });
     const body = calls[0].body as Record<string, any>;
-    expect(body.model).toBe('gpt-5.5-pro');
+    expect(body.model).toBe('gpt-5.6-sol');
     expect(body.reasoning).toEqual({ effort: 'medium' });
     expect(body.max_output_tokens).toBe(12000);
     expect(body.text.format.type).toBe('json_schema');
     expect(body.text.format.strict).toBe(true);
     expect(body.text.format.name).toBe('X');
+    expect(body.service_tier).toBe('default');
+    expect(body.tools).toEqual([]);
+    expect(body.tool_choice).toBe('none');
   });
 
-  it('VISUAL_CONTRACT_AUTHOR_MODEL overrides the resolved authoring model', () => {
+  it('VISUAL_CONTRACT_AUTHOR_MODEL cannot override the resolved authoring model', () => {
     vi.stubEnv('VISUAL_CONTRACT_AUTHOR_MODEL', 'gpt-5.5-pro-alt');
-    expect(resolveAuthoringModel()).toBe('gpt-5.5-pro-alt');
+    expect(resolveAuthoringModel()).toBe('gpt-5.6-sol');
   });
 
   it('captures Responses usage (output / reasoning / total tokens) + finish status', async () => {
@@ -220,5 +238,105 @@ describe('Stage 1 — pipeline json_schema + no silent fallback', () => {
     await expect(
       callLLM('s', 'u', 100, 0.4, 'VisualContractTemplate', true, { modelOverride: resolveAuthoringModel(), noFallback: true }),
     ).rejects.toThrow(/not available/i);
+  });
+
+  it('providerOverride=openai bypasses STORY_PROVIDER and transportRetries=0 performs exactly one fetch', async () => {
+    const { callLLM } = await import('@/backend/providers/pipeline');
+    vi.stubEnv('STORY_PROVIDER', 'anthropic');
+    vi.stubEnv('OPENAI_API_KEY', 'test-key');
+    vi.stubEnv('ANTHROPIC_API_KEY', 'must-not-be-used');
+    const fetchSpy = vi.fn(async (_url: string) => ({
+      ok: false,
+      status: 503,
+      text: async () => 'temporary outage',
+    }));
+    vi.stubGlobal('fetch', fetchSpy);
+    await expect(
+      callLLM('s', 'u', 100, 0.4, 'VisualContractTemplate', true, {
+        modelOverride: 'gpt-5.6-sol',
+        providerOverride: 'openai',
+        endpointOverride: 'responses',
+        noFallback: true,
+        transportRetries: 0,
+      }),
+    ).rejects.toThrow(/503/);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toContain(
+      'api.openai.com/v1/responses',
+    );
+  });
+
+  it('enforces maxInputTokens before provider reachability', async () => {
+    const { callLLM } = await import('@/backend/providers/pipeline');
+    vi.stubEnv('OPENAI_API_KEY', 'test-key');
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    await expect(
+      callLLM(
+        'oversized '.repeat(1_000),
+        'user',
+        100,
+        0.4,
+        'VisualContractTemplate',
+        true,
+        {
+          modelOverride: 'gpt-5.6-sol',
+          providerOverride: 'openai',
+          endpointOverride: 'responses',
+          transportRetries: 0,
+          maxInputTokens: 100,
+        },
+      ),
+    ).rejects.toThrow(/input_token_ceiling_exceeded/);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('unrelated callers retain the existing three-retry default', async () => {
+    const { callLLM } = await import('@/backend/providers/pipeline');
+    vi.stubEnv('STORY_PROVIDER', 'openai');
+    vi.stubEnv('OPENAI_API_KEY', 'test-key');
+    let calls = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        calls += 1;
+        if (calls < 4) {
+          return {
+            ok: false,
+            status: 503,
+            text: async () => 'temporary outage',
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            status: 'completed',
+            output_text: '{}',
+            usage: {
+              input_tokens: 1,
+              output_tokens: 1,
+              total_tokens: 2,
+            },
+          }),
+        };
+      }),
+    );
+    vi.useFakeTimers();
+    try {
+      const pending = callLLM(
+        's',
+        'u',
+        100,
+        0.4,
+        'VisualContractTemplate',
+        true,
+        { modelOverride: 'gpt-5.6-sol', noFallback: true },
+      );
+      await vi.runAllTimersAsync();
+      await expect(pending).resolves.toMatchObject({ text: '{}' });
+      expect(calls).toBe(4);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
