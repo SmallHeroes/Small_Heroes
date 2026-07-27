@@ -2,11 +2,11 @@
 
 **Updated:** 2026-07-27
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a0-source-authority` in `C:\Users\guyna\.codex\worktrees\a917\Small_Heroes`, based exactly on immutable SHA `455670c85d0890502736524f692ca1d6e8da9281`. D1A0 implementation commit `66412925` is local and unpushed. Independent Claude Code QA is pending; nothing in this section is a self-awarded technical PASS. D0/PVB-C/PVB-B/PVB-A, Fox Board, main, Style01, and every other worktree remain read-only evidence.
+**Working branch:** `codex/r1d-pvb-d1a0-source-authority` in `C:\Users\guyna\.codex\worktrees\a917\Small_Heroes`, based exactly on immutable SHA `455670c85d0890502736524f692ca1d6e8da9281`. D1A0 implementation commits `66412925` and `d1b69331` are local and unpushed. Independent Claude Code QA is pending; nothing in this section is a self-awarded technical PASS. D0/PVB-C/PVB-B/PVB-A, Fox Board, main, Style01, and every other worktree remain read-only evidence.
 
 ## R1D-PVB-D1A0 — Authoring Hardening and Source Snapshot
 
-Guy approved D1A0 through the delegated implementation brief and the checked-in Decision Gate. The zero-cost infrastructure milestone is implemented in focused commit `66412925`. It creates one general Story Source → immutable source snapshot → bounded Visual Contract candidate authoring → separate Semantic Reconciliation/human review path. It did not perform the later live authoring or approval work.
+Guy approved D1A0 through the delegated implementation brief and the checked-in Decision Gate. The zero-cost infrastructure milestone is implemented in focused commits `66412925` and `d1b69331`. It creates one general Story Source → immutable source snapshot → bounded Visual Contract candidate authoring → separate Semantic Reconciliation/human review path. It did not perform the later live authoring or approval work.
 
 ### Exact source and request authority
 
@@ -17,7 +17,7 @@ Guy approved D1A0 through the delegated implementation brief and the checked-in 
 
 ### Structured action authority and separate review
 
-- The strict authoring draft now requires per-page `actionRequirements` from the existing closed predicate/polarity vocabulary plus exact same-page Story Source `sourcePhrase` evidence and an explicit `unsupportedActionSemantics` list. Evidence-only fields are removed before candidate assembly.
+- The strict authoring draft now requires per-page `actionRequirements` from the existing closed predicate/polarity vocabulary plus exact same-page Story Source `sourcePhrase` evidence and an explicit `unsupportedActionSemantics` list. Evidence-only fields are removed from the contract before candidate assembly but retained as a separately digested, explicitly non-authoritative citation list in the immutable candidate review envelope.
 - A phrase absent from that exact Story Source page, a malformed predicate, duplicate check ID, or unsupported semantic produces stable repair/blocker evidence. A live candidate is incomplete unless every page has at least one validated structured action. Historical `imageDirection` cannot supply action authority.
 - Compiler-owned identities, cast/presence, topology normalization, cover authority, and other deterministic facts are still overlaid after the model draft. The compiler/model output remains only a candidate and cannot approve itself.
 - The established Source Prompt Reconciliation lifecycle, rather than a parallel approval system, now has an exact source-snapshot binding. Review bundle/Markdown versions are v2 because their content-addressed surface exposes that binding. Reconciliation remains a separate pending artifact that also binds the exact Visual Contract digest and grants no Blueprint, Board, package, render, publication, release, or deployment authority.
