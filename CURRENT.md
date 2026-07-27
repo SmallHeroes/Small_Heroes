@@ -2,7 +2,53 @@
 
 **Updated:** 2026-07-27
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-c-runtime-cutover` in `C:\Users\guyna\.codex\worktrees\500e\Small_Heroes`, based exactly on approved immutable PVB-A/PVB-B integration SHA `09cfb2f7429979a1e6576873db19b5471b7836e3`. Claude Code independently returned technical PASS for combined immutable PVB-C range `09cfb2f7429979a1e6576873db19b5471b7836e3..687cfa90eb49d7df9982356fbf00ad3063c313e4` and corrective range `883e531f3237d2d52bbbf5537e6736492682f81a..687cfa90eb49d7df9982356fbf00ad3063c313e4`, with no BLOCKER, MAJOR, or MINOR. This PASS belongs to Claude Code, not Codex. The branch remains local and unpushed pending Guy's push decision. PVB-A, PVB-B, Fox Board, and every other worktree remain read-only evidence.
+**Working branch:** `codex/r1d-pvb-d0-production-lifecycle-tooling` in `C:\Users\guyna\.codex\worktrees\f485\Small_Heroes`, based exactly on immutable PVB-C PASS SHA `4b84f54b79f2ac63582f7efe0760accc1ea6610d`. The focused D0 implementation commits are `f4c2153e` and `d5c532ca`; the implementation range is `4b84f54b79f2ac63582f7efe0760accc1ea6610d..d5c532ca`. The branch is local and unpushed. PVB-C, PVB-B, PVB-A, Fox Board, main, Style01, and every other worktree remain read-only evidence. D0 is locally implemented and validated but has not received independent Claude Code technical PASS; Codex does not self-award that gate.
+
+## R1D-PVB-D0 — production lifecycle tooling implemented; independent QA pending
+
+Guy approved the general, zero-cost production lifecycle tooling milestone through the delegated implementation brief. The implementation is complete in focused commits `f4c2153e` and `d5c532ca`. It performed no real reconciliation, authoring, approval, Board action, package finalization/publication, render, or external action.
+
+### Deterministic readiness and exact authoring context
+
+- `production-story-readiness-audit/v1` reads Story Source, Visual Contract Template, stable style, reconciliation, Blueprint artifact prerequisites, and Board compatibility without mutation. It reports stable machine-readable reason codes and stage readiness.
+- Readiness requires complete cover/page authority, exact source/template identity, zones, cast, props/reveal constraints, stable set authority, approved/current reconciliation, exact Blueprint lifecycle paths, and required Board compatibility. Fox is exercised only as a read-only real readiness fixture; shared modules contain no Fox, Uri, Bunny, child, companion, page, location, or story literal.
+- `production-authoring-context/v1` binds exact raw and normalized Story Source snapshot, exact template identity/content, approved reconciliation, authored cover authority, and canonical content-addressed Style01 authority.
+- The canonical Style01 artifact is `style-authorities/style01/soft_hand_drawn_storybook.style-authority.json`. It contains structured medium/color/light/texture/environment/rendering authority and explicitly does not own story meaning, cast/wardrobe facts, prop lifecycle, camera, composition, staging, action, pose, blocking, placement, or page layout. Marketing labels and mutable prompt code are not style authority.
+
+### Reconciliation and provider-isolated authoring
+
+- Deterministic reconciliation draft tooling enumerates exact Story Source requirements and required RFC-6901 Visual Contract citation roots. It creates no visual beats, supersessions, reviewer identity, timestamp, or approval. Missing coverage remains blocking.
+- The reconciliation review bundle binds exact source/template/reconciliation digests, exposes every unresolved requirement, and keeps semantic reconciliation approval independent of Blueprint, Board, package, render, publication, and release authority.
+- `production-blueprint-authoring-request/v1` requires exact context digest, model, reasoning effort, output-token limit, bounded call/repair budget, and `noFallback:true`.
+- `production-blueprint-authoring-receipt/v1` records exact call/repair counts, prompt/response digests, bounded provider/model/response labels, sanitized token usage, validation errors, and stable failure codes. It persists no raw prompt, response, credential, authorization header, environment value, or raw provider exception text.
+- Preflight returns with zero calls even if a provider object is supplied. Live mode requires an explicit injected provider adapter; no built-in provider, network, credential, environment-file, storage, database, registry, Vision, or render adapter exists.
+
+### Exact v4 candidate, review, approval, and publication separation
+
+- The canonical lifecycle consumes only exact approved PVB-B Blueprint, provenance, validation evidence, review packet, and planning approval artifacts plus exact production context and compatible Board/prop authority.
+- `visual-package-v4-candidate/v1` is content-addressed and excludes package review and approval. `visual-package-v4-package-review/v1` independently binds the exact candidate and summarized source, Blueprint, planning approval, style, template, reconciliation, Board, prop, layout, and world-mode digests.
+- Package approval is now `visual-package-v4-approval/v2`. It binds the exact Blueprint planning approval, package candidate, and package review digests. No production v4 package existed at the immutable base; historical v1 approvals intentionally cannot qualify.
+- Offline qualification is total for malformed input, returns stable reasons, re-reads exact current source/template/style/reconciliation/Blueprint/Board/prop artifacts, rejects v1/v3/legacy authority and portrait-layout contradictions, and always reports `zeroWrite:true`.
+- Finalization validates an externally supplied exact Guy approval and persisted exact package review; it does not mint approval. Immutable publication/locator update remains a separate existing boundary. D0 executed only `write:false` publication planning.
+- The D0 CLI is `npm run production-visual-lifecycle -- ...`. It supports readiness, context, reconciliation draft, authoring preflight, v4 assembly, qualification, finalization plan, and publication plan. It has no live provider, approval, write-publication, render, Vision, network, database, storage, registry mutation, or environment-loading command.
+
+### General validation evidence
+
+- Exact base verification and branch/worktree reconciliation: **PASS** before implementation. The worktree started clean at required SHA `4b84f54b79f2ac63582f7efe0760accc1ea6610d`; no other task writes this branch/worktree.
+- `npx --no-install tsc --noEmit`: **PASS** before both focused commits and after the complete implementation.
+- Load-bearing D0 subset: **3 files / 39 tests PASS**. Complete `lib/visual-package/__tests__` suite: **10 files / 198 tests PASS**.
+- The D0 matrix covers five synthetic Story Source shapes, no Board, one Board, multiple locations/sets, no companion, late reveal forbidden-before/required-after constraints, incomplete cover, unresolved reconciliation, stale source/template/style/reconciliation/Blueprint/Board/package authority, missing/stale/self approval, wrong historical v3 package/Board identity, malformed input, portrait-layout contradiction, Story Source mutation after authoring, no-overwrite/path escape, preflight provider unreachability, and zero-write publication planning.
+- Literal `npm run check`: TypeScript **PASS**; Vitest **259 files total — 238 passed, 16 skipped, 5 failed; 2,712 tests total — 2,641 passed, 65 skipped, 6 failed**. The six failures are the unchanged absent ignored-output baseline in `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and two `story-read-back-validation.spec.ts` cases. All five test files are byte-unchanged from immutable base and every referenced ignored output is absent; no fixture was copied or fabricated.
+- With only those five known fixture-dependent files explicitly excluded, the remaining repository suite is **238 files / 2,632 tests PASS**, with 16 files / 65 tests skipped.
+- `git diff --check`, shared-module story-literal scan, and D0 CLI credential/network/provider/database/render/write-boundary scan: **PASS**.
+- No live authoring/model/LLM, image, audio, render, provider, Vision, fetch, network, credential, environment-file, Supabase, storage, database, Board, registry, real approval, publication, locator, promotion, production flag, deployment, PR, push, Story Source rewrite, or cleanup action occurred. Cost and generation count are both zero.
+
+### Limits and next gate
+
+- D0 creates reusable tooling only. No real reconciliation, Blueprint, Board, package candidate, package review, approval, final package, publication, locator, or production state was created.
+- The existing PVB-C runtime continues to require immutable approved `visual-package/v4`; D0 does not activate it or change rendering/prompt behavior.
+- Independent Claude Code first-pass adversarial QA is required against the immutable D0 range before technical acceptance. Its primary targets are total fail-closed parsing, exact-digest invalidation, approval separation, Blueprint sole composition authority, Board role, legacy fallback attempts, secret safety, and external-boundary reachability.
+- Guy retains product/visual acceptance and all authority for real reconciliation, Blueprint/package/Board approvals, authoring spend, publication/promotion, render, production, deployment, release, and push.
 
 ## R1D-PVB-C — independent technical QA PASS
 
@@ -855,9 +901,9 @@ R1A is implemented and locally committed. Independent Claude Code adversarial QA
 
 ## Active task
 
-R1C and R1D-FIX are accepted/closed. Guy authorized the zero-cost R1D-PREP rerun, and the general offline lifecycle has now prepared the source-bound Fox candidate documented above. No implementation code changed. The active gates are independent Claude Code first-pass read-only QA and Guy/Claude Cowork product review of the unapproved candidate. Package approval, promotion, render qualification, and every image render remain unauthorized.
+R1D-PVB-D0 production lifecycle tooling is locally implemented in focused commits `f4c2153e` and `d5c532ca` from exact immutable PVB-C PASS base `4b84f54b79f2ac63582f7efe0760accc1ea6610d`. The branch is clean except for this documentation closeout while it is being prepared, local, and unpushed. Independent Claude Code first-pass read-only adversarial QA is the active technical gate. No real lifecycle action is authorized.
 
-The governing brief is `docs/ai-workflow/DECISION_GATE_IMAGE_GENERATION_ARCHITECTURE_2026-07-22.md`.
+The governing brief is `docs/ai-workflow/R1D_PVB_D0_PRODUCTION_LIFECYCLE_TOOLING_DECISION_GATE.md`; the operator/reviewer map is `docs/ai-workflow/R1D_PVB_D0_PRODUCTION_LIFECYCLE_TOOLING.md`.
 
 ## Executive finding
 
@@ -957,12 +1003,11 @@ That historical blocker was corrected by `f4c335f6` and `74a73863`, then indepen
 
 ## Blockers
 
-- The R1D-PREP-RERUN candidate has not received independent Claude Code PASS or Guy's product acceptance. It deliberately lacks author/reviewer identities, review timestamp, approval, and promotion authority.
-- Literal `npm run check` remains non-green only for the six known ignored-output fixture failures; the additional first-run guard timeout passed in isolation and did not reproduce in the diagnostic rerun. No fixture was imported to manufacture green.
-- Any later push remains a separate explicit action. This handoff records immutable base/head evidence and does not rely on a durable ahead/behind claim.
-- The one-LOW-page proof requires separate explicit cost approval.
-- Lion requires separate product/content acceptance; technical readiness alone is insufficient.
+- D0 has not received independent Claude Code technical PASS. Codex's local green evidence is not an independent gate.
+- Literal `npm run check` remains non-green only for the six known ignored-output fixture failures in five byte-unchanged test files. No ignored fixture was imported or fabricated.
+- No real lifecycle artifact or decision exists. A later production run requires separate Guy authorization at every semantic reconciliation, Blueprint, Board, package approval, publication/promotion, cost, visual, and release gate.
+- Push remains a separate explicit action; this task leaves the branch local and unpushed.
 
 ## Next action
 
-Commit this `CURRENT.md`-only handoff, then Claude Code performs first-pass read-only adversarial QA against the immutable base-to-head range and the generated ignored evidence in this worktree. Guy/Claude Cowork review the candidate's human-facing cover/world/continuity package. If both gates are accepted, Guy may authorize a separate approval/promotion milestone; this rerun does not supply that authority. Do not approve or promote the candidate, render, push, import ignored fixtures, change flags, resolve storage URLs, exercise a live storage/database boundary, or begin R2/Lion/catalog/full-book work.
+Commit the documentation closeout, reconcile final topology and clean state, then give Claude Code a first-pass **READ-ONLY** adversarial QA brief for exact base-to-final-head range on `codex/r1d-pvb-d0-production-lifecycle-tooling`. Valid findings require a separate correction commit and re-gate. Do not run real reconciliation/authoring, approve any artifact, mint/import/approve a Board, finalize/publish/promote a package, update a locator, render, load credentials, call a provider/network/storage/database/Vision boundary, change production flags, deploy, push, import ignored fixtures, rewrite a Story Source, or clean another branch/worktree.
