@@ -2,7 +2,52 @@
 
 **Updated:** 2026-07-27
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d0-production-lifecycle-tooling` in `C:\Users\guyna\.codex\worktrees\f485\Small_Heroes`, based exactly on immutable PVB-C PASS SHA `4b84f54b79f2ac63582f7efe0760accc1ea6610d`. Claude Code independently PASSed correction range `3e5773b9232c3f8067aad9dbb47c75050f4a56fd..48d5bf32aaeb80bf704249e33a7a4b21a117ad70` and combined D0 range `4b84f54b79f2ac63582f7efe0760accc1ea6610d..48d5bf32aaeb80bf704249e33a7a4b21a117ad70`, with no BLOCKER, MAJOR, MINOR, or new NOTE. The original D0 head `3e5773b9` is at origin; the PASSed correction and this documentation-only closeout remain local and unpushed. PVB-C, PVB-B, PVB-A, Fox Board, main, Style01, and every other worktree remain read-only evidence. This is Claude Code's technical PASS for the exact immutable ranges, not Codex self-approval or product, visual, render, publication, launch, or push acceptance.
+**Working branch:** `codex/r1d-pvb-d1a0-source-authority` in `C:\Users\guyna\.codex\worktrees\a917\Small_Heroes`, based exactly on immutable SHA `455670c85d0890502736524f692ca1d6e8da9281`. D1A0 implementation commit `66412925` is local and unpushed. Independent Claude Code QA is pending; nothing in this section is a self-awarded technical PASS. D0/PVB-C/PVB-B/PVB-A, Fox Board, main, Style01, and every other worktree remain read-only evidence.
+
+## R1D-PVB-D1A0 — Authoring Hardening and Source Snapshot
+
+Guy approved D1A0 through the delegated implementation brief and the checked-in Decision Gate. The zero-cost infrastructure milestone is implemented in focused commit `66412925`. It creates one general Story Source → immutable source snapshot → bounded Visual Contract candidate authoring → separate Semantic Reconciliation/human review path. It did not perform the later live authoring or approval work.
+
+### Exact source and request authority
+
+- `story-source-authority-snapshot/v1` content-addresses normalized raw Story Source, parsed page prose, every historical image direction, adjacent authored cover authority, story key/path, page coverage, companion/gender inputs, and the legacy normalized source identity. Prose, page/image-direction, or cover-authority mutation changes the snapshot digest and therefore every request/candidate/reconciliation binding.
+- `visual-contract-authoring-request/v1` fixes OpenAI, Responses API, exact `gpt-5.6-sol`, standard/default tier, reasoning `medium`, strict `vc-draft-schema/v5`, tools disabled, `noFallback:true`, `transportRetries:0`, 20-minute timeout, 64,000 conservative input-token ceiling, page-derived output ceiling, initial call plus at most two repair calls, and a $5.00 projected hard ceiling.
+- The 12-page calibration source derives a 36,000-token maximum output including reasoning, a 27,116 conservative prompt/schema input upper bound, and a $4.20 worst-case three-call projection. A general 16-page fixture projects $5.28 and fails preflight before its injected provider can be reached.
+- Provider, model, endpoint, service tier, reasoning, strict schema, tools, fallback, retries, timeout, token, call, repair, pricing, cost, prompt-digest, source-digest, and request-digest mismatches fail deterministic preflight. Unrelated pipeline callers retain the existing three-transport-retry default; the exact authoring request performs zero transport retries.
+
+### Structured action authority and separate review
+
+- The strict authoring draft now requires per-page `actionRequirements` from the existing closed predicate/polarity vocabulary plus exact same-page Story Source `sourcePhrase` evidence and an explicit `unsupportedActionSemantics` list. Evidence-only fields are removed before candidate assembly.
+- A phrase absent from that exact Story Source page, a malformed predicate, duplicate check ID, or unsupported semantic produces stable repair/blocker evidence. A live candidate is incomplete unless every page has at least one validated structured action. Historical `imageDirection` cannot supply action authority.
+- Compiler-owned identities, cast/presence, topology normalization, cover authority, and other deterministic facts are still overlaid after the model draft. The compiler/model output remains only a candidate and cannot approve itself.
+- The established Source Prompt Reconciliation lifecycle, rather than a parallel approval system, now has an exact source-snapshot binding. Review bundle/Markdown versions are v2 because their content-addressed surface exposes that binding. Reconciliation remains a separate pending artifact that also binds the exact Visual Contract digest and grants no Blueprint, Board, package, render, publication, release, or deployment authority.
+
+### Sanitized receipts and immutable lifecycle
+
+- `visual-contract-authoring-receipt/v1` records sanitized per-attempt prompt/response digests, provider/model/response labels, `providerReached`, usage, exact price assumptions and bounded cost, validation errors, and stable status/failure codes. Aggregate call/repair counts include only actual injected-provider reachability; locally blocked repair attempts remain visible with `providerReached:false`.
+- Receipts persist no raw prompt, raw response, credential, authorization header, environment value, provider payload, or raw provider exception. Provider/model substitution, invalid/missing usage, token overflow, cost overflow, call-budget exhaustion, and repair exhaustion fail closed.
+- Source snapshots, authoring requests/receipts, candidate envelopes, reconciliation draft/review surfaces, and readiness evidence reuse the established content-addressed, atomic, identical-bytes-idempotent, different-bytes-collision-rejecting local writer.
+- The legacy mutable compiler `--live` route is disabled. The canonical `production-visual-lifecycle source-authoring-preflight` CLI exposes only provider-unreachable preflight plus an explicit `--write true` boundary for local immutable review artifacts.
+
+### Real offline calibration evidence
+
+- Story Source data key: `fox_uri_adventure`; path: `story-bank/v3-approved/fox_uri_adventure.md`; coverage: 12 pages, 12 image directions, authored cover authority present.
+- Legacy normalized source digest: `02629e886a9aaa1e714d9a8d652c24d94ca5843465ff8a9cb70d320a24e2231c`.
+- Source snapshot digest/path: `d8a6bed426a3ea571242915dcd63851bd59de4f148c52fbf28d0cb49429123d9` at `outputs/r1d-pvb-d1a0/review/source-snapshots/d8a6bed426a3ea571242915dcd63851bd59de4f148c52fbf28d0cb49429123d9.json`.
+- Authoring request digest/path: `da68cbf6ea979a2f37c29e8c780a9a3653819193a74e55a77cb7b3b5a3ab0cc2` at `outputs/r1d-pvb-d1a0/review/authoring-requests/da68cbf6ea979a2f37c29e8c780a9a3653819193a74e55a77cb7b3b5a3ab0cc2.json`.
+- Preflight receipt digest/path: `ceeccea40894443f9094b33edc0561fd1045b2acdc99e55412a263fbc69eab12` at `outputs/r1d-pvb-d1a0/review/authoring-receipts/ceeccea40894443f9094b33edc0561fd1045b2acdc99e55412a263fbc69eab12.json`. Status is `preflight_passed`; provider/model calls, repairs, usage, and actual cost are all zero.
+- Readiness digest/path: `c3acb5db79917da0767de8ffd9df4e87b93cd3057d7c4b8fef856366b81859d2` at `outputs/r1d-pvb-d1a0/review/readiness-evidence/c3acb5db79917da0767de8ffd9df4e87b93cd3057d7c4b8fef856366b81859d2.json`.
+- A second explicit immutable-write replay returned `created:false` for all four exact paths, proving identical-byte idempotence. The review root contains only these source/request/receipt/readiness classes: no Visual Contract candidate and no reconciliation artifact was fabricated.
+
+### Validation evidence and limits
+
+- `npx --no-install tsc --noEmit`: **PASS**.
+- Focused source-authority/compiler/provider/reconciliation/Blueprint-regression surface: **8 files / 91 tests PASS**.
+- Literal `npm run check`: TypeScript **PASS**; Vitest **260 files total — 239 passed, 16 skipped, 5 failed; 2,741 tests total — 2,670 passed, 65 skipped, 6 failed**. The six failures are exactly the independently established absent ignored-output baseline in `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and two `story-read-back-validation.spec.ts` cases. D1A0 does not modify any of those five test files or create/copy their missing fixtures.
+- The D1A0 matrix covers companion/no-companion, one/multiple locations, ordinary/reveal-gated props, cover authority, 3/12/16-page shapes, source/image-direction/cover mutation, complete per-page action authority, unsupported/minted/malformed/duplicate actions, cost/provider/model/retry/input/usage failure, three-attempt aggregation, sanitized provider failure, provider-unreachable preflight, immutable idempotence/collision, candidate binding, and exact reconciliation binding.
+- `git diff --check` and the shared-module calibration-literal scan: **PASS**.
+- No credential or environment file was loaded. No live authoring/model/LLM/provider/fetch/network, image/audio/render/Vision, Supabase/storage/database, Board, registry, real Semantic Reconciliation/source approval, Blueprint authoring/approval, package assembly/publication/promotion, production activation, deployment, PR, push, Story Source/template rewrite, or cleanup action occurred. Cost and generation count are zero.
+- D1A0 is tooling and one offline source snapshot only. It does not authorize D1A1, establish a real Visual Contract candidate, complete Semantic Reconciliation, approve the Story Source, make Blueprint authoring ready, or provide product, visual, render, publication, release, launch, technical-QA, or push acceptance.
 
 ## R1D-PVB-D0-QA-FIX — independent Claude Code technical PASS
 
