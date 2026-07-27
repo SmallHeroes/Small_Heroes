@@ -45,7 +45,11 @@ export const VISUAL_PACKAGE_V4_VERSION = 'visual-package/v4' as const;
 export const VISUAL_PACKAGE_V4_LOCATOR_VERSION =
   'visual-package-current-locator/v1' as const;
 export const VISUAL_PACKAGE_V4_APPROVAL_VERSION =
-  'visual-package-v4-approval/v1' as const;
+  'visual-package-v4-approval/v2' as const;
+export const VISUAL_PACKAGE_V4_CANDIDATE_VERSION =
+  'visual-package-v4-candidate/v1' as const;
+export const VISUAL_PACKAGE_V4_PACKAGE_REVIEW_VERSION =
+  'visual-package-v4-package-review/v1' as const;
 export const VISUAL_PACKAGE_V4_LAYOUT_POLICY_VERSION =
   'portrait-layout-compatibility/v1' as const;
 export const VISUAL_PACKAGE_V4_FREEZE_VERSION =
@@ -78,7 +82,44 @@ export interface VisualPackageV4Approval {
   approvedAt: string;
   scope: 'immutable_runtime_authority_promotion';
   blueprintApprovalDigest: string;
+  packageCandidateDigest: string;
+  packageReviewDigest: string;
   note?: string;
+  digestAlgorithm: 'canonical-json-sha256';
+  digest: string;
+}
+
+export interface VisualPackageV4PackageReviewSummary {
+  sourceRawDigest: string;
+  sourceDigest: string;
+  blueprintDigest: string;
+  authoringAuthorityDigest: string;
+  planningApprovalDigest: string;
+  styleAuthorityDigest: string;
+  visualContractTemplateDigest: string;
+  reconciliationDigest: string;
+  requiredBoardsDigest: string;
+  requiredPropReferencesDigest: string;
+  layoutPolicyDigest: string;
+  worldMode: VisualPackageReviewReality['worldMode'];
+}
+
+export interface VisualPackageV4PackageReview {
+  version: typeof VISUAL_PACKAGE_V4_PACKAGE_REVIEW_VERSION;
+  storyKey: string;
+  styleId: string;
+  packageCandidateDigest: string;
+  summary: VisualPackageV4PackageReviewSummary;
+  blockers: string[];
+  readyForApproval: boolean;
+  doesNotAuthorize: [
+    'image_render',
+    'publication',
+    'locator_update',
+    'production_activation',
+    'deployment',
+    'release',
+  ];
   digestAlgorithm: 'canonical-json-sha256';
   digest: string;
 }
@@ -153,6 +194,7 @@ export interface VisualPackageV4 {
   requiredBoards: VisualPackageBoardArtifactIdentity[];
   requiredPropReferences: VisualPackagePropArtifactIdentity[];
   layoutPolicy: VisualPackageV4LayoutCompatibilityPolicy;
+  packageReview: VisualPackageV4Artifact<VisualPackageV4PackageReview>;
   packageApproval: VisualPackageV4Approval;
   revisionDigestAlgorithm: 'canonical-json-sha256';
   revisionDigest: string;
@@ -162,6 +204,19 @@ export type VisualPackageV4Draft = Omit<
   VisualPackageV4,
   'revisionDigestAlgorithm' | 'revisionDigest'
 >;
+
+export type VisualPackageV4CandidateContent = Omit<
+  VisualPackageV4Draft,
+  'state' | 'packageReview' | 'packageApproval'
+>;
+
+export interface VisualPackageV4Candidate {
+  version: typeof VISUAL_PACKAGE_V4_CANDIDATE_VERSION;
+  state: 'candidate';
+  content: VisualPackageV4CandidateContent;
+  digestAlgorithm: 'canonical-json-sha256';
+  digest: string;
+}
 
 export interface VisualPackageV4Locator {
   version: typeof VISUAL_PACKAGE_V4_LOCATOR_VERSION;
@@ -247,10 +302,79 @@ function withoutApprovalDigest(
   return payload;
 }
 
+function withoutPackageReviewDigest(
+  review: VisualPackageV4PackageReview,
+): Omit<VisualPackageV4PackageReview, 'digestAlgorithm' | 'digest'> {
+  const {
+    digestAlgorithm: _digestAlgorithm,
+    digest: _digest,
+    ...payload
+  } = review;
+  return payload;
+}
+
 export function computeVisualPackageV4ApprovalDigest(
   approval: VisualPackageV4Approval,
 ): string {
   return canonicalJsonDigest(withoutApprovalDigest(approval));
+}
+
+export function computeVisualPackageV4CandidateDigest(
+  content: VisualPackageV4CandidateContent,
+): string {
+  return canonicalJsonDigest(content);
+}
+
+export function computeVisualPackageV4PackageReviewDigest(
+  review: VisualPackageV4PackageReview,
+): string {
+  return canonicalJsonDigest(withoutPackageReviewDigest(review));
+}
+
+export function buildVisualPackageV4Candidate(
+  content: VisualPackageV4CandidateContent,
+): VisualPackageV4Candidate {
+  return {
+    version: VISUAL_PACKAGE_V4_CANDIDATE_VERSION,
+    state: 'candidate',
+    content,
+    digestAlgorithm: 'canonical-json-sha256',
+    digest: computeVisualPackageV4CandidateDigest(content),
+  };
+}
+
+export function visualPackageV4CandidateContentFromPackage(
+  value: VisualPackageV4 | VisualPackageV4Draft,
+): VisualPackageV4CandidateContent {
+  const {
+    state: _state,
+    packageReview: _packageReview,
+    packageApproval: _packageApproval,
+    ...rest
+  } = withoutRevisionDigest(value);
+  return rest;
+}
+
+export function buildVisualPackageV4PackageReviewSummary(
+  content: VisualPackageV4CandidateContent,
+): VisualPackageV4PackageReviewSummary {
+  return {
+    sourceRawDigest: content.sourceSnapshot.rawDigest,
+    sourceDigest: content.sourceSnapshot.identity.digest,
+    blueprintDigest: content.blueprint.digest,
+    authoringAuthorityDigest:
+      content.blueprint.content.identity.authoringAuthority.digest,
+    planningApprovalDigest: content.planningApproval.digest,
+    styleAuthorityDigest: content.styleAuthority.digest,
+    visualContractTemplateDigest: content.visualContractTemplate.digest,
+    reconciliationDigest: content.reconciliation.digest,
+    requiredBoardsDigest: canonicalJsonDigest(content.requiredBoards),
+    requiredPropReferencesDigest: canonicalJsonDigest(
+      content.requiredPropReferences,
+    ),
+    layoutPolicyDigest: canonicalJsonDigest(content.layoutPolicy),
+    worldMode: content.review.worldMode,
+  };
 }
 
 export function computeVisualPackageV4RevisionDigest(
@@ -291,7 +415,9 @@ function artifactIssues(
   return issues;
 }
 
-function layoutIssues(value: VisualPackageV4): string[] {
+export function visualPackageV4LayoutIssues(
+  value: Pick<VisualPackageV4, 'layoutPolicy' | 'blueprint'>,
+): string[] {
   const issues: string[] = [];
   if (
     canonicalJsonDigest(value.layoutPolicy) !==
@@ -388,7 +514,8 @@ export function validateVisualPackageV4(value: unknown): string[] {
     packageValue.reviewPacket &&
     packageValue.planningApproval &&
     packageValue.visualContractTemplate &&
-    packageValue.reconciliation
+    packageValue.reconciliation &&
+    packageValue.packageReview
   ) {
     issues.push(
       ...artifactIssues(
@@ -409,6 +536,7 @@ export function validateVisualPackageV4(value: unknown): string[] {
         packageValue.visualContractTemplate,
       ),
       ...artifactIssues('reconciliation', packageValue.reconciliation),
+      ...artifactIssues('package review', packageValue.packageReview),
     );
     if (
       !nonEmpty(packageValue.blueprint.artifactPath) ||
@@ -520,7 +648,34 @@ export function validateVisualPackageV4(value: unknown): string[] {
     ) {
       issues.push('style authority content or style identity mismatch');
     }
-    issues.push(...layoutIssues(packageValue));
+    issues.push(...visualPackageV4LayoutIssues(packageValue));
+
+    const candidateContent =
+      visualPackageV4CandidateContentFromPackage(packageValue);
+    const candidateDigest =
+      computeVisualPackageV4CandidateDigest(candidateContent);
+    const packageReview = packageValue.packageReview.content;
+    if (
+      packageReview.version !==
+        VISUAL_PACKAGE_V4_PACKAGE_REVIEW_VERSION ||
+      packageReview.storyKey !== packageValue.storyKey ||
+      packageReview.styleId !== packageValue.styleId ||
+      packageReview.packageCandidateDigest !== candidateDigest ||
+      canonicalJsonDigest(packageReview.summary) !==
+        canonicalJsonDigest(
+          buildVisualPackageV4PackageReviewSummary(candidateContent),
+        ) ||
+      packageReview.readyForApproval !== true ||
+      !Array.isArray(packageReview.blockers) ||
+      packageReview.blockers.length > 0 ||
+      packageReview.digestAlgorithm !== 'canonical-json-sha256' ||
+      packageReview.digest !==
+        computeVisualPackageV4PackageReviewDigest(packageReview)
+    ) {
+      issues.push(
+        'package review does not bind the exact ready candidate content',
+      );
+    }
   } else {
     issues.push('one or more required immutable authority artifacts are missing');
   }
@@ -533,6 +688,13 @@ export function validateVisualPackageV4(value: unknown): string[] {
     !isoTimestampIsValid(approval.approvedAt) ||
     approval.blueprintApprovalDigest !==
       packageValue.planningApproval?.content.digest ||
+    approval.packageCandidateDigest !==
+      (
+        packageValue.packageReview?.content.packageCandidateDigest ??
+        ''
+      ) ||
+    approval.packageReviewDigest !==
+      packageValue.packageReview?.content.digest ||
     approval.digestAlgorithm !== 'canonical-json-sha256' ||
     approval.digest !== computeVisualPackageV4ApprovalDigest(approval)
   ) {

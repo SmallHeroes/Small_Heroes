@@ -19,3 +19,4 @@ export * from './productionAuthoringContext';
 export * from './productionReadiness';
 export * from './reconciliationLifecycle';
 export * from './productionAuthoringRunner';
+export * from './visualPackageV4Lifecycle';

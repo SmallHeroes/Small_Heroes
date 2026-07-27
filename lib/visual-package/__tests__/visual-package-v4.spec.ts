@@ -9,12 +9,16 @@ import {
   PRE_RENDER_BLUEPRINT_APPROVAL_VERSION,
   VISUAL_PACKAGE_V4_APPROVAL_VERSION,
   VISUAL_PACKAGE_V4_LAYOUT_POLICY,
+  VISUAL_PACKAGE_V4_PACKAGE_REVIEW_VERSION,
   VISUAL_PACKAGE_V4_VERSION,
   buildFrozenVisualPackageAuthority,
   buildPreRenderBlueprintReviewBundle,
+  buildVisualPackageV4Candidate,
+  buildVisualPackageV4PackageReviewSummary,
   canonicalJsonDigest,
   computePreRenderBlueprintApprovalDigest,
   computeVisualPackageV4ApprovalDigest,
+  computeVisualPackageV4PackageReviewDigest,
   createPreRenderBlueprintValidationEvidence,
   evaluateVisualPackageV4Qualification,
   finalizePreRenderBookVisualBlueprint,
@@ -28,7 +32,9 @@ import {
   type PreRenderBookVisualBlueprint,
   type VisualPackageV4,
   type VisualPackageV4Approval,
+  type VisualPackageV4CandidateContent,
   type VisualPackageV4Draft,
+  type VisualPackageV4PackageReview,
 } from '@/lib/visual-package';
 
 import {
@@ -125,6 +131,8 @@ function planningApproval(args: {
 
 function packageApproval(
   blueprintApprovalDigest: string,
+  packageCandidateDigest: string,
+  packageReviewDigest: string,
   note?: string,
 ): VisualPackageV4Approval {
   const payload = {
@@ -133,6 +141,8 @@ function packageApproval(
     approvedAt: '2026-07-27T10:00:00.000Z',
     scope: 'immutable_runtime_authority_promotion',
     blueprintApprovalDigest,
+    packageCandidateDigest,
+    packageReviewDigest,
     ...(note ? { note } : {}),
   } as const;
   const approval = {
@@ -170,9 +180,8 @@ function packageFor(
   const sourceRawDigest = createHash('sha256')
     .update(context.rawStorySource, 'utf8')
     .digest('hex');
-  const draft: VisualPackageV4Draft = {
+  const candidateContent: VisualPackageV4CandidateContent = {
     manifestVersion: VISUAL_PACKAGE_V4_VERSION,
-    state: 'approved',
     storyKey: blueprint.identity.storyKey,
     styleId: blueprint.identity.styleId,
     sourceSnapshot: {
@@ -241,7 +250,44 @@ function packageFor(
     requiredBoards: [],
     requiredPropReferences: [],
     layoutPolicy: VISUAL_PACKAGE_V4_LAYOUT_POLICY,
-    packageApproval: packageApproval(approval.digest, note),
+  };
+  const candidate = buildVisualPackageV4Candidate(candidateContent);
+  const packageReview = {
+    version: VISUAL_PACKAGE_V4_PACKAGE_REVIEW_VERSION,
+    storyKey: candidate.content.storyKey,
+    styleId: candidate.content.styleId,
+    packageCandidateDigest: candidate.digest,
+    summary: buildVisualPackageV4PackageReviewSummary(candidate.content),
+    blockers: [],
+    readyForApproval: true,
+    doesNotAuthorize: [
+      'image_render',
+      'publication',
+      'locator_update',
+      'production_activation',
+      'deployment',
+      'release',
+    ],
+    digestAlgorithm: 'canonical-json-sha256',
+    digest: '',
+  } satisfies VisualPackageV4PackageReview;
+  packageReview.digest =
+    computeVisualPackageV4PackageReviewDigest(packageReview);
+  const draft: VisualPackageV4Draft = {
+    ...candidate.content,
+    state: 'approved',
+    packageReview: {
+      artifactPath: `package-reviews/${packageReview.digest}.json`,
+      digestAlgorithm: 'canonical-json-sha256',
+      digest: canonicalJsonDigest(packageReview),
+      content: packageReview,
+    },
+    packageApproval: packageApproval(
+      approval.digest,
+      candidate.digest,
+      packageReview.digest,
+      note,
+    ),
   };
   return finalizeVisualPackageV4(draft);
 }

@@ -1,3 +1,4 @@
+import fs from 'fs';
 import path from 'path';
 
 import type { AuthoredCoverAuthority } from '@/lib/visual-contract-compiler/coverSourceAuthority';
@@ -5,9 +6,13 @@ import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler/
 import { parseStorySourceContent } from '@/lib/visual-contract-compiler/storySourceContent';
 
 import {
+  buildStorySourceIdentity,
   canonicalJsonDigest,
   repoRelativePath,
+  resolveRepoPath,
 } from './integrity';
+import { loadTemplateForPackage } from './artifacts';
+import { loadStoryAuthoredCoverAuthority } from './coverSourceFidelity';
 import {
   buildSourcePromptReconciliationDraft,
   sourcePromptReconciliationIssues,
@@ -50,6 +55,14 @@ export interface ReconciliationReviewBundle {
   reviewInstructions: string[];
   digestAlgorithm: 'canonical-json-sha256';
   digest: string;
+}
+
+export interface ProductionReconciliationDraftFromFiles {
+  sourceIdentity: StorySourceIdentity;
+  templateIdentity: import('./types').VisualPackageTemplateIdentity;
+  reconciliation: SourcePromptReconciliation;
+  reviewBundle: ReconciliationReviewBundle;
+  markdown: string;
 }
 
 function pageContractRoot(
@@ -182,6 +195,60 @@ export function buildProductionReconciliationDraftBundle(args: {
     reconciliation,
     reviewBundle,
     markdown: renderReconciliationReviewMarkdown(reviewBundle),
+  };
+}
+
+export function buildProductionReconciliationDraftFromFiles(args: {
+  repoRoot: string;
+  storyKey: string;
+  storyPath: string;
+  templatePath: string;
+}): ProductionReconciliationDraftFromFiles {
+  const storyAbsolute = resolveRepoPath(args.repoRoot, args.storyPath);
+  if (!fs.existsSync(storyAbsolute)) {
+    throw new Error(`Story Source is missing: ${args.storyPath}`);
+  }
+  const rawStorySource = fs.readFileSync(storyAbsolute, 'utf8');
+  const sourceIdentity = buildStorySourceIdentity({
+    repoRoot: args.repoRoot,
+    storyPath: args.storyPath,
+  });
+  resolveRepoPath(args.repoRoot, args.templatePath);
+  const loaded = loadTemplateForPackage({
+    repoRoot: args.repoRoot,
+    templatePath: args.templatePath,
+    storyKey: args.storyKey,
+    source: sourceIdentity,
+  });
+  if (loaded.issues.length > 0 || !loaded.template || !loaded.identity) {
+    throw new Error(
+      `Visual Contract Template is not ready:\n- ${loaded.issues
+        .map((issue) => `${issue.code}: ${issue.message}`)
+        .join('\n- ')}`,
+    );
+  }
+  const cover = loadStoryAuthoredCoverAuthority({
+    storyPath: storyAbsolute,
+    template: loaded.template,
+  });
+  if (cover.issues.length > 0) {
+    throw new Error(
+      `authored cover authority is invalid:\n- ${cover.issues
+        .map((issue) => `${issue.code}: ${issue.message}`)
+        .join('\n- ')}`,
+    );
+  }
+  const bundle = buildProductionReconciliationDraftBundle({
+    storyKey: args.storyKey,
+    sourceIdentity,
+    rawStorySource,
+    template: loaded.template,
+    ...(cover.authority ? { authoredCoverAuthority: cover.authority } : {}),
+  });
+  return {
+    sourceIdentity,
+    templateIdentity: loaded.identity,
+    ...bundle,
   };
 }
 

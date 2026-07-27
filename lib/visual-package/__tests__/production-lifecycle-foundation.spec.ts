@@ -22,6 +22,7 @@ import {
 
 import {
   buildBlueprintFixture,
+  type BlueprintFixtureOptions,
   type BlueprintFixtureShape,
 } from './pre-render-book-visual-blueprint.fixtures';
 
@@ -69,7 +70,10 @@ function styleAuthorityContent(): unknown {
   ) as unknown;
 }
 
-function materializeFixture(shape: BlueprintFixtureShape): {
+function materializeFixture(
+  shape: BlueprintFixtureShape,
+  options?: BlueprintFixtureOptions,
+): {
   repoRoot: string;
   storyKey: string;
   storyPath: string;
@@ -78,7 +82,7 @@ function materializeFixture(shape: BlueprintFixtureShape): {
   fixture: ReturnType<typeof buildBlueprintFixture>;
 } {
   const repoRoot = tempRoot();
-  const fixture = buildBlueprintFixture(shape);
+  const fixture = buildBlueprintFixture(shape, options);
   const storyKey = fixture.blueprint.identity.storyKey;
   const storyPath = fixture.context.source.path;
   const templatePath = fixture.context.templateIdentity.artifactPath;
@@ -287,6 +291,84 @@ describe('Story Source readiness and authoring context', () => {
     )).toBe(true);
   });
 
+  it.each([
+    { grouping: 'one', expectedSets: 1 },
+    { grouping: 'per_location', expectedSets: 3 },
+  ] as const)(
+    'enumerates $expectedSets unresolved Set Board requirement(s) for a multi-location $grouping story',
+    ({ grouping, expectedSets }) => {
+      const materialized = materializeFixture('journey_fantastical', {
+        mutateTemplate: (template) => {
+          for (const [index, location] of template.locations.entries()) {
+            location.setIdentityId =
+              grouping === 'one' ? 'set:whole_world' : `set:${index + 1}`;
+            location.setReference = { status: 'pending' };
+          }
+          const setIds = [
+            ...new Set(
+              template.locations.map(
+                (location) => location.setIdentityId!,
+              ),
+            ),
+          ];
+          template.setBoardAuthorities = setIds.map((setIdentityId) => {
+            const locations = template.locations.filter(
+              (location) => location.setIdentityId === setIdentityId,
+            );
+            const locationIds = new Set(
+              locations.map((location) => location.id),
+            );
+            return {
+              setIdentityId,
+              locations: locations.map((location) => ({
+                locationId: location.id,
+                name: location.name,
+                environmentClass: location.environmentClass!,
+                timeOfDay: location.timeOfDay!,
+                lighting: location.lighting!,
+              })),
+              areas: template.zones
+                .filter((zone) => locationIds.has(zone.locationId))
+                .map((zone) => ({
+                  id: `board:${zone.id}`,
+                  locationId: zone.locationId,
+                  spatialNodes: zone.spatialNodes!.map((node) => ({
+                    id: node.id,
+                    kind: node.kind,
+                    description: `stable physical ${node.kind}`,
+                  })),
+                  ...(zone.spatialRelations
+                    ? {
+                        spatialRelations: structuredClone(
+                          zone.spatialRelations,
+                        ),
+                      }
+                    : {}),
+                })),
+              fixedObjects: [],
+            };
+          });
+        },
+      });
+      const audit = auditProductionStoryReadiness({
+        repoRoot: materialized.repoRoot,
+        storyKey: materialized.storyKey,
+        storyPath: materialized.storyPath,
+        templatePath: materialized.templatePath,
+        reconciliationPath: materialized.reconciliationPath,
+        styleId: STYLE_ID,
+        styleAuthorityPath: STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
+        throughStage: 'board_compatibility',
+      });
+      expect(audit.requiredSetIdentityIds).toHaveLength(expectedSets);
+      expect(
+        audit.reasons.filter((reason) => reason.code === 'board_missing'),
+        JSON.stringify(audit.reasons, null, 2),
+      ).toHaveLength(expectedSets);
+      expect(audit.ready).toBe(false);
+    },
+  );
+
   it('audits the real Fox source/template read-only without treating it as a special path', () => {
     const audit = auditProductionStoryReadiness({
       repoRoot: process.cwd(),
@@ -425,6 +507,26 @@ describe('provider-isolated Blueprint authoring runner', () => {
     });
     expect(persisted.wrote).toBe(false);
     expect(fs.existsSync(path.join(root, persisted.receiptPath))).toBe(false);
+
+    const cliSource = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        'scripts/production-visual-lifecycle.ts',
+      ),
+      'utf8',
+    );
+    const importBlock = cliSource
+      .split(/\r?\n/)
+      .filter((line) => /^import\b|^\s+from\b/.test(line))
+      .join('\n');
+    expect(importBlock).not.toMatch(
+      /openai|replicate|supabase|prisma|puppeteer|vision|render/i,
+    );
+    expect(cliSource).not.toMatch(
+      /process\.env|dotenv|fetch\s*\(|\bwrite\s*:\s*true/i,
+    );
+    expect(cliSource).not.toContain("command === 'approve'");
+    expect(cliSource).not.toContain('--write');
   });
 
   it('records only strict receipt metadata and sanitized usage through an injected live adapter', async () => {
