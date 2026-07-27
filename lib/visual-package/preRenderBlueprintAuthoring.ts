@@ -298,7 +298,7 @@ export function assemblePreRenderBookVisualBlueprintFromDraft(args: {
   });
 }
 
-function authoringInputErrors(
+export function preRenderBlueprintAuthoringInputErrors(
   context: PreRenderBlueprintValidationContext,
   config: PreRenderBlueprintAuthoringConfig,
 ): string[] {
@@ -457,7 +457,7 @@ export async function compilePreRenderBookVisualBlueprint(
   config: PreRenderBlueprintAuthoringConfig,
   deps: { callAuthor: PreRenderBlueprintAuthoringCaller },
 ): Promise<PreRenderBlueprintAuthoringResult> {
-  const inputErrors = authoringInputErrors(context, config);
+  const inputErrors = preRenderBlueprintAuthoringInputErrors(context, config);
   if (inputErrors.length > 0) {
     throw new InvalidPreRenderBlueprintAuthoringInputError(inputErrors);
   }

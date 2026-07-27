@@ -1,0 +1,54 @@
+{
+  "version": "production-style-authority/v1",
+  "styleId": "soft_hand_drawn_storybook",
+  "pipelineStyleBranch": "style01",
+  "medium": [
+    "hand-painted watercolor illustration on textured cream paper",
+    "organic linework with visible pigment edges and brush variation"
+  ],
+  "color": [
+    "warm cream, peach, earthy green, dusty blue, and soft ochre pigments",
+    "layered luminous watercolor color with balanced cool accents"
+  ],
+  "lighting": [
+    "soft readable environmental light that preserves the declared physical light source",
+    "gentle depth and shadows without glossy bloom or a monochrome amber wash"
+  ],
+  "texture": [
+    "visible paper grain, pigment granulation, layered washes, and brushwork",
+    "legible physical material texture for architecture, fabric, glass, metal, walls, and floors"
+  ],
+  "environment": [
+    "richly described physical environments remain recognizable and spatially coherent",
+    "background detail dissolves gradually toward the page edge without becoming an empty neutral void"
+  ],
+  "renderingConstraints": [
+    "illustrated rather than photographic, vector, anime, glossy 3D, or CGI",
+    "stable rendering language across cover and every body page",
+    "no text, letters, numbers, symbols, signatures, or watermarks in image pixels"
+  ],
+  "authorityBoundaries": {
+    "owns": [
+      "medium",
+      "color behavior",
+      "lighting treatment",
+      "surface texture",
+      "rendering exclusions"
+    ],
+    "doesNotOwn": [
+      "story meaning",
+      "world facts",
+      "cast identity",
+      "wardrobe facts",
+      "prop lifecycle",
+      "camera",
+      "composition",
+      "staging",
+      "action",
+      "pose",
+      "blocking",
+      "placement",
+      "page layout"
+    ]
+  }
+}
