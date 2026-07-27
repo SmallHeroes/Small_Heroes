@@ -1,10 +1,10 @@
 # R1D-PVB-D1A1 — Canonical Live Authoring Decision Gate
 
-**Status:** APPROVED scope; initial implementation `031bcb6a..e069f19e` received Claude Code **HOLD** (2 MAJOR, 4 MINOR). Corrective code commit `e8a01182` is locally green and awaits READ-ONLY re-gate; no PASS is claimed.
+**Status:** APPROVED D1A1A scope. Initial implementation `031bcb6a..e069f19e` received Claude Code **HOLD** (2 MAJOR, 4 MINOR). Claude Code independently PASSed correction range `e069f19e8c9a071cffb22ff5b66d27ea2643e82b..925a3bf1254f6c159125f7e8c34cc61f198d5847` and combined range `031bcb6aa08d4a9ee7cf527bb051970efc3e96d1..925a3bf1254f6c159125f7e8c34cc61f198d5847`, with no BLOCKER or MAJOR. Seven formal residual MINOR findings A-G are corrected in local code commit `2233e490`; that residual range awaits READ-ONLY re-gate, so no new PASS is claimed.
 **Immutable base:** `031bcb6aa08d4a9ee7cf527bb051970efc3e96d1`
 **Implementation branch:** `codex/r1d-pvb-d1a1a-live-authoring-boundary`
-**D1A1A cost boundary:** exactly zero provider, model, LLM, image, Vision, network, storage, database, or Board calls
-**D1A1A external-call boundary:** none
+**D1A1A approved cost boundary:** exactly zero provider, model, LLM, image, Vision, network, storage, database, or Board calls
+**D1A1A observed execution:** zero spend and zero provider/model/LLM/image/Vision/storage/database/Board calls; one unauthorized read-only Git remote probe during residual final topology, disclosed below
 **D1A1B status:** not authorized; future one-invocation live authoring milestone only after separate official price verification and Guy spend approval
 **D1A1C status:** not authorized; future local semantic review/approval milestone only after a successful D1A1B artifact and Guy inspection
 
@@ -48,6 +48,22 @@ Both MAJOR findings and all four MINOR findings are accepted:
 Additional accepted pre-spend hardening makes the exact Responses evidence brand mandatory on the canonical live path, versions the authoring request as `visual-contract-authoring-request/v3`, binds initial system/user prompt digests and versions, binds the repair system digest plus compiler-owned repair user-builder version, and verifies that authority before every provider call. D1A0 retains its explicit optional injected-provider seam.
 
 Advisory disposition: live adapter/runner barrel exports are removed; rejected evidence retains only bounded labels/digests/reason codes; exact model equality remains fail-closed. Provider alias behavior cannot be proven without a live call, so first-contact exact-label risk remains documented rather than broadened speculatively. The input ceiling remains a conservative UTF-8 byte upper bound plus protocol allowance because no already-approved zero-cost tokenizer authority is introduced.
+
+## 1B. R1D-PVB-D1A1A-RESIDUAL-HARDENING disposition
+
+Claude Code independently PASSed the correction and combined ranges above, then reported seven formal residual MINOR findings. Guy authorized their zero-cost correction in the same task, worktree, and branch:
+
+- **A — logical/real path split:** one repository real path now owns reads, containment, output construction, and repository-relative artifact labels, with a portable real alias test.
+- **B — camelCase reason codes:** bounded safe reason syntax preserves schema-owned camelCase container names and existing snake_case codes.
+- **C — non-finite numbers:** request validation rejects them before request digest/persistence/provider construction; canonical hash and writer share the same canonicalization domain.
+- **D — stale v2/missing prompt authority:** malformed legacy input becomes immutable sanitized rejected evidence rather than an opaque pre-store throw.
+- **E — cross-writer bytes:** D1A0 and D1A1 writers use one canonical byte contract plus semantic read-before-write compatibility for historical pretty JSON; true content differences still collide closed.
+- **F — sentinel negative control:** a deliberately non-arming private-entry sentinel includes a real CLI-core import tripwire and proves arming failure wins before import.
+- **G — total top-level scalars:** every required top-level scalar is tested omitted and wrong-type; stable rejected evidence persists and provider construction remains unreachable.
+
+This residual correction preserves the independently PASSed provider destination guard, `store:false`, child environment filtering, pre-spend intent ordering, 12-page cap, per-call prompt authority, mandatory evidence brand, call/cost/retry ceilings, optional legacy injected seam, exact model equality, and unrelated pipeline retry defaults. It adds no story/calibration special case.
+
+Execution deviation: during final topology inspection, Codex mistakenly ran one read-only `git ls-remote --heads origin codex/r1d-pvb-d1a1a-live-authoring-boundary`. It returned no remote-branch output and made no Git mutation, provider/model call, or paid action, but it could contact the configured Git remote and credential helper and violated the approved no-network boundary. The residual handoff must not claim zero external calls.
 
 ## 2. Why now?
 
@@ -138,7 +154,7 @@ Before D1A1B, the Lead must obtain separate authority for read-only official pri
 
 D1A1A is isolated in focused local commits on its dedicated branch. Rollback is a normal revert of those commits. It applies no migration and creates no remote, provider, database, storage, Board, approval, publication, package, production, or deployment state.
 
-The QA correction has no external state. Focused rollback is a normal revert of the correction commits after `e069f19e`; it does not authorize reuse or replay of any future provider request.
+The QA and residual corrections have no external state. Focused residual rollback is a normal revert of `2233e490` plus its documentation closeout; it does not authorize reuse or replay of any future provider request.
 
 Temporary synthetic test artifacts are local and scoped to test-owned directories. Cleanup of unrelated artifacts, worktrees, or branches is not authorized.
 
@@ -146,7 +162,7 @@ Temporary synthetic test artifacts are local and scoped to test-owned directorie
 
 Guy has approved the nine architectural decisions and the D1A1A/B/C separation. No additional product decision is required before D1A1A implementation.
 
-Claude Code first-pass review is read-only and should try to falsify:
+Claude Code residual re-gate is read-only. It must inspect residual range `925a3bf1254f6c159125f7e8c34cc61f198d5847..final-head` and combined D1A1A range `031bcb6aa08d4a9ee7cf527bb051970efc3e96d1..final-head`, and should try to falsify:
 
 - every executable/private/core bypass;
 - exact dependency and shim ordering on Windows/path-with-spaces and POSIX-shaped inputs;
@@ -160,7 +176,13 @@ Claude Code first-pass review is read-only and should try to falsify:
 - immutable idempotence/collision behavior and receipt secret/raw-content leakage;
 - candidate-only status and absence of reconciliation/approval/Blueprint/Board/package/render/publication authority;
 - story/calibration literals in shared production code;
-- D1A1A having performed no external or paid action.
+- the disclosed unauthorized read-only Git remote probe and absence of any other external or paid action;
+- the one-real-root invariant through symlink/junction aliases;
+- exact safe camelCase and snake_case durable rejection codes;
+- non-finite and every omitted/wrong-type top-level request scalar before provider construction;
+- stale v2/missing `promptAuthority` durable rejection;
+- D1A0/D1A1 canonical-byte migration compatibility and true collision enforcement;
+- failed sentinel arming before any CLI core import.
 
 Claude Cowork review is not required for this technical zero-cost boundary. Guy will inspect the future D1A1B semantic artifact before D1A1C.
 
