@@ -1,13 +1,13 @@
 # R1D-PVB-D1A1 — Canonical Live Authoring Decision Gate
 
-**Status:** D1A1A is independently PASSed and frozen in approved pushed base `29350ec18b10a0d0150412912f2cff134c38430a`. Guy separately authorized zero-cost D1A1B0 canonical live-request materialization; code/test commit `bbd1de6d` awaits first-pass READ-ONLY QA, so no B0 PASS is claimed.
+**Status:** D1A1A is independently PASSed and frozen in approved pushed base `29350ec18b10a0d0150412912f2cff134c38430a`. Claude Code independently PASSed zero-cost D1A1B0 exact range `29350ec18b10a0d0150412912f2cff134c38430a..e904dbe37e45dde9181bc8b70322073dc240c9d4` with no BLOCKER, MAJOR, or MINOR. The B0 implementation and faithful verdict closeout remain local and unpushed.
 **Immutable base:** `031bcb6aa08d4a9ee7cf527bb051970efc3e96d1`
 **Implementation branch:** `codex/r1d-pvb-d1a1a-live-authoring-boundary`
 **D1A1B0 immutable base:** `29350ec18b10a0d0150412912f2cff134c38430a`
 **D1A1B0 implementation branch:** `codex/r1d-pvb-d1a1b0-live-request-materialization`
 **D1A1A approved cost boundary:** exactly zero provider, model, LLM, image, Vision, network, storage, database, or Board calls
 **D1A1A observed execution:** zero spend and zero provider/model/LLM/image/Vision/storage/database/Board calls; one unauthorized read-only Git remote probe during residual final topology, disclosed below
-**D1A1B0 status:** authorized and implemented locally as materialization only; zero credential, pricing, provider, network, candidate, or downstream authority; awaits independent QA
+**D1A1B0 status:** independently PASSed as local materialization only; zero credential, pricing, provider, network, candidate, or downstream authority; no code correction or additional QA round is required for the faithful verdict transcription
 **D1A1B1 status:** not authorized; future one-invocation live authoring milestone only after separate official price verification and Guy spend approval
 **D1A1C status:** not authorized; future local semantic review/approval milestone only after a successful D1A1B1 artifact and Guy inspection
 
@@ -98,7 +98,17 @@ Code/test commit `bbd1de6d` implements B0 generally. The first Story Source was 
 - live v3 request `d3038f06ee172522445d438359d0b3bdef60ce7fa7dccb53f5d7853617d2ccff`;
 - materialization manifest `6c9cd2d3195fb99f89aa5eaddd5785337564a6c5d1c6b0efbc59fe22239b99d6`.
 
-Validation evidence is 33/33 new B0 tests and 350/350 across the exact 14-file D1A0/D1A1A/B0/source/compiler/retry matrix, plus passing TypeScript and diff checks. Literal `npm run check` adds the B0 file/tests and reproduces only the established ignored-output baseline: 264 files total, 243 pass / 16 skip / 5 fail; 2,892 tests total, 2,821 pass / 65 skip / 6 fail. B0 awaits independent read-only adversarial QA.
+Validation evidence is 33/33 new B0 tests and 350/350 across the exact 14-file D1A0/D1A1A/B0/source/compiler/retry matrix, plus passing TypeScript and diff checks. Literal `npm run check` adds the B0 file/tests and reproduces only the established ignored-output baseline: 264 files total, 243 pass / 16 skip / 5 fail; 2,892 tests total, 2,821 pass / 65 skip / 6 fail.
+
+Claude Code independently reviewed immutable range `29350ec18b10a0d0150412912f2cff134c38430a..e904dbe37e45dde9181bc8b70322073dc240c9d4`, reproduced TypeScript PASS, B0 33/33, the exact literal full-suite baseline totals, and range diff-check PASS, and returned **PASS** with no BLOCKER, MAJOR, or MINOR. No code/test/artifact correction or B0 re-gate is required.
+
+The independent PASS retained three advisory NOTES:
+
+- the manifest embeds `repositoryRealPath` in its content and future command, so its determinism is intentionally limited to the same worktree/revision rather than portable across clones or worktrees; the artifact also carries a local absolute user path;
+- B0 deliberately enables `rejectSymlinkAliases`, so junctioned repository roots and Windows 8.3 aliases fail closed and can make the command inoperative on those hosts, while case-only Windows path differences are normalized; and
+- the first pass was single-reviewer: the critical implementation/store/CLI/barrel/fixture paths and validations were independently reviewed and reproduced, but the approximately 960-line test spec was not line-audited in full and no multi-agent adversarial sweep was run.
+
+These are scoped non-blocking limitations, not portability or host-compatibility claims. The QA execution itself was local and read-only and did not edit, commit, push, use network, check/load credentials, perform pricing lookup, contact a provider, or run the future live command.
 
 B0 performed zero pricing lookup, credential read or existence check, provider/model/network call, live authoring, candidate creation, render/Vision, storage/database, Board, reconciliation, approval, Blueprint, package/publication/promotion, production/deployment, push, or spend. D1A1B1 and D1A1C remain unauthorized.
 
@@ -220,6 +230,8 @@ Claude Code residual re-gate is read-only. It must inspect residual range `925a3
 - stale v2/missing `promptAuthority` durable rejection;
 - D1A0/D1A1 canonical-byte migration compatibility and true collision enforcement;
 - failed sentinel arming before any CLI core import.
+
+The later D1A1B0 first-pass review is complete for exact range `29350ec18b10a0d0150412912f2cff134c38430a..e904dbe37e45dde9181bc8b70322073dc240c9d4` and returned PASS with only the three advisory NOTES recorded in §1C. No additional Claude QA round is required if the documentation-only closeout faithfully records that external verdict. This closes B0 technical QA only and does not authorize D1A1B1, D1A1C, live execution, spend, product/visual acceptance, push, deployment, or production.
 
 Claude Cowork review is not required for this technical zero-cost boundary. Guy will inspect the future D1A1B1 semantic artifact before D1A1C.
 

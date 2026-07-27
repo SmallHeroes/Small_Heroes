@@ -1,8 +1,8 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-07-27
+**Updated:** 2026-07-28
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b0-live-request-materialization` in `C:\Users\guyna\.codex\worktrees\d90e\Small_Heroes`, based exactly on approved immutable D1A1A SHA `29350ec18b10a0d0150412912f2cff134c38430a`. D1A1A is independently PASSed and present in that pushed base. R1D-PVB-D1A1B0 code/test commit `bbd1de6d` is local and unpushed and awaits first-pass read-only Claude Code QA; no independent PASS is claimed. D1A1B1 live execution, D1A1C, and every other worktree remain out of scope and read-only.
+**Working branch:** `codex/r1d-pvb-d1a1b0-live-request-materialization` in `C:\Users\guyna\.codex\worktrees\d90e\Small_Heroes`, based exactly on approved immutable D1A1A SHA `29350ec18b10a0d0150412912f2cff134c38430a`. D1A1A is independently PASSed and present in that pushed base. Claude Code independently PASSed the exact B0 range `29350ec18b10a0d0150412912f2cff134c38430a..e904dbe37e45dde9181bc8b70322073dc240c9d4` with no BLOCKER, MAJOR, or MINOR. The implementation and this faithful documentation-only closeout remain local and unpushed. D1A1B1 live execution, D1A1C, and every other worktree remain out of scope and read-only.
 
 ## R1D-PVB-D1A1B0 — Canonical Live Request Materialization
 
@@ -42,7 +42,17 @@ node scripts/visual-contract-authoring.cjs live --repo-root C:\Users\guyna\.code
 - Literal `npm run check`: TypeScript **PASS**; Vitest reproduced only the established ignored-output baseline: **264 files — 243 passed, 16 skipped, 5 failed; 2,892 tests — 2,821 passed, 65 skipped, 6 failed**. The five failing files are unchanged: `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and `story-read-back-validation.spec.ts`. No ignored fixture was copied or fabricated.
 - The full run created its four ordinary ignored scratch files under `outputs/qa-anchors/test_lion__fp__wardrobe` and `outputs/test-fixtures/story-read-back-regression`; they remain ignored local test data. The B0 calibration bundle and dependency junction also remain ignored and local.
 - One initial calibration attempt used non-relative preload specifiers and failed immediately with `MODULE_NOT_FOUND` before loading the command, input, or writer. The corrected sentineled materialization and idempotent replay succeeded. The future live command was never run.
-- Provider/model/network calls, credential loading or existence checks, pricing lookup, render/Vision, storage/database, Board, Semantic Reconciliation, Blueprint, package/publication/promotion, production activation, deployment, push, and spend were zero. B0 awaits independent first-pass QA; D1A1B1 remains separately gated and unauthorized.
+- Provider/model/network calls, credential loading or existence checks, pricing lookup, render/Vision, storage/database, Board, Semantic Reconciliation, Blueprint, package/publication/promotion, production activation, deployment, push, and spend were zero. B0 has independent technical PASS; D1A1B1 remains separately gated and unauthorized.
+
+### Independent QA PASS and advisory NOTES
+
+- Claude Code independently reviewed immutable range `29350ec18b10a0d0150412912f2cff134c38430a..e904dbe37e45dde9181bc8b70322073dc240c9d4` and returned **PASS** with no BLOCKER, MAJOR, or MINOR. No code, test, artifact, or corrective milestone is required.
+- The reviewer independently reproduced `npx --no-install tsc --noEmit` **PASS**, the B0 suite **1 file / 33 tests PASS**, range `git diff --check` **PASS**, and literal `npm run check` at the exact established baseline: **264 files — 243 passed, 16 skipped, 5 failed; 2,892 tests — 2,821 passed, 65 skipped, 6 failed**.
+- **NOTE-1 — same-worktree determinism, not clone portability:** `repositoryRealPath` is intentionally embedded in the manifest and future command. The manifest digest is deterministic for the same worktree/revision but not reproducible across clones or worktrees, and the artifact contains a local absolute user path. This is within B0's approved scope, not a portability claim.
+- **NOTE-2 — aliased-root hosts fail closed:** B0 deliberately opts into `rejectSymlinkAliases`. A junctioned repository root or Windows 8.3 alias can therefore make the command inoperative rather than silently accepting an aliased authority root. Case-only Windows path differences remain normalized. This is intentional fail-closed behavior.
+- **NOTE-3 — review coverage:** the first pass was single-reviewer. Claude Code read the critical core/store/CLI/barrel/fixture paths and independently ran the validations, but did not line-audit every line of the approximately 960-line test spec and did not run a multi-agent adversarial sweep. Test titles and positive controls were checked against the claims.
+- Claude Code's review was local and read-only: no edits, commit, push, PR, network, credential check/load, pricing lookup, provider/render/Vision/storage/database/Board action, or future live command. No additional Claude QA round is required for a faithful documentation-only transcription of this verdict.
+- This PASS is technical acceptance of B0 only. It grants no D1A1B1/live call, credential, spend, product, visual, reconciliation, approval, Blueprint, Board, package, render, publication/promotion, production, push, deployment, or release authority.
 
 ## R1D-PVB-D1A1A — Canonical Live Authoring Boundary
 
@@ -1087,11 +1097,11 @@ R1A is implemented and locally committed. Independent Claude Code adversarial QA
 
 ## Active task
 
-R1D-PVB-D1A1B0 is implemented as zero-cost canonical live-request materialization on approved D1A1A base `29350ec18b10a0d0150412912f2cff134c38430a`. Code/test commit `bbd1de6d` is local and unpushed. This task is the sole writer to `codex/r1d-pvb-d1a1b0-live-request-materialization`; B0 awaits independent Claude Code first-pass review and has no self-awarded PASS.
+R1D-PVB-D1A1B0 is implemented as zero-cost canonical live-request materialization on approved D1A1A base `29350ec18b10a0d0150412912f2cff134c38430a`. Code/test commit `bbd1de6d` and implementation closeout `e904dbe3` are local and unpushed. This task remains the sole writer to `codex/r1d-pvb-d1a1b0-live-request-materialization`. Claude Code independently PASSed exact range `29350ec18b10a0d0150412912f2cff134c38430a..e904dbe37e45dde9181bc8b70322073dc240c9d4` with no actionable finding.
 
 The governing brief is `docs/ai-workflow/R1D_PVB_D1A1_CANONICAL_LIVE_AUTHORING_DECISION_GATE.md`. D1A1A is already independently PASSed in the approved base. B0 materializes only immutable local inputs and a non-authorizing manifest.
 
-The next technical gate is read-only adversarial QA of exact range `29350ec18b10a0d0150412912f2cff134c38430a..final-head`. D1A1B1 remains a separately authorized future live-call/spend milestone; no credential load, official pricing lookup, provider call, candidate, reconciliation, approval, publication, production, render, or deployment is authorized here.
+The independent B0 technical gate is closed. No additional Claude QA round is required for this faithful docs-only verdict transcription. The next action is Guy's inspection and optional explicit push decision for the local branch. D1A1B1 remains a separately authorized future live-call/spend milestone; no credential load, official pricing lookup, provider call, candidate, reconciliation, approval, publication, production, render, or deployment is authorized here.
 
 ## Executive finding
 
@@ -1175,6 +1185,8 @@ That historical blocker was corrected by `f4c335f6` and `74a73863`, then indepen
 - Materialized and replayed one ignored 12-page calibration bundle under `outputs/r1d-pvb-d1a1b0/live-request`; all four immutable artifacts were identical-existing on replay, and no downstream live artifact directory was created.
 - New B0 validation passed 33/33 tests; the corrected exact 14-file D1A0/D1A1A/B0/source/compiler/retry matrix passed 350/350; TypeScript and diff hygiene passed.
 - Literal `npm run check` reproduced only the established six ignored-output failures in five unchanged files, at 264 files / 2,892 tests total. No missing fixture was fabricated.
+- Claude Code independently PASSed exact range `29350ec18b10a0d0150412912f2cff134c38430a..e904dbe37e45dde9181bc8b70322073dc240c9d4` with no BLOCKER, MAJOR, or MINOR and independently reproduced TypeScript, B0 33/33, literal full-suite baseline totals, and diff-check evidence.
+- The independent review retained three advisory NOTES only: the manifest is intentionally same-worktree rather than clone-portable and carries a local absolute path; aliased-root hosts intentionally fail closed under `rejectSymlinkAliases`; and the review was single-reviewer without a full line-audit of the approximately 960-line spec or a multi-agent sweep.
 - Throwing sentinels proved credential value/existence, provider-module, and network boundaries would fail if reached; the real materialization command completed beneath those sentinels.
 - Story and authored-cover mutations changed source-snapshot/live-request authority, while a stale old mix failed through the canonical runner before provider factory construction and without a candidate.
 - No pricing lookup, credential read/check, live authoring, provider/model/network call, render/Vision, storage/database, Board, reconciliation, approval, Blueprint, package/publication/promotion, production/deployment, push, or spend occurred.
@@ -1198,7 +1210,7 @@ That historical blocker was corrected by `f4c335f6` and `74a73863`, then indepen
 
 ## Blockers
 
-- B0 has not received independent Claude Code technical PASS. Codex's local green evidence is not an independent gate.
+- B0 has independent Claude Code technical PASS for the exact immutable implementation range. No B0 code correction or re-gate remains.
 - Literal `npm run check` remains non-green only for the six known ignored-output fixture failures in five byte-unchanged test files. No ignored fixture was imported or fabricated.
 - D1A1B1 remains unauthorized. It requires a separate read-only official pricing verification and explicit Guy live-call/spend decision; any mismatch reopens the Decision Gate.
 - No candidate or downstream lifecycle decision exists. Any later live authoring, Semantic Reconciliation, Blueprint, Board, package approval, publication/promotion, render, production, or release action requires its own authority.
@@ -1206,4 +1218,4 @@ That historical blocker was corrected by `f4c335f6` and `74a73863`, then indepen
 
 ## Next action
 
-Commit this documentation closeout, reconcile final topology and clean tracked state, then give Claude Code a first-pass **READ-ONLY** adversarial QA brief for exact base-to-final-head range on `codex/r1d-pvb-d1a1b0-live-request-materialization`. Valid findings require a separate correction commit and re-gate. Do not run the recorded future live command; load or check credentials; perform a pricing lookup; call a provider/network/storage/database/Vision boundary; create or approve a candidate, reconciliation, Blueprint, Board, or package; publish/promote; render; change production flags; deploy; push; import ignored fixtures; rewrite a Story Source; or clean another branch/worktree.
+After this faithful documentation-only closeout commit, reconcile final topology and clean tracked state, then hand Guy the exact inspection and optional future push command. No additional Claude QA round is required for this verdict transcription. Do not run the recorded future live command; load or check credentials; perform a pricing lookup; call a provider/network/storage/database/Vision boundary; create or approve a candidate, reconciliation, Blueprint, Board, or package; publish/promote; render; change production flags; deploy; push without Guy's explicit decision; import ignored fixtures; rewrite a Story Source; or clean another branch/worktree.
