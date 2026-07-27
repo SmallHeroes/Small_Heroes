@@ -541,6 +541,18 @@ describe('source-grounded closed action authority', () => {
     expect(
       JSON.stringify(result.template),
     ).not.toContain('sourcePhrase');
+    expect(result.actionSourceEvidence).toHaveLength(
+      snapshot.content.pages.length,
+    );
+    expect(
+      result.actionSourceEvidence.every((entry) =>
+        snapshot.content.pages
+          .find(
+            (page) => page.pageNumber === entry.pageNumber,
+          )
+          ?.text.includes(entry.sourcePhrase),
+      ),
+    ).toBe(true);
   });
 
   it('fails with a stable blocker when a source beat cannot fit the closed vocabulary', async () => {
@@ -873,7 +885,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       repoRoot,
       outputDir,
       receipt: result.receipt,
-      template: result.compileResult!.template,
+      compileResult: result.compileResult!,
       write: true,
     });
     for (const write of [
@@ -888,6 +900,37 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       expect(
         fs.existsSync(path.join(repoRoot, write.path)),
       ).toBe(true);
+    }
+    const candidateArtifact = JSON.parse(
+      fs.readFileSync(
+        path.join(repoRoot, candidateWrite.path),
+        'utf8',
+      ),
+    ) as {
+      actionSourceEvidenceDigest: string;
+      actionSourceEvidence: Array<{
+        pageNumber: number;
+        checkId: string;
+        sourcePhrase: string;
+      }>;
+    };
+    expect(candidateArtifact.actionSourceEvidence).toHaveLength(
+      snapshot.content.pages.length,
+    );
+    expect(candidateArtifact.actionSourceEvidenceDigest).toBe(
+      canonicalJsonDigest(
+        candidateArtifact.actionSourceEvidence,
+      ),
+    );
+    for (const evidenceEntry of candidateArtifact.actionSourceEvidence) {
+      expect(
+        snapshot.content.pages
+          .find(
+            (page) =>
+              page.pageNumber === evidenceEntry.pageNumber,
+          )
+          ?.text,
+      ).toContain(evidenceEntry.sourcePhrase);
     }
     expect(
       persistVisualContractAuthoringRequest({
@@ -1002,8 +1045,10 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
           repoRoot: tempRoot(),
           outputDir: 'outputs/review',
           receipt: result.receipt,
-          template:
-            fullyActionedBunnyDraft(snapshot),
+          compileResult: {
+            template: fullyActionedBunnyDraft(snapshot),
+            actionSourceEvidence: [],
+          },
           write: true,
         }),
       ).toThrow(/receipt-unbound/);

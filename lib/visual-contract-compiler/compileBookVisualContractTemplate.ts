@@ -156,6 +156,11 @@ export interface TemplateCompileInput extends DeterministicFactsInput {
 export interface TemplateCompileResult {
   template: BookVisualContractTemplate;
   facts: DeterministicFacts;
+  /**
+   * Non-authoritative review citations copied verbatim from exact same-page
+   * Story Source prose. These are not part of the contract candidate.
+   */
+  actionSourceEvidence: TemplateActionSourceEvidence[];
   /** Non-fatal notes: e.g. a draft human the extractor did not detect (dropped as non-text-verified). */
   notes: string[];
   /** The authoring call's provenance (model / reasoning / budget / schema+prompt version / attempt). */
@@ -163,6 +168,12 @@ export interface TemplateCompileResult {
   /** The FAILED repair attempts before the passing one (empty when the initial draft was valid). Persist beside
    *  the review for reviewability (Stage 3). */
   repairAttempts: TemplateRepairAttempt[];
+}
+
+export interface TemplateActionSourceEvidence {
+  pageNumber: number;
+  checkId: string;
+  sourcePhrase: string;
 }
 
 // ── LLM prompt (real path; the pilot injects a stub) ─────────────────────────
@@ -413,6 +424,7 @@ function normalizeActionEvidence(value: string): string {
 function sourceGroundPageActions(
   pageDraft: Record<string, unknown>,
   sourcePages: TemplateCompileInput['pages'],
+  evidence: TemplateActionSourceEvidence[],
 ): Record<string, unknown> {
   const pageNumber =
     typeof pageDraft.pageNumber === 'number'
@@ -475,10 +487,20 @@ function sourceGroundPageActions(
       pageDraft.actionRequirements,
     ).map((raw, index) => {
       const action = { ...asObj(raw) };
-      assertPhrase(
+      const sourcePhrase = assertPhrase(
         action.sourcePhrase,
         `page ${pageNumber}.actionRequirements[${index}]`,
       );
+      if (
+        sourcePhrase &&
+        typeof action.checkId === 'string'
+      ) {
+        evidence.push({
+          pageNumber,
+          checkId: action.checkId,
+          sourcePhrase,
+        });
+      }
       delete action.sourcePhrase;
       if (action.object === null) delete action.object;
       if (action.laterality === null) delete action.laterality;
@@ -796,8 +818,14 @@ function assembleTemplateFromDraft(
   facts: DeterministicFacts,
   input: TemplateCompileInput,
   authoringModel: string,
-): { template: BookVisualContractTemplate; notes: string[] } {
+): {
+  template: BookVisualContractTemplate;
+  notes: string[];
+  actionSourceEvidence: TemplateActionSourceEvidence[];
+} {
   const notes: string[] = [];
+  const actionSourceEvidence: TemplateActionSourceEvidence[] =
+    [];
 
   // Cast IDENTITY + PRESENCE are AUTHORITATIVE from the input/facts — NEVER the draft. The child id is a fixed
   // constant; the companion id comes from input.companion (the order); humans come from the extractor. The draft
@@ -855,7 +883,11 @@ function assembleTemplateFromDraft(
   notes.push(...topoNotes);
   const pageContracts = canonicalPages.map((pc) =>
     overlayPage(
-      sourceGroundPageActions(pc, input.pages),
+      sourceGroundPageActions(
+        pc,
+        input.pages,
+        actionSourceEvidence,
+      ),
       facts,
       childId,
       companionId,
@@ -937,7 +969,7 @@ function assembleTemplateFromDraft(
 
   // FAIL-CLOSED — never return an invalid candidate.
   assertValidBookVisualContractTemplate(template);
-  return { template, notes };
+  return { template, notes, actionSourceEvidence };
 }
 
 /**
@@ -989,7 +1021,9 @@ export async function compileBookVisualContractTemplate(
 
   const repairAttempts: TemplateRepairAttempt[] = [];
   for (let attempt = 1; ; attempt++) {
-    let assembled: { template: BookVisualContractTemplate; notes: string[] } | null = null;
+    let assembled:
+      | ReturnType<typeof assembleTemplateFromDraft>
+      | null = null;
     let attemptErrors: string[] = [];
     try {
       assembled = assembleTemplateFromDraft(draft, facts, input, authoringModel);
@@ -1009,7 +1043,15 @@ export async function compileBookVisualContractTemplate(
         attempt,
         ...(attempt > 1 ? { repairPromptVersion: REPAIR_PROMPT_VERSION } : {}),
       };
-      return { template: assembled.template, facts, notes: assembled.notes, provenance, repairAttempts };
+      return {
+        template: assembled.template,
+        facts,
+        actionSourceEvidence:
+          assembled.actionSourceEvidence,
+        notes: assembled.notes,
+        provenance,
+        repairAttempts,
+      };
     }
 
     // This attempt's draft was invalid — record it (raw draft + exact errors) for reviewability.

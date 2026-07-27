@@ -23,6 +23,7 @@ import {
   buildTemplateCompileUserPrompt,
   compileBookVisualContractTemplate,
   TemplateRepairExhaustedError,
+  type TemplateActionSourceEvidence,
   type TemplateCompileResult,
 } from '@/lib/visual-contract-compiler/compileBookVisualContractTemplate';
 import type {
@@ -246,7 +247,10 @@ export interface VisualContractCandidateArtifact {
   authoringRequestDigest: string;
   authoringReceiptDigest: string;
   templateDigest: string;
+  actionSourceEvidenceDigest: string;
   template: BookVisualContractTemplate;
+  /** Review evidence only; never contract or approval authority. */
+  actionSourceEvidence: TemplateActionSourceEvidence[];
   status: 'candidate';
   doesNotAuthorize: string[];
   digestAlgorithm: 'canonical-json-sha256';
@@ -1268,10 +1272,15 @@ export function persistVisualContractCandidate(args: {
   repoRoot: string;
   outputDir: string;
   receipt: VisualContractAuthoringReceipt;
-  template: BookVisualContractTemplate;
+  compileResult: Pick<
+    TemplateCompileResult,
+    'template' | 'actionSourceEvidence'
+  >;
   write?: boolean;
 }): VisualContractAuthoringArtifactWrite {
-  const templateDigest = canonicalJsonDigest(args.template);
+  const templateDigest = canonicalJsonDigest(
+    args.compileResult.template,
+  );
   if (
     args.receipt.status !== 'completed' ||
     args.receipt.candidateDigest !== templateDigest
@@ -1280,6 +1289,9 @@ export function persistVisualContractCandidate(args: {
       'refusing to persist an uncompleted or receipt-unbound Visual Contract candidate',
     );
   }
+  const actionSourceEvidenceDigest = canonicalJsonDigest(
+    args.compileResult.actionSourceEvidence,
+  );
   const artifactWithoutDigest = {
     version: VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
     sourceSnapshotDigest:
@@ -1287,7 +1299,10 @@ export function persistVisualContractCandidate(args: {
     authoringRequestDigest: args.receipt.requestDigest,
     authoringReceiptDigest: args.receipt.digest,
     templateDigest,
-    template: args.template,
+    actionSourceEvidenceDigest,
+    template: args.compileResult.template,
+    actionSourceEvidence:
+      args.compileResult.actionSourceEvidence,
     status: 'candidate' as const,
     doesNotAuthorize: [...DOES_NOT_AUTHORIZE],
   };
