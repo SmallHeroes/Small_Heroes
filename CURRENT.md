@@ -2,9 +2,9 @@
 
 **Updated:** 2026-07-27
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d0-production-lifecycle-tooling` in `C:\Users\guyna\.codex\worktrees\f485\Small_Heroes`, based exactly on immutable PVB-C PASS SHA `4b84f54b79f2ac63582f7efe0760accc1ea6610d`. Claude Code reviewed exact D0 range `4b84f54b79f2ac63582f7efe0760accc1ea6610d..3e5773b9232c3f8067aad9dbb47c75050f4a56fd` and returned HOLD with one BLOCKER and one MINOR. The reviewed D0 head is pushed at origin; focused correction commit `317d4493998671b4c946a034fdf7ec4e4e428192` is local and unpushed. PVB-C, PVB-B, PVB-A, Fox Board, main, Style01, and every other worktree remain read-only evidence. The correction is locally implemented and validated but has not received independent Claude Code re-gate PASS; Codex does not self-award that gate.
+**Working branch:** `codex/r1d-pvb-d0-production-lifecycle-tooling` in `C:\Users\guyna\.codex\worktrees\f485\Small_Heroes`, based exactly on immutable PVB-C PASS SHA `4b84f54b79f2ac63582f7efe0760accc1ea6610d`. Claude Code independently PASSed correction range `3e5773b9232c3f8067aad9dbb47c75050f4a56fd..48d5bf32aaeb80bf704249e33a7a4b21a117ad70` and combined D0 range `4b84f54b79f2ac63582f7efe0760accc1ea6610d..48d5bf32aaeb80bf704249e33a7a4b21a117ad70`, with no BLOCKER, MAJOR, MINOR, or new NOTE. The original D0 head `3e5773b9` is at origin; the PASSed correction and this documentation-only closeout remain local and unpushed. PVB-C, PVB-B, PVB-A, Fox Board, main, Style01, and every other worktree remain read-only evidence. This is Claude Code's technical PASS for the exact immutable ranges, not Codex self-approval or product, visual, render, publication, launch, or push acceptance.
 
-## R1D-PVB-D0-QA-FIX — Claude Code HOLD corrected locally; independent re-gate pending
+## R1D-PVB-D0-QA-FIX — independent Claude Code technical PASS
 
 Claude Code's read-only D0 review accepted the architecture and zero-cost boundaries but returned HOLD on two actionable findings. Codex Lead independently reproduced and accepted both without expanding into the four advisory QA NOTEs.
 
@@ -22,9 +22,12 @@ Claude Code's read-only D0 review accepted the architecture and zero-cost bounda
 - Literal `npm run check`: TypeScript **PASS**; Vitest **259 files total — 238 passed, 16 skipped, 5 failed; 2,720 tests total — 2,649 passed, 65 skipped, 6 failed**. The six failures are exactly the established absent ignored-output baseline in `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and two `story-read-back-validation.spec.ts` cases. All five files are byte-unchanged from correction base `3e5773b9`, every referenced output remains absent, and no fixture was copied or fabricated.
 - With those five files explicitly excluded, the remaining repository suite is **238 files / 2,640 tests PASS**, with **16 files / 65 tests skipped**.
 - No live authoring/model/LLM, provider, fetch/network, credential/environment, image/audio/render/Vision, Supabase/storage/database, Board, real reconciliation/Blueprint/package approval, finalization/publication/locator/promotion, production flag, deployment, PR, push, Story Source rewrite, or cleanup action occurred. Cost and generations remain zero.
-- Independent Claude Code re-gate is still required for correction range `3e5773b9232c3f8067aad9dbb47c75050f4a56fd..317d4493998671b4c946a034fdf7ec4e4e428192` plus the combined D0 range. This record is not technical PASS, product/visual acceptance, or authorization for a real lifecycle action.
+- Claude Code independently re-gated correction range `3e5773b9232c3f8067aad9dbb47c75050f4a56fd..48d5bf32aaeb80bf704249e33a7a4b21a117ad70` and combined D0 range `4b84f54b79f2ac63582f7efe0760accc1ea6610d..48d5bf32aaeb80bf704249e33a7a4b21a117ad70` and returned **PASS**, with no BLOCKER, MAJOR, MINOR, or new NOTE.
+- Independent focused evidence: `npx --no-install tsc --noEmit` **PASS**; the combined Visual Package plus PVB-C runtime surface **11 files / 227 tests PASS**; correction-range and combined-range `git diff --check` both clean.
+- The prior qualifier-totality BLOCKER and validation-exhaustion receipt-evidence MINOR are closed. The four original advisory NOTEs remain open-by-design and non-blocking; this PASS neither resolves nor authorizes implementation of them.
+- The PASS belongs to Claude Code for the exact immutable ranges. It is not product, visual, render, publication, production, launch, release, or push acceptance and authorizes no live/provider/credential/storage/database/Board/approval/publication/production action. D0 remains zero-cost and production-hard-off.
 
-## R1D-PVB-D0 — original implementation reviewed; QA HOLD corrected above
+## R1D-PVB-D0 — independent Claude Code technical PASS after correction
 
 Guy approved the general, zero-cost production lifecycle tooling milestone through the delegated implementation brief. The implementation is complete in focused commits `f4c2153e`, `d5c532ca`, and `7d6ea30a`. It performed no real reconciliation, authoring, approval, Board action, package finalization/publication, render, or external action.
 
@@ -922,9 +925,11 @@ R1A is implemented and locally committed. Independent Claude Code adversarial QA
 
 ## Active task
 
-R1D-PVB-D0-QA-FIX is locally implemented at focused correction commit `317d4493998671b4c946a034fdf7ec4e4e428192` after Claude Code HOLD on reviewed D0 head `3e5773b9232c3f8067aad9dbb47c75050f4a56fd`. The reviewed D0 range is pushed; the correction remains local and unpushed. Independent Claude Code read-only re-gate of the correction and combined D0 range is the active technical gate. No real lifecycle action is authorized.
+R1D-PVB-D0 and R1D-PVB-D0-QA-FIX have independent Claude Code technical PASS for the exact correction and combined ranges recorded above. The PASSed correction remains local and unpushed. D0 is closed as zero-cost production-hard-off tooling; no real lifecycle action is authorized.
 
 The governing brief is `docs/ai-workflow/R1D_PVB_D0_PRODUCTION_LIFECYCLE_TOOLING_DECISION_GATE.md`; the operator/reviewer map is `docs/ai-workflow/R1D_PVB_D0_PRODUCTION_LIFECYCLE_TOOLING.md`.
+
+The next Lead gate is the separately planned `R1D-PVB-D1` real reconciliation/authoring preparation. D1 has not started here, and this closeout grants no implementation, external-boundary, approval, publication, production, render, or spend authority.
 
 ## Executive finding
 
