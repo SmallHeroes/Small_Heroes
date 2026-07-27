@@ -2,11 +2,24 @@
 
 **Updated:** 2026-07-27
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-c-runtime-cutover` in `C:\Users\guyna\.codex\worktrees\500e\Small_Heroes`, based exactly on approved immutable PVB-A/PVB-B integration SHA `09cfb2f7429979a1e6576873db19b5471b7836e3`. Claude Code returned HOLD on original PVB-C range `09cfb2f7429979a1e6576873db19b5471b7836e3..883e531f3237d2d52bbbf5537e6736492682f81a`; the accepted `R1D-PVB-C-QA-FIX — Sole Prompt Authority and Exact Portrait Canvas` code/test correction is local commit `b872120b`, followed by the documentation closeout commit identified in the final handoff. The branch is awaiting whole-surface Claude Code READ-ONLY re-gate; Codex does not self-award independent technical PASS. PVB-A, PVB-B, Fox Board, and every other worktree remain read-only evidence.
+**Working branch:** `codex/r1d-pvb-c-runtime-cutover` in `C:\Users\guyna\.codex\worktrees\500e\Small_Heroes`, based exactly on approved immutable PVB-A/PVB-B integration SHA `09cfb2f7429979a1e6576873db19b5471b7836e3`. Claude Code independently returned technical PASS for combined immutable PVB-C range `09cfb2f7429979a1e6576873db19b5471b7836e3..687cfa90eb49d7df9982356fbf00ad3063c313e4` and corrective range `883e531f3237d2d52bbbf5537e6736492682f81a..687cfa90eb49d7df9982356fbf00ad3063c313e4`, with no BLOCKER, MAJOR, or MINOR. This PASS belongs to Claude Code, not Codex. The branch remains local and unpushed pending Guy's push decision. PVB-A, PVB-B, Fox Board, and every other worktree remain read-only evidence.
 
-## R1D-PVB-C-QA-FIX — both accepted MAJORs corrected; awaiting whole-surface re-gate
+## R1D-PVB-C — independent technical QA PASS
 
-Claude Code independently returned HOLD on immutable original range `09cfb2f7429979a1e6576873db19b5471b7836e3..883e531f3237d2d52bbbf5537e6736492682f81a`. Codex Lead independently validated both MAJOR findings, and focused correction commit `b872120b` addresses them without amending the reviewed C1/C2/C3 commits. This record is implementation evidence for re-gate, not an independent PASS.
+Claude Code reconciled and reviewed the complete immutable PVB-C implementation plus correction and returned technical **PASS** for combined range `09cfb2f7429979a1e6576873db19b5471b7836e3..687cfa90eb49d7df9982356fbf00ad3063c313e4` and correction range `883e531f3237d2d52bbbf5537e6736492682f81a..687cfa90eb49d7df9982356fbf00ad3063c313e4`. It reported zero BLOCKER, MAJOR, or MINOR findings. The PASS is Claude Code's independent technical verdict for those exact immutable ranges only.
+
+### Independent verification
+
+- Both previously accepted MAJORs are closed. Enforced PVB uses a typed facts-only Visual Contract projection while the exact Blueprint frame remains sole camera, action, composition, staging, pose, blocking, eyeline, placement, and layout authority. The frozen `2:3 + remapPolicy:reject` frame determines the exact `1024x1536` provider canvas, including PDF-enabled single-page regeneration, and malformed layouts fail before provider reachability.
+- Claude Code verified the whole enforced cover, chunk/batch, resume, provider retry, QA regeneration, single-page regeneration, and direct-provider surface. It found no sellable-path return to legacy Storyboard/Director/composition authority or square-PDF remapping.
+- Independent validation evidence: `npx --no-install tsc --noEmit` **PASS**; focused suites **PASS**; broad subset **131 tests PASS**. Literal `npm run check` reproduced exactly **257 files — 236 passed, 16 skipped, 5 failed; 2,680 tests — 2,609 passed, 65 skipped, 6 failed**. The six failures are the unchanged missing ignored-output baseline already recorded below.
+- The review retained three advisory NOTEs only: provider canvas cover detection uses `pageNumber === 0` while the projection identifies cover by `kind === 'cover'`, but any divergence fails closed; no additional zero-network test drives the entire DB-bound regeneration entry beyond source-wiring checks plus the sole production canvas adapter; and any future non-2:3 reader layout must update the resolver and versioned layout policy together because the current exact policy intentionally fails closed.
+- This technical PASS is not product or visual acceptance, a real Blueprint or package approval, render authorization, production activation, deployment, launch, release, or push authority.
+- Next gate, only after this branch is pushed: prepare one real Story-Source-bound Blueprint through the already-built PVB-B lifecycle, obtain Guy's review and exact approval, then prepare and qualify its immutable `visual-package/v4`. None of those lifecycle, approval, package, render, or production actions has occurred in this closeout.
+
+## R1D-PVB-C-QA-FIX — correction implementation record, independently verified
+
+Claude Code originally returned HOLD on immutable range `09cfb2f7429979a1e6576873db19b5471b7836e3..883e531f3237d2d52bbbf5537e6736492682f81a`. Codex Lead independently validated both MAJOR findings, and focused correction commit `b872120b` addressed them without amending the reviewed C1/C2/C3 commits. Claude Code subsequently verified the correction and complete runtime surface and issued the technical PASS recorded above.
 
 ### Sole enforced prompt authority
 
@@ -28,7 +41,7 @@ Claude Code independently returned HOLD on immutable original range `09cfb2f7429
 - `npx --no-install tsc --noEmit`, working/cached `git diff --check`, and explicit-path staging checks: **PASS**.
 - Literal `npm run check`: TypeScript **PASS**; Vitest **257 files total — 236 passed, 16 skipped, 5 failed; 2,680 tests total — 2,609 passed, 65 skipped, 6 failed**. The six failures exactly reproduce the pre-correction absent ignored-output baseline: `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and two `story-read-back-validation.spec.ts` cases. All six referenced output artifacts remain absent, and all five failing test files are unchanged from correction start `883e531f`. No missing ignored fixture was copied or fabricated.
 - No live authoring/model/LLM call, render, image/provider/Vision/fetch/network action, credential use, Supabase/storage/database write, Board mint/action, real Blueprint/package approval or promotion, production flag activation, deployment, push, PR, story rewrite, reader-layout redesign, or branch/worktree cleanup occurred.
-- Next action: Claude Code performs a READ-ONLY re-gate of correction-only range `883e531f3237d2d52bbbf5537e6736492682f81a..HEAD` and combined PVB-C range `09cfb2f7429979a1e6576873db19b5471b7836e3..HEAD`, rechecking both accepted MAJOR fixes and the full enforced cover/chunk/resume/retry/single-page/direct-provider surface. Guy retains product, visual, real approval, launch, release, and push authority.
+- Independent re-gate is complete and PASSed for the exact ranges recorded above. After push, the next gate is one real Story-Source-bound PVB-B lifecycle through Guy review/approval and immutable v4 package preparation/qualification. Guy retains product, visual, real approval, render, production, launch, release, and push authority.
 
 ## R1D-PVB-C — original implementation reviewed; QA HOLD corrected above
 
@@ -59,7 +72,7 @@ Guy approved the general Story-Source-parameterized runtime cutover from exact b
 - `npx --no-install tsc --noEmit` and `git diff --check`: **PASS**.
 - Literal `npm run check`: TypeScript **PASS**; Vitest **257 files total — 236 passed, 16 skipped, 5 failed; 2,673 tests total — 2,602 passed, 65 skipped, 6 failed**. The six failures are the unchanged absent ignored-output fixture baseline: `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and two `story-read-back-validation.spec.ts` cases. All six referenced output artifacts are absent in this isolated worktree, and all five failing test files are byte-unchanged from base. No missing ignored fixture was copied or fabricated.
 - No live authoring/model/LLM call, render, image/provider/Vision/fetch/network action, credential use, Supabase/storage/database write, Board mint/action, real Blueprint/package approval or promotion, production flag activation, deployment, push, PR, story rewrite, reader-layout redesign, or branch/worktree cleanup occurred.
-- Next action: Claude Code performs a first-pass READ-ONLY adversarial review of exact immutable base-to-head range supplied in the handoff. Valid findings require a separate correction milestone and re-gate. Guy retains product, visual, real approval, launch, release, and push authority.
+- Independent review and corrective re-gate are complete and PASSed for the exact immutable ranges recorded above. After push, the next gate is one real Story-Source-bound PVB-B lifecycle through Guy review/approval and immutable v4 package preparation/qualification. Guy retains product, visual, real approval, render, production, launch, release, and push authority.
 
 ## R1D-PVB-B — independent technical QA PASS
 
