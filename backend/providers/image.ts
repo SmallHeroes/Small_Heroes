@@ -166,7 +166,11 @@ import {
   type ResemblanceCandidate,
 } from '../../lib/resemblance-core';
 import type { Style01RuntimeAuthority } from '../../lib/generation-pipeline/render-qualification-preflight';
-import type { RuntimeBlueprintFrameProjection } from '../../lib/generation-pipeline/runtime-blueprint-projection';
+import {
+  buildRuntimeBlueprintFrameEvidence,
+  type RuntimeBlueprintFrameEvidence,
+  type RuntimeBlueprintFrameProjection,
+} from '../../lib/generation-pipeline/runtime-blueprint-projection';
 import {
   assertStyle01RuntimeAuthorityForPage,
   buildRuntimePageAuthorityProjection,
@@ -695,6 +699,8 @@ export interface Style01PageMeta {
   setAppearanceLockPresent?: boolean;
   setAppearanceBoardAttached?: boolean;
   appearanceDriftReport?: import('../../lib/set-appearance/types').AppearanceDriftReport | null;
+  /** Exact immutable PVB authority/frame used at the provider boundary. */
+  runtimeBlueprintEvidence?: RuntimeBlueprintFrameEvidence;
 }
 
 export interface GeneratedImage {
@@ -3850,6 +3856,14 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
       setAppearanceLockPresent: promptContainsSetAppearanceLock(prompt),
       setAppearanceBoardAttached: Boolean(appearanceBoardPath),
       appearanceDriftReport,
+      ...(input.runtimeVisualAuthority
+        ? {
+            runtimeBlueprintEvidence: buildRuntimeBlueprintFrameEvidence(
+              input.runtimeVisualAuthority.bookProjection,
+              input.pageNumber ?? 0,
+            ),
+          }
+        : {}),
     },
   };
 }

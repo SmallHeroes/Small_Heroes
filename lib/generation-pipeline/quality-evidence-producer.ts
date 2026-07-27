@@ -86,6 +86,8 @@ export interface DeliveredEvidenceArgs {
    * gate/TOCTOU fingerprint read verdict/hash/contractHash/regenCount, never the evidence blob). null = absent.
    */
   contractObservability?: Prisma.InputJsonValue | null;
+  /** Exact immutable PVB package/book/frame identity used to render these bytes. */
+  runtimeAuthorityObservability?: Prisma.InputJsonValue | null;
   /**
    * (release shape C) The delivered-bytes inspection the caller ALREADY ran outside the tx — passed so the Gate-1
    * evidence SHA and the Gate-2 asset SHA (bindPageSafetySha/bindCoverSafetySha) come from ONE inspect of the SAME
@@ -250,6 +252,8 @@ export async function persistQualityContext(
     /** (WS0b B1) The contract hash to bind — captured by the CALLER before render (never re-read from
      *  Order.visualContractHash here; that read races a concurrent re-freeze). null = legacy/unbound. */
     contractHash: string | null;
+    /** Exact immutable PVB package/book/frame identity used to render these bytes. */
+    runtimeAuthorityObservability?: Prisma.InputJsonValue | null;
   },
 ): Promise<void> {
   if (!isReadinessManifestEnabled()) return; // flag OFF → legacy path unchanged
@@ -266,6 +270,9 @@ export async function persistQualityContext(
     ...base,
     deliveredUrl: args.deliveredUrl,
     qaContext: args.qaContext,
+    ...(args.runtimeAuthorityObservability != null
+      ? { runtimeAuthorityObservability: args.runtimeAuthorityObservability }
+      : {}),
   } as unknown as Prisma.InputJsonValue;
   // (WS0b B1) Bind the row to the contract captured by the caller BEFORE render (render seam: local pre-render
   // cache hash; recovery: current active hash). NEVER re-read Order.visualContractHash here — a concurrent
@@ -334,6 +341,9 @@ export async function persistDeliveredQualityEvidence(
       qaContext: args.qaContext ?? null,
       // (WS0b e3) SIBLING of qaContext — observability only; omitted when absent (flag off) → evidence byte-identical.
       ...(args.contractObservability != null ? { contractObservability: args.contractObservability } : {}),
+      ...(args.runtimeAuthorityObservability != null
+        ? { runtimeAuthorityObservability: args.runtimeAuthorityObservability }
+        : {}),
     } as unknown as Prisma.InputJsonValue,
   });
 }

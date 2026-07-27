@@ -123,6 +123,22 @@ describe('shipped Style01 render-qualification preflight', () => {
     expect(source.match(/runWithStyle01RenderQualification\(/g)).toHaveLength(2);
     expect(source).toMatch(/pageNumbers:\s*\[0\]/);
     expect(source).toMatch(/pageNumbers:\s*pagesForGen\.map/);
+    expect(
+      source.match(/runtimeAuthorityObservability:/g)?.length ?? 0,
+    ).toBeGreaterThanOrEqual(6);
+    expect(source).toMatch(
+      /runtimeBlueprintEvidence\?\.layoutPolicy\.textZone[\s\S]*?does not match approved Blueprint frame/,
+    );
+    expect(source.match(/sourceSnapshot\.content/g)).toHaveLength(2);
+    expect(source).toMatch(
+      /if \(!earlyRuntimeAuthority\) \{[\s\S]*?resolveBookShotPlan[\s\S]*?ensureStoryLocationPlan[\s\S]*?resolveSceneMemoryPlan/,
+    );
+    expect(source).toMatch(
+      /if \(earlyRuntimeAuthority\) \{[\s\S]*?frame\.safeScenePrompt[\s\S]*?frame\.castIds/,
+    );
+    expect(source).toMatch(
+      /storyTitle: earlyRuntimeAuthority \? '' : story\.title/,
+    );
   });
 
   it('the operator single-page regeneration path preflights before fallback work and rechecks adjacent to render', () => {
@@ -136,5 +152,32 @@ describe('shipped Style01 render-qualification preflight', () => {
     expect(renderWrapper).toBeLessThan(provider);
     expect(source).toMatch(/pageNumbers:\s*\[pageNumber\]/);
     expect(source).toMatch(/runtimeVisualAuthority/);
+    expect(source).toMatch(
+      /loadStoryFromBankContent\([\s\S]*?sourceSnapshot\.content/,
+    );
+    expect(source).toMatch(
+      /provider result is missing or mismatched exact Blueprint-frame evidence/,
+    );
+    expect(source).toMatch(
+      /runtimeAuthorityObservability[\s\S]*?persistQualityContext/,
+    );
+    expect(source).toMatch(
+      /runtimeAuthorityKeySuffix[\s\S]*?frameProjectionDigest/,
+    );
+    expect(source).toMatch(
+      /pageAssetOperationKey\([\s\S]*?runtimeAuthorityKeySuffix/,
+    );
+    expect(source).toMatch(
+      /provider text zone[\s\S]*?does not match approved Blueprint frame/,
+    );
+    expect(source).toMatch(
+      /const pageForGeneration = approvedBlueprintFrame[\s\S]*?approvedBlueprintFrame\.safeScenePrompt[\s\S]*?: \(\(\) => \{[\s\S]*?deriveLayout/,
+    );
+    expect(source).toMatch(
+      /const dna = earlyRuntimeAuthority[\s\S]*?: await generateStoryBankCharacterDNA/,
+    );
+    expect(source).toMatch(
+      /if \(!approvedBlueprintFrame && order\.childImageUrl\)/,
+    );
   });
 });

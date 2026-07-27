@@ -13,6 +13,7 @@ import {
   describeChildFromPhoto,
   generateStoryBankCharacterDNA,
   loadStoryFromBank,
+  loadStoryFromBankContent,
 } from '@/backend/providers/story-bank-loader';
 import {
   selectCompanionStory,
@@ -55,6 +56,17 @@ import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 import { imageAssetSafetyFields } from '@/lib/generation-pipeline/asset-safety-signal';
 import { bindPageSafetySha } from '@/lib/generation-pipeline/asset-safety-writer';
 import { inspectAsset } from '@/lib/generation-pipeline/asset-integrity';
+import { persistQualityContext } from '@/lib/generation-pipeline/quality-evidence-producer';
+import { pageArtifactKey } from '@/lib/generation-pipeline/quality-evidence';
+import {
+  contractHashPayloadFragment,
+  pageAssetOperationKey,
+} from '@/lib/generation-pipeline/contract-hash-binding';
+import {
+  buildRuntimeBlueprintFrameEvidence,
+  requireRuntimeBlueprintFrame,
+} from '@/lib/generation-pipeline/runtime-blueprint-projection';
+import type { ReceiptSafeValue } from '@/lib/generation-pipeline/atomic-operation';
 
 const regenLogger = createLogger({ subsystem: 'regen-page', route: '/api/debug/regen-page' });
 
@@ -334,6 +346,12 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
   if (!dbPage) {
     throw new Error(`Page ${pageNumber} not found on book`);
   }
+  const approvedBlueprintFrame = earlyRuntimeAuthority
+    ? requireRuntimeBlueprintFrame(
+        earlyRuntimeAuthority.bookProjection,
+        pageNumber,
+      )
+    : null;
 
   const oldImageUrl = dbPage.imageAsset?.url ?? null;
   const wizardMeta = getWizardMeta(order.characterAnchors);
@@ -432,7 +450,7 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
     }
   }
 
-  if (!existsSync(storyFilePath)) {
+  if (!existsSync(storyFilePath) && !earlyRuntimeAuthority) {
     const v3Dir = path.join(process.cwd(), 'story-bank', STORY_BANK_V3_DIR_NAME);
     const v3DirExists = existsSync(v3Dir);
     let v3FileCount = -1;
@@ -461,13 +479,21 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
         })
       : null;
 
-  const story = await loadStoryFromBank(
-    storyFilePath,
-    order.childName || '',
-    resolvedCompanion?.name ?? 'צפרדע',
-    order.childGender || undefined,
-    { patchContext, letterContext }
-  );
+  const story = earlyRuntimeAuthority
+    ? await loadStoryFromBankContent(
+        earlyRuntimeAuthority.packageValue.sourceSnapshot.content,
+        order.childName || '',
+        resolvedCompanion?.name ?? 'צפרדע',
+        order.childGender || undefined,
+        { patchContext, letterContext },
+      )
+    : await loadStoryFromBank(
+        storyFilePath,
+        order.childName || '',
+        resolvedCompanion?.name ?? 'צפרדע',
+        order.childGender || undefined,
+        { patchContext, letterContext },
+      );
 
   const storyPage = story.pages.find((p) => p.pageNumber === pageNumber);
   if (!storyPage) {
@@ -475,21 +501,39 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
   }
 
   const compositionByPage = new Map(
-    (story.pageCompositionPlan ?? []).map((composition) => [composition.pageNumber, composition])
+    earlyRuntimeAuthority
+      ? []
+      : (story.pageCompositionPlan ?? []).map((composition) => [
+          composition.pageNumber,
+          composition,
+        ]),
   );
-  const assignedTemplates = assignTemplatesForBook(
-    story.pages.map((page) => ({
-      pageNumber: page.pageNumber,
-      text: page.text,
-      imageSubject: page.imageSubject,
-      pageIntent: compositionByPage.get(page.pageNumber)?.pageIntent,
-    }))
-  );
+  const assignedTemplates = earlyRuntimeAuthority
+    ? []
+    : assignTemplatesForBook(
+        story.pages.map((page) => ({
+          pageNumber: page.pageNumber,
+          text: page.text,
+          imageSubject: page.imageSubject,
+          pageIntent: compositionByPage.get(page.pageNumber)?.pageIntent,
+        })),
+      );
   const templateByPageNumber = new Map<number, BookPageTemplate>(
-    story.pages.map((page, index) => [page.pageNumber, assignedTemplates[index] ?? 'art_top_text_bottom'])
+    earlyRuntimeAuthority
+      ? order.book.pages.map((page) => [
+          page.pageNumber,
+          normalizePageTemplate(page.pageTemplate) ??
+            'art_top_text_bottom',
+        ])
+      : story.pages.map((page, index) => [
+          page.pageNumber,
+          assignedTemplates[index] ?? 'art_top_text_bottom',
+        ]),
   );
 
-  const clothingLock = story.heroVisualLock?.clothing?.trim();
+  const clothingLock =
+    earlyRuntimeAuthority?.contract.cast.child.wardrobe.description.trim() ??
+    story.heroVisualLock?.clothing?.trim();
   const childDescBase = `A ${order.childGender === 'girl' ? 'girl' : 'boy'} named ${order.childName}, approximately ${order.childAge ?? 5} years old, warm and friendly appearance`;
   const childDesc = clothingLock ? `${childDescBase}; wearing ${clothingLock}` : childDescBase;
   const storedAnchors = parseStoredCharacterAnchors(order.characterAnchors);
@@ -578,34 +622,62 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
     }
   }
 
-  const pagesWithDetectedCharacters = story.pages.map((page) => {
-    const subj = (page.imageSubject ?? '').toLowerCase();
-    const baseIds = detectExpectedCharactersForPage(page, anchorRegistry);
-    if (resolvedCompanion && !subj.startsWith('environment') && !subj.startsWith('object:')) {
-      return {
-        ...page,
-        expectedCharacterIds: [...new Set([...baseIds, companionAnchorKey(resolvedCompanion.id)])],
-      };
-    }
-    return { ...page, expectedCharacterIds: baseIds };
-  });
+  const pagesWithDetectedCharacters = earlyRuntimeAuthority
+    ? [
+        {
+          ...storyPage,
+          expectedCharacterIds: [
+            ...(approvedBlueprintFrame?.castIds ?? []),
+          ],
+        },
+      ]
+    : story.pages.map((page) => {
+        const subj = (page.imageSubject ?? '').toLowerCase();
+        const baseIds = detectExpectedCharactersForPage(
+          page,
+          anchorRegistry,
+        );
+        if (
+          resolvedCompanion &&
+          !subj.startsWith('environment') &&
+          !subj.startsWith('object:')
+        ) {
+          return {
+            ...page,
+            expectedCharacterIds: [
+              ...new Set([
+                ...baseIds,
+                companionAnchorKey(resolvedCompanion.id),
+              ]),
+            ],
+          };
+        }
+        return { ...page, expectedCharacterIds: baseIds };
+      });
 
   const companionKey = resolvedCompanion ? companionAnchorKey(resolvedCompanion.id) : null;
   const maxNonChild = familyMembers.length > 0 ? 2 : 1;
-  const boundedPagesWithCharacters = pagesWithDetectedCharacters.map((page) => {
-    const filtered = page.expectedCharacterIds.filter((characterId) => characterId !== 'child');
-    const chosen: string[] = [];
-    if (companionKey && filtered.includes(companionKey)) chosen.push(companionKey);
-    const rest = filtered.filter((id) => id !== companionKey);
-    const prioritized = [...rest].sort((a, b) => a.localeCompare(b));
-    while (chosen.length < maxNonChild && prioritized.length > 0) {
-      chosen.push(prioritized.shift()!);
-    }
-    return {
-      ...page,
-      expectedCharacterIds: chosen.length > 0 ? ['child', ...chosen] : ['child'],
-    };
-  });
+  const boundedPagesWithCharacters = earlyRuntimeAuthority
+    ? pagesWithDetectedCharacters
+    : pagesWithDetectedCharacters.map((page) => {
+        const filtered = page.expectedCharacterIds.filter(
+          (characterId) => characterId !== 'child',
+        );
+        const chosen: string[] = [];
+        if (companionKey && filtered.includes(companionKey)) {
+          chosen.push(companionKey);
+        }
+        const rest = filtered.filter((id) => id !== companionKey);
+        const prioritized = [...rest].sort((a, b) => a.localeCompare(b));
+        while (chosen.length < maxNonChild && prioritized.length > 0) {
+          chosen.push(prioritized.shift()!);
+        }
+        return {
+          ...page,
+          expectedCharacterIds:
+            chosen.length > 0 ? ['child', ...chosen] : ['child'],
+        };
+      });
 
   const appearances = boundedPagesWithCharacters.reduce<Record<string, number>>((acc, page) => {
     for (const characterId of page.expectedCharacterIds) {
@@ -627,57 +699,71 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
   const totalStoryPages = story.pages.length;
   const comp = compositionByPage.get(pageNumber);
   const pageTemplate = templateByPageNumber.get(pageNumber) ?? 'art_top_text_bottom';
-  const pageLayout: PageLayout = deriveLayout({
-    pageNumber,
-    totalPages: totalStoryPages,
-    text: storyPage.text,
-    isLetter: Boolean(storyPage.isLetter),
-  });
-  const enrichedPrompts = buildEnrichedScenePrompt({
-    rawScenePrompt: storyPage.rawScenePrompt,
-    imagePrompt: storyPage.imagePrompt,
-    layout: pageLayout,
-    text: storyPage.text,
-    textZone: dbPage.textZone,
-    isLetter: storyPage.isLetter,
-    pageNumber,
-    totalPages: totalStoryPages,
-  });
-
-  const pageForGeneration = {
-    pageTemplate,
-    pageNumber,
-    imagePrompt: enrichedPrompts.imagePrompt,
-    rawScenePrompt: enrichedPrompts.rawScenePrompt,
-    pageLayout,
-    visualDirection: storyPage.visualDirection,
-    bookPageText: storyPage.text,
-    imageSubject: storyPage.imageSubject,
-    pageIntent: comp?.pageIntent,
-    composition: comp
-      ? {
-          cameraDistance: comp.cameraDistance,
-          cameraAngle: comp.cameraAngle,
-          compositionType: comp.compositionType,
-          heroPlacement: comp.heroPlacement,
-          entityPlacement: comp.entityPlacement,
-          topTextAreaPlan: comp.topTextAreaPlan,
-          mainIllustrationZone: comp.mainIllustrationZone,
-        }
-      : undefined,
-    compositionRules: compositionRulesForTemplate(pageTemplate, comp),
-    environmentContinuity: comp?.consistencyNotes ?? undefined,
-    expectedCharacterIds: targetBounded.expectedCharacterIds.filter((characterId) =>
-      recurringCharacterIds.has(characterId)
-    ),
-  };
+  const pageForGeneration = approvedBlueprintFrame
+    ? {
+        pageTemplate,
+        pageNumber,
+        imagePrompt: approvedBlueprintFrame.safeScenePrompt,
+        visualContractPromptBlock:
+          approvedBlueprintFrame.contractPromptBlock,
+        supportingCharacters:
+          approvedBlueprintFrame.supportingCharacters,
+        expectedCharacterIds: [...approvedBlueprintFrame.castIds],
+      }
+    : (() => {
+        const pageLayout: PageLayout = deriveLayout({
+          pageNumber,
+          totalPages: totalStoryPages,
+          text: storyPage.text,
+          isLetter: Boolean(storyPage.isLetter),
+        });
+        const enrichedPrompts = buildEnrichedScenePrompt({
+          rawScenePrompt: storyPage.rawScenePrompt,
+          imagePrompt: storyPage.imagePrompt,
+          layout: pageLayout,
+          text: storyPage.text,
+          textZone: dbPage.textZone,
+          isLetter: storyPage.isLetter,
+          pageNumber,
+          totalPages: totalStoryPages,
+        });
+        return {
+          pageTemplate,
+          pageNumber,
+          imagePrompt: enrichedPrompts.imagePrompt,
+          rawScenePrompt: enrichedPrompts.rawScenePrompt,
+          pageLayout,
+          visualDirection: storyPage.visualDirection,
+          bookPageText: storyPage.text,
+          imageSubject: storyPage.imageSubject,
+          pageIntent: comp?.pageIntent,
+          composition: comp
+            ? {
+                cameraDistance: comp.cameraDistance,
+                cameraAngle: comp.cameraAngle,
+                compositionType: comp.compositionType,
+                heroPlacement: comp.heroPlacement,
+                entityPlacement: comp.entityPlacement,
+                topTextAreaPlan: comp.topTextAreaPlan,
+                mainIllustrationZone: comp.mainIllustrationZone,
+              }
+            : undefined,
+          compositionRules: compositionRulesForTemplate(pageTemplate, comp),
+          environmentContinuity: comp?.consistencyNotes ?? undefined,
+          expectedCharacterIds: targetBounded.expectedCharacterIds.filter(
+            (characterId) => recurringCharacterIds.has(characterId),
+          ),
+        };
+      })();
 
   const anchorState: Record<string, string> = {};
   for (const [characterId, character] of Object.entries(anchorRegistry)) {
     if (character.anchorImageUrl) anchorState[characterId] = character.anchorImageUrl;
   }
 
-  const inputPhotoStrength = order.childImageUrl
+  const inputPhotoStrength = approvedBlueprintFrame
+    ? ('adequate' as const)
+    : order.childImageUrl
     ? await (async () => {
         try {
           return (await evaluatePhotoGate(order.childImageUrl!)).inputStrength;
@@ -687,12 +773,13 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
       })()
     : 'adequate';
 
-  const allStoryText = story.pages.map((page) => page.text).join('\n');
+  const allStoryText = approvedBlueprintFrame
+    ? ''
+    : story.pages.map((page) => page.text).join('\n');
   const companionName = resolvedCompanion?.name || '';
-  const companionDescription = resolvedCompanion?.visualDescription || '';
 
   let childPhotoDescription: string | null = null;
-  if (order.childImageUrl) {
+  if (!approvedBlueprintFrame && order.childImageUrl) {
     try {
       childPhotoDescription = await describeChildFromPhoto(order.childImageUrl);
     } catch (err) {
@@ -700,15 +787,43 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
     }
   }
 
-  const dna = await generateStoryBankCharacterDNA({
-    childName: order.childName || '',
-    childGender: order.childGender || 'girl',
-    childAge: order.childAge || 4,
-    companionName,
-    storyText: allStoryText,
-    illustrationStyle: order.illustrationStyle,
-    childPhotoDescription,
-  });
+  const dna = earlyRuntimeAuthority
+    ? {
+        childStructured: {
+          face:
+            `${earlyRuntimeAuthority.contract.cast.child.name ?? 'child'}; exact frozen child identity reference`,
+          hair: 'use the exact frozen per-order child appearance',
+          body: 'age-appropriate child proportions',
+          clothing:
+            earlyRuntimeAuthority.contract.cast.child.wardrobe.description,
+          signature: 'identity reference only',
+        },
+        companionStructured: {
+          species:
+            earlyRuntimeAuthority.contract.cast.companion?.name ??
+            'no companion',
+          size: 'use the exact frozen companion appearance',
+          coloring: 'use the exact approved companion reference',
+          feature: 'identity and geometry reference only',
+        },
+        childDNA:
+          `${earlyRuntimeAuthority.contract.cast.child.name ?? 'child'}; ${earlyRuntimeAuthority.contract.cast.child.wardrobe.description}`,
+        companionDNA:
+          earlyRuntimeAuthority.contract.cast.companion?.name ??
+          '',
+        worldDNA: '',
+        negativeRules: [],
+        propDNA: {},
+      }
+    : await generateStoryBankCharacterDNA({
+        childName: order.childName || '',
+        childGender: order.childGender || 'girl',
+        childAge: order.childAge || 4,
+        companionName,
+        storyText: allStoryText,
+        illustrationStyle: order.illustrationStyle,
+        childPhotoDescription,
+      });
   const lockedChildDescription = dna.childDNA || childDesc;
   if (anchorRegistry.child) {
     anchorRegistry.child.description = lockedChildDescription;
@@ -721,7 +836,7 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
   } = await import('@/lib/family-coherence');
   let familyCoherence =
     getFamilyCoherenceFromAnchors(order.characterAnchors) ?? null;
-  if (!familyCoherence) {
+  if (!familyCoherence && !earlyRuntimeAuthority) {
     familyCoherence = ensureFamilyCoherenceBundle(order, {
       childPhotoDescription,
       childStructured: dna.childStructured,
@@ -737,28 +852,42 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
     });
   }
 
-  const supportingCharacters = (pageForGeneration.expectedCharacterIds || [])
-    .filter((id) => id !== 'child' && !id.startsWith('companion:'))
-    .map((id) => ({ id, character: anchorRegistry[id] }))
-    .filter((entry): entry is { id: string; character: CharacterAnchorRecord } => Boolean(entry.character))
-    .map(({ id, character }) => {
-      const base = {
-        name: character.name,
-        description: character.description,
-        relationship: character.relationship || (id.startsWith('sibling_') ? 'sibling' : 'supporting'),
-      };
-      const d = character.supportingVisualDNA;
-      if (d?.physicalDescription && d?.clothingDefault && d?.signatureDetail && d?.ageRange) {
-        return {
-          ...base,
-          physicalDescription: d.physicalDescription,
-          clothingDefault: d.clothingDefault,
-          signatureDetail: d.signatureDetail,
-          ageRange: d.ageRange,
-        };
-      }
-      return base;
-    });
+  const supportingCharacters = approvedBlueprintFrame
+    ? approvedBlueprintFrame.supportingCharacters
+    : (pageForGeneration.expectedCharacterIds || [])
+        .filter((id) => id !== 'child' && !id.startsWith('companion:'))
+        .map((id) => ({ id, character: anchorRegistry[id] }))
+        .filter(
+          (
+            entry,
+          ): entry is { id: string; character: CharacterAnchorRecord } =>
+            Boolean(entry.character),
+        )
+        .map(({ id, character }) => {
+          const base = {
+            name: character.name,
+            description: character.description,
+            relationship:
+              character.relationship ||
+              (id.startsWith('sibling_') ? 'sibling' : 'supporting'),
+          };
+          const d = character.supportingVisualDNA;
+          if (
+            d?.physicalDescription &&
+            d?.clothingDefault &&
+            d?.signatureDetail &&
+            d?.ageRange
+          ) {
+            return {
+              ...base,
+              physicalDescription: d.physicalDescription,
+              clothingDefault: d.clothingDefault,
+              signatureDetail: d.signatureDetail,
+              ageRange: d.ageRange,
+            };
+          }
+          return base;
+        });
 
   const selectedDirection = order.storyDirectionSet?.selectedDirection ?? null;
   const existingPageNumbers = order.book.pages
@@ -775,6 +904,12 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
 
   // Same engine as full book: generateAllPageImages → generateImage → Style 01/02 phase-2 gpt-image-2.
   await requireSetIdentityBoardsBoundForRender(order, pipelineCache);
+  const expectedRuntimeEvidence = earlyRuntimeAuthority
+    ? buildRuntimeBlueprintFrameEvidence(
+        earlyRuntimeAuthority.bookProjection,
+        pageNumber,
+      )
+    : null;
   const imageOutcome = await runWithStyle01RenderQualification(
     {
       illustrationStyle: order.illustrationStyle,
@@ -783,45 +918,76 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
       cache: pipelineCache,
       pageNumbers: [pageNumber],
     },
-    (runtimeVisualAuthority) => generateAllPageImages(
-      [{ ...pageForGeneration, supportingCharacters }],
-      {
-      illustrationStyle: order.illustrationStyle,
-      runtimeVisualAuthority,
-      childName: order.childName ?? null,
-      childAge: order.childAge ?? null,
-      childGender: order.childGender ?? null,
-      childDescription: lockedChildDescription,
-      referenceImages: order.childImageUrl ? [order.childImageUrl] : undefined,
-      characterRegistry: Object.fromEntries(
-        Object.entries(anchorRegistry).map(([characterId, character]) => [
-          characterId,
-          { id: characterId, name: character.name, description: character.description },
-        ])
-      ),
-      initialCharacterAnchors: anchorState,
-      existingPageNumbers,
-      orderId,
-      characterSheet: story.characterSheet,
-      concept: story.concept,
-      heroVisualLock: story.heroVisualLock,
-      styleLock: story.styleLock,
-      entityVisualLock: story.entityVisualLock,
-      childStructured: dna.childStructured,
-      companionStructured: dna.companionStructured,
-      propDNA: dna.propDNA,
-      extraNegativeRules: dna.negativeRules,
-      inputPhotoStrength,
-      photoQuality: wizardMeta.photoQuality,
-      resemblanceThresholdConfig: resolveResemblanceThresholdConfig(),
-      companion: resolvedCompanion,
-      directionArchetype: selectedDirection?.archetype,
-      directionEmotionalLabel: selectedDirection?.emotionalLabel,
-      directionStoryPremise: selectedDirection?.storyPremise,
-      pdfEnabled: order.pdfEnabled,
-      familyCoherence,
+    (runtimeVisualAuthority) => {
+      if (
+        earlyRuntimeAuthority &&
+        runtimeVisualAuthority?.bookProjection.projectionDigest !==
+          earlyRuntimeAuthority.bookProjection.projectionDigest
+      ) {
+        throw new Error(
+          '[single_page_regen] runtime authority changed between early qualification and provider boundary',
+        );
       }
-    )
+      return generateAllPageImages(
+        [{ ...pageForGeneration, supportingCharacters }],
+        {
+          illustrationStyle: order.illustrationStyle,
+          runtimeVisualAuthority,
+          childName: order.childName ?? null,
+          childAge: order.childAge ?? null,
+          childGender: order.childGender ?? null,
+          childDescription: lockedChildDescription,
+          referenceImages: order.childImageUrl
+            ? [order.childImageUrl]
+            : undefined,
+          characterRegistry: Object.fromEntries(
+            Object.entries(anchorRegistry).map(([characterId, character]) => [
+              characterId,
+              {
+                id: characterId,
+                name: character.name,
+                description: character.description,
+              },
+            ]),
+          ),
+          initialCharacterAnchors: anchorState,
+          existingPageNumbers,
+          orderId,
+          characterSheet: earlyRuntimeAuthority
+            ? undefined
+            : story.characterSheet,
+          concept: earlyRuntimeAuthority ? undefined : story.concept,
+          heroVisualLock: earlyRuntimeAuthority
+            ? undefined
+            : story.heroVisualLock,
+          styleLock: earlyRuntimeAuthority
+            ? undefined
+            : story.styleLock,
+          entityVisualLock: earlyRuntimeAuthority
+            ? undefined
+            : story.entityVisualLock,
+          childStructured: dna.childStructured,
+          companionStructured: dna.companionStructured,
+          propDNA: dna.propDNA,
+          extraNegativeRules: dna.negativeRules,
+          inputPhotoStrength,
+          photoQuality: wizardMeta.photoQuality,
+          resemblanceThresholdConfig: resolveResemblanceThresholdConfig(),
+          companion: resolvedCompanion,
+          directionArchetype: earlyRuntimeAuthority
+            ? undefined
+            : selectedDirection?.archetype,
+          directionEmotionalLabel: earlyRuntimeAuthority
+            ? undefined
+            : selectedDirection?.emotionalLabel,
+          directionStoryPremise: earlyRuntimeAuthority
+            ? undefined
+            : selectedDirection?.storyPremise,
+          pdfEnabled: order.pdfEnabled,
+          familyCoherence,
+        },
+      );
+    },
   );
 
   const image = imageOutcome.results.get(pageNumber);
@@ -830,6 +996,23 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
       imageOutcome.failedPages.includes(pageNumber)
         ? `Image generation failed for page ${pageNumber}`
         : `No image returned for page ${pageNumber}`
+    );
+  }
+
+  const runtimeAuthorityObservability =
+    image.style01Meta?.runtimeBlueprintEvidence ?? null;
+  if (
+    expectedRuntimeEvidence &&
+    (!runtimeAuthorityObservability ||
+      runtimeAuthorityObservability.frameProjectionDigest !==
+        expectedRuntimeEvidence.frameProjectionDigest ||
+      runtimeAuthorityObservability.bookProjectionDigest !==
+        expectedRuntimeEvidence.bookProjectionDigest ||
+      runtimeAuthorityObservability.packageRevisionDigest !==
+        expectedRuntimeEvidence.packageRevisionDigest)
+  ) {
+    throw new Error(
+      '[single_page_regen] provider result is missing or mismatched exact Blueprint-frame evidence',
     );
   }
 
@@ -843,6 +1026,14 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
   });
 
   const storyboardTextZone = imageOutcome.textZones.get(pageNumber) ?? null;
+  if (
+    expectedRuntimeEvidence &&
+    storyboardTextZone !== expectedRuntimeEvidence.layoutPolicy.textZone
+  ) {
+    throw new Error(
+      `[single_page_regen] provider text zone ${storyboardTextZone ?? 'missing'} does not match approved Blueprint frame ${expectedRuntimeEvidence.layoutPolicy.textZone}`,
+    );
+  }
   const storyboardLighting = imageOutcome.lightingModes.get(pageNumber) ?? null;
   const presentationPostprocessEnabled =
     process.env.ENABLE_PRESENTATION_POSTPROCESS !== 'false' &&
@@ -881,18 +1072,32 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
     }
   }
 
+  const renderedContractHash =
+    earlyRuntimeAuthority?.contractHash ?? order.visualContractHash ?? null;
+  const runtimeAuthorityKeySuffix = runtimeAuthorityObservability
+    ? `:${runtimeAuthorityObservability.frameProjectionDigest}`
+    : '';
   await withDeliveryInputMutation(
     prisma,
     {
       orderId,
       reason: 'single_page_regenerated',
       // Durable write-attempt id: the page slot + the delivered content-addressed URL (presentation ?? raw).
-      operationKey: `delivery_input:${orderId}:page:${pageNumber}:${presentationUrl ?? image.url}`,
+      operationKey:
+        pageAssetOperationKey(
+          orderId,
+          pageNumber,
+          presentationUrl ?? image.url,
+          renderedContractHash,
+        ) + runtimeAuthorityKeySuffix,
       // REAL persisted content: prompt, delivered + raw URLs, dims, storyboard text-zone/lighting.
       mutationPayload: {
         prompt: image.prompt, url: image.url, presentationUrl: presentationUrl ?? null, rawUrl: image.rawUrl ?? null,
         width: image.width, height: image.height, provider: image.provider, style: order.illustrationStyle,
         textZone: storyboardTextZone, lighting: storyboardLighting,
+        runtimeAuthorityObservability:
+          runtimeAuthorityObservability as unknown as ReceiptSafeValue,
+        ...contractHashPayloadFragment(renderedContractHash),
       },
     },
     async (tx) => {
@@ -945,6 +1150,15 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
           },
         });
       }
+      await persistQualityContext(tx, {
+        orderId,
+        artifactKey: pageArtifactKey(pageNumber),
+        deliveredUrl: presentationUrl ?? image.url,
+        qaContext: image.style01Meta?.pageVisualQa?.qaInput,
+        contractHash: renderedContractHash,
+        runtimeAuthorityObservability:
+          runtimeAuthorityObservability as unknown as Prisma.InputJsonValue,
+      });
     },
   );
 

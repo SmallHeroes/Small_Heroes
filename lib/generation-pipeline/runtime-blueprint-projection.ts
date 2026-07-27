@@ -34,6 +34,8 @@ export const RUNTIME_BLUEPRINT_BOOK_PROJECTION_VERSION =
   'runtime-blueprint-book-projection/v1' as const;
 export const RUNTIME_BLUEPRINT_FRAME_PROJECTION_VERSION =
   'runtime-blueprint-frame-projection/v1' as const;
+export const RUNTIME_BLUEPRINT_FRAME_EVIDENCE_VERSION =
+  'runtime-blueprint-frame-evidence/v1' as const;
 
 export interface RuntimeBlueprintReferenceIdentities {
   boards: VisualPackageV4['requiredBoards'];
@@ -111,6 +113,35 @@ export interface RuntimeBlueprintBookProjection {
   frames: RuntimeBlueprintFrameProjection[];
   digestAlgorithm: 'canonical-json-sha256';
   projectionDigest: string;
+}
+
+/**
+ * Compact, immutable render evidence that can be copied into receipts, QA evidence,
+ * and provider results without duplicating the full projection/prompt payload.
+ */
+export interface RuntimeBlueprintFrameEvidence {
+  version: typeof RUNTIME_BLUEPRINT_FRAME_EVIDENCE_VERSION;
+  packagePath: string;
+  packageRevisionDigest: string;
+  sourcePath: string;
+  sourceDigest: string;
+  sourceRawDigest: string;
+  blueprintDigest: string;
+  authoringAuthorityDigest: string;
+  planningApprovalDigest: string;
+  styleAuthorityDigest: string;
+  resolvedContractHash: string;
+  resolvedAppearanceDigest: string;
+  bookProjectionDigest: string;
+  frameId: string;
+  frameDigest: string;
+  frameProjectionDigest: string;
+  pageNumber: number;
+  layoutPolicy: {
+    aspectRatio: '2:3';
+    textZone: 'top_clear' | 'bottom_clear';
+    remapPolicy: 'reject';
+  };
 }
 
 function invalid(message: string): never {
@@ -513,6 +544,37 @@ export function requireRuntimeBlueprintFrame(
     invalid(`runtime frame projection changed for page ${pageNumber}`);
   }
   return frame;
+}
+
+export function buildRuntimeBlueprintFrameEvidence(
+  book: RuntimeBlueprintBookProjection,
+  pageNumber: number,
+): RuntimeBlueprintFrameEvidence {
+  const frame = requireRuntimeBlueprintFrame(book, pageNumber);
+  return {
+    version: RUNTIME_BLUEPRINT_FRAME_EVIDENCE_VERSION,
+    packagePath: frame.packagePath,
+    packageRevisionDigest: frame.packageRevisionDigest,
+    sourcePath: frame.sourcePath,
+    sourceDigest: frame.sourceDigest,
+    sourceRawDigest: frame.sourceRawDigest,
+    blueprintDigest: frame.blueprintDigest,
+    authoringAuthorityDigest: frame.authoringAuthorityDigest,
+    planningApprovalDigest: frame.planningApprovalDigest,
+    styleAuthorityDigest: frame.styleAuthorityDigest,
+    resolvedContractHash: book.resolvedContractHash,
+    resolvedAppearanceDigest: frame.resolvedAppearanceDigest,
+    bookProjectionDigest: book.projectionDigest,
+    frameId: frame.frameId,
+    frameDigest: frame.frameDigest,
+    frameProjectionDigest: frame.projectionDigest,
+    pageNumber: frame.pageNumber,
+    layoutPolicy: {
+      aspectRatio: frame.layoutPlan.aspectRatio,
+      textZone: frame.layoutPlan.textZone,
+      remapPolicy: frame.layoutPlan.remapPolicy,
+    },
+  };
 }
 
 export function runtimeBlueprintPackageBinding(

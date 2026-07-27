@@ -17,6 +17,7 @@ import {
   describeChildFromPhoto,
   generateStoryBankCharacterDNA,
   loadStoryFromBank,
+  loadStoryFromBankContent,
 } from '@/backend/providers/story-bank-loader';
 import {
   selectCompanionStory,
@@ -70,7 +71,11 @@ import {
 import { heartbeatLease } from '@/lib/generation-chunked/lease';
 import { finalizeAndPersistStoryText } from './text-finalization';
 import { ensureFrozenVisualContract } from './ensure-frozen-visual-contract';
-import { runWithStyle01RenderQualification } from './render-qualification-preflight';
+import {
+  requireStyle01RenderQualification,
+  runWithStyle01RenderQualification,
+} from './render-qualification-preflight';
+import { requireRuntimeBlueprintFrame } from './runtime-blueprint-projection';
 // (Set Identity Board, Milestone C) ACTIVATE → BIND → ASSERT. Every one of these is a no-op for an order without a
 // `pipelineCache.setIdentityBoards` snapshot, and only `ensureSetIdentityBoardSnapshot` can create one (flag-gated,
 // hard-off on prod) — so with the flag off this import adds no DB call, no write, and no prompt byte.
@@ -942,6 +947,13 @@ async function runCoverStage(
   }
 
   assertShippedBookStyleEngineActive(order.illustrationStyle);
+  const earlyRuntimeAuthority = requireStyle01RenderQualification({
+    illustrationStyle: order.illustrationStyle,
+    frozenContractHash: order.visualContractHash,
+    storySourceHash: order.storySourceHash,
+    cache,
+    pageNumbers: [0],
+  });
 
   const wizardMeta = getWizardMeta(order.characterAnchors);
   const resolvedCompanion = resolveCompanionForOrder(order);
@@ -964,10 +976,20 @@ async function runCoverStage(
     appBaseUrl
   );
 
-  const storyFilePath = resolveCachedStoryFilePath(cache);
+  const storyFilePath =
+    earlyRuntimeAuthority?.packageValue.sourceSnapshot.identity.path ??
+    resolveCachedStoryFilePath(cache);
   if (!storyFilePath) throw new Error('storyFilePath missing in pipeline cache');
 
-  const story = await loadStoryFromBank(
+  const story = earlyRuntimeAuthority
+    ? await loadStoryFromBankContent(
+        earlyRuntimeAuthority.packageValue.sourceSnapshot.content,
+        order.childName || '',
+        resolvedCompanion?.name ?? 'the companion',
+        order.childGender || undefined,
+        { skipLlmPersonalization: true },
+      )
+    : await loadStoryFromBank(
     storyFilePath,
     order.childName || '',
     resolvedCompanion?.name ?? 'צפרדע',
@@ -980,15 +1002,34 @@ async function runCoverStage(
   // Fail loudly BEFORE paid cover generation when the companion has no published sheet.
   assertCompanionSheetRenderable(resolvedCompanion);
 
-  const { cache: cacheWithLocation, storyLocationPlan } = await ensureStoryLocationPlan(
-    order,
-    cache,
-    storyFilePath,
-    story,
-    cache.challengeCategory ?? wizardMeta.challengeCategory
-  );
-  const { resolvePageLocationPlan } = await import('@/lib/story-location-bible');
-  const coverLocationPlan = resolvePageLocationPlan(storyLocationPlan, 0);
+  let cacheWithLocation = cache;
+  let coverLocationPlan;
+  let coverLocationBible;
+  if (earlyRuntimeAuthority) {
+    const frame = requireRuntimeBlueprintFrame(
+      earlyRuntimeAuthority.bookProjection,
+      0,
+    );
+    coverLocationPlan = frame.pageLocationPlan;
+    coverLocationBible = frame.locationBible;
+  } else {
+    const legacyLocation = await ensureStoryLocationPlan(
+      order,
+      cache,
+      storyFilePath,
+      story,
+      cache.challengeCategory ?? wizardMeta.challengeCategory,
+    );
+    cacheWithLocation = legacyLocation.cache;
+    const { resolvePageLocationPlan } = await import(
+      '@/lib/story-location-bible'
+    );
+    coverLocationPlan = resolvePageLocationPlan(
+      legacyLocation.storyLocationPlan,
+      0,
+    );
+    coverLocationBible = legacyLocation.storyLocationPlan.bible;
+  }
 
   // (WS0b B1/P2) Capture the frozen contract hash from the LOCAL cache ONCE, BEFORE the paid cover render — so "the
   // contract that rendered these bytes" is structural, not incidental (immune to a concurrent re-freeze of
@@ -999,7 +1040,8 @@ async function runCoverStage(
   // (WS0b location authority) The cover's contract env lock (page 0, resolved from coverContract) → routes the
   // cover's Style 01 style refs + sceneClass "locks-first", closing the pageContracts-only gap (the cover is not
   // in pageContracts). Steering-gated; flag OFF → undefined → the legacy regex classifier (byte-identical).
-  const coverSteeringContract = isVisualContractSteeringEnabled()
+  const coverSteeringContract =
+    !earlyRuntimeAuthority && isVisualContractSteeringEnabled()
     ? readFrozenVisualContract(cache.visualContract)
     : null;
   const coverContractStyleRefEnvironment = coverSteeringContract
@@ -1031,7 +1073,17 @@ async function runCoverStage(
       cache,
       pageNumbers: [0],
     },
-    (runtimeVisualAuthority) => generateBookCover({
+    (runtimeVisualAuthority) => {
+      if (
+        earlyRuntimeAuthority &&
+        runtimeVisualAuthority?.bookProjection.projectionDigest !==
+          earlyRuntimeAuthority.bookProjection.projectionDigest
+      ) {
+        throw new Error(
+          '[cover_render] runtime authority changed between early qualification and provider boundary',
+        );
+      }
+      return generateBookCover({
     // (#7-a 5b) Durable regen reserver for the cover artifact — flag-on only.
     reserveQualityRegen: isReadinessManifestEnabled()
       ? makeQualityRegenReserver(prisma, { orderId: order.id, artifactKey: coverArtifactKey() })
@@ -1040,20 +1092,20 @@ async function runCoverStage(
     onCandidateUploaded: (candidate) => persistUploadedPageCandidate(order.id, 0, candidate),
     childName: order.childName,
     topicLabel,
-    storyTitle: story.title,
-    coverText: story.coverText,
-    coverSceneHint: story.coverSceneHint,
+    storyTitle: earlyRuntimeAuthority ? '' : story.title,
+    coverText: earlyRuntimeAuthority ? undefined : story.coverText,
+    coverSceneHint: earlyRuntimeAuthority ? undefined : story.coverSceneHint,
     illustrationStyle: order.illustrationStyle,
     runtimeVisualAuthority,
     childDescription: lockedChildDescription,
-    characterSheet: story.characterSheet,
+    characterSheet: earlyRuntimeAuthority ? undefined : story.characterSheet,
     referenceImages: gptReferenceImages,
     orderId: order.id,
     childAge: order.childAge,
     childGender: order.childGender,
-    heroVisualLock: story.heroVisualLock,
-    styleLock: story.styleLock,
-    entityVisualLock: story.entityVisualLock,
+    heroVisualLock: earlyRuntimeAuthority ? undefined : story.heroVisualLock,
+    styleLock: earlyRuntimeAuthority ? undefined : story.styleLock,
+    entityVisualLock: earlyRuntimeAuthority ? undefined : story.entityVisualLock,
     // id+image included so the cover resolves the SAME companion sheet refs as pages.
     companion: resolvedCompanion
       ? {
@@ -1066,7 +1118,7 @@ async function runCoverStage(
         }
       : undefined,
     challengeCategory: cacheWithLocation.challengeCategory ?? wizardMeta.challengeCategory ?? null,
-    locationBible: storyLocationPlan.bible,
+    locationBible: coverLocationBible,
     pageLocationPlan: coverLocationPlan,
     // (WS0b location authority) Route the cover's Style 01 refs + sceneClass by the contract's cover env lock.
     contractStyleRefEnvironment: coverContractStyleRefEnvironment,
@@ -1078,7 +1130,8 @@ async function runCoverStage(
     setIdentityBoardRefs: setIdentityBoardRefsForPage(cache, 0),
     childStructured: cache.dna?.childStructured,
     companionStructured: cache.dna?.companionStructured,
-    }),
+      });
+    },
   );
 
   await withDeliveryInputMutation(
@@ -1090,7 +1143,13 @@ async function runCoverStage(
       // hash (P1-4). An identical replay is fenced; a new render (new url) OR a new frozen contract (new hash) is a
       // new operation that re-runs the idempotent asset write + the fresh binding. Freeze-off → suffix omitted.
       operationKey: coverAssetOperationKey(order.id, coverImage.url, renderedContractHash),
-      mutationPayload: { coverUrl: coverImage.url, qaContext: coverImage.style01Meta?.pageVisualQa?.qaInput ?? null, ...contractHashPayloadFragment(renderedContractHash) },
+      mutationPayload: {
+        coverUrl: coverImage.url,
+        qaContext: coverImage.style01Meta?.pageVisualQa?.qaInput ?? null,
+        runtimeAuthorityObservability:
+          (coverImage.style01Meta?.runtimeBlueprintEvidence ?? null) as unknown as ReceiptSafeValue,
+        ...contractHashPayloadFragment(renderedContractHash),
+      },
     },
     async (tx) => {
       await tx.generatedBook.update({
@@ -1114,6 +1173,8 @@ async function runCoverStage(
         deliveredUrl: coverImage.url,
         qaContext: coverImage.style01Meta?.pageVisualQa?.qaInput,
         contractHash: renderedContractHash,
+        runtimeAuthorityObservability:
+          (coverImage.style01Meta?.runtimeBlueprintEvidence ?? null) as unknown as Prisma.InputJsonValue,
       });
     },
   );
@@ -1151,6 +1212,8 @@ async function runCoverStage(
     // (release shape C) Share the one cover inspection so Gate-1 evidence SHA == Gate-2 cover SHA.
     deliveredInspection: coverInspection,
     contractObservability: buildContractObservability(cache, 0, renderedContractHash),
+    runtimeAuthorityObservability:
+      (coverImage.style01Meta?.runtimeBlueprintEvidence ?? null) as unknown as Prisma.InputJsonValue,
   });
   return true;
 }
@@ -1226,7 +1289,17 @@ async function runPageImagesChunk(
     return { cache, stopChunk: true, failed: false };
   }
 
-  const storyFilePath = resolveCachedStoryFilePath(cache);
+  const pagesToRender = pendingPages.slice(0, getPageImagesPerChunk());
+  const earlyRuntimeAuthority = requireStyle01RenderQualification({
+    illustrationStyle: order.illustrationStyle,
+    frozenContractHash: order.visualContractHash,
+    storySourceHash: order.storySourceHash,
+    cache,
+    pageNumbers: pagesToRender.map((page) => page.pageNumber),
+  });
+  const storyFilePath =
+    earlyRuntimeAuthority?.packageValue.sourceSnapshot.identity.path ??
+    resolveCachedStoryFilePath(cache);
   if (!storyFilePath) throw new Error('storyFilePath missing');
 
   if (!cache.textFinalized) {
@@ -1235,7 +1308,11 @@ async function runPageImagesChunk(
 
   let familyCoherenceForImages =
     cache.familyCoherence ?? getFamilyCoherenceFromAnchors(order.characterAnchors) ?? null;
-  if (!familyCoherenceForImages && cache.dna?.childStructured) {
+  if (
+    !earlyRuntimeAuthority &&
+    !familyCoherenceForImages &&
+    cache.dna?.childStructured
+  ) {
     familyCoherenceForImages = ensureFamilyCoherenceBundle(order, {
       childPhotoDescription: cache.childPhotoDescription,
       childStructured: cache.dna.childStructured,
@@ -1259,7 +1336,15 @@ async function runPageImagesChunk(
   // Fail loudly BEFORE paid page generation when the companion has no published sheet.
   assertCompanionSheetRenderable(resolvedCompanion);
 
-  const story = await loadStoryFromBank(
+  const story = earlyRuntimeAuthority
+    ? await loadStoryFromBankContent(
+        earlyRuntimeAuthority.packageValue.sourceSnapshot.content,
+        order.childName || '',
+        resolvedCompanion?.name ?? 'the companion',
+        order.childGender || undefined,
+        { skipLlmPersonalization: true },
+      )
+    : await loadStoryFromBank(
     storyFilePath,
     order.childName || '',
     resolvedCompanion?.name ?? 'צפרדע',
@@ -1270,46 +1355,74 @@ async function runPageImagesChunk(
   );
 
   let bookShotPlan = cache.bookShotPlan;
-  if (!bookShotPlan) {
-    const { beatsFromStoryPages, resolveBookShotPlan } = await import('@/lib/book-shot-plan');
-    bookShotPlan = resolveBookShotPlan({
+  let storyLocationPlan:
+    | import('@/lib/story-location-bible').StoryLocationPlanBundle
+    | undefined;
+  let sceneMemoryPlan:
+    | import('@/lib/scene-memory').SceneMemoryPlan
+    | null
+    | undefined;
+  if (!earlyRuntimeAuthority) {
+    if (!bookShotPlan) {
+      const { beatsFromStoryPages, resolveBookShotPlan } = await import(
+        '@/lib/book-shot-plan'
+      );
+      bookShotPlan = resolveBookShotPlan({
+        storyFilePath,
+        pages: beatsFromStoryPages(story.pages),
+      });
+      cache = { ...cache, bookShotPlan };
+      await saveCache(order.id, cache);
+    }
+
+    const legacyLocation = await ensureStoryLocationPlan(
+      order,
+      cache,
       storyFilePath,
-      pages: beatsFromStoryPages(story.pages),
+      story,
+      cache.challengeCategory ?? wizardMeta.challengeCategory,
+    );
+    cache = legacyLocation.cache;
+    storyLocationPlan = legacyLocation.storyLocationPlan;
+
+    const { resolveSceneMemoryPlan } = await import('@/lib/scene-memory');
+    sceneMemoryPlan = resolveSceneMemoryPlan({
+      storyLocationPlan,
+      bookShotPlan:
+        bookShotPlan as import('@/lib/book-shot-plan').BookShotPlan,
     });
-    cache = { ...cache, bookShotPlan };
-    await saveCache(order.id, cache);
+  } else {
+    // The enforced path must not consume or persist legacy planner output.
+    bookShotPlan = undefined;
   }
 
-  const { cache: cacheWithLocation, storyLocationPlan } = await ensureStoryLocationPlan(
-    order,
-    cache,
-    storyFilePath,
-    story,
-    cache.challengeCategory ?? wizardMeta.challengeCategory
-  );
-  cache = cacheWithLocation;
-
-  const { resolveSceneMemoryPlan } = await import('@/lib/scene-memory');
-  const sceneMemoryPlan = resolveSceneMemoryPlan({
-    storyLocationPlan,
-    bookShotPlan: bookShotPlan as import('@/lib/book-shot-plan').BookShotPlan,
-  });
-
   const compositionByPage = new Map(
-    (story.pageCompositionPlan ?? []).map((c) => [c.pageNumber, c])
+    earlyRuntimeAuthority
+      ? []
+      : (story.pageCompositionPlan ?? []).map((c) => [c.pageNumber, c]),
   );
-  const assignedTemplates = assignTemplatesForBook(
-    story.pages.map((p) => ({
-      pageNumber: p.pageNumber,
-      text: p.text,
-      imageSubject: p.imageSubject,
-    }))
-  );
+  const assignedTemplates = earlyRuntimeAuthority
+    ? []
+    : assignTemplatesForBook(
+        story.pages.map((p) => ({
+          pageNumber: p.pageNumber,
+          text: p.text,
+          imageSubject: p.imageSubject,
+        })),
+      );
   const templateByPage = new Map(
-    story.pages.map((p, i) => [p.pageNumber, assignedTemplates[i] ?? 'art_top_text_bottom'])
+    earlyRuntimeAuthority
+      ? book.pages.map((page) => [
+          page.pageNumber,
+          normalizePageTemplate(page.pageTemplate) ??
+            'art_top_text_bottom',
+        ])
+      : story.pages.map((p, i) => [
+          p.pageNumber,
+          assignedTemplates[i] ?? 'art_top_text_bottom',
+        ]),
   );
 
-  const pagesToRender = pendingPages.slice(0, getPageImagesPerChunk());
   const pageNumbersThisChunk = new Set(pagesToRender.map((p) => p.pageNumber));
   const dbTextByPage = new Map(book.pages.map((p) => [p.pageNumber, p.text]));
 
@@ -1317,13 +1430,13 @@ async function runPageImagesChunk(
     order,
     lockedChildDescription: cache.lockedChildDescription ?? cache.dna?.childDNA ?? '',
     resolvedCompanion,
-    characterSheet: story.characterSheet,
+    characterSheet: earlyRuntimeAuthority ? undefined : story.characterSheet,
     appBaseUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
   });
   const babyAnchorUrl =
     process.env.DINI_BABY_DRAGON_ANCHOR_URL?.trim() ||
     (getCharacterAnchorStore(cache)['baby_dragon:dini_hatchling'] as { url?: string } | undefined)?.url;
-  if (babyAnchorUrl) {
+  if (!earlyRuntimeAuthority && babyAnchorUrl) {
     initialCharacterAnchors['baby_dragon:dini_hatchling'] = babyAnchorUrl;
     anchorRegistry['baby_dragon:dini_hatchling'] = {
       name: 'Baby Dragon Hatchling',
@@ -1347,24 +1460,57 @@ async function runPageImagesChunk(
       detectionRegistry = { ...anchorRegistry, ...contractToHumanCastDetectionEntries(contract) };
     }
   }
-  const pagesWithDetectedCharacters = story.pages.map((p) => {
-    const baseIds = detectExpectedCharactersForPage(
-      { text: p.text, imagePrompt: p.imagePrompt, imageSubject: p.imageSubject ?? '' },
-      detectionRegistry
-    );
-    const hasBabyDragon = p.pageNumber >= 16 && p.pageNumber <= 19 && Boolean(babyAnchorUrl);
-    if (hasBabyDragon) {
-      baseIds.push('baby_dragon:dini_hatchling');
-    }
-    const subj = (p.imageSubject ?? '').toLowerCase();
-    if (resolvedCompanion && !subj.startsWith('environment') && !subj.startsWith('object:')) {
-      return {
-        ...p,
-        expectedCharacterIds: [...new Set([...baseIds, companionAnchorKey(resolvedCompanion.id)])],
-      };
-    }
-    return { ...p, expectedCharacterIds: baseIds };
-  });
+  const pagesWithDetectedCharacters = earlyRuntimeAuthority
+    ? pagesToRender.map((page) => {
+        const frame = requireRuntimeBlueprintFrame(
+          earlyRuntimeAuthority.bookProjection,
+          page.pageNumber,
+        );
+        return {
+          pageNumber: page.pageNumber,
+          text: page.text,
+          narrationText: page.narrationText ?? page.text,
+          imagePrompt: frame.safeScenePrompt,
+          rawScenePrompt: frame.safeScenePrompt,
+          imageSubject: '',
+          isLetter: false,
+          expectedCharacterIds: [...frame.castIds],
+        };
+      })
+    : story.pages.map((p) => {
+        const baseIds = detectExpectedCharactersForPage(
+          {
+            text: p.text,
+            imagePrompt: p.imagePrompt,
+            imageSubject: p.imageSubject ?? '',
+          },
+          detectionRegistry,
+        );
+        const hasBabyDragon =
+          p.pageNumber >= 16 &&
+          p.pageNumber <= 19 &&
+          Boolean(babyAnchorUrl);
+        if (hasBabyDragon) {
+          baseIds.push('baby_dragon:dini_hatchling');
+        }
+        const subj = (p.imageSubject ?? '').toLowerCase();
+        if (
+          resolvedCompanion &&
+          !subj.startsWith('environment') &&
+          !subj.startsWith('object:')
+        ) {
+          return {
+            ...p,
+            expectedCharacterIds: [
+              ...new Set([
+                ...baseIds,
+                companionAnchorKey(resolvedCompanion.id),
+              ]),
+            ],
+          };
+        }
+        return { ...p, expectedCharacterIds: baseIds };
+      });
   const appearances = pagesWithDetectedCharacters.reduce<Record<string, number>>((acc, page) => {
     for (const id of page.expectedCharacterIds ?? []) acc[id] = (acc[id] ?? 0) + 1;
     return acc;
@@ -1377,7 +1523,7 @@ async function runPageImagesChunk(
 
   // (WS0b e4a) Read the frozen contract ONCE for style-ref environment routing — flag-gated, default OFF.
   // null → the legacy regex style-ref selection (byte-identical). Ephemeral (per-render; never persisted).
-  const steeringContract = isVisualContractSteeringEnabled()
+  const steeringContract = !earlyRuntimeAuthority && isVisualContractSteeringEnabled()
     ? readFrozenVisualContract(cache.visualContract)
     : null;
   // (WS0b location authority) Authoritative per-page contract blocks (LOCATION/ZONE/CAST/WARDROBE/MUST-SHOW/
@@ -1391,6 +1537,24 @@ async function runPageImagesChunk(
     .filter((p) => pageNumbersThisChunk.has(p.pageNumber))
     .map((p) => {
       const template = templateByPage.get(p.pageNumber) ?? 'art_top_text_bottom';
+      if (earlyRuntimeAuthority) {
+        const frame = requireRuntimeBlueprintFrame(
+          earlyRuntimeAuthority.bookProjection,
+          p.pageNumber,
+        );
+        return {
+          pageNumber: p.pageNumber,
+          imagePrompt: frame.safeScenePrompt,
+          pageTemplate: template,
+          expectedCharacterIds: [...frame.castIds],
+          visualContractPromptBlock: frame.contractPromptBlock,
+          setIdentityBoardRefs: setIdentityBoardRefsForPage(
+            cache,
+            p.pageNumber,
+          ),
+          supportingCharacters: frame.supportingCharacters,
+        };
+      }
       const contractStyleRefEnvironment = steeringContract
         ? contractPageEnvironmentClass(steeringContract, p.pageNumber) ?? undefined
         : undefined;
@@ -1490,7 +1654,9 @@ async function runPageImagesChunk(
     resolvedCompanion,
     appBaseUrl
   );
-  const inputPhotoStrength = order.childImageUrl
+  const inputPhotoStrength = earlyRuntimeAuthority
+    ? ('adequate' as const)
+    : order.childImageUrl
     ? await evaluatePhotoGate(order.childImageUrl).then((g) => g.inputStrength).catch(() => 'adequate' as const)
     : 'adequate';
   const resemblanceThresholdConfig = resolveResemblanceThresholdConfig();
@@ -1525,7 +1691,17 @@ async function runPageImagesChunk(
       cache,
       pageNumbers: pagesForGen.map((page) => page.pageNumber),
     },
-    (runtimeVisualAuthority) => generateAllPageImages(pagesForGen, {
+    (runtimeVisualAuthority) => {
+      if (
+        earlyRuntimeAuthority &&
+        runtimeVisualAuthority?.bookProjection.projectionDigest !==
+          earlyRuntimeAuthority.bookProjection.projectionDigest
+      ) {
+        throw new Error(
+          '[page_render] runtime authority changed between early qualification and provider boundary',
+        );
+      }
+      return generateAllPageImages(pagesForGen, {
     // (#7-a 5b) Durable per-page regen reserver — flag-on only (flag-off → undefined → legacy in-memory budget).
     makeReserveQualityRegen: isReadinessManifestEnabled()
       ? (pageNumber: number) =>
@@ -1562,11 +1738,11 @@ async function runPageImagesChunk(
     workerDeadlineMs: workerDeadline,
     pageGenerationTimeoutMs,
     orderId: order.id,
-    characterSheet: story.characterSheet,
-    concept: story.concept,
-    heroVisualLock: story.heroVisualLock,
-    styleLock: story.styleLock,
-    entityVisualLock: story.entityVisualLock,
+    characterSheet: earlyRuntimeAuthority ? undefined : story.characterSheet,
+    concept: earlyRuntimeAuthority ? undefined : story.concept,
+    heroVisualLock: earlyRuntimeAuthority ? undefined : story.heroVisualLock,
+    styleLock: earlyRuntimeAuthority ? undefined : story.styleLock,
+    entityVisualLock: earlyRuntimeAuthority ? undefined : story.entityVisualLock,
     childStructured: cache.dna?.childStructured,
     companionStructured: cache.dna?.companionStructured,
     propDNA: cache.dna?.propDNA,
@@ -1610,16 +1786,31 @@ async function runPageImagesChunk(
         },
       );
     },
-    storyRecurringEntityDeclarations: story.storyRecurringEntities,
-    storyTimeOfDay: story.storyTimeOfDay,
-    pageTimeOfDayOverrides: story.pageTimeOfDayOverrides,
+    storyRecurringEntityDeclarations: earlyRuntimeAuthority
+      ? undefined
+      : story.storyRecurringEntities,
+    storyTimeOfDay: earlyRuntimeAuthority
+      ? undefined
+      : story.storyTimeOfDay,
+    pageTimeOfDayOverrides: earlyRuntimeAuthority
+      ? undefined
+      : story.pageTimeOfDayOverrides,
     familyCoherence: familyCoherenceForImages,
-    bookShotPlan: bookShotPlan as import('@/lib/book-shot-plan').BookShotPlan,
+    bookShotPlan: bookShotPlan
+      ? (bookShotPlan as import('@/lib/book-shot-plan').BookShotPlan)
+      : undefined,
     storyLocationPlan,
     sceneMemoryPlan,
-    storyFile: storyFileKey,
-    direction: (cache.directionForV3 as 'bedtime' | 'adventure' | 'fantasy' | undefined) ?? undefined,
-    }),
+    storyFile: earlyRuntimeAuthority ? undefined : storyFileKey,
+    direction: earlyRuntimeAuthority
+      ? undefined
+      : (cache.directionForV3 as
+          | 'bedtime'
+          | 'adventure'
+          | 'fantasy'
+          | undefined) ?? undefined,
+      });
+    },
   );
 
   const presentationEnabled =
@@ -1632,6 +1823,15 @@ async function runPageImagesChunk(
   for (const dbPage of pagesToRender) {
     const image = imageOutcome.results.get(dbPage.pageNumber);
     if (!image) continue;
+    const renderedTextZone =
+      imageOutcome.textZones.get(dbPage.pageNumber) ?? null;
+    const approvedTextZone =
+      image.style01Meta?.runtimeBlueprintEvidence?.layoutPolicy.textZone;
+    if (approvedTextZone && renderedTextZone !== approvedTextZone) {
+      throw new Error(
+        `[runtime_blueprint_projection] provider text zone ${renderedTextZone ?? 'missing'} does not match approved Blueprint frame ${approvedTextZone} for page ${dbPage.pageNumber}`,
+      );
+    }
 
     const idempotencyKey = buildArtifactIdempotencyKey({
       orderId: order.id,
@@ -1701,6 +1901,8 @@ async function runPageImagesChunk(
           // payload does too. QaContext is a named interface (no implicit index signature) → cast to the receipt-safe
           // JSON it structurally is.
           qaContext: (withWorldExpectation(image.style01Meta?.pageVisualQa?.qaInput, pageWorldExpectation) ?? null) as unknown as ReceiptSafeValue,
+          runtimeAuthorityObservability:
+            (image.style01Meta?.runtimeBlueprintEvidence ?? null) as unknown as ReceiptSafeValue,
           ...contractHashPayloadFragment(renderedContractHash),
         },
       },
@@ -1758,6 +1960,8 @@ async function runPageImagesChunk(
           deliveredUrl: presentationUrl ?? image.url,
           qaContext: withWorldExpectation(image.style01Meta?.pageVisualQa?.qaInput, pageWorldExpectation),
           contractHash: renderedContractHash,
+          runtimeAuthorityObservability:
+            (image.style01Meta?.runtimeBlueprintEvidence ?? null) as unknown as Prisma.InputJsonValue,
         });
       },
     );
@@ -1796,11 +2000,13 @@ async function runPageImagesChunk(
       regenAttempts: image.style01Meta?.pageVisualQa?.regenAttempts,
       contractHash: renderedContractHash,
       contractObservability: buildContractObservability(cache, dbPage.pageNumber, renderedContractHash),
+      runtimeAuthorityObservability:
+        (image.style01Meta?.runtimeBlueprintEvidence ?? null) as unknown as Prisma.InputJsonValue,
       // (release shape C) Share the one inspection so the Gate-1 evidence SHA == the Gate-2 asset SHA.
       deliveredInspection: pageInspection,
     });
 
-    const textZone = imageOutcome.textZones.get(dbPage.pageNumber) ?? 'bottom_clear';
+    const textZone = renderedTextZone ?? 'bottom_clear';
     try {
       const { analyzeTextZoneLuminance } = await import('@/backend/providers/image-analysis');
       const textColorScheme = await analyzeTextZoneLuminance(

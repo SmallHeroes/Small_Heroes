@@ -246,7 +246,28 @@ export async function loadStoryFromBank(
   childGender?: string,
   options?: LoadStoryFromBankOptions | null
 ): Promise<GeneratedStory> {
-  let raw = await fs.readFile(filePath, 'utf-8');
+  const raw = await fs.readFile(filePath, 'utf-8');
+  return loadStoryFromBankContent(
+    raw,
+    childName,
+    companionName,
+    childGender,
+    options,
+  );
+}
+
+/**
+ * Parse an already-frozen Story Source snapshot. PVB runtime callers use this
+ * seam so an in-flight order never reloads a mutable source path.
+ */
+export async function loadStoryFromBankContent(
+  rawContent: string,
+  childName: string,
+  companionName: string,
+  childGender?: string,
+  options?: LoadStoryFromBankOptions | null
+): Promise<GeneratedStory> {
+  let raw = rawContent;
   if (options?.maxPages && options.maxPages > 0) {
     raw = truncateStoryMarkdownToPages(raw, options.maxPages);
   }

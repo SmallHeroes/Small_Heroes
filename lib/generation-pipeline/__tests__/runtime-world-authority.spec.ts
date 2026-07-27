@@ -21,8 +21,10 @@ import {
   runtimeWorldProjectionDigest,
 } from '@/lib/visual-package/runtimeAuthority';
 import { buildVisualPackageV4Fixture } from '@/lib/visual-package/__tests__/visual-package-v4.fixtures';
+import type { BlueprintFixtureShape } from '@/lib/visual-package/__tests__/pre-render-book-visual-blueprint.fixtures';
 
 import {
+  buildRuntimeBlueprintFrameEvidence,
   buildRuntimeBlueprintBookProjection,
   requireRuntimeBlueprintFrame,
 } from '../runtime-blueprint-projection';
@@ -64,9 +66,11 @@ const FAMILY: ResolvedFamilyAppearanceProfile = {
   hairTexture: 'wavy',
 };
 
-function authority(): Style01RuntimeAuthority {
+function authority(
+  shape: BlueprintFixtureShape = 'no_companion',
+): Style01RuntimeAuthority {
   const { packageValue } =
-    buildVisualPackageV4Fixture('no_companion');
+    buildVisualPackageV4Fixture(shape);
   const packagePath = `visual-packages/approved/revisions/${packageValue.revisionDigest}.visual-package.json`;
   const frozenAuthority = buildFrozenVisualPackageAuthority({
     packageValue,
@@ -289,11 +293,46 @@ describe('R1D-PVB-C shared runtime Blueprint authority', () => {
     expect(page?.safeScenePrompt).not.toMatch(/MALICIOUS_|castle|dragon/);
   });
 
+  it.each<BlueprintFixtureShape>([
+    'single_location',
+    'multi_zone_transition',
+    'journey_fantastical',
+    'no_companion',
+    'reveal_timeline',
+  ])(
+    'uses the same public runtime projection path for synthetic Story Source shape %s',
+    (shape) => {
+      const runtime = authority(shape);
+      expect(runtime.bookProjection.frames).toHaveLength(
+        runtime.packageValue.blueprint.content.frames.length,
+      );
+      for (const projected of runtime.bookProjection.frames) {
+        const evidence = buildRuntimeBlueprintFrameEvidence(
+          runtime.bookProjection,
+          projected.pageNumber,
+        );
+        expect(evidence).toMatchObject({
+          packageRevisionDigest: runtime.packageValue.revisionDigest,
+          blueprintDigest: runtime.packageValue.blueprint.digest,
+          sourceRawDigest: runtime.packageValue.sourceSnapshot.rawDigest,
+          bookProjectionDigest: runtime.bookProjection.projectionDigest,
+          frameId: projected.frameId,
+          frameDigest: projected.frameDigest,
+          frameProjectionDigest: projected.projectionDigest,
+        });
+      }
+    },
+  );
+
   it('provider prompt uses only the exact PVB frame and discards story/free-text composition overrides', async () => {
     const runtime = authority();
-    await expect(generateImage(imageInput(runtime))).resolves.toMatchObject({
+    const result = await generateImage(imageInput(runtime));
+    expect(result).toMatchObject({
       provider: 'gpt-image-1',
     });
+    expect(result.style01Meta?.runtimeBlueprintEvidence).toEqual(
+      buildRuntimeBlueprintFrameEvidence(runtime.bookProjection, 1),
+    );
     expect(generateGptSpy).toHaveBeenCalledTimes(1);
     const providerInput = generateGptSpy.mock.calls[0][0] as {
       finalPrompt: string;
@@ -346,7 +385,7 @@ describe('R1D-PVB-C shared runtime Blueprint authority', () => {
       .mockResolvedValueOnce(qaResult(true));
     const reserveQualityRegen = vi.fn().mockResolvedValue(true);
     const runtime = authority();
-    await generateImage({
+    const result = await generateImage({
       ...imageInput(runtime),
       reserveQualityRegen,
     });
@@ -357,6 +396,9 @@ describe('R1D-PVB-C shared runtime Blueprint authority', () => {
     expect(prompts[1]).toBe(prompts[0]);
     expect(prompts[0]).toContain(
       requireRuntimeBlueprintFrame(runtime.bookProjection, 1).frameDigest,
+    );
+    expect(result.style01Meta?.runtimeBlueprintEvidence).toEqual(
+      buildRuntimeBlueprintFrameEvidence(runtime.bookProjection, 1),
     );
   });
 

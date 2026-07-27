@@ -255,3 +255,62 @@ describe('(WS0b e3) contractObservability — carried ALONGSIDE qaContext, never
     expect(ev.qaContext).toEqual(QA_CTX);
   });
 });
+
+describe('R1D-PVB-C3 runtime authority observability', () => {
+  const PVB = {
+    version: 'runtime-blueprint-frame-evidence/v1',
+    packageRevisionDigest: 'a'.repeat(64),
+    blueprintDigest: 'b'.repeat(64),
+    bookProjectionDigest: 'c'.repeat(64),
+    frameId: 'frame-page-1',
+    frameDigest: 'd'.repeat(64),
+    frameProjectionDigest: 'e'.repeat(64),
+    pageNumber: 1,
+  };
+
+  it('persists exact PVB frame identity atomically with a regenerated asset context', async () => {
+    const db = {
+      qualityEvidence: {
+        findUnique: vi.fn(async () => null),
+        upsert: vi.fn(async (_arg: unknown) => ({})),
+      },
+    };
+    await persistQualityContext(db as never, {
+      orderId: 'o1',
+      artifactKey: 'page:1',
+      deliveredUrl: 'https://h/p1.webp',
+      qaContext: QA_CTX,
+      contractHash: 'contract-v1',
+      runtimeAuthorityObservability: PVB as never,
+    });
+    const call = db.qualityEvidence.upsert.mock.calls[0][0] as unknown as UpsertArg;
+    expect(call.create.evidence).toEqual(
+      expect.objectContaining({
+        qaContext: QA_CTX,
+        runtimeAuthorityObservability: PVB,
+      }),
+    );
+    expect(call.create.verdict).toBe('evidence_unknown');
+  });
+
+  it('carries exact PVB frame identity through delivered-byte evidence without changing QA context', async () => {
+    const db = makeDb();
+    await persistDeliveredQualityEvidence(
+      db as never,
+      {
+        orderId: 'o1',
+        artifactKey: 'page:1',
+        deliveredUrl: 'https://h/p1.webp',
+        presentationApplied: false,
+        rawVerdict: 'passed',
+        qaContext: QA_CTX,
+        contractHash: 'contract-v1',
+        runtimeAuthorityObservability: PVB as never,
+      },
+      { inspect: async () => okInspect('sha') },
+    );
+    const evidence = upsertArg(db).create.evidence as Record<string, unknown>;
+    expect(evidence.runtimeAuthorityObservability).toEqual(PVB);
+    expect(evidence.qaContext).toEqual(QA_CTX);
+  });
+});
