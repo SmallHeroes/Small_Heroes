@@ -1,12 +1,15 @@
 # R1D-PVB-D1A1 — Canonical Live Authoring Decision Gate
 
-**Status:** APPROVED D1A1A scope. Initial implementation `031bcb6a..e069f19e` received Claude Code **HOLD** (2 MAJOR, 4 MINOR). Claude Code independently PASSed correction range `e069f19e8c9a071cffb22ff5b66d27ea2643e82b..925a3bf1254f6c159125f7e8c34cc61f198d5847` and combined range `031bcb6aa08d4a9ee7cf527bb051970efc3e96d1..925a3bf1254f6c159125f7e8c34cc61f198d5847`, with no BLOCKER or MAJOR. Seven formal residual MINOR findings A-G are corrected in local code commit `2233e490`; that residual range awaits READ-ONLY re-gate, so no new PASS is claimed.
+**Status:** D1A1A is independently PASSed and frozen in approved pushed base `29350ec18b10a0d0150412912f2cff134c38430a`. Guy separately authorized zero-cost D1A1B0 canonical live-request materialization; code/test commit `bbd1de6d` awaits first-pass READ-ONLY QA, so no B0 PASS is claimed.
 **Immutable base:** `031bcb6aa08d4a9ee7cf527bb051970efc3e96d1`
 **Implementation branch:** `codex/r1d-pvb-d1a1a-live-authoring-boundary`
+**D1A1B0 immutable base:** `29350ec18b10a0d0150412912f2cff134c38430a`
+**D1A1B0 implementation branch:** `codex/r1d-pvb-d1a1b0-live-request-materialization`
 **D1A1A approved cost boundary:** exactly zero provider, model, LLM, image, Vision, network, storage, database, or Board calls
 **D1A1A observed execution:** zero spend and zero provider/model/LLM/image/Vision/storage/database/Board calls; one unauthorized read-only Git remote probe during residual final topology, disclosed below
-**D1A1B status:** not authorized; future one-invocation live authoring milestone only after separate official price verification and Guy spend approval
-**D1A1C status:** not authorized; future local semantic review/approval milestone only after a successful D1A1B artifact and Guy inspection
+**D1A1B0 status:** authorized and implemented locally as materialization only; zero credential, pricing, provider, network, candidate, or downstream authority; awaits independent QA
+**D1A1B1 status:** not authorized; future one-invocation live authoring milestone only after separate official price verification and Guy spend approval
+**D1A1C status:** not authorized; future local semantic review/approval milestone only after a successful D1A1B1 artifact and Guy inspection
 
 ## 1. Proposed change
 
@@ -29,8 +32,9 @@ exact Story Source request
 D1A1 is deliberately split:
 
 - **D1A1A — Canonical Live Authoring Boundary:** zero-cost launcher, private-entry closure, exact adapter, import preflight, artifact orchestration, fixtures, tests, and documentation.
-- **D1A1B — One Real Authoring Invocation:** a future separately authorized live invocation after read-only official price verification and an explicit spend decision.
-- **D1A1C — Local Review and Approval:** a future separate review of the D1A1B candidate, Semantic Reconciliation, and exact human approval. It cannot be combined with the provider call.
+- **D1A1B0 — Canonical Live Request Materialization:** a separately authorized zero-cost step that writes the canonical local source-authority request, rebuilt source snapshot, `mode=live` v3 request, and non-authorizing deterministic manifest.
+- **D1A1B1 — One Real Authoring Invocation:** a future separately authorized live invocation after read-only official price verification and an explicit spend decision.
+- **D1A1C — Local Review and Approval:** a future separate review of the D1A1B1 candidate, Semantic Reconciliation, and exact human approval. It cannot be combined with the provider call.
 
 ## 1A. R1D-PVB-D1A1A-QA-FIX disposition
 
@@ -65,6 +69,39 @@ This residual correction preserves the independently PASSed provider destination
 
 Execution deviation: during final topology inspection, Codex mistakenly ran one read-only `git ls-remote --heads origin codex/r1d-pvb-d1a1a-live-authoring-boundary`. It returned no remote-branch output and made no Git mutation, provider/model call, or paid action, but it could contact the configured Git remote and credential helper and violated the approved no-network boundary. The residual handoff must not claim zero external calls.
 
+## 1C. R1D-PVB-D1A1B0 — Canonical Live Request Materialization
+
+Guy's dedicated execution brief authorized B0 only on exact D1A1A base `29350ec18b10a0d0150412912f2cff134c38430a`. B0 closes the local-input gap before any separately authorized live work. It does not load or inspect credentials, verify prices, invoke the canonical live boundary, contact a provider/model/network, or create a candidate.
+
+The canonical zero-provider command is:
+
+```text
+source-authoring-live-request-materialize --repo-root <absolute-dir> --request <repo-relative-json> --out <repo-relative-dir>
+```
+
+For any valid Story Source in the same worktree and source revision, it:
+
+1. validates an exact materialization control request with canonical timestamp, bounded IDs, absolute repository root, and canonical Story Source path;
+2. realpath-canonicalizes one repository root and rejects traversal, absolute/mixed-root inputs, symlink/junction aliases, and containment escape for control input, Story Source, adjacent authored cover authority, output root, and content-address categories;
+3. writes a versioned/digested Story Source authority request;
+4. rebuilds and validates the complete Story Source snapshot through the existing authority builder;
+5. builds and validates the exact `visual-contract-authoring-request/v3` with `mode=live` and unchanged D1A1A model/tier/reasoning/schema/prompt/call/repair/retry/token/cost policy;
+6. persists the three inputs through the shared immutable canonical content-addressed writer; and
+7. writes a deterministic content-addressed manifest binding repository real path, source revision, schema versions, artifact paths/digests, and the exact future canonical live command while explicitly granting no live or downstream authority.
+
+The parser rejects unknown, duplicate, positional, equals-form, incompatible, help-mixture, missing-value, and missing-required arguments. Validation happens before output preparation. Identical-existing artifacts are idempotent, including semantically identical historical pretty JSON; a true same-address mismatch fails closed without overwrite. Story or authored-cover mutation changes snapshot/live-request authority, and a stale mixed bundle fails through the existing canonical runner before provider construction.
+
+Code/test commit `bbd1de6d` implements B0 generally. The first Story Source was used only as ignored local calibration data. Its four content-addresses are:
+
+- source-authority request `92087ab085216548414b80fcd61dd42579556d31dae61d42530f16cfe035b657`;
+- rebuilt snapshot `d8a6bed426a3ea571242915dcd63851bd59de4f148c52fbf28d0cb49429123d9`;
+- live v3 request `d3038f06ee172522445d438359d0b3bdef60ce7fa7dccb53f5d7853617d2ccff`;
+- materialization manifest `6c9cd2d3195fb99f89aa5eaddd5785337564a6c5d1c6b0efbc59fe22239b99d6`.
+
+Validation evidence is 33/33 new B0 tests and 350/350 across the exact 14-file D1A0/D1A1A/B0/source/compiler/retry matrix, plus passing TypeScript and diff checks. Literal `npm run check` adds the B0 file/tests and reproduces only the established ignored-output baseline: 264 files total, 243 pass / 16 skip / 5 fail; 2,892 tests total, 2,821 pass / 65 skip / 6 fail. B0 awaits independent read-only adversarial QA.
+
+B0 performed zero pricing lookup, credential read or existence check, provider/model/network call, live authoring, candidate creation, render/Vision, storage/database, Board, reconciliation, approval, Blueprint, package/publication/promotion, production/deployment, push, or spend. D1A1B1 and D1A1C remain unauthorized.
+
 ## 2. Why now?
 
 D1A0 has independent technical PASS for its injected-provider lifecycle, immutable source snapshot, exact request, conservative `$5.00` fence, sanitized receipt/candidate functions, and fail-closed validation. It intentionally has no canonical live provider adapter or public live command.
@@ -97,7 +134,7 @@ D1A1A may not perform a live invocation or create a real candidate/reconciliatio
 6. **Exact live request and cost fence:** live consumes a separately authored `mode=live` v3 request and never mutates a D1A0 preflight artifact into live authority. Price version/digest, provider/model/schema, initial/repair prompt authority, call/repair budget, timeout/retry, source bindings, `$5.00` hard ceiling, maximum reserved exposure `$4.884`, and current 12-page maximum remain exact. Thirteen or more pages require a separate budget/partition Decision Gate. D1A1A neither verifies public prices nor spends.
 7. **Sanitized immutable artifacts and honest failure semantics:** one handled invocation persists content-addressed source/request authority before provider reachability, then receipt first, readiness second, and candidate last only on full compile/action success. Raw prompt, raw response, credential/header/env value, raw provider exception, invalid draft, and full stack are excluded. D1A1 writes are canonically serialized, no-overwrite, identical-byte idempotent, and different-byte collision rejecting. Forced termination or disk failure can still interrupt the post-call in-memory interval before a receipt is durable; no automatic rerun/resume authority exists.
 8. **Approval/downstream separation:** a produced artifact remains candidate only. No automatic Semantic Reconciliation, human approval, Blueprint readiness, Board/package/render/publication/production authority, or deployment follows.
-9. **QA, rollback, and milestone separation:** D1A1A is independently reviewed before D1A1B. Rollback is focused commit revert; D1A1A creates no external state. D1A1B and D1A1C each require their own explicit authorization and immutable review range.
+9. **QA, rollback, and milestone separation:** D1A1A is independently reviewed before B0 or B1, and B0 requires its own independent review before B1. Rollback is focused commit revert; D1A1A and B0 create no external state. D1A1B1 and D1A1C each require their own explicit authorization and immutable review range.
 
 ## 5. Files likely affected
 
@@ -142,13 +179,13 @@ No image, page, book, audio, Vision, provider, storage, database, or Board actio
 - D1A1A expected spend: **$0.00**.
 - D1A1A expected provider/model/LLM calls: **0**.
 - D1A1A expected image/audio/Vision calls: **0**.
-- Future D1A1B maximum application calls: **3** (one initial plus at most two semantic repairs).
-- Future D1A1B transport retries: **0**.
+- Future D1A1B1 maximum application calls: **3** (one initial plus at most two semantic repairs).
+- Future D1A1B1 transport retries: **0**.
 - Approved point-in-time maximum reserved exposure: **$4.884**.
 - Hard ceiling: **$5.00**.
 - Current maximum qualifying book length under this exact fence: **12 pages**. A 13-page request projects beyond the approved fence and stops before credential/provider reachability; partitioning or a changed budget requires a new Decision Gate.
 
-Before D1A1B, the Lead must obtain separate authority for read-only official price verification. Any mismatch stops the live milestone and requires new authority.
+Before D1A1B1, the Lead must obtain separate authority for read-only official price verification. Any mismatch stops the live milestone and requires new authority.
 
 ## 9. Rollback plan
 
@@ -184,7 +221,7 @@ Claude Code residual re-gate is read-only. It must inspect residual range `925a3
 - D1A0/D1A1 canonical-byte migration compatibility and true collision enforcement;
 - failed sentinel arming before any CLI core import.
 
-Claude Cowork review is not required for this technical zero-cost boundary. Guy will inspect the future D1A1B semantic artifact before D1A1C.
+Claude Cowork review is not required for this technical zero-cost boundary. Guy will inspect the future D1A1B1 semantic artifact before D1A1C.
 
 ## 11. Do not do
 
@@ -197,7 +234,7 @@ Claude Cowork review is not required for this technical zero-cost boundary. Guy 
 - No fabricated real candidate, reconciliation, approval, or readiness.
 - No story-, child-, companion-, page-, prop-, location-, reveal-, or calibration-specific shared implementation.
 - No unrelated artifact, branch, or worktree cleanup.
-- No D1A1B or D1A1C execution.
+- No D1A1B1 live or D1A1C execution.
 
 ## Stop-check record
 
@@ -209,4 +246,4 @@ Claude Cowork review is not required for this technical zero-cost boundary. Guy 
 6. Remaining Guy decision before D1A1A: **none**.
 7. Claude Code target: bypasses, early credential/provider reachability, complete evidence, bounded cost/calls, secret safety, immutable artifacts, and downstream separation.
 8. Claude Cowork question: **none for D1A1A**.
-9. Guy eyeball: **the future real D1A1B candidate and its separate reconciliation/review surfaces, not D1A1A synthetic fixtures**.
+9. Guy eyeball: **the future real D1A1B1 candidate and its separate reconciliation/review surfaces, not D1A1A/B0 synthetic or calibration fixtures**.
