@@ -5,7 +5,8 @@
  * write flag, environment-file loader, registry mutation, or render boundary.
  * It reads exact local artifacts, creates deterministic drafts/plans, and emits
  * JSON to stdout. D1A0 adds one explicit write surface for immutable,
- * content-addressed local source/preflight review artifacts only.
+ * content-addressed local source/preflight review artifacts. D1A1B0 adds one
+ * provider-free materialization surface for canonical future-live inputs.
  */
 import fs from 'fs';
 
@@ -19,6 +20,7 @@ import {
   buildVisualContractAuthoringReadinessEvidence,
   buildVisualContractAuthoringRequest,
   finalizeApprovedVisualPackageV4,
+  materializeCanonicalLiveRequestBundle,
   persistReconciliationDraftBundle,
   persistStorySourceAuthoritySnapshot,
   persistVisualContractAuthoringReadiness,
@@ -90,11 +92,17 @@ const PUBLICATION_FLAGS = new Set([
   '--package',
   '--approved-dir',
 ]);
+const LIVE_REQUEST_MATERIALIZATION_FLAGS = new Set([
+  '--repo-root',
+  '--request',
+  '--out',
+]);
 
 function usage(): string {
   return [
     'Production visual lifecycle (deterministic local authority tooling):',
     '  source-authoring-preflight --request <json> [--out <repo-relative-dir>] [--write true|false]',
+    '  source-authoring-live-request-materialize --repo-root <absolute-dir> --request <repo-relative-json> --out <repo-relative-dir>',
     '  readiness --request <json>',
     '  context --request <json>',
     '  reconciliation-draft --request <json> [--out <repo-relative-dir>]',
@@ -104,7 +112,7 @@ function usage(): string {
     '  finalize-plan --repo-root <dir> --candidate <json> --review <json> --review-artifact <repo-relative-json> --approval <json> [--board-registry-dir <dir>]',
     '  publication-plan --repo-root <dir> --package <json> --approved-dir <dir>',
     '',
-    'The only write surface is explicit --write true for immutable content-addressed local source/preflight review artifacts.',
+    'Write surfaces are limited to explicit --write true for source/preflight review artifacts and source-authoring-live-request-materialize for immutable future-live input artifacts.',
     'There is no live provider adapter, approval command, publication write flag, fallback, render, Vision, network, database, or registry mutation in this entrypoint.',
   ].join('\n');
 }
@@ -329,6 +337,21 @@ async function sourceAuthoringPreflight(
   });
 }
 
+function sourceAuthoringLiveRequestMaterialize(
+  tokens: string[],
+): void {
+  const flags = parseFlags(
+    tokens,
+    LIVE_REQUEST_MATERIALIZATION_FLAGS,
+  );
+  const result = materializeCanonicalLiveRequestBundle({
+    repoRoot: requireFlag(flags, '--repo-root'),
+    requestPath: requireFlag(flags, '--request'),
+    outputDir: requireFlag(flags, '--out'),
+  });
+  output(result);
+}
+
 function assembleV4(tokens: string[]): void {
   const { request, flags } = requestFile<AssembleV4Request>(
     tokens,
@@ -475,6 +498,12 @@ async function main(): Promise<void> {
   if (command === 'readiness') return readiness(tokens);
   if (command === 'source-authoring-preflight') {
     return sourceAuthoringPreflight(tokens);
+  }
+  if (
+    command ===
+    'source-authoring-live-request-materialize'
+  ) {
+    return sourceAuthoringLiveRequestMaterialize(tokens);
   }
   if (command === 'context') return context(tokens);
   if (command === 'reconciliation-draft') {

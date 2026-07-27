@@ -1,0 +1,1193 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
+import {
+  canonicalJsonDigest,
+  repoRelativePath,
+} from './integrity';
+import {
+  createContainedContentAddressedJsonArtifactStore,
+} from './canonicalLiveAuthoringArtifacts';
+import {
+  assertValidStorySourceAuthoritySnapshot,
+  buildStorySourceAuthoritySnapshot,
+  STORY_SOURCE_AUTHORITY_SNAPSHOT_VERSION,
+  type StorySourceAuthorityRequest,
+  type StorySourceAuthoritySnapshot,
+} from './storySourceAuthority';
+import {
+  buildVisualContractAuthoringRequest,
+  VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION,
+  visualContractAuthoringRequestIssues,
+  type VisualContractAuthoringArtifactWrite,
+  type VisualContractAuthoringRequest,
+} from './visualContractAuthoringLifecycle';
+import {
+  STORY_SOURCE_IDENTITY_VERSION,
+} from './types';
+
+export const LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION =
+  'canonical-live-request-materialization-input/v1' as const;
+export const STORY_SOURCE_AUTHORITY_REQUEST_ARTIFACT_VERSION =
+  'story-source-authority-request/v1' as const;
+export const LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION =
+  'canonical-live-request-materialization/v1' as const;
+
+const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
+const IDENTIFIER_PATTERN =
+  /^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/;
+const STORY_KEY_PATTERN =
+  /^[A-Za-z0-9][A-Za-z0-9_-]{0,159}$/;
+const CANONICAL_TIMESTAMP_PATTERN =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+
+const MATERIALIZATION_CATEGORIES = [
+  'source-authority-requests',
+  'source-snapshots',
+  'authoring-requests',
+  'live-request-materializations',
+] as const;
+
+type MaterializationCategory =
+  (typeof MATERIALIZATION_CATEGORIES)[number];
+
+export interface LiveRequestMaterializationInput {
+  version: typeof LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION;
+  repoRoot: string;
+  storyKey: string;
+  storyPath: string;
+  requestId: string;
+  requestedAt: string;
+}
+
+export interface StorySourceAuthorityRequestArtifact
+  extends StorySourceAuthorityRequest {
+  version:
+    typeof STORY_SOURCE_AUTHORITY_REQUEST_ARTIFACT_VERSION;
+  digestAlgorithm: 'canonical-json-sha256';
+  digest: string;
+}
+
+export interface LiveRequestMaterializationArtifactDescriptor {
+  schemaVersion: string;
+  path: string;
+  digest: string;
+}
+
+export interface LiveRequestMaterializationManifest {
+  version:
+    typeof LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION;
+  status: 'materialized_inputs_only';
+  requestId: string;
+  requestedAt: string;
+  repositoryRealPath: string;
+  sourceRevision: {
+    storyKey: string;
+    sourceIdentityVersion: string;
+    storyPath: string;
+    normalizedSourceDigest: string;
+    pageCount: number;
+    pageNumbers: number[];
+    sourceSnapshotDigest: string;
+    authoredCoverAuthorityPresent: boolean;
+  };
+  artifacts: {
+    sourceAuthorityRequest:
+      LiveRequestMaterializationArtifactDescriptor;
+    sourceSnapshot:
+      LiveRequestMaterializationArtifactDescriptor;
+    liveAuthoringRequest:
+      LiveRequestMaterializationArtifactDescriptor;
+  };
+  futureLiveCommand: {
+    executable: 'node';
+    arguments: string[];
+  };
+  externalBoundaryEvidence: {
+    providerCalls: 0;
+    modelCalls: 0;
+    transportRetriesAuthorized: 0;
+    credentialLoadingAuthorized: false;
+    pricingLookupPerformed: false;
+  };
+  doesNotAuthorize: string[];
+  digestAlgorithm: 'canonical-json-sha256';
+  digest: string;
+}
+
+export interface LiveRequestMaterializationResult {
+  mode: 'canonical_live_request_materialization';
+  status: 'materialized_inputs_only';
+  manifest: LiveRequestMaterializationManifest;
+  persistence: {
+    sourceAuthorityRequest:
+      VisualContractAuthoringArtifactWrite;
+    sourceSnapshot: VisualContractAuthoringArtifactWrite;
+    liveAuthoringRequest:
+      VisualContractAuthoringArtifactWrite;
+    manifest: VisualContractAuthoringArtifactWrite;
+  };
+}
+
+function recordValue(
+  value: unknown,
+): Record<string, unknown> | null {
+  return value !== null &&
+    typeof value === 'object' &&
+    !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function exactKeyIssues(
+  value: Record<string, unknown>,
+  expected: readonly string[],
+  prefix: string,
+): string[] {
+  const actual = Object.keys(value).sort();
+  const expectedSorted = expected.slice().sort();
+  const issues: string[] = [];
+  for (const field of expectedSorted) {
+    if (!Object.prototype.hasOwnProperty.call(value, field)) {
+      issues.push(`${prefix}_field_missing:${field}`);
+    }
+  }
+  if (
+    actual.some((field) => !expectedSorted.includes(field))
+  ) {
+    issues.push(`${prefix}_unknown_field`);
+  }
+  return issues;
+}
+
+function isCanonicalTimestamp(value: unknown): value is string {
+  if (
+    typeof value !== 'string' ||
+    !CANONICAL_TIMESTAMP_PATTERN.test(value)
+  ) {
+    return false;
+  }
+  const parsed = new Date(value);
+  return (
+    !Number.isNaN(parsed.getTime()) &&
+    parsed.toISOString() === value
+  );
+}
+
+function canonicalRelativePathIssues(
+  value: unknown,
+  label: string,
+  options: { requireMarkdown?: boolean; allowDot?: boolean } = {},
+): string[] {
+  if (typeof value !== 'string' || value.length === 0) {
+    return [`${label}_invalid`];
+  }
+  if (
+    path.isAbsolute(value) ||
+    value.includes('\\') ||
+    value.startsWith('/') ||
+    value.endsWith('/') ||
+    value.includes('\0')
+  ) {
+    return [`${label}_invalid`];
+  }
+  const normalized = path.posix.normalize(value);
+  if (
+    normalized !== value ||
+    (!options.allowDot && normalized === '.') ||
+    normalized === '..' ||
+    normalized.startsWith('../')
+  ) {
+    return [`${label}_invalid`];
+  }
+  if (
+    options.requireMarkdown &&
+    !normalized.toLowerCase().endsWith('.md')
+  ) {
+    return [`${label}_must_be_markdown`];
+  }
+  return [];
+}
+
+export function liveRequestMaterializationInputIssues(
+  value: unknown,
+): string[] {
+  const object = recordValue(value);
+  if (!object) return ['materialization_input_not_object'];
+  const issues = exactKeyIssues(
+    object,
+    [
+      'version',
+      'repoRoot',
+      'storyKey',
+      'storyPath',
+      'requestId',
+      'requestedAt',
+    ],
+    'materialization_input',
+  );
+  if (
+    object.version !==
+    LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION
+  ) {
+    issues.push('materialization_input_version_invalid');
+  }
+  if (
+    typeof object.repoRoot !== 'string' ||
+    !path.isAbsolute(object.repoRoot)
+  ) {
+    issues.push('materialization_repo_root_invalid');
+  }
+  if (
+    typeof object.storyKey !== 'string' ||
+    !STORY_KEY_PATTERN.test(object.storyKey)
+  ) {
+    issues.push('materialization_story_key_invalid');
+  }
+  issues.push(
+    ...canonicalRelativePathIssues(
+      object.storyPath,
+      'materialization_story_path',
+      { requireMarkdown: true },
+    ),
+  );
+  if (
+    typeof object.requestId !== 'string' ||
+    !IDENTIFIER_PATTERN.test(object.requestId)
+  ) {
+    issues.push('materialization_request_id_invalid');
+  }
+  if (!isCanonicalTimestamp(object.requestedAt)) {
+    issues.push('materialization_requested_at_invalid');
+  }
+  return [...new Set(issues)].sort();
+}
+
+export function assertValidLiveRequestMaterializationInput(
+  value: unknown,
+): asserts value is LiveRequestMaterializationInput {
+  const issues = liveRequestMaterializationInputIssues(value);
+  if (issues.length > 0) {
+    throw new Error(
+      `Invalid live request materialization input:\n- ${issues.join('\n- ')}`,
+    );
+  }
+}
+
+function sourceAuthorityRequestWithoutDigest(
+  value: Omit<
+    StorySourceAuthorityRequestArtifact,
+    'digestAlgorithm' | 'digest'
+  >,
+): unknown {
+  return value;
+}
+
+export function buildStorySourceAuthorityRequestArtifact(
+  request: StorySourceAuthorityRequest,
+): StorySourceAuthorityRequestArtifact {
+  const withoutDigest = {
+    version:
+      STORY_SOURCE_AUTHORITY_REQUEST_ARTIFACT_VERSION,
+    repoRoot: request.repoRoot,
+    storyKey: request.storyKey,
+    storyPath: request.storyPath,
+  };
+  return {
+    ...withoutDigest,
+    digestAlgorithm: 'canonical-json-sha256',
+    digest: canonicalJsonDigest(
+      sourceAuthorityRequestWithoutDigest(withoutDigest),
+    ),
+  };
+}
+
+export function storySourceAuthorityRequestArtifactIssues(
+  value: unknown,
+): string[] {
+  const object = recordValue(value);
+  if (!object) return ['source_authority_request_not_object'];
+  const issues = exactKeyIssues(
+    object,
+    [
+      'version',
+      'repoRoot',
+      'storyKey',
+      'storyPath',
+      'digestAlgorithm',
+      'digest',
+    ],
+    'source_authority_request',
+  );
+  if (
+    object.version !==
+    STORY_SOURCE_AUTHORITY_REQUEST_ARTIFACT_VERSION
+  ) {
+    issues.push('source_authority_request_version_invalid');
+  }
+  if (
+    typeof object.repoRoot !== 'string' ||
+    !path.isAbsolute(object.repoRoot)
+  ) {
+    issues.push('source_authority_request_repo_root_invalid');
+  }
+  if (
+    typeof object.storyKey !== 'string' ||
+    !STORY_KEY_PATTERN.test(object.storyKey)
+  ) {
+    issues.push('source_authority_request_story_key_invalid');
+  }
+  issues.push(
+    ...canonicalRelativePathIssues(
+      object.storyPath,
+      'source_authority_request_story_path',
+      { requireMarkdown: true },
+    ),
+  );
+  if (object.digestAlgorithm !== 'canonical-json-sha256') {
+    issues.push('source_authority_request_digest_algorithm_invalid');
+  }
+  if (
+    typeof object.digest !== 'string' ||
+    !DIGEST_PATTERN.test(object.digest)
+  ) {
+    issues.push('source_authority_request_digest_invalid');
+  } else {
+    const expected = canonicalJsonDigest({
+      version: object.version,
+      repoRoot: object.repoRoot,
+      storyKey: object.storyKey,
+      storyPath: object.storyPath,
+    });
+    if (object.digest !== expected) {
+      issues.push('source_authority_request_digest_stale');
+    }
+  }
+  return [...new Set(issues)].sort();
+}
+
+export function assertValidStorySourceAuthorityRequestArtifact(
+  value: unknown,
+): asserts value is StorySourceAuthorityRequestArtifact {
+  const issues =
+    storySourceAuthorityRequestArtifactIssues(value);
+  if (issues.length > 0) {
+    throw new Error(
+      `Invalid Story Source authority request artifact:\n- ${issues.join('\n- ')}`,
+    );
+  }
+}
+
+function normalizedPathForComparison(value: string): string {
+  const resolved = path.resolve(value);
+  return process.platform === 'win32'
+    ? resolved.toLowerCase()
+    : resolved;
+}
+
+function pathsEqual(left: string, right: string): boolean {
+  return (
+    normalizedPathForComparison(left) ===
+    normalizedPathForComparison(right)
+  );
+}
+
+function assertRealPathContained(
+  repositoryRealPath: string,
+  candidateRealPath: string,
+  label: string,
+): void {
+  const relative = path.relative(
+    repositoryRealPath,
+    candidateRealPath,
+  );
+  if (
+    relative.startsWith('..') ||
+    path.isAbsolute(relative)
+  ) {
+    throw new Error(`${label}_resolves_outside_repository`);
+  }
+}
+
+function canonicalRepositoryRealPath(value: string): string {
+  if (!path.isAbsolute(value)) {
+    throw new Error('materialization_repo_root_must_be_absolute');
+  }
+  const absolute = path.resolve(value);
+  let real: string;
+  try {
+    real = fs.realpathSync(absolute);
+  } catch {
+    throw new Error(
+      'materialization_repo_root_missing_or_unreadable',
+    );
+  }
+  let isDirectory = false;
+  try {
+    isDirectory = fs.statSync(real).isDirectory();
+  } catch {
+    // The stable error below owns missing, unreadable, and non-directory roots.
+  }
+  if (!isDirectory) {
+    throw new Error('materialization_repo_root_not_directory');
+  }
+  return real;
+}
+
+function resolveCanonicalExistingFile(args: {
+  repositoryRealPath: string;
+  relativePath: string;
+  label: string;
+}): string {
+  const pathIssues = canonicalRelativePathIssues(
+    args.relativePath,
+    args.label,
+  );
+  if (pathIssues.length > 0) {
+    throw new Error(pathIssues[0]);
+  }
+  const lexical = path.resolve(
+    args.repositoryRealPath,
+    args.relativePath,
+  );
+  repoRelativePath(args.repositoryRealPath, lexical);
+  let real: string;
+  try {
+    real = fs.realpathSync(lexical);
+  } catch {
+    throw new Error(`${args.label}_missing_or_unreadable`);
+  }
+  assertRealPathContained(
+    args.repositoryRealPath,
+    real,
+    args.label,
+  );
+  if (!pathsEqual(lexical, real)) {
+    throw new Error(`${args.label}_symlink_alias_rejected`);
+  }
+  let isFile = false;
+  try {
+    isFile = fs.statSync(real).isFile();
+  } catch {
+    // The stable error below owns unreadable/non-file inputs.
+  }
+  if (!isFile) {
+    throw new Error(`${args.label}_not_regular_file`);
+  }
+  return real;
+}
+
+function assertSnapshotMaterializationComplete(args: {
+  snapshot: StorySourceAuthoritySnapshot;
+  storyPath: string;
+}): void {
+  assertValidStorySourceAuthoritySnapshot(args.snapshot);
+  const pages = args.snapshot.content.pages.map(
+    (page) => page.pageNumber,
+  );
+  const expectedPages = Array.from(
+    { length: pages.length },
+    (_, index) => index + 1,
+  );
+  if (JSON.stringify(pages) !== JSON.stringify(expectedPages)) {
+    throw new Error(
+      'materialization_source_page_map_incomplete',
+    );
+  }
+  const directionPages =
+    args.snapshot.content.pageImageDirections.map(
+      (direction) => direction.pageNumber,
+    );
+  if (
+    new Set(directionPages).size !== directionPages.length ||
+    directionPages.some((pageNumber) => !pages.includes(pageNumber))
+  ) {
+    throw new Error(
+      'materialization_source_image_direction_map_invalid',
+    );
+  }
+  if (
+    args.snapshot.content.sourceIdentity.path !==
+    args.storyPath
+  ) {
+    throw new Error(
+      'materialization_source_identity_path_mismatch',
+    );
+  }
+}
+
+function assertAdjacentCoverPathSafe(args: {
+  repositoryRealPath: string;
+  storyPath: string;
+}): void {
+  const coverPath = args.storyPath.replace(
+    /\.md$/i,
+    '.location-bible.json',
+  );
+  if (coverPath === args.storyPath) return;
+  const absolute = path.resolve(
+    args.repositoryRealPath,
+    coverPath,
+  );
+  if (!fs.existsSync(absolute)) return;
+  resolveCanonicalExistingFile({
+    repositoryRealPath: args.repositoryRealPath,
+    relativePath: coverPath,
+    label: 'materialization_cover_authority_path',
+  });
+}
+
+function manifestWithoutDigest(
+  value: Omit<
+    LiveRequestMaterializationManifest,
+    'digestAlgorithm' | 'digest'
+  >,
+): unknown {
+  return value;
+}
+
+function artifactDescriptorIssues(
+  value: unknown,
+  label: string,
+  expectedSchemaVersion: string,
+  expectedCategory: MaterializationCategory,
+): string[] {
+  const object = recordValue(value);
+  if (!object) return [`${label}_not_object`];
+  const issues = exactKeyIssues(
+    object,
+    ['schemaVersion', 'path', 'digest'],
+    label,
+  );
+  if (
+    object.schemaVersion !== expectedSchemaVersion
+  ) {
+    issues.push(`${label}_schema_version_invalid`);
+  }
+  issues.push(
+    ...canonicalRelativePathIssues(
+      object.path,
+      `${label}_path`,
+    ),
+  );
+  if (
+    typeof object.digest !== 'string' ||
+    !DIGEST_PATTERN.test(object.digest)
+  ) {
+    issues.push(`${label}_digest_invalid`);
+  } else if (
+    typeof object.path === 'string' &&
+    (path.posix.basename(object.path) !==
+      `${object.digest}.json` ||
+      path.posix.basename(
+        path.posix.dirname(object.path),
+      ) !== expectedCategory)
+  ) {
+    issues.push(`${label}_content_address_invalid`);
+  }
+  return issues;
+}
+
+export function liveRequestMaterializationManifestIssues(
+  value: unknown,
+): string[] {
+  const object = recordValue(value);
+  if (!object) return ['materialization_manifest_not_object'];
+  const issues = exactKeyIssues(
+    object,
+    [
+      'version',
+      'status',
+      'requestId',
+      'requestedAt',
+      'repositoryRealPath',
+      'sourceRevision',
+      'artifacts',
+      'futureLiveCommand',
+      'externalBoundaryEvidence',
+      'doesNotAuthorize',
+      'digestAlgorithm',
+      'digest',
+    ],
+    'materialization_manifest',
+  );
+  if (
+    object.version !==
+    LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION
+  ) {
+    issues.push('materialization_manifest_version_invalid');
+  }
+  if (object.status !== 'materialized_inputs_only') {
+    issues.push('materialization_manifest_status_invalid');
+  }
+  if (
+    typeof object.requestId !== 'string' ||
+    !IDENTIFIER_PATTERN.test(object.requestId)
+  ) {
+    issues.push('materialization_manifest_request_id_invalid');
+  }
+  if (!isCanonicalTimestamp(object.requestedAt)) {
+    issues.push('materialization_manifest_requested_at_invalid');
+  }
+  if (
+    typeof object.repositoryRealPath !== 'string' ||
+    !path.isAbsolute(object.repositoryRealPath)
+  ) {
+    issues.push(
+      'materialization_manifest_repository_path_invalid',
+    );
+  }
+  const sourceRevision = recordValue(object.sourceRevision);
+  if (!sourceRevision) {
+    issues.push('materialization_manifest_source_revision_invalid');
+  } else {
+    issues.push(
+      ...exactKeyIssues(
+        sourceRevision,
+        [
+          'storyKey',
+          'sourceIdentityVersion',
+          'storyPath',
+          'normalizedSourceDigest',
+          'pageCount',
+          'pageNumbers',
+          'sourceSnapshotDigest',
+          'authoredCoverAuthorityPresent',
+        ],
+        'materialization_manifest_source_revision',
+      ),
+    );
+    if (
+      typeof sourceRevision.storyKey !== 'string' ||
+      !STORY_KEY_PATTERN.test(sourceRevision.storyKey)
+    ) {
+      issues.push(
+        'materialization_manifest_source_story_key_invalid',
+      );
+    }
+    if (
+      sourceRevision.sourceIdentityVersion !==
+      STORY_SOURCE_IDENTITY_VERSION
+    ) {
+      issues.push(
+        'materialization_manifest_source_identity_version_invalid',
+      );
+    }
+    issues.push(
+      ...canonicalRelativePathIssues(
+        sourceRevision.storyPath,
+        'materialization_manifest_source_story_path',
+        { requireMarkdown: true },
+      ),
+    );
+    if (
+      typeof sourceRevision.normalizedSourceDigest !==
+        'string' ||
+      !DIGEST_PATTERN.test(
+        sourceRevision.normalizedSourceDigest,
+      ) ||
+      typeof sourceRevision.sourceSnapshotDigest !== 'string' ||
+      !DIGEST_PATTERN.test(
+        sourceRevision.sourceSnapshotDigest,
+      )
+    ) {
+      issues.push(
+        'materialization_manifest_source_digest_invalid',
+      );
+    }
+    if (
+      !Number.isSafeInteger(sourceRevision.pageCount) ||
+      (sourceRevision.pageCount as number) < 1 ||
+      !Array.isArray(sourceRevision.pageNumbers) ||
+      sourceRevision.pageNumbers.length !==
+        sourceRevision.pageCount
+    ) {
+      issues.push(
+        'materialization_manifest_source_pages_invalid',
+      );
+    } else {
+      const expectedPages = Array.from(
+        {
+          length: sourceRevision.pageCount as number,
+        },
+        (_, index) => index + 1,
+      );
+      if (
+        sourceRevision.pageNumbers.some(
+          (pageNumber) =>
+            !Number.isSafeInteger(pageNumber) ||
+            (pageNumber as number) < 1,
+        ) ||
+        JSON.stringify(sourceRevision.pageNumbers) !==
+          JSON.stringify(expectedPages)
+      ) {
+        issues.push(
+          'materialization_manifest_source_pages_invalid',
+        );
+      }
+    }
+    if (
+      typeof sourceRevision.authoredCoverAuthorityPresent !==
+      'boolean'
+    ) {
+      issues.push(
+        'materialization_manifest_cover_authority_invalid',
+      );
+    }
+  }
+  const artifacts = recordValue(object.artifacts);
+  if (!artifacts) {
+    issues.push('materialization_manifest_artifacts_invalid');
+  } else {
+    issues.push(
+      ...exactKeyIssues(
+        artifacts,
+        [
+          'sourceAuthorityRequest',
+          'sourceSnapshot',
+          'liveAuthoringRequest',
+        ],
+        'materialization_manifest_artifacts',
+      ),
+    );
+    issues.push(
+      ...artifactDescriptorIssues(
+        artifacts.sourceAuthorityRequest,
+        'materialization_manifest_source_request',
+        STORY_SOURCE_AUTHORITY_REQUEST_ARTIFACT_VERSION,
+        'source-authority-requests',
+      ),
+      ...artifactDescriptorIssues(
+        artifacts.sourceSnapshot,
+        'materialization_manifest_source_snapshot',
+        STORY_SOURCE_AUTHORITY_SNAPSHOT_VERSION,
+        'source-snapshots',
+      ),
+      ...artifactDescriptorIssues(
+        artifacts.liveAuthoringRequest,
+        'materialization_manifest_live_request',
+        VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION,
+        'authoring-requests',
+      ),
+    );
+    const descriptors = [
+      artifacts.sourceAuthorityRequest,
+      artifacts.sourceSnapshot,
+      artifacts.liveAuthoringRequest,
+    ]
+      .map(recordValue)
+      .filter(
+        (
+          descriptor,
+        ): descriptor is Record<string, unknown> =>
+          descriptor !== null &&
+          typeof descriptor.path === 'string',
+      );
+    const artifactRoots = descriptors.map((descriptor) =>
+      path.posix.dirname(
+        path.posix.dirname(descriptor.path as string),
+      ),
+    );
+    if (
+      artifactRoots.length !== 3 ||
+      new Set(artifactRoots).size !== 1
+    ) {
+      issues.push(
+        'materialization_manifest_artifact_root_mismatch',
+      );
+    }
+    if (
+      sourceRevision &&
+      typeof sourceRevision.sourceSnapshotDigest === 'string' &&
+      recordValue(artifacts.sourceSnapshot)?.digest !==
+        sourceRevision.sourceSnapshotDigest
+    ) {
+      issues.push(
+        'materialization_manifest_snapshot_binding_mismatch',
+      );
+    }
+  }
+  const command = recordValue(object.futureLiveCommand);
+  if (
+    !command ||
+    exactKeyIssues(
+      command,
+      ['executable', 'arguments'],
+      'materialization_manifest_future_command',
+    ).length > 0 ||
+    command.executable !== 'node' ||
+    !Array.isArray(command.arguments) ||
+    command.arguments.some(
+      (argument) => typeof argument !== 'string',
+    )
+  ) {
+    issues.push('materialization_manifest_future_command_invalid');
+  } else if (artifacts) {
+    const sourceDescriptor = recordValue(
+      artifacts.sourceAuthorityRequest,
+    );
+    const snapshotDescriptor = recordValue(
+      artifacts.sourceSnapshot,
+    );
+    const requestDescriptor = recordValue(
+      artifacts.liveAuthoringRequest,
+    );
+    const sourcePath = sourceDescriptor?.path;
+    const snapshotPath = snapshotDescriptor?.path;
+    const requestPath = requestDescriptor?.path;
+    const outputDir =
+      typeof sourcePath === 'string'
+        ? path.posix.dirname(
+            path.posix.dirname(sourcePath),
+          )
+        : null;
+    const expectedArguments =
+      typeof object.repositoryRealPath === 'string' &&
+      typeof sourcePath === 'string' &&
+      typeof snapshotPath === 'string' &&
+      typeof requestPath === 'string' &&
+      outputDir !== null
+        ? [
+            'scripts/visual-contract-authoring.cjs',
+            'live',
+            '--repo-root',
+            object.repositoryRealPath,
+            '--source-authority-request',
+            sourcePath,
+            '--snapshot',
+            snapshotPath,
+            '--request',
+            requestPath,
+            '--out',
+            outputDir,
+          ]
+        : null;
+    if (
+      expectedArguments === null ||
+      JSON.stringify(command.arguments) !==
+        JSON.stringify(expectedArguments)
+    ) {
+      issues.push(
+        'materialization_manifest_future_command_mismatch',
+      );
+    }
+  }
+  const externalBoundary = recordValue(
+    object.externalBoundaryEvidence,
+  );
+  if (
+    !externalBoundary ||
+    exactKeyIssues(
+      externalBoundary,
+      [
+        'providerCalls',
+        'modelCalls',
+        'transportRetriesAuthorized',
+        'credentialLoadingAuthorized',
+        'pricingLookupPerformed',
+      ],
+      'materialization_manifest_external_boundary',
+    ).length > 0 ||
+    externalBoundary.providerCalls !== 0 ||
+    externalBoundary.modelCalls !== 0 ||
+    externalBoundary.transportRetriesAuthorized !== 0 ||
+    externalBoundary.credentialLoadingAuthorized !== false ||
+    externalBoundary.pricingLookupPerformed !== false
+  ) {
+    issues.push(
+      'materialization_manifest_external_boundary_invalid',
+    );
+  }
+  if (
+    !Array.isArray(object.doesNotAuthorize) ||
+    object.doesNotAuthorize.length === 0 ||
+    object.doesNotAuthorize.some(
+      (item) => typeof item !== 'string' || item.length === 0,
+    )
+  ) {
+    issues.push(
+      'materialization_manifest_non_authority_invalid',
+    );
+  }
+  if (object.digestAlgorithm !== 'canonical-json-sha256') {
+    issues.push(
+      'materialization_manifest_digest_algorithm_invalid',
+    );
+  }
+  if (
+    typeof object.digest !== 'string' ||
+    !DIGEST_PATTERN.test(object.digest)
+  ) {
+    issues.push('materialization_manifest_digest_invalid');
+  } else {
+    const {
+      digestAlgorithm: _digestAlgorithm,
+      digest: _digest,
+      ...withoutDigest
+    } = object;
+    try {
+      if (
+        object.digest !==
+        canonicalJsonDigest(withoutDigest)
+      ) {
+        issues.push('materialization_manifest_digest_stale');
+      }
+    } catch {
+      issues.push(
+        'materialization_manifest_digest_domain_invalid',
+      );
+    }
+  }
+  return [...new Set(issues)].sort();
+}
+
+export function assertValidLiveRequestMaterializationManifest(
+  value: unknown,
+): asserts value is LiveRequestMaterializationManifest {
+  const issues =
+    liveRequestMaterializationManifestIssues(value);
+  if (issues.length > 0) {
+    throw new Error(
+      `Invalid live request materialization manifest:\n- ${issues.join('\n- ')}`,
+    );
+  }
+}
+
+function readMaterializationInput(args: {
+  repositoryRealPath: string;
+  requestPath: string;
+}): LiveRequestMaterializationInput {
+  const absolute = resolveCanonicalExistingFile({
+    repositoryRealPath: args.repositoryRealPath,
+    relativePath: args.requestPath,
+    label: 'materialization_request_path',
+  });
+  let value: unknown;
+  try {
+    value = JSON.parse(
+      fs.readFileSync(absolute, 'utf8'),
+    ) as unknown;
+  } catch {
+    throw new Error(
+      'materialization_request_missing_or_invalid_json',
+    );
+  }
+  assertValidLiveRequestMaterializationInput(value);
+  return value;
+}
+
+export function materializeCanonicalLiveRequestBundle(args: {
+  repoRoot: string;
+  requestPath: string;
+  outputDir: string;
+}): LiveRequestMaterializationResult {
+  const repositoryRealPath =
+    canonicalRepositoryRealPath(args.repoRoot);
+  const input = readMaterializationInput({
+    repositoryRealPath,
+    requestPath: args.requestPath,
+  });
+  const inputRepositoryRealPath =
+    canonicalRepositoryRealPath(input.repoRoot);
+  if (
+    !pathsEqual(
+      repositoryRealPath,
+      inputRepositoryRealPath,
+    )
+  ) {
+    throw new Error(
+      'materialization_input_repo_root_mismatch',
+    );
+  }
+  const storyAbsolute = resolveCanonicalExistingFile({
+    repositoryRealPath,
+    relativePath: input.storyPath,
+    label: 'materialization_story_path',
+  });
+  if (
+    repoRelativePath(
+      repositoryRealPath,
+      storyAbsolute,
+    ) !== input.storyPath
+  ) {
+    throw new Error(
+      'materialization_story_path_not_canonical',
+    );
+  }
+  assertAdjacentCoverPathSafe({
+    repositoryRealPath,
+    storyPath: input.storyPath,
+  });
+
+  const sourceAuthorityRequest =
+    buildStorySourceAuthorityRequestArtifact({
+      repoRoot: repositoryRealPath,
+      storyKey: input.storyKey,
+      storyPath: input.storyPath,
+    });
+  assertValidStorySourceAuthorityRequestArtifact(
+    sourceAuthorityRequest,
+  );
+  const snapshot = buildStorySourceAuthoritySnapshot({
+    repoRoot: sourceAuthorityRequest.repoRoot,
+    storyKey: sourceAuthorityRequest.storyKey,
+    storyPath: sourceAuthorityRequest.storyPath,
+  });
+  assertSnapshotMaterializationComplete({
+    snapshot,
+    storyPath: input.storyPath,
+  });
+  const liveAuthoringRequest =
+    buildVisualContractAuthoringRequest({
+      snapshot,
+      mode: 'live',
+      requestId: input.requestId,
+      requestedAt: input.requestedAt,
+    });
+  const liveRequestIssues =
+    visualContractAuthoringRequestIssues({
+      request: liveAuthoringRequest,
+      snapshot,
+    });
+  if (
+    liveAuthoringRequest.mode !== 'live' ||
+    liveRequestIssues.length > 0
+  ) {
+    throw new Error(
+      `materialization_live_request_invalid:${
+        liveRequestIssues.join(',') || 'mode'
+      }`,
+    );
+  }
+
+  const outputDirIssues = canonicalRelativePathIssues(
+    args.outputDir,
+    'materialization_output_dir',
+  );
+  if (outputDirIssues.length > 0) {
+    throw new Error(outputDirIssues[0]);
+  }
+  const artifactStore =
+    createContainedContentAddressedJsonArtifactStore<MaterializationCategory>({
+      repoRoot: repositoryRealPath,
+      repositoryRealPath,
+      outputDir: args.outputDir,
+      categories: MATERIALIZATION_CATEGORIES,
+      rejectSymlinkAliases: true,
+      errorPrefix: 'live request materialization',
+    });
+  artifactStore.prepare();
+  const sourceAuthorityRequestWrite = artifactStore.persist({
+    category: 'source-authority-requests',
+    digest: sourceAuthorityRequest.digest,
+    value: sourceAuthorityRequest,
+  });
+  const sourceSnapshotWrite = artifactStore.persist({
+    category: 'source-snapshots',
+    digest: snapshot.digest,
+    value: snapshot,
+  });
+  const liveAuthoringRequestWrite = artifactStore.persist({
+    category: 'authoring-requests',
+    digest: liveAuthoringRequest.digest,
+    value: liveAuthoringRequest,
+  });
+
+  const manifestWithoutDigestValue = {
+    version: LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION,
+    status: 'materialized_inputs_only' as const,
+    requestId: input.requestId,
+    requestedAt: input.requestedAt,
+    repositoryRealPath,
+    sourceRevision: {
+      storyKey: snapshot.content.storyKey,
+      sourceIdentityVersion:
+        snapshot.content.sourceIdentity.version,
+      storyPath: snapshot.content.sourceIdentity.path,
+      normalizedSourceDigest:
+        snapshot.content.sourceIdentity.digest,
+      pageCount: snapshot.content.sourceIdentity.pageCount,
+      pageNumbers:
+        snapshot.content.sourceIdentity.pageNumbers,
+      sourceSnapshotDigest: snapshot.digest,
+      authoredCoverAuthorityPresent:
+        snapshot.content.authoredCoverAuthority !== null,
+    },
+    artifacts: {
+      sourceAuthorityRequest: {
+        schemaVersion:
+          STORY_SOURCE_AUTHORITY_REQUEST_ARTIFACT_VERSION,
+        path: sourceAuthorityRequestWrite.path,
+        digest: sourceAuthorityRequestWrite.digest,
+      },
+      sourceSnapshot: {
+        schemaVersion:
+          STORY_SOURCE_AUTHORITY_SNAPSHOT_VERSION,
+        path: sourceSnapshotWrite.path,
+        digest: sourceSnapshotWrite.digest,
+      },
+      liveAuthoringRequest: {
+        schemaVersion:
+          VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION,
+        path: liveAuthoringRequestWrite.path,
+        digest: liveAuthoringRequestWrite.digest,
+      },
+    },
+    futureLiveCommand: {
+      executable: 'node' as const,
+      arguments: [
+        'scripts/visual-contract-authoring.cjs',
+        'live',
+        '--repo-root',
+        repositoryRealPath,
+        '--source-authority-request',
+        sourceAuthorityRequestWrite.path,
+        '--snapshot',
+        sourceSnapshotWrite.path,
+        '--request',
+        liveAuthoringRequestWrite.path,
+        '--out',
+        args.outputDir,
+      ],
+    },
+    externalBoundaryEvidence: {
+      providerCalls: 0 as const,
+      modelCalls: 0 as const,
+      transportRetriesAuthorized: 0 as const,
+      credentialLoadingAuthorized: false as const,
+      pricingLookupPerformed: false as const,
+    },
+    doesNotAuthorize: [
+      'credential loading or credential existence checks',
+      'pricing lookup or price reauthorization',
+      'provider, model, network, or live authoring calls',
+      'Visual Contract candidate creation or approval',
+      'Semantic Reconciliation, Blueprint, Board, package, render, publication, promotion, production, deployment, or release',
+    ],
+  };
+  const manifest: LiveRequestMaterializationManifest = {
+    ...manifestWithoutDigestValue,
+    digestAlgorithm: 'canonical-json-sha256',
+    digest: canonicalJsonDigest(
+      manifestWithoutDigest(manifestWithoutDigestValue),
+    ),
+  };
+  assertValidLiveRequestMaterializationManifest(manifest);
+  const manifestWrite = artifactStore.persist({
+    category: 'live-request-materializations',
+    digest: manifest.digest,
+    value: manifest,
+  });
+  return {
+    mode: 'canonical_live_request_materialization',
+    status: 'materialized_inputs_only',
+    manifest,
+    persistence: {
+      sourceAuthorityRequest:
+        sourceAuthorityRequestWrite,
+      sourceSnapshot: sourceSnapshotWrite,
+      liveAuthoringRequest: liveAuthoringRequestWrite,
+      manifest: manifestWrite,
+    },
+  };
+}

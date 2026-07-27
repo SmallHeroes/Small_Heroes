@@ -533,7 +533,10 @@ describe('provider-isolated Blueprint authoring runner', () => {
       '--write must be exactly true or false',
     );
     expect(cliSource).toContain(
-      'The only write surface is explicit --write true for immutable content-addressed local source/preflight review artifacts.',
+      "'source-authoring-live-request-materialize'",
+    );
+    expect(cliSource).toContain(
+      'Write surfaces are limited to explicit --write true for source/preflight review artifacts and source-authoring-live-request-materialize for immutable future-live input artifacts.',
     );
   });
 

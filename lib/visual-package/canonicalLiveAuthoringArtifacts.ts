@@ -35,6 +35,17 @@ export interface CanonicalLiveAuthoringArtifactStore {
   }): VisualContractAuthoringArtifactWrite;
 }
 
+export interface ContainedContentAddressedJsonArtifactStore<
+  Category extends string,
+> {
+  prepare(): void;
+  persist(args: {
+    category: Category;
+    digest: string;
+    value: unknown;
+  }): VisualContractAuthoringArtifactWrite;
+}
+
 export function canonicalLiveAuthoringJsonBytes(
   value: unknown,
 ): string {
@@ -44,6 +55,7 @@ export function canonicalLiveAuthoringJsonBytes(
 function assertContainedRealPath(
   repositoryRealPath: string,
   candidateRealPath: string,
+  errorPrefix = 'canonical live authoring',
 ): void {
   const relative = path.relative(
     repositoryRealPath,
@@ -54,18 +66,21 @@ function assertContainedRealPath(
     path.isAbsolute(relative)
   ) {
     throw new Error(
-      'canonical live authoring output resolves outside the repository',
+      `${errorPrefix} output resolves outside the repository`,
     );
   }
 }
 
-function nearestExistingAncestor(targetPath: string): string {
+function nearestExistingAncestor(
+  targetPath: string,
+  errorPrefix = 'canonical live authoring',
+): string {
   let candidate = path.resolve(targetPath);
   while (!fs.existsSync(candidate)) {
     const parent = path.dirname(candidate);
     if (parent === candidate) {
       throw new Error(
-        'canonical live authoring output has no existing ancestor',
+        `${errorPrefix} output has no existing ancestor`,
       );
     }
     candidate = parent;
@@ -75,7 +90,10 @@ function nearestExistingAncestor(targetPath: string): string {
 
 let writableProbeCounter = 0;
 
-function writableProbe(directory: string): void {
+function writableProbe(
+  directory: string,
+  errorPrefix = 'canonical live authoring',
+): void {
   writableProbeCounter += 1;
   const probePath = path.join(
     directory,
@@ -90,7 +108,7 @@ function writableProbe(directory: string): void {
     descriptor = null;
   } catch {
     throw new Error(
-      'canonical live authoring output is not writable',
+      `${errorPrefix} output is not writable`,
     );
   } finally {
     if (descriptor !== null) fs.closeSync(descriptor);
@@ -98,13 +116,46 @@ function writableProbe(directory: string): void {
   }
 }
 
-export function createCanonicalLiveAuthoringArtifactStore(
+function normalizedPathForComparison(value: string): string {
+  const resolved = path.resolve(value);
+  return process.platform === 'win32'
+    ? resolved.toLowerCase()
+    : resolved;
+}
+
+function pathsEqual(left: string, right: string): boolean {
+  return (
+    normalizedPathForComparison(left) ===
+    normalizedPathForComparison(right)
+  );
+}
+
+export function createContainedContentAddressedJsonArtifactStore<
+  Category extends string,
+>(
   args: {
     repoRoot: string;
     repositoryRealPath?: string;
     outputDir: string;
+    categories: readonly Category[];
+    rejectSymlinkAliases?: boolean;
+    errorPrefix?: string;
   },
-): CanonicalLiveAuthoringArtifactStore {
+): ContainedContentAddressedJsonArtifactStore<Category> {
+  const errorPrefix =
+    args.errorPrefix ?? 'canonical live authoring';
+  if (
+    args.categories.length === 0 ||
+    new Set(args.categories).size !== args.categories.length ||
+    args.categories.some(
+      (category) =>
+        !/^[a-z0-9][a-z0-9-]{0,79}$/.test(category),
+    )
+  ) {
+    throw new Error(
+      `${errorPrefix} artifact categories are invalid`,
+    );
+  }
   const suppliedRepoRoot = path.resolve(args.repoRoot);
   const repositoryRealPath =
     args.repositoryRealPath ??
@@ -114,7 +165,7 @@ export function createCanonicalLiveAuthoringArtifactStore(
     fs.realpathSync(repositoryRealPath)
   ) {
     throw new Error(
-      'canonical live authoring repository real path mismatch',
+      `${errorPrefix} repository real path mismatch`,
     );
   }
   const outputRoot = resolveRepoPath(
@@ -123,15 +174,27 @@ export function createCanonicalLiveAuthoringArtifactStore(
   );
   const existingAncestor = nearestExistingAncestor(
     outputRoot,
+    errorPrefix,
   );
+  const existingAncestorRealPath =
+    fs.realpathSync(existingAncestor);
   assertContainedRealPath(
     repositoryRealPath,
-    fs.realpathSync(existingAncestor),
+    existingAncestorRealPath,
+    errorPrefix,
   );
+  if (
+    args.rejectSymlinkAliases === true &&
+    !pathsEqual(existingAncestor, existingAncestorRealPath)
+  ) {
+    throw new Error(
+      `${errorPrefix} output uses a symlink or junction alias`,
+    );
+  }
 
   let prepared = false;
   const categoryDirectories = new Map<
-    CanonicalLiveAuthoringArtifactCategory,
+    Category,
     string
   >();
 
@@ -142,17 +205,34 @@ export function createCanonicalLiveAuthoringArtifactStore(
       assertContainedRealPath(
         repositoryRealPath,
         outputRealPath,
+        errorPrefix,
       );
-      for (const category of
-        CANONICAL_LIVE_AUTHORING_ARTIFACT_CATEGORIES) {
+      if (
+        args.rejectSymlinkAliases === true &&
+        !pathsEqual(outputRoot, outputRealPath)
+      ) {
+        throw new Error(
+          `${errorPrefix} output uses a symlink or junction alias`,
+        );
+      }
+      for (const category of args.categories) {
         const directory = path.join(outputRoot, category);
         fs.mkdirSync(directory, { recursive: true });
         const directoryRealPath = fs.realpathSync(directory);
         assertContainedRealPath(
           repositoryRealPath,
           directoryRealPath,
+          errorPrefix,
         );
-        writableProbe(directoryRealPath);
+        if (
+          args.rejectSymlinkAliases === true &&
+          !pathsEqual(directory, directoryRealPath)
+        ) {
+          throw new Error(
+            `${errorPrefix} output category uses a symlink or junction alias`,
+          );
+        }
+        writableProbe(directoryRealPath, errorPrefix);
         categoryDirectories.set(
           category,
           directoryRealPath,
@@ -163,18 +243,18 @@ export function createCanonicalLiveAuthoringArtifactStore(
     persist({ category, digest, value }) {
       if (!prepared) {
         throw new Error(
-          'canonical live authoring artifact store was not prepared',
+          `${errorPrefix} artifact store was not prepared`,
         );
       }
       if (!/^[a-f0-9]{64}$/.test(digest)) {
         throw new Error(
-          'canonical live authoring artifact digest is invalid',
+          `${errorPrefix} artifact digest is invalid`,
         );
       }
       const directory = categoryDirectories.get(category);
       if (!directory) {
         throw new Error(
-          'canonical live authoring artifact category is invalid',
+          `${errorPrefix} artifact category is invalid`,
         );
       }
       const destinationPath = path.join(
@@ -184,6 +264,7 @@ export function createCanonicalLiveAuthoringArtifactStore(
       assertContainedRealPath(
         repositoryRealPath,
         fs.realpathSync(path.dirname(destinationPath)),
+        errorPrefix,
       );
       const result =
         writeCanonicalContentAddressedJsonArtifact({
@@ -200,4 +281,19 @@ export function createCanonicalLiveAuthoringArtifactStore(
       };
     },
   };
+}
+
+export function createCanonicalLiveAuthoringArtifactStore(
+  args: {
+    repoRoot: string;
+    repositoryRealPath?: string;
+    outputDir: string;
+  },
+): CanonicalLiveAuthoringArtifactStore {
+  return createContainedContentAddressedJsonArtifactStore({
+    ...args,
+    categories:
+      CANONICAL_LIVE_AUTHORING_ARTIFACT_CATEGORIES,
+    errorPrefix: 'canonical live authoring',
+  });
 }
