@@ -55,7 +55,11 @@ export {
 } from './derivePageVisualContracts';
 export {
   buildVisualContractPromptBlock,
+  buildPvbVisualContractFactsPromptBlock,
+  projectPvbVisualContractFacts,
   composeContractAuthoritativePrompt,
+  PVB_VISUAL_CONTRACT_FACTS_VERSION,
+  type PvbVisualContractFactsProjection,
 } from './buildVisualContractPromptBlock';
 export {
   resolveAuthoritativePageLocation,

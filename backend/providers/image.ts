@@ -172,6 +172,9 @@ import {
   type RuntimeBlueprintFrameProjection,
 } from '../../lib/generation-pipeline/runtime-blueprint-projection';
 import {
+  resolveRuntimeBlueprintProviderCanvas,
+} from '../../lib/generation-pipeline/runtime-blueprint-canvas';
+import {
   assertStyle01RuntimeAuthorityForPage,
   buildRuntimePageAuthorityProjection,
 } from '../../lib/generation-pipeline/runtime-visual-authority';
@@ -565,7 +568,7 @@ export interface ImageInput {
   coverText?: string | null;
   topicLabel?: string | null;
   coverSceneHint?: string | null;
-  /** High-res GPT Image sizing (square) + optional upscale path when PDF add-on purchased. */
+  /** Legacy square PDF hint; ignored whenever an authoritative Blueprint frame is present. */
   printPdfOptimized?: boolean;
   /** Phase 2 Style 02 — verbatim per-book locks (identical bytes every page). */
   style02ChildVisualLock?: string;
@@ -831,7 +834,7 @@ export interface CoverImageInput {
    * the SAME Style01 assembly the pages use, so cover parity is automatic. Milestone C populates it.
    */
   setIdentityBoardRefs?: ReferenceAsset[];
-  /** Larger square GPT renders for קובץ מוכן להדפסה. */
+  /** Legacy square PDF hint; authoritative Blueprint cover layout takes precedence. */
   printPdfOptimized?: boolean;
 }
 
@@ -2835,7 +2838,14 @@ async function generateWithGPTImage(input: ImageInput): Promise<GeneratedImage> 
   // PORTRAIT ORIENTATION canvas (NOT composition style) — single image serves both desktop+PDF (crop out soft zone via CSS)
   // and mobile/video (show full image, text overlays soft zone).
   // The textZone soft band lives at the top or bottom 25%; the remaining 75% is the standalone scene.
-  const size = hiResPdf ? '1536x1536' : isPreview ? '1024x1024' : '1024x1536';
+  const size = resolveRuntimeBlueprintProviderCanvas({
+    frame: input.runtimeBlueprintFrame,
+    legacyCanvas: hiResPdf
+      ? '1536x1536'
+      : isPreview
+        ? '1024x1024'
+        : '1024x1536',
+  });
 
   const quality = isPreview ? 'medium' : resolveGPTBookQuality();
 
@@ -2936,7 +2946,10 @@ async function generateWithGPTImageStyle02(input: ImageInput): Promise<Generated
     context: `generateWithGPTImageStyle02 orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber ?? '?'}`,
   });
   const hiResPdf = !!input.printPdfOptimized;
-  const size = hiResPdf ? '1536x1536' : '1024x1536';
+  const size = resolveRuntimeBlueprintProviderCanvas({
+    frame: input.runtimeBlueprintFrame,
+    legacyCanvas: hiResPdf ? '1536x1536' : '1024x1536',
+  });
   const quality = resolveGPTBookQuality();
   const profile = resolveStyle02BookPromptProfile();
 
@@ -3390,7 +3403,10 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
 
 async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise<GeneratedImage> {
   const hiResPdf = !!input.printPdfOptimized;
-  const size = hiResPdf ? '1536x1536' : '1024x1536';
+  const size = resolveRuntimeBlueprintProviderCanvas({
+    frame: input.runtimeBlueprintFrame,
+    legacyCanvas: hiResPdf ? '1536x1536' : '1024x1536',
+  });
   const quality = resolveStyle01Phase2ImageQuality();
 
   const vd = input.visualDirection;
@@ -4698,6 +4714,9 @@ export async function generateAllPageImages(
   const pvbRuntimeActive =
     config.runtimeVisualAuthority?.version ===
     'style01-runtime-authority/v4';
+  const printPdfOptimized = pvbRuntimeActive
+    ? false
+    : !!config.pdfEnabled;
   assertShippedBookStyleEngineActive(normalizedStyle);
   const style02Phase2Active = shouldUseStyle02Phase2Path(normalizedStyle);
   const style02BookProfile = style02Phase2Active ? resolveStyle02BookPromptProfile() : 'default';
@@ -5466,7 +5485,7 @@ export async function generateAllPageImages(
               childStructured: config.childStructured,
               companionStructured: config.companionStructured,
               childExpressionAnchorKind: pageChildExpressionKind,
-              printPdfOptimized: !!config.pdfEnabled,
+              printPdfOptimized,
               style02ChildVisualLock,
               style02WardrobeLock,
               style02CompanionTextLock,
@@ -5621,7 +5640,7 @@ export async function generateAllPageImages(
                 childStructured: config.childStructured,
                 companionStructured: config.companionStructured,
                 childExpressionAnchorKind: pageChildExpressionKind,
-                printPdfOptimized: !!config.pdfEnabled,
+                printPdfOptimized,
                 style02ChildVisualLock,
                 style02WardrobeLock,
                 style02CompanionTextLock,
@@ -5723,7 +5742,7 @@ export async function generateAllPageImages(
               childStructured: config.childStructured,
               companionStructured: config.companionStructured,
               childExpressionAnchorKind: pageChildExpressionKind,
-              printPdfOptimized: !!config.pdfEnabled,
+              printPdfOptimized,
               style02ChildVisualLock,
               style02WardrobeLock,
               style02CompanionTextLock,

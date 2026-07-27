@@ -6,7 +6,7 @@ import {
   contractPageSupportingCharacters,
   contractToLocationPlanBundle,
 } from '@/lib/visual-contract-compiler/adapters';
-import { buildVisualContractPromptBlock } from '@/lib/visual-contract-compiler/buildVisualContractPromptBlock';
+import { buildPvbVisualContractFactsPromptBlock } from '@/lib/visual-contract-compiler/buildVisualContractPromptBlock';
 import type {
   ApprovedPvbRuntimeAuthorityBinding,
   ResolvedBookVisualContract,
@@ -474,7 +474,7 @@ export function buildRuntimeBlueprintBookProjection(args: {
       resolvedAppearanceDigest,
       resolvedAppearance,
       contractPage,
-      contractPromptBlock: buildVisualContractPromptBlock(
+      contractPromptBlock: buildPvbVisualContractFactsPromptBlock(
         contractPage,
         contract,
       ),

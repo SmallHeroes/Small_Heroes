@@ -23,6 +23,7 @@ import {
 import {
   buildBlueprintFixture,
   type BlueprintFixture,
+  type BlueprintFixtureOptions,
   type BlueprintFixtureShape,
 } from './pre-render-book-visual-blueprint.fixtures';
 
@@ -121,11 +122,12 @@ function packageApproval(
 export function buildVisualPackageV4Fixture(
   shape: BlueprintFixtureShape,
   note?: string,
+  blueprintOptions?: BlueprintFixtureOptions,
 ): {
   packageValue: VisualPackageV4;
   fixture: BlueprintFixture;
 } {
-  const originalFixture = buildBlueprintFixture(shape);
+  const originalFixture = buildBlueprintFixture(shape, blueprintOptions);
   const blueprint = withSupportedLayout(originalFixture.blueprint);
   const context = {
     ...originalFixture.context,

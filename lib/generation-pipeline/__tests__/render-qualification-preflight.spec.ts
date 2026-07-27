@@ -146,7 +146,10 @@ describe('shipped Style01 render-qualification preflight', () => {
     const earlyGate = source.indexOf('const earlyRuntimeAuthority = requireStyle01RenderQualification');
     const legacySelection = source.indexOf('selectCompanionStory(');
     const renderWrapper = source.indexOf('runWithStyle01RenderQualification(');
-    const provider = source.indexOf('generateAllPageImages(');
+    const provider = source.indexOf(
+      'generateSinglePageWithRuntimeCanvas({',
+      renderWrapper,
+    );
     expect(earlyGate).toBeGreaterThan(-1);
     expect(earlyGate).toBeLessThan(legacySelection);
     expect(renderWrapper).toBeLessThan(provider);
@@ -178,6 +181,9 @@ describe('shipped Style01 render-qualification preflight', () => {
     );
     expect(source).toMatch(
       /if \(!approvedBlueprintFrame && order\.childImageUrl\)/,
+    );
+    expect(source).toMatch(
+      /generateSinglePageWithRuntimeCanvas\(\{[\s\S]*?approvedBlueprintFrame,[\s\S]*?orderPdfEnabled:\s*order\.pdfEnabled/,
     );
   });
 });

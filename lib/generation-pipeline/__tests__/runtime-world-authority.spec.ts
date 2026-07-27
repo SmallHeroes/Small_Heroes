@@ -7,6 +7,8 @@ import {
   generateImage,
 } from '@/backend/providers/image';
 import {
+  buildPvbVisualContractFactsPromptBlock,
+  buildVisualContractPromptBlock,
   computeVisualContractHash,
   materialize,
   type ResolvedFamilyAppearanceProfile,
@@ -23,6 +25,10 @@ import {
 import { buildVisualPackageV4Fixture } from '@/lib/visual-package/__tests__/visual-package-v4.fixtures';
 import type { BlueprintFixtureShape } from '@/lib/visual-package/__tests__/pre-render-book-visual-blueprint.fixtures';
 
+import {
+  RuntimeBlueprintCanvasError,
+} from '../runtime-blueprint-canvas';
+import { generateSinglePageWithRuntimeCanvas } from '../../single-page-image-regen';
 import {
   buildRuntimeBlueprintFrameEvidence,
   buildRuntimeBlueprintBookProjection,
@@ -60,6 +66,10 @@ vi.mock('@/lib/image-storage', () => ({
   isImagePersistenceError: () => false,
 }));
 
+vi.mock('@/lib/prisma', () => ({
+  prisma: {},
+}));
+
 const FAMILY: ResolvedFamilyAppearanceProfile = {
   skinTone: 'warm brown',
   hairColour: 'dark brown',
@@ -68,9 +78,10 @@ const FAMILY: ResolvedFamilyAppearanceProfile = {
 
 function authority(
   shape: BlueprintFixtureShape = 'no_companion',
+  options?: Parameters<typeof buildVisualPackageV4Fixture>[2],
 ): Style01RuntimeAuthority {
   const { packageValue } =
-    buildVisualPackageV4Fixture(shape);
+    buildVisualPackageV4Fixture(shape, undefined, options);
   const packagePath = `visual-packages/approved/revisions/${packageValue.revisionDigest}.visual-package.json`;
   const frozenAuthority = buildFrozenVisualPackageAuthority({
     packageValue,
@@ -180,6 +191,28 @@ function imageInput(
     storyFile: 'dragon_story_specific',
     direction: 'fantasy',
   };
+}
+
+function authorityWithConflictingContractSteering(): Style01RuntimeAuthority {
+  return authority('no_companion', {
+    mutateTemplate(template) {
+      const page = template.pageContracts.find(
+        (candidate) => candidate.pageNumber === 1,
+      );
+      if (!page) throw new Error('fixture page 1 missing');
+      page.camera =
+        'CONFLICTING_CONTRACT_CAMERA extreme overhead close-up with centered symmetry';
+      page.castStates = [
+        {
+          castId: template.cast.child.id,
+          bodyState:
+            'CONFLICTING_CONTRACT_ACTION kneeling and posing toward the camera',
+          injectionArm: 'left',
+          freeHand: 'right',
+        },
+      ];
+    },
+  });
 }
 
 function qaResult(pass: boolean) {
@@ -352,6 +385,186 @@ describe('R1D-PVB-C shared runtime Blueprint authority', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it('enforced prompt keeps contract world facts but excludes conflicting contract camera, body state, laterality and action authority', async () => {
+    const runtime = authorityWithConflictingContractSteering();
+    const frame = requireRuntimeBlueprintFrame(runtime.bookProjection, 1);
+    await generateImage(imageInput(runtime));
+
+    const providerInput = generateGptSpy.mock.calls[0][0] as {
+      finalPrompt: string;
+    };
+    expect(providerInput.finalPrompt).toContain(frame.frameId);
+    expect(providerInput.finalPrompt).toContain(
+      `camera ${frame.camera.shot}/${frame.camera.angle}`,
+    );
+    expect(providerInput.finalPrompt).toContain('LOCATION:');
+    expect(providerInput.finalPrompt).toContain('ZONE:');
+    expect(providerInput.finalPrompt).toContain('CAST PRESENT:');
+    expect(providerInput.finalPrompt).toContain('CHILD WARDROBE (locked):');
+    expect(providerInput.finalPrompt).not.toMatch(
+      /CONFLICTING_CONTRACT_CAMERA|CONFLICTING_CONTRACT_ACTION/,
+    );
+    expect(providerInput.finalPrompt).not.toMatch(
+      /^CAMERA \/ ACTION:|^BODY STATE:|^LATERALITY:|^ACTION BEATS:/m,
+    );
+    expect(providerInput.finalPrompt).toContain(
+      'Blueprint frame is the sole authority for camera, action, composition, staging, pose, blocking, eyeline, placements, and page layout.',
+    );
+  });
+
+  it('keeps the enforcement-off legacy contract prompt unchanged while PVB uses the typed facts-only projection', () => {
+    const runtime = authorityWithConflictingContractSteering();
+    const frame = requireRuntimeBlueprintFrame(runtime.bookProjection, 1);
+    const legacyBlock = buildVisualContractPromptBlock(
+      frame.contractPage,
+      runtime.contract,
+    );
+    const factsOnlyBlock = buildPvbVisualContractFactsPromptBlock(
+      frame.contractPage,
+      runtime.contract,
+    );
+
+    expect(legacyBlock).toContain(
+      'CAMERA / ACTION: CONFLICTING_CONTRACT_CAMERA',
+    );
+    expect(legacyBlock).toContain(
+      'BODY STATE: the child CONFLICTING_CONTRACT_ACTION',
+    );
+    expect(legacyBlock).toContain('LATERALITY:');
+    expect(legacyBlock).toContain('ACTION BEATS:');
+    expect(factsOnlyBlock).toBe(frame.contractPromptBlock);
+    expect(factsOnlyBlock).not.toMatch(
+      /CAMERA \/ ACTION:|BODY STATE:|LATERALITY:|ACTION BEATS:/,
+    );
+  });
+
+  it('authoritative direct provider canvas ignores conflicting PDF optimization and stays exact portrait', async () => {
+    const runtime = authority();
+    const frame = requireRuntimeBlueprintFrame(runtime.bookProjection, 1);
+    await generateImage({
+      ...imageInput(runtime),
+      printPdfOptimized: true,
+    });
+
+    expect(frame.layoutPlan).toMatchObject({
+      aspectRatio: '2:3',
+      remapPolicy: 'reject',
+    });
+    expect(generateGptSpy).toHaveBeenCalledTimes(1);
+    expect(generateGptSpy.mock.calls[0][0]).toMatchObject({
+      size: '1024x1536',
+    });
+  });
+
+  it('rejects an unrepresentable authoritative layout at the provider seam before the provider mock', async () => {
+    const runtime = authority();
+    const approved = requireRuntimeBlueprintFrame(runtime.bookProjection, 1);
+    vi.stubEnv('VISUAL_CONTRACT_ENFORCEMENT', 'false');
+    const malformedFrames = [
+      (() => {
+        const frame = structuredClone(approved) as unknown as {
+          layoutPlan: { aspectRatio: string };
+        };
+        frame.layoutPlan.aspectRatio = '1:1';
+        return frame;
+      })(),
+      (() => {
+        const frame = structuredClone(approved) as unknown as {
+          layoutPlan: { remapPolicy: string };
+        };
+        frame.layoutPlan.remapPolicy = 'quantize';
+        return frame;
+      })(),
+      (() => {
+        const frame = structuredClone(approved) as unknown as {
+          layoutPlan: { textZone: string };
+        };
+        frame.layoutPlan.textZone = 'top_clear';
+        return frame;
+      })(),
+    ];
+
+    for (const malformed of malformedFrames) {
+      await expect(
+        generateImage({
+          ...imageInput(null),
+          runtimeBlueprintFrame:
+            malformed as typeof approved,
+          printPdfOptimized: true,
+        }),
+      ).rejects.toThrow(RuntimeBlueprintCanvasError);
+    }
+    expect(generateGptSpy).not.toHaveBeenCalled();
+  });
+
+  it('authoritative batch canvas stays portrait when the order is PDF-enabled', async () => {
+    const runtime = authority();
+    const frame = requireRuntimeBlueprintFrame(runtime.bookProjection, 1);
+    const outcome = await generateAllPageImages(
+      [
+        {
+          pageNumber: 1,
+          imagePrompt: frame.safeScenePrompt,
+          expectedCharacterIds: [...frame.castIds],
+          runtimeBlueprintFrame: frame,
+        },
+      ],
+      {
+        illustrationStyle: 'soft_hand_drawn_storybook',
+        runtimeVisualAuthority: runtime,
+        childName: runtime.contract.cast.child.name,
+        childDescription: 'round child face',
+        referenceImages: ['https://fixtures.invalid/child.png'],
+        initialCharacterAnchors: {
+          child: 'https://fixtures.invalid/child.png',
+        },
+        pdfEnabled: true,
+      },
+    );
+
+    expect(outcome.failedPages).toEqual([]);
+    expect(generateGptSpy).toHaveBeenCalledTimes(1);
+    expect(generateGptSpy.mock.calls[0][0]).toMatchObject({
+      size: '1024x1536',
+    });
+  });
+
+  it('single-page PDF adaptation reuses the frozen frame/digest and reaches the shared provider as portrait', async () => {
+    const runtime = authority();
+    const frame = requireRuntimeBlueprintFrame(runtime.bookProjection, 1);
+    const frameDigestBefore = frame.projectionDigest;
+
+    const outcome = await generateSinglePageWithRuntimeCanvas({
+      pages: [
+        {
+          pageNumber: 1,
+          imagePrompt: frame.safeScenePrompt,
+          expectedCharacterIds: [...frame.castIds],
+          runtimeBlueprintFrame: frame,
+        },
+      ],
+      config: {
+        illustrationStyle: 'soft_hand_drawn_storybook',
+        runtimeVisualAuthority: runtime,
+        childName: runtime.contract.cast.child.name,
+        childDescription: 'round child face',
+        referenceImages: ['https://fixtures.invalid/child.png'],
+        initialCharacterAnchors: {
+          child: 'https://fixtures.invalid/child.png',
+        },
+      },
+      approvedBlueprintFrame: frame,
+      orderPdfEnabled: true,
+    });
+
+    expect(frame.projectionDigest).toBe(frameDigestBefore);
+    expect(outcome.results.get(1)?.style01Meta?.runtimeBlueprintEvidence)
+      .toEqual(buildRuntimeBlueprintFrameEvidence(runtime.bookProjection, 1));
+    expect(generateGptSpy.mock.calls[0][0]).toMatchObject({
+      size: '1024x1536',
+    });
+  });
+
   it('cover consumes the same immutable book projection with its exact top text-safe frame', async () => {
     const runtime = authority();
     await generateBookCover({
@@ -364,6 +577,7 @@ describe('R1D-PVB-C shared runtime Blueprint authority', () => {
       runtimeVisualAuthority: runtime,
       childDescription: 'round child face',
       referenceImages: ['https://fixtures.invalid/child.png'],
+      printPdfOptimized: true,
     });
     const coverFrame = requireRuntimeBlueprintFrame(
       runtime.bookProjection,
@@ -376,6 +590,9 @@ describe('R1D-PVB-C shared runtime Blueprint authority', () => {
     expect(prompt).toContain(coverFrame.frameId);
     expect(prompt).toContain(coverFrame.frameDigest);
     expect(prompt).not.toMatch(/MALICIOUS_/);
+    expect(generateGptSpy.mock.calls[0][0]).toMatchObject({
+      size: '1024x1536',
+    });
   });
 
   it('QA regeneration cannot change the exact frame projection or composition prompt', async () => {
@@ -394,6 +611,9 @@ describe('R1D-PVB-C shared runtime Blueprint authority', () => {
       (call) => (call[0] as { finalPrompt: string }).finalPrompt,
     );
     expect(prompts[1]).toBe(prompts[0]);
+    expect(
+      generateGptSpy.mock.calls.map((call) => (call[0] as { size: string }).size),
+    ).toEqual(['1024x1536', '1024x1536']);
     expect(prompts[0]).toContain(
       requireRuntimeBlueprintFrame(runtime.bookProjection, 1).frameDigest,
     );
@@ -484,6 +704,17 @@ describe('R1D-PVB-C shared runtime Blueprint authority', () => {
     vi.stubEnv('VISUAL_CONTRACT_ENFORCEMENT', 'false');
     await expect(generateImage(imageInput(null))).resolves.toMatchObject({
       provider: 'gpt-image-1',
+    });
+  });
+
+  it('preserves the legacy square PDF canvas only when enforcement is off', async () => {
+    vi.stubEnv('VISUAL_CONTRACT_ENFORCEMENT', 'false');
+    await generateImage({
+      ...imageInput(null),
+      printPdfOptimized: true,
+    });
+    expect(generateGptSpy.mock.calls[0][0]).toMatchObject({
+      size: '1536x1536',
     });
   });
 

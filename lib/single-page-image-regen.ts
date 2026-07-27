@@ -65,7 +65,9 @@ import {
 import {
   buildRuntimeBlueprintFrameEvidence,
   requireRuntimeBlueprintFrame,
+  type RuntimeBlueprintFrameProjection,
 } from '@/lib/generation-pipeline/runtime-blueprint-projection';
+import { resolveRuntimeBlueprintPdfOptimization } from '@/lib/generation-pipeline/runtime-blueprint-canvas';
 import type { ReceiptSafeValue } from '@/lib/generation-pipeline/atomic-operation';
 
 const regenLogger = createLogger({ subsystem: 'regen-page', route: '/api/debug/regen-page' });
@@ -93,6 +95,29 @@ export type RegenPageResult = {
   promptLength: number;
   promptPreview: string;
 };
+
+type PageGenerationPages = Parameters<typeof generateAllPageImages>[0];
+type PageGenerationConfig = Parameters<typeof generateAllPageImages>[1];
+
+/**
+ * The production single-page provider adapter. Keeping the frozen frame next to
+ * the legacy order flag makes the precedence explicit and independently
+ * testable without entering persistence or post-processing.
+ */
+export function generateSinglePageWithRuntimeCanvas(args: {
+  pages: PageGenerationPages;
+  config: Omit<PageGenerationConfig, 'pdfEnabled'>;
+  approvedBlueprintFrame?: RuntimeBlueprintFrameProjection | null;
+  orderPdfEnabled: boolean;
+}) {
+  return generateAllPageImages(args.pages, {
+    ...args.config,
+    pdfEnabled: resolveRuntimeBlueprintPdfOptimization({
+      frame: args.approvedBlueprintFrame,
+      legacyPdfEnabled: args.orderPdfEnabled,
+    }),
+  });
+}
 
 function effectiveStoryDirectionForV3(
   storyDirection: string | null | undefined,
@@ -928,9 +953,9 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
           '[single_page_regen] runtime authority changed between early qualification and provider boundary',
         );
       }
-      return generateAllPageImages(
-        [{ ...pageForGeneration, supportingCharacters }],
-        {
+      return generateSinglePageWithRuntimeCanvas({
+        pages: [{ ...pageForGeneration, supportingCharacters }],
+        config: {
           illustrationStyle: order.illustrationStyle,
           runtimeVisualAuthority,
           childName: order.childName ?? null,
@@ -983,10 +1008,13 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
           directionStoryPremise: earlyRuntimeAuthority
             ? undefined
             : selectedDirection?.storyPremise,
-          pdfEnabled: order.pdfEnabled,
           familyCoherence,
         },
-      );
+        // PVB canvas comes only from the frozen frame layout. This validates
+        // the frame now and preserves the square hint only for legacy recovery.
+        approvedBlueprintFrame,
+        orderPdfEnabled: order.pdfEnabled,
+      });
     },
   );
 

@@ -51,6 +51,10 @@ export type BlueprintFixtureShape =
   | 'no_companion'
   | 'reveal_timeline';
 
+export interface BlueprintFixtureOptions {
+  mutateTemplate?: (template: BookVisualContractTemplate) => void;
+}
+
 export interface BlueprintFixture {
   blueprint: PreRenderBookVisualBlueprint;
   context: PreRenderBlueprintValidationContext;
@@ -638,9 +642,13 @@ function makeWorldAndFrames(
   return { connections, affordances, revealSafeSupportingGeometry, frames };
 }
 
-export function buildBlueprintFixture(shape: BlueprintFixtureShape): BlueprintFixture {
+export function buildBlueprintFixture(
+  shape: BlueprintFixtureShape,
+  options?: BlueprintFixtureOptions,
+): BlueprintFixture {
   const plan = shapePlans[shape];
   const template = makeTemplate(plan);
+  options?.mutateTemplate?.(template);
   const rawStorySource = makeRawStorySource(plan);
   const source = makeSource(plan, rawStorySource);
   const templateIdentity: VisualPackageTemplateIdentity = {
