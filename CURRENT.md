@@ -2,7 +2,7 @@
 
 **Updated:** 2026-07-28
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-live-authoring-attempt` in `C:\Users\guyna\.codex\worktrees\4a16\Small_Heroes`, based exactly on approved pushed Attempt 1 closeout head `eaa1f1b17afb954398ae1238ead10b9a7308509e`. This worktree is the sole writer for authorized R1D-PVB-D1A1B1-ATTEMPT-2. Dependency preparation and the one canonical preflight passed, but the attempt is exhausted at the first post-preflight B0 verification because Codex applied the wrong whole-artifact digest method and the explicit stop rule forbids a corrected rerun. No credential was inspected and no provider call or spend occurred. D1A1C and every unrelated worktree remain out of scope and read-only.
+**Working branch:** `codex/r1d-pvb-d1a1b1-live-authoring-attempt` in `C:\Users\guyna\.codex\worktrees\4a16\Small_Heroes`, based exactly on approved pushed Attempt 1 closeout head `eaa1f1b17afb954398ae1238ead10b9a7308509e`. This worktree is the sole writer for the documentation-only R1D-PVB-D1A1B1-ATTEMPT-2 precision correction. Dependency preparation and the one canonical preflight passed, but Attempt 2 remains exhausted at the first post-preflight B0 verification because Codex applied the wrong whole-artifact digest method and the explicit stop rule forbids a corrected rerun. No credential was inspected and no provider call or spend occurred. D1A1C and every unrelated worktree remain out of scope and read-only.
 
 ## R1D-PVB-D1A1B1-ATTEMPT-2 — Second Canonical Live Authoring Attempt
 
@@ -24,13 +24,22 @@ Guy explicitly authorized a second attempt in the same Task, branch, and worktre
 - Because that verification-method failure occurred after canonical preflight began, the explicit Attempt 2 stop rule forbids a corrected validator run, artifact copy, credential gate, or live invocation. The approved B0 artifacts were not copied or mutated, and the live output root was never created.
 - Credential reads, existence checks, parsing, injection, key creation, and picker actions were all zero. Application provider calls, semantic repairs, and transport retries were `0`; nominal and conservative cost were both `$0.00`. No response ID, provider usage, receipt, readiness evidence, candidate, rejected request, raw prompt/response, invalid draft, exception artifact, or billing evidence exists.
 - The bare preflight did not materialize exact start/end timestamps; only exit `0` and tool-reported elapsed time are available. There is no post-provider evidence gap because provider reachability never occurred.
-- Post-failure `git diff --check` passed. `npx --no-install tsc --noEmit` exited `1` because the approved dependency directory contains the live launcher dependencies but not the TypeScript compiler. No install or alternate dependency source was authorized.
+- Post-failure `git diff --check` passed. The approved dependency directory does contain TypeScript `6.0.3`: both `node_modules/typescript/package.json` and `node_modules/typescript/lib/tsc.js` are present through the junction. However, `node_modules/.bin` is absent, so `npx --no-install tsc --noEmit` did not reach that local compiler; `npx` resolved the unrelated decoy `tsc` package, which exited `1`. The practical validation command was therefore unavailable in its canonical `npx` form without changing dependencies.
+
+### Independent QA PASS and documentation precision correction
+
+- Claude Code independently reviewed exact failure-record range `eaa1f1b17afb954398ae1238ead10b9a7308509e..2e4083223c1fdb4a79de813ab428fe4c292cc4e0` and returned **PASS** with one valid non-blocking documentation MINOR.
+- The reviewer independently recomputed **4/4 payload-domain digests matching the approved filenames versus 0/4 whole-artifact digests matching them**. This proves the approved B0 artifacts are intact and confirms that Codex's stopped post-preflight comparison used the wrong digest domain.
+- **MINOR-1 — accepted and corrected:** the Attempt 2 closeout falsely attributed the earlier `npx` failure to an absent TypeScript compiler. The compiler files are present through the junction; the missing `node_modules/.bin` prevented the canonical `npx` form from reaching them and led to the unrelated decoy package instead.
+- The separately authorized zero-network command `node node_modules/typescript/lib/tsc.js --noEmit` did reach the local TypeScript `6.0.3` compiler and exited `1` on existing repository diagnostics, principally unavailable generated Prisma exports with dependent implicit-`any` errors. This result is separate from the earlier `npx`/decoy-package failure; no dependency generation or source fix was authorized.
+- **NOTE-1 — evidence limitation:** the canonical preflight PASS is supported by the Task/tool transcript, but no durable committed preflight transcript exists.
+- Claude Code's PASS applies only to the faithful Attempt 2 failure record. It does not authorize a corrected verification, resume, retry, credential gate, provider call, or live attempt.
 
 ### Gate and next action
 
 - R1D-PVB-D1A1B1-ATTEMPT-2 is **HOLD / attempt exhausted** before credential and provider reachability. No second Attempt 2 preflight, corrected post-preflight verification, artifact copy, or live invocation is authorized.
 - The sole ignored junction remains local for same-worktree review. No source code, schema, test, config, package, request, pricing, Story Source, B0 evidence, render, Vision, audio, storage/database/Supabase, Board, Semantic Reconciliation, Blueprint, approval/publication/promotion, production flag, deployment, or push was changed or invoked.
-- This documentation-only closeout requires independent Claude Code review. Codex does not self-award technical PASS. Any future action requires Guy's new explicit ruling.
+- Attempt 2 remains exhausted and live remains **HOLD**. This focused documentation correction requires a read-only Claude Code micro re-gate; Codex does not self-award technical PASS. Any future action requires Guy's new explicit ruling.
 
 ## R1D-PVB-D1A1B1 — First Canonical Live Authoring Attempt
 
