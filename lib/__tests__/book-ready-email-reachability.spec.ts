@@ -1,6 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { readdirSync, readFileSync, statSync } from 'fs';
+import { readFileSync } from 'fs';
 import path from 'path';
+import {
+  createRepositorySourceInventory,
+  STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS,
+} from './helpers/repository-source-inventory';
 
 /**
  * GUARD (Codex P0): direct provider-email calls are limited to the Outbox worker and the deliberate
@@ -20,31 +24,23 @@ describe('sendBookReadyEmail reachability', () => {
     // to recover a lost provider message id; its state-machine tests pin that it never blind-resends.
     'lib/generation-chunked/exception-processor.ts',
   ]);
-
-  function walk(dir: string, acc: string[] = []): string[] {
-    for (const entry of readdirSync(dir)) {
-      if (entry === 'node_modules' || entry === '__tests__' || entry.startsWith('.')) continue;
-      const full = path.join(dir, entry);
-      const st = statSync(full);
-      if (st.isDirectory()) walk(full, acc);
-      else if (/\.(ts|tsx)$/.test(entry)) acc.push(full);
-    }
-    return acc;
-  }
+  const repositorySources = createRepositorySourceInventory({
+    root: ROOT,
+    roots: SCAN_DIRS,
+    extensions: ['.ts', '.tsx'],
+    excludedEntryNames: ['node_modules', '__tests__'],
+    excludeDotEntries: true,
+  });
 
   it('is called only from the gated package stage and the human-QA release endpoint', () => {
     const callSites: string[] = [];
-    for (const d of SCAN_DIRS) {
-      for (const file of walk(path.join(ROOT, d))) {
-        const rel = path.relative(ROOT, file).split(path.sep).join('/');
-        if (rel === DEFINITION_FILE.split(path.sep).join('/')) continue; // skip the definition
-        const src = readFileSync(file, 'utf8');
-        // A call is `sendBookReadyEmail(` NOT preceded by `function ` (the definition).
-        for (const line of src.split('\n')) {
-          if (/\bsendBookReadyEmail\s*\(/.test(line) && !/function\s+sendBookReadyEmail/.test(line)) {
-            callSites.push(rel);
-            break;
-          }
+    for (const { relative, text } of repositorySources()) {
+      if (relative === DEFINITION_FILE.split(path.sep).join('/')) continue; // skip the definition
+      // A call is `sendBookReadyEmail(` NOT preceded by `function ` (the definition).
+      for (const line of text.split('\n')) {
+        if (/\bsendBookReadyEmail\s*\(/.test(line) && !/function\s+sendBookReadyEmail/.test(line)) {
+          callSites.push(relative);
+          break;
         }
       }
     }
@@ -63,7 +59,7 @@ describe('sendBookReadyEmail reachability', () => {
     expect(packageDelivery.indexOf('if (readinessEnabled())')).toBeLessThan(
       packageDelivery.indexOf('deps.send ?? sendBookReadyEmail'),
     );
-  });
+  }, STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS);
 });
 
 /**

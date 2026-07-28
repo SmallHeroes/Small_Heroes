@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { readdirSync, readFileSync, statSync } from 'fs';
+import { readFileSync } from 'fs';
 import path from 'path';
 import * as ts from 'typescript';
+import {
+  createRepositorySourceInventory,
+  STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS,
+} from './helpers/repository-source-inventory';
 
 /**
  * (delivery fence — Codex round-5 Unit 4 + round-6 Unit B, MANDATORY structural guard) The FUNNEL
@@ -46,23 +50,45 @@ const DELIVERABLE_STATUS = 'ready';
 // partial|ready for a dev story-bank preview and never serves a paid order. Enumerated by exact path so a NEW
 // non-funnel 'ready' write anywhere else still fails the build.
 const DEV_READY_STATUS_ALLOWLIST = new Set(['app/api/dev/story-bank/route.ts']);
+const repositorySources = createRepositorySourceInventory({
+  root: ROOT,
+  roots: ['app', 'lib', 'backend'],
+  extensions: ['.ts'],
+  excludedEntryNames: ['node_modules', '__tests__'],
+  excludeDotEntries: true,
+});
 
-function walk(dir: string, acc: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    if (entry === 'node_modules' || entry === '__tests__' || entry.startsWith('.')) continue;
-    const full = path.join(dir, entry);
-    const stat = statSync(full);
-    if (stat.isDirectory()) walk(full, acc);
-    else if (entry.endsWith('.ts')) acc.push(full);
-  }
-  return acc;
+interface ParsedRepositorySource {
+  readonly relative: string;
+  readonly text: string;
+  readonly file: ts.SourceFile;
+}
+
+let parsedRepositorySourceCache: readonly ParsedRepositorySource[] | undefined;
+function parsedRepositorySources(): readonly ParsedRepositorySource[] {
+  if (parsedRepositorySourceCache) return parsedRepositorySourceCache;
+  parsedRepositorySourceCache = Object.freeze(
+    repositorySources().map(({ relative, text }) =>
+      Object.freeze({
+        relative,
+        text,
+        file: ts.createSourceFile(
+          relative,
+          text,
+          ts.ScriptTarget.Latest,
+          true,
+          ts.ScriptKind.TS,
+        ),
+      }),
+    ),
+  );
+  return parsedRepositorySourceCache;
 }
 
 const PRISMA_WRITE_METHODS = new Set(['update', 'updateMany', 'upsert', 'create', 'updateManyAndReturn']);
 
 /** Prisma `order.<write>({... data: { deliveryHoldReason | manualReviewRequired ... } ...})` sites. */
-export function prismaAuthorityWriteLines(relative: string, text: string): number[] {
-  const file = ts.createSourceFile(relative, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+function prismaAuthorityWriteLinesFromFile(file: ts.SourceFile): number[] {
   const lines: number[] = [];
   const visit = (node: ts.Node): void => {
     if (
@@ -99,6 +125,12 @@ export function prismaAuthorityWriteLines(relative: string, text: string): numbe
   return lines;
 }
 
+export function prismaAuthorityWriteLines(relative: string, text: string): number[] {
+  return prismaAuthorityWriteLinesFromFile(
+    ts.createSourceFile(relative, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS),
+  );
+}
+
 /** Raw `UPDATE "Order" … SET <…> WHERE` whose SET clause assigns an authority field. */
 export function rawAuthorityWriteSites(relative: string, text: string): Array<{ line: number; inputsBarrier: boolean }> {
   const sites: Array<{ line: number; inputsBarrier: boolean }> = [];
@@ -127,8 +159,7 @@ export function rawAuthorityWriteSites(relative: string, text: string): Array<{ 
  * SYNTACTIC LIMIT (see header): spread elements (`data: { …x }`) are not inspected — the round-6 audit confirmed no
  * production spread carries a `ready` status; the funnel remains the sole author of `ready`.
  */
-export function prismaDeliverableStatusWriteLines(relative: string, text: string): number[] {
-  const file = ts.createSourceFile(relative, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+function prismaDeliverableStatusWriteLinesFromFile(file: ts.SourceFile): number[] {
   const lines: number[] = [];
   const visit = (node: ts.Node): void => {
     if (
@@ -169,6 +200,12 @@ export function prismaDeliverableStatusWriteLines(relative: string, text: string
   return lines;
 }
 
+export function prismaDeliverableStatusWriteLines(relative: string, text: string): number[] {
+  return prismaDeliverableStatusWriteLinesFromFile(
+    ts.createSourceFile(relative, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS),
+  );
+}
+
 /**
  * (round-6 Unit B) Raw `UPDATE "Order" … SET … "status" = … WHERE` sites. Raw SQL is the dangerous bypass (it skips
  * Prisma typing), so ANY non-funnel raw write to `Order.status` is flagged — the funnel and the inputs barrier are the
@@ -190,58 +227,57 @@ export function rawOrderStatusWriteSites(relative: string, text: string): Array<
 }
 
 describe('order-authority funnel guard (Codex round-5 Unit 4)', () => {
-  const files = ['app', 'lib', 'backend'].flatMap((dir) => walk(path.join(ROOT, dir)));
-
   it('no Prisma authority-field write (deliveryHoldReason/manualReviewRequired) exists outside the funnel', () => {
     const offenders: string[] = [];
-    for (const abs of files) {
-      const relative = path.relative(ROOT, abs).split(path.sep).join('/');
+    const sources = parsedRepositorySources();
+    expect(
+      sources.some(({ relative }) => relative === FUNNEL),
+      `${FUNNEL} must be present in the repository inventory`,
+    ).toBe(true);
+    for (const { relative, file } of sources) {
       if (relative === FUNNEL) continue;
-      for (const line of prismaAuthorityWriteLines(relative, readFileSync(abs, 'utf8'))) {
+      for (const line of prismaAuthorityWriteLinesFromFile(file)) {
         offenders.push(`${relative}:${line}`);
       }
     }
     expect(offenders).toEqual([]);
-  });
+  }, STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS);
 
   it('no raw UPDATE "Order" sets an authority field outside the funnel (except the inputs_changed barrier)', () => {
     const offenders: string[] = [];
-    for (const abs of files) {
-      const relative = path.relative(ROOT, abs).split(path.sep).join('/');
+    for (const { relative, text } of repositorySources()) {
       if (relative === FUNNEL) continue;
-      for (const site of rawAuthorityWriteSites(relative, readFileSync(abs, 'utf8'))) {
+      for (const site of rawAuthorityWriteSites(relative, text)) {
         if (site.inputsBarrier) continue; // narrow, justified allowance (delivery-input barrier — see the header)
         offenders.push(`${relative}:${site.line}`);
       }
     }
     expect(offenders).toEqual([]);
-  });
+  }, STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS);
 
   it('no non-funnel Prisma write transitions an Order INTO the deliverable "ready" state (except the dev allowlist)', () => {
     const offenders: string[] = [];
-    for (const abs of files) {
-      const relative = path.relative(ROOT, abs).split(path.sep).join('/');
+    for (const { relative, file } of parsedRepositorySources()) {
       if (relative === FUNNEL) continue;
       if (DEV_READY_STATUS_ALLOWLIST.has(relative)) continue; // dev-only route, justified in the header
-      for (const line of prismaDeliverableStatusWriteLines(relative, readFileSync(abs, 'utf8'))) {
+      for (const line of prismaDeliverableStatusWriteLinesFromFile(file)) {
         offenders.push(`${relative}:${line}`);
       }
     }
     expect(offenders).toEqual([]);
-  });
+  }, STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS);
 
   it('no non-funnel raw UPDATE "Order" writes status (except the inputs_changed barrier)', () => {
     const offenders: string[] = [];
-    for (const abs of files) {
-      const relative = path.relative(ROOT, abs).split(path.sep).join('/');
+    for (const { relative, text } of repositorySources()) {
       if (relative === FUNNEL) continue;
-      for (const site of rawOrderStatusWriteSites(relative, readFileSync(abs, 'utf8'))) {
+      for (const site of rawOrderStatusWriteSites(relative, text)) {
         if (site.inputsBarrier) continue; // narrow, justified allowance (demote ready→generating — see the header)
         offenders.push(`${relative}:${site.line}`);
       }
     }
     expect(offenders).toEqual([]);
-  });
+  }, STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS);
 
   it('the funnel itself IS where the authority writes live (sanity: the guard is not vacuous)', () => {
     const funnelText = readFileSync(path.join(ROOT, FUNNEL), 'utf8');

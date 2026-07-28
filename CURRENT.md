@@ -2,7 +2,39 @@
 
 **Updated:** 2026-07-28
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-live-authoring-attempt` in `C:\Users\guyna\.codex\worktrees\4a16\Small_Heroes`, starting from exact pushed head `6d29fc6e8e66b839e0d08ea7057fff7793f235bc`. This worktree is the sole writer for R1D-PVB-D1A1B1-ATTEMPT-3-READINESS. Its isolated offline dependency tree, local Prisma generation, direct TypeScript validation, and focused authoring tests succeeded, but the fail-closed readiness milestone stopped when the one full `npm run check` ended nonzero on the established ignored-output baseline plus one full-load timeout. No B0 input was copied or validated, canonical preflight was not run, no credential was inspected, and no provider call or spend occurred. Attempt 3 is not authorized; live remains HOLD.
+**Working branch:** `codex/r1d-pvb-d1a1b1-live-authoring-attempt` in `C:\Users\guyna\.codex\worktrees\4a16\Small_Heroes`, starting from exact pushed head `c050ba709f1d19b8bddf060206488a48f61f1a76`. This worktree is the sole writer for R1D-FULL-SUITE-STRUCTURAL-SCANNER-STABILITY. The seven proven whole-repository scanner families now share immutable per-spec source inventories, repeated reads and AST parses are reduced, positive controls remain active, and focused validation is green. The one authorized full `npm run check` had no scanner timeout, but it added one unrelated canonical live-authoring boundary timeout to the six established ignored-output fixture failures. The explicit stop rule forbids a rerun or expansion, so this milestone is HOLD pending independent review and a new Guy ruling. No production behavior, package, B0, preflight, credential, provider, or external action changed.
+
+## R1D-FULL-SUITE-STRUCTURAL-SCANNER-STABILITY — Repository guard contention
+
+Guy explicitly authorized the smallest general test-infrastructure fix for structural scanners that intermittently exceed Vitest's default 5-second per-test budget only under full-suite contention. Runtime policy, detector coverage, fixtures, package state, and every external/live surface remained out of scope.
+
+### Investigation and measured cause
+
+- The branch, worktree, `HEAD`, and local origin reconciled exactly at pushed `c050ba709f1d19b8bddf060206488a48f61f1a76`, clean and at `0/0` parity. Exactly one worktree owned the branch; all unrelated user state remained untouched.
+- The common production inventory contains 630 `.ts` files / 5,564,562 bytes across 193 directories; the email reachability variant contains 670 `.ts`/`.tsx` files / 5,766,407 bytes. The broader production-QA scan contains 1,151 `.ts`/`.tsx`/`.js`/`.mjs` files / 9,943,356 bytes, and the legacy compiler boundary contains 692 production `.ts` files / 5,580,713 bytes.
+- `order-authority-guard.spec.ts` reread the 630-file inventory four times and parsed every source into a TypeScript AST twice. `delivery-input-writer-coverage.spec.ts` rebuilt the same inventory twice, and the legacy compiler boundary rebuilt/read its inventory once per queried compiler token. The remaining whole-repository guards each maintained a duplicate recursive walker and uncached source reads.
+- Equivalent whole-repository families were the five named guards plus `production-qa-escape-hatches.spec.ts` and `legacy-visual-contract-authoring-boundary.spec.ts`. Other recursive specs scan bounded migrations, story banks, temporary fixtures, or output subtrees and did not share the proven contention mechanism.
+
+### Implementation and preserved guard semantics
+
+- New test-only helper `lib/__tests__/helpers/repository-source-inventory.ts` lazily builds one immutable source snapshot per spec/worker. Each caller supplies its original roots, extensions, dot-entry behavior, directory exclusions, spec-file exclusions, and symlink-following behavior; root order, filesystem traversal order, normalized POSIX-relative paths, source bytes, and detector failure formatting remain unchanged.
+- Delivery and legacy guards now reuse their inventory across repository assertions/token queries. The order-authority guard also parses each repository source once and shares that AST only between its two repository detectors.
+- Fixture-only detector calls still build fresh ASTs from their supplied source. All existing positive controls remain, and explicit inventory non-vacuity assertions pin the sanctioned funnel, safety writer/release files, and production-QA guard inside their configured inventories.
+- A named `STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS = 15_000` is attached only to assertions that legitimately traverse hundreds of repository files. No global/Vitest timeout, blanket timeout, retry, warning, skip, suite serialization, detector allowance, or guard weakening was added.
+
+### Validation and fail-closed result
+
+- Direct local `node node_modules/typescript/lib/tsc.js --noEmit`: **PASS**.
+- Focused scanner and positive-control validation: **7 files / 29 tests PASS** in 3.80 seconds. The heaviest scanner assertions completed in 1.7–2.5 seconds.
+- The one permitted literal `npm run check` ran once. TypeScript passed. Vitest had no scanner timeout, but exited `1` with seven failures: the established six absent ignored-output fixture failures in five files plus one additional default-5-second timeout in `canonical-live-authoring-boundary.spec.ts` at the exhaustive top-level-request-scalar rejection test.
+- The established fixture files remain `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and two `story-read-back-validation.spec.ts` cases. No ignored fixture was copied, imported, or fabricated.
+- Because the full check produced an additional non-scanner failure, the explicit boundary stopped the milestone. The full check was not rerun, and the unrelated canonical boundary test was not changed or reclassified.
+
+### Gate and next action
+
+- R1D-FULL-SUITE-STRUCTURAL-SCANNER-STABILITY is **HOLD** despite focused-green scanner behavior because the exact full-suite success criterion was not met. The implementation candidate requires independent read-only Claude Code review; Codex does not self-award PASS.
+- No further timeout change, validation rerun, canonical-boundary correction, B0 action, preflight, credential/provider/live action, or push is authorized without a new explicit Guy ruling.
+- Credential access, pricing/network/provider/model calls, live authoring, render/Vision, storage/database/Supabase, Board, Semantic Reconciliation, approval/Blueprint/publication/promotion, production activation, deployment, push, and spend were all zero.
 
 ## R1D-PVB-D1A1B1-ATTEMPT-3-READINESS — Isolated local readiness
 

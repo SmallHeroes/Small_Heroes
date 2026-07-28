@@ -3,6 +3,10 @@ import fs from 'fs';
 import path from 'path';
 
 import { describe, expect, it } from 'vitest';
+import {
+  createRepositorySourceInventory,
+  STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS,
+} from '../../__tests__/helpers/repository-source-inventory';
 
 const REPO = process.cwd();
 const TSX = path.join(
@@ -23,42 +27,19 @@ function source(relativePath: string): string {
   return fs.readFileSync(path.join(REPO, relativePath), 'utf8');
 }
 
-function productionTypeScriptFiles(
-  relativeRoot: string,
-): string[] {
-  const absoluteRoot = path.join(REPO, relativeRoot);
-  const out: string[] = [];
-  const visit = (directory: string): void => {
-    for (const entry of fs.readdirSync(directory, {
-      withFileTypes: true,
-    })) {
-      const absolute = path.join(directory, entry.name);
-      if (entry.isDirectory()) {
-        if (entry.name !== '__tests__') visit(absolute);
-      } else if (
-        entry.isFile() &&
-        entry.name.endsWith('.ts') &&
-        !entry.name.endsWith('.spec.ts')
-      ) {
-        out.push(
-          path
-            .relative(REPO, absolute)
-            .split(path.sep)
-            .join('/'),
-        );
-      }
-    }
-  };
-  visit(absoluteRoot);
-  return out;
-}
+const repositorySources = createRepositorySourceInventory({
+  root: REPO,
+  roots: ['lib', 'scripts'],
+  extensions: ['.ts'],
+  excludedDirectoryNames: ['__tests__'],
+  excludedFileSuffixes: ['.spec.ts'],
+  followDirectorySymlinks: false,
+});
 
 function callersOf(token: string): string[] {
-  return [
-    ...productionTypeScriptFiles('lib'),
-    ...productionTypeScriptFiles('scripts'),
-  ]
-    .filter((file) => source(file).includes(token))
+  return repositorySources()
+    .filter(({ text }) => text.includes(token))
+    .map(({ relative }) => relative)
     .sort();
 }
 
@@ -142,7 +123,7 @@ describe('legacy Visual Contract authoring boundary', () => {
     expect(
       source('scripts/compile-visual-contract-templates.ts'),
     ).toContain('--fixture-draft');
-  });
+  }, STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS);
 
   it.each([
     {

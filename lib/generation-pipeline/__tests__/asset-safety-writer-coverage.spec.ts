@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { readdirSync, readFileSync, statSync } from 'fs';
+import { readFileSync } from 'fs';
 import path from 'path';
 import * as ts from 'typescript';
+import {
+  createRepositorySourceInventory,
+  STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS,
+} from '../../__tests__/helpers/repository-source-inventory';
 
 /**
  * (release shape C — the structural guard) The LAST line of defense before an unsafe image ships is the per-asset
@@ -39,17 +43,13 @@ interface Violation {
   model: string;
   fields: string[];
 }
-
-function walk(dir: string, acc: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    if (entry === 'node_modules' || entry === '__tests__' || entry.startsWith('.')) continue;
-    const full = path.join(dir, entry);
-    const stat = statSync(full);
-    if (stat.isDirectory()) walk(full, acc);
-    else if (entry.endsWith('.ts')) acc.push(full);
-  }
-  return acc;
-}
+const repositorySources = createRepositorySourceInventory({
+  root: ROOT,
+  roots: ['app', 'lib', 'backend'],
+  extensions: ['.ts'],
+  excludedEntryNames: ['node_modules', '__tests__'],
+  excludeDotEntries: true,
+});
 
 function nameText(name: ts.PropertyName | undefined): string | null {
   if (!name) return null;
@@ -142,14 +142,16 @@ function isSanctionedShaBind(v: Violation): boolean {
 
 describe('asset safety-signal writer coverage — the detector finding flows ONLY through the field-builders', () => {
   it('no ImageAsset/GeneratedBook write sets a safety-signal column inline (must spread imageAssetSafetyFields/coverSafetyFields)', () => {
-    const violations = ['app', 'lib', 'backend'].flatMap((dir) =>
-      walk(path.join(ROOT, dir)).flatMap((file) => {
-        const relative = path.relative(ROOT, file).split(path.sep).join('/');
-        return violationsFromSource(relative, readFileSync(file, 'utf8'));
-      }),
-    ).filter((v) => !isSanctionedShaBind(v));
+    const sources = repositorySources();
+    expect(
+      sources.some(({ relative }) => relative === 'lib/generation-pipeline/asset-safety-writer.ts'),
+      'asset-safety-writer.ts must be present in the repository inventory',
+    ).toBe(true);
+    const violations = sources
+      .flatMap(({ relative, text }) => violationsFromSource(relative, text))
+      .filter((v) => !isSanctionedShaBind(v));
     expect(violations.map((v) => `${v.relative}:${v.line} ${v.model} { ${v.fields.join(', ')} }`)).toEqual([]);
-  });
+  }, STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS);
 
   it('the render sites route the safety signal through the field-builders', () => {
     for (const rel of ['lib/generation-pipeline/chunk-runner.ts', 'lib/single-page-image-regen.ts']) {

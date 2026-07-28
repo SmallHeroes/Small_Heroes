@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { readdirSync, readFileSync, statSync } from 'fs';
+import { readFileSync } from 'fs';
 import path from 'path';
+import {
+  createRepositorySourceInventory,
+  STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS,
+} from '../../__tests__/helpers/repository-source-inventory';
 
 /**
  * (release-as-readiness-mode, 2a-2 — same discipline as the writer guard) The marker transition
@@ -16,29 +20,30 @@ const ALLOWED = new Set([
   'lib/generation-pipeline/order-authority.ts', // definition + export
   'lib/generation-pipeline/safety-release.ts',  // the single caller (applyReleaseInTx)
 ]);
-
-function walk(dir: string, acc: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    if (entry === 'node_modules' || entry === '__tests__' || entry.startsWith('.')) continue;
-    const full = path.join(dir, entry);
-    if (statSync(full).isDirectory()) walk(full, acc);
-    else if (entry.endsWith('.ts')) acc.push(full);
-  }
-  return acc;
-}
+const repositorySources = createRepositorySourceInventory({
+  root: ROOT,
+  roots: ['app', 'lib', 'backend'],
+  extensions: ['.ts'],
+  excludedEntryNames: ['node_modules', '__tests__'],
+  excludeDotEntries: true,
+});
 
 describe('release marker transition — single caller enforced', () => {
   it('executeSafetyFalsePositiveReleaseTransition is referenced ONLY by its definition + the release mode', () => {
     const offenders: string[] = [];
-    for (const dir of ['app', 'lib', 'backend']) {
-      for (const file of walk(path.join(ROOT, dir))) {
-        const relative = path.relative(ROOT, file).split(path.sep).join('/');
-        if (ALLOWED.has(relative)) continue;
-        if (readFileSync(file, 'utf8').includes(FN)) offenders.push(relative);
-      }
+    const sources = repositorySources();
+    for (const allowed of ALLOWED) {
+      expect(
+        sources.some(({ relative }) => relative === allowed),
+        `${allowed} must be present in the repository inventory`,
+      ).toBe(true);
+    }
+    for (const { relative, text } of sources) {
+      if (ALLOWED.has(relative)) continue;
+      if (text.includes(FN)) offenders.push(relative);
     }
     expect(offenders).toEqual([]);
-  });
+  }, STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS);
 
   it('the sanctioned files DO reference it (the guard is not vacuous)', () => {
     for (const rel of ALLOWED) {

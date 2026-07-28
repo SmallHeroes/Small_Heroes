@@ -3,39 +3,39 @@ import path from 'path';
 import { describe, expect, it } from 'vitest';
 
 import { loadStoryFromBank } from '../../backend/providers/story-bank-loader';
+import {
+  createRepositorySourceInventory,
+  STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS,
+} from './helpers/repository-source-inventory';
 
 const ROOT = process.cwd();
 const DINI_BEDTIME = path.join(ROOT, 'story-bank', 'v3-approved', 'dragon_dini_bedtime.md');
-
-function listSourceFiles(dir: string, acc: string[] = []): string[] {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === '.next') continue;
-      listSourceFiles(full, acc);
-    } else if (/\.(ts|tsx|js|mjs)$/.test(entry.name)) {
-      acc.push(full);
-    }
-  }
-  return acc;
-}
+const repositorySources = createRepositorySourceInventory({
+  root: ROOT,
+  roots: ['.'],
+  extensions: ['.ts', '.tsx', '.js', '.mjs'],
+  excludedDirectoryNames: ['node_modules', '.git', '.next'],
+  followDirectorySymlinks: false,
+});
 
 describe('production QA escape-hatches', () => {
   it('skipPromptAudit is confined to qa-console + experiments scripts (not chunk-runner / app api)', () => {
     const hits: string[] = [];
-    for (const file of listSourceFiles(ROOT)) {
-      const rel = path.relative(ROOT, file).split(path.sep).join('/');
-      if (rel.startsWith('node_modules/')) continue;
-      const text = fs.readFileSync(file, 'utf8');
+    const sources = repositorySources();
+    expect(
+      sources.some(({ relative }) => relative === 'lib/__tests__/production-qa-escape-hatches.spec.ts'),
+      'the production source inventory must include this non-vacuity guard',
+    ).toBe(true);
+    for (const { relative, text } of sources) {
       if (!text.includes('skipPromptAudit')) continue;
       const allowed =
-        rel === 'lib/qa-console-run.ts' ||
-        rel.startsWith('scripts/experiments/') ||
-        rel === 'lib/__tests__/production-qa-escape-hatches.spec.ts';
-      if (!allowed) hits.push(rel);
+        relative === 'lib/qa-console-run.ts' ||
+        relative.startsWith('scripts/experiments/') ||
+        relative === 'lib/__tests__/production-qa-escape-hatches.spec.ts';
+      if (!allowed) hits.push(relative);
     }
     expect(hits).toEqual([]);
-  });
+  }, STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS);
 
   it('chunk-runner production path passes skipLlmPersonalization to loadStoryFromBank (bank chips, not LLM)', () => {
     const src = fs.readFileSync(

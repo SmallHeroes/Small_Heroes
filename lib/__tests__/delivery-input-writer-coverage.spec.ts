@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { readdirSync, readFileSync, statSync } from 'fs';
+import { readFileSync } from 'fs';
 import path from 'path';
 import * as ts from 'typescript';
+import {
+  createRepositorySourceInventory,
+  STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS,
+} from './helpers/repository-source-inventory';
 
 const ROOT = process.cwd();
 const MODEL_NAMES = new Set(['generatedBook', 'bookPage', 'imageAsset', 'order']);
@@ -39,17 +43,13 @@ interface DelegateAlias {
   model: string;
   client: string | null;
 }
-
-function walk(dir: string, acc: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    if (entry === 'node_modules' || entry === '__tests__' || entry.startsWith('.')) continue;
-    const full = path.join(dir, entry);
-    const stat = statSync(full);
-    if (stat.isDirectory()) walk(full, acc);
-    else if (entry.endsWith('.ts')) acc.push(full);
-  }
-  return acc;
-}
+const repositorySources = createRepositorySourceInventory({
+  root: ROOT,
+  roots: ['app', 'lib', 'backend'],
+  extensions: ['.ts'],
+  excludedEntryNames: ['node_modules', '__tests__'],
+  excludeDotEntries: true,
+});
 
 function source(relative: string): string {
   return readFileSync(path.join(ROOT, relative), 'utf8');
@@ -255,9 +255,9 @@ function isSanctionedSafetyWriterWrite(site: WriterSite): boolean {
   return false;
 }
 
-function hasFlagOnDevWriteGuard(relative: string): boolean {
+function hasFlagOnDevWriteGuard(relative: string, cachedText?: string): boolean {
   if (!relative.startsWith('app/api/dev/')) return false;
-  const text = source(relative);
+  const text = cachedText ?? source(relative);
   return (
     text.includes('isReadinessManifestEnabled() && !packageDryRun') &&
     text.includes('Story-bank generation is unavailable while readiness enforcement is enabled')
@@ -282,11 +282,10 @@ describe('P1-f #5 delivery-input writer coverage', () => {
   });
 
   it('has no unprotected model writer, including tx/aliases/destructuring and guarded dev routes', () => {
-    const sites = ['app', 'lib', 'backend'].flatMap((dir) =>
-      walk(path.join(ROOT, dir)).flatMap((file) => {
-        const relative = path.relative(ROOT, file).split(path.sep).join('/');
-        return writerSitesFromSource(relative, readFileSync(file, 'utf8'));
-      }),
+    const sources = repositorySources();
+    const sourceByRelative = new Map(sources.map((entry) => [entry.relative, entry.text]));
+    const sites = sources.flatMap(({ relative, text }) =>
+      writerSitesFromSource(relative, text),
     );
 
     const unsafe = sites.filter(
@@ -298,7 +297,7 @@ describe('P1-f #5 delivery-input writer coverage', () => {
         !isReadinessCommitOrderStateWrite(site) &&
         !isExplicitReconciliationFulfillmentRoll(site) &&
         !isSanctionedSafetyWriterWrite(site) &&
-        !hasFlagOnDevWriteGuard(site.relative),
+        !hasFlagOnDevWriteGuard(site.relative, sourceByRelative.get(site.relative)),
     );
     expect(
       unsafe.map((site) => `${site.relative}:${site.line} ${site.model}.${site.method}`),
@@ -312,38 +311,34 @@ describe('P1-f #5 delivery-input writer coverage', () => {
       'app/api/dev/story-bank/route.ts',
     ]);
     expect(hasFlagOnDevWriteGuard('app/api/dev/story-bank/route.ts')).toBe(true);
-  });
+  }, STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS);
 
   it('has no raw SQL writer bypass for delivery-input tables', () => {
     const rawWrite =
       /\b(?:UPDATE|INSERT\s+INTO|DELETE\s+FROM)\s+(?:public\.)?["']?(GeneratedBook|BookPage|ImageAsset|Order)["']?/gi;
     const found: string[] = [];
-    for (const dir of ['app', 'lib', 'backend']) {
-      for (const file of walk(path.join(ROOT, dir))) {
-        const relative = path.relative(ROOT, file).split(path.sep).join('/');
-        const text = readFileSync(file, 'utf8');
-        for (const match of text.matchAll(rawWrite)) {
-          if (
-            match[1] === 'Order' &&
-            // (delivery fence — Codex round-4/5) The readiness ship-CAS, the anchor-release CAS, and the shared
-            // order-authority funnel use raw `UPDATE "Order"` because their WHERE needs a NOT EXISTS subquery / a
-            // fence+precedence CAS (delivery-AUTHORITY guards). They write only status/packageStatus/
-            // deliveryHoldReason/manualReviewRequired/deliveryFenceVersion — NEVER a delivery-INPUT field — so they
-            // are not a barrier bypass. This is the exhaustive allowlist for authority-only raw writes. (The
-            // dedicated bind+bump structural guard is order-authority-writer-guard.spec.ts.)
-            (relative === 'lib/generation-pipeline/readiness-manifest.ts' ||
-              relative === 'app/api/admin/anchor-hold-release/route.ts' ||
-              relative === 'lib/generation-pipeline/order-authority.ts')
-          ) {
-            continue;
-          }
-          const line = text.slice(0, match.index).split('\n').length;
-          found.push(`${relative}:${line} ${match[0]}`);
+    for (const { relative, text } of repositorySources()) {
+      for (const match of text.matchAll(rawWrite)) {
+        if (
+          match[1] === 'Order' &&
+          // (delivery fence — Codex round-4/5) The readiness ship-CAS, the anchor-release CAS, and the shared
+          // order-authority funnel use raw `UPDATE "Order"` because their WHERE needs a NOT EXISTS subquery / a
+          // fence+precedence CAS (delivery-AUTHORITY guards). They write only status/packageStatus/
+          // deliveryHoldReason/manualReviewRequired/deliveryFenceVersion — NEVER a delivery-INPUT field — so they
+          // are not a barrier bypass. This is the exhaustive allowlist for authority-only raw writes. (The
+          // dedicated bind+bump structural guard is order-authority-writer-guard.spec.ts.)
+          (relative === 'lib/generation-pipeline/readiness-manifest.ts' ||
+            relative === 'app/api/admin/anchor-hold-release/route.ts' ||
+            relative === 'lib/generation-pipeline/order-authority.ts')
+        ) {
+          continue;
         }
+        const line = text.slice(0, match.index).split('\n').length;
+        found.push(`${relative}:${line} ${match[0]}`);
       }
     }
     expect(found).toEqual([]);
-  });
+  }, STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS);
 
   it('the detector itself catches transaction clients and aliased/destructured delegates', () => {
     const fixture = `
