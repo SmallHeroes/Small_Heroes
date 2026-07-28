@@ -2,7 +2,37 @@
 
 **Updated:** 2026-07-28
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-live-authoring-attempt` in `C:\Users\guyna\.codex\worktrees\4a16\Small_Heroes`, based exactly on approved pushed Attempt 1 closeout head `eaa1f1b17afb954398ae1238ead10b9a7308509e`. This worktree is the sole writer for the documentation-only R1D-PVB-D1A1B1-ATTEMPT-2 precision correction. Dependency preparation and the one canonical preflight passed, but Attempt 2 remains exhausted at the first post-preflight B0 verification because Codex applied the wrong whole-artifact digest method and the explicit stop rule forbids a corrected rerun. No credential was inspected and no provider call or spend occurred. D1A1C and every unrelated worktree remain out of scope and read-only.
+**Working branch:** `codex/r1d-pvb-d1a1b1-live-authoring-attempt` in `C:\Users\guyna\.codex\worktrees\4a16\Small_Heroes`, starting from exact pushed head `6d29fc6e8e66b839e0d08ea7057fff7793f235bc`. This worktree is the sole writer for R1D-PVB-D1A1B1-ATTEMPT-3-READINESS. Its isolated offline dependency tree, local Prisma generation, direct TypeScript validation, and focused authoring tests succeeded, but the fail-closed readiness milestone stopped when the one full `npm run check` ended nonzero on the established ignored-output baseline plus one full-load timeout. No B0 input was copied or validated, canonical preflight was not run, no credential was inspected, and no provider call or spend occurred. Attempt 3 is not authorized; live remains HOLD.
+
+## R1D-PVB-D1A1B1-ATTEMPT-3-READINESS — Isolated local readiness
+
+Guy explicitly authorized a zero-cost readiness milestone in the same Task, branch, and worktree. This milestone could prepare an isolated dependency environment, generate the local Prisma client, validate through exact local entrypoints, and prepare/verify B0 inputs only while every preceding gate remained green. It explicitly excluded canonical authoring preflight, credentials, network, provider/live authoring, and every production or publication action.
+
+### Topology and isolated dependency preparation
+
+- The branch, worktree, `HEAD`, and local origin reconciled exactly at `6d29fc6e8e66b839e0d08ea7057fff7793f235bc`, clean and at `0/0` parity. Exactly one worktree owned the branch. Main and `feat/chunked-generation` retained their pre-existing user state; B0 and B1A remained clean read-only evidence sources.
+- Before removal, `node_modules` was proven to be a Windows `Junction` inside the live worktree with exact target `C:\GNart\Work\Small_Heroes\node_modules`. Only the junction entry was removed without recursive traversal. The real target remained present, and its TypeScript package SHA-256 remained unchanged at `9332e97c30d3e53ed54910b89207ed657fb444066484df6e5b6965bf130865e9`.
+- The one exact `npm ci --offline --ignore-scripts` exited `0` after a tool-reported 66.3 seconds, installed 200 packages, audited 201, and reported zero vulnerabilities. No script, alternate installer, dependency source, registry request, or network fallback was used.
+- The resulting local `node_modules` is a real non-reparse directory with its own `.bin`. `package.json` remained SHA-256 `19ac6d7a01d5ac8c8f4ff16d0d7b57c5781a125d2d3ec3af43b6983fff082f7d`; `package-lock.json` remained `bf7932428ac1bc2cb8885e83a21f231486f35ea36820381b7d1763a77ba03d59`.
+
+### Local generation and validation
+
+- The exact local Prisma entrypoint generated Prisma Client `6.19.3` from `backend/schema.prisma` in 335 ms with update/checkpoint messaging disabled. It exited `0` without database access.
+- The isolated launchers reported TypeScript `6.0.3` and Vitest `3.2.4`. Direct `node node_modules/typescript/lib/tsc.js --noEmit` exited `0`.
+- Focused authoring/readiness validation passed **7 files / 226 tests**, covering the canonical live boundary and launcher, B0 materialization, source authority, legacy fail-closed paths, production lifecycle, and Visual Contract compiler.
+- With the isolated `.bin` environment proven, literal `npm run check` ran once. Its TypeScript phase passed. Vitest exited `1` with seven failed tests in six files: the established six ignored-output fixture failures in five files plus one additional 5-second full-load timeout in `delivery-input-writer-coverage.spec.ts`.
+- The established fixture failures are `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and two `story-read-back-validation.spec.ts` cases. The extra timeout was not rerun or reclassified because the explicit readiness rule forbids a rerun after a boundary failure.
+
+### Stop boundary and evidence
+
+- Readiness stopped at the nonzero full check. None of the four approved B0 files was copied into the live worktree; their intended paths remain absent. No canonical B0 payload-domain verification, Story Source rebuild, cross-artifact validation, or canonical preflight ran.
+- Sanitized durable evidence is tracked at `docs/ai-workflow/R1D_PVB_D1A1B1_ATTEMPT_3_READINESS_EVIDENCE.md`. The isolated dependency tree, generated Prisma client, and any ordinary test scratch remain ignored local same-worktree QA state.
+- Credential reads or existence checks, pricing/docs lookup, provider/model calls, live authoring, render/Vision, storage/database/Supabase, Board, Semantic Reconciliation, approval/Blueprint/publication/promotion, production activation, deployment, push, and spend were all zero.
+
+### Gate and next action
+
+- R1D-PVB-D1A1B1-ATTEMPT-3-READINESS is **HOLD / stopped before B0 preparation and canonical preflight**. The canonical preflight authorization was not consumed, but this stopped readiness milestone grants no Attempt 3 authority.
+- No validation rerun, fixture import, B0 copy/preparation, corrected continuation, canonical preflight, credential gate, or live attempt is authorized. Independent Claude Code review and a new explicit Guy ruling are required. Codex does not self-award technical PASS.
 
 ## R1D-PVB-D1A1B1-ATTEMPT-2 — Second Canonical Live Authoring Attempt
 
