@@ -2,7 +2,35 @@
 
 **Updated:** 2026-07-28
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-live-authoring-attempt` in `C:\Users\guyna\.codex\worktrees\4a16\Small_Heroes`, based exactly on approved pushed B1A documentation head `6b31c531c9dc39d272845ab134064c405e9ac475`. This worktree is the sole writer for the authorized R1D-PVB-D1A1B1 first canonical live authoring attempt. The attempt is exhausted at its one allowed preflight because the fresh worktree could not resolve `tsx/cli`; no credential was inspected and no provider call or spend occurred. D1A1C and every unrelated worktree remain out of scope and read-only.
+**Working branch:** `codex/r1d-pvb-d1a1b1-live-authoring-attempt` in `C:\Users\guyna\.codex\worktrees\4a16\Small_Heroes`, based exactly on approved pushed Attempt 1 closeout head `eaa1f1b17afb954398ae1238ead10b9a7308509e`. This worktree is the sole writer for authorized R1D-PVB-D1A1B1-ATTEMPT-2. Dependency preparation and the one canonical preflight passed, but the attempt is exhausted at the first post-preflight B0 verification because Codex applied the wrong whole-artifact digest method and the explicit stop rule forbids a corrected rerun. No credential was inspected and no provider call or spend occurred. D1A1C and every unrelated worktree remain out of scope and read-only.
+
+## R1D-PVB-D1A1B1-ATTEMPT-2 — Second Canonical Live Authoring Attempt
+
+Guy explicitly authorized a second attempt in the same Task, branch, and worktree. The new authority separated local dependency preparation from the one canonical preflight/live authorization. Dependency preparation could be corrected only before canonical preflight; every failure after canonical preflight began required an immediate stop without correction, replay, or rerun.
+
+### Dependency preparation and canonical preflight
+
+- The live branch, worktree, `HEAD`, local tracking ref, and direct origin branch all reconciled exactly at `eaa1f1b17afb954398ae1238ead10b9a7308509e`, with a clean worktree and `0/0` parity. Only this worktree owned the branch. Main and `feat/chunked-generation` retained their pre-existing user state and were not touched.
+- Live and B1A `package.json` were both 2,069 bytes with independently recomputed SHA-256 `19ac6d7a01d5ac8c8f4ff16d0d7b57c5781a125d2d3ec3af43b6983fff082f7d`. Both `package-lock.json` files were 128,844 bytes with SHA-256 `bf7932428ac1bc2cb8885e83a21f231486f35ea36820381b7d1763a77ba03d59`.
+- `C:\GNart\Work\Small_Heroes\node_modules` was verified as a real, non-link directory. The live destination was absent, then created only as an ignored Windows `Junction`. Its exact target and resolved realpath are `C:\GNart\Work\Small_Heroes\node_modules`; its parent realpath remains the live worktree root. No npm install, package change, dependency-fetch network, or alternate dependency source was used.
+- Recursive read-only import mapping visited 73 local files with no unresolved local import. The first broad text scanner falsely classified two template-literal values, `${from}` and `${previousZone}`, as package names; exact follow-up proved they are ordinary validation/story strings. The actual external graph resolved `tsx/cli`, `openai`, `openai/resources/responses/responses`, and `server-only`; OpenAI modules loaded locally, the repository preload redirected `server-only` to the exact local shim, and `tsx v4.22.2` started under Node `v22.19.0`.
+- The one bare command `node scripts/visual-contract-authoring.cjs preflight` ran exactly once with no credential loading, `NODE_OPTIONS`, test sentinel, wrapper, launcher substitution, or extra argument. It exited `0` after a tool-reported 2.5 seconds and printed the exact import preflight PASS for the adapter factory, request-body builder, canonical live runner, `OPENAI_API_KEY` label, and `openai-responses-authoring-evidence/v2` label.
+- Attempt 2 reused the documented 2026-07-28 official pricing/model authority. No second documentation or pricing network lookup occurred.
+
+### Post-preflight B0 verification failure
+
+- Post-preflight topology remained exact, clean, and at origin parity. The four approved B0 source artifacts existed within the clean read-only B0 worktree. Their byte counts/raw SHA-256 values were: source-authority request 349 / `842f19e26ea36ba7dfbb4194e7262c9b9ea2791bbd8c31f0daf20baf82047dba`; snapshot 29,125 / `bdedc40c645c949bece8278ecf45e515e242eb957d1e85b9882605628216def0`; live request 2,432 / `73289fcf62fd339aa2fb8a69100fa83333025d4dbc706875ed451b35db0aa505`; manifest 3,306 / `2d067f016fdeaab2aa8a6929a92552c53d778cbcf19fdcab7e9ad21d846c9ea8`.
+- Codex then incorrectly compared each approved filename digest with the canonical hash of the entire parsed artifact, including its `digestAlgorithm` and `digest` fields. All four comparisons failed. Read-only source inspection afterward established that the repository's domain contracts intentionally compute each artifact's digest from its payload **without** those two self-describing fields, so the failed check did not prove any B0 artifact invalid.
+- Because that verification-method failure occurred after canonical preflight began, the explicit Attempt 2 stop rule forbids a corrected validator run, artifact copy, credential gate, or live invocation. The approved B0 artifacts were not copied or mutated, and the live output root was never created.
+- Credential reads, existence checks, parsing, injection, key creation, and picker actions were all zero. Application provider calls, semantic repairs, and transport retries were `0`; nominal and conservative cost were both `$0.00`. No response ID, provider usage, receipt, readiness evidence, candidate, rejected request, raw prompt/response, invalid draft, exception artifact, or billing evidence exists.
+- The bare preflight did not materialize exact start/end timestamps; only exit `0` and tool-reported elapsed time are available. There is no post-provider evidence gap because provider reachability never occurred.
+- Post-failure `git diff --check` passed. `npx --no-install tsc --noEmit` exited `1` because the approved dependency directory contains the live launcher dependencies but not the TypeScript compiler. No install or alternate dependency source was authorized.
+
+### Gate and next action
+
+- R1D-PVB-D1A1B1-ATTEMPT-2 is **HOLD / attempt exhausted** before credential and provider reachability. No second Attempt 2 preflight, corrected post-preflight verification, artifact copy, or live invocation is authorized.
+- The sole ignored junction remains local for same-worktree review. No source code, schema, test, config, package, request, pricing, Story Source, B0 evidence, render, Vision, audio, storage/database/Supabase, Board, Semantic Reconciliation, Blueprint, approval/publication/promotion, production flag, deployment, or push was changed or invoked.
+- This documentation-only closeout requires independent Claude Code review. Codex does not self-award technical PASS. Any future action requires Guy's new explicit ruling.
 
 ## R1D-PVB-D1A1B1 — First Canonical Live Authoring Attempt
 
