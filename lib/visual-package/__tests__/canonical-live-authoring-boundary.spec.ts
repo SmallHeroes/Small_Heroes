@@ -50,6 +50,7 @@ import {
 import {
   createGuardedOpenAIResponsesAuthoringFetch,
   createOpenAIResponsesVisualContractAuthoringAdapter,
+  mapOpenAIResponsesAuthoringResponse,
   openAIResponsesAuthoringTransport,
   buildOpenAIResponsesVisualContractAuthoringBody,
   type OpenAIResponsesAuthoringTransport,
@@ -70,6 +71,8 @@ const FAKE_CREDENTIAL =
   'TEST_ONLY_FAKE_OPENAI_CREDENTIAL_MUST_NOT_PERSIST';
 const RAW_PROVIDER_ERROR =
   'RAW_PROVIDER_EXCEPTION_MUST_NOT_PERSIST';
+const RAW_INVALID_USAGE_VALUE =
+  'RAW_INVALID_USAGE_VALUE_MUST_NOT_PERSIST';
 const LAUNCHER = path.join(
   process.cwd(),
   'scripts',
@@ -238,6 +241,7 @@ function responseFor(
       input_tokens: 1_000,
       input_tokens_details: {
         cached_tokens: 200,
+        cache_write_tokens: 0,
       },
       output_tokens: 2_000,
       output_tokens_details: {
@@ -392,9 +396,14 @@ describe('canonical OpenAI Responses authoring adapter', () => {
       snapshot: fixture.snapshot,
       provider: adapter.provider,
       requiredMode: 'live',
+      requiredProviderEvidenceVersion:
+        OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
     });
 
     expect(result.receipt.status).toBe('completed');
+    expect(result.receipt.version).toBe(
+      'visual-contract-authoring-receipt/v3',
+    );
     expect(adapter.readCredential).toHaveBeenCalledTimes(1);
     expect(adapter.transportCreate).toHaveBeenCalledTimes(1);
     const transportRequest =
@@ -426,6 +435,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     expect(result.receipt.aggregateUsage).toEqual({
       inputTokens: 1_000,
       cachedInputTokens: 200,
+      cacheWriteInputTokens: 0,
       outputTokens: 2_000,
       reasoningTokens: 500,
       totalTokens: 3_000,
@@ -436,11 +446,57 @@ describe('canonical OpenAI Responses authoring adapter', () => {
       model: 'gpt-5.6-sol',
       providerEvidenceVersion:
         OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
+      usageEvidenceKind: 'canonical_provider_reported',
       completionStatus: 'completed',
       usageEvidenceComplete: true,
       status: 'response_received',
     });
   });
+
+  it.each([
+    {
+      label: 'zero cache write',
+      cacheWriteTokens: 0,
+    },
+    {
+      label: 'nonzero cache write',
+      cacheWriteTokens: 300,
+    },
+  ])(
+    'maps raw Responses usage with $label evidence',
+    ({ cacheWriteTokens }) => {
+      const mapped =
+        mapOpenAIResponsesAuthoringResponse({
+          id: 'resp_usage_fixture',
+          model: 'gpt-5.6-sol',
+          status: 'completed',
+          output_text: '{}',
+          usage: {
+            input_tokens: 1_000,
+            input_tokens_details: {
+              cached_tokens: 200,
+              cache_write_tokens: cacheWriteTokens,
+            },
+            output_tokens: 2_000,
+            output_tokens_details: {
+              reasoning_tokens: 500,
+            },
+            total_tokens: 3_000,
+          },
+        });
+      expect(mapped.receipt.usage).toEqual({
+        input_tokens: 1_000,
+        cached_input_tokens: 200,
+        cache_write_input_tokens: cacheWriteTokens,
+        output_tokens: 2_000,
+        reasoning_tokens: 500,
+        total_tokens: 3_000,
+      });
+      expect(
+        mapped.receipt.usageEvidenceComplete,
+      ).toBe(true);
+    },
+  );
 
   it('guards the final HTTPS Responses destination and refuses redirect or identity authority', async () => {
     const delegated = vi.fn(
@@ -640,6 +696,136 @@ describe('canonical OpenAI Responses authoring adapter', () => {
       {
         usage: {
           input_tokens: 1_000,
+          input_tokens_details: {
+            cache_write_tokens: 0,
+          },
+          output_tokens: 2_000,
+          output_tokens_details: {
+            reasoning_tokens: 500,
+          },
+          total_tokens: 3_000,
+        },
+      },
+      'usage_invalid',
+    ],
+    [
+      'missing cache-write usage',
+      {
+        usage: {
+          input_tokens: 1_000,
+          input_tokens_details: {
+            cached_tokens: 0,
+          },
+          output_tokens: 2_000,
+          output_tokens_details: {
+            reasoning_tokens: 500,
+          },
+          total_tokens: 3_000,
+        },
+      },
+      'usage_invalid',
+    ],
+    [
+      'negative cache-write usage',
+      {
+        usage: {
+          input_tokens: 1_000,
+          input_tokens_details: {
+            cached_tokens: 0,
+            cache_write_tokens: -1,
+          },
+          output_tokens: 2_000,
+          output_tokens_details: {
+            reasoning_tokens: 500,
+          },
+          total_tokens: 3_000,
+        },
+      },
+      'usage_invalid',
+    ],
+    [
+      'fractional cache-write usage',
+      {
+        usage: {
+          input_tokens: 1_000,
+          input_tokens_details: {
+            cached_tokens: 0,
+            cache_write_tokens: 0.5,
+          },
+          output_tokens: 2_000,
+          output_tokens_details: {
+            reasoning_tokens: 500,
+          },
+          total_tokens: 3_000,
+        },
+      },
+      'usage_invalid',
+    ],
+    [
+      'non-finite cache-write usage',
+      {
+        usage: {
+          input_tokens: 1_000,
+          input_tokens_details: {
+            cached_tokens: 0,
+            cache_write_tokens:
+              Number.POSITIVE_INFINITY,
+          },
+          output_tokens: 2_000,
+          output_tokens_details: {
+            reasoning_tokens: 500,
+          },
+          total_tokens: 3_000,
+        },
+      },
+      'usage_invalid',
+    ],
+    [
+      'unsafe cache-write usage',
+      {
+        usage: {
+          input_tokens: 1_000,
+          input_tokens_details: {
+            cached_tokens: 0,
+            cache_write_tokens:
+              Number.MAX_SAFE_INTEGER + 1,
+          },
+          output_tokens: 2_000,
+          output_tokens_details: {
+            reasoning_tokens: 500,
+          },
+          total_tokens: 3_000,
+        },
+      },
+      'usage_invalid',
+    ],
+    [
+      'wrong-type cache-write usage',
+      {
+        usage: {
+          input_tokens: 1_000,
+          input_tokens_details: {
+            cached_tokens: 0,
+            cache_write_tokens: RAW_INVALID_USAGE_VALUE,
+          },
+          output_tokens: 2_000,
+          output_tokens_details: {
+            reasoning_tokens: 500,
+          },
+          total_tokens: 3_000,
+        },
+      },
+      'usage_invalid',
+    ],
+    [
+      'inconsistent cached-read/cache-write partition',
+      {
+        usage: {
+          input_tokens: 1_000,
+          input_tokens_details: {
+            cached_tokens: 600,
+            cache_write_tokens: 401,
+          },
           output_tokens: 2_000,
           output_tokens_details: {
             reasoning_tokens: 500,
@@ -654,7 +840,10 @@ describe('canonical OpenAI Responses authoring adapter', () => {
       {
         usage: {
           input_tokens: 1_000,
-          input_tokens_details: { cached_tokens: 0 },
+          input_tokens_details: {
+            cached_tokens: 0,
+            cache_write_tokens: 0,
+          },
           output_tokens: 2_000,
           output_tokens_details: {
             reasoning_tokens: 'five hundred',
@@ -669,7 +858,10 @@ describe('canonical OpenAI Responses authoring adapter', () => {
       {
         usage: {
           input_tokens: 1_000,
-          input_tokens_details: { cached_tokens: 0 },
+          input_tokens_details: {
+            cached_tokens: 0,
+            cache_write_tokens: 0,
+          },
           output_tokens: 2_000,
           output_tokens_details: {
             reasoning_tokens: 500,
@@ -684,7 +876,10 @@ describe('canonical OpenAI Responses authoring adapter', () => {
       {
         usage: {
           input_tokens: 64_001,
-          input_tokens_details: { cached_tokens: 0 },
+          input_tokens_details: {
+            cached_tokens: 0,
+            cache_write_tokens: 0,
+          },
           output_tokens: 2_000,
           output_tokens_details: {
             reasoning_tokens: 500,
@@ -699,7 +894,10 @@ describe('canonical OpenAI Responses authoring adapter', () => {
       {
         usage: {
           input_tokens: 1_000,
-          input_tokens_details: { cached_tokens: 0 },
+          input_tokens_details: {
+            cached_tokens: 0,
+            cache_write_tokens: 0,
+          },
           output_tokens: 36_001,
           output_tokens_details: {
             reasoning_tokens: 500,
@@ -762,8 +960,12 @@ describe('canonical OpenAI Responses authoring adapter', () => {
         expectedCode,
       );
       expect(result.receipt.callCount).toBe(1);
+      expect(result.compileResult).toBeNull();
       expect(JSON.stringify(result.receipt)).not.toMatch(
         /output_text|"systemPrompt":|"userPrompt":|apiKey|Bearer/i,
+      );
+      expect(JSON.stringify(result.receipt)).not.toContain(
+        RAW_INVALID_USAGE_VALUE,
       );
     },
   );
@@ -810,6 +1012,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
             usage: {
               input_tokens: 10,
               cached_input_tokens: 0,
+              cache_write_input_tokens: 0,
               output_tokens: 20,
               reasoning_tokens: 5,
               total_tokens: 30,
@@ -817,7 +1020,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
             ...(brandKind === 'wrong'
               ? {
                   evidenceVersion:
-                    'wrong-provider-evidence/v1',
+                    'openai-responses-authoring-evidence/v1',
                 }
               : {}),
             completionStatus: 'completed',
@@ -840,6 +1043,14 @@ describe('canonical OpenAI Responses authoring adapter', () => {
       expect(
         result.receipt.attempts[0]?.validationErrors,
       ).toContain('provider_evidence_version_mismatch');
+      if (brandKind === 'wrong') {
+        expect(
+          result.receipt.attempts[0]
+            ?.providerEvidenceVersion,
+        ).toBe(
+          'openai-responses-authoring-evidence/v1',
+        );
+      }
     },
   );
 
@@ -1758,6 +1969,7 @@ describe('canonical live authoring executable boundary', () => {
           usage: {
             input_tokens: 10,
             cached_input_tokens: 0,
+            cache_write_input_tokens: 0,
             output_tokens: 20,
             reasoning_tokens: 5,
             total_tokens: 30,
@@ -1826,6 +2038,83 @@ describe('canonical live authoring executable boundary', () => {
       });
     },
   );
+
+  it('aggregates disjoint cached-read, cache-write, and ordinary input partitions with exact nominal cost across repair attempts', async () => {
+    const fixture = createLiveFixture(
+      'partitioned-repair-cost',
+    );
+    const valid = fullyActionedDraft(fixture.snapshot);
+    const invalid = structuredClone(valid);
+    invalid.recurringProps[0].material = '';
+    const adapter = fakeAdapter({
+      responses: [
+        responseFor(invalid, {
+          usage: {
+            input_tokens: 1_000,
+            input_tokens_details: {
+              cached_tokens: 200,
+              cache_write_tokens: 300,
+            },
+            output_tokens: 2_000,
+            output_tokens_details: {
+              reasoning_tokens: 500,
+            },
+            total_tokens: 3_000,
+          },
+        }),
+        responseFor(valid, {
+          usage: {
+            input_tokens: 1_200,
+            input_tokens_details: {
+              cached_tokens: 100,
+              cache_write_tokens: 400,
+            },
+            output_tokens: 1_000,
+            output_tokens_details: {
+              reasoning_tokens: 250,
+            },
+            total_tokens: 2_200,
+          },
+        }),
+      ],
+    });
+
+    const result =
+      await runCanonicalLiveVisualContractAuthoring(
+        fixtureInput(fixture),
+        { provider: adapter.provider },
+      );
+
+    expect(result.status).toBe('completed');
+    expect(result.receipt.callCount).toBe(2);
+    expect(result.receipt.aggregateUsage).toEqual({
+      inputTokens: 2_200,
+      cachedInputTokens: 300,
+      cacheWriteInputTokens: 700,
+      outputTokens: 3_000,
+      reasoningTokens: 750,
+      totalTokens: 5_200,
+    });
+    expect(
+      result.receipt.attempts.map(
+        (attempt) => attempt.nominalEstimatedCostUsd,
+      ),
+    ).toEqual([0.064475, 0.03605]);
+    expect(result.receipt.nominalEstimatedCostUsd).toBe(
+      0.100525,
+    );
+    expect(
+      result.receipt.conservativeAccountedCostUsd,
+    ).toBe(0.114125);
+    expect(
+      result.receipt.attempts.every(
+        (attempt) =>
+          attempt.usageEvidenceKind ===
+          'canonical_provider_reported',
+      ),
+    ).toBe(true);
+    expect(result.persistence.candidate).not.toBeNull();
+  });
 
   it('fails after exactly two semantic repairs and persists no candidate', async () => {
     const fixture = createLiveFixture('repair-exhaustion');

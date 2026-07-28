@@ -1,6 +1,6 @@
 # R1D-PVB-D1A1 — Canonical Live Authoring Decision Gate
 
-**Status:** D1A1A is independently PASSed and frozen in approved pushed base `29350ec18b10a0d0150412912f2cff134c38430a`. Claude Code independently PASSed zero-cost D1A1B0 exact range `29350ec18b10a0d0150412912f2cff134c38430a..e904dbe37e45dde9181bc8b70322073dc240c9d4` with no BLOCKER, MAJOR, or MINOR. The B0 implementation and faithful verdict closeout remain local and unpushed.
+**Status:** D1A1A is independently PASSed and frozen in approved pushed base `29350ec18b10a0d0150412912f2cff134c38430a`. Claude Code independently PASSed zero-cost D1A1B0 exact range `29350ec18b10a0d0150412912f2cff134c38430a..e904dbe37e45dde9181bc8b70322073dc240c9d4` with no BLOCKER, MAJOR, or MINOR. Approved B0 head `94f9eb645d8da6197a17c3b06f39f00027a595dc` is pushed and verified at local remote-tracking parity `0/0`. Guy later authorized D1A1B1; its live attempt is on HOLD until zero-cost corrective milestone R1D-PVB-D1A1B1A receives independent Claude Code PASS.
 **Immutable base:** `031bcb6aa08d4a9ee7cf527bb051970efc3e96d1`
 **Implementation branch:** `codex/r1d-pvb-d1a1a-live-authoring-boundary`
 **D1A1B0 immutable base:** `29350ec18b10a0d0150412912f2cff134c38430a`
@@ -8,7 +8,10 @@
 **D1A1A approved cost boundary:** exactly zero provider, model, LLM, image, Vision, network, storage, database, or Board calls
 **D1A1A observed execution:** zero spend and zero provider/model/LLM/image/Vision/storage/database/Board calls; one unauthorized read-only Git remote probe during residual final topology, disclosed below
 **D1A1B0 status:** independently PASSed as local materialization only; zero credential, pricing, provider, network, candidate, or downstream authority; no code correction or additional QA round is required for the faithful verdict transcription
-**D1A1B1 status:** not authorized; future one-invocation live authoring milestone only after separate official price verification and Guy spend approval
+**D1A1B1 status:** authorized historically, live attempt on HOLD pending independent PASS for R1D-PVB-D1A1B1A
+**D1A1B1A immutable base:** `94f9eb645d8da6197a17c3b06f39f00027a595dc`
+**D1A1B1A implementation branch:** `codex/r1d-pvb-d1a1b1a-provider-usage-evidence`
+**D1A1B1A cost boundary:** exactly zero provider/model/network/image/Vision/storage/database/Board calls and no credential or env-file access
 **D1A1C status:** not authorized; future local semantic review/approval milestone only after a successful D1A1B1 artifact and Guy inspection
 
 ## 1. Proposed change
@@ -110,7 +113,37 @@ The independent PASS retained three advisory NOTES:
 
 These are scoped non-blocking limitations, not portability or host-compatibility claims. The QA execution itself was local and read-only and did not edit, commit, push, use network, check/load credentials, perform pricing lookup, contact a provider, or run the future live command.
 
-B0 performed zero pricing lookup, credential read or existence check, provider/model/network call, live authoring, candidate creation, render/Vision, storage/database, Board, reconciliation, approval, Blueprint, package/publication/promotion, production/deployment, push, or spend. D1A1B1 and D1A1C remain unauthorized.
+B0 performed zero pricing lookup, credential read or existence check, provider/model/network call, live authoring, candidate creation, render/Vision, storage/database, Board, reconciliation, approval, Blueprint, package/publication/promotion, production/deployment, push, or spend. D1A1B1 and D1A1C were unauthorized at B0 closeout; the later D1A1B1 authority and current corrective HOLD are recorded above.
+
+## 1D. R1D-PVB-D1A1B1A — Provider Usage Evidence Hardening
+
+Guy approved this zero-cost corrective milestone and all nine decisions below after the D1A1B1 live attempt exposed a response-evidence gap. The approved point-in-time authority is:
+
+- GPT-5.6 Responses usage contains `usage.input_tokens_details.cached_tokens` and `cache_write_tokens`;
+- cache-write input is billed at `$6.25/M`, ordinary input at `$5/M`, cached reads at `$0.50/M`, and output at `$30/M`; and
+- the existing conservative `$4.884` reservation remains safe under the `$5.00` hard ceiling.
+
+No new pricing/docs/network lookup is permitted. Installed SDK typings may lag the runtime field, so the already-unknown raw response is the parsing boundary and no dependency upgrade is authorized.
+
+### Approved decisions
+
+1. **Generality:** harden the shared response-evidence system for every Story Source. No story, child, companion, family, page, prop, location, reveal, or calibration special case may enter production code.
+2. **Raw runtime mapping:** preserve both cached-read and cache-write input counts from the raw unknown Responses value. SDK typings are not response authority and do not justify a dependency change.
+3. **Honest versioning:** bump canonical Responses evidence and durable receipt schema. Existing versioned evidence or receipts are not reinterpreted in place.
+4. **Fail-closed canonical completeness:** missing, negative, fractional, non-finite, unsafe, wrong-type, overflowing, or otherwise malformed cache-write evidence stops before candidate readiness and persists only sanitized failure evidence.
+5. **Disjoint partition invariant:** require `cachedInputTokens + cacheWriteInputTokens <= inputTokens`; ordinary uncached input is the exact remainder. Reasoning remains bounded by output, and total remains exact input plus output.
+6. **Exact nominal and unchanged conservative accounting:** nominal cost prices the three input partitions and output separately. Conservative accounting, maximum reservation `$4.884`, hard ceiling `$5.00`, three-call maximum, two-repair maximum, and zero transport retries do not change.
+7. **Explicit legacy compatibility:** older unbranded D1A0/injected adapters may retain the historical missing-cache-write zero default only on an explicitly identified legacy compatibility path. Missing, old, or wrong brands cannot satisfy the canonical live requirement.
+8. **Authority preservation:** B0 source snapshot, live request, pricing, prompt/schema authority, manifest, and canonical digests remain unchanged. Any request-bound digest change stops the milestone rather than rematerializing authority.
+9. **Separation and QA:** preserve response identity/model/status evidence, sanitization, containment, write ordering, candidate-only status, downstream separation, and zero-cost scope. The held live attempt cannot resume until a focused local commit receives independent Claude Code PASS.
+
+### Validation, rollback, and exclusions
+
+Focused tests must cover raw zero/nonzero cache writes, all invalid cache-write classes, the cached-read/cache-write/ordinary partition, exact per-attempt and aggregate repair cost, explicit legacy compatibility, old-brand rejection, call/reservation ceilings, sanitized receipts, and no candidate on invalid evidence. Existing canonical boundary, B0 materialization, D1A0 lifecycle, source authority, compiler, retry, launcher/preflight, and production lifecycle suites must remain green.
+
+Run focused tests, `npx --no-install tsc --noEmit`, literal `npm run check`, `git diff --check`, shared calibration-literal and boundary scans, read-only B0 digest comparison, and final topology reconciliation. Rollback is a normal revert of the focused local commit; there is no external state or migration.
+
+This milestone authorizes no credential/env-file read, pricing/docs lookup, network/fetch, provider/model call, live authoring, render/image/audio/Vision call, storage/database/Supabase/Board action, Semantic Reconciliation, approval, package publication/promotion, production activation, deployment, or push.
 
 ## 2. Why now?
 
@@ -233,6 +266,8 @@ Claude Code residual re-gate is read-only. It must inspect residual range `925a3
 
 The later D1A1B0 first-pass review is complete for exact range `29350ec18b10a0d0150412912f2cff134c38430a..e904dbe37e45dde9181bc8b70322073dc240c9d4` and returned PASS with only the three advisory NOTES recorded in §1C. No additional Claude QA round is required if the documentation-only closeout faithfully records that external verdict. This closes B0 technical QA only and does not authorize D1A1B1, D1A1C, live execution, spend, product/visual acceptance, push, deployment, or production.
 
+R1D-PVB-D1A1B1A requires a new read-only Claude Code first pass over `94f9eb645d8da6197a17c3b06f39f00027a595dc..final-head`. The reviewer must try to falsify raw cache-write mapping; every invalid numeric/type/overflow case; the disjoint input partition; exact nominal and aggregate repair cost; unchanged conservative reservation/call/ceiling values; receipt/evidence version honesty; old-brand and unbranded legacy behavior; sanitization; no-candidate failure ordering; unchanged B0 request-bound digests; and absence of shared calibration literals or downstream authority.
+
 Claude Cowork review is not required for this technical zero-cost boundary. Guy will inspect the future D1A1B1 semantic artifact before D1A1C.
 
 ## 11. Do not do
@@ -259,3 +294,15 @@ Claude Cowork review is not required for this technical zero-cost boundary. Guy 
 7. Claude Code target: bypasses, early credential/provider reachability, complete evidence, bounded cost/calls, secret safety, immutable artifacts, and downstream separation.
 8. Claude Cowork question: **none for D1A1A**.
 9. Guy eyeball: **the future real D1A1B1 candidate and its separate reconciliation/review surfaces, not D1A1A/B0 synthetic or calibration fixtures**.
+
+### R1D-PVB-D1A1B1A stop-check addendum
+
+1. General system fix: **yes**, canonical response-usage evidence for every Story Source.
+2. Cross-story risk: **yes**, constrained to shared provider evidence/receipts with general fixtures and no Story Source branching.
+3. Production behavior affected: **future canonical offline authoring response validation only**; request construction, Story Sources, runtime rendering, and production activation remain unchanged.
+4. Spend: **none**.
+5. Smallest validation: raw synthetic Responses fixtures, focused lifecycle/cost/legacy tests, existing sentineled subprocess suites, and read-only B0 digest reconstruction.
+6. Remaining Guy decision before implementation: **none; all nine corrective decisions are approved**.
+7. Claude Code target: **missing/malformed cache-write bypasses, partition and rounding errors, dishonest version compatibility, legacy-brand bypass, receipt leakage, B0 digest drift, and any changed reservation/call/downstream boundary**.
+8. Claude Cowork question: **none for this technical evidence correction**.
+9. Guy eyeball: **the immutable code/test evidence and independent QA verdict; no new semantic or visual artifact exists in this milestone**.

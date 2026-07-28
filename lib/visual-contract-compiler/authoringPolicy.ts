@@ -32,8 +32,8 @@ export const VISUAL_CONTRACT_AUTHORING_HARD_COST_CEILING_USD =
 /**
  * Standard-tier prices published for `gpt-5.6-sol`, plus the published
  * regional-processing uplift. Spend authorization uses the cache-write rate
- * and uplift for every possible input token because a provider response does
- * not prove that an otherwise invisible cache write was not billed.
+ * and uplift for every possible input token so the conservative reservation
+ * remains independent of the provider-reported input partition.
  */
 export const VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS = {
   version: 'openai-standard-pricing/2026-07-27-v2',

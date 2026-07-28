@@ -332,6 +332,8 @@ function mapUsage(rawUsage: unknown): {
   const values = {
     input_tokens: usage?.input_tokens,
     cached_input_tokens: inputDetails?.cached_tokens,
+    cache_write_input_tokens:
+      inputDetails?.cache_write_tokens,
     output_tokens: usage?.output_tokens,
     reasoning_tokens: outputDetails?.reasoning_tokens,
     total_tokens: usage?.total_tokens,
@@ -343,8 +345,15 @@ function mapUsage(rawUsage: unknown): {
     individuallyValid &&
     (values.cached_input_tokens as number) <=
       (values.input_tokens as number) &&
+    (values.cache_write_input_tokens as number) <=
+      (values.input_tokens as number) -
+        (values.cached_input_tokens as number) &&
     (values.reasoning_tokens as number) <=
       (values.output_tokens as number) &&
+    Number.isSafeInteger(
+      (values.input_tokens as number) +
+        (values.output_tokens as number),
+    ) &&
     (values.total_tokens as number) ===
       (values.input_tokens as number) +
         (values.output_tokens as number);

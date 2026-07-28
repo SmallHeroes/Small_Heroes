@@ -837,10 +837,14 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       provider,
     });
     expect(result.receipt.status).toBe('completed');
+    expect(result.receipt.version).toBe(
+      'visual-contract-authoring-receipt/v3',
+    );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.aggregateUsage).toEqual({
       inputTokens: 1_000,
       cachedInputTokens: 0,
+      cacheWriteInputTokens: 0,
       outputTokens: 2_000,
       reasoningTokens: 500,
       totalTokens: 3_000,
@@ -859,6 +863,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       provider: 'openai',
       model: 'gpt-5.6-sol',
       responseId: 'response-1',
+      usageEvidenceKind: 'legacy_injected_compatibility',
       reservedExposureBeforeCallUsd: 4.884,
       nominalEstimatedCostUsd: 0.065,
       conservativeAccountedCostUsd: 0.072875,
@@ -878,23 +883,24 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(result.compileResult).not.toBeNull();
   });
 
-  it('reports cached reads nominally but accounts every input token at cache-write worst case with uplift', () => {
+  it('prices cached reads, cache writes, remaining ordinary input, and output nominally while retaining the conservative fence', () => {
     const usage = {
       inputTokens: 1_000,
-      cachedInputTokens: 1_000,
-      outputTokens: 0,
+      cachedInputTokens: 200,
+      cacheWriteInputTokens: 300,
+      outputTokens: 100,
       reasoningTokens: 0,
-      totalTokens: 1_000,
+      totalTokens: 1_100,
     };
     expect(nominalAuthoringUsageCostUsd(usage)).toBe(
-      0.0005,
+      0.007475,
     );
     expect(
       conservativeAuthoringCostUsd({
         inputTokens: usage.inputTokens,
         outputTokens: usage.outputTokens,
       }),
-    ).toBe(0.006875);
+    ).toBe(0.010175);
   });
 
   it('sanitizes provider failures and refuses provider/model substitution', async () => {

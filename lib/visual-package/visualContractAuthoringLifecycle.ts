@@ -66,13 +66,13 @@ import {
 export const VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
   'visual-contract-authoring-request/v3' as const;
 export const VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
-  'visual-contract-authoring-receipt/v2' as const;
+  'visual-contract-authoring-receipt/v3' as const;
 export const VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
   'visual-contract-authoring-readiness/v1' as const;
 export const VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v1' as const;
 export const OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION =
-  'openai-responses-authoring-evidence/v1' as const;
+  'openai-responses-authoring-evidence/v2' as const;
 
 const PROMPT_PROTOCOL_TOKEN_ALLOWANCE = 4_096;
 const MAX_RECEIPT_ERRORS = 128;
@@ -145,6 +145,7 @@ export interface VisualContractAuthoringRequest {
 export interface VisualContractAuthoringUsage {
   inputTokens: number;
   cachedInputTokens: number;
+  cacheWriteInputTokens: number;
   outputTokens: number;
   reasoningTokens: number;
   totalTokens: number;
@@ -162,8 +163,7 @@ export interface VisualContractAuthoringProviderResponse {
      * adapters remain compatible, while this brand activates complete live
      * response-ID/completion/output evidence validation.
      */
-    evidenceVersion?:
-      typeof OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION;
+    evidenceVersion?: string;
     completionStatus?: string;
     usageEvidenceComplete?: boolean;
   };
@@ -200,8 +200,11 @@ export interface VisualContractAuthoringAttemptReceipt {
   userPromptDigest: string;
   responseDigest: string | null;
   usage: VisualContractAuthoringUsage | null;
-  providerEvidenceVersion?:
-    typeof OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION;
+  providerEvidenceVersion?: string;
+  usageEvidenceKind:
+    | 'canonical_provider_reported'
+    | 'legacy_injected_compatibility'
+    | null;
   completionStatus?: string;
   usageEvidenceComplete?: boolean;
   reservedExposureBeforeCallUsd: number;
@@ -395,13 +398,22 @@ function callInputTokenUpperBound(
 export function nominalAuthoringUsageCostUsd(
   usage: VisualContractAuthoringUsage,
 ): number {
+  if (!usageIsInternallyConsistent(usage)) {
+    throw new Error(
+      'cannot calculate nominal authoring cost from invalid usage evidence',
+    );
+  }
   const prices = VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS;
   const uncached =
-    usage.inputTokens - usage.cachedInputTokens;
+    usage.inputTokens -
+    usage.cachedInputTokens -
+    usage.cacheWriteInputTokens;
   return roundUsd(
     (uncached * prices.uncachedInputUsdPerUnit +
       usage.cachedInputTokens *
         prices.cachedInputUsdPerUnit +
+      usage.cacheWriteInputTokens *
+        prices.cacheWriteInputUsdPerUnit +
       usage.outputTokens * prices.outputUsdPerUnit) /
       prices.unitTokens,
   );
@@ -713,6 +725,7 @@ function zeroUsage(): VisualContractAuthoringUsage {
   return {
     inputTokens: 0,
     cachedInputTokens: 0,
+    cacheWriteInputTokens: 0,
     outputTokens: 0,
     reasoningTokens: 0,
     totalTokens: 0,
@@ -788,20 +801,101 @@ function numeric(value: unknown): number | undefined {
     : undefined;
 }
 
-function safeUsage(
+function usageIsInternallyConsistent(
+  usage: VisualContractAuthoringUsage,
+): boolean {
+  const values = Object.values(usage);
+  if (values.some((value) => numeric(value) === undefined)) {
+    return false;
+  }
+  if (
+    usage.cachedInputTokens > usage.inputTokens ||
+    usage.cacheWriteInputTokens >
+      usage.inputTokens - usage.cachedInputTokens ||
+    usage.reasoningTokens > usage.outputTokens
+  ) {
+    return false;
+  }
+  const expectedTotal =
+    usage.inputTokens + usage.outputTokens;
+  return (
+    Number.isSafeInteger(expectedTotal) &&
+    usage.totalTokens === expectedTotal
+  );
+}
+
+function nestedRecord(
+  value: unknown,
+): Record<string, unknown> {
+  return value !== null &&
+    typeof value === 'object' &&
+    !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function ownValue(
+  record: Record<string, unknown>,
+  key: string,
+): { present: boolean; value: unknown } {
+  return {
+    present: Object.prototype.hasOwnProperty.call(record, key),
+    value: record[key],
+  };
+}
+
+function preferredOptionalCount(args: {
+  primary: { present: boolean; value: unknown };
+  secondary: { present: boolean; value: unknown };
+  defaultValue: number;
+}): number | undefined {
+  if (args.primary.present) {
+    return numeric(args.primary.value);
+  }
+  if (args.secondary.present) {
+    return numeric(args.secondary.value);
+  }
+  return args.defaultValue;
+}
+
+function safeCanonicalUsage(
   raw: Record<string, unknown> | null | undefined,
 ): VisualContractAuthoringUsage | null {
   if (!raw) return null;
-  const details =
-    raw.input_tokens_details &&
-    typeof raw.input_tokens_details === 'object'
-      ? (raw.input_tokens_details as Record<string, unknown>)
-      : {};
-  const outputDetails =
-    raw.output_tokens_details &&
-    typeof raw.output_tokens_details === 'object'
-      ? (raw.output_tokens_details as Record<string, unknown>)
-      : {};
+  const usage = {
+    inputTokens: numeric(raw.input_tokens),
+    cachedInputTokens: numeric(raw.cached_input_tokens),
+    cacheWriteInputTokens: numeric(
+      raw.cache_write_input_tokens,
+    ),
+    outputTokens: numeric(raw.output_tokens),
+    reasoningTokens: numeric(raw.reasoning_tokens),
+    totalTokens: numeric(raw.total_tokens),
+  };
+  if (
+    Object.values(usage).some(
+      (value) => value === undefined,
+    )
+  ) {
+    return null;
+  }
+  const complete =
+    usage as VisualContractAuthoringUsage;
+  return usageIsInternallyConsistent(complete)
+    ? complete
+    : null;
+}
+
+function safeLegacyInjectedUsage(
+  raw: Record<string, unknown> | null | undefined,
+): VisualContractAuthoringUsage | null {
+  if (!raw) return null;
+  const inputDetails = nestedRecord(
+    raw.input_tokens_details,
+  );
+  const outputDetails = nestedRecord(
+    raw.output_tokens_details,
+  );
   const inputTokens =
     numeric(raw.input_tokens) ??
     numeric(raw.prompt_tokens);
@@ -811,31 +905,51 @@ function safeUsage(
   if (inputTokens === undefined || outputTokens === undefined) {
     return null;
   }
-  const cachedInputTokens =
-    numeric(raw.cached_input_tokens) ??
-    numeric(details.cached_tokens) ??
-    0;
-  const reasoningTokens =
-    numeric(raw.reasoning_tokens) ??
-    numeric(outputDetails.reasoning_tokens) ??
-    0;
-  const totalTokens =
-    numeric(raw.total_tokens) ??
-    inputTokens + outputTokens;
+  const cachedInputTokens = preferredOptionalCount({
+    primary: ownValue(raw, 'cached_input_tokens'),
+    secondary: ownValue(inputDetails, 'cached_tokens'),
+    defaultValue: 0,
+  });
+  const cacheWriteInputTokens = preferredOptionalCount({
+    primary: ownValue(raw, 'cache_write_input_tokens'),
+    secondary: ownValue(
+      inputDetails,
+      'cache_write_tokens',
+    ),
+    defaultValue: 0,
+  });
+  const reasoningTokens = preferredOptionalCount({
+    primary: ownValue(raw, 'reasoning_tokens'),
+    secondary: ownValue(
+      outputDetails,
+      'reasoning_tokens',
+    ),
+    defaultValue: 0,
+  });
+  const explicitTotal = ownValue(raw, 'total_tokens');
+  const totalTokens = explicitTotal.present
+    ? numeric(explicitTotal.value)
+    : inputTokens + outputTokens;
   if (
-    cachedInputTokens > inputTokens ||
-    reasoningTokens > outputTokens ||
-    totalTokens < inputTokens + outputTokens
+    cachedInputTokens === undefined ||
+    cacheWriteInputTokens === undefined ||
+    reasoningTokens === undefined ||
+    totalTokens === undefined ||
+    !Number.isSafeInteger(totalTokens)
   ) {
     return null;
   }
-  return {
+  const usage = {
     inputTokens,
     cachedInputTokens,
+    cacheWriteInputTokens,
     outputTokens,
     reasoningTokens,
     totalTokens,
   };
+  return usageIsInternallyConsistent(usage)
+    ? usage
+    : null;
 }
 
 function aggregateUsage(
@@ -849,6 +963,9 @@ function aggregateUsage(
         inputTokens: total.inputTokens + usage.inputTokens,
         cachedInputTokens:
           total.cachedInputTokens + usage.cachedInputTokens,
+        cacheWriteInputTokens:
+          total.cacheWriteInputTokens +
+          usage.cacheWriteInputTokens,
         outputTokens:
           total.outputTokens + usage.outputTokens,
         reasoningTokens:
@@ -1175,6 +1292,7 @@ export async function runVisualContractAuthoring(args: {
                 canonicalJsonDigest(userPrompt),
               responseDigest: null,
               usage: null,
+              usageEvidenceKind: null,
               reservedExposureBeforeCallUsd,
               nominalEstimatedCostUsd: null,
               conservativeAccountedCostUsd: null,
@@ -1290,8 +1408,16 @@ export async function runVisualContractAuthoring(args: {
                   'unknown-response-id',
                 )
               : null;
+            const observedProviderEvidenceVersion = nonEmpty(
+              response.receipt.evidenceVersion,
+            )
+              ? safeLabel(
+                  response.receipt.evidenceVersion,
+                  'unknown-provider-evidence',
+                )
+              : undefined;
             const canonicalProviderEvidence =
-              response.receipt.evidenceVersion ===
+              observedProviderEvidenceVersion ===
               OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION;
             const completionStatus =
               canonicalProviderEvidence
@@ -1304,9 +1430,18 @@ export async function runVisualContractAuthoring(args: {
               typeof response.output === 'string'
                 ? response.output
                 : '';
-            const usage = safeUsage(
-              response.receipt.usage,
-            );
+            const usage = canonicalProviderEvidence
+              ? safeCanonicalUsage(response.receipt.usage)
+              : observedProviderEvidenceVersion === undefined
+                ? safeLegacyInjectedUsage(
+                    response.receipt.usage,
+                  )
+                : null;
+            const usageEvidenceKind = canonicalProviderEvidence
+              ? ('canonical_provider_reported' as const)
+              : observedProviderEvidenceVersion === undefined
+                ? ('legacy_injected_compatibility' as const)
+                : null;
             const nominalEstimatedCostUsd = usage
               ? nominalAuthoringUsageCostUsd(usage)
               : null;
@@ -1325,12 +1460,17 @@ export async function runVisualContractAuthoring(args: {
               responseDigest:
                 canonicalJsonDigest(responseOutput),
               usage,
+              usageEvidenceKind,
               nominalEstimatedCostUsd,
               conservativeAccountedCostUsd,
-              ...(canonicalProviderEvidence
+              ...(observedProviderEvidenceVersion
                 ? {
                     providerEvidenceVersion:
-                      OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
+                      observedProviderEvidenceVersion,
+                  }
+                : {}),
+              ...(canonicalProviderEvidence
+                ? {
                     completionStatus,
                     usageEvidenceComplete:
                       response.receipt
@@ -1341,9 +1481,9 @@ export async function runVisualContractAuthoring(args: {
               VisualContractAuthoringAttemptReceipt,
               'status'
             >;
-            // Preserve the D1A0 receipt shape for older injected adapters on
-            // failure paths. Only the branded canonical Responses adapter
-            // gains the new complete evidence/cost capture.
+            // Preserve the D1A0 redaction behavior for older injected
+            // adapters on provider-mismatch failure paths. Only the branded
+            // canonical Responses adapter gains complete evidence capture.
             const providerMismatchEvidenceBase =
               canonicalProviderEvidence
                 ? receivedBase
@@ -1364,8 +1504,10 @@ export async function runVisualContractAuthoring(args: {
                     usage,
                   };
             if (
-              args.requiredProviderEvidenceVersion &&
-              !canonicalProviderEvidence
+              (observedProviderEvidenceVersion !== undefined &&
+                !canonicalProviderEvidence) ||
+              (args.requiredProviderEvidenceVersion &&
+                !canonicalProviderEvidence)
             ) {
               terminal.code = 'provider_evidence_invalid';
               attempts.push({
