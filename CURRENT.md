@@ -2,7 +2,33 @@
 
 **Updated:** 2026-07-28
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-live-authoring-attempt` in `C:\Users\guyna\.codex\worktrees\4a16\Small_Heroes`, starting from exact pushed head `c0fdc417483ad50ec3e8c9444afb67c8fe27e37a`. This worktree was the sole writer for R1D-FULL-SUITE-EXECUTION-STABILITY. Investigation proved that Vitest's default worker count and a 36-run single-test matrix are systemic contention contributors, but the required normal focused launcher twice failed before collection at the sandboxed esbuild config-loading boundary. The proposed test/config changes were removed, the one authorized full `npm run check` was not consumed, and this milestone is HOLD with a documentation-only failure record. No production behavior, package, B0, preflight, credential, provider, or external action changed.
+**Working branch:** `codex/r1d-pvb-d1a1b1-live-authoring-attempt` in `C:\Users\guyna\.codex\worktrees\4a16\Small_Heroes`, starting from exact pushed head `9cd108d673a1e425946696de1b911a3be9ef9e9a`. Guy transferred sole-writer authority for R1D-FULL-SUITE-EXECUTION-STABILITY-LEAD-RESUME to the Lead Task while the previous execution Task remained idle/read-only. The general worker-contention correction is now implemented and locally validated: Vitest retains file parallelism with a portable four-worker ceiling, and the expensive 18×2 scalar matrix is split into 36 independently scheduled cases. The one authorized `npm run check` reproduced exactly the established six ignored-fixture failures with no timeout or new failure. The local candidate awaits independent Claude Code review and remains unpushed. No production behavior, package, B0, preflight, credential, provider, or external action changed.
+
+## R1D-FULL-SUITE-EXECUTION-STABILITY-LEAD-RESUME — Local QA candidate
+
+Guy explicitly transferred sole-writer authority for this milestone from the idle/read-only execution Task to the current Lead Task. The approved scope was test infrastructure only: preserve file parallelism while bounding high-core contention, and split the exhaustive 18×2 canonical live-authoring validation into independent test cases without changing any combination, assertion, evidence check, or provider-unreachable guarantee.
+
+### General implementation
+
+- New neutral module `test-infrastructure/vitest-execution-policy.ts` owns the portable calculation independently of `vitest.config.ts`. It normalizes the host's available parallelism, reserves one slot where possible, clamps the result to at least one worker, and caps it at four.
+- `vitest.config.ts` applies that policy with `fileParallelism: true`. The suite is not serialized, and no global or local timeout, retry, skip, warning conversion, or assertion weakening was introduced.
+- `lib/__tests__/vitest-execution-policy.spec.ts` covers small hosts, the 24-slot development host, and non-finite inputs. It also verifies the active config's wiring by reading the config source rather than importing the active config and creating loader recursion.
+- The 18 required top-level request scalar fields and their two original rejection variants are now an explicit 36-case matrix. A separate non-vacuity test pins 18 fields, two variants, 36 unique combinations. Every case still writes its own invalid request, invokes the canonical runner, requires the exact stable field issue, requires non-empty sanitized evidence with no raw request, and proves the provider factory remains unreachable.
+- A repository search found no second comparable nested matrix of expensive canonical runner executions. Other nested loops are cheap static assertions, inventory scanning already addressed by the preceding scanner milestone, or coupled scenarios whose semantics do not match this split.
+
+### Validation and evidence
+
+- Direct deterministic TypeScript command `node node_modules/typescript/lib/tsc.js --noEmit --project tsconfig.json`: **PASS**.
+- Focused normal-launcher validation: **2 files / 133 tests PASS** in 9.39 seconds. This includes all 36 independently named scalar cases and the neutral worker-policy/config-wiring tests.
+- The one authorized literal `npm run check` ran exactly once. Its TypeScript phase passed. Vitest produced exactly the established six ignored-output fixture failures in the same five files: `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and two `story-read-back-validation.spec.ts` cases.
+- The full run produced **no timeout and no new failure**. In particular, the previously timing-out canonical scalar matrix completed under full-suite load. The full check was not rerun.
+- Four ignored synthetic files created by the authorized full run were identified by current-run timestamps and removed by exact path only: the two synthetic QA-anchor files and the two story-read-back scratch fixtures. No historical ignored fixture was copied, imported, fabricated, or removed.
+- The retained change set is limited to the neutral test-infrastructure module, its policy/config-wiring tests, `vitest.config.ts`, the canonical boundary test split, and this technical-state record.
+
+### Gate and next action
+
+- This is a locally green implementation candidate, not a self-awarded independent PASS. It requires Claude Code first-pass read-only QA against the final immutable commit range before Guy decides whether to push or resume Attempt 3 readiness.
+- This milestone grants no B0 preparation or verification, canonical preflight, credential access, pricing/network/provider/model call, live authoring, render/image/Vision, storage/database/Supabase, Board, Semantic Reconciliation, approval/Blueprint/publication/promotion, production activation, deployment, push, or spend authority.
 
 ## R1D-FULL-SUITE-EXECUTION-STABILITY — Normal launcher boundary HOLD
 

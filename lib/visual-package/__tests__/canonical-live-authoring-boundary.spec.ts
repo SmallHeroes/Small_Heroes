@@ -78,6 +78,39 @@ const LAUNCHER = path.join(
   'scripts',
   'visual-contract-authoring.cjs',
 );
+const TOP_LEVEL_REQUEST_SCALAR_KINDS = {
+  version: 'string',
+  policyVersion: 'string',
+  mode: 'string',
+  requestId: 'string',
+  requestedAt: 'string',
+  sourceSnapshotDigest: 'string',
+  provider: 'string',
+  endpoint: 'string',
+  model: 'string',
+  serviceTier: 'string',
+  reasoningEffort: 'string',
+  toolsDisabled: 'boolean',
+  noFallback: 'boolean',
+  transportRetries: 'number',
+  timeoutMs: 'number',
+  pricingDigest: 'string',
+  digestAlgorithm: 'string',
+  digest: 'string',
+} as const;
+const TOP_LEVEL_REQUEST_SCALAR_VARIANTS = [
+  'omitted',
+  'wrong-type',
+] as const;
+const TOP_LEVEL_REQUEST_SCALAR_CASES = Object.entries(
+  TOP_LEVEL_REQUEST_SCALAR_KINDS,
+).flatMap(([field, kind]) =>
+  TOP_LEVEL_REQUEST_SCALAR_VARIANTS.map((variant) => ({
+    field,
+    kind,
+    variant,
+  })),
+);
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -1749,73 +1782,62 @@ describe('canonical live authoring executable boundary', () => {
     expect(providerFactory).not.toHaveBeenCalled();
   });
 
-  it('totally rejects every omitted or wrong-type top-level request scalar with stable evidence', async () => {
-    const fixture = createLiveFixture(
-      'total-top-level-scalars',
+  it('defines the complete non-vacuous top-level request scalar rejection matrix', () => {
+    expect(
+      Object.keys(TOP_LEVEL_REQUEST_SCALAR_KINDS),
+    ).toHaveLength(18);
+    expect(TOP_LEVEL_REQUEST_SCALAR_VARIANTS).toHaveLength(
+      2,
     );
-    const scalarKinds = {
-      version: 'string',
-      policyVersion: 'string',
-      mode: 'string',
-      requestId: 'string',
-      requestedAt: 'string',
-      sourceSnapshotDigest: 'string',
-      provider: 'string',
-      endpoint: 'string',
-      model: 'string',
-      serviceTier: 'string',
-      reasoningEffort: 'string',
-      toolsDisabled: 'boolean',
-      noFallback: 'boolean',
-      transportRetries: 'number',
-      timeoutMs: 'number',
-      pricingDigest: 'string',
-      digestAlgorithm: 'string',
-      digest: 'string',
-    } as const;
-    const providerFactory = vi.fn();
-
-    for (const [field, kind] of Object.entries(
-      scalarKinds,
-    )) {
-      for (const variant of ['omitted', 'wrong-type']) {
-        const request = structuredClone(
-          fixture.request,
-        ) as unknown as Record<string, unknown>;
-        if (variant === 'omitted') {
-          delete request[field];
-        } else {
-          request[field] =
-            kind === 'string'
-              ? { invalid: true }
-              : kind === 'boolean'
-                ? 'true'
-                : '1';
-        }
-        writeJson(
-          fixture.repoRoot,
-          fixture.requestPath,
-          request,
-        );
-        const result =
-          await runCanonicalLiveVisualContractAuthoring(
-            fixtureInput(fixture),
-            { providerFactory },
-          );
-        const evidence = readRejectedEvidence(
-          fixture,
-          result,
-        );
-        expect(
-          evidence.issues,
-          `${field} ${variant}`,
-        ).toContain(`request_field_invalid:${field}`);
-        expect(evidence.issues.length).toBeGreaterThan(0);
-        expect(evidence).not.toHaveProperty('request');
-      }
-    }
-    expect(providerFactory).not.toHaveBeenCalled();
+    expect(TOP_LEVEL_REQUEST_SCALAR_CASES).toHaveLength(36);
+    expect(
+      new Set(
+        TOP_LEVEL_REQUEST_SCALAR_CASES.map(
+          ({ field, variant }) => `${field}:${variant}`,
+        ),
+      ),
+    ).toHaveLength(36);
   });
+
+  it.each(TOP_LEVEL_REQUEST_SCALAR_CASES)(
+    'totally rejects top-level request scalar $field when $variant with stable evidence',
+    async ({ field, kind, variant }) => {
+      const fixture = createLiveFixture(
+        `total-top-level-scalar-${field}-${variant}`,
+      );
+      const request = structuredClone(
+        fixture.request,
+      ) as unknown as Record<string, unknown>;
+      if (variant === 'omitted') {
+        delete request[field];
+      } else {
+        request[field] =
+          kind === 'string'
+            ? { invalid: true }
+            : kind === 'boolean'
+              ? 'true'
+              : '1';
+      }
+      writeJson(
+        fixture.repoRoot,
+        fixture.requestPath,
+        request,
+      );
+      const providerFactory = vi.fn();
+      const result =
+        await runCanonicalLiveVisualContractAuthoring(
+          fixtureInput(fixture),
+          { providerFactory },
+        );
+      const evidence = readRejectedEvidence(fixture, result);
+      expect(evidence.issues).toContain(
+        `request_field_invalid:${field}`,
+      );
+      expect(evidence.issues.length).toBeGreaterThan(0);
+      expect(evidence).not.toHaveProperty('request');
+      expect(providerFactory).not.toHaveBeenCalled();
+    },
+  );
 
   it('accepts legacy D1A0 pretty bytes as semantically identical at a D1A1 content address', () => {
     const repoRoot = tempRoot();
