@@ -2,7 +2,35 @@
 
 **Updated:** 2026-07-28
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1a-provider-usage-evidence` in `C:\Users\guyna\.codex\worktrees\852a\Small_Heroes`, based exactly on approved pushed B0 head `94f9eb645d8da6197a17c3b06f39f00027a595dc`. This worktree is the sole writer for zero-cost documentation reconciliation R1D-PVB-D1A1B1A-DOCS-RECONCILIATION. Implementation commit `657dc760ade2f76e6498b12a91a1d74feb72dbff` is retained on origin by Guy's after-the-fact ratification, and Claude Code technically PASSed its exact implementation range. The D1A1B1 live attempt remains on HOLD until this documentation commit receives a focused independent micro re-gate and Guy explicitly authorizes the live attempt. D1A1C and every unrelated worktree remain out of scope and read-only.
+**Working branch:** `codex/r1d-pvb-d1a1b1-live-authoring-attempt` in `C:\Users\guyna\.codex\worktrees\4a16\Small_Heroes`, based exactly on approved pushed B1A documentation head `6b31c531c9dc39d272845ab134064c405e9ac475`. This worktree is the sole writer for the authorized R1D-PVB-D1A1B1 first canonical live authoring attempt. The attempt is exhausted at its one allowed preflight because the fresh worktree could not resolve `tsx/cli`; no credential was inspected and no provider call or spend occurred. D1A1C and every unrelated worktree remain out of scope and read-only.
+
+## R1D-PVB-D1A1B1 — First Canonical Live Authoring Attempt
+
+Guy explicitly authorized one paid live attempt after B1A implementation PASS, documentation micro-PASS, pushed parity, and exact approved base `6b31c531c9dc39d272845ab134064c405e9ac475`. The milestone was fail closed: one bare canonical preflight, followed only on exact PASS by B0 authority reconciliation, the approved existing-key credential gate, and one canonical live CLI invocation with at most three application provider calls.
+
+### Authority and pricing reconciliation
+
+- The new worktree was initially detached at the exact approved base while the required local live branch already pointed to that commit and was not attached elsewhere. It was attached to `codex/r1d-pvb-d1a1b1-live-authoring-attempt` before implementation. The branch was clean, `HEAD` and merge-base were exact, and the approved B1A origin branch resolved directly to the same full SHA. No remote live-attempt branch existed.
+- Main and `feat/chunked-generation` retained their pre-existing user dirty/ahead state and were not touched. The B0 evidence worktree remained clean at `94f9eb645d8da6197a17c3b06f39f00027a595dc`; the B1A worktree remained clean with origin parity at `6b31c531c9dc39d272845ab134064c405e9ac475`.
+- Fresh official OpenAI developer documentation on 2026-07-28 confirmed `gpt-5.6-sol`, Responses support, `service_tier: "default"` as Standard pricing, and short-context rates of `$5.00/M` input, `$0.50/M` cached read, `$6.25/M` cache write, and `$30.00/M` output. The current model authority documents a 1,050,000-token context window, 922,000 maximum input, 128,000 maximum output, and long-context pricing only for prompts with more than 272K input tokens.
+- The authorized 64K-input/36K-output request remains short-context. Conservatively pricing all input as cache writes gives `$0.400`; maximum output gives `$1.080`; the nominal per-call bound is `$1.480`. The documented 10% eligible regional-processing uplift gives exactly `$1.628` per call. Three reservations remain `$4.884`, below the `$5.00` fence. Tools are disabled and the Responses API has no separate API fee.
+- Official authority used: `https://developers.openai.com/api/docs/pricing`, `https://developers.openai.com/api/docs/models/gpt-5.6-sol.md`, and `https://developers.openai.com/api/reference/resources/responses/methods/create`.
+
+### Exhausted preflight and evidence
+
+- The one allowed command was issued exactly once from the live worktree with no credential loading, `NODE_OPTIONS`, test sentinel, wrapper, npm/npx/tsx substitution, or extra argument: `node scripts/visual-contract-authoring.cjs preflight`.
+- Result: **FAIL**, exit `1`, tool-reported wall time `0.2s`. Node `v22.19.0` failed immediately in `scripts/visual-contract-authoring.cjs:8` because it could not resolve module `tsx/cli`. The exact required live graph/export/sentinel PASS was never reached.
+- Read-only follow-up confirmed that both `node_modules` and `node_modules\tsx` are absent in the fresh worktree. This explains the observed resolver failure; no dependency installation, junction/link, launcher substitution, correction, or second preflight is authorized after the attempt is consumed.
+- The approved B0 inputs were not copied or reconciled in this worktree because that step was downstream of preflight PASS. The live output root and its `authoring-receipts`, `readiness-evidence`, `contract-candidates`, and `rejected-authoring-requests` categories do not exist here.
+- Credential reads, existence checks, parsing, injection, key creation, picker actions, and alternate credential sources were all zero. Application provider calls and transport retries were `0`; semantic repairs were `0`; nominal and conservative cost were both `$0.00`. No response ID, status, model label, provider usage, receipt, readiness evidence, candidate, rejected request, raw prompt, raw response, invalid draft, exception artifact, or billing evidence exists.
+- The bare command did not materialize exact process start/end timestamps; only its exit code and tool-reported elapsed time are available. There is no post-provider receipt gap because provider reachability never occurred.
+- Post-failure `git diff --check` passed. Zero-network `npx --no-install tsc --noEmit` exited `1` because the local TypeScript compiler is also unavailable without the absent dependency tree. No install/link correction or source-code test was authorized after the exhausted preflight; the only tracked change is this `CURRENT.md` closeout.
+
+### Gate and next action
+
+- D1A1B1 is **HOLD / attempt exhausted** before credential and provider reachability. No second preflight or live attempt is permitted under this authorization, including after restoring local dependencies.
+- No source code, schema, test, config, pricing, request, B0 authority, render, Vision, audio, storage/database/Supabase, Board, Semantic Reconciliation, Blueprint, approval/publication/promotion, production flag, deployment, or push was changed or invoked.
+- This documentation-only closeout requires independent Claude Code review. Codex does not self-award technical PASS. Any future retry requires a new Guy-authorized milestone with an explicit fresh-attempt and dependency-preparation ruling.
 
 ## R1D-PVB-D1A1B1A — Provider Usage Evidence Hardening
 
