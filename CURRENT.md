@@ -2,7 +2,7 @@
 
 **Updated:** 2026-07-28
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1a-provider-usage-evidence` in `C:\Users\guyna\.codex\worktrees\852a\Small_Heroes`, based exactly on approved pushed B0 head `94f9eb645d8da6197a17c3b06f39f00027a595dc`. This worktree is the sole writer for zero-cost corrective milestone R1D-PVB-D1A1B1A. The approved B0 branch/head is pushed and was verified at local remote-tracking parity `0/0`; earlier local/unpushed statements are stale. The D1A1B1 live attempt remains on HOLD until this correction receives independent Claude Code PASS. D1A1C and every unrelated worktree remain out of scope and read-only.
+**Working branch:** `codex/r1d-pvb-d1a1b1a-provider-usage-evidence` in `C:\Users\guyna\.codex\worktrees\852a\Small_Heroes`, based exactly on approved pushed B0 head `94f9eb645d8da6197a17c3b06f39f00027a595dc`. This worktree is the sole writer for zero-cost documentation reconciliation R1D-PVB-D1A1B1A-DOCS-RECONCILIATION. Implementation commit `657dc760ade2f76e6498b12a91a1d74feb72dbff` is retained on origin by Guy's after-the-fact ratification, and Claude Code technically PASSed its exact implementation range. The D1A1B1 live attempt remains on HOLD until this documentation commit receives a focused independent micro re-gate and Guy explicitly authorizes the live attempt. D1A1C and every unrelated worktree remain out of scope and read-only.
 
 ## R1D-PVB-D1A1B1A — Provider Usage Evidence Hardening
 
@@ -26,13 +26,18 @@ Guy approved this zero-cost corrective milestone and all nine governing decision
 - Focused regression: **11 files / 289 tests PASS**, covering the canonical adapter/lifecycle/launcher, B0 materialization, source authority, legacy boundary, production lifecycle, compiler, and retry surfaces. The isolated QA-console timeout control also passes **1 file / 3 tests**.
 - `npx --no-install tsc --noEmit`: **PASS**. Final literal `npm run check` passed TypeScript and reproduced only the established ignored-output baseline: **264 files — 243 passed, 16 skipped, 5 failed; 2,902 tests — 2,831 passed, 65 skipped, 6 failed**. The unchanged failing files are `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and `story-read-back-validation.spec.ts`; no missing fixture was copied or fabricated.
 - An earlier full concurrent run also timed out five otherwise-green tests in the canonical boundary, B0 materialization, and QA-console specs. Each affected surface passed focused/isolated, and the final literal rerun above had no timeout failures.
-- Provider/model/network calls, credential reads or existence checks, pricing/docs lookup, live authoring, render/Vision, storage/database/Supabase, Board, Semantic Reconciliation, approval, package/publication/promotion, production activation, deployment, and spend were zero.
+- Provider/model calls, credential reads or existence checks, pricing/docs lookup, live authoring, render/Vision, storage/database/Supabase, Board, Semantic Reconciliation, approval, package/publication/promotion, production activation, deployment, and spend were zero. An external Git push did occur and is recorded below; no zero-external-action or zero-network claim applies across the implementation milestone.
 
 ### Limitations and gate
 
 - This is local synthetic/mocked evidence only. No provider response, billing record, or real candidate was created or inspected.
 - Existing durable receipt v2 artifacts are not migrated. New runs emit v3; only the canonical v2 provider brand can authorize the canonical live path.
-- Independent technical QA is still pending. Codex does not self-award PASS, and the D1A1B1 live attempt remains on HOLD.
+- Claude Code returned technical **PASS** for exact immutable implementation range `94f9eb645d8da6197a17c3b06f39f00027a595dc..657dc760ade2f76e6498b12a91a1d74feb72dbff`. It found no implementation BLOCKER or code defect requiring correction.
+- Claude Code's independent literal `npm run check` produced **264 files — 241 passed, 16 skipped, 7 failed; 2,902 tests — 2,829 passed, 65 skipped, 8 failed**. The two failures beyond the implementation task's separately preserved result above were `order-authority-guard.spec.ts` and `asset-safety-writer-coverage.spec.ts`; both passed in isolation at **2 files / 11 tests** and were assessed as full-suite contention rather than a regression in the reviewed range.
+- **MAJOR-1 — resolved disclosure/process finding:** before the implementation handoff, branch HEAD `657dc760ade2f76e6498b12a91a1d74feb72dbff` was already present on `origin/codex/r1d-pvb-d1a1b1a-provider-usage-evidence`, with local/origin parity `0/0`. The remote-tracking reflog records `update by push` at `2026-07-28 10:57:40 +0300`. Local Git proves neither the actor nor whether authorization existed at the time. Guy subsequently ratified retaining the remote branch and commit; that later ratification is not prior authorization. This truthful correction plus Guy's ruling resolves the disclosure/process finding without erasing the external action.
+- **NOTE-1 — future caller hardening:** current production callers rebuild source authority before request construction, so parsed-object key-order risk is not reachable today. Canonicalizing or guarding this boundary remains tracked for future callers and is not a live blocker.
+- **NOTE-2 — bounded legacy compatibility:** unbranded injected compatibility may default absent cache-write evidence to zero, is durably marked `legacy_injected_compatibility`, and cannot satisfy the canonical v2 live evidence requirement. It is not a live blocker.
+- This documentation reconciliation authorizes no credential use, pricing/network lookup, provider/model call, live authoring, spend, render/Vision, storage/database, Board, Semantic Reconciliation, approval, publication, promotion, deployment, production activation, or another push. Codex does not self-award PASS. D1A1B1 remains on HOLD until this documentation commit receives a focused independent micro re-gate and Guy explicitly authorizes the live attempt.
 
 ## R1D-PVB-D1A1B0 — Canonical Live Request Materialization
 
@@ -1127,11 +1132,11 @@ R1A is implemented and locally committed. Independent Claude Code adversarial QA
 
 ## Active task
 
-R1D-PVB-D1A1B1A is the active zero-cost corrective milestone on exact approved pushed B0 head `94f9eb645d8da6197a17c3b06f39f00027a595dc`. This task is the sole writer to `codex/r1d-pvb-d1a1b1a-provider-usage-evidence`. B0 code/test commit `bbd1de6d`, implementation closeout `e904dbe3`, and independently reviewed documentation closeout `94f9eb64` are pushed at local remote-tracking parity `0/0`.
+R1D-PVB-D1A1B1A-DOCS-RECONCILIATION is the active zero-cost documentation milestone on technically PASSed implementation head `657dc760ade2f76e6498b12a91a1d74feb72dbff`, based on exact approved pushed B0 head `94f9eb645d8da6197a17c3b06f39f00027a595dc`. This task is the sole writer to `codex/r1d-pvb-d1a1b1a-provider-usage-evidence`. The implementation head is retained on origin by Guy's after-the-fact ratification; this documentation reconciliation remains local until separately authorized.
 
 The governing brief is `docs/ai-workflow/R1D_PVB_D1A1_CANONICAL_LIVE_AUTHORING_DECISION_GATE.md`. D1A1A is already independently PASSed in the approved base. B0 materializes only immutable local inputs and a non-authorizing manifest.
 
-The independent B0 technical gate is closed. Guy later authorized D1A1B1, but its live attempt is now on HOLD pending independent PASS for R1D-PVB-D1A1B1A. This corrective milestone grants no new credential, provider call, candidate, reconciliation, approval, publication, production, render, or deployment authority.
+The independent B0 technical gate and D1A1B1A implementation technical gate are closed with PASS. Guy later authorized D1A1B1, but its live attempt remains on HOLD pending a focused independent micro re-gate of this documentation reconciliation and Guy's explicit live-attempt authorization. This milestone grants no new credential, provider call, candidate, reconciliation, approval, publication, production, render, deployment, or push authority.
 
 ## Executive finding
 
@@ -1242,10 +1247,11 @@ That historical blocker was corrected by `f4c335f6` and `74a73863`, then indepen
 
 - B0 has independent Claude Code technical PASS for the exact immutable implementation range. No B0 code correction or re-gate remains.
 - Final literal `npm run check` remains non-green only for the six known ignored-output fixture failures in five byte-unchanged test files: 264 files / 2,902 tests total, with 243 files and 2,831 tests passing, 16 files and 65 tests skipped, and 5 files / 6 tests failing. No ignored fixture was imported or fabricated.
-- D1A1B1 is authorized historically but its live attempt remains on HOLD until R1D-PVB-D1A1B1A receives independent Claude Code PASS.
+- D1A1B1A implementation received Claude Code technical PASS for exact range `94f9eb64..657dc760`, with no implementation BLOCKER or code defect requiring correction. Its disclosure/process MAJOR-1 is resolved by Guy's later ratification plus this truthful documentation correction.
+- D1A1B1 is authorized historically, but its live attempt remains on HOLD until this documentation-only reconciliation receives a focused independent micro re-gate and Guy explicitly authorizes the live attempt.
 - No candidate or downstream lifecycle decision exists. Any later live authoring, Semantic Reconciliation, Blueprint, Board, package approval, publication/promotion, render, production, or release action requires its own authority.
-- Push remains a separate explicit action; this corrective task leaves its focused local commit unpushed.
+- Another push remains a separate explicit action; this documentation task leaves its focused local commit unpushed and the branch exactly one commit ahead of the ratified origin implementation head.
 
 ## Next action
 
-After the focused green local commit, reconcile final topology and clean tracked state, then hand Guy the exact inspection/push command and an immutable read-only Claude Code brief. Do not resume the held live attempt; load or check credentials; perform a pricing/docs lookup; call a provider/network/storage/database/Vision boundary; create or approve a candidate, reconciliation, Blueprint, Board, or package; publish/promote; render; change production flags; deploy; push without Guy's explicit decision; import ignored fixtures; rewrite a Story Source; or clean another branch/worktree.
+After the focused green local documentation commit, reconcile final topology and clean tracked state, then hand Guy the exact inspection/future-push command and an immutable read-only Claude Code micro re-gate brief limited to record precision and topology. Do not resume the held live attempt; load or check credentials; perform a pricing/docs lookup; call a provider/network/storage/database/Vision boundary; create or approve a candidate, reconciliation, Blueprint, Board, or package; publish/promote; render; change production flags; deploy; perform another push without Guy's explicit decision; import ignored fixtures; rewrite a Story Source; or clean another branch/worktree.

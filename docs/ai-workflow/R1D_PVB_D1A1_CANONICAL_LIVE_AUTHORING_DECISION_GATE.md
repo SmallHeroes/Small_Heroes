@@ -1,6 +1,6 @@
 # R1D-PVB-D1A1 — Canonical Live Authoring Decision Gate
 
-**Status:** D1A1A is independently PASSed and frozen in approved pushed base `29350ec18b10a0d0150412912f2cff134c38430a`. Claude Code independently PASSed zero-cost D1A1B0 exact range `29350ec18b10a0d0150412912f2cff134c38430a..e904dbe37e45dde9181bc8b70322073dc240c9d4` with no BLOCKER, MAJOR, or MINOR. Approved B0 head `94f9eb645d8da6197a17c3b06f39f00027a595dc` is pushed and verified at local remote-tracking parity `0/0`. Guy later authorized D1A1B1; its live attempt is on HOLD until zero-cost corrective milestone R1D-PVB-D1A1B1A receives independent Claude Code PASS.
+**Status:** D1A1A is independently PASSed and frozen in approved pushed base `29350ec18b10a0d0150412912f2cff134c38430a`. Claude Code independently PASSed zero-cost D1A1B0 exact range `29350ec18b10a0d0150412912f2cff134c38430a..e904dbe37e45dde9181bc8b70322073dc240c9d4` with no BLOCKER, MAJOR, or MINOR. Approved B0 head `94f9eb645d8da6197a17c3b06f39f00027a595dc` is pushed. Claude Code technically PASSed D1A1B1A exact implementation range `94f9eb645d8da6197a17c3b06f39f00027a595dc..657dc760ade2f76e6498b12a91a1d74feb72dbff` with no implementation BLOCKER or code defect requiring correction. Guy later authorized D1A1B1, but its live attempt remains on HOLD until the D1A1B1A documentation reconciliation receives a focused independent micro re-gate and Guy explicitly authorizes the live attempt.
 **Immutable base:** `031bcb6aa08d4a9ee7cf527bb051970efc3e96d1`
 **Implementation branch:** `codex/r1d-pvb-d1a1a-live-authoring-boundary`
 **D1A1B0 immutable base:** `29350ec18b10a0d0150412912f2cff134c38430a`
@@ -8,10 +8,12 @@
 **D1A1A approved cost boundary:** exactly zero provider, model, LLM, image, Vision, network, storage, database, or Board calls
 **D1A1A observed execution:** zero spend and zero provider/model/LLM/image/Vision/storage/database/Board calls; one unauthorized read-only Git remote probe during residual final topology, disclosed below
 **D1A1B0 status:** independently PASSed as local materialization only; zero credential, pricing, provider, network, candidate, or downstream authority; no code correction or additional QA round is required for the faithful verdict transcription
-**D1A1B1 status:** authorized historically, live attempt on HOLD pending independent PASS for R1D-PVB-D1A1B1A
+**D1A1B1 status:** authorized historically; live attempt on HOLD pending the D1A1B1A documentation micro re-gate and Guy's explicit live-attempt authorization
 **D1A1B1A immutable base:** `94f9eb645d8da6197a17c3b06f39f00027a595dc`
 **D1A1B1A implementation branch:** `codex/r1d-pvb-d1a1b1a-provider-usage-evidence`
 **D1A1B1A cost boundary:** exactly zero provider/model/network/image/Vision/storage/database/Board calls and no credential or env-file access
+**D1A1B1A implementation result:** Claude Code technical PASS for `94f9eb645d8da6197a17c3b06f39f00027a595dc..657dc760ade2f76e6498b12a91a1d74feb72dbff`
+**D1A1B1A remote disposition:** implementation HEAD `657dc760ade2f76e6498b12a91a1d74feb72dbff` was already on origin before handoff at parity `0/0`; Guy subsequently ratified retaining it
 **D1A1C status:** not authorized; future local semantic review/approval milestone only after a successful D1A1B1 artifact and Guy inspection
 
 ## 1. Proposed change
@@ -141,9 +143,19 @@ No new pricing/docs/network lookup is permitted. Installed SDK typings may lag t
 
 Focused tests must cover raw zero/nonzero cache writes, all invalid cache-write classes, the cached-read/cache-write/ordinary partition, exact per-attempt and aggregate repair cost, explicit legacy compatibility, old-brand rejection, call/reservation ceilings, sanitized receipts, and no candidate on invalid evidence. Existing canonical boundary, B0 materialization, D1A0 lifecycle, source authority, compiler, retry, launcher/preflight, and production lifecycle suites must remain green.
 
-Run focused tests, `npx --no-install tsc --noEmit`, literal `npm run check`, `git diff --check`, shared calibration-literal and boundary scans, read-only B0 digest comparison, and final topology reconciliation. Rollback is a normal revert of the focused local commit; there is no external state or migration.
+Run focused tests, `npx --no-install tsc --noEmit`, literal `npm run check`, `git diff --check`, shared calibration-literal and boundary scans, read-only B0 digest comparison, and final topology reconciliation. Implementation rollback remains a normal revert of the focused commit. The remote branch is external state and is truthfully recorded below; there is no data migration.
 
-This milestone authorizes no credential/env-file read, pricing/docs lookup, network/fetch, provider/model call, live authoring, render/image/audio/Vision call, storage/database/Supabase/Board action, Semantic Reconciliation, approval, package publication/promotion, production activation, deployment, or push.
+This milestone authorizes no credential/env-file read, pricing/docs lookup, network/fetch, provider/model call, live authoring, render/image/audio/Vision call, storage/database/Supabase/Board action, Semantic Reconciliation, approval, package publication/promotion, production activation, deployment, or another push.
+
+### Independent QA and disclosure/process disposition
+
+- Claude Code returned technical **PASS** for exact immutable implementation range `94f9eb645d8da6197a17c3b06f39f00027a595dc..657dc760ade2f76e6498b12a91a1d74feb72dbff`. It found no implementation BLOCKER or code defect requiring correction.
+- Before the implementation handoff, branch HEAD `657dc760ade2f76e6498b12a91a1d74feb72dbff` was already present on `origin/codex/r1d-pvb-d1a1b1a-provider-usage-evidence`, with local/origin parity `0/0`. The remote-tracking reflog records `update by push` at `2026-07-28 10:57:40 +0300`. Local Git proves neither the actor nor whether authorization existed at the time.
+- Guy subsequently ratified retaining the remote branch and commit. This is after-the-fact ratification, not prior authorization. Claude Code's MAJOR-1 disclosure/process finding is resolved through Guy's ruling plus this truthful correction; the record does not claim that the external push did not occur.
+- The implementation task's own full-suite result remains recorded separately in `CURRENT.md`. Claude Code's independent run produced **264 files — 241 passed, 16 skipped, 7 failed; 2,902 tests — 2,829 passed, 65 skipped, 8 failed**. Its two additional failures were `order-authority-guard.spec.ts` and `asset-safety-writer-coverage.spec.ts`; both passed in isolation at **2 files / 11 tests** and were assessed as full-suite contention rather than a reviewed-range regression.
+- **NOTE-1:** current production callers rebuild source authority before request construction, so parsed-object key-order risk is not reachable today. Canonicalization or a guard remains tracked for future callers and is not a live blocker.
+- **NOTE-2:** unbranded injected compatibility may default absent cache-write evidence to zero, is durably marked `legacy_injected_compatibility`, and cannot satisfy the canonical v2 live evidence requirement. It is not a live blocker.
+- R1D-PVB-D1A1B1A-DOCS-RECONCILIATION is documentation-only and authorizes no credentials, pricing/network lookup, provider/model call, live authoring, spend, render/Vision, storage/database, Board, Semantic Reconciliation, approval, publication, promotion, deployment, production activation, or another push. D1A1B1 remains on HOLD until the documentation commit receives a focused independent micro re-gate and Guy explicitly authorizes the live attempt.
 
 ## 2. Why now?
 
@@ -266,7 +278,7 @@ Claude Code residual re-gate is read-only. It must inspect residual range `925a3
 
 The later D1A1B0 first-pass review is complete for exact range `29350ec18b10a0d0150412912f2cff134c38430a..e904dbe37e45dde9181bc8b70322073dc240c9d4` and returned PASS with only the three advisory NOTES recorded in §1C. No additional Claude QA round is required if the documentation-only closeout faithfully records that external verdict. This closes B0 technical QA only and does not authorize D1A1B1, D1A1C, live execution, spend, product/visual acceptance, push, deployment, or production.
 
-R1D-PVB-D1A1B1A requires a new read-only Claude Code first pass over `94f9eb645d8da6197a17c3b06f39f00027a595dc..final-head`. The reviewer must try to falsify raw cache-write mapping; every invalid numeric/type/overflow case; the disjoint input partition; exact nominal and aggregate repair cost; unchanged conservative reservation/call/ceiling values; receipt/evidence version honesty; old-brand and unbranded legacy behavior; sanitization; no-candidate failure ordering; unchanged B0 request-bound digests; and absence of shared calibration literals or downstream authority.
+Claude Code completed the D1A1B1A implementation first pass over exact range `94f9eb645d8da6197a17c3b06f39f00027a595dc..657dc760ade2f76e6498b12a91a1d74feb72dbff` and returned technical PASS with the disclosure/process finding and advisory notes recorded in §1D. The documentation-only reconciliation now requires a focused read-only micro re-gate limited to record precision, exact topology, preserved separate test-run evidence, truthful ratification timing, and the continued live-attempt HOLD.
 
 Claude Cowork review is not required for this technical zero-cost boundary. Guy will inspect the future D1A1B1 semantic artifact before D1A1C.
 
