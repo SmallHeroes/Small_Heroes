@@ -6,6 +6,7 @@ import {
   repoRelativePath,
 } from './integrity';
 import {
+  canonicalLiveAuthoringJsonBytes,
   createContainedContentAddressedJsonArtifactStore,
 } from './canonicalLiveAuthoringArtifacts';
 import {
@@ -32,6 +33,8 @@ export const STORY_SOURCE_AUTHORITY_REQUEST_ARTIFACT_VERSION =
   'story-source-authority-request/v1' as const;
 export const LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION =
   'canonical-live-request-materialization/v1' as const;
+export const CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION =
+  'canonical-live-request-verification/v1' as const;
 
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 const IDENTIFIER_PATTERN =
@@ -128,6 +131,52 @@ export interface LiveRequestMaterializationResult {
     manifest: VisualContractAuthoringArtifactWrite;
   };
 }
+
+export interface CanonicalLiveRequestVerifiedResult {
+  version: typeof CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION;
+  status: 'verified';
+  zeroWrite: true;
+  identities: {
+    manifestDigest: string;
+    sourceAuthorityRequestDigest: string;
+    sourceSnapshotDigest: string;
+    normalizedSourceDigest: string;
+    liveAuthoringRequestDigest: string;
+    requestId: string;
+    storyKey: string;
+  };
+  requestPolicy: {
+    provider: 'openai';
+    endpoint: 'responses';
+    model: 'gpt-5.6-sol';
+    serviceTier: 'default';
+    reasoningEffort: 'medium';
+    maxCalls: 3;
+    maxRepairCount: 2;
+    transportRetries: 0;
+    noFallback: true;
+    projectedMaxUsd: number;
+    hardCeilingUsd: 5;
+  };
+  externalBoundaryEvidence: {
+    credentialReadOrCheck: false;
+    providerReachabilityCheck: false;
+    pricingLookup: false;
+    providerCalls: 0;
+    modelCalls: 0;
+  };
+}
+
+export interface CanonicalLiveRequestRejectedResult {
+  version: typeof CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION;
+  status: 'rejected';
+  zeroWrite: true;
+  reasonCodes: string[];
+}
+
+export type CanonicalLiveRequestVerificationResult =
+  | CanonicalLiveRequestVerifiedResult
+  | CanonicalLiveRequestRejectedResult;
 
 function recordValue(
   value: unknown,
@@ -1190,4 +1239,672 @@ export function materializeCanonicalLiveRequestBundle(args: {
       manifest: manifestWrite,
     },
   };
+}
+
+class CanonicalLiveRequestVerificationFailure extends Error {
+  readonly reasonCodes: string[];
+
+  constructor(reasonCodes: readonly string[]) {
+    super('canonical_live_request_verification_rejected');
+    this.name = 'CanonicalLiveRequestVerificationFailure';
+    this.reasonCodes = stableVerificationReasonCodes(reasonCodes);
+  }
+}
+
+function stableVerificationReasonCodes(
+  reasonCodes: readonly string[],
+): string[] {
+  const stable = [
+    ...new Set(
+      reasonCodes.map((reasonCode) =>
+        /^[a-z0-9_:-]{1,128}$/.test(reasonCode)
+          ? reasonCode
+          : 'verification_internal_failure',
+      ),
+    ),
+  ]
+    .sort()
+    .slice(0, 64);
+  return stable.length > 0
+    ? stable
+    : ['verification_internal_failure'];
+}
+
+function rejectVerification(
+  ...reasonCodes: string[]
+): never {
+  throw new CanonicalLiveRequestVerificationFailure(
+    reasonCodes,
+  );
+}
+
+function rejectedVerificationResult(
+  reasonCodes: readonly string[],
+): CanonicalLiveRequestRejectedResult {
+  return {
+    version: CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION,
+    status: 'rejected',
+    zeroWrite: true,
+    reasonCodes: stableVerificationReasonCodes(reasonCodes),
+  };
+}
+
+function manifestVerificationReasonCodes(
+  issues: readonly string[],
+): string[] {
+  const reasons: string[] = [];
+  for (const issue of issues) {
+    if (issue.includes('future_command')) {
+      reasons.push('future_live_command_invalid');
+    } else if (
+      issue.includes('digest') &&
+      !issue.includes('source_digest') &&
+      !issue.includes('snapshot_binding')
+    ) {
+      reasons.push('manifest_digest_invalid');
+    } else if (issue.includes('artifact_root')) {
+      reasons.push('artifact_root_mismatch');
+    } else if (
+      issue.includes('binding') ||
+      issue.includes('source_revision')
+    ) {
+      reasons.push('manifest_linkage_invalid');
+    } else if (issue.includes('external_boundary')) {
+      reasons.push('manifest_external_boundary_invalid');
+    } else {
+      reasons.push('manifest_schema_invalid');
+    }
+  }
+  return stableVerificationReasonCodes(reasons);
+}
+
+interface CanonicalVerificationArtifact {
+  absolutePath: string;
+  relativePath: string;
+  value: unknown;
+  canonicalBytes: string;
+}
+
+function readCanonicalVerificationArtifact(args: {
+  repositoryRealPath: string;
+  relativePath: string;
+  label:
+    | 'manifest'
+    | 'source_authority_request'
+    | 'source_snapshot'
+    | 'live_authoring_request';
+}): CanonicalVerificationArtifact {
+  if (
+    canonicalRelativePathIssues(
+      args.relativePath,
+      `${args.label}_path`,
+    ).length > 0
+  ) {
+    rejectVerification(`${args.label}_path_invalid`);
+  }
+  let absolutePath: string;
+  try {
+    absolutePath = resolveCanonicalExistingFile({
+      repositoryRealPath: args.repositoryRealPath,
+      relativePath: args.relativePath,
+      label: `${args.label}_path`,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : '';
+    if (message.includes('symlink_alias_rejected')) {
+      rejectVerification(
+        `${args.label}_symlink_alias_rejected`,
+      );
+    }
+    if (message.includes('resolves_outside_repository')) {
+      rejectVerification(`${args.label}_path_escape`);
+    }
+    rejectVerification(
+      `${args.label}_missing_or_unreadable`,
+    );
+  }
+  const canonicalRelative = repoRelativePath(
+    args.repositoryRealPath,
+    absolutePath,
+  );
+  if (canonicalRelative !== args.relativePath) {
+    rejectVerification(`${args.label}_path_not_canonical`);
+  }
+  let rawBytes: Buffer;
+  try {
+    rawBytes = fs.readFileSync(absolutePath);
+  } catch {
+    rejectVerification(
+      `${args.label}_missing_or_unreadable`,
+    );
+  }
+  let value: unknown;
+  try {
+    value = JSON.parse(rawBytes.toString('utf8')) as unknown;
+  } catch {
+    rejectVerification(`${args.label}_json_invalid`);
+  }
+  let canonicalBytes: string;
+  try {
+    canonicalBytes = canonicalLiveAuthoringJsonBytes(value);
+  } catch {
+    rejectVerification(`${args.label}_json_domain_invalid`);
+  }
+  if (
+    !rawBytes.equals(Buffer.from(canonicalBytes, 'utf8'))
+  ) {
+    rejectVerification(`${args.label}_bytes_noncanonical`);
+  }
+  return {
+    absolutePath,
+    relativePath: canonicalRelative,
+    value,
+    canonicalBytes,
+  };
+}
+
+function descriptorVerificationPath(args: {
+  repositoryRealPath: string;
+  descriptor: LiveRequestMaterializationArtifactDescriptor;
+  label:
+    | 'source_authority_request'
+    | 'source_snapshot'
+    | 'live_authoring_request';
+}): CanonicalVerificationArtifact {
+  const artifact = readCanonicalVerificationArtifact({
+    repositoryRealPath: args.repositoryRealPath,
+    relativePath: args.descriptor.path,
+    label: args.label,
+  });
+  if (
+    path.posix.basename(artifact.relativePath) !==
+    `${args.descriptor.digest}.json`
+  ) {
+    rejectVerification(
+      `${args.label}_content_address_mismatch`,
+    );
+  }
+  return artifact;
+}
+
+function artifactDigestValue(
+  value: unknown,
+  label:
+    | 'source_authority_request'
+    | 'source_snapshot'
+    | 'live_authoring_request',
+): string {
+  const object = recordValue(value);
+  if (
+    !object ||
+    typeof object.digest !== 'string' ||
+    !DIGEST_PATTERN.test(object.digest)
+  ) {
+    rejectVerification(`${label}_digest_invalid`);
+  }
+  return object.digest;
+}
+
+function exactCanonicalValue(
+  actual: unknown,
+  expected: unknown,
+  reasonCode: string,
+): void {
+  let actualBytes: string;
+  let expectedBytes: string;
+  try {
+    actualBytes = canonicalLiveAuthoringJsonBytes(actual);
+    expectedBytes =
+      canonicalLiveAuthoringJsonBytes(expected);
+  } catch {
+    rejectVerification('verification_json_domain_invalid');
+  }
+  if (actualBytes !== expectedBytes) {
+    rejectVerification(reasonCode);
+  }
+}
+
+function liveRequestPolicyReasonCodes(
+  value: Record<string, unknown>,
+): string[] {
+  const reasons: string[] = [];
+  const callBudget = recordValue(value.callBudget);
+  const costBudget = recordValue(value.costBudget);
+  if (
+    value.provider !== 'openai' ||
+    value.endpoint !== 'responses' ||
+    value.model !== 'gpt-5.6-sol' ||
+    value.serviceTier !== 'default' ||
+    value.reasoningEffort !== 'medium' ||
+    value.noFallback !== true ||
+    value.transportRetries !== 0 ||
+    !callBudget ||
+    callBudget.maxCalls !== 3 ||
+    callBudget.maxRepairCount !== 2
+  ) {
+    reasons.push('live_authoring_request_policy_invalid');
+  }
+  if (
+    !costBudget ||
+    typeof costBudget.projectedMaxUsd !== 'number' ||
+    !Number.isFinite(costBudget.projectedMaxUsd) ||
+    costBudget.projectedMaxUsd < 0 ||
+    costBudget.projectedMaxUsd > 4.884 ||
+    costBudget.hardCeilingUsd !== 5
+  ) {
+    reasons.push('live_authoring_request_cost_invalid');
+  }
+  return reasons;
+}
+
+function verifyCanonicalLiveRequestBundleUnsafe(args: {
+  repoRoot: string;
+  manifestPath: string;
+}): CanonicalLiveRequestVerifiedResult {
+  if (
+    typeof args.repoRoot !== 'string' ||
+    !path.isAbsolute(args.repoRoot)
+  ) {
+    rejectVerification('repository_root_invalid');
+  }
+  let repositoryRealPath: string;
+  try {
+    repositoryRealPath = canonicalRepositoryRealPath(
+      args.repoRoot,
+    );
+  } catch {
+    rejectVerification('repository_root_invalid');
+  }
+  if (
+    !pathsEqual(path.resolve(args.repoRoot), repositoryRealPath)
+  ) {
+    rejectVerification('repository_root_alias_rejected');
+  }
+
+  const manifestArtifact =
+    readCanonicalVerificationArtifact({
+      repositoryRealPath,
+      relativePath: args.manifestPath,
+      label: 'manifest',
+    });
+  const manifestIssues =
+    liveRequestMaterializationManifestIssues(
+      manifestArtifact.value,
+    );
+  if (manifestIssues.length > 0) {
+    rejectVerification(
+      ...manifestVerificationReasonCodes(manifestIssues),
+    );
+  }
+  const manifest =
+    manifestArtifact.value as LiveRequestMaterializationManifest;
+  if (
+    manifest.repositoryRealPath !== repositoryRealPath
+  ) {
+    rejectVerification('manifest_repository_mismatch');
+  }
+
+  const outputRoots = [
+    manifest.artifacts.sourceAuthorityRequest.path,
+    manifest.artifacts.sourceSnapshot.path,
+    manifest.artifacts.liveAuthoringRequest.path,
+  ].map((artifactPath) =>
+    path.posix.dirname(path.posix.dirname(artifactPath)),
+  );
+  if (
+    new Set(outputRoots).size !== 1 ||
+    outputRoots[0] === undefined
+  ) {
+    rejectVerification('artifact_root_mismatch');
+  }
+  const outputRoot = outputRoots[0];
+  const expectedManifestPath = path.posix.join(
+    outputRoot,
+    'live-request-materializations',
+    `${manifest.digest}.json`,
+  );
+  if (
+    manifestArtifact.relativePath !== expectedManifestPath
+  ) {
+    rejectVerification('manifest_content_address_mismatch');
+  }
+
+  const sourceAuthorityArtifact =
+    descriptorVerificationPath({
+      repositoryRealPath,
+      descriptor:
+        manifest.artifacts.sourceAuthorityRequest,
+      label: 'source_authority_request',
+    });
+  const snapshotArtifact = descriptorVerificationPath({
+    repositoryRealPath,
+    descriptor: manifest.artifacts.sourceSnapshot,
+    label: 'source_snapshot',
+  });
+  const liveRequestArtifact =
+    descriptorVerificationPath({
+      repositoryRealPath,
+      descriptor: manifest.artifacts.liveAuthoringRequest,
+      label: 'live_authoring_request',
+    });
+
+  try {
+    assertValidStorySourceAuthorityRequestArtifact(
+      sourceAuthorityArtifact.value,
+    );
+  } catch {
+    rejectVerification(
+      'source_authority_request_schema_or_digest_invalid',
+    );
+  }
+  const sourceAuthorityRequest =
+    sourceAuthorityArtifact.value as StorySourceAuthorityRequestArtifact;
+  if (
+    sourceAuthorityRequest.digest !==
+    manifest.artifacts.sourceAuthorityRequest.digest
+  ) {
+    rejectVerification(
+      'source_authority_request_descriptor_mismatch',
+    );
+  }
+  if (
+    sourceAuthorityRequest.repoRoot !==
+    repositoryRealPath
+  ) {
+    rejectVerification(
+      'source_authority_request_repository_mismatch',
+    );
+  }
+  exactCanonicalValue(
+    sourceAuthorityRequest,
+    buildStorySourceAuthorityRequestArtifact({
+      repoRoot: repositoryRealPath,
+      storyKey: sourceAuthorityRequest.storyKey,
+      storyPath: sourceAuthorityRequest.storyPath,
+    }),
+    'source_authority_request_schema_or_digest_invalid',
+  );
+
+  let storyAbsolute: string;
+  try {
+    storyAbsolute = resolveCanonicalExistingFile({
+      repositoryRealPath,
+      relativePath: sourceAuthorityRequest.storyPath,
+      label: 'verification_story_source_path',
+    });
+    assertAdjacentCoverPathSafe({
+      repositoryRealPath,
+      storyPath: sourceAuthorityRequest.storyPath,
+    });
+  } catch {
+    rejectVerification(
+      'story_source_missing_unsafe_or_unreadable',
+    );
+  }
+  if (
+    repoRelativePath(repositoryRealPath, storyAbsolute) !==
+    sourceAuthorityRequest.storyPath
+  ) {
+    rejectVerification('story_source_path_not_canonical');
+  }
+
+  let snapshot: StorySourceAuthoritySnapshot;
+  try {
+    snapshot =
+      snapshotArtifact.value as StorySourceAuthoritySnapshot;
+    assertValidStorySourceAuthoritySnapshot(snapshot);
+    assertSnapshotMaterializationComplete({
+      snapshot,
+      storyPath: sourceAuthorityRequest.storyPath,
+    });
+  } catch {
+    rejectVerification(
+      'source_snapshot_schema_or_digest_invalid',
+    );
+  }
+  if (
+    artifactDigestValue(
+      snapshot,
+      'source_snapshot',
+    ) !== manifest.artifacts.sourceSnapshot.digest
+  ) {
+    rejectVerification('source_snapshot_descriptor_mismatch');
+  }
+
+  let rebuiltSnapshot: StorySourceAuthoritySnapshot;
+  try {
+    rebuiltSnapshot = buildStorySourceAuthoritySnapshot({
+      repoRoot: repositoryRealPath,
+      storyKey: sourceAuthorityRequest.storyKey,
+      storyPath: sourceAuthorityRequest.storyPath,
+    });
+    assertSnapshotMaterializationComplete({
+      snapshot: rebuiltSnapshot,
+      storyPath: sourceAuthorityRequest.storyPath,
+    });
+  } catch {
+    rejectVerification('story_source_rebuild_failed');
+  }
+  exactCanonicalValue(
+    snapshot,
+    rebuiltSnapshot,
+    'source_snapshot_current_story_mismatch',
+  );
+
+  const liveRequestObject = recordValue(
+    liveRequestArtifact.value,
+  );
+  if (!liveRequestObject) {
+    rejectVerification(
+      'live_authoring_request_schema_invalid',
+    );
+  }
+  if (liveRequestObject.mode !== 'live') {
+    rejectVerification('live_authoring_request_mode_invalid');
+  }
+  const policyReasons =
+    liveRequestPolicyReasonCodes(liveRequestObject);
+  if (policyReasons.length > 0) {
+    rejectVerification(...policyReasons);
+  }
+  if (
+    typeof liveRequestObject.requestId !== 'string' ||
+    typeof liveRequestObject.requestedAt !== 'string'
+  ) {
+    rejectVerification(
+      'live_authoring_request_schema_invalid',
+    );
+  }
+  const {
+    digestAlgorithm: _requestDigestAlgorithm,
+    digest: claimedLiveRequestDigest,
+    ...liveRequestPayload
+  } = liveRequestObject;
+  if (
+    _requestDigestAlgorithm !== 'canonical-json-sha256' ||
+    typeof claimedLiveRequestDigest !== 'string' ||
+    !DIGEST_PATTERN.test(claimedLiveRequestDigest)
+  ) {
+    rejectVerification(
+      'live_authoring_request_digest_invalid',
+    );
+  }
+  let observedLiveRequestDigest: string;
+  try {
+    observedLiveRequestDigest = canonicalJsonDigest(
+      liveRequestPayload,
+    );
+  } catch {
+    rejectVerification(
+      'live_authoring_request_json_domain_invalid',
+    );
+  }
+  if (
+    claimedLiveRequestDigest !== observedLiveRequestDigest
+  ) {
+    rejectVerification(
+      'live_authoring_request_digest_invalid',
+    );
+  }
+  if (
+    claimedLiveRequestDigest !==
+    manifest.artifacts.liveAuthoringRequest.digest
+  ) {
+    rejectVerification(
+      'live_authoring_request_descriptor_mismatch',
+    );
+  }
+
+  let rebuiltLiveRequest: VisualContractAuthoringRequest;
+  try {
+    rebuiltLiveRequest =
+      buildVisualContractAuthoringRequest({
+        snapshot: rebuiltSnapshot,
+        mode: 'live',
+        requestId: liveRequestObject.requestId,
+        requestedAt: liveRequestObject.requestedAt,
+      });
+  } catch {
+    rejectVerification(
+      'live_authoring_request_schema_invalid',
+    );
+  }
+  exactCanonicalValue(
+    liveRequestArtifact.value,
+    rebuiltLiveRequest,
+    'live_authoring_request_not_canonical_current_policy',
+  );
+  let liveRequestIssues: string[];
+  try {
+    liveRequestIssues =
+      visualContractAuthoringRequestIssues({
+        request:
+          liveRequestArtifact.value as VisualContractAuthoringRequest,
+        snapshot: rebuiltSnapshot,
+      });
+  } catch {
+    rejectVerification(
+      'live_authoring_request_schema_invalid',
+    );
+  }
+  if (liveRequestIssues.length > 0) {
+    rejectVerification(
+      'live_authoring_request_not_canonical_current_policy',
+    );
+  }
+
+  const expectedSourceRevision = {
+    storyKey: rebuiltSnapshot.content.storyKey,
+    sourceIdentityVersion:
+      rebuiltSnapshot.content.sourceIdentity.version,
+    storyPath:
+      rebuiltSnapshot.content.sourceIdentity.path,
+    normalizedSourceDigest:
+      rebuiltSnapshot.content.sourceIdentity.digest,
+    pageCount:
+      rebuiltSnapshot.content.sourceIdentity.pageCount,
+    pageNumbers:
+      rebuiltSnapshot.content.sourceIdentity.pageNumbers,
+    sourceSnapshotDigest: rebuiltSnapshot.digest,
+    authoredCoverAuthorityPresent:
+      rebuiltSnapshot.content.authoredCoverAuthority !== null,
+  };
+  exactCanonicalValue(
+    manifest.sourceRevision,
+    expectedSourceRevision,
+    'manifest_source_revision_mismatch',
+  );
+  if (
+    manifest.requestId !== rebuiltLiveRequest.requestId ||
+    manifest.requestedAt !==
+      rebuiltLiveRequest.requestedAt ||
+    sourceAuthorityRequest.storyKey !==
+      rebuiltSnapshot.content.storyKey ||
+    sourceAuthorityRequest.storyPath !==
+      rebuiltSnapshot.content.sourceIdentity.path
+  ) {
+    rejectVerification('manifest_linkage_invalid');
+  }
+
+  const expectedFutureLiveArguments = [
+    'scripts/visual-contract-authoring.cjs',
+    'live',
+    '--repo-root',
+    repositoryRealPath,
+    '--source-authority-request',
+    manifest.artifacts.sourceAuthorityRequest.path,
+    '--snapshot',
+    manifest.artifacts.sourceSnapshot.path,
+    '--request',
+    manifest.artifacts.liveAuthoringRequest.path,
+    '--out',
+    outputRoot,
+  ];
+  if (
+    manifest.futureLiveCommand.executable !== 'node' ||
+    JSON.stringify(
+      manifest.futureLiveCommand.arguments,
+    ) !== JSON.stringify(expectedFutureLiveArguments)
+  ) {
+    rejectVerification('future_live_command_invalid');
+  }
+
+  return {
+    version: CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION,
+    status: 'verified',
+    zeroWrite: true,
+    identities: {
+      manifestDigest: manifest.digest,
+      sourceAuthorityRequestDigest:
+        sourceAuthorityRequest.digest,
+      sourceSnapshotDigest: rebuiltSnapshot.digest,
+      normalizedSourceDigest:
+        rebuiltSnapshot.content.sourceIdentity.digest,
+      liveAuthoringRequestDigest:
+        rebuiltLiveRequest.digest,
+      requestId: rebuiltLiveRequest.requestId,
+      storyKey: rebuiltSnapshot.content.storyKey,
+    },
+    requestPolicy: {
+      provider: 'openai',
+      endpoint: 'responses',
+      model: 'gpt-5.6-sol',
+      serviceTier: 'default',
+      reasoningEffort: 'medium',
+      maxCalls: 3,
+      maxRepairCount: 2,
+      transportRetries: 0,
+      noFallback: true,
+      projectedMaxUsd:
+        rebuiltLiveRequest.costBudget.projectedMaxUsd,
+      hardCeilingUsd: 5,
+    },
+    externalBoundaryEvidence: {
+      credentialReadOrCheck: false,
+      providerReachabilityCheck: false,
+      pricingLookup: false,
+      providerCalls: 0,
+      modelCalls: 0,
+    },
+  };
+}
+
+export function verifyCanonicalLiveRequestBundle(args: {
+  repoRoot: string;
+  manifestPath: string;
+}): CanonicalLiveRequestVerificationResult {
+  try {
+    return verifyCanonicalLiveRequestBundleUnsafe(args);
+  } catch (error) {
+    if (
+      error instanceof
+      CanonicalLiveRequestVerificationFailure
+    ) {
+      return rejectedVerificationResult(error.reasonCodes);
+    }
+    return rejectedVerificationResult([
+      'verification_internal_failure',
+    ]);
+  }
 }

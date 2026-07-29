@@ -11,6 +11,7 @@
 import fs from 'fs';
 
 import {
+  CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION,
   assertValidVisualPackageV4,
   assembleVisualPackageV4Candidate,
   auditProductionStoryReadiness,
@@ -31,6 +32,7 @@ import {
   qualifyVisualPackageV4Candidate,
   runProductionBlueprintAuthoring,
   runVisualContractAuthoring,
+  verifyCanonicalLiveRequestBundle,
   type ApprovedBlueprintLifecyclePaths,
   type ProductionAuthoringRunRequest,
   type StorySourceAuthorityRequest,
@@ -97,12 +99,17 @@ const LIVE_REQUEST_MATERIALIZATION_FLAGS = new Set([
   '--request',
   '--out',
 ]);
+const LIVE_REQUEST_VERIFICATION_FLAGS = new Set([
+  '--repo-root',
+  '--manifest',
+]);
 
 function usage(): string {
   return [
     'Production visual lifecycle (deterministic local authority tooling):',
     '  source-authoring-preflight --request <json> [--out <repo-relative-dir>] [--write true|false]',
     '  source-authoring-live-request-materialize --repo-root <absolute-dir> --request <repo-relative-json> --out <repo-relative-dir>',
+    '  source-authoring-live-request-verify --repo-root <absolute-dir> --manifest <repo-relative-json>',
     '  readiness --request <json>',
     '  context --request <json>',
     '  reconciliation-draft --request <json> [--out <repo-relative-dir>]',
@@ -352,6 +359,38 @@ function sourceAuthoringLiveRequestMaterialize(
   output(result);
 }
 
+function sourceAuthoringLiveRequestVerify(
+  tokens: string[],
+): void {
+  let flags: Map<string, string>;
+  try {
+    flags = parseFlags(
+      tokens,
+      LIVE_REQUEST_VERIFICATION_FLAGS,
+    );
+    requireFlag(flags, '--repo-root');
+    requireFlag(flags, '--manifest');
+  } catch {
+    output({
+      version:
+        CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION,
+      status: 'rejected',
+      zeroWrite: true,
+      reasonCodes: ['verification_cli_arguments_invalid'],
+    });
+    process.exitCode = 1;
+    return;
+  }
+  const result = verifyCanonicalLiveRequestBundle({
+    repoRoot: requireFlag(flags, '--repo-root'),
+    manifestPath: requireFlag(flags, '--manifest'),
+  });
+  output(result);
+  if (result.status === 'rejected') {
+    process.exitCode = 1;
+  }
+}
+
 function assembleV4(tokens: string[]): void {
   const { request, flags } = requestFile<AssembleV4Request>(
     tokens,
@@ -504,6 +543,11 @@ async function main(): Promise<void> {
     'source-authoring-live-request-materialize'
   ) {
     return sourceAuthoringLiveRequestMaterialize(tokens);
+  }
+  if (
+    command === 'source-authoring-live-request-verify'
+  ) {
+    return sourceAuthoringLiveRequestVerify(tokens);
   }
   if (command === 'context') return context(tokens);
   if (command === 'reconciliation-draft') {
