@@ -2,7 +2,28 @@
 
 **Updated:** 2026-07-30
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-provider-failure-diagnostics` in `C:\Users\guyna\.codex\worktrees\9220\Small_Heroes`, based exactly on Attempt-6 head `f69bc6c63974c5f8c0bf04ad397baa025041b9d1`. The provider-failure diagnostics implementation is committed at `4d006e8bfafe8bb8541954977370cef69c1ca97c`; its original closeout is `80ad3c70563683d627ddb19d232a4fd08503e74c`. At correction intake, local `HEAD`, upstream, and local origin tracking all resolved to `80ad3c70563683d627ddb19d232a4fd08503e74c` at `0/0` parity. This focused `CURRENT.md` correction is the sole local commit after that pushed head and has not been pushed. Independent Claude Code implementation review is still required. This task does not self-award technical PASS and grants no live diagnostic attempt or downstream authority.
+**Working branch:** `codex/r1d-pvb-d1a1b1-provider-failure-diagnostics` in `C:\Users\guyna\.codex\worktrees\9220\Small_Heroes`, based exactly on Attempt-6 head `f69bc6c63974c5f8c0bf04ad397baa025041b9d1`. The original provider-failure implementation is `4d006e8bfafe8bb8541954977370cef69c1ca97c`; original closeout is `80ad3c70563683d627ddb19d232a4fd08503e74c`; push-record correction is `cbed0e55b44fb7b17ffb6c8ba7c822b9fd5ed3ac`; and the focused QA finding correction is `adae663e8853982a1ff936b5ebfc9b1182e214b7`. Origin tracking remains at `80ad3c70563683d627ddb19d232a4fd08503e74c`; the correction commits after that head are local-only. Independent Claude Code re-gate is required. This task does not self-award technical PASS and grants no live diagnostic attempt or downstream authority.
+
+## R1D-PVB-D1A1B1-PROVIDER-CALL-FAILURE-DIAGNOSTICS — QA findings corrected; re-gate required
+
+Claude Code completed its first read-only implementation review after the push-record correction and returned **HOLD** with one MAJOR reproducibility finding and one MINOR diagnostic-accuracy finding.
+
+- **MAJOR reproducibility finding:** the handed-off `9220` worktree had no isolated dependency tree. The earlier validation used a removed junction to Attempt 6's dependencies, so Claude could not reproduce the compiler or tests in the review worktree. This worktree now contains a real, non-link `node_modules` directory installed with `npm ci --offline --ignore-scripts --no-audit --no-fund`; the local Prisma 6.19.3 client was generated with the installed CLI after the intentionally skipped lifecycle scripts. Installed OpenAI `6.35.0`, TypeScript `6.0.3`, and Vitest `3.2.4` are locally reproducible without the Attempt-6 junction.
+- **MINOR diagnostic-accuracy finding:** the adapter and default transport previously created disjoint observation objects. A failure after SDK completion, during local response mapping, was therefore classified from the outer object without true transport-dispatch, HTTP-response, status, or request-ID facts. Commit `adae663e8853982a1ff936b5ebfc9b1182e214b7` makes the adapter-created observation object part of the transport request and uses that same object through guarded dispatch, HTTP receipt, and final response mapping.
+- A deterministic regression invokes the real guarded fetch with an in-memory HTTP 200 response, records a request-ID digest, then forces local mapping to fail. The resulting sanitized diagnostic is `response_parse` / `provider_response_parse_failure`, retains true dispatch/HTTP/status/digest evidence, and does not serialize the raw thrown message.
+- This correction changes no request body, prompt, schema, model, service tier, timeout, call/repair budget, transport retry, fallback, destination, method, evidence schema version, persistence order, B0 artifact, or production authorization behavior.
+
+### Corrective validation at `$0`
+
+- Before editing, the real isolated environment reproduced the original evidence: TypeScript **PASS** and the original focused matrix **6 files / 270 tests PASS**.
+- After the correction, direct TypeScript is **PASS**. The affected suites are **2 files / 167 tests PASS**; the full focused matrix is **6 files / 271 tests PASS**.
+- Literal `npm run check` completed TypeScript and reproduced only the established baseline: six failures in the same five unchanged ignored-output-fixture tests. Both changed suites passed under full-suite load. An isolated baseline rerun reported **5 files / 6 failed / 9 passed**; no new failure appeared.
+- The current v2 verifier against Attempt 6 and the historical v1 verifier against Attempt 5 both returned `verified` / `zeroWrite: true` behind the repository deny-network sentinel with no credential. A before/after SHA-256 fence covered all 14 historical Attempt-5/Attempt-6 files and reported zero changes.
+- `package.json` remains `19ac6d7a01d5ac8c8f4ff16d0d7b57c5781a125d2d3ec3af43b6983fff082f7d`; `package-lock.json` remains `bf7932428ac1bc2cb8885e83a21f231486f35ea36820381b7d1763a77ba03d59`. The focused correction changes three tracked files only.
+
+### Gate and exclusions
+
+The implementation remains **HOLD pending independent Claude Code re-gate**. No credential was loaded; no pricing lookup, external network/provider/model call, live authoring, canonical live invocation, render/image/Vision/audio, storage/database/Supabase action, Board action, Semantic Reconciliation, approval, candidate/Blueprint/package publication, promotion, activation, deployment, push, or provider-account/billing audit occurred. Cost remains exactly `$0`.
 
 ## R1D-PVB-D1A1B1-PROVIDER-CALL-FAILURE-DIAGNOSTICS — QA intake HOLD and push-record correction
 
