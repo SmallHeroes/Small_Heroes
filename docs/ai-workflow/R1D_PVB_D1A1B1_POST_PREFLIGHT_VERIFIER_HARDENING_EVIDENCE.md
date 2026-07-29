@@ -1,9 +1,12 @@
 # R1D-PVB-D1A1B1 post-preflight verifier hardening evidence
 
 **Recorded:** 2026-07-29
-**Status:** local implementation complete; independent first-pass QA pending
+**Status:** Claude Code HOLD; accepted QA correction locally complete and pending read-only re-gate
 **Approved start:** `36f88f62c69b86237f7af322a0660ab37f09723f`
 **Implementation commit:** `d651a43a9105fb6f0f30537133eeb6d1b95ed32b`
+**Initial evidence commit:** `087975ff1ccb14686d2cdf128729144384725e18`
+**QA-fix code commit:** `41ab46c09300d3fc74a05443cf82baf62ed37b16`
+**Alias-hardening commit:** `bcfa3e38504eb0d8f08dd4c8c0c1f67a09606fc1`
 **Worktree:** `C:\Users\guyna\.codex\worktrees\2ad5\Small_Heroes`
 **Branch:** `codex/r1d-pvb-d1a1b1-attempt-3`
 **Cost:** `$0.00`
@@ -23,6 +26,8 @@ This record is sanitized. It contains no credential value or existence result, r
   - manifest: 3,376 bytes, `95d3e2d4293d191f0a4bf013bd53922b282e026083ff8b3b9b4ec9cd00a2427e`
 
 These byte hashes are inventory evidence only. Canonical authority remains each artifact's schema-defined payload-domain digest.
+
+Before the accepted QA correction, local `HEAD`, upstream, and origin all resolved to `087975ff1ccb14686d2cdf128729144384725e18` at `0/0` parity. The remote-tracking reflog records `update by push` at `2026-07-29 09:57:01 +0300` for `36f88f62c69b86237f7af322a0660ab37f09723f` and at `2026-07-29 10:30:52 +0300` for `087975ff1ccb14686d2cdf128729144384725e18`. Local Git cannot establish who performed either push or whether it was authorized; this record makes neither claim. Branch presence on origin grants no downstream, live, deployment, or additional-push authority.
 
 ## Implemented contract
 
@@ -59,7 +64,7 @@ These byte hashes are inventory evidence only. Canonical authority remains each 
 
 3. Corrections:
    - Use a general 12-page synthetic story to exercise the approved maximum reservation.
-   - Preserve the write sentinel but allow calls whose captured stack is inside the exact installed tsx runtime. Application writes still throw, positive controls prove the throw, and a complete synthetic repository file-tree identity is compared before/after the real verifier process.
+   - The initial implementation preserved the write sentinel through an installed-tsx stack exemption. Claude Code later falsified that boundary because an application write could inherit a tsx frame; QA-fix commit `41ab46c09300d3fc74a05443cf82baf62ed37b16` removes the stack heuristic entirely, and `bcfa3e38504eb0d8f08dd4c8c0c1f67a09606fc1` adds direct junction/reparse and hard-link alias rejection.
 
 4. Final focused run, same exact command: **2 files / 68 tests PASS**.
 
@@ -80,6 +85,13 @@ These byte hashes are inventory evidence only. Canonical authority remains each 
 
 6. `git diff --check`: **PASS** before the implementation commit.
 
+7. Accepted QA correction:
+   - Direct deterministic `node node_modules/typescript/bin/tsc --noEmit`: **PASS**.
+   - Focused materializer/verifier command above: **2 files / 74 tests PASS**.
+   - The real script-file subprocess used fresh test-owned `TEMP`, `TMP`, and `TMPDIR` authority and traced only exact `tsx-<runtime identity>` cache-root `mkdirSync` plus direct integer/SHA-1-keyed `fs.promises.writeFile` cache entries.
+   - Every installed synchronous/callback/stream and promise write method received a positive denial control. Application write with a simulated tsx stack, repository/output/temp-neighbor paths, traversal and alias attempts through the allowlisted promise method, cache-root junction/reparse authority, cache-file hard-link authority, and multi-path source/target/cache-only operations all failed closed.
+   - The single authorized `npm run check` was not rerun. Its preserved initial result remains TypeScript PASS, no timeout/new failure, and exactly the established six missing ignored-output fixture failures in the same five files.
+
 ## Adversarial coverage
 
 - Positive controls prove credential existence/read, provider-module import, network fetch, and application filesystem write boundaries throw.
@@ -88,14 +100,16 @@ These byte hashes are inventory evidence only. Canonical authority remains each 
 - Failure coverage includes malformed/stale manifest, source request, source snapshot, and live request; noncanonical bytes; non-JSON canonical domain; current Story Source mutation; wrong payload digest; wrong descriptor/linkage; wrong live mode; provider/model/tier/reasoning/call/repair/retry/fallback policy; reservation and hard ceiling; substituted future command; missing artifact; public and manifest path escape; alias/symlink behavior where supported; malformed CLI input; and deterministic repeated sanitized failure.
 - Two-root materialization proves portable source-snapshot/live-request identities and distinct worktree-bound source-authority/manifest identities.
 - Shared implementation contains no selected story, child, companion, or page literal.
+- The corrected test sentinel has no stack/caller heuristic. It accepts only the installed tsx cache signatures observed under a fresh test-owned temp root; all multi-path methods are denied, and real-path/link checks reject alias authority. Production verifier and CLI semantics are unchanged.
 
 ## Cleanup and exclusions
 
 - Current-run ignored files were selected only by post-run timestamps, inspected, and deleted by explicit file path. This removed two synthetic QA-anchor files, two story-read-back scratch files, three generated Story QA log bundles, the Vitest result cache, and `tsconfig.tsbuildinfo`. The shell rejected the initial recursive cleanup command before mutation; the completed cleanup used explicit file deletion only. Historical Attempt-3 evidence was preserved and rehashed afterward.
 - Empty ignored directories may remain; they contain no artifact and do not appear in Git status.
-- No canonical preflight, actual Attempt-3 verifier execution, pricing or network lookup, credential read/check, provider/model call, live authoring, render/image/Vision, storage/database/Supabase, Board action, Semantic Reconciliation, approval, Blueprint/package publication or promotion, production activation, deployment, or push occurred.
+- No canonical preflight, actual Attempt-3 verifier execution, pricing or network lookup, credential read/check, provider/model call, live authoring, render/image/Vision, storage/database/Supabase, Board action, Semantic Reconciliation, approval, Blueprint/package publication or promotion, production activation, deployment, or spend occurred.
+- The initial implementation/evidence range was present on origin through `087975ff1ccb14686d2cdf128729144384725e18` at review parity, with the two remote-tracking reflog observations recorded above. No push was performed by the QA correction; no new push is authorized.
 - Provider calls: `0`; model calls: `0`; semantic repairs: `0`; transport retries: `0`; cost: `$0.00`.
 
 ## Gate
 
-The corrective implementation is locally complete and committed, but Codex does not self-award independent technical PASS. Claude Code must review the final immutable base-to-head range read-only and attempt to falsify the verifier's containment, schema/byte/digest/linkage, current-source, policy/cost/command, sanitization, and zero-boundary claims. Attempt 3 remains exhausted and no verifier/preflight/live retry is authorized.
+Claude Code returned HOLD on `36f88f62c69b86237f7af322a0660ab37f09723f..087975ff1ccb14686d2cdf128729144384725e18`. Both findings are accepted and corrected locally, but Codex does not self-award independent technical PASS. Claude Code must re-gate the QA-fix range from `087975ff1ccb14686d2cdf128729144384725e18` through the final documentation commit and the combined range from `36f88f62c69b86237f7af322a0660ab37f09723f` through that same head, read-only. Attempt 3 remains exhausted and no verifier/preflight/live retry is authorized.
