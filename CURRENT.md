@@ -1,10 +1,10 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-07-28
+**Updated:** 2026-07-29
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-live-authoring-attempt` in `C:\Users\guyna\.codex\worktrees\4a16\Small_Heroes`, starting from exact pushed head `9cd108d673a1e425946696de1b911a3be9ef9e9a`. Guy transferred sole-writer authority for R1D-FULL-SUITE-EXECUTION-STABILITY-LEAD-RESUME to the Lead Task while the previous execution Task remained idle/read-only. The general worker-contention correction is now implemented and locally validated: Vitest retains file parallelism with a portable four-worker ceiling, and the expensive 18×2 scalar matrix is split into 36 independently scheduled cases. The one authorized `npm run check` reproduced exactly the established six ignored-fixture failures with no timeout or new failure. The local candidate awaits independent Claude Code review and remains unpushed. No production behavior, package, B0, preflight, credential, provider, or external action changed.
+**Working branch:** `codex/r1d-pvb-d1a1b1-live-authoring-attempt` in `C:\Users\guyna\.codex\worktrees\4a16\Small_Heroes`. Guy transferred sole-writer authority for R1D-FULL-SUITE-EXECUTION-STABILITY-LEAD-RESUME to the Lead Task while the previous execution Task remained idle/read-only. Exact implementation range `9cd108d673a1e425946696de1b911a3be9ef9e9a..5f61d3946e9c1989def1d5adc861e28010129266` has independent Claude Code **PASS**: no BLOCKER or MINOR, with one documentation/process MAJOR for the stale push-state record. At reconciliation, local `HEAD` and the origin branch both resolve to `5f61d3946e9c1989def1d5adc861e28010129266` at `0/0` parity. The remote-tracking reflog records `update by push` at 2026-07-29 00:02:33 +0300; local Git does not prove the push actor or authorization. No production behavior, package, B0, preflight, credential, provider, or external action other than that already-observed Git push changed.
 
-## R1D-FULL-SUITE-EXECUTION-STABILITY-LEAD-RESUME — Local QA candidate
+## R1D-FULL-SUITE-EXECUTION-STABILITY-LEAD-RESUME — Independent implementation PASS
 
 Guy explicitly transferred sole-writer authority for this milestone from the idle/read-only execution Task to the current Lead Task. The approved scope was test infrastructure only: preserve file parallelism while bounding high-core contention, and split the exhaustive 18×2 canonical live-authoring validation into independent test cases without changing any combination, assertion, evidence check, or provider-unreachable guarantee.
 
@@ -25,10 +25,20 @@ Guy explicitly transferred sole-writer authority for this milestone from the idl
 - Four ignored synthetic files created by the authorized full run were identified by current-run timestamps and removed by exact path only: the two synthetic QA-anchor files and the two story-read-back scratch fixtures. No historical ignored fixture was copied, imported, fabricated, or removed.
 - The retained change set is limited to the neutral test-infrastructure module, its policy/config-wiring tests, `vitest.config.ts`, the canonical boundary test split, and this technical-state record.
 
+### Independent QA and push reconciliation
+
+- Claude Code independently reviewed exact immutable range `9cd108d673a1e425946696de1b911a3be9ef9e9a..5f61d3946e9c1989def1d5adc861e28010129266` and returned **PASS** for the implementation with no BLOCKER or MINOR. Its sole MAJOR is this record's stale claim that the branch remained unpushed.
+- The reviewer reproduced the focused result as **2 files / 133 tests PASS** in 10.39 seconds and independently verified the worker calculation, active config wiring without config import recursion, all 18×2 unique cases, every original validation/evidence assertion, per-case fixture isolation, stronger per-case provider unreachability, and the absence of a second comparable expensive runner matrix.
+- The reviewer did not rerun `npm run check`, as explicitly required. The recorded one-run result therefore rests on the Lead Task evidence and is not independently reproduced by Claude Code.
+- At review time, origin already contained `5f61d3946e9c1989def1d5adc861e28010129266` at `0/0` parity. The remote-tracking reflog records `update by push` at 2026-07-29 00:02:33 +0300. Local Git cannot establish who performed that push or whether it was authorized, so this record makes neither claim.
+- The push occurred before independent review and contradicted the prior "remains unpushed" handoff. This is a process/disclosure correction only: no main/production branch, deployment, credential, provider, storage, spend, or runtime state was affected.
+- Advisory tradeoff: the four-worker ceiling intentionally reduces this 24-slot host from Vitest's effective 23-fork default to four workers. Full-suite wall time may increase; that is an expected stability tradeoff, not by itself a regression.
+
 ### Gate and next action
 
-- This is a locally green implementation candidate, not a self-awarded independent PASS. It requires Claude Code first-pass read-only QA against the final immutable commit range before Guy decides whether to push or resume Attempt 3 readiness.
-- This milestone grants no B0 preparation or verification, canonical preflight, credential access, pricing/network/provider/model call, live authoring, render/image/Vision, storage/database/Supabase, Board, Semantic Reconciliation, approval/Blueprint/publication/promotion, production activation, deployment, push, or spend authority.
+- The implementation has independent technical **PASS** for the exact immutable range above. Claude Code explicitly classified the outstanding MAJOR as a documentation/process correction rather than a code defect; no code re-gate is required.
+- This documentation-only reconciliation changes no implementation or test. It requires only a focused read-only record/topology micro re-gate before closeout. No additional push was performed during the reconciliation.
+- The branch's existing presence on origin grants no B0 preparation or verification, canonical preflight, credential access, pricing/network/provider/model call, live authoring, render/image/Vision, storage/database/Supabase, Board, Semantic Reconciliation, approval/Blueprint/publication/promotion, production activation, deployment, further push, or spend authority. Attempt 3 remains separately gated by Guy.
 
 ## R1D-FULL-SUITE-EXECUTION-STABILITY — Normal launcher boundary HOLD
 
