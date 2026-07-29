@@ -35,8 +35,10 @@ Before the accepted QA correction, local `HEAD`, upstream, and origin all resolv
 - CLI shape:
 
   ```text
-  node node_modules/tsx/dist/cli.mjs --require scripts/shims/register-server-only.cjs scripts/production-visual-lifecycle.ts source-authoring-live-request-verify --repo-root <absolute-repository-root> --manifest <repository-relative-manifest>
+  node node_modules/tsx/dist/cli.mjs --require ./scripts/shims/register-server-only.cjs scripts/production-visual-lifecycle.ts source-authoring-live-request-verify --repo-root <absolute-repository-root> --manifest <repository-relative-manifest>
   ```
+
+  Correction recorded 2026-07-29: the earlier checked-in runnable form omitted `./`, so Node treated the preload as a module specifier and Attempt 4's sole verifier invocation failed before repository-script evaluation. The command above is the corrected future canonical command authority. It does not rewrite Attempt-4 history, authorize a verifier/preflight rerun, or make any claim that the failed invocation evaluated repository code.
 
 - Public flags: exactly `--repo-root` and `--manifest`, separate-value form only.
 - Success version/status: `canonical-live-request-verification/v1`, `verified`, `zeroWrite: true`.

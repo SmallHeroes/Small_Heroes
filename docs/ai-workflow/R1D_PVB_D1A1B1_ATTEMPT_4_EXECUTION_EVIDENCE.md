@@ -1,11 +1,12 @@
 # R1D-PVB-D1A1B1-ATTEMPT-4 execution evidence
 
 **Recorded:** 2026-07-29
-**Status:** HOLD — stopped at the first post-preflight verifier preload-resolution failure
+**Status:** Claude Code HOLD — accepted documentation corrections pending read-only re-gate; execution remains stopped at the first post-preflight verifier preload-resolution failure
 **Worktree:** `C:\Users\guyna\.codex\worktrees\f48c\Small_Heroes`
 **Branch:** `codex/r1d-pvb-d1a1b1-attempt-4`
 **Approved source:** `codex/r1d-pvb-d1a1b1-attempt-3`
 **Approved base:** `222c9959d8641a5a2fce5d34bfb22ab1aa2fda40`
+**Execution closeout commit:** `6f691975743049027f9411426b3abb19db6bbe37`
 
 This record is sanitized. It excludes the API key value, unrelated environment values, raw prompts/responses, hidden reasoning, raw provider payloads, raw exception stacks, and any untrusted provider content.
 
@@ -26,7 +27,7 @@ This check opened the approved credential source before the delegated Phase 1 ga
 ## Dependency gate
 
 1. Committed dependency inputs were unchanged:
-   - `package.json`: 2,069 bytes; SHA-256 `19ac6d7a01d5ac8c4ff16d0d7b57c5781a125d2d3ec3af43b6983fff082f7d`
+   - `package.json`: 2,069 bytes; SHA-256 `19ac6d7a01d5ac8c8f4ff16d0d7b57c5781a125d2d3ec3af43b6983fff082f7d`
    - `package-lock.json`: 128,844 bytes; SHA-256 `bf7932428ac1bc2cb8885e83a21f231486f35ea36820381b7d1763a77ba03d59`
 2. `node_modules` was absent, so the one permitted command ran:
 
@@ -132,7 +133,7 @@ This is a command-authority/documentation-boundary failure before artifact verif
 - Calculated incurred cost: `$0.00`.
 - Maximum incurred cost: `$0.00`.
 - `authoring-receipts`, `readiness-evidence`, `contract-candidates`, and `rejected-authoring-requests` are absent.
-- No render/page/image/Vision/audio, storage/database/Supabase, Set Identity Board, Semantic Reconciliation, Visual Contract approval, Blueprint authoring/approval, package assembly/publication/promotion, production activation, deployment, or push occurred.
+- During the Attempt-4 execution itself, no render/page/image/Vision/audio, storage/database/Supabase, Set Identity Board, Semantic Reconciliation, Visual Contract approval, Blueprint authoring/approval, package assembly/publication/promotion, production activation, deployment, or push occurred.
 - No production code, schema, config, test, package, lockfile, Story Source, or request-policy file changed.
 
 ## Closeout validation
@@ -142,6 +143,18 @@ This is a command-authority/documentation-boundary failure before artifact verif
 - The full suite was not run, consistent with the execution brief.
 - Closeout topology before documentation remained exact: target branch and source branch at approved base, target merge base exact, source local/remote-tracking parity `0/0`, relevant source/target worktrees clean, and unique target worktree ownership.
 
+## Independent QA and accepted documentation corrections
+
+Claude Code reviewed exact range `222c9959d8641a5a2fce5d34bfb22ab1aa2fda40..6f691975743049027f9411426b3abb19db6bbe37` and returned **HOLD** on two record defects. It otherwise supported the fail-closed execution, portable B0 byte identity, dependency isolation, preflight record, verifier-failure classification, absent downstream categories, credential-deviation disclosure, secret exclusion, TypeScript result, and diff check.
+
+1. **MAJOR-1 — push-record accuracy:** At correction intake, local `HEAD`, upstream, and local origin tracking all resolved to `6f691975743049027f9411426b3abb19db6bbe37` at `0/0` parity. The remote-tracking reflog records `update by push` at `2026-07-29 14:50:36 +0300`. Local Git cannot establish the actor or whether the push was authorized, so this record makes neither claim. The zero-action sentence above is now scoped to the Attempt-4 execution itself. Branch presence on origin grants no retry, verifier correction, pricing, credential, provider/live, downstream, deployment, or additional-push authority.
+2. **MINOR-1 — integrity transcription:** The original Attempt-4 record omitted two hex characters from the `package.json` SHA-256. The independently recomputed 64-character identity is `19ac6d7a01d5ac8c8f4ff16d0d7b57c5781a125d2d3ec3af43b6983fff082f7d`. The correct `package-lock.json` identity remains `bf7932428ac1bc2cb8885e83a21f231486f35ea36820381b7d1763a77ba03d59`. Neither file changed.
+3. **Future runnable command authority:** The checked-in verifier-hardening evidence now uses repository-valid preload form `--require ./scripts/shims/register-server-only.cjs`. Its earlier form without `./` was invalid as an executable Node preload and caused Attempt 4's sole verifier invocation to fail before repository-script evaluation. The actual failed command remains unchanged in this record; no verifier or preflight rerun occurred.
+
+Correction validation recomputed the 2,069-byte `package.json` and 128,844-byte `package-lock.json` identities above at exact 64-character lengths. Direct local `node node_modules/typescript/bin/tsc --noEmit` and `npx --no-install tsc --noEmit` both passed. Pre-commit `git diff --check` passed for correction base `6f691975743049027f9411426b3abb19db6bbe37` and combined base `222c9959d8641a5a2fce5d34bfb22ab1aa2fda40`. The full suite was not run.
+
+This correction is documentation-only. It performed no B0/materialization, preflight, verifier execution, pricing/network/docs lookup, credential read/check, provider/model/live call, render/Vision, storage/database, Board, Semantic Reconciliation, approval, publication/promotion, deployment, push, or spend. Cost remains `$0.00`.
+
 ## Gate
 
-R1D-PVB-D1A1B1-ATTEMPT-4 is **HOLD / exhausted before pricing and provider reachability**. This evidence grants no authority to correct or rerun the verifier, rerun preflight, perform pricing research, inject credentials, invoke the provider, or continue downstream. Independent Claude Code first-pass read-only QA and a new explicit Guy ruling are required. Codex does not self-award independent technical PASS.
+R1D-PVB-D1A1B1-ATTEMPT-4 remains **HOLD / exhausted before pricing and provider reachability**. Its documentation correction is pending independent Claude Code read-only re-gate. This evidence grants no authority to correct or rerun the verifier, rerun preflight, perform pricing research, inject credentials, invoke the provider, continue downstream, or begin Attempt 5. Codex does not self-award independent technical PASS.
