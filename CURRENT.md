@@ -1,8 +1,35 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-07-29
+**Updated:** 2026-07-30
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-attempt-6` in `C:\Users\guyna\.codex\worktrees\02a0\Small_Heroes`, created cleanly from exact pushed B2B head `250445e7d2c5b0bbe43c9bf19a84dd92b5fecb1c`. **Attempt 6 is HOLD / exhausted.** Its one canonical import preflight passed, all required B0 v2, topology, pricing, budget, and credential-isolation gates passed, and its one permitted canonical live invocation then failed after one application-level provider-adapter invocation. The canonical receipt contains no provider response, usage, response ID, or candidate; no repair, transport retry, fallback, or second invocation occurred. Local receipt accounting is `$0.00`, but provider HTTP reachability and provider-side billing remain unknown because no provider account, billing, or request-log audit was performed. Claude Code independently returned **PASS** for exact immutable failure-record range `250445e7d2c5b0bbe43c9bf19a84dd92b5fecb1c..de5b1aebdf1029fd741eeb6fb055707d8d00d9d5`, with no BLOCKER, MAJOR, or MINOR. This branch has no upstream and remains local/unpushed. No downstream action is authorized.
+**Working branch:** `codex/r1d-pvb-d1a1b1-provider-failure-diagnostics` in `C:\Users\guyna\.codex\worktrees\9220\Small_Heroes`, based exactly on Attempt-6 head `f69bc6c63974c5f8c0bf04ad397baa025041b9d1`. The provider-failure diagnostics implementation is committed locally at `4d006e8bfafe8bb8541954977370cef69c1ca97c` and remains unpushed. Deterministic local validation is complete at `$0`; independent Claude Code first-pass review is still required. This task does not self-award technical PASS and grants no live diagnostic attempt or downstream authority.
+
+## R1D-PVB-D1A1B1-PROVIDER-CALL-FAILURE-DIAGNOSTICS — local implementation awaiting independent QA
+
+Guy approved the Decision Gate and all nine binding architectural decisions. The implementation starts from exact Attempt-6 commit `f69bc6c63974c5f8c0bf04ad397baa025041b9d1`; code and tests are committed at `4d006e8bfafe8bb8541954977370cef69c1ca97c`.
+
+### Implemented boundary
+
+- One story-neutral module, `providerFailureDiagnostics.ts`, owns bounded phase/failure enums, structured SDK/status/code classification, sanitized observations, and canonical `provider-call-failure-evidence/v1` construction. It has no OpenAI SDK import, circular dependency, story ID, child, companion, beat, action, or page-specific policy.
+- The OpenAI Responses adapter injects the installed SDK error classes into the neutral classifier. Its guarded fetch records local dispatch immediately before delegated fetch, records an actual `Response` and status afterward, digests only the bounded `x-request-id`, preserves `maxRetries: 0`, and changes no destination, method, model, timeout, request body, schema, prompt, call budget, repair budget, retry, or fallback policy.
+- The additive failure sidecar links the exact request, source snapshot, receipt, and failed attempt. It persists only bounded enums, approved provider/endpoint/model labels, canonical body/options digests, an optional request-ID digest, `billingState: unknown_no_usage`, and explicit non-authorization boundaries. It cannot contain an API key or key hash, raw request ID, error/message/cause/stack, headers, prompt, body, response, arbitrary provider code, or arbitrary parameter value.
+- Legacy receipt `providerReached` behavior is unchanged and remains adapter-invocation compatibility evidence only. The sidecar separately records `adapterInvoked`, `credentialReadSucceeded`, `transportDispatchStarted`, and `httpResponseReceived`; local dispatch is not represented as provider receipt.
+- Failure persistence order is receipt, provider-failure sidecar, readiness. A sidecar write failure stops before readiness/candidate. Successful authoring creates no sidecar. A plain failure from an unknown injected adapter becomes `unclassified_adapter_failure` with no credential, dispatch, HTTP, status, or request-ID claim.
+- Request v4, receipt v4, readiness v2, candidate v2, B0 artifacts, payload-domain digests, pricing, usage accounting, and all production authorization semantics remain unchanged.
+
+### Deterministic `$0` evidence
+
+- Direct `node node_modules/typescript/lib/tsc.js --noEmit --project tsconfig.json`: **PASS**.
+- Focused regression: **6 files / 270 tests PASS**, including 37 new classifier/real-SDK/fake-fetch tests and 129 canonical-boundary tests.
+- Real installed OpenAI SDK `6.35.0` ran only behind fake/throwing fetch. Tests prove exact `POST https://api.openai.com/v1/responses`, one dispatch for retryable HTTP cases, `maxRetries: 0`, connection/abort/timeout/parse distinctions, status/code matrices, request-ID hashing, global-fetch sentinel use/restoration, and no real credential or network.
+- The literal `npm run check` completed TypeScript and reproduced exactly the established baseline: six failures in the same five unchanged ignored-fixture-dependent files (`child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and two `story-read-back-validation.spec.ts` cases). Both changed test files passed under full-suite load; no new failure appeared.
+- The current v2 verifier returned `verified` / `zeroWrite: true` for Attempt-6 B0 with exact manifest `a18d8644f4565abba881d162554d0c6260e78a7c45db09501bfe82fedaeee55a`, request `c047401a14ab14cf8766aa7eadd0b32a084ddf29f66c67fc06af2f1bc5a01390`, snapshot `d8a6bed426a3ea571242915dcd63851bd59de4f148c52fbf28d0cb49429123d9`, and zero credential/provider/model calls. The historical v1 verifier likewise returned `verified` / `zeroWrite: true` for Attempt 5. As already true at the approved base, the current v2 verifier rejects the older v1 manifest with `manifest_schema_invalid`; this milestone did not alter verifier code.
+- A post-verification SHA-256 fence matched all 14 historical Attempt-5/Attempt-6 files byte-for-byte. `package.json` remains `19ac6d7a01d5ac8c8f4ff16d0d7b57c5781a125d2d3ec3af43b6983fff082f7d`; `package-lock.json` remains `bf7932428ac1bc2cb8885e83a21f231486f35ea36820381b7d1763a77ba03d59`.
+- Validation used a temporary ignored junction in this worktree to the Attempt-6 dependency tree; the junction and all current-worktree scratch outputs were removed. Vitest updated only the dependency tree's ignored `.vite/vitest/.../results.json` cache. Attempt-6 tracked state and all canonical artifacts remained clean and byte-identical; no package install, source edit, or authority artifact write occurred there.
+
+### Gate and exclusions
+
+This implementation is **HOLD pending independent Claude Code review**. No credential was loaded; no pricing lookup, network/provider/model call, live authoring, canonical live invocation, render/image/Vision/audio, storage/database/Supabase action, Board action, Semantic Reconciliation, approval, candidate/Blueprint/package publication, promotion, activation, deployment, push, or provider-account/billing audit occurred. Cost is exactly `$0`.
 
 ## R1D-PVB-D1A1B1-ATTEMPT-6-QA-CLOSEOUT — Independent technical PASS
 
@@ -1643,11 +1670,11 @@ R1A is implemented and locally committed. Independent Claude Code adversarial QA
 
 ## Active task
 
-R1D-PVB-D1A1B1-ATTEMPT-5-QA-FIX-CLOSEOUT is the active `CURRENT.md`-only transcription of the independent PASS on exact correction head `22d503c5c71cf2d9eea7916de9c72a47f8f61255`, with local origin tracking at `3a0d87c287f2b76d1087d19a7e74e9920b302d2d`. This task is the sole writer to branch `codex/r1d-pvb-d1a1b1-attempt-5` in `C:\Users\guyna\.codex\worktrees\e010\Small_Heroes`; all other tasks/worktrees remain idle or read-only for this closeout.
+R1D-PVB-D1A1B1-PROVIDER-CALL-FAILURE-DIAGNOSTICS is the active milestone. The sole-writer worktree is `C:\Users\guyna\.codex\worktrees\9220\Small_Heroes` on local branch `codex/r1d-pvb-d1a1b1-provider-failure-diagnostics`, based exactly on `f69bc6c63974c5f8c0bf04ad397baa025041b9d1`. The implementation commit is `4d006e8bfafe8bb8541954977370cef69c1ca97c`; the branch remains unpushed.
 
-The governing brief is `docs/ai-workflow/R1D_PVB_D1A1_CANONICAL_LIVE_AUTHORING_DECISION_GATE.md` plus Guy's dedicated Attempt-5 authority. D1A1A, B0, provider-usage evidence, verifier hardening, and Attempt-4 record corrections were already independently PASSed in the approved base.
+The approved scope is diagnostics only: a neutral structured classifier, accurate guarded-fetch observations, and an additive non-authorizing content-addressed failure sidecar. Requests, prompts, schemas, models, timeouts, call/repair/retry/fallback/cost policy, B0 artifacts, and successful authoring behavior are unchanged.
 
-Attempt 5 passed every deterministic pre-provider gate and executed exactly one canonical live invocation. That invocation exhausted all three application calls and both semantic repairs, then failed canonical whole-book validation with `validation_exhausted`; no candidate exists. Independent review confirmed the paid execution and all figures, returned HOLD for one unscoped remote-state claim, and then PASSed its documentation correction and combined range with no remaining finding. This closeout records that verdict only. It grants no retry, root-cause fix, Attempt 6, credential/provider action, candidate, reconciliation, approval, publication, production, render, deployment, or further-push authority.
+Local deterministic validation is complete at `$0`. Independent Claude Code first-pass review is the next technical gate. No live diagnostic attempt, credential/provider action, retry, render, downstream lifecycle action, deployment, or push is authorized by this implementation.
 
 ## Executive finding
 
