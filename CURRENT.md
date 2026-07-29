@@ -2,7 +2,46 @@
 
 **Updated:** 2026-07-29
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-attempt-3` in `C:\Users\guyna\.codex\worktrees\2ad5\Small_Heroes`. The zero-cost R1D-PVB-D1A1B1-POST-PREFLIGHT-VERIFIER-HARDENING implementation first received a Claude Code HOLD, then its accepted record-accuracy and write-sentinel corrections received independent Claude Code **PASS** on the immutable ranges recorded below, with no BLOCKER, MAJOR, or MINOR. The Lead Task remains the decision/re-gate hub. Attempt 3 itself remains **HOLD / exhausted before pricing, credential access, and provider reachability**; its single canonical preflight passed previously and was not rerun.
+**Working branch:** `codex/r1d-pvb-d1a1b1-attempt-4` in `C:\Users\guyna\.codex\worktrees\f48c\Small_Heroes`. Guy authorized one fail-closed Attempt 4 from exact independently gated source head `222c9959d8641a5a2fce5d34bfb22ab1aa2fda40`. Dependencies, canonical B0 materialization, and the single bare preflight passed, but the single post-preflight verifier invocation failed before repository-script evaluation because its documented preload string was not module-resolvable. Attempt 4 is **HOLD / exhausted before pricing and provider reachability**. The Lead Task remains the decision/re-gate hub.
+
+## R1D-PVB-D1A1B1-ATTEMPT-4 — Verifier preload-resolution HOLD
+
+Guy explicitly authorized one dedicated Attempt 4 from exact pushed source head `222c9959d8641a5a2fce5d34bfb22ab1aa2fda40`, with a hard `$5.00` ceiling, at most three provider calls, zero transport retries, no fallback, and a first-failure stop. The verifier hardening and write-sentinel correction had independent Claude Code PASS; Attempt 3 remained exhausted and read-only.
+
+### Exact topology and isolated dependencies
+
+- Before mutation, local source branch, configured remote-tracking ref, and a fresh non-mutating origin query all resolved to exact approved head `222c9959d8641a5a2fce5d34bfb22ab1aa2fda40`; source parity was `0/0`. The source and detached target worktrees were clean, no Attempt-4 branch existed locally or on origin, and no competing task/agent had write authority.
+- The detached target worktree was attached only to `codex/r1d-pvb-d1a1b1-attempt-4`. The unrelated pre-existing dirt in `main` and `feat/chunked-generation` remained outside this milestone and untouched.
+- `package.json` and `package-lock.json` retained approved SHA-256 identities `19ac6d7a01d5ac8c4ff16d0d7b57c5781a125d2d3ec3af43b6983fff082f7d` and `bf7932428ac1bc2cb8885e83a21f231486f35ea36820381b7d1763a77ba03d59`.
+- `node_modules` was absent. The one literal `npm ci --offline --ignore-scripts` exited `0`, installed 200 packages, audited 201, and reported zero vulnerabilities. The result is a real local directory, not a link or reparse point.
+- Exact installed versions are Node `v22.19.0`, npm `10.9.3`, Prisma/Prisma Client `6.19.3`, TypeScript `6.0.3`, and tsx `4.22.2`. Because scripts were disabled and the generated client was absent, exact installed CLI command `node node_modules/prisma/build/index.js generate --schema backend/schema.prisma` generated the client locally without database access.
+
+### Canonical B0 and single preflight
+
+- The ignored calibration control input preserved request ID `r1d-pvb-d1a1b0-fox-calibration-001`, timestamp `2026-07-27T21:02:12.469Z`, Story Source key/path, and changed only the required exact repository real path.
+- The production `source-authoring-live-request-materialize` lifecycle ran once through exact local tsx and the server-only shim. It returned `canonical_live_request_materialization / materialized_inputs_only`.
+- Canonical payload identities are normalized Story Source `02629e886a9aaa1e714d9a8d652c24d94ca5843465ff8a9cb70d320a24e2231c`, source-authority request `d331b1570f692b6ee9c865ede80811be96df911d333eaf4050e0d3b7ed312551`, portable source snapshot `d8a6bed426a3ea571242915dcd63851bd59de4f148c52fbf28d0cb49429123d9`, portable live request `d3038f06ee172522445d438359d0b3bdef60ce7fa7dccb53f5d7853617d2ccff`, and worktree-bound manifest `975fc89f5265bb61f77cc01cb88f7584d8aae7c0ba48a717383bea9fd1147cae`. No whole-file digest or substitute writer supplied authority.
+- The one bare `node scripts/visual-contract-authoring.cjs preflight` ran exactly once, exited `0`, and reported `LIVE-AUTHORING IMPORT PREFLIGHT PASS`. No second preflight occurred.
+
+### Fail-closed verifier stop
+
+- The one verifier invocation used the exact CLI shape printed in the independently gated hardening evidence:
+
+  ```text
+  node node_modules/tsx/dist/cli.mjs --require scripts/shims/register-server-only.cjs scripts/production-visual-lifecycle.ts source-authoring-live-request-verify --repo-root C:\Users\guyna\.codex\worktrees\f48c\Small_Heroes --manifest outputs/r1d-pvb-d1a1b1-attempt-4/live-request/live-request-materializations/975fc89f5265bb61f77cc01cb88f7584d8aae7c0ba48a717383bea9fd1147cae.json
+  ```
+
+- Node exited `1` with `MODULE_NOT_FOUND` for preload label `scripts/shims/register-server-only.cjs`. The repository script never evaluated and no `canonical-live-request-verification/v1` payload was emitted.
+- Read-only diagnosis found the documented shape conflicts with the repository-wide standalone-script contract, which uses `--require ./scripts/shims/register-server-only.cjs`; the real verifier subprocess tests instead pass an absolute shim path. Attempt 4 does not authorize adding `./`, substituting the absolute path, changing evidence/code, or rerunning. This is a command-authority/documentation-boundary failure, not evidence that any B0 artifact is invalid.
+- A no-output usability-presence check for `OPENAI_API_KEY` in the approved `.env.local` occurred before the Phase 1 gates because the API-key skill was applied before the delegated sequence. It did not print, persist, summarize, or inject the value, and no live child was created. The line-oriented check could traverse unrelated file entries before finding the assignment even though it emitted none of them, so it violated both the delegation's Phase 2 ordering and stricter read-only-name boundary. The execution evidence records this process deviation explicitly.
+
+### Outcome, validation, and limits
+
+- Official OpenAI pricing/model authority was not checked. Application provider calls, semantic repairs, and transport retries were all `0`; calculated and maximum incurred cost were `$0.00`. No provider usage/cache-write evidence exists.
+- `authoring-receipts`, `readiness-evidence`, `contract-candidates`, and `rejected-authoring-requests` are absent. The ignored Attempt-4 output contains only the calibration control input and four canonical B0 artifacts.
+- Direct deterministic `node node_modules/typescript/bin/tsc --noEmit` passed. Its current-run ignored `tsconfig.tsbuildinfo` was removed by exact path. The full suite was not run.
+- No production code, schema, config, test, package, lockfile, Story Source, pricing authority, request policy, render/image/Vision/audio, storage/database/Supabase, Board, Semantic Reconciliation, approval, Blueprint, package/publication/promotion, production activation, deployment, or push changed or ran.
+- Sanitized durable evidence is tracked at `docs/ai-workflow/R1D_PVB_D1A1B1_ATTEMPT_4_EXECUTION_EVIDENCE.md`. Attempt 4 is **HOLD / exhausted before pricing and provider reachability**. No verifier correction/rerun, second preflight, pricing lookup, live invocation, or downstream action is authorized. Independent Claude Code first-pass review and a new explicit Guy ruling are required; Codex does not self-award technical PASS.
 
 ## R1D-PVB-D1A1B1-POST-PREFLIGHT-VERIFIER-HARDENING-QA-FIX — Independent technical PASS on immutable ranges
 
