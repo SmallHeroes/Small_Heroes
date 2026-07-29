@@ -51,6 +51,14 @@ const BOUNDARY_SENTINEL = path.join(
   'fixtures',
   'deny-live-request-verification-boundaries.cjs',
 );
+const WRITE_PROBE = path.join(
+  REPO,
+  'lib',
+  'visual-package',
+  '__tests__',
+  'fixtures',
+  'live-request-verification-write-probe.cjs',
+);
 const REQUESTED_AT = '2026-07-29T10:00:00.000Z';
 const tempRoots: string[] = [];
 
@@ -293,7 +301,48 @@ function verifyArgs(args: {
   ];
 }
 
-function runVerifierCli(args: string[]) {
+function tsxCacheIdentity(): string {
+  return typeof process.geteuid === 'function'
+    ? String(process.geteuid())
+    : os.userInfo().username;
+}
+
+function isolatedBoundaryRuntime(): {
+  runtimeTempRoot: string;
+  cacheRoot: string;
+  env: NodeJS.ProcessEnv;
+} {
+  const runtimeTempRoot = tempRoot(
+    'live-request-verification-runtime-',
+  );
+  const cacheRoot = path.join(
+    runtimeTempRoot,
+    `tsx-${tsxCacheIdentity()}`,
+  );
+  return {
+    runtimeTempRoot,
+    cacheRoot,
+    env: {
+      ...process.env,
+      TEMP: runtimeTempRoot,
+      TMP: runtimeTempRoot,
+      TMPDIR: runtimeTempRoot,
+      OPENAI_API_KEY: 'must-never-be-read',
+      LIVE_REQUEST_VERIFICATION_SENTINEL_TEMP_ROOT:
+        runtimeTempRoot,
+      LIVE_REQUEST_VERIFICATION_SENTINEL_TSX_CACHE_ROOT:
+        cacheRoot,
+    },
+  };
+}
+
+function runVerifierCli(
+  args: string[],
+  options: {
+    traceWrites?: boolean;
+  } = {},
+) {
+  const boundary = isolatedBoundaryRuntime();
   return spawnSync(
     process.execPath,
     [
@@ -310,8 +359,63 @@ function runVerifierCli(args: string[]) {
       encoding: 'utf8',
       timeout: 30_000,
       env: {
-        ...process.env,
-        OPENAI_API_KEY: 'must-never-be-read',
+        ...boundary.env,
+        LIVE_REQUEST_VERIFICATION_SENTINEL_TRACE:
+          options.traceWrites ? '1' : '0',
+      },
+    },
+  );
+}
+
+function runBoundaryProbe(
+  mode: 'coverage' | 'old-stack-shape' | 'paths',
+  boundary = isolatedBoundaryRuntime(),
+) {
+  const unsafeSource = path.join(
+    boundary.runtimeTempRoot,
+    'unsafe-source.txt',
+  );
+  const unsafeTarget = path.join(
+    REPO,
+    'forbidden-live-request-verification-write.txt',
+  );
+  return spawnSync(
+    process.execPath,
+    [
+      '--require',
+      BOUNDARY_SENTINEL,
+      WRITE_PROBE,
+      mode,
+    ],
+    {
+      cwd: REPO,
+      encoding: 'utf8',
+      env: {
+        ...boundary.env,
+        LIVE_REQUEST_VERIFICATION_PROBE_UNSAFE_SOURCE:
+          unsafeSource,
+        LIVE_REQUEST_VERIFICATION_PROBE_UNSAFE_TARGET:
+          unsafeTarget,
+        LIVE_REQUEST_VERIFICATION_PROBE_REPOSITORY_TARGET:
+          unsafeTarget,
+        LIVE_REQUEST_VERIFICATION_PROBE_OUTPUT_TARGET:
+          path.join(
+            REPO,
+            'outputs',
+            'forbidden-live-request-verification-write.txt',
+          ),
+        LIVE_REQUEST_VERIFICATION_PROBE_TEMP_NEIGHBOR:
+          path.join(
+            boundary.runtimeTempRoot,
+            'tsx-neighbor',
+            '123-0123456789abcdef0123456789abcdef01234567',
+          ),
+        LIVE_REQUEST_VERIFICATION_PROBE_ALIAS_TARGET:
+          path.join(
+            boundary.runtimeTempRoot,
+            'tsx-cache-alias',
+            '123-0123456789abcdef0123456789abcdef01234567',
+          ),
       },
     },
   );
@@ -878,6 +982,7 @@ describe('production lifecycle canonical verification subprocess', () => {
       "require('node:fs').writeFileSync('forbidden.txt','x')",
     ];
     for (const control of controls) {
+      const boundary = isolatedBoundaryRuntime();
       const result = spawnSync(
         process.execPath,
         [
@@ -889,10 +994,7 @@ describe('production lifecycle canonical verification subprocess', () => {
         {
           cwd: REPO,
           encoding: 'utf8',
-          env: {
-            ...process.env,
-            OPENAI_API_KEY: 'must-never-be-read',
-          },
+          env: boundary.env,
         },
       );
       expect(result.status).not.toBe(0);
@@ -900,6 +1002,143 @@ describe('production lifecycle canonical verification subprocess', () => {
         /TEST_MATERIALIZATION_SENTINEL|TEST_NETWORK_SENTINEL|TEST_VERIFICATION_WRITE_SENTINEL/,
       );
     }
+  });
+
+  it('covers every installed synchronous, callback, stream, and promise write boundary', () => {
+    const expectedTopLevel = [
+      'appendFile',
+      'appendFileSync',
+      'chmod',
+      'chmodSync',
+      'chown',
+      'chownSync',
+      'copyFile',
+      'copyFileSync',
+      'cp',
+      'cpSync',
+      'createWriteStream',
+      'link',
+      'linkSync',
+      'mkdir',
+      'mkdirSync',
+      'mkdtemp',
+      'mkdtempSync',
+      'rename',
+      'renameSync',
+      'rm',
+      'rmSync',
+      'rmdir',
+      'rmdirSync',
+      'symlink',
+      'symlinkSync',
+      'truncate',
+      'truncateSync',
+      'unlink',
+      'unlinkSync',
+      'utimes',
+      'utimesSync',
+      'writeFile',
+      'writeFileSync',
+    ];
+    const expectedPromises = [
+      'appendFile',
+      'chmod',
+      'chown',
+      'copyFile',
+      'cp',
+      'link',
+      'mkdir',
+      'mkdtemp',
+      'rename',
+      'rm',
+      'rmdir',
+      'symlink',
+      'truncate',
+      'unlink',
+      'utimes',
+      'writeFile',
+    ];
+    const result = runBoundaryProbe('coverage');
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual({
+      fs: expectedTopLevel,
+      promises: expectedPromises,
+    });
+  });
+
+  it('rejects repository, output, temp-neighbor, traversal, alias, and multi-path writes', () => {
+    const boundary = isolatedBoundaryRuntime();
+    const cacheAlias = path.join(
+      boundary.runtimeTempRoot,
+      'tsx-cache-alias',
+    );
+    try {
+      fs.symlinkSync(
+        boundary.cacheRoot,
+        cacheAlias,
+        process.platform === 'win32' ? 'junction' : 'dir',
+      );
+    } catch {
+      // The normalized alias target remains an explicit denied
+      // neighbor even when this host cannot create directory links.
+    }
+
+    const result = runBoundaryProbe('paths', boundary);
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual([
+      'repository',
+      'output',
+      'temp_neighbor',
+      'cache_traversal',
+      'alias',
+      'copy_source_escape',
+      'copy_target_escape',
+      'rename_target_escape',
+      'link_target_escape',
+      'symlink_target_escape',
+      'multi_path_cache_only',
+      'promise_cache_traversal',
+      'promise_alias',
+    ]);
+    expect(
+      fs.existsSync(
+        path.join(
+          REPO,
+          'forbidden-live-request-verification-write.txt',
+        ),
+      ),
+    ).toBe(false);
+    expect(
+      fs.existsSync(
+        path.join(
+          REPO,
+          'outputs',
+          'forbidden-live-request-verification-write.txt',
+        ),
+      ),
+    ).toBe(false);
+  });
+
+  it('rejects an application write even when its stack contains a tsx source frame', () => {
+    const result = runBoundaryProbe('old-stack-shape');
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain(
+      'TEST_VERIFICATION_WRITE_SENTINEL:fs:writeFileSync',
+    );
+    expect(result.stderr).toContain(
+      'node_modules/tsx/application-write-frame.cjs',
+    );
+    expect(
+      fs.existsSync(
+        path.join(
+          REPO,
+          'forbidden-live-request-verification-write.txt',
+        ),
+      ),
+    ).toBe(false);
   });
 
   it('runs the exact script file through local tsx and the server-only shim without credentials, network, or writes', () => {
@@ -929,6 +1168,79 @@ describe('production lifecycle canonical verification subprocess', () => {
     expect(`${result.stdout}\n${result.stderr}`).not.toMatch(
       /must-never-be-read|TEST_MATERIALIZATION_SENTINEL|TEST_NETWORK_SENTINEL|TEST_VERIFICATION_WRITE_SENTINEL/,
     );
+  });
+
+  it('proves the real tsx subprocess writes only its exact isolated cache namespace', () => {
+    const fixture = writeFixture();
+    const materialized = materialize(fixture);
+    const result = runVerifierCli(
+      verifyArgs({
+        fixture,
+        manifestPath:
+          materialized.persistence.manifest.path,
+      }),
+      { traceWrites: true },
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    const traceLine = result.stderr
+      .split(/\r?\n/)
+      .find((line) =>
+        line.startsWith(
+          'TEST_VERIFICATION_TSX_WRITE_TRACE:',
+        ),
+      );
+    expect(traceLine).toBeDefined();
+    const events = JSON.parse(
+      traceLine!.slice(
+        'TEST_VERIFICATION_TSX_WRITE_TRACE:'.length,
+      ),
+    ) as Array<{
+      scope: string;
+      method: string;
+      target: string;
+    }>;
+    const cachePrefix = `tsx-${tsxCacheIdentity()}/`;
+
+    expect(events).toEqual(
+      expect.arrayContaining([
+        {
+          scope: 'fs',
+          method: 'mkdirSync',
+          target: `tsx-${tsxCacheIdentity()}`,
+        },
+      ]),
+    );
+    expect(
+      events.some(
+        (event) =>
+          event.scope === 'promises' &&
+          event.method === 'writeFile',
+      ),
+    ).toBe(true);
+    for (const event of events) {
+      if (
+        event.scope === 'fs' &&
+        event.method === 'mkdirSync'
+      ) {
+        expect(event.target).toBe(
+          `tsx-${tsxCacheIdentity()}`,
+        );
+        continue;
+      }
+      expect(event.scope).toBe('promises');
+      expect(['writeFile', 'unlink']).toContain(
+        event.method,
+      );
+      expect(event.target).toMatch(
+        new RegExp(
+          `^${cachePrefix.replace(
+            /[.*+?^${}()|[\]\\]/g,
+            '\\$&',
+          )}\\d{1,12}-[a-f0-9]{40}$`,
+        ),
+      );
+    }
   });
 
   it.each([
