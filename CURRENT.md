@@ -2,7 +2,18 @@
 
 **Updated:** 2026-07-30
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-provider-failure-diagnostics` in `C:\Users\guyna\.codex\worktrees\9220\Small_Heroes`, based exactly on Attempt-6 head `f69bc6c63974c5f8c0bf04ad397baa025041b9d1`. The provider-failure diagnostics implementation is committed locally at `4d006e8bfafe8bb8541954977370cef69c1ca97c` and remains unpushed. Deterministic local validation is complete at `$0`; independent Claude Code first-pass review is still required. This task does not self-award technical PASS and grants no live diagnostic attempt or downstream authority.
+**Working branch:** `codex/r1d-pvb-d1a1b1-provider-failure-diagnostics` in `C:\Users\guyna\.codex\worktrees\9220\Small_Heroes`, based exactly on Attempt-6 head `f69bc6c63974c5f8c0bf04ad397baa025041b9d1`. The provider-failure diagnostics implementation is committed at `4d006e8bfafe8bb8541954977370cef69c1ca97c`; its original closeout is `80ad3c70563683d627ddb19d232a4fd08503e74c`. At correction intake, local `HEAD`, upstream, and local origin tracking all resolved to `80ad3c70563683d627ddb19d232a4fd08503e74c` at `0/0` parity. This focused `CURRENT.md` correction is the sole local commit after that pushed head and has not been pushed. Independent Claude Code implementation review is still required. This task does not self-award technical PASS and grants no live diagnostic attempt or downstream authority.
+
+## R1D-PVB-D1A1B1-PROVIDER-CALL-FAILURE-DIAGNOSTICS — QA intake HOLD and push-record correction
+
+Claude Code performed the required read-only intake against original head `80ad3c70563683d627ddb19d232a4fd08503e74c` and stopped before code review because the handoff expected the target remote branch to be absent while local origin tracking already contained that exact head.
+
+- The target branch, upstream, and `origin/codex/r1d-pvb-d1a1b1-provider-failure-diagnostics` were observed at exact `80ad3c70563683d627ddb19d232a4fd08503e74c`, with `0/0` divergence and a clean worktree.
+- The local remote-tracking reflog records `update by push` at `2026-07-30 00:49:37 +0300`. Local Git establishes neither the actor nor whether the push was authorized, so this record makes neither claim.
+- The implementation task itself created both original commits locally and did not invoke `git push`. Later observed origin presence is a separate topology fact; it invalidated the original present-tense “remains unpushed” record and the QA brief's target-remote-absence precondition.
+- Attempt-6 source parity remains exact at `f69bc6c63974c5f8c0bf04ad397baa025041b9d1`, `0/0`. Main and `feat/chunked-generation` retain their pre-existing user state.
+- Claude Code did not assess implementation claims 1–9 or any code falsification target. The implementation remains **HOLD**, with no positive or negative code verdict.
+- This correction changes `CURRENT.md` only. It changes no implementation, test, request, prompt, schema, model, timeout, budget, retry/fallback policy, package, lockfile, Story Source, B0/historical artifact, runtime, or production state. No correction push is performed or authorized.
 
 ## R1D-PVB-D1A1B1-PROVIDER-CALL-FAILURE-DIAGNOSTICS — local implementation awaiting independent QA
 
@@ -29,7 +40,7 @@ Guy approved the Decision Gate and all nine binding architectural decisions. The
 
 ### Gate and exclusions
 
-This implementation is **HOLD pending independent Claude Code review**. No credential was loaded; no pricing lookup, network/provider/model call, live authoring, canonical live invocation, render/image/Vision/audio, storage/database/Supabase action, Board action, Semantic Reconciliation, approval, candidate/Blueprint/package publication, promotion, activation, deployment, push, or provider-account/billing audit occurred. Cost is exactly `$0`.
+This implementation is **HOLD pending independent Claude Code review**. During the implementation task itself, no credential was loaded and no pricing lookup, network/provider/model call, live authoring, canonical live invocation, render/image/Vision/audio, storage/database/Supabase action, Board action, Semantic Reconciliation, approval, candidate/Blueprint/package publication, promotion, activation, deployment, `git push`, or provider-account/billing audit occurred. The later observed origin update is reconciled above without an actor or authorization claim and grants no further-push or downstream authority. Cost is exactly `$0`.
 
 ## R1D-PVB-D1A1B1-ATTEMPT-6-QA-CLOSEOUT — Independent technical PASS
 
@@ -1670,7 +1681,7 @@ R1A is implemented and locally committed. Independent Claude Code adversarial QA
 
 ## Active task
 
-R1D-PVB-D1A1B1-PROVIDER-CALL-FAILURE-DIAGNOSTICS is the active milestone. The sole-writer worktree is `C:\Users\guyna\.codex\worktrees\9220\Small_Heroes` on local branch `codex/r1d-pvb-d1a1b1-provider-failure-diagnostics`, based exactly on `f69bc6c63974c5f8c0bf04ad397baa025041b9d1`. The implementation commit is `4d006e8bfafe8bb8541954977370cef69c1ca97c`; the branch remains unpushed.
+R1D-PVB-D1A1B1-PROVIDER-CALL-FAILURE-DIAGNOSTICS is the active milestone. The sole-writer worktree is `C:\Users\guyna\.codex\worktrees\9220\Small_Heroes` on local branch `codex/r1d-pvb-d1a1b1-provider-failure-diagnostics`, based exactly on `f69bc6c63974c5f8c0bf04ad397baa025041b9d1`. The implementation commit is `4d006e8bfafe8bb8541954977370cef69c1ca97c`. Original closeout head `80ad3c70563683d627ddb19d232a4fd08503e74c` was later observed on origin at `0/0` parity; the current documentation correction is local-only after that head.
 
 The approved scope is diagnostics only: a neutral structured classifier, accurate guarded-fetch observations, and an additive non-authorizing content-addressed failure sidecar. Requests, prompts, schemas, models, timeouts, call/repair/retry/fallback/cost policy, B0 artifacts, and successful authoring behavior are unchanged.
 
