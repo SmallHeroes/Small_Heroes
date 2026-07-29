@@ -2,7 +2,30 @@
 
 **Updated:** 2026-07-29
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b2a-action-semantic-coverage` in `C:\Users\guyna\.codex\worktrees\202d\Small_Heroes`, created cleanly from exact approved base `853d700f14a7263b824d7b4146a54a5e36680abd`. Independent Claude Code first-pass read-only QA returned **PASS** for exact immutable range `853d700f14a7263b824d7b4146a54a5e36680abd..63a797abc8421f8a669e4adfd782f6ebe10384c9`, with no BLOCKER, MAJOR, or MINOR. The faithful `CURRENT.md`-only closeout is local and unpushed. This worktree/task alone holds write authority. The milestone cost is `$0.00`, authorizes no B0 rematerialization or Attempt 6, and grants no credential/provider/live call, Semantic Reconciliation or approval, render, candidate/Blueprint/package publication, promotion, activation, deployment, or push.
+**Working branch:** `codex/r1d-pvb-d1a1b2b-b0-v2-readiness` in `C:\Users\guyna\.codex\worktrees\02a0\Small_Heroes`, created cleanly from exact approved base `f0405df526642f029d782674415445cdefe8c171`. The local B2A branch and local origin tracking now both resolve to `f0405df526642f029d782674415445cdefe8c171` at `0/0` parity; local Git proves neither the push actor nor whether prior authorization existed, so this record makes neither claim. R1D-PVB-D1A1B2B rematerialized and verified the current ignored B0 v2 bundle through the generic canonical path with no code change. This worktree/task alone holds write authority; B2A, B0, and Attempt-5 worktrees remain read-only. The milestone cost is `$0.00`, authorizes no Attempt 6, and grants no preflight, credential/pricing/provider/live call, Semantic Reconciliation or approval, render, readiness v2, candidate/Blueprint/package publication, promotion, activation, deployment, or push.
+
+## R1D-PVB-D1A1B2B — Canonical B0 v2 Rematerialization and Attempt-6 Readiness
+
+Guy approved this artifact/evidence-only milestone from exact B2A base `f0405df526642f029d782674415445cdefe8c171`. It used only the current generic production materializer and verifier. No code, tool, schema, test, package, lockfile, prompt, policy, Story Source, or historical artifact changed.
+
+### Current canonical bundle
+
+- The ignored v2 control input is `outputs/r1d-pvb-d1a1b2b/b0-v2/materialization-inputs/calibration-live-request-v2.json`.
+- Exactly four files exist under the fresh contained B0 root. Canonical payload-domain identities are: worktree-bound source authority request `d2dfb366e9623dd3e24d284b7c1c46a7b1cef4c6fcf08137910dcdc1536358c6`; portable source snapshot `d8a6bed426a3ea571242915dcd63851bd59de4f148c52fbf28d0cb49429123d9`; v4 live request `c047401a14ab14cf8766aa7eadd0b32a084ddf29f66c67fc06af2f1bc5a01390`; and worktree-bound v2 manifest `a18d8644f4565abba881d162554d0c6260e78a7c45db09501bfe82fedaeee55a`.
+- An independent canonical-hash audit matched every claimed digest and filename over the payload domain excluding only top-level `digestAlgorithm` and `digest`. Whole-file hashes are recorded only as non-authoritative transport evidence.
+- The current Story Source rebuilt as `story-source/v1`, normalized digest `02629e886a9aaa1e714d9a8d652c24d94ca5843465ff8a9cb70d320a24e2231c`, pages 1–12, with adjacent authored-cover authority present. The portable snapshot retained its historical digest only after this current rebuild proved exact identity.
+- The v4 request binds compiler draft schema v7; initial and repair prompt authority v4; `action-semantic-catalog/v1` digest `29d932d6f689fba8fe74b6b2da4eb0833727fb910a5688b024b36f32b83ac1cc`; and `action-semantic-coverage/v1`.
+
+### Verification, legacy boundary, and validation
+
+- The production verifier returned `canonical-live-request-verification/v2`, `status: verified`, `zeroWrite: true`, exact identities/cross-links, and exact OpenAI Responses / `gpt-5.6-sol` / `default` / `medium` / three-call / two-repair / zero-retry / no-fallback / `$4.884` / `$5.00` fences. It explicitly made no credential, provider-reachability, pricing, provider-call, or model-call claim.
+- Identical materializer replay returned `created:false` for all four artifacts. Pre/post raw hashes were identical and no extra authority was created.
+- The current verifier rejected the immutable Attempt-5 v1 manifest with v2 `zeroWrite:true` and `manifest_schema_invalid`. Focused tests also prove v1 control rejection and stale-bundle rejection before provider construction. All seven Attempt-5 raw identities were rechecked before and after and remained exact; the Attempt-5 worktree stayed clean.
+- Deterministic local TypeScript passed. Focused action-semantic/source-authority/materialization/verifier validation passed **4 files / 108 tests**. Per the approved artifact-only scope, `npm run check` was not run.
+- No import preflight, credential read/check, pricing/docs/network lookup, provider/model/live authoring, render/image/Vision/audio, storage/database/Supabase, Board, Semantic Reconciliation or approval, post-live readiness v2, rejected request, candidate, Blueprint, package, publication/promotion, activation, deployment, external action, or push occurred. No excluded downstream category exists. Cost is exactly `$0.00`.
+- Sanitized durable execution evidence is tracked at `docs/ai-workflow/R1D_PVB_D1A1B2B_B0_V2_READINESS_EVIDENCE.md`. The ignored control input, four B0 files, and isolated dependency tree remain same-worktree local evidence.
+
+R1D-PVB-D1A1B2B is ready for independent first-pass read-only Claude Code QA; Codex does not self-award independent technical PASS. Attempt 6 remains separately gated on independent PASS, push/parity, Guy authorization, one canonical preflight, official pricing/cost confirmation, and the credential gate.
 
 ## R1D-PVB-D1A1B2A-QA-CLOSEOUT — Independent technical PASS
 
