@@ -1,4 +1,18 @@
-import OpenAI from 'openai';
+import OpenAI, {
+  APIConnectionError,
+  APIConnectionTimeoutError,
+  APIError,
+  APIUserAbortError,
+  AuthenticationError,
+  BadRequestError,
+  ConflictError,
+  InternalServerError,
+  NotFoundError,
+  OpenAIError,
+  PermissionDeniedError,
+  RateLimitError,
+  UnprocessableEntityError,
+} from 'openai';
 import type {
   ResponseCreateParamsNonStreaming,
 } from 'openai/resources/responses/responses';
@@ -25,6 +39,15 @@ import {
 
 import { canonicalJsonDigest } from './integrity';
 import {
+  ProviderCallFailureDiagnosticError,
+  ProviderTransportGuardRejectionError,
+  classifyProviderFailure,
+  createProviderFailureBoundaryObservations,
+  localProviderFailureDiagnostic,
+  type ProviderFailureBoundaryObservations,
+  type ProviderSdkErrorClasses,
+} from './providerFailureDiagnostics';
+import {
   OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
   type VisualContractAuthoringProvider,
   type VisualContractAuthoringProviderResponse,
@@ -46,6 +69,22 @@ const FORBIDDEN_OPENAI_IDENTITY_HEADERS = [
   'openai-project',
   'openai-webhook-secret',
 ] as const;
+
+const OPENAI_SDK_ERROR_CLASSES = {
+  apiUserAbortError: APIUserAbortError,
+  apiConnectionTimeoutError: APIConnectionTimeoutError,
+  apiConnectionError: APIConnectionError,
+  badRequestError: BadRequestError,
+  authenticationError: AuthenticationError,
+  permissionDeniedError: PermissionDeniedError,
+  notFoundError: NotFoundError,
+  conflictError: ConflictError,
+  unprocessableEntityError: UnprocessableEntityError,
+  rateLimitError: RateLimitError,
+  internalServerError: InternalServerError,
+  apiError: APIError,
+  openAIError: OpenAIError,
+} satisfies ProviderSdkErrorClasses;
 
 export type OpenAIResponsesAuthoringFetch = (
   input: string | URL | Request,
@@ -235,6 +274,7 @@ function combinedHeaders(
  */
 export function createGuardedOpenAIResponsesAuthoringFetch(
   delegatedFetch: OpenAIResponsesAuthoringFetch,
+  observations?: ProviderFailureBoundaryObservations,
 ): OpenAIResponsesAuthoringFetch {
   return async (input, init) => {
     const url = requestUrl(input);
@@ -246,8 +286,8 @@ export function createGuardedOpenAIResponsesAuthoringFetch(
       url.search ||
       url.hash
     ) {
-      throw new Error(
-        'canonical OpenAI Responses transport rejected an unauthorized destination',
+      throw new ProviderTransportGuardRejectionError(
+        'unauthorized_destination',
       );
     }
     const method = (
@@ -255,8 +295,8 @@ export function createGuardedOpenAIResponsesAuthoringFetch(
       (input instanceof Request ? input.method : 'GET')
     ).toUpperCase();
     if (method !== 'POST') {
-      throw new Error(
-        'canonical OpenAI Responses transport rejected a non-POST request',
+      throw new ProviderTransportGuardRejectionError(
+        'non_post_request',
       );
     }
     const headers = combinedHeaders(input, init);
@@ -265,42 +305,95 @@ export function createGuardedOpenAIResponsesAuthoringFetch(
         headers.has(name),
       )
     ) {
-      throw new Error(
-        'canonical OpenAI Responses transport rejected unauthorized identity headers',
+      throw new ProviderTransportGuardRejectionError(
+        'unauthorized_identity_headers',
       );
     }
-    return delegatedFetch(input, {
+    if (observations) {
+      observations.transportDispatchStarted = true;
+    }
+    const response = await delegatedFetch(input, {
       ...init,
       redirect: 'error',
     });
+    if (observations && response instanceof Response) {
+      observations.httpResponseReceived = true;
+      observations.httpStatus = response.status;
+      const requestId =
+        response.headers.get('x-request-id');
+      observations.providerRequestIdDigest =
+        typeof requestId === 'string' &&
+        requestId.length > 0 &&
+        requestId.length <= 512
+          ? canonicalJsonDigest(requestId)
+          : null;
+    }
+    return response;
   };
 }
 
 export const openAIResponsesAuthoringTransport: OpenAIResponsesAuthoringTransport =
   {
     create: async ({ apiKey, body, requestOptions }) => {
-      if (typeof globalThis.fetch !== 'function') {
-        throw new Error(
-          'canonical OpenAI Responses transport requires global fetch',
+      const observations =
+        createProviderFailureBoundaryObservations({
+          adapterInvoked: true,
+          credentialReadSucceeded: true,
+          requestBodyDigest: canonicalJsonDigest(body),
+          requestOptionsDigest:
+            canonicalJsonDigest(requestOptions),
+        });
+      observations.sdkClientConstructionStarted = true;
+      let client: OpenAI;
+      try {
+        if (typeof globalThis.fetch !== 'function') {
+          throw new Error(
+            'canonical OpenAI Responses transport requires global fetch',
+          );
+        }
+        client = new OpenAI({
+          apiKey,
+          baseURL: OPENAI_RESPONSES_AUTHORING_BASE_URL,
+          organization: null,
+          project: null,
+          webhookSecret: null,
+          maxRetries: requestOptions.maxRetries,
+          timeout: requestOptions.timeout,
+          fetch: createGuardedOpenAIResponsesAuthoringFetch(
+            globalThis.fetch,
+            observations,
+          ),
+          fetchOptions: {
+            redirect: 'error',
+          },
+          logLevel: 'error',
+        });
+        observations.sdkClientConstructionSucceeded = true;
+      } catch {
+        throw new ProviderCallFailureDiagnosticError(
+          localProviderFailureDiagnostic({
+            phase: 'sdk_client_construction',
+            failureClass:
+              'sdk_client_construction_failure',
+            observations,
+          }),
         );
       }
-      const client = new OpenAI({
-        apiKey,
-        baseURL: OPENAI_RESPONSES_AUTHORING_BASE_URL,
-        organization: null,
-        project: null,
-        webhookSecret: null,
-        maxRetries: requestOptions.maxRetries,
-        timeout: requestOptions.timeout,
-        fetch: createGuardedOpenAIResponsesAuthoringFetch(
-          globalThis.fetch,
-        ),
-        fetchOptions: {
-          redirect: 'error',
-        },
-        logLevel: 'error',
-      });
-      return client.responses.create(body, requestOptions);
+      observations.sdkRequestBuildStarted = true;
+      try {
+        return await client.responses.create(
+          body,
+          requestOptions,
+        );
+      } catch (error) {
+        throw new ProviderCallFailureDiagnosticError(
+          classifyProviderFailure(
+            error,
+            observations,
+            OPENAI_SDK_ERROR_CLASSES,
+          ),
+        );
+      }
     },
   };
 
@@ -414,25 +507,85 @@ export function createOpenAIResponsesVisualContractAuthoringAdapter(
       userPrompt,
       options,
     }) => {
-      const body =
-        buildOpenAIResponsesVisualContractAuthoringBody({
-          systemPrompt,
-          userPrompt,
-          options,
+      const requestOptions = {
+        maxRetries:
+          VISUAL_CONTRACT_AUTHORING_TRANSPORT_RETRIES,
+        timeout: VISUAL_CONTRACT_AUTHORING_TIMEOUT_MS,
+      } as const;
+      const observations =
+        createProviderFailureBoundaryObservations({
+          adapterInvoked: true,
+          requestOptionsDigest:
+            canonicalJsonDigest(requestOptions),
         });
-      const apiKey = readCredential();
-      const rawResponse = await transport.create({
-        apiKey,
-        body,
-        requestOptions: {
-          maxRetries:
-            VISUAL_CONTRACT_AUTHORING_TRANSPORT_RETRIES,
-          timeout: VISUAL_CONTRACT_AUTHORING_TIMEOUT_MS,
-        },
-      });
-      return mapOpenAIResponsesAuthoringResponse(
-        rawResponse,
-      );
+      let body: ResponseCreateParamsNonStreaming;
+      try {
+        body =
+          buildOpenAIResponsesVisualContractAuthoringBody({
+            systemPrompt,
+            userPrompt,
+            options,
+          });
+        observations.requestBodyDigest =
+          canonicalJsonDigest(body);
+      } catch {
+        throw new ProviderCallFailureDiagnosticError(
+          localProviderFailureDiagnostic({
+            phase: 'request_body_validation',
+            failureClass: 'local_request_validation',
+            observations,
+          }),
+          'visual_contract_authoring_adapter_policy_mismatch',
+        );
+      }
+      let apiKey: string;
+      try {
+        apiKey = readCredential();
+        observations.credentialReadSucceeded = true;
+      } catch {
+        throw new ProviderCallFailureDiagnosticError(
+          localProviderFailureDiagnostic({
+            phase: 'credential_read',
+            failureClass: 'credential_unavailable',
+            observations,
+          }),
+        );
+      }
+      let rawResponse: unknown;
+      try {
+        rawResponse = await transport.create({
+          apiKey,
+          body,
+          requestOptions,
+        });
+      } catch (error) {
+        if (
+          error instanceof
+          ProviderCallFailureDiagnosticError
+        ) {
+          throw error;
+        }
+        throw new ProviderCallFailureDiagnosticError(
+          classifyProviderFailure(
+            error,
+            observations,
+            OPENAI_SDK_ERROR_CLASSES,
+          ),
+        );
+      }
+      try {
+        return mapOpenAIResponsesAuthoringResponse(
+          rawResponse,
+        );
+      } catch (error) {
+        throw new ProviderCallFailureDiagnosticError(
+          classifyProviderFailure(
+            error,
+            observations,
+            OPENAI_SDK_ERROR_CLASSES,
+          ),
+        );
+      }
     },
   };
 }

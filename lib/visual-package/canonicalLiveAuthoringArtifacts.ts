@@ -19,6 +19,7 @@ export const CANONICAL_LIVE_AUTHORING_ARTIFACT_CATEGORIES =
     'authoring-requests',
     'rejected-authoring-requests',
     'authoring-receipts',
+    'provider-call-failure-evidence',
     'readiness-evidence',
     'contract-candidates',
   ] as const;

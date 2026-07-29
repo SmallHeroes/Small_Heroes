@@ -1035,6 +1035,69 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     expect(serialized).not.toContain(RAW_PROVIDER_ERROR);
     expect(serialized).not.toContain(FAKE_CREDENTIAL);
     expect(serialized).not.toContain('stack');
+    expect(result.providerFailureEvidence).toMatchObject({
+      version: 'provider-call-failure-evidence/v1',
+      failureClass: 'unclassified_adapter_failure',
+      phase: 'unknown_adapter',
+      adapterInvoked: true,
+      credentialReadSucceeded: true,
+      transportDispatchStarted: false,
+      httpResponseReceived: false,
+      httpStatus: null,
+      billingState: 'unknown_no_usage',
+      authoringRequestDigest: fixture.request.digest,
+      sourceSnapshotDigest: fixture.snapshot.digest,
+      authoringReceiptDigest: result.receipt.digest,
+    });
+    expect(
+      JSON.stringify(result.providerFailureEvidence),
+    ).not.toContain(RAW_PROVIDER_ERROR);
+    expect(
+      JSON.stringify(result.providerFailureEvidence),
+    ).not.toContain(FAKE_CREDENTIAL);
+  });
+
+  it('records an unknown injected provider without invented credential, transport, or HTTP observations', async () => {
+    const fixture = createLiveFixture(
+      'unknown-injected-provider-failure',
+    );
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async () => {
+        throw new Error(
+          `${RAW_PROVIDER_ERROR} ${FAKE_CREDENTIAL}`,
+        );
+      }),
+    };
+    const result = await runVisualContractAuthoring({
+      request: fixture.request,
+      snapshot: fixture.snapshot,
+      provider,
+    });
+    expect(result.receipt.failure?.code).toBe(
+      'provider_call_failed',
+    );
+    expect(result.receipt.attempts[0]?.providerReached).toBe(
+      true,
+    );
+    expect(result.providerFailureEvidence).toMatchObject({
+      phase: 'unknown_adapter',
+      failureClass: 'unclassified_adapter_failure',
+      adapterInvoked: true,
+      credentialReadSucceeded: false,
+      transportDispatchStarted: false,
+      httpResponseReceived: false,
+      httpStatus: null,
+      sdkErrorKind: 'unknown',
+      providerCodeClass: 'unknown',
+      parameterClass: 'unknown',
+      requestBodyDigest: null,
+      providerRequestIdDigest: null,
+    });
+    const serialized = JSON.stringify(
+      result.providerFailureEvidence,
+    );
+    expect(serialized).not.toContain(RAW_PROVIDER_ERROR);
+    expect(serialized).not.toContain(FAKE_CREDENTIAL);
   });
 
   it.each(['missing', 'wrong'])(
@@ -1555,6 +1618,280 @@ describe('canonical live authoring executable boundary', () => {
       'persist:readiness-evidence',
       'persist:contract-candidates',
     ]);
+    expect(
+      result.persistence.providerFailureEvidence,
+    ).toBeNull();
+  });
+
+  it('persists provider failure evidence between receipt and readiness and writes no candidate', async () => {
+    const fixture = createLiveFixture(
+      'provider-failure-write-order',
+    );
+    const events: string[] = [];
+    const store: CanonicalLiveAuthoringArtifactStore = {
+      prepare() {
+        events.push('prepare');
+      },
+      persist({ category, digest }) {
+        events.push(`persist:${category}`);
+        return {
+          path: `synthetic/${category}/${digest}.json`,
+          digest,
+          created: true,
+        };
+      },
+    };
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async () => {
+        events.push('provider');
+        throw new Error(RAW_PROVIDER_ERROR);
+      }),
+    };
+    const result =
+      await runCanonicalLiveVisualContractAuthoring(
+        fixtureInput(fixture),
+        {
+          provider,
+          artifactStoreFactory: () => store,
+        },
+      );
+    expect(result.status).toBe('failed');
+    expect(events).toEqual([
+      'prepare',
+      'persist:source-snapshots',
+      'persist:authoring-requests',
+      'provider',
+      'persist:authoring-receipts',
+      'persist:provider-call-failure-evidence',
+      'persist:readiness-evidence',
+    ]);
+    expect(
+      result.persistence.providerFailureEvidence,
+    ).toMatchObject({ created: true });
+    expect(result.persistence.candidate).toBeNull();
+  });
+
+  it('stops before readiness and candidate when provider failure evidence persistence fails', async () => {
+    const fixture = createLiveFixture(
+      'provider-failure-sidecar-write-failure',
+    );
+    const events: string[] = [];
+    const store: CanonicalLiveAuthoringArtifactStore = {
+      prepare() {
+        events.push('prepare');
+      },
+      persist({ category, digest }) {
+        events.push(`persist:${category}`);
+        if (category === 'provider-call-failure-evidence') {
+          throw new Error(
+            'injected provider failure sidecar write failure',
+          );
+        }
+        return {
+          path: `synthetic/${category}/${digest}.json`,
+          digest,
+          created: true,
+        };
+      },
+    };
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async () => {
+        throw new Error(RAW_PROVIDER_ERROR);
+      }),
+    };
+    await expect(
+      runCanonicalLiveVisualContractAuthoring(
+        fixtureInput(fixture),
+        {
+          provider,
+          artifactStoreFactory: () => store,
+        },
+      ),
+    ).rejects.toThrow(
+      /provider failure sidecar write failure/,
+    );
+    expect(events).toEqual([
+      'prepare',
+      'persist:source-snapshots',
+      'persist:authoring-requests',
+      'persist:authoring-receipts',
+      'persist:provider-call-failure-evidence',
+    ]);
+    expect(events).not.toContain(
+      'persist:readiness-evidence',
+    );
+    expect(events).not.toContain(
+      'persist:contract-candidates',
+    );
+  });
+
+  it('persists a deterministic linked failure sidecar with canonical no-overwrite behavior', async () => {
+    const fixture = createLiveFixture(
+      'provider-failure-sidecar-determinism',
+    );
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async () => {
+        throw new Error(
+          `${RAW_PROVIDER_ERROR} ${FAKE_CREDENTIAL}`,
+        );
+      }),
+    };
+    const first =
+      await runCanonicalLiveVisualContractAuthoring(
+        fixtureInput(fixture),
+        { provider },
+      );
+    const second =
+      await runCanonicalLiveVisualContractAuthoring(
+        fixtureInput(fixture),
+        { provider },
+      );
+    expect(
+      first.persistence.providerFailureEvidence,
+    ).toMatchObject({ created: true });
+    expect(
+      second.persistence.providerFailureEvidence,
+    ).toMatchObject({
+      created: false,
+      digest:
+        first.persistence.providerFailureEvidence?.digest,
+      path: first.persistence.providerFailureEvidence?.path,
+    });
+    const sidecarPath = path.join(
+      fixture.repoRoot,
+      first.persistence.providerFailureEvidence!.path,
+    );
+    const sidecar = JSON.parse(
+      fs.readFileSync(sidecarPath, 'utf8'),
+    ) as Record<string, unknown>;
+    expect(sidecar).toMatchObject({
+      version: 'provider-call-failure-evidence/v1',
+      authoringRequestDigest: fixture.request.digest,
+      sourceSnapshotDigest: fixture.snapshot.digest,
+      authoringReceiptDigest: first.receipt.digest,
+      attempt: { index: 1, kind: 'initial' },
+      billingState: 'unknown_no_usage',
+    });
+    const {
+      digestAlgorithm: _digestAlgorithm,
+      digest: _digest,
+      ...payload
+    } = sidecar;
+    expect(sidecar.digest).toBe(
+      canonicalJsonDigest(payload),
+    );
+    const serialized = JSON.stringify(sidecar);
+    expect(serialized).not.toContain(RAW_PROVIDER_ERROR);
+    expect(serialized).not.toContain(FAKE_CREDENTIAL);
+    expect(serialized).not.toContain('stack');
+    expect(serialized).not.toContain('cause');
+
+    const original = fs.readFileSync(sidecarPath, 'utf8');
+    fs.writeFileSync(
+      sidecarPath,
+      '{"collision":true}\n',
+      'utf8',
+    );
+    await expect(
+      runCanonicalLiveVisualContractAuthoring(
+        fixtureInput(fixture),
+        { provider },
+      ),
+    ).rejects.toThrow(/immutable artifact collision/);
+    fs.writeFileSync(sidecarPath, original, 'utf8');
+  });
+
+  it('persists real SDK quota evidence while legacy providerReached remains adapter-invocation compatibility only', async () => {
+    const fixture = createLiveFixture(
+      'provider-failure-real-sdk-quota',
+    );
+    const rawRequestId =
+      'req_RAW_REAL_SDK_ID_MUST_NOT_PERSIST';
+    const rawProviderMessage =
+      'RAW_REAL_SDK_MESSAGE_MUST_NOT_PERSIST';
+    const fetchSpy = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          error: {
+            message: rawProviderMessage,
+            code: 'insufficient_quota',
+            param: null,
+          },
+        }),
+        {
+          status: 429,
+          headers: {
+            'content-type': 'application/json',
+            'x-request-id': rawRequestId,
+          },
+        },
+      ),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+    const provider =
+      createOpenAIResponsesVisualContractAuthoringAdapter({
+        readCredential: () => FAKE_CREDENTIAL,
+      });
+    const result =
+      await runCanonicalLiveVisualContractAuthoring(
+        fixtureInput(fixture),
+        { provider },
+      );
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(result.receipt).toMatchObject({
+      status: 'failed',
+      callCount: 1,
+      repairCount: 0,
+      nominalEstimatedCostUsd: 0,
+      aggregateUsage: {
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+      },
+      failure: { code: 'provider_call_failed' },
+      attempts: [
+        {
+          providerReached: true,
+          usage: null,
+          nominalEstimatedCostUsd: null,
+          conservativeAccountedCostUsd: null,
+        },
+      ],
+    });
+    expect(
+      Math.abs(result.receipt.conservativeAccountedCostUsd),
+    ).toBe(0);
+    const sidecarPath = path.join(
+      fixture.repoRoot,
+      result.persistence.providerFailureEvidence!.path,
+    );
+    const sidecar = JSON.parse(
+      fs.readFileSync(sidecarPath, 'utf8'),
+    ) as Record<string, unknown>;
+    expect(sidecar).toMatchObject({
+      phase: 'http_response',
+      failureClass: 'provider_quota_exhausted',
+      adapterInvoked: true,
+      credentialReadSucceeded: true,
+      transportDispatchStarted: true,
+      httpResponseReceived: true,
+      httpStatus: 429,
+      sdkErrorKind: 'rate_limit_error',
+      providerCodeClass: 'insufficient_quota',
+      billingState: 'unknown_no_usage',
+      providerRequestIdDigest:
+        canonicalJsonDigest(rawRequestId),
+    });
+    expect(sidecar.requestBodyDigest).toMatch(
+      /^[a-f0-9]{64}$/,
+    );
+    expect(sidecar.requestOptionsDigest).toMatch(
+      /^[a-f0-9]{64}$/,
+    );
+    const serialized = JSON.stringify(sidecar);
+    expect(serialized).not.toContain(rawRequestId);
+    expect(serialized).not.toContain(rawProviderMessage);
+    expect(serialized).not.toContain(FAKE_CREDENTIAL);
   });
 
   it('uses canonical byte equality for D1A1 evidence key order and Unicode normalization', () => {
@@ -2208,11 +2545,26 @@ describe('canonical live authoring executable boundary', () => {
     );
     expect(first.persistence.readiness.created).toBe(true);
     expect(first.persistence.candidate?.created).toBe(true);
+    expect(
+      first.persistence.providerFailureEvidence,
+    ).toBeNull();
     expect(second.persistence.authoringReceipt.created).toBe(
       false,
     );
     expect(second.persistence.readiness.created).toBe(false);
     expect(second.persistence.candidate?.created).toBe(false);
+    expect(
+      second.persistence.providerFailureEvidence,
+    ).toBeNull();
+    expect(
+      fs.readdirSync(
+        path.join(
+          fixture.repoRoot,
+          fixture.outputDir,
+          'provider-call-failure-evidence',
+        ),
+      ),
+    ).toEqual([]);
 
     const serialized = allArtifactText(fixture.repoRoot);
     expect(serialized).not.toContain(FAKE_CREDENTIAL);

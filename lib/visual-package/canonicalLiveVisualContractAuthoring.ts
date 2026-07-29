@@ -74,6 +74,9 @@ export interface CanonicalLiveVisualContractAuthoringResult {
       | 'approved_live_request'
       | 'rejected_request_evidence';
     authoringReceipt: VisualContractAuthoringArtifactWrite;
+    providerFailureEvidence:
+      | VisualContractAuthoringArtifactWrite
+      | null;
     readiness: VisualContractAuthoringArtifactWrite;
     candidate: VisualContractAuthoringArtifactWrite | null;
   };
@@ -934,13 +937,23 @@ export async function runCanonicalLiveVisualContractAuthoring(
     requiredProviderEvidenceVersion:
       OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
   });
-  // Receipt is always the first post-call write. If it cannot become durable,
-  // no readiness or candidate artifact is attempted.
+  // Receipt is always the first post-call write. A provider-call failure then
+  // writes its additive sanitized sidecar before readiness. If either write
+  // cannot become durable, no readiness or candidate artifact is attempted.
   const authoringReceiptWrite = artifactStore.persist({
     category: 'authoring-receipts',
     digest: authored.receipt.digest,
     value: authored.receipt,
   });
+  const providerFailureEvidenceWrite =
+    authored.providerFailureEvidence
+      ? artifactStore.persist({
+          category: 'provider-call-failure-evidence',
+          digest:
+            authored.providerFailureEvidence.digest,
+          value: authored.providerFailureEvidence,
+        })
+      : null;
   const readiness =
     buildVisualContractAuthoringReadinessEvidence({
       snapshot: rebuiltSnapshot,
@@ -982,6 +995,8 @@ export async function runCanonicalLiveVisualContractAuthoring(
         ? 'approved_live_request'
         : 'rejected_request_evidence',
       authoringReceipt: authoringReceiptWrite,
+      providerFailureEvidence:
+        providerFailureEvidenceWrite,
       readiness: readinessWrite,
       candidate: candidateWrite,
     },

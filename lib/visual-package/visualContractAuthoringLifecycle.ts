@@ -68,6 +68,13 @@ import {
   writeCanonicalContentAddressedJsonArtifact,
 } from './canonicalContentAddressedJson';
 import {
+  ProviderCallFailureDiagnosticError,
+  buildProviderCallFailureEvidence,
+  unclassifiedAdapterFailureDiagnostic,
+  type ProviderCallFailureEvidence,
+  type SanitizedProviderFailureDiagnostic,
+} from './providerFailureDiagnostics';
+import {
   assertValidStorySourceAuthoritySnapshot,
   storySourceSnapshotToTemplateInput,
   type StorySourceAuthoritySnapshot,
@@ -299,6 +306,7 @@ export interface VisualContractAuthoringReceipt {
 export interface VisualContractAuthoringRunResult {
   receipt: VisualContractAuthoringReceipt;
   compileResult: TemplateCompileResult | null;
+  providerFailureEvidence: ProviderCallFailureEvidence | null;
 }
 
 export interface VisualContractAuthoringReadinessEvidence {
@@ -1324,6 +1332,7 @@ export async function runVisualContractAuthoring(args: {
         issues: requestIssues,
       }),
       compileResult: null,
+      providerFailureEvidence: null,
     };
   }
   if (args.request.mode === 'preflight') {
@@ -1359,6 +1368,7 @@ export async function runVisualContractAuthoring(args: {
         doesNotAuthorize: [...DOES_NOT_AUTHORIZE],
       }),
       compileResult: null,
+      providerFailureEvidence: null,
     };
   }
   if (!args.provider) {
@@ -1371,11 +1381,15 @@ export async function runVisualContractAuthoring(args: {
           'live mode requires one explicitly injected provider adapter',
       }),
       compileResult: null,
+      providerFailureEvidence: null,
     };
   }
 
   const attempts: VisualContractAuthoringAttemptReceipt[] =
     [];
+  let providerFailureDiagnostic:
+    | SanitizedProviderFailureDiagnostic
+    | null = null;
   const terminal: {
     code:
       | NonNullable<
@@ -1504,8 +1518,16 @@ export async function runVisualContractAuthoring(args: {
                 userPrompt,
                 options: expected,
               });
-            } catch {
+            } catch (error) {
               terminal.code = 'provider_call_failed';
+              providerFailureDiagnostic =
+                error instanceof
+                ProviderCallFailureDiagnosticError
+                  ? error.diagnostic
+                  : unclassifiedAdapterFailureDiagnostic({
+                      requestOptionsDigest:
+                        canonicalJsonDigest(expected),
+                    });
               attempts.push({
                 ...base,
                 providerReached: true,
@@ -1767,6 +1789,7 @@ export async function runVisualContractAuthoring(args: {
             ),
         }),
         compileResult: null,
+        providerFailureEvidence: null,
       };
     }
     const candidateDigest = canonicalJsonDigest(
@@ -1813,6 +1836,7 @@ export async function runVisualContractAuthoring(args: {
         doesNotAuthorize: [...DOES_NOT_AUTHORIZE],
       }),
       compileResult,
+      providerFailureEvidence: null,
     };
   } catch (error) {
     if (error instanceof TemplateRepairExhaustedError) {
@@ -1841,42 +1865,64 @@ export async function runVisualContractAuthoring(args: {
       (error instanceof ActionSemanticCapabilityGapError
         ? 'action_semantic_capability_gap'
         : 'validation_exhausted');
+    const receipt = failureReceipt({
+      request: args.request,
+      attempts,
+      code,
+      message:
+        code === 'provider_call_failed'
+          ? 'injected provider adapter failed; raw provider errors were discarded'
+          : code === 'provider_policy_mismatch'
+            ? 'provider execution differed from the exact approved request'
+            : code === 'input_token_ceiling_exceeded'
+              ? 'authoring stopped before provider reachability at the approved input-token ceiling'
+            : code === 'usage_invalid'
+              ? 'provider usage was missing or outside approved token bounds'
+              : code === 'provider_evidence_invalid'
+                ? 'provider response identity or output evidence was incomplete'
+                : code === 'completion_status_invalid'
+                  ? 'provider response did not report a completed result'
+              : code === 'cost_ceiling_exceeded'
+              ? 'authoring stopped at the approved hard cost ceiling'
+              : code === 'action_semantic_capability_gap'
+                ? 'initial whole-book output exposed closed-catalog capability gaps; semantic repair is forbidden under the same catalog'
+                : 'all bounded whole-book validation attempts failed',
+      issues: capabilityIssues,
+      ...(code === 'action_semantic_capability_gap'
+        ? {
+            actionSemanticCoverage:
+              receiptActionSemanticCoverage(
+                'capability_gap',
+                0,
+                capabilityIssues.length,
+              ),
+          }
+        : {}),
+    });
+    const failedAttempt =
+      attempts.length > 0
+        ? attempts[attempts.length - 1]
+        : undefined;
+    const providerFailureEvidence =
+      code === 'provider_call_failed' &&
+      providerFailureDiagnostic &&
+      failedAttempt
+        ? buildProviderCallFailureEvidence({
+            authoringRequestDigest: args.request.digest,
+            sourceSnapshotDigest: args.snapshot.digest,
+            authoringReceiptDigest: receipt.digest,
+            attemptIndex: failedAttempt.attempt,
+            attemptKind: failedAttempt.kind,
+            provider: args.request.provider,
+            endpoint: args.request.endpoint,
+            model: args.request.model,
+            diagnostic: providerFailureDiagnostic,
+          })
+        : null;
     return {
-      receipt: failureReceipt({
-        request: args.request,
-        attempts,
-        code,
-        message:
-          code === 'provider_call_failed'
-            ? 'injected provider adapter failed; raw provider errors were discarded'
-            : code === 'provider_policy_mismatch'
-              ? 'provider execution differed from the exact approved request'
-              : code === 'input_token_ceiling_exceeded'
-                ? 'authoring stopped before provider reachability at the approved input-token ceiling'
-              : code === 'usage_invalid'
-                ? 'provider usage was missing or outside approved token bounds'
-                : code === 'provider_evidence_invalid'
-                  ? 'provider response identity or output evidence was incomplete'
-                  : code === 'completion_status_invalid'
-                    ? 'provider response did not report a completed result'
-                : code === 'cost_ceiling_exceeded'
-                ? 'authoring stopped at the approved hard cost ceiling'
-                : code === 'action_semantic_capability_gap'
-                  ? 'initial whole-book output exposed closed-catalog capability gaps; semantic repair is forbidden under the same catalog'
-                  : 'all bounded whole-book validation attempts failed',
-        issues: capabilityIssues,
-        ...(code === 'action_semantic_capability_gap'
-          ? {
-              actionSemanticCoverage:
-                receiptActionSemanticCoverage(
-                  'capability_gap',
-                  0,
-                  capabilityIssues.length,
-                ),
-            }
-          : {}),
-      }),
+      receipt,
       compileResult: null,
+      providerFailureEvidence,
     };
   }
 }
